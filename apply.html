@@ -6,28 +6,21 @@
 <title>KB손해보험 VDI 사용자 포탈 - VDI 추가신청</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  /* nav 간격 축소 — Service Desk까지 보이도록 (portal.html과 동일) */
-  .sidebar .nav-item { padding: 9px 14px; font-size: 15.5px; }
-  .sidebar .nav-section { margin-bottom: 18px; }
-
-  .main { max-width: 1080px; }
+  .main { max-width: 1080px; margin: 0 auto; }
 
   /* ===== 단계 표시 바 ===== */
   .wizard-bar {
-    background: #fff;
+    background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: var(--r-lg);
     padding: 18px 24px;
     margin-bottom: 18px;
     display: flex;
     justify-content: center;
+    box-shadow: var(--shadow-sm);
   }
   .wizard-bar .flow-step { padding: 5px 14px; }
   .wizard-bar .flow-arrow { width: 34px; }
-  .flow-step.done .flow-num {
-    border-color: var(--success); background: var(--success); color: #fff;
-  }
-  .flow-step.done .flow-name { color: var(--text-secondary); font-weight: 600; }
 
   /* ===== 폼 행 ===== */
   .frow {
@@ -68,7 +61,7 @@
     padding: 16px 16px 15px;
     cursor: pointer;
     transition: all 0.15s;
-    background: #fff;
+    background: var(--surface);
     position: relative;
   }
   .type-card:hover { border-color: var(--kb-yellow-dark); background: #FFFDF6; }
@@ -99,7 +92,7 @@
   /* 사양 선택 그리드 */
   .spec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   .spec-block {
-    border: 1px solid var(--border); border-radius: 11px; overflow: hidden; background: #fff;
+    border: 1px solid var(--border); border-radius: 11px; overflow: hidden; background: var(--surface);
   }
   .spec-block-head {
     padding: 11px 15px; background: var(--bg-subtle);
@@ -203,9 +196,7 @@
 
 <!-- TOP HEADER -->
 <header class="top-header">
-  <div class="header-logo">
-    <span class="header-logo-text">KB손해보험</span>
-  </div>
+  <div class="header-logo"><span class="header-logo-text">KB손해보험</span></div>
   <div class="header-divider"></div>
   <div class="header-service-name">업무가상화 사용자 포탈</div>
   <div class="header-divider"></div>
@@ -247,87 +238,59 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="nav-section">
-      <div class="nav-label">Workspace</div>
-      <a class="nav-item" href="portal.html" data-key="mypc">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="2" y="3" width="20" height="14" rx="2"/>
-          <line x1="8" y1="21" x2="16" y2="21"/>
-          <line x1="12" y1="17" x2="12" y2="21"/>
-        </svg>
-        내 가상PC
-      </a>
+    <div style="flex:1">
+      <div class="nav-section">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="portal.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          내 가상PC
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">신청 · 결재</div>
+        <a class="nav-item active" href="apply.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          VDI 추가신청
+        </a>
+        <a class="nav-item" href="change.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          변경 · 증설 · 반납
+        </a>
+        <a class="nav-item" href="approval.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          결재 현황
+          <span class="nav-item-badge">2</span>
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">지원 · 서비스</div>
+        <a class="nav-item" href="incident.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          장애신고 내역
+        </a>
+        <a class="nav-item" href="notice.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          공지사항
+        </a>
+        <a class="nav-item" href="faq.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          FAQ
+        </a>
+        <a class="nav-item" href="qna.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          자료실
+        </a>
+      </div>
     </div>
 
-    <div class="nav-section">
-      <div class="nav-label">신청 · 결재</div>
-      <a class="nav-item active" href="apply.html" data-key="apply">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="12" y1="18" x2="12" y2="12"/>
-          <line x1="9" y1="15" x2="15" y2="15"/>
-        </svg>
-        VDI 추가신청
-      </a>
-      <a class="nav-item" href="change.html" data-key="change">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="23 4 23 10 17 10"/>
-          <polyline points="1 20 1 14 7 14"/>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>
-        변경 · 증설 · 반납
-      </a>
-      <a class="nav-item" href="approval.html" data-key="approval">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 11l3 3L22 4"/>
-          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-        </svg>
-        결재 현황
-        <span class="nav-item-badge">2</span>
-      </a>
-    </div>
-
-    <div class="nav-section">
-      <div class="nav-label">지원 · 서비스</div>
-      <a class="nav-item" href="incident.html" data-key="incident">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-          <line x1="12" y1="9" x2="12" y2="13"/>
-          <line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-        장애신고 내역
-      </a>
-      <a class="nav-item" href="notice.html" data-key="notice">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-        공지사항
-      </a>
-      <a class="nav-item" href="faq.html" data-key="faq">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-          <line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-        FAQ
-      </a>
-      <a class="nav-item" href="qna.html" data-key="qna">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        </svg>
-        자료실
-      </a>
-    </div>
-
-    <div class="nav-section" style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:0">
-      <a class="nav-item" href="tel:15448119" style="flex-direction:column;align-items:flex-start;gap:4px;padding:14px 14px">
-        <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--text-primary)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;flex-shrink:0"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+    <div class="sidebar-bottom">
+      <a class="support-card" href="tel:15448119" style="display:block">
+        <div class="support-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           Service Desk
         </div>
-        <div style="font-size:13px;color:var(--text-tertiary);padding-left:28px">VDI 관련 문의 · 평일 09:00~18:00</div>
-        <div style="font-size:17px;font-weight:800;color:var(--kb-dark);padding-left:28px;letter-spacing:-0.02em;font-variant-numeric:tabular-nums">1544-8119</div>
+        <div class="support-desc">VDI 관련 문의 · 평일 09:00~18:00</div>
+        <div class="support-tel">1544-8119</div>
       </a>
     </div>
   </aside>
@@ -335,7 +298,7 @@
   <!-- MAIN -->
   <main class="main">
 
-    <div class="breadcrumb">
+    <div class="breadcrumb reveal">
       <a href="portal.html">홈</a>
       <span class="breadcrumb-sep">›</span>
       <span>신청 · 결재</span>
@@ -343,7 +306,7 @@
       <span style="color:var(--text-secondary);font-weight:600">VDI 추가신청</span>
     </div>
 
-    <div class="page-header">
+    <div class="page-header reveal" style="animation-delay:.06s">
       <div class="page-header-left">
         <h1 class="page-title">VDI 추가신청</h1>
         <p class="page-desc">업무용 가상PC를 신규로 신청합니다. 신청 후 결재 승인을 거쳐 가상PC가 생성됩니다.</p>
@@ -351,7 +314,7 @@
     </div>
 
     <!-- 단계 표시 바 -->
-    <div class="wizard-bar">
+    <div class="wizard-bar reveal" style="animation-delay:.12s">
       <div class="flow-steps" id="flowSteps">
         <div class="flow-step active" data-step="1">
           <div class="flow-num">1</div>
