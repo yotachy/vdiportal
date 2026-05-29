@@ -1,0 +1,21 @@
+# KB VDI 사용자 포탈 — /portal/ 전용 Apache 설정 (cafe24)
+# park(parksvc) 루트 .htaccess 의 ErrorDocument/RewriteRule 상속을 끊어
+# 존재하지 않는 경로가 시인 홈(/404.php) 으로 가지 않도록 한다.
+
+AddDefaultCharset UTF-8
+Options -Indexes
+
+# 루트 진입 시 로그인 페이지
+DirectoryIndex login.html
+
+# 새 rewrite 컨텍스트 시작 — 루트의 .php 폴백/poems 등 규칙이 여기서는 동작하지 않음
+RewriteEngine On
+RewriteBase /portal/
+
+# 실제 파일/디렉토리는 그대로 서빙, 그 외(없는 경로)는 포탈 로그인으로 유도
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ login.html [L,R=302]
+
+# 그래도 발생하는 404 는 parksvc 가 아닌 포탈 안에서 처리
+ErrorDocument 404 /portal/login.html

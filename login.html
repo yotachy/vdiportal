@@ -6,644 +6,240 @@
 <title>KB손해보험 VDI 사용자 포탈 - 로그인</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  /* common.css의 zoom:1.25 리셋 — 로그인은 독립 레이아웃 */
-  html { zoom: 1; }
-  body {
-    display: flex;
-    flex-direction: row;
-    height: 100vh;
-    min-height: 100vh;
-    overflow: hidden;
+  /* 로그인 줌 0.97 — 전체화면이라 100vh 를 줌으로 보정 */
+  html { zoom: 0.97; }
+  body{
+    display:flex;flex-direction:row;
+    height:calc(100vh / 0.97);min-height:calc(100vh / 0.97);
+    overflow:hidden;background:var(--surface);
   }
 
-  /* 좌측 브랜드 패널 */
-  .brand-panel {
-    flex: 1.2;
-    background: linear-gradient(135deg, #2A2620 0%, #3D3730 60%, #1A1814 100%);
-    position: relative;
-    padding: 56px 64px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    overflow: hidden;
+  /* ===== 좌측 브랜드 패널 (웜 크림 라이트) ===== */
+  .brand-panel{
+    flex:1.04;position:relative;overflow:hidden;
+    padding:54px 60px;display:flex;flex-direction:column;justify-content:space-between;
+    background:
+      radial-gradient(680px 480px at 88% 8%, rgba(255,188,0,.16), transparent 60%),
+      linear-gradient(158deg,#FDFBF5 0%,#F7F1E4 58%,#F1E8D4 100%);
+    border-right:1px solid var(--kb-yellow-line);
   }
+  /* 시그니처 스파크(별) 라인아트 */
+  .brand-spark{position:absolute;right:-90px;bottom:-70px;width:520px;height:520px;
+    color:var(--kb-yellow);opacity:.16;pointer-events:none}
+  .brand-spark.sm{right:auto;left:54%;top:14%;width:120px;height:120px;opacity:.22;bottom:auto}
+  /* 미세 도트 텍스처 */
+  .brand-panel::after{content:'';position:absolute;inset:0;pointer-events:none;
+    background-image:radial-gradient(rgba(26,23,20,.045) 1px, transparent 1px);
+    background-size:22px 22px;mask-image:linear-gradient(160deg,transparent,#000 70%)}
 
-  .brand-panel::before {
-    content: '';
-    position: absolute;
-    top: -200px;
-    right: -200px;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(255,188,0,0.15) 0%, transparent 70%);
-    pointer-events: none;
-  }
+  .brand-logo{display:flex;align-items:center;gap:13px;position:relative;z-index:2}
+  .brand-mark{width:46px;height:46px;background:var(--kb-yellow);border-radius:13px;
+    display:flex;align-items:center;justify-content:center;color:var(--ink);
+    box-shadow:0 6px 16px rgba(255,188,0,.4)}
+  .brand-mark svg{width:26px;height:26px}
+  .brand-wordmark{font-size:21px;font-weight:800;letter-spacing:-0.03em;color:var(--ink)}
 
-  .brand-panel::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: 
-      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-  }
+  .brand-content{position:relative;z-index:2;margin-top:auto;padding-top:40px}
+  .brand-eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:12.5px;font-weight:800;
+    color:#8A6A00;letter-spacing:.05em;margin-bottom:22px;
+    padding:7px 13px;border:1px solid var(--kb-yellow-line);border-radius:100px;background:rgba(255,188,0,.1)}
+  .brand-eyebrow::before{content:'';width:6px;height:6px;background:var(--kb-yellow-dark);border-radius:50%}
+  .brand-title{color:var(--ink);font-size:52px;font-weight:800;line-height:1.16;letter-spacing:-0.04em;margin-bottom:22px}
+  .brand-title em{font-style:normal;position:relative;white-space:nowrap}
+  .brand-title em::after{content:'';position:absolute;left:0;right:0;bottom:6px;height:14px;
+    background:var(--kb-yellow);opacity:.42;z-index:-1;border-radius:3px}
+  .brand-subtitle{color:var(--text-secondary);font-size:18px;line-height:1.7;max-width:440px;font-weight:500}
 
-  .brand-logo {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    position: relative;
-    z-index: 2;
-  }
+  .brand-footer{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;
+    padding-top:34px;margin-top:34px;border-top:1px solid rgba(26,23,20,.1)}
+  .brand-foot-label{font-size:12px;color:var(--text-tertiary);letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-bottom:5px}
+  .brand-foot-tel{font-size:20px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-0.02em;display:flex;align-items:center;gap:9px}
+  .brand-foot-tel svg{width:18px;height:18px;color:var(--kb-yellow-dark)}
+  .brand-version{font-size:13px;color:var(--text-tertiary);font-weight:600;font-variant-numeric:tabular-nums}
 
-  .brand-logo-mark {
-    width: 48px;
-    height: 48px;
-    background: var(--kb-yellow);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 900;
-    font-size: 22px;
-    color: var(--kb-dark);
-    letter-spacing: -0.05em;
-  }
+  /* ===== 우측 로그인 패널 ===== */
+  .login-panel{flex:.96;background:var(--surface);display:flex;align-items:center;justify-content:center;
+    padding:48px;position:relative}
+  .login-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--kb-yellow),#FFD24D 60%,var(--kb-yellow))}
+  .login-box{width:100%;max-width:418px}
+  .login-header{margin-bottom:34px}
+  .login-step-indicator{display:flex;align-items:center;gap:9px;margin-bottom:22px;font-size:12.5px;
+    color:var(--text-tertiary);letter-spacing:.06em;font-weight:700}
+  .step-dot{width:26px;height:3px;background:var(--border);border-radius:3px;transition:all .3s ease}
+  .step-dot.active{background:var(--kb-yellow)}
+  .login-title{font-size:34px;font-weight:800;letter-spacing:-0.035em;margin-bottom:9px;color:var(--ink)}
+  .login-desc{font-size:16px;color:var(--text-secondary);line-height:1.55}
+  .login-desc strong{color:var(--ink);font-weight:700}
 
-  .brand-logo-text {
-    color: #fff;
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-  }
+  .step-container{display:none;animation:fadeSlide .42s cubic-bezier(.22,.7,.27,1)}
+  .step-container.active{display:block}
+  @keyframes fadeSlide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-  .brand-content {
-    position: relative;
-    z-index: 2;
-    margin-top: auto;
-  }
+  .form-group{margin-bottom:18px}
+  .form-label{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;
+    color:var(--text-primary);margin-bottom:9px;letter-spacing:-0.01em}
+  .form-label-hint{font-size:13px;color:var(--text-tertiary);font-weight:500}
+  .form-input-wrap{position:relative}
+  .form-input{width:100%;height:56px;padding:0 18px 0 48px;border:1.5px solid var(--border-strong);
+    border-radius:12px;font-size:16px;font-family:inherit;background:var(--surface);color:var(--text-primary);
+    transition:all .15s ease;letter-spacing:-0.01em}
+  .form-input:hover{border-color:#BDB5A7}
+  .form-input:focus{outline:none;border-color:var(--kb-yellow-dark);box-shadow:0 0 0 4px rgba(255,188,0,.18)}
+  .form-input::placeholder{color:#B6AE9F}
+  .form-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:19px;height:19px;color:var(--text-tertiary);pointer-events:none}
+  .form-input.has-toggle{padding-right:50px}
+  .pw-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:38px;height:38px;
+    display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--text-tertiary);
+    cursor:pointer;border-radius:9px;transition:all .15s}
+  .pw-toggle:hover{color:var(--ink);background:var(--bg-subtle)}
+  .pw-toggle svg{width:19px;height:19px}
 
-  .brand-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--kb-yellow);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 24px;
-    padding: 7px 14px;
-    border: 1px solid rgba(255,188,0,0.3);
-    border-radius: 4px;
-    background: rgba(255,188,0,0.05);
-  }
-
-  .brand-eyebrow::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    background: var(--kb-yellow);
-    border-radius: 50%;
-    box-shadow: 0 0 8px var(--kb-yellow);
-  }
-
-  .brand-title {
-    color: #fff;
-    font-size: 60px;
-    font-weight: 800;
-    line-height: 1.15;
-    letter-spacing: -0.03em;
-    margin-bottom: 22px;
-  }
-
-  .brand-title em {
-    font-style: normal;
-    color: var(--kb-yellow);
-  }
-
-  .brand-subtitle {
-    color: rgba(255,255,255,0.7);
-    font-size: 20px;
-    line-height: 1.7;
-    max-width: 460px;
-    font-weight: 400;
-  }
-
-  .brand-footer {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    padding-top: 40px;
-    border-top: 1px solid rgba(255,255,255,0.08);
-  }
-
-  .brand-footer-info {
-    display: flex;
-    gap: 32px;
-  }
-
-  .brand-footer-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .brand-footer-label {
-    font-size: 14px;
-    color: rgba(255,255,255,0.4);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-
-  .brand-footer-value {
-    font-size: 17px;
-    color: rgba(255,255,255,0.85);
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .brand-version {
-    font-size: 14px;
-    color: rgba(255,255,255,0.3);
-    font-family: 'SF Mono', Menlo, monospace;
-  }
-
-  /* 우측 로그인 패널 */
-  .login-panel {
-    flex: 1;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 56px;
-    position: relative;
-  }
-
-  .login-panel::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--kb-yellow);
-  }
-
-  .login-box {
-    width: 100%;
-    max-width: 460px;
-  }
-
-  .login-header {
-    margin-bottom: 48px;
-  }
-
-  .login-step-indicator {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 28px;
-    font-size: 15px;
-    color: var(--text-tertiary);
-    letter-spacing: 0.05em;
-  }
-
-  .step-dot {
-    width: 24px;
-    height: 2px;
-    background: var(--border);
-    transition: all 0.3s ease;
-  }
-
-  .step-dot.active {
-    background: var(--kb-yellow);
-  }
-
-  .login-title {
-    font-size: 42px;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    margin-bottom: 10px;
-    color: var(--text-primary);
-  }
-
-  .login-desc {
-    font-size: 19px;
-    color: var(--text-secondary);
-    line-height: 1.6;
-  }
-
-  /* Step Container */
-  .step-container {
-    display: none;
-    animation: fadeSlide 0.4s ease;
-  }
-
-  .step-container.active {
-    display: block;
-  }
-
-  @keyframes fadeSlide {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .form-group {
-    margin-bottom: 20px;
-  }
-
-  .form-label {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 10px;
-    letter-spacing: -0.01em;
-  }
-
-  .form-label-hint {
-    font-size: 14px;
-    color: var(--text-tertiary);
-    font-weight: 400;
-  }
-
-  .form-input-wrap {
-    position: relative;
-  }
-
-  .form-input {
-    width: 100%;
-    height: 64px;
-    padding: 0 22px 0 52px;
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    font-size: 18px;
-    font-family: inherit;
-    background: #fff;
-    color: var(--text-primary);
-    transition: all 0.15s ease;
-    letter-spacing: -0.01em;
-  }
-
-  .form-input:hover {
-    border-color: #999;
-  }
-
-  .form-input:focus {
-    outline: none;
-    border-color: var(--kb-dark);
-    box-shadow: 0 0 0 3px rgba(255,188,0,0.2);
-  }
-
-  .form-input::placeholder {
-    color: #B0B0B0;
-  }
-
-  .form-icon {
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
-    color: var(--text-tertiary);
-    pointer-events: none;
-  }
-
-  /* OTP 입력 */
-  .otp-wrapper {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 8px;
-    margin-bottom: 24px;
-    width: 100%;
-  }
-
-  .otp-digit {
-    width: 100%;
-    min-width: 0;
-    height: 76px;
-    padding: 0;
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    background: var(--bg-subtle);
-    font-size: 32px;
-    font-weight: 700;
-    text-align: center;
-    color: var(--text-primary);
-    font-family: 'SF Mono', Menlo, monospace;
-    transition: all 0.15s ease;
-  }
-
-  .otp-digit:focus {
-    outline: none;
-    background: #fff;
-    border-color: var(--kb-dark);
-    box-shadow: 0 0 0 3px rgba(255,188,0,0.2);
-  }
-
-  .otp-digit.filled {
-    background: #fff;
-    border-color: var(--kb-dark);
-  }
-
-  /* OTP 타이머 */
-  .otp-timer-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    background: #FFF9E6;
-    border: 1px solid #FFE49A;
-    border-radius: 6px;
-    margin-bottom: 20px;
-  }
-
-  .otp-timer-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 16px;
-    color: #8B6B00;
-    font-weight: 500;
-  }
-
-  .otp-timer-info svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .otp-timer-value {
-    font-family: 'SF Mono', Menlo, monospace;
-    font-weight: 700;
-    font-size: 21px;
-    color: var(--danger);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
-  }
-
-  .otp-resend {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 16px;
-    cursor: pointer;
-    font-family: inherit;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    font-weight: 500;
-  }
-
-  .otp-resend:hover {
-    color: var(--kb-dark);
-  }
-
-  .otp-info-text {
-    font-size: 16px;
-    color: var(--text-secondary);
-    line-height: 1.6;
-    padding: 14px 16px;
-    background: var(--bg-subtle);
-    border-radius: 6px;
-    margin-bottom: 24px;
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
-
-  .otp-info-text strong {
-    color: var(--text-primary);
-    font-weight: 600;
-  }
+  /* OTP */
+  .otp-wrapper{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:22px;width:100%}
+  .otp-digit{width:100%;min-width:0;height:64px;padding:0;border:1.5px solid var(--border-strong);border-radius:12px;
+    background:var(--bg-subtle);font-size:28px;font-weight:800;text-align:center;color:var(--ink);
+    font-variant-numeric:tabular-nums;transition:all .15s ease}
+  .otp-digit:focus{outline:none;background:var(--surface);border-color:var(--kb-yellow-dark);box-shadow:0 0 0 4px rgba(255,188,0,.18)}
+  .otp-digit.filled{background:var(--surface);border-color:var(--kb-yellow-dark)}
+  .otp-timer-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;
+    background:var(--kb-yellow-soft);border:1px solid var(--kb-yellow-line);border-radius:12px;margin-bottom:18px}
+  .otp-timer-info{display:flex;align-items:center;gap:10px;font-size:14px;color:#8A6A00;font-weight:700}
+  .otp-timer-info svg{width:17px;height:17px}
+  .otp-timer-value{font-weight:800;font-size:19px;color:var(--danger);font-variant-numeric:tabular-nums}
+  .otp-info-text{font-size:14px;color:var(--text-secondary);line-height:1.6;padding:13px 15px;
+    background:var(--bg-subtle);border-radius:12px;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start}
+  .otp-info-text strong{color:var(--ink);font-weight:700}
+  .otp-info-text svg{width:16px;height:16px;flex-shrink:0;margin-top:2px;color:var(--text-tertiary)}
+  .otp-resend{background:none;border:none;color:var(--text-secondary);font-size:14px;cursor:pointer;
+    font-family:inherit;text-decoration:underline;text-underline-offset:3px;font-weight:700}
+  .otp-resend:hover{color:var(--ink)}
 
   /* 버튼 */
-  .btn {
-    width: 100%;
-    height: 64px;
-    border: none;
-    border-radius: 8px;
-    font-size: 18px;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    letter-spacing: -0.01em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
+  .lbtn{width:100%;height:56px;border:none;border-radius:12px;font-size:16px;font-weight:800;font-family:inherit;
+    cursor:pointer;transition:all .16s ease;letter-spacing:-0.01em;display:flex;align-items:center;justify-content:center;gap:9px}
+  .lbtn-primary{background:var(--kb-yellow);color:var(--ink);box-shadow:var(--shadow-sm)}
+  .lbtn-primary:hover{background:var(--kb-yellow-dark);transform:translateY(-1px);box-shadow:var(--shadow-yellow)}
+  .lbtn-primary:active{transform:translateY(0)}
+  .lbtn-secondary{background:transparent;color:var(--text-secondary);margin-top:8px;height:48px;font-weight:700;font-size:15px}
+  .lbtn-secondary:hover{color:var(--ink)}
 
-  .btn-primary {
-    background: var(--kb-yellow);
-    color: var(--kb-dark);
-  }
+  .login-options{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+  .checkbox-wrap{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:14.5px;color:var(--text-secondary);user-select:none;font-weight:600}
+  .checkbox-wrap input{width:18px;height:18px;accent-color:var(--kb-yellow-dark);cursor:pointer}
+  .login-help{font-size:14px;color:var(--text-secondary);font-weight:700}
+  .login-help:hover{color:var(--ink)}
 
-  .btn-primary:hover {
-    background: var(--kb-yellow-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 8px 20px rgba(255,188,0,0.35);
-  }
+  .login-notice{margin-top:30px;padding:18px 20px;background:var(--bg-subtle);border:1px solid var(--border);
+    border-left:3px solid var(--kb-yellow);border-radius:0 12px 12px 0}
+  .login-notice-title{font-size:14px;font-weight:800;color:var(--ink);margin-bottom:7px;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px}
+  .login-notice-title svg{width:15px;height:15px;color:var(--kb-yellow-dark)}
+  .login-notice-desc{font-size:13.5px;color:var(--text-secondary);line-height:1.6}
 
-  .btn-primary:active {
-    transform: translateY(0);
-  }
-
-  .btn-secondary {
-    background: transparent;
-    color: var(--text-secondary);
-    margin-top: 8px;
-    height: 52px;
-    font-weight: 500;
-    font-size: 16px;
-  }
-
-  .btn-secondary:hover {
-    color: var(--text-primary);
-  }
-
-  /* 보조 옵션 */
-  .login-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 28px;
-  }
-
-  .checkbox-wrap {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    color: var(--text-secondary);
-    user-select: none;
-  }
-
-  .checkbox-wrap input {
-    width: 20px;
-    height: 20px;
-    accent-color: var(--kb-yellow);
-    cursor: pointer;
-  }
-
-  .login-help {
-    font-size: 16px;
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-weight: 500;
-  }
-
-  .login-help:hover {
-    color: var(--kb-dark);
-  }
-
-  /* 하단 고지 */
-  .login-notice {
-    margin-top: 44px;
-    padding: 22px;
-    background: var(--bg-subtle);
-    border-left: 3px solid var(--kb-yellow);
-    border-radius: 0 4px 4px 0;
-  }
-
-  .login-notice-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-    letter-spacing: -0.01em;
-  }
-
-  .login-notice-desc {
-    font-size: 15px;
-    color: var(--text-secondary);
-    line-height: 1.6;
-  }
-
-  /* 반응형 */
-  @media (max-width: 960px) {
-    body { flex-direction: column; }
-    .brand-panel { flex: 0 0 auto; padding: 32px; }
-    .brand-title { font-size: 32px; }
-    .brand-subtitle { font-size: 17px; }
-    .brand-content { margin-top: 24px; }
-    .brand-footer { display: none; }
-    .login-panel { padding: 40px 24px; }
-    .login-title { font-size: 32px; }
+  @media (max-width:960px){
+    body{flex-direction:column;height:auto;min-height:calc(100vh / 0.97);overflow-y:auto}
+    .brand-panel{flex:0 0 auto;padding:34px 28px}
+    .brand-content{padding-top:24px}
+    .brand-title{font-size:34px}.brand-subtitle{font-size:16px}
+    .brand-spark{width:320px;height:320px}.brand-footer{display:none}
+    .login-panel{padding:40px 24px}.login-title{font-size:30px}
   }
 </style>
 </head>
 <body>
-  <!-- 좌측 브랜드 영역 -->
+  <!-- 좌측 브랜드 -->
   <aside class="brand-panel">
+    <!-- 시그니처 스파크 -->
+    <svg class="brand-spark" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+      <path d="M50 2 C54 32,68 46,98 50 C68 54,54 68,50 98 C46 68,32 54,2 50 C32 46,46 32,50 2 Z"/>
+    </svg>
+    <svg class="brand-spark sm" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+      <path d="M50 2 C54 32,68 46,98 50 C68 54,54 68,50 98 C46 68,32 54,2 50 C32 46,46 32,50 2 Z"/>
+    </svg>
+
     <div class="brand-logo">
-      <span class="brand-logo-text">KB손해보험</span>
+      <span class="brand-mark">
+        <svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 6 C54 34,66 46,94 50 C66 54,54 66,50 94 C46 66,34 54,6 50 C34 46,46 34,50 6 Z"/></svg>
+      </span>
+      <span class="brand-wordmark">KB손해보험</span>
     </div>
 
     <div class="brand-content">
       <span class="brand-eyebrow">업무가상화 사용자 포탈</span>
-      <h1 class="brand-title">
-        언제 어디서나<br>
-        <em>안전한 업무 환경</em>
-      </h1>
-      <p class="brand-subtitle">
-        KB손해보험 임직원을 위한 업무가상화 사용자 포탈입니다.<br>
-        통합 인증과 2차 보안 인증을 통해 안전하게 접속하세요.
-      </p>
+      <h1 class="brand-title">언제 어디서나<br><em>안전한 업무 환경</em></h1>
+      <p class="brand-subtitle">KB손해보험 임직원을 위한 업무가상화 포탈입니다. 통합 인증과 2차 보안 인증으로 안전하게 접속하세요.</p>
     </div>
 
     <div class="brand-footer">
-      <div class="brand-footer-info">
-        <div class="brand-footer-item">
-          <span class="brand-footer-label">헬프데스크</span>
-          <span class="brand-footer-value">1544-8119</span>
+      <div>
+        <div class="brand-foot-label">헬프데스크</div>
+        <div class="brand-foot-tel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          1544-8119
         </div>
       </div>
       <div class="brand-version">v 2.0.0 · 2026</div>
     </div>
   </aside>
 
-  <!-- 우측 로그인 영역 -->
+  <!-- 우측 로그인 -->
   <main class="login-panel">
     <div class="login-box">
 
-      <!-- STEP 1: ID / PW -->
+      <!-- STEP 1 -->
       <div class="step-container active" id="step1">
         <div class="login-header">
           <div class="login-step-indicator">
-            <div class="step-dot active"></div>
-            <div class="step-dot"></div>
+            <div class="step-dot active"></div><div class="step-dot"></div>
             <span>STEP 1 / 2</span>
           </div>
           <h2 class="login-title">로그인</h2>
-          <p class="login-desc">마이포탈 ID로 로그인 하세요.</p>
+          <p class="login-desc">마이포탈 ID로 로그인하세요.</p>
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="userId">
-            포탈 ID
-          </label>
+          <label class="form-label" for="userId">포탈 ID</label>
           <div class="form-input-wrap">
-            <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
+            <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <input type="text" id="userId" class="form-input" placeholder="포탈 ID를 입력하세요" autocomplete="username" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('userPw').focus();}">
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="userPw">
-            비밀번호
-            
-          </label>
+          <label class="form-label" for="userPw">비밀번호</label>
           <div class="form-input-wrap">
-            <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="11" rx="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <input type="password" id="userPw" class="form-input" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();goStep2();}">
+            <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="userPw" class="form-input has-toggle" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();goStep2();}">
+            <button type="button" class="pw-toggle" id="pwToggle" onclick="togglePw(this)" aria-label="비밀번호 표시" title="비밀번호 표시">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
           </div>
         </div>
 
         <div class="login-options">
-          <label class="checkbox-wrap">
-            <input type="checkbox">
-            <span>포탈ID 저장</span>
-          </label>
-          <a href="#" class="login-help">헬프데스크 문의</a>
+          <label class="checkbox-wrap"><input type="checkbox"><span>포탈 ID 저장</span></label>
+          <a href="tel:15448119" class="login-help">헬프데스크 1544-8119</a>
         </div>
 
-        <button class="btn btn-primary" onclick="goStep2()">
+        <button class="lbtn lbtn-primary" onclick="goStep2()">
           다음 단계
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-            <polyline points="12 5 19 12 12 19"/>
-          </svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
 
         <div class="login-notice">
-          <div class="login-notice-title">본 시스템은 KB손해보험 임직원 전용입니다.</div>
-          <div class="login-notice-desc">
-            모든 접속 기록은 보안 정책에 따라 저장되며, 5회 이상 로그인 실패 시 계정이 잠김 처리됩니다.
+          <div class="login-notice-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            본 시스템은 KB손해보험 임직원 전용입니다.
           </div>
+          <div class="login-notice-desc">모든 접속 기록은 보안 정책에 따라 저장되며, 5회 이상 로그인 실패 시 계정이 잠김 처리됩니다.</div>
         </div>
       </div>
 
-      <!-- STEP 2: OTP -->
+      <!-- STEP 2 -->
       <div class="step-container" id="step2">
         <div class="login-header">
           <div class="login-step-indicator">
-            <div class="step-dot active"></div>
-            <div class="step-dot active"></div>
+            <div class="step-dot active"></div><div class="step-dot active"></div>
             <span>STEP 2 / 2</span>
           </div>
           <h2 class="login-title">2차 인증</h2>
@@ -652,20 +248,14 @@
 
         <div class="otp-timer-bar">
           <div class="otp-timer-info">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             <span>남은 시간</span>
           </div>
           <span class="otp-timer-value" id="timer">02:59</span>
         </div>
 
         <div class="form-group">
-          <label class="form-label">
-            인증번호 입력
-            <span class="form-label-hint">숫자 6자리</span>
-          </label>
+          <label class="form-label">인증번호 입력 <span class="form-label-hint">숫자 6자리</span></label>
           <div class="otp-wrapper" id="otpWrapper">
             <input type="text" class="otp-digit" maxlength="1" inputmode="numeric">
             <input type="text" class="otp-digit" maxlength="1" inputmode="numeric">
@@ -677,133 +267,102 @@
         </div>
 
         <div class="otp-info-text">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0; margin-top:2px;">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="16" x2="12" y2="12"/>
-            <line x1="12" y1="8" x2="12.01" y2="8"/>
-          </svg>
-          <div>
-            <strong>앱알리미</strong>에서 인증번호를 확인하지 못하신 경우, 아래 <strong>재전송</strong> 버튼을 눌러주세요.
-          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div><strong>앱알리미</strong>에서 인증번호를 확인하지 못하신 경우, 아래 <strong>재전송</strong> 버튼을 눌러주세요.</div>
         </div>
 
-        <div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:18px">
           <button class="otp-resend" onclick="resendOtp()">인증번호 재전송</button>
         </div>
 
-        <button class="btn btn-primary" onclick="location.href='portal.html'">
+        <button class="lbtn lbtn-primary" onclick="location.href='portal.html'">
           로그인
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M20 6L9 17l-5-5"/>
-          </svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
         </button>
-
-        <button class="btn btn-secondary" onclick="goStep1()">← 이전으로 돌아가기</button>
+        <button class="lbtn lbtn-secondary" onclick="goStep1()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          이전으로 돌아가기
+        </button>
       </div>
 
     </div>
   </main>
 
 <script>
-  // 스텝 전환
-  function goStep2() {
+  // 비밀번호 표시 토글
+  function togglePw(btn){
+    const input = document.getElementById('userPw');
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    btn.title = showing ? '비밀번호 표시' : '비밀번호 숨기기';
+    btn.setAttribute('aria-label', btn.title);
+    btn.innerHTML = showing
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+  }
+
+  function goStep2(){
     const id = document.getElementById('userId').value.trim();
     const pw = document.getElementById('userPw').value.trim();
-    if (!id || !pw) { alert('포탈 ID와 비밀번호를 모두 입력해주세요.'); return; }
+    if (!id || !pw){ alert('포탈 ID와 비밀번호를 모두 입력해주세요.'); return; }
     document.getElementById('step1').classList.remove('active');
     document.getElementById('step2').classList.add('active');
     startTimer();
     setTimeout(() => document.querySelector('.otp-digit').focus(), 100);
   }
-
-  function goStep1() {
+  function goStep1(){
     document.getElementById('step2').classList.remove('active');
     document.getElementById('step1').classList.add('active');
     stopTimer();
   }
 
-  // OTP 입력 자동 이동
+  // OTP
   const digits = document.querySelectorAll('.otp-digit');
-  digits.forEach((d, i) => {
+  digits.forEach((d,i) => {
     d.addEventListener('input', (e) => {
-      e.target.value = e.target.value.replace(/\D/g, '');
-      if (e.target.value) {
+      e.target.value = e.target.value.replace(/\D/g,'');
+      if (e.target.value){
         e.target.classList.add('filled');
-        if (i < digits.length - 1) {
-          digits[i + 1].focus();
-        } else {
-          // 마지막 자리까지 채워졌으면 모든 칸 검증 후 자동 제출
+        if (i < digits.length - 1){ digits[i+1].focus(); }
+        else {
           const allFilled = Array.from(digits).every(x => x.value);
-          if (allFilled) {
-            e.target.blur();
-            stopTimer();
-            setTimeout(() => { location.href = 'portal.html'; }, 200);
-          }
+          if (allFilled){ e.target.blur(); stopTimer(); setTimeout(() => location.href='portal.html', 220); }
         }
-      } else {
-        e.target.classList.remove('filled');
-      }
+      } else { e.target.classList.remove('filled'); }
     });
     d.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && !e.target.value && i > 0) {
-        digits[i - 1].focus();
-      }
+      if (e.key === 'Backspace' && !e.target.value && i > 0){ digits[i-1].focus(); }
     });
-    // 붙여넣기 지원: 6자리 한번에 붙여넣을 경우 칸별로 분배
     d.addEventListener('paste', (e) => {
       e.preventDefault();
-      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
       if (!pasted) return;
-      pasted.split('').forEach((ch, idx) => {
-        if (idx < digits.length) {
-          digits[idx].value = ch;
-          digits[idx].classList.add('filled');
-        }
-      });
+      pasted.split('').forEach((ch,idx) => { if (idx < digits.length){ digits[idx].value = ch; digits[idx].classList.add('filled'); } });
       const lastIdx = Math.min(pasted.length, digits.length) - 1;
       digits[lastIdx].focus();
-      // 6자리 다 붙여넣은 경우 자동 제출
-      if (pasted.length === digits.length) {
-        digits[lastIdx].blur();
-        stopTimer();
-        setTimeout(() => { location.href = 'portal.html'; }, 200);
-      }
+      if (pasted.length === digits.length){ digits[lastIdx].blur(); stopTimer(); setTimeout(() => location.href='portal.html', 220); }
     });
   });
 
   // 타이머
-  let timerInterval;
-  let remainingSec = 179;
-
-  function startTimer() {
-    remainingSec = 179;
-    updateTimerDisplay();
-    clearInterval(timerInterval);
+  let timerInterval, remainingSec = 179;
+  function startTimer(){
+    remainingSec = 179; updateTimerDisplay(); clearInterval(timerInterval);
     timerInterval = setInterval(() => {
-      remainingSec--;
-      updateTimerDisplay();
-      if (remainingSec <= 0) {
-        clearInterval(timerInterval);
-        alert('인증 시간이 만료되었습니다. 다시 시도해주세요.');
-        goStep1();
-      }
+      remainingSec--; updateTimerDisplay();
+      if (remainingSec <= 0){ clearInterval(timerInterval); alert('인증 시간이 만료되었습니다. 다시 시도해주세요.'); goStep1(); }
     }, 1000);
   }
-
-  function stopTimer() { clearInterval(timerInterval); }
-
-  function updateTimerDisplay() {
-    const m = String(Math.floor(remainingSec / 60)).padStart(2, '0');
-    const s = String(remainingSec % 60).padStart(2, '0');
-    const el = document.getElementById('timer');
-    if (el) el.textContent = `${m}:${s}`;
+  function stopTimer(){ clearInterval(timerInterval); }
+  function updateTimerDisplay(){
+    const m = String(Math.floor(remainingSec/60)).padStart(2,'0');
+    const s = String(remainingSec%60).padStart(2,'0');
+    const el = document.getElementById('timer'); if (el) el.textContent = `${m}:${s}`;
   }
-
-  function resendOtp() {
+  function resendOtp(){
     alert('인증번호가 재전송되었습니다.');
-    digits.forEach(d => { d.value = ''; d.classList.remove('filled'); });
-    digits[0].focus();
-    startTimer();
+    digits.forEach(d => { d.value=''; d.classList.remove('filled'); });
+    digits[0].focus(); startTimer();
   }
 </script>
 </body>

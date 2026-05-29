@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KB손해보험 VDI 사용자 포탈 - VDI 추가신청</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* nav 간격 축소 — Service Desk까지 보이도록 (portal.html과 동일) */
+  .sidebar .nav-item { padding: 9px 14px; font-size: 15.5px; }
+  .sidebar .nav-section { margin-bottom: 18px; }
+
+  .main { max-width: 1080px; }
+
+  /* ===== 단계 표시 바 ===== */
+  .wizard-bar {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 24px;
+    margin-bottom: 18px;
+    display: flex;
+    justify-content: center;
+  }
+  .wizard-bar .flow-step { padding: 5px 14px; }
+  .wizard-bar .flow-arrow { width: 34px; }
+  .flow-step.done .flow-num {
+    border-color: var(--success); background: var(--success); color: #fff;
+  }
+  .flow-step.done .flow-name { color: var(--text-secondary); font-weight: 600; }
+
+  /* ===== 폼 행 ===== */
+  .frow {
+    display: grid;
+    grid-template-columns: 168px 1fr;
+    gap: 18px;
+    align-items: start;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .frow:first-child { padding-top: 4px; }
+  .frow:last-child { padding-bottom: 4px; border-bottom: none; }
+  .frow-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding-top: 9px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .frow-field { min-width: 0; }
+  .frow-help {
+    font-size: 12.5px;
+    color: var(--text-tertiary);
+    margin-top: 7px;
+    line-height: 1.5;
+  }
+  .fi.full, .fs.full, .fta.full { width: 100%; }
+  .field-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .field-inline .fs { min-width: 150px; }
+
+  /* 카드형 라디오 (VDI 유형 선택) */
+  .type-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .type-card {
+    border: 1.5px solid var(--border-strong);
+    border-radius: 11px;
+    padding: 16px 16px 15px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: #fff;
+    position: relative;
+  }
+  .type-card:hover { border-color: var(--kb-yellow-dark); background: #FFFDF6; }
+  .type-card.sel {
+    border-color: var(--kb-yellow-dark);
+    background: var(--kb-yellow-soft);
+    box-shadow: 0 0 0 1px var(--kb-yellow-dark) inset;
+  }
+  .type-card-head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+  .type-card-radio {
+    width: 17px; height: 17px; border-radius: 50%;
+    border: 2px solid var(--border-strong); flex-shrink: 0;
+    position: relative; background: #fff; transition: all 0.15s;
+  }
+  .type-card.sel .type-card-radio { border-color: var(--kb-yellow-dark); background: var(--kb-yellow); }
+  .type-card.sel .type-card-radio::after {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  }
+  .type-card-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+  .type-card-desc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
+  .type-card-tag {
+    position: absolute; top: 14px; right: 14px;
+    font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 4px;
+    background: var(--info-soft); color: var(--info); letter-spacing: 0.02em;
+  }
+
+  /* 사양 선택 그리드 */
+  .spec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .spec-block {
+    border: 1px solid var(--border); border-radius: 11px; overflow: hidden; background: #fff;
+  }
+  .spec-block-head {
+    padding: 11px 15px; background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px; font-weight: 700; color: var(--text-secondary);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .spec-block-head svg { width: 15px; height: 15px; color: var(--kb-yellow-dark); }
+  .spec-block-body { padding: 13px 15px; display: flex; flex-direction: column; gap: 7px; }
+  .spec-opt {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 12px; border-radius: 8px; cursor: pointer;
+    border: 1.5px solid transparent; transition: all 0.13s;
+    font-size: 14px; color: var(--text-secondary);
+  }
+  .spec-opt:hover { background: var(--bg-subtle); }
+  .spec-opt.sel {
+    background: var(--kb-yellow-soft); border-color: var(--kb-yellow-dark);
+    color: var(--kb-dark); font-weight: 700;
+  }
+  .spec-opt .rdot { width: 15px; height: 15px; border-radius: 50%;
+    border: 2px solid var(--border-strong); flex-shrink: 0; position: relative; background: #fff; }
+  .spec-opt.sel .rdot { border-color: var(--kb-yellow-dark); background: var(--kb-yellow); }
+  .spec-opt.sel .rdot::after {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  }
+  .spec-opt-rec {
+    margin-left: auto; font-size: 11px; font-weight: 700;
+    color: var(--success); background: var(--success-soft);
+    padding: 2px 7px; border-radius: 4px;
+  }
+
+  /* 결재선 */
+  .appr-line { display: flex; flex-direction: column; gap: 0; }
+  .appr-node {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 4px; position: relative;
+  }
+  .appr-node:not(:last-child)::after {
+    content: ''; position: absolute; left: 19px; top: 46px; bottom: -2px;
+    width: 2px; background: var(--border-strong);
+  }
+  .appr-step {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; background: var(--bg-subtle);
+    border: 2px solid var(--border-strong); color: var(--text-secondary); z-index: 1;
+  }
+  .appr-node.applicant .appr-step { background: var(--kb-yellow); border-color: var(--kb-yellow-dark); color: var(--kb-dark); }
+  .appr-info { flex: 1; min-width: 0; }
+  .appr-role { font-size: 12.5px; color: var(--text-tertiary); font-weight: 600; margin-bottom: 2px; }
+  .appr-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+  .appr-name small { font-weight: 500; color: var(--text-secondary); font-size: 13px; margin-left: 6px; }
+  .appr-badge {
+    font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 100px;
+    background: var(--bg-subtle); color: var(--text-tertiary); flex-shrink: 0;
+  }
+  .appr-badge.fixed { background: var(--info-soft); color: var(--info); }
+
+  /* 요약 (확인/완료) */
+  .summary-table { width: 100%; }
+  .summary-row { display: flex; padding: 13px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-key { width: 160px; flex-shrink: 0; color: var(--text-tertiary); font-weight: 600; }
+  .summary-val { color: var(--text-primary); font-weight: 600; }
+  .summary-val .pill {
+    display: inline-block; background: var(--kb-yellow-soft); color: #8B6B00;
+    font-size: 13px; font-weight: 700; padding: 2px 9px; border-radius: 5px; margin-right: 6px;
+  }
+
+  /* 완료 화면 */
+  .done-wrap { text-align: center; padding: 30px 20px 10px; }
+  .done-ring {
+    width: 84px; height: 84px; border-radius: 50%; margin: 0 auto 20px;
+    background: var(--success-soft); display: flex; align-items: center; justify-content: center;
+  }
+  .done-ring svg { width: 42px; height: 42px; color: var(--success); }
+  .done-title { font-size: 22px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 8px; }
+  .done-desc { font-size: 15px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 6px; }
+  .done-reqno {
+    display: inline-flex; align-items: center; gap: 8px; margin: 18px 0 4px;
+    padding: 10px 18px; border-radius: 100px; background: var(--bg-subtle);
+    border: 1px solid var(--border); font-size: 15px; font-weight: 700;
+    color: var(--text-primary); font-variant-numeric: tabular-nums;
+  }
+  .done-reqno span { color: var(--text-tertiary); font-weight: 600; font-size: 13px; }
+  .done-actions { display: flex; gap: 10px; justify-content: center; margin-top: 26px; }
+
+  .step-panel { display: none; }
+  .step-panel.active { display: block; }
+
+  @media (max-width: 880px) {
+    .type-cards, .spec-grid { grid-template-columns: 1fr; }
+    .frow { grid-template-columns: 1fr; gap: 8px; }
+    .frow-label { padding-top: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP HEADER -->
+<header class="top-header">
+  <div class="header-logo">
+    <span class="header-logo-text">KB손해보험</span>
+  </div>
+  <div class="header-divider"></div>
+  <div class="header-service-name">업무가상화 사용자 포탈</div>
+  <div class="header-divider"></div>
+  <div class="header-user-badge">
+    <span class="hub-name">최정식 책임</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">IT기획파트</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">사번 <strong>1010579</strong></span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">ID <strong>jschoi0223</strong></span>
+  </div>
+
+  <div class="header-right">
+    <div class="header-session">
+      <span>세션 만료</span>
+      <span class="header-session-value" id="sessionTimer">29:57</span>
+    </div>
+
+    <button class="header-btn" title="알림">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <span class="header-badge">3</span>
+    </button>
+
+    <button class="header-btn" title="로그아웃" onclick="location.href='login.html'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">Workspace</div>
+      <a class="nav-item" href="portal.html" data-key="mypc">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        내 가상PC
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">신청 · 결재</div>
+      <a class="nav-item active" href="apply.html" data-key="apply">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/>
+          <line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+        VDI 추가신청
+      </a>
+      <a class="nav-item" href="change.html" data-key="change">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"/>
+          <polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        변경 · 증설 · 반납
+      </a>
+      <a class="nav-item" href="approval.html" data-key="approval">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        결재 현황
+        <span class="nav-item-badge">2</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">지원 · 서비스</div>
+      <a class="nav-item" href="incident.html" data-key="incident">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        장애신고 내역
+      </a>
+      <a class="nav-item" href="notice.html" data-key="notice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        공지사항
+      </a>
+      <a class="nav-item" href="faq.html" data-key="faq">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        FAQ
+      </a>
+      <a class="nav-item" href="qna.html" data-key="qna">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        자료실
+      </a>
+    </div>
+
+    <div class="nav-section" style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:0">
+      <a class="nav-item" href="tel:15448119" style="flex-direction:column;align-items:flex-start;gap:4px;padding:14px 14px">
+        <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--text-primary)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;flex-shrink:0"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Service Desk
+        </div>
+        <div style="font-size:13px;color:var(--text-tertiary);padding-left:28px">VDI 관련 문의 · 평일 09:00~18:00</div>
+        <div style="font-size:17px;font-weight:800;color:var(--kb-dark);padding-left:28px;letter-spacing:-0.02em;font-variant-numeric:tabular-nums">1544-8119</div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="breadcrumb">
+      <a href="portal.html">홈</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>신청 · 결재</span>
+      <span class="breadcrumb-sep">›</span>
+      <span style="color:var(--text-secondary);font-weight:600">VDI 추가신청</span>
+    </div>
+
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">VDI 추가신청</h1>
+        <p class="page-desc">업무용 가상PC를 신규로 신청합니다. 신청 후 결재 승인을 거쳐 가상PC가 생성됩니다.</p>
+      </div>
+    </div>
+
+    <!-- 단계 표시 바 -->
+    <div class="wizard-bar">
+      <div class="flow-steps" id="flowSteps">
+        <div class="flow-step active" data-step="1">
+          <div class="flow-num">1</div>
+          <div class="flow-name">정보입력</div>
+        </div>
+        <div class="flow-arrow"></div>
+        <div class="flow-step" data-step="2">
+          <div class="flow-num">2</div>
+          <div class="flow-name">사양선택</div>
+        </div>
+        <div class="flow-arrow"></div>
+        <div class="flow-step" data-step="3">
+          <div class="flow-num">3</div>
+          <div class="flow-name">결재선</div>
+        </div>
+        <div class="flow-arrow"></div>
+        <div class="flow-step" data-step="4">
+          <div class="flow-num">4</div>
+          <div class="flow-name">신청완료</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= STEP 1 : 정보입력 ================= -->
+    <section class="step-panel active" data-panel="1">
+      <div class="fc">
+        <div class="fc-head">
+          <div class="fc-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            신청자 정보
+          </div>
+          <div class="fc-ctrl"></div>
+        </div>
+        <div class="fc-body">
+          <div class="frow">
+            <div class="frow-label">신청자</div>
+            <div class="frow-field">
+              <div class="field-inline">
+                <input class="fi" style="width:160px" value="최정식 책임" disabled>
+                <input class="fi" style="width:140px" value="사번 1010579" disabled>
+                <input class="fi" style="width:160px" value="ID jschoi0223" disabled>
+              </div>
+              <div class="frow-help">로그인 정보 기준으로 자동 입력됩니다.</div>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-label">소속 부서</div>
+            <div class="frow-field">
+              <input class="fi" style="width:240px" value="IT기획파트" disabled>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-label">연락처 <span class="req">*</span></div>
+            <div class="frow-field">
+              <input class="fi" id="f_tel" style="width:240px" value="010-2345-6789" placeholder="연락 가능한 번호">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-head">
+          <div class="fc-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            신청 내용
+          </div>
+          <div class="fc-ctrl"></div>
+        </div>
+        <div class="fc-body">
+          <div class="frow">
+            <div class="frow-label">사용 용도 <span class="req">*</span></div>
+            <div class="frow-field">
+              <select class="fs full" id="f_purpose" style="max-width:320px">
+                <option value="">용도를 선택하세요</option>
+                <option>일반 업무용</option>
+                <option>개발 · 테스트용</option>
+                <option>외부망 분리 작업용</option>
+                <option>단기 프로젝트용</option>
+                <option>기타</option>
+              </select>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-label">희망 VDI 명 <span class="req">*</span></div>
+            <div class="frow-field">
+              <input class="fi" id="f_vdiname" style="width:300px" value="jschoi0223-dev">
+              <div class="frow-help">영문·숫자·하이픈(-)만 사용. 예) jschoi0223-dev, jschoi0223-test</div>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-label">신청 사유 <span class="req">*</span></div>
+            <div class="frow-field">
+              <textarea class="fta full" id="f_reason" rows="4" placeholder="추가 가상PC가 필요한 사유를 구체적으로 입력해주세요."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <div class="action-hint">필수 항목(<span class="req">*</span>)을 모두 입력하면 다음 단계로 진행할 수 있습니다.</div>
+        <div class="action-btns">
+          <button class="btn btn-outline" onclick="location.href='portal.html'">취소</button>
+          <button class="btn btn-primary" onclick="goNext(1)">
+            다음
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= STEP 2 : 사양선택 ================= -->
+    <section class="step-panel" data-panel="2">
+      <div class="fc">
+        <div class="fc-head">
+          <div class="fc-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            VDI 유형
+          </div>
+          <div class="fc-ctrl"></div>
+        </div>
+        <div class="fc-body">
+          <div class="type-cards" id="typeCards">
+            <div class="type-card sel" data-type="지정형">
+              <div class="type-card-head">
+                <span class="type-card-radio"></span>
+                <span class="type-card-name">지정형</span>
+              </div>
+              <div class="type-card-desc">개인 전용 가상PC. 데이터·설정이 유지되며 상시 사용에 적합합니다.</div>
+            </div>
+            <div class="type-card" data-type="임시형">
+              <div class="type-card-head">
+                <span class="type-card-radio"></span>
+                <span class="type-card-name">임시형</span>
+              </div>
+              <div class="type-card-desc">사용 기간이 정해진 가상PC. 단기 프로젝트·외부 인력에 적합합니다.</div>
+            </div>
+            <div class="type-card" data-type="공용형">
+              <span class="type-card-tag">SHARED</span>
+              <div class="type-card-head">
+                <span class="type-card-radio"></span>
+                <span class="type-card-name">공용형</span>
+              </div>
+              <div class="type-card-desc">부서 단위 공용 가상PC. 접속 시 자원이 배정됩니다.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-head">
+          <div class="fc-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>
+              <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
+              <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>
+            </svg>
+            자원 사양
+          </div>
+          <div class="fc-ctrl"></div>
+        </div>
+        <div class="fc-body">
+          <div class="spec-grid">
+            <!-- CPU -->
+            <div class="spec-block" data-spec="cpu">
+              <div class="spec-block-head">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
+                CPU
+              </div>
+              <div class="spec-block-body">
+                <div class="spec-opt" data-val="2 Core"><span class="rdot"></span>2 Core</div>
+                <div class="spec-opt sel" data-val="4 Core"><span class="rdot"></span>4 Core<span class="spec-opt-rec">권장</span></div>
+                <div class="spec-opt" data-val="8 Core"><span class="rdot"></span>8 Core</div>
+              </div>
+            </div>
+            <!-- MEM -->
+            <div class="spec-block" data-spec="mem">
+              <div class="spec-block-head">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="1"/><line x1="7" y1="6" x2="7" y2="18"/><line x1="12" y1="6" x2="12" y2="18"/><line x1="17" y1="6" x2="17" y2="18"/></svg>
+                메모리
+              </div>
+              <div class="spec-block-body">
+                <div class="spec-opt" data-val="8 GB"><span class="rdot"></span>8 GB</div>
+                <div class="spec-opt sel" data-val="16 GB"><span class="rdot"></span>16 GB<span class="spec-opt-rec">권장</span></div>
+                <div class="spec-opt" data-val="32 GB"><span class="rdot"></span>32 GB</div>
+              </div>
+            </div>
+            <!-- DISK -->
+            <div class="spec-block" data-spec="disk">
+              <div class="spec-block-head">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/></svg>
+                디스크(D)
+              </div>
+              <div class="spec-block-body">
+                <div class="spec-opt" data-val="80 GB"><span class="rdot"></span>80 GB</div>
+                <div class="spec-opt sel" data-val="150 GB"><span class="rdot"></span>150 GB<span class="spec-opt-rec">권장</span></div>
+                <div class="spec-opt" data-val="300 GB"><span class="rdot"></span>300 GB</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="frow" style="margin-top:8px">
+            <div class="frow-label">운영체제</div>
+            <div class="frow-field">
+              <select class="fs" id="f_os" style="width:280px">
+                <option>Windows 11 Enterprise</option>
+                <option>Windows 10 Enterprise</option>
+              </select>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="frow-label">사용 기간 <span class="req">*</span></div>
+            <div class="frow-field">
+              <div class="rgrp" id="periodGroup">
+                <button type="button" class="rbtn sel" data-period="permanent"><span class="rdot"></span>재직 시까지</button>
+                <button type="button" class="rbtn" data-period="fixed"><span class="rdot"></span>기간 지정</button>
+              </div>
+              <div class="field-inline" id="periodDateWrap" style="margin-top:10px;display:none">
+                <span class="lbl" style="margin:0">만료일</span>
+                <input class="fi" type="date" id="f_expire" style="width:190px" value="2026-09-30">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="warn-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        고사양(8 Core / 32 GB 이상) 신청 시 IT운영부 검토가 추가되어 승인까지 영업일 기준 2~3일이 소요될 수 있습니다.
+      </div>
+
+      <div class="action-bar">
+        <div class="action-hint"></div>
+        <div class="action-btns">
+          <button class="btn btn-outline" onclick="goPrev(2)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            이전
+          </button>
+          <button class="btn btn-primary" onclick="goNext(2)">
+            다음
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= STEP 3 : 결재선 ================= -->
+    <section class="step-panel" data-panel="3">
+      <div class="fc">
+        <div class="fc-head">
+          <div class="fc-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+            결재선 지정
+          </div>
+          <div class="fc-ctrl"></div>
+        </div>
+        <div class="fc-body">
+          <div class="info-box" style="margin-bottom:18px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            결재선은 부서 조직도 기준으로 자동 설정됩니다. 부서장은 필요 시 변경할 수 있습니다.
+          </div>
+
+          <div class="appr-line">
+            <div class="appr-node applicant">
+              <div class="appr-step">신청</div>
+              <div class="appr-info">
+                <div class="appr-role">신청자</div>
+                <div class="appr-name">최정식 책임 <small>IT기획파트 · 사번 1010579</small></div>
+              </div>
+              <span class="appr-badge">기안</span>
+            </div>
+
+            <div class="appr-node">
+              <div class="appr-step">1</div>
+              <div class="appr-info">
+                <div class="appr-role">1차 결재 · 부서장</div>
+                <div class="field-inline" style="margin-top:3px">
+                  <select class="fs" id="f_approver1" style="width:260px">
+                    <option>박성한 부장 (IT기획파트장)</option>
+                    <option>김도윤 부장 (IT기획부장)</option>
+                  </select>
+                </div>
+              </div>
+              <span class="appr-badge">승인</span>
+            </div>
+
+            <div class="appr-node">
+              <div class="appr-step">2</div>
+              <div class="appr-info">
+                <div class="appr-role">2차 결재 · IT운영부</div>
+                <div class="appr-name">이정민 부장 <small>IT운영부장</small></div>
+              </div>
+              <span class="appr-badge fixed">고정</span>
+            </div>
+
+            <div class="appr-node">
+              <div class="appr-step">3</div>
+              <div class="appr-info">
+                <div class="appr-role">최종 처리 · VDI 관리자</div>
+                <div class="appr-name">VDI 운영팀 <small>가상PC 생성 · 적용</small></div>
+              </div>
+              <span class="appr-badge fixed">처리</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <div class="action-hint"></div>
+        <div class="action-btns">
+          <button class="btn btn-outline" onclick="goPrev(3)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            이전
+          </button>
+          <button class="btn btn-primary" onclick="goNext(3)">
+            신청 내용 확인
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= STEP 4 : 신청완료 ================= -->
+    <section class="step-panel" data-panel="4">
+      <!-- 4-a. 제출 전 확인 -->
+      <div id="confirmView">
+        <div class="fc">
+          <div class="fc-head">
+            <div class="fc-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/>
+              </svg>
+              신청 내용 확인
+            </div>
+            <div class="fc-ctrl"></div>
+          </div>
+          <div class="fc-body">
+            <div class="summary-table">
+              <div class="summary-row"><div class="summary-key">신청자</div><div class="summary-val">최정식 책임 · IT기획파트 · 사번 1010579</div></div>
+              <div class="summary-row"><div class="summary-key">연락처</div><div class="summary-val" id="s_tel">-</div></div>
+              <div class="summary-row"><div class="summary-key">사용 용도</div><div class="summary-val" id="s_purpose">-</div></div>
+              <div class="summary-row"><div class="summary-key">VDI 명</div><div class="summary-val" id="s_vdiname">-</div></div>
+              <div class="summary-row"><div class="summary-key">VDI 유형 · 사양</div><div class="summary-val" id="s_spec">-</div></div>
+              <div class="summary-row"><div class="summary-key">운영체제</div><div class="summary-val" id="s_os">-</div></div>
+              <div class="summary-row"><div class="summary-key">사용 기간</div><div class="summary-val" id="s_period">-</div></div>
+              <div class="summary-row"><div class="summary-key">결재선</div><div class="summary-val" id="s_appr">-</div></div>
+              <div class="summary-row"><div class="summary-key">신청 사유</div><div class="summary-val" id="s_reason" style="font-weight:500;line-height:1.6">-</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <div class="action-hint">제출 후에는 <strong>결재 현황</strong>에서 진행 상태를 확인할 수 있습니다.</div>
+          <div class="action-btns">
+            <button class="btn btn-outline" onclick="goPrev(4)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+              이전
+            </button>
+            <button class="btn btn-primary" onclick="submitApply()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              신청서 제출
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4-b. 제출 완료 -->
+      <div id="doneView" style="display:none">
+        <div class="fc">
+          <div class="fc-body">
+            <div class="done-wrap">
+              <div class="done-ring">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+              </div>
+              <div class="done-title">VDI 추가신청이 접수되었습니다</div>
+              <div class="done-desc">결재 승인 후 가상PC가 생성되며, 완료 시 알림으로 안내드립니다.</div>
+              <div class="done-reqno"><span>신청번호</span> REQ-2026-0529-017</div>
+              <div class="done-actions">
+                <button class="btn btn-outline" onclick="location.href='portal.html'">포탈 홈으로</button>
+                <button class="btn btn-primary" onclick="location.href='approval.html'">
+                  결재 현황 보기
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <path d="M20 6L9 17l-5-5"/>
+  </svg>
+  <span id="toastMsg">처리되었습니다.</span>
+</div>
+
+<script>
+  // ===== 세션 타이머 (portal.html과 동일) =====
+  let sessionSec = 30 * 60 - 3;
+  setInterval(() => {
+    sessionSec--;
+    if (sessionSec <= 0) { alert('세션이 만료되었습니다.'); location.href = 'login.html'; }
+    const m = String(Math.floor(sessionSec / 60)).padStart(2, '0');
+    const s = String(sessionSec % 60).padStart(2, '0');
+    document.getElementById('sessionTimer').textContent = `${m}:${s}`;
+  }, 1000);
+
+  // ===== 토스트 =====
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  // ===== 선택 상태 =====
+  const state = { type: '지정형', cpu: '4 Core', mem: '16 GB', disk: '150 GB', period: 'permanent' };
+
+  // VDI 유형 카드
+  document.querySelectorAll('#typeCards .type-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('#typeCards .type-card').forEach(c => c.classList.remove('sel'));
+      card.classList.add('sel');
+      state.type = card.dataset.type;
+    });
+  });
+
+  // 사양 옵션
+  document.querySelectorAll('.spec-block').forEach(block => {
+    const key = block.dataset.spec;
+    block.querySelectorAll('.spec-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        block.querySelectorAll('.spec-opt').forEach(o => o.classList.remove('sel'));
+        opt.classList.add('sel');
+        state[key] = opt.dataset.val;
+      });
+    });
+  });
+
+  // 사용 기간 라디오
+  document.querySelectorAll('#periodGroup .rbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#periodGroup .rbtn').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      state.period = btn.dataset.period;
+      document.getElementById('periodDateWrap').style.display = state.period === 'fixed' ? 'flex' : 'none';
+    });
+  });
+
+  // ===== 단계 이동 =====
+  function setStep(n) {
+    document.querySelectorAll('.step-panel').forEach(p => {
+      p.classList.toggle('active', +p.dataset.panel === n);
+    });
+    document.querySelectorAll('#flowSteps .flow-step').forEach(fs => {
+      const s = +fs.dataset.step;
+      fs.classList.toggle('active', s === n);
+      fs.classList.toggle('done', s < n);
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goPrev(from) {
+    if (from === 4) { // 완료화면이면 확인화면 유지하며 step3로
+      document.getElementById('doneView').style.display = 'none';
+      document.getElementById('confirmView').style.display = 'block';
+    }
+    setStep(from - 1);
+  }
+
+  function goNext(from) {
+    if (from === 1 && !validateStep1()) return;
+    if (from === 3) buildSummary();
+    setStep(from + 1);
+  }
+
+  function validateStep1() {
+    const tel = document.getElementById('f_tel').value.trim();
+    const purpose = document.getElementById('f_purpose').value;
+    const vdiname = document.getElementById('f_vdiname').value.trim();
+    const reason = document.getElementById('f_reason').value.trim();
+    if (!tel) { showToast('연락처를 입력해주세요.'); return false; }
+    if (!purpose) { showToast('사용 용도를 선택해주세요.'); return false; }
+    if (!vdiname) { showToast('희망 VDI 명을 입력해주세요.'); return false; }
+    if (!/^[a-zA-Z0-9-]+$/.test(vdiname)) { showToast('VDI 명은 영문·숫자·하이픈(-)만 사용할 수 있습니다.'); return false; }
+    if (!reason) { showToast('신청 사유를 입력해주세요.'); return false; }
+    return true;
+  }
+
+  // ===== 요약 작성 =====
+  function buildSummary() {
+    const tel = document.getElementById('f_tel').value.trim();
+    const purpose = document.getElementById('f_purpose').value;
+    const vdiname = document.getElementById('f_vdiname').value.trim();
+    const reason = document.getElementById('f_reason').value.trim();
+    const os = document.getElementById('f_os').value;
+    const appr1 = document.getElementById('f_approver1').value;
+
+    let period;
+    if (state.period === 'permanent') {
+      period = '재직 시까지 (만료일 없음)';
+    } else {
+      const d = document.getElementById('f_expire').value;
+      period = `기간 지정 · ${d ? d.replace(/-/g, '.') : '미지정'} 까지`;
+    }
+
+    document.getElementById('s_tel').textContent = tel;
+    document.getElementById('s_purpose').textContent = purpose;
+    document.getElementById('s_vdiname').textContent = vdiname;
+    document.getElementById('s_spec').innerHTML =
+      `<span class="pill">${state.type}</span> CPU ${state.cpu} · 메모리 ${state.mem} · 디스크(D) ${state.disk}`;
+    document.getElementById('s_os').textContent = os;
+    document.getElementById('s_period').textContent = period;
+    document.getElementById('s_appr').textContent = `${appr1} → 이정민 부장(IT운영부장) → VDI 운영팀`;
+    document.getElementById('s_reason').textContent = reason;
+  }
+
+  // ===== 제출 =====
+  function submitApply() {
+    document.getElementById('confirmView').style.display = 'none';
+    document.getElementById('doneView').style.display = 'block';
+    document.querySelectorAll('#flowSteps .flow-step').forEach(fs => {
+      if (+fs.dataset.step < 4) fs.classList.add('done');
+    });
+    showToast('VDI 추가신청서가 정상 접수되었습니다.');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
