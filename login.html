@@ -275,7 +275,7 @@
           <button class="otp-resend" onclick="resendOtp()">인증번호 재전송</button>
         </div>
 
-        <button class="lbtn lbtn-primary" onclick="location.href='portal.html'">
+        <button class="lbtn lbtn-primary" onclick="doLogin()">
           로그인
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
         </button>
@@ -289,6 +289,12 @@
   </main>
 
 <script>
+  // 로그인 성공 처리 — 인증 플래그 설정 후 포탈 이동 (시안용)
+  function doLogin(){
+    sessionStorage.setItem('vdi_auth', '1');
+    location.href = 'portal.html';
+  }
+
   // 비밀번호 표시 토글
   function togglePw(btn){
     const input = document.getElementById('userPw');
@@ -326,7 +332,7 @@
         if (i < digits.length - 1){ digits[i+1].focus(); }
         else {
           const allFilled = Array.from(digits).every(x => x.value);
-          if (allFilled){ e.target.blur(); stopTimer(); setTimeout(() => location.href='portal.html', 220); }
+          if (allFilled){ e.target.blur(); stopTimer(); setTimeout(() => doLogin(), 220); }
         }
       } else { e.target.classList.remove('filled'); }
     });
@@ -340,7 +346,7 @@
       pasted.split('').forEach((ch,idx) => { if (idx < digits.length){ digits[idx].value = ch; digits[idx].classList.add('filled'); } });
       const lastIdx = Math.min(pasted.length, digits.length) - 1;
       digits[lastIdx].focus();
-      if (pasted.length === digits.length){ digits[lastIdx].blur(); stopTimer(); setTimeout(() => location.href='portal.html', 220); }
+      if (pasted.length === digits.length){ digits[lastIdx].blur(); stopTimer(); setTimeout(() => doLogin(), 220); }
     });
   });
 

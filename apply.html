@@ -196,7 +196,7 @@
 
 <!-- TOP HEADER -->
 <header class="top-header">
-  <div class="header-logo"><span class="header-logo-text">KB손해보험</span></div>
+  <div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><span class="header-logo-text">KB손해보험</span></div>
   <div class="header-divider"></div>
   <div class="header-service-name">업무가상화 사용자 포탈</div>
   <div class="header-divider"></div>
@@ -224,7 +224,7 @@
       <span class="header-badge">3</span>
     </button>
 
-    <button class="header-btn" title="로그아웃" onclick="location.href='login.html'">
+    <button class="header-btn" title="로그아웃" onclick="logout()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
         <polyline points="16 17 21 12 16 7"/>
@@ -724,6 +724,10 @@
 </div>
 
 <script>
+  // ===== 인증 상태 (시안용 sessionStorage 플래그) =====
+  function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
+  function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
+
   // ===== 세션 타이머 (portal.html과 동일) =====
   let sessionSec = 30 * 60 - 3;
   setInterval(() => {

@@ -285,7 +285,8 @@
 - 별도 CSS 파일 분리 (common.css 외 추가 CSS 파일 만들지 않음)
 - 외부 아이콘 라이브러리 (Font Awesome, Material Icons 등) — SVG 인라인만 사용
 - 사용자 이미지/실제 사진 임베드 — 더미 데이터는 텍스트로만
-- localStorage / sessionStorage 사용 (단순 시안이므로 불필요)
+- localStorage / sessionStorage 사용 (단순 시안이므로 원칙적으로 불필요)
+  - **예외**: 로그인 인증 플래그 `sessionStorage['vdi_auth']` 한정 허용. login.html `doLogin()`에서 `'1'` 설정, 인증 페이지의 헤더 로고 `goHome()`가 값 유무로 portal.html/login.html 분기, `logout()`이 제거. 이 외 용도로는 스토리지 사용 금지.
 - 실제 API 호출 (`fetch`, `XMLHttpRequest`) — 모든 동작은 mock/toast로 처리
 
 ### ✅ 권장 패턴
