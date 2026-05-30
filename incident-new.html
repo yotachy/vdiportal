@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KB손해보험 VDI 사용자 포탈 - 장애신고 등록</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .main { max-width: 1320px; margin: 0 auto; }
+
+  /* 폼 행 (apply/change와 동일 패턴) */
+  .frow { display: grid; grid-template-columns: 150px 1fr; gap: 18px; align-items: start; padding: 15px 0; border-bottom: 1px solid var(--border); }
+  .frow:first-child { padding-top: 4px; }
+  .frow:last-child { padding-bottom: 4px; border-bottom: none; }
+  .frow-label { font-size: 14px; font-weight: 600; color: var(--text-secondary); padding-top: 9px; display: flex; align-items: center; gap: 5px; }
+  .frow-field { min-width: 0; }
+  .frow-help { font-size: 12.5px; color: var(--text-tertiary); margin-top: 7px; line-height: 1.5; }
+  .fi.full, .fs.full, .fta.full { width: 100%; }
+
+  /* 긴급 안내 인라인 */
+  .urgent-note { display: none; align-items: center; gap: 9px; margin-top: 11px; padding: 10px 14px;
+    background: var(--danger-soft); border: 1px solid #F3C4BF; border-radius: 10px;
+    font-size: 13px; color: #8A2018; font-weight: 700; line-height: 1.5; }
+  .urgent-note.show { display: flex; }
+  .urgent-note svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--danger); }
+  .urgent-note a { color: #8A2018; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+
+  /* 드롭존 */
+  .drop-zone { border: 1.5px dashed var(--border-strong); border-radius: 12px; padding: 30px 20px;
+    text-align: center; cursor: pointer; transition: all 0.15s; background: var(--surface-2); }
+  .drop-zone:hover, .drop-zone.drag { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft); }
+  .drop-zone-ico { width: 38px; height: 38px; border-radius: 11px; background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 11px; }
+  .drop-zone-ico svg { width: 20px; height: 20px; color: var(--kb-yellow-dark); }
+  .drop-zone-title { font-size: 14px; font-weight: 700; color: var(--text-secondary); }
+  .drop-zone-title b { color: var(--kb-yellow-dark); }
+  .drop-zone-sub { font-size: 12.5px; color: var(--text-tertiary); margin-top: 5px; }
+
+  .file-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .file-chip { display: flex; align-items: center; gap: 11px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .fchip-ico { width: 18px; height: 18px; color: var(--kb-yellow-dark); flex-shrink: 0; }
+  .file-name { flex: 1; font-size: 13.5px; color: var(--text-primary); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-size { font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .file-del { width: 27px; height: 27px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); flex-shrink: 0; transition: all 0.14s; cursor: pointer; }
+  .file-del:hover { background: var(--danger-soft); color: var(--danger); }
+  .file-del svg { width: 15px; height: 15px; }
+
+  @media (max-width: 760px) {
+    .frow { grid-template-columns: 1fr; gap: 8px; }
+    .frow-label { padding-top: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP HEADER -->
+<header class="top-header">
+  <div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><span class="header-logo-text">KB손해보험</span></div>
+  <div class="header-divider"></div>
+  <div class="header-service-name">업무가상화 사용자 포탈</div>
+  <div class="header-divider"></div>
+  <div class="header-user-badge">
+    <span class="hub-name">최정식 책임</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">IT기획파트</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">사번 <strong>1010579</strong></span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">ID <strong>jschoi0223</strong></span>
+  </div>
+  <div class="header-right">
+    <div class="header-session">
+      <span>세션 만료</span>
+      <span class="header-session-value" id="sessionTimer">29:57</span>
+    </div>
+    <button class="header-btn" title="알림">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="header-badge">3</span>
+    </button>
+    <button class="header-btn" title="로그아웃" onclick="logout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR (부모: 장애신고 내역 active) -->
+  <aside class="sidebar">
+    <div style="flex:1">
+      <div class="nav-section">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="portal.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          내 가상PC
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">신청 · 결재</div>
+        <a class="nav-item" href="apply.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          VDI 추가신청
+        </a>
+        <a class="nav-item" href="change.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          변경 · 증설 · 반납
+        </a>
+        <a class="nav-item" href="approval.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          결재 현황
+          <span class="nav-item-badge">2</span>
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">지원 · 서비스</div>
+        <a class="nav-item active" href="incident.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          장애신고 내역
+        </a>
+        <a class="nav-item" href="notice.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          공지사항
+        </a>
+        <a class="nav-item" href="faq.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          FAQ
+        </a>
+        <a class="nav-item" href="qna.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          자료실
+        </a>
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <a class="support-card" href="tel:15448119" style="display:block">
+        <div class="support-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Service Desk
+        </div>
+        <div class="support-desc">VDI 관련 문의 · 평일 09:00~18:00</div>
+        <div class="support-tel">1544-8119</div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="breadcrumb reveal">
+      <a href="portal.html">홈</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>지원 · 서비스</span>
+      <span class="breadcrumb-sep">›</span>
+      <a href="incident.html">장애신고 내역</a>
+      <span class="breadcrumb-sep">›</span>
+      <span style="color:var(--text-secondary);font-weight:600">장애신고 등록</span>
+    </div>
+
+    <div class="page-header reveal" style="animation-delay:.06s">
+      <div class="page-header-left">
+        <h1 class="page-title">장애신고 등록</h1>
+        <p class="page-desc">가상PC 사용 중 발생한 장애를 신고합니다. 접수 후 헬프데스크에서 순차적으로 처리됩니다.</p>
+      </div>
+      <div class="page-header-right">
+        <a class="btn btn-outline" href="incident.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          신고 내역
+        </a>
+      </div>
+    </div>
+
+    <!-- 상단 헬프데스크 직통 안내 -->
+    <div class="warn-box reveal" style="animation-delay:.1s;margin-bottom:18px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      업무가 즉시 중단되는 <strong>긴급 장애</strong>는 본 신고와 별도로 헬프데스크 <strong>1544-8119</strong>(평일 09:00~18:00)로 직통 연락하시면 빠르게 처리됩니다.
+    </div>
+
+    <!-- 섹션 1: 장애 대상·유형 -->
+    <div class="fc reveal" style="animation-delay:.14s">
+      <div class="fc-head">
+        <div class="fc-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          장애 대상 · 유형
+        </div>
+        <div class="fc-ctrl"></div>
+      </div>
+      <div class="fc-body">
+        <div class="frow">
+          <div class="frow-label">대상 VDI</div>
+          <div class="frow-field">
+            <select class="fs" id="f_vdi" style="width:280px">
+              <option>jschoi0223-main</option>
+              <option>jschoi0223-temp</option>
+              <option>jschoi0223-common</option>
+              <option>해당 없음 / 포탈 · 접속 문제</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow">
+          <div class="frow-label">장애 유형 <span class="req">*</span></div>
+          <div class="frow-field">
+            <select class="fs" id="f_type" style="max-width:320px;width:100%">
+              <option value="">유형을 선택하세요</option>
+              <option>접속 불가 (로그인·연결 실패)</option>
+              <option>속도 저하 · 지연</option>
+              <option>화면 · 그래픽 오류</option>
+              <option>프로그램 · 애플리케이션 오류</option>
+              <option>네트워크 · 인터넷 문제</option>
+              <option>프린터 · 주변기기 연결</option>
+              <option>데이터 · 파일 문제</option>
+              <option>기타</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow">
+          <div class="frow-label">긴급도 <span class="req">*</span></div>
+          <div class="frow-field">
+            <div class="rgrp" id="urgencyGroup">
+              <button type="button" class="rbtn" data-urgency="긴급"><span class="rdot"></span>긴급</button>
+              <button type="button" class="rbtn" data-urgency="높음"><span class="rdot"></span>높음</button>
+              <button type="button" class="rbtn sel" data-urgency="보통"><span class="rdot"></span>보통</button>
+            </div>
+            <div class="urgent-note" id="urgentNote">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>긴급 장애는 접수와 함께 헬프데스크 <a href="tel:15448119">1544-8119</a>로 즉시 연락하시기를 권장합니다.</span>
+            </div>
+          </div>
+        </div>
+        <div class="frow">
+          <div class="frow-label">발생 일시</div>
+          <div class="frow-field">
+            <input class="fi" type="datetime-local" id="f_when" style="width:240px" value="2026-05-30T09:30">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 섹션 2: 장애 내용 -->
+    <div class="fc reveal" style="animation-delay:.18s">
+      <div class="fc-head">
+        <div class="fc-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          장애 내용
+        </div>
+        <div class="fc-ctrl"></div>
+      </div>
+      <div class="fc-body">
+        <div class="frow">
+          <div class="frow-label">제목 <span class="req">*</span></div>
+          <div class="frow-field">
+            <input class="fi full" id="f_title" placeholder="장애 증상을 한 줄로 요약해주세요. (예: 오전부터 가상PC 접속이 되지 않습니다)">
+          </div>
+        </div>
+        <div class="frow">
+          <div class="frow-label">상세 내용 <span class="req">*</span></div>
+          <div class="frow-field">
+            <textarea class="fta full" id="f_detail" rows="5" placeholder="증상, 발생 시점, 재현 방법, 오류 메시지 등을 구체적으로 입력해주세요. 정확한 내용일수록 빠른 처리에 도움이 됩니다."></textarea>
+          </div>
+        </div>
+        <div class="frow">
+          <div class="frow-label">연락처 <span class="req">*</span></div>
+          <div class="frow-field">
+            <input class="fi" id="f_tel" style="width:240px" value="010-2345-6789" placeholder="연락 가능한 번호">
+            <div class="frow-help">처리 담당자가 확인을 위해 연락할 수 있습니다.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 섹션 3: 첨부 파일 -->
+    <div class="fc reveal" style="animation-delay:.22s">
+      <div class="fc-head">
+        <div class="fc-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          첨부 파일
+        </div>
+        <div class="fc-ctrl"><span class="lbl" style="margin:0">스크린샷 · 오류 로그 등 (선택)</span></div>
+      </div>
+      <div class="fc-body">
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-zone-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="drop-zone-title">파일을 끌어다 놓거나 <b>클릭하여 첨부</b></div>
+          <div class="drop-zone-sub">PNG · JPG · PDF · LOG · TXT · 최대 10MB</div>
+        </div>
+        <div class="file-list" id="fileList"></div>
+      </div>
+    </div>
+
+    <!-- 액션 바 -->
+    <div class="action-bar reveal">
+      <div class="action-hint">필수 항목(<span class="req">*</span>)을 입력하면 신고를 접수할 수 있습니다.</div>
+      <div class="action-btns">
+        <button class="btn btn-outline" onclick="location.href='incident.html'">취소</button>
+        <button class="btn btn-primary" onclick="submitIncident()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          신고 접수
+        </button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+  <span id="toastMsg">처리되었습니다.</span>
+</div>
+
+<script>
+  // ===== 인증 상태 (시안용 sessionStorage 플래그) =====
+  function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
+  function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
+
+  // ===== 세션 타이머 =====
+  let sessionSec = 30 * 60 - 3;
+  setInterval(() => {
+    sessionSec--;
+    if (sessionSec <= 0) { alert('세션이 만료되었습니다.'); location.href = 'login.html'; }
+    const m = String(Math.floor(sessionSec / 60)).padStart(2, '0');
+    const s = String(sessionSec % 60).padStart(2, '0');
+    document.getElementById('sessionTimer').textContent = `${m}:${s}`;
+  }, 1000);
+
+  // ===== 토스트 =====
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    t.classList.add('show');
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  const $ = id => document.getElementById(id);
+  const state = { urgency: '보통' };
+
+  // ===== 긴급도 라디오 =====
+  document.querySelectorAll('#urgencyGroup .rbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#urgencyGroup .rbtn').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      state.urgency = btn.dataset.urgency;
+      $('urgentNote').classList.toggle('show', state.urgency === '긴급');
+    });
+  });
+
+  // ===== 첨부 파일 (mock) =====
+  const SAMPLE_FILES = [
+    { name: '오류화면_캡처.png', size: '248 KB' },
+    { name: 'VDI접속오류_로그.txt', size: '12 KB' },
+    { name: '이벤트뷰어_export.evtx', size: '1.3 MB' },
+    { name: '네트워크진단_결과.pdf', size: '320 KB' }
+  ];
+  let files = [];
+
+  function renderFiles() {
+    $('fileList').innerHTML = files.map((f, i) => `
+      <div class="file-chip">
+        <svg class="fchip-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span class="file-name">${f.name}</span>
+        <span class="file-size">${f.size}</span>
+        <div class="file-del" onclick="removeFile(${i})" title="삭제">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+      </div>`).join('');
+  }
+  function addSampleFile() {
+    if (files.length >= SAMPLE_FILES.length) { showToast('첨부 가능한 예시 파일을 모두 추가했습니다.'); return; }
+    files.push(SAMPLE_FILES[files.length]);
+    renderFiles();
+  }
+  function removeFile(i) { files.splice(i, 1); renderFiles(); }
+
+  const dz = $('dropZone');
+  dz.addEventListener('click', addSampleFile);
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); addSampleFile(); });
+
+  // ===== 제출 =====
+  function submitIncident() {
+    if (!$('f_type').value) { showToast('장애 유형을 선택해주세요.'); return; }
+    if (!$('f_title').value.trim()) { showToast('제목을 입력해주세요.'); return; }
+    if (!$('f_detail').value.trim()) { showToast('상세 내용을 입력해주세요.'); return; }
+    if (!$('f_tel').value.trim()) { showToast('연락처를 입력해주세요.'); return; }
+    showToast('장애신고가 정상 접수되었습니다. (접수번호 INC-2026-0530-024)');
+    setTimeout(() => location.href = 'incident.html', 1600);
+  }
+</script>
+</body>
+</html>
