@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KB손해보험 VDI 사용자 포탈 - 장애신고 내역</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .main { max-width: 1320px; margin: 0 auto; }
+
+  /* 요약 스탯 칩 (approval.html과 동일) */
+  .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stat-chip { display: flex; align-items: center; gap: 13px; padding: 15px 18px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); cursor: pointer; transition: all 0.16s; }
+  .stat-chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .stat-chip.on { border-color: var(--kb-yellow-dark); box-shadow: 0 0 0 1px var(--kb-yellow-dark) inset, var(--shadow-sm); }
+  .stat-ico { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .stat-ico svg { width: 22px; height: 22px; }
+  .stat-ico.all { background: var(--kb-yellow-soft); color: var(--kb-yellow-dark); }
+  .stat-ico.info { background: var(--info-soft); color: var(--info); }
+  .stat-ico.warn { background: var(--warning-soft); color: var(--warning); }
+  .stat-ico.ok { background: var(--success-soft); color: var(--success); }
+  .stat-num { font-size: 24px; font-weight: 800; color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums; }
+  .stat-lbl { font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-weight: 600; }
+
+  /* 유형 태그 */
+  .itag { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 6px;
+    background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-strong); white-space: nowrap; }
+
+  /* 긴급도 배지 */
+  .urg { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
+  .urg::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .urg-high { color: var(--danger); } .urg-high::before { background: var(--danger); }
+  .urg-mid { color: var(--warning); } .urg-mid::before { background: var(--warning); }
+  .urg-low { color: var(--text-tertiary); } .urg-low::before { background: #BDB5A7; }
+
+  /* 상태 pill */
+  .spill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 100px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
+  .spill-received { background: var(--info-soft); color: var(--info); }
+  .spill-progress { background: var(--warning-soft); color: #8A5800; }
+  .spill-done { background: var(--success-soft); color: var(--success); }
+
+  /* 테이블 */
+  .data-table tbody tr { cursor: pointer; }
+  .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .col-date { color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .col-title { color: var(--text-primary); font-weight: 600; }
+  .empty-row td { text-align: center; padding: 52px 16px; color: var(--text-tertiary); font-size: 14px; }
+
+  /* 모달 보조 */
+  .modal-status { margin-bottom: 18px; }
+  .modal-section-title { font-size: 13px; font-weight: 800; color: var(--text-tertiary); letter-spacing: 0.04em;
+    text-transform: uppercase; margin: 22px 0 10px; }
+  .modal-detail-text { font-size: 14px; color: var(--text-secondary); line-height: 1.7;
+    background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .proc-line { display: flex; flex-direction: column; gap: 0; }
+  .proc-node { display: flex; gap: 14px; padding: 11px 2px; position: relative; }
+  .proc-node:not(:last-child)::after { content: ''; position: absolute; left: 8px; top: 28px; bottom: -2px; width: 2px; background: var(--border-strong); }
+  .proc-dot { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; z-index: 1;
+    border: 3px solid var(--surface); background: var(--border-strong); box-shadow: 0 0 0 1px var(--border-strong); }
+  .proc-dot.done { background: var(--success); box-shadow: 0 0 0 1px var(--success); }
+  .proc-dot.active { background: var(--kb-yellow); box-shadow: 0 0 0 1px var(--kb-yellow-dark); }
+  .proc-info { flex: 1; }
+  .proc-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .proc-label { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .proc-time { font-size: 12.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .proc-comment { font-size: 13px; color: var(--text-secondary); margin-top: 3px; line-height: 1.55; }
+
+  @media (max-width: 980px) { .stat-strip { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 720px) { .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+
+<!-- TOP HEADER -->
+<header class="top-header">
+  <div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><span class="header-logo-text">KB손해보험</span></div>
+  <div class="header-divider"></div>
+  <div class="header-service-name">업무가상화 사용자 포탈</div>
+  <div class="header-divider"></div>
+  <div class="header-user-badge">
+    <span class="hub-name">최정식 책임</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">IT기획파트</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">사번 <strong>1010579</strong></span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">ID <strong>jschoi0223</strong></span>
+  </div>
+  <div class="header-right">
+    <div class="header-session">
+      <span>세션 만료</span>
+      <span class="header-session-value" id="sessionTimer">29:57</span>
+    </div>
+    <button class="header-btn" title="알림">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="header-badge">3</span>
+    </button>
+    <button class="header-btn" title="로그아웃" onclick="logout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div style="flex:1">
+      <div class="nav-section">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="portal.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          내 가상PC
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">신청 · 결재</div>
+        <a class="nav-item" href="apply.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          VDI 추가신청
+        </a>
+        <a class="nav-item" href="change.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          변경 · 증설 · 반납
+        </a>
+        <a class="nav-item" href="approval.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          결재 현황
+          <span class="nav-item-badge">2</span>
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">지원 · 서비스</div>
+        <a class="nav-item active" href="incident.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          장애신고 내역
+        </a>
+        <a class="nav-item" href="notice.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          공지사항
+        </a>
+        <a class="nav-item" href="faq.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          FAQ
+        </a>
+        <a class="nav-item" href="qna.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          자료실
+        </a>
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <a class="support-card" href="tel:15448119" style="display:block">
+        <div class="support-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Service Desk
+        </div>
+        <div class="support-desc">VDI 관련 문의 · 평일 09:00~18:00</div>
+        <div class="support-tel">1544-8119</div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="breadcrumb reveal">
+      <a href="portal.html">홈</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>지원 · 서비스</span>
+      <span class="breadcrumb-sep">›</span>
+      <span style="color:var(--text-secondary);font-weight:600">장애신고 내역</span>
+    </div>
+
+    <div class="page-header reveal" style="animation-delay:.06s">
+      <div class="page-header-left">
+        <h1 class="page-title">장애신고 내역</h1>
+        <p class="page-desc">신고한 장애의 처리 상태를 확인합니다. 항목을 클릭하면 상세 내용을 볼 수 있습니다.</p>
+      </div>
+      <div class="page-header-right">
+        <a class="btn btn-primary" href="incident-new.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          신규 신고
+        </a>
+      </div>
+    </div>
+
+    <!-- 요약 스탯 칩 -->
+    <div class="stat-strip reveal" style="animation-delay:.1s">
+      <div class="stat-chip" data-stat="all">
+        <div class="stat-ico all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <div><div class="stat-num" id="cAll">0</div><div class="stat-lbl">전체 신고</div></div>
+      </div>
+      <div class="stat-chip" data-stat="received">
+        <div class="stat-ico info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M9 11l3 3L22 4"/></svg></div>
+        <div><div class="stat-num" id="cReceived">0</div><div class="stat-lbl">접수</div></div>
+      </div>
+      <div class="stat-chip" data-stat="progress">
+        <div class="stat-ico warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div><div class="stat-num" id="cProgress">0</div><div class="stat-lbl">처리 중</div></div>
+      </div>
+      <div class="stat-chip" data-stat="done">
+        <div class="stat-ico ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div><div class="stat-num" id="cDone">0</div><div class="stat-lbl">처리 완료</div></div>
+      </div>
+    </div>
+
+    <!-- 필터바 -->
+    <div class="filter-bar reveal" style="animation-delay:.14s">
+      <div class="filter-seg" id="filterSeg">
+        <button class="fsb on" data-filter="all">전체</button>
+        <button class="fsb" data-filter="received">접수</button>
+        <button class="fsb" data-filter="progress">처리중</button>
+        <button class="fsb" data-filter="done">처리완료</button>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="접수번호 · 유형 · 제목 검색">
+      </div>
+    </div>
+
+    <!-- 테이블 -->
+    <div class="fc reveal" style="animation-delay:.18s">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:160px">접수번호</th>
+            <th style="width:120px">신고일</th>
+            <th style="width:150px" class="hide-sm">유형</th>
+            <th>제목</th>
+            <th style="width:90px">긴급도</th>
+            <th style="width:110px">상태</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<!-- 상세 모달 -->
+<div class="modal" id="detailModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()" aria-label="닫기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+  // ===== 인증 상태 (시안용 sessionStorage 플래그) =====
+  function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
+  function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
+
+  // ===== 세션 타이머 =====
+  let sessionSec = 30 * 60 - 3;
+  setInterval(() => {
+    sessionSec--;
+    if (sessionSec <= 0) { alert('세션이 만료되었습니다.'); location.href = 'login.html'; }
+    const m = String(Math.floor(sessionSec / 60)).padStart(2, '0');
+    const s = String(sessionSec % 60).padStart(2, '0');
+    document.getElementById('sessionTimer').textContent = `${m}:${s}`;
+  }, 1000);
+
+  // ===== 데이터 (incident-new.html 접수번호와 정합) =====
+  // status: received(접수) · progress(처리 중) · done(처리 완료)
+  // urg: high(긴급) · mid(높음) · low(보통)
+  const ROWS = [
+    { no: 'INC-2026-0530-024', date: '2026.05.30 09:32', type: '접속 불가', vdi: 'jschoi0223-main', urg: 'high', status: 'received',
+      title: '오전부터 가상PC 접속이 되지 않습니다',
+      detail: '오전 9시경부터 jschoi0223-main 가상PC에 접속하면 "연결 시간 초과" 메시지가 뜨며 로그인 화면 이후로 진행되지 않습니다. 재부팅해도 동일합니다.',
+      proc: [ { s: 'active', label: '접수 완료', time: '2026.05.30 09:32', comment: '신고가 접수되었습니다. 담당자 배정 대기 중입니다.' } ] },
+    { no: 'INC-2026-0524-019', date: '2026.05.24 14:10', type: '속도 저하 · 지연', vdi: 'jschoi0223-main', urg: 'mid', status: 'progress',
+      title: '오후 시간대 화면 전환이 매우 느립니다',
+      detail: '오후 2시 이후로 창 전환·스크롤이 끊기고 입력 반응이 1~2초씩 지연됩니다. 네트워크 사용률은 정상으로 보입니다.',
+      proc: [
+        { s: 'done', label: '접수 완료', time: '2026.05.24 14:10', comment: '신고 접수.' },
+        { s: 'active', label: '처리 중', time: '2026.05.24 16:40', comment: '담당자 배정 완료. 자원 사용률 및 세션 상태를 점검하고 있습니다.' } ] },
+    { no: 'INC-2026-0518-015', date: '2026.05.18 10:25', type: '프린터 · 주변기기 연결', vdi: 'jschoi0223-common', urg: 'low', status: 'done',
+      title: '가상PC에서 사무실 프린터가 인식되지 않습니다',
+      detail: '공용 가상PC에서 네트워크 프린터(2F-복합기)가 목록에 표시되지 않아 출력이 불가합니다.',
+      proc: [
+        { s: 'done', label: '접수 완료', time: '2026.05.18 10:25', comment: '신고 접수.' },
+        { s: 'done', label: '처리 중', time: '2026.05.18 13:00', comment: '프린터 드라이버 매핑 확인 중.' },
+        { s: 'done', label: '처리 완료', time: '2026.05.18 15:30', comment: '프린터 드라이버 재배포 후 정상 인식 확인. 종료합니다.' } ] },
+    { no: 'INC-2026-0510-011', date: '2026.05.10 11:05', type: '프로그램 · 애플리케이션 오류', vdi: 'jschoi0223-main', urg: 'mid', status: 'done',
+      title: '엑셀 실행 시 오류 메시지가 표시됩니다',
+      detail: '엑셀 실행 시 "구성 파일을 찾을 수 없습니다" 오류가 뜨고 일부 추가 기능이 동작하지 않습니다.',
+      proc: [
+        { s: 'done', label: '접수 완료', time: '2026.05.10 11:05', comment: '신고 접수.' },
+        { s: 'done', label: '처리 중', time: '2026.05.10 13:20', comment: 'Office 구성 점검.' },
+        { s: 'done', label: '처리 완료', time: '2026.05.11 09:40', comment: 'Office 복구 설치 완료. 정상 동작 확인.' } ] },
+    { no: 'INC-2026-0428-007', date: '2026.04.28 16:48', type: '화면 · 그래픽 오류', vdi: 'jschoi0223-temp', urg: 'low', status: 'done',
+      title: '듀얼 모니터 사용 시 보조 화면이 깜빡입니다',
+      detail: '듀얼 모니터 환경에서 보조 모니터 화면이 주기적으로 깜빡이며 일부 창이 잘려 보입니다.',
+      proc: [
+        { s: 'done', label: '접수 완료', time: '2026.04.28 16:48', comment: '신고 접수.' },
+        { s: 'done', label: '처리 중', time: '2026.04.29 10:00', comment: '디스플레이 정책 점검.' },
+        { s: 'done', label: '처리 완료', time: '2026.04.29 14:10', comment: '해상도·디스플레이 정책 조정 후 정상화 확인.' } ] },
+    { no: 'INC-2026-0415-003', date: '2026.04.15 09:15', type: '네트워크 · 인터넷 문제', vdi: 'jschoi0223-main', urg: 'high', status: 'done',
+      title: '내부 시스템(그룹웨어) 접속이 간헐적으로 끊깁니다',
+      detail: '가상PC에서 그룹웨어 접속이 5~10분 간격으로 끊겼다 다시 연결됩니다. 외부 사이트는 정상입니다.',
+      proc: [
+        { s: 'done', label: '접수 완료', time: '2026.04.15 09:15', comment: '신고 접수.' },
+        { s: 'done', label: '처리 중', time: '2026.04.15 10:30', comment: '내부망 라우팅 점검.' },
+        { s: 'done', label: '처리 완료', time: '2026.04.15 17:20', comment: '내부망 세션 정책 조정 후 안정화 확인. 종료합니다.' } ] }
+  ];
+
+  const URG = { high: { cls: 'urg-high', txt: '긴급' }, mid: { cls: 'urg-mid', txt: '높음' }, low: { cls: 'urg-low', txt: '보통' } };
+  const PILL = {
+    received: { cls: 'spill-received', dot: 'sdot-info',    txt: '접수' },
+    progress: { cls: 'spill-progress', dot: 'sdot-warning', txt: '처리 중' },
+    done:     { cls: 'spill-done',     dot: 'sdot-success', txt: '처리 완료' }
+  };
+
+  const $ = id => document.getElementById(id);
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  let curFilter = 'all', curSearch = '';
+
+  function updateStats() {
+    $('cAll').textContent = ROWS.length;
+    $('cReceived').textContent = ROWS.filter(r => r.status === 'received').length;
+    $('cProgress').textContent = ROWS.filter(r => r.status === 'progress').length;
+    $('cDone').textContent = ROWS.filter(r => r.status === 'done').length;
+  }
+
+  function render() {
+    const q = curSearch.trim().toLowerCase();
+    const list = ROWS.filter(r => {
+      const okFilter = curFilter === 'all' || r.status === curFilter;
+      const okSearch = !q || (r.no + ' ' + r.type + ' ' + r.title).toLowerCase().includes(q);
+      return okFilter && okSearch;
+    });
+
+    if (!list.length) {
+      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="6">조건에 맞는 신고 내역이 없습니다.</td></tr>`;
+      return;
+    }
+
+    $('tbody').innerHTML = list.map(r => {
+      const u = URG[r.urg], p = PILL[r.status];
+      return `
+        <tr onclick="openModal('${r.no}')">
+          <td class="col-no">${r.no}</td>
+          <td class="col-date">${r.date.slice(5)}</td>
+          <td class="hide-sm"><span class="itag">${r.type}</span></td>
+          <td class="col-title">${esc(r.title)}</td>
+          <td><span class="urg ${u.cls}">${u.txt}</span></td>
+          <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></td>
+        </tr>`;
+    }).join('');
+  }
+
+  // ===== 모달 =====
+  function openModal(no) {
+    const r = ROWS.find(x => x.no === no);
+    if (!r) return;
+    const u = URG[r.urg], p = PILL[r.status];
+    $('modalContent').innerHTML = `
+      <div class="modal-title">${esc(r.title)}</div>
+      <div class="modal-meta" style="font-variant-numeric:tabular-nums">${r.no}</div>
+      <div class="modal-status"><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></div>
+      <div class="modal-row"><div class="modal-key">유형</div><div class="modal-val"><span class="itag">${r.type}</span></div></div>
+      <div class="modal-row"><div class="modal-key">대상 VDI</div><div class="modal-val" style="font-variant-numeric:tabular-nums">${r.vdi}</div></div>
+      <div class="modal-row"><div class="modal-key">신고일시</div><div class="modal-val" style="font-variant-numeric:tabular-nums">${r.date}</div></div>
+      <div class="modal-row"><div class="modal-key">긴급도</div><div class="modal-val"><span class="urg ${u.cls}">${u.txt}</span></div></div>
+      <div class="modal-section-title">상세 내용</div>
+      <div class="modal-detail-text">${esc(r.detail)}</div>
+      <div class="modal-section-title">처리 경과</div>
+      <div class="proc-line">
+        ${r.proc.map(n => `
+          <div class="proc-node">
+            <div class="proc-dot ${n.s}"></div>
+            <div class="proc-info">
+              <div class="proc-top"><span class="proc-label">${n.label}</span><span class="proc-time">${n.time}</span></div>
+              <div class="proc-comment">${esc(n.comment)}</div>
+            </div>
+          </div>`).join('')}
+      </div>`;
+    $('detailModal').classList.add('open');
+  }
+  function closeModal() { $('detailModal').classList.remove('open'); }
+
+  $('detailModal').addEventListener('click', e => { if (e.target === $('detailModal')) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ===== 필터 =====
+  document.querySelectorAll('#filterSeg .fsb').forEach(btn => btn.addEventListener('click', () => setFilter(btn.dataset.filter)));
+  document.querySelectorAll('.stat-chip').forEach(chip => chip.addEventListener('click', () => setFilter(chip.dataset.stat)));
+  function setFilter(f) {
+    curFilter = f;
+    document.querySelectorAll('#filterSeg .fsb').forEach(b => b.classList.toggle('on', b.dataset.filter === f));
+    document.querySelectorAll('.stat-chip').forEach(c => c.classList.toggle('on', c.dataset.stat === f));
+    render();
+  }
+  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; render(); });
+
+  // 초기
+  updateStats();
+  render();
+</script>
+</body>
+</html>
