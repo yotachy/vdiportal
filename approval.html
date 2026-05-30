@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KB손해보험 VDI 사용자 포탈 - 결재 현황</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .main { max-width: 1320px; margin: 0 auto; }
+
+  /* ===== 요약 스탯 칩 ===== */
+  .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stat-chip {
+    display: flex; align-items: center; gap: 13px; padding: 15px 18px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm); cursor: pointer; transition: all 0.16s;
+  }
+  .stat-chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .stat-chip.on { border-color: var(--kb-yellow-dark); box-shadow: 0 0 0 1px var(--kb-yellow-dark) inset, var(--shadow-sm); }
+  .stat-ico { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .stat-ico svg { width: 22px; height: 22px; }
+  .stat-ico.all { background: var(--kb-yellow-soft); color: var(--kb-yellow-dark); }
+  .stat-ico.warn { background: var(--warning-soft); color: var(--warning); }
+  .stat-ico.ok { background: var(--success-soft); color: var(--success); }
+  .stat-ico.bad { background: var(--danger-soft); color: var(--danger); }
+  .stat-num { font-size: 24px; font-weight: 800; color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums; }
+  .stat-lbl { font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-weight: 600; }
+
+  /* ===== 구분 태그 ===== */
+  .rtag { display: inline-block; font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 6px; letter-spacing: 0.01em; white-space: nowrap; }
+  .rtag-add { background: var(--kb-yellow-soft); color: #8A6A00; border: 1px solid var(--kb-yellow-line); }
+  .rtag-expand { background: var(--info-soft); color: var(--info); border: 1px solid #C2DAFB; }
+  .rtag-change { background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-strong); }
+  .rtag-return { background: var(--danger-soft); color: var(--danger); border: 1px solid #F3C4BF; }
+
+  /* ===== 진행 미니 단계 ===== */
+  .prog-mini { display: flex; align-items: center; gap: 11px; }
+  .prog-bars { display: flex; gap: 3px; width: 92px; flex-shrink: 0; }
+  .prog-bars i { flex: 1; height: 5px; border-radius: 3px; background: var(--border); }
+  .prog-bars i.done { background: var(--success); }
+  .prog-bars i.active { background: var(--kb-yellow); }
+  .prog-bars i.fail { background: var(--danger); }
+  .prog-cur { font-size: 12.5px; color: var(--text-secondary); font-weight: 700; white-space: nowrap; }
+  .prog-cur.fail { color: var(--danger); }
+
+  /* ===== 상태 pill ===== */
+  .spill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 100px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
+  .spill-progress { background: var(--warning-soft); color: #8A5800; }
+  .spill-apply { background: var(--info-soft); color: var(--info); }
+  .spill-done { background: var(--success-soft); color: var(--success); }
+  .spill-reject { background: var(--danger-soft); color: var(--danger); }
+
+  /* 테이블 행 클릭 */
+  .data-table tbody tr { cursor: pointer; }
+  .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .col-date { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+  .col-vdi { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .empty-row td { text-align: center; padding: 52px 16px; color: var(--text-tertiary); font-size: 14px; }
+
+  @media (max-width: 980px) {
+    .stat-strip { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP HEADER -->
+<header class="top-header">
+  <div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><span class="header-logo-text">KB손해보험</span></div>
+  <div class="header-divider"></div>
+  <div class="header-service-name">업무가상화 사용자 포탈</div>
+  <div class="header-divider"></div>
+  <div class="header-user-badge">
+    <span class="hub-name">최정식 책임</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">IT기획파트</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">사번 <strong>1010579</strong></span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">ID <strong>jschoi0223</strong></span>
+  </div>
+  <div class="header-right">
+    <div class="header-session">
+      <span>세션 만료</span>
+      <span class="header-session-value" id="sessionTimer">29:57</span>
+    </div>
+    <button class="header-btn" title="알림">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="header-badge">3</span>
+    </button>
+    <button class="header-btn" title="로그아웃" onclick="logout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div style="flex:1">
+      <div class="nav-section">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="portal.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          내 가상PC
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">신청 · 결재</div>
+        <a class="nav-item" href="apply.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          VDI 추가신청
+        </a>
+        <a class="nav-item" href="change.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          변경 · 증설 · 반납
+        </a>
+        <a class="nav-item active" href="approval.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          결재 현황
+          <span class="nav-item-badge">2</span>
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">지원 · 서비스</div>
+        <a class="nav-item" href="incident.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          장애신고 내역
+        </a>
+        <a class="nav-item" href="notice.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          공지사항
+        </a>
+        <a class="nav-item" href="faq.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          FAQ
+        </a>
+        <a class="nav-item" href="qna.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          자료실
+        </a>
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <a class="support-card" href="tel:15448119" style="display:block">
+        <div class="support-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Service Desk
+        </div>
+        <div class="support-desc">VDI 관련 문의 · 평일 09:00~18:00</div>
+        <div class="support-tel">1544-8119</div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="breadcrumb reveal">
+      <a href="portal.html">홈</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>신청 · 결재</span>
+      <span class="breadcrumb-sep">›</span>
+      <span style="color:var(--text-secondary);font-weight:600">결재 현황</span>
+    </div>
+
+    <div class="page-header reveal" style="animation-delay:.06s">
+      <div class="page-header-left">
+        <h1 class="page-title">결재 현황</h1>
+        <p class="page-desc">제출한 신청의 결재 진행 상태를 확인합니다. 항목을 클릭하면 상세 내역을 볼 수 있습니다.</p>
+      </div>
+      <div class="page-header-right">
+        <a class="btn btn-primary" href="apply.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          새 신청
+        </a>
+      </div>
+    </div>
+
+    <!-- 요약 스탯 칩 -->
+    <div class="stat-strip reveal" style="animation-delay:.1s">
+      <div class="stat-chip" data-stat="all">
+        <div class="stat-ico all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+        <div><div class="stat-num" id="cAll">0</div><div class="stat-lbl">전체 신청</div></div>
+      </div>
+      <div class="stat-chip" data-stat="progress">
+        <div class="stat-ico warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div><div class="stat-num" id="cProgress">0</div><div class="stat-lbl">진행 중</div></div>
+      </div>
+      <div class="stat-chip" data-stat="done">
+        <div class="stat-ico ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div><div class="stat-num" id="cDone">0</div><div class="stat-lbl">승인 완료</div></div>
+      </div>
+      <div class="stat-chip" data-stat="reject">
+        <div class="stat-ico bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+        <div><div class="stat-num" id="cReject">0</div><div class="stat-lbl">반려</div></div>
+      </div>
+    </div>
+
+    <!-- 필터바 -->
+    <div class="filter-bar reveal" style="animation-delay:.14s">
+      <div class="filter-seg" id="filterSeg">
+        <button class="fsb on" data-filter="all">전체</button>
+        <button class="fsb" data-filter="progress">진행중</button>
+        <button class="fsb" data-filter="done">승인완료</button>
+        <button class="fsb" data-filter="reject">반려</button>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="신청번호 · 구분 · VDI명 검색">
+      </div>
+    </div>
+
+    <!-- 테이블 -->
+    <div class="fc reveal" style="animation-delay:.18s">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:160px">신청번호</th>
+            <th style="width:96px">신청일</th>
+            <th style="width:96px">구분</th>
+            <th style="width:170px">대상 VDI</th>
+            <th>진행</th>
+            <th style="width:128px">상태</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // ===== 인증 상태 (시안용 sessionStorage 플래그) =====
+  function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
+  function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
+
+  // ===== 세션 타이머 =====
+  let sessionSec = 30 * 60 - 3;
+  setInterval(() => {
+    sessionSec--;
+    if (sessionSec <= 0) { alert('세션이 만료되었습니다.'); location.href = 'login.html'; }
+    const m = String(Math.floor(sessionSec / 60)).padStart(2, '0');
+    const s = String(sessionSec % 60).padStart(2, '0');
+    document.getElementById('sessionTimer').textContent = `${m}:${s}`;
+  }, 1000);
+
+  // ===== 데이터 (portal.html과 정합) =====
+  // status: progress(결재 진행중) · apply(적용 중) · done(승인 완료) · reject(반려)
+  // step: 0~4 (0=기안 완료, 1=부서장, 2=IT운영부, 3=처리, 4=완료) 기준 진행 인덱스
+  const ROWS = [
+    { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설',   vdi: 'jschoi0223-main',   steps: 4, step: 1, cur: '부서장 승인 중', status: 'progress' },
+    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '추가신청', vdi: 'jschoi0223-common', steps: 4, step: 3, cur: '적용 중',       status: 'apply' },
+    { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '변경',   vdi: 'jschoi0223-main',   steps: 4, step: 4, cur: '적용 완료',     status: 'done' },
+    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '추가신청', vdi: 'jschoi0223-temp',   steps: 4, step: 4, cur: '적용 완료',     status: 'done' },
+    { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '반납',   vdi: 'jschoi0223-old01',  steps: 4, step: 4, cur: '반납 완료',     status: 'done' },
+    { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설',   vdi: 'jschoi0223-temp',   steps: 4, step: 2, cur: '부서장 반려',   status: 'reject' },
+    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '변경',   vdi: 'jschoi0223-common', steps: 4, step: 4, cur: '적용 완료',     status: 'done' }
+  ];
+
+  const KIND = { '추가신청': 'add', '증설': 'expand', '변경': 'change', '반납': 'return' };
+  const PILL = {
+    progress: { cls: 'spill-progress', dot: 'sdot-warning', txt: '결재 진행중' },
+    apply:    { cls: 'spill-apply',    dot: 'sdot-info',    txt: '적용 중' },
+    done:     { cls: 'spill-done',     dot: 'sdot-success', txt: '승인 완료' },
+    reject:   { cls: 'spill-reject',   dot: 'sdot-danger',  txt: '반려' }
+  };
+  // 필터/집계 시 apply(적용 중)는 '진행 중' 그룹으로 묶음
+  const group = s => (s === 'apply' ? 'progress' : s);
+
+  const $ = id => document.getElementById(id);
+  let curFilter = 'all', curSearch = '';
+
+  // 진행 바 HTML
+  function barsHtml(r) {
+    let h = '';
+    for (let i = 0; i < r.steps; i++) {
+      let cls = '';
+      if (r.status === 'done') cls = 'done';
+      else if (r.status === 'reject') cls = i < r.step ? 'done' : (i === r.step ? 'fail' : '');
+      else cls = i < r.step ? 'done' : (i === r.step ? 'active' : '');
+      h += `<i class="${cls}"></i>`;
+    }
+    return h;
+  }
+
+  // 집계
+  function updateStats() {
+    $('cAll').textContent = ROWS.length;
+    $('cProgress').textContent = ROWS.filter(r => group(r.status) === 'progress').length;
+    $('cDone').textContent = ROWS.filter(r => r.status === 'done').length;
+    $('cReject').textContent = ROWS.filter(r => r.status === 'reject').length;
+  }
+
+  // 렌더
+  function render() {
+    const q = curSearch.trim().toLowerCase();
+    const list = ROWS.filter(r => {
+      const okFilter = curFilter === 'all' || group(r.status) === curFilter;
+      const okSearch = !q || (r.no + ' ' + r.kind + ' ' + r.vdi).toLowerCase().includes(q);
+      return okFilter && okSearch;
+    });
+
+    if (!list.length) {
+      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="6">조건에 맞는 신청 내역이 없습니다.</td></tr>`;
+      return;
+    }
+
+    $('tbody').innerHTML = list.map(r => {
+      const p = PILL[r.status];
+      return `
+        <tr onclick="location.href='approval-detail.html?no=${r.no}'">
+          <td class="col-no">${r.no}</td>
+          <td class="col-date">${r.date.slice(5)}</td>
+          <td><span class="rtag rtag-${KIND[r.kind]}">${r.kind}</span></td>
+          <td class="col-vdi">${r.vdi}</td>
+          <td>
+            <div class="prog-mini">
+              <div class="prog-bars">${barsHtml(r)}</div>
+              <span class="prog-cur${r.status === 'reject' ? ' fail' : ''}">${r.cur}</span>
+            </div>
+          </td>
+          <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></td>
+        </tr>`;
+    }).join('');
+  }
+
+  // 필터 세그
+  document.querySelectorAll('#filterSeg .fsb').forEach(btn => {
+    btn.addEventListener('click', () => setFilter(btn.dataset.filter));
+  });
+  // 스탯 칩 → 필터 연동
+  document.querySelectorAll('.stat-chip').forEach(chip => {
+    chip.addEventListener('click', () => setFilter(chip.dataset.stat));
+  });
+
+  function setFilter(f) {
+    curFilter = f;
+    document.querySelectorAll('#filterSeg .fsb').forEach(b => b.classList.toggle('on', b.dataset.filter === f));
+    document.querySelectorAll('.stat-chip').forEach(c => c.classList.toggle('on', c.dataset.stat === f));
+    render();
+  }
+
+  // 검색
+  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; render(); });
+
+  // 초기
+  updateStats();
+  render();
+</script>
+</body>
+</html>

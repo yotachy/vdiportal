@@ -70,7 +70,7 @@
 | 2 | `portal.html` | 메인 포탈 (내 가상PC) | Workspace | ✅ 완료 |
 | 3 | `apply.html` | VDI 추가신청 | 신청 · 결재 | 📝 예정 |
 | 4 | `change.html` | 변경 · 증설 · 반납 | 신청 · 결재 | ✅ 완료 |
-| 5 | `approval.html` | 결재 현황 | 신청 · 결재 | 📝 예정 |
+| 5 | `approval.html` | 결재 현황 | 신청 · 결재 | ✅ 완료 |
 | 6 | `approval-detail.html` | 결재 상세 | drill-down | 📝 예정 |
 | 7 | `incident.html` | 장애신고 내역 | 지원 · 서비스 | 📝 예정 |
 | 8 | `incident-new.html` | 장애신고 등록 | drill-down | 📝 예정 |
