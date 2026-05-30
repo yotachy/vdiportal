@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KB손해보험 VDI 사용자 포탈 - 공지사항</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .main { max-width: 1320px; margin: 0 auto; }
+
+  /* 공지 리스트 */
+  .notice-item { display: grid; grid-template-columns: 88px 1fr auto; gap: 18px; align-items: center;
+    padding: 16px 22px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s; }
+  .notice-item:last-child { border-bottom: none; }
+  .notice-item:hover { background: var(--surface-2); }
+  .notice-item.pinned { background: linear-gradient(90deg, var(--kb-yellow-soft), rgba(255,246,220,0.35)); }
+  .notice-item.pinned:hover { background: var(--kb-yellow-soft); }
+
+  .ntag { display: block; text-align: center; font-size: 12px; font-weight: 800; padding: 4px 0; border-radius: 6px; letter-spacing: 0.01em; }
+  .ntag-urgent { background: var(--danger-soft); color: var(--danger); border: 1px solid #F3C4BF; }
+  .ntag-maint { background: var(--info-soft); color: var(--info); border: 1px solid #C2DAFB; }
+  .ntag-update { background: var(--kb-yellow-soft); color: #8A6A00; border: 1px solid var(--kb-yellow-line); }
+  .ntag-normal { background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-strong); }
+
+  .notice-main { min-width: 0; }
+  .notice-title { font-size: 15px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .notice-title .t-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .notice-pin { width: 15px; height: 15px; color: var(--kb-yellow-dark); flex-shrink: 0; }
+  .new-badge { flex-shrink: 0; font-size: 10px; font-weight: 800; color: var(--danger); background: var(--danger-soft);
+    border-radius: 5px; padding: 1px 6px; letter-spacing: 0.03em; }
+
+  .notice-meta { display: flex; align-items: center; gap: 16px; font-size: 12.5px; color: var(--text-tertiary);
+    white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .notice-meta .nm { display: flex; align-items: center; gap: 5px; }
+  .notice-meta svg { width: 13px; height: 13px; }
+
+  .empty-state { text-align: center; padding: 56px 16px; color: var(--text-tertiary); font-size: 14px; }
+
+  @media (max-width: 820px) {
+    .notice-item { grid-template-columns: 76px 1fr; gap: 12px; }
+    .notice-meta { grid-column: 2; justify-content: flex-start; gap: 12px; }
+    .notice-meta .nm-author { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP HEADER -->
+<header class="top-header">
+  <div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><span class="header-logo-text">KB손해보험</span></div>
+  <div class="header-divider"></div>
+  <div class="header-service-name">업무가상화 사용자 포탈</div>
+  <div class="header-divider"></div>
+  <div class="header-user-badge">
+    <span class="hub-name">최정식 책임</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">IT기획파트</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">사번 <strong>1010579</strong></span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">ID <strong>jschoi0223</strong></span>
+  </div>
+  <div class="header-right">
+    <div class="header-session">
+      <span>세션 만료</span>
+      <span class="header-session-value" id="sessionTimer">29:57</span>
+    </div>
+    <button class="header-btn" title="알림">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="header-badge">3</span>
+    </button>
+    <button class="header-btn" title="로그아웃" onclick="logout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div style="flex:1">
+      <div class="nav-section">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="portal.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          내 가상PC
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">신청 · 결재</div>
+        <a class="nav-item" href="apply.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          VDI 추가신청
+        </a>
+        <a class="nav-item" href="change.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          변경 · 증설 · 반납
+        </a>
+        <a class="nav-item" href="approval.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          결재 현황
+          <span class="nav-item-badge">2</span>
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">지원 · 서비스</div>
+        <a class="nav-item" href="incident.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          장애신고 내역
+        </a>
+        <a class="nav-item active" href="notice.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          공지사항
+        </a>
+        <a class="nav-item" href="faq.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          FAQ
+        </a>
+        <a class="nav-item" href="qna.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          자료실
+        </a>
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <a class="support-card" href="tel:15448119" style="display:block">
+        <div class="support-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Service Desk
+        </div>
+        <div class="support-desc">VDI 관련 문의 · 평일 09:00~18:00</div>
+        <div class="support-tel">1544-8119</div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="breadcrumb reveal">
+      <a href="portal.html">홈</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>지원 · 서비스</span>
+      <span class="breadcrumb-sep">›</span>
+      <span style="color:var(--text-secondary);font-weight:600">공지사항</span>
+    </div>
+
+    <div class="page-header reveal" style="animation-delay:.06s">
+      <div class="page-header-left">
+        <h1 class="page-title">공지사항</h1>
+        <p class="page-desc">VDI 운영 관련 점검·업데이트·보안 공지를 확인합니다. 항목을 클릭하면 상세 내용을 볼 수 있습니다.</p>
+      </div>
+    </div>
+
+    <!-- 필터바 -->
+    <div class="filter-bar reveal" style="animation-delay:.1s">
+      <div class="filter-seg" id="filterSeg">
+        <button class="fsb on" data-filter="all">전체</button>
+        <button class="fsb" data-filter="urgent">긴급</button>
+        <button class="fsb" data-filter="maint">점검</button>
+        <button class="fsb" data-filter="update">업데이트</button>
+        <button class="fsb" data-filter="normal">일반</button>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="제목 검색">
+      </div>
+    </div>
+
+    <!-- 공지 리스트 -->
+    <div class="fc reveal" style="animation-delay:.14s">
+      <div id="noticeList"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // ===== 인증 상태 (시안용 sessionStorage 플래그) =====
+  function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
+  function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
+
+  // ===== 세션 타이머 =====
+  let sessionSec = 30 * 60 - 3;
+  setInterval(() => {
+    sessionSec--;
+    if (sessionSec <= 0) { alert('세션이 만료되었습니다.'); location.href = 'login.html'; }
+    const m = String(Math.floor(sessionSec / 60)).padStart(2, '0');
+    const s = String(sessionSec % 60).padStart(2, '0');
+    document.getElementById('sessionTimer').textContent = `${m}:${s}`;
+  }, 1000);
+
+  // ===== 데이터 (오늘 2026-05-31 기준 최근순) =====
+  // cat: urgent(긴급) · maint(점검) · update(업데이트) · normal(일반)
+  const NOTICES = [
+    { id: 1, cat: 'maint',  pinned: true,  isNew: true,  title: '[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내', author: 'VDI 운영팀', date: '2026.05.29', views: 1284 },
+    { id: 2, cat: 'urgent', pinned: true,  isNew: true,  title: '[보안] 랜섬웨어 주의보 — 출처 불명 메일 첨부파일 실행 금지', author: '정보보안부', date: '2026.05.28', views: 2317 },
+    { id: 3, cat: 'update', pinned: false, isNew: true,  title: 'Citrix Workspace v23.11 배포 안내 (자동 업데이트)', author: 'VDI 운영팀', date: '2026.05.26', views: 903 },
+    { id: 4, cat: 'normal', pinned: false, isNew: false, title: 'VDI 사용자 매뉴얼 v2.0 배포 안내', author: 'IT기획파트', date: '2026.05.20', views: 1042 },
+    { id: 5, cat: 'update', pinned: false, isNew: false, title: '가상PC Windows 5월 정기 보안 패치 적용 안내', author: 'VDI 운영팀', date: '2026.05.14', views: 658 },
+    { id: 6, cat: 'maint',  pinned: false, isNew: false, title: '05.11(일) 네트워크 장비 교체 작업 안내 (접속 일시 중단)', author: '인프라팀', date: '2026.05.08', views: 591 },
+    { id: 7, cat: 'normal', pinned: false, isNew: false, title: 'PC가상화 프로그램 설치 파일 안내', author: 'VDI 운영팀', date: '2026.04.22', views: 712 },
+    { id: 8, cat: 'normal', pinned: false, isNew: false, title: '신규 공용 VDI(부서 공용형) 도입 안내', author: 'IT기획파트', date: '2026.04.15', views: 834 },
+    { id: 9, cat: 'urgent', pinned: false, isNew: false, title: '[복구완료] 일부 사용자 접속 지연 현상 정상화 안내', author: 'VDI 운영팀', date: '2026.04.10', views: 1576 }
+  ];
+
+  const CAT = {
+    urgent: { cls: 'ntag-urgent', txt: '긴급' },
+    maint:  { cls: 'ntag-maint',  txt: '점검' },
+    update: { cls: 'ntag-update', txt: '업데이트' },
+    normal: { cls: 'ntag-normal', txt: '일반' }
+  };
+
+  const $ = id => document.getElementById(id);
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  let curFilter = 'all', curSearch = '';
+
+  const PIN_SVG = '<svg class="notice-pin" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16 3l5 5-3 1-3 3-1 5-2-2-3 3-1-1 3-3-2-2 5-1 3-3 1-3z"/></svg>';
+  const EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const USER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+
+  function render() {
+    const q = curSearch.trim().toLowerCase();
+    let list = NOTICES.filter(n => {
+      const okFilter = curFilter === 'all' || n.cat === curFilter;
+      const okSearch = !q || n.title.toLowerCase().includes(q);
+      return okFilter && okSearch;
+    });
+    // 고정 우선, 그 외 최신순(데이터가 이미 최신순)
+    list = [...list].sort((a, b) => (b.pinned - a.pinned));
+
+    if (!list.length) {
+      $('noticeList').innerHTML = `<div class="empty-state">조건에 맞는 공지사항이 없습니다.</div>`;
+      return;
+    }
+
+    $('noticeList').innerHTML = list.map(n => {
+      const c = CAT[n.cat];
+      return `
+        <div class="notice-item${n.pinned ? ' pinned' : ''}" onclick="location.href='notice-detail.html?id=${n.id}'">
+          <span class="ntag ${c.cls}">${c.txt}</span>
+          <div class="notice-main">
+            <div class="notice-title">
+              ${n.pinned ? PIN_SVG : ''}
+              <span class="t-text">${esc(n.title)}</span>
+              ${n.isNew ? '<span class="new-badge">NEW</span>' : ''}
+            </div>
+          </div>
+          <div class="notice-meta">
+            <span class="nm nm-author">${USER_SVG}${n.author}</span>
+            <span class="nm">${n.date}</span>
+            <span class="nm">${EYE_SVG}${n.views.toLocaleString()}</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // 필터 / 검색
+  document.querySelectorAll('#filterSeg .fsb').forEach(btn => {
+    btn.addEventListener('click', () => {
+      curFilter = btn.dataset.filter;
+      document.querySelectorAll('#filterSeg .fsb').forEach(b => b.classList.toggle('on', b === btn));
+      render();
+    });
+  });
+  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; render(); });
+
+  render();
+</script>
+</body>
+</html>
