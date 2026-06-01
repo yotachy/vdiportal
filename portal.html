@@ -54,13 +54,15 @@
   .vw-add svg{width:15px;height:15px}
 
   .vw-body{display:grid;grid-template-columns:1fr 332px;gap:0}
-  .vw-main{padding:26px 28px}
+  .vw-main{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:30px;align-items:center;padding:26px 28px}
+  .vw-main-info{min-width:0}
   .vw-head{display:flex;align-items:center;gap:12px;margin-bottom:7px;flex-wrap:wrap}
-  .vw-status{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:100px;
-    font-size:12.5px;font-weight:800;letter-spacing:.01em;
-    background:var(--success-soft);color:var(--success);border:1px solid #BBE3C5}
-  .vw-status.off{background:var(--bg-subtle);color:var(--text-tertiary);border-color:var(--border-strong)}
-  .vw-status.off .vw-pulse{animation:none}
+  .vw-status{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:100px;
+    font-size:13px;font-weight:800;letter-spacing:.01em;color:#fff;border:none}
+  .vw-status.on{background:var(--success)}
+  .vw-status.maint{background:var(--warning);color:var(--ink)}
+  .vw-status.off{background:#5C564E}
+  .vw-status.off .vw-pulse,.vw-status.maint .vw-pulse{animation:none}
   .vw-pulse{width:8px;height:8px;border-radius:50%;background:currentColor;animation:breathe 2.4s ease-in-out infinite}
   @keyframes breathe{0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1}50%{box-shadow:0 0 0 5px transparent;opacity:.55}}
   .vw-type{font-size:12px;font-weight:800;padding:4px 9px;border-radius:6px;letter-spacing:.02em;
@@ -127,6 +129,9 @@
   @media (max-width:1160px){
     .vw-body{grid-template-columns:1fr}
     .vw-res{border-left:none;border-top:1px solid var(--border)}
+  }
+  @media (max-width:960px){
+    .vw-main{grid-template-columns:1fr}
   }
   @media (max-width:720px){
     .kpi-strip{grid-template-columns:1fr}
@@ -276,7 +281,7 @@
         <div class="vw-tabs-list" id="vwTabs">
           <button class="vtab active" data-vdi="0"><span class="status-dot sdot-success"></span><span class="vtab-name">jschoi0223-main</span></button>
           <button class="vtab" data-vdi="1"><span class="status-dot sdot-muted"></span><span class="vtab-name">jschoi0223-temp</span></button>
-          <button class="vtab" data-vdi="2"><span class="status-dot sdot-success"></span><span class="vtab-name">jschoi0223-common</span></button>
+          <button class="vtab" data-vdi="2"><span class="status-dot sdot-warning"></span><span class="vtab-name">jschoi0223-common</span></button>
         </div>
         <div class="vw-tabs-actions">
           <a class="vw-add" href="apply.html">
@@ -288,8 +293,9 @@
 
       <div class="vw-body">
         <div class="vw-main">
+          <div class="vw-main-info">
           <div class="vw-head">
-            <span class="vw-status" id="vwStatus"><span class="vw-pulse"></span><span id="vwStatusText">ONLINE · 접속 가능</span></span>
+            <span class="vw-status on" id="vwStatus"><span class="vw-pulse"></span><span id="vwStatusText">전원 ON</span></span>
             <span class="vw-type" id="vwType">고정가상화</span>
           </div>
           <h2 class="vw-name" id="vwName">jschoi0223-main</h2>
@@ -314,23 +320,26 @@
               새로고침
             </button>
           </div>
+          </div>
+
+          <div class="vw-main-connect">
+            <button class="connect-mon" id="vwConnect">
+              <div class="mon-frame">
+                <div class="mon-row">
+                  <span class="mon-play"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg></span>
+                  <div class="mon-text">
+                    <div class="mon-title" id="monTitle">가상PC 접속</div>
+                    <div class="mon-sub"><span class="dot"></span><span id="monStatus">전원 ON</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="mon-stand"></div>
+              <div class="mon-base"></div>
+            </button>
+          </div>
         </div>
 
         <aside class="vw-res">
-          <button class="connect-mon" id="vwConnect">
-            <div class="mon-frame">
-              <div class="mon-row">
-                <span class="mon-play"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg></span>
-                <div class="mon-text">
-                  <div class="mon-title" id="monTitle">가상PC 접속</div>
-                  <div class="mon-sub"><span class="dot"></span><span id="monStatus">ONLINE · 접속 가능</span></div>
-                </div>
-              </div>
-            </div>
-            <div class="mon-stand"></div>
-            <div class="mon-base"></div>
-          </button>
-
           <div class="res-block">
             <div class="vw-res-head">
               <span class="vw-res-title">Resource</span>
@@ -403,31 +412,23 @@
 
   // ===== VDI 데이터 =====
   const VDI_LIST = [
-    {
-      name:'jschoi0223-main', type:'고정가상화', typeClass:'',
-      status:'running', statusText:'ONLINE · 접속 가능', connectable:true,
+    { name:'jschoi0223-main', type:'고정가상화', typeClass:'', state:'on',
       ip:'10.20.30.115', os:'Windows 11 Enterprise', lastAccess:'2026.04.24 09:12',
-      created:'2024.03.01', expire:'재직 시까지',
-      cpu:'4 Core', mem:'16 GB', disk:'150 GB',
-      net:{val:'18 Mbps', fill:18, sub:'지연 8 ms · 안정'}
-    },
-    {
-      name:'jschoi0223-temp', type:'임시형', typeClass:'',
-      status:'offline', statusText:'OFFLINE · 전원 종료', connectable:false,
+      created:'2024.03.01', expire:'재직 시까지', cpu:'4 Core', mem:'16 GB', disk:'150 GB' },
+    { name:'jschoi0223-temp', type:'임시형', typeClass:'', state:'off',
       ip:'10.20.30.208', os:'Windows 11 Enterprise', lastAccess:'2026.04.23 17:48',
-      created:'2026.03.15', expire:'~2026.09.30',
-      cpu:'2 Core', mem:'8 GB', disk:'300 GB',
-      net:{val:'-', fill:0, sub:'전원 종료 중'}
-    },
-    {
-      name:'jschoi0223-common', type:'공용형', typeClass:'shared',
-      status:'running', statusText:'ONLINE · 접속 가능', connectable:true,
+      created:'2026.03.15', expire:'~2026.09.30', cpu:'2 Core', mem:'8 GB', disk:'300 GB' },
+    { name:'jschoi0223-common', type:'공용형', typeClass:'shared', state:'maint',
       ip:'할당 시 배정', os:'Windows 11 Enterprise', lastAccess:'2026.04.18 14:30',
-      created:'2025.11.01', expire:'용도 · 임시 작업용',
-      cpu:'2 Core', mem:'4 GB', disk:'80 GB',
-      net:{val:'4 Mbps', fill:8, sub:'지연 10 ms · 안정'}
-    }
+      created:'2025.11.01', expire:'용도 · 임시 작업용', cpu:'2 Core', mem:'4 GB', disk:'80 GB' }
   ];
+
+  // 상태 매핑 (전원 ON · 전원 OFF · 점검 중)
+  const STATE = {
+    on:   { text:'전원 ON',  cls:'on',    connectable:true,  live:'LIVE' },
+    off:  { text:'전원 OFF', cls:'off',   connectable:false, live:'OFFLINE' },
+    maint:{ text:'점검 중',  cls:'maint', connectable:false, live:'점검' }
+  };
 
   const $ = id => document.getElementById(id);
 
@@ -436,9 +437,11 @@
 
     $('vwName').textContent = v.name;
 
+    const s = STATE[v.state];
     const st = $('vwStatus');
-    st.classList.toggle('off', v.status === 'offline');
-    $('vwStatusText').textContent = v.statusText;
+    st.classList.remove('on', 'off', 'maint');
+    st.classList.add(s.cls);
+    $('vwStatusText').textContent = s.text;
 
     const tp = $('vwType');
     tp.textContent = v.type;
@@ -454,8 +457,8 @@
       <div class="res-row"><span class="rk">만료일</span><span class="rv">${v.expire}</span></div>`;
 
     const c = $('vwConnect');
-    $('monStatus').textContent = v.statusText;
-    if (v.connectable){
+    $('monStatus').textContent = s.text;
+    if (s.connectable){
       c.classList.remove('off');
       $('monTitle').textContent = '가상PC 접속';
       c.onclick = () => showToast('가상PC에 접속합니다...');
@@ -470,8 +473,8 @@
     $('resDisk').textContent = v.disk;
 
     const live = $('vwLive');
-    live.classList.toggle('off', v.status === 'offline');
-    live.textContent = v.status === 'offline' ? 'OFFLINE' : 'LIVE';
+    live.classList.toggle('off', v.state !== 'on');
+    live.textContent = s.live;
   }
 
   // 탭 전환
