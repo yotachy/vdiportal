@@ -89,7 +89,9 @@ a{text-decoration:none;color:inherit}
   white-space:nowrap;transition:opacity .15s}
 .header-logo-text:hover{opacity:.7}
 .header-divider{width:1px;height:20px;background:var(--border-strong);margin:0 18px;flex-shrink:0}
-.header-service-name{color:var(--text-secondary);font-size:15px;font-weight:600;white-space:nowrap;flex-shrink:0}
+.header-service-name{color:var(--text-secondary);font-size:15px;font-weight:600;white-space:nowrap;flex-shrink:0;transition:color .15s}
+.header-service-name[onclick]{cursor:pointer}
+.header-service-name[onclick]:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .header-user-badge{display:flex;align-items:center;gap:9px;font-size:13.5px;
   color:var(--text-tertiary);flex-shrink:1;min-width:0;overflow:hidden}
 .hub-name{color:var(--text-primary);font-weight:700;white-space:nowrap;flex-shrink:0}
