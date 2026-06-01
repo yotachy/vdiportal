@@ -54,7 +54,7 @@
   .vw-add svg{width:15px;height:15px}
 
   .vw-body{display:grid;grid-template-columns:1fr 332px;gap:0}
-  .vw-main{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:30px;align-items:center;padding:26px 28px}
+  .vw-main{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:30px;align-items:start;padding:24px 28px}
   .vw-main-info{min-width:0}
   .vw-head{display:flex;align-items:center;gap:12px;margin-bottom:7px;flex-wrap:wrap}
   .vw-status{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:100px;
@@ -107,7 +107,7 @@
   .btn-ghost.btn-danger-ghost{background:var(--danger-soft);border-color:#F3C4BF;color:var(--danger)}
   .btn-ghost.btn-danger-ghost:hover{background:#F9DDD9;border-color:var(--danger);color:var(--danger)}
   /* 새로고침 강조 (우측 정렬 + 옐로우 토글) */
-  .btn-refresh{margin-left:auto;height:44px;padding:0 17px;border-radius:11px;
+  .btn-refresh{height:44px;padding:0 17px;border-radius:11px;
     background:var(--kb-yellow-soft);border:1px solid var(--kb-yellow-line);color:#8A6A00;
     font-size:13.5px;font-weight:800;display:inline-flex;align-items:center;gap:7px;
     transition:all .15s;font-family:inherit;cursor:pointer}
@@ -121,9 +121,6 @@
   .res-block .vw-res-head{margin-bottom:10px}
   .vw-res-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
   .vw-res-title{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary)}
-  .vw-live{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;color:var(--success)}
-  .vw-live::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--success);animation:breathe 2.4s ease-in-out infinite}
-  .vw-live.off{color:var(--text-tertiary)}.vw-live.off::before{background:var(--text-tertiary);animation:none}
   .res-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border)}
   .res-row .rk{font-size:13px;color:var(--text-secondary);font-weight:600;display:flex;align-items:center;gap:8px}
   .res-row .rk svg{width:15px;height:15px;color:var(--text-tertiary)}
@@ -230,14 +227,14 @@
     </div>
 
     <div class="sidebar-bottom">
-      <a class="support-card" href="tel:15448119" style="display:block">
+      <div class="support-card">
         <div class="support-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           Service Desk
         </div>
         <div class="support-desc">VDI 관련 문의 · 평일 09:00~18:00</div>
         <div class="support-tel">1544-8119</div>
-      </a>
+      </div>
     </div>
   </aside>
 
@@ -314,7 +311,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               강제 재기동
             </button>
-            <button class="btn-ghost" onclick="location.href='incident.html'">
+            <button class="btn-ghost" onclick="location.href='incident-new.html'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               장애 신고
             </button>
@@ -346,7 +343,6 @@
           <div class="res-block">
             <div class="vw-res-head">
               <span class="vw-res-title">Resource</span>
-              <span class="vw-live" id="vwLive">LIVE</span>
             </div>
             <div class="res-row">
               <span class="rk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>CPU</span>
@@ -417,7 +413,7 @@
   const VDI_LIST = [
     { name:'jschoi0223-main', type:'고정가상화', typeClass:'', state:'on',
       ip:'10.20.30.115', os:'Windows 11 Enterprise', lastAccess:'2026.04.24 09:12',
-      created:'2024.03.01', expire:'재직 시까지', cpu:'4 Core', mem:'16 GB', disk:'150 GB' },
+      created:'2024.03.01', expire:'재직 중', cpu:'4 Core', mem:'16 GB', disk:'150 GB' },
     { name:'jschoi0223-common', type:'공용형', typeClass:'shared', state:'maint',
       ip:'할당 시 배정', os:'Windows 11 Enterprise', lastAccess:'2026.04.18 14:30',
       created:'2025.11.01', expire:'용도 · 임시 작업용', cpu:'2 Core', mem:'4 GB', disk:'80 GB' }
@@ -425,9 +421,9 @@
 
   // 상태 매핑 (전원 ON · 전원 OFF · 점검 중)
   const STATE = {
-    on:   { text:'전원 ON',  cls:'on',    live:'LIVE' },
-    off:  { text:'전원 OFF', cls:'off',   live:'OFFLINE' },
-    maint:{ text:'점검 중',  cls:'maint', live:'점검' }
+    on:   { text:'전원 ON',  cls:'on' },
+    off:  { text:'전원 OFF', cls:'off' },
+    maint:{ text:'점검 중',  cls:'maint' }
   };
 
   const $ = id => document.getElementById(id);
@@ -463,10 +459,6 @@
     $('resCpu').textContent = v.cpu;
     $('resMem').textContent = v.mem;
     $('resDisk').textContent = v.disk;
-
-    const live = $('vwLive');
-    live.classList.toggle('off', v.state !== 'on');
-    live.textContent = s.live;
   }
 
   // 탭 전환

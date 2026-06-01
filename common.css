@@ -133,9 +133,7 @@ a{text-decoration:none;color:inherit}
 
 .sidebar-bottom{margin-top:auto;padding:14px}
 .support-card{display:block;background:linear-gradient(155deg,#FFFDF5,var(--kb-yellow-soft));
-  border:1px solid var(--kb-yellow-line);border-radius:14px;padding:15px 16px;
-  transition:box-shadow .15s,transform .15s}
-.support-card:hover{box-shadow:var(--shadow-yellow);transform:translateY(-1px)}
+  border:1px solid var(--kb-yellow-line);border-radius:14px;padding:15px 16px}
 .support-title{font-size:13px;font-weight:800;color:var(--ink);
   margin-bottom:6px;display:flex;align-items:center;gap:7px}
 .support-title svg{color:var(--kb-yellow-dark)}
