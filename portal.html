@@ -13,7 +13,7 @@
   .btn-ghost.spinning svg{animation:spin .65s ease}
 
   /* ===== KPI 스트립 ===== */
-  .kpi-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:18px}
+  .kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px}
   .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
     padding:18px 20px;display:flex;align-items:center;gap:15px;box-shadow:var(--shadow-sm);
     transition:transform .18s,box-shadow .18s;position:relative;overflow:hidden}
@@ -24,10 +24,12 @@
     display:flex;align-items:center;justify-content:center;background:var(--kb-yellow-soft);color:var(--kb-yellow-dark)}
   .kpi-ico.blue{background:var(--info-soft);color:var(--info)}
   .kpi-ico.green{background:var(--success-soft);color:var(--success)}
+  .kpi-ico.amber{background:var(--warning-soft);color:var(--warning)}
   .kpi-ico svg{width:23px;height:23px}
   .kpi-num{font-size:26px;font-weight:800;letter-spacing:-0.03em;color:var(--ink);line-height:1;
     display:flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums}
   .kpi-num small{font-size:14px;font-weight:700;color:var(--text-tertiary)}
+  .kpi-num.text{font-size:18px;letter-spacing:-0.02em}
   .kpi-label{font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600}
 
   /* ===== VDI 워크스페이스 카드 ===== */
@@ -278,6 +280,20 @@
         <div>
           <div class="kpi-num">3 <small>건</small></div>
           <div class="kpi-label">최근 공지사항</div>
+        </div>
+      </a>
+      <a class="kpi" href="qna.html">
+        <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+        <div>
+          <div class="kpi-num text">사용자 매뉴얼</div>
+          <div class="kpi-label">VDI 이용 가이드 · PDF</div>
+        </div>
+      </a>
+      <a class="kpi" href="#" onclick="event.preventDefault();showToast('e-HR 시스템으로 이동합니다.')">
+        <div class="kpi-ico amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div>
+          <div class="kpi-num text">e-HR</div>
+          <div class="kpi-label">인사 · 근태 시스템</div>
         </div>
       </a>
     </div>
