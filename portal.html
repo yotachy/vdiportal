@@ -53,6 +53,7 @@
   .si-name small{font-size:12px;font-weight:500;color:var(--text-tertiary);margin-top:1px;letter-spacing:0}
   .si-ext{width:15px;height:15px;color:var(--text-tertiary);margin-left:auto;flex-shrink:0;transition:color .14s}
   .sitelink-item:hover .si-ext{color:var(--kb-yellow-dark)}
+  .sitelink-sep{height:1px;background:var(--border);margin:6px 8px}
   .kpi-label{font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600}
 
   /* ===== VDI 워크스페이스 카드 ===== */
@@ -186,7 +187,7 @@
 
 <!-- TOP HEADER -->
 <header class="top-header">
-  <a class="header-logo" href="https://www.kbinsure.co.kr" target="_blank" rel="noopener" style="text-decoration:none" title="KB손해보험 공식 홈페이지"><span class="header-logo-text">KB손해보험</span></a>
+  <div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><span class="header-logo-text">KB손해보험</span></div>
   <div class="header-divider"></div>
   <div class="header-service-name" onclick="goHome()" style="cursor:pointer" title="포탈 홈으로">업무가상화 사용자 포탈</div>
   <div class="header-divider"></div>
@@ -320,6 +321,12 @@
         </div>
         <svg class="sitelink-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         <div class="sitelink-menu">
+          <a class="sitelink-item" href="https://www.kbinsure.co.kr" target="_blank" rel="noopener">
+            <span class="si-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+            <span class="si-name">KB손해보험 공식 홈페이지<small>www.kbinsure.co.kr</small></span>
+            <svg class="si-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
+          </a>
+          <div class="sitelink-sep"></div>
           <a class="sitelink-item" href="#" onclick="goSite(event,'e-HR')">
             <span class="si-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
             <span class="si-name">e-HR<small>인사 · 근태 시스템</small></span>
