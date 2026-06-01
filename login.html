@@ -16,21 +16,16 @@
 
   /* ===== 좌측 브랜드 패널 (웜 크림 라이트) ===== */
   .brand-panel{
-    flex:1.04;position:relative;overflow:hidden;
+    flex:0.95;position:relative;overflow:hidden;
     padding:54px 60px;display:flex;flex-direction:column;justify-content:space-between;
     background:
-      radial-gradient(680px 480px at 88% 8%, rgba(255,188,0,.16), transparent 60%),
-      linear-gradient(158deg,#FDFBF5 0%,#F7F1E4 58%,#F1E8D4 100%);
-    border-right:1px solid var(--kb-yellow-line);
+      radial-gradient(620px 460px at 82% 12%, var(--kb-yellow-soft), transparent 62%),
+      #FBFAF7;
+    border-right:1px solid var(--border);
   }
-  /* 시그니처 스파크(별) 라인아트 */
-  .brand-spark{position:absolute;right:-90px;bottom:-70px;width:520px;height:520px;
-    color:var(--kb-yellow);opacity:.16;pointer-events:none}
-  .brand-spark.sm{right:auto;left:54%;top:14%;width:120px;height:120px;opacity:.22;bottom:auto}
-  /* 미세 도트 텍스처 */
-  .brand-panel::after{content:'';position:absolute;inset:0;pointer-events:none;
-    background-image:radial-gradient(rgba(26,23,20,.045) 1px, transparent 1px);
-    background-size:22px 22px;mask-image:linear-gradient(160deg,transparent,#000 70%)}
+  /* 시그니처 스파크(별) — 절제된 워터마크 */
+  .brand-spark{position:absolute;right:-80px;bottom:-60px;width:440px;height:440px;
+    color:var(--kb-yellow);opacity:.09;pointer-events:none}
 
   .brand-logo{display:flex;align-items:center;gap:13px;position:relative;z-index:2}
   .brand-mark{width:46px;height:46px;background:var(--kb-yellow);border-radius:13px;
@@ -44,11 +39,11 @@
     color:#8A6A00;letter-spacing:.05em;margin-bottom:22px;
     padding:7px 13px;border:1px solid var(--kb-yellow-line);border-radius:100px;background:rgba(255,188,0,.1)}
   .brand-eyebrow::before{content:'';width:6px;height:6px;background:var(--kb-yellow-dark);border-radius:50%}
-  .brand-title{color:var(--ink);font-size:52px;font-weight:800;line-height:1.16;letter-spacing:-0.04em;margin-bottom:22px}
+  .brand-title{color:var(--ink);font-size:40px;font-weight:800;line-height:1.22;letter-spacing:-0.035em;margin-bottom:20px}
   .brand-title em{font-style:normal;position:relative;white-space:nowrap}
-  .brand-title em::after{content:'';position:absolute;left:0;right:0;bottom:6px;height:14px;
-    background:var(--kb-yellow);opacity:.42;z-index:-1;border-radius:3px}
-  .brand-subtitle{color:var(--text-secondary);font-size:18px;line-height:1.7;max-width:440px;font-weight:500}
+  .brand-title em::after{content:'';position:absolute;left:0;right:0;bottom:4px;height:10px;
+    background:var(--kb-yellow);opacity:.38;z-index:-1;border-radius:3px}
+  .brand-subtitle{color:var(--text-secondary);font-size:16px;line-height:1.7;max-width:430px;font-weight:500}
 
   .brand-footer{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;
     padding-top:34px;margin-top:34px;border-top:1px solid rgba(26,23,20,.1)}
@@ -58,7 +53,7 @@
   .brand-version{font-size:13px;color:var(--text-tertiary);font-weight:600;font-variant-numeric:tabular-nums}
 
   /* ===== 우측 로그인 패널 ===== */
-  .login-panel{flex:.96;background:var(--surface);display:flex;align-items:center;justify-content:center;
+  .login-panel{flex:1.05;background:var(--surface);display:flex;align-items:center;justify-content:center;
     padding:48px;position:relative}
   .login-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
     background:linear-gradient(90deg,var(--kb-yellow),#FFD24D 60%,var(--kb-yellow))}
@@ -130,11 +125,14 @@
   .login-help{font-size:14px;color:var(--text-secondary);font-weight:700}
   .login-help:hover{color:var(--ink)}
 
-  .login-notice{margin-top:30px;padding:18px 20px;background:var(--bg-subtle);border:1px solid var(--border);
-    border-left:3px solid var(--kb-yellow);border-radius:0 12px 12px 0}
-  .login-notice-title{font-size:14px;font-weight:800;color:var(--ink);margin-bottom:7px;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px}
-  .login-notice-title svg{width:15px;height:15px;color:var(--kb-yellow-dark)}
-  .login-notice-desc{font-size:13.5px;color:var(--text-secondary);line-height:1.6}
+  .login-notice{display:flex;gap:13px;align-items:flex-start;margin-top:28px;padding:16px 18px;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:12px}
+  .login-notice-ico{width:34px;height:34px;border-radius:10px;flex-shrink:0;
+    background:var(--kb-yellow-soft);color:var(--kb-yellow-dark);display:flex;align-items:center;justify-content:center}
+  .login-notice-ico svg{width:18px;height:18px}
+  .login-notice-body{min-width:0}
+  .login-notice-title{font-size:13.5px;font-weight:800;color:var(--ink);margin-bottom:4px;letter-spacing:-0.01em}
+  .login-notice-desc{font-size:13px;color:var(--text-secondary);line-height:1.65}
 
   @media (max-width:960px){
     body{flex-direction:column;height:auto;min-height:calc(100vh / 0.97);overflow-y:auto}
@@ -151,9 +149,6 @@
   <aside class="brand-panel">
     <!-- 시그니처 스파크 -->
     <svg class="brand-spark" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
-      <path d="M50 2 C54 32,68 46,98 50 C68 54,54 68,50 98 C46 68,32 54,2 50 C32 46,46 32,50 2 Z"/>
-    </svg>
-    <svg class="brand-spark sm" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
       <path d="M50 2 C54 32,68 46,98 50 C68 54,54 68,50 98 C46 68,32 54,2 50 C32 46,46 32,50 2 Z"/>
     </svg>
 
@@ -227,11 +222,13 @@
         </button>
 
         <div class="login-notice">
-          <div class="login-notice-title">
+          <div class="login-notice-ico">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            본 시스템은 KB손해보험 임직원 전용입니다.
           </div>
-          <div class="login-notice-desc">모든 접속 기록은 보안 정책에 따라 저장되며, 5회 이상 로그인 실패 시 계정이 잠김 처리됩니다.</div>
+          <div class="login-notice-body">
+            <div class="login-notice-title">본 시스템은 KB손해보험 임직원 전용입니다.</div>
+            <div class="login-notice-desc">모든 접속 기록은 보안 정책에 따라 저장되며, 5회 이상 로그인 실패 시 계정이 잠김 처리됩니다.</div>
+          </div>
         </div>
       </div>
 
