@@ -77,7 +77,7 @@
 | 9 | `notice.html` | 공지사항 | 지원 · 서비스 | ✅ 완료 |
 | 10 | `notice-detail.html` | 공지사항 상세 | drill-down | ✅ 완료 |
 | 11 | `faq.html` | FAQ | 지원 · 서비스 | ✅ 완료 |
-| 12 | `qna.html` | 자료실 | 지원 · 서비스 | 📝 예정 |
+| 12 | `qna.html` | 자료실 | 지원 · 서비스 | ✅ 완료 |
 
 ### 권장 작업 순서
 

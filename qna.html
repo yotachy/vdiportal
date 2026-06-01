@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KB손해보험 VDI 사용자 포탈 - 자료실</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .main { max-width: 1320px; margin: 0 auto; }
+
+  /* 2-pane */
+  .qna-grid { display: grid; grid-template-columns: 244px 1fr; gap: 18px; align-items: start; }
+
+  /* 좌측 폴더 패널 */
+  .folder-panel { padding: 12px; }
+  .folder-item { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 10px;
+    cursor: pointer; transition: all 0.13s; margin-bottom: 2px; }
+  .folder-item:hover { background: var(--bg-subtle); }
+  .folder-item.on { background: var(--kb-yellow-soft); }
+  .folder-item.on .folder-name { color: var(--ink); font-weight: 800; }
+  .folder-item.on .folder-ico { color: var(--kb-yellow-dark); }
+  .folder-ico { width: 19px; height: 19px; color: var(--text-tertiary); flex-shrink: 0; }
+  .folder-name { flex: 1; font-size: 14px; font-weight: 600; color: var(--text-secondary); letter-spacing: -0.01em; }
+  .folder-count { font-size: 12px; font-weight: 700; color: var(--text-tertiary); background: var(--bg-subtle);
+    border-radius: 10px; padding: 1px 8px; min-width: 22px; text-align: center; }
+  .folder-item.on .folder-count { background: var(--surface); color: #8A6A00; }
+
+  /* 우측 파일 리스트 */
+  .files-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    padding: 15px 20px; border-bottom: 1px solid var(--border); }
+  .files-title { font-size: 16px; font-weight: 800; color: var(--ink); }
+  .files-title span { color: var(--text-tertiary); font-weight: 600; font-size: 13px; margin-left: 7px; }
+  .files-bar .search-box { max-width: 260px; }
+
+  .file-head { display: grid; grid-template-columns: 44px 1fr 92px 110px 46px; gap: 14px; align-items: center;
+    padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--surface-2);
+    font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+  .file-row { display: grid; grid-template-columns: 44px 1fr 92px 110px 46px; gap: 14px; align-items: center;
+    padding: 13px 20px; border-bottom: 1px solid var(--border); transition: background 0.12s; }
+  .file-row:last-child { border-bottom: none; }
+  .file-row:hover { background: var(--surface-2); }
+  .file-ico { width: 40px; height: 40px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: #fff; letter-spacing: -0.02em; }
+  .file-name { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+  .file-size { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; text-align: right; }
+  .file-date { font-size: 13px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; text-align: right; }
+  .file-dl { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-tertiary); background: var(--bg-subtle); transition: all 0.14s; cursor: pointer; margin-left: auto; }
+  .file-dl:hover { background: var(--kb-yellow); color: var(--ink); }
+  .file-dl svg { width: 17px; height: 17px; }
+
+  .files-empty { padding: 56px 16px; text-align: center; color: var(--text-tertiary); font-size: 14px; }
+
+  @media (max-width: 900px) {
+    .qna-grid { grid-template-columns: 1fr; }
+    .folder-panel { display: flex; flex-wrap: wrap; gap: 6px; }
+    .folder-item { flex: 1; min-width: 130px; margin-bottom: 0; }
+    .file-head { grid-template-columns: 44px 1fr 46px; }
+    .file-row { grid-template-columns: 44px 1fr 46px; }
+    .file-size, .file-date, .fh-size, .fh-date { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP HEADER -->
+<header class="top-header">
+  <div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><span class="header-logo-text">KB손해보험</span></div>
+  <div class="header-divider"></div>
+  <div class="header-service-name">업무가상화 사용자 포탈</div>
+  <div class="header-divider"></div>
+  <div class="header-user-badge">
+    <span class="hub-name">최정식 책임</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">IT기획파트</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">사번 <strong>1010579</strong></span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">ID <strong>jschoi0223</strong></span>
+  </div>
+  <div class="header-right">
+    <div class="header-session">
+      <span>세션 만료</span>
+      <span class="header-session-value" id="sessionTimer">29:57</span>
+    </div>
+    <button class="header-btn" title="알림">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="header-badge">3</span>
+    </button>
+    <button class="header-btn" title="로그아웃" onclick="logout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div style="flex:1">
+      <div class="nav-section">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="portal.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          내 가상PC
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">신청 · 결재</div>
+        <a class="nav-item" href="apply.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          VDI 추가신청
+        </a>
+        <a class="nav-item" href="change.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          변경 · 증설 · 반납
+        </a>
+        <a class="nav-item" href="approval.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          결재 현황
+          <span class="nav-item-badge">2</span>
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">지원 · 서비스</div>
+        <a class="nav-item" href="incident.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          장애신고 내역
+        </a>
+        <a class="nav-item" href="notice.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          공지사항
+        </a>
+        <a class="nav-item" href="faq.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          FAQ
+        </a>
+        <a class="nav-item active" href="qna.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          자료실
+        </a>
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <a class="support-card" href="tel:15448119" style="display:block">
+        <div class="support-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Service Desk
+        </div>
+        <div class="support-desc">VDI 관련 문의 · 평일 09:00~18:00</div>
+        <div class="support-tel">1544-8119</div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="breadcrumb reveal">
+      <a href="portal.html">홈</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>지원 · 서비스</span>
+      <span class="breadcrumb-sep">›</span>
+      <span style="color:var(--text-secondary);font-weight:600">자료실</span>
+    </div>
+
+    <div class="page-header reveal" style="animation-delay:.06s">
+      <div class="page-header-left">
+        <h1 class="page-title">자료실</h1>
+        <p class="page-desc">VDI 관련 매뉴얼·설치 파일·신청 서식·정책 자료를 분류별로 내려받을 수 있습니다.</p>
+      </div>
+    </div>
+
+    <div class="qna-grid reveal" style="animation-delay:.1s">
+      <!-- 좌측 폴더 -->
+      <aside class="fc">
+        <div class="fc-head"><div class="fc-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          분류
+        </div><div class="fc-ctrl"></div></div>
+        <div class="folder-panel" id="folderPanel"></div>
+      </aside>
+
+      <!-- 우측 파일 리스트 -->
+      <div class="fc">
+        <div class="files-bar">
+          <div class="files-title" id="filesTitle">전체<span id="filesCount">0개</span></div>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="파일명 검색">
+          </div>
+        </div>
+        <div class="file-head">
+          <span></span><span>파일명</span><span class="fh-size" style="text-align:right">용량</span><span class="fh-date" style="text-align:right">등록일</span><span></span>
+        </div>
+        <div id="fileList"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+  <span id="toastMsg">처리되었습니다.</span>
+</div>
+
+<script>
+  // ===== 인증 상태 (시안용 sessionStorage 플래그) =====
+  function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
+  function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
+
+  // ===== 세션 타이머 =====
+  let sessionSec = 30 * 60 - 3;
+  setInterval(() => {
+    sessionSec--;
+    if (sessionSec <= 0) { alert('세션이 만료되었습니다.'); location.href = 'login.html'; }
+    const m = String(Math.floor(sessionSec / 60)).padStart(2, '0');
+    const s = String(sessionSec % 60).padStart(2, '0');
+    document.getElementById('sessionTimer').textContent = `${m}:${s}`;
+  }, 1000);
+
+  // ===== 토스트 =====
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    t.classList.add('show');
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  // ===== 데이터 =====
+  const FOLDERS = [
+    { key: 'all',     label: '전체' },
+    { key: 'manual',  label: '매뉴얼·가이드' },
+    { key: 'install', label: '설치 파일' },
+    { key: 'form',    label: '양식·서식' },
+    { key: 'policy',  label: '정책·보안' },
+    { key: 'edu',     label: '교육자료' }
+  ];
+  // type → 아이콘 색 / 라벨
+  const TYPE = {
+    pdf:  { color: '#D93B30', label: 'PDF',  name: 'PDF 문서' },
+    exe:  { color: '#6B7280', label: 'EXE',  name: '실행 파일' },
+    zip:  { color: '#8B5CF6', label: 'ZIP',  name: '압축 파일' },
+    hwp:  { color: '#1A6BD4', label: 'HWP',  name: '한글 문서' },
+    xlsx: { color: '#1E8E3E', label: 'XLS',  name: '엑셀 문서' },
+    pptx: { color: '#E08600', label: 'PPT',  name: '파워포인트' }
+  };
+  const FILES = [
+    { cat: 'manual',  type: 'pdf',  name: 'VDI_사용자매뉴얼_v2.0.pdf',     size: '4.2 MB',  date: '2026.05.20' },
+    { cat: 'manual',  type: 'pdf',  name: 'VDI_빠른시작_가이드.pdf',        size: '1.1 MB',  date: '2026.05.18' },
+    { cat: 'manual',  type: 'pdf',  name: '원격접속_설정_가이드.pdf',        size: '880 KB',  date: '2026.04.30' },
+    { cat: 'install', type: 'exe',  name: 'CitrixWorkspace_설치파일.exe',   size: '78.5 MB', date: '2026.05.26' },
+    { cat: 'install', type: 'zip',  name: 'VDI_접속프로그램_패키지.zip',     size: '92.3 MB', date: '2026.05.10' },
+    { cat: 'install', type: 'zip',  name: '앱알리미_설치파일.zip',          size: '24.1 MB', date: '2026.04.22' },
+    { cat: 'form',    type: 'hwp',  name: 'VDI_추가신청서.hwp',            size: '64 KB',   date: '2026.05.02' },
+    { cat: 'form',    type: 'xlsx', name: '자원증설_신청서.xlsx',          size: '48 KB',   date: '2026.05.02' },
+    { cat: 'form',    type: 'hwp',  name: 'VDI_반납확인서.hwp',            size: '52 KB',   date: '2026.04.15' },
+    { cat: 'policy',  type: 'pdf',  name: 'VDI_보안_이용수칙.pdf',         size: '320 KB',  date: '2026.05.28' },
+    { cat: 'policy',  type: 'pdf',  name: '데이터_백업_정책.pdf',          size: '256 KB',  date: '2026.04.18' },
+    { cat: 'policy',  type: 'pdf',  name: '개인정보보호_가이드.pdf',        size: '410 KB',  date: '2026.03.30' },
+    { cat: 'edu',     type: 'pptx', name: 'VDI_신규입사자_교육.pptx',      size: '6.8 MB',  date: '2026.05.12' },
+    { cat: 'edu',     type: 'pdf',  name: '정보보안_교육자료.pdf',          size: '2.3 MB',  date: '2026.04.25' }
+  ];
+
+  const $ = id => document.getElementById(id);
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const labelOf = k => FOLDERS.find(f => f.key === k).label;
+  let curFolder = 'all', curSearch = '';
+
+  const FOLDER_SVG = '<svg class="folder-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+  const DL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+
+  function countOf(key) { return key === 'all' ? FILES.length : FILES.filter(f => f.cat === key).length; }
+
+  function renderFolders() {
+    $('folderPanel').innerHTML = FOLDERS.map(f => `
+      <div class="folder-item${f.key === curFolder ? ' on' : ''}" onclick="selectFolder('${f.key}')">
+        ${FOLDER_SVG}
+        <span class="folder-name">${f.label}</span>
+        <span class="folder-count">${countOf(f.key)}</span>
+      </div>`).join('');
+  }
+
+  function renderFiles() {
+    const q = curSearch.trim().toLowerCase();
+    const list = FILES.filter(f => {
+      const okFolder = curFolder === 'all' || f.cat === curFolder;
+      const okSearch = !q || f.name.toLowerCase().includes(q);
+      return okFolder && okSearch;
+    });
+
+    $('filesTitle').innerHTML = `${labelOf(curFolder)}<span>${list.length}개</span>`;
+
+    if (!list.length) {
+      $('fileList').innerHTML = `<div class="files-empty">조건에 맞는 자료가 없습니다.</div>`;
+      return;
+    }
+
+    $('fileList').innerHTML = list.map(f => {
+      const t = TYPE[f.type];
+      return `
+        <div class="file-row">
+          <div class="file-ico" style="background:${t.color}">${t.label}</div>
+          <div style="min-width:0">
+            <div class="file-name">${esc(f.name)}</div>
+            <div class="file-sub">${t.name} · ${labelOf(f.cat)}</div>
+          </div>
+          <div class="file-size">${f.size}</div>
+          <div class="file-date">${f.date}</div>
+          <div class="file-dl" onclick="showToast('파일을 다운로드합니다: ${esc(f.name)}')" title="다운로드">${DL_SVG}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function selectFolder(key) {
+    curFolder = key;
+    renderFolders();
+    renderFiles();
+  }
+
+  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; renderFiles(); });
+
+  renderFolders();
+  renderFiles();
+</script>
+</body>
+</html>
