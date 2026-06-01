@@ -8,17 +8,9 @@
 <style>
   .main{max-width:1320px;margin:0 auto}
 
-  /* 페이지 헤더 우측 동기화 칩 */
-  .sync-chip{display:inline-flex;align-items:center;gap:9px;padding:8px 8px 8px 15px;
-    background:var(--surface);border:1px solid var(--border);border-radius:100px;
-    font-size:13px;color:var(--text-secondary);box-shadow:var(--shadow-sm)}
-  .sync-chip b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
-  .sync-btn{width:34px;height:34px;border-radius:50%;background:var(--bg-subtle);
-    display:flex;align-items:center;justify-content:center;color:var(--text-secondary);transition:all .15s}
-  .sync-btn:hover{background:var(--ink);color:#fff}
-  .sync-btn svg{width:16px;height:16px;transition:transform .5s ease}
-  .sync-btn.spinning svg{animation:spin .65s ease}
+  /* 새로고침 스핀 */
   @keyframes spin{to{transform:rotate(360deg)}}
+  .btn-ghost.spinning svg{animation:spin .65s ease}
 
   /* ===== KPI 스트립 ===== */
   .kpi-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
@@ -77,20 +69,42 @@
   .vw-name{font-size:28px;font-weight:800;letter-spacing:-0.035em;color:var(--ink);
     margin:4px 0 16px;font-variant-numeric:tabular-nums}
 
-  .vw-meta{display:flex;flex-wrap:wrap;gap:10px 26px;margin-bottom:22px}
-  .vw-meta .mi{display:flex;flex-direction:column;gap:2px}
-  .vw-meta .mi-k{font-size:11.5px;color:var(--text-tertiary);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-  .vw-meta .mi-v{font-size:14.5px;color:var(--text-primary);font-weight:700;font-variant-numeric:tabular-nums}
+  .vw-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+    background:var(--border);border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:4px}
+  .vw-meta .mi{display:flex;flex-direction:column;gap:5px;background:var(--surface);padding:13px 16px}
+  .vw-meta .mi-k{font-size:11px;color:var(--text-tertiary);font-weight:700;letter-spacing:.03em}
+  .vw-meta .mi-v{font-size:14px;color:var(--text-primary);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.01em}
 
-  .vw-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
-  .btn-connect{height:52px;padding:0 28px;background:var(--kb-yellow);color:var(--ink);
-    font-size:16px;font-weight:800;border-radius:13px;display:inline-flex;align-items:center;gap:10px;
-    letter-spacing:-0.01em;transition:all .18s;box-shadow:var(--shadow-yellow)}
-  .btn-connect:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(255,188,0,.5)}
-  .btn-connect:active{transform:translateY(0)}
-  .btn-connect:disabled{background:var(--bg-subtle);color:var(--text-tertiary);
-    cursor:not-allowed;transform:none;box-shadow:none}
-  .btn-connect svg{width:20px;height:20px}
+  /* 모니터형 접속 버튼 */
+  .connect-mon{display:block;width:100%;max-width:440px;border:none;background:none;cursor:pointer;
+    padding:0;margin:20px 0 6px;font-family:inherit}
+  .mon-frame{position:relative;background:linear-gradient(155deg,#2A2620,#15120F);border:3px solid #100E0B;
+    border-radius:16px;padding:24px 26px;overflow:hidden;transition:all .2s;
+    box-shadow:0 14px 30px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05)}
+  .mon-frame::after{content:'';position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 80% at 82% -10%,rgba(255,188,0,.16),transparent 58%)}
+  .connect-mon:hover .mon-frame{transform:translateY(-3px);box-shadow:0 22px 44px rgba(0,0,0,.3)}
+  .connect-mon:active .mon-frame{transform:translateY(-1px)}
+  .mon-row{display:flex;align-items:center;gap:18px;position:relative;z-index:1}
+  .mon-play{width:62px;height:62px;border-radius:50%;background:var(--kb-yellow);flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(255,188,0,.5);transition:transform .2s}
+  .connect-mon:hover .mon-play{transform:scale(1.06)}
+  .mon-play svg{width:26px;height:26px;color:var(--ink);margin-left:3px}
+  .mon-text{text-align:left;min-width:0}
+  .mon-title{font-size:19px;font-weight:800;color:#fff;letter-spacing:-0.01em}
+  .mon-sub{font-size:13px;color:rgba(255,255,255,.62);margin-top:4px;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+  .mon-sub .dot{width:7px;height:7px;border-radius:50%;background:var(--kb-yellow);box-shadow:0 0 0 3px rgba(255,188,0,.22)}
+  .mon-stand{width:78px;height:9px;background:#100E0B;margin:0 auto;border-radius:0 0 5px 5px}
+  .mon-base{width:128px;height:6px;background:#211E19;border-radius:4px;margin:5px auto 0}
+  .connect-mon.off{cursor:not-allowed}
+  .connect-mon.off .mon-frame{background:linear-gradient(155deg,#46413A,#322E28)}
+  .connect-mon.off .mon-frame::after{display:none}
+  .connect-mon.off:hover .mon-frame{transform:none;box-shadow:0 14px 30px rgba(0,0,0,.22)}
+  .connect-mon.off .mon-play{background:#6B6258;box-shadow:none}
+  .connect-mon.off:hover .mon-play{transform:none}
+  .connect-mon.off .mon-sub .dot{background:#9A9186;box-shadow:none}
+
+  .vw-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:18px}
   .btn-ghost{height:44px;padding:0 15px;background:var(--surface);color:var(--text-secondary);
     border:1px solid var(--border-strong);border-radius:11px;font-size:13.5px;font-weight:700;
     display:inline-flex;align-items:center;gap:7px;transition:all .15s}
@@ -108,54 +122,11 @@
   .res-row .rk{font-size:13px;color:var(--text-secondary);font-weight:600;display:flex;align-items:center;gap:8px}
   .res-row .rk svg{width:15px;height:15px;color:var(--text-tertiary)}
   .res-row .rv{font-size:14.5px;color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums}
-  .res-net{padding-top:14px}
-  .res-net-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-  .res-net-top .rk{font-size:13px;color:var(--text-secondary);font-weight:600}
-  .res-net-top .rv{font-size:14.5px;color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums}
-  .res-bar{height:7px;border-radius:5px;background:var(--border);overflow:hidden}
-  .res-bar > i{display:block;height:100%;border-radius:5px;
-    background:linear-gradient(90deg,var(--kb-yellow-dark),var(--kb-yellow));transition:width .6s cubic-bezier(.22,.7,.27,1)}
-  .res-net-sub{font-size:11.5px;color:var(--text-tertiary);margin-top:7px}
-
-  /* ===== 하단 그리드 ===== */
-  .bottom-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:18px}
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
-    overflow:hidden;box-shadow:var(--shadow-sm)}
-  .card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border)}
-  .card-title{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:800;color:var(--ink)}
-  .card-title svg{width:18px;height:18px;color:var(--kb-yellow-dark)}
-  .card-count{font-size:12px;color:var(--text-tertiary);background:var(--bg-subtle);padding:2px 9px;border-radius:10px;font-weight:700}
-  .card-link{font-size:13px;color:var(--text-secondary);font-weight:700;transition:color .14s}
-  .card-link:hover{color:var(--ink)}
-
-  .application-row{display:grid;grid-template-columns:54px 1fr 96px 92px;gap:14px;align-items:center;
-    padding:15px 22px;border-bottom:1px solid var(--border);transition:background .12s;cursor:pointer}
-  .application-row:last-child{border-bottom:none}
-  .application-row:hover{background:var(--surface-2)}
-  .application-date{font-size:12.5px;color:var(--text-tertiary);font-variant-numeric:tabular-nums}
-  .application-type{font-size:14.5px;font-weight:700;color:var(--text-primary);letter-spacing:-0.01em}
-  .application-sub{font-size:12px;color:var(--text-tertiary);margin-top:1px}
-  .progress-mini{display:flex;gap:3px;align-items:center}
-  .progress-mini .step-pill{flex:1;height:5px;background:var(--border);border-radius:3px}
-  .progress-mini .step-pill.done{background:var(--success)}
-  .progress-mini .step-pill.active{background:var(--kb-yellow)}
-  .progress-current{font-size:12px;color:var(--text-secondary);font-weight:700;white-space:nowrap;text-align:right}
-
-  .list-item{display:flex;align-items:center;gap:12px;padding:13px 22px;border-bottom:1px solid var(--border);
-    transition:background .12s;cursor:pointer}
-  .list-item:last-child{border-bottom:none}
-  .list-item:hover{background:var(--surface-2)}
-  .list-tag{font-size:11px;font-weight:800;padding:3px 8px;border-radius:5px;letter-spacing:.02em;flex-shrink:0;min-width:42px;text-align:center}
-  .tag-notice{background:var(--info-soft);color:var(--info)}
-  .tag-update{background:var(--kb-yellow-soft);color:#8A6A00}
-  .tag-urgent{background:var(--danger-soft);color:var(--danger)}
-  .list-title{flex:1;font-size:14px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-  .list-date{font-size:12.5px;color:var(--text-tertiary);font-variant-numeric:tabular-nums;flex-shrink:0}
+  .vw-res .res-row:last-child{border-bottom:none}
 
   @media (max-width:1160px){
     .vw-body{grid-template-columns:1fr}
     .vw-res{border-left:none;border-top:1px solid var(--border)}
-    .bottom-grid{grid-template-columns:1fr}
   }
   @media (max-width:720px){
     .kpi-strip{grid-template-columns:1fr}
@@ -269,12 +240,6 @@
         <h1 class="page-title">내 가상PC</h1>
         <p class="page-desc">보유한 가상PC의 상태를 확인하고 접속·관리할 수 있습니다.</p>
       </div>
-      <div class="sync-chip">
-        최근 동기화 <b id="syncTime">09:12</b>
-        <button class="sync-btn" id="syncBtn" onclick="handleRefresh(this)" title="상태 새로고침">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        </button>
-      </div>
     </div>
 
     <!-- KPI 스트립 -->
@@ -325,17 +290,27 @@
         <div class="vw-main">
           <div class="vw-head">
             <span class="vw-status" id="vwStatus"><span class="vw-pulse"></span><span id="vwStatusText">ONLINE · 접속 가능</span></span>
-            <span class="vw-type" id="vwType">지정형</span>
+            <span class="vw-type" id="vwType">고정가상화</span>
           </div>
           <h2 class="vw-name" id="vwName">jschoi0223-main</h2>
 
           <div class="vw-meta" id="vwMeta"></div>
 
+          <button class="connect-mon" id="vwConnect">
+            <div class="mon-frame">
+              <div class="mon-row">
+                <span class="mon-play"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg></span>
+                <div class="mon-text">
+                  <div class="mon-title" id="monTitle">가상PC 접속</div>
+                  <div class="mon-sub"><span class="dot"></span><span id="monStatus">ONLINE · 접속 가능</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="mon-stand"></div>
+            <div class="mon-base"></div>
+          </button>
+
           <div class="vw-actions">
-            <button class="btn-connect" id="vwConnect" onclick="showToast('가상PC에 접속합니다...')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              가상PC 접속
-            </button>
             <button class="btn-ghost" onclick="showToast('일반 리부팅 요청이 접수되었습니다. 5분 후 재접속해주세요.')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
               일반 리부팅
@@ -347,6 +322,10 @@
             <button class="btn-ghost" onclick="location.href='incident.html'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               장애 신고
+            </button>
+            <button class="btn-ghost" id="refreshBtn" onclick="handleRefresh(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              새로고침
             </button>
           </div>
         </div>
@@ -368,64 +347,9 @@
             <span class="rk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/></svg>디스크(D)</span>
             <span class="rv" id="resDisk">150 GB</span>
           </div>
-          <div class="res-net">
-            <div class="res-net-top"><span class="rk">네트워크 사용률</span><span class="rv" id="resNetVal">18 Mbps</span></div>
-            <div class="res-bar"><i id="resNetBar" style="width:18%"></i></div>
-            <div class="res-net-sub" id="resNetSub">지연 8 ms · 안정</div>
-          </div>
         </aside>
       </div>
     </section>
-
-    <!-- 하단 -->
-    <div class="bottom-grid reveal" style="animation-delay:.2s">
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            진행 중인 신청
-            <span class="card-count">2건</span>
-          </div>
-          <a class="card-link" href="approval.html">전체 보기 →</a>
-        </div>
-        <div>
-          <div class="application-row" onclick="location.href='approval.html'">
-            <span class="application-date">04.22</span>
-            <div>
-              <div class="application-type">자원 증설 신청</div>
-              <div class="application-sub">CPU 4→8 Core · 메모리 16→32 GB</div>
-            </div>
-            <div class="progress-mini"><div class="step-pill done"></div><div class="step-pill active"></div><div class="step-pill"></div><div class="step-pill"></div></div>
-            <span class="progress-current">부서장 승인 중</span>
-          </div>
-          <div class="application-row" onclick="location.href='approval.html'">
-            <span class="application-date">04.10</span>
-            <div>
-              <div class="application-type">VDI 추가신청</div>
-              <div class="application-sub">jschoi0223-common · 공용형</div>
-            </div>
-            <div class="progress-mini"><div class="step-pill done"></div><div class="step-pill done"></div><div class="step-pill done"></div><div class="step-pill active"></div></div>
-            <span class="progress-current">적용 중</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            공지사항
-          </div>
-          <a class="card-link" href="notice.html">더보기 →</a>
-        </div>
-        <div>
-          <a class="list-item" href="notice.html"><span class="list-tag tag-urgent">긴급</span><span class="list-title">04.27(월) 02:00~04:00 VDI 정기 점검 안내</span><span class="list-date">04.24</span></a>
-          <a class="list-item" href="notice.html"><span class="list-tag tag-update">업데이트</span><span class="list-title">Citrix Workspace v23.11 배포 안내</span><span class="list-date">04.23</span></a>
-          <a class="list-item" href="notice.html"><span class="list-tag tag-notice">공지</span><span class="list-title">PC가상화 프로그램 설치 파일 안내</span><span class="list-date">04.22</span></a>
-          <a class="list-item" href="faq.html"><span class="list-tag tag-notice">FAQ</span><span class="list-title">VDI 접속 속도가 느릴 때 체크포인트</span><span class="list-date">04.20</span></a>
-        </div>
-      </div>
-    </div>
 
   </main>
 </div>
@@ -464,11 +388,6 @@
     btn.classList.add('spinning');
     setTimeout(() => {
       btn.classList.remove('spinning');
-      // 데모용: 새로고침 시 '최근 동기화' 시각을 현재 시각으로 갱신
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      document.getElementById('syncTime').textContent = `${hh}:${mm}`;
       showToast('가상PC 상태가 업데이트되었습니다.');
     }, 700);
   }
@@ -476,7 +395,7 @@
   // ===== VDI 데이터 =====
   const VDI_LIST = [
     {
-      name:'jschoi0223-main', type:'지정형', typeClass:'',
+      name:'jschoi0223-main', type:'고정가상화', typeClass:'',
       status:'running', statusText:'ONLINE · 접속 가능', connectable:true,
       ip:'10.20.30.115', os:'Windows 11 Enterprise', lastAccess:'2026.04.24 09:12',
       created:'2024.03.01', expire:'재직 시까지',
@@ -524,23 +443,20 @@
       <div class="mi"><span class="mi-k">만료</span><span class="mi-v">${v.expire}</span></div>`;
 
     const c = $('vwConnect');
+    $('monStatus').textContent = v.statusText;
     if (v.connectable){
-      c.disabled = false;
-      c.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polygon points="5 3 19 12 5 21 5 3"/></svg>가상PC 접속`;
+      c.classList.remove('off');
+      $('monTitle').textContent = '가상PC 접속';
       c.onclick = () => showToast('가상PC에 접속합니다...');
     } else {
-      c.disabled = true;
-      c.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>접속 불가 (전원 종료)`;
+      c.classList.add('off');
+      $('monTitle').textContent = '접속 불가';
       c.onclick = null;
     }
 
     $('resCpu').textContent = v.cpu;
     $('resMem').textContent = v.mem;
     $('resDisk').textContent = v.disk;
-    $('resNetVal').textContent = v.net.val;
-    $('resNetSub').textContent = v.net.sub;
-    // 막대는 트랜지션이 보이도록 다음 프레임에 적용
-    requestAnimationFrame(() => { $('resNetBar').style.width = v.net.fill + '%'; });
 
     const live = $('vwLive');
     live.classList.toggle('off', v.status === 'offline');
@@ -552,7 +468,6 @@
     tab.addEventListener('click', () => {
       document.querySelectorAll('.vtab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      $('resNetBar').style.width = '0%';
       renderVdi(parseInt(tab.dataset.vdi));
     });
   });
