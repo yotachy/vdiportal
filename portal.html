@@ -96,9 +96,8 @@
   .vw-add svg{width:15px;height:15px}
 
   .vw-body{display:grid;grid-template-columns:1fr 332px;gap:0}
-  .vw-main{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:30px;align-items:start;padding:56px 28px 32px}
+  .vw-main{display:grid;grid-template-columns:minmax(0,1fr) 344px;gap:30px;align-items:start;padding:56px 28px 32px}
   .vw-main-info{min-width:0}
-  .vw-head{display:flex;align-items:center;gap:12px;margin-bottom:7px;flex-wrap:wrap}
   .vw-status{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:100px;
     font-size:13px;font-weight:800;letter-spacing:.01em;color:#fff;border:none}
   .vw-status.on{background:var(--success)}
@@ -110,8 +109,9 @@
   .vw-type{font-size:12px;font-weight:800;padding:4px 9px;border-radius:6px;letter-spacing:.02em;
     background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
   .vw-type.shared{background:var(--info-soft);color:var(--info);border-color:#C2DAFB}
-  .vw-name{font-size:28px;font-weight:800;letter-spacing:-0.035em;color:var(--ink);
-    margin:4px 0 16px;font-variant-numeric:tabular-nums}
+  .vw-name{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    font-size:28px;font-weight:800;letter-spacing:-0.035em;color:var(--ink);
+    margin:0 0 16px;font-variant-numeric:tabular-nums}
 
   .vw-sub-meta{display:flex;flex-wrap:wrap;gap:14px 30px;margin:14px 0 22px}
   .vw-sub-meta .mi{display:flex;flex-direction:column;gap:4px}
@@ -122,23 +122,23 @@
   .connect-mon{display:block;width:100%;border:none;background:none;cursor:pointer;
     padding:0;margin:0;font-family:inherit}
   .mon-frame{position:relative;background:linear-gradient(155deg,#2A2620,#15120F);border:3px solid #100E0B;
-    border-radius:16px;padding:30px 22px;overflow:hidden;transition:all .2s;
+    border-radius:18px;padding:42px 26px;overflow:hidden;transition:all .2s;
     box-shadow:0 14px 30px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05)}
   .mon-frame::after{content:'';position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(120% 80% at 82% -10%,rgba(255,188,0,.16),transparent 58%)}
   .connect-mon:hover .mon-frame{transform:translateY(-3px);box-shadow:0 22px 44px rgba(0,0,0,.3)}
   .connect-mon:active .mon-frame{transform:translateY(-1px)}
-  .mon-row{display:flex;flex-direction:column;align-items:center;text-align:center;gap:15px;position:relative;z-index:1}
-  .mon-play{width:62px;height:62px;border-radius:50%;background:var(--kb-yellow);flex-shrink:0;
+  .mon-row{display:flex;flex-direction:column;align-items:center;text-align:center;gap:17px;position:relative;z-index:1}
+  .mon-play{width:72px;height:72px;border-radius:50%;background:var(--kb-yellow);flex-shrink:0;
     display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(255,188,0,.5);transition:transform .2s}
   .connect-mon:hover .mon-play{transform:scale(1.06)}
-  .mon-play svg{width:26px;height:26px;color:var(--ink);margin-left:3px}
+  .mon-play svg{width:30px;height:30px;color:var(--ink);margin-left:3px}
   .mon-text{text-align:center;min-width:0}
-  .mon-title{font-size:19px;font-weight:800;color:#fff;letter-spacing:-0.01em}
-  .mon-sub{font-size:13px;color:rgba(255,255,255,.62);margin-top:4px;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
-  .mon-sub .dot{width:7px;height:7px;border-radius:50%;background:var(--kb-yellow);box-shadow:0 0 0 3px rgba(255,188,0,.22)}
-  .mon-stand{width:78px;height:9px;background:#100E0B;margin:0 auto;border-radius:0 0 5px 5px}
-  .mon-base{width:128px;height:6px;background:#211E19;border-radius:4px;margin:5px auto 0}
+  .mon-title{font-size:21px;font-weight:800;color:#fff;letter-spacing:-0.01em}
+  /* 모니터 내부 상태 pill */
+  .mon-text .vw-status{margin-top:12px}
+  .mon-stand{width:88px;height:10px;background:#100E0B;margin:0 auto;border-radius:0 0 5px 5px}
+  .mon-base{width:146px;height:6px;background:#211E19;border-radius:4px;margin:5px auto 0}
   .vw-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:18px}
   .btn-ghost{height:44px;padding:0 15px;background:var(--surface);color:var(--text-secondary);
     border:1px solid var(--border-strong);border-radius:11px;font-size:13.5px;font-weight:700;
@@ -374,11 +374,7 @@
       <div class="vw-body">
         <div class="vw-main">
           <div class="vw-main-info">
-          <div class="vw-head">
-            <span class="vw-status on" id="vwStatus"><span class="vw-pulse"></span><span id="vwStatusText">전원 ON</span></span>
-            <span class="vw-type" id="vwType">고정가상화</span>
-          </div>
-          <h2 class="vw-name" id="vwName">jschoi0223-main</h2>
+          <h2 class="vw-name"><span id="vwName">jschoi0223-main</span><span class="vw-type" id="vwType">고정가상화</span></h2>
 
           <div class="vw-sub-meta" id="vwMeta"></div>
 
@@ -408,7 +404,7 @@
                   <span class="mon-play"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg></span>
                   <div class="mon-text">
                     <div class="mon-title" id="monTitle">가상PC 접속</div>
-                    <div class="mon-sub"><span class="dot"></span><span id="monStatus">전원 ON</span></div>
+                    <span class="vw-status on" id="vwStatus"><span class="vw-pulse"></span><span id="vwStatusText">전원 ON</span></span>
                   </div>
                 </div>
               </div>
@@ -551,7 +547,6 @@
       <div class="res-row"><span class="rk">만료일</span><span class="rv">${v.expire}</span></div>`;
 
     const c = $('vwConnect');
-    $('monStatus').textContent = s.text;
     c.onclick = () => showToast('가상PC에 접속합니다...');
 
     $('resCpu').textContent = v.cpu;
