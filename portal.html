@@ -29,7 +29,6 @@
     display:flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums}
   .kpi-num small{font-size:14px;font-weight:700;color:var(--text-tertiary)}
   .kpi-label{font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600}
-  .kpi-sub{font-size:12px;color:var(--text-tertiary);margin-top:1px}
 
   /* ===== VDI 워크스페이스 카드 ===== */
   .vw{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);
@@ -255,23 +254,20 @@
         <div>
           <div class="kpi-num">2 <small>대</small></div>
           <div class="kpi-label">보유 가상PC</div>
-          <div class="kpi-sub">전원 ON 1 · 점검 중 1</div>
         </div>
       </div>
       <a class="kpi" href="approval.html">
         <div class="kpi-ico blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
         <div>
           <div class="kpi-num">2 <small>건</small></div>
-          <div class="kpi-label">진행 중 신청</div>
-          <div class="kpi-sub">결재 대기 1 · 적용 중 1</div>
+          <div class="kpi-label">진행 중 결재건</div>
         </div>
       </a>
       <a class="kpi" href="notice.html">
         <div class="kpi-ico green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
         <div>
           <div class="kpi-num">3 <small>건</small></div>
-          <div class="kpi-label">새 공지사항</div>
-          <div class="kpi-sub">최근 7일 이내 등록</div>
+          <div class="kpi-label">최근 공지사항</div>
         </div>
       </a>
     </div>
@@ -447,6 +443,7 @@
       <div class="mi"><span class="mi-k">운영체제</span><span class="mi-v">${v.os}</span></div>
       <div class="mi"><span class="mi-k">최근 접속</span><span class="mi-v">${v.lastAccess}</span></div>`;
 
+    // INFO·RESOURCE — 선택한 가상PC의 정보로 채움 (수행사: 실제 자원/메타 API 값으로 대체)
     $('vwInfo').innerHTML = `
       <div class="res-row"><span class="rk">IP 주소</span><span class="rv">${v.ip}</span></div>
       <div class="res-row"><span class="rk">생성일</span><span class="rv">${v.created}</span></div>
