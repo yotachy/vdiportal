@@ -9,15 +9,21 @@
   /* 로그인 줌 0.97 — 전체화면이라 100vh 를 줌으로 보정 */
   html { zoom: 0.97; }
   body{
-    display:flex;flex-direction:row;
-    height:calc(100vh / 0.97);min-height:calc(100vh / 0.97);
-    overflow:hidden;background:var(--surface);
+    display:flex;align-items:center;justify-content:center;
+    min-height:calc(100vh / 0.97);padding:36px;box-sizing:border-box;
+    background:var(--surface-2);
+  }
+  /* 중앙 사각 카드 — portal '크림 위 카드' 컨셉 */
+  .login-shell{
+    display:flex;width:100%;max-width:1040px;min-height:600px;
+    background:var(--surface);border:1px solid var(--border);border-radius:24px;
+    overflow:hidden;box-shadow:0 24px 60px -22px rgba(26,23,20,.24),0 4px 14px rgba(26,23,20,.05);
   }
 
   /* ===== 좌측 브랜드 패널 (portal 컨셉 — 절제된 크림 + 옐로우 액센트) ===== */
   .brand-panel{
-    flex:0.85;position:relative;overflow:hidden;
-    padding:54px 60px;display:flex;flex-direction:column;justify-content:space-between;
+    flex:1;position:relative;overflow:hidden;
+    padding:48px 52px;display:flex;flex-direction:column;justify-content:space-between;
     background:var(--surface-2);
     border-right:1px solid var(--border);
   }
@@ -64,7 +70,7 @@
   .brand-version{font-size:13px;color:var(--text-tertiary);font-weight:600;font-variant-numeric:tabular-nums}
 
   /* ===== 우측 로그인 패널 ===== */
-  .login-panel{flex:1.15;background:var(--surface);display:flex;align-items:center;justify-content:center;
+  .login-panel{flex:1;background:var(--surface);display:flex;align-items:center;justify-content:center;
     padding:48px;position:relative}
   .login-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
     background:linear-gradient(90deg,var(--kb-yellow),#FFD24D 60%,var(--kb-yellow))}
@@ -156,16 +162,20 @@
   .login-notice-desc{font-size:13px;color:var(--text-secondary);line-height:1.65}
 
   @media (max-width:960px){
-    body{flex-direction:column;height:auto;min-height:calc(100vh / 0.97);overflow-y:auto}
+    body{padding:0;align-items:stretch}
+    .login-shell{flex-direction:column;max-width:none;min-height:calc(100vh / 0.97);
+      border:none;border-radius:0;box-shadow:none}
     .brand-panel{flex:0 0 auto;padding:34px 28px}
     .brand-content{padding-top:24px}
     .brand-title{font-size:34px}.brand-subtitle{font-size:16px}
-    .brand-spark{width:320px;height:320px}.brand-footer{display:none}
+    .brand-features{display:none}
+    .brand-spark{width:260px;height:260px}.brand-footer{display:none}
     .login-panel{padding:40px 24px}.login-title{font-size:30px}
   }
 </style>
 </head>
 <body>
+  <div class="login-shell">
   <!-- 좌측 브랜드 -->
   <aside class="brand-panel">
     <!-- 시그니처 스파크 -->
@@ -188,7 +198,7 @@
       <div class="brand-features">
         <div class="brand-feat">
           <span class="brand-feat-ico">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2"/><path d="M16.5 6.5l3 3"/><path d="M19 4l3 3"/></svg>
           </span>
           <div class="brand-feat-text">통합 인증(SSO)<small>마이포탈 ID 하나로 로그인</small></div>
         </div>
@@ -343,6 +353,7 @@
 
     </div>
   </main>
+  </div>
 
 <script>
   // 로그인 성공 처리 — 인증 플래그 설정 후 포탈 이동 (시안용)
