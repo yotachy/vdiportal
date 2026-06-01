@@ -97,20 +97,24 @@
   .mon-sub .dot{width:7px;height:7px;border-radius:50%;background:var(--kb-yellow);box-shadow:0 0 0 3px rgba(255,188,0,.22)}
   .mon-stand{width:78px;height:9px;background:#100E0B;margin:0 auto;border-radius:0 0 5px 5px}
   .mon-base{width:128px;height:6px;background:#211E19;border-radius:4px;margin:5px auto 0}
-  .connect-mon.off{cursor:not-allowed}
-  .connect-mon.off .mon-frame{background:linear-gradient(155deg,#46413A,#322E28)}
-  .connect-mon.off .mon-frame::after{display:none}
-  .connect-mon.off:hover .mon-frame{transform:none;box-shadow:0 14px 30px rgba(0,0,0,.22)}
-  .connect-mon.off .mon-play{background:#6B6258;box-shadow:none}
-  .connect-mon.off:hover .mon-play{transform:none}
-  .connect-mon.off .mon-sub .dot{background:#9A9186;box-shadow:none}
-
   .vw-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:18px}
   .btn-ghost{height:44px;padding:0 15px;background:var(--surface);color:var(--text-secondary);
     border:1px solid var(--border-strong);border-radius:11px;font-size:13.5px;font-weight:700;
     display:inline-flex;align-items:center;gap:7px;transition:all .15s}
   .btn-ghost:hover{background:var(--bg-subtle);color:var(--ink);border-color:#BDB5A7}
   .btn-ghost svg{width:15px;height:15px}
+  /* 강제 재기동 강조 */
+  .btn-ghost.btn-danger-ghost{background:var(--danger-soft);border-color:#F3C4BF;color:var(--danger)}
+  .btn-ghost.btn-danger-ghost:hover{background:#F9DDD9;border-color:var(--danger);color:var(--danger)}
+  /* 새로고침 강조 (우측 정렬 + 옐로우 토글) */
+  .btn-refresh{margin-left:auto;height:44px;padding:0 17px;border-radius:11px;
+    background:var(--kb-yellow-soft);border:1px solid var(--kb-yellow-line);color:#8A6A00;
+    font-size:13.5px;font-weight:800;display:inline-flex;align-items:center;gap:7px;
+    transition:all .15s;font-family:inherit;cursor:pointer}
+  .btn-refresh:hover{background:var(--kb-yellow);border-color:var(--kb-yellow-dark);color:var(--ink);box-shadow:var(--shadow-yellow)}
+  .btn-refresh:active{transform:scale(.97)}
+  .btn-refresh svg{width:15px;height:15px}
+  .btn-refresh.spinning svg{animation:spin .65s ease}
 
   /* 리소스 패널 */
   .vw-res{border-left:1px solid var(--border);background:var(--surface-2);padding:22px 22px;display:flex;flex-direction:column;gap:20px}
@@ -252,9 +256,9 @@
       <div class="kpi static">
         <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
         <div>
-          <div class="kpi-num">3 <small>대</small></div>
+          <div class="kpi-num">2 <small>대</small></div>
           <div class="kpi-label">보유 가상PC</div>
-          <div class="kpi-sub">온라인 2 · 오프라인 1</div>
+          <div class="kpi-sub">전원 ON 1 · 점검 중 1</div>
         </div>
       </div>
       <a class="kpi" href="approval.html">
@@ -280,8 +284,7 @@
       <div class="vw-tabs">
         <div class="vw-tabs-list" id="vwTabs">
           <button class="vtab active" data-vdi="0"><span class="status-dot sdot-success"></span><span class="vtab-name">jschoi0223-main</span></button>
-          <button class="vtab" data-vdi="1"><span class="status-dot sdot-muted"></span><span class="vtab-name">jschoi0223-temp</span></button>
-          <button class="vtab" data-vdi="2"><span class="status-dot sdot-warning"></span><span class="vtab-name">jschoi0223-common</span></button>
+          <button class="vtab" data-vdi="1"><span class="status-dot sdot-warning"></span><span class="vtab-name">jschoi0223-common</span></button>
         </div>
         <div class="vw-tabs-actions">
           <a class="vw-add" href="apply.html">
@@ -303,19 +306,19 @@
           <div class="vw-sub-meta" id="vwMeta"></div>
 
           <div class="vw-actions">
-            <button class="btn-ghost" onclick="showToast('일반 리부팅 요청이 접수되었습니다. 5분 후 재접속해주세요.')">
+            <button class="btn-ghost" onclick="showToast('일반 재기동 요청이 접수되었습니다. 5분 후 재접속해주세요.')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              일반 리부팅
+              일반 재기동
             </button>
-            <button class="btn-ghost" onclick="if(confirm('저장되지 않은 데이터가 손실될 수 있습니다. 진행하시겠습니까?')) showToast('강제 리부팅 요청이 접수되었습니다.')">
+            <button class="btn-ghost btn-danger-ghost" onclick="if(confirm('저장되지 않은 데이터가 손실될 수 있습니다. 진행하시겠습니까?')) showToast('강제 재기동 요청이 접수되었습니다.')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              강제 리부팅
+              강제 재기동
             </button>
             <button class="btn-ghost" onclick="location.href='incident.html'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               장애 신고
             </button>
-            <button class="btn-ghost" id="refreshBtn" onclick="handleRefresh(this)">
+            <button class="btn-refresh" id="refreshBtn" onclick="handleRefresh(this)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
               새로고침
             </button>
@@ -415,9 +418,6 @@
     { name:'jschoi0223-main', type:'고정가상화', typeClass:'', state:'on',
       ip:'10.20.30.115', os:'Windows 11 Enterprise', lastAccess:'2026.04.24 09:12',
       created:'2024.03.01', expire:'재직 시까지', cpu:'4 Core', mem:'16 GB', disk:'150 GB' },
-    { name:'jschoi0223-temp', type:'임시형', typeClass:'', state:'off',
-      ip:'10.20.30.208', os:'Windows 11 Enterprise', lastAccess:'2026.04.23 17:48',
-      created:'2026.03.15', expire:'~2026.09.30', cpu:'2 Core', mem:'8 GB', disk:'300 GB' },
     { name:'jschoi0223-common', type:'공용형', typeClass:'shared', state:'maint',
       ip:'할당 시 배정', os:'Windows 11 Enterprise', lastAccess:'2026.04.18 14:30',
       created:'2025.11.01', expire:'용도 · 임시 작업용', cpu:'2 Core', mem:'4 GB', disk:'80 GB' }
@@ -425,9 +425,9 @@
 
   // 상태 매핑 (전원 ON · 전원 OFF · 점검 중)
   const STATE = {
-    on:   { text:'전원 ON',  cls:'on',    connectable:true,  live:'LIVE' },
-    off:  { text:'전원 OFF', cls:'off',   connectable:false, live:'OFFLINE' },
-    maint:{ text:'점검 중',  cls:'maint', connectable:false, live:'점검' }
+    on:   { text:'전원 ON',  cls:'on',    live:'LIVE' },
+    off:  { text:'전원 OFF', cls:'off',   live:'OFFLINE' },
+    maint:{ text:'점검 중',  cls:'maint', live:'점검' }
   };
 
   const $ = id => document.getElementById(id);
@@ -458,15 +458,7 @@
 
     const c = $('vwConnect');
     $('monStatus').textContent = s.text;
-    if (s.connectable){
-      c.classList.remove('off');
-      $('monTitle').textContent = '가상PC 접속';
-      c.onclick = () => showToast('가상PC에 접속합니다...');
-    } else {
-      c.classList.add('off');
-      $('monTitle').textContent = '접속 불가';
-      c.onclick = null;
-    }
+    c.onclick = () => showToast('가상PC에 접속합니다...');
 
     $('resCpu').textContent = v.cpu;
     $('resMem').textContent = v.mem;
