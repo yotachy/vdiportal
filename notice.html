@@ -17,9 +17,7 @@
   .notice-item.pinned:hover { background: var(--kb-yellow-soft); }
 
   .ntag { display: block; text-align: center; font-size: 12px; font-weight: 800; padding: 4px 0; border-radius: 6px; letter-spacing: 0.01em; }
-  .ntag-urgent { background: var(--danger-soft); color: var(--danger); border: 1px solid #F3C4BF; }
-  .ntag-maint { background: var(--info-soft); color: var(--info); border: 1px solid #C2DAFB; }
-  .ntag-update { background: var(--kb-yellow-soft); color: #8A6A00; border: 1px solid var(--kb-yellow-line); }
+  .ntag-important { background: var(--danger-soft); color: var(--danger); border: 1px solid #F3C4BF; }
   .ntag-normal { background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-strong); }
 
   .notice-main { min-width: 0; }
@@ -159,9 +157,7 @@
     <div class="filter-bar reveal" style="animation-delay:.1s">
       <div class="filter-seg" id="filterSeg">
         <button class="fsb on" data-filter="all">전체</button>
-        <button class="fsb" data-filter="urgent">긴급</button>
-        <button class="fsb" data-filter="maint">점검</button>
-        <button class="fsb" data-filter="update">업데이트</button>
+        <button class="fsb" data-filter="important">중요</button>
         <button class="fsb" data-filter="normal">일반</button>
       </div>
       <div class="search-box">
@@ -194,24 +190,22 @@
   }, 1000);
 
   // ===== 데이터 (오늘 2026-05-31 기준 최근순) =====
-  // cat: urgent(긴급) · maint(점검) · update(업데이트) · normal(일반)
+  // cat: important(중요) · normal(일반)
   const NOTICES = [
-    { id: 1, cat: 'maint',  pinned: true,  isNew: true,  title: '[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내', author: 'VDI 운영팀', date: '2026.05.29', views: 1284 },
-    { id: 2, cat: 'urgent', pinned: true,  isNew: true,  title: '[보안] 랜섬웨어 주의보 — 출처 불명 메일 첨부파일 실행 금지', author: '정보보안부', date: '2026.05.28', views: 2317 },
-    { id: 3, cat: 'update', pinned: false, isNew: true,  title: 'Citrix Workspace v23.11 배포 안내 (자동 업데이트)', author: 'VDI 운영팀', date: '2026.05.26', views: 903 },
-    { id: 4, cat: 'normal', pinned: false, isNew: false, title: 'VDI 사용자 매뉴얼 v2.0 배포 안내', author: 'IT기획파트', date: '2026.05.20', views: 1042 },
-    { id: 5, cat: 'update', pinned: false, isNew: false, title: '가상PC Windows 5월 정기 보안 패치 적용 안내', author: 'VDI 운영팀', date: '2026.05.14', views: 658 },
-    { id: 6, cat: 'maint',  pinned: false, isNew: false, title: '05.11(일) 네트워크 장비 교체 작업 안내 (접속 일시 중단)', author: '인프라팀', date: '2026.05.08', views: 591 },
-    { id: 7, cat: 'normal', pinned: false, isNew: false, title: 'PC가상화 프로그램 설치 파일 안내', author: 'VDI 운영팀', date: '2026.04.22', views: 712 },
-    { id: 8, cat: 'normal', pinned: false, isNew: false, title: '신규 공용 VDI(부서 공용형) 도입 안내', author: 'IT기획파트', date: '2026.04.15', views: 834 },
-    { id: 9, cat: 'urgent', pinned: false, isNew: false, title: '[복구완료] 일부 사용자 접속 지연 현상 정상화 안내', author: 'VDI 운영팀', date: '2026.04.10', views: 1576 }
+    { id: 1, cat: 'important', pinned: true,  isNew: true,  title: '[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내', author: 'VDI 운영팀', date: '2026.05.29', views: 1284 },
+    { id: 2, cat: 'important', pinned: true,  isNew: true,  title: '[보안] 랜섬웨어 주의보 — 출처 불명 메일 첨부파일 실행 금지', author: '정보보안부', date: '2026.05.28', views: 2317 },
+    { id: 3, cat: 'normal',    pinned: false, isNew: true,  title: 'Citrix Workspace v23.11 배포 안내 (자동 업데이트)', author: 'VDI 운영팀', date: '2026.05.26', views: 903 },
+    { id: 4, cat: 'normal',    pinned: false, isNew: false, title: 'VDI 사용자 매뉴얼 v2.0 배포 안내', author: 'IT기획파트', date: '2026.05.20', views: 1042 },
+    { id: 5, cat: 'normal',    pinned: false, isNew: false, title: '가상PC Windows 5월 정기 보안 패치 적용 안내', author: 'VDI 운영팀', date: '2026.05.14', views: 658 },
+    { id: 6, cat: 'important', pinned: false, isNew: false, title: '05.11(일) 네트워크 장비 교체 작업 안내 (접속 일시 중단)', author: '인프라팀', date: '2026.05.08', views: 591 },
+    { id: 7, cat: 'normal',    pinned: false, isNew: false, title: 'PC가상화 프로그램 설치 파일 안내', author: 'VDI 운영팀', date: '2026.04.22', views: 712 },
+    { id: 8, cat: 'normal',    pinned: false, isNew: false, title: '신규 공용 VDI(부서 공용형) 도입 안내', author: 'IT기획파트', date: '2026.04.15', views: 834 },
+    { id: 9, cat: 'important', pinned: false, isNew: false, title: '[복구완료] 일부 사용자 접속 지연 현상 정상화 안내', author: 'VDI 운영팀', date: '2026.04.10', views: 1576 }
   ];
 
   const CAT = {
-    urgent: { cls: 'ntag-urgent', txt: '긴급' },
-    maint:  { cls: 'ntag-maint',  txt: '점검' },
-    update: { cls: 'ntag-update', txt: '업데이트' },
-    normal: { cls: 'ntag-normal', txt: '일반' }
+    important: { cls: 'ntag-important', txt: '중요' },
+    normal:    { cls: 'ntag-normal',    txt: '일반' }
   };
 
   const $ = id => document.getElementById(id);
