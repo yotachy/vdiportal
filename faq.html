@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KB손해보험 VDI 사용자 포탈 - FAQ</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .main { max-width: 1320px; margin: 0 auto; }
+
+  /* FAQ 카테고리 라벨 (질문 우측 소형) */
+  .faq-cat { font-size: 11px; font-weight: 700; color: var(--text-tertiary); background: var(--bg-subtle);
+    border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; }
+  .faq-q-left { min-width: 0; }
+  .faq-q-left > span:not(.faq-q-num) { overflow: hidden; text-overflow: ellipsis; }
+  .faq-a a { color: var(--info); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+  .faq-a strong { color: var(--ink); font-weight: 700; }
+  .faq-a ul { margin: 8px 0 0 0; padding-left: 18px; }
+  .faq-a li { margin-bottom: 5px; }
+  .faq-empty { padding: 52px 16px; text-align: center; color: var(--text-tertiary); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- TOP HEADER -->
+<header class="top-header">
+  <div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><span class="header-logo-text">KB손해보험</span></div>
+  <div class="header-divider"></div>
+  <div class="header-service-name">업무가상화 사용자 포탈</div>
+  <div class="header-divider"></div>
+  <div class="header-user-badge">
+    <span class="hub-name">최정식 책임</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">IT기획파트</span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">사번 <strong>1010579</strong></span>
+    <span class="hub-sep">·</span>
+    <span class="hub-item">ID <strong>jschoi0223</strong></span>
+  </div>
+  <div class="header-right">
+    <div class="header-session">
+      <span>세션 만료</span>
+      <span class="header-session-value" id="sessionTimer">29:57</span>
+    </div>
+    <button class="header-btn" title="알림">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="header-badge">3</span>
+    </button>
+    <button class="header-btn" title="로그아웃" onclick="logout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div style="flex:1">
+      <div class="nav-section">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="portal.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          내 가상PC
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">신청 · 결재</div>
+        <a class="nav-item" href="apply.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          VDI 추가신청
+        </a>
+        <a class="nav-item" href="change.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          변경 · 증설 · 반납
+        </a>
+        <a class="nav-item" href="approval.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          결재 현황
+          <span class="nav-item-badge">2</span>
+        </a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">지원 · 서비스</div>
+        <a class="nav-item" href="incident.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          장애신고 내역
+        </a>
+        <a class="nav-item" href="notice.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          공지사항
+        </a>
+        <a class="nav-item active" href="faq.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          FAQ
+        </a>
+        <a class="nav-item" href="qna.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          자료실
+        </a>
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <a class="support-card" href="tel:15448119" style="display:block">
+        <div class="support-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Service Desk
+        </div>
+        <div class="support-desc">VDI 관련 문의 · 평일 09:00~18:00</div>
+        <div class="support-tel">1544-8119</div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="breadcrumb reveal">
+      <a href="portal.html">홈</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>지원 · 서비스</span>
+      <span class="breadcrumb-sep">›</span>
+      <span style="color:var(--text-secondary);font-weight:600">FAQ</span>
+    </div>
+
+    <div class="page-header reveal" style="animation-delay:.06s">
+      <div class="page-header-left">
+        <h1 class="page-title">자주 묻는 질문</h1>
+        <p class="page-desc">VDI 사용 중 자주 발생하는 궁금증을 모았습니다. 카테고리·검색으로 빠르게 찾아보세요.</p>
+      </div>
+    </div>
+
+    <!-- 상단 안내 배너 -->
+    <div class="info-box reveal" style="animation-delay:.1s;margin-bottom:18px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>원하는 답변을 찾지 못하셨나요? <a href="incident-new.html" style="color:#0F4DA0;font-weight:700">장애신고 등록</a> 또는 헬프데스크 <strong>1544-8119</strong>(평일 09:00~18:00)로 문의해 주세요.</div>
+    </div>
+
+    <!-- 필터바 -->
+    <div class="filter-bar reveal" style="animation-delay:.14s">
+      <div class="filter-seg" id="filterSeg">
+        <button class="fsb on" data-filter="all">전체</button>
+        <button class="fsb" data-filter="access">접속·로그인</button>
+        <button class="fsb" data-filter="apply">신청·결재</button>
+        <button class="fsb" data-filter="spec">자원·사양</button>
+        <button class="fsb" data-filter="trouble">장애·오류</button>
+        <button class="fsb" data-filter="etc">기타</button>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="질문·답변 검색">
+      </div>
+    </div>
+
+    <!-- FAQ 아코디언 -->
+    <div class="fc reveal" style="animation-delay:.18s">
+      <div id="faqList"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // ===== 인증 상태 (시안용 sessionStorage 플래그) =====
+  function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
+  function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
+
+  // ===== 세션 타이머 =====
+  let sessionSec = 30 * 60 - 3;
+  setInterval(() => {
+    sessionSec--;
+    if (sessionSec <= 0) { alert('세션이 만료되었습니다.'); location.href = 'login.html'; }
+    const m = String(Math.floor(sessionSec / 60)).padStart(2, '0');
+    const s = String(sessionSec % 60).padStart(2, '0');
+    document.getElementById('sessionTimer').textContent = `${m}:${s}`;
+  }, 1000);
+
+  // ===== 데이터 =====
+  const CAT_LABEL = { access: '접속·로그인', apply: '신청·결재', spec: '자원·사양', trouble: '장애·오류', etc: '기타' };
+  const FAQS = [
+    { cat: 'access', q: '가상PC에 접속이 되지 않습니다. 어떻게 하나요?',
+      a: `먼저 아래 순서로 확인해 주세요.<ul><li>인터넷·사내망 연결 상태 확인</li><li>Citrix Workspace 종료 후 재실행</li><li>포탈에서 가상PC <strong>일반 리부팅</strong> 후 재접속</li></ul>그래도 해결되지 않으면 <a href="incident-new.html">장애신고 등록</a> 또는 헬프데스크(1544-8119)로 문의해 주세요.` },
+    { cat: 'access', q: '로그인 2차 인증번호(OTP)가 오지 않아요.',
+      a: `앱알리미 알림 수신 설정을 확인하고, 로그인 화면의 <strong>인증번호 재전송</strong>을 눌러주세요. 휴대폰 시간이 자동(네트워크 시간)으로 설정되어 있는지도 확인이 필요합니다. 지속될 경우 헬프데스크로 연락 바랍니다.` },
+    { cat: 'access', q: '비밀번호를 잊어버렸습니다.',
+      a: `마이포탈에서 비밀번호 재설정을 진행해 주세요. 로그인 <strong>5회 이상 실패 시 계정이 잠금</strong> 처리되며, 이 경우 헬프데스크(1544-8119)를 통해 잠금 해제를 요청해야 합니다.` },
+    { cat: 'apply', q: 'VDI(가상PC)는 어떻게 추가로 신청하나요?',
+      a: `<a href="apply.html">VDI 추가신청</a> 메뉴에서 <strong>정보입력 → 사양선택 → 결재선 → 신청완료</strong> 순으로 진행합니다. 신청 후 결재 승인을 거쳐 가상PC가 생성되며, 완료 시 알림으로 안내됩니다.` },
+    { cat: 'apply', q: '신청한 건의 결재 진행 상태는 어디서 확인하나요?',
+      a: `<a href="approval.html">결재 현황</a> 메뉴에서 확인할 수 있습니다. 항목을 클릭하면 신청 정보와 단계별 결재 진행 상황, 결재 이력을 볼 수 있습니다.` },
+    { cat: 'apply', q: '제출한 신청을 취소(회수)할 수 있나요?',
+      a: `결재가 <strong>진행 중인 경우</strong>에만 결재 상세 화면에서 <strong>신청 회수</strong>가 가능합니다. 이미 승인이 완료되었거나 적용 중인 건은 회수할 수 없으며, 별도 변경·반납 신청이 필요합니다.` },
+    { cat: 'spec', q: 'CPU·메모리 등 자원을 늘리고 싶습니다.',
+      a: `<a href="change.html">변경 · 증설 · 반납</a> 메뉴의 <strong>자원 증설</strong> 탭에서 신청합니다. 고사양(8 Core / 32 GB 이상)으로 증설 시 IT운영부 검토가 추가되어 승인까지 영업일 기준 2~3일이 소요될 수 있습니다.` },
+    { cat: 'spec', q: 'VDI 유형(지정형·임시형·공용형)의 차이는 무엇인가요?',
+      a: `<ul><li><strong>지정형</strong> : 개인 전용 가상PC. 데이터·설정이 유지되어 상시 업무에 적합합니다.</li><li><strong>임시형</strong> : 사용 기간이 정해진 가상PC. 단기 프로젝트·외부 인력에 적합합니다.</li><li><strong>공용형</strong> : 부서 단위 공용 가상PC. 접속 시 자원이 배정됩니다.</li></ul>` },
+    { cat: 'spec', q: '사용하지 않는 VDI는 어떻게 반납하나요?',
+      a: `<a href="change.html">변경 · 증설 · 반납</a>의 <strong>반납</strong> 탭에서 신청합니다. 반납이 완료되면 가상PC와 D 드라이브의 <strong>모든 데이터가 영구 삭제</strong>되므로, 반납 전 필요한 데이터를 반드시 백업해 주세요.` },
+    { cat: 'trouble', q: '화면이 느리거나 끊깁니다.',
+      a: `사용량이 많은 시간대에 일시적으로 지연될 수 있습니다.<ul><li>불필요한 프로그램·브라우저 탭 종료</li><li>가상PC 일반 리부팅 후 재접속</li><li>네트워크 연결 상태 점검</li></ul>증상이 지속되면 <a href="incident-new.html">장애신고</a>로 접수해 주세요.` },
+    { cat: 'trouble', q: '프린터·주변기기가 가상PC에서 인식되지 않아요.',
+      a: `장치를 재연결하고 가상PC를 재접속해 보세요. 네트워크 프린터의 경우 드라이버 매핑이 필요할 수 있으므로, 해결되지 않으면 장치명·모델명과 함께 <a href="incident-new.html">장애신고</a>를 등록해 주세요.` },
+    { cat: 'etc', q: '헬프데스크 운영 시간과 연락처를 알려주세요.',
+      a: `헬프데스크는 <strong>평일 09:00~18:00</strong>(공휴일 제외) 운영하며, 연락처는 <strong>1544-8119</strong>입니다. 업무가 즉시 중단되는 긴급 장애는 신고와 함께 헬프데스크로 직통 연락하시면 빠르게 처리됩니다.` }
+  ];
+
+  const $ = id => document.getElementById(id);
+  let curFilter = 'all', curSearch = '';
+
+  const CHEVRON = '<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>';
+
+  function render() {
+    const q = curSearch.trim().toLowerCase();
+    const list = FAQS.filter(f => {
+      const okFilter = curFilter === 'all' || f.cat === curFilter;
+      const okSearch = !q || (f.q + ' ' + f.a).toLowerCase().includes(q);
+      return okFilter && okSearch;
+    });
+
+    if (!list.length) {
+      $('faqList').innerHTML = `<div class="faq-empty">검색 조건에 맞는 FAQ가 없습니다.</div>`;
+      return;
+    }
+
+    const autoOpen = q.length > 0; // 검색 시 자동 펼침
+    $('faqList').innerHTML = list.map((f, i) => `
+      <div class="faq-item${autoOpen ? ' open' : ''}">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          <div class="faq-q-left">
+            <span class="faq-q-num">${i + 1}</span>
+            <span>${f.q}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+            <span class="faq-cat">${CAT_LABEL[f.cat]}</span>
+            ${CHEVRON}
+          </div>
+        </div>
+        <div class="faq-a">${f.a}</div>
+      </div>`).join('');
+  }
+
+  // 필터 / 검색
+  document.querySelectorAll('#filterSeg .fsb').forEach(btn => {
+    btn.addEventListener('click', () => {
+      curFilter = btn.dataset.filter;
+      document.querySelectorAll('#filterSeg .fsb').forEach(b => b.classList.toggle('on', b === btn));
+      render();
+    });
+  });
+  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; render(); });
+
+  render();
+</script>
+</body>
+</html>
