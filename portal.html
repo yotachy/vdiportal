@@ -13,7 +13,7 @@
   .btn-ghost.spinning svg{animation:spin .65s ease}
 
   /* ===== KPI 스트립 ===== */
-  .kpi-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+  .kpi-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:18px}
   .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
     padding:18px 20px;display:flex;align-items:center;gap:15px;box-shadow:var(--shadow-sm);
     transition:transform .18s,box-shadow .18s;position:relative;overflow:hidden}
@@ -266,13 +266,6 @@
 
     <!-- KPI 스트립 -->
     <div class="kpi-strip reveal" style="animation-delay:.08s">
-      <div class="kpi static">
-        <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
-        <div>
-          <div class="kpi-num">2 <small>대</small></div>
-          <div class="kpi-label">보유 가상PC</div>
-        </div>
-      </div>
       <a class="kpi" href="approval.html">
         <div class="kpi-ico blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
         <div>
