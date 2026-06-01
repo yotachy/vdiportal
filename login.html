@@ -14,18 +14,19 @@
     overflow:hidden;background:var(--surface);
   }
 
-  /* ===== 좌측 브랜드 패널 (웜 크림 라이트) ===== */
+  /* ===== 좌측 브랜드 패널 (portal 컨셉 — 절제된 크림 + 옐로우 액센트) ===== */
   .brand-panel{
     flex:0.85;position:relative;overflow:hidden;
     padding:54px 60px;display:flex;flex-direction:column;justify-content:space-between;
-    background:
-      radial-gradient(620px 460px at 82% 12%, var(--kb-yellow-soft), transparent 62%),
-      #FBFAF7;
+    background:var(--surface-2);
     border-right:1px solid var(--border);
   }
-  /* 시그니처 스파크(별) — 절제된 워터마크 */
-  .brand-spark{position:absolute;right:-80px;bottom:-60px;width:440px;height:440px;
-    color:var(--kb-yellow);opacity:.09;pointer-events:none}
+  /* 상단 옐로우 액센트 스트립 — portal 카드와 동일한 언어 */
+  .brand-panel::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;z-index:3;
+    background:linear-gradient(90deg,var(--kb-yellow),#FFD24D 55%,var(--kb-yellow))}
+  /* 시그니처 스파크 — 아주 옅은 워터마크로만 잔향 */
+  .brand-spark{position:absolute;right:-120px;bottom:-100px;width:320px;height:320px;
+    color:var(--kb-yellow);opacity:.05;pointer-events:none}
 
   .brand-logo{display:flex;align-items:center;gap:13px;position:relative;z-index:2}
   .brand-mark{width:46px;height:46px;background:var(--kb-yellow);border-radius:13px;
@@ -44,6 +45,16 @@
   .brand-title em::after{content:'';position:absolute;left:0;right:0;bottom:4px;height:10px;
     background:var(--kb-yellow);opacity:.38;z-index:-1;border-radius:3px}
   .brand-subtitle{color:var(--text-secondary);font-size:16px;line-height:1.7;max-width:430px;font-weight:500}
+
+  /* 기능 안내 리스트 — portal 아이콘 칩 컴포넌트 언어 재사용 */
+  .brand-features{display:flex;flex-direction:column;gap:14px;margin-top:30px}
+  .brand-feat{display:flex;align-items:center;gap:13px}
+  .brand-feat-ico{width:38px;height:38px;border-radius:11px;flex-shrink:0;
+    background:var(--kb-yellow-soft);color:var(--kb-yellow-dark);border:1px solid var(--kb-yellow-line);
+    display:flex;align-items:center;justify-content:center}
+  .brand-feat-ico svg{width:19px;height:19px}
+  .brand-feat-text{font-size:14.5px;font-weight:700;color:var(--text-primary);letter-spacing:-0.01em}
+  .brand-feat-text small{display:block;font-size:13px;font-weight:500;color:var(--text-tertiary);margin-top:2px;letter-spacing:0}
 
   .brand-footer{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;
     padding-top:34px;margin-top:34px;border-top:1px solid rgba(26,23,20,.1)}
@@ -173,6 +184,27 @@
       <span class="brand-eyebrow">업무가상화 사용자 포탈</span>
       <h1 class="brand-title">언제 어디서나<br><em>안전한 업무 환경</em></h1>
       <p class="brand-subtitle">KB손해보험 임직원을 위한 업무가상화 포탈입니다. 통합 인증과 2차 보안 인증으로 안전하게 접속하세요.</p>
+
+      <div class="brand-features">
+        <div class="brand-feat">
+          <span class="brand-feat-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </span>
+          <div class="brand-feat-text">통합 인증(SSO) 로그인<small>마이포탈 ID 하나로 간편하게</small></div>
+        </div>
+        <div class="brand-feat">
+          <span class="brand-feat-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+          </span>
+          <div class="brand-feat-text">앱알리미 2차 보안 인증<small>OTP 6자리로 안전하게 보호</small></div>
+        </div>
+        <div class="brand-feat">
+          <span class="brand-feat-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </span>
+          <div class="brand-feat-text">언제 어디서나 동일한 업무 환경<small>가상 PC로 안전한 원격 근무</small></div>
+        </div>
+      </div>
     </div>
 
     <div class="brand-footer">
