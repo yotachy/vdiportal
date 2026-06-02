@@ -18,8 +18,6 @@
     padding:18px 20px;display:flex;align-items:center;gap:15px;box-shadow:var(--shadow-sm);
     transition:transform .18s,box-shadow .18s;position:relative;overflow:hidden}
   .kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
-  .kpi.static{cursor:default}
-  .kpi.static:hover{transform:none;box-shadow:var(--shadow-sm)}
   .kpi-ico{width:46px;height:46px;border-radius:13px;flex-shrink:0;
     display:flex;align-items:center;justify-content:center;background:var(--kb-yellow-soft);color:var(--kb-yellow-dark)}
   .kpi-ico.blue{background:var(--info-soft);color:var(--info)}
@@ -464,7 +462,7 @@
 </div>
 
 <script>
-  // ===== 인증 상태 (시안용 sessionStorage 플래그) =====
+  // ===== 인증 상태 (sessionStorage 플래그) =====
   function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
   function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
 
@@ -487,7 +485,7 @@
     window.__toastT = setTimeout(() => t.classList.remove('show'), 2800);
   }
 
-  // 사이트링크 — 외부 시스템 이동 (시안용 토스트)
+  // 사이트링크 — 외부 시스템 이동
   function goSite(e, name) {
     e.preventDefault();
     showToast(name + ' 시스템으로 이동합니다. (외부 사이트)');
@@ -540,7 +538,7 @@
       <div class="mi"><span class="mi-k">운영체제</span><span class="mi-v">${v.os}</span></div>
       <div class="mi"><span class="mi-k">최근 접속</span><span class="mi-v">${v.lastAccess}</span></div>`;
 
-    // INFO·RESOURCE — 선택한 가상PC의 정보로 채움 (수행사: 실제 자원/메타 API 값으로 대체)
+    // INFO·RESOURCE — 선택한 가상PC의 정보로 채움
     $('vwInfo').innerHTML = `
       <div class="res-row"><span class="rk">IP 주소</span><span class="rv">${v.ip}</span></div>
       <div class="res-row"><span class="rk">생성일</span><span class="rv">${v.created}</span></div>

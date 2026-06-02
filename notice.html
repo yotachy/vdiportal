@@ -175,7 +175,7 @@
 </div>
 
 <script>
-  // ===== 인증 상태 (시안용 sessionStorage 플래그) =====
+  // ===== 인증 상태 (sessionStorage 플래그) =====
   function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
   function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
 
@@ -189,7 +189,7 @@
     document.getElementById('sessionTimer').textContent = `${m}:${s}`;
   }, 1000);
 
-  // ===== 데이터 (오늘 2026-05-31 기준 최근순) =====
+  // ===== 데이터 (최신순) =====
   // cat: important(중요) · normal(일반)
   const NOTICES = [
     { id: 1, cat: 'important', pinned: true,  isNew: true,  title: '[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내', author: 'VDI 운영팀', date: '2026.05.29', views: 1284 },

@@ -13,21 +13,21 @@
     min-height:calc(100vh / 0.97);padding:24px;box-sizing:border-box;
     background:var(--surface-2);
   }
-  /* 중앙 사각 카드 — portal '크림 위 카드' 컨셉 */
+  /* 중앙 카드 */
   .login-shell{
     display:flex;width:100%;max-width:1520px;min-height:820px;
     background:var(--surface);border:1px solid var(--border);border-radius:20px;
     overflow:hidden;box-shadow:0 24px 60px -22px rgba(26,23,20,.24),0 4px 14px rgba(26,23,20,.05);
   }
 
-  /* ===== 좌측 브랜드 패널 (portal 컨셉 — 절제된 크림 + 옐로우 액센트) ===== */
+  /* ===== 좌측 브랜드 패널 ===== */
   .brand-panel{
     flex:1;position:relative;overflow:hidden;
     padding:48px 52px;display:flex;flex-direction:column;justify-content:space-between;
     background:var(--surface-2);
     border-right:1px solid var(--border);
   }
-  /* 시그니처 스파크 — 아주 옅은 워터마크로만 잔향 */
+  /* 배경 워터마크 */
   .brand-spark{position:absolute;right:-120px;bottom:-100px;width:320px;height:320px;
     color:var(--kb-yellow);opacity:.05;pointer-events:none}
 
@@ -49,7 +49,7 @@
     background:var(--kb-yellow);opacity:.38;z-index:-1;border-radius:3px}
   .brand-subtitle{color:var(--text-secondary);font-size:16px;line-height:1.7;max-width:430px;font-weight:500}
 
-  /* 기능 안내 리스트 — portal 아이콘 칩 컴포넌트 언어 재사용 */
+  /* 기능 안내 리스트 */
   .brand-features{display:flex;flex-direction:column;gap:14px;margin-top:30px}
   .brand-feat{display:flex;align-items:center;gap:13px}
   .brand-feat-ico{width:38px;height:38px;border-radius:11px;flex-shrink:0;
@@ -173,7 +173,7 @@
   <div class="login-shell">
   <!-- 좌측 브랜드 -->
   <aside class="brand-panel">
-    <!-- 시그니처 스파크 -->
+    <!-- 배경 워터마크 -->
     <svg class="brand-spark" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
       <path d="M50 2 C54 32,68 46,98 50 C68 54,54 68,50 98 C46 68,32 54,2 50 C32 46,46 32,50 2 Z"/>
     </svg>
@@ -351,13 +351,13 @@
   </div>
 
 <script>
-  // 로그인 성공 처리 — 인증 플래그 설정 후 포탈 이동 (시안용)
+  // 로그인 성공 처리 — 인증 플래그 설정 후 포탈 이동
   function doLogin(){
     sessionStorage.setItem('vdi_auth', '1');
     location.href = 'portal.html';
   }
 
-  // 계정 도움 링크 (시안용 안내)
+  // 계정 도움 링크
   function accountHelp(label){
     alert(label + '은(는) 통합 인증 포탈에서 진행됩니다.\n헬프데스크 1544-8119 (평일 09:00~18:00)');
   }

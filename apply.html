@@ -724,7 +724,7 @@
 </div>
 
 <script>
-  // ===== 인증 상태 (시안용 sessionStorage 플래그) =====
+  // ===== 인증 상태 (sessionStorage 플래그) =====
   function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
   function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
 
