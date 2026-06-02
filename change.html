@@ -13,8 +13,10 @@
   .tab-panel.active { display: block; }
 
   /* ===== 대상 VDI 선택 카드 ===== */
-  .vdi-select { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  /* 카드는 항상 3개 기준 폭으로 고정, 개수가 많으면 가로 스크롤 */
+  .vdi-select { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; }
   .vdi-card {
+    flex: 0 0 calc((100% - 24px) / 3);
     border: 1.5px solid var(--border-strong); border-radius: 12px;
     padding: 14px 16px; cursor: pointer; transition: all 0.15s;
     background: var(--surface); position: relative;
@@ -77,6 +79,18 @@
   .qp:hover { border-color: var(--kb-yellow-dark); color: var(--ink); }
   .qp.sel { background: var(--kb-yellow); border-color: var(--kb-yellow-dark); color: var(--ink); }
 
+  /* ===== 대리 신청 검색 팝업 (apply와 동일) ===== */
+  .user-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: all 0.14s; }
+  .user-row:hover { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft); }
+  .user-avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; background: var(--bg-subtle); color: var(--text-secondary); }
+  .user-avatar svg { width: 18px; height: 18px; }
+  .user-info { min-width: 0; }
+  .user-info .un { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+  .user-info .um { font-size: 12.5px; color: var(--text-tertiary); margin-top: 2px; }
+  .user-empty { text-align: center; padding: 32px 16px; color: var(--text-tertiary); font-size: 14px; }
+
   /* ===== 결재선 미리보기 (apply 패턴 컴팩트) ===== */
   .appr-line { display: flex; flex-direction: column; }
   .appr-node { display: flex; align-items: center; gap: 16px; padding: 13px 4px; position: relative; }
@@ -98,7 +112,7 @@
   .appr-badge.fixed { background: var(--info-soft); color: var(--info); }
 
   @media (max-width: 880px) {
-    .vdi-select { grid-template-columns: 1fr; }
+    .vdi-card { flex-basis: 82%; }
     .frow { grid-template-columns: 1fr; gap: 8px; }
     .frow-label { padding-top: 0; }
     .sc-row { grid-template-columns: 1fr; gap: 8px; }
@@ -133,8 +147,53 @@
       </div>
     </div>
 
+    <!-- 신청자 정보 (본인 / 타인 대리) -->
+    <div class="fc reveal" style="animation-delay:.1s">
+      <div class="fc-head">
+        <div class="fc-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          신청자 정보
+        </div>
+        <div class="fc-ctrl"></div>
+      </div>
+      <div class="fc-body">
+        <div class="frow">
+          <div class="frow-label">신청 구분</div>
+          <div class="frow-field">
+            <div class="field-inline">
+              <div class="rgrp" id="applyForGroup">
+                <button type="button" class="rbtn sel" data-for="self"><span class="rdot"></span>본인 신청</button>
+                <button type="button" class="rbtn" data-for="other"><span class="rdot"></span>타인 대리 신청</button>
+              </div>
+              <div class="field-inline" id="otherSearch" style="display:none">
+                <input class="fi" id="f_search" style="width:280px" placeholder="부서명 또는 이름으로 검색  예) IT기획파트, 홍길동"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();searchUser();}">
+                <button type="button" class="btn btn-outline btn-sm" onclick="searchUser()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  검색
+                </button>
+              </div>
+            </div>
+            <div class="frow-help">타인 대리 신청은 동일 부서원만 가능합니다.</div>
+          </div>
+        </div>
+        <div class="frow">
+          <div class="frow-label">신청자</div>
+          <div class="frow-field">
+            <div class="info-text">IT기획파트 · 최정식 책임</div>
+          </div>
+        </div>
+        <div class="frow" id="targetRow" style="display:none">
+          <div class="frow-label">대상자</div>
+          <div class="frow-field">
+            <div class="info-text" id="t_info">-</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 탭 -->
-    <div class="filter-bar reveal" style="animation-delay:.12s">
+    <div class="filter-bar reveal" style="animation-delay:.14s">
       <div class="filter-seg" id="tabSeg">
         <button class="fsb on" data-tab="extend">사용 연장</button>
         <button class="fsb" data-tab="expand">자원 증설</button>
@@ -286,6 +345,21 @@
 
   </main>
 </div>
+
+<!-- 사용자 검색 팝업 -->
+<div class="modal" id="userModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeUserModal()" aria-label="닫기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="modal-title">사용자 검색</div>
+    <div class="modal-meta">동일 부서(IT기획파트) 소속만 조회됩니다.</div>
+    <div class="modal-body">
+      <div id="userResults"></div>
+    </div>
+  </div>
+</div>
+
 <script src="common.js"></script>
 <script>
   // ===== VDI 데이터 (portal.html과 동일하게 2대) =====
@@ -298,8 +372,57 @@
   const MEM_OPTS = ['8 GB', '16 GB', '32 GB'];
   const DISK_OPTS = ['80 GB', '150 GB', '300 GB'];
 
-  const state = { tab: 'extend', vdi: 0, e_cpu: '', e_mem: '', e_disk: '' };
+  const state = { tab: 'extend', vdi: 0, e_cpu: '', e_mem: '', e_disk: '', applyFor: 'self', target: null };
   const $ = id => document.getElementById(id);
+
+  // ===== 신청 구분 (본인 / 타인 대리) =====
+  const APPLICANT_DEPT = 'IT기획파트';
+  const DEPT_MEMBERS = [
+    { name: '홍길동 대리', dept: APPLICANT_DEPT },
+    { name: '김서연 책임', dept: APPLICANT_DEPT },
+    { name: '박준호 선임', dept: APPLICANT_DEPT },
+    { name: '이지훈 책임', dept: APPLICANT_DEPT },
+    { name: '정민아 선임', dept: APPLICANT_DEPT },
+    { name: '한도윤 주임', dept: APPLICANT_DEPT }
+  ];
+  const USER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+
+  document.querySelectorAll('#applyForGroup .rbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#applyForGroup .rbtn').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      state.applyFor = btn.dataset.for;
+      $('otherSearch').style.display = state.applyFor === 'other' ? 'flex' : 'none';
+      state.target = null;
+      $('targetRow').style.display = 'none';
+    });
+  });
+
+  function searchUser() {
+    const q = $('f_search').value.trim();
+    if (!q) { showToast('부서명 또는 이름을 입력해주세요.'); return; }
+    const list = DEPT_MEMBERS.filter(m => m.name.includes(q) || m.dept.includes(q));
+    $('userResults').innerHTML = list.length
+      ? list.map(m =>
+          `<div class="user-row" onclick="selectUser(${DEPT_MEMBERS.indexOf(m)})">
+            <span class="user-avatar">${USER_ICON}</span>
+            <div class="user-info"><div class="un">${m.name}</div><div class="um">${m.dept}</div></div>
+          </div>`).join('')
+      : '<div class="user-empty">검색 결과가 없습니다. (동일 부서원만 조회됩니다)</div>';
+    $('userModal').classList.add('open');
+  }
+  function closeUserModal() { $('userModal').classList.remove('open'); }
+  function selectUser(idx) {
+    const m = DEPT_MEMBERS[idx];
+    state.target = { name: m.name, dept: m.dept };
+    $('t_info').textContent = `${m.dept} · ${m.name}`;
+    $('targetRow').style.display = '';
+    closeUserModal();
+    showToast('대상자를 선택했습니다.');
+  }
+  document.getElementById('userModal').addEventListener('click', e => {
+    if (e.target.id === 'userModal') closeUserModal();
+  });
 
   // 날짜 헬퍼
   const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -420,6 +543,9 @@
   // ===== 제출 =====
   function submitRequest() {
     const v = VDI_LIST[state.vdi];
+    if (state.applyFor === 'other' && !state.target) {
+      showToast('대리 신청은 대상 사용자를 검색·선택해주세요.'); return;
+    }
     if (state.tab === 'extend') {
       const end = $('x_end').value;
       if (!end) { showToast('연장 종료일을 선택해주세요.'); return; }
