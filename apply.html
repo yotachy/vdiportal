@@ -44,6 +44,17 @@
     font-size: 13.5px; font-weight: 700; color: var(--text-primary); }
   .search-result svg { width: 16px; height: 16px; color: var(--success); flex-shrink: 0; }
   .search-result .sr-dept { font-weight: 600; color: var(--text-secondary); }
+  /* 검색 팝업 결과 목록 */
+  .user-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: all 0.14s; }
+  .user-row:hover { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft); }
+  .user-avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; background: var(--bg-subtle); color: var(--text-secondary); }
+  .user-avatar svg { width: 18px; height: 18px; }
+  .user-info { min-width: 0; }
+  .user-info .un { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+  .user-info .um { font-size: 12.5px; color: var(--text-tertiary); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .user-empty { text-align: center; padding: 32px 16px; color: var(--text-tertiary); font-size: 14px; }
 
   /* 카드형 라디오 (VDI 유형 선택) */
   .type-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -235,8 +246,8 @@
                 </div>
                 <!-- 타인 대리 선택 시 우측에 바로 검색 -->
                 <div class="field-inline" id="otherSearch" style="display:none">
-                  <input class="fi" id="f_searchDept" style="width:170px" placeholder="부서명  예) IT기획파트">
-                  <input class="fi" id="f_searchName" style="width:150px" placeholder="사용자명  예) 홍길동">
+                  <input class="fi" id="f_search" style="width:280px" placeholder="부서명 또는 이름으로 검색  예) IT기획파트, 홍길동"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();searchUser();}">
                   <button type="button" class="btn btn-outline btn-sm" onclick="searchUser()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     검색
@@ -598,6 +609,21 @@
 
   </main>
 </div>
+
+<!-- 사용자 검색 팝업 -->
+<div class="modal" id="userModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeUserModal()" aria-label="닫기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="modal-title">사용자 검색</div>
+    <div class="modal-meta">동일 부서(IT기획파트) 소속만 조회됩니다.</div>
+    <div class="modal-body">
+      <div id="userResults"></div>
+    </div>
+  </div>
+</div>
+
 <script src="common.js"></script>
 <script>
   // ===== 선택 상태 =====
@@ -642,22 +668,52 @@
     });
   });
 
-  // 동일 부서원 검색 (시안: 부서 일치 시에만 선택 가능)
+  // 동일 부서원 목록 (mock — 모두 신청자와 같은 부서)
+  const DEPT_MEMBERS = [
+    { name: '김서연 책임', empNo: '1010432', dept: APPLICANT_DEPT },
+    { name: '박준호 선임', empNo: '1010588', dept: APPLICANT_DEPT },
+    { name: '이지훈 책임', empNo: '1010620', dept: APPLICANT_DEPT },
+    { name: '정민아 선임', empNo: '1010701', dept: APPLICANT_DEPT },
+    { name: '한도윤 주임', empNo: '1010773', dept: APPLICANT_DEPT }
+  ];
+  const USER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+
+  // 검색 → 조건에 맞는 부서원을 팝업 목록으로 표시
   function searchUser() {
-    const dept = document.getElementById('f_searchDept').value.trim();
-    const name = document.getElementById('f_searchName').value.trim();
-    if (!dept || !name) { showToast('부서명과 사용자명을 입력해주세요.'); return; }
-    if (dept !== APPLICANT_DEPT) {
-      showToast(`동일 부서(${APPLICANT_DEPT}) 소속만 신청할 수 있습니다.`);
-      return;
-    }
-    state.target = { name, dept };
+    const q = document.getElementById('f_search').value.trim();
+    if (!q) { showToast('부서명 또는 이름을 입력해주세요.'); return; }
+    const list = DEPT_MEMBERS.filter(m => m.name.includes(q) || m.dept.includes(q));
+    const box = document.getElementById('userResults');
+    box.innerHTML = list.length
+      ? list.map((m, i) =>
+          `<div class="user-row" onclick="selectUser(${DEPT_MEMBERS.indexOf(m)})">
+            <span class="user-avatar">${USER_ICON}</span>
+            <div class="user-info"><div class="un">${m.name}</div><div class="um">${m.dept} · 사번 ${m.empNo}</div></div>
+          </div>`).join('')
+      : '<div class="user-empty">검색 결과가 없습니다. (동일 부서원만 조회됩니다)</div>';
+    document.getElementById('userModal').classList.add('open');
+  }
+
+  function closeUserModal() {
+    document.getElementById('userModal').classList.remove('open');
+  }
+
+  // 목록에서 선택 → 대상자로 추가 표기
+  function selectUser(idx) {
+    const m = DEPT_MEMBERS[idx];
+    state.target = { name: m.name, dept: m.dept, empNo: m.empNo };
     document.getElementById('searchResult').innerHTML =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
-      `${name} <span class="sr-dept">· ${dept}</span>`;
+      `${m.name} <span class="sr-dept">· ${m.dept} · 사번 ${m.empNo}</span>`;
     document.getElementById('targetRow').style.display = '';
+    closeUserModal();
     showToast('대상자를 선택했습니다.');
   }
+
+  // 팝업 바깥(배경) 클릭 시 닫기
+  document.getElementById('userModal').addEventListener('click', e => {
+    if (e.target.id === 'userModal') closeUserModal();
+  });
 
   // 사용 기간 라디오
   document.querySelectorAll('#periodGroup .rbtn').forEach(btn => {
