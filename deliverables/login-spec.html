@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 로그인 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --danger:#D93B30; --danger-soft:#FCEAE7;
+    --r:12px;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  /* 문서 헤더 */
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  /* 메타 테이블 */
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  /* 섹션 */
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  /* 정의 리스트 */
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  /* 표 */
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .req{color:var(--danger);font-weight:800}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-in{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+
+  /* 미리보기 */
+  .preview{display:grid;grid-template-columns:1fr;gap:18px}
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview iframe{width:100%;height:560px;border:0;display:block}
+  .preview-actions{margin-top:4px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  /* 영역 설명 */
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview iframe{height:460px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- 브랜드 -->
+  <div class="doc-brand">
+    <span class="doc-mark"><svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 6 C54 34,66 46,94 50 C66 54,54 66,50 94 C46 66,34 54,6 50 C34 46,46 34,50 6 Z"/></svg></span>
+    <span class="doc-brand-text">KB손해보험<span>업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- 문서 타이틀 -->
+  <div class="doc-title">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">로그인</h1>
+    <div class="doc-sub">사용자가 포탈 ID/비밀번호와 2차 인증(앱알리미 OTP)으로 시스템에 접속하는 화면</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-001</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-001</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.02</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">login.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">전체(미인증)</div></div>
+    </div>
+  </div>
+
+  <!-- 1. 화면 개요 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>로그인</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-001</dd>
+        <dt>경로(URL)</dt><dd>/login.html</dd>
+        <dt>화면 유형</dt><dd>독립 레이아웃 (헤더·사이드바 없음)</dd>
+        <dt>화면 목적</dt><dd>통합 인증(ID/PW) + 2차 보안 인증(앱알리미 OTP)으로 사용자를 인증하고 메인 포탈로 진입</dd>
+        <dt>진입 경로</dt><dd>브라우저 직접 접속 · 미인증 상태에서 보호 페이지 접근 시 자동 이동 · 로그아웃 시</dd>
+        <dt>다음 화면</dt><dd>인증 성공 → 메인 포탈(/portal.html)</dd>
+        <dt>인증 처리</dt><dd>2단계(STEP 1 ID/PW → STEP 2 OTP) 순차 진행</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- 2. 화면 레이아웃 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview">
+      <div class="preview-frame">
+        <div class="preview-bar">
+          <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+          <span class="preview-url">login.html</span>
+        </div>
+        <iframe src="../login.html" title="로그인 화면 미리보기" loading="lazy"></iframe>
+      </div>
+      <div class="preview-actions">
+        <a class="btn-open" href="../login.html" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          프로토타입 새 창으로 열기
+        </a>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item">
+          <span class="area-badge">A</span>
+          <div><div class="area-name">좌측 브랜드 패널</div>
+            <div class="area-desc">KB손해보험 로고 · 서비스 소개 · 핵심 기능 안내(통합 인증/2차 보안 인증/안전한 원격 근무) · 헬프데스크 연락처. 정보 전달 영역으로 입력 요소 없음. (모바일에서는 상단 축약)</div></div>
+        </div>
+        <div class="area-item">
+          <span class="area-badge">B</span>
+          <div><div class="area-name">우측 인증 영역 — STEP 1 (ID/비밀번호)</div>
+            <div class="area-desc">단계 인디케이터(1/2) · 포탈 ID · 비밀번호(표시 토글) · 포탈 ID 저장 · 헬프데스크 안내 · [다음 단계] · 계정 도움 링크 3종 · 보안 안내 문구</div></div>
+        </div>
+        <div class="area-item">
+          <span class="area-badge">C</span>
+          <div><div class="area-name">우측 인증 영역 — STEP 2 (2차 인증)</div>
+            <div class="area-desc">단계 인디케이터(2/2) · 6자리 OTP 입력 · 잔여 시간 타이머 · 안내 · [인증번호 재전송] · [로그인] · [이전으로 돌아가기]</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 화면 항목 정의 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div style="font-size:13px;font-weight:800;color:var(--t2);margin:0 0 8px">STEP 1 · ID / 비밀번호</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th style="width:60px">필수</th><th>형식 · 제약</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>포탈 ID</strong> <code>#userId</code></td><td><span class="tag tag-in">입력</span></td><td><span class="req">필수</span></td><td>텍스트 · autocomplete=username</td><td>마이포탈 ID 입력. Enter 시 비밀번호로 포커스 이동</td></tr>
+        <tr><td>2</td><td><strong>비밀번호</strong> <code>#userPw</code></td><td><span class="tag tag-in">입력</span></td><td><span class="req">필수</span></td><td>password(마스킹) · 표시 토글 제공</td><td>비밀번호 입력. 우측 눈 아이콘으로 표시/숨김 전환. Enter 시 다음 단계 진행</td></tr>
+        <tr><td>3</td><td>포탈 ID 저장</td><td><span class="tag tag-in">체크</span></td><td>-</td><td>checkbox</td><td>다음 접속 시 ID 자동 채움(시안에서는 동작 미구현)</td></tr>
+        <tr><td>4</td><td>헬프데스크 1544-8119</td><td><span class="tag tag-link">링크</span></td><td>-</td><td>tel: 링크</td><td>문의 연락처. 클릭 시 전화 연결</td></tr>
+        <tr><td>5</td><td><strong>다음 단계</strong></td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>Primary</td><td>ID/PW 검증 후 STEP 2로 전환 (이벤트 E-01)</td></tr>
+        <tr><td>6</td><td>아이디 생성</td><td><span class="tag tag-link">링크</span></td><td>-</td><td>-</td><td>통합 인증 포탈 안내 (이벤트 E-05)</td></tr>
+        <tr><td>7</td><td>비밀번호 재발급</td><td><span class="tag tag-link">링크</span></td><td>-</td><td>-</td><td>통합 인증 포탈 안내 (이벤트 E-05)</td></tr>
+        <tr><td>8</td><td>계정 잠금 해제</td><td><span class="tag tag-link">링크</span></td><td>-</td><td>-</td><td>통합 인증 포탈 안내 (이벤트 E-05)</td></tr>
+        <tr><td>9</td><td>보안 안내 문구</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>-</td><td>"임직원 전용 · 5회 이상 로그인 실패 시 계정 잠김" 고정 안내</td></tr>
+      </tbody>
+    </table>
+
+    <div style="font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px">STEP 2 · 2차 인증(OTP)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th style="width:60px">필수</th><th>형식 · 제약</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>10</td><td><strong>인증번호(OTP)</strong> <code>.otp-digit</code> ×6</td><td><span class="tag tag-in">입력</span></td><td><span class="req">필수</span></td><td>숫자 1자리 × 6칸 · inputmode=numeric</td><td>앱알리미로 전송된 6자리. 입력 시 다음 칸 자동 이동, 붙여넣기 지원, 6자리 완성 시 자동 로그인</td></tr>
+        <tr><td>11</td><td>잔여 시간 타이머 <code>#timer</code></td><td><span class="tag tag-view">표시</span></td><td>-</td><td>mm:ss · 초기 02:59</td><td>유효 시간 카운트다운(179초). 0 도달 시 만료 처리</td></tr>
+        <tr><td>12</td><td>인증번호 재전송</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>Text 버튼</td><td>OTP 재발송 + 입력 초기화 + 타이머 재시작 (이벤트 E-04)</td></tr>
+        <tr><td>13</td><td><strong>로그인</strong></td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>Primary</td><td>인증 완료 처리 후 포탈 진입 (이벤트 E-02)</td></tr>
+        <tr><td>14</td><td>이전으로 돌아가기</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>Secondary</td><td>STEP 1로 복귀, 타이머 중지 (이벤트 E-03)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 4. 처리/이벤트 정의 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>다음 단계</td><td>[다음 단계] 클릭 · 비밀번호 입력 후 Enter</td><td>ID/PW 입력값 검증 → 통과 시 STEP 2 표시, 타이머 시작, 첫 OTP 칸 포커스</td></tr>
+        <tr><td>E-02</td><td>로그인 완료</td><td>[로그인] 클릭 · OTP 6자리 자동 완료</td><td>인증 성공 처리 → 메인 포탈(/portal.html) 이동 <em>(시안: 인증 플래그 <code>sessionStorage['vdi_auth']='1'</code> 설정)</em></td></tr>
+        <tr><td>E-03</td><td>이전 단계</td><td>[이전으로 돌아가기] 클릭</td><td>STEP 1로 복귀, 타이머 중지</td></tr>
+        <tr><td>E-04</td><td>OTP 재전송</td><td>[인증번호 재전송] 클릭</td><td>OTP 재발송 안내 → 입력 6칸 초기화, 첫 칸 포커스, 타이머 재시작</td></tr>
+        <tr><td>E-05</td><td>계정 도움</td><td>아이디 생성/비밀번호 재발급/계정 잠금 해제 클릭</td><td>통합 인증 포탈로 연계 안내 <em>(시안: 안내 메시지 표시)</em></td></tr>
+        <tr><td>E-06</td><td>비밀번호 표시 토글</td><td>비밀번호 우측 아이콘 클릭</td><td>비밀번호 마스킹/평문 전환, 아이콘 변경</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 5. 유효성 검증 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">유효성 검증</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:140px">대상</th><th style="width:200px">검증 규칙</th><th>미충족 시 처리 / 안내 문구</th></tr></thead>
+      <tbody>
+        <tr><td>포탈 ID · 비밀번호</td><td>모두 입력(공백 불가)</td><td>STEP 2 진행 차단 · "포탈 ID와 비밀번호를 모두 입력해주세요."</td></tr>
+        <tr><td>인증번호(OTP)</td><td>숫자만 입력 · 6자리 완성</td><td>숫자 외 입력 자동 제거 · 6자리 완성 시 자동 인증</td></tr>
+        <tr><td>OTP 유효 시간</td><td>제한 시간 내(179초) 입력</td><td>만료 시 "인증 시간이 만료되었습니다. 다시 시도해주세요." 후 STEP 1 복귀</td></tr>
+        <tr><td>로그인 실패 횟수</td><td>5회 미만</td><td>5회 이상 실패 시 계정 잠김 처리(정책) — 잠금 해제는 계정 도움 링크 이용</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 6. 화면 상태/예외 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">화면 상태 · 예외 처리</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:150px">상태</th><th>설명 · 처리</th></tr></thead>
+      <tbody>
+        <tr><td>기본(STEP 1)</td><td>ID/비밀번호 입력 대기. 진입 시 기본 노출 단계</td></tr>
+        <tr><td>2차 인증(STEP 2)</td><td>OTP 입력 대기 + 타이머 동작</td></tr>
+        <tr><td>입력 오류</td><td>필수 미입력 시 안내 후 해당 단계 유지</td></tr>
+        <tr><td>인증 시간 만료</td><td>안내 후 STEP 1로 복귀</td></tr>
+        <tr><td>계정 잠금</td><td>5회 이상 실패 시 잠금. 계정 도움 링크로 해제 안내</td></tr>
+        <tr><td>인증 성공</td><td>메인 포탈로 이동</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 7. 연관 화면 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>메인 포탈</strong> (VDI-SCR-002, /portal.html) — 인증 성공 시 이동</li>
+        <li><strong>통합 인증 포탈</strong> (외부) — 아이디 생성 · 비밀번호 재발급 · 계정 잠금 해제 연계</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 8. 비고 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(login.html)은 UI 시안(프로토타입)</strong>으로, 화면 구성·동선 확인용입니다. 실제 인증·세션·OTP 발송 등은 수행사 개발 시 연동 대상이며, 시안의 임시 동작(안내 메시지, 인증 플래그 등)은 실제 로직으로 대체합니다.<br>
+        2차 인증 수단(앱알리미 OTP), OTP 유효 시간(약 3분), 로그인 실패 잠금 정책(5회) 등 <strong>세부 보안 정책 값은 협의 후 확정</strong>합니다.
+      </div>
+    </div>
+  </section>
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-001 · v1.0 · 2026.06.02 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>
