@@ -55,20 +55,28 @@
   .frow-help { font-size: 12.5px; color: var(--text-tertiary); margin-top: 7px; line-height: 1.5; }
   .fi.full, .fs.full, .fta.full { width: 100%; }
 
-  /* ===== 증설 비교 ===== */
-  .sc-table { display: flex; flex-direction: column; gap: 10px; }
+  /* ===== 증설 선택 (프레임 최소화: 구분선 + 선택 PILL) ===== */
+  .sc-table { display: flex; flex-direction: column; }
   .sc-row {
-    display: grid; grid-template-columns: 130px 1fr; gap: 14px; align-items: center;
-    padding: 13px 16px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2);
+    display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: center;
+    padding: 15px 2px; border-bottom: 1px solid var(--border);
   }
+  .sc-row:last-child { border-bottom: none; }
   .sc-label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text-secondary); }
   .sc-label svg { width: 16px; height: 16px; color: var(--kb-yellow-dark); flex-shrink: 0; }
-  .sc-pick { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-  .sc-cur { font-size: 14px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-  .sc-cur b { color: var(--text-primary); font-weight: 800; }
-  .sc-arrow { color: var(--text-tertiary); display: flex; align-items: center; }
-  .sc-arrow svg { width: 16px; height: 16px; }
-  .sc-up { font-size: 12px; font-weight: 800; color: var(--success); background: var(--success-soft); padding: 2px 8px; border-radius: 5px; }
+  .sc-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .sc-opts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sc-opt {
+    padding: 8px 15px; border: 1.5px solid var(--border-strong); border-radius: 100px; background: var(--surface);
+    font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text-secondary); cursor: pointer;
+    transition: all 0.14s; font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .sc-opt:hover { border-color: var(--kb-yellow-dark); color: var(--ink); }
+  .sc-opt.sel { background: var(--kb-yellow); border-color: var(--kb-yellow-dark); color: var(--ink); }
+  .sc-opt.cur { border-style: dashed; }
+  .sc-opt.disabled { opacity: 0.4; cursor: not-allowed; }
+  .sc-opt.disabled:hover { border-color: var(--border-strong); color: var(--text-secondary); }
+  .sc-up { font-size: 12px; font-weight: 800; color: var(--success); background: var(--success-soft); padding: 3px 9px; border-radius: 100px; }
 
   /* ===== 사용 연장 (apply와 동일 패턴) ===== */
   .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0; }
@@ -486,17 +494,19 @@
   // ===== 증설 비교 그리드 =====
   function specRow(label, icon, opts, cur, key) {
     const curIdx = opts.indexOf(cur);
-    const options = opts.map((o, i) =>
-      `<option value="${o}"${o === state[key] ? ' selected' : ''}${i < curIdx ? ' disabled' : ''}>${o}${i === curIdx ? ' (현재)' : ''}</option>`
-    ).join('');
+    const pills = opts.map((o, i) => {
+      const isCur = i === curIdx;
+      const disabled = i < curIdx;           // 현재값보다 낮은 사양은 선택 불가
+      const sel = state[key] === o;
+      return `<button type="button" class="sc-opt${sel ? ' sel' : ''}${isCur ? ' cur' : ''}${disabled ? ' disabled' : ''}"
+        data-spec="${key}" data-val="${o}"${disabled ? ' disabled' : ''}>${o}${isCur ? ' · 현재' : ''}</button>`;
+    }).join('');
     const upgraded = state[key] && state[key] !== cur;
     return `
       <div class="sc-row">
         <div class="sc-label">${icon}${label}</div>
         <div class="sc-pick">
-          <span class="sc-cur">현재 <b>${cur}</b></span>
-          <span class="sc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
-          <select class="fs" data-spec="${key}" style="width:150px">${options}</select>
+          <div class="sc-opts">${pills}</div>
           ${upgraded ? '<span class="sc-up">증설</span>' : ''}
         </div>
       </div>`;
@@ -518,9 +528,9 @@
       specRow('메모리', memIcon, MEM_OPTS, v.mem, 'e_mem') +
       specRow('디스크(D)', diskIcon, DISK_OPTS, v.disk, 'e_disk');
 
-    $('expandGrid').querySelectorAll('select[data-spec]').forEach(sel => {
-      sel.addEventListener('change', () => {
-        state[sel.dataset.spec] = sel.value;
+    $('expandGrid').querySelectorAll('.sc-opt:not(.disabled)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state[btn.dataset.spec] = btn.dataset.val;
         renderExpandGrid();
       });
     });
