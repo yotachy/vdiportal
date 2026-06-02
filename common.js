@@ -114,6 +114,8 @@ function renderHeader(el) {
       '<span class="hub-sep">·</span>' +
       '<span class="hub-item">' + u.dept + '</span>' +
       '<span class="hub-sep">·</span>' +
+      '<span class="hub-item">사번 <strong>' + u.empNo + '</strong></span>' +
+      '<span class="hub-sep">·</span>' +
       '<span class="hub-item">ID <strong>' + u.id + '</strong></span>' +
     '</div>' +
     '<div class="header-right">' +
