@@ -39,11 +39,6 @@
   .fi.full, .fs.full, .fta.full { width: 100%; }
   .field-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .field-inline .fs { min-width: 150px; }
-  .search-result { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 11px 14px;
-    background: var(--success-soft); border: 1px solid #BFE3C8; border-radius: 10px;
-    font-size: 13.5px; font-weight: 700; color: var(--text-primary); }
-  .search-result svg { width: 16px; height: 16px; color: var(--success); flex-shrink: 0; }
-  .search-result .sr-dept { font-weight: 600; color: var(--text-secondary); }
   /* 검색 팝업 결과 목록 */
   .user-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border);
     border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: all 0.14s; }
@@ -268,18 +263,20 @@
             <div class="frow-label">신청자</div>
             <div class="frow-field">
               <div class="field-inline">
+                <input class="fi" style="width:180px" value="IT기획파트" disabled>
                 <input class="fi" style="width:160px" value="최정식 책임" disabled>
-                <input class="fi" style="width:140px" value="사번 1010579" disabled>
               </div>
-              <div class="frow-help">로그인 정보 기준으로 자동 입력됩니다.</div>
             </div>
           </div>
 
-          <!-- 대리 신청 대상자 (검색 선택 시 표시) -->
+          <!-- 대리 신청 대상자 (검색 선택 시 신청자와 동일 형식으로 표시) -->
           <div class="frow" id="targetRow" style="display:none">
             <div class="frow-label">대상자</div>
             <div class="frow-field">
-              <div id="searchResult" class="search-result"></div>
+              <div class="field-inline">
+                <input class="fi" id="t_dept" style="width:180px" disabled>
+                <input class="fi" id="t_name" style="width:160px" disabled>
+              </div>
             </div>
           </div>
         </div>
@@ -565,7 +562,7 @@
           </div>
           <div class="fc-body">
             <div class="summary-table">
-              <div class="summary-row"><div class="summary-key">신청자</div><div class="summary-val">최정식 책임 · IT기획파트 · 사번 1010579</div></div>
+              <div class="summary-row"><div class="summary-key">신청자</div><div class="summary-val">IT기획파트 · 최정식 책임</div></div>
               <div class="summary-row"><div class="summary-key">사용 대상자</div><div class="summary-val" id="s_target">-</div></div>
               <div class="summary-row"><div class="summary-key">사용 용도</div><div class="summary-val" id="s_purpose">-</div></div>
               <div class="summary-row"><div class="summary-key">VDI 유형 · 사양</div><div class="summary-val" id="s_spec">-</div></div>
@@ -711,9 +708,8 @@
   function selectUser(idx) {
     const m = DEPT_MEMBERS[idx];
     state.target = { name: m.name, dept: m.dept, empNo: m.empNo };
-    document.getElementById('searchResult').innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
-      `${m.name} <span class="sr-dept">· ${m.dept} · 사번 ${m.empNo}</span>`;
+    document.getElementById('t_dept').value = m.dept;
+    document.getElementById('t_name').value = m.name;
     document.getElementById('targetRow').style.display = '';
     closeUserModal();
     showToast('대상자를 선택했습니다.');
