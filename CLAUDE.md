@@ -1,6 +1,11 @@
 # CLAUDE.md
 
-이 파일은 Claude Code(claude.ai/code)가 이 저장소에서 작업할 때 참조하는 컨텍스트 가이드입니다.
+이 파일은 Claude Code(claude.ai/code)가 이 저장소에서 작업할 때 참조하는 **컨텍스트 가이드**입니다.
+
+> **문서 역할 분담**
+> - [`README.md`](README.md) — 프로젝트 개요·화면 목록·실행 방법 (외부/전달용)
+> - [`STYLE_GUIDE.md`](STYLE_GUIDE.md) — **코딩 표준·구조 규칙·새 화면 추가 절차** (수행사 실무용, 단일 출처)
+> - `CLAUDE.md`(본 문서) — Claude 작업용 컨텍스트: 화면별 구현 메모·협업 패턴 등. 코드 규칙은 STYLE_GUIDE 를 따른다(중복 서술 지양).
 
 ---
 
@@ -17,48 +22,29 @@
 
 ## 🎯 핵심 작업 원칙
 
-### 1. 디자인 시스템 일관성 (최우선)
+> 코드 규칙 전반(기술 원칙·CSS/JS·주석·금지사항)은 [`STYLE_GUIDE.md`](STYLE_GUIDE.md)가 단일 출처. 아래는 자주 어기기 쉬운 핵심만 요약.
 
-- 모든 화면은 `common.css`를 link 한다
-- 색상은 `:root`에 정의된 CSS 변수만 사용. 하드코딩 금지
-- 새 컴포넌트 스타일이 필요해도, 먼저 `common.css`에 정의된 클래스를 활용할 수 있는지 검토
-- 페이지별 고유 스타일은 해당 HTML의 `<style>` 블록에 작성 (별도 CSS 파일 분리 금지)
+- **디자인 토큰만 사용**: 색상·라운드·그림자·폰트는 `common.css`의 `:root` 변수만. 하드코딩 금지. 새 스타일 전 공통 컴포넌트 재사용 검토.
+- **공통은 두 파일만**: `common.css`(스타일) · `common.js`(레이아웃·동작). 페이지 고유 스타일/스크립트는 각 HTML 내부에.
+- **SVG 인라인**: 기본 속성 `viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"`. 외부 아이콘 라이브러리 금지.
+- **들여쓰기 2 spaces · 큰따옴표 · 케밥케이스(의미 기반)**.
+- **한국어 우선**: 모든 UI 텍스트 한국어, letter-spacing `-0.01em` 기본 / 제목 `-0.02em~-0.03em`.
 
-### 2. 코드 스타일
+### 글로벌 줌 (Claude 주의)
 
-- 들여쓰기 2 spaces
-- HTML 속성은 큰따옴표
-- SVG 아이콘은 **인라인**으로 직접 작성 (Font Awesome, Material Icons 등 외부 라이브러리 금지)
-- SVG 기본 속성: `viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"`
-- 클래스 네이밍: 케밥케이스 (`vdi-hero-body`), 의미 기반 (BEM 비유사)
+- `common.css`에 `html { zoom: 1.25 }` (가독성). 신규/수정 페이지는 이 줌을 유지하고 의도적으로 리셋하지 말 것.
+- 예외: `login.html`만 `zoom: 0.97` (전체화면 카드 보정 — 높이를 `100vh / 0.97`로 환산).
 
-### 3. 글로벌 줌
-
-- `common.css`에 `html { zoom: 1.25 }` 적용되어 있음 (가독성 확보 목적)
-- 로그인 페이지(`login.html`)만 예외로 `zoom: 0.97` (전체화면 카드 레이아웃 보정 — `100vh / 0.97`로 높이 환산)
-- 신규/수정 페이지는 기본 1.25 줌을 유지 (의도적으로 리셋하지 말 것)
-
-### 4. 한국어 우선
-
-- 모든 UI 텍스트는 한국어
-- 폰트 스택: `'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', -apple-system, ...` (common.css에 정의됨)
-- letter-spacing: `-0.01em` 기본, 제목은 `-0.02em ~ -0.03em`
-
-### 5. 더미 데이터 일관성
-
-신규 화면 제작 시 다음 더미 데이터를 일관되게 사용:
+### 더미 데이터 일관성
 
 | 항목 | 값 |
 |---|---|
-| 사용자명 | 최정식 책임 |
-| 부서 | IT기획파트 |
-| 사번 | 1010579 |
-| ID | jschoi0223 |
-| VDI 명 | jschoi0223-main / jschoi0223-temp / jschoi0223-common |
+| 사용자 | 최정식 책임 / IT기획파트 / 사번 1010579 / ID jschoi0223 |
+| VDI 명 | jschoi0223-main(고정가상화) · jschoi0223-common(공용형) |
 | 헬프데스크 | 1544-8119 (평일 09:00~18:00) |
-| 세션 만료 타이머 | 30분 (29:57부터 카운트다운) |
+| 세션 만료 | 30분 (29:57부터 카운트다운) |
 
-날짜는 2026년 4~6월대 기준 (예: `2026.04.24`, `2026.05.29`, 점검 공지 `06.08`).
+날짜는 2026년 4~6월 기준 (예: `2026.04.24`, `2026.05.29`, 점검 공지 `06.08`). 사용자·헬프데스크·세션·메뉴 값은 `common.js` 설정에서 일괄 관리.
 
 ---
 
@@ -233,44 +219,30 @@
 
 ---
 
-## ⚠️ 주의사항 / 안티패턴
+## ⚠️ 주의사항 / 패턴
 
-### ❌ 하지 말 것
+금지사항 전체 목록은 [`STYLE_GUIDE.md` §9](STYLE_GUIDE.md). 아래는 Claude가 자주 마주치는 뉘앙스.
 
-- 외부 CDN 스크립트/스타일 (Bootstrap, jQuery, Tailwind 등)
-- 빌드 도구 도입 (Webpack, Vite, npm 등)
-- 추가 공통 파일 생성 금지 (공통은 `common.css` · `common.js` 두 개만 — 페이지 고유 스타일/스크립트는 각 HTML 내부에 둠)
-- 공통 함수(`goHome`/`logout`/`showToast`·세션타이머)를 페이지에서 재정의 금지 — `common.js` 만 사용
-- 외부 아이콘 라이브러리 (Font Awesome, Material Icons 등) — SVG 인라인만 사용
-- 사용자 이미지/실제 사진 임베드 — 더미 데이터는 텍스트로만
-- localStorage / sessionStorage 사용 (단순 시안이므로 원칙적으로 불필요)
-  - **예외**: 로그인 인증 플래그 `sessionStorage['vdi_auth']` 한정 허용. login.html `doLogin()`에서 `'1'` 설정, 인증 페이지의 헤더 로고 `goHome()`가 값 유무로 portal.html/login.html 분기, `logout()`이 제거. 이 외 용도로는 스토리지 사용 금지.
-- 실제 API 호출 (`fetch`, `XMLHttpRequest`) — 모든 동작은 mock/toast로 처리
-
-### ✅ 권장 패턴
-
-- 상호작용은 `showToast()` 함수로 피드백 (이미 portal.html에 정의됨)
-- 모달 토글은 `.modal.open` 클래스 add/remove
-- 입력 검증은 클라이언트 사이드 alert/toast 정도로 표현
-- 데이터 변경 시뮬레이션이 필요하면 페이지 내 JS 객체로 mock
-- 화면 간 이동은 `location.href` 또는 `<a href>`
+- **mock 전용**: 실제 API(`fetch`/XHR)·실제 이미지 없음. 상호작용 피드백은 `showToast(msg)`(common.js 제공, 요소 없으면 자동 생성), 모달은 `.modal.open` 토글, 입력 검증은 alert/toast 수준.
+- **공통 함수 재정의 금지**: `goHome`/`logout`/`showToast`·세션타이머는 `common.js`에만. 페이지에서 다시 선언하지 말 것.
+- **스토리지 예외**: `sessionStorage['vdi_auth']`만 허용. `login.html doLogin()`이 `'1'` 설정, `goHome()`이 값 유무로 portal/login 분기, `logout()`이 제거. 이 외 용도 금지.
+- 화면 간 이동은 `location.href` 또는 `<a href>`, 데이터 변경 시뮬레이션은 페이지 내 JS 객체 mock.
 
 ---
 
 ## 📝 화면별 상세 작업 메모
 
-### portal.html에 이미 구현된 핵심 패턴
+### portal.html 고유 패턴 (구조 파악·참조용)
 
-다음 패턴은 portal.html에 정의되어 있어 다른 화면에서 참조 가능:
+portal.html `<style>`/`<script>`에 정의된 페이지 고유 패턴:
 
 - **KPI 스트립 (`.kpi-strip`, 4열)**: 진행 중 결재건 · 최근 공지사항 · 사용자 매뉴얼(자료실) · 사이트링크. `position:relative;z-index:5`로 reveal transform stacking 이슈 회피
 - **사이트링크 카드 (`.kpi.sitelink`)**: 호버/포커스 시 외부 시스템 드롭다운(`.sitelink-menu`). 맨 위 KB손해보험 공식 홈페이지 + 구분선 + e-HR 등 샘플. `overflow:visible` + 투명 브릿지(`::before`)로 호버 유지, 클릭 시 `goSite()` 토스트
 - **VDI 워크스페이스 카드 (`.vw`)**: 좌측 정보(가상PC명 + 우측 유형 배지 `.vw-type`) + 모니터형 접속 버튼(`.mon-frame`, 내부에 상태 pill `.vw-status` 내장) + 우측 자원/Info 패널. 탭 전환은 `renderVdi(i)` + `VDI_LIST`
 - **관리자 안내 영역 (`.vw-notice`)**: VDI 카드 하단, 클릭 시 공지 상세로 이동. 태그는 공지 분류(중요/일반)와 정합
-- **세션 타이머**: setInterval 기반 카운트다운 (`#sessionTimer`)
-- **Toast 메시지**: `showToast(msg)` 함수
-- **새로고침 버튼 애니메이션**: `.spinning` 클래스 + `@keyframes spin`
-- **헤더 동선**: 로고('KB손해보험')·서비스명 모두 `goHome()`(인증 시 portal, 아니면 login). KB손해보험 공식 홈페이지 링크는 헤더가 아니라 portal 사이트링크 드롭다운에 위치
+- **새로고침 버튼 애니메이션**: `.spinning` 클래스 + `@keyframes spin` (portal 고유)
+
+> 세션 타이머·`showToast()`·`goHome()`/`logout()`·헤더/사이드바는 이제 **`common.js`** 소관(portal 아님). 헤더 로고·서비스명은 모두 `goHome()`, KB손해보험 공식 홈페이지 링크는 portal 사이트링크 드롭다운에 있음.
 
 ### 화면별 구현 메모 (참조 · 수정 시 구조 파악용)
 

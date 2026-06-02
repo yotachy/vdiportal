@@ -168,7 +168,7 @@ vdiportal/
 5. 더미 데이터는 페르소나 일관성 유지 (최정식 책임 / IT기획파트 / 사번 1010579 / ID jschoi0223)
 6. 목록 ↔ 상세 화면은 분류·데이터를 정합 유지 (예: 공지 `중요`/`일반` 2종은 `notice.html`·`notice-detail.html` 동시 반영)
 
-상세 작업 규칙은 `CLAUDE.md` 참고.
+> 상세 코딩 표준·새 화면 추가 절차·"자주 하는 수정" 위치표는 [`STYLE_GUIDE.md`](STYLE_GUIDE.md) 참고.
 
 ---
 
