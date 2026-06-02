@@ -11,9 +11,8 @@
   /* 구분 태그 (approval.html과 동일) */
   .rtag { display: inline-block; font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 6px; letter-spacing: 0.01em; white-space: nowrap; }
   .rtag-add { background: var(--kb-yellow-soft); color: #8A6A00; border: 1px solid var(--kb-yellow-line); }
+  .rtag-extend { background: var(--success-soft); color: var(--success); border: 1px solid #BFE3C8; }
   .rtag-expand { background: var(--info-soft); color: var(--info); border: 1px solid #C2DAFB; }
-  .rtag-change { background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-strong); }
-  .rtag-return { background: var(--danger-soft); color: var(--danger); border: 1px solid #F3C4BF; }
 
   /* 상태 pill */
   .spill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 100px; font-size: 13px; font-weight: 800; white-space: nowrap; }
@@ -176,7 +175,7 @@
       ]
     },
     'REQ-2026-0410-005': {
-      kind: '추가신청', vdi: 'jschoi0223-common', date: '2026.04.10', purpose: '임시 작업용', target: '홍길동 대리 · IT기획파트',
+      kind: '신규', vdi: 'jschoi0223-common', date: '2026.04.10', purpose: '임시 작업용', target: '홍길동 대리 · IT기획파트',
       detail: '공용형 · CPU 2 Core · 메모리 4 GB · 디스크(D) 80 GB',
       reason: '부서 공용 작업용 가상PC가 필요하여 신규 신청합니다.', status: 'apply',
       hist: [
@@ -187,42 +186,42 @@
       ]
     },
     'REQ-2026-0405-011': {
-      kind: '변경', vdi: 'jschoi0223-main', date: '2026.04.05', purpose: '개발 · 테스트용',
-      detail: '사용 용도: 일반 업무용 <span class="info-arrow">→</span> 개발 · 테스트용',
-      reason: '개발·테스트 업무 전환에 따른 용도 변경입니다.', status: 'done',
+      kind: '연장', vdi: 'jschoi0223-main', date: '2026.04.05', purpose: '일반 업무용',
+      detail: '사용 종료일: 2026.12.31 <span class="info-arrow">→</span> 2027.03.31 (3개월 연장)',
+      reason: '업무 지속에 따라 사용 기간을 연장합니다.', status: 'done',
       hist: [
-        { t: '2026.04.05 16:20', s: 'done', c: '개발 업무 전환으로 용도 변경 요청.' },
+        { t: '2026.04.05 16:20', s: 'done', c: '사용 기간 연장 요청.' },
         { t: '2026.04.05 17:40', s: 'done', c: '승인합니다.' },
         { t: '2026.04.06 09:10', s: 'done', c: '이상 없음.' },
-        { t: '2026.04.06 11:30', s: 'done', c: '설정 변경 적용 완료.' }
+        { t: '2026.04.06 11:30', s: 'done', c: '사용 연장 적용 완료.' }
       ]
     },
     'REQ-2026-0315-004': {
-      kind: '추가신청', vdi: 'jschoi0223-temp', date: '2026.03.15', purpose: '단기 프로젝트용',
-      detail: '임시형 · CPU 2 Core · 메모리 8 GB · 디스크(D) 300 GB · 사용기간 ~2026.09.30',
-      reason: '단기 프로젝트 수행을 위한 임시 가상PC를 신청합니다.', status: 'done',
+      kind: '신규', vdi: 'jschoi0223-common', date: '2026.03.15', purpose: '기타',
+      detail: '공용형 · CPU 2 Core · 메모리 4 GB · 디스크(D) 80 GB · 사용기간 ~2026.09.30',
+      reason: '부서 공용 작업용 가상PC를 신규 신청합니다.', status: 'done',
       hist: [
-        { t: '2026.03.15 11:00', s: 'done', c: '프로젝트용 임시 가상PC 신청.' },
+        { t: '2026.03.15 11:00', s: 'done', c: '공용 작업용 가상PC 신청.' },
         { t: '2026.03.15 15:22', s: 'done', c: '승인합니다.' },
         { t: '2026.03.16 10:05', s: 'done', c: '확인 완료.' },
         { t: '2026.03.16 14:40', s: 'done', c: '가상PC 생성 완료.' }
       ]
     },
     'REQ-2026-0302-009': {
-      kind: '반납', vdi: 'jschoi0223-old01', date: '2026.03.02', purpose: '-',
-      detail: '가상PC 반납 · D 드라이브 데이터 삭제',
-      reason: '프로젝트 종료로 더 이상 사용하지 않아 반납합니다.', status: 'done',
+      kind: '연장', vdi: 'jschoi0223-main', date: '2026.03.02', purpose: '일반 업무용',
+      detail: '사용 종료일: 2026.09.30 <span class="info-arrow">→</span> 2026.12.31 (3개월 연장)',
+      reason: '업무 지속에 따라 사용 기간을 연장합니다.', status: 'done',
       hist: [
-        { t: '2026.03.02 09:30', s: 'done', c: '사용 종료로 반납 신청.' },
+        { t: '2026.03.02 09:30', s: 'done', c: '사용 기간 연장 신청.' },
         { t: '2026.03.02 13:10', s: 'done', c: '승인합니다.' },
-        { t: '2026.03.03 09:00', s: 'done', c: '백업 확인 완료.' },
-        { t: '2026.03.03 16:00', s: 'done', c: '반납 · 데이터 삭제 완료.' }
+        { t: '2026.03.03 09:00', s: 'done', c: '이상 없음.' },
+        { t: '2026.03.03 16:00', s: 'done', c: '사용 연장 적용 완료.' }
       ]
     },
     'REQ-2026-0228-006': {
-      kind: '증설', vdi: 'jschoi0223-temp', date: '2026.02.28', purpose: '단기 프로젝트용',
+      kind: '증설', vdi: 'jschoi0223-common', date: '2026.02.28', purpose: '기타',
       detail: 'CPU 2 Core <span class="info-arrow">→</span> 8 Core',
-      reason: '테스트 부하 증가로 CPU 증설을 요청합니다.', status: 'reject',
+      reason: '작업 부하 증가로 CPU 증설을 요청합니다.', status: 'reject',
       hist: [
         { t: '2026.02.28 15:08', s: 'done',   c: '테스트 부하 증가로 증설 요청.' },
         { t: '2026.03.02 11:00', s: 'reject', c: '현재 사용률이 낮아 증설을 보류합니다. 1개월 사용 패턴 확인 후 재신청 바랍니다.' },
@@ -231,23 +230,23 @@
       ]
     },
     'REQ-2026-0120-002': {
-      kind: '변경', vdi: 'jschoi0223-common', date: '2026.01.20', purpose: '부서 공용', target: '김서연 책임 · IT기획파트',
-      detail: 'VDI 명: jschoi0223-common · 용도: 임시 작업용 <span class="info-arrow">→</span> 부서 공용',
-      reason: '부서 공용 활용을 위해 용도를 변경합니다.', status: 'done',
+      kind: '연장', vdi: 'jschoi0223-common', date: '2026.01.20', purpose: '기타', target: '김서연 책임 · IT기획파트',
+      detail: '사용 종료일: 2026.06.30 <span class="info-arrow">→</span> 2026.09.30 (3개월 연장)',
+      reason: '공용 작업 지속에 따라 사용 기간을 연장합니다.', status: 'done',
       hist: [
-        { t: '2026.01.20 13:40', s: 'done', c: '부서 공용 전환 요청.' },
+        { t: '2026.01.20 13:40', s: 'done', c: '사용 기간 연장 요청.' },
         { t: '2026.01.20 16:10', s: 'done', c: '승인합니다.' },
         { t: '2026.01.21 09:30', s: 'done', c: '확인 완료.' },
-        { t: '2026.01.21 11:00', s: 'done', c: '설정 변경 적용 완료.' }
+        { t: '2026.01.21 11:00', s: 'done', c: '사용 연장 적용 완료.' }
       ]
     }
   };
 
-  const KIND = { '추가신청': 'add', '증설': 'expand', '변경': 'change', '반납': 'return' };
+  const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand' };
   const PILL = {
-    progress: { cls: 'spill-progress', dot: 'sdot-warning', txt: '결재 진행중' },
+    progress: { cls: 'spill-progress', dot: 'sdot-warning', txt: '승인 중' },
     apply:    { cls: 'spill-apply',    dot: 'sdot-info',    txt: '적용 중' },
-    done:     { cls: 'spill-done',     dot: 'sdot-success', txt: '승인 완료' },
+    done:     { cls: 'spill-done',     dot: 'sdot-success', txt: '완료' },
     reject:   { cls: 'spill-reject',   dot: 'sdot-danger',  txt: '반려' }
   };
   const HBADGE = {

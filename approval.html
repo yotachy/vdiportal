@@ -29,9 +29,8 @@
   /* ===== 구분 태그 ===== */
   .rtag { display: inline-block; font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 6px; letter-spacing: 0.01em; white-space: nowrap; }
   .rtag-add { background: var(--kb-yellow-soft); color: #8A6A00; border: 1px solid var(--kb-yellow-line); }
+  .rtag-extend { background: var(--success-soft); color: var(--success); border: 1px solid #BFE3C8; }
   .rtag-expand { background: var(--info-soft); color: var(--info); border: 1px solid #C2DAFB; }
-  .rtag-change { background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-strong); }
-  .rtag-return { background: var(--danger-soft); color: var(--danger); border: 1px solid #F3C4BF; }
 
   /* ===== 진행 미니 단계 ===== */
   .prog-mini { display: flex; align-items: center; gap: 11px; }
@@ -52,7 +51,7 @@
 
   /* 테이블 행 클릭 */
   .data-table tbody tr { cursor: pointer; }
-  .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
   .col-date { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
   .col-vdi { font-variant-numeric: tabular-nums; font-weight: 600; }
   /* 대리 신청 대상자 배지 */
@@ -111,7 +110,7 @@
       </div>
       <div class="stat-chip" data-stat="done">
         <div class="stat-ico ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-        <div><div class="stat-num" id="cDone">0</div><div class="stat-lbl">승인 완료</div></div>
+        <div><div class="stat-num" id="cDone">0</div><div class="stat-lbl">완료</div></div>
       </div>
       <div class="stat-chip" data-stat="reject">
         <div class="stat-ico bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
@@ -124,7 +123,7 @@
       <div class="filter-seg" id="filterSeg">
         <button class="fsb on" data-filter="all">전체</button>
         <button class="fsb" data-filter="progress">진행중</button>
-        <button class="fsb" data-filter="done">승인완료</button>
+        <button class="fsb" data-filter="done">완료</button>
         <button class="fsb" data-filter="reject">반려</button>
       </div>
       <div class="search-box">
@@ -138,9 +137,9 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th style="width:160px">신청번호</th>
-            <th style="width:96px">신청일</th>
-            <th style="width:96px">구분</th>
+            <th style="width:178px">신청번호</th>
+            <th style="width:92px">신청일</th>
+            <th style="width:80px">구분</th>
             <th style="width:170px">대상 VDI</th>
             <th>진행</th>
             <th style="width:128px">상태</th>
@@ -156,23 +155,23 @@
 <script src="common.js"></script>
 <script>
   // ===== 데이터 (portal.html과 정합) =====
-  // status: progress(결재 진행중) · apply(적용 중) · done(승인 완료) · reject(반려)
+  // status: progress(승인 중) · apply(적용 중) · done(완료) · reject(반려)
   // step: 0~4 (0=기안 완료, 1=부서장, 2=IT운영부, 3=처리, 4=완료) 기준 진행 인덱스
   const ROWS = [
-    { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설',   vdi: 'jschoi0223-main',   steps: 4, step: 1, cur: '부서장 승인 중', status: 'progress' },
-    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '추가신청', vdi: 'jschoi0223-common', steps: 4, step: 3, cur: '적용 중',       status: 'apply', target: '홍길동 대리' },
-    { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '변경',   vdi: 'jschoi0223-main',   steps: 4, step: 4, cur: '적용 완료',     status: 'done' },
-    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '추가신청', vdi: 'jschoi0223-temp',   steps: 4, step: 4, cur: '적용 완료',     status: 'done' },
-    { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '반납',   vdi: 'jschoi0223-old01',  steps: 4, step: 4, cur: '반납 완료',     status: 'done' },
-    { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설',   vdi: 'jschoi0223-temp',   steps: 4, step: 1, cur: '부서장 반려',   status: 'reject' },
-    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '변경',   vdi: 'jschoi0223-common', steps: 4, step: 4, cur: '적용 완료',     status: 'done', target: '김서연 책임' }
+    { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설', vdi: 'jschoi0223-main',   steps: 4, step: 1, cur: '부서장 승인 중', status: 'progress' },
+    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-common', steps: 4, step: 3, cur: '적용 중',       status: 'apply', target: '홍길동 대리' },
+    { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '연장', vdi: 'jschoi0223-main',   steps: 4, step: 4, cur: '적용 완료',     status: 'done' },
+    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-common', steps: 4, step: 4, cur: '적용 완료',     status: 'done' },
+    { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '연장', vdi: 'jschoi0223-main',   steps: 4, step: 4, cur: '적용 완료',     status: 'done' },
+    { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설', vdi: 'jschoi0223-common', steps: 4, step: 1, cur: '부서장 반려',   status: 'reject' },
+    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', steps: 4, step: 4, cur: '적용 완료',     status: 'done', target: '김서연 책임' }
   ];
 
-  const KIND = { '추가신청': 'add', '증설': 'expand', '변경': 'change', '반납': 'return' };
+  const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand' };
   const PILL = {
-    progress: { cls: 'spill-progress', dot: 'sdot-warning', txt: '결재 진행중' },
+    progress: { cls: 'spill-progress', dot: 'sdot-warning', txt: '승인 중' },
     apply:    { cls: 'spill-apply',    dot: 'sdot-info',    txt: '적용 중' },
-    done:     { cls: 'spill-done',     dot: 'sdot-success', txt: '승인 완료' },
+    done:     { cls: 'spill-done',     dot: 'sdot-success', txt: '완료' },
     reject:   { cls: 'spill-reject',   dot: 'sdot-danger',  txt: '반려' }
   };
   // 필터/집계 시 apply(적용 중)는 '진행 중' 그룹으로 묶음
