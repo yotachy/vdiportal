@@ -72,6 +72,10 @@
 
   /* ===== 사용 연장 (apply와 동일 패턴) ===== */
   .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0; }
+  /* 대상자 강조 */
+  #t_info { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 8px;
+    background: var(--kb-yellow-soft); border: 1px solid var(--kb-yellow-line); color: #8A6A00; font-weight: 800; }
+  #t_info::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--kb-yellow-dark); }
   .field-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .period-pills { display: flex; gap: 6px; }
   .qp { padding: 8px 14px; border: 1.5px solid var(--border-strong); border-radius: 100px; background: var(--surface);
@@ -458,8 +462,8 @@
     $('x_current').textContent = `${fmtDot(v.start)} ~ ${fmtDot(v.end)}`;
     $('x_curEnd').textContent = fmtDot(v.end);
     $('x_end').min = nextDay(v.end);   // 현재 종료일 이후만 선택 가능
-    $('x_end').value = '';
-    document.querySelectorAll('.period-pills .qp').forEach(p => p.classList.remove('sel'));
+    $('x_end').value = addMonths(v.end, 1);   // 기본값: 1개월 연장
+    document.querySelectorAll('.period-pills .qp').forEach(p => p.classList.toggle('sel', p.dataset.months === '1'));
     // 증설 목표값을 선택 VDI의 현재 사양으로 리셋
     state.e_cpu = v.cpu; state.e_mem = v.mem; state.e_disk = v.disk;
     renderExpandGrid();
