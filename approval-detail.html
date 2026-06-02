@@ -28,6 +28,10 @@
   .info-key { color: var(--text-tertiary); font-weight: 600; }
   .info-val { color: var(--text-primary); font-weight: 600; line-height: 1.6; }
   .info-val.reason { font-weight: 500; color: var(--text-secondary); }
+  /* 대상자 강조 (대리 신청) */
+  .target-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 8px;
+    background: var(--kb-yellow-soft); border: 1px solid var(--kb-yellow-line); color: #8A6A00; font-weight: 800; }
+  .target-chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--kb-yellow-dark); }
   .info-arrow { color: var(--kb-yellow-dark); font-weight: 800; margin: 0 5px; }
 
   /* prog-steps 여백 (common.css 재활용) */
@@ -172,7 +176,7 @@
       ]
     },
     'REQ-2026-0410-005': {
-      kind: '추가신청', vdi: 'jschoi0223-common', date: '2026.04.10', purpose: '임시 작업용',
+      kind: '추가신청', vdi: 'jschoi0223-common', date: '2026.04.10', purpose: '임시 작업용', target: '홍길동 대리 · IT기획파트',
       detail: '공용형 · CPU 2 Core · 메모리 4 GB · 디스크(D) 80 GB',
       reason: '부서 공용 작업용 가상PC가 필요하여 신규 신청합니다.', status: 'apply',
       hist: [
@@ -227,7 +231,7 @@
       ]
     },
     'REQ-2026-0120-002': {
-      kind: '변경', vdi: 'jschoi0223-common', date: '2026.01.20', purpose: '부서 공용',
+      kind: '변경', vdi: 'jschoi0223-common', date: '2026.01.20', purpose: '부서 공용', target: '김서연 책임 · IT기획파트',
       detail: 'VDI 명: jschoi0223-common · 용도: 임시 작업용 <span class="info-arrow">→</span> 부서 공용',
       reason: '부서 공용 활용을 위해 용도를 변경합니다.', status: 'done',
       hist: [
@@ -274,6 +278,7 @@
       <div class="info-row"><div class="info-key">구분</div><div class="info-val"><span class="rtag rtag-${KIND[d.kind]}">${d.kind}</span></div></div>
       <div class="info-row"><div class="info-key">대상 VDI</div><div class="info-val" style="font-variant-numeric:tabular-nums">${d.vdi}</div></div>
       <div class="info-row"><div class="info-key">신청자</div><div class="info-val">최정식 책임 · IT기획파트</div></div>
+      ${d.target ? `<div class="info-row"><div class="info-key">대상자</div><div class="info-val"><span class="target-chip">${d.target}</span></div></div>` : ''}
       <div class="info-row"><div class="info-key">신청일</div><div class="info-val" style="font-variant-numeric:tabular-nums">${d.date}</div></div>
       <div class="info-row"><div class="info-key">사용 용도</div><div class="info-val">${d.purpose}</div></div>
       <div class="info-row"><div class="info-key">신청 내역</div><div class="info-val">${d.detail}</div></div>
