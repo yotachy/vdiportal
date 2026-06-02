@@ -47,7 +47,7 @@
   .vdi-card-status { font-size: 11.5px; color: var(--text-tertiary); margin-top: 4px; display: flex; align-items: center; }
 
   /* ===== 폼 행 (apply와 동일 패턴) ===== */
-  .frow { display: grid; grid-template-columns: 150px 1fr; gap: 18px; align-items: start; padding: 15px 0; border-bottom: 1px solid var(--border); }
+  .frow { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: start; padding: 15px 0; border-bottom: 1px solid var(--border); }
   .frow:first-child { padding-top: 4px; }
   .frow:last-child { padding-bottom: 4px; border-bottom: none; }
   .frow-label { font-size: 14px; font-weight: 600; color: var(--text-secondary); padding-top: 9px; display: flex; align-items: center; gap: 5px; }
@@ -58,8 +58,8 @@
   /* ===== 증설 선택 (바깥 박스 제거, 콤보박스만) ===== */
   .sc-table { display: flex; flex-direction: column; }
   .sc-row {
-    display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: center;
-    padding: 15px 2px; border-bottom: 1px solid var(--border);
+    display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: center;
+    padding: 15px 0; border-bottom: 1px solid var(--border);
   }
   .sc-row:last-child { border-bottom: none; }
   .sc-label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text-secondary); }
@@ -72,7 +72,7 @@
   .sc-up { font-size: 12px; font-weight: 800; color: var(--success); background: var(--success-soft); padding: 2px 8px; border-radius: 5px; }
 
   /* ===== 사용 연장 (apply와 동일 패턴) ===== */
-  .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0; }
+  .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0 6px 14px; }
   /* 대상자 강조 */
   #t_info { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 8px;
     background: var(--kb-yellow-soft); border: 1px solid var(--kb-yellow-line); color: #8A6A00; font-weight: 800; }
@@ -278,7 +278,7 @@
         <div class="fc-body">
           <div class="sc-table" id="expandGrid"></div>
 
-          <div class="frow" style="margin-top:8px;grid-template-columns:120px 1fr;gap:16px">
+          <div class="frow" style="margin-top:8px">
             <div class="frow-label">증설 사유 <span class="req">*</span></div>
             <div class="frow-field">
               <textarea class="fta full" id="e_reason" rows="3" placeholder="자원 증설이 필요한 사유를 입력해주세요. (예: 대용량 데이터 처리, 가상머신 다중 구동 등)"></textarea>
