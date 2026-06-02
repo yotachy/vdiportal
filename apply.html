@@ -243,8 +243,7 @@
                   </button>
                 </div>
               </div>
-              <div class="frow-help" id="applyForHelp">본인 신청은 로그인 정보로 자동 처리됩니다. 대리 신청은 <strong>동일 부서원(IT기획파트)</strong>만 가능합니다.</div>
-              <div id="searchResult" class="search-result" style="display:none"></div>
+              <div class="frow-help">타인 대리 신청은 동일 부서원만 가능합니다.</div>
             </div>
           </div>
 
@@ -254,9 +253,16 @@
               <div class="field-inline">
                 <input class="fi" style="width:160px" value="최정식 책임" disabled>
                 <input class="fi" style="width:140px" value="사번 1010579" disabled>
-                <input class="fi" style="width:160px" value="ID jschoi0223" disabled>
               </div>
               <div class="frow-help">로그인 정보 기준으로 자동 입력됩니다.</div>
+            </div>
+          </div>
+
+          <!-- 대리 신청 대상자 (검색 선택 시 표시) -->
+          <div class="frow" id="targetRow" style="display:none">
+            <div class="frow-label">대상자</div>
+            <div class="frow-field">
+              <div id="searchResult" class="search-result"></div>
             </div>
           </div>
         </div>
@@ -630,9 +636,9 @@
       state.applyFor = btn.dataset.for;
       const isOther = state.applyFor === 'other';
       document.getElementById('otherSearch').style.display = isOther ? 'flex' : 'none';
-      // 구분 변경 시 검색 선택 초기화
+      // 구분 변경 시 대상자 선택 초기화
       state.target = null;
-      document.getElementById('searchResult').style.display = 'none';
+      document.getElementById('targetRow').style.display = 'none';
     });
   });
 
@@ -646,12 +652,11 @@
       return;
     }
     state.target = { name, dept };
-    const box = document.getElementById('searchResult');
-    box.innerHTML =
+    document.getElementById('searchResult').innerHTML =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
-      `선택됨 : ${name} <span class="sr-dept">· ${dept}</span>`;
-    box.style.display = 'flex';
-    showToast('대상 사용자를 선택했습니다.');
+      `${name} <span class="sr-dept">· ${dept}</span>`;
+    document.getElementById('targetRow').style.display = '';
+    showToast('대상자를 선택했습니다.');
   }
 
   // 사용 기간 라디오
