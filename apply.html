@@ -52,6 +52,11 @@
   .fi.full, .fs.full, .fta.full { width: 100%; }
   .field-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .field-inline .fs { min-width: 150px; }
+  .search-result { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 11px 14px;
+    background: var(--success-soft); border: 1px solid #BFE3C8; border-radius: 10px;
+    font-size: 13.5px; font-weight: 700; color: var(--text-primary); }
+  .search-result svg { width: 16px; height: 16px; color: var(--success); flex-shrink: 0; }
+  .search-result .sr-dept { font-weight: 600; color: var(--text-secondary); }
 
   /* 카드형 라디오 (VDI 유형 선택) */
   .type-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -259,6 +264,18 @@
         </div>
         <div class="fc-body">
           <div class="frow">
+            <div class="frow-label">신청 구분</div>
+            <div class="frow-field">
+              <div class="rgrp" id="applyForGroup">
+                <button type="button" class="rbtn sel" data-for="self"><span class="rdot"></span>본인 신청</button>
+                <button type="button" class="rbtn" data-for="other"><span class="rdot"></span>타인 대리 신청</button>
+              </div>
+              <div class="frow-help">대리 신청은 <strong>동일 부서원(IT기획파트)</strong>에 한해 가능합니다.</div>
+            </div>
+          </div>
+
+          <!-- 본인 신청: 로그인 정보 자동 입력 (별도 입력 불필요) -->
+          <div class="frow" id="selfRow">
             <div class="frow-label">신청자</div>
             <div class="frow-field">
               <div class="field-inline">
@@ -269,16 +286,28 @@
               <div class="frow-help">로그인 정보 기준으로 자동 입력됩니다.</div>
             </div>
           </div>
+
+          <!-- 타인 대리 신청: 동일 부서원 검색 -->
+          <div class="frow" id="otherRow" style="display:none">
+            <div class="frow-label">사용자 검색 <span class="req">*</span></div>
+            <div class="frow-field">
+              <div class="field-inline">
+                <input class="fi" id="f_searchDept" style="width:180px" placeholder="부서명  예) IT기획파트">
+                <input class="fi" id="f_searchName" style="width:160px" placeholder="사용자명  예) 홍길동">
+                <button type="button" class="btn btn-outline btn-sm" onclick="searchUser()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  검색
+                </button>
+              </div>
+              <div class="frow-help">같은 부서(<strong>IT기획파트</strong>) 소속만 검색·신청할 수 있습니다.</div>
+              <div id="searchResult" class="search-result" style="display:none"></div>
+            </div>
+          </div>
+
           <div class="frow">
             <div class="frow-label">소속 부서</div>
             <div class="frow-field">
-              <input class="fi" style="width:240px" value="IT기획파트" disabled>
-            </div>
-          </div>
-          <div class="frow">
-            <div class="frow-label">연락처 <span class="req">*</span></div>
-            <div class="frow-field">
-              <input class="fi" id="f_tel" style="width:240px" value="010-2345-6789" placeholder="연락 가능한 번호">
+              <input class="fi" id="f_dept" style="width:240px" value="IT기획파트" disabled>
             </div>
           </div>
         </div>
@@ -307,13 +336,6 @@
                 <option>단기 프로젝트용</option>
                 <option>기타</option>
               </select>
-            </div>
-          </div>
-          <div class="frow">
-            <div class="frow-label">희망 VDI 명 <span class="req">*</span></div>
-            <div class="frow-field">
-              <input class="fi" id="f_vdiname" style="width:300px" value="jschoi0223-dev">
-              <div class="frow-help">영문·숫자·하이픈(-)만 사용. 예) jschoi0223-dev, jschoi0223-test</div>
             </div>
           </div>
           <div class="frow">
@@ -569,9 +591,8 @@
           <div class="fc-body">
             <div class="summary-table">
               <div class="summary-row"><div class="summary-key">신청자</div><div class="summary-val">최정식 책임 · IT기획파트 · 사번 1010579</div></div>
-              <div class="summary-row"><div class="summary-key">연락처</div><div class="summary-val" id="s_tel">-</div></div>
+              <div class="summary-row"><div class="summary-key">사용 대상자</div><div class="summary-val" id="s_target">-</div></div>
               <div class="summary-row"><div class="summary-key">사용 용도</div><div class="summary-val" id="s_purpose">-</div></div>
-              <div class="summary-row"><div class="summary-key">VDI 명</div><div class="summary-val" id="s_vdiname">-</div></div>
               <div class="summary-row"><div class="summary-key">VDI 유형 · 사양</div><div class="summary-val" id="s_spec">-</div></div>
               <div class="summary-row"><div class="summary-key">운영체제</div><div class="summary-val" id="s_os">-</div></div>
               <div class="summary-row"><div class="summary-key">사용 기간</div><div class="summary-val" id="s_period">-</div></div>
@@ -625,7 +646,11 @@
 <script src="common.js"></script>
 <script>
   // ===== 선택 상태 =====
-  const state = { type: '고정가상화', cpu: '4 Core', mem: '16 GB', disk: '150 GB', period: 'permanent' };
+  const state = { type: '고정가상화', cpu: '4 Core', mem: '16 GB', disk: '150 GB', period: 'permanent',
+    applyFor: 'self', target: null };
+
+  // 신청자 부서 (동일 부서원만 대리 신청 가능)
+  const APPLICANT_DEPT = 'IT기획파트';
 
   // VDI 유형 카드
   document.querySelectorAll('#typeCards .type-card').forEach(card => {
@@ -647,6 +672,39 @@
       });
     });
   });
+
+  // 신청 구분 (본인 / 타인 대리)
+  document.querySelectorAll('#applyForGroup .rbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#applyForGroup .rbtn').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      state.applyFor = btn.dataset.for;
+      const isOther = state.applyFor === 'other';
+      document.getElementById('selfRow').style.display = isOther ? 'none' : '';
+      document.getElementById('otherRow').style.display = isOther ? '' : 'none';
+      // 구분 변경 시 검색 선택 초기화
+      state.target = null;
+      document.getElementById('searchResult').style.display = 'none';
+    });
+  });
+
+  // 동일 부서원 검색 (시안: 부서 일치 시에만 선택 가능)
+  function searchUser() {
+    const dept = document.getElementById('f_searchDept').value.trim();
+    const name = document.getElementById('f_searchName').value.trim();
+    if (!dept || !name) { showToast('부서명과 사용자명을 입력해주세요.'); return; }
+    if (dept !== APPLICANT_DEPT) {
+      showToast(`동일 부서(${APPLICANT_DEPT}) 소속만 신청할 수 있습니다.`);
+      return;
+    }
+    state.target = { name, dept };
+    const box = document.getElementById('searchResult');
+    box.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
+      `선택됨 : ${name} <span class="sr-dept">· ${dept}</span>`;
+    box.style.display = 'flex';
+    showToast('대상 사용자를 선택했습니다.');
+  }
 
   // 사용 기간 라디오
   document.querySelectorAll('#periodGroup .rbtn').forEach(btn => {
@@ -686,23 +744,19 @@
   }
 
   function validateStep1() {
-    const tel = document.getElementById('f_tel').value.trim();
     const purpose = document.getElementById('f_purpose').value;
-    const vdiname = document.getElementById('f_vdiname').value.trim();
     const reason = document.getElementById('f_reason').value.trim();
-    if (!tel) { showToast('연락처를 입력해주세요.'); return false; }
+    if (state.applyFor === 'other' && !state.target) {
+      showToast('대리 신청은 대상 사용자를 검색·선택해주세요.'); return false;
+    }
     if (!purpose) { showToast('사용 용도를 선택해주세요.'); return false; }
-    if (!vdiname) { showToast('희망 VDI 명을 입력해주세요.'); return false; }
-    if (!/^[a-zA-Z0-9-]+$/.test(vdiname)) { showToast('VDI 명은 영문·숫자·하이픈(-)만 사용할 수 있습니다.'); return false; }
     if (!reason) { showToast('신청 사유를 입력해주세요.'); return false; }
     return true;
   }
 
   // ===== 요약 작성 =====
   function buildSummary() {
-    const tel = document.getElementById('f_tel').value.trim();
     const purpose = document.getElementById('f_purpose').value;
-    const vdiname = document.getElementById('f_vdiname').value.trim();
     const reason = document.getElementById('f_reason').value.trim();
     const os = document.getElementById('f_os').value;
     const appr1 = document.getElementById('f_approver1').value;
@@ -715,9 +769,11 @@
       period = `기간 지정 · ${d ? d.replace(/-/g, '.') : '미지정'} 까지`;
     }
 
-    document.getElementById('s_tel').textContent = tel;
+    document.getElementById('s_target').textContent =
+      state.applyFor === 'other' && state.target
+        ? `${state.target.name} · ${state.target.dept} (대리 신청)`
+        : '본인 (최정식 책임 · IT기획파트)';
     document.getElementById('s_purpose').textContent = purpose;
-    document.getElementById('s_vdiname').textContent = vdiname;
     document.getElementById('s_spec').innerHTML =
       `<span class="pill">${state.type}</span> CPU ${state.cpu} · 메모리 ${state.mem} · 디스크(D) ${state.disk}`;
     document.getElementById('s_os').textContent = os;
