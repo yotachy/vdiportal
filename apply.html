@@ -37,6 +37,7 @@
     line-height: 1.5;
   }
   .fi.full, .fs.full, .fta.full { width: 100%; }
+  .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0; }
   .field-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .field-inline .fs { min-width: 150px; }
   /* 검색 팝업 결과 목록 */
@@ -262,10 +263,7 @@
           <div class="frow">
             <div class="frow-label">신청자</div>
             <div class="frow-field">
-              <div class="field-inline">
-                <input class="fi" style="width:180px" value="IT기획파트" disabled>
-                <input class="fi" style="width:160px" value="최정식 책임" disabled>
-              </div>
+              <div class="info-text">IT기획파트 · 최정식 책임</div>
             </div>
           </div>
 
@@ -273,10 +271,7 @@
           <div class="frow" id="targetRow" style="display:none">
             <div class="frow-label">대상자</div>
             <div class="frow-field">
-              <div class="field-inline">
-                <input class="fi" id="t_dept" style="width:180px" disabled>
-                <input class="fi" id="t_name" style="width:160px" disabled>
-              </div>
+              <div class="info-text" id="t_info">-</div>
             </div>
           </div>
         </div>
@@ -676,6 +671,7 @@
 
   // 동일 부서원 목록 (mock — 모두 신청자와 같은 부서)
   const DEPT_MEMBERS = [
+    { name: '홍길동 대리', empNo: '1010559', dept: APPLICANT_DEPT },
     { name: '김서연 책임', empNo: '1010432', dept: APPLICANT_DEPT },
     { name: '박준호 선임', empNo: '1010588', dept: APPLICANT_DEPT },
     { name: '이지훈 책임', empNo: '1010620', dept: APPLICANT_DEPT },
@@ -708,8 +704,7 @@
   function selectUser(idx) {
     const m = DEPT_MEMBERS[idx];
     state.target = { name: m.name, dept: m.dept, empNo: m.empNo };
-    document.getElementById('t_dept').value = m.dept;
-    document.getElementById('t_name').value = m.name;
+    document.getElementById('t_info').textContent = `${m.dept} · ${m.name}`;
     document.getElementById('targetRow').style.display = '';
     closeUserModal();
     showToast('대상자를 선택했습니다.');
