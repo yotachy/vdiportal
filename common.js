@@ -36,7 +36,7 @@ var NAV_SECTIONS = [
   { label: '신청 · 결재', items: [
     { key: 'apply', href: 'apply.html', label: 'VDI 추가신청',
       icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>' },
-    { key: 'change', href: 'change.html', label: '변경 · 증설 · 반납',
+    { key: 'change', href: 'change.html', label: '사용 연장 · 증설',
       icon: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>' },
     { key: 'approval', href: 'approval.html', label: '결재 현황', badge: '2',
       icon: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' }
