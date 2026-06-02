@@ -55,6 +55,12 @@
   .user-info .un { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
   .user-info .um { font-size: 12.5px; color: var(--text-tertiary); margin-top: 2px; font-variant-numeric: tabular-nums; }
   .user-empty { text-align: center; padding: 32px 16px; color: var(--text-tertiary); font-size: 14px; }
+  /* 사용 기간 빠른 입력 PILL */
+  .period-pills { display: flex; gap: 6px; }
+  .qp { padding: 8px 14px; border: 1.5px solid var(--border-strong); border-radius: 100px; background: var(--surface);
+    font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text-secondary); cursor: pointer; transition: all 0.14s; }
+  .qp:hover { border-color: var(--kb-yellow-dark); color: var(--ink); }
+  .qp.sel { background: var(--kb-yellow); border-color: var(--kb-yellow-dark); color: var(--ink); }
 
   /* 카드형 라디오 (VDI 유형 선택) */
   .type-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -305,6 +311,22 @@
             </div>
           </div>
           <div class="frow">
+            <div class="frow-label">사용 기간 <span class="req">*</span></div>
+            <div class="frow-field">
+              <div class="field-inline">
+                <input class="fi" id="f_start" style="width:150px" disabled>
+                <span class="lbl" style="margin:0">~</span>
+                <input class="fi" type="date" id="f_end" style="width:180px">
+                <div class="period-pills">
+                  <button type="button" class="qp" data-months="1">1개월</button>
+                  <button type="button" class="qp" data-months="3">3개월</button>
+                  <button type="button" class="qp" data-months="12">1년</button>
+                </div>
+              </div>
+              <div class="frow-help">시작일은 오늘(신청일)로 고정됩니다. 종료일은 달력에서 선택하거나 직접 입력할 수 있습니다.</div>
+            </div>
+          </div>
+          <div class="frow">
             <div class="frow-label">신청 사유 <span class="req">*</span></div>
             <div class="frow-field">
               <textarea class="fta full" id="f_reason" rows="4" placeholder="추가 가상PC가 필요한 사유를 구체적으로 입력해주세요."></textarea>
@@ -424,19 +446,6 @@
                 <option>Windows 11 Enterprise</option>
                 <option>Windows 10 Enterprise</option>
               </select>
-            </div>
-          </div>
-          <div class="frow">
-            <div class="frow-label">사용 기간 <span class="req">*</span></div>
-            <div class="frow-field">
-              <div class="rgrp" id="periodGroup">
-                <button type="button" class="rbtn sel" data-period="permanent"><span class="rdot"></span>재직 시까지</button>
-                <button type="button" class="rbtn" data-period="fixed"><span class="rdot"></span>기간 지정</button>
-              </div>
-              <div class="field-inline" id="periodDateWrap" style="margin-top:10px;display:none">
-                <span class="lbl" style="margin:0">만료일</span>
-                <input class="fi" type="date" id="f_expire" style="width:190px" value="2026-09-30">
-              </div>
             </div>
           </div>
         </div>
@@ -627,7 +636,7 @@
 <script src="common.js"></script>
 <script>
   // ===== 선택 상태 =====
-  const state = { type: '고정가상화', cpu: '4 Core', mem: '16 GB', disk: '150 GB', period: 'permanent',
+  const state = { type: '고정가상화', cpu: '4 Core', mem: '16 GB', disk: '150 GB',
     applyFor: 'self', target: null };
 
   // 신청자 부서 (동일 부서원만 대리 신청 가능)
@@ -715,14 +724,30 @@
     if (e.target.id === 'userModal') closeUserModal();
   });
 
-  // 사용 기간 라디오
-  document.querySelectorAll('#periodGroup .rbtn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#periodGroup .rbtn').forEach(b => b.classList.remove('sel'));
-      btn.classList.add('sel');
-      state.period = btn.dataset.period;
-      document.getElementById('periodDateWrap').style.display = state.period === 'fixed' ? 'flex' : 'none';
+  // ===== 사용 기간 (시작일 오늘 고정, 종료일 달력/직접입력 + 빠른 PILL) =====
+  const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; // 로컬 YYYY-MM-DD
+  const fmtDot = s => s ? s.replace(/-/g, '.') : '';          // YYYY.MM.DD (표시용)
+  const TODAY = new Date();
+  const TODAY_ISO = fmtISO(TODAY);
+
+  const elStart = document.getElementById('f_start');
+  const elEnd = document.getElementById('f_end');
+  elStart.value = fmtDot(TODAY_ISO);     // 시작일 = 오늘 고정
+  elEnd.min = TODAY_ISO;                  // 종료일은 오늘 이후만
+
+  // 빠른 입력 PILL: 오늘 + N개월
+  document.querySelectorAll('.period-pills .qp').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const d = new Date();
+      d.setMonth(d.getMonth() + parseInt(pill.dataset.months));
+      elEnd.value = fmtISO(d);
+      document.querySelectorAll('.period-pills .qp').forEach(p => p.classList.remove('sel'));
+      pill.classList.add('sel');
     });
+  });
+  // 달력/직접 입력으로 바꾸면 PILL 선택 해제
+  elEnd.addEventListener('input', () => {
+    document.querySelectorAll('.period-pills .qp').forEach(p => p.classList.remove('sel'));
   });
 
   // ===== 단계 이동 =====
@@ -749,11 +774,14 @@
 
   function validateStep1() {
     const purpose = document.getElementById('f_purpose').value;
+    const end = document.getElementById('f_end').value;
     const reason = document.getElementById('f_reason').value.trim();
     if (state.applyFor === 'other' && !state.target) {
       showToast('대리 신청은 대상 사용자를 검색·선택해주세요.'); return false;
     }
     if (!purpose) { showToast('사용 용도를 선택해주세요.'); return false; }
+    if (!end) { showToast('사용 종료일을 선택해주세요.'); return false; }
+    if (end < TODAY_ISO) { showToast('종료일은 오늘 이후로 선택해주세요.'); return false; }
     if (!reason) { showToast('신청 사유를 입력해주세요.'); return false; }
     return true;
   }
@@ -764,14 +792,7 @@
     const reason = document.getElementById('f_reason').value.trim();
     const os = document.getElementById('f_os').value;
     const appr1 = document.getElementById('f_approver1').value;
-
-    let period;
-    if (state.period === 'permanent') {
-      period = '재직 시까지 (만료일 없음)';
-    } else {
-      const d = document.getElementById('f_expire').value;
-      period = `기간 지정 · ${d ? d.replace(/-/g, '.') : '미지정'} 까지`;
-    }
+    const period = `${fmtDot(TODAY_ISO)} ~ ${fmtDot(document.getElementById('f_end').value)}`;
 
     document.getElementById('s_target').textContent =
       state.applyFor === 'other' && state.target
