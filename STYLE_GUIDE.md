@@ -10,6 +10,11 @@ KB손해보험 VDI 사용자 포탈 화면정의서의 **소스 구조와 작업
 - **순수 HTML5 · CSS3 · Vanilla JS** 만 사용합니다. 빌드 도구·프레임워크·외부 라이브러리·CDN 금지.
 - 모든 동작은 화면 시연용 mock 입니다. 실제 API 호출(`fetch`/XHR) 없이 화면 전환·`showToast()` 로 표현합니다.
 - 들여쓰기 2 spaces, HTML 속성은 큰따옴표, SVG 아이콘은 인라인으로 직접 작성합니다.
+- **전체 비공개(noindex)**: 본 프로젝트는 항상 검색 비공개입니다. 모든 HTML `<head>` 에 `<meta name="robots" content="noindex, nofollow">` 를 포함합니다(신규 페이지·산출물 포함). 루트에는 `robots.txt`(Disallow: /)를 둡니다.
+
+### 산출물 문서 (deliverables/)
+
+수행사 전달용 문서(화면정의서 등)는 `deliverables/` 디렉토리에 별도 HTML로 작성합니다. 프로토타입 화면(`*.html`)과 분리된 독립 문서 스타일을 사용하며, 목록은 `deliverables/index.html` 에서 관리합니다. 산출물 페이지에도 noindex 를 포함합니다.
 
 ---
 
@@ -35,6 +40,7 @@ KB손해보험 VDI 사용자 포탈 화면정의서의 **소스 구조와 작업
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">   <!-- 전체 비공개: 모든 페이지 필수 -->
   <title>KB손해보험 VDI 사용자 포탈 - {화면명}</title>
   <link rel="stylesheet" href="common.css">
   <style>
