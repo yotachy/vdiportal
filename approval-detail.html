@@ -151,7 +151,7 @@
   // ===== 결재 단계 / 결재자 =====
   const STEPS = ['기안', '부서장 승인', 'IT운영부 검토', '처리 · 적용'];
   const ACTORS = [
-    { actor: '최정식 책임', role: 'IT기획파트 · 사번 1010579' },
+    { actor: '최정식 책임', role: 'IT기획파트' },
     { actor: '박성한 부장', role: 'IT기획파트장' },
     { actor: '이정민 부장', role: 'IT운영부장' },
     { actor: 'VDI 운영팀', role: '가상PC 생성 · 적용' }
@@ -273,7 +273,7 @@
       <div class="info-row"><div class="info-key">신청번호</div><div class="info-val" style="font-variant-numeric:tabular-nums">${reqNo}</div></div>
       <div class="info-row"><div class="info-key">구분</div><div class="info-val"><span class="rtag rtag-${KIND[d.kind]}">${d.kind}</span></div></div>
       <div class="info-row"><div class="info-key">대상 VDI</div><div class="info-val" style="font-variant-numeric:tabular-nums">${d.vdi}</div></div>
-      <div class="info-row"><div class="info-key">신청자</div><div class="info-val">최정식 책임 · IT기획파트 · 사번 1010579</div></div>
+      <div class="info-row"><div class="info-key">신청자</div><div class="info-val">최정식 책임 · IT기획파트</div></div>
       <div class="info-row"><div class="info-key">신청일</div><div class="info-val" style="font-variant-numeric:tabular-nums">${d.date}</div></div>
       <div class="info-row"><div class="info-key">사용 용도</div><div class="info-val">${d.purpose}</div></div>
       <div class="info-row"><div class="info-key">신청 내역</div><div class="info-val">${d.detail}</div></div>

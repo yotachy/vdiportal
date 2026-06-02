@@ -671,12 +671,12 @@
 
   // 동일 부서원 목록 (mock — 모두 신청자와 같은 부서)
   const DEPT_MEMBERS = [
-    { name: '홍길동 대리', empNo: '1010559', dept: APPLICANT_DEPT },
-    { name: '김서연 책임', empNo: '1010432', dept: APPLICANT_DEPT },
-    { name: '박준호 선임', empNo: '1010588', dept: APPLICANT_DEPT },
-    { name: '이지훈 책임', empNo: '1010620', dept: APPLICANT_DEPT },
-    { name: '정민아 선임', empNo: '1010701', dept: APPLICANT_DEPT },
-    { name: '한도윤 주임', empNo: '1010773', dept: APPLICANT_DEPT }
+    { name: '홍길동 대리', dept: APPLICANT_DEPT },
+    { name: '김서연 책임', dept: APPLICANT_DEPT },
+    { name: '박준호 선임', dept: APPLICANT_DEPT },
+    { name: '이지훈 책임', dept: APPLICANT_DEPT },
+    { name: '정민아 선임', dept: APPLICANT_DEPT },
+    { name: '한도윤 주임', dept: APPLICANT_DEPT }
   ];
   const USER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
 
@@ -690,7 +690,7 @@
       ? list.map((m, i) =>
           `<div class="user-row" onclick="selectUser(${DEPT_MEMBERS.indexOf(m)})">
             <span class="user-avatar">${USER_ICON}</span>
-            <div class="user-info"><div class="un">${m.name}</div><div class="um">${m.dept} · 사번 ${m.empNo}</div></div>
+            <div class="user-info"><div class="un">${m.name}</div><div class="um">${m.dept}</div></div>
           </div>`).join('')
       : '<div class="user-empty">검색 결과가 없습니다. (동일 부서원만 조회됩니다)</div>';
     document.getElementById('userModal').classList.add('open');
@@ -703,7 +703,7 @@
   // 목록에서 선택 → 대상자로 추가 표기
   function selectUser(idx) {
     const m = DEPT_MEMBERS[idx];
-    state.target = { name: m.name, dept: m.dept, empNo: m.empNo };
+    state.target = { name: m.name, dept: m.dept };
     document.getElementById('t_info').textContent = `${m.dept} · ${m.name}`;
     document.getElementById('targetRow').style.display = '';
     closeUserModal();
