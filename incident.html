@@ -73,95 +73,12 @@
 <body>
 
 <!-- TOP HEADER -->
-<header class="top-header">
-  <div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><span class="header-logo-text">KB손해보험</span></div>
-  <div class="header-divider"></div>
-  <div class="header-service-name" onclick="goHome()" style="cursor:pointer" title="포탈 홈으로">업무가상화 사용자 포탈</div>
-  <div class="header-divider"></div>
-  <div class="header-user-badge">
-    <span class="hub-name">최정식 책임</span>
-    <span class="hub-sep">·</span>
-    <span class="hub-item">IT기획파트</span>
-    <span class="hub-sep">·</span>
-    <span class="hub-item">사번 <strong>1010579</strong></span>
-    <span class="hub-sep">·</span>
-    <span class="hub-item">ID <strong>jschoi0223</strong></span>
-  </div>
-  <div class="header-right">
-    <div class="header-session">
-      <span>세션 만료</span>
-      <span class="header-session-value" id="sessionTimer">29:57</span>
-    </div>
-    <button class="header-btn" title="알림">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span class="header-badge">3</span>
-    </button>
-    <button class="header-btn" title="로그아웃" onclick="logout()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-    </button>
-  </div>
-</header>
+<header class="top-header" data-header></header>
 
 <div class="layout">
 
   <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div style="flex:1">
-      <div class="nav-section">
-        <div class="nav-label">Workspace</div>
-        <a class="nav-item" href="portal.html">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          내 가상PC
-        </a>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">신청 · 결재</div>
-        <a class="nav-item" href="apply.html">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-          VDI 추가신청
-        </a>
-        <a class="nav-item" href="change.html">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-          변경 · 증설 · 반납
-        </a>
-        <a class="nav-item" href="approval.html">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          결재 현황
-          <span class="nav-item-badge">2</span>
-        </a>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">지원 · 서비스</div>
-        <a class="nav-item active" href="incident.html">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          장애신고 내역
-        </a>
-        <a class="nav-item" href="notice.html">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          공지사항
-        </a>
-        <a class="nav-item" href="faq.html">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          FAQ
-        </a>
-        <a class="nav-item" href="qna.html">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          자료실
-        </a>
-      </div>
-    </div>
-
-    <div class="sidebar-bottom">
-      <div class="support-card">
-        <div class="support-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-          Service Desk
-        </div>
-        <div class="support-desc">VDI 관련 문의 · 평일 09:00~18:00</div>
-        <div class="support-tel">1544-8119</div>
-      </div>
-    </div>
-  </aside>
+  <aside class="sidebar" data-sidebar="incident"></aside>
 
   <!-- MAIN -->
   <main class="main">
@@ -251,21 +168,8 @@
   </div>
 </div>
 
+<script src="common.js"></script>
 <script>
-  // ===== 인증 상태 (sessionStorage 플래그) =====
-  function goHome(){ location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
-  function logout(){ sessionStorage.removeItem('vdi_auth'); location.href = 'login.html'; }
-
-  // ===== 세션 타이머 =====
-  let sessionSec = 30 * 60 - 3;
-  setInterval(() => {
-    sessionSec--;
-    if (sessionSec <= 0) { alert('세션이 만료되었습니다.'); location.href = 'login.html'; }
-    const m = String(Math.floor(sessionSec / 60)).padStart(2, '0');
-    const s = String(sessionSec % 60).padStart(2, '0');
-    document.getElementById('sessionTimer').textContent = `${m}:${s}`;
-  }, 1000);
-
   // ===== 데이터 (incident-new.html 접수번호와 정합) =====
   // status: received(접수) · progress(처리 중) · done(처리 완료)
   // urg: high(긴급) · mid(높음) · low(보통)

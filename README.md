@@ -115,13 +115,34 @@ python3 -m http.server 8080
 
 ---
 
+## 🧱 공통 구조 (DRY)
+
+헤더·사이드바·세션타이머·인증·토스트는 **`common.js` 한 곳**에서 관리합니다. 각 페이지는 placeholder 와 스크립트 한 줄만 두고, 본문만 작성합니다.
+
+```html
+<header class="top-header" data-header></header>          <!-- common.js 가 채움 -->
+<aside  class="sidebar"    data-sidebar="notice"></aside> <!-- key 로 active 결정 -->
+...
+<script src="common.js"></script>   <!-- 페이지 스크립트보다 먼저 -->
+```
+
+- 헤더 한 곳을 바꾸면 전 페이지에 반영됩니다 (페이지별 복붙 제거).
+- 사용자·헬프데스크·세션시간·메뉴는 `common.js` 의 `PORTAL_USER` · `SERVICE_DESK` · `SESSION_SECONDS` · `NAV_SECTIONS` 에서 수정합니다.
+- 상세한 작업 표준·새 화면 추가 절차는 [`STYLE_GUIDE.md`](STYLE_GUIDE.md) 참조.
+
+> 페이지는 JS 로 공통 영역을 주입하므로, 정적 파일을 그대로 열어도 `common.js` 가 로드되면 헤더·사이드바가 렌더됩니다.
+
+---
+
 ## 📁 파일 구조
 
 ```
 vdiportal/
 ├── README.md              ← 본 문서
+├── STYLE_GUIDE.md         ← 코딩 표준 · 구조 가이드 (수행사용)
 ├── CLAUDE.md              ← Claude Code 협업용 컨텍스트
 ├── common.css             ← 디자인 시스템(:root 토큰) + 공통 컴포넌트
+├── common.js              ← 공통 레이아웃(헤더·사이드바) + 공통 동작(인증·세션·토스트)
 ├── login.html             ← 로그인 (독립 레이아웃, 중앙 카드 + 2단계 인증)
 ├── portal.html            ← 메인 포탈 (KPI 4종 · VDI 워크스페이스 카드 · 사이트링크)
 ├── apply.html             ← VDI 추가신청

@@ -174,7 +174,8 @@
 
 ## 🏗️ 페이지별 골격 템플릿
 
-신규 화면 제작 시 다음 골격을 따른다 (`portal.html` 기준).
+헤더·사이드바는 `common.js` 가 placeholder 에 주입한다. 페이지는 **본문만** 작성한다.
+(상세 규칙·새 화면 추가 절차는 [`STYLE_GUIDE.md`](STYLE_GUIDE.md) 참조)
 
 ```html
 <!DOCTYPE html>
@@ -190,58 +191,13 @@
 </head>
 <body>
 
-<!-- TOP HEADER (portal.html과 동일) -->
-<header class="top-header">
-  <div class="header-logo"><span class="header-logo-text">KB손해보험</span></div>
-  <div class="header-divider"></div>
-  <div class="header-service-name">업무가상화 사용자 포탈</div>
-  <div class="header-divider"></div>
-  <div class="header-user-badge">
-    <span class="hub-name">최정식 책임</span>
-    <span class="hub-sep">·</span>
-    <span class="hub-item">IT기획파트</span>
-    <span class="hub-sep">·</span>
-    <span class="hub-item">사번 <strong>1010579</strong></span>
-    <span class="hub-sep">·</span>
-    <span class="hub-item">ID <strong>jschoi0223</strong></span>
-  </div>
-  <div class="header-right">
-    <div class="header-session">
-      <span>세션 만료</span>
-      <span class="header-session-value" id="sessionTimer">29:57</span>
-    </div>
-    <button class="header-btn" title="알림">...<span class="header-badge">3</span></button>
-    <button class="header-btn" title="로그아웃" onclick="location.href='login.html'">...</button>
-  </div>
-</header>
+<!-- 헤더: common.js 가 채움 -->
+<header class="top-header" data-header></header>
 
 <div class="layout">
+  <!-- 사이드바: data-sidebar 값으로 active 메뉴 결정 -->
+  <aside class="sidebar" data-sidebar="{메뉴 key}"></aside>
 
-  <!-- SIDEBAR (portal.html과 동일, active 아이템만 현재 페이지로 변경) -->
-  <aside class="sidebar">
-    <div class="nav-section">
-      <div class="nav-label">Workspace</div>
-      <a class="nav-item" href="portal.html">...내 가상PC</a>
-    </div>
-    <div class="nav-section">
-      <div class="nav-label">신청 · 결재</div>
-      <a class="nav-item" href="apply.html">...VDI 추가신청</a>
-      <a class="nav-item" href="change.html">...변경 · 증설 · 반납</a>
-      <a class="nav-item" href="approval.html">...결재 현황 <span class="nav-item-badge">2</span></a>
-    </div>
-    <div class="nav-section">
-      <div class="nav-label">지원 · 서비스</div>
-      <a class="nav-item" href="incident.html">...장애신고 내역</a>
-      <a class="nav-item" href="notice.html">...공지사항</a>
-      <a class="nav-item" href="faq.html">...FAQ</a>
-      <a class="nav-item" href="qna.html">...자료실</a>
-    </div>
-    <div class="nav-section" style="...">
-      <!-- Service Desk 카드: 1544-8119 -->
-    </a>
-  </aside>
-
-  <!-- MAIN -->
   <main class="main">
     <div class="page-header">
       <div class="page-header-left">
@@ -256,20 +212,23 @@
   </main>
 </div>
 
-<div class="toast" id="toast">...</div>
+<script src="common.js"></script>   <!-- 페이지 스크립트보다 먼저 -->
 <script>
-  // 세션 타이머 (portal.html 코드 복붙)
-  // showToast 함수
+  // 페이지 고유 로직만 (goHome/logout/showToast·세션타이머는 common.js 제공)
 </script>
 </body>
 </html>
 ```
 
+- `data-sidebar` 메뉴 key: `portal` · `apply` · `change` · `approval` · `incident` · `notice` · `faq` · `qna`
+- 사용자/헬프데스크/세션시간/메뉴는 `common.js` 의 `PORTAL_USER` · `SERVICE_DESK` · `SESSION_SECONDS` · `NAV_SECTIONS` 에서 한 번에 관리한다.
+- 토스트 마크업은 둘 필요 없다 — `showToast()` 가 없으면 자동 생성한다.
+
 ### Active 메뉴 규칙
 
-- 일반 페이지: 해당 페이지의 `.nav-item`에 `active` 클래스 부여
+- 각 페이지는 `<aside class="sidebar" data-sidebar="{key}">` 의 key 로 active 가 자동 결정된다 (수동으로 `active` 클래스를 넣지 않는다).
 - Drill-down 페이지 (`approval-detail`, `notice-detail`, `incident-new`):
-  - 부모 메뉴(`approval`, `notice`, `incident`)에 `active` 부여
+  - 부모 메뉴 key 사용 (`approval`, `notice`, `incident`)
   - 페이지 상단에 breadcrumb 표시: `결재 현황 › 결재 상세` 형태
 
 ---
@@ -280,7 +239,8 @@
 
 - 외부 CDN 스크립트/스타일 (Bootstrap, jQuery, Tailwind 등)
 - 빌드 도구 도입 (Webpack, Vite, npm 등)
-- 별도 CSS 파일 분리 (common.css 외 추가 CSS 파일 만들지 않음)
+- 추가 공통 파일 생성 금지 (공통은 `common.css` · `common.js` 두 개만 — 페이지 고유 스타일/스크립트는 각 HTML 내부에 둠)
+- 공통 함수(`goHome`/`logout`/`showToast`·세션타이머)를 페이지에서 재정의 금지 — `common.js` 만 사용
 - 외부 아이콘 라이브러리 (Font Awesome, Material Icons 등) — SVG 인라인만 사용
 - 사용자 이미지/실제 사진 임베드 — 더미 데이터는 텍스트로만
 - localStorage / sessionStorage 사용 (단순 시안이므로 원칙적으로 불필요)
