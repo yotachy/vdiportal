@@ -35,8 +35,8 @@
 ### 3. 글로벌 줌
 
 - `common.css`에 `html { zoom: 1.25 }` 적용되어 있음 (가독성 확보 목적)
-- 로그인 페이지(`login.html`)만 예외로 `zoom: 1` 리셋 (독립 레이아웃)
-- 신규 페이지는 기본 1.25 줌을 유지 (의도적으로 리셋하지 말 것)
+- 로그인 페이지(`login.html`)만 예외로 `zoom: 0.97` (전체화면 카드 레이아웃 보정 — `100vh / 0.97`로 높이 환산)
+- 신규/수정 페이지는 기본 1.25 줌을 유지 (의도적으로 리셋하지 말 것)
 
 ### 4. 한국어 우선
 
@@ -58,7 +58,7 @@
 | 헬프데스크 | 1544-8119 (평일 09:00~18:00) |
 | 세션 만료 타이머 | 30분 (29:57부터 카운트다운) |
 
-날짜는 2026년 4~5월대 기준 (예: `2026.04.24`, `04.22`).
+날짜는 2026년 4~6월대 기준 (예: `2026.04.24`, `2026.05.29`, 점검 공지 `06.08`).
 
 ---
 
@@ -68,7 +68,7 @@
 |---|---|---|---|---|
 | 1 | `login.html` | 로그인 | — | ✅ 완료 |
 | 2 | `portal.html` | 메인 포탈 (내 가상PC) | Workspace | ✅ 완료 |
-| 3 | `apply.html` | VDI 추가신청 | 신청 · 결재 | 📝 예정 |
+| 3 | `apply.html` | VDI 추가신청 | 신청 · 결재 | ✅ 완료 |
 | 4 | `change.html` | 변경 · 증설 · 반납 | 신청 · 결재 | ✅ 완료 |
 | 5 | `approval.html` | 결재 현황 | 신청 · 결재 | ✅ 완료 |
 | 6 | `approval-detail.html` | 결재 상세 | drill-down | ✅ 완료 |
@@ -79,13 +79,11 @@
 | 11 | `faq.html` | FAQ | 지원 · 서비스 | ✅ 완료 |
 | 12 | `qna.html` | 자료실 | 지원 · 서비스 | ✅ 완료 |
 
-### 권장 작업 순서
+### 작업 현황
 
-1. **1차 — 신청·결재 군 (4개)**: `apply.html` → `change.html` → `approval.html` → `approval-detail.html`
-   - flow-steps, fc 폼, prog-steps 등 핵심 컴포넌트 검증
-2. **2차 — 장애 군 (2개)**: `incident-new.html` → `incident.html`
-   - 1차에서 만든 폼·테이블 패턴 재사용
-3. **3차 — 정보 게시 군 (4개)**: `notice.html` → `notice-detail.html` → `qna.html` → `faq.html`
+**12개 화면 전체 완료.** 이후 작업은 신규 제작이 아니라 **기존 화면의 디테일 다듬기·수정**이 중심이다.
+화면 간 동선(목록 → drill-down 상세), 더미 데이터, 분류 체계(예: 공지 중요/일반)가 상호 정합되도록 유지할 것.
+(과거 제작 순서: 신청·결재 군 → 장애 군 → 정보 게시 군)
 
 ---
 
@@ -305,24 +303,26 @@
 
 다음 패턴은 portal.html에 정의되어 있어 다른 화면에서 참조 가능:
 
-- **VDI 통합 카드 (hero)**: 다크 그라데이션 배경 + 우측 info-panel + 좌측 액션 버튼들
-- **세션 타이머**: setInterval 기반 카운트다운
+- **KPI 스트립 (`.kpi-strip`, 4열)**: 진행 중 결재건 · 최근 공지사항 · 사용자 매뉴얼(자료실) · 사이트링크. `position:relative;z-index:5`로 reveal transform stacking 이슈 회피
+- **사이트링크 카드 (`.kpi.sitelink`)**: 호버/포커스 시 외부 시스템 드롭다운(`.sitelink-menu`). 맨 위 KB손해보험 공식 홈페이지 + 구분선 + e-HR 등 샘플. `overflow:visible` + 투명 브릿지(`::before`)로 호버 유지, 클릭 시 `goSite()` 토스트
+- **VDI 워크스페이스 카드 (`.vw`)**: 좌측 정보(가상PC명 + 우측 유형 배지 `.vw-type`) + 모니터형 접속 버튼(`.mon-frame`, 내부에 상태 pill `.vw-status` 내장) + 우측 자원/Info 패널. 탭 전환은 `renderVdi(i)` + `VDI_LIST`
+- **관리자 안내 영역 (`.vw-notice`)**: VDI 카드 하단, 클릭 시 공지 상세로 이동. 태그는 공지 분류(중요/일반)와 정합
+- **세션 타이머**: setInterval 기반 카운트다운 (`#sessionTimer`)
 - **Toast 메시지**: `showToast(msg)` 함수
 - **새로고침 버튼 애니메이션**: `.spinning` 클래스 + `@keyframes spin`
-- **상태 pill (online/offline)**: `.vdi-status-pill` (offline 변형)
-- **컴팩트 신청 행**: `.application-row` 그리드 (72px 1fr 88px 80px)
-- **mini 진행 단계**: `.progress-mini` + `.step-pill` (done/active)
+- **헤더 동선**: 로고('KB손해보험')·서비스명 모두 `goHome()`(인증 시 portal, 아니면 login). KB손해보험 공식 홈페이지 링크는 헤더가 아니라 portal 사이트링크 드롭다운에 위치
 
-### 향후 추가 화면 작업 시 디테일 메모
+### 화면별 구현 메모 (참조 · 수정 시 구조 파악용)
 
-- **apply.html**: `flow-steps`로 4단계 (정보입력 → 사양선택 → 결재선 → 신청완료) 표현 권장
-- **change.html**: 페이지 내부 탭 3개 (변경/증설/반납) — 탭은 신규 컴포넌트로 만들거나 `filter-seg` 재활용
-- **approval.html**: `filter-bar` (상태별 세그) + `search-box` + `data-table`. 행 클릭 시 approval-detail.html로 이동
-- **approval-detail.html**: 상단 페이지 헤더 + 신청 정보 카드 + `prog-steps` 결재 진행 + 결재 이력 테이블 + 코멘트 영역
-- **incident.html**: approval.html과 동일한 패턴 (filter-bar + data-table + 우측 "신규 신고" 버튼)
+- **login.html**: `zoom:0.97` 독립 레이아웃. 크림 배경 위 중앙 카드(`.login-shell`, 약 1520×820) = 좌측 브랜드 패널(절제된 크림 + 기능 리스트 SSO/2차인증/원격근무) + 우측 2단계 인증(STEP1 ID/PW → STEP2 OTP 6자리). 계정 도움 링크 3종(아이디 생성/비밀번호 재발급/계정 잠금 해제). 로그인 성공 시 `sessionStorage['vdi_auth']='1'`
+- **apply.html**: `flow-steps` 4단계 (정보입력 → 사양선택 → 결재선 → 신청완료)
+- **change.html**: 페이지 내부 탭 3개 (변경/증설/반납)
+- **approval.html**: `filter-bar`(상태별 세그) + `search-box` + `data-table`. 행 클릭 시 approval-detail.html로 이동
+- **approval-detail.html**: 페이지 헤더 + 신청 정보 카드 + `prog-steps` 결재 진행 + 결재 이력 테이블 + 코멘트 영역
+- **incident.html**: approval.html과 동일 패턴 (filter-bar + data-table + 우측 "신규 신고" 버튼)
 - **incident-new.html**: `fc` 폼 카드 여러 개 + 파일 첨부 영역 + warn-box (급한 장애는 헬프데스크 직통)
-- **notice.html**: `data-table` 또는 카드형 리스트. portal.html의 list-item 패턴 활용 가능
-- **notice-detail.html**: 제목 영역 + 메타 (작성자/날짜/조회수) + 본문 + 첨부 파일 + 목록으로 / 이전 / 다음
+- **notice.html**: `filter-bar`(전체/중요/일반) + `search-box` + 리스트. 분류는 **중요(`ntag-important`)/일반(`ntag-normal`) 2종**. 행 클릭 시 notice-detail.html로 이동
+- **notice-detail.html**: 제목 + 메타(작성자/날짜/조회수) + 본문 + 첨부 + 목록/이전/다음. `CAT`·각 항목 `cat`을 notice.html과 동일하게 유지(중요/일반)
 - **faq.html**: 카테고리 탭(`filter-seg`) + 검색 + `faq-item` 아코디언
 - **qna.html (자료실)**: 폴더형 좌측 카테고리 + 파일 리스트 + 다운로드 액션
 
