@@ -45,9 +45,12 @@
   .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
   .col-date { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
   .col-vdi { font-variant-numeric: tabular-nums; font-weight: 600; }
-  /* 대리 신청 대상자 배지 */
-  .target-sub { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.01em;
-    color: #8A6A00; background: var(--kb-yellow-soft); border: 1px solid var(--kb-yellow-line); border-radius: 5px; padding: 1px 7px; }
+  /* 대리 신청 표시 — 구분 우측 PILL */
+  .proxy-pill { display: inline-block; margin-left: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.02em;
+    color: #8A6A00; background: var(--kb-yellow-soft); border: 1px solid var(--kb-yellow-line); border-radius: 5px; padding: 1px 6px; vertical-align: middle; }
+  /* 정렬 — 내용(유연 컬럼) 좌측, 나머지 고정 컬럼 가운데 (notice와 동일 정책) */
+  .data-table th, .data-table td { text-align: center; }
+  .data-table th:nth-child(5), .data-table td:nth-child(5) { text-align: left; }
   .empty-row td { text-align: center; padding: 52px 16px; color: var(--text-tertiary); font-size: 14px; }
 
   /* 필터바 — 필터를 검색칸 왼쪽에 붙이고 우측 정렬, 검색칸 고정폭 */
@@ -135,7 +138,7 @@
           <tr>
             <th style="width:178px">신청번호</th>
             <th style="width:92px">신청일</th>
-            <th style="width:80px">구분</th>
+            <th style="width:112px">구분</th>
             <th style="width:170px">대상 VDI</th>
             <th>내용</th>
             <th style="width:128px">상태</th>
@@ -152,18 +155,27 @@
 <script>
   // ===== 데이터 (portal.html과 정합) =====
   // status: progress(승인 중) · apply(적용 중) · done(완료) · reject(반려)
-  // summary: 요청 내용 요약 (목록 '내용' 컬럼)
+  // 내용(목록)은 구분별 정형 파라미터로 content(r)가 자동 조합 — 수행사 구현 기준
+  //   신규 → type(유형)  ·  연장 → period(기간)  ·  증설 → item·from·to(자원 변경)
   const ROWS = [
-    { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설', vdi: 'jschoi0223-main',   summary: '메모리 16→32GB 증설 요청',   status: 'progress' },
-    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-common', summary: '공용형 VDI 신규 신청 (대리)',  status: 'apply', target: '홍길동 대리' },
-    { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '연장', vdi: 'jschoi0223-main',   summary: '사용 기간 6개월 연장',        status: 'done' },
-    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-common', summary: '공용형 VDI 신규 신청',         status: 'done' },
-    { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '연장', vdi: 'jschoi0223-main',   summary: '사용 기간 3개월 연장',        status: 'done' },
-    { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설', vdi: 'jschoi0223-common', summary: '디스크 80→160GB 증설 요청',   status: 'reject' },
-    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', summary: '사용 기간 연장 (대리)',        status: 'done', target: '김서연 책임' }
+    { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설', vdi: 'jschoi0223-main',   item: '메모리', from: '16GB', to: '32GB',  status: 'progress' },
+    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-common', type: '공용',                              status: 'apply', target: '홍길동 대리' },
+    { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '연장', vdi: 'jschoi0223-main',   period: '6개월',                           status: 'done' },
+    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-common', type: '공용',                              status: 'done' },
+    { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '연장', vdi: 'jschoi0223-main',   period: '3개월',                           status: 'done' },
+    { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설', vdi: 'jschoi0223-common', item: '디스크', from: '80GB', to: '160GB', status: 'reject' },
+    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done', target: '김서연 책임' }
   ];
 
   const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand' };
+  // 목록 '내용' — 구분별 정형 패턴: "{구분 라벨} · {파라미터}"
+  const KIND_TEXT = { '신규': '신규 신청', '연장': '사용 연장', '증설': '자원 증설' };
+  function content(r) {
+    if (r.kind === '신규') return `${KIND_TEXT['신규']} · ${r.type}형`;
+    if (r.kind === '연장') return `${KIND_TEXT['연장']} · ${r.period}`;
+    if (r.kind === '증설') return `${KIND_TEXT['증설']} · ${r.item} ${r.from}→${r.to}`;
+    return '';
+  }
   const PILL = {
     progress: { cls: 'spill-progress', dot: 'sdot-warning', txt: '승인 중' },
     apply:    { cls: 'spill-apply',    dot: 'sdot-info',    txt: '적용 중' },
@@ -189,7 +201,7 @@
     const q = curSearch.trim().toLowerCase();
     const list = ROWS.filter(r => {
       const okFilter = curFilter === 'all' || group(r.status) === curFilter;
-      const okSearch = !q || (r.no + ' ' + r.kind + ' ' + r.vdi + ' ' + r.summary + ' ' + (r.target || '')).toLowerCase().includes(q);
+      const okSearch = !q || (r.no + ' ' + r.kind + ' ' + r.vdi + ' ' + content(r) + ' ' + (r.target || '')).toLowerCase().includes(q);
       return okFilter && okSearch;
     });
 
@@ -204,9 +216,9 @@
         <tr onclick="location.href='approval-detail.html?no=${r.no}'">
           <td class="col-no">${r.no}</td>
           <td class="col-date">${r.date.slice(5)}</td>
-          <td><span class="rtag rtag-${KIND[r.kind]}">${r.kind}</span></td>
-          <td class="col-vdi">${r.vdi}${r.target ? `<div class="target-sub">대리 · ${r.target}</div>` : ''}</td>
-          <td class="col-content">${r.summary}</td>
+          <td><span class="rtag rtag-${KIND[r.kind]}">${r.kind}</span>${r.target ? '<span class="proxy-pill">대리</span>' : ''}</td>
+          <td class="col-vdi">${r.vdi}</td>
+          <td class="col-content">${content(r)}</td>
           <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></td>
         </tr>`;
     }).join('');

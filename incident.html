@@ -44,6 +44,9 @@
   .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
   .col-date { color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .col-title { color: var(--text-primary); font-weight: 600; }
+  /* 정렬 — 제목(유연 컬럼) 좌측, 나머지 고정 컬럼 가운데 (notice/approval와 동일 정책) */
+  .data-table th, .data-table td { text-align: center; }
+  .data-table th:nth-child(4), .data-table td:nth-child(4) { text-align: left; }
   .empty-row td { text-align: center; padding: 52px 16px; color: var(--text-tertiary); font-size: 14px; }
 
   /* 모달 보조 */
