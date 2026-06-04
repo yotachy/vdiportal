@@ -10,7 +10,7 @@
   .main { max-width: 1320px; margin: 0 auto; }
 
   /* 요약 스탯 칩 (approval.html과 동일) */
-  .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
   .stat-chip { display: flex; align-items: center; gap: 13px; padding: 15px 18px; background: var(--surface);
     border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); cursor: pointer; transition: all 0.16s; }
   .stat-chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
@@ -24,9 +24,8 @@
   .stat-num { font-size: 24px; font-weight: 800; color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums; }
   .stat-lbl { font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-weight: 600; }
 
-  /* 유형 태그 */
-  .itag { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 6px;
-    background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-strong); white-space: nowrap; }
+  /* 유형 — 카테고리 텍스트 (박스 제거) */
+  .itag { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.01em; white-space: nowrap; }
 
   /* 긴급도 배지 */
   .urg { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
@@ -35,15 +34,14 @@
   .urg-mid { color: var(--warning); } .urg-mid::before { background: var(--warning); }
   .urg-low { color: var(--text-tertiary); } .urg-low::before { background: #BDB5A7; }
 
-  /* 상태 pill */
+  /* 상태 — 진행 상태만 pill, 완료는 차분하게(텍스트형) */
   .spill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 100px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
-  .spill-received { background: var(--info-soft); color: var(--info); }
-  .spill-progress { background: var(--warning-soft); color: #8A5800; }
-  .spill-done { background: var(--success-soft); color: var(--success); }
+  .spill-active { background: var(--warning-soft); color: #8A5800; }
+  .spill-done { background: transparent; padding: 5px 0; color: var(--text-tertiary); font-weight: 700; }
 
   /* 테이블 */
   .data-table tbody tr { cursor: pointer; }
-  .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
   .col-date { color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .col-title { color: var(--text-primary); font-weight: 600; }
   .empty-row td { text-align: center; padding: 52px 16px; color: var(--text-tertiary); font-size: 14px; }
@@ -111,13 +109,9 @@
         <div class="stat-ico all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
         <div><div class="stat-num" id="cAll">0</div><div class="stat-lbl">전체 신고</div></div>
       </div>
-      <div class="stat-chip" data-stat="received">
-        <div class="stat-ico info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M9 11l3 3L22 4"/></svg></div>
-        <div><div class="stat-num" id="cReceived">0</div><div class="stat-lbl">접수</div></div>
-      </div>
-      <div class="stat-chip" data-stat="progress">
+      <div class="stat-chip" data-stat="active">
         <div class="stat-ico warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-        <div><div class="stat-num" id="cProgress">0</div><div class="stat-lbl">처리 중</div></div>
+        <div><div class="stat-num" id="cActive">0</div><div class="stat-lbl">접수/처리 중</div></div>
       </div>
       <div class="stat-chip" data-stat="done">
         <div class="stat-ico ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
@@ -129,8 +123,7 @@
     <div class="filter-bar reveal" style="animation-delay:.14s">
       <div class="filter-seg" id="filterSeg">
         <button class="fsb on" data-filter="all">전체</button>
-        <button class="fsb" data-filter="received">접수</button>
-        <button class="fsb" data-filter="progress">처리중</button>
+        <button class="fsb" data-filter="active">접수 · 처리중</button>
         <button class="fsb" data-filter="done">처리완료</button>
       </div>
       <div class="search-box">
@@ -217,10 +210,11 @@
 
   const URG = { high: { cls: 'urg-high', txt: '긴급' }, mid: { cls: 'urg-mid', txt: '높음' }, low: { cls: 'urg-low', txt: '보통' } };
   const PILL = {
-    received: { cls: 'spill-received', dot: 'sdot-info',    txt: '접수' },
-    progress: { cls: 'spill-progress', dot: 'sdot-warning', txt: '처리 중' },
-    done:     { cls: 'spill-done',     dot: 'sdot-success', txt: '처리 완료' }
+    active: { cls: 'spill-active', dot: 'sdot-warning', txt: '접수/처리 중' },
+    done:   { cls: 'spill-done',   dot: 'sdot-success', txt: '처리 완료' }
   };
+  // 접수(received)·처리 중(progress)은 하나의 상태로 묶음
+  const grp = s => (s === 'done' ? 'done' : 'active');
 
   const $ = id => document.getElementById(id);
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -228,15 +222,14 @@
 
   function updateStats() {
     $('cAll').textContent = ROWS.length;
-    $('cReceived').textContent = ROWS.filter(r => r.status === 'received').length;
-    $('cProgress').textContent = ROWS.filter(r => r.status === 'progress').length;
+    $('cActive').textContent = ROWS.filter(r => grp(r.status) === 'active').length;
     $('cDone').textContent = ROWS.filter(r => r.status === 'done').length;
   }
 
   function render() {
     const q = curSearch.trim().toLowerCase();
     const list = ROWS.filter(r => {
-      const okFilter = curFilter === 'all' || r.status === curFilter;
+      const okFilter = curFilter === 'all' || grp(r.status) === curFilter;
       const okSearch = !q || (r.no + ' ' + r.type + ' ' + r.title).toLowerCase().includes(q);
       return okFilter && okSearch;
     });
@@ -247,7 +240,7 @@
     }
 
     $('tbody').innerHTML = list.map(r => {
-      const u = URG[r.urg], p = PILL[r.status];
+      const u = URG[r.urg], p = PILL[grp(r.status)];
       return `
         <tr onclick="openModal('${r.no}')">
           <td class="col-no">${r.no}</td>
@@ -264,7 +257,7 @@
   function openModal(no) {
     const r = ROWS.find(x => x.no === no);
     if (!r) return;
-    const u = URG[r.urg], p = PILL[r.status];
+    const u = URG[r.urg], p = PILL[grp(r.status)];
     $('modalContent').innerHTML = `
       <div class="modal-title">${esc(r.title)}</div>
       <div class="modal-meta" style="font-variant-numeric:tabular-nums">${r.no}</div>
