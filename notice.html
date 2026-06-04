@@ -9,8 +9,10 @@
 <style>
   .main { max-width: 1320px; margin: 0 auto; }
 
-  /* 공지 리스트 — 표 형태 (맨 앞 노출 체크 + 컬럼 정렬) */
-  .list-head, .notice-item { display: grid; grid-template-columns: 36px 1fr 150px 110px; gap: 18px; align-items: center; }
+  /* 공지 리스트 — 표 형태 (제목 좌측 / 작성자·등록일 가운데) */
+  .list-head, .notice-item { display: grid; grid-template-columns: 1fr 150px 110px; gap: 18px; align-items: center; }
+  .list-head .c-author, .list-head .c-date,
+  .notice-item .c-author, .notice-item .c-date { text-align: center; }
   .list-head { padding: 12px 22px; background: var(--surface-2); border-bottom: 1px solid var(--border);
     font-size: 12.5px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.01em; white-space: nowrap; }
   .notice-item { padding: 16px 22px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s; }
@@ -26,12 +28,7 @@
   .new-badge { flex-shrink: 0; font-size: 10px; font-weight: 800; color: var(--danger); background: var(--danger-soft);
     border-radius: 5px; padding: 1px 6px; letter-spacing: 0.03em; }
 
-  /* 컬럼 값 — 좌측 정렬 통일 */
   .nm-cell { font-size: 13px; color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
-
-  /* 포탈 노출 체크 (맨 앞 · 단일 선택 · 관리자) — 체크된 1건이 포탈 메인 하단에 노출 */
-  .pr-cell { display: flex; align-items: center; justify-content: center; cursor: pointer; }
-  .pr-radio { width: 16px; height: 16px; accent-color: var(--kb-yellow-dark); margin: 0; cursor: pointer; flex-shrink: 0; }
 
   .empty-state { text-align: center; padding: 56px 16px; color: var(--text-tertiary); font-size: 14px; }
 
@@ -40,7 +37,7 @@
   .search-box { flex: 0 0 auto; max-width: none; width: 300px; }
 
   @media (max-width: 820px) {
-    .list-head, .notice-item { grid-template-columns: 36px 1fr 110px; gap: 12px; }
+    .list-head, .notice-item { grid-template-columns: 1fr 110px; gap: 12px; }
     .list-head .c-author, .notice-item .c-author { display: none; }
     .search-box { width: 100%; }
   }
@@ -91,10 +88,9 @@
     <!-- 공지 리스트 -->
     <div class="fc reveal" style="animation-delay:.14s">
       <div class="list-head">
-        <span></span>
         <span>제목</span>
         <span class="c-author">작성자</span>
-        <span>등록일</span>
+        <span class="c-date">등록일</span>
       </div>
       <div id="noticeList"></div>
     </div>
@@ -120,8 +116,6 @@
   const $ = id => document.getElementById(id);
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   let curSearch = '';
-  // 포탈 메인 하단에 노출 중인 공지 (1건만 · 관리자 설정). 기본값 = portal.html이 보여주는 공지(id 1)
-  let portalId = 1;
 
   const PIN_SVG = '<svg class="notice-pin" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16 3l5 5-3 1-3 3-1 5-2-2-3 3-1-1 3-3-2-2 5-1 3-3 1-3z"/></svg>';
 
@@ -138,25 +132,14 @@
 
     $('noticeList').innerHTML = list.map(n => `
         <div class="notice-item${n.pinned ? ' pinned' : ''}" onclick="location.href='notice-detail.html?id=${n.id}'">
-          <label class="pr-cell" onclick="event.stopPropagation()" title="포탈 메인 하단에 노출 (1건만)">
-            <input type="radio" class="pr-radio" name="portalExpose" ${n.id === portalId ? 'checked' : ''} onchange="setPortal(${n.id})">
-          </label>
           <div class="notice-title">
             ${n.pinned ? PIN_SVG : ''}
             <span class="t-text">${esc(n.title)}</span>
             ${n.isNew ? '<span class="new-badge">NEW</span>' : ''}
           </div>
           <div class="nm-cell c-author">${esc(n.author)}</div>
-          <div class="nm-cell">${n.date}</div>
+          <div class="nm-cell c-date">${n.date}</div>
         </div>`).join('');
-  }
-
-  // 포탈 노출 단일 선택 (관리자) — 시안: 선택 상태 반영 + 안내 토스트
-  function setPortal(id) {
-    portalId = id;
-    const n = NOTICES.find(x => x.id === id);
-    render();
-    showToast(`"${n.title.length > 22 ? n.title.slice(0, 22) + '…' : n.title}" 공지가 포탈 메인 하단에 노출됩니다.`);
   }
 
   // 검색
