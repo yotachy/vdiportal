@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>KB손해보험 VDI 사용자 포탈 - 공지 등록</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .main { max-width: 1320px; margin: 0 auto; }
+
+  /* 폼 행 (incident-new/apply와 동일 패턴) */
+  .frow { display: grid; grid-template-columns: 150px 1fr; gap: 18px; align-items: start; padding: 15px 0; border-bottom: 1px solid var(--border); }
+  .frow:first-child { padding-top: 4px; }
+  .frow:last-child { padding-bottom: 4px; border-bottom: none; }
+  .frow-label { font-size: 14px; font-weight: 600; color: var(--text-secondary); padding-top: 9px; display: flex; align-items: center; gap: 5px; }
+  .frow-field { min-width: 0; }
+  .frow-help { font-size: 12.5px; color: var(--text-tertiary); margin-top: 7px; line-height: 1.5; }
+  .fi.full, .fs.full, .fta.full { width: 100%; }
+  .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0 6px 2px; }
+
+  /* 드롭존 (incident-new와 동일) */
+  .drop-zone { border: 1.5px dashed var(--border-strong); border-radius: 12px; padding: 30px 20px;
+    text-align: center; cursor: pointer; transition: all 0.15s; background: var(--surface-2); }
+  .drop-zone:hover, .drop-zone.drag { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft); }
+  .drop-zone-ico { width: 38px; height: 38px; border-radius: 11px; background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 11px; }
+  .drop-zone-ico svg { width: 20px; height: 20px; color: var(--kb-yellow-dark); }
+  .drop-zone-title { font-size: 14px; font-weight: 700; color: var(--text-secondary); }
+  .drop-zone-title b { color: var(--kb-yellow-dark); }
+  .drop-zone-sub { font-size: 12.5px; color: var(--text-tertiary); margin-top: 5px; }
+
+  .file-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .file-chip { display: flex; align-items: center; gap: 11px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .fchip-ico { width: 18px; height: 18px; color: var(--kb-yellow-dark); flex-shrink: 0; }
+  .file-name { flex: 1; font-size: 13.5px; color: var(--text-primary); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-size { font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .file-del { width: 27px; height: 27px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); flex-shrink: 0; transition: all 0.14s; cursor: pointer; }
+  .file-del:hover { background: var(--danger-soft); color: var(--danger); }
+  .file-del svg { width: 15px; height: 15px; }
+
+  /* 포탈 노출 토글 */
+  .expose-toggle { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border-strong);
+    border-radius: 12px; background: var(--surface-2); cursor: pointer; transition: all 0.14s; }
+  .expose-toggle:hover { border-color: var(--kb-yellow-dark); }
+  .expose-toggle.on { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft); }
+  .expose-toggle input { width: 18px; height: 18px; accent-color: var(--kb-yellow-dark); margin: 1px 0 0; flex-shrink: 0; cursor: pointer; }
+  .et-text b { display: block; font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .et-text i { display: block; font-size: 12.5px; color: var(--text-tertiary); font-style: normal; margin-top: 3px; line-height: 1.5; }
+
+  @media (max-width: 760px) {
+    .frow { grid-template-columns: 1fr; gap: 8px; }
+    .frow-label { padding-top: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP HEADER -->
+<header class="top-header" data-header></header>
+
+<div class="layout">
+
+  <!-- SIDEBAR (부모: 공지사항 active) -->
+  <aside class="sidebar" data-sidebar="notice"></aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="breadcrumb reveal">
+      <a href="portal.html">홈</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>지원 · 서비스</span>
+      <span class="breadcrumb-sep">›</span>
+      <a href="notice.html">공지사항</a>
+      <span class="breadcrumb-sep">›</span>
+      <span style="color:var(--text-secondary);font-weight:600">공지 등록</span>
+    </div>
+
+    <div class="page-header reveal" style="animation-delay:.06s">
+      <div class="page-header-left">
+        <h1 class="page-title">공지 등록</h1>
+        <p class="page-desc">사용자에게 안내할 공지를 등록합니다. 등록된 공지는 공지사항 목록 최상단에 표시됩니다.</p>
+      </div>
+      <div class="page-header-right">
+        <a class="btn btn-outline" href="notice.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          공지 목록
+        </a>
+      </div>
+    </div>
+
+    <!-- 관리자 권한 안내 -->
+    <div class="info-box reveal" style="animation-delay:.1s;margin-bottom:18px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      공지 등록과 포탈 메인 노출 설정은 <strong>관리자(VDI 운영팀)</strong> 권한 기능입니다.
+    </div>
+
+    <!-- 섹션 1: 공지 내용 -->
+    <div class="fc reveal" style="animation-delay:.14s">
+      <div class="fc-head">
+        <div class="fc-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          공지 내용
+        </div>
+        <div class="fc-ctrl"></div>
+      </div>
+      <div class="fc-body">
+        <div class="frow">
+          <div class="frow-label">제목 <span class="req">*</span></div>
+          <div class="frow-field">
+            <input class="fi full" id="f_title" placeholder="공지 제목을 입력해주세요. (예: [정기점검] 06.15(일) VDI 인프라 정기 점검 안내)">
+          </div>
+        </div>
+        <div class="frow">
+          <div class="frow-label">분류</div>
+          <div class="frow-field">
+            <select class="fs" id="f_cat" style="max-width:280px;width:100%">
+              <option>운영 안내</option>
+              <option>시스템 점검</option>
+              <option>보안</option>
+              <option>업데이트 · 배포</option>
+              <option>기타</option>
+            </select>
+            <div class="frow-help">분류는 운영 관리용이며, 사용자 목록에는 제목·작성자·등록일만 표시됩니다.</div>
+          </div>
+        </div>
+        <div class="frow">
+          <div class="frow-label">본문 <span class="req">*</span></div>
+          <div class="frow-field">
+            <textarea class="fta full" id="f_body" rows="8" placeholder="공지 본문을 입력해주세요. 점검·작업 시간, 영향 범위, 사용자 조치사항, 문의처 등을 구체적으로 안내하면 좋습니다."></textarea>
+          </div>
+        </div>
+        <div class="frow">
+          <div class="frow-label">작성자</div>
+          <div class="frow-field">
+            <div class="info-text">IT기획파트 · 최정식 책임</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 섹션 2: 첨부 파일 -->
+    <div class="fc reveal" style="animation-delay:.18s">
+      <div class="fc-head">
+        <div class="fc-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          첨부 파일
+        </div>
+        <div class="fc-ctrl"><span class="lbl" style="margin:0">매뉴얼 · 안내문 등 (선택)</span></div>
+      </div>
+      <div class="fc-body">
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-zone-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="drop-zone-title">파일을 끌어다 놓거나 <b>클릭하여 첨부</b></div>
+          <div class="drop-zone-sub">PDF · DOCX · XLSX · PNG · JPG · 최대 20MB</div>
+        </div>
+        <div class="file-list" id="fileList"></div>
+      </div>
+    </div>
+
+    <!-- 섹션 3: 포탈 노출 -->
+    <div class="fc reveal" style="animation-delay:.22s">
+      <div class="fc-head">
+        <div class="fc-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          포탈 노출
+        </div>
+        <div class="fc-ctrl"></div>
+      </div>
+      <div class="fc-body">
+        <label class="expose-toggle" id="exposeToggle">
+          <input type="checkbox" id="f_expose">
+          <span class="et-text">
+            <b>포탈 메인 하단에 노출</b>
+            <i>체크하면 이 공지가 포탈 첫 화면(내 가상PC) 하단 안내 영역에 표시됩니다. 노출은 <strong>1건만</strong> 가능하며, 기존 노출 공지는 자동 해제됩니다.</i>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 액션 바 -->
+    <div class="action-bar reveal">
+      <div class="action-hint">필수 항목(<span class="req">*</span>)을 입력하면 공지를 등록할 수 있습니다.</div>
+      <div class="action-btns">
+        <button class="btn btn-outline" onclick="location.href='notice.html'">취소</button>
+        <button class="btn btn-primary" onclick="submitNotice()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          공지 등록
+        </button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="common.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+
+  // ===== 포탈 노출 토글 시각 상태 =====
+  const exposeToggle = $('exposeToggle'), fExpose = $('f_expose');
+  fExpose.addEventListener('change', () => exposeToggle.classList.toggle('on', fExpose.checked));
+
+  // ===== 첨부 파일 (mock) =====
+  const SAMPLE_FILES = [
+    { name: 'VDI_정기점검_안내문.pdf', size: '186 KB' },
+    { name: '사용자_매뉴얼_v2.0.pdf', size: '2.4 MB' },
+    { name: '점검대상_시스템_목록.xlsx', size: '32 KB' }
+  ];
+  let files = [];
+  function renderFiles() {
+    $('fileList').innerHTML = files.map((f, i) => `
+      <div class="file-chip">
+        <svg class="fchip-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span class="file-name">${f.name}</span>
+        <span class="file-size">${f.size}</span>
+        <div class="file-del" onclick="removeFile(${i})" title="삭제">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+      </div>`).join('');
+  }
+  function addSampleFile() {
+    if (files.length >= SAMPLE_FILES.length) { showToast('첨부 가능한 예시 파일을 모두 추가했습니다.'); return; }
+    files.push(SAMPLE_FILES[files.length]);
+    renderFiles();
+  }
+  function removeFile(i) { files.splice(i, 1); renderFiles(); }
+
+  const dz = $('dropZone');
+  dz.addEventListener('click', addSampleFile);
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); addSampleFile(); });
+
+  // ===== 등록 =====
+  function submitNotice() {
+    if (!$('f_title').value.trim()) { showToast('공지 제목을 입력해주세요.'); return; }
+    if (!$('f_body').value.trim())  { showToast('공지 본문을 입력해주세요.'); return; }
+    const msg = fExpose.checked
+      ? '공지가 등록되었습니다. 포탈 메인 하단에 노출됩니다.'
+      : '공지가 등록되었습니다.';
+    showToast(msg);
+    setTimeout(() => location.href = 'notice.html', 1600);
+  }
+</script>
+</body>
+</html>
