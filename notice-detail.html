@@ -9,10 +9,6 @@
 <style>
   .main { max-width: 1320px; margin: 0 auto; }
 
-  /* 카테고리 태그 */
-  .ntag { display: inline-block; font-size: 12px; font-weight: 800; padding: 4px 11px; border-radius: 6px; letter-spacing: 0.01em; }
-  .ntag-important { background: var(--danger-soft); color: var(--danger); border: 1px solid #F3C4BF; }
-  .ntag-normal { background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-strong); }
 
   /* 아티클 헤더 */
   .art-title { font-size: 24px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.4; margin-top: 13px; }
@@ -112,11 +108,6 @@
   const ICO_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
 
   // ===== 데이터 (notice.html 9건과 정합) =====
-  const CAT = {
-    important: { cls: 'ntag-important', txt: '중요' },
-    normal:    { cls: 'ntag-normal',    txt: '일반' }
-  };
-
   // 목록 순서 (notice.html과 동일, 최신순)
   const ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
@@ -194,17 +185,14 @@
   }
 
   function renderArticle() {
-    const c = CAT[d.cat];
     const att = d.files && d.files.length
       ? `<div class="att-wrap"><div class="att-title">첨부파일 ${d.files.length}개</div>${d.files.map(fileChip).join('')}</div>`
       : '';
     $('article').innerHTML = `
-      <span class="ntag ${c.cls}">${c.txt}</span>
       <h1 class="art-title">${d.title}</h1>
       <div class="art-meta">
         <span class="am"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${d.author}</span>
         <span class="am"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${d.date}</span>
-        <span class="am"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>조회 ${d.views.toLocaleString()}</span>
       </div>
       <div class="art-body">${d.body}</div>
       ${att}`;
