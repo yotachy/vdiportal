@@ -57,6 +57,9 @@
   .rgrp.seg .rbtn svg { width: 17px; height: 17px; flex-shrink: 0; transition: color 0.14s; }
   .rgrp.seg .rbtn.sel { background: transparent; box-shadow: none; }
   .rgrp.seg .rbtn.sel svg { color: var(--kb-yellow-dark); }
+  /* 검색 영역 오른쪽 끝을 위 토글(460px)과 일치 */
+  #otherSearch { width: 100%; max-width: 460px; }
+  #otherSearch .fi { flex: 1; min-width: 0; }
   /* 검색 팝업 결과 목록 */
   .user-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border);
     border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: all 0.14s; }
@@ -271,14 +274,14 @@
               </div>
               <!-- 타인 대리 선택 시 아래에 검색 영역 노출 -->
               <div class="field-inline" id="otherSearch" style="display:none; margin-top:12px">
-                <input class="fi" id="f_search" style="width:280px" placeholder="부서명 또는 이름으로 검색  예) IT기획파트, 홍길동"
+                <input class="fi" id="f_search" placeholder="부서명 또는 이름으로 검색  예) IT기획파트, 홍길동"
                   onkeydown="if(event.key==='Enter'){event.preventDefault();searchUser();}">
                 <button type="button" class="btn btn-outline btn-sm" onclick="searchUser()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   검색
                 </button>
               </div>
-              <div class="frow-help">타인 대리 신청은 동일 부서원만 가능합니다.</div>
+              <div class="frow-help" id="proxyHelp" style="display:none">타인 대리 신청은 동일 부서원만 가능합니다.</div>
             </div>
           </div>
 
@@ -685,6 +688,7 @@
       state.applyFor = btn.dataset.for;
       const isOther = state.applyFor === 'other';
       document.getElementById('otherSearch').style.display = isOther ? 'flex' : 'none';
+      document.getElementById('proxyHelp').style.display = isOther ? 'block' : 'none';
       // 구분 변경 시 대상자 선택 초기화
       state.target = null;
       document.getElementById('targetRow').style.display = 'none';
