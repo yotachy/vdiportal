@@ -57,9 +57,9 @@
     color: #8A6A00; background: var(--kb-yellow-soft); border: 1px solid var(--kb-yellow-line); border-radius: 5px; padding: 1px 7px; }
   .empty-row td { text-align: center; padding: 52px 16px; color: var(--text-tertiary); font-size: 14px; }
 
-  /* 필터바 — 필터 좌측 / 검색 우측 정렬, 검색 폭 = 위 스탯 칩 1열과 동일 */
-  .filter-bar { justify-content: space-between; }
-  .search-box { flex: 0 0 auto; max-width: none; width: calc((100% - 42px) / 4); }
+  /* 필터바 — 필터를 검색칸 왼쪽에 붙이고 우측 정렬, 검색칸 고정폭 */
+  .filter-bar { justify-content: flex-end; }
+  .search-box { flex: 0 0 auto; max-width: none; width: 300px; }
 
   @media (max-width: 980px) {
     .stat-strip { grid-template-columns: repeat(2, 1fr); }

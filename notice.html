@@ -36,10 +36,15 @@
 
   .empty-state { text-align: center; padding: 56px 16px; color: var(--text-tertiary); font-size: 14px; }
 
+  /* 필터바 — 필터를 검색칸 왼쪽에 붙이고 우측 정렬, 검색칸 고정폭 */
+  .filter-bar { justify-content: flex-end; }
+  .search-box { flex: 0 0 auto; max-width: none; width: 300px; }
+
   @media (max-width: 820px) {
     .notice-item { grid-template-columns: 76px 1fr; gap: 12px; }
     .notice-meta { grid-column: 2; justify-content: flex-start; gap: 12px; }
     .notice-meta .nm-author { display: none; }
+    .search-box { width: 100%; }
   }
 </style>
 </head>
