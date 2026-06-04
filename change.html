@@ -79,6 +79,21 @@
     background: var(--kb-yellow-soft); border: 1px solid var(--kb-yellow-line); color: #8A6A00; font-weight: 800; }
   #t_info::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--kb-yellow-dark); }
   .field-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  /* 신청 구분 — 확장 세그먼트 토글 (시원한 2지선다) */
+  .rgrp.seg { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    width: 100%; max-width: 460px; padding: 5px; border-radius: 13px; }
+  .rgrp.seg .seg-thumb { position: absolute; top: 5px; left: 5px; bottom: 5px; width: calc(50% - 5px);
+    border-radius: 9px; background: var(--surface); box-shadow: var(--shadow-sm); z-index: 0;
+    transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1); }
+  .rgrp.seg:has(.rbtn[data-for="other"].sel) .seg-thumb { transform: translateX(100%); }
+  .rgrp.seg .rbtn { position: relative; z-index: 1; justify-content: center; gap: 8px;
+    padding: 13px 14px; font-size: 14.5px; border-radius: 9px; }
+  .rgrp.seg .rbtn svg { width: 17px; height: 17px; flex-shrink: 0; transition: color 0.14s; }
+  .rgrp.seg .rbtn.sel { background: transparent; box-shadow: none; }
+  .rgrp.seg .rbtn.sel svg { color: var(--kb-yellow-dark); }
+  /* 검색 영역 오른쪽 끝을 위 토글(460px)과 일치 */
+  #otherSearch { width: 100%; max-width: 460px; }
+  #otherSearch .fi { flex: 1; min-width: 0; }
   .period-pills { display: flex; gap: 6px; }
   .qp { padding: 8px 14px; border: 1.5px solid var(--border-strong); border-radius: 100px; background: var(--surface);
     font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text-secondary); cursor: pointer; transition: all 0.14s; }
@@ -166,21 +181,27 @@
         <div class="frow">
           <div class="frow-label">신청 구분</div>
           <div class="frow-field">
-            <div class="field-inline">
-              <div class="rgrp" id="applyForGroup">
-                <button type="button" class="rbtn sel" data-for="self"><span class="rdot"></span>본인 신청</button>
-                <button type="button" class="rbtn" data-for="other"><span class="rdot"></span>타인 대리 신청</button>
-              </div>
-              <div class="field-inline" id="otherSearch" style="display:none">
-                <input class="fi" id="f_search" style="width:280px" placeholder="부서명 또는 이름으로 검색  예) IT기획파트, 홍길동"
-                  onkeydown="if(event.key==='Enter'){event.preventDefault();searchUser();}">
-                <button type="button" class="btn btn-outline btn-sm" onclick="searchUser()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  검색
-                </button>
-              </div>
+            <div class="rgrp seg" id="applyForGroup">
+              <span class="seg-thumb" aria-hidden="true"></span>
+              <button type="button" class="rbtn sel" data-for="self">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                본인 신청
+              </button>
+              <button type="button" class="rbtn" data-for="other">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                타인 대리 신청
+              </button>
             </div>
-            <div class="frow-help">타인 대리 신청은 동일 부서원만 가능합니다.</div>
+            <!-- 타인 대리 선택 시 아래에 검색 영역 노출 -->
+            <div class="field-inline" id="otherSearch" style="display:none; margin-top:12px">
+              <input class="fi" id="f_search" placeholder="부서명 또는 이름으로 검색  예) IT기획파트, 홍길동"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();searchUser();}">
+              <button type="button" class="btn btn-outline btn-sm" onclick="searchUser()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                검색
+              </button>
+            </div>
+            <div class="frow-help" id="proxyHelp" style="display:none">타인 대리 신청은 동일 부서원만 가능합니다.</div>
           </div>
         </div>
         <div class="frow">
@@ -399,6 +420,7 @@
       btn.classList.add('sel');
       state.applyFor = btn.dataset.for;
       $('otherSearch').style.display = state.applyFor === 'other' ? 'flex' : 'none';
+      $('proxyHelp').style.display = state.applyFor === 'other' ? 'block' : 'none';
       state.target = null;
       $('targetRow').style.display = 'none';
     });
