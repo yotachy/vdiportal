@@ -9,18 +9,15 @@
 <style>
   .main { max-width: 1320px; margin: 0 auto; }
 
-  /* 구분 — 카테고리 텍스트 (approval.html과 동일) */
-  .rtag { display: inline-block; font-size: 12.5px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; }
-  .rtag-add { color: #8A6A00; }
-  .rtag-extend { color: var(--success); }
-  .rtag-expand { color: var(--info); }
+  /* 구분 — 카테고리 텍스트 (approval.html과 동일, 색 없음) */
+  .rtag { display: inline-block; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.01em; white-space: nowrap; }
 
   /* 상태 — 진행만 pill, 완료는 차분하게 */
   .spill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 100px; font-size: 13px; font-weight: 800; white-space: nowrap; }
   .spill-progress { background: var(--warning-soft); color: #8A5800; }
   .spill-apply { background: var(--info-soft); color: var(--info); }
   .spill-done { background: transparent; padding: 6px 0; color: var(--text-tertiary); font-weight: 700; }
-  .spill-reject { background: var(--danger-soft); color: var(--danger); }
+  .spill-reject { background: transparent; padding: 6px 0; color: var(--text-tertiary); font-weight: 700; }
 
   /* 신청 정보 key/val */
   .info-row { display: grid; grid-template-columns: 150px 1fr; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
