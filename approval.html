@@ -30,15 +30,8 @@
   /* ===== 구분 — 카테고리 텍스트 (색 없이, incident 유형값과 동일 폰트) ===== */
   .rtag { display: inline-block; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.01em; white-space: nowrap; }
 
-  /* ===== 진행 미니 단계 ===== */
-  .prog-mini { display: flex; align-items: center; gap: 11px; }
-  .prog-bars { display: flex; gap: 3px; width: 92px; flex-shrink: 0; }
-  .prog-bars i { flex: 1; height: 5px; border-radius: 3px; background: var(--border); }
-  .prog-bars i.done { background: var(--success); }
-  .prog-bars i.active { background: var(--kb-yellow); }
-  .prog-bars i.fail { background: var(--danger); }
-  .prog-cur { font-size: 12.5px; color: var(--text-secondary); font-weight: 700; white-space: nowrap; }
-  .prog-cur.fail { color: var(--danger); }
+  /* ===== 요청 내용 요약 ===== */
+  .col-content { color: var(--text-secondary); font-size: 13.5px; letter-spacing: -0.01em; }
 
   /* ===== 상태 pill ===== */
   .spill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 100px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
@@ -144,7 +137,7 @@
             <th style="width:92px">신청일</th>
             <th style="width:80px">구분</th>
             <th style="width:170px">대상 VDI</th>
-            <th>진행</th>
+            <th>내용</th>
             <th style="width:128px">상태</th>
           </tr>
         </thead>
@@ -159,15 +152,15 @@
 <script>
   // ===== 데이터 (portal.html과 정합) =====
   // status: progress(승인 중) · apply(적용 중) · done(완료) · reject(반려)
-  // step: 0~4 (0=기안 완료, 1=부서장, 2=IT운영부, 3=처리, 4=완료) 기준 진행 인덱스
+  // summary: 요청 내용 요약 (목록 '내용' 컬럼)
   const ROWS = [
-    { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설', vdi: 'jschoi0223-main',   steps: 4, step: 1, cur: '부서장 승인 중', status: 'progress' },
-    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-common', steps: 4, step: 3, cur: '적용 중',       status: 'apply', target: '홍길동 대리' },
-    { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '연장', vdi: 'jschoi0223-main',   steps: 4, step: 4, cur: '적용 완료',     status: 'done' },
-    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-common', steps: 4, step: 4, cur: '적용 완료',     status: 'done' },
-    { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '연장', vdi: 'jschoi0223-main',   steps: 4, step: 4, cur: '적용 완료',     status: 'done' },
-    { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설', vdi: 'jschoi0223-common', steps: 4, step: 1, cur: '부서장 반려',   status: 'reject' },
-    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', steps: 4, step: 4, cur: '적용 완료',     status: 'done', target: '김서연 책임' }
+    { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설', vdi: 'jschoi0223-main',   summary: '메모리 16→32GB 증설 요청',   status: 'progress' },
+    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-common', summary: '공용형 VDI 신규 신청 (대리)',  status: 'apply', target: '홍길동 대리' },
+    { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '연장', vdi: 'jschoi0223-main',   summary: '사용 기간 6개월 연장',        status: 'done' },
+    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-common', summary: '공용형 VDI 신규 신청',         status: 'done' },
+    { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '연장', vdi: 'jschoi0223-main',   summary: '사용 기간 3개월 연장',        status: 'done' },
+    { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설', vdi: 'jschoi0223-common', summary: '디스크 80→160GB 증설 요청',   status: 'reject' },
+    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', summary: '사용 기간 연장 (대리)',        status: 'done', target: '김서연 책임' }
   ];
 
   const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand' };
@@ -183,19 +176,6 @@
   const $ = id => document.getElementById(id);
   let curFilter = 'all', curSearch = '';
 
-  // 진행 바 HTML
-  function barsHtml(r) {
-    let h = '';
-    for (let i = 0; i < r.steps; i++) {
-      let cls = '';
-      if (r.status === 'done') cls = 'done';
-      else if (r.status === 'reject') cls = i < r.step ? 'done' : (i === r.step ? 'fail' : '');
-      else cls = i < r.step ? 'done' : (i === r.step ? 'active' : '');
-      h += `<i class="${cls}"></i>`;
-    }
-    return h;
-  }
-
   // 집계
   function updateStats() {
     $('cAll').textContent = ROWS.length;
@@ -209,7 +189,7 @@
     const q = curSearch.trim().toLowerCase();
     const list = ROWS.filter(r => {
       const okFilter = curFilter === 'all' || group(r.status) === curFilter;
-      const okSearch = !q || (r.no + ' ' + r.kind + ' ' + r.vdi + ' ' + (r.target || '')).toLowerCase().includes(q);
+      const okSearch = !q || (r.no + ' ' + r.kind + ' ' + r.vdi + ' ' + r.summary + ' ' + (r.target || '')).toLowerCase().includes(q);
       return okFilter && okSearch;
     });
 
@@ -226,12 +206,7 @@
           <td class="col-date">${r.date.slice(5)}</td>
           <td><span class="rtag rtag-${KIND[r.kind]}">${r.kind}</span></td>
           <td class="col-vdi">${r.vdi}${r.target ? `<div class="target-sub">대리 · ${r.target}</div>` : ''}</td>
-          <td>
-            <div class="prog-mini">
-              <div class="prog-bars">${barsHtml(r)}</div>
-              <span class="prog-cur${r.status === 'reject' ? ' fail' : ''}">${r.cur}</span>
-            </div>
-          </td>
+          <td class="col-content">${r.summary}</td>
           <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></td>
         </tr>`;
     }).join('');
