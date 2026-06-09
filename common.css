@@ -29,6 +29,7 @@
   --kb-yellow:#FFBC00;--kb-yellow-neg:#FFCC00;--kb-yellow-dark:#EFA600;
   --kb-yellow-soft:#FFF6DC;--kb-yellow-line:#FFE49A;
   --kb-gray:#60584C;--kb-gray-dark:#545045;
+  --admin:#3D4659;--admin-dark:#2E3545;   /* 관리자용 액션 색상 (사용자 옐로우와 구분) */
   --kb-dark:#1A1714;--kb-header:#211E19;--ink:#1A1714;
 
   /* Text — KB Gray 패밀리 정렬 */
@@ -185,6 +186,25 @@ a{text-decoration:none;color:inherit}
 .pager-btn.on{background:var(--kb-yellow);border-color:var(--kb-yellow);color:var(--ink)}
 .pager-btn:disabled{opacity:.4;cursor:default}
 .pager-btn svg{width:15px;height:15px}
+
+/* 헤더 홈 / 관리자 모드 토글 */
+.header-home-btn,.header-admin-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;
+  border-radius:100px;font-size:13px;font-weight:700;white-space:nowrap;transition:all .15s;cursor:pointer;
+  flex-shrink:0;border:1.5px solid var(--border-strong);color:var(--text-secondary);background:var(--surface)}
+.header-home-btn{margin-right:4px}
+.header-home-btn:hover{border-color:var(--kb-yellow-dark);color:var(--ink);background:var(--kb-yellow-soft)}
+.header-home-btn svg{width:15px;height:15px}
+.header-admin-btn{margin-right:8px}
+.header-admin-btn:hover{border-color:var(--admin);color:var(--admin)}
+.header-admin-btn.on{border-color:var(--admin);background:var(--admin);color:#fff}
+.header-admin-btn svg{width:14px;height:14px}
+
+/* 관리자용 액션 버튼 (사용자용 옐로우와 색상 구분) */
+.btn-admin{background:var(--admin);color:#fff}
+.btn-admin:hover{background:var(--admin-dark);color:#fff}
+/* 관리자 전용 — 기본 숨김(사용자에게 비노출), 관리자 모드에서만 노출 */
+.admin-only{display:none!important}
+body.admin-mode .admin-only{display:inline-flex!important}
 
 /* ════════ FORM CARD ════════ */
 .fc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);

@@ -70,7 +70,7 @@
         <p class="page-desc">VDI 운영 관련 점검·업데이트·보안 공지를 확인합니다. 항목을 클릭하면 상세 내용을 볼 수 있습니다.</p>
       </div>
       <div class="page-header-right">
-        <a class="btn btn-primary" href="notice-new.html" title="관리자 전용">
+        <a class="btn btn-admin admin-only" href="notice-new.html" title="관리자 전용">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           공지 등록
         </a>
@@ -111,7 +111,10 @@
     { id: 6, cat: 'important', pinned: false, isNew: false, title: '05.11(일) 네트워크 장비 교체 작업 안내 (접속 일시 중단)', author: '인프라팀', date: '2026.05.08', views: 591, summary: '데이터센터 네트워크 장비 교체 작업으로 해당 시간 동안 가상PC 접속이 일시 중단됩니다.' },
     { id: 7, cat: 'normal',    pinned: false, isNew: false, title: 'PC가상화 프로그램 설치 파일 안내', author: 'VDI 운영팀', date: '2026.04.22', views: 712, summary: '신규 및 재설치 사용자를 위한 PC가상화(Citrix Workspace) 설치 파일을 안내합니다.' },
     { id: 8, cat: 'normal',    pinned: false, isNew: false, title: '신규 공용 VDI(부서 공용형) 도입 안내', author: 'IT기획파트', date: '2026.04.15', views: 834, summary: '부서 단위로 공동 사용하는 공용형 가상PC가 신규 도입되었습니다. 단기·공용 업무에 활용할 수 있습니다.' },
-    { id: 9, cat: 'important', pinned: false, isNew: false, title: '[복구완료] 일부 사용자 접속 지연 현상 정상화 안내', author: 'VDI 운영팀', date: '2026.04.10', views: 1576, summary: '04.10 오전 발생한 일부 사용자 가상PC 접속 지연 현상이 정상 복구되었습니다.' }
+    { id: 9, cat: 'important', pinned: false, isNew: false, title: '[복구완료] 일부 사용자 접속 지연 현상 정상화 안내', author: 'VDI 운영팀', date: '2026.04.10', views: 1576, summary: '04.10 오전 발생한 일부 사용자 가상PC 접속 지연 현상이 정상 복구되었습니다.' },
+    { id: 10, cat: 'normal',    pinned: false, isNew: false, title: 'VDI 접속 경로 이중화 구성 완료 안내', author: '인프라팀', date: '2026.04.05', views: 487, summary: 'VDI 접속 경로 이중화 구성이 완료되어 장애 발생 시에도 안정적으로 접속할 수 있습니다.' },
+    { id: 11, cat: 'normal',    pinned: false, isNew: false, title: '4월 가상PC 사용 현황 리포트 공유', author: 'IT기획파트', date: '2026.04.01', views: 312, summary: '4월 한 달간 부서별 가상PC 사용 현황과 자원 사용률 리포트를 공유합니다.' },
+    { id: 12, cat: 'important', pinned: false, isNew: false, title: '[보안] 분기 비밀번호 변경 안내 (2분기)', author: '정보보안부', date: '2026.03.28', views: 1203, summary: '정보보안 정책에 따라 2분기 비밀번호 변경을 안내합니다. 기한 내 변경하지 않으면 접속이 제한될 수 있습니다.' }
   ];
 
   const $ = id => document.getElementById(id);

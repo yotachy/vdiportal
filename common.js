@@ -158,6 +158,10 @@ function renderHeader(el) {
       '<span class="hub-item">ID <strong>' + u.id + '</strong></span>' +
     '</div>' +
     '<div class="header-right">' +
+      '<a class="header-home-btn" id="headerHomeBtn" onclick="goHome()" title="홈으로">' +
+        svgIcon('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>') + '홈</a>' +
+      '<button class="header-admin-btn" id="headerAdminBtn" onclick="toggleAdminMode(this)" title="관리자 모드 전환 (관리자 전용 버튼 표시)">' +
+        svgIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>') + '<span class="ham-label">관리자 모드</span></button>' +
       '<div class="header-session"><span>세션 만료</span><span class="header-session-value" id="sessionTimer">29:57</span></div>' +
       '<button class="header-btn" title="알림">' + svgIcon('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>') + '<span class="header-badge">3</span></button>' +
       '<button class="header-btn" title="로그아웃" onclick="logout()">' + svgIcon('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>') + '</button>' +
@@ -190,13 +194,32 @@ function renderSidebar(el, active) {
     '</div>';
 }
 
+/* ---------- 관리자 모드 토글 (관리자 전용 버튼 .admin-only 표시) ----------
+   기본 OFF → 관리자 전용 버튼은 사용자에게 보이지 않음. 토글 시 body.admin-mode 부여.
+   페이지별 추가 처리는 window.onAdminModeChange(on) 훅으로 연결. */
+function toggleAdminMode(btn) {
+  var on = document.body.classList.toggle('admin-mode');
+  btn.classList.toggle('on', on);
+  var lbl = btn.querySelector('.ham-label');
+  if (lbl) lbl.textContent = on ? '관리자 모드 ON' : '관리자 모드';
+  if (typeof window.onAdminModeChange === 'function') window.onAdminModeChange(on);
+}
+
 /* ---------- 초기화 (스크립트는 body 끝에서 로드 → DOM 준비됨) ---------- */
 (function init() {
   var header = document.querySelector('[data-header]');
   if (header) renderHeader(header);
 
   var sidebar = document.querySelector('[data-sidebar]');
-  if (sidebar) renderSidebar(sidebar, sidebar.getAttribute('data-sidebar'));
+  if (sidebar) {
+    var key = sidebar.getAttribute('data-sidebar');
+    renderSidebar(sidebar, key);
+    // portal(메인 홈)에서는 홈 버튼 숨김
+    if (key === 'portal') {
+      var hb = document.getElementById('headerHomeBtn');
+      if (hb) hb.style.display = 'none';
+    }
+  }
 
   startSessionTimer(SESSION_SECONDS);
 })();

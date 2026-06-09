@@ -166,7 +166,12 @@
     { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-common', type: '공용',                              status: 'done' },
     { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '연장', vdi: 'jschoi0223-main',   period: '3개월',                           status: 'done' },
     { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설', vdi: 'jschoi0223-common', item: '디스크', from: '80GB', to: '160GB', status: 'reject' },
-    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done', target: '김서연 책임' }
+    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done', target: '김서연 책임' },
+    { no: 'REQ-2026-0318-007', date: '2026.03.18', kind: '신규', vdi: 'jschoi0223-temp',   type: '임시',                              status: 'apply' },
+    { no: 'REQ-2026-0210-003', date: '2026.02.10', kind: '증설', vdi: 'jschoi0223-main',   item: '디스크', from: '80GB', to: '160GB', status: 'done' },
+    { no: 'REQ-2026-0115-001', date: '2026.01.15', kind: '신규', vdi: 'jschoi0223-main',   type: '고정',                              status: 'done' },
+    { no: 'REQ-2025-1220-014', date: '2025.12.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done' },
+    { no: 'REQ-2025-1128-010', date: '2025.11.28', kind: '증설', vdi: 'jschoi0223-temp',   item: 'CPU', from: '2 Core', to: '4 Core', status: 'reject' }
   ];
 
   const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand' };
@@ -205,7 +210,7 @@
       const okFilter = curFilter === 'all' || group(r.status) === curFilter;
       const okSearch = !q || (r.no + ' ' + r.kind + ' ' + r.vdi + ' ' + content(r) + ' ' + (r.target || '')).toLowerCase().includes(q);
       return okFilter && okSearch;
-    });
+    }).sort((a, b) => b.date.localeCompare(a.date));   // 신청일 내림차순(최신순)
 
     if (!list.length) {
       $('tbody').innerHTML = `<tr class="empty-row"><td colspan="6">조건에 맞는 신청 내역이 없습니다.</td></tr>`;
