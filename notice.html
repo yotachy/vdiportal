@@ -84,6 +84,8 @@
         <input type="date" id="dateFrom" class="date-input" aria-label="시작일">
         <span class="date-sep">~</span>
         <input type="date" id="dateTo" class="date-input" aria-label="종료일">
+        <button type="button" class="date-quick" data-q="week" onclick="setQuickRange('week')">1주일</button>
+        <button type="button" class="date-quick" data-q="month" onclick="setQuickRange('month')">1개월</button>
       </div>
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -167,7 +169,17 @@
 
   // 검색
   $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
-  ['dateFrom', 'dateTo'].forEach(id => $(id).addEventListener('change', () => { curPage = 1; render(); }));
+  ['dateFrom', 'dateTo'].forEach(id => $(id).addEventListener('change', () => {
+    document.querySelectorAll('.date-quick').forEach(b => b.classList.remove('on'));
+    curPage = 1; render();
+  }));
+  function setQuickRange(kind) {
+    const to = maxDateOf(NOTICES);
+    $('dateTo').value = to;
+    $('dateFrom').value = quickRangeFrom(to, kind);
+    document.querySelectorAll('.date-quick').forEach(b => b.classList.toggle('on', b.dataset.q === kind));
+    curPage = 1; render();
+  }
 
   render();
 </script>

@@ -105,6 +105,23 @@ function dateInRange(dateStr, from, to) {
   if (to && d > to) return false;
   return true;
 }
+/* 빠른선택 보조 — 목록 최신 날짜 기준(YYYY-MM-DD) / 기간 시작일 계산 */
+function fmtYMD(dt) {
+  return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+}
+function maxDateOf(rows) {
+  return rows.reduce(function (m, r) {
+    var d = String(r.date).slice(0, 10).replace(/\./g, '-');
+    return d > m ? d : m;
+  }, '0000-00-00');
+}
+function quickRangeFrom(toYMD, kind) {
+  var p = toYMD.split('-').map(Number);
+  var d = new Date(p[0], p[1] - 1, p[2]);
+  if (kind === 'week') d.setDate(d.getDate() - 6);
+  else d.setMonth(d.getMonth() - 1);
+  return fmtYMD(d);
+}
 
 /* ---------- 페이지네이션 (10건 단위) ----------
    el      : 컨테이너 요소 또는 id
