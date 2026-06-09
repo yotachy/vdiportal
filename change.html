@@ -346,49 +346,6 @@
       </div>
     </section>
 
-    <!-- 결재선 미리보기 (공통) -->
-    <div class="fc reveal">
-      <div class="fc-head">
-        <div class="fc-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          결재선
-        </div>
-        <div class="fc-ctrl"></div>
-      </div>
-      <div class="fc-body">
-        <div class="info-box" style="margin-bottom:16px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          결재선은 부서 조직도 기준으로 자동 설정됩니다.
-        </div>
-        <div class="appr-line">
-          <div class="appr-node applicant">
-            <div class="appr-step">신청</div>
-            <div class="appr-info">
-              <div class="appr-role">신청자</div>
-              <div class="appr-name">최정식 책임 <small>IT기획파트</small></div>
-            </div>
-            <span class="appr-badge">기안</span>
-          </div>
-          <div class="appr-node">
-            <div class="appr-step">1</div>
-            <div class="appr-info">
-              <div class="appr-role">1차 결재 · 부서장</div>
-              <div class="appr-name">박성한 부장 <small>IT기획파트장</small></div>
-            </div>
-            <span class="appr-badge">승인</span>
-          </div>
-          <div class="appr-node">
-            <div class="appr-step">2</div>
-            <div class="appr-info">
-              <div class="appr-role">최종 처리 · VDI 관리자</div>
-              <div class="appr-name">VDI 운영팀 <small id="apprAction">설정 변경 · 적용</small></div>
-            </div>
-            <span class="appr-badge fixed">처리</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- 액션 바 (공통) -->
     <div class="action-bar">
       <div class="action-hint">제출 후에는 <strong>결재 현황</strong>에서 진행 상태를 확인할 수 있습니다.</div>
@@ -600,7 +557,6 @@
       // 제출 버튼 라벨
       const meta = TAB_META[state.tab];
       $('submitLabel').textContent = meta.label;
-      $('apprAction').textContent = meta.action;
     });
   });
 

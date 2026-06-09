@@ -144,6 +144,8 @@
       </div>
     </div>
 
+    <div class="scope-note" id="scopeNote" style="font-size:13px;color:var(--text-tertiary);font-weight:600;margin:-6px 0 14px 2px"></div>
+
     <!-- 테이블 -->
     <div class="fc reveal" style="animation-delay:.18s">
       <table class="data-table">
@@ -153,6 +155,7 @@
             <th style="width:120px">신고일</th>
             <th style="width:150px" class="hide-sm">유형</th>
             <th>제목</th>
+            <th style="width:110px" class="hide-sm">신고자</th>
             <th style="width:90px">긴급도</th>
             <th style="width:110px">상태</th>
           </tr>
@@ -275,22 +278,37 @@
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   let curFilter = 'all', curSearch = '', curPage = 1;
 
+  // 신고자(접수번호별) — 사용자는 본인 신고만, 관리자는 전체 신고 열람
+  const ME = (typeof PORTAL_USER !== 'undefined' && PORTAL_USER.name) ? PORTAL_USER.name : '최정식 책임';
+  const REPORTER = {
+    'INC-2026-0530-024': ME,          'INC-2026-0524-019': ME,          'INC-2026-0518-015': '김서연 책임',
+    'INC-2026-0510-011': ME,          'INC-2026-0428-007': '박준호 선임', 'INC-2026-0415-003': '홍길동 대리',
+    'INC-2026-0408-014': ME,          'INC-2026-0402-011': '김서연 책임', 'INC-2026-0325-009': '박준호 선임',
+    'INC-2026-0312-006': ME,          'INC-2026-0228-004': '정민아 선임', 'INC-2026-0210-002': ME
+  };
+  const repOf = no => REPORTER[no] || ME;
+  const isAdmin = () => document.body.classList.contains('admin-mode');
+  const roleRows = () => isAdmin() ? ROWS : ROWS.filter(r => repOf(r.no) === ME);
+
   function updateStats() {
-    $('cAll').textContent = ROWS.length;
-    $('cActive').textContent = ROWS.filter(r => grp(r.status) === 'active').length;
-    $('cDone').textContent = ROWS.filter(r => r.status === 'done').length;
+    const base = roleRows();
+    $('cAll').textContent = base.length;
+    $('cActive').textContent = base.filter(r => grp(r.status) === 'active').length;
+    $('cDone').textContent = base.filter(r => r.status === 'done').length;
   }
 
   function render() {
     const q = curSearch.trim().toLowerCase();
-    const list = ROWS.filter(r => {
+    const list = roleRows().filter(r => {
       const okFilter = curFilter === 'all' || grp(r.status) === curFilter;
-      const okSearch = !q || (r.no + ' ' + r.type + ' ' + r.title).toLowerCase().includes(q);
+      const okSearch = !q || (r.no + ' ' + r.type + ' ' + r.title + ' ' + repOf(r.no)).toLowerCase().includes(q);
       return okFilter && okSearch;
     });
 
+    $('scopeNote').textContent = isAdmin() ? '관리자 모드 · 전체 사용자 신고 내역' : '본인이 등록한 신고만 표시됩니다.';
+
     if (!list.length) {
-      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="6">조건에 맞는 신고 내역이 없습니다.</td></tr>`;
+      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="7">조건에 맞는 신고 내역이 없습니다.</td></tr>`;
       renderPager('incPager', 0, 1, () => {});
       return;
     }
@@ -307,6 +325,7 @@
           <td class="col-date">${r.date.slice(5)}</td>
           <td class="hide-sm"><span class="itag">${r.type}</span></td>
           <td class="col-title">${esc(r.title)}</td>
+          <td class="hide-sm">${repOf(r.no)}</td>
           <td><span class="urg ${u.cls}">${u.txt}</span></td>
           <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></td>
         </tr>`;
@@ -327,6 +346,7 @@
       <div class="modal-meta" style="font-variant-numeric:tabular-nums">${r.no}</div>
       <div class="modal-status"><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></div>
       <div class="modal-row"><div class="modal-key">유형</div><div class="modal-val"><span class="itag">${r.type}</span></div></div>
+      <div class="modal-row"><div class="modal-key">신고자</div><div class="modal-val">${repOf(r.no)}</div></div>
       <div class="modal-row"><div class="modal-key">대상 VDI</div><div class="modal-val" style="font-variant-numeric:tabular-nums">${r.vdi}</div></div>
       <div class="modal-row"><div class="modal-key">신고일시</div><div class="modal-val" style="font-variant-numeric:tabular-nums">${r.date}</div></div>
       <div class="modal-row"><div class="modal-key">긴급도</div><div class="modal-val"><span class="urg ${u.cls}">${u.txt}</span></div></div>
@@ -361,6 +381,9 @@
     render();
   }
   $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
+
+  // 관리자 모드 전환 시 열람 범위(본인/전체) 갱신
+  window.onAdminModeChange = function () { curPage = 1; updateStats(); render(); };
 
   // 초기
   updateStats();

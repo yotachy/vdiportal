@@ -106,7 +106,7 @@
       </div>
       <div class="stat-chip" data-stat="progress">
         <div class="stat-ico warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-        <div><div class="stat-num" id="cProgress">0</div><div class="stat-lbl">진행 중</div></div>
+        <div><div class="stat-num" id="cProgress">0</div><div class="stat-lbl">승인 중</div></div>
       </div>
       <div class="stat-chip" data-stat="done">
         <div class="stat-ico ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
@@ -122,7 +122,7 @@
     <div class="filter-bar reveal" style="animation-delay:.14s">
       <div class="filter-seg" id="filterSeg">
         <button class="fsb on" data-filter="all">전체</button>
-        <button class="fsb" data-filter="progress">진행중</button>
+        <button class="fsb" data-filter="progress">승인중</button>
         <button class="fsb" data-filter="done">완료</button>
         <button class="fsb" data-filter="reject">반려</button>
       </div>
@@ -156,18 +156,18 @@
 <script src="common.js"></script>
 <script>
   // ===== 데이터 (portal.html과 정합) =====
-  // status: progress(승인 중) · apply(적용 중) · done(완료) · reject(반려)
+  // status: progress(승인 중) · done(완료) · reject(반려) — 3단계
   // 내용(목록)은 구분별 정형 파라미터로 content(r)가 자동 조합 — 수행사 구현 기준
   //   신규 → type(유형)  ·  연장 → period(기간)  ·  증설 → item·from·to(자원 변경)
   const ROWS = [
     { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설', vdi: 'jschoi0223-main',   item: '메모리', from: '16GB', to: '32GB',  status: 'progress' },
-    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-common', type: '공용',                              status: 'apply', target: '홍길동 대리' },
+    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-common', type: '공용',                              status: 'progress', target: '홍길동 대리' },
     { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '연장', vdi: 'jschoi0223-main',   period: '6개월',                           status: 'done' },
     { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-common', type: '공용',                              status: 'done' },
     { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '연장', vdi: 'jschoi0223-main',   period: '3개월',                           status: 'done' },
     { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설', vdi: 'jschoi0223-common', item: '디스크', from: '80GB', to: '160GB', status: 'reject' },
     { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done', target: '김서연 책임' },
-    { no: 'REQ-2026-0318-007', date: '2026.03.18', kind: '신규', vdi: 'jschoi0223-temp',   type: '임시',                              status: 'apply' },
+    { no: 'REQ-2026-0318-007', date: '2026.03.18', kind: '신규', vdi: 'jschoi0223-temp',   type: '임시',                              status: 'progress' },
     { no: 'REQ-2026-0210-003', date: '2026.02.10', kind: '증설', vdi: 'jschoi0223-main',   item: '디스크', from: '80GB', to: '160GB', status: 'done' },
     { no: 'REQ-2026-0115-001', date: '2026.01.15', kind: '신규', vdi: 'jschoi0223-main',   type: '고정',                              status: 'done' },
     { no: 'REQ-2025-1220-014', date: '2025.12.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done' },

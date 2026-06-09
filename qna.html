@@ -89,6 +89,12 @@
         <h1 class="page-title">자료실</h1>
         <p class="page-desc">VDI 관련 매뉴얼·설치 파일·신청 서식·정책 자료를 분류별로 내려받을 수 있습니다.</p>
       </div>
+      <div class="page-header-right">
+        <button type="button" class="btn btn-admin admin-only" onclick="showToast('자료 등록 화면으로 이동합니다. (관리자 전용)')" title="관리자 전용">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          자료 등록
+        </button>
+      </div>
     </div>
 
     <div class="qna-grid reveal" style="animation-delay:.1s">
@@ -114,8 +120,8 @@
           <span></span><span>파일명</span><span class="fh-size" style="text-align:right">용량</span><span class="fh-date" style="text-align:right">등록일</span><span></span>
         </div>
         <div id="fileList"></div>
+        <div class="pager" id="filesPager" style="padding:0 16px 4px"></div>
       </div>
-      <div class="pager" id="filesPager"></div>
     </div>
 
   </main>
