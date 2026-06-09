@@ -89,7 +89,7 @@ a{text-decoration:none;color:inherit}
 .top-header::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;
   background:linear-gradient(90deg,var(--kb-yellow),#FFD24D 60%,var(--kb-yellow))}
 .header-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.header-logo-img{height:25px;width:auto;display:block;transition:opacity .15s}
+.header-logo-img{height:30px;width:auto;display:block;transition:opacity .15s}
 .header-logo:hover .header-logo-img{opacity:.72}
 .header-logo-text{color:var(--ink);font-size:19px;font-weight:800;letter-spacing:-0.03em;
   white-space:nowrap;transition:opacity .15s}
