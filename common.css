@@ -114,10 +114,6 @@ a{text-decoration:none;color:inherit}
   color:var(--text-secondary);border-radius:10px;transition:all .15s;position:relative}
 .header-btn:hover{background:var(--bg-subtle);color:var(--ink)}
 .header-btn svg{width:20px;height:20px}
-.header-badge{position:absolute;top:4px;right:4px;min-width:16px;height:16px;
-  background:var(--kb-yellow);color:var(--ink);border-radius:9px;font-size:10px;font-weight:800;
-  display:flex;align-items:center;justify-content:center;padding:0 4px;
-  box-shadow:0 0 0 2px var(--surface)}
 
 /* ════════ LAYOUT ════════ */
 .layout{display:grid;grid-template-columns:264px 1fr;min-height:calc(100vh - 66px)}
@@ -242,21 +238,6 @@ body.admin-mode .admin-only{display:inline-flex!important}
 .rdot::after{content:'';width:6px;height:6px;border-radius:50%;background:#fff;
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:0}
 .rbtn.sel .rdot::after{opacity:1}
-
-/* ════════ FLOW STEPS ════════ */
-.flow-steps{display:flex;align-items:center;flex-shrink:0}
-.flow-step{display:flex;align-items:center;gap:7px;padding:5px 10px;white-space:nowrap}
-.flow-num{width:23px;height:23px;border-radius:50%;border:1.5px solid var(--border-strong);
-  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;
-  color:var(--text-tertiary);flex-shrink:0;background:#fff;transition:all .2s}
-.flow-name{font-size:13px;font-weight:600;color:var(--text-tertiary)}
-.flow-sub{font-size:11px;color:var(--text-tertiary);margin-left:2px}
-.flow-step.active .flow-num{border-color:var(--kb-yellow-dark);background:var(--kb-yellow);color:var(--ink)}
-.flow-step.active .flow-name{color:var(--ink);font-weight:800}
-.flow-step.active .flow-sub{color:var(--text-secondary)}
-.flow-step.done .flow-num{border-color:var(--success);background:var(--success);color:#fff}
-.flow-step.done .flow-name{color:var(--text-secondary);font-weight:700}
-.flow-arrow{width:26px;height:2px;background:var(--border);flex-shrink:0;border-radius:2px}
 
 /* ════════ BUTTONS ════════ */
 .btn{height:44px;padding:0 20px;border-radius:11px;font-size:14.5px;font-weight:700;

@@ -5,7 +5,7 @@
 > **문서 역할 분담**
 > - [`README.md`](README.md) — 프로젝트 개요·화면 목록·실행 방법 (외부/전달용)
 > - [`STYLE_GUIDE.md`](STYLE_GUIDE.md) — **코딩 표준·구조 규칙·새 화면 추가 절차** (수행사 실무용, 단일 출처)
-> - `CLAUDE.md`(본 문서) — Claude 작업용 컨텍스트: 화면별 구현 메모·협업 패턴 등. 코드 규칙은 STYLE_GUIDE 를 따른다(중복 서술 지양).
+> - `CLAUDE.md`(본 문서) — 화면별 구현 메모·공통 컴포넌트 인벤토리. 코드 규칙은 STYLE_GUIDE 를 따른다(중복 서술 지양).
 
 ---
 
@@ -32,7 +32,7 @@
 - **전체 비공개(noindex)**: 프로젝트는 항상 검색 비공개. 신규 페이지·산출물 포함 모든 HTML `<head>`에 `<meta name="robots" content="noindex, nofollow">` 필수. 루트 `robots.txt`(Disallow: /) 유지.
 - **산출물**: 수행사 전달용 문서(화면정의서 등)는 `deliverables/`에 독립 HTML로 작성, `deliverables/index.html`에서 목록 관리(배포: `/portal/deliverables/`).
 
-### 글로벌 줌 (Claude 주의)
+### 글로벌 줌
 
 - `common.css`에 `html { zoom: 1.25 }` (가독성). 신규/수정 페이지는 이 줌을 유지하고 의도적으로 리셋하지 말 것.
 - 예외: `login.html`만 `zoom: 0.97` (전체화면 카드 보정 — 높이를 `100vh / 0.97`로 환산).
@@ -42,9 +42,9 @@
 | 항목 | 값 |
 |---|---|
 | 사용자 | 최정식 책임 / IT기획파트 / 사번 1010579 / ID jschoi0223 |
-| VDI 명 | jschoi0223-main(고정가상화) · jschoi0223-common(공용형) |
+| VDI 명 | jschoi0223-main(고정가상화) · jschoi0223-common(공용가상화) |
 | 헬프데스크 | 1544-8119 (평일 09:00~18:00) |
-| 세션 만료 | 30분 (29:57부터 카운트다운) |
+| 세션 만료 | 20분 |
 
 날짜는 2026년 4~6월 기준 (예: `2026.04.24`, `2026.05.29`, 점검 공지 `06.08`). 사용자·헬프데스크·세션·메뉴 값은 `common.js` 설정에서 일괄 관리.
 
@@ -81,7 +81,7 @@
 
 ### 레이아웃
 
-- `.top-header` — 76px sticky 헤더 (KB옐로우 3px 하단 보더)
+- `.top-header` — 66px sticky 헤더 (KB옐로우 3px 하단 보더)
 - `.header-logo-text` / `.header-divider` / `.header-service-name` / `.header-user-badge` — 헤더 내부 구성
 - `.header-btn` / `.header-badge` / `.header-session` — 헤더 우측 액션
 - `.layout` — 280px sidebar + 1fr main 그리드
@@ -251,7 +251,7 @@ portal.html `<style>`/`<script>`에 정의된 페이지 고유 패턴:
 - **login.html**: `zoom:0.97` 독립 레이아웃. 크림 배경 위 중앙 카드(`.login-shell`, 약 1520×820) = 좌측 브랜드 패널(절제된 크림 + 기능 리스트 SSO/2차인증/원격근무) + 우측 2단계 인증(STEP1 ID/PW → STEP2 OTP 6자리). 계정 도움 링크 3종(아이디 생성/비밀번호 재발급/계정 잠금 해제). 로그인 성공 시 `sessionStorage['vdi_auth']='1'`
 - **apply.html**: 단계형 신청(정보입력 → 사양선택 → 결재선 → 완료, 상단 단계바는 제거됨). 신청자 정보에 **본인/타인 대리** 구분 — 대리 시 단일 입력 검색 → 팝업(모달)에서 **동일 부서원** 선택 → 대상자 강조(옐로우 칩). 사용 기간(시작=오늘 고정·종료=달력/PILL, 기본 1개월). 행 격자 `label 140px + gap 16` 통일
 - **change.html**: 탭 2개 **사용 연장 / 자원 증설**(반납 제거). 대상 VDI는 portal과 동일 2대(카드 폭 3개 기준 고정·가로 스크롤). 연장(현재 종료일 이후·PILL 기본 1개월) / 증설(콤보박스, 현재값 표시). apply와 동일한 대리 신청 검색 팝업 포함
-- **approval.html**: `filter-bar` + `search-box` + `data-table`. **상태**: 승인 중·적용 중·완료·반려 / **구분**: 신규·연장·증설(`rtag-add/extend/expand`). 대리 건은 대상 VDI 아래 '대리 · 대상자' 배지. 신청번호 `nowrap`
+- **approval.html**: `filter-bar` + `date-range`(기간 필터) + `search-box` + `data-table` + `pager`. **상태**: 승인중·완료·반려(3종) / **구분**: 신규·연장·증설(`rtag-add/extend/expand`). 대리 건은 대상 VDI 아래 '대리 · 대상자' 배지. 신청번호 `nowrap`
 - **approval-detail.html**: 신청 정보 카드(대리 시 **대상자** 강조 행) + `prog-steps` 진행 + 결재 이력. `KIND`·`PILL`·각 레코드를 approval.html과 정합 유지
 - **incident.html**: approval.html과 동일 패턴 (filter-bar + data-table + 우측 "신규 신고" 버튼)
 - **incident-new.html**: `fc` 폼 카드 여러 개 + 파일 첨부 영역 + warn-box (급한 장애는 헬프데스크 직통)
@@ -260,12 +260,3 @@ portal.html `<style>`/`<script>`에 정의된 페이지 고유 패턴:
 - **faq.html**: 카테고리 탭(`filter-seg`) + 검색 + `faq-item` 아코디언
 - **qna.html (자료실)**: 폴더형 좌측 카테고리 + 파일 리스트 + 다운로드 액션
 
----
-
-## 🤝 사용자(타키)와의 협업 패턴
-
-- 타키는 **간결하고 직설적인 한국어**로 요청 (예: "공지 메뉴 제거", "1544-8119로 변경")
-- 한 메시지에 여러 변경사항을 나열하는 경우가 많음 — **모두 한 번에 정확히 반영**할 것
-- 반복적 UI 디테일 다듬기 (간격, 폰트 크기, 색상 톤) 요청이 많음
-- 새 작업 시작 시 **관련 파일 전체를 먼저 view**하여 컨텍스트 파악 후 수정
-- 응답은 변경 사항을 짧게 요약하고, 결과 파일을 제시

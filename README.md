@@ -1,136 +1,116 @@
 # KB손해보험 VDI 사용자 포탈 — 화면정의서 (UI Prototype)
 
-KB손해보험 업무가상화(VDI) 사용자 포탈 신규 구축 프로젝트의 **수행사 전달용 화면정의서 / UI 프로토타입**입니다.
-순수 HTML · CSS · Vanilla JavaScript로 구현되어 별도 빌드 도구 없이 브라우저에서 바로 확인 가능합니다.
+KB손해보험 업무가상화(VDI) 사용자 포탈 구축 프로젝트의 **수행사 전달용 화면정의서 / UI 프로토타입**입니다.
+순수 HTML · CSS · Vanilla JavaScript로 구현되어 별도 빌드 도구 없이 브라우저에서 바로 확인할 수 있습니다.
+
+> 코딩 표준·구조 규칙·새 화면 추가 절차는 [`STYLE_GUIDE.md`](STYLE_GUIDE.md)를 따릅니다(단일 출처).
 
 ---
 
-## 📋 프로젝트 개요
+## 📋 개요
 
 | 항목 | 내용 |
 |---|---|
-| 발주처 | KB손해보험 |
-| 시스템 | 업무가상화(VDI) 사용자 포탈 |
-| 산출물 성격 | 화면정의서 (수행사 전달용) |
-| 기술 스택 | HTML5 · CSS3 · Vanilla JS (No build, No framework) |
-| 대상 페르소나 | 최정식 책임 / IT기획파트 (가상) |
-| 브라우저 | Chromium 기반 (Edge, Chrome) — `zoom: 1.25` 사용 |
+| 시스템 | KB손해보험 업무가상화(VDI) 사용자 포탈 |
+| 산출물 | 화면정의서 / UI 프로토타입 (수행사 전달용) |
+| 기술 스택 | HTML5 · CSS3 · Vanilla JS (No build, No framework, No CDN) |
+| 동작 방식 | 전부 화면 시연용 mock — 실제 API 호출 없음 |
+| 브라우저 | Chromium 기반(Edge·Chrome), 전역 `zoom: 1.25` |
 
 ---
 
-## 🗂️ 화면 목록 (총 12개)
+## 🗂️ 화면 목록 (13개)
 
-| # | 파일명 | 화면명 | 카테고리 | 상태 |
-|---|---|---|---|---|
-| 1 | `login.html` | 로그인 (2단계 인증) | — | ✅ 완료 |
-| 2 | `portal.html` | 메인 포탈 (내 가상PC) | Workspace | ✅ 완료 |
-| 3 | `apply.html` | VDI 추가신청 (본인/대리) | 신청 · 결재 | ✅ 완료 |
-| 4 | `change.html` | 사용 연장 · 자원 증설 | 신청 · 결재 | ✅ 완료 |
-| 5 | `approval.html` | 결재 현황 | 신청 · 결재 | ✅ 완료 |
-| 6 | `approval-detail.html` | 결재 상세 | 신청 · 결재 (drill-down) | ✅ 완료 |
-| 7 | `incident.html` | 장애신고 내역 | 지원 · 서비스 | ✅ 완료 |
-| 8 | `incident-new.html` | 장애신고 등록 | 지원 · 서비스 (drill-down) | ✅ 완료 |
-| 9 | `notice.html` | 공지사항 (중요/일반) | 지원 · 서비스 | ✅ 완료 |
-| 10 | `notice-detail.html` | 공지사항 상세 | 지원 · 서비스 (drill-down) | ✅ 완료 |
-| 11 | `faq.html` | FAQ | 지원 · 서비스 | ✅ 완료 |
-| 12 | `qna.html` | 자료실 | 지원 · 서비스 | ✅ 완료 |
+| # | 파일 | 화면 | 카테고리 |
+|---|---|---|---|
+| 1 | `login.html` | 로그인 (2단계 인증) | — |
+| 2 | `portal.html` | 메인 포탈 (내 가상PC) | Workspace |
+| 3 | `apply.html` | VDI 추가신청 (본인/대리) | 신청 · 결재 |
+| 4 | `change.html` | 사용 연장 · 자원 증설 | 신청 · 결재 |
+| 5 | `approval.html` | 결재 현황 | 신청 · 결재 |
+| 6 | `approval-detail.html` | 결재 상세 (drill-down) | 신청 · 결재 |
+| 7 | `incident.html` | 장애신고 내역 | 지원 · 서비스 |
+| 8 | `incident-new.html` | 장애신고 등록 (drill-down) | 지원 · 서비스 |
+| 9 | `notice.html` | 공지사항 | 지원 · 서비스 |
+| 10 | `notice-detail.html` | 공지사항 상세 (drill-down) | 지원 · 서비스 |
+| 11 | `notice-new.html` | 공지 등록 (관리자, drill-down) | 지원 · 서비스 |
+| 12 | `faq.html` | FAQ | 지원 · 서비스 |
+| 13 | `qna.html` | 자료실 | 지원 · 서비스 |
 
-> 12개 화면 전체 완료. 화면 간 동선(목록 → drill-down 상세), 더미 데이터, 분류 체계가 상호 정합되도록 유지합니다.
+> 목록 → drill-down 상세 동선, 더미 데이터, 분류 체계가 화면 간 정합되도록 유지합니다.
+> 수행사 전달 문서(화면정의서)는 `deliverables/`에 별도 HTML로 작성하며 `deliverables/index.html`에서 관리합니다.
 
 ---
 
-## 🚀 실행 방법
+## 🚀 실행
 
-별도 서버나 빌드 없이 HTML 파일을 브라우저에서 바로 열면 됩니다.
+빌드 없이 HTML 파일을 브라우저로 열면 됩니다.
 
 ```bash
-# 저장소 클론
 git clone https://github.com/yotachy/vdiportal.git
 cd vdiportal
-
-# 브라우저에서 열기 (macOS)
-open login.html
-
-# 또는 간이 로컬 서버 (Python 3)
-python3 -m http.server 8080
-# → http://localhost:8080/login.html
+python3 -m http.server 8080   # → http://localhost:8080/login.html
 ```
 
-> ⚠️ 단순 파일 열기로도 동작하지만, 일부 브라우저 보안 정책으로 인해 로컬 서버 사용을 권장합니다.
+> 파일 직접 열기로도 동작하지만, 브라우저 보안 정책 회피를 위해 로컬 서버 사용을 권장합니다.
+
+---
+
+## 🧱 공통 구조 (수행사가 가장 먼저 볼 두 파일)
+
+헤더·사이드바·인증·세션·토스트·페이징·기간필터·관리자모드 등 **공통 요소는 `common.css`·`common.js` 두 파일에만** 있습니다. 각 화면은 placeholder와 스크립트 한 줄만 두고 본문만 작성합니다.
+
+```html
+<header class="top-header" data-header></header>            <!-- common.js 가 헤더 주입 -->
+<aside  class="sidebar"    data-sidebar="notice"></aside>   <!-- key 로 active 메뉴 결정 -->
+...
+<script src="common.js"></script>   <!-- 페이지 스크립트보다 먼저 -->
+```
+
+| 파일 | 역할 |
+|---|---|
+| `common.css` | 디자인 토큰(`:root`) + 공통 컴포넌트 스타일 |
+| `common.js` | 헤더·사이드바 렌더, 인증(`goHome`/`logout`), 세션 타이머, `showToast`, 페이징(`renderPager`), 기간 필터(`dateInRange`·`quickRangeFrom`·`maxDateOf`), 관리자 모드(`toggleAdminMode`) |
+
+- 헤더 한 곳을 바꾸면 전 페이지에 반영됩니다.
+- 사용자·헬프데스크·세션시간·메뉴는 `common.js` 상단의 `PORTAL_USER` · `SERVICE_DESK` · `SESSION_SECONDS` · `NAV_SECTIONS`에서 일괄 관리합니다.
 
 ---
 
 ## 🎨 디자인 시스템 요약
 
-### 색상 토큰 (`common.css` 상단 `:root`)
+### 브랜드 색상 (KB CI · `common.css :root`)
 
 | 토큰 | 값 | 용도 |
 |---|---|---|
-| `--kb-yellow` | `#FFBC00` | KB 메인 컬러, CTA 버튼, 강조 |
-| `--kb-yellow-dark` | `#EFA600` | hover, 강조 보더 |
-| `--kb-yellow-soft` | `#FFF6DC` | 배지, active 배경, 아이콘 칩 |
-| `--kb-yellow-line` | `#FFE49A` | 옐로우 soft 영역 보더 |
-| `--ink` / `--kb-header` | `#1A1714` / `#211E19` | 본문 강조 잉크 · 헤더/모니터 다크 |
-| `--text-primary` | `#1A1714` | 본문 |
-| `--text-secondary` | `#5C564E` | 보조 텍스트 |
-| `--text-tertiary` | `#948E84` | 라벨, 비활성 |
-| `--surface` / `--surface-2` | `#FFFFFF` / `#FBFAF7` | 카드 표면 · 보조 표면(크림) |
-| `--bg-page` / `--bg-subtle` | `#F4F1EB` / `#F7F5F0` | 페이지 배경(웜 베이지) · 미묘한 영역 |
-| `--border` / `--border-strong` | `#EBE7DF` / `#DAD4C9` | 일반 보더 · 강한 보더 |
-| `--success` / `--warning` / `--danger` / `--info` | `#1E8E3E` / `#E08600` / `#D93B30` / `#1A6BD4` | 시맨틱 4종 (+ 각 `-soft`) |
+| `--kb-yellow` | `#FFBC00` | KB Yellow(Positive) — CTA·강조 |
+| `--kb-gray` / `--kb-gray-dark` | `#60584C` / `#545045` | KB Gray — 본문 보조·로고 텍스트 |
+| `--admin` | `#3D4659` | 관리자용 액션 색(사용자 옐로우와 구분) |
+| `--text-primary/secondary/tertiary` | `#1A1714` / `#60584C` / `#948E84` | 본문 / 보조 / 라벨 |
+| `--surface` / `--bg-page` | `#FFFFFF` / `#F4F1EB` | 카드 표면 / 페이지 배경(웜 베이지) |
+| `--success/warning/danger/info` | `#1E8E3E` / `#E08600` / `#D93B30` / `#1A6BD4` | 시맨틱 4종(+각 `-soft`) |
 
-> 폰트 스택은 `--font-body`(KBFG Text → Apple SD Gothic Neo → Malgun Gothic …), 라운드는 `--r-sm/md/lg/xl`(8/12/16/22px), 그림자는 `--shadow-sm/md/lg/yellow`를 사용합니다.
+> 로고는 `kb-logo.png`(헤더·로그인·산출물 공통). 폰트 `--font-body`(KBFG Text 우선), 라운드 `--r-sm/md/lg/xl`, 그림자 `--shadow-sm/md/lg/yellow`.
 
-### 레이아웃 규칙
+### 레이아웃
 
-- **전역 줌**: `html { zoom: 1.25 }` — 가독성 확보 (로그인 페이지만 `zoom: 0.97` 리셋 — 전체화면 보정)
-- **헤더**: 76px sticky, KB 옐로우 3px 하단 보더. 로고('KB손해보험')·서비스명('업무가상화 사용자 포탈') 모두 포탈 홈(`goHome`)으로 이동
-- **사이드바**: 280px 고정, 카테고리별 섹션(Workspace / 신청·결재 / 지원·서비스), active 아이템 강조 + 하단 Service Desk 카드(1544-8119)
-- **메인**: 패딩 32px 40px 80px (인증 페이지 공통)
-- **로그인**: 헤더/사이드바 없는 독립 레이아웃 — 크림 배경 위 중앙 카드(`.login-shell`)에 좌측 브랜드 패널 + 우측 2단계 인증 폼
+- **전역 줌** `html { zoom: 1.25 }` (로그인만 `0.97`)
+- **헤더** 66px sticky + KB옐로우 3px 보더. 좌측 CI 로고·서비스명(클릭 시 홈), 우측 홈·관리자 모드·세션 타이머·로그아웃
+- **사이드바** 264px 고정 — Workspace / 신청·결재 / 지원·서비스 섹션 + 하단 헬프데스크 카드(1544-8119)
 
 ### 주요 공통 컴포넌트
 
-`common.css`에 정의된 재사용 가능한 컴포넌트들:
-
-- **`.fc` / `.fc-head` / `.fc-body`** — 폼 카드 (제목 그리드 정렬: 160px 1fr)
-- **`.fi` / `.fs` / `.fta`** — 인풋, 셀렉트, 텍스트에리어
-- **`.btn` / `.btn-primary` / `.btn-outline` / `.btn-danger` / `.btn-sm`** — 버튼 패밀리
-- **`.rgrp` / `.rbtn` / `.rdot`** — 라디오 그룹
-- **`.flow-steps` / `.flow-step`** — 가로형 단계 표시
-- **`.prog-steps` / `.prog-circle`** — 진행도 표시 (결재 진행 등)
-- **`.filter-bar` / `.filter-seg` / `.fsb` / `.search-box`** — 목록 상단 필터바
-- **`.data-table`** — 표준 데이터 테이블
-- **`.modal` / `.modal-box`** — 모달 다이얼로그
-- **`.faq-item` / `.faq-q` / `.faq-a`** — FAQ 아코디언
-- **`.warn-box` / `.info-box`** — 알림 박스 (warning / info)
-- **`.toast`** — 토스트 메시지
-- **`.sdot-success` / `.sdot-warning` / ...** — 상태 점 (status dot)
-
-### portal.html 주요 인터랙션 (페이지 고유 스타일)
-
-- **KPI 4종 카드** — 진행 중 결재건 · 최근 공지사항 · 사용자 매뉴얼(자료실) · **사이트링크**(롤오버 드롭다운: KB손해보험 공식 홈페이지 + e-HR·그룹웨어·전자결재·경비처리·사내 인트라넷 등 외부 시스템)
-- **VDI 워크스페이스 카드** — 모니터형 접속 버튼(상태 pill 내장) · 가상PC명 우측 유형 배지(고정가상화/공용형) · 자원/Info 패널 · 탭 전환(`renderVdi`)
-- **세션 타이머 / `showToast()` / 새로고침 스핀** — 다른 화면에서도 재사용
+`.fc`(폼 카드) · `.fi/.fs/.fta`(입력) · `.btn`/`.btn-primary`/`.btn-outline`/`.btn-admin`(버튼) · `.rgrp/.rbtn`(라디오) · `.prog-steps`(진행도) · `.filter-bar`/`.filter-seg`/`.search-box`/`.date-range`(필터) · `.data-table`(테이블) · `.pager`(페이징) · `.modal`(모달) · `.faq-item`(아코디언) · `.warn-box`/`.info-box`(알림) · `.toast`(토스트) · `.sdot-*`(상태 점) · `.demo-toggle`(시연용 토글) · `.admin-only`(관리자 전용 표시)
 
 ---
 
-## 🧱 공통 구조 (DRY)
+## 🔑 동작 패턴 (수행사 참고)
 
-헤더·사이드바·세션타이머·인증·토스트는 **`common.js` 한 곳**에서 관리합니다. 각 페이지는 placeholder 와 스크립트 한 줄만 두고, 본문만 작성합니다.
-
-```html
-<header class="top-header" data-header></header>          <!-- common.js 가 채움 -->
-<aside  class="sidebar"    data-sidebar="notice"></aside> <!-- key 로 active 결정 -->
-...
-<script src="common.js"></script>   <!-- 페이지 스크립트보다 먼저 -->
-```
-
-- 헤더 한 곳을 바꾸면 전 페이지에 반영됩니다 (페이지별 복붙 제거).
-- 사용자·헬프데스크·세션시간·메뉴는 `common.js` 의 `PORTAL_USER` · `SERVICE_DESK` · `SESSION_SECONDS` · `NAV_SECTIONS` 에서 수정합니다.
-- 상세한 작업 표준·새 화면 추가 절차는 [`STYLE_GUIDE.md`](STYLE_GUIDE.md) 참조.
-
-> 페이지는 JS 로 공통 영역을 주입하므로, 정적 파일을 그대로 열어도 `common.js` 가 로드되면 헤더·사이드바가 렌더됩니다.
+- **목록 페이징** — `renderPager()`로 10건 단위. (`approval`·`incident`·`notice`·`faq`·`qna`)
+- **기간 필터** — 목록 검색에 시작~종료일 + 빠른선택(최근 1주일/1개월). 진입 시 기본 1개월. (`approval`·`incident`·`notice`)
+- **관리자 모드** — 헤더 토글(기본 OFF, `sessionStorage['vdi_admin']`로 유지). 켜면 `.admin-only` 요소(공지 등록·자료 등록·FAQ 관리 등)가 노출되고, 장애신고는 전체 사용자 내역까지 열람. 관리자 액션은 `.btn-admin`(슬레이트)으로 사용자 액션(옐로우)과 구분.
+- **시연용 토글** — `.demo-toggle`/`toggleDemo()`로 특정 영역을 숨김/표시(의사결정 데모용, 확정 후 제거 대상).
+- **상태/분류** — 결재 `승인중·완료·반려` 3종 · 구분 `신규·연장·증설` / 장애 긴급도 `긴급·보통` 2종 / 공지 `중요·일반` 2종(상단 고정 1건) / 가상화 종류 `고정가상화·공용가상화` 2종.
 
 ---
 
@@ -138,40 +118,21 @@ python3 -m http.server 8080
 
 ```
 vdiportal/
-├── README.md              ← 본 문서
-├── STYLE_GUIDE.md         ← 코딩 표준 · 구조 가이드 (수행사용)
-├── CLAUDE.md              ← Claude Code 협업용 컨텍스트
-├── common.css             ← 디자인 시스템(:root 토큰) + 공통 컴포넌트
-├── common.js              ← 공통 레이아웃(헤더·사이드바) + 공통 동작(인증·세션·토스트)
-├── login.html             ← 로그인 (독립 레이아웃, 중앙 카드 + 2단계 인증)
-├── portal.html            ← 메인 포탈 (KPI 4종 · VDI 워크스페이스 카드 · 사이트링크)
-├── apply.html             ← VDI 추가신청 (본인/타인 대리, 사용자 검색 팝업)
-├── change.html            ← 사용 연장 · 자원 증설 (대리 신청)
-├── approval.html          ← 결재 현황 (상태: 승인중/적용중/완료/반려 · 구분: 신규/연장/증설)
-├── approval-detail.html   ← 결재 상세 (drill-down)
-├── incident.html          ← 장애신고 내역
-├── incident-new.html      ← 장애신고 등록 (drill-down)
-├── notice.html            ← 공지사항 (중요/일반)
-├── notice-detail.html     ← 공지사항 상세 (drill-down)
-├── faq.html               ← FAQ
-└── qna.html               ← 자료실
+├── README.md / STYLE_GUIDE.md   ← 개요 · 소스 가이드(수행사용)
+├── common.css / common.js       ← 디자인 토큰·공통 컴포넌트 / 공통 레이아웃·동작
+├── kb-logo.png                  ← KB CI 로고(헤더·로그인·산출물 공통)
+├── login.html  portal.html  apply.html  change.html
+├── approval.html  approval-detail.html
+├── incident.html  incident-new.html
+├── notice.html  notice-detail.html  notice-new.html
+├── faq.html  qna.html
+├── robots.txt  .htaccess         ← 전체 비공개(noindex) 설정
+└── deliverables/                 ← 수행사 전달 문서(화면정의서)
 ```
 
 ---
 
-## 🔧 유지 · 확장 가이드
+## 🔒 운영 메모
 
-1. 수정/추가 시 **반드시 `common.css`를 link**하고 공통 컴포넌트를 우선 활용 (색상은 `:root` 토큰만 사용, 하드코딩 금지)
-2. 페이지별 추가 스타일은 `<style>` 블록에 인라인으로 작성 (별도 CSS 파일 분리 안 함)
-3. 모든 화면은 동일한 사이드바 + 헤더 구조 유지 (`portal.html` 기준), drill-down 페이지는 breadcrumb 표시
-4. SVG 아이콘은 인라인으로 직접 작성 (외부 아이콘 라이브러리 사용 금지)
-5. 더미 데이터는 페르소나 일관성 유지 (최정식 책임 / IT기획파트 / 사번 1010579 / ID jschoi0223)
-6. 목록 ↔ 상세 화면은 분류·데이터를 정합 유지 (예: 공지 `중요`/`일반` 2종은 `notice.html`·`notice-detail.html` 동시 반영)
-
-> 상세 코딩 표준·새 화면 추가 절차·"자주 하는 수정" 위치표는 [`STYLE_GUIDE.md`](STYLE_GUIDE.md) 참고.
-
----
-
-## 📞 문의
-
-프로젝트 관련 문의는 KB손해보험 IT기획파트 담당자에게 문의 바랍니다.
+- **전체 비공개** — 모든 HTML `<head>`에 `<meta name="robots" content="noindex, nofollow">`, 루트 `robots.txt`(Disallow: /) 유지.
+- **스토리지** — `sessionStorage`는 인증 플래그 `vdi_auth`, 관리자 모드 `vdi_admin` 두 키만 사용.
