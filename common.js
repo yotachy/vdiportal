@@ -105,7 +105,7 @@ function startSessionTimer(seconds) {
 function renderHeader(el) {
   var u = PORTAL_USER;
   el.innerHTML =
-    '<div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><span class="header-logo-text">KB손해보험</span></div>' +
+    '<div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><img class="header-logo-img" src="kb-logo.png" alt="KB손해보험"></div>' +
     '<div class="header-divider"></div>' +
     '<div class="header-service-name" onclick="goHome()" style="cursor:pointer" title="포탈 홈으로">업무가상화 사용자 포탈</div>' +
     '<div class="header-divider"></div>' +

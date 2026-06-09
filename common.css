@@ -23,12 +23,16 @@
 }
 
 :root{
-  /* Brand */
-  --kb-yellow:#FFBC00;--kb-yellow-dark:#EFA600;--kb-yellow-soft:#FFF6DC;--kb-yellow-line:#FFE49A;
+  /* Brand — KB손해보험 CI 전용색상 (사규 06_ci_color)
+     KB Yellow Positive #FFBC00 (Pantone 130C) · Negative #FFCC00 (1235C)
+     KB Gray #60584C (404C) · KB Dark Gray #545045 (411C) */
+  --kb-yellow:#FFBC00;--kb-yellow-neg:#FFCC00;--kb-yellow-dark:#EFA600;
+  --kb-yellow-soft:#FFF6DC;--kb-yellow-line:#FFE49A;
+  --kb-gray:#60584C;--kb-gray-dark:#545045;
   --kb-dark:#1A1714;--kb-header:#211E19;--ink:#1A1714;
 
-  /* Text */
-  --text-primary:#1A1714;--text-secondary:#5C564E;--text-tertiary:#948E84;
+  /* Text — KB Gray 패밀리 정렬 */
+  --text-primary:#1A1714;--text-secondary:#60584C;--text-tertiary:#948E84;
 
   /* Surfaces & lines (warm neutrals) */
   --surface:#FFFFFF;--surface-2:#FBFAF7;--bg-page:#F4F1EB;--bg-subtle:#F7F5F0;
@@ -85,6 +89,8 @@ a{text-decoration:none;color:inherit}
 .top-header::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;
   background:linear-gradient(90deg,var(--kb-yellow),#FFD24D 60%,var(--kb-yellow))}
 .header-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.header-logo-img{height:25px;width:auto;display:block;transition:opacity .15s}
+.header-logo:hover .header-logo-img{opacity:.72}
 .header-logo-text{color:var(--ink);font-size:19px;font-weight:800;letter-spacing:-0.03em;
   white-space:nowrap;transition:opacity .15s}
 .header-logo-text:hover{opacity:.7}
