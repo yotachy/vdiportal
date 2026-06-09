@@ -243,11 +243,18 @@
         <h1 class="page-title">VDI 추가신청</h1>
         <p class="page-desc">업무용 가상PC를 신규로 신청합니다. 신청 후 결재 승인을 거쳐 가상PC가 생성됩니다.</p>
       </div>
+      <div class="page-header-right">
+        <button type="button" class="demo-toggle" data-hide="신청자 정보 숨기기" data-show="신청자 정보 보이기" onclick="toggleDemo(this,'applicantCard')">
+          <span class="demo-tag">시연용</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="demo-label">신청자 정보 숨기기</span>
+        </button>
+      </div>
     </div>
 
     <!-- ================= STEP 1 : 정보입력 ================= -->
     <section class="step-panel active" data-panel="1">
-      <div class="fc">
+      <div class="fc" id="applicantCard">
         <div class="fc-head">
           <div class="fc-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

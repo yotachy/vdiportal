@@ -84,6 +84,18 @@ function showToast(msg) {
   window.__toastT = setTimeout(function () { t.classList.remove('show'); }, 2800);
 }
 
+/* ---------- 시연용 임시 토글 (영역 표시/숨김 — 의사결정 데모, 확정 후 제거) ----------
+   btn.dataset.hide / dataset.show 로 라벨을 바꾼다. targetId 영역을 보였다/숨겼다 한다. */
+function toggleDemo(btn, targetId) {
+  var el = document.getElementById(targetId);
+  if (!el) return;
+  var willHide = el.style.display !== 'none';
+  el.style.display = willHide ? 'none' : '';   /* '' → 스타일시트 기본값(block/grid 등) 복원 */
+  btn.classList.toggle('off', willHide);
+  var lbl = btn.querySelector('.demo-label');
+  if (lbl) lbl.textContent = willHide ? (btn.dataset.show || '보이기') : (btn.dataset.hide || '숨기기');
+}
+
 /* ---------- 세션 타이머 (헤더 #sessionTimer 카운트다운) ---------- */
 function startSessionTimer(seconds) {
   var remain = seconds;

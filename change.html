@@ -181,10 +181,17 @@
         <h1 class="page-title">사용 연장 · 자원 증설</h1>
         <p class="page-desc">보유한 가상PC의 사용 기간을 연장하거나 CPU·메모리·디스크 자원을 증설합니다.</p>
       </div>
+      <div class="page-header-right">
+        <button type="button" class="demo-toggle" data-hide="신청자 정보 숨기기" data-show="신청자 정보 보이기" onclick="toggleDemo(this,'applicantCard')">
+          <span class="demo-tag">시연용</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="demo-label">신청자 정보 숨기기</span>
+        </button>
+      </div>
     </div>
 
     <!-- 신청자 정보 (본인 / 타인 대리) -->
-    <div class="fc reveal" style="animation-delay:.1s">
+    <div class="fc reveal" id="applicantCard" style="animation-delay:.1s">
       <div class="fc-head">
         <div class="fc-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
