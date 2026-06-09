@@ -204,35 +204,35 @@
         <p class="page-desc">보유한 가상PC의 상태를 확인하고 접속·관리할 수 있습니다.</p>
       </div>
       <div class="page-header-right">
-        <button type="button" class="demo-toggle" data-hide="상단 카드 숨기기" data-show="상단 카드 보이기" onclick="toggleDemo(this,'kpiStrip')">
+        <button type="button" class="demo-toggle off" data-hide="상단 카드 숨기기" data-show="상단 카드 보이기" onclick="toggleDemo(this,'kpiStrip')">
           <span class="demo-tag">시연용</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-          <span class="demo-label">상단 카드 숨기기</span>
+          <span class="demo-label">상단 카드 보이기</span>
         </button>
       </div>
     </div>
 
     <!-- KPI 스트립 -->
-    <div class="kpi-strip reveal" id="kpiStrip" style="animation-delay:.08s">
-      <a class="kpi" href="approval.html">
-        <div class="kpi-ico blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
-        <div>
-          <div class="kpi-num">2 <small>건</small></div>
-          <div class="kpi-label">진행 중 결재건</div>
-        </div>
-      </a>
-      <a class="kpi" href="notice.html">
-        <div class="kpi-ico green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-        <div>
-          <div class="kpi-num">3 <small>건</small></div>
-          <div class="kpi-label">최근 공지사항</div>
-        </div>
-      </a>
+    <div class="kpi-strip" id="kpiStrip" style="animation-delay:.08s;display:none">
       <a class="kpi" href="qna.html">
-        <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+        <div class="kpi-ico blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
         <div>
           <div class="kpi-num text">사용자 매뉴얼</div>
           <div class="kpi-label">VDI 이용 가이드 · PDF</div>
+        </div>
+      </a>
+      <a class="kpi" href="qna.html">
+        <div class="kpi-ico green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+        <div>
+          <div class="kpi-num text">프로그램 설치파일</div>
+          <div class="kpi-label">PC가상화 클라이언트 다운로드</div>
+        </div>
+      </a>
+      <a class="kpi" href="#" onclick="event.preventDefault();showToast('원격지원 안내 — 헬프데스크 1544-8119 (평일 09:00~18:00)')">
+        <div class="kpi-ico amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a9 9 0 0 1 18 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg></div>
+        <div>
+          <div class="kpi-num text">헬프데스크</div>
+          <div class="kpi-label">원격지원 · 1544-8119</div>
         </div>
       </a>
       <div class="kpi sitelink" tabindex="0">

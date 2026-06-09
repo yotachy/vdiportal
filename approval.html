@@ -90,16 +90,16 @@
         <p class="page-desc">제출한 신청의 결재 진행 상태를 확인합니다. 항목을 클릭하면 상세 내역을 볼 수 있습니다.</p>
       </div>
       <div class="page-header-right">
-        <button type="button" class="demo-toggle" data-hide="상태카드 숨기기" data-show="상태카드 보이기" onclick="toggleDemo(this,'statStrip')">
+        <button type="button" class="demo-toggle off" data-hide="상태카드 숨기기" data-show="상태카드 보이기" onclick="toggleDemo(this,'statStrip')">
           <span class="demo-tag">시연용</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-          <span class="demo-label">상태카드 숨기기</span>
+          <span class="demo-label">상태카드 보이기</span>
         </button>
       </div>
     </div>
 
     <!-- 요약 스탯 칩 -->
-    <div class="stat-strip reveal" id="statStrip" style="animation-delay:.1s">
+    <div class="stat-strip" id="statStrip" style="animation-delay:.1s;display:none">
       <div class="stat-chip" data-stat="all">
         <div class="stat-ico all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
         <div><div class="stat-num" id="cAll">0</div><div class="stat-lbl">전체 신청</div></div>
