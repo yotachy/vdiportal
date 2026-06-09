@@ -61,6 +61,11 @@
   .vdi-card-type.shared { background: var(--info-soft); color: var(--info); border-color: #C2DAFB; }
   .vdi-card-spec { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; line-height: 1.5; }
   .vdi-card-status { font-size: 11.5px; color: var(--text-tertiary); margin-top: 4px; display: flex; align-items: center; }
+  /* 신청 불가(공용가상화) — 비활성화 시각 처리 */
+  .vdi-card.disabled { opacity: .55; cursor: not-allowed; background: var(--bg-subtle); }
+  .vdi-card.disabled:hover { border-color: var(--border); }
+  .vdi-card-na { font-size: 11px; font-weight: 800; color: var(--text-tertiary); background: var(--surface);
+    border: 1px solid var(--border-strong); border-radius: 5px; padding: 1px 7px; margin-left: auto; }
 
   /* ===== 폼 행 (apply와 동일 패턴) ===== */
   .frow { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: start; padding: 15px 0; border-bottom: 1px solid var(--border); }
@@ -418,7 +423,7 @@
   // ===== VDI 데이터 (portal.html과 동일하게 2대) =====
   const VDI_LIST = [
     { name: 'jschoi0223-main', type: '고정가상화', typeClass: '', cpu: '4 Core', mem: '16 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '일반 업무용', status: '온라인', start: '2026-03-01', end: '2026-12-31' },
-    { name: 'jschoi0223-common', type: '공용형', typeClass: 'shared', cpu: '2 Core', mem: '4 GB', disk: '80 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '온라인', start: '2025-11-01', end: '2026-09-30' }
+    { name: 'jschoi0223-common', type: '공용가상화', typeClass: 'shared', disabled: true, cpu: '2 Core', mem: '4 GB', disk: '80 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '온라인', start: '2025-11-01', end: '2026-09-30' }
   ];
 
   const CPU_OPTS = ['2 Core', '4 Core', '8 Core'];
@@ -487,18 +492,23 @@
   // ===== 대상 VDI 카드 렌더 =====
   function renderVdiCards() {
     $('vdiSelect').innerHTML = VDI_LIST.map((v, i) => `
-      <div class="vdi-card${i === state.vdi ? ' sel' : ''}" data-vdi="${i}">
+      <div class="vdi-card${i === state.vdi ? ' sel' : ''}${v.disabled ? ' disabled' : ''}" data-vdi="${i}"${v.disabled ? ' title="공용가상화는 연장·증설 신청 대상이 아닙니다"' : ''}>
         <div class="vdi-card-top">
           <span class="vdi-card-radio"></span>
           <span class="vdi-card-name">${v.name}</span>
           <span class="vdi-card-type${v.typeClass === 'shared' ? ' shared' : ''}">${v.type}</span>
+          ${v.disabled ? '<span class="vdi-card-na">신청 불가</span>' : ''}
         </div>
         <div class="vdi-card-spec">CPU ${v.cpu} · ${v.mem} · 디스크 ${v.disk}</div>
-        <div class="vdi-card-status"><span class="sdot ${v.status === '오프라인' ? 'sdot-muted' : 'sdot-success'}"></span>${v.status}</div>
+        <div class="vdi-card-status">${v.disabled
+          ? '공용가상화는 연장·증설 대상이 아닙니다'
+          : `<span class="sdot ${v.status === '오프라인' ? 'sdot-muted' : 'sdot-success'}"></span>${v.status}`}</div>
       </div>`).join('');
     $('vdiSelect').querySelectorAll('.vdi-card').forEach(card => {
       card.addEventListener('click', () => {
-        state.vdi = parseInt(card.dataset.vdi);
+        const i = parseInt(card.dataset.vdi);
+        if (VDI_LIST[i].disabled) { showToast('공용가상화는 연장·증설 신청 대상이 아닙니다.'); return; }
+        state.vdi = i;
         renderVdiCards();
         syncForms();
       });

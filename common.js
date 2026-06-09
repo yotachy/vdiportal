@@ -64,6 +64,7 @@ function goHome() {
 }
 function logout() {
   sessionStorage.removeItem('vdi_auth');
+  sessionStorage.removeItem('vdi_admin');
   location.href = 'login.html';
 }
 
@@ -199,16 +200,32 @@ function renderSidebar(el, active) {
    페이지별 추가 처리는 window.onAdminModeChange(on) 훅으로 연결. */
 function toggleAdminMode(btn) {
   var on = document.body.classList.toggle('admin-mode');
+  try { if (on) sessionStorage.setItem('vdi_admin', '1'); else sessionStorage.removeItem('vdi_admin'); } catch (e) {}
   btn.classList.toggle('on', on);
   var lbl = btn.querySelector('.ham-label');
   if (lbl) lbl.textContent = on ? '관리자 모드 ON' : '관리자 모드';
   if (typeof window.onAdminModeChange === 'function') window.onAdminModeChange(on);
 }
 
+/* 저장된 관리자 모드 복원 (페이지 이동에도 유지) — 헤더 렌더 직후 호출 */
+function restoreAdminMode() {
+  var on = false;
+  try { on = sessionStorage.getItem('vdi_admin') === '1'; } catch (e) {}
+  if (!on) return;
+  document.body.classList.add('admin-mode');
+  var ab = document.getElementById('headerAdminBtn');
+  if (ab) {
+    ab.classList.add('on');
+    var lbl = ab.querySelector('.ham-label');
+    if (lbl) lbl.textContent = '관리자 모드 ON';
+  }
+}
+
 /* ---------- 초기화 (스크립트는 body 끝에서 로드 → DOM 준비됨) ---------- */
 (function init() {
   var header = document.querySelector('[data-header]');
   if (header) renderHeader(header);
+  restoreAdminMode();   // 저장된 관리자 모드 복원 (페이지 이동에도 유지)
 
   var sidebar = document.querySelector('[data-sidebar]');
   if (sidebar) {

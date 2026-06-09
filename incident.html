@@ -179,13 +179,13 @@
 <script>
   // ===== 데이터 (incident-new.html 접수번호와 정합) =====
   // status: received(접수) · progress(처리 중) · done(처리 완료)
-  // urg: high(긴급) · mid(높음) · low(보통)
+  // urg: high(긴급) · low(보통)  — 긴급도 2단계
   const ROWS = [
     { no: 'INC-2026-0530-024', date: '2026.05.30 09:32', type: '접속 불가', vdi: 'jschoi0223-main', urg: 'high', status: 'received',
       title: '오전부터 가상PC 접속이 되지 않습니다',
       detail: '오전 9시경부터 jschoi0223-main 가상PC에 접속하면 "연결 시간 초과" 메시지가 뜨며 로그인 화면 이후로 진행되지 않습니다. 재부팅해도 동일합니다.',
       proc: [ { s: 'active', label: '접수 완료', time: '2026.05.30 09:32', comment: '신고가 접수되었습니다. 담당자 배정 대기 중입니다.' } ] },
-    { no: 'INC-2026-0524-019', date: '2026.05.24 14:10', type: '속도 저하 · 지연', vdi: 'jschoi0223-main', urg: 'mid', status: 'progress',
+    { no: 'INC-2026-0524-019', date: '2026.05.24 14:10', type: '속도 저하 · 지연', vdi: 'jschoi0223-main', urg: 'low', status: 'progress',
       title: '오후 시간대 화면 전환이 매우 느립니다',
       detail: '오후 2시 이후로 창 전환·스크롤이 끊기고 입력 반응이 1~2초씩 지연됩니다. 네트워크 사용률은 정상으로 보입니다.',
       proc: [
@@ -198,7 +198,7 @@
         { s: 'done', label: '접수 완료', time: '2026.05.18 10:25', comment: '신고 접수.' },
         { s: 'done', label: '처리 중', time: '2026.05.18 13:00', comment: '프린터 드라이버 매핑 확인 중.' },
         { s: 'done', label: '처리 완료', time: '2026.05.18 15:30', comment: '프린터 드라이버 재배포 후 정상 인식 확인. 종료합니다.' } ] },
-    { no: 'INC-2026-0510-011', date: '2026.05.10 11:05', type: '프로그램 · 애플리케이션 오류', vdi: 'jschoi0223-main', urg: 'mid', status: 'done',
+    { no: 'INC-2026-0510-011', date: '2026.05.10 11:05', type: '프로그램 · 애플리케이션 오류', vdi: 'jschoi0223-main', urg: 'low', status: 'done',
       title: '엑셀 실행 시 오류 메시지가 표시됩니다',
       detail: '엑셀 실행 시 "구성 파일을 찾을 수 없습니다" 오류가 뜨고 일부 추가 기능이 동작하지 않습니다.',
       proc: [
@@ -226,7 +226,7 @@
         { s: 'done', label: '접수 완료', time: '2026.04.08 11:05', comment: '신고 접수.' },
         { s: 'done', label: '처리 중', time: '2026.04.08 11:40', comment: '계정 인증 상태 점검.' },
         { s: 'done', label: '처리 완료', time: '2026.04.08 13:15', comment: '계정 잠금 해제 후 정상 로그인 확인.' } ] },
-    { no: 'INC-2026-0402-011', date: '2026.04.02 15:22', type: '프로그램 오류', vdi: 'jschoi0223-common', urg: 'mid', status: 'done',
+    { no: 'INC-2026-0402-011', date: '2026.04.02 15:22', type: '프로그램 오류', vdi: 'jschoi0223-common', urg: 'low', status: 'done',
       title: '특정 업무 프로그램이 실행 중 종료됩니다',
       detail: '가상PC에서 사내 업무 프로그램 실행 시 수 분 후 응답 없음 상태가 되며 강제 종료됩니다.',
       proc: [
@@ -240,7 +240,7 @@
         { s: 'done', label: '접수 완료', time: '2026.03.25 10:48', comment: '신고 접수.' },
         { s: 'done', label: '처리 중', time: '2026.03.25 14:00', comment: '프린터 드라이버 매핑 점검.' },
         { s: 'done', label: '처리 완료', time: '2026.03.26 09:20', comment: '드라이버 재매핑 후 출력 정상 확인.' } ] },
-    { no: 'INC-2026-0312-006', date: '2026.03.12 13:30', type: '속도 저하 · 지연', vdi: 'jschoi0223-common', urg: 'mid', status: 'done',
+    { no: 'INC-2026-0312-006', date: '2026.03.12 13:30', type: '속도 저하 · 지연', vdi: 'jschoi0223-common', urg: 'low', status: 'done',
       title: '오후 시간대 화면 반응이 느립니다',
       detail: '오후 업무 집중 시간대에 마우스·키보드 입력 반영이 지연되고 화면 전환이 느립니다.',
       proc: [
@@ -263,7 +263,7 @@
         { s: 'done', label: '처리 완료', time: '2026.02.11 10:05', comment: 'NTP 재동기화 후 시간 정상화 확인.' } ] }
   ];
 
-  const URG = { high: { cls: 'urg-high', txt: '긴급' }, mid: { cls: 'urg-mid', txt: '높음' }, low: { cls: 'urg-low', txt: '보통' } };
+  const URG = { high: { cls: 'urg-high', txt: '긴급' }, low: { cls: 'urg-low', txt: '보통' } };
   const PILL = {
     active: { cls: 'spill-active', dot: 'sdot-warning', txt: '접수/처리 중' },
     done:   { cls: 'spill-done',   dot: 'sdot-success', txt: '처리 완료' }
