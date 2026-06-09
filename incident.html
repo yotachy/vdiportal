@@ -405,9 +405,9 @@
   // 관리자 모드 전환 시 열람 범위(본인/전체) 갱신
   window.onAdminModeChange = function () { curPage = 1; updateStats(); render(); };
 
-  // 초기
+  // 초기 — 기본 기간: 최근 1개월
   updateStats();
-  render();
+  setQuickRange('month');
 </script>
 </body>
 </html>
