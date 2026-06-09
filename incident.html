@@ -138,6 +138,12 @@
         <button class="fsb" data-filter="active">접수 · 처리중</button>
         <button class="fsb" data-filter="done">처리완료</button>
       </div>
+      <div class="date-range">
+        <span class="date-label">기간</span>
+        <input type="date" id="dateFrom" class="date-input" aria-label="시작일">
+        <span class="date-sep">~</span>
+        <input type="date" id="dateTo" class="date-input" aria-label="종료일">
+      </div>
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="searchInput" placeholder="접수번호 · 유형 · 제목 검색">
@@ -302,7 +308,8 @@
     const list = roleRows().filter(r => {
       const okFilter = curFilter === 'all' || grp(r.status) === curFilter;
       const okSearch = !q || (r.no + ' ' + r.type + ' ' + r.title + ' ' + repOf(r.no)).toLowerCase().includes(q);
-      return okFilter && okSearch;
+      const okDate = dateInRange(r.date, $('dateFrom').value, $('dateTo').value);
+      return okFilter && okSearch && okDate;
     });
 
     $('scopeNote').textContent = isAdmin() ? '관리자 모드 · 전체 사용자 신고 내역' : '본인이 등록한 신고만 표시됩니다.';
@@ -381,6 +388,7 @@
     render();
   }
   $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
+  ['dateFrom', 'dateTo'].forEach(id => $(id).addEventListener('change', () => { curPage = 1; render(); }));
 
   // 관리자 모드 전환 시 열람 범위(본인/전체) 갱신
   window.onAdminModeChange = function () { curPage = 1; updateStats(); render(); };

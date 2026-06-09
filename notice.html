@@ -79,6 +79,12 @@
 
     <!-- 필터바 -->
     <div class="filter-bar reveal" style="animation-delay:.1s">
+      <div class="date-range">
+        <span class="date-label">기간</span>
+        <input type="date" id="dateFrom" class="date-input" aria-label="시작일">
+        <span class="date-sep">~</span>
+        <input type="date" id="dateTo" class="date-input" aria-label="종료일">
+      </div>
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="searchInput" placeholder="제목 · 내용 검색">
@@ -125,7 +131,11 @@
 
   function render() {
     const q = curSearch.trim().toLowerCase();
-    let list = NOTICES.filter(n => !q || (n.title + ' ' + (n.summary || '')).toLowerCase().includes(q));
+    let list = NOTICES.filter(n => {
+      const okSearch = !q || (n.title + ' ' + (n.summary || '')).toLowerCase().includes(q);
+      const okDate = dateInRange(n.date, $('dateFrom').value, $('dateTo').value);
+      return okSearch && okDate;
+    });
     // 고정 우선, 그 외 최신순(데이터가 이미 최신순)
     list = [...list].sort((a, b) => (b.pinned - a.pinned));
 
@@ -157,6 +167,7 @@
 
   // 검색
   $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
+  ['dateFrom', 'dateTo'].forEach(id => $(id).addEventListener('change', () => { curPage = 1; render(); }));
 
   render();
 </script>

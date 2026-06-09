@@ -295,6 +295,16 @@ body.admin-mode .admin-only{display:inline-flex!important}
   transition:all .15s;background:var(--surface)}
 .search-box input:focus{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
 
+/* 기간(날짜 범위) 필터 — 검색 시 등록일 범위 한정 */
+.date-range{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.date-label{font-size:12.5px;font-weight:700;color:var(--text-tertiary);white-space:nowrap}
+.date-input{height:40px;padding:0 10px;border:1.5px solid var(--border-strong);border-radius:8px;
+  font-family:inherit;font-size:12.5px;color:var(--text-primary);background:var(--surface);
+  font-variant-numeric:tabular-nums;letter-spacing:-0.01em;cursor:pointer}
+.date-input:focus{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18);outline:none}
+.date-sep{color:var(--text-tertiary);font-weight:700}
+@media (max-width:980px){.date-range{flex-wrap:wrap}.date-input{flex:1;min-width:130px}}
+
 /* ════════ DATA TABLE ════════ */
 .data-table{width:100%;border-collapse:collapse;font-size:14px}
 .data-table th{background:var(--surface-2);padding:9.5px 16px;text-align:left;

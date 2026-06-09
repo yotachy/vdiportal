@@ -97,6 +97,15 @@ function toggleDemo(btn, targetId) {
   if (lbl) lbl.textContent = willHide ? (btn.dataset.show || '보이기') : (btn.dataset.hide || '숨기기');
 }
 
+/* ---------- 기간(날짜 범위) 필터 ----------
+   dateStr: 'YYYY.MM.DD' 또는 'YYYY.MM.DD HH:MM' / from·to: 'YYYY-MM-DD'(없으면 빈값) */
+function dateInRange(dateStr, from, to) {
+  var d = String(dateStr).slice(0, 10).replace(/\./g, '-');
+  if (from && d < from) return false;
+  if (to && d > to) return false;
+  return true;
+}
+
 /* ---------- 페이지네이션 (10건 단위) ----------
    el      : 컨테이너 요소 또는 id
    total   : 전체 항목 수
