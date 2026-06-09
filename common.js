@@ -20,7 +20,7 @@ var PORTAL_USER = { name: '최정식 책임', dept: 'IT기획파트', empNo: '10
 var SERVICE_DESK = { tel: '1544-8119', hours: '평일 09:00~18:00' };
 
 /* ---------- 세션 (만료까지 남은 시간, 초) ---------- */
-var SESSION_SECONDS = 30 * 60 - 3;
+var SESSION_SECONDS = 20 * 60 - 3;
 
 /* ---------- 사이드바 메뉴 정의 (순서 = 표시 순서) ----------
    key   : data-sidebar 와 매칭되는 식별자
@@ -163,8 +163,7 @@ function renderHeader(el) {
         svgIcon('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>') + '홈</a>' +
       '<button class="header-admin-btn" id="headerAdminBtn" onclick="toggleAdminMode(this)" title="관리자 모드 전환 (관리자 전용 버튼 표시)">' +
         svgIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>') + '<span class="ham-label">관리자 모드</span></button>' +
-      '<div class="header-session"><span>세션 만료</span><span class="header-session-value" id="sessionTimer">29:57</span></div>' +
-      '<button class="header-btn" title="알림">' + svgIcon('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>') + '<span class="header-badge">3</span></button>' +
+      '<div class="header-session"><span>세션 만료</span><span class="header-session-value" id="sessionTimer">19:57</span></div>' +
       '<button class="header-btn" title="로그아웃" onclick="logout()">' + svgIcon('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>') + '</button>' +
     '</div>';
 }
