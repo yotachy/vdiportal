@@ -81,7 +81,7 @@
     <div class="filter-bar reveal" style="animation-delay:.1s">
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="searchInput" placeholder="제목 검색">
+        <input type="text" id="searchInput" placeholder="제목 · 내용 검색">
       </div>
     </div>
 
@@ -102,15 +102,15 @@
 <script>
   // ===== 데이터 (최신순) =====
   const NOTICES = [
-    { id: 1, cat: 'important', pinned: true,  isNew: true,  title: '[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내', author: 'VDI 운영팀', date: '2026.05.29', views: 1284 },
-    { id: 2, cat: 'important', pinned: true,  isNew: true,  title: '[보안] 랜섬웨어 주의보 — 출처 불명 메일 첨부파일 실행 금지', author: '정보보안부', date: '2026.05.28', views: 2317 },
-    { id: 3, cat: 'normal',    pinned: false, isNew: true,  title: 'Citrix Workspace v23.11 배포 안내 (자동 업데이트)', author: 'VDI 운영팀', date: '2026.05.26', views: 903 },
-    { id: 4, cat: 'normal',    pinned: false, isNew: false, title: 'VDI 사용자 매뉴얼 v2.0 배포 안내', author: 'IT기획파트', date: '2026.05.20', views: 1042 },
-    { id: 5, cat: 'normal',    pinned: false, isNew: false, title: '가상PC Windows 5월 정기 보안 패치 적용 안내', author: 'VDI 운영팀', date: '2026.05.14', views: 658 },
-    { id: 6, cat: 'important', pinned: false, isNew: false, title: '05.11(일) 네트워크 장비 교체 작업 안내 (접속 일시 중단)', author: '인프라팀', date: '2026.05.08', views: 591 },
-    { id: 7, cat: 'normal',    pinned: false, isNew: false, title: 'PC가상화 프로그램 설치 파일 안내', author: 'VDI 운영팀', date: '2026.04.22', views: 712 },
-    { id: 8, cat: 'normal',    pinned: false, isNew: false, title: '신규 공용 VDI(부서 공용형) 도입 안내', author: 'IT기획파트', date: '2026.04.15', views: 834 },
-    { id: 9, cat: 'important', pinned: false, isNew: false, title: '[복구완료] 일부 사용자 접속 지연 현상 정상화 안내', author: 'VDI 운영팀', date: '2026.04.10', views: 1576 }
+    { id: 1, cat: 'important', pinned: true,  isNew: true,  title: '[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내', author: 'VDI 운영팀', date: '2026.05.29', views: 1284, summary: '안정적인 VDI 서비스 제공을 위해 정기 점검을 시행합니다. 점검 시간 동안 가상PC 접속이 일시 중단됩니다.' },
+    { id: 2, cat: 'important', pinned: true,  isNew: true,  title: '[보안] 랜섬웨어 주의보 — 출처 불명 메일 첨부파일 실행 금지', author: '정보보안부', date: '2026.05.28', views: 2317, summary: '업무 메일을 사칭한 랜섬웨어 유포 시도가 다수 탐지되었습니다. 출처 불명 첨부파일은 실행하지 마세요.' },
+    { id: 3, cat: 'normal',    pinned: false, isNew: true,  title: 'Citrix Workspace v23.11 배포 안내 (자동 업데이트)', author: 'VDI 운영팀', date: '2026.05.26', views: 903, summary: '가상PC 접속 클라이언트 Citrix Workspace가 v23.11로 업데이트됩니다. 다음 접속 시 자동 적용됩니다.' },
+    { id: 4, cat: 'normal',    pinned: false, isNew: false, title: 'VDI 사용자 매뉴얼 v2.0 배포 안내', author: 'IT기획파트', date: '2026.05.20', views: 1042, summary: 'VDI 사용자 매뉴얼 v2.0을 배포합니다. 접속 방법, 신청 절차, 자주 묻는 질문이 보강되었습니다.' },
+    { id: 5, cat: 'normal',    pinned: false, isNew: false, title: '가상PC Windows 5월 정기 보안 패치 적용 안내', author: 'VDI 운영팀', date: '2026.05.14', views: 658, summary: '5월 Microsoft 정기 보안 패치가 전체 가상PC에 야간 시간대 순차 자동 적용됩니다.' },
+    { id: 6, cat: 'important', pinned: false, isNew: false, title: '05.11(일) 네트워크 장비 교체 작업 안내 (접속 일시 중단)', author: '인프라팀', date: '2026.05.08', views: 591, summary: '데이터센터 네트워크 장비 교체 작업으로 해당 시간 동안 가상PC 접속이 일시 중단됩니다.' },
+    { id: 7, cat: 'normal',    pinned: false, isNew: false, title: 'PC가상화 프로그램 설치 파일 안내', author: 'VDI 운영팀', date: '2026.04.22', views: 712, summary: '신규 및 재설치 사용자를 위한 PC가상화(Citrix Workspace) 설치 파일을 안내합니다.' },
+    { id: 8, cat: 'normal',    pinned: false, isNew: false, title: '신규 공용 VDI(부서 공용형) 도입 안내', author: 'IT기획파트', date: '2026.04.15', views: 834, summary: '부서 단위로 공동 사용하는 공용형 가상PC가 신규 도입되었습니다. 단기·공용 업무에 활용할 수 있습니다.' },
+    { id: 9, cat: 'important', pinned: false, isNew: false, title: '[복구완료] 일부 사용자 접속 지연 현상 정상화 안내', author: 'VDI 운영팀', date: '2026.04.10', views: 1576, summary: '04.10 오전 발생한 일부 사용자 가상PC 접속 지연 현상이 정상 복구되었습니다.' }
   ];
 
   const $ = id => document.getElementById(id);
@@ -121,7 +121,7 @@
 
   function render() {
     const q = curSearch.trim().toLowerCase();
-    let list = NOTICES.filter(n => !q || n.title.toLowerCase().includes(q));
+    let list = NOTICES.filter(n => !q || (n.title + ' ' + (n.summary || '')).toLowerCase().includes(q));
     // 고정 우선, 그 외 최신순(데이터가 이미 최신순)
     list = [...list].sort((a, b) => (b.pinned - a.pinned));
 
