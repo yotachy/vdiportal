@@ -160,6 +160,7 @@
         <tbody id="tbody"></tbody>
       </table>
     </div>
+    <div class="pager" id="incPager"></div>
 
   </main>
 </div>
@@ -230,7 +231,7 @@
 
   const $ = id => document.getElementById(id);
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  let curFilter = 'all', curSearch = '';
+  let curFilter = 'all', curSearch = '', curPage = 1;
 
   function updateStats() {
     $('cAll').textContent = ROWS.length;
@@ -248,10 +249,15 @@
 
     if (!list.length) {
       $('tbody').innerHTML = `<tr class="empty-row"><td colspan="6">조건에 맞는 신고 내역이 없습니다.</td></tr>`;
+      renderPager('incPager', 0, 1, () => {});
       return;
     }
 
-    $('tbody').innerHTML = list.map(r => {
+    const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    if (curPage > pages) curPage = pages;
+    const pageItems = list.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
+
+    $('tbody').innerHTML = pageItems.map(r => {
       const u = URG[r.urg], p = PILL[grp(r.status)];
       return `
         <tr onclick="openModal('${r.no}')">
@@ -263,6 +269,10 @@
           <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></td>
         </tr>`;
     }).join('');
+
+    renderPager('incPager', list.length, curPage, p => {
+      curPage = p; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }
 
   // ===== 모달 =====
@@ -303,11 +313,12 @@
   document.querySelectorAll('.stat-chip').forEach(chip => chip.addEventListener('click', () => setFilter(chip.dataset.stat)));
   function setFilter(f) {
     curFilter = f;
+    curPage = 1;
     document.querySelectorAll('#filterSeg .fsb').forEach(b => b.classList.toggle('on', b.dataset.filter === f));
     document.querySelectorAll('.stat-chip').forEach(c => c.classList.toggle('on', c.dataset.stat === f));
     render();
   }
-  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; render(); });
+  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
 
   // 초기
   updateStats();

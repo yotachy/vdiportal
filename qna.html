@@ -115,6 +115,7 @@
         </div>
         <div id="fileList"></div>
       </div>
+      <div class="pager" id="filesPager"></div>
     </div>
 
   </main>
@@ -159,7 +160,7 @@
   const $ = id => document.getElementById(id);
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const labelOf = k => FOLDERS.find(f => f.key === k).label;
-  let curFolder = 'all', curSearch = '';
+  let curFolder = 'all', curSearch = '', curPage = 1;
 
   const FOLDER_SVG = '<svg class="folder-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
   const DL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
@@ -187,10 +188,15 @@
 
     if (!list.length) {
       $('fileList').innerHTML = `<div class="files-empty">조건에 맞는 자료가 없습니다.</div>`;
+      renderPager('filesPager', 0, 1, () => {});
       return;
     }
 
-    $('fileList').innerHTML = list.map(f => {
+    const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    if (curPage > pages) curPage = pages;
+    const pageItems = list.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
+
+    $('fileList').innerHTML = pageItems.map(f => {
       const t = TYPE[f.type];
       return `
         <div class="file-row">
@@ -204,15 +210,24 @@
           <div class="file-dl" onclick="showToast('파일을 다운로드합니다: ${esc(f.name)}')" title="다운로드">${DL_SVG}</div>
         </div>`;
     }).join('');
+
+    renderPager('filesPager', list.length, curPage, p => {
+      curPage = p; renderFiles(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }
 
   function selectFolder(key) {
     curFolder = key;
+    curPage = 1;
     renderFolders();
     renderFiles();
   }
 
-  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; renderFiles(); });
+  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; renderFiles(); });
+
+  // 딥링크: portal 카드 등에서 ?cat=manual / install 로 진입 시 해당 폴더 자동 선택
+  const initCat = new URLSearchParams(location.search).get('cat');
+  if (initCat && FOLDERS.some(f => f.key === initCat)) curFolder = initCat;
 
   renderFolders();
   renderFiles();

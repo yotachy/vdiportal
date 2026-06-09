@@ -96,6 +96,33 @@ function toggleDemo(btn, targetId) {
   if (lbl) lbl.textContent = willHide ? (btn.dataset.show || '보이기') : (btn.dataset.hide || '숨기기');
 }
 
+/* ---------- 페이지네이션 (10건 단위) ----------
+   el      : 컨테이너 요소 또는 id
+   total   : 전체 항목 수
+   page    : 현재 페이지(1-base)
+   onGo(p) : 페이지 이동 콜백 */
+var PAGE_SIZE = 10;
+function renderPager(el, total, page, onGo) {
+  if (typeof el === 'string') el = document.getElementById(el);
+  if (!el) return;
+  var pages = Math.ceil(total / PAGE_SIZE);
+  el.innerHTML = '';
+  if (pages <= 1) return;                       // 1페이지 이하면 페이저 숨김
+  var PREV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>';
+  var NEXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+  function mk(label, target, on, disabled) {
+    var b = document.createElement('button');
+    b.className = 'pager-btn' + (on ? ' on' : '');
+    b.innerHTML = label;
+    if (disabled) b.disabled = true;
+    else b.addEventListener('click', function () { onGo(target); });
+    return b;
+  }
+  el.appendChild(mk(PREV, page - 1, false, page <= 1));
+  for (var i = 1; i <= pages; i++) el.appendChild(mk(String(i), i, i === page, false));
+  el.appendChild(mk(NEXT, page + 1, false, page >= pages));
+}
+
 /* ---------- 세션 타이머 (헤더 #sessionTimer 카운트다운) ---------- */
 function startSessionTimer(seconds) {
   var remain = seconds;
@@ -155,7 +182,7 @@ function renderSidebar(el, active) {
       '<div class="support-card">' +
         '<div class="support-title">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' +
-          'Service Desk' +
+          '헬프데스크' +
         '</div>' +
         '<div class="support-desc">VDI 관련 문의 · ' + SERVICE_DESK.hours + '</div>' +
         '<div class="support-tel">' + SERVICE_DESK.tel + '</div>' +

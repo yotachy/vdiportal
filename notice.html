@@ -94,6 +94,7 @@
       </div>
       <div id="noticeList"></div>
     </div>
+    <div class="pager" id="noticePager"></div>
 
   </main>
 </div>
@@ -103,7 +104,7 @@
   // ===== 데이터 (최신순) =====
   const NOTICES = [
     { id: 1, cat: 'important', pinned: true,  isNew: true,  title: '[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내', author: 'VDI 운영팀', date: '2026.05.29', views: 1284, summary: '안정적인 VDI 서비스 제공을 위해 정기 점검을 시행합니다. 점검 시간 동안 가상PC 접속이 일시 중단됩니다.' },
-    { id: 2, cat: 'important', pinned: true,  isNew: true,  title: '[보안] 랜섬웨어 주의보 — 출처 불명 메일 첨부파일 실행 금지', author: '정보보안부', date: '2026.05.28', views: 2317, summary: '업무 메일을 사칭한 랜섬웨어 유포 시도가 다수 탐지되었습니다. 출처 불명 첨부파일은 실행하지 마세요.' },
+    { id: 2, cat: 'important', pinned: false, isNew: true,  title: '[보안] 랜섬웨어 주의보 — 출처 불명 메일 첨부파일 실행 금지', author: '정보보안부', date: '2026.05.28', views: 2317, summary: '업무 메일을 사칭한 랜섬웨어 유포 시도가 다수 탐지되었습니다. 출처 불명 첨부파일은 실행하지 마세요.' },
     { id: 3, cat: 'normal',    pinned: false, isNew: true,  title: 'Citrix Workspace v23.11 배포 안내 (자동 업데이트)', author: 'VDI 운영팀', date: '2026.05.26', views: 903, summary: '가상PC 접속 클라이언트 Citrix Workspace가 v23.11로 업데이트됩니다. 다음 접속 시 자동 적용됩니다.' },
     { id: 4, cat: 'normal',    pinned: false, isNew: false, title: 'VDI 사용자 매뉴얼 v2.0 배포 안내', author: 'IT기획파트', date: '2026.05.20', views: 1042, summary: 'VDI 사용자 매뉴얼 v2.0을 배포합니다. 접속 방법, 신청 절차, 자주 묻는 질문이 보강되었습니다.' },
     { id: 5, cat: 'normal',    pinned: false, isNew: false, title: '가상PC Windows 5월 정기 보안 패치 적용 안내', author: 'VDI 운영팀', date: '2026.05.14', views: 658, summary: '5월 Microsoft 정기 보안 패치가 전체 가상PC에 야간 시간대 순차 자동 적용됩니다.' },
@@ -115,7 +116,7 @@
 
   const $ = id => document.getElementById(id);
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  let curSearch = '';
+  let curSearch = '', curPage = 1;
 
   const PIN_SVG = '<svg class="notice-pin" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16 3l5 5-3 1-3 3-1 5-2-2-3 3-1-1 3-3-2-2 5-1 3-3 1-3z"/></svg>';
 
@@ -127,10 +128,15 @@
 
     if (!list.length) {
       $('noticeList').innerHTML = `<div class="empty-state">조건에 맞는 공지사항이 없습니다.</div>`;
+      renderPager('noticePager', 0, 1, () => {});
       return;
     }
 
-    $('noticeList').innerHTML = list.map(n => `
+    const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    if (curPage > pages) curPage = pages;
+    const pageItems = list.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
+
+    $('noticeList').innerHTML = pageItems.map(n => `
         <div class="notice-item${n.pinned ? ' pinned' : ''}" onclick="location.href='notice-detail.html?id=${n.id}'">
           <div class="notice-title">
             ${n.pinned ? PIN_SVG : ''}
@@ -140,10 +146,14 @@
           <div class="nm-cell c-author">${esc(n.author)}</div>
           <div class="nm-cell c-date">${n.date}</div>
         </div>`).join('');
+
+    renderPager('noticePager', list.length, curPage, p => {
+      curPage = p; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }
 
   // 검색
-  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; render(); });
+  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
 
   render();
 </script>
