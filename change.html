@@ -214,7 +214,7 @@
 
       <div class="info-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        사용 연장은 별도 신청한 고정가상화에 한해 가능합니다. 기본 지급(재직 임직원 자동 지급) 가상PC는 재직 중 자동 유지되어 연장 대상이 아닙니다. 연장은 결재 승인 후 적용됩니다.
+        사용 연장은 별도 신청한 고정가상화에 한해 가능합니다. 기본 지급(재직 임직원 자동 지급) 가상PC는 본사 근무 재직자 자동유지로 연장 대상이 아닙니다. 연장은 결재 승인 후 적용됩니다.
       </div>
     </section>
 
@@ -242,7 +242,7 @@
 
       <div class="warn-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        고사양(8 Core / 32 GB 이상)으로 증설 시 IT운영부 검토가 추가되어 승인까지 영업일 기준 2~3일이 소요될 수 있습니다.
+        최대 사양(8 Core / 16 GB)으로 증설 시 IT운영부 검토가 추가되어 승인까지 영업일 기준 2~3일이 소요될 수 있습니다.
       </div>
     </section>
 
@@ -266,13 +266,13 @@
   // ===== VDI 데이터 (portal.html과 동일하게 2대) =====
   // base:true = 기본 지급(재직 임직원 자동 지급) → 연장 대상 아님 / false = 별도 신청 → 연장 가능
   const VDI_LIST = [
-    { name: 'jschoi0223-main', type: '고정가상화', base: true, typeClass: '', cpu: '4 Core', mem: '16 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '일반 업무용', status: '온라인', start: '2026-03-01', end: '2026-12-31' },
-    { name: 'jschoi0223-common', type: '고정가상화', base: false, typeClass: '', cpu: '2 Core', mem: '4 GB', disk: '80 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '온라인', start: '2025-11-01', end: '2026-09-30' }
+    { name: 'jschoi0223-main', type: '고정가상화', base: true, typeClass: '', cpu: '6 Core', mem: '8 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '일반 업무용', status: '온라인', start: '2026-03-01', end: '2026-12-31' },
+    { name: 'jschoi0223-common', type: '고정가상화', base: false, typeClass: '', cpu: '8 Core', mem: '16 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '온라인', start: '2025-11-01', end: '2026-09-30' }
   ];
 
-  const CPU_OPTS = ['2 Core', '4 Core', '8 Core'];
-  const MEM_OPTS = ['8 GB', '16 GB', '32 GB'];
-  const DISK_OPTS = ['80 GB', '150 GB', '300 GB'];
+  const CPU_OPTS = ['6 Core', '8 Core'];
+  const MEM_OPTS = ['8 GB', '16 GB'];
+  const DISK_OPTS = ['150 GB', '200 GB'];
 
   const state = { tab: 'extend', vdi: 0, e_cpu: '', e_mem: '', e_disk: '' };
   const $ = id => document.getElementById(id);
@@ -288,7 +288,7 @@
     $('vdiSelect').innerHTML = VDI_LIST.map((v, i) => {
       const locked = state.tab === 'extend' && v.base;   // 기본 지급은 연장 대상 아님
       const spec = locked
-        ? '재직 중 자동 유지 · 연장 신청 불필요'
+        ? '본사 근무 재직자 자동유지 · 연장 신청 불필요'
         : `CPU ${v.cpu} · ${v.mem} · 디스크 ${v.disk}`;
       return `
       <div class="vdi-opt${i === state.vdi ? ' sel' : ''}${locked ? ' locked' : ''}" data-vdi="${i}">
