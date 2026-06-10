@@ -55,14 +55,7 @@
     .vdi-opt-spec { margin-left: 32px; }
   }
 
-  /* ===== 폼 행 (apply와 동일 패턴) ===== */
-  .frow { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: start; padding: 15px 0; border-bottom: 1px solid var(--border); }
-  .frow:first-child { padding-top: 4px; }
-  .frow:last-child { padding-bottom: 4px; border-bottom: none; }
-  .frow-label { font-size: 14px; font-weight: 600; color: var(--text-secondary); padding-top: 9px; display: flex; align-items: center; gap: 5px; }
-  .frow-field { min-width: 0; }
-  .frow-help { font-size: 12.5px; color: var(--text-tertiary); margin-top: 7px; line-height: 1.5; }
-  .fi.full, .fs.full, .fta.full { width: 100%; }
+  /* 폼 행(.frow)·인라인입력·기간 PILL(.qp)은 common.css 공통 */
 
   /* ===== 증설 선택 (바깥 박스 제거, 콤보박스만) ===== */
   .sc-table { display: flex; flex-direction: column; }
@@ -80,18 +73,10 @@
   .sc-arrow svg { width: 16px; height: 16px; }
   .sc-up { font-size: 12px; font-weight: 800; color: var(--success); background: var(--success-soft); padding: 2px 8px; border-radius: 5px; }
 
-  /* ===== 사용 연장 (apply와 동일 패턴) ===== */
+  /* 사용 연장 — 현재 사용기간 표기 */
   .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0 6px 14px; }
-  .field-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .period-pills { display: flex; gap: 6px; }
-  .qp { padding: 8px 14px; border: 1.5px solid var(--border-strong); border-radius: 100px; background: var(--surface);
-    font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text-secondary); cursor: pointer; transition: all 0.14s; }
-  .qp:hover { border-color: var(--kb-yellow-dark); color: var(--ink); }
-  .qp.sel { background: var(--kb-yellow); border-color: var(--kb-yellow-dark); color: var(--ink); }
 
   @media (max-width: 880px) {
-    .frow { grid-template-columns: 1fr; gap: 8px; }
-    .frow-label { padding-top: 0; }
     .sc-row { grid-template-columns: 1fr; gap: 8px; }
   }
 </style>
@@ -114,7 +99,7 @@
       <span class="breadcrumb-sep">›</span>
       <span>신청 · 결재</span>
       <span class="breadcrumb-sep">›</span>
-      <span style="color:var(--text-secondary);font-weight:600">사용 연장 · 자원 증설</span>
+      <span class="bc-cur">사용 연장 · 자원 증설</span>
     </div>
 
     <div class="page-header reveal" style="animation-delay:.06s">

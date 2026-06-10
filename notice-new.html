@@ -9,25 +9,12 @@
 <style>
   .main { max-width: 1320px; margin: 0 auto; }
 
-  /* 폼 행 (incident-new/apply와 동일 패턴) */
-  .frow { display: grid; grid-template-columns: 150px 1fr; gap: 18px; align-items: start; padding: 15px 0; border-bottom: 1px solid var(--border); }
-  .frow:first-child { padding-top: 4px; }
-  .frow:last-child { padding-bottom: 4px; border-bottom: none; }
-  .frow-label { font-size: 14px; font-weight: 600; color: var(--text-secondary); padding-top: 9px; display: flex; align-items: center; gap: 5px; }
-  .frow-field { min-width: 0; }
-  .frow-help { font-size: 12.5px; color: var(--text-tertiary); margin-top: 7px; line-height: 1.5; }
-  .fi.full, .fs.full, .fta.full { width: 100%; }
+  /* 폼 행(.frow)·.fi.full 은 common.css 공통 */
   .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0 6px 2px; }
-
   /* 포탈 노출 — 간단 체크박스 */
   .chk-line { display: inline-flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600;
     color: var(--text-primary); cursor: pointer; padding: 6px 0; }
   .chk-line input { width: 18px; height: 18px; accent-color: var(--kb-yellow-dark); flex-shrink: 0; cursor: pointer; }
-
-  @media (max-width: 760px) {
-    .frow { grid-template-columns: 1fr; gap: 8px; }
-    .frow-label { padding-top: 0; }
-  }
 </style>
 </head>
 <body>
@@ -50,7 +37,7 @@
       <span class="breadcrumb-sep">›</span>
       <a href="notice.html">공지사항</a>
       <span class="breadcrumb-sep">›</span>
-      <span style="color:var(--text-secondary);font-weight:600">공지 등록</span>
+      <span class="bc-cur">공지 등록</span>
     </div>
 
     <div class="page-header reveal" style="animation-delay:.06s">

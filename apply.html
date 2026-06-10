@@ -8,43 +8,7 @@
 <link rel="stylesheet" href="common.css">
 <style>
   .main { max-width: 1320px; margin: 0 auto; }
-
-
-  /* ===== 폼 행 ===== */
-  .frow {
-    display: grid;
-    grid-template-columns: 140px 1fr;
-    gap: 16px;
-    align-items: start;
-    padding: 16px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .frow:first-child { padding-top: 4px; }
-  .frow:last-child { padding-bottom: 4px; border-bottom: none; }
-  .frow-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    padding-top: 9px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .frow-field { min-width: 0; }
-  .frow-help {
-    font-size: 12.5px;
-    color: var(--text-tertiary);
-    margin-top: 7px;
-    line-height: 1.5;
-  }
-  .fi.full, .fs.full, .fta.full { width: 100%; }
-  .field-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  /* 사용 기간 빠른 입력 PILL */
-  .period-pills { display: flex; gap: 6px; }
-  .qp { padding: 8px 14px; border: 1.5px solid var(--border-strong); border-radius: 100px; background: var(--surface);
-    font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text-secondary); cursor: pointer; transition: all 0.14s; }
-  .qp:hover { border-color: var(--kb-yellow-dark); color: var(--ink); }
-  .qp.sel { background: var(--kb-yellow); border-color: var(--kb-yellow-dark); color: var(--ink); }
+  /* 폼 행(.frow)·인라인입력·기간 PILL(.qp)은 common.css 공통 */
 
   /* 카드형 라디오 (VDI 유형 — 고정가상화 단일) */
   .type-cards { display: grid; grid-template-columns: minmax(0, 380px); gap: 12px; }
@@ -175,8 +139,6 @@
 
   @media (max-width: 880px) {
     .type-cards, .spec-grid { grid-template-columns: 1fr; }
-    .frow { grid-template-columns: 1fr; gap: 8px; }
-    .frow-label { padding-top: 0; }
   }
 </style>
 </head>
@@ -198,7 +160,7 @@
       <span class="breadcrumb-sep">›</span>
       <span>신청 · 결재</span>
       <span class="breadcrumb-sep">›</span>
-      <span style="color:var(--text-secondary);font-weight:600">VDI 추가신청</span>
+      <span class="bc-cur">VDI 추가신청</span>
     </div>
 
     <div class="page-header reveal" style="animation-delay:.06s">
