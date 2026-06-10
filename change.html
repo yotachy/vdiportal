@@ -45,6 +45,11 @@
     background: var(--surface); color: #8A6A00; border: 1px solid var(--kb-yellow-line); letter-spacing: 0.02em; }
   .vdi-opt-spec { margin-left: auto; font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .vdi-opt-status { display: inline-flex; align-items: center; font-size: 11.5px; color: var(--text-tertiary); flex-shrink: 0; }
+  /* 지급 구분: 기본 지급(중립색) / 별도 신청(옐로우, 기본 스타일) */
+  .vdi-opt-type.base { background: var(--bg-subtle); color: var(--text-tertiary); border-color: var(--border-strong); }
+  /* 연장 대상 아님(기본 지급) — 비활성 */
+  .vdi-opt.locked { opacity: 0.5; cursor: not-allowed; }
+  .vdi-opt.locked:hover { background: transparent; }
   @media (max-width: 680px) {
     .vdi-opt { flex-wrap: wrap; row-gap: 6px; }
     .vdi-opt-spec { margin-left: 32px; }
@@ -209,7 +214,7 @@
 
       <div class="info-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        사용 연장은 결재 승인 후 적용되며, 연장된 종료일까지 가상PC를 계속 사용할 수 있습니다.
+        사용 연장은 별도 신청한 고정가상화에 한해 가능합니다. 기본 지급(재직 임직원 자동 지급) 가상PC는 재직 중 자동 유지되어 연장 대상이 아닙니다. 연장은 결재 승인 후 적용됩니다.
       </div>
     </section>
 
@@ -259,9 +264,10 @@
 <script src="common.js"></script>
 <script>
   // ===== VDI 데이터 (portal.html과 동일하게 2대) =====
+  // base:true = 기본 지급(재직 임직원 자동 지급) → 연장 대상 아님 / false = 별도 신청 → 연장 가능
   const VDI_LIST = [
-    { name: 'jschoi0223-main', type: '고정가상화', typeClass: '', cpu: '4 Core', mem: '16 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '일반 업무용', status: '온라인', start: '2026-03-01', end: '2026-12-31' },
-    { name: 'jschoi0223-common', type: '고정가상화', typeClass: '', cpu: '2 Core', mem: '4 GB', disk: '80 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '온라인', start: '2025-11-01', end: '2026-09-30' }
+    { name: 'jschoi0223-main', type: '고정가상화', base: true, typeClass: '', cpu: '4 Core', mem: '16 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '일반 업무용', status: '온라인', start: '2026-03-01', end: '2026-12-31' },
+    { name: 'jschoi0223-common', type: '고정가상화', base: false, typeClass: '', cpu: '2 Core', mem: '4 GB', disk: '80 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '온라인', start: '2025-11-01', end: '2026-09-30' }
   ];
 
   const CPU_OPTS = ['2 Core', '4 Core', '8 Core'];
@@ -279,17 +285,27 @@
 
   // ===== 대상 VDI 카드 렌더 =====
   function renderVdiCards() {
-    $('vdiSelect').innerHTML = VDI_LIST.map((v, i) => `
-      <div class="vdi-opt${i === state.vdi ? ' sel' : ''}" data-vdi="${i}">
+    $('vdiSelect').innerHTML = VDI_LIST.map((v, i) => {
+      const locked = state.tab === 'extend' && v.base;   // 기본 지급은 연장 대상 아님
+      const spec = locked
+        ? '재직 중 자동 유지 · 연장 신청 불필요'
+        : `CPU ${v.cpu} · ${v.mem} · 디스크 ${v.disk}`;
+      return `
+      <div class="vdi-opt${i === state.vdi ? ' sel' : ''}${locked ? ' locked' : ''}" data-vdi="${i}">
         <span class="vdi-radio"></span>
         <span class="vdi-opt-name">${v.name}</span>
-        <span class="vdi-opt-type">${v.type}</span>
-        <span class="vdi-opt-spec">CPU ${v.cpu} · ${v.mem} · 디스크 ${v.disk}</span>
+        <span class="vdi-opt-type${v.base ? ' base' : ''}">${v.base ? '기본 지급' : '별도 신청'}</span>
+        <span class="vdi-opt-spec">${spec}</span>
         <span class="vdi-opt-status"><span class="sdot ${v.status === '오프라인' ? 'sdot-muted' : 'sdot-success'}"></span>${v.status}</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     $('vdiSelect').querySelectorAll('.vdi-opt').forEach(opt => {
       opt.addEventListener('click', () => {
         const i = parseInt(opt.dataset.vdi);
+        if (state.tab === 'extend' && VDI_LIST[i].base) {
+          showToast('기본 지급(재직 임직원) 가상PC는 자동 유지되어 연장 신청 대상이 아닙니다.');
+          return;
+        }
         state.vdi = i;
         renderVdiCards();
         syncForms();
@@ -382,6 +398,13 @@
       // 제출 버튼 라벨
       const meta = TAB_META[state.tab];
       $('submitLabel').textContent = meta.label;
+      // 연장 탭에서는 기본 지급 VDI 선택 불가 → 별도 신청 VDI로 자동 전환
+      if (state.tab === 'extend' && VDI_LIST[state.vdi].base) {
+        const ext = VDI_LIST.findIndex(v => !v.base);
+        if (ext >= 0) state.vdi = ext;
+      }
+      renderVdiCards();
+      syncForms();
     });
   });
 
@@ -389,6 +412,7 @@
   function submitRequest() {
     const v = VDI_LIST[state.vdi];
     if (state.tab === 'extend') {
+      if (v.base) { showToast('기본 지급 가상PC는 연장 신청 대상이 아닙니다.'); return; }
       const end = $('x_end').value;
       if (!end) { showToast('연장 종료일을 선택해주세요.'); return; }
       if (end <= v.end) { showToast('현재 종료일 이후로 연장해주세요.'); return; }
@@ -407,7 +431,11 @@
     setTimeout(() => location.href = 'approval.html', 1400);
   }
 
-  // 초기 렌더
+  // 초기 진입(연장 탭): 기본 지급이 선택돼 있으면 연장 가능한(별도 신청) VDI로 전환
+  if (state.tab === 'extend' && VDI_LIST[state.vdi].base) {
+    const ext = VDI_LIST.findIndex(v => !v.base);
+    if (ext >= 0) state.vdi = ext;
+  }
   renderVdiCards();
   syncForms();
 </script>
