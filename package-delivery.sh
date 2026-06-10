@@ -18,7 +18,7 @@ STAMP="$(date +%Y%m%d_%H%M)"
 
 # 전체 전달 기본 구성 (소스 + 공통 + 가이드 + 산출물)
 FULL=(
-  README.md STYLE_GUIDE.md
+  README.md STYLE_GUIDE.md BOOTSTRAP_GUIDE.md
   common.css common.js kb-logo.png robots.txt .htaccess
   login.html portal.html apply.html change.html
   approval.html approval-detail.html
