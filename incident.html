@@ -15,10 +15,11 @@
   /* 유형 — 카테고리 텍스트 (박스 제거) */
   .itag { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.01em; white-space: nowrap; }
 
-  /* 긴급도 배지 */
-  .urg { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
-  .urg::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .urg-high { color: var(--danger); } .urg-high::before { background: var(--danger); }
+  /* 긴급도 — 긴급은 채워진 핀(목록에서 즉시 식별), 보통은 차분한 텍스트 */
+  .urg { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .urg::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .urg-high { color: var(--danger); background: var(--danger-soft); padding: 3px 10px; border-radius: 100px; }
+  .urg-high::before { background: var(--danger); }
   .urg-low { color: var(--text-tertiary); } .urg-low::before { background: var(--dot-muted); }
 
   /* 상태 — 진행 상태만 pill, 완료는 차분하게(텍스트형) */
@@ -35,6 +36,11 @@
   .data-table th, .data-table td { text-align: center; }
   .data-table th:nth-child(4), .data-table td:nth-child(4) { text-align: left; }
   .empty-row td { text-align: center; padding: 52px 16px; color: var(--text-tertiary); font-size: 14px; }
+  /* 신고자 열 — 본인 신고만 보는 일반 사용자에겐 중복이라 숨김(관리자 권한일 때만 표시) */
+  body:not(.admin-mode) .col-reporter { display: none; }
+  /* 빈 상태 */
+  .empty-box { display: flex; flex-direction: column; align-items: center; gap: 11px; }
+  .empty-box svg { width: 34px; height: 34px; color: var(--border-strong); }
 
   /* 모달 보조 */
   .modal-status { margin-bottom: 18px; }
@@ -148,7 +154,7 @@
             <th style="width:120px">신고일</th>
             <th style="width:150px" class="hide-sm">유형</th>
             <th>제목</th>
-            <th style="width:110px" class="hide-sm">신고자</th>
+            <th style="width:110px" class="hide-sm col-reporter">신고자</th>
             <th style="width:90px">긴급도</th>
             <th style="width:110px">상태</th>
           </tr>
@@ -305,7 +311,9 @@
     $('scopeNote').textContent = isAdmin() ? '관리자 권한 · 전체 사용자 신고 내역' : '본인이 등록한 신고만 표시됩니다.';
 
     if (!list.length) {
-      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="7">조건에 맞는 신고 내역이 없습니다.</td></tr>`;
+      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="7"><div class="empty-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        조건에 맞는 신고 내역이 없습니다.</div></td></tr>`;
       renderPager('incPager', 0, 1, () => {});
       return;
     }
@@ -322,7 +330,7 @@
           <td class="col-date">${r.date.slice(5)}</td>
           <td class="hide-sm"><span class="itag">${r.type}</span></td>
           <td class="col-title">${esc(r.title)}</td>
-          <td class="hide-sm">${repOf(r.no)}</td>
+          <td class="hide-sm col-reporter">${repOf(r.no)}</td>
           <td><span class="urg ${u.cls}">${u.txt}</span></td>
           <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></td>
         </tr>`;
