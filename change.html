@@ -242,6 +242,11 @@
     { name: 'jschoi0223-nomain', type: '고정가상화', base: false, typeClass: '', cpu: '8 Core', mem: '16 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '온라인', start: '2025-11-01', end: '2026-09-30' }
   ];
 
+  // 시연용: change.html?demo=noext → 별도 신청(nomain) VDI 제외 → 기본 지급만 보유 상태(연장 빈 화면 시연)
+  if (new URLSearchParams(location.search).get('demo') === 'noext') {
+    for (let i = VDI_LIST.length - 1; i >= 0; i--) if (!VDI_LIST[i].base) VDI_LIST.splice(i, 1);
+  }
+
   const CPU_OPTS = ['6 Core', '8 Core'];
   const MEM_OPTS = ['8 GB', '16 GB'];
   const DISK_OPTS = ['150 GB', '200 GB'];
