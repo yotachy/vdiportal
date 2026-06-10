@@ -354,6 +354,21 @@ body.admin-mode .stat-strip{display:grid}
   padding:52px 16px;text-align:center;color:var(--text-tertiary);font-size:14px;font-weight:500}
 .empty-state svg{width:34px;height:34px;color:var(--border-strong)}
 
+/* 단계 표시 (stepper — 신청 처리 단계: 정보입력→승인→검토→적용) */
+.stepper{display:flex;align-items:center;gap:8px;margin-bottom:24px}
+.step{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.step-no{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;background:var(--surface);color:var(--text-tertiary);
+  border:1.5px solid var(--border-strong);transition:all .2s}
+.step-lbl{font-size:13.5px;font-weight:700;color:var(--text-tertiary);transition:color .2s;white-space:nowrap}
+.step-bar{flex:1;height:2px;min-width:16px;background:var(--border-strong);border-radius:2px;transition:background .25s}
+.step-bar.fill{background:var(--kb-yellow)}
+.step.done .step-no{background:var(--kb-yellow-soft);border-color:var(--kb-yellow-dark);color:var(--kb-yellow-text)}
+.step.done .step-lbl{color:var(--text-secondary)}
+.step.active .step-no{background:var(--kb-yellow);border-color:var(--kb-yellow-dark);color:var(--ink);box-shadow:0 0 0 3px var(--kb-yellow-soft)}
+.step.active .step-lbl{color:var(--ink);font-weight:800}
+@media (max-width:680px){.step-lbl{display:none}.step-bar{min-width:10px}}
+
 /* ════════ MODAL ════════ */
 .modal{position:fixed;inset:0;background:rgba(26,23,20,.42);backdrop-filter:blur(3px);
   z-index:200;display:none;align-items:center;justify-content:center;padding:24px}

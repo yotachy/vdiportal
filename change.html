@@ -122,6 +122,9 @@
       </button>
     </div>
 
+    <!-- 처리 단계 (탭별 lifecycle) -->
+    <div class="stepper reveal" id="stepper" style="animation-delay:.15s"></div>
+
     <!-- 대상 VDI 선택 (공통) -->
     <div class="fc reveal" style="animation-delay:.16s">
       <div class="fc-head">
@@ -349,11 +352,24 @@
     expand: { label: '증설 신청', action: '자원 증설 · 적용' }
   };
 
+  // 처리 단계 (탭별 lifecycle — '정보 입력'이 현재 단계)
+  const STEPS = {
+    extend: ['정보 입력', '부서장 승인', '가상화 사용연장 자동적용'],
+    expand: ['정보 입력', '부서장 승인', '운영부서 접수검토', '가상화 자원증설 적용']
+  };
+  function renderStepper() {
+    $('stepper').innerHTML = STEPS[state.tab].map((label, i, arr) => {
+      const step = `<div class="step${i === 0 ? ' active' : ''}" data-step="${i + 1}"><span class="step-no">${i + 1}</span><span class="step-lbl">${label}</span></div>`;
+      return i < arr.length - 1 ? step + '<div class="step-bar"></div>' : step;
+    }).join('');
+  }
+
   document.querySelectorAll('#tabSeg .mtab').forEach(btn => {
     btn.addEventListener('click', () => {
       state.tab = btn.dataset.tab;
       document.querySelectorAll('#tabSeg .mtab').forEach(b => b.classList.toggle('active', b === btn));
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === state.tab));
+      renderStepper();
       // 제출 버튼 라벨
       const meta = TAB_META[state.tab];
       $('submitLabel').textContent = meta.label;
@@ -395,6 +411,7 @@
     const ext = VDI_LIST.findIndex(v => !v.base);
     if (ext >= 0) state.vdi = ext;
   }
+  renderStepper();
   renderVdiCards();
   syncForms();
 </script>

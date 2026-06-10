@@ -8,22 +8,7 @@
 <link rel="stylesheet" href="common.css">
 <style>
   .main { max-width: 1320px; margin: 0 auto; }
-  /* 폼 행(.frow)·인라인입력·기간 PILL(.qp)은 common.css 공통 */
-
-  /* 단계 표시 (stepper) */
-  .stepper { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
-  .step { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
-  .step-no { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 800; background: var(--surface); color: var(--text-tertiary);
-    border: 1.5px solid var(--border-strong); transition: all 0.2s; }
-  .step-lbl { font-size: 13.5px; font-weight: 700; color: var(--text-tertiary); transition: color 0.2s; white-space: nowrap; }
-  .step-bar { flex: 1; height: 2px; min-width: 16px; background: var(--border-strong); border-radius: 2px; transition: background 0.25s; }
-  .step-bar.fill { background: var(--kb-yellow); }
-  .step.done .step-no { background: var(--kb-yellow-soft); border-color: var(--kb-yellow-dark); color: var(--kb-yellow-text); }
-  .step.done .step-lbl { color: var(--text-secondary); }
-  .step.active .step-no { background: var(--kb-yellow); border-color: var(--kb-yellow-dark); color: var(--ink); box-shadow: 0 0 0 3px var(--kb-yellow-soft); }
-  .step.active .step-lbl { color: var(--ink); font-weight: 800; }
-  @media (max-width: 680px) { .step-lbl { display: none; } .step-bar { min-width: 10px; } }
+  /* 폼 행(.frow)·기간 PILL(.qp)·단계 stepper(.stepper)는 common.css 공통 */
 
   /* 카드형 라디오 (VDI 유형 — 고정가상화 단일) */
   .type-cards { display: grid; grid-template-columns: minmax(0, 380px); gap: 12px; }
@@ -120,17 +105,6 @@
   }
   .appr-badge.fixed { background: var(--info-soft); color: var(--info); }
 
-  /* 요약 (확인/완료) */
-  .summary-table { width: 100%; }
-  .summary-row { display: flex; padding: 13px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-  .summary-row:last-child { border-bottom: none; }
-  .summary-key { width: 160px; flex-shrink: 0; color: var(--text-tertiary); font-weight: 600; }
-  .summary-val { color: var(--text-primary); font-weight: 600; }
-  .summary-val .pill {
-    display: inline-block; background: var(--kb-yellow-soft); color: var(--kb-yellow-text);
-    font-size: 13px; font-weight: 700; padding: 2px 9px; border-radius: 5px; margin-right: 6px;
-  }
-
   /* 완료 화면 */
   .done-wrap { text-align: center; padding: 30px 20px 10px; }
   .done-ring {
@@ -148,9 +122,6 @@
   }
   .done-reqno span { color: var(--text-tertiary); font-weight: 600; font-size: 13px; }
   .done-actions { display: flex; gap: 10px; justify-content: center; margin-top: 26px; }
-
-  .step-panel { display: none; }
-  .step-panel.active { display: block; }
 
   @media (max-width: 880px) {
     .type-cards { grid-template-columns: 1fr; }
@@ -194,15 +165,15 @@
     <div class="stepper reveal" id="stepper" style="animation-delay:.1s">
       <div class="step active" data-step="1"><span class="step-no">1</span><span class="step-lbl">정보 입력</span></div>
       <div class="step-bar"></div>
-      <div class="step" data-step="2"><span class="step-no">2</span><span class="step-lbl">사양 선택</span></div>
+      <div class="step" data-step="2"><span class="step-no">2</span><span class="step-lbl">부서장 승인</span></div>
       <div class="step-bar"></div>
-      <div class="step" data-step="3"><span class="step-no">3</span><span class="step-lbl">결재선</span></div>
+      <div class="step" data-step="3"><span class="step-no">3</span><span class="step-lbl">운영부서 접수검토</span></div>
       <div class="step-bar"></div>
-      <div class="step" data-step="4"><span class="step-no">4</span><span class="step-lbl">확인 · 완료</span></div>
+      <div class="step" data-step="4"><span class="step-no">4</span><span class="step-lbl">가상화 지급 완료</span></div>
     </div>
 
-    <!-- ================= STEP 1 : 정보입력 ================= -->
-    <section class="step-panel active" data-panel="1">
+    <!-- ================= 정보 입력 (단일 페이지) ================= -->
+    <section id="inputView">
       <div class="fc">
         <div class="fc-head">
           <div class="fc-title">
@@ -253,20 +224,6 @@
         </div>
       </div>
 
-      <div class="action-bar">
-        <div class="action-hint">필수 항목(<span class="req">*</span>)을 모두 입력하면 다음 단계로 진행할 수 있습니다.</div>
-        <div class="action-btns">
-          <button class="btn btn-outline" onclick="location.href='portal.html'">취소</button>
-          <button class="btn btn-primary" onclick="goNext(1)">
-            다음 · 사양 선택
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= STEP 2 : 사양선택 ================= -->
-    <section class="step-panel" data-panel="2">
       <div class="fc">
         <div class="fc-head">
           <div class="fc-title">
@@ -358,23 +315,6 @@
         고사양(8 Core / 16 GB) 신청 시 IT운영부 검토가 추가되어 승인까지 영업일 기준 2~3일이 소요될 수 있습니다.
       </div>
 
-      <div class="action-bar">
-        <div class="action-hint">가상PC 유형과 CPU · 메모리 · 디스크 사양을 선택하세요.</div>
-        <div class="action-btns">
-          <button class="btn btn-outline" onclick="goPrev(2)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-            이전
-          </button>
-          <button class="btn btn-primary" onclick="goNext(2)">
-            다음 · 결재선
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= STEP 3 : 결재선 ================= -->
-    <section class="step-panel" data-panel="3">
       <div class="fc">
         <div class="fc-head">
           <div class="fc-title">
@@ -437,85 +377,39 @@
       </div>
 
       <div class="action-bar">
-        <div class="action-hint">결재선은 자동 지정됩니다. 확인 후 신청 내용을 검토하세요.</div>
+        <div class="action-hint">결재선은 부서 조직도 기준으로 자동 지정됩니다. 필수 항목(<span class="req">*</span>) 입력 후 승인 요청하세요.</div>
         <div class="action-btns">
-          <button class="btn btn-outline" onclick="goPrev(3)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-            이전
-          </button>
-          <button class="btn btn-primary" onclick="goNext(3)">
-            신청 내용 확인
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          <button class="btn btn-outline" onclick="location.href='portal.html'">취소</button>
+          <button class="btn btn-primary" onclick="requestApply()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            승인 요청
           </button>
         </div>
       </div>
     </section>
 
-    <!-- ================= STEP 4 : 신청완료 ================= -->
-    <section class="step-panel" data-panel="4">
-      <!-- 4-a. 제출 전 확인 -->
-      <div id="confirmView">
-        <div class="fc">
-          <div class="fc-head">
-            <div class="fc-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/>
-              </svg>
-              신청 내용 확인
+    <!-- 제출 완료 -->
+    <div id="doneView" style="display:none">
+      <div class="fc">
+        <div class="fc-body">
+          <div class="done-wrap">
+            <div class="done-ring">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
             </div>
-            <div class="fc-ctrl"></div>
-          </div>
-          <div class="fc-body">
-            <div class="summary-table">
-              <div class="summary-row"><div class="summary-key">신청자</div><div class="summary-val">IT기획파트 · 최정식 책임</div></div>
-              <div class="summary-row"><div class="summary-key">사용 용도</div><div class="summary-val" id="s_purpose">-</div></div>
-              <div class="summary-row"><div class="summary-key">VDI 유형 · 사양</div><div class="summary-val" id="s_spec">-</div></div>
-              <div class="summary-row"><div class="summary-key">운영체제</div><div class="summary-val" id="s_os">-</div></div>
-              <div class="summary-row"><div class="summary-key">사용 기간</div><div class="summary-val" id="s_period">-</div></div>
-              <div class="summary-row"><div class="summary-key">결재선</div><div class="summary-val" id="s_appr">-</div></div>
-              <div class="summary-row"><div class="summary-key">신청 사유</div><div class="summary-val" id="s_reason" style="font-weight:500;line-height:1.6">-</div></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="action-bar">
-          <div class="action-hint">제출 후에는 <strong>결재 현황</strong>에서 진행 상태를 확인할 수 있습니다.</div>
-          <div class="action-btns">
-            <button class="btn btn-outline" onclick="goPrev(4)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-              이전
-            </button>
-            <button class="btn btn-primary" onclick="submitApply()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-              신청서 제출
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 4-b. 제출 완료 -->
-      <div id="doneView" style="display:none">
-        <div class="fc">
-          <div class="fc-body">
-            <div class="done-wrap">
-              <div class="done-ring">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-              </div>
-              <div class="done-title">VDI 추가신청이 접수되었습니다</div>
-              <div class="done-desc">결재 승인 후 가상PC가 생성되며, 완료 시 알림으로 안내드립니다.</div>
-              <div class="done-reqno"><span>신청번호</span> REQ-2026-0529-017</div>
-              <div class="done-actions">
-                <button class="btn btn-outline" onclick="location.href='portal.html'">포탈 홈으로</button>
-                <button class="btn btn-primary" onclick="location.href='approval.html'">
-                  결재 현황 보기
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-                </button>
-              </div>
+            <div class="done-title">승인 요청이 접수되었습니다</div>
+            <div class="done-desc">부서장 승인 → 운영부서 접수검토를 거쳐 가상PC가 지급되며, 완료 시 알림으로 안내드립니다.</div>
+            <div class="done-reqno"><span>신청번호</span> REQ-2026-0529-017</div>
+            <div class="done-actions">
+              <button class="btn btn-outline" onclick="location.href='portal.html'">포탈 홈으로</button>
+              <button class="btn btn-primary" onclick="location.href='approval.html'">
+                결재 현황 보기
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
 
   </main>
 </div>
@@ -577,7 +471,7 @@
   elEnd.value = fmtISO(def1);
   document.querySelector('.period-pills .qp[data-months="1"]').classList.add('sel');
 
-  // ===== 단계 이동 =====
+  // ===== 처리 단계 표시 =====
   function updateStepper(n) {
     document.querySelectorAll('#stepper .step').forEach(el => {
       const s = +el.dataset.step;
@@ -586,29 +480,8 @@
     });
     document.querySelectorAll('#stepper .step-bar').forEach((bar, i) => bar.classList.toggle('fill', i < n - 1));
   }
-  function setStep(n) {
-    document.querySelectorAll('.step-panel').forEach(p => {
-      p.classList.toggle('active', +p.dataset.panel === n);
-    });
-    updateStepper(n);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
 
-  function goPrev(from) {
-    if (from === 4) { // 완료화면이면 확인화면 유지하며 step3로
-      document.getElementById('doneView').style.display = 'none';
-      document.getElementById('confirmView').style.display = 'block';
-    }
-    setStep(from - 1);
-  }
-
-  function goNext(from) {
-    if (from === 1 && !validateStep1()) return;
-    if (from === 3) buildSummary();
-    setStep(from + 1);
-  }
-
-  function validateStep1() {
+  function validate() {
     const purpose = document.getElementById('f_purpose').value;
     const end = document.getElementById('f_end').value;
     const reason = document.getElementById('f_reason').value.trim();
@@ -619,28 +492,13 @@
     return true;
   }
 
-  // ===== 요약 작성 =====
-  function buildSummary() {
-    const purpose = document.getElementById('f_purpose').value;
-    const reason = document.getElementById('f_reason').value.trim();
-    const os = document.getElementById('f_os').value;
-    const appr1 = document.getElementById('f_approver1').value;
-    const period = `${fmtDot(TODAY_ISO)} ~ ${fmtDot(document.getElementById('f_end').value)}`;
-
-    document.getElementById('s_purpose').textContent = purpose;
-    document.getElementById('s_spec').innerHTML =
-      `<span class="pill">${state.type}</span> CPU ${state.cpu} · 메모리 ${state.mem} · 디스크(D) ${state.disk}`;
-    document.getElementById('s_os').textContent = os;
-    document.getElementById('s_period').textContent = period;
-    document.getElementById('s_appr').textContent = `${appr1} → 이정민 부장(IT운영부장) → VDI 운영팀`;
-    document.getElementById('s_reason').textContent = reason;
-  }
-
-  // ===== 제출 =====
-  function submitApply() {
-    document.getElementById('confirmView').style.display = 'none';
+  // ===== 승인 요청(제출) =====
+  function requestApply() {
+    if (!validate()) return;
+    document.getElementById('inputView').style.display = 'none';
     document.getElementById('doneView').style.display = 'block';
-    showToast('VDI 추가신청서가 정상 접수되었습니다.');
+    updateStepper(2);   // 정보 입력 완료 → 부서장 승인 단계로
+    showToast('승인 요청이 정상 접수되었습니다.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 </script>
