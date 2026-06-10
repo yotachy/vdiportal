@@ -19,11 +19,11 @@
   .urg { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
   .urg::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .urg-high { color: var(--danger); } .urg-high::before { background: var(--danger); }
-  .urg-low { color: var(--text-tertiary); } .urg-low::before { background: #BDB5A7; }
+  .urg-low { color: var(--text-tertiary); } .urg-low::before { background: var(--dot-muted); }
 
   /* 상태 — 진행 상태만 pill, 완료는 차분하게(텍스트형) */
   .spill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 100px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
-  .spill-active { background: var(--warning-soft); color: #8A5800; }
+  .spill-active { background: var(--warning-soft); color: var(--warn-text); }
   .spill-done { background: transparent; padding: 5px 0; color: var(--text-tertiary); font-weight: 700; }
 
   /* 테이블 */
