@@ -13,22 +13,24 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   .btn-ghost.spinning svg{animation:spin .65s ease}
 
-  /* ===== KPI 스트립 ===== */
-  .kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px;position:relative;z-index:5}
-  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
-    padding:18px 20px;display:flex;align-items:center;gap:15px;box-shadow:var(--shadow-sm);
-    transition:transform .18s,box-shadow .18s;position:relative;overflow:hidden}
-  .kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
-  .kpi-ico{width:46px;height:46px;border-radius:13px;flex-shrink:0;
+  /* ===== 빠른 메뉴 — 박스 4개 대신 구분선으로 나뉜 하나의 가벼운 바 ===== */
+  .kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);margin-bottom:18px;position:relative;z-index:5;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm)}
+  .kpi{display:flex;align-items:center;gap:12px;padding:15px 17px;text-decoration:none;position:relative;transition:background .14s}
+  .kpi + .kpi{border-left:1px solid var(--border)}
+  .kpi:hover{background:var(--bg-subtle)}
+  .kpi:first-child{border-radius:var(--r-lg) 0 0 var(--r-lg)}
+  .kpi:last-child{border-radius:0 var(--r-lg) var(--r-lg) 0}
+  .kpi-ico{width:36px;height:36px;border-radius:10px;flex-shrink:0;
     display:flex;align-items:center;justify-content:center;background:var(--kb-yellow-soft);color:var(--kb-yellow-dark)}
   .kpi-ico.blue{background:var(--info-soft);color:var(--info)}
   .kpi-ico.green{background:var(--success-soft);color:var(--success)}
   .kpi-ico.amber{background:var(--warning-soft);color:var(--warning)}
-  .kpi-ico svg{width:23px;height:23px}
+  .kpi-ico svg{width:19px;height:19px}
   .kpi-num{font-size:26px;font-weight:800;letter-spacing:-0.03em;color:var(--ink);line-height:1;
     display:flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums}
   .kpi-num small{font-size:14px;font-weight:700;color:var(--text-tertiary)}
-  .kpi-num.text{font-size:18px;letter-spacing:-0.02em}
+  .kpi-num.text{font-size:14px;letter-spacing:-0.01em;font-weight:700}
 
   /* ===== 사이트링크 카드 (외부 시스템 롤오버 메뉴) ===== */
   .kpi.sitelink{position:relative;overflow:visible;cursor:pointer}
@@ -53,7 +55,7 @@
   .si-ext{width:15px;height:15px;color:var(--text-tertiary);margin-left:auto;flex-shrink:0;transition:color .14s}
   .sitelink-item:hover .si-ext{color:var(--kb-yellow-dark)}
   .sitelink-sep{height:1px;background:var(--border);margin:6px 8px}
-  .kpi-label{font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600}
+  .kpi-label{font-size:11.5px;color:var(--text-tertiary);margin-top:3px;font-weight:600}
 
   /* ===== VDI 워크스페이스 카드 ===== */
   .vw{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl) 0 var(--r-xl) 0;
@@ -179,6 +181,9 @@
   }
   @media (max-width:720px){
     .kpi-strip{grid-template-columns:1fr}
+    .kpi + .kpi{border-left:none;border-top:1px solid var(--border)}
+    .kpi:first-child{border-radius:var(--r-lg) var(--r-lg) 0 0}
+    .kpi:last-child{border-radius:0 0 var(--r-lg) var(--r-lg)}
     .main{padding:24px 18px 56px}
     .vw-name{font-size:24px}
   }
@@ -276,7 +281,7 @@
       <div class="vw-tabs">
         <div class="vw-tabs-list" id="vwTabs">
           <button class="vtab active" data-vdi="0"><span class="status-dot sdot-success"></span><span class="vtab-name">jschoi0223-main</span></button>
-          <button class="vtab" data-vdi="1"><span class="status-dot sdot-warning"></span><span class="vtab-name">jschoi0223-common</span></button>
+          <button class="vtab" data-vdi="1"><span class="status-dot sdot-warning"></span><span class="vtab-name">jschoi0223-nomain</span></button>
         </div>
         <div class="vw-tabs-actions">
           <a class="vw-add" href="apply.html">
@@ -425,7 +430,7 @@
     { name:'jschoi0223-main', type:'고정가상화', typeClass:'', state:'on',
       ip:'10.20.30.115', os:'Windows 11 Enterprise', lastAccess:'2026.04.24 09:12',
       created:'2024.03.01', expire:'재직 중', cpu:'6 Core', mem:'8 GB', disk:'150 GB' },
-    { name:'jschoi0223-common', type:'고정가상화', typeClass:'', state:'maint',
+    { name:'jschoi0223-nomain', type:'고정가상화', typeClass:'', state:'maint',
       ip:'10.20.30.116', os:'Windows 11 Enterprise', lastAccess:'2026.04.18 14:30',
       created:'2025.11.01', expire:'재직 중', cpu:'8 Core', mem:'16 GB', disk:'150 GB' }
   ];

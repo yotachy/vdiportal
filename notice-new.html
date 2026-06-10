@@ -19,14 +19,10 @@
   .fi.full, .fs.full, .fta.full { width: 100%; }
   .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0 6px 2px; }
 
-  /* 포탈 노출 토글 */
-  .expose-toggle { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border-strong);
-    border-radius: 12px; background: var(--surface-2); cursor: pointer; transition: all 0.14s; }
-  .expose-toggle:hover { border-color: var(--kb-yellow-dark); }
-  .expose-toggle.on { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft); }
-  .expose-toggle input { width: 18px; height: 18px; accent-color: var(--kb-yellow-dark); margin: 1px 0 0; flex-shrink: 0; cursor: pointer; }
-  .et-text b { display: block; font-size: 14px; font-weight: 700; color: var(--text-primary); }
-  .et-text i { display: block; font-size: 12.5px; color: var(--text-tertiary); font-style: normal; margin-top: 3px; line-height: 1.5; }
+  /* 포탈 노출 — 간단 체크박스 */
+  .chk-line { display: inline-flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600;
+    color: var(--text-primary); cursor: pointer; padding: 6px 0; }
+  .chk-line input { width: 18px; height: 18px; accent-color: var(--kb-yellow-dark); flex-shrink: 0; cursor: pointer; }
 
   @media (max-width: 760px) {
     .frow { grid-template-columns: 1fr; gap: 8px; }
@@ -111,26 +107,13 @@
             <div class="info-text">관리자 (VDI 운영팀)</div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- 섹션 2: 포탈 노출 -->
-    <div class="fc reveal" style="animation-delay:.18s">
-      <div class="fc-head">
-        <div class="fc-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          포탈 노출
+        <div class="frow">
+          <div class="frow-label">포탈 노출</div>
+          <div class="frow-field">
+            <label class="chk-line"><input type="checkbox" id="f_expose"> 포탈 메인 하단에 노출</label>
+            <div class="frow-help">체크 시 포탈 첫 화면(내 가상PC) 하단 안내 영역에 표시됩니다. 노출은 1건만 가능하며 기존 노출 공지는 자동 해제됩니다.</div>
+          </div>
         </div>
-        <div class="fc-ctrl"></div>
-      </div>
-      <div class="fc-body">
-        <label class="expose-toggle" id="exposeToggle">
-          <input type="checkbox" id="f_expose">
-          <span class="et-text">
-            <b>포탈 메인 하단에 노출</b>
-            <i>체크하면 이 공지가 포탈 첫 화면(내 가상PC) 하단 안내 영역에 표시됩니다. 노출은 <strong>1건만</strong> 가능하며, 기존 노출 공지는 자동 해제됩니다.</i>
-          </span>
-        </label>
       </div>
     </div>
 
@@ -152,10 +135,7 @@
 <script src="common.js"></script>
 <script>
   const $ = id => document.getElementById(id);
-
-  // ===== 포탈 노출 토글 시각 상태 =====
-  const exposeToggle = $('exposeToggle'), fExpose = $('f_expose');
-  fExpose.addEventListener('change', () => exposeToggle.classList.toggle('on', fExpose.checked));
+  const fExpose = $('f_expose');
 
   // ===== 등록 =====
   function submitNotice() {

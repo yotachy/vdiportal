@@ -170,17 +170,17 @@
   //   신규 → type(유형)  ·  연장 → period(기간)  ·  증설 → item·from·to(자원 변경)
   const ROWS = [
     { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설', vdi: 'jschoi0223-main',   item: '메모리', from: '8GB', to: '16GB',  status: 'progress' },
-    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-common', type: '고정',                              status: 'progress' },
+    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-nomain', type: '고정',                              status: 'progress' },
     { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '연장', vdi: 'jschoi0223-main',   period: '6개월',                           status: 'done' },
-    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-common', type: '고정',                              status: 'done' },
+    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-nomain', type: '고정',                              status: 'done' },
     { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '연장', vdi: 'jschoi0223-main',   period: '3개월',                           status: 'done' },
-    { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설', vdi: 'jschoi0223-common', item: '디스크', from: '80GB', to: '160GB', status: 'reject' },
-    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done' },
+    { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설', vdi: 'jschoi0223-nomain', item: '디스크', from: '80GB', to: '160GB', status: 'reject' },
+    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-nomain', period: '12개월',                          status: 'done' },
     { no: 'REQ-2026-0318-007', date: '2026.03.18', kind: '신규', vdi: 'jschoi0223-main',   type: '고정',                              status: 'progress' },
     { no: 'REQ-2026-0210-003', date: '2026.02.10', kind: '증설', vdi: 'jschoi0223-main',   item: '디스크', from: '80GB', to: '160GB', status: 'done' },
     { no: 'REQ-2026-0115-001', date: '2026.01.15', kind: '신규', vdi: 'jschoi0223-main',   type: '고정',                              status: 'done' },
-    { no: 'REQ-2025-1220-014', date: '2025.12.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done' },
-    { no: 'REQ-2025-1128-010', date: '2025.11.28', kind: '증설', vdi: 'jschoi0223-common', item: 'CPU', from: '2 Core', to: '4 Core', status: 'reject' }
+    { no: 'REQ-2025-1220-014', date: '2025.12.20', kind: '연장', vdi: 'jschoi0223-nomain', period: '12개월',                          status: 'done' },
+    { no: 'REQ-2025-1128-010', date: '2025.11.28', kind: '증설', vdi: 'jschoi0223-nomain', item: 'CPU', from: '2 Core', to: '4 Core', status: 'reject' }
   ];
 
   const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand' };
