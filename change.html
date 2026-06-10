@@ -28,39 +28,29 @@
   .mtab.active .mtab-txt b { color: var(--ink); }
   @media (max-width: 640px) { .maintab { grid-template-columns: 1fr; } }
 
-  /* ===== 대상 VDI 선택 카드 — 폭에 맞춰 채움(기기 카드형) ===== */
-  .vdi-select { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
-  .vdi-card {
-    display: flex; gap: 14px; align-items: flex-start;
-    border: 1.5px solid var(--border-strong); border-radius: 13px;
-    padding: 16px 46px 16px 16px; cursor: pointer; transition: all 0.15s;
-    background: var(--surface); position: relative;
+  /* ===== 대상 VDI 선택 — 카드 대신 심플한 선택 리스트 ===== */
+  .vdi-select { display: flex; flex-direction: column; gap: 4px; }
+  .vdi-opt {
+    display: flex; align-items: center; gap: 13px;
+    padding: 13px 15px; border-radius: 11px; cursor: pointer;
+    border: 1.5px solid transparent; transition: all 0.14s;
   }
-  .vdi-card:hover { border-color: var(--kb-yellow-dark); background: #FFFDF6; }
-  .vdi-card.sel {
-    border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft);
-    box-shadow: 0 0 0 1px var(--kb-yellow-dark) inset;
-  }
-  .vdi-ico { width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--bg-subtle); color: var(--text-tertiary); transition: all 0.15s; }
-  .vdi-ico svg { width: 22px; height: 22px; }
-  .vdi-card.sel .vdi-ico { background: var(--kb-yellow); color: var(--ink); }
-  .vdi-body { flex: 1; min-width: 0; }
-  .vdi-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
-  .vdi-card-name { font-size: 14.5px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
-  .vdi-card-type { font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 5px;
+  .vdi-opt:hover { background: var(--bg-subtle); }
+  .vdi-opt.sel { background: var(--kb-yellow-soft); border-color: var(--kb-yellow-line); }
+  .vdi-radio { width: 19px; height: 19px; border-radius: 50%; flex-shrink: 0; position: relative;
+    border: 2px solid var(--border-strong); background: var(--surface); transition: all 0.14s; }
+  .vdi-opt.sel .vdi-radio { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-dark); }
+  .vdi-opt.sel .vdi-radio::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #fff;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+  .vdi-opt-name { font-size: 14px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .vdi-opt-type { font-size: 10.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px; flex-shrink: 0;
     background: var(--surface); color: #8A6A00; border: 1px solid var(--kb-yellow-line); letter-spacing: 0.02em; }
-  .vdi-card.sel .vdi-card-type { background: #fff; }
-  .vdi-card-spec { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; line-height: 1.5; }
-  .vdi-card-status { font-size: 11.5px; color: var(--text-tertiary); margin-top: 4px; display: flex; align-items: center; }
-  /* 선택 체크 (우상단) */
-  .vdi-check { position: absolute; top: 14px; right: 14px; width: 21px; height: 21px; border-radius: 50%;
-    border: 2px solid var(--border-strong); background: var(--surface);
-    display: flex; align-items: center; justify-content: center; color: transparent; transition: all 0.15s; }
-  .vdi-card:hover .vdi-check { border-color: var(--kb-yellow-dark); }
-  .vdi-card.sel .vdi-check { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-dark); color: #fff; }
-  .vdi-check svg { width: 12px; height: 12px; }
+  .vdi-opt-spec { margin-left: auto; font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .vdi-opt-status { display: inline-flex; align-items: center; font-size: 11.5px; color: var(--text-tertiary); flex-shrink: 0; }
+  @media (max-width: 680px) {
+    .vdi-opt { flex-wrap: wrap; row-gap: 6px; }
+    .vdi-opt-spec { margin-left: 32px; }
+  }
 
   /* ===== 폼 행 (apply와 동일 패턴) ===== */
   .frow { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: start; padding: 15px 0; border-bottom: 1px solid var(--border); }
@@ -118,7 +108,6 @@
   .appr-badge.fixed { background: var(--info-soft); color: var(--info); }
 
   @media (max-width: 880px) {
-    .vdi-card { flex-basis: 82%; }
     .frow { grid-template-columns: 1fr; gap: 8px; }
     .frow-label { padding-top: 0; }
     .sc-row { grid-template-columns: 1fr; gap: 8px; }
@@ -293,25 +282,16 @@
   // ===== 대상 VDI 카드 렌더 =====
   function renderVdiCards() {
     $('vdiSelect').innerHTML = VDI_LIST.map((v, i) => `
-      <div class="vdi-card${i === state.vdi ? ' sel' : ''}" data-vdi="${i}">
-        <span class="vdi-ico">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        </span>
-        <div class="vdi-body">
-          <div class="vdi-card-top">
-            <span class="vdi-card-name">${v.name}</span>
-            <span class="vdi-card-type">${v.type}</span>
-          </div>
-          <div class="vdi-card-spec">CPU ${v.cpu} · ${v.mem} · 디스크 ${v.disk}</div>
-          <div class="vdi-card-status"><span class="sdot ${v.status === '오프라인' ? 'sdot-muted' : 'sdot-success'}"></span>${v.status}</div>
-        </div>
-        <span class="vdi-check">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-        </span>
+      <div class="vdi-opt${i === state.vdi ? ' sel' : ''}" data-vdi="${i}">
+        <span class="vdi-radio"></span>
+        <span class="vdi-opt-name">${v.name}</span>
+        <span class="vdi-opt-type">${v.type}</span>
+        <span class="vdi-opt-spec">CPU ${v.cpu} · ${v.mem} · 디스크 ${v.disk}</span>
+        <span class="vdi-opt-status"><span class="sdot ${v.status === '오프라인' ? 'sdot-muted' : 'sdot-success'}"></span>${v.status}</span>
       </div>`).join('');
-    $('vdiSelect').querySelectorAll('.vdi-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const i = parseInt(card.dataset.vdi);
+    $('vdiSelect').querySelectorAll('.vdi-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const i = parseInt(opt.dataset.vdi);
         state.vdi = i;
         renderVdiCards();
         syncForms();

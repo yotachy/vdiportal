@@ -262,7 +262,7 @@ body.admin-mode .admin-only{display:inline-flex!important}
 /* ════════ FILTER BAR ════════ */
 /* ===== 필터/검색 (목록 화면 공통) — 한 줄 툴바 =====
    [검색(고정폭)] [분류·상태 칩] [기간 드롭다운] 을 좌측에 한 덩어리로 정렬 */
-.filter-bar{display:flex;align-items:center;gap:10px 12px;margin-bottom:20px;flex-wrap:wrap}
+.filter-bar{display:flex;align-items:center;gap:10px 12px;margin-bottom:20px;flex-wrap:wrap;position:relative;z-index:20}
 
 /* 검색 — 적당한 고정폭(전체폭 X) */
 .search-hero{position:relative;flex:0 0 auto;width:340px;max-width:100%}
