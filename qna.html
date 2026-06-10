@@ -50,6 +50,10 @@
   .dl-form-row:last-child { margin-bottom: 0; }
   .dl-form-row .lbl { margin-bottom: 6px; }
   .dl-form-row.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .size-input { position: relative; }
+  .size-input input { padding-right: 40px; }
+  .size-input span { position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
+    font-size: 13px; font-weight: 700; color: var(--text-tertiary); pointer-events: none; }
 
   /* 딥링크 진입 시 잠깐 강조 */
   .dl-section.flash { animation: dlFlash 1.6s ease; }
@@ -132,7 +136,10 @@
           <option value="exe">실행 파일 (EXE)</option>
           <option value="zip">압축 파일 (ZIP)</option>
           <option value="hwp">한글 문서 (HWP)</option>
+          <option value="doc">워드 문서 (DOC)</option>
           <option value="xlsx">엑셀 문서 (XLSX)</option>
+          <option value="ppt">파워포인트 (PPT)</option>
+          <option value="etc">기타 파일</option>
         </select>
       </div>
       <div class="dl-form-row">
@@ -141,8 +148,11 @@
       </div>
       <div class="dl-form-row two">
         <div>
-          <div class="lbl">용량</div>
-          <input class="fi" id="fSize" placeholder="예) 4.2 MB">
+          <div class="lbl">용량 (MB)</div>
+          <div class="size-input">
+            <input class="fi" id="fSize" inputmode="decimal" placeholder="예) 4.2">
+            <span>MB</span>
+          </div>
         </div>
         <div>
           <div class="lbl">등록일</div>
@@ -165,7 +175,10 @@
     exe:  { color: '#6B7280', label: 'EXE' },
     zip:  { color: '#8B5CF6', label: 'ZIP' },
     hwp:  { color: '#1A6BD4', label: 'HWP' },
-    xlsx: { color: '#1E8E3E', label: 'XLS' }
+    xlsx: { color: '#1E8E3E', label: 'XLS' },
+    doc:  { color: '#2B579A', label: 'DOC' },
+    ppt:  { color: '#E08600', label: 'PPT' },
+    etc:  { color: '#64748B', label: 'FILE' }
   };
 
   // 섹션 아이콘
@@ -183,7 +196,7 @@
     { id: 'manual', title: '사용자 매뉴얼', items: [
       { type: 'pdf', name: 'VDI 사용자 매뉴얼 v2.0',        file: 'VDI_사용자매뉴얼_v2.0.pdf',      size: '4.2 MB',  date: '2026.05.20' },
       { type: 'pdf', name: 'VDI 빠른시작 가이드',           file: 'VDI_빠른시작_가이드.pdf',        size: '1.1 MB',  date: '2026.05.18' },
-      { type: 'pdf', name: '원격접속 설정 가이드',          file: '원격접속_설정_가이드.pdf',       size: '880 KB',  date: '2026.04.30' }
+      { type: 'pdf', name: '원격접속 설정 가이드',          file: '원격접속_설정_가이드.pdf',       size: '0.9 MB',  date: '2026.04.30' }
     ]}
   ];
 
@@ -235,7 +248,9 @@
       $('dlModalTitle').textContent = '자료 수정';
       $('fSec').value = SECTIONS[s].id;
       $('fName').value = it.name; $('fType').value = it.type;
-      $('fFile').value = it.file; $('fSize').value = it.size; $('fDate').value = it.date;
+      $('fFile').value = it.file;
+      $('fSize').value = (it.size || '').replace(/[^0-9.]/g, '');   // 숫자만 (MB는 접미사로 표시)
+      $('fDate').value = it.date;
     } else {                                     // 추가
       editRef = null;
       $('dlModalTitle').textContent = '자료 추가';
@@ -251,9 +266,10 @@
   function saveDl() {
     const name = $('fName').value.trim(), file = $('fFile').value.trim();
     if (!name || !file) { showToast('제목과 파일명을 입력해주세요.'); return; }
+    const sizeNum = $('fSize').value.replace(/[^0-9.]/g, '');   // 숫자만 → 자동 MB 단위
     const item = {
       type: $('fType').value, name, file,
-      size: $('fSize').value.trim() || '-',
+      size: sizeNum ? sizeNum + ' MB' : '-',
       date: $('fDate').value.trim() || '-'
     };
     const target = secIndexById($('fSec').value);
