@@ -7,59 +7,50 @@
 <title>KB손해보험 VDI 사용자 포탈 - 자료실</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  .main { max-width: 1320px; margin: 0 auto; }
+  .main { max-width: 920px; margin: 0 auto; }
 
-  /* 2-pane */
-  .qna-grid { display: grid; grid-template-columns: 244px 1fr; gap: 18px; align-items: start; }
+  /* 다운로드 섹션 (.fc 컨테이너 안에 헤더 + 링크 리스트) */
+  .dl-section { margin-bottom: 16px; scroll-margin-top: 84px; }
+  .dl-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .dl-head-ico { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    background: var(--kb-yellow-soft); color: var(--kb-yellow-dark); }
+  .dl-head-ico svg { width: 18px; height: 18px; }
+  .dl-head-title { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
+  .dl-head-count { font-size: 12px; font-weight: 700; color: var(--text-tertiary); background: var(--bg-subtle);
+    border-radius: 10px; padding: 1px 9px; min-width: 22px; text-align: center; }
 
-  /* 좌측 폴더 패널 */
-  .folder-panel { padding: 12px; }
-  .folder-item { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 10px;
-    cursor: pointer; transition: all 0.13s; margin-bottom: 2px; }
-  .folder-item:hover { background: var(--bg-subtle); }
-  .folder-item.on { background: var(--kb-yellow-soft); }
-  .folder-item.on .folder-name { color: var(--ink); font-weight: 800; }
-  .folder-item.on .folder-ico { color: var(--kb-yellow-dark); }
-  .folder-ico { width: 19px; height: 19px; color: var(--text-tertiary); flex-shrink: 0; }
-  .folder-name { flex: 1; font-size: 14px; font-weight: 600; color: var(--text-secondary); letter-spacing: -0.01em; }
-  .folder-count { font-size: 12px; font-weight: 700; color: var(--text-tertiary); background: var(--bg-subtle);
-    border-radius: 10px; padding: 1px 8px; min-width: 22px; text-align: center; }
-  .folder-item.on .folder-count { background: var(--surface); color: #8A6A00; }
+  /* 링크(다운로드) 행 — 카드형 X, 리스트 행 */
+  .dl-row { display: flex; align-items: center; gap: 15px; padding: 14px 20px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background 0.12s; text-decoration: none; }
+  .dl-row:last-child { border-bottom: none; }
+  .dl-row:hover { background: var(--surface-2); }
+  .dl-badge { width: 44px; height: 30px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 11px; font-weight: 800; letter-spacing: -0.02em; }
+  .dl-main { flex: 1; min-width: 0; }
+  .dl-name { display: block; font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dl-desc { display: block; font-size: 12.5px; color: var(--text-tertiary); margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dl-meta { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
+  .dl-meta i { color: var(--border-strong); font-style: normal; margin: 0 6px; }
+  .dl-act { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; border-radius: 8px; flex-shrink: 0;
+    border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-secondary);
+    font-size: 12.5px; font-weight: 700; letter-spacing: -0.01em; transition: all 0.14s; }
+  .dl-act svg { width: 15px; height: 15px; }
+  .dl-row:hover .dl-act { background: var(--kb-yellow); border-color: var(--kb-yellow); color: var(--ink); }
 
-  /* 우측 파일 리스트 */
-  .files-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-    padding: 15px 20px; border-bottom: 1px solid var(--border); }
-  .files-title { font-size: 16px; font-weight: 800; color: var(--ink); }
-  .files-title span { color: var(--text-tertiary); font-weight: 600; font-size: 13px; margin-left: 7px; }
-  .files-bar .search-box { max-width: 260px; }
+  /* 딥링크 진입 시 잠깐 강조 */
+  .dl-section.flash { animation: dlFlash 1.6s ease; }
+  @keyframes dlFlash {
+    0% { box-shadow: 0 0 0 0 rgba(255,188,0,0); }
+    18% { box-shadow: 0 0 0 3px rgba(255,188,0,.55); }
+    100% { box-shadow: 0 0 0 0 rgba(255,188,0,0); }
+  }
 
-  .file-head { display: grid; grid-template-columns: 44px 1fr 92px 110px 46px; gap: 14px; align-items: center;
-    padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--surface-2);
-    font-size: 12px; font-weight: 700; color: var(--text-secondary); }
-  .file-row { display: grid; grid-template-columns: 44px 1fr 92px 110px 46px; gap: 14px; align-items: center;
-    padding: 10px 20px; border-bottom: 1px solid var(--border); transition: background 0.12s; }
-  .file-row:last-child { border-bottom: none; }
-  .file-row:hover { background: var(--surface-2); }
-  .file-ico { width: 40px; height: 40px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: 800; color: #fff; letter-spacing: -0.02em; }
-  .file-name { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .file-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
-  .file-size { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; text-align: right; }
-  .file-date { font-size: 13px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; text-align: right; }
-  .file-dl { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
-    color: var(--text-tertiary); background: var(--bg-subtle); transition: all 0.14s; cursor: pointer; margin-left: auto; }
-  .file-dl:hover { background: var(--kb-yellow); color: var(--ink); }
-  .file-dl svg { width: 17px; height: 17px; }
-
-  .files-empty { padding: 56px 16px; text-align: center; color: var(--text-tertiary); font-size: 14px; }
-
-  @media (max-width: 900px) {
-    .qna-grid { grid-template-columns: 1fr; }
-    .folder-panel { display: flex; flex-wrap: wrap; gap: 6px; }
-    .folder-item { flex: 1; min-width: 130px; margin-bottom: 0; }
-    .file-head { grid-template-columns: 44px 1fr 46px; }
-    .file-row { grid-template-columns: 44px 1fr 46px; }
-    .file-size, .file-date, .fh-size, .fh-date { display: none; }
+  @media (max-width: 640px) {
+    .dl-meta { display: none; }
+    .dl-row { gap: 12px; padding: 13px 16px; }
+    .dl-head { padding: 14px 16px; }
   }
 </style>
 </head>
@@ -87,7 +78,7 @@
     <div class="page-header reveal" style="animation-delay:.06s">
       <div class="page-header-left">
         <h1 class="page-title">자료실</h1>
-        <p class="page-desc">VDI 관련 매뉴얼·설치 파일·신청 서식·정책 자료를 분류별로 내려받을 수 있습니다.</p>
+        <p class="page-desc">VDI 이용에 필요한 설치 파일·매뉴얼·신청 서식·정책 자료를 내려받을 수 있습니다.</p>
       </div>
       <div class="page-header-right">
         <button type="button" class="btn btn-admin admin-only" onclick="showToast('자료 등록 화면으로 이동합니다. (관리자 전용)')" title="관리자 전용">
@@ -97,146 +88,98 @@
       </div>
     </div>
 
-    <div class="qna-grid reveal" style="animation-delay:.1s">
-      <!-- 좌측 폴더 -->
-      <aside class="fc">
-        <div class="fc-head"><div class="fc-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          분류
-        </div><div class="fc-ctrl"></div></div>
-        <div class="folder-panel" id="folderPanel"></div>
-      </aside>
-
-      <!-- 우측 파일 리스트 -->
-      <div class="fc">
-        <div class="files-bar">
-          <div class="files-title" id="filesTitle">전체<span id="filesCount">0개</span></div>
-          <div class="search-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="searchInput" placeholder="파일명 검색">
-          </div>
-        </div>
-        <div class="file-head">
-          <span></span><span>파일명</span><span class="fh-size" style="text-align:right">용량</span><span class="fh-date" style="text-align:right">등록일</span><span></span>
-        </div>
-        <div id="fileList"></div>
-        <div class="pager" id="filesPager" style="padding:0 16px 4px"></div>
-      </div>
-    </div>
+    <div id="sections"></div>
 
   </main>
 </div>
 <script src="common.js"></script>
 <script>
-  // ===== 데이터 =====
-  const FOLDERS = [
-    { key: 'all',     label: '전체' },
-    { key: 'manual',  label: '매뉴얼·가이드' },
-    { key: 'install', label: '설치 파일' },
-    { key: 'form',    label: '양식·서식' },
-    { key: 'policy',  label: '정책·보안' },
-    { key: 'edu',     label: '교육자료' }
-  ];
-  // type → 아이콘 색 / 라벨
+  // ===== 파일 유형 → 배지 색/라벨 =====
   const TYPE = {
-    pdf:  { color: '#D93B30', label: 'PDF',  name: 'PDF 문서' },
-    exe:  { color: '#6B7280', label: 'EXE',  name: '실행 파일' },
-    zip:  { color: '#8B5CF6', label: 'ZIP',  name: '압축 파일' },
-    hwp:  { color: '#1A6BD4', label: 'HWP',  name: '한글 문서' },
-    xlsx: { color: '#1E8E3E', label: 'XLS',  name: '엑셀 문서' },
-    pptx: { color: '#E08600', label: 'PPT',  name: '파워포인트' }
+    pdf:  { color: '#D93B30', label: 'PDF' },
+    exe:  { color: '#6B7280', label: 'EXE' },
+    zip:  { color: '#8B5CF6', label: 'ZIP' },
+    hwp:  { color: '#1A6BD4', label: 'HWP' },
+    xlsx: { color: '#1E8E3E', label: 'XLS' }
   };
-  const FILES = [
-    { cat: 'manual',  type: 'pdf',  name: 'VDI_사용자매뉴얼_v2.0.pdf',     size: '4.2 MB',  date: '2026.05.20' },
-    { cat: 'manual',  type: 'pdf',  name: 'VDI_빠른시작_가이드.pdf',        size: '1.1 MB',  date: '2026.05.18' },
-    { cat: 'manual',  type: 'pdf',  name: '원격접속_설정_가이드.pdf',        size: '880 KB',  date: '2026.04.30' },
-    { cat: 'install', type: 'exe',  name: 'CitrixWorkspace_설치파일.exe',   size: '78.5 MB', date: '2026.05.26' },
-    { cat: 'install', type: 'zip',  name: 'VDI_접속프로그램_패키지.zip',     size: '92.3 MB', date: '2026.05.10' },
-    { cat: 'install', type: 'zip',  name: '앱알리미_설치파일.zip',          size: '24.1 MB', date: '2026.04.22' },
-    { cat: 'form',    type: 'hwp',  name: 'VDI_추가신청서.hwp',            size: '64 KB',   date: '2026.05.02' },
-    { cat: 'form',    type: 'xlsx', name: '자원증설_신청서.xlsx',          size: '48 KB',   date: '2026.05.02' },
-    { cat: 'form',    type: 'hwp',  name: 'VDI_반납확인서.hwp',            size: '52 KB',   date: '2026.04.15' },
-    { cat: 'policy',  type: 'pdf',  name: 'VDI_보안_이용수칙.pdf',         size: '320 KB',  date: '2026.05.28' },
-    { cat: 'policy',  type: 'pdf',  name: '데이터_백업_정책.pdf',          size: '256 KB',  date: '2026.04.18' },
-    { cat: 'policy',  type: 'pdf',  name: '개인정보보호_가이드.pdf',        size: '410 KB',  date: '2026.03.30' },
-    { cat: 'edu',     type: 'pptx', name: 'VDI_신규입사자_교육.pptx',      size: '6.8 MB',  date: '2026.05.12' },
-    { cat: 'edu',     type: 'pdf',  name: '정보보안_교육자료.pdf',          size: '2.3 MB',  date: '2026.04.25' }
+
+  // 섹션 아이콘
+  const SEC_ICON = {
+    install: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+    manual:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+    form:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+    policy:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>'
+  };
+
+  // ===== 제공 자료 (섹션별, 총 9건) =====
+  const SECTIONS = [
+    { id: 'install', title: '설치 프로그램', items: [
+      { type: 'exe', name: 'Citrix Workspace 설치파일',   desc: 'VDI 접속용 표준 클라이언트 · Windows',  file: 'CitrixWorkspace_설치파일.exe',   size: '78.5 MB', date: '2026.05.26' },
+      { type: 'zip', name: 'VDI 접속프로그램 패키지',       desc: '접속에 필요한 설치 파일 일괄 패키지',     file: 'VDI_접속프로그램_패키지.zip',    size: '92.3 MB', date: '2026.05.10' }
+    ]},
+    { id: 'manual', title: '사용자 매뉴얼', items: [
+      { type: 'pdf', name: 'VDI 사용자 매뉴얼 v2.0',        desc: '전체 기능 안내서 (최신판)',              file: 'VDI_사용자매뉴얼_v2.0.pdf',      size: '4.2 MB',  date: '2026.05.20' },
+      { type: 'pdf', name: 'VDI 빠른시작 가이드',           desc: '최초 접속 · 기본 사용법 요약',           file: 'VDI_빠른시작_가이드.pdf',        size: '1.1 MB',  date: '2026.05.18' },
+      { type: 'pdf', name: '원격접속 설정 가이드',          desc: '사외 원격근무 환경 설정 절차',           file: '원격접속_설정_가이드.pdf',       size: '880 KB',  date: '2026.04.30' }
+    ]},
+    { id: 'form', title: '신청 서식', items: [
+      { type: 'hwp',  name: 'VDI 추가신청서',               desc: '신규 가상PC 신청 양식',                 file: 'VDI_추가신청서.hwp',             size: '64 KB',   date: '2026.05.02' },
+      { type: 'xlsx', name: '자원증설 신청서',              desc: 'CPU · 메모리 · 디스크 증설 양식',       file: '자원증설_신청서.xlsx',           size: '48 KB',   date: '2026.05.02' }
+    ]},
+    { id: 'policy', title: '정책 · 보안', items: [
+      { type: 'pdf', name: 'VDI 보안 이용수칙',             desc: '필수 준수 보안 정책',                   file: 'VDI_보안_이용수칙.pdf',          size: '320 KB',  date: '2026.05.28' },
+      { type: 'pdf', name: '데이터 백업 정책',              desc: 'D드라이브 백업 · 보존 기준',            file: '데이터_백업_정책.pdf',           size: '256 KB',  date: '2026.04.18' }
+    ]}
   ];
 
   const $ = id => document.getElementById(id);
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const labelOf = k => FOLDERS.find(f => f.key === k).label;
-  let curFolder = 'all', curSearch = '', curPage = 1;
-
-  const FOLDER_SVG = '<svg class="folder-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
   const DL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
 
-  function countOf(key) { return key === 'all' ? FILES.length : FILES.filter(f => f.cat === key).length; }
-
-  function renderFolders() {
-    $('folderPanel').innerHTML = FOLDERS.map(f => `
-      <div class="folder-item${f.key === curFolder ? ' on' : ''}" onclick="selectFolder('${f.key}')">
-        ${FOLDER_SVG}
-        <span class="folder-name">${f.label}</span>
-        <span class="folder-count">${countOf(f.key)}</span>
-      </div>`).join('');
+  function rowHtml(it) {
+    const t = TYPE[it.type];
+    return `
+      <div class="dl-row" onclick="download('${esc(it.file)}')" title="${esc(it.file)}">
+        <span class="dl-badge" style="background:${t.color}">${t.label}</span>
+        <span class="dl-main">
+          <span class="dl-name">${esc(it.name)}</span>
+          <span class="dl-desc">${esc(it.desc)}</span>
+        </span>
+        <span class="dl-meta">${it.size}<i>·</i>${it.date}</span>
+        <span class="dl-act">${DL_SVG} 다운로드</span>
+      </div>`;
   }
 
-  function renderFiles() {
-    const q = curSearch.trim().toLowerCase();
-    const list = FILES.filter(f => {
-      const okFolder = curFolder === 'all' || f.cat === curFolder;
-      const okSearch = !q || f.name.toLowerCase().includes(q);
-      return okFolder && okSearch;
-    });
+  function render() {
+    $('sections').innerHTML = SECTIONS.map((s, i) => `
+      <section class="fc dl-section reveal" id="sec-${s.id}" style="animation-delay:${(0.1 + i * 0.04).toFixed(2)}s">
+        <div class="dl-head">
+          <span class="dl-head-ico">${SEC_ICON[s.id] || ''}</span>
+          <span class="dl-head-title">${s.title}</span>
+          <span class="dl-head-count">${s.items.length}</span>
+        </div>
+        ${s.items.map(rowHtml).join('')}
+      </section>`).join('');
+  }
 
-    $('filesTitle').innerHTML = `${labelOf(curFolder)}<span>${list.length}개</span>`;
+  function download(file) {
+    showToast('파일을 다운로드합니다: ' + file);
+  }
 
-    if (!list.length) {
-      $('fileList').innerHTML = `<div class="files-empty">조건에 맞는 자료가 없습니다.</div>`;
-      renderPager('filesPager', 0, 1, () => {});
-      return;
+  render();
+
+  // 딥링크: portal 등에서 ?cat=manual / install 로 진입 시 해당 섹션으로 이동 + 강조
+  const cat = new URLSearchParams(location.search).get('cat');
+  if (cat) {
+    const el = $('sec-' + cat);
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.add('flash');
+        setTimeout(() => el.classList.remove('flash'), 1600);
+      });
     }
-
-    const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-    if (curPage > pages) curPage = pages;
-    const pageItems = list.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
-
-    $('fileList').innerHTML = pageItems.map(f => {
-      const t = TYPE[f.type];
-      return `
-        <div class="file-row">
-          <div class="file-ico" style="background:${t.color}">${t.label}</div>
-          <div style="min-width:0">
-            <div class="file-name">${esc(f.name)}</div>
-            <div class="file-sub">${t.name} · ${labelOf(f.cat)}</div>
-          </div>
-          <div class="file-size">${f.size}</div>
-          <div class="file-date">${f.date}</div>
-          <div class="file-dl" onclick="showToast('파일을 다운로드합니다: ${esc(f.name)}')" title="다운로드">${DL_SVG}</div>
-        </div>`;
-    }).join('');
-
-    renderPager('filesPager', list.length, curPage, p => {
-      curPage = p; renderFiles(); window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
   }
-
-  function selectFolder(key) {
-    curFolder = key;
-    curPage = 1;
-    renderFolders();
-    renderFiles();
-  }
-
-  $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; renderFiles(); });
-
-  // 딥링크: portal 카드 등에서 ?cat=manual / install 로 진입 시 해당 폴더 자동 선택
-  const initCat = new URLSearchParams(location.search).get('cat');
-  if (initCat && FOLDERS.some(f => f.key === initCat)) curFolder = initCat;
-
-  renderFolders();
-  renderFiles();
 </script>
 </body>
 </html>

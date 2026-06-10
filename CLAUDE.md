@@ -259,5 +259,5 @@ portal.html `<style>`/`<script>`에 정의된 페이지 고유 패턴:
 - **notice.html**: `filter-bar`(전체/중요/일반) + `search-box` + 리스트. 분류는 **중요(`ntag-important`)/일반(`ntag-normal`) 2종**. 행 클릭 시 notice-detail.html로 이동
 - **notice-detail.html**: 제목 + 메타(작성자/날짜/조회수) + 본문 + 첨부 + 목록/이전/다음. `CAT`·각 항목 `cat`을 notice.html과 동일하게 유지(중요/일반)
 - **faq.html**: 카테고리 탭(`filter-seg`) + 검색 + `faq-item` 아코디언
-- **qna.html (자료실)**: 폴더형 좌측 카테고리 + 파일 리스트 + 다운로드 액션
+- **qna.html (자료실)**: 링크 제공형 다운로드 페이지. 폴더 사이드바·검색·페이저 제거, 섹션(설치/매뉴얼/서식/정책)별 `.fc` 컨테이너 + 다운로드 링크 행(`.dl-row`, 카드형 아님) 총 9건. `SECTIONS` 배열로 관리. portal `?cat=manual/install` 딥링크 → 해당 섹션 스크롤+flash 강조 보존
 
