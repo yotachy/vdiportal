@@ -295,24 +295,18 @@ body.admin-mode .admin-only{display:inline-flex!important}
 .date-drop-btn .cal{width:15px;height:15px;flex-shrink:0;color:var(--text-tertiary)}
 .date-drop-btn .chev{width:14px;height:14px;flex-shrink:0;transition:transform .18s}
 .date-drop.open .date-drop-btn .chev{transform:rotate(180deg)}
-.date-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:30;min-width:256px;
-  background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow-lg);
-  padding:12px;display:none}
+.date-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:30;min-width:190px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);
+  padding:6px;display:none}
 .date-drop.open .date-pop{display:block}
-.date-pop-quick{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.date-pop-sep{font-size:11px;font-weight:700;color:var(--text-tertiary);letter-spacing:-0.01em;
-  margin:12px 2px 7px}
-.date-pop-custom{display:flex;align-items:center;gap:8px}
-.date-quick{display:inline-flex;align-items:center;justify-content:center;height:34px;padding:0 10px;
-  border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-secondary);
-  font-family:inherit;font-size:12.5px;font-weight:700;white-space:nowrap;cursor:pointer;transition:all .15s}
-.date-quick:hover{border-color:var(--kb-yellow-dark);color:var(--ink)}
-.date-quick.on{background:var(--kb-yellow);border-color:var(--kb-yellow);color:var(--ink)}
-.date-input{flex:1;min-width:0;height:36px;padding:0 9px;border:1.5px solid var(--border-strong);border-radius:8px;
-  font-family:inherit;font-size:12.5px;color:var(--text-primary);background:var(--surface);
-  font-variant-numeric:tabular-nums;letter-spacing:-0.01em;cursor:pointer;outline:none}
-.date-input:focus{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
-.date-sep{color:var(--text-tertiary);font-weight:700;flex-shrink:0}
+/* 프리셋 메뉴 행 (심플) */
+.date-quick{display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 11px;
+  border:none;border-radius:8px;background:transparent;color:var(--text-secondary);
+  font-family:inherit;font-size:13px;font-weight:600;text-align:left;cursor:pointer;transition:all .12s}
+.date-quick:hover{background:var(--bg-subtle);color:var(--ink)}
+.date-quick.on{background:var(--kb-yellow-soft);color:var(--ink);font-weight:700}
+.date-quick .chk{margin-left:auto;width:15px;height:15px;color:var(--kb-yellow-dark);opacity:0;flex-shrink:0}
+.date-quick.on .chk{opacity:1}
 @media (max-width:560px){
   .search-hero{width:100%}
   .date-pop{right:auto;left:0}

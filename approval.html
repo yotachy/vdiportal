@@ -130,18 +130,12 @@
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="date-pop">
-            <div class="date-pop-quick">
-              <button type="button" class="date-quick" data-q="all" onclick="setQuickRange('all')">전체 기간</button>
-              <button type="button" class="date-quick" data-q="week" onclick="setQuickRange('week')">최근 1주일</button>
-              <button type="button" class="date-quick on" data-q="month" onclick="setQuickRange('month')">최근 1개월</button>
-              <button type="button" class="date-quick" data-q="month3" onclick="setQuickRange('month3')">최근 3개월</button>
-            </div>
-            <div class="date-pop-sep">직접 입력</div>
-            <div class="date-pop-custom">
-              <input type="date" id="dateFrom" class="date-input" aria-label="시작일">
-              <span class="date-sep">~</span>
-              <input type="date" id="dateTo" class="date-input" aria-label="종료일">
-            </div>
+            <button type="button" class="date-quick" data-q="all" onclick="setQuickRange('all')">전체 기간 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button>
+            <button type="button" class="date-quick" data-q="week" onclick="setQuickRange('week')">최근 1주일 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button>
+            <button type="button" class="date-quick on" data-q="month" onclick="setQuickRange('month')">최근 1개월 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button>
+            <button type="button" class="date-quick" data-q="month3" onclick="setQuickRange('month3')">최근 3개월 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button>
+            <input type="hidden" id="dateFrom">
+            <input type="hidden" id="dateTo">
           </div>
         </div>
       </div>
