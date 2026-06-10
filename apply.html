@@ -10,6 +10,21 @@
   .main { max-width: 1320px; margin: 0 auto; }
   /* 폼 행(.frow)·인라인입력·기간 PILL(.qp)은 common.css 공통 */
 
+  /* 단계 표시 (stepper) */
+  .stepper { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
+  .step { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+  .step-no { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; background: var(--surface); color: var(--text-tertiary);
+    border: 1.5px solid var(--border-strong); transition: all 0.2s; }
+  .step-lbl { font-size: 13.5px; font-weight: 700; color: var(--text-tertiary); transition: color 0.2s; white-space: nowrap; }
+  .step-bar { flex: 1; height: 2px; min-width: 16px; background: var(--border-strong); border-radius: 2px; transition: background 0.25s; }
+  .step-bar.fill { background: var(--kb-yellow); }
+  .step.done .step-no { background: var(--kb-yellow-soft); border-color: var(--kb-yellow-dark); color: var(--kb-yellow-text); }
+  .step.done .step-lbl { color: var(--text-secondary); }
+  .step.active .step-no { background: var(--kb-yellow); border-color: var(--kb-yellow-dark); color: var(--ink); box-shadow: 0 0 0 3px var(--kb-yellow-soft); }
+  .step.active .step-lbl { color: var(--ink); font-weight: 800; }
+  @media (max-width: 680px) { .step-lbl { display: none; } .step-bar { min-width: 10px; } }
+
   /* 카드형 라디오 (VDI 유형 — 고정가상화 단일) */
   .type-cards { display: grid; grid-template-columns: minmax(0, 380px); gap: 12px; }
   .type-card {
@@ -175,6 +190,17 @@
       <div class="page-header-right"></div>
     </div>
 
+    <!-- 단계 표시 -->
+    <div class="stepper reveal" id="stepper" style="animation-delay:.1s">
+      <div class="step active" data-step="1"><span class="step-no">1</span><span class="step-lbl">정보 입력</span></div>
+      <div class="step-bar"></div>
+      <div class="step" data-step="2"><span class="step-no">2</span><span class="step-lbl">사양 선택</span></div>
+      <div class="step-bar"></div>
+      <div class="step" data-step="3"><span class="step-no">3</span><span class="step-lbl">결재선</span></div>
+      <div class="step-bar"></div>
+      <div class="step" data-step="4"><span class="step-no">4</span><span class="step-lbl">확인 · 완료</span></div>
+    </div>
+
     <!-- ================= STEP 1 : 정보입력 ================= -->
     <section class="step-panel active" data-panel="1">
       <div class="fc">
@@ -232,7 +258,7 @@
         <div class="action-btns">
           <button class="btn btn-outline" onclick="location.href='portal.html'">취소</button>
           <button class="btn btn-primary" onclick="goNext(1)">
-            신규 신청
+            다음 · 사양 선택
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
@@ -333,14 +359,14 @@
       </div>
 
       <div class="action-bar">
-        <div class="action-hint"></div>
+        <div class="action-hint">가상PC 유형과 CPU · 메모리 · 디스크 사양을 선택하세요.</div>
         <div class="action-btns">
           <button class="btn btn-outline" onclick="goPrev(2)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
             이전
           </button>
           <button class="btn btn-primary" onclick="goNext(2)">
-            다음
+            다음 · 결재선
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
@@ -411,7 +437,7 @@
       </div>
 
       <div class="action-bar">
-        <div class="action-hint"></div>
+        <div class="action-hint">결재선은 자동 지정됩니다. 확인 후 신청 내용을 검토하세요.</div>
         <div class="action-btns">
           <button class="btn btn-outline" onclick="goPrev(3)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
@@ -552,10 +578,19 @@
   document.querySelector('.period-pills .qp[data-months="1"]').classList.add('sel');
 
   // ===== 단계 이동 =====
+  function updateStepper(n) {
+    document.querySelectorAll('#stepper .step').forEach(el => {
+      const s = +el.dataset.step;
+      el.classList.toggle('done', s < n);
+      el.classList.toggle('active', s === n);
+    });
+    document.querySelectorAll('#stepper .step-bar').forEach((bar, i) => bar.classList.toggle('fill', i < n - 1));
+  }
   function setStep(n) {
     document.querySelectorAll('.step-panel').forEach(p => {
       p.classList.toggle('active', +p.dataset.panel === n);
     });
+    updateStepper(n);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 

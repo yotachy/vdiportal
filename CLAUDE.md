@@ -249,7 +249,7 @@ portal.html `<style>`/`<script>`에 정의된 페이지 고유 패턴:
 ### 화면별 구현 메모 (참조 · 수정 시 구조 파악용)
 
 - **login.html**: `zoom:0.97` 독립 레이아웃. 크림 배경 위 중앙 카드(`.login-shell`, 약 1520×820) = 좌측 브랜드 패널(절제된 크림 + 기능 리스트 SSO/2차인증/원격근무) + 우측 2단계 인증(STEP1 ID/PW → STEP2 OTP 6자리). 계정 도움 링크 3종(아이디 생성/비밀번호 재발급/계정 잠금 해제). 로그인 성공 시 `sessionStorage['vdi_auth']='1'`
-- **apply.html**: 단계형 신청(정보입력 → 사양선택 → 결재선 → 완료, 상단 단계바는 제거됨). 신청자 정보 영역·대리 신청 없음(본인 신청 전용). VDI 유형은 **고정가상화 단일 카드**. 사용 기간(시작=오늘 고정·종료=달력/PILL, 기본 1개월). 행 격자 `label 140px + gap 16` 통일
+- **apply.html**: 단계형 신청(정보입력 → 사양선택 → 결재선 → 확인·완료). 상단 stepper(.stepper, setStep→updateStepper로 동기화)로 진행 표시. 신청자 정보 영역·대리 신청 없음(본인 신청 전용). VDI 유형은 **고정가상화 단일 카드**. 사용 기간(시작=오늘 고정·종료=달력/PILL, 기본 1개월). 행 격자 `label 140px + gap 16` 통일
 - **change.html**: 탭 2개 **사용 연장 / 자원 증설**(밑줄형 탭). 대상 VDI 2대(`VDI_LIST`, `base` 플래그). **main=`base:true`(기본 지급·재직 자동유지)→연장 대상 아님**, **common=`base:false`(별도 신청)→연장 가능**. 연장 탭에선 base VDI `locked`(비활성)·자동으로 별도신청 VDI 선택, 증설 탭은 둘 다 선택 가능. VDI 행은 큰 카드 대신 라디오 리스트(`.vdi-opt`)+지급구분 배지(기본 지급/별도 신청). 연장(현재 종료일 이후·PILL 기본 1개월) / 증설(콤보박스, 현재값 표시). 신청자 정보·대리 신청 없음
 - **approval.html**: `filter-bar` + `date-range`(기간 필터) + `search-box` + `data-table` + `pager`. **상태**: 승인중·완료·반려(3종) / **구분**: 신규·연장·증설(`rtag-add/extend/expand`). 신청번호 `nowrap`
 - **approval-detail.html**: 신청 정보 카드 + `prog-steps` 진행 + 결재 이력. `KIND`·`PILL`·각 레코드를 approval.html과 정합 유지
