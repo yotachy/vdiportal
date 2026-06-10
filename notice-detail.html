@@ -111,9 +111,9 @@
   const ICO_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
   const ICO_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
 
-  // ===== 데이터 (notice.html 9건과 정합) =====
+  // ===== 데이터 (notice.html 12건과 정합) =====
   // 목록 순서 (notice.html과 동일, 최신순)
-  const ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
   const DETAILS = {
     1: { cat: 'important', title: '[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내', author: '관리자', date: '2026.05.29', views: 1284,
@@ -141,7 +141,7 @@
     4: { cat: 'normal', title: 'VDI 사용자 매뉴얼 v2.0 배포 안내', author: '관리자', date: '2026.05.20', views: 1042,
       body: `<p>업무가상화 사용자 포탈 개편에 맞춰 <strong>VDI 사용자 매뉴얼 v2.0</strong>을 배포합니다. 접속 방법, 신청 절차, 자주 묻는 질문 등이 보강되었습니다.</p>
         <p><strong>주요 보강 내용</strong></p>
-        <ul><li>신규 포탈 화면 기준 접속·신청 가이드</li><li>변경·증설·반납 신청 절차 안내</li><li>장애 발생 시 대처 및 신고 방법</li></ul>
+        <ul><li>신규 포탈 화면 기준 접속·신청 가이드</li><li>사용 연장·자원 증설 신청 절차 안내</li><li>장애 발생 시 대처 및 신고 방법</li></ul>
         <p>아래 첨부파일에서 매뉴얼을 내려받으실 수 있습니다.</p>`,
       files: [{ name: 'VDI_사용자매뉴얼_v2.0.pdf', size: '4.2 MB' }] },
     5: { cat: 'normal', title: '가상PC Windows 5월 정기 보안 패치 적용 안내', author: '관리자', date: '2026.05.14', views: 658,
@@ -176,9 +176,9 @@
         <ul><li>접속 게이트웨이 이중화 적용</li><li>장애 발생 시 자동 우회(Failover) 전환</li><li>사용자 측 별도 설정 변경 사항 없음</li></ul>`,
       files: [] },
     11: { cat: 'normal', title: '4월 가상PC 사용 현황 리포트 공유', author: '관리자', date: '2026.04.01', views: 312,
-      body: `<p>4월 한 달간의 <strong>부서별 가상PC 사용 현황</strong>과 자원 사용률 리포트를 공유합니다. 자원 증설·반납 계획 수립에 참고하시기 바랍니다.</p>
+      body: `<p>4월 한 달간의 <strong>부서별 가상PC 사용 현황</strong>과 자원 사용률 리포트를 공유합니다. 자원 증설 계획 수립에 참고하시기 바랍니다.</p>
         <p><strong>요약</strong></p>
-        <ul><li>전사 평균 CPU 사용률 41%, 메모리 사용률 58%</li><li>장기 미사용 가상PC는 반납 대상으로 별도 안내 예정</li></ul>`,
+        <ul><li>전사 평균 CPU 사용률 41%, 메모리 사용률 58%</li><li>장기 미사용 가상PC는 사용 점검 후 별도 안내 예정</li></ul>`,
       files: [{ name: '2026-04_VDI_사용현황_리포트.pdf', size: '1.4 MB' }] },
     12: { cat: 'important', title: '[보안] 분기 비밀번호 변경 안내 (2분기)', author: '관리자', date: '2026.03.28', views: 1203,
       body: `<p>정보보안 정책에 따라 <strong>2분기 비밀번호 변경</strong>을 안내합니다. 기한 내 변경하지 않으면 가상PC 접속이 제한될 수 있습니다.</p>
