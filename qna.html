@@ -10,26 +10,21 @@
   .main { max-width: 920px; margin: 0 auto; }
 
   /* 다운로드 섹션 (.fc 컨테이너 안에 헤더 + 링크 리스트) */
-  .dl-section { margin-bottom: 16px; scroll-margin-top: 84px; }
+  .dl-section { scroll-margin-top: 84px; }
   .dl-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
   .dl-head-ico { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     background: var(--kb-yellow-soft); color: var(--kb-yellow-dark); }
   .dl-head-ico svg { width: 18px; height: 18px; }
   .dl-head-title { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
-  .dl-head-count { font-size: 12px; font-weight: 700; color: var(--text-tertiary); background: var(--bg-subtle);
-    border-radius: 10px; padding: 1px 9px; min-width: 22px; text-align: center; }
 
   /* 링크(다운로드) 행 — 카드형 X, 리스트 행 */
-  .dl-row { display: flex; align-items: center; gap: 15px; padding: 14px 20px; border-bottom: 1px solid var(--border);
+  .dl-row { display: flex; align-items: center; gap: 15px; padding: 15px 20px; border-bottom: 1px solid var(--border);
     cursor: pointer; transition: background 0.12s; text-decoration: none; }
   .dl-row:last-child { border-bottom: none; }
   .dl-row:hover { background: var(--surface-2); }
   .dl-badge { width: 44px; height: 30px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     color: #fff; font-size: 11px; font-weight: 800; letter-spacing: -0.02em; }
-  .dl-main { flex: 1; min-width: 0; }
-  .dl-name { display: block; font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .dl-desc { display: block; font-size: 12.5px; color: var(--text-tertiary); margin-top: 3px;
+  .dl-name { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dl-meta { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
   .dl-meta i { color: var(--border-strong); font-style: normal; margin: 0 6px; }
@@ -38,6 +33,23 @@
     font-size: 12.5px; font-weight: 700; letter-spacing: -0.01em; transition: all 0.14s; }
   .dl-act svg { width: 15px; height: 15px; }
   .dl-row:hover .dl-act { background: var(--kb-yellow); border-color: var(--kb-yellow); color: var(--ink); }
+
+  /* 관리자 — 항목 추가 / 수정 */
+  .dl-add { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: 8px;
+    border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-secondary);
+    font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: all 0.14s; }
+  .dl-add:hover { border-color: var(--kb-yellow-dark); color: var(--ink); background: var(--kb-yellow-soft); }
+  .dl-add svg { width: 14px; height: 14px; }
+  .dl-edit { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-tertiary); cursor: pointer; transition: all 0.14s; }
+  .dl-edit:hover { border-color: var(--kb-yellow-dark); color: var(--ink); background: var(--kb-yellow-soft); }
+  .dl-edit svg { width: 15px; height: 15px; }
+
+  /* 관리자 모달 폼 */
+  .dl-form-row { margin-bottom: 14px; }
+  .dl-form-row:last-child { margin-bottom: 0; }
+  .dl-form-row .lbl { margin-bottom: 6px; }
+  .dl-form-row.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   /* 딥링크 진입 시 잠깐 강조 */
   .dl-section.flash { animation: dlFlash 1.6s ease; }
@@ -49,7 +61,7 @@
 
   @media (max-width: 640px) {
     .dl-meta { display: none; }
-    .dl-row { gap: 12px; padding: 13px 16px; }
+    .dl-row { gap: 12px; padding: 14px 16px; }
     .dl-head { padding: 14px 16px; }
   }
 </style>
@@ -78,12 +90,12 @@
     <div class="page-header reveal" style="animation-delay:.06s">
       <div class="page-header-left">
         <h1 class="page-title">자료실</h1>
-        <p class="page-desc">VDI 이용에 필요한 설치 파일·매뉴얼·신청 서식·정책 자료를 내려받을 수 있습니다.</p>
+        <p class="page-desc">VDI 이용에 필요한 설치 파일과 사용자 매뉴얼을 내려받을 수 있습니다.</p>
       </div>
       <div class="page-header-right">
-        <button type="button" class="btn btn-admin admin-only" onclick="showToast('자료 등록 화면으로 이동합니다. (관리자 전용)')" title="관리자 전용">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          자료 등록
+        <button type="button" class="btn btn-admin admin-only" onclick="openDlModal()" title="관리자 전용">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          자료 추가
         </button>
       </div>
     </div>
@@ -92,6 +104,59 @@
 
   </main>
 </div>
+
+<!-- 자료 추가/수정 모달 (관리자 전용) -->
+<div class="modal" id="dlModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeDlModal()" aria-label="닫기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="modal-title" id="dlModalTitle">자료 추가</div>
+    <div class="modal-meta">자료실에 게시할 파일 정보를 입력합니다. (관리자 전용)</div>
+    <div class="modal-body">
+      <div class="dl-form-row">
+        <div class="lbl">분류 <span class="req">*</span></div>
+        <select class="fs" id="fSec">
+          <option value="install">설치 프로그램</option>
+          <option value="manual">사용자 매뉴얼</option>
+        </select>
+      </div>
+      <div class="dl-form-row">
+        <div class="lbl">제목 <span class="req">*</span></div>
+        <input class="fi" id="fName" placeholder="자료 제목을 입력하세요">
+      </div>
+      <div class="dl-form-row">
+        <div class="lbl">파일 유형 <span class="req">*</span></div>
+        <select class="fs" id="fType">
+          <option value="pdf">PDF 문서</option>
+          <option value="exe">실행 파일 (EXE)</option>
+          <option value="zip">압축 파일 (ZIP)</option>
+          <option value="hwp">한글 문서 (HWP)</option>
+          <option value="xlsx">엑셀 문서 (XLSX)</option>
+        </select>
+      </div>
+      <div class="dl-form-row">
+        <div class="lbl">파일명 <span class="req">*</span></div>
+        <input class="fi" id="fFile" placeholder="예) VDI_사용자매뉴얼.pdf">
+      </div>
+      <div class="dl-form-row two">
+        <div>
+          <div class="lbl">용량</div>
+          <input class="fi" id="fSize" placeholder="예) 4.2 MB">
+        </div>
+        <div>
+          <div class="lbl">등록일</div>
+          <input class="fi" id="fDate" placeholder="예) 2026.06.10">
+        </div>
+      </div>
+    </div>
+    <div class="action-btns" style="margin-top:22px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeDlModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveDl()">저장</button>
+    </div>
+  </div>
+</div>
+
 <script src="common.js"></script>
 <script>
   // ===== 파일 유형 → 배지 색/라벨 =====
@@ -106,65 +171,113 @@
   // 섹션 아이콘
   const SEC_ICON = {
     install: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
-    manual:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
-    form:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
-    policy:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>'
+    manual:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>'
   };
 
-  // ===== 제공 자료 (섹션별, 총 9건) =====
+  // ===== 제공 자료 (섹션별) =====
   const SECTIONS = [
     { id: 'install', title: '설치 프로그램', items: [
-      { type: 'exe', name: 'Citrix Workspace 설치파일',   desc: 'VDI 접속용 표준 클라이언트 · Windows',  file: 'CitrixWorkspace_설치파일.exe',   size: '78.5 MB', date: '2026.05.26' },
-      { type: 'zip', name: 'VDI 접속프로그램 패키지',       desc: '접속에 필요한 설치 파일 일괄 패키지',     file: 'VDI_접속프로그램_패키지.zip',    size: '92.3 MB', date: '2026.05.10' }
+      { type: 'exe', name: 'Citrix Workspace 설치파일',   file: 'CitrixWorkspace_설치파일.exe',   size: '78.5 MB', date: '2026.05.26' },
+      { type: 'zip', name: 'VDI 접속프로그램 패키지',       file: 'VDI_접속프로그램_패키지.zip',    size: '92.3 MB', date: '2026.05.10' }
     ]},
     { id: 'manual', title: '사용자 매뉴얼', items: [
-      { type: 'pdf', name: 'VDI 사용자 매뉴얼 v2.0',        desc: '전체 기능 안내서 (최신판)',              file: 'VDI_사용자매뉴얼_v2.0.pdf',      size: '4.2 MB',  date: '2026.05.20' },
-      { type: 'pdf', name: 'VDI 빠른시작 가이드',           desc: '최초 접속 · 기본 사용법 요약',           file: 'VDI_빠른시작_가이드.pdf',        size: '1.1 MB',  date: '2026.05.18' },
-      { type: 'pdf', name: '원격접속 설정 가이드',          desc: '사외 원격근무 환경 설정 절차',           file: '원격접속_설정_가이드.pdf',       size: '880 KB',  date: '2026.04.30' }
-    ]},
-    { id: 'form', title: '신청 서식', items: [
-      { type: 'hwp',  name: 'VDI 추가신청서',               desc: '신규 가상PC 신청 양식',                 file: 'VDI_추가신청서.hwp',             size: '64 KB',   date: '2026.05.02' },
-      { type: 'xlsx', name: '자원증설 신청서',              desc: 'CPU · 메모리 · 디스크 증설 양식',       file: '자원증설_신청서.xlsx',           size: '48 KB',   date: '2026.05.02' }
-    ]},
-    { id: 'policy', title: '정책 · 보안', items: [
-      { type: 'pdf', name: 'VDI 보안 이용수칙',             desc: '필수 준수 보안 정책',                   file: 'VDI_보안_이용수칙.pdf',          size: '320 KB',  date: '2026.05.28' },
-      { type: 'pdf', name: '데이터 백업 정책',              desc: 'D드라이브 백업 · 보존 기준',            file: '데이터_백업_정책.pdf',           size: '256 KB',  date: '2026.04.18' }
+      { type: 'pdf', name: 'VDI 사용자 매뉴얼 v2.0',        file: 'VDI_사용자매뉴얼_v2.0.pdf',      size: '4.2 MB',  date: '2026.05.20' },
+      { type: 'pdf', name: 'VDI 빠른시작 가이드',           file: 'VDI_빠른시작_가이드.pdf',        size: '1.1 MB',  date: '2026.05.18' },
+      { type: 'pdf', name: '원격접속 설정 가이드',          file: '원격접속_설정_가이드.pdf',       size: '880 KB',  date: '2026.04.30' }
     ]}
   ];
 
   const $ = id => document.getElementById(id);
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const DL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+  let admin = document.body.classList.contains('admin-mode');
+  let editRef = null;   // null = 추가, { s, i } = 수정
 
-  function rowHtml(it) {
-    const t = TYPE[it.type];
+  const DL_SVG   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+  const EDIT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>';
+  const PLUS_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+
+  function rowHtml(it, si, ii) {
+    const t = TYPE[it.type] || { color: '#6B7280', label: '파일' };
     return `
       <div class="dl-row" onclick="download('${esc(it.file)}')" title="${esc(it.file)}">
         <span class="dl-badge" style="background:${t.color}">${t.label}</span>
-        <span class="dl-main">
-          <span class="dl-name">${esc(it.name)}</span>
-          <span class="dl-desc">${esc(it.desc)}</span>
-        </span>
+        <span class="dl-name">${esc(it.name)}</span>
         <span class="dl-meta">${it.size}<i>·</i>${it.date}</span>
         <span class="dl-act">${DL_SVG} 다운로드</span>
+        ${admin ? `<button class="dl-edit" title="수정" onclick="event.stopPropagation();openDlModal(${si},${ii})">${EDIT_SVG}</button>` : ''}
       </div>`;
   }
 
   function render() {
-    $('sections').innerHTML = SECTIONS.map((s, i) => `
-      <section class="fc dl-section reveal" id="sec-${s.id}" style="animation-delay:${(0.1 + i * 0.04).toFixed(2)}s">
+    $('sections').innerHTML = SECTIONS.map((s, si) => `
+      <section class="fc dl-section reveal" id="sec-${s.id}" style="animation-delay:${(0.1 + si * 0.04).toFixed(2)}s">
         <div class="dl-head">
           <span class="dl-head-ico">${SEC_ICON[s.id] || ''}</span>
           <span class="dl-head-title">${s.title}</span>
-          <span class="dl-head-count">${s.items.length}</span>
+          ${admin ? `<button class="dl-add" onclick="openDlModal(${si})">${PLUS_SVG} 항목 추가</button>` : ''}
         </div>
-        ${s.items.map(rowHtml).join('')}
+        ${s.items.map((it, ii) => rowHtml(it, si, ii)).join('')
+          || '<div style="padding:22px 20px;color:var(--text-tertiary);font-size:13.5px">등록된 자료가 없습니다.</div>'}
       </section>`).join('');
   }
 
   function download(file) {
     showToast('파일을 다운로드합니다: ' + file);
   }
+
+  // ===== 관리자 — 추가/수정 =====
+  function secIndexById(id) { return SECTIONS.findIndex(s => s.id === id); }
+
+  function openDlModal(s, i) {
+    if (typeof i === 'number') {                 // 수정
+      editRef = { s, i };
+      const it = SECTIONS[s].items[i];
+      $('dlModalTitle').textContent = '자료 수정';
+      $('fSec').value = SECTIONS[s].id;
+      $('fName').value = it.name; $('fType').value = it.type;
+      $('fFile').value = it.file; $('fSize').value = it.size; $('fDate').value = it.date;
+    } else {                                     // 추가
+      editRef = null;
+      $('dlModalTitle').textContent = '자료 추가';
+      $('fSec').value = (typeof s === 'number') ? SECTIONS[s].id : 'install';
+      $('fName').value = ''; $('fType').value = 'pdf';
+      $('fFile').value = ''; $('fSize').value = ''; $('fDate').value = '';
+    }
+    $('dlModal').classList.add('open');
+    setTimeout(() => $('fName').focus(), 50);
+  }
+  function closeDlModal() { $('dlModal').classList.remove('open'); }
+
+  function saveDl() {
+    const name = $('fName').value.trim(), file = $('fFile').value.trim();
+    if (!name || !file) { showToast('제목과 파일명을 입력해주세요.'); return; }
+    const item = {
+      type: $('fType').value, name, file,
+      size: $('fSize').value.trim() || '-',
+      date: $('fDate').value.trim() || '-'
+    };
+    const target = secIndexById($('fSec').value);
+    if (editRef) {
+      if (editRef.s === target) {
+        SECTIONS[target].items[editRef.i] = item;
+      } else {                                   // 분류 변경 시 이동
+        SECTIONS[editRef.s].items.splice(editRef.i, 1);
+        SECTIONS[target].items.push(item);
+      }
+      showToast('자료가 수정되었습니다.');
+    } else {
+      SECTIONS[target].items.push(item);
+      showToast('자료가 추가되었습니다.');
+    }
+    closeDlModal();
+    render();
+  }
+
+  // 모달 배경 클릭 시 닫기
+  $('dlModal').addEventListener('click', e => { if (e.target === $('dlModal')) closeDlModal(); });
+
+  // 관리자 모드 토글 시 추가/수정 버튼 노출 갱신
+  window.onAdminModeChange = function (on) { admin = on; render(); };
 
   render();
 
