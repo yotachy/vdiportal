@@ -320,7 +320,7 @@
       return okFilter && okSearch && okDate;
     });
 
-    $('scopeNote').textContent = isAdmin() ? '관리자 모드 · 전체 사용자 신고 내역' : '본인이 등록한 신고만 표시됩니다.';
+    $('scopeNote').textContent = isAdmin() ? '관리자 권한 · 전체 사용자 신고 내역' : '본인이 등록한 신고만 표시됩니다.';
 
     if (!list.length) {
       $('tbody').innerHTML = `<tr class="empty-row"><td colspan="7">조건에 맞는 신고 내역이 없습니다.</td></tr>`;
@@ -413,7 +413,7 @@
     curPage = 1; render();
   }
 
-  // 관리자 모드 전환 시 열람 범위(본인/전체) 갱신
+  // 관리자 권한 전환 시 열람 범위(본인/전체) 갱신
   window.onAdminModeChange = function () { curPage = 1; updateStats(); render(); };
 
   // 초기 — 기본 기간: 최근 1개월

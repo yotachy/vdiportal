@@ -21,7 +21,7 @@
   .faq-empty { padding: 52px 16px; text-align: center; color: var(--text-tertiary); font-size: 14px; }
 
 
-  /* 관리자 모드 — FAQ 추가/수정/삭제 (팝업 관리) */
+  /* 관리자 권한 — FAQ 추가/수정/삭제 (팝업 관리) */
   .faq-admin-actions { display: flex; gap: 6px; }
   .faq-act { width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid var(--border-strong);
     background: var(--surface); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; transition: all .15s; }
@@ -168,7 +168,7 @@
 
   const $ = id => document.getElementById(id);
   let curFilter = 'all', curSearch = '', admin = document.body.classList.contains('admin-mode'), editIndex = null, curPage = 1;
-  // 전역 관리자 모드(헤더 토글)와 연동 — 관리자 전용 추가/수정/삭제 노출
+  // 전역 관리자 권한(헤더 토글)와 연동 — 관리자 전용 추가/수정/삭제 노출
   window.onAdminModeChange = function (on) { admin = on; render(); };
 
   const CHEVRON = '<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>';
@@ -221,7 +221,7 @@
     });
   }
 
-  // ===== 관리자 추가/수정/삭제 (팝업) — 노출은 전역 관리자 모드가 제어 =====
+  // ===== 관리자 추가/수정/삭제 (팝업) — 노출은 전역 관리자 권한가 제어 =====
   function openFaqModal(index) {
     editIndex = (typeof index === 'number') ? index : null;
     $('faqModalTitle').textContent = editIndex === null ? 'FAQ 추가' : 'FAQ 수정';
