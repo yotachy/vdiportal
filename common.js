@@ -19,9 +19,6 @@ var PORTAL_USER = { name: '최정식 책임', dept: 'IT기획파트', empNo: '10
 /* ---------- 헬프데스크 ---------- */
 var SERVICE_DESK = { tel: '1544-8119', hours: '평일 09:00~18:00' };
 
-/* ---------- 세션 (만료까지 남은 시간, 초) ---------- */
-var SESSION_SECONDS = 20 * 60 - 3;
-
 /* ---------- 사이드바 메뉴 정의 (순서 = 표시 순서) ----------
    key   : data-sidebar 와 매칭되는 식별자
    href  : 이동 경로
@@ -161,23 +158,6 @@ function renderPager(el, total, page, onGo) {
   el.appendChild(mk(NEXT, page + 1, false, page >= pages));
 }
 
-/* ---------- 세션 타이머 (헤더 #sessionTimer 카운트다운) ---------- */
-function startSessionTimer(seconds) {
-  var remain = seconds;
-  function tick() {
-    remain--;
-    if (remain <= 0) { alert('세션이 만료되었습니다.'); location.href = 'login.html'; return; }
-    var el = document.getElementById('sessionTimer');
-    if (el) {
-      var m = String(Math.floor(remain / 60)).padStart(2, '0');
-      var s = String(remain % 60).padStart(2, '0');
-      el.textContent = m + ':' + s;
-    }
-  }
-  clearInterval(window.__sessionT);
-  window.__sessionT = setInterval(tick, 1000);
-}
-
 /* ---------- 헤더 렌더 ---------- */
 function renderHeader(el) {
   var u = PORTAL_USER;
@@ -185,20 +165,19 @@ function renderHeader(el) {
     '<div class="header-logo" onclick="goHome()" style="cursor:pointer" title="홈으로"><img class="header-logo-img" src="kb-logo.png" alt="KB손해보험"></div>' +
     '<div class="header-divider"></div>' +
     '<div class="header-service-name" onclick="goHome()" style="cursor:pointer" title="포탈 홈으로">업무가상화 사용자 포탈</div>' +
-    '<div class="header-divider"></div>' +
-    '<div class="header-user-badge">' +
-      '<span class="hub-name">' + u.name + '</span>' +
-      '<span class="hub-sep">·</span>' +
-      '<span class="hub-item">' + u.dept + '</span>' +
-      '<span class="hub-sep">·</span>' +
-      '<span class="hub-item">사번 <strong>' + u.empNo + '</strong></span>' +
-      '<span class="hub-sep">·</span>' +
-      '<span class="hub-item">ID <strong>' + u.id + '</strong></span>' +
-    '</div>' +
     '<div class="header-right">' +
       '<button class="header-admin-btn" id="headerAdminBtn" onclick="toggleAdminMode(this)" title="관리자 권한 전환 (관리자 전용 버튼 표시)">' +
         svgIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>') + '<span class="ham-label">관리자 권한</span></button>' +
-      '<div class="header-session"><span>세션 만료</span><span class="header-session-value" id="sessionTimer">19:57</span></div>' +
+      '<div class="header-divider"></div>' +
+      '<div class="header-user-badge">' +
+        '<span class="hub-name">' + u.name + '</span>' +
+        '<span class="hub-sep">·</span>' +
+        '<span class="hub-item">' + u.dept + '</span>' +
+        '<span class="hub-sep">·</span>' +
+        '<span class="hub-item">사번 <strong>' + u.empNo + '</strong></span>' +
+        '<span class="hub-sep">·</span>' +
+        '<span class="hub-item">ID <strong>' + u.id + '</strong></span>' +
+      '</div>' +
       '<button class="header-btn" title="로그아웃" onclick="logout()">' + svgIcon('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>') + '</button>' +
     '</div>';
 }
@@ -265,6 +244,4 @@ function restoreAdminMode() {
   if (sidebar) {
     renderSidebar(sidebar, sidebar.getAttribute('data-sidebar'));
   }
-
-  startSessionTimer(SESSION_SECONDS);
 })();

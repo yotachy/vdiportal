@@ -214,7 +214,7 @@
 
   function render() {
     $('sections').innerHTML = SECTIONS.map((s, si) => `
-      <section class="fc dl-section reveal" id="sec-${s.id}" style="animation-delay:${(0.1 + si * 0.04).toFixed(2)}s">
+      <section class="fc dl-section reveal" id="sec-${s.id}" style="animation-delay:.1s">
         <div class="dl-head">
           <span class="dl-head-ico">${SEC_ICON[s.id] || ''}</span>
           <span class="dl-head-title">${s.title}</span>

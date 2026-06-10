@@ -45,7 +45,6 @@
 | VDI 명 | jschoi0223-main · jschoi0223-nomain (둘 다 **고정가상화**) |
 | VDI 유형 | **고정가상화 단일** (공용가상화·임시형 없음). 대리 신청 기능 없음 |
 | 헬프데스크 | 1544-8119 (평일 09:00~18:00) |
-| 세션 만료 | 20분 |
 
 날짜는 2026년 4~6월 기준 (예: `2026.04.24`, `2026.05.29`, 점검 공지 `06.01`). 사용자·헬프데스크·세션·메뉴 값은 `common.js` 설정에서 일괄 관리.
 
@@ -210,7 +209,7 @@
 ```
 
 - `data-sidebar` 메뉴 key: `portal` · `apply` · `change` · `approval` · `incident` · `notice` · `faq` · `qna`
-- 사용자/헬프데스크/세션시간/메뉴는 `common.js` 의 `PORTAL_USER` · `SERVICE_DESK` · `SESSION_SECONDS` · `NAV_SECTIONS` 에서 한 번에 관리한다.
+- 사용자/헬프데스크/메뉴는 `common.js` 의 `PORTAL_USER` · `SERVICE_DESK` · `NAV_SECTIONS` 에서 한 번에 관리한다.
 - 토스트 마크업은 둘 필요 없다 — `showToast()` 가 없으면 자동 생성한다.
 
 ### Active 메뉴 규칙
@@ -245,7 +244,7 @@ portal.html `<style>`/`<script>`에 정의된 페이지 고유 패턴:
 - **관리자 안내 영역 (`.vw-notice`)**: VDI 카드 하단, 클릭 시 공지 상세로 이동. 태그는 공지 분류(중요/일반)와 정합
 - **새로고침 버튼 애니메이션**: `.spinning` 클래스 + `@keyframes spin` (portal 고유)
 
-> 세션 타이머·`showToast()`·`goHome()`/`logout()`·헤더/사이드바는 이제 **`common.js`** 소관(portal 아님). 헤더 로고·서비스명은 모두 `goHome()`, KB손해보험 공식 홈페이지 링크는 portal 사이트링크 드롭다운에 있음.
+> `showToast()`·`goHome()`/`logout()`·헤더/사이드바는 이제 **`common.js`** 소관(portal 아님). 헤더 로고·서비스명은 모두 `goHome()`, KB손해보험 공식 홈페이지 링크는 portal 사이트링크 드롭다운에 있음.
 
 ### 화면별 구현 메모 (참조 · 수정 시 구조 파악용)
 

@@ -74,7 +74,7 @@ KB손해보험 VDI 사용자 포탈 화면정의서의 **소스 구조와 작업
 | `maxDateOf(rows)` / `quickRangeFrom(to, 'week'\|'month')` | 빠른선택(최근 1주일/1개월) 보조 |
 | `toggleAdminMode(btn)` | 관리자 모드 ON/OFF (`sessionStorage['vdi_admin']`로 유지) |
 
-> 세션 타이머는 `common.js` 로드 시 자동 시작. 헤더/사이드바도 init에서 자동 렌더.
+> 헤더/사이드바는 init에서 자동 렌더.
 
 ### 목록 화면 표준(페이징 + 기간 필터)
 
@@ -114,7 +114,6 @@ function render() {
 |---|---|
 | 사용자명·부서·사번·ID | `common.js` → `PORTAL_USER` |
 | 헬프데스크 번호·운영시간 | `common.js` → `SERVICE_DESK` |
-| 세션 만료 시간 | `common.js` → `SESSION_SECONDS` |
 | 사이드바 메뉴(추가·이름·순서·배지) | `common.js` → `NAV_SECTIONS` |
 | 헤더 구성 | `common.js` → `renderHeader()` |
 | 색상·간격·폰트 토큰 | `common.css` → `:root` |
@@ -144,7 +143,6 @@ function render() {
 | 사용자 | 최정식 책임 / IT기획파트 / 사번 1010579 / ID jschoi0223 |
 | VDI 명 · 종류 | jschoi0223-main · jschoi0223-nomain (둘 다 고정가상화 — 유형 단일, 대리 신청 없음) |
 | 헬프데스크 | 1544-8119 (평일 09:00~18:00) |
-| 세션 | 20분 |
 | 날짜 | 2026년 4~6월 기준 (목록 기본 기간 = 최근 1개월) |
 | 결재 상태 | 승인중 · 완료 · 반려 (3종) / 구분: 신규 · 연장 · 증설 |
 | 장애 긴급도 | 긴급 · 보통 (2종) |
