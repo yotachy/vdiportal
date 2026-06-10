@@ -180,7 +180,7 @@
     <div class="card" style="margin-top:18px">
       <div class="area-list">
         <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
-          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 사용자 정보(이름·부서·사번·ID) · 세션 만료 타이머 · 알림 · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
+          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 관리자 권한 토글 · 사용자 정보(이름·부서·사번) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
         <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
           <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 Service Desk(1544-8119). 현재 화면은 [내 가상PC] active</div></div></div>
         <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">KPI · 바로가기 스트립</div>
@@ -264,7 +264,7 @@
         <tr><td>E-08</td><td>KPI 바로가기</td><td>KPI 카드 클릭</td><td>결재 현황 / 공지사항 / 자료실로 이동</td></tr>
         <tr><td>E-09</td><td>사이트링크</td><td>사이트링크 카드 오버 → 항목 클릭</td><td>드롭다운 노출 → 외부 시스템으로 이동(새 창) <em>(시안: 외부 이동 안내)</em></td></tr>
         <tr><td>E-10</td><td>관리자 공지</td><td>관리자 안내 클릭</td><td>공지 상세(notice-detail.html) 이동</td></tr>
-        <tr><td>E-11</td><td>세션 만료</td><td>세션 타이머 0 도달</td><td>안내 후 로그인 화면으로 이동</td></tr>
+        <tr><td>E-11</td><td>세션 만료</td><td>인증 세션 만료(서버 · 구현 시)</td><td>안내 후 로그인 화면으로 이동</td></tr>
       </tbody>
     </table>
   </section>
@@ -327,7 +327,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
       <div>
         본 문서의 <strong>대상 화면(portal.html)은 UI 시안(프로토타입)</strong>입니다. 가상PC 접속·재기동·자원 정보·외부 시스템 연계 등은 수행사 개발 시 연동 대상이며, 시안의 임시 동작(안내 메시지 등)은 실제 로직으로 대체합니다.<br>
-        헤더·사이드바·세션 타이머·토스트는 <strong>전 화면 공통 영역</strong>으로, 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
+        헤더·사이드바·토스트는 <strong>전 화면 공통 영역</strong>으로, 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
       </div>
     </div>
   </section>
