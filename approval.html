@@ -267,11 +267,6 @@
 
   // 검색
   $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
-  ['dateFrom', 'dateTo'].forEach(id => $(id).addEventListener('change', () => {
-    document.querySelectorAll('.date-quick').forEach(b => b.classList.remove('on'));
-    setDateLabel(customRangeLabel($('dateFrom').value, $('dateTo').value));
-    curPage = 1; render();
-  }));
   function setQuickRange(kind) {
     if (kind === 'all') { $('dateFrom').value = ''; $('dateTo').value = ''; }
     else {

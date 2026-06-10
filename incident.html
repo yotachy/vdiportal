@@ -22,7 +22,6 @@
   .stat-ico { width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
   .stat-ico svg { width: 21px; height: 21px; }
   .stat-ico.all { background: var(--kb-yellow-soft); color: var(--kb-yellow-dark); }
-  .stat-ico.info { background: var(--info-soft); color: var(--info); }
   .stat-ico.warn { background: var(--warning-soft); color: var(--warning); }
   .stat-ico.ok { background: var(--success-soft); color: var(--success); }
   .stat-num { font-size: 22px; font-weight: 800; color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums; }
@@ -35,7 +34,6 @@
   .urg { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
   .urg::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .urg-high { color: var(--danger); } .urg-high::before { background: var(--danger); }
-  .urg-mid { color: var(--warning); } .urg-mid::before { background: var(--warning); }
   .urg-low { color: var(--text-tertiary); } .urg-low::before { background: #BDB5A7; }
 
   /* 상태 — 진행 상태만 pill, 완료는 차분하게(텍스트형) */
@@ -400,11 +398,6 @@
     render();
   }
   $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
-  ['dateFrom', 'dateTo'].forEach(id => $(id).addEventListener('change', () => {
-    document.querySelectorAll('.date-quick').forEach(b => b.classList.remove('on'));
-    setDateLabel(customRangeLabel($('dateFrom').value, $('dateTo').value));
-    curPage = 1; render();
-  }));
   function setQuickRange(kind) {
     if (kind === 'all') { $('dateFrom').value = ''; $('dateTo').value = ''; }
     else {
