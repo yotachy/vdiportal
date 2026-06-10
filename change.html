@@ -9,6 +9,15 @@
 <style>
   .main { max-width: 1320px; margin: 0 auto; }
 
+  /* 시연용 토글 버튼 */
+  .demo-btn { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 15px; border-radius: 100px;
+    border: 1.5px dashed var(--border-strong); background: var(--surface); color: var(--text-secondary);
+    font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .demo-btn::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); transition: background 0.15s; }
+  .demo-btn:hover { border-color: var(--kb-yellow-dark); color: var(--ink); }
+  .demo-btn.on { border-style: solid; border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft); color: var(--ink); }
+  .demo-btn.on::before { background: var(--kb-yellow-dark); }
+
   /* 탭 패널 */
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
@@ -107,7 +116,9 @@
         <h1 class="page-title">사용 연장 · 자원 증설</h1>
         <p class="page-desc">보유한 가상PC의 사용 기간을 연장하거나 CPU·메모리·디스크 자원을 증설합니다.</p>
       </div>
-      <div class="page-header-right"></div>
+      <div class="page-header-right">
+        <button type="button" class="demo-btn" id="demoBtn" onclick="toggleDemoMode()" title="시연용 — 보유 VDI 상태 전환 (정상 ↔ 기본 지급만 보유)">시연용</button>
+      </div>
     </div>
 
     <!-- 메인 구분 탭: 사용 연장 / 자원 증설 -->
@@ -237,15 +248,13 @@
 <script>
   // ===== VDI 데이터 (portal.html과 동일하게 2대) =====
   // base:true = 기본 지급(재직 임직원 자동 지급) → 연장 대상 아님 / false = 별도 신청 → 연장 가능
-  const VDI_LIST = [
+  const VDI_ALL = [
     { name: 'jschoi0223-main', type: '고정가상화', base: true, typeClass: '', cpu: '6 Core', mem: '8 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '일반 업무용', status: '온라인', start: '2026-03-01', end: '2026-12-31' },
     { name: 'jschoi0223-nomain', type: '고정가상화', base: false, typeClass: '', cpu: '8 Core', mem: '16 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '온라인', start: '2025-11-01', end: '2026-09-30' }
   ];
-
-  // 시연용: change.html?demo=noext → 별도 신청(nomain) VDI 제외 → 기본 지급만 보유 상태(연장 빈 화면 시연)
-  if (new URLSearchParams(location.search).get('demo') === 'noext') {
-    for (let i = VDI_LIST.length - 1; i >= 0; i--) if (!VDI_LIST[i].base) VDI_LIST.splice(i, 1);
-  }
+  // 시연용: noExtDemo=true → 별도 신청(nomain) 제외(기본 지급만 보유) → 연장 빈 화면 시연. ?demo=noext 로 초기 진입도 가능
+  let noExtDemo = new URLSearchParams(location.search).get('demo') === 'noext';
+  let VDI_LIST = noExtDemo ? VDI_ALL.filter(v => v.base) : VDI_ALL.slice();
 
   const CPU_OPTS = ['6 Core', '8 Core'];
   const MEM_OPTS = ['8 GB', '16 GB'];
@@ -426,11 +435,27 @@
     setTimeout(() => location.href = 'approval.html', 1400);
   }
 
-  // 초기 진입(연장 탭): 기본 지급이 선택돼 있으면 연장 가능한(별도 신청) VDI로 전환
-  if (state.tab === 'extend' && VDI_LIST[state.vdi].base) {
-    const ext = VDI_LIST.findIndex(v => !v.base);
-    if (ext >= 0) state.vdi = ext;
+  // ===== 시연용 토글 (보유 VDI 상태 전환) =====
+  function selectExtendable() {
+    state.vdi = 0;
+    if (state.tab === 'extend' && VDI_LIST[state.vdi] && VDI_LIST[state.vdi].base) {
+      const ext = VDI_LIST.findIndex(v => !v.base);
+      if (ext >= 0) state.vdi = ext;
+    }
   }
+  function toggleDemoMode() {
+    noExtDemo = !noExtDemo;
+    VDI_LIST = noExtDemo ? VDI_ALL.filter(v => v.base) : VDI_ALL.slice();
+    $('demoBtn').classList.toggle('on', noExtDemo);
+    selectExtendable();
+    renderVdiCards();
+    syncForms();
+    showToast(noExtDemo ? '시연: 기본 지급 VDI만 보유 (연장 불가)' : '시연: 별도 신청 VDI 보유 (연장 가능)');
+  }
+
+  // 초기 렌더
+  $('demoBtn').classList.toggle('on', noExtDemo);
+  selectExtendable();
   renderStepper();
   renderVdiCards();
   syncForms();
