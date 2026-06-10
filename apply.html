@@ -138,7 +138,11 @@
   .step-panel.active { display: block; }
 
   @media (max-width: 880px) {
-    .type-cards, .spec-grid { grid-template-columns: 1fr; }
+    .type-cards { grid-template-columns: 1fr; }
+    .spec-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .spec-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
