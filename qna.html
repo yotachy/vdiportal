@@ -10,6 +10,9 @@
   .main { max-width: 1320px; margin: 0 auto; }
 
   /* 다운로드 섹션 (.fc 컨테이너 안에 헤더 + 링크 리스트) */
+  /* 섹션 2개를 넓은 폭에 2단으로 배치 (좁아지면 1단) */
+  #sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 18px; align-items: start; }
+  #sections .fc { margin-bottom: 0; }
   .dl-section { scroll-margin-top: 84px; }
   .dl-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
   .dl-head-ico { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
