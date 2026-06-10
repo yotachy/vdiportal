@@ -34,12 +34,7 @@
   .dl-act svg { width: 15px; height: 15px; }
   .dl-row:hover .dl-act { background: var(--kb-yellow); border-color: var(--kb-yellow); color: var(--ink); }
 
-  /* 관리자 — 항목 추가 / 수정 */
-  .dl-add { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: 8px;
-    border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-secondary);
-    font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: all 0.14s; }
-  .dl-add:hover { border-color: var(--kb-yellow-dark); color: var(--ink); background: var(--kb-yellow-soft); }
-  .dl-add svg { width: 14px; height: 14px; }
+  /* 관리자 — 항목 수정 */
   .dl-edit { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
     border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-tertiary); cursor: pointer; transition: all 0.14s; }
   .dl-edit:hover { border-color: var(--kb-yellow-dark); color: var(--ink); background: var(--kb-yellow-soft); }
@@ -49,11 +44,17 @@
   .dl-form-row { margin-bottom: 14px; }
   .dl-form-row:last-child { margin-bottom: 0; }
   .dl-form-row .lbl { margin-bottom: 6px; }
-  .dl-form-row.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .size-input { position: relative; }
-  .size-input input { padding-right: 40px; }
-  .size-input span { position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
-    font-size: 13px; font-weight: 700; color: var(--text-tertiary); pointer-events: none; }
+
+  /* 파일 업로드 컨트롤 */
+  .dl-upload { display: flex; align-items: center; gap: 11px; }
+  .dl-upload-btn { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 15px; border-radius: 9px; flex-shrink: 0;
+    border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-secondary);
+    font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.14s; }
+  .dl-upload-btn:hover { border-color: var(--kb-yellow-dark); color: var(--ink); background: var(--kb-yellow-soft); }
+  .dl-upload-btn svg { width: 15px; height: 15px; }
+  .dl-file-info { min-width: 0; font-size: 13px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dl-file-info.has { color: var(--text-primary); font-weight: 600; }
+  .dl-file-info b { color: var(--text-tertiary); font-weight: 600; margin-left: 6px; font-variant-numeric: tabular-nums; }
 
   /* 딥링크 진입 시 잠깐 강조 */
   .dl-section.flash { animation: dlFlash 1.6s ease; }
@@ -143,21 +144,16 @@
         </select>
       </div>
       <div class="dl-form-row">
-        <div class="lbl">파일명 <span class="req">*</span></div>
-        <input class="fi" id="fFile" placeholder="예) VDI_사용자매뉴얼.pdf">
-      </div>
-      <div class="dl-form-row two">
-        <div>
-          <div class="lbl">용량 (MB)</div>
-          <div class="size-input">
-            <input class="fi" id="fSize" inputmode="decimal" placeholder="예) 4.2">
-            <span>MB</span>
-          </div>
+        <div class="lbl">파일 <span class="req">*</span></div>
+        <div class="dl-upload">
+          <input type="file" id="fUpload" hidden onchange="onFilePick(this)">
+          <button type="button" class="dl-upload-btn" onclick="document.getElementById('fUpload').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            파일 선택
+          </button>
+          <div class="dl-file-info" id="fFileInfo">선택된 파일 없음</div>
         </div>
-        <div>
-          <div class="lbl">등록일</div>
-          <input class="fi" id="fDate" placeholder="예) 2026.06.10">
-        </div>
+        <div class="frow-help" style="font-size:12px;color:var(--text-tertiary);margin-top:8px">용량과 등록일은 업로드 시 자동으로 처리됩니다.</div>
       </div>
     </div>
     <div class="action-btns" style="margin-top:22px;justify-content:flex-end">
@@ -207,7 +203,6 @@
 
   const DL_SVG   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
   const EDIT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>';
-  const PLUS_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
 
   function rowHtml(it, si, ii) {
     const t = TYPE[it.type] || { color: '#6B7280', label: '파일' };
@@ -227,7 +222,6 @@
         <div class="dl-head">
           <span class="dl-head-ico">${SEC_ICON[s.id] || ''}</span>
           <span class="dl-head-title">${s.title}</span>
-          ${admin ? `<button class="dl-add" onclick="openDlModal(${si})">${PLUS_SVG} 항목 추가</button>` : ''}
         </div>
         ${s.items.map((it, ii) => rowHtml(it, si, ii)).join('')
           || '<div style="padding:22px 20px;color:var(--text-tertiary);font-size:13.5px">등록된 자료가 없습니다.</div>'}
@@ -241,42 +235,83 @@
   // ===== 관리자 — 추가/수정 =====
   function secIndexById(id) { return SECTIONS.findIndex(s => s.id === id); }
 
+  // 업로드 파일 → 확장자로 유형 자동 추정
+  const EXT_TYPE = { pdf: 'pdf', exe: 'exe', zip: 'zip', hwp: 'hwp', doc: 'doc', docx: 'doc',
+    xls: 'xlsx', xlsx: 'xlsx', ppt: 'ppt', pptx: 'ppt' };
+  function bytesToMB(bytes) {
+    const mb = bytes / (1024 * 1024);
+    return (mb >= 0.1 ? mb : 0.1).toFixed(1) + ' MB';   // 용량 자동 (MB 단위)
+  }
+  function todayStr() {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '.' + mm + '.' + dd;        // 등록일 = 오늘
+  }
+
+  let pendingFile = null;   // { file, size } — 업로드(또는 수정 시 기존) 파일 정보
+
+  function showFileInfo() {
+    const el = $('fFileInfo');
+    if (pendingFile) {
+      el.classList.add('has');
+      el.innerHTML = esc(pendingFile.file) + '<b>' + pendingFile.size + '</b>';
+    } else {
+      el.classList.remove('has');
+      el.textContent = '선택된 파일 없음';
+    }
+  }
+
+  // 파일 선택 → 파일명·용량 자동 반영, 유형 확장자로 자동 추정
+  function onFilePick(input) {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    pendingFile = { file: f.name, size: bytesToMB(f.size) };
+    const ext = (f.name.split('.').pop() || '').toLowerCase();
+    $('fType').value = EXT_TYPE[ext] || 'etc';
+    showFileInfo();
+  }
+
   function openDlModal(s, i) {
+    $('fUpload').value = '';
     if (typeof i === 'number') {                 // 수정
       editRef = { s, i };
       const it = SECTIONS[s].items[i];
       $('dlModalTitle').textContent = '자료 수정';
       $('fSec').value = SECTIONS[s].id;
-      $('fName').value = it.name; $('fType').value = it.type;
-      $('fFile').value = it.file;
-      $('fSize').value = (it.size || '').replace(/[^0-9.]/g, '');   // 숫자만 (MB는 접미사로 표시)
-      $('fDate').value = it.date;
+      $('fName').value = it.name;
+      $('fType').value = it.type;
+      pendingFile = { file: it.file, size: it.size };   // 기존 파일 유지(재업로드 시 교체)
     } else {                                     // 추가
       editRef = null;
       $('dlModalTitle').textContent = '자료 추가';
-      $('fSec').value = (typeof s === 'number') ? SECTIONS[s].id : 'install';
-      $('fName').value = ''; $('fType').value = 'pdf';
-      $('fFile').value = ''; $('fSize').value = ''; $('fDate').value = '';
+      $('fSec').value = 'install';
+      $('fName').value = '';
+      $('fType').value = 'pdf';
+      pendingFile = null;
     }
+    showFileInfo();
     $('dlModal').classList.add('open');
     setTimeout(() => $('fName').focus(), 50);
   }
   function closeDlModal() { $('dlModal').classList.remove('open'); }
 
   function saveDl() {
-    const name = $('fName').value.trim(), file = $('fFile').value.trim();
-    if (!name || !file) { showToast('제목과 파일명을 입력해주세요.'); return; }
-    const sizeNum = $('fSize').value.replace(/[^0-9.]/g, '');   // 숫자만 → 자동 MB 단위
+    const name = $('fName').value.trim();
+    if (!name) { showToast('제목을 입력해주세요.'); return; }
+    if (!pendingFile) { showToast('파일을 선택해주세요.'); return; }
+    const prev = editRef ? SECTIONS[editRef.s].items[editRef.i] : null;
     const item = {
-      type: $('fType').value, name, file,
-      size: sizeNum ? sizeNum + ' MB' : '-',
-      date: $('fDate').value.trim() || '-'
+      type: $('fType').value,
+      name,
+      file: pendingFile.file,
+      size: pendingFile.size,                  // 업로드 시 자동 산정된 용량
+      date: prev ? prev.date : todayStr()      // 수정은 기존 등록일 유지, 추가는 오늘
     };
     const target = secIndexById($('fSec').value);
     if (editRef) {
       if (editRef.s === target) {
         SECTIONS[target].items[editRef.i] = item;
-      } else {                                   // 분류 변경 시 이동
+      } else {                                 // 분류 변경 시 이동
         SECTIONS[editRef.s].items.splice(editRef.i, 1);
         SECTIONS[target].items.push(item);
       }

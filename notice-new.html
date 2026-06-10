@@ -19,26 +19,6 @@
   .fi.full, .fs.full, .fta.full { width: 100%; }
   .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0 6px 2px; }
 
-  /* 드롭존 (incident-new와 동일) */
-  .drop-zone { border: 1.5px dashed var(--border-strong); border-radius: 12px; padding: 30px 20px;
-    text-align: center; cursor: pointer; transition: all 0.15s; background: var(--surface-2); }
-  .drop-zone:hover, .drop-zone.drag { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft); }
-  .drop-zone-ico { width: 38px; height: 38px; border-radius: 11px; background: var(--surface); border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center; margin: 0 auto 11px; }
-  .drop-zone-ico svg { width: 20px; height: 20px; color: var(--kb-yellow-dark); }
-  .drop-zone-title { font-size: 14px; font-weight: 700; color: var(--text-secondary); }
-  .drop-zone-title b { color: var(--kb-yellow-dark); }
-  .drop-zone-sub { font-size: 12.5px; color: var(--text-tertiary); margin-top: 5px; }
-
-  .file-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
-  .file-chip { display: flex; align-items: center; gap: 11px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
-  .fchip-ico { width: 18px; height: 18px; color: var(--kb-yellow-dark); flex-shrink: 0; }
-  .file-name { flex: 1; font-size: 13.5px; color: var(--text-primary); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .file-size { font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-  .file-del { width: 27px; height: 27px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); flex-shrink: 0; transition: all 0.14s; cursor: pointer; }
-  .file-del:hover { background: var(--danger-soft); color: var(--danger); }
-  .file-del svg { width: 15px; height: 15px; }
-
   /* 포탈 노출 토글 */
   .expose-toggle { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border-strong);
     border-radius: 12px; background: var(--surface-2); cursor: pointer; transition: all 0.14s; }
@@ -90,12 +70,6 @@
       </div>
     </div>
 
-    <!-- 관리자 권한 안내 -->
-    <div class="info-box reveal" style="animation-delay:.1s;margin-bottom:18px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-      공지 등록과 포탈 메인 노출 설정은 <strong>관리자(VDI 운영팀)</strong> 권한 기능입니다.
-    </div>
-
     <!-- 섹션 1: 공지 내용 -->
     <div class="fc reveal" style="animation-delay:.14s">
       <div class="fc-head">
@@ -135,35 +109,13 @@
           <div class="frow-label">작성자</div>
           <div class="frow-field">
             <div class="info-text">관리자 (VDI 운영팀)</div>
-            <div class="frow-help">공지 작성자는 관리자로 고정됩니다.</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 섹션 2: 첨부 파일 -->
+    <!-- 섹션 2: 포탈 노출 -->
     <div class="fc reveal" style="animation-delay:.18s">
-      <div class="fc-head">
-        <div class="fc-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-          첨부 파일
-        </div>
-        <div class="fc-ctrl"><span class="lbl" style="margin:0">매뉴얼 · 안내문 등 (선택)</span></div>
-      </div>
-      <div class="fc-body">
-        <div class="drop-zone" id="dropZone">
-          <div class="drop-zone-ico">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          </div>
-          <div class="drop-zone-title">파일을 끌어다 놓거나 <b>클릭하여 첨부</b></div>
-          <div class="drop-zone-sub">PDF · DOCX · XLSX · PNG · JPG · 최대 20MB</div>
-        </div>
-        <div class="file-list" id="fileList"></div>
-      </div>
-    </div>
-
-    <!-- 섹션 3: 포탈 노출 -->
-    <div class="fc reveal" style="animation-delay:.22s">
       <div class="fc-head">
         <div class="fc-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -204,37 +156,6 @@
   // ===== 포탈 노출 토글 시각 상태 =====
   const exposeToggle = $('exposeToggle'), fExpose = $('f_expose');
   fExpose.addEventListener('change', () => exposeToggle.classList.toggle('on', fExpose.checked));
-
-  // ===== 첨부 파일 (mock) =====
-  const SAMPLE_FILES = [
-    { name: 'VDI_정기점검_안내문.pdf', size: '186 KB' },
-    { name: '사용자_매뉴얼_v2.0.pdf', size: '2.4 MB' },
-    { name: '점검대상_시스템_목록.xlsx', size: '32 KB' }
-  ];
-  let files = [];
-  function renderFiles() {
-    $('fileList').innerHTML = files.map((f, i) => `
-      <div class="file-chip">
-        <svg class="fchip-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <span class="file-name">${f.name}</span>
-        <span class="file-size">${f.size}</span>
-        <div class="file-del" onclick="removeFile(${i})" title="삭제">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </div>
-      </div>`).join('');
-  }
-  function addSampleFile() {
-    if (files.length >= SAMPLE_FILES.length) { showToast('첨부 가능한 예시 파일을 모두 추가했습니다.'); return; }
-    files.push(SAMPLE_FILES[files.length]);
-    renderFiles();
-  }
-  function removeFile(i) { files.splice(i, 1); renderFiles(); }
-
-  const dz = $('dropZone');
-  dz.addEventListener('click', addSampleFile);
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
-  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); addSampleFile(); });
 
   // ===== 등록 =====
   function submitNotice() {
