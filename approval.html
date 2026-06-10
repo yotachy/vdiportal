@@ -1,431 +1,150 @@
 <!DOCTYPE html>
-<html lang="ko" data-bs-theme="light">
+<html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>KB손해보험 VDI 사용자 포탈 - 결재 현황 (Bootstrap)</title>
-
-<!-- ===== Bootstrap 5.3.8 ===== -->
-<!-- 사내 폐쇄망 배포 시 아래 CDN을 동봉한 로컬 파일로 교체:
-     <link rel="stylesheet" href="vendor/bootstrap-5.3.8/bootstrap.min.css"> -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
-
+<title>KB손해보험 VDI 사용자 포탈 - 결재 현황</title>
+<link rel="stylesheet" href="common.css">
 <style>
-  /* ============================================================
-     KB 테마 레이어 — Bootstrap 변수(--bs-*) 오버라이드 + KB 고유 컴포넌트
-     (수행사 적용 기준: 이 레이어만 별도 kb-theme.css 로 분리 가능)
-     ============================================================ */
-  :root {
-    /* KB 디자인 토큰 (common.css와 동일) */
-    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A; --kb-yellow-text:#8A6A00;
-    --ink:#1A1714; --text-primary:#1A1714; --text-secondary:#60584C; --text-tertiary:#948E84;
-    --surface:#FFFFFF; --surface-2:#FBFAF7; --bg-page:#F4F1EB; --bg-subtle:#F7F5F0;
-    --border:#EBE7DF; --border-strong:#DAD4C9; --dot-muted:#BDB5A7;
-    --success:#1E8E3E; --success-soft:#E7F4EA;
-    --warning:#E08600; --warning-soft:#FDF3DD; --warn-text:#8A5800;
-    --danger:#D93B30; --danger-soft:#FCEAE7;
-    --info:#1A6BD4; --info-soft:#E9F1FD;
-    /* 그림자·라운드 (common.css와 동일) — 파일럿에서 누락돼 납작해졌던 부분 복구 */
-    --shadow-sm:0 1px 2px rgba(26,23,20,.04),0 1px 3px rgba(26,23,20,.05);
-    --shadow-md:0 2px 4px rgba(26,23,20,.04),0 8px 20px rgba(26,23,20,.06);
-    --shadow-lg:0 8px 16px rgba(26,23,20,.06),0 24px 48px rgba(26,23,20,.10);
-    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px;
+  .main { max-width: 1320px; margin: 0 auto; }
 
-    /* Bootstrap 전역 변수 → KB 값으로 매핑 */
-    --bs-body-font-family:'KBFG Text','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,sans-serif;
-    --bs-body-font-size:1rem; --bs-body-line-height:1.6;
-    --bs-body-color:#1A1714;
-    --bs-body-bg:#F4F1EB;
-    --bs-border-color:#EBE7DF;
-    --bs-primary:#FFBC00; --bs-primary-rgb:255,188,0;
-    --bs-secondary-color:#60584C;
-    --bs-tertiary-color:#948E84;
-    --bs-link-color:#1A1714; --bs-link-hover-color:#8A6A00;
-    --bs-border-radius:12px; --bs-border-radius-sm:8px; --bs-border-radius-lg:16px;
-    --bs-emphasis-color:#1A1714;
-  }
-  body {
-    letter-spacing:-0.01em;
-    background:
-      radial-gradient(1100px 520px at 100% -8%, rgba(255,188,0,.07), transparent 58%),
-      radial-gradient(820px 480px at -8% 108%, rgba(255,188,0,.05), transparent 55%),
-      var(--bg-page);
-    background-attachment:fixed;
-    -webkit-font-smoothing:antialiased;
-  }
+  /* 요약 스탯 바(.stat-*)는 common.css 공통 — 결재 4열 */
+  .stat-strip { grid-template-columns: repeat(4, 1fr); }
 
-  /* KB 옐로우 버튼 (옐로우 배경 + 다크 텍스트) */
-  .btn-primary {
-    --bs-btn-color:#1A1714; --bs-btn-bg:#FFBC00; --bs-btn-border-color:#FFBC00;
-    --bs-btn-hover-color:#1A1714; --bs-btn-hover-bg:#EFA600; --bs-btn-hover-border-color:#EFA600;
-    --bs-btn-active-color:#1A1714; --bs-btn-active-bg:#EFA600; --bs-btn-active-border-color:#EFA600;
-    --bs-btn-disabled-color:#1A1714; --bs-btn-disabled-bg:#FFBC00; --bs-btn-disabled-border-color:#FFBC00;
-    --bs-btn-focus-shadow-rgb:255,188,0; font-weight:700;
-  }
-  .btn-outline-kb {
-    --bs-btn-color:#60584C; --bs-btn-border-color:#DAD4C9; --bs-btn-bg:#fff;
-    --bs-btn-hover-color:#1A1714; --bs-btn-hover-bg:#F7F5F0; --bs-btn-hover-border-color:#BDB5A7;
-    --bs-btn-active-bg:#F7F5F0; --bs-btn-active-border-color:#BDB5A7; font-weight:700;
-  }
+  /* ===== 구분 — 카테고리 텍스트 (색 없이, incident 유형값과 동일 폰트) ===== */
+  .rtag { display: inline-block; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.01em; white-space: nowrap; }
 
-  /* 카드 — 원본 .fc (16px 라운드 + 부드러운 그림자 + 웜 보더) */
-  .card { --bs-card-border-radius:var(--r-lg); --bs-card-border-color:var(--border); --bs-card-bg:var(--surface);
-    box-shadow:var(--shadow-sm); overflow:hidden; }
-  .card-body { padding:18px 22px; }
+  /* ===== 요청 내용 요약 ===== */
+  .col-content { color: var(--text-secondary); font-size: 13.5px; letter-spacing: -0.01em; }
 
-  /* ===== 헤더 ===== */
-  .kb-header {
-    height:66px; background:rgba(255,255,255,.86); backdrop-filter:saturate(160%) blur(10px);
-    position:sticky; top:0; z-index:1030; border-bottom:1px solid var(--border);
-    box-shadow:0 1px 2px rgba(26,23,20,.05); border-top:3px solid var(--kb-yellow);
-  }
-  .kb-logo-img { height:26px; display:block; }
-  .kb-header-divider { width:1px; height:20px; background:var(--border-strong); }
-  .kb-service { font-size:15px; font-weight:700; color:var(--ink); letter-spacing:-0.02em; cursor:pointer; }
-  .kb-admin-btn {
-    --bs-btn-color:#60584C; --bs-btn-border-color:#DAD4C9; --bs-btn-bg:#fff;
-    --bs-btn-hover-bg:#F7F5F0; --bs-btn-hover-border-color:#BDB5A7;
-    display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; border-width:1.5px; border-style:solid; border-radius:100px;
-  }
-  .kb-admin-btn.active { --bs-btn-bg:#3D4659; --bs-btn-color:#fff; --bs-btn-border-color:#3D4659; --bs-btn-hover-bg:#2E3545; --bs-btn-hover-color:#fff; }
-  .kb-admin-btn svg { width:14px; height:14px; }
-  .kb-user-badge { display:flex; align-items:center; gap:7px; font-size:13px; color:var(--text-secondary); white-space:nowrap; }
-  .kb-user-badge .hub-name { font-weight:700; color:var(--ink); }
-  .kb-user-badge .hub-sep { color:var(--border-strong); }
-  .kb-icon-btn { width:38px; height:38px; display:inline-flex; align-items:center; justify-content:center; padding:0; border-radius:10px;
-    --bs-btn-bg:#fff; --bs-btn-border-color:#EBE7DF; --bs-btn-hover-bg:#F7F5F0; color:var(--text-secondary); }
-  .kb-icon-btn svg { width:18px; height:18px; }
+  /* ===== 상태 pill ===== */
+  .spill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 100px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
+  .spill-progress { background: var(--warning-soft); color: var(--warn-text); }
+  .spill-apply { background: var(--info-soft); color: var(--info); }
+  .spill-done { background: transparent; padding: 5px 0; color: var(--text-tertiary); font-weight: 700; }
+  .spill-reject { background: transparent; padding: 5px 0; color: var(--text-tertiary); font-weight: 700; }
 
-  /* ===== 레이아웃 ===== */
-  .kb-layout { display:flex; min-height:calc(100vh - 66px); }
-  .kb-sidebar { width:264px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border); padding:18px 14px; display:flex; flex-direction:column; }
-  .kb-main { flex-grow:1; min-width:0; padding:30px 38px 72px; }
-  .kb-main-inner { max-width:1320px; margin:0 auto; }
+  /* 테이블 행 클릭 */
+  .data-table tbody tr { cursor: pointer; }
+  .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
+  .col-date { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+  .col-vdi { font-variant-numeric: tabular-nums; font-weight: 600; }
+  /* 정렬 — 내용(유연 컬럼) 좌측, 나머지 고정 컬럼 가운데 (notice와 동일 정책) */
+  .data-table th, .data-table td { text-align: center; }
+  .data-table th:nth-child(5), .data-table td:nth-child(5) { text-align: left; }
+  /* 빈 상태(.empty-state)는 common.css 공통 */
 
-  /* ===== 사이드바 네비 ===== */
-  .kb-nav-section { margin-bottom:18px; }
-  .kb-nav-label { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--text-tertiary); padding:0 12px 8px; }
-  .kb-nav-item { display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; font-size:14px; font-weight:600; color:var(--text-secondary); transition:all .13s; }
-  .kb-nav-item svg { width:18px; height:18px; flex-shrink:0; color:var(--text-tertiary); }
-  .kb-nav-item:hover { background:var(--bg-subtle); color:var(--ink); }
-  .kb-nav-item.active { background:var(--kb-yellow-soft); color:var(--ink); font-weight:700; }
-  .kb-nav-item.active svg { color:var(--kb-yellow-dark); }
-  .kb-nav-item .badge { margin-left:auto; background:var(--kb-yellow); color:var(--ink); font-size:11px; font-weight:800; }
-  .kb-support { margin-top:auto; }
-  .kb-support-card { background:linear-gradient(155deg,#FFFDF5,var(--kb-yellow-soft)); border:1px solid var(--kb-yellow-line); border-radius:14px; padding:15px; }
-  .kb-support-title { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:800; color:var(--ink); margin-bottom:5px; }
-  .kb-support-title svg { width:16px; height:16px; color:var(--kb-yellow-dark); }
-  .kb-support-desc { font-size:11.5px; color:var(--text-secondary); margin-bottom:6px; }
-  .kb-support-tel { font-size:20px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
-
-  /* ===== 페이지 헤더 / 브레드크럼 ===== */
-  .kb-breadcrumb { font-size:13px; color:var(--text-tertiary); margin-bottom:14px; }
-  .kb-breadcrumb a { color:var(--text-tertiary); }
-  .kb-breadcrumb a:hover { color:var(--ink); text-decoration:underline; }
-  .kb-breadcrumb .cur { color:var(--text-secondary); font-weight:700; }
-  .kb-page-title { font-size:25px; font-weight:800; letter-spacing:-0.03em; color:var(--ink); line-height:1.15; }
-  .kb-page-desc { font-size:14.5px; color:var(--text-secondary); margin-top:7px; }
-
-  /* ===== 요약 스탯 (관리자 권한 전용) — 원본: 단일 통합 스트립 + 구분선 ===== */
-  .kb-stat-strip { display:none; grid-template-columns:repeat(4,1fr); background:var(--surface);
-    border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--shadow-sm); margin-bottom:20px; }
-  body.admin-mode .kb-stat-strip { display:grid; }
-  .kb-stat-chip { display:flex; align-items:center; gap:13px; padding:15px 18px; cursor:pointer; transition:background .14s; }
-  .kb-stat-chip + .kb-stat-chip { border-left:1px solid var(--border); }
-  .kb-stat-chip:hover { background:var(--bg-subtle); }
-  .kb-stat-chip.on { background:var(--kb-yellow-soft); box-shadow:inset 0 0 0 1.5px var(--kb-yellow-line); }
-  .kb-stat-ico { width:40px; height:40px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
-  .kb-stat-ico svg { width:19px; height:19px; }
-  .kb-stat-ico.all { background:var(--bg-subtle); color:var(--text-secondary); }
-  .kb-stat-ico.warn { background:var(--warning-soft); color:var(--warning); }
-  .kb-stat-ico.ok { background:var(--success-soft); color:var(--success); }
-  .kb-stat-ico.bad { background:var(--danger-soft); color:var(--danger); }
-  .kb-stat-num { font-size:22px; font-weight:800; color:var(--ink); line-height:1; font-variant-numeric:tabular-nums; }
-  .kb-stat-lbl { font-size:12.5px; color:var(--text-secondary); margin-top:4px; font-weight:600; }
-  @media (max-width:760px){ .kb-stat-strip{grid-template-columns:1fr} .kb-stat-chip + .kb-stat-chip{border-left:none;border-top:1px solid var(--border)} }
-
-  /* ===== 검색 + 필터 (원본 형태: 단일 인풋 · 분리 알약) ===== */
-  .kb-toolbar { display:flex; align-items:center; gap:10px 12px; flex-wrap:wrap; }
-  .kb-search { position:relative; flex:0 0 auto; width:340px; max-width:100%; }
-  .kb-search > svg { position:absolute; left:14px; top:50%; transform:translateY(-50%); width:17px; height:17px; color:var(--text-tertiary); pointer-events:none; }
-  .kb-search input { width:100%; height:40px; padding:0 14px 0 40px; border:1.5px solid var(--border-strong); border-radius:10px; background:#fff; font-size:14px; color:var(--text-primary); font-family:inherit; }
-  .kb-search input::placeholder { color:var(--text-tertiary); }
-  .kb-search input:focus { outline:none; border-color:var(--kb-yellow-dark); box-shadow:0 0 0 3px rgba(255,188,0,.18); }
-  .kb-filter { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
-  .kb-fsb { display:inline-flex; align-items:center; height:36px; padding:0 15px; border-radius:100px; border:1.5px solid var(--border);
-    background:#fff; font-size:13px; font-weight:700; color:var(--text-secondary); font-family:inherit; transition:all .13s; }
-  .kb-fsb:hover { background:var(--bg-subtle); color:var(--ink); border-color:var(--border-strong); }
-  .kb-fsb.on { background:var(--kb-yellow); border-color:var(--kb-yellow); color:var(--ink); }
-  .kb-date .btn { height:36px; padding:0 13px; font-size:13px; font-weight:700; color:var(--text-secondary); border:1.5px solid var(--border); background:#fff; display:inline-flex; align-items:center; gap:8px; border-radius:10px; }
-  .kb-date .btn:hover { border-color:var(--border-strong); color:var(--ink); }
-  .kb-date .btn.show, .kb-date .btn:focus { border-color:var(--kb-yellow-dark); box-shadow:0 0 0 3px rgba(255,188,0,.18); color:var(--ink); }
-  .kb-date .btn svg { width:15px; height:15px; }
-  .kb-date .dropdown-menu { font-size:13.5px; --bs-dropdown-link-active-bg:var(--kb-yellow-soft); --bs-dropdown-link-active-color:var(--ink); border-color:var(--border); box-shadow:var(--shadow-md); }
-  .kb-date .dropdown-item { display:flex; align-items:center; justify-content:space-between; gap:18px; font-weight:600; }
-  .kb-date .dropdown-item .chk { width:15px; height:15px; color:var(--kb-yellow-dark); opacity:0; }
-  .kb-date .dropdown-item.on { color:var(--ink); }
-  .kb-date .dropdown-item.on .chk { opacity:1; }
-
-  /* ===== 테이블 ===== */
-  .kb-table { font-size:14px; }
-  .kb-table thead th { background:var(--surface-2); color:var(--text-secondary); font-size:12.5px; font-weight:700; letter-spacing:.01em;
-    border-bottom:1px solid var(--border); white-space:nowrap; text-align:center; padding:9.5px 16px; }
-  .kb-table tbody td { border-bottom:1px solid var(--border); color:var(--text-primary); text-align:center; vertical-align:middle; padding:10.5px 16px; }
-  .kb-table tbody tr:last-child td { border-bottom:none; }
-  .kb-table tbody tr { cursor:pointer; }
-  .kb-table tbody tr:hover td { background:var(--surface-2); }
-  .kb-table thead th:nth-child(5), .kb-table tbody td:nth-child(5) { text-align:left; }   /* 내용 컬럼 좌측 */
-  .col-no { font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .col-date { color:var(--text-tertiary); font-variant-numeric:tabular-nums; }
-  .col-vdi { font-variant-numeric:tabular-nums; font-weight:600; }
-  .col-content { color:var(--text-secondary); font-size:13.5px; }
-  .rtag { font-size:12.5px; font-weight:600; color:var(--text-secondary); }
-
-  /* 상태 배지 (Bootstrap badge 위 KB 색) */
-  .kb-badge { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:100px; font-size:12.5px; font-weight:800; }
-  .kb-badge .dot { width:7px; height:7px; border-radius:50%; }
-  .kb-badge-progress { background:var(--warning-soft); color:var(--warn-text); }
-  .kb-badge-progress .dot { background:var(--warning); }
-  .kb-badge-apply { background:var(--info-soft); color:var(--info); }
-  .kb-badge-apply .dot { background:var(--info); }
-  .kb-badge-done { background:transparent; color:var(--text-tertiary); font-weight:700; }
-  .kb-badge-done .dot { background:var(--success); }
-  .kb-badge-reject { background:transparent; color:var(--text-tertiary); font-weight:700; }
-  .kb-badge-reject .dot { background:var(--danger); }
-
-  /* 빈 상태 */
-  .kb-empty { display:flex; flex-direction:column; align-items:center; gap:11px; padding:52px 16px; text-align:center; color:var(--text-tertiary); font-size:14px; }
-  .kb-empty svg { width:34px; height:34px; color:var(--border-strong); }
-
-  /* 페이저 — 원본: 분리된 핀 버튼(옐로우 active) */
-  .kb-pager { display:flex; justify-content:center; margin-top:22px; }
-  .kb-pager .pagination { gap:6px; --bs-pagination-focus-box-shadow:none; }
-  .kb-pager .page-link { min-width:34px; height:34px; display:flex; align-items:center; justify-content:center; padding:0 10px;
-    border:1.5px solid var(--border-strong); border-radius:9px; color:var(--text-secondary); font-weight:700; font-size:13px; background:#fff; }
-  .kb-pager .page-link:hover { background:var(--bg-subtle); color:var(--ink); }
-  .kb-pager .page-item.active .page-link { background:var(--kb-yellow); border-color:var(--kb-yellow); color:var(--ink); }
-  .kb-pager .page-item.disabled .page-link { opacity:.4; background:#fff; }
-  .kb-pager .page-link svg { width:15px; height:15px; }
-
-  /* 토스트 */
-  .kb-toast { position:fixed; right:32px; bottom:32px; z-index:1080; background:var(--ink); color:#fff; padding:13px 18px; border-radius:12px;
-    display:flex; align-items:center; gap:9px; font-size:14px; font-weight:600; box-shadow:var(--shadow-lg); opacity:0; transform:translateY(12px); pointer-events:none; transition:all .25s; }
-  .kb-toast.show { opacity:1; transform:translateY(0); }
-  .kb-toast svg { width:18px; height:18px; color:var(--kb-yellow); }
-
-  /* 진입 애니메이션 */
-  @keyframes riseIn { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-  .reveal { opacity:0; animation:riseIn .55s cubic-bezier(.22,.7,.27,1) forwards; }
-
-  @media (max-width:880px) { .kb-sidebar{display:none} .kb-main{padding:24px 18px 60px} .kb-stats{flex-wrap:wrap} }
+  @media (max-width: 760px) { .stat-strip { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 
-<!-- ===== 헤더 ===== -->
-<header class="kb-header d-flex align-items-center px-4">
-  <div class="d-flex align-items-center gap-3">
-    <img class="kb-logo-img" src="kb-logo.png" alt="KB손해보험" style="cursor:pointer" onclick="goHome()">
-    <span class="kb-header-divider"></span>
-    <span class="kb-service" onclick="goHome()">업무가상화 사용자 포탈</span>
-  </div>
-  <div class="ms-auto d-flex align-items-center gap-2">
-    <button class="btn btn-sm kb-admin-btn" id="headerAdminBtn" onclick="toggleAdminMode(this)" title="관리자 권한 전환">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      <span class="ham-label">관리자 권한</span>
-    </button>
-    <span class="kb-header-divider"></span>
-    <span class="kb-user-badge">
-      <span class="hub-name">최정식 책임</span><span class="hub-sep">·</span>
-      <span>IT기획파트</span><span class="hub-sep">·</span>
-      <span>사번 <strong>1010579</strong></span>
-    </span>
-    <button class="btn btn-sm kb-icon-btn" title="로그아웃" onclick="logout()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-    </button>
-  </div>
-</header>
+<!-- TOP HEADER -->
+<header class="top-header" data-header></header>
 
-<div class="kb-layout">
+<div class="layout">
 
-  <!-- ===== 사이드바 ===== -->
-  <aside class="kb-sidebar" id="sidebar"></aside>
+  <!-- SIDEBAR -->
+  <aside class="sidebar" data-sidebar="approval"></aside>
 
-  <!-- ===== 메인 ===== -->
-  <main class="kb-main">
-    <div class="kb-main-inner">
+  <!-- MAIN -->
+  <main class="main">
 
-      <nav class="kb-breadcrumb reveal">
-        <a href="portal.html">홈</a> › <span>신청 · 결재</span> › <span class="cur">결재 현황</span>
-      </nav>
-
-      <div class="d-flex justify-content-between align-items-start mb-4 reveal" style="animation-delay:.06s">
-        <div>
-          <h1 class="kb-page-title">결재 현황</h1>
-          <p class="kb-page-desc mb-0">제출한 신청의 결재 진행 상태를 확인합니다. 항목을 클릭하면 상세 내역을 볼 수 있습니다.</p>
-        </div>
-      </div>
-
-      <!-- 요약 스탯 (관리자 권한 전용) — 단일 통합 스트립 -->
-      <div class="kb-stat-strip" id="statStrip">
-        <div class="kb-stat-chip" data-stat="all">
-          <div class="kb-stat-ico all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-          <div><div class="kb-stat-num" id="cAll">0</div><div class="kb-stat-lbl">전체 신청</div></div>
-        </div>
-        <div class="kb-stat-chip" data-stat="progress">
-          <div class="kb-stat-ico warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-          <div><div class="kb-stat-num" id="cProgress">0</div><div class="kb-stat-lbl">승인 중</div></div>
-        </div>
-        <div class="kb-stat-chip" data-stat="done">
-          <div class="kb-stat-ico ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-          <div><div class="kb-stat-num" id="cDone">0</div><div class="kb-stat-lbl">완료</div></div>
-        </div>
-        <div class="kb-stat-chip" data-stat="reject">
-          <div class="kb-stat-ico bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-          <div><div class="kb-stat-num" id="cReject">0</div><div class="kb-stat-lbl">반려</div></div>
-        </div>
-      </div>
-
-      <!-- 검색 + 필터 -->
-      <div class="card mb-3 reveal" style="animation-delay:.14s"><div class="card-body kb-toolbar">
-        <div class="kb-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="searchInput" placeholder="신청번호 · 구분 · VDI명으로 검색">
-        </div>
-        <div class="kb-filter" id="filterSeg">
-          <button type="button" class="kb-fsb on" data-filter="all">전체</button>
-          <button type="button" class="kb-fsb" data-filter="progress">승인중</button>
-          <button type="button" class="kb-fsb" data-filter="done">완료</button>
-          <button type="button" class="kb-fsb" data-filter="reject">반려</button>
-        </div>
-        <div class="dropdown kb-date ms-auto">
-          <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span id="dateDropLabel">최근 1개월</span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li><button type="button" class="dropdown-item" data-q="all" onclick="setQuickRange('all')">전체 기간 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button></li>
-            <li><button type="button" class="dropdown-item" data-q="week" onclick="setQuickRange('week')">최근 1주일 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button></li>
-            <li><button type="button" class="dropdown-item on" data-q="month" onclick="setQuickRange('month')">최근 1개월 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button></li>
-            <li><button type="button" class="dropdown-item" data-q="month3" onclick="setQuickRange('month3')">최근 3개월 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button></li>
-          </ul>
-          <input type="hidden" id="dateFrom"><input type="hidden" id="dateTo">
-        </div>
-      </div></div>
-
-      <!-- 테이블 -->
-      <div class="card reveal" style="animation-delay:.18s"><div class="card-body p-0">
-        <table class="table table-hover kb-table mb-0">
-          <thead>
-            <tr>
-              <th style="width:178px">신청번호</th>
-              <th style="width:92px">신청일</th>
-              <th style="width:112px">구분</th>
-              <th style="width:170px">대상 VDI</th>
-              <th>내용</th>
-              <th style="width:128px">상태</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div></div>
-      <nav class="kb-pager"><ul class="pagination mb-0" id="apprPager"></ul></nav>
-
+    <div class="breadcrumb reveal">
+      <a href="portal.html">홈</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>신청 · 결재</span>
+      <span class="breadcrumb-sep">›</span>
+      <span class="bc-cur">결재 현황</span>
     </div>
+
+    <div class="page-header reveal" style="animation-delay:.06s">
+      <div class="page-header-left">
+        <h1 class="page-title">결재 현황</h1>
+        <p class="page-desc">제출한 신청의 결재 진행 상태를 확인합니다. 항목을 클릭하면 상세 내역을 볼 수 있습니다.</p>
+      </div>
+      <div class="page-header-right"></div>
+    </div>
+
+    <!-- 요약 스탯 (관리자 권한 전용 — 관리자 권한 ON 시 노출) -->
+    <div class="stat-strip" id="statStrip">
+      <div class="stat-chip" data-stat="all">
+        <div class="stat-ico all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+        <div><div class="stat-num" id="cAll">0</div><div class="stat-lbl">전체 신청</div></div>
+      </div>
+      <div class="stat-chip" data-stat="progress">
+        <div class="stat-ico warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div><div class="stat-num" id="cProgress">0</div><div class="stat-lbl">승인 중</div></div>
+      </div>
+      <div class="stat-chip" data-stat="done">
+        <div class="stat-ico ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div><div class="stat-num" id="cDone">0</div><div class="stat-lbl">완료</div></div>
+      </div>
+      <div class="stat-chip" data-stat="reject">
+        <div class="stat-ico bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+        <div><div class="stat-num" id="cReject">0</div><div class="stat-lbl">반려</div></div>
+      </div>
+    </div>
+
+    <!-- 검색 + 필터 -->
+    <div class="filter-bar reveal" style="animation-delay:.14s">
+      <div class="search-hero">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="신청번호 · 구분 · VDI명으로 검색">
+      </div>
+      <div class="filter-chips">
+        <div class="filter-seg" id="filterSeg">
+          <button class="fsb on" data-filter="all">전체</button>
+          <button class="fsb" data-filter="progress">승인중</button>
+          <button class="fsb" data-filter="done">완료</button>
+          <button class="fsb" data-filter="reject">반려</button>
+        </div>
+        <div class="date-drop" id="dateDrop">
+          <button type="button" class="date-drop-btn" onclick="toggleDatePop(event)">
+            <svg class="cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span id="dateDropLabel">최근 1개월</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="date-pop">
+            <button type="button" class="date-quick" data-q="all" onclick="setQuickRange('all')">전체 기간 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button>
+            <button type="button" class="date-quick" data-q="week" onclick="setQuickRange('week')">최근 1주일 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button>
+            <button type="button" class="date-quick on" data-q="month" onclick="setQuickRange('month')">최근 1개월 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button>
+            <button type="button" class="date-quick" data-q="month3" onclick="setQuickRange('month3')">최근 3개월 <svg class="chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></button>
+            <input type="hidden" id="dateFrom">
+            <input type="hidden" id="dateTo">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 테이블 -->
+    <div class="fc reveal" style="animation-delay:.18s">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:178px">신청번호</th>
+            <th style="width:92px">신청일</th>
+            <th style="width:112px">구분</th>
+            <th style="width:170px">대상 VDI</th>
+            <th>내용</th>
+            <th style="width:128px">상태</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="pager" id="apprPager"></div>
+
   </main>
 </div>
 
-<!-- ===== Bootstrap 5.3.8 JS ===== -->
-<!-- 폐쇄망: <script src="vendor/bootstrap-5.3.8/bootstrap.bundle.min.js"></script> -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+<script src="common.js"></script>
 <script>
-  /* ============================================================
-     공통 동작 — 자립형(common.js 미사용) 으로 재현.
-     실제 적용 시엔 이 블록을 kb-portal.js 등 공통 스크립트로 분리.
-     ============================================================ */
-  const $ = id => document.getElementById(id);
-  const PAGE_SIZE = 10;
-
-  function goHome() { location.href = sessionStorage.getItem('vdi_auth') === '1' ? 'portal.html' : 'login.html'; }
-  function logout() { sessionStorage.removeItem('vdi_auth'); sessionStorage.removeItem('vdi_admin'); location.href = 'login.html'; }
-
-  function showToast(msg) {
-    let t = $('kbToast');
-    if (!t) { t = document.createElement('div'); t.id = 'kbToast'; t.className = 'kb-toast';
-      t.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg><span></span>';
-      document.body.appendChild(t); }
-    t.querySelector('span').textContent = msg; t.classList.add('show');
-    clearTimeout(window.__tt); window.__tt = setTimeout(() => t.classList.remove('show'), 2600);
-  }
-
-  /* 관리자 권한 토글 (스탯 카드 표시) */
-  function toggleAdminMode(btn) {
-    const on = document.body.classList.toggle('admin-mode');
-    try { on ? sessionStorage.setItem('vdi_admin', '1') : sessionStorage.removeItem('vdi_admin'); } catch (e) {}
-    btn.classList.toggle('active', on);
-    btn.querySelector('.ham-label').textContent = on ? '관리자 권한 ON' : '관리자 권한';
-  }
-  (function restoreAdmin() {
-    try { if (sessionStorage.getItem('vdi_admin') === '1') {
-      document.body.classList.add('admin-mode');
-      const b = $('headerAdminBtn'); b.classList.add('active'); b.querySelector('.ham-label').textContent = '관리자 권한 ON';
-    } } catch (e) {}
-  })();
-
-  /* 사이드바 렌더 (Bootstrap 마크업) */
-  const NAV = [
-    { label: 'Workspace', items: [
-      { key: 'portal', href: 'portal.html', label: '내 가상PC', icon: '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>' } ] },
-    { label: '신청 · 결재', items: [
-      { key: 'apply', href: 'apply.html', label: 'VDI 추가신청', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>' },
-      { key: 'change', href: 'change.html', label: '사용 연장 · 증설', icon: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>' },
-      { key: 'approval', href: 'approval.html', label: '결재 현황', badge: '2', icon: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' } ] },
-    { label: '지원 · 서비스', items: [
-      { key: 'incident', href: 'incident.html', label: '장애신고 내역', icon: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
-      { key: 'notice', href: 'notice.html', label: '공지사항', icon: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>' },
-      { key: 'faq', href: 'faq.html', label: 'FAQ', icon: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
-      { key: 'qna', href: 'qna.html', label: '자료실', icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>' } ] }
-  ];
-  const svg = i => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + i + '</svg>';
-  $('sidebar').innerHTML =
-    '<div class="flex-grow-1">' + NAV.map(sec =>
-      '<div class="kb-nav-section"><div class="kb-nav-label">' + sec.label + '</div>' +
-      sec.items.map(it => '<a class="kb-nav-item' + (it.key === 'approval' ? ' active' : '') + '" href="' + it.href + '">' +
-        svg(it.icon) + it.label + (it.badge ? '<span class="badge rounded-pill">' + it.badge + '</span>' : '') + '</a>').join('') +
-      '</div>').join('') + '</div>' +
-    '<div class="kb-support"><div class="kb-support-card">' +
-      '<div class="kb-support-title">' + svg('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>') + '헬프데스크</div>' +
-      '<div class="kb-support-desc">VDI 관련 문의 · 평일 09:00~18:00</div>' +
-      '<div class="kb-support-tel">1544-8119</div>' +
-    '</div></div>';
-
-  /* 기간 필터 헬퍼 */
-  function dateInRange(s, from, to) { const d = String(s).slice(0, 10).replace(/\./g, '-'); if (from && d < from) return false; if (to && d > to) return false; return true; }
-  function fmtYMD(dt) { return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); }
-  function maxDateOf(rows) { return rows.reduce((m, r) => { const d = String(r.date).slice(0, 10).replace(/\./g, '-'); return d > m ? d : m; }, '0000-00-00'); }
-  function quickRangeFrom(toYMD, kind) { const p = toYMD.split('-').map(Number); const d = new Date(p[0], p[1] - 1, p[2]);
-    if (kind === 'week') d.setDate(d.getDate() - 6); else if (kind === 'month3') d.setMonth(d.getMonth() - 3); else d.setMonth(d.getMonth() - 1); return fmtYMD(d); }
-  const DATE_LABELS = { all: '전체 기간', week: '최근 1주일', month: '최근 1개월', month3: '최근 3개월' };
-
-  /* 페이저 (Bootstrap pagination) */
-  function renderPager(total, page, onGo) {
-    const ul = $('apprPager'); ul.innerHTML = '';
-    const pages = Math.ceil(total / PAGE_SIZE); if (pages <= 1) return;
-    const li = (label, target, o = {}) => {
-      const l = document.createElement('li'); l.className = 'page-item' + (o.active ? ' active' : '') + (o.disabled ? ' disabled' : '');
-      const a = document.createElement('a'); a.className = 'page-link'; a.href = '#'; a.innerHTML = label;
-      a.onclick = e => { e.preventDefault(); if (!o.disabled && !o.active) onGo(target); };
-      l.appendChild(a); return l;
-    };
-    ul.appendChild(li('‹', page - 1, { disabled: page <= 1 }));
-    for (let i = 1; i <= pages; i++) ul.appendChild(li(i, i, { active: i === page }));
-    ul.appendChild(li('›', page + 1, { disabled: page >= pages }));
-  }
-
-  /* ============================================================
-     결재 현황 — 데이터 · 렌더 (portal.html과 정합)
-     ============================================================ */
+  // ===== 데이터 (portal.html과 정합) =====
+  // status: progress(승인 중) · done(완료) · reject(반려) — 3단계
+  // 내용(목록)은 구분별 정형 파라미터로 content(r)가 자동 조합 — 수행사 구현 기준
+  //   신규 → type(유형)  ·  연장 → period(기간)  ·  증설 → item·from·to(자원 변경)
   const ROWS = [
     { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설', vdi: 'jschoi0223-main',   item: '메모리', from: '8GB', to: '16GB',  status: 'progress' },
     { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-nomain', type: '고정',                              status: 'progress' },
@@ -440,6 +159,9 @@
     { no: 'REQ-2025-1220-014', date: '2025.12.20', kind: '연장', vdi: 'jschoi0223-nomain', period: '12개월',                          status: 'done' },
     { no: 'REQ-2025-1128-010', date: '2025.11.28', kind: '증설', vdi: 'jschoi0223-nomain', item: 'CPU', from: '2 Core', to: '4 Core', status: 'reject' }
   ];
+
+  const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand' };
+  // 목록 '내용' — 구분별 정형 패턴: "{구분 라벨} · {파라미터}"
   const KIND_TEXT = { '신규': '신규 신청', '연장': '사용 연장', '증설': '자원 증설' };
   function content(r) {
     if (r.kind === '신규') return `${KIND_TEXT['신규']} · ${r.type}형`;
@@ -448,14 +170,18 @@
     return '';
   }
   const PILL = {
-    progress: { cls: 'kb-badge-progress', txt: '승인 중' },
-    apply:    { cls: 'kb-badge-apply',    txt: '적용 중' },
-    done:     { cls: 'kb-badge-done',     txt: '완료' },
-    reject:   { cls: 'kb-badge-reject',   txt: '반려' }
+    progress: { cls: 'spill-progress', dot: 'sdot-warning', txt: '승인 중' },
+    apply:    { cls: 'spill-apply',    dot: 'sdot-info',    txt: '적용 중' },
+    done:     { cls: 'spill-done',     dot: 'sdot-success', txt: '완료' },
+    reject:   { cls: 'spill-reject',   dot: 'sdot-danger',  txt: '반려' }
   };
+  // 필터/집계 시 apply(적용 중)는 '진행 중' 그룹으로 묶음
   const group = s => (s === 'apply' ? 'progress' : s);
+
+  const $ = id => document.getElementById(id);
   let curFilter = 'all', curSearch = '', curPage = 1;
 
+  // 집계
   function updateStats() {
     $('cAll').textContent = ROWS.length;
     $('cProgress').textContent = ROWS.filter(r => group(r.status) === 'progress').length;
@@ -463,6 +189,7 @@
     $('cReject').textContent = ROWS.filter(r => r.status === 'reject').length;
   }
 
+  // 렌더
   function render() {
     const q = curSearch.trim().toLowerCase();
     const list = ROWS.filter(r => {
@@ -470,13 +197,13 @@
       const okSearch = !q || (r.no + ' ' + r.kind + ' ' + r.vdi + ' ' + content(r)).toLowerCase().includes(q);
       const okDate = dateInRange(r.date, $('dateFrom').value, $('dateTo').value);
       return okFilter && okSearch && okDate;
-    }).sort((a, b) => b.date.localeCompare(a.date));
+    }).sort((a, b) => b.date.localeCompare(a.date));   // 신청일 내림차순(최신순)
 
     if (!list.length) {
-      $('tbody').innerHTML = `<tr><td colspan="6"><div class="kb-empty">
+      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="6"><div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
         조건에 맞는 신청 내역이 없습니다.</div></td></tr>`;
-      renderPager(0, 1, () => {});
+      renderPager('apprPager', 0, 1, () => {});
       return;
     }
 
@@ -490,37 +217,50 @@
         <tr onclick="location.href='approval-detail.html?no=${r.no}'">
           <td class="col-no">${r.no}</td>
           <td class="col-date">${r.date.slice(5)}</td>
-          <td><span class="rtag">${r.kind}</span></td>
+          <td><span class="rtag rtag-${KIND[r.kind]}">${r.kind}</span></td>
           <td class="col-vdi">${r.vdi}</td>
           <td class="col-content">${content(r)}</td>
-          <td><span class="kb-badge ${p.cls}"><span class="dot"></span>${p.txt}</span></td>
+          <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></td>
         </tr>`;
     }).join('');
 
-    renderPager(list.length, curPage, p => { curPage = p; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    renderPager('apprPager', list.length, curPage, p => {
+      curPage = p; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }
 
-  /* 필터 세그 + 스탯 칩 연동 */
-  document.querySelectorAll('#filterSeg .kb-fsb').forEach(b => b.addEventListener('click', () => setFilter(b.dataset.filter)));
-  document.querySelectorAll('.kb-stat-chip').forEach(c => c.addEventListener('click', () => setFilter(c.dataset.stat)));
+  // 필터 세그
+  document.querySelectorAll('#filterSeg .fsb').forEach(btn => {
+    btn.addEventListener('click', () => setFilter(btn.dataset.filter));
+  });
+  // 스탯 칩 → 필터 연동
+  document.querySelectorAll('.stat-chip').forEach(chip => {
+    chip.addEventListener('click', () => setFilter(chip.dataset.stat));
+  });
+
   function setFilter(f) {
-    curFilter = f; curPage = 1;
-    document.querySelectorAll('#filterSeg .kb-fsb').forEach(b => b.classList.toggle('on', b.dataset.filter === f));
-    document.querySelectorAll('.kb-stat-chip').forEach(c => c.classList.toggle('on', c.dataset.stat === f));
+    curFilter = f;
+    curPage = 1;
+    document.querySelectorAll('#filterSeg .fsb').forEach(b => b.classList.toggle('on', b.dataset.filter === f));
+    document.querySelectorAll('.stat-chip').forEach(c => c.classList.toggle('on', c.dataset.stat === f));
     render();
   }
 
+  // 검색
   $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
-
   function setQuickRange(kind) {
     if (kind === 'all') { $('dateFrom').value = ''; $('dateTo').value = ''; }
-    else { const to = maxDateOf(ROWS); $('dateTo').value = to; $('dateFrom').value = quickRangeFrom(to, kind); }
-    document.querySelectorAll('.kb-date .dropdown-item').forEach(b => b.classList.toggle('on', b.dataset.q === kind));
-    $('dateDropLabel').textContent = DATE_LABELS[kind];
+    else {
+      const to = maxDateOf(ROWS);
+      $('dateTo').value = to;
+      $('dateFrom').value = quickRangeFrom(to, kind);
+    }
+    document.querySelectorAll('.date-quick').forEach(b => b.classList.toggle('on', b.dataset.q === kind));
+    setDateLabel(DATE_LABELS[kind]);
     curPage = 1; render();
   }
 
-  /* 초기 — 기본 기간: 최근 1개월 */
+  // 초기 — 기본 기간: 최근 1개월
   updateStats();
   setQuickRange('month');
 </script>
