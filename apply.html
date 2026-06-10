@@ -39,38 +39,7 @@
   }
   .fi.full, .fs.full, .fta.full { width: 100%; }
   .info-text { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; padding: 6px 0 6px 14px; }
-  /* 대상자 강조 */
-  #t_info { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 8px;
-    background: var(--kb-yellow-soft); border: 1px solid var(--kb-yellow-line); color: #8A6A00; font-weight: 800; }
-  #t_info::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--kb-yellow-dark); }
   .field-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .field-inline .fs { min-width: 150px; }
-  /* 신청 구분 — 확장 세그먼트 토글 (시원한 2지선다) */
-  .rgrp.seg { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 0;
-    width: 100%; max-width: 460px; padding: 5px; border-radius: 13px; }
-  .rgrp.seg .seg-thumb { position: absolute; top: 5px; left: 5px; bottom: 5px; width: calc(50% - 5px);
-    border-radius: 9px; background: var(--surface); box-shadow: var(--shadow-sm); z-index: 0;
-    transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1); }
-  .rgrp.seg:has(.rbtn[data-for="other"].sel) .seg-thumb { transform: translateX(100%); }
-  .rgrp.seg .rbtn { position: relative; z-index: 1; justify-content: center; gap: 8px;
-    padding: 13px 14px; font-size: 14.5px; border-radius: 9px; }
-  .rgrp.seg .rbtn svg { width: 17px; height: 17px; flex-shrink: 0; transition: color 0.14s; }
-  .rgrp.seg .rbtn.sel { background: transparent; box-shadow: none; }
-  .rgrp.seg .rbtn.sel svg { color: var(--kb-yellow-dark); }
-  /* 검색 영역 오른쪽 끝을 위 토글(460px)과 일치 */
-  #otherSearch { width: 100%; max-width: 460px; }
-  #otherSearch .fi { flex: 1; min-width: 0; }
-  /* 검색 팝업 결과 목록 */
-  .user-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border);
-    border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: all 0.14s; }
-  .user-row:hover { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft); }
-  .user-avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center;
-    justify-content: center; background: var(--bg-subtle); color: var(--text-secondary); }
-  .user-avatar svg { width: 18px; height: 18px; }
-  .user-info { min-width: 0; }
-  .user-info .un { font-size: 14.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
-  .user-info .um { font-size: 12.5px; color: var(--text-tertiary); margin-top: 2px; font-variant-numeric: tabular-nums; }
-  .user-empty { text-align: center; padding: 32px 16px; color: var(--text-tertiary); font-size: 14px; }
   /* 사용 기간 빠른 입력 PILL */
   .period-pills { display: flex; gap: 6px; }
   .qp { padding: 8px 14px; border: 1.5px solid var(--border-strong); border-radius: 100px; background: var(--surface);
@@ -78,8 +47,8 @@
   .qp:hover { border-color: var(--kb-yellow-dark); color: var(--ink); }
   .qp.sel { background: var(--kb-yellow); border-color: var(--kb-yellow-dark); color: var(--ink); }
 
-  /* 카드형 라디오 (VDI 유형 선택) */
-  .type-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  /* 카드형 라디오 (VDI 유형 — 고정가상화 단일) */
+  .type-cards { display: grid; grid-template-columns: minmax(0, 380px); gap: 12px; }
   .type-card {
     border: 1.5px solid var(--border-strong);
     border-radius: 11px;
@@ -108,11 +77,6 @@
   }
   .type-card-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
   .type-card-desc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
-  .type-card-tag {
-    position: absolute; top: 14px; right: 14px;
-    font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 4px;
-    background: var(--info-soft); color: var(--info); letter-spacing: 0.02em;
-  }
 
   /* 사양 선택 그리드 */
   .spec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -243,72 +207,11 @@
         <h1 class="page-title">VDI 추가신청</h1>
         <p class="page-desc">업무용 가상PC를 신규로 신청합니다. 신청 후 결재 승인을 거쳐 가상PC가 생성됩니다.</p>
       </div>
-      <div class="page-header-right">
-        <button type="button" class="demo-toggle off" data-hide="신청자 정보 숨기기" data-show="신청자 정보 보이기" onclick="toggleDemo(this,'applicantCard')">
-          <span class="demo-tag">시연용</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-          <span class="demo-label">신청자 정보 보이기</span>
-        </button>
-      </div>
+      <div class="page-header-right"></div>
     </div>
 
     <!-- ================= STEP 1 : 정보입력 ================= -->
     <section class="step-panel active" data-panel="1">
-      <div class="fc" id="applicantCard" style="display:none">
-        <div class="fc-head">
-          <div class="fc-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-            </svg>
-            신청자 정보
-          </div>
-          <div class="fc-ctrl"></div>
-        </div>
-        <div class="fc-body">
-          <div class="frow">
-            <div class="frow-label">신청 구분</div>
-            <div class="frow-field">
-              <div class="rgrp seg" id="applyForGroup">
-                <span class="seg-thumb" aria-hidden="true"></span>
-                <button type="button" class="rbtn sel" data-for="self">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  본인 신청
-                </button>
-                <button type="button" class="rbtn" data-for="other">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                  타인 대리 신청
-                </button>
-              </div>
-              <!-- 타인 대리 선택 시 아래에 검색 영역 노출 -->
-              <div class="field-inline" id="otherSearch" style="display:none; margin-top:12px">
-                <input class="fi" id="f_search" placeholder="부서명 또는 이름으로 검색  예) IT기획파트, 홍길동"
-                  onkeydown="if(event.key==='Enter'){event.preventDefault();searchUser();}">
-                <button type="button" class="btn btn-outline btn-sm" onclick="searchUser()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  검색
-                </button>
-              </div>
-              <div class="frow-help" id="proxyHelp" style="display:none">타인 대리 신청은 동일 부서원만 가능합니다.</div>
-            </div>
-          </div>
-
-          <div class="frow">
-            <div class="frow-label">신청자</div>
-            <div class="frow-field">
-              <div class="info-text">IT기획파트 · 최정식 책임</div>
-            </div>
-          </div>
-
-          <!-- 대리 신청 대상자 (검색 선택 시 신청자와 동일 형식으로 표시) -->
-          <div class="frow" id="targetRow" style="display:none">
-            <div class="frow-label">대상자</div>
-            <div class="frow-field">
-              <div class="info-text" id="t_info">-</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div class="fc">
         <div class="fc-head">
           <div class="fc-title">
@@ -391,21 +294,6 @@
                 <span class="type-card-name">고정가상화</span>
               </div>
               <div class="type-card-desc">개인 전용 가상PC. 데이터·설정이 유지되며 상시 사용에 적합합니다.</div>
-            </div>
-            <div class="type-card" data-type="임시형">
-              <div class="type-card-head">
-                <span class="type-card-radio"></span>
-                <span class="type-card-name">임시형</span>
-              </div>
-              <div class="type-card-desc">사용 기간이 정해진 가상PC. 단기 프로젝트·외부 인력에 적합합니다.</div>
-            </div>
-            <div class="type-card" data-type="공용가상화">
-              <span class="type-card-tag">SHARED</span>
-              <div class="type-card-head">
-                <span class="type-card-radio"></span>
-                <span class="type-card-name">공용가상화</span>
-              </div>
-              <div class="type-card-desc">부서 단위 공용 가상PC. 접속 시 자원이 배정됩니다.</div>
             </div>
           </div>
         </div>
@@ -590,7 +478,6 @@
           <div class="fc-body">
             <div class="summary-table">
               <div class="summary-row"><div class="summary-key">신청자</div><div class="summary-val">IT기획파트 · 최정식 책임</div></div>
-              <div class="summary-row"><div class="summary-key">사용 대상자</div><div class="summary-val" id="s_target">-</div></div>
               <div class="summary-row"><div class="summary-key">사용 용도</div><div class="summary-val" id="s_purpose">-</div></div>
               <div class="summary-row"><div class="summary-key">VDI 유형 · 사양</div><div class="summary-val" id="s_spec">-</div></div>
               <div class="summary-row"><div class="summary-key">운영체제</div><div class="summary-val" id="s_os">-</div></div>
@@ -643,28 +530,10 @@
   </main>
 </div>
 
-<!-- 사용자 검색 팝업 -->
-<div class="modal" id="userModal">
-  <div class="modal-box">
-    <button class="modal-close" onclick="closeUserModal()" aria-label="닫기">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-    <div class="modal-title">사용자 검색</div>
-    <div class="modal-meta">동일 부서(IT기획파트) 소속만 조회됩니다.</div>
-    <div class="modal-body">
-      <div id="userResults"></div>
-    </div>
-  </div>
-</div>
-
 <script src="common.js"></script>
 <script>
   // ===== 선택 상태 =====
-  const state = { type: '고정가상화', cpu: '4 Core', mem: '16 GB', disk: '150 GB',
-    applyFor: 'self', target: null };
-
-  // 신청자 부서 (동일 부서원만 대리 신청 가능)
-  const APPLICANT_DEPT = 'IT기획파트';
+  const state = { type: '고정가상화', cpu: '4 Core', mem: '16 GB', disk: '150 GB' };
 
   // VDI 유형 카드
   document.querySelectorAll('#typeCards .type-card').forEach(card => {
@@ -685,67 +554,6 @@
         state[key] = opt.dataset.val;
       });
     });
-  });
-
-  // 신청 구분 (본인 / 타인 대리)
-  document.querySelectorAll('#applyForGroup .rbtn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#applyForGroup .rbtn').forEach(b => b.classList.remove('sel'));
-      btn.classList.add('sel');
-      state.applyFor = btn.dataset.for;
-      const isOther = state.applyFor === 'other';
-      document.getElementById('otherSearch').style.display = isOther ? 'flex' : 'none';
-      document.getElementById('proxyHelp').style.display = isOther ? 'block' : 'none';
-      // 구분 변경 시 대상자 선택 초기화
-      state.target = null;
-      document.getElementById('targetRow').style.display = 'none';
-    });
-  });
-
-  // 동일 부서원 목록 (mock — 모두 신청자와 같은 부서)
-  const DEPT_MEMBERS = [
-    { name: '홍길동 대리', dept: APPLICANT_DEPT },
-    { name: '김서연 책임', dept: APPLICANT_DEPT },
-    { name: '박준호 선임', dept: APPLICANT_DEPT },
-    { name: '이지훈 책임', dept: APPLICANT_DEPT },
-    { name: '정민아 선임', dept: APPLICANT_DEPT },
-    { name: '한도윤 주임', dept: APPLICANT_DEPT }
-  ];
-  const USER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
-
-  // 검색 → 조건에 맞는 부서원을 팝업 목록으로 표시
-  function searchUser() {
-    const q = document.getElementById('f_search').value.trim();
-    if (!q) { showToast('부서명 또는 이름을 입력해주세요.'); return; }
-    const list = DEPT_MEMBERS.filter(m => m.name.includes(q) || m.dept.includes(q));
-    const box = document.getElementById('userResults');
-    box.innerHTML = list.length
-      ? list.map((m, i) =>
-          `<div class="user-row" onclick="selectUser(${DEPT_MEMBERS.indexOf(m)})">
-            <span class="user-avatar">${USER_ICON}</span>
-            <div class="user-info"><div class="un">${m.name}</div><div class="um">${m.dept}</div></div>
-          </div>`).join('')
-      : '<div class="user-empty">검색 결과가 없습니다. (동일 부서원만 조회됩니다)</div>';
-    document.getElementById('userModal').classList.add('open');
-  }
-
-  function closeUserModal() {
-    document.getElementById('userModal').classList.remove('open');
-  }
-
-  // 목록에서 선택 → 대상자로 추가 표기
-  function selectUser(idx) {
-    const m = DEPT_MEMBERS[idx];
-    state.target = { name: m.name, dept: m.dept };
-    document.getElementById('t_info').textContent = `${m.dept} · ${m.name}`;
-    document.getElementById('targetRow').style.display = '';
-    closeUserModal();
-    showToast('대상자를 선택했습니다.');
-  }
-
-  // 팝업 바깥(배경) 클릭 시 닫기
-  document.getElementById('userModal').addEventListener('click', e => {
-    if (e.target.id === 'userModal') closeUserModal();
   });
 
   // ===== 사용 기간 (시작일 오늘 고정, 종료일 달력/직접입력 + 빠른 PILL) =====
@@ -805,9 +613,6 @@
     const purpose = document.getElementById('f_purpose').value;
     const end = document.getElementById('f_end').value;
     const reason = document.getElementById('f_reason').value.trim();
-    if (state.applyFor === 'other' && !state.target) {
-      showToast('대리 신청은 대상 사용자를 검색·선택해주세요.'); return false;
-    }
     if (!purpose) { showToast('사용 용도를 선택해주세요.'); return false; }
     if (!end) { showToast('사용 종료일을 선택해주세요.'); return false; }
     if (end < TODAY_ISO) { showToast('종료일은 오늘 이후로 선택해주세요.'); return false; }
@@ -823,10 +628,6 @@
     const appr1 = document.getElementById('f_approver1').value;
     const period = `${fmtDot(TODAY_ISO)} ~ ${fmtDot(document.getElementById('f_end').value)}`;
 
-    document.getElementById('s_target').textContent =
-      state.applyFor === 'other' && state.target
-        ? `${state.target.name} · ${state.target.dept} (대리 신청)`
-        : '본인 (최정식 책임 · IT기획파트)';
     document.getElementById('s_purpose').textContent = purpose;
     document.getElementById('s_spec').innerHTML =
       `<span class="pill">${state.type}</span> CPU ${state.cpu} · 메모리 ${state.mem} · 디스크(D) ${state.disk}`;

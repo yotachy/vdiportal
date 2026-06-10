@@ -42,7 +42,8 @@
 | 항목 | 값 |
 |---|---|
 | 사용자 | 최정식 책임 / IT기획파트 / 사번 1010579 / ID jschoi0223 |
-| VDI 명 | jschoi0223-main(고정가상화) · jschoi0223-common(공용가상화) |
+| VDI 명 | jschoi0223-main · jschoi0223-common (둘 다 **고정가상화**) |
+| VDI 유형 | **고정가상화 단일** (공용가상화·임시형 없음). 대리 신청 기능 없음 |
 | 헬프데스크 | 1544-8119 (평일 09:00~18:00) |
 | 세션 만료 | 20분 |
 
@@ -249,10 +250,10 @@ portal.html `<style>`/`<script>`에 정의된 페이지 고유 패턴:
 ### 화면별 구현 메모 (참조 · 수정 시 구조 파악용)
 
 - **login.html**: `zoom:0.97` 독립 레이아웃. 크림 배경 위 중앙 카드(`.login-shell`, 약 1520×820) = 좌측 브랜드 패널(절제된 크림 + 기능 리스트 SSO/2차인증/원격근무) + 우측 2단계 인증(STEP1 ID/PW → STEP2 OTP 6자리). 계정 도움 링크 3종(아이디 생성/비밀번호 재발급/계정 잠금 해제). 로그인 성공 시 `sessionStorage['vdi_auth']='1'`
-- **apply.html**: 단계형 신청(정보입력 → 사양선택 → 결재선 → 완료, 상단 단계바는 제거됨). 신청자 정보에 **본인/타인 대리** 구분 — 대리 시 단일 입력 검색 → 팝업(모달)에서 **동일 부서원** 선택 → 대상자 강조(옐로우 칩). 사용 기간(시작=오늘 고정·종료=달력/PILL, 기본 1개월). 행 격자 `label 140px + gap 16` 통일
-- **change.html**: 탭 2개 **사용 연장 / 자원 증설**(반납 제거). 대상 VDI는 portal과 동일 2대(카드 폭 3개 기준 고정·가로 스크롤). 연장(현재 종료일 이후·PILL 기본 1개월) / 증설(콤보박스, 현재값 표시). apply와 동일한 대리 신청 검색 팝업 포함
-- **approval.html**: `filter-bar` + `date-range`(기간 필터) + `search-box` + `data-table` + `pager`. **상태**: 승인중·완료·반려(3종) / **구분**: 신규·연장·증설(`rtag-add/extend/expand`). 대리 건은 대상 VDI 아래 '대리 · 대상자' 배지. 신청번호 `nowrap`
-- **approval-detail.html**: 신청 정보 카드(대리 시 **대상자** 강조 행) + `prog-steps` 진행 + 결재 이력. `KIND`·`PILL`·각 레코드를 approval.html과 정합 유지
+- **apply.html**: 단계형 신청(정보입력 → 사양선택 → 결재선 → 완료, 상단 단계바는 제거됨). 신청자 정보 영역·대리 신청 없음(본인 신청 전용). VDI 유형은 **고정가상화 단일 카드**. 사용 기간(시작=오늘 고정·종료=달력/PILL, 기본 1개월). 행 격자 `label 140px + gap 16` 통일
+- **change.html**: 탭 2개 **사용 연장 / 자원 증설**(반납 제거). 대상 VDI는 portal과 동일 2대(둘 다 고정가상화, 모두 신청 대상). 연장(현재 종료일 이후·PILL 기본 1개월) / 증설(콤보박스, 현재값 표시). 신청자 정보 영역·대리 신청 없음
+- **approval.html**: `filter-bar` + `date-range`(기간 필터) + `search-box` + `data-table` + `pager`. **상태**: 승인중·완료·반려(3종) / **구분**: 신규·연장·증설(`rtag-add/extend/expand`). 신청번호 `nowrap`
+- **approval-detail.html**: 신청 정보 카드 + `prog-steps` 진행 + 결재 이력. `KIND`·`PILL`·각 레코드를 approval.html과 정합 유지
 - **incident.html**: approval.html과 동일 패턴 (filter-bar + data-table + 우측 "신규 신고" 버튼)
 - **incident-new.html**: `fc` 폼 카드 여러 개 + 파일 첨부 영역 + warn-box (급한 장애는 헬프데스크 직통)
 - **notice.html**: `filter-bar`(전체/중요/일반) + `search-box` + 리스트. 분류는 **중요(`ntag-important`)/일반(`ntag-normal`) 2종**. 행 클릭 시 notice-detail.html로 이동

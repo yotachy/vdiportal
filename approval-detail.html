@@ -25,10 +25,6 @@
   .info-key { color: var(--text-tertiary); font-weight: 600; }
   .info-val { color: var(--text-primary); font-weight: 600; line-height: 1.6; }
   .info-val.reason { font-weight: 500; color: var(--text-secondary); }
-  /* 대상자 강조 (대리 신청) */
-  .target-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 8px;
-    background: var(--kb-yellow-soft); border: 1px solid var(--kb-yellow-line); color: #8A6A00; font-weight: 800; }
-  .target-chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--kb-yellow-dark); }
   .info-arrow { color: var(--kb-yellow-dark); font-weight: 800; margin: 0 5px; }
 
   /* prog-steps 여백 (common.css 재활용) */
@@ -173,11 +169,11 @@
       ]
     },
     'REQ-2026-0410-005': {
-      kind: '신규', vdi: 'jschoi0223-common', date: '2026.04.10', purpose: '임시 작업용', target: '홍길동 대리 · IT기획파트',
-      detail: '공용가상화 · CPU 2 Core · 메모리 4 GB · 디스크(D) 80 GB',
-      reason: '부서 공용 작업용 가상PC가 필요하여 신규 신청합니다.', status: 'progress',
+      kind: '신규', vdi: 'jschoi0223-common', date: '2026.04.10', purpose: '일반 업무용',
+      detail: '고정가상화 · CPU 2 Core · 메모리 4 GB · 디스크(D) 80 GB',
+      reason: '개인 업무용 고정가상화를 신규 신청합니다.', status: 'progress',
       hist: [
-        { t: '2026.04.10 10:02', s: 'done',   c: '공용 가상PC 신규 필요.' },
+        { t: '2026.04.10 10:02', s: 'done',   c: '개인 업무용 가상PC 신규 필요.' },
         { t: '2026.04.10 14:30', s: 'done',   c: '승인합니다.' },
         { t: '2026.04.11 09:20', s: 'done',   c: '자원 할당 확인 완료.' },
         { t: '2026.04.11 13:05', s: 'active', c: '가상PC 생성 · 적용 진행 중' }
@@ -196,10 +192,10 @@
     },
     'REQ-2026-0315-004': {
       kind: '신규', vdi: 'jschoi0223-common', date: '2026.03.15', purpose: '기타',
-      detail: '공용가상화 · CPU 2 Core · 메모리 4 GB · 디스크(D) 80 GB · 사용기간 ~2026.09.30',
-      reason: '부서 공용 작업용 가상PC를 신규 신청합니다.', status: 'done',
+      detail: '고정가상화 · CPU 2 Core · 메모리 4 GB · 디스크(D) 80 GB · 사용기간 ~2026.09.30',
+      reason: '개인 업무용 고정가상화를 신규 신청합니다.', status: 'done',
       hist: [
-        { t: '2026.03.15 11:00', s: 'done', c: '공용 작업용 가상PC 신청.' },
+        { t: '2026.03.15 11:00', s: 'done', c: '개인 업무용 가상PC 신청.' },
         { t: '2026.03.15 15:22', s: 'done', c: '승인합니다.' },
         { t: '2026.03.16 10:05', s: 'done', c: '확인 완료.' },
         { t: '2026.03.16 14:40', s: 'done', c: '가상PC 생성 완료.' }
@@ -228,9 +224,9 @@
       ]
     },
     'REQ-2026-0120-002': {
-      kind: '연장', vdi: 'jschoi0223-common', date: '2026.01.20', purpose: '기타', target: '김서연 책임 · IT기획파트',
+      kind: '연장', vdi: 'jschoi0223-common', date: '2026.01.20', purpose: '기타',
       detail: '사용 종료일: 2026.06.30 <span class="info-arrow">→</span> 2026.09.30 (3개월 연장)',
-      reason: '공용 작업 지속에 따라 사용 기간을 연장합니다.', status: 'done',
+      reason: '업무 지속에 따라 사용 기간을 연장합니다.', status: 'done',
       hist: [
         { t: '2026.01.20 13:40', s: 'done', c: '사용 기간 연장 요청.' },
         { t: '2026.01.20 16:10', s: 'done', c: '승인합니다.' },
@@ -239,11 +235,11 @@
       ]
     },
     'REQ-2026-0318-007': {
-      kind: '신규', vdi: 'jschoi0223-temp', date: '2026.03.18', purpose: '단기 프로젝트',
-      detail: '임시형 · CPU 2 Core · 메모리 8 GB · 디스크(D) 80 GB · 사용기간 ~2026.06.30',
-      reason: '단기 프로젝트 수행을 위한 임시 가상PC를 신청합니다.', status: 'progress',
+      kind: '신규', vdi: 'jschoi0223-main', date: '2026.03.18', purpose: '일반 업무용',
+      detail: '고정가상화 · CPU 2 Core · 메모리 8 GB · 디스크(D) 80 GB · 사용기간 ~2026.06.30',
+      reason: '개인 업무용 고정가상화를 신규 신청합니다.', status: 'progress',
       hist: [
-        { t: '2026.03.18 10:20', s: 'done',   c: '임시 가상PC 신청.' },
+        { t: '2026.03.18 10:20', s: 'done',   c: '개인 업무용 가상PC 신청.' },
         { t: '2026.03.18 14:05', s: 'done',   c: '승인합니다.' },
         { t: '2026.03.19 09:30', s: 'active', c: '자원 할당 및 적용 진행 중.' },
         { t: '—',               s: 'wait',   c: '-' }
@@ -274,7 +270,7 @@
     'REQ-2025-1220-014': {
       kind: '연장', vdi: 'jschoi0223-common', date: '2025.12.20', purpose: '기타',
       detail: '사용 종료일: 2026.06.30 <span class="info-arrow">→</span> 2027.06.30 (12개월 연장)',
-      reason: '공용 업무 지속에 따라 사용 기간을 연장합니다.', status: 'done',
+      reason: '업무 지속에 따라 사용 기간을 연장합니다.', status: 'done',
       hist: [
         { t: '2025.12.20 11:10', s: 'done', c: '사용 기간 연장 신청.' },
         { t: '2025.12.20 15:40', s: 'done', c: '승인합니다.' },
@@ -283,12 +279,12 @@
       ]
     },
     'REQ-2025-1128-010': {
-      kind: '증설', vdi: 'jschoi0223-temp', date: '2025.11.28', purpose: '기타',
+      kind: '증설', vdi: 'jschoi0223-common', date: '2025.11.28', purpose: '기타',
       detail: 'CPU 2 Core <span class="info-arrow">→</span> 4 Core',
-      reason: '임시 작업 부하 증가로 CPU 증설을 요청합니다.', status: 'reject',
+      reason: '작업 부하 증가로 CPU 증설을 요청합니다.', status: 'reject',
       hist: [
-        { t: '2025.11.28 14:00', s: 'done',   c: '임시 작업 부하 증가로 증설 요청.' },
-        { t: '2025.11.30 10:15', s: 'reject', c: '임시형 가상PC는 자원 증설 대상이 아닙니다. 고정가상화 신청을 권장합니다.' },
+        { t: '2025.11.28 14:00', s: 'done',   c: '작업 부하 증가로 증설 요청.' },
+        { t: '2025.11.30 10:15', s: 'reject', c: '현재 사용률이 낮아 증설을 보류합니다. 사용 패턴 확인 후 재신청 바랍니다.' },
         { t: '—',               s: 'wait',   c: '-' },
         { t: '—',               s: 'wait',   c: '-' }
       ]
@@ -330,7 +326,6 @@
       <div class="info-row"><div class="info-key">구분</div><div class="info-val"><span class="rtag rtag-${KIND[d.kind]}">${d.kind}</span></div></div>
       <div class="info-row"><div class="info-key">대상 VDI</div><div class="info-val" style="font-variant-numeric:tabular-nums">${d.vdi}</div></div>
       <div class="info-row"><div class="info-key">신청자</div><div class="info-val">최정식 책임 · IT기획파트</div></div>
-      ${d.target ? `<div class="info-row"><div class="info-key">대상자</div><div class="info-val"><span class="target-chip">${d.target}</span></div></div>` : ''}
       <div class="info-row"><div class="info-key">신청일</div><div class="info-val" style="font-variant-numeric:tabular-nums">${d.date}</div></div>
       <div class="info-row"><div class="info-key">사용 용도</div><div class="info-val">${d.purpose}</div></div>
       <div class="info-row"><div class="info-key">신청 내역</div><div class="info-val">${d.detail}</div></div>

@@ -45,9 +45,6 @@
   .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
   .col-date { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
   .col-vdi { font-variant-numeric: tabular-nums; font-weight: 600; }
-  /* 대리 신청 표시 — 구분 우측 PILL */
-  .proxy-pill { display: inline-block; margin-left: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.02em;
-    color: #8A6A00; background: var(--kb-yellow-soft); border: 1px solid var(--kb-yellow-line); border-radius: 5px; padding: 1px 6px; vertical-align: middle; }
   /* 정렬 — 내용(유연 컬럼) 좌측, 나머지 고정 컬럼 가운데 (notice와 동일 정책) */
   .data-table th, .data-table td { text-align: center; }
   .data-table th:nth-child(5), .data-table td:nth-child(5) { text-align: left; }
@@ -169,17 +166,17 @@
   //   신규 → type(유형)  ·  연장 → period(기간)  ·  증설 → item·from·to(자원 변경)
   const ROWS = [
     { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설', vdi: 'jschoi0223-main',   item: '메모리', from: '16GB', to: '32GB',  status: 'progress' },
-    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-common', type: '공용',                              status: 'progress', target: '홍길동 대리' },
+    { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-common', type: '고정',                              status: 'progress' },
     { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '연장', vdi: 'jschoi0223-main',   period: '6개월',                           status: 'done' },
-    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-common', type: '공용',                              status: 'done' },
+    { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-common', type: '고정',                              status: 'done' },
     { no: 'REQ-2026-0302-009', date: '2026.03.02', kind: '연장', vdi: 'jschoi0223-main',   period: '3개월',                           status: 'done' },
     { no: 'REQ-2026-0228-006', date: '2026.02.28', kind: '증설', vdi: 'jschoi0223-common', item: '디스크', from: '80GB', to: '160GB', status: 'reject' },
-    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done', target: '김서연 책임' },
-    { no: 'REQ-2026-0318-007', date: '2026.03.18', kind: '신규', vdi: 'jschoi0223-temp',   type: '임시',                              status: 'progress' },
+    { no: 'REQ-2026-0120-002', date: '2026.01.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done' },
+    { no: 'REQ-2026-0318-007', date: '2026.03.18', kind: '신규', vdi: 'jschoi0223-main',   type: '고정',                              status: 'progress' },
     { no: 'REQ-2026-0210-003', date: '2026.02.10', kind: '증설', vdi: 'jschoi0223-main',   item: '디스크', from: '80GB', to: '160GB', status: 'done' },
     { no: 'REQ-2026-0115-001', date: '2026.01.15', kind: '신규', vdi: 'jschoi0223-main',   type: '고정',                              status: 'done' },
     { no: 'REQ-2025-1220-014', date: '2025.12.20', kind: '연장', vdi: 'jschoi0223-common', period: '12개월',                          status: 'done' },
-    { no: 'REQ-2025-1128-010', date: '2025.11.28', kind: '증설', vdi: 'jschoi0223-temp',   item: 'CPU', from: '2 Core', to: '4 Core', status: 'reject' }
+    { no: 'REQ-2025-1128-010', date: '2025.11.28', kind: '증설', vdi: 'jschoi0223-common', item: 'CPU', from: '2 Core', to: '4 Core', status: 'reject' }
   ];
 
   const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand' };
@@ -216,7 +213,7 @@
     const q = curSearch.trim().toLowerCase();
     const list = ROWS.filter(r => {
       const okFilter = curFilter === 'all' || group(r.status) === curFilter;
-      const okSearch = !q || (r.no + ' ' + r.kind + ' ' + r.vdi + ' ' + content(r) + ' ' + (r.target || '')).toLowerCase().includes(q);
+      const okSearch = !q || (r.no + ' ' + r.kind + ' ' + r.vdi + ' ' + content(r)).toLowerCase().includes(q);
       const okDate = dateInRange(r.date, $('dateFrom').value, $('dateTo').value);
       return okFilter && okSearch && okDate;
     }).sort((a, b) => b.date.localeCompare(a.date));   // 신청일 내림차순(최신순)
@@ -237,7 +234,7 @@
         <tr onclick="location.href='approval-detail.html?no=${r.no}'">
           <td class="col-no">${r.no}</td>
           <td class="col-date">${r.date.slice(5)}</td>
-          <td><span class="rtag rtag-${KIND[r.kind]}">${r.kind}</span>${r.target ? '<span class="proxy-pill">대리</span>' : ''}</td>
+          <td><span class="rtag rtag-${KIND[r.kind]}">${r.kind}</span></td>
           <td class="col-vdi">${r.vdi}</td>
           <td class="col-content">${content(r)}</td>
           <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></td>

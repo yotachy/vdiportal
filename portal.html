@@ -110,7 +110,6 @@
   @keyframes breathe{0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1}50%{box-shadow:0 0 0 5px transparent;opacity:.55}}
   .vw-type{font-size:12px;font-weight:800;padding:4px 9px;border-radius:6px;letter-spacing:.02em;
     background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
-  .vw-type.shared{background:var(--info-soft);color:var(--info);border-color:#C2DAFB}
   .vw-name{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
     font-size:28px;font-weight:800;letter-spacing:-0.035em;color:var(--ink);
     margin:0 0 16px;font-variant-numeric:tabular-nums}
@@ -426,9 +425,9 @@
     { name:'jschoi0223-main', type:'고정가상화', typeClass:'', state:'on',
       ip:'10.20.30.115', os:'Windows 11 Enterprise', lastAccess:'2026.04.24 09:12',
       created:'2024.03.01', expire:'재직 중', cpu:'4 Core', mem:'16 GB', disk:'150 GB' },
-    { name:'jschoi0223-common', type:'공용가상화', typeClass:'shared', state:'maint',
-      ip:'할당 시 배정', os:'Windows 11 Enterprise', lastAccess:'2026.04.18 14:30',
-      created:'2025.11.01', expire:'용도 · 임시 작업용', cpu:'2 Core', mem:'4 GB', disk:'80 GB' }
+    { name:'jschoi0223-common', type:'고정가상화', typeClass:'', state:'maint',
+      ip:'10.20.30.116', os:'Windows 11 Enterprise', lastAccess:'2026.04.18 14:30',
+      created:'2025.11.01', expire:'재직 중', cpu:'2 Core', mem:'4 GB', disk:'80 GB' }
   ];
 
   // 상태 매핑 (전원 ON · 전원 OFF · 점검 중)
@@ -453,7 +452,7 @@
 
     const tp = $('vwType');
     tp.textContent = v.type;
-    tp.classList.toggle('shared', v.typeClass === 'shared');
+    tp.classList.remove('shared');
 
     $('vwMeta').innerHTML = `
       <div class="mi"><span class="mi-k">운영체제</span><span class="mi-v">${v.os}</span></div>
