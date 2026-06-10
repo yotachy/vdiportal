@@ -73,7 +73,6 @@ KB손해보험 VDI 사용자 포탈 화면정의서의 **소스 구조와 작업
 | `dateInRange(dateStr, from, to)` | 기간 필터 — 행 날짜가 `from~to`(YYYY-MM-DD) 범위인지 |
 | `maxDateOf(rows)` / `quickRangeFrom(to, 'week'\|'month')` | 빠른선택(최근 1주일/1개월) 보조 |
 | `toggleAdminMode(btn)` | 관리자 모드 ON/OFF (`sessionStorage['vdi_admin']`로 유지) |
-| `toggleDemo(btn, targetId)` | 시연용 영역 숨김/표시 |
 
 > 세션 타이머는 `common.js` 로드 시 자동 시작. 헤더/사이드바도 init에서 자동 렌더.
 

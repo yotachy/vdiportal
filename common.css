@@ -158,19 +158,6 @@ a{text-decoration:none;color:inherit}
 .page-header-left{min-width:0;flex:1}
 .page-header-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
 
-/* ⚠ 시연용 임시 토글 (영역 표시/숨김 — 의사결정 데모용, 확정 후 제거) */
-.demo-toggle{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;
-  border:1.5px dashed var(--border-strong);border-radius:var(--r-sm);background:var(--surface);
-  color:var(--text-secondary);font-size:12.5px;font-weight:700;letter-spacing:-0.01em;
-  cursor:pointer;transition:all .15s;white-space:nowrap}
-.demo-toggle:hover{border-color:var(--kb-yellow-dark);color:var(--ink)}
-.demo-toggle.off{border-style:solid;border-color:var(--kb-yellow-dark);
-  background:var(--kb-yellow-soft);color:var(--ink)}
-.demo-toggle svg{width:15px;height:15px;flex-shrink:0}
-.demo-toggle .demo-tag{font-size:10px;font-weight:800;color:var(--kb-yellow-dark);
-  border:1px solid var(--kb-yellow-line);background:var(--surface);
-  border-radius:4px;padding:1px 5px;letter-spacing:0}
-
 /* 페이지네이션 (10건 단위) — renderPager(common.js)가 생성 */
 .pager{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:22px;flex-wrap:wrap}
 .pager:empty{margin-top:0}
