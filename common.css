@@ -260,24 +260,22 @@ body.admin-mode .admin-only{display:inline-flex!important}
 .sdot-danger{background:var(--danger)}.sdot-info{background:var(--info)}.sdot-muted{background:#BDB5A7}
 
 /* ════════ FILTER BAR ════════ */
-/* ===== 필터/검색 (목록 화면 공통) — 검색 히어로 + 필터 칩 2단 =====
-   1단: 전체폭 검색(주인)  ·  2단: 분류/상태 칩(좌) + 기간 드롭다운(우) */
-.filter-bar{display:flex;flex-direction:column;gap:13px;margin-bottom:22px}
+/* ===== 필터/검색 (목록 화면 공통) — 한 줄 툴바 =====
+   [검색(고정폭)] [분류·상태 칩] [기간 드롭다운] 을 좌측에 한 덩어리로 정렬 */
+.filter-bar{display:flex;align-items:center;gap:10px 12px;margin-bottom:20px;flex-wrap:wrap}
 
-/* 1단 — 검색 히어로 */
-.search-hero{position:relative;width:100%}
-.search-hero svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);
-  width:18px;height:18px;color:var(--text-tertiary);pointer-events:none}
-.search-hero input{width:100%;height:48px;padding:0 16px 0 46px;border:1.5px solid var(--border-strong);
-  border-radius:12px;font-family:inherit;font-size:15px;color:var(--text-primary);outline:none;
+/* 검색 — 적당한 고정폭(전체폭 X) */
+.search-hero{position:relative;flex:0 0 auto;width:340px;max-width:100%}
+.search-hero svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  width:16px;height:16px;color:var(--text-tertiary);pointer-events:none}
+.search-hero input{width:100%;height:40px;padding:0 14px 0 40px;border:1.5px solid var(--border-strong);
+  border-radius:10px;font-family:inherit;font-size:14px;color:var(--text-primary);outline:none;
   background:var(--surface);transition:all .15s}
 .search-hero input::placeholder{color:var(--text-tertiary)}
 .search-hero input:focus{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
 
-/* 2단 — 칩 줄 */
+/* 칩 + 기간을 검색 바로 옆에 밀착 */
 .filter-chips{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap}
-.filter-chips .date-drop{margin-left:auto}             /* 칩이 있으면 기간은 우측 끝 */
-.filter-chips .date-drop:only-child{margin-left:0}     /* 기간만 있으면 좌측 정렬(공지) */
 
 /* 분류/상태 칩 그룹 */
 .filter-seg{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
@@ -316,8 +314,7 @@ body.admin-mode .admin-only{display:inline-flex!important}
 .date-input:focus{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
 .date-sep{color:var(--text-tertiary);font-weight:700;flex-shrink:0}
 @media (max-width:560px){
-  .search-hero input{height:44px}
-  .filter-chips .date-drop{margin-left:0}
+  .search-hero{width:100%}
   .date-pop{right:auto;left:0}
 }
 
