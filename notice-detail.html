@@ -25,19 +25,6 @@
   .art-body li { margin-bottom: 7px; }
   .art-body .info-box, .art-body .warn-box { margin: 16px 0; }
 
-  /* 첨부 */
-  .att-wrap { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--border); }
-  .att-title { font-size: 13px; font-weight: 800; color: var(--text-tertiary); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 11px; }
-  .att-chip { display: flex; align-items: center; gap: 11px; padding: 11px 14px; border: 1px solid var(--border);
-    border-radius: 10px; background: var(--surface); cursor: pointer; transition: all 0.14s; margin-bottom: 8px; }
-  .att-chip:hover { border-color: var(--kb-yellow-dark); background: var(--kb-yellow-soft); }
-  .att-ico { width: 18px; height: 18px; color: var(--kb-yellow-dark); flex-shrink: 0; }
-  .att-name { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .att-size { font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-  .att-dl { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); flex-shrink: 0; }
-  .att-chip:hover .att-dl { color: var(--kb-yellow-dark); }
-  .att-dl svg { width: 16px; height: 16px; }
-
   /* 이전/다음 */
   .pn-row { display: flex; align-items: center; gap: 16px; padding: 15px 22px; border-bottom: 1px solid var(--border);
     cursor: pointer; transition: background 0.12s; }
@@ -108,7 +95,6 @@
 </div>
 <script src="common.js"></script>
 <script>
-  const ICO_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
   const ICO_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
 
   // ===== 데이터 (notice.html 12건과 정합) =====
@@ -118,73 +104,61 @@
   const DETAILS = {
     1: { cat: 'important', title: '[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내', author: '관리자', date: '2026.05.29', views: 1284,
       body: `<p>안정적인 VDI 서비스 제공을 위해 아래와 같이 정기 점검을 시행합니다. 점검 시간 동안 가상PC 접속이 일시 중단되오니 업무에 참고하시기 바랍니다.</p>
-        <div class="info-box">${ICO_INFO}<div><strong>점검 일시</strong> : 2026.06.01(일) 02:00 ~ 05:00 (3시간)</div></div>
+        <p><strong>점검 일시</strong> : 2026.06.01(일) 02:00 ~ 05:00 (3시간)</p>
         <p><strong>점검 내용</strong></p>
         <ul><li>VDI 호스트 서버 보안 패치 적용</li><li>스토리지 펌웨어 업그레이드</li><li>네트워크 이중화 구성 점검</li></ul>
         <p><strong>유의 사항</strong></p>
         <ul><li>점검 시간 중에는 모든 가상PC 접속이 불가합니다.</li><li>작업 중인 문서는 점검 시작 전 반드시 저장 후 종료해 주세요.</li><li>점검은 작업 상황에 따라 조기 종료될 수 있습니다.</li></ul>
-        <p>기타 문의사항은 헬프데스크(<strong>1544-8119</strong>, 평일 09:00~18:00)로 연락 바랍니다.</p>`,
-      files: [{ name: 'VDI_정기점검_상세안내.pdf', size: '284 KB' }] },
+        <p>기타 문의사항은 헬프데스크(<strong>1544-8119</strong>, 평일 09:00~18:00)로 연락 바랍니다.</p>` },
     2: { cat: 'important', title: '[보안] 랜섬웨어 주의보 — 출처 불명 메일 첨부파일 실행 금지', author: '관리자', date: '2026.05.28', views: 2317,
       body: `<p>최근 업무 메일을 사칭한 <strong>랜섬웨어 유포 시도</strong>가 다수 탐지되고 있습니다. 가상PC 환경에서도 각별한 주의가 필요합니다.</p>
         <div class="warn-box">${ICO_WARN}<div>출처가 불분명한 메일의 <strong>첨부파일·링크는 절대 실행하지 마세요.</strong> 의심스러운 메일은 즉시 정보보안부로 신고 바랍니다.</div></div>
         <p><strong>주요 행동 요령</strong></p>
         <ul><li>발신자가 불확실한 메일의 첨부파일(.zip, .exe, 매크로 문서) 실행 금지</li><li>중요 자료는 정기적으로 별도 백업</li><li>가상PC 보안 패치 및 백신 최신 상태 유지</li><li>감염 의심 시 즉시 네트워크 분리 후 신고</li></ul>
-        <p>신고 및 문의 : 정보보안부 보안관제센터 / 헬프데스크 <strong>1544-8119</strong></p>`,
-      files: [] },
+        <p>신고 및 문의 : 정보보안부 보안관제센터 / 헬프데스크 <strong>1544-8119</strong></p>` },
     3: { cat: 'normal', title: 'Citrix Workspace v23.11 배포 안내 (자동 업데이트)', author: '관리자', date: '2026.05.26', views: 903,
       body: `<p>가상PC 접속 클라이언트인 Citrix Workspace가 <strong>v23.11</strong>로 업데이트됩니다. 별도 조치 없이 다음 접속 시 자동 적용됩니다.</p>
         <p><strong>주요 변경 사항</strong></p>
         <ul><li>접속 안정성 및 재연결 속도 개선</li><li>다중 모니터 환경 렌더링 최적화</li><li>일부 보안 취약점 패치</li></ul>
-        <p>업데이트 후 접속 이상이 있을 경우 가상PC를 일반 리부팅한 뒤 재접속해 주세요.</p>`,
-      files: [{ name: 'CitrixWorkspace_v23.11_릴리즈노트.pdf', size: '156 KB' }] },
+        <p>업데이트 후 접속 이상이 있을 경우 가상PC를 일반 리부팅한 뒤 재접속해 주세요.</p>` },
     4: { cat: 'normal', title: 'VDI 사용자 매뉴얼 v2.0 배포 안내', author: '관리자', date: '2026.05.20', views: 1042,
       body: `<p>업무가상화 사용자 포탈 개편에 맞춰 <strong>VDI 사용자 매뉴얼 v2.0</strong>을 배포합니다. 접속 방법, 신청 절차, 자주 묻는 질문 등이 보강되었습니다.</p>
         <p><strong>주요 보강 내용</strong></p>
         <ul><li>신규 포탈 화면 기준 접속·신청 가이드</li><li>사용 연장·자원 증설 신청 절차 안내</li><li>장애 발생 시 대처 및 신고 방법</li></ul>
-        <p>아래 첨부파일에서 매뉴얼을 내려받으실 수 있습니다.</p>`,
-      files: [{ name: 'VDI_사용자매뉴얼_v2.0.pdf', size: '4.2 MB' }] },
+        <p>매뉴얼은 <strong>자료실</strong>(지원 · 서비스 &gt; 자료실)에서 내려받으실 수 있습니다.</p>` },
     5: { cat: 'normal', title: '가상PC Windows 5월 정기 보안 패치 적용 안내', author: '관리자', date: '2026.05.14', views: 658,
       body: `<p>5월 Microsoft 정기 보안 패치가 전체 가상PC에 순차 적용됩니다. 패치는 야간 시간대에 자동 진행됩니다.</p>
         <p><strong>안내 사항</strong></p>
-        <ul><li>패치 적용을 위해 가상PC가 자동 재부팅될 수 있습니다.</li><li>업무 종료 시 작업 내용을 저장하고 로그오프해 주세요.</li><li>재부팅 후 최초 접속이 평소보다 다소 지연될 수 있습니다.</li></ul>`,
-      files: [] },
+        <ul><li>패치 적용을 위해 가상PC가 자동 재부팅될 수 있습니다.</li><li>업무 종료 시 작업 내용을 저장하고 로그오프해 주세요.</li><li>재부팅 후 최초 접속이 평소보다 다소 지연될 수 있습니다.</li></ul>` },
     6: { cat: 'important', title: '05.11(일) 네트워크 장비 교체 작업 안내 (접속 일시 중단)', author: '관리자', date: '2026.05.08', views: 591,
       body: `<p>데이터센터 네트워크 장비 교체 작업으로 인해 아래 시간 동안 가상PC 접속이 일시 중단됩니다.</p>
-        <div class="info-box">${ICO_INFO}<div><strong>작업 일시</strong> : 2026.05.11(일) 06:00 ~ 08:00 (2시간)</div></div>
-        <p>작업 시간 중에는 포탈 및 가상PC 접속이 불가하오니 업무에 참고하시기 바랍니다. 작업은 상황에 따라 조기 종료될 수 있습니다.</p>`,
-      files: [] },
+        <p><strong>작업 일시</strong> : 2026.05.11(일) 06:00 ~ 08:00 (2시간)</p>
+        <p>작업 시간 중에는 포탈 및 가상PC 접속이 불가하오니 업무에 참고하시기 바랍니다. 작업은 상황에 따라 조기 종료될 수 있습니다.</p>` },
     7: { cat: 'normal', title: 'PC가상화 프로그램 설치 파일 안내', author: '관리자', date: '2026.04.22', views: 712,
       body: `<p>신규 사용자 및 재설치가 필요한 사용자를 위한 PC가상화(Citrix Workspace) 설치 파일을 안내합니다.</p>
         <p><strong>설치 방법</strong></p>
-        <ul><li>아래 첨부파일을 내려받아 실행합니다.</li><li>설치 완료 후 포탈에서 가상PC에 접속합니다.</li><li>설치 중 오류 발생 시 헬프데스크로 문의해 주세요.</li></ul>`,
-      files: [{ name: 'CitrixWorkspace_설치파일.exe', size: '78.5 MB' }, { name: '설치_가이드.pdf', size: '512 KB' }] },
+        <ul><li>자료실(설치 프로그램)에서 설치 파일을 내려받아 실행합니다.</li><li>설치 완료 후 포탈에서 가상PC에 접속합니다.</li><li>설치 중 오류 발생 시 헬프데스크로 문의해 주세요.</li></ul>` },
     8: { cat: 'normal', title: '고정가상화 신규 자원(8 Core/16 GB) 도입 안내', author: '관리자', date: '2026.04.15', views: 834,
       body: `<p>고정가상화에서 선택할 수 있는 <strong>고사양 자원(CPU 8 Core · 메모리 16 GB)</strong>이 신규 도입되었습니다. 자원 부족으로 작업에 불편이 있던 사용자는 증설 신청 시 활용하실 수 있습니다.</p>
         <p><strong>안내</strong></p>
-        <ul><li>CPU 최대 8 Core, 메모리 최대 16 GB까지 선택 가능합니다.</li><li>기존 고정가상화 사용자도 자원 증설로 변경할 수 있습니다.</li><li>신청은 [사용 연장 · 자원 증설] 또는 [VDI 추가신청]에서 가능합니다.</li></ul>`,
-      files: [] },
+        <ul><li>CPU 최대 8 Core, 메모리 최대 16 GB까지 선택 가능합니다.</li><li>기존 고정가상화 사용자도 자원 증설로 변경할 수 있습니다.</li><li>신청은 [사용 연장 · 자원 증설] 또는 [VDI 추가신청]에서 가능합니다.</li></ul>` },
     9: { cat: 'important', title: '[복구완료] 일부 사용자 접속 지연 현상 정상화 안내', author: '관리자', date: '2026.04.10', views: 1576,
       body: `<p>04.10(금) 오전 발생했던 일부 사용자 가상PC 접속 지연 현상이 <strong>정상 복구</strong>되었습니다. 이용에 불편을 드려 죄송합니다.</p>
         <p><strong>원인 및 조치</strong></p>
         <ul><li>원인 : 인증 서버 일시적 부하 증가</li><li>조치 : 인증 서버 세션 정책 조정 및 부하 분산 적용</li></ul>
-        <p>현재 모든 서비스는 정상 운영 중입니다. 이후에도 이상이 있을 경우 헬프데스크로 신고해 주세요.</p>`,
-      files: [] },
+        <p>현재 모든 서비스는 정상 운영 중입니다. 이후에도 이상이 있을 경우 헬프데스크로 신고해 주세요.</p>` },
     10: { cat: 'normal', title: 'VDI 접속 경로 이중화 구성 완료 안내', author: '관리자', date: '2026.04.05', views: 487,
       body: `<p>VDI 접속 경로 <strong>이중화 구성</strong>이 완료되었습니다. 일부 네트워크 장비에 장애가 발생하더라도 우회 경로를 통해 안정적으로 가상PC에 접속할 수 있습니다.</p>
         <p><strong>주요 내용</strong></p>
-        <ul><li>접속 게이트웨이 이중화 적용</li><li>장애 발생 시 자동 우회(Failover) 전환</li><li>사용자 측 별도 설정 변경 사항 없음</li></ul>`,
-      files: [] },
+        <ul><li>접속 게이트웨이 이중화 적용</li><li>장애 발생 시 자동 우회(Failover) 전환</li><li>사용자 측 별도 설정 변경 사항 없음</li></ul>` },
     11: { cat: 'normal', title: '4월 가상PC 사용 현황 리포트 공유', author: '관리자', date: '2026.04.01', views: 312,
       body: `<p>4월 한 달간의 <strong>부서별 가상PC 사용 현황</strong>과 자원 사용률 리포트를 공유합니다. 자원 증설 계획 수립에 참고하시기 바랍니다.</p>
         <p><strong>요약</strong></p>
-        <ul><li>전사 평균 CPU 사용률 41%, 메모리 사용률 58%</li><li>장기 미사용 가상PC는 사용 점검 후 별도 안내 예정</li></ul>`,
-      files: [{ name: '2026-04_VDI_사용현황_리포트.pdf', size: '1.4 MB' }] },
+        <ul><li>전사 평균 CPU 사용률 41%, 메모리 사용률 58%</li><li>장기 미사용 가상PC는 사용 점검 후 별도 안내 예정</li></ul>` },
     12: { cat: 'important', title: '[보안] 분기 비밀번호 변경 안내 (2분기)', author: '관리자', date: '2026.03.28', views: 1203,
       body: `<p>정보보안 정책에 따라 <strong>2분기 비밀번호 변경</strong>을 안내합니다. 기한 내 변경하지 않으면 가상PC 접속이 제한될 수 있습니다.</p>
         <p><strong>변경 안내</strong></p>
-        <ul><li>대상 : 전 임직원 마이포탈 계정</li><li>기한 : 2026.04.15(수)까지</li><li>규칙 : 영문·숫자·특수문자 포함 10자리 이상, 직전 비밀번호 재사용 불가</li></ul>`,
-      files: [] }
+        <ul><li>대상 : 전 임직원 마이포탈 계정</li><li>기한 : 2026.04.15(수)까지</li><li>규칙 : 영문·숫자·특수문자 포함 10자리 이상, 직전 비밀번호 재사용 불가</li></ul>` }
   };
 
   const $ = id => document.getElementById(id);
@@ -193,28 +167,14 @@
   const curId = DETAILS[qid] ? qid : 1;
   const d = DETAILS[curId];
 
-  function fileChip(f) {
-    return `
-      <div class="att-chip" onclick="showToast('파일을 다운로드합니다: ${f.name}')">
-        <svg class="att-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <span class="att-name">${f.name}</span>
-        <span class="att-size">${f.size}</span>
-        <span class="att-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
-      </div>`;
-  }
-
   function renderArticle() {
-    const att = d.files && d.files.length
-      ? `<div class="att-wrap"><div class="att-title">첨부파일 ${d.files.length}개</div>${d.files.map(fileChip).join('')}</div>`
-      : '';
     $('article').innerHTML = `
       <h1 class="art-title">${d.title}</h1>
       <div class="art-meta">
         <span class="am"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${d.author}</span>
         <span class="am"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${d.date}</span>
       </div>
-      <div class="art-body">${d.body}</div>
-      ${att}`;
+      <div class="art-body">${d.body}</div>`;
   }
 
   function pnRow(dir, id) {
