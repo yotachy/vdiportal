@@ -150,30 +150,40 @@
           <div class="fc-ctrl"></div>
         </div>
         <div class="fc-body">
-          <div class="frow">
-            <div class="frow-label">현재 사용기간</div>
-            <div class="frow-field">
-              <div class="info-text" id="x_current">-</div>
+          <!-- 연장 가능한(별도 신청) VDI가 없을 때 -->
+          <div id="extendEmpty" style="display:none">
+            <div class="empty-state" style="padding:36px 16px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div>연장 신청 가능한 가상PC가 없습니다.<br>기본 지급(본사 근무 재직자 자동유지) 가상PC는 연장 대상이 아닙니다.</div>
             </div>
           </div>
-          <div class="frow">
-            <div class="frow-label">연장 종료일 <span class="req">*</span></div>
-            <div class="frow-field">
-              <div class="field-inline">
-                <input class="fi" type="date" id="x_end" style="width:180px">
-                <div class="period-pills">
-                  <button type="button" class="qp" data-months="1">1개월</button>
-                  <button type="button" class="qp" data-months="3">3개월</button>
-                  <button type="button" class="qp" data-months="12">1년</button>
-                </div>
+
+          <div id="extendForm">
+            <div class="frow">
+              <div class="frow-label">현재 사용기간</div>
+              <div class="frow-field">
+                <div class="info-text" id="x_current">-</div>
               </div>
-              <div class="frow-help">현재 종료일(<span id="x_curEnd">-</span>) 이후로만 연장할 수 있습니다. 빠른 입력은 현재 종료일 기준입니다.</div>
             </div>
-          </div>
-          <div class="frow">
-            <div class="frow-label">연장 사유 <span class="req">*</span></div>
-            <div class="frow-field">
-              <textarea class="fta full" id="x_reason" rows="3" placeholder="사용 연장이 필요한 사유를 입력해주세요."></textarea>
+            <div class="frow">
+              <div class="frow-label">연장 종료일 <span class="req">*</span></div>
+              <div class="frow-field">
+                <div class="field-inline">
+                  <input class="fi" type="date" id="x_end" style="width:180px">
+                  <div class="period-pills">
+                    <button type="button" class="qp" data-months="1">1개월</button>
+                    <button type="button" class="qp" data-months="3">3개월</button>
+                    <button type="button" class="qp" data-months="12">1년</button>
+                  </div>
+                </div>
+                <div class="frow-help">현재 종료일(<span id="x_curEnd">-</span>) 이후로만 연장할 수 있습니다. 빠른 입력은 현재 종료일 기준입니다.</div>
+              </div>
+            </div>
+            <div class="frow">
+              <div class="frow-label">연장 사유 <span class="req">*</span></div>
+              <div class="frow-field">
+                <textarea class="fta full" id="x_reason" rows="3" placeholder="사용 연장이 필요한 사유를 입력해주세요."></textarea>
+              </div>
             </div>
           </div>
         </div>
@@ -215,7 +225,7 @@
         <button class="btn btn-outline" onclick="location.href='portal.html'">취소</button>
         <button class="btn btn-primary" id="submitBtn" onclick="submitRequest()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-          <span id="submitLabel">변경 신청</span>
+          <span id="submitLabel">승인 요청</span>
         </button>
       </div>
     </div>
@@ -278,12 +288,17 @@
   // 선택 VDI 기준으로 각 탭 폼 동기화
   function syncForms() {
     const v = VDI_LIST[state.vdi];
-    // 사용 연장 탭: 현재 사용기간 표기 + 연장 종료일 제약 초기화
-    $('x_current').textContent = `${fmtDot(v.start)} ~ ${fmtDot(v.end)}`;
-    $('x_curEnd').textContent = fmtDot(v.end);
-    $('x_end').min = nextDay(v.end);   // 현재 종료일 이후만 선택 가능
-    $('x_end').value = addMonths(v.end, 1);   // 기본값: 1개월 연장
-    document.querySelectorAll('.period-pills .qp').forEach(p => p.classList.toggle('sel', p.dataset.months === '1'));
+    // 사용 연장 탭: 연장 가능한(별도 신청) VDI가 없으면 안내 문구로 대체
+    const noExtendable = !VDI_LIST.some(x => !x.base);
+    $('extendForm').style.display = noExtendable ? 'none' : '';
+    $('extendEmpty').style.display = noExtendable ? 'block' : 'none';
+    if (!noExtendable) {
+      $('x_current').textContent = `${fmtDot(v.start)} ~ ${fmtDot(v.end)}`;
+      $('x_curEnd').textContent = fmtDot(v.end);
+      $('x_end').min = nextDay(v.end);   // 현재 종료일 이후만 선택 가능
+      $('x_end').value = addMonths(v.end, 1);   // 기본값: 1개월 연장
+      document.querySelectorAll('.period-pills .qp').forEach(p => p.classList.toggle('sel', p.dataset.months === '1'));
+    }
     // 증설 목표값을 선택 VDI의 현재 사양으로 리셋
     state.e_cpu = v.cpu; state.e_mem = v.mem; state.e_disk = v.disk;
     renderExpandGrid();
@@ -348,8 +363,8 @@
 
   // ===== 탭 전환 =====
   const TAB_META = {
-    extend: { label: '연장 신청', action: '사용 연장 · 적용' },
-    expand: { label: '증설 신청', action: '자원 증설 · 적용' }
+    extend: { label: '승인 요청', action: '사용 연장 · 적용' },
+    expand: { label: '승인 요청', action: '자원 증설 · 적용' }
   };
 
   // 처리 단계 (탭별 lifecycle — '정보 입력'이 현재 단계)
