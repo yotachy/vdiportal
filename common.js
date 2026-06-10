@@ -119,9 +119,37 @@ function quickRangeFrom(toYMD, kind) {
   var p = toYMD.split('-').map(Number);
   var d = new Date(p[0], p[1] - 1, p[2]);
   if (kind === 'week') d.setDate(d.getDate() - 6);
-  else d.setMonth(d.getMonth() - 1);
+  else if (kind === 'month3') d.setMonth(d.getMonth() - 3);
+  else d.setMonth(d.getMonth() - 1);   // month
   return fmtYMD(d);
 }
+
+/* ---------- 기간 드롭다운 (목록 화면 공통 UI) ----------
+   .date-drop 버튼 클릭으로 팝오버 토글, 바깥/빠른선택 클릭 시 닫힘.
+   라벨(#dateDropLabel)은 setQuickRange/직접입력에서 갱신한다. */
+var DATE_LABELS = { all: '전체 기간', week: '최근 1주일', month: '최근 1개월', month3: '최근 3개월' };
+function setDateLabel(text) {
+  var el = document.getElementById('dateDropLabel');
+  if (el) el.textContent = text;
+}
+function customRangeLabel(from, to) {
+  if (!from && !to) return '전체 기간';
+  var f = from ? from.slice(5).replace('-', '.') : '처음';
+  var t = to ? to.slice(5).replace('-', '.') : '오늘';
+  return f + ' ~ ' + t;
+}
+function toggleDatePop(e) {
+  if (e) e.stopPropagation();
+  var d = document.querySelector('.date-drop');
+  if (d) d.classList.toggle('open');
+}
+document.addEventListener('click', function (e) {
+  var drop = document.querySelector('.date-drop');
+  if (!drop || !drop.classList.contains('open')) return;
+  if (e.target.closest('.date-drop-btn')) return;          // 토글 버튼은 onclick 처리
+  if (e.target.closest('.date-quick')) { drop.classList.remove('open'); return; } // 빠른선택 → 닫기
+  if (!e.target.closest('.date-pop')) drop.classList.remove('open');              // 바깥 클릭 → 닫기
+});
 
 /* ---------- 페이지네이션 (10건 단위) ----------
    el      : 컨테이너 요소 또는 id

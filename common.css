@@ -260,22 +260,68 @@ body.admin-mode .admin-only{display:inline-flex!important}
 .sdot-danger{background:var(--danger)}.sdot-info{background:var(--info)}.sdot-muted{background:#BDB5A7}
 
 /* ════════ FILTER BAR ════════ */
-/* ===== 필터/검색 툴바 (목록 화면 공통) =====
-   레이아웃: [좌] 분류·상태 세그먼트 … [우] 기간 + 검색.  컨트롤 높이 40px 통일.
-   페이지별 오버라이드 없이 이 정의만으로 일관 배치된다. */
-.filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
-.filter-bar .search-box{margin-left:auto}        /* 검색칸은 항상 우측 끝 */
+/* ===== 필터/검색 (목록 화면 공통) — 검색 히어로 + 필터 칩 2단 =====
+   1단: 전체폭 검색(주인)  ·  2단: 분류/상태 칩(좌) + 기간 드롭다운(우) */
+.filter-bar{display:flex;flex-direction:column;gap:13px;margin-bottom:22px}
 
-/* 세그먼트 (분류/상태 선택) */
-.filter-seg{display:inline-flex;align-items:center;height:40px;border:1px solid var(--border);
-  background:var(--bg-subtle);border-radius:11px;padding:4px;gap:2px}
-.fsb{display:inline-flex;align-items:center;height:100%;padding:0 14px;font-size:13px;font-weight:700;
-  color:var(--text-secondary);background:transparent;cursor:pointer;border:none;border-radius:8px;
-  font-family:inherit;white-space:nowrap;transition:all .13s}
-.fsb.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
-.fsb:hover:not(.on){color:var(--ink)}
+/* 1단 — 검색 히어로 */
+.search-hero{position:relative;width:100%}
+.search-hero svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);
+  width:18px;height:18px;color:var(--text-tertiary);pointer-events:none}
+.search-hero input{width:100%;height:48px;padding:0 16px 0 46px;border:1.5px solid var(--border-strong);
+  border-radius:12px;font-family:inherit;font-size:15px;color:var(--text-primary);outline:none;
+  background:var(--surface);transition:all .15s}
+.search-hero input::placeholder{color:var(--text-tertiary)}
+.search-hero input:focus{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
 
-/* 검색 박스 */
+/* 2단 — 칩 줄 */
+.filter-chips{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap}
+.filter-chips .date-drop{margin-left:auto}             /* 칩이 있으면 기간은 우측 끝 */
+.filter-chips .date-drop:only-child{margin-left:0}     /* 기간만 있으면 좌측 정렬(공지) */
+
+/* 분류/상태 칩 그룹 */
+.filter-seg{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.fsb{display:inline-flex;align-items:center;height:36px;padding:0 15px;border-radius:100px;
+  border:1.5px solid var(--border);background:var(--surface);color:var(--text-secondary);
+  font-family:inherit;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer;transition:all .15s}
+.fsb:hover:not(.on){border-color:var(--kb-yellow-dark);color:var(--ink)}
+.fsb.on{background:var(--kb-yellow);border-color:var(--kb-yellow);color:var(--ink)}
+
+/* 기간 드롭다운 (칩 + 팝오버) */
+.date-drop{position:relative;flex-shrink:0}
+.date-drop-btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 13px;
+  border:1.5px solid var(--border);border-radius:100px;background:var(--surface);
+  font-family:inherit;font-size:13px;font-weight:700;color:var(--text-secondary);cursor:pointer;transition:all .15s}
+.date-drop-btn:hover{border-color:var(--kb-yellow-dark);color:var(--ink)}
+.date-drop.open .date-drop-btn{border-color:var(--kb-yellow-dark);color:var(--ink);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
+.date-drop-btn .cal{width:15px;height:15px;flex-shrink:0;color:var(--text-tertiary)}
+.date-drop-btn .chev{width:14px;height:14px;flex-shrink:0;transition:transform .18s}
+.date-drop.open .date-drop-btn .chev{transform:rotate(180deg)}
+.date-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:30;min-width:256px;
+  background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow-lg);
+  padding:12px;display:none}
+.date-drop.open .date-pop{display:block}
+.date-pop-quick{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.date-pop-sep{font-size:11px;font-weight:700;color:var(--text-tertiary);letter-spacing:-0.01em;
+  margin:12px 2px 7px}
+.date-pop-custom{display:flex;align-items:center;gap:8px}
+.date-quick{display:inline-flex;align-items:center;justify-content:center;height:34px;padding:0 10px;
+  border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-secondary);
+  font-family:inherit;font-size:12.5px;font-weight:700;white-space:nowrap;cursor:pointer;transition:all .15s}
+.date-quick:hover{border-color:var(--kb-yellow-dark);color:var(--ink)}
+.date-quick.on{background:var(--kb-yellow);border-color:var(--kb-yellow);color:var(--ink)}
+.date-input{flex:1;min-width:0;height:36px;padding:0 9px;border:1.5px solid var(--border-strong);border-radius:8px;
+  font-family:inherit;font-size:12.5px;color:var(--text-primary);background:var(--surface);
+  font-variant-numeric:tabular-nums;letter-spacing:-0.01em;cursor:pointer;outline:none}
+.date-input:focus{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
+.date-sep{color:var(--text-tertiary);font-weight:700;flex-shrink:0}
+@media (max-width:560px){
+  .search-hero input{height:44px}
+  .filter-chips .date-drop{margin-left:0}
+  .date-pop{right:auto;left:0}
+}
+
+/* 검색 박스 (자료실 등 인라인 검색용) */
 .search-box{position:relative;flex:0 0 auto;width:280px}
 .search-box svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);
   width:15px;height:15px;color:var(--text-tertiary)}
@@ -283,27 +329,6 @@ body.admin-mode .admin-only{display:inline-flex!important}
   border-radius:10px;font-family:inherit;font-size:14px;outline:none;
   transition:all .15s;background:var(--surface)}
 .search-box input:focus{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
-
-/* 기간(날짜 범위) — 라벨·날짜·빠른선택을 하나의 묶음으로 그룹화 */
-.date-range{display:inline-flex;align-items:center;gap:7px;height:40px;flex-shrink:0;
-  padding:0 8px 0 13px;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--surface)}
-.date-range:focus-within{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
-.date-label{font-size:12.5px;font-weight:700;color:var(--text-tertiary);white-space:nowrap}
-.date-input{height:28px;padding:0 2px;border:none;background:transparent;
-  font-family:inherit;font-size:12.5px;color:var(--text-primary);
-  font-variant-numeric:tabular-nums;letter-spacing:-0.01em;cursor:pointer;outline:none}
-.date-sep{color:var(--text-tertiary);font-weight:700}
-.date-quick{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:7px;
-  border:none;background:var(--bg-subtle);color:var(--text-secondary);
-  font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:all .15s}
-.date-quick:first-of-type{margin-left:3px}
-.date-quick:hover{background:var(--kb-yellow-soft);color:var(--ink)}
-.date-quick.on{background:var(--kb-yellow);color:var(--ink)}
-@media (max-width:980px){
-  .filter-bar .search-box{margin-left:0;width:100%;order:9}   /* 모바일: 검색 전체폭·맨 아래 */
-  .date-range{flex-wrap:wrap;height:auto;padding:8px 10px}
-  .date-input{flex:1;min-width:120px}
-}
 
 /* ════════ DATA TABLE ════════ */
 .data-table{width:100%;border-collapse:collapse;font-size:14px}

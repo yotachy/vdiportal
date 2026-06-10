@@ -110,25 +110,40 @@
       </div>
     </div>
 
-    <!-- 필터바 -->
+    <!-- 검색 + 필터 -->
     <div class="filter-bar reveal" style="animation-delay:.14s">
-      <div class="filter-seg" id="filterSeg">
-        <button class="fsb on" data-filter="all">전체</button>
-        <button class="fsb" data-filter="progress">승인중</button>
-        <button class="fsb" data-filter="done">완료</button>
-        <button class="fsb" data-filter="reject">반려</button>
-      </div>
-      <div class="date-range">
-        <span class="date-label">기간</span>
-        <input type="date" id="dateFrom" class="date-input" aria-label="시작일">
-        <span class="date-sep">~</span>
-        <input type="date" id="dateTo" class="date-input" aria-label="종료일">
-        <button type="button" class="date-quick" data-q="week" onclick="setQuickRange('week')">1주일</button>
-        <button type="button" class="date-quick" data-q="month" onclick="setQuickRange('month')">1개월</button>
-      </div>
-      <div class="search-box">
+      <div class="search-hero">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="searchInput" placeholder="신청번호 · 구분 · VDI명 검색">
+        <input type="text" id="searchInput" placeholder="신청번호 · 구분 · VDI명으로 검색">
+      </div>
+      <div class="filter-chips">
+        <div class="filter-seg" id="filterSeg">
+          <button class="fsb on" data-filter="all">전체</button>
+          <button class="fsb" data-filter="progress">승인중</button>
+          <button class="fsb" data-filter="done">완료</button>
+          <button class="fsb" data-filter="reject">반려</button>
+        </div>
+        <div class="date-drop" id="dateDrop">
+          <button type="button" class="date-drop-btn" onclick="toggleDatePop(event)">
+            <svg class="cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span id="dateDropLabel">최근 1개월</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="date-pop">
+            <div class="date-pop-quick">
+              <button type="button" class="date-quick" data-q="all" onclick="setQuickRange('all')">전체 기간</button>
+              <button type="button" class="date-quick" data-q="week" onclick="setQuickRange('week')">최근 1주일</button>
+              <button type="button" class="date-quick on" data-q="month" onclick="setQuickRange('month')">최근 1개월</button>
+              <button type="button" class="date-quick" data-q="month3" onclick="setQuickRange('month3')">최근 3개월</button>
+            </div>
+            <div class="date-pop-sep">직접 입력</div>
+            <div class="date-pop-custom">
+              <input type="date" id="dateFrom" class="date-input" aria-label="시작일">
+              <span class="date-sep">~</span>
+              <input type="date" id="dateTo" class="date-input" aria-label="종료일">
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -262,13 +277,18 @@
   $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
   ['dateFrom', 'dateTo'].forEach(id => $(id).addEventListener('change', () => {
     document.querySelectorAll('.date-quick').forEach(b => b.classList.remove('on'));
+    setDateLabel(customRangeLabel($('dateFrom').value, $('dateTo').value));
     curPage = 1; render();
   }));
   function setQuickRange(kind) {
-    const to = maxDateOf(ROWS);
-    $('dateTo').value = to;
-    $('dateFrom').value = quickRangeFrom(to, kind);
+    if (kind === 'all') { $('dateFrom').value = ''; $('dateTo').value = ''; }
+    else {
+      const to = maxDateOf(ROWS);
+      $('dateTo').value = to;
+      $('dateFrom').value = quickRangeFrom(to, kind);
+    }
     document.querySelectorAll('.date-quick').forEach(b => b.classList.toggle('on', b.dataset.q === kind));
+    setDateLabel(DATE_LABELS[kind]);
     curPage = 1; render();
   }
 
