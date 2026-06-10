@@ -260,36 +260,50 @@ body.admin-mode .admin-only{display:inline-flex!important}
 .sdot-danger{background:var(--danger)}.sdot-info{background:var(--info)}.sdot-muted{background:#BDB5A7}
 
 /* ════════ FILTER BAR ════════ */
+/* ===== 필터/검색 툴바 (목록 화면 공통) =====
+   레이아웃: [좌] 분류·상태 세그먼트 … [우] 기간 + 검색.  컨트롤 높이 40px 통일.
+   페이지별 오버라이드 없이 이 정의만으로 일관 배치된다. */
 .filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
-.filter-seg{display:flex;border:1px solid var(--border);background:var(--bg-subtle);
-  border-radius:11px;overflow:hidden;padding:3px;gap:2px}
-.fsb{padding:7px 15px;font-size:13px;font-weight:700;color:var(--text-secondary);
-  background:transparent;cursor:pointer;border:none;border-radius:8px;
-  font-family:inherit;transition:all .13s}
+.filter-bar .search-box{margin-left:auto}        /* 검색칸은 항상 우측 끝 */
+
+/* 세그먼트 (분류/상태 선택) */
+.filter-seg{display:inline-flex;align-items:center;height:40px;border:1px solid var(--border);
+  background:var(--bg-subtle);border-radius:11px;padding:4px;gap:2px}
+.fsb{display:inline-flex;align-items:center;height:100%;padding:0 14px;font-size:13px;font-weight:700;
+  color:var(--text-secondary);background:transparent;cursor:pointer;border:none;border-radius:8px;
+  font-family:inherit;white-space:nowrap;transition:all .13s}
 .fsb.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
 .fsb:hover:not(.on){color:var(--ink)}
-.search-box{flex:1;max-width:300px;position:relative}
-.search-box svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);
+
+/* 검색 박스 */
+.search-box{position:relative;flex:0 0 auto;width:280px}
+.search-box svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);
   width:15px;height:15px;color:var(--text-tertiary)}
-.search-box input{width:100%;padding:10px 13px 10px 35px;border:1.5px solid var(--border-strong);
+.search-box input{width:100%;height:40px;padding:0 14px 0 36px;border:1.5px solid var(--border-strong);
   border-radius:10px;font-family:inherit;font-size:14px;outline:none;
   transition:all .15s;background:var(--surface)}
 .search-box input:focus{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
 
-/* 기간(날짜 범위) 필터 — 검색 시 등록일 범위 한정 */
-.date-range{display:flex;align-items:center;gap:7px;flex-shrink:0}
+/* 기간(날짜 범위) — 라벨·날짜·빠른선택을 하나의 묶음으로 그룹화 */
+.date-range{display:inline-flex;align-items:center;gap:7px;height:40px;flex-shrink:0;
+  padding:0 8px 0 13px;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--surface)}
+.date-range:focus-within{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
 .date-label{font-size:12.5px;font-weight:700;color:var(--text-tertiary);white-space:nowrap}
-.date-input{height:40px;padding:0 10px;border:1.5px solid var(--border-strong);border-radius:8px;
-  font-family:inherit;font-size:12.5px;color:var(--text-primary);background:var(--surface);
-  font-variant-numeric:tabular-nums;letter-spacing:-0.01em;cursor:pointer}
-.date-input:focus{border-color:var(--kb-yellow-dark);box-shadow:0 0 0 3px rgba(255,188,0,.18);outline:none}
+.date-input{height:28px;padding:0 2px;border:none;background:transparent;
+  font-family:inherit;font-size:12.5px;color:var(--text-primary);
+  font-variant-numeric:tabular-nums;letter-spacing:-0.01em;cursor:pointer;outline:none}
 .date-sep{color:var(--text-tertiary);font-weight:700}
-.date-quick{display:inline-flex;align-items:center;height:30px;padding:0 11px;border-radius:100px;
-  border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-secondary);
+.date-quick{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:7px;
+  border:none;background:var(--bg-subtle);color:var(--text-secondary);
   font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:all .15s}
-.date-quick:hover{border-color:var(--kb-yellow-dark);color:var(--ink)}
-.date-quick.on{background:var(--kb-yellow);border-color:var(--kb-yellow);color:var(--ink)}
-@media (max-width:980px){.date-range{flex-wrap:wrap}.date-input{flex:1;min-width:130px}}
+.date-quick:first-of-type{margin-left:3px}
+.date-quick:hover{background:var(--kb-yellow-soft);color:var(--ink)}
+.date-quick.on{background:var(--kb-yellow);color:var(--ink)}
+@media (max-width:980px){
+  .filter-bar .search-box{margin-left:0;width:100%;order:9}   /* 모바일: 검색 전체폭·맨 아래 */
+  .date-range{flex-wrap:wrap;height:auto;padding:8px 10px}
+  .date-input{flex:1;min-width:120px}
+}
 
 /* ════════ DATA TABLE ════════ */
 .data-table{width:100%;border-collapse:collapse;font-size:14px}
