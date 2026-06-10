@@ -92,9 +92,6 @@ a{text-decoration:none;color:inherit}
 .header-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .header-logo-img{height:30px;width:auto;display:block;transition:opacity .15s}
 .header-logo:hover .header-logo-img{opacity:.72}
-.header-logo-text{color:var(--ink);font-size:19px;font-weight:800;letter-spacing:-0.03em;
-  white-space:nowrap;transition:opacity .15s}
-.header-logo-text:hover{opacity:.7}
 .header-divider{width:1px;height:20px;background:var(--border-strong);margin:0 18px;flex-shrink:0}
 .header-service-name{color:var(--text-secondary);font-size:15px;font-weight:600;white-space:nowrap;flex-shrink:0;transition:color .15s}
 .header-service-name[onclick]{cursor:pointer}
