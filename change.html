@@ -22,7 +22,7 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
-  /* 메인 구분 탭 — 사용 연장 / 자원 증설 (밑줄형, 가볍게) */
+  /* 메인 구분 탭 — 사용 연장 / 자원 증설 (밑줄형) */
   .maintab { display: flex; gap: 2px; margin-bottom: 22px; border-bottom: 1.5px solid var(--border); }
   .mtab { display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px 13px;
     border: none; background: transparent; cursor: pointer; position: relative;
@@ -35,7 +35,7 @@
   .mtab.active::after { background: var(--kb-yellow-dark); }
   .mtab-ico { width: 17px; height: 17px; flex-shrink: 0; }
 
-  /* ===== 대상 VDI 선택 — 카드 대신 심플한 선택 리스트 ===== */
+  /* ===== 대상 VDI 선택 — 선택 리스트 ===== */
   .vdi-select { display: flex; flex-direction: column; gap: 4px; }
   .vdi-opt {
     display: flex; align-items: center; gap: 13px;
@@ -66,7 +66,7 @@
 
   /* 폼 행(.frow)·인라인입력·기간 PILL(.qp)은 common.css 공통 */
 
-  /* ===== 증설 선택 (바깥 박스 제거, 콤보박스만) ===== */
+  /* ===== 증설 선택 — 콤보박스 ===== */
   .sc-table { display: flex; flex-direction: column; }
   .sc-row {
     display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: center;
