@@ -18,7 +18,7 @@
   .faq-a strong { color: var(--ink); font-weight: 700; }
   .faq-a ul { margin: 8px 0 0 0; padding-left: 18px; }
   .faq-a li { margin-bottom: 5px; }
-  .faq-empty { padding: 52px 16px; text-align: center; color: var(--text-tertiary); font-size: 14px; }
+  /* 빈 상태(.empty-state)는 common.css 공통 */
 
 
   /* 관리자 권한 — FAQ 추가/수정/삭제 (팝업 관리) */
@@ -178,7 +178,9 @@
       });
 
     if (!list.length) {
-      $('faqList').innerHTML = `<div class="faq-empty">검색 조건에 맞는 FAQ가 없습니다.</div>`;
+      $('faqList').innerHTML = `<div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        검색 조건에 맞는 FAQ가 없습니다.</div>`;
       renderPager('faqPager', 0, 1, () => {});
       return;
     }

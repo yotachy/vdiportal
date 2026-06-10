@@ -347,6 +347,12 @@ body.admin-mode .stat-strip{display:grid}
 .data-table tr:last-child td{border-bottom:none}
 .data-table tbody tr{transition:background .12s}
 .data-table tbody tr:hover td{background:var(--surface-2)}
+.data-table .empty-row td{border-bottom:none}
+
+/* 빈 상태 (목록 화면 공통 — 아이콘 + 메시지) */
+.empty-state{display:flex;flex-direction:column;align-items:center;gap:11px;
+  padding:52px 16px;text-align:center;color:var(--text-tertiary);font-size:14px;font-weight:500}
+.empty-state svg{width:34px;height:34px;color:var(--border-strong)}
 
 /* ════════ MODAL ════════ */
 .modal{position:fixed;inset:0;background:rgba(26,23,20,.42);backdrop-filter:blur(3px);

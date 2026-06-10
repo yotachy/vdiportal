@@ -31,7 +31,7 @@
 
   .nm-cell { font-size: 13px; color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-  .empty-state { text-align: center; padding: 56px 16px; color: var(--text-tertiary); font-size: 14px; }
+  /* 빈 상태(.empty-state)는 common.css 공통 */
 
   @media (max-width: 820px) {
     .list-head, .notice-item { grid-template-columns: 1fr 110px; gap: 12px; }
@@ -147,7 +147,9 @@
     list = [...list].sort((a, b) => (b.pinned - a.pinned));
 
     if (!list.length) {
-      $('noticeList').innerHTML = `<div class="empty-state">조건에 맞는 공지사항이 없습니다.</div>`;
+      $('noticeList').innerHTML = `<div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        조건에 맞는 공지사항이 없습니다.</div>`;
       renderPager('noticePager', 0, 1, () => {});
       return;
     }

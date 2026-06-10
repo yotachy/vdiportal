@@ -35,12 +35,9 @@
   /* 정렬 — 제목(유연 컬럼) 좌측, 나머지 고정 컬럼 가운데 (notice/approval와 동일 정책) */
   .data-table th, .data-table td { text-align: center; }
   .data-table th:nth-child(4), .data-table td:nth-child(4) { text-align: left; }
-  .empty-row td { text-align: center; padding: 52px 16px; color: var(--text-tertiary); font-size: 14px; }
   /* 신고자 열 — 본인 신고만 보는 일반 사용자에겐 중복이라 숨김(관리자 권한일 때만 표시) */
   body:not(.admin-mode) .col-reporter { display: none; }
-  /* 빈 상태 */
-  .empty-box { display: flex; flex-direction: column; align-items: center; gap: 11px; }
-  .empty-box svg { width: 34px; height: 34px; color: var(--border-strong); }
+  /* 빈 상태(.empty-state)는 common.css 공통 */
 
   /* 모달 보조 */
   .modal-status { margin-bottom: 18px; }
@@ -311,8 +308,8 @@
     $('scopeNote').textContent = isAdmin() ? '관리자 권한 · 전체 사용자 신고 내역' : '본인이 등록한 신고만 표시됩니다.';
 
     if (!list.length) {
-      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="7"><div class="empty-box">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="7"><div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
         조건에 맞는 신고 내역이 없습니다.</div></td></tr>`;
       renderPager('incPager', 0, 1, () => {});
       return;

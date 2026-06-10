@@ -33,7 +33,7 @@
   /* 정렬 — 내용(유연 컬럼) 좌측, 나머지 고정 컬럼 가운데 (notice와 동일 정책) */
   .data-table th, .data-table td { text-align: center; }
   .data-table th:nth-child(5), .data-table td:nth-child(5) { text-align: left; }
-  .empty-row td { text-align: center; padding: 52px 16px; color: var(--text-tertiary); font-size: 14px; }
+  /* 빈 상태(.empty-state)는 common.css 공통 */
 
   @media (max-width: 760px) { .stat-strip { grid-template-columns: 1fr; } }
 </style>
@@ -200,7 +200,9 @@
     }).sort((a, b) => b.date.localeCompare(a.date));   // 신청일 내림차순(최신순)
 
     if (!list.length) {
-      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="6">조건에 맞는 신청 내역이 없습니다.</td></tr>`;
+      $('tbody').innerHTML = `<tr class="empty-row"><td colspan="6"><div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        조건에 맞는 신청 내역이 없습니다.</div></td></tr>`;
       renderPager('apprPager', 0, 1, () => {});
       return;
     }
