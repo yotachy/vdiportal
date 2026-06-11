@@ -24,29 +24,20 @@
   }
 
   /* 로고 */
-  .setup-logo{height:36px;width:auto;display:block;margin:0 auto 26px}
-
-  /* 아이콘 (다운로드 모티프) */
-  .setup-ico{
-    width:64px;height:64px;border-radius:18px;margin:0 auto 22px;
-    display:flex;align-items:center;justify-content:center;
-    background:var(--kb-yellow-soft);border:1px solid var(--kb-yellow-line);color:var(--kb-yellow-dark);
-  }
-  .setup-ico svg{width:30px;height:30px}
+  .setup-logo{height:36px;width:auto;display:block;margin:0 auto 30px}
 
   /* 제목·안내 */
   .setup-title{font-size:23px;font-weight:800;color:var(--ink);letter-spacing:-0.03em;line-height:1.2}
   .setup-desc{font-size:14.5px;color:var(--text-secondary);line-height:1.65;margin-top:12px}
   .setup-desc strong{color:var(--text-primary);font-weight:700}
 
-  /* 설치 상태 배지 */
+  /* 설치 상태 — 박스 없이 텍스트만 */
   .setup-status{
-    display:inline-flex;align-items:center;gap:9px;margin-top:22px;
-    padding:11px 18px;border-radius:12px;font-size:14px;font-weight:700;letter-spacing:-0.01em;
-    background:var(--warning-soft);border:1px solid var(--warning-line);color:var(--warn-text);
-    transition:all .2s ease;
+    display:inline-flex;align-items:center;gap:8px;margin-top:18px;
+    font-size:14px;font-weight:600;letter-spacing:-0.01em;color:var(--text-tertiary);
+    transition:color .2s ease;
   }
-  .setup-status.installed{background:var(--success-soft);border-color:#BFE2C7;color:var(--success)}
+  .setup-status.installed{color:var(--success);font-weight:700}
   .setup-status .sdot{flex-shrink:0}
 
   /* 버튼 영역 */
@@ -80,13 +71,6 @@
 
   <div class="setup-card">
     <img class="setup-logo" src="kb-logo.png" alt="KB손해보험">
-
-    <div class="setup-ico" id="setupIco">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-    </div>
 
     <h1 class="setup-title">접속 프로그램 설치 확인</h1>
     <p class="setup-desc">
