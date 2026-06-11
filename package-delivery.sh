@@ -20,7 +20,7 @@ STAMP="$(date +%Y%m%d_%H%M)"
 FULL=(
   README.md STYLE_GUIDE.md BOOTSTRAP_GUIDE.md
   common.css common.js kb-logo.png robots.txt .htaccess
-  login.html portal.html apply.html change.html
+  login.html install.html portal.html apply.html change.html
   approval.html approval-detail.html
   incident.html incident-new.html
   notice.html notice-detail.html notice-new.html
