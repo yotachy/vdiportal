@@ -73,7 +73,7 @@
   .vw-notice-text{font-size:13px;color:var(--text-secondary);line-height:1.65}
   .vw-notice-text strong{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
   .vw::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;
-    background:linear-gradient(90deg,var(--kb-yellow),#FFD24D 55%,var(--kb-yellow));z-index:2}
+    background:linear-gradient(90deg,var(--kb-yellow),var(--kb-yellow-hi) 55%,var(--kb-yellow));z-index:2}
 
   .vw-tabs{display:flex;align-items:center;gap:14px;padding:15px 20px;
     border-bottom:1px solid var(--border);background:var(--surface-2);flex-wrap:wrap}
@@ -121,7 +121,7 @@
   /* 모니터형 접속 버튼 */
   .connect-mon{display:block;width:100%;border:none;background:none;cursor:pointer;
     padding:0;margin:0;font-family:inherit}
-  .mon-frame{position:relative;background:linear-gradient(155deg,#2A2620,#15120F);border:3px solid #100E0B;
+  .mon-frame{position:relative;background:linear-gradient(155deg,var(--mon-bezel),var(--mon-bezel-deep));border:3px solid var(--mon-edge);
     border-radius:18px;padding:36px 24px;overflow:hidden;transition:all .2s;
     box-shadow:0 14px 30px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05)}
   .mon-frame::after{content:'';position:absolute;inset:0;pointer-events:none;
@@ -137,8 +137,8 @@
   .mon-title{font-size:21px;font-weight:800;color:#fff;letter-spacing:-0.01em}
   /* 모니터 내부 상태 pill */
   .mon-text .vw-status{margin-top:12px}
-  .mon-stand{width:88px;height:10px;background:#100E0B;margin:0 auto;border-radius:0 0 5px 5px}
-  .mon-base{width:146px;height:6px;background:#211E19;border-radius:4px;margin:5px auto 0}
+  .mon-stand{width:88px;height:10px;background:var(--mon-edge);margin:0 auto;border-radius:0 0 5px 5px}
+  .mon-base{width:146px;height:6px;background:var(--mon-stand);border-radius:4px;margin:5px auto 0}
   .vw-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:18px}
   .btn-ghost{height:44px;padding:0 15px;background:var(--surface);color:var(--text-secondary);
     border:1px solid var(--border-strong);border-radius:11px;font-size:13.5px;font-weight:700;
@@ -146,8 +146,8 @@
   .btn-ghost:hover{background:var(--bg-subtle);color:var(--ink);border-color:var(--dot-muted)}
   .btn-ghost svg{width:15px;height:15px}
   /* 강제 재기동 강조 */
-  .btn-ghost.btn-danger-ghost{background:var(--danger-soft);border-color:#F3C4BF;color:var(--danger)}
-  .btn-ghost.btn-danger-ghost:hover{background:#F9DDD9;border-color:var(--danger);color:var(--danger)}
+  .btn-ghost.btn-danger-ghost{background:var(--danger-soft);border-color:var(--danger-line);color:var(--danger)}
+  .btn-ghost.btn-danger-ghost:hover{background:var(--danger-tint);border-color:var(--danger);color:var(--danger)}
   /* 새로고침 강조 (우측 정렬 + 옐로우 토글) */
   .btn-refresh{width:44px;height:44px;padding:0;border-radius:11px;
     background:var(--kb-yellow);border:1px solid var(--kb-yellow-dark);color:var(--ink);
