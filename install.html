@@ -17,37 +17,37 @@
 
   /* 중앙 카드 */
   .setup-card{
-    width:100%;max-width:460px;background:var(--surface);
-    border:1px solid var(--border);border-radius:20px;
-    padding:44px 40px 36px;text-align:center;
+    width:100%;max-width:560px;background:var(--surface);
+    border:1px solid var(--border);border-radius:22px;
+    padding:60px 60px 48px;text-align:center;
     box-shadow:0 24px 60px -22px rgba(26,23,20,.22),0 4px 14px rgba(26,23,20,.05);
   }
 
   /* 로고 */
-  .setup-logo{height:36px;width:auto;display:block;margin:0 auto 30px}
+  .setup-logo{height:42px;width:auto;display:block;margin:0 auto 38px}
 
   /* 제목·안내 */
-  .setup-title{font-size:23px;font-weight:800;color:var(--ink);letter-spacing:-0.03em;line-height:1.2}
-  .setup-desc{font-size:14.5px;color:var(--text-secondary);line-height:1.65;margin-top:12px}
+  .setup-title{font-size:29px;font-weight:800;color:var(--ink);letter-spacing:-0.03em;line-height:1.2}
+  .setup-desc{font-size:16px;color:var(--text-secondary);line-height:1.7;margin-top:16px}
   .setup-desc strong{color:var(--text-primary);font-weight:700}
 
   /* 설치 상태 — 박스 없이 텍스트만 */
   .setup-status{
-    display:inline-flex;align-items:center;gap:8px;margin-top:18px;
-    font-size:14px;font-weight:600;letter-spacing:-0.01em;color:var(--text-tertiary);
+    display:inline-flex;align-items:center;gap:9px;margin-top:24px;
+    font-size:15px;font-weight:600;letter-spacing:-0.01em;color:var(--text-tertiary);
     transition:color .2s ease;
   }
   .setup-status.installed{color:var(--success);font-weight:700}
   .setup-status .sdot{flex-shrink:0}
 
   /* 버튼 영역 */
-  .setup-actions{display:flex;flex-direction:column;gap:10px;margin-top:28px}
+  .setup-actions{display:flex;flex-direction:column;gap:12px;margin-top:36px}
   .sbtn{
-    width:100%;height:54px;border-radius:12px;font-size:15.5px;font-weight:800;font-family:inherit;
+    width:100%;height:60px;border-radius:13px;font-size:16.5px;font-weight:800;font-family:inherit;
     cursor:pointer;transition:all .16s ease;letter-spacing:-0.01em;
-    display:flex;align-items:center;justify-content:center;gap:9px;border:1.5px solid transparent;
+    display:flex;align-items:center;justify-content:center;gap:10px;border:1.5px solid transparent;
   }
-  .sbtn svg{width:19px;height:19px;flex-shrink:0}
+  .sbtn svg{width:20px;height:20px;flex-shrink:0}
   .sbtn-primary{background:var(--kb-yellow);color:var(--ink);box-shadow:var(--shadow-sm)}
   .sbtn-primary:hover{background:var(--kb-yellow-dark);transform:translateY(-1px);box-shadow:var(--shadow-yellow)}
   .sbtn-primary:active{transform:translateY(0)}
@@ -55,8 +55,8 @@
   .sbtn-outline:hover{border-color:var(--kb-yellow-dark);color:var(--ink)}
 
   /* 하단 헬프데스크 안내 */
-  .setup-foot{margin-top:26px;padding-top:20px;border-top:1px solid var(--border);
-    font-size:13px;color:var(--text-tertiary);line-height:1.6}
+  .setup-foot{margin-top:34px;padding-top:26px;border-top:1px solid var(--border);
+    font-size:13.5px;color:var(--text-tertiary);line-height:1.6}
   .setup-foot strong{color:var(--text-secondary);font-weight:700;font-variant-numeric:tabular-nums}
 
   /* 토스트 (이 페이지 로컬) */
