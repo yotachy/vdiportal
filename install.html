@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>KB손해보험 VDI 사용자 포탈 - 접속 프로그램 설치</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 거쳐가는 페이지 — 헤더/사이드바 없는 단독 중앙 레이아웃 */
+  body{
+    display:flex;align-items:center;justify-content:center;
+    /* 글로벌 zoom:1.25 보정 — 100vh 를 줌으로 환산 */
+    min-height:calc(100vh / 1.25);padding:24px;box-sizing:border-box;
+    background:var(--surface-2);
+  }
+
+  /* 중앙 카드 */
+  .setup-card{
+    width:100%;max-width:460px;background:var(--surface);
+    border:1px solid var(--border);border-radius:20px;
+    padding:44px 40px 36px;text-align:center;
+    box-shadow:0 24px 60px -22px rgba(26,23,20,.22),0 4px 14px rgba(26,23,20,.05);
+  }
+
+  /* 로고 */
+  .setup-logo{height:36px;width:auto;display:block;margin:0 auto 26px}
+
+  /* 아이콘 (다운로드 모티프) */
+  .setup-ico{
+    width:64px;height:64px;border-radius:18px;margin:0 auto 22px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--kb-yellow-soft);border:1px solid var(--kb-yellow-line);color:var(--kb-yellow-dark);
+  }
+  .setup-ico svg{width:30px;height:30px}
+
+  /* 제목·안내 */
+  .setup-title{font-size:23px;font-weight:800;color:var(--ink);letter-spacing:-0.03em;line-height:1.2}
+  .setup-desc{font-size:14.5px;color:var(--text-secondary);line-height:1.65;margin-top:12px}
+  .setup-desc strong{color:var(--text-primary);font-weight:700}
+
+  /* 설치 상태 배지 */
+  .setup-status{
+    display:inline-flex;align-items:center;gap:9px;margin-top:22px;
+    padding:11px 18px;border-radius:12px;font-size:14px;font-weight:700;letter-spacing:-0.01em;
+    background:var(--warning-soft);border:1px solid var(--warning-line);color:var(--warn-text);
+    transition:all .2s ease;
+  }
+  .setup-status.installed{background:var(--success-soft);border-color:#BFE2C7;color:var(--success)}
+  .setup-status .sdot{flex-shrink:0}
+
+  /* 버튼 영역 */
+  .setup-actions{display:flex;flex-direction:column;gap:10px;margin-top:28px}
+  .sbtn{
+    width:100%;height:54px;border-radius:12px;font-size:15.5px;font-weight:800;font-family:inherit;
+    cursor:pointer;transition:all .16s ease;letter-spacing:-0.01em;
+    display:flex;align-items:center;justify-content:center;gap:9px;border:1.5px solid transparent;
+  }
+  .sbtn svg{width:19px;height:19px;flex-shrink:0}
+  .sbtn-primary{background:var(--kb-yellow);color:var(--ink);box-shadow:var(--shadow-sm)}
+  .sbtn-primary:hover{background:var(--kb-yellow-dark);transform:translateY(-1px);box-shadow:var(--shadow-yellow)}
+  .sbtn-primary:active{transform:translateY(0)}
+  .sbtn-outline{background:var(--surface);color:var(--text-secondary);border-color:var(--border-strong)}
+  .sbtn-outline:hover{border-color:var(--kb-yellow-dark);color:var(--ink)}
+
+  /* 하단 헬프데스크 안내 */
+  .setup-foot{margin-top:26px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:13px;color:var(--text-tertiary);line-height:1.6}
+  .setup-foot strong{color:var(--text-secondary);font-weight:700;font-variant-numeric:tabular-nums}
+
+  /* 토스트 (이 페이지 로컬) */
+  .toast{position:fixed;right:32px;bottom:32px;background:var(--kb-dark);color:#fff;
+    padding:14px 20px;border-radius:12px;font-size:14px;font-weight:600;letter-spacing:-0.01em;
+    box-shadow:var(--shadow-lg);opacity:0;transform:translateY(12px);pointer-events:none;
+    transition:all .25s ease;z-index:1000}
+  .toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+
+  <div class="setup-card">
+    <img class="setup-logo" src="kb-logo.png" alt="KB손해보험">
+
+    <div class="setup-ico" id="setupIco">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    </div>
+
+    <h1 class="setup-title">접속 프로그램 설치 확인</h1>
+    <p class="setup-desc">
+      가상PC(VDI)에 접속하려면 <strong>전용 접속 프로그램</strong>이 필요합니다.<br>
+      설치 상태를 확인하고, 설치되어 있지 않다면 아래에서 설치해 주세요.
+    </p>
+
+    <div class="setup-status" id="setupStatus">
+      <span class="sdot sdot-warning"></span>
+      <span id="statusText">접속 프로그램이 설치되어 있지 않습니다</span>
+    </div>
+
+    <div class="setup-actions">
+      <button class="sbtn sbtn-primary" id="downloadBtn" onclick="downloadInstaller()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        설치 프로그램 다운로드
+      </button>
+      <button class="sbtn sbtn-outline" id="portalBtn" onclick="goPortal()">
+        포탈 바로가기
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </button>
+    </div>
+
+    <p class="setup-foot">
+      설치 중 문제가 있으면 헬프데스크 <strong>1544-8119</strong> (평일 09:00~18:00)
+    </p>
+  </div>
+
+<script>
+  // 토스트 (이 페이지 로컬 — common.js 미사용)
+  let toastTimer;
+  function showToast(msg){
+    let t = document.querySelector('.toast');
+    if (!t){ t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  // 설치 프로그램 다운로드 (mock) — 클릭 시 '설치 완료' 상태로 전환
+  function downloadInstaller(){
+    showToast('설치 파일(KB-VDI-Setup.exe)을 다운로드합니다');
+    setTimeout(markInstalled, 900);
+  }
+
+  // 설치 완료 상태로 전환 — 포탈 바로가기를 강조
+  function markInstalled(){
+    const status = document.getElementById('setupStatus');
+    status.classList.add('installed');
+    status.querySelector('.sdot').className = 'sdot sdot-success';
+    document.getElementById('statusText').textContent = '접속 프로그램이 설치되어 있습니다';
+
+    // 다운로드 버튼은 보조(재설치)로, 포탈 바로가기를 primary 로 강조
+    const dl = document.getElementById('downloadBtn');
+    dl.className = 'sbtn sbtn-outline';
+    dl.querySelector('svg').nextSibling.textContent = ' 다시 설치';
+
+    document.getElementById('portalBtn').className = 'sbtn sbtn-primary';
+  }
+
+  // 포탈 진입
+  function goPortal(){
+    location.href = 'portal.html';
+  }
+</script>
+</body>
+</html>

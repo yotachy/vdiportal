@@ -345,10 +345,11 @@
   </div>
 
 <script>
-  // 로그인 성공 처리 — 인증 플래그 설정 후 포탈 이동
+  // 로그인 성공 처리 — 인증 플래그 설정 후 접속 프로그램 설치 안내로 이동
+  // (실서비스: 설치돼 있으면 건너뛰고 portal 직행. 시연을 위해 지금은 항상 install 을 거침)
   function doLogin(){
     sessionStorage.setItem('vdi_auth', '1');
-    location.href = 'portal.html';
+    location.href = 'install.html';
   }
 
   // 계정 도움 링크
