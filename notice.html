@@ -41,15 +41,12 @@
 </head>
 <body>
 
-<!-- TOP HEADER -->
 <header class="top-header" data-header></header>
 
 <div class="layout">
 
-  <!-- SIDEBAR -->
   <aside class="sidebar" data-sidebar="notice"></aside>
 
-  <!-- MAIN -->
   <main class="main">
 
     <div class="breadcrumb reveal">
@@ -174,7 +171,6 @@
     });
   }
 
-  // 검색
   $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
   function setQuickRange(kind) {
     if (kind === 'all') { $('dateFrom').value = ''; $('dateTo').value = ''; }

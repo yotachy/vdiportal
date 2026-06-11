@@ -236,7 +236,7 @@ function restoreAdminMode() {
 (function init() {
   var header = document.querySelector('[data-header]');
   if (header) renderHeader(header);
-  restoreAdminMode();   // 저장된 관리자 권한 복원 (페이지 이동에도 유지)
+  restoreAdminMode();
 
   var sidebar = document.querySelector('[data-sidebar]');
   if (sidebar) {

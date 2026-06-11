@@ -324,7 +324,7 @@ body.admin-mode .stat-strip{display:grid}
   background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);
   padding:6px;display:none}
 .date-drop.open .date-pop{display:block}
-/* 프리셋 메뉴 행 (심플) */
+/* 프리셋 메뉴 행 */
 .date-quick{display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 11px;
   border:none;border-radius:8px;background:transparent;color:var(--text-secondary);
   font-family:inherit;font-size:13px;font-weight:600;text-align:left;cursor:pointer;transition:all .12s}

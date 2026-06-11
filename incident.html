@@ -12,7 +12,6 @@
   /* 요약 스탯 바(.stat-*)는 common.css 공통 — 장애 3열 */
   .stat-strip { grid-template-columns: repeat(3, 1fr); }
 
-  /* 유형 — 카테고리 텍스트 */
   .itag { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.01em; white-space: nowrap; }
 
   /* 긴급도 — 긴급은 채워진 핀(목록에서 즉시 식별), 보통은 차분한 텍스트 */
@@ -64,15 +63,12 @@
 </head>
 <body>
 
-<!-- TOP HEADER -->
 <header class="top-header" data-header></header>
 
 <div class="layout">
 
-  <!-- SIDEBAR -->
   <aside class="sidebar" data-sidebar="incident"></aside>
 
-  <!-- MAIN -->
   <main class="main">
 
     <div class="breadcrumb reveal">
@@ -112,7 +108,6 @@
       </div>
     </div>
 
-    <!-- 검색 + 필터 -->
     <div class="filter-bar reveal" style="animation-delay:.14s">
       <div class="search-hero">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -142,7 +137,6 @@
       </div>
     </div>
 
-    <!-- 테이블 -->
     <div class="fc reveal" style="animation-delay:.18s">
       <table class="data-table">
         <thead>
@@ -167,7 +161,6 @@
   </main>
 </div>
 
-<!-- 상세 모달 -->
 <div class="modal" id="detailModal">
   <div class="modal-box">
     <button class="modal-close" onclick="closeModal()" aria-label="닫기">

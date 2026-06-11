@@ -49,7 +49,6 @@
 </head>
 <body>
 
-<!-- TOP HEADER -->
 <header class="top-header" data-header></header>
 
 <div class="layout">
@@ -57,7 +56,6 @@
   <!-- SIDEBAR (부모: 결재 현황 active) -->
   <aside class="sidebar" data-sidebar="approval"></aside>
 
-  <!-- MAIN -->
   <main class="main">
 
     <div class="breadcrumb reveal">
@@ -78,7 +76,6 @@
       <div class="page-header-right" id="statusPill"></div>
     </div>
 
-    <!-- 신청 정보 -->
     <div class="fc reveal" style="animation-delay:.1s">
       <div class="fc-head">
         <div class="fc-title">
@@ -90,7 +87,6 @@
       <div class="fc-body" id="infoBody"></div>
     </div>
 
-    <!-- 결재 진행 -->
     <div class="fc reveal" style="animation-delay:.14s">
       <div class="fc-head">
         <div class="fc-title">
@@ -106,7 +102,6 @@
       </div>
     </div>
 
-    <!-- 결재 이력 -->
     <div class="fc reveal" style="animation-delay:.18s">
       <div class="fc-head">
         <div class="fc-title">
@@ -129,7 +124,6 @@
       </table>
     </div>
 
-    <!-- 액션 바 -->
     <div class="action-bar reveal">
       <div class="action-hint" id="actionHint"></div>
       <div class="action-btns">
@@ -315,12 +309,10 @@
   const d = DETAILS[reqNo];
 
   function render() {
-    // 헤더
     $('pageDesc').innerHTML = `<strong style="color:var(--text-primary);font-variant-numeric:tabular-nums">${reqNo}</strong> · <span class="rtag rtag-${KIND[d.kind]}">${d.kind}</span>`;
     const p = PILL[d.status];
     $('statusPill').innerHTML = `<span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span>`;
 
-    // 신청 정보
     $('infoBody').innerHTML = `
       <div class="info-row"><div class="info-key">신청번호</div><div class="info-val" style="font-variant-numeric:tabular-nums">${reqNo}</div></div>
       <div class="info-row"><div class="info-key">구분</div><div class="info-val"><span class="rtag rtag-${KIND[d.kind]}">${d.kind}</span></div></div>
@@ -331,7 +323,6 @@
       <div class="info-row"><div class="info-key">신청 내역</div><div class="info-val">${d.detail}</div></div>
       <div class="info-row"><div class="info-key">신청 사유</div><div class="info-val reason">${esc(d.reason)}</div></div>`;
 
-    // 결재 진행 (prog-steps)
     $('progSteps').innerHTML = STEPS.map((label, i) => {
       const s = d.hist[i].s;
       const cls = s === 'done' ? 'done' : s === 'active' ? 'active' : s === 'reject' ? 'fail' : '';
@@ -339,7 +330,6 @@
       return `<div class="prog-step"><div class="prog-circle ${cls}">${inner}</div><div class="prog-label">${label}</div></div>`;
     }).join('');
 
-    // 결재 이력
     $('histBody').innerHTML = STEPS.map((label, i) => {
       const h = d.hist[i], a = ACTORS[i], b = HBADGE[h.s];
       return `

@@ -9,7 +9,6 @@
 <style>
   .main{max-width:1320px;margin:0 auto}
 
-  /* 새로고침 스핀 */
   @keyframes spin{to{transform:rotate(360deg)}}
   .btn-ghost.spinning svg{animation:spin .65s ease}
 
@@ -58,7 +57,6 @@
   .vw{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);
     overflow:hidden;box-shadow:var(--shadow-md);margin-bottom:18px;position:relative}
 
-  /* 포탈 관리자 안내 영역 */
   .vw-notice{display:flex;gap:13px;align-items:flex-start;padding:16px 28px;
     border-top:1px solid var(--border);background:var(--surface-2);cursor:pointer;transition:background .14s;text-decoration:none}
   .vw-notice:hover{background:var(--bg-subtle)}
@@ -118,7 +116,6 @@
   .vw-sub-meta .mi-k{font-size:11px;color:var(--text-tertiary);font-weight:700;letter-spacing:.03em}
   .vw-sub-meta .mi-v{font-size:14.5px;color:var(--text-primary);font-weight:700;letter-spacing:-0.01em}
 
-  /* 모니터형 접속 버튼 */
   .connect-mon{display:block;width:100%;border:none;background:none;cursor:pointer;
     padding:0;margin:0;font-family:inherit}
   .mon-frame{position:relative;background:linear-gradient(155deg,var(--mon-bezel),var(--mon-bezel-deep));border:3px solid var(--mon-edge);
@@ -135,7 +132,6 @@
   .mon-play svg{width:30px;height:30px;color:var(--ink);margin-left:3px}
   .mon-text{text-align:center;min-width:0}
   .mon-title{font-size:21px;font-weight:800;color:#fff;letter-spacing:-0.01em}
-  /* 모니터 내부 상태 pill */
   .mon-text .vw-status{margin-top:12px}
   .mon-stand{width:88px;height:10px;background:var(--mon-edge);margin:0 auto;border-radius:0 0 5px 5px}
   .mon-base{width:146px;height:6px;background:var(--mon-stand);border-radius:4px;margin:5px auto 0}
@@ -158,7 +154,6 @@
   .btn-refresh svg{width:18px;height:18px}
   .btn-refresh.spinning svg{animation:spin .65s ease}
 
-  /* 리소스 패널 */
   .vw-res{border-left:1px solid var(--border);background:var(--surface-2);padding:22px 22px;display:flex;flex-direction:column;gap:20px}
   .res-block .vw-res-head{margin-bottom:10px}
   .vw-res-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
@@ -188,15 +183,12 @@
 </head>
 <body>
 
-<!-- TOP HEADER -->
 <header class="top-header" data-header></header>
 
 <div class="layout">
 
-  <!-- SIDEBAR -->
   <aside class="sidebar" data-sidebar="portal"></aside>
 
-  <!-- MAIN -->
   <main class="main">
 
     <div class="page-header reveal" style="animation-delay:.02s">
@@ -207,7 +199,6 @@
       <div class="page-header-right"></div>
     </div>
 
-    <!-- KPI 스트립 -->
     <div class="kpi-strip" id="kpiStrip" style="animation-delay:.08s">
       <a class="kpi" href="qna.html">
         <div class="kpi-ico blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
@@ -273,7 +264,6 @@
       </div>
     </div>
 
-    <!-- VDI 워크스페이스 카드 -->
     <section class="vw reveal" style="animation-delay:.14s">
       <div class="vw-tabs">
         <div class="vw-tabs-list" id="vwTabs">
@@ -400,7 +390,6 @@
 
 <script src="common.js"></script>
 <script>
-  // 원격지원 모달
   function openRemoteModal() { document.getElementById('remoteModal').classList.add('open'); }
   function closeRemoteModal() { document.getElementById('remoteModal').classList.remove('open'); }
   document.getElementById('remoteModal').addEventListener('click', function (e) {
@@ -473,7 +462,6 @@
     $('resDisk').textContent = v.disk;
   }
 
-  // 탭 전환
   document.querySelectorAll('.vtab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.vtab').forEach(t => t.classList.remove('active'));

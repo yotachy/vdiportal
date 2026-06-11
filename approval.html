@@ -12,10 +12,9 @@
   /* 요약 스탯 바(.stat-*)는 common.css 공통 — 결재 4열 */
   .stat-strip { grid-template-columns: repeat(4, 1fr); }
 
-  /* ===== 구분 — 카테고리 텍스트 (색 없이, incident 유형값과 동일 폰트) ===== */
+  /* 구분 — 카테고리 텍스트 (색 없이, incident 유형값과 동일 폰트) */
   .rtag { display: inline-block; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.01em; white-space: nowrap; }
 
-  /* ===== 요청 내용 요약 ===== */
   .col-content { color: var(--text-secondary); font-size: 13.5px; letter-spacing: -0.01em; }
 
   /* ===== 상태 pill ===== */
@@ -25,7 +24,6 @@
   .spill-done { background: transparent; padding: 5px 0; color: var(--text-tertiary); font-weight: 700; }
   .spill-reject { background: transparent; padding: 5px 0; color: var(--text-tertiary); font-weight: 700; }
 
-  /* 테이블 행 클릭 */
   .data-table tbody tr { cursor: pointer; }
   .col-no { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
   .col-date { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
@@ -40,15 +38,12 @@
 </head>
 <body>
 
-<!-- TOP HEADER -->
 <header class="top-header" data-header></header>
 
 <div class="layout">
 
-  <!-- SIDEBAR -->
   <aside class="sidebar" data-sidebar="approval"></aside>
 
-  <!-- MAIN -->
   <main class="main">
 
     <div class="breadcrumb reveal">
@@ -87,7 +82,6 @@
       </div>
     </div>
 
-    <!-- 검색 + 필터 -->
     <div class="filter-bar reveal" style="animation-delay:.14s">
       <div class="search-hero">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -118,7 +112,6 @@
       </div>
     </div>
 
-    <!-- 테이블 -->
     <div class="fc reveal" style="animation-delay:.18s">
       <table class="data-table">
         <thead>
@@ -181,7 +174,6 @@
   const $ = id => document.getElementById(id);
   let curFilter = 'all', curSearch = '', curPage = 1;
 
-  // 집계
   function updateStats() {
     $('cAll').textContent = ROWS.length;
     $('cProgress').textContent = ROWS.filter(r => group(r.status) === 'progress').length;
@@ -189,7 +181,6 @@
     $('cReject').textContent = ROWS.filter(r => r.status === 'reject').length;
   }
 
-  // 렌더
   function render() {
     const q = curSearch.trim().toLowerCase();
     const list = ROWS.filter(r => {
@@ -229,7 +220,6 @@
     });
   }
 
-  // 필터 세그
   document.querySelectorAll('#filterSeg .fsb').forEach(btn => {
     btn.addEventListener('click', () => setFilter(btn.dataset.filter));
   });
@@ -246,7 +236,6 @@
     render();
   }
 
-  // 검색
   $('searchInput').addEventListener('input', e => { curSearch = e.target.value; curPage = 1; render(); });
   function setQuickRange(kind) {
     if (kind === 'all') { $('dateFrom').value = ''; $('dateTo').value = ''; }
