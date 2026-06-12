@@ -332,7 +332,6 @@
   const d = DETAILS[reqNo];
 
   function render() {
-    // 구분별 결재 플로우 (잠금해제는 3단계 약식)
     const FLOW = FLOWS[d.kind] || FLOWS.default;
     const STEPS = FLOW.steps, ACTORS = FLOW.actors;
 

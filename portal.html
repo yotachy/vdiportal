@@ -451,11 +451,11 @@
     locked:{ text:'미사용 잠김', cls:'locked' }
   };
 
-  const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
-  const LOCK_SVG = '<svg class="ico-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
-
   const $ = id => document.getElementById(id);
   let curIdx = 0;
+
+  const PLAY_SVG = $('monPlay').innerHTML;   // 접속(재생) 아이콘 — 초기 마크업 재사용
+  const LOCK_SVG = '<svg class="ico-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
 
   function renderVdi(i){
     const v = VDI_LIST[i];

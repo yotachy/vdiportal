@@ -261,6 +261,15 @@
   const state = { tab: 'extend', vdi: 0, e_cpu: '', e_mem: '', e_disk: '' };
   const $ = id => document.getElementById(id);
 
+  // 선택/신청 가능 판정 (단일 출처) — 잠김은 양 탭 모두 불가, 기본 지급은 연장 탭에서만 불가
+  const extendable = v => !v.base && !v.lock;   // 연장 신청 가능 = 별도 신청 + 잠김 아님
+  function blockReason(v) {
+    if (v.lock) return '미사용 잠김 가상PC는 잠금해제 승인 완료 후 신청할 수 있습니다.';
+    if (state.tab === 'extend' && v.base) return '기본 지급(재직 임직원) 가상PC는 자동 유지되어 연장 신청 대상이 아닙니다.';
+    return null;
+  }
+  const DOT = { '오프라인': 'sdot-muted', '미사용 잠김': 'sdot-danger' };   // 상태 → 상태점 (기본 success)
+
   // 날짜 헬퍼
   const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const fmtDot = s => s ? s.replace(/-/g, '.') : '';
@@ -270,34 +279,26 @@
   // ===== 대상 VDI 카드 렌더 =====
   function renderVdiCards() {
     $('vdiSelect').innerHTML = VDI_LIST.map((v, i) => {
-      // 미사용 잠김은 양 탭 모두 비활성, 기본 지급은 연장 탭에서만 비활성
-      const locked = v.lock || (state.tab === 'extend' && v.base);
+      const locked = !!blockReason(v);
       const spec = v.lock
         ? '장기 미사용 잠김 · 잠금해제 승인 후 신청 가능'
         : locked
           ? '본사 근무 재직자 자동유지 · 연장 신청 불필요'
           : `CPU ${v.cpu} · ${v.mem} · 디스크 ${v.disk}`;
-      const dot = v.lock ? 'sdot-danger' : v.status === '오프라인' ? 'sdot-muted' : 'sdot-success';
       return `
       <div class="vdi-opt${i === state.vdi ? ' sel' : ''}${locked ? ' locked' : ''}" data-vdi="${i}">
         <span class="vdi-radio"></span>
         <span class="vdi-opt-name">${v.name}</span>
         <span class="vdi-opt-type${v.base ? ' base' : ''}">${v.base ? '기본 지급' : '별도 신청'}</span>
         <span class="vdi-opt-spec">${spec}</span>
-        <span class="vdi-opt-status"><span class="sdot ${dot}"></span>${v.status}</span>
+        <span class="vdi-opt-status"><span class="sdot ${DOT[v.status] || 'sdot-success'}"></span>${v.status}</span>
       </div>`;
     }).join('');
     $('vdiSelect').querySelectorAll('.vdi-opt').forEach(opt => {
       opt.addEventListener('click', () => {
         const i = parseInt(opt.dataset.vdi);
-        if (VDI_LIST[i].lock) {
-          showToast('미사용 잠김 가상PC는 잠금해제 승인 완료 후 신청할 수 있습니다.');
-          return;
-        }
-        if (state.tab === 'extend' && VDI_LIST[i].base) {
-          showToast('기본 지급(재직 임직원) 가상PC는 자동 유지되어 연장 신청 대상이 아닙니다.');
-          return;
-        }
+        const reason = blockReason(VDI_LIST[i]);
+        if (reason) { showToast(reason); return; }
         state.vdi = i;
         renderVdiCards();
         syncForms();
@@ -308,8 +309,8 @@
   // 선택 VDI 기준으로 각 탭 폼 동기화
   function syncForms() {
     const v = VDI_LIST[state.vdi];
-    // 사용 연장 탭: 연장 가능한(별도 신청 · 잠김 제외) VDI가 없으면 안내 문구로 대체
-    const noExtendable = !VDI_LIST.some(x => !x.base && !x.lock);
+    // 사용 연장 탭: 연장 가능한 VDI가 없으면 안내 문구로 대체
+    const noExtendable = !VDI_LIST.some(extendable);
     $('extendForm').style.display = noExtendable ? 'none' : '';
     $('extendEmpty').style.display = noExtendable ? 'block' : 'none';
     if (!noExtendable) {
@@ -408,9 +409,9 @@
       // 제출 버튼 라벨
       const meta = TAB_META[state.tab];
       $('submitLabel').textContent = meta.label;
-      // 연장 탭에서는 기본 지급·잠김 VDI 선택 불가 → 신청 가능한 VDI로 자동 전환
-      if (state.tab === 'extend' && (VDI_LIST[state.vdi].base || VDI_LIST[state.vdi].lock)) {
-        const ext = VDI_LIST.findIndex(v => !v.base && !v.lock);
+      // 연장 탭에서는 연장 불가 VDI 선택 해제 → 신청 가능한 VDI로 자동 전환
+      if (state.tab === 'extend' && !extendable(VDI_LIST[state.vdi])) {
+        const ext = VDI_LIST.findIndex(extendable);
         if (ext >= 0) state.vdi = ext;
       }
       renderVdiCards();
@@ -421,9 +422,9 @@
   // ===== 제출 =====
   function submitRequest() {
     const v = VDI_LIST[state.vdi];
-    if (v.lock) { showToast('미사용 잠김 가상PC는 잠금해제 승인 완료 후 신청할 수 있습니다.'); return; }
+    const reason = blockReason(v);
+    if (reason) { showToast(reason); return; }
     if (state.tab === 'extend') {
-      if (v.base) { showToast('기본 지급 가상PC는 연장 신청 대상이 아닙니다.'); return; }
       const end = $('x_end').value;
       if (!end) { showToast('연장 종료일을 선택해주세요.'); return; }
       if (end <= v.end) { showToast('현재 종료일 이후로 연장해주세요.'); return; }
@@ -445,8 +446,8 @@
   // ===== 시연용 토글 (보유 VDI 상태 전환) =====
   function selectExtendable() {
     state.vdi = 0;
-    if (state.tab === 'extend' && VDI_LIST[state.vdi] && (VDI_LIST[state.vdi].base || VDI_LIST[state.vdi].lock)) {
-      const ext = VDI_LIST.findIndex(v => !v.base && !v.lock);
+    if (state.tab === 'extend' && VDI_LIST[state.vdi] && !extendable(VDI_LIST[state.vdi])) {
+      const ext = VDI_LIST.findIndex(extendable);
       if (ext >= 0) state.vdi = ext;
     }
   }
