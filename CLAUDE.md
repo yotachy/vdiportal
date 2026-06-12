@@ -250,11 +250,11 @@ portal.html `<style>`/`<script>`에 정의된 페이지 고유 패턴:
 
 - **login.html**: `zoom:0.97` 독립 레이아웃. 크림 배경 위 중앙 카드(`.login-shell`, 약 1520×820) = 좌측 브랜드 패널(절제된 크림 + 기능 리스트 SSO/2차인증/원격근무) + 우측 2단계 인증(STEP1 ID/PW → STEP2 OTP 6자리). 계정 도움 링크 3종(아이디 생성/비밀번호 재발급/계정 잠금 해제). 로그인 성공 시 `sessionStorage['vdi_auth']='1'`
 - **apply.html**: 단일 페이지 입력(신청 내용: 용도·기간·사유만) + `승인 요청` 제출 → 완료(#doneView). 상단 stepper(.stepper, common.css)는 **처리 단계 lifecycle**(정보입력→부서장승인→운영부서접수검토→가상화지급완료) 표시 — 입력 중 1단계 활성, 제출 시 2단계로(updateStepper). 신청자 정보 영역·대리 신청 없음(본인 신청 전용). VDI 유형은 **고정가상화 단일 카드**. 사용 기간(시작=오늘 고정·종료=달력/PILL, 기본 1개월). 행 격자 `label 140px + gap 16` 통일
-- **change.html**: 탭 2개 **사용 연장 / 자원 증설**(밑줄형 탭). 탭별 처리 단계 stepper(renderStepper/STEPS) — 연장 3단계(정보입력·부서장승인·사용연장 자동적용)/증설 4단계(+운영부서 접수검토). 대상 VDI 2대(`VDI_LIST`, `base` 플래그). **main=`base:true`(기본 지급·재직 자동유지)→연장 대상 아님**, **common=`base:false`(별도 신청)→연장 가능**. 연장 탭에선 base VDI `locked`(비활성)·자동으로 별도신청 VDI 선택, 증설 탭은 둘 다 선택 가능. VDI 행은 큰 카드 대신 라디오 리스트(`.vdi-opt`)+지급구분 배지(기본 지급/별도 신청). 연장(현재 종료일 이후·PILL 기본 1개월) / 증설(콤보박스, 현재값 표시). 신청자 정보·대리 신청 없음
+- **change.html**: 탭 2개 **사용 연장 / 자원 증설**(밑줄형 탭). 탭별 처리 단계 stepper(renderStepper/STEPS) — 연장 3단계(정보입력·부서장승인·사용연장 자동적용)/증설 4단계(+운영부서 접수검토). 대상 VDI 3대(`VDI_ALL`, `base`·`lock` 플래그). **main=`base:true`(기본 지급·재직 자동유지)→연장 대상 아님**, **nomain=`base:false`(별도 신청)→연장 가능**, **prj=`lock:true`(미사용 잠김)→양 탭 모두 비활성(잠금해제 승인 후 신청 가능)**. 연장 탭에선 base VDI `locked`(비활성)·자동으로 신청 가능 VDI 선택, 증설 탭은 잠김 외 모두 선택 가능. VDI 행은 큰 카드 대신 라디오 리스트(`.vdi-opt`)+지급구분 배지(기본 지급/별도 신청). 연장(현재 종료일 이후·PILL 기본 1개월) / 증설(콤보박스, 현재값 표시). 신청자 정보·대리 신청 없음
 - **approval.html**: `filter-bar` + `date-range`(기간 필터) + `search-box` + `data-table` + `pager`. **상태**: 승인중·완료·반려(3종) / **구분**: 신규·연장·증설·잠금해제(`rtag-add/extend/expand/unlock`). 신청번호 `nowrap`. 잠금해제는 별도 신청 페이지 없이 portal에서 즉시 기안(`cause` 파라미터)
 - **approval-detail.html**: 신청 정보 카드 + `prog-steps` 진행 + 결재 이력. `KIND`·`PILL`·각 레코드를 approval.html과 정합 유지. 결재 플로우는 구분별(`FLOWS`) — 기본 4단계(기안→부서장 승인→IT운영부 검토→처리·적용), **잠금해제는 3단계 약식**(기안→부서장 승인→잠금해제 자동 적용)
 - **incident.html**: approval.html과 동일 패턴 (filter-bar + data-table + 우측 "신규 신고" 버튼)
-- **incident-new.html**: `fc` 폼 카드 여러 개 + 파일 첨부 영역 + warn-box (급한 장애는 헬프데스크 직통)
+- **incident-new.html**: `fc` 폼 카드 여러 개 + 파일 첨부 영역 + warn-box (급한 장애는 헬프데스크 직통). 대상 VDI 셀렉트에 잠김 VDI(jschoi0223-prj)는 `disabled` 옵션으로 노출
 - **notice.html**: `filter-bar`(전체/중요/일반) + `search-box` + 리스트. 분류는 **중요(`ntag-important`)/일반(`ntag-normal`) 2종**. 행 클릭 시 notice-detail.html로 이동
 - **notice-detail.html**: 제목 + 메타(작성자/날짜/조회수) + 본문 + 첨부 + 목록/이전/다음. `CAT`·각 항목 `cat`을 notice.html과 동일하게 유지(중요/일반)
 - **faq.html**: 카테고리 탭(`filter-seg`) + 검색 + `faq-item` 아코디언

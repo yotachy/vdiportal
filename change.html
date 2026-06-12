@@ -242,11 +242,13 @@
 
 <script src="common.js"></script>
 <script>
-  // ===== VDI 데이터 (portal.html과 동일하게 2대) =====
+  // ===== VDI 데이터 (portal.html과 동일하게 3대) =====
   // base:true = 기본 지급(재직 임직원 자동 지급) → 연장 대상 아님 / false = 별도 신청 → 연장 가능
+  // lock:true = 장기 미사용 잠김 → 잠금해제 승인 전까지 연장·증설 모두 불가 (선택 비활성)
   const VDI_ALL = [
     { name: 'jschoi0223-main', type: '고정가상화', base: true, typeClass: '', cpu: '6 Core', mem: '8 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '일반 업무용', status: '온라인', start: '2026-03-01', end: '2026-12-31' },
-    { name: 'jschoi0223-nomain', type: '고정가상화', base: false, typeClass: '', cpu: '8 Core', mem: '16 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '온라인', start: '2025-11-01', end: '2026-09-30' }
+    { name: 'jschoi0223-nomain', type: '고정가상화', base: false, typeClass: '', cpu: '8 Core', mem: '16 GB', disk: '150 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '온라인', start: '2025-11-01', end: '2026-09-30' },
+    { name: 'jschoi0223-prj', type: '고정가상화', base: false, lock: true, typeClass: '', cpu: '2 Core', mem: '4 GB', disk: '80 GB', os: 'Windows 11 Enterprise', purpose: '기타', status: '미사용 잠김', start: '2025-06-01', end: '2026-06-30' }
   ];
   // 시연용: noExtDemo=true → 별도 신청(nomain) 제외(기본 지급만 보유) → 연장 빈 화면 시연. ?demo=noext 로 초기 진입도 가능
   let noExtDemo = new URLSearchParams(location.search).get('demo') === 'noext';
@@ -268,22 +270,30 @@
   // ===== 대상 VDI 카드 렌더 =====
   function renderVdiCards() {
     $('vdiSelect').innerHTML = VDI_LIST.map((v, i) => {
-      const locked = state.tab === 'extend' && v.base;   // 기본 지급은 연장 대상 아님
-      const spec = locked
-        ? '본사 근무 재직자 자동유지 · 연장 신청 불필요'
-        : `CPU ${v.cpu} · ${v.mem} · 디스크 ${v.disk}`;
+      // 미사용 잠김은 양 탭 모두 비활성, 기본 지급은 연장 탭에서만 비활성
+      const locked = v.lock || (state.tab === 'extend' && v.base);
+      const spec = v.lock
+        ? '장기 미사용 잠김 · 잠금해제 승인 후 신청 가능'
+        : locked
+          ? '본사 근무 재직자 자동유지 · 연장 신청 불필요'
+          : `CPU ${v.cpu} · ${v.mem} · 디스크 ${v.disk}`;
+      const dot = v.lock ? 'sdot-danger' : v.status === '오프라인' ? 'sdot-muted' : 'sdot-success';
       return `
       <div class="vdi-opt${i === state.vdi ? ' sel' : ''}${locked ? ' locked' : ''}" data-vdi="${i}">
         <span class="vdi-radio"></span>
         <span class="vdi-opt-name">${v.name}</span>
         <span class="vdi-opt-type${v.base ? ' base' : ''}">${v.base ? '기본 지급' : '별도 신청'}</span>
         <span class="vdi-opt-spec">${spec}</span>
-        <span class="vdi-opt-status"><span class="sdot ${v.status === '오프라인' ? 'sdot-muted' : 'sdot-success'}"></span>${v.status}</span>
+        <span class="vdi-opt-status"><span class="sdot ${dot}"></span>${v.status}</span>
       </div>`;
     }).join('');
     $('vdiSelect').querySelectorAll('.vdi-opt').forEach(opt => {
       opt.addEventListener('click', () => {
         const i = parseInt(opt.dataset.vdi);
+        if (VDI_LIST[i].lock) {
+          showToast('미사용 잠김 가상PC는 잠금해제 승인 완료 후 신청할 수 있습니다.');
+          return;
+        }
         if (state.tab === 'extend' && VDI_LIST[i].base) {
           showToast('기본 지급(재직 임직원) 가상PC는 자동 유지되어 연장 신청 대상이 아닙니다.');
           return;
@@ -298,8 +308,8 @@
   // 선택 VDI 기준으로 각 탭 폼 동기화
   function syncForms() {
     const v = VDI_LIST[state.vdi];
-    // 사용 연장 탭: 연장 가능한(별도 신청) VDI가 없으면 안내 문구로 대체
-    const noExtendable = !VDI_LIST.some(x => !x.base);
+    // 사용 연장 탭: 연장 가능한(별도 신청 · 잠김 제외) VDI가 없으면 안내 문구로 대체
+    const noExtendable = !VDI_LIST.some(x => !x.base && !x.lock);
     $('extendForm').style.display = noExtendable ? 'none' : '';
     $('extendEmpty').style.display = noExtendable ? 'block' : 'none';
     if (!noExtendable) {
@@ -398,9 +408,9 @@
       // 제출 버튼 라벨
       const meta = TAB_META[state.tab];
       $('submitLabel').textContent = meta.label;
-      // 연장 탭에서는 기본 지급 VDI 선택 불가 → 별도 신청 VDI로 자동 전환
-      if (state.tab === 'extend' && VDI_LIST[state.vdi].base) {
-        const ext = VDI_LIST.findIndex(v => !v.base);
+      // 연장 탭에서는 기본 지급·잠김 VDI 선택 불가 → 신청 가능한 VDI로 자동 전환
+      if (state.tab === 'extend' && (VDI_LIST[state.vdi].base || VDI_LIST[state.vdi].lock)) {
+        const ext = VDI_LIST.findIndex(v => !v.base && !v.lock);
         if (ext >= 0) state.vdi = ext;
       }
       renderVdiCards();
@@ -411,6 +421,7 @@
   // ===== 제출 =====
   function submitRequest() {
     const v = VDI_LIST[state.vdi];
+    if (v.lock) { showToast('미사용 잠김 가상PC는 잠금해제 승인 완료 후 신청할 수 있습니다.'); return; }
     if (state.tab === 'extend') {
       if (v.base) { showToast('기본 지급 가상PC는 연장 신청 대상이 아닙니다.'); return; }
       const end = $('x_end').value;
@@ -434,8 +445,8 @@
   // ===== 시연용 토글 (보유 VDI 상태 전환) =====
   function selectExtendable() {
     state.vdi = 0;
-    if (state.tab === 'extend' && VDI_LIST[state.vdi] && VDI_LIST[state.vdi].base) {
-      const ext = VDI_LIST.findIndex(v => !v.base);
+    if (state.tab === 'extend' && VDI_LIST[state.vdi] && (VDI_LIST[state.vdi].base || VDI_LIST[state.vdi].lock)) {
+      const ext = VDI_LIST.findIndex(v => !v.base && !v.lock);
       if (ext >= 0) state.vdi = ext;
     }
   }
