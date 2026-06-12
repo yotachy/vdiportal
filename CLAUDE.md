@@ -42,7 +42,7 @@
 | 항목 | 값 |
 |---|---|
 | 사용자 | 최정식 책임 / IT기획파트 / 사번 1010579 / ID jschoi0223 |
-| VDI 명 | jschoi0223-main · jschoi0223-nomain (둘 다 **고정가상화**) |
+| VDI 명 | jschoi0223-main · jschoi0223-nomain · jschoi0223-prj(**미사용 잠김**) — 모두 **고정가상화** |
 | VDI 유형 | **고정가상화 단일** (공용가상화·임시형 없음). 대리 신청 기능 없음 |
 | 헬프데스크 | 1544-8119 (평일 09:00~18:00) |
 
@@ -240,7 +240,7 @@ portal.html `<style>`/`<script>`에 정의된 페이지 고유 패턴:
 
 - **KPI 스트립 (`.kpi-strip`, 4열)**: 진행 중 결재건 · 최근 공지사항 · 사용자 매뉴얼(자료실) · 사이트링크. `position:relative;z-index:5`로 reveal transform stacking 이슈 회피
 - **사이트링크 카드 (`.kpi.sitelink`)**: 호버/포커스 시 외부 시스템 드롭다운(`.sitelink-menu`). 맨 위 KB손해보험 공식 홈페이지 + 구분선 + e-HR 등 샘플. `overflow:visible` + 투명 브릿지(`::before`)로 호버 유지, 클릭 시 `goSite()` 토스트
-- **VDI 워크스페이스 카드 (`.vw`)**: 좌측 정보(가상PC명 + 우측 유형 배지 `.vw-type`) + 모니터형 접속 버튼(`.mon-frame`, 내부에 상태 pill `.vw-status` 내장) + 우측 자원/Info 패널. 탭 전환은 `renderVdi(i)` + `VDI_LIST`
+- **VDI 워크스페이스 카드 (`.vw`)**: 좌측 정보(가상PC명 + 우측 유형 배지 `.vw-type`) + 모니터형 접속 버튼(`.mon-frame`, 내부에 상태 pill `.vw-status` 내장) + 우측 자원/Info 패널. 탭 전환은 `renderVdi(i)` + `VDI_LIST`(3대). 상태 4종: 전원 ON(`on`)·전원 OFF(`off`)·점검 중(`maint`)·**미사용 잠김(`locked`, danger)**. 잠김 VDI(jschoi0223-prj)는 접속 차단(모니터 잠금 아이콘) + 재기동 버튼 숨김 + warn-box 안내(`#vwLockNote`) + **잠금해제 요청 버튼**(`requestUnlock()`, 부서장 승인 — approval `REQ-2026-0421-012`와 정합)
 - **관리자 안내 영역 (`.vw-notice`)**: VDI 카드 하단, 클릭 시 공지 상세로 이동. 태그는 공지 분류(중요/일반)와 정합
 - **새로고침 버튼 애니메이션**: `.spinning` 클래스 + `@keyframes spin` (portal 고유)
 
@@ -251,8 +251,8 @@ portal.html `<style>`/`<script>`에 정의된 페이지 고유 패턴:
 - **login.html**: `zoom:0.97` 독립 레이아웃. 크림 배경 위 중앙 카드(`.login-shell`, 약 1520×820) = 좌측 브랜드 패널(절제된 크림 + 기능 리스트 SSO/2차인증/원격근무) + 우측 2단계 인증(STEP1 ID/PW → STEP2 OTP 6자리). 계정 도움 링크 3종(아이디 생성/비밀번호 재발급/계정 잠금 해제). 로그인 성공 시 `sessionStorage['vdi_auth']='1'`
 - **apply.html**: 단일 페이지 입력(신청 내용: 용도·기간·사유만) + `승인 요청` 제출 → 완료(#doneView). 상단 stepper(.stepper, common.css)는 **처리 단계 lifecycle**(정보입력→부서장승인→운영부서접수검토→가상화지급완료) 표시 — 입력 중 1단계 활성, 제출 시 2단계로(updateStepper). 신청자 정보 영역·대리 신청 없음(본인 신청 전용). VDI 유형은 **고정가상화 단일 카드**. 사용 기간(시작=오늘 고정·종료=달력/PILL, 기본 1개월). 행 격자 `label 140px + gap 16` 통일
 - **change.html**: 탭 2개 **사용 연장 / 자원 증설**(밑줄형 탭). 탭별 처리 단계 stepper(renderStepper/STEPS) — 연장 3단계(정보입력·부서장승인·사용연장 자동적용)/증설 4단계(+운영부서 접수검토). 대상 VDI 2대(`VDI_LIST`, `base` 플래그). **main=`base:true`(기본 지급·재직 자동유지)→연장 대상 아님**, **common=`base:false`(별도 신청)→연장 가능**. 연장 탭에선 base VDI `locked`(비활성)·자동으로 별도신청 VDI 선택, 증설 탭은 둘 다 선택 가능. VDI 행은 큰 카드 대신 라디오 리스트(`.vdi-opt`)+지급구분 배지(기본 지급/별도 신청). 연장(현재 종료일 이후·PILL 기본 1개월) / 증설(콤보박스, 현재값 표시). 신청자 정보·대리 신청 없음
-- **approval.html**: `filter-bar` + `date-range`(기간 필터) + `search-box` + `data-table` + `pager`. **상태**: 승인중·완료·반려(3종) / **구분**: 신규·연장·증설(`rtag-add/extend/expand`). 신청번호 `nowrap`
-- **approval-detail.html**: 신청 정보 카드 + `prog-steps` 진행 + 결재 이력. `KIND`·`PILL`·각 레코드를 approval.html과 정합 유지
+- **approval.html**: `filter-bar` + `date-range`(기간 필터) + `search-box` + `data-table` + `pager`. **상태**: 승인중·완료·반려(3종) / **구분**: 신규·연장·증설·잠금해제(`rtag-add/extend/expand/unlock`). 신청번호 `nowrap`. 잠금해제는 별도 신청 페이지 없이 portal에서 즉시 기안(`cause` 파라미터)
+- **approval-detail.html**: 신청 정보 카드 + `prog-steps` 진행 + 결재 이력. `KIND`·`PILL`·각 레코드를 approval.html과 정합 유지. 결재 플로우는 구분별(`FLOWS`) — 기본 4단계(기안→부서장 승인→IT운영부 검토→처리·적용), **잠금해제는 3단계 약식**(기안→부서장 승인→잠금해제 자동 적용)
 - **incident.html**: approval.html과 동일 패턴 (filter-bar + data-table + 우측 "신규 신고" 버튼)
 - **incident-new.html**: `fc` 폼 카드 여러 개 + 파일 첨부 영역 + warn-box (급한 장애는 헬프데스크 직통)
 - **notice.html**: `filter-bar`(전체/중요/일반) + `search-box` + 리스트. 분류는 **중요(`ntag-important`)/일반(`ntag-normal`) 2종**. 행 클릭 시 notice-detail.html로 이동

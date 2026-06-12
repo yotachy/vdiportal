@@ -102,7 +102,8 @@
   .vw-status.on{background:var(--success)}
   .vw-status.maint{background:var(--warning);color:var(--ink)}
   .vw-status.off{background:var(--kb-gray)}
-  .vw-status.off .vw-pulse,.vw-status.maint .vw-pulse{animation:none}
+  .vw-status.locked{background:var(--danger)}
+  .vw-status.off .vw-pulse,.vw-status.maint .vw-pulse,.vw-status.locked .vw-pulse{animation:none}
   .vw-pulse{width:8px;height:8px;border-radius:50%;background:currentColor;animation:breathe 2.4s ease-in-out infinite}
   @keyframes breathe{0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1}50%{box-shadow:0 0 0 5px transparent;opacity:.55}}
   .vw-type{font-size:12px;font-weight:800;padding:4px 9px;border-radius:6px;letter-spacing:.02em;
@@ -130,6 +131,7 @@
     display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(255,188,0,.5);transition:transform .2s}
   .connect-mon:hover .mon-play{transform:scale(1.06)}
   .mon-play svg{width:30px;height:30px;color:var(--ink);margin-left:3px}
+  .mon-play svg.ico-lock{margin-left:0}
   .mon-text{text-align:center;min-width:0}
   .mon-title{font-size:21px;font-weight:800;color:#fff;letter-spacing:-0.01em}
   .mon-text .vw-status{margin-top:12px}
@@ -153,6 +155,11 @@
   .btn-refresh:active{transform:translateY(0) scale(.96)}
   .btn-refresh svg{width:18px;height:18px}
   .btn-refresh.spinning svg{animation:spin .65s ease}
+
+  /* 미사용 잠김 — 잠금 안내(warn-box 재사용) + 잠금해제 요청 버튼 */
+  #vwLockNote{display:none;margin-bottom:18px}
+  #unlockBtn{display:none}
+  #unlockBtn:disabled{background:var(--bg-subtle);color:var(--text-tertiary);box-shadow:none;transform:none;cursor:default}
 
   .vw-res{border-left:1px solid var(--border);background:var(--surface-2);padding:22px 22px;display:flex;flex-direction:column;gap:20px}
   .res-block .vw-res-head{margin-bottom:10px}
@@ -269,6 +276,7 @@
         <div class="vw-tabs-list" id="vwTabs">
           <button class="vtab active" data-vdi="0"><span class="status-dot sdot-success"></span><span class="vtab-name">jschoi0223-main</span></button>
           <button class="vtab" data-vdi="1"><span class="status-dot sdot-warning"></span><span class="vtab-name">jschoi0223-nomain</span></button>
+          <button class="vtab" data-vdi="2"><span class="status-dot sdot-danger"></span><span class="vtab-name">jschoi0223-prj</span></button>
         </div>
         <div class="vw-tabs-actions">
           <a class="vw-add" href="apply.html">
@@ -289,12 +297,22 @@
 
           <div class="vw-sub-meta" id="vwMeta"></div>
 
+          <!-- 미사용 잠김 안내 (잠긴 가상PC에서만 표시) -->
+          <div class="warn-box" id="vwLockNote">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span><strong>장기 미사용으로 잠금 처리된 가상PC입니다.</strong> 90일 이상 미접속 시 보안 정책에 따라 자동 잠금되며, 잠금해제 요청 후 부서장 승인이 완료되면 자동으로 해제됩니다.</span>
+          </div>
+
           <div class="vw-actions">
-            <button class="btn-ghost" onclick="showToast('일반 재기동 요청이 접수되었습니다. 5분 후 재접속해주세요.')">
+            <button class="btn btn-primary" id="unlockBtn" onclick="requestUnlock()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+              <span id="unlockBtnTxt">잠금해제 요청</span>
+            </button>
+            <button class="btn-ghost vw-act-power" onclick="showToast('일반 재기동 요청이 접수되었습니다. 5분 후 재접속해주세요.')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
               일반 재기동
             </button>
-            <button class="btn-ghost btn-danger-ghost" onclick="if(confirm('저장되지 않은 데이터가 손실될 수 있습니다. 진행하시겠습니까?')) showToast('강제 재기동 요청이 접수되었습니다.')">
+            <button class="btn-ghost btn-danger-ghost vw-act-power" onclick="if(confirm('저장되지 않은 데이터가 손실될 수 있습니다. 진행하시겠습니까?')) showToast('강제 재기동 요청이 접수되었습니다.')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               강제 재기동
             </button>
@@ -312,7 +330,7 @@
             <button class="connect-mon" id="vwConnect">
               <div class="mon-frame">
                 <div class="mon-row">
-                  <span class="mon-play"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg></span>
+                  <span class="mon-play" id="monPlay"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg></span>
                   <div class="mon-text">
                     <div class="mon-title" id="monTitle">가상PC 접속</div>
                     <span class="vw-status on" id="vwStatus"><span class="vw-pulse"></span><span id="vwStatusText">전원 ON</span></span>
@@ -418,28 +436,48 @@
       created:'2024.03.01', expire:'재직 중', cpu:'6 Core', mem:'8 GB', disk:'150 GB' },
     { name:'jschoi0223-nomain', type:'고정가상화', typeClass:'', state:'maint',
       ip:'10.20.30.116', os:'Windows 11 Enterprise', lastAccess:'2026.04.18 14:30',
-      created:'2025.11.01', expire:'재직 중', cpu:'8 Core', mem:'16 GB', disk:'150 GB' }
+      created:'2025.11.01', expire:'재직 중', cpu:'8 Core', mem:'16 GB', disk:'150 GB' },
+    // 장기 미사용(90일 이상 미접속) 자동 잠금 — 잠금해제 요청(부서장 승인)으로 해제 (approval REQ-2026-0421-012와 정합)
+    { name:'jschoi0223-prj', type:'고정가상화', typeClass:'', state:'locked',
+      ip:'10.20.30.117', os:'Windows 11 Enterprise', lastAccess:'2026.01.19 17:33',
+      created:'2025.06.01', expire:'재직 중', cpu:'2 Core', mem:'4 GB', disk:'80 GB' }
   ];
 
-  // 상태 매핑 (전원 ON · 전원 OFF · 점검 중)
+  // 상태 매핑 (전원 ON · 전원 OFF · 점검 중 · 미사용 잠김)
   const STATE = {
-    on:   { text:'전원 ON',  cls:'on' },
-    off:  { text:'전원 OFF', cls:'off' },
-    maint:{ text:'점검 중',  cls:'maint' }
+    on:    { text:'전원 ON',   cls:'on' },
+    off:   { text:'전원 OFF',  cls:'off' },
+    maint: { text:'점검 중',   cls:'maint' },
+    locked:{ text:'미사용 잠김', cls:'locked' }
   };
 
+  const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
+  const LOCK_SVG = '<svg class="ico-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+
   const $ = id => document.getElementById(id);
+  let curIdx = 0;
 
   function renderVdi(i){
     const v = VDI_LIST[i];
+    curIdx = i;
+    const locked = v.state === 'locked';
 
     $('vwName').textContent = v.name;
 
     const s = STATE[v.state];
     const st = $('vwStatus');
-    st.classList.remove('on', 'off', 'maint');
+    st.classList.remove('on', 'off', 'maint', 'locked');
     st.classList.add(s.cls);
     $('vwStatusText').textContent = s.text;
+
+    // 미사용 잠김 — 안내 박스 + 잠금해제 요청 버튼, 재기동 버튼 숨김
+    $('vwLockNote').style.display = locked ? 'flex' : 'none';
+    $('unlockBtn').style.display = locked ? 'inline-flex' : 'none';
+    document.querySelectorAll('.vw-act-power').forEach(b => { b.style.display = locked ? 'none' : ''; });
+    if (locked) {
+      $('unlockBtn').disabled = !!v.unlockRequested;
+      $('unlockBtnTxt').textContent = v.unlockRequested ? '잠금해제 승인 대기' : '잠금해제 요청';
+    }
 
     const tp = $('vwType');
     tp.textContent = v.type;
@@ -454,12 +492,26 @@
       <div class="res-row"><span class="rk">생성일</span><span class="rv">${v.created}</span></div>
       <div class="res-row"><span class="rk">만료일</span><span class="rv">${v.expire}</span></div>`;
 
+    // 접속 모니터 — 잠김 상태는 접속 차단 + 잠금 아이콘
+    $('monTitle').textContent = locked ? '접속 제한' : '가상PC 접속';
+    $('monPlay').innerHTML = locked ? LOCK_SVG : PLAY_SVG;
     const c = $('vwConnect');
-    c.onclick = () => showToast('가상PC에 접속합니다...');
+    c.onclick = locked
+      ? () => showToast('미사용 잠김 상태입니다. 잠금해제 요청 후 접속할 수 있습니다.')
+      : () => showToast('가상PC에 접속합니다...');
 
     $('resCpu').textContent = v.cpu;
     $('resMem').textContent = v.mem;
     $('resDisk').textContent = v.disk;
+  }
+
+  // ===== 잠금해제 요청 (부서장 승인 — 별도 페이지 없이 즉시 기안) =====
+  function requestUnlock(){
+    const v = VDI_LIST[curIdx];
+    if (!confirm(v.name + ' 가상PC의 잠금해제를 요청하시겠습니까?\n부서장 승인이 완료되면 자동으로 해제됩니다.')) return;
+    v.unlockRequested = true;
+    renderVdi(curIdx);
+    showToast('잠금해제 요청이 등록되었습니다. 결재 현황에서 진행 상태를 확인할 수 있습니다.');
   }
 
   document.querySelectorAll('.vtab').forEach(tab => {

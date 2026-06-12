@@ -137,9 +137,10 @@
   // ===== 데이터 (portal.html과 정합) =====
   // status: progress(승인 중) · done(완료) · reject(반려) — 3단계
   // 내용(목록)은 구분별 정형 파라미터로 content(r)가 자동 조합 — 수행사 구현 기준
-  //   신규 → type(유형)  ·  연장 → period(기간)  ·  증설 → item·from·to(자원 변경)
+  //   신규 → type(유형)  ·  연장 → period(기간)  ·  증설 → item·from·to(자원 변경)  ·  잠금해제 → cause(잠금 사유)
   const ROWS = [
     { no: 'REQ-2026-0422-008', date: '2026.04.22', kind: '증설', vdi: 'jschoi0223-main',   item: '메모리', from: '8GB', to: '16GB',  status: 'progress' },
+    { no: 'REQ-2026-0421-012', date: '2026.04.21', kind: '잠금해제', vdi: 'jschoi0223-prj', cause: '장기 미사용 잠금',                status: 'progress' },
     { no: 'REQ-2026-0410-005', date: '2026.04.10', kind: '신규', vdi: 'jschoi0223-nomain', type: '고정',                              status: 'progress' },
     { no: 'REQ-2026-0405-011', date: '2026.04.05', kind: '연장', vdi: 'jschoi0223-main',   period: '3개월',                           status: 'done' },
     { no: 'REQ-2026-0315-004', date: '2026.03.15', kind: '신규', vdi: 'jschoi0223-nomain', type: '고정',                              status: 'done' },
@@ -153,13 +154,14 @@
     { no: 'REQ-2025-1128-010', date: '2025.11.28', kind: '증설', vdi: 'jschoi0223-nomain', item: 'CPU', from: '2 Core', to: '4 Core', status: 'reject' }
   ];
 
-  const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand' };
+  const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand', '잠금해제': 'unlock' };
   // 목록 '내용' — 구분별 정형 패턴: "{구분 라벨} · {파라미터}"
-  const KIND_TEXT = { '신규': '신규 신청', '연장': '사용 연장', '증설': '자원 증설' };
+  const KIND_TEXT = { '신규': '신규 신청', '연장': '사용 연장', '증설': '자원 증설', '잠금해제': '잠금 해제' };
   function content(r) {
     if (r.kind === '신규') return `${KIND_TEXT['신규']} · ${r.type}형`;
     if (r.kind === '연장') return `${KIND_TEXT['연장']} · ${r.period}`;
     if (r.kind === '증설') return `${KIND_TEXT['증설']} · ${r.item} ${r.from}→${r.to}`;
+    if (r.kind === '잠금해제') return `${KIND_TEXT['잠금해제']} · ${r.cause}`;
     return '';
   }
   const PILL = {

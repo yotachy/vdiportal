@@ -139,14 +139,27 @@
 </div>
 <script src="common.js"></script>
 <script>
-  // ===== 결재 단계 / 결재자 =====
-  const STEPS = ['기안', '부서장 승인', 'IT운영부 검토', '처리 · 적용'];
-  const ACTORS = [
-    { actor: '최정식 책임', role: 'IT기획파트' },
-    { actor: '박성한 부장', role: 'IT기획파트장' },
-    { actor: '이정민 부장', role: 'IT운영부장' },
-    { actor: 'VDI 운영팀', role: '가상PC 생성 · 적용' }
-  ];
+  // ===== 결재 단계 / 결재자 (구분별) =====
+  // 기본(신규·연장·증설)은 4단계, 잠금해제는 부서장 승인만으로 처리되는 약식 3단계(승인 시 자동 해제)
+  const FLOWS = {
+    default: {
+      steps: ['기안', '부서장 승인', 'IT운영부 검토', '처리 · 적용'],
+      actors: [
+        { actor: '최정식 책임', role: 'IT기획파트' },
+        { actor: '박성한 부장', role: 'IT기획파트장' },
+        { actor: '이정민 부장', role: 'IT운영부장' },
+        { actor: 'VDI 운영팀', role: '가상PC 생성 · 적용' }
+      ]
+    },
+    '잠금해제': {
+      steps: ['기안', '부서장 승인', '잠금해제 적용'],
+      actors: [
+        { actor: '최정식 책임', role: 'IT기획파트' },
+        { actor: '박성한 부장', role: 'IT기획파트장' },
+        { actor: '시스템 자동', role: '승인 시 자동 해제' }
+      ]
+    }
+  };
 
   // ===== 상세 데이터 (approval.html 12건과 정합) =====
   // 상태 s: done · active · wait · reject
@@ -159,6 +172,16 @@
         { t: '2026.04.22 09:14', s: 'done',   c: '자원 부족으로 증설을 신청합니다.' },
         { t: '—',               s: 'active', c: '결재 진행 중' },
         { t: '—',               s: 'wait',   c: '-' },
+        { t: '—',               s: 'wait',   c: '-' }
+      ]
+    },
+    'REQ-2026-0421-012': {
+      kind: '잠금해제', vdi: 'jschoi0223-prj', date: '2026.04.21', purpose: '일반 업무용',
+      detail: '장기 미사용 잠금 해제 (최근 접속 2026.01.19 · 90일 이상 미접속)',
+      reason: '중단했던 프로젝트가 재개되어 해당 가상PC 사용이 다시 필요합니다.', status: 'progress',
+      hist: [
+        { t: '2026.04.21 10:12', s: 'done',   c: '장기 미사용 잠금 해제를 요청합니다.' },
+        { t: '—',               s: 'active', c: '결재 진행 중' },
         { t: '—',               s: 'wait',   c: '-' }
       ]
     },
@@ -285,7 +308,7 @@
     }
   };
 
-  const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand' };
+  const KIND = { '신규': 'add', '연장': 'extend', '증설': 'expand', '잠금해제': 'unlock' };
   const PILL = {
     progress: { cls: 'spill-progress', dot: 'sdot-warning', txt: '승인 중' },
     apply:    { cls: 'spill-apply',    dot: 'sdot-info',    txt: '적용 중' },
@@ -309,6 +332,10 @@
   const d = DETAILS[reqNo];
 
   function render() {
+    // 구분별 결재 플로우 (잠금해제는 3단계 약식)
+    const FLOW = FLOWS[d.kind] || FLOWS.default;
+    const STEPS = FLOW.steps, ACTORS = FLOW.actors;
+
     $('pageDesc').innerHTML = `<strong style="color:var(--text-primary);font-variant-numeric:tabular-nums">${reqNo}</strong> · <span class="rtag rtag-${KIND[d.kind]}">${d.kind}</span>`;
     const p = PILL[d.status];
     $('statusPill').innerHTML = `<span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span>`;
