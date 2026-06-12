@@ -48,7 +48,10 @@
   html[data-theme="dark"] .toolbar{background:rgba(19,23,31,.9); box-shadow:0 1px 0 rgba(0,0,0,.35);}
   html[data-theme="dark"] body.admin .mode-badge{color:var(--gold); border-color:rgba(245,181,0,.4);}
   html[data-theme="dark"] .btn{background:var(--card);}
-  html[data-theme="dark"] .btn.gold{color:#211a05;}
+  html[data-theme="dark"] .btn.gold{background:var(--gold); color:#211a05;}
+  html[data-theme="dark"] .btn.gold:hover{background:#ffc52a; color:#211a05;}
+  html[data-theme="dark"] .btn.ghost{background:transparent;}
+  html[data-theme="dark"] .toggle-btn[aria-pressed="true"]{background:var(--navy); color:#fff;}
   html[data-theme="dark"] select{background:var(--card);}
   html[data-theme="dark"] .search-wrap input{background:var(--card);}
   html[data-theme="dark"] .chip,html[data-theme="dark"] .chip button{color:#ffd255;}
@@ -1190,14 +1193,16 @@ function saveAreasFromModal(){
 /* ===================== Excel 내보내기 ===================== */
 async function exportExcel(){
   if(typeof ExcelJS==="undefined"){ alert("Excel 라이브러리(ExcelJS)를 불러오지 못했습니다. 인터넷 연결 또는 회사 보안정책을 확인해주세요."); return; }
-  const C={navy:"FF2B3A55",gold:"FFF5B500",headTxt:"FFFFFFFF",areaBg:"FFEFF3F8",line:"FFDDE2E9",lineStrong:"FFB9C1CD",ink:"FF1C2430",inkSoft:"FF4A5568",zebra:"FFF9FAFC",white:"FFFFFFFF",
+  const C={navy:"FF2B3A55",navySoft:"FF3A4D70",gold:"FFF5B500",headTxt:"FFFFFFFF",areaBg:"FFF4F6F9",line:"FFE8EBF0",lineStrong:"FFCFD6DF",ink:"FF1C2430",inkSoft:"FF4A5568",inkFaint:"FF8A94A3",white:"FFFFFFFF",subBg:"FFFAFBFC",
     stFix:"FF0F8A6D",stDisc:"FF3B6EA5",stChk:"FFC0392B",stAct:"FFB06F00",stDone:"FF9AA3B0",
-    stFixBg:"FFE8F6F1",stDiscBg:"FFEAF1F8",stChkBg:"FFFBECEA",stActBg:"FFFBF1DE",stDoneBg:"FFEEF0F3",
-    priHi:"FFD64545",priMid:"FFD99800",priLo:"FF6B7785"};
+    stFixBg:"FFEEF7F3",stDiscBg:"FFEEF3F9",stChkBg:"FFFBEFEE",stActBg:"FFFBF4E6",stDoneBg:"FFF0F2F5",
+    priHi:"FFD64545",priMid:"FFB07A00",priLo:"FF6B7785",
+    priHiBg:"FFFBEEEE",priMidBg:"FFFBF4E4",priLoBg:"FFF0F2F5"};
   const statusStyle={"확정":{fg:C.stFix,bg:C.stFixBg},"논의중":{fg:C.stDisc,bg:C.stDiscBg},"확인필요":{fg:C.stChk,bg:C.stChkBg},"조치진행":{fg:C.stAct,bg:C.stActBg},"검토완료":{fg:C.stDone,bg:C.stDoneBg}};
-  const priStyle={"상":C.priHi,"중":C.priMid,"하":C.priLo};
-  const thin={style:"thin",color:{argb:C.line}}, med={style:"medium",color:{argb:C.lineStrong}};
-  const allThin={top:thin,left:thin,bottom:thin,right:thin};
+  const priStyle={"상":{fg:C.priHi,bg:C.priHiBg},"중":{fg:C.priMid,bg:C.priMidBg},"하":{fg:C.priLo,bg:C.priLoBg}};
+  // 웹과 동일하게 세로 격자 없이 '가로 구분선만'(메인 시트). 요약/정의 시트는 allThin 사용
+  const hair={style:"thin",color:{argb:C.line}}, med={style:"medium",color:{argb:C.lineStrong}};
+  const allThin={top:hair,left:hair,bottom:hair,right:hair};
   const FONT="맑은 고딕";
 
   const wb=new ExcelJS.Workbook();
@@ -1237,9 +1242,9 @@ async function exportExcel(){
     cell.font={name:FONT,size:9.5,bold:true,color:{argb:C.headTxt}};
     cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:C.navy}};
     cell.alignment={vertical:"middle",horizontal:"center",wrapText:true};
-    cell.border={top:med,left:thin,bottom:med,right:thin};
+    cell.border={bottom:{style:"thick",color:{argb:C.gold}}};
   });
-  hRow.height=26;
+  hRow.height=30;
 
   let r=6;
   areas.forEach((area,ai)=>{
@@ -1247,42 +1252,39 @@ async function exportExcel(){
     if(!ord.length) return;
     ws.mergeCells(`A${r}:${lastColLetter}${r}`);
     const band=ws.getCell(`A${r}`);
-    band.value=`■  ${ai+1}. ${area.name}${area.desc?`    —    ${area.desc}`:""}`;
-    band.font={name:FONT,size:10,bold:true,color:{argb:C.navy}};
+    band.value=`${ai+1}.   ${area.name}${area.desc?`      ${area.desc}`:""}`;
+    band.font={name:FONT,size:10.5,bold:true,color:{argb:C.navy}};
     band.alignment={vertical:"middle",horizontal:"left",indent:1};
     band.fill={type:"pattern",pattern:"solid",fgColor:{argb:C.areaBg}};
-    for(let c=1;c<=NCOL;c++) ws.getCell(r,c).border={top:med,left:thin,bottom:thin,right:thin};
-    ws.getCell(r,1).border={top:med,left:{style:"thick",color:{argb:(area.color||"#888").replace("#","FF")}},bottom:thin,right:thin};
-    ws.getRow(r).height=22; r++;
+    const acol=(area.color||"#888888").replace("#","FF");
+    for(let c=1;c<=NCOL;c++) ws.getCell(r,c).border={bottom:hair};
+    ws.getCell(r,1).border={bottom:hair,left:{style:"thick",color:{argb:acol}}}; // 영역 색 좌측 액센트(웹 칩)
+    ws.getRow(r).height=26; r++;
 
-    let seq=0;
     ord.forEach(({r:row,depth,no})=>{
-      seq++;
       const tr=ws.getRow(r);
+      const isSub=!!depth, isDone=row.status==="검토완료";
       visCols.forEach((c,ci)=>{
         const cell=tr.getCell(ci+1);
         let v="";
         if(c.type==="rownum") v=no;
         else if(c.type==="status") v=row.status||"";
         else if(c.type==="priority") v=row.pri||"중";
-        else if(c.key==="item") v=(depth?"↳ ":"")+(row.item||"");
+        else if(c.key==="item") v=(isSub?"↳ ":"")+(row.item||"");
         else v=row[c.key]||"";
         cell.value=v;
-        cell.font={name:FONT,size:9.5,color:{argb:C.ink}};
-        cell.border=allThin;
         const centered=(c.type==="rownum"||c.type==="status"||c.type==="priority"||c.key==="date"||c.key==="done");
-        cell.alignment={vertical:centered?"middle":"top",horizontal:centered?"center":"left",wrapText:true,indent:centered?0:1};
-        if(c.key==="item"){cell.font={name:FONT,size:9.5,bold:true,color:{argb:C.ink}};}
-        if(c.type==="rownum"){cell.font={name:FONT,size:9.5,bold:true,color:{argb:C.inkSoft}};}
-        if(c.type==="status"){const st=statusStyle[row.status]||statusStyle["논의중"];cell.font={name:FONT,size:9.5,bold:true,color:{argb:st.fg}};cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:st.bg}};}
-        if(c.type==="priority"){const pc=priStyle[row.pri||"중"];cell.font={name:FONT,size:9.5,bold:true,color:{argb:C.white}};cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:pc}};}
+        cell.alignment={vertical:centered?"middle":"top",horizontal:centered?"center":"left",wrapText:true,indent:centered?0:(isSub&&c.key==="item"?2:1)};
+        cell.border={bottom:hair}; // 가로 구분선만
+        const baseFg=isSub?C.inkSoft:C.ink;
+        cell.font={name:FONT,size:9.5,color:{argb:baseFg}};
+        if(c.key==="item"){cell.font={name:FONT,size:9.5,bold:!isSub,color:{argb:baseFg}};}
+        if(c.type==="rownum"){cell.font={name:FONT,size:9,bold:true,color:{argb:C.inkFaint}};}
+        if(c.type==="status"){const st=statusStyle[row.status]||statusStyle["논의중"];cell.font={name:FONT,size:9,bold:true,color:{argb:st.fg}};cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:st.bg}};}
+        else if(c.type==="priority"){const pc=priStyle[row.pri||"중"];cell.font={name:FONT,size:9,bold:true,color:{argb:pc.fg}};cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:pc.bg}};}
+        else if(isSub){cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:C.subBg}};}
+        else if(isDone){cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:C.stDoneBg}};cell.font={name:FONT,size:9.5,bold:c.key==="item",color:{argb:C.stDone}};}
       });
-      // 검토완료 회색 / 짝수 지브라
-      if(row.status==="검토완료"){
-        for(let c=1;c<=NCOL;c++){const cc=tr.getCell(c);const col=visCols[c-1];if(col.type!=="status"&&col.type!=="priority"){cc.fill={type:"pattern",pattern:"solid",fgColor:{argb:C.stDoneBg}};cc.font={...cc.font,color:{argb:C.stDone}};}}
-      }else if(seq%2===0){
-        for(let c=1;c<=NCOL;c++){const col=visCols[c-1];if(col.type!=="status"&&col.type!=="priority"&&!ws.getCell(r,c).fill?.fgColor){ws.getCell(r,c).fill={type:"pattern",pattern:"solid",fgColor:{argb:C.zebra}};}}
-      }
       // 행 높이: 보이는 text 컬럼의 줄 수 추정
       let maxLines=1;
       visCols.filter(c=>c.type==="text").forEach(c=>{
@@ -1290,11 +1292,12 @@ async function exportExcel(){
         const lines=(row[c.key]||"").split("\n").reduce((a,s)=>a+Math.max(1,Math.ceil(s.length/cpl)),0);
         if(lines>maxLines)maxLines=lines;
       });
-      tr.height=Math.max(28,Math.min(maxLines*15+9,150));
+      tr.height=Math.max(27,Math.min(maxLines*15+11,165));
       r++;
     });
   });
-  for(let c=1;c<=NCOL;c++){const t=ws.getCell(5,c);t.border={...t.border,top:med};const b=ws.getCell(r-1,c);b.border={...b.border,bottom:med};}
+  // 표 하단 마감선(굵게)
+  for(let c=1;c<=NCOL;c++){const b=ws.getCell(r-1,c);b.border={...(b.border||{}),bottom:med};}
   ws.pageSetup.printTitlesRow="5:5";
 
   /* 시트2: 현황 요약 */
@@ -1319,7 +1322,7 @@ async function exportExcel(){
   ws2.getCell(`B${rr}`).font={name:FONT,size:11,bold:true,color:{argb:C.navy}};ws2.getRow(rr).height=22;rr++;
   const ph=ws2.getRow(rr);["","중요도","건수",""].forEach((h,i)=>{if(!i)return;const cl=ph.getCell(i+1);cl.value=h;cl.font={name:FONT,size:10,bold:true,color:{argb:C.headTxt}};cl.fill={type:"pattern",pattern:"solid",fgColor:{argb:C.navy}};cl.alignment={vertical:"middle",horizontal:"center"};cl.border=allThin;});ph.height=20;rr++;
   const pcount={상:0,중:0,하:0};rows.forEach(x=>{pcount[x.pri||"중"]++;});
-  PRIORITIES.forEach(p=>{const tr=ws2.getRow(rr);const c2=tr.getCell(2);c2.value=p;c2.font={name:FONT,size:10,bold:true,color:{argb:C.white}};c2.fill={type:"pattern",pattern:"solid",fgColor:{argb:priStyle[p]}};c2.alignment={vertical:"middle",horizontal:"center"};c2.border=allThin;const c3=tr.getCell(3);c3.value=pcount[p];c3.font={name:FONT,size:10,color:{argb:C.ink}};c3.alignment={vertical:"middle",horizontal:"center"};c3.border=allThin;tr.getCell(4).border=allThin;tr.height=20;rr++;});
+  PRIORITIES.forEach(p=>{const tr=ws2.getRow(rr);const c2=tr.getCell(2);c2.value=p;c2.font={name:FONT,size:10,bold:true,color:{argb:priStyle[p].fg}};c2.fill={type:"pattern",pattern:"solid",fgColor:{argb:priStyle[p].bg}};c2.alignment={vertical:"middle",horizontal:"center"};c2.border=allThin;const c3=tr.getCell(3);c3.value=pcount[p];c3.font={name:FONT,size:10,color:{argb:C.ink}};c3.alignment={vertical:"middle",horizontal:"center"};c3.border=allThin;tr.getCell(4).border=allThin;tr.height=20;rr++;});
 
   // 영역별 분포
   rr+=2; ws2.mergeCells(`B${rr}:D${rr}`); ws2.getCell(`B${rr}`).value="영역별 안건 분포";

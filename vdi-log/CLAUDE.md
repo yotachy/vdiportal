@@ -92,7 +92,7 @@ localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }
 | 백업 (파일) | `exportBackup` → `vdi_백업_YYYYMMDD_HHMM.json`(columns·areas·rows·meta) / `importBackup`(검증+덮어쓰기 확인, **관리자 전용**) |
 | 변경 이력 (버전 형상관리) | `saveData`가 저장 직전 상태를 `localStorage[STORE_KEY+"__history"]`에 자동 보관(최근 `HIST_MAX=30`, `HIST_MIN_GAP=20s` 내 연속편집은 합침). `변경 이력` 모달에서 시점 선택→`restoreHistory`로 복원(복원 직전 현재 상태도 자동 보관). **관리자 전용** |
 | 영역 관리 | 이름/색/설명/순서, 영역 삭제 시 안건 동반 삭제 (모달 유지) |
-| Excel 내보내기 | ExcelJS — 논의·결정사항 / 현황 요약 / 정의 3시트, 스타일·인쇄설정 포함 |
+| Excel 내보내기 | ExcelJS — 논의·결정사항 / 현황 요약 / 정의 3시트. **웹 디자인 정렬**(세로 격자 없이 가로 구분선만·헤더 하단 골드 라인·상태/중요도 소프트 칩·후속안건 ↳/연한 톤·지브라 없음). 인쇄설정 포함 |
 | Excel 가져오기 | SheetJS — 영역밴드(`■ n. 영역명`) 추적해 안건 복원, 헤더 자동 매핑, 덮어쓰기 확인 |
 | 읽기용 HTML 내보내기 | 편집 불가 정적 파일 생성(필터·검색·인쇄 내장). **배포·공유용 산출물** |
 | 인쇄/PDF | `@media print` 스타일 |
