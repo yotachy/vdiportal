@@ -55,16 +55,6 @@
       <div class="page-header-right"></div>
     </div>
 
-    <div class="stepper reveal" id="stepper" style="animation-delay:.1s">
-      <div class="step active" data-step="1"><span class="step-no">1</span><span class="step-lbl">정보 입력</span></div>
-      <div class="step-bar"></div>
-      <div class="step" data-step="2"><span class="step-no">2</span><span class="step-lbl">부서장 승인</span></div>
-      <div class="step-bar"></div>
-      <div class="step" data-step="3"><span class="step-no">3</span><span class="step-lbl">운영부서 접수검토</span></div>
-      <div class="step-bar"></div>
-      <div class="step" data-step="4"><span class="step-no">4</span><span class="step-lbl">가상화 지급 완료</span></div>
-    </div>
-
     <!-- ================= 정보 입력 (단일 페이지) ================= -->
     <section id="inputView">
       <div class="fc">
@@ -117,6 +107,16 @@
         </div>
       </div>
 
+      <!-- 처리 단계 (제출 시 doneView 하단으로 이동) -->
+      <div class="stepper reveal" id="stepper" style="animation-delay:.1s">
+        <div class="step active" data-step="1"><span class="step-no">1</span><span class="step-lbl">정보 입력</span></div>
+        <div class="step-bar"></div>
+        <div class="step" data-step="2"><span class="step-no">2</span><span class="step-lbl">부서장 승인</span></div>
+        <div class="step-bar"></div>
+        <div class="step" data-step="3"><span class="step-no">3</span><span class="step-lbl">운영부서 접수검토</span></div>
+        <div class="step-bar"></div>
+        <div class="step" data-step="4"><span class="step-no">4</span><span class="step-lbl">가상화 지급 완료</span></div>
+      </div>
 
       <div class="action-bar">
         <div class="action-hint">필수 항목(<span class="req">*</span>)을 입력한 뒤 승인 요청하세요. 결재선은 부서 조직도 기준으로 자동 지정됩니다.</div>
@@ -215,6 +215,7 @@
     document.getElementById('inputView').style.display = 'none';
     document.getElementById('doneView').style.display = 'block';
     updateStepper(2);   // 정보 입력 완료 → 부서장 승인 단계로
+    document.getElementById('doneView').appendChild(document.getElementById('stepper'));   // 완료 카드 아래에 진행 단계 유지
     showToast('승인 요청이 정상 접수되었습니다.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
