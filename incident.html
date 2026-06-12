@@ -23,8 +23,12 @@
 
   /* 상태 — 진행 상태만 pill, 완료는 차분하게(텍스트형) */
   .spill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 100px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
+  .spill .sdot { margin: 0; }
   .spill-active { background: var(--warning-soft); color: var(--warn-text); }
   .spill-done { background: transparent; padding: 5px 0; color: var(--text-tertiary); font-weight: 700; }
+
+  /* 표 하단 열람 범위 안내 */
+  .scope-note { font-size: 13px; color: var(--text-tertiary); font-weight: 600; text-align: center; margin: 16px 0 0; }
 
   /* 테이블 */
   .data-table tbody tr { cursor: pointer; }
@@ -156,7 +160,7 @@
     <div class="pager" id="incPager"></div>
 
     <!-- 표 하단 안내 (열람 범위) -->
-    <div class="scope-note" id="scopeNote" style="font-size:13px;color:var(--text-tertiary);font-weight:600;text-align:center;margin:16px 0 0"></div>
+    <div class="scope-note" id="scopeNote"></div>
 
   </main>
 </div>
@@ -322,7 +326,7 @@
           <td class="col-title">${esc(r.title)}</td>
           <td class="hide-sm col-reporter">${repOf(r.no)}</td>
           <td><span class="urg ${u.cls}">${u.txt}</span></td>
-          <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></td>
+          <td><span class="spill ${p.cls}"><span class="sdot ${p.dot}"></span>${p.txt}</span></td>
         </tr>`;
     }).join('');
 
@@ -339,7 +343,7 @@
     $('modalContent').innerHTML = `
       <div class="modal-title">${esc(r.title)}</div>
       <div class="modal-meta" style="font-variant-numeric:tabular-nums">${r.no}</div>
-      <div class="modal-status"><span class="spill ${p.cls}"><span class="sdot ${p.dot}" style="margin:0"></span>${p.txt}</span></div>
+      <div class="modal-status"><span class="spill ${p.cls}"><span class="sdot ${p.dot}"></span>${p.txt}</span></div>
       <div class="modal-row"><div class="modal-key">유형</div><div class="modal-val"><span class="itag">${r.type}</span></div></div>
       <div class="modal-row"><div class="modal-key">신고자</div><div class="modal-val">${repOf(r.no)}</div></div>
       <div class="modal-row"><div class="modal-key">대상 VDI</div><div class="modal-val" style="font-variant-numeric:tabular-nums">${r.vdi}</div></div>

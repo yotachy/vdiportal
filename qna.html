@@ -146,7 +146,7 @@
           </button>
           <div class="dl-file-info" id="fFileInfo">선택된 파일 없음</div>
         </div>
-        <div class="frow-help" style="font-size:12px;color:var(--text-tertiary);margin-top:8px">용량과 등록일은 업로드 시 자동으로 처리됩니다.</div>
+        <div class="frow-help">용량과 등록일은 업로드 시 자동으로 처리됩니다.</div>
       </div>
     </div>
     <div class="action-btns" style="margin-top:22px;justify-content:flex-end">
@@ -159,16 +159,17 @@
 <script src="common.js"></script>
 <script>
   // ===== 파일 유형 → 배지 색/라벨 =====
-  // 파일 유형 식별색은 각 포맷 고유색(PDF·Word·PPT 등)이라 디자인 토큰 예외로 직접 지정한다.
+  // 문서 포맷(PDF·HWP·Word·Excel·PPT)은 각 포맷 고유색이라 디자인 토큰 예외로 직접 지정.
+  // 고유색이 없는 실행/압축/기타 파일은 KB 그레이(토큰)로 중립 처리한다.
   const TYPE = {
     pdf:  { color: '#D93B30', label: 'PDF' },
-    exe:  { color: '#6B7280', label: 'EXE' },
-    zip:  { color: '#8B5CF6', label: 'ZIP' },
+    exe:  { color: 'var(--kb-gray)', label: 'EXE' },
+    zip:  { color: 'var(--kb-gray)', label: 'ZIP' },
     hwp:  { color: '#1A6BD4', label: 'HWP' },
     xlsx: { color: '#1E8E3E', label: 'XLS' },
     doc:  { color: '#2B579A', label: 'DOC' },
     ppt:  { color: '#E08600', label: 'PPT' },
-    etc:  { color: '#64748B', label: 'FILE' }
+    etc:  { color: 'var(--kb-gray)', label: 'FILE' }
   };
 
   const SEC_ICON = {
@@ -198,7 +199,7 @@
   const EDIT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>';
 
   function rowHtml(it, si, ii) {
-    const t = TYPE[it.type] || { color: '#6B7280', label: '파일' };
+    const t = TYPE[it.type] || { color: 'var(--kb-gray)', label: '파일' };
     return `
       <div class="dl-row" onclick="download('${esc(it.file)}')" title="${esc(it.file)}">
         <span class="dl-badge" style="background:${t.color}">${t.label}</span>

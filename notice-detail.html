@@ -10,6 +10,9 @@
   .main { max-width: 1320px; margin: 0 auto; }
 
 
+  /* 아티클 컨테이너 (fc-body 기본 패딩보다 여유 있게) */
+  #article { padding: 24px 28px 28px; }
+
   /* 아티클 헤더 */
   .art-title { font-size: 24px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.4; margin-top: 13px; }
   .art-meta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-tertiary);
@@ -65,7 +68,7 @@
     </div>
 
     <div class="fc reveal" style="animation-delay:.06s">
-      <div class="fc-body" id="article" style="padding:24px 28px 28px"></div>
+      <div class="fc-body" id="article"></div>
     </div>
 
     <div class="fc reveal" style="animation-delay:.12s">
