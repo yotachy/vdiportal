@@ -28,6 +28,62 @@
     --shadow-pop:0 6px 22px rgba(28,36,48,.14);
     --r:14px; --r-sm:9px;
   }
+
+  /* ===================== 다크 테마 ===================== */
+  html[data-theme="dark"]{
+    --ink:#e7ebf1; --ink-soft:#aab4c2; --ink-faint:#7e8896;
+    --paper:#13171f; --card:#1c222d;
+    --line:#2a323e; --line-strong:#3c4757; --line-faint:#222a35;
+    --gold:#f5b500; --gold-soft:rgba(245,181,0,.13); --gold-strong:#ffc933;
+    --navy:#141c2b; --navy-soft:#23304a;
+    --st-fix:#46c6a0; --st-disc:#7db0e4; --st-chk:#ec7470; --st-act:#e6af52; --st-done:#9aa3b0;
+    --pri-high:#ec7470; --pri-mid:#e6af52; --pri-low:#96a1b1;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.35);
+    --shadow-md:0 8px 28px rgba(0,0,0,.5);
+    --shadow-lg:0 24px 64px rgba(0,0,0,.65);
+    --shadow-pop:0 8px 26px rgba(0,0,0,.55);
+  }
+  /* 다크: 토큰으로 안 바뀌는 하드코딩 표면·강조색 보정 */
+  html[data-theme="dark"] .hd-sub{color:#9fb1c6;}
+  html[data-theme="dark"] .toolbar{background:rgba(19,23,31,.9); box-shadow:0 1px 0 rgba(0,0,0,.35);}
+  html[data-theme="dark"] body.admin .mode-badge{color:var(--gold); border-color:rgba(245,181,0,.4);}
+  html[data-theme="dark"] .btn{background:var(--card);}
+  html[data-theme="dark"] .btn.gold{color:#211a05;}
+  html[data-theme="dark"] select{background:var(--card);}
+  html[data-theme="dark"] .search-wrap input{background:var(--card);}
+  html[data-theme="dark"] .chip,html[data-theme="dark"] .chip button{color:#ffd255;}
+  html[data-theme="dark"] .chip{border-color:rgba(245,181,0,.32);}
+  html[data-theme="dark"] .pop{background:var(--card);}
+  html[data-theme="dark"] .pop-item.danger:hover{background:rgba(236,116,112,.14);}
+  html[data-theme="dark"] .sum-card.tot .n{color:#e7ebf1;}
+  html[data-theme="dark"] th{background:#222b39;}
+  html[data-theme="dark"] .area-head{background:#222b39;}
+  html[data-theme="dark"] .area-head:hover{background:#26303f;}
+  html[data-theme="dark"] tbody tr:hover td{background:#232c39;}
+  html[data-theme="dark"] td[contenteditable]:hover{background:#232c39;}
+  html[data-theme="dark"] td[contenteditable]:focus{background:#2a3344;}
+  html[data-theme="dark"] tr.sub-row td{background:#1f2733;}
+  html[data-theme="dark"] tr.sub-row:hover td{background:#243040;}
+  html[data-theme="dark"] tr.row-done td{background:#191f29; color:#79828f;}
+  html[data-theme="dark"] tr.row-done:hover td{background:#1d2430;}
+  html[data-theme="dark"] .att-badge{background:#222b39;}
+  html[data-theme="dark"] .del-btn,html[data-theme="dark"] .sub-add{color:#586273;}
+  html[data-theme="dark"] .add-row:hover{color:var(--gold);}
+  /* 상태·중요도 칩 — 다크 틴트(텍스트색은 토큰이 처리) */
+  html[data-theme="dark"] .st-확정 .status-sel,html[data-theme="dark"] .lg.st-fix{background:rgba(70,198,160,.16);}
+  html[data-theme="dark"] .st-논의중 .status-sel,html[data-theme="dark"] .lg.st-disc{background:rgba(125,176,228,.16);}
+  html[data-theme="dark"] .st-확인필요 .status-sel,html[data-theme="dark"] .lg.st-chk{background:rgba(236,116,112,.17);}
+  html[data-theme="dark"] .st-조치진행 .status-sel,html[data-theme="dark"] .lg.st-act{background:rgba(230,175,82,.17);}
+  html[data-theme="dark"] .st-검토완료 .status-sel,html[data-theme="dark"] .lg.st-done{background:rgba(154,163,176,.16);}
+  html[data-theme="dark"] .pri-상 .pri-sel{background:rgba(236,116,112,.17);}
+  html[data-theme="dark"] .pri-중 .pri-sel{background:rgba(230,175,82,.17);}
+  html[data-theme="dark"] .pri-하 .pri-sel{background:rgba(150,161,177,.16);}
+  html[data-theme="dark"] .modal{background:var(--card);}
+  html[data-theme="dark"] .help-note{color:#e0c060;}
+  html[data-theme="dark"] .area-row input[type=text],html[data-theme="dark"] .move-btn{background:var(--card); color:var(--ink-soft);}
+  html[data-theme="dark"] .hist-now{background:rgba(70,198,160,.16);}
+  html[data-theme="dark"] .toast{background:#0a0e15; color:#fff;}
+
   *{box-sizing:border-box;margin:0;padding:0;}
   html{font-size:15px;}
   body{font-family:var(--font-body); background:var(--paper); color:var(--ink); padding:0 0 90px; -webkit-font-smoothing:antialiased;}
@@ -190,8 +246,8 @@
   .no-cell{font-family:var(--font-bold); color:var(--ink-faint); font-size:.76rem; text-align:center;}
   .item-cell{font-family:var(--font-bold);}
 
-  /* 상태·중요도 콤보 — 간소·동일 규격(셀 중앙 정렬로 위치 통일) */
-  .state-cell{vertical-align:middle; text-align:center; padding:8px 8px;}
+  /* 상태·중요도 콤보 — 간소·동일 규격(다른 셀과 같이 상단 정렬로 위치 통일) */
+  .state-cell{vertical-align:top; text-align:center; padding:11px 8px;}
   .status-sel,.pri-sel{appearance:none; -webkit-appearance:none; max-width:100%; border:1px solid transparent; background:transparent; font-family:var(--font-bold); font-size:.73rem; line-height:1.25; padding:4px 10px; border-radius:7px; cursor:pointer; text-align:center; text-align-last:center; color:var(--ink-soft); transition:background .12s,box-shadow .12s;}
   body.admin .status-sel:hover,body.admin .pri-sel:hover{box-shadow:inset 0 0 0 1px var(--line-strong);}
   .st-확정 .status-sel{color:var(--st-fix); background:#eef7f3;}
@@ -213,6 +269,26 @@
   tr.sub-row .no-cell::before{content:"↳ "; color:var(--ink-faint); font-family:var(--font-bold);}
   tr.sub-row .item-cell{font-family:var(--font-body); color:var(--ink-soft); padding-left:6px;}
   tr.sub-row td:first-child{box-shadow:inset 3px 0 0 var(--line-strong);}
+  /* 후속안건: 안건·현행/대안은 입력 안 함(부모 참조) — 흐리게 */
+  td.sub-dim{opacity:.45; color:var(--ink-faint); cursor:default;}
+
+  /* 참석자: 인원 배지 + 명단 팝오버 */
+  .att-cell{vertical-align:top; padding:10px 10px;}
+  .att-badge{display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line-strong); background:var(--card); color:var(--ink-soft); font-family:var(--font-bold); font-size:.74rem; padding:3px 9px 3px 7px; border-radius:999px; cursor:pointer; transition:border-color .12s,background .12s,color .12s; line-height:1.3;}
+  .att-badge:hover{border-color:var(--gold); color:var(--ink); background:var(--gold-soft);}
+  .att-badge .att-ic{width:13px; height:13px; flex:none;}
+  .att-badge.att-empty{border-style:dashed; color:var(--ink-faint);}
+  body:not(.admin) .att-badge{cursor:pointer;}
+  body:not(.admin) .att-badge.att-empty{display:none;}
+  .att-none{color:var(--ink-faint);}
+  .att-pop{min-width:220px; max-width:280px;}
+  .att-ta{width:100%; min-height:118px; resize:vertical; font-family:var(--font-body); font-size:.82rem; line-height:1.6; padding:9px 11px; border:1px solid var(--line-strong); border-radius:8px; background:var(--card); color:var(--ink); margin:2px 0 0;}
+  .att-ta:focus{outline:none; border-color:var(--gold); box-shadow:0 0 0 3px var(--gold-soft);}
+  .att-count{font-size:.72rem; color:var(--ink-faint); font-family:var(--font-bold); text-align:right; padding:5px 2px 8px;}
+  .att-save{width:100%; justify-content:center;}
+  .att-list{display:flex; flex-wrap:wrap; gap:5px; padding:6px 4px 4px;}
+  .att-name{font-size:.78rem; background:var(--line-faint); color:var(--ink-soft); padding:3px 9px; border-radius:999px;}
+  .att-empty-note{font-size:.8rem; color:var(--ink-faint); padding:6px 4px;}
 
   /* 후속안건 추가 버튼(부모 행 액션열) */
   .col-act{white-space:nowrap;}
@@ -345,6 +421,10 @@
   <input type="file" id="restoreFile" accept=".json,application/json" class="hidden">
 
   <span class="grow"></span>
+  <button class="btn ghost" id="btnTheme" aria-label="화면 테마 전환" title="라이트/다크 전환">
+    <svg class="ic ic-theme" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
+    <span id="themeLabel"></span>
+  </button>
   <button class="btn" id="btnAuth">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     <span id="authLabel">관리자 로그인</span>
@@ -430,7 +510,7 @@
    실제 접근 통제가 필요하면 서버 기반 인증이 필요합니다. */
 const ADMIN = {
   name: "관리자",
-  hash: "65d7a8b847a2bd025a3695e7ae71ef85319e63760e01f3f4a470f8dcdb34e0ac", // SHA-256("kb1234!")
+  hash: "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b", // SHA-256("1")
 };
 const SESSION_KEY = "vdi_admin_session";
 let currentAdmin = null; // 로그인 시 "admin"
@@ -726,12 +806,23 @@ function render(){
           html+=`<td class="state-cell"><select class="status-sel" data-f="status">${STATUSES.map(s=>`<option ${s===r.status?"selected":""}>${s}</option>`).join("")}</select></td>`;
         }else if(c.type==="priority"){
           html+=`<td class="state-cell pri-cell"><select class="pri-sel" data-f="pri">${PRIORITIES.map(p=>`<option ${p===(r.pri||"중")?"selected":""}>${p}</option>`).join("")}</select></td>`;
+        }else if(c.key==="att"){
+          // 참석자: 인원수 배지(클릭 시 명단 팝오버)
+          const names=parseAtt(r.att);
+          const badge = names.length
+            ? `<button class="att-badge" data-att-edit title="참석자 명단">${ATT_ICON}<span>${names.length}명</span></button>`
+            : (isAdmin()
+                ? `<button class="att-badge att-empty" data-att-edit title="참석자 추가">${ATT_ICON}<span>추가</span></button>`
+                : `<span class="att-none">—</span>`);
+          html+=`<td class="att-cell" data-f="att">${badge}</td>`;
         }else{
           const isItem=c.key==="item";
-          const cls=isItem?"item-cell":"";
+          const dim = depth && (c.key==="item"||c.key==="asis"||c.key==="tobe"); // 후속안건은 안건·현행/대안 비입력(부모 참조)
+          const cls=(isItem?"item-cell":"")+(dim?" sub-dim":"");
           const ph={item:"안건명",date:"m/d",asis:"현행 또는 1안",tobe:"개선 또는 2안",result:"결정·검토 결과",action:"후속조치·담당",owner:"부서/파트",done:"m/d",att:"참석자"}[c.key]||"";
-          const editable = isAdmin() ? "contenteditable" : "";
-          html+=`<td class="${cls}" ${editable} data-f="${c.key}" data-ph="${ph}">${renderCellRead(r[c.key]||"",q)}</td>`;
+          const editable = (isAdmin() && !dim) ? "contenteditable" : "";
+          const phAttr = dim ? "" : ` data-ph="${ph}"`;
+          html+=`<td class="${cls}" ${editable} data-f="${c.key}"${phAttr}>${renderCellRead(r[c.key]||"",q)}</td>`;
         }
       });
       // 액션열: 부모 행은 후속안건 추가(＋) + 삭제, 자식 행은 삭제만
@@ -785,6 +876,42 @@ function renderChips(){
   if(!chips.length){row.innerHTML="";return;}
   row.innerHTML=`<div class="filter-chips">${chips.map((c,i)=>`<span class="chip">${escHtml(c.label)}<button data-chip="${i}">✕</button></span>`).join("")}</div>`;
   row.querySelectorAll("[data-chip]").forEach(b=>b.addEventListener("click",()=>chips[+b.dataset.chip].clear()));
+}
+
+/* ===================== 참석자(att) — 인원 배지 + 명단 팝오버 ===================== */
+const ATT_ICON=`<svg class="att-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.1"/><path d="M3.6 19a5.4 5.4 0 0 1 10.8 0"/><path d="M16 5.6a3 3 0 0 1 0 5.5"/><path d="M17.5 13.6a5.1 5.1 0 0 1 3 4.9"/></svg>`;
+function parseAtt(s){ return String(s||"").split(/[,\n]+/).map(x=>x.trim()).filter(Boolean); }
+function openAttPop(anchor){
+  const tr=anchor.closest("tr"); if(!tr) return;
+  const idx=+tr.dataset.idx; const row=rows[idx]; if(!row) return;
+  const names=parseAtt(row.att);
+  openPop(anchor, pop=>{
+    pop.classList.add("att-pop");
+    pop.appendChild(popHead(`참석자 ${names.length}명`));
+    if(isAdmin()){
+      const ta=document.createElement("textarea");
+      ta.className="att-ta"; ta.value=names.join("\n");
+      ta.placeholder="한 줄에 한 명씩 (쉼표 구분도 가능)";
+      const cnt=document.createElement("div"); cnt.className="att-count";
+      const upd=()=>{ cnt.textContent=`${parseAtt(ta.value).length}명`; };
+      ta.addEventListener("input",upd); upd();
+      pop.appendChild(ta); pop.appendChild(cnt);
+      const save=document.createElement("button"); save.className="btn gold att-save"; save.textContent="저장";
+      save.addEventListener("click",()=>{
+        const v=parseAtt(ta.value).join(", ");
+        if(row.att!==v){ row.att=v; saveData(); }
+        closePop(); render();
+      });
+      pop.appendChild(save);
+      setTimeout(()=>ta.focus(),30);
+    }else{
+      const list=document.createElement("div"); list.className="att-list";
+      list.innerHTML = names.length
+        ? names.map(n=>`<span class="att-name">${escHtml(n)}</span>`).join("")
+        : `<div class="att-empty-note">등록된 참석자가 없습니다.</div>`;
+      pop.appendChild(list);
+    }
+  });
 }
 
 /* ===================== 부동(floating) 메뉴·팝오버 공통 ===================== */
@@ -1498,9 +1625,9 @@ document.addEventListener("click",e=>{
       const child={id:genId(),area:parent.area,parentId:parent.id,item:"",pri:"중",status:"논의중"};
       columns.filter(c=>c.type==="text").forEach(c=>child[c.key]="");
       rows.push(child); saveData(); render();
-      // 새 후속안건 안건명 칸으로 포커스
+      // 새 후속안건 — 결정·검토 결과 칸부터 입력
       requestAnimationFrame(()=>{
-        const cell=document.querySelector(`tr[data-idx="${rows.length-1}"] .item-cell[contenteditable]`);
+        const cell=document.querySelector(`tr[data-idx="${rows.length-1}"] td[data-f="result"][contenteditable]`);
         if(cell) cell.focus();
       });
     }
@@ -1572,6 +1699,8 @@ document.addEventListener("click",e=>{
   if(cm){ openColMenu(cm, cm.dataset.colMenu); return; }
   const ac=e.target.closest("[data-addcol]");
   if(ac){ openAddColPop(ac); return; }
+  const ae=e.target.closest("[data-att-edit]");
+  if(ae){ openAttPop(ae); return; }
 });
 
 /* 영역 아코디언 — 머리글 클릭으로 접기/펼치기 */
@@ -1732,8 +1861,34 @@ document.addEventListener("dragend",e=>{
   document.querySelectorAll("th.drag-over,th.drag-src").forEach(t=>t.classList.remove("drag-over","drag-src"));
 });
 
+/* ===================== 라이트/다크 테마 ===================== */
+const THEME_KEY="vdi_log_theme";
+const ICON_MOON=`<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>`;
+const ICON_SUN=`<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M22 12h-2.4M4.4 12H2M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7M19.1 19.1l-1.7-1.7M6.6 6.6 4.9 4.9"/>`;
+function applyTheme(t){
+  const dark = t==="dark";
+  document.documentElement.setAttribute("data-theme", dark?"dark":"light");
+  const ic=document.querySelector("#btnTheme .ic-theme");
+  const lab=document.getElementById("themeLabel");
+  if(ic) ic.innerHTML = dark?ICON_SUN:ICON_MOON;      // 다크일 땐 라이트로 돌아가는 해 아이콘
+  if(lab) lab.textContent = dark?"라이트":"다크";
+  const btn=document.getElementById("btnTheme");
+  if(btn) btn.setAttribute("aria-pressed", dark);
+}
+function initTheme(){
+  let t="light";
+  try{ const s=localStorage.getItem(THEME_KEY); if(s==="dark"||s==="light") t=s; }catch(e){}
+  applyTheme(t);
+}
+document.getElementById("btnTheme").addEventListener("click",()=>{
+  const cur=document.documentElement.getAttribute("data-theme")==="dark"?"dark":"light";
+  const next=cur==="dark"?"light":"dark";
+  try{ localStorage.setItem(THEME_KEY,next); }catch(e){}
+  applyTheme(next);
+});
+
 /* 시작 */
-restoreSession(); loadData(); applyMode(); render();
+initTheme(); restoreSession(); loadData(); applyMode(); render();
 </script>
 </body>
 </html>

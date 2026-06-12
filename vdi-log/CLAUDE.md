@@ -40,6 +40,7 @@
 | 상태색 | 확정 `#0f8a6d` · 논의중 `#3b6ea5` · 확인필요 `#c0392b` · 조치진행 `#b06f00` · 검토완료 `#9aa3b0` |
 | 중요도색 | 상 `#d64545` · 중 `#d99800` · 하 `#6b7785` |
 
+- **라이트/다크 테마**: 기본 라이트. 다크는 `html[data-theme="dark"]` 한 블록에서 토큰 재정의 + 토큰으로 안 바뀌는 하드코딩 표면(`#fff` 등)만 보정 → **라이트 CSS는 건드리지 않는다**(신규 하드코딩 색 추가 시 다크 블록에도 대응 추가). 툴바 `🌙/☀️`(`#btnTheme`) 토글, 선택은 `localStorage["vdi_log_theme"]`에 영속. **읽기용 HTML·Excel 내보내기는 라이트 고정**(공유 산출물).
 - SVG 인라인(`viewBox="0 0 24 24" fill="none" stroke="currentColor"`), 들여쓰기 2 spaces, 큰따옴표, 한국어 우선.
 - **noindex 필수**: `<head>`에 `<meta name="robots" content="noindex, nofollow">` 유지(상위 프로젝트 비공개 규칙).
 
@@ -55,7 +56,8 @@ localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }
 - **areas** — 영역(섹션). `{id, name, color, desc}`. 기본 6개: 가상화 인프라 / 계정·인사연동 / 인증·정보보호 / 사용자 포탈 / 이행·변화관리 / 운영·조직. **머리글 클릭 시 아코디언 접기/펼치기**(`collapsedAreas` Set, 세션 한정·비영속).
 - **rows** — 안건. `{id, area, item, pri, date, asis, tobe, result, action, owner, status, done, att, parentId?}`.
   - `id` — 행 고유키(`genId`/`ensureRowIds`). 후속안건 연결·삭제의 안정적 기준.
-  - `parentId` — **후속안건(하위레벨 안건)**이면 부모 행 `id`를 가리킴(1단계 깊이). 부모 바로 아래 들여쓰기(번호 `1-1-1`·`↳`)·연한 톤으로 표시. 안건명만 필수, 나머지 빈 값 허용. 부모 삭제 시 자식 동반 삭제.
+  - `parentId` — **후속안건(하위레벨 안건)**이면 부모 행 `id`를 가리킴(1단계 깊이). 부모 바로 아래 들여쓰기(번호 `1-1-1`·`↳`)·연한 톤으로 표시. 부모 삭제 시 자식 동반 삭제. **후속안건은 안건·AS-IS·TO-BE 칸을 비활성(흐리게, `td.sub-dim`)** 처리하고 **결정·검토 결과 칸부터 입력**(부모의 현행/대안을 다시 안 적음). ＋추가 시 포커스도 결과 칸으로.
+  - `att`(참석자) — 쉼표/줄바꿈 구분 이름 문자열로 저장. 화면 셀은 **`👤 N명` 배지**(`parseAtt`로 인원 산출), 클릭 시 **명단 팝오버**(`openAttPop`)에서 편집(관리자) 또는 열람. Excel·읽기용 HTML 내보내기는 전체 이름 텍스트로 출력.
 - **meta** — 히어로(eyebrow/title/sub 등). 관리자 모드에서 인라인 편집. 내부 플래그 `_colWidthVer`(컬럼 폭 마이그레이션 버전) 포함.
 - 상태 5종 `STATUSES` = 확정·논의중·확인필요·조치진행·검토완료(검토완료는 회색 처리). 상태·중요도 콤보는 간소 톤(연한 칩+컬러 텍스트, 셀 중앙 정렬 통일).
 - 중요도 3종 `PRIORITIES` = 상·중·하.
@@ -67,7 +69,7 @@ localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }
 
 - 읽기 전용이 기본. `관리자 로그인`(비밀번호) 후에만 편집·행추가·삭제·영역/컬럼 관리·제목 편집 가능.
 - 인증: `sha256(pw) === ADMIN.hash` 비교, 세션은 `sessionStorage["vdi_admin_session"]="admin"`.
-- 현재 비번 해시는 `SHA-256("kb1234!")`. **암호학적 보안 아님** — 해시가 파일에 노출되고 콘솔로 우회 가능. 일반 사용자의 우발적 수정을 막는 잠금장치 수준(실제 접근통제는 서버 인증 필요). 비번 변경 시 새 해시를 `ADMIN.hash`에 반영.
+- 현재 비번은 **`1`**(`ADMIN.hash = SHA-256("1")`). **암호학적 보안 아님** — 해시가 파일에 노출되고 콘솔로 우회 가능. 일반 사용자의 우발적 수정을 막는 잠금장치 수준(실제 접근통제는 서버 인증 필요). 비번 변경 시 새 해시를 `ADMIN.hash`에 반영.
 
 ---
 
@@ -84,6 +86,8 @@ localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }
 | 정렬 | 영역 내 **논의일자 오름차순**(중간 일정은 자동 중간 배치). 후속안건은 부모에 종속(`orderedAreaRows`) |
 | 후속안건(하위 안건) | 부모 행 액션열 `＋`(`.sub-add`)로 추가 → `parentId` 연결·들여쓰기 표시. 안건명만 필수 |
 | 영역 아코디언 | 영역 머리글 클릭으로 접기/펼치기(`collapsedAreas`, 세션 한정) |
+| 참석자 배지 | 셀은 `👤 N명` 배지, 클릭 시 명단 팝오버 편집/열람(`openAttPop`) |
+| 라이트/다크 테마 | 툴바 토글, `localStorage["vdi_log_theme"]` 영속. 다크는 `html[data-theme="dark"]` 단일 블록 |
 | 도구 드롭다운 | 툴바 `도구 ▾`(`openToolsMenu`) — 보조 동작(Excel·읽기용·인쇄·백업/이력·가져오기·영역관리) 통합. 관리자 항목은 `isAdmin()`일 때만 노출 |
 | 백업 (파일) | `exportBackup` → `vdi_백업_YYYYMMDD_HHMM.json`(columns·areas·rows·meta) / `importBackup`(검증+덮어쓰기 확인, **관리자 전용**) |
 | 변경 이력 (버전 형상관리) | `saveData`가 저장 직전 상태를 `localStorage[STORE_KEY+"__history"]`에 자동 보관(최근 `HIST_MAX=30`, `HIST_MIN_GAP=20s` 내 연속편집은 합침). `변경 이력` 모달에서 시점 선택→`restoreHistory`로 복원(복원 직전 현재 상태도 자동 보관). **관리자 전용** |
