@@ -93,6 +93,15 @@ python3 -m http.server 8080   # → http://localhost:8080/login.html
 
 > 로고는 `kb-logo.png`(헤더·로그인·산출물 공통). 폰트 `--font-body`(KBFG Text 우선), 라운드 `--r-sm/md/lg/xl`, 그림자 `--shadow-sm/md/lg/yellow`.
 
+### 서체 — KB금융 본문체(KBFG Text) 설치 안내
+
+본 프로토타입은 KB금융 본문체(KBFG Text)를 기준 서체로 사용하지만, **폰트 파일은 전달본에 포함되어 있지 않습니다** (그룹 서체 라이선스 고려).
+
+- `common.css`의 `@font-face`가 `local()` 소스만 참조하므로 **열람 PC에 서체가 설치되어 있어야 KB 서체로 표시**됩니다.
+- 미설치 PC에서는 폴백 체인(`Apple SD Gothic Neo` → `맑은 고딕`)으로 자동 대체됩니다 — 웹폰트 요청이 없어 404나 깨짐 없이 시스템 고딕으로 표시되며, 레이아웃은 동일하게 유지됩니다.
+- **설치 방법**: KB금융그룹 서체 배포처(사내 인트라넷 또는 그룹 브랜드 사이트)에서 KBFG Text **Light · Medium · Bold** 3종을 내려받아 설치(Windows: 폰트 파일 우클릭 → "설치") 후 브라우저를 재시작하면 즉시 적용됩니다.
+- **서버 호스팅 옵션(수행사)**: 라이선스 확인 후 `fonts/KBFGTextL·M·B.woff2`를 두고 `common.css` `@font-face`의 주석 처리된 `url()` 소스를 해제하면 미설치 PC에서도 KB 서체로 표시할 수 있습니다. (폐쇄망 기준 self-host — 외부 CDN 사용 금지)
+
 ### 레이아웃
 
 - **전역 줌** `html { zoom: 1 }` (로그인만 `0.97`)
