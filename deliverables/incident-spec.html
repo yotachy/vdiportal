@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 장애신고 내역 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+  <div class="doc-title" id="spec-incident">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">장애신고 내역</h1>
+    <div class="doc-sub">사용자가 신고한 장애의 처리 상태를 목록으로 확인하고, 항목 클릭 시 상세(처리 경과 포함)를 모달로 조회</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-007</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-007</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">incident.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>장애신고 내역</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-007</dd>
+        <dt>경로(URL)</dt><dd>/incident.html</dd>
+        <dt>화면 유형</dt><dd>공통 레이아웃 (상단 헤더 + 좌측 사이드바 + 본문) · 목록형 + 상세 모달</dd>
+        <dt>화면 목적</dt><dd>본인이 등록한 장애신고의 처리 상태(접수/처리 중 · 처리 완료) 확인, 상세 내용·처리 경과 조회, 신규 신고 진입</dd>
+        <dt>진입 경로</dt><dd>사이드바 [장애신고 내역] · 메인 포탈 VDI 카드의 [장애 신고]→등록 화면 경유 · 장애신고 등록 완료 후 복귀</dd>
+        <dt>사이드바 메뉴</dt><dd>장애신고 내역 (active) — 지원 · 서비스</dd>
+        <dt>열람 범위</dt><dd>일반 사용자: <strong>본인이 등록한 신고만</strong> 표시 / 관리자 권한 ON: <strong>전체 사용자 신고 내역</strong> 표시</dd>
+        <dt>전제 조건</dt><dd>인증 완료 상태 (미인증 시 로그인 화면으로 이동)</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">incident.html</span>
+      </div>
+      <iframe src="../incident.html" title="장애신고 내역 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../incident.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
+          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 관리자 권한 토글 · 사용자 정보(이름·부서·사번) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
+          <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 헬프데스크(1544-8119 · 평일 09:00~18:00). 현재 화면은 [장애신고 내역] active</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">페이지 헤더 + 신규 신고 버튼</div>
+          <div class="area-desc">breadcrumb(홈 › 지원 · 서비스 › 장애신고 내역) · 화면 제목/설명 · 우측 [신규 신고] 버튼(장애신고 등록으로 이동)</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">요약 스탯 바 (관리자 권한 전용)</div>
+          <div class="area-desc">전체 신고 · 접수/처리 중 · 처리 완료 3칩. 관리자 권한 ON일 때만 노출, 칩 클릭 시 해당 상태로 필터</div></div></div>
+        <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">필터 바</div>
+          <div class="area-desc">검색(접수번호 · 유형 · 제목) + 상태 세그먼트(전체/접수 · 처리중/처리완료) + 기간 드롭다운(전체 기간/최근 1주일/1개월/3개월)</div></div></div>
+        <div class="area-item"><span class="area-badge">F</span><div><div class="area-name">신고 내역 테이블 + 페이저 + 열람 범위 안내</div>
+          <div class="area-desc">접수번호·신고일·유형·제목·(신고자)·긴급도·상태 컬럼. 행 클릭 시 상세 모달. 하단 페이지네이션(10건 단위) + 열람 범위 안내 문구</div></div></div>
+        <div class="area-item"><span class="area-badge">G</span><div><div class="area-name">상세 모달</div>
+          <div class="area-desc">제목·접수번호·상태 + 유형/신고자/대상 VDI/신고일시/긴급도 + 상세 내용 + 처리 경과(세로 타임라인)</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 페이지 헤더 · 필터 바 (영역 C · E)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>신규 신고</strong></td><td><span class="tag tag-btn">버튼</span></td><td>장애신고 등록(incident-new.html)으로 이동. 페이지 헤더 우측, primary 버튼(+ 아이콘)</td></tr>
+        <tr><td>2</td><td><strong>검색 입력</strong> <code>#searchInput</code></td><td><span class="tag tag-view">입력</span></td><td>placeholder "접수번호 · 유형 · 제목으로 검색". 입력 즉시(input) 접수번호 + 유형 + 제목 + 신고자에 대해 대소문자 무시 부분 일치 필터</td></tr>
+        <tr><td>3</td><td><strong>상태 세그먼트</strong> <code>#filterSeg</code></td><td><span class="tag tag-view">필터</span></td><td>전체(<code>all</code>) / 접수 · 처리중(<code>active</code>) / 처리완료(<code>done</code>) 3버튼. 선택 버튼에 <code>.on</code>. 기본값 전체</td></tr>
+        <tr><td>4</td><td><strong>기간 드롭다운</strong> <code>#dateDrop</code></td><td><span class="tag tag-view">필터</span></td><td>달력 아이콘 버튼 + 팝오버. 빠른선택 4종: 전체 기간 / 최근 1주일 / 최근 1개월 / 최근 3개월. <strong>기본값 최근 1개월</strong>. 기준일은 목록 최신 신고일(<code>maxDateOf</code>) 기준으로 시작일 계산</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.2 · 신고 내역 테이블 (영역 F)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>컬럼명</th><th style="width:78px">너비</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>5</td><td><strong>접수번호</strong></td><td>160px</td><td><code>INC-YYYY-MMDD-NNN</code> 체계 (예: INC-2026-0530-024). 줄바꿈 없음, tabular-nums</td></tr>
+        <tr><td>6</td><td>신고일</td><td>120px</td><td>신고일시의 월 이하만 표시 (예: 05.30 09:32 — <code>date.slice(5)</code>)</td></tr>
+        <tr><td>7</td><td>유형</td><td>150px</td><td>장애 유형 텍스트 태그(<code>.itag</code>). 접속 불가 / 속도 저하 · 지연 / 네트워크 · 인터넷 문제 / 프로그램 · 애플리케이션 오류 / 프린터 · 주변기기 연결 / 화면 · 그래픽 오류 / 기타. 좁은 화면(≤720px)에서 숨김(<code>.hide-sm</code>)</td></tr>
+        <tr><td>8</td><td><strong>제목</strong></td><td>유연</td><td>신고 제목. 유일한 좌측 정렬 컬럼(나머지는 가운데 정렬)</td></tr>
+        <tr><td>9</td><td>신고자</td><td>110px</td><td><strong>관리자 권한 ON일 때만 표시</strong>(<code>body:not(.admin-mode) .col-reporter{display:none}</code>). 일반 사용자는 본인 신고만 보므로 중복이라 숨김</td></tr>
+        <tr><td>10</td><td>긴급도</td><td>90px</td><td>긴급(채워진 danger 핀) / 보통(차분한 텍스트형) — 6 상태·분류 정의 참조</td></tr>
+        <tr><td>11</td><td>상태</td><td>110px</td><td>접수/처리 중(warning pill) / 처리 완료(텍스트형) — 6 상태·분류 정의 참조</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.3 · 페이저 · 열람 범위 안내</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>12</td><td><strong>페이지네이션</strong> <code>#incPager</code></td><td><span class="tag tag-view">페이저</span></td><td>공통 <code>renderPager()</code>. 10건 단위(<code>PAGE_SIZE=10</code>), 이전/다음 + 페이지 번호 버튼. 1페이지 이하면 표시하지 않음</td></tr>
+        <tr><td>13</td><td>열람 범위 안내 <code>#scopeNote</code></td><td><span class="tag tag-view">표시</span></td><td>표 하단 가운데 안내. 일반: "본인이 등록한 신고만 표시됩니다." / 관리자: "관리자 권한 · 전체 사용자 신고 내역"</td></tr>
+        <tr><td>14</td><td>빈 상태</td><td><span class="tag tag-view">표시</span></td><td>필터 결과 0건 시 테이블 영역에 "조건에 맞는 신고 내역이 없습니다." 빈 상태(<code>.empty-state</code>) 표시, 페이저 숨김</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.4 · 요약 스탯 바 (영역 D · 관리자 권한 전용)</div>
+    <p class="sec-lead"><code>.stat-strip</code>은 공통 스타일에서 기본 숨김이며 <strong><code>body.admin-mode</code>일 때만 노출</strong>됩니다(3열 grid). 각 칩의 건수는 현재 열람 범위(<code>roleRows()</code>) 기준으로 산출합니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>15</td><td><strong>전체 신고</strong> <code>#cAll</code></td><td><span class="tag tag-btn">칩</span></td><td>열람 범위 내 전체 건수. 클릭 시 상태 필터 "전체"로 전환</td></tr>
+        <tr><td>16</td><td><strong>접수/처리 중</strong> <code>#cActive</code></td><td><span class="tag tag-btn">칩</span></td><td>접수(<code>received</code>)·처리 중(<code>progress</code>) 합산 건수. 클릭 시 "접수 · 처리중" 필터</td></tr>
+        <tr><td>17</td><td><strong>처리 완료</strong> <code>#cDone</code></td><td><span class="tag tag-btn">칩</span></td><td>처리 완료(<code>done</code>) 건수. 클릭 시 "처리완료" 필터. 선택된 칩은 <code>.on</code>(옐로우 soft 하이라이트)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.5 · 상세 모달 (영역 G — <code>#detailModal</code>)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>18</td><td><strong>모달 헤더</strong></td><td><span class="tag tag-view">표시</span></td><td>신고 제목 + 접수번호(meta) + 상태 pill. 우상단 닫기(X) 버튼</td></tr>
+        <tr><td>19</td><td>기본 정보 행</td><td><span class="tag tag-view">표시</span></td><td>유형 · 신고자 · 대상 VDI(예: jschoi0223-main) · 신고일시 · 긴급도 (key 100px + value 행 구성)</td></tr>
+        <tr><td>20</td><td>상세 내용</td><td><span class="tag tag-view">표시</span></td><td>신고 본문 텍스트 박스(<code>.modal-detail-text</code>)</td></tr>
+        <tr><td>21</td><td><strong>처리 경과</strong> <code>.proc-line</code></td><td><span class="tag tag-view">표시</span></td><td>접수 완료 → 처리 중 → 처리 완료 세로 타임라인. 노드별 단계명·일시·담당 코멘트. 완료 노드 녹색(<code>.proc-dot.done</code>) · 현재 노드 KB옐로우(<code>.proc-dot.active</code>)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>상태 필터</td><td>세그먼트 버튼 클릭 (전체 / 접수 · 처리중 / 처리완료)</td><td><code>setFilter()</code> — 선택 버튼·스탯 칩에 <code>.on</code> 동기화, 1페이지로 초기화 후 목록 재렌더</td></tr>
+        <tr><td>E-02</td><td>스탯 칩 필터</td><td>요약 스탯 칩 클릭 (관리자 권한 ON 시)</td><td>해당 상태(<code>all</code>/<code>active</code>/<code>done</code>)로 E-01과 동일하게 필터 전환</td></tr>
+        <tr><td>E-03</td><td>검색</td><td>검색 입력값 변경(input 즉시)</td><td>접수번호 + 유형 + 제목 + 신고자 문자열에 부분 일치(대소문자 무시) 필터, 1페이지로 초기화 후 재렌더</td></tr>
+        <tr><td>E-04</td><td>기간 필터</td><td>기간 드롭다운 열기 → 빠른선택 클릭</td><td><code>setQuickRange()</code> — 전체 기간은 from/to 해제, 그 외는 목록 최신 신고일 기준 1주/1개월/3개월 시작일 계산. 버튼 라벨을 프리셋명으로 갱신, 팝오버 닫힘, 1페이지로 초기화 후 재렌더. 신고일이 범위 내인 행만 표시(<code>dateInRange</code>)</td></tr>
+        <tr><td>E-05</td><td>페이지 이동</td><td>페이저 번호/이전/다음 클릭</td><td>해당 페이지 렌더 후 화면 상단으로 부드럽게 스크롤(<code>window.scrollTo</code> smooth)</td></tr>
+        <tr><td>E-06</td><td><strong>행 클릭 — 상세 조회</strong></td><td>테이블 행 클릭</td><td><strong>페이지 이동 없이 상세 모달 오픈</strong>(<code>openModal(접수번호)</code>) — 제목·상태·기본 정보·상세 내용·처리 경과 타임라인 표시</td></tr>
+        <tr><td>E-07</td><td>모달 닫기</td><td>닫기(X) 버튼 · 모달 바깥(오버레이) 클릭 · ESC 키</td><td><code>closeModal()</code> — 모달 <code>.open</code> 제거</td></tr>
+        <tr><td>E-08</td><td>신규 신고 이동</td><td>[신규 신고] 버튼 클릭</td><td>장애신고 등록(incident-new.html)으로 이동(<code>&lt;a href&gt;</code>)</td></tr>
+        <tr><td>E-09</td><td><strong>관리자 권한 전환</strong></td><td>헤더 [관리자 권한] 토글 (공통 <code>toggleAdminMode()</code>)</td><td><code>body.admin-mode</code> 토글 → 페이지 훅 <code>window.onAdminModeChange()</code> 호출: 1페이지로 초기화, 스탯 갱신, 재렌더. 효과 — ① 열람 범위가 본인 신고 6건 → <strong>전체 사용자 12건</strong>으로 확장 ② 요약 스탯 바 노출 ③ 신고자 컬럼 표시 ④ 안내 문구 "관리자 권한 · 전체 사용자 신고 내역"으로 변경. 권한 상태는 세션에 유지되어 페이지 이동 후에도 복원</td></tr>
+        <tr><td>E-10</td><td>빈 결과</td><td>필터·검색·기간 조합 결과 0건</td><td>"조건에 맞는 신고 내역이 없습니다." 빈 상태 표시, 페이저 미표시</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (장애신고 레코드)</span></div>
+    <p class="sec-lead">시안은 페이지 내 mock 배열 <code>ROWS</code>(12건)로 동작합니다. 접수번호는 장애신고 등록 화면(incident-new.html)의 접수번호 체계와 정합을 유지합니다. 신고자는 접수번호별 매핑(<code>REPORTER</code>)으로 관리하며, 본인(최정식 책임) 신고는 6건입니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:110px">필드</th><th>설명</th><th>예시</th></tr></thead>
+      <tbody>
+        <tr><td><code>no</code></td><td>접수번호 — <code>INC-YYYY-MMDD-NNN</code></td><td>INC-2026-0530-024</td></tr>
+        <tr><td><code>date</code></td><td>신고일시 — <code>YYYY.MM.DD HH:MM</code></td><td>2026.05.30 09:32</td></tr>
+        <tr><td><code>type</code></td><td>장애 유형 (7종 — 3.2 항목 7 참조)</td><td>접속 불가</td></tr>
+        <tr><td><code>vdi</code></td><td>대상 가상PC (고정가상화)</td><td>jschoi0223-main / jschoi0223-nomain</td></tr>
+        <tr><td><code>urg</code></td><td>긴급도 — <code>high</code>(긴급) / <code>low</code>(보통) 2단계</td><td>high</td></tr>
+        <tr><td><code>status</code></td><td>처리 상태 — <code>received</code>(접수) / <code>progress</code>(처리 중) / <code>done</code>(처리 완료)</td><td>received</td></tr>
+        <tr><td><code>title</code> / <code>detail</code></td><td>신고 제목 / 상세 내용</td><td>오전부터 가상PC 접속이 되지 않습니다</td></tr>
+        <tr><td><code>proc[]</code></td><td>처리 경과 노드 — 단계명(<code>label</code>) · 일시(<code>time</code>) · 코멘트(<code>comment</code>) · 노드 상태(<code>s</code>: done/active)</td><td>접수 완료 → 처리 중 → 처리 완료</td></tr>
+        <tr><td>신고자</td><td>접수번호별 매핑(<code>REPORTER</code>). 미지정 시 본인</td><td>최정식 책임 / 김서연 책임 / 박준호 선임 등</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">예시 레코드 (mock 12건 중 발췌)</div>
+    <table class="tbl">
+      <thead><tr><th>접수번호</th><th style="width:110px">신고일</th><th>유형</th><th>제목</th><th style="width:90px">신고자</th><th style="width:64px">긴급도</th><th style="width:90px">상태</th></tr></thead>
+      <tbody>
+        <tr><td>INC-2026-0530-024</td><td>2026.05.30 09:32</td><td>접속 불가</td><td>오전부터 가상PC 접속이 되지 않습니다</td><td>최정식 책임</td><td>긴급</td><td>접수/처리 중</td></tr>
+        <tr><td>INC-2026-0524-019</td><td>2026.05.24 14:10</td><td>속도 저하 · 지연</td><td>오후 시간대 화면 전환이 매우 느립니다</td><td>최정식 책임</td><td>보통</td><td>접수/처리 중</td></tr>
+        <tr><td>INC-2026-0518-015</td><td>2026.05.18 10:25</td><td>프린터 · 주변기기 연결</td><td>가상PC에서 사무실 프린터가 인식되지 않습니다</td><td>김서연 책임</td><td>보통</td><td>처리 완료</td></tr>
+        <tr><td>INC-2026-0415-003</td><td>2026.04.15 09:15</td><td>네트워크 · 인터넷 문제</td><td>내부 시스템(그룹웨어) 접속이 간헐적으로 끊깁니다</td><td>홍길동 대리</td><td>긴급</td><td>처리 완료</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">상태 · 분류 정의</span></div>
+
+    <div class="sub-h">6.1 · 처리 상태 (목록 표시 2종 — 내부 키 3종을 그룹핑)</div>
+    <p class="sec-lead">내부 상태 <code>received</code>(접수)·<code>progress</code>(처리 중)는 목록에서 <strong>"접수/처리 중" 하나의 상태로 묶어</strong> 표시합니다(<code>grp()</code>). 세부 단계는 상세 모달의 처리 경과 타임라인에서 확인합니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:110px">표시 상태</th><th style="width:140px">내부 status 키</th><th style="width:130px">CSS 클래스</th><th style="width:130px">점(sdot)</th><th>색상 토큰 · 표현</th></tr></thead>
+      <tbody>
+        <tr><td><strong>접수/처리 중</strong></td><td><code>received</code> · <code>progress</code></td><td><code>.spill-active</code></td><td><code>.sdot-warning</code></td><td>warning soft 배경 pill (<code>var(--warning-soft)</code>) — 진행 상태만 pill로 강조</td></tr>
+        <tr><td><strong>처리 완료</strong></td><td><code>done</code></td><td><code>.spill-done</code></td><td><code>.sdot-success</code></td><td>배경 없는 텍스트형(tertiary 텍스트) + 녹색 점 — 완료는 차분하게 표현</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">6.2 · 긴급도 (2단계)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:110px">긴급도</th><th style="width:100px">urg 키</th><th style="width:130px">CSS 클래스</th><th>색상 토큰 · 표현</th></tr></thead>
+      <tbody>
+        <tr><td><strong>긴급</strong></td><td><code>high</code></td><td><code>.urg-high</code></td><td>danger 채워진 핀 pill (<code>var(--danger)</code> / <code>var(--danger-soft)</code>) — 목록에서 즉시 식별</td></tr>
+        <tr><td><strong>보통</strong></td><td><code>low</code></td><td><code>.urg-low</code></td><td>tertiary 텍스트 + muted 점 — 차분한 텍스트형</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">6.3 · 처리 경과 노드 (상세 모달)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:110px">노드 상태</th><th style="width:130px">CSS 클래스</th><th>색상 토큰 · 의미</th></tr></thead>
+      <tbody>
+        <tr><td>완료 단계</td><td><code>.proc-dot.done</code></td><td>녹색 <code>var(--success)</code> — 지난 단계</td></tr>
+        <tr><td>현재 단계</td><td><code>.proc-dot.active</code></td><td>KB옐로우 <code>var(--kb-yellow)</code> — 진행 중인 단계</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">7.1 · 화면 고유 (incident.html 내부)</div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>고유 스타일</strong> — 요약 스탯 3열 오버라이드(<code>.stat-strip</code>) · 유형 태그(<code>.itag</code>) · 긴급도(<code>.urg-high</code>/<code>.urg-low</code>) · 상태 pill(<code>.spill-active</code>/<code>.spill-done</code>) · 열람 범위 안내(<code>.scope-note</code>) · 신고자 컬럼 숨김 규칙(<code>body:not(.admin-mode) .col-reporter</code>) · 모달 보조(상세 텍스트 박스 · 처리 경과 타임라인 <code>.proc-*</code>)</li>
+        <li><strong>고유 스크립트</strong> — mock 데이터 <code>ROWS</code>(12건) · 신고자 매핑 <code>REPORTER</code>/<code>repOf()</code> · 열람 범위 <code>roleRows()</code>(본인/전체) · 상태 그룹핑 <code>grp()</code> · 매핑 상수 <code>URG</code>/<code>PILL</code> · 목록 렌더 <code>render()</code> · 스탯 집계 <code>updateStats()</code> · 모달 <code>openModal()</code>/<code>closeModal()</code> · 필터 <code>setFilter()</code>/<code>setQuickRange()</code> · 관리자 전환 훅 <code>window.onAdminModeChange</code></li>
+      </ul>
+    </div>
+
+    <div class="sub-h">7.2 · 공통 의존 (common.css · common.js)</div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>common.css</strong> — 레이아웃(헤더·사이드바·본문) · 필터 바(<code>.filter-bar</code>/<code>.filter-seg</code>/<code>.search-hero</code>) · 기간 드롭다운(<code>.date-drop</code>) · 요약 스탯(<code>.stat-strip</code>/<code>.stat-chip</code> — <code>body.admin-mode</code>에서만 노출) · 데이터 테이블(<code>.data-table</code>) · 빈 상태(<code>.empty-state</code>) · 모달(<code>.modal</code>/<code>.modal-box</code>) · 페이저 · 디자인 토큰</li>
+        <li><strong>common.js</strong> — 헤더/사이드바 주입(<code>data-header</code>/<code>data-sidebar="incident"</code>) · 관리자 권한 토글(<code>toggleAdminMode()</code> → <code>body.admin-mode</code>, 세션 유지·복원) · 기간 필터 보조(<code>dateInRange()</code>/<code>maxDateOf()</code>/<code>quickRangeFrom()</code>/<code>toggleDatePop()</code>/<code>DATE_LABELS</code>) · 페이지네이션(<code>renderPager()</code>, <code>PAGE_SIZE=10</code>) · 사용자/헬프데스크 설정(<code>PORTAL_USER</code>/<code>SERVICE_DESK</code>)</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>장애신고 등록</strong> (incident-new.html) — [신규 신고] 버튼으로 이동. 등록 화면의 접수번호 체계(INC-)와 본 목록 정합 유지</li>
+        <li><strong>메인 포탈</strong> (portal.html) — VDI 워크스페이스 카드의 [장애 신고] 버튼이 장애신고 등록으로 연결되는 진입 동선. breadcrumb [홈]으로 복귀</li>
+        <li><strong>로그인</strong> (login.html) — 세션 만료/로그아웃 시</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">9</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(incident.html)은 UI 시안(프로토타입)</strong>입니다. 목록·상세·처리 경과는 화면 내 mock 데이터로 동작하며, 구현 시 <strong>장애 접수/이력 조회 API(ITSM 연동)</strong>로 대체합니다. 처리 경과의 단계·담당 코멘트는 ITSM 처리 이력과 매핑하고, 열람 범위(본인/전체)는 실제 <strong>사용자 권한 체계</strong>(일반/관리자)로 제어해야 합니다. 시안의 헤더 [관리자 권한] 토글은 권한별 화면 차이를 확인하기 위한 시연용 장치입니다. 긴급 장애는 화면 신고와 별개로 헬프데스크 <strong>1544-8119</strong>(평일 09:00~18:00) 직통 접수를 병행합니다.<br>
+        헤더·사이드바·모달·페이저는 <strong>전 화면 공통 영역</strong>으로, 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
+      </div>
+    </div>
+  </section>
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-007 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>

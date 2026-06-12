@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 자료실 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+
+  <div class="doc-title" id="spec-qna">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">자료실</h1>
+    <div class="doc-sub">VDI 이용에 필요한 설치 파일과 사용자 매뉴얼을 내려받는 다운로드 화면. 관리자 모드에서 자료 추가·수정 제공</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-013</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-013</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">qna.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>자료실</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-013</dd>
+        <dt>경로(URL)</dt><dd>/qna.html</dd>
+        <dt>화면 유형</dt><dd>공통 레이아웃 (상단 헤더 + 좌측 사이드바 + 본문) · 링크 제공형 다운로드 화면</dd>
+        <dt>화면 목적</dt><dd>설치 프로그램·사용자 매뉴얼 등 VDI 이용에 필요한 파일 다운로드 제공. 관리자 모드 시 자료 추가·수정(게시 관리)</dd>
+        <dt>진입 경로</dt><dd>사이드바 [자료실] · 메인 포탈(portal.html) KPI 카드 [사용자 매뉴얼] 클릭</dd>
+        <dt>사이드바 메뉴</dt><dd>자료실 (active) — 지원 · 서비스</dd>
+        <dt>접근 권한</dt><dd>인증 사용자 (다운로드) / 관리자 모드 ON 시 자료 추가·수정 버튼 노출</dd>
+        <dt>전제 조건</dt><dd>인증 완료 상태 (미인증 시 로그인 화면으로 이동)</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">qna.html</span>
+      </div>
+      <iframe src="../qna.html" title="자료실 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../qna.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
+          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 관리자 권한 토글 · 사용자 정보(이름·부서·사번) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
+          <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 Service Desk(1544-8119). 현재 화면은 [자료실] active</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">페이지 헤더</div>
+          <div class="area-desc">breadcrumb(홈 › 지원 · 서비스 › 자료실) + 화면 제목·설명. 우측에 [자료 추가] 버튼(관리자 모드 ON 시에만 노출)</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">자료 섹션 (2단 그리드)</div>
+          <div class="area-desc">[설치 프로그램] · [사용자 매뉴얼] 섹션 2개를 카드(.fc) 컨테이너로 배치(넓은 폭 2단, 좁아지면 1단). 섹션 헤더(아이콘+제목) 아래 다운로드 행(.dl-row) 리스트, 총 5건</div></div></div>
+        <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">자료 추가/수정 모달 (관리자 전용)</div>
+          <div class="area-desc">분류·제목·파일 유형 선택 + 파일 업로드. [자료 추가]·행별 [수정] 클릭 시 표시 (#dlModal)</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 자료 섹션 구성 (영역 D)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>설치 프로그램</strong> 섹션 <code>id: install</code></td><td><span class="tag tag-view">섹션</span></td><td>섹션 헤더(다운로드 아이콘 + 제목) + 자료 행 리스트. 시안 기준 2건. 자료가 없으면 "등록된 자료가 없습니다." 안내 표시</td></tr>
+        <tr><td>2</td><td><strong>사용자 매뉴얼</strong> 섹션 <code>id: manual</code></td><td><span class="tag tag-view">섹션</span></td><td>섹션 헤더(책 아이콘 + 제목) + 자료 행 리스트. 시안 기준 3건. 빈 섹션 안내 동일</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.2 · 자료 행 구성 (.dl-row — 행 1건당)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>3</td><td><strong>파일 유형 배지</strong> <code>.dl-badge</code></td><td><span class="tag tag-view">표시</span></td><td>유형별 색상 배지 + 라벨. PDF(빨강) / EXE·ZIP·FILE(그레이) / HWP(파랑) / XLS(녹색) / DOC(남색) / PPT(주황)</td></tr>
+        <tr><td>4</td><td>제목 <code>.dl-name</code></td><td><span class="tag tag-view">표시</span></td><td>자료 제목 (1줄 말줄임). 행 title 속성에 실제 파일명 표시</td></tr>
+        <tr><td>5</td><td>용량 · 등록일 <code>.dl-meta</code></td><td><span class="tag tag-view">표시</span></td><td>파일 용량(MB) · 등록일(YYYY.MM.DD)을 가운데 점(·) 구분으로 표시. 모바일 폭(640px 이하)에서는 숨김</td></tr>
+        <tr><td>6</td><td><strong>다운로드</strong> <code>.dl-act</code></td><td><span class="tag tag-btn">버튼</span></td><td>행 우측 다운로드 라벨. 행 전체가 클릭 영역이며 호버 시 KB옐로우로 강조</td></tr>
+        <tr><td>7</td><td>수정 <code>.dl-edit</code></td><td><span class="tag tag-btn">버튼</span></td><td><strong>관리자 모드 ON 시에만</strong> 행 끝에 노출(연필 아이콘). 클릭 시 해당 자료의 수정 모달 열기(행의 다운로드 클릭과 분리)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.3 · 관리자 요소 (자료 추가 버튼 · #dlModal 모달)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th style="width:64px">필수</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>8</td><td><strong>자료 추가</strong></td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>페이지 헤더 우측, 관리자 모드 ON 시에만 노출(.admin-only). 클릭 시 빈 입력 상태의 모달 열기(제목 "자료 추가")</td></tr>
+        <tr><td>9</td><td>분류 <code>#fSec</code></td><td><span class="tag tag-view">셀렉트</span></td><td>필수</td><td>설치 프로그램 / 사용자 매뉴얼. 추가 시 기본값 [설치 프로그램]. 수정 시 분류 변경하면 해당 섹션으로 자료 이동</td></tr>
+        <tr><td>10</td><td>제목 <code>#fName</code></td><td><span class="tag tag-view">인풋</span></td><td>필수</td><td>placeholder "자료 제목을 입력하세요". 모달 열림 시 자동 포커스</td></tr>
+        <tr><td>11</td><td>파일 유형 <code>#fType</code></td><td><span class="tag tag-view">셀렉트</span></td><td>필수</td><td>PDF 문서 / 실행 파일 (EXE) / 압축 파일 (ZIP) / 한글 문서 (HWP) / 워드 문서 (DOC) / 엑셀 문서 (XLSX) / 파워포인트 (PPT) / 기타 파일. 파일 선택 시 확장자로 자동 추정되며 수동 변경 가능</td></tr>
+        <tr><td>12</td><td><strong>파일 업로드</strong> <code>#fUpload</code></td><td><span class="tag tag-btn">버튼</span></td><td>필수</td><td>[파일 선택] 버튼 + 파일 정보 표시(기본 "선택된 파일 없음" → 선택 시 파일명·용량). 도움말 "용량과 등록일은 업로드 시 자동으로 처리됩니다." 수정 시 기존 파일 정보 유지(재업로드 시 교체)</td></tr>
+        <tr><td>13</td><td>저장 / 취소</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>[저장] 검증 후 자료 추가·수정 반영, [취소] 모달 닫기. 삭제 버튼은 제공하지 않음(8 비고 참조)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>파일 다운로드</td><td>자료 행(.dl-row) 클릭</td><td>해당 파일 다운로드 실행 <em>(시안: "파일을 다운로드합니다: {파일명}" 토스트)</em></td></tr>
+        <tr><td>E-02</td><td>자료 추가 모달</td><td>[자료 추가] 클릭 (관리자)</td><td>모달 제목 "자료 추가" · 분류 [설치 프로그램]·유형 [PDF 문서] 기본값 · 제목 빈값 · 파일 미선택("선택된 파일 없음") 상태로 열고 제목 인풋에 포커스</td></tr>
+        <tr><td>E-03</td><td>자료 수정 모달</td><td>행별 [수정] 클릭 (관리자)</td><td>모달 제목 "자료 수정" · 해당 자료의 분류·제목·유형·기존 파일(파일명+용량) 채워서 열기. 행의 다운로드 클릭으로 전파되지 않음</td></tr>
+        <tr><td>E-04</td><td>파일 선택</td><td>모달 [파일 선택] → 파일 지정</td><td>File API로 <strong>파일명·용량(MB) 자동 반영</strong>(0.1 MB 미만은 0.1 MB), 확장자로 파일 유형 자동 추정(pdf·exe·zip·hwp·doc/docx·xls/xlsx·ppt/pptx → 해당 유형, 그 외 기타 파일). 추정값은 수동 변경 가능</td></tr>
+        <tr><td>E-05</td><td>저장 검증</td><td>[저장] 클릭 시 입력 누락</td><td>제목 미입력 → "제목을 입력해주세요." / 파일 미선택 → "파일을 선택해주세요." 토스트 후 중단</td></tr>
+        <tr><td>E-06</td><td>자료 추가 저장</td><td>추가 모드에서 [저장] (검증 통과)</td><td>선택 분류 섹션에 자료 추가(등록일 = 오늘 날짜 자동) → "자료가 추가되었습니다." 토스트 → 모달 닫고 목록 갱신</td></tr>
+        <tr><td>E-07</td><td>자료 수정 저장</td><td>수정 모드에서 [저장] (검증 통과)</td><td>해당 자료 갱신(등록일은 기존 값 유지). 분류 변경 시 기존 섹션에서 제거 후 변경 섹션으로 이동 → "자료가 수정되었습니다." 토스트 → 모달 닫고 목록 갱신</td></tr>
+        <tr><td>E-08</td><td>모달 닫기</td><td>[취소] · 우상단 X · 모달 배경 클릭</td><td>저장 없이 모달 닫기</td></tr>
+        <tr><td>E-09</td><td>관리자 권한 토글</td><td>헤더 [관리자 권한] 토글 (공통)</td><td><code>window.onAdminModeChange(on)</code> 훅으로 목록 재렌더 → [자료 추가]·행별 [수정] 버튼 노출/숨김 갱신</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (자료 목록)</span></div>
+    <p class="sec-lead">시안의 자료 데이터는 페이지 내 <code>SECTIONS</code> 배열(섹션 2개 · 자료 5건)로 관리합니다. 자료 1건의 필드는 <strong>유형(type) · 제목(name) · 파일명(file) · 용량(size) · 등록일(date)</strong>입니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:110px">분류</th><th style="width:64px">유형</th><th>제목</th><th>파일명</th><th style="width:84px">용량</th><th style="width:96px">등록일</th></tr></thead>
+      <tbody>
+        <tr><td>설치 프로그램</td><td>EXE</td><td><strong>Citrix Workspace 설치파일</strong></td><td>CitrixWorkspace_설치파일.exe</td><td>78.5 MB</td><td>2026.05.26</td></tr>
+        <tr><td>설치 프로그램</td><td>ZIP</td><td><strong>VDI 접속프로그램 패키지</strong></td><td>VDI_접속프로그램_패키지.zip</td><td>92.3 MB</td><td>2026.05.10</td></tr>
+        <tr><td>사용자 매뉴얼</td><td>PDF</td><td><strong>VDI 사용자 매뉴얼 v2.0</strong></td><td>VDI_사용자매뉴얼_v2.0.pdf</td><td>4.2 MB</td><td>2026.05.20</td></tr>
+        <tr><td>사용자 매뉴얼</td><td>PDF</td><td><strong>VDI 빠른시작 가이드</strong></td><td>VDI_빠른시작_가이드.pdf</td><td>1.1 MB</td><td>2026.05.18</td></tr>
+        <tr><td>사용자 매뉴얼</td><td>PDF</td><td><strong>원격접속 설정 가이드</strong></td><td>원격접속_설정_가이드.pdf</td><td>0.9 MB</td><td>2026.04.30</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">6.1 · 페이지 고유 스크립트 · 스타일 (qna.html 내)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:210px">구성 요소</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><code>SECTIONS</code></td><td>자료 데이터 배열 (섹션 2개 · 자료 5건). 추가/수정 시 이 배열을 갱신 후 재렌더</td></tr>
+        <tr><td><code>TYPE</code> · <code>SEC_ICON</code></td><td>파일 유형별 배지 색·라벨 매핑(PDF/EXE/ZIP/HWP/XLS/DOC/PPT/FILE) · 섹션 헤더 아이콘</td></tr>
+        <tr><td><code>render()</code> · <code>rowHtml()</code></td><td>섹션 카드·자료 행 렌더링. 관리자 모드 여부에 따라 행별 [수정] 버튼 포함 여부 결정. 빈 섹션 안내 처리</td></tr>
+        <tr><td><code>download(file)</code></td><td>다운로드 동작 (시안: 토스트 안내)</td></tr>
+        <tr><td><code>openDlModal(s, i)</code> · <code>closeDlModal()</code></td><td>모달 열기/닫기. 인자 없으면 추가 모드, (섹션, 행) 인덱스 전달 시 수정 모드로 기존 값 채움</td></tr>
+        <tr><td><code>onFilePick()</code> · <code>bytesToMB()</code> · <code>todayStr()</code></td><td>파일 선택 처리 — File API로 파일명·용량 자동 반영, <code>EXT_TYPE</code> 매핑으로 확장자→유형 자동 추정, 등록일(오늘) 생성</td></tr>
+        <tr><td><code>saveDl()</code></td><td>저장 — 제목·파일 검증 → 추가(등록일 오늘)/수정(등록일 유지·분류 변경 시 섹션 이동) 반영 → 토스트 → 재렌더</td></tr>
+        <tr><td><code>window.onAdminModeChange</code></td><td>공통 관리자 토글 훅 구현 — 토글 시 재렌더로 관리자 버튼 노출 갱신</td></tr>
+        <tr><td>고유 스타일 <code>.dl-*</code></td><td>섹션 2단 그리드(#sections) · 섹션 헤더(.dl-head) · 자료 행(.dl-row/.dl-badge/.dl-name/.dl-meta/.dl-act) · 수정 버튼(.dl-edit) · 모달 폼(.dl-form-row) · 업로드 컨트롤(.dl-upload)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">6.2 · 공통 의존 (common.css · common.js)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:210px">구성 요소</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td>헤더 · 사이드바 주입</td><td><code>data-header</code> · <code>data-sidebar="qna"</code> placeholder에 common.js가 공통 레이아웃 렌더, [자료실] 메뉴 active 처리</td></tr>
+        <tr><td>관리자 모드</td><td>헤더 [관리자 권한] 토글 → <code>body.admin-mode</code> 부여(.admin-only 요소 표시), 세션 내 유지·복원. 페이지별 후처리는 <code>onAdminModeChange</code> 훅</td></tr>
+        <tr><td><code>showToast(msg)</code></td><td>다운로드·검증·저장 안내 토스트 (요소 없으면 자동 생성)</td></tr>
+        <tr><td>공통 컴포넌트</td><td>카드(.fc) · 모달(.modal/.modal-box/.modal-close) · 폼(.fi/.fs/.lbl/.req) · 버튼(.btn/.btn-primary/.btn-outline/.btn-admin) · breadcrumb · page-header</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>메인 포탈</strong> (portal.html) — KPI 카드 [사용자 매뉴얼] 클릭 시 본 화면으로 진입</li>
+        <li><strong>사이드바 [자료실]</strong> — 전 화면 공통 사이드바(지원 · 서비스)에서 진입</li>
+        <li><strong>로그인</strong> (login.html) — 세션 만료/로그아웃 시</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(qna.html)은 UI 시안(프로토타입)</strong>입니다. 구현 시 자료 목록 조회·다운로드는 <strong>파일 저장소 및 다운로드 API</strong> 연동으로, 자료 추가·수정은 <strong>파일 업로드 API + 서버 측 관리자 권한 검증</strong>으로 대체합니다(시안의 관리자 토글은 화면 확인용 임시 장치). 업로드 시 용량·등록일 자동 처리, 확장자 기반 유형 추정 동작은 시안과 동일하게 유지합니다.<br>
+        <strong>자료 삭제 기능은 정책상 제공하지 않습니다</strong>(게시 자료의 이력 보존 — 수정·교체만 허용). 헤더·사이드바·토스트는 <strong>전 화면 공통 영역</strong>으로, 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
+      </div>
+    </div>
+  </section>
+
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-013 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>

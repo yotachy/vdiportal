@@ -126,17 +126,18 @@
     <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
   </div>
 
-  <div class="doc-title">
+  <!-- SPEC-BODY START -->
+  <div class="doc-title" id="spec-portal">
     <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
     <h1 class="doc-h1">메인 포탈 (내 가상PC)</h1>
-    <div class="doc-sub">로그인 후 진입하는 기본 화면. 보유 가상PC 접속·관리와 주요 업무 바로가기를 제공</div>
+    <div class="doc-sub">로그인 후 진입하는 기본 화면. 보유 가상PC 3대의 상태 확인·접속·관리와 주요 업무 바로가기를 제공</div>
 
     <div class="meta-grid">
       <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-002</div></div>
       <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-002</div></div>
-      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.1</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.2</div></div>
       <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
-      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.03 (개정 2026.06.04)</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.03 (개정 2026.06.12)</div></div>
       <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
       <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">portal.html</div></div>
       <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자</div></div>
@@ -151,7 +152,7 @@
         <dt>화면 ID</dt><dd>VDI-SCR-002</dd>
         <dt>경로(URL)</dt><dd>/portal.html</dd>
         <dt>화면 유형</dt><dd>공통 레이아웃 (상단 헤더 + 좌측 사이드바 + 본문)</dd>
-        <dt>화면 목적</dt><dd>보유 가상PC의 상태 확인·접속·재기동, 주요 신청/지원 화면 바로가기, 관리자 공지 확인</dd>
+        <dt>화면 목적</dt><dd>보유 가상PC 3대의 상태 확인·접속·재기동, 미사용 잠김 가상PC 잠금해제 요청, 주요 신청/지원 화면 바로가기, 관리자 공지 확인</dd>
         <dt>진입 경로</dt><dd>로그인 성공 시 · 헤더 로고/서비스명 클릭 · 사이드바 [내 가상PC]</dd>
         <dt>사이드바 메뉴</dt><dd>내 가상PC (active)</dd>
         <dt>전제 조건</dt><dd>인증 완료 상태 (미인증 시 로그인 화면으로 이동)</dd>
@@ -180,13 +181,13 @@
         <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
           <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 관리자 권한 토글 · 사용자 정보(이름·부서·사번) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
         <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
-          <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 Service Desk(1544-8119). 현재 화면은 [내 가상PC] active</div></div></div>
-        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">KPI · 바로가기 스트립</div>
-          <div class="area-desc">진행 중 결재건 · 최근 공지사항 · 사용자 매뉴얼 · 사이트링크(외부 시스템 롤오버 메뉴) 4종 카드</div></div></div>
+          <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 헬프데스크 카드(1544-8119 · 평일 09:00~18:00). 현재 화면은 [내 가상PC] active</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">빠른 메뉴 (KPI 스트립)</div>
+          <div class="area-desc">사용자 매뉴얼 · 프로그램 설치파일 · 헬프데스크(원격지원 안내 모달) · 사이트링크(외부 시스템 롤오버 메뉴) 4종 카드 단일 바</div></div></div>
         <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">VDI 워크스페이스 카드</div>
-          <div class="area-desc">가상PC 탭 전환 · 상태/사양/접속 · 재기동·장애신고 등 관리 액션 · 자원(Resource)·정보(Info) 패널</div></div></div>
+          <div class="area-desc">가상PC 3대 탭 전환 · 상태/사양/접속(모니터형 버튼) · 재기동·장애신고·잠금해제 요청 등 관리 액션 · 자원(Resource)·정보(Info) 패널</div></div></div>
         <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">관리자 안내 영역</div>
-          <div class="area-desc">관리자 공지 노출(중요/일반 태그). 클릭 시 공지 상세로 이동</div></div></div>
+          <div class="area-desc">VDI 카드 하단 관리자 공지 노출(공지사항 데이터와 정합). 클릭 시 공지 상세로 이동</div></div></div>
       </div>
     </div>
   </section>
@@ -194,14 +195,14 @@
   <section>
     <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
 
-    <div class="sub-h">3.1 · KPI · 바로가기 스트립 (영역 C)</div>
+    <div class="sub-h">3.1 · 빠른 메뉴 — KPI 스트립 (영역 C)</div>
     <table class="tbl">
       <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>값(예시)</th><th>동작</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td><strong>진행 중 결재건</strong></td><td><span class="tag tag-nav">바로가기</span></td><td>2 건</td><td>클릭 시 결재 현황(approval.html)으로 이동</td></tr>
-        <tr><td>2</td><td><strong>최근 공지사항</strong></td><td><span class="tag tag-nav">바로가기</span></td><td>3 건</td><td>클릭 시 공지사항(notice.html)으로 이동</td></tr>
-        <tr><td>3</td><td><strong>사용자 매뉴얼</strong></td><td><span class="tag tag-nav">바로가기</span></td><td>VDI 이용 가이드 · PDF</td><td>클릭 시 자료실(qna.html)로 이동</td></tr>
-        <tr><td>4</td><td><strong>사이트링크</strong></td><td><span class="tag tag-view">메뉴</span></td><td>외부 시스템 바로가기</td><td>마우스 오버 시 외부 시스템 드롭다운 표시 (3.3 참조)</td></tr>
+        <tr><td>1</td><td><strong>사용자 매뉴얼</strong></td><td><span class="tag tag-nav">바로가기</span></td><td>VDI 이용 가이드 · PDF</td><td>클릭 시 자료실(qna.html)로 이동</td></tr>
+        <tr><td>2</td><td><strong>프로그램 설치파일</strong></td><td><span class="tag tag-nav">바로가기</span></td><td>PC가상화 클라이언트 다운로드</td><td>클릭 시 자료실(qna.html)로 이동</td></tr>
+        <tr><td>3</td><td><strong>헬프데스크</strong></td><td><span class="tag tag-btn">버튼</span></td><td>원격지원 · 1544-8119</td><td>클릭 시 원격지원 안내 모달(<code>#remoteModal</code>) 표시 — 연락처 1544-8119 / 운영시간 평일 09:00~18:00 (공휴일 제외) / [원격지원 프로그램 실행] 버튼</td></tr>
+        <tr><td>4</td><td><strong>사이트링크</strong></td><td><span class="tag tag-view">메뉴</span></td><td>외부 시스템 바로가기</td><td>마우스 오버(또는 포커스) 시 외부 시스템 드롭다운 표시 (3.3 참조)</td></tr>
       </tbody>
     </table>
 
@@ -209,17 +210,21 @@
     <table class="tbl">
       <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th style="width:64px">필수</th><th>설명</th></tr></thead>
       <tbody>
-        <tr><td>5</td><td><strong>가상PC 탭</strong> <code>.vtab</code></td><td><span class="tag tag-view">탭</span></td><td>-</td><td>보유 가상PC 목록(예: jschoi0223-main / jschoi0223-common). 선택 시 카드 정보 전환. 상태 점(정상/점검/오프라인) 표시</td></tr>
-        <tr><td>6</td><td>VDI 추가신청</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>VDI 추가신청(apply.html)으로 이동</td></tr>
-        <tr><td>7</td><td>새로고침</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>상태/사양 갱신 (스피너 + 완료 안내)</td></tr>
-        <tr><td>8</td><td>가상PC 명 · 유형</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>선택 VDI 명 + 유형 배지(고정가상화/공용형)</td></tr>
-        <tr><td>9</td><td>상태 표시</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>전원 ON / 점검 중 / 전원 OFF (모니터 영역 내 표기, 4 참조)</td></tr>
-        <tr><td>10</td><td><strong>가상PC 접속</strong> <code>.connect-mon</code></td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>모니터형 접속 버튼. 클릭 시 가상PC 원격 접속(시안: 안내)</td></tr>
-        <tr><td>11</td><td>일반 재기동</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>정상 재기동 요청 (안내)</td></tr>
-        <tr><td>12</td><td>강제 재기동</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>강제 재기동. 데이터 손실 경고 확인(confirm) 후 요청</td></tr>
-        <tr><td>13</td><td>장애 신고</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>장애신고 등록(incident-new.html)으로 이동</td></tr>
-        <tr><td>14</td><td>Resource 패널</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>CPU · 메모리 · 디스크(D) 사양</td></tr>
-        <tr><td>15</td><td>Info 패널</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>IP 주소 · 생성일 · 만료일 (5 데이터 항목 참조)</td></tr>
+        <tr><td>5</td><td><strong>가상PC 탭</strong> <code>.vtab</code></td><td><span class="tag tag-view">탭</span></td><td>-</td><td>보유 가상PC 3대(jschoi0223-main / jschoi0223-nomain / jschoi0223-prj). 선택 시 <code>renderVdi(i)</code>로 카드 정보 전환. 탭별 상태 점 — main: 녹색(success), nomain: 황색(warning), prj: 적색(danger)</td></tr>
+        <tr><td>6</td><td>VDI 추가신청</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>옐로우 강조 버튼. VDI 추가신청(apply.html)으로 이동</td></tr>
+        <tr><td>7</td><td>연장 · 증설 신청</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>아웃라인 버튼. 사용 연장·자원 증설(change.html)로 이동</td></tr>
+        <tr><td>8</td><td>가상PC 명 · 유형</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>선택 VDI 명 + 유형 배지. 3대 모두 <strong>고정가상화</strong> 단일 유형</td></tr>
+        <tr><td>9</td><td>운영체제 · 최근 접속</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>가상PC 명 하단 서브 메타(<code>#vwMeta</code>). Windows 11 Enterprise · 최근 접속 일시</td></tr>
+        <tr><td>10</td><td>상태 표시 <code>.vw-status</code></td><td><span class="tag tag-view">표시</span></td><td>-</td><td>전원 ON / 전원 OFF / 점검 중 / 미사용 잠김 — 4종 (모니터 영역 내 pill 표기, 6 상태·분류 정의 참조)</td></tr>
+        <tr><td>11</td><td><strong>가상PC 접속</strong> <code>.connect-mon</code></td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>모니터형 접속 버튼(상단 중앙 글로우 연출). 클릭 시 가상PC 원격 접속 <em>(시안: 접속 안내)</em>. 잠김 상태에서는 재생 아이콘이 잠금 아이콘으로 바뀌고 타이틀이 "접속 제한"으로 전환, 접속 차단</td></tr>
+        <tr><td>12</td><td><strong>미사용 잠김 안내</strong> <code>#vwLockNote</code></td><td><span class="tag tag-view">표시</span></td><td>-</td><td>잠긴 가상PC 선택 시에만 표시되는 warn-box: "<strong>장기 미사용으로 잠금 처리된 가상PC입니다.</strong> 90일 이상 미접속 시 보안 정책에 따라 자동 잠금되며, 잠금해제 요청 후 부서장 승인이 완료되면 자동으로 해제됩니다."</td></tr>
+        <tr><td>13</td><td><strong>잠금해제 요청</strong> <code>#unlockBtn</code></td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>잠긴 가상PC에서만 표시. <code>requestUnlock()</code>으로 부서장 승인 기안을 즉시 등록(별도 신청 페이지 없음). 요청 후 버튼은 "잠금해제 승인 대기"로 비활성화</td></tr>
+        <tr><td>14</td><td>일반 재기동</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>정상 재기동 요청 (안내 토스트). 잠긴 가상PC에서는 숨김(<code>.vw-act-power</code>)</td></tr>
+        <tr><td>15</td><td>강제 재기동</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>강제 재기동. 데이터 손실 경고 확인(confirm) 후 요청. 잠긴 가상PC에서는 숨김</td></tr>
+        <tr><td>16</td><td>장애 신고</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>장애신고 등록(incident-new.html)으로 이동 (잠김 상태에서도 노출)</td></tr>
+        <tr><td>17</td><td>새로고침 <code>#refreshBtn</code></td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>옐로우 아이콘 버튼. 상태/사양 갱신 (스피너 회전 + 완료 안내)</td></tr>
+        <tr><td>18</td><td>Resource 패널</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>선택 VDI의 CPU · 메모리 · 디스크(D) 사양</td></tr>
+        <tr><td>19</td><td>Info 패널</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>선택 VDI의 IP 주소 · 생성일 · 만료일 (5 데이터 항목 참조)</td></tr>
       </tbody>
     </table>
 
@@ -227,12 +232,12 @@
     <table class="tbl">
       <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>연결</th></tr></thead>
       <tbody>
-        <tr><td>16</td><td><strong>KB손해보험 공식 홈페이지</strong></td><td><span class="tag tag-link">외부</span></td><td>www.kbinsure.co.kr (새 창)</td></tr>
-        <tr><td>17</td><td>e-HR</td><td><span class="tag tag-link">외부</span></td><td>인사 · 근태 시스템</td></tr>
-        <tr><td>18</td><td>그룹웨어</td><td><span class="tag tag-link">외부</span></td><td>메일 · 일정 · 게시판</td></tr>
-        <tr><td>19</td><td>전자결재</td><td><span class="tag tag-link">외부</span></td><td>결재함 · 기안 작성</td></tr>
-        <tr><td>20</td><td>경비처리(ERP)</td><td><span class="tag tag-link">외부</span></td><td>비용 · 정산 신청</td></tr>
-        <tr><td>21</td><td>사내 인트라넷</td><td><span class="tag tag-link">외부</span></td><td>공지 · 복지 · 사규</td></tr>
+        <tr><td>20</td><td><strong>KB손해보험 공식 홈페이지</strong></td><td><span class="tag tag-link">외부</span></td><td>www.kbinsure.co.kr (새 창) — 드롭다운 최상단, 구분선으로 분리</td></tr>
+        <tr><td>21</td><td>e-HR</td><td><span class="tag tag-link">외부</span></td><td>인사 · 근태 시스템</td></tr>
+        <tr><td>22</td><td>그룹웨어</td><td><span class="tag tag-link">외부</span></td><td>메일 · 일정 · 게시판</td></tr>
+        <tr><td>23</td><td>전자결재</td><td><span class="tag tag-link">외부</span></td><td>결재함 · 기안 작성</td></tr>
+        <tr><td>24</td><td>경비처리(ERP)</td><td><span class="tag tag-link">외부</span></td><td>비용 · 정산 신청</td></tr>
+        <tr><td>25</td><td>사내 인트라넷</td><td><span class="tag tag-link">외부</span></td><td>공지 · 복지 · 사규</td></tr>
       </tbody>
     </table>
 
@@ -240,7 +245,7 @@
     <table class="tbl">
       <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
       <tbody>
-        <tr><td>22</td><td><strong>관리자 공지</strong></td><td><span class="tag tag-nav">바로가기</span></td><td>중요/일반 태그 + 제목·요약. 클릭 시 공지 상세(notice-detail.html)로 이동</td></tr>
+        <tr><td>26</td><td><strong>관리자 공지</strong> <code>.vw-notice</code></td><td><span class="tag tag-nav">바로가기</span></td><td>VDI 카드 하단 안내 행. 제목 "VDI 인프라 정기 점검 안내" + 요약(06.01(일) 02:00~05:00 점검 · 헬프데스크 1544-8119). 공지사항 목록 데이터와 정합 유지. 클릭 시 공지 상세(notice-detail.html?id=1)로 이동</td></tr>
       </tbody>
     </table>
   </section>
@@ -250,83 +255,126 @@
     <table class="tbl">
       <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
       <tbody>
-        <tr><td>E-01</td><td>가상PC 접속</td><td>모니터형 [가상PC 접속] 클릭</td><td>선택 VDI 원격 접속 실행 <em>(시안: 접속 안내)</em></td></tr>
-        <tr><td>E-02</td><td>VDI 탭 전환</td><td>가상PC 탭 클릭</td><td>선택 VDI 기준으로 이름·유형·상태·Resource·Info 갱신</td></tr>
-        <tr><td>E-03</td><td>새로고침</td><td>[새로고침] 클릭</td><td>스피너 표시 → 상태/사양 갱신 → "상태가 업데이트되었습니다" 안내</td></tr>
-        <tr><td>E-04</td><td>일반 재기동</td><td>[일반 재기동] 클릭</td><td>정상 재기동 요청 → "재접속 안내" 표시</td></tr>
-        <tr><td>E-05</td><td>강제 재기동</td><td>[강제 재기동] 클릭</td><td>데이터 손실 경고 확인(confirm) → 동의 시 요청 접수</td></tr>
-        <tr><td>E-06</td><td>장애 신고</td><td>[장애 신고] 클릭</td><td>장애신고 등록(incident-new.html) 이동</td></tr>
-        <tr><td>E-07</td><td>VDI 추가신청</td><td>[VDI 추가신청] 클릭</td><td>추가신청(apply.html) 이동</td></tr>
-        <tr><td>E-08</td><td>KPI 바로가기</td><td>KPI 카드 클릭</td><td>결재 현황 / 공지사항 / 자료실로 이동</td></tr>
-        <tr><td>E-09</td><td>사이트링크</td><td>사이트링크 카드 오버 → 항목 클릭</td><td>드롭다운 노출 → 외부 시스템으로 이동(새 창) <em>(시안: 외부 이동 안내)</em></td></tr>
-        <tr><td>E-10</td><td>관리자 공지</td><td>관리자 안내 클릭</td><td>공지 상세(notice-detail.html) 이동</td></tr>
-        <tr><td>E-11</td><td>세션 만료</td><td>인증 세션 만료(서버 · 구현 시)</td><td>안내 후 로그인 화면으로 이동</td></tr>
+        <tr><td>E-01</td><td>VDI 탭 전환</td><td>가상PC 탭 클릭</td><td><code>renderVdi(i)</code> 호출 — 선택 VDI 기준으로 이름·유형·상태·서브 메타·Resource·Info·접속 버튼·잠금 안내/버튼 노출 여부를 일괄 갱신</td></tr>
+        <tr><td>E-02</td><td>가상PC 접속</td><td>모니터형 [가상PC 접속] 클릭 (잠김 외 상태)</td><td>선택 VDI 원격 접속 실행 <em>(시안: "가상PC에 접속합니다..." 안내)</em></td></tr>
+        <tr><td>E-03</td><td>잠김 VDI 접속 차단</td><td>미사용 잠김 VDI에서 모니터 클릭</td><td>접속 차단 — "미사용 잠김 상태입니다. 잠금해제 요청 후 접속할 수 있습니다." 안내. 모니터는 잠금 아이콘 + "접속 제한" 표기</td></tr>
+        <tr><td>E-04</td><td>잠금해제 요청</td><td>잠긴 VDI에서 [잠금해제 요청] 클릭</td><td>confirm "jschoi0223-prj 가상PC의 잠금해제를 요청하시겠습니까?<br>부서장 승인이 완료되면 자동으로 해제됩니다." → 동의 시 기안 등록, 버튼이 <strong>"잠금해제 승인 대기"</strong>로 비활성화되고 "잠금해제 요청이 등록되었습니다. 결재 현황에서 진행 상태를 확인할 수 있습니다." 안내. 결재 현황의 잠금해제 건(REQ-2026-0421-012)과 정합</td></tr>
+        <tr><td>E-05</td><td>새로고침</td><td>[새로고침] 클릭</td><td>아이콘 스피너 회전(약 0.7초) → 상태/사양 갱신 → "가상PC 상태가 업데이트되었습니다." 안내</td></tr>
+        <tr><td>E-06</td><td>일반 재기동</td><td>[일반 재기동] 클릭</td><td>정상 재기동 요청 → "일반 재기동 요청이 접수되었습니다. 5분 후 재접속해주세요." 안내</td></tr>
+        <tr><td>E-07</td><td>강제 재기동</td><td>[강제 재기동] 클릭</td><td>confirm "저장되지 않은 데이터가 손실될 수 있습니다. 진행하시겠습니까?" → 동의 시 "강제 재기동 요청이 접수되었습니다." 안내</td></tr>
+        <tr><td>E-08</td><td>장애 신고</td><td>[장애 신고] 클릭</td><td>장애신고 등록(incident-new.html) 이동</td></tr>
+        <tr><td>E-09</td><td>신청 바로가기</td><td>[VDI 추가신청] / [연장 · 증설 신청] 클릭</td><td>추가신청(apply.html) / 사용 연장·자원 증설(change.html) 이동</td></tr>
+        <tr><td>E-10</td><td>KPI 바로가기</td><td>[사용자 매뉴얼] / [프로그램 설치파일] 클릭</td><td>자료실(qna.html) 이동</td></tr>
+        <tr><td>E-11</td><td>원격지원 안내</td><td>[헬프데스크] 카드 클릭</td><td>원격지원 안내 모달 표시 → [원격지원 프로그램 실행] 클릭 시 "원격지원 프로그램을 실행합니다." 안내 <em>(시안)</em>, [닫기]/배경 클릭 시 닫힘</td></tr>
+        <tr><td>E-12</td><td>사이트링크</td><td>사이트링크 카드 오버 → 항목 클릭</td><td>드롭다운 노출 → KB손해보험 공식 홈페이지는 새 창 이동, 나머지는 외부 시스템 이동 <em>(시안: "○○ 시스템으로 이동합니다. (외부 사이트)" 안내)</em></td></tr>
+        <tr><td>E-13</td><td>관리자 공지</td><td>관리자 안내 영역 클릭</td><td>공지 상세(notice-detail.html?id=1) 이동</td></tr>
+        <tr><td>E-14</td><td>세션 만료</td><td>인증 세션 만료(서버 · 구현 시)</td><td>안내 후 로그인 화면으로 이동</td></tr>
       </tbody>
     </table>
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (VDI 정보)</span></div>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (VDI 3대)</span></div>
+    <p class="sec-lead">보유 가상PC는 <strong>3대 모두 고정가상화</strong> 단일 유형입니다. 아래 값은 시안 <code>VDI_LIST</code> 더미 데이터 기준입니다.</p>
     <table class="tbl">
-      <thead><tr><th style="width:130px">항목</th><th>설명</th><th>예시(고정가상화)</th><th>예시(공용형)</th></tr></thead>
+      <thead><tr><th style="width:130px">항목</th><th>jschoi0223-main</th><th>jschoi0223-nomain</th><th>jschoi0223-prj</th></tr></thead>
       <tbody>
-        <tr><td>가상PC 명</td><td>VDI 식별자</td><td>jschoi0223-main</td><td>jschoi0223-common</td></tr>
-        <tr><td>유형</td><td>가상PC 종류</td><td>고정가상화</td><td>공용형</td></tr>
-        <tr><td>상태</td><td>전원/운영 상태</td><td>전원 ON</td><td>점검 중</td></tr>
-        <tr><td>CPU / 메모리 / 디스크</td><td>할당 자원</td><td>4 Core / 16 GB / 150 GB</td><td>2 Core / 4 GB / 80 GB</td></tr>
-        <tr><td>운영체제</td><td>OS</td><td colspan="2">Windows 11 Enterprise</td></tr>
-        <tr><td>IP 주소</td><td>접속 IP</td><td>10.20.30.115</td><td>할당 시 배정</td></tr>
-        <tr><td>생성일 / 만료일</td><td>이력</td><td>2024.03.01 / 재직 중</td><td>2025.11.01 / 용도·임시</td></tr>
-        <tr><td>최근 접속</td><td>마지막 접속 일시</td><td>2026.04.24 09:12</td><td>2026.04.18 14:30</td></tr>
+        <tr><td>유형</td><td>고정가상화</td><td>고정가상화</td><td>고정가상화</td></tr>
+        <tr><td>지급 구분</td><td>기본 지급 (재직 중 자동 유지)</td><td>별도 신청</td><td>별도 신청</td></tr>
+        <tr><td>상태</td><td>전원 ON (<code>on</code>)</td><td>점검 중 (<code>maint</code>)</td><td><strong>미사용 잠김</strong> (<code>locked</code>)</td></tr>
+        <tr><td>CPU / 메모리 / 디스크(D)</td><td>6 Core / 8 GB / 150 GB</td><td>8 Core / 16 GB / 150 GB</td><td>2 Core / 4 GB / 80 GB</td></tr>
+        <tr><td>운영체제</td><td colspan="3">Windows 11 Enterprise</td></tr>
+        <tr><td>IP 주소</td><td>10.20.30.115</td><td>10.20.30.116</td><td>10.20.30.117</td></tr>
+        <tr><td>생성일 / 만료일</td><td>2024.03.01 / 재직 중</td><td>2025.11.01 / 재직 중</td><td>2025.06.01 / 재직 중</td></tr>
+        <tr><td>최근 접속</td><td>2026.04.24 09:12</td><td>2026.04.18 14:30</td><td>2026.01.19 17:33</td></tr>
+        <tr><td>비고</td><td>—</td><td>—</td><td>90일 이상 미접속으로 자동 잠금. 잠금해제 요청(부서장 승인) 후 사용 가능</td></tr>
       </tbody>
     </table>
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">화면 상태 (VDI 상태)</span></div>
-    <p class="sec-lead">가상접속 모니터의 상태는 <strong>전원 ON · 점검 중 · 전원 OFF</strong> <strong>3종</strong>으로 고정됩니다. 아래 표는 소스 구현 시 참고용 매핑입니다(시안 portal.html 기준).</p>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">상태 · 분류 정의 (VDI 상태 4종)</span></div>
+    <p class="sec-lead">가상PC 상태는 <strong>전원 ON · 전원 OFF · 점검 중 · 미사용 잠김</strong> <strong>4종</strong>으로 고정됩니다. 아래 표는 소스 구현 시 참고용 매핑입니다(시안 portal.html 기준).</p>
     <table class="tbl">
-      <thead><tr><th style="width:90px">상태</th><th style="width:80px">state 키</th><th style="width:140px">CSS 클래스</th><th style="width:130px">색상 토큰</th><th style="width:90px">점멸(pulse)</th><th>설명 · 가능 동작</th></tr></thead>
+      <thead><tr><th style="width:96px">상태</th><th style="width:80px">state 키</th><th style="width:150px">CSS 클래스</th><th style="width:150px">색상 토큰</th><th style="width:90px">점멸(pulse)</th><th>설명 · 가능 동작</th></tr></thead>
       <tbody>
-        <tr><td>전원 ON</td><td><code>on</code></td><td><code>.vw-status.on</code></td><td>녹색 <code>var(--success)</code></td><td>점멸 O</td><td>정상 운영. 접속·재기동·장애신고 가능</td></tr>
+        <tr><td>전원 ON</td><td><code>on</code></td><td><code>.vw-status.on</code></td><td>녹색 <code>var(--success)</code></td><td>점멸 O</td><td>정상 운영. 접속·일반/강제 재기동·장애신고 가능</td></tr>
+        <tr><td>전원 OFF</td><td><code>off</code></td><td><code>.vw-status.off</code></td><td>회색 <code>var(--kb-gray)</code></td><td>점멸 X</td><td>전원 꺼짐. 접속 전 기동 필요</td></tr>
         <tr><td>점검 중</td><td><code>maint</code></td><td><code>.vw-status.maint</code></td><td>황색 <code>var(--warning)</code> · 텍스트 <code>var(--ink)</code></td><td>점멸 X</td><td>점검/유지보수 중. 접속 제한될 수 있음</td></tr>
-        <tr><td>전원 OFF</td><td><code>off</code></td><td><code>.vw-status.off</code></td><td>회색 <code>#5C564E</code></td><td>점멸 X</td><td>전원 꺼짐. 접속 전 기동 필요</td></tr>
+        <tr><td><strong>미사용 잠김</strong></td><td><code>locked</code></td><td><code>.vw-status.locked</code></td><td>적색 <code>var(--danger)</code></td><td>점멸 X</td><td>장기 미사용(90일 이상 미접속) 자동 잠금. <strong>접속 차단</strong>(모니터 잠금 아이콘 + "접속 제한") · 일반/강제 재기동 숨김 · 잠금 안내(warn-box) 표시 · <strong>잠금해제 요청</strong>(부서장 승인)·장애신고만 가능</td></tr>
       </tbody>
     </table>
     <div class="note">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
       <div>
-        각 가상PC 데이터의 <code>state</code> 값(<code>on</code>/<code>maint</code>/<code>off</code>)에 따라 <code>renderVdi()</code>가 <code>.vw-status</code> 요소의 클래스(<code>on</code>/<code>maint</code>/<code>off</code>)와 라벨 텍스트(전원 ON / 점검 중 / 전원 OFF)를 토글합니다. 실제 구현에서는 이 <code>state</code> 값을 <strong>가상PC 전원/운영 상태 API</strong> 응답으로 대체하면 됩니다. 점멸은 <code>on</code>에서만 적용(<code>maint</code>·<code>off</code>는 정지).
+        각 가상PC 데이터의 <code>state</code> 값(<code>on</code>/<code>off</code>/<code>maint</code>/<code>locked</code>)에 따라 <code>renderVdi()</code>가 <code>.vw-status</code> 요소의 클래스와 라벨 텍스트(전원 ON / 전원 OFF / 점검 중 / 미사용 잠김)를 토글하고, <code>locked</code>일 때는 접속 차단·재기동 버튼 숨김·잠금 안내·잠금해제 요청 버튼 노출을 함께 처리합니다. 실제 구현에서는 이 <code>state</code> 값을 <strong>가상PC 전원/운영 상태 API</strong> 응답으로 대체하면 됩니다. 점멸은 <code>on</code>에서만 적용(<code>off</code>·<code>maint</code>·<code>locked</code>는 정지).
       </div>
     </div>
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">연관 화면</span></div>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">7.1 · 페이지 고유 구성 (portal.html 내부)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:220px">구성 요소</th><th style="width:78px">구분</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><code>.kpi-strip</code> / <code>.kpi</code></td><td>스타일</td><td>빠른 메뉴 4열 그리드 단일 바(구분선 분리). reveal transform stacking 회피를 위해 <code>position:relative; z-index:5</code></td></tr>
+        <tr><td><code>.kpi.sitelink</code> / <code>.sitelink-menu</code></td><td>스타일</td><td>사이트링크 롤오버 드롭다운. <code>overflow:visible</code> + 투명 브릿지(<code>::before</code>)로 카드-메뉴 사이 호버 유지</td></tr>
+        <tr><td><code>.vw</code> / <code>.vtab</code> / <code>.vw-status</code></td><td>스타일</td><td>VDI 워크스페이스 카드(상단 옐로우 그라데이션 보더) · 가상PC 탭 · 상태 pill 4종(on/off/maint/locked)</td></tr>
+        <tr><td><code>.mon-frame</code> / <code>.mon-play</code></td><td>스타일</td><td>모니터형 접속 버튼. 글로우는 <strong>상단 중앙</strong> 기준 <code>radial-gradient(120% 80% at 50% -10%, ...)</code></td></tr>
+        <tr><td><code>#vwLockNote</code> / <code>#unlockBtn</code></td><td>스타일</td><td>미사용 잠김 안내(warn-box 재사용)와 잠금해제 요청 버튼 — 기본 숨김, 잠긴 VDI에서만 표시</td></tr>
+        <tr><td><code>.vw-res</code> / <code>.res-row</code></td><td>스타일</td><td>우측 Resource·Info 패널</td></tr>
+        <tr><td><code>.vw-notice</code></td><td>스타일</td><td>VDI 카드 하단 관리자 안내 행(클릭 영역 전체 링크)</td></tr>
+        <tr><td><code>@keyframes spin</code> / <code>.spinning</code></td><td>스타일</td><td>새로고침 버튼 아이콘 회전 애니메이션 (portal 고유)</td></tr>
+        <tr><td><code>VDI_LIST</code> · <code>STATE</code></td><td>JS</td><td>가상PC 3대 더미 데이터(사양·IP·일자·state) · 상태 키 → 라벨/클래스 매핑</td></tr>
+        <tr><td><code>renderVdi(i)</code></td><td>JS</td><td>탭 전환 핵심 함수 — 선택 VDI의 모든 표시 항목과 잠김 분기(접속 차단·버튼 토글·승인 대기 상태)를 갱신</td></tr>
+        <tr><td><code>requestUnlock()</code></td><td>JS</td><td>잠금해제 요청 — confirm 후 <code>unlockRequested</code> 플래그 설정, 버튼 비활성("잠금해제 승인 대기") 및 안내</td></tr>
+        <tr><td><code>handleRefresh(btn)</code></td><td>JS</td><td>새로고침 — 스피너 클래스 토글 후 완료 안내</td></tr>
+        <tr><td><code>goSite(e, name)</code></td><td>JS</td><td>사이트링크 외부 시스템 이동 <em>(시안: 안내 토스트)</em></td></tr>
+        <tr><td><code>openRemoteModal()</code> / <code>closeRemoteModal()</code></td><td>JS</td><td>원격지원 안내 모달 열기/닫기 (배경 클릭 닫힘 포함)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">7.2 · 공통 의존</div>
+    <table class="tbl">
+      <thead><tr><th style="width:220px">파일</th><th>제공 항목</th></tr></thead>
+      <tbody>
+        <tr><td><code>common.js</code></td><td>헤더(<code>data-header</code>)·사이드바(<code>data-sidebar="portal"</code>) 주입 · 사용자/헬프데스크/메뉴 설정(<code>PORTAL_USER</code>·<code>SERVICE_DESK</code>·<code>NAV_SECTIONS</code>) · <code>goHome()</code>/<code>logout()</code>/<code>showToast()</code> · 관리자 권한 토글</td></tr>
+        <tr><td><code>common.css</code></td><td>디자인 토큰(<code>:root</code> 변수) · 레이아웃(<code>.top-header</code>/<code>.layout</code>/<code>.sidebar</code>/<code>.main</code>) · <code>.warn-box</code> · <code>.modal</code> · <code>.btn</code> 계열 · <code>.toast</code> 등 공통 컴포넌트</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">연관 화면</span></div>
     <div class="card">
       <ul class="bul">
-        <li><strong>VDI 추가신청</strong> (apply.html) · <strong>결재 현황</strong> (approval.html) · <strong>장애신고 등록</strong> (incident-new.html)</li>
+        <li><strong>VDI 추가신청</strong> (apply.html) · <strong>사용 연장 · 자원 증설</strong> (change.html) · <strong>결재 현황</strong> (approval.html) · <strong>장애신고 등록</strong> (incident-new.html)</li>
+        <li><strong>잠금해제 요청 → 결재 현황 정합</strong> — 본 화면에서 등록한 잠금해제 기안은 결재 현황·결재 상세의 <strong>잠금해제 건(REQ-2026-0421-012)</strong>과 정합 (구분: 잠금해제 · 3단계 약식 플로우)</li>
         <li><strong>공지사항</strong> (notice.html) · <strong>공지 상세</strong> (notice-detail.html) · <strong>자료실</strong> (qna.html)</li>
         <li><strong>로그인</strong> (login.html) — 세션 만료/로그아웃 시</li>
-        <li><strong>외부 시스템</strong> — 사이트링크(KB 공식 홈페이지, e-HR, 그룹웨어, 전자결재, 경비처리, 사내 인트라넷)</li>
+        <li><strong>외부 시스템</strong> — 사이트링크(KB손해보험 공식 홈페이지, e-HR, 그룹웨어, 전자결재, 경비처리, 사내 인트라넷)</li>
       </ul>
     </div>
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">비고</span></div>
+    <div class="sec-head"><span class="sec-no">9</span><span class="sec-title">비고</span></div>
     <div class="note">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
       <div>
-        본 문서의 <strong>대상 화면(portal.html)은 UI 시안(프로토타입)</strong>입니다. 가상PC 접속·재기동·자원 정보·외부 시스템 연계 등은 구현 시 연동 대상이며, 시안의 임시 동작(안내 메시지 등)은 실제 로직으로 대체합니다.<br>
+        본 문서의 <strong>대상 화면(portal.html)은 UI 시안(프로토타입)</strong>입니다. 가상PC 접속·재기동·자원 정보·잠금해제 결재 연동·원격지원 실행·외부 시스템 연계 등은 구현 시 연동 대상이며, 시안의 임시 동작(안내 메시지 등)은 실제 로직으로 대체합니다.<br>
+        미사용 잠김 정책(90일 이상 미접속 자동 잠금 · 부서장 승인 해제)과 잠금해제 결재 건은 결재 현황/결재 상세 화면정의서와 정합을 유지합니다.<br>
         헤더·사이드바·토스트는 <strong>전 화면 공통 영역</strong>으로, 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
       </div>
     </div>
   </section>
+  <!-- SPEC-BODY END -->
 
   <div class="doc-foot">
     <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
-    <span>VDI-SD-002 · v1.1 · 2026.06.04 · 대외비(비공개)</span>
+    <span>VDI-SD-002 · v1.2 · 2026.06.12 · 대외비(비공개)</span>
   </div>
 
 </div>

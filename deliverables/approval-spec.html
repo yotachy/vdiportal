@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 결재 현황 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+  <div class="doc-title" id="spec-approval">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">결재 현황</h1>
+    <div class="doc-sub">사용자가 제출한 신청(신규 · 연장 · 증설 · 잠금해제)의 결재 진행 상태를 조회하는 목록 화면</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-005</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-005</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">approval.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>결재 현황</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-005</dd>
+        <dt>경로(URL)</dt><dd>/approval.html</dd>
+        <dt>화면 유형</dt><dd>공통 레이아웃 (상단 헤더 + 좌측 사이드바 + 본문) · 목록(조회) 화면</dd>
+        <dt>화면 목적</dt><dd>본인이 제출한 신청 건의 결재 진행 상태(승인 중 · 완료 · 반려) 확인 및 상세 화면 진입</dd>
+        <dt>진입 경로</dt><dd>사이드바 [결재 현황] · 메인 포탈 KPI [진행 중 결재건] · 추가신청/연장·증설 제출 후 확인</dd>
+        <dt>사이드바 메뉴</dt><dd>결재 현황 (active, key=approval)</dd>
+        <dt>전제 조건</dt><dd>인증 완료 상태 (미인증 시 로그인 화면으로 이동)</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">approval.html</span>
+      </div>
+      <iframe src="../approval.html" title="결재 현황 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../approval.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
+          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 관리자 권한 토글 · 사용자 정보(최정식 · IT기획파트 · 1010579) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
+          <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 Service Desk(1544-8119). 현재 화면은 [결재 현황] active</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">페이지 헤더 · 브레드크럼</div>
+          <div class="area-desc">홈 › 신청 · 결재 › 결재 현황 / 화면 제목 + 한 줄 설명. 우측 액션 버튼 없음</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">요약 스탯 스트립 (관리자 권한 전용)</div>
+          <div class="area-desc">전체 신청 · 승인 중 · 완료 · 반려 4종 집계 칩. 기본 숨김, 헤더의 [관리자 권한] ON(body.admin-mode) 시 노출. 칩 클릭 시 해당 상태 필터 적용</div></div></div>
+        <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">필터 바</div>
+          <div class="area-desc">검색 박스(search-hero) + 상태 세그먼트(전체/승인중/완료/반려) + 기간 드롭다운(date-drop, 기본 최근 1개월)</div></div></div>
+        <div class="area-item"><span class="area-badge">F</span><div><div class="area-name">데이터 테이블</div>
+          <div class="area-desc">신청번호 · 신청일 · 구분 · 대상 VDI · 내용 · 상태 6컬럼. 행 클릭 시 결재 상세(approval-detail.html)로 이동. 조건 불일치 시 빈 상태(empty-state) 표시</div></div></div>
+        <div class="area-item"><span class="area-badge">G</span><div><div class="area-name">페이저</div>
+          <div class="area-desc">10건 단위 페이지네이션(이전/번호/다음). 1페이지 이하면 자동 숨김</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 필터 바 (영역 E)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>정의 · 동작</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>검색 박스</strong> <code>#searchInput</code></td><td><span class="tag tag-btn">입력</span></td><td>placeholder "신청번호 · 구분 · VDI명으로 검색". 입력값을 <strong>신청번호 + 구분 + 대상 VDI명 + 내용(자동 조합 문자열)</strong>에 대해 대소문자 무시 부분 일치로 검색. 입력 즉시(input 이벤트) 1페이지로 재조회</td></tr>
+        <tr><td>2</td><td><strong>상태 세그먼트</strong> <code>#filterSeg</code></td><td><span class="tag tag-view">세그</span></td><td>옵션 4종: <strong>전체</strong>(all, 기본 on) / <strong>승인중</strong>(progress) / <strong>완료</strong>(done) / <strong>반려</strong>(reject). 단일 선택, 선택 시 1페이지로 재조회</td></tr>
+        <tr><td>3</td><td><strong>기간 드롭다운</strong> <code>#dateDrop</code></td><td><span class="tag tag-view">선택</span></td><td>버튼 클릭 시 빠른선택 팝오버. 옵션 4종: <strong>전체 기간 / 최근 1주일 / 최근 1개월(기본) / 최근 3개월</strong>. 종료일은 목록의 최신 신청일(<code>maxDateOf</code>) 기준, 시작일은 <code>quickRangeFrom</code>으로 역산. 선택 결과는 hidden <code>#dateFrom</code>/<code>#dateTo</code>에 저장, 라벨(<code>#dateDropLabel</code>)에 프리셋명 표시</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.2 · 요약 스탯 스트립 (영역 D · 관리자 권한 전용)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>정의 · 동작</th></tr></thead>
+      <tbody>
+        <tr><td>4</td><td><strong>전체 신청</strong> <code>#cAll</code></td><td><span class="tag tag-view">집계</span></td><td>전체 레코드 수. 칩 클릭 시 상태 필터 [전체] 적용</td></tr>
+        <tr><td>5</td><td>승인 중 <code>#cProgress</code></td><td><span class="tag tag-view">집계</span></td><td>승인 중 건수. 칩 클릭 시 [승인중] 필터 적용</td></tr>
+        <tr><td>6</td><td>완료 <code>#cDone</code></td><td><span class="tag tag-view">집계</span></td><td>완료 건수. 칩 클릭 시 [완료] 필터 적용</td></tr>
+        <tr><td>7</td><td>반려 <code>#cReject</code></td><td><span class="tag tag-view">집계</span></td><td>반려 건수. 칩 클릭 시 [반려] 필터 적용</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.3 · 데이터 테이블 컬럼 정의 (영역 F)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>컬럼명</th><th style="width:84px">너비</th><th style="width:70px">정렬</th><th>정의</th></tr></thead>
+      <tbody>
+        <tr><td>8</td><td><strong>신청번호</strong> <code>.col-no</code></td><td>178px</td><td>가운데</td><td>형식 <code>REQ-YYYY-MMDD-NNN</code>. 줄바꿈 방지(<code>white-space:nowrap</code>) · tabular-nums</td></tr>
+        <tr><td>9</td><td>신청일 <code>.col-date</code></td><td>92px</td><td>가운데</td><td>데이터는 <code>YYYY.MM.DD</code> 보관, 목록에는 <code>MM.DD</code>만 표시(<code>date.slice(5)</code>)</td></tr>
+        <tr><td>10</td><td>구분 <code>.rtag</code></td><td>112px</td><td>가운데</td><td>신규 / 연장 / 증설 / 잠금해제 4종. <code>rtag-{add|extend|expand|unlock}</code> 클래스 부여 — 현재 디자인은 색 없는 텍스트형(6.2 참조)</td></tr>
+        <tr><td>11</td><td>대상 VDI <code>.col-vdi</code></td><td>170px</td><td>가운데</td><td>가상PC 명 (jschoi0223-main / jschoi0223-nomain / jschoi0223-prj)</td></tr>
+        <tr><td>12</td><td><strong>내용</strong> <code>.col-content</code></td><td>유연(1fr)</td><td>좌측</td><td>구분별 정형 파라미터로 자동 조합(<code>content(r)</code>): 신규→"신규 신청 · {유형}형" / 연장→"사용 연장 · {기간}" / 증설→"자원 증설 · {항목} {전}→{후}" / 잠금해제→"잠금 해제 · {잠금 사유}"</td></tr>
+        <tr><td>13</td><td>상태 <code>.spill</code></td><td>128px</td><td>가운데</td><td>상태 pill + 상태 점(<code>.sdot</code>). 승인 중(sdot-warning) · 완료(sdot-success) · 반려(sdot-danger) — 매핑은 6.1 참조</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.4 · 페이저 (영역 G)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>정의 · 동작</th></tr></thead>
+      <tbody>
+        <tr><td>14</td><td><strong>페이저</strong> <code>#apprPager</code></td><td><span class="tag tag-btn">버튼</span></td><td>공통 <code>renderPager()</code>(common.js) 사용, <strong>페이지 크기 10건</strong>(<code>PAGE_SIZE</code>). 이전/다음 화살표 + 페이지 번호 버튼, 현재 페이지 강조(.on), 끝 페이지에서 화살표 비활성. <strong>1페이지 이하면 페이저 미표시</strong>. 페이지 이동 시 화면 상단으로 부드럽게 스크롤</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>초기 조회</td><td>화면 진입</td><td>집계(<code>updateStats</code>) 후 <strong>기간 기본값 "최근 1개월"</strong>로 목록 렌더(<code>setQuickRange('month')</code>). 정렬은 신청일 내림차순(최신순)</td></tr>
+        <tr><td>E-02</td><td>상태 필터</td><td>세그먼트 버튼 또는 스탯 칩 클릭</td><td>선택 상태로 필터 변경 → <strong>1페이지로 초기화</strong> 후 재렌더. 세그·스탯 칩의 on 표시 동기화</td></tr>
+        <tr><td>E-03</td><td>검색</td><td>검색 박스 입력(input)</td><td>신청번호·구분·VDI명·내용 조합 문자열 부분 일치 필터 → 1페이지로 초기화 후 재렌더</td></tr>
+        <tr><td>E-04</td><td>기간 변경</td><td>기간 드롭다운 빠른선택 클릭</td><td>전체 기간이면 from/to 비움, 그 외엔 종료일=목록 최신 신청일·시작일=프리셋 역산으로 설정 → 라벨 갱신 → 1페이지로 초기화 후 재렌더. 팝오버는 선택/바깥 클릭 시 닫힘</td></tr>
+        <tr><td>E-05</td><td>행 클릭 (상세 이동)</td><td>테이블 행 클릭</td><td><code>location.href='approval-detail.html?no={신청번호}'</code> — 신청번호를 <code>no</code> 파라미터로 전달하여 결재 상세로 drill-down</td></tr>
+        <tr><td>E-06</td><td>페이지 이동</td><td>페이저 버튼 클릭</td><td>해당 페이지로 재렌더 + 상단으로 부드럽게 스크롤. 필터 결과가 줄어 현재 페이지가 범위를 벗어나면 마지막 페이지로 보정</td></tr>
+        <tr><td>E-07</td><td>빈 결과 처리</td><td>필터·검색·기간 조건에 맞는 건이 0건</td><td>테이블 본문에 빈 상태(<code>.empty-state</code>) 1행 표시 — "조건에 맞는 신청 내역이 없습니다." + 페이저 숨김</td></tr>
+        <tr><td>E-08</td><td>잠금해제 기안 (타 화면 발생)</td><td>메인 포탈에서 잠긴 VDI(jschoi0223-prj)의 [잠금해제 요청] 클릭(<code>requestUnlock()</code>)</td><td>별도 신청 화면 없이 confirm(부서장 승인 안내) 후 즉시 기안 등록 → 본 화면 목록에 구분 <strong>잠금해제</strong> 건으로 노출(시안: REQ-2026-0421-012, <code>cause</code>="장기 미사용 잠금"). 승인 완료 시 잠금 자동 해제</td></tr>
+        <tr><td>E-09</td><td>관리자 권한 토글</td><td>헤더 [관리자 권한] 클릭</td><td><code>body.admin-mode</code> 토글 → 요약 스탯 스트립(영역 D) 표시/숨김</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목</span></div>
+    <p class="sec-lead">목록 레코드(<code>ROWS</code>, 시안 13건)의 필드 구성입니다. <strong>내용 컬럼은 구분별 정형 파라미터를 <code>content(r)</code>가 자동 조합</strong>하며, 구현 시 동일한 파라미터 구조의 결재 데이터로 대체합니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:96px">필드</th><th style="width:120px">적용 구분</th><th>설명</th><th>예시</th></tr></thead>
+      <tbody>
+        <tr><td><code>no</code></td><td>공통</td><td>신청번호 (REQ-YYYY-MMDD-NNN)</td><td>REQ-2026-0422-008</td></tr>
+        <tr><td><code>date</code></td><td>공통</td><td>신청일 (YYYY.MM.DD)</td><td>2026.04.22</td></tr>
+        <tr><td><code>kind</code></td><td>공통</td><td>구분 — 신규 / 연장 / 증설 / 잠금해제</td><td>증설</td></tr>
+        <tr><td><code>vdi</code></td><td>공통</td><td>대상 가상PC 명</td><td>jschoi0223-main</td></tr>
+        <tr><td><code>status</code></td><td>공통</td><td>상태 키 — progress / done / reject</td><td>progress</td></tr>
+        <tr><td><code>type</code></td><td>신규</td><td>VDI 유형 (고정가상화 단일)</td><td>고정</td></tr>
+        <tr><td><code>period</code></td><td>연장</td><td>연장 기간</td><td>3개월</td></tr>
+        <tr><td><code>item</code> · <code>from</code> · <code>to</code></td><td>증설</td><td>증설 자원 항목과 변경 전/후 값</td><td>메모리 · 8GB · 16GB</td></tr>
+        <tr><td><code>cause</code></td><td>잠금해제</td><td>잠금 사유 (포탈 잠금해제 기안 시 기록)</td><td>장기 미사용 잠금</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">예시 레코드 (시안 데이터 발췌 — portal.html · approval-detail.html과 정합)</div>
+    <table class="tbl">
+      <thead><tr><th>신청번호</th><th style="width:88px">신청일</th><th style="width:80px">구분</th><th style="width:150px">대상 VDI</th><th>내용(자동 조합)</th><th style="width:76px">상태</th></tr></thead>
+      <tbody>
+        <tr><td><strong>REQ-2026-0422-008</strong></td><td>2026.04.22</td><td>증설</td><td>jschoi0223-main</td><td>자원 증설 · 메모리 8GB→16GB</td><td>승인 중</td></tr>
+        <tr><td><strong>REQ-2026-0421-012</strong></td><td>2026.04.21</td><td>잠금해제</td><td>jschoi0223-prj</td><td>잠금 해제 · 장기 미사용 잠금</td><td>승인 중</td></tr>
+        <tr><td><strong>REQ-2026-0410-005</strong></td><td>2026.04.10</td><td>신규</td><td>jschoi0223-nomain</td><td>신규 신청 · 고정형</td><td>승인 중</td></tr>
+        <tr><td><strong>REQ-2026-0405-011</strong></td><td>2026.04.05</td><td>연장</td><td>jschoi0223-main</td><td>사용 연장 · 3개월</td><td>완료</td></tr>
+        <tr><td><strong>REQ-2026-0228-006</strong></td><td>2026.02.28</td><td>증설</td><td>jschoi0223-nomain</td><td>자원 증설 · CPU 2 Core→8 Core</td><td>반려</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">상태 · 분류 정의</span></div>
+
+    <div class="sub-h">6.1 · 결재 상태 (3종)</div>
+    <p class="sec-lead">목록·필터에 노출되는 상태는 <strong>승인 중 · 완료 · 반려 3종</strong>입니다. 소스에는 보조 상태 <code>apply</code>(적용 중, spill-apply/sdot-info)가 정의되어 있으나 시안 데이터에는 미사용이며, 필터·집계 시 <code>group()</code>이 승인 중(progress) 그룹으로 묶습니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:90px">상태</th><th style="width:90px">status 키</th><th style="width:130px">pill 클래스</th><th style="width:130px">상태 점(sdot)</th><th>표시 · 의미</th></tr></thead>
+      <tbody>
+        <tr><td>승인 중</td><td><code>progress</code></td><td><code>.spill-progress</code></td><td><code>.sdot-warning</code></td><td>warning soft 배경 pill. 부서장/운영부서 결재 진행 중</td></tr>
+        <tr><td>완료</td><td><code>done</code></td><td><code>.spill-done</code></td><td><code>.sdot-success</code></td><td>배경 없는 텍스트형(tertiary). 결재·처리 완료</td></tr>
+        <tr><td>반려</td><td><code>reject</code></td><td><code>.spill-reject</code></td><td><code>.sdot-danger</code></td><td>배경 없는 텍스트형(tertiary). 결재 반려 — 상세에서 반려 사유 확인</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">6.2 · 신청 구분 (4종)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:90px">구분</th><th style="width:80px">KIND 키</th><th style="width:140px">클래스</th><th style="width:170px">내용 조합 패턴</th><th>발생 화면</th></tr></thead>
+      <tbody>
+        <tr><td>신규</td><td><code>add</code></td><td><code>.rtag-add</code></td><td>신규 신청 · {유형}형</td><td>VDI 추가신청(apply.html)</td></tr>
+        <tr><td>연장</td><td><code>extend</code></td><td><code>.rtag-extend</code></td><td>사용 연장 · {기간}</td><td>사용 연장·자원 증설(change.html) — 연장 탭</td></tr>
+        <tr><td>증설</td><td><code>expand</code></td><td><code>.rtag-expand</code></td><td>자원 증설 · {항목} {전}→{후}</td><td>사용 연장·자원 증설(change.html) — 증설 탭</td></tr>
+        <tr><td>잠금해제</td><td><code>unlock</code></td><td><code>.rtag-unlock</code></td><td>잠금 해제 · {잠금 사유}</td><td>메인 포탈(portal.html) — 잠긴 VDI에서 즉시 기안(E-08)</td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        구분 태그는 <code>rtag-{KIND 키}</code> 클래스가 함께 부여되지만, 현재 디자인은 <strong>색 없는 카테고리 텍스트</strong>(<code>.rtag</code> 기본 스타일만)로 표시합니다. 클래스는 추후 색상 구분이 필요할 때를 위한 후킹 포인트이며, <strong>결재 상세(approval-detail.html)의 <code>KIND</code>·<code>PILL</code> 정의와 키·표기를 동일하게 유지</strong>해야 합니다.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">7.1 · 페이지 고유 (approval.html 내부)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:200px">구성요소</th><th style="width:70px">구분</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><code>ROWS</code></td><td>데이터</td><td>결재 목록 레코드 13건 (5 데이터 항목 참조)</td></tr>
+        <tr><td><code>KIND</code> / <code>KIND_TEXT</code> / <code>content(r)</code></td><td>데이터</td><td>구분→클래스 키 매핑 / 구분 라벨 / 내용 컬럼 자동 조합 함수</td></tr>
+        <tr><td><code>PILL</code> / <code>group(s)</code></td><td>데이터</td><td>상태→pill·sdot·라벨 매핑 / apply→progress 그룹핑</td></tr>
+        <tr><td><code>updateStats()</code></td><td>JS</td><td>전체·승인 중·완료·반려 건수 집계 표시</td></tr>
+        <tr><td><code>render()</code></td><td>JS</td><td>상태·검색·기간 필터 적용 → 최신순 정렬 → 페이지 분할 → 행/빈 상태 렌더 + 페이저 갱신</td></tr>
+        <tr><td><code>setFilter(f)</code> / <code>setQuickRange(kind)</code></td><td>JS</td><td>상태 필터 변경(세그·스탯 칩 동기화) / 기간 프리셋 적용 — 모두 1페이지 초기화 후 재렌더</td></tr>
+        <tr><td><code>.rtag</code> · <code>.spill-*</code> · <code>.col-*</code></td><td>CSS</td><td>구분 텍스트 · 상태 pill 4종 · 컬럼별 표기(nowrap·tabular-nums·정렬) 스타일</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">7.2 · 공통 의존 (common.js · common.css)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:240px">구성요소</th><th style="width:90px">출처</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><code>renderPager(el, total, page, onGo)</code> / <code>PAGE_SIZE</code></td><td>common.js</td><td>10건 단위 공통 페이지네이션 렌더 (1페이지 이하 숨김)</td></tr>
+        <tr><td><code>dateInRange(dateStr, from, to)</code></td><td>common.js</td><td>레코드 날짜의 기간(from~to) 포함 여부 판정</td></tr>
+        <tr><td><code>maxDateOf(rows)</code> / <code>quickRangeFrom(to, kind)</code></td><td>common.js</td><td>목록 최신 신청일 산출 / 프리셋(1주일·1개월·3개월) 시작일 역산</td></tr>
+        <tr><td><code>toggleDatePop()</code> / <code>setDateLabel()</code> / <code>DATE_LABELS</code></td><td>common.js</td><td>기간 드롭다운 열기·닫기 / 라벨 갱신 / 프리셋명 정의</td></tr>
+        <tr><td><code>renderHeader</code>·사이드바 주입 / <code>goHome</code>·<code>logout</code> / <code>showToast</code></td><td>common.js</td><td>공통 레이아웃 주입(data-header/data-sidebar) · 공통 동작·알림</td></tr>
+        <tr><td><code>.filter-bar</code> · <code>.search-hero</code> · <code>.filter-seg</code> · <code>.date-drop</code></td><td>common.css</td><td>필터 바 · 검색 박스 · 세그먼트 · 기간 드롭다운 공통 스타일</td></tr>
+        <tr><td><code>.data-table</code> · <code>.empty-state</code> · <code>.pager</code> · <code>.stat-strip</code>(admin-mode 노출)</td><td>common.css</td><td>표준 테이블 · 빈 상태 · 페이저 · 요약 스탯 공통 컴포넌트</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>결재 상세</strong> (approval-detail.html) — 행 클릭 drill-down(<code>?no={신청번호}</code>). 구분별 결재 플로우(기본 4단계, 잠금해제는 3단계 약식)와 <code>KIND</code>·<code>PILL</code>·레코드 정합 유지</li>
+        <li><strong>VDI 추가신청</strong> (apply.html) · <strong>사용 연장 · 자원 증설</strong> (change.html) — 신청 제출 후 본 화면에서 진행 상태 확인 (구분: 신규 / 연장·증설)</li>
+        <li><strong>메인 포탈</strong> (portal.html) — KPI [진행 중 결재건] 클릭 시 본 화면 진입 · 잠긴 VDI(jschoi0223-prj) 잠금해제 즉시 기안(REQ-2026-0421-012)의 발생 화면</li>
+        <li><strong>로그인</strong> (login.html) — 세션 만료/로그아웃 시</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">9</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(approval.html)은 UI 시안(프로토타입)</strong>으로, 목록 데이터는 페이지 내 mock(<code>ROWS</code>)입니다. 구현 시 <strong>결재(신청) 목록 조회 API 연동</strong>으로 대체하고, 필터·검색·기간 조건과 <strong>페이징(10건 단위)은 서버 측 처리</strong>를 권장합니다. 내용 컬럼은 구분별 정형 파라미터(유형/기간/자원 변경/잠금 사유)를 그대로 받아 화면에서 조합하는 것을 기준으로 합니다. 요약 스탯 스트립은 관리자 권한 보유자에게만 노출하며, 상태 3종·구분 4종 체계는 결재 상세 화면과 단일 정의로 관리합니다.
+      </div>
+    </div>
+  </section>
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-005 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>

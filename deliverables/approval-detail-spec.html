@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 결재 상세 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+
+  <div class="doc-title" id="spec-approval-detail">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">결재 상세</h1>
+    <div class="doc-sub">결재 현황 목록에서 진입하는 drill-down 화면. 신청 한 건의 정보·결재 진행 단계·결재 이력을 표시</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-006</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-006</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">approval-detail.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>결재 상세</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-006</dd>
+        <dt>경로(URL)</dt><dd>/approval-detail.html?no={신청번호}</dd>
+        <dt>화면 유형</dt><dd>공통 레이아웃 + drill-down 상세 (목록 → 상세 동선)</dd>
+        <dt>화면 목적</dt><dd>신청 한 건의 신청 정보, 구분별 결재 진행 단계, 단계별 결재 이력(결재자·처리일시·의견) 확인 및 진행 중 신청의 회수</dd>
+        <dt>진입 경로</dt><dd>결재 현황(approval.html) 목록 행 클릭 시 <code>?no={신청번호}</code> 파라미터로 진입</dd>
+        <dt>사이드바 메뉴</dt><dd>부모 메뉴 [결재 현황] active 유지 (drill-down 화면은 별도 메뉴 없음)</dd>
+        <dt>Breadcrumb</dt><dd>홈 › 신청 · 결재 › 결재 현황 › <strong>결재 상세</strong></dd>
+        <dt>전제 조건</dt><dd>인증 완료 상태 (미인증 시 로그인 화면으로 이동)</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">approval-detail.html</span>
+      </div>
+      <iframe src="../approval-detail.html" title="결재 상세 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../approval-detail.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
+          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 사용자 정보(이름·부서·사번) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
+          <div class="area-desc">카테고리별 메뉴 + 하단 Service Desk(1544-8119). 현재 화면은 부모 메뉴 [결재 현황] active</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">Breadcrumb · 페이지 헤더</div>
+          <div class="area-desc">홈 › 신청 · 결재 › 결재 현황 › 결재 상세 경로 표시. 페이지 설명에 신청번호·구분, 우측에 상태 pill(승인 중/완료/반려)</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">신청 정보 카드</div>
+          <div class="area-desc">신청번호·구분·대상 VDI·신청자·신청일·사용 용도·신청 내역·신청 사유 8개 필드를 key/value 행으로 표시</div></div></div>
+        <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">결재 진행 (prog-steps)</div>
+          <div class="area-desc">구분별 결재 플로우를 가로 단계 원형(prog-circle)으로 표시. 완료 ✓ / 진행 중 강조 / 반려 ✕ / 대기 번호</div></div></div>
+        <div class="area-item"><span class="area-badge">F</span><div><div class="area-name">결재 이력 표</div>
+          <div class="area-desc">단계 · 결재자(이름/역할) · 처리일시 · 상태 배지 · 의견 5개 컬럼. 단계 수는 결재 플로우와 동일</div></div></div>
+        <div class="area-item"><span class="area-badge">G</span><div><div class="area-name">하단 액션 바</div>
+          <div class="area-desc">상태별 안내문 + [목록으로] 버튼. 승인 중(진행) 건에 한해 [신청 회수] 버튼 노출</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 페이지 헤더 (영역 C)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Breadcrumb</strong></td><td><span class="tag tag-nav">바로가기</span></td><td>홈 › 신청 · 결재 › 결재 현황 › 결재 상세. [홈]·[결재 현황]은 링크, 현재 화면은 텍스트</td></tr>
+        <tr><td>2</td><td>페이지 설명</td><td><span class="tag tag-view">표시</span></td><td>해당 레코드의 <strong>신청번호 + 구분 태그</strong>를 동적 표시 (예: REQ-2026-0422-008 · 증설)</td></tr>
+        <tr><td>3</td><td><strong>상태 pill</strong> <code>.spill</code></td><td><span class="tag tag-view">표시</span></td><td>레코드 상태에 따라 승인 중(warning pill) / 완료 / 반려(텍스트형) + 상태 점(sdot) 표시</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.2 · 신청 정보 카드 (영역 D)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>값(예시)</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>4</td><td><strong>신청번호</strong></td><td><span class="tag tag-view">표시</span></td><td>REQ-2026-0422-008</td><td>레코드 식별자. 결재 현황 목록의 신청번호와 동일 값</td></tr>
+        <tr><td>5</td><td>구분</td><td><span class="tag tag-view">표시</span></td><td>증설</td><td>신규 / 연장 / 증설 / 잠금해제 4종 (구분 태그 <code>.rtag</code>)</td></tr>
+        <tr><td>6</td><td>대상 VDI</td><td><span class="tag tag-view">표시</span></td><td>jschoi0223-main</td><td>신청 대상 가상PC 명 (jschoi0223-main / -nomain / -prj)</td></tr>
+        <tr><td>7</td><td>신청자</td><td><span class="tag tag-view">표시</span></td><td>최정식 책임 · IT기획파트</td><td>본인 신청 전용이므로 로그인 사용자로 고정 표시</td></tr>
+        <tr><td>8</td><td>신청일</td><td><span class="tag tag-view">표시</span></td><td>2026.04.22</td><td>기안(신청) 일자</td></tr>
+        <tr><td>9</td><td>사용 용도</td><td><span class="tag tag-view">표시</span></td><td>일반 업무용</td><td>신청 시 입력한 용도 (일반 업무용 / 기타)</td></tr>
+        <tr><td>10</td><td><strong>신청 내역</strong></td><td><span class="tag tag-view">표시</span></td><td>메모리 8 GB → 16 GB</td><td>구분별 신청 내용 요약. 변경형(연장·증설)은 현재값 → 변경값 화살표 표기</td></tr>
+        <tr><td>11</td><td>신청 사유</td><td><span class="tag tag-view">표시</span></td><td>대용량 데이터 분석 업무가 증가하여…</td><td>신청 시 입력한 사유 전문</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.3 · 결재 진행 표시 (영역 E)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>12</td><td><strong>단계 원형</strong> <code>.prog-circle</code></td><td><span class="tag tag-view">표시</span></td><td>단계별 상태 표기: 완료 <code>done</code>(녹색 ✓) · 진행 중 <code>active</code>(KB옐로우, 단계 번호) · 반려 <code>fail</code>(적색 ✕) · 대기(보더만, 단계 번호)</td></tr>
+        <tr><td>13</td><td>단계 라벨 <code>.prog-label</code></td><td><span class="tag tag-view">표시</span></td><td>단계명 텍스트 (기안 / 부서장 승인 / IT운영부 검토 / 처리 · 적용 등 — 6.1 플로우 매트릭스 참조)</td></tr>
+        <tr><td>14</td><td>연결선</td><td><span class="tag tag-view">표시</span></td><td>단계 사이 수평 연결선 (마지막 단계 제외, common.css <code>.prog-step::after</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.4 · 결재 이력 표 (영역 F)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>컬럼명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>15</td><td><strong>단계</strong></td><td><span class="tag tag-view">표시</span></td><td>순번 + 단계명 (예: 1. 기안). 결재 플로우 단계와 1:1 대응</td></tr>
+        <tr><td>16</td><td>결재자</td><td><span class="tag tag-view">표시</span></td><td>결재자 이름(예: 박성한 부장) + 역할(예: IT기획파트장) 2줄 표기. 구분별 플로우의 결재선 사용</td></tr>
+        <tr><td>17</td><td>처리일시</td><td><span class="tag tag-view">표시</span></td><td>처리 완료 단계만 일시 표기(예: 2026.04.22 09:14), 미처리 단계는 "—"</td></tr>
+        <tr><td>18</td><td><strong>상태 배지</strong> <code>.hbadge</code></td><td><span class="tag tag-view">표시</span></td><td>완료(녹색) / 진행 중(황색) / 대기(회색) / 반려(적색) 4종</td></tr>
+        <tr><td>19</td><td>의견</td><td><span class="tag tag-view">표시</span></td><td>단계별 결재 의견. 반려 단계에는 반려 사유 표기, 미처리 단계는 "-"</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.5 · 하단 액션 바 (영역 G)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>20</td><td>상태 안내문</td><td><span class="tag tag-view">표시</span></td><td>승인 중: "결재가 완료되기 전에는 신청 회수로 취소할 수 있습니다" / 반려: "반려된 신청입니다. 사유 확인 후 재신청해주세요." / 완료: "처리가 완료된 신청입니다."</td></tr>
+        <tr><td>21</td><td><strong>목록으로</strong></td><td><span class="tag tag-btn">버튼</span></td><td>결재 현황(approval.html)으로 복귀. 모든 상태에서 항상 노출</td></tr>
+        <tr><td>22</td><td><strong>신청 회수</strong></td><td><span class="tag tag-btn">버튼</span></td><td>승인 중(progress) 상태에서만 노출(danger 버튼). 확인(confirm) 후 회수 처리 → 목록 복귀</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td><strong>진입 · 레코드 결정</strong></td><td>화면 진입(URL <code>?no={신청번호}</code>)</td><td>URL 파라미터 <code>no</code>로 상세 레코드를 결정. 파라미터가 없거나 일치하는 레코드가 없으면 <strong>기본 레코드(REQ-2026-0422-008)</strong>를 표시 <em>(구현 시: 결재 상세 조회 후 미존재 건은 오류 안내)</em></td></tr>
+        <tr><td>E-02</td><td>구분별 플로우 분기</td><td>레코드 렌더 시</td><td>구분이 <strong>잠금해제</strong>면 3단계 약식 플로우, 그 외(신규·연장·증설)는 기본 4단계 플로우를 적용해 결재 진행·이력의 단계 수와 결재선을 구성 (6.1 참조)</td></tr>
+        <tr><td>E-03</td><td>화면 렌더</td><td>레코드·플로우 확정 후</td><td>페이지 설명(신청번호·구분 태그) · 상태 pill · 신청 정보 8개 행 · 결재 진행 단계 · 결재 이력 행을 일괄 동적 생성</td></tr>
+        <tr><td>E-04</td><td><strong>반려 표시</strong></td><td>이력 단계 상태가 반려(<code>reject</code>)</td><td>해당 단계 원형을 <code>fail</code>(적색 ✕)로, 이력 배지를 [반려]로 표시하고 의견 칸에 반려 사유 표기. 이후 단계는 [대기] 유지, 상태 pill은 [반려]</td></tr>
+        <tr><td>E-05</td><td>신청 회수</td><td>[신청 회수] 클릭 (승인 중 건만)</td><td>확인 대화상자("이 신청을 회수하시겠습니까? 회수 후에는 다시 신청해야 합니다.") → 동의 시 "신청이 회수되었습니다." 안내 후 결재 현황으로 이동 <em>(시안: 안내 후 이동)</em></td></tr>
+        <tr><td>E-06</td><td>목록 복귀</td><td>[목록으로] 클릭 또는 breadcrumb [결재 현황] 클릭</td><td>결재 현황(approval.html)으로 이동</td></tr>
+        <tr><td>E-07</td><td>세션 만료</td><td>인증 세션 만료(서버 · 구현 시)</td><td>안내 후 로그인 화면으로 이동</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (결재 상세 레코드)</span></div>
+    <p class="sec-lead">결재 상세 레코드는 <strong>결재 현황(approval.html) 목록 13건과 동일한 신청번호 체계</strong>로 1:1 정합됩니다. 목록 행 클릭 시 해당 신청번호의 상세가 표시됩니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:110px">항목</th><th style="width:90px">필드</th><th>설명</th><th>예시 — REQ-2026-0421-012 (잠금해제)</th></tr></thead>
+      <tbody>
+        <tr><td><strong>신청번호</strong></td><td><code>no</code></td><td>레코드 키. REQ-YYYY-MMDD-NNN 형식</td><td>REQ-2026-0421-012</td></tr>
+        <tr><td>구분</td><td><code>kind</code></td><td>신규 / 연장 / 증설 / 잠금해제</td><td>잠금해제</td></tr>
+        <tr><td>대상 VDI</td><td><code>vdi</code></td><td>대상 가상PC 명 (고정가상화 3대 중 1)</td><td>jschoi0223-prj</td></tr>
+        <tr><td>신청일</td><td><code>date</code></td><td>기안 일자</td><td>2026.04.21</td></tr>
+        <tr><td>사용 용도</td><td><code>purpose</code></td><td>신청 용도</td><td>일반 업무용</td></tr>
+        <tr><td>신청 내역</td><td><code>detail</code></td><td>구분별 신청 내용 요약</td><td>장기 미사용 잠금 해제 (최근 접속 2026.01.19 · 90일 이상 미접속)</td></tr>
+        <tr><td>신청 사유</td><td><code>reason</code></td><td>신청 사유 전문</td><td>중단했던 프로젝트가 재개되어 해당 가상PC 사용이 다시 필요합니다.</td></tr>
+        <tr><td><strong>상태</strong></td><td><code>status</code></td><td>전체 결재 상태: <code>progress</code>(승인 중) / <code>done</code>(완료) / <code>reject</code>(반려)</td><td>progress (승인 중)</td></tr>
+        <tr><td><strong>이력</strong></td><td><code>hist[]</code></td><td>단계별 이력 배열 (플로우 단계 수와 동일 길이). 각 항목: 처리일시 <code>t</code> · 단계 상태 <code>s</code>(done/active/wait/reject) · 의견 <code>c</code></td><td>① 2026.04.21 10:12 · done · "장기 미사용 잠금 해제를 요청합니다." ② — · active · "결재 진행 중" ③ — · wait · "-"</td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        REQ-2026-0421-012(잠금해제)는 <strong>메인 포탈의 잠금해제 요청에서 기안된 건</strong>으로, 미사용 잠김 가상PC(jschoi0223-prj)와 정합됩니다. 결재선은 부서장 승인만으로 처리되는 <strong>3단계 약식</strong>이며, 승인 시 잠금이 자동 해제됩니다.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">상태 · 분류 정의</span></div>
+
+    <div class="sub-h">6.1 · 구분별 결재 플로우 매트릭스</div>
+    <p class="sec-lead">결재 플로우는 구분에 따라 두 가지입니다. <strong>신규 · 연장 · 증설</strong>은 기본 4단계, <strong>잠금해제</strong>는 부서장 승인만으로 자동 처리되는 3단계 약식입니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:130px">구분</th><th style="width:70px">단계 수</th><th>1단계</th><th>2단계</th><th>3단계</th><th>4단계</th></tr></thead>
+      <tbody>
+        <tr><td><strong>신규</strong></td><td>4</td><td>기안<br><span style="font-size:12px">최정식 책임 (IT기획파트)</span></td><td>부서장 승인<br><span style="font-size:12px">박성한 부장 (IT기획파트장)</span></td><td>IT운영부 검토<br><span style="font-size:12px">이정민 부장 (IT운영부장)</span></td><td>처리 · 적용<br><span style="font-size:12px">VDI 운영팀 (가상PC 생성 · 적용)</span></td></tr>
+        <tr><td><strong>연장</strong></td><td>4</td><td>기안</td><td>부서장 승인</td><td>IT운영부 검토</td><td>처리 · 적용</td></tr>
+        <tr><td><strong>증설</strong></td><td>4</td><td>기안</td><td>부서장 승인</td><td>IT운영부 검토</td><td>처리 · 적용</td></tr>
+        <tr><td><strong>잠금해제</strong></td><td>3 (약식)</td><td>기안<br><span style="font-size:12px">최정식 책임 (IT기획파트)</span></td><td>부서장 승인<br><span style="font-size:12px">박성한 부장 (IT기획파트장)</span></td><td>잠금해제 적용<br><span style="font-size:12px">시스템 자동 (승인 시 자동 해제)</span></td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">6.2 · 단계 상태 매핑 (결재 진행 · 결재 이력)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:80px">단계 상태</th><th style="width:80px">상태 키</th><th style="width:170px">진행 원형 (prog-circle)</th><th style="width:120px">이력 배지</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>완료</td><td><code>done</code></td><td><code>.done</code> — 녹색 배경 · ✓</td><td>[완료] 녹색</td><td>해당 단계 처리 완료. 처리일시·의견 표기</td></tr>
+        <tr><td>진행 중</td><td><code>active</code></td><td><code>.active</code> — KB옐로우 · 단계 번호</td><td>[진행 중] 황색</td><td>현재 결재가 머무는 단계. 처리일시 "—"</td></tr>
+        <tr><td>대기</td><td><code>wait</code></td><td>(기본) — 보더만 · 단계 번호</td><td>[대기] 회색</td><td>아직 도달하지 않은 단계</td></tr>
+        <tr><td>반려</td><td><code>reject</code></td><td><code>.fail</code> — 적색 배경 · ✕</td><td>[반려] 적색</td><td>해당 단계에서 반려. 의견 칸에 반려 사유, 이후 단계는 대기 유지</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">6.3 · 전체 상태 pill (페이지 헤더 우측)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:90px">상태</th><th style="width:90px">status 키</th><th style="width:150px">CSS 클래스</th><th>표현</th></tr></thead>
+      <tbody>
+        <tr><td><strong>승인 중</strong></td><td><code>progress</code></td><td><code>.spill-progress</code></td><td>warning soft pill + 황색 점. [신청 회수] 버튼 노출 대상</td></tr>
+        <tr><td>완료</td><td><code>done</code></td><td><code>.spill-done</code></td><td>배경 없는 텍스트형 + 녹색 점 (차분한 표현)</td></tr>
+        <tr><td>반려</td><td><code>reject</code></td><td><code>.spill-reject</code></td><td>배경 없는 텍스트형 + 적색 점</td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        전체 결재 상태는 결재 현황 목록과 동일하게 <strong>승인 중 · 완료 · 반려 3종</strong>입니다. 시안 소스의 상태 매핑(<code>PILL</code>)에는 확장 대비용 <code>apply</code>(적용 중) 정의가 포함되어 있으나, 현재 데이터에서는 사용하지 않습니다.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">7.1 · 화면 고유 스타일 · 스크립트 (approval-detail.html 내부)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:170px">구성 요소</th><th style="width:78px">유형</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><code>.spill</code> · <code>.hbadge</code> · <code>.info-row</code> · <code>.rtag</code></td><td>스타일</td><td>상태 pill · 이력 배지 · 신청 정보 key/value 행(150px 라벨 그리드) · 구분 텍스트 태그. 페이지 <code>&lt;style&gt;</code>에 정의</td></tr>
+        <tr><td><code>FLOWS</code></td><td>데이터</td><td>구분별 결재 플로우 정의 — <code>default</code>(기본 4단계) / <code>잠금해제</code>(3단계 약식). 각 플로우는 단계명 배열(<code>steps</code>)과 결재선(<code>actors</code>: 이름·역할) 보유</td></tr>
+        <tr><td><code>DETAILS</code></td><td>데이터</td><td>신청번호를 키로 하는 상세 레코드 13건 (결재 현황 목록과 정합). 구현 시 결재 상세 조회 결과로 대체</td></tr>
+        <tr><td><code>KIND</code> / <code>PILL</code> / <code>HBADGE</code></td><td>매핑</td><td>구분 → 태그 클래스(add/extend/expand/unlock) · 전체 상태 → pill 표현 · 단계 상태 → 이력 배지 매핑</td></tr>
+        <tr><td><code>render()</code></td><td>함수</td><td>URL 파라미터로 확정된 레코드와 플로우를 기반으로 페이지 설명·상태 pill·신청 정보·결재 진행·결재 이력·액션 바를 일괄 렌더</td></tr>
+        <tr><td><code>withdraw()</code></td><td>함수</td><td>신청 회수 처리 — 확인 대화상자 → 안내 → 결재 현황 복귀</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">7.2 · 공통 의존 (전 화면 공통)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:170px">파일</th><th>제공 요소</th></tr></thead>
+      <tbody>
+        <tr><td><code>common.css</code></td><td>디자인 토큰(색상·라운드·그림자) · 레이아웃(헤더/사이드바/breadcrumb) · 폼 카드(<code>.fc</code>) · 진행 단계(<code>.prog-steps</code> / <code>.prog-circle</code> done·active·fail) · 데이터 테이블(<code>.data-table</code>) · 버튼(<code>.btn</code> outline·danger) · 액션 바 · 상태 점(<code>.sdot</code>)</td></tr>
+        <tr><td><code>common.js</code></td><td>헤더·사이드바 주입(부모 메뉴 <code>approval</code> active) · 사용자/Service Desk 정보 · <code>goHome()</code>/<code>logout()</code>/<code>showToast()</code> · 세션 표시</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>결재 현황</strong> (approval.html) — 목록 → 상세 진입 원천. 신청번호·구분·상태가 본 화면과 1:1 정합 (13건)</li>
+        <li><strong>VDI 추가신청</strong> (apply.html) · <strong>사용 연장 · 자원 증설</strong> (change.html) — 신규/연장/증설 신청의 기안 원천 화면</li>
+        <li><strong>메인 포탈</strong> (portal.html) — 잠금해제 구분의 기안 원천 (미사용 잠김 가상PC의 [잠금해제 요청])</li>
+        <li><strong>로그인</strong> (login.html) — 세션 만료/로그아웃 시</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">9</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(approval-detail.html)은 UI 시안(프로토타입)</strong>입니다. 구현 시 신청번호 기반 <strong>결재 상세 · 결재 이력 조회 API</strong> 연동이 필요하며, 결재선(부서장·IT운영부)·결재 처리 주체를 사내 <strong>전자결재 시스템과 연동할지, 포탈 자체 결재로 처리할지</strong>는 설계 단계에서 확정해야 합니다. 신청 회수의 실제 처리(회수 가능 시점·이력 보존)와 미존재/권한 외 신청번호 접근 시 처리도 구현 시 정의 대상입니다.<br>
+        헤더·사이드바·토스트는 <strong>전 화면 공통 영역</strong>으로, 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
+      </div>
+    </div>
+  </section>
+
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-006 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>

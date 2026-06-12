@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 사용 연장 · 자원 증설 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+  <div class="doc-title" id="spec-change">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">사용 연장 · 자원 증설</h1>
+    <div class="doc-sub">보유한 가상PC의 사용 기간을 연장하거나 CPU·메모리·디스크 자원을 증설하는 신청 화면</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-004</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-004</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">change.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>사용 연장 · 자원 증설</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-004</dd>
+        <dt>경로(URL)</dt><dd>/change.html</dd>
+        <dt>화면 유형</dt><dd>공통 레이아웃 (상단 헤더 + 좌측 사이드바 + 본문) · 탭형 신청 폼</dd>
+        <dt>화면 목적</dt><dd>보유 가상PC를 대상으로 ① 사용 기간 연장 ② CPU·메모리·디스크 자원 증설을 신청(승인 요청)</dd>
+        <dt>진입 경로</dt><dd>사이드바 [사용 연장 · 증설] 클릭</dd>
+        <dt>사이드바 메뉴</dt><dd>사용 연장 · 증설 (active, key=change)</dd>
+        <dt>전제 조건</dt><dd>인증 완료 상태 · 보유 가상PC 존재 (잠김·기본 지급 VDI는 탭별 신청 제한 — 6장 참조)</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">change.html</span>
+      </div>
+      <iframe src="../change.html" title="사용 연장 · 자원 증설 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../change.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
+          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 관리자 권한 토글 · 사용자 정보(최정식 책임 · IT기획파트 · 사번 1010579) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
+          <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 헬프데스크(1544-8119 · 평일 09:00~18:00). 현재 화면은 [사용 연장 · 증설] active</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">Breadcrumb + 페이지 헤더</div>
+          <div class="area-desc">홈 › 신청 · 결재 › 사용 연장 · 자원 증설 경로 표기 + 화면 제목·설명. 우측에 시연용 버튼(보유 VDI 상태 전환, 3.7 참조)</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">메인 탭 (밑줄형 2종)</div>
+          <div class="area-desc">[사용 연장] / [자원 증설] 탭. 전환 시 탭 패널·처리 단계·제출 동작이 함께 전환 (기본 선택: 사용 연장)</div></div></div>
+        <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">대상 가상PC 선택 카드 (탭 공통)</div>
+          <div class="area-desc">보유 가상PC 3대 라디오 리스트(<code>.vdi-opt</code>). 지급구분 배지(기본 지급/별도 신청)·사양 또는 안내 텍스트·상태 점 표시. 잠김/연장 불가 VDI는 비활성</div></div></div>
+        <div class="area-item"><span class="area-badge">F</span><div><div class="area-name">탭 패널 (연장 정보 / 자원 증설)</div>
+          <div class="area-desc">연장 탭: 현재 사용기간 · 연장 종료일(달력+빠른 입력 PILL) · 연장 사유. 증설 탭: CPU·메모리·디스크 콤보(현재값 → 목표값) · 증설 사유 · 최대 사양 안내(warn-box)</div></div></div>
+        <div class="area-item"><span class="area-badge">G</span><div><div class="area-name">처리 단계 stepper (하단 · 액션 바 위)</div>
+          <div class="area-desc">신청 lifecycle 표시. 탭별 동적 렌더 — 연장 3단계 / 증설 4단계, 항상 1단계(정보 입력) active (3.5 참조)</div></div></div>
+        <div class="area-item"><span class="area-badge">H</span><div><div class="area-name">액션 바 (공통)</div>
+          <div class="area-desc">좌측 안내 문구("제출 후에는 결재 현황에서 진행 상태를 확인할 수 있습니다.") + 우측 [취소] / [승인 요청] 버튼</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 메인 탭 (영역 D)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>사용 연장 탭</strong> <code>.mtab[data-tab="extend"]</code></td><td><span class="tag tag-view">탭</span></td><td>기본 선택 탭. 연장 정보 패널 + 연장 3단계 stepper 표시. 연장 불가 VDI 선택 중이면 신청 가능한 VDI로 자동 전환</td></tr>
+        <tr><td>2</td><td><strong>자원 증설 탭</strong> <code>.mtab[data-tab="expand"]</code></td><td><span class="tag tag-view">탭</span></td><td>자원 증설 패널 + 증설 4단계 stepper 표시</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.2 · 대상 가상PC 선택 (영역 E — 라디오 리스트 <code>.vdi-opt</code>, 보유 3대)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>3</td><td><strong>라디오 리스트</strong> <code>.vdi-opt</code></td><td><span class="tag tag-btn">선택</span></td><td>행 클릭으로 단일 선택(<code>.sel</code>). 신청 불가 VDI는 <code>.locked</code>(반투명·클릭 차단) 처리, 클릭 시 차단 사유 토스트(E-03)</td></tr>
+        <tr><td>4</td><td>지급구분 배지 <code>.vdi-opt-type</code></td><td><span class="tag tag-view">표시</span></td><td><strong>기본 지급</strong>(중립색 <code>.base</code>) / <strong>별도 신청</strong>(옐로우) 2종. <code>base</code> 플래그 기준</td></tr>
+        <tr><td>5</td><td>사양 · 안내 텍스트 <code>.vdi-opt-spec</code></td><td><span class="tag tag-view">표시</span></td><td>선택 가능 시 "CPU 6 Core · 8 GB · 디스크 150 GB" 형식. 잠김 시 "장기 미사용 잠김 · 잠금해제 승인 후 신청 가능", 연장 탭의 기본 지급 시 "본사 근무 재직자 자동유지 · 연장 신청 불필요"</td></tr>
+        <tr><td>6</td><td>상태 표시 <code>.vdi-opt-status</code></td><td><span class="tag tag-view">표시</span></td><td>상태 점 + 텍스트. 온라인=<code>sdot-success</code> · 미사용 잠김=<code>sdot-danger</code> · 오프라인=<code>sdot-muted</code></td></tr>
+        <tr><td>7</td><td><strong>jschoi0223-main</strong></td><td><span class="tag tag-view">데이터</span></td><td>고정가상화 · <strong>기본 지급</strong>(base:true) → 연장 탭에서 비활성(자동 유지), 증설 탭에서는 선택 가능</td></tr>
+        <tr><td>8</td><td><strong>jschoi0223-nomain</strong></td><td><span class="tag tag-view">데이터</span></td><td>고정가상화 · <strong>별도 신청</strong>(base:false) → 연장·증설 양 탭 모두 신청 가능</td></tr>
+        <tr><td>9</td><td><strong>jschoi0223-prj</strong></td><td><span class="tag tag-view">데이터</span></td><td>고정가상화 · 별도 신청 + <strong>미사용 잠김</strong>(lock:true) → 양 탭 모두 비활성. 잠금해제 승인 완료 후 신청 가능</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.3 · 사용 연장 탭 패널 (연장 정보)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th style="width:64px">필수</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>10</td><td><strong>현재 사용기간</strong> <code>#x_current</code></td><td><span class="tag tag-view">표시</span></td><td>-</td><td>선택 VDI의 시작~종료일 표기 (예: 2025.11.01 ~ 2026.09.30)</td></tr>
+        <tr><td>11</td><td><strong>연장 종료일</strong> <code>#x_end</code></td><td><span class="tag tag-btn">입력</span></td><td>필수</td><td>date 입력. 최소값 = 현재 종료일 +1일(<code>min</code>), 기본값 = 현재 종료일 +1개월. 도움말: "현재 종료일(…) 이후로만 연장할 수 있습니다. 빠른 입력은 현재 종료일 기준입니다."</td></tr>
+        <tr><td>12</td><td>빠른 입력 PILL <code>.qp</code></td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td><strong>1개월 / 3개월 / 1년</strong> 3종 — 현재 종료일 기준 가산. 기본 [1개월] 선택, 달력 직접 입력 시 선택 해제</td></tr>
+        <tr><td>13</td><td><strong>연장 사유</strong> <code>#x_reason</code></td><td><span class="tag tag-btn">입력</span></td><td>필수</td><td>textarea 3행. placeholder "사용 연장이 필요한 사유를 입력해주세요."</td></tr>
+        <tr><td>14</td><td>연장 불가 빈 화면 <code>#extendEmpty</code></td><td><span class="tag tag-view">표시</span></td><td>-</td><td>연장 가능(별도 신청) VDI가 없으면 폼 대신 표시: "연장 신청 가능한 가상PC가 없습니다. 기본 지급(본사 근무 재직자 자동유지) 가상PC는 연장 대상이 아닙니다."</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.4 · 자원 증설 탭 패널</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th style="width:64px">필수</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>15</td><td><strong>CPU 콤보</strong> <code>e_cpu</code></td><td><span class="tag tag-btn">선택</span></td><td>-</td><td>옵션 <strong>6 Core / 8 Core</strong>. "현재 6 Core → [선택]" 비교형 행. 현재값에 "(현재)" 표기, 현재 미만 옵션은 disabled</td></tr>
+        <tr><td>16</td><td><strong>메모리 콤보</strong> <code>e_mem</code></td><td><span class="tag tag-btn">선택</span></td><td>-</td><td>옵션 <strong>8 GB / 16 GB</strong>. 동작 동일(하향 선택 불가)</td></tr>
+        <tr><td>17</td><td><strong>디스크(D) 콤보</strong> <code>e_disk</code></td><td><span class="tag tag-btn">선택</span></td><td>-</td><td>옵션 <strong>150 GB / 200 GB</strong>. 동작 동일(하향 선택 불가)</td></tr>
+        <tr><td>18</td><td>증설 배지 <code>.sc-up</code></td><td><span class="tag tag-view">표시</span></td><td>-</td><td>목표값이 현재값과 다르면 해당 행 우측에 "증설" 배지(success 색) 표시</td></tr>
+        <tr><td>19</td><td><strong>증설 사유</strong> <code>#e_reason</code></td><td><span class="tag tag-btn">입력</span></td><td>필수</td><td>textarea 3행. placeholder "자원 증설이 필요한 사유를 입력해주세요. (예: 대용량 데이터 처리, 가상머신 다중 구동 등)"</td></tr>
+        <tr><td>20</td><td>최대 사양 안내 <code>.warn-box</code></td><td><span class="tag tag-view">표시</span></td><td>-</td><td>"최대 사양(8 Core / 16 GB)으로 증설 시 IT운영부 검토가 추가되어 승인까지 영업일 기준 2~3일이 소요될 수 있습니다."</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.5 · 처리 단계 stepper (영역 G — 탭별 동적 렌더, 1단계 active 고정)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>단계 구성</th></tr></thead>
+      <tbody>
+        <tr><td>21</td><td><strong>연장 stepper</strong> (3단계)</td><td><span class="tag tag-view">표시</span></td><td>① 정보 입력(active) → ② 부서장 승인 → ③ 가상화 사용연장 자동적용</td></tr>
+        <tr><td>22</td><td><strong>증설 stepper</strong> (4단계)</td><td><span class="tag tag-view">표시</span></td><td>① 정보 입력(active) → ② 부서장 승인 → ③ 운영부서 접수검토 → ④ 가상화 자원증설 적용</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.6 · 액션 바 (영역 H)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>23</td><td>안내 문구 <code>.action-hint</code></td><td><span class="tag tag-view">표시</span></td><td>"제출 후에는 <strong>결재 현황</strong>에서 진행 상태를 확인할 수 있습니다."</td></tr>
+        <tr><td>24</td><td><strong>취소</strong></td><td><span class="tag tag-btn">버튼</span></td><td>메인 포탈(portal.html)로 이동</td></tr>
+        <tr><td>25</td><td><strong>승인 요청</strong> <code>#submitBtn</code></td><td><span class="tag tag-btn">버튼</span></td><td>현재 탭 기준 검증(E-07/E-08) 후 제출. 라벨은 탭 전환 시 갱신(두 탭 모두 "승인 요청")</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.7 · 시연용 버튼 (페이지 헤더 우측 — 데모 전용)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>26</td><td><strong>시연용</strong> <code>#demoBtn</code> · <code>toggleDemoMode()</code></td><td><span class="tag tag-btn">버튼</span></td><td>보유 VDI 상태 전환 토글 — ON 시 기본 지급 VDI만 보유한 상태를 재현하여 연장 탭 빈 화면(#extendEmpty) 시연. URL <code>?demo=noext</code>로 ON 상태 초기 진입 가능. <strong>실제 구현 제외 대상</strong>(9장 참조)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>탭 전환</td><td>[사용 연장] / [자원 증설] 탭 클릭</td><td>탭 패널 전환 + stepper 재렌더(연장 3단계 ↔ 증설 4단계) + 제출 버튼 라벨 갱신. 연장 탭 진입 시 현재 선택이 연장 불가 VDI면 <strong>신청 가능한 VDI로 자동 전환</strong> 후 VDI 리스트·폼 재동기화</td></tr>
+        <tr><td>E-02</td><td>대상 VDI 선택</td><td>선택 가능한 <code>.vdi-opt</code> 행 클릭</td><td>선택(.sel) 갱신 → 연장 폼(현재 사용기간·종료일 기본값)·증설 콤보(현재 사양으로 리셋) 동기화(<code>syncForms()</code>)</td></tr>
+        <tr><td>E-03</td><td>신청 불가 VDI 클릭 차단</td><td>잠김 또는 (연장 탭의) 기본 지급 VDI 클릭</td><td>선택 차단 + 사유 토스트 — 잠김: "미사용 잠김 가상PC는 잠금해제 승인 완료 후 신청할 수 있습니다." / 기본 지급(연장 탭): "기본 지급(재직 임직원) 가상PC는 자동 유지되어 연장 신청 대상이 아닙니다."</td></tr>
+        <tr><td>E-04</td><td>빠른 입력 PILL</td><td>[1개월/3개월/1년] 클릭</td><td>연장 종료일 = 현재 종료일 + N개월로 설정, 해당 PILL 선택(.sel) 표시</td></tr>
+        <tr><td>E-05</td><td>종료일 직접 입력</td><td>달력/직접 입력(input)</td><td>PILL 선택 상태 전체 해제</td></tr>
+        <tr><td>E-06</td><td>증설 자원 변경</td><td>CPU/메모리/디스크 콤보 변경</td><td>목표값(state) 갱신 후 비교 그리드 재렌더 — 변경된 행에 "증설" 배지 표시</td></tr>
+        <tr><td>E-07</td><td>연장 제출 검증</td><td>연장 탭에서 [승인 요청] 클릭</td><td>순차 검증, 실패 시 토스트 후 중단 — ① 종료일 미선택: "연장 종료일을 선택해주세요." ② 현재 종료일 이전: "현재 종료일 이후로 연장해주세요." ③ 사유 미입력: "연장 사유를 입력해주세요."</td></tr>
+        <tr><td>E-08</td><td>증설 제출 검증</td><td>증설 탭에서 [승인 요청] 클릭</td><td>① 변경 없음(세 항목 모두 현재값): "증설할 자원을 현재보다 높게 선택해주세요." ② 사유 미입력: "증설 사유를 입력해주세요."</td></tr>
+        <tr><td>E-09</td><td>제출 성공</td><td>E-07/E-08 검증 통과</td><td>접수 토스트 표시 — "{가상PC명} 사용 연장 신청이 접수되었습니다." / "{가상PC명} 자원 증설 신청이 접수되었습니다." → <strong>1.4초 뒤 결재 현황(approval.html)으로 이동</strong></td></tr>
+        <tr><td>E-10</td><td>시연용 토글</td><td>[시연용] 클릭 (또는 <code>?demo=noext</code> 진입)</td><td>보유 목록을 기본 지급 VDI만 ↔ 전체 3대로 전환, 선택·폼 재동기화. 토스트: "시연: 기본 지급 VDI만 보유 (연장 불가)" / "시연: 별도 신청 VDI 보유 (연장 가능)"</td></tr>
+        <tr><td>E-11</td><td>연장 가능 VDI 없음</td><td>보유 목록에 별도 신청(연장 가능) VDI가 없을 때</td><td>연장 탭 폼(#extendForm) 숨김 → 빈 화면(#extendEmpty) 안내 표시</td></tr>
+        <tr><td>E-12</td><td>취소</td><td>[취소] 클릭</td><td>메인 포탈(portal.html)로 이동</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (보유 가상PC — <code>VDI_ALL</code> 3대)</span></div>
+    <p class="sec-lead">메인 포탈과 동일한 보유 3대 기준의 화면 내 mock 데이터입니다. 실제 구현 시 <strong>보유 VDI 조회 API</strong> 응답으로 대체합니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:110px">필드</th><th>설명</th><th>jschoi0223-main</th><th>jschoi0223-nomain</th><th>jschoi0223-prj</th></tr></thead>
+      <tbody>
+        <tr><td><code>name</code></td><td>가상PC 명</td><td>jschoi0223-main</td><td>jschoi0223-nomain</td><td>jschoi0223-prj</td></tr>
+        <tr><td><code>type</code></td><td>VDI 유형</td><td>고정가상화</td><td>고정가상화</td><td>고정가상화</td></tr>
+        <tr><td><code>base</code></td><td>지급구분 (true=기본 지급)</td><td><strong>true</strong> (기본 지급)</td><td>false (별도 신청)</td><td>false (별도 신청)</td></tr>
+        <tr><td><code>lock</code></td><td>장기 미사용 잠김</td><td>-</td><td>-</td><td><strong>true</strong> (잠김)</td></tr>
+        <tr><td><code>cpu</code></td><td>CPU</td><td>6 Core</td><td>8 Core</td><td>2 Core</td></tr>
+        <tr><td><code>mem</code></td><td>메모리</td><td>8 GB</td><td>16 GB</td><td>4 GB</td></tr>
+        <tr><td><code>disk</code></td><td>디스크(D)</td><td>150 GB</td><td>150 GB</td><td>80 GB</td></tr>
+        <tr><td><code>os</code></td><td>운영체제</td><td>Windows 11 Enterprise</td><td>Windows 11 Enterprise</td><td>Windows 11 Enterprise</td></tr>
+        <tr><td><code>purpose</code></td><td>용도</td><td>일반 업무용</td><td>기타</td><td>기타</td></tr>
+        <tr><td><code>status</code></td><td>상태</td><td>온라인</td><td>온라인</td><td>미사용 잠김</td></tr>
+        <tr><td><code>start</code> / <code>end</code></td><td>사용 기간</td><td>2026-03-01 / 2026-12-31</td><td>2025-11-01 / 2026-09-30</td><td>2025-06-01 / 2026-06-30</td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        증설 자원 옵션은 <code>CPU_OPTS</code>(6 Core/8 Core) · <code>MEM_OPTS</code>(8 GB/16 GB) · <code>DISK_OPTS</code>(150 GB/200 GB)로 정의됩니다. 현재값 미만 옵션은 비활성(하향 불가)이며, 이미 최대 사양인 항목(예: jschoi0223-nomain의 CPU·메모리)은 추가 증설 선택지가 없습니다.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">상태 · 분류 정의 (지급구분 × 탭별 신청 가능 매트릭스)</span></div>
+    <p class="sec-lead">신청 가능 여부는 <strong>단일 판정 함수</strong>(<code>extendable()</code> · <code>blockReason()</code>)로 결정됩니다 — 잠김은 양 탭 모두 불가, 기본 지급은 연장 탭에서만 불가.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:140px">구분</th><th style="width:110px">플래그</th><th style="width:120px">배지 표기</th><th style="width:110px">사용 연장 탭</th><th style="width:110px">자원 증설 탭</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td><strong>기본 지급</strong></td><td><code>base:true</code></td><td>기본 지급 (중립색)</td><td><strong>불가</strong> (비활성)</td><td>가능</td><td>본사 근무 재직자 자동유지 — 연장 신청 불필요. 해당: jschoi0223-main</td></tr>
+        <tr><td><strong>별도 신청</strong></td><td><code>base:false</code></td><td>별도 신청 (옐로우)</td><td>가능</td><td>가능</td><td>기간 만료 전 연장 신청 필요. 해당: jschoi0223-nomain</td></tr>
+        <tr><td><strong>미사용 잠김</strong></td><td><code>lock:true</code></td><td>별도 신청 + 상태 "미사용 잠김"(danger 점)</td><td><strong>불가</strong> (비활성)</td><td><strong>불가</strong> (비활성)</td><td>잠금해제 승인(결재 구분: 잠금해제) 완료 후 신청 가능. 해당: jschoi0223-prj</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">7.1 · 페이지 구성 (change.html 고유)</div>
+    <p class="sec-lead">페이지 고유 스타일은 <code>&lt;style&gt;</code> 블록에 정의 — 시연용 버튼(<code>.demo-btn</code>), 밑줄형 메인 탭(<code>.maintab</code>/<code>.mtab</code>), 탭 패널(<code>.tab-panel</code>), 대상 VDI 라디오 리스트(<code>.vdi-select</code>/<code>.vdi-opt</code> 계열), 증설 비교 그리드(<code>.sc-table</code>/<code>.sc-row</code> 계열), 현재 사용기간 텍스트(<code>.info-text</code>).</p>
+    <table class="tbl">
+      <thead><tr><th style="width:190px">구성 요소</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><code>VDI_ALL</code> / <code>VDI_LIST</code></td><td>보유 가상PC 3대 mock(5장). <code>VDI_LIST</code>는 시연 토글에 따라 전체 또는 기본 지급만으로 구성</td></tr>
+        <tr><td><code>CPU_OPTS</code> · <code>MEM_OPTS</code> · <code>DISK_OPTS</code></td><td>증설 자원 옵션 정의 (6/8 Core · 8/16 GB · 150/200 GB)</td></tr>
+        <tr><td><code>state</code></td><td>화면 상태 단일 객체 — 현재 탭(tab) · 선택 VDI 인덱스(vdi) · 증설 목표값(e_cpu/e_mem/e_disk)</td></tr>
+        <tr><td><code>extendable()</code> / <code>blockReason()</code></td><td>신청 가능 판정 단일 출처 — 잠김·기본 지급 차단 및 차단 사유 문구 반환(6장 매트릭스 구현)</td></tr>
+        <tr><td><code>STEPS</code> / <code>renderStepper()</code></td><td>탭별 처리 단계 정의(연장 3단계·증설 4단계) 및 stepper 렌더(1단계 active)</td></tr>
+        <tr><td><code>renderVdiCards()</code></td><td>대상 VDI 라디오 리스트 렌더 + 선택/차단 클릭 처리</td></tr>
+        <tr><td><code>syncForms()</code></td><td>선택 VDI 기준 폼 동기화 — 연장(현재 기간·종료일 min/기본값·PILL 초기화, 연장 가능 VDI 없으면 빈 화면 전환) + 증설 목표값 리셋</td></tr>
+        <tr><td><code>specRow()</code> / <code>renderExpandGrid()</code></td><td>증설 비교 그리드(현재 → 목표 콤보) 렌더 — 하향 옵션 disabled · "(현재)" 표기 · "증설" 배지</td></tr>
+        <tr><td><code>submitRequest()</code> / <code>finish()</code></td><td>탭별 검증(E-07/E-08) → 접수 토스트 → 1.4초 뒤 approval.html 이동</td></tr>
+        <tr><td><code>toggleDemoMode()</code> / <code>selectExtendable()</code></td><td>시연용 보유 상태 전환 및 연장 탭 선택 보정(데모 전용 — 구현 제외)</td></tr>
+        <tr><td>날짜 헬퍼 <code>fmtISO</code>/<code>fmtDot</code>/<code>addMonths</code>/<code>nextDay</code></td><td>ISO↔점 표기 변환 · 개월 가산 · 익일 계산(종료일 min 산정)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">7.2 · 공통 의존 (common.js · common.css)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:190px">출처</th><th>사용 항목</th></tr></thead>
+      <tbody>
+        <tr><td><code>common.js</code> (동작)</td><td>헤더/사이드바 주입(<code>data-header</code> · <code>data-sidebar="change"</code> → renderHeader/renderSidebar) · <code>showToast()</code>(검증/차단/접수 안내) · <code>goHome()</code>/<code>logout()</code>(헤더) · 사용자/헬프데스크/메뉴 설정(<code>PORTAL_USER</code> · <code>SERVICE_DESK</code> · <code>NAV_SECTIONS</code>)</td></tr>
+        <tr><td><code>common.css</code> (스타일)</td><td>레이아웃(<code>.top-header</code>/<code>.layout</code>/<code>.sidebar</code>/<code>.main</code>) · <code>.breadcrumb</code> · <code>.page-header</code> · <code>.reveal</code> · 폼 카드(<code>.fc</code> 계열) · 폼 행(<code>.frow</code> 계열·<code>.field-inline</code>) · 입력(<code>.fi</code>/<code>.fs</code>/<code>.fta</code>/<code>.req</code>) · 기간 PILL(<code>.period-pills</code>/<code>.qp</code>) · 처리 단계(<code>.stepper</code>/<code>.step</code>/<code>.step-no</code>/<code>.step-lbl</code>/<code>.step-bar</code>) · 액션 바(<code>.action-bar</code>/<code>.action-hint</code>/<code>.action-btns</code>) · 버튼(<code>.btn</code>/<code>.btn-primary</code>/<code>.btn-outline</code>) · <code>.warn-box</code> · <code>.empty-state</code> · 상태 점(<code>.sdot</code> 계열) · <code>.toast</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>메인 포탈</strong> (portal.html) — breadcrumb [홈] · [취소] 클릭 시 이동. 보유 VDI 3대 데이터 정합 유지</li>
+        <li><strong>결재 현황</strong> (approval.html) — 제출 성공 시 1.4초 뒤 자동 이동. 본 화면 신청 건은 구분 <strong>연장 / 증설</strong>로 목록에 표시</li>
+        <li><strong>결재 상세</strong> (approval-detail.html) — 연장/증설 구분별 결재 플로우와 본 화면 stepper 단계(연장 3단계·증설 4단계) 정합 유지</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">9</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(change.html)은 UI 시안(프로토타입)</strong>입니다. 구현 시 연동 대상 — 보유 VDI 조회, <strong>사용 연장 신청 API</strong>, <strong>자원 증설 신청 API</strong>, 자원 옵션(증설 가능 사양) 정책 조회. 시안의 mock 데이터·접수 토스트·페이지 이동 타이머는 실제 로직으로 대체합니다.<br>
+        페이지 헤더 우측 <strong>시연용 버튼(<code>toggleDemoMode</code> · <code>?demo=noext</code>)은 데모 전용</strong>으로, 실제 구현 범위에서 제외합니다. 헤더·사이드바·토스트는 전 화면 공통 영역으로 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
+      </div>
+    </div>
+  </section>
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-004 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>

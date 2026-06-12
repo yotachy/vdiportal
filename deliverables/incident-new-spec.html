@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 장애신고 등록 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+
+  <div class="doc-title" id="spec-incident-new">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">장애신고 등록</h1>
+    <div class="doc-sub">가상PC 사용 중 발생한 장애를 신고하는 입력 화면. 접수 후 헬프데스크에서 순차 처리</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-008</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-008</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">incident-new.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>장애신고 등록</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-008</dd>
+        <dt>경로(URL)</dt><dd>/incident-new.html</dd>
+        <dt>화면 유형</dt><dd>공통 레이아웃 (상단 헤더 + 좌측 사이드바 + 본문) · drill-down 입력 화면</dd>
+        <dt>화면 목적</dt><dd>가상PC 장애의 대상·유형·긴급도·내용을 입력하고 첨부 파일과 함께 신고를 접수</dd>
+        <dt>진입 경로</dt><dd>장애신고 내역(incident.html)의 [신규 신고] · 메인 포탈(portal.html) VDI 카드의 [장애 신고]</dd>
+        <dt>사이드바 메뉴</dt><dd>장애신고 내역 (부모 메뉴 active — drill-down 화면이므로 별도 메뉴 없음)</dd>
+        <dt>Breadcrumb</dt><dd>홈 › 지원 · 서비스 › 장애신고 내역 › <strong>장애신고 등록</strong></dd>
+        <dt>전제 조건</dt><dd>인증 완료 상태 (미인증 시 로그인 화면으로 이동)</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">incident-new.html</span>
+      </div>
+      <iframe src="../incident-new.html" title="장애신고 등록 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../incident-new.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 · 좌측 사이드바 (공통)</div>
+          <div class="area-desc">전 화면 공통 영역(common.js 주입). 사이드바는 부모 메뉴 [장애신고 내역] active</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">Breadcrumb · 페이지 헤더</div>
+          <div class="area-desc">홈 › 지원 · 서비스 › 장애신고 내역 › 장애신고 등록. 우측 [신고 내역] 버튼으로 목록 복귀</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">헬프데스크 직통 안내 (warn-box)</div>
+          <div class="area-desc">긴급 장애는 본 신고와 별도로 헬프데스크 1544-8119(평일 09:00~18:00) 직통 연락 안내</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">폼 카드 1 — 장애 대상 · 유형</div>
+          <div class="area-desc">대상 VDI 셀렉트(잠긴 가상PC는 선택 불가) · 장애 유형(필수) · 긴급도(필수, 긴급/보통) · 발생 일시</div></div></div>
+        <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">폼 카드 2 — 장애 내용</div>
+          <div class="area-desc">제목(필수) · 상세 내용(필수) · 연락처(필수, 담당자 확인 연락용)</div></div></div>
+        <div class="area-item"><span class="area-badge">F</span><div><div class="area-name">폼 카드 3 — 첨부 파일</div>
+          <div class="area-desc">드래그&드롭/클릭 첨부 드롭존(스크린샷·오류 로그 등, 선택) + 첨부 목록(파일명·용량·삭제)</div></div></div>
+        <div class="area-item"><span class="area-badge">G</span><div><div class="area-name">액션 바</div>
+          <div class="area-desc">필수 항목 안내 문구 + [취소] · [신고 접수] 버튼</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 장애 대상 · 유형 (영역 D)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:90px">구분</th><th style="width:54px">필수</th><th>값 · 제약</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>대상 VDI</strong> <code>#f_vdi</code></td><td><span class="tag tag-view">셀렉트</span></td><td>-</td><td>옵션 4종: <strong>jschoi0223-main</strong>(기본 선택) · jschoi0223-nomain · <strong>jschoi0223-prj (미사용 잠김)</strong> — <code>disabled</code> 옵션으로 노출만 하고 선택 불가 · 해당 없음 / 포탈 · 접속 문제</td></tr>
+        <tr><td>2</td><td><strong>장애 유형</strong> <code>#f_type</code></td><td><span class="tag tag-view">셀렉트</span></td><td>O</td><td>기본값 "유형을 선택하세요"(빈 값). 옵션 9종: 접속 불가 (로그인·연결 실패) · 속도 저하 · 지연 · 화면 · 그래픽 오류 · 프로그램 · 애플리케이션 오류 · 네트워크 · 인터넷 문제 · 프린터 · 주변기기 연결 · 데이터 · 파일 문제 · 신청 · 결재 처리 · 기타. 선택 시 제목·상세 자동 기재(E-02)</td></tr>
+        <tr><td>3</td><td><strong>긴급도</strong> <code>#urgencyGroup</code></td><td><span class="tag tag-btn">라디오</span></td><td>O</td><td>2단계: <strong>긴급</strong> / <strong>보통</strong>(기본 선택). [긴급] 선택 시 인라인 안내(<code>#urgentNote</code>) 표시 — "긴급 장애는 접수와 함께 헬프데스크 1544-8119로 즉시 연락하시기를 권장합니다." (전화 링크 포함)</td></tr>
+        <tr><td>4</td><td>발생 일시 <code>#f_when</code></td><td><span class="tag tag-view">입력</span></td><td>-</td><td><code>datetime-local</code> 입력. 예시 기본값 2026-05-30 09:30</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.2 · 장애 내용 (영역 E)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:90px">구분</th><th style="width:54px">필수</th><th>값 · 제약</th></tr></thead>
+      <tbody>
+        <tr><td>5</td><td><strong>제목</strong> <code>#f_title</code></td><td><span class="tag tag-view">입력</span></td><td>O</td><td>placeholder: "장애 증상을 한 줄로 요약해주세요. (예: 오전부터 가상PC 접속이 되지 않습니다)". 공백만 입력 시 미입력으로 처리</td></tr>
+        <tr><td>6</td><td><strong>상세 내용</strong> <code>#f_detail</code></td><td><span class="tag tag-view">텍스트영역</span></td><td>O</td><td>5행 textarea. placeholder: "증상, 발생 시점, 재현 방법, 오류 메시지 등을 구체적으로 입력해주세요. 정확한 내용일수록 빠른 처리에 도움이 됩니다."</td></tr>
+        <tr><td>7</td><td><strong>연락처</strong> <code>#f_tel</code></td><td><span class="tag tag-view">입력</span></td><td>O</td><td>예시 기본값 010-2345-6789 · placeholder "연락 가능한 번호" · 보조 문구 "처리 담당자가 확인을 위해 연락할 수 있습니다."</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.3 · 첨부 파일 (영역 F · 선택)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:90px">구분</th><th style="width:54px">필수</th><th>값 · 제약</th></tr></thead>
+      <tbody>
+        <tr><td>8</td><td><strong>드롭존</strong> <code>#dropZone</code></td><td><span class="tag tag-btn">영역</span></td><td>-</td><td>"파일을 끌어다 놓거나 클릭하여 첨부" + 허용 안내 "PNG · JPG · PDF · LOG · TXT · 최대 10MB". 드래그 오버 시 강조 스타일(<code>.drag</code>)</td></tr>
+        <tr><td>9</td><td>첨부 목록 <code>#fileList</code></td><td><span class="tag tag-view">목록</span></td><td>-</td><td>첨부 건별 칩(파일 아이콘 + 파일명 + 용량 + 삭제 버튼). 시안은 예시 파일 4종(오류화면_캡처.png 248 KB · VDI접속오류_로그.txt 12 KB · 이벤트뷰어_export.evtx 1.3 MB · 네트워크진단_결과.pdf 320 KB)을 순차 추가</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.4 · 액션 바 (영역 G)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:90px">구분</th><th style="width:54px">필수</th><th>값 · 동작</th></tr></thead>
+      <tbody>
+        <tr><td>10</td><td>안내 문구</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>"필수 항목(*)을 입력하면 신고를 접수할 수 있습니다."</td></tr>
+        <tr><td>11</td><td>취소</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>장애신고 내역(incident.html)으로 이동 (입력값 미저장)</td></tr>
+        <tr><td>12</td><td><strong>신고 접수</strong></td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td><code>submitIncident()</code> — 필수 항목 순차 검증 후 접수 처리 (4 참조)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>긴급도 선택</td><td>긴급도 라디오 클릭</td><td>선택 상태 토글. <strong>긴급</strong> 선택 시 인라인 안내(<code>#urgentNote</code>) 표시, <strong>보통</strong> 선택 시 숨김</td></tr>
+        <tr><td>E-02</td><td>장애 유형 선택 — 자동 기재</td><td>장애 유형 변경</td><td>유형별 템플릿(<code>TYPE_TEMPLATES</code>, 8종)으로 제목·상세 내용 자동 기재. 제목/상세가 비어 있거나 직전 자동 기재값일 때만 교체(사용자 직접 입력은 보존). "유형을 선택하세요"·"기타"는 자동 기재 없음</td></tr>
+        <tr><td>E-03</td><td>첨부 추가</td><td>드롭존 클릭 또는 파일 드롭</td><td>첨부 목록에 파일 추가 후 목록 갱신 <em>(시안: 예시 파일 4종을 순차 추가. 초과 시 toast "첨부 가능한 예시 파일을 모두 추가했습니다.")</em></td></tr>
+        <tr><td>E-04</td><td>첨부 삭제</td><td>첨부 칩의 [삭제(×)] 클릭</td><td>해당 파일을 목록에서 제거 후 목록 갱신</td></tr>
+        <tr><td>E-05</td><td>제출 검증 ① 장애 유형</td><td>[신고 접수] 클릭 · 장애 유형 미선택</td><td>toast "장애 유형을 선택해주세요." 표시 후 중단</td></tr>
+        <tr><td>E-06</td><td>제출 검증 ② 제목</td><td>제목 미입력(공백 포함)</td><td>toast "제목을 입력해주세요." 표시 후 중단</td></tr>
+        <tr><td>E-07</td><td>제출 검증 ③ 상세 내용</td><td>상세 내용 미입력(공백 포함)</td><td>toast "상세 내용을 입력해주세요." 표시 후 중단</td></tr>
+        <tr><td>E-08</td><td>제출 검증 ④ 연락처</td><td>연락처 미입력(공백 포함)</td><td>toast "연락처를 입력해주세요." 표시 후 중단</td></tr>
+        <tr><td>E-09</td><td>제출 성공</td><td>필수 항목 검증 통과</td><td>toast "장애신고가 정상 접수되었습니다. (접수번호 INC-2026-0530-024)" 표시 → 약 1.6초 후 장애신고 내역(incident.html)으로 이동</td></tr>
+        <tr><td>E-10</td><td>취소</td><td>[취소] 클릭</td><td>장애신고 내역(incident.html)으로 이동</td></tr>
+        <tr><td>E-11</td><td>신고 내역</td><td>페이지 헤더 우측 [신고 내역] 클릭</td><td>장애신고 내역(incident.html)으로 이동</td></tr>
+      </tbody>
+    </table>
+    <p class="sec-lead" style="margin-top:12px">검증은 <strong>장애 유형 → 제목 → 상세 내용 → 연락처</strong> 순으로 수행되며, 첫 번째 실패 항목에서 안내 후 중단됩니다. 대상 VDI·발생 일시·첨부 파일은 선택 항목으로 검증하지 않습니다.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (신고 데이터)</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:130px">항목</th><th>설명</th><th>예시 · 비고</th></tr></thead>
+      <tbody>
+        <tr><td>접수번호</td><td>신고 접수 식별자 (접수 시 채번)</td><td>INC-2026-0530-024 — 장애신고 내역 목록의 신고번호와 동일 체계</td></tr>
+        <tr><td>신고자</td><td>로그인 사용자 정보 자동 기록</td><td>최정식 책임 / IT기획파트 / 사번 1010579 (ID jschoi0223)</td></tr>
+        <tr><td>대상 VDI</td><td>장애 대상 가상PC (고정가상화)</td><td>jschoi0223-main · jschoi0223-nomain · 해당 없음(포탈·접속 문제). 잠긴 jschoi0223-prj는 선택 불가</td></tr>
+        <tr><td>장애 유형</td><td>분류 코드 (9종)</td><td>접속 불가 / 속도 저하 · 지연 / 화면 · 그래픽 오류 / 프로그램 오류 / 네트워크 / 프린터 · 주변기기 / 데이터 · 파일 / 신청 · 결재 처리 / 기타</td></tr>
+        <tr><td>긴급도</td><td>처리 우선순위 2단계</td><td>긴급(high) / 보통(low) — 기본값 보통</td></tr>
+        <tr><td>발생 일시</td><td>장애 발생 시각 (사용자 입력)</td><td>2026.05.30 09:30</td></tr>
+        <tr><td>제목 / 상세 내용</td><td>증상 요약 · 상세 설명</td><td>유형 선택 시 템플릿 자동 기재 후 사용자가 수정</td></tr>
+        <tr><td>연락처</td><td>처리 담당자 확인용 연락 번호</td><td>010-2345-6789</td></tr>
+        <tr><td>첨부 파일</td><td>스크린샷·오류 로그 등 (0건 이상)</td><td>PNG · JPG · PDF · LOG · TXT, 건당 최대 10MB</td></tr>
+        <tr><td>접수 일시 · 상태</td><td>접수 시 서버 기록</td><td>접수 시각 + 초기 상태 "접수" (이후 처리 중 → 완료)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">상태 · 분류 정의 (긴급도)</span></div>
+    <p class="sec-lead">긴급도는 <strong>긴급 · 보통 2단계</strong>로 고정합니다. 처리 우선순위(SLA) 판단 기준이며, 장애신고 내역(incident.html) 목록의 긴급도 태그와 동일 체계입니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:80px">긴급도</th><th style="width:80px">키</th><th style="width:140px">목록 태그(CSS)</th><th>기준 · 동작</th></tr></thead>
+      <tbody>
+        <tr><td><strong>긴급</strong></td><td><code>high</code></td><td><code>.urg.urg-high</code></td><td>업무가 즉시 중단되는 장애. 선택 시 화면에 헬프데스크 1544-8119 즉시 연락 권장 안내 표시. 구현 시 우선 처리(SLA 단축) 대상</td></tr>
+        <tr><td>보통</td><td><code>low</code></td><td><code>.urg.urg-low</code></td><td>업무 지속 가능한 일반 장애(기본값). 접수 순서에 따라 순차 처리</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">7.1 · 화면 고유 스크립트 · 스타일 (incident-new.html 내부)</div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>긴급도 라디오</strong> — <code>#urgencyGroup .rbtn</code> 클릭 핸들러. 선택 상태(<code>.sel</code>) 토글 + <code>state.urgency</code> 갱신 + 긴급 안내(<code>#urgentNote</code>) 표시/숨김</li>
+        <li><strong><code>TYPE_TEMPLATES</code></strong> — 장애 유형 8종별 제목·상세 템플릿. <code>change</code> 이벤트에서 빈 칸/직전 자동값일 때만 교체(<code>lastAuto</code>로 사용자 입력 보존)</li>
+        <li><strong>첨부 파일</strong> — <code>files</code> 배열 + <code>renderFiles()</code>/<code>addSampleFile()</code>/<code>removeFile(i)</code>. 드롭존은 <code>click</code>·<code>dragover</code>·<code>dragleave</code>·<code>drop</code> 이벤트 처리</li>
+        <li><strong><code>submitIncident()</code></strong> — 필수 4항목 순차 검증 → 접수 toast → 1.6초 후 목록 이동</li>
+        <li><strong>고유 스타일</strong> — 긴급 안내(<code>.urgent-note</code>) · 드롭존(<code>.drop-zone</code>) · 첨부 칩(<code>.file-chip</code> 계열)</li>
+      </ul>
+    </div>
+
+    <div class="sub-h">7.2 · 공통 의존 (common.css · common.js)</div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>common.js</strong> — 헤더(<code>data-header</code>)·사이드바(<code>data-sidebar="incident"</code>) 주입, <code>showToast()</code>, <code>goHome()</code>/<code>logout()</code>, 사용자(<code>PORTAL_USER</code>)·헬프데스크(<code>SERVICE_DESK</code>) 설정</li>
+        <li><strong>common.css</strong> — 레이아웃(<code>.layout</code>/<code>.main</code>) · breadcrumb · 폼 카드(<code>.fc</code>/<code>.fc-head</code>/<code>.fc-body</code>) · 폼 행(<code>.frow</code> 계열) · 입력(<code>.fi</code>/<code>.fs</code>/<code>.fta</code>) · 라디오(<code>.rgrp</code>/<code>.rbtn</code>) · 경고 박스(<code>.warn-box</code>) · 버튼(<code>.btn</code> 계열) · 액션 바(<code>.action-bar</code>)</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>장애신고 내역</strong> (incident.html) — 진입 원점([신규 신고]) · 취소/접수 완료 시 복귀. 접수 건은 목록 최상단(INC-2026-0530-024)과 정합</li>
+        <li><strong>메인 포탈</strong> (portal.html) — VDI 워크스페이스 카드의 [장애 신고] 버튼으로 본 화면 진입</li>
+        <li><strong>로그인</strong> (login.html) — 세션 만료/로그아웃 시</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">9</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(incident-new.html)은 UI 시안(프로토타입)</strong>입니다. 구현 시 [신고 접수]는 <strong>장애 접수 API</strong> 연동으로 대체하고(접수번호 채번·신고자 자동 기록 포함), 첨부 영역은 실제 파일 업로드로 대체하되 <strong>업로드 정책(허용 확장자 PNG·JPG·PDF·LOG·TXT, 건당 최대 10MB, 첨부 건수 제한)</strong>을 서버에서 재검증해야 합니다. 시안의 예시 파일 첨부·toast 안내는 임시 동작입니다.<br>
+        업무가 즉시 중단되는 긴급 장애는 화면 신고와 별도로 <strong>헬프데스크 1544-8119(평일 09:00~18:00) 직통 연락</strong>을 안내하며, 이 문구(warn-box·긴급 선택 시 인라인 안내)는 구현 시에도 유지합니다.
+      </div>
+    </div>
+  </section>
+
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-008 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>

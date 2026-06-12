@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — FAQ | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+
+  <div class="doc-title" id="spec-faq">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">FAQ (자주 묻는 질문)</h1>
+    <div class="doc-sub">VDI 사용 중 자주 발생하는 궁금증을 카테고리·검색·아코디언으로 제공. 관리자 권한 시 FAQ 추가·수정·삭제 관리</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-012</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-012</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">faq.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>FAQ (자주 묻는 질문)</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-012</dd>
+        <dt>경로(URL)</dt><dd>/faq.html</dd>
+        <dt>화면 유형</dt><dd>공통 레이아웃 (상단 헤더 + 좌측 사이드바 + 본문) · 아코디언 목록형</dd>
+        <dt>화면 목적</dt><dd>VDI 이용 관련 자주 묻는 질문·답변을 카테고리/검색으로 빠르게 탐색. 관리자 권한 시 FAQ 항목 등록·수정·삭제</dd>
+        <dt>진입 경로</dt><dd>사이드바 [지원 · 서비스 › FAQ]</dd>
+        <dt>사이드바 메뉴</dt><dd>FAQ (active)</dd>
+        <dt>전제 조건</dt><dd>인증 완료 상태 (미인증 시 로그인 화면으로 이동). FAQ 관리 기능은 관리자 권한 활성 시에만 노출</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">faq.html</span>
+      </div>
+      <iframe src="../faq.html" title="FAQ 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../faq.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
+          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 관리자 권한 토글 · 사용자 정보(이름·부서·사번) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
+          <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 Service Desk(1544-8119). 현재 화면은 [FAQ] active</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">페이지 헤더</div>
+          <div class="area-desc">브레드크럼(홈 › 지원 · 서비스 › FAQ) + 제목 "자주 묻는 질문" + 설명. 우측에 [FAQ 추가] 버튼 — 관리자 권한 활성 시에만 노출</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">검색 · 카테고리 필터 바</div>
+          <div class="area-desc">검색 입력(질문·답변 전문 검색) + 카테고리 세그먼트(전체/접속·로그인/신청·결재/자원·사양/장애·오류/기타)</div></div></div>
+        <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">FAQ 아코디언 목록 + 페이지네이션</div>
+          <div class="area-desc">질문 행(번호·질문·카테고리 라벨·펼침 화살표) 클릭 시 답변 펼침/접힘. 페이지당 10건. 조건 불일치 시 빈 상태 안내. 관리자 권한 시 행별 수정/삭제 버튼</div></div></div>
+        <div class="area-item"><span class="area-badge">F</span><div><div class="area-name">FAQ 추가/수정 모달 (관리자 전용)</div>
+          <div class="area-desc">카테고리·질문·답변 입력 폼. [FAQ 추가] 또는 행별 [수정] 클릭 시 표시</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 검색 · 카테고리 필터 바 (영역 D)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>값(예시)</th><th>동작</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>검색 입력</strong> <code>#searchInput</code></td><td><span class="tag tag-btn">입력</span></td><td>placeholder "궁금한 내용을 검색하세요  예) 비밀번호, 접속 오류"</td><td>입력 즉시(input) 질문+답변 전문에서 대소문자 무시 포함 검색. 검색 중에는 일치 항목이 자동 펼침 상태로 표시</td></tr>
+        <tr><td>2</td><td><strong>전체</strong></td><td><span class="tag tag-view">탭</span></td><td><code>all</code> · 기본 선택</td><td>전체 카테고리 표시</td></tr>
+        <tr><td>3</td><td>접속·로그인</td><td><span class="tag tag-view">탭</span></td><td><code>access</code></td><td>접속·로그인 카테고리만 필터</td></tr>
+        <tr><td>4</td><td>신청·결재</td><td><span class="tag tag-view">탭</span></td><td><code>apply</code></td><td>신청·결재 카테고리만 필터</td></tr>
+        <tr><td>5</td><td>자원·사양</td><td><span class="tag tag-view">탭</span></td><td><code>spec</code></td><td>자원·사양 카테고리만 필터</td></tr>
+        <tr><td>6</td><td>장애·오류</td><td><span class="tag tag-view">탭</span></td><td><code>trouble</code></td><td>장애·오류 카테고리만 필터</td></tr>
+        <tr><td>7</td><td>기타</td><td><span class="tag tag-view">탭</span></td><td><code>etc</code></td><td>기타 카테고리만 필터</td></tr>
+      </tbody>
+    </table>
+    <p class="sec-lead" style="margin-top:10px">카테고리 탭과 검색어는 <strong>AND 조건</strong>으로 동시 적용되며, 변경 시 1페이지로 초기화됩니다. 검색어 하이라이트(강조 표시)는 적용하지 않습니다.</p>
+
+    <div class="sub-h">3.2 · FAQ 아코디언 항목 구성 (영역 E)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>8</td><td><strong>번호</strong> <code>.faq-q-num</code></td><td><span class="tag tag-view">표시</span></td><td>현재 목록(필터·페이지 적용 후) 기준 순번. 원형 배지</td></tr>
+        <tr><td>9</td><td><strong>질문</strong></td><td><span class="tag tag-view">표시</span></td><td>질문 텍스트. 폭 초과 시 말줄임 처리</td></tr>
+        <tr><td>10</td><td>카테고리 라벨 <code>.faq-cat</code></td><td><span class="tag tag-view">표시</span></td><td>질문 우측 소형 라벨 (접속·로그인 / 신청·결재 / 자원·사양 / 장애·오류 / 기타)</td></tr>
+        <tr><td>11</td><td>펼침 화살표 <code>.faq-chevron</code></td><td><span class="tag tag-view">표시</span></td><td>아래 방향 화살표. 펼침(<code>.faq-item.open</code>) 시 180° 회전</td></tr>
+        <tr><td>12</td><td><strong>답변</strong> <code>.faq-a</code></td><td><span class="tag tag-view">표시</span></td><td>펼침 시에만 표시. 강조(<code>&lt;strong&gt;</code>)·목록(<code>&lt;ul&gt;&lt;li&gt;</code>)·화면 링크(<code>&lt;a&gt;</code> — 장애신고 등록·VDI 추가신청·결재 현황·사용 연장/자원 증설) 포함 가능</td></tr>
+        <tr><td>13</td><td>수정 버튼 <code>.faq-act</code></td><td><span class="tag tag-btn">버튼</span></td><td><strong>관리자 권한 시에만 노출.</strong> 클릭 시 해당 항목 값이 채워진 FAQ 수정 모달 표시 (아코디언 토글과 분리 — 이벤트 전파 차단)</td></tr>
+        <tr><td>14</td><td>삭제 버튼 <code>.faq-act.del</code></td><td><span class="tag tag-btn">버튼</span></td><td><strong>관리자 권한 시에만 노출.</strong> 클릭 시 질문 내용을 포함한 확인(confirm) 후 삭제</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.3 · FAQ 추가/수정 모달 (영역 F · 관리자 전용)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th style="width:64px">필수</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>15</td><td><strong>카테고리</strong> <code>#fCat</code></td><td><span class="tag tag-btn">선택</span></td><td>Y</td><td>접속·로그인 / 신청·결재 / 자원·사양 / 장애·오류 / 기타 (5종). 추가 시 기본값 접속·로그인</td></tr>
+        <tr><td>16</td><td><strong>질문</strong> <code>#fQ</code></td><td><span class="tag tag-btn">입력</span></td><td>Y</td><td>질문 텍스트 입력. 모달 표시 시 자동 포커스</td></tr>
+        <tr><td>17</td><td><strong>답변</strong> <code>#fA</code></td><td><span class="tag tag-btn">입력</span></td><td>Y</td><td>답변 입력(7행 텍스트영역). HTML 태그(<code>&lt;strong&gt;</code>, <code>&lt;ul&gt;&lt;li&gt;</code>, <code>&lt;a&gt;</code> 등) 사용 가능</td></tr>
+        <tr><td>18</td><td>저장</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>입력 검증 후 추가/수정 반영 + 안내 토스트. 미입력 시 "질문과 답변을 모두 입력해주세요." 안내</td></tr>
+        <tr><td>19</td><td>취소</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>변경 없이 모달 닫기</td></tr>
+        <tr><td>20</td><td>닫기(×) / 배경</td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>우상단 닫기 버튼 또는 모달 배경 클릭 시 닫기</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>카테고리 탭 전환</td><td>세그먼트 버튼 클릭</td><td>선택 탭 활성(<code>.fsb.on</code>) 전환 → 해당 카테고리만 필터 → 1페이지부터 재렌더링</td></tr>
+        <tr><td>E-02</td><td>검색</td><td>검색 입력값 변경(input)</td><td>질문+답변 텍스트에서 대소문자 무시 포함 검색(카테고리 필터와 AND) → 1페이지부터 재렌더링</td></tr>
+        <tr><td>E-03</td><td>검색 시 자동 펼침</td><td>검색어가 1자 이상인 상태로 렌더링</td><td>표시되는 모든 FAQ 항목을 펼침 상태(<code>.faq-item.open</code>)로 렌더링 — 답변 내 일치 내용도 바로 확인 가능</td></tr>
+        <tr><td>E-04</td><td>아코디언 펼침/접힘</td><td>질문 행(.faq-q) 클릭</td><td>해당 항목의 <code>.open</code> 클래스 토글 → 답변 표시/숨김 + 화살표 회전. 항목별 독립 동작(다른 항목 자동 접힘 없음)</td></tr>
+        <tr><td>E-05</td><td>빈 검색 결과</td><td>필터·검색 결과 0건</td><td>목록 영역에 빈 상태 안내 "검색 조건에 맞는 FAQ가 없습니다." 표시, 페이지네이션 숨김</td></tr>
+        <tr><td>E-06</td><td>페이지 이동</td><td>페이지네이션 버튼 클릭 (결과 10건 초과 시 표시)</td><td>해당 페이지 항목 렌더링 + 화면 상단으로 부드럽게 스크롤</td></tr>
+        <tr><td>E-07</td><td>관리자 권한 전환</td><td>헤더 관리자 권한 토글</td><td><code>onAdminModeChange</code> 훅으로 목록 재렌더링 → [FAQ 추가] 버튼·행별 수정/삭제 버튼 표시/숨김</td></tr>
+        <tr><td>E-08</td><td>FAQ 추가</td><td>[FAQ 추가] 클릭 (관리자)</td><td>빈 입력 상태의 모달 표시(제목 "FAQ 추가", 카테고리 기본 접속·로그인, 질문란 자동 포커스)</td></tr>
+        <tr><td>E-09</td><td>FAQ 수정</td><td>행별 [수정] 클릭 (관리자)</td><td>해당 항목의 카테고리·질문·답변이 채워진 모달 표시(제목 "FAQ 수정"). 아코디언 토글로 전파되지 않음</td></tr>
+        <tr><td>E-10</td><td>저장</td><td>모달 [저장] 클릭</td><td>질문·답변 미입력 시 안내 토스트 후 중단. 정상 시 추가("FAQ가 추가되었습니다.") 또는 수정("FAQ가 수정되었습니다.") 반영 → 모달 닫기 → 재렌더링</td></tr>
+        <tr><td>E-11</td><td>삭제</td><td>행별 [삭제] 클릭 (관리자)</td><td>질문 내용을 포함한 확인(confirm) → 동의 시 항목 삭제 + "FAQ가 삭제되었습니다." 토스트 → 재렌더링</td></tr>
+        <tr><td>E-12</td><td>모달 닫기</td><td>[취소] · 닫기(×) · 모달 배경 클릭</td><td>입력 내용 반영 없이 모달 닫기</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (FAQ 데이터)</span></div>
+    <p class="sec-lead">FAQ 항목은 페이지 내 <code>FAQS</code> 배열로 관리하며(시안 기준 <strong>총 11건</strong>), 항목당 필드는 아래 3개입니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:90px">필드</th><th style="width:120px">항목</th><th>설명</th><th>예시</th></tr></thead>
+      <tbody>
+        <tr><td><code>cat</code></td><td>카테고리</td><td>분류 키 5종 (access / apply / spec / trouble / etc). 화면에는 한글 라벨로 표시</td><td><code>access</code> → 접속·로그인</td></tr>
+        <tr><td><code>q</code></td><td>질문</td><td>질문 제목 텍스트</td><td>가상PC에 접속이 되지 않습니다. 어떻게 하나요?</td></tr>
+        <tr><td><code>a</code></td><td>답변</td><td>답변 본문(HTML 허용 — 강조·목록·화면 링크)</td><td>인터넷·사내망 연결 확인 → 일반 리부팅 → 장애신고/헬프데스크(1544-8119) 안내</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">카테고리별 건수 (시안 기준)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:140px">카테고리</th><th style="width:70px">건수</th><th>대표 질문</th></tr></thead>
+      <tbody>
+        <tr><td><strong>접속·로그인</strong></td><td>3</td><td>가상PC 접속 불가 · OTP 미수신 · 비밀번호 분실(5회 실패 시 계정 잠금)</td></tr>
+        <tr><td><strong>신청·결재</strong></td><td>3</td><td>VDI 추가신청 방법 · 결재 진행 상태 확인 · 신청 취소(회수)</td></tr>
+        <tr><td><strong>자원·사양</strong></td><td>2</td><td>CPU·메모리 자원 증설 · 고정가상화 유형 안내</td></tr>
+        <tr><td><strong>장애·오류</strong></td><td>2</td><td>화면 지연·끊김 · 프린터/주변기기 미인식</td></tr>
+        <tr><td><strong>기타</strong></td><td>1</td><td>헬프데스크 운영 시간·연락처 (1544-8119 · 평일 09:00~18:00)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">상태 · 분류 정의 (카테고리 체계)</span></div>
+    <p class="sec-lead">FAQ 분류는 <strong>5종</strong>으로 고정합니다. 필터 탭·항목 라벨·관리 모달의 카테고리 선택이 모두 동일 체계(<code>CAT_LABEL</code>)를 사용합니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:100px">분류 키</th><th style="width:130px">표시 라벨</th><th>적용 범위</th></tr></thead>
+      <tbody>
+        <tr><td><code>access</code></td><td>접속·로그인</td><td>가상PC 접속, 로그인·2차 인증(OTP), 비밀번호·계정 잠금</td></tr>
+        <tr><td><code>apply</code></td><td>신청·결재</td><td>VDI 추가신청, 결재 진행 확인, 신청 회수</td></tr>
+        <tr><td><code>spec</code></td><td>자원·사양</td><td>자원 증설, 가상PC 유형(고정가상화) 안내</td></tr>
+        <tr><td><code>trouble</code></td><td>장애·오류</td><td>화면 지연·끊김, 주변기기 인식 등 사용 중 장애</td></tr>
+        <tr><td><code>etc</code></td><td>기타</td><td>헬프데스크 운영 안내 등 기타 문의</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">① 화면 고유 스크립트 · 스타일 (faq.html 내)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:200px">구성 요소</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><code>FAQS</code> · <code>CAT_LABEL</code></td><td>FAQ 데이터 배열(11건)과 카테고리 키→한글 라벨 매핑</td></tr>
+        <tr><td><code>render()</code></td><td>카테고리 필터 + 검색(AND) 적용 → 페이지 분할(10건) → 아코디언 목록 렌더링. 검색 중 자동 펼침, 0건 시 빈 상태 표시. 관리자 권한 시 수정/삭제 버튼 포함</td></tr>
+        <tr><td><code>openFaqModal()</code> / <code>closeFaqModal()</code></td><td>FAQ 추가/수정 모달 열기·닫기. 수정 시 원본 인덱스를 보존해 해당 값 채움</td></tr>
+        <tr><td><code>saveFaq()</code> / <code>deleteFaq()</code></td><td>입력 검증 후 추가/수정 저장, 확인(confirm) 후 삭제. 각각 토스트 안내 + 재렌더링</td></tr>
+        <tr><td><code>window.onAdminModeChange</code></td><td>헤더 관리자 권한 토글과 연동 — 권한 상태 갱신 후 재렌더링</td></tr>
+        <tr><td>페이지 스타일</td><td><code>.faq-cat</code>(카테고리 라벨) · <code>.faq-a</code> 내부 서식(링크/강조/목록) · <code>.faq-admin-actions</code>/<code>.faq-act</code>(관리 버튼) · <code>.faq-form-row</code>(모달 폼 행)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">② 공통 의존 (common.css · common.js)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:200px">구성 요소</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><code>common.css</code></td><td>아코디언(<code>.faq-item</code>/<code>.faq-q</code>/<code>.faq-a</code>/<code>.faq-chevron</code>) · 필터(<code>.filter-seg</code>/<code>.fsb</code>) · 검색(<code>.search-hero</code>) · 빈 상태(<code>.empty-state</code>) · 페이지네이션(<code>.pager</code>) · 모달(<code>.modal</code>) · 폼(<code>.fs</code>/<code>.fi</code>/<code>.fta</code>/<code>.lbl</code>/<code>.req</code>) · 디자인 토큰</td></tr>
+        <tr><td><code>common.js</code></td><td>헤더·사이드바 주입(<code>data-header</code>/<code>data-sidebar="faq"</code>) · 페이지네이션(<code>renderPager</code>, 페이지당 <code>PAGE_SIZE</code>=10건) · 토스트(<code>showToast</code>) · 관리자 권한 토글(<code>body.admin-mode</code> + <code>.admin-only</code> 노출 제어, <code>onAdminModeChange</code> 훅) · 세션 타이머</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>지원 · 서비스 군 (사이드바)</strong> — 장애신고 내역 (incident.html) · 공지사항 (notice.html) · 자료실 (qna.html)</li>
+        <li><strong>답변 내 화면 링크</strong> — 장애신고 등록 (incident-new.html) · VDI 추가신청 (apply.html) · 결재 현황 (approval.html) · 사용 연장/자원 증설 (change.html)</li>
+        <li><strong>헬프데스크 연계</strong> — 사이드바 Service Desk 카드 및 답변 본문에서 <strong>1544-8119 (평일 09:00~18:00)</strong> 안내. FAQ로 해결되지 않는 문의의 후속 창구</li>
+        <li><strong>로그인</strong> (login.html) — 세션 만료/로그아웃 시</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">9</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(faq.html)은 UI 시안(프로토타입)</strong>입니다. FAQ 데이터는 화면 내 배열(mock)로 관리되며, 구현 시 <strong>FAQ 데이터 관리(관리자 등록·수정·삭제) 연동</strong>으로 대체합니다 — 관리자 모달의 추가/수정/삭제 동작이 저장 API와 연결되어야 하며, 답변 본문은 HTML 서식을 허용하므로 저장·출력 시 허용 태그 정책(예: 강조·목록·내부 링크)을 함께 정의해야 합니다.<br>
+        헤더·사이드바·토스트·관리자 권한 토글은 <strong>전 화면 공통 영역</strong>으로, 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
+      </div>
+    </div>
+  </section>
+
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-012 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>

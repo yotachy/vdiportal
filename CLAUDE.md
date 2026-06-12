@@ -31,6 +31,7 @@
 - **한국어 우선**: 모든 UI 텍스트 한국어, letter-spacing `-0.01em` 기본 / 제목 `-0.02em~-0.03em`.
 - **전체 비공개(noindex)**: 프로젝트는 항상 검색 비공개. 신규 페이지·산출물 포함 모든 HTML `<head>`에 `<meta name="robots" content="noindex, nofollow">` 필수. 루트 `robots.txt`(Disallow: /) 유지.
 - **산출물**: 수행사 전달용 문서(화면정의서 등)는 `deliverables/`에 독립 HTML로 작성, `deliverables/index.html`에서 목록 관리(배포: `/portal/deliverables/`).
+  - 화면정의서: 화면별 14건 `{화면}-spec.html`(VDI-SD-001~014) + 통합본 `full-spec.html`(VDI-SD-000). 모든 정의서는 portal-spec.html과 동일한 `<style>`을 쓰고, 본문을 `<!-- SPEC-BODY START/END -->` 마커로 감싼다. 통합본은 각 문서의 마커 사이 본문을 순서대로 이어붙여 생성하므로, **화면 수정 시 해당 정의서 갱신 → 통합본 재조립**까지가 한 세트.
 
 ### 글로벌 줌
 

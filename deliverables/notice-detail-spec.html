@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 공지사항 상세 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+
+  <div class="doc-title" id="spec-notice-detail">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">공지사항 상세</h1>
+    <div class="doc-sub">공지사항 목록에서 선택한 공지 1건의 제목·작성 정보·본문을 표시하는 drill-down 화면. 이전/다음 글 이동과 목록 복귀를 제공</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-010</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-010</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">notice-detail.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>공지사항 상세</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-010</dd>
+        <dt>경로(URL)</dt><dd>/notice-detail.html?id={공지 ID}</dd>
+        <dt>화면 유형</dt><dd>공통 레이아웃 (상단 헤더 + 좌측 사이드바 + 본문) · drill-down 상세</dd>
+        <dt>화면 목적</dt><dd>선택한 공지 1건의 제목·작성자·작성일·본문 확인, 이전/다음 공지로 연속 열람, 목록 복귀</dd>
+        <dt>진입 경로</dt><dd>공지사항 목록(notice.html) 행 클릭 · 메인 포탈(portal.html) 관리자 안내 영역 클릭 · 상세 내 이전/다음 글</dd>
+        <dt>사이드바 메뉴</dt><dd>공지사항 (부모 메뉴 active — 상세 전용 메뉴 없음)</dd>
+        <dt>Breadcrumb</dt><dd>홈 › 지원 · 서비스 › 공지사항 › <strong>공지 상세</strong> (홈·공지사항은 링크)</dd>
+        <dt>전제 조건</dt><dd>인증 완료 상태 (미인증 시 로그인 화면으로 이동)</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">notice-detail.html</span>
+      </div>
+      <iframe src="../notice-detail.html" title="공지사항 상세 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../notice-detail.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
+          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 관리자 권한 토글 · 사용자 정보(이름·부서·사번) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
+          <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 Service Desk(1544-8119). 현재 화면은 부모 메뉴 [공지사항] active</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">Breadcrumb</div>
+          <div class="area-desc">홈 › 지원 · 서비스 › 공지사항 › 공지 상세. 홈·공지사항 항목은 해당 화면 링크</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">공지 아티클 카드</div>
+          <div class="area-desc">제목 + 메타(작성자·작성일) + 본문. URL 파라미터 id에 해당하는 공지 1건을 렌더링</div></div></div>
+        <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">이전/다음 글 내비게이션</div>
+          <div class="area-desc">목록 순서(최신순) 기준 이전 글·다음 글 2행. 경계(첫/마지막 글)에서는 비활성 행으로 안내</div></div></div>
+        <div class="area-item"><span class="area-badge">F</span><div><div class="area-name">하단 액션 바</div>
+          <div class="area-desc">관리자 안내 문구 + [포탈 공지로 지정](관리자) · [목록으로] 버튼</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 아티클 헤더 영역 (영역 C·D)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>값(예시)</th><th>설명 · 동작</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Breadcrumb</strong></td><td><span class="tag tag-nav">바로가기</span></td><td>홈 › 지원 · 서비스 › 공지사항 › 공지 상세</td><td>홈 클릭 시 portal.html, 공지사항 클릭 시 notice.html 이동. 현재 위치(공지 상세)는 강조 표기</td></tr>
+        <tr><td>2</td><td><strong>공지 제목</strong> <code>.art-title</code></td><td><span class="tag tag-view">표시</span></td><td>[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내</td><td>선택 공지의 제목. 분류 성격(점검·보안·복구 등)은 제목 머리말로 표기</td></tr>
+        <tr><td>3</td><td>작성자</td><td><span class="tag tag-view">표시</span></td><td>관리자</td><td>아이콘 + 작성자명. 전 공지 작성자는 <strong>관리자</strong>로 통일</td></tr>
+        <tr><td>4</td><td>작성일</td><td><span class="tag tag-view">표시</span></td><td>2026.05.29</td><td>아이콘 + 등록일(YYYY.MM.DD). 목록(notice.html)의 등록일과 동일 값</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.2 · 본문 (영역 D)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명 · 동작</th></tr></thead>
+      <tbody>
+        <tr><td>5</td><td><strong>본문</strong> <code>.art-body</code></td><td><span class="tag tag-view">표시</span></td><td>공지 본문(서식 콘텐츠). 단락·목록·강조(굵게)를 포함하며, 공지별로 점검 일시·행동 요령·문의처(헬프데스크 1544-8119) 등을 안내</td></tr>
+        <tr><td>6</td><td>경고 안내 박스</td><td><span class="tag tag-view">표시</span></td><td>보안 공지 등 주의가 필요한 본문에 한해 경고 박스(warn-box, 경고 아이콘 + 강조 문구) 삽입 (예: 랜섬웨어 주의보)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.3 · 이전/다음 글 내비게이션 (영역 E)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명 · 동작</th></tr></thead>
+      <tbody>
+        <tr><td>7</td><td><strong>이전 글 행</strong> <code>.pn-row</code></td><td><span class="tag tag-nav">바로가기</span></td><td>위 화살표 + "이전 글" + 대상 공지 제목(1줄 말줄임). 클릭 시 해당 공지 상세로 이동. 목록 순서(최신순) 기준 <strong>한 단계 최신 글</strong></td></tr>
+        <tr><td>8</td><td><strong>다음 글 행</strong> <code>.pn-row</code></td><td><span class="tag tag-nav">바로가기</span></td><td>아래 화살표 + "다음 글" + 대상 공지 제목(1줄 말줄임). 클릭 시 해당 공지 상세로 이동. 목록 순서 기준 <strong>한 단계 이전(과거) 글</strong></td></tr>
+        <tr><td>9</td><td>경계 비활성 행 <code>.pn-row.disabled</code></td><td><span class="tag tag-view">표시</span></td><td>첫 글(가장 최신)에서는 "이전 글이 없습니다.", 마지막 글(가장 과거)에서는 "다음 글이 없습니다." 안내. 클릭·hover 효과 없음</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.4 · 하단 액션 바 (영역 F)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명 · 동작</th></tr></thead>
+      <tbody>
+        <tr><td>10</td><td>관리자 안내 문구</td><td><span class="tag tag-view">표시</span></td><td>"이 공지를 포탈 메인 하단 공지로 지정할 수 있습니다. <strong>(관리자)</strong>"</td></tr>
+        <tr><td>11</td><td><strong>포탈 공지로 지정</strong></td><td><span class="tag tag-btn">버튼</span></td><td>관리자용 기능. 현재 공지를 메인 포탈 하단 관리자 안내 영역의 공지(1건)로 지정 <em>(시안: 안내 토스트)</em></td></tr>
+        <tr><td>12</td><td><strong>목록으로</strong></td><td><span class="tag tag-btn">버튼</span></td><td>공지사항 목록(notice.html)으로 이동 (Primary 버튼)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>화면 진입 (파라미터 처리)</td><td>URL <code>?id={공지 ID}</code>로 진입</td><td><code>id</code>에 해당하는 공지의 제목·메타·본문을 렌더링. <strong>id가 없거나 유효하지 않으면 첫 공지(id=1, 가장 최신)로 대체</strong> 표시 (오류 화면 없음)</td></tr>
+        <tr><td>E-02</td><td>이전 글 이동</td><td>[이전 글] 행 클릭</td><td>목록 순서(최신순) 기준 한 단계 최신 공지의 상세(<code>notice-detail.html?id={이전 글 ID}</code>)로 이동</td></tr>
+        <tr><td>E-03</td><td>다음 글 이동</td><td>[다음 글] 행 클릭</td><td>목록 순서 기준 한 단계 과거 공지의 상세(<code>notice-detail.html?id={다음 글 ID}</code>)로 이동</td></tr>
+        <tr><td>E-04</td><td>경계 처리</td><td>현재 공지가 목록의 첫/마지막 글</td><td>해당 방향 행을 비활성 표시("이전 글이 없습니다." / "다음 글이 없습니다.") — 클릭 무시</td></tr>
+        <tr><td>E-05</td><td>목록 복귀</td><td>[목록으로] 클릭 · breadcrumb [공지사항] 클릭</td><td>공지사항 목록(notice.html)으로 이동</td></tr>
+        <tr><td>E-06</td><td>포탈 공지로 지정</td><td>[포탈 공지로 지정] 클릭 (관리자)</td><td>현재 공지를 메인 포탈 하단 공지로 지정 → "이 공지를 포탈 메인 하단 공지로 지정했습니다." 안내 <em>(시안: 토스트만, 실제 반영은 구현 시)</em></td></tr>
+        <tr><td>E-07</td><td>홈 이동</td><td>breadcrumb [홈] · 헤더 로고/서비스명 클릭</td><td>메인 포탈(portal.html)로 이동 (미인증 시 로그인 화면)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (공지 상세)</span></div>
+    <p class="sec-lead">시안은 공지 12건의 상세 데이터를 화면 내 객체(<code>DETAILS</code>)로 보유하며, <strong>목록 화면(notice.html)의 12건과 ID·제목·작성자·등록일이 동일</strong>합니다. 날짜는 2026년 3~5월(최신 2026.05.29) 기준 더미 데이터입니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:110px">항목</th><th style="width:90px">필드</th><th>설명</th><th>예시</th></tr></thead>
+      <tbody>
+        <tr><td>공지 ID</td><td><code>id</code></td><td>공지 식별자. URL 파라미터·이전/다음 이동의 기준 키</td><td>1 ~ 12</td></tr>
+        <tr><td>분류</td><td><code>cat</code></td><td>중요(<code>important</code>) / 일반(<code>normal</code>) 2종 — 6장 참조</td><td>important</td></tr>
+        <tr><td>제목</td><td><code>title</code></td><td>공지 제목</td><td>[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내</td></tr>
+        <tr><td>작성자</td><td><code>author</code></td><td>등록자 표시명 (전 건 "관리자")</td><td>관리자</td></tr>
+        <tr><td>등록일</td><td><code>date</code></td><td>YYYY.MM.DD — 목록 등록일과 동일</td><td>2026.05.29</td></tr>
+        <tr><td>조회수</td><td><code>views</code></td><td>누적 조회수. 데이터로 보유하며 <strong>현 시안 상세 헤더에는 미표기</strong>(작성자·등록일만 표기)</td><td>1,284</td></tr>
+        <tr><td>본문</td><td><code>body</code></td><td>서식 본문(단락·목록·강조·경고 박스)</td><td>점검 일시·내용·유의사항 + 헬프데스크 안내</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">상태 · 분류 정의 (공지 분류)</span></div>
+    <p class="sec-lead">공지 분류는 <strong>중요 · 일반 2종</strong>이며, 목록 화면(notice.html)·메인 포탈 관리자 안내 영역과 <strong>동일한 분류 체계</strong>(<code>cat</code> 값)를 공유합니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:90px">분류</th><th style="width:110px">cat 키</th><th>성격 · 예시</th><th>상세 화면 표기</th></tr></thead>
+      <tbody>
+        <tr><td><strong>중요</strong></td><td><code>important</code></td><td>점검·보안·장애 복구 등 전사 영향 공지 (예: 정기점검 안내, 랜섬웨어 주의보, 분기 비밀번호 변경)</td><td>별도 태그 없이 제목 머리말([정기점검]·[보안]·[복구완료])로 성격 표기. <code>cat</code> 값은 목록·포탈 정합용으로 데이터에 보유</td></tr>
+        <tr><td><strong>일반</strong></td><td><code>normal</code></td><td>배포·도입·현황 공유 등 정보성 공지 (예: 클라이언트 업데이트, 매뉴얼 배포, 사용 현황 리포트)</td><td>좌동</td></tr>
+      </tbody>
+    </table>
+    <div class="note" style="margin-top:14px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        상세 데이터의 <code>cat</code>·<code>views</code>·제목·등록일은 <strong>목록 화면(notice.html)의 동일 ID 항목과 1:1 정합</strong>을 유지해야 합니다. 분류 체계를 변경할 경우 목록·상세·메인 포탈 안내 영역을 함께 갱신합니다.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">7.1 · 화면 고유 (notice-detail.html 내)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:170px">구성</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td><code>DETAILS</code> · <code>ORDER</code></td><td>공지 12건 상세 데이터(분류·제목·작성자·등록일·조회수·본문 HTML) + 목록 순서 배열(최신순, notice.html과 동일)</td></tr>
+        <tr><td><code>renderArticle()</code></td><td>현재 공지(<code>curId</code>)의 제목·메타(작성자·등록일)·본문을 <code>#article</code>에 렌더링</td></tr>
+        <tr><td><code>renderPn()</code> · <code>pnRow()</code></td><td><code>ORDER</code>에서 현재 위치를 찾아 이전/다음 글 행 생성. 경계에서는 비활성 행("이전/다음 글이 없습니다.") 출력</td></tr>
+        <tr><td><code>setPortalNotice()</code></td><td>[포탈 공지로 지정] 처리 — 시안에서는 안내 토스트 표시</td></tr>
+        <tr><td>페이지 스타일</td><td><code>.art-title</code>·<code>.art-meta</code>·<code>.art-body</code>(아티클), <code>.pn-row</code>·<code>.pn-dir</code>·<code>.pn-title</code>(이전/다음) 등 화면 고유 스타일은 페이지 <code>&lt;style&gt;</code>에 정의</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">7.2 · 공통 의존</div>
+    <table class="tbl">
+      <thead><tr><th style="width:170px">구성</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td><code>common.css</code></td><td>디자인 토큰(:root 변수)·헤더/사이드바·breadcrumb·폼 카드(<code>.fc</code>)·경고 박스(<code>.warn-box</code>)·버튼·액션 바·토스트 등 공통 스타일</td></tr>
+        <tr><td><code>common.js</code></td><td>헤더/사이드바 주입(<code>data-header</code>·<code>data-sidebar="notice"</code> → 부모 [공지사항] active), 사용자/헬프데스크 정보, <code>goHome()</code>·<code>logout()</code>·<code>showToast()</code>, 관리자 권한 토글</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>공지사항 목록</strong> (notice.html) — 행 클릭 시 본 화면(<code>?id={공지 ID}</code>) 진입 · [목록으로]/breadcrumb로 복귀</li>
+        <li><strong>메인 포탈</strong> (portal.html) — 하단 관리자 안내 영역 클릭 시 지정된 공지 상세로 직접 진입. [포탈 공지로 지정]으로 노출 공지 변경(관리자)</li>
+        <li><strong>공지사항 상세</strong> (notice-detail.html) — 이전/다음 글 이동으로 동일 화면 내 공지 전환</li>
+        <li><strong>로그인</strong> (login.html) — 세션 만료/로그아웃 시</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">9</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(notice-detail.html)은 UI 시안(프로토타입)</strong>입니다. 구현 시 화면 내 더미 데이터(<code>DETAILS</code>)는 <strong>공지 상세 조회 API</strong>(공지 ID 기반) 응답으로 대체하고, 다음을 함께 처리합니다 — ① 상세 조회 시 <strong>조회수 증가</strong> 반영(시안은 고정값 보유·미표기) ② 존재하지 않는 공지 ID 요청 시 처리 정책(시안은 최신 공지로 대체) ③ 공지에 첨부파일이 있는 경우 <strong>첨부 표시·다운로드</strong> 제공(시안에는 첨부 영역 없음 — 상세 API 설계 시 포함 검토) ④ [포탈 공지로 지정]은 관리자 권한 검증 후 실제 지정 처리로 대체.<br>
+        헤더·사이드바·토스트는 <strong>전 화면 공통 영역</strong>으로, 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
+      </div>
+    </div>
+  </section>
+
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-010 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 공지 등록 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+
+  <div class="doc-title" id="spec-notice-new">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">공지 등록 (관리자)</h1>
+    <div class="doc-sub">관리자가 사용자 안내 공지를 작성·등록하는 공지사항의 drill-down 화면. 관리자 모드에서만 진입 버튼이 노출</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-011</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-011</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">notice-new.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">관리자 (관리자 모드)</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>공지 등록</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-011</dd>
+        <dt>경로(URL)</dt><dd>/notice-new.html</dd>
+        <dt>화면 유형</dt><dd>공통 레이아웃 (상단 헤더 + 좌측 사이드바 + 본문) · 공지사항의 drill-down 입력 폼</dd>
+        <dt>화면 목적</dt><dd>관리자가 사용자에게 안내할 공지를 등록. 등록된 공지는 공지사항 목록 최상단에 표시</dd>
+        <dt>진입 경로</dt><dd>공지사항(notice.html) 우측 상단 [공지 등록] 버튼 — <strong>관리자 모드 ON일 때만 노출</strong>(<code>.admin-only</code>)</dd>
+        <dt>사이드바 메뉴</dt><dd>공지사항 (부모 메뉴 key <code>notice</code> active)</dd>
+        <dt>Breadcrumb</dt><dd>홈 › 지원 · 서비스 › 공지사항 › <strong>공지 등록</strong></dd>
+        <dt>전제 조건</dt><dd>인증 완료 + 관리자 권한(헤더 [관리자 권한] 토글 ON, <code>body.admin-mode</code>) 상태에서 진입</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">notice-new.html</span>
+      </div>
+      <iframe src="../notice-new.html" title="공지 등록 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../notice-new.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
+          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 관리자 권한 토글 · 사용자 정보(이름·부서·사번) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
+          <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 Service Desk(1544-8119). 현재 화면은 부모 메뉴 [공지사항] active</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">Breadcrumb · 페이지 헤더</div>
+          <div class="area-desc">홈 › 지원·서비스 › 공지사항 › 공지 등록 경로 표시. 우측에 [공지 목록] 버튼(목록 복귀)</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">공지 내용 폼 카드</div>
+          <div class="area-desc">제목(필수) · 분류(운영 관리용 셀렉트) · 본문(필수) · 작성자(고정 표시) · 포탈 노출(체크박스) 5개 입력 행</div></div></div>
+        <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">하단 액션 바</div>
+          <div class="area-desc">좌측 안내 문구("필수 항목(*)을 입력하면 공지를 등록할 수 있습니다.") + 우측 [취소] · [공지 등록] 버튼</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 공지 내용 폼 카드 (영역 D)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:90px">구분</th><th style="width:64px">필수</th><th>설명 · 제약</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>제목</strong> <code>#f_title</code></td><td><span class="tag tag-btn">입력</span></td><td><strong>필수</strong></td><td>한 줄 텍스트 입력. placeholder: "공지 제목을 입력해주세요. (예: [정기점검] 06.15(일) VDI 인프라 정기 점검 안내)". 공백만 입력 시 미입력으로 처리(trim 검증)</td></tr>
+        <tr><td>2</td><td><strong>분류</strong> <code>#f_cat</code></td><td><span class="tag tag-btn">선택</span></td><td>옵션</td><td>셀렉트(폭 최대 280px) · 5종: <strong>운영 안내(기본값) / 시스템 점검 / 보안 / 업데이트 · 배포 / 기타</strong>. 도움말: "분류는 운영 관리용이며, 사용자 목록에는 제목·작성자·등록일만 표시됩니다."</td></tr>
+        <tr><td>3</td><td><strong>본문</strong> <code>#f_body</code></td><td><span class="tag tag-btn">입력</span></td><td><strong>필수</strong></td><td>텍스트에리어(8행). placeholder: "공지 본문을 입력해주세요. 점검·작업 시간, 영향 범위, 사용자 조치사항, 문의처 등을 구체적으로 안내하면 좋습니다." 공백만 입력 시 미입력 처리(trim 검증)</td></tr>
+        <tr><td>4</td><td>작성자</td><td><span class="tag tag-view">표시</span></td><td>-</td><td>입력 불가 고정 텍스트 <strong>"관리자 (VDI 운영팀)"</strong> 표시 — 등록자 정보는 자동 지정(시안 고정값)</td></tr>
+        <tr><td>5</td><td><strong>포탈 노출</strong> <code>#f_expose</code></td><td><span class="tag tag-btn">체크</span></td><td>옵션</td><td>"포탈 메인 하단에 노출" 체크박스(기본 해제). 도움말: "체크 시 포탈 첫 화면(내 가상PC) 하단 안내 영역에 표시됩니다. 노출은 1건만 가능하며 기존 노출 공지는 자동 해제됩니다."</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.2 · 페이지 헤더 · 액션 바 (영역 C · E)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:90px">구분</th><th>동작</th></tr></thead>
+      <tbody>
+        <tr><td>6</td><td><strong>공지 목록</strong></td><td><span class="tag tag-nav">바로가기</span></td><td>페이지 헤더 우측 outline 버튼. 클릭 시 공지사항(notice.html)으로 이동</td></tr>
+        <tr><td>7</td><td>취소</td><td><span class="tag tag-btn">버튼</span></td><td>액션 바 outline 버튼. 입력 내용 저장 없이 공지사항(notice.html)으로 이동</td></tr>
+        <tr><td>8</td><td><strong>공지 등록</strong></td><td><span class="tag tag-btn">버튼</span></td><td>액션 바 primary 버튼. <code>submitNotice()</code> 실행 — 필수 항목 검증 후 등록 처리 (4 처리·이벤트 정의 참조)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <p class="sec-lead">검증은 <strong>제목 → 본문</strong> 순서로 수행되며, 실패 시 해당 토스트 안내 후 처리를 중단합니다. 안내 문구는 시안 소스 그대로 기재합니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>제목 미입력</td><td>[공지 등록] 클릭 시 제목이 비어 있음(공백 포함)</td><td>토스트 <strong>"공지 제목을 입력해주세요."</strong> 표시 후 중단</td></tr>
+        <tr><td>E-02</td><td>본문 미입력</td><td>제목 검증 통과 후 본문이 비어 있음(공백 포함)</td><td>토스트 <strong>"공지 본문을 입력해주세요."</strong> 표시 후 중단</td></tr>
+        <tr><td>E-03</td><td>등록 성공 (일반)</td><td>필수 항목 입력 + [포탈 노출] 체크 해제 상태에서 [공지 등록] 클릭</td><td>토스트 <strong>"공지가 등록되었습니다."</strong> 표시 → <strong>1.6초 후 공지사항(notice.html)으로 자동 이동</strong></td></tr>
+        <tr><td>E-04</td><td>등록 성공 (포탈 노출)</td><td>필수 항목 입력 + [포탈 노출] 체크 상태에서 [공지 등록] 클릭</td><td>토스트 <strong>"공지가 등록되었습니다. 포탈 메인 하단에 노출됩니다."</strong> 표시 → 1.6초 후 공지사항(notice.html)으로 자동 이동</td></tr>
+        <tr><td>E-05</td><td>취소</td><td>[취소] 클릭</td><td>입력 내용 저장 없이 공지사항(notice.html) 이동 (확인 다이얼로그 없음)</td></tr>
+        <tr><td>E-06</td><td>공지 목록</td><td>페이지 헤더 [공지 목록] 클릭</td><td>공지사항(notice.html) 이동</td></tr>
+        <tr><td>E-07</td><td>관리자 권한 토글</td><td>헤더 [관리자 권한] 버튼 클릭</td><td><code>body.admin-mode</code> 토글 + <code>sessionStorage['vdi_admin']</code> 저장/제거 → 관리자 전용 버튼(<code>.admin-only</code>) 표시/숨김 전환. 페이지 이동 후에도 상태 유지(복원)</td></tr>
+        <tr><td>E-08</td><td>비관리자 직접 진입</td><td>관리자 모드 OFF 상태에서 URL로 직접 접근</td><td><em>시안에서는 별도 차단 없이 화면이 표시됨</em> — 진입 버튼 숨김(<code>.admin-only</code>) 수준의 통제. 구현 시 서버측 권한 검사로 접근 차단 필요 (9 비고 참조)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (공지 등록)</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:120px">항목</th><th style="width:100px">입력 방식</th><th>설명</th><th>예시</th></tr></thead>
+      <tbody>
+        <tr><td><strong>제목</strong></td><td>직접 입력</td><td>공지 제목 (필수). 목록·상세·포탈 안내 영역에 노출</td><td>[정기점검] 06.15(일) VDI 인프라 정기 점검 안내</td></tr>
+        <tr><td>분류</td><td>셀렉트</td><td>운영 관리용 분류 (사용자 목록에는 미표시)</td><td>시스템 점검</td></tr>
+        <tr><td><strong>본문</strong></td><td>직접 입력</td><td>공지 본문 (필수). 점검·작업 시간, 영향 범위, 조치사항, 문의처 등</td><td>점검 시간 동안 가상PC 접속이 일시 중단됩니다. …</td></tr>
+        <tr><td>작성자</td><td>자동 지정</td><td>등록자 표기 — 공지 목록·상세의 작성자와 동일 체계</td><td>관리자 (VDI 운영팀)</td></tr>
+        <tr><td>포탈 노출</td><td>체크박스</td><td>포탈 메인(내 가상PC) 하단 관리자 안내 영역 노출 여부. 노출은 1건만 유지(기존 노출 공지 자동 해제)</td><td>노출 / 미노출(기본)</td></tr>
+        <tr><td>등록일</td><td>자동 지정</td><td>등록 시점 기준 자동 부여 (목록·상세에 표시)</td><td>2026.06.12</td></tr>
+        <tr><td>조회수</td><td>자동 지정</td><td>등록 시 0으로 시작, 상세 조회 시 증가 (목록·상세에 표시)</td><td>0</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">상태 · 분류 정의</span></div>
+    <p class="sec-lead">공지 체계의 분류는 두 층위로 구분됩니다. <strong>① 사용자 노출 분류(중요/일반 2종)</strong> — 공지사항 목록(notice.html)·상세(notice-detail.html)·포탈 안내 영역의 태그와 동일 체계, <strong>② 등록 화면의 운영 분류(5종)</strong> — 운영 관리용으로 사용자 목록에는 표시되지 않습니다.</p>
+
+    <div class="sub-h">6.1 · 사용자 노출 분류 (목록 · 상세와 동일 체계)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:90px">분류</th><th style="width:110px">데이터 키</th><th style="width:150px">표시 클래스(참고)</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td><strong>중요</strong></td><td><code>important</code></td><td><code>.ntag-important</code></td><td>점검·보안·장애 등 전사 영향 공지. 목록에서 강조 태그로 표시</td></tr>
+        <tr><td>일반</td><td><code>normal</code></td><td><code>.ntag-normal</code></td><td>배포·매뉴얼·현황 공유 등 일반 안내 공지</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">6.2 · 등록 화면 운영 분류 (셀렉트 <code>#f_cat</code>)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:140px">분류</th><th>용도</th></tr></thead>
+      <tbody>
+        <tr><td><strong>운영 안내</strong> (기본값)</td><td>일반 운영 관련 안내</td></tr>
+        <tr><td>시스템 점검</td><td>정기·비정기 점검, 작업으로 인한 접속 중단 안내</td></tr>
+        <tr><td>보안</td><td>보안 공지(랜섬웨어 주의보, 비밀번호 변경 등)</td></tr>
+        <tr><td>업데이트 · 배포</td><td>클라이언트·패치·매뉴얼 등 배포 안내</td></tr>
+        <tr><td>기타</td><td>그 외 안내</td></tr>
+      </tbody>
+    </table>
+    <div class="note" style="margin-top:14px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        시안의 등록 화면에는 <strong>중요/일반 선택 입력이 없습니다</strong>(운영 분류 셀렉트만 존재). 사용자 노출 분류(중요/일반)의 지정 방식(운영 분류와의 매핑 또는 별도 선택 항목 추가)은 <strong>구현 시 협의 대상</strong>입니다. 단, 목록·상세·포탈에 노출되는 최종 분류 체계는 <strong>중요/일반 2종</strong>으로 고정합니다.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">7.1 · 화면 고유 (notice-new.html 내부)</div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>고유 스타일</strong> — <code>.info-text</code>(작성자 고정 표시 텍스트), <code>.chk-line</code>(포탈 노출 체크박스 라인). 본문 폭 <code>.main { max-width: 1320px }</code></li>
+        <li><strong>고유 스크립트</strong> — <code>submitNotice()</code> 단일 함수: 제목 → 본문 순 trim 검증 → 포탈 노출 체크 여부에 따른 토스트 분기 → <code>setTimeout</code> 1.6초 후 <code>notice.html</code> 이동</li>
+        <li>폼 행 격자(<code>.frow</code>/<code>.frow-label</code>/<code>.frow-field</code>/<code>.frow-help</code>)·입력 컨트롤(<code>.fi</code>/<code>.fs</code>/<code>.fta</code>)·필수 표시(<code>.req</code>)는 공통 스타일 재사용 — 화면 내 재정의 없음</li>
+      </ul>
+    </div>
+
+    <div class="sub-h">7.2 · 공통 의존 (common.css · common.js) — 관리자 모드 메커니즘 포함</div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>레이아웃 주입</strong> — 헤더(<code>[data-header]</code>)·사이드바(<code>[data-sidebar="notice"]</code>)는 common.js가 렌더링. 사용자 정보·메뉴·헬프데스크는 공통 설정(<code>PORTAL_USER</code>·<code>NAV_SECTIONS</code>·<code>SERVICE_DESK</code>)에서 일괄 관리</li>
+        <li><strong>관리자 모드</strong> — 헤더 [관리자 권한] 버튼 → <code>toggleAdminMode()</code>가 <code>body.admin-mode</code> 클래스를 토글하고 <code>sessionStorage['vdi_admin']</code>에 상태 저장. 페이지 로드 시 <code>restoreAdminMode()</code>가 저장 상태를 복원하여 <strong>페이지 이동 간 권한 상태 유지</strong>. 로그아웃 시 <code>vdi_admin</code> 함께 제거</li>
+        <li><strong>관리자 전용 노출 규칙</strong> — <code>.admin-only { display:none !important }</code> / <code>body.admin-mode .admin-only { display:inline-flex !important }</code>. 본 화면의 진입 버튼(공지사항 목록의 [공지 등록])이 이 규칙으로 통제됨. 화면별 추가 처리는 <code>window.onAdminModeChange(on)</code> 훅으로 연결 가능(본 화면은 미사용)</li>
+        <li><strong>피드백</strong> — 토스트는 공통 <code>showToast(msg)</code> 사용(요소 없으면 자동 생성, 2.8초 후 자동 숨김)</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>공지사항</strong> (notice.html) — 진입 화면이자 복귀 화면. 관리자 모드 ON 시 [공지 등록] 버튼 노출, 등록 성공·취소·[공지 목록] 모두 이 화면으로 복귀. 등록된 공지는 목록 최상단에 표시</li>
+        <li><strong>공지 상세</strong> (notice-detail.html) — 등록된 공지의 사용자 열람 화면 (제목·작성자·등록일·본문 정합)</li>
+        <li><strong>메인 포탈</strong> (portal.html) — [포탈 노출] 체크 시 첫 화면(내 가상PC) 하단 관리자 안내 영역에 표시 (노출 1건 유지)</li>
+        <li><strong>공통 헤더</strong> — 관리자 모드 토글([관리자 권한] 버튼)이 위치한 전 화면 공통 영역</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">9</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(notice-new.html)은 UI 시안(프로토타입)</strong>입니다. 구현 시 다음을 실제 로직으로 대체·보강합니다.<br>
+        ① <strong>공지 등록 API</strong> — 시안의 등록 처리(토스트 + 목록 이동)는 등록 API 호출·결과 처리로 대체. 포탈 노출 1건 유지(기존 노출 자동 해제) 규칙은 서버에서 보장.<br>
+        ② <strong>권한 체계(관리자 인가)</strong> — 시안의 관리자 모드는 화면 데모용 토글(<code>body.admin-mode</code> + <code>sessionStorage</code>)로, 진입 버튼 숨김 수준의 통제입니다. 구현 시 <strong>서버측 관리자 인가</strong>(메뉴 노출 + 화면 접근 + 등록 API 호출 권한 검사)를 적용하고, 비관리자의 직접 URL 접근을 차단해야 합니다. 작성자(관리자 (VDI 운영팀))는 로그인한 관리자 계정 정보로 대체.<br>
+        ③ <strong>첨부 업로드 정책</strong> — 공지 상세 화면에는 첨부 영역이 있으나 본 등록 시안에는 첨부 입력이 없습니다. 첨부 제공 여부와 허용 확장자·용량·개수 등 업로드 정책은 구현 시 협의하여 확정합니다.<br>
+        헤더·사이드바·토스트는 <strong>전 화면 공통 영역</strong>으로, 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
+      </div>
+    </div>
+  </section>
+
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-011 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>

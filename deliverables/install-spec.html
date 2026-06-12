@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 접속 프로그램 설치 확인 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+  <div class="doc-title" id="spec-install">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">접속 프로그램 설치 확인</h1>
+    <div class="doc-sub">로그인 직후 경유하는 보조 화면. 가상PC 접속에 필요한 전용 접속 프로그램의 설치 상태 확인과 설치 파일 다운로드를 제공</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-014</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-014</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">install.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자 (로그인 직후 진입)</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>접속 프로그램 설치 확인</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-014</dd>
+        <dt>경로(URL)</dt><dd>/install.html</dd>
+        <dt>화면 유형</dt><dd>독립 레이아웃 (헤더·사이드바 없음 — 화면 중앙 단일 카드형 경유 화면)</dd>
+        <dt>화면 목적</dt><dd>가상PC(VDI) 접속에 필요한 전용 접속 프로그램의 설치 여부를 확인시키고, 미설치 시 설치 파일 다운로드를 안내한 뒤 메인 포탈로 진입시킴</dd>
+        <dt>진입 경로</dt><dd>로그인(login.html) 성공 시 — <code>doLogin()</code>이 인증 플래그 설정 후 본 화면으로 이동 (시안에서는 항상 경유)</dd>
+        <dt>사이드바 메뉴</dt><dd>해당 없음 (공통 헤더·사이드바를 사용하지 않는 경유 화면)</dd>
+        <dt>전제 조건</dt><dd>로그인 성공 직후 진입 (화면 자체의 별도 인증 검사 없음)</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">install.html</span>
+      </div>
+      <iframe src="../install.html" title="접속 프로그램 설치 확인 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../install.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">브랜드 · 타이틀 영역</div>
+          <div class="area-desc">KB손해보험 로고 + 화면 제목(접속 프로그램 설치 확인) + 안내 문구("가상PC(VDI)에 접속하려면 전용 접속 프로그램이 필요합니다…")</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">설치 상태 표시</div>
+          <div class="area-desc">상태 점(.sdot) + 상태 텍스트. 초기 "접속 프로그램이 설치되어 있지 않습니다"(주황) → 설치 완료 시 "접속 프로그램이 설치되어 있습니다"(녹색)로 전환</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">액션 버튼 영역</div>
+          <div class="area-desc">[설치 프로그램 다운로드](초기 강조) + [포탈 바로가기]. 설치 완료 시 강조 버튼이 [포탈 바로가기]로 교체되고 다운로드 버튼은 [다시 설치](보조)로 전환</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">하단 헬프데스크 안내</div>
+          <div class="area-desc">"설치 중 문제가 있으면 헬프데스크 1544-8119 (평일 09:00~18:00)"</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 설치 확인 카드 (영역 A~D)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>값(예시)</th><th>동작 · 설명</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>KB손해보험 로고</td><td><span class="tag tag-view">표시</span></td><td>kb-logo.png</td><td>카드 상단 중앙 브랜드 로고 (클릭 동작 없음)</td></tr>
+        <tr><td>2</td><td><strong>화면 제목</strong></td><td><span class="tag tag-view">표시</span></td><td>접속 프로그램 설치 확인</td><td>카드 타이틀</td></tr>
+        <tr><td>3</td><td>안내 문구</td><td><span class="tag tag-view">표시</span></td><td>가상PC(VDI)에 접속하려면 <strong>전용 접속 프로그램</strong>이 필요합니다. 설치 상태를 확인하고, 설치되어 있지 않다면 아래에서 설치해 주세요.</td><td>설치 필요성 및 절차 안내</td></tr>
+        <tr><td>4</td><td><strong>설치 상태 표시</strong> <code>#setupStatus</code></td><td><span class="tag tag-view">표시</span></td><td>접속 프로그램이 설치되어 있지 않습니다</td><td>상태 점 + 텍스트. 초기 미설치(주황 <code>.sdot-warning</code>) → 설치 완료 시 녹색 <code>.sdot-success</code> + 텍스트 교체 (3.2 참조)</td></tr>
+        <tr><td>5</td><td><strong>설치 프로그램 다운로드</strong> <code>#downloadBtn</code></td><td><span class="tag tag-btn">버튼</span></td><td>설치 프로그램 다운로드 (다운로드 아이콘)</td><td>초기 강조(노랑) 버튼. 클릭 시 설치 파일 다운로드 안내 후 설치 완료 상태로 전환. 완료 후에는 라벨 [다시 설치]·보조(테두리형)로 전환</td></tr>
+        <tr><td>6</td><td><strong>포탈 바로가기</strong> <code>#portalBtn</code></td><td><span class="tag tag-btn">버튼</span></td><td>포탈 바로가기 (화살표 아이콘)</td><td>메인 포탈(portal.html)로 이동. 초기 보조(테두리형) → 설치 완료 시 강조(노랑)로 승격</td></tr>
+        <tr><td>7</td><td>헬프데스크 안내</td><td><span class="tag tag-view">표시</span></td><td>설치 중 문제가 있으면 헬프데스크 <strong>1544-8119</strong> (평일 09:00~18:00)</td><td>카드 하단 구분선 아래 고정 문구</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.2 · 화면 상태 (설치 상태 2종)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:100px">상태</th><th style="width:120px">상태 점</th><th>상태 텍스트</th><th>버튼 구성</th></tr></thead>
+      <tbody>
+        <tr><td><strong>미설치</strong> (초기)</td><td>주황 <code>.sdot-warning</code></td><td>접속 프로그램이 설치되어 있지 않습니다</td><td>[설치 프로그램 다운로드] 강조(노랑) · [포탈 바로가기] 보조(테두리형)</td></tr>
+        <tr><td><strong>설치 완료</strong></td><td>녹색 <code>.sdot-success</code></td><td>접속 프로그램이 설치되어 있습니다</td><td>[다시 설치] 보조(테두리형)로 전환 · [포탈 바로가기] 강조(노랑)로 승격</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>화면 진입</td><td>로그인 성공 시 <code>doLogin()</code>에서 이동</td><td>미설치 상태(주황 점 + "접속 프로그램이 설치되어 있지 않습니다")로 표시 <em>(시안: 항상 미설치로 시작)</em></td></tr>
+        <tr><td>E-02</td><td>설치 프로그램 다운로드</td><td>[설치 프로그램 다운로드] 클릭 — <code>downloadInstaller()</code></td><td>토스트 "설치 파일(KB-VDI-Setup.exe)을 다운로드합니다" 표시 → 약 0.9초 후 설치 완료 상태로 전환(E-03) <em>(시안: 실제 파일 다운로드 없음)</em></td></tr>
+        <tr><td>E-03</td><td>설치 완료 전환</td><td>다운로드 후 자동 — <code>markInstalled()</code></td><td>상태 점 녹색 + 텍스트 "접속 프로그램이 설치되어 있습니다"로 교체 · 다운로드 버튼을 [다시 설치](보조)로 전환 · [포탈 바로가기]를 강조(노랑)로 승격</td></tr>
+        <tr><td>E-04</td><td>포탈 바로가기</td><td>[포탈 바로가기] 클릭 — <code>goPortal()</code></td><td>메인 포탈(portal.html)로 이동 (설치 상태와 무관하게 항상 이동 가능)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">5.1 · 화면 고유 스크립트 · 스타일 (install.html 내)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:200px">구성 요소</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td><code>.setup-card</code> 외 페이지 스타일</td><td>헤더·사이드바 없는 화면 중앙 단일 카드 레이아웃(최대 560px). 전역 줌(1.25) 보정을 위해 <code>min-height:calc(100vh / 1.25)</code> 적용. 버튼(<code>.sbtn-primary</code>/<code>.sbtn-outline</code>)·상태 표시(<code>.setup-status</code>)·토스트 스타일 포함</td></tr>
+        <tr><td><code>showToast(msg)</code></td><td>이 화면 로컬 토스트 함수 (common.js 미사용 화면이므로 자체 정의 — 토스트 요소 없으면 자동 생성, 2.6초 후 사라짐)</td></tr>
+        <tr><td><code>downloadInstaller()</code></td><td>설치 파일 다운로드 토스트 표시 후 약 0.9초 뒤 <code>markInstalled()</code> 호출 (mock)</td></tr>
+        <tr><td><code>markInstalled()</code></td><td>설치 완료 상태 전환 — 상태 점·텍스트 교체, 다운로드 버튼 [다시 설치] 보조 전환, [포탈 바로가기] 강조 승격</td></tr>
+        <tr><td><code>goPortal()</code></td><td><code>location.href = 'portal.html'</code> 이동</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">5.2 · 공통 의존</div>
+    <table class="tbl">
+      <thead><tr><th style="width:200px">파일 · 자원</th><th>사용 범위</th></tr></thead>
+      <tbody>
+        <tr><td><code>common.css</code></td><td>디자인 토큰(<code>:root</code> 변수 — 색상·라운드·그림자) 및 상태 점 <code>.sdot</code>(<code>.sdot-warning</code>/<code>.sdot-success</code>)만 사용</td></tr>
+        <tr><td><code>common.js</code></td><td><strong>미사용</strong> — 공통 헤더·사이드바·세션 타이머가 없는 독립 경유 화면 (토스트도 로컬 정의)</td></tr>
+        <tr><td><code>kb-logo.png</code></td><td>카드 상단 브랜드 로고 이미지</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>로그인</strong> (login.html) — 유일한 진입 원천. 로그인 성공 시 <code>doLogin()</code>이 인증 플래그 설정 후 본 화면으로 이동 (시안에서는 항상 경유. 실서비스에서는 설치되어 있으면 건너뛰고 포탈 직행)</li>
+        <li><strong>메인 포탈</strong> (portal.html) — [포탈 바로가기] 클릭 시 이동</li>
+        <li><strong>자료실</strong> (qna.html) — 설치 프로그램 분류에서 동일 설치 파일을 별도 제공 (참고)</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(install.html)은 UI 시안(프로토타입)</strong>입니다. 시안에서는 설치 여부 판별 없이 항상 미설치 상태로 시작하며, [설치 프로그램 다운로드] 클릭 시 설치 완료 상태로 전환되는 시뮬레이션만 제공합니다.<br>
+        구현 시에는 <strong>접속 클라이언트 설치 감지</strong>(설치 여부 자동 판별 — 설치되어 있으면 본 화면을 건너뛰고 포탈 직행)와 <strong>설치 파일 배포 시스템 연동</strong>(실제 설치 파일 다운로드 — 예: KB-VDI-Setup.exe)으로 대체합니다.
+      </div>
+    </div>
+  </section>
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-014 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>

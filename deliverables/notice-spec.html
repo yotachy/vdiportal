@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>화면정의서 — 공지사항 | KB손해보험 업무가상화 사용자 포탈</title>
+<style>
+  :root{
+    --kb-yellow:#FFBC00; --kb-yellow-dark:#EFA600; --kb-yellow-soft:#FFF6DC; --kb-yellow-line:#FFE49A;
+    --ink:#1A1714; --t1:#1A1714; --t2:#5C564E; --t3:#948E84;
+    --surface:#FFFFFF; --surface-2:#FBFAF7; --page:#F4F1EB; --subtle:#F7F5F0;
+    --border:#EBE7DF; --border-strong:#DAD4C9;
+    --info:#1A6BD4; --info-soft:#E9F1FD; --success:#1E8E3E; --success-soft:#E7F4EA;
+    --warning:#E08600; --warning-soft:#FDF3DD; --danger:#D93B30; --danger-soft:#FCEAE7;
+    --font:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);
+    font-size:14px;line-height:1.6;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased}
+  .doc{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+
+  .doc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .doc-mark{width:34px;height:34px;border-radius:9px;background:var(--kb-yellow);
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .doc-mark svg{width:20px;height:20px}
+  .doc-logo{height:26px;width:auto;display:block}
+  .doc-brand-text{font-size:14px;font-weight:800;color:var(--ink)}
+  .doc-brand-text span{color:var(--t3);font-weight:600;margin-left:6px}
+
+  .doc-title{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:28px 30px;box-shadow:0 1px 2px rgba(26,23,20,.04);position:relative;overflow:hidden}
+  .doc-title::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kb-yellow)}
+  .doc-eyebrow{font-size:12px;font-weight:800;color:#8A6A00;letter-spacing:.06em;text-transform:uppercase}
+  .doc-h1{font-size:27px;font-weight:800;letter-spacing:-0.03em;margin:8px 0 4px;color:var(--ink)}
+  .doc-sub{font-size:14.5px;color:var(--t2)}
+
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:22px}
+  .meta-cell{background:var(--surface);padding:12px 15px}
+  .meta-k{font-size:11.5px;font-weight:700;color:var(--t3);letter-spacing:.02em}
+  .meta-v{font-size:14px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .sec-no{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .sec-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;box-shadow:0 1px 2px rgba(26,23,20,.04)}
+
+  dl.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 18px;margin:0}
+  dl.kv dt{font-size:13px;font-weight:700;color:var(--t3)}
+  dl.kv dd{margin:0;font-size:14px;color:var(--t1);font-weight:600}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tbl th,table.tbl td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  table.tbl thead th{background:var(--subtle);font-weight:800;color:var(--t1);font-size:12.5px;white-space:nowrap}
+  table.tbl td{color:var(--t2)}
+  table.tbl td strong{color:var(--t1);font-weight:700}
+  table.tbl tbody tr:nth-child(even){background:var(--surface-2)}
+  .tbl code,.note code,.sec-lead code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--subtle);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .note code{background:#fff}
+  .sec-lead{font-size:13.5px;color:var(--t2);line-height:1.65;margin:0 0 12px}
+  .sec-lead strong{color:var(--ink);font-weight:700}
+  .sub-h{font-size:13px;font-weight:800;color:var(--t2);margin:22px 0 8px}
+  .sub-h:first-of-type{margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .tag-btn{background:var(--kb-yellow-soft);color:#8A6A00;border:1px solid var(--kb-yellow-line)}
+  .tag-link{background:var(--subtle);color:var(--t2);border:1px solid var(--border-strong)}
+  .tag-view{background:var(--success-soft);color:var(--success);border:1px solid #BFE3C8}
+  .tag-nav{background:var(--info-soft);color:var(--info);border:1px solid #C2DAFB}
+
+  .preview-frame{border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 8px 24px rgba(26,23,20,.08)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);
+    border-bottom:1px solid var(--border)}
+  .preview-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong)}
+  .preview-url{margin-left:8px;font-size:12px;color:var(--t3);font-family:ui-monospace,monospace}
+  .preview-frame iframe{width:100%;height:640px;border:0;display:block}
+  .preview-actions{margin-top:14px}
+  .btn-open{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;
+    background:var(--kb-yellow);color:var(--ink);font-weight:800;font-size:13.5px;text-decoration:none;border:1px solid var(--kb-yellow-dark)}
+  .btn-open svg{width:15px;height:15px}
+
+  .area-list{display:flex;flex-direction:column;gap:10px}
+  .area-item{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:11px}
+  .area-badge{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .area-name{font-weight:800;color:var(--ink);font-size:14px}
+  .area-desc{font-size:13px;color:var(--t2);margin-top:2px}
+
+  .note{display:flex;gap:11px;padding:14px 16px;background:var(--kb-yellow-soft);
+    border:1px solid var(--kb-yellow-line);border-radius:11px;font-size:13.5px;color:#6B5200;line-height:1.65}
+  .note svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--kb-yellow-dark)}
+  .note strong{color:var(--ink)}
+
+  ul.bul{margin:0;padding-left:18px}
+  ul.bul li{margin-bottom:6px;color:var(--t2)}
+  ul.bul li strong{color:var(--t1)}
+
+  .doc-foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--t3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  @media (max-width:720px){
+    .meta-grid{grid-template-columns:repeat(2,1fr)}
+    dl.kv{grid-template-columns:1fr;gap:4px 0}
+    dl.kv dd{margin-bottom:8px}
+  }
+  @media print{
+    body{background:#fff}
+    .doc{max-width:none;padding:0}
+    .preview-frame iframe{height:520px}
+    .btn-open{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-brand">
+    <img class="doc-logo" src="../kb-logo.png" alt="KB손해보험">
+    <span class="doc-brand-text"><span style="margin-left:0">업무가상화(VDI) 사용자 포탈 구축</span></span>
+  </div>
+
+  <!-- SPEC-BODY START -->
+
+  <div class="doc-title" id="spec-notice">
+    <div class="doc-eyebrow">화면정의서 · Screen Definition</div>
+    <h1 class="doc-h1">공지사항</h1>
+    <div class="doc-sub">VDI 운영 관련 점검·업데이트·보안 공지를 목록으로 제공하고, 항목 클릭 시 공지 상세로 이동</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="meta-k">문서 번호</div><div class="meta-v">VDI-SD-009</div></div>
+      <div class="meta-cell"><div class="meta-k">화면 ID</div><div class="meta-v">VDI-SCR-009</div></div>
+      <div class="meta-cell"><div class="meta-k">버전</div><div class="meta-v">v1.0</div></div>
+      <div class="meta-cell"><div class="meta-k">상태</div><div class="meta-v">검토 요청</div></div>
+      <div class="meta-cell"><div class="meta-k">작성일</div><div class="meta-v">2026.06.12</div></div>
+      <div class="meta-cell"><div class="meta-k">작성자</div><div class="meta-v">최정식 책임 (IT기획파트)</div></div>
+      <div class="meta-cell"><div class="meta-k">대상 화면</div><div class="meta-v">notice.html</div></div>
+      <div class="meta-cell"><div class="meta-k">접근 권한</div><div class="meta-v">인증 사용자</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><span class="sec-title">화면 개요</span></div>
+    <div class="card">
+      <dl class="kv">
+        <dt>화면명</dt><dd>공지사항</dd>
+        <dt>화면 ID</dt><dd>VDI-SCR-009</dd>
+        <dt>경로(URL)</dt><dd>/notice.html</dd>
+        <dt>화면 유형</dt><dd>공통 레이아웃 (상단 헤더 + 좌측 사이드바 + 본문) · 목록(List) 화면</dd>
+        <dt>화면 목적</dt><dd>VDI 운영 공지(점검·보안·업데이트 등) 목록 조회 → 항목 클릭 시 공지 상세(notice-detail.html) 진입</dd>
+        <dt>진입 경로</dt><dd>사이드바 [공지사항] · 포탈 KPI [최근 공지사항] 카드 · 공지 상세의 [목록으로]</dd>
+        <dt>사이드바 메뉴</dt><dd>공지사항 (active)</dd>
+        <dt>접근 권한</dt><dd>인증 사용자. <strong>관리자 권한 ON 시</strong> 우상단 [공지 등록] 버튼이 추가 노출</dd>
+        <dt>전제 조건</dt><dd>인증 완료 상태 (미인증 시 로그인 화면으로 이동)</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><span class="sec-title">화면 레이아웃</span></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+        <span class="preview-url">notice.html</span>
+      </div>
+      <iframe src="../notice.html" title="공지사항 화면 미리보기" loading="lazy"></iframe>
+    </div>
+    <div class="preview-actions">
+      <a class="btn-open" href="../notice.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        프로토타입 새 창으로 열기
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="area-list">
+        <div class="area-item"><span class="area-badge">A</span><div><div class="area-name">상단 헤더 (공통)</div>
+          <div class="area-desc">KB손해보험 로고·서비스명(클릭 시 홈) · 관리자 권한 토글 · 사용자 정보(이름·부서·사번) · 로그아웃. 전 화면 공통(common.js 주입)</div></div></div>
+        <div class="area-item"><span class="area-badge">B</span><div><div class="area-name">좌측 사이드바 (공통)</div>
+          <div class="area-desc">카테고리별 메뉴(Workspace / 신청·결재 / 지원·서비스) + 하단 헬프데스크(1544-8119). 현재 화면은 [공지사항] active</div></div></div>
+        <div class="area-item"><span class="area-badge">C</span><div><div class="area-name">페이지 헤더</div>
+          <div class="area-desc">브레드크럼(홈 › 지원·서비스 › 공지사항) + 화면 제목·설명. 우측에 관리자 전용 [공지 등록] 버튼(관리자 권한 ON 시에만 표시)</div></div></div>
+        <div class="area-item"><span class="area-badge">D</span><div><div class="area-name">검색 · 기간 필터 바</div>
+          <div class="area-desc">제목·내용 검색 입력 + 기간 드롭다운(전체 기간 / 최근 1주일 / 최근 1개월 / 최근 3개월 — 기본 최근 1개월)</div></div></div>
+        <div class="area-item"><span class="area-badge">E</span><div><div class="area-name">공지 리스트 + 페이저</div>
+          <div class="area-desc">컬럼 헤더(제목 / 작성자 / 등록일) + 공지 행 목록(상단 고정 공지 우선) + 하단 페이지네이션(10건 단위, 1페이지 이하면 숨김)</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><span class="sec-title">화면 항목 정의</span></div>
+
+    <div class="sub-h">3.1 · 페이지 헤더 · 관리자 액션 (영역 C)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>브레드크럼</td><td><span class="tag tag-nav">바로가기</span></td><td>홈 › 지원 · 서비스 › <strong>공지사항</strong>. [홈] 클릭 시 portal.html 이동</td></tr>
+        <tr><td>2</td><td>화면 제목 · 설명</td><td><span class="tag tag-view">표시</span></td><td>"공지사항" + 한 줄 안내(점검·업데이트·보안 공지 확인, 항목 클릭 시 상세)</td></tr>
+        <tr><td>3</td><td><strong>공지 등록</strong> <code>.admin-only</code></td><td><span class="tag tag-btn">버튼</span></td><td><strong>관리자 전용.</strong> 기본 숨김, 헤더의 관리자 권한 토글 ON(<code>body.admin-mode</code>) 시에만 표시. 클릭 시 공지 등록(notice-new.html)으로 이동</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.2 · 검색 · 기간 필터 (영역 D)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th style="width:64px">필수</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>4</td><td><strong>검색 입력</strong> <code>#searchInput</code></td><td><span class="tag tag-view">입력</span></td><td>-</td><td>플레이스홀더 "제목 · 내용으로 검색". 입력 즉시(타이핑 시) <strong>제목 + 요약(내용)</strong> 대상 부분 일치 검색, 대소문자 무시. 검색 시 1페이지로 초기화</td></tr>
+        <tr><td>5</td><td><strong>기간 드롭다운</strong> <code>.date-drop</code></td><td><span class="tag tag-btn">버튼</span></td><td>-</td><td>달력 아이콘 + 현재 프리셋 라벨(기본 "최근 1개월") + 화살표. 클릭 시 빠른선택 팝오버 토글, 바깥 클릭 시 닫힘</td></tr>
+        <tr><td>6</td><td>기간 빠른선택 (4종)</td><td><span class="tag tag-view">선택</span></td><td>-</td><td><strong>전체 기간 / 최근 1주일 / 최근 1개월(기본) / 최근 3개월.</strong> 선택 시 체크 표시·라벨 갱신 후 즉시 재조회. 기간 기준일은 목록의 <strong>최신 등록일</strong>(예: 2026.05.29)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.3 · 공지 리스트 행 구성 (영역 E)</div>
+    <p class="sec-lead">행 그리드: <strong>제목(가변) / 작성자(150px·가운데) / 등록일(110px·가운데)</strong>. 좁은 화면(820px 이하)에서는 작성자 컬럼 숨김. 행 전체가 클릭 영역이며, 클릭 시 공지 상세로 이동합니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>7</td><td>고정(핀) 아이콘 <code>.notice-pin</code></td><td><span class="tag tag-view">표시</span></td><td>상단 고정 공지(<code>pinned</code>)에만 제목 앞 핀 아이콘 표시 (KB옐로우 다크)</td></tr>
+        <tr><td>8</td><td><strong>제목</strong> <code>.notice-title</code></td><td><span class="tag tag-view">표시</span></td><td>공지 제목. 말줄임(ellipsis) 처리. 예: "[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내"</td></tr>
+        <tr><td>9</td><td>NEW 배지 <code>.new-badge</code></td><td><span class="tag tag-view">표시</span></td><td>최신 공지(<code>isNew</code>)에 표시. 기본은 빨강 텍스트 + 연빨강 배경, <strong>고정 행에서는 빨강 배경 + 흰 텍스트로 반전</strong></td></tr>
+        <tr><td>10</td><td>작성자</td><td><span class="tag tag-view">표시</span></td><td>등록자 표시 (시안 데이터: 관리자)</td></tr>
+        <tr><td>11</td><td>등록일</td><td><span class="tag tag-view">표시</span></td><td>YYYY.MM.DD 형식 (시안 데이터: 2026.03.28 ~ 2026.05.29)</td></tr>
+        <tr><td>12</td><td>고정 행 스타일 <code>.notice-item.pinned</code></td><td><span class="tag tag-view">표시</span></td><td>상단 고정 공지 행은 KB옐로우 소프트 그라데이션 배경으로 구분, 정렬 시 항상 목록 최상단</td></tr>
+        <tr><td>13</td><td>빈 상태 <code>.empty-state</code></td><td><span class="tag tag-view">표시</span></td><td>검색·기간 조건에 맞는 공지가 없으면 "조건에 맞는 공지사항이 없습니다." 안내 표시</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">3.4 · 페이지네이션 <code>#noticePager</code></div>
+    <table class="tbl">
+      <thead><tr><th style="width:48px">No</th><th>항목명</th><th style="width:78px">구분</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>14</td><td>이전 / 다음 버튼</td><td><span class="tag tag-btn">버튼</span></td><td>화살표 버튼. 첫/마지막 페이지에서는 비활성</td></tr>
+        <tr><td>15</td><td>페이지 번호</td><td><span class="tag tag-btn">버튼</span></td><td><strong>10건 단위</strong>(공통 <code>PAGE_SIZE</code>). 현재 페이지는 KB옐로우 강조. 1페이지 이하면 페이저 자체를 숨김. 페이지 이동 시 화면 상단으로 부드럽게 스크롤</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><span class="sec-title">처리 · 이벤트 정의</span></div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">ID</th><th>이벤트</th><th>발생 조건</th><th>처리 내용</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>키워드 검색</td><td>검색 입력란 타이핑</td><td>제목+요약(내용) 부분 일치 필터 적용 → 1페이지로 초기화 → 목록 재렌더</td></tr>
+        <tr><td>E-02</td><td>기간 팝오버 토글</td><td>기간 드롭다운 버튼 클릭</td><td>빠른선택 팝오버 열기/닫기. 바깥 영역 클릭 시 자동 닫힘</td></tr>
+        <tr><td>E-03</td><td>기간 프리셋 선택</td><td>전체/1주일/1개월/3개월 클릭</td><td>목록 최신 등록일 기준으로 시작~종료일 계산 → 라벨·체크 갱신 → 1페이지로 초기화 후 재조회. 초기 진입 시 "최근 1개월" 자동 적용</td></tr>
+        <tr><td>E-04</td><td><strong>공지 행 클릭</strong></td><td>목록 행 클릭</td><td>공지 상세로 이동 — <code>notice-detail.html?id={공지 id}</code> (id 파라미터로 해당 공지 본문 표시)</td></tr>
+        <tr><td>E-05</td><td>페이지 이동</td><td>페이저 번호/이전/다음 클릭</td><td>해당 페이지 10건 렌더 + 화면 상단으로 스크롤</td></tr>
+        <tr><td>E-06</td><td>관리자 권한 전환</td><td>헤더 [관리자 권한] 토글 (공통)</td><td><code>body.admin-mode</code> 부여/해제 → [공지 등록] 버튼 표시/숨김 (페이지 이동 간 유지)</td></tr>
+        <tr><td>E-07</td><td>공지 등록 이동</td><td>관리자 권한 ON 상태에서 [공지 등록] 클릭</td><td>공지 등록 화면(notice-new.html)으로 이동</td></tr>
+        <tr><td>E-08</td><td>결과 없음</td><td>검색·기간 조건 결과 0건</td><td>빈 상태 안내 표시, 페이저 숨김</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><span class="sec-title">데이터 항목 (공지)</span></div>
+    <p class="sec-lead">시안은 페이지 내 mock 배열 <code>NOTICES</code>(총 12건, 최신순)로 동작합니다. 기본 기간(최근 1개월) 적용 시 6건이 표시되고, "전체 기간" 선택 시 12건(2페이지)이 표시됩니다.</p>
+    <table class="tbl">
+      <thead><tr><th style="width:110px">필드</th><th style="width:90px">타입</th><th>설명</th><th>예시</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>number</td><td>공지 식별자. 상세 이동 시 쿼리 파라미터로 전달</td><td>1</td></tr>
+        <tr><td><code>cat</code></td><td>string</td><td><strong>분류 2종</strong> — <code>important</code>(중요) / <code>normal</code>(일반). 6장 참조</td><td>important</td></tr>
+        <tr><td><code>pinned</code></td><td>boolean</td><td>상단 고정 여부. 목록 최상단 정렬 + 고정 행 스타일</td><td>true (정기점검 공지 1건)</td></tr>
+        <tr><td><code>isNew</code></td><td>boolean</td><td>NEW 배지 표시 여부</td><td>true</td></tr>
+        <tr><td><code>title</code></td><td>string</td><td>공지 제목</td><td>[정기점검] 06.01(일) 02:00~05:00 VDI 정기 점검 안내</td></tr>
+        <tr><td><code>author</code></td><td>string</td><td>작성자</td><td>관리자</td></tr>
+        <tr><td><code>date</code></td><td>string</td><td>등록일 (YYYY.MM.DD) — 검색·기간 필터 기준</td><td>2026.05.29</td></tr>
+        <tr><td><code>views</code></td><td>number</td><td>조회수. <strong>목록 화면에는 미표기</strong>(데이터로만 보유, 상세 화면 메타 표기·집계는 구현 시 정의)</td><td>1284</td></tr>
+        <tr><td><code>summary</code></td><td>string</td><td>요약문. 목록 미표기, <strong>키워드 검색 대상에 포함</strong></td><td>안정적인 VDI 서비스 제공을 위해 정기 점검을 시행합니다…</td></tr>
+      </tbody>
+    </table>
+    <div class="note" style="margin-top:14px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        mock 12건 구성(2026.03 ~ 2026.05): <strong>[정기점검] 06.01 점검 안내(고정·NEW)</strong> · [보안] 랜섬웨어 주의보(NEW) · Citrix Workspace v23.11 배포(NEW) · 사용자 매뉴얼 v2.0 배포 · 5월 정기 보안 패치 · 05.11 네트워크 장비 교체 · PC가상화 설치 파일 안내 · 고정가상화 신규 자원(8 Core/16 GB) 도입 · [복구완료] 접속 지연 정상화 · 접속 경로 이중화 완료 · 4월 사용 현황 리포트 · [보안] 분기 비밀번호 변경. 공지 상세(notice-detail.html)의 12건 데이터와 id·제목·날짜가 정합합니다.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><span class="sec-title">상태 · 분류 정의</span></div>
+    <p class="sec-lead">공지 분류는 <strong>중요 / 일반 2종</strong>으로 고정합니다. 분류는 데이터 필드 <code>cat</code>으로 관리하며, 목록 화면에서는 별도 분류 태그를 표기하지 않고 고정(핀)·NEW 표식으로 우선순위를 표현합니다. 포탈 메인의 관리자 안내 영역 등 타 화면과 분류 체계를 공유합니다.</p>
+
+    <div class="sub-h">6.1 · 분류 (2종)</div>
+    <table class="tbl">
+      <thead><tr><th style="width:90px">분류</th><th style="width:110px">데이터 값</th><th>성격 · 예시</th></tr></thead>
+      <tbody>
+        <tr><td><strong>중요</strong></td><td><code>cat: 'important'</code></td><td>점검·장애·보안 등 사용자 영향이 큰 공지. 예: 정기 점검, 랜섬웨어 주의보, 네트워크 장비 교체, 복구완료, 비밀번호 변경</td></tr>
+        <tr><td>일반</td><td><code>cat: 'normal'</code></td><td>배포·안내성 공지. 예: 클라이언트 배포, 매뉴얼 배포, 보안 패치, 신규 자원 도입, 리포트 공유</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-h">6.2 · 목록 표식 규칙</div>
+    <table class="tbl">
+      <thead><tr><th style="width:110px">표식</th><th style="width:120px">데이터 값</th><th style="width:170px">CSS 클래스</th><th>표시 규칙 · 색</th></tr></thead>
+      <tbody>
+        <tr><td><strong>상단 고정</strong></td><td><code>pinned: true</code></td><td><code>.notice-item.pinned</code> · <code>.notice-pin</code></td><td>검색·기간 필터 결과 내에서 <strong>항상 최상단 정렬</strong>. 행 배경 KB옐로우 소프트 그라데이션(<code>var(--kb-yellow-soft)</code>) + 제목 앞 핀 아이콘(<code>var(--kb-yellow-dark)</code>). 시안에서는 1건(정기점검 공지)만 고정</td></tr>
+        <tr><td>NEW 배지</td><td><code>isNew: true</code></td><td><code>.new-badge</code></td><td>제목 우측 "NEW". 기본: 빨강 텍스트(<code>var(--danger)</code>) + 연빨강 배경(<code>var(--danger-soft)</code>) / 고정 행: 빨강 배경 + 흰 텍스트 반전</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><span class="sec-title">소스 구조</span></div>
+
+    <div class="sub-h">7.1 · 화면 고유 (notice.html 내부)</div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>고유 스타일</strong> — 목록 그리드(<code>.list-head</code> / <code>.notice-item</code>, 제목 1fr + 작성자 150px + 등록일 110px), 고정 행(<code>.pinned</code>) 그라데이션, 핀 아이콘(<code>.notice-pin</code>), NEW 배지(<code>.new-badge</code>), 820px 이하 작성자 컬럼 숨김</li>
+        <li><strong>고유 스크립트</strong> — mock 데이터 <code>NOTICES</code>(12건) · 목록 렌더 <code>render()</code>(검색+기간 필터 → 고정 우선 정렬 → 페이지 슬라이스) · 기간 프리셋 <code>setQuickRange()</code> · 검색 입력 리스너 · 핀 아이콘 SVG 상수 · HTML 이스케이프 <code>esc()</code></li>
+      </ul>
+    </div>
+
+    <div class="sub-h">7.2 · 공통 의존 (common.css / common.js)</div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>common.css</strong> — 레이아웃(<code>.top-header</code>/<code>.layout</code>/<code>.sidebar</code>/<code>.main</code>), 페이지 헤더·브레드크럼, 필터 바(<code>.filter-bar</code>/<code>.search-hero</code>/<code>.date-drop</code>), 카드(<code>.fc</code>), 페이저(<code>.pager</code>/<code>.pager-btn</code>), 버튼(<code>.btn</code>/<code>.btn-admin</code>), 관리자 노출 제어(<code>.admin-only</code> + <code>body.admin-mode</code>), 빈 상태(<code>.empty-state</code>)</li>
+        <li><strong>common.js</strong> — 헤더/사이드바 주입(<code>data-header</code>/<code>data-sidebar="notice"</code>), 기간 필터 유틸(<code>dateInRange</code>/<code>maxDateOf</code>/<code>quickRangeFrom</code>/<code>DATE_LABELS</code>/<code>toggleDatePop</code>), 페이지네이션(<code>renderPager</code>, <code>PAGE_SIZE=10</code>), 관리자 권한 토글·복원(<code>toggleAdminMode</code>/<code>restoreAdminMode</code>), 인증·이동(<code>goHome</code>/<code>logout</code>), 안내(<code>showToast</code>)</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><span class="sec-title">연관 화면</span></div>
+    <div class="card">
+      <ul class="bul">
+        <li><strong>공지 상세</strong> (notice-detail.html) — 목록 행 클릭 시 <code>?id={공지 id}</code>로 진입. 상세 측 12건 데이터(id·제목·작성자·등록일)와 정합 유지</li>
+        <li><strong>공지 등록</strong> (notice-new.html) — 관리자 권한 ON 시 [공지 등록] 버튼으로 진입 (관리자 전용)</li>
+        <li><strong>메인 포탈</strong> (portal.html) — KPI [최근 공지사항] 카드에서 본 화면으로 진입. 포탈 하단 관리자 안내 영역은 상단 고정 공지(정기점검, <code>notice-detail.html?id=1</code>)와 내용 정합</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">9</span><span class="sec-title">비고</span></div>
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        본 문서의 <strong>대상 화면(notice.html)은 UI 시안(프로토타입)</strong>입니다. 시안은 페이지 내 mock 데이터(<code>NOTICES</code>)로 동작하며, 구현 시 <strong>공지 목록 API</strong>(검색·기간 조건·페이지네이션 서버 처리)로 대체합니다. <strong>조회수(views)</strong>는 시안에서 데이터로만 보유하므로 상세 진입 시 집계·노출 방식은 구현 시 별도 정의가 필요합니다. 관리자 권한 토글은 시안용 장치이며, 실제 구현에서는 <strong>권한 체계(관리자 역할)</strong>에 따라 [공지 등록] 노출을 제어합니다.<br>
+        헤더·사이드바·토스트는 <strong>전 화면 공통 영역</strong>으로, 별도 공통 컴포넌트로 관리합니다(상세는 공통 정의 참조).
+      </div>
+    </div>
+  </section>
+
+  <!-- SPEC-BODY END -->
+
+  <div class="doc-foot">
+    <span>KB손해보험 · 업무가상화(VDI) 사용자 포탈 구축 — 화면정의서</span>
+    <span>VDI-SD-009 · v1.0 · 2026.06.12 · 대외비(비공개)</span>
+  </div>
+
+</div>
+</body>
+</html>
