@@ -51,13 +51,17 @@
 localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }
 ```
 
-- **columns** — 표시 컬럼 정의. `type`: `rownum`(번호 자동) · `text`(편집) · `status` · `priority`. `locked:true`는 삭제만 불가(이름·표시·요약은 변경 가능). `core:true`는 "간단히 보기"에 포함.
-- **areas** — 영역(섹션). `{id, name, color, desc}`. 기본 6개: 가상화 인프라 / 계정·인사연동 / 인증·정보보호 / 사용자 포탈 / 이행·변화관리 / 운영·조직.
-- **rows** — 안건. `{area, item, pri, date, asis, tobe, result, action, owner, status, done, att}`.
-- **meta** — 히어로(eyebrow/title/sub 등). 관리자 모드에서 인라인 편집.
-- 상태 5종 `STATUSES` = 확정·논의중·확인필요·조치진행·검토완료(검토완료는 회색 처리).
+- **columns** — 표시 컬럼 정의. `type`: `rownum`(번호 자동) · `text`(편집) · `status` · `priority`. `locked:true`는 삭제만 불가(이름·표시·요약은 변경 가능). `core:true`는 "간단히 보기"에 포함. `width`(px)는 **머리글 우측 경계 드래그로 직접 조절**(저장). 컬럼 수는 `MAX_COLUMNS=12` 하드 캡(추가 차단).
+- **areas** — 영역(섹션). `{id, name, color, desc}`. 기본 6개: 가상화 인프라 / 계정·인사연동 / 인증·정보보호 / 사용자 포탈 / 이행·변화관리 / 운영·조직. **머리글 클릭 시 아코디언 접기/펼치기**(`collapsedAreas` Set, 세션 한정·비영속).
+- **rows** — 안건. `{id, area, item, pri, date, asis, tobe, result, action, owner, status, done, att, parentId?}`.
+  - `id` — 행 고유키(`genId`/`ensureRowIds`). 후속안건 연결·삭제의 안정적 기준.
+  - `parentId` — **후속안건(하위레벨 안건)**이면 부모 행 `id`를 가리킴(1단계 깊이). 부모 바로 아래 들여쓰기(번호 `1-1-1`·`↳`)·연한 톤으로 표시. 안건명만 필수, 나머지 빈 값 허용. 부모 삭제 시 자식 동반 삭제.
+- **meta** — 히어로(eyebrow/title/sub 등). 관리자 모드에서 인라인 편집. 내부 플래그 `_colWidthVer`(컬럼 폭 마이그레이션 버전) 포함.
+- 상태 5종 `STATUSES` = 확정·논의중·확인필요·조치진행·검토완료(검토완료는 회색 처리). 상태·중요도 콤보는 간소 톤(연한 칩+컬러 텍스트, 셀 중앙 정렬 통일).
 - 중요도 3종 `PRIORITIES` = 상·중·하.
-- `DEFAULT_*` 상수가 초기 시드. 저장 데이터 로드 시 누락 필드 마이그레이션(`pri`/`done`/`core`) 수행 — **스키마 변경 시 마이그레이션 코드도 함께 갱신**.
+- **표시 정렬·계층**: `orderedAreaRows(areaId, ai)`가 **논의일자 오름차순**(`dateKey`, 빈 일자는 뒤)으로 부모를 정렬하고 각 부모 뒤에 후속안건을 일자순으로 붙인다. 저장 순서(`rows`)는 건드리지 않는 **표시 전용 정렬**(`tr.dataset.idx`는 원본 인덱스 유지 → 편집/삭제 매핑 보존). 이 함수는 **화면 render · Excel · 읽기용 HTML 공통** — 셋 다 정합 유지.
+- 표는 `width:100%` 스트레치 금지: **컬럼 폭 합계 크기**(`table.style.width`)로 렌더 → 컬럼 숨김/삭제·간단히 보기 시 잔여 컬럼이 늘어나지 않고 표만 줄어든다(가로 스크롤 방지). 기본 폭 합계 ≈ 1274px.
+- `DEFAULT_*` 상수가 초기 시드. 저장 데이터 로드 시 누락 필드 마이그레이션(`pri`/`done`/`core`/`id`) + 컬럼 폭 1회 재조정(`COL_WIDTH_VER`) 수행 — **스키마/기본폭 변경 시 마이그레이션 코드(loadData)·importBackup·importExcel·`orderedAreaRows` 소비처도 함께 갱신**.
 
 ## 🔐 관리자 모드
 
@@ -76,7 +80,10 @@ localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }
 | 요약 카드 | 상태별 건수, 클릭 시 상태 필터 토글 |
 | 간단히 보기 | `core` 컬럼만 노출 (`simpleView`) |
 | 인라인 편집 | `td[contenteditable]` — 진입 시 평문, 이탈 시 줄단위 항목 렌더(`renderCellRead`, `①·-→` 등 마커 인식) |
-| 컬럼 관리(표 인라인) | **모달 없음.** 순서=헤더 드래그, 헤더 호버 `⋮` 메뉴=이름변경·요약토글·숨기기·삭제, 헤더 끝 `＋`=새 컬럼 추가·숨긴 컬럼 표시. 부동 메뉴 공통 `openPop()`/`.pop`(body에 fixed로 부착해 `.tbl-scroll` 클리핑 회피) |
+| 컬럼 관리(표 인라인) | **모달 없음.** 순서=헤더 드래그, **폭=헤더 우측 경계 드래그(`.col-resize`, 모든 영역 표 동시·저장)**, 헤더 호버 `⋮` 메뉴=이름변경·요약토글·숨기기·삭제, 헤더 끝 `＋`=새 컬럼 추가(최대 12)·숨긴 컬럼 표시. 부동 메뉴 공통 `openPop()`/`.pop`(body에 fixed로 부착해 `.tbl-scroll` 클리핑 회피) |
+| 정렬 | 영역 내 **논의일자 오름차순**(중간 일정은 자동 중간 배치). 후속안건은 부모에 종속(`orderedAreaRows`) |
+| 후속안건(하위 안건) | 부모 행 액션열 `＋`(`.sub-add`)로 추가 → `parentId` 연결·들여쓰기 표시. 안건명만 필수 |
+| 영역 아코디언 | 영역 머리글 클릭으로 접기/펼치기(`collapsedAreas`, 세션 한정) |
 | 도구 드롭다운 | 툴바 `도구 ▾`(`openToolsMenu`) — 보조 동작(Excel·읽기용·인쇄·백업/이력·가져오기·영역관리) 통합. 관리자 항목은 `isAdmin()`일 때만 노출 |
 | 백업 (파일) | `exportBackup` → `vdi_백업_YYYYMMDD_HHMM.json`(columns·areas·rows·meta) / `importBackup`(검증+덮어쓰기 확인, **관리자 전용**) |
 | 변경 이력 (버전 형상관리) | `saveData`가 저장 직전 상태를 `localStorage[STORE_KEY+"__history"]`에 자동 보관(최근 `HIST_MAX=30`, `HIST_MIN_GAP=20s` 내 연속편집은 합침). `변경 이력` 모달에서 시점 선택→`restoreHistory`로 복원(복원 직전 현재 상태도 자동 보관). **관리자 전용** |
