@@ -18,8 +18,8 @@ STAMP="$(date +%Y%m%d_%H%M)"
 
 # 전체 전달 기본 구성 (소스 + 공통 + 가이드 + 산출물)
 FULL=(
-  README.md STYLE_GUIDE.md BOOTSTRAP_GUIDE.md
-  common.css common.js kb-logo.png robots.txt .htaccess
+  README.md STYLE_GUIDE.md
+  common.css common.js kb-logo.png
   login.html install.html portal.html apply.html change.html
   approval.html approval-detail.html
   incident.html incident-new.html
@@ -31,7 +31,7 @@ FULL=(
 # 전달 금지(인자로 들어와도 방어적으로 제외)
 is_excluded() {
   case "$1" in
-    CLAUDE.md|.git|.git/*|.claude|.claude/*|.gitignore|dist|dist/*|package-delivery.sh|\
+    CLAUDE.md|BOOTSTRAP_GUIDE.md|.git|.git/*|.claude|.claude/*|.gitignore|dist|dist/*|package-delivery.sh|\
     06_ci_color.png|"KB손해보험_ci_wordmark-hor.png"|*.zip|.DS_Store) return 0 ;;
     *) return 1 ;;
   esac

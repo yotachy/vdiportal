@@ -1,8 +1,8 @@
-# 소스 가이드 (수행사용)
+# 소스 가이드
 
 KB손해보험 VDI 사용자 포탈 화면정의서의 **소스 구조와 작업 규칙**입니다. 코드 규칙의 단일 출처입니다.
 
-> 이 문서는 **프로토타입(화면정의서) 소스**의 규칙입니다(아래 §1의 "프레임워크 금지"도 프로토타입 기준). 수행사가 **Bootstrap 5.3.8**로 구현할 때의 변환 기준은 [`BOOTSTRAP_GUIDE.md`](BOOTSTRAP_GUIDE.md)를 참조하세요.
+> 이 문서는 **프로토타입(화면정의서) 소스**의 규칙입니다(아래 §1의 "프레임워크 금지"도 프로토타입 기준).
 
 ---
 
@@ -11,8 +11,7 @@ KB손해보험 VDI 사용자 포탈 화면정의서의 **소스 구조와 작업
 - **순수 HTML5 · CSS3 · Vanilla JS**만 사용. 빌드 도구·프레임워크·외부 라이브러리·CDN 금지.
 - 모든 동작은 시연용 mock. 실제 API(`fetch`/XHR) 없이 화면 전환·`showToast()`로 표현.
 - 들여쓰기 2 spaces, HTML 속성은 큰따옴표, SVG 아이콘은 인라인 작성(외부 아이콘 금지).
-- **전체 비공개** — 모든 HTML `<head>`에 `<meta name="robots" content="noindex, nofollow">`. 루트에 `robots.txt`(Disallow: /).
-- 수행사 전달 문서는 `deliverables/`에 독립 HTML로 작성하고 `deliverables/index.html`에서 관리(noindex 포함).
+- 화면정의서 문서는 `deliverables/`에 독립 HTML로 작성하고 `deliverables/index.html`에서 관리.
 
 ---
 
@@ -38,7 +37,6 @@ KB손해보험 VDI 사용자 포탈 화면정의서의 **소스 구조와 작업
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="robots" content="noindex, nofollow">   <!-- 필수 -->
   <title>KB손해보험 VDI 사용자 포탈 - {화면명}</title>
   <link rel="stylesheet" href="common.css">
   <style>/* 이 페이지에서만 쓰는 스타일 */</style>
@@ -156,7 +154,7 @@ function render() {
 
 ## 9. 금지 사항
 
-- 외부 CDN/라이브러리(Bootstrap·jQuery·Tailwind·Font Awesome 등)
+- 외부 CDN/라이브러리(jQuery·Tailwind·Font Awesome 등)
 - 빌드 도구(Webpack·Vite·npm 스크립트 등)
 - `common.css`/`common.js` 외 추가 공통 파일 생성
 - 실제 API 호출, 실제 이미지/사진 임베드(브랜드 로고 `kb-logo.png` 제외)
