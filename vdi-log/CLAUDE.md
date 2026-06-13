@@ -7,8 +7,13 @@
 
 ## 📌 정체성
 
-`vdi-log/log.html` = **KB손해보험 업무가상화(VDI) 구축 프로젝트의 영역별 논의·결정사항 관리대장**.
-회의·업무에서 나온 안건을 영역별로 등록하고 **결정사항·후속조치·책임부서·중요도·상태**를 추적하는 단일 페이지입니다.
+`vdi-log/log.html` = **KB손해보험 업무가상화(VDI) 구축 프로젝트의 산출물 허브**.
+좌측 **사이드바**(카테고리 > 산출물)로 프로젝트 산출물을 한 곳에서 관리·열람하며, 그중 하나가 **논의·결정사항 관리대장**(내장 인터랙티브 화면)입니다.
+
+- **셸 구조**: 글로벌 헤더(브랜드·관리자 로그인·테마) → `[사이드바 | 본문]`. 본문은 2뷰 라우팅:
+  - `#view-log` — 논의·결정사항 관리대장(기존 도구 그대로: 필터·검색·표·Excel·변경이력 등).
+  - `#view-deliv` — 링크형 산출물의 `iframe` 미리보기(상단바: 코드·제목·상태·`↗ 새 탭`).
+- **관리대장**: 회의·업무 안건을 영역별로 등록하고 **결정사항·후속조치·책임부서·중요도·상태**를 추적. 이제 허브의 한 메뉴(`type:"builtin"`).
 
 > ⚠️ **상위 포탈 화면정의서와 성격이 다르다.**
 > - 포탈(`../*.html`) = **mock 전용 정적 UI 시안** (실제 데이터·API 없음, 화면정의서 목적).
@@ -48,9 +53,22 @@
 
 ## 🧱 데이터 모델 (JS 전역)
 
+**두 개의 독립 저장소**:
+
 ```
-localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }
+localStorage["vdi_hub_v1"]          = { cats, items, active }   // 산출물 허브(사이드바)
+localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }  // 관리대장 본문
 ```
+
+### 허브(`vdi_hub_v1`)
+- **cats** — 카테고리(대분류, 2단계). `[{id, name}]`. 순서·이름·삭제는 **카테고리 관리 모달**(`openCatsModal`)에서. 삭제 시 소속 산출물은 첫 카테고리로 이동.
+- **items** — 산출물. `{id, catId, name, type:"builtin"|"link", url?, code?, status?, desc?}`.
+  - `type:"builtin"` — 내장 화면. 현재 `관리대장`(id `log`) 하나, 삭제 불가(링크·코드 미사용).
+  - `type:"link"` — `url`(예: `../deliverables/portal-spec.html`)을 `iframe`으로 미리보기. `code`(VDI-SD-00x)·`status`·`desc` 선택.
+  - 상태 3종 `DELIV_STATUSES` = 작성중·검토중·확정(`.dstat-*` 뱃지). 시드: 화면정의서 통합본+개별 13종 + 설치 가이드.
+- **active** — 현재 선택 산출물 id(영속). `selectItem(id)`가 뷰 전환 + iframe src 세팅(같은 url 재선택 시 리로드 안 함).
+- 관리자 기능: 산출물 추가/편집/삭제(`openItemModal`), 카테고리 관리. 시드는 `DEFAULT_HUB`. **스키마 변경 시 `loadHub` 보정 로직(builtin 보장·고아 catId 복구)도 갱신**.
+- 사이드바 렌더 `renderSidebar()`(관리자면 편집 연필·추가 버튼 노출), 카테고리 접기 `navCollapsed`(세션 한정).
 
 - **columns** — 표시 컬럼 정의. `type`: `rownum`(번호 자동) · `text`(편집) · `status` · `priority`. `locked:true`는 삭제만 불가(이름·표시·요약은 변경 가능). `core:true`는 "간단히 보기"에 포함. `width`(px)는 **머리글 우측 경계 드래그로 직접 조절**(저장). 컬럼 수는 `MAX_COLUMNS=12` 하드 캡(추가 차단).
 - **areas** — 영역(섹션). `{id, name, color, desc}`. 기본 6개: 가상화 인프라 / 계정·인사연동 / 인증·정보보호 / 사용자 포탈 / 이행·변화관리 / 운영·조직. **머리글 클릭 시 아코디언 접기/펼치기**(`collapsedAreas` Set, 세션 한정·비영속).
@@ -77,6 +95,10 @@ localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }
 
 | 기능 | 비고 |
 |---|---|
+| 산출물 사이드바 | 카테고리 > 산출물 트리, 카테고리 접기, 활성 항목 하이라이트. 모바일(<880px) 햄버거 토글(`#btnNav`·스크림) |
+| 카테고리 레벨관리 | 추가·이름·순서(▲▼)·삭제(`openCatsModal`, 관리자) |
+| 산출물 추가/편집 | 제목·카테고리·상태·코드·링크·설명(`openItemModal`, 관리자). 내장(관리대장)은 삭제·링크 불가 |
+| 산출물 미리보기 | 링크형은 우측 `iframe`(`#delivFrame`) + `↗ 새 탭`. 관리대장은 내장 화면 |
 | 필터 | 영역 / 상태 / 중요도 셀렉트 + 활성 필터 칩(개별 해제) |
 | 검색 | 안건·내용 전문 검색 + `<mark>` 하이라이트 |
 | 요약 카드 | 상태별 건수, 클릭 시 상태 필터 토글 |
