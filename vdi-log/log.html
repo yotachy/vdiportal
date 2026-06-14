@@ -396,6 +396,11 @@
   .nav-item:hover{background:var(--line-faint);}
   .nav-item.active{background:var(--gold-soft); color:#6b4e00; font-family:var(--font-bold);}
   .nav-item.active::before{content:""; position:absolute; left:3px; top:8px; bottom:8px; width:3px; border-radius:3px; background:var(--gold);}
+  body.admin .nav-item[draggable="true"]{cursor:grab;}
+  body.admin .nav-item[draggable="true"]:active{cursor:grabbing;}
+  .nav-item.nav-drag-src{opacity:.4;}
+  .nav-item.nav-drop-before{box-shadow:inset 0 2.5px 0 var(--gold);}
+  .nav-item.nav-drop-after{box-shadow:inset 0 -2.5px 0 var(--gold);}
   .nav-item .ni-dot{width:7px; height:7px; border-radius:50%; flex:none; background:var(--line-strong);}
   .nav-item .ni-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .nav-item .ni-built{flex:none; font-size:.62rem; color:var(--gold-strong); font-family:var(--font-bold); border:1px solid var(--gold-soft); background:var(--gold-soft); padding:1px 5px; border-radius:5px;}
@@ -2082,7 +2087,8 @@ const EDIT_ICO=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 
 function navItemHTML(it, am){
   const active=it.id===hub.active;
-  return `<button class="nav-item${active?" active":""}" data-item="${escHtml(it.id)}" title="${escHtml(it.name)}">
+  const grp=it.catId||"__pinned";
+  return `<button class="nav-item${active?" active":""}" data-item="${escHtml(it.id)}" data-grp="${escHtml(grp)}" title="${escHtml(it.name)}" ${am?'draggable="true"':''}>
     <span class="ni-dot ${it.status?"dstat-"+escHtml(it.status):""}"></span>
     <span class="ni-name">${escHtml(it.name)}</span>
     ${it.type==="builtin"?`<span class="ni-built">내장</span>`:""}
@@ -2257,6 +2263,48 @@ document.getElementById("sidebar").addEventListener("click",e=>{
   if(e.target.closest("[data-hub-add]")){ openItemModal(null); return; }
   if(e.target.closest("[data-hub-cats]")){ openCatsModal(); return; }
 });
+
+/* 사이드바 산출물 순서 변경(드래그) — 같은 그룹(카테고리/상단고정) 내에서만 */
+(function(){
+  let dragId=null;
+  const sb=document.getElementById("sidebar");
+  const clearMarks=()=>sb.querySelectorAll(".nav-drop-before,.nav-drop-after,.nav-drag-src").forEach(n=>n.classList.remove("nav-drop-before","nav-drop-after","nav-drag-src"));
+  const sameGrp=(a,b)=>a&&b&&(a.dataset.grp===b.dataset.grp);
+  sb.addEventListener("dragstart",e=>{
+    const ni=e.target.closest(".nav-item"); if(!ni||!isAdmin()) return;
+    dragId=ni.dataset.item; ni.classList.add("nav-drag-src");
+    e.dataTransfer.effectAllowed="move"; try{ e.dataTransfer.setData("text/plain",dragId); }catch(_){}
+  });
+  sb.addEventListener("dragover",e=>{
+    if(dragId===null) return;
+    const ni=e.target.closest(".nav-item"); if(!ni||ni.dataset.item===dragId) return;
+    const src=sb.querySelector(`.nav-item[data-item="${CSS.escape(dragId)}"]`);
+    if(!sameGrp(src,ni)) return;
+    e.preventDefault();
+    const r=ni.getBoundingClientRect(); const after=(e.clientY-r.top)>r.height/2;
+    sb.querySelectorAll(".nav-drop-before,.nav-drop-after").forEach(n=>n.classList.remove("nav-drop-before","nav-drop-after"));
+    ni.classList.add(after?"nav-drop-after":"nav-drop-before");
+  });
+  sb.addEventListener("drop",e=>{
+    if(dragId===null) return;
+    const ni=e.target.closest(".nav-item");
+    if(ni && ni.dataset.item!==dragId){
+      const src=sb.querySelector(`.nav-item[data-item="${CSS.escape(dragId)}"]`);
+      if(sameGrp(src,ni)){
+        e.preventDefault();
+        const r=ni.getBoundingClientRect(); const after=(e.clientY-r.top)>r.height/2;
+        const fromIdx=hub.items.findIndex(i=>i.id===dragId);
+        const moved=hub.items.splice(fromIdx,1)[0];
+        let toIdx=hub.items.findIndex(i=>i.id===ni.dataset.item);
+        if(after) toIdx++;
+        hub.items.splice(toIdx,0,moved);
+        saveHub();
+      }
+    }
+    dragId=null; clearMarks(); renderSidebar();
+  });
+  sb.addEventListener("dragend",()=>{ dragId=null; clearMarks(); });
+})();
 document.getElementById("hubHome").addEventListener("click",()=>{ const b=hub.items.find(i=>i.type==="builtin"); if(b) selectItem(b.id); });
 document.getElementById("btnNav").addEventListener("click",()=>document.body.classList.toggle("nav-open"));
 document.getElementById("navScrim").addEventListener("click",()=>document.body.classList.remove("nav-open"));
