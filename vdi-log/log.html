@@ -444,15 +444,30 @@
   .deliv-frame-wrap{height:calc(100vh - 124px); background:var(--paper);}
   .deliv-frame-wrap iframe{width:100%; height:100%; border:0; display:block; background:#fff;}
 
-  /* 산출물 상태 뱃지(작성중/검토중/확정) */
+  /* 산출물 상태 뱃지(예정/작성중/검토중/확정) */
+  .dstat-예정{background:#f0f2f5; color:var(--st-done);}
   .dstat-작성중{background:#fbf4e6; color:var(--st-act);}
   .dstat-검토중{background:#eef3f9; color:var(--st-disc);}
   .dstat-확정{background:#eef7f3; color:var(--st-fix);}
-  .ni-dot.dstat-작성중{background:var(--st-act);} .ni-dot.dstat-검토중{background:var(--st-disc);} .ni-dot.dstat-확정{background:var(--st-fix);}
+  .ni-dot.dstat-예정{background:var(--st-done);} .ni-dot.dstat-작성중{background:var(--st-act);} .ni-dot.dstat-검토중{background:var(--st-disc);} .ni-dot.dstat-확정{background:var(--st-fix);}
+
+  /* 산출물 정의 카드(링크 미연결 등록부) */
+  .deliv-card-wrap{padding:26px 28px 60px;}
+  .deliv-card{max-width:780px; background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:22px 24px; box-shadow:var(--shadow-sm);}
+  .dc-grid{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line-faint); border:1px solid var(--line-faint); border-radius:10px; overflow:hidden;}
+  .dc-row{display:flex; gap:10px; background:var(--card); padding:11px 14px;}
+  .dc-k{width:86px; flex:none; color:var(--ink-faint); font-size:.75rem; font-family:var(--font-bold);}
+  .dc-v{font-size:.82rem; color:var(--ink);}
+  .dc-desc{margin-top:16px; font-size:.86rem; color:var(--ink-soft); line-height:1.65;}
+  .dc-empty{margin-top:16px; display:flex; align-items:center; gap:9px; font-size:.8rem; color:var(--ink-faint); background:var(--paper); border:1px dashed var(--line-strong); border-radius:9px; padding:12px 14px;}
+  .dc-empty svg{width:18px; height:18px; flex:none;}
+  .dc-actions{margin-top:18px;}
+  .im-2col{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
 
   /* 다크 보정 */
   html[data-theme="dark"] .nav-item.active{color:#ffd255;}
   html[data-theme="dark"] .deliv-frame-wrap iframe{background:#fff;}
+  html[data-theme="dark"] .dstat-예정{background:rgba(154,163,176,.16);}
   html[data-theme="dark"] .dstat-작성중{background:rgba(230,175,82,.17);}
   html[data-theme="dark"] .dstat-검토중{background:rgba(125,176,228,.16);}
   html[data-theme="dark"] .dstat-확정{background:rgba(70,198,160,.16);}
@@ -604,6 +619,7 @@
       </button>
     </div>
     <div class="deliv-frame-wrap"><iframe id="delivFrame" title="산출물 미리보기"></iframe></div>
+    <div class="deliv-card-wrap hidden" id="delivCard"></div>
   </section>
 
   </div>
@@ -2127,37 +2143,92 @@ document.getElementById("btnTheme").addEventListener("click",()=>{
 
 /* ===================== 산출물 허브(사이드바·뷰 라우팅·관리) ===================== */
 const HUB_KEY="vdi_hub_v1";
-const DELIV_STATUSES=["작성중","검토중","확정"];
-const DEFAULT_HUB={
-  cats:[
-    {id:"spec",   name:"화면정의서"},
-  ],
-  items:[
-    {id:"log",   name:"논의·결정사항 관리대장", type:"builtin", status:"확정", desc:"영역별 안건·결정·후속조치 실시간 추적"},
-    {id:"sd000", catId:"spec", name:"화면정의서 통합본", code:"VDI-SD-000", type:"link", url:"../deliverables/full-spec.html", status:"검토중", desc:"전체 14개 화면 통합본"},
-    {id:"sd001", catId:"spec", name:"로그인", code:"VDI-SD-001", type:"link", url:"../deliverables/login-spec.html", status:"검토중"},
-    {id:"sd002", catId:"spec", name:"메인 포탈 (내 가상PC)", code:"VDI-SD-002", type:"link", url:"../deliverables/portal-spec.html", status:"검토중"},
-    {id:"sd003", catId:"spec", name:"VDI 추가신청", code:"VDI-SD-003", type:"link", url:"../deliverables/apply-spec.html", status:"검토중"},
-    {id:"sd004", catId:"spec", name:"사용 연장·자원 증설", code:"VDI-SD-004", type:"link", url:"../deliverables/change-spec.html", status:"검토중"},
-    {id:"sd005", catId:"spec", name:"결재 현황", code:"VDI-SD-005", type:"link", url:"../deliverables/approval-spec.html", status:"검토중"},
-    {id:"sd006", catId:"spec", name:"결재 상세", code:"VDI-SD-006", type:"link", url:"../deliverables/approval-detail-spec.html", status:"검토중"},
-    {id:"sd007", catId:"spec", name:"장애신고 내역", code:"VDI-SD-007", type:"link", url:"../deliverables/incident-spec.html", status:"검토중"},
-    {id:"sd008", catId:"spec", name:"장애신고 등록", code:"VDI-SD-008", type:"link", url:"../deliverables/incident-new-spec.html", status:"검토중"},
-    {id:"sd009", catId:"spec", name:"공지사항", code:"VDI-SD-009", type:"link", url:"../deliverables/notice-spec.html", status:"검토중"},
-    {id:"sd010", catId:"spec", name:"공지사항 상세", code:"VDI-SD-010", type:"link", url:"../deliverables/notice-detail-spec.html", status:"검토중"},
-    {id:"sd011", catId:"spec", name:"공지 등록 (관리자)", code:"VDI-SD-011", type:"link", url:"../deliverables/notice-new-spec.html", status:"검토중"},
-    {id:"sd012", catId:"spec", name:"FAQ", code:"VDI-SD-012", type:"link", url:"../deliverables/faq-spec.html", status:"검토중"},
-    {id:"sd013", catId:"spec", name:"자료실", code:"VDI-SD-013", type:"link", url:"../deliverables/qna-spec.html", status:"검토중"},
-    {id:"sd014", catId:"spec", name:"접속 프로그램 설치 확인", code:"VDI-SD-014", type:"link", url:"../deliverables/install-spec.html", status:"검토중"},
-  ],
-  active:"log",
-};
+const DELIV_STATUSES=["예정","작성중","검토중","확정"];
+const TIERS=["필수","권장","선택"];
+const OWNERS=["수행사","발주","공동"];
+const FORMS=["미정","목차","확정"];   // 양식(가이드) 성숙도
+const HUB_MASTER_V=3;                  // 마스터 시드 버전(증가 시 1회 재시드)
+/* 감리 표준 산출물 체계 기반 마스터 목록(단계 × 유형 × 필수도). 실제 수행계획서 목록과 대조해 가감. */
+const DEFAULT_HUB=(()=>{
+  const cats=[
+    {id:"plan",     name:"착수·계획"},
+    {id:"analysis", name:"분석"},
+    {id:"spec",     name:"화면정의서"},
+    {id:"design",   name:"설계"},
+    {id:"impl",     name:"구현"},
+    {id:"test",     name:"시험"},
+    {id:"transit",  name:"이행·전개"},
+    {id:"close",    name:"종료·운영"},
+  ];
+  const items=[{id:"log", name:"논의·결정사항 관리대장", type:"builtin", status:"확정", tier:"필수", owner:"발주", form:"확정", desc:"영역별 안건·결정·후속조치 실시간 추적(발주 자체관리)"}];
+  // 화면정의서(이미 작성된 링크 문서) — 통합본 + 화면별 14건
+  [["sd000","화면정의서 통합본","VDI-SD-000","full-spec","전체 14개 화면 통합본"],
+   ["sd001","로그인","VDI-SD-001","login-spec",""],["sd002","메인 포탈 (내 가상PC)","VDI-SD-002","portal-spec",""],
+   ["sd003","VDI 추가신청","VDI-SD-003","apply-spec",""],["sd004","사용 연장·자원 증설","VDI-SD-004","change-spec",""],
+   ["sd005","결재 현황","VDI-SD-005","approval-spec",""],["sd006","결재 상세","VDI-SD-006","approval-detail-spec",""],
+   ["sd007","장애신고 내역","VDI-SD-007","incident-spec",""],["sd008","장애신고 등록","VDI-SD-008","incident-new-spec",""],
+   ["sd009","공지사항","VDI-SD-009","notice-spec",""],["sd010","공지사항 상세","VDI-SD-010","notice-detail-spec",""],
+   ["sd011","공지 등록 (관리자)","VDI-SD-011","notice-new-spec",""],["sd012","FAQ","VDI-SD-012","faq-spec",""],
+   ["sd013","자료실","VDI-SD-013","qna-spec",""],["sd014","접속 프로그램 설치 확인","VDI-SD-014","install-spec",""]
+  ].forEach(([id,name,code,file,desc])=>items.push({id,catId:"spec",name,code,type:"link",url:"../deliverables/"+file+".html",status:"검토중",tier:"필수",owner:"공동",form:"확정",desc}));
+  // 등록부(레지스트리) — 아직 양식/문서 미연결 산출물. [cat, code, 이름, 책임, 필수도, 양식, 설명/검수포인트]
+  [
+    ["plan","PM-01","사업수행계획서","수행사","필수","목차","사업 범위·추진체계·일정·품질·위험 총괄. 착수 즉시 확정"],
+    ["plan","PM-02","WBS(일정계획서)","수행사","필수","목차","작업분해·일정·마일스톤. 진척관리 기준선"],
+    ["plan","PM-03","투입인력계획서","수행사","필수","목차","역할별 투입인력·기간(M/M). 실투입과 대조"],
+    ["plan","PM-04","품질보증계획서","수행사","권장","미정","품질활동·검토(인스펙션)·지표"],
+    ["plan","PM-05","형상관리계획서","수행사","권장","미정","산출물·소스 버전/변경 통제 절차"],
+    ["plan","PM-06","보안관리계획서","수행사","권장","미정","금융 보안요건·접근통제·개인정보 보호"],
+    ["analysis","AN-01","요구사항정의서(기능요건)","공동","필수","목차","기능/비기능 요건 ID화. 발주 요건→수행사 정리"],
+    ["analysis","AN-02","요구사항추적표(RTM)","수행사","필수","미정","요건↔설계↔개발↔시험 추적. 감리 핵심 점검"],
+    ["analysis","AN-03","현행시스템 분석서","수행사","권장","미정","현행 업무·시스템·이관 대상 분석"],
+    ["analysis","AN-04","메뉴구조도","수행사","권장","미정","포탈 메뉴 체계·계층. 화면정의서와 정합"],
+    ["design","DS-01","시스템(아키텍처)설계서","수행사","필수","미정","논리/물리 구성·서버·네트워크·SW스택"],
+    ["design","DS-02","애플리케이션설계서·프로그램목록","수행사","필수","미정","프로그램 단위·처리흐름·목록"],
+    ["design","DS-03","화면설계서(UI/UX)","수행사","필수","미정","화면정의서 기반 상세 UI·이벤트·검증"],
+    ["design","DS-04","DB설계서(ERD·테이블정의)","수행사","필수","미정","논리/물리 ERD·테이블·인덱스"],
+    ["design","DS-05","인터페이스 목록","수행사","필수","미정","연계 시스템·I/F 식별 목록"],
+    ["design","DS-06","인터페이스 설계서","수행사","필수","미정","I/F별 규격·전문·연계방식·오류처리"],
+    ["design","DS-07","배치 설계서(배치 FLOW)","수행사","권장","미정","배치 작업·스케줄·선후행 흐름"],
+    ["design","DS-08","보안설계서","수행사","권장","미정","인증·권한·암호화·로그 설계"],
+    ["impl","IM-01","개발표준(코딩표준)","수행사","권장","미정","명명·구조·주석 등 개발 규약"],
+    ["impl","IM-02","단위테스트 결과서","수행사","권장","미정","프로그램 단위 시험 케이스·결과"],
+    ["impl","IM-03","소스·형상 산출물","수행사","필수","미정","형상관리 등록 소스·빌드 산출물"],
+    ["test","TS-01","통합테스트 계획서","수행사","필수","미정","통합 시나리오·환경·일정·합격기준"],
+    ["test","TS-02","통합테스트 결과서","수행사","필수","미정","케이스별 수행·결함·재시험. 검수 근거"],
+    ["test","TS-03","성능테스트 결과서","수행사","권장","미정","부하·응답시간·목표대비 결과"],
+    ["test","TS-04","보안취약점 점검결과서","수행사","권장","미정","웹/인프라 취약점 진단·조치(금융 권고)"],
+    ["test","TS-05","인수(사용자)테스트 결과서","공동","필수","미정","현업 인수 시험·확인. 오픈 판단 근거"],
+    ["transit","TR-01","이행계획서","수행사","필수","미정","오픈 절차·롤백·체크리스트·일정"],
+    ["transit","TR-02","데이터 전환 계획·결과서","수행사","선택","미정","데이터 이행 매핑·검증(해당 시)"],
+    ["transit","TR-03","사용자 매뉴얼","수행사","필수","미정","최종 사용자용 사용 안내서"],
+    ["transit","TR-04","운영자 매뉴얼","수행사","필수","미정","운영·장애대응·배치 운영 안내서"],
+    ["transit","TR-05","교육 계획·결과서","수행사","권장","미정","사용자/운영자 교육 시행 증빙"],
+    ["close","CL-01","사업완료보고서","수행사","필수","미정","수행 결과·검수·정산 총괄 보고"],
+    ["close","CL-02","운영 인수인계서","수행사","필수","미정","운영조직 이관 자료·연락체계"],
+    ["close","CL-03","하자보수 계획서","수행사","권장","미정","하자보수 범위·기간·대응절차"],
+  ].forEach(([cat,code,name,owner,tier,form,desc])=>items.push({id:code.toLowerCase().replace(/[^a-z0-9]/g,""), catId:cat, name, code, type:"link", url:"", status:"예정", tier, owner, form, desc}));
+  return {cats, items, active:"log", _masterV:HUB_MASTER_V};
+})();
 let hub=null;
 const navCollapsed=new Set();
 function hubId(p){ return (p||"d")+Date.now().toString(36)+Math.floor(Math.random()*46656).toString(36); }
 function loadHub(){
   try{ const raw=localStorage.getItem(HUB_KEY); if(raw) hub=JSON.parse(raw); }catch(e){}
   if(!hub || !Array.isArray(hub.cats) || !Array.isArray(hub.items)) hub=JSON.parse(JSON.stringify(DEFAULT_HUB));
+  // 1회 마스터 재시드: 단계별 산출물 마스터 목록으로 카탈로그 갱신(사용자 추가 항목은 '기타'로 보존, 관리대장 본문 데이터는 별도 저장소라 영향 없음)
+  if((hub._masterV||0) < HUB_MASTER_V){
+    const def=JSON.parse(JSON.stringify(DEFAULT_HUB));
+    const masterIds=new Set(def.items.map(i=>i.id));
+    const customs=hub.items.filter(i=> i.type!=="builtin" && !masterIds.has(i.id)); // 사용자가 추가한 항목
+    const cats=def.cats.slice();
+    if(customs.length){ cats.push({id:"etc", name:"기타"}); customs.forEach(c=>c.catId="etc"); }
+    const builtin=hub.items.find(i=>i.type==="builtin") || def.items.find(i=>i.type==="builtin");
+    const masterLinks=def.items.filter(i=>i.type!=="builtin");
+    const prevActive=hub.active;
+    hub={cats, items:[builtin, ...masterLinks, ...customs], active:prevActive, collapsed:hub.collapsed||[], _masterV:HUB_MASTER_V, _instFix:true};
+    try{ localStorage.setItem(HUB_KEY, JSON.stringify(hub)); }catch(e){}
+  }
   if(!hub.items.some(i=>i.type==="builtin")) hub.items.unshift(JSON.parse(JSON.stringify(DEFAULT_HUB.items[0])));
   // 내장(관리대장)은 카테고리 밖에서 따로 관리 — catId 제거
   hub.items.forEach(i=>{ if(i.type==="builtin") delete i.catId; });
@@ -2235,14 +2306,44 @@ function selectItem(id){
     const dd=document.getElementById("delivDesc"); dd.textContent=it.desc||""; dd.style.display=it.desc?"":"none";
     const st=document.getElementById("delivStatus");
     st.textContent=it.status||""; st.className="deliv-status"+(it.status?" dstat-"+it.status:""); st.style.display=it.status?"":"none";
-    const fr=document.getElementById("delivFrame");
-    const url=it.url||"about:blank";
-    if(fr.getAttribute("data-src")!==url){ fr.src=url; fr.setAttribute("data-src",url); }
-    document.getElementById("delivOpen").onclick=()=>{ if(it.url) window.open(it.url,"_blank","noopener"); };
+    const frameWrap=document.querySelector(".deliv-frame-wrap"), card=document.getElementById("delivCard");
+    const openBtn=document.getElementById("delivOpen");
+    if(it.url){
+      frameWrap.classList.remove("hidden"); card.classList.add("hidden"); openBtn.style.display="";
+      const fr=document.getElementById("delivFrame");
+      if(fr.getAttribute("data-src")!==it.url){ fr.src=it.url; fr.setAttribute("data-src",it.url); }
+      openBtn.onclick=()=>window.open(it.url,"_blank","noopener");
+    }else{
+      // 링크 미연결(레지스트리) — 산출물 정의 카드
+      frameWrap.classList.add("hidden"); openBtn.style.display="none";
+      card.classList.remove("hidden"); card.innerHTML=buildDelivCard(it);
+    }
   }
   window.scrollTo({top:0});
   renderSidebar();
 }
+function buildDelivCard(it){
+  const cat=hub.cats.find(c=>c.id===it.catId);
+  const formLabel={확정:"✅ 확정",목차:"🟡 목차만",미정:"🔴 미정"}[it.form]||"—";
+  const row=(k,v)=>`<div class="dc-row"><span class="dc-k">${k}</span><span class="dc-v">${v?escHtml(v):"—"}</span></div>`;
+  return `<div class="deliv-card">
+    <div class="dc-grid">
+      ${row("문서 ID", it.code)}
+      ${row("단계", cat?cat.name:"")}
+      ${row("필수도", it.tier)}
+      ${row("책임", it.owner)}
+      <div class="dc-row"><span class="dc-k">양식 성숙도</span><span class="dc-v">${formLabel}</span></div>
+      ${row("진행 상태", it.status)}
+    </div>
+    ${it.desc?`<div class="dc-desc">${escHtml(it.desc)}</div>`:""}
+    <div class="dc-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+      아직 연결된 문서가 없습니다. 양식이 정해지면 링크(URL)를 연결하세요.
+    </div>
+    ${isAdmin()?`<div class="dc-actions"><button class="btn gold" data-card-edit="${escHtml(it.id)}">산출물 편집 · 링크 연결</button></div>`:""}
+  </div>`;
+}
+document.addEventListener("click",e=>{ const c=e.target.closest("[data-card-edit]"); if(c) openItemModal(c.dataset.cardEdit); });
 
 /* 모달 빌더(허브 관리 전용) */
 function buildModal(title, bodyHTML){
@@ -2262,20 +2363,27 @@ function openItemModal(id){
   const isBuiltin = !!(editing && editing.type==="builtin");
   const catOpts=hub.cats.map(c=>`<option value="${escHtml(c.id)}" ${editing&&editing.catId===c.id?"selected":""}>${escHtml(c.name)}</option>`).join("");
   const stOpts=DELIV_STATUSES.map(s=>`<option ${editing&&editing.status===s?"selected":""}>${s}</option>`).join("");
+  const optList=(arr,cur)=>arr.map(v=>`<option ${cur===v?"selected":""}>${v}</option>`).join("");
   const body=`
     <label class="im-l first">제목 <span class="req">*</span></label>
     <input class="im-i" id="imName" value="${editing?escHtml(editing.name):""}" placeholder="산출물 제목">
-    ${isBuiltin?"":`<label class="im-l">카테고리</label>
+    ${isBuiltin?"":`<label class="im-l">카테고리(단계)</label>
     <select class="im-i" id="imCat">${catOpts}</select>`}
-    <label class="im-l">상태</label>
-    <select class="im-i" id="imStatus"><option value="">(없음)</option>${stOpts}</select>
+    <div class="im-2col">
+      <div><label class="im-l">진행 상태</label><select class="im-i" id="imStatus"><option value="">(없음)</option>${stOpts}</select></div>
+      ${isBuiltin?"":`<div><label class="im-l">필수도</label><select class="im-i" id="imTier"><option value="">(없음)</option>${optList(TIERS,editing&&editing.tier)}</select></div>`}
+    </div>
+    ${isBuiltin?"":`<div class="im-2col">
+      <div><label class="im-l">책임</label><select class="im-i" id="imOwner"><option value="">(없음)</option>${optList(OWNERS,editing&&editing.owner)}</select></div>
+      <div><label class="im-l">양식 성숙도</label><select class="im-i" id="imForm"><option value="">(없음)</option>${optList(FORMS,editing&&editing.form)}</select></div>
+    </div>`}
     ${isBuiltin
       ? `<div class="im-note">내장 화면(관리대장)입니다. 카테고리와 분리되어 사이드바 상단에 고정되며, 제목·상태만 변경할 수 있고 삭제는 불가합니다.</div>`
       : `<label class="im-l">문서 코드</label>
          <input class="im-i" id="imCode" value="${editing?escHtml(editing.code||""):""}" placeholder="예: VDI-SD-002 (선택)">
-         <label class="im-l">링크(URL) <span class="req">*</span></label>
-         <input class="im-i" id="imUrl" value="${editing?escHtml(editing.url||""):""}" placeholder="../deliverables/portal-spec.html 또는 https://...">`}
-    <label class="im-l">설명</label>
+         <label class="im-l">링크(URL)</label>
+         <input class="im-i" id="imUrl" value="${editing?escHtml(editing.url||""):""}" placeholder="비우면 등록부(미연결) — 양식 준비 후 연결">`}
+    <label class="im-l">설명 / 검수 포인트</label>
     <input class="im-i" id="imDesc" value="${editing?escHtml(editing.desc||""):""}" placeholder="간단한 설명(선택)">`;
   const m=buildModal(editing?"산출물 편집":"산출물 추가", body);
   if(editing && !isBuiltin){
@@ -2291,19 +2399,21 @@ function openItemModal(id){
     const name=m.bg.querySelector("#imName").value.trim();
     if(!name){ alert("제목을 입력해주세요."); return; }
     const status=m.bg.querySelector("#imStatus").value;
-    let url="", code="", catId;
+    const desc=m.bg.querySelector("#imDesc").value.trim();
+    let url="", code="", catId, tier="", owner="", form="";
     if(!isBuiltin){
       catId=m.bg.querySelector("#imCat").value;
-      url=m.bg.querySelector("#imUrl").value.trim();
+      url=m.bg.querySelector("#imUrl").value.trim();   // 비우면 등록부(미연결)
       code=m.bg.querySelector("#imCode").value.trim();
-      if(!url){ alert("링크(URL)를 입력해주세요."); return; }
+      tier=m.bg.querySelector("#imTier").value;
+      owner=m.bg.querySelector("#imOwner").value;
+      form=m.bg.querySelector("#imForm").value;
     }
-    const desc=m.bg.querySelector("#imDesc").value.trim();
     if(editing){
       editing.name=name; editing.status=status; editing.desc=desc;
-      if(!isBuiltin){ editing.catId=catId; editing.url=url; editing.code=code; }
+      if(!isBuiltin){ editing.catId=catId; editing.url=url; editing.code=code; editing.tier=tier; editing.owner=owner; editing.form=form; }
     }else{
-      hub.items.push({id:hubId("d"), catId, name, type:"link", url, code, status, desc});
+      hub.items.push({id:hubId("d"), catId, name, type:"link", url, code, status, desc, tier, owner, form});
     }
     saveHub(); m.close(); renderSidebar();
     if(editing && editing.id===hub.active) selectItem(hub.active);
