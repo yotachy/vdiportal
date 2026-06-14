@@ -253,6 +253,8 @@
   tr.row-drag-src td{opacity:.45;}
   tr.row-drop-before td{box-shadow:inset 0 2.5px 0 var(--gold);}
   tr.row-drop-after td{box-shadow:inset 0 -2.5px 0 var(--gold);}
+  /* 안건 드래그 중에는 상단 고정 바가 드롭을 가로채지 않도록 통과 */
+  body.row-dragging .apphd, body.row-dragging .toolbar{pointer-events:none;}
   .item-cell{font-family:var(--font-bold);}
 
   /* 상태·중요도 콤보 — 간소·동일 규격(다른 셀과 같이 상단 정렬로 위치 통일) */
@@ -1963,14 +1965,25 @@ document.getElementById("btnSort").addEventListener("click",()=>{
     return false;
   };
   const clear=()=>document.querySelectorAll("tr.row-drag-src,tr.row-drop-before,tr.row-drop-after").forEach(n=>n.classList.remove("row-drag-src","row-drop-before","row-drop-after"));
+  const endDrag=()=>{ srcIdx=null; clear(); document.body.classList.remove("row-dragging"); };
+  // 끌어 올릴 때 상단 고정 헤더/툴바가 가린 행에도 닿도록 가장자리 자동 스크롤
+  function edgeScroll(y){
+    const topZone=58+64;            // 헤더+툴바 높이 근처
+    const botZone=window.innerHeight-56;
+    if(y<topZone) window.scrollBy(0, -Math.ceil((topZone-y)/4)-6);
+    else if(y>botZone) window.scrollBy(0, Math.ceil((y-botZone)/4)+6);
+  }
   document.addEventListener("dragstart",e=>{
-    const g=e.target.closest(".row-grip"); if(!g||!isAdmin()) return;
+    const g=(e.target&&e.target.closest)?e.target.closest(".row-grip"):null; if(!g||!isAdmin()) return;
     const tr=g.closest("tr"); if(!tr) return;
     srcIdx=+tr.dataset.idx; tr.classList.add("row-drag-src");
+    document.body.classList.add("row-dragging"); // 고정 바 pointer-events 해제(드롭 통과)
     e.dataTransfer.effectAllowed="move"; try{ e.dataTransfer.setData("text/plain","row"); }catch(_){}
   });
   document.addEventListener("dragover",e=>{
     if(srcIdx===null) return;
+    edgeScroll(e.clientY);
+    if(!e.target||!e.target.closest) return;
     const tr=e.target.closest("tbody tr"); if(!tr||tr.dataset.idx===undefined) return;
     const ti=+tr.dataset.idx; if(ti===srcIdx || !rowDropOk(srcIdx,ti)) return;
     e.preventDefault();
@@ -1980,7 +1993,7 @@ document.getElementById("btnSort").addEventListener("click",()=>{
   });
   document.addEventListener("drop",e=>{
     if(srcIdx===null) return;
-    const tr=e.target.closest("tbody tr");
+    const tr=(e.target&&e.target.closest)?e.target.closest("tbody tr"):null;
     if(tr && tr.dataset.idx!==undefined){
       const ti=+tr.dataset.idx;
       if(ti!==srcIdx && rowDropOk(srcIdx,ti)){
@@ -1993,9 +2006,9 @@ document.getElementById("btnSort").addEventListener("click",()=>{
         saveData();
       }
     }
-    srcIdx=null; clear(); render();
+    endDrag(); render();
   });
-  document.addEventListener("dragend",()=>{ if(srcIdx!==null){ srcIdx=null; clear(); } });
+  document.addEventListener("dragend",()=>{ if(srcIdx!==null) endDrag(); });
 })();
 
 /* ---- 로그인 ---- */
