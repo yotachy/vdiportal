@@ -247,6 +247,12 @@
   .cell-line .mk{color:var(--navy-soft); font-family:var(--font-bold);}
 
   .no-cell{font-family:var(--font-bold); color:var(--ink-faint); font-size:.76rem; text-align:center;}
+  /* 안건 순서 드래그(수동 모드) */
+  .row-grip{display:inline-block; cursor:grab; color:var(--line-strong); font-size:.82rem; line-height:1; margin-right:4px; user-select:none;}
+  .row-grip:hover{color:var(--gold-strong);} .row-grip:active{cursor:grabbing;}
+  tr.row-drag-src td{opacity:.45;}
+  tr.row-drop-before td{box-shadow:inset 0 2.5px 0 var(--gold);}
+  tr.row-drop-after td{box-shadow:inset 0 -2.5px 0 var(--gold);}
   .item-cell{font-family:var(--font-bold);}
 
   /* 상태·중요도 콤보 — 간소·동일 규격(다른 셀과 같이 상단 정렬로 위치 통일) */
@@ -542,6 +548,11 @@
       <button class="btn toggle-btn" id="btnSimple" aria-pressed="false">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>
         <span id="simpleLabel">간단히 보기</span>
+      </button>
+
+      <button class="btn toggle-btn" id="btnSort" aria-pressed="false" title="논의일자순 / 수동 순서 전환">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 4 4 7M7 4l3 3"/><path d="M17 20V4M17 20l3-3M17 20l-3-3"/></svg>
+        <span id="sortLabel">논의일자순</span>
       </button>
 
       <span class="admin-only">
@@ -868,18 +879,24 @@ function dateKey(s){
   const m=String(s||"").match(/(\d{1,2})\s*[\/.\-]\s*(\d{1,2})/);
   return m ? parseInt(m[1],10)*100+parseInt(m[2],10) : Infinity;
 }
+/* 정렬 모드: "date"(논의일자 오름차순·기본) | "manual"(저장 순서 그대로·드래그 재배치) */
+function sortMode(){ return (meta && meta.sortMode==="manual") ? "manual" : "date"; }
+function rowIsTop(r){ return !r.parentId || !rows.some(x=>x.id===r.parentId); }
+
 /* 한 영역의 행을 표시 순서로 정렬:
-   부모 안건을 논의일자 오름차순 → 각 부모 바로 뒤에 그 후속안건(자식)들을 일자순으로.
-   반환: [{r, i(원본 rows 인덱스), depth, no}] — 저장 순서(rows)는 건드리지 않음(표시 정렬만). */
+   부모 안건(일자순 또는 저장순) → 각 부모 바로 뒤에 그 후속안건(자식)들.
+   반환: [{r, i(원본 rows 인덱스), depth, no}]. 수동 모드면 rows 배열 순서를 그대로 사용. */
 function orderedAreaRows(areaId, ai){
   const all=rows.map((r,i)=>({r,i})).filter(x=>x.r.area===areaId);
   const byId={}; all.forEach(x=>{ if(x.r.id) byId[x.r.id]=x; });
   const parents=all.filter(x=>!x.r.parentId || !byId[x.r.parentId]); // 부모 없으면 최상위로 폴백
   const kids={};
   all.forEach(x=>{ if(x.r.parentId && byId[x.r.parentId]){ (kids[x.r.parentId]=kids[x.r.parentId]||[]).push(x); } });
-  const byDate=(a,b)=>dateKey(a.r.date)-dateKey(b.r.date);
-  parents.sort(byDate);
-  Object.keys(kids).forEach(k=>kids[k].sort(byDate));
+  if(sortMode()==="date"){
+    const byDate=(a,b)=>dateKey(a.r.date)-dateKey(b.r.date);
+    parents.sort(byDate);
+    Object.keys(kids).forEach(k=>kids[k].sort(byDate));
+  }
   const out=[]; let pno=0;
   parents.forEach(p=>{
     pno++; out.push({r:p.r, i:p.i, depth:0, no:`${ai+1}-${pno}`});
@@ -949,7 +966,8 @@ function render(){
       let html="";
       visCols.forEach(c=>{
         if(c.type==="rownum"){
-          html+=`<td class="no-cell">${no}</td>`;
+          const grip=(isAdmin() && sortMode()==="manual") ? `<span class="row-grip" draggable="true" title="드래그하여 순서 변경">⠿</span>` : "";
+          html+=`<td class="no-cell">${grip}${no}</td>`;
         }else if(c.type==="status"){
           html+=`<td class="state-cell"><select class="status-sel" data-f="status">${STATUSES.map(s=>`<option ${s===r.status?"selected":""}>${s}</option>`).join("")}</select></td>`;
         }else if(c.type==="priority"){
@@ -1921,6 +1939,65 @@ document.getElementById("btnSimple").addEventListener("click",()=>{
   render();
 });
 
+/* ---- 정렬 모드 토글(논의일자순 ↔ 수동 순서) ---- */
+function updateSortBtn(){
+  const manual=sortMode()==="manual";
+  const btn=document.getElementById("btnSort");
+  btn.setAttribute("aria-pressed", manual);
+  document.getElementById("sortLabel").textContent = manual?"수동 순서":"논의일자순";
+}
+document.getElementById("btnSort").addEventListener("click",()=>{
+  meta.sortMode = sortMode()==="manual" ? "date" : "manual";
+  saveData(false); updateSortBtn(); render();
+  toast(sortMode()==="manual" ? "수동 순서 — 번호 칸의 ⠿를 끌어 안건 순서를 바꾸세요" : "논의일자 오름차순으로 정렬합니다");
+});
+
+/* ---- 관리대장 안건 순서 드래그(수동 모드·관리자) ---- */
+(function(){
+  let srcIdx=null;
+  const rowDropOk=(si,ti)=>{
+    const s=rows[si], t=rows[ti]; if(!s||!t) return false;
+    const sTop=rowIsTop(s), tTop=rowIsTop(t);
+    if(sTop&&tTop) return s.area===t.area;            // 부모끼리(같은 영역)
+    if(!sTop&&!tTop) return s.parentId===t.parentId;  // 같은 부모의 후속안건끼리
+    return false;
+  };
+  const clear=()=>document.querySelectorAll("tr.row-drag-src,tr.row-drop-before,tr.row-drop-after").forEach(n=>n.classList.remove("row-drag-src","row-drop-before","row-drop-after"));
+  document.addEventListener("dragstart",e=>{
+    const g=e.target.closest(".row-grip"); if(!g||!isAdmin()) return;
+    const tr=g.closest("tr"); if(!tr) return;
+    srcIdx=+tr.dataset.idx; tr.classList.add("row-drag-src");
+    e.dataTransfer.effectAllowed="move"; try{ e.dataTransfer.setData("text/plain","row"); }catch(_){}
+  });
+  document.addEventListener("dragover",e=>{
+    if(srcIdx===null) return;
+    const tr=e.target.closest("tbody tr"); if(!tr||tr.dataset.idx===undefined) return;
+    const ti=+tr.dataset.idx; if(ti===srcIdx || !rowDropOk(srcIdx,ti)) return;
+    e.preventDefault();
+    const r=tr.getBoundingClientRect(); const after=(e.clientY-r.top)>r.height/2;
+    document.querySelectorAll("tr.row-drop-before,tr.row-drop-after").forEach(n=>n.classList.remove("row-drop-before","row-drop-after"));
+    tr.classList.add(after?"row-drop-after":"row-drop-before");
+  });
+  document.addEventListener("drop",e=>{
+    if(srcIdx===null) return;
+    const tr=e.target.closest("tbody tr");
+    if(tr && tr.dataset.idx!==undefined){
+      const ti=+tr.dataset.idx;
+      if(ti!==srcIdx && rowDropOk(srcIdx,ti)){
+        e.preventDefault();
+        const r=tr.getBoundingClientRect(); const after=(e.clientY-r.top)>r.height/2;
+        const moved=rows[srcIdx]; const tgtId=rows[ti].id;
+        rows.splice(srcIdx,1);
+        let to=rows.findIndex(x=>x.id===tgtId); if(after) to++;
+        rows.splice(to,0,moved);
+        saveData();
+      }
+    }
+    srcIdx=null; clear(); render();
+  });
+  document.addEventListener("dragend",()=>{ if(srcIdx!==null){ srcIdx=null; clear(); } });
+})();
+
 /* ---- 로그인 ---- */
 function openLoginModal(){
   document.getElementById("loginPw").value="";
@@ -2310,7 +2387,7 @@ document.getElementById("btnNav").addEventListener("click",()=>document.body.cla
 document.getElementById("navScrim").addEventListener("click",()=>document.body.classList.remove("nav-open"));
 
 /* 시작 */
-initTheme(); restoreSession(); loadData(); loadHub(); applyMode(); render(); selectItem(hub.active);
+initTheme(); restoreSession(); loadData(); loadHub(); applyMode(); render(); updateSortBtn(); selectItem(hub.active);
 </script>
 </body>
 </html>
