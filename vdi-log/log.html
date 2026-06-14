@@ -2073,6 +2073,9 @@ function loadHub(){
   // 링크 항목의 고아 catId 복구
   hub.items.forEach(i=>{ if(i.type!=="builtin" && !hub.cats.some(c=>c.id===i.catId)) i.catId=hub.cats[0].id; });
   if(!hub.active || !hub.items.some(i=>i.id===hub.active)) hub.active=hub.items[0].id;
+  // 카테고리 접힘 상태 복원(새로고침 후 유지) — 존재하는 카테고리만
+  navCollapsed.clear();
+  if(Array.isArray(hub.collapsed)) hub.collapsed.forEach(id=>{ if(hub.cats.some(c=>c.id===id)) navCollapsed.add(id); });
 }
 function saveHub(){ try{ localStorage.setItem(HUB_KEY, JSON.stringify(hub)); }catch(e){} }
 const EDIT_ICO=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
@@ -2250,7 +2253,7 @@ document.getElementById("sidebar").addEventListener("click",e=>{
   const it=e.target.closest("[data-item]");
   if(it){ selectItem(it.dataset.item); return; }
   const ct=e.target.closest("[data-cat-toggle]");
-  if(ct){ const id=ct.dataset.catToggle; if(navCollapsed.has(id)) navCollapsed.delete(id); else navCollapsed.add(id); renderSidebar(); return; }
+  if(ct){ const id=ct.dataset.catToggle; if(navCollapsed.has(id)) navCollapsed.delete(id); else navCollapsed.add(id); hub.collapsed=[...navCollapsed]; saveHub(); renderSidebar(); return; }
   if(e.target.closest("[data-hub-add]")){ openItemModal(null); return; }
   if(e.target.closest("[data-hub-cats]")){ openCatsModal(); return; }
 });
