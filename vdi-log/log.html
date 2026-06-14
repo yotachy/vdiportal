@@ -2131,7 +2131,6 @@ const DELIV_STATUSES=["작성중","검토중","확정"];
 const DEFAULT_HUB={
   cats:[
     {id:"spec",   name:"화면정의서"},
-    {id:"guide",  name:"설치·가이드"},
   ],
   items:[
     {id:"log",   name:"논의·결정사항 관리대장", type:"builtin", status:"확정", desc:"영역별 안건·결정·후속조치 실시간 추적"},
@@ -2149,7 +2148,7 @@ const DEFAULT_HUB={
     {id:"sd011", catId:"spec", name:"공지 등록 (관리자)", code:"VDI-SD-011", type:"link", url:"../deliverables/notice-new-spec.html", status:"검토중"},
     {id:"sd012", catId:"spec", name:"FAQ", code:"VDI-SD-012", type:"link", url:"../deliverables/faq-spec.html", status:"검토중"},
     {id:"sd013", catId:"spec", name:"자료실", code:"VDI-SD-013", type:"link", url:"../deliverables/qna-spec.html", status:"검토중"},
-    {id:"sd014", catId:"guide", name:"접속 프로그램 설치 확인", code:"VDI-SD-014", type:"link", url:"../deliverables/install-spec.html", status:"검토중"},
+    {id:"sd014", catId:"spec", name:"접속 프로그램 설치 확인", code:"VDI-SD-014", type:"link", url:"../deliverables/install-spec.html", status:"검토중"},
   ],
   active:"log",
 };
@@ -2164,6 +2163,14 @@ function loadHub(){
   hub.items.forEach(i=>{ if(i.type==="builtin") delete i.catId; });
   // 비워진 기본 'manage' 카테고리 정리(과거 구조 마이그레이션)
   hub.cats=hub.cats.filter(c=> c.id!=="manage" || hub.items.some(i=>i.type!=="builtin" && i.catId==="manage"));
+  // 1회 마이그레이션: 설치 확인(VDI-SD-014)은 매뉴얼이 아니라 화면정의서 → 'spec'으로 이동, 빈 '설치·가이드' 제거
+  if(!hub._instFix){
+    const inst=hub.items.find(i=>i.id==="sd014");
+    if(inst && inst.catId==="guide" && hub.cats.some(c=>c.id==="spec")) inst.catId="spec";
+    hub.cats=hub.cats.filter(c=> c.id!=="guide" || hub.items.some(i=>i.type!=="builtin" && i.catId==="guide"));
+    hub._instFix=true;
+    try{ localStorage.setItem(HUB_KEY, JSON.stringify(hub)); }catch(e){}
+  }
   if(!hub.cats.length) hub.cats=JSON.parse(JSON.stringify(DEFAULT_HUB.cats));
   // 링크 항목의 고아 catId 복구
   hub.items.forEach(i=>{ if(i.type!=="builtin" && !hub.cats.some(c=>c.id===i.catId)) i.catId=hub.cats[0].id; });
