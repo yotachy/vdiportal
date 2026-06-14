@@ -380,7 +380,9 @@
   .view.hidden{display:none;}
   .nav-scrim{display:none;}
 
-  /* 사이드바 — 카테고리 > 산출물 */
+  /* 사이드바 — 상단 고정(관리대장) + 카테고리 > 산출물 */
+  .nav-pinned{padding-bottom:9px; margin-bottom:8px; border-bottom:1px solid var(--line);}
+  .nav-pinned .nav-item{font-family:var(--font-bold);}
   .nav-cat{margin-bottom:3px;}
   .nav-cat-head{display:flex; align-items:center; gap:7px; padding:8px 10px; border-radius:8px; cursor:pointer; color:var(--ink-soft); font-family:var(--font-bold); font-size:.73rem; letter-spacing:.02em;}
   .nav-cat-head:hover{background:var(--line-faint);}
@@ -2033,12 +2035,11 @@ const HUB_KEY="vdi_hub_v1";
 const DELIV_STATUSES=["작성중","검토중","확정"];
 const DEFAULT_HUB={
   cats:[
-    {id:"manage", name:"논의·결정 관리"},
     {id:"spec",   name:"화면정의서"},
     {id:"guide",  name:"설치·가이드"},
   ],
   items:[
-    {id:"log",   catId:"manage", name:"논의·결정사항 관리대장", type:"builtin", status:"확정", desc:"영역별 안건·결정·후속조치 실시간 추적"},
+    {id:"log",   name:"논의·결정사항 관리대장", type:"builtin", status:"확정", desc:"영역별 안건·결정·후속조치 실시간 추적"},
     {id:"sd000", catId:"spec", name:"화면정의서 통합본", code:"VDI-SD-000", type:"link", url:"../deliverables/full-spec.html", status:"검토중", desc:"전체 14개 화면 통합본"},
     {id:"sd001", catId:"spec", name:"로그인", code:"VDI-SD-001", type:"link", url:"../deliverables/login-spec.html", status:"검토중"},
     {id:"sd002", catId:"spec", name:"메인 포탈 (내 가상PC)", code:"VDI-SD-002", type:"link", url:"../deliverables/portal-spec.html", status:"검토중"},
@@ -2063,21 +2064,38 @@ function hubId(p){ return (p||"d")+Date.now().toString(36)+Math.floor(Math.rando
 function loadHub(){
   try{ const raw=localStorage.getItem(HUB_KEY); if(raw) hub=JSON.parse(raw); }catch(e){}
   if(!hub || !Array.isArray(hub.cats) || !Array.isArray(hub.items)) hub=JSON.parse(JSON.stringify(DEFAULT_HUB));
-  if(!hub.cats.length) hub.cats=JSON.parse(JSON.stringify(DEFAULT_HUB.cats));
   if(!hub.items.some(i=>i.type==="builtin")) hub.items.unshift(JSON.parse(JSON.stringify(DEFAULT_HUB.items[0])));
-  // 카테고리 없는 항목은 첫 카테고리로
-  hub.items.forEach(i=>{ if(!hub.cats.some(c=>c.id===i.catId)) i.catId=hub.cats[0].id; });
+  // 내장(관리대장)은 카테고리 밖에서 따로 관리 — catId 제거
+  hub.items.forEach(i=>{ if(i.type==="builtin") delete i.catId; });
+  // 비워진 기본 'manage' 카테고리 정리(과거 구조 마이그레이션)
+  hub.cats=hub.cats.filter(c=> c.id!=="manage" || hub.items.some(i=>i.type!=="builtin" && i.catId==="manage"));
+  if(!hub.cats.length) hub.cats=JSON.parse(JSON.stringify(DEFAULT_HUB.cats));
+  // 링크 항목의 고아 catId 복구
+  hub.items.forEach(i=>{ if(i.type!=="builtin" && !hub.cats.some(c=>c.id===i.catId)) i.catId=hub.cats[0].id; });
   if(!hub.active || !hub.items.some(i=>i.id===hub.active)) hub.active=hub.items[0].id;
 }
 function saveHub(){ try{ localStorage.setItem(HUB_KEY, JSON.stringify(hub)); }catch(e){} }
 const EDIT_ICO=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 
+function navItemHTML(it, am){
+  const active=it.id===hub.active;
+  return `<button class="nav-item${active?" active":""}" data-item="${escHtml(it.id)}" title="${escHtml(it.name)}">
+    <span class="ni-dot ${it.status?"dstat-"+escHtml(it.status):""}"></span>
+    <span class="ni-name">${escHtml(it.name)}</span>
+    ${it.type==="builtin"?`<span class="ni-built">내장</span>`:""}
+    ${am?`<span class="nav-item-edit" data-item-edit="${escHtml(it.id)}" title="산출물 편집">${EDIT_ICO}</span>`:""}
+  </button>`;
+}
 function renderSidebar(){
   const sb=document.getElementById("sidebar"); if(!sb||!hub) return;
   const am=isAdmin();
   let h="";
+  // 상단 고정: 내장 화면(관리대장) — 카테고리와 분리해 따로 관리
+  const pinned=hub.items.filter(i=>i.type==="builtin");
+  if(pinned.length) h+=`<div class="nav-pinned">`+pinned.map(it=>navItemHTML(it,am)).join("")+`</div>`;
+  // 카테고리(링크 산출물)
   hub.cats.forEach(cat=>{
-    const items=hub.items.filter(i=>i.catId===cat.id);
+    const items=hub.items.filter(i=>i.type!=="builtin" && i.catId===cat.id);
     const collapsed=navCollapsed.has(cat.id);
     h+=`<div class="nav-cat${collapsed?" collapsed":""}">
       <div class="nav-cat-head" data-cat-toggle="${escHtml(cat.id)}">
@@ -2087,15 +2105,7 @@ function renderSidebar(){
       </div>
       <div class="nav-items">`;
     if(!items.length) h+=`<div class="nav-empty">항목 없음</div>`;
-    items.forEach(it=>{
-      const active=it.id===hub.active;
-      h+=`<button class="nav-item${active?" active":""}" data-item="${escHtml(it.id)}" title="${escHtml(it.name)}">
-        <span class="ni-dot ${it.status?"dstat-"+escHtml(it.status):""}"></span>
-        <span class="ni-name">${escHtml(it.name)}</span>
-        ${it.type==="builtin"?`<span class="ni-built">내장</span>`:""}
-        ${am?`<span class="nav-item-edit" data-item-edit="${escHtml(it.id)}" title="산출물 편집">${EDIT_ICO}</span>`:""}
-      </button>`;
-    });
+    items.forEach(it=>{ h+=navItemHTML(it,am); });
     h+=`</div></div>`;
   });
   h+=`<div class="nav-admin">
@@ -2149,12 +2159,12 @@ function openItemModal(id){
   const body=`
     <label class="im-l first">제목 <span class="req">*</span></label>
     <input class="im-i" id="imName" value="${editing?escHtml(editing.name):""}" placeholder="산출물 제목">
-    <label class="im-l">카테고리</label>
-    <select class="im-i" id="imCat">${catOpts}</select>
+    ${isBuiltin?"":`<label class="im-l">카테고리</label>
+    <select class="im-i" id="imCat">${catOpts}</select>`}
     <label class="im-l">상태</label>
     <select class="im-i" id="imStatus"><option value="">(없음)</option>${stOpts}</select>
     ${isBuiltin
-      ? `<div class="im-note">내장 화면(관리대장)입니다. 제목·카테고리·상태만 변경할 수 있고 삭제는 불가합니다.</div>`
+      ? `<div class="im-note">내장 화면(관리대장)입니다. 카테고리와 분리되어 사이드바 상단에 고정되며, 제목·상태만 변경할 수 있고 삭제는 불가합니다.</div>`
       : `<label class="im-l">문서 코드</label>
          <input class="im-i" id="imCode" value="${editing?escHtml(editing.code||""):""}" placeholder="예: VDI-SD-002 (선택)">
          <label class="im-l">링크(URL) <span class="req">*</span></label>
@@ -2174,18 +2184,18 @@ function openItemModal(id){
   modalBtn(m.foot, editing?"저장":"추가","gold",()=>{
     const name=m.bg.querySelector("#imName").value.trim();
     if(!name){ alert("제목을 입력해주세요."); return; }
-    const catId=m.bg.querySelector("#imCat").value;
     const status=m.bg.querySelector("#imStatus").value;
-    let url="", code="";
+    let url="", code="", catId;
     if(!isBuiltin){
+      catId=m.bg.querySelector("#imCat").value;
       url=m.bg.querySelector("#imUrl").value.trim();
       code=m.bg.querySelector("#imCode").value.trim();
       if(!url){ alert("링크(URL)를 입력해주세요."); return; }
     }
     const desc=m.bg.querySelector("#imDesc").value.trim();
     if(editing){
-      editing.name=name; editing.catId=catId; editing.status=status; editing.desc=desc;
-      if(!isBuiltin){ editing.url=url; editing.code=code; }
+      editing.name=name; editing.status=status; editing.desc=desc;
+      if(!isBuiltin){ editing.catId=catId; editing.url=url; editing.code=code; }
     }else{
       hub.items.push({id:hubId("d"), catId, name, type:"link", url, code, status, desc});
     }
