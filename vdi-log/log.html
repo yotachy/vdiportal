@@ -488,6 +488,49 @@
   .cat-mini svg{width:14px;height:14px;} .cat-mini:hover{background:var(--line-faint); color:var(--ink);} .cat-mini:disabled{opacity:.3; cursor:default;}
   .cat-mini.del:hover{color:var(--st-chk); background:#fbeae8;}
 
+  /* WBS · 일정계획(간트) */
+  .wbs-scroll{overflow-x:auto; padding:8px 34px 70px;}
+  .wbs-hint{font-size:.74rem; color:var(--ink-faint);}
+  table.wbs{border-collapse:separate; border-spacing:0; width:100%; min-width:960px; font-size:.82rem;}
+  .wbs th{text-align:left; font-family:var(--font-bold); font-size:.7rem; letter-spacing:.02em; color:var(--ink-faint); padding:9px 10px; border-bottom:1.5px solid var(--line-strong); white-space:nowrap; vertical-align:bottom;}
+  .wbs td{padding:7px 10px; border-bottom:1px solid var(--line-faint); vertical-align:middle;}
+  .wbs tbody tr:hover td{background:#fafbfd;}
+  html[data-theme="dark"] .wbs tbody tr:hover td{background:#232c39;}
+  .wbs tr.wlv0 td{background:var(--line-faint);}
+  .wbs tr.wlv0:hover td{background:var(--line);}
+  .wbs .wbs-code{font-family:var(--font-bold); color:var(--ink-faint); font-size:.72rem; white-space:nowrap;}
+  .wbs tr.wlv0 .wbs-code{color:var(--ink);}
+  .wbs .wbs-name{min-width:210px; color:var(--ink-soft);}
+  .wbs tr.wlv0 .wbs-name{color:var(--ink); font-family:var(--font-bold);}
+  .wbs .wbs-owner{color:var(--ink-soft); min-width:54px; white-space:nowrap;}
+  .wbs [contenteditable]:focus{outline:none; box-shadow:inset 0 0 0 2px var(--gold); border-radius:5px; background:var(--gold-soft);}
+  .wbs .wbs-date{white-space:nowrap; color:var(--ink-soft);}
+  .wbs input[type=date]{font-family:var(--font-body); font-size:.76rem; padding:3px 5px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); color-scheme:light;}
+  html[data-theme="dark"] .wbs input[type=date]{color-scheme:dark;}
+  .wbs .wbs-dur{color:var(--ink-faint); white-space:nowrap; text-align:right;}
+  .wbs .wbs-prog{white-space:nowrap;}
+  .wbs .wbs-prog .ni-dot{display:inline-block; vertical-align:middle; margin-right:5px;}
+  .wbs .wbs-prog input{width:50px; font-size:.78rem; padding:3px 4px; border:1px solid var(--line); border-radius:6px; text-align:right; background:var(--card); color:var(--ink); margin-left:2px;}
+  .wbs-gantt{width:430px; min-width:430px;}
+  .wbs td.wbs-gantt{position:relative;}
+  .gantt-head{position:relative; height:14px; width:100%;}
+  .gtick{position:absolute; top:0; font-size:.62rem; color:var(--ink-faint); border-left:1px solid var(--line); padding-left:3px; height:14px; white-space:nowrap;}
+  .gtrack{position:relative; height:15px; background:var(--line-faint); border-radius:5px;}
+  .gbar{position:absolute; top:0; height:15px; border-radius:5px; background:rgba(59,110,165,.25); min-width:3px; overflow:hidden;}
+  .gbar .gfill{height:100%; background:var(--st-disc); border-radius:5px;}
+  .gbar.g0{background:rgba(43,58,85,.20);}
+  .gbar.g0 .gfill{background:var(--navy);}
+  html[data-theme="dark"] .gbar.g0 .gfill{background:#7d97c2;}
+  .wbs-act{white-space:nowrap; text-align:right; width:1%;}
+  .wbs-act .wgrip{cursor:grab; color:var(--line-strong); font-size:.85rem; padding:0 3px;}
+  .wbs-act button{border:none; background:transparent; color:#c2c9d3; cursor:pointer; padding:3px 4px; border-radius:5px; font-size:.82rem; line-height:1;}
+  .wbs-act button:hover{background:var(--line-faint); color:var(--ink);}
+  .wbs-act [data-wdel]:hover{color:var(--st-chk); background:#fbeae8;}
+  body:not(.admin) .wbs-act{display:none;}
+  tr.wbs-drag-src td{opacity:.45;}
+  tr.wbs-drop-before td{box-shadow:inset 0 2.5px 0 var(--gold);}
+  tr.wbs-drop-after td{box-shadow:inset 0 -2.5px 0 var(--gold);}
+
   @media print{
     .apphd,.side,.toolbar,.add-row,.del-btn,.col-act,.add-area-wrap,.modal-bg,.nav-scrim,.delivbar{display:none !important;}
     body{background:#fff; padding:0;}
@@ -622,6 +665,24 @@
     <div class="deliv-card-wrap hidden" id="delivCard"></div>
   </section>
 
+  <!-- 뷰: WBS · 일정계획 (내장 인터랙티브) -->
+  <section id="view-wbs" class="view hidden">
+    <div class="loghd">
+      <div class="hd-eyebrow">프로젝트 · 일정관리</div>
+      <h1>WBS · 일정계획</h1>
+      <div class="hd-sub" id="wbsSpan"></div>
+    </div>
+    <div class="toolbar">
+      <span class="admin-only">
+        <button class="btn" id="wbsAddPhase"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 단계 추가</button>
+        <button class="btn gold" id="wbsSave">저장</button>
+        <span class="save-state" id="wbsSaveState"></span>
+      </span>
+      <span class="wbs-hint">막대 = 기간 · 진한 채움 = 진척 · 행 끝 ⠿ 드래그로 순서 변경(관리자)</span>
+    </div>
+    <div class="wbs-scroll"><div id="wbsTable"></div></div>
+  </section>
+
   </div>
 </div>
 
@@ -717,6 +778,8 @@ function applyMode(){
     badge.textContent = "읽기 전용";
   }
   if(hub) renderSidebar();
+  const vw=document.getElementById("view-wbs");
+  if(vw && !vw.classList.contains("hidden") && wbsTasks.length) renderWbs();
 }
 function restoreSession(){
   try{
@@ -2147,7 +2210,7 @@ const DELIV_STATUSES=["예정","작성중","검토중","확정"];
 const TIERS=["필수","권장","선택"];
 const OWNERS=["수행사","발주","공동"];
 const FORMS=["미정","목차","확정"];   // 양식(가이드) 성숙도
-const HUB_MASTER_V=3;                  // 마스터 시드 버전(증가 시 1회 재시드)
+const HUB_MASTER_V=4;                  // 마스터 시드 버전(증가 시 1회 재시드)
 /* 감리 표준 산출물 체계 기반 마스터 목록(단계 × 유형 × 필수도). 실제 수행계획서 목록과 대조해 가감. */
 const DEFAULT_HUB=(()=>{
   const cats=[
@@ -2160,7 +2223,10 @@ const DEFAULT_HUB=(()=>{
     {id:"transit",  name:"이행·전개"},
     {id:"close",    name:"종료·운영"},
   ];
-  const items=[{id:"log", name:"논의·결정사항 관리대장", type:"builtin", status:"확정", tier:"필수", owner:"발주", form:"확정", desc:"영역별 안건·결정·후속조치 실시간 추적(발주 자체관리)"}];
+  const items=[
+    {id:"log", name:"논의·결정사항 관리대장", type:"builtin", builtinKey:"log", status:"확정", tier:"필수", owner:"발주", form:"확정", desc:"영역별 안건·결정·후속조치 실시간 추적(발주 자체관리)"},
+    {id:"wbs", name:"WBS · 일정계획", type:"builtin", builtinKey:"wbs", status:"작성중", tier:"필수", owner:"수행사", form:"목차", desc:"작업분해구조·일정·진척(간트). PM-02 일정계획서"},
+  ];
   // 화면정의서(이미 작성된 링크 문서) — 통합본 + 화면별 14건
   [["sd000","화면정의서 통합본","VDI-SD-000","full-spec","전체 14개 화면 통합본"],
    ["sd001","로그인","VDI-SD-001","login-spec",""],["sd002","메인 포탈 (내 가상PC)","VDI-SD-002","portal-spec",""],
@@ -2174,7 +2240,6 @@ const DEFAULT_HUB=(()=>{
   // 등록부(레지스트리) — 아직 양식/문서 미연결 산출물. [cat, code, 이름, 책임, 필수도, 양식, 설명/검수포인트]
   [
     ["plan","PM-01","사업수행계획서","수행사","필수","목차","사업 범위·추진체계·일정·품질·위험 총괄. 착수 즉시 확정"],
-    ["plan","PM-02","WBS(일정계획서)","수행사","필수","목차","작업분해·일정·마일스톤. 진척관리 기준선"],
     ["plan","PM-03","투입인력계획서","수행사","필수","목차","역할별 투입인력·기간(M/M). 실투입과 대조"],
     ["plan","PM-04","품질보증계획서","수행사","권장","미정","품질활동·검토(인스펙션)·지표"],
     ["plan","PM-05","형상관리계획서","수행사","권장","미정","산출물·소스 버전/변경 통제 절차"],
@@ -2223,10 +2288,10 @@ function loadHub(){
     const customs=hub.items.filter(i=> i.type!=="builtin" && !masterIds.has(i.id)); // 사용자가 추가한 항목
     const cats=def.cats.slice();
     if(customs.length){ cats.push({id:"etc", name:"기타"}); customs.forEach(c=>c.catId="etc"); }
-    const builtin=hub.items.find(i=>i.type==="builtin") || def.items.find(i=>i.type==="builtin");
+    const builtins=def.items.filter(i=>i.type==="builtin");   // 내장 도구(관리대장·WBS)
     const masterLinks=def.items.filter(i=>i.type!=="builtin");
     const prevActive=hub.active;
-    hub={cats, items:[builtin, ...masterLinks, ...customs], active:prevActive, collapsed:hub.collapsed||[], _masterV:HUB_MASTER_V, _instFix:true};
+    hub={cats, items:[...builtins, ...masterLinks, ...customs], active:prevActive, collapsed:hub.collapsed||[], _masterV:HUB_MASTER_V, _instFix:true};
     try{ localStorage.setItem(HUB_KEY, JSON.stringify(hub)); }catch(e){}
   }
   if(!hub.items.some(i=>i.type==="builtin")) hub.items.unshift(JSON.parse(JSON.stringify(DEFAULT_HUB.items[0])));
@@ -2292,15 +2357,17 @@ function renderSidebar(){
   sb.innerHTML=h;
 }
 
+function showView(id){ ["view-log","view-wbs","view-deliv"].forEach(v=>document.getElementById(v).classList.toggle("hidden", v!==id)); }
 function selectItem(id){
   const it=hub.items.find(i=>i.id===id); if(!it) return;
   hub.active=id; saveHub();
   document.body.classList.remove("nav-open");
-  const vlog=document.getElementById("view-log"), vdel=document.getElementById("view-deliv");
+  const vdel=document.getElementById("view-deliv");
   if(it.type==="builtin"){
-    vlog.classList.remove("hidden"); vdel.classList.add("hidden");
+    if((it.builtinKey||"log")==="wbs"){ showView("view-wbs"); renderWbs(); }
+    else showView("view-log");
   }else{
-    vlog.classList.add("hidden"); vdel.classList.remove("hidden");
+    showView("view-deliv");
     document.getElementById("delivCode").textContent=it.code||"";
     document.getElementById("delivTitle").textContent=it.name||"";
     const dd=document.getElementById("delivDesc"); dd.textContent=it.desc||""; dd.style.display=it.desc?"":"none";
@@ -2516,8 +2583,127 @@ document.getElementById("hubHome").addEventListener("click",()=>{ const b=hub.it
 document.getElementById("btnNav").addEventListener("click",()=>document.body.classList.toggle("nav-open"));
 document.getElementById("navScrim").addEventListener("click",()=>document.body.classList.remove("nav-open"));
 
+/* ===================== WBS · 일정계획 (내장 인터랙티브 도구) ===================== */
+const WBS_KEY="vdi_wbs_v1";
+let wbsTasks=[], wbsMeta={};
+const DEFAULT_WBS={ meta:{}, tasks:[
+  {name:"착수·계획", level:0},
+  {name:"사업 착수·킥오프",      level:1, start:"2026-04-01", end:"2026-04-03", owner:"공동",   progress:100},
+  {name:"수행계획·WBS 확정",     level:1, start:"2026-04-03", end:"2026-04-14", owner:"수행사", progress:100},
+  {name:"분석", level:0},
+  {name:"요구사항 정의",          level:1, start:"2026-04-14", end:"2026-04-30", owner:"공동",   progress:100},
+  {name:"화면정의서 확정",        level:1, start:"2026-04-21", end:"2026-05-02", owner:"발주",   progress:100},
+  {name:"요구사항추적표(RTM) 초기화", level:1, start:"2026-04-28", end:"2026-05-09", owner:"수행사", progress:90},
+  {name:"설계", level:0},
+  {name:"아키텍처 설계",          level:1, start:"2026-05-06", end:"2026-05-20", owner:"수행사", progress:100},
+  {name:"화면·프로그램 설계",      level:1, start:"2026-05-13", end:"2026-06-06", owner:"수행사", progress:85},
+  {name:"DB·인터페이스 설계",      level:1, start:"2026-05-20", end:"2026-06-13", owner:"수행사", progress:55},
+  {name:"개발(구현)", level:0},
+  {name:"공통·포탈 개발",          level:1, start:"2026-06-02", end:"2026-07-11", owner:"수행사", progress:30},
+  {name:"연계·배치 개발",          level:1, start:"2026-06-16", end:"2026-08-01", owner:"수행사", progress:5},
+  {name:"단위테스트",             level:1, start:"2026-07-14", end:"2026-08-01", owner:"수행사", progress:0},
+  {name:"시험", level:0},
+  {name:"통합테스트",             level:1, start:"2026-08-04", end:"2026-08-22", owner:"수행사", progress:0},
+  {name:"성능·보안 점검",          level:1, start:"2026-08-11", end:"2026-08-22", owner:"수행사", progress:0},
+  {name:"인수테스트(UAT)",        level:1, start:"2026-08-25", end:"2026-08-29", owner:"공동",   progress:0},
+  {name:"이행·전개", level:0},
+  {name:"이행 준비·리허설",        level:1, start:"2026-09-01", end:"2026-09-08", owner:"수행사", progress:0},
+  {name:"오픈·안정화 착수",        level:1, start:"2026-09-09", end:"2026-09-12", owner:"공동",   progress:0},
+  {name:"안정화·종료", level:0},
+  {name:"안정화 운영",            level:1, start:"2026-09-15", end:"2026-09-26", owner:"수행사", progress:0},
+  {name:"완료보고·인수인계",       level:1, start:"2026-09-26", end:"2026-09-30", owner:"수행사", progress:0},
+]};
+function wbsEnsureIds(){ wbsTasks.forEach(t=>{ if(!t.id) t.id=genId(); if(t.progress==null)t.progress=0; if(t.level==null)t.level=0; if(t.owner==null)t.owner=""; }); }
+function loadWbs(){
+  try{ const raw=localStorage.getItem(WBS_KEY); if(raw){ const d=JSON.parse(raw); wbsTasks=d.tasks||[]; wbsMeta=d.meta||{}; } }catch(e){}
+  if(!wbsTasks.length){ const d=JSON.parse(JSON.stringify(DEFAULT_WBS)); wbsTasks=d.tasks; wbsMeta=d.meta; }
+  wbsEnsureIds();
+}
+function saveWbs(show=true){ try{ localStorage.setItem(WBS_KEY, JSON.stringify({tasks:wbsTasks,meta:wbsMeta})); if(show)flashWbs("저장됨 "+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})); }catch(e){ if(show)flashWbs("저장 불가"); } }
+function flashWbs(m){ const el=document.getElementById("wbsSaveState"); if(!el)return; el.textContent=m; el.classList.add("ok"); clearTimeout(el._t); el._t=setTimeout(()=>{el.textContent="";el.classList.remove("ok");},3500); }
+function pD(s){ const t=Date.parse(s); return isNaN(t)?null:t; }
+function toISO(ms){ const d=new Date(ms),p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+function fmtD(s){ return s?s.slice(5).replace("-","/"):""; }
+function wbsBlockEnd(i){ let j=i+1; while(j<wbsTasks.length && wbsTasks[j].level>wbsTasks[i].level) j++; return j; }
+function wbsEffAll(){
+  const n=wbsTasks.length, eff=new Array(n);
+  function build(i){
+    if(eff[i]) return eff[i];
+    const L=wbsTasks[i].level, kids=[]; let j=i+1;
+    while(j<n && wbsTasks[j].level>L){ if(wbsTasks[j].level===L+1) kids.push(j); j++; }
+    if(!kids.length){ eff[i]={s:pD(wbsTasks[i].start), e:pD(wbsTasks[i].end), prog:Math.max(0,Math.min(100,wbsTasks[i].progress||0)), leaf:true}; return eff[i]; }
+    let s=Infinity,e=-Infinity,w=0,p=0;
+    kids.forEach(k=>{ const c=build(k); if(c.s!=null)s=Math.min(s,c.s); if(c.e!=null)e=Math.max(e,c.e); const d=(c.s!=null&&c.e!=null)?Math.max(1,c.e-c.s):1; w+=d; p+=d*c.prog; });
+    eff[i]={s:isFinite(s)?s:null, e:isFinite(e)?e:null, prog:w?Math.round(p/w):0, leaf:false}; return eff[i];
+  }
+  for(let i=0;i<n;i++) build(i);
+  return eff;
+}
+function renderWbs(){
+  const host=document.getElementById("wbsTable"); if(!host) return;
+  const am=isAdmin();
+  const counters=[];
+  wbsTasks.forEach(t=>{ counters[t.level]=(counters[t.level]||0)+1; counters.length=t.level+1; t._wbs=counters.join("."); });
+  const eff=wbsEffAll();
+  let pmin=Infinity,pmax=-Infinity; eff.forEach(x=>{ if(x.s!=null)pmin=Math.min(pmin,x.s); if(x.e!=null)pmax=Math.max(pmax,x.e); });
+  const hasSpan=isFinite(pmin)&&isFinite(pmax)&&pmax>pmin, span=hasSpan?(pmax-pmin):1;
+  const spanEl=document.getElementById("wbsSpan");
+  if(spanEl) spanEl.textContent = hasSpan? `전체 일정 ${fmtD(toISO(pmin))} ~ ${fmtD(toISO(pmax))} (${new Date(pmin).getFullYear()}년) · ${wbsTasks.length}개 작업` : `${wbsTasks.length}개 작업`;
+  let ticks="";
+  if(hasSpan){ let c=new Date(new Date(pmin).getFullYear(), new Date(pmin).getMonth(), 1).getTime();
+    while(c<=pmax){ const off=Math.max(0,(c-pmin)/span*100); const dd=new Date(c); ticks+=`<span class="gtick" style="left:${off}%">${dd.getMonth()+1}월</span>`; c=new Date(dd.getFullYear(), dd.getMonth()+1, 1).getTime(); } }
+  let rows="";
+  wbsTasks.forEach((t,i)=>{
+    const e=eff[i], st=t.level===0;
+    const sIso=e.leaf?(t.start||""):(e.s!=null?toISO(e.s):"");
+    const eIso=e.leaf?(t.end||""):(e.e!=null?toISO(e.e):"");
+    const dur=(e.s!=null&&e.e!=null)?Math.round((e.e-e.s)/86400000)+1:"";
+    const prog=e.prog, statusCls=prog>=100?"확정":(prog>0?"검토중":"예정");
+    const left=(e.s!=null&&hasSpan)?(e.s-pmin)/span*100:0;
+    const width=(e.s!=null&&e.e!=null&&hasSpan)?Math.max(1.2,((e.e-e.s)||86400000)/span*100):0;
+    rows+=`<tr data-widx="${i}" class="${st?'wlv0':'wlv1'}">
+      <td class="wbs-code">${t._wbs}</td>
+      <td class="wbs-name" style="padding-left:${10+t.level*18}px" ${am?'contenteditable':''} data-wf="name">${escHtml(t.name||"")}</td>
+      <td class="wbs-owner" ${am?'contenteditable':''} data-wf="owner">${escHtml(t.owner||"")}</td>
+      <td class="wbs-date">${(am&&e.leaf)?`<input type="date" data-wf="start" value="${sIso}">`:fmtD(sIso)}</td>
+      <td class="wbs-date">${(am&&e.leaf)?`<input type="date" data-wf="end" value="${eIso}">`:fmtD(eIso)}</td>
+      <td class="wbs-dur">${dur?dur+"일":""}</td>
+      <td class="wbs-prog"><span class="ni-dot dstat-${statusCls}"></span>${(am&&e.leaf)?`<input type="number" data-wf="progress" min="0" max="100" value="${prog}">`:`${prog}%`}</td>
+      <td class="wbs-gantt"><div class="gtrack">${width?`<div class="gbar${st?' g0':''}" style="left:${left}%;width:${width}%"><div class="gfill" style="width:${prog}%"></div></div>`:""}</div></td>
+      <td class="wbs-act">${am?`<span class="wgrip" draggable="true" title="순서 변경">⠿</span><button data-woutdent title="내어쓰기">⟵</button><button data-windent title="들여쓰기">⟶</button><button data-wadd title="하위 작업 추가">＋</button><button data-wdel title="삭제">✕</button>`:""}</td>
+    </tr>`;
+  });
+  host.innerHTML=`<table class="wbs"><thead><tr>
+    <th>WBS</th><th>작업</th><th>담당</th><th>시작</th><th>종료</th><th>기간</th><th>진척</th>
+    <th class="wbs-gantt"><div class="gantt-head">${ticks}</div></th><th class="wbs-act"></th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+function wbsAddSub(i){ const lvl=wbsTasks[i].level+1; wbsTasks.splice(i+1,0,{id:genId(),name:"새 작업",level:lvl,start:wbsTasks[i].start||"",end:wbsTasks[i].end||"",owner:"",progress:0}); saveWbs(); renderWbs(); }
+function wbsDel(i){ const be=wbsBlockEnd(i), cnt=be-i; if(cnt>1){ if(!confirm(`하위 ${cnt-1}개를 포함해 삭제할까요?`)) return; } else if(!confirm(`"${wbsTasks[i].name||"(이름없음)"}" 작업을 삭제할까요?`)) return; wbsTasks.splice(i,cnt); saveWbs(); renderWbs(); }
+function wbsIndent(i,delta){ const newLvl=wbsTasks[i].level+delta; if(newLvl<0) return; if(delta>0){ const prev=i>0?wbsTasks[i-1].level:-1; if(newLvl>prev+1) return; } const be=wbsBlockEnd(i); for(let k=i;k<be;k++) wbsTasks[k].level+=delta; saveWbs(); renderWbs(); }
+(function(){
+  const wt=document.getElementById("wbsTable"); if(!wt) return;
+  wt.addEventListener("focusout",e=>{ if(!isAdmin())return; const el=e.target.closest("[data-wf]"); if(!el||el.tagName==="INPUT")return; const tr=el.closest("tr[data-widx]"); if(!tr)return; const t=wbsTasks[+tr.dataset.widx]; const f=el.dataset.wf, v=el.innerText.replace(/ /g," ").trim(); if(t[f]!==v){ t[f]=v; saveWbs(false); } });
+  wt.addEventListener("change",e=>{ if(!isAdmin())return; const el=e.target.closest("input[data-wf]"); if(!el)return; const tr=el.closest("tr[data-widx]"); const t=wbsTasks[+tr.dataset.widx], f=el.dataset.wf; t[f]= f==="progress"? Math.max(0,Math.min(100,parseInt(el.value,10)||0)) : el.value; saveWbs(); renderWbs(); });
+  wt.addEventListener("click",e=>{ if(!isAdmin())return; const tr=e.target.closest("tr[data-widx]"); if(!tr)return; const i=+tr.dataset.widx;
+    if(e.target.closest("[data-wadd]")) return wbsAddSub(i);
+    if(e.target.closest("[data-wdel]")) return wbsDel(i);
+    if(e.target.closest("[data-windent]")) return wbsIndent(i,1);
+    if(e.target.closest("[data-woutdent]")) return wbsIndent(i,-1);
+  });
+  // 작업(블록) 드래그 순서 변경
+  let di=null;
+  const clr=()=>wt.querySelectorAll("tr.wbs-drag-src,tr.wbs-drop-before,tr.wbs-drop-after").forEach(n=>n.classList.remove("wbs-drag-src","wbs-drop-before","wbs-drop-after"));
+  wt.addEventListener("dragstart",e=>{ const g=(e.target&&e.target.closest)?e.target.closest(".wgrip"):null; if(!g||!isAdmin())return; const tr=g.closest("tr[data-widx]"); di=+tr.dataset.widx; tr.classList.add("wbs-drag-src"); e.dataTransfer.effectAllowed="move"; try{e.dataTransfer.setData("text/plain","w");}catch(_){}});
+  wt.addEventListener("dragover",e=>{ if(di==null)return; const tr=(e.target&&e.target.closest)?e.target.closest("tr[data-widx]"):null; if(!tr)return; const ti=+tr.dataset.widx, be=wbsBlockEnd(di); if(ti>=di&&ti<be)return; e.preventDefault(); wt.querySelectorAll("tr.wbs-drop-before,tr.wbs-drop-after").forEach(n=>n.classList.remove("wbs-drop-before","wbs-drop-after")); const r=tr.getBoundingClientRect(); tr.classList.add((e.clientY-r.top)>r.height/2?"wbs-drop-after":"wbs-drop-before"); });
+  wt.addEventListener("drop",e=>{ if(di==null)return; const tr=(e.target&&e.target.closest)?e.target.closest("tr[data-widx]"):null; if(tr){ const ti=+tr.dataset.widx, be=wbsBlockEnd(di); if(ti<di||ti>=be){ e.preventDefault(); const r=tr.getBoundingClientRect(); const after=(e.clientY-r.top)>r.height/2; const tgtId=wbsTasks[ti].id; const block=wbsTasks.splice(di,be-di); let to=wbsTasks.findIndex(x=>x.id===tgtId); if(after)to++; wbsTasks.splice(to,0,...block); saveWbs(); } } di=null; clr(); renderWbs(); });
+  wt.addEventListener("dragend",()=>{ if(di!=null){di=null;clr();} });
+  document.getElementById("wbsAddPhase").addEventListener("click",()=>{ if(!isAdmin())return; wbsTasks.push({id:genId(),name:"새 단계",level:0,start:"",end:"",owner:"",progress:0}); saveWbs(); renderWbs(); });
+  document.getElementById("wbsSave").addEventListener("click",()=>saveWbs(true));
+})();
+
 /* 시작 */
-initTheme(); restoreSession(); loadData(); loadHub(); applyMode(); render(); updateSortBtn(); selectItem(hub.active);
+initTheme(); restoreSession(); loadData(); loadHub(); loadWbs(); applyMode(); render(); updateSortBtn(); selectItem(hub.active);
 </script>
 </body>
 </html>
