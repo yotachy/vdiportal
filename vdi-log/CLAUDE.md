@@ -99,7 +99,8 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
   - 두 모드 모두 각 부모 뒤에 후속안건을 붙이고, `tr.dataset.idx`는 원본 인덱스 유지(편집/삭제 매핑 보존). 행에 `data-rid`(=row id) 부여(대시보드 검색·주의안건 `jumpToRow` 타깃). **화면 render · 읽기용 HTML 공통**.
 - **표는 컨테이너 100% 고정 — 가로 스크롤 없음**(2026-06-17). `table{width:100%; table-layout:fixed}`, `.tbl-scroll{overflow-x:hidden}`, 셀 `word-break:break-word; overflow-wrap:anywhere`(항상 줄바꿈).
   - **기본 폭 = 내용(텍스트 길이) 자동 산정**: `autoColPx(c)`(헤더·최장 줄 글자수 → px 추정, 70~360 clamp; 상태/중요도/일자/번호/참석 고정값). 컬럼별 최소폭 `colMin(c)`.
-  - **렌더 후 `layoutCols(ovr?)`**가 컨테이너 폭을 측정해 px로 정밀 배분(액션열 `ACT_PX=58` 고정, 데이터열은 가중치 비율, 최소폭 보장). `calc()` 콜폭은 이 브라우저에서 무시되어 **JS px 배분** 사용. 창 resize·사이드바 토글 시 재호출.
+  - **렌더 후 `layoutCols(ovr?)`**가 컨테이너 폭을 측정해 px로 정밀 배분(액션열 `ACT_PX=58` 고정, 데이터열은 가중치 비율, 최소폭 보장). 폭 초과 시 **여유 컬럼에서 비례 축소**(특정 컬럼만 1글자로 깨지지 않게 균형). `calc()` 콜폭은 이 브라우저에서 무시되어 **JS px 배분** 사용. 창 resize·사이드바 토글 시 재호출.
+  - **밀도/강조**: 관리대장답게 컴팩트(td `8px/1.5`, 영역헤더 슬림). **안건명(`.item-cell`)은 강조**(bold·`--ink`·`.92rem`). 일자(논의/완료)·번호는 `nowrap`.
   - **수동 조절**: 머리글 우측 경계 드래그 → 그 컬럼만 키우고 **나머지 전체가 비율로 축소**(합계=컨테이너 유지, 마지막 컬럼엔 핸들 없음). 조절값은 `col.width`+`col.userW=true`로 저장(이후 자동 대신 수동값 사용). `effW(c)=userW?width:autoColPx`.
 - `DEFAULT_*` 상수가 초기 시드. 저장 데이터 로드 시 누락 필드 마이그레이션(`pri`/`done`/`core`/`id`) + 컬럼 폭 1회 재조정(`COL_WIDTH_VER`) 수행 — **스키마/기본폭 변경 시 마이그레이션 코드(loadData)·importBackup·`orderedAreaRows` 소비처도 함께 갱신**.
 

@@ -186,9 +186,9 @@
   .sum-card.chk .n{color:var(--st-chk);} .sum-card.act .n{color:var(--st-act);} .sum-card.done .n{color:var(--st-done);}
 
   /* 영역 섹션 */
-  main{padding:22px 34px 0; display:flex; flex-direction:column; gap:24px;}
-  .area{background:var(--card); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow-card);}
-  .area-head{display:flex; align-items:center; gap:12px; padding:18px 22px; border-bottom:1px solid var(--line-faint); background:var(--card); cursor:pointer;}
+  main{padding:16px 28px 0; display:flex; flex-direction:column; gap:16px;}
+  .area{background:var(--card); border:1px solid var(--line); border-radius:var(--r-sm); overflow:hidden; box-shadow:var(--shadow-sm);}
+  .area-head{display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid var(--line-faint); background:var(--card); cursor:pointer;}
   .area-head:hover{background:#fcfdfe;}
   .area-caret{flex:none; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border:none; background:transparent; color:var(--ink-faint); cursor:pointer; padding:0; border-radius:6px; transition:transform .16s,background .12s;}
   .area-caret svg{width:15px; height:15px;}
@@ -196,8 +196,8 @@
   .area:not(.collapsed) .area-caret{transform:rotate(90deg);}
   .area.collapsed .area-head{border-bottom:none;}
   .area.collapsed .area-body{display:none;}
-  .area-chip{width:4px; height:30px; border-radius:4px; flex:none;}
-  .area-title{font-family:var(--font-display); font-size:1.14rem; letter-spacing:-.015em;}
+  .area-chip{width:4px; height:24px; border-radius:4px; flex:none;}
+  .area-title{font-family:var(--font-display); font-size:1.02rem; letter-spacing:-.015em;}
   .area-title .area-no{color:var(--gold-strong); margin-right:3px;}
   .area-head .sp{flex:1;}
   .area-count{font-size:.74rem; color:var(--ink-faint); font-weight:600; background:var(--line-faint); padding:4px 11px; border-radius:999px;}
@@ -205,7 +205,7 @@
   /* 표는 컨테이너 100% 고정 — 가로 스크롤 없음. 컬럼 폭은 비율(%)로 조절, 합계는 항상 100% */
   .tbl-scroll{overflow-x:hidden;}
   table{width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;}
-  th{background:var(--card); color:var(--ink-soft); font-family:var(--font-bold); font-size:.72rem; letter-spacing:.02em; padding:13px 14px; text-align:left; border-bottom:2px solid var(--gold); position:relative; vertical-align:middle;}
+  th{background:var(--card); color:var(--ink-soft); font-family:var(--font-bold); font-size:.72rem; letter-spacing:.02em; padding:8px 12px; text-align:left; border-bottom:2px solid var(--gold); position:relative; vertical-align:middle;}
   th .th-in{display:flex; align-items:center; gap:4px;}
   th .th-grip{opacity:0; color:var(--line-strong); font-size:.8rem; line-height:1; flex:none; margin-left:-4px; transition:opacity .12s; cursor:grab;}
   body.admin th:hover .th-grip{opacity:1;}
@@ -231,7 +231,7 @@
   th.drag-over.drag-after{box-shadow:inset -3px 0 0 var(--gold);}
   th.drag-src{opacity:.4;}
 
-  td{border-bottom:1px solid var(--line-faint); padding:14px 16px; font-size:.84rem; vertical-align:top; line-height:1.72; word-break:break-word; overflow-wrap:anywhere; min-width:0;}
+  td{border-bottom:1px solid var(--line-faint); padding:8px 12px; font-size:.83rem; vertical-align:top; line-height:1.5; word-break:break-word; overflow-wrap:anywhere; min-width:0;}
   /* 일자(논의일자·완료일자)는 줄바꿈 금지 */
   td[data-f="date"], td[data-f="done"]{white-space:nowrap; overflow-wrap:normal; word-break:keep-all; text-align:center;}
   td[data-f="date"] .cell-line, td[data-f="done"] .cell-line{white-space:nowrap;}
@@ -258,7 +258,7 @@
   tr.row-drop-after td{box-shadow:inset 0 -2.5px 0 var(--gold);}
   /* 안건 드래그 중에는 상단 고정 바가 드롭을 가로채지 않도록 통과 */
   body.row-dragging .apphd, body.row-dragging .toolbar{pointer-events:none;}
-  .item-cell{font-family:var(--font-bold);}
+  .item-cell{font-family:var(--font-bold); color:var(--ink); font-size:.92rem; letter-spacing:-.01em;}
 
   /* 상태·중요도 콤보 — 간소·동일 규격(다른 셀과 같이 상단 정렬로 위치 통일) */
   .state-cell{vertical-align:top; text-align:center; padding:11px 8px;}
@@ -1127,9 +1127,21 @@ function layoutCols(ovr){
   const wt=c=>(ovr&&c.key===ovr.key)?ovr.weight:effW(c);
   const dTot=vis.reduce((s,c)=>s+wt(c),0)||1;
   let pxs=vis.map(c=>Math.max(colMin(c), Math.round(wt(c)/dTot*avail)));
-  // 합계를 avail에 맞춤(컬럼별 최소폭 보장, 여유 있는 컬럼에서 차감)
+  // 합계를 avail에 맞춤 — 초과분은 여유 있는 컬럼에서 '비례' 축소(특정 컬럼만 깨지지 않게)
   let diff=avail-pxs.reduce((a,b)=>a+b,0);
-  for(let i=pxs.length-1;i>=0 && diff!==0;i--){ const room=pxs[i]-colMin(vis[i]); if(diff<0){ const cut=Math.min(room,-diff); pxs[i]-=cut; diff+=cut; } else { pxs[i]+=diff; diff=0; } }
+  if(diff<0){
+    for(let pass=0; pass<4 && diff<0; pass++){
+      const room=pxs.map((p,i)=>p-colMin(vis[i]));
+      const totalRoom=room.reduce((a,b)=>a+(b>0?b:0),0); if(totalRoom<=0) break;
+      const need=-diff;
+      pxs.forEach((p,i)=>{ if(room[i]>0){ const cut=Math.min(room[i], Math.round(need*room[i]/totalRoom)); pxs[i]-=cut; diff+=cut; } });
+    }
+    for(let i=pxs.length-1;i>=0 && diff<0;i--){ const cut=Math.min(pxs[i]-colMin(vis[i]),-diff); if(cut>0){ pxs[i]-=cut; diff+=cut; } }
+  }else if(diff>0){
+    const tW=vis.reduce((s,c)=>s+wt(c),0)||1;
+    vis.forEach((c,i)=>pxs[i]+=Math.round(diff*wt(c)/tW));
+    pxs[pxs.length-1]+=avail-pxs.reduce((a,b)=>a+b,0);
+  }
   document.querySelectorAll(".tbl-scroll table").forEach(t=>{
     const cols=t.querySelector("colgroup").children;
     vis.forEach((c,i)=>{ if(cols[i]) cols[i].style.width=pxs[i]+"px"; });
