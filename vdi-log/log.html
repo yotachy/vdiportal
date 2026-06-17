@@ -528,9 +528,32 @@
   .dash-card.total{background:var(--navy);border-color:var(--navy);} .dash-card.total .dc-n{color:#fff;} .dash-card.total .dc-l{color:#c4cddc;}
   .dash-card.prog .dc-n{color:var(--gold-strong);}
   .dash-card.fix .dc-n{color:var(--st-fix);} .dash-card.disc .dc-n{color:var(--st-disc);} .dash-card.chk .dc-n{color:var(--st-chk);} .dash-card.act .dc-n{color:var(--st-act);} .dash-card.done .dc-n{color:var(--st-done);}
-  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
-  @media (max-width:900px){ .dash-grid{grid-template-columns:1fr;} }
-  .dash-sec{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm);padding:16px 18px;}
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
+  .dash-grid.dash-grid-3{grid-template-columns:1.2fr 1fr 1fr;}
+  @media (max-width:1100px){ .dash-grid.dash-grid-3{grid-template-columns:1fr 1fr;} }
+  @media (max-width:760px){ .dash-grid,.dash-grid.dash-grid-3{grid-template-columns:1fr;} }
+  .dash-sec{background:var(--card);border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:13px 15px;}
+  /* 주요 일정 타임라인 */
+  .sched{margin-bottom:14px;}
+  .sc-add{border:1px solid var(--line-strong);background:var(--card);color:var(--ink-soft);font-family:var(--font-bold);font-size:.74rem;padding:4px 10px;border-radius:7px;cursor:pointer;}
+  .sc-add:hover{border-color:var(--gold);color:var(--ink);}
+  .sc-track{position:relative;height:34px;margin:18px 8px 30px;}
+  .sc-bar{position:absolute;top:11px;left:0;right:0;height:6px;border-radius:5px;background:var(--line-faint);border:1px solid var(--line);}
+  .sc-fill{position:absolute;top:11px;left:0;height:6px;border-radius:5px;background:var(--st-disc);opacity:.45;}
+  .sc-today{position:absolute;top:2px;width:2px;height:24px;background:var(--st-chk);transform:translateX(-1px);}
+  .sc-today::after{content:"오늘";position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:.62rem;color:var(--st-chk);font-family:var(--font-bold);white-space:nowrap;}
+  .sc-mk{position:absolute;top:8px;width:13px;height:13px;border-radius:50%;background:var(--card);border:2.5px solid var(--ink-faint);transform:translateX(-50%);z-index:2;}
+  .sc-mk.past{border-color:var(--st-fix);background:var(--st-fix);}
+  .sc-ticks{position:absolute;top:22px;left:0;right:0;height:14px;}
+  .sc-tick{position:absolute;transform:translateX(-50%);font-size:.64rem;color:var(--ink-faint);white-space:nowrap;}
+  .sc-tick b{color:var(--ink-soft);margin-left:1px;}
+  .sc-list{display:flex;flex-wrap:wrap;gap:6px 16px;}
+  .sc-li{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:var(--ink-soft);}
+  .sc-li-d{font-family:var(--font-bold);color:var(--ink-faint);}
+  .sc-li.past .sc-li-d{color:var(--st-fix);}
+  .sc-li-t{color:var(--ink);}
+  .sc-del{border:none;background:transparent;color:#c2c9d3;cursor:pointer;padding:1px 4px;border-radius:5px;line-height:1;}
+  .sc-del:hover{background:#fbeae8;color:var(--st-chk);}
   .dash-sec-t{font-family:var(--font-bold);font-size:.82rem;color:var(--ink);margin-bottom:12px;display:flex;align-items:center;gap:7px;}
   .dash-sec-c{font-size:.72rem;color:var(--ink-faint);background:var(--line-faint);padding:1px 7px;border-radius:9px;}
   .dash-empty{color:var(--ink-faint);font-style:italic;font-size:.84rem;padding:6px 2px;}
@@ -1350,7 +1373,7 @@ function openToolsMenu(anchor){
 
 /* ===================== 백업 (파일 내보내기/불러오기) ===================== */
 /* 백업 대상 저장소: 관리대장 + 화면정의서 목록 */
-const ALL_STORE_KEYS=["vdi_decision_log_v3","vdi_hub_v1"];
+const ALL_STORE_KEYS=["vdi_decision_log_v3","vdi_hub_v1","vdi_sched_v1"];
 function exportBackup(){
   const pad=n=>String(n).padStart(2,"0"); const d=new Date();
   const stamp=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
@@ -1374,7 +1397,7 @@ function applyBackupData(d){
     if(!confirm(`백업을 불러옵니다.\n생성 시점: ${when}\n저장소 ${keys.length}개(관리대장·화면정의서)\n\n현재 내용을 덮어쓸까요?`)) return;
     keys.forEach(k=>{ try{ localStorage.setItem(k, JSON.stringify(d.stores[k])); }catch(e){} });
     // 메모리 재적재 + 재렌더
-    loadData(); loadHub();
+    loadData(); loadHub(); loadSched();
     applyMode(); render(); updateSortBtn(); navTo(scope);
     toast(`백업을 불러왔습니다 · 저장소 ${keys.length}개`);
     return;
@@ -2206,12 +2229,45 @@ function jumpToRow(rid){
 /* ===================== 대시보드 ===================== */
 const DONE_STATUSES=["확정","검토완료"];
 const ST_CLS={확정:"fix",논의중:"disc",확인필요:"chk",조치진행:"act",검토완료:"done"};
+/* ===== 주요 일정(타임라인) ===== */
+const SCHED_KEY="vdi_sched_v1";
+let sched={start:"2026-04", end:"2027-03", items:[]};
+const DEFAULT_SCHED={ start:"2026-04", end:"2027-03", items:[
+  {id:"s1", ym:"2026-04", label:"사업 착수·계획"},
+  {id:"s2", ym:"2026-10", label:"IT·정보보호 파일럿 오픈"},
+  {id:"s3", ym:"2026-11", label:"본사 일부 부서 오픈"},
+  {id:"s4", ym:"2026-12", label:"본사 전체 오픈"},
+  {id:"s5", ym:"2027-03", label:"안정화·씬클라이언트 확대 완료"},
+]};
+function ymN(s){ const m=String(s||"").match(/(\d{4})-(\d{1,2})/); return m?(+m[1])*12+(+m[2]-1):0; }
+function ymNow(){ const d=new Date(); return d.getFullYear()*12+d.getMonth(); }
+function ymLabel(s){ const m=String(s||"").match(/(\d{4})-(\d{1,2})/); return m?`'${String(m[1]).slice(2)}.${+m[2]}`:s; }
+function schedClamp(v){ return Math.max(0,Math.min(100,v)); }
+function loadSched(){ try{ const raw=localStorage.getItem(SCHED_KEY); if(raw){ const d=JSON.parse(raw); sched={start:d.start||"2026-04", end:d.end||"2027-03", items:Array.isArray(d.items)?d.items:[]}; return; } }catch(e){} sched=JSON.parse(JSON.stringify(DEFAULT_SCHED)); }
+function saveSched(){ try{ localStorage.setItem(SCHED_KEY, JSON.stringify(sched)); }catch(e){} }
+function addScheduleItem(){ if(!isAdmin())return; const ym=prompt("연-월 (예: 2026-10)"); if(ym===null)return; const m=String(ym).match(/(\d{4})-(\d{1,2})/); if(!m){ alert("형식이 올바르지 않습니다. 예: 2026-10"); return; } const label=prompt("일정 내용"); if(label===null||!label.trim())return; sched.items.push({id:genId(), ym:m[1]+"-"+String(+m[2]).padStart(2,"0"), label:label.trim()}); saveSched(); renderDash(); }
+function delScheduleItem(id){ if(!isAdmin())return; const it=sched.items.find(x=>x.id===id); if(it&&!confirm(`"${it.label}" 일정을 삭제할까요?`))return; sched.items=sched.items.filter(x=>x.id!==id); saveSched(); renderDash(); }
+function renderSchedule(){
+  const am=isAdmin();
+  const startI=ymN(sched.start), endI=ymN(sched.end), span=Math.max(1,endI-startI), nowI=ymNow();
+  const todayPct=schedClamp((nowI-startI)/span*100);
+  let ticks=""; for(let i=startI;i<=endI;i++){ const off=(i-startI)/span*100; const mo=(i%12)+1; const yr=Math.floor(i/12); const showYr=(mo===1||i===startI||i===endI); ticks+=`<span class="sc-tick" style="left:${off}%">${mo}${showYr?`<b>'${String(yr).slice(2)}</b>`:""}</span>`; }
+  const items=[...sched.items].sort((a,b)=>ymN(a.ym)-ymN(b.ym));
+  const marks=items.map(it=>{ const off=schedClamp((ymN(it.ym)-startI)/span*100); const past=ymN(it.ym)<=nowI; return `<span class="sc-mk${past?" past":""}" style="left:${off}%" title="${escHtml(ymLabel(it.ym)+" "+it.label)}"></span>`; }).join("");
+  let list=items.length? items.map(it=>{ const past=ymN(it.ym)<=nowI; return `<div class="sc-li${past?" past":""}"><span class="sc-li-d">${escHtml(ymLabel(it.ym))}</span><span class="sc-li-t">${escHtml(it.label)}</span>${am?`<button class="sc-del" data-sched-del="${escHtml(it.id)}" title="삭제">✕</button>`:""}</div>`; }).join("")
+    : `<div class="dash-empty">등록된 일정이 없습니다.</div>`;
+  return `<div class="dash-sec sched">
+    <div class="dash-sec-t">주요 일정 <span class="dash-sec-c">${escHtml(ymLabel(sched.start))} ~ ${escHtml(ymLabel(sched.end))}</span><span style="flex:1"></span>${am?`<button class="sc-add" data-sched-add>＋ 일정 추가</button>`:""}</div>
+    <div class="sc-track"><div class="sc-bar"></div><div class="sc-fill" style="width:${todayPct}%"></div><span class="sc-today" style="left:${todayPct}%" title="오늘"></span>${marks}<div class="sc-ticks">${ticks}</div></div>
+    <div class="sc-list">${list}</div>
+  </div>`;
+}
 function renderDash(){
   const host=document.getElementById("dashBody"); if(!host) return;
   const total=rows.length, done=rows.filter(r=>DONE_STATUSES.includes(r.status)).length, pct=total?Math.round(done/total*100):0;
   // 최근 변경된 안건(상단 위젯)
   const recent=rows.filter(r=>r.updatedAt).sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,6);
-  let recentH=`<div class="dash-sec dash-recent"><div class="dash-sec-t">최근 변경된 안건 <span class="dash-sec-c">${recent.length}</span></div><div class="dash-list">`;
+  let recentH=`<div class="dash-sec"><div class="dash-sec-t">최근 변경된 안건 <span class="dash-sec-c">${recent.length}</span></div><div class="dash-list">`;
   if(!recent.length) recentH+=`<div class="dash-empty">안건을 편집하면 최근 변경 순으로 표시됩니다.</div>`;
   recent.forEach(r=>{ const a=areas.find(x=>x.id===r.area); recentH+=`<button class="dash-row" data-dash-go="${escHtml(r.id)}"><span class="da-time">${relTime(r.updatedAt)}</span><span class="da-area">${a?escHtml(a.name):""}</span><span class="da-item">${escHtml(r.item||"(제목없음)")}</span><span class="lg st-${ST_CLS[r.status]||""}">${escHtml(r.status||"")}</span></button>`; });
   recentH+=`</div></div>`;
@@ -2231,7 +2287,7 @@ function renderDash(){
   if(!attn.length) attnH+=`<div class="dash-empty">없습니다.</div>`;
   attn.forEach(r=>{ const a=areas.find(x=>x.id===r.area); attnH+=`<button class="dash-row" data-dash-go="${escHtml(r.id)}"><span class="da-area">${a?escHtml(a.name):""}</span><span class="da-item">${escHtml(r.item||"(제목없음)")}</span><span class="lg st-${ST_CLS[r.status]||""}">${escHtml(r.status)}</span></button>`; });
   attnH+=`</div></div>`;
-  host.innerHTML=recentH+cards+`<div class="dash-grid">`+bars+attnH+`</div>`;
+  host.innerHTML=renderSchedule()+cards+`<div class="dash-grid dash-grid-3">`+bars+attnH+recentH+`</div>`;
 }
 function dashSearch(q){
   const box=document.getElementById("dashResults"); if(!box) return;
@@ -2253,6 +2309,8 @@ document.getElementById("sidebar").addEventListener("click",e=>{
 (function(){
   const dv=document.getElementById("view-dash"); if(!dv) return;
   dv.addEventListener("click",e=>{
+    const sa=e.target.closest("[data-sched-add]"); if(sa){ addScheduleItem(); return; }
+    const sd=e.target.closest("[data-sched-del]"); if(sd){ delScheduleItem(sd.dataset.schedDel); return; }
     const go=e.target.closest("[data-dash-go]"); if(go){ jumpToRow(go.dataset.dashGo); return; }
     const st=e.target.closest("[data-dash-status]"); if(st){ const f=document.getElementById("filterStatus"); if(f)f.value=st.dataset.dashStatus; navTo("all"); return; }
     const ar=e.target.closest("[data-dash-area]"); if(ar){ navTo(ar.dataset.dashArea); return; }
@@ -2269,7 +2327,7 @@ document.getElementById("sideToggle").addEventListener("click",()=>setSidebar(!d
 applySidebar();
 
 /* 시작 */
-initTheme(); restoreSession(); loadData(); loadHub(); applyMode(); render(); updateSortBtn();
+initTheme(); restoreSession(); loadData(); loadHub(); loadSched(); applyMode(); render(); updateSortBtn();
 navTo(loadScope());
 </script>
 </body>

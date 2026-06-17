@@ -65,12 +65,15 @@
 localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }  // 관리대장 본문
 localStorage["vdi_hub_v1"]          = { cats, items, collapsed }      // 화면정의서 링크(관리자 전용)
 localStorage["vdi_log_nav"]         = "<scope>"                       // 마지막 내비 스코프
+localStorage["vdi_sched_v1"]        = { start, end, items[] }         // 주요 일정(대시보드 타임라인)
 localStorage["vdi_log_theme"]       = "light"|"dark"
 ```
 (WBS·주간보고·수행·이행 저장소 `vdi_wbs_v1`/`vdi_weekly_v1`/`vdi_plan_v1`/`vdi_transition_v1`는 도구 제거로 더 이상 로드 안 함 — 과거 데이터는 방치, 적극 삭제하지 않음.)
 
 ### 대시보드(`renderDash`, `#view-dash`)
-- **최근 변경된 안건**(상단 위젯): `updatedAt` 있는 행을 최신순 6건. 클릭 → `jumpToRow`.
+- **주요 일정 타임라인**(맨 위, `renderSchedule`/`vdi_sched_v1`): 프로젝트 기간(`start~end`, 기본 2026-04~2027-03) 막대 + 월 눈금 + 마일스톤 마커(지난 일정 녹색) + 오늘 위치 + 진행 채움. 아래 목록은 관리자가 `＋ 일정 추가`(`addScheduleItem`, 연-월+내용 prompt)·`✕`(`delScheduleItem`). 시드 `DEFAULT_SCHED`(착수·IT파일럿10·일부11·전체12·안정화'27.3).
+- 하단은 **3열 그리드로 통합**(`dash-grid-3`: 영역별 진척 | 주의 필요 안건 | 최근 변경) — 섹션 압축.
+- **최근 변경된 안건**: `updatedAt` 있는 행을 최신순 6건. 클릭 → `jumpToRow`.
 - **상태 현황 카드**: 전체/완료율 + 상태 4종(`CARD_STATUSES`=확정·논의중·확인필요·조치진행). **검토완료는 카드 없음 — 확정에 합산**(`statusCount`: 확정=확정+검토완료). 카드 클릭 → 전체 안건 + 해당 상태 필터.
 - **관리대장 뷰 요약 카드(`renderSummary`)도 동일 4종 + 현재 선택 영역 기준 집계**(영역 선택 시 그 영역만 카운트).
 - **영역별 진척 바**(`dash-bar-row`): 영역마다 완료/전체 비율(상태 기반). 클릭 → 해당 영역.
