@@ -1509,15 +1509,18 @@ function exportReadonlyHtml(){
     });
     body+=`<section class="area" data-area="${escHtml(area.id)}">
       <div class="ahead"><span class="achip" style="background:${area.color}"></span>
-        <div><div class="atitle">${ai+1}. ${escHtml(area.name)}</div></div>
+        <div><div class="atitle"><span class="ano">${ai+1}</span> ${escHtml(area.name)}</div></div>
         <span class="acount">${ord.length}건</span></div>
       <div class="scroll"><table style="width:${tableW}px"><colgroup>${colgroup}</colgroup><thead><tr>${thead}</tr></thead><tbody>${trs}</tbody></table></div>
     </section>`;
   });
 
   const areaOpts=areas.map((a,i)=>`<option value="${escHtml(a.id)}">${i+1}. ${escHtml(a.name)}</option>`).join("");
+  // 검토완료는 확정과 동일 취급 → 확정 카드에 합산, 카드는 4종
+  const ROC=["확정","논의중","확인필요","조치진행"];
+  const roCnt=s=> s==="확정" ? (counts["확정"]+counts["검토완료"]) : counts[s];
   const sumCards=`<div class="sc tot" data-s=""><div class="n">${rows.length}</div><div class="l">전체</div></div>`+
-    STATUSES.map(s=>`<div class="sc ${clsMap[s]}" data-s="${s}"><div class="n">${counts[s]}</div><div class="l">${s}</div></div>`).join("");
+    ROC.map(s=>`<div class="sc ${clsMap[s]}" data-s="${s}"><div class="n">${roCnt(s)}</div><div class="l">${s}</div></div>`).join("");
 
   const doc=`<!DOCTYPE html>
 <html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1544,14 +1547,14 @@ select,input{font-family:var(--font-body);font-size:.83rem;padding:8px 10px;bord
 .sc .n{font-family:var(--font-bold);font-size:1.4rem;line-height:1.1;}.sc .l{font-size:.72rem;color:var(--ink-soft);margin-top:2px;font-weight:600;}
 .sc.fix .n{color:var(--st-fix);}.sc.disc .n{color:var(--st-disc);}.sc.chk .n{color:var(--st-chk);}.sc.act .n{color:var(--st-act);}.sc.done .n{color:var(--st-done);}
 main{padding:18px 30px 0;display:flex;flex-direction:column;gap:24px;}
-.area{background:var(--card);border:1px solid var(--line);border-radius:9px;overflow:hidden;box-shadow:0 1px 3px rgba(28,36,48,.06);}
-.ahead{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);background:linear-gradient(to right,var(--gold-soft),#fff 60%);}
-.achip{width:5px;height:34px;border-radius:3px;flex:none;}.atitle{font-family:var(--font-display);font-size:1.04rem;}.adesc{font-size:.78rem;color:var(--ink-soft);margin-top:2px;}.ahead .acount{margin-left:auto;font-size:.74rem;color:var(--ink-faint);font-weight:600;}
+.area{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(28,36,48,.04),0 6px 22px rgba(28,36,48,.055);}
+.ahead{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);background:var(--card);}
+.achip{width:4px;height:30px;border-radius:4px;flex:none;}.atitle{font-family:var(--font-display);font-size:1.14rem;letter-spacing:-.015em;}.atitle .ano{color:#d99800;margin-right:3px;}.ahead .acount{margin-left:auto;font-size:.74rem;color:var(--ink-faint);font-weight:600;background:#eef1f6;padding:4px 11px;border-radius:999px;}
 .scroll{overflow-x:auto;}table{width:auto;border-collapse:separate;border-spacing:0;table-layout:fixed;}
-th{position:relative;background:#eef1f6;color:var(--ink-soft);font-family:var(--font-bold);font-size:.72rem;letter-spacing:.03em;padding:9px 11px;text-align:left;border-bottom:1px solid var(--line-strong);border-right:1px solid var(--line);}th:last-child{border-right:none;}
+th{position:relative;background:var(--card);color:var(--ink-soft);font-family:var(--font-bold);font-size:.72rem;letter-spacing:.02em;padding:12px 13px;text-align:left;border-bottom:2px solid var(--gold);}
 .cr{position:absolute;top:0;right:-4px;width:9px;height:100%;cursor:col-resize;z-index:3;}.cr:hover{background:var(--gold);opacity:.5;}
-td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:10px 12px;font-size:.83rem;vertical-align:top;line-height:1.62;word-break:keep-all;overflow-wrap:break-word;}td:last-child{border-right:none;}tbody tr:last-child td{border-bottom:none;}
-tbody tr:hover td{background:#fcfdff;}td.no{font-family:var(--font-bold);color:var(--ink-soft);font-size:.78rem;text-align:center;}td.item{font-family:var(--font-bold);}td.cen{text-align:center;}
+td{border-bottom:1px solid var(--line);padding:14px 14px;font-size:.84rem;vertical-align:top;line-height:1.72;word-break:keep-all;overflow-wrap:break-word;}tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:#f5f8fd;}td.no{font-family:var(--font-bold);color:var(--ink-faint);font-size:.78rem;text-align:center;}td.item{font-family:var(--font-bold);}td.cen{text-align:center;}
 .cell-lines{display:flex;flex-direction:column;gap:3px;}.cell-line{display:block;padding-left:2px;}.cell-line.has-marker{padding-left:15px;text-indent:-13px;}.cell-line .mk{color:#3a4d70;font-family:var(--font-bold);}
 .st{display:inline-block;font-family:var(--font-bold);font-size:.74rem;padding:3px 8px;border-radius:5px;}
 .st-fix{color:var(--st-fix);background:#e8f6f1;}.st-disc{color:var(--st-disc);background:#eaf1f8;}.st-chk{color:var(--st-chk);background:#fbecea;}.st-act{color:var(--st-act);background:#fbf1de;}.st-done{color:var(--st-done);background:#eef0f3;}
