@@ -334,7 +334,7 @@
   .help-note{background:var(--gold-soft); border-left:3px solid var(--gold); padding:11px 15px; border-radius:8px; font-size:.78rem; color:#7a5b00; line-height:1.6; margin-bottom:16px;}
 
   /* 영역 편집 행 */
-  .area-row{display:grid; grid-template-columns:24px 28px 1fr 1.4fr 70px 30px; gap:8px; align-items:center; padding:10px 6px; border-bottom:1px solid var(--line-faint);}
+  .area-row{display:grid; grid-template-columns:24px 28px 1fr 70px 30px; gap:8px; align-items:center; padding:10px 6px; border-bottom:1px solid var(--line-faint);}
   .area-row:last-child{border-bottom:none;}
   .area-row .handle{color:var(--ink-faint); text-align:center; font-size:.85rem;}
   .area-row input[type=color]{width:28px; height:28px; border:1px solid var(--line-strong); border-radius:7px; cursor:pointer; padding:1px; background:#fff;}
@@ -712,7 +712,7 @@
   <div class="modal">
     <div class="modal-head"><h2>영역 관리</h2><span class="sp"></span><button class="close-x" data-close>✕</button></div>
     <div class="modal-body">
-      <div class="help-note">영역의 <b>이름·색상·설명</b>을 편집합니다. 순서는 ↑↓로 바꾸며 영역 번호는 자동 부여됩니다. 영역 삭제 시 등록된 안건도 함께 삭제됩니다.</div>
+      <div class="help-note">영역의 <b>이름·색상</b>을 편집합니다. 순서는 ↑↓로 바꾸며 영역 번호는 자동 부여됩니다. 영역 삭제 시 등록된 안건도 함께 삭제됩니다.</div>
       <div id="areaEditList"></div>
       <button class="btn" id="btnAddAreaInModal" style="margin-top:14px;">＋ 영역 추가</button>
     </div>
@@ -1437,7 +1437,6 @@ function renderAreaEditList(){
       <div class="handle">${i+1}</div>
       <input type="color" value="${a.color}" data-k="color">
       <input type="text" value="${escHtml(a.name)}" data-k="name" placeholder="영역명">
-      <input type="text" value="${escHtml(a.desc||"")}" data-k="desc" placeholder="설명(선택)">
       <div style="display:flex;gap:3px;">
         <button class="move-btn" data-mv="up" ${i===0?"disabled":""}>↑</button>
         <button class="move-btn" data-mv="down" ${i===areasDraft.length-1?"disabled":""}>↓</button>
