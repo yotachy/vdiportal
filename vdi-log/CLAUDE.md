@@ -70,7 +70,9 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 (WBS·주간보고·수행·이행 저장소 `vdi_wbs_v1`/`vdi_weekly_v1`/`vdi_plan_v1`/`vdi_transition_v1`는 도구 제거로 더 이상 로드 안 함 — 과거 데이터는 방치, 적극 삭제하지 않음.)
 
 ### 대시보드(`renderDash`, `#view-dash`)
-- **상태 현황 카드**: 전체/완료율(`확정·검토완료`)/상태 5종 건수. 상태 카드 클릭 → 전체 안건 + 해당 상태 필터.
+- **최근 변경된 안건**(상단 위젯): `updatedAt` 있는 행을 최신순 6건. 클릭 → `jumpToRow`.
+- **상태 현황 카드**: 전체/완료율 + 상태 4종(`CARD_STATUSES`=확정·논의중·확인필요·조치진행). **검토완료는 카드 없음 — 확정에 합산**(`statusCount`: 확정=확정+검토완료). 카드 클릭 → 전체 안건 + 해당 상태 필터.
+- **관리대장 뷰 요약 카드(`renderSummary`)도 동일 4종 + 현재 선택 영역 기준 집계**(영역 선택 시 그 영역만 카운트).
 - **영역별 진척 바**(`dash-bar-row`): 영역마다 완료/전체 비율(상태 기반). 클릭 → 해당 영역.
 - **주의 필요 안건**: `확인필요·조치진행` 목록. 클릭 → `jumpToRow`(해당 영역으로 이동+행 하이라이트).
 - **전역 검색**(`dashSearch`, `#dashSearchInput`): 모든 영역 안건 전문검색, 결과 클릭 → `jumpToRow`. 상위 50건.
@@ -83,11 +85,12 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 
 - **columns** — 표시 컬럼 정의. `type`: `rownum`(번호 자동) · `text`(편집) · `status` · `priority`. `locked:true`는 삭제만 불가(이름·표시·요약은 변경 가능). `core:true`는 "간단히 보기"에 포함. `width`(px)는 **머리글 우측 경계 드래그로 직접 조절**(저장). 컬럼 수는 `MAX_COLUMNS=12` 하드 캡(추가 차단).
 - **areas** — 영역(섹션). `{id, name, color, desc}`. 기본 6개: 가상화 인프라 / 계정·인사연동 / 인증·정보보호 / 사용자 포탈 / 이행·변화관리 / 운영·조직. **머리글 클릭 시 아코디언 접기/펼치기**(`collapsedAreas` Set, 세션 한정·비영속).
-- **rows** — 안건. `{id, area, item, pri, date, asis, tobe, result, action, owner, status, done, att, parentId?}`.
+- **rows** — 안건. `{id, area, item, pri, date, asis, tobe, result, action, owner, status, done, att, parentId?, updatedAt?}`.
   - `id` — 행 고유키(`genId`/`ensureRowIds`). 후속안건 연결·삭제의 안정적 기준.
+  - `updatedAt` — 변경 시각(ms). 셀 편집·상태/중요도 변경·참석자 편집·추가 시 `touchRow`로 기록. 대시보드 **최근 변경된 안건** 위젯 정렬에 사용(`relTime`). 기존 행은 없을 수 있음(편집 시 채워짐).
   - `parentId` — **후속안건(하위레벨 안건)**이면 부모 행 `id`를 가리킴(1단계 깊이). 부모 바로 아래 들여쓰기(번호 `1-1-1`·`↳`)·연한 톤으로 표시. 부모 삭제 시 자식 동반 삭제. **후속안건은 안건·AS-IS·TO-BE 칸을 비활성(흐리게, `td.sub-dim`)** 처리하고 **결정·검토 결과 칸부터 입력**(부모의 현행/대안을 다시 안 적음). ＋추가 시 포커스도 결과 칸으로.
   - `att`(참석자) — 쉼표/줄바꿈 구분 이름 문자열로 저장. 화면 셀은 **`👤 N명` 배지**(`parseAtt`로 인원 산출), 클릭 시 **명단 팝오버**(`openAttPop`)에서 편집(관리자) 또는 열람. 읽기용 HTML 내보내기는 전체 이름 텍스트로 출력.
-- **meta** — 히어로(eyebrow/title/sub 등). 관리자 모드에서 인라인 편집. 내부 플래그 `_colWidthVer`(컬럼 폭 마이그레이션 버전) 포함.
+- **meta** — `eyebrow/title/sub` 등. 내부 플래그 `_colWidthVer`(컬럼 폭 마이그레이션 버전) 포함. (관리대장 뷰의 히어로는 2026-06-17 제거 — 본문은 바로 필터/검색바부터 시작. `renderMeta`는 요소 없으면 무시.)
 - 상태 5종 `STATUSES` = 확정·논의중·확인필요·조치진행·검토완료(검토완료는 회색 처리). 상태·중요도 콤보는 간소 톤(연한 칩+컬러 텍스트, 셀 중앙 정렬 통일).
 - 중요도 3종 `PRIORITIES` = 상·중·하.
 - **표시 정렬·계층**: `orderedAreaRows(areaId, ai)`. 정렬 모드 2종(`sortMode()` ← `meta.sortMode`):

@@ -537,6 +537,7 @@
   .dash-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:transparent;cursor:pointer;padding:9px 6px;border-bottom:1px solid var(--line-faint);font-family:var(--font-body);}
   .dash-row:last-child{border-bottom:none;}
   .dash-row:hover{background:var(--line-faint);}
+  .da-time{font-size:.72rem;color:var(--gold-strong);font-family:var(--font-bold);width:58px;flex:none;white-space:nowrap;}
   .da-area{font-size:.72rem;color:var(--ink-faint);width:120px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .da-item{flex:1;font-size:.85rem;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .dash-results .dash-row{padding:9px 14px;}
@@ -609,14 +610,7 @@
 
   <!-- 뷰: 의사결정 관리대장 -->
   <section id="view-log" class="view">
-    <div class="loghd">
-      <div class="hd-eyebrow" id="heroEyebrow" data-meta="eyebrow"></div>
-      <h1 id="heroTitle" data-meta="title"></h1>
-      <div class="hd-sub" id="heroSub" data-meta="sub"></div>
-      <div class="hero-hint" id="heroHint">관리자 모드: 위 제목 영역을 클릭하면 수정할 수 있습니다.</div>
-    </div>
-
-    <div class="toolbar">
+    <div class="toolbar log-toolbar">
       <select id="filterArea" class="hidden"><option value="">전체 영역</option></select>
       <select id="filterStatus">
         <option value="">전체 상태</option>
@@ -891,6 +885,8 @@ let columns=[], areas=[], rows=[], meta={};
 let _idSeq=0;
 function genId(){ return "r"+Date.now().toString(36)+(++_idSeq).toString(36); }
 function ensureRowIds(){ rows.forEach(r=>{ if(!r.id) r.id=genId(); }); }
+function touchRow(r){ if(r) r.updatedAt=Date.now(); }   // 변경 시각(최근 변경 위젯용)
+function relTime(ts){ if(!ts) return ""; const d=Date.now()-ts; const m=Math.floor(d/60000); if(m<1)return "방금"; if(m<60)return m+"분 전"; const h=Math.floor(m/60); if(h<24)return h+"시간 전"; const dd=Math.floor(h/24); if(dd<7)return dd+"일 전"; const x=new Date(ts); return (x.getMonth()+1)+"/"+x.getDate(); }
 
 function loadData(){
   try{
@@ -1100,6 +1096,7 @@ function renderMeta(){
   const ph={eyebrow:"상단 라벨",title:"문서 제목",sub:"설명 문구"};
   Object.entries(map).forEach(([k,id])=>{
     const el=document.getElementById(id);
+    if(!el) return;   // 관리대장 히어로 제거됨 — 요소 없으면 건너뜀
     if(document.activeElement!==el) el.textContent=meta[k]||"";
     el.setAttribute("data-ph",ph[k]);
     if(isAdmin()) el.setAttribute("contenteditable","true"); else el.removeAttribute("contenteditable");
@@ -1112,14 +1109,18 @@ function renderFilters(){
   sel.innerHTML=`<option value="">전체 영역</option>`+areas.map((a,i)=>`<option value="${a.id}">${i+1}. ${escHtml(a.name)}</option>`).join("");
   if(areas.some(a=>a.id===cur)) sel.value=cur;
 }
+// 상태 카드용 상태 4종(검토완료는 확정과 동일 취급해 확정 카드에 합산)
+const CARD_STATUSES=["확정","논의중","확인필요","조치진행"];
+const CARD_CLS={확정:"fix",논의중:"disc",확인필요:"chk",조치진행:"act"};
+function statusCount(list,s){ return s==="확정" ? list.filter(r=>r.status==="확정"||r.status==="검토완료").length : list.filter(r=>r.status===s).length; }
 function renderSummary(){
-  const counts={}; STATUSES.forEach(s=>counts[s]=0);
-  rows.forEach(r=>{if(counts[r.status]!==undefined)counts[r.status]++;});
-  const cls={확정:"fix",논의중:"disc",확인필요:"chk",조치진행:"act",검토완료:"done"};
+  // 현재 스코프(선택 영역) 기준으로 집계 — 영역 미선택 시 전체
+  const fa=document.getElementById("filterArea").value;
+  const list = fa ? rows.filter(r=>r.area===fa) : rows;
   const cur=document.getElementById("filterStatus").value;
   document.getElementById("summary").innerHTML=
-    `<div class="sum-card ${cur===""?"active":""}" tabindex="0" role="button" data-status="" aria-pressed="${cur===""}"><div class="n">${rows.length}</div><div class="l">전체 안건</div></div>`+
-    STATUSES.map(s=>`<div class="sum-card ${cls[s]} ${cur===s?"active":""}" tabindex="0" role="button" data-status="${s}" aria-pressed="${cur===s}"><div class="n">${counts[s]}</div><div class="l">${s}</div></div>`).join("");
+    `<div class="sum-card ${cur===""?"active":""}" tabindex="0" role="button" data-status="" aria-pressed="${cur===""}"><div class="n">${list.length}</div><div class="l">${fa?"영역 안건":"전체 안건"}</div></div>`+
+    CARD_STATUSES.map(s=>`<div class="sum-card ${CARD_CLS[s]} ${cur===s?"active":""}" tabindex="0" role="button" data-status="${s}" aria-pressed="${cur===s}"><div class="n">${statusCount(list,s)}</div><div class="l">${s}</div></div>`).join("");
 }
 function renderChips(){
   const fa=document.getElementById("filterArea"), fs=document.getElementById("filterStatus"), fp=document.getElementById("filterPri");
@@ -1156,7 +1157,7 @@ function openAttPop(anchor){
       const save=document.createElement("button"); save.className="btn gold att-save"; save.textContent="저장";
       save.addEventListener("click",()=>{
         const v=parseAtt(ta.value).join(", ");
-        if(row.att!==v){ row.att=v; saveData(); }
+        if(row.att!==v){ row.att=v; touchRow(row); saveData(); }
         closePop(); render();
       });
       pop.appendChild(save);
@@ -1626,7 +1627,7 @@ document.addEventListener("focusout",e=>{
   const idx=+tr.dataset.idx, f=td.dataset.f;
   const val=td.innerText.replace(/\u00a0/g," ").replace(/\n+$/,"");
   if(rows[idx][f]!==val){
-    rows[idx][f]=val; saveData(); renderSummary();
+    rows[idx][f]=val; touchRow(rows[idx]); saveData(); renderSummary();
     // 읽기모드 재렌더(개행 정렬·하이라이트 반영)
     td.innerHTML=renderCellRead(val, document.getElementById("searchBox").value.trim());
   }
@@ -1654,16 +1655,16 @@ document.addEventListener("keydown",e=>{
 document.addEventListener("change",e=>{
   if(!isAdmin()) return;
   const ss=e.target.closest(".status-sel");
-  if(ss){const tr=ss.closest("tr");rows[+tr.dataset.idx].status=ss.value;saveData();render();return;}
+  if(ss){const tr=ss.closest("tr");const r=rows[+tr.dataset.idx];r.status=ss.value;touchRow(r);saveData();render();return;}
   const ps=e.target.closest(".pri-sel");
-  if(ps){const tr=ps.closest("tr");rows[+tr.dataset.idx].pri=ps.value;saveData();render();return;}
+  if(ps){const tr=ps.closest("tr");const r=rows[+tr.dataset.idx];r.pri=ps.value;touchRow(r);saveData();render();return;}
 });
 
 document.addEventListener("click",e=>{
   if(!isAdmin()) return;
   const add=e.target.closest(".add-row");
   if(add){
-    const newRow={id:genId(),area:add.dataset.area,item:"",pri:"중",status:"논의중"};
+    const newRow={id:genId(),area:add.dataset.area,item:"",pri:"중",status:"논의중",updatedAt:Date.now()};
     columns.filter(c=>c.type==="text").forEach(c=>newRow[c.key]="");
     rows.push(newRow); saveData(); render(); return;
   }
@@ -1672,7 +1673,7 @@ document.addEventListener("click",e=>{
     const tr=subAdd.closest("tr"); const parent=rows[+tr.dataset.idx];
     if(parent){
       // 후속안건(보조 안건) — 부모에 연결, 안건명만 필수. 나머지 필드는 빈 값 허용
-      const child={id:genId(),area:parent.area,parentId:parent.id,item:"",pri:"중",status:"논의중"};
+      const child={id:genId(),area:parent.area,parentId:parent.id,item:"",pri:"중",status:"논의중",updatedAt:Date.now()};
       columns.filter(c=>c.type==="text").forEach(c=>child[c.key]="");
       rows.push(child); saveData(); render();
       // 새 후속안건 — 결정·검토 결과 칸부터 입력
@@ -2115,12 +2116,18 @@ const DONE_STATUSES=["확정","검토완료"];
 const ST_CLS={확정:"fix",논의중:"disc",확인필요:"chk",조치진행:"act",검토완료:"done"};
 function renderDash(){
   const host=document.getElementById("dashBody"); if(!host) return;
-  const counts={}; STATUSES.forEach(s=>counts[s]=0); rows.forEach(r=>{ if(counts[r.status]!==undefined)counts[r.status]++; });
   const total=rows.length, done=rows.filter(r=>DONE_STATUSES.includes(r.status)).length, pct=total?Math.round(done/total*100):0;
+  // 최근 변경된 안건(상단 위젯)
+  const recent=rows.filter(r=>r.updatedAt).sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,6);
+  let recentH=`<div class="dash-sec dash-recent"><div class="dash-sec-t">최근 변경된 안건 <span class="dash-sec-c">${recent.length}</span></div><div class="dash-list">`;
+  if(!recent.length) recentH+=`<div class="dash-empty">안건을 편집하면 최근 변경 순으로 표시됩니다.</div>`;
+  recent.forEach(r=>{ const a=areas.find(x=>x.id===r.area); recentH+=`<button class="dash-row" data-dash-go="${escHtml(r.id)}"><span class="da-time">${relTime(r.updatedAt)}</span><span class="da-area">${a?escHtml(a.name):""}</span><span class="da-item">${escHtml(r.item||"(제목없음)")}</span><span class="lg st-${ST_CLS[r.status]||""}">${escHtml(r.status||"")}</span></button>`; });
+  recentH+=`</div></div>`;
+  // 상태 현황 카드(검토완료는 확정에 합산해 카드 제외)
   let cards=`<div class="dash-cards">
     <div class="dash-card total"><div class="dc-n">${total}</div><div class="dc-l">전체 안건</div></div>
-    <div class="dash-card prog"><div class="dc-n">${pct}%</div><div class="dc-l">완료율 (확정·검토완료 ${done}건)</div></div>`;
-  STATUSES.forEach(s=>{ cards+=`<div class="dash-card ${ST_CLS[s]}" role="button" tabindex="0" data-dash-status="${s}"><div class="dc-n">${counts[s]}</div><div class="dc-l">${s}</div></div>`; });
+    <div class="dash-card prog"><div class="dc-n">${pct}%</div><div class="dc-l">완료율 (확정 ${done}건)</div></div>`;
+  CARD_STATUSES.forEach(s=>{ cards+=`<div class="dash-card ${CARD_CLS[s]}" role="button" tabindex="0" data-dash-status="${s}"><div class="dc-n">${statusCount(rows,s)}</div><div class="dc-l">${s}</div></div>`; });
   cards+=`</div>`;
   let bars=`<div class="dash-sec"><div class="dash-sec-t">영역별 진척</div><div class="dash-bars">`;
   if(!areas.length) bars+=`<div class="dash-empty">영역이 없습니다.</div>`;
@@ -2132,7 +2139,7 @@ function renderDash(){
   if(!attn.length) attnH+=`<div class="dash-empty">없습니다.</div>`;
   attn.forEach(r=>{ const a=areas.find(x=>x.id===r.area); attnH+=`<button class="dash-row" data-dash-go="${escHtml(r.id)}"><span class="da-area">${a?escHtml(a.name):""}</span><span class="da-item">${escHtml(r.item||"(제목없음)")}</span><span class="lg st-${ST_CLS[r.status]||""}">${escHtml(r.status)}</span></button>`; });
   attnH+=`</div></div>`;
-  host.innerHTML=cards+`<div class="dash-grid">`+bars+attnH+`</div>`;
+  host.innerHTML=recentH+cards+`<div class="dash-grid">`+bars+attnH+`</div>`;
 }
 function dashSearch(q){
   const box=document.getElementById("dashResults"); if(!box) return;
