@@ -69,18 +69,14 @@
   html[data-theme="dark"] tr.sub-row:hover td{background:#243040;}
   html[data-theme="dark"] tr.row-done td{background:#191f29; color:#79828f;}
   html[data-theme="dark"] tr.row-done:hover td{background:#1d2430;}
-  html[data-theme="dark"] .att-badge{background:#222b39;}
   html[data-theme="dark"] .del-btn,html[data-theme="dark"] .sub-add{color:#586273;}
   html[data-theme="dark"] .add-row:hover{color:var(--gold);}
-  /* 상태·중요도 칩 — 다크 틴트(텍스트색은 토큰이 처리) */
-  html[data-theme="dark"] .st-확정 .status-sel,html[data-theme="dark"] .lg.st-fix{background:rgba(70,198,160,.16);}
-  html[data-theme="dark"] .st-논의중 .status-sel,html[data-theme="dark"] .lg.st-disc{background:rgba(125,176,228,.16);}
-  html[data-theme="dark"] .st-확인필요 .status-sel,html[data-theme="dark"] .lg.st-chk{background:rgba(236,116,112,.17);}
-  html[data-theme="dark"] .st-조치진행 .status-sel,html[data-theme="dark"] .lg.st-act{background:rgba(230,175,82,.17);}
-  html[data-theme="dark"] .st-검토완료 .status-sel,html[data-theme="dark"] .lg.st-done{background:rgba(154,163,176,.16);}
-  html[data-theme="dark"] .pri-상 .pri-sel{background:rgba(236,116,112,.17);}
-  html[data-theme="dark"] .pri-중 .pri-sel{background:rgba(230,175,82,.17);}
-  html[data-theme="dark"] .pri-하 .pri-sel{background:rgba(150,161,177,.16);}
+  /* 범례 칩만 다크 틴트(표의 상태/중요도 값은 PILL 없음) */
+  html[data-theme="dark"] .lg.st-fix{background:rgba(70,198,160,.16);}
+  html[data-theme="dark"] .lg.st-disc{background:rgba(125,176,228,.16);}
+  html[data-theme="dark"] .lg.st-chk{background:rgba(236,116,112,.17);}
+  html[data-theme="dark"] .lg.st-act{background:rgba(230,175,82,.17);}
+  html[data-theme="dark"] .lg.st-done{background:rgba(154,163,176,.16);}
   html[data-theme="dark"] .modal{background:var(--card);}
   html[data-theme="dark"] .help-note{color:#e0c060;}
   html[data-theme="dark"] .area-row input[type=text],html[data-theme="dark"] .move-btn{background:var(--card); color:var(--ink-soft);}
@@ -261,17 +257,18 @@
   .item-cell{font-family:var(--font-bold); color:var(--ink); font-size:.92rem; letter-spacing:-.01em;}
 
   /* 상태·중요도 콤보 — 간소·동일 규격(다른 셀과 같이 상단 정렬로 위치 통일) */
-  .state-cell{vertical-align:top; text-align:center; padding:11px 8px;}
-  .status-sel,.pri-sel{appearance:none; -webkit-appearance:none; max-width:100%; border:1px solid transparent; background:transparent; font-family:var(--font-bold); font-size:.73rem; line-height:1.25; padding:4px 10px; border-radius:7px; cursor:pointer; text-align:center; text-align-last:center; color:var(--ink-soft); transition:background .12s,box-shadow .12s;}
-  body.admin .status-sel:hover,body.admin .pri-sel:hover{box-shadow:inset 0 0 0 1px var(--line-strong);}
-  .st-확정 .status-sel{color:var(--st-fix); background:#eef7f3;}
-  .st-논의중 .status-sel{color:var(--st-disc); background:#eef3f9;}
-  .st-확인필요 .status-sel{color:var(--st-chk); background:#fbefee;}
-  .st-조치진행 .status-sel{color:var(--st-act); background:#fbf4e6;}
-  .st-검토완료 .status-sel{color:var(--st-done); background:#f0f2f5;}
-  .pri-상 .pri-sel{color:var(--pri-high); background:#fbeeee;}
-  .pri-중 .pri-sel{color:var(--pri-mid); background:#fbf4e4;}
-  .pri-하 .pri-sel{color:var(--pri-low); background:#f0f2f5;}
+  .state-cell{vertical-align:top; text-align:center; padding:8px 6px;}
+  /* 상태·중요도 — PILL 없이 색 글자만(가독성 우선) */
+  .status-sel,.pri-sel{appearance:none; -webkit-appearance:none; max-width:100%; border:none; background:transparent; font-family:var(--font-bold); font-size:.8rem; line-height:1.3; padding:2px 4px; cursor:pointer; text-align:center; text-align-last:center; color:var(--ink-soft); transition:color .12s;}
+  body.admin .status-sel:hover,body.admin .pri-sel:hover{text-decoration:underline;}
+  .st-확정 .status-sel{color:var(--st-fix);}
+  .st-논의중 .status-sel{color:var(--st-disc);}
+  .st-확인필요 .status-sel{color:var(--st-chk);}
+  .st-조치진행 .status-sel{color:var(--st-act);}
+  .st-검토완료 .status-sel{color:var(--st-done);}
+  .pri-상 .pri-sel{color:var(--pri-high);}
+  .pri-중 .pri-sel{color:var(--pri-mid);}
+  .pri-하 .pri-sel{color:var(--pri-low);}
   tr.row-done td{background:#f6f7f9; color:#9aa3b0;}
   tr.row-done:hover td{background:#f2f3f6;}
   tr.row-done .item-cell,tr.row-done .no-cell{color:#9aa3b0;}
@@ -286,11 +283,10 @@
   td.sub-dim{opacity:.45; color:var(--ink-faint); cursor:default;}
 
   /* 참석자: 인원 배지 + 명단 팝오버 */
-  .att-cell{vertical-align:top; padding:10px 10px;}
-  .att-badge{display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line-strong); background:var(--card); color:var(--ink-soft); font-family:var(--font-bold); font-size:.74rem; padding:3px 9px 3px 7px; border-radius:999px; cursor:pointer; transition:border-color .12s,background .12s,color .12s; line-height:1.3;}
-  .att-badge:hover{border-color:var(--gold); color:var(--ink); background:var(--gold-soft);}
-  .att-badge .att-ic{width:13px; height:13px; flex:none;}
-  .att-badge.att-empty{border-style:dashed; color:var(--ink-faint);}
+  .att-cell{vertical-align:top; padding:8px 6px; text-align:center;}
+  .att-badge{border:none; background:transparent; color:var(--ink-soft); font-family:var(--font-bold); font-size:.83rem; padding:2px 6px; cursor:pointer; line-height:1.3; transition:color .12s;}
+  .att-badge:hover{color:var(--gold-strong);}
+  .att-badge.att-empty{color:var(--ink-faint); font-size:.95rem;}
   body:not(.admin) .att-badge{cursor:pointer;}
   body:not(.admin) .att-badge.att-empty{display:none;}
   .att-none{color:var(--ink-faint);}
@@ -1044,7 +1040,7 @@ function render(){
     const drag=isAdmin()?'draggable="true"':'';
     const am=isAdmin();
     // 컬럼 폭 조절 핸들은 마지막 데이터 컬럼엔 없음(경계가 표 끝) — 인접 컬럼끼리만 폭 교환
-    const thead=visCols.map((c,idx)=>`<th ${drag} data-col-key="${c.key}"><div class="th-in"><span class="th-grip" aria-hidden="true" title="드래그하여 순서 변경">⠿</span><span class="th-label">${escHtml(c.name)}</span>${am?`<button class="th-menu" data-col-menu="${c.key}" title="컬럼 옵션" aria-label="컬럼 옵션">⋮</button>`:""}</div>${idx<visCols.length-1?`<span class="col-resize" data-col-resize="${c.key}" title="드래그하여 폭 조절"></span>`:""}</th>`).join("")+`<th class="th-addcol col-act">${am?`<button class="addcol-btn" data-addcol title="컬럼 추가·표시">＋</button>`:""}</th>`;
+    const thead=visCols.map((c,idx)=>`<th ${drag} data-col-key="${c.key}"><div class="th-in"><span class="th-grip" aria-hidden="true" title="드래그하여 순서 변경">⠿</span><span class="th-label">${escHtml(c.name)}</span>${am?`<button class="th-menu" data-col-menu="${c.key}" title="컬럼 옵션" aria-label="컬럼 옵션">⋮</button>`:""}</div>${idx<visCols.length-1?`<span class="col-resize" data-col-resize="${c.key}" title="드래그하여 폭 조절"></span>`:""}</th>`).join("")+`<th class="th-addcol col-act"></th>`;
 
     sec.innerHTML=`
       <div class="area-head" data-area-toggle="${escHtml(area.id)}">
@@ -1086,12 +1082,12 @@ function render(){
         }else if(c.type==="priority"){
           html+=`<td class="state-cell pri-cell"><select class="pri-sel" data-f="pri">${PRIORITIES.map(p=>`<option ${p===(r.pri||"중")?"selected":""}>${p}</option>`).join("")}</select></td>`;
         }else if(c.key==="att"){
-          // 참석자: 인원수 배지(클릭 시 명단 팝오버)
+          // 참석자: 인원수 숫자만(클릭 시 명단 팝오버), 빈 값은 관리자에게 +
           const names=parseAtt(r.att);
           const badge = names.length
-            ? `<button class="att-badge" data-att-edit title="참석자 명단">${ATT_ICON}<span>${names.length}명</span></button>`
+            ? `<button class="att-badge" data-att-edit title="참석자 명단">${names.length}</button>`
             : (isAdmin()
-                ? `<button class="att-badge att-empty" data-att-edit title="참석자 추가">${ATT_ICON}<span>추가</span></button>`
+                ? `<button class="att-badge att-empty" data-att-edit title="참석자 추가">＋</button>`
                 : `<span class="att-none">—</span>`);
           html+=`<td class="att-cell" data-f="att">${badge}</td>`;
         }else{
@@ -1301,9 +1297,15 @@ function openColMenu(anchor, key){
     pop.appendChild(popItem("이름 변경", IC.edit, ()=>renameColumn(key)));
     pop.appendChild(popItem(col.core?"요약에서 제외":"요약에 포함", IC.star, ()=>{ col.core=!col.core; saveData(); render(); }));
     if(!col.locked){
-      pop.appendChild(popItem("숨기기", IC.eyeoff, ()=>{ col.visible=false; saveData(); render(); toast("컬럼을 숨겼습니다 — 머리글 ＋에서 다시 표시"); }));
+      pop.appendChild(popItem("숨기기", IC.eyeoff, ()=>{ col.visible=false; saveData(); render(); toast("컬럼을 숨겼습니다 — 컬럼 ⋮ 메뉴에서 다시 표시"); }));
       pop.appendChild(popSep());
       pop.appendChild(popItem("컬럼 삭제", IC.trash, ()=>deleteColumn(key), true));
+    }
+    const hidden=columns.filter(c=>!c.visible);
+    if(hidden.length){
+      pop.appendChild(popSep());
+      pop.appendChild(popHead("숨긴 컬럼 표시"));
+      hidden.forEach(c=>pop.appendChild(popItem(c.name, IC.eye||IC.star, ()=>{ c.visible=true; saveData(); render(); })));
     }
   });
 }
@@ -1320,36 +1322,6 @@ function deleteColumn(key){
   if(!reserved.has(key)) rows.forEach(r=>{ delete r[key]; });
   saveData(); render(); toast("컬럼을 삭제했습니다.");
 }
-/* ＋열: 새 컬럼 추가 + 숨긴 컬럼 다시 표시 */
-function openAddColPop(anchor){
-  if(!isAdmin()) return;
-  openPop(anchor, pop=>{
-    pop.appendChild(popItem("새 컬럼 추가", IC.plus, addColumn));
-    const hidden=columns.filter(c=>!c.visible);
-    if(hidden.length){
-      pop.appendChild(popSep());
-      pop.appendChild(popHead("숨긴 컬럼 표시"));
-      const sc=document.createElement("div"); sc.className="pop-scroll";
-      hidden.forEach(c=>{
-        const lab=document.createElement("label"); lab.className="pop-check";
-        lab.innerHTML=`<input type="checkbox"><span>${escHtml(c.name)}</span>`;
-        lab.querySelector("input").addEventListener("change",()=>{ c.visible=true; saveData(); closePop(); render(); });
-        sc.appendChild(lab);
-      });
-      pop.appendChild(sc);
-    }
-  });
-}
-function addColumn(){
-  if(columns.length>=MAX_COLUMNS){ alert(`컬럼은 최대 ${MAX_COLUMNS}개까지 추가할 수 있습니다.\n새 컬럼이 필요하면 기존 컬럼을 삭제한 뒤 추가하세요.`); return; }
-  const name=prompt("새 컬럼 이름","새 컬럼");
-  if(name===null||!name.trim()) return;
-  const key="col_"+Date.now().toString(36);
-  columns.push({key,name:name.trim(),type:"text",width:170,visible:true,locked:false,core:false});
-  rows.forEach(r=>{ if(r[key]===undefined) r[key]=""; });
-  saveData(); render(); toast("컬럼을 추가했습니다.");
-}
-
 /* ===================== 도구 드롭다운 ===================== */
 function openToolsMenu(anchor){
   openPop(anchor, pop=>{
@@ -1840,15 +1812,13 @@ document.getElementById("btnTools").addEventListener("click",e=>openToolsMenu(e.
 document.addEventListener("click",e=>{
   const cm=e.target.closest("[data-col-menu]");
   if(cm){ openColMenu(cm, cm.dataset.colMenu); return; }
-  const ac=e.target.closest("[data-addcol]");
-  if(ac){ openAddColPop(ac); return; }
   const ae=e.target.closest("[data-att-edit]");
   if(ae){ openAttPop(ae); return; }
 });
 
 /* 영역 아코디언 — 머리글 클릭으로 접기/펼치기 */
 document.addEventListener("click",e=>{
-  if(e.target.closest(".th-menu,.addcol-btn,.col-resize")) return;
+  if(e.target.closest(".th-menu,.col-resize")) return;
   const head=e.target.closest("[data-area-toggle]"); if(!head) return;
   const id=head.getAttribute("data-area-toggle");
   if(collapsedAreas.has(id)) collapsedAreas.delete(id); else collapsedAreas.add(id);
