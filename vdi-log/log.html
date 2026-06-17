@@ -21,6 +21,7 @@
     --pri-high:#d64545; --pri-mid:#d99800; --pri-low:#6b7785;
 
     --shadow-sm:0 1px 2px rgba(28,36,48,.05);
+    --shadow-card:0 1px 2px rgba(28,36,48,.04), 0 6px 22px rgba(28,36,48,.055);
     --shadow-md:0 8px 28px rgba(28,36,48,.10);
     --shadow-lg:0 24px 64px rgba(28,36,48,.20);
     --shadow-pop:0 6px 22px rgba(28,36,48,.14);
@@ -37,6 +38,7 @@
     --st-fix:#46c6a0; --st-disc:#7db0e4; --st-chk:#ec7470; --st-act:#e6af52; --st-done:#9aa3b0;
     --pri-high:#ec7470; --pri-mid:#e6af52; --pri-low:#96a1b1;
     --shadow-sm:0 1px 2px rgba(0,0,0,.35);
+    --shadow-card:0 1px 2px rgba(0,0,0,.4), 0 6px 22px rgba(0,0,0,.35);
     --shadow-md:0 8px 28px rgba(0,0,0,.5);
     --shadow-lg:0 24px 64px rgba(0,0,0,.65);
     --shadow-pop:0 8px 26px rgba(0,0,0,.55);
@@ -184,9 +186,9 @@
   .sum-card.chk .n{color:var(--st-chk);} .sum-card.act .n{color:var(--st-act);} .sum-card.done .n{color:var(--st-done);}
 
   /* 영역 섹션 */
-  main{padding:22px 34px 0; display:flex; flex-direction:column; gap:22px;}
-  .area{background:var(--card); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow-sm);}
-  .area-head{display:flex; align-items:center; gap:12px; padding:16px 22px; border-bottom:1px solid var(--line-faint); background:#fff; cursor:pointer;}
+  main{padding:22px 34px 0; display:flex; flex-direction:column; gap:24px;}
+  .area{background:var(--card); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow-card);}
+  .area-head{display:flex; align-items:center; gap:12px; padding:18px 22px; border-bottom:1px solid var(--line-faint); background:var(--card); cursor:pointer;}
   .area-head:hover{background:#fcfdfe;}
   .area-caret{flex:none; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border:none; background:transparent; color:var(--ink-faint); cursor:pointer; padding:0; border-radius:6px; transition:transform .16s,background .12s;}
   .area-caret svg{width:15px; height:15px;}
@@ -195,15 +197,15 @@
   .area.collapsed .area-head{border-bottom:none;}
   .area.collapsed .area-body{display:none;}
   .area-chip{width:4px; height:30px; border-radius:4px; flex:none;}
-  .area-title{font-family:var(--font-display); font-size:1.06rem; letter-spacing:-.01em;}
-  .area-desc{font-size:.78rem; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+  .area-title{font-family:var(--font-display); font-size:1.14rem; letter-spacing:-.015em;}
+  .area-title .area-no{color:var(--gold-strong); margin-right:3px;}
   .area-head .sp{flex:1;}
   .area-count{font-size:.74rem; color:var(--ink-faint); font-weight:600; background:var(--line-faint); padding:4px 11px; border-radius:999px;}
 
   /* 표는 컬럼 폭 합계 크기로만 — width:100% 스트레치 금지(컬럼 숨김/삭제 시 잔여 컬럼이 늘어나지 않음) */
   .tbl-scroll{overflow-x:auto;}
   table{width:auto; border-collapse:separate; border-spacing:0; table-layout:fixed;}
-  th{background:#fff; color:var(--ink-faint); font-size:.7rem; letter-spacing:.03em; padding:12px 14px; text-align:left; border-bottom:1.5px solid var(--line-strong); position:relative; vertical-align:middle;}
+  th{background:var(--card); color:var(--ink-soft); font-family:var(--font-bold); font-size:.72rem; letter-spacing:.02em; padding:13px 14px; text-align:left; border-bottom:2px solid var(--gold); position:relative; vertical-align:middle;}
   th .th-in{display:flex; align-items:center; gap:4px;}
   th .th-grip{opacity:0; color:var(--line-strong); font-size:.8rem; line-height:1; flex:none; margin-left:-4px; transition:opacity .12s; cursor:grab;}
   body.admin th:hover .th-grip{opacity:1;}
@@ -229,9 +231,9 @@
   th.drag-over.drag-after{box-shadow:inset -3px 0 0 var(--gold);}
   th.drag-src{opacity:.4;}
 
-  td{border-bottom:1px solid var(--line-faint); padding:13px 16px; font-size:.83rem; vertical-align:top; line-height:1.65; word-break:keep-all; overflow-wrap:break-word;}
+  td{border-bottom:1px solid var(--line-faint); padding:14px 16px; font-size:.84rem; vertical-align:top; line-height:1.72; word-break:keep-all; overflow-wrap:break-word;}
   tbody tr:last-child td{border-bottom:none;}
-  tbody tr:hover td{background:#fafbfd;}
+  tbody tr:hover td{background:#f5f8fd;}
 
   /* 가독성: 개행 문장 처리 — 줄 단위 들여쓰기 + 항목 마커 정리 */
   td[contenteditable]{cursor:text; transition:background .12s,box-shadow .12s; white-space:pre-wrap; border-radius:6px;}
@@ -1031,7 +1033,7 @@ function render(){
       <div class="area-head" data-area-toggle="${escHtml(area.id)}">
         <button class="area-caret" aria-label="영역 접기/펼치기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button>
         <div class="area-chip" style="background:${area.color}"></div>
-        <div><div class="area-title">${ai+1}. ${escHtml(area.name)}</div><div class="area-desc">${escHtml(area.desc||"")}</div></div>
+        <div><div class="area-title"><span class="area-no">${ai+1}</span> ${escHtml(area.name)}</div></div>
         <span class="sp"></span><span class="area-count">${ordered.length}건</span>
       </div>
       <div class="area-body">
@@ -1468,7 +1470,12 @@ function saveAreasFromModal(){
   if(areasDraft.some(a=>!a.name.trim())){ alert("모든 영역의 이름을 입력해주세요."); return; }
   const keep=new Set(areasDraft.map(a=>a.id));
   rows=rows.filter(r=>keep.has(r.area));
-  areas=areasDraft; saveData(); closeAreasModal(); render(); toast("영역 설정이 저장되었습니다.");
+  areas=areasDraft; saveData(); closeAreasModal();
+  // 현재 스코프가 삭제된 영역이면 전체로 복귀
+  if(scope!=="all" && scope!=="dash" && scope.indexOf("deliv:")!==0 && !areas.some(a=>a.id===scope)) scope="all";
+  render(); renderSidebar();
+  const vd=document.getElementById("view-dash"); if(vd && !vd.classList.contains("hidden")) renderDash();
+  toast("영역 설정이 저장되었습니다.");
 }
 
 /* ===================== 읽기전용 HTML 내보내기 ===================== */
@@ -1503,7 +1510,7 @@ function exportReadonlyHtml(){
     });
     body+=`<section class="area" data-area="${escHtml(area.id)}">
       <div class="ahead"><span class="achip" style="background:${area.color}"></span>
-        <div><div class="atitle">${ai+1}. ${escHtml(area.name)}</div><div class="adesc">${escHtml(area.desc||"")}</div></div>
+        <div><div class="atitle">${ai+1}. ${escHtml(area.name)}</div></div>
         <span class="acount">${ord.length}건</span></div>
       <div class="scroll"><table style="width:${tableW}px"><colgroup>${colgroup}</colgroup><thead><tr>${thead}</tr></thead><tbody>${trs}</tbody></table></div>
     </section>`;

@@ -84,7 +84,7 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 - 시드 `DEFAULT_HUB`(링크만). `HUB_MASTER_V=8`. `loadHub`가 `_masterV<8`이면 1회 재시드 + 과거 builtin 잔재 제거(`type==="link"`만 유지).
 
 - **columns** — 표시 컬럼 정의. `type`: `rownum`(번호 자동) · `text`(편집) · `status` · `priority`. `locked:true`는 삭제만 불가(이름·표시·요약은 변경 가능). `core:true`는 "간단히 보기"에 포함. `width`(px)는 **머리글 우측 경계 드래그로 직접 조절**(저장). 컬럼 수는 `MAX_COLUMNS=12` 하드 캡(추가 차단).
-- **areas** — 영역(섹션). `{id, name, color, desc}`. 기본 6개: 가상화 인프라 / 계정·인사연동 / 인증·정보보호 / 사용자 포탈 / 이행·변화관리 / 운영·조직. **머리글 클릭 시 아코디언 접기/펼치기**(`collapsedAreas` Set, 세션 한정·비영속).
+- **areas** — 영역(섹션). `{id, name, color, desc}`. 기본 6개: 가상화 인프라 / 계정·인사연동 / 인증·정보보호 / 사용자 포탈 / 이행·변화관리 / 운영·조직. **머리글 클릭 시 아코디언 접기/펼치기**(`collapsedAreas` Set, 세션 한정·비영속). `desc`는 데이터엔 남지만 **표/읽기전용 머리글엔 표시 안 함**(2026-06-17 간소화). 영역 추가/편집은 `saveAreasFromModal`이 표·사이드바·대시보드를 함께 갱신.
 - **rows** — 안건. `{id, area, item, pri, date, asis, tobe, result, action, owner, status, done, att, parentId?, updatedAt?}`.
   - `id` — 행 고유키(`genId`/`ensureRowIds`). 후속안건 연결·삭제의 안정적 기준.
   - `updatedAt` — 변경 시각(ms). 셀 편집·상태/중요도 변경·참석자 편집·추가 시 `touchRow`로 기록. 대시보드 **최근 변경된 안건** 위젯 정렬에 사용(`relTime`). 로드 시 `backfillUpdatedAt`이 `updatedAt` 없는 행에 `date`(없으면 `done`)를 `parseRowDate`(연도 없으면 2026)로 채움 — 기존 안건도 논의일자 기준으로 표시됨.
@@ -134,7 +134,7 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 | 인쇄/PDF | `@media print` 스타일 |
 
 - 데이터 변경은 즉시 `saveData()`로 localStorage 자동 저장 + **저장 직전 상태를 변경 이력에 자동 스냅샷**. 잘못 수정 시 도구 › 변경 이력에서 복원, 안전 백업은 도구 › 백업 내보내기(.json).
-- **디자인 방향**: 표 세로 격자 제거(가로 구분선만, `--line-faint`)·헤더 흰 배경+하단 보더·카드 라운드(`--r`)/부드러운 그림자·버튼 라운드(`--r-sm`)/고스트 위주. 골드는 액센트(활성/주요)로만. 신규 UI도 이 절제된 톤 유지.
+- **디자인 방향**: 표 세로 격자 제거(가로 구분선만, `--line-faint`)·**표 머리글 하단 골드 2px 언더라인**(`th`)·영역 번호 골드 액센트(`.area-no`)·카드 라운드(`--r`)+깊이(`--shadow-card`)·버튼 라운드(`--r-sm`)/고스트 위주. 셀은 여백·행간 넉넉히(`td` 14px/1.72)로 가독성 우선("엑셀보다 나은" 느낌). 골드는 액센트(활성/주요)로만. 신규 UI도 이 절제된 톤 유지.
 
 ---
 
