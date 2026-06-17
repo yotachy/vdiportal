@@ -51,7 +51,7 @@
 | 상태색 | 확정 `#0f8a6d` · 논의중 `#3b6ea5` · 확인필요 `#c0392b` · 조치진행 `#b06f00` · 검토완료 `#9aa3b0` |
 | 중요도색 | 상 `#d64545` · 중 `#d99800` · 하 `#6b7785` |
 
-- **라이트/다크 테마**: 기본 라이트. 다크는 `html[data-theme="dark"]` 한 블록에서 토큰 재정의 + 토큰으로 안 바뀌는 하드코딩 표면(`#fff` 등)만 보정 → **라이트 CSS는 건드리지 않는다**(신규 하드코딩 색 추가 시 다크 블록에도 대응 추가). 툴바 `🌙/☀️`(`#btnTheme`) 토글, 선택은 `localStorage["vdi_log_theme"]`에 영속. **읽기용 HTML 내보내기는 라이트 고정**(공유 산출물).
+- **라이트/다크 테마**: 기본 라이트. 다크는 `html[data-theme="dark"]` 한 블록에서 토큰 재정의 + 토큰으로 안 바뀌는 하드코딩 표면(`#fff` 등)만 보정 → **라이트 CSS는 건드리지 않는다**(신규 하드코딩 색 추가 시 다크 블록에도 대응 추가). 툴바 `🌙/☀️`(`#btnTheme`) 토글, 선택은 `localStorage["vdi_log_theme"]`에 영속. **읽기용 HTML 내보내기도 동일 다크 토글 내장**(기본 라이트, `localStorage["vdi_log_theme"]` 공유).
 - SVG 인라인(`viewBox="0 0 24 24" fill="none" stroke="currentColor"`), 들여쓰기 2 spaces, 큰따옴표, 한국어 우선.
 - **noindex 필수**: `<head>`에 `<meta name="robots" content="noindex, nofollow">` 유지(상위 프로젝트 비공개 규칙).
 
@@ -137,7 +137,7 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 | 전체 백업 (파일) | `exportBackup` → `vdi_전체백업_YYYYMMDD_HHMM.json` — **5개 도구 전 저장소**(`stores{}`: `ALL_STORE_KEYS`=관리대장·hub·wbs·weekly·plan·transition) + 하위호환용 관리대장 최상위. `importBackup`→`applyBackupData`: stores 있으면 전체 복원(localStorage 기록 후 전 도구 재적재·재렌더), 없으면 구형(관리대장만) 복원. **관리자 전용** |
 | 변경 이력 (버전 형상관리) | `saveData`가 저장 직전 상태를 `localStorage[STORE_KEY+"__history"]`에 자동 보관(최근 `HIST_MAX=30`, `HIST_MIN_GAP=20s` 내 연속편집은 합침). `변경 이력` 모달에서 시점 선택→`restoreHistory`로 복원(복원 직전 현재 상태도 자동 보관). **관리자 전용** |
 | 영역 관리 | 이름/색/설명/순서, 영역 삭제 시 안건 동반 삭제 (모달 유지) |
-| 읽기용 HTML 내보내기 | 편집 불가 정적 파일 생성. **원본 본문과 동일 셸·정책**: 좌측 사이드바(전체 안건+영역 목록·안건수 배지, 클릭 시 단일 영역) · 네이비 히어로(제목 "업무가상화(VDI) 구축"·간단 설명 1줄) · 상태/중요도/검색 필터바 · 상태 요약 카드(영역 스코프 재집계) · **표 컨테이너 100% 고정(가로 스크롤 없음)+내용 길이 자동 폭+수동 드래그 비례 조절**(`layoutRO`, 본문 `layoutCols`와 동일 정책). 상태·중요도는 PILL 없는 색 글자. **배포·공유용 산출물**(관리대장 전용·라이트 고정) |
+| 읽기용 HTML 내보내기 | 편집 불가 정적 파일 생성. **원본 셸과 동일**: 글로벌 헤더(`.apphd` 58px — 브랜드+`열람 전용` 배지+다크 토글) · 좌측 사이드바(`.nav-pinned` 전체 안건 + `영역` cat·`area-chip-sm`·안건수 배지, 클릭 시 단일 영역) · **사이드바 접기 핸들(`#sideToggle`·`body.side-collapsed`)** · 상태/중요도/검색 필터바 · 상태 요약 카드(영역 스코프 재집계) · **표 컨테이너 100% 고정(가로 스크롤 없음)+내용 길이 자동 폭+수동 드래그 비례 조절**(`layoutRO`, 본문 `layoutCols`와 동일 정책). 상태·중요도는 PILL 없는 색 글자. **라이트/다크 토글 내장**(`vdi_log_theme` 공유). **배포·공유용 산출물**(관리대장 전용) |
 | 인쇄/PDF | `@media print` 스타일 |
 
 - 데이터 변경은 즉시 `saveData()`로 localStorage 자동 저장 + **저장 직전 상태를 변경 이력에 자동 스냅샷**. 잘못 수정 시 도구 › 변경 이력에서 복원, 안전 백업은 도구 › 백업 내보내기(.json).
