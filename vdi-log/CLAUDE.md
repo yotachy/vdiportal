@@ -112,7 +112,7 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 
 | 기능 | 비고 |
 |---|---|
-| 사이드바(영역 내비) | 대시보드·전체 안건·영역 목록(안건수 배지)·화면정의서(관리자). 영역 클릭→단일 영역, 활성 하이라이트(`renderSidebar`/`navTo`). **데스크톱 접기 토글**(헤더 `#btnSideToggle`→`body.side-collapsed`, `localStorage["vdi_log_sidebar"]` 영속). 모바일(<880px) 햄버거(`#btnNav`·스크림) |
+| 사이드바(영역 내비) | 대시보드·전체 안건·영역 목록(안건수 배지)·화면정의서(관리자). 영역 클릭→단일 영역, 활성 하이라이트(`renderSidebar`/`navTo`). **데스크톱 접기/펼치기**(사이드바 상단 `[data-collapse]` 아이콘으로 접기 → `body.side-collapsed`로 폭 0; 접힘 시 왼쪽 가장자리 골드 탭 `#sideExpand`로 펼치기. `localStorage["vdi_log_sidebar"]` 영속). 모바일(<880px) 햄버거(`#btnNav`·스크림) |
 | 대시보드 | 상태 현황 카드·영역별 진척 바·주의 필요 안건·전역 검색(`renderDash`/`dashSearch`). 카드/바/행 클릭으로 해당 안건·영역으로 이동(`jumpToRow`) |
 | 화면정의서 미리보기 | 관리자 전용. 우측 `iframe`(`#delivFrame`) + `↗ 새 탭`(`navTo("deliv:…")`) |
 | 필터 | 영역 / 상태 / 중요도 셀렉트 + 활성 필터 칩(개별 해제) |
