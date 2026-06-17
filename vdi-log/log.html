@@ -246,7 +246,7 @@
   .cell-line.has-marker{padding-left:15px; text-indent:-13px;}
   .cell-line .mk{color:var(--navy-soft); font-family:var(--font-bold);}
 
-  .no-cell{font-family:var(--font-bold); color:var(--ink-faint); font-size:.76rem; text-align:center;}
+  .no-cell{font-family:var(--font-bold); color:var(--ink-faint); font-size:.76rem; text-align:center; white-space:nowrap; padding-left:6px; padding-right:6px;}
   /* 안건 순서 드래그(수동 모드) */
   .row-grip{display:inline-block; cursor:grab; color:var(--line-strong); font-size:.82rem; line-height:1; margin-right:4px; user-select:none;}
   .row-grip:hover{color:var(--gold-strong);} .row-grip:active{cursor:grabbing;}
@@ -277,7 +277,6 @@
   tr.sub-row td{background:#fafbfc;}
   tr.sub-row:hover td{background:#f4f6f9;}
   tr.sub-row .no-cell{color:#aab2bf; font-size:.72rem;}
-  tr.sub-row .no-cell::before{content:"↳ "; color:var(--ink-faint); font-family:var(--font-bold);}
   tr.sub-row .item-cell{font-family:var(--font-body); color:var(--ink-soft); padding-left:6px;}
   tr.sub-row td:first-child{box-shadow:inset 3px 0 0 var(--line-strong);}
   /* 후속안건: 안건·현행/대안은 입력 안 함(부모 참조) — 흐리게 */
@@ -986,8 +985,8 @@ function orderedAreaRows(areaId, ai){
   }
   const out=[]; let pno=0;
   parents.forEach(p=>{
-    pno++; out.push({r:p.r, i:p.i, depth:0, no:`${ai+1}-${pno}`});
-    (kids[p.r.id]||[]).forEach((k,ci)=>out.push({r:k.r, i:k.i, depth:1, no:`${ai+1}-${pno}-${ci+1}`}));
+    pno++; out.push({r:p.r, i:p.i, depth:0, no:`${pno}`});
+    (kids[p.r.id]||[]).forEach((k,ci)=>out.push({r:k.r, i:k.i, depth:1, no:`${pno}-${ci+1}`}));
   });
   return out;
 }
@@ -1009,7 +1008,7 @@ function effW(c){ return c.userW ? (c.width||autoColPx(c)) : autoColPx(c); }
 function colMin(c){
   if(c.type==="status") return 66;
   if(c.type==="priority") return 56;
-  if(c.type==="rownum") return 46;
+  if(c.type==="rownum") return 54;
   if(c.key==="date"||c.key==="done") return 54;
   if(c.key==="att") return 58;
   return 44;
@@ -1593,7 +1592,7 @@ main{padding:18px 30px 0;display:flex;flex-direction:column;gap:24px;}
 th{position:relative;background:var(--card);color:var(--ink-soft);font-family:var(--font-bold);font-size:.72rem;letter-spacing:.02em;padding:12px 13px;text-align:left;border-bottom:2px solid var(--gold);}
 .cr{position:absolute;top:0;right:-4px;width:9px;height:100%;cursor:col-resize;z-index:3;}.cr:hover{background:var(--gold);opacity:.5;}
 td{border-bottom:1px solid var(--line);padding:14px 14px;font-size:.84rem;vertical-align:top;line-height:1.72;word-break:keep-all;overflow-wrap:break-word;}tbody tr:last-child td{border-bottom:none;}
-tbody tr:hover td{background:#f5f8fd;}td.no{font-family:var(--font-bold);color:var(--ink-faint);font-size:.78rem;text-align:center;}td.item{font-family:var(--font-bold);}td.cen{text-align:center;}
+tbody tr:hover td{background:#f5f8fd;}td.no{font-family:var(--font-bold);color:var(--ink-faint);font-size:.78rem;text-align:center;white-space:nowrap;}td.item{font-family:var(--font-bold);}td.cen{text-align:center;}
 .cell-lines{display:flex;flex-direction:column;gap:3px;}.cell-line{display:block;padding-left:2px;}.cell-line.has-marker{padding-left:15px;text-indent:-13px;}.cell-line .mk{color:#3a4d70;font-family:var(--font-bold);}
 .st{display:inline-block;font-family:var(--font-bold);font-size:.74rem;padding:3px 8px;border-radius:5px;}
 .st-fix{color:var(--st-fix);background:#e8f6f1;}.st-disc{color:var(--st-disc);background:#eaf1f8;}.st-chk{color:var(--st-chk);background:#fbecea;}.st-act{color:var(--st-act);background:#fbf1de;}.st-done{color:var(--st-done);background:#eef0f3;}
