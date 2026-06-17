@@ -385,14 +385,12 @@
   .hub{display:flex; align-items:flex-start;}
   .side{position:sticky; top:58px; align-self:flex-start; width:264px; flex:none; height:calc(100vh - 58px); overflow-y:auto; background:var(--card); border-right:1px solid var(--line); padding:14px 12px 30px; transition:width .2s ease, padding .2s ease;}
   .content{flex:1; min-width:0;}
-  /* 사이드바 상단 접기 컨트롤 */
-  .nav-top{display:flex; justify-content:flex-end; padding:0 2px 8px; margin-bottom:6px; border-bottom:1px solid var(--line-faint);}
-  .nav-collapse{display:inline-flex; align-items:center; gap:4px; border:none; background:transparent; color:var(--ink-faint); cursor:pointer; padding:5px 9px; border-radius:7px; font-family:var(--font-bold); font-size:.74rem;}
-  .nav-collapse:hover{background:var(--line-faint); color:var(--ink);} .nav-collapse svg{width:15px; height:15px;}
-  /* 접힌 상태: 왼쪽 가장자리 펼치기 탭 */
-  .side-expand{display:none; position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:40; align-items:center; gap:3px; border:none; background:var(--gold); color:#1c2430; cursor:pointer; padding:11px 11px 11px 8px; border-radius:0 12px 12px 0; box-shadow:var(--shadow-md); font-family:var(--font-bold); font-size:.74rem;}
-  .side-expand svg{width:18px; height:18px;} .side-expand:hover{background:var(--gold-strong);}
-  @media(min-width:881px){ body.side-collapsed .side{width:0; padding-left:0; padding-right:0; border-right:none; overflow:hidden;} body.side-collapsed .side-expand{display:inline-flex;} }
+  /* 사이드바 접기/펼치기 핸들 — 패널 경계(세로 중앙)에 고정, 화살표만 좌우 전환 */
+  #sideToggle{position:fixed; top:50%; left:264px; transform:translateY(-50%); z-index:40; width:21px; height:48px; display:flex; align-items:center; justify-content:center; padding:0; border:1px solid var(--line-strong); border-left:none; border-radius:0 9px 9px 0; background:var(--card); color:var(--ink-faint); cursor:pointer; box-shadow:var(--shadow-sm); transition:left .2s ease, background .12s, color .12s;}
+  #sideToggle:hover{background:var(--gold-soft); color:var(--gold-strong); border-color:var(--gold);}
+  #sideToggle svg{width:15px; height:15px; transition:transform .2s;}
+  body.side-collapsed #sideToggle svg{transform:rotate(180deg);}
+  @media(min-width:881px){ body.side-collapsed .side{width:0; padding-left:0; padding-right:0; border-right:none; overflow:hidden;} body.side-collapsed #sideToggle{left:0;} }
   .view.hidden{display:none;}
   .nav-scrim{display:none;}
 
@@ -566,7 +564,7 @@
   @media (prefers-reduced-motion:reduce){*{transition:none !important;}}
   @media (max-width:880px){
     .nav-toggle{display:inline-flex;}
-    .nav-top{display:none;} .side-expand{display:none !important;}
+    #sideToggle{display:none !important;}
     .side{position:fixed; top:58px; left:0; z-index:60; transform:translateX(-100%); transition:transform .2s; box-shadow:var(--shadow-lg);}
     body.nav-open .side{transform:none;}
     .nav-scrim{position:fixed; inset:58px 0 0; background:rgba(0,0,0,.4); z-index:55;}
@@ -600,7 +598,7 @@
 <div class="hub">
   <div class="nav-scrim" id="navScrim"></div>
   <aside class="side" id="sidebar"></aside>
-  <button id="sideExpand" class="side-expand" aria-label="사이드바 펼치기" title="사이드바 펼치기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg><span>펼치기</span></button>
+  <button id="sideToggle" aria-label="사이드바 접기/펼치기" title="사이드바 접기/펼치기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
   <div class="content">
 
   <!-- 뷰: 대시보드 -->
@@ -2110,7 +2108,6 @@ function renderSidebar(){
   const am=isAdmin();
   const total=(typeof rows!=="undefined"?rows:[]).length;
   let h="";
-  h+=`<div class="nav-top"><button class="nav-collapse" data-collapse aria-label="사이드바 접기" title="사이드바 접기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg><span>접기</span></button></div>`;
   h+=`<div class="nav-pinned">
     <button class="nav-item nav-dash${scope==="dash"?" active":""}" data-nav="dash">${DASH_ICO}<span class="ni-name">대시보드</span></button>
     <button class="nav-item${scope==="all"?" active":""}" data-nav="all"><span class="ni-dot ni-all"></span><span class="ni-name">전체 안건</span><span class="ni-count">${total}</span></button>
@@ -2202,7 +2199,6 @@ function dashSearch(q){
 }
 /* 사이드바 이벤트(위임) */
 document.getElementById("sidebar").addEventListener("click",e=>{
-  if(e.target.closest("[data-collapse]")){ setSidebar(true); return; }
   const nav=e.target.closest("[data-nav]"); if(nav){ navTo(nav.dataset.nav); return; }
   const na=e.target.closest("[data-nav-area]"); if(na){ navTo(na.dataset.navArea); return; }
   const nd=e.target.closest("[data-nav-deliv]"); if(nd){ navTo("deliv:"+nd.dataset.navDeliv); return; }
@@ -2227,7 +2223,7 @@ document.getElementById("navScrim").addEventListener("click",()=>document.body.c
 const SIDE_KEY="vdi_log_sidebar";
 function applySidebar(){ document.body.classList.toggle("side-collapsed", localStorage.getItem(SIDE_KEY)==="1"); }
 function setSidebar(c){ try{ localStorage.setItem(SIDE_KEY, c?"1":"0"); }catch(e){} applySidebar(); }
-document.getElementById("sideExpand").addEventListener("click",()=>setSidebar(false));
+document.getElementById("sideToggle").addEventListener("click",()=>setSidebar(!document.body.classList.contains("side-collapsed")));
 applySidebar();
 
 /* 시작 */
