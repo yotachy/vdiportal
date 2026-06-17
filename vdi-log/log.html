@@ -232,6 +232,9 @@
   th.drag-src{opacity:.4;}
 
   td{border-bottom:1px solid var(--line-faint); padding:14px 16px; font-size:.84rem; vertical-align:top; line-height:1.72; word-break:break-word; overflow-wrap:anywhere; min-width:0;}
+  /* 일자(논의일자·완료일자)는 줄바꿈 금지 */
+  td[data-f="date"], td[data-f="done"]{white-space:nowrap; overflow-wrap:normal; word-break:keep-all; text-align:center;}
+  td[data-f="date"] .cell-line, td[data-f="done"] .cell-line{white-space:nowrap;}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover td{background:#f5f8fd;}
 
@@ -1009,7 +1012,7 @@ function colMin(c){
   if(c.type==="status") return 66;
   if(c.type==="priority") return 56;
   if(c.type==="rownum") return 54;
-  if(c.key==="date"||c.key==="done") return 54;
+  if(c.key==="date"||c.key==="done") return 66;
   if(c.key==="att") return 58;
   return 44;
 }
