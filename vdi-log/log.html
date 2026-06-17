@@ -886,6 +886,13 @@ let _idSeq=0;
 function genId(){ return "r"+Date.now().toString(36)+(++_idSeq).toString(36); }
 function ensureRowIds(){ rows.forEach(r=>{ if(!r.id) r.id=genId(); }); }
 function touchRow(r){ if(r) r.updatedAt=Date.now(); }   // 변경 시각(최근 변경 위젯용)
+function parseRowDate(s){   // "5/22"·"5.22"·"2026-05-22" → ms (연도 없으면 2026)
+  if(!s) return null; s=String(s).trim(); let m;
+  if(m=s.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})$/)) return new Date(+m[1],+m[2]-1,+m[3]).getTime();
+  if(m=s.match(/^(\d{1,2})[.\/](\d{1,2})$/)) return new Date(2026,+m[1]-1,+m[2]).getTime();
+  return null;
+}
+function backfillUpdatedAt(){ rows.forEach(r=>{ if(!r.updatedAt){ const t=parseRowDate(r.date)||parseRowDate(r.done); if(t) r.updatedAt=t; } }); }
 function relTime(ts){ if(!ts) return ""; const d=Date.now()-ts; const m=Math.floor(d/60000); if(m<1)return "방금"; if(m<60)return m+"분 전"; const h=Math.floor(m/60); if(h<24)return h+"시간 전"; const dd=Math.floor(h/24); if(dd<7)return dd+"일 전"; const x=new Date(ts); return (x.getMonth()+1)+"/"+x.getDate(); }
 
 function loadData(){
@@ -901,7 +908,7 @@ function loadData(){
       // core 속성이 없는 기존 저장 데이터 마이그레이션
       const CORE_KEYS=new Set(["__no","item","pri","date","result","action","status","done"]);
       columns.forEach(c=>{ if(c.core===undefined) c.core=CORE_KEYS.has(c.key); });
-      ensureRowIds();
+      ensureRowIds(); backfillUpdatedAt();
       // 컬럼 폭 1회 재조정(가로 스크롤 방지) — 리사이즈 도입 이전 데이터의 기본 폭을 새 기본값으로 갱신
       if((meta._colWidthVer||0)<COL_WIDTH_VER){
         columns.forEach(c=>{ if(DEFAULT_WIDTHS[c.key]!==undefined) c.width=DEFAULT_WIDTHS[c.key]; });
@@ -915,7 +922,7 @@ function loadData(){
   areas=JSON.parse(JSON.stringify(DEFAULT_AREAS));
   rows=JSON.parse(JSON.stringify(DEFAULT_ROWS));
   meta=JSON.parse(JSON.stringify(DEFAULT_META));
-  ensureRowIds();
+  ensureRowIds(); backfillUpdatedAt();
 }
 function saveData(show=true){
   try{
@@ -1481,7 +1488,7 @@ function exportReadonlyHtml(){
     if(!ord.length) return;
     const colgroup=visCols.map(c=>`<col style="width:${c.width}px">`).join("");
     const tableW=visCols.reduce((s,c)=>s+c.width,0);
-    const thead=visCols.map(c=>`<th>${escHtml(c.name)}</th>`).join("");
+    const thead=visCols.map((c,ci)=>`<th data-ci="${ci}">${escHtml(c.name)}<span class="cr" title="드래그하여 폭 조절"></span></th>`).join("");
     let trs="";
     ord.forEach(({r,depth,no})=>{
       const tds=visCols.map(c=>{
@@ -1535,7 +1542,8 @@ main{padding:18px 30px 0;display:flex;flex-direction:column;gap:24px;}
 .ahead{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);background:linear-gradient(to right,var(--gold-soft),#fff 60%);}
 .achip{width:5px;height:34px;border-radius:3px;flex:none;}.atitle{font-family:var(--font-display);font-size:1.04rem;}.adesc{font-size:.78rem;color:var(--ink-soft);margin-top:2px;}.ahead .acount{margin-left:auto;font-size:.74rem;color:var(--ink-faint);font-weight:600;}
 .scroll{overflow-x:auto;}table{width:auto;border-collapse:separate;border-spacing:0;table-layout:fixed;}
-th{background:#eef1f6;color:var(--ink-soft);font-family:var(--font-bold);font-size:.72rem;letter-spacing:.03em;padding:9px 11px;text-align:left;border-bottom:1px solid var(--line-strong);border-right:1px solid var(--line);}th:last-child{border-right:none;}
+th{position:relative;background:#eef1f6;color:var(--ink-soft);font-family:var(--font-bold);font-size:.72rem;letter-spacing:.03em;padding:9px 11px;text-align:left;border-bottom:1px solid var(--line-strong);border-right:1px solid var(--line);}th:last-child{border-right:none;}
+.cr{position:absolute;top:0;right:-4px;width:9px;height:100%;cursor:col-resize;z-index:3;}.cr:hover{background:var(--gold);opacity:.5;}
 td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:10px 12px;font-size:.83rem;vertical-align:top;line-height:1.62;word-break:keep-all;overflow-wrap:break-word;}td:last-child{border-right:none;}tbody tr:last-child td{border-bottom:none;}
 tbody tr:hover td{background:#fcfdff;}td.no{font-family:var(--font-bold);color:var(--ink-soft);font-size:.78rem;text-align:center;}td.item{font-family:var(--font-bold);}td.cen{text-align:center;}
 .cell-lines{display:flex;flex-direction:column;gap:3px;}.cell-line{display:block;padding-left:2px;}.cell-line.has-marker{padding-left:15px;text-indent:-13px;}.cell-line .mk{color:#3a4d70;font-family:var(--font-bold);}
@@ -1550,9 +1558,9 @@ mark{background:var(--gold);color:#2b2410;padding:0 2px;border-radius:2px;}
 @media print{.bar,.summary{display:none;}body{background:#fff;}header{background:#fff;color:#000;}header::after{display:none;}.eye{color:#000;}.sub{color:#444;}.ro-tag{background:#eee;color:#000;}main,footer{padding-left:0;padding-right:0;margin-left:0;margin-right:0;}.area{break-inside:avoid;}table{min-width:0;}td,th{font-size:.72rem;}}
 @media(max-width:900px){.bar,main,.summary,footer{padding-left:14px;padding-right:14px;}header{padding:20px 14px;}.srch{flex:1 1 100%;max-width:none;}}
 </style></head><body>
-<header><div class="eye">${escHtml(meta.eyebrow||"")}</div><h1>${escHtml(meta.title||"")}</h1>
-<div class="sub">${escHtml(meta.sub||"")}</div>
-<div class="sub" style="margin-top:8px;">출력일 ${stamp} · 총 ${rows.length}건${meta.owner?` · 작성·관리 ${escHtml(meta.owner)}`:""}</div>
+<header><div class="eye">의사결정 관리대장</div><h1>업무가상화(VDI) 구축</h1>
+<div class="sub">영역별 논의·결정사항 열람용</div>
+<div class="sub" style="margin-top:8px;">출력일 ${stamp} · 총 ${rows.length}건</div>
 <span class="ro-tag">🔒 열람 전용 — 수정 불가</span></header>
 <div class="bar">
   <select id="fa"><option value="">전체 영역</option>${areaOpts}</select>
@@ -1611,6 +1619,29 @@ mark{background:var(--gold);color:#2b2410;padding:0 2px;border-radius:2px;}
     var c=e.target.closest(".sc");if(!c)return;
     var s=c.getAttribute("data-s");fs.value=(fs.value===s)?"":s;syncCards();apply();
   });
+})();
+// 컬럼 폭 조절(헤더 우측 경계 드래그) — 모든 영역 표 동시 적용
+(function(){
+  var tables=[].slice.call(document.querySelectorAll("main table"));
+  function colsOf(t){return [].slice.call(t.querySelectorAll("colgroup col"));}
+  var drag=null;
+  document.addEventListener("mousedown",function(e){
+    var h=e.target.closest(".cr");if(!h)return;
+    var th=h.closest("th");if(!th)return;var ci=+th.getAttribute("data-ci");
+    var first=tables[0];if(!first)return;var col=colsOf(first)[ci];if(!col)return;
+    drag={ci:ci,x:e.clientX,w:parseInt(col.style.width,10)||col.offsetWidth};
+    document.body.style.userSelect="none";document.body.style.cursor="col-resize";e.preventDefault();
+  });
+  document.addEventListener("mousemove",function(e){
+    if(!drag)return;
+    var nw=Math.max(60,drag.w+(e.clientX-drag.x));
+    tables.forEach(function(t){
+      var cs=colsOf(t);var c=cs[drag.ci];if(c)c.style.width=nw+"px";
+      var sum=0;for(var i=0;i<cs.length;i++)sum+=parseInt(cs[i].style.width,10)||0;
+      t.style.width=sum+"px";
+    });
+  });
+  document.addEventListener("mouseup",function(){if(drag){drag=null;document.body.style.userSelect="";document.body.style.cursor="";}});
 })();
 <\/script>
 </body></html>`;

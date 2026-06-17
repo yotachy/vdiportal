@@ -87,7 +87,7 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 - **areas** — 영역(섹션). `{id, name, color, desc}`. 기본 6개: 가상화 인프라 / 계정·인사연동 / 인증·정보보호 / 사용자 포탈 / 이행·변화관리 / 운영·조직. **머리글 클릭 시 아코디언 접기/펼치기**(`collapsedAreas` Set, 세션 한정·비영속).
 - **rows** — 안건. `{id, area, item, pri, date, asis, tobe, result, action, owner, status, done, att, parentId?, updatedAt?}`.
   - `id` — 행 고유키(`genId`/`ensureRowIds`). 후속안건 연결·삭제의 안정적 기준.
-  - `updatedAt` — 변경 시각(ms). 셀 편집·상태/중요도 변경·참석자 편집·추가 시 `touchRow`로 기록. 대시보드 **최근 변경된 안건** 위젯 정렬에 사용(`relTime`). 기존 행은 없을 수 있음(편집 시 채워짐).
+  - `updatedAt` — 변경 시각(ms). 셀 편집·상태/중요도 변경·참석자 편집·추가 시 `touchRow`로 기록. 대시보드 **최근 변경된 안건** 위젯 정렬에 사용(`relTime`). 로드 시 `backfillUpdatedAt`이 `updatedAt` 없는 행에 `date`(없으면 `done`)를 `parseRowDate`(연도 없으면 2026)로 채움 — 기존 안건도 논의일자 기준으로 표시됨.
   - `parentId` — **후속안건(하위레벨 안건)**이면 부모 행 `id`를 가리킴(1단계 깊이). 부모 바로 아래 들여쓰기(번호 `1-1-1`·`↳`)·연한 톤으로 표시. 부모 삭제 시 자식 동반 삭제. **후속안건은 안건·AS-IS·TO-BE 칸을 비활성(흐리게, `td.sub-dim`)** 처리하고 **결정·검토 결과 칸부터 입력**(부모의 현행/대안을 다시 안 적음). ＋추가 시 포커스도 결과 칸으로.
   - `att`(참석자) — 쉼표/줄바꿈 구분 이름 문자열로 저장. 화면 셀은 **`👤 N명` 배지**(`parseAtt`로 인원 산출), 클릭 시 **명단 팝오버**(`openAttPop`)에서 편집(관리자) 또는 열람. 읽기용 HTML 내보내기는 전체 이름 텍스트로 출력.
 - **meta** — `eyebrow/title/sub` 등. 내부 플래그 `_colWidthVer`(컬럼 폭 마이그레이션 버전) 포함. (관리대장 뷰의 히어로는 2026-06-17 제거 — 본문은 바로 필터/검색바부터 시작. `renderMeta`는 요소 없으면 무시.)
@@ -130,7 +130,7 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 | 전체 백업 (파일) | `exportBackup` → `vdi_전체백업_YYYYMMDD_HHMM.json` — **5개 도구 전 저장소**(`stores{}`: `ALL_STORE_KEYS`=관리대장·hub·wbs·weekly·plan·transition) + 하위호환용 관리대장 최상위. `importBackup`→`applyBackupData`: stores 있으면 전체 복원(localStorage 기록 후 전 도구 재적재·재렌더), 없으면 구형(관리대장만) 복원. **관리자 전용** |
 | 변경 이력 (버전 형상관리) | `saveData`가 저장 직전 상태를 `localStorage[STORE_KEY+"__history"]`에 자동 보관(최근 `HIST_MAX=30`, `HIST_MIN_GAP=20s` 내 연속편집은 합침). `변경 이력` 모달에서 시점 선택→`restoreHistory`로 복원(복원 직전 현재 상태도 자동 보관). **관리자 전용** |
 | 영역 관리 | 이름/색/설명/순서, 영역 삭제 시 안건 동반 삭제 (모달 유지) |
-| 읽기용 HTML 내보내기 | 편집 불가 정적 파일 생성(필터·검색·인쇄 내장). **배포·공유용 산출물**(관리대장 전용) |
+| 읽기용 HTML 내보내기 | 편집 불가 정적 파일 생성(필터·검색·인쇄·**컬럼 폭 드래그 조절** 내장). 히어로 제목 고정 "업무가상화(VDI) 구축"·간단 설명. **배포·공유용 산출물**(관리대장 전용) |
 | 인쇄/PDF | `@media print` 스타일 |
 
 - 데이터 변경은 즉시 `saveData()`로 localStorage 자동 저장 + **저장 직전 상태를 변경 이력에 자동 스냅샷**. 잘못 수정 시 도구 › 변경 이력에서 복원, 안전 백업은 도구 › 백업 내보내기(.json).
