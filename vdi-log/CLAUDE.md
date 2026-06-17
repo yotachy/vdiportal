@@ -10,7 +10,7 @@
 `vdi-log/log.html` = **KB손해보험 업무가상화(VDI) 구축 프로젝트 관리 사이트**.
 좌측 **사이드바**는 **내장 도구 5종(상단 고정)** + **화면정의서 링크**로 구성. (2026-06-17: 감리 표준 산출물 카탈로그/레지스트리는 제거 — 5개 내장 도구 중심으로 단순화, 화면정의서 iframe 링크만 유지.)
 
-- **내장 도구 5종**: 의사결정 관리대장 · WBS·일정계획 · 주간보고 · 수행계획서 · 이행계획서. 관리자는 이 5개의 **이름 변경(연필)·순서 변경(드래그)** 가능(`localStorage` 영속).
+- **내장 도구 5종**: 의사결정 관리대장 · WBS·일정계획 · 주간보고 · 수행계획서 · 이행계획서. 관리자는 이 5개의 **이름 변경(연필)·순서 변경(드래그)** 가능(`localStorage` 영속). **이름 변경 시 화면 제목(h1)도 함께 변경**(`syncBuiltinTitle`: 4종은 정적 h1 `wbsTitle/wkTitle/planTitle/transTitle`, 관리대장은 히어로 `meta.title`). 시작 시 `syncAllBuiltinTitles`로 4종 h1 반영(관리대장 히어로는 미변경).
 
 - **셸 구조**: 글로벌 헤더(브랜드·관리자 로그인·테마) → `[사이드바 | 본문]`. 본문은 다중 뷰 라우팅(`showView`):
   - `#view-log` — 의사결정 관리대장(필터·검색·표·변경이력 등).
@@ -71,8 +71,8 @@ localStorage["vdi_transition_v1"]   = { sections, meta }                  // 이
 > 수행계획서·이행계획서는 **공용 섹션문서 엔진**(`makeSectionDoc({key,seed,prefix})`)의 두 인스턴스(`execDoc`·`transDoc`). 화면 element id는 prefix로 구분(`plan*`·`trans*`).
 
 ### 주간보고(`vdi_weekly_v1`)
-- **reports** — 주차별 보고 `{id, label, start, end(ISO), progress(0~100), done[], plan[], issues[]}`. `done`/`plan`은 문자열 배열, **`issues`는 `{text, ref}` 배열**(`ref`=의사결정 관리대장 row id, 없으면 `""`). 화면 표시 순서=배열 순서(신규는 맨 위 unshift). `weeklyEnsureIds`가 옛 문자열 issues를 `{text,ref}`로 마이그레이션.
-- 카드 목록(최신 위)·**기본 접힘 아코디언**(헤더 클릭 토글, `weeklyOpen` Set 세션 한정). 헤더=캐럿·라벨·기간·진척바/%. 본문 3블록(금주 실적/차주 계획/이슈·리스크). **이슈는 안건 연결**: 읽기 시 연결된 이슈는 링크(`a.wk-link`)→클릭하면 `goToDecision(rid)`가 관리대장으로 이동+해당 영역 펼침+행 하이라이트(`tr.row-flash`, 행에 `data-rid`). 관리자: 라벨·기간(date)·진척(number)·실적/계획(줄=항목)·이슈(텍스트 입력+안건 셀렉트 `decisionRowOptions`+＋/✕) 편집. **편집은 관리자 전용**. 시드 `DEFAULT_WEEKLY`(3주차). `render`=`renderWeekly`.
+- **reports** — 주차별 보고 `{id, label, start, end(ISO), items[]}`. **안건별 구조**: `items[]`의 각 안건 = `{topic(안건명), note(논의/결정), action(후속조치), ref}`(`ref`=의사결정 관리대장 row id, 없으면 `""`). **진척률 없음**(2026-06-17 제거). 표시 순서=배열 순서(신규는 맨 위 unshift). `weeklyEnsureIds`가 옛 구조(done/plan/issues·progress)를 `items[]`로 마이그레이션(레거시 라인은 안건으로 변환·진척 삭제).
+- 카드 목록(최신 위)·**기본 접힘 아코디언**(헤더 클릭 토글, `weeklyOpen` Set 세션 한정). 헤더=캐럿·라벨·기간·건수. 본문=**안건 표**(안건/논의·결정/후속조치). **안건→관리대장 연결**: 읽기 시 연결된 안건명은 링크(`a.wk-link`)→클릭하면 `goToDecision(rid)`가 관리대장으로 이동+해당 영역 펼침+행 하이라이트(`tr.row-flash`, 행에 `data-rid`). 관리자: 라벨·기간(date)·안건 표(안건명 input·논의/후속 textarea·관리대장 연결 select `decisionRowOptions`·＋안건/✕) 편집. **편집은 관리자 전용**(수행사 보고가 아닌 자체 주간보고). 시드 `DEFAULT_WEEKLY`(3주차). `render`=`renderWeekly`.
 
 ### 수행계획서·이행계획서 (공용 섹션문서 엔진)
 - **sections** — 섹션 `{id, title, body}`. 표시 순서=배열 순서. 번호 자동. 좌측 목차(앵커 스크롤)+우측 본문(`white-space:pre-wrap`). 관리자: 제목·본문(contenteditable)·＋섹션·✕삭제·↑↓ 순서.
@@ -124,7 +124,7 @@ localStorage["vdi_transition_v1"]   = { sections, meta }                  // 이
 | 사이드바 | 내장 5종(상단 고정) + 화면정의서 링크. 활성 하이라이트, **드래그 순서 변경**(관리자, `hub.items` 순서 저장), 내장 **이름 변경**(연필 `renameBuiltin`). 화면정의서 접기(영속 `hub.collapsed`). 모바일(<880px) 햄버거(`#btnNav`·스크림) |
 | 산출물 미리보기 | 화면정의서 링크는 우측 `iframe`(`#delivFrame`) + `↗ 새 탭`. 내장 5종은 자체 화면 |
 | WBS·일정계획(내장) | 아웃라인+간트 도구. 단계/작업 추가·들여쓰기·드래그 정렬·진척 입력, 부모 롤업, 월 눈금 간트(`renderWbs`, `vdi_wbs_v1`) |
-| 주간보고(내장) | 주차별 카드(**기본 접힘 아코디언**). 기간·진척·실적/계획·이슈 작성, **이슈→관리대장 안건 링크**(`goToDecision`), ＋추가/✕삭제. 관리자 전용 편집(`renderWeekly`, `vdi_weekly_v1`) |
+| 주간보고(내장) | 주차별 카드(**기본 접힘 아코디언**). **안건별**(안건명·논의/결정·후속조치) 표, **안건→관리대장 링크**(`goToDecision`), ＋안건/✕. 진척률 없음. 관리자 전용 편집(`renderWeekly`, `vdi_weekly_v1`) |
 | 수행계획서·이행계획서(내장) | 공용 섹션문서 엔진(`makeSectionDoc`→`execDoc`/`transDoc`). 목차+본문, 제목/본문 편집·섹션 추가/삭제/순서(`vdi_plan_v1`·`vdi_transition_v1`) |
 | 필터 | 영역 / 상태 / 중요도 셀렉트 + 활성 필터 칩(개별 해제) |
 | 검색 | 안건·내용 전문 검색 + `<mark>` 하이라이트 |
