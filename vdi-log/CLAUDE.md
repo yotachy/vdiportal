@@ -71,7 +71,7 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 (WBS·주간보고·수행·이행 저장소 `vdi_wbs_v1`/`vdi_weekly_v1`/`vdi_plan_v1`/`vdi_transition_v1`는 도구 제거로 더 이상 로드 안 함 — 과거 데이터는 방치, 적극 삭제하지 않음.)
 
 ### 대시보드(`renderDash`, `#view-dash`)
-- **주요 일정 타임라인**(맨 위, `renderSchedule`/`vdi_sched_v1`): 프로젝트 기간(`start~end`, 기본 2026-04~2027-03) 막대 + 월 눈금 + 마일스톤 마커(지난 일정 녹색) + 오늘 위치 + 진행 채움. 아래 목록은 관리자가 `＋ 일정 추가`(`addScheduleItem`, 연-월+내용 prompt)·`✕`(`delScheduleItem`). 시드 `DEFAULT_SCHED`(착수·IT파일럿10·일부11·전체12·안정화'27.3).
+- **주요 일정 타임라인**(맨 위, `renderSchedule`/`vdi_sched_v1`): 기간(`start~end`, 기본 2026-04~2027-03) 위에 **단계 구간 색 막대**(`sched.phases`: 분석·설계·구현·시험·이행·오픈·안정화, 현재 단계 강조) + 월 눈금 + 오늘 선. **마일스톤은 마커(지난건 녹색) + 연결선(stem) + 콜아웃 박스**(2단 교차 배치, 좌/우 끝 앵커 보정)로 타임라인 옆에 표시. 관리자 `＋ 일정 추가`(`addScheduleItem`)·콜아웃 `✕`(`delScheduleItem`). 시드 `DEFAULT_SCHED`(단계 6 + 마일스톤: 착수·IT파일럿10·일부11·전체12·안정화'27.3). phases는 현재 시드만(편집 UI 없음).
 - 하단은 **3열 그리드로 통합**(`dash-grid-3`: 영역별 진척 | 주의 필요 안건 | 최근 변경) — 섹션 압축.
 - **최근 변경된 안건**: `updatedAt` 있는 행을 최신순 6건. 클릭 → `jumpToRow`.
 - **상태 현황 카드**: 전체/완료율 + 상태 4종(`CARD_STATUSES`=확정·논의중·확인필요·조치진행). **검토완료는 카드 없음 — 확정에 합산**(`statusCount`: 확정=확정+검토완료). 카드 클릭 → 전체 안건 + 해당 상태 필터.
