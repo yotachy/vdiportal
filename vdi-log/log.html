@@ -531,6 +531,57 @@
   tr.wbs-drop-before td{box-shadow:inset 0 2.5px 0 var(--gold);}
   tr.wbs-drop-after td{box-shadow:inset 0 -2.5px 0 var(--gold);}
 
+  /* ===== 주간보고 ===== */
+  .wk-wrap{padding:14px 34px 70px; display:flex; flex-direction:column; gap:14px;}
+  .wk-card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow-sm); overflow:hidden;}
+  .wk-head{display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:14px 18px; border-bottom:1px solid var(--line-faint);}
+  .wk-label{font-family:var(--font-display); font-size:1.02rem; color:var(--ink); letter-spacing:-.01em;}
+  .wk-period{font-size:.78rem; color:var(--ink-soft); white-space:nowrap;}
+  .wk-period input[type=date]{font-family:var(--font-body); font-size:.74rem; padding:3px 5px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); color-scheme:light;}
+  html[data-theme="dark"] .wk-period input[type=date]{color-scheme:dark;}
+  .wk-grow{flex:1;}
+  .wk-prog{display:flex; align-items:center; gap:8px; white-space:nowrap;}
+  .wk-prog-bar{width:120px; height:8px; border-radius:5px; background:var(--line-faint); overflow:hidden;}
+  .wk-prog-fill{height:100%; background:var(--st-disc); border-radius:5px;}
+  .wk-prog-num{font-family:var(--font-bold); font-size:.82rem; color:var(--st-disc);}
+  .wk-prog input{width:54px; font-size:.78rem; padding:3px 4px; border:1px solid var(--line); border-radius:6px; text-align:right; background:var(--card); color:var(--ink);}
+  .wk-del{border:none; background:transparent; color:#c2c9d3; cursor:pointer; padding:4px 6px; border-radius:6px; font-size:.9rem; line-height:1;}
+  .wk-del:hover{background:#fbeae8; color:var(--st-chk);}
+  body:not(.admin) .wk-del{display:none;}
+  .wk-body{display:grid; grid-template-columns:repeat(3,1fr); gap:0;}
+  .wk-sec{padding:14px 18px; border-right:1px solid var(--line-faint);}
+  .wk-sec:last-child{border-right:none;}
+  .wk-sec-t{font-family:var(--font-bold); font-size:.72rem; letter-spacing:.02em; color:var(--ink-faint); margin-bottom:8px; display:flex; align-items:center; gap:6px;}
+  .wk-sec-t .ni-dot{width:7px; height:7px; border-radius:50%;}
+  .wk-sec-t.t-done .ni-dot{background:var(--st-fix);} .wk-sec-t.t-plan .ni-dot{background:var(--st-disc);} .wk-sec-t.t-issue .ni-dot{background:var(--st-chk);}
+  .wk-items{font-size:.84rem; color:var(--ink-soft); line-height:1.7;}
+  .wk-items .wk-li{padding-left:14px; position:relative;}
+  .wk-items .wk-li::before{content:"–"; position:absolute; left:0; color:var(--ink-faint);}
+  .wk-items .wk-empty{color:var(--ink-faint); font-style:italic;}
+  .wk-edit{font-size:.84rem; color:var(--ink-soft); line-height:1.7; white-space:pre-wrap; min-height:1.7em; border-radius:6px;}
+  .wk-edit:focus, .wk-label[contenteditable]:focus{outline:none; box-shadow:inset 0 0 0 2px var(--gold); background:var(--gold-soft); border-radius:6px;}
+  @media (max-width:760px){ .wk-body{grid-template-columns:1fr;} .wk-sec{border-right:none; border-bottom:1px solid var(--line-faint);} }
+
+  /* ===== 수행계획서 ===== */
+  .plan-wrap{display:grid; grid-template-columns:220px 1fr; gap:24px; padding:14px 34px 70px; align-items:start;}
+  .plan-toc{position:sticky; top:82px; display:flex; flex-direction:column; gap:2px; font-size:.82rem;}
+  .plan-toc a{color:var(--ink-soft); text-decoration:none; padding:6px 10px; border-radius:var(--r-sm); border-left:2px solid transparent; line-height:1.4;}
+  .plan-toc a:hover{background:var(--line-faint); color:var(--ink);}
+  .plan-toc a .pt-num{font-family:var(--font-bold); color:var(--ink-faint); margin-right:6px;}
+  .plan-body{display:flex; flex-direction:column; gap:18px; min-width:0;}
+  .plan-sec{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow-sm); padding:20px 24px; scroll-margin-top:82px;}
+  .plan-sec-head{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .plan-sec-num{font-family:var(--font-bold); font-size:.9rem; color:var(--gold-strong); white-space:nowrap;}
+  .plan-sec-title{font-family:var(--font-display); font-size:1.12rem; color:var(--ink); letter-spacing:-.01em; flex:1;}
+  .plan-sec-act{display:flex; gap:2px; white-space:nowrap;}
+  .plan-sec-act button{border:none; background:transparent; color:#c2c9d3; cursor:pointer; padding:4px 6px; border-radius:6px; font-size:.82rem; line-height:1;}
+  .plan-sec-act button:hover{background:var(--line-faint); color:var(--ink);}
+  .plan-sec-act [data-pdel]:hover{background:#fbeae8; color:var(--st-chk);}
+  body:not(.admin) .plan-sec-act{display:none;}
+  .plan-sec-body{font-size:.9rem; color:var(--ink-soft); line-height:1.75; white-space:pre-wrap;}
+  .plan-sec-title[contenteditable]:focus, .plan-sec-body[contenteditable]:focus{outline:none; box-shadow:inset 0 0 0 2px var(--gold); background:var(--gold-soft); border-radius:6px;}
+  @media (max-width:760px){ .plan-wrap{grid-template-columns:1fr;} .plan-toc{position:static; flex-direction:row; flex-wrap:wrap;} }
+
   @media print{
     .apphd,.side,.toolbar,.add-row,.del-btn,.col-act,.add-area-wrap,.modal-bg,.nav-scrim,.delivbar{display:none !important;}
     body{background:#fff; padding:0;}
@@ -683,6 +734,43 @@
     <div class="wbs-scroll"><div id="wbsTable"></div></div>
   </section>
 
+  <!-- 뷰: 주간보고 (내장 인터랙티브) -->
+  <section id="view-weekly" class="view hidden">
+    <div class="loghd">
+      <div class="hd-eyebrow">프로젝트 · 정례보고</div>
+      <h1>주간보고</h1>
+      <div class="hd-sub" id="wkSpan"></div>
+    </div>
+    <div class="toolbar">
+      <span class="admin-only">
+        <button class="btn" id="wkAdd"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 주간보고 추가</button>
+        <span class="save-state" id="wkSaveState"></span>
+      </span>
+      <span class="wbs-hint">주차별 카드 · 금주 실적 / 차주 계획 / 이슈·리스크를 줄 단위로 작성(관리자)</span>
+    </div>
+    <div class="wk-wrap"><div id="wkList"></div></div>
+  </section>
+
+  <!-- 뷰: 수행계획서 (내장 인터랙티브) -->
+  <section id="view-execplan" class="view hidden">
+    <div class="loghd">
+      <div class="hd-eyebrow">프로젝트 · 사업관리 (PM-01)</div>
+      <h1>수행계획서</h1>
+      <div class="hd-sub" id="planSpan"></div>
+    </div>
+    <div class="toolbar">
+      <span class="admin-only">
+        <button class="btn" id="planAdd"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 섹션 추가</button>
+        <span class="save-state" id="planSaveState"></span>
+      </span>
+      <span class="wbs-hint">좌측 목차로 이동 · 섹션 제목/본문 편집·추가·삭제·순서(관리자)</span>
+    </div>
+    <div class="plan-wrap">
+      <nav class="plan-toc" id="planToc"></nav>
+      <div class="plan-body" id="planBody"></div>
+    </div>
+  </section>
+
   </div>
 </div>
 
@@ -780,6 +868,10 @@ function applyMode(){
   if(hub) renderSidebar();
   const vw=document.getElementById("view-wbs");
   if(vw && !vw.classList.contains("hidden") && wbsTasks.length) renderWbs();
+  const vk=document.getElementById("view-weekly");
+  if(vk && !vk.classList.contains("hidden")) renderWeekly();
+  const vp=document.getElementById("view-execplan");
+  if(vp && !vp.classList.contains("hidden")) renderPlan();
 }
 function restoreSession(){
   try{
@@ -2210,7 +2302,7 @@ const DELIV_STATUSES=["예정","작성중","검토중","확정"];
 const TIERS=["필수","권장","선택"];
 const OWNERS=["수행사","발주","공동"];
 const FORMS=["미정","목차","확정"];   // 양식(가이드) 성숙도
-const HUB_MASTER_V=5;                  // 마스터 시드 버전(증가 시 1회 재시드)
+const HUB_MASTER_V=6;                  // 마스터 시드 버전(증가 시 1회 재시드)
 /* 감리 표준 산출물 체계 기반 마스터 목록(단계 × 유형 × 필수도). 실제 수행계획서 목록과 대조해 가감. */
 const DEFAULT_HUB=(()=>{
   const cats=[
@@ -2226,6 +2318,8 @@ const DEFAULT_HUB=(()=>{
   const items=[
     {id:"log", name:"논의·결정사항 관리대장", type:"builtin", builtinKey:"log", status:"확정", tier:"필수", owner:"발주", form:"확정", desc:"영역별 안건·결정·후속조치 실시간 추적(발주 자체관리)"},
     {id:"wbs", name:"WBS · 일정계획", type:"builtin", builtinKey:"wbs", status:"작성중", tier:"필수", owner:"수행사", form:"목차", desc:"작업분해구조·일정·진척(간트). PM-02 일정계획서"},
+    {id:"weekly", name:"주간보고", type:"builtin", builtinKey:"weekly", code:"PM-08", status:"작성중", tier:"권장", owner:"수행사", form:"목차", desc:"주차별 진척·실적·계획·이슈 정례보고(PM-08)"},
+    {id:"execplan", name:"수행계획서", type:"builtin", builtinKey:"execplan", code:"PM-01", status:"작성중", tier:"필수", owner:"수행사", form:"목차", desc:"사업 수행계획 섹션 문서(개요·체계·일정·관리·위험). PM-01"},
   ];
   // 화면정의서(이미 작성된 링크 문서) — 통합본 + 화면별 14건
   [["sd000","화면정의서 통합본","VDI-SD-000","full-spec","전체 14개 화면 통합본"],
@@ -2239,7 +2333,6 @@ const DEFAULT_HUB=(()=>{
   ].forEach(([id,name,code,file,desc])=>items.push({id,catId:"spec",name,code,type:"link",url:"../deliverables/"+file+".html",status:"검토중",tier:"필수",owner:"공동",form:"확정",desc}));
   // 등록부(레지스트리) — 아직 양식/문서 미연결 산출물. [cat, code, 이름, 책임, 필수도, 양식, 설명/검수포인트]
   [
-    ["plan","PM-01","사업수행계획서","수행사","필수","목차","사업 범위·추진체계·일정·품질·위험 총괄. 착수 즉시 확정"],
     ["plan","PM-03","투입인력계획서","수행사","필수","목차","역할별 투입인력·기간(M/M). 실투입과 대조"],
     ["plan","PM-04","품질보증계획서","수행사","권장","미정","품질활동·검토(인스펙션)·지표"],
     ["plan","PM-05","형상관리계획서","수행사","권장","미정","산출물·소스 버전/변경 통제 절차"],
@@ -2360,14 +2453,17 @@ function renderSidebar(){
   sb.innerHTML=h;
 }
 
-function showView(id){ ["view-log","view-wbs","view-deliv"].forEach(v=>document.getElementById(v).classList.toggle("hidden", v!==id)); }
+function showView(id){ ["view-log","view-wbs","view-weekly","view-execplan","view-deliv"].forEach(v=>document.getElementById(v).classList.toggle("hidden", v!==id)); }
 function selectItem(id){
   const it=hub.items.find(i=>i.id===id); if(!it) return;
   hub.active=id; saveHub();
   document.body.classList.remove("nav-open");
   const vdel=document.getElementById("view-deliv");
   if(it.type==="builtin"){
-    if((it.builtinKey||"log")==="wbs"){ showView("view-wbs"); renderWbs(); }
+    const bk=it.builtinKey||"log";
+    if(bk==="wbs"){ showView("view-wbs"); renderWbs(); }
+    else if(bk==="weekly"){ showView("view-weekly"); renderWeekly(); }
+    else if(bk==="execplan"){ showView("view-execplan"); renderPlan(); }
     else showView("view-log");
   }else{
     showView("view-deliv");
@@ -2705,8 +2801,125 @@ function wbsIndent(i,delta){ const newLvl=wbsTasks[i].level+delta; if(newLvl<0) 
   document.getElementById("wbsSave").addEventListener("click",()=>saveWbs(true));
 })();
 
+/* ===================== 주간보고 (내장) ===================== */
+const WEEKLY_KEY="vdi_weekly_v1";
+let weekly=[], weeklyMeta={};
+const DEFAULT_WEEKLY={ meta:{}, reports:[
+  {label:"2026-W24", start:"2026-06-08", end:"2026-06-12", progress:62,
+    done:["화면·프로그램 설계 85% 진행","DB 설계(ERD) 착수","요구사항추적표(RTM) 1차 갱신"],
+    plan:["인터페이스 설계서 초안 완료","계정·인사연동 규격 협의 마무리"],
+    issues:["계정연동 규격 확정 지연 — 인사시스템 담당 협의 필요"]},
+  {label:"2026-W23", start:"2026-06-01", end:"2026-06-05", progress:55,
+    done:["아키텍처 설계서 확정","화면설계서 착수(공통·포탈)"],
+    plan:["DB·인터페이스 설계 병행 착수","점검 공지(06.01) 반영 확인"],
+    issues:["고정가상화 자원 산정 기준 재확인 필요"]},
+  {label:"2026-W22", start:"2026-05-25", end:"2026-05-29", progress:48,
+    done:["요구사항정의서 확정","화면정의서 14종 검토 완료"],
+    plan:["아키텍처 설계 마무리","설계 단계 착수"],
+    issues:[]},
+]};
+function weeklyEnsureIds(){ weekly.forEach(r=>{ if(!r.id)r.id=genId(); ["done","plan","issues"].forEach(k=>{ if(!Array.isArray(r[k]))r[k]=[]; }); if(r.progress==null)r.progress=0; }); }
+function loadWeekly(){
+  try{ const raw=localStorage.getItem(WEEKLY_KEY); if(raw){ const d=JSON.parse(raw); weekly=d.reports||[]; weeklyMeta=d.meta||{}; } }catch(e){}
+  if(!weekly.length){ const d=JSON.parse(JSON.stringify(DEFAULT_WEEKLY)); weekly=d.reports; weeklyMeta=d.meta; }
+  weeklyEnsureIds();
+}
+function saveWeekly(show=true){ try{ localStorage.setItem(WEEKLY_KEY, JSON.stringify({reports:weekly,meta:weeklyMeta})); if(show)flashState("wkSaveState","저장됨 "+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})); }catch(e){ if(show)flashState("wkSaveState","저장 불가"); } }
+function flashState(id,m){ const el=document.getElementById(id); if(!el)return; el.textContent=m; el.classList.add("ok"); clearTimeout(el._t); el._t=setTimeout(()=>{el.textContent="";el.classList.remove("ok");},3500); }
+function wkSec(r,key,title,cls){
+  const am=isAdmin();
+  const inner = am
+    ? `<div class="wk-edit" contenteditable data-wkf="${key}">${escHtml((r[key]||[]).join("\n"))}</div>`
+    : `<div class="wk-items">${(r[key]&&r[key].length)? r[key].map(x=>`<div class="wk-li">${escHtml(x)}</div>`).join("") : `<div class="wk-empty">—</div>`}</div>`;
+  return `<div class="wk-sec"><div class="wk-sec-t ${cls}"><span class="ni-dot"></span>${title}</div>${inner}</div>`;
+}
+function renderWeekly(){
+  const host=document.getElementById("wkList"); if(!host)return;
+  const am=isAdmin();
+  const span=document.getElementById("wkSpan");
+  if(span){ const latest=weekly[0]; span.textContent = weekly.length? `총 ${weekly.length}건 · 최근 ${latest.label||""} 진척 ${latest.progress||0}%` : "등록된 주간보고가 없습니다"; }
+  host.innerHTML = weekly.map(r=>`
+    <div class="wk-card" data-wid="${r.id}">
+      <div class="wk-head">
+        <div class="wk-label" ${am?'contenteditable data-wkf="label"':''}>${escHtml(r.label||"")}</div>
+        <div class="wk-period">${am
+          ? `<input type="date" data-wkf="start" value="${r.start||""}"> ~ <input type="date" data-wkf="end" value="${r.end||""}">`
+          : `${fmtD(r.start)} ~ ${fmtD(r.end)}`}</div>
+        <span class="wk-grow"></span>
+        <div class="wk-prog">
+          <div class="wk-prog-bar"><div class="wk-prog-fill" style="width:${r.progress||0}%"></div></div>
+          ${am? `<input type="number" data-wkf="progress" min="0" max="100" value="${r.progress||0}">` : `<span class="wk-prog-num">${r.progress||0}%</span>`}
+        </div>
+        ${am?`<button class="wk-del" title="삭제">✕</button>`:""}
+      </div>
+      <div class="wk-body">
+        ${wkSec(r,"done","금주 실적","t-done")}
+        ${wkSec(r,"plan","차주 계획","t-plan")}
+        ${wkSec(r,"issues","이슈·리스크","t-issue")}
+      </div>
+    </div>`).join("");
+}
+(function(){
+  const wl=document.getElementById("wkList"); if(!wl)return;
+  const rowOf=el=>{ const c=el.closest("[data-wid]"); return c?weekly.find(x=>x.id===c.dataset.wid):null; };
+  wl.addEventListener("focusout",e=>{ if(!isAdmin())return; const el=e.target.closest("[data-wkf]"); if(!el||el.tagName==="INPUT")return; const r=rowOf(el); if(!r)return; const f=el.dataset.wkf;
+    if(f==="label"){ const v=el.innerText.trim(); if(r.label!==v){ r.label=v; saveWeekly(false); } }
+    else { r[f]=el.innerText.split("\n").map(s=>s.replace(/ /g," ").trim()).filter(Boolean); saveWeekly(false); } });
+  wl.addEventListener("change",e=>{ if(!isAdmin())return; const el=e.target.closest("input[data-wkf]"); if(!el)return; const r=rowOf(el); if(!r)return; const f=el.dataset.wkf; r[f]= f==="progress"? Math.max(0,Math.min(100,parseInt(el.value,10)||0)) : el.value; saveWeekly(); renderWeekly(); });
+  wl.addEventListener("click",e=>{ if(!isAdmin())return; const d=e.target.closest(".wk-del"); if(!d)return; const r=rowOf(d); if(!r)return; if(!confirm(`"${r.label||"(제목없음)"}" 주간보고를 삭제할까요?`))return; weekly=weekly.filter(x=>x.id!==r.id); saveWeekly(); renderWeekly(); });
+  document.getElementById("wkAdd").addEventListener("click",()=>{ if(!isAdmin())return; weekly.unshift({id:genId(),label:"새 주차",start:"",end:"",progress:0,done:[],plan:[],issues:[]}); saveWeekly(); renderWeekly(); });
+})();
+
+/* ===================== 수행계획서 (내장) ===================== */
+const PLAN_KEY="vdi_plan_v1";
+let planSecs=[], planMeta={};
+const DEFAULT_PLAN={ meta:{}, sections:[
+  {title:"사업 개요", body:"KB손해보험 업무가상화(VDI) 사용자 포탈 신규 구축 사업의 수행계획을 정의한다.\n- 목적: 임직원 업무환경의 가상화 전환으로 보안성·이동성·운영효율 제고\n- 대상: 고정가상화 기반 사용자 포탈 및 신청·결재·지원 서비스\n- 기대효과: 표준 업무환경 제공, 단말 보안 강화, 자원 통합 운영"},
+  {title:"사업 범위", body:"- 사용자 포탈 화면(로그인·메인·신청·결재·장애·공지·FAQ·자료실) 구축\n- VDI 신청/연장/증설/잠금해제 등 신청·결재 프로세스 구현\n- 계정·인사 연동 및 인증·정보보호 체계 연계\n- 운영 이관 및 안정화 지원\n※ 공용가상화·임시형 및 대리신청은 범위에서 제외(고정가상화 단일)"},
+  {title:"추진 체계", body:"- 발주(KB손해보험): 요건 확정·검수·의사결정 (IT기획파트)\n- 수행사: 분석·설계·구현·시험·이행 전반 수행\n- 공동: 요구사항 정의, 인수테스트(UAT), 시범운영\n- 의사결정은 논의·결정사항 관리대장으로 추적"},
+  {title:"추진 일정", body:"전체 일정: 2026.04 ~ 2026.09 (착수~안정화·종료)\n- 분석/설계: 2026.04 ~ 06\n- 구현: 2026.06 ~ 08\n- 시험: 2026.08\n- 이행·전개·안정화: 2026.09\n※ 세부 일정·진척은 [WBS·일정계획] 도구 참조"},
+  {title:"품질·형상·보안 관리 방안", body:"- 품질: 단계별 산출물 검토(인스펙션)와 결함 추적, 감리 표준 산출물 체계 준수\n- 형상: 산출물·소스 버전 통제, 변경요청서(CR) 기반 변경 관리\n- 보안: 금융권 보안요건 적용, 접근통제·개인정보 보호, 보안취약점 점검"},
+  {title:"위험 관리 방안", body:"- 계정·인사 연동 규격 확정 지연 → 조기 협의·인터페이스 우선 설계\n- 요구사항 변경 → 변경영향 분석·승인 절차로 통제\n- 일정 리스크 → 주간보고로 진척 모니터링, 임계 시 자원 조정"},
+  {title:"의사소통·보고 체계", body:"- 주간 단위 진척보고([주간보고] 도구)\n- 수시 의사결정 기록(논의·결정사항 관리대장)\n- 헬프데스크 1544-8119(평일 09:00~18:00) 연계 운영 지원"},
+]};
+function planEnsureIds(){ planSecs.forEach(s=>{ if(!s.id)s.id=genId(); if(s.title==null)s.title=""; if(s.body==null)s.body=""; }); }
+function loadPlan(){
+  try{ const raw=localStorage.getItem(PLAN_KEY); if(raw){ const d=JSON.parse(raw); planSecs=d.sections||[]; planMeta=d.meta||{}; } }catch(e){}
+  if(!planSecs.length){ const d=JSON.parse(JSON.stringify(DEFAULT_PLAN)); planSecs=d.sections; planMeta=d.meta; }
+  planEnsureIds();
+}
+function savePlan(show=true){ try{ localStorage.setItem(PLAN_KEY, JSON.stringify({sections:planSecs,meta:planMeta})); if(show)flashState("planSaveState","저장됨 "+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})); }catch(e){ if(show)flashState("planSaveState","저장 불가"); } }
+function renderPlanToc(){ const toc=document.getElementById("planToc"); if(!toc)return; toc.innerHTML=planSecs.map((s,i)=>`<a href="#" data-pjump="${s.id}"><span class="pt-num">${i+1}</span>${escHtml(s.title||"(제목없음)")}</a>`).join(""); }
+function renderPlan(){
+  const body=document.getElementById("planBody"); if(!body)return;
+  const am=isAdmin();
+  const span=document.getElementById("planSpan");
+  if(span) span.textContent = `${planSecs.length}개 섹션`;
+  renderPlanToc();
+  body.innerHTML=planSecs.map((s,i)=>`
+    <div class="plan-sec" id="psec-${s.id}" data-pid="${s.id}">
+      <div class="plan-sec-head">
+        <span class="plan-sec-num">${i+1}</span>
+        <div class="plan-sec-title" ${am?'contenteditable data-pf="title"':''}>${escHtml(s.title||"")}</div>
+        ${am?`<div class="plan-sec-act"><button data-pup title="위로">↑</button><button data-pdown title="아래로">↓</button><button data-pdel title="삭제">✕</button></div>`:""}
+      </div>
+      <div class="plan-sec-body" ${am?'contenteditable data-pf="body"':''}>${escHtml(s.body||"")}</div>
+    </div>`).join("");
+}
+(function(){
+  const pb=document.getElementById("planBody"); if(!pb)return;
+  const secOf=el=>{ const c=el.closest("[data-pid]"); return c?planSecs.find(x=>x.id===c.dataset.pid):null; };
+  pb.addEventListener("focusout",e=>{ if(!isAdmin())return; const el=e.target.closest("[data-pf]"); if(!el)return; const s=secOf(el); if(!s)return; const f=el.dataset.pf; const v = f==="title"? el.innerText.trim() : el.innerText.replace(/ /g," "); if(s[f]!==v){ s[f]=v; savePlan(false); if(f==="title") renderPlanToc(); } });
+  pb.addEventListener("click",e=>{ if(!isAdmin())return; const c=e.target.closest("[data-pid]"); if(!c)return; const i=planSecs.findIndex(x=>x.id===c.dataset.pid); if(i<0)return;
+    if(e.target.closest("[data-pdel]")){ if(!confirm(`"${planSecs[i].title||"(제목없음)"}" 섹션을 삭제할까요?`))return; planSecs.splice(i,1); savePlan(); renderPlan(); }
+    else if(e.target.closest("[data-pup]")){ if(i>0){ [planSecs[i-1],planSecs[i]]=[planSecs[i],planSecs[i-1]]; savePlan(); renderPlan(); } }
+    else if(e.target.closest("[data-pdown]")){ if(i<planSecs.length-1){ [planSecs[i+1],planSecs[i]]=[planSecs[i],planSecs[i+1]]; savePlan(); renderPlan(); } } });
+  document.getElementById("planToc").addEventListener("click",e=>{ const a=e.target.closest("[data-pjump]"); if(!a)return; e.preventDefault(); const el=document.getElementById("psec-"+a.dataset.pjump); if(el)el.scrollIntoView({behavior:"smooth",block:"start"}); });
+  document.getElementById("planAdd").addEventListener("click",()=>{ if(!isAdmin())return; const s={id:genId(),title:"새 섹션",body:""}; planSecs.push(s); savePlan(); renderPlan(); const el=document.getElementById("psec-"+s.id); if(el)el.scrollIntoView({behavior:"smooth",block:"start"}); });
+})();
+
 /* 시작 */
-initTheme(); restoreSession(); loadData(); loadHub(); loadWbs(); applyMode(); render(); updateSortBtn(); selectItem(hub.active);
+initTheme(); restoreSession(); loadData(); loadHub(); loadWbs(); loadWeekly(); loadPlan(); applyMode(); render(); updateSortBtn(); selectItem(hub.active);
 </script>
 </body>
 </html>

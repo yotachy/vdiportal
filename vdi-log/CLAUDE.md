@@ -10,8 +10,11 @@
 `vdi-log/log.html` = **KB손해보험 업무가상화(VDI) 구축 프로젝트의 산출물 허브**.
 좌측 **사이드바**(카테고리 > 산출물)로 프로젝트 산출물을 한 곳에서 관리·열람하며, 그중 하나가 **논의·결정사항 관리대장**(내장 인터랙티브 화면)입니다.
 
-- **셸 구조**: 글로벌 헤더(브랜드·관리자 로그인·테마) → `[사이드바 | 본문]`. 본문은 2뷰 라우팅:
+- **셸 구조**: 글로벌 헤더(브랜드·관리자 로그인·테마) → `[사이드바 | 본문]`. 본문은 다중 뷰 라우팅(`showView`):
   - `#view-log` — 논의·결정사항 관리대장(기존 도구 그대로: 필터·검색·표·Excel·변경이력 등).
+  - `#view-wbs` — WBS·일정계획(아웃라인 + 간트).
+  - `#view-weekly` — 주간보고(주차별 카드).
+  - `#view-execplan` — 수행계획서(섹션형 편집 문서).
   - `#view-deliv` — 링크형 산출물의 `iframe` 미리보기(상단바: 코드·제목·상태·`↗ 새 탭`).
 - **관리대장**: 회의·업무 안건을 영역별로 등록하고 **결정사항·후속조치·책임부서·중요도·상태**를 추적. 이제 허브의 한 메뉴(`type:"builtin"`).
 
@@ -59,9 +62,19 @@
 localStorage["vdi_hub_v1"]          = { cats, items, active, collapsed }  // 산출물 허브(사이드바)
 localStorage["vdi_decision_log_v3"] = { columns, areas, rows, meta }      // 관리대장 본문
 localStorage["vdi_wbs_v1"]          = { tasks, meta }                     // WBS·일정계획 본문
+localStorage["vdi_weekly_v1"]       = { reports, meta }                   // 주간보고 본문
+localStorage["vdi_plan_v1"]         = { sections, meta }                  // 수행계획서 본문
 ```
 
-> **내장 도구(builtin) 2종**: 사이드바 상단 고정. `관리대장`(`builtinKey:"log"` → `#view-log`) · `WBS·일정계획`(`builtinKey:"wbs"` → `#view-wbs`). `selectItem`이 `showView()`로 라우팅. 각자 별도 저장소(위)라 카탈로그(`vdi_hub_v1`) 재시드와 무관.
+> **내장 도구(builtin) 4종**: 사이드바 상단 고정(`.nav-pinned`, 카테고리 밖·삭제/링크 불가). `관리대장`(`builtinKey:"log"` → `#view-log`) · `WBS·일정계획`(`builtinKey:"wbs"` → `#view-wbs`) · `주간보고`(`builtinKey:"weekly"` → `#view-weekly`) · `수행계획서`(`builtinKey:"execplan"` → `#view-execplan`). `selectItem`이 `showView()`로 라우팅. 각자 별도 저장소(위)라 카탈로그(`vdi_hub_v1`) 재시드와 무관. WBS=PM-02·수행계획서=PM-01을 흡수하므로 레지스트리에는 두 코드가 없다.
+
+### 주간보고(`vdi_weekly_v1`)
+- **reports** — 주차별 보고 `{id, label, start, end(ISO), progress(0~100), done[], plan[], issues[]}`. 화면 표시 순서=배열 순서(신규는 맨 위 unshift).
+- 카드 목록(최신 위). 헤더=라벨·기간·진척바/%. 본문 3블록(금주 실적/차주 계획/이슈·리스크)은 줄 단위 항목. 관리자: 라벨(contenteditable)·기간(date)·진척(number)·3블록(contenteditable, 줄=항목) 편집, ＋추가/✕삭제. 시드 `DEFAULT_WEEKLY`(3주차). `render`=`renderWeekly`.
+
+### 수행계획서(`vdi_plan_v1`)
+- **sections** — 섹션 `{id, title, body}`. 화면 표시 순서=배열 순서. 번호는 순서로 자동.
+- 좌측 목차(앵커 스크롤) + 우측 섹션 본문(줄바꿈 보존, `white-space:pre-wrap`). 관리자: 제목·본문(contenteditable) 편집, ＋섹션 추가·✕삭제·↑↓ 순서. 시드 `DEFAULT_PLAN`(7섹션). `render`=`renderPlan`(+`renderPlanToc`).
 
 ### WBS(`vdi_wbs_v1`)
 - **tasks** — 평면 아웃라인 리스트 `{id, name, level(0=단계,1,2…), start, end(ISO), owner, progress(0~100)}`. 화면 표시 순서=배열 순서. WBS 코드(`1.2.3`)는 `level`+순서로 자동 계산.
@@ -75,7 +88,7 @@ localStorage["vdi_wbs_v1"]          = { tasks, meta }                     // WBS
   - 메타: `tier`(필수/권장/선택 `TIERS`), `owner`(수행사/발주/공동 `OWNERS`), `form`(양식 성숙도 미정/목차/확정 `FORMS`), `status`(예정/작성중/검토중/확정 `DELIV_STATUSES`). 추가/편집 모달(`openItemModal`).
   - `type:"builtin"` — 내장 도구(`builtinKey`로 뷰 라우팅). `관리대장`(`log`)·`WBS·일정계획`(`wbs`) 2종. **카테고리 밖**(`catId` 없음), 사이드바 **상단 고정**(`.nav-pinned`), 삭제·링크 불가.
   - `type:"link"` + **url 있음** → `iframe` 미리보기(화면정의서 통합본+14, install). **url 비어있음** → **등록부(레지스트리)**: `iframe` 대신 **산출물 정의 카드**(`buildDelivCard` — 문서ID·단계·필수도·책임·양식성숙도·진행상태·설명/검수 + 관리자 '편집·링크 연결'). 양식 확정 후 url 연결.
-  - **시드 = 감리 표준 산출물 마스터**(`DEFAULT_HUB`, IIFE 생성): 단계별 PM/공학/검증/전환 산출물 ~34건 + 화면정의서 15 + 관리대장. 실제 수행계획서 목록과 대조해 가감.
+  - **시드 = 감리 표준 산출물 마스터**(`DEFAULT_HUB`, IIFE 생성): 내장 도구 4종 + 단계별 PM/공학/검증/전환 산출물(레지스트리) + 화면정의서 15. 실제 수행계획서 목록과 대조해 가감(현 `HUB_MASTER_V=6`).
   - 마이그레이션: `loadHub`가 `_masterV < HUB_MASTER_V`이면 **1회 재시드**(카탈로그를 마스터로 갱신, 사용자 추가 항목은 `기타`로 보존, 관리대장 본문 데이터 `vdi_decision_log_v3`는 별도 저장소라 무영향).
 - **active** — 현재 선택 산출물 id(영속). `selectItem(id)`가 뷰 전환 + iframe src 세팅(같은 url 재선택 시 리로드 안 함).
 - 관리자 기능: 산출물 추가/편집/삭제(`openItemModal`), 카테고리 관리. 시드는 `DEFAULT_HUB`. **스키마 변경 시 `loadHub` 보정 로직(builtin 보장·고아 catId 복구)도 갱신**.
@@ -112,8 +125,10 @@ localStorage["vdi_wbs_v1"]          = { tasks, meta }                     // WBS
 | 산출물 사이드바 | 카테고리 > 산출물 트리, 카테고리 접기(영속 `hub.collapsed`), 활성 항목 하이라이트. **항목 드래그로 순서 변경**(같은 그룹 내, 관리자, `hub.items` 순서 저장). 모바일(<880px) 햄버거 토글(`#btnNav`·스크림) |
 | 카테고리 레벨관리 | 추가·이름·순서(▲▼)·삭제(`openCatsModal`, 관리자) |
 | 산출물 추가/편집 | 제목·카테고리·상태·코드·링크·설명(`openItemModal`, 관리자). 내장(관리대장)은 삭제·링크 불가 |
-| 산출물 미리보기 | 링크형은 우측 `iframe`(`#delivFrame`) + `↗ 새 탭`. 내장(관리대장·WBS)은 자체 화면 |
+| 산출물 미리보기 | 링크형은 우측 `iframe`(`#delivFrame`) + `↗ 새 탭`. 내장(관리대장·WBS·주간보고·수행계획서)은 자체 화면 |
 | WBS·일정계획(내장) | 아웃라인+간트 도구. 단계/작업 추가·들여쓰기·드래그 정렬·진척 입력, 부모 롤업, 월 눈금 간트(`renderWbs`, `vdi_wbs_v1`) |
+| 주간보고(내장) | 주차별 카드. 기간·진척·금주실적/차주계획/이슈 줄 단위 작성, ＋추가/✕삭제(`renderWeekly`, `vdi_weekly_v1`) |
+| 수행계획서(내장) | 섹션형 편집 문서(PM-01). 목차+본문, 제목/본문 편집·섹션 추가/삭제/순서(`renderPlan`, `vdi_plan_v1`) |
 | 필터 | 영역 / 상태 / 중요도 셀렉트 + 활성 필터 칩(개별 해제) |
 | 검색 | 안건·내용 전문 검색 + `<mark>` 하이라이트 |
 | 요약 카드 | 상태별 건수, 클릭 시 상태 필터 토글 |
