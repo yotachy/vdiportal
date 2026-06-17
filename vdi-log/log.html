@@ -1847,32 +1847,38 @@ function layoutRO(ovr){
   fp.addEventListener("change",function(){state.pri=fp.value;applyAll();});
   q.addEventListener("input",function(){state.q=q.value.trim().toLowerCase();applyAll();});
 })();
-/* 컬럼 폭 수동 조절 — 드래그한 컬럼만 키우고 나머지 비례 축소(합계=컨테이너, 가로 스크롤 없음) */
+/* 컬럼 폭 수동 조절 — 경계 드래그 시 그 컬럼과 '바로 오른쪽 인접 컬럼'만 폭을 주고받음(나머지 불변·합계 유지·가로 스크롤 없음) */
 (function(){
-  var drag=null;
+  var active=null;
+  function pxOf(el){return parseFloat(el&&el.style.width)||0;}
   document.addEventListener("mousedown",function(e){
     var h=e.target.closest(".cr");if(!h)return;
     var th=h.closest("th");var ci=+th.getAttribute("data-ci");
     if(ci>=weights.length-1)return;
-    var host=firstHost();if(!host)return;
-    var avail=host.clientWidth;
-    var dTot=0,i;for(i=0;i<weights.length;i++)dTot+=weights[i];if(dTot<=0)dTot=1;
-    var othersMin=0;for(i=0;i<COLS.length;i++)if(i!==ci)othersMin+=COLS[i].min;
-    drag={ci:ci,x:e.clientX,startPx:weights[ci]/dTot*avail,othersSum:dTot-weights[ci],avail:avail,selfMin:COLS[ci].min,othersMin:othersMin,newW:null};
+    var t=th.closest("table");if(!t)return;
+    var cols=t.querySelector("colgroup").children;
+    var leftPx=pxOf(cols[ci]),rightPx=pxOf(cols[ci+1]);
+    if(leftPx<=0||rightPx<=0)return;
+    active={ci:ci,startX:e.clientX,leftPx:leftPx,rightPx:rightPx,pair:leftPx+rightPx,leftMin:COLS[ci].min,rightMin:COLS[ci+1].min};
     document.body.style.userSelect="none";document.body.style.cursor="col-resize";e.preventDefault();
   });
   document.addEventListener("mousemove",function(e){
-    if(!drag)return;
-    var p=drag.startPx+(e.clientX-drag.x);
-    p=Math.max(drag.selfMin,Math.min(p,drag.avail-drag.othersMin));
-    var frac=p/drag.avail;
-    drag.newW=drag.othersSum*frac/Math.max(0.0001,(1-frac));
-    layoutRO({i:drag.ci,w:drag.newW});
+    if(!active)return;
+    var nl=active.leftPx+(e.clientX-active.startX);
+    nl=Math.max(active.leftMin,Math.min(nl,active.pair-active.rightMin));
+    var nr=active.pair-nl;
+    [].slice.call(document.querySelectorAll(".area table")).forEach(function(t){
+      var cols=t.querySelector("colgroup").children;
+      if(cols[active.ci])cols[active.ci].style.width=nl+"px";
+      if(cols[active.ci+1])cols[active.ci+1].style.width=nr+"px";
+    });
   });
   document.addEventListener("mouseup",function(){
-    if(!drag)return;
-    if(drag.newW!=null)weights[drag.ci]=drag.newW;
-    drag=null;document.body.style.userSelect="";document.body.style.cursor="";
+    if(!active)return;
+    var host=firstHost();
+    if(host){ var t=host.querySelector("table"); var cols=t.querySelector("colgroup").children;
+      for(var i=0;i<weights.length;i++){ var px=pxOf(cols[i]); if(px>0)weights[i]=px; } }
+    active=null;document.body.style.userSelect="";document.body.style.cursor="";
   });
 })();
 var _rt=null;window.addEventListener("resize",function(){clearTimeout(_rt);_rt=setTimeout(layoutRO,120);});
@@ -2046,36 +2052,44 @@ document.addEventListener("click",e=>{
   head.closest(".area").classList.toggle("collapsed",collapsedAreas.has(id));
 });
 
-/* 컬럼 폭 조절 — 드래그한 컬럼만 키우고 나머지 전체가 비율로 줄어듦(합계=컨테이너, 가로 스크롤 없음). 가중치 저장 */
+/* 컬럼 폭 조절 — 경계를 드래그하면 그 컬럼과 '바로 오른쪽 인접 컬럼'만 폭을 주고받음(나머지 불변·합계 유지·가로 스크롤 없음). 끝나면 현재 폭 전부 고정 저장. */
 (function(){
-  let col=null,startX=0,startPx=0,othersSum=0,avail=0,othersMin=0,selfMin=44,newW=null;
+  let active=null;
+  const pxOf=el=>parseFloat(el&&el.style.width)||0;
   document.addEventListener("mousedown",e=>{
     const h=e.target.closest("[data-col-resize]"); if(!h||!isAdmin()) return;
     const vis=getVisCols(); const ci=vis.findIndex(c=>c.key===h.dataset.colResize);
     if(ci<0||ci>=vis.length-1) return;               // 마지막 컬럼은 핸들 없음
+    const t=h.closest("table"); if(!t) return;
+    const cols=t.querySelector("colgroup").children;
+    const leftPx=pxOf(cols[ci]), rightPx=pxOf(cols[ci+1]);
+    if(leftPx<=0||rightPx<=0) return;                 // 폭 미배치 상태면 무시(layoutCols 후 동작)
     e.preventDefault(); e.stopPropagation();
-    col=columns.find(c=>c.key===vis[ci].key); if(!col){ return; }
-    const t=h.closest("table"); avail=Math.max(1,((t&&t.clientWidth)?t.clientWidth:1000)-ACT_PX);
-    const dTot=vis.reduce((s,c)=>s+effW(c),0)||1;
-    othersSum=dTot-effW(col);
-    selfMin=colMin(col);
-    othersMin=vis.reduce((s,c)=>s+(c.key===col.key?0:colMin(c)),0);
-    startX=e.clientX; startPx=effW(col)/dTot*avail; newW=null;
+    active={ ci, startX:e.clientX, leftPx, rightPx, pair:leftPx+rightPx,
+             leftMin:colMin(vis[ci]), rightMin:colMin(vis[ci+1]) };
     document.body.classList.add("col-resizing");
     h.closest("th").setAttribute("draggable","false");
   });
   document.addEventListener("mousemove",e=>{
-    if(!col) return;
-    let p=startPx+(e.clientX-startX);
-    p=Math.max(selfMin, Math.min(p, avail-othersMin));   // 나머지 컬럼이 최소폭은 유지하도록 상한
-    const frac=p/avail;
-    newW=othersSum*frac/Math.max(0.0001,(1-frac));        // 이 컬럼만의 새 가중치
-    layoutCols({key:col.key, weight:newW});
+    if(!active) return;
+    let nl=active.leftPx+(e.clientX-active.startX);
+    nl=Math.max(active.leftMin, Math.min(nl, active.pair-active.rightMin));
+    const nr=active.pair-nl;
+    document.querySelectorAll(".tbl-scroll table").forEach(t=>{
+      const cols=t.querySelector("colgroup").children;
+      if(cols[active.ci]) cols[active.ci].style.width=nl+"px";
+      if(cols[active.ci+1]) cols[active.ci+1].style.width=nr+"px";
+    });
   });
   document.addEventListener("mouseup",()=>{
-    if(!col) return;
-    if(newW!=null){ col.width=Math.max(1,Math.round(newW)); col.userW=true; }
-    col=null; newW=null;
+    if(!active) return;
+    // 현재 렌더된 모든 데이터 컬럼 폭을 그대로 고정(userW) → 재렌더·리사이즈에도 인접 외 컬럼 불변
+    const vis=getVisCols();
+    const t=document.querySelector(".area:not(.collapsed) .tbl-scroll table")||document.querySelector(".tbl-scroll table");
+    if(t){ const cols=t.querySelector("colgroup").children;
+      vis.forEach((c,i)=>{ const px=pxOf(cols[i]); if(px>0){ const real=columns.find(cc=>cc.key===c.key); if(real){ real.width=Math.round(px); real.userW=true; } } });
+    }
+    active=null;
     document.body.classList.remove("col-resizing");
     saveData(); render();
   });
