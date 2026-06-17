@@ -993,6 +993,28 @@ function orderedAreaRows(areaId, ai){
 }
 function hasChildren(id){ return !!id && rows.some(r=>r.parentId===id); }
 
+/* 컬럼 자동 폭 — 헤더·내용 텍스트 길이 기반 추정(px). 수동 조절(userW) 전까지 기본값으로 사용. */
+function autoColPx(c){
+  if(c.type==="rownum") return 54;
+  if(c.type==="status") return 92;
+  if(c.type==="priority") return 70;
+  if(c.key==="att") return 84;
+  let chars=(c.name||"").length+1;
+  rows.forEach(r=>{ const v=(r[c.key]==null?"":String(r[c.key])); v.split("\n").forEach(L=>{ if(L.length>chars) chars=L.length; }); });
+  return Math.round(Math.min(Math.max(chars*9.5+22, 70), 360));
+}
+/* 컬럼 유효 폭(가중치): 수동이면 저장값, 아니면 자동 추정 */
+function effW(c){ return c.userW ? (c.width||autoColPx(c)) : autoColPx(c); }
+/* 컬럼 유형별 최소 픽셀 — 짧은 컬럼(상태·일자 등)이 읽히도록 보장 */
+function colMin(c){
+  if(c.type==="status") return 66;
+  if(c.type==="priority") return 56;
+  if(c.type==="rownum") return 46;
+  if(c.key==="date"||c.key==="done") return 54;
+  if(c.key==="att") return 58;
+  return 44;
+}
+
 /* ===================== 렌더 ===================== */
 function render(){
   const fa=document.getElementById("filterArea").value;
@@ -1013,11 +1035,10 @@ function render(){
     const sec=document.createElement("section");
     sec.className="area"+(collapsedAreas.has(area.id)?" collapsed":"");
 
-    // 표 = 컨테이너 100% 고정(가로 스크롤 없음). 액션열은 고정 px, 데이터열이 나머지(100%-고정)를 가중치 비율로 채움.
-    const ACT_PX=58;
-    const dTot=visCols.reduce((s,c)=>s+c.width,0)||1;
-    const cw=w=>`calc((100% - ${ACT_PX}px) * ${(w/dTot).toFixed(6)})`;
-    const colgroup=visCols.map(c=>`<col style="width:${cw(c.width)}">`).join("")+`<col style="width:${ACT_PX}px">`;
+    // 표 = 컨테이너 100% 고정(가로 스크롤 없음). 콜그룹은 임시 %(렌더 직후 layoutCols가 px로 정밀 보정·액션열 고정).
+    const dTot=visCols.reduce((s,c)=>s+effW(c),0)||1;
+    const cw=w=>(w/dTot*95).toFixed(4)+"%";
+    const colgroup=visCols.map(c=>`<col style="width:${cw(effW(c))}">`).join("")+`<col style="width:5%">`;
     const drag=isAdmin()?'draggable="true"':'';
     const am=isAdmin();
     // 컬럼 폭 조절 핸들은 마지막 데이터 컬럼엔 없음(경계가 표 끝) — 인접 컬럼끼리만 폭 교환
@@ -1091,7 +1112,31 @@ function render(){
   });
 
   renderFilters(); renderSummary(); renderChips(); renderMeta();
+  layoutCols();
 }
+/* 표 컬럼 폭 정밀 배치 — 컨테이너 폭 측정 → px 배분(액션열 58px 고정, 최소 44px). 가로 스크롤 없음. */
+const ACT_PX=58, COL_MIN=44;
+function layoutCols(ovr){
+  const vis=getVisCols(); if(!vis.length) return;
+  let host=document.querySelector(".area:not(.collapsed) .tbl-scroll") || document.querySelector(".tbl-scroll");
+  if(!host) return;
+  const W=host.clientWidth; if(W<=0) return;
+  const avail=Math.max(0, W-ACT_PX);
+  const wt=c=>(ovr&&c.key===ovr.key)?ovr.weight:effW(c);
+  const dTot=vis.reduce((s,c)=>s+wt(c),0)||1;
+  let pxs=vis.map(c=>Math.max(colMin(c), Math.round(wt(c)/dTot*avail)));
+  // 합계를 avail에 맞춤(컬럼별 최소폭 보장, 여유 있는 컬럼에서 차감)
+  let diff=avail-pxs.reduce((a,b)=>a+b,0);
+  for(let i=pxs.length-1;i>=0 && diff!==0;i--){ const room=pxs[i]-colMin(vis[i]); if(diff<0){ const cut=Math.min(room,-diff); pxs[i]-=cut; diff+=cut; } else { pxs[i]+=diff; diff=0; } }
+  document.querySelectorAll(".tbl-scroll table").forEach(t=>{
+    const cols=t.querySelector("colgroup").children;
+    vis.forEach((c,i)=>{ if(cols[i]) cols[i].style.width=pxs[i]+"px"; });
+    if(cols[vis.length]) cols[vis.length].style.width=ACT_PX+"px";
+    t.style.width=W+"px";
+  });
+}
+let _layoutT=null;
+window.addEventListener("resize",()=>{ clearTimeout(_layoutT); _layoutT=setTimeout(layoutCols,120); });
 
 function renderMeta(){
   // 히어로: 편집 중이 아닐 때만 텍스트 갱신(커서 튐 방지)
@@ -1796,45 +1841,36 @@ document.addEventListener("click",e=>{
   head.closest(".area").classList.toggle("collapsed",collapsedAreas.has(id));
 });
 
-/* 컬럼 폭 조절 — 인접 컬럼끼리 폭 교환(합계 100% 고정·가로 스크롤 없음). 모든 영역 표 동시 반영, 가중치 저장 */
+/* 컬럼 폭 조절 — 드래그한 컬럼만 키우고 나머지 전체가 비율로 줄어듦(합계=컨테이너, 가로 스크롤 없음). 가중치 저장 */
 (function(){
-  const MIN=44, ACT_PX=58;  // 컬럼 최소 픽셀 / 액션열 고정폭
-  let col=null,nbr=null,startX=0,startW=0,startNW=0,dTot=0,pxPerW=0,ci=-1;
-  let colEls=null,nbrEls=null;
-  const cw=w=>`calc((100% - ${ACT_PX}px) * ${(w/dTot).toFixed(6)})`;
+  let col=null,startX=0,startPx=0,othersSum=0,avail=0,othersMin=0,selfMin=44,newW=null;
   document.addEventListener("mousedown",e=>{
     const h=e.target.closest("[data-col-resize]"); if(!h||!isAdmin()) return;
-    const visCols=getVisCols(); ci=visCols.findIndex(c=>c.key===h.dataset.colResize);
-    if(ci<0||ci>=visCols.length-1) return;          // 마지막 컬럼은 핸들 없음
+    const vis=getVisCols(); const ci=vis.findIndex(c=>c.key===h.dataset.colResize);
+    if(ci<0||ci>=vis.length-1) return;               // 마지막 컬럼은 핸들 없음
     e.preventDefault(); e.stopPropagation();
-    col=columns.find(c=>c.key===visCols[ci].key);
-    nbr=columns.find(c=>c.key===visCols[ci+1].key);
-    if(!col||!nbr){ col=null; return; }
-    startX=e.clientX; startW=col.width; startNW=nbr.width;
-    dTot=visCols.reduce((s,c)=>s+c.width,0)||1;     // 데이터열 가중치 합
-    const t=document.querySelector(".tbl-scroll table");
-    pxPerW=Math.max(1,((t?t.clientWidth:1000)-ACT_PX))/dTot;  // 데이터 영역 기준 가중치당 픽셀
-    const tables=[...document.querySelectorAll(".tbl-scroll table")];
-    colEls=tables.map(t=>t.querySelector("colgroup").children[ci]).filter(Boolean);
-    nbrEls=tables.map(t=>t.querySelector("colgroup").children[ci+1]).filter(Boolean);
+    col=columns.find(c=>c.key===vis[ci].key); if(!col){ return; }
+    const t=h.closest("table"); avail=Math.max(1,((t&&t.clientWidth)?t.clientWidth:1000)-ACT_PX);
+    const dTot=vis.reduce((s,c)=>s+effW(c),0)||1;
+    othersSum=dTot-effW(col);
+    selfMin=colMin(col);
+    othersMin=vis.reduce((s,c)=>s+(c.key===col.key?0:colMin(c)),0);
+    startX=e.clientX; startPx=effW(col)/dTot*avail; newW=null;
     document.body.classList.add("col-resizing");
     h.closest("th").setAttribute("draggable","false");
   });
   document.addEventListener("mousemove",e=>{
     if(!col) return;
-    let dW=(e.clientX-startX)/(pxPerW||1);          // 픽셀 이동 → 가중치 변화
-    const lo=-(startW-MIN/(pxPerW||1)), hi=(startNW-MIN/(pxPerW||1));
-    if(dW<lo)dW=lo; if(dW>hi)dW=hi;
-    const w=startW+dW, nw=startNW-dW;
-    colEls.forEach(c=>c.style.width=cw(w));
-    nbrEls.forEach(c=>c.style.width=cw(nw));
-    col._dragW=w; nbr._dragW=nw;
+    let p=startPx+(e.clientX-startX);
+    p=Math.max(selfMin, Math.min(p, avail-othersMin));   // 나머지 컬럼이 최소폭은 유지하도록 상한
+    const frac=p/avail;
+    newW=othersSum*frac/Math.max(0.0001,(1-frac));        // 이 컬럼만의 새 가중치
+    layoutCols({key:col.key, weight:newW});
   });
   document.addEventListener("mouseup",()=>{
     if(!col) return;
-    if(col._dragW!=null){ col.width=Math.round(col._dragW); nbr.width=Math.round(nbr._dragW); }
-    delete col._dragW; delete nbr._dragW;
-    col=null; nbr=null; colEls=null; nbrEls=null;
+    if(newW!=null){ col.width=Math.max(1,Math.round(newW)); col.userW=true; }
+    col=null; newW=null;
     document.body.classList.remove("col-resizing");
     saveData(); render();
   });
@@ -2215,7 +2251,7 @@ document.getElementById("hubHome").addEventListener("click",()=>navTo("dash"));
 /* 사이드바 접기/펼치기(데스크톱) — 상태 영속. 접기=사이드바 상단 아이콘, 펼치기=왼쪽 가장자리 탭 */
 const SIDE_KEY="vdi_log_sidebar";
 function applySidebar(){ document.body.classList.toggle("side-collapsed", localStorage.getItem(SIDE_KEY)==="1"); }
-function setSidebar(c){ try{ localStorage.setItem(SIDE_KEY, c?"1":"0"); }catch(e){} applySidebar(); }
+function setSidebar(c){ try{ localStorage.setItem(SIDE_KEY, c?"1":"0"); }catch(e){} applySidebar(); setTimeout(()=>{ if(typeof layoutCols==="function") layoutCols(); },230); }
 document.getElementById("sideToggle").addEventListener("click",()=>setSidebar(!document.body.classList.contains("side-collapsed")));
 applySidebar();
 
