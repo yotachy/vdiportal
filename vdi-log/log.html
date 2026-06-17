@@ -1411,11 +1411,11 @@ function openToolsMenu(anchor){
     pop.appendChild(popItem("읽기용 HTML 내보내기", IC.html, exportReadonlyHtml));
     pop.appendChild(popItem("인쇄 / PDF", IC.print, ()=>window.print()));
     pop.appendChild(popSep());
-    pop.appendChild(popItem("백업 내보내기 (.json)", IC.save, exportBackup));
+    pop.appendChild(popItem("전체 백업 내보내기 (.json)", IC.save, exportBackup));
     if(isAdmin()){
       pop.appendChild(popSep());
       pop.appendChild(popHead("관리자"));
-      pop.appendChild(popItem("백업 불러오기", IC.folder, ()=>document.getElementById("restoreFile").click()));
+      pop.appendChild(popItem("전체 백업 불러오기", IC.folder, ()=>document.getElementById("restoreFile").click()));
       pop.appendChild(popItem("변경 이력 · 복원", IC.clock, openHistory));
       pop.appendChild(popItem("영역 관리", IC.table, openAreasModal));
     }
@@ -1423,31 +1423,52 @@ function openToolsMenu(anchor){
 }
 
 /* ===================== 백업 (파일 내보내기/불러오기) ===================== */
+/* 전체 백업 대상 저장소(5개 도구) */
+const ALL_STORE_KEYS=["vdi_decision_log_v3","vdi_hub_v1","vdi_wbs_v1","vdi_weekly_v1","vdi_plan_v1","vdi_transition_v1"];
 function exportBackup(){
   const pad=n=>String(n).padStart(2,"0"); const d=new Date();
   const stamp=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
-  const payload={app:"vdi-decision-log", schema:STORE_KEY, exportedAt:d.toISOString(), columns, areas, rows, meta};
+  const stores={};
+  ALL_STORE_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) stores[k]=JSON.parse(v); }catch(e){} });
+  // 관리대장은 현재 메모리 상태로 확실히 반영
+  stores[STORE_KEY]={columns, areas, rows, meta};
+  const payload={app:"vdi-pm-backup", version:2, exportedAt:d.toISOString(),
+    columns, areas, rows, meta,   // 하위호환: 옛 복원기도 관리대장을 읽을 수 있게
+    stores};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
-  a.download=`vdi_백업_${stamp}.json`; a.click(); URL.revokeObjectURL(a.href);
-  toast("백업 파일을 내보냈습니다.");
+  a.download=`vdi_전체백업_${stamp}.json`; a.click(); URL.revokeObjectURL(a.href);
+  toast(`전체 백업을 내보냈습니다 · 도구 ${Object.keys(stores).length}개`);
+}
+function applyBackupData(d){
+  const when=d.exportedAt?new Date(d.exportedAt).toLocaleString("ko-KR"):"(시점 미상)";
+  // 신형: 전체 백업(stores)
+  if(d && d.stores && typeof d.stores==="object"){
+    const keys=Object.keys(d.stores);
+    if(!confirm(`전체 백업을 불러옵니다.\n생성 시점: ${when}\n저장소 ${keys.length}개(관리대장·WBS·주간보고·수행·이행 등)\n\n현재 모든 도구 내용을 덮어쓸까요?`)) return;
+    keys.forEach(k=>{ try{ localStorage.setItem(k, JSON.stringify(d.stores[k])); }catch(e){} });
+    // 메모리 재적재 + 재렌더
+    loadData(); loadHub(); loadWbs(); loadWeekly(); execDoc.load(); transDoc.load();
+    applyMode(); render(); updateSortBtn(); syncAllBuiltinTitles(); selectItem(hub.active);
+    toast(`전체 백업을 불러왔습니다 · 저장소 ${keys.length}개`);
+    return;
+  }
+  // 구형: 관리대장만
+  if(!d||!Array.isArray(d.rows)||!Array.isArray(d.areas)||!Array.isArray(d.columns))
+    throw new Error("백업 파일 형식이 올바르지 않습니다.");
+  if(!confirm(`관리대장 백업을 불러옵니다.\n생성 시점: ${when}\n영역 ${d.areas.length}개 · 안건 ${d.rows.length}건\n\n현재 관리대장 내용을 덮어쓸까요? (현재 상태는 변경 이력에 보관됩니다)`)) return;
+  columns=d.columns; areas=d.areas; rows=d.rows;
+  meta=Object.assign(JSON.parse(JSON.stringify(DEFAULT_META)), d.meta||{});
+  rows.forEach(r=>{ if(r.pri===undefined)r.pri="중"; if(r.done===undefined)r.done=""; });
+  ensureRowIds();
+  saveData(); render(); toast(`관리대장 백업을 불러왔습니다 · 영역 ${areas.length}개 · 안건 ${rows.length}건`);
 }
 function importBackup(file){
   if(!isAdmin()){ alert("백업 불러오기는 관리자만 가능합니다."); return; }
   const rd=new FileReader();
   rd.onload=()=>{
-    try{
-      const d=JSON.parse(rd.result);
-      if(!d||!Array.isArray(d.rows)||!Array.isArray(d.areas)||!Array.isArray(d.columns))
-        throw new Error("백업 파일 형식이 올바르지 않습니다.");
-      const when=d.exportedAt?new Date(d.exportedAt).toLocaleString("ko-KR"):"(시점 미상)";
-      if(!confirm(`백업을 불러옵니다.\n생성 시점: ${when}\n영역 ${d.areas.length}개 · 안건 ${d.rows.length}건\n\n현재 내용을 덮어쓸까요? (현재 상태는 변경 이력에 보관됩니다)`)) return;
-      columns=d.columns; areas=d.areas; rows=d.rows;
-      meta=Object.assign(JSON.parse(JSON.stringify(DEFAULT_META)), d.meta||{});
-      rows.forEach(r=>{ if(r.pri===undefined)r.pri="중"; if(r.done===undefined)r.done=""; });
-      ensureRowIds();
-      saveData(); render(); toast(`백업을 불러왔습니다 · 영역 ${areas.length}개 · 안건 ${rows.length}건`);
-    }catch(err){ console.error(err); alert("백업 불러오기 실패: "+err.message); }
+    try{ applyBackupData(JSON.parse(rd.result)); }
+    catch(err){ console.error(err); alert("백업 불러오기 실패: "+err.message); }
   };
   rd.readAsText(file);
 }

@@ -138,7 +138,7 @@ localStorage["vdi_transition_v1"]   = { sections, meta }                  // 이
 | 참석자 배지 | 셀은 `👤 N명` 배지, 클릭 시 명단 팝오버 편집/열람(`openAttPop`) |
 | 라이트/다크 테마 | 툴바 토글, `localStorage["vdi_log_theme"]` 영속. 다크는 `html[data-theme="dark"]` 단일 블록 |
 | 도구 드롭다운 | 툴바 `도구 ▾`(`openToolsMenu`) — 보조 동작(읽기용 HTML·인쇄·백업/이력·영역관리) 통합. 관리자 항목은 `isAdmin()`일 때만 노출 |
-| 백업 (파일) | `exportBackup` → `vdi_백업_YYYYMMDD_HHMM.json`(columns·areas·rows·meta) / `importBackup`(검증+덮어쓰기 확인, **관리자 전용**) |
+| 전체 백업 (파일) | `exportBackup` → `vdi_전체백업_YYYYMMDD_HHMM.json` — **5개 도구 전 저장소**(`stores{}`: `ALL_STORE_KEYS`=관리대장·hub·wbs·weekly·plan·transition) + 하위호환용 관리대장 최상위. `importBackup`→`applyBackupData`: stores 있으면 전체 복원(localStorage 기록 후 전 도구 재적재·재렌더), 없으면 구형(관리대장만) 복원. **관리자 전용** |
 | 변경 이력 (버전 형상관리) | `saveData`가 저장 직전 상태를 `localStorage[STORE_KEY+"__history"]`에 자동 보관(최근 `HIST_MAX=30`, `HIST_MIN_GAP=20s` 내 연속편집은 합침). `변경 이력` 모달에서 시점 선택→`restoreHistory`로 복원(복원 직전 현재 상태도 자동 보관). **관리자 전용** |
 | 영역 관리 | 이름/색/설명/순서, 영역 삭제 시 안건 동반 삭제 (모달 유지) |
 | 읽기용 HTML 내보내기 | 편집 불가 정적 파일 생성(필터·검색·인쇄 내장). **배포·공유용 산출물**(관리대장 전용) |
