@@ -97,7 +97,7 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
   - `"date"`(기본) — **논의일자 오름차순**(`dateKey`, 빈 일자는 뒤). 표시 전용 정렬이라 `rows` 저장 순서는 불변.
   - `"manual"` — `rows` **저장 순서 그대로**(정렬 안 함). 툴바 `#btnSort` 토글로 전환, 수동 모드에서만 번호 칸 `.row-grip`(⠿)을 드래그해 안건 재배치 → `rows` 배열 순서를 직접 바꿔 `saveData`(영속). 부모끼리/같은 부모의 후속안건끼리만 재배치(레벨·부모 유지). `rowIsTop`으로 판정.
   - 두 모드 모두 각 부모 뒤에 후속안건을 붙이고, `tr.dataset.idx`는 원본 인덱스 유지(편집/삭제 매핑 보존). 행에 `data-rid`(=row id) 부여(대시보드 검색·주의안건 `jumpToRow` 타깃). **화면 render · 읽기용 HTML 공통**.
-- 표는 `width:100%` 스트레치 금지: **컬럼 폭 합계 크기**(`table.style.width`)로 렌더 → 컬럼 숨김/삭제·간단히 보기 시 잔여 컬럼이 늘어나지 않고 표만 줄어든다(가로 스크롤 방지). 기본 폭 합계 ≈ 1274px.
+- **표는 컨테이너 100% 고정 — 가로 스크롤 없음**(2026-06-17 변경, 과거 '폭 합계 렌더' 방식 폐기). `table{width:100%; table-layout:fixed}`, `.tbl-scroll{overflow-x:hidden}`. 컬럼 폭(`col.width`)은 **가중치**로, colgroup이 `calc((100% - 58px) * 가중치비율)`로 환산(액션열 고정 58px, 데이터열이 나머지 비율 채움). 컬럼 폭 조절은 **인접 컬럼끼리 폭 교환**(합계 불변→항상 100%, 마지막 데이터 컬럼엔 핸들 없음). 셀은 `word-break:break-word; overflow-wrap:anywhere`로 항상 줄바꿈(넘침 방지). 좁히면 표가 줄지 컬럼이 넘치지 않는다.
 - `DEFAULT_*` 상수가 초기 시드. 저장 데이터 로드 시 누락 필드 마이그레이션(`pri`/`done`/`core`/`id`) + 컬럼 폭 1회 재조정(`COL_WIDTH_VER`) 수행 — **스키마/기본폭 변경 시 마이그레이션 코드(loadData)·importBackup·`orderedAreaRows` 소비처도 함께 갱신**.
 
 ## 🔐 관리자 모드
@@ -126,7 +126,7 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 | 영역 아코디언 | 영역 머리글 클릭으로 접기/펼치기(`collapsedAreas`, 세션 한정) |
 | 참석자 배지 | 셀은 `👤 N명` 배지, 클릭 시 명단 팝오버 편집/열람(`openAttPop`) |
 | 라이트/다크 테마 | 툴바 토글, `localStorage["vdi_log_theme"]` 영속. 다크는 `html[data-theme="dark"]` 단일 블록 |
-| 도구 드롭다운 | 툴바 `도구 ▾`(`openToolsMenu`) — 보조 동작(읽기용 HTML·인쇄·백업/이력·영역관리) 통합. 관리자 항목은 `isAdmin()`일 때만 노출 |
+| 도구 드롭다운 | **헤더 우측 톱니바퀴 아이콘**(`#btnTools`, 로그아웃 왼쪽)·`openToolsMenu` — 읽기용 HTML·인쇄·백업/이력·영역관리. 관리자 항목은 `isAdmin()`일 때만 |
 | 전체 백업 (파일) | `exportBackup` → `vdi_전체백업_YYYYMMDD_HHMM.json` — **5개 도구 전 저장소**(`stores{}`: `ALL_STORE_KEYS`=관리대장·hub·wbs·weekly·plan·transition) + 하위호환용 관리대장 최상위. `importBackup`→`applyBackupData`: stores 있으면 전체 복원(localStorage 기록 후 전 도구 재적재·재렌더), 없으면 구형(관리대장만) 복원. **관리자 전용** |
 | 변경 이력 (버전 형상관리) | `saveData`가 저장 직전 상태를 `localStorage[STORE_KEY+"__history"]`에 자동 보관(최근 `HIST_MAX=30`, `HIST_MIN_GAP=20s` 내 연속편집은 합침). `변경 이력` 모달에서 시점 선택→`restoreHistory`로 복원(복원 직전 현재 상태도 자동 보관). **관리자 전용** |
 | 영역 관리 | 이름/색/설명/순서, 영역 삭제 시 안건 동반 삭제 (모달 유지) |

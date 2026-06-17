@@ -202,9 +202,9 @@
   .area-head .sp{flex:1;}
   .area-count{font-size:.74rem; color:var(--ink-faint); font-weight:600; background:var(--line-faint); padding:4px 11px; border-radius:999px;}
 
-  /* 표는 컬럼 폭 합계 크기로만 — width:100% 스트레치 금지(컬럼 숨김/삭제 시 잔여 컬럼이 늘어나지 않음) */
-  .tbl-scroll{overflow-x:auto;}
-  table{width:auto; border-collapse:separate; border-spacing:0; table-layout:fixed;}
+  /* 표는 컨테이너 100% 고정 — 가로 스크롤 없음. 컬럼 폭은 비율(%)로 조절, 합계는 항상 100% */
+  .tbl-scroll{overflow-x:hidden;}
+  table{width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;}
   th{background:var(--card); color:var(--ink-soft); font-family:var(--font-bold); font-size:.72rem; letter-spacing:.02em; padding:13px 14px; text-align:left; border-bottom:2px solid var(--gold); position:relative; vertical-align:middle;}
   th .th-in{display:flex; align-items:center; gap:4px;}
   th .th-grip{opacity:0; color:var(--line-strong); font-size:.8rem; line-height:1; flex:none; margin-left:-4px; transition:opacity .12s; cursor:grab;}
@@ -231,7 +231,7 @@
   th.drag-over.drag-after{box-shadow:inset -3px 0 0 var(--gold);}
   th.drag-src{opacity:.4;}
 
-  td{border-bottom:1px solid var(--line-faint); padding:14px 16px; font-size:.84rem; vertical-align:top; line-height:1.72; word-break:keep-all; overflow-wrap:break-word;}
+  td{border-bottom:1px solid var(--line-faint); padding:14px 16px; font-size:.84rem; vertical-align:top; line-height:1.72; word-break:break-word; overflow-wrap:anywhere; min-width:0;}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover td{background:#f5f8fd;}
 
@@ -379,6 +379,7 @@
   .apphd .btn.ghost:hover{background:rgba(255,255,255,.12); color:#fff;}
   .apphd .mode-badge{background:rgba(255,255,255,.1); color:#e7ecf4; border:1px solid rgba(255,255,255,.2);}
   body.admin .apphd .mode-badge{background:var(--gold-soft); color:#7a5b00; border-color:#f3d989;}
+  .apphd .btn-icon{padding:7px 9px;} .apphd .btn-icon .ic{margin:0;}
 
   .hub{display:flex; align-items:flex-start;}
   .side{position:sticky; top:58px; align-self:flex-start; width:264px; flex:none; height:calc(100vh - 58px); overflow-y:auto; background:var(--card); border-right:1px solid var(--line); padding:14px 12px 30px; transition:width .2s ease, padding .2s ease;}
@@ -575,6 +576,9 @@
     <svg class="ic ic-theme" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
     <span id="themeLabel"></span>
   </button>
+  <button class="btn ghost btn-icon" id="btnTools" aria-haspopup="true" aria-expanded="false" aria-label="도구" title="도구">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
   <button class="btn" id="btnAuth">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     <span id="authLabel">관리자 로그인</span>
@@ -637,11 +641,6 @@
         <span class="save-state" id="saveState"></span>
       </span>
 
-      <button class="btn" id="btnTools" aria-haspopup="true" aria-expanded="false">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="2" fill="#fff"/><circle cx="16" cy="12" r="2" fill="#fff"/><circle cx="9" cy="18" r="2" fill="#fff"/></svg>
-        도구
-        <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
       <input type="file" id="restoreFile" accept=".json,application/json" class="hidden">
     </div>
 
@@ -1014,13 +1013,15 @@ function render(){
     const sec=document.createElement("section");
     sec.className="area"+(collapsedAreas.has(area.id)?" collapsed":"");
 
-    // 표 폭 = 컬럼 폭 합계(스트레치 금지) — 액션열도 명시 폭으로 고정
-    const ACT_W=46;
-    const tableW=visCols.reduce((s,c)=>s+c.width,0)+ACT_W;
-    const colgroup=visCols.map(c=>`<col style="width:${c.width}px">`).join("")+`<col style="width:${ACT_W}px">`;
+    // 표 = 컨테이너 100% 고정(가로 스크롤 없음). 액션열은 고정 px, 데이터열이 나머지(100%-고정)를 가중치 비율로 채움.
+    const ACT_PX=58;
+    const dTot=visCols.reduce((s,c)=>s+c.width,0)||1;
+    const cw=w=>`calc((100% - ${ACT_PX}px) * ${(w/dTot).toFixed(6)})`;
+    const colgroup=visCols.map(c=>`<col style="width:${cw(c.width)}">`).join("")+`<col style="width:${ACT_PX}px">`;
     const drag=isAdmin()?'draggable="true"':'';
     const am=isAdmin();
-    const thead=visCols.map(c=>`<th ${drag} data-col-key="${c.key}"><div class="th-in"><span class="th-grip" aria-hidden="true" title="드래그하여 순서 변경">⠿</span><span class="th-label">${escHtml(c.name)}</span>${am?`<button class="th-menu" data-col-menu="${c.key}" title="컬럼 옵션" aria-label="컬럼 옵션">⋮</button>`:""}</div><span class="col-resize" data-col-resize="${c.key}" title="드래그하여 폭 조절"></span></th>`).join("")+`<th class="th-addcol col-act">${am?`<button class="addcol-btn" data-addcol title="컬럼 추가·표시">＋</button>`:""}</th>`;
+    // 컬럼 폭 조절 핸들은 마지막 데이터 컬럼엔 없음(경계가 표 끝) — 인접 컬럼끼리만 폭 교환
+    const thead=visCols.map((c,idx)=>`<th ${drag} data-col-key="${c.key}"><div class="th-in"><span class="th-grip" aria-hidden="true" title="드래그하여 순서 변경">⠿</span><span class="th-label">${escHtml(c.name)}</span>${am?`<button class="th-menu" data-col-menu="${c.key}" title="컬럼 옵션" aria-label="컬럼 옵션">⋮</button>`:""}</div>${idx<visCols.length-1?`<span class="col-resize" data-col-resize="${c.key}" title="드래그하여 폭 조절"></span>`:""}</th>`).join("")+`<th class="th-addcol col-act">${am?`<button class="addcol-btn" data-addcol title="컬럼 추가·표시">＋</button>`:""}</th>`;
 
     sec.innerHTML=`
       <div class="area-head" data-area-toggle="${escHtml(area.id)}">
@@ -1031,7 +1032,7 @@ function render(){
       </div>
       <div class="area-body">
         <div class="tbl-scroll">
-          <table style="width:${tableW}px">
+          <table>
             <colgroup>${colgroup}</colgroup>
             <thead><tr>${thead}</tr></thead>
             <tbody></tbody>
@@ -1795,36 +1796,45 @@ document.addEventListener("click",e=>{
   head.closest(".area").classList.toggle("collapsed",collapsedAreas.has(id));
 });
 
-/* 컬럼 폭 직접 조절 — 머리글 우측 경계 드래그(모든 영역 표 동시 반영, 폭은 저장) */
+/* 컬럼 폭 조절 — 인접 컬럼끼리 폭 교환(합계 100% 고정·가로 스크롤 없음). 모든 영역 표 동시 반영, 가중치 저장 */
 (function(){
-  let key=null,startX=0,startW=0,cols=null,tables=null;
-  const syncTableWidths=()=>{ tables.forEach(t=>{
-    let sum=0; [...t.querySelector("colgroup").children].forEach(c=>sum+=parseFloat(c.style.width)||0);
-    t.style.width=sum+"px";
-  });};
+  const MIN=44, ACT_PX=58;  // 컬럼 최소 픽셀 / 액션열 고정폭
+  let col=null,nbr=null,startX=0,startW=0,startNW=0,dTot=0,pxPerW=0,ci=-1;
+  let colEls=null,nbrEls=null;
+  const cw=w=>`calc((100% - ${ACT_PX}px) * ${(w/dTot).toFixed(6)})`;
   document.addEventListener("mousedown",e=>{
     const h=e.target.closest("[data-col-resize]"); if(!h||!isAdmin()) return;
+    const visCols=getVisCols(); ci=visCols.findIndex(c=>c.key===h.dataset.colResize);
+    if(ci<0||ci>=visCols.length-1) return;          // 마지막 컬럼은 핸들 없음
     e.preventDefault(); e.stopPropagation();
-    key=h.dataset.colResize;
-    const col=columns.find(c=>c.key===key); if(!col){ key=null; return; }
-    startX=e.clientX; startW=col.width;
-    const visCols=getVisCols(); const ci=visCols.findIndex(c=>c.key===key);
-    tables=[...document.querySelectorAll(".tbl-scroll table")];
-    cols=ci<0?[]:tables.map(t=>t.querySelector("colgroup").children[ci]).filter(Boolean);
+    col=columns.find(c=>c.key===visCols[ci].key);
+    nbr=columns.find(c=>c.key===visCols[ci+1].key);
+    if(!col||!nbr){ col=null; return; }
+    startX=e.clientX; startW=col.width; startNW=nbr.width;
+    dTot=visCols.reduce((s,c)=>s+c.width,0)||1;     // 데이터열 가중치 합
+    const t=document.querySelector(".tbl-scroll table");
+    pxPerW=Math.max(1,((t?t.clientWidth:1000)-ACT_PX))/dTot;  // 데이터 영역 기준 가중치당 픽셀
+    const tables=[...document.querySelectorAll(".tbl-scroll table")];
+    colEls=tables.map(t=>t.querySelector("colgroup").children[ci]).filter(Boolean);
+    nbrEls=tables.map(t=>t.querySelector("colgroup").children[ci+1]).filter(Boolean);
     document.body.classList.add("col-resizing");
     h.closest("th").setAttribute("draggable","false");
   });
   document.addEventListener("mousemove",e=>{
-    if(key===null) return;
-    const w=Math.max(44,Math.round(startW+(e.clientX-startX)));
-    cols.forEach(c=>c.style.width=w+"px");
-    syncTableWidths();
+    if(!col) return;
+    let dW=(e.clientX-startX)/(pxPerW||1);          // 픽셀 이동 → 가중치 변화
+    const lo=-(startW-MIN/(pxPerW||1)), hi=(startNW-MIN/(pxPerW||1));
+    if(dW<lo)dW=lo; if(dW>hi)dW=hi;
+    const w=startW+dW, nw=startNW-dW;
+    colEls.forEach(c=>c.style.width=cw(w));
+    nbrEls.forEach(c=>c.style.width=cw(nw));
+    col._dragW=w; nbr._dragW=nw;
   });
-  document.addEventListener("mouseup",e=>{
-    if(key===null) return;
-    const w=Math.max(44,Math.round(startW+(e.clientX-startX)));
-    const col=columns.find(c=>c.key===key); if(col) col.width=w;
-    key=null; cols=null; tables=null;
+  document.addEventListener("mouseup",()=>{
+    if(!col) return;
+    if(col._dragW!=null){ col.width=Math.round(col._dragW); nbr.width=Math.round(nbr._dragW); }
+    delete col._dragW; delete nbr._dragW;
+    col=null; nbr=null; colEls=null; nbrEls=null;
     document.body.classList.remove("col-resizing");
     saveData(); render();
   });
