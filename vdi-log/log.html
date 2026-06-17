@@ -1847,7 +1847,7 @@ function layoutRO(ovr){
   fp.addEventListener("change",function(){state.pri=fp.value;applyAll();});
   q.addEventListener("input",function(){state.q=q.value.trim().toLowerCase();applyAll();});
 })();
-/* 컬럼 폭 수동 조절 — 경계 드래그 시 그 컬럼과 '바로 오른쪽 인접 컬럼'만 폭을 주고받음(나머지 불변·합계 유지·가로 스크롤 없음) */
+/* 컬럼 폭 수동 조절 — 경계 드래그 시 그 컬럼만 늘고/줄고, 차이는 '오른쪽 여유 컬럼'이 흡수(맨 오른쪽부터 소비 → 인접 컬럼 가능한 한 폭 유지, 합계 유지·가로 스크롤 없음) */
 (function(){
   var active=null;
   function pxOf(el){return parseFloat(el&&el.style.width)||0;}
@@ -1857,20 +1857,25 @@ function layoutRO(ovr){
     if(ci>=weights.length-1)return;
     var t=th.closest("table");if(!t)return;
     var cols=t.querySelector("colgroup").children;
-    var leftPx=pxOf(cols[ci]),rightPx=pxOf(cols[ci+1]);
-    if(leftPx<=0||rightPx<=0)return;
-    active={ci:ci,startX:e.clientX,leftPx:leftPx,rightPx:rightPx,pair:leftPx+rightPx,leftMin:COLS[ci].min,rightMin:COLS[ci+1].min};
+    var base=[];for(var i=0;i<weights.length;i++)base.push(pxOf(cols[i]));
+    if(base.some(function(x){return x<=0;}))return;
+    active={ci:ci,lastIdx:weights.length-1,startX:e.clientX,base:base,mins:COLS.map(function(c){return c.min;})};
     document.body.style.userSelect="none";document.body.style.cursor="col-resize";e.preventDefault();
   });
   document.addEventListener("mousemove",function(e){
     if(!active)return;
-    var nl=active.leftPx+(e.clientX-active.startX);
-    nl=Math.max(active.leftMin,Math.min(nl,active.pair-active.rightMin));
-    var nr=active.pair-nl;
+    var ci=active.ci,lastIdx=active.lastIdx,base=active.base,mins=active.mins;
+    var want=e.clientX-active.startX;
+    want=Math.max(want,mins[ci]-base[ci]);
+    var rightSlack=0;for(var j=ci+1;j<=lastIdx;j++)rightSlack+=base[j]-mins[j];
+    want=Math.min(want,rightSlack);
+    var cur=base.slice();cur[ci]=base[ci]+want;
+    var rem=want;
+    if(rem>0){for(var k=lastIdx;k>=ci+1&&rem>0;k--){var take=Math.min(base[k]-mins[k],rem);cur[k]=base[k]-take;rem-=take;}}
+    else if(rem<0){cur[lastIdx]=base[lastIdx]-rem;}
     [].slice.call(document.querySelectorAll(".area table")).forEach(function(t){
       var cols=t.querySelector("colgroup").children;
-      if(cols[active.ci])cols[active.ci].style.width=nl+"px";
-      if(cols[active.ci+1])cols[active.ci+1].style.width=nr+"px";
+      cur.forEach(function(w,i){if(cols[i])cols[i].style.width=Math.round(w)+"px";});
     });
   });
   document.addEventListener("mouseup",function(){
@@ -2052,7 +2057,7 @@ document.addEventListener("click",e=>{
   head.closest(".area").classList.toggle("collapsed",collapsedAreas.has(id));
 });
 
-/* 컬럼 폭 조절 — 경계를 드래그하면 그 컬럼과 '바로 오른쪽 인접 컬럼'만 폭을 주고받음(나머지 불변·합계 유지·가로 스크롤 없음). 끝나면 현재 폭 전부 고정 저장. */
+/* 컬럼 폭 조절 — 경계를 드래그하면 그 컬럼만 늘고/줄고, 차이는 '오른쪽 여유 컬럼'이 흡수(맨 오른쪽부터 여유를 소비 → 인접 컬럼은 가능한 한 폭 유지·위치만 이동, 합계 유지·가로 스크롤 없음). 끝나면 현재 폭 전부 고정 저장. */
 (function(){
   let active=null;
   const pxOf=el=>parseFloat(el&&el.style.width)||0;
@@ -2062,23 +2067,27 @@ document.addEventListener("click",e=>{
     if(ci<0||ci>=vis.length-1) return;               // 마지막 컬럼은 핸들 없음
     const t=h.closest("table"); if(!t) return;
     const cols=t.querySelector("colgroup").children;
-    const leftPx=pxOf(cols[ci]), rightPx=pxOf(cols[ci+1]);
-    if(leftPx<=0||rightPx<=0) return;                 // 폭 미배치 상태면 무시(layoutCols 후 동작)
+    const base=vis.map((c,i)=>pxOf(cols[i]));
+    if(base.some(x=>x<=0)) return;                    // 폭 미배치 상태면 무시(layoutCols 후 동작)
     e.preventDefault(); e.stopPropagation();
-    active={ ci, startX:e.clientX, leftPx, rightPx, pair:leftPx+rightPx,
-             leftMin:colMin(vis[ci]), rightMin:colMin(vis[ci+1]) };
+    active={ ci, lastIdx:vis.length-1, startX:e.clientX, base, mins:vis.map(c=>colMin(c)) };
     document.body.classList.add("col-resizing");
     h.closest("th").setAttribute("draggable","false");
   });
   document.addEventListener("mousemove",e=>{
     if(!active) return;
-    let nl=active.leftPx+(e.clientX-active.startX);
-    nl=Math.max(active.leftMin, Math.min(nl, active.pair-active.rightMin));
-    const nr=active.pair-nl;
+    const {ci,lastIdx,base,mins}=active;
+    let want=e.clientX-active.startX;
+    want=Math.max(want, mins[ci]-base[ci]);          // 대상 컬럼 최소폭 보장
+    let rightSlack=0; for(let j=ci+1;j<=lastIdx;j++) rightSlack+=base[j]-mins[j];
+    want=Math.min(want, rightSlack);                 // 오른쪽 여유만큼만 늘릴 수 있음
+    const cur=base.slice(); cur[ci]=base[ci]+want;
+    let rem=want;
+    if(rem>0){ for(let j=lastIdx;j>=ci+1&&rem>0;j--){ const take=Math.min(base[j]-mins[j],rem); cur[j]=base[j]-take; rem-=take; } }
+    else if(rem<0){ cur[lastIdx]=base[lastIdx]-rem; }  // 줄인 만큼 맨 오른쪽 컬럼이 받음
     document.querySelectorAll(".tbl-scroll table").forEach(t=>{
       const cols=t.querySelector("colgroup").children;
-      if(cols[active.ci]) cols[active.ci].style.width=nl+"px";
-      if(cols[active.ci+1]) cols[active.ci+1].style.width=nr+"px";
+      cur.forEach((w,i)=>{ if(cols[i]) cols[i].style.width=Math.round(w)+"px"; });
     });
   });
   document.addEventListener("mouseup",()=>{
