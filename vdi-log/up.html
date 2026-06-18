@@ -371,17 +371,14 @@ function loadData(){
   try{ const raw=localStorage.getItem(STORE_KEY); if(raw) d=JSON.parse(raw); }catch(e){}
   data=normalizeData(d)||normalizeData(JSON.parse(JSON.stringify(DEFAULT_DATA)));
 }
-function saveData(opts){
-  try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){}
-  if(!(opts&&opts.noPush)) pushSoon();
-}
+function saveData(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){} }  // 로컬 캐시만(서버는 연산으로 별도 반영)
 
-/* ===================== 서버 동기화 (공유 저장) ===================== */
+/* ===================== 서버 동기화 (연산 기반, 동시 편집 안전) ===================== */
 const SERVER_URL="api.php";  // 같은 디렉터리의 PHP 엔드포인트
 const KEY_KEY="jsiy_key";    // 쓰기 키(이 기기에만 저장)
 let writeKey=""; try{ writeKey=localStorage.getItem(KEY_KEY)||""; }catch(e){}
 let syncState="";            // ""|"ok"|"saving"|"loading"|"offline"|"error"
-let pushTimer=null;
+let lastRev=null;            // 서버 리비전(폴링 변경 감지)
 function setSync(s){ syncState=s; updateSyncUI(); }
 function updateSyncUI(){
   const el=document.getElementById("syncBadge"); if(!el) return;
@@ -389,16 +386,48 @@ function updateSyncUI(){
   el.textContent=map[syncState]||"";
   el.className="sync-badge sync-"+(syncState||"");
 }
-function pushSoon(){ setSync("saving"); clearTimeout(pushTimer); pushTimer=setTimeout(pushNow,500); }
-function pushNow(){
-  fetch(SERVER_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Write-Key":writeKey},body:JSON.stringify(data)})
+// 연산을 서버에 전송(전체 문서 대신 변경분만 → 동시 편집 시 서로 덮어쓰지 않음)
+function sendOp(op){
+  saveData();  // 로컬 즉시 반영
+  if(!isUnlocked()) return;  // 읽기 전용이면 서버 미전송
+  setSync("saving");
+  fetch(SERVER_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Write-Key":writeKey},body:JSON.stringify(op)})
     .then(r=>{ if(r.status===403){ setSync("error"); toast("쓰기 권한이 없습니다 — 잠금 해제 키를 확인하세요."); throw "forbidden"; } return r.ok?r.json():Promise.reject(); })
-    .then(j=>setSync(j&&j.ok?"ok":"error"))
+    .then(j=>{ if(j&&j.ok){ lastRev=j.rev; setSync("ok"); } else setSync("error"); })
     .catch(e=>{ if(e!=="forbidden") setSync("offline"); });
 }
+function opUpsert(it){ sendOp({op:"upsert",item:it}); }
+function opDelete(id){ sendOp({op:"delete",id:id}); }
+function opReorder(){ sendOp({op:"reorder",order:data.items.map(i=>i.id)}); }
+function opMeta(m){ sendOp({op:"meta",meta:m}); }
+function opReplace(){ sendOp({op:"replace",doc:{items:data.items,meta:data.meta}}); }
 function applyServerData(d){
   const nd=normalizeData(d); if(!nd) return false;
-  data=nd; saveData({noPush:true}); render(); return true;
+  data=nd; saveData(); render(); return true;
+}
+function pullFromServer(opts){
+  opts=opts||{};
+  if(!opts.quiet) setSync("loading");
+  fetch(SERVER_URL,{cache:"no-store"})
+    .then(r=>r.ok?r.text():Promise.reject()).then(txt=>{
+      let d=null; try{ d=JSON.parse(txt); }catch(e){}
+      if(d&&Array.isArray(d.items)){
+        if(d._rev!==lastRev){ applyServerData(d); lastRev=d._rev; }
+        setSync("ok");
+      } else if(d===null){ if(opts.initial&&isUnlocked()) opReplace(); else setSync("ok"); }  // 빈 서버는 편집 권한 있을 때만 시드
+      else setSync("ok");
+    })
+    .catch(()=>setSync("offline"));
+}
+// 주기적 폴링: 다른 기기 변경을 자동 반영(편집 중/드래그 중에는 건너뜀)
+let dragId=null;
+function startPolling(){
+  setInterval(()=>{
+    if(document.hidden) return;
+    if(document.getElementById("modalBg").classList.contains("open")) return;
+    if(dragId) return;
+    pullFromServer({quiet:true});
+  },6000);
 }
 
 /* ===================== 편집 잠금(쓰기 키) ===================== */
@@ -419,23 +448,12 @@ function unlockEdit(){
   setSync("loading");
   fetch(SERVER_URL+"?check=1",{headers:{"X-Write-Key":k}})
     .then(r=>r.json()).then(j=>{
-      if(j&&j.valid){ writeKey=k; try{ localStorage.setItem(KEY_KEY,k); }catch(e){} applyLockUI(); render(); toast("편집 잠금을 해제했습니다."); setSync("ok"); }
+      if(j&&j.valid){ writeKey=k; try{ localStorage.setItem(KEY_KEY,k); }catch(e){} applyLockUI(); render(); toast("편집 잠금을 해제했습니다."); pullFromServer({initial:true}); }
       else { toast("쓰기 키가 올바르지 않습니다."); setSync("ok"); }
     })
     .catch(()=>{ toast("서버에 연결할 수 없습니다."); setSync("offline"); });
 }
 function toggleLock(){ isUnlocked()?lockEdit():unlockEdit(); }
-function pullFromServer(initial){
-  setSync("loading");
-  fetch(SERVER_URL,{cache:"no-store"})
-    .then(r=>r.ok?r.text():Promise.reject()).then(txt=>{
-      let d=null; try{ d=JSON.parse(txt); }catch(e){}
-      if(d&&Array.isArray(d.items)){ applyServerData(d); setSync("ok"); }
-      else if(d===null){ if(initial) pushNow(); else setSync("ok"); }  // 서버가 비었으면 현재(시드/로컬) 데이터로 초기화
-      else setSync("ok");
-    })
-    .catch(()=>setSync("offline"));
-}
 
 /* ===================== 포맷 ===================== */
 function fmtWon(n){ return "₩"+(Number(n)||0).toLocaleString("ko-KR"); }
@@ -672,8 +690,8 @@ function renderList(){
 function toggleInclude(id){
   if(!requireEdit()){ render(); return; }
   const it=data.items.find(x=>x.id===id); if(!it) return;
-  it.include=!isIncluded(it);
-  saveData(); render();
+  it.include=!isIncluded(it); it.updatedAt=Date.now();
+  opUpsert(it); render();
   toast(it.include?"합계에 포함했습니다.":"합계에서 제외했습니다.");
 }
 
@@ -685,10 +703,9 @@ function toggleSort(){
   if(!requireEdit()) return;
   if(!data.meta) data.meta={};
   data.meta.sortMode=sortMode()==="manual"?"amount":"manual";
-  saveData(); render();
+  opMeta({sortMode:data.meta.sortMode}); render();
   toast(sortMode()==="manual"?"수동 정렬 — 드래그로 순서를 바꾸세요.":"금액순으로 정렬합니다.");
 }
-let dragId=null;
 function wireRowDrag(body){
   const clearMarks=()=>body.querySelectorAll("tr.drop-before,tr.drop-after").forEach(t=>t.classList.remove("drop-before","drop-after"));
   body.querySelectorAll("tr[data-id]").forEach(tr=>{
@@ -715,7 +732,7 @@ function moveItem(id,targetId,after){
   let to=arr.findIndex(x=>x.id===targetId); if(to<0){ arr.splice(from,0,item); return; }
   if(after) to++;
   arr.splice(to,0,item);
-  saveData(); render();
+  opReorder(); render();
 }
 
 /* ===================== 메인 렌더 ===================== */
@@ -789,22 +806,24 @@ function saveModal(){
   const note=document.getElementById("fNote").value.trim();
   const include=document.getElementById("fInclude").checked;
   if(!name){ toast("항목명을 입력하세요."); document.getElementById("fName").focus(); return; }
+  let saved;
   if(editingId){
     const it=data.items.find(x=>x.id===editingId);
     if(it){ it.cat=cat; it.inst=inst; it.name=name; it.ticker=ticker; it.qty=qty; it.price=price; it.owner=owner; it.amount=amount; it.note=note; it.include=include; it.updatedAt=Date.now(); }
-    toast("수정되었습니다.");
+    saved=it; toast("수정되었습니다.");
   }else{
-    data.items.push({id:genId(),cat,inst,name,ticker,qty,price,owner,amount,note,include,updatedAt:Date.now()});
-    toast("자산이 추가되었습니다.");
+    saved={id:genId(),cat,inst,name,ticker,qty,price,owner,amount,note,include,updatedAt:Date.now()};
+    data.items.push(saved); toast("자산이 추가되었습니다.");
   }
-  saveData(); closeModal(); render();
+  if(saved) opUpsert(saved);
+  closeModal(); render();
 }
 function delItem(id){
   if(!requireEdit()) return;
   const it=data.items.find(x=>x.id===id); if(!it) return;
   if(!confirm(`'${it.name}' 항목을 삭제할까요?`)) return;
   data.items=data.items.filter(x=>x.id!==id);
-  saveData(); render(); toast("삭제되었습니다.");
+  opDelete(id); render(); toast("삭제되었습니다.");
 }
 
 /* ===================== 데이터 파일 (공유/백업) ===================== */
@@ -825,7 +844,7 @@ function importData(file){
       const nd=normalizeData(JSON.parse(rd.result));
       if(!nd) throw 0;
       if(!confirm("현재 데이터를 불러온 파일로 덮어쓸까요? (서버에도 반영됩니다)")) return;
-      data=nd; saveData(); render(); toast("데이터를 불러왔습니다.");
+      data=nd; opReplace(); render(); toast("데이터를 불러왔습니다.");
     }catch(e){ toast("올바른 자산 데이터 파일이 아닙니다."); }
   };
   rd.readAsText(file);
@@ -857,9 +876,12 @@ function applySidebar(){ let on=false; try{ on=localStorage.getItem(SIDE_KEY)===
 
 /* ===================== 초기화 / 이벤트 ===================== */
 loadData(); loadScope(); fillCatSelect(); initTheme(); applySidebar(); applyLockUI(); render();
-pullFromServer(true);  // 로드 시 서버(공유) 데이터로 동기화
+pullFromServer({initial:true});  // 로드 시 서버(공유) 데이터로 동기화
+startPolling();                   // 6초마다 다른 기기 변경 자동 반영
 let focusPullTimer=null;
-window.addEventListener("focus",()=>{ clearTimeout(focusPullTimer); focusPullTimer=setTimeout(()=>{ if(!document.getElementById("modalBg").classList.contains("open")) pullFromServer(false); },200); });
+function focusPull(){ clearTimeout(focusPullTimer); focusPullTimer=setTimeout(()=>{ if(!document.getElementById("modalBg").classList.contains("open")) pullFromServer(); },150); }
+window.addEventListener("focus",focusPull);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) focusPull(); });
 
 document.getElementById("btnTheme").addEventListener("click",()=>{
   const next=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
