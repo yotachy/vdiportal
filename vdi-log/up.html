@@ -57,7 +57,8 @@
 
   /* 글로벌 헤더 */
   .apphd{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:11px; background:var(--navy); color:#fff; padding:0 20px; height:58px; box-shadow:0 2px 0 var(--gold);}
-  .apphd-brand{display:flex; align-items:center; gap:11px; user-select:none;}
+  .apphd-brand{display:flex; align-items:center; gap:11px; user-select:none; cursor:pointer;}
+  .apphd-brand:hover .apphd-t{text-decoration:underline; text-underline-offset:3px;}
   .apphd-mark{width:34px; height:34px; border-radius:9px; background:var(--gold); color:#211a05; display:flex; align-items:center; justify-content:center; flex:none;}
   .apphd-mark svg{width:19px; height:19px;}
   .apphd-t{font-family:var(--font-display); font-size:.92rem; line-height:1.12; letter-spacing:-.01em;}
@@ -209,7 +210,7 @@
 <body>
 
 <header class="apphd">
-  <div class="apphd-brand">
+  <div class="apphd-brand" id="goHome" title="정성인연 홈으로">
     <span class="apphd-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.5 12 4l9 9.5"/><path d="M5 12v7.5h14V12"/><path d="M10 20v-5h4v5"/></svg></span>
     <div class="apphd-tt"><div class="apphd-t">정성인연 자산관리</div><div class="apphd-s">보유 자산 현황 대시보드</div></div>
   </div>
@@ -517,16 +518,16 @@ function renderList(){
       <td class="inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} title="자산 합계 포함"></td>
       <td><span class="cat-tag"><span class="area-chip-sm" style="background:${c.color}"></span>${escHtml(c.name)}</span></td>
       <td class="name">${escHtml(it.name)||"—"}</td>
-      <td class="owner">${escHtml(it.owner)||""}</td>
       <td class="num">${fmtWon(it.amount)}</td>
+      <td class="owner">${escHtml(it.owner)||""}</td>
       <td class="note">${escHtml(it.note)||""}</td>
       <td class="row-act"><button class="edit" title="수정">${EDIT_ICO}</button><button class="del" title="삭제">${DEL_ICO}</button></td>
     </tr>`;
   });
   body.innerHTML=`<table class="atable">
-    <thead><tr>${manual?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:120px">분류</th><th>항목명</th><th style="width:96px">이름</th><th class="num" style="width:160px">평가금액</th><th style="width:180px">메모</th><th style="width:84px"></th></tr></thead>
+    <thead><tr>${manual?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:120px">분류</th><th>항목명</th><th class="num" style="width:160px">평가금액</th><th style="width:96px">이름</th><th style="width:180px">메모</th><th style="width:84px"></th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td colspan="${manual?5:4}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="2"></td></tr></tfoot>
+    <tfoot><tr><td colspan="${manual?4:3}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="3"></td></tr></tfoot>
   </table>`;
   body.querySelectorAll("tr[data-id]").forEach(tr=>{
     const id=tr.dataset.id;
@@ -703,6 +704,7 @@ document.getElementById("sideToggle").addEventListener("click",()=>{
   const c=document.body.classList.toggle("side-collapsed");
   try{ localStorage.setItem(SIDE_KEY,c?"1":"0"); }catch(e){}
 });
+document.getElementById("goHome").addEventListener("click",()=>navTo("dash"));
 document.getElementById("btnAdd").addEventListener("click",()=>openModal());
 document.getElementById("btnSort").addEventListener("click",toggleSort);
 document.getElementById("modalClose").addEventListener("click",closeModal);
