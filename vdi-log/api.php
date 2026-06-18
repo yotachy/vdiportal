@@ -32,6 +32,20 @@ if ($method === "GET") {
   header("Content-Type: application/json; charset=utf-8");
   header("Cache-Control: no-store");
   if (isset($_GET["check"])) { echo json_encode(["valid" => check_key($WRITE_KEY)]); exit; }
+  if (isset($_GET["rate"])) {  // USD/KRW 실시간 환율(30분 캐시, 데이터와 무관한 캐시파일)
+    $rf = __DIR__ . "/jsiy_rate.json"; $now = time();
+    $cached = is_file($rf) ? json_decode(file_get_contents($rf), true) : null;
+    if (is_array($cached) && isset($cached["rate"]) && ($now - intval($cached["ts"] ?? 0) < 1800)) { echo json_encode($cached); exit; }
+    $url = "https://open.er-api.com/v6/latest/USD";
+    $ctx = stream_context_create(["http"=>["timeout"=>6],"ssl"=>["verify_peer"=>false,"verify_peer_name"=>false]]);
+    $raw = @file_get_contents($url, false, $ctx);
+    if ($raw === false && function_exists("curl_init")) { $ch=curl_init($url); curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>1,CURLOPT_TIMEOUT=>6,CURLOPT_SSL_VERIFYPEER=>false]); $raw=curl_exec($ch); curl_close($ch); }
+    $krw = null; if ($raw !== false) { $j = json_decode($raw, true); $krw = isset($j["rates"]["KRW"]) ? $j["rates"]["KRW"] : null; }
+    if ($krw) { $out = ["rate"=>round($krw,2),"ts"=>$now]; @file_put_contents($rf, json_encode($out)); echo json_encode($out); }
+    else if ($cached) { echo json_encode($cached); }            // 실패 시 오래된 캐시라도 반환
+    else { echo json_encode(["rate"=>1380,"ts"=>0,"fallback"=>true]); }
+    exit;
+  }
   if (is_file($f)) { readfile($f); } else { echo "null"; }
   exit;
 }
