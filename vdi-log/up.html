@@ -172,6 +172,14 @@
   .atable tr.row-off td.name,.atable tr.row-off td.note{color:var(--ink-faint);}
   .atable tr.row-off td.num{color:var(--ink-faint); text-decoration:line-through;}
   .atable tr.row-off .cat-tag{opacity:.55;}
+  .vhd-actions{display:flex; align-items:center; gap:8px;}
+  .atable th.grip,.atable td.grip{width:34px; text-align:center;}
+  .row-grip{cursor:grab; color:var(--ink-faint); user-select:none; font-size:1.05rem; line-height:1; display:inline-block; padding:2px 4px; border-radius:5px;}
+  .row-grip:hover{background:var(--line); color:var(--ink);}
+  .atable tr[draggable] .row-grip:active{cursor:grabbing;}
+  .atable tr.row-dragging{opacity:.4;}
+  .atable tr.drop-before td{box-shadow:inset 0 3px 0 var(--gold);}
+  .atable tr.drop-after td{box-shadow:inset 0 -3px 0 var(--gold);}
 
   /* 모달 */
   .modal-bg{position:fixed; inset:0; background:rgba(20,26,36,.5); display:none; align-items:center; justify-content:center; z-index:60; padding:20px;}
@@ -245,10 +253,13 @@
             <h1 id="listTitle">전체 자산</h1>
             <div class="sub" id="listSub"></div>
           </div>
-          <button class="btn gold" id="btnAdd">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            자산 추가
-          </button>
+          <div class="vhd-actions">
+            <button class="btn" id="btnSort" title="정렬 방식 전환 (금액순 ↔ 수동 드래그)"></button>
+            <button class="btn gold" id="btnAdd">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              자산 추가
+            </button>
+          </div>
         </div>
         <div class="card" style="padding:0; overflow:hidden;">
           <div id="listBody"></div>
@@ -457,19 +468,22 @@ function renderList(){
   const cat=isCat?catById(scope):null;
   document.getElementById("listEyebrow").textContent=isCat?"ASSETS":"ALL ASSETS";
   document.getElementById("listTitle").textContent=isCat?cat.name:"전체 자산";
+  const manual=sortMode()==="manual";
   let items=data.items.slice();
   if(isCat) items=items.filter(it=>it.cat===scope);
-  items.sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0));
+  if(!manual) items.sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0));  // 수동 모드는 저장 순서 유지
   const incItems=items.filter(isIncluded);
   const sum=incItems.reduce((s,it)=>s+(Number(it.amount)||0),0);
   const excl=items.length-incItems.length;
-  document.getElementById("listSub").textContent=`${items.length}건 · 합계 ${fmtWon(sum)}`+(excl>0?` · 합계 제외 ${excl}건`:"");
+  document.getElementById("listSub").textContent=`${items.length}건 · 합계 ${fmtWon(sum)}`+(excl>0?` · 합계 제외 ${excl}건`:"")+(manual?" · 드래그로 순서 변경":"");
+  document.getElementById("btnSort").innerHTML=(manual?SORT_ICO_MANUAL:SORT_ICO_AMOUNT)+`<span>${manual?"수동 정렬":"금액순"}</span>`;
   const body=document.getElementById("listBody");
   if(!items.length){ body.innerHTML=`<div class="empty">등록된 자산이 없습니다. 우측 상단 <b>자산 추가</b>로 입력하세요.</div>`; return; }
   let rows="";
   items.forEach(it=>{
     const c=catById(it.cat); const on=isIncluded(it);
-    rows+=`<tr data-id="${it.id}"${on?"":' class="row-off"'}>
+    rows+=`<tr data-id="${it.id}"${on?"":' class="row-off"'}${manual?' draggable="true"':''}>
+      ${manual?`<td class="grip"><span class="row-grip" title="드래그하여 이동">⠿</span></td>`:""}
       <td class="inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} title="자산 합계 포함"></td>
       <td><span class="cat-tag"><span class="area-chip-sm" style="background:${c.color}"></span>${escHtml(c.name)}</span></td>
       <td class="name">${escHtml(it.name)||"—"}</td>
@@ -479,9 +493,9 @@ function renderList(){
     </tr>`;
   });
   body.innerHTML=`<table class="atable">
-    <thead><tr><th class="inc" title="자산 합계 포함">포함</th><th style="width:120px">분류</th><th>항목명</th><th class="num" style="width:160px">평가금액</th><th style="width:200px">메모</th><th style="width:84px"></th></tr></thead>
+    <thead><tr>${manual?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:120px">분류</th><th>항목명</th><th class="num" style="width:160px">평가금액</th><th style="width:200px">메모</th><th style="width:84px"></th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td colspan="3">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="2"></td></tr></tfoot>
+    <tfoot><tr><td colspan="${manual?4:3}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="2"></td></tr></tfoot>
   </table>`;
   body.querySelectorAll("tr[data-id]").forEach(tr=>{
     const id=tr.dataset.id;
@@ -489,12 +503,53 @@ function renderList(){
     tr.querySelector(".del").addEventListener("click",()=>delItem(id));
     tr.querySelector(".inc-chk").addEventListener("change",()=>toggleInclude(id));
   });
+  if(manual) wireRowDrag(body);
 }
 function toggleInclude(id){
   const it=data.items.find(x=>x.id===id); if(!it) return;
   it.include=!isIncluded(it);
   saveData(); render();
   toast(it.include?"합계에 포함했습니다.":"합계에서 제외했습니다.");
+}
+
+/* ===================== 정렬 모드 / 드래그 재정렬 ===================== */
+const SORT_ICO_AMOUNT=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 20l-3-3M7 20l3-3"/><path d="M13 6h7M13 11h5M13 16h3"/></svg>`;
+const SORT_ICO_MANUAL=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg>`;
+function sortMode(){ return data.meta&&data.meta.sortMode==="manual"?"manual":"amount"; }
+function toggleSort(){
+  if(!data.meta) data.meta={};
+  data.meta.sortMode=sortMode()==="manual"?"amount":"manual";
+  saveData(); render();
+  toast(sortMode()==="manual"?"수동 정렬 — 드래그로 순서를 바꾸세요.":"금액순으로 정렬합니다.");
+}
+let dragId=null;
+function wireRowDrag(body){
+  const clearMarks=()=>body.querySelectorAll("tr.drop-before,tr.drop-after").forEach(t=>t.classList.remove("drop-before","drop-after"));
+  body.querySelectorAll("tr[data-id]").forEach(tr=>{
+    tr.addEventListener("dragstart",e=>{ dragId=tr.dataset.id; tr.classList.add("row-dragging"); e.dataTransfer.effectAllowed="move"; try{e.dataTransfer.setData("text/plain",dragId);}catch(_){} });
+    tr.addEventListener("dragend",()=>{ dragId=null; tr.classList.remove("row-dragging"); clearMarks(); });
+    tr.addEventListener("dragover",e=>{
+      if(!dragId||tr.dataset.id===dragId) return;
+      e.preventDefault(); e.dataTransfer.dropEffect="move";
+      const r=tr.getBoundingClientRect(); const after=e.clientY>r.top+r.height/2;
+      clearMarks(); tr.classList.add(after?"drop-after":"drop-before");
+    });
+    tr.addEventListener("drop",e=>{
+      if(!dragId||tr.dataset.id===dragId){ clearMarks(); return; }
+      e.preventDefault();
+      const after=tr.classList.contains("drop-after");
+      moveItem(dragId,tr.dataset.id,after);
+    });
+  });
+}
+function moveItem(id,targetId,after){
+  const arr=data.items;
+  const from=arr.findIndex(x=>x.id===id); if(from<0) return;
+  const item=arr.splice(from,1)[0];
+  let to=arr.findIndex(x=>x.id===targetId); if(to<0){ arr.splice(from,0,item); return; }
+  if(after) to++;
+  arr.splice(to,0,item);
+  saveData(); render();
 }
 
 /* ===================== 메인 렌더 ===================== */
@@ -616,6 +671,7 @@ document.getElementById("sideToggle").addEventListener("click",()=>{
   try{ localStorage.setItem(SIDE_KEY,c?"1":"0"); }catch(e){}
 });
 document.getElementById("btnAdd").addEventListener("click",()=>openModal());
+document.getElementById("btnSort").addEventListener("click",toggleSort);
 document.getElementById("modalClose").addEventListener("click",closeModal);
 document.getElementById("modalCancel").addEventListener("click",closeModal);
 document.getElementById("modalSave").addEventListener("click",saveModal);
