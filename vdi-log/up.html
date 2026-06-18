@@ -38,6 +38,10 @@
   }
   html[data-theme="dark"] .btn{background:var(--card);}
   html[data-theme="dark"] .btn.ghost{background:transparent;}
+  html[data-theme="dark"] .btn.gold{background:var(--gold); color:#2b2410;}          /* 골드 버튼: 다크에서도 골드 배경+진한 글자 유지 */
+  html[data-theme="dark"] .btn.gold:hover{background:var(--gold-strong); color:#2b2410;}
+  html[data-theme="dark"] .apphd .btn{background:rgba(255,255,255,.08); color:#eaeef5;}  /* 헤더 버튼: 네이비 위 반투명 흰색 유지 */
+  html[data-theme="dark"] .apphd .btn.ghost{background:transparent; color:#dfe5ee;}
   html[data-theme="dark"] .nav-item.active{color:#ffd255;}
   html[data-theme="dark"] .atable th{background:#222b39;}
 
