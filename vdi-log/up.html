@@ -157,6 +157,7 @@
   .atable td{padding:10px; border-bottom:1px solid var(--line-faint); vertical-align:middle;}
   .atable td.num{font-family:var(--font-bold);}
   .atable td.name{font-family:var(--font-bold); color:var(--ink);}
+  .atable td.owner{color:var(--ink-soft); font-size:.83rem; white-space:nowrap;}
   .atable td.note{color:var(--ink-faint); font-size:.8rem;}
   .atable tbody tr:hover td{background:var(--line-faint);}
   .atable tfoot td{padding:12px 10px; font-family:var(--font-bold); border-top:2px solid var(--line-strong); background:var(--card);}
@@ -169,7 +170,7 @@
   .empty{padding:48px 20px; text-align:center; color:var(--ink-faint); font-size:.86rem;}
   .atable th.inc,.atable td.inc{width:54px; text-align:center;}
   .atable input[type=checkbox]{width:16px; height:16px; cursor:pointer; accent-color:var(--gold-strong); vertical-align:middle;}
-  .atable tr.row-off td.name,.atable tr.row-off td.note{color:var(--ink-faint);}
+  .atable tr.row-off td.name,.atable tr.row-off td.note,.atable tr.row-off td.owner{color:var(--ink-faint);}
   .atable tr.row-off td.num{color:var(--ink-faint); text-decoration:line-through;}
   .atable tr.row-off .cat-tag{opacity:.55;}
   .vhd-actions{display:flex; align-items:center; gap:8px;}
@@ -277,6 +278,7 @@
     <div class="modal-bd">
       <div class="field"><label for="fCat">분류</label><select id="fCat"></select></div>
       <div class="field"><label for="fName">항목명</label><input id="fName" type="text" placeholder="예) 삼성전자, 전세보증금, 비트코인" maxlength="40"></div>
+      <div class="field"><label for="fOwner">이름</label><input id="fOwner" type="text" placeholder="예) 최정식, 공동" maxlength="20"></div>
       <div class="field"><label for="fAmount">평가금액 (원)</label><input id="fAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="0"><div class="hint" id="fAmountKor"></div></div>
       <div class="field"><label for="fNote">메모 (선택)</label><input id="fNote" type="text" placeholder="예) 250주 / $9,000 / 분당" maxlength="60"></div>
       <label class="chk"><input type="checkbox" id="fInclude" checked> 자산 합계에 포함</label>
@@ -312,16 +314,16 @@ function genId(){ return "a"+Date.now().toString(36)+Math.floor(Math.random()*1e
 
 const DEFAULT_DATA={
   items:[
-    {cat:"kr",      name:"삼성전자",     amount:18500000, note:"250주"},
-    {cat:"kr",      name:"카카오",       amount:6200000,  note:""},
-    {cat:"us",      name:"Apple",        amount:12400000, note:"$9,000"},
-    {cat:"us",      name:"Tesla",        amount:5800000,  note:""},
-    {cat:"pension", name:"DC형 퇴직연금", amount:34000000, note:"미래에셋"},
-    {cat:"cash",    name:"입출금 통장",   amount:8700000,  note:""},
-    {cat:"cash",    name:"CMA",          amount:15000000, note:""},
-    {cat:"estate",  name:"전세보증금",    amount:320000000,note:"분당"},
-    {cat:"crypto",  name:"비트코인",      amount:9300000,  note:"0.1 BTC"},
-    {cat:"etc",     name:"금(골드바)",    amount:4500000,  note:""},
+    {cat:"kr",      name:"삼성전자",     amount:18500000, note:"250주",  owner:"최정식"},
+    {cat:"kr",      name:"카카오",       amount:6200000,  note:"",       owner:"최정식"},
+    {cat:"us",      name:"Apple",        amount:12400000, note:"$9,000", owner:"이수진"},
+    {cat:"us",      name:"Tesla",        amount:5800000,  note:"",       owner:"이수진"},
+    {cat:"pension", name:"DC형 퇴직연금", amount:34000000, note:"미래에셋", owner:"최정식"},
+    {cat:"cash",    name:"입출금 통장",   amount:8700000,  note:"",       owner:"최정식"},
+    {cat:"cash",    name:"CMA",          amount:15000000, note:"",       owner:"이수진"},
+    {cat:"estate",  name:"전세보증금",    amount:320000000,note:"분당",    owner:"공동"},
+    {cat:"crypto",  name:"비트코인",      amount:9300000,  note:"0.1 BTC",owner:"최정식"},
+    {cat:"etc",     name:"금(골드바)",    amount:4500000,  note:"",       owner:"이수진"},
   ].map((x,i)=>({id:genId(), ...x, updatedAt:Date.now()-i*3600000})),
   meta:{title:"정성인연 자산 현황"}
 };
@@ -331,7 +333,7 @@ function loadData(){
   let d=null;
   try{ const raw=localStorage.getItem(STORE_KEY); if(raw) d=JSON.parse(raw); }catch(e){}
   if(!d||!Array.isArray(d.items)){ d=JSON.parse(JSON.stringify(DEFAULT_DATA)); }
-  d.items.forEach(it=>{ if(!it.id) it.id=genId(); it.amount=Number(it.amount)||0; if(!catById(it.cat)) it.cat="etc"; it.include=it.include!==false; });
+  d.items.forEach(it=>{ if(!it.id) it.id=genId(); it.amount=Number(it.amount)||0; if(!catById(it.cat)) it.cat="etc"; it.include=it.include!==false; if(it.owner==null) it.owner=""; });
   if(!d.meta) d.meta={title:"정성인연 자산 현황"};
   data=d;
 }
@@ -487,15 +489,16 @@ function renderList(){
       <td class="inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} title="자산 합계 포함"></td>
       <td><span class="cat-tag"><span class="area-chip-sm" style="background:${c.color}"></span>${escHtml(c.name)}</span></td>
       <td class="name">${escHtml(it.name)||"—"}</td>
+      <td class="owner">${escHtml(it.owner)||""}</td>
       <td class="num">${fmtWon(it.amount)}</td>
       <td class="note">${escHtml(it.note)||""}</td>
       <td class="row-act"><button class="edit" title="수정">${EDIT_ICO}</button><button class="del" title="삭제">${DEL_ICO}</button></td>
     </tr>`;
   });
   body.innerHTML=`<table class="atable">
-    <thead><tr>${manual?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:120px">분류</th><th>항목명</th><th class="num" style="width:160px">평가금액</th><th style="width:200px">메모</th><th style="width:84px"></th></tr></thead>
+    <thead><tr>${manual?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:120px">분류</th><th>항목명</th><th style="width:96px">이름</th><th class="num" style="width:160px">평가금액</th><th style="width:180px">메모</th><th style="width:84px"></th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td colspan="${manual?4:3}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="2"></td></tr></tfoot>
+    <tfoot><tr><td colspan="${manual?5:4}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="2"></td></tr></tfoot>
   </table>`;
   body.querySelectorAll("tr[data-id]").forEach(tr=>{
     const id=tr.dataset.id;
@@ -574,6 +577,7 @@ function openModal(id){
   let defCat=(scope!=="all"&&scope!=="dash")?scope:CATS[0].id;
   document.getElementById("fCat").value=it?it.cat:defCat;
   document.getElementById("fName").value=it?it.name:"";
+  document.getElementById("fOwner").value=it?(it.owner||""):"";
   document.getElementById("fAmount").value=it?it.amount:"";
   document.getElementById("fNote").value=it?it.note:"";
   document.getElementById("fInclude").checked=it?isIncluded(it):true;
@@ -589,16 +593,17 @@ function updateAmountKor(){
 function saveModal(){
   const cat=document.getElementById("fCat").value;
   const name=document.getElementById("fName").value.trim();
+  const owner=document.getElementById("fOwner").value.trim();
   const amount=Math.max(0,Math.round(Number(document.getElementById("fAmount").value)||0));
   const note=document.getElementById("fNote").value.trim();
   const include=document.getElementById("fInclude").checked;
   if(!name){ toast("항목명을 입력하세요."); document.getElementById("fName").focus(); return; }
   if(editingId){
     const it=data.items.find(x=>x.id===editingId);
-    if(it){ it.cat=cat; it.name=name; it.amount=amount; it.note=note; it.include=include; it.updatedAt=Date.now(); }
+    if(it){ it.cat=cat; it.name=name; it.owner=owner; it.amount=amount; it.note=note; it.include=include; it.updatedAt=Date.now(); }
     toast("수정되었습니다.");
   }else{
-    data.items.push({id:genId(),cat,name,amount,note,include,updatedAt:Date.now()});
+    data.items.push({id:genId(),cat,name,owner,amount,note,include,updatedAt:Date.now()});
     toast("자산이 추가되었습니다.");
   }
   saveData(); closeModal(); render();
@@ -627,7 +632,7 @@ function importData(file){
       const d=JSON.parse(rd.result);
       if(!d||!Array.isArray(d.items)) throw 0;
       if(!confirm("현재 데이터를 불러온 파일로 덮어쓸까요?")) return;
-      data=d; data.items.forEach(it=>{ if(!it.id) it.id=genId(); it.amount=Number(it.amount)||0; if(!catById(it.cat)) it.cat="etc"; it.include=it.include!==false; });
+      data=d; data.items.forEach(it=>{ if(!it.id) it.id=genId(); it.amount=Number(it.amount)||0; if(!catById(it.cat)) it.cat="etc"; it.include=it.include!==false; if(it.owner==null) it.owner=""; });
       if(!data.meta) data.meta={title:"정성인연 자산 현황"};
       saveData(); render(); toast("데이터를 불러왔습니다.");
     }catch(e){ toast("올바른 자산 데이터 파일이 아닙니다."); }
