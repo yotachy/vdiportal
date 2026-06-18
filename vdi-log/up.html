@@ -205,6 +205,10 @@
   .goal-head{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:6px;}
   .goal-target{font-family:var(--font-display); font-size:1.5rem; letter-spacing:-.02em;}
   .gt-label{display:block; font-size:.72rem; color:var(--ink-faint); font-family:var(--font-bold); letter-spacing:.03em; margin-bottom:3px;}
+  .gt-tax{display:block; font-size:.78rem; color:var(--gold-strong); font-family:var(--font-bold); margin-top:4px;}
+  .goal-head-act{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+  .gt-check{display:inline-flex; align-items:center; gap:6px; font-size:.82rem; color:var(--ink-soft); font-family:var(--font-bold); cursor:pointer; user-select:none;}
+  .gt-check input{width:16px; height:16px; accent-color:var(--gold-strong); cursor:pointer;}
   .btn-sm{padding:5px 11px; font-size:.76rem;}
   .goal-big{font-family:var(--font-display); font-size:2.1rem; color:var(--gold-strong); letter-spacing:-.02em; margin:10px 0 12px;}
   .goal-big span{font-size:1.05rem;}
@@ -603,12 +607,19 @@ function renderSidebar(){
 }
 
 /* ===================== 렌더: 대시보드 ===================== */
+const TAX_PCT=3.3;  // 부동산 보유세(취득세 등) 가산율
 function goalTarget(){ return Number(data.meta&&data.meta.target)||0; }
+function taxOn(){ return !!(data.meta&&data.meta.taxOn); }
+function effectiveTarget(){ const b=goalTarget(); return taxOn()?Math.round(b*(1+TAX_PCT/100)):b; }
 function renderGoal(){
-  const inc=grandTotal(), all=allItemsTotal(), target=goalTarget();
+  const inc=grandTotal(), all=allItemsTotal(), base=goalTarget(), target=effectiveTarget(), tax=taxOn();
   const editable=isUnlocked();
-  const setBtn=editable?`<button class="btn btn-sm" data-goal-edit>${target?"목표 수정":"목표 설정"}</button>`:"";
-  const head=`<div class="goal-head"><div class="goal-target"><span class="gt-label">목표 매수가 (부동산)</span>${target?fmtWon(target):`<span style="color:var(--ink-faint)">미설정</span>`}</div>${setBtn}</div>`;
+  const setBtn=editable?`<button class="btn btn-sm" data-goal-edit>${base?"목표 수정":"목표 설정"}</button>`:"";
+  const taxChk=base?`<label class="gt-check"><input type="checkbox" id="taxChk" ${tax?"checked":""} ${editable?"":"disabled"}> 보유세 +${TAX_PCT}%</label>`:"";
+  const head=`<div class="goal-head">
+      <div class="goal-target"><span class="gt-label">목표 매수가 (부동산)</span>${base?fmtWon(base):`<span style="color:var(--ink-faint)">미설정</span>`}${base&&tax?`<span class="gt-tax">보유세 +${TAX_PCT}% → 적용 목표 ${fmtWon(target)}</span>`:""}</div>
+      <div class="goal-head-act">${taxChk}${setBtn}</div>
+    </div>`;
   const legend=`<div class="goal-legend">
       <span><i class="gl inc"></i>포함 합계 <b>${fmtWon(inc)}</b>${target?` (${(inc/target*100).toFixed(1)}%)`:""}</span>
       <span><i class="gl all"></i>전체 합계 <b>${fmtWon(all)}</b>${target?` (${(all/target*100).toFixed(1)}%)`:""}</span>
@@ -623,7 +634,7 @@ function renderGoal(){
     const remTxt=amt=>{const r=target-amt; return r>0?`목표까지 ${fmtWon(r)} 남음`:`<b style="color:var(--st-fix)">목표 달성 (+${fmtWon(-r)})</b>`;};
     viz=`
       <div class="goalscale">
-        <div class="gs-goal-label${anchorRight?" right":""}" style="left:${goalLeft.toFixed(2)}%">🎯 목표 ${fmtWon(target)}</div>
+        <div class="gs-goal-label${anchorRight?" right":""}" style="left:${goalLeft.toFixed(2)}%">🎯 목표 ${fmtWon(target)}${tax?" (세포함)":""}</div>
         <div class="goal-track">
           <div class="goal-fill all" style="width:${allW.toFixed(2)}%"></div>
           <div class="goal-fill inc" style="width:${incW.toFixed(2)}%"></div>
@@ -760,6 +771,7 @@ function renderDash(){
   body.querySelectorAll(".owner-row[data-owner]").forEach(b=>b.addEventListener("click",()=>navTo("owner:"+b.dataset.owner)));
   body.querySelectorAll(".owner-row[data-inst]").forEach(b=>b.addEventListener("click",()=>navTo("inst:"+b.dataset.inst)));
   body.querySelectorAll("[data-goal-edit]").forEach(b=>b.addEventListener("click",editGoal));
+  const tc=document.getElementById("taxChk"); if(tc) tc.addEventListener("change",toggleTax);
 }
 
 /* ===================== 렌더: 목록 ===================== */
@@ -966,6 +978,13 @@ function delItem(id){
   if(!confirm(`'${it.name}' 항목을 삭제할까요?`)) return;
   data.items=data.items.filter(x=>x.id!==id);
   opDelete(id); render(); toast("삭제되었습니다.");
+}
+function toggleTax(){
+  if(!requireEdit()){ render(); return; }
+  if(!data.meta) data.meta={};
+  data.meta.taxOn=!data.meta.taxOn;
+  opMeta({taxOn:data.meta.taxOn}); render();
+  toast(data.meta.taxOn?("보유세 +"+TAX_PCT+"% 적용"):"보유세 미적용");
 }
 function editGoal(){
   if(!requireEdit()) return;
