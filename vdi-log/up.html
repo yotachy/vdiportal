@@ -71,6 +71,40 @@
   .apphd .btn.ghost{background:transparent; border-color:transparent; color:#dfe5ee;}
   .apphd .btn.ghost:hover{background:rgba(255,255,255,.12); color:#fff;}
 
+  /* 셸: 사이드바 + 본문 */
+  .hub{display:flex; align-items:flex-start;}
+  .side{position:sticky; top:58px; align-self:flex-start; width:264px; flex:none; height:calc(100vh - 58px); overflow-y:auto; background:var(--card); border-right:1px solid var(--line); padding:14px 12px 30px; transition:width .2s ease, padding .2s ease;}
+  .content{flex:1; min-width:0;}
+  /* 사이드바 접기/펼치기 핸들 — 패널 경계(세로 중앙)에 고정, 화살표만 좌우 전환 */
+  #sideToggle{position:fixed; top:50%; left:264px; transform:translateY(-50%); z-index:40; width:21px; height:48px; display:flex; align-items:center; justify-content:center; padding:0; border:1px solid var(--line-strong); border-left:none; border-radius:0 9px 9px 0; background:var(--card); color:var(--ink-faint); cursor:pointer; box-shadow:var(--shadow-sm); transition:left .2s ease, background .12s, color .12s;}
+  #sideToggle:hover{background:var(--gold-soft); color:var(--gold-strong); border-color:var(--gold);}
+  #sideToggle svg{width:15px; height:15px; transition:transform .2s;}
+  body.side-collapsed #sideToggle svg{transform:rotate(180deg);}
+  body.side-collapsed .side{width:0; padding-left:0; padding-right:0; border-right:none; overflow:hidden;}
+  body.side-collapsed #sideToggle{left:0;}
+
+  /* 사이드바 내비 */
+  .nav-pinned{padding-bottom:9px; margin-bottom:8px; border-bottom:1px solid var(--line);}
+  .nav-pinned .nav-item{font-family:var(--font-bold);}
+  .nav-cat{margin-bottom:3px;}
+  .nav-cat-head2{display:flex; align-items:center; gap:6px; padding:10px 13px 4px;}
+  .nav-cat-head2 .nav-cat-name{font-size:.72rem; letter-spacing:.04em; color:var(--ink-faint); font-family:var(--font-bold);}
+  .nav-items{padding:1px 0 5px;}
+  .nav-item{display:flex; align-items:center; gap:9px; width:100%; text-align:left; border:none; background:transparent; cursor:pointer; padding:8px 9px 8px 13px; border-radius:8px; color:var(--ink); font-size:.81rem; font-family:var(--font-body); position:relative; line-height:1.3;}
+  .nav-item:hover{background:var(--line-faint);}
+  .nav-item.active{background:var(--gold-soft); color:#6b4e00; font-family:var(--font-bold);}
+  .nav-item.active::before{content:""; position:absolute; left:3px; top:8px; bottom:8px; width:3px; border-radius:3px; background:var(--gold);}
+  .nav-item .ni-dot{width:7px; height:7px; border-radius:50%; flex:none; background:var(--line-strong);}
+  .nav-item .ni-dot.ni-all{background:var(--ink-faint);}
+  .nav-item .ni-ico{width:16px; height:16px; flex:none; color:var(--ink-faint);}
+  .nav-item.active .ni-ico{color:var(--gold-strong);}
+  .nav-dash .ni-name{font-family:var(--font-bold);}
+  .nav-item .ni-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .ni-count{flex:none; margin-left:auto; font-size:.7rem; color:var(--ink-faint); background:var(--line-faint); padding:1px 7px; border-radius:9px; font-family:var(--font-bold);}
+  .nav-item.active .ni-count{background:var(--gold-soft); color:var(--gold-strong);}
+  .area-chip-sm{width:10px; height:10px; border-radius:3px; flex:none;}
+  html[data-theme="dark"] .nav-item.active{color:#ffd255;}
+
   /* 본문 (테스트 영역) */
   .wrap{max-width:1100px; margin:0 auto; padding:40px 28px;}
   .placeholder{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; min-height:48vh; border:1.5px dashed var(--line-strong); border-radius:var(--r); color:var(--ink-faint); text-align:center; background:var(--card); box-shadow:var(--shadow-sm);}
@@ -92,10 +126,35 @@
   </button>
 </header>
 
-<div class="wrap">
-  <div class="placeholder">
-    <div class="ph-t">테스트 영역</div>
-    <div class="ph-s">up.html — 여기에 테스트할 내용을 채우세요.</div>
+<div class="hub">
+  <aside class="side" id="sidebar">
+    <div class="nav-pinned">
+      <button class="nav-item nav-dash active" data-nav="dash">
+        <svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="14" width="8" height="7" rx="1.5"/></svg>
+        <span class="ni-name">대시보드</span>
+      </button>
+      <button class="nav-item" data-nav="all"><span class="ni-dot ni-all"></span><span class="ni-name">전체 안건</span><span class="ni-count">0</span></button>
+    </div>
+    <div class="nav-cat">
+      <div class="nav-cat-head2"><span class="nav-cat-name">영역</span></div>
+      <div class="nav-items">
+        <button class="nav-item" data-nav="infra"><span class="area-chip-sm" style="background:#3b6ea5"></span><span class="ni-name">가상화 인프라</span><span class="ni-count">0</span></button>
+        <button class="nav-item" data-nav="hr"><span class="area-chip-sm" style="background:#6f42c1"></span><span class="ni-name">계정·인사연동</span><span class="ni-count">0</span></button>
+        <button class="nav-item" data-nav="sec"><span class="area-chip-sm" style="background:#c0392b"></span><span class="ni-name">인증·정보보호</span><span class="ni-count">0</span></button>
+        <button class="nav-item" data-nav="portal"><span class="area-chip-sm" style="background:#0f8a6d"></span><span class="ni-name">사용자 포탈</span><span class="ni-count">0</span></button>
+        <button class="nav-item" data-nav="cm"><span class="area-chip-sm" style="background:#5b6b7c"></span><span class="ni-name">이행·변화관리</span><span class="ni-count">0</span></button>
+        <button class="nav-item" data-nav="ops"><span class="area-chip-sm" style="background:#b06f00"></span><span class="ni-name">운영·조직</span><span class="ni-count">0</span></button>
+      </div>
+    </div>
+  </aside>
+  <button id="sideToggle" aria-label="사이드바 접기/펼치기" title="사이드바 접기/펼치기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+  <div class="content">
+    <div class="wrap">
+      <div class="placeholder">
+        <div class="ph-t">테스트 영역</div>
+        <div class="ph-s">up.html — 여기에 테스트할 내용을 채우세요.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -126,7 +185,28 @@ document.getElementById("btnTheme").addEventListener("click",()=>{
   applyTheme(next);
 });
 document.getElementById("goLog").addEventListener("click",()=>{ location.href="log.html"; });
+
+/* ===================== 사이드바 접기/펼치기 (log.html과 vdi_log_sidebar 공유) ===================== */
+const SIDE_KEY="vdi_log_sidebar";
+function applySidebar(){
+  let on=false; try{ on=localStorage.getItem(SIDE_KEY)==="1"; }catch(e){}
+  document.body.classList.toggle("side-collapsed", on);
+}
+document.getElementById("sideToggle").addEventListener("click",()=>{
+  const c=document.body.classList.toggle("side-collapsed");
+  try{ localStorage.setItem(SIDE_KEY, c?"1":"0"); }catch(e){}
+});
+
+/* 내비 항목 선택(활성 표시만 — 테스트 셸) */
+document.querySelectorAll("#sidebar .nav-item").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll("#sidebar .nav-item.active").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+  });
+});
+
 initTheme();
+applySidebar();
 </script>
 </body>
 </html>
