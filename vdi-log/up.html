@@ -42,7 +42,7 @@
   html[data-theme="dark"] .atable th{background:#222b39;}
 
   *{box-sizing:border-box;margin:0;padding:0;}
-  html{font-size:15px;}
+  html{font-size:16.5px;}
   body{font-family:var(--font-body); background:var(--paper); color:var(--ink); padding:0 0 30px; -webkit-font-smoothing:antialiased;}
   b,strong{font-family:var(--font-bold); font-weight:700;}
 
@@ -110,7 +110,7 @@
   .area-chip-sm{width:10px; height:10px; border-radius:3px; flex:none;}
 
   /* 본문 컨테이너 */
-  .pad{max-width:1080px; padding:24px 30px 60px;}
+  .pad{max-width:1360px; padding:24px 34px 60px;}
   .vhd{display:flex; align-items:flex-end; justify-content:space-between; gap:14px; padding:6px 0 18px; flex-wrap:wrap;}
   .vhd .eyebrow{font-family:var(--font-bold); font-size:.7rem; letter-spacing:.16em; color:var(--gold-strong); margin-bottom:6px;}
   .vhd h1{font-family:var(--font-display); font-size:1.4rem; letter-spacing:-.015em;}
@@ -139,7 +139,7 @@
 
   /* ===================== 모바일 반응형 ===================== */
   @media(max-width:760px){
-    html{font-size:14px;}
+    html{font-size:15.5px;}
     /* 헤더: 아이콘만(라벨 숨김), 간격 축소 */
     .apphd{padding:0 10px; gap:3px;}
     .apphd-s{display:none;}
@@ -164,7 +164,7 @@
     /* 표 가로 스크롤 */
     #view-list .list-card{overflow:visible;}
     #listBody{overflow-x:auto; -webkit-overflow-scrolling:touch;}
-    .atable{min-width:1000px;}
+    .atable{min-width:1140px;}
     .atable td.name,.atable th{white-space:nowrap;}
     /* 총자산 카드 */
     .total-card{padding:18px 18px;}
@@ -717,7 +717,7 @@ function renderList(){
     </tr>`;
   });
   body.innerHTML=`<table class="atable">
-    <thead><tr>${canDrag?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:88px">분류</th><th style="width:92px">기관</th><th>항목명</th><th style="width:80px">보유종목</th><th class="num" style="width:58px">보유수</th><th class="num" style="width:82px">평단가</th><th class="num" style="width:128px">평가금액</th><th style="width:74px">이름</th><th style="width:104px">메모</th><th style="width:76px"></th></tr></thead>
+    <thead><tr>${canDrag?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:104px">분류</th><th style="width:116px">기관</th><th style="min-width:150px">항목명</th><th style="width:100px">보유종목</th><th class="num" style="width:74px">보유수</th><th class="num" style="width:104px">평단가</th><th class="num" style="width:158px">평가금액</th><th style="width:92px">이름</th><th style="width:150px">메모</th><th style="width:84px"></th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td colspan="${canDrag?8:7}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="3"></td></tr></tfoot>
   </table>`;
