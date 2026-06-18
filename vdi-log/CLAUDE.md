@@ -126,8 +126,7 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 | 검색 | 안건·내용 전문 검색 + `<mark>` 하이라이트 |
 | 요약 카드 | 상태별 건수, 클릭 시 상태 필터 토글 |
 | 간단히 보기 | `core` 컬럼만 노출 (`simpleView`) |
-| 인라인 편집 | `td[contenteditable]` — 진입 시 편집버퍼(`editHtml`: 색 span+평문+`\n`), 이탈 시 줄단위 렌더(`renderCellRead`, 마커 인식·들여쓰기 `-`는 하위·좁은 줄간격). **현행/개선/결정 결과(`BULLET_COLS`=asis·tobe·result)는 점 기호 입력**: 포커스 시 `· ` 자동 시작, Enter=같은 단계 기호, Tab=하위(`  - ` 들여쓰기), Shift+Tab=상위(`· `) 복귀. `blEnter`/`blReindent`/`blNormalize`/`blCleanup`는 **직렬화 토큰 문자열**(`serializeNode`) 위에서 동작 → 색이 보존됨. 캐럿은 토큰 좌표 `caretTok`/`setCaretTok`. **읽기 표시도 `renderCellRead(text,q,bullet=true)`로 마커 없는 줄에 `·` 자동 부여**(미편집 내용도 일관 표시) |
-| 글자색(셀 본문) | **문장 드래그 선택 시 색 팔레트(`#colorPop`)** 표시(관리자만, `maybeShowPalette`). 스와치 클릭 → 선택 구간에 색 적용(`applyColor`→`recolor`). 저장 포맷은 **색 토큰**(제어문자 CC1+6자리hex+CC2+텍스트+CC3, 화면엔 절대 노출 안 됨 — 편집 땐 `<span class="cl">`, 읽기/내보내기는 `renderInline`이 span으로 변환). `stripColor`로 검색 blob·빈줄 판정에서 토큰 제거. 색은 Enter/Tab(점기호) 거쳐도 유지. 읽기용 HTML·인쇄에도 그대로 출력 |
+| 인라인 편집 | `td[contenteditable]` — 진입 시 평문, 이탈 시 줄단위 렌더(`renderCellRead`, 마커 인식·들여쓰기 `-`는 하위·좁은 줄간격). **현행/개선/결정 결과(`BULLET_COLS`=asis·tobe·result)는 점 기호 입력**: 포커스 시 `· ` 자동 시작, Enter=같은 단계 기호, Tab=하위(`  - ` 들여쓰기), Shift+Tab=상위(`· `) 복귀. `blEnter`/`blReindent`/`blNormalize`/`blCleanup` + `blCaret`/`blSetCaret`(평문 캐럿). **읽기 표시도 `renderCellRead(text,q,bullet=true)`로 마커 없는 줄에 `·` 자동 부여**(미편집 내용도 일관 표시). (글자색 팔레트 기능은 2026-06-18 제거 — 버그 多·불필요) |
 | 컬럼 관리(표 인라인) | **모달 없음.** 순서=헤더 드래그, **폭=헤더 우측 경계 드래그(`.col-resize`)**, 헤더 호버 `⋮` 메뉴=이름변경·요약토글·숨기기·삭제·**숨긴 컬럼 다시 표시**. **컬럼 추가 기능은 제거**(2026-06-17, 더 늘리지 않음). 부동 메뉴 공통 `openPop()`/`.pop` |
 | 정렬 | 영역 내 **논의일자 오름차순**(중간 일정은 자동 중간 배치). 후속안건은 부모에 종속(`orderedAreaRows`) |
 | 후속안건(하위 안건) | 부모 행 액션열 `＋`(`.sub-add`)로 추가 → `parentId` 연결·들여쓰기 표시. 안건명만 필수 |
