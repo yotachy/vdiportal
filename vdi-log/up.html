@@ -200,6 +200,30 @@
   .bar-val{width:118px; text-align:right; font-size:.79rem; font-variant-numeric:tabular-nums; flex:none; font-family:var(--font-bold);}
   .bar-pct{width:46px; text-align:right; font-size:.74rem; color:var(--ink-faint); flex:none; font-variant-numeric:tabular-nums;}
 
+  /* 목표(매수가) 달성 위젯 */
+  .goal-card{}
+  .goal-head{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:6px;}
+  .goal-target{font-family:var(--font-display); font-size:1.5rem; letter-spacing:-.02em;}
+  .gt-label{display:block; font-size:.72rem; color:var(--ink-faint); font-family:var(--font-bold); letter-spacing:.03em; margin-bottom:3px;}
+  .btn-sm{padding:5px 11px; font-size:.76rem;}
+  .goal-big{font-family:var(--font-display); font-size:2.1rem; color:var(--gold-strong); letter-spacing:-.02em; margin:10px 0 12px;}
+  .goal-big span{font-size:1.05rem;}
+  .goal-big .goal-big-sub{font-size:.8rem; color:var(--ink-faint); font-family:var(--font-bold); margin-left:8px; letter-spacing:0;}
+  .goal-track{position:relative; height:24px; background:var(--line-faint); border-radius:12px; overflow:hidden;}
+  .goal-fill{position:absolute; left:0; top:0; height:100%; border-radius:12px; transition:width .4s ease;}
+  .goal-fill.all{background:#ffe39a;}
+  .goal-fill.inc{background:var(--gold);}
+  .goal-foot{margin-top:12px; font-size:.9rem; color:var(--ink-soft);}
+  .goal-foot b{font-family:var(--font-bold); color:var(--ink);}
+  .goal-legend{display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin-top:12px; padding-top:12px; border-top:1px solid var(--line-faint); font-size:.85rem;}
+  .goal-legend .gl{display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:6px; vertical-align:middle;}
+  .goal-legend .gl.inc{background:var(--gold);}
+  .goal-legend .gl.all{background:#ffe39a;}
+  .goal-legend b{font-family:var(--font-bold);}
+  .goal-legend .gl-ex{color:var(--ink-faint);}
+  .goal-empty{color:var(--ink-faint); font-size:.86rem; padding:8px 0;}
+  html[data-theme="dark"] .goal-fill.all,html[data-theme="dark"] .goal-legend .gl.all{background:#7a6a3a;}
+
   /* 최근 변경 위젯 */
   .recent-list{display:flex; flex-direction:column;}
   .recent-row{display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:none; background:transparent; cursor:pointer; padding:9px 6px; border-bottom:1px solid var(--line-faint); color:var(--ink); font-family:var(--font-body);}
@@ -542,6 +566,7 @@ function escHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&a
 const isIncluded=it=>it.include!==false;  // 합계 포함 여부(미설정=포함)
 function totalsByCat(){ const t={}; CATS.forEach(c=>t[c.id]=0); data.items.forEach(it=>{ if(isIncluded(it)) t[it.cat]=(t[it.cat]||0)+(Number(it.amount)||0); }); return t; }
 function grandTotal(){ return data.items.reduce((s,it)=>s+(isIncluded(it)?(Number(it.amount)||0):0),0); }
+function allItemsTotal(){ return data.items.reduce((s,it)=>s+(Number(it.amount)||0),0); }  // 제외 항목까지 포함한 전체
 
 /* ===================== 내비게이션 ===================== */
 let scope="dash"; // "dash" | "all" | <catId>
@@ -570,6 +595,31 @@ function renderSidebar(){
 }
 
 /* ===================== 렌더: 대시보드 ===================== */
+function goalTarget(){ return Number(data.meta&&data.meta.target)||0; }
+function renderGoal(){
+  const inc=grandTotal(), all=allItemsTotal(), target=goalTarget();
+  const editable=isUnlocked();
+  const setBtn=editable?`<button class="btn btn-sm" data-goal-edit>${target?"목표 수정":"목표 설정"}</button>`:"";
+  const head=`<div class="goal-head"><div class="goal-target"><span class="gt-label">목표 매수가 (부동산)</span>${target?fmtWon(target):`<span style="color:var(--ink-faint)">미설정</span>`}</div>${setBtn}</div>`;
+  const legend=`<div class="goal-legend">
+      <span><i class="gl inc"></i>포함 합계 <b>${fmtWon(inc)}</b>${target?` (${(inc/target*100).toFixed(1)}%)`:""}</span>
+      <span><i class="gl all"></i>전체 합계 <b>${fmtWon(all)}</b>${target?` (${(all/target*100).toFixed(1)}%)`:""}</span>
+      <span class="gl-ex">합산 제외 ${fmtWon(all-inc)}</span>
+    </div>`;
+  let viz="";
+  if(target>0){
+    const pctInc=inc/target*100, pctAll=all/target*100, rem=target-inc;
+    viz=`<div class="goal-big">${pctInc.toFixed(1)}<span>%</span><span class="goal-big-sub">포함 자산 기준 달성</span></div>
+      <div class="goal-track" title="목표 ${fmtWon(target)}">
+        <div class="goal-fill all" style="width:${Math.min(100,pctAll).toFixed(1)}%"></div>
+        <div class="goal-fill inc" style="width:${Math.min(100,pctInc).toFixed(1)}%"></div>
+      </div>
+      <div class="goal-foot">${rem>0?`목표까지 <b>${fmtWon(rem)}</b> 남음 · ${korUnit(rem)}`:`<b style="color:var(--st-fix)">🎉 목표 달성! ${fmtWon(-rem)} 초과</b>`}</div>`;
+  }else{
+    viz=`<div class="goal-empty">목표 매수가를 설정하면 달성률을 시각화합니다.</div>`;
+  }
+  return `<div class="card goal-card">${head}${viz}${legend}</div>`;
+}
 function renderDonut(t,total){
   const r=70, C=2*Math.PI*r, sw=28;
   const track=`<circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--line-faint)" stroke-width="${sw}"/>`;
@@ -677,6 +727,7 @@ function renderDash(){
       <div class="tc-kor">${korUnit(total)}</div>
       <div class="tc-meta">보유 항목 ${cnt}건 · 최근 수정 ${lastTxt}</div>
     </div>
+    ${renderGoal()}
     <div class="dash-row">
       <div class="card"><div class="card-t">자산 배분</div><div class="donut-wrap">${renderDonut(t,total)}</div></div>
       <div class="card"><div class="card-t">분류별 금액 · 비중</div>${renderBars(t,total)}</div>
@@ -691,6 +742,7 @@ function renderDash(){
   body.querySelectorAll(".recent-row").forEach(b=>b.addEventListener("click",()=>openModal(b.dataset.id)));
   body.querySelectorAll(".owner-row[data-owner]").forEach(b=>b.addEventListener("click",()=>navTo("owner:"+b.dataset.owner)));
   body.querySelectorAll(".owner-row[data-inst]").forEach(b=>b.addEventListener("click",()=>navTo("inst:"+b.dataset.inst)));
+  body.querySelectorAll("[data-goal-edit]").forEach(b=>b.addEventListener("click",editGoal));
 }
 
 /* ===================== 렌더: 목록 ===================== */
@@ -897,6 +949,17 @@ function delItem(id){
   if(!confirm(`'${it.name}' 항목을 삭제할까요?`)) return;
   data.items=data.items.filter(x=>x.id!==id);
   opDelete(id); render(); toast("삭제되었습니다.");
+}
+function editGoal(){
+  if(!requireEdit()) return;
+  const cur=goalTarget();
+  const v=prompt("목표 매수가(원)를 입력하세요 (비우면 해제)", cur||"");
+  if(v==null) return;
+  const n=Math.max(0,Math.round(Number(String(v).replace(/[,\s₩]/g,""))||0));
+  if(!data.meta) data.meta={};
+  data.meta.target=n;
+  opMeta({target:n}); render();
+  toast(n?("목표 매수가: "+fmtWon(n)):"목표를 해제했습니다.");
 }
 function dupItem(id){
   if(!requireEdit()) return;
