@@ -71,6 +71,13 @@
   .sync-badge{font-size:.72rem; font-family:var(--font-bold);}
   .sync-badge.sync-ok{color:#7ee0b8;} .sync-badge.sync-saving,.sync-badge.sync-loading{color:#ffe08a;}
   .sync-badge.sync-offline,.sync-badge.sync-error{color:#ff9a93;}
+  /* 읽기 전용(잠금) 시 편집 UI 숨김 */
+  body:not(.can-edit) #btnAdd,
+  body:not(.can-edit) #btnImport,
+  body:not(.can-edit) #btnSort,
+  body:not(.can-edit) .row-act{display:none;}
+  body:not(.can-edit) .inc-chk{opacity:.55; cursor:default;}
+  body.can-edit #btnLock .lk-label{color:#7ee0b8;}
 
   /* 셸: 사이드바 + 본문 */
   .hub{display:flex; align-items:flex-start;}
@@ -225,6 +232,10 @@
     <div class="apphd-tt"><div class="apphd-t">정성인연 자산관리</div><div class="apphd-s">보유 자산 현황 대시보드</div></div>
   </div>
   <span class="apphd-grow"></span>
+  <button class="btn ghost" id="btnLock" title="편집 잠금 해제(쓰기 키)">
+    <svg class="ic lk-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
+    <span class="lk-label"></span>
+  </button>
   <button class="btn ghost" id="btnSync" title="서버에서 새로고침 (공유 데이터)">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
     <span class="sync-badge" id="syncBadge"></span>
@@ -367,6 +378,8 @@ function saveData(opts){
 
 /* ===================== 서버 동기화 (공유 저장) ===================== */
 const SERVER_URL="api.php";  // 같은 디렉터리의 PHP 엔드포인트
+const KEY_KEY="jsiy_key";    // 쓰기 키(이 기기에만 저장)
+let writeKey=""; try{ writeKey=localStorage.getItem(KEY_KEY)||""; }catch(e){}
 let syncState="";            // ""|"ok"|"saving"|"loading"|"offline"|"error"
 let pushTimer=null;
 function setSync(s){ syncState=s; updateSyncUI(); }
@@ -378,14 +391,40 @@ function updateSyncUI(){
 }
 function pushSoon(){ setSync("saving"); clearTimeout(pushTimer); pushTimer=setTimeout(pushNow,500); }
 function pushNow(){
-  fetch(SERVER_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
-    .then(r=>r.ok?r.json():Promise.reject()).then(j=>setSync(j&&j.ok?"ok":"error"))
-    .catch(()=>setSync("offline"));
+  fetch(SERVER_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Write-Key":writeKey},body:JSON.stringify(data)})
+    .then(r=>{ if(r.status===403){ setSync("error"); toast("쓰기 권한이 없습니다 — 잠금 해제 키를 확인하세요."); throw "forbidden"; } return r.ok?r.json():Promise.reject(); })
+    .then(j=>setSync(j&&j.ok?"ok":"error"))
+    .catch(e=>{ if(e!=="forbidden") setSync("offline"); });
 }
 function applyServerData(d){
   const nd=normalizeData(d); if(!nd) return false;
   data=nd; saveData({noPush:true}); render(); return true;
 }
+
+/* ===================== 편집 잠금(쓰기 키) ===================== */
+const ICON_LOCK=`<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>`;
+const ICON_UNLOCK=`<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V6.5A4 4 0 0 1 15.5 5"/>`;
+function isUnlocked(){ return !!writeKey; }
+function requireEdit(){ if(!isUnlocked()){ toast("편집하려면 우측 상단에서 잠금을 해제하세요."); return false; } return true; }
+function applyLockUI(){
+  document.body.classList.toggle("can-edit", isUnlocked());
+  const b=document.getElementById("btnLock"); if(!b) return;
+  b.querySelector(".lk-ico").innerHTML=isUnlocked()?ICON_UNLOCK:ICON_LOCK;
+  b.querySelector(".lk-label").textContent=isUnlocked()?"편집 가능":"읽기 전용";
+  b.title=isUnlocked()?"편집 잠그기":"편집 잠금 해제(쓰기 키)";
+}
+function lockEdit(){ writeKey=""; try{ localStorage.removeItem(KEY_KEY); }catch(e){} applyLockUI(); render(); toast("읽기 전용으로 잠갔습니다."); }
+function unlockEdit(){
+  const k=prompt("편집하려면 쓰기 키를 입력하세요"); if(k==null) return;
+  setSync("loading");
+  fetch(SERVER_URL+"?check=1",{headers:{"X-Write-Key":k}})
+    .then(r=>r.json()).then(j=>{
+      if(j&&j.valid){ writeKey=k; try{ localStorage.setItem(KEY_KEY,k); }catch(e){} applyLockUI(); render(); toast("편집 잠금을 해제했습니다."); setSync("ok"); }
+      else { toast("쓰기 키가 올바르지 않습니다."); setSync("ok"); }
+    })
+    .catch(()=>{ toast("서버에 연결할 수 없습니다."); setSync("offline"); });
+}
+function toggleLock(){ isUnlocked()?lockEdit():unlockEdit(); }
 function pullFromServer(initial){
   setSync("loading");
   fetch(SERVER_URL,{cache:"no-store"})
@@ -585,6 +624,8 @@ function renderList(){
   document.getElementById("listEyebrow").textContent=isOwner?"OWNER":isInst?"INSTITUTION":(isCat?"ASSETS":"ALL ASSETS");
   document.getElementById("listTitle").textContent=isOwner?ownerName:isInst?instName:(isCat?cat.name:"전체 자산");
   const manual=sortMode()==="manual";
+  const canDrag=manual&&isUnlocked();
+  const editable=isUnlocked();
   let items=data.items.slice();
   if(isCat) items=items.filter(it=>it.cat===scope);
   else if(isOwner) items=items.filter(it=>ownerOf(it)===ownerName);
@@ -593,16 +634,16 @@ function renderList(){
   const incItems=items.filter(isIncluded);
   const sum=incItems.reduce((s,it)=>s+(Number(it.amount)||0),0);
   const excl=items.length-incItems.length;
-  document.getElementById("listSub").textContent=`${items.length}건 · 합계 ${fmtWon(sum)}`+(excl>0?` · 합계 제외 ${excl}건`:"")+(manual?" · 드래그로 순서 변경":"");
+  document.getElementById("listSub").textContent=`${items.length}건 · 합계 ${fmtWon(sum)}`+(excl>0?` · 합계 제외 ${excl}건`:"")+(canDrag?" · 드래그로 순서 변경":"");
   document.getElementById("btnSort").innerHTML=(manual?SORT_ICO_MANUAL:SORT_ICO_AMOUNT)+`<span>${manual?"수동 정렬":"금액순"}</span>`;
   const body=document.getElementById("listBody");
   if(!items.length){ body.innerHTML=`<div class="empty">등록된 자산이 없습니다. 우측 상단 <b>자산 추가</b>로 입력하세요.</div>`; return; }
   let rows="";
   items.forEach(it=>{
     const c=catById(it.cat); const on=isIncluded(it);
-    rows+=`<tr data-id="${it.id}"${on?"":' class="row-off"'}${manual?' draggable="true"':''}>
-      ${manual?`<td class="grip"><span class="row-grip" title="드래그하여 이동">⠿</span></td>`:""}
-      <td class="inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} title="자산 합계 포함"></td>
+    rows+=`<tr data-id="${it.id}"${on?"":' class="row-off"'}${canDrag?' draggable="true"':''}>
+      ${canDrag?`<td class="grip"><span class="row-grip" title="드래그하여 이동">⠿</span></td>`:""}
+      <td class="inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} ${editable?"":"disabled"} title="자산 합계 포함"></td>
       <td><span class="cat-tag"><span class="area-chip-sm" style="background:${c.color}"></span>${escHtml(c.name)}</span></td>
       <td class="inst">${escHtml(it.inst)||""}</td>
       <td class="name">${escHtml(it.name)||"—"}</td>
@@ -616,9 +657,9 @@ function renderList(){
     </tr>`;
   });
   body.innerHTML=`<table class="atable">
-    <thead><tr>${manual?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:88px">분류</th><th style="width:92px">기관</th><th>항목명</th><th style="width:80px">보유종목</th><th class="num" style="width:58px">보유수</th><th class="num" style="width:82px">평단가</th><th class="num" style="width:128px">평가금액</th><th style="width:74px">이름</th><th style="width:104px">메모</th><th style="width:76px"></th></tr></thead>
+    <thead><tr>${canDrag?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:88px">분류</th><th style="width:92px">기관</th><th>항목명</th><th style="width:80px">보유종목</th><th class="num" style="width:58px">보유수</th><th class="num" style="width:82px">평단가</th><th class="num" style="width:128px">평가금액</th><th style="width:74px">이름</th><th style="width:104px">메모</th><th style="width:76px"></th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td colspan="${manual?8:7}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="3"></td></tr></tfoot>
+    <tfoot><tr><td colspan="${canDrag?8:7}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="3"></td></tr></tfoot>
   </table>`;
   body.querySelectorAll("tr[data-id]").forEach(tr=>{
     const id=tr.dataset.id;
@@ -626,9 +667,10 @@ function renderList(){
     tr.querySelector(".del").addEventListener("click",()=>delItem(id));
     tr.querySelector(".inc-chk").addEventListener("change",()=>toggleInclude(id));
   });
-  if(manual) wireRowDrag(body);
+  if(canDrag) wireRowDrag(body);
 }
 function toggleInclude(id){
+  if(!requireEdit()){ render(); return; }
   const it=data.items.find(x=>x.id===id); if(!it) return;
   it.include=!isIncluded(it);
   saveData(); render();
@@ -640,6 +682,7 @@ const SORT_ICO_AMOUNT=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="c
 const SORT_ICO_MANUAL=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg>`;
 function sortMode(){ return data.meta&&data.meta.sortMode==="manual"?"manual":"amount"; }
 function toggleSort(){
+  if(!requireEdit()) return;
   if(!data.meta) data.meta={};
   data.meta.sortMode=sortMode()==="manual"?"amount":"manual";
   saveData(); render();
@@ -705,6 +748,7 @@ function recalcAmount(){
   updateAmountKor();
 }
 function openModal(id){
+  if(!requireEdit()) return;
   editingId=id||null;
   const m=document.getElementById("modalBg");
   document.getElementById("modalTitle").textContent=editingId?"자산 수정":"자산 추가";
@@ -756,6 +800,7 @@ function saveModal(){
   saveData(); closeModal(); render();
 }
 function delItem(id){
+  if(!requireEdit()) return;
   const it=data.items.find(x=>x.id===id); if(!it) return;
   if(!confirm(`'${it.name}' 항목을 삭제할까요?`)) return;
   data.items=data.items.filter(x=>x.id!==id);
@@ -773,6 +818,7 @@ function exportData(){
   toast("데이터 파일을 내보냈습니다.");
 }
 function importData(file){
+  if(!requireEdit()) return;
   const rd=new FileReader();
   rd.onload=()=>{
     try{
@@ -810,7 +856,7 @@ function initTheme(){ let t="light"; try{ const s=localStorage.getItem(THEME_KEY
 function applySidebar(){ let on=false; try{ on=localStorage.getItem(SIDE_KEY)==="1"; }catch(e){} document.body.classList.toggle("side-collapsed",on); }
 
 /* ===================== 초기화 / 이벤트 ===================== */
-loadData(); loadScope(); fillCatSelect(); initTheme(); applySidebar(); render();
+loadData(); loadScope(); fillCatSelect(); initTheme(); applySidebar(); applyLockUI(); render();
 pullFromServer(true);  // 로드 시 서버(공유) 데이터로 동기화
 let focusPullTimer=null;
 window.addEventListener("focus",()=>{ clearTimeout(focusPullTimer); focusPullTimer=setTimeout(()=>{ if(!document.getElementById("modalBg").classList.contains("open")) pullFromServer(false); },200); });
@@ -825,6 +871,7 @@ document.getElementById("sideToggle").addEventListener("click",()=>{
 });
 document.getElementById("goHome").addEventListener("click",()=>navTo("dash"));
 document.getElementById("btnSync").addEventListener("click",()=>pullFromServer(false));
+document.getElementById("btnLock").addEventListener("click",toggleLock);
 document.getElementById("btnAdd").addEventListener("click",()=>openModal());
 document.getElementById("btnSort").addEventListener("click",toggleSort);
 document.getElementById("modalClose").addEventListener("click",closeModal);
