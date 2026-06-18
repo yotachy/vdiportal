@@ -140,6 +140,13 @@
   @media(max-width:840px){ .dash-row2{grid-template-columns:1fr;} }
   .bar-name.owner-name{width:92px; overflow:hidden; text-overflow:ellipsis;}
   .list-card{padding:0; overflow:hidden;}
+  .list-search{display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--line-strong); border-radius:var(--r-sm); padding:0 12px; margin-bottom:12px; max-width:380px;}
+  .list-search svg{width:16px; height:16px; color:var(--ink-faint); flex:none;}
+  .list-search input{flex:1; border:none; background:transparent; padding:9px 0; font-size:.86rem; color:var(--ink); font-family:var(--font-body); outline:none;}
+  .list-search:focus-within{border-color:var(--gold); box-shadow:0 0 0 2px var(--gold-soft);}
+  .atable th.th-sort{cursor:pointer; user-select:none;}
+  .atable th.th-sort:hover{color:var(--ink);}
+  .atable th.th-sort.on{color:var(--gold-strong);}
   #sideBackdrop{display:none;}
 
   /* ===================== 모바일 반응형 ===================== */
@@ -374,6 +381,10 @@
             </button>
           </div>
         </div>
+        <div class="list-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <input id="listSearch" type="search" placeholder="항목명·기관·종목·이름·메모 검색" autocomplete="off">
+        </div>
         <div class="card list-card">
           <div id="listBody"></div>
         </div>
@@ -397,12 +408,12 @@
         <div class="field"><label for="fPrice">현재가</label>
           <div style="display:flex; gap:8px;">
             <select id="fCur" style="width:88px; flex:none;"><option value="KRW">원</option><option value="USD">달러</option></select>
-            <input id="fPrice" type="number" min="0" step="any" inputmode="decimal" placeholder="0" style="flex:1;">
+            <input id="fPrice" type="text" inputmode="decimal" placeholder="0" style="flex:1;">
           </div>
         </div>
       </div>
       <div class="field"><label for="fOwner">이름</label><input id="fOwner" type="text" placeholder="예) 최정식, 공동" maxlength="20"></div>
-      <div class="field"><label for="fAmount">평가금액 (원)</label><input id="fAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="0"><div class="hint" id="fAmountKor"></div></div>
+      <div class="field"><label for="fAmount">평가금액 (원)</label><input id="fAmount" type="text" inputmode="numeric" placeholder="0"><div class="hint" id="fAmountKor"></div></div>
       <div class="field"><label for="fNote">메모 (선택)</label><input id="fNote" type="text" placeholder="예) 250주 / $9,000 / 분당" maxlength="60"></div>
       <label class="chk"><input type="checkbox" id="fInclude" checked> 자산 합계에 포함</label>
     </div>
@@ -585,7 +596,7 @@ let scope="dash"; // "dash" | "all" | <catId>
 function loadScope(){ try{ const s=localStorage.getItem(NAV_KEY); if(s) scope=s; }catch(e){} if(scope!=="dash"&&scope!=="all"&&!catById2(scope)&&scope.indexOf("owner:")!==0&&scope.indexOf("inst:")!==0) scope="dash"; }
 function catById2(id){ return CATS.some(c=>c.id===id); }
 const isMobile=()=>window.innerWidth<=760;
-function navTo(s){ scope=s; try{ localStorage.setItem(NAV_KEY,s); }catch(e){} if(isMobile()) document.body.classList.add("side-collapsed"); render(); }
+function navTo(s){ scope=s; try{ localStorage.setItem(NAV_KEY,s); }catch(e){} if(typeof colSort!=="undefined")colSort=null; const ls=document.getElementById("listSearch"); if(ls) ls.value=""; if(isMobile()) document.body.classList.add("side-collapsed"); render(); }
 
 /* ===================== 렌더: 사이드바 ===================== */
 const DASH_ICO=`<svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="14" width="8" height="7" rx="1.5"/></svg>`;
@@ -665,7 +676,8 @@ function renderDonut(t,total){
 }
 function renderBars(t,total){
   let rows="";
-  const sorted=[...CATS].sort((a,b)=>t[b.id]-t[a.id]);
+  const sorted=[...CATS].filter(c=>t[c.id]>0).sort((a,b)=>t[b.id]-t[a.id]);  // 빈 분류(₩0) 숨김
+  if(!sorted.length) return `<div class="recent-empty">합계에 포함된 자산이 없습니다.</div>`;
   sorted.forEach(c=>{
     const v=t[c.id]; const pct=total>0?(v/total*100):0;
     rows+=`<div class="bar-row">
@@ -780,6 +792,14 @@ const DEL_ICO=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const DUP_ICO=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
 const ownerOf=it=>(it.owner||"").trim()||"미지정";
 const instOf=it=>(it.inst||"").trim()||"미지정";
+let colSort=null;  // {key,dir} 컬럼 헤더 클릭 정렬(일시적)
+const COL_LABELS={cat:"분류",inst:"기관",name:"항목명",ticker:"보유종목",qty:"보유수",price:"현재가",amount:"평가금액",owner:"이름",note:"메모"};
+function colLabel(k){ return COL_LABELS[k]||k; }
+function cmpCol(a,b,k){
+  if(k==="cat") return CATS.findIndex(c=>c.id===a.cat)-CATS.findIndex(c=>c.id===b.cat);
+  if(k==="amount"||k==="qty"||k==="price") return (Number(a[k])||0)-(Number(b[k])||0);
+  return String(a[k]||"").localeCompare(String(b[k]||""),"ko");
+}
 function renderList(){
   const isOwner=scope.indexOf("owner:")===0;
   const isInst=scope.indexOf("inst:")===0;
@@ -790,20 +810,24 @@ function renderList(){
   document.getElementById("listEyebrow").textContent=isOwner?"OWNER":isInst?"INSTITUTION":(isCat?"ASSETS":"ALL ASSETS");
   document.getElementById("listTitle").textContent=isOwner?ownerName:isInst?instName:(isCat?cat.name:"전체 자산");
   const manual=sortMode()==="manual";
-  const canDrag=manual&&isUnlocked();
   const editable=isUnlocked();
+  const q=((document.getElementById("listSearch")||{}).value||"").trim().toLowerCase();
   let items=data.items.slice();
   if(isCat) items=items.filter(it=>it.cat===scope);
   else if(isOwner) items=items.filter(it=>ownerOf(it)===ownerName);
   else if(isInst) items=items.filter(it=>instOf(it)===instName);
-  if(!manual) items.sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0));  // 수동 모드는 저장 순서 유지
+  const totalCount=items.length;
+  if(q) items=items.filter(it=>[it.name,it.inst,it.ticker,it.owner,it.note,catById(it.cat).name].some(s=>String(s||"").toLowerCase().indexOf(q)>=0));
+  if(colSort){ const d=colSort.dir==="desc"?-1:1; items.sort((a,b)=>d*cmpCol(a,b,colSort.key)); }
+  else if(!manual){ items.sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0)); }  // 수동 모드는 저장 순서 유지
+  const canDrag=manual&&editable&&!colSort&&!q;  // 정렬/검색 중엔 드래그 비활성
   const incItems=items.filter(isIncluded);
   const sum=incItems.reduce((s,it)=>s+(Number(it.amount)||0),0);
   const excl=items.length-incItems.length;
-  document.getElementById("listSub").textContent=`${items.length}건 · 합계 ${fmtWon(sum)}`+(excl>0?` · 합계 제외 ${excl}건`:"")+(canDrag?" · 드래그로 순서 변경":"");
+  document.getElementById("listSub").textContent=`${items.length}건${q?` / 전체 ${totalCount}건`:""} · 합계 ${fmtWon(sum)}`+(excl>0?` · 합계 제외 ${excl}건`:"")+(canDrag?" · 드래그로 순서 변경":"")+(colSort?` · ${colLabel(colSort.key)} ${colSort.dir==="desc"?"내림":"오름"}차순`:"");
   document.getElementById("btnSort").innerHTML=(manual?SORT_ICO_MANUAL:SORT_ICO_AMOUNT)+`<span>${manual?"수동 정렬":"금액순"}</span>`;
   const body=document.getElementById("listBody");
-  if(!items.length){ body.innerHTML=`<div class="empty">등록된 자산이 없습니다. 우측 상단 <b>자산 추가</b>로 입력하세요.</div>`; return; }
+  if(!items.length){ body.innerHTML=`<div class="empty">${q?`'${escHtml(q)}' 검색 결과가 없습니다.`:`등록된 자산이 없습니다. 우측 상단 <b>자산 추가</b>로 입력하세요.`}</div>`; return; }
   let rows="";
   items.forEach(it=>{
     const c=catById(it.cat); const on=isIncluded(it);
@@ -822,8 +846,10 @@ function renderList(){
       <td class="row-act"><button class="dup" title="복제">${DUP_ICO}</button><button class="edit" title="수정">${EDIT_ICO}</button><button class="del" title="삭제">${DEL_ICO}</button></td>
     </tr>`;
   });
+  const arrow=k=>colSort&&colSort.key===k?(colSort.dir==="desc"?" ▾":" ▴"):"";
+  const th=(k,label,cls,style)=>`<th class="th-sort${cls?(" "+cls):""}${colSort&&colSort.key===k?" on":""}" data-sortkey="${k}"${style?` style="${style}"`:""}>${label}${arrow(k)}</th>`;
   body.innerHTML=`<table class="atable">
-    <thead><tr>${canDrag?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:104px">분류</th><th style="width:116px">기관</th><th style="min-width:150px">항목명</th><th style="width:100px">보유종목</th><th class="num" style="width:74px">보유수</th><th class="num" style="width:112px">현재가</th><th class="num" style="width:158px">평가금액</th><th style="width:92px">이름</th><th style="width:150px">메모</th><th style="width:108px"></th></tr></thead>
+    <thead><tr>${canDrag?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th>${th("cat","분류","","width:104px")}${th("inst","기관","","width:116px")}${th("name","항목명","","min-width:150px")}${th("ticker","보유종목","","width:100px")}${th("qty","보유수","num","width:74px")}${th("price","현재가","num","width:112px")}${th("amount","평가금액","num","width:158px")}${th("owner","이름","","width:92px")}${th("note","메모","","width:150px")}<th style="width:108px"></th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td colspan="${canDrag?8:7}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="3"></td></tr></tfoot>
   </table>`;
@@ -834,6 +860,12 @@ function renderList(){
     tr.querySelector(".del").addEventListener("click",()=>delItem(id));
     tr.querySelector(".inc-chk").addEventListener("change",()=>toggleInclude(id));
   });
+  body.querySelectorAll("th[data-sortkey]").forEach(h=>h.addEventListener("click",()=>{
+    const k=h.dataset.sortkey;
+    if(colSort&&colSort.key===k) colSort.dir=colSort.dir==="asc"?"desc":"asc";
+    else colSort={key:k, dir:(k==="amount"||k==="qty"||k==="price")?"desc":"asc"};
+    renderList();
+  }));
   if(canDrag) wireRowDrag(body);
 }
 function toggleInclude(id){
@@ -850,6 +882,7 @@ const SORT_ICO_MANUAL=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="c
 function sortMode(){ return data.meta&&data.meta.sortMode==="manual"?"manual":"amount"; }
 function toggleSort(){
   if(!requireEdit()) return;
+  colSort=null;  // 컬럼 정렬 해제
   if(!data.meta) data.meta={};
   data.meta.sortMode=sortMode()==="manual"?"amount":"manual";
   opMeta({sortMode:data.meta.sortMode}); render();
@@ -906,12 +939,15 @@ function updateStockFields(){
   amt.readOnly=stock; amt.classList.toggle("ro",stock);
   if(stock) recalcAmount(); else updateAmountKor();
 }
+function rawNum(id){ return Number(String(document.getElementById(id).value).replace(/[^\d.]/g,""))||0; }  // 콤마 등 제거 후 숫자
+function fmtNumIn(id){ const n=rawNum(id); document.getElementById(id).value=n?n.toLocaleString("ko-KR"):""; }   // 콤마 포맷
+function unfmtNumIn(id){ const el=document.getElementById(id); if(el.readOnly) return; const n=rawNum(id); el.value=n?String(n):""; }  // 편집용 평문
 function recalcAmount(){
   const qty=Number(document.getElementById("fQty").value)||0;
-  const price=Number(document.getElementById("fPrice").value)||0;
+  const price=rawNum("fPrice");
   const usd=document.getElementById("fCur").value==="USD";
   const v=Math.round(qty*price*(usd?usdRate:1));  // 달러면 환율 적용
-  document.getElementById("fAmount").value=v?v:"";
+  document.getElementById("fAmount").value=v?v.toLocaleString("ko-KR"):"";
   updateAmountKor();
 }
 function openModal(id){
@@ -928,10 +964,10 @@ function openModal(id){
   document.getElementById("fName").value=it?it.name:"";
   document.getElementById("fTicker").value=it?(it.ticker||""):"";
   document.getElementById("fQty").value=it&&it.qty>0?it.qty:"";
-  document.getElementById("fPrice").value=it&&it.price>0?it.price:"";
+  document.getElementById("fPrice").value=it&&it.price>0?Number(it.price).toLocaleString("ko-KR"):"";
   document.getElementById("fCur").value=it&&it.cur==="USD"?"USD":"KRW";
   document.getElementById("fOwner").value=it?(it.owner||""):(defOwner==="미지정"?"":defOwner);
-  document.getElementById("fAmount").value=it?it.amount:"";
+  document.getElementById("fAmount").value=it&&it.amount?Number(it.amount).toLocaleString("ko-KR"):"";
   document.getElementById("fNote").value=it?it.note:"";
   document.getElementById("fInclude").checked=it?isIncluded(it):true;
   updateStockFields();  // 주식이면 평가금액 자동계산·읽기전용 처리 포함
@@ -940,7 +976,7 @@ function openModal(id){
 }
 function closeModal(){ document.getElementById("modalBg").classList.remove("open"); editingId=null; }
 function updateAmountKor(){
-  const v=Number(document.getElementById("fAmount").value)||0;
+  const v=rawNum("fAmount");
   const stock=isStockCat(document.getElementById("fCat").value);
   const usd=stock&&document.getElementById("fCur").value==="USD";
   const hint=stock?(" · 보유수×현재가"+(usd?" × 환율("+fmtRate()+")":"")+" 자동"):"";
@@ -953,10 +989,10 @@ function saveModal(){
   const stock=isStockCat(cat);
   const ticker=stock?document.getElementById("fTicker").value.trim():"";
   const qty=stock?Math.max(0,Math.round(Number(document.getElementById("fQty").value)||0)):0;
-  const price=stock?Math.max(0,Number(document.getElementById("fPrice").value)||0):0;  // 달러는 소수 허용
+  const price=stock?Math.max(0,rawNum("fPrice")):0;  // 달러는 소수 허용
   const cur=stock?document.getElementById("fCur").value:"KRW";
   const owner=document.getElementById("fOwner").value.trim();
-  const amount=stock?Math.round(qty*price*(cur==="USD"?usdRate:1)):Math.max(0,Math.round(Number(document.getElementById("fAmount").value)||0));  // 주식: 보유수×현재가(×환율)
+  const amount=stock?Math.round(qty*price*(cur==="USD"?usdRate:1)):Math.max(0,Math.round(rawNum("fAmount")));  // 주식: 보유수×현재가(×환율)
   const note=document.getElementById("fNote").value.trim();
   const include=document.getElementById("fInclude").checked;
   if(!name){ toast("항목명을 입력하세요."); document.getElementById("fName").focus(); return; }
@@ -1079,6 +1115,7 @@ document.getElementById("btnLock").addEventListener("click",toggleLock);
 document.getElementById("sideBackdrop").addEventListener("click",()=>document.body.classList.add("side-collapsed"));
 document.getElementById("btnAdd").addEventListener("click",()=>openModal());
 document.getElementById("btnSort").addEventListener("click",toggleSort);
+document.getElementById("listSearch").addEventListener("input",()=>{ if(scope!=="dash") renderList(); });
 document.getElementById("modalClose").addEventListener("click",closeModal);
 document.getElementById("modalCancel").addEventListener("click",closeModal);
 document.getElementById("modalSave").addEventListener("click",saveModal);
@@ -1087,6 +1124,11 @@ document.getElementById("fCat").addEventListener("change",updateStockFields);
 document.getElementById("fQty").addEventListener("input",recalcAmount);
 document.getElementById("fPrice").addEventListener("input",recalcAmount);
 document.getElementById("fCur").addEventListener("change",recalcAmount);
+["fAmount","fPrice"].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener("focus",()=>unfmtNumIn(id));
+  el.addEventListener("blur",()=>fmtNumIn(id));
+});
 document.getElementById("fName").addEventListener("keydown",e=>{ if(e.key==="Enter") saveModal(); });
 document.getElementById("fAmount").addEventListener("keydown",e=>{ if(e.key==="Enter") saveModal(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModal(); });
