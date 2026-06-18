@@ -37,7 +37,7 @@
 
 - **순수 HTML5 · CSS3 · Vanilla JS** — 빌드 도구·프레임워크 없음.
 - **단일 파일 원칙**: 모든 CSS·JS·데이터가 `log.html` 한 파일 안에 인라인. (포탈의 `common.css`/`common.js`는 **사용하지 않는다**.)
-- **외부 의존성 0 — 폐쇄망 완전 자급**: CDN·네트워크 의존 없음. `log.html` 한 파일만 폐쇄망에 복사해 브라우저로 열면 5개 도구 + localStorage 편집이 전부 오프라인 동작. (과거 Excel 입출력용 ExcelJS·SheetJS CDN은 2026-06-17 제거 — 폐쇄망 대응. Excel 가져오기/내보내기 기능 자체를 삭제했고, 공유는 읽기용 HTML·백업 JSON으로 대체.)
+- **외부 의존성 0 — 폐쇄망 완전 자급**: CDN·네트워크 의존 없음. `log.html` 한 파일만 폐쇄망에 복사해 브라우저로 열면 5개 도구 + localStorage 편집이 전부 오프라인 동작. (과거 Excel 입출력용 ExcelJS·SheetJS CDN은 2026-06-17 제거 — 폐쇄망 대응. **2026-06-18: 엑셀 내보내기(.xlsx)만 외부 라이브러리 없이 순수 JS로 재구현** — `exportExcel`/`zipStore`/`crc32`가 OOXML 파트를 직접 조립하고 store-only ZIP으로 묶음(CDN·라이브러리 0, 완전 오프라인). 가져오기는 없음.)
 
 ## 🎨 디자인 토큰 (log.html 자체 `:root`)
 
@@ -133,7 +133,8 @@ localStorage["vdi_log_theme"]       = "light"|"dark"
 | 영역 아코디언 | 영역 머리글 클릭으로 접기/펼치기(`collapsedAreas`, 세션 한정) |
 | 참석자 배지 | 셀은 `👤 N명` 배지, 클릭 시 명단 팝오버 편집/열람(`openAttPop`) |
 | 라이트/다크 테마 | 툴바 토글, `localStorage["vdi_log_theme"]` 영속. 다크는 `html[data-theme="dark"]` 단일 블록 |
-| 도구 드롭다운 | **헤더 우측 톱니바퀴 아이콘**(`#btnTools`, 로그아웃 왼쪽)·`openToolsMenu` — 읽기용 HTML·인쇄·백업/이력·영역관리. 관리자 항목은 `isAdmin()`일 때만 |
+| 도구 드롭다운 | **헤더 우측 톱니바퀴 아이콘**(`#btnTools`, 로그아웃 왼쪽)·`openToolsMenu` — 엑셀(.xlsx)·읽기용 HTML·인쇄·백업/이력·영역관리. 관리자 항목은 `isAdmin()`일 때만 |
+| 엑셀 내보내기(.xlsx) | `exportExcel` — 외부 라이브러리 0(폐쇄망). `crc32`+`zipStore`(무압축 ZIP)로 OOXML(`[Content_Types]`·rels·workbook·styles·sheet1)을 직접 조립. 1시트(영역+표시컬럼, 영역별 표시순), 헤더 굵게·전 셀 테두리·줄바꿈 wrap·머리글 고정. 셀은 inlineStr(공유문자열표 불필요). 관리자 아니어도 사용 가능 |
 | 전체 백업 (파일) | `exportBackup` → `vdi_전체백업_YYYYMMDD_HHMM.json` — **5개 도구 전 저장소**(`stores{}`: `ALL_STORE_KEYS`=관리대장·hub·wbs·weekly·plan·transition) + 하위호환용 관리대장 최상위. `importBackup`→`applyBackupData`: stores 있으면 전체 복원(localStorage 기록 후 전 도구 재적재·재렌더), 없으면 구형(관리대장만) 복원. **관리자 전용** |
 | 변경 이력 (버전 형상관리) | `saveData`가 저장 직전 상태를 `localStorage[STORE_KEY+"__history"]`에 자동 보관(최근 `HIST_MAX=30`, `HIST_MIN_GAP=20s` 내 연속편집은 합침). `변경 이력` 모달에서 시점 선택→`restoreHistory`로 복원(복원 직전 현재 상태도 자동 보관). **관리자 전용** |
 | 영역 관리 | 이름/색/설명/순서, 영역 삭제 시 안건 동반 삭제 (모달 유지) |
