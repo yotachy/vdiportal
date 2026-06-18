@@ -277,7 +277,9 @@
   .row-act button:hover{background:var(--line); color:var(--ink);}
   .row-act button.del:hover{background:rgba(192,57,43,.12); color:#c0392b;}
   .empty{padding:48px 20px; text-align:center; color:var(--ink-faint); font-size:.86rem;}
-  .atable th.inc,.atable td.inc{width:54px; text-align:center;}
+  .atable th.inc,.atable td.inc{width:66px; text-align:center;}
+  .atable th.inc .inc-all{display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none;}
+  .atable th.inc .inc-all input{cursor:pointer;}
   .atable input[type=checkbox]{width:16px; height:16px; cursor:pointer; accent-color:var(--gold-strong); vertical-align:middle;}
   .atable tr.row-off td.name,.atable tr.row-off td.note,.atable tr.row-off td.owner,.atable tr.row-off td.inst,.atable tr.row-off td.ticker,.atable tr.row-off td.qty,.atable tr.row-off td.price{color:var(--ink-faint);}
   .atable tr.row-off td.num{color:var(--ink-faint); text-decoration:line-through;}
@@ -500,6 +502,7 @@ function opDelete(id){ sendOp({op:"delete",id:id}); }
 function opReorder(){ sendOp({op:"reorder",order:data.items.map(i=>i.id)}); }
 function opMeta(m){ sendOp({op:"meta",meta:m}); }
 function opReplace(){ sendOp({op:"replace",doc:{items:data.items,meta:data.meta}}); }
+function opBulkInclude(ids,include){ sendOp({op:"bulkInclude",ids:ids,include:include}); }
 function applyServerData(d){
   const nd=normalizeData(d); if(!nd) return false;
   data=nd; recomputeFx(); saveData(); render(); return true;
@@ -848,8 +851,10 @@ function renderList(){
   });
   const arrow=k=>colSort&&colSort.key===k?(colSort.dir==="desc"?" ▾":" ▴"):"";
   const th=(k,label,cls,style)=>`<th class="th-sort${cls?(" "+cls):""}${colSort&&colSort.key===k?" on":""}" data-sortkey="${k}"${style?` style="${style}"`:""}>${label}${arrow(k)}</th>`;
+  const allInc=incItems.length===items.length, someInc=incItems.length>0&&!allInc;
+  const incHead=`<th class="inc"><label class="inc-all" title="표시된 항목 전체 포함/해제"><input type="checkbox" id="incAll" ${allInc?"checked":""} ${editable?"":"disabled"}>포함</label></th>`;
   body.innerHTML=`<table class="atable">
-    <thead><tr>${canDrag?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th>${th("cat","분류","","width:104px")}${th("inst","기관","","width:116px")}${th("name","항목명","","min-width:150px")}${th("ticker","보유종목","","width:100px")}${th("qty","보유수","num","width:74px")}${th("price","현재가","num","width:112px")}${th("amount","평가금액","num","width:158px")}${th("owner","이름","","width:92px")}${th("note","메모","","width:150px")}<th style="width:108px"></th></tr></thead>
+    <thead><tr>${canDrag?`<th class="grip"></th>`:""}${incHead}${th("cat","분류","","width:104px")}${th("inst","기관","","width:116px")}${th("name","항목명","","min-width:150px")}${th("ticker","보유종목","","width:100px")}${th("qty","보유수","num","width:74px")}${th("price","현재가","num","width:112px")}${th("amount","평가금액","num","width:158px")}${th("owner","이름","","width:92px")}${th("note","메모","","width:150px")}<th style="width:108px"></th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td colspan="${canDrag?8:7}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="3"></td></tr></tfoot>
   </table>`;
@@ -866,6 +871,7 @@ function renderList(){
     else colSort={key:k, dir:(k==="amount"||k==="qty"||k==="price")?"desc":"asc"};
     renderList();
   }));
+  const ia=document.getElementById("incAll"); if(ia){ ia.indeterminate=someInc; ia.addEventListener("change",toggleAllInclude); }
   if(canDrag) wireRowDrag(body);
 }
 function toggleInclude(id){
@@ -874,6 +880,16 @@ function toggleInclude(id){
   it.include=!isIncluded(it); it.updatedAt=Date.now();
   opUpsert(it); render();
   toast(it.include?"합계에 포함했습니다.":"합계에서 제외했습니다.");
+}
+function toggleAllInclude(){
+  if(!requireEdit()){ render(); return; }
+  const ids=[...document.querySelectorAll("#listBody tr[data-id]")].map(tr=>tr.dataset.id);
+  if(!ids.length) return;
+  const want=document.getElementById("incAll").checked;  // 클릭 후 상태가 목표값
+  const set=new Set(ids), now=Date.now();
+  data.items.forEach(it=>{ if(set.has(it.id)){ it.include=want; it.updatedAt=now; } });
+  saveData(); opBulkInclude(ids,want); render();
+  toast(want?`표시된 ${ids.length}건 합계 포함`:`표시된 ${ids.length}건 합계 제외`);
 }
 
 /* ===================== 정렬 모드 / 드래그 재정렬 ===================== */

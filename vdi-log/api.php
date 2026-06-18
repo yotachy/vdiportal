@@ -106,6 +106,10 @@ if ($op === "replace") {
 } elseif ($op === "meta") {
   $m = isset($d["meta"]) && is_array($d["meta"]) ? $d["meta"] : [];
   foreach ($m as $k => $v) { $doc["meta"][$k] = $v; }
+} elseif ($op === "bulkInclude") {
+  $ids = isset($d["ids"]) && is_array($d["ids"]) ? $d["ids"] : null;
+  if ($ids === null) $err = "invalid";
+  else { $set = array_flip($ids); $inc = !empty($d["include"]); foreach ($doc["items"] as $i => $x) { if (isset($x["id"]) && isset($set[$x["id"]])) $doc["items"][$i]["include"] = $inc; } }
 } else {
   $err = "badop";
 }
