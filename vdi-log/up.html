@@ -186,9 +186,11 @@
     .bar-val{width:96px; font-size:.74rem;} .bar-pct{width:36px;}
     .card{padding:16px;}
   }
-  .owner-row{width:100%; border:none; background:transparent; cursor:pointer; padding:7px 6px; border-radius:7px; color:var(--ink); font-family:var(--font-body); text-align:left;}
-  .owner-row:hover{background:var(--line-faint);}
-  .owner-row:hover .owner-name{text-decoration:underline; text-underline-offset:2px;}
+  .owner-row,.cat-row{width:100%; border:none; background:transparent; cursor:pointer; padding:7px 6px; border-radius:7px; color:var(--ink); font-family:var(--font-body); text-align:left;}
+  .owner-row:hover,.cat-row:hover{background:var(--line-faint);}
+  .owner-row:hover .owner-name,.cat-row:hover .bar-name{text-decoration:underline; text-underline-offset:2px;}
+  .donut-seg{cursor:pointer; transition:opacity .12s;}
+  .donut-seg:hover{opacity:.82;}
 
   /* 도넛 */
   .donut-wrap{display:flex; flex-direction:column; align-items:center; gap:10px;}
@@ -213,6 +215,13 @@
   .goal-target{font-family:var(--font-display); font-size:1.5rem; letter-spacing:-.02em;}
   .gt-label{display:block; font-size:.72rem; color:var(--ink-faint); font-family:var(--font-bold); letter-spacing:.03em; margin-bottom:3px;}
   .gt-tax-inline{font-size:.62rem; color:var(--gold-strong); font-family:var(--font-bold); background:var(--gold-soft); padding:2px 8px; border-radius:999px; vertical-align:middle; margin-left:8px; letter-spacing:0; white-space:nowrap;}
+  .gt-kor{font-size:.82rem; color:var(--ink-faint); font-family:var(--font-bold); letter-spacing:0; margin-left:4px;}
+  .gt-done{font-size:.66rem; color:#fff; background:var(--st-fix); font-family:var(--font-bold); padding:2px 9px; border-radius:999px; vertical-align:middle; margin-left:8px; letter-spacing:0; white-space:nowrap;}
+  .goal-done{box-shadow:inset 0 0 0 1.5px var(--st-fix);}
+  .goal-foot-line{margin-top:4px;}
+  .goal-foot-line .done{color:var(--st-fix); font-family:var(--font-bold);}
+  .gs-ends .gs-inc.done,.gs-ends .gs-all.done{color:var(--st-fix);}
+  .tc-sub2{margin-top:8px; font-size:.78rem; color:#aebbcf;}
   .goal-head-act{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
   .gt-check{display:inline-flex; align-items:center; gap:6px; font-size:.82rem; color:var(--ink-soft); font-family:var(--font-bold); cursor:pointer; user-select:none;}
   .gt-check input{width:16px; height:16px; accent-color:var(--gold-strong); cursor:pointer;}
@@ -230,7 +239,7 @@
   .gs-ends .gs-all{color:#caa23a;}
   .goal-track{position:relative; height:24px; background:var(--line-faint); border-radius:12px; overflow:hidden;}
   .goal-fill{position:absolute; left:0; top:0; height:100%; border-radius:12px; transition:width .4s ease;}
-  .goal-fill.all{background:#ffe39a;}
+  .goal-fill.all{background:#f3cf7a;}
   .goal-fill.inc{background:var(--gold);}
   .goal-foot{margin-top:12px; font-size:.9rem; color:var(--ink-soft);}
   .goal-foot b{font-family:var(--font-bold); color:var(--ink);}
@@ -627,40 +636,38 @@ function taxOn(){ return !!(data.meta&&data.meta.taxOn); }
 function effectiveTarget(){ const b=goalTarget(); return taxOn()?Math.round(b*(1+TAX_PCT/100)):b; }
 function renderGoal(){
   const inc=grandTotal(), all=allItemsTotal(), base=goalTarget(), target=effectiveTarget(), tax=taxOn();
+  const hasExcl=all>inc+0.5;                                 // 합산 제외 항목이 있을 때만 '전체' 별도 표시
   const editable=isUnlocked();
   const setBtn=editable?`<button class="btn btn-sm" data-goal-edit>${base?"목표 수정":"목표 설정"}</button>`:"";
   const taxChk=base?`<label class="gt-check"><input type="checkbox" id="taxChk" ${tax?"checked":""} ${editable?"":"disabled"}> 보유세 +${TAX_PCT}%</label>`:"";
+  const done=base>0&&inc>=target;                            // 포함 자산 기준 목표 달성
   const head=`<div class="goal-head">
-      <div class="goal-target"><span class="gt-label">목표 매수가 (부동산)</span>${base?`${fmtWon(target)}${tax?` <span class="gt-tax-inline">보유세 +${TAX_PCT}% 포함</span>`:""}`:`<span style="color:var(--ink-faint)">미설정</span>`}</div>
+      <div class="goal-target"><span class="gt-label">목표 매수가 (부동산)</span>${base?`${fmtWon(target)} <span class="gt-kor">(${korUnit(target)})</span>${tax?` <span class="gt-tax-inline">보유세 +${TAX_PCT}% 포함</span>`:""}${done?` <span class="gt-done">달성 ${(inc/target*100).toFixed(0)}%</span>`:""}`:`<span style="color:var(--ink-faint)">미설정</span>`}</div>
       <div class="goal-head-act">${taxChk}${setBtn}</div>
-    </div>`;
-  const legend=`<div class="goal-legend">
-      <span><i class="gl inc"></i>포함 합계 <b>${fmtWon(inc)}</b>${target?` (${(inc/target*100).toFixed(1)}%)`:""}</span>
-      <span><i class="gl all"></i>전체 합계 <b>${fmtWon(all)}</b>${target?` (${(all/target*100).toFixed(1)}%)`:""}</span>
-      <span class="gl-ex">합산 제외 ${fmtWon(all-inc)}</span>
     </div>`;
   let viz="";
   if(target>0){
     const scaleMax=Math.max(all,target)*1.08||1;            // 목표·전체 중 큰 값 기준(초과분도 보이게)
     const goalLeft=Math.min(100,target/scaleMax*100);
     const allW=Math.min(100,all/scaleMax*100), incW=Math.min(100,inc/scaleMax*100);
-    const anchorRight=goalLeft>72;                           // 목표선이 오른쪽이면 라벨을 왼쪽으로
-    const remTxt=amt=>{const r=target-amt; return r>0?`목표까지 ${fmtWon(r)} 남음`:`<b style="color:var(--st-fix)">목표 달성 (+${fmtWon(-r)})</b>`;};
+    const anchorRight=goalLeft>72;
+    const pctInc=inc/target*100, pctAll=all/target*100;
+    const footLine=(label,amt)=>{const r=target-amt; return `<div class="goal-foot-line">${label?`<b>${label}</b> `:""}${r>0?`목표까지 ${fmtWon(r)} 남음 · ${korUnit(r)}`:`<span class="done">🎉 목표 달성 (+${fmtWon(-r)})</span>`}</div>`;};
     viz=`
       <div class="goalscale">
         <div class="gs-goal-label${anchorRight?" right":""}" style="left:${goalLeft.toFixed(2)}%">🎯 목표 ${fmtWon(target)}${tax?" (세포함)":""}</div>
         <div class="goal-track">
-          <div class="goal-fill all" style="width:${allW.toFixed(2)}%"></div>
+          ${hasExcl?`<div class="goal-fill all" style="width:${allW.toFixed(2)}%"></div>`:""}
           <div class="goal-fill inc" style="width:${incW.toFixed(2)}%"></div>
         </div>
         <div class="gs-goalline" style="left:${goalLeft.toFixed(2)}%"></div>
-        <div class="gs-ends"><span class="gs-inc" style="left:${incW.toFixed(2)}%">포함 ${(inc/target*100).toFixed(1)}%</span><span class="gs-all" style="left:${allW.toFixed(2)}%">전체 ${(all/target*100).toFixed(1)}%</span></div>
+        <div class="gs-ends"><span class="gs-inc${pctInc>=100?" done":""}" style="left:${incW.toFixed(2)}%">${hasExcl?"포함 ":""}${pctInc.toFixed(1)}%</span>${hasExcl?`<span class="gs-all${pctAll>=100?" done":""}" style="left:${allW.toFixed(2)}%">전체 ${pctAll.toFixed(1)}%</span>`:""}</div>
       </div>
-      <div class="goal-foot">포함 자산 <b>${fmtWon(inc)}</b> · ${remTxt(inc)} &nbsp;|&nbsp; 전체 자산 <b>${fmtWon(all)}</b> · ${remTxt(all)}</div>`;
+      <div class="goal-foot">${hasExcl?footLine("포함 자산",inc)+footLine("전체 자산",all):footLine("",inc)}</div>`;
   }else{
     viz=`<div class="goal-empty">목표 매수가를 설정하면 달성률을 시각화합니다.</div>`;
   }
-  return `<div class="card goal-card">${head}${viz}${legend}</div>`;
+  return `<div class="card goal-card${done?" goal-done":""}">${head}${viz}</div>`;
 }
 function renderDonut(t,total){
   const r=70, C=2*Math.PI*r, sw=28;
@@ -670,7 +677,7 @@ function renderDonut(t,total){
     CATS.forEach(c=>{
       const v=t[c.id]; if(v<=0) return;
       const len=(v/total)*C;
-      segs+=`<circle cx="100" cy="100" r="${r}" fill="none" stroke="${c.color}" stroke-width="${sw}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 100 100)" stroke-linecap="butt"/>`;
+      segs+=`<circle class="donut-seg" data-cat="${c.id}" cx="100" cy="100" r="${r}" fill="none" stroke="${c.color}" stroke-width="${sw}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 100 100)" stroke-linecap="butt"><title>${escHtml(c.name)} ${fmtWon(v)}</title></circle>`;
       off+=len;
     });
   }
@@ -683,13 +690,13 @@ function renderBars(t,total){
   if(!sorted.length) return `<div class="recent-empty">합계에 포함된 자산이 없습니다.</div>`;
   sorted.forEach(c=>{
     const v=t[c.id]; const pct=total>0?(v/total*100):0;
-    rows+=`<div class="bar-row">
+    rows+=`<button class="bar-row cat-row" data-cat="${c.id}" title="${escHtml(c.name)} 자산만 보기">
       <span class="bar-chip" style="background:${c.color}"></span>
       <span class="bar-name">${escHtml(c.name)}</span>
       <span class="bar-track"><span class="bar-fill" style="width:${pct.toFixed(1)}%;background:${c.color}"></span></span>
       <span class="bar-val">${fmtWon(v)}</span>
       <span class="bar-pct">${pct.toFixed(1)}%</span>
-    </div>`;
+    </button>`;
   });
   return rows;
 }
@@ -760,15 +767,17 @@ function renderInstSummary(){
 }
 function renderDash(){
   const t=totalsByCat(), total=grandTotal();
+  const allTot=allItemsTotal(), excl=allTot-total;
   const cnt=data.items.length;
   const last=data.items.reduce((m,it)=>Math.max(m,it.updatedAt||0),0);
   const lastTxt=last>0?new Date(last).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
   const html=`
     <div class="total-card">
-      <div class="tc-label">총 보유 자산</div>
+      <div class="tc-label">총 보유 자산${excl>0?" (합산 포함)":""}</div>
       <div class="tc-num">${fmtWon(total)}</div>
       <div class="tc-kor">${korUnit(total)}</div>
       <div class="tc-meta">보유 항목 ${cnt}건 · 최근 수정 ${lastTxt}</div>
+      ${excl>0?`<div class="tc-sub2">전체 ${fmtWon(allTot)} · 합산 제외 ${fmtWon(excl)}</div>`:""}
     </div>
     ${renderGoal()}
     <div class="dash-row">
@@ -785,6 +794,8 @@ function renderDash(){
   body.querySelectorAll(".recent-row").forEach(b=>b.addEventListener("click",()=>openModal(b.dataset.id)));
   body.querySelectorAll(".owner-row[data-owner]").forEach(b=>b.addEventListener("click",()=>navTo("owner:"+b.dataset.owner)));
   body.querySelectorAll(".owner-row[data-inst]").forEach(b=>b.addEventListener("click",()=>navTo("inst:"+b.dataset.inst)));
+  body.querySelectorAll(".cat-row[data-cat]").forEach(b=>b.addEventListener("click",()=>navTo(b.dataset.cat)));
+  body.querySelectorAll(".donut-seg[data-cat]").forEach(s=>s.addEventListener("click",()=>navTo(s.getAttribute("data-cat"))));
   body.querySelectorAll("[data-goal-edit]").forEach(b=>b.addEventListener("click",editGoal));
   const tc=document.getElementById("taxChk"); if(tc) tc.addEventListener("change",toggleTax);
 }
