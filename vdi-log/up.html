@@ -120,6 +120,9 @@
   .dash{display:flex; flex-direction:column; gap:16px;}
   .dash-row{display:grid; grid-template-columns:300px 1fr; gap:16px; align-items:stretch;}
   @media(max-width:840px){ .dash-row{grid-template-columns:1fr;} }
+  .dash-row2{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;}
+  @media(max-width:840px){ .dash-row2{grid-template-columns:1fr;} }
+  .bar-name.owner-name{width:92px; overflow:hidden; text-overflow:ellipsis;}
 
   /* 도넛 */
   .donut-wrap{display:flex; flex-direction:column; align-items:center; gap:10px;}
@@ -440,6 +443,28 @@ function renderRecent(){
   }).join("");
   return `<div class="card"><div class="card-t">최근 변경</div><div class="recent-list">${rows}</div></div>`;
 }
+const OWNER_COLORS=["#2b3a55","#d99800","#3b6ea5","#0f8a6d","#6f42c1","#c0392b","#b06f00","#5b6b7c"];
+function totalsByOwner(){
+  const t={};
+  data.items.forEach(it=>{ if(!isIncluded(it)) return; const k=(it.owner||"").trim()||"미지정"; t[k]=(t[k]||0)+(Number(it.amount)||0); });
+  return t;
+}
+function renderOwnerSummary(){
+  const t=totalsByOwner(), total=grandTotal();
+  const owners=Object.keys(t).sort((a,b)=>t[b]-t[a]);
+  if(!owners.length) return `<div class="card"><div class="card-t">소유자별 합계</div><div class="recent-empty">합계에 포함된 자산이 없습니다.</div></div>`;
+  const rows=owners.map((o,i)=>{
+    const v=t[o], pct=total>0?(v/total*100):0, color=OWNER_COLORS[i%OWNER_COLORS.length];
+    return `<div class="bar-row">
+      <span class="bar-chip" style="background:${color}"></span>
+      <span class="bar-name owner-name" title="${escHtml(o)}">${escHtml(o)}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${pct.toFixed(1)}%;background:${color}"></span></span>
+      <span class="bar-val">${fmtWon(v)}</span>
+      <span class="bar-pct">${pct.toFixed(1)}%</span>
+    </div>`;
+  }).join("");
+  return `<div class="card"><div class="card-t">소유자별 합계</div>${rows}</div>`;
+}
 function renderDash(){
   const t=totalsByCat(), total=grandTotal();
   const cnt=data.items.length;
@@ -456,7 +481,10 @@ function renderDash(){
       <div class="card"><div class="card-t">자산 배분</div><div class="donut-wrap">${renderDonut(t,total)}</div></div>
       <div class="card"><div class="card-t">분류별 금액 · 비중</div>${renderBars(t,total)}</div>
     </div>
-    ${renderRecent()}`;
+    <div class="dash-row2">
+      ${renderOwnerSummary()}
+      ${renderRecent()}
+    </div>`;
   const body=document.getElementById("dashBody");
   body.innerHTML=html;
   body.querySelectorAll(".recent-row").forEach(b=>b.addEventListener("click",()=>openModal(b.dataset.id)));
