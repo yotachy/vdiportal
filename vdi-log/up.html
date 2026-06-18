@@ -672,6 +672,7 @@ function renderDash(){
 /* ===================== 렌더: 목록 ===================== */
 const EDIT_ICO=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const DEL_ICO=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>`;
+const DUP_ICO=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
 const ownerOf=it=>(it.owner||"").trim()||"미지정";
 const instOf=it=>(it.inst||"").trim()||"미지정";
 function renderList(){
@@ -713,16 +714,17 @@ function renderList(){
       <td class="num">${fmtWon(it.amount)}</td>
       <td class="owner">${escHtml(it.owner)||""}</td>
       <td class="note">${escHtml(it.note)||""}</td>
-      <td class="row-act"><button class="edit" title="수정">${EDIT_ICO}</button><button class="del" title="삭제">${DEL_ICO}</button></td>
+      <td class="row-act"><button class="dup" title="복제">${DUP_ICO}</button><button class="edit" title="수정">${EDIT_ICO}</button><button class="del" title="삭제">${DEL_ICO}</button></td>
     </tr>`;
   });
   body.innerHTML=`<table class="atable">
-    <thead><tr>${canDrag?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:104px">분류</th><th style="width:116px">기관</th><th style="min-width:150px">항목명</th><th style="width:100px">보유종목</th><th class="num" style="width:74px">보유수</th><th class="num" style="width:104px">평단가</th><th class="num" style="width:158px">평가금액</th><th style="width:92px">이름</th><th style="width:150px">메모</th><th style="width:84px"></th></tr></thead>
+    <thead><tr>${canDrag?`<th class="grip"></th>`:""}<th class="inc" title="자산 합계 포함">포함</th><th style="width:104px">분류</th><th style="width:116px">기관</th><th style="min-width:150px">항목명</th><th style="width:100px">보유종목</th><th class="num" style="width:74px">보유수</th><th class="num" style="width:104px">평단가</th><th class="num" style="width:158px">평가금액</th><th style="width:92px">이름</th><th style="width:150px">메모</th><th style="width:108px"></th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td colspan="${canDrag?8:7}">합계 (포함 ${incItems.length}건)</td><td class="num">${fmtWon(sum)}</td><td colspan="3"></td></tr></tfoot>
   </table>`;
   body.querySelectorAll("tr[data-id]").forEach(tr=>{
     const id=tr.dataset.id;
+    tr.querySelector(".dup").addEventListener("click",()=>dupItem(id));
     tr.querySelector(".edit").addEventListener("click",()=>openModal(id));
     tr.querySelector(".del").addEventListener("click",()=>delItem(id));
     tr.querySelector(".inc-chk").addEventListener("change",()=>toggleInclude(id));
@@ -866,6 +868,15 @@ function delItem(id){
   if(!confirm(`'${it.name}' 항목을 삭제할까요?`)) return;
   data.items=data.items.filter(x=>x.id!==id);
   opDelete(id); render(); toast("삭제되었습니다.");
+}
+function dupItem(id){
+  if(!requireEdit()) return;
+  const i=data.items.findIndex(x=>x.id===id); if(i<0) return;
+  const src=data.items[i];
+  const clone={...src, id:genId(), name:(src.name||"")+" (복사)", updatedAt:Date.now()};
+  data.items.splice(i+1,0,clone);  // 원본 바로 아래에 삽입
+  sendOp({op:"upsertAfter",item:clone,afterId:id});  // 서버에도 원본 뒤 삽입(원자적)
+  render(); toast("항목을 복제했습니다.");
 }
 
 /* ===================== 데이터 파일 (공유/백업) ===================== */

@@ -59,13 +59,20 @@ if ($op === "replace") {
   $nd = isset($d["doc"]) ? $d["doc"] : null;
   if (!is_array($nd) || !isset($nd["items"]) || !is_array($nd["items"])) $err = "invalid";
   else { $doc["items"] = $nd["items"]; $doc["meta"] = isset($nd["meta"]) && is_array($nd["meta"]) ? $nd["meta"] : []; }
-} elseif ($op === "upsert") {
+} elseif ($op === "upsert" || $op === "upsertAfter") {
   $it = isset($d["item"]) ? $d["item"] : null;
   if (!is_array($it) || !isset($it["id"])) $err = "invalid";
   else {
     $found = false;
     foreach ($doc["items"] as $i => $x) { if (isset($x["id"]) && $x["id"] === $it["id"]) { $doc["items"][$i] = $it; $found = true; break; } }
-    if (!$found) $doc["items"][] = $it;
+    if (!$found) {
+      $pos = -1;
+      if ($op === "upsertAfter" && isset($d["afterId"])) {
+        foreach ($doc["items"] as $i => $x) { if (isset($x["id"]) && $x["id"] === $d["afterId"]) { $pos = $i + 1; break; } }
+      }
+      if ($pos >= 0) array_splice($doc["items"], $pos, 0, [$it]);  // 원본 바로 뒤에 삽입(복제)
+      else $doc["items"][] = $it;
+    }
   }
 } elseif ($op === "delete") {
   $id = isset($d["id"]) ? $d["id"] : null;
