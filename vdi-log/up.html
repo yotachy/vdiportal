@@ -138,6 +138,16 @@
   .bar-val{width:118px; text-align:right; font-size:.79rem; font-variant-numeric:tabular-nums; flex:none; font-family:var(--font-bold);}
   .bar-pct{width:46px; text-align:right; font-size:.74rem; color:var(--ink-faint); flex:none; font-variant-numeric:tabular-nums;}
 
+  /* 최근 변경 위젯 */
+  .recent-list{display:flex; flex-direction:column;}
+  .recent-row{display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:none; background:transparent; cursor:pointer; padding:9px 6px; border-bottom:1px solid var(--line-faint); color:var(--ink); font-family:var(--font-body);}
+  .recent-row:last-child{border-bottom:none;}
+  .recent-row:hover{background:var(--line-faint);}
+  .recent-row .rc-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--font-bold); font-size:.85rem;}
+  .recent-row .rc-amt{font-variant-numeric:tabular-nums; font-size:.82rem; font-family:var(--font-bold); white-space:nowrap;}
+  .recent-row .rc-time{width:62px; text-align:right; font-size:.74rem; color:var(--ink-faint); white-space:nowrap; flex:none;}
+  .recent-empty{color:var(--ink-faint); font-size:.84rem; padding:10px 6px;}
+
   /* 테이블 */
   .list-tools{display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;}
   .list-tools .lt-grow{flex:1;}
@@ -293,7 +303,7 @@ const DEFAULT_DATA={
     {cat:"estate",  name:"전세보증금",    amount:320000000,note:"분당"},
     {cat:"crypto",  name:"비트코인",      amount:9300000,  note:"0.1 BTC"},
     {cat:"etc",     name:"금(골드바)",    amount:4500000,  note:""},
-  ].map(x=>({id:genId(), ...x, updatedAt:0})),
+  ].map((x,i)=>({id:genId(), ...x, updatedAt:Date.now()-i*3600000})),
   meta:{title:"정성인연 자산 현황"}
 };
 
@@ -386,6 +396,28 @@ function renderBars(t,total){
   });
   return rows;
 }
+function relTime(ms){
+  if(!ms) return "";
+  const diff=Date.now()-ms; const s=Math.floor(diff/1000);
+  if(s<60) return "방금";
+  const m=Math.floor(s/60); if(m<60) return m+"분 전";
+  const h=Math.floor(m/60); if(h<24) return h+"시간 전";
+  const day=Math.floor(h/24); if(day<7) return day+"일 전";
+  const d=new Date(ms); return (d.getMonth()+1)+"."+d.getDate();
+}
+function renderRecent(){
+  const items=data.items.filter(it=>it.updatedAt>0).sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,6);
+  if(!items.length) return `<div class="card"><div class="card-t">최근 변경</div><div class="recent-empty">자산을 추가하거나 수정하면 여기에 표시됩니다.</div></div>`;
+  const rows=items.map(it=>{ const c=catById(it.cat);
+    return `<button class="recent-row" data-id="${it.id}" title="수정">
+      <span class="area-chip-sm" style="background:${c.color}"></span>
+      <span class="rc-name">${escHtml(it.name)||"—"}</span>
+      <span class="rc-amt">${fmtWon(it.amount)}</span>
+      <span class="rc-time">${relTime(it.updatedAt)}</span>
+    </button>`;
+  }).join("");
+  return `<div class="card"><div class="card-t">최근 변경</div><div class="recent-list">${rows}</div></div>`;
+}
 function renderDash(){
   const t=totalsByCat(), total=grandTotal();
   const cnt=data.items.length;
@@ -401,8 +433,11 @@ function renderDash(){
     <div class="dash-row">
       <div class="card"><div class="card-t">자산 배분</div><div class="donut-wrap">${renderDonut(t,total)}</div></div>
       <div class="card"><div class="card-t">분류별 금액 · 비중</div>${renderBars(t,total)}</div>
-    </div>`;
-  document.getElementById("dashBody").innerHTML=html;
+    </div>
+    ${renderRecent()}`;
+  const body=document.getElementById("dashBody");
+  body.innerHTML=html;
+  body.querySelectorAll(".recent-row").forEach(b=>b.addEventListener("click",()=>openModal(b.dataset.id)));
 }
 
 /* ===================== 렌더: 목록 ===================== */
