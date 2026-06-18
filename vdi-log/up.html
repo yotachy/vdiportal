@@ -209,6 +209,14 @@
   .goal-big{font-family:var(--font-display); font-size:2.1rem; color:var(--gold-strong); letter-spacing:-.02em; margin:10px 0 12px;}
   .goal-big span{font-size:1.05rem;}
   .goal-big .goal-big-sub{font-size:.8rem; color:var(--ink-faint); font-family:var(--font-bold); margin-left:8px; letter-spacing:0;}
+  .goalbar{margin:16px 0;}
+  .goalbar-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:6px; font-size:.92rem;}
+  .goalbar-name{font-family:var(--font-bold);}
+  .goalbar-name small{font-size:.74rem; color:var(--ink-faint); font-family:var(--font-body); margin-left:3px;}
+  .goalbar-meta{font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .goalbar-meta b{font-family:var(--font-bold);}
+  .goalbar-rem{margin-top:5px; font-size:.8rem; color:var(--ink-faint);}
+  .goalbar-rem b{font-family:var(--font-bold); color:var(--ink-soft);}
   .goal-track{position:relative; height:24px; background:var(--line-faint); border-radius:12px; overflow:hidden;}
   .goal-fill{position:absolute; left:0; top:0; height:100%; border-radius:12px; transition:width .4s ease;}
   .goal-fill.all{background:#ffe39a;}
@@ -608,13 +616,15 @@ function renderGoal(){
     </div>`;
   let viz="";
   if(target>0){
-    const pctInc=inc/target*100, pctAll=all/target*100, rem=target-inc;
-    viz=`<div class="goal-big">${pctInc.toFixed(1)}<span>%</span><span class="goal-big-sub">포함 자산 기준 달성</span></div>
-      <div class="goal-track" title="목표 ${fmtWon(target)}">
-        <div class="goal-fill all" style="width:${Math.min(100,pctAll).toFixed(1)}%"></div>
-        <div class="goal-fill inc" style="width:${Math.min(100,pctInc).toFixed(1)}%"></div>
-      </div>
-      <div class="goal-foot">${rem>0?`목표까지 <b>${fmtWon(rem)}</b> 남음 · ${korUnit(rem)}`:`<b style="color:var(--st-fix)">🎉 목표 달성! ${fmtWon(-rem)} 초과</b>`}</div>`;
+    const goalBar=(name,sub,amt,cls)=>{
+      const pct=amt/target*100, rem=target-amt;
+      return `<div class="goalbar">
+        <div class="goalbar-top"><span class="goalbar-name">${name}${sub?` <small>${sub}</small>`:""}</span><span class="goalbar-meta"><b>${fmtWon(amt)}</b> · ${pct.toFixed(1)}%</span></div>
+        <div class="goal-track"><div class="goal-fill ${cls}" style="width:${Math.min(100,pct).toFixed(1)}%"></div></div>
+        <div class="goalbar-rem">${rem>0?`목표까지 <b>${fmtWon(rem)}</b> 남음 · ${korUnit(rem)}`:`<b style="color:var(--st-fix)">🎉 목표 달성! ${fmtWon(-rem)} 초과</b>`}</div>
+      </div>`;
+    };
+    viz=goalBar("전체 자산","합산 제외 포함",all,"all")+goalBar("포함 자산","합산 대상만",inc,"inc");
   }else{
     viz=`<div class="goal-empty">목표 매수가를 설정하면 달성률을 시각화합니다.</div>`;
   }
