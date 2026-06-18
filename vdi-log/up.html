@@ -205,7 +205,7 @@
   .goal-head{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:6px;}
   .goal-target{font-family:var(--font-display); font-size:1.5rem; letter-spacing:-.02em;}
   .gt-label{display:block; font-size:.72rem; color:var(--ink-faint); font-family:var(--font-bold); letter-spacing:.03em; margin-bottom:3px;}
-  .gt-tax{display:block; font-size:.78rem; color:var(--gold-strong); font-family:var(--font-bold); margin-top:4px;}
+  .gt-tax-inline{font-size:.62rem; color:var(--gold-strong); font-family:var(--font-bold); background:var(--gold-soft); padding:2px 8px; border-radius:999px; vertical-align:middle; margin-left:8px; letter-spacing:0; white-space:nowrap;}
   .goal-head-act{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
   .gt-check{display:inline-flex; align-items:center; gap:6px; font-size:.82rem; color:var(--ink-soft); font-family:var(--font-bold); cursor:pointer; user-select:none;}
   .gt-check input{width:16px; height:16px; accent-color:var(--gold-strong); cursor:pointer;}
@@ -617,7 +617,7 @@ function renderGoal(){
   const setBtn=editable?`<button class="btn btn-sm" data-goal-edit>${base?"목표 수정":"목표 설정"}</button>`:"";
   const taxChk=base?`<label class="gt-check"><input type="checkbox" id="taxChk" ${tax?"checked":""} ${editable?"":"disabled"}> 보유세 +${TAX_PCT}%</label>`:"";
   const head=`<div class="goal-head">
-      <div class="goal-target"><span class="gt-label">목표 매수가 (부동산)</span>${base?fmtWon(base):`<span style="color:var(--ink-faint)">미설정</span>`}${base&&tax?`<span class="gt-tax">보유세 +${TAX_PCT}% → 적용 목표 ${fmtWon(target)}</span>`:""}</div>
+      <div class="goal-target"><span class="gt-label">목표 매수가 (부동산)</span>${base?`${fmtWon(target)}${tax?` <span class="gt-tax-inline">보유세 +${TAX_PCT}% 포함</span>`:""}`:`<span style="color:var(--ink-faint)">미설정</span>`}</div>
       <div class="goal-head-act">${taxChk}${setBtn}</div>
     </div>`;
   const legend=`<div class="goal-legend">
