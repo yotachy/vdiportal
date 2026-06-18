@@ -598,7 +598,6 @@ document.getElementById("btnAdd").addEventListener("click",()=>openModal());
 document.getElementById("modalClose").addEventListener("click",closeModal);
 document.getElementById("modalCancel").addEventListener("click",closeModal);
 document.getElementById("modalSave").addEventListener("click",saveModal);
-document.getElementById("modalBg").addEventListener("click",e=>{ if(e.target.id==="modalBg") closeModal(); });
 document.getElementById("fAmount").addEventListener("input",updateAmountKor);
 document.getElementById("fName").addEventListener("keydown",e=>{ if(e.key==="Enter") saveModal(); });
 document.getElementById("fAmount").addEventListener("keydown",e=>{ if(e.key==="Enter") saveModal(); });
