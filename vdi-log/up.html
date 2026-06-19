@@ -307,6 +307,12 @@
   .gs-knob{position:absolute; left:50%; top:11px; transform:translate(-50%,-50%); width:15px; height:15px; border-radius:50%; background:var(--ink); border:2.5px solid var(--card); box-shadow:0 1px 4px rgba(0,0,0,.35); cursor:ew-resize;}
   .goal-track.grabbable{cursor:pointer;}
   .goalscale.dragging .gs-goalline,.goalscale.dragging .gs-goal-label{transition:none;}
+  .goalscale.dragging .gs-goal-label{opacity:0;}                                  /* 드래그 중엔 정적 라벨 숨기고 툴팁만 */
+  .gs-tooltip{position:absolute; top:-36px; transform:translateX(-50%); background:var(--ink); color:#fff; font-family:var(--font-display); font-size:1rem; padding:4px 11px; border-radius:8px; white-space:nowrap; box-shadow:0 3px 10px rgba(0,0,0,.28); pointer-events:none; z-index:8; letter-spacing:-.01em;}
+  .gs-tooltip::after{content:""; position:absolute; left:50%; top:100%; transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--ink);}
+  .gs-tooltip.left{transform:translateX(0);} .gs-tooltip.left::after{left:15px;}
+  .gs-tooltip.right{transform:translateX(-100%);} .gs-tooltip.right::after{left:auto; right:15px;}
+  .gs-tooltip[hidden]{display:none;}
   .goal-hint-drag{margin-top:12px; font-size:.82rem; color:var(--ink-faint);}
   .goal-hint-drag b{font-family:var(--font-bold); color:var(--ink-soft);}
   html[data-theme="dark"] .goal-fill.all,html[data-theme="dark"] .goal-legend .gl.all{background:#7a6a3a;}
@@ -781,6 +787,7 @@ function renderGoal(){
           <div class="goal-fill inc" style="width:${incW.toFixed(2)}%"></div>
         </div>
         <div class="gs-goalline${editable?" draggable":""}" style="left:${goalLeft.toFixed(2)}%">${editable?'<span class="gs-knob"></span>':""}</div>
+        ${editable?`<div class="gs-tooltip" hidden></div>`:""}
         ${ends}
         ${axis}
       </div>
@@ -928,6 +935,7 @@ function setupGoalDrag(){
   const track=scaleEl.querySelector(".goal-track");
   const line=scaleEl.querySelector(".gs-goalline");
   const label=scaleEl.querySelector(".gs-goal-label");
+  const tip=scaleEl.querySelector(".gs-tooltip");
   const smax=Number(scaleEl.dataset.smax)||1;
   const SNAP=1e8;                                            // 1억원 단위 스냅(정확한 억 단위로 자동 이동)
   let dragging=false;
@@ -948,10 +956,17 @@ function setupGoalDrag(){
       label.classList.toggle("left",left<10);
       label.textContent=b>0?`🎯 목표 ${fmtWon(eff)}${taxOn()?" (세포함)":""}`:"🎯 목표 설정";
     }
+    if(tip){                                                  // 드래그 중 현재 억 단위 값 툴팁
+      tip.style.left=left.toFixed(2)+"%";
+      tip.classList.toggle("right",left>92);
+      tip.classList.toggle("left",left<8);
+      tip.textContent=b>0?korUnit(eff):"목표 해제";
+    }
   };
   const down=e=>{
     if(!isUnlocked()) return;
     dragging=true; scaleEl.classList.add("dragging");
+    if(tip) tip.hidden=false;
     try{ track.setPointerCapture(e.pointerId); }catch(_){}
     preview(baseAt(e.clientX)); e.preventDefault();
   };
