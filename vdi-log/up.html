@@ -368,6 +368,8 @@
   /* 토스트 */
   .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px); background:#1c2430; color:#fff; padding:11px 20px; border-radius:10px; font-size:.84rem; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:80; box-shadow:var(--shadow-md);}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast.toast-top{bottom:auto; top:16px; transform:translateX(-50%) translateY(-20px);}
+  .toast.toast-top.show{transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
@@ -1238,7 +1240,10 @@ function importData(file){
 /* ===================== 토스트 ===================== */
 let toastTimer=null;
 function toast(msg){
-  const el=document.getElementById("toast"); el.textContent=msg; el.classList.add("show");
+  const el=document.getElementById("toast"); el.textContent=msg;
+  const modalOpen=document.getElementById("modalBg").classList.contains("open");
+  el.classList.toggle("toast-top",modalOpen);  // 입력 중엔 상단으로(키보드 가림 방지)
+  el.classList.add("show");
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove("show"),2200);
 }
 
