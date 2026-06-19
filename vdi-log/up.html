@@ -76,6 +76,8 @@
   .sync-badge.sync-ok{color:#7ee0b8;} .sync-badge.sync-saving,.sync-badge.sync-loading{color:#ffe08a;}
   .sync-badge.sync-offline,.sync-badge.sync-error{color:#ff9a93;}
   .fx-badge{font-size:.74rem; font-family:var(--font-bold); color:#c4cddc; padding:0 4px; white-space:nowrap;}
+  .hd-select{background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); color:#eaeef5; border-radius:9px; padding:7px 8px; font-size:.76rem; font-family:var(--font-bold); cursor:pointer;}
+  .hd-select option{color:#1c2430;}
   /* 읽기 전용(잠금) 시 편집 UI 숨김 */
   body:not(.can-edit) #btnAdd,
   body:not(.can-edit) #btnImport,
@@ -182,7 +184,7 @@
     .apphd-t{font-size:.85rem;}
     .apphd .btn{padding:7px 8px;}
     .apphd .btn .ic{margin:0;}
-    #btnExport span,#btnImport span,#btnLock .lk-label,#themeLabel,#syncBadge,#fxBadge{display:none;}
+    #btnExport span,#btnImport span,#btnLock .lk-label,#themeLabel,#syncBadge,#fxBadge,#quoteInterval{display:none;}
     /* 사이드바 = 오버레이 드로어 */
     .side{position:fixed; top:58px; left:0; width:248px; height:calc(100vh - 58px); z-index:60; box-shadow:var(--shadow-lg); transform:translateX(0); transition:transform .22s ease;}
     body.side-collapsed .side{width:248px; padding:14px 12px 30px; border-right:1px solid var(--line); overflow-y:auto; transform:translateX(-100%);}
@@ -369,6 +371,13 @@
   </div>
   <span class="apphd-grow"></span>
   <span class="fx-badge" id="fxBadge" title="실시간 USD/KRW 환율(자동)"></span>
+  <select id="quoteInterval" class="hd-select" title="티커(#) 종목 시세 자동 갱신 주기">
+    <option value="0">갱신 끔</option>
+    <option value="60000">1분</option>
+    <option value="300000">5분</option>
+    <option value="600000">10분</option>
+    <option value="1800000">30분</option>
+  </select>
   <button class="btn ghost" id="btnLock" title="편집 잠금 해제(쓰기 키)">
     <svg class="ic lk-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
     <span class="lk-label"></span>
@@ -580,6 +589,21 @@ function refreshQuotes(force){
     return fetch(SERVER_URL+"?quote="+encodeURIComponent(tickerSym(it))+"&market="+mk,{cache:"no-store"})
       .then(r=>r.json()).then(j=>{ if(j&&j.ok){ it.price=Number(j.price)||it.price; it.cur=j.cur==="USD"?"USD":"KRW"; } }).catch(()=>{});
   })).then(()=>{ recomputeFx(); saveData(); render(); });
+}
+/* 시세 자동 갱신 주기 */
+const QI_KEY="jsiy_quote_interval";
+let quoteIntervalMs=300000;  // 기본 5분
+try{ const s=localStorage.getItem(QI_KEY); if(s!==null) quoteIntervalMs=Number(s)||0; }catch(e){}
+let quoteTimer=null;
+function startQuoteTimer(){
+  clearInterval(quoteTimer); quoteTimer=null;
+  if(quoteIntervalMs>0){
+    quoteTimer=setInterval(()=>{
+      if(document.hidden) return;
+      if(document.getElementById("modalBg").classList.contains("open")) return;
+      refreshQuotes(true);
+    }, quoteIntervalMs);
+  }
 }
 function pullFromServer(opts){
   opts=opts||{};
@@ -1221,7 +1245,8 @@ function applySidebar(){ let on=false; try{ on=localStorage.getItem(SIDE_KEY)===
 /* ===================== 초기화 / 이벤트 ===================== */
 loadData(); loadScope(); fillCatSelect(); initTheme(); applySidebar(); applyLockUI(); render();
 updateFxBadge(); fetchRate();    // 환율 표시 + 실시간 조회
-refreshQuotes();                 // 티커(#) 종목 현재가 자동 조회
+(function(){ const qi=document.getElementById("quoteInterval"); if(qi) qi.value=String(quoteIntervalMs); })();
+refreshQuotes(); startQuoteTimer();  // 티커(#) 종목 현재가 자동 조회 + 주기 갱신
 pullFromServer({initial:true});  // 로드 시 서버(공유) 데이터로 동기화
 startPolling();                   // 6초마다 다른 기기 변경 자동 반영
 let focusPullTimer=null;
@@ -1239,6 +1264,13 @@ document.getElementById("sideToggle").addEventListener("click",()=>{
 });
 document.getElementById("goHome").addEventListener("click",()=>navTo("dash"));
 document.getElementById("btnSync").addEventListener("click",()=>{ pullFromServer(); refreshQuotes(true); });
+document.getElementById("quoteInterval").addEventListener("change",e=>{
+  quoteIntervalMs=Number(e.target.value)||0;
+  try{ localStorage.setItem(QI_KEY,String(quoteIntervalMs)); }catch(_){}
+  startQuoteTimer();
+  if(quoteIntervalMs>0){ refreshQuotes(true); toast("시세 자동 갱신: "+(quoteIntervalMs/60000)+"분마다"); }
+  else toast("시세 자동 갱신 끔");
+});
 document.getElementById("btnLock").addEventListener("click",toggleLock);
 document.getElementById("sideBackdrop").addEventListener("click",()=>document.body.classList.add("side-collapsed"));
 document.getElementById("btnAdd").addEventListener("click",()=>openModal());
