@@ -214,7 +214,11 @@
     .modal-bg{padding:10px; align-items:flex-start;}
     .modal{max-height:calc(100vh - 20px);}
     @supports(height:100dvh){ .modal{max-height:calc(100dvh - 20px);} }
-    .modal-bd{padding:14px 16px; gap:11px;}
+    .modal-bd{padding:14px 16px; gap:13px;}
+    /* 터치 타깃 확대 */
+    .modal-bd .field input,.modal-bd .field select{padding:11px 12px; font-size:.94rem;}
+    .modal-bd .chk input,.modal-bd .field select#fCur{min-height:44px;}
+    .modal-bd .chk input{width:22px; height:22px;}
     /* 목표 카드 모바일 정리 (.goal-card 접두로 우선순위 확보) */
     .goal-card .goal-head{flex-direction:column; align-items:flex-start; gap:9px;}
     .goal-card .goal-target{font-size:1.3rem;}
@@ -357,6 +361,7 @@
   .field input,.field select,.field textarea{width:100%; border:1px solid var(--line-strong); background:var(--card); color:var(--ink); border-radius:var(--r-sm); padding:9px 11px; font-size:.86rem; font-family:var(--font-body);}
   .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--gold); outline-offset:0; border-color:var(--gold);}
   .field .hint{font-size:.72rem; color:var(--ink-faint); margin-top:4px;}
+  .auto-badge{display:none; font-size:.62rem; color:var(--gold-strong); background:var(--gold-soft); padding:1px 7px; border-radius:999px; margin-left:6px; font-family:var(--font-bold); letter-spacing:0;}
   .modal-bd .chk{display:flex; align-items:center; gap:8px; font-size:.84rem; color:var(--ink); font-family:var(--font-body); cursor:pointer; user-select:none;}
   .modal-bd .chk input{width:16px; height:16px; accent-color:var(--gold-strong); cursor:pointer;}
 
@@ -465,7 +470,7 @@
       <div id="stockFields">
         <div class="field"><label for="fTicker">보유종목</label><input id="fTicker" type="text" placeholder="예) #TSLA(현재가 자동), 005930" maxlength="30"></div>
         <div class="field"><label for="fQty">보유수</label><input id="fQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></div>
-        <div class="field"><label for="fPrice">현재가</label>
+        <div class="field"><label for="fPrice">현재가 <span id="priceAutoBadge" class="auto-badge">시세 자동</span></label>
           <div style="display:flex; gap:8px;">
             <select id="fCur" style="width:88px; flex:none;"><option value="KRW">원</option><option value="USD">달러</option></select>
             <input id="fPrice" type="text" inputmode="decimal" placeholder="0" style="flex:1;">
@@ -1074,7 +1079,14 @@ function updateStockFields(){
   document.getElementById("stockFields").style.display=stock?"":"none";
   const amt=document.getElementById("fAmount");
   amt.readOnly=stock; amt.classList.toggle("ro",stock);
+  updateTickerLockUI();
   if(stock) recalcAmount(); else updateAmountKor();
+}
+function updateTickerLockUI(){  // #티커면 현재가·통화는 시세 자동 → readonly+배지
+  const isT=isStockCat(document.getElementById("fCat").value) && document.getElementById("fTicker").value.trim().charAt(0)==="#";
+  const pr=document.getElementById("fPrice"), cur=document.getElementById("fCur"), badge=document.getElementById("priceAutoBadge");
+  pr.readOnly=isT; pr.classList.toggle("ro",isT); cur.disabled=isT;
+  if(badge) badge.style.display=isT?"inline-block":"none";
 }
 function rawNum(id){ return Number(String(document.getElementById(id).value).replace(/[^\d.]/g,""))||0; }  // 콤마 등 제거 후 숫자
 function fmtNumIn(id){ const n=rawNum(id); document.getElementById(id).value=n?n.toLocaleString("ko-KR"):""; }   // 콤마 포맷
@@ -1110,7 +1122,8 @@ function openModal(id){
   const m=document.getElementById("modalBg");
   document.getElementById("modalTitle").textContent=editingId?"자산 수정":"자산 추가";
   const it=editingId?data.items.find(x=>x.id===editingId):null;
-  const defCat=catById2(scope)?scope:CATS[0].id;  // 분류 필터 뷰면 그 분류로 기본 선택
+  let lastCat=""; try{ lastCat=localStorage.getItem("jsiy_lastcat")||""; }catch(e){}
+  const defCat=catById2(scope)?scope:(catById2(lastCat)?lastCat:"cash");  // 필터뷰=그 분류, 아니면 최근 선택(없으면 현금)
   const defOwner=scope.indexOf("owner:")===0?scope.slice(6):"";  // 소유자 필터 뷰면 그 이름 기본
   const defInst=scope.indexOf("inst:")===0?scope.slice(5):"";    // 기관 필터 뷰면 그 기관 기본
   document.getElementById("fCat").value=it?it.cat:defCat;
@@ -1124,9 +1137,9 @@ function openModal(id){
   document.getElementById("fAmount").value=it&&it.amount?Number(it.amount).toLocaleString("ko-KR"):"";
   document.getElementById("fNote").value=it?it.note:"";
   document.getElementById("fInclude").checked=it?isIncluded(it):true;
-  updateStockFields();  // 주식이면 평가금액 자동계산·읽기전용 처리 포함
+  updateStockFields();  // 주식이면 평가금액 자동계산·읽기전용·#티커 잠금 처리 포함
   m.classList.add("open");
-  setTimeout(()=>document.getElementById("fName").focus(),30);
+  if(!isMobile()) setTimeout(()=>document.getElementById("fName").focus(),30);  // 모바일은 자동 포커스 끔(키보드가 폼 가림 방지)
 }
 function closeModal(){ document.getElementById("modalBg").classList.remove("open"); editingId=null; }
 function updateAmountKor(){
@@ -1150,6 +1163,7 @@ function saveModal(){
   const note=document.getElementById("fNote").value.trim();
   const include=document.getElementById("fInclude").checked;
   if(!name){ toast("항목명을 입력하세요."); document.getElementById("fName").focus(); return; }
+  try{ localStorage.setItem("jsiy_lastcat",cat); }catch(e){}  // 다음 추가 시 기본 분류로
   let saved;
   if(editingId){
     const it=data.items.find(x=>x.id===editingId);
@@ -1287,6 +1301,7 @@ document.getElementById("fCat").addEventListener("change",updateStockFields);
 document.getElementById("fQty").addEventListener("input",recalcAmount);
 document.getElementById("fPrice").addEventListener("input",recalcAmount);
 document.getElementById("fCur").addEventListener("change",recalcAmount);
+document.getElementById("fTicker").addEventListener("input",updateTickerLockUI);
 document.getElementById("fTicker").addEventListener("blur",fetchTickerPrice);
 document.getElementById("fTicker").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); fetchTickerPrice(); } });
 ["fAmount","fPrice"].forEach(id=>{
