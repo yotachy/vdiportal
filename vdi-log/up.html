@@ -302,10 +302,10 @@
   .goal-empty{color:var(--ink-faint); font-size:.86rem; padding:8px 0;}
   /* 목표선 드래그 설정 */
   .gs-goal-label.left{transform:translateX(0);}
-  .gs-goalline.draggable{cursor:ew-resize; z-index:6;}
-  .gs-goalline.draggable::before{content:""; position:absolute; left:-12px; right:-12px; top:-6px; bottom:-6px;}
-  .gs-knob{position:absolute; left:50%; top:11px; transform:translate(-50%,-50%); width:15px; height:15px; border-radius:50%; background:var(--ink); border:2.5px solid var(--card); box-shadow:0 1px 4px rgba(0,0,0,.35); cursor:ew-resize;}
-  .goal-track.grabbable{cursor:pointer;}
+  .gs-goalline.draggable{cursor:ew-resize; z-index:6; touch-action:none;}
+  .gs-goalline.draggable::before{content:""; position:absolute; left:-14px; right:-14px; top:-8px; bottom:-8px;}
+  .gs-knob{position:absolute; left:50%; top:11px; transform:translate(-50%,-50%); width:15px; height:15px; border-radius:50%; background:var(--ink); border:2.5px solid var(--card); box-shadow:0 1px 4px rgba(0,0,0,.35); cursor:ew-resize; touch-action:none;}
+  .goal-track.grabbable{cursor:pointer; touch-action:none;}
   .goalscale.dragging .gs-goalline,.goalscale.dragging .gs-goal-label{transition:none;}
   .goalscale.dragging .gs-goal-label{opacity:0;}                                  /* 드래그 중엔 정적 라벨 숨기고 툴팁만 */
   .gs-tooltip{position:absolute; top:-36px; transform:translateX(-50%); background:var(--navy); color:#fff; font-family:var(--font-display); font-size:1rem; padding:4px 11px; border-radius:8px; white-space:nowrap; box-shadow:0 3px 10px rgba(0,0,0,.28); pointer-events:none; z-index:8; letter-spacing:-.01em;}
@@ -973,7 +973,7 @@ function setupGoalDrag(){
     try{ track.setPointerCapture(e.pointerId); }catch(_){}
     preview(baseAt(e.clientX)); e.preventDefault();
   };
-  const move=e=>{ if(dragging) preview(baseAt(e.clientX)); };
+  const move=e=>{ if(dragging){ preview(baseAt(e.clientX)); e.preventDefault(); } };
   const up=e=>{
     if(!dragging) return; dragging=false; scaleEl.classList.remove("dragging");
     if(tip) tip.hidden=true;
@@ -982,11 +982,15 @@ function setupGoalDrag(){
     data.meta.target=b; opMeta({target:b}); render();
     if(b>0) flashGoalConfirm(); else toast("목표를 해제했습니다.");   // 확정값은 막대 위에 강조(토스트 대체)
   };
+  const cancel=()=>{                                          // 모바일 스크롤 등으로 포인터 취소 시: 값 변경 없이 원복(0 고정 방지)
+    if(!dragging) return; dragging=false; scaleEl.classList.remove("dragging");
+    if(tip) tip.hidden=true; render();
+  };
   track.addEventListener("pointerdown",down);
   line.addEventListener("pointerdown",down);
   track.addEventListener("pointermove",move);
   track.addEventListener("pointerup",up);
-  track.addEventListener("pointercancel",up);
+  track.addEventListener("pointercancel",cancel);
   if(label) label.addEventListener("dblclick",e=>{ e.preventDefault(); editGoal(); });  // 정밀 입력(버튼 아님)
 }
 // 드래그 확정 시 막대 위에 확정값(억 단위) 강조 — 토스트 대신
