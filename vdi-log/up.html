@@ -784,7 +784,7 @@ function renderGoal(){
         ${ends}
         ${axis}
       </div>
-      ${target>0?`<div class="goal-foot">${hasExcl?footLine("포함 자산",inc)+footLine("전체 자산",all):footLine("",inc)}</div>`:(editable?`<div class="goal-hint-drag">막대의 <b>🎯 목표선</b>을 좌우로 드래그해 목표 매수가를 설정하세요 <span style="opacity:.8">(5천만원 단위 · 더블클릭 시 직접 입력)</span></div>`:"")}`;
+      ${target>0?`<div class="goal-foot">${hasExcl?footLine("포함 자산",inc)+footLine("전체 자산",all):footLine("",inc)}</div>`:(editable?`<div class="goal-hint-drag">막대의 <b>🎯 목표선</b>을 좌우로 드래그해 목표 매수가를 설정하세요 <span style="opacity:.8">(1억원 단위 · 더블클릭 시 직접 입력)</span></div>`:"")}`;
   }else{
     viz=`<div class="goal-empty">목표 매수가를 설정하면 달성률을 시각화합니다.</div>`;
   }
@@ -929,7 +929,7 @@ function setupGoalDrag(){
   const line=scaleEl.querySelector(".gs-goalline");
   const label=scaleEl.querySelector(".gs-goal-label");
   const smax=Number(scaleEl.dataset.smax)||1;
-  const SNAP=5e7;                                            // 5천만원 단위 스냅
+  const SNAP=1e8;                                            // 1억원 단위 스냅(정확한 억 단위로 자동 이동)
   let dragging=false;
   const baseAt=clientX=>{
     const r=track.getBoundingClientRect();
