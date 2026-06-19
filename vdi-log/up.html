@@ -313,6 +313,9 @@
   .gs-tooltip.left{transform:translateX(0);} .gs-tooltip.left::after{left:15px;}
   .gs-tooltip.right{transform:translateX(-100%);} .gs-tooltip.right::after{left:auto; right:15px;}
   .gs-tooltip[hidden]{display:none;}
+  .gs-tooltip.confirm{background:var(--gold); color:var(--navy); font-size:1.05rem; animation:gsConfirmPulse .7s ease-out;}
+  .gs-tooltip.confirm::after{border-top-color:var(--gold);}
+  @keyframes gsConfirmPulse{0%{box-shadow:0 0 0 0 rgba(245,181,0,.6);} 70%{box-shadow:0 0 0 10px rgba(245,181,0,0);} 100%{box-shadow:0 0 0 0 rgba(245,181,0,0);}}
   .goal-hint-drag{margin-top:12px; font-size:.82rem; color:var(--ink-faint);}
   .goal-hint-drag b{font-family:var(--font-bold); color:var(--ink-soft);}
   html[data-theme="dark"] .goal-fill.all,html[data-theme="dark"] .goal-legend .gl.all{background:#7a6a3a;}
@@ -966,17 +969,18 @@ function setupGoalDrag(){
   const down=e=>{
     if(!isUnlocked()) return;
     dragging=true; scaleEl.classList.add("dragging");
-    if(tip) tip.hidden=false;
+    if(tip){ clearTimeout(tip._t); tip.classList.remove("confirm"); tip.hidden=false; }
     try{ track.setPointerCapture(e.pointerId); }catch(_){}
     preview(baseAt(e.clientX)); e.preventDefault();
   };
   const move=e=>{ if(dragging) preview(baseAt(e.clientX)); };
   const up=e=>{
     if(!dragging) return; dragging=false; scaleEl.classList.remove("dragging");
+    if(tip) tip.hidden=true;
     const b=baseAt(e.clientX);
     if(!data.meta) data.meta={};
     data.meta.target=b; opMeta({target:b}); render();
-    toast(b?("목표 매수가: "+fmtWon(b)):"목표를 해제했습니다.");
+    if(b>0) flashGoalConfirm(); else toast("목표를 해제했습니다.");   // 확정값은 막대 위에 강조(토스트 대체)
   };
   track.addEventListener("pointerdown",down);
   line.addEventListener("pointerdown",down);
@@ -984,6 +988,21 @@ function setupGoalDrag(){
   track.addEventListener("pointerup",up);
   track.addEventListener("pointercancel",up);
   if(label) label.addEventListener("dblclick",e=>{ e.preventDefault(); editGoal(); });  // 정밀 입력(버튼 아님)
+}
+// 드래그 확정 시 막대 위에 확정값(억 단위) 강조 — 토스트 대신
+function flashGoalConfirm(){
+  const sc=document.querySelector(".goalscale[data-editable='1']"); if(!sc) return;
+  const ln=sc.querySelector(".gs-goalline"), tp=sc.querySelector(".gs-tooltip"), lbl=sc.querySelector(".gs-goal-label");
+  if(!tp||!ln) return;
+  const eff=effectiveTarget(); if(eff<=0) return;
+  const left=parseFloat(ln.style.left)||0;
+  tp.style.left=left.toFixed(2)+"%";
+  tp.classList.toggle("right",left>92); tp.classList.toggle("left",left<8);
+  tp.textContent="✓ "+korUnit(eff);
+  tp.classList.add("confirm"); tp.hidden=false;
+  if(lbl) lbl.style.opacity="0";                            // 잠깐 정적 라벨 숨기고 확정 배지만 강조
+  clearTimeout(tp._t);
+  tp._t=setTimeout(()=>{ tp.hidden=true; tp.classList.remove("confirm"); if(lbl) lbl.style.opacity=""; },1400);
 }
 
 /* ===================== 렌더: 목록 ===================== */
