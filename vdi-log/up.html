@@ -451,7 +451,7 @@
       <div class="field"><label for="fInst">기관</label><input id="fInst" type="text" placeholder="예) 키움증권, 국민은행, 업비트" maxlength="30"></div>
       <div class="field"><label for="fName">항목명</label><input id="fName" type="text" placeholder="예) 삼성전자, 전세보증금, 비트코인" maxlength="40"></div>
       <div id="stockFields">
-        <div class="field"><label for="fTicker">보유종목</label><input id="fTicker" type="text" placeholder="예) 005930, AAPL" maxlength="30"></div>
+        <div class="field"><label for="fTicker">보유종목</label><input id="fTicker" type="text" placeholder="예) #TSLA(현재가 자동), 005930" maxlength="30"></div>
         <div class="field"><label for="fQty">보유수</label><input id="fQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></div>
         <div class="field"><label for="fPrice">현재가</label>
           <div style="display:flex; gap:8px;">
@@ -551,20 +551,35 @@ function opReplace(){ sendOp({op:"replace",doc:{items:data.items,meta:data.meta}
 function opBulkInclude(ids,include){ sendOp({op:"bulkInclude",ids:ids,include:include}); }
 function applyServerData(d){
   const nd=normalizeData(d); if(!nd) return false;
-  data=nd; recomputeFx(); saveData(); render(); return true;
+  data=nd; recomputeFx(); saveData(); render(); refreshQuotes(); return true;
 }
 
 /* ===================== 환율(USD/KRW) ===================== */
 let usdRate=1380;  // 기본값(서버 조회 전)
 function fmtRate(){ return "$1=₩"+Math.round(usdRate).toLocaleString("ko-KR"); }
 function updateFxBadge(){ const el=document.getElementById("fxBadge"); if(el) el.textContent=fmtRate(); }
-// 달러 표시 항목의 평가금액을 현재 환율로 재계산(메모리·표시용, 서버에 다시 쓰지 않음)
-function recomputeFx(){ if(!data||!data.items) return; data.items.forEach(it=>{ if(it.cur==="USD"&&isStockCat(it.cat)) it.amount=Math.round((Number(it.qty)||0)*(Number(it.price)||0)*usdRate); }); }
+// 주식 항목 평가금액을 보유수×현재가(×환율) 로 재계산(메모리·표시용, 서버에 다시 쓰지 않음)
+function recomputeFx(){ if(!data||!data.items) return; data.items.forEach(it=>{ if(isStockCat(it.cat)) it.amount=Math.round((Number(it.qty)||0)*(Number(it.price)||0)*(it.cur==="USD"?usdRate:1)); }); }
 function fetchRate(){
   fetch(SERVER_URL+"?rate=1",{cache:"no-store"})
     .then(r=>r.ok?r.json():Promise.reject()).then(j=>{
       if(j&&j.rate){ usdRate=Number(j.rate)||usdRate; updateFxBadge(); recomputeFx(); saveData(); render(); }
     }).catch(()=>{});
+}
+// 티커(#붙은 종목)의 현재가를 시세 API로 자동 갱신(메모리·표시용)
+const tickerSym=it=>{ const t=String(it.ticker||"").trim(); return t.charAt(0)==="#"?t.slice(1).trim():""; };
+let lastQuotes=0;
+function refreshQuotes(force){
+  if(!data||!data.items) return;
+  if(!force && Date.now()-lastQuotes<60000) return;
+  const list=data.items.filter(it=>isStockCat(it.cat)&&tickerSym(it));
+  if(!list.length) return;
+  lastQuotes=Date.now();
+  Promise.all(list.map(it=>{
+    const mk=it.cat==="kr"?"kr":"us";
+    return fetch(SERVER_URL+"?quote="+encodeURIComponent(tickerSym(it))+"&market="+mk,{cache:"no-store"})
+      .then(r=>r.json()).then(j=>{ if(j&&j.ok){ it.price=Number(j.price)||it.price; it.cur=j.cur==="USD"?"USD":"KRW"; } }).catch(()=>{});
+  })).then(()=>{ recomputeFx(); saveData(); render(); });
 }
 function pullFromServer(opts){
   opts=opts||{};
@@ -1037,6 +1052,23 @@ function updateStockFields(){
 function rawNum(id){ return Number(String(document.getElementById(id).value).replace(/[^\d.]/g,""))||0; }  // 콤마 등 제거 후 숫자
 function fmtNumIn(id){ const n=rawNum(id); document.getElementById(id).value=n?n.toLocaleString("ko-KR"):""; }   // 콤마 포맷
 function unfmtNumIn(id){ const el=document.getElementById(id); if(el.readOnly) return; const n=rawNum(id); el.value=n?String(n):""; }  // 편집용 평문
+function fetchTickerPrice(){  // 보유종목이 #으로 시작하면 현재가 자동 조회
+  const tk=document.getElementById("fTicker").value.trim();
+  const cat=document.getElementById("fCat").value;
+  if(!isStockCat(cat)||tk.charAt(0)!=="#") return;
+  const sym=tk.slice(1).trim(); if(!sym) return;
+  const mk=cat==="kr"?"kr":"us";
+  document.getElementById("fAmountKor").textContent="시세 조회 중…";
+  fetch(SERVER_URL+"?quote="+encodeURIComponent(sym)+"&market="+mk,{cache:"no-store"})
+    .then(r=>r.json()).then(j=>{
+      if(j&&j.ok){
+        document.getElementById("fCur").value=j.cur==="USD"?"USD":"KRW";
+        document.getElementById("fPrice").value=Number(j.price).toLocaleString("ko-KR");
+        recalcAmount();
+        toast(sym+" 현재가 "+(j.cur==="USD"?"$":"₩")+Number(j.price).toLocaleString("ko-KR"));
+      }else{ updateAmountKor(); toast("시세를 찾지 못했습니다: "+sym); }
+    }).catch(()=>{ updateAmountKor(); toast("시세 조회 실패"); });
+}
 function recalcAmount(){
   const qty=Number(document.getElementById("fQty").value)||0;
   const price=rawNum("fPrice");
@@ -1189,6 +1221,7 @@ function applySidebar(){ let on=false; try{ on=localStorage.getItem(SIDE_KEY)===
 /* ===================== 초기화 / 이벤트 ===================== */
 loadData(); loadScope(); fillCatSelect(); initTheme(); applySidebar(); applyLockUI(); render();
 updateFxBadge(); fetchRate();    // 환율 표시 + 실시간 조회
+refreshQuotes();                 // 티커(#) 종목 현재가 자동 조회
 pullFromServer({initial:true});  // 로드 시 서버(공유) 데이터로 동기화
 startPolling();                   // 6초마다 다른 기기 변경 자동 반영
 let focusPullTimer=null;
@@ -1205,7 +1238,7 @@ document.getElementById("sideToggle").addEventListener("click",()=>{
   try{ localStorage.setItem(SIDE_KEY,c?"1":"0"); }catch(e){}
 });
 document.getElementById("goHome").addEventListener("click",()=>navTo("dash"));
-document.getElementById("btnSync").addEventListener("click",()=>pullFromServer(false));
+document.getElementById("btnSync").addEventListener("click",()=>{ pullFromServer(); refreshQuotes(true); });
 document.getElementById("btnLock").addEventListener("click",toggleLock);
 document.getElementById("sideBackdrop").addEventListener("click",()=>document.body.classList.add("side-collapsed"));
 document.getElementById("btnAdd").addEventListener("click",()=>openModal());
@@ -1219,6 +1252,8 @@ document.getElementById("fCat").addEventListener("change",updateStockFields);
 document.getElementById("fQty").addEventListener("input",recalcAmount);
 document.getElementById("fPrice").addEventListener("input",recalcAmount);
 document.getElementById("fCur").addEventListener("change",recalcAmount);
+document.getElementById("fTicker").addEventListener("blur",fetchTickerPrice);
+document.getElementById("fTicker").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); fetchTickerPrice(); } });
 ["fAmount","fPrice"].forEach(id=>{
   const el=document.getElementById(id);
   el.addEventListener("focus",()=>unfmtNumIn(id));

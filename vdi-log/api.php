@@ -27,6 +27,16 @@ function check_key($wk) {
   return $wk !== "" && hash_equals($wk, $k);
 }
 function jout($a){ header("Content-Type: application/json; charset=utf-8"); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; }
+function yquote($sym){  // Yahoo Finance 현재가 조회
+  $url="https://query1.finance.yahoo.com/v8/finance/chart/".rawurlencode($sym)."?range=1d&interval=1d";
+  $ctx=stream_context_create(["http"=>["timeout"=>7,"header"=>"User-Agent: Mozilla/5.0\r\n"],"ssl"=>["verify_peer"=>false,"verify_peer_name"=>false]]);
+  $raw=@file_get_contents($url,false,$ctx);
+  if($raw===false && function_exists("curl_init")){ $ch=curl_init($url); curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>1,CURLOPT_TIMEOUT=>7,CURLOPT_SSL_VERIFYPEER=>false,CURLOPT_USERAGENT=>"Mozilla/5.0"]); $raw=curl_exec($ch); curl_close($ch); }
+  if($raw===false) return null;
+  $j=json_decode($raw,true); $m=isset($j["chart"]["result"][0]["meta"])?$j["chart"]["result"][0]["meta"]:null;
+  if(!$m||!isset($m["regularMarketPrice"])) return null;
+  return ["price"=>$m["regularMarketPrice"],"cur"=>isset($m["currency"])?$m["currency"]:null];
+}
 
 if ($method === "GET") {
   header("Content-Type: application/json; charset=utf-8");
@@ -44,6 +54,25 @@ if ($method === "GET") {
     if ($krw) { $out = ["rate"=>round($krw,2),"ts"=>$now]; @file_put_contents($rf, json_encode($out)); echo json_encode($out); }
     else if ($cached) { echo json_encode($cached); }            // 실패 시 오래된 캐시라도 반환
     else { echo json_encode(["rate"=>1380,"ts"=>0,"fallback"=>true]); }
+    exit;
+  }
+  if (isset($_GET["quote"])) {  // 종목 현재가(Yahoo, 60초 캐시). 데이터와 무관한 캐시파일
+    $sym = trim($_GET["quote"]); $market = isset($_GET["market"]) ? $_GET["market"] : "";
+    if ($sym === "") { echo json_encode(["ok"=>false,"error"=>"empty"]); exit; }
+    $qf = __DIR__ . "/jsiy_quote.json"; $now = time();
+    $cache = is_file($qf) ? json_decode(file_get_contents($qf), true) : [];
+    if (!is_array($cache)) $cache = [];
+    $key = $market . ":" . strtoupper($sym);
+    if (isset($cache[$key]) && ($now - intval($cache[$key]["ts"] ?? 0) < 60)) { echo json_encode(array_merge(["ok"=>true], $cache[$key])); exit; }
+    $up = strtoupper($sym); $cands = [];
+    if (strpos($sym, ".") !== false || strpos($sym, "-") !== false) $cands = [$sym];
+    elseif ($market === "crypto") $cands = [$up . "-USD"];
+    elseif ($market === "kr") $cands = [$sym . ".KS", $sym . ".KQ"];
+    else $cands = [$up];
+    $res = null;
+    foreach ($cands as $cd) { $r = yquote($cd); if ($r && $r["price"] !== null) { $res = ["price"=>$r["price"],"cur"=>$r["cur"],"symbol"=>$cd,"ts"=>$now]; break; } }
+    if ($res) { $cache[$key] = $res; @file_put_contents($qf, json_encode($cache)); echo json_encode(array_merge(["ok"=>true], $res)); }
+    else echo json_encode(["ok"=>false,"error"=>"notfound"]);
     exit;
   }
   if (is_file($f)) { readfile($f); } else { echo "null"; }
