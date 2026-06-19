@@ -300,6 +300,15 @@
   .goal-legend b{font-family:var(--font-bold);}
   .goal-legend .gl-ex{color:var(--ink-faint);}
   .goal-empty{color:var(--ink-faint); font-size:.86rem; padding:8px 0;}
+  /* 목표선 드래그 설정 */
+  .gs-goal-label.left{transform:translateX(0);}
+  .gs-goalline.draggable{cursor:ew-resize; z-index:6;}
+  .gs-goalline.draggable::before{content:""; position:absolute; left:-12px; right:-12px; top:-6px; bottom:-6px;}
+  .gs-knob{position:absolute; left:50%; top:11px; transform:translate(-50%,-50%); width:15px; height:15px; border-radius:50%; background:var(--ink); border:2.5px solid var(--card); box-shadow:0 1px 4px rgba(0,0,0,.35); cursor:ew-resize;}
+  .goal-track.grabbable{cursor:pointer;}
+  .goalscale.dragging .gs-goalline,.goalscale.dragging .gs-goal-label{transition:none;}
+  .goal-hint-drag{margin-top:12px; font-size:.82rem; color:var(--ink-faint);}
+  .goal-hint-drag b{font-family:var(--font-bold); color:var(--ink-soft);}
   html[data-theme="dark"] .goal-fill.all,html[data-theme="dark"] .goal-legend .gl.all{background:#7a6a3a;}
 
   /* 최근 변경 위젯 */
@@ -729,23 +738,26 @@ function renderGoal(){
   const inc=grandTotal(), all=allItemsTotal(), base=goalTarget(), target=effectiveTarget(), tax=taxOn();
   const hasExcl=all>inc+0.5;                                 // 합산 제외 항목이 있을 때만 '전체' 별도 표시
   const editable=isUnlocked();
-  const setBtn=editable?`<button class="btn btn-sm" data-goal-edit>${base?"목표 수정":"목표 설정"}</button>`:"";
   const taxChk=base?`<label class="gt-check"><input type="checkbox" id="taxChk" ${tax?"checked":""} ${editable?"":"disabled"}> 보유세 +${TAX_PCT}%</label>`:"";
   const done=base>0&&inc>=target;                            // 포함 자산 기준 목표 달성
   const head=`<div class="goal-head">
       <div class="goal-target"><span class="gt-label">목표 매수가 (부동산)</span>${base?`${fmtWon(target)} <span class="gt-kor">(${korUnit(target)})</span>${tax?` <span class="gt-tax-inline">보유세 +${TAX_PCT}% 포함</span>`:""}${done?` <span class="gt-done">달성 ${(inc/target*100).toFixed(0)}%</span>`:""}`:`<span style="color:var(--ink-faint)">미설정</span>`}</div>
-      <div class="goal-head-act">${taxChk}${setBtn}</div>
+      <div class="goal-head-act">${taxChk}</div>
     </div>`;
   let viz="";
-  if(target>0){
-    const scaleMax=Math.max(all,target)*1.08||1;            // 목표·전체 중 큰 값 기준(초과분도 보이게)
-    const goalLeft=Math.min(100,target/scaleMax*100);
-    const allW=Math.min(100,all/scaleMax*100), incW=Math.min(100,inc/scaleMax*100);
-    const anchorRight=goalLeft>72;
-    const pctInc=inc/target*100, pctAll=all/target*100;
+  if(target>0||editable){                                    // 편집 모드면 목표 미설정이라도 막대를 띄워 드래그로 설정
+    const STEP=5e8;
+    const rawMax=Math.max(all,target);
+    let scaleMax=(Math.floor(rawMax/STEP)+1)*STEP;           // 5억 격자 + 목표선 우측 여유(드래그로 더 높이 설정 가능)
+    if(scaleMax-rawMax<STEP*0.35) scaleMax+=STEP;
+    const pct=v=>Math.max(0,Math.min(100,v/scaleMax*100));
+    const goalLeft=target>0?pct(target):0;
+    const allW=pct(all), incW=pct(inc);
+    const anchorRight=goalLeft>72, anchorLeft=goalLeft<10;
+    const pctInc=target>0?inc/target*100:0, pctAll=target>0?all/target*100:0;
     const footLine=(label,amt)=>{const r=target-amt; return `<div class="goal-foot-line">${label?`<b>${label}</b> `:""}${r>0?`목표까지 ${fmtWon(r)} 남음 · ${korUnit(r)}`:`<span class="done">🎉 목표 달성 (+${fmtWon(-r)})</span>`}</div>`;};
     // 5억 단위 눈금자(라벨이 겹치지 않게 최대 7개만 표시, 사이는 보조 눈금만)
-    const STEP=5e8, maxTick=Math.floor(scaleMax/STEP);
+    const maxTick=Math.floor(scaleMax/STEP);
     let axis="";
     if(maxTick>=1){
       let labelEvery=1;
@@ -758,18 +770,21 @@ function renderGoal(){
       }
       axis=`<div class="goal-axis">${ticks}</div>`;
     }
+    const labelTxt=target>0?`🎯 목표 ${fmtWon(target)}${tax?" (세포함)":""}`:"🎯 목표 설정";
+    const labelCls=anchorRight?" right":(anchorLeft?" left":"");
+    const ends=target>0?`<div class="gs-ends"><span class="gs-inc${pctInc>=100?" done":""}" style="left:${incW.toFixed(2)}%">${hasExcl?"포함 ":""}${pctInc.toFixed(1)}%</span>${hasExcl?`<span class="gs-all${pctAll>=100?" done":""}" style="left:${allW.toFixed(2)}%">전체 ${pctAll.toFixed(1)}%</span>`:""}</div>`:"";
     viz=`
-      <div class="goalscale">
-        <div class="gs-goal-label${anchorRight?" right":""}" style="left:${goalLeft.toFixed(2)}%">🎯 목표 ${fmtWon(target)}${tax?" (세포함)":""}</div>
-        <div class="goal-track">
+      <div class="goalscale${editable?" editable":""}" data-smax="${scaleMax}"${editable?' data-editable="1"':""}>
+        <div class="gs-goal-label${labelCls}" style="left:${goalLeft.toFixed(2)}%"${editable?' title="드래그하거나 더블클릭해 직접 입력"':""}>${labelTxt}</div>
+        <div class="goal-track${editable?" grabbable":""}">
           ${hasExcl?`<div class="goal-fill all" style="width:${allW.toFixed(2)}%"></div>`:""}
           <div class="goal-fill inc" style="width:${incW.toFixed(2)}%"></div>
         </div>
-        <div class="gs-goalline" style="left:${goalLeft.toFixed(2)}%"></div>
-        <div class="gs-ends"><span class="gs-inc${pctInc>=100?" done":""}" style="left:${incW.toFixed(2)}%">${hasExcl?"포함 ":""}${pctInc.toFixed(1)}%</span>${hasExcl?`<span class="gs-all${pctAll>=100?" done":""}" style="left:${allW.toFixed(2)}%">전체 ${pctAll.toFixed(1)}%</span>`:""}</div>
+        <div class="gs-goalline${editable?" draggable":""}" style="left:${goalLeft.toFixed(2)}%">${editable?'<span class="gs-knob"></span>':""}</div>
+        ${ends}
         ${axis}
       </div>
-      <div class="goal-foot">${hasExcl?footLine("포함 자산",inc)+footLine("전체 자산",all):footLine("",inc)}</div>`;
+      ${target>0?`<div class="goal-foot">${hasExcl?footLine("포함 자산",inc)+footLine("전체 자산",all):footLine("",inc)}</div>`:(editable?`<div class="goal-hint-drag">막대의 <b>🎯 목표선</b>을 좌우로 드래그해 목표 매수가를 설정하세요 <span style="opacity:.8">(5천만원 단위 · 더블클릭 시 직접 입력)</span></div>`:"")}`;
   }else{
     viz=`<div class="goal-empty">목표 매수가를 설정하면 달성률을 시각화합니다.</div>`;
   }
@@ -903,8 +918,57 @@ function renderDash(){
   body.querySelectorAll(".total-card[data-nav]").forEach(b=>b.addEventListener("click",()=>navTo(b.dataset.nav)));
   body.querySelectorAll(".cat-row[data-cat]").forEach(b=>b.addEventListener("click",()=>navTo(b.dataset.cat)));
   body.querySelectorAll(".donut-seg[data-cat]").forEach(s=>s.addEventListener("click",()=>navTo(s.getAttribute("data-cat"))));
-  body.querySelectorAll("[data-goal-edit]").forEach(b=>b.addEventListener("click",editGoal));
+  setupGoalDrag();
   const tc=document.getElementById("taxChk"); if(tc) tc.addEventListener("change",toggleTax);
+}
+// 목표선 드래그로 목표 매수가 설정 (버튼 대체)
+function setupGoalDrag(){
+  const scaleEl=document.querySelector(".goalscale[data-editable='1']");
+  if(!scaleEl) return;
+  const track=scaleEl.querySelector(".goal-track");
+  const line=scaleEl.querySelector(".gs-goalline");
+  const label=scaleEl.querySelector(".gs-goal-label");
+  const smax=Number(scaleEl.dataset.smax)||1;
+  const SNAP=5e7;                                            // 5천만원 단위 스냅
+  let dragging=false;
+  const baseAt=clientX=>{
+    const r=track.getBoundingClientRect();
+    let ratio=(clientX-r.left)/r.width; ratio=Math.max(0,Math.min(1,ratio));
+    let b=ratio*smax; if(taxOn()) b=b/(1+TAX_PCT/100);       // 막대는 세포함 기준 → 기준가로 환산
+    b=Math.round(b/SNAP)*SNAP; if(b<SNAP) b=0;
+    return b;
+  };
+  const preview=b=>{
+    const eff=taxOn()?Math.round(b*(1+TAX_PCT/100)):b;
+    const left=Math.max(0,Math.min(100,eff/smax*100));
+    line.style.left=left.toFixed(2)+"%";
+    if(label){
+      label.style.left=left.toFixed(2)+"%";
+      label.classList.toggle("right",left>72);
+      label.classList.toggle("left",left<10);
+      label.textContent=b>0?`🎯 목표 ${fmtWon(eff)}${taxOn()?" (세포함)":""}`:"🎯 목표 설정";
+    }
+  };
+  const down=e=>{
+    if(!isUnlocked()) return;
+    dragging=true; scaleEl.classList.add("dragging");
+    try{ track.setPointerCapture(e.pointerId); }catch(_){}
+    preview(baseAt(e.clientX)); e.preventDefault();
+  };
+  const move=e=>{ if(dragging) preview(baseAt(e.clientX)); };
+  const up=e=>{
+    if(!dragging) return; dragging=false; scaleEl.classList.remove("dragging");
+    const b=baseAt(e.clientX);
+    if(!data.meta) data.meta={};
+    data.meta.target=b; opMeta({target:b}); render();
+    toast(b?("목표 매수가: "+fmtWon(b)):"목표를 해제했습니다.");
+  };
+  track.addEventListener("pointerdown",down);
+  line.addEventListener("pointerdown",down);
+  track.addEventListener("pointermove",move);
+  track.addEventListener("pointerup",up);
+  track.addEventListener("pointercancel",up);
+  if(label) label.addEventListener("dblclick",e=>{ e.preventDefault(); editGoal(); });  // 정밀 입력(버튼 아님)
 }
 
 /* ===================== 렌더: 목록 ===================== */
