@@ -238,6 +238,7 @@
       <button class="tab" role="tab" aria-selected="false" data-tab="band">로그 회귀 밴드</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="dd">드로다운</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="halving">반감기</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="vol">변동성</button>
     </div>
 
     <div class="panel-chart active" data-panel="season">
@@ -259,6 +260,10 @@
     <div class="panel-chart" data-panel="halving">
       <div class="chart-note">BTC 반감기 시점을 100으로 맞춰 겹친 사이클(로그). 과거=회색, <span style="color:var(--gold)">현재(2024)=골드</span>. x축=반감기 후 경과(주). <span id="hvStats" style="color:var(--muted)"></span></div>
       <canvas id="cvHalving"></canvas>
+    </div>
+    <div class="panel-chart" data-panel="vol">
+      <div class="chart-note">주간 수익률 기반 실현 변동성(연율 %). 낮은 구간=압축(큰 움직임 전조로 자주 거론). <span id="volStats" style="color:var(--muted)"></span></div>
+      <canvas id="cvVol"></canvas>
     </div>
   </section>
 
@@ -641,8 +646,22 @@ function drawHalving(){
   lineChart($('#cvHalving'),ds,{logY:true});
   const st=$('#hvStats');if(st)st.innerHTML=curWeeks!=null?`현재 <b style="color:var(--text)">반감기 후 ${curWeeks}주</b> (2024-04-20 기준)`:'';
 }
+const VOL_WIN=13; // 실현 변동성 롤링 창(주)
+function drawVol(){
+  const c=S.week.c,r=[];for(let i=1;i<c.length;i++)r.push(Math.log(c[i]/c[i-1]));
+  const vol=[];
+  for(let i=0;i<r.length;i++){
+    if(i<VOL_WIN-1){vol.push(null);continue;}
+    let m=0;for(let j=i-VOL_WIN+1;j<=i;j++)m+=r[j];m/=VOL_WIN;
+    let s=0;for(let j=i-VOL_WIN+1;j<=i;j++)s+=(r[j]-m)*(r[j]-m);
+    vol.push(Math.sqrt(s/VOL_WIN)*Math.sqrt(52)*100);
+  }
+  lineChart($('#cvVol'),[{label:`실현 변동성(${VOL_WIN}주, 연율%)`,color:css('--neutral'),values:vol,w:1.8}],{logY:false});
+  const valid=vol.filter(v=>v!=null),cur=valid[valid.length-1],pr=pctRank(valid,cur);
+  const st=$('#volStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(0)}%</b> ${prMeter(pr,sigOf((1-pr)*100))} <span style="color:var(--faint)">(낮을수록 압축)</span>`;
+}
 let activeTab='season';
-function drawActiveChart(){({season:drawHeatmap,cycle:drawCycle,band:drawBand,dd:drawDrawdown,halving:drawHalving}[activeTab]||(()=>{}))();}
+function drawActiveChart(){({season:drawHeatmap,cycle:drawCycle,band:drawBand,dd:drawDrawdown,halving:drawHalving,vol:drawVol}[activeTab]||(()=>{}))();}
 
 /* ===== orchestration ===== */
 async function refresh(){
