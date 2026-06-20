@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>스쿱시그널 v2 · ScoopSignal — ETH 종합 대시보드</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0B0F14; --panel:#141A22; --panel-2:#1B232D; --line:#232D38;
+    --text:#E6EDF3; --muted:#8B98A6; --faint:#5C6875;
+    --gold:#E8B463;
+    --bull:#46C28E; --neutral:#E0A93B; --bear:#E06A6A;
+    --bull-dim:rgba(70,194,142,.14); --neutral-dim:rgba(224,169,59,.14); --bear-dim:rgba(224,106,106,.14);
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    --sans:'Pretendard','Pretendard Variable',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{background:radial-gradient(1200px 600px at 50% -10%,#0f1620 0%,var(--ink) 60%);
+    color:var(--text);font-family:var(--sans);line-height:1.5;min-height:100vh;padding:18px 14px 44px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:700}
+  .up{color:var(--bull)} .down{color:var(--bear)} .flat{color:var(--muted)}
+  section{margin-bottom:16px}
+  .sec-head{display:flex;align-items:baseline;gap:10px;margin:2px 2px 10px}
+  .sec-head h2{font-size:14px;font-weight:700;letter-spacing:-.01em}
+  .sec-head .note{font-size:11.5px;color:var(--muted)}
+
+  /* header */
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+  .brand h1{font-size:22px;font-weight:800;letter-spacing:-.01em;margin-top:4px}
+  .brand h1 .em{color:var(--gold)}
+  .brand p{font-size:13px;color:var(--muted);margin-top:3px;max-width:52ch}
+  .updated{font-family:var(--mono);font-size:11px;color:var(--faint);text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  .refresh{appearance:none;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+  .refresh:hover{border-color:var(--gold);color:var(--gold)}
+  .refresh:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--bull);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(70,194,142,.5)}70%{box-shadow:0 0 0 7px rgba(70,194,142,0)}100%{box-shadow:0 0 0 0 rgba(70,194,142,0)}}
+
+  /* ticker */
+  .ticker{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
+  .tk{background:var(--panel);padding:12px 14px}
+  .tk .lab{font-size:11px;color:var(--muted)} .tk .val{font-family:var(--mono);font-size:17px;font-weight:600;margin-top:3px}
+  .tk .chg{font-family:var(--mono);font-size:12px;margin-top:1px}
+
+  /* hero: gauge + radar + quadrant */
+  .hero{display:grid;grid-template-columns:1.05fr 1fr 1fr;gap:12px;margin-bottom:8px}
+  .pane{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column}
+  .pane .ptitle{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .gauge-wrap{position:relative;width:230px;max-width:100%;margin:2px auto 0}
+  svg.gauge{display:block;width:100%;height:auto}
+  .gauge-center{position:absolute;left:0;right:0;bottom:2px;text-align:center}
+  .gauge-score{font-family:var(--mono);font-size:40px;font-weight:700;line-height:1}
+  .gauge-score small{font-size:15px;color:var(--faint);font-weight:500}
+  .verdict h3{font-size:18px;font-weight:800;margin-top:8px;text-align:center;color:var(--muted)}
+  .verdict p{font-size:12px;color:var(--muted);margin-top:6px;text-align:center}
+  .verdict p strong{color:var(--text)}
+  svg.radar,svg.quad{display:block;width:100%;height:auto;margin-top:auto}
+  .quad-leg{font-size:10px;color:var(--faint);display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:8px}
+
+  /* dimension metric cards */
+  .dims{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--faint);transition:background .4s}
+  .card[data-sig="bull"]::before{background:var(--bull)}.card[data-sig="neutral"]::before{background:var(--neutral)}.card[data-sig="bear"]::before{background:var(--bear)}
+  .card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .card h3{font-size:14px;font-weight:700;letter-spacing:-.01em}
+  .card .dimscore{font-family:var(--mono);font-size:13px;color:var(--muted)}
+  .chip{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+  .chip[data-sig="bull"]{color:var(--bull);background:var(--bull-dim);border-color:rgba(70,194,142,.3)}
+  .chip[data-sig="neutral"]{color:var(--neutral);background:var(--neutral-dim);border-color:rgba(224,169,59,.3)}
+  .chip[data-sig="bear"]{color:var(--bear);background:var(--bear-dim);border-color:rgba(224,106,106,.3)}
+  .chip[data-sig="load"]{color:var(--faint);background:var(--panel-2);border-color:var(--line)}
+  .mrow{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11.5px}
+  .mrow .k{color:var(--muted)} .mrow .v{font-family:var(--mono);font-weight:600;text-align:right}
+  .mrow .v .d{font-size:10px;margin-left:5px}
+  .badge{font-size:9px;color:var(--neutral);border:1px solid rgba(224,169,59,.35);background:var(--neutral-dim);border-radius:5px;padding:1px 4px;margin-left:5px;white-space:nowrap}
+  .pr{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--muted);vertical-align:middle;margin-left:7px}
+  .prbar{width:30px;height:5px;border-radius:3px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;display:inline-block}
+  .prbar i{display:block;height:100%;border-radius:3px}
+
+  /* pattern charts */
+  .charts{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .tab{appearance:none;background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer}
+  .tab[aria-selected="true"]{color:var(--ink);background:var(--gold);border-color:var(--gold);font-weight:700}
+  .tab:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .panel-chart{display:none} .panel-chart.active{display:block}
+  .chart-note{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+  canvas{display:block;width:100%;height:300px}
+  .hm{display:flex;flex-direction:column;gap:3px;overflow-x:auto}
+  .hm-row{display:grid;grid-template-columns:42px repeat(12,1fr);gap:3px;min-width:560px}
+  .hm-row.head .cell,.hm-row .ylab{font-family:var(--mono);font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;padding:3px 0}
+  .hm .cell{font-family:var(--mono);font-size:9.5px;border-radius:4px;padding:5px 0;text-align:center;color:#0B0F14;font-weight:600}
+  .hm-row.avg .cell{outline:1px solid var(--line)}
+
+  /* status / methodology / footer */
+  .status{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:14px}
+  .status .s{display:inline-flex;gap:6px;align-items:center}
+  .status i{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+  .status i.ok{background:var(--bull)} .status i.warn{background:var(--neutral)} .status i.err{background:var(--bear)}
+  details.method{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:0 16px;margin-bottom:14px}
+  details.method summary{cursor:pointer;list-style:none;padding:15px 0;font-size:13.5px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  details.method summary::-webkit-details-marker{display:none}
+  details.method .arw{color:var(--gold);font-family:var(--mono)} details.method[open] .arw{transform:rotate(90deg)}
+  .mbody{padding:2px 0 16px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+  .mbody code{font-family:var(--mono);color:var(--gold);background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:11.5px}
+  .mbody h4{color:var(--text);font-size:12px;margin-top:8px}
+  footer{font-size:11.5px;color:var(--faint);text-align:center;line-height:1.7;padding-top:4px}
+
+  @media(max-width:880px){.hero{grid-template-columns:1fr}.dims{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.dims{grid-template-columns:1fr}.gauge-wrap{max-width:220px}}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="eyebrow">머니스쿱 · ETH 종합 신호 엔진 v2</div>
+      <h1>스쿱<span class="em">시그널</span> <span style="font-weight:500;color:var(--muted);font-size:15px">ScoopSignal</span></h1>
+      <p>가격·온체인·유동성·사이클을 <strong style="color:var(--text)">4개 축</strong>으로 점수화하고, 주기 패턴까지 한 화면에서 비교합니다. 매크로는 PMI 대신 ETH와 잘 붙는 <strong style="color:var(--text)">순유동성</strong>으로 교체했습니다.</p>
+    </div>
+    <div class="updated">
+      <span id="updatedAt">불러오는 중…</span>
+      <button class="refresh" id="refreshBtn" type="button"><span class="dot"></span>새로고침</button>
+    </div>
+  </header>
+
+  <!-- data status -->
+  <div class="status" id="status">
+    <span class="s"><i id="st-binance"></i>Binance 가격·사이클</span>
+    <span class="s"><i id="st-llama"></i>DeFiLlama 온체인</span>
+    <span class="s"><i id="st-fx"></i>Frankfurter 달러</span>
+    <span class="s"><i id="st-fred"></i>FRED 매크로</span>
+    <span class="s"><i id="st-beacon"></i>스테이킹</span>
+  </div>
+
+  <!-- ticker -->
+  <div class="ticker">
+    <div class="tk"><div class="lab">ETH / USD</div><div class="val mono" data-f="ethUsd">—</div><div class="chg mono" data-f="ethChg">—</div></div>
+    <div class="tk"><div class="lab">BTC / USD</div><div class="val mono" data-f="btcUsd">—</div><div class="chg mono" data-f="btcChg">—</div></div>
+    <div class="tk"><div class="lab">ETH / BTC</div><div class="val mono" data-f="ethBtc">—</div><div class="chg mono" data-f="ethBtcChg">—</div></div>
+  </div>
+
+  <!-- HERO: gauge + radar + quadrant -->
+  <section class="hero">
+    <div class="pane">
+      <div class="ptitle">스쿱시그널 종합</div>
+      <div class="gauge-wrap">
+        <svg class="gauge" viewBox="0 0 240 142" role="img" aria-label="종합 점수 게이지">
+          <path id="gTrack" fill="none" stroke="#232D38" stroke-width="14" stroke-linecap="round"/>
+          <path id="gFill" fill="none" stroke="#46C28E" stroke-width="14" stroke-linecap="round"/>
+          <g id="gTicks"></g>
+          <line id="gNeedle" x1="120" y1="120" x2="120" y2="36" stroke="#E6EDF3" stroke-width="2.5" stroke-linecap="round" style="transition:transform .8s cubic-bezier(.2,.7,.2,1)"/>
+          <circle cx="120" cy="120" r="5.5" fill="#0B0F14" stroke="#E6EDF3" stroke-width="2"/>
+        </svg>
+        <div class="gauge-center"><div class="gauge-score mono"><span id="scoreNum">—</span><small>/100</small></div></div>
+      </div>
+      <div class="verdict"><h3 id="verdictText">측정 중…</h3><p id="verdictRead"></p></div>
+    </div>
+
+    <div class="pane">
+      <div class="ptitle">스쿱 레이더 — 4축 분해</div>
+      <svg class="radar" viewBox="0 0 240 220" role="img" aria-label="4축 레이더"><g id="radarG"></g></svg>
+    </div>
+
+    <div class="pane">
+      <div class="ptitle">ETH 사이클 시계</div>
+      <svg class="quad" viewBox="0 0 240 220" role="img" aria-label="사이클 사분면"><g id="quadG"></g></svg>
+      <div class="quad-leg">
+        <span style="color:var(--bull)">↗ 상승 (유동성·모멘텀 ↑)</span>
+        <span style="color:var(--neutral)">↖ 축적 (유동성 ↑·모멘텀 ↓)</span>
+        <span style="color:var(--neutral)">↘ 분배 (유동성 ↓·모멘텀 ↑)</span>
+        <span style="color:var(--bear)">↙ 하락 (둘 다 ↓)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIMENSION CARDS -->
+  <section>
+    <div class="sec-head"><h2>축별 상세</h2><span class="note">원자료 + <b style="color:var(--muted)">분위 막대</b>(길이=과거 분포 내 위치, 색=호악)</span></div>
+    <div class="dims">
+      <div class="card" data-sig="load" id="cMom">
+        <div class="top"><div><h3>모멘텀</h3><div class="dimscore" data-f="momScore">—</div></div><div class="chip" data-sig="load" data-f="momChip">대기</div></div>
+        <div class="mrow"><span class="k">ETH/BTC vs 50일선</span><span class="v" data-f="ebVal">—</span></div>
+        <div class="mrow"><span class="k">3개월 가격 ROC</span><span class="v" data-f="rocVal">—</span></div>
+      </div>
+      <div class="card" data-sig="load" id="cLiq">
+        <div class="top"><div><h3>유동성</h3><div class="dimscore" data-f="liqScore">—</div></div><div class="chip" data-sig="load" data-f="liqChip">대기</div></div>
+        <div class="mrow"><span class="k">순유동성 추세</span><span class="v" data-f="nlVal">—</span></div>
+        <div class="mrow"><span class="k">10Y 실질금리</span><span class="v" data-f="ryVal">—</span></div>
+        <div class="mrow"><span class="k">달러강도(DXY근사)</span><span class="v" data-f="dxyVal">—</span></div>
+      </div>
+      <div class="card" data-sig="load" id="cFun">
+        <div class="top"><div><h3>펀더멘털</h3><div class="dimscore" data-f="funScore">—</div></div><div class="chip" data-sig="load" data-f="funChip">대기</div></div>
+        <div class="mrow"><span class="k">ETH DeFi TVL 30d</span><span class="v" data-f="tvlVal">—</span></div>
+        <div class="mrow"><span class="k">스테이블(ETH) 30d</span><span class="v" data-f="stVal">—</span></div>
+        <div class="mrow"><span class="k">L2 TVL 30d</span><span class="v" data-f="l2Val">—</span></div>
+        <div class="mrow"><span class="k">검증자 큐</span><span class="v" data-f="qVal">—</span></div>
+      </div>
+      <div class="card" data-sig="load" id="cVal">
+        <div class="top"><div><h3>밸류·사이클</h3><div class="dimscore" data-f="valScore">—</div></div><div class="chip" data-sig="load" data-f="valChip">대기</div></div>
+        <div class="mrow"><span class="k">200주선 배수</span><span class="v" data-f="m200Val">—</span></div>
+        <div class="mrow"><span class="k">로그밴드 위치</span><span class="v" data-f="bandVal">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PATTERN CHARTS -->
+  <section class="charts">
+    <div class="sec-head" style="margin-bottom:6px"><h2>주기 패턴</h2><span class="note">과거 반복 패턴과 현재 위치 비교</span></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="season">계절성</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="cycle">사이클 오버레이</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="band">로그 회귀 밴드</button>
+    </div>
+
+    <div class="panel-chart active" data-panel="season">
+      <div class="chart-note">월별 수익률(%) — 행=연도, 열=월. <span class="up">초록</span>=상승 <span class="down">빨강</span>=하락. 맨 아래 <b>평균</b> 행이 계절성입니다.</div>
+      <div class="hm" id="heatmap"></div>
+    </div>
+    <div class="panel-chart" data-panel="cycle">
+      <div class="chart-note">각 사이클 바닥을 100으로 맞춰 겹쳐봅니다(로그). 현재가 과거 사이클의 어느 구간인지 비교용입니다.</div>
+      <canvas id="cvCycle"></canvas>
+    </div>
+    <div class="panel-chart" data-panel="band">
+      <div class="chart-note">주간 종가의 <b>로그-로그 파워로 회귀</b> 채널(±1σ·±2σ, ETH 제네시스 기준). 하단=상대적 저평가, 상단=과열.<br><span id="bandStats" style="color:var(--muted)"></span></div>
+      <canvas id="cvBand"></canvas>
+    </div>
+  </section>
+
+  <details class="method">
+    <summary>스쿱 기준 — 점수 산식과 데이터 출처 <span class="arw">›</span></summary>
+    <div class="mbody">
+      <p><strong style="color:var(--text)">스쿱시그널 = 0.30·유동성 + 0.25·모멘텀 + 0.25·펀더멘털 + 0.20·밸류</strong> (각 축 0~100)</p>
+      <h4>축 구성</h4>
+      <p><code>유동성</code> 순유동성 추세(Fed자산−RRP−TGA) + 실질금리(↓가점) + 달러(↓가점)<br>
+      <code>모멘텀</code> ETH/BTC 50일선 이격·기울기 + 3개월 가격 ROC<br>
+      <code>펀더멘털</code> ETH DeFi TVL·스테이블·L2 TVL 30일 증감 (+검증자 큐)<br>
+      <code>밸류</code> 200주선 배수 + 로그 회귀 밴드 위치 (저평가일수록 가점)</p>
+      <h4>구간</h4>
+      <p>0–27 약세 지속 · 28–42 약세 우위 · 43–57 중립 · 58–71 강세 전환 · 72–100 강세</p>
+      <h4>데이터 (모두 무료)</h4>
+      <p>Binance(가격·klines) · DeFiLlama(TVL·스테이블·L2) · Frankfurter/ECB(달러) · FRED(순유동성·실질금리, 키+프록시) · beaconcha.in(검증자 큐, 베스트에포트)</p>
+      <h4>임계값 보정 (실제 차트 기준)</h4>
+      <p>모멘텀·펀더멘털·밸류 점수는 고정 임계값이 아니라 <b style="color:var(--text)">ETH 자체 히스토리의 퍼센타일</b>로 환산합니다. "70점"은 과거 분포 대비 상위 30% 수준이라는 뜻이라, 차트 실제 분포에 자동으로 맞춰집니다. 밸류 밴드는 ETH 제네시스 기준 <b style="color:var(--text)">로그-로그 파워로 회귀</b>(주간)로 R²·z·잔차 퍼센타일을 계산합니다.</p>
+      <p style="color:var(--faint)">유동성(매크로)은 히스토리가 짧아 레짐 기준 고정 임계값을 씁니다. 전부 <code>scoreMom/Liq/Fun/Val</code>에서 조정 가능합니다.</p>
+    </div>
+  </details>
+
+  <footer>
+    스쿱시그널은 <strong style="color:var(--muted)">투자 권유가 아닌 참고용 신호</strong>입니다. 판단과 책임은 본인에게 있습니다.<br>
+    © 머니스쿱 · moneyscoop.co.kr
+  </footer>
+</div>
+
+<script>
+/* ===== config ===== */
+const FRED_API_KEY="";   // 무료 키
+const FRED_PROXY="";     // Cloudflare Worker 등 프록시 루트 (CORS 우회)
+const FALLBACK={ realYield:1.9, realYieldPrev:1.9, netLiqChg:-1.0 }; // FRED 미연결시 예시값
+
+/* ===== helpers ===== */
+const $=s=>document.querySelector(s);
+const F=n=>document.querySelectorAll(`[data-f="${n}"]`);
+const setF=(n,v)=>F(n).forEach(e=>e.innerHTML=v);
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+function lerp(pts,x){if(x<=pts[0][0])return pts[0][1];for(let i=1;i<pts.length;i++){const[a,ya]=pts[i-1],[b,yb]=pts[i];if(x<=b)return ya+(yb-ya)*(x-a)/(b-a);}return pts[pts.length-1][1];}
+const fmtUsd=n=>n>=1000?'$'+n.toLocaleString('en-US',{maximumFractionDigits:0}):'$'+n.toFixed(2);
+const fmtPct=n=>(n>=0?'+':'')+n.toFixed(2)+'%';
+const sigOf=s=>s>=58?'bull':s>=43?'neutral':'bear';
+const sigKo=s=>({bull:'강세',neutral:'중립',bear:'약세'}[s]);
+/* 퍼센타일을 '%ile' 텍스트 대신 작은 분위 막대 + 숫자로. 막대 길이=과거 분포 내 위치, 색=호악. */
+function prMeter(pct,sig){const p=Math.round(clamp(pct,0,1)*100);return `<span class="pr" title="과거 분포 백분위"><span class="prbar"><i style="width:${p}%;background:var(--${sig})"></i></span>${p}</span>`;}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function setStatus(id,cls){const e=$('#st-'+id);if(e)e.className=cls;}
+async function jget(u){const r=await fetch(u);if(!r.ok)throw new Error(r.status);return r.json();}
+function sma(arr,n,end){let s=0;for(let i=end-n+1;i<=end;i++)s+=arr[i];return s/n;}
+function pctChange(arr,back){const n=arr.length;return (arr[n-1]/arr[Math.max(0,n-1-back)]-1)*100;}
+function linreg(ys){const n=ys.length,xs=ys.map((_,i)=>i);let sx=0,sy=0,sxx=0,sxy=0;for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i];}const b=(n*sxy-sx*sy)/(n*sxx-sx*sx),a=(sy-b*sx)/n;let ss=0;for(let i=0;i<n;i++){const e=ys[i]-(a+b*i);ss+=e*e;}return{a,b,std:Math.sqrt(ss/n)};}
+/* percentile rank of v within history arr (0..1). 자가 보정의 핵심. */
+function pctRank(arr,v){if(!arr||!arr.length)return .5;let c=0;for(const x of arr)if(x<v)c++;return c/arr.length;}
+/* rolling N-step % changes → distribution for calibration */
+function rollChanges(arr,back){const o=[];for(let i=back;i<arr.length;i++)o.push((arr[i]/arr[i-back]-1)*100);return o;}
+/* log-log power-law fit: ln(price) ~ a + b·ln(days since t0). returns fit + residuals + R². */
+function fitPower(times,prices,t0){
+  const xs=[],ys=[];for(let i=0;i<prices.length;i++){const d=(times[i]-t0)/864e5;if(d>0&&prices[i]>0){xs.push(Math.log(d));ys.push(Math.log(prices[i]));}}
+  const n=xs.length;let sx=0,sy=0,sxx=0,sxy=0;for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i];}
+  const b=(n*sxy-sx*sy)/(n*sxx-sx*sx),a=(sy-b*sx)/n,my=sy/n;
+  let ss=0,tot=0;const res=[];for(let i=0;i<n;i++){const e=ys[i]-(a+b*xs[i]);res.push(e);ss+=e*e;tot+=(ys[i]-my)*(ys[i]-my);}
+  return{a,b,sigma:Math.sqrt(ss/n),r2:1-ss/tot,res};
+}
+
+let S={}; // shared state
+
+/* ===== gauge ===== */
+const GCX=120,GCY=120,GR=96;
+function gpt(r,v){const a=(180-v*1.8)*Math.PI/180;return[GCX+r*Math.cos(a),GCY-r*Math.sin(a)];}
+function garc(r,v0,v1){const[x0,y0]=gpt(r,v0),[x1,y1]=gpt(r,v1);return`M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;}
+function buildGauge(){
+  $('#gTrack').setAttribute('d',garc(GR,0,100));
+  const f=$('#gFill');f.setAttribute('d',garc(GR,0,100));const L=f.getTotalLength();f.dataset.len=L;f.style.strokeDasharray=L;f.style.strokeDashoffset=L;
+  const tg=$('#gTicks');[0,25,50,75,100].forEach(v=>{const[x,y]=gpt(GR+16,v);const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',x);t.setAttribute('y',y+3);t.setAttribute('text-anchor','middle');t.setAttribute('font-size','9');t.setAttribute('font-family','JetBrains Mono,monospace');t.setAttribute('fill','#5C6875');t.textContent=v;tg.appendChild(t);});
+}
+function renderGauge(score){const sig=sigOf(score),col=css('--'+sig),f=$('#gFill'),L=+f.dataset.len;f.setAttribute('stroke',col);f.style.strokeDashoffset=L*(1-score/100);const ne=$('#gNeedle');ne.style.transformOrigin='120px 120px';ne.style.transform=`rotate(${score*1.8-90}deg)`;$('#scoreNum').textContent=Math.round(score);}
+
+/* ===== radar ===== */
+function renderRadar(dims){ // dims:[{label,score}] length4
+  const g=$('#radarG');g.innerHTML='';const cx=120,cy=104,R=78,N=dims.length;
+  const ang=i=>(-90+i*360/N)*Math.PI/180;
+  const pt=(i,r)=>[cx+r*Math.cos(ang(i)),cy+r*Math.sin(ang(i))];
+  const mk=(t,a)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);g.appendChild(e);return e;};
+  [0.25,0.5,0.75,1].forEach(f=>{let d='';for(let i=0;i<N;i++){const[x,y]=pt(i,R*f);d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1)+' ';}d+='Z';mk('path',{d,fill:'none',stroke:'#232D38','stroke-width':1});});
+  for(let i=0;i<N;i++){const[x,y]=pt(i,R);mk('line',{x1:cx,y1:cy,x2:x,y2:y,stroke:'#232D38','stroke-width':1});}
+  const avg=dims.reduce((a,d)=>a+d.score,0)/N,col=css('--'+sigOf(avg));
+  let d='';dims.forEach((dm,i)=>{const[x,y]=pt(i,R*clamp(dm.score,0,100)/100);d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1)+' ';});d+='Z';
+  mk('path',{d,fill:col+'33',stroke:col,'stroke-width':2});
+  dims.forEach((dm,i)=>{const[x,y]=pt(i,R*clamp(dm.score,0,100)/100);mk('circle',{cx:x,cy:y,r:3,fill:col});
+    const[lx,ly]=pt(i,R+16);const t=mk('text',{x:lx,y:ly+3,'text-anchor':'middle','font-size':'10',fill:'#8B98A6','font-family':'Pretendard,sans-serif'});t.textContent=dm.label;
+    const t2=mk('text',{x:lx,y:ly+15,'text-anchor':'middle','font-size':'10',fill:col,'font-family':'JetBrains Mono,monospace'});t2.textContent=Math.round(dm.score);});
+}
+
+/* ===== quadrant cycle clock ===== */
+function renderQuad(liq,mom){
+  const g=$('#quadG');g.innerHTML='';const x0=30,y0=20,w=180,h=180,cx=x0+w/2,cy=y0+h/2;
+  const mk=(t,a,txt)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;g.appendChild(e);return e;};
+  mk('rect',{x:x0,y:y0,width:w/2,height:h/2,fill:'rgba(224,169,59,.05)'});      // 축적 (top-left)
+  mk('rect',{x:cx,y:y0,width:w/2,height:h/2,fill:'rgba(70,194,142,.06)'});       // 상승 (top-right)
+  mk('rect',{x:x0,y:cy,width:w/2,height:h/2,fill:'rgba(224,106,106,.06)'});      // 하락 (bottom-left)
+  mk('rect',{x:cx,y:cy,width:w/2,height:h/2,fill:'rgba(224,169,59,.05)'});       // 분배 (bottom-right)
+  mk('line',{x1:x0,y1:cy,x2:x0+w,y2:cy,stroke:'#232D38','stroke-width':1});
+  mk('line',{x1:cx,y1:y0,x2:cx,y2:y0+h,stroke:'#232D38','stroke-width':1});
+  mk('text',{x:x0+w/2,y:y0+h+15,'text-anchor':'middle','font-size':'9',fill:'#5C6875','font-family':'Pretendard'},'유동성 →');
+  mk('text',{x:x0-14,y:cy,'text-anchor':'middle','font-size':'9',fill:'#5C6875',transform:`rotate(-90 ${x0-14} ${cy})`,'font-family':'Pretendard'},'모멘텀 →');
+  const px=x0+w*clamp(liq,0,100)/100, py=y0+h*(1-clamp(mom,0,100)/100);
+  const avg=(liq+mom)/2,col=css('--'+sigOf(avg));
+  mk('circle',{cx:px,cy:py,r:7,fill:col,'fill-opacity':.25});
+  mk('circle',{cx:px,cy:py,r:4,fill:col,stroke:'#0B0F14','stroke-width':1.5});
+}
+
+/* ===== canvas line chart ===== */
+function lineChart(cv,datasets,{logY=false}={}){
+  const dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr;cv.height=H*dpr;const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
+  const pad={l:48,r:10,t:10,b:22};
+  let all=[];datasets.forEach(d=>all=all.concat(d.values.filter(v=>v!=null&&isFinite(v))));
+  if(!all.length)return;
+  let mn=Math.min(...all),mx=Math.max(...all);
+  const tf=v=>logY?Math.log10(v):v;
+  let lo=tf(mn),hi=tf(mx);const sp=(hi-lo)||1;lo-=sp*0.06;hi+=sp*0.06;
+  const maxLen=Math.max(...datasets.map(d=>d.values.length));
+  const X=i=>pad.l+(W-pad.l-pad.r)*(maxLen>1?i/(maxLen-1):0);
+  const Y=v=>pad.t+(H-pad.t-pad.b)*(1-(tf(v)-lo)/(hi-lo));
+  ctx.strokeStyle='#232D38';ctx.fillStyle='#5C6875';ctx.font='10px JetBrains Mono';ctx.lineWidth=1;
+  for(let k=0;k<=4;k++){const yy=pad.t+(H-pad.t-pad.b)*k/4;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();
+    const val=logY?Math.pow(10,hi-(hi-lo)*k/4):hi-(hi-lo)*k/4;ctx.fillText(val>=1000?(val/1000).toFixed(0)+'k':val.toFixed(val<10?2:0),4,yy+3);}
+  datasets.forEach(d=>{ctx.strokeStyle=d.color;ctx.lineWidth=d.w||1.8;ctx.setLineDash(d.dash||[]);ctx.beginPath();let started=false;
+    d.values.forEach((v,i)=>{if(v==null||!isFinite(v)||v<=0&&logY)return;const x=X(i),y=Y(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);});ctx.stroke();ctx.setLineDash([]);});
+  // legend
+  let lx=pad.l;ctx.font='10px Pretendard';datasets.filter(d=>d.label).forEach(d=>{ctx.fillStyle=d.color;ctx.fillRect(lx,H-12,9,3);ctx.fillStyle='#8B98A6';ctx.fillText(d.label,lx+13,H-9);lx+=ctx.measureText(d.label).width+34;});
+}
+
+/* ===== DATA LOADERS ===== */
+async function loadBinance(){
+  const[eth,btc,eb,kEbD,kW,kM]=await Promise.all([
+    jget('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT'),
+    jget('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT'),
+    jget('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHBTC'),
+    jget('https://api.binance.com/api/v3/klines?symbol=ETHBTC&interval=1d&limit=500'),
+    jget('https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1w&limit=520'),
+    jget('https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1M&limit=130')
+  ]);
+  setF('ethUsd',fmtUsd(+eth.lastPrice));chg('ethChg',+eth.priceChangePercent);
+  setF('btcUsd',fmtUsd(+btc.lastPrice));chg('btcChg',+btc.priceChangePercent);
+  setF('ethBtc',(+eb.lastPrice).toFixed(5));chg('ethBtcChg',+eb.priceChangePercent);
+  // ETH/BTC vs 50일선 + 그 지표의 자체 히스토리 분포(퍼센타일 보정용)
+  const ebC=kEbD.map(k=>+k[4]),last=ebC.length-1;
+  const s50=sma(ebC,50,last),s50p=sma(ebC,50,last-10);
+  const ebHist=[];for(let i=49;i<ebC.length;i++)ebHist.push((ebC[i]/sma(ebC,50,i)-1)*100);
+  S.ethbtc={dist:(+eb.lastPrice/s50-1)*100,slope:(s50/s50p-1)*100,hist:ebHist};
+  S.week={t:kW.map(k=>+k[0]),c:kW.map(k=>+k[4])};
+  S.month={t:kM.map(k=>+k[0]),c:kM.map(k=>+k[4])};
+  const mc=S.month.c;S.roc={now:pctChange(mc,3),hist:rollChanges(mc,3)};
+  // 200주선 배수 + 그 배수의 전체 히스토리 분포
+  const wc=S.week.c,wl=wc.length-1,ma200=sma(wc,200,wl),m200Hist=[];
+  for(let i=199;i<wc.length;i++)m200Hist.push(wc[i]/sma(wc,200,i));
+  S.ma200={mult:wc[wl]/ma200,hist:m200Hist};
+  // 정밀 로그-로그 파워로 회귀(주간, ETH 제네시스 기준)
+  const t0=Date.parse('2015-07-30');
+  S.band=fitPower(S.week.t,wc,t0);S.band.t0=t0;
+  const dNow=Math.log((S.week.t[wl]-t0)/864e5),resNow=Math.log(wc[wl])-(S.band.a+S.band.b*dNow);
+  S.band.resNow=resNow;S.band.z=resNow/S.band.sigma;S.band.pct=pctRank(S.band.res,resNow);
+}
+function chg(n,p){F(n).forEach(e=>{e.className='chg mono '+(p>=0?'up':'down');e.textContent=fmtPct(p);});}
+
+async function loadLlama(){
+  const[tvl,chains,stab]=await Promise.all([
+    jget('https://api.llama.fi/v2/historicalChainTvl/Ethereum'),
+    jget('https://api.llama.fi/v2/chains'),
+    jget('https://stablecoins.llama.fi/stablecoincharts/Ethereum')
+  ]);
+  const tv=tvl.map(d=>d.tvl);S.tvl={series:tv,chg30:pctChange(tv,30),hist:rollChanges(tv,30)};
+  const L2=['Arbitrum','Base','OP Mainnet','Optimism','zkSync Era','Linea','Scroll','Starknet','Polygon zkEVM','Mantle','Blast'];
+  let l2sum=0;chains.forEach(c=>{if(L2.includes(c.name))l2sum+=c.tvl||0;});S.l2={now:l2sum};
+  const sc=stab.map(d=>+(d.totalCirculatingUSD&&(d.totalCirculatingUSD.peggedUSD||d.totalCirculatingUSD))||0).filter(x=>x>0);
+  S.stable={series:sc,chg30:pctChange(sc,30),hist:rollChanges(sc,30)};
+}
+
+function dxyFrom(r){return 50.14348112*Math.pow(r.EUR,.576)*Math.pow(r.JPY,.136)*Math.pow(r.GBP,.119)*Math.pow(r.CAD,.091)*Math.pow(r.SEK,.042)*Math.pow(r.CHF,.036);}
+async function loadDollar(){
+  const to='EUR,JPY,GBP,CAD,SEK,CHF',iso=d=>d.toISOString().slice(0,10);
+  const now=new Date(),st=new Date(now.getTime()-34*864e5);
+  const[lt,ts]=await Promise.all([
+    jget(`https://api.frankfurter.app/latest?from=USD&to=${to}`),
+    jget(`https://api.frankfurter.app/${iso(st)}..${iso(now)}?from=USD&to=${to}`)
+  ]);
+  const cur=dxyFrom(lt.rates),dates=Object.keys(ts.rates).sort(),ser=dates.map(d=>dxyFrom(ts.rates[d]));
+  S.dollar={cur,chg:(cur/ser[0]-1)*100};
+}
+
+async function loadFred(){
+  if(!FRED_API_KEY||!FRED_PROXY){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};S.netLiq={chg:FALLBACK.netLiqChg,fb:true};return;}
+  const base=`${FRED_PROXY}/series/observations`,q=(id,l)=>`${base}?series_id=${id}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=${l}`;
+  const num=o=>o.observations.filter(x=>x.value!=='.').map(x=>+x.value);
+  try{const r=num(await jget(q('DFII10',25)));S.realY={val:r[0],prev:r[Math.min(20,r.length-1)],fb:false};}catch(e){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};}
+  try{
+    const[w,rrp,tga]=await Promise.all([jget(q('WALCL',14)),jget(q('RRPONTSYD',60)),jget(q('WTREGEN',14))]);
+    const W=num(w),R=num(rrp),T=num(tga);
+    const nlNow=W[0]/1000-R[0]-T[0]/1000, nlPrev=W[Math.min(8,W.length-1)]/1000-R[Math.min(40,R.length-1)]-T[Math.min(8,T.length-1)]/1000;
+    S.netLiq={chg:(nlNow/nlPrev-1)*100,fb:false};
+  }catch(e){S.netLiq={chg:FALLBACK.netLiqChg,fb:true};}
+}
+
+async function loadBeacon(){
+  try{
+    const q=await jget('https://beaconcha.in/api/v1/validators/queue');
+    S.queue={enter:q.data.beaconchain_entering,exit:q.data.beaconchain_exiting};setStatus('beacon','ok');
+  }catch(e){S.queue=null;setStatus('beacon','warn');}
+}
+
+/* ===== SCORING ===== */
+function chip(n,s){const g=sigOf(s);F(n).forEach(e=>{e.dataset.sig=g;e.textContent=sigKo(g);});}
+function cardSig(id,s){$(id).dataset.sig=sigOf(s);}
+
+function scoreMom(){
+  const e=S.ethbtc,pe=pctRank(e.hist,e.dist);
+  let a=clamp(pe*100+(e.slope>0?6:-6),0,100);
+  setF('ebVal',`<span class="${e.dist>=0?'up':'down'}">${e.dist>=0?'+':''}${e.dist.toFixed(1)}%</span>${prMeter(pe,sigOf(pe*100))}`);
+  const pr=pctRank(S.roc.hist,S.roc.now);
+  setF('rocVal',`<span class="${S.roc.now>=0?'up':'down'}">${fmtPct(S.roc.now)}</span>${prMeter(pr,sigOf(pr*100))}`);
+  return Math.round(a*0.6+pr*100*0.4);
+}
+function scoreLiq(){
+  const nl=S.netLiq,ry=S.realY,dl=S.dollar;
+  let nlS=lerp([[-4,15],[-1.5,38],[0,52],[1.5,72],[4,90]],nl.chg);
+  setF('nlVal',`<span class="${nl.chg>=0?'up':'down'}">${fmtPct(nl.chg)}</span>${nl.fb?'<span class="badge">예시</span>':''}`);
+  let ryS=clamp(lerp([[0.5,95],[1,80],[1.5,60],[2,35],[2.5,10]],ry.val)+(ry.val<ry.prev?6:ry.val>ry.prev?-6:0),0,100);
+  setF('ryVal',`${ry.val.toFixed(2)}%${ry.fb?'<span class="badge">예시</span>':''}`);
+  let dxS=dl?lerp([[-3,90],[-1,70],[0,55],[1,40],[3,15]],dl.chg):50;
+  if(dl)setF('dxyVal',`${dl.cur.toFixed(1)} <span class="d ${dl.chg<=0?'up':'down'}">${fmtPct(dl.chg)}</span>`);
+  return Math.round(nlS*0.4+ryS*0.35+dxS*0.25);
+}
+function scoreFun(){
+  const parts=[],t=S.tvl,st=S.stable;
+  const tp=pctRank(t.hist,t.chg30);parts.push(tp*100);
+  setF('tvlVal',`<span class="${t.chg30>=0?'up':'down'}">${fmtPct(t.chg30)}</span>${prMeter(tp,sigOf(tp*100))}`);
+  const sp=pctRank(st.hist,st.chg30);parts.push(sp*100);
+  setF('stVal',`<span class="${st.chg30>=0?'up':'down'}">${fmtPct(st.chg30)}</span>${prMeter(sp,sigOf(sp*100))}`);
+  if(S.l2){setF('l2Val',`$${(S.l2.now/1e9).toFixed(1)}B`);}
+  if(S.queue){const net=S.queue.enter-S.queue.exit;parts.push(net>0?68:42);
+    setF('qVal',`<span class="${net>=0?'up':'down'}">입${S.queue.enter} / 출${S.queue.exit}</span>`);}
+  else setF('qVal','<span class="badge">연결 필요</span>');
+  return Math.round(parts.reduce((a,b)=>a+b,0)/parts.length);
+}
+function scoreVal(){
+  const mm=S.ma200,m=mm.mult,mp=pctRank(mm.hist,m);   // 낮은 배수 = 낮은 퍼센타일 = 저평가
+  let mS=(1-mp)*100;
+  setF('m200Val',`${m.toFixed(2)}×${prMeter(mp,sigOf((1-mp)*100))}`);
+  const bp=S.band.pct;                                  // 잔차 퍼센타일 (낮을수록 추세 대비 저평가)
+  let bS=(1-bp)*100;
+  setF('bandVal',`z=${S.band.z>=0?'+':''}${S.band.z.toFixed(2)}σ${prMeter(bp,sigOf((1-bp)*100))}`);
+  return Math.round(mS*0.5+bS*0.5);
+}
+
+/* ===== verdict ===== */
+function verdict(score,d){
+  const n={mom:'모멘텀',liq:'유동성',fun:'펀더멘털',val:'밸류'};
+  const arr=Object.entries(d).sort((a,b)=>a[1]-b[1]);
+  const weak=n[arr[0][0]],strong=n[arr[3][0]];
+  let h,r;
+  if(score>=72){h='강세 (Risk-on)';r='4축 모두 우호적. ETH가 고베타로 반응하기 좋은 구간입니다.';}
+  else if(score>=58){h='강세 전환 신호';r=`<strong>${strong}</strong>가 먼저 돌아섰습니다. 나머지 축이 따라오는지 보세요.`;}
+  else if(score>=43){h='중립 · 트리거 대기';r=`<strong>${strong}</strong>는 양호하나 <strong>${weak}</strong>가 발목을 잡는 중.`;}
+  else if(score>=28){h='약세 우위';r=`<strong>${weak}</strong>가 가장 약합니다. 여기부터 풀려야 반전합니다.`;}
+  else{h='약세 지속 (Risk-off)';r='4축 모두 비우호적. 신호 전환을 기다릴 구간.';}
+  const v=$('#verdictText');v.textContent=h;v.style.color=`var(--${sigOf(score)})`;$('#verdictRead').innerHTML=r;
+}
+
+/* ===== pattern charts ===== */
+function drawHeatmap(){
+  const t=S.month.t,c=S.month.c;const M=['1','2','3','4','5','6','7','8','9','10','11','12'];
+  const byYear={};for(let i=1;i<c.length;i++){const d=new Date(t[i]),yr=d.getUTCFullYear(),mo=d.getUTCMonth();const ret=(c[i]/c[i-1]-1)*100;(byYear[yr]=byYear[yr]||{})[mo]=ret;}
+  const years=Object.keys(byYear).map(Number).sort();const sums=Array(12).fill(0),cnts=Array(12).fill(0);
+  const col=v=>{if(v==null)return 'background:#141A22;color:#5C6875';const a=clamp(Math.abs(v)/25,.12,.9);return v>=0?`background:rgba(70,194,142,${a});color:#0B0F14`:`background:rgba(224,106,106,${a});color:#0B0F14`;};
+  let html=`<div class="hm-row head"><span class="ylab"></span>${M.map(m=>`<span class="cell">${m}</span>`).join('')}</div>`;
+  years.forEach(yr=>{let row=`<span class="ylab">${yr}</span>`;for(let m=0;m<12;m++){const v=byYear[yr][m];if(v!=null){sums[m]+=v;cnts[m]++;}row+=`<span class="cell" style="${col(v)}">${v!=null?v.toFixed(0):''}</span>`;}html+=`<div class="hm-row">${row}</div>`;});
+  let avg=`<span class="ylab" style="color:var(--gold)">평균</span>`;for(let m=0;m<12;m++){const v=cnts[m]?sums[m]/cnts[m]:null;avg+=`<span class="cell" style="${col(v)}">${v!=null?v.toFixed(1):''}</span>`;}
+  html+=`<div class="hm-row avg">${avg}</div>`;$('#heatmap').innerHTML=html;
+}
+function drawCycle(){
+  const t=S.week.t,c=S.week.c;const bottoms=[Date.parse('2018-12-15'),Date.parse('2022-06-18')];
+  const idxNear=tt=>{let bi=0,bd=1e18;for(let i=0;i<t.length;i++){const dd=Math.abs(t[i]-tt);if(dd<bd){bd=dd;bi=i;}}return bi;};
+  const ds=[['이전 사이클(2019~)','#8B98A6'],['현재 사이클(2022~)','#E8B463']].map(([lab,cl],k)=>{
+    const start=idxNear(bottoms[k]);const base=c[start];const vals=[];for(let i=start;i<c.length;i++)vals.push(c[i]/base*100);return{label:lab,color:cl,values:vals,w:k?2.2:1.6};});
+  lineChart($('#cvCycle'),ds,{logY:true});
+}
+function drawBand(){
+  const t=S.week.t,c=S.week.c,{a,b,sigma,t0,r2,z,pct}=S.band;
+  const f=i=>a+b*Math.log((t[i]-t0)/864e5);
+  const mid=c.map((_,i)=>Math.exp(f(i)));
+  const u2=c.map((_,i)=>Math.exp(f(i)+2*sigma)),u1=c.map((_,i)=>Math.exp(f(i)+sigma));
+  const d1=c.map((_,i)=>Math.exp(f(i)-sigma)),d2=c.map((_,i)=>Math.exp(f(i)-2*sigma));
+  lineChart($('#cvBand'),[
+    {label:'+2σ',color:'#E06A6A',values:u2,w:1,dash:[5,4]},
+    {color:'#9C7A45',values:u1,w:0.7,dash:[2,3]},
+    {label:'추세',color:'#8B98A6',values:mid,w:1.2},
+    {color:'#3E8C68',values:d1,w:0.7,dash:[2,3]},
+    {label:'-2σ',color:'#46C28E',values:d2,w:1,dash:[5,4]},
+    {label:'ETH',color:'#E8B463',values:c,w:2}
+  ],{logY:true});
+  const st=$('#bandStats');if(st)st.innerHTML=`적합도 R²=<b style="color:var(--text)">${r2.toFixed(3)}</b> · 현재 z=<b style="color:var(--text)">${z>=0?'+':''}${z.toFixed(2)}σ</b> · 추세선 대비 백분위 <b style="color:var(--text)">${Math.round(pct*100)}</b> ${pct<.35?'<span class="up">저평가</span>':pct>.7?'<span class="down">과열</span>':'<span class="flat">중립</span>'}`;
+}
+let activeTab='season';
+function drawActiveChart(){if(activeTab==='season')drawHeatmap();else if(activeTab==='cycle')drawCycle();else drawBand();}
+
+/* ===== orchestration ===== */
+async function refresh(){
+  $('#refreshBtn').disabled=true;
+  const r=await Promise.allSettled([loadBinance(),loadLlama(),loadDollar(),loadFred(),loadBeacon()]);
+  setStatus('binance',r[0].status==='fulfilled'?'ok':'err');
+  setStatus('llama',r[1].status==='fulfilled'?'ok':'err');
+  setStatus('fx',r[2].status==='fulfilled'?'ok':'err');
+  setStatus('fred',(S.netLiq&&!S.netLiq.fb)?'ok':'warn');
+  if(!S.realY){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};}
+  if(!S.netLiq){S.netLiq={chg:FALLBACK.netLiqChg,fb:true};}
+
+  let mom=50,liq=50,fun=50,val=50;
+  if(r[0].status==='fulfilled'){mom=scoreMom();val=scoreVal();}
+  liq=scoreLiq();
+  if(r[1].status==='fulfilled')fun=scoreFun();
+
+  chip('momChip',mom);cardSig('#cMom',mom);setF('momScore',mom+' / 100');
+  chip('liqChip',liq);cardSig('#cLiq',liq);setF('liqScore',liq+' / 100');
+  chip('funChip',fun);cardSig('#cFun',fun);setF('funScore',fun+' / 100');
+  chip('valChip',val);cardSig('#cVal',val);setF('valScore',val+' / 100');
+
+  const score=clamp(Math.round(liq*0.30+mom*0.25+fun*0.25+val*0.20),0,100);
+  renderGauge(score);
+  renderRadar([{label:'밸류',score:val},{label:'유동성',score:liq},{label:'펀더멘털',score:fun},{label:'모멘텀',score:mom}]);
+  renderQuad(liq,mom);
+  verdict(score,{mom,liq,fun,val});
+  if(r[0].status==='fulfilled')drawActiveChart();
+
+  $('#updatedAt').textContent='업데이트 '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  $('#refreshBtn').disabled=false;
+}
+
+/* tabs */
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected','false'));
+  b.setAttribute('aria-selected','true');activeTab=b.dataset.tab;
+  document.querySelectorAll('.panel-chart').forEach(p=>p.classList.toggle('active',p.dataset.panel===activeTab));
+  if(S.month)drawActiveChart();
+}));
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.month&&activeTab!=='season')drawActiveChart();},200);});
+
+buildGauge();
+refresh();
+setInterval(refresh,60000);
+$('#refreshBtn').addEventListener('click',refresh);
+</script>
+</body>
+</html>
