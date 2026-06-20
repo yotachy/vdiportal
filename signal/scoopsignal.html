@@ -114,6 +114,20 @@
   .mbody h4{color:var(--text);font-size:12px;margin-top:8px}
   footer{font-size:11.5px;color:var(--faint);text-align:center;line-height:1.7;padding-top:4px}
 
+  /* tuning panel */
+  details.tune{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:0 16px;margin-bottom:14px}
+  details.tune summary{cursor:pointer;list-style:none;padding:15px 0;font-size:13.5px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  details.tune summary::-webkit-details-marker{display:none}
+  details.tune .arw{color:var(--gold);font-family:var(--mono)} details.tune[open] .arw{transform:rotate(90deg)}
+  .tbody{padding:6px 0 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
+  .trow{display:grid;grid-template-columns:120px 1fr 56px;align-items:center;gap:12px;font-size:12px}
+  .trow label{color:var(--muted)}
+  .trow input[type=range]{width:100%;accent-color:var(--gold)}
+  .trow .tval{font-family:var(--mono);font-size:12px;color:var(--text);text-align:right}
+  .tgrp-title{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+  .treset{appearance:none;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer;align-self:flex-start}
+  .treset:hover{border-color:var(--gold);color:var(--gold)}
+
   @media(max-width:880px){.hero{grid-template-columns:1fr}.dims{grid-template-columns:1fr 1fr}}
   @media(max-width:520px){.dims{grid-template-columns:1fr}.gauge-wrap{max-width:220px}}
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -236,6 +250,26 @@
       <canvas id="cvBand"></canvas>
     </div>
   </section>
+
+  <details class="tune">
+    <summary>튜닝 — 가중치·기간·밴드 조정 <span class="arw">›</span></summary>
+    <div class="tbody">
+      <div>
+        <div class="tgrp-title">종합 가중치 (합 100%로 정규화)</div>
+        <div class="trow"><label>유동성</label><input type="range" min="0" max="60" step="1" id="wLiq"><span class="tval" id="wLiqV">—</span></div>
+        <div class="trow"><label>모멘텀</label><input type="range" min="0" max="60" step="1" id="wMom"><span class="tval" id="wMomV">—</span></div>
+        <div class="trow"><label>펀더멘털</label><input type="range" min="0" max="60" step="1" id="wFun"><span class="tval" id="wFunV">—</span></div>
+        <div class="trow"><label>밸류</label><input type="range" min="0" max="60" step="1" id="wVal"><span class="tval" id="wValV">—</span></div>
+      </div>
+      <div>
+        <div class="tgrp-title">파라미터</div>
+        <div class="trow"><label>ROC 기간(개월)</label><input type="range" min="1" max="6" step="1" id="pRoc"><span class="tval" id="pRocV">—</span></div>
+        <div class="trow"><label>밴드 σ(안쪽)</label><input type="range" min="0.5" max="2" step="0.5" id="pS1"><span class="tval" id="pS1V">—</span></div>
+        <div class="trow"><label>밴드 σ(바깥)</label><input type="range" min="1" max="3" step="0.5" id="pS2"><span class="tval" id="pS2V">—</span></div>
+      </div>
+      <button class="treset" type="button" id="tReset">기본값으로 초기화</button>
+    </div>
+  </details>
 
   <details class="method">
     <summary>스쿱 기준 — 점수 산식과 데이터 출처 <span class="arw">›</span></summary>
@@ -598,8 +632,30 @@ document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
 }));
 let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.month&&activeTab!=='season')drawActiveChart();},200);});
 
+function syncTuneUI(){
+  const nw=normW();
+  const set=(id,val,disp)=>{const e=$('#'+id);if(e)e.value=val;const v=$('#'+id+'V');if(v)v.textContent=disp;};
+  set('wLiq',Math.round(CFG.w.liq*100),Math.round(nw.liq*100)+'%');
+  set('wMom',Math.round(CFG.w.mom*100),Math.round(nw.mom*100)+'%');
+  set('wFun',Math.round(CFG.w.fun*100),Math.round(nw.fun*100)+'%');
+  set('wVal',Math.round(CFG.w.val*100),Math.round(nw.val*100)+'%');
+  set('pRoc',CFG.rocMonths,CFG.rocMonths+'개월');
+  set('pS1',CFG.bandSigma.s1,CFG.bandSigma.s1+'σ');
+  set('pS2',CFG.bandSigma.s2,CFG.bandSigma.s2+'σ');
+}
+function bindTune(){
+  const onW=()=>{CFG.w={liq:+$('#wLiq').value/100,mom:+$('#wMom').value/100,fun:+$('#wFun').value/100,val:+$('#wVal').value/100};saveCfg();syncTuneUI();recompute();};
+  ['wLiq','wMom','wFun','wVal'].forEach(id=>$('#'+id).addEventListener('input',onW));
+  $('#pRoc').addEventListener('input',()=>{CFG.rocMonths=+$('#pRoc').value;saveCfg();syncTuneUI();recompute();});
+  const onS=()=>{CFG.bandSigma={s1:+$('#pS1').value,s2:+$('#pS2').value};saveCfg();syncTuneUI();if(S.band&&activeTab==='band')drawBand();};
+  $('#pS1').addEventListener('input',onS);$('#pS2').addEventListener('input',onS);
+  $('#tReset').addEventListener('click',()=>{resetCfg();syncTuneUI();recompute();});
+}
+
 loadCfg();
 buildGauge();
+bindTune();
+syncTuneUI();
 refresh();
 setInterval(refresh,60000);
 $('#refreshBtn').addEventListener('click',refresh);
