@@ -779,7 +779,7 @@ function renderGoal(){
     const labelTxt=target>0?`🎯 목표 ${fmtWon(target)}${tax?" (세포함)":""}`:"🎯 목표 설정";
     const labelCls=anchorRight?" right":(anchorLeft?" left":"");
     const pinA=w=> w>78?" pin-r":(w<22?" pin-l":"");                // 끝쪽 라벨이 잘리지 않게 안쪽 정렬
-    const ends=target>0?`<div class="gs-ends"><span class="gs-inc${pctInc>=100?" done":""}${pinA(incW)}" style="left:${incW.toFixed(2)}%">${hasExcl?"가능자산 ":""}${pctInc.toFixed(1)}%</span>${hasExcl?`<span class="gs-all${pctAll>=100?" done":""}${pinA(allW)}" style="left:${allW.toFixed(2)}%">전체자산 ${pctAll.toFixed(1)}%</span>`:""}</div>`:"";
+    const ends=(target>0&&hasExcl)?`<div class="gs-ends"><span class="gs-inc${pctInc>=100?" done":""}${pinA(incW)}" style="left:${incW.toFixed(2)}%">가능</span><span class="gs-all${pctAll>=100?" done":""}${pinA(allW)}" style="left:${allW.toFixed(2)}%">전체</span></div>`:"";
     viz=`
       <div class="goalscale${editable?" editable":""}${hasExcl?" dual":""}" data-smax="${scaleMax}"${editable?' data-editable="1"':""}>
         <div class="gs-goal-label${labelCls}" style="left:${goalLeft.toFixed(2)}%"${editable?' title="드래그하거나 더블클릭해 직접 입력"':""}>${labelTxt}</div>
