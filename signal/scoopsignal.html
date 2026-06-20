@@ -399,7 +399,6 @@ async function loadBinance(){
   S.ethbtc={dist:(+eb.lastPrice/s50-1)*100,slope:(s50/s50p-1)*100,hist:ebHist};
   S.week={t:kW.map(k=>+k[0]),c:kW.map(k=>+k[4])};
   S.month={t:kM.map(k=>+k[0]),c:kM.map(k=>+k[4])};
-  const mc=S.month.c;S.roc={now:pctChange(mc,3),hist:rollChanges(mc,3)};
   // 200주선 배수 + 그 배수의 전체 히스토리 분포
   const wc=S.week.c,wl=wc.length-1,ma200=sma(wc,200,wl),m200Hist=[];
   for(let i=199;i<wc.length;i++)m200Hist.push(wc[i]/sma(wc,200,i));
@@ -462,11 +461,14 @@ function chip(n,s){const g=sigOf(s);F(n).forEach(e=>{e.dataset.sig=g;e.textConte
 function cardSig(id,s){$(id).dataset.sig=sigOf(s);}
 
 function scoreMom(){
+  const k=clamp(CFG.rocMonths|0,1,6);
+  const mc=S.month.c; S.roc={now:pctChange(mc,k),hist:rollChanges(mc,k)};
   const e=S.ethbtc,pe=pctRank(e.hist,e.dist);
   let a=clamp(pe*100+(e.slope>0?6:-6),0,100);
   setF('ebVal',`<span class="${e.dist>=0?'up':'down'}">${e.dist>=0?'+':''}${e.dist.toFixed(1)}%</span>${prMeter(pe,sigOf(pe*100))}`);
   const pr=pctRank(S.roc.hist,S.roc.now);
   setF('rocVal',`<span class="${S.roc.now>=0?'up':'down'}">${fmtPct(S.roc.now)}</span>${prMeter(pr,sigOf(pr*100))}`);
+  const lab=document.querySelector('#cMom .mrow:nth-child(3) .k'); if(lab)lab.textContent=k+'개월 가격 ROC';
   return Math.round(a*0.6+pr*100*0.4);
 }
 function scoreLiq(){
