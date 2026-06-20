@@ -274,19 +274,24 @@
   .goal-big span{font-size:1.05rem;}
   .goal-big .goal-big-sub{font-size:.8rem; color:var(--ink-faint); font-family:var(--font-bold); margin-left:8px; letter-spacing:0;}
   .goalscale{position:relative; margin:30px 0 8px; padding-bottom:54px;}
+  .goalscale.dual{padding-bottom:72px;}                       /* 가능자산·전체자산 핀을 2줄로 분리(겹침 방지) */
   .gs-goal-label{position:absolute; top:-24px; transform:translateX(-50%); font-size:.82rem; font-family:var(--font-bold); color:var(--ink); white-space:nowrap; background:var(--card); padding:0 5px;}
   .gs-goal-label.right{transform:translateX(-100%);}
   .gs-goalline{position:absolute; top:-7px; height:38px; width:3px; background:var(--ink); border-radius:2px; box-shadow:0 0 0 2px var(--card);}
-  .gs-ends{position:absolute; left:0; right:0; bottom:28px; height:16px;}
+  .gs-ends{position:absolute; left:0; right:0; top:0; bottom:0; pointer-events:none;}
   /* 5억 단위 눈금자 */
   .goal-axis{position:absolute; left:0; right:0; bottom:0; height:22px;}
   .gax-tick{position:absolute; top:0; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; pointer-events:none;}
   .gax-tick i{display:block; width:1.5px; height:4px; background:var(--line); border-radius:1px;}
   .gax-tick.lbl i{height:7px; background:var(--ink-faint);}
   .gax-tick b{font-size:.66rem; color:var(--ink-faint); font-family:var(--font-bold); white-space:nowrap; margin-top:3px; letter-spacing:0; font-variant-numeric:tabular-nums;}
-  .gs-ends span{position:absolute; transform:translateX(-50%); font-size:.74rem; font-family:var(--font-bold); white-space:nowrap;}
+  .gs-ends span{position:absolute; bottom:32px; transform:translateX(-50%); font-size:.74rem; font-family:var(--font-bold); white-space:nowrap;}
+  .gs-ends span.pin-l{transform:translateX(0);}              /* 좌측 끝 라벨: 안쪽으로 정렬(잘림 방지) */
+  .gs-ends span.pin-r{transform:translateX(-100%);}          /* 우측 끝 라벨: 안쪽으로 정렬 */
   .gs-ends .gs-inc{color:var(--gold-strong);}
   .gs-ends .gs-all{color:#caa23a;}
+  .goalscale.dual .gs-ends .gs-inc{bottom:46px;}             /* 위 줄: 가능자산 */
+  .goalscale.dual .gs-ends .gs-all{bottom:28px;}             /* 아래 줄: 전체자산 */
   .goal-track{position:relative; height:24px; background:var(--line-faint); border-radius:12px; overflow:hidden;}
   .goal-fill{position:absolute; left:0; top:0; height:100%; border-radius:12px; transition:width .4s ease;}
   .goal-fill.all{background:#f3cf7a;}
@@ -773,9 +778,10 @@ function renderGoal(){
     }
     const labelTxt=target>0?`🎯 목표 ${fmtWon(target)}${tax?" (세포함)":""}`:"🎯 목표 설정";
     const labelCls=anchorRight?" right":(anchorLeft?" left":"");
-    const ends=target>0?`<div class="gs-ends"><span class="gs-inc${pctInc>=100?" done":""}" style="left:${incW.toFixed(2)}%">${hasExcl?"포함 ":""}${pctInc.toFixed(1)}%</span>${hasExcl?`<span class="gs-all${pctAll>=100?" done":""}" style="left:${allW.toFixed(2)}%">전체 ${pctAll.toFixed(1)}%</span>`:""}</div>`:"";
+    const pinA=w=> w>78?" pin-r":(w<22?" pin-l":"");                // 끝쪽 라벨이 잘리지 않게 안쪽 정렬
+    const ends=target>0?`<div class="gs-ends"><span class="gs-inc${pctInc>=100?" done":""}${pinA(incW)}" style="left:${incW.toFixed(2)}%">${hasExcl?"가능자산 ":""}${pctInc.toFixed(1)}%</span>${hasExcl?`<span class="gs-all${pctAll>=100?" done":""}${pinA(allW)}" style="left:${allW.toFixed(2)}%">전체자산 ${pctAll.toFixed(1)}%</span>`:""}</div>`:"";
     viz=`
-      <div class="goalscale${editable?" editable":""}" data-smax="${scaleMax}"${editable?' data-editable="1"':""}>
+      <div class="goalscale${editable?" editable":""}${hasExcl?" dual":""}" data-smax="${scaleMax}"${editable?' data-editable="1"':""}>
         <div class="gs-goal-label${labelCls}" style="left:${goalLeft.toFixed(2)}%"${editable?' title="드래그하거나 더블클릭해 직접 입력"':""}>${labelTxt}</div>
         <div class="goal-track${editable?" grabbable":""}">
           ${hasExcl?`<div class="goal-fill all" style="width:${allW.toFixed(2)}%"></div>`:""}
@@ -786,7 +792,7 @@ function renderGoal(){
         ${ends}
         ${axis}
       </div>
-      ${target>0?`<div class="goal-foot">${hasExcl?footLine("포함 자산",inc)+footLine("전체 자산",all):footLine("",inc)}</div>`:(editable?`<div class="goal-hint-drag">막대의 <b>🎯 목표선</b>을 좌우로 드래그해 목표 매수가를 설정하세요 <span style="opacity:.8">(1억원 단위 · 더블클릭 시 직접 입력)</span></div>`:"")}`;
+      ${target>0?`<div class="goal-foot">${hasExcl?footLine("가능자산",inc)+footLine("전체자산",all):footLine("",inc)}</div>`:(editable?`<div class="goal-hint-drag">막대의 <b>🎯 목표선</b>을 좌우로 드래그해 목표 매수가를 설정하세요 <span style="opacity:.8">(1억원 단위 · 더블클릭 시 직접 입력)</span></div>`:"")}`;
   }else{
     viz=`<div class="goal-empty">목표 매수가를 설정하면 달성률을 시각화합니다.</div>`;
   }
