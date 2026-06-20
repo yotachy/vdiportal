@@ -501,7 +501,7 @@ async function loadBeacon(){
   try{
     const a=await jget('https://beaconcha.in/api/v1/ethstore/latest');
     const apr=a&&a.data&&(a.data.apr!=null?a.data.apr:a.data.cl_apr);
-    const v=+apr; S.staking={apr:isFinite(v)?(v<=1?v*100:v):3.0,fb:!isFinite(v)};
+    const v=+apr; const ok=isFinite(v)&&v>0; S.staking={apr:ok?(v<=1?v*100:v):3.0,fb:!ok};
   }catch(e){S.staking={apr:3.0,fb:true};}
 }
 
