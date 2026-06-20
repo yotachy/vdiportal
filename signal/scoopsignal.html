@@ -537,16 +537,17 @@ function drawCycle(){
 }
 function drawBand(){
   const t=S.week.t,c=S.week.c,{a,b,sigma,t0,r2,z,pct}=S.band;
+  const s1=CFG.bandSigma.s1, s2=CFG.bandSigma.s2;
   const f=i=>a+b*Math.log((t[i]-t0)/864e5);
   const mid=c.map((_,i)=>Math.exp(f(i)));
-  const u2=c.map((_,i)=>Math.exp(f(i)+2*sigma)),u1=c.map((_,i)=>Math.exp(f(i)+sigma));
-  const d1=c.map((_,i)=>Math.exp(f(i)-sigma)),d2=c.map((_,i)=>Math.exp(f(i)-2*sigma));
+  const u2=c.map((_,i)=>Math.exp(f(i)+s2*sigma)),u1=c.map((_,i)=>Math.exp(f(i)+s1*sigma));
+  const d1=c.map((_,i)=>Math.exp(f(i)-s1*sigma)),d2=c.map((_,i)=>Math.exp(f(i)-s2*sigma));
   lineChart($('#cvBand'),[
-    {label:'+2σ',color:'#E06A6A',values:u2,w:1,dash:[5,4]},
+    {label:`+${s2}σ`,color:'#E06A6A',values:u2,w:1,dash:[5,4]},
     {color:'#9C7A45',values:u1,w:0.7,dash:[2,3]},
     {label:'추세',color:'#8B98A6',values:mid,w:1.2},
     {color:'#3E8C68',values:d1,w:0.7,dash:[2,3]},
-    {label:'-2σ',color:'#46C28E',values:d2,w:1,dash:[5,4]},
+    {label:`-${s2}σ`,color:'#46C28E',values:d2,w:1,dash:[5,4]},
     {label:'ETH',color:'#E8B463',values:c,w:2}
   ],{logY:true});
   const st=$('#bandStats');if(st)st.innerHTML=`적합도 R²=<b style="color:var(--text)">${r2.toFixed(3)}</b> · 현재 z=<b style="color:var(--text)">${z>=0?'+':''}${z.toFixed(2)}σ</b> · 추세선 대비 백분위 <b style="color:var(--text)">${Math.round(pct*100)}</b> ${pct<.35?'<span class="up">저평가</span>':pct>.7?'<span class="down">과열</span>':'<span class="flat">중립</span>'}`;
