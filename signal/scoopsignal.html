@@ -658,6 +658,7 @@ function drawVol(){
   }
   lineChart($('#cvVol'),[{label:`실현 변동성(${VOL_WIN}주, 연율%)`,color:css('--neutral'),values:vol,w:1.8}],{logY:false});
   const valid=vol.filter(v=>v!=null),cur=valid[valid.length-1],pr=pctRank(valid,cur);
+  if(!valid.length){const e=$('#volStats');if(e)e.innerHTML='데이터 부족';return;}
   const st=$('#volStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(0)}%</b> ${prMeter(pr,sigOf((1-pr)*100))} <span style="color:var(--faint)">(낮을수록 압축)</span>`;
 }
 let activeTab='season';
