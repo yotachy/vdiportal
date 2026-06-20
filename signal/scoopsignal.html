@@ -268,6 +268,17 @@ const FRED_API_KEY="";   // 무료 키
 const FRED_PROXY="";     // Cloudflare Worker 등 프록시 루트 (CORS 우회)
 const FALLBACK={ realYield:1.9, realYieldPrev:1.9, netLiqChg:-1.0 }; // FRED 미연결시 예시값
 
+/* ===== tunable config (localStorage) ===== */
+const CFG_KEY="scoopsignal_cfg";
+const CFG_DEFAULTS={ w:{liq:0.30,mom:0.25,fun:0.25,val:0.20}, rocMonths:3, bandSigma:{s1:1,s2:2} };
+let CFG=JSON.parse(JSON.stringify(CFG_DEFAULTS));
+function loadCfg(){try{const r=JSON.parse(localStorage.getItem(CFG_KEY)||"{}");
+  CFG={ w:{...CFG_DEFAULTS.w,...(r.w||{})}, rocMonths:r.rocMonths||CFG_DEFAULTS.rocMonths, bandSigma:{...CFG_DEFAULTS.bandSigma,...(r.bandSigma||{})} };
+}catch(e){CFG=JSON.parse(JSON.stringify(CFG_DEFAULTS));}}
+function saveCfg(){try{localStorage.setItem(CFG_KEY,JSON.stringify(CFG));}catch(e){}}
+function resetCfg(){CFG=JSON.parse(JSON.stringify(CFG_DEFAULTS));saveCfg();}
+function normW(){const w=CFG.w,s=w.liq+w.mom+w.fun+w.val||1;return{liq:w.liq/s,mom:w.mom/s,fun:w.fun/s,val:w.val/s};}
+
 /* ===== helpers ===== */
 const $=s=>document.querySelector(s);
 const F=n=>document.querySelectorAll(`[data-f="${n}"]`);
@@ -551,26 +562,28 @@ async function refresh(){
   setStatus('fred',(S.netLiq&&!S.netLiq.fb)?'ok':'warn');
   if(!S.realY){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};}
   if(!S.netLiq){S.netLiq={chg:FALLBACK.netLiqChg,fb:true};}
-
+  S._ok={mom:r[0].status==='fulfilled',val:r[0].status==='fulfilled',fun:r[1].status==='fulfilled'};
+  recompute();
+  $('#updatedAt').textContent='업데이트 '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  $('#refreshBtn').disabled=false;
+}
+function recompute(){
+  const ok=S._ok||{mom:!!S.ethbtc,val:!!S.ma200,fun:!!S.tvl};
   let mom=50,liq=50,fun=50,val=50;
-  if(r[0].status==='fulfilled'){mom=scoreMom();val=scoreVal();}
+  if(ok.mom){mom=scoreMom();} if(ok.val){val=scoreVal();}
   liq=scoreLiq();
-  if(r[1].status==='fulfilled')fun=scoreFun();
-
+  if(ok.fun)fun=scoreFun();
   chip('momChip',mom);cardSig('#cMom',mom);setF('momScore',mom+' / 100');
   chip('liqChip',liq);cardSig('#cLiq',liq);setF('liqScore',liq+' / 100');
   chip('funChip',fun);cardSig('#cFun',fun);setF('funScore',fun+' / 100');
   chip('valChip',val);cardSig('#cVal',val);setF('valScore',val+' / 100');
-
-  const score=clamp(Math.round(liq*0.30+mom*0.25+fun*0.25+val*0.20),0,100);
+  const w=normW();
+  const score=clamp(Math.round(liq*w.liq+mom*w.mom+fun*w.fun+val*w.val),0,100);
   renderGauge(score);
   renderRadar([{label:'밸류',score:val},{label:'유동성',score:liq},{label:'펀더멘털',score:fun},{label:'모멘텀',score:mom}]);
   renderQuad(liq,mom);
   verdict(score,{mom,liq,fun,val});
-  if(r[0].status==='fulfilled')drawActiveChart();
-
-  $('#updatedAt').textContent='업데이트 '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  $('#refreshBtn').disabled=false;
+  if(S.month)drawActiveChart();
 }
 
 /* tabs */
@@ -582,6 +595,7 @@ document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
 }));
 let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.month&&activeTab!=='season')drawActiveChart();},200);});
 
+loadCfg();
 buildGauge();
 refresh();
 setInterval(refresh,60000);
