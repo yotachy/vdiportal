@@ -453,7 +453,15 @@ async function loadLlama(){
   ]);
   const tv=tvl.map(d=>d.tvl);S.tvl={series:tv,chg30:pctChange(tv,30),hist:rollChanges(tv,30)};
   const L2=['Arbitrum','Base','OP Mainnet','Optimism','zkSync Era','Linea','Scroll','Starknet','Polygon zkEVM','Mantle','Blast'];
-  let l2sum=0;chains.forEach(c=>{if(L2.includes(c.name))l2sum+=c.tvl||0;});S.l2={now:l2sum};
+  let l2sum=0;chains.forEach(c=>{if(L2.includes(c.name))l2sum+=c.tvl||0;});
+  // 점수용 히스토리: 주요 L2 3개 historicalChainTvl 합산(가용분만)
+  const L2H=['Arbitrum','Base','OP Mainnet'];
+  const hres=await Promise.allSettled(L2H.map(n=>jget('https://api.llama.fi/v2/historicalChainTvl/'+encodeURIComponent(n))));
+  const byDate={};let nh=0;
+  hres.forEach(r=>{if(r.status==='fulfilled'&&Array.isArray(r.value)){nh++;r.value.forEach(d=>{byDate[d.date]=(byDate[d.date]||0)+(d.tvl||0);});}});
+  const ser=Object.keys(byDate).map(Number).sort((a,b)=>a-b).map(k=>byDate[k]);
+  if(nh&&ser.length>30){S.l2={now:l2sum,series:ser,chg30:pctChange(ser,30),hist:rollChanges(ser,30)};}
+  else{S.l2={now:l2sum};} // 히스토리 실패 시 표시 전용으로 디그레이드
   const sc=stab.map(d=>+(d.totalCirculatingUSD&&(d.totalCirculatingUSD.peggedUSD||d.totalCirculatingUSD))||0).filter(x=>x>0);
   S.stable={series:sc,chg30:pctChange(sc,30),hist:rollChanges(sc,30)};
 }
@@ -521,7 +529,9 @@ function scoreFun(){
   setF('tvlVal',`<span class="${t.chg30>=0?'up':'down'}">${fmtPct(t.chg30)}</span>${prMeter(tp,sigOf(tp*100))}`);
   const sp=pctRank(st.hist,st.chg30);parts.push(sp*100);
   setF('stVal',`<span class="${st.chg30>=0?'up':'down'}">${fmtPct(st.chg30)}</span>${prMeter(sp,sigOf(sp*100))}`);
-  if(S.l2){setF('l2Val',`$${(S.l2.now/1e9).toFixed(1)}B`);}
+  if(S.l2&&S.l2.hist){const lp=pctRank(S.l2.hist,S.l2.chg30);parts.push(lp*100);
+    setF('l2Val',`$${(S.l2.now/1e9).toFixed(1)}B <span class="d ${S.l2.chg30>=0?'up':'down'}">${fmtPct(S.l2.chg30)}</span>${prMeter(lp,sigOf(lp*100))}`);}
+  else if(S.l2){setF('l2Val',`$${(S.l2.now/1e9).toFixed(1)}B`);}
   if(S.queue){const net=S.queue.enter-S.queue.exit;parts.push(net>0?68:42);
     setF('qVal',`<span class="${net>=0?'up':'down'}">입${S.queue.enter} / 출${S.queue.exit}</span>`);}
   else setF('qVal','<span class="badge">연결 필요</span>');
