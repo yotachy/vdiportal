@@ -236,6 +236,7 @@
       <button class="tab" role="tab" aria-selected="true" data-tab="season">계절성</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="cycle">사이클 오버레이</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="band">로그 회귀 밴드</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="dd">드로다운</button>
     </div>
 
     <div class="panel-chart active" data-panel="season">
@@ -249,6 +250,10 @@
     <div class="panel-chart" data-panel="band">
       <div class="chart-note">주간 종가의 <b>로그-로그 파워로 회귀</b> 채널(±1σ·±2σ, ETH 제네시스 기준). 하단=상대적 저평가, 상단=과열.<br><span id="bandStats" style="color:var(--muted)"></span></div>
       <canvas id="cvBand"></canvas>
+    </div>
+    <div class="panel-chart" data-panel="dd">
+      <div class="chart-note">전고점(ATH) 대비 낙폭(%). 0 아래로 깊을수록 약세장 바닥권에 가깝습니다. <span id="ddStats" style="color:var(--muted)"></span></div>
+      <canvas id="cvDD"></canvas>
     </div>
   </section>
 
@@ -608,8 +613,15 @@ function drawBand(){
   ],{logY:true});
   const st=$('#bandStats');if(st)st.innerHTML=`적합도 R²=<b style="color:var(--text)">${r2.toFixed(3)}</b> · 현재 z=<b style="color:var(--text)">${z>=0?'+':''}${z.toFixed(2)}σ</b> · 추세선 대비 백분위 <b style="color:var(--text)">${Math.round(pct*100)}</b> ${pct<.35?'<span class="up">저평가</span>':pct>.7?'<span class="down">과열</span>':'<span class="flat">중립</span>'}`;
 }
+function drawDrawdown(){
+  const c=S.week.c;let peak=-Infinity;
+  const dd=c.map(v=>{if(v>peak)peak=v;return (v/peak-1)*100;});
+  lineChart($('#cvDD'),[{label:'드로다운(%)',color:css('--bear'),values:dd,w:1.8}],{logY:false});
+  const cur=dd[dd.length-1],mx=Math.min(...dd);
+  const st=$('#ddStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(1)}%</b> · 역대 최대 <b style="color:var(--text)">${mx.toFixed(1)}%</b>`;
+}
 let activeTab='season';
-function drawActiveChart(){if(activeTab==='season')drawHeatmap();else if(activeTab==='cycle')drawCycle();else drawBand();}
+function drawActiveChart(){({season:drawHeatmap,cycle:drawCycle,band:drawBand,dd:drawDrawdown}[activeTab]||(()=>{}))();}
 
 /* ===== orchestration ===== */
 async function refresh(){
