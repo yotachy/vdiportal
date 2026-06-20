@@ -632,7 +632,7 @@ function recompute(){
   const ok=S._ok||{mom:!!S.ethbtc,val:!!S.ma200,fun:!!S.tvl};
   let mom=50,liq=50,fun=50,val=50;
   if(ok.mom){mom=scoreMom();} if(ok.val){val=scoreVal();}
-  liq=scoreLiq();
+  liq=(S.netLiq&&S.realY)?scoreLiq():50;
   if(ok.fun)fun=scoreFun();
   chip('momChip',mom);cardSig('#cMom',mom);setF('momScore',mom+' / 100');
   chip('liqChip',liq);cardSig('#cLiq',liq);setF('liqScore',liq+' / 100');
@@ -671,7 +671,7 @@ function bindTune(){
   const onW=()=>{CFG.w={liq:+$('#wLiq').value/100,mom:+$('#wMom').value/100,fun:+$('#wFun').value/100,val:+$('#wVal').value/100};saveCfg();syncTuneUI();recompute();};
   ['wLiq','wMom','wFun','wVal'].forEach(id=>$('#'+id).addEventListener('input',onW));
   $('#pRoc').addEventListener('input',()=>{CFG.rocMonths=+$('#pRoc').value;saveCfg();syncTuneUI();recompute();});
-  const onS=()=>{CFG.bandSigma={s1:+$('#pS1').value,s2:+$('#pS2').value};saveCfg();syncTuneUI();if(S.band&&activeTab==='band')drawBand();};
+  const onS=()=>{const s1=+$('#pS1').value,s2=Math.max(s1,+$('#pS2').value);CFG.bandSigma={s1,s2};saveCfg();syncTuneUI();if(S.band&&activeTab==='band')drawBand();};
   $('#pS1').addEventListener('input',onS);$('#pS2').addEventListener('input',onS);
   $('#tReset').addEventListener('click',()=>{resetCfg();syncTuneUI();recompute();});
 }
