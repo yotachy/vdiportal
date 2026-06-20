@@ -137,6 +137,15 @@
   .side-brand h1 .em{color:var(--gold)}
   .side-brand p{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45}
 
+  .side .upd{display:flex;flex-direction:column;gap:8px}
+  .side .upd #updatedAt{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+  .snav{display:flex;flex-direction:column;gap:3px}
+  .snav-group{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:10px 2px 3px}
+  .snav-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;cursor:pointer;border:1px solid transparent;background:none;color:var(--muted);font:inherit;font-size:13px;text-align:left;width:100%;transition:background .15s,color .15s}
+  .snav-item:hover{background:var(--panel-2);color:var(--text)}
+  .snav-item.on{background:var(--panel-2);color:var(--text);border-color:var(--line);box-shadow:inset 3px 0 0 var(--gold)}
+  .snav-item .snav-badge{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+
   @media(max-width:880px){.hero{grid-template-columns:1fr}.dims{grid-template-columns:1fr 1fr}}
   @media(max-width:520px){.dims{grid-template-columns:1fr}.gauge-wrap{max-width:220px}}
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -150,20 +159,23 @@
       <h1>스쿱<span class="em">시그널</span></h1>
       <p>가격·온체인·유동성·사이클을 4축으로 점수화하고 주기 패턴까지 한 화면에서.</p>
     </div>
+    <div class="upd">
+      <button class="refresh" id="refreshBtn" type="button"><span class="dot"></span>새로고침</button>
+      <span id="updatedAt">불러오는 중…</span>
+    </div>
+    <nav class="snav" aria-label="주기 패턴">
+      <div class="snav-group">사이클</div>
+      <button class="snav-item on" data-tab="season">계절성 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-tab="cycle">사이클 오버레이 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-tab="halving">반감기 <span class="snav-badge">—</span></button>
+      <div class="snav-group">밸류·리스크</div>
+      <button class="snav-item" data-tab="band">로그 밴드 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-tab="mayer">200주 배수 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-tab="dd">드로다운 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-tab="vol">변동성 <span class="snav-badge">—</span></button>
+    </nav>
   </aside>
   <main class="main">
-
-  <header>
-    <div class="brand">
-      <div class="eyebrow">머니스쿱 · ETH 종합 신호 엔진 v2</div>
-      <h1>스쿱<span class="em">시그널</span> <span style="font-weight:500;color:var(--muted);font-size:15px">ScoopSignal</span></h1>
-      <p>가격·온체인·유동성·사이클을 <strong style="color:var(--text)">4개 축</strong>으로 점수화하고, 주기 패턴까지 한 화면에서 비교합니다. 매크로는 PMI 대신 ETH와 잘 붙는 <strong style="color:var(--text)">순유동성</strong>으로 교체했습니다.</p>
-    </div>
-    <div class="updated">
-      <span id="updatedAt">불러오는 중…</span>
-      <button class="refresh" id="refreshBtn" type="button"><span class="dot"></span>새로고침</button>
-    </div>
-  </header>
 
   <!-- data status -->
   <div class="status" id="status">
@@ -249,16 +261,6 @@
   <!-- PATTERN CHARTS -->
   <section class="charts">
     <div class="sec-head" style="margin-bottom:6px"><h2>주기 패턴</h2><span class="note">과거 반복 패턴과 현재 위치 비교</span></div>
-    <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="season">계절성</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="cycle">사이클 오버레이</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="band">로그 회귀 밴드</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="dd">드로다운</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="halving">반감기</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="vol">변동성</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="mayer">200주 배수</button>
-    </div>
-
     <div class="panel-chart active" data-panel="season">
       <div class="chart-note">월별 수익률(%) — 행=연도, 열=월. <span class="up">초록</span>=상승 <span class="down">빨강</span>=하락. 맨 아래 <b>평균</b> 행이 계절성입니다.</div>
       <div class="hm" id="heatmap"></div>
@@ -738,13 +740,13 @@ function recompute(){
   if(S.month)drawActiveChart();
 }
 
-/* tabs */
-document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected','false'));
-  b.setAttribute('aria-selected','true');activeTab=b.dataset.tab;
-  document.querySelectorAll('.panel-chart').forEach(p=>p.classList.toggle('active',p.dataset.panel===activeTab));
+function selectPattern(tab){
+  activeTab=tab;
+  document.querySelectorAll('.snav-item').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  document.querySelectorAll('.panel-chart').forEach(p=>p.classList.toggle('active',p.dataset.panel===tab));
   if(S.month)drawActiveChart();
-}));
+}
+document.querySelectorAll('.snav-item').forEach(b=>b.addEventListener('click',()=>selectPattern(b.dataset.tab)));
 let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.month&&activeTab!=='season')drawActiveChart();},200);});
 
 function syncTuneUI(){
