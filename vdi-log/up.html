@@ -264,6 +264,9 @@
   .goal-done{box-shadow:inset 0 0 0 1.5px var(--st-fix);}
   .goal-foot-line{margin-top:4px;}
   .goal-foot-line .done{color:var(--st-fix); font-family:var(--font-bold);}
+  .goal-foot-line .fl-up{color:var(--st-fix); font-family:var(--font-bold);}      /* 목표 초과(+) */
+  .goal-foot-line .fl-down{color:#c0392b; font-family:var(--font-bold);}          /* 목표 미달(-) */
+  html[data-theme="dark"] .goal-foot-line .fl-down{color:#e8786b;}
   .gs-ends .gs-inc.done,.gs-ends .gs-all.done{color:var(--st-fix);}
   .tc-sub2{margin-top:8px; font-size:.78rem; color:#aebbcf;}
   .goal-head-act{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
@@ -758,7 +761,8 @@ function renderGoal(){
     const allW=pct(all), incW=pct(inc);
     const anchorRight=goalLeft>72, anchorLeft=goalLeft<10;
     const pctInc=target>0?inc/target*100:0, pctAll=target>0?all/target*100:0;
-    const footLine=(label,amt)=>{const r=target-amt; return `<div class="goal-foot-line">${label?`<b>${label}</b> `:""}${r>0?`목표까지 ${fmtWon(r)} 남음 · ${korUnit(r)}`:`<span class="done">🎉 목표 달성 (+${fmtWon(-r)})</span>`}</div>`;};
+    const eokSign=v=>(v>=0?"+":"-")+(Math.abs(v)/1e8).toFixed(1)+"억";   // 목표 대비 차액(억, 부호)
+    const footLine=(label,amt)=>{const d=amt-target; return `<div class="goal-foot-line"><b>${label}</b> : <span class="${d>=0?"fl-up":"fl-down"}">${eokSign(d)}</span></div>`;};
     // 5억 단위 눈금자(라벨이 겹치지 않게 최대 7개만 표시, 사이는 보조 눈금만)
     const maxTick=Math.floor(scaleMax/STEP);
     let axis="";
@@ -791,7 +795,7 @@ function renderGoal(){
         ${ends}
         ${axis}
       </div>
-      ${target>0?`<div class="goal-foot">${hasExcl?footLine("가능자산",inc)+footLine("전체자산",all):footLine("",inc)}</div>`:(editable?`<div class="goal-hint-drag">막대의 <b>🎯 목표선</b>을 좌우로 드래그해 목표 매수가를 설정하세요 <span style="opacity:.8">(1억원 단위 · 더블클릭 시 직접 입력)</span></div>`:"")}`;
+      ${target>0?`<div class="goal-foot">${hasExcl?footLine("가능자산",inc)+footLine("전체자산",all):footLine("보유자산",inc)}</div>`:(editable?`<div class="goal-hint-drag">막대의 <b>🎯 목표선</b>을 좌우로 드래그해 목표 매수가를 설정하세요 <span style="opacity:.8">(1억원 단위 · 더블클릭 시 직접 입력)</span></div>`:"")}`;
   }else{
     viz=`<div class="goal-empty">목표 매수가를 설정하면 달성률을 시각화합니다.</div>`;
   }
