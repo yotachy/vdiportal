@@ -239,6 +239,7 @@
       <button class="tab" role="tab" aria-selected="false" data-tab="dd">드로다운</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="halving">반감기</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="vol">변동성</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="mayer">200주 배수</button>
     </div>
 
     <div class="panel-chart active" data-panel="season">
@@ -264,6 +265,10 @@
     <div class="panel-chart" data-panel="vol">
       <div class="chart-note">주간 수익률 기반 실현 변동성(연율 %). 낮은 구간=압축(큰 움직임 전조로 자주 거론). <span id="volStats" style="color:var(--muted)"></span></div>
       <canvas id="cvVol"></canvas>
+    </div>
+    <div class="panel-chart" data-panel="mayer">
+      <div class="chart-note">현재가 / 200주 이동평균 배수(메이어 멀티플). 밴드는 ETH 자체 분포 기준(저평가 하위 20%·과열 상위 20%). <span id="mayerStats" style="color:var(--muted)"></span></div>
+      <canvas id="cvMayer"></canvas>
     </div>
   </section>
 
@@ -661,8 +666,22 @@ function drawVol(){
   if(!valid.length){const e=$('#volStats');if(e)e.innerHTML='데이터 부족';return;}
   const st=$('#volStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(0)}%</b> ${prMeter(pr,sigOf((1-pr)*100))} <span style="color:var(--faint)">(낮을수록 압축)</span>`;
 }
+function drawMayer(){
+  const mh=(S.ma200&&S.ma200.hist)?S.ma200.hist:[];
+  if(!mh.length){const e=$('#mayerStats');if(e)e.innerHTML='데이터 부족';lineChart($('#cvMayer'),[],{logY:false});return;}
+  const sorted=[...mh].sort((a,b)=>a-b),q=p=>sorted[Math.floor(clamp(p,0,1)*(sorted.length-1))];
+  const lo=q(0.20),hi=q(0.80);
+  lineChart($('#cvMayer'),[
+    {label:'과열(상위20%)',color:css('--bear'),values:mh.map(()=>hi),w:0.8,dash:[5,4]},
+    {label:'저평가(하위20%)',color:css('--bull'),values:mh.map(()=>lo),w:0.8,dash:[5,4]},
+    {label:'200주 배수',color:css('--gold'),values:mh,w:1.8}
+  ],{logY:false});
+  const cur=mh[mh.length-1],pr=pctRank(mh,cur);
+  const lab=pr<0.2?'<span class="up">저평가</span>':pr>0.8?'<span class="down">과열</span>':'<span class="flat">중립</span>';
+  const st=$('#mayerStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(2)}×</b> · 분위 <b style="color:var(--text)">${Math.round(pr*100)}</b> ${lab}`;
+}
 let activeTab='season';
-function drawActiveChart(){({season:drawHeatmap,cycle:drawCycle,band:drawBand,dd:drawDrawdown,halving:drawHalving,vol:drawVol}[activeTab]||(()=>{}))();}
+function drawActiveChart(){({season:drawHeatmap,cycle:drawCycle,band:drawBand,dd:drawDrawdown,halving:drawHalving,vol:drawVol,mayer:drawMayer}[activeTab]||(()=>{}))();}
 
 /* ===== orchestration ===== */
 async function refresh(){
