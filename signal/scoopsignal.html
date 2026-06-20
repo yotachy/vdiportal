@@ -237,6 +237,7 @@
       <button class="tab" role="tab" aria-selected="false" data-tab="cycle">사이클 오버레이</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="band">로그 회귀 밴드</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="dd">드로다운</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="halving">반감기</button>
     </div>
 
     <div class="panel-chart active" data-panel="season">
@@ -254,6 +255,10 @@
     <div class="panel-chart" data-panel="dd">
       <div class="chart-note">전고점(ATH) 대비 낙폭(%). 0 아래로 깊을수록 약세장 바닥권에 가깝습니다. <span id="ddStats" style="color:var(--muted)"></span></div>
       <canvas id="cvDD"></canvas>
+    </div>
+    <div class="panel-chart" data-panel="halving">
+      <div class="chart-note">BTC 반감기 시점을 100으로 맞춰 겹친 사이클(로그). 과거=회색, <span style="color:var(--gold)">현재(2024)=골드</span>. x축=반감기 후 경과(주). <span id="hvStats" style="color:var(--muted)"></span></div>
+      <canvas id="cvHalving"></canvas>
     </div>
   </section>
 
@@ -620,8 +625,24 @@ function drawDrawdown(){
   const cur=dd[dd.length-1],mx=Math.min(...dd);
   const st=$('#ddStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(1)}%</b> · 역대 최대 <b style="color:var(--text)">${mx.toFixed(1)}%</b>`;
 }
+function drawHalving(){
+  const t=S.week.t,c=S.week.c;
+  const halvings=[['2016-07-09','#5C6875'],['2020-05-11','#8B98A6'],['2024-04-20',css('--gold')]];
+  const idxNear=tt=>{let bi=-1,bd=1e18;for(let i=0;i<t.length;i++){const d=Math.abs(t[i]-tt);if(d<bd){bd=d;bi=i;}}return bi;};
+  const ds=[];let curWeeks=null;
+  halvings.forEach(([d,cl],k)=>{
+    const tt=Date.parse(d); if(tt<t[0]-7*864e5)return; // 데이터 시작 이전 반감기는 생략
+    const start=idxNear(tt); if(start<0)return;
+    const base=c[start],vals=[];for(let i=start;i<c.length;i++)vals.push(c[i]/base*100);
+    const last=k===halvings.length-1;
+    ds.push({label:d.slice(0,4)+' 반감기',color:cl,values:vals,w:last?2.4:1.5});
+    if(last)curWeeks=c.length-1-start;
+  });
+  lineChart($('#cvHalving'),ds,{logY:true});
+  const st=$('#hvStats');if(st)st.innerHTML=curWeeks!=null?`현재 <b style="color:var(--text)">반감기 후 ${curWeeks}주</b> (2024-04-20 기준)`:'';
+}
 let activeTab='season';
-function drawActiveChart(){({season:drawHeatmap,cycle:drawCycle,band:drawBand,dd:drawDrawdown}[activeTab]||(()=>{}))();}
+function drawActiveChart(){({season:drawHeatmap,cycle:drawCycle,band:drawBand,dd:drawDrawdown,halving:drawHalving}[activeTab]||(()=>{}))();}
 
 /* ===== orchestration ===== */
 async function refresh(){
