@@ -709,7 +709,7 @@ let scope="dash"; // "dash" | "all" | <catId>
 function loadScope(){ try{ const s=localStorage.getItem(NAV_KEY); if(s) scope=s; }catch(e){} if(scope!=="dash"&&scope!=="all"&&!catById2(scope)&&scope.indexOf("owner:")!==0&&scope.indexOf("inst:")!==0) scope="dash"; }
 function catById2(id){ return CATS.some(c=>c.id===id); }
 const isMobile=()=>window.innerWidth<=760;
-function navTo(s){ scope=s; try{ localStorage.setItem(NAV_KEY,s); }catch(e){} if(typeof colSort!=="undefined")colSort=null; const ls=document.getElementById("listSearch"); if(ls) ls.value=""; if(isMobile()) document.body.classList.add("side-collapsed"); render(); }
+function navTo(s, fromPop){ const prev=scope; scope=s; try{ localStorage.setItem(NAV_KEY,s); }catch(e){} if(typeof colSort!=="undefined")colSort=null; const ls=document.getElementById("listSearch"); if(ls) ls.value=""; if(isMobile()) document.body.classList.add("side-collapsed"); render(); if(!fromPop && s!==prev) _histPush({}); }
 
 /* ===================== 렌더: 사이드바 ===================== */
 const DASH_ICO=`<svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="14" width="8" height="7" rx="1.5"/></svg>`;
@@ -1231,9 +1231,10 @@ function openModal(id){
   document.getElementById("fInclude").checked=it?isIncluded(it):true;
   updateStockFields();  // 주식이면 평가금액 자동계산·읽기전용·#티커 잠금 처리 포함
   m.classList.add("open");
+  _histPush({modal:true});  // 뒤로가기로 모달 닫기
   if(!isMobile()) setTimeout(()=>document.getElementById("fName").focus(),30);  // 모바일은 자동 포커스 끔(키보드가 폼 가림 방지)
 }
-function closeModal(){ document.getElementById("modalBg").classList.remove("open"); editingId=null; }
+function closeModal(){ document.getElementById("modalBg").classList.remove("open"); editingId=null; if(_navReady && history.state && history.state.modal){ _suppressPop=true; try{ history.back(); }catch(e){ _suppressPop=false; } } }
 function updateAmountKor(){
   const v=rawNum("fAmount");
   const stock=isStockCat(document.getElementById("fCat").value);
@@ -1356,6 +1357,20 @@ function applySidebar(){ let on=false; try{ on=localStorage.getItem(SIDE_KEY)===
 
 /* ===================== 초기화 / 이벤트 ===================== */
 loadData(); loadScope(); fillCatSelect(); initTheme(); applySidebar(); applyLockUI(); render();
+
+// ===== 인앱 뒤로가기 (History API): 모달 닫기 → 이전 뷰 → (더 없으면) 종료 =====
+let _navReady=false, _suppressPop=false;
+function _histPush(extra){ if(!_navReady) return; try{ history.pushState(Object.assign({app:1,scope:scope}, extra||{}), ""); }catch(e){} }
+try{ history.replaceState({app:1,scope:scope}, ""); }catch(e){}
+_navReady=true;
+window.addEventListener("popstate",function(e){
+  if(_suppressPop){ _suppressPop=false; return; }
+  const mb=document.getElementById("modalBg");
+  if(mb && mb.classList.contains("open")){ mb.classList.remove("open"); editingId=null; return; }  // 1) 모달 열림 → 닫기
+  const st=e.state;
+  if(st && st.scope){ if(st.scope!==scope) navTo(st.scope,true); }  // 2) 이전 뷰 복원
+  // st 없으면 더 돌아갈 인앱 상태 없음 → 기본 동작(이전 페이지/앱 종료)
+});
 updateFxBadge(); fetchRate();    // 환율 표시 + 실시간 조회
 (function(){ const qi=document.getElementById("quoteInterval"); if(qi) qi.value=String(quoteIntervalMs); })();
 refreshQuotes(); startQuoteTimer();  // 티커(#) 종목 현재가 자동 조회 + 주기 갱신
