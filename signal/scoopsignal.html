@@ -279,12 +279,13 @@
       <h4>축 구성</h4>
       <p><code>유동성</code> 순유동성 추세(Fed자산−RRP−TGA) + 실질금리(↓가점) + 달러(↓가점)<br>
       <code>모멘텀</code> ETH/BTC 50일선 이격·기울기 + 3개월 가격 ROC<br>
-      <code>펀더멘털</code> ETH DeFi TVL·스테이블·L2 TVL 30일 증감 (+검증자 큐)<br>
+      <code>펀더멘털</code> ETH DeFi TVL·스테이블·L2 TVL 30d(점수)·스테이킹−10Y 스프레드 (+검증자 큐)<br>
       <code>밸류</code> 200주선 배수 + 로그 회귀 밴드 위치 (저평가일수록 가점)</p>
       <h4>구간</h4>
       <p>0–27 약세 지속 · 28–42 약세 우위 · 43–57 중립 · 58–71 강세 전환 · 72–100 강세</p>
       <h4>데이터 (모두 무료)</h4>
-      <p>Binance(가격·klines) · DeFiLlama(TVL·스테이블·L2) · Frankfurter/ECB(달러) · FRED(순유동성·실질금리, 키+프록시) · beaconcha.in(검증자 큐, 베스트에포트)</p>
+      <p>Binance(가격·klines) · DeFiLlama(TVL·스테이블·L2·L2 히스토리) · Frankfurter/ECB(달러) · FRED(순유동성·실질금리·DGS10, 키+프록시) · beaconcha.in(검증자 큐·ETH.STORE APR, 베스트에포트)</p>
+      <p>가중치·ROC 기간·밴드 σ폭은 상단 튜닝 패널에서 조정하며 브라우저(localStorage)에 저장됩니다.</p>
       <h4>임계값 보정 (실제 차트 기준)</h4>
       <p>모멘텀·펀더멘털·밸류 점수는 고정 임계값이 아니라 <b style="color:var(--text)">ETH 자체 히스토리의 퍼센타일</b>로 환산합니다. "70점"은 과거 분포 대비 상위 30% 수준이라는 뜻이라, 차트 실제 분포에 자동으로 맞춰집니다. 밸류 밴드는 ETH 제네시스 기준 <b style="color:var(--text)">로그-로그 파워로 회귀</b>(주간)로 R²·z·잔차 퍼센타일을 계산합니다.</p>
       <p style="color:var(--faint)">유동성(매크로)은 히스토리가 짧아 레짐 기준 고정 임계값을 씁니다. 전부 <code>scoreMom/Liq/Fun/Val</code>에서 조정 가능합니다.</p>

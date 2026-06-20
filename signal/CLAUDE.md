@@ -40,8 +40,9 @@ scoopsignal.html          # 현재 전부 (style + script 인라인)
 
 ## 4. 아키텍처 — 데이터 흐름
 
-- 전역 상태는 `S` 객체 하나. localStorage/세션 스토리지 미사용(매 사이클 메모리에서 갱신).
-- `refresh()`가 오케스트레이터: `Promise.allSettled([loadBinance, loadLlama, loadDollar, loadFred, loadBeacon])` → 각 소스 독립적으로 성공/실패 → 점수 계산 → 렌더 → 상태 표시등 갱신. **60초 자동 갱신** + 수동 새로고침 버튼.
+- 전역 상태는 `S` 객체 하나, 전역 설정은 `CFG` 객체(localStorage 저장). 매 사이클 `S`는 메모리에서 갱신.
+- `refresh()`가 오케스트레이터: `Promise.allSettled([loadBinance, loadLlama, loadDollar, loadFred, loadBeacon])` → 각 소스 독립적으로 성공/실패 → `recompute()` 호출 → 상태 표시등 갱신. **60초 자동 갱신** + 수동 새로고침 버튼.
+- `recompute()`는 캐시된 `S`와 `CFG`만으로 점수 계산·렌더를 수행(재fetch 없음). 튜닝 패널 조작 시 `recompute()`만 호출하므로 네트워크 요청 없이 즉시 반영.
 - **그레이스풀 디그레이드 원칙:** 한 소스가 죽어도 나머지는 동작. 점수 함수는 데이터 없으면 기본값(50) 또는 fallback 사용.
 
 ## 5. 데이터 소스 (전부 무료)
@@ -49,10 +50,10 @@ scoopsignal.html          # 현재 전부 (style + script 인라인)
 | 소스 | 엔드포인트 | 가져오는 것 | 상태 |
 |---|---|---|---|
 | Binance | `ticker/24hr`, `klines`(ETHBTC 1d×500, ETHUSDT 1w×520·1M×130) | 가격, ETH/BTC, 사이클·계절성·밸류밴드용 히스토리 | 무료·노키·CORS ✅ (한국에서 451 지오블록 가능 ⚠️) |
-| DeFiLlama | `api.llama.fi/v2/historicalChainTvl/Ethereum`, `/v2/chains`, `stablecoins.llama.fi/stablecoincharts/Ethereum` | ETH DeFi TVL, L2 TVL 합, ETH 스테이블 공급 | 무료·노키·CORS ✅ (가장 안정적) |
+| DeFiLlama | `api.llama.fi/v2/historicalChainTvl/Ethereum`, `/v2/chains`, `stablecoins.llama.fi/stablecoincharts/Ethereum`, `/v2/historicalChainTvl/{chain}` (Arbitrum·Base·OP Mainnet) | ETH DeFi TVL, L2 TVL 합(표시), L2 TVL 히스토리(Arbitrum·Base·OP Mainnet 3개 합산, 점수용), ETH 스테이블 공급 | 무료·노키·CORS ✅ (가장 안정적) |
 | Frankfurter(ECB) | `latest`, `{start}..{end}` (USD→EUR,JPY,GBP,CAD,SEK,CHF) | 달러강도(DXY 근사, `dxyFrom()` 공식 계산) | 무료·노키·CORS ✅ |
-| FRED | `{FRED_PROXY}/series/observations` (DFII10, WALCL, RRPONTSYD, WTREGEN) | 10Y 실질금리, 순유동성(WALCL−RRP−TGA) | 키 + **CORS 프록시 필요** ⚠️ (아래 §9) |
-| beaconcha.in | `api/v1/validators/queue` | 검증자 입금/출금 큐 | 베스트에포트 (CORS 막히면 "연결 필요" 표시) ⚠️ |
+| FRED | `{FRED_PROXY}/series/observations` (DFII10, WALCL, RRPONTSYD, WTREGEN, **DGS10**) | 10Y 실질금리, 순유동성(WALCL−RRP−TGA), **명목 10Y 국채수익률(DGS10)** | 키 + **CORS 프록시 필요** ⚠️ (아래 §9). DGS10 미연결 시 4.3% 예시값 + `예시` 배지 |
+| beaconcha.in | `api/v1/validators/queue`, **`api/v1/ethstore/latest`** | 검증자 입금/출금 큐, **ETH.STORE APR(스테이킹 수익률)** | 베스트에포트 (CORS 막히면 "연결 필요" 표시) ⚠️. APR 실패 시 3.0% 예시값 + `예시` 배지 |
 
 ## 6. 점수 산식 (스쿱 기준)
 
@@ -63,7 +64,7 @@ ScoopSignal = 0.30·유동성 + 0.25·모멘텀 + 0.25·펀더멘털 + 0.20·밸
 **축 구성**
 - **모멘텀** `scoreMom` = 0.6·(ETH/BTC 50일선 이격 백분위, +기울기 보정) + 0.4·(3개월 ROC 백분위)
 - **유동성** `scoreLiq` = 0.4·순유동성 추세 + 0.35·실질금리(↓가점) + 0.25·달러(↓가점) — *고정 임계값(lerp)*
-- **펀더멘털** `scoreFun` = mean(ETH TVL 30d 백분위, 스테이블 30d 백분위, 검증자 큐) 
+- **펀더멘털** `scoreFun` = mean(ETH TVL 30d 백분위, 스테이블 30d 백분위, [L2 TVL 30d 백분위(히스토리 가용 시)], [스테이킹APR−10Y 스프레드 lerp 점수], 검증자 큐)
 - **밸류** `scoreVal` = 0.5·(1−200주배수 백분위) + 0.5·(1−파워로 잔차 백분위) — *저평가일수록 가점*
 
 **임계값 보정 방식 (핵심):**
@@ -77,7 +78,9 @@ ScoopSignal = 0.30·유동성 + 0.25·모멘텀 + 0.25·펀더멘털 + 0.20·밸
 ## 7. 주요 함수 맵 (어디를 고칠지)
 
 - **데이터 추가/수정:** `loadBinance` `loadLlama` `loadDollar` `loadFred` `loadBeacon` → `S`에 저장
-- **점수 튜닝:** `scoreMom` `scoreLiq` `scoreFun` `scoreVal` (임계값·가중치) / 종합 가중치는 `refresh()` 내 `score=` 라인
+- **점수 튜닝:** `scoreMom` `scoreLiq` `scoreFun` `scoreVal` (임계값·가중치) / 종합 가중치는 `recompute()` 내 `normW()` 반환값 사용
+- **오케스트레이션:** `refresh()`(fetch→recompute 호출), `recompute()`(캐시 S+CFG로 점수·렌더)
+- **튜닝 설정:** `loadCfg`/`saveCfg`/`resetCfg`(localStorage `scoopsignal_cfg` 읽기/쓰기/초기화), `normW()`(가중치 합=1 정규화), `syncTuneUI`(슬라이더↔CFG 동기화), `bindTune`(이벤트 바인딩)
 - **통계 헬퍼:** `pctRank` `rollChanges` `fitPower` `sma` `linreg`(미사용 잔존)
 - **시각화:** `buildGauge`/`renderGauge`, `renderRadar`, `renderQuad`(사이클 시계), `lineChart`(canvas 공용), `drawHeatmap`/`drawCycle`/`drawBand`
 - **UI 헬퍼:** `prMeter(pct, sig)`(분위 막대), `chip`/`cardSig`, `verdict`, `setStatus`
@@ -105,7 +108,7 @@ ScoopSignal = 0.30·유동성 + 0.25·모멘텀 + 0.25·펀더멘털 + 0.20·밸
   }}
   ```
 - **하드코딩 값:** 사이클 바닥 `2018-12-15`/`2022-06-18`(`drawCycle`), 파워로 제네시스 `2015-07-30`. 새 사이클 추가 시 갱신.
-- localStorage 미사용(정적 사이트에선 써도 무방하나 현재 불필요).
+- **localStorage:** 튜닝 설정 한정으로 `scoopsignal_cfg` 키를 사용. 그 외 데이터는 미저장(매 사이클 메모리에서 갱신).
 
 ## 10. 설정값 위치
 
@@ -115,16 +118,24 @@ const FRED_API_KEY="";   // 무료 키
 const FRED_PROXY="";     // 위 워커 URL 루트
 const FALLBACK={ realYield:1.9, realYieldPrev:1.9, netLiqChg:-1.0 };
 ```
-종합 가중치 → `refresh()`의 `score=` 라인. 축별 임계값 → 각 `score*` 함수.
+**런타임 튜닝 설정 — `CFG` 객체** (localStorage `scoopsignal_cfg`에 저장·복원):
+```js
+CFG = {
+  w: { liq:0.30, mom:0.25, fun:0.25, val:0.20 },  // 종합 가중치 (normW()로 정규화)
+  rocMonths: 3,                                      // ROC 기간(1~6개월)
+  bandSigma: { s1:1, s2:2 }                         // 로그 회귀 밴드 σ폭
+}
+```
+종합 가중치 → `recompute()` 내 `normW()`. 축별 임계값 → 각 `score*` 함수.
 
 ## 11. 로드맵 / TODO
 
 - [ ] **강세 전환 알림**(ScoopSignal ≥58): 텔레그램/이메일. 정적 사이트라 별도 워커 또는 GitHub Actions 크론으로 주기 평가 → 푸시.
 - [ ] **백테스트/적중률 패널**: 신호 구간과 이후 ETH 수익률의 실제 상관·히트레이트 노출(신뢰 강화).
 - [ ] **순발행률(ultrasound)**: Etherscan(무료 키)으로 발행−소각 → 공급 인플레/디플레율. 펀더멘털 축에 편입.
-- [ ] **스테이킹 수익률 − 10Y 스프레드**: ETH 고유의 "무위험금리 경쟁" 지표(beaconcha.in APR + FRED 10Y).
-- [ ] L2 TVL을 표시용에서 **점수 항목**으로 승격(히스토리 fetch 필요).
-- [ ] 가중치/σ폭/ROC기간 등 튜닝 패널(코드 수정 없이 조정).
+- [x] **스테이킹 수익률 − 10Y 스프레드**: ETH 고유의 "무위험금리 경쟁" 지표(beaconcha.in ETH.STORE APR + FRED DGS10). lerp 점수로 펀더멘털 축에 편입 완료.
+- [x] L2 TVL을 표시용에서 **점수 항목**으로 승격(Arbitrum·Base·OP Mainnet 3개 히스토리 fetch → 30d 백분위 점수화 완료).
+- [x] 가중치/σ폭/ROC기간 등 튜닝 패널(코드 수정 없이 조정). `<details class="tune">` + localStorage `scoopsignal_cfg` 완료.
 
 ## 12. 사용자 선호 (작업 시 참고)
 
