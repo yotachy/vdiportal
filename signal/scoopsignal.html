@@ -128,13 +128,30 @@
   .treset{appearance:none;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer;align-self:flex-start}
   .treset:hover{border-color:var(--gold);color:var(--gold)}
 
+  /* app shell */
+  .app{display:grid;grid-template-columns:248px 1fr;gap:18px;max-width:1180px;margin:0 auto;align-items:start}
+  .main{min-width:0}
+  .side{position:sticky;top:14px;align-self:start;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 14px;display:flex;flex-direction:column;gap:14px}
+  .side-brand .eyebrow{font-size:10px}
+  .side-brand h1{font-size:19px;font-weight:800;letter-spacing:-.01em;margin-top:3px}
+  .side-brand h1 .em{color:var(--gold)}
+  .side-brand p{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+
   @media(max-width:880px){.hero{grid-template-columns:1fr}.dims{grid-template-columns:1fr 1fr}}
   @media(max-width:520px){.dims{grid-template-columns:1fr}.gauge-wrap{max-width:220px}}
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="app">
+  <aside class="side">
+    <div class="side-brand">
+      <div class="eyebrow">머니스쿱 · ETH 신호 엔진 v2</div>
+      <h1>스쿱<span class="em">시그널</span></h1>
+      <p>가격·온체인·유동성·사이클을 4축으로 점수화하고 주기 패턴까지 한 화면에서.</p>
+    </div>
+  </aside>
+  <main class="main">
 
   <header>
     <div class="brand">
@@ -317,6 +334,7 @@
     스쿱시그널은 <strong style="color:var(--muted)">투자 권유가 아닌 참고용 신호</strong>입니다. 판단과 책임은 본인에게 있습니다.<br>
     © 머니스쿱 · moneyscoop.co.kr
   </footer>
+</main>
 </div>
 
 <script>
