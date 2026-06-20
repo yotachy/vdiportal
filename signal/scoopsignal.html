@@ -218,6 +218,7 @@
         <div class="mrow"><span class="k">ETH DeFi TVL 30d</span><span class="v" data-f="tvlVal">—</span></div>
         <div class="mrow"><span class="k">스테이블(ETH) 30d</span><span class="v" data-f="stVal">—</span></div>
         <div class="mrow"><span class="k">L2 TVL 30d</span><span class="v" data-f="l2Val">—</span></div>
+        <div class="mrow"><span class="k">스테이킹−10Y 스프레드</span><span class="v" data-f="spVal">—</span></div>
         <div class="mrow"><span class="k">검증자 큐</span><span class="v" data-f="qVal">—</span></div>
       </div>
       <div class="card" data-sig="load" id="cVal">
@@ -479,10 +480,11 @@ async function loadDollar(){
 }
 
 async function loadFred(){
-  if(!FRED_API_KEY||!FRED_PROXY){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};S.netLiq={chg:FALLBACK.netLiqChg,fb:true};return;}
+  if(!FRED_API_KEY||!FRED_PROXY){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};S.netLiq={chg:FALLBACK.netLiqChg,fb:true};S.tenY={val:4.3,fb:true};return;}
   const base=`${FRED_PROXY}/series/observations`,q=(id,l)=>`${base}?series_id=${id}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=${l}`;
   const num=o=>o.observations.filter(x=>x.value!=='.').map(x=>+x.value);
   try{const r=num(await jget(q('DFII10',25)));S.realY={val:r[0],prev:r[Math.min(20,r.length-1)],fb:false};}catch(e){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};}
+  try{const r=num(await jget(q('DGS10',5)));S.tenY={val:r[0],fb:false};}catch(e){S.tenY={val:4.3,fb:true};}
   try{
     const[w,rrp,tga]=await Promise.all([jget(q('WALCL',14)),jget(q('RRPONTSYD',60)),jget(q('WTREGEN',14))]);
     const W=num(w),R=num(rrp),T=num(tga);
@@ -496,6 +498,11 @@ async function loadBeacon(){
     const q=await jget('https://beaconcha.in/api/v1/validators/queue');
     S.queue={enter:q.data.beaconchain_entering,exit:q.data.beaconchain_exiting};setStatus('beacon','ok');
   }catch(e){S.queue=null;setStatus('beacon','warn');}
+  try{
+    const a=await jget('https://beaconcha.in/api/v1/ethstore/latest');
+    const apr=a&&a.data&&(a.data.apr!=null?a.data.apr:a.data.cl_apr);
+    const v=+apr; S.staking={apr:isFinite(v)?(v<=1?v*100:v):3.0,fb:!isFinite(v)};
+  }catch(e){S.staking={apr:3.0,fb:true};}
 }
 
 /* ===== SCORING ===== */
@@ -532,6 +539,10 @@ function scoreFun(){
   if(S.l2&&S.l2.hist){const lp=pctRank(S.l2.hist,S.l2.chg30);parts.push(lp*100);
     setF('l2Val',`$${(S.l2.now/1e9).toFixed(1)}B <span class="d ${S.l2.chg30>=0?'up':'down'}">${fmtPct(S.l2.chg30)}</span>${prMeter(lp,sigOf(lp*100))}`);}
   else if(S.l2){setF('l2Val',`$${(S.l2.now/1e9).toFixed(1)}B`);}
+  if(S.staking&&S.tenY){const spread=S.staking.apr-S.tenY.val;
+    const sS=clamp(lerp([[-3,15],[-1,35],[0,50],[1.5,70],[3,88]],spread),0,100);parts.push(sS);
+    const fb=S.staking.fb||S.tenY.fb;
+    setF('spVal',`<span class="${spread>=0?'up':'down'}">${spread>=0?'+':''}${spread.toFixed(1)}%p</span>${fb?'<span class="badge">예시</span>':''}`);}
   if(S.queue){const net=S.queue.enter-S.queue.exit;parts.push(net>0?68:42);
     setF('qVal',`<span class="${net>=0?'up':'down'}">입${S.queue.enter} / 출${S.queue.exit}</span>`);}
   else setF('qVal','<span class="badge">연결 필요</span>');
@@ -609,6 +620,8 @@ async function refresh(){
   setStatus('fred',(S.netLiq&&!S.netLiq.fb)?'ok':'warn');
   if(!S.realY){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};}
   if(!S.netLiq){S.netLiq={chg:FALLBACK.netLiqChg,fb:true};}
+  if(!S.staking){S.staking={apr:3.0,fb:true};}
+  if(!S.tenY){S.tenY={val:4.3,fb:true};}
   S._ok={mom:r[0].status==='fulfilled',val:r[0].status==='fulfilled',fun:r[1].status==='fulfilled'};
   recompute();
   $('#updatedAt').textContent='업데이트 '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
