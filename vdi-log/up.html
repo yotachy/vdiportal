@@ -153,26 +153,28 @@
   .atable th.th-sort.on{color:var(--gold-strong);}
   /* 모바일 카드형 목록 */
   .acard-list{display:flex; flex-direction:column;}
-  .acard{border-bottom:1px solid var(--line-faint); padding:13px 14px;}
+  .acard{border-bottom:1px solid var(--line-faint); padding:9px 13px;}
   .acard:last-child{border-bottom:none;}
   .acard.off{opacity:.62;}
-  .acard-main{display:flex; justify-content:space-between; gap:12px; align-items:flex-start; cursor:pointer; border-radius:8px;}
+  .acard-main{display:flex; justify-content:space-between; gap:10px; align-items:flex-start; cursor:pointer; border-radius:8px;}
   .acard-main:active{background:var(--line-faint);}
   .acard-l{min-width:0; flex:1;}
-  .acard-name{font-family:var(--font-bold); font-size:.96rem; color:var(--ink); margin-top:4px; word-break:break-word; line-height:1.3;}
+  .acard-name{font-family:var(--font-bold); font-size:.9rem; color:var(--ink); line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .acard.off .acard-name{color:var(--ink-faint);}
-  .acard-sub{font-size:.78rem; color:var(--ink-faint); margin-top:4px; line-height:1.5; word-break:break-word;}
-  .acard-amt{font-family:var(--font-bold); font-size:1.02rem; white-space:nowrap; font-variant-numeric:tabular-nums; flex:none;}
+  .acard-sub{font-size:.75rem; color:var(--ink-faint); margin-top:2px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .acard-cat{color:var(--ink-soft); font-family:var(--font-bold);}
+  .acard-sub .area-chip-sm{display:inline-block; vertical-align:middle; position:relative; top:-1px; margin-right:4px;}
+  .acard-amt{font-family:var(--font-bold); font-size:.96rem; white-space:nowrap; font-variant-numeric:tabular-nums; flex:none;}
   .acard.off .acard-amt{color:var(--ink-faint); text-decoration:line-through;}
-  .acard-foot{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:11px;}
-  .acard-inc{display:inline-flex; align-items:center; gap:8px; font-size:.82rem; color:var(--ink-soft); cursor:pointer; user-select:none;}
-  .acard-inc input{width:20px; height:20px; accent-color:var(--gold-strong); flex:none;}
+  .acard-foot{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:7px;}
+  .acard-inc{display:inline-flex; align-items:center; gap:7px; font-size:.78rem; color:var(--ink-soft); cursor:pointer; user-select:none;}
+  .acard-inc input{width:18px; height:18px; accent-color:var(--gold-strong); flex:none;}
   .acard-acts{display:flex; gap:6px;}
-  .acard-acts button{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); width:40px; height:40px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;}
-  .acard-acts button svg{width:18px; height:18px;}
+  .acard-acts button{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); width:33px; height:33px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;}
+  .acard-acts button svg{width:16px; height:16px;}
   .acard-acts .del:active{background:rgba(192,57,43,.14); color:#c0392b;}
-  .acard-allbar{display:flex; align-items:center; gap:9px; padding:11px 14px; border-bottom:1px solid var(--line); background:var(--line-faint); font-size:.84rem; font-family:var(--font-bold); color:var(--ink-soft); cursor:pointer;}
-  .acard-allbar input{width:20px; height:20px; accent-color:var(--gold-strong);}
+  .acard-allbar{display:flex; align-items:center; gap:8px; padding:8px 13px; border-bottom:1px solid var(--line); background:var(--line-faint); font-size:.8rem; font-family:var(--font-bold); color:var(--ink-soft); cursor:pointer;}
+  .acard-allbar input{width:18px; height:18px; accent-color:var(--gold-strong);}
   #sideBackdrop{display:none;}
 
   /* ===================== 모바일 반응형 ===================== */
@@ -1033,27 +1035,27 @@ function renderList(){
   if(cardMode){
     const cards=items.map(it=>{
       const c=catById(it.cat), on=isIncluded(it);
-      const parts=[];
-      if(it.inst) parts.push(escHtml(it.inst));
-      if(it.owner) parts.push(escHtml(it.owner));
-      if(isStockCat(it.cat)&&it.qty>0) parts.push(`${Number(it.qty).toLocaleString("ko-KR")}주 × ${it.cur==="USD"?"$":""}${Number(it.price).toLocaleString("ko-KR")}`);
-      if(it.note) parts.push(escHtml(it.note));
+      const meta=[];
+      if(it.inst) meta.push(escHtml(it.inst));
+      if(it.owner) meta.push(escHtml(it.owner));
+      if(isStockCat(it.cat)&&it.qty>0) meta.push(`${Number(it.qty).toLocaleString("ko-KR")}주 × ${it.cur==="USD"?"$":""}${Number(it.price).toLocaleString("ko-KR")}`);
+      if(it.note) meta.push(escHtml(it.note));
+      const sub=`<span class="acard-cat"><span class="area-chip-sm" style="background:${c.color}"></span>${escHtml(c.name)}</span>${meta.length?` · ${meta.join(" · ")}`:""}`;
       return `<div class="acard${on?"":" off"}" data-id="${it.id}">
         <div class="acard-main" data-edit>
           <div class="acard-l">
-            <span class="cat-tag"><span class="area-chip-sm" style="background:${c.color}"></span>${escHtml(c.name)}</span>
             <div class="acard-name">${escHtml(it.name)||"—"}</div>
-            ${parts.length?`<div class="acard-sub">${parts.join(" · ")}</div>`:""}
+            <div class="acard-sub">${sub}</div>
           </div>
           <div class="acard-amt">${fmtWon(it.amount)}</div>
         </div>
         <div class="acard-foot">
-          <label class="acard-inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} ${editable?"":"disabled"}> 합계 포함</label>
+          <label class="acard-inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} ${editable?"":"disabled"}> 포함</label>
           ${editable?`<span class="acard-acts"><button class="dup" title="복제">${DUP_ICO}</button><button class="edit" title="수정">${EDIT_ICO}</button><button class="del" title="삭제">${DEL_ICO}</button></span>`:""}
         </div>
       </div>`;
     }).join("");
-    const allbar=`<label class="acard-allbar"><input type="checkbox" id="incAll" ${allInc?"checked":""} ${editable?"":"disabled"}> 표시 항목 전체 합계 포함</label>`;
+    const allbar=`<label class="acard-allbar"><input type="checkbox" id="incAll" ${allInc?"checked":""} ${editable?"":"disabled"}> 전체 합계 포함</label>`;
     body.innerHTML=allbar+`<div class="acard-list">${cards}</div>`;
   }else{
     let rows="";
