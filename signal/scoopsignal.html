@@ -1030,11 +1030,34 @@ function recompute(){
   renderRadar([{label:'밸류',score:val},{label:'유동성',score:liq},{label:'펀더멘털',score:fun},{label:'모멘텀',score:mom}]);
   renderQuad(liq,mom);
   verdict(score,{mom,liq,fun,val});
+  updateHeroTiles(mom,liq,fun,val);
+  updateSignalDetail(score,{mom,liq,fun,val},w);
   if(S.month)drawActiveView();
   updateSideBadges();
 }
 
+/* 대시보드 타일: 레이더 4축 미니바 + 사이클 국면 라벨 */
+function updateHeroTiles(mom,liq,fun,val){
+  const axes=[['유동성',liq],['모멘텀',mom],['펀더멘털',fun],['밸류',val]];
+  const bars=axes.map(([k,v])=>{const s=sigOf(v);return `<div class="tile-bar"><span>${k}</span><span class="bar"><i style="width:${clamp(v,0,100)}%;background:var(--${s})"></i></span><span class="num">${Math.round(v)}</span></div>`;}).join('');
+  const hb=document.getElementById('heroRadarBars');if(hb)hb.innerHTML=bars;
+  const label=liq>=50&&mom>=50?['상승','bull']:liq>=50&&mom<50?['축적','neutral']:liq<50&&mom>=50?['분배','neutral']:['하락','bear'];
+  const cl=document.getElementById('heroCycleLabel');if(cl){cl.textContent=label[0];cl.style.color='var(--'+label[1]+')';}
+}
+/* 시그널 상세: 산식·가중치·4축 기여 */
+function updateSignalDetail(score,d,w){
+  const el=document.getElementById('signalDetail');if(!el)return;
+  const n={liq:'유동성',mom:'모멘텀',fun:'펀더멘털',val:'밸류'};
+  const rows=['liq','mom','fun','val'].map(k=>{const sc=d[k],wt=w[k],contrib=sc*wt;return `<div class="mrow"><span class="k">${n[k]} <span style="color:var(--faint)">×${Math.round(wt*100)}%</span></span><span class="v">${Math.round(sc)} → <b style="color:var(--text)">${contrib.toFixed(1)}</b></span></div>`;}).join('');
+  el.innerHTML=`<p><b style="color:var(--text)">종합 ${Math.round(score)} / 100</b> = 0.30·유동성 + 0.25·모멘텀 + 0.25·펀더멘털 + 0.20·밸류 (현재 가중치 적용)</p><div class="fc" style="margin-top:10px">${rows}</div><p style="margin-top:12px">판정 구간: 0–27 약세 지속 · 28–42 약세 우위 · 43–57 중립 · 58–71 강세 전환 · 72–100 강세</p>`;
+}
+
 document.querySelectorAll('.snav-item').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
+document.querySelectorAll('[data-goto]').forEach(el=>{
+  const go=()=>showView(el.dataset.goto);
+  el.addEventListener('click',go);
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
+});
 let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.month&&VIEW_DRAW[activeView])drawActiveView();},200);});
 
 function syncTuneUI(){
