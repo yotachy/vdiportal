@@ -90,8 +90,13 @@
   .view{display:none}
   .view.active{display:block}
   .page-head{margin:2px 2px 14px}
-  .page-head h2{font-size:18px;font-weight:800;letter-spacing:-.02em}
+  .page-head h2{font-size:18px;font-weight:800;letter-spacing:-.02em;display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap}
   .page-head .page-sub{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.6;max-width:78ch}
+  .tier-badge{font-size:10.5px;font-weight:700;letter-spacing:.04em;border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;vertical-align:middle}
+  .tier-signature{color:var(--ink);background:var(--gold)}
+  .tier-basic{color:var(--muted);background:var(--panel-2);border:1px solid var(--line)}
+  .snav-item.tier-sig{position:relative}
+  .snav-item.tier-sig .snav-label-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);flex:0 0 auto;margin-right:6px;display:inline-block}
   canvas{display:block;width:100%;height:300px}
   .view[data-view="cycle"] canvas,
   .view[data-view="halving"] canvas,
@@ -372,6 +377,7 @@
       <h4>데이터 (모두 무료)</h4>
       <p>Binance(가격·klines) · DeFiLlama(TVL·스테이블·L2·L2 히스토리) · Frankfurter/ECB(달러) · FRED(순유동성·실질금리·DGS10, 키+프록시) · beaconcha.in(검증자 큐·ETH.STORE APR, 베스트에포트)</p>
       <p>가중치·ROC 기간·밴드 σ폭은 상단 튜닝 패널에서 조정하며 브라우저(localStorage)에 저장됩니다.</p>
+      <p><b style="color:var(--text)">Basic</b> = 어디서나 볼 수 있는 표준 지표 · <b style="color:var(--gold)">Signature</b> = 크립토시그널이 자체 해석·도출한 지표. 향후 데이터 공개 범위가 회원 등급별로 달라질 수 있습니다.</p>
       <p style="color:var(--faint)">주기 패턴(계절성·사이클/반감기 오버레이·로그밴드·200주배수·드로다운·변동성)은 좌측 네비의 전용 페이지에서 보며, 각 항목 옆 배지는 현재값입니다.</p>
       <h4>임계값 보정 (실제 차트 기준)</h4>
       <p>모멘텀·펀더멘털·밸류 점수는 고정 임계값이 아니라 <b style="color:var(--text)">ETH 자체 히스토리의 퍼센타일</b>로 환산합니다. "70점"은 과거 분포 대비 상위 30% 수준이라는 뜻이라, 차트 실제 분포에 자동으로 맞춰집니다. 밸류 밴드는 ETH 제네시스 기준 <b style="color:var(--text)">로그-로그 파워로 회귀</b>(주간)로 R²·z·잔차 퍼센타일을 계산합니다.</p>
@@ -874,6 +880,16 @@ function drawMayer(){
 }
 let activeView='dashboard';
 const VIEW_DRAW={season:drawHeatmap,spiral:drawSpiral,cycle:drawCycle,halving:drawHalving,band:drawBand,mayer:drawMayer,dd:drawDrawdown,vol:drawVol};
+/* 차트 등급(표시 전용) — 새 차트는 여기 한 줄만 추가. 향후 유료 게이팅의 단일 스위치. */
+const CHART_TIER={
+  spiral:'signature',
+  season:'basic', cycle:'basic', halving:'basic',
+  band:'basic', mayer:'basic', dd:'basic', vol:'basic'
+};
+const TIER_META={
+  signature:{label:'Signature',title:'크립토시그널이 자체 해석·도출한 지표'},
+  basic:{label:'Basic',title:'공개적으로 널리 쓰이는 표준 지표'}
+};
 function drawActiveView(){const fn=VIEW_DRAW[activeView];if(fn&&S.month)fn();}
 function showView(key){
   activeView=key;
@@ -884,6 +900,28 @@ function showView(key){
   if(key==='spiral')startSpiralBlink();   // 스네일 차트 교차 깜빡임
 }
 
+function applyTierBadges(){
+  Object.keys(CHART_TIER).forEach(key=>{
+    const tier=CHART_TIER[key],meta=TIER_META[tier];if(!meta)return;
+    // 페이지 헤더 배지(멱등)
+    const h2=document.querySelector('.view[data-view="'+key+'"] .page-head h2');
+    if(h2&&!h2.querySelector('.tier-badge')){
+      const b=document.createElement('span');
+      b.className='tier-badge tier-'+tier;b.title=meta.title;
+      b.textContent=(tier==='signature'?'◆ ':'')+meta.label;
+      h2.appendChild(b);
+    }
+    // 네비 Signature 마커(멱등)
+    if(tier==='signature'){
+      const nav=document.querySelector('.snav-item[data-view="'+key+'"]');
+      if(nav&&!nav.classList.contains('tier-sig')){
+        nav.classList.add('tier-sig');
+        const dot=document.createElement('span');dot.className='snav-label-dot';
+        nav.insertBefore(dot,nav.firstChild);
+      }
+    }
+  });
+}
 /* ===== 사이드바 배지 ===== */
 function setBadge(view,txt,sig){const e=document.querySelector('.snav-item[data-view="'+view+'"] .snav-badge');if(!e)return;e.textContent=txt;e.style.color='var(--'+(sig||'muted')+')';}
 function updateSideBadges(){
@@ -977,6 +1015,7 @@ bindTune();
 syncTuneUI();
 refresh();
 showView(activeView);
+applyTierBadges();
 setInterval(refresh,60000);
 $('#refreshBtn').addEventListener('click',refresh);
 </script>
