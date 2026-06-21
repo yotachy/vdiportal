@@ -217,6 +217,29 @@
   @media(max-width:880px){.hero{grid-template-columns:1fr}.dims{grid-template-columns:1fr 1fr}}
   @media(max-width:520px){.dims{grid-template-columns:1fr}.gauge-wrap{max-width:220px}}
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* 슬림 히어로 + 드릴다운 */
+  .hero2{display:grid;grid-template-columns:1.1fr 1fr;gap:12px;margin-bottom:14px;align-items:stretch}
+  .signal-pane{cursor:pointer}
+  .signal-pane .gauge-wrap{max-width:180px}
+  .signal-pane:hover,.hero-tile:hover{border-color:var(--gold)}
+  .signal-pane:focus-visible,.hero-tile:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .ptitle .go,.tile-head .go{color:var(--gold);font-size:11px;font-weight:700;float:right}
+  .hero-tiles{display:flex;flex-direction:column;gap:12px}
+  .hero-tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:11px;flex:1}
+  .tile-head{font-size:12.5px;font-weight:700;color:var(--text)}
+  .tile-bars{display:flex;flex-direction:column;gap:8px}
+  .tile-bar{display:grid;grid-template-columns:58px 1fr 30px;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+  .tile-bar .bar{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+  .tile-bar .bar i{display:block;height:100%;border-radius:3px}
+  .tile-bar .num{font-family:var(--mono);text-align:right;color:var(--text)}
+  .tile-cycle{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:-.01em}
+  .backlink{appearance:none;background:none;border:none;color:var(--gold);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:4px 2px;margin-bottom:4px}
+  .backlink:hover{text-decoration:underline}
+  .backlink:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
+  .radar-lg,.quad-lg{max-width:380px;width:100%;margin:6px auto 16px;display:block}
+  .detail-body{font-size:13px;color:var(--muted);line-height:1.7}
+  @media(max-width:880px){.hero2{grid-template-columns:1fr}.signal-pane .gauge-wrap{max-width:200px}}
 </style>
 </head>
 <body>
@@ -282,10 +305,10 @@
   <!-- 뷰: 대시보드 -->
   <section class="view active" data-view="dashboard">
 
-  <!-- HERO: gauge + radar + quadrant -->
-  <section class="hero">
-    <div class="pane">
-      <div class="ptitle">ETH 시그널</div>
+  <!-- HERO (슬림): 시그널 메인 + 컴팩트 타일 2 -->
+  <section class="hero2">
+    <div class="pane signal-pane" data-goto="signal" role="button" tabindex="0" aria-label="ETH 시그널 상세 보기">
+      <div class="ptitle">ETH 시그널 <span class="go">상세 ›</span></div>
       <div class="gauge-wrap">
         <svg class="gauge" viewBox="0 0 240 142" role="img" aria-label="종합 점수 게이지">
           <path id="gTrack" fill="none" stroke="#232D38" stroke-width="14" stroke-linecap="round"/>
@@ -298,51 +321,14 @@
       </div>
       <div class="verdict"><h3 id="verdictText">측정 중…</h3><p id="verdictRead"></p></div>
     </div>
-
-    <div class="pane">
-      <div class="ptitle">ETH 레이더 — 4축 분해</div>
-      <svg class="radar" viewBox="0 0 240 220" role="img" aria-label="4축 레이더"><g id="radarG"></g></svg>
-    </div>
-
-    <div class="pane">
-      <div class="ptitle">ETH 사이클</div>
-      <svg class="quad" viewBox="0 0 240 220" role="img" aria-label="사이클 사분면"><g id="quadG"></g></svg>
-      <div class="quad-leg">
-        <span style="color:var(--bull)">↗ 상승 (유동성·모멘텀 ↑)</span>
-        <span style="color:var(--neutral)">↖ 축적 (유동성 ↑·모멘텀 ↓)</span>
-        <span style="color:var(--neutral)">↘ 분배 (유동성 ↓·모멘텀 ↑)</span>
-        <span style="color:var(--bear)">↙ 하락 (둘 다 ↓)</span>
+    <div class="hero-tiles">
+      <div class="hero-tile" data-goto="radar" role="button" tabindex="0" aria-label="ETH 레이더 4축 상세 보기">
+        <div class="tile-head">ETH 레이더 · 4축 <span class="go">›</span></div>
+        <div class="tile-bars" id="heroRadarBars"></div>
       </div>
-    </div>
-  </section>
-
-  <!-- DIMENSION CARDS -->
-  <section>
-    <div class="sec-head"><h2>축별 상세</h2><span class="note">원자료 + <b style="color:var(--muted)">분위 막대</b>(길이=과거 분포 내 위치, 색=호악)</span></div>
-    <div class="dims">
-      <div class="card" data-sig="load" id="cMom">
-        <div class="top"><div><h3>모멘텀</h3><div class="dimscore" data-f="momScore">—</div></div><div class="chip" data-sig="load" data-f="momChip">대기</div></div>
-        <div class="mrow"><span class="k">ETH/BTC vs 50일선</span><span class="v" data-f="ebVal">—</span></div>
-        <div class="mrow"><span class="k">3개월 가격 ROC</span><span class="v" data-f="rocVal">—</span></div>
-      </div>
-      <div class="card" data-sig="load" id="cLiq">
-        <div class="top"><div><h3>유동성</h3><div class="dimscore" data-f="liqScore">—</div></div><div class="chip" data-sig="load" data-f="liqChip">대기</div></div>
-        <div class="mrow"><span class="k">순유동성 추세</span><span class="v" data-f="nlVal">—</span></div>
-        <div class="mrow"><span class="k">10Y 실질금리</span><span class="v" data-f="ryVal">—</span></div>
-        <div class="mrow"><span class="k">달러강도(DXY근사)</span><span class="v" data-f="dxyVal">—</span></div>
-      </div>
-      <div class="card" data-sig="load" id="cFun">
-        <div class="top"><div><h3>펀더멘털</h3><div class="dimscore" data-f="funScore">—</div></div><div class="chip" data-sig="load" data-f="funChip">대기</div></div>
-        <div class="mrow"><span class="k">ETH DeFi TVL 30d</span><span class="v" data-f="tvlVal">—</span></div>
-        <div class="mrow"><span class="k">스테이블(ETH) 30d</span><span class="v" data-f="stVal">—</span></div>
-        <div class="mrow"><span class="k">L2 TVL 30d</span><span class="v" data-f="l2Val">—</span></div>
-        <div class="mrow"><span class="k">스테이킹−10Y 스프레드</span><span class="v" data-f="spVal">—</span></div>
-        <div class="mrow"><span class="k">검증자 큐</span><span class="v" data-f="qVal">—</span></div>
-      </div>
-      <div class="card" data-sig="load" id="cVal">
-        <div class="top"><div><h3>밸류·사이클</h3><div class="dimscore" data-f="valScore">—</div></div><div class="chip" data-sig="load" data-f="valChip">대기</div></div>
-        <div class="mrow"><span class="k">200주선 배수</span><span class="v" data-f="m200Val">—</span></div>
-        <div class="mrow"><span class="k">로그밴드 위치</span><span class="v" data-f="bandVal">—</span></div>
+      <div class="hero-tile" data-goto="clock" role="button" tabindex="0" aria-label="ETH 사이클 상세 보기">
+        <div class="tile-head">ETH 사이클 <span class="go">›</span></div>
+        <div class="tile-cycle" id="heroCycleLabel">—</div>
       </div>
     </div>
   </section>
@@ -401,6 +387,59 @@
     크립토시그널은 <strong style="color:var(--muted)">투자 권유가 아닌 참고용 신호</strong>입니다. 판단과 책임은 본인에게 있습니다.<br>
     © 머니스쿱 · moneyscoop.co.kr
   </footer>
+  </section>
+
+  <!-- 상세: 시그널 -->
+  <section class="view" data-view="signal">
+    <button class="backlink" data-goto="dashboard" type="button">‹ 대시보드</button>
+    <div class="page-head"><h2>ETH 시그널 상세</h2><p class="page-sub">종합 점수의 산식·가중치·4축 기여도</p></div>
+    <div class="detail-body" id="signalDetail"></div>
+  </section>
+
+  <!-- 상세: 레이더 -->
+  <section class="view" data-view="radar">
+    <button class="backlink" data-goto="dashboard" type="button">‹ 대시보드</button>
+    <div class="page-head"><h2>ETH 레이더 — 4축 분해</h2><p class="page-sub">유동성·모멘텀·펀더멘털·밸류 4축 점수와 원자료 + 분위 막대(길이=과거 분포 내 위치, 색=호악)</p></div>
+    <svg class="radar radar-lg" viewBox="0 0 240 220" role="img" aria-label="4축 레이더"><g id="radarG"></g></svg>
+    <div class="dims">
+      <div class="card" data-sig="load" id="cMom">
+        <div class="top"><div><h3>모멘텀</h3><div class="dimscore" data-f="momScore">—</div></div><div class="chip" data-sig="load" data-f="momChip">대기</div></div>
+        <div class="mrow"><span class="k">ETH/BTC vs 50일선</span><span class="v" data-f="ebVal">—</span></div>
+        <div class="mrow"><span class="k">3개월 가격 ROC</span><span class="v" data-f="rocVal">—</span></div>
+      </div>
+      <div class="card" data-sig="load" id="cLiq">
+        <div class="top"><div><h3>유동성</h3><div class="dimscore" data-f="liqScore">—</div></div><div class="chip" data-sig="load" data-f="liqChip">대기</div></div>
+        <div class="mrow"><span class="k">순유동성 추세</span><span class="v" data-f="nlVal">—</span></div>
+        <div class="mrow"><span class="k">10Y 실질금리</span><span class="v" data-f="ryVal">—</span></div>
+        <div class="mrow"><span class="k">달러강도(DXY근사)</span><span class="v" data-f="dxyVal">—</span></div>
+      </div>
+      <div class="card" data-sig="load" id="cFun">
+        <div class="top"><div><h3>펀더멘털</h3><div class="dimscore" data-f="funScore">—</div></div><div class="chip" data-sig="load" data-f="funChip">대기</div></div>
+        <div class="mrow"><span class="k">ETH DeFi TVL 30d</span><span class="v" data-f="tvlVal">—</span></div>
+        <div class="mrow"><span class="k">스테이블(ETH) 30d</span><span class="v" data-f="stVal">—</span></div>
+        <div class="mrow"><span class="k">L2 TVL 30d</span><span class="v" data-f="l2Val">—</span></div>
+        <div class="mrow"><span class="k">스테이킹−10Y 스프레드</span><span class="v" data-f="spVal">—</span></div>
+        <div class="mrow"><span class="k">검증자 큐</span><span class="v" data-f="qVal">—</span></div>
+      </div>
+      <div class="card" data-sig="load" id="cVal">
+        <div class="top"><div><h3>밸류·사이클</h3><div class="dimscore" data-f="valScore">—</div></div><div class="chip" data-sig="load" data-f="valChip">대기</div></div>
+        <div class="mrow"><span class="k">200주선 배수</span><span class="v" data-f="m200Val">—</span></div>
+        <div class="mrow"><span class="k">로그밴드 위치</span><span class="v" data-f="bandVal">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 상세: 사이클 -->
+  <section class="view" data-view="clock">
+    <button class="backlink" data-goto="dashboard" type="button">‹ 대시보드</button>
+    <div class="page-head"><h2>ETH 사이클 시계</h2><p class="page-sub">유동성(가로)×모멘텀(세로) 사분면에서 현재 국면 위치</p></div>
+    <svg class="quad quad-lg" viewBox="0 0 240 220" role="img" aria-label="사이클 사분면"><g id="quadG"></g></svg>
+    <div class="quad-leg">
+      <span style="color:var(--bull)">↗ 상승 (유동성·모멘텀 ↑)</span>
+      <span style="color:var(--neutral)">↖ 축적 (유동성 ↑·모멘텀 ↓)</span>
+      <span style="color:var(--neutral)">↘ 분배 (유동성 ↓·모멘텀 ↑)</span>
+      <span style="color:var(--bear)">↙ 하락 (둘 다 ↓)</span>
+    </div>
   </section>
 
   <!-- 뷰: 계절성 -->
