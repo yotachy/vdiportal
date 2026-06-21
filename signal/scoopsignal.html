@@ -99,6 +99,7 @@
   .view[data-view="mayer"] canvas,
   .view[data-view="dd"] canvas,
   .view[data-view="vol"] canvas{height:clamp(360px,52vh,460px)}
+  .view[data-view="spiral"] canvas{height:clamp(440px,66vh,600px)}
   .hm{display:flex;flex-direction:column;gap:3px;overflow-x:auto}
   .hm-row{display:grid;grid-template-columns:42px repeat(12,1fr);gap:3px;min-width:560px}
   .hm-row.head .cell,.hm-row .ylab{font-family:var(--mono);font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;padding:3px 0}
@@ -230,6 +231,7 @@
       <button class="snav-item" data-view="season">계절성 <span class="snav-badge">—</span></button>
       <button class="snav-item" data-view="cycle">사이클 오버레이 <span class="snav-badge">—</span></button>
       <button class="snav-item" data-view="halving">반감기 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="spiral">스파이럴 <span class="snav-badge">—</span></button>
       <div class="snav-group">밸류·리스크</div>
       <button class="snav-item" data-view="band">로그 밴드 <span class="snav-badge">—</span></button>
       <button class="snav-item" data-view="mayer">200주 배수 <span class="snav-badge">—</span></button>
@@ -389,6 +391,12 @@
     <canvas id="cvHalving"></canvas>
   </section>
 
+  <!-- 뷰: 이더리움 스파이럴(달팽이) -->
+  <section class="view" data-view="spiral">
+    <div class="page-head"><h2>이더리움 스파이럴</h2><p class="page-sub">월별 종가를 달팽이 나선으로. <b>한 바퀴 = 1년</b>(같은 달은 같은 각도), 안쪽=과거·바깥쪽=최근. 선 색 <span class="up">초록</span>=오른 달 / <span class="down">빨강</span>=내린 달. 같은 각도(달)에서 색이 반복되면 계절성. <span id="spiralStats" style="color:var(--muted)"></span></p></div>
+    <canvas id="cvSpiral"></canvas>
+  </section>
+
   <!-- 뷰: 로그 밴드 -->
   <section class="view" data-view="band">
     <div class="page-head"><h2>로그 회귀 밴드</h2><p class="page-sub">주간 종가의 <b>로그-로그 파워로 회귀</b> 채널(±1σ·±2σ, ETH 제네시스 기준). 하단=상대적 저평가, 상단=과열.<br><span id="bandStats" style="color:var(--muted)"></span></p></div>
@@ -534,15 +542,17 @@ function lineChart(cv,datasets,{logY=false,xTicks=[],xLabel='',yLabel=''}={}){
   ctx.textAlign='center';
   xTicks.forEach(t=>{const xx=pad.l+PW*clamp(t.frac,0,1);ctx.strokeStyle='#1c252f';ctx.beginPath();ctx.moveTo(xx,pad.t);ctx.lineTo(xx,pad.t+PH);ctx.stroke();
     ctx.fillStyle='#5C6875';ctx.fillText(t.text,xx,pad.t+PH+15);});
-  // 축 단위 라벨
-  ctx.fillStyle='#8B98A6';if(yLabel){ctx.textAlign='left';ctx.fillText(yLabel,pad.l-50,pad.t-10);}
-  if(xLabel){ctx.textAlign='right';ctx.fillText(xLabel,W-pad.r,H-5);}
+  // 축 단위 라벨 (Y축은 세로 회전 — 상단 범례·Y눈금과 겹침 방지)
+  ctx.fillStyle='#8B98A6';ctx.font='9px Pretendard';
+  if(yLabel){ctx.save();ctx.translate(11,pad.t+PH/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(yLabel,0,0);ctx.restore();ctx.textBaseline='alphabetic';}
+  if(xLabel){ctx.textAlign='right';ctx.fillText(xLabel,W-pad.r,H-4);}
   // 데이터 라인 (+ 현재값 마커 markLast / 보조선 끝 라벨 tag)
   const lastValid=vals=>{for(let i=vals.length-1;i>=0;i--){const v=vals[i];if(v!=null&&isFinite(v)&&!(v<=0&&logY))return i;}return -1;};
+  const placedTags=[];   // 태그 y 충돌 방지
   datasets.forEach(d=>{ctx.strokeStyle=d.color;ctx.lineWidth=d.w||1.8;ctx.setLineDash(d.dash||[]);ctx.beginPath();let started=false;
     d.values.forEach((v,i)=>{if(v==null||!isFinite(v)||v<=0&&logY)return;const x=X(i),y=Y(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);});ctx.stroke();ctx.setLineDash([]);
     const li=lastValid(d.values);
-    if(d.tag&&li>=0){const y=Y(d.values[li]);ctx.fillStyle=d.color;ctx.font='9px JetBrains Mono';ctx.textAlign='right';ctx.fillText(d.tag,W-pad.r-3,y-3);}
+    if(d.tag&&li>=0){let y=Y(d.values[li]);y=clamp(y,pad.t+8,pad.t+PH-2);while(placedTags.some(p=>Math.abs(p-y)<11))y-=11;placedTags.push(y);ctx.fillStyle=d.color;ctx.font='9px JetBrains Mono';ctx.textAlign='right';ctx.fillText(d.tag,W-pad.r-3,y-2);}
     if(d.markLast&&li>=0){const x=X(li),y=Y(d.values[li]);ctx.fillStyle=d.color;ctx.beginPath();ctx.arc(x,y,3.6,0,Math.PI*2);ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='#0B0F14';ctx.beginPath();ctx.arc(x,y,3.6,0,Math.PI*2);ctx.stroke();}
   });
   // 범례(상단)
@@ -723,6 +733,35 @@ function drawHeatmap(){
   let avg=`<span class="ylab" style="color:var(--gold)">평균</span>`;for(let m=0;m<12;m++){const v=cnts[m]?sums[m]/cnts[m]:null;avg+=`<span class="cell${cc(m)}" style="${col(v)}">${v!=null?v.toFixed(1):''}</span>`;}
   html+=`<div class="hm-row avg">${avg}</div>`;$('#heatmap').innerHTML=html;
 }
+function drawSpiral(){
+  const cv=$('#cvSpiral');if(!cv)return;
+  if(!S.month||!S.month.c||S.month.c.length<13){const e=$('#spiralStats');if(e)e.innerHTML='데이터 부족';return;}
+  const t=S.month.t,c=S.month.c,n=c.length;
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  cv.width=W*dpr;cv.height=H*dpr;const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
+  const cx=W/2,cy=H/2+4,maxR=Math.min(W,H)/2-34,r0=maxR*0.1,dr=(maxR-r0)/(n-1);
+  const firstMo=new Date(t[0]).getUTCMonth();
+  const A=cm=>-Math.PI/2+(cm/12)*2*Math.PI;              // 1월 위쪽, 시계방향(연속 각도)
+  const ptAt=idx=>{const r=r0+idx*dr,a=A(firstMo+idx);return [cx+r*Math.cos(a),cy+r*Math.sin(a)];};
+  // 월 스포크 + 라벨(같은 달=같은 각도)
+  ctx.font='10px JetBrains Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(let m=0;m<12;m++){const a=A(m);ctx.strokeStyle='#1c252f';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx+r0*0.5*Math.cos(a),cy+r0*0.5*Math.sin(a));ctx.lineTo(cx+maxR*Math.cos(a),cy+maxR*Math.sin(a));ctx.stroke();
+    ctx.fillStyle='#5C6875';ctx.fillText((m+1)+'월',cx+(maxR+15)*Math.cos(a),cy+(maxR+15)*Math.sin(a));}
+  // 나선 — 월별 등락으로 색, 월 사이를 보간해 부드럽게
+  const SUB=8;
+  for(let i=1;i<n;i++){const ret=(c[i]/c[i-1]-1)*100,al=clamp(Math.abs(ret)/25,.3,.95);
+    ctx.strokeStyle=ret>=0?`rgba(70,194,142,${al})`:`rgba(224,106,106,${al})`;ctx.lineWidth=2.3;ctx.lineCap='round';ctx.beginPath();
+    for(let s=0;s<=SUB;s++){const[x,y]=ptAt((i-1)+s/SUB);if(s===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();}
+  ctx.lineCap='butt';
+  // 현재 위치 마커
+  const[mx,my]=ptAt(n-1);ctx.fillStyle=css('--gold');ctx.beginPath();ctx.arc(mx,my,4.2,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#0B0F14';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mx,my,4.2,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle=css('--gold');ctx.font='10px Pretendard';ctx.textAlign=mx>=cx?'left':'right';ctx.fillText('현재',mx+(mx>=cx?7:-7),my);
+  // 중앙 시작연도
+  ctx.fillStyle='#5C6875';ctx.font='9px JetBrains Mono';ctx.textAlign='center';ctx.fillText(new Date(t[0]).getUTCFullYear()+'~',cx,cy);
+  const st=$('#spiralStats');if(st){const y0=new Date(t[0]).getUTCFullYear(),y1=new Date(t[n-1]).getUTCFullYear();st.innerHTML=`${y0}–${y1} · ${n}개월 · 바깥 끝이 현재`;}
+}
 function drawCycle(){
   const t=S.week.t,c=S.week.c;const bottoms=[Date.parse('2018-12-15'),Date.parse('2022-06-18')];
   const idxNear=tt=>{let bi=0,bd=1e18;for(let i=0;i<t.length;i++){const dd=Math.abs(t[i]-tt);if(dd<bd){bd=dd;bi=i;}}return bi;};
@@ -817,7 +856,7 @@ function drawMayer(){
   const st=$('#mayerStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(2)}×</b> · 분위 <b style="color:var(--text)">${Math.round(pr*100)}</b> ${lab}`;
 }
 let activeView='dashboard';
-const VIEW_DRAW={season:drawHeatmap,cycle:drawCycle,halving:drawHalving,band:drawBand,mayer:drawMayer,dd:drawDrawdown,vol:drawVol};
+const VIEW_DRAW={season:drawHeatmap,spiral:drawSpiral,cycle:drawCycle,halving:drawHalving,band:drawBand,mayer:drawMayer,dd:drawDrawdown,vol:drawVol};
 function drawActiveView(){const fn=VIEW_DRAW[activeView];if(fn&&S.month)fn();}
 function showView(key){
   activeView=key;
@@ -831,6 +870,8 @@ function setBadge(view,txt,sig){const e=document.querySelector('.snav-item[data-
 function updateSideBadges(){
   // 계절성: 이번 달 과거 평균 수익률
   if(S.month&&S.month.c&&S.month.c.length>2){const t=S.month.t,c=S.month.c,mo=new Date(t[t.length-1]).getUTCMonth();let s=0,n=0;for(let i=1;i<c.length;i++){if(new Date(t[i]).getUTCMonth()===mo){s+=(c[i]/c[i-1]-1)*100;n++;}}const a=n?s/n:0;setBadge('season',(a>=0?'+':'')+a.toFixed(1)+'%',a>=0?'bull':'bear');}else setBadge('season','—','muted');
+  // 스파이럴: 데이터 연수
+  if(S.month&&S.month.t&&S.month.t.length){const t=S.month.t,yrs=((t[t.length-1]-t[0])/(365.25*864e5));setBadge('spiral',yrs.toFixed(0)+'년','muted');}else setBadge('spiral','—','muted');
   // 사이클: 바닥(2022-06-18) 후 N주 / 반감기: 2024-04-20 후 N주
   const wk=S.week&&S.week.t&&S.week.t.length?S.week.t:null;
   const nearW=tt=>{let bi=0,bd=1e18;for(let i=0;i<wk.length;i++){const d=Math.abs(wk[i]-tt);if(d<bd){bd=d;bi=i;}}return wk.length-1-bi;};
