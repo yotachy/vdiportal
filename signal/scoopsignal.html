@@ -266,6 +266,7 @@
         <span class="s"><i id="st-fx"></i>Frankfurter 달러</span>
         <span class="s"><i id="st-fred"></i>FRED 매크로</span>
         <span class="s"><i id="st-beacon"></i>스테이킹</span>
+        <span class="s"><i id="st-coingecko"></i>도미넌스</span>
       </div>
     </div>
   </aside>
@@ -274,7 +275,7 @@
   <!-- 티커: 모든 뷰 공통 -->
   <div class="ticker">
     <div class="tk"><div class="lab">ETH / USD</div><div class="val mono" data-f="ethUsd">—</div><div class="chg mono" data-f="ethChg">—</div></div>
-    <div class="tk"><div class="lab">BTC / USD</div><div class="val mono" data-f="btcUsd">—</div><div class="chg mono" data-f="btcChg">—</div></div>
+    <div class="tk"><div class="lab">ETH 도미넌스</div><div class="val mono" data-f="domVal">—</div><div class="chg mono" style="color:var(--faint)">전체 시총 점유율</div></div>
     <div class="tk"><div class="lab">ETH / BTC</div><div class="val mono" data-f="ethBtc">—</div><div class="chg mono" data-f="ethBtcChg">—</div></div>
   </div>
 
@@ -603,7 +604,6 @@ async function loadBinance(){
     jget('https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1M&limit=130')
   ]);
   setF('ethUsd',fmtUsd(+eth.lastPrice));chg('ethChg',+eth.priceChangePercent);
-  setF('btcUsd',fmtUsd(+btc.lastPrice));chg('btcChg',+btc.priceChangePercent);
   setF('ethBtc',(+eb.lastPrice).toFixed(5));chg('ethBtcChg',+eb.priceChangePercent);
   // ETH/BTC vs 50일선 + 그 지표의 자체 히스토리 분포(퍼센타일 보정용)
   const ebC=kEbD.map(k=>+k[4]),last=ebC.length-1;
@@ -681,6 +681,15 @@ async function loadBeacon(){
     const apr=a&&a.data&&(a.data.apr!=null?a.data.apr:a.data.cl_apr);
     const v=+apr; const ok=isFinite(v)&&v>0; S.staking={apr:ok?(v<=1?v*100:v):3.0,fb:!ok};
   }catch(e){S.staking={apr:3.0,fb:true};}
+}
+
+async function loadCoinGecko(){
+  try{
+    const g=await jget('https://api.coingecko.com/api/v3/global');
+    const eth=g&&g.data&&g.data.market_cap_percentage&&g.data.market_cap_percentage.eth;
+    if(eth==null||!isFinite(+eth))throw new Error('no eth dom');
+    S.dom={eth:+eth};setF('domVal',(+eth).toFixed(1)+'%');setStatus('coingecko','ok');
+  }catch(e){S.dom=null;setF('domVal','—');setStatus('coingecko','warn');}
 }
 
 /* ===== SCORING ===== */
@@ -952,7 +961,7 @@ function updateSideBadges(){
 /* ===== orchestration ===== */
 async function refresh(){
   $('#refreshBtn').disabled=true;$('#refreshBtn').classList.add('spinning');
-  const r=await Promise.allSettled([loadBinance(),loadLlama(),loadDollar(),loadFred(),loadBeacon()]);
+  const r=await Promise.allSettled([loadBinance(),loadLlama(),loadDollar(),loadFred(),loadBeacon(),loadCoinGecko()]);
   setStatus('binance',r[0].status==='fulfilled'?'ok':'err');
   setStatus('llama',r[1].status==='fulfilled'?'ok':'err');
   setStatus('fx',r[2].status==='fulfilled'?'ok':'err');
