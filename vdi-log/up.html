@@ -396,6 +396,8 @@
   .sold-wrap.on{display:inline-flex;}
   .sold-wrap input{width:76px; border:1px solid var(--line-strong); background:var(--card); color:var(--ink); border-radius:var(--r-sm); padding:7px 9px; font-size:.85rem; font-family:var(--font-body); text-align:right;}
   .sold-wrap input:focus{outline:2px solid var(--gold); outline-offset:0; border-color:var(--gold);}
+  .sold-hint{margin-top:-2px; color:var(--gold-strong); font-size:.8rem; font-family:var(--font-bold);}
+  .sold-hint:empty{display:none;}
   .modal-bd .chk{display:flex; align-items:center; gap:8px; font-size:.84rem; color:var(--ink); font-family:var(--font-body); cursor:pointer; user-select:none;}
   .modal-bd .chk input{width:16px; height:16px; accent-color:var(--gold-strong); cursor:pointer;}
 
@@ -518,8 +520,9 @@
       <div class="field"><label for="fNote">메모 (선택)</label><input id="fNote" type="text" placeholder="예) 250주 / $9,000 / 분당" maxlength="60"></div>
       <div class="inc-row">
         <label class="chk"><input type="checkbox" id="fInclude" checked> 자산 합계에 포함</label>
-        <span class="sold-wrap" id="soldWrap">일부 매도 <input id="fSoldQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"> 주 제외</span>
+        <span class="sold-wrap" id="soldWrap">매도한 수량 <input id="fSoldQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"> 주</span>
       </div>
+      <div class="sold-hint" id="soldHint"></div>
     </div>
     <div class="modal-ft">
       <button class="btn" id="modalCancel">취소</button>
@@ -1215,6 +1218,19 @@ function updateSoldUI(){  // 일부 매도 입력은 주식 + 합계 포함일 �
   const stock=isStockCat(document.getElementById("fCat").value);
   const inc=document.getElementById("fInclude").checked;
   document.getElementById("soldWrap").classList.toggle("on", stock&&inc);
+  updateSoldHint();
+}
+function updateSoldHint(){  // 입력 기준 안내: 매도 수량을 빼고 합계에 반영되는 수량·금액 실시간 표시
+  const el=document.getElementById("soldHint"); if(!el) return;
+  const stock=isStockCat(document.getElementById("fCat").value);
+  const inc=document.getElementById("fInclude").checked;
+  if(!(stock&&inc)){ el.textContent=""; return; }
+  const qty=Math.max(0,Math.round(Number(document.getElementById("fQty").value)||0));
+  let sold=Math.max(0,Math.round(Number(document.getElementById("fSoldQty").value)||0)); sold=Math.min(sold,qty);
+  const remaining=Math.max(0,qty-sold);
+  const usd=document.getElementById("fCur").value==="USD";
+  const amt=Math.round(remaining*rawNum("fPrice")*(usd?usdRate:1));
+  el.textContent=`→ 합계 반영 ${remaining.toLocaleString("ko-KR")}주 · ${fmtWon(amt)}${sold>0?` (매도 ${sold.toLocaleString("ko-KR")}주 제외)`:""}`;
 }
 function updateTickerLockUI(){  // #티커면 현재가·통화는 시세 자동 → readonly+배지
   const isT=isStockCat(document.getElementById("fCat").value) && document.getElementById("fTicker").value.trim().charAt(0)==="#";
@@ -1249,6 +1265,7 @@ function recalcAmount(){
   const v=Math.round(qty*price*(usd?usdRate:1));  // 달러면 환율 적용
   document.getElementById("fAmount").value=v?v.toLocaleString("ko-KR"):"";
   updateAmountKor();
+  updateSoldHint();
 }
 function openModal(id){
   if(!requireEdit()) return;
@@ -1454,6 +1471,7 @@ document.getElementById("modalSave").addEventListener("click",saveModal);
 document.getElementById("fAmount").addEventListener("input",updateAmountKor);
 document.getElementById("fCat").addEventListener("change",updateStockFields);
 document.getElementById("fInclude").addEventListener("change",updateSoldUI);
+document.getElementById("fSoldQty").addEventListener("input",updateSoldHint);
 document.getElementById("fQty").addEventListener("input",recalcAmount);
 document.getElementById("fPrice").addEventListener("input",recalcAmount);
 document.getElementById("fCur").addEventListener("change",recalcAmount);
