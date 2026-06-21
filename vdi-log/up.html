@@ -390,8 +390,12 @@
   .field .hint{font-size:.72rem; color:var(--ink-faint); margin-top:4px;}
   .auto-badge{display:none; font-size:.62rem; color:var(--gold-strong); background:var(--gold-soft); padding:1px 7px; border-radius:999px; margin-left:6px; font-family:var(--font-bold); letter-spacing:0;}
   .part-badge{display:inline-block; font-size:.62rem; color:var(--gold-strong); background:var(--gold-soft); padding:1px 6px; border-radius:999px; font-family:var(--font-bold); white-space:nowrap; letter-spacing:0; vertical-align:middle;}
-  .fld-sub{font-family:var(--font-body); font-weight:400; color:var(--ink-faint); font-size:.92em; letter-spacing:0;}
   html[data-theme="dark"] .part-badge,html[data-theme="dark"] .auto-badge{background:rgba(245,181,0,.16);}
+  .inc-row{display:flex; align-items:center; gap:12px 14px; flex-wrap:wrap;}
+  .sold-wrap{display:none; align-items:center; gap:6px; font-size:.82rem; color:var(--ink-soft); font-family:var(--font-body);}
+  .sold-wrap.on{display:inline-flex;}
+  .sold-wrap input{width:76px; border:1px solid var(--line-strong); background:var(--card); color:var(--ink); border-radius:var(--r-sm); padding:7px 9px; font-size:.85rem; font-family:var(--font-body); text-align:right;}
+  .sold-wrap input:focus{outline:2px solid var(--gold); outline-offset:0; border-color:var(--gold);}
   .modal-bd .chk{display:flex; align-items:center; gap:8px; font-size:.84rem; color:var(--ink); font-family:var(--font-body); cursor:pointer; user-select:none;}
   .modal-bd .chk input{width:16px; height:16px; accent-color:var(--gold-strong); cursor:pointer;}
 
@@ -502,7 +506,6 @@
       <div id="stockFields">
         <div class="field"><label for="fTicker">보유종목</label><input id="fTicker" type="text" placeholder="예) #TSLA(현재가 자동), 005930" maxlength="30"></div>
         <div class="field"><label for="fQty">보유수</label><input id="fQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></div>
-        <div class="field"><label for="fIncQty">합계 포함 수량 <span class="fld-sub">· 비우면 전체, 일부 매도 시 셈할 수량</span></label><input id="fIncQty" type="number" min="0" step="1" inputmode="numeric" placeholder="전체(보유수)"></div>
         <div class="field"><label for="fPrice">현재가 <span id="priceAutoBadge" class="auto-badge">시세 자동</span></label>
           <div style="display:flex; gap:8px;">
             <select id="fCur" style="width:88px; flex:none;"><option value="KRW">원</option><option value="USD">달러</option></select>
@@ -513,7 +516,10 @@
       <div class="field"><label for="fOwner">이름</label><input id="fOwner" type="text" placeholder="예) 최정식, 공동" maxlength="20"></div>
       <div class="field"><label for="fAmount">평가금액 (원)</label><input id="fAmount" type="text" inputmode="numeric" placeholder="0"><div class="hint" id="fAmountKor"></div></div>
       <div class="field"><label for="fNote">메모 (선택)</label><input id="fNote" type="text" placeholder="예) 250주 / $9,000 / 분당" maxlength="60"></div>
-      <label class="chk"><input type="checkbox" id="fInclude" checked> 자산 합계에 포함</label>
+      <div class="inc-row">
+        <label class="chk"><input type="checkbox" id="fInclude" checked> 자산 합계에 포함</label>
+        <span class="sold-wrap" id="soldWrap">일부 매도 <input id="fSoldQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"> 주 제외</span>
+      </div>
     </div>
     <div class="modal-ft">
       <button class="btn" id="modalCancel">취소</button>
@@ -561,7 +567,13 @@ const DEFAULT_DATA={
 };
 
 let data;
-function normalizeItem(it){ if(!it.id) it.id=genId(); it.amount=Number(it.amount)||0; if(!catById(it.cat)) it.cat="etc"; it.include=it.include!==false; if(it.owner==null) it.owner=""; if(it.inst==null) it.inst=""; if(it.ticker==null) it.ticker=""; it.qty=Number(it.qty)||0; it.price=Number(it.price)||0; it.cur=it.cur==="USD"?"USD":"KRW"; if(isStockCat(it.cat)&&it.incQty!=null&&it.incQty!==""&&isFinite(Number(it.incQty))){ it.incQty=Math.max(0,Math.min(Math.round(Number(it.incQty)),it.qty)); } else { delete it.incQty; } }
+function normalizeItem(it){ if(!it.id) it.id=genId(); it.amount=Number(it.amount)||0; if(!catById(it.cat)) it.cat="etc"; it.include=it.include!==false; if(it.owner==null) it.owner=""; if(it.inst==null) it.inst=""; if(it.ticker==null) it.ticker=""; it.qty=Number(it.qty)||0; it.price=Number(it.price)||0; it.cur=it.cur==="USD"?"USD":"KRW";
+  if(isStockCat(it.cat)){
+    if(it.soldQty!=null&&it.soldQty!==""&&isFinite(Number(it.soldQty))){ it.soldQty=Math.max(0,Math.min(Math.round(Number(it.soldQty)),it.qty)); if(it.soldQty<=0) delete it.soldQty; }
+    else if(it.incQty!=null&&it.incQty!==""&&isFinite(Number(it.incQty))){ const s=it.qty-Math.max(0,Math.min(Math.round(Number(it.incQty)),it.qty)); if(s>0) it.soldQty=s; }  // 구버전 incQty(포함수량)→soldQty(매도수량)
+    delete it.incQty;
+  } else { delete it.soldQty; delete it.incQty; }
+}
 function normalizeData(d){ if(!d||!Array.isArray(d.items)) return null; d.items.forEach(normalizeItem); if(!d.meta) d.meta={title:"정성인연 자산 현황"}; return d; }
 function loadData(){
   let d=null;
@@ -716,10 +728,10 @@ function escHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&a
 
 /* ===================== 집계 ===================== */
 const isIncluded=it=>it.include!==false;  // 합계 포함 여부(미설정=포함)
-// 주식 일부만 합계 포함: incQty(합계에 셈할 주식수). 미설정/전체면 null
-function incShares(it){ if(!isStockCat(it.cat)) return null; const q=Number(it.qty)||0; if(q<=0) return null; if(it.incQty==null||it.incQty==="") return null; const n=Number(it.incQty); if(!isFinite(n)||n<0) return null; return Math.min(n,q); }
-function isPartial(it){ const sh=incShares(it); return isIncluded(it)&&sh!=null&&sh<(Number(it.qty)||0); }
-function incAmt(it){ if(!isIncluded(it)) return 0; const sh=incShares(it),q=Number(it.qty)||0; if(sh!=null&&q>0&&sh<q) return Math.round((Number(it.amount)||0)*sh/q); return Number(it.amount)||0; }  // 합계(가능자산)에 반영되는 금액
+// 주식 일부 매도: soldQty(매도한 주식수)만큼 합계에서 제외 → 남은 (보유수-매도)만 가능자산에 반영
+function soldQty(it){ if(!isStockCat(it.cat)) return 0; const q=Number(it.qty)||0; let s=Number(it.soldQty)||0; if(!isFinite(s)||s<0) s=0; return Math.min(s,q); }
+function isPartial(it){ if(!isIncluded(it)||!isStockCat(it.cat)) return false; const s=soldQty(it),q=Number(it.qty)||0; return s>0&&s<q; }
+function incAmt(it){ if(!isIncluded(it)) return 0; const q=Number(it.qty)||0,s=soldQty(it); if(isStockCat(it.cat)&&q>0&&s>0) return Math.round((Number(it.amount)||0)*Math.max(0,q-s)/q); return Number(it.amount)||0; }  // 합계(가능자산)에 반영되는 금액
 function totalsByCat(){ const t={}; CATS.forEach(c=>t[c.id]=0); data.items.forEach(it=>{ t[it.cat]=(t[it.cat]||0)+incAmt(it); }); return t; }
 function grandTotal(){ return data.items.reduce((s,it)=>s+incAmt(it),0); }
 function allItemsTotal(){ return data.items.reduce((s,it)=>s+(Number(it.amount)||0),0); }  // 제외 항목·미포함분까지 보유 전량
@@ -1060,7 +1072,7 @@ function renderList(){
             <div class="acard-name">${escHtml(it.name)||"—"}</div>
             <div class="acard-sub">${sub}</div>
           </div>
-          <div class="acard-r"><div class="acard-amt">${fmtWon(it.amount)}</div>${isPartial(it)?`<div class="acard-part">합계 ${incShares(it)}/${it.qty}주</div>`:""}</div>
+          <div class="acard-r"><div class="acard-amt">${fmtWon(it.amount)}</div>${isPartial(it)?`<div class="acard-part">매도 ${soldQty(it)}주 제외</div>`:""}</div>
         </div>
         <div class="acard-foot">
           <label class="acard-inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} ${editable?"":"disabled"}> 포함</label>
@@ -1081,7 +1093,7 @@ function renderList(){
         <td class="inst">${escHtml(it.inst)||""}</td>
         <td class="name">${escHtml(it.name)||"—"}</td>
         <td class="ticker">${escHtml(it.ticker)||""}</td>
-        <td class="num qty">${it.qty>0?Number(it.qty).toLocaleString("ko-KR"):""}${isPartial(it)?` <span class="part-badge">합계 ${incShares(it)}</span>`:""}</td>
+        <td class="num qty">${it.qty>0?Number(it.qty).toLocaleString("ko-KR"):""}${isPartial(it)?` <span class="part-badge">매도 ${soldQty(it)}</span>`:""}</td>
         <td class="num price">${it.price>0?(it.cur==="USD"?"$"+Number(it.price).toLocaleString("ko-KR"):Number(it.price).toLocaleString("ko-KR")):""}</td>
         <td class="num">${fmtWon(it.amount)}</td>
         <td class="owner">${escHtml(it.owner)||""}</td>
@@ -1196,7 +1208,13 @@ function updateStockFields(){
   const amt=document.getElementById("fAmount");
   amt.readOnly=stock; amt.classList.toggle("ro",stock);
   updateTickerLockUI();
+  updateSoldUI();
   if(stock) recalcAmount(); else updateAmountKor();
+}
+function updateSoldUI(){  // 일부 매도 입력은 주식 + 합계 포함일 때만 노출
+  const stock=isStockCat(document.getElementById("fCat").value);
+  const inc=document.getElementById("fInclude").checked;
+  document.getElementById("soldWrap").classList.toggle("on", stock&&inc);
 }
 function updateTickerLockUI(){  // #티커면 현재가·통화는 시세 자동 → readonly+배지
   const isT=isStockCat(document.getElementById("fCat").value) && document.getElementById("fTicker").value.trim().charAt(0)==="#";
@@ -1247,7 +1265,7 @@ function openModal(id){
   document.getElementById("fName").value=it?it.name:"";
   document.getElementById("fTicker").value=it?(it.ticker||""):"";
   document.getElementById("fQty").value=it&&it.qty>0?it.qty:"";
-  document.getElementById("fIncQty").value=it&&it.incQty!=null&&it.incQty!==""?it.incQty:"";
+  document.getElementById("fSoldQty").value=it&&it.soldQty>0?it.soldQty:"";
   document.getElementById("fPrice").value=it&&it.price>0?Number(it.price).toLocaleString("ko-KR"):"";
   document.getElementById("fCur").value=it&&it.cur==="USD"?"USD":"KRW";
   document.getElementById("fOwner").value=it?(it.owner||""):(defOwner==="미지정"?"":defOwner);
@@ -1274,8 +1292,8 @@ function saveModal(){
   const stock=isStockCat(cat);
   const ticker=stock?document.getElementById("fTicker").value.trim():"";
   const qty=stock?Math.max(0,Math.round(Number(document.getElementById("fQty").value)||0)):0;
-  let incQty=null;  // 합계 포함 수량(비우거나 보유수 이상이면 전체=null)
-  if(stock){ const raw=String(document.getElementById("fIncQty").value).trim(); if(raw!==""){ const n=Math.max(0,Math.round(Number(raw)||0)); if(n<qty) incQty=n; } }
+  let soldQ=0;  // 일부 매도 수량(합계에서 제외). 0이면 전량 반영
+  if(stock){ const raw=String(document.getElementById("fSoldQty").value).trim(); if(raw!==""){ soldQ=Math.max(0,Math.min(Math.round(Number(raw)||0),qty)); } }
   const price=stock?Math.max(0,rawNum("fPrice")):0;  // 달러는 소수 허용
   const cur=stock?document.getElementById("fCur").value:"KRW";
   const owner=document.getElementById("fOwner").value.trim();
@@ -1287,10 +1305,10 @@ function saveModal(){
   let saved;
   if(editingId){
     const it=data.items.find(x=>x.id===editingId);
-    if(it){ it.cat=cat; it.inst=inst; it.name=name; it.ticker=ticker; it.qty=qty; it.price=price; it.cur=cur; it.owner=owner; it.amount=amount; it.note=note; it.include=include; if(incQty!=null) it.incQty=incQty; else delete it.incQty; it.updatedAt=Date.now(); }
+    if(it){ it.cat=cat; it.inst=inst; it.name=name; it.ticker=ticker; it.qty=qty; it.price=price; it.cur=cur; it.owner=owner; it.amount=amount; it.note=note; it.include=include; if(soldQ>0) it.soldQty=soldQ; else delete it.soldQty; delete it.incQty; it.updatedAt=Date.now(); }
     saved=it; toast("수정되었습니다.");
   }else{
-    saved={id:genId(),cat,inst,name,ticker,qty,price,cur,owner,amount,note,include,updatedAt:Date.now()}; if(incQty!=null) saved.incQty=incQty;
+    saved={id:genId(),cat,inst,name,ticker,qty,price,cur,owner,amount,note,include,updatedAt:Date.now()}; if(soldQ>0) saved.soldQty=soldQ;
     data.items.push(saved); toast("자산이 추가되었습니다.");
   }
   if(saved) opUpsert(saved);
@@ -1435,6 +1453,7 @@ document.getElementById("modalCancel").addEventListener("click",closeModal);
 document.getElementById("modalSave").addEventListener("click",saveModal);
 document.getElementById("fAmount").addEventListener("input",updateAmountKor);
 document.getElementById("fCat").addEventListener("change",updateStockFields);
+document.getElementById("fInclude").addEventListener("change",updateSoldUI);
 document.getElementById("fQty").addEventListener("input",recalcAmount);
 document.getElementById("fPrice").addEventListener("input",recalcAmount);
 document.getElementById("fCur").addEventListener("change",recalcAmount);
