@@ -15,6 +15,7 @@
     --gold:#E8B463;
     --bull:#46C28E; --neutral:#E0A93B; --bear:#E06A6A;
     --bull-dim:rgba(70,194,142,.14); --neutral-dim:rgba(224,169,59,.14); --bear-dim:rgba(224,106,106,.14);
+    --bull-tint:rgba(70,194,142,.06); --neutral-tint:rgba(224,169,59,.06); --bear-tint:rgba(224,106,106,.06);
     --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
     --sans:'Pretendard','Pretendard Variable',system-ui,sans-serif;
     --top-bar-h:104px;
@@ -63,8 +64,11 @@
   /* dimension metric cards */
   .dims{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
-  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--faint);transition:background .4s}
-  .card[data-sig="bull"]::before{background:var(--bull)}.card[data-sig="neutral"]::before{background:var(--neutral)}.card[data-sig="bear"]::before{background:var(--bear)}
+  .card{transition:background .4s,border-color .4s}
+  .card[data-sig="bull"]{background:var(--bull-tint);border-color:rgba(70,194,142,.3)}
+  .card[data-sig="neutral"]{background:var(--neutral-tint);border-color:rgba(224,169,59,.3)}
+  .card[data-sig="bear"]{background:var(--bear-tint);border-color:rgba(224,106,106,.3)}
+  .card[data-sig="load"]{background:var(--panel);border-color:var(--line)}
   .card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
   .card h3{font-size:14px;font-weight:700;letter-spacing:-.01em}
   .card .dimscore{font-family:var(--mono);font-size:13px;color:var(--muted)}
@@ -151,7 +155,7 @@
   .snav-group{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:10px 2px 3px}
   .snav-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;cursor:pointer;border:1px solid transparent;background:none;color:var(--muted);font:inherit;font-size:13px;text-align:left;width:100%;transition:background .15s,color .15s}
   .snav-item:hover{background:var(--panel-2);color:var(--text)}
-  .snav-item.on{background:var(--panel-2);color:var(--text);border-color:var(--line);box-shadow:inset 3px 0 0 var(--gold)}
+  .snav-item.on{background:var(--panel-2);color:var(--gold);border-color:var(--line);font-weight:700}
   .snav-item:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   .snav-item .snav-badge{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
 
