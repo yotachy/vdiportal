@@ -83,10 +83,12 @@
   .prbar{width:30px;height:5px;border-radius:3px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;display:inline-block}
   .prbar i{display:block;height:100%;border-radius:3px}
 
-  /* pattern charts */
-  .charts{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
-  .panel-chart{display:none} .panel-chart.active{display:block}
-  .chart-note{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+  /* views */
+  .view{display:none}
+  .view.active{display:block}
+  .page-head{margin:2px 2px 14px}
+  .page-head h2{font-size:18px;font-weight:800;letter-spacing:-.02em}
+  .page-head .page-sub{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.6;max-width:78ch}
   canvas{display:block;width:100%;height:300px}
   .hm{display:flex;flex-direction:column;gap:3px;overflow-x:auto}
   .hm-row{display:grid;grid-template-columns:42px repeat(12,1fr);gap:3px;min-width:560px}
@@ -166,16 +168,17 @@
       <button class="refresh" id="refreshBtn" type="button"><span class="dot"></span>새로고침</button>
       <span id="updatedAt">불러오는 중…</span>
     </div>
-    <nav class="snav" aria-label="주기 패턴">
+    <nav class="snav" aria-label="화면 이동">
+      <button class="snav-item on" data-view="dashboard">대시보드</button>
       <div class="snav-group">사이클</div>
-      <button class="snav-item on" data-tab="season">계절성 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-tab="cycle">사이클 오버레이 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-tab="halving">반감기 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="season">계절성 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="cycle">사이클 오버레이 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="halving">반감기 <span class="snav-badge">—</span></button>
       <div class="snav-group">밸류·리스크</div>
-      <button class="snav-item" data-tab="band">로그 밴드 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-tab="mayer">200주 배수 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-tab="dd">드로다운 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-tab="vol">변동성 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="band">로그 밴드 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="mayer">200주 배수 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="dd">드로다운 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="vol">변동성 <span class="snav-badge">—</span></button>
     </nav>
     <div class="side-foot">
       <div class="status" id="status">
@@ -189,12 +192,15 @@
   </aside>
   <main class="main">
 
-  <!-- ticker -->
+  <!-- 티커: 모든 뷰 공통 -->
   <div class="ticker">
     <div class="tk"><div class="lab">ETH / USD</div><div class="val mono" data-f="ethUsd">—</div><div class="chg mono" data-f="ethChg">—</div></div>
     <div class="tk"><div class="lab">BTC / USD</div><div class="val mono" data-f="btcUsd">—</div><div class="chg mono" data-f="btcChg">—</div></div>
     <div class="tk"><div class="lab">ETH / BTC</div><div class="val mono" data-f="ethBtc">—</div><div class="chg mono" data-f="ethBtcChg">—</div></div>
   </div>
+
+  <!-- 뷰: 대시보드 -->
+  <section class="view active" data-view="dashboard">
 
   <!-- HERO: gauge + radar + quadrant -->
   <section class="hero">
@@ -261,39 +267,6 @@
     </div>
   </section>
 
-  <!-- PATTERN CHARTS -->
-  <section class="charts">
-    <div class="sec-head" style="margin-bottom:6px"><h2>주기 패턴</h2><span class="note">과거 반복 패턴과 현재 위치 비교</span></div>
-    <div class="panel-chart active" data-panel="season">
-      <div class="chart-note">월별 수익률(%) — 행=연도, 열=월. <span class="up">초록</span>=상승 <span class="down">빨강</span>=하락. 맨 아래 <b>평균</b> 행이 계절성입니다.</div>
-      <div class="hm" id="heatmap"></div>
-    </div>
-    <div class="panel-chart" data-panel="cycle">
-      <div class="chart-note">각 사이클 바닥을 100으로 맞춰 겹쳐봅니다(로그). 현재가 과거 사이클의 어느 구간인지 비교용입니다.</div>
-      <canvas id="cvCycle"></canvas>
-    </div>
-    <div class="panel-chart" data-panel="band">
-      <div class="chart-note">주간 종가의 <b>로그-로그 파워로 회귀</b> 채널(±1σ·±2σ, ETH 제네시스 기준). 하단=상대적 저평가, 상단=과열.<br><span id="bandStats" style="color:var(--muted)"></span></div>
-      <canvas id="cvBand"></canvas>
-    </div>
-    <div class="panel-chart" data-panel="dd">
-      <div class="chart-note">전고점(ATH) 대비 낙폭(%). 0 아래로 깊을수록 약세장 바닥권에 가깝습니다. <span id="ddStats" style="color:var(--muted)"></span></div>
-      <canvas id="cvDD"></canvas>
-    </div>
-    <div class="panel-chart" data-panel="halving">
-      <div class="chart-note">BTC 반감기 시점을 100으로 맞춰 겹친 사이클(로그). 과거=회색, <span style="color:var(--gold)">현재(2024)=골드</span>. x축=반감기 후 경과(주). <span id="hvStats" style="color:var(--muted)"></span></div>
-      <canvas id="cvHalving"></canvas>
-    </div>
-    <div class="panel-chart" data-panel="vol">
-      <div class="chart-note">주간 수익률 기반 실현 변동성(연율 %). 낮은 구간=압축(큰 움직임 전조로 자주 거론). <span id="volStats" style="color:var(--muted)"></span></div>
-      <canvas id="cvVol"></canvas>
-    </div>
-    <div class="panel-chart" data-panel="mayer">
-      <div class="chart-note">현재가 / 200주 이동평균 배수(메이어 멀티플). 밴드는 ETH 자체 분포 기준(저평가 하위 20%·과열 상위 20%). <span id="mayerStats" style="color:var(--muted)"></span></div>
-      <canvas id="cvMayer"></canvas>
-    </div>
-  </section>
-
   <details class="tune">
     <summary>튜닝 — 가중치·기간·밴드 조정 <span class="arw">›</span></summary>
     <div class="tbody">
@@ -332,7 +305,7 @@
       <h4>임계값 보정 (실제 차트 기준)</h4>
       <p>모멘텀·펀더멘털·밸류 점수는 고정 임계값이 아니라 <b style="color:var(--text)">ETH 자체 히스토리의 퍼센타일</b>로 환산합니다. "70점"은 과거 분포 대비 상위 30% 수준이라는 뜻이라, 차트 실제 분포에 자동으로 맞춰집니다. 밸류 밴드는 ETH 제네시스 기준 <b style="color:var(--text)">로그-로그 파워로 회귀</b>(주간)로 R²·z·잔차 퍼센타일을 계산합니다.</p>
       <p style="color:var(--faint)">유동성(매크로)은 히스토리가 짧아 레짐 기준 고정 임계값을 씁니다. 전부 <code>scoreMom/Liq/Fun/Val</code>에서 조정 가능합니다.</p>
-      <p style="color:var(--faint)">주기 패턴 탭: 계절성·사이클/반감기 오버레이·로그 회귀 밴드·200주 배수·드로다운·실현 변동성 (모두 표시 전용, 점수 미반영).</p>
+      <p style="color:var(--faint)">주기 패턴: 계절성·사이클/반감기 오버레이·로그 회귀 밴드·200주 배수·드로다운·실현 변동성 (모두 표시 전용, 점수 미반영).</p>
     </div>
   </details>
 
@@ -340,6 +313,49 @@
     스쿱시그널은 <strong style="color:var(--muted)">투자 권유가 아닌 참고용 신호</strong>입니다. 판단과 책임은 본인에게 있습니다.<br>
     © 머니스쿱 · moneyscoop.co.kr
   </footer>
+  </section>
+
+  <!-- 뷰: 계절성 -->
+  <section class="view" data-view="season">
+    <div class="page-head"><h2>계절성</h2><p class="page-sub">월별 수익률(%) — 행=연도, 열=월. <span class="up">초록</span>=상승 <span class="down">빨강</span>=하락. 맨 아래 <b>평균</b> 행이 계절성입니다.</p></div>
+    <div class="hm" id="heatmap"></div>
+  </section>
+
+  <!-- 뷰: 사이클 오버레이 -->
+  <section class="view" data-view="cycle">
+    <div class="page-head"><h2>사이클 오버레이</h2><p class="page-sub">각 사이클 바닥을 100으로 맞춰 겹쳐봅니다(로그). 현재가 과거 사이클의 어느 구간인지 비교용입니다.</p></div>
+    <canvas id="cvCycle"></canvas>
+  </section>
+
+  <!-- 뷰: 반감기 -->
+  <section class="view" data-view="halving">
+    <div class="page-head"><h2>반감기</h2><p class="page-sub">BTC 반감기 시점을 100으로 맞춰 겹친 사이클(로그). 과거=회색, <span style="color:var(--gold)">현재(2024)=골드</span>. x축=반감기 후 경과(주). <span id="hvStats" style="color:var(--muted)"></span></p></div>
+    <canvas id="cvHalving"></canvas>
+  </section>
+
+  <!-- 뷰: 로그 밴드 -->
+  <section class="view" data-view="band">
+    <div class="page-head"><h2>로그 회귀 밴드</h2><p class="page-sub">주간 종가의 <b>로그-로그 파워로 회귀</b> 채널(±1σ·±2σ, ETH 제네시스 기준). 하단=상대적 저평가, 상단=과열.<br><span id="bandStats" style="color:var(--muted)"></span></p></div>
+    <canvas id="cvBand"></canvas>
+  </section>
+
+  <!-- 뷰: 200주 배수 -->
+  <section class="view" data-view="mayer">
+    <div class="page-head"><h2>200주 배수</h2><p class="page-sub">현재가 / 200주 이동평균 배수(메이어 멀티플). 밴드는 ETH 자체 분포 기준(저평가 하위 20%·과열 상위 20%). <span id="mayerStats" style="color:var(--muted)"></span></p></div>
+    <canvas id="cvMayer"></canvas>
+  </section>
+
+  <!-- 뷰: 드로다운 -->
+  <section class="view" data-view="dd">
+    <div class="page-head"><h2>드로다운</h2><p class="page-sub">전고점(ATH) 대비 낙폭(%). 0 아래로 깊을수록 약세장 바닥권에 가깝습니다. <span id="ddStats" style="color:var(--muted)"></span></p></div>
+    <canvas id="cvDD"></canvas>
+  </section>
+
+  <!-- 뷰: 변동성 -->
+  <section class="view" data-view="vol">
+    <div class="page-head"><h2>변동성</h2><p class="page-sub">주간 수익률 기반 실현 변동성(연율 %). 낮은 구간=압축(큰 움직임 전조로 자주 거론). <span id="volStats" style="color:var(--muted)"></span></p></div>
+    <canvas id="cvVol"></canvas>
+  </section>
 </main>
 </div>
 
@@ -705,11 +721,18 @@ function drawMayer(){
   const lab=pr<0.2?'<span class="up">저평가</span>':pr>0.8?'<span class="down">과열</span>':'<span class="flat">중립</span>';
   const st=$('#mayerStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(2)}×</b> · 분위 <b style="color:var(--text)">${Math.round(pr*100)}</b> ${lab}`;
 }
-let activeTab='season';
-function drawActiveChart(){({season:drawHeatmap,cycle:drawCycle,band:drawBand,dd:drawDrawdown,halving:drawHalving,vol:drawVol,mayer:drawMayer}[activeTab]||(()=>{}))();}
+let activeView='dashboard';
+const VIEW_DRAW={season:drawHeatmap,cycle:drawCycle,halving:drawHalving,band:drawBand,mayer:drawMayer,dd:drawDrawdown,vol:drawVol};
+function drawActiveView(){const fn=VIEW_DRAW[activeView];if(fn&&S.month)fn();}
+function showView(key){
+  activeView=key;
+  document.querySelectorAll('.snav-item').forEach(b=>b.classList.toggle('on',b.dataset.view===key));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===key));
+  drawActiveView();              // 표시 후 그리기(캔버스 0크기 회피)
+}
 
 /* ===== 사이드바 배지 ===== */
-function setBadge(tab,txt,sig){const e=document.querySelector('.snav-item[data-tab="'+tab+'"] .snav-badge');if(!e)return;e.textContent=txt;e.style.color='var(--'+(sig||'muted')+')';}
+function setBadge(view,txt,sig){const e=document.querySelector('.snav-item[data-view="'+view+'"] .snav-badge');if(!e)return;e.textContent=txt;e.style.color='var(--'+(sig||'muted')+')';}
 function updateSideBadges(){
   // 계절성: 이번 달 과거 평균 수익률
   if(S.month&&S.month.c&&S.month.c.length>2){const t=S.month.t,c=S.month.c,mo=new Date(t[t.length-1]).getUTCMonth();let s=0,n=0;for(let i=1;i<c.length;i++){if(new Date(t[i]).getUTCMonth()===mo){s+=(c[i]/c[i-1]-1)*100;n++;}}const a=n?s/n:0;setBadge('season',(a>=0?'+':'')+a.toFixed(1)+'%',a>=0?'bull':'bear');}else setBadge('season','—','muted');
@@ -760,18 +783,12 @@ function recompute(){
   renderRadar([{label:'밸류',score:val},{label:'유동성',score:liq},{label:'펀더멘털',score:fun},{label:'모멘텀',score:mom}]);
   renderQuad(liq,mom);
   verdict(score,{mom,liq,fun,val});
-  if(S.month)drawActiveChart();
+  if(S.month)drawActiveView();
   updateSideBadges();
 }
 
-function selectPattern(tab){
-  activeTab=tab;
-  document.querySelectorAll('.snav-item').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
-  document.querySelectorAll('.panel-chart').forEach(p=>p.classList.toggle('active',p.dataset.panel===tab));
-  if(S.month)drawActiveChart();
-}
-document.querySelectorAll('.snav-item').forEach(b=>b.addEventListener('click',()=>selectPattern(b.dataset.tab)));
-let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.month&&activeTab!=='season')drawActiveChart();},200);});
+document.querySelectorAll('.snav-item').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.month&&VIEW_DRAW[activeView])drawActiveView();},200);});
 
 function syncTuneUI(){
   const nw=normW();
@@ -788,7 +805,7 @@ function bindTune(){
   const onW=()=>{CFG.w={liq:+$('#wLiq').value/100,mom:+$('#wMom').value/100,fun:+$('#wFun').value/100,val:+$('#wVal').value/100};saveCfg();syncTuneUI();recompute();};
   ['wLiq','wMom','wFun','wVal'].forEach(id=>$('#'+id).addEventListener('input',onW));
   $('#pRoc').addEventListener('input',()=>{CFG.rocMonths=+$('#pRoc').value;saveCfg();syncTuneUI();recompute();});
-  const onS=()=>{const s1=+$('#pS1').value,s2=Math.max(s1,+$('#pS2').value);CFG.bandSigma={s1,s2};saveCfg();syncTuneUI();if(S.band&&activeTab==='band')drawBand();};
+  const onS=()=>{const s1=+$('#pS1').value,s2=Math.max(s1,+$('#pS2').value);CFG.bandSigma={s1,s2};saveCfg();syncTuneUI();if(S.band&&activeView==='band')drawBand();};
   $('#pS1').addEventListener('input',onS);$('#pS2').addEventListener('input',onS);
   $('#tReset').addEventListener('click',()=>{resetCfg();syncTuneUI();recompute();});
 }
