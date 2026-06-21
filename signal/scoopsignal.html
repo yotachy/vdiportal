@@ -95,8 +95,10 @@
   .tier-badge{font-size:10.5px;font-weight:700;letter-spacing:.04em;border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;vertical-align:middle}
   .tier-signature{color:var(--ink);background:var(--gold)}
   .tier-basic{color:var(--muted);background:var(--panel-2);border:1px solid var(--line)}
-  .snav-item.tier-sig{position:relative}
-  .snav-item.tier-sig .snav-label-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);flex:0 0 auto;margin-right:6px;display:inline-block}
+  .snav-main{display:inline-flex;align-items:center;gap:9px;min-width:0}
+  .snav-ic{width:17px;height:17px;flex:0 0 auto;display:inline-flex;color:inherit}
+  .snav-ic svg{width:100%;height:100%;display:block}
+  .snav-item.tier-sig .snav-ic{color:var(--gold)}
   canvas{display:block;width:100%;height:300px}
   .view[data-view="cycle"] canvas,
   .view[data-view="halving"] canvas,
@@ -245,17 +247,17 @@
 <div class="app">
   <aside class="side">
     <nav class="snav" aria-label="화면 이동">
-      <button class="snav-item on" data-view="dashboard">이더리움 대시보드</button>
+      <button class="snav-item on" data-view="dashboard"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2" fill="currentColor"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/><rect x="13" y="13" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/></svg></span>이더리움 대시보드</span></button>
       <div class="snav-group">사이클</div>
-      <button class="snav-item" data-view="season">계절성 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-view="cycle">사이클 오버레이 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-view="halving">반감기 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-view="spiral">스네일 차트 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="season"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15" rx="3" fill="currentColor" fill-opacity=".4"/><rect x="7" y="3" width="2.4" height="5" rx="1.2" fill="currentColor"/><rect x="14.6" y="3" width="2.4" height="5" rx="1.2" fill="currentColor"/><rect x="12.8" y="12.5" width="4.7" height="4.7" rx="1.4" fill="currentColor"/></svg></span>계절성</span> <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="cycle"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-opacity=".4" fill-rule="evenodd" d="M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19Zm0 5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"/><circle cx="12" cy="3.6" r="2.5" fill="currentColor"/></svg></span>사이클 오버레이</span> <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="halving"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity=".4"/><path fill="currentColor" d="M12 3a9 9 0 0 1 0 18Z"/></svg></span>반감기</span> <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="spiral"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity=".4"/><path fill="currentColor" d="M12 6.5a5.5 5.5 0 0 1 5.5 5.5 1.6 1.6 0 0 1-3.2 0 2.3 2.3 0 1 0-2.3 2.3 1.6 1.6 0 0 1 0 3.2A5.5 5.5 0 0 1 12 6.5Z"/></svg></span>스네일 차트</span> <span class="snav-badge">—</span></button>
       <div class="snav-group">밸류·리스크</div>
-      <button class="snav-item" data-view="band">로그 밴드 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-view="mayer">200주 배수 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-view="dd">드로다운 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-view="vol">변동성 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="band"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6.2" width="17" height="2.8" rx="1.4" fill="currentColor" fill-opacity=".4"/><rect x="3.5" y="15" width="17" height="2.8" rx="1.4" fill="currentColor" fill-opacity=".4"/><rect x="3.5" y="10.6" width="17" height="2.8" rx="1.4" fill="currentColor"/></svg></span>로그 밴드</span> <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="mayer"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="10.6" y="3" width="2.8" height="18" rx="1.4" fill="currentColor" fill-opacity=".4" transform="rotate(45 12 12)"/><rect x="10.6" y="3" width="2.8" height="18" rx="1.4" fill="currentColor" transform="rotate(-45 12 12)"/></svg></span>200주 배수</span> <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="dd"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="2.6" rx="1.3" fill="currentColor" fill-opacity=".4"/><path fill="currentColor" d="M13.4 9.2a1.4 1.4 0 0 0-2.8 0v6.2l-2.3-2.3a1.4 1.4 0 0 0-2 2l4.7 4.7a1.4 1.4 0 0 0 2 0l4.7-4.7a1.4 1.4 0 0 0-2-2l-2.3 2.3Z"/></svg></span>드로다운</span> <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="vol"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="11" width="17" height="2.4" rx="1.2" fill="currentColor" fill-opacity=".4"/><path fill="currentColor" d="M3.5 11.2h3.2l2-5.6a1.3 1.3 0 0 1 2.5.1l2.2 8.2 1.3-3.4a1.3 1.3 0 0 1 1.2-.8h4.6v2.6h-3.7l-2.2 5.7a1.3 1.3 0 0 1-2.5-.1l-2.1-7.9-1.1 3a1.3 1.3 0 0 1-1.2.8H3.5Z"/></svg></span>변동성</span> <span class="snav-badge">—</span></button>
     </nav>
     <div class="side-foot">
       <div class="status" id="status">
@@ -922,11 +924,7 @@ function applyTierBadges(){
     // 네비 Signature 마커(멱등)
     if(tier==='signature'){
       const nav=document.querySelector('.snav-item[data-view="'+key+'"]');
-      if(nav&&!nav.classList.contains('tier-sig')){
-        nav.classList.add('tier-sig');
-        const dot=document.createElement('span');dot.className='snav-label-dot';
-        nav.insertBefore(dot,nav.firstChild);
-      }
+      if(nav)nav.classList.add('tier-sig');   // 아이콘 골드(.snav-item.tier-sig .snav-ic)
     }
   });
 }
