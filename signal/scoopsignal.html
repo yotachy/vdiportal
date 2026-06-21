@@ -12,7 +12,7 @@
   :root{
     --ink:#0B0F14; --panel:#141A22; --panel-2:#1B232D; --line:#232D38;
     --text:#E6EDF3; --muted:#8B98A6; --faint:#5C6875;
-    --gold:#E8B463;
+    --gold:#E8B463; --eth:#8A92B2;
     --bull:#46C28E; --neutral:#E0A93B; --bear:#E06A6A;
     --bull-dim:rgba(70,194,142,.14); --neutral-dim:rgba(224,169,59,.14); --bear-dim:rgba(224,106,106,.14);
     --bull-tint:rgba(70,194,142,.06); --neutral-tint:rgba(224,169,59,.06); --bear-tint:rgba(224,106,106,.06);
@@ -124,10 +124,15 @@
   footer{font-size:11.5px;color:var(--faint);text-align:center;line-height:1.7;padding-top:4px}
 
   /* tuning panel */
-  details.tune{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:0 16px;margin-bottom:14px}
-  details.tune summary{cursor:pointer;list-style:none;padding:15px 0;font-size:13.5px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  details.tune{background:var(--panel-2);border:1px solid rgba(232,180,99,.4);border-radius:14px;padding:0 16px;margin-bottom:14px;box-shadow:0 0 0 3px var(--neutral-dim)}
+  details.tune summary{cursor:pointer;list-style:none;padding:15px 2px;font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:10px}
   details.tune summary::-webkit-details-marker{display:none}
-  details.tune .arw{color:var(--gold);font-family:var(--mono)} details.tune[open] .arw{transform:rotate(90deg)}
+  details.tune summary:hover{color:var(--gold)}
+  details.tune summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:8px}
+  details.tune .sum-left{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  details.tune .sum-ic{color:var(--gold);display:inline-flex}
+  details.tune .sum-badge{font-size:10.5px;font-weight:700;color:var(--gold);background:var(--neutral-dim);border:1px solid rgba(232,180,99,.4);border-radius:999px;padding:3px 9px;white-space:nowrap}
+  details.tune .arw{color:var(--gold);font-family:var(--mono);font-size:18px} details.tune[open] .arw{transform:rotate(90deg)}
   .tbody{padding:6px 0 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
   .trow{display:grid;grid-template-columns:120px 1fr 56px;align-items:center;gap:12px;font-size:12px}
   .trow label{color:var(--muted)}
@@ -146,6 +151,7 @@
   .wordmark .em{color:var(--gold)}
   .wordmark .by{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:0;margin-left:2px}
   .tagline{font-size:12.5px;color:var(--muted);margin-top:5px}
+  .tagline .eth-logo{color:var(--eth);vertical-align:-2px;margin-right:5px}
   .asset-switch{display:inline-flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
   .asset{appearance:none;font:inherit;font-size:12px;font-weight:600;color:var(--muted);background:none;border:none;border-radius:7px;padding:6px 11px;cursor:pointer}
   .asset:not([disabled]):hover{color:var(--text)}
@@ -214,7 +220,7 @@
         <button class="asset" data-asset="alt" disabled title="준비 중">알트</button>
       </nav>
     </div>
-    <p class="tagline">이더리움 신호 엔진 · 가격·온체인·유동성·사이클 4축 점수화</p>
+    <p class="tagline"><svg class="eth-logo" viewBox="0 0 32 32" width="13" height="13" aria-hidden="true"><path fill="currentColor" fill-opacity=".55" d="M16 3 16 12.3 24 16Z"/><path fill="currentColor" d="M16 3 8 16 16 12.3Z"/><path fill="currentColor" fill-opacity=".55" d="M16 17.6 16 29 24 17.5Z"/><path fill="currentColor" d="M16 29 16 17.6 8 17.5Z"/><path fill="currentColor" fill-opacity=".3" d="M16 16.1 8 16 16 12.3Z"/><path fill="currentColor" fill-opacity=".45" d="M24 16 16 16.1 16 12.3Z"/></svg>이더리움 신호 엔진 · 가격·온체인·유동성·사이클 4축 점수화</p>
   </div>
   <div class="tb-right">
     <span id="updatedAt">불러오는 중…</span>
@@ -226,12 +232,12 @@
 <div class="app">
   <aside class="side">
     <nav class="snav" aria-label="화면 이동">
-      <button class="snav-item on" data-view="dashboard">대시보드</button>
+      <button class="snav-item on" data-view="dashboard">이더리움 대시보드</button>
       <div class="snav-group">사이클</div>
       <button class="snav-item" data-view="season">계절성 <span class="snav-badge">—</span></button>
       <button class="snav-item" data-view="cycle">사이클 오버레이 <span class="snav-badge">—</span></button>
       <button class="snav-item" data-view="halving">반감기 <span class="snav-badge">—</span></button>
-      <button class="snav-item" data-view="spiral">스파이럴 <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="spiral">스네일 차트 <span class="snav-badge">—</span></button>
       <div class="snav-group">밸류·리스크</div>
       <button class="snav-item" data-view="band">로그 밴드 <span class="snav-badge">—</span></button>
       <button class="snav-item" data-view="mayer">200주 배수 <span class="snav-badge">—</span></button>
@@ -263,7 +269,7 @@
   <!-- HERO: gauge + radar + quadrant -->
   <section class="hero">
     <div class="pane">
-      <div class="ptitle">크립토시그널 종합</div>
+      <div class="ptitle">ETH 시그널</div>
       <div class="gauge-wrap">
         <svg class="gauge" viewBox="0 0 240 142" role="img" aria-label="종합 점수 게이지">
           <path id="gTrack" fill="none" stroke="#232D38" stroke-width="14" stroke-linecap="round"/>
@@ -278,12 +284,12 @@
     </div>
 
     <div class="pane">
-      <div class="ptitle">신호 레이더 — 4축 분해</div>
+      <div class="ptitle">ETH 레이더 — 4축 분해</div>
       <svg class="radar" viewBox="0 0 240 220" role="img" aria-label="4축 레이더"><g id="radarG"></g></svg>
     </div>
 
     <div class="pane">
-      <div class="ptitle">ETH 사이클 시계</div>
+      <div class="ptitle">ETH 사이클</div>
       <svg class="quad" viewBox="0 0 240 220" role="img" aria-label="사이클 사분면"><g id="quadG"></g></svg>
       <div class="quad-leg">
         <span style="color:var(--bull)">↗ 상승 (유동성·모멘텀 ↑)</span>
@@ -326,20 +332,27 @@
   </section>
 
   <details class="tune">
-    <summary>튜닝 — 가중치·기간·밴드 조정 <span class="arw">›</span></summary>
+    <summary>
+      <span class="sum-left">
+        <span class="sum-ic"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.6" fill="var(--panel-2)"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.6" fill="var(--panel-2)"/></svg></span>
+        튜닝 — 가중치·기간·밴드 조정
+        <span class="sum-badge">대시보드 점수에 즉시 반영</span>
+      </span>
+      <span class="arw">›</span>
+    </summary>
     <div class="tbody">
       <div>
         <div class="tgrp-title">종합 가중치 (합 100%로 정규화)</div>
-        <div class="trow"><label>유동성</label><input type="range" min="0" max="60" step="1" id="wLiq"><span class="tval" id="wLiqV">—</span></div>
-        <div class="trow"><label>모멘텀</label><input type="range" min="0" max="60" step="1" id="wMom"><span class="tval" id="wMomV">—</span></div>
-        <div class="trow"><label>펀더멘털</label><input type="range" min="0" max="60" step="1" id="wFun"><span class="tval" id="wFunV">—</span></div>
-        <div class="trow"><label>밸류</label><input type="range" min="0" max="60" step="1" id="wVal"><span class="tval" id="wValV">—</span></div>
+        <div class="trow"><label for="wLiq">유동성</label><input type="range" min="0" max="60" step="1" id="wLiq"><span class="tval" id="wLiqV">—</span></div>
+        <div class="trow"><label for="wMom">모멘텀</label><input type="range" min="0" max="60" step="1" id="wMom"><span class="tval" id="wMomV">—</span></div>
+        <div class="trow"><label for="wFun">펀더멘털</label><input type="range" min="0" max="60" step="1" id="wFun"><span class="tval" id="wFunV">—</span></div>
+        <div class="trow"><label for="wVal">밸류</label><input type="range" min="0" max="60" step="1" id="wVal"><span class="tval" id="wValV">—</span></div>
       </div>
       <div>
         <div class="tgrp-title">파라미터</div>
-        <div class="trow"><label>ROC 기간(개월)</label><input type="range" min="1" max="6" step="1" id="pRoc"><span class="tval" id="pRocV">—</span></div>
-        <div class="trow"><label>밴드 σ(안쪽)</label><input type="range" min="0.5" max="2" step="0.5" id="pS1"><span class="tval" id="pS1V">—</span></div>
-        <div class="trow"><label>밴드 σ(바깥)</label><input type="range" min="1" max="3" step="0.5" id="pS2"><span class="tval" id="pS2V">—</span></div>
+        <div class="trow"><label for="pRoc">ROC 기간(개월)</label><input type="range" min="1" max="6" step="1" id="pRoc"><span class="tval" id="pRocV">—</span></div>
+        <div class="trow"><label for="pS1">밴드 σ(안쪽)</label><input type="range" min="0.5" max="2" step="0.5" id="pS1"><span class="tval" id="pS1V">—</span></div>
+        <div class="trow"><label for="pS2">밴드 σ(바깥)</label><input type="range" min="1" max="3" step="0.5" id="pS2"><span class="tval" id="pS2V">—</span></div>
       </div>
       <button class="treset" type="button" id="tReset">기본값으로 초기화</button>
     </div>
@@ -393,7 +406,7 @@
 
   <!-- 뷰: 이더리움 스파이럴(달팽이) -->
   <section class="view" data-view="spiral">
-    <div class="page-head"><h2>이더리움 스파이럴</h2><p class="page-sub">월별 종가를 달팽이 나선으로. <b>한 바퀴 = 1년</b>(같은 달은 같은 각도), 안쪽=과거·바깥쪽=최근. 선 색 <span class="up">초록</span>=오른 달 / <span class="down">빨강</span>=내린 달. 같은 각도(달)에서 색이 반복되면 계절성. <span id="spiralStats" style="color:var(--muted)"></span></p></div>
+    <div class="page-head"><h2>이더리움 스네일 차트</h2><p class="page-sub">월별 종가를 달팽이 나선으로. <b>한 바퀴 = 1년</b>(같은 달은 같은 각도), 안쪽=과거·바깥쪽=최근. 선 색 <span class="up">초록</span>=오른 달 / <span class="down">빨강</span>=내린 달. 같은 각도(달)에서 색이 반복되면 계절성. <span id="spiralStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvSpiral"></canvas>
   </section>
 
@@ -733,6 +746,9 @@ function drawHeatmap(){
   let avg=`<span class="ylab" style="color:var(--gold)">평균</span>`;for(let m=0;m<12;m++){const v=cnts[m]?sums[m]/cnts[m]:null;avg+=`<span class="cell${cc(m)}" style="${col(v)}">${v!=null?v.toFixed(1):''}</span>`;}
   html+=`<div class="hm-row avg">${avg}</div>`;$('#heatmap').innerHTML=html;
 }
+let spiralPhase=0,spiralTimer=null;
+function startSpiralBlink(){stopSpiralBlink();if(matchMedia('(prefers-reduced-motion:reduce)').matches)return;spiralTimer=setInterval(()=>{spiralPhase^=1;drawSpiral();},460);}
+function stopSpiralBlink(){if(spiralTimer){clearInterval(spiralTimer);spiralTimer=null;}}
 function drawSpiral(){
   const cv=$('#cvSpiral');if(!cv)return;
   if(!S.month||!S.month.c||S.month.c.length<13){const e=$('#spiralStats');if(e)e.innerHTML='데이터 부족';return;}
@@ -748,10 +764,11 @@ function drawSpiral(){
   for(let m=0;m<12;m++){const a=A(m);ctx.strokeStyle='#1c252f';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(cx+r0*0.5*Math.cos(a),cy+r0*0.5*Math.sin(a));ctx.lineTo(cx+maxR*Math.cos(a),cy+maxR*Math.sin(a));ctx.stroke();
     ctx.fillStyle='#5C6875';ctx.fillText((m+1)+'월',cx+(maxR+15)*Math.cos(a),cy+(maxR+15)*Math.sin(a));}
-  // 나선 — 월별 등락으로 색, 월 사이를 보간해 부드럽게
-  const SUB=8;
-  for(let i=1;i<n;i++){const ret=(c[i]/c[i-1]-1)*100,al=clamp(Math.abs(ret)/25,.3,.95);
-    ctx.strokeStyle=ret>=0?`rgba(70,194,142,${al})`:`rgba(224,106,106,${al})`;ctx.lineWidth=2.3;ctx.lineCap='round';ctx.beginPath();
+  // 나선 — 월별 등락으로 색(빨강/초록 교차 깜빡임으로 가독성↑), 월 사이를 보간해 부드럽게
+  const SUB=8,reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  for(let i=1;i<n;i++){const ret=(c[i]/c[i-1]-1)*100,up=ret>=0;let al=clamp(Math.abs(ret)/25,.3,.95);
+    if(!reduce)al*=((spiralPhase===0)===up?1:0.2);   // 한 단계는 초록 강조, 다음 단계는 빨강 강조
+    ctx.strokeStyle=up?`rgba(70,194,142,${al})`:`rgba(224,106,106,${al})`;ctx.lineWidth=2.3;ctx.lineCap='round';ctx.beginPath();
     for(let s=0;s<=SUB;s++){const[x,y]=ptAt((i-1)+s/SUB);if(s===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();}
   ctx.lineCap='butt';
   // 현재 위치 마커
@@ -862,7 +879,9 @@ function showView(key){
   activeView=key;
   document.querySelectorAll('.snav-item').forEach(b=>b.classList.toggle('on',b.dataset.view===key));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===key));
+  stopSpiralBlink();
   drawActiveView();              // 표시 후 그리기(캔버스 0크기 회피)
+  if(key==='spiral')startSpiralBlink();   // 스네일 차트 교차 깜빡임
 }
 
 /* ===== 사이드바 배지 ===== */
