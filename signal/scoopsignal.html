@@ -537,9 +537,14 @@ function lineChart(cv,datasets,{logY=false,xTicks=[],xLabel='',yLabel=''}={}){
   // 축 단위 라벨
   ctx.fillStyle='#8B98A6';if(yLabel){ctx.textAlign='left';ctx.fillText(yLabel,pad.l-50,pad.t-10);}
   if(xLabel){ctx.textAlign='right';ctx.fillText(xLabel,W-pad.r,H-5);}
-  // 데이터 라인
+  // 데이터 라인 (+ 현재값 마커 markLast / 보조선 끝 라벨 tag)
+  const lastValid=vals=>{for(let i=vals.length-1;i>=0;i--){const v=vals[i];if(v!=null&&isFinite(v)&&!(v<=0&&logY))return i;}return -1;};
   datasets.forEach(d=>{ctx.strokeStyle=d.color;ctx.lineWidth=d.w||1.8;ctx.setLineDash(d.dash||[]);ctx.beginPath();let started=false;
-    d.values.forEach((v,i)=>{if(v==null||!isFinite(v)||v<=0&&logY)return;const x=X(i),y=Y(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);});ctx.stroke();ctx.setLineDash([]);});
+    d.values.forEach((v,i)=>{if(v==null||!isFinite(v)||v<=0&&logY)return;const x=X(i),y=Y(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);});ctx.stroke();ctx.setLineDash([]);
+    const li=lastValid(d.values);
+    if(d.tag&&li>=0){const y=Y(d.values[li]);ctx.fillStyle=d.color;ctx.font='9px JetBrains Mono';ctx.textAlign='right';ctx.fillText(d.tag,W-pad.r-3,y-3);}
+    if(d.markLast&&li>=0){const x=X(li),y=Y(d.values[li]);ctx.fillStyle=d.color;ctx.beginPath();ctx.arc(x,y,3.6,0,Math.PI*2);ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='#0B0F14';ctx.beginPath();ctx.arc(x,y,3.6,0,Math.PI*2);ctx.stroke();}
+  });
   // 범례(상단)
   let lx=pad.l;ctx.font='10px Pretendard';ctx.textAlign='left';datasets.filter(d=>d.label).forEach(d=>{ctx.fillStyle=d.color;ctx.fillRect(lx,8,9,3);ctx.fillStyle='#8B98A6';ctx.fillText(d.label,lx+13,12);lx+=ctx.measureText(d.label).width+34;});
 }
@@ -723,8 +728,10 @@ function drawCycle(){
   const idxNear=tt=>{let bi=0,bd=1e18;for(let i=0;i<t.length;i++){const dd=Math.abs(t[i]-tt);if(dd<bd){bd=dd;bi=i;}}return bi;};
   const ds=[['이전 사이클(2019~)','#8B98A6'],['현재 사이클(2022~)','#E8B463']].map(([lab,cl],k)=>{
     const start=idxNear(bottoms[k]);const base=c[start];const vals=[];for(let i=start;i<c.length;i++)vals.push(c[i]/base*100);return{label:lab,color:cl,values:vals,w:k?2.2:1.6};});
+  if(ds.length)ds[ds.length-1].markLast=true;   // 현재 사이클 끝점
   const maxLen=Math.max(...ds.map(d=>d.values.length));
-  lineChart($('#cvCycle'),ds,{logY:true,xTicks:weekTicks(maxLen),xLabel:'바닥 후 주차',yLabel:'지수(바닥=100·로그)'});
+  const ref=[{color:'#3a4654',values:Array(maxLen).fill(100),w:1,dash:[3,5],tag:'바닥 100'}];  // 사이클 시작선
+  lineChart($('#cvCycle'),[...ref,...ds],{logY:true,xTicks:weekTicks(maxLen),xLabel:'바닥 후 주차',yLabel:'지수(바닥=100·로그)'});
 }
 function drawBand(){
   const t=S.week.t,c=S.week.c,{a,b,sigma,t0,r2,z,pct}=S.band;
@@ -739,15 +746,19 @@ function drawBand(){
     {label:'추세',color:'#8B98A6',values:mid,w:1.2},
     {color:'#3E8C68',values:d1,w:0.7,dash:[2,3]},
     {label:`-${s2}σ`,color:'#46C28E',values:d2,w:1,dash:[5,4]},
-    {label:'ETH',color:'#E8B463',values:c,w:2}
+    {label:'ETH',color:'#E8B463',values:c,w:2,markLast:true}
   ],{logY:true,xTicks:yearTicks(t),xLabel:'연도',yLabel:'USD(로그)'});
   const st=$('#bandStats');if(st)st.innerHTML=`적합도 R²=<b style="color:var(--text)">${r2.toFixed(3)}</b> · 현재 z=<b style="color:var(--text)">${z>=0?'+':''}${z.toFixed(2)}σ</b> · 추세선 대비 백분위 <b style="color:var(--text)">${Math.round(pct*100)}</b> ${pct<.35?'<span class="up">저평가</span>':pct>.7?'<span class="down">과열</span>':'<span class="flat">중립</span>'}`;
 }
 function drawDrawdown(){
   const c=S.week.c;let peak=-Infinity;
   const dd=c.map(v=>{if(v>peak)peak=v;return (v/peak-1)*100;});
-  lineChart($('#cvDD'),[{label:'드로다운(%)',color:css('--bear'),values:dd,w:1.8}],{logY:false,xTicks:yearTicks(S.week.t),xLabel:'연도',yLabel:'낙폭 %'});
   const cur=dd[dd.length-1],mx=Math.min(...dd);
+  lineChart($('#cvDD'),[
+    {color:'#3a4654',values:dd.map(()=>0),w:1,dash:[3,5],tag:'전고점 0%'},
+    {color:'rgba(224,106,106,.45)',values:dd.map(()=>mx),w:1,dash:[4,4],tag:`역대 ${mx.toFixed(0)}%`},
+    {label:'드로다운(%)',color:css('--bear'),values:dd,w:1.8,markLast:true}
+  ],{logY:false,xTicks:yearTicks(S.week.t),xLabel:'연도',yLabel:'낙폭 %'});
   const st=$('#ddStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(1)}%</b> · 역대 최대 <b style="color:var(--text)">${mx.toFixed(1)}%</b>`;
 }
 function drawHalving(){
@@ -763,8 +774,10 @@ function drawHalving(){
     ds.push({label:d.slice(0,4)+' 반감기',color:cl,values:vals,w:last?2.4:1.5});
     if(last)curWeeks=c.length-1-start;
   });
-  const maxLen=Math.max(...ds.map(d=>d.values.length));
-  lineChart($('#cvHalving'),ds,{logY:true,xTicks:weekTicks(maxLen),xLabel:'반감기 후 주차',yLabel:'지수(반감기=100·로그)'});
+  if(ds.length)ds[ds.length-1].markLast=true;   // 현재(2024) 사이클 끝점
+  const maxLen=ds.length?Math.max(...ds.map(d=>d.values.length)):0;
+  const ref=maxLen?[{color:'#3a4654',values:Array(maxLen).fill(100),w:1,dash:[3,5],tag:'반감기 100'}]:[];
+  lineChart($('#cvHalving'),[...ref,...ds],{logY:true,xTicks:weekTicks(maxLen),xLabel:'반감기 후 주차',yLabel:'지수(반감기=100·로그)'});
   const st=$('#hvStats');if(st)st.innerHTML=curWeeks!=null?`현재 <b style="color:var(--text)">반감기 후 ${curWeeks}주</b> (2024-04-20 기준)`:'';
 }
 const VOL_WIN=13; // 실현 변동성 롤링 창(주)
@@ -777,9 +790,15 @@ function drawVol(){
     let s=0;for(let j=i-VOL_WIN+1;j<=i;j++)s+=(r[j]-m)*(r[j]-m);
     vol.push(Math.sqrt(s/VOL_WIN)*Math.sqrt(52)*100);
   }
-  lineChart($('#cvVol'),[{label:`실현 변동성(${VOL_WIN}주, 연율%)`,color:css('--neutral'),values:vol,w:1.8}],{logY:false,xTicks:yearTicks(S.week.t.slice(1)),xLabel:'연도',yLabel:'변동성 %(연율)'});
   const valid=vol.filter(v=>v!=null),cur=valid[valid.length-1],pr=pctRank(valid,cur);
-  if(!valid.length){const e=$('#volStats');if(e)e.innerHTML='데이터 부족';return;}
+  if(!valid.length){const e=$('#volStats');if(e)e.innerHTML='데이터 부족';lineChart($('#cvVol'),[],{logY:false});return;}
+  const sv=[...valid].sort((a,b)=>a-b),vq=p=>sv[Math.floor(clamp(p,0,1)*(sv.length-1))];
+  lineChart($('#cvVol'),[
+    {color:'rgba(70,194,142,.45)',values:vol.map(()=>vq(0.2)),w:1,dash:[4,4],tag:'압축'},
+    {color:'#3a4654',values:vol.map(()=>vq(0.5)),w:1,dash:[2,5],tag:'중앙'},
+    {color:'rgba(224,106,106,.45)',values:vol.map(()=>vq(0.8)),w:1,dash:[4,4],tag:'고변동'},
+    {label:`실현 변동성(${VOL_WIN}주, 연율%)`,color:css('--neutral'),values:vol,w:1.8,markLast:true}
+  ],{logY:false,xTicks:yearTicks(S.week.t.slice(1)),xLabel:'연도',yLabel:'변동성 %(연율)'});
   const st=$('#volStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(0)}%</b> ${prMeter(pr,sigOf((1-pr)*100))} <span style="color:var(--faint)">(낮을수록 압축)</span>`;
 }
 function drawMayer(){
@@ -790,7 +809,8 @@ function drawMayer(){
   lineChart($('#cvMayer'),[
     {label:'과열(상위20%)',color:css('--bear'),values:mh.map(()=>hi),w:0.8,dash:[5,4]},
     {label:'저평가(하위20%)',color:css('--bull'),values:mh.map(()=>lo),w:0.8,dash:[5,4]},
-    {label:'200주 배수',color:css('--gold'),values:mh,w:1.8}
+    {color:'#3a4654',values:mh.map(()=>1),w:1,dash:[3,5],tag:'1.0×'},
+    {label:'200주 배수',color:css('--gold'),values:mh,w:1.8,markLast:true}
   ],{logY:false,xTicks:yearTicks((S.week&&S.week.t)?S.week.t.slice(S.week.t.length-mh.length):[]),xLabel:'연도',yLabel:'배수 ×'});
   const cur=mh[mh.length-1],pr=pctRank(mh,cur);
   const lab=pr<0.2?'<span class="up">저평가</span>':pr>0.8?'<span class="down">과열</span>':'<span class="flat">중립</span>';
