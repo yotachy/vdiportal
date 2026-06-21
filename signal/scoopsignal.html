@@ -815,6 +815,7 @@ buildGauge();
 bindTune();
 syncTuneUI();
 refresh();
+showView(activeView);
 setInterval(refresh,60000);
 $('#refreshBtn').addEventListener('click',refresh);
 </script>
