@@ -309,6 +309,7 @@
         <span class="s"><i id="st-beacon"></i>스테이킹</span>
         <span class="s"><i id="st-coingecko"></i>도미넌스</span>
         <span class="s"><i id="st-ultrasound"></i>온체인</span>
+        <span class="s"><i id="st-treasury"></i>기관</span>
       </div>
     </div>
   </aside>
@@ -813,6 +814,23 @@ async function loadUltrasound(){
     setStatus('ultrasound','ok');
   }catch(e){S.us=null;setStatus('ultrasound','warn');}
 }
+async function loadTreasury(){
+  // 스냅샷 — 자주 안 변함, 20분 캐시
+  if(S.treasury&&S._trAt&&(Date.now()-S._trAt)<1200000){setStatus('treasury','ok');return;}
+  try{
+    const g=await jget('https://api.coingecko.com/api/v3/companies/public_treasury/ethereum');
+    if(!g||g.total_holdings==null)throw new Error('no treasury');
+    S.treasury={total:+g.total_holdings,usd:+g.total_value_usd,dom:+g.market_cap_dominance,companies:Array.isArray(g.companies)?g.companies:[]};
+    S._trAt=Date.now();setStatus('treasury','ok');
+  }catch(e){S.treasury=null;setStatus('treasury','warn');}
+}
+// S.us 공급 시계열에서 최근 30일 변화율(%) — 디플레/공급압력용
+function supply30dChg(){
+  const s=S.us&&S.us.series;if(!s||s.length<2)return null;
+  const last=s[s.length-1],cutoff=last.t-30*864e5;
+  let i=s.length-1;while(i>0&&s[i].t>cutoff)i--;
+  return s[i].supply>0?(last.supply/s[i].supply-1)*100:null;
+}
 
 /* ===== SCORING ===== */
 function chip(n,s){const g=sigOf(s);F(n).forEach(e=>{e.dataset.sig=g;e.textContent=sigKo(g);});}
@@ -1125,7 +1143,7 @@ function updateSideBadges(){
 /* ===== orchestration ===== */
 async function refresh(){
   $('#refreshBtn').disabled=true;$('#refreshBtn').classList.add('spinning');
-  const r=await Promise.allSettled([loadUpbit(),loadLlama(),loadDollar(),loadFred(),loadBeacon(),loadCoinGecko(),loadUltrasound()]);
+  const r=await Promise.allSettled([loadUpbit(),loadLlama(),loadDollar(),loadFred(),loadBeacon(),loadCoinGecko(),loadUltrasound(),loadTreasury()]);
   setStatus('price',(S.week&&S.ethbtc)?'ok':(S.week||S.ethbtc||S.month)?'warn':'err');
   setStatus('llama',r[1].status==='fulfilled'?'ok':'err');
   setStatus('fx',r[2].status==='fulfilled'?'ok':'err');
