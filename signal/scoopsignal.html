@@ -292,7 +292,7 @@
     </nav>
     <div class="side-foot">
       <div class="status" id="status">
-        <span class="s"><i id="st-binance"></i>Binance 가격·사이클</span>
+        <span class="s"><i id="st-price"></i>Upbit·CoinGecko 가격</span>
         <span class="s"><i id="st-llama"></i>DeFiLlama 온체인</span>
         <span class="s"><i id="st-fx"></i>Frankfurter 달러</span>
         <span class="s"><i id="st-fred"></i>FRED 매크로</span>
@@ -477,7 +477,7 @@
 
   <!-- 뷰: 로그 밴드 -->
   <section class="view" data-view="band">
-    <div class="page-head"><h2>로그 회귀 밴드</h2><p class="page-sub">주간 종가의 <b>로그-로그 파워로 회귀</b> 채널(±1σ·±2σ, ETH 제네시스 기준). 하단=상대적 저평가, 상단=과열.<br><span id="bandStats" style="color:var(--muted)"></span></p></div>
+    <div class="page-head"><h2>로그 회귀 밴드</h2><p class="page-sub">주간 종가의 <b>로그-로그 파워로 회귀</b> 채널(±1σ·±2σ, ETH 제네시스 기준). 하단=상대적 저평가, 상단=과열.<br>원화(₩) 기준 · <span id="bandStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvBand"></canvas>
   </section>
 
@@ -658,29 +658,47 @@ function yearTicks(times){const n=times&&times.length;if(!n||n<2)return [];const
 function weekTicks(maxLen){if(maxLen<2)return [];const step=maxLen>312?104:maxLen>156?52:26;const out=[];for(let w=0;w<maxLen;w+=step)out.push({frac:w/(maxLen-1),text:w+'주'});return out;}
 
 /* ===== DATA LOADERS ===== */
-async function loadBinance(){
-  const[eth,btc,eb,kEbD,kW,kM]=await Promise.all([
-    jget('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT'),
-    jget('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT'),
-    jget('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHBTC'),
-    jget('https://api.binance.com/api/v3/klines?symbol=ETHBTC&interval=1d&limit=500'),
-    jget('https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1w&limit=520'),
-    jget('https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1M&limit=130')
+// Upbit 캔들 페이지네이션 → 오름차순 [{t,c}] (c=종가 trade_price)
+async function upCandles(unit,market,need){
+  const out=[];let to='';
+  for(let guard=0;guard<10&&out.length<need;guard++){
+    const u=`https://api.upbit.com/v1/candles/${unit}?market=${market}&count=200`+(to?`&to=${encodeURIComponent(to)}`:'');
+    const arr=await jget(u);
+    if(!Array.isArray(arr)||!arr.length)break;
+    out.push(...arr);                                   // 각 페이지 최신→과거
+    to=arr[arr.length-1].candle_date_time_utc+'Z';      // 가장 과거 캔들 시각(UTC) → 다음 페이지 기준
+    if(arr.length<200)break;
+  }
+  const seen=new Set(),res=[];
+  out.reverse().forEach(d=>{const t=Date.parse(d.candle_date_time_utc+'Z');if(isFinite(t)&&!seen.has(t)){seen.add(t);res.push({t,c:+d.trade_price});}});
+  return res;
+}
+async function loadUpbit(){
+  // 티커(USD): CoinGecko simple/price
+  try{
+    const sp=await jget('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd,btc&include_24hr_change=true');
+    const e=sp&&sp.ethereum;
+    if(e){ if(e.usd!=null){setF('ethUsd',fmtUsd(e.usd));chg('ethChg',+e.usd_24h_change||0);}
+           if(e.btc!=null){setF('ethBtc',(+e.btc).toFixed(5));chg('ethBtcChg',+e.btc_24h_change||0);} }
+  }catch(_){}
+  // 캔들(Upbit): ETH/BTC 일봉(모멘텀) · KRW-ETH 주/월봉(밸류 차트, 원화)
+  const[ebD,wk,mo]=await Promise.all([
+    upCandles('days','BTC-ETH',400),
+    upCandles('weeks','KRW-ETH',470),
+    upCandles('months','KRW-ETH',200)
   ]);
-  setF('ethUsd',fmtUsd(+eth.lastPrice));chg('ethChg',+eth.priceChangePercent);
-  setF('ethBtc',(+eb.lastPrice).toFixed(5));chg('ethBtcChg',+eb.priceChangePercent);
-  // ETH/BTC vs 50일선 + 그 지표의 자체 히스토리 분포(퍼센타일 보정용)
-  const ebC=kEbD.map(k=>+k[4]),last=ebC.length-1;
+  // ETH/BTC vs 50일선 + 자체 분포(퍼센타일)
+  const ebC=ebD.map(p=>p.c),last=ebC.length-1;
   const s50=sma(ebC,50,last),s50p=sma(ebC,50,last-10);
   const ebHist=[];for(let i=49;i<ebC.length;i++)ebHist.push((ebC[i]/sma(ebC,50,i)-1)*100);
-  S.ethbtc={dist:(+eb.lastPrice/s50-1)*100,slope:(s50/s50p-1)*100,hist:ebHist};
-  S.week={t:kW.map(k=>+k[0]),c:kW.map(k=>+k[4])};
-  S.month={t:kM.map(k=>+k[0]),c:kM.map(k=>+k[4])};
-  // 200주선 배수 + 그 배수의 전체 히스토리 분포
+  S.ethbtc={dist:(ebC[last]/s50-1)*100,slope:(s50/s50p-1)*100,hist:ebHist};
+  S.week={t:wk.map(p=>p.t),c:wk.map(p=>p.c)};
+  S.month={t:mo.map(p=>p.t),c:mo.map(p=>p.c)};
+  // 200주선 배수 + 분포
   const wc=S.week.c,wl=wc.length-1,ma200=sma(wc,200,wl),m200Hist=[];
   for(let i=199;i<wc.length;i++)m200Hist.push(wc[i]/sma(wc,200,i));
   S.ma200={mult:wc[wl]/ma200,hist:m200Hist};
-  // 정밀 로그-로그 파워로 회귀(주간, ETH 제네시스 기준)
+  // 로그-로그 파워로 회귀(주간, 제네시스 기준 — 가용 데이터로 적합)
   const t0=Date.parse('2015-07-30');
   S.band=fitPower(S.week.t,wc,t0);S.band.t0=t0;
   const dNow=Math.log((S.week.t[wl]-t0)/864e5),resNow=Math.log(wc[wl])-(S.band.a+S.band.b*dNow);
@@ -916,7 +934,7 @@ function drawBand(){
     {color:'#3E8C68',values:d1,w:0.7,dash:[2,3]},
     {label:`-${s2}σ`,color:'#46C28E',values:d2,w:1,dash:[5,4]},
     {label:'ETH',color:'#E8B463',values:c,w:2,markLast:true}
-  ],{logY:true,xTicks:yearTicks(t),xLabel:'연도',yLabel:'USD(로그)'});
+  ],{logY:true,xTicks:yearTicks(t),xLabel:'연도',yLabel:'₩(로그)'});
   const st=$('#bandStats');if(st)st.innerHTML=`적합도 R²=<b style="color:var(--text)">${r2.toFixed(3)}</b> · 현재 z=<b style="color:var(--text)">${z>=0?'+':''}${z.toFixed(2)}σ</b> · 추세선 대비 백분위 <b style="color:var(--text)">${Math.round(pct*100)}</b> ${pct<.35?'<span class="up">저평가</span>':pct>.7?'<span class="down">과열</span>':'<span class="flat">중립</span>'}`;
 }
 function drawDrawdown(){
@@ -1089,8 +1107,8 @@ function updateSideBadges(){
 /* ===== orchestration ===== */
 async function refresh(){
   $('#refreshBtn').disabled=true;$('#refreshBtn').classList.add('spinning');
-  const r=await Promise.allSettled([loadBinance(),loadLlama(),loadDollar(),loadFred(),loadBeacon(),loadCoinGecko(),loadUltrasound()]);
-  setStatus('binance',r[0].status==='fulfilled'?'ok':'err');
+  const r=await Promise.allSettled([loadUpbit(),loadLlama(),loadDollar(),loadFred(),loadBeacon(),loadCoinGecko(),loadUltrasound()]);
+  setStatus('price',r[0].status==='fulfilled'?'ok':'err');
   setStatus('llama',r[1].status==='fulfilled'?'ok':'err');
   setStatus('fx',r[2].status==='fulfilled'?'ok':'err');
   setStatus('fred',(S.netLiq&&!S.netLiq.fb)?'ok':'warn');
