@@ -106,6 +106,9 @@
   .view[data-view="mayer"] canvas,
   .view[data-view="dd"] canvas,
   .view[data-view="vol"] canvas{height:clamp(360px,52vh,460px)}
+  .view[data-view="supply"] canvas,.view[data-view="defidom"] canvas{height:clamp(360px,52vh,460px)}
+  #gasStats .mrow,#stakingStats .mrow{padding:5px 0;font-size:13px}
+  #gasStats .mrow:not(:last-child),#stakingStats .mrow:not(:last-child){border-bottom:1px solid var(--line)}
   .view[data-view="spiral"] canvas{height:clamp(440px,66vh,600px)}
   .hm{display:flex;flex-direction:column;gap:3px;overflow-x:auto}
   .hm-row{display:grid;grid-template-columns:42px repeat(12,1fr);gap:3px;min-width:560px}
@@ -281,6 +284,11 @@
       <button class="snav-item" data-view="mayer"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="10.6" y="3" width="2.8" height="18" rx="1.4" fill="currentColor" fill-opacity=".4" transform="rotate(45 12 12)"/><rect x="10.6" y="3" width="2.8" height="18" rx="1.4" fill="currentColor" transform="rotate(-45 12 12)"/></svg></span>200주 배수</span> <span class="snav-badge">—</span></button>
       <button class="snav-item" data-view="dd"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="2.6" rx="1.3" fill="currentColor" fill-opacity=".4"/><path fill="currentColor" d="M13.4 9.2a1.4 1.4 0 0 0-2.8 0v6.2l-2.3-2.3a1.4 1.4 0 0 0-2 2l4.7 4.7a1.4 1.4 0 0 0 2 0l4.7-4.7a1.4 1.4 0 0 0-2-2l-2.3 2.3Z"/></svg></span>드로다운</span> <span class="snav-badge">—</span></button>
       <button class="snav-item" data-view="vol"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="11" width="17" height="2.4" rx="1.2" fill="currentColor" fill-opacity=".4"/><path fill="currentColor" d="M3.5 11.2h3.2l2-5.6a1.3 1.3 0 0 1 2.5.1l2.2 8.2 1.3-3.4a1.3 1.3 0 0 1 1.2-.8h4.6v2.6h-3.7l-2.2 5.7a1.3 1.3 0 0 1-2.5-.1l-2.1-7.9-1.1 3a1.3 1.3 0 0 1-1.2.8H3.5Z"/></svg></span>변동성</span> <span class="snav-badge">—</span></button>
+      <div class="snav-group">온체인·네트워크</div>
+      <button class="snav-item" data-view="supply"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7.5" ry="3" fill="currentColor"/><path fill="currentColor" fill-opacity=".4" d="M4.5 6v5c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3V6c0 1.66-3.36 3-7.5 3S4.5 7.66 4.5 6Z"/><path fill="currentColor" fill-opacity=".4" d="M4.5 11v5c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-5c0 1.66-3.36 3-7.5 3s-7.5-1.34-7.5-3Z"/></svg></span>순발행·공급</span> <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="gas"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-opacity=".4" d="M12 2c3 3.5 6 6.4 6 10.5A6 6 0 0 1 6 12.5C6 8.4 9 5.5 12 2Z"/><path fill="currentColor" d="M12 21a3.6 3.6 0 0 1-3.6-3.6c0-2 1.6-3.4 3.6-5.4 2 2 3.6 3.4 3.6 5.4A3.6 3.6 0 0 1 12 21Z"/></svg></span>가스·수수료</span> <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="staking"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.4" fill="currentColor" fill-opacity=".4"/><path fill="currentColor" d="M7.5 10.5V8a4.5 4.5 0 0 1 9 0v2.5h-2.4V8a2.1 2.1 0 0 0-4.2 0v2.5Z"/><circle cx="12" cy="15.2" r="1.8" fill="currentColor"/></svg></span>스테이킹 비율</span> <span class="snav-badge">—</span></button>
+      <button class="snav-item" data-view="defidom"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity=".4"/><path fill="currentColor" d="M12 3a9 9 0 0 1 8.49 6H12Z"/></svg></span>DeFi 지배력</span> <span class="snav-badge">—</span></button>
     </nav>
     <div class="side-foot">
       <div class="status" id="status">
@@ -489,6 +497,22 @@
   <section class="view" data-view="vol">
     <div class="page-head"><h2>변동성</h2><p class="page-sub">주간 수익률 기반 실현 변동성(연율 %). 낮은 구간=압축(큰 움직임 전조로 자주 거론). <span id="volStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvVol"></canvas>
+  </section>
+  <section class="view" data-view="supply">
+    <div class="page-head"><h2>순발행·공급</h2><p class="page-sub">Merge 이후 발행(스테이킹 보상)−소각(base fee)으로 결정되는 ETH 공급 추이. 공급이 줄면 디플레(ultrasound). <span id="supplyStats" style="color:var(--muted)"></span></p></div>
+    <canvas id="cvSupply"></canvas>
+  </section>
+  <section class="view" data-view="gas">
+    <div class="page-head"><h2>가스·수수료</h2><p class="page-sub">네트워크 수요 지표 — 기준 가스(base fee)와 소각률(연율 ETH). 소각이 발행보다 크면 디플레. <span id="gasStatsLine" style="color:var(--muted)"></span></p></div>
+    <div class="card" style="max-width:520px"><div id="gasStats"></div></div>
+  </section>
+  <section class="view" data-view="staking">
+    <div class="page-head"><h2>스테이킹 비율</h2><p class="page-sub">총공급 대비 스테이킹된 ETH 비율(PoS 고유). 높을수록 유통 물량 잠김·네트워크 보안↑. <span id="stakingStatsLine" style="color:var(--muted)"></span></p></div>
+    <div class="card" style="max-width:520px"><div id="stakingStats"></div></div>
+  </section>
+  <section class="view" data-view="defidom">
+    <div class="page-head"><h2>ETH DeFi 지배력</h2><p class="page-sub">전체 체인 DeFi TVL 중 이더리움 비중과 ETH DeFi TVL 추이. '디파이 본진' 위상. <span id="defidomStats" style="color:var(--muted)"></span></p></div>
+    <canvas id="cvDefiDom"></canvas>
   </section>
 </main>
 </div>
@@ -967,7 +991,8 @@ const VIEW_DRAW={season:drawHeatmap,spiral:drawSpiral,cycle:drawCycle,halving:dr
 const CHART_TIER={
   spiral:'signature',
   season:'basic', cycle:'basic', halving:'basic',
-  band:'basic', mayer:'basic', dd:'basic', vol:'basic'
+  band:'basic', mayer:'basic', dd:'basic', vol:'basic',
+  supply:'basic', gas:'basic', staking:'basic', defidom:'basic'
 };
 const TIER_META={
   signature:{label:'Signature',title:'크립토시그널이 자체 해석·도출한 지표'},
