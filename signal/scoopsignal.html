@@ -741,7 +741,6 @@ async function loadUltrasound(){
       jget('https://ultrasound.money/api/fees/all'),
       jget('https://ultrasound.money/api/v2/fees/effective-balance-sum')
     ]);
-    console.log('ultrasound supply-over-time keys:',Object.keys(so));
     const raw=so.since_merge||so.sinceMerge||so.d30||so.d7||so.d1||[];
     const series=raw.filter(p=>p&&p.supply!=null&&p.timestamp).map(p=>({t:Date.parse(p.timestamp),supply:+p.supply}));
     const br=fa.burnRates||{};
