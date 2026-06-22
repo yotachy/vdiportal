@@ -762,7 +762,7 @@ async function upCandles(unit,market,need){
   const out=[];let to='';
   for(let guard=0;guard<10&&out.length<need;guard++){
     const u=`https://api.upbit.com/v1/candles/${unit}?market=${market}&count=200`+(to?`&to=${encodeURIComponent(to)}`:'');
-    const arr=await jget(u);
+    const arr=await jget(proxied(u));
     if(!Array.isArray(arr)||!arr.length)break;
     out.push(...arr);                                   // 각 페이지 최신→과거
     to=arr[arr.length-1].candle_date_time_utc+'Z';      // 가장 과거 캔들 시각(UTC) → 다음 페이지 기준

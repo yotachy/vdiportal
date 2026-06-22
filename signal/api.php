@@ -18,7 +18,7 @@ if (!$p || empty($p['scheme']) || !in_array(strtolower($p['scheme']), ['http','h
 }
 $host = strtolower($p['host']);
 $path = isset($p['path']) ? $p['path'] : '';
-$allow = ['api.stlouisfed.org' => '/fred/', 'beaconcha.in' => '/api/'];
+$allow = ['api.stlouisfed.org' => '/fred/', 'beaconcha.in' => '/api/', 'api.upbit.com' => '/v1/'];
 if (!isset($allow[$host]) || strpos($path, $allow[$host]) !== 0) {
   http_response_code(403); echo json_encode(['error' => 'host not allowed']); exit;
 }
