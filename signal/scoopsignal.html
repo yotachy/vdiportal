@@ -1100,7 +1100,8 @@ function renderTreasury(){
   const t=S.treasury;
   if(st)st.innerHTML=`총 보유 <b style="color:var(--text)">${(t.total/1e6).toFixed(2)}M ETH</b> · <b style="color:var(--text)">$${(t.usd/1e9).toFixed(1)}B</b> · 공급 비중 <b style="color:var(--text)">${(t.dom||0).toFixed(1)}%</b>`;
   const cos=(t.companies||[]).slice(0,12),mx=Math.max(1,...cos.map(c=>+c.total_holdings||0));
-  if(li)li.innerHTML=cos.map(c=>{const h=+c.total_holdings||0;return `<div class="ob-bar"><span title="${(c.name||'').replace(/"/g,'')}">${(c.name||'').slice(0,16)}</span><span class="bar"><i style="width:${clamp(h/mx*100,2,100)}%;background:var(--gold)"></i></span><span class="num">${Math.round(h).toLocaleString()}</span></div>`;}).join('');
+  const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  if(li)li.innerHTML=cos.map(c=>{const h=+c.total_holdings||0;return `<div class="ob-bar"><span title="${esc(c.name)}">${esc((c.name||'').slice(0,16))}</span><span class="bar"><i style="width:${clamp(h/mx*100,2,100)}%;background:var(--gold)"></i></span><span class="num">${Math.round(h).toLocaleString()}</span></div>`;}).join('');
 }
 function trigEval(){
   const T=[],add=(k,ok,a)=>T.push({k,on:!!ok,a:!!a});
