@@ -463,7 +463,7 @@
       <h4>구간</h4>
       <p>0–27 약세 지속 · 28–42 약세 우위 · 43–57 중립 · 58–71 강세 전환 · 72–100 강세</p>
       <h4>데이터 (모두 무료)</h4>
-      <p>Upbit(가격·캔들, 밸류 차트는 원화 기준) · CoinGecko(USD 티커·도미넌스) · DeFiLlama(TVL·스테이블·L2·L2 히스토리·DeFi 지배력) · Frankfurter/ECB(달러) · FRED(순유동성·실질금리·DGS10, 키+프록시) · beaconcha.in(검증자 큐·ETH.STORE APR) · ultrasound.money(공급·소각·스테이킹)</p>
+      <p>Upbit(가격·캔들, 밸류 차트는 원화 기준) · CoinGecko(USD 티커·도미넌스) · DeFiLlama(TVL·스테이블·L2·L2 히스토리·DeFi 지배력) · Frankfurter/ECB(달러) · FRED(순유동성·실질금리·DGS10, 키+프록시) · validatorqueue.com(검증자 큐·스테이킹 APR) · ultrasound.money(공급·소각·스테이킹)</p>
       <p>가중치·ROC 기간·밴드 σ폭은 상단 튜닝 패널에서 조정하며 브라우저(localStorage)에 저장됩니다.</p>
       <p><b style="color:var(--text)">Basic</b> = 어디서나 볼 수 있는 표준 지표 · <b style="color:var(--gold)">Signature</b> = 크립토시그널이 자체 해석·도출한 지표. 향후 데이터 공개 범위가 회원 등급별로 달라질 수 있습니다.</p>
       <p style="color:var(--faint)">주기 패턴(계절성·사이클/반감기 오버레이·로그밴드·200주배수·드로다운·변동성)은 좌측 네비의 전용 페이지에서 보며, 각 항목 옆 배지는 현재값입니다.</p>
@@ -861,15 +861,15 @@ async function loadFred(){
 }
 
 async function loadBeacon(){
+  // validatorqueue.com 오픈데이터(raw GitHub, 무료·노키·CORS): 검증자 큐 + 스테이킹 APR
   try{
-    const q=await jget(proxied('https://beaconcha.in/api/v1/validators/queue'));
-    S.queue={enter:q.data.beaconchain_entering,exit:q.data.beaconchain_exiting};setStatus('beacon','ok');
-  }catch(e){S.queue=null;setStatus('beacon','warn');}
-  try{
-    const a=await jget(proxied('https://beaconcha.in/api/v1/ethstore/latest'));
-    const apr=a&&a.data&&(a.data.apr!=null?a.data.apr:a.data.cl_apr);
-    const v=+apr; const ok=isFinite(v)&&v>0; S.staking={apr:ok?(v<=1?v*100:v):3.0,fb:!ok};
-  }catch(e){S.staking={apr:3.0,fb:true};}
+    const arr=await jget('https://raw.githubusercontent.com/etheralpha/validatorqueue-com/main/historical_data.json');
+    const e=Array.isArray(arr)&&arr.length?arr[arr.length-1]:null;
+    if(!e)throw new Error('no data');
+    S.queue={enter:+e.entry_queue||0,exit:+e.exit_queue||0,enterWait:+e.entry_wait||0,exitWait:+e.exit_wait||0};
+    const v=+e.apr; S.staking=(isFinite(v)&&v>0)?{apr:v,fb:false}:{apr:3.0,fb:true};
+    setStatus('beacon','ok');
+  }catch(e){S.queue=null;S.staking={apr:3.0,fb:true};setStatus('beacon','warn');}
 }
 
 async function loadCoinGecko(){
@@ -969,7 +969,8 @@ function scoreFun(){
     const fb=S.staking.fb||S.tenY.fb;
     setF('spVal',`<span class="${spread>=0?'up':'down'}">${spread>=0?'+':''}${spread.toFixed(1)}%p</span>${fb?'<span class="badge">예시</span>':''}`);}
   if(S.queue){const net=S.queue.enter-S.queue.exit;parts.push(net>0?68:42);
-    setF('qVal',`<span class="${net>=0?'up':'down'}">입${S.queue.enter} / 출${S.queue.exit}</span>`);}
+    const qm=n=>(n/1e6).toFixed(2)+'M';
+    setF('qVal',`<span class="${net>=0?'up':'down'}">입 ${qm(S.queue.enter)}·${Math.round(S.queue.enterWait)}일 / 출 ${qm(S.queue.exit)}·${Math.round(S.queue.exitWait)}일</span>`);}
   else setF('qVal','<span class="badge">연결 필요</span>');
   return Math.round(parts.reduce((a,b)=>a+b,0)/parts.length);
 }
