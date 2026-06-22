@@ -8,7 +8,8 @@
 header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json; charset=utf-8');
 
-$FRED_KEY = '';   // ← cafe24 업로드본에만 FRED 무료 키 주입(git엔 빈 슬롯)
+$FRED_KEY = '';     // ← cafe24 업로드본에만 FRED 무료 키 주입(git엔 빈 슬롯)
+$BEACON_KEY = '';   // ← cafe24 업로드본에만 beaconcha.in 무료 키 주입(git엔 빈 슬롯)
 
 $u = isset($_GET['u']) ? $_GET['u'] : '';
 $p = @parse_url($u);
@@ -22,10 +23,13 @@ if (!isset($allow[$host]) || strpos($path, $allow[$host]) !== 0) {
   http_response_code(403); echo json_encode(['error' => 'host not allowed']); exit;
 }
 
-// FRED 키 서버 주입(클라이언트 URL엔 키 없음)
+// 키 서버 주입(클라이언트 URL엔 키 없음)
 $target = $u;
+$sep = (strpos($u, '?') === false ? '?' : '&');
 if ($host === 'api.stlouisfed.org' && $FRED_KEY !== '') {
-  $target .= (strpos($u, '?') === false ? '?' : '&') . 'api_key=' . urlencode($FRED_KEY);
+  $target .= $sep . 'api_key=' . urlencode($FRED_KEY);
+} elseif ($host === 'beaconcha.in' && $BEACON_KEY !== '') {
+  $target .= $sep . 'apikey=' . urlencode($BEACON_KEY);
 }
 
 // 파일 캐시 (FRED 1h / beaconcha 10m)
