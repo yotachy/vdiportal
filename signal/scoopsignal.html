@@ -293,6 +293,19 @@
   .detail-body{font-size:13px;color:var(--muted);line-height:1.7}
   @media(max-width:880px){.dash-anchor{grid-template-columns:1fr}}
   @media(max-width:520px){.sig-row{flex-direction:column;align-items:flex-start}.sig-row .gauge-wrap{width:170px}}
+  .kpi-grid{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+  .kpi-group{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:10px 2px 4px}
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .kpi{background:var(--panel);border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:5px;cursor:pointer;border:none;text-align:left;font:inherit;position:relative;min-width:0}
+  .kpi:hover{box-shadow:inset 0 0 0 1px var(--gold)}
+  .kpi:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .kpi-lab{font-size:11.5px;color:var(--muted);letter-spacing:-.01em;display:flex;justify-content:space-between;align-items:center}
+  .kpi-lab .go{color:var(--faint);font-size:12px}
+  .kpi-val{font-family:var(--mono);font-size:17px;font-weight:700}
+  .kpi-sub{font-size:10.5px;color:var(--faint)}
+  .kpi-spark{width:100%;height:26px;display:block}
+  @media(max-width:880px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:420px){.kpi-row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -409,6 +422,7 @@
       <div class="tile-bars" id="heroRadarBars"></div>
     </div>
   </section>
+  <div class="kpi-grid" id="kpiGrid"></div>
 
   <div class="toolbar">
   <details class="tune">
@@ -1317,6 +1331,7 @@ function recompute(){
   renderOnchain();
   renderTreasury();renderTriggers();renderSqueeze();renderEtf();
   buildMetrics();updateSideBadges();
+  renderKpiGrid();
 }
 
 /* 대시보드 타일: 레이더 4축 미니바 + 사이클 국면 라벨 */
@@ -1326,6 +1341,59 @@ function updateHeroTiles(mom,liq,fun,val){
   const hb=document.getElementById('heroRadarBars');if(hb)hb.innerHTML=bars;
   const label=liq>=50&&mom>=50?['상승','bull']:liq>=50&&mom<50?['축적','neutral']:liq<50&&mom>=50?['분배','neutral']:['하락','bear'];
   const cp=document.getElementById('cyclePhase');if(cp){cp.textContent=label[0];cp.style.color='var(--'+label[1]+')';}
+}
+const KPI_META=[
+  {title:'밸류·리스크', keys:[
+    {k:'mayer',label:'200주 배수',sub:'장기 이평 대비',view:'mayer'},
+    {k:'band',label:'로그 밴드',sub:'회귀 채널 z',view:'band'},
+    {k:'dd',label:'드로다운',sub:'ATH 대비',view:'dd'},
+    {k:'vol',label:'변동성',sub:'연율 실현',view:'vol'}]},
+  {title:'온체인·네트워크', keys:[
+    {k:'supply',label:'순발행·공급',sub:'Merge 이후',view:'supply'},
+    {k:'gas',label:'가스·수수료',sub:'기준 가스',view:'gas'},
+    {k:'staking',label:'스테이킹 비율',sub:'공급 대비',view:'staking'},
+    {k:'defidom',label:'DeFi 지배력',sub:'ETH 비중',view:'defidom'}]},
+  {title:'사이클·기관', keys:[
+    {k:'cycle',label:'사이클',sub:'바닥 후 경과',view:'cycle'},
+    {k:'season',label:'계절성',sub:'이번 달 평균',view:'season'},
+    {k:'treasury',label:'기관 ETH 보유',sub:'공급 점유',view:'treasury'},
+    {k:'squeeze',label:'공급압력 지수',sub:'0~100',view:'squeeze'},
+    {k:'trigger',label:'강세 전환 트리거',sub:'점등/조건',view:'trigger'}]},
+];
+function sparkSeries(k){
+  if(k==='mayer'&&S.ma200&&S.ma200.hist&&S.ma200.hist.length>4)return S.ma200.hist.slice(-80);
+  if(k==='supply'&&S.us&&S.us.series&&S.us.series.length>4)return S.us.series.map(x=>x.supply);
+  if((k==='dd'||k==='band'||k==='vol')&&S.week&&S.week.c&&S.week.c.length>30){
+    const c=S.week.c.slice(-120);
+    if(k==='dd'){let pk=-Infinity;return c.map(v=>{if(v>pk)pk=v;return (v/pk-1)*100;});}
+    return c; // band/vol: 가격 추세를 스파크라인으로
+  }
+  return null;
+}
+function sparkline(cv,series,sig){
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  if(!W||!H||!series||series.length<2)return;
+  cv.width=W*dpr;cv.height=H*dpr;const x=cv.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,W,H);
+  let mn=Infinity,mx=-Infinity;for(const v of series){if(v<mn)mn=v;if(v>mx)mx=v;}
+  if(!isFinite(mn)||mx===mn){mx=mn+1;}
+  const col=getComputedStyle(document.documentElement).getPropertyValue('--'+(sig||'muted')).trim()||'#8B98A6';
+  x.beginPath();series.forEach((v,i)=>{const px=i/(series.length-1)*(W-2)+1,py=H-2-((v-mn)/(mx-mn))*(H-4);i?x.lineTo(px,py):x.moveTo(px,py);});
+  x.strokeStyle=col;x.lineWidth=1.5;x.lineJoin='round';x.stroke();
+}
+function renderKpiGrid(){
+  const grid=document.getElementById('kpiGrid');if(!grid)return;
+  const m=S._metrics||{};
+  grid.innerHTML=KPI_META.map(g=>`<div class="kpi-group">${g.title}</div><div class="kpi-row">`+
+    g.keys.map(it=>{const d=m[it.k]||{val:'—',sig:'muted'};const hasSpark=!!sparkSeries(it.k);
+      return `<button class="kpi" data-view="${it.view}" type="button">`+
+        `<span class="kpi-lab">${it.label}<span class="go">›</span></span>`+
+        `<span class="kpi-val" style="color:var(--${d.sig})">${d.val}</span>`+
+        (hasSpark?`<canvas class="kpi-spark" data-spark="${it.k}"></canvas>`:`<span class="kpi-sub">${it.sub}</span>`)+
+      `</button>`;}).join('')+`</div>`).join('');
+  // 스파크라인 그리기
+  grid.querySelectorAll('canvas[data-spark]').forEach(cv=>{const k=cv.dataset.spark;sparkline(cv,sparkSeries(k),(m[k]||{}).sig);});
+  // 클릭 바인딩(위임)
+  if(!grid._bound){grid._bound=true;grid.addEventListener('click',e=>{const b=e.target.closest('.kpi[data-view]');if(b)showView(b.dataset.view);});}
 }
 /* 시그널 상세: 산식·가중치·4축 기여 */
 function updateSignalDetail(score,d,w){
