@@ -691,6 +691,11 @@ async function loadUpbit(){
     if(e){ if(e.usd!=null){setF('ethUsd',fmtUsd(e.usd));chg('ethChg',+e.usd_24h_change||0);}
            if(e.btc!=null){setF('ethBtc',(+e.btc).toFixed(5));chg('ethBtcChg',+e.btc_24h_change||0);} }
   }catch(_){}
+  // 캔들 히스토리는 분 단위로 거의 안 변함 → 캐시. 매 주기 전체 재호출 금지(Upbit throttle·과호출 방지)
+  // 완전 로드 시 20분, 부분/실패 시 3분 후에만 재시도. 티커는 위에서 매 주기 갱신됨.
+  const haveCand=S.week&&S.ethbtc&&S.month, cdMs=haveCand?1200000:180000;
+  if(S._candAt&&(Date.now()-S._candAt)<cdMs)return;
+  S._candAt=Date.now();
   // 캔들(Upbit): allSettled — 한 종류 실패가 전체를 비우지 않게(섹션별 그레이스풀)
   const[rEb,rWk,rMo]=await Promise.allSettled([
     upCandles('days','BTC-ETH',400),
@@ -1214,7 +1219,7 @@ syncTuneUI();
 refresh();
 showView(activeView);
 applyTierBadges();
-setInterval(refresh,60000);
+setInterval(refresh,120000);
 $('#refreshBtn').addEventListener('click',refresh);
 $('#upgradeBtn').addEventListener('click',()=>showToast('요금제는 준비 중입니다'));
 </script>
