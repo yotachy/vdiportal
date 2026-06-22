@@ -618,8 +618,8 @@
 
 <script>
 /* ===== config ===== */
-const FRED_API_KEY="";   // 무료 키
-const FRED_PROXY="";     // Cloudflare Worker 등 프록시 루트 (CORS 우회)
+const API_PROXY="./api.php";   // cafe24 동일 호스트 CORS 프록시(FRED+beaconcha). 로컬엔 없음 → 폴백.
+const proxied=u=>API_PROXY+"?u="+encodeURIComponent(u);
 const FALLBACK={ realYield:1.9, realYieldPrev:1.9, netLiqChg:-1.0 }; // FRED 미연결시 예시값
 
 /* ===== tunable config (localStorage) ===== */
@@ -847,8 +847,8 @@ async function loadDollar(){
 }
 
 async function loadFred(){
-  if(!FRED_API_KEY||!FRED_PROXY){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};S.netLiq={chg:FALLBACK.netLiqChg,fb:true};S.tenY={val:4.3,fb:true};return;}
-  const base=`${FRED_PROXY}/series/observations`,q=(id,l)=>`${base}?series_id=${id}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=${l}`;
+  if(!API_PROXY){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};S.netLiq={chg:FALLBACK.netLiqChg,fb:true};S.tenY={val:4.3,fb:true};return;}
+  const base='https://api.stlouisfed.org/fred/series/observations',q=(id,l)=>proxied(`${base}?series_id=${id}&file_type=json&sort_order=desc&limit=${l}`);
   const num=o=>o.observations.filter(x=>x.value!=='.').map(x=>+x.value);
   try{const r=num(await jget(q('DFII10',25)));S.realY={val:r[0],prev:r[Math.min(20,r.length-1)],fb:false};}catch(e){S.realY={val:FALLBACK.realYield,prev:FALLBACK.realYieldPrev,fb:true};}
   try{const r=num(await jget(q('DGS10',5)));S.tenY={val:r[0],fb:false};}catch(e){S.tenY={val:4.3,fb:true};}
@@ -862,11 +862,11 @@ async function loadFred(){
 
 async function loadBeacon(){
   try{
-    const q=await jget('https://beaconcha.in/api/v1/validators/queue');
+    const q=await jget(proxied('https://beaconcha.in/api/v1/validators/queue'));
     S.queue={enter:q.data.beaconchain_entering,exit:q.data.beaconchain_exiting};setStatus('beacon','ok');
   }catch(e){S.queue=null;setStatus('beacon','warn');}
   try{
-    const a=await jget('https://beaconcha.in/api/v1/ethstore/latest');
+    const a=await jget(proxied('https://beaconcha.in/api/v1/ethstore/latest'));
     const apr=a&&a.data&&(a.data.apr!=null?a.data.apr:a.data.cl_apr);
     const v=+apr; const ok=isFinite(v)&&v>0; S.staking={apr:ok?(v<=1?v*100:v):3.0,fb:!ok};
   }catch(e){S.staking={apr:3.0,fb:true};}
