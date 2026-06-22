@@ -96,7 +96,7 @@
   .tier-signature{color:var(--ink);background:var(--gold)}
   .tier-basic{color:var(--muted);background:var(--panel-2);border:1px solid var(--line)}
   .snav-main{display:inline-flex;align-items:center;gap:8px;min-width:0}
-  .snav-ic{width:15px;height:15px;flex:0 0 auto;display:inline-flex;color:inherit}
+  .snav-ic{width:14px;height:14px;flex:0 0 auto;display:inline-flex;color:inherit}
   .snav-ic svg{width:100%;height:100%;display:block}
   .snav-item.tier-sig .snav-ic{color:var(--gold)}
   canvas{display:block;width:100%;height:300px}
@@ -171,6 +171,10 @@
   .treset{appearance:none;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer;align-self:flex-start}
   .treset:hover{border-color:var(--gold);color:var(--gold)}
 
+  .hamb{display:none;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:var(--panel-2);color:var(--text);border:1px solid var(--line);cursor:pointer;flex:0 0 auto;margin-right:6px}
+  .hamb:hover{border-color:var(--gold);color:var(--gold)}
+  .hamb:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
   /* top bar (표준 헤더 — 전 에디션 공유) */
   .top-bar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;
     max-width:1180px;margin:0 auto 16px;padding:14px 4px 14px;border-bottom:1px solid var(--line);background:rgba(11,15,20,.82);backdrop-filter:blur(8px)}
@@ -215,7 +219,7 @@
   .side{position:sticky;top:calc(var(--top-bar-h) + 16px);align-self:start;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 14px;display:flex;flex-direction:column;gap:14px}
   .snav{display:flex;flex-direction:column;gap:1px}
   .snav-group{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:9px 2px 2px}
-  .snav-item{display:flex;justify-content:space-between;align-items:center;gap:7px;padding:6px 9px;border-radius:8px;cursor:pointer;border:1px solid transparent;background:none;color:var(--muted);font:inherit;font-size:12.5px;text-align:left;width:100%;transition:background .15s,color .15s}
+  .snav-item{display:flex;justify-content:space-between;align-items:center;gap:7px;padding:5px 9px;border-radius:8px;cursor:pointer;border:1px solid transparent;background:none;color:var(--muted);font:inherit;font-size:12px;text-align:left;width:100%;transition:background .15s,color .15s}
   .snav-item:hover{background:var(--panel-2);color:var(--text)}
   .snav-item.on{background:var(--panel-2);color:var(--gold);border-color:var(--line);font-weight:700}
   .snav-item:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
@@ -224,17 +228,13 @@
   .side-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
   .side-foot .status{flex-direction:column;align-items:flex-start;gap:7px;background:none;border:none;border-radius:0;padding:0;margin:0;font-size:10.5px}
   @media(max-width:900px){
-    /* 모바일: 헤더는 스크롤 시 비켜나고, 네비를 헤더 바로 아래 sticky 가로 스크롤 바로 */
     .top-bar{position:static;margin-bottom:0}
     .app{grid-template-columns:1fr;gap:14px}
-    .side{position:sticky;top:0;z-index:15;align-self:stretch;flex-direction:row;align-items:center;gap:0;
-      background:var(--ink);border:none;border-radius:0;border-bottom:1px solid var(--line);padding:7px 0;margin:0}
-    .snav{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:6px;width:100%;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-    .snav::-webkit-scrollbar{display:none}
-    .snav-group{display:none}
-    .snav-item{flex:0 0 auto;width:auto;white-space:nowrap;padding:7px 13px;border-radius:999px;background:var(--panel);border-color:var(--line);color:var(--muted)}
-    .snav-item .snav-badge{display:none}
-    .side-foot{display:none}
+    .hamb{display:inline-flex}
+    .side{position:fixed;left:0;top:0;height:100vh;width:280px;max-width:84vw;z-index:40;border-radius:0;border:none;border-right:1px solid var(--line);background:var(--panel);margin:0;padding:16px 14px;overflow-y:auto;transform:translateX(-100%);transition:transform .25s ease}
+    .side.open{transform:none}
+    .side-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39;opacity:0;visibility:hidden;transition:opacity .25s}
+    .side-backdrop.show{opacity:1;visibility:visible}
   }
   @media(max-width:880px){.hero{grid-template-columns:1fr}.dims{grid-template-columns:1fr 1fr}}
   @media(max-width:520px){.dims{grid-template-columns:1fr}.gauge-wrap{max-width:220px}}
@@ -266,6 +266,7 @@
 </head>
 <body>
 <header class="top-bar">
+  <button class="hamb" id="hambBtn" type="button" aria-label="메뉴 열기" aria-expanded="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
   <div class="tb-left">
     <div class="brand-row">
       <h1 class="wordmark">Crypto<span class="em">Signal</span> <span class="by">by MoneyScoop</span></h1>
@@ -289,6 +290,7 @@
     </button>
   </div>
 </header>
+<div class="side-backdrop" id="sideBackdrop"></div>
 <div class="app">
   <aside class="side">
     <nav class="snav" aria-label="화면 이동">
@@ -1269,6 +1271,12 @@ function updateSignalDetail(score,d,w){
 }
 
 document.querySelectorAll('.snav-item').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
+const sideEl=document.querySelector('.side'),hambBtn=$('#hambBtn'),sideBk=$('#sideBackdrop');
+function openSide(o){if(!sideEl)return;sideEl.classList.toggle('open',o);if(sideBk)sideBk.classList.toggle('show',o);if(hambBtn)hambBtn.setAttribute('aria-expanded',o?'true':'false');document.body.style.overflow=o?'hidden':'';}
+if(hambBtn)hambBtn.addEventListener('click',()=>openSide(!sideEl.classList.contains('open')));
+if(sideBk)sideBk.addEventListener('click',()=>openSide(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')openSide(false);});
+document.querySelectorAll('.snav-item').forEach(b=>b.addEventListener('click',()=>{if(window.matchMedia('(max-width:900px)').matches)openSide(false);}));
 document.querySelectorAll('[data-goto]').forEach(el=>{
   const go=()=>showView(el.dataset.goto);
   el.addEventListener('click',go);
