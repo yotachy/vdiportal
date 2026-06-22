@@ -33,13 +33,6 @@
   .sec-head h2{font-size:14px;font-weight:700;letter-spacing:-.01em}
   .sec-head .note{font-size:11.5px;color:var(--muted)}
 
-  /* refresh button (shared by header) */
-  .refresh-ic{appearance:none;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;background:var(--panel-2);color:var(--text);border:1px solid var(--line);cursor:pointer}
-  .refresh-ic:hover{border-color:var(--gold);color:var(--gold)}
-  .refresh-ic:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-  .refresh-ic[disabled]{opacity:.6;cursor:default}
-  .refresh-ic.spinning svg{animation:spin .8s linear}
-  @keyframes spin{to{transform:rotate(360deg)}}
 
   /* ticker */
   .ticker{display:grid;grid-template-columns:repeat(3,1fr);gap:0;background:var(--panel);border-radius:12px;overflow:hidden;margin-bottom:16px}
@@ -263,7 +256,6 @@
     .side-acct{display:flex;flex-direction:column;gap:10px;padding:0 2px 12px;border-bottom:1px solid var(--line);margin-bottom:4px}
     .side-acct-row{display:flex;align-items:center;gap:10px}
     .side-acct-upd{display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
-    .side-acct-upd .refresh-ic{width:30px;height:30px;flex:0 0 auto}
   }
   @media(max-width:880px){.hero{grid-template-columns:1fr}.dims{grid-template-columns:1fr 1fr}}
   @media(max-width:520px){.dims{grid-template-columns:1fr}.gauge-wrap{max-width:220px}}
