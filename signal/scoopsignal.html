@@ -109,6 +109,16 @@
   .view[data-view="supply"] canvas,.view[data-view="defidom"] canvas{height:clamp(360px,52vh,460px)}
   #gasStats .mrow,#stakingStats .mrow{padding:5px 0;font-size:13px}
   #gasStats .mrow:not(:last-child),#stakingStats .mrow:not(:last-child){border-bottom:1px solid var(--line)}
+  .ob-bars{display:flex;flex-direction:column;gap:9px;margin-top:6px}
+  .ob-bar{display:grid;grid-template-columns:64px 1fr 92px;align-items:center;gap:9px;font-size:11.5px;color:var(--muted)}
+  .ob-bar .bar{height:7px;border-radius:4px;background:var(--panel-2);overflow:hidden}
+  .ob-bar .bar i{display:block;height:100%;border-radius:4px;background:var(--neutral)}
+  .ob-bar .num{font-family:var(--mono);text-align:right;color:var(--text)}
+  .ring-wrap{display:flex;align-items:center;gap:16px;margin-top:4px}
+  .ring{width:96px;height:96px;flex:0 0 auto}
+  .ring .rbg{fill:none;stroke:var(--panel-2);stroke-width:10}
+  .ring .rfg{fill:none;stroke:var(--gold);stroke-width:10;stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .6s}
+  .ring-c{font-family:var(--mono);font-size:13px;fill:var(--text)}
   .view[data-view="spiral"] canvas{height:clamp(440px,66vh,600px)}
   .hm{display:flex;flex-direction:column;gap:3px;overflow-x:auto}
   .hm-row{display:grid;grid-template-columns:42px repeat(12,1fr);gap:3px;min-width:560px}
@@ -1022,20 +1032,18 @@ function drawDefiDom(){
 }
 function renderOnchain(){
   // 가스
-  const g=$('#gasStats');if(g){g.innerHTML=S.us?
-    `<div class="mrow"><span class="k">기준 가스(base fee)</span><span class="v">${S.us.baseFeeGwei!=null?S.us.baseFeeGwei.toFixed(2)+' gwei':'—'}</span></div>
-     <div class="mrow"><span class="k">소각률 24h(연율)</span><span class="v">${Math.round(S.us.burn24h).toLocaleString()} ETH/yr</span></div>
-     <div class="mrow"><span class="k">소각률 7d(연율)</span><span class="v">${Math.round(S.us.burn7d).toLocaleString()} ETH/yr</span></div>
-     <div class="mrow"><span class="k">소각률 30d(연율)</span><span class="v">${Math.round(S.us.burn30d).toLocaleString()} ETH/yr</span></div>`
-    :'<div class="mrow"><span class="k">데이터</span><span class="v">연결 필요</span></div>';}
+  const g=$('#gasStats');if(g){if(S.us){
+    const rates=[['24h',S.us.burn24h],['7d',S.us.burn7d],['30d',S.us.burn30d]];
+    const mx=Math.max(1,...rates.map(r=>r[1]||0));
+    const bars=rates.map(([k,v])=>`<div class="ob-bar"><span>소각 ${k}</span><span class="bar"><i style="width:${clamp((v||0)/mx*100,2,100)}%"></i></span><span class="num">${Math.round(v||0).toLocaleString()}/yr</span></div>`).join('');
+    g.innerHTML=`<div class="mrow"><span class="k">기준 가스(base fee)</span><span class="v"><b style="color:var(--text)">${S.us.baseFeeGwei!=null?S.us.baseFeeGwei.toFixed(2)+' gwei':'—'}</b></span></div><div class="ob-bars">${bars}</div>`;
+  }else g.innerHTML='<div class="mrow"><span class="k">데이터</span><span class="v">연결 필요</span></div>';}
   // 스테이킹
   const stv=$('#stakingStats');if(stv){
     const ratio=(S.us&&S.us.stakedEth&&S.us.supplyNow)?(S.us.stakedEth/S.us.supplyNow*100):null;
-    stv.innerHTML=S.us&&ratio!=null?
-    `<div class="mrow"><span class="k">스테이킹 비율</span><span class="v"><b style="color:var(--text)">${ratio.toFixed(1)}%</b></span></div>
-     <div class="mrow"><span class="k">스테이킹 물량</span><span class="v">${(S.us.stakedEth/1e6).toFixed(2)}M ETH</span></div>
-     <div class="mrow"><span class="k">총공급</span><span class="v">${(S.us.supplyNow/1e6).toFixed(2)}M ETH</span></div>`
-    :'<div class="mrow"><span class="k">데이터</span><span class="v">연결 필요</span></div>';}
+    if(ratio!=null){const C=2*Math.PI*42,off=C*(1-clamp(ratio,0,100)/100);
+      stv.innerHTML=`<div class="ring-wrap"><svg class="ring" viewBox="0 0 100 100"><circle class="rbg" cx="50" cy="50" r="42"/><circle class="rfg" cx="50" cy="50" r="42" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/><text class="ring-c" x="50" y="54" text-anchor="middle">${ratio.toFixed(1)}%</text></svg><div><div class="mrow"><span class="k">스테이킹 물량</span><span class="v">${(S.us.stakedEth/1e6).toFixed(2)}M ETH</span></div><div class="mrow"><span class="k">총공급</span><span class="v">${(S.us.supplyNow/1e6).toFixed(2)}M ETH</span></div></div></div>`;
+    }else stv.innerHTML='<div class="mrow"><span class="k">데이터</span><span class="v">연결 필요</span></div>';}
 }
 let activeView='dashboard';
 const VIEW_DRAW={season:drawHeatmap,spiral:drawSpiral,cycle:drawCycle,halving:drawHalving,band:drawBand,mayer:drawMayer,dd:drawDrawdown,vol:drawVol,supply:drawSupply,defidom:drawDefiDom};
