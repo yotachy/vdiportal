@@ -143,26 +143,31 @@
   .status .s{display:inline-flex;gap:6px;align-items:center}
   .status i{width:8px;height:8px;border-radius:50%;background:var(--faint)}
   .status i.ok{background:var(--bull)} .status i.warn{background:var(--neutral)} .status i.err{background:var(--bear)}
-  details.method{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:0 16px;margin-bottom:14px}
-  details.method summary{cursor:pointer;list-style:none;padding:15px 0;font-size:13.5px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:flex-start;margin:2px 2px 14px}
+  .toolbar > details{flex:0 0 auto}
+  .toolbar > details[open]{flex-basis:100%}
+  details.method{background:none;border:none;border-radius:0;padding:0;margin:0}
+  details.method summary{cursor:pointer;list-style:none;padding:4px 0;font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:7px;color:var(--muted)}
   details.method summary::-webkit-details-marker{display:none}
+  details.method summary:hover{color:var(--gold)}
+  details.method summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
   details.method .arw{color:var(--gold);font-family:var(--mono)} details.method[open] .arw{transform:rotate(90deg)}
-  .mbody{padding:2px 0 16px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+  .mbody{margin-top:6px;padding:12px 14px;background:var(--panel);border-radius:10px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:8px}
   .mbody code{font-family:var(--mono);color:var(--gold);background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:11.5px}
   .mbody h4{color:var(--text);font-size:12px;margin-top:8px}
   footer{font-size:11.5px;color:var(--faint);text-align:center;line-height:1.7;padding-top:4px}
 
   /* tuning panel */
-  details.tune{background:var(--panel-2);border:1px solid rgba(232,180,99,.4);border-radius:14px;padding:0 16px;margin-bottom:14px;box-shadow:0 0 0 3px var(--neutral-dim)}
-  details.tune summary{cursor:pointer;list-style:none;padding:15px 2px;font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  details.tune{background:none;border:none;border-radius:0;padding:0;margin:0;box-shadow:none}
+  details.tune summary{cursor:pointer;list-style:none;padding:4px 0;font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:9px;color:var(--gold)}
   details.tune summary::-webkit-details-marker{display:none}
-  details.tune summary:hover{color:var(--gold)}
+  details.tune summary:hover{color:var(--gold);text-decoration:underline}
   details.tune summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:8px}
-  details.tune .sum-left{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  details.tune .sum-left{display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap}
   details.tune .sum-ic{color:var(--gold);display:inline-flex}
-  details.tune .sum-badge{font-size:10.5px;font-weight:700;color:var(--gold);background:var(--neutral-dim);border:1px solid rgba(232,180,99,.4);border-radius:999px;padding:3px 9px;white-space:nowrap}
+  details.tune .sum-badge{font-size:10.5px;font-weight:700;color:var(--gold);background:var(--neutral-dim);border-radius:999px;padding:3px 9px;white-space:nowrap}
   details.tune .arw{color:var(--gold);font-family:var(--mono);font-size:18px} details.tune[open] .arw{transform:rotate(90deg)}
-  .tbody{padding:6px 0 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
+  .tbody{margin-top:6px;padding:12px 14px;background:var(--panel);border-radius:10px;display:flex;flex-direction:column;gap:14px}
   .trow{display:grid;grid-template-columns:120px 1fr 56px;align-items:center;gap:12px;font-size:12px}
   .trow label{color:var(--muted)}
   .trow input[type=range]{width:100%;accent-color:var(--gold)}
@@ -370,6 +375,7 @@
     </div>
   </section>
 
+  <div class="toolbar">
   <details class="tune">
     <summary>
       <span class="sum-left">
@@ -419,6 +425,7 @@
       <p style="color:var(--faint)">주기 패턴: 계절성·사이클/반감기 오버레이·로그 회귀 밴드·200주 배수·드로다운·실현 변동성 (모두 표시 전용, 점수 미반영).</p>
     </div>
   </details>
+  </div>
 
   <footer>
     크립토시그널은 <strong style="color:var(--muted)">투자 권유가 아닌 참고용 신호</strong>입니다. 판단과 책임은 본인에게 있습니다.<br>
