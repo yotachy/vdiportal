@@ -1275,14 +1275,14 @@ const sideEl=document.querySelector('.side'),hambBtn=$('#hambBtn'),sideBk=$('#si
 function openSide(o){if(!sideEl)return;sideEl.classList.toggle('open',o);if(sideBk)sideBk.classList.toggle('show',o);if(hambBtn)hambBtn.setAttribute('aria-expanded',o?'true':'false');document.body.style.overflow=o?'hidden':'';}
 if(hambBtn)hambBtn.addEventListener('click',()=>openSide(!sideEl.classList.contains('open')));
 if(sideBk)sideBk.addEventListener('click',()=>openSide(false));
-document.addEventListener('keydown',e=>{if(e.key==='Escape')openSide(false);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sideEl&&sideEl.classList.contains('open'))openSide(false);});
 document.querySelectorAll('.snav-item').forEach(b=>b.addEventListener('click',()=>{if(window.matchMedia('(max-width:900px)').matches)openSide(false);}));
 document.querySelectorAll('[data-goto]').forEach(el=>{
   const go=()=>showView(el.dataset.goto);
   el.addEventListener('click',go);
   el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
 });
-let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.month&&VIEW_DRAW[activeView])drawActiveView();},200);});
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(window.innerWidth>900&&sideEl&&sideEl.classList.contains('open'))openSide(false);if(S.month&&VIEW_DRAW[activeView])drawActiveView();},200);});
 
 function syncTuneUI(){
   const nw=normW();
