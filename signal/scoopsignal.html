@@ -1094,6 +1094,46 @@ function renderOnchain(){
       stv.innerHTML=`<div class="ring-wrap"><svg class="ring" viewBox="0 0 100 100"><circle class="rbg" cx="50" cy="50" r="42"/><circle class="rfg" cx="50" cy="50" r="42" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/><text class="ring-c" x="50" y="54" text-anchor="middle">${ratio.toFixed(1)}%</text></svg><div><div class="mrow"><span class="k">스테이킹 물량</span><span class="v">${(S.us.stakedEth/1e6).toFixed(2)}M ETH</span></div><div class="mrow"><span class="k">총공급</span><span class="v">${(S.us.supplyNow/1e6).toFixed(2)}M ETH</span></div></div></div>`;
     }else stv.innerHTML='<div class="mrow"><span class="k">데이터</span><span class="v">연결 필요</span></div>';}
 }
+function renderTreasury(){
+  const st=$('#treasuryStats'),li=$('#treasuryList');if(!st&&!li)return;
+  if(!S.treasury){if(st)st.innerHTML='연결 필요';if(li)li.innerHTML='';return;}
+  const t=S.treasury;
+  if(st)st.innerHTML=`총 보유 <b style="color:var(--text)">${(t.total/1e6).toFixed(2)}M ETH</b> · <b style="color:var(--text)">$${(t.usd/1e9).toFixed(1)}B</b> · 공급 비중 <b style="color:var(--text)">${(t.dom||0).toFixed(1)}%</b>`;
+  const cos=(t.companies||[]).slice(0,12),mx=Math.max(1,...cos.map(c=>+c.total_holdings||0));
+  if(li)li.innerHTML=cos.map(c=>{const h=+c.total_holdings||0;return `<div class="ob-bar"><span title="${(c.name||'').replace(/"/g,'')}">${(c.name||'').slice(0,16)}</span><span class="bar"><i style="width:${clamp(h/mx*100,2,100)}%;background:var(--gold)"></i></span><span class="num">${Math.round(h).toLocaleString()}</span></div>`;}).join('');
+}
+function trigEval(){
+  const T=[],add=(k,ok,a)=>T.push({k,on:!!ok,a:!!a});
+  const s30=supply30dChg();
+  add('디플레(순발행−)',s30!=null&&s30<=0,s30!=null);
+  add('밴드 저평가',S.band&&isFinite(S.band.z)&&S.band.z<-0.5,!!(S.band&&isFinite(S.band.z)));
+  add('200주 저평가',S.ma200&&S.ma200.hist&&pctRank(S.ma200.hist,S.ma200.mult)<0.3,!!(S.ma200&&S.ma200.hist));
+  add('ETH/BTC 강세',S.ethbtc&&S.ethbtc.dist>0&&S.ethbtc.slope>0,!!S.ethbtc);
+  add('모멘텀 ROC+',S.roc&&S.roc.now>0,!!S.roc);
+  add('순유동성 개선',S.netLiq&&S.netLiq.chg>0,!!S.netLiq);
+  add('검증자 순유입',S.queue&&(S.queue.enter-S.queue.exit)>0,!!S.queue);
+  add('기관 보유 ≥6%',S.treasury&&S.treasury.dom>=6,!!S.treasury);
+  return T;
+}
+function renderTriggers(){
+  const el=$('#triggerBoard');if(!el)return;
+  const T=trigEval(),avail=T.filter(t=>t.a),lit=avail.filter(t=>t.on).length;
+  el.innerHTML=T.map(t=>`<div class="trig ${!t.a?'na':t.on?'on':'off'}"><span class="tdot"></span>${t.k}<span class="tval">${!t.a?'대기':t.on?'점등':'소등'}</span></div>`).join('');
+  const sm=$('#triggerSummary');if(sm){const sig=lit>=5?['강세 전환 유력','bull']:lit>=3?['혼조·대기','neutral']:['약세 우위','bear'];sm.innerHTML=`<b style="color:var(--${sig[1]})">${lit} / ${avail.length} 점등</b> · ${sig[0]}`;}
+}
+function renderSqueeze(){
+  const parts=[],s30=supply30dChg();
+  if(s30!=null)parts.push(['순발행 압력',lerp([[0.5,15],[0.1,40],[0,55],[-0.1,75],[-0.4,92]],s30)]);
+  if(S.us&&S.us.stakedEth&&S.us.supplyNow)parts.push(['스테이킹 잠김',lerp([[20,25],[28,50],[33,68],[40,90]],S.us.stakedEth/S.us.supplyNow*100)]);
+  if(S.treasury&&isFinite(S.treasury.dom))parts.push(['기관 흡수',lerp([[2,30],[4,48],[6,62],[10,88]],S.treasury.dom)]);
+  const g=$('#squeezeGauge'),st=$('#squeezeStats'),ln=$('#squeezeLine');
+  if(!parts.length){if(g)g.innerHTML='';if(st)st.innerHTML='연결 필요';return;}
+  const idx=Math.round(parts.reduce((a,b)=>a+b[1],0)/parts.length);
+  const C=2*Math.PI*42,off=C*(1-clamp(idx,0,100)/100);
+  if(g)g.innerHTML=`<svg class="ring" viewBox="0 0 100 100"><circle class="rbg" cx="50" cy="50" r="42"/><circle class="rfg" cx="50" cy="50" r="42" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/><text class="ring-c" x="50" y="54" text-anchor="middle">${idx}</text></svg>`;
+  if(st)st.innerHTML=parts.map(([k,v])=>`<div class="ob-bar"><span>${k}</span><span class="bar"><i style="width:${clamp(v,2,100)}%;background:var(--gold)"></i></span><span class="num">${Math.round(v)}</span></div>`).join('');
+  if(ln)ln.innerHTML=`지수 <b style="color:var(--text)">${idx}/100</b>`;
+}
 let activeView='dashboard';
 const VIEW_DRAW={season:drawHeatmap,spiral:drawSpiral,cycle:drawCycle,halving:drawHalving,band:drawBand,mayer:drawMayer,dd:drawDrawdown,vol:drawVol,supply:drawSupply,defidom:drawDefiDom};
 /* 차트 등급(표시 전용) — 새 차트는 여기 한 줄만 추가. 향후 유료 게이팅의 단일 스위치. */
@@ -1164,6 +1204,10 @@ function updateSideBadges(){
   if(S.us&&S.us.baseFeeGwei!=null)setBadge('gas',S.us.baseFeeGwei.toFixed(1)+'gwei','muted');else setBadge('gas','—','muted');
   if(S.us&&S.us.stakedEth&&S.us.supplyNow)setBadge('staking',(S.us.stakedEth/S.us.supplyNow*100).toFixed(0)+'%','muted');else setBadge('staking','—','muted');
   if(S.defidom)setBadge('defidom',S.defidom.pct.toFixed(0)+'%','muted');else setBadge('defidom','—','muted');
+  // 기관·플로우
+  if(S.treasury&&isFinite(S.treasury.dom))setBadge('treasury',S.treasury.dom.toFixed(1)+'%','muted');else setBadge('treasury','—','muted');
+  {const T=trigEval(),av=T.filter(t=>t.a),lit=av.filter(t=>t.on).length;setBadge('trigger',av.length?lit+'/'+av.length:'—',lit>=5?'bull':lit<=2?'bear':'muted');}
+  {const p=[],s30=supply30dChg();if(s30!=null)p.push(lerp([[0.5,15],[0.1,40],[0,55],[-0.1,75],[-0.4,92]],s30));if(S.us&&S.us.stakedEth&&S.us.supplyNow)p.push(lerp([[20,25],[28,50],[33,68],[40,90]],S.us.stakedEth/S.us.supplyNow*100));if(S.treasury&&isFinite(S.treasury.dom))p.push(lerp([[2,30],[4,48],[6,62],[10,88]],S.treasury.dom));setBadge('squeeze',p.length?Math.round(p.reduce((a,b)=>a+b,0)/p.length)+'':'—','muted');}
 }
 
 /* ===== orchestration ===== */
@@ -1203,6 +1247,7 @@ function recompute(){
   updateSignalDetail(score,{mom,liq,fun,val},w);
   if(S.month)drawActiveView();
   renderOnchain();
+  renderTreasury();renderTriggers();renderSqueeze();
   updateSideBadges();
 }
 
