@@ -1249,34 +1249,30 @@ function applyTierBadges(){
 }
 /* ===== 사이드바 배지 ===== */
 function setBadge(view,txt,sig){const e=document.querySelector('.snav-item[data-view="'+view+'"] .snav-badge');if(!e)return;e.textContent=txt;e.style.color='var(--'+(sig||'muted')+')';}
-function updateSideBadges(){
+function buildMetrics(){
+  const m={};
+  const set=(k,val,sig)=>{m[k]={val,sig:sig||'muted'};};
   // 계절성: 이번 달 과거 평균 수익률
-  if(S.month&&S.month.c&&S.month.c.length>2){const t=S.month.t,c=S.month.c,mo=new Date(t[t.length-1]).getUTCMonth();let s=0,n=0;for(let i=1;i<c.length;i++){if(new Date(t[i]).getUTCMonth()===mo){s+=(c[i]/c[i-1]-1)*100;n++;}}const a=n?s/n:0;setBadge('season',(a>=0?'+':'')+a.toFixed(1)+'%',a>=0?'bull':'bear');}else setBadge('season','—','muted');
-  // 스파이럴: 데이터 연수
-  if(S.month&&S.month.t&&S.month.t.length){const t=S.month.t,yrs=((t[t.length-1]-t[0])/(365.25*864e5));setBadge('spiral',yrs.toFixed(0)+'년','muted');}else setBadge('spiral','—','muted');
-  // 사이클: 바닥(2022-06-18) 후 N주 / 반감기: 2024-04-20 후 N주
+  if(S.month&&S.month.c&&S.month.c.length>2){const t=S.month.t,c=S.month.c,mo=new Date(t[t.length-1]).getUTCMonth();let s=0,n=0;for(let i=1;i<c.length;i++){if(new Date(t[i]).getUTCMonth()===mo){s+=(c[i]/c[i-1]-1)*100;n++;}}const a=n?s/n:0;set('season',(a>=0?'+':'')+a.toFixed(1)+'%',a>=0?'bull':'bear');}else set('season','—','muted');
+  if(S.month&&S.month.t&&S.month.t.length){const t=S.month.t,yrs=((t[t.length-1]-t[0])/(365.25*864e5));set('spiral',yrs.toFixed(0)+'년','muted');}else set('spiral','—','muted');
   const wk=S.week&&S.week.t&&S.week.t.length?S.week.t:null;
   const nearW=tt=>{let bi=0,bd=1e18;for(let i=0;i<wk.length;i++){const d=Math.abs(wk[i]-tt);if(d<bd){bd=d;bi=i;}}return wk.length-1-bi;};
-  if(wk){setBadge('cycle',nearW(Date.parse('2022-06-18'))+'주','muted');setBadge('halving',nearW(Date.parse('2024-04-20'))+'주','muted');}else{setBadge('cycle','—','muted');setBadge('halving','—','muted');}
-  // 로그 밴드: z
-  if(S.band&&isFinite(S.band.z)){const z=S.band.z;setBadge('band','z='+(z>=0?'+':'')+z.toFixed(1)+'σ',z>0.7?'bear':z<-0.7?'bull':'muted');}else setBadge('band','—','muted');
-  // 200주 배수
-  if(S.ma200&&isFinite(S.ma200.mult)){const m=S.ma200.mult,pr=S.ma200.hist?pctRank(S.ma200.hist,m):0.5;setBadge('mayer',m.toFixed(2)+'×',pr>0.8?'bear':pr<0.2?'bull':'muted');}else setBadge('mayer','—','muted');
-  // 드로다운: 현재 낙폭
-  if(S.week&&S.week.c&&S.week.c.length){const c=S.week.c;let pk=-Infinity,last=0;for(const v of c){if(v>pk)pk=v;last=(v/pk-1)*100;}setBadge('dd',last.toFixed(0)+'%',last<-50?'bear':last>-15?'bull':'muted');}else setBadge('dd','—','muted');
-  // 변동성: 현재 실현 변동성
-  if(S.week&&S.week.c&&S.week.c.length>VOL_WIN+1){const c=S.week.c,r=[];for(let i=1;i<c.length;i++)r.push(Math.log(c[i]/c[i-1]));let m=0;for(let j=r.length-VOL_WIN;j<r.length;j++)m+=r[j];m/=VOL_WIN;let s=0;for(let j=r.length-VOL_WIN;j<r.length;j++)s+=(r[j]-m)*(r[j]-m);const v=Math.sqrt(s/VOL_WIN)*Math.sqrt(52)*100;setBadge('vol',v.toFixed(0)+'%','muted');}else setBadge('vol','—','muted');
-  // 온체인·네트워크
-  if(S.us&&S.us.series&&S.us.series.length>1){const s=S.us.series,chg=s[s.length-1].supply-s[0].supply;setBadge('supply',(chg<=0?'':'+')+(chg/1e3).toFixed(1)+'k',chg<=0?'bull':'bear');}else setBadge('supply','—','muted');
-  if(S.us&&S.us.baseFeeGwei!=null)setBadge('gas',S.us.baseFeeGwei.toFixed(1)+'gwei','muted');else setBadge('gas','—','muted');
-  if(S.us&&S.us.stakedEth&&S.us.supplyNow)setBadge('staking',(S.us.stakedEth/S.us.supplyNow*100).toFixed(0)+'%','muted');else setBadge('staking','—','muted');
-  if(S.defidom)setBadge('defidom',S.defidom.pct.toFixed(0)+'%','muted');else setBadge('defidom','—','muted');
-  // 기관·플로우
-  if(S.treasury&&isFinite(S.treasury.dom))setBadge('treasury',S.treasury.dom.toFixed(1)+'%','muted');else setBadge('treasury','—','muted');
-  {const T=trigEval(),av=T.filter(t=>t.a),lit=av.filter(t=>t.on).length;setBadge('trigger',av.length?lit+'/'+av.length:'—',lit>=5?'bull':lit<=2?'bear':'muted');}
-  {const p=[],s30=supply30dChg();if(s30!=null)p.push(lerp([[0.5,15],[0.1,40],[0,55],[-0.1,75],[-0.4,92]],s30));if(S.us&&S.us.stakedEth&&S.us.supplyNow)p.push(lerp([[20,25],[28,50],[33,68],[40,90]],S.us.stakedEth/S.us.supplyNow*100));if(S.treasury&&isFinite(S.treasury.dom))p.push(lerp([[2,30],[4,48],[6,62],[10,88]],S.treasury.dom));setBadge('squeeze',p.length?Math.round(p.reduce((a,b)=>a+b,0)/p.length)+'':'—','muted');}
-  if(S.etf&&S.etf.total!=null)setBadge('etf',(S.etf.unit==='eth'?(S.etf.total/1e6).toFixed(1)+'M':'$'+(S.etf.total/1e9).toFixed(1)+'B'),'muted');else setBadge('etf','—','muted');
+  if(wk){set('cycle',nearW(Date.parse('2022-06-18'))+'주','muted');set('halving',nearW(Date.parse('2024-04-20'))+'주','muted');}else{set('cycle','—','muted');set('halving','—','muted');}
+  if(S.band&&isFinite(S.band.z)){const z=S.band.z;set('band','z='+(z>=0?'+':'')+z.toFixed(1)+'σ',z>0.7?'bear':z<-0.7?'bull':'muted');}else set('band','—','muted');
+  if(S.ma200&&isFinite(S.ma200.mult)){const mm=S.ma200.mult,pr=S.ma200.hist?pctRank(S.ma200.hist,mm):0.5;set('mayer',mm.toFixed(2)+'×',pr>0.8?'bear':pr<0.2?'bull':'muted');}else set('mayer','—','muted');
+  if(S.week&&S.week.c&&S.week.c.length){const c=S.week.c;let pk=-Infinity,last=0;for(const v of c){if(v>pk)pk=v;last=(v/pk-1)*100;}set('dd',last.toFixed(0)+'%',last<-50?'bear':last>-15?'bull':'muted');}else set('dd','—','muted');
+  if(S.week&&S.week.c&&S.week.c.length>VOL_WIN+1){const c=S.week.c,r=[];for(let i=1;i<c.length;i++)r.push(Math.log(c[i]/c[i-1]));let mn=0;for(let j=r.length-VOL_WIN;j<r.length;j++)mn+=r[j];mn/=VOL_WIN;let s=0;for(let j=r.length-VOL_WIN;j<r.length;j++)s+=(r[j]-mn)*(r[j]-mn);const v=Math.sqrt(s/VOL_WIN)*Math.sqrt(52)*100;set('vol',v.toFixed(0)+'%','muted');}else set('vol','—','muted');
+  if(S.us&&S.us.series&&S.us.series.length>1){const s=S.us.series,chg2=s[s.length-1].supply-s[0].supply;set('supply',(chg2<=0?'':'+')+(chg2/1e3).toFixed(1)+'k',chg2<=0?'bull':'bear');}else set('supply','—','muted');
+  if(S.us&&S.us.baseFeeGwei!=null)set('gas',S.us.baseFeeGwei.toFixed(1)+'gwei','muted');else set('gas','—','muted');
+  if(S.us&&S.us.stakedEth&&S.us.supplyNow)set('staking',(S.us.stakedEth/S.us.supplyNow*100).toFixed(0)+'%','muted');else set('staking','—','muted');
+  if(S.defidom)set('defidom',S.defidom.pct.toFixed(0)+'%','muted');else set('defidom','—','muted');
+  if(S.treasury&&isFinite(S.treasury.dom))set('treasury',S.treasury.dom.toFixed(1)+'%','muted');else set('treasury','—','muted');
+  {const T=trigEval(),av=T.filter(t=>t.a),lit=av.filter(t=>t.on).length;set('trigger',av.length?lit+'/'+av.length:'—',lit>=5?'bull':lit<=2?'bear':'muted');}
+  {const p=[],s30=supply30dChg();if(s30!=null)p.push(lerp([[0.5,15],[0.1,40],[0,55],[-0.1,75],[-0.4,92]],s30));if(S.us&&S.us.stakedEth&&S.us.supplyNow)p.push(lerp([[20,25],[28,50],[33,68],[40,90]],S.us.stakedEth/S.us.supplyNow*100));if(S.treasury&&isFinite(S.treasury.dom))p.push(lerp([[2,30],[4,48],[6,62],[10,88]],S.treasury.dom));set('squeeze',p.length?Math.round(p.reduce((a,b)=>a+b,0)/p.length)+'':'—','muted');}
+  if(S.etf&&S.etf.total!=null)set('etf',(S.etf.unit==='eth'?(S.etf.total/1e6).toFixed(1)+'M':'$'+(S.etf.total/1e9).toFixed(1)+'B'),'muted');else set('etf','—','muted');
+  S._metrics=m;return m;
 }
+function updateSideBadges(){const m=S._metrics||buildMetrics();for(const k in m)setBadge(k,m[k].val,m[k].sig);}
 
 /* ===== orchestration ===== */
 async function refresh(){
@@ -1318,7 +1314,7 @@ function recompute(){
   if(S.month)drawActiveView();
   renderOnchain();
   renderTreasury();renderTriggers();renderSqueeze();renderEtf();
-  updateSideBadges();
+  buildMetrics();updateSideBadges();
 }
 
 /* 대시보드 타일: 레이더 4축 미니바 + 사이클 국면 라벨 */
