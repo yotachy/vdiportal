@@ -90,6 +90,15 @@
   .page-head{margin:2px 2px 14px}
   .page-head h2{font-size:18px;font-weight:800;letter-spacing:-.02em;display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap}
   .page-head .page-sub{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.6;max-width:78ch}
+  .chart-guide{margin-top:14px;background:var(--panel);border-radius:12px;padding:12px 14px;display:none;flex-direction:column;gap:7px}
+  .cg-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .cg-badge{font-size:11px;font-weight:800;border-radius:999px;padding:3px 10px;white-space:nowrap}
+  .cg-badge[data-sig="bull"]{color:var(--bull);background:var(--bull-dim)}
+  .cg-badge[data-sig="neutral"]{color:var(--neutral);background:var(--neutral-dim)}
+  .cg-badge[data-sig="bear"]{color:var(--bear);background:var(--bear-dim)}
+  .cg-read{font-size:12.5px;color:var(--text);line-height:1.6;letter-spacing:-.01em}
+  .cg-watch{font-size:11.5px;color:var(--muted);line-height:1.55}
+  .cg-watch b{color:var(--text)}
   .tier-badge{font-size:10.5px;font-weight:700;letter-spacing:.04em;border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;vertical-align:middle}
   .tier-signature{color:var(--ink);background:var(--gold)}
   .tier-basic{color:var(--muted);background:var(--panel-2);border:1px solid var(--line)}
@@ -538,52 +547,61 @@
   <section class="view" data-view="season">
     <div class="page-head"><h2>계절성</h2><p class="page-sub">월별 수익률(%) — 행=연도, 열=월. <span class="up">초록</span>=상승 <span class="down">빨강</span>=하락. 맨 아래 <b>평균</b> 행이 계절성입니다.</p></div>
     <div class="hm" id="heatmap"></div>
+    <div class="chart-guide" data-guide="season"></div>
   </section>
 
   <!-- 뷰: 사이클 오버레이 -->
   <section class="view" data-view="cycle">
     <div class="page-head"><h2>사이클 오버레이</h2><p class="page-sub">각 사이클 바닥을 100으로 맞춰 겹쳐봅니다(로그). 현재가 과거 사이클의 어느 구간인지 비교용입니다.</p></div>
     <canvas id="cvCycle"></canvas>
+    <div class="chart-guide" data-guide="cycle"></div>
   </section>
 
   <!-- 뷰: 반감기 -->
   <section class="view" data-view="halving">
     <div class="page-head"><h2>반감기</h2><p class="page-sub">BTC 반감기 시점을 100으로 맞춰 겹친 사이클(로그). 과거=회색, <span style="color:var(--gold)">현재(2024)=골드</span>. x축=반감기 후 경과(주). <span id="hvStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvHalving"></canvas>
+    <div class="chart-guide" data-guide="halving"></div>
   </section>
 
   <!-- 뷰: 이더리움 스파이럴(달팽이) -->
   <section class="view" data-view="spiral">
     <div class="page-head"><h2>이더리움 스네일 차트</h2><p class="page-sub">월별 종가를 달팽이 나선으로. <b>한 바퀴 = 1년</b>(같은 달은 같은 각도), 안쪽=과거·바깥쪽=최근. 선 색 <span class="up">초록</span>=오른 달 / <span class="down">빨강</span>=내린 달. 같은 각도(달)에서 색이 반복되면 계절성. <span id="spiralStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvSpiral"></canvas>
+    <div class="chart-guide" data-guide="spiral"></div>
   </section>
 
   <!-- 뷰: 로그 밴드 -->
   <section class="view" data-view="band">
     <div class="page-head"><h2>로그 회귀 밴드</h2><p class="page-sub">주간 종가의 <b>로그-로그 파워로 회귀</b> 채널(±1σ·±2σ, ETH 제네시스 기준). 하단=상대적 저평가, 상단=과열.<br>원화(₩) 기준 · <span id="bandStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvBand"></canvas>
+    <div class="chart-guide" data-guide="band"></div>
   </section>
 
   <!-- 뷰: 200주 배수 -->
   <section class="view" data-view="mayer">
     <div class="page-head"><h2>200주 배수</h2><p class="page-sub">현재가 / 200주 이동평균 배수(메이어 멀티플). 밴드는 ETH 자체 분포 기준(저평가 하위 20%·과열 상위 20%). <span id="mayerStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvMayer"></canvas>
+    <div class="chart-guide" data-guide="mayer"></div>
   </section>
 
   <!-- 뷰: 드로다운 -->
   <section class="view" data-view="dd">
     <div class="page-head"><h2>드로다운</h2><p class="page-sub">전고점(ATH) 대비 낙폭(%). 0 아래로 깊을수록 약세장 바닥권에 가깝습니다. <span id="ddStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvDD"></canvas>
+    <div class="chart-guide" data-guide="dd"></div>
   </section>
 
   <!-- 뷰: 변동성 -->
   <section class="view" data-view="vol">
     <div class="page-head"><h2>변동성</h2><p class="page-sub">주간 수익률 기반 실현 변동성(연율 %). 낮은 구간=압축(큰 움직임 전조로 자주 거론). <span id="volStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvVol"></canvas>
+    <div class="chart-guide" data-guide="vol"></div>
   </section>
   <section class="view" data-view="supply">
     <div class="page-head"><h2>순발행·공급</h2><p class="page-sub">Merge 이후 발행(스테이킹 보상)−소각(base fee)으로 결정되는 ETH 공급 추이. 공급이 줄면 디플레(ultrasound). <span id="supplyStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvSupply"></canvas>
+    <div class="chart-guide" data-guide="supply"></div>
   </section>
   <section class="view" data-view="gas">
     <div class="page-head"><h2>가스·수수료</h2><p class="page-sub">네트워크 수요 지표 — 기준 가스(base fee)와 소각률(연율 ETH). 소각이 발행보다 크면 디플레. <span id="gasStatsLine" style="color:var(--muted)"></span></p></div>
@@ -596,6 +614,7 @@
   <section class="view" data-view="defidom">
     <div class="page-head"><h2>ETH DeFi 지배력</h2><p class="page-sub">전체 체인 DeFi TVL 중 이더리움 비중과 ETH DeFi TVL 추이. '디파이 본진' 위상. <span id="defidomStats" style="color:var(--muted)"></span></p></div>
     <canvas id="cvDefiDom"></canvas>
+    <div class="chart-guide" data-guide="defidom"></div>
   </section>
   <section class="view" data-view="treasury">
     <div class="page-head"><h2>기관 ETH 보유</h2><p class="page-sub">상장사 등 기관의 ETH 보유량과 공급 점유율(CoinGecko). 기관 채택 신호. <span id="treasuryStats" style="color:var(--muted)"></span></p></div>
@@ -1223,6 +1242,42 @@ function renderSqueeze(){
 }
 let activeView='dashboard';
 const VIEW_DRAW={season:drawHeatmap,spiral:drawSpiral,cycle:drawCycle,halving:drawHalving,band:drawBand,mayer:drawMayer,dd:drawDrawdown,vol:drawVol,supply:drawSupply,defidom:drawDefiDom};
+function pick(sig,b,n,be){return sig==='bull'?b:sig==='bear'?be:n;}
+function guideFor(v){
+  const m=S._metrics||{};
+  const G=(sig,verdict,reading,watch)=>({sig,verdict,reading,watch});
+  if(v==='mayer'&&m.mayer&&m.mayer.val!=='—'){const s=m.mayer.sig;
+    return G(s,pick(s,'저평가 구간','중립','과열 구간'),`200주 이동평균 대비 ${m.mayer.val}. 장기 평균선과의 거리로 과열·저평가를 본다.`,'<b>0.8× 이하</b>=역사적 저평가, <b>2.4× 이상</b>=과열. 1.0× 회복 여부를 주시.');}
+  if(v==='band'&&S.band&&isFinite(S.band.z)){const s=m.band?m.band.sig:'muted';
+    return G(s,pick(s,'채널 하단(저평가)','채널 중앙','채널 상단(과열)'),`로그 회귀 추세선 대비 z=${(S.band.z>=0?'+':'')+S.band.z.toFixed(2)}σ (적합도 R²=${S.band.r2.toFixed(2)}).`,'<b>-2σ 부근</b>=바닥권, <b>+2σ 부근</b>=과열. 추세선(중앙) 회귀 방향을 주시.');}
+  if(v==='dd'&&m.dd&&m.dd.val!=='—'){const s=m.dd.sig;
+    return G(s,pick(s,'얕은 낙폭','중간 낙폭','깊은 낙폭(바닥권)'),`전고점 대비 현재 ${m.dd.val}. 깊을수록 약세장 바닥에 가깝다(역발상).`,'<b>-50%↓</b>=역사적 바닥권. 낙폭이 줄며 신고가에 다가가는지 주시.');}
+  if(v==='vol'&&m.vol&&m.vol.val!=='—'){
+    return G('neutral','변동성 '+m.vol.val,`주간 실현 변동성(연율) ${m.vol.val}. 낮은 구간(압축)은 큰 움직임의 전조로 자주 거론된다.`,'<b>하위 20%(압축)</b> 지속 후 확장 전환을 주시. 방향은 변동성만으론 알 수 없음.');}
+  if(v==='supply'&&S.us&&S.us.series&&S.us.series.length>1){const s=m.supply?m.supply.sig:'muted';
+    return G(s,pick(s,'디플레(감소)','중립','인플레(증가)'),`Merge 이후 발행−소각 누적. 구간 변화 ${m.supply?m.supply.val:'—'} (${s==='bull'?'공급 감소=디플레':'공급 증가=인플레'}).`,'수요가 약하면 소각이 줄어 공급이 는다. <b>하향 전환(디플레)</b>이 강세 우호 신호.');}
+  if(v==='defidom'&&S.defidom){
+    return G('neutral','DeFi 지배력 '+S.defidom.pct.toFixed(0)+'%',`전체 체인 DeFi TVL 중 이더리움 비중 ${S.defidom.pct.toFixed(0)}%. '디파이 본진' 위상.`,'비중 상승=상대적 강세, 하락=L2·타체인 이탈. 추세 방향을 주시.');}
+  if(v==='cycle'&&m.cycle&&m.cycle.val!=='—'){
+    return G('neutral','직전 바닥 후 '+m.cycle.val,`2022 바닥 기준 ${m.cycle.val} 경과. 과거 사이클 궤적과 겹쳐 현재 위치를 가늠.`,'과거 사이클 대비 가격 궤적이 위/아래 어디인지, 사이클 중반·후반 위치를 주시.');}
+  if(v==='halving'){
+    return G('neutral','반감기 사이클','2024-04-20 반감기 기준 경과. 과거 반감기 후 궤적과 비교.',' 반감기 후 12~18개월 구간의 과거 패턴과 현재 위치를 주시.');}
+  if(v==='season'&&S.month){
+    const s=m.season?m.season.sig:'muted';
+    return G(s,'계절성',`행=연도·열=월의 월별 수익률. 맨 아래 평균 행이 계절 경향(이번 달 평균 ${m.season?m.season.val:'—'}).`,'이번 달(강조 셀)의 과거 평균이 양/음인지, 특정 월 반복 패턴을 참고(표본 적음 주의).');}
+  if(v==='spiral'&&S.month){
+    return G('neutral','스네일(계절 나선)','월별 등락을 나선으로. 같은 각도(달)에서 색이 반복되면 계절성.',' 같은 달 위치의 색(초록=상승/빨강=하락) 반복 여부, 바깥 끝(현재)의 방향을 참고.');}
+  return null;
+}
+function chartGuide(view){
+  const el=document.querySelector(`.chart-guide[data-guide="${view}"]`);if(!el)return;
+  const g=guideFor(view);
+  if(!g){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='flex';
+  el.innerHTML=`<div class="cg-top"><span class="cg-badge" data-sig="${g.sig}">${g.verdict}</span></div>`+
+    `<div class="cg-read">${g.reading}</div>`+
+    `<div class="cg-watch">참고 — ${g.watch}</div>`;
+}
 /* 차트 등급(표시 전용) — 새 차트는 여기 한 줄만 추가. 향후 유료 게이팅의 단일 스위치. */
 const CHART_TIER={
   spiral:'signature',
@@ -1239,7 +1294,8 @@ function drawActiveView(){const fn=VIEW_DRAW[activeView];if(!fn)return;
   // 뷰별 필요한 데이터만 가드(가격 차트는 week/month, 온체인 차트는 자체 가드)
   if(['season','spiral'].includes(activeView)&&!S.month)return;
   if(['cycle','halving','band','mayer','dd','vol'].includes(activeView)&&!S.week)return;
-  fn();}
+  fn();
+  chartGuide(activeView);}
 function showView(key){
   activeView=key;
   document.querySelectorAll('.snav-item').forEach(b=>b.classList.toggle('on',b.dataset.view===key));
