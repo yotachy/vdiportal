@@ -103,8 +103,8 @@
   .view[data-view="band"] canvas,
   .view[data-view="mayer"] canvas,
   .view[data-view="dd"] canvas,
-  .view[data-view="vol"] canvas{height:clamp(360px,52vh,460px)}
-  .view[data-view="supply"] canvas,.view[data-view="defidom"] canvas{height:clamp(360px,52vh,460px)}
+  .view[data-view="vol"] canvas{height:clamp(260px,38vh,360px)}
+  .view[data-view="supply"] canvas,.view[data-view="defidom"] canvas{height:clamp(260px,38vh,360px)}
   #gasStats .mrow,#stakingStats .mrow{padding:5px 0;font-size:13px}
   #gasStats .mrow:not(:last-child),#stakingStats .mrow:not(:last-child){border-bottom:1px solid var(--line)}
   .ob-bars{display:flex;flex-direction:column;gap:9px;margin-top:6px}
@@ -126,7 +126,7 @@
   .trig.on .tval{color:var(--bull)}
   .squeeze-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:4px}
   @media(max-width:560px){.trig-grid{grid-template-columns:1fr}}
-  .view[data-view="spiral"] canvas{height:clamp(440px,66vh,600px)}
+  .view[data-view="spiral"] canvas{height:clamp(360px,52vh,480px)}
   .hm{display:flex;flex-direction:column;gap:3px;overflow-x:auto}
   .hm-row{display:grid;grid-template-columns:42px repeat(12,1fr);gap:3px;min-width:560px}
   .hm-row.head .cell,.hm-row .ylab{font-family:var(--mono);font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;padding:3px 0}
@@ -712,11 +712,18 @@ function renderQuad(liq,mom){
 }
 
 /* ===== canvas line chart ===== */
+function hidpi(cv){
+  const dpr=window.devicePixelRatio||1, r=cv.getBoundingClientRect();
+  const W=cv.clientWidth||Math.round(r.width), H=cv.clientHeight||Math.round(r.height);
+  const z=(W&&r.width)?(r.width/W):1, s=dpr*(z||1);
+  cv.width=Math.max(1,Math.round(W*s)); cv.height=Math.max(1,Math.round(H*s));
+  const ctx=cv.getContext('2d'); ctx.setTransform(s,0,0,s,0,0); ctx.clearRect(0,0,W,H);
+  return {ctx,W,H};
+}
 // Y축 눈금값 포맷(부호·자릿수 정리)
-function fmtTick(val){const a=Math.abs(val);if(a>=1000)return (val/1000).toFixed(a>=10000?0:1)+'k';if(a>=100)return val.toFixed(0);if(a>=10)return val.toFixed(0);if(a>=1)return val.toFixed(2);return val.toFixed(a>=0.1?2:3);}
+function fmtTick(val){const a=Math.abs(val);if(a>=1e9)return (val/1e9).toFixed(a>=1e10?0:1)+'B';if(a>=1e6)return (val/1e6).toFixed(a>=1e8?0:1)+'M';if(a>=1000)return (val/1000).toFixed(a>=10000?0:1)+'k';if(a>=100)return val.toFixed(0);if(a>=10)return val.toFixed(0);if(a>=1)return val.toFixed(2);return val.toFixed(a>=0.1?2:3);}
 function lineChart(cv,datasets,{logY=false,xTicks=[],xLabel='',yLabel=''}={}){
-  const dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
-  cv.width=W*dpr;cv.height=H*dpr;const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
+  const {ctx,W,H}=hidpi(cv);
   const pad={l:56,r:14,t:24,b:34};
   let all=[];datasets.forEach(d=>all=all.concat(d.values.filter(v=>v!=null&&isFinite(v)&&!(logY&&v<=0))));
   if(!all.length)return;
@@ -732,12 +739,10 @@ function lineChart(cv,datasets,{logY=false,xTicks=[],xLabel='',yLabel=''}={}){
   for(let k=0;k<=4;k++){const yy=pad.t+PH*k/4;ctx.strokeStyle='#232D38';ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();
     const val=logY?Math.pow(10,hi-(hi-lo)*k/4):hi-(hi-lo)*k/4;ctx.fillStyle='#5C6875';ctx.textAlign='right';ctx.fillText(fmtTick(val),pad.l-6,yy+3);}
   // X 눈금(세로 보조선 + 라벨)
-  ctx.textAlign='center';
+  ctx.textAlign='center';let lastLabelR=-1e9;
   xTicks.forEach(t=>{const xx=pad.l+PW*clamp(t.frac,0,1);ctx.strokeStyle='#1c252f';ctx.beginPath();ctx.moveTo(xx,pad.t);ctx.lineTo(xx,pad.t+PH);ctx.stroke();
-    ctx.fillStyle='#5C6875';ctx.fillText(t.text,xx,pad.t+PH+15);});
-  // 축 단위 라벨 (Y축은 세로 회전 — 상단 범례·Y눈금과 겹침 방지)
+    const tw=ctx.measureText(t.text).width;if(xx-tw/2>lastLabelR+6){ctx.fillStyle='#5C6875';ctx.fillText(t.text,xx,pad.t+PH+15);lastLabelR=xx+tw/2;}});
   ctx.fillStyle='#8B98A6';ctx.font='9px Pretendard';
-  if(yLabel){ctx.save();ctx.translate(11,pad.t+PH/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(yLabel,0,0);ctx.restore();ctx.textBaseline='alphabetic';}
   if(xLabel){ctx.textAlign='right';ctx.fillText(xLabel,W-pad.r,H-4);}
   // 데이터 라인 (+ 현재값 마커 markLast / 보조선 끝 라벨 tag)
   const lastValid=vals=>{for(let i=vals.length-1;i>=0;i--){const v=vals[i];if(v!=null&&isFinite(v)&&!(v<=0&&logY))return i;}return -1;};
@@ -1017,8 +1022,7 @@ function drawSpiral(){
   const cv=$('#cvSpiral');if(!cv)return;
   if(!S.month||!S.month.c||S.month.c.length<13){const e=$('#spiralStats');if(e)e.innerHTML='데이터 부족';return;}
   const t=S.month.t,c=S.month.c,n=c.length;
-  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
-  cv.width=W*dpr;cv.height=H*dpr;const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
+  const {ctx,W,H}=hidpi(cv);
   const cx=W/2,cy=H/2+4,maxR=Math.min(W,H)/2-34,r0=maxR*0.1,dr=(maxR-r0)/(n-1);
   const firstMo=new Date(t[0]).getUTCMonth();
   const A=cm=>-Math.PI/2+(cm/12)*2*Math.PI;              // 1월 위쪽, 시계방향(연속 각도)
@@ -1371,9 +1375,9 @@ function sparkSeries(k){
   return null;
 }
 function sparkline(cv,series,sig){
-  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
-  if(!W||!H||!series||series.length<2)return;
-  cv.width=W*dpr;cv.height=H*dpr;const x=cv.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,W,H);
+  if(!series||series.length<2)return;
+  const {ctx:x,W,H}=hidpi(cv);
+  if(!W||!H)return;
   let mn=Infinity,mx=-Infinity;for(const v of series){if(v<mn)mn=v;if(v>mx)mx=v;}
   if(!isFinite(mn)||mx===mn){mx=mn+1;}
   const col=getComputedStyle(document.documentElement).getPropertyValue('--'+(sig||'muted')).trim()||'#8B98A6';
