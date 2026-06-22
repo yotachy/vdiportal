@@ -210,6 +210,16 @@
   .asset[disabled]{color:var(--faint);cursor:not-allowed}
   .asset .soon{font-size:8.5px;font-weight:700;color:var(--faint);background:var(--panel);border-radius:4px;padding:1px 4px;letter-spacing:0}
   .asset:focus-visible{outline:2px solid var(--gold);outline-offset:-2px;border-radius:4px}
+  @media(max-width:560px){
+    body{padding-top:10px}
+    .hdr-top{padding:8px 4px}
+    .wordmark{font-size:17px}
+    .wordmark .by{display:none}
+    .upgrade-btn{padding:6px 10px;font-size:11.5px}
+    .hdr-nav{gap:14px}
+    .asset{font-size:11.5px;padding:8px 1px}
+    .asset .soon{display:none}
+  }
   /* toast */
   .toast{position:fixed;right:24px;bottom:24px;z-index:50;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px 16px;font-size:12.5px;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .2s,transform .2s}
   .toast.show{opacity:1;transform:translateY(0)}
@@ -219,6 +229,7 @@
   .main{min-width:0}
   .side{position:sticky;top:calc(var(--top-bar-h) + 16px);align-self:start;background:none;border:none;border-radius:0;padding:0;display:flex;flex-direction:column;gap:14px}
   .side-close{display:none}
+  .side-acct{display:none}
   .snav{display:flex;flex-direction:column;gap:1px}
   .snav-group{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:9px 2px 2px}
   .snav-item{display:flex;justify-content:space-between;align-items:center;gap:7px;padding:5px 9px;border-radius:8px;cursor:pointer;border:1px solid transparent;background:none;color:var(--muted);font:inherit;font-size:12px;text-align:left;width:100%;transition:background .15s,color .15s}
@@ -240,6 +251,12 @@
     .side.open{transform:none}
     .side-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39;opacity:0;visibility:hidden;transition:opacity .25s}
     .side-backdrop.show{opacity:1;visibility:visible}
+    .hdr-util .hdr-status-txt{display:none}
+    .hdr-util .plan-badge,.hdr-util .login-btn{display:none}
+    .hdr-util{gap:10px}
+    .side-acct{display:flex;flex-direction:column;gap:10px;padding:0 2px 12px;border-bottom:1px solid var(--line);margin-bottom:4px}
+    .side-acct-row{display:flex;align-items:center;gap:10px}
+    .side-acct-upd{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
   }
   @media(max-width:880px){.hero{grid-template-columns:1fr}.dims{grid-template-columns:1fr 1fr}}
   @media(max-width:520px){.dims{grid-template-columns:1fr}.gauge-wrap{max-width:220px}}
@@ -300,6 +317,10 @@
 <div class="app">
   <aside class="side">
     <button class="side-close" id="sideClose" type="button" aria-label="메뉴 닫기"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+    <div class="side-acct">
+      <div class="side-acct-row"><span class="plan-badge">무료</span><button class="login-btn" type="button" disabled title="준비 중">로그인</button></div>
+      <div class="side-acct-upd">마지막 갱신 <span id="updatedAtSide">—</span></div>
+    </div>
     <nav class="snav" aria-label="화면 이동">
       <button class="snav-item on" data-view="dashboard"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2" fill="currentColor"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/><rect x="13" y="13" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/></svg></span>이더리움 대시보드</span></button>
       <div class="snav-group">사이클</div>
