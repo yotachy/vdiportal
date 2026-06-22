@@ -619,7 +619,7 @@ function lineChart(cv,datasets,{logY=false,xTicks=[],xLabel='',yLabel=''}={}){
   const dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
   cv.width=W*dpr;cv.height=H*dpr;const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
   const pad={l:56,r:14,t:24,b:34};
-  let all=[];datasets.forEach(d=>all=all.concat(d.values.filter(v=>v!=null&&isFinite(v))));
+  let all=[];datasets.forEach(d=>all=all.concat(d.values.filter(v=>v!=null&&isFinite(v)&&!(logY&&v<=0))));
   if(!all.length)return;
   let mn=Math.min(...all),mx=Math.max(...all);
   const tf=v=>logY?Math.log10(v):v;
@@ -999,7 +999,8 @@ function drawDefiDom(){
   lineChart(cv,[{label:'ETH DeFi TVL',color:css('--gold'),values:S.tvl.series,w:1.8,markLast:true}],{logY:true,xTicks:S.tvl.times?yearTicks(S.tvl.times):[],xLabel:'연도',yLabel:'TVL $(로그)'});
   const st=$('#defidomStats');
   if(st){const dom=S.defidom?S.defidom.pct.toFixed(1)+'%':'—',tvlB=S.defidom?'$'+(S.defidom.ethTvl/1e9).toFixed(1)+'B':'—';
-    st.innerHTML=`ETH DeFi 지배력 <b style="color:var(--text)">${dom}</b> · ETH TVL <b style="color:var(--text)">${tvlB}</b> · 30d <span class="${S.tvl.chg30>=0?'up':'down'}">${fmtPct(S.tvl.chg30)}</span>`;}
+    const chg30=isFinite(S.tvl.chg30)?S.tvl.chg30:null;
+    st.innerHTML=`ETH DeFi 지배력 <b style="color:var(--text)">${dom}</b> · ETH TVL <b style="color:var(--text)">${tvlB}</b> · 30d ${chg30!=null?`<span class="${chg30>=0?'up':'down'}">${fmtPct(chg30)}</span>`:'—'}`;}
 }
 function renderOnchain(){
   // 가스
