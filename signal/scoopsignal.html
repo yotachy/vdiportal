@@ -290,6 +290,7 @@
         <span class="s"><i id="st-fred"></i>FRED 매크로</span>
         <span class="s"><i id="st-beacon"></i>스테이킹</span>
         <span class="s"><i id="st-coingecko"></i>도미넌스</span>
+        <span class="s"><i id="st-ultrasound"></i>온체인</span>
       </div>
     </div>
   </aside>
@@ -669,9 +670,11 @@ async function loadLlama(){
     jget('https://api.llama.fi/v2/chains'),
     jget('https://stablecoins.llama.fi/stablecoincharts/Ethereum')
   ]);
-  const tv=tvl.map(d=>d.tvl);S.tvl={series:tv,chg30:pctChange(tv,30),hist:rollChanges(tv,30)};
+  const tv=tvl.map(d=>d.tvl);S.tvl={series:tv,times:tvl.map(d=>d.date*1000),chg30:pctChange(tv,30),hist:rollChanges(tv,30)};
   const L2=['Arbitrum','Base','OP Mainnet','Optimism','zkSync Era','Linea','Scroll','Starknet','Polygon zkEVM','Mantle','Blast'];
   let l2sum=0;chains.forEach(c=>{if(L2.includes(c.name))l2sum+=c.tvl||0;});
+  const ethC=chains.find(c=>c.name==='Ethereum'),totalTvl=chains.reduce((a,c)=>a+(c.tvl||0),0);
+  S.defidom=(ethC&&totalTvl>0)?{pct:ethC.tvl/totalTvl*100,ethTvl:ethC.tvl}:null;
   // 점수용 히스토리: 주요 L2 3개 historicalChainTvl 합산(가용분만)
   const L2H=['Arbitrum','Base','OP Mainnet'];
   const hres=await Promise.allSettled(L2H.map(n=>jget('https://api.llama.fi/v2/historicalChainTvl/'+encodeURIComponent(n))));
@@ -729,6 +732,29 @@ async function loadCoinGecko(){
     if(eth==null||!isFinite(+eth))throw new Error('no eth dom');
     S.dom={eth:+eth};setF('domVal',(+eth).toFixed(1)+'%');setStatus('coingecko','ok');
   }catch(e){S.dom=null;setF('domVal','—');setStatus('coingecko','warn');}
+}
+
+async function loadUltrasound(){
+  try{
+    const[so,fa,eb]=await Promise.all([
+      jget('https://ultrasound.money/api/v2/fees/supply-over-time'),
+      jget('https://ultrasound.money/api/fees/all'),
+      jget('https://ultrasound.money/api/v2/fees/effective-balance-sum')
+    ]);
+    console.log('ultrasound supply-over-time keys:',Object.keys(so));
+    const raw=so.sinceMerge||so.d30||so.d7||so.d1||[];
+    const series=raw.filter(p=>p&&p.supply!=null&&p.timestamp).map(p=>({t:Date.parse(p.timestamp),supply:+p.supply}));
+    const br=fa.burnRates||{};
+    const annual=w=>(+w||0)*31.536e6/1e18;   // wei/s → 연율 ETH
+    S.us={
+      series, supplyNow: series.length?series[series.length-1].supply:null,
+      baseFeeGwei: fa.baseFeePerGas!=null?(+fa.baseFeePerGas/1e9):null,
+      burn24h: annual(br.burnRate24h), burn7d: annual(br.burnRate7d), burn30d: annual(br.burnRate30d),
+      defl: fa.deflationaryStreak||null,
+      stakedEth: eb&&eb.sum!=null?(+eb.sum/1e9):null
+    };
+    setStatus('ultrasound','ok');
+  }catch(e){S.us=null;setStatus('ultrasound','warn');}
 }
 
 /* ===== SCORING ===== */
@@ -1000,7 +1026,7 @@ function updateSideBadges(){
 /* ===== orchestration ===== */
 async function refresh(){
   $('#refreshBtn').disabled=true;$('#refreshBtn').classList.add('spinning');
-  const r=await Promise.allSettled([loadBinance(),loadLlama(),loadDollar(),loadFred(),loadBeacon(),loadCoinGecko()]);
+  const r=await Promise.allSettled([loadBinance(),loadLlama(),loadDollar(),loadFred(),loadBeacon(),loadCoinGecko(),loadUltrasound()]);
   setStatus('binance',r[0].status==='fulfilled'?'ok':'err');
   setStatus('llama',r[1].status==='fulfilled'?'ok':'err');
   setStatus('fx',r[2].status==='fulfilled'?'ok':'err');
