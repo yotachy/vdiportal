@@ -1387,10 +1387,11 @@ function recompute(){
   verdict(score,{mom,liq,fun,val});
   updateHeroTiles(mom,liq,fun,val);
   updateSignalDetail(score,{mom,liq,fun,val},w);
+  buildMetrics();                       // 판단 카드·KPI·배지가 읽는 S._metrics를 drawActiveView 전에 갱신
   if(S.month)drawActiveView();
   renderOnchain();
   renderTreasury();renderTriggers();renderSqueeze();renderEtf();
-  buildMetrics();updateSideBadges();
+  updateSideBadges();
   renderKpiGrid();
 }
 
