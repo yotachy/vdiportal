@@ -42,14 +42,14 @@
   @keyframes spin{to{transform:rotate(360deg)}}
 
   /* ticker */
-  .ticker{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
-  .tk{background:var(--panel);padding:12px 14px}
+  .ticker{display:grid;grid-template-columns:repeat(3,1fr);gap:0;background:var(--panel);border-radius:12px;overflow:hidden;margin-bottom:16px}
+  .tk{padding:12px 16px}
   .tk .lab{font-size:11px;color:var(--muted)} .tk .val{font-family:var(--mono);font-size:17px;font-weight:600;margin-top:3px}
   .tk .chg{font-family:var(--mono);font-size:12px;margin-top:1px}
 
   /* hero: gauge + radar + quadrant */
   .hero{display:grid;grid-template-columns:1.05fr 1fr 1fr;gap:12px;margin-bottom:8px}
-  .pane{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column}
+  .pane{background:var(--panel);border-radius:16px;padding:16px;display:flex;flex-direction:column}
   .pane .ptitle{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
   .gauge-wrap{position:relative;width:230px;max-width:100%;margin:2px auto 0}
   svg.gauge{display:block;width:100%;height:auto}
@@ -64,12 +64,12 @@
 
   /* dimension metric cards */
   .dims{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
-  .card{transition:background .4s,border-color .4s}
-  .card[data-sig="bull"]{background:var(--bull-tint);border-color:rgba(70,194,142,.3)}
-  .card[data-sig="neutral"]{background:var(--neutral-tint);border-color:rgba(224,169,59,.3)}
-  .card[data-sig="bear"]{background:var(--bear-tint);border-color:rgba(224,106,106,.3)}
-  .card[data-sig="load"]{background:var(--panel);border-color:var(--line)}
+  .card{background:var(--panel);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+  .card{transition:background .4s}
+  .card[data-sig="bull"]{background:var(--bull-tint)}
+  .card[data-sig="neutral"]{background:var(--neutral-tint)}
+  .card[data-sig="bear"]{background:var(--bear-tint)}
+  .card[data-sig="load"]{background:var(--panel)}
   .card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
   .card h3{font-size:14px;font-weight:700;letter-spacing:-.01em}
   .card .dimscore{font-family:var(--mono);font-size:13px;color:var(--muted)}
@@ -120,7 +120,7 @@
   .ring .rfg{fill:none;stroke:var(--gold);stroke-width:10;stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .6s}
   .ring-c{font-family:var(--mono);font-size:13px;fill:var(--text)}
   .trig-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
-  .trig{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;background:var(--panel-2);font-size:12.5px;color:var(--muted)}
+  .trig{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;background:var(--panel);font-size:12.5px;color:var(--muted)}
   .trig .tdot{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:0 0 auto}
   .trig.on{color:var(--text)} .trig.on .tdot{background:var(--bull)}
   .trig.na{opacity:.5}
@@ -221,7 +221,7 @@
   /* app shell */
   .app{display:grid;grid-template-columns:248px 1fr;gap:18px;max-width:1180px;margin:0 auto;align-items:start}
   .main{min-width:0}
-  .side{position:sticky;top:calc(var(--top-bar-h) + 16px);align-self:start;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 14px;display:flex;flex-direction:column;gap:14px}
+  .side{position:sticky;top:calc(var(--top-bar-h) + 16px);align-self:start;background:none;border:none;border-radius:0;padding:0;display:flex;flex-direction:column;gap:14px}
   .snav{display:flex;flex-direction:column;gap:1px}
   .snav-group{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:9px 2px 2px}
   .snav-item{display:flex;justify-content:space-between;align-items:center;gap:7px;padding:5px 9px;border-radius:8px;cursor:pointer;border:1px solid transparent;background:none;color:var(--muted);font:inherit;font-size:12px;text-align:left;width:100%;transition:background .15s,color .15s}
@@ -249,11 +249,11 @@
   .hero2{display:grid;grid-template-columns:1.1fr 1fr;gap:12px;margin-bottom:14px;align-items:stretch}
   .signal-pane{cursor:pointer}
   .signal-pane .gauge-wrap{max-width:180px}
-  .signal-pane:hover,.hero-tile:hover{border-color:var(--gold)}
+  .signal-pane:hover,.hero-tile:hover{box-shadow:inset 0 0 0 1px var(--gold)}
   .signal-pane:focus-visible,.hero-tile:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   .ptitle .go,.tile-head .go{color:var(--gold);font-size:11px;font-weight:700;float:right}
   .hero-tiles{display:flex;flex-direction:column;gap:12px}
-  .hero-tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:11px;flex:1}
+  .hero-tile{background:var(--panel);border-radius:14px;padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:11px;flex:1}
   .tile-head{font-size:12.5px;font-weight:700;color:var(--text)}
   .tile-bars{display:flex;flex-direction:column;gap:8px}
   .tile-bar{display:grid;grid-template-columns:58px 1fr 30px;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
@@ -539,11 +539,11 @@
   </section>
   <section class="view" data-view="gas">
     <div class="page-head"><h2>가스·수수료</h2><p class="page-sub">네트워크 수요 지표 — 기준 가스(base fee)와 소각률(연율 ETH). 소각이 발행보다 크면 디플레. <span id="gasStatsLine" style="color:var(--muted)"></span></p></div>
-    <div class="card" style="max-width:520px"><div id="gasStats"></div></div>
+    <div id="gasStats" style="max-width:520px"></div>
   </section>
   <section class="view" data-view="staking">
     <div class="page-head"><h2>스테이킹 비율</h2><p class="page-sub">총공급 대비 스테이킹된 ETH 비율(PoS 고유). 높을수록 유통 물량 잠김·네트워크 보안↑. <span id="stakingStatsLine" style="color:var(--muted)"></span></p></div>
-    <div class="card" style="max-width:520px"><div id="stakingStats"></div></div>
+    <div id="stakingStats" style="max-width:520px"></div>
   </section>
   <section class="view" data-view="defidom">
     <div class="page-head"><h2>ETH DeFi 지배력</h2><p class="page-sub">전체 체인 DeFi TVL 중 이더리움 비중과 ETH DeFi TVL 추이. '디파이 본진' 위상. <span id="defidomStats" style="color:var(--muted)"></span></p></div>
