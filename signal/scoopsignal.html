@@ -204,11 +204,11 @@
   .upgrade-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   .upgrade-btn svg{width:15px;height:15px;display:block}
   .hdr-nav{display:flex;align-items:stretch;gap:18px;padding:0 4px;border-bottom:1px solid var(--line)}
-  .asset{appearance:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;border-radius:0;padding:9px 1px;margin-bottom:-1px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+  .asset{appearance:none;font:inherit;font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;border-radius:0;padding:9px 2px;margin-bottom:-1px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;letter-spacing:-.01em}
   .asset:not([disabled]):hover{color:var(--text)}
   .asset.on{color:var(--gold);font-weight:800;border-bottom-color:var(--gold)}
   .asset[disabled]{color:var(--faint);cursor:not-allowed}
-  .asset .soon{font-size:8.5px;font-weight:700;color:var(--faint);background:var(--panel);border-radius:4px;padding:1px 4px;letter-spacing:0}
+  .asset .soon{font-size:8px;font-weight:700;color:var(--faint);background:var(--panel-2);border-radius:4px;padding:1px 3px;letter-spacing:0}
   .asset:focus-visible{outline:2px solid var(--gold);outline-offset:-2px;border-radius:4px}
   @media(max-width:560px){
     body{padding-top:10px}
@@ -305,7 +305,6 @@
     </div>
     <div class="hdr-util">
       <div class="hdr-status">
-        <button class="refresh-ic" id="refreshBtn" type="button" title="새로고침" aria-label="새로고침"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.36"/><path d="M21 4v5h-5"/></svg></button>
         <span class="hdr-status-txt"><span id="updatedAt">불러오는 중…</span><span class="auto">· 자동</span></span>
       </div>
       <span class="plan-badge">무료</span>
@@ -329,7 +328,7 @@
     </div>
     <div class="side-acct">
       <div class="side-acct-row"><span class="plan-badge">무료</span><button class="login-btn" type="button" disabled title="준비 중">로그인</button></div>
-      <div class="side-acct-upd"><span>마지막 갱신 <span id="updatedAtSide">—</span></span><button class="refresh-ic" type="button" title="새로고침" aria-label="새로고침"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.36"/><path d="M21 4v5h-5"/></svg></button></div>
+      <div class="side-acct-upd">마지막 갱신 <span id="updatedAtSide">—</span></div>
     </div>
     <nav class="snav" aria-label="화면 이동">
       <button class="snav-item on" data-view="dashboard"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2" fill="currentColor"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/><rect x="13" y="13" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/></svg></span>이더리움 대시보드</span></button>
@@ -1276,7 +1275,6 @@ function updateSideBadges(){const m=S._metrics||buildMetrics();for(const k in m)
 
 /* ===== orchestration ===== */
 async function refresh(){
-  document.querySelectorAll('.refresh-ic').forEach(b=>{b.disabled=true;b.classList.add('spinning');});
   const r=await Promise.allSettled([loadUpbit(),loadLlama(),loadDollar(),loadFred(),loadBeacon(),loadCoinGecko(),loadUltrasound(),loadTreasury(),loadEtf()]);
   setStatus('price',(S.week&&S.ethbtc)?'ok':(S.week||S.ethbtc||S.month)?'warn':'err');
   setStatus('llama',r[1].status==='fulfilled'?'ok':'err');
@@ -1291,7 +1289,6 @@ async function refresh(){
   const _tm=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
   $('#updatedAt').textContent='갱신 '+_tm;
   const _us=document.querySelector('#updatedAtSide'); if(_us)_us.textContent=_tm;
-  document.querySelectorAll('.refresh-ic').forEach(b=>{b.disabled=false;b.classList.remove('spinning');});
 }
 function recompute(){
   const ok=S._ok||{mom:!!S.ethbtc,val:!!S.ma200,fun:!!S.tvl};
@@ -1383,7 +1380,6 @@ refresh();
 showView(activeView);
 applyTierBadges();
 setInterval(refresh,120000);
-document.querySelectorAll('.refresh-ic').forEach(b=>b.addEventListener('click',refresh));
 $('#upgradeBtn').addEventListener('click',()=>showToast('요금제는 준비 중입니다'));
 </script>
 </body>
