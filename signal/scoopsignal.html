@@ -985,8 +985,41 @@ function drawMayer(){
   const lab=pr<0.2?'<span class="up">저평가</span>':pr>0.8?'<span class="down">과열</span>':'<span class="flat">중립</span>';
   const st=$('#mayerStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${cur.toFixed(2)}×</b> · 분위 <b style="color:var(--text)">${Math.round(pr*100)}</b> ${lab}`;
 }
+function drawSupply(){
+  const cv=$('#cvSupply');if(!cv)return;
+  if(!S.us||!S.us.series||S.us.series.length<2){const e=$('#supplyStats');if(e)e.innerHTML='연결 필요';lineChart(cv,[],{});return;}
+  const s=S.us.series,times=s.map(p=>p.t),vals=s.map(p=>p.supply);
+  lineChart(cv,[{label:'ETH 공급',color:css('--gold'),values:vals,w:1.8,markLast:true}],{xTicks:yearTicks(times),xLabel:'기간',yLabel:'공급 ETH'});
+  const first=vals[0],last=vals[vals.length-1],chg=last-first;
+  const st=$('#supplyStats');if(st)st.innerHTML=`현재 <b style="color:var(--text)">${(last/1e6).toFixed(2)}M ETH</b> · 구간 변화 <span class="${chg<=0?'up':'down'}">${chg>=0?'+':''}${chg.toFixed(0)} ETH</span> ${chg<=0?'<span class="up">디플레</span>':'<span class="down">인플레</span>'} · 30d 소각 <b style="color:var(--text)">${Math.round(S.us.burn30d).toLocaleString()} ETH/yr</b>`;
+}
+function drawDefiDom(){
+  const cv=$('#cvDefiDom');if(!cv)return;
+  if(!S.tvl||!S.tvl.series||S.tvl.series.length<2){const e=$('#defidomStats');if(e)e.innerHTML='연결 필요';lineChart(cv,[],{});return;}
+  lineChart(cv,[{label:'ETH DeFi TVL',color:css('--gold'),values:S.tvl.series,w:1.8,markLast:true}],{logY:true,xTicks:S.tvl.times?yearTicks(S.tvl.times):[],xLabel:'연도',yLabel:'TVL $(로그)'});
+  const st=$('#defidomStats');
+  if(st){const dom=S.defidom?S.defidom.pct.toFixed(1)+'%':'—',tvlB=S.defidom?'$'+(S.defidom.ethTvl/1e9).toFixed(1)+'B':'—';
+    st.innerHTML=`ETH DeFi 지배력 <b style="color:var(--text)">${dom}</b> · ETH TVL <b style="color:var(--text)">${tvlB}</b> · 30d <span class="${S.tvl.chg30>=0?'up':'down'}">${fmtPct(S.tvl.chg30)}</span>`;}
+}
+function renderOnchain(){
+  // 가스
+  const g=$('#gasStats');if(g){g.innerHTML=S.us?
+    `<div class="mrow"><span class="k">기준 가스(base fee)</span><span class="v">${S.us.baseFeeGwei!=null?S.us.baseFeeGwei.toFixed(2)+' gwei':'—'}</span></div>
+     <div class="mrow"><span class="k">소각률 24h(연율)</span><span class="v">${Math.round(S.us.burn24h).toLocaleString()} ETH/yr</span></div>
+     <div class="mrow"><span class="k">소각률 7d(연율)</span><span class="v">${Math.round(S.us.burn7d).toLocaleString()} ETH/yr</span></div>
+     <div class="mrow"><span class="k">소각률 30d(연율)</span><span class="v">${Math.round(S.us.burn30d).toLocaleString()} ETH/yr</span></div>`
+    :'<div class="mrow"><span class="k">데이터</span><span class="v">연결 필요</span></div>';}
+  // 스테이킹
+  const stv=$('#stakingStats');if(stv){
+    const ratio=(S.us&&S.us.stakedEth&&S.us.supplyNow)?(S.us.stakedEth/S.us.supplyNow*100):null;
+    stv.innerHTML=S.us&&ratio!=null?
+    `<div class="mrow"><span class="k">스테이킹 비율</span><span class="v"><b style="color:var(--text)">${ratio.toFixed(1)}%</b></span></div>
+     <div class="mrow"><span class="k">스테이킹 물량</span><span class="v">${(S.us.stakedEth/1e6).toFixed(2)}M ETH</span></div>
+     <div class="mrow"><span class="k">총공급</span><span class="v">${(S.us.supplyNow/1e6).toFixed(2)}M ETH</span></div>`
+    :'<div class="mrow"><span class="k">데이터</span><span class="v">연결 필요</span></div>';}
+}
 let activeView='dashboard';
-const VIEW_DRAW={season:drawHeatmap,spiral:drawSpiral,cycle:drawCycle,halving:drawHalving,band:drawBand,mayer:drawMayer,dd:drawDrawdown,vol:drawVol};
+const VIEW_DRAW={season:drawHeatmap,spiral:drawSpiral,cycle:drawCycle,halving:drawHalving,band:drawBand,mayer:drawMayer,dd:drawDrawdown,vol:drawVol,supply:drawSupply,defidom:drawDefiDom};
 /* 차트 등급(표시 전용) — 새 차트는 여기 한 줄만 추가. 향후 유료 게이팅의 단일 스위치. */
 const CHART_TIER={
   spiral:'signature',
@@ -1045,6 +1078,11 @@ function updateSideBadges(){
   if(S.week&&S.week.c&&S.week.c.length){const c=S.week.c;let pk=-Infinity,last=0;for(const v of c){if(v>pk)pk=v;last=(v/pk-1)*100;}setBadge('dd',last.toFixed(0)+'%',last<-50?'bear':last>-15?'bull':'muted');}else setBadge('dd','—','muted');
   // 변동성: 현재 실현 변동성
   if(S.week&&S.week.c&&S.week.c.length>VOL_WIN+1){const c=S.week.c,r=[];for(let i=1;i<c.length;i++)r.push(Math.log(c[i]/c[i-1]));let m=0;for(let j=r.length-VOL_WIN;j<r.length;j++)m+=r[j];m/=VOL_WIN;let s=0;for(let j=r.length-VOL_WIN;j<r.length;j++)s+=(r[j]-m)*(r[j]-m);const v=Math.sqrt(s/VOL_WIN)*Math.sqrt(52)*100;setBadge('vol',v.toFixed(0)+'%','muted');}else setBadge('vol','—','muted');
+  // 온체인·네트워크
+  if(S.us&&S.us.series&&S.us.series.length>1){const s=S.us.series,chg=s[s.length-1].supply-s[0].supply;setBadge('supply',(chg<=0?'':'+')+(chg/1e3).toFixed(1)+'k',chg<=0?'bull':'bear');}else setBadge('supply','—','muted');
+  if(S.us&&S.us.baseFeeGwei!=null)setBadge('gas',S.us.baseFeeGwei.toFixed(1)+'gwei','muted');else setBadge('gas','—','muted');
+  if(S.us&&S.us.stakedEth&&S.us.supplyNow)setBadge('staking',(S.us.stakedEth/S.us.supplyNow*100).toFixed(0)+'%','muted');else setBadge('staking','—','muted');
+  if(S.defidom)setBadge('defidom',S.defidom.pct.toFixed(0)+'%','muted');else setBadge('defidom','—','muted');
 }
 
 /* ===== orchestration ===== */
@@ -1083,6 +1121,7 @@ function recompute(){
   updateHeroTiles(mom,liq,fun,val);
   updateSignalDetail(score,{mom,liq,fun,val},w);
   if(S.month)drawActiveView();
+  renderOnchain();
   updateSideBadges();
 }
 
