@@ -691,28 +691,29 @@ async function loadUpbit(){
     if(e){ if(e.usd!=null){setF('ethUsd',fmtUsd(e.usd));chg('ethChg',+e.usd_24h_change||0);}
            if(e.btc!=null){setF('ethBtc',(+e.btc).toFixed(5));chg('ethBtcChg',+e.btc_24h_change||0);} }
   }catch(_){}
-  // 캔들(Upbit): ETH/BTC 일봉(모멘텀) · KRW-ETH 주/월봉(밸류 차트, 원화)
-  const[ebD,wk,mo]=await Promise.all([
+  // 캔들(Upbit): allSettled — 한 종류 실패가 전체를 비우지 않게(섹션별 그레이스풀)
+  const[rEb,rWk,rMo]=await Promise.allSettled([
     upCandles('days','BTC-ETH',400),
     upCandles('weeks','KRW-ETH',470),
     upCandles('months','KRW-ETH',200)
   ]);
+  const ebD=rEb.status==='fulfilled'?rEb.value:null;
+  const wk=rWk.status==='fulfilled'?rWk.value:null;
+  const mo=rMo.status==='fulfilled'?rMo.value:null;
   // ETH/BTC vs 50일선 + 자체 분포(퍼센타일)
-  const ebC=ebD.map(p=>p.c),last=ebC.length-1;
-  const s50=sma(ebC,50,last),s50p=sma(ebC,50,last-10);
-  const ebHist=[];for(let i=49;i<ebC.length;i++)ebHist.push((ebC[i]/sma(ebC,50,i)-1)*100);
-  S.ethbtc={dist:(ebC[last]/s50-1)*100,slope:(s50/s50p-1)*100,hist:ebHist};
-  S.week={t:wk.map(p=>p.t),c:wk.map(p=>p.c)};
-  S.month={t:mo.map(p=>p.t),c:mo.map(p=>p.c)};
-  // 200주선 배수 + 분포
-  const wc=S.week.c,wl=wc.length-1,ma200=sma(wc,200,wl),m200Hist=[];
-  for(let i=199;i<wc.length;i++)m200Hist.push(wc[i]/sma(wc,200,i));
-  S.ma200={mult:wc[wl]/ma200,hist:m200Hist};
-  // 로그-로그 파워로 회귀(주간, 제네시스 기준 — 가용 데이터로 적합)
-  const t0=Date.parse('2015-07-30');
-  S.band=fitPower(S.week.t,wc,t0);S.band.t0=t0;
-  const dNow=Math.log((S.week.t[wl]-t0)/864e5),resNow=Math.log(wc[wl])-(S.band.a+S.band.b*dNow);
-  S.band.resNow=resNow;S.band.z=resNow/S.band.sigma;S.band.pct=pctRank(S.band.res,resNow);
+  if(ebD&&ebD.length>50){const ebC=ebD.map(p=>p.c),last=ebC.length-1;
+    const s50=sma(ebC,50,last),s50p=sma(ebC,50,last-10);
+    const ebHist=[];for(let i=49;i<ebC.length;i++)ebHist.push((ebC[i]/sma(ebC,50,i)-1)*100);
+    S.ethbtc={dist:(ebC[last]/s50-1)*100,slope:(s50/s50p-1)*100,hist:ebHist};}
+  // 주봉 → 200주 배수·로그밴드
+  if(wk&&wk.length>2){S.week={t:wk.map(p=>p.t),c:wk.map(p=>p.c)};
+    const wc=S.week.c,wl=wc.length-1;
+    if(wc.length>=200){const ma200=sma(wc,200,wl),m200Hist=[];for(let i=199;i<wc.length;i++)m200Hist.push(wc[i]/sma(wc,200,i));S.ma200={mult:wc[wl]/ma200,hist:m200Hist};}
+    const t0=Date.parse('2015-07-30');S.band=fitPower(S.week.t,wc,t0);S.band.t0=t0;
+    const dNow=Math.log((S.week.t[wl]-t0)/864e5),resNow=Math.log(wc[wl])-(S.band.a+S.band.b*dNow);
+    S.band.resNow=resNow;S.band.z=resNow/S.band.sigma;S.band.pct=pctRank(S.band.res,resNow);}
+  // 월봉
+  if(mo&&mo.length>2)S.month={t:mo.map(p=>p.t),c:mo.map(p=>p.c)};
 }
 function chg(n,p){F(n).forEach(e=>{e.className='chg mono '+(p>=0?'up':'down');e.textContent=fmtPct(p);});}
 
@@ -1058,7 +1059,11 @@ const TIER_META={
   signature:{label:'Signature',title:'크립토시그널이 자체 해석·도출한 지표'},
   basic:{label:'Basic',title:'공개적으로 널리 쓰이는 표준 지표'}
 };
-function drawActiveView(){const fn=VIEW_DRAW[activeView];if(fn&&S.month)fn();}
+function drawActiveView(){const fn=VIEW_DRAW[activeView];if(!fn)return;
+  // 뷰별 필요한 데이터만 가드(가격 차트는 week/month, 온체인 차트는 자체 가드)
+  if(['season','spiral'].includes(activeView)&&!S.month)return;
+  if(['cycle','halving','band','mayer','dd','vol'].includes(activeView)&&!S.week)return;
+  fn();}
 function showView(key){
   activeView=key;
   document.querySelectorAll('.snav-item').forEach(b=>b.classList.toggle('on',b.dataset.view===key));
@@ -1116,7 +1121,7 @@ function updateSideBadges(){
 async function refresh(){
   $('#refreshBtn').disabled=true;$('#refreshBtn').classList.add('spinning');
   const r=await Promise.allSettled([loadUpbit(),loadLlama(),loadDollar(),loadFred(),loadBeacon(),loadCoinGecko(),loadUltrasound()]);
-  setStatus('price',r[0].status==='fulfilled'?'ok':'err');
+  setStatus('price',(S.week&&S.ethbtc)?'ok':(S.week||S.ethbtc||S.month)?'warn':'err');
   setStatus('llama',r[1].status==='fulfilled'?'ok':'err');
   setStatus('fx',r[2].status==='fulfilled'?'ok':'err');
   setStatus('fred',(S.netLiq&&!S.netLiq.fb)?'ok':'warn');
@@ -1124,7 +1129,7 @@ async function refresh(){
   if(!S.netLiq){S.netLiq={chg:FALLBACK.netLiqChg,fb:true};}
   if(!S.staking){S.staking={apr:3.0,fb:true};}
   if(!S.tenY){S.tenY={val:4.3,fb:true};}
-  S._ok={mom:r[0].status==='fulfilled',val:r[0].status==='fulfilled',fun:r[1].status==='fulfilled'};
+  S._ok={mom:!!(S.ethbtc&&S.month),val:!!S.ma200,fun:!!S.tvl};
   recompute();
   $('#updatedAt').textContent='업데이트 '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   $('#refreshBtn').disabled=false;$('#refreshBtn').classList.remove('spinning');
