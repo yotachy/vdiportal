@@ -185,17 +185,20 @@
     max-width:1180px;margin:0 auto 16px;padding:14px 4px 14px;border-bottom:1px solid var(--line);background:rgba(11,15,20,.82);backdrop-filter:blur(8px)}
   .tb-left{min-width:0}
   .brand-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:3px}
-  .wordmark{font-size:22px;font-weight:800;letter-spacing:-.01em}
+  .wordmark{font-size:22px;font-weight:800;letter-spacing:-.01em;cursor:pointer}
+  .wordmark:hover .em{filter:brightness(1.12)}
+  .wordmark:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
   .wordmark .em{color:var(--gold)}
   .wordmark .by{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:0;margin-left:2px}
   .tagline{font-size:12.5px;color:var(--muted);margin-top:5px}
   .tagline .eth-logo{color:var(--eth);vertical-align:-2px;margin-right:5px}
-  .asset-switch{display:inline-flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
-  .asset{appearance:none;font:inherit;font-size:12px;font-weight:600;color:var(--muted);background:none;border:none;border-radius:7px;padding:6px 11px;cursor:pointer}
+  .asset-switch{display:inline-flex;gap:16px;align-items:center}
+  .asset{appearance:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;border-radius:0;padding:4px 1px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
   .asset:not([disabled]):hover{color:var(--text)}
-  .asset.on{background:var(--gold);color:var(--ink)}
+  .asset.on{color:var(--gold);font-weight:800;border-bottom-color:var(--gold)}
   .asset[disabled]{color:var(--faint);cursor:not-allowed}
-  .asset:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .asset .soon{font-size:8.5px;font-weight:700;color:var(--faint);background:var(--panel);border-radius:4px;padding:1px 4px;letter-spacing:0}
+  .asset:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
   .tb-right{display:flex;align-items:center;gap:12px}
   .tb-right #updatedAt{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
   .upgrade-btn{appearance:none;display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;font-weight:700;color:var(--ink);background:var(--gold);border:none;border-radius:9px;padding:7px 13px;cursor:pointer;white-space:nowrap}
@@ -209,8 +212,9 @@
     .wordmark{font-size:17px}
     .wordmark .by{font-size:10.5px}
     .tagline{font-size:10.5px;margin-top:1px;line-height:1.4}
-    .asset-switch{padding:2px}
-    .asset{font-size:11px;padding:4px 8px}
+    .asset-switch{gap:12px}
+    .asset{font-size:11.5px;padding:3px 1px}
+    .asset .soon{display:none}
     .tb-right{align-self:stretch;justify-content:space-between}
     .tb-right #updatedAt{font-size:10px}
   }
@@ -222,6 +226,7 @@
   .app{display:grid;grid-template-columns:248px 1fr;gap:18px;max-width:1180px;margin:0 auto;align-items:start}
   .main{min-width:0}
   .side{position:sticky;top:calc(var(--top-bar-h) + 16px);align-self:start;background:none;border:none;border-radius:0;padding:0;display:flex;flex-direction:column;gap:14px}
+  .side-close{display:none}
   .snav{display:flex;flex-direction:column;gap:1px}
   .snav-group{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:9px 2px 2px}
   .snav-item{display:flex;justify-content:space-between;align-items:center;gap:7px;padding:5px 9px;border-radius:8px;cursor:pointer;border:1px solid transparent;background:none;color:var(--muted);font:inherit;font-size:12px;text-align:left;width:100%;transition:background .15s,color .15s}
@@ -236,7 +241,10 @@
     .top-bar{position:static;margin-bottom:0}
     .app{grid-template-columns:1fr;gap:14px}
     .hamb{display:inline-flex}
-    .side{position:fixed;left:0;top:0;height:100vh;width:280px;max-width:84vw;z-index:40;border-radius:0;border:none;border-right:1px solid var(--line);background:var(--panel);margin:0;padding:16px 14px;overflow-y:auto;transform:translateX(-100%);transition:transform .25s ease}
+    .side{position:fixed;left:0;top:0;height:100vh;width:280px;max-width:84vw;z-index:40;border-radius:0;border:none;border-right:1px solid var(--line);background:var(--panel);margin:0;padding:52px 14px 16px;overflow-y:auto;transform:translateX(-100%);transition:transform .25s ease}
+    .side-close{display:inline-flex;align-items:center;justify-content:center;position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:8px;background:var(--panel-2);color:var(--muted);border:none;cursor:pointer}
+    .side-close:hover{color:var(--gold)}
+    .side-close:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
     .side.open{transform:none}
     .side-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39;opacity:0;visibility:hidden;transition:opacity .25s}
     .side-backdrop.show{opacity:1;visibility:visible}
@@ -274,12 +282,12 @@
   <button class="hamb" id="hambBtn" type="button" aria-label="메뉴 열기" aria-expanded="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
   <div class="tb-left">
     <div class="brand-row">
-      <h1 class="wordmark">Crypto<span class="em">Signal</span> <span class="by">by MoneyScoop</span></h1>
+      <h1 class="wordmark" id="brandHome" role="link" tabindex="0" title="이더리움 대시보드로 이동">Crypto<span class="em">Signal</span> <span class="by">by MoneyScoop</span></h1>
       <nav class="asset-switch" aria-label="자산 에디션">
-        <button class="asset" data-asset="all" disabled title="준비 중">전체</button>
-        <button class="asset" data-asset="btc" disabled title="준비 중">비트코인</button>
+        <button class="asset" data-asset="all" disabled>암호화폐 전체 <span class="soon">준비중</span></button>
+        <button class="asset" data-asset="btc" disabled>비트코인 <span class="soon">준비중</span></button>
         <button class="asset on" data-asset="eth" aria-current="page">이더리움</button>
-        <button class="asset" data-asset="alt" disabled title="준비 중">알트</button>
+        <button class="asset" data-asset="alt" disabled>알트코인 <span class="soon">준비중</span></button>
       </nav>
     </div>
     <p class="tagline"><svg class="eth-logo" viewBox="0 0 32 32" width="13" height="13" aria-hidden="true"><path fill="currentColor" fill-opacity=".55" d="M16 3 16 12.3 24 16Z"/><path fill="currentColor" d="M16 3 8 16 16 12.3Z"/><path fill="currentColor" fill-opacity=".55" d="M16 17.6 16 29 24 17.5Z"/><path fill="currentColor" d="M16 29 16 17.6 8 17.5Z"/><path fill="currentColor" fill-opacity=".3" d="M16 16.1 8 16 16 12.3Z"/><path fill="currentColor" fill-opacity=".45" d="M24 16 16 16.1 16 12.3Z"/></svg>이더리움 신호 엔진 · 가격·온체인·유동성·사이클 4축 점수화</p>
@@ -298,6 +306,7 @@
 <div class="side-backdrop" id="sideBackdrop"></div>
 <div class="app">
   <aside class="side">
+    <button class="side-close" id="sideClose" type="button" aria-label="메뉴 닫기"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
     <nav class="snav" aria-label="화면 이동">
       <button class="snav-item on" data-view="dashboard"><span class="snav-main"><span class="snav-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2" fill="currentColor"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/><rect x="13" y="13" width="7.5" height="7.5" rx="2" fill="currentColor" fill-opacity=".4"/></svg></span>이더리움 대시보드</span></button>
       <div class="snav-group">사이클</div>
@@ -1309,6 +1318,8 @@ if(hambBtn)hambBtn.addEventListener('click',()=>openSide(!sideEl.classList.conta
 if(sideBk)sideBk.addEventListener('click',()=>openSide(false));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sideEl&&sideEl.classList.contains('open'))openSide(false);});
 document.querySelectorAll('.snav-item').forEach(b=>b.addEventListener('click',()=>{if(window.matchMedia('(max-width:900px)').matches)openSide(false);}));
+const sideClose=$('#sideClose');if(sideClose)sideClose.addEventListener('click',()=>openSide(false));
+const brandHome=$('#brandHome');if(brandHome){const goHome=()=>{showView('dashboard');if(window.matchMedia('(max-width:900px)').matches)openSide(false);window.scrollTo({top:0,behavior:'smooth'});};brandHome.addEventListener('click',goHome);brandHome.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome();}});}
 document.querySelectorAll('[data-goto]').forEach(el=>{
   const go=()=>showView(el.dataset.goto);
   el.addEventListener('click',go);
