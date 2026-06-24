@@ -256,6 +256,28 @@ function putImg(id,src){IMAGES[id]=src;if(SERVER_OK)apiPost({op:'putimg',id,src}
 function downscaleImage(src,cb){const img=new Image();img.onload=()=>{let w=img.width,h=img.height;const md=1000,sc=Math.min(1,md/Math.max(w,h));w=Math.max(1,Math.round(w*sc));h=Math.max(1,Math.round(h*sc));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);let q=0.82,out=c.toDataURL('image/jpeg',q);while(out.length>120000&&q>0.4){q-=0.1;out=c.toDataURL('image/jpeg',q)}cb(out)};img.onerror=()=>{if(src.length<120000)cb(src);else toast('이미지를 불러올 수 없어요')};img.src=src}
 async function loadImages(){try{const r=await fetch(API+'?images=1',{cache:'no-store'});if(!r.ok)return;const m=await r.json();if(m&&typeof m==='object')Object.assign(IMAGES,m)}catch(e){}}
 const ICONS={};
+Object.assign(ICONS,{
+  pc:'<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/>',
+  laptop:'<rect x="4" y="5" width="16" height="10" rx="1"/><path d="M2 19h20l-2-2H4z"/>',
+  thinclient:'<rect x="7" y="3" width="10" height="18" rx="1"/><circle cx="12" cy="17" r="1"/>',
+  mobile:'<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  server:'<rect x="4" y="3" width="16" height="7" rx="1"/><rect x="4" y="14" width="16" height="7" rx="1"/><path d="M8 6.5h.01M8 17.5h.01"/>',
+  cloud:'<path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6 9a4 4 0 0 0 1 9z"/>',
+  database:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  monitor:'<rect x="3" y="4" width="18" height="13" rx="1"/><path d="M9 21h6M12 17v4"/>',
+  network:'<circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M6.5 7.5 10.5 16M17.5 7.5 13.5 16M7 6h10"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M22 21a7 7 0 0 0-5-6.7"/>',
+  lock:'<rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  key:'<circle cx="8" cy="8" r="4"/><path d="M11 11l8 8M16 16l2-2M19 19l2-2"/>',
+  decision:'<path d="M12 3 21 12 12 21 3 12z"/>',
+  start:'<rect x="3" y="8" width="18" height="8" rx="4"/>',
+  end:'<rect x="3" y="7" width="18" height="10" rx="5"/><rect x="6" y="10" width="12" height="4" rx="2"/>',
+  process:'<rect x="3" y="6" width="18" height="12" rx="1"/>',
+  document:'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
+  warning:'<path d="M12 3 22 20H2z"/><path d="M12 10v5M12 18h.01"/>',
+  check:'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>'
+});
 function iconSvg(id){return ICONS[id]?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[id]}</svg>`:''}
 function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
 
@@ -580,15 +602,20 @@ world.addEventListener('focusout',e=>{
 });
 
 /* thumbnail drop */
-stage.addEventListener('dragover',e=>{const n=e.target.closest('.node');if(n){e.preventDefault();n.classList.add('dragover')}});
+stage.addEventListener('dragover',e=>{const n=e.target.closest('.node');if(n){e.preventDefault();n.classList.add('dragover')}else if(e.dataTransfer.types&&[...e.dataTransfer.types].includes('iconid')){e.preventDefault()}});
 stage.addEventListener('dragleave',e=>{const n=e.target.closest('.node');if(n&&!n.contains(e.relatedTarget))n.classList.remove('dragover')});
-stage.addEventListener('drop',e=>{const el=e.target.closest('.node');if(!el)return;e.preventDefault();el.classList.remove('dragover');const id=el.dataset.id,lib=e.dataTransfer.getData('libid');
+stage.addEventListener('drop',e=>{const iid=e.dataTransfer.getData('iconid');
+  if(iid){e.preventDefault();const p=worldPt(e.clientX,e.clientY);const nn=makeNode(p.x-44,p.y-34,iid,"icon",iid);render();selectOnly(nn.id);markDirty();return}
+  const el=e.target.closest('.node');if(!el)return;e.preventDefault();el.classList.remove('dragover');const id=el.dataset.id,lib=e.dataTransfer.getData('libid');
   if(lib){const l=LIBRARY.find(x=>x.id===lib);if(l)setThumb(id,{imgId:l.id,label:l.label});return}
-  const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){const r=new FileReader();r.onload=()=>downscaleImage(r.result,out=>{const iid=uid('img');putImg(iid,out);setThumb(id,{imgId:iid,label:f.name.replace(/\.[^.]+$/,'')})});r.readAsDataURL(f)}});
+  const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){const r=new FileReader();r.onload=()=>downscaleImage(r.result,out=>{const iid2=uid('img');putImg(iid2,out);setThumb(id,{imgId:iid2,label:f.name.replace(/\.[^.]+$/,'')})});r.readAsDataURL(f)}});
 
 /* library */
 const libEl=document.getElementById('lib');
 libEl.addEventListener('dragstart',e=>{const li=e.target.closest('.lib-item');if(li)e.dataTransfer.setData('libid',li.dataset.lib)});
+const iconPalEl=document.getElementById('iconPal');
+iconPalEl.addEventListener('dragstart',e=>{const b=e.target.closest('[data-icon]');if(b)e.dataTransfer.setData('iconid',b.dataset.icon)});
+iconPalEl.addEventListener('click',e=>{const b=e.target.closest('[data-icon]');if(b)addIconCenter(b.dataset.icon)});
 libEl.addEventListener('click',e=>{const id=e.target.closest('[data-libdel]')?.dataset.libdel;if(!id)return;const i=LIBRARY.findIndex(x=>x.id===id);if(i>=0){LIBRARY.splice(i,1);renderLib();saveMeta();toast('삭제됨')}});
 document.getElementById('imgFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>downscaleImage(r.result,out=>{const iid=uid('img');putImg(iid,out);LIBRARY.push({id:iid,label:f.name.replace(/\.[^.]+$/,'')});renderLib();saveMeta();toast('썸네일 추가됨')});r.readAsDataURL(f);e.target.value=''});
 
@@ -641,6 +668,11 @@ function renderToolbar(){
   if(l){l.classList.toggle('on',TOOLBAR.edgeStyle==='dashed');l.textContent=TOOLBAR.edgeStyle==='dashed'?'┄':'─'}
   if(a)a.classList.toggle('on',TOOLBAR.edgeArrow!==false);
 }
+function renderPalette(){
+  const el=document.getElementById('iconPal');if(!el)return;
+  el.innerHTML=Object.keys(ICONS).map(id=>`<button class="ipal-btn" draggable="true" data-icon="${id}" title="${id}">${iconSvg(id)}</button>`).join('');
+}
+function addIconCenter(iconId){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const nn=makeNode(p.x-44,p.y-34,iconId,"icon",iconId);render();selectOnly(nn.id);markDirty()}
 function toggleSnap(){TOOLBAR.snap=!TOOLBAR.snap;renderToolbar();saveMeta()}
 function toggleEdgeStyle(){TOOLBAR.edgeStyle=TOOLBAR.edgeStyle==='dashed'?'solid':'dashed';renderToolbar();saveMeta()}
 function toggleEdgeArrow(){TOOLBAR.edgeArrow=!(TOOLBAR.edgeArrow!==false);renderToolbar();saveMeta()}
@@ -714,6 +746,7 @@ async function boot(){
   }
   if(typeof renderSidebar==='function')renderSidebar();
   renderToolbar();
+  renderPalette();
 }
 boot();
 </script>
