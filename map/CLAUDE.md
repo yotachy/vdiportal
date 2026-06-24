@@ -53,7 +53,7 @@ IMAGES  = { [id]: dataURL }   // 빌트인(HTML 내장) + 사용자 업로드(ap
 | 입출력 | `exportJSON()`, 불러오기(`impFile` change), `resetAll()` |
 | 서버 저장 | `boot()`, `loadCanvas(id)`, `writeBackActive()`, `markDirty()`, `saveMeta()` |
 | 캔버스 관리 | `switchCanvas(id)`, `newCanvas()`, `renameCanvas(id,title)`, `deleteCanvas(id)`, `renderSidebar()` |
-| 이미지 | `imgSrc(id)`, `putImg(id,dataURL)`, `downscaleImage(file)`, `loadImages()` |
+| 이미지 | `imgSrc(id)`, `putImg(id,dataURL)`, `downscaleImage(src,cb)`, `loadImages()` |
 | 기타 | `zoom(id)`(라이트박스), `toast(msg)`, `toggleSide()`(사이드바 접기) |
 
 ## 서버 저장 / 캔버스 관리
@@ -75,11 +75,11 @@ doc = {
 | `replace` | 전체 문서 교체(내보내기/불러오기용) |
 | `upsert` | 단일 캔버스 삽입·갱신(`{canvas}` 페이로드) |
 | `delete` | 캔버스 삭제(`{id}`) |
-| `reorder` | 캔버스 순서 변경(`{ids:[...]}`) |
+| `reorder` | 캔버스 순서 변경(`{order:[id...]}`) |
 | `meta` | library/activeId만 갱신(`{meta}`) |
 | `putimg` | 사용자 이미지 1건 저장(`{id, src}` — 각 <128KB) |
 
-GET `?images=1` — `map_images.json` 반환(사용자 이미지 전체). GET `?full=1` — `map_data.json` 반환.
+GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?images=1` — `map_images.json` 반환(사용자 이미지 전체). GET `?check=1` — 쓰기 키 유효성.
 
 ### 자동저장
 
@@ -87,7 +87,7 @@ GET `?images=1` — `map_images.json` 반환(사용자 이미지 전체). GET `?
 
 ### 인증
 
-`map_key.txt`가 존재하면 요청 `Authorization: Bearer <key>` 헤더 검증(fail-open — 파일 없으면 인증 생략). 추후 로그인 UI 예정.
+`map_key.txt`가 존재하면 POST 요청 `X-Write-Key` 헤더를 검증(불일치 403). fail-open — 파일 없으면 쓰기 개방. 추후 로그인 UI 예정.
 
 ### Graceful Degradation
 
@@ -96,7 +96,7 @@ GET `?images=1` — `map_images.json` 반환(사용자 이미지 전체). GET `?
 ### 이미지 분리저장 레이어
 
 - **빌트인 이미지** (`vdi_login`, `vdi_dash`, `myportal`, `myaccess`): `map.html` 내에 base64 dataURL로 내장. `IMAGES` 맵에 직접 등록.
-- **사용자 이미지**: 드롭/업로드 시 `downscaleImage(file)` → width 1200·JPEG q82 리사이즈 → `putImg(id, dataURL)` → `POST {op:'putimg', id, src}` 로 `map_images.json`에 개별 저장. 로드 시 `loadImages()` → `GET ?images=1` → `IMAGES` 맵에 병합.
+- **사용자 이미지**: 드롭/업로드 시 `downscaleImage(src,cb)` → 최대 1000px·JPEG(품질 0.82부터 <120KB 될 때까지 하향) → `putImg(id, dataURL)` → `POST {op:'putimg', id, src}` 로 `map_images.json`에 개별 저장. 로드 시 `loadImages()` → `GET ?images=1` → `IMAGES` 맵에 병합.
 - `node.thumb = {imgId, label}` — 실제 dataURL은 저장되지 않음. 렌더 시 `imgSrc(imgId)` 로 `IMAGES`에서 조회.
 - **cafe24 POST 128KB 상한 회피**: 이미지를 개별 `putimg` op로 분리하면 각 POST 본문이 <128KB 유지됨. 캔버스·메타 JSON에는 `imgId` 참조만 포함되어 자동저장 POST도 128KB 미만 유지.
 
