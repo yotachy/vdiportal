@@ -153,6 +153,9 @@
   body.view .node{cursor:default}body.view .n-title,body.view .n-desc{cursor:default}
 
   .marquee{position:absolute;display:none;border:1.5px solid var(--gold);background:rgba(255,188,0,.1);border-radius:4px;z-index:8;pointer-events:none}
+  .snap-guide{position:absolute;display:none;z-index:6;pointer-events:none}
+  #snapV{width:0;border-left:1px dashed var(--gold)}
+  #snapH{height:0;border-top:1px dashed var(--gold)}
 
   .zoomctl{position:absolute;left:16px;bottom:16px;display:flex;flex-direction:column;gap:6px;z-index:10}
   .zoomctl button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:#161b22e0;backdrop-filter:blur(4px);color:var(--txt);font-size:16px;cursor:pointer;display:grid;place-items:center}
@@ -220,6 +223,8 @@
         <marker id="dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto"><circle cx="5" cy="5" r="3.5" fill="context-stroke"></circle></marker>
       </defs><g id="edgeG" transform="translate(10000,10000)"></g><path class="tmp" id="tmp" transform="translate(10000,10000)" d=""></path></svg>
       <div class="ehud" id="ehud"></div>
+      <div class="snap-guide" id="snapV"></div>
+      <div class="snap-guide" id="snapH"></div>
     </div>
     <div class="marquee" id="marquee"></div>
     <div class="zoomctl"><button onclick="zoomBy(1.2)">＋</button><div class="zlabel" id="zlabel">100%</div><button onclick="zoomBy(.83)">−</button></div>
@@ -488,9 +493,25 @@ function onMove(e){
     if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
     if(!sel.includes(drag.id))selectOnly(drag.id);
     drag.origins=sel.map(id=>{const n=N(id);return{id,ox:n.x,oy:n.y}});
+    const movingSet=new Set(sel);
+    drag.snapX=[];drag.snapY=[];
+    state.nodes.forEach(n=>{if(movingSet.has(n.id))return;const w=n._w||W_NODE,h=n._h||90;drag.snapX.push(n.x,n.x+w,n.x+w/2);drag.snapY.push(n.y,n.y+h,n.y+h/2)});
+    drag.bbox=(()=>{let a=1e9,b=1e9,c=-1e9,d=-1e9;sel.forEach(id=>{const n=N(id),w=n._w||W_NODE,h=n._h||90;a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+w);d=Math.max(d,n.y+h)});return{x:a,y:b,w:c-a,h:d-b}})();
   }
   if(drag.type==='node'){
-    const dx=(e.clientX-drag.sx)/view.scale,dy=(e.clientY-drag.sy)/view.scale;
+    let dx=(e.clientX-drag.sx)/view.scale,dy=(e.clientY-drag.sy)/view.scale;
+    if(TOOLBAR.snap&&drag.snapX){
+      const TH=6;
+      const bx=drag.bbox.x+dx,bw=drag.bbox.w,by=drag.bbox.y+dy,bh=drag.bbox.h;
+      const candX=[bx,bx+bw,bx+bw/2],candY=[by,by+bh,by+bh/2];
+      let bestX=null,bestXd=TH;
+      candX.forEach(c=>drag.snapX.forEach(t=>{const d=Math.abs(c-t);if(d<bestXd){bestXd=d;bestX={off:t-c,line:t}}}));
+      let bestY=null,bestYd=TH;
+      candY.forEach(c=>drag.snapY.forEach(t=>{const d=Math.abs(c-t);if(d<bestYd){bestYd=d;bestY={off:t-c,line:t}}}));
+      const gv=document.getElementById('snapV'),gh=document.getElementById('snapH');
+      if(bestX){dx+=bestX.off;gv.style.display='block';gv.style.left=bestX.line+'px';gv.style.top=(Math.min(by,drag.bbox.y)-400)+'px';gv.style.height='2000px'}else gv.style.display='none';
+      if(bestY){dy+=bestY.off;gh.style.display='block';gh.style.top=bestY.line+'px';gh.style.left=(Math.min(bx,drag.bbox.x)-400)+'px';gh.style.width='2000px'}else gh.style.display='none';
+    }
     drag.origins.forEach(o=>{const n=N(o.id);n.x=o.ox+dx;n.y=o.oy+dy;const el=q(o.id);el.style.left=n.x+'px';el.style.top=n.y+'px'});
     paint();return;
   }
@@ -512,6 +533,7 @@ function hi(pt,exclude){document.querySelectorAll('.node.linktarget').forEach(n=
 function onUp(e){
   window.removeEventListener('pointermove',onMove);window.removeEventListener('pointerup',onUp);
   const d=drag;drag=null;document.body.style.userSelect='';stage.classList.remove('panning');
+  document.getElementById('snapV').style.display='none';document.getElementById('snapH').style.display='none';
   document.getElementById('tmp').setAttribute('d','');document.querySelectorAll('.node.linktarget').forEach(n=>n.classList.remove('linktarget'));
   if(!d)return;
   if(d.type==='pan'){if(d.canClear&&!d.moved)deselectAll();return}
