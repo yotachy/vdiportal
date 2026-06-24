@@ -51,8 +51,31 @@
   .lib-add{border:1.5px dashed var(--line);border-radius:10px;padding:13px;text-align:center;font-size:12px;color:var(--muted);cursor:pointer}
   .lib-add:hover{border-color:var(--gold-dim);color:var(--gold)}
   .collapse-rail{display:none}
-  .app.collapsed .side-h,.app.collapsed .lib{display:none}
+  .app.collapsed .side-scroll{display:none}
   .app.collapsed .collapse-rail{display:flex;writing-mode:vertical-rl;align-items:center;gap:8px;margin:46px auto 0;color:var(--faint);font-family:var(--mono);font-size:11px;letter-spacing:.16em;cursor:pointer;text-transform:uppercase}
+  .side-scroll{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column}
+  .cv-head{display:flex;align-items:center;gap:8px;padding:15px 15px 9px}
+  .cv-h-t{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--faint);text-transform:uppercase;font-weight:700;flex:1}
+  .cv-add{font-family:inherit;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--raised);color:var(--gold);border-radius:7px;padding:5px 8px;cursor:pointer;white-space:nowrap}
+  .cv-add:hover{background:var(--raised2);border-color:var(--gold-dim)}
+  .cv-list{display:flex;flex-direction:column;gap:3px;padding:0 9px 8px}
+  .cv-item{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:9px;cursor:pointer;border:1px solid transparent}
+  .cv-item:hover{background:var(--surface)}
+  .cv-item.on{background:var(--surface);border-color:var(--gold-dim)}
+  .cv-dot{width:7px;height:7px;border-radius:50%;background:var(--faint);flex:none}
+  .cv-item.on .cv-dot{background:var(--gold);box-shadow:0 0 7px rgba(255,188,0,.6)}
+  .cv-name{flex:1;font-size:12.5px;color:#c2cad6;outline:none;border-radius:5px;padding:1px 3px;margin:-1px -3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .cv-item.on .cv-name{color:var(--txt);font-weight:600}
+  .cv-name[contenteditable="true"]{background:#0d1117;color:#fff;text-overflow:clip;cursor:text}
+  .cv-ren,.cv-del{width:20px;height:20px;border-radius:6px;border:1px solid var(--line);background:var(--raised);color:var(--muted);cursor:pointer;font-size:11px;display:none;place-items:center;flex:none}
+  .cv-item:hover .cv-ren,.cv-item:hover .cv-del{display:grid}
+  .cv-ren:hover{color:var(--gold);border-color:var(--gold-dim)} .cv-del:hover{color:var(--red);border-color:var(--red)}
+  .lib-acc{border-top:1px solid var(--line);margin-top:auto}
+  .lib-acc>summary{list-style:none;cursor:pointer;padding:11px 15px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--faint);text-transform:uppercase;font-weight:700;display:flex;align-items:center;gap:7px}
+  .lib-acc>summary::-webkit-details-marker{display:none}
+  .lib-acc>summary::before{content:"▸";color:var(--gold-dim);transition:transform .15s}
+  .lib-acc[open]>summary::before{transform:rotate(90deg)}
+  .lib-acc>summary:hover{color:var(--txt)}
 
   .stage{position:relative;overflow:hidden;cursor:grab;
     background:radial-gradient(circle at 1px 1px,#ffffff0a 1px,transparent 0) 0 0/26px 26px,radial-gradient(120% 120% at 30% 0%,#131a24,#0c0f15)}
@@ -149,9 +172,16 @@
 <div class="app" id="app">
   <aside class="side">
     <button class="side-toggle" id="sideBtn" onclick="toggleSide()">«</button>
-    <div class="side-h"><div class="t">썸네일 <b>라이브러리</b></div><p>노드 위로 드래그하면 화면이 붙습니다.</p></div>
-    <div class="lib" id="lib"></div>
-    <div class="collapse-rail" onclick="toggleSide()">⠿ 썸네일</div>
+    <div class="side-scroll">
+      <div class="cv-head"><span class="cv-h-t">캔버스</span><button class="cv-add edit-only" onclick="newCanvas()">＋ 새 캔버스</button></div>
+      <div class="cv-list" id="cvList"></div>
+      <details class="lib-acc">
+        <summary>썸네일 라이브러리</summary>
+        <div class="side-h"><p>노드 위로 드래그하면 화면이 붙습니다.</p></div>
+        <div class="lib" id="lib"></div>
+      </details>
+    </div>
+    <div class="collapse-rail" onclick="toggleSide()">⠿ 캔버스</div>
   </aside>
 
   <div class="stage" id="stage">
@@ -501,9 +531,35 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{if(e.code==='Space')spaceDown=false});
 function isEditing(){const a=document.activeElement;return a&&a.isContentEditable}
 
+/* ---------- canvas sidebar ---------- */
+function renderSidebar(){
+  const el=document.getElementById('cvList');if(!el)return;
+  el.innerHTML=canvases.map(c=>`
+    <div class="cv-item ${c.id===activeId?'on':''}" data-cv="${c.id}">
+      <span class="cv-dot"></span>
+      <span class="cv-name" data-cvname="${c.id}">${esc(c.title)}</span>
+      <button class="cv-ren edit-only" data-cvren="${c.id}" title="이름변경">✎</button>
+      <button class="cv-del edit-only" data-cvdel="${c.id}" title="삭제">✕</button>
+    </div>`).join('');
+}
+function startRename(id){
+  const n=document.querySelector(`.cv-name[data-cvname="${id}"]`);if(!n)return;
+  n.contentEditable='true';n.focus();
+  const r=document.createRange();r.selectNodeContents(n);const s=getSelection();s.removeAllRanges();s.addRange(r);
+}
+const cvListEl=document.getElementById('cvList');
+cvListEl.addEventListener('click',e=>{
+  const del=e.target.closest('[data-cvdel]');if(del){deleteCanvas(del.dataset.cvdel);return}
+  const ren=e.target.closest('[data-cvren]');if(ren){startRename(ren.dataset.cvren);return}
+  if(e.target.closest('.cv-name[contenteditable="true"]'))return;
+  const item=e.target.closest('[data-cv]');if(item)switchCanvas(item.dataset.cv);
+});
+cvListEl.addEventListener('keydown',e=>{const n=e.target.closest('[data-cvname]');if(n&&e.key==='Enter'){e.preventDefault();n.blur()}});
+cvListEl.addEventListener('focusout',e=>{const n=e.target.closest('[data-cvname]');if(n){n.contentEditable='false';renameCanvas(n.dataset.cvname,n.innerText)}});
+
 /* sidebar / mode */
 function toggleSide(){const a=document.getElementById('app');a.classList.toggle('collapsed');document.getElementById('sideBtn').textContent=a.classList.contains('collapsed')?'»':'«';setTimeout(paint,230)}
-document.getElementById('modeSeg').addEventListener('click',e=>{const m=e.target.dataset.mode;if(!m)return;mode=m;document.body.className=m;[...e.currentTarget.children].forEach(b=>b.classList.toggle('on',b.dataset.mode===m));render()});
+document.getElementById('modeSeg').addEventListener('click',e=>{const m=e.target.dataset.mode;if(!m)return;mode=m;document.body.className=m;[...e.currentTarget.children].forEach(b=>b.classList.toggle('on',b.dataset.mode===m));render();renderSidebar()});
 
 /* auto layout */
 function autoLayout(dir){
