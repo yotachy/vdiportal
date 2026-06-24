@@ -35,6 +35,11 @@ if ($method === "GET") {
   header("Content-Type: application/json; charset=utf-8");
   header("Cache-Control: no-store");
   if (isset($_GET["check"])) { echo json_encode(["valid" => check_key($WRITE_KEY)]); exit; }
+  if (isset($_GET["images"])) {
+    $imgf = __DIR__ . "/map_images.json";
+    if (is_file($imgf)) { readfile($imgf); } else { echo "{}"; }
+    exit;
+  }
   if (is_file($f)) { readfile($f); } else { echo "null"; }
   exit;
 }
@@ -46,6 +51,22 @@ if (!check_key($WRITE_KEY)) { http_response_code(403); jout(["ok"=>false,"error"
 $d = json_decode(file_get_contents("php://input"), true);
 if (!is_array($d) || !isset($d["op"])) { http_response_code(400); jout(["ok"=>false,"error"=>"noop"]); }
 $op = $d["op"];
+
+if ($op === "putimg") {
+  $iid = isset($d["id"]) ? $d["id"] : null;
+  $src = isset($d["src"]) ? $d["src"] : null;
+  if ($iid === null || !is_string($src)) { http_response_code(400); jout(["ok"=>false,"error"=>"invalid"]); }
+  $imgf = __DIR__ . "/map_images.json";
+  $ilock = fopen($imgf . ".lock", "c"); if ($ilock) { flock($ilock, LOCK_EX); }
+  $imgs = is_file($imgf) ? json_decode(file_get_contents($imgf), true) : [];
+  if (!is_array($imgs)) $imgs = [];
+  $imgs[$iid] = $src;
+  $itmp = $imgf . ".tmp." . getmypid();
+  $okw = file_put_contents($itmp, json_encode($imgs, JSON_UNESCAPED_UNICODE)) !== false && rename($itmp, $imgf);
+  if ($ilock) { flock($ilock, LOCK_UN); fclose($ilock); }
+  if (!$okw) { http_response_code(500); jout(["ok"=>false,"error"=>"write"]); }
+  jout(["ok"=>true]);
+}
 
 $lock = fopen($f . ".lock", "c");
 if ($lock) { flock($lock, LOCK_EX); }
