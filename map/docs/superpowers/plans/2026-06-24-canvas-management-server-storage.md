@@ -742,3 +742,210 @@ Expected: push 성공(SSH 리모트 `git@github.com:yotachy/vdiportal.git`).
 - **Placeholder scan**: TBD/TODO/"적절히 처리" 없음. 모든 코드 단계에 실제 코드 포함.
 - **Type consistency**: `canvases`/`activeId`/`SERVER_OK`/`writeBackActive`/`loadCanvas`/`markDirty`/`saveMeta`/`switchCanvas`/`newCanvas`/`renameCanvas`/`deleteCanvas`/`renderSidebar`/`refreshSidebar`/`seedCanvas`/`stamp`/`apiGet`/`apiPost`/`setSaveState` — 정의(T2·T3·T4)와 사용처 명칭 일치. 캔버스 객체 키(id,title,nodes,edges,groups,view,updated)와 doc 키(canvases,meta,_rev), op 이름(replace/upsert/delete/reorder/meta), upsert 페이로드 키(`canvas`) 프론트·PHP 일치.
 - **범위 밖 확인**: reorder UI·다중사용자 폴링·로그인 UI·PNG/SVG는 의도적으로 제외(spec YAGNI와 일치). reorder op는 API에만 존재.
+
+---
+
+## 개정 (2026-06-24): 이미지 분리저장 (cafe24 POST 128KB 상한)
+
+**배경:** cafe24 openresty는 POST 본문 >131072B(128KiB)를 404로 거부(GET 무제한). base64 썸네일이 본문 대부분이라 자동저장 POST가 초과 → 영속 실패. 이미지를 분리 저장하고 JSON엔 참조 id만 둔다. 상세는 설계문서 "개정" 절 참조.
+
+**실행 순서(개정):** Task 1(완료) → **Task 6** → **Task 7** → Task 3(아래 Step 2 개정 반영) → Task 4 → Task 5(아래 개정 반영).
+
+### Task 6: api.php — 이미지 op (putimg + GET ?images)
+
+**Files:** Modify: `map/api.php`
+
+**Interfaces (Produces):**
+- `GET api.php?images=1` → `map_images.json` 내용(없으면 `{}`). 무제한.
+- `POST {op:"putimg", id, src}` → `map_images.json`에 `{id:src}` 1건 병합. 응답 `{ok:true}`. 본문은 이미지 1장(<128KB).
+
+- [ ] **Step 1: GET ?images 분기 추가**
+
+`api.php`의 GET 처리부에서 `if (isset($_GET["check"]))` 줄 **다음**에 추가:
+
+```php
+  if (isset($_GET["images"])) {
+    $imgf = __DIR__ . "/map_images.json";
+    if (is_file($imgf)) { readfile($imgf); } else { echo "{}"; }
+    exit;
+  }
+```
+
+- [ ] **Step 2: putimg op (early 분기) 추가**
+
+`$op = $d["op"];` 줄 **다음**, `$lock = fopen(...)` 줄 **앞**에 추가(메인 doc 락/­_rev 절차를 타지 않도록 early-exit):
+
+```php
+if ($op === "putimg") {
+  $iid = isset($d["id"]) ? $d["id"] : null;
+  $src = isset($d["src"]) ? $d["src"] : null;
+  if ($iid === null || !is_string($src)) { http_response_code(400); jout(["ok"=>false,"error"=>"invalid"]); }
+  $imgf = __DIR__ . "/map_images.json";
+  $ilock = fopen($imgf . ".lock", "c"); if ($ilock) { flock($ilock, LOCK_EX); }
+  $imgs = is_file($imgf) ? json_decode(file_get_contents($imgf), true) : [];
+  if (!is_array($imgs)) $imgs = [];
+  $imgs[$iid] = $src;
+  $itmp = $imgf . ".tmp." . getmypid();
+  $okw = file_put_contents($itmp, json_encode($imgs, JSON_UNESCAPED_UNICODE)) !== false && rename($itmp, $imgf);
+  if ($ilock) { flock($ilock, LOCK_UN); fclose($ilock); }
+  if (!$okw) { http_response_code(500); jout(["ok"=>false,"error"=>"write"]); }
+  jout(["ok"=>true]);
+}
+```
+
+- [ ] **Step 3: 배포 + live curl 검증**
+
+```bash
+cd /home/jschoi0223/projects/vdiportal/map
+lftp -c "set sftp:auto-confirm yes; open sftp://parksvc:wjdtjd2@@parksvc.mycafe24.com; cd www/map; put api.php"
+API=https://parksvc.mycafe24.com/map/api.php
+curl -s "$API?images=1"; echo                                  # expect {} (or existing map)
+curl -s -X POST $API -H "Content-Type: application/json" -d '{"op":"putimg","id":"t1","src":"data:img,AAA"}'; echo   # {"ok":true}
+curl -s "$API?images=1"; echo                                  # {"t1":"data:img,AAA"}
+curl -s -X POST $API -H "Content-Type: application/json" -d '{"op":"putimg","id":"t1","src":"data:img,BBB"}' >/dev/null
+curl -s "$API?images=1"                                        # {"t1":"data:img,BBB"} (덮어쓰기)
+```
+Expected: 위 주석대로. (테스트키 t1은 남아도 무해 — user 이미지 id와 충돌 없음.)
+
+- [ ] **Step 4: 커밋**
+
+```bash
+cd /home/jschoi0223/projects/vdiportal
+git add map/api.php
+git commit -m "map: api.php 이미지 분리 op(putimg + GET ?images) — 128KB POST 상한 우회
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task 7: 프론트 이미지 분리 전환 (자동저장 영속 복구)
+
+**Files:** Modify: `map/map.html`
+
+**Interfaces:**
+- Consumes: Task 2의 `API`/`SERVER_OK`/`apiPost`/`setSaveState`/`saveMeta`/`boot`/`seedCanvas`/`loadCanvas`, 기존 `LIBRARY`(built-in, line 174)/`uid`/`esc`/`th`/`renderLib`/`nodeHTML`/`setThumb`/`zoom`/`render`.
+- Produces: `IMAGES`, `imgSrc(id)`, `putImg(id,src)`, `downscaleImage(src,cb)`, `loadImages()`. `node.thumb`는 `{imgId,label}` 형태로 통일.
+
+- [ ] **Step 1: 이미지 레이어 전역/헬퍼 추가**
+
+`map.html`의 `async function apiPost(...)` 줄(line 183 부근) **다음**, `function th(id)` **앞**에 추가:
+
+```js
+const IMAGES={};
+LIBRARY.forEach(l=>{if(l.src)IMAGES[l.id]=l.src});
+function imgSrc(id){return IMAGES[id]||''}
+function putImg(id,src){IMAGES[id]=src;if(SERVER_OK)apiPost({op:'putimg',id,src}).catch(()=>setSaveState('offline'))}
+function downscaleImage(src,cb){const img=new Image();img.onload=()=>{let w=img.width,h=img.height;const md=1000,sc=Math.min(1,md/Math.max(w,h));w=Math.max(1,Math.round(w*sc));h=Math.max(1,Math.round(h*sc));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);let q=0.82,out=c.toDataURL('image/jpeg',q);while(out.length>120000&&q>0.4){q-=0.1;out=c.toDataURL('image/jpeg',q)}cb(out)};img.onerror=()=>cb(src);img.src=src}
+async function loadImages(){try{const r=await fetch(API+'?images=1',{cache:'no-store'});if(!r.ok)return;const m=await r.json();if(m&&typeof m==='object')Object.assign(IMAGES,m)}catch(e){}}
+```
+
+- [ ] **Step 2: th() — imgId 참조로 변경**
+
+```js
+function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
+```
+
+- [ ] **Step 3: renderLib() / nodeHTML() — imgSrc 사용**
+
+renderLib의 `<img src="${l.src}" alt="">` 를:
+```js
+      <img src="${imgSrc(l.id)}" alt=""><div class="cap">${esc(l.label)}<span class="gr">⠿</span></div></div>`).join('')
+```
+nodeHTML의 thumb 줄 `<img src="${n.thumb.src}" ...>` 를:
+```js
+  if(n.thumb) media=`<div class="n-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span>
+```
+
+- [ ] **Step 4: drop / imgFile / zoom — imgId·putImg·downscale**
+
+drop 핸들러의 두 줄을 교체:
+```js
+  if(lib){const l=LIBRARY.find(x=>x.id===lib);if(l)setThumb(id,{imgId:l.id,label:l.label});return}
+  const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){const r=new FileReader();r.onload=()=>downscaleImage(r.result,out=>{const iid=uid('img');putImg(iid,out);setThumb(id,{imgId:iid,label:f.name.replace(/\.[^.]+$/,'')})});r.readAsDataURL(f)}});
+```
+imgFile change 핸들러 교체(LIBRARY 항목은 id/label만):
+```js
+document.getElementById('imgFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>downscaleImage(r.result,out=>{const iid=uid('img');putImg(iid,out);LIBRARY.push({id:iid,label:f.name.replace(/\.[^.]+$/,'')});renderLib();saveMeta();toast('썸네일 추가됨')});r.readAsDataURL(f);e.target.value=''});
+```
+zoom() 교체:
+```js
+function zoom(id){if(justDragged)return;const n=N(id);if(n&&n.thumb){document.getElementById('lbimg').src=imgSrc(n.thumb.imgId);document.getElementById('lb').classList.add('on')}}
+```
+
+- [ ] **Step 5: saveMeta() — library에서 src 제거**
+
+saveMeta의 `meta:{library:LIBRARY,activeId}` 를 `meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}` 로 교체:
+```js
+function saveMeta(){if(!SERVER_OK)return;clearTimeout(metaTimer);metaTimer=setTimeout(async()=>{try{await apiPost({op:'meta',meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}})}catch(e){}},800)}
+```
+
+- [ ] **Step 6: boot() — loadImages + 시드 replace의 library 소형화**
+
+boot()를 아래로 교체(차이: `await loadImages()` 추가, 시드 replace의 library를 map으로 소형화):
+```js
+async function boot(){
+  try{
+    const doc=await apiGet();
+    SERVER_OK=true;
+    await loadImages();
+    if(doc&&Array.isArray(doc.canvases)&&doc.canvases.length){
+      canvases=doc.canvases;
+      if(doc.meta&&Array.isArray(doc.meta.library)){LIBRARY.length=0;doc.meta.library.forEach(x=>LIBRARY.push(x))}
+      activeId=(doc.meta&&doc.meta.activeId&&canvases.some(c=>c.id===doc.meta.activeId))?doc.meta.activeId:canvases[0].id;
+      loadCanvas(activeId);
+      setSaveState('saved');
+    }else{
+      const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);
+      try{await apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}});setSaveState('saved')}catch(e){setSaveState('offline')}
+    }
+  }catch(e){
+    SERVER_OK=false;
+    const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);
+    setSaveState('offline');
+  }
+  if(typeof renderSidebar==='function')renderSidebar();
+}
+boot();
+```
+
+- [ ] **Step 7: JS 문법검증 + 배포 (컨트롤러가 헤드리스로 영속 검증)**
+
+```bash
+cd /home/jschoi0223/projects/vdiportal/map
+sed -n '/^<script>/,/^<\/script>/p' map.html | sed '1d;$d' > /tmp/map-check.js && node --check /tmp/map-check.js && echo "SYNTAX OK"
+lftp -c "set sftp:auto-confirm yes; open sftp://parksvc:wjdtjd2@@parksvc.mycafe24.com; cd www/map; put map.html"
+curl -s -o /dev/null -w "map.html %{http_code}\n" https://parksvc.mycafe24.com/map/map.html
+```
+브라우저 영속 검증(시드 POST가 작아져 200, `● 저장됨`)은 컨트롤러가 헤드리스 CDP로 수행. 구현자는 SYNTAX OK + 200 까지.
+
+- [ ] **Step 8: 커밋**
+
+```bash
+cd /home/jschoi0223/projects/vdiportal
+git add map/map.html
+git commit -m "map: 이미지 분리저장 전환 — thumb imgId 참조, putimg/loadImages, 자동저장 POST 소형화
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task 3 Step 2 개정 (export/import 이미지 포함)
+
+Task 3 Step 2의 `exportJSON` / `impFile` 핸들러를 아래로 대체(이미지 포함·소형 POST):
+
+```js
+function exportJSON(){writeBackActive();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({canvases,library:LIBRARY.map(l=>({id:l.id,label:l.label})),images:IMAGES,activeId},null,2)],{type:'application/json'}));a.download='vdi-canvases.json';a.click();toast('내보냄')}
+```
+```js
+document.getElementById('impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
+  if(d.images&&typeof d.images==='object')Object.assign(IMAGES,d.images);
+  if(d.library)LIBRARY.length=0,d.library.forEach(x=>LIBRARY.push({id:x.id,label:x.label}));
+  if(Array.isArray(d.canvases)&&d.canvases.length){canvases=d.canvases;activeId=(d.activeId&&canvases.some(c=>c.id===d.activeId))?d.activeId:canvases[0].id}
+  else{const st=d.state||d;if(!st.groups)st.groups=[];const c={id:uid('c'),title:'불러온 캔버스',nodes:st.nodes||[],edges:st.edges||[],groups:st.groups||[],view:d.view||{tx:30,ty:20,scale:1},updated:stamp()};canvases=[c];activeId=c.id}
+  loadCanvas(activeId);refreshSidebar();
+  if(SERVER_OK){Object.keys(d.images||{}).forEach(k=>apiPost({op:'putimg',id:k,src:d.images[k]}).catch(()=>{}));apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}
+  toast('불러오기 완료')}catch(err){toast('JSON 형식 오류')}};r.readAsText(f);e.target.value=''});
+```
+(구버전 단일 state 포맷은 thumb.src를 쓰던 노드가 있을 수 있음 — imgSrc()가 없는 id면 빈 문자열 반환으로 그레이스풀. 신규 export는 imgId 기반이라 정상.)
+
+### Task 5 개정 (문서)
+
+CLAUDE.md 갱신에 추가: 서버 파일 `map_images.json`(user 이미지, 배포 불가침), 이미지 분리 레이어(`IMAGES`/`imgSrc`/`putImg`/`downscaleImage`/`loadImages`), thumb 형태 `{imgId,label}`, cafe24 POST 128KB 상한 회피 설명. 제약 섹션에 "POST 본문 <128KB 유지(이미지는 putimg로 분리)" 추가.
