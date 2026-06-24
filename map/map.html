@@ -215,7 +215,7 @@ const IMAGES={};
 LIBRARY.forEach(l=>{if(l.src)IMAGES[l.id]=l.src});
 function imgSrc(id){return IMAGES[id]||''}
 function putImg(id,src){IMAGES[id]=src;if(SERVER_OK)apiPost({op:'putimg',id,src}).catch(()=>setSaveState('offline'))}
-function downscaleImage(src,cb){const img=new Image();img.onload=()=>{let w=img.width,h=img.height;const md=1000,sc=Math.min(1,md/Math.max(w,h));w=Math.max(1,Math.round(w*sc));h=Math.max(1,Math.round(h*sc));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);let q=0.82,out=c.toDataURL('image/jpeg',q);while(out.length>120000&&q>0.4){q-=0.1;out=c.toDataURL('image/jpeg',q)}cb(out)};img.onerror=()=>cb(src);img.src=src}
+function downscaleImage(src,cb){const img=new Image();img.onload=()=>{let w=img.width,h=img.height;const md=1000,sc=Math.min(1,md/Math.max(w,h));w=Math.max(1,Math.round(w*sc));h=Math.max(1,Math.round(h*sc));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);let q=0.82,out=c.toDataURL('image/jpeg',q);while(out.length>120000&&q>0.4){q-=0.1;out=c.toDataURL('image/jpeg',q)}cb(out)};img.onerror=()=>{if(src.length<120000)cb(src);else toast('이미지를 불러올 수 없어요')};img.src=src}
 async function loadImages(){try{const r=await fetch(API+'?images=1',{cache:'no-store'});if(!r.ok)return;const m=await r.json();if(m&&typeof m==='object')Object.assign(IMAGES,m)}catch(e){}}
 function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
 
@@ -590,6 +590,7 @@ document.getElementById('impFile').addEventListener('change',e=>{const f=e.targe
   if(d.library)LIBRARY.length=0,d.library.forEach(x=>LIBRARY.push({id:x.id,label:x.label}));
   if(Array.isArray(d.canvases)&&d.canvases.length){canvases=d.canvases;activeId=(d.activeId&&canvases.some(c=>c.id===d.activeId))?d.activeId:canvases[0].id}
   else{const st=d.state||d;if(!st.groups)st.groups=[];const c={id:uid('c'),title:'불러온 캔버스',nodes:st.nodes||[],edges:st.edges||[],groups:st.groups||[],view:d.view||{tx:30,ty:20,scale:1},updated:stamp()};canvases=[c];activeId=c.id}
+  canvases.forEach(c=>{(c.nodes||[]).forEach(n=>{n.thumb=(n.thumb&&n.thumb.imgId)?{imgId:n.thumb.imgId,label:n.thumb.label}:null})});
   loadCanvas(activeId);refreshSidebar();
   if(SERVER_OK){Promise.all(Object.keys(d.images||{}).map(k=>apiPost({op:'putimg',id:k,src:d.images[k]}).catch(()=>{}))).then(()=>apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}})).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}
   toast('불러오기 완료')}catch(err){toast('JSON 형식 오류')}};r.readAsText(f);e.target.value=''});
