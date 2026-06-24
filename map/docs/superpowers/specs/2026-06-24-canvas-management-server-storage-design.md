@@ -152,3 +152,42 @@ doc = {
 - 캔버스별 썸네일 스냅샷, 캔버스 복제, 폴더/태그 분류.
 - 캔버스 목록을 메타만 먼저 로드 후 지연 로드(현재는 전체 doc 일괄 로드; 캔버스 수 적어 충분).
 - PNG/SVG 내보내기.
+
+---
+
+## 개정 (2026-06-24): cafe24 POST 128KB 상한 → 이미지 분리저장
+
+### 발견 (구현 중 헤드리스 CDP 검증)
+
+cafe24 openresty가 **POST 본문 131072바이트(128KiB) 초과를 404로 거부**한다(GET은 무제한). 헤더·UA·cert 무관, 순수 본문 크기. 같은 호스트의 vdi-log/signal/jsiy는 작은 텍스트만 POST해 미발견. 우리 데이터는 base64 썸네일이 본문 대부분(시드 replace 704KB)이라 자동저장 POST가 거의 항상 초과 → boot catch → `● 오프라인`(영속 불가). [[cafe24-waf-blocks-php-tags]]와 별개의 크기 제약.
+
+### 결정 (사용자 확정): 이미지 분리저장
+
+이미지를 캔버스/메타 JSON에서 분리해 개별 작은 POST로 저장. JSON엔 참조 id만 → 모든 저장 POST가 항상 128KB 미만. GET은 무제한이라 로드는 그대로.
+
+### 데이터 모델 변경
+
+- `node.thumb`: `{src,label}` → **`{imgId, label}`**. src는 렌더 시 `imgSrc(imgId)`로 해석.
+- `meta.library`: 항목에서 src 제거 → **`[{id,label}]`**만 영속(built-in src는 HTML 내장, user src는 분리 저장).
+- 서버 파일 2개:
+  - `map_data.json` — canvases/meta(참조만, base64 없음) → 작음 → POST 안전.
+  - `map_images.json` — **user 이미지만** `{id: dataURL}`. built-in 4종은 HTML에 이미 있으므로 저장 안 함. 배포 시 불가침(map_data.json과 동일).
+
+### api.php 추가 op
+
+- `GET ?images=1` → `map_images.json` 반환(없으면 `{}`). 무제한.
+- `POST {op:"putimg", id, src}` → `map_images.json`에 이미지 1장 병합(서버 read-modify-write, 본문=1장 <128KB). 자체 락+tmp→rename. `map_data.json` _rev 불변(별도 early 분기로 처리).
+
+### 프론트 이미지 레이어
+
+- `IMAGES = {}` (id→dataURL) 인메모리 맵. 시작 시 built-in LIBRARY src로 시드, boot에서 `loadImages()`(`GET ?images=1`)로 user 이미지 병합.
+- `imgSrc(id)` 렌더 해석, `putImg(id,src)`(IMAGES set + putimg POST), `downscaleImage(src,cb)`(canvas로 최대 1000px·JPEG, <120KB 될 때까지 품질 하향 — user 추가/드롭 이미지가 128KB 넘지 않도록 보장).
+- 라이브러리 추가/OS 드롭: downscale → `uid('img')` → putImg → thumb/library는 id만 참조.
+- export: 휴대성 위해 `{canvases, library:[{id,label}], images:IMAGES, activeId}` (로컬 다운로드라 크기 무관). import: `IMAGES` 병합 후 user 이미지별 putImg(각 <128KB) + 작은 replace.
+
+### 영향 태스크
+
+- Task 1 확장(=Task 6): api.php putimg + GET ?images.
+- Task 2 보정(=Task 7): 프론트 이미지 분리 전환(자동저장 POST 소형화 → 영속 복구).
+- Task 3 export/import: 이미지 포함 처리.
+- Task 5 문서: 이미지 레이어·map_images.json 불가침 반영.
