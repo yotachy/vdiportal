@@ -30,8 +30,20 @@
   .seg button{font-family:inherit;font-size:12.5px;font-weight:600;border:0;background:transparent;color:var(--muted);padding:7px 13px;cursor:pointer}
   .seg button.on{background:var(--gold);color:#1a1206}
 
-  .app{flex:1;display:grid;grid-template-columns:226px 1fr;min-height:0;transition:grid-template-columns .22s cubic-bezier(.4,0,.2,1)}
-  .app.collapsed{grid-template-columns:44px 1fr}
+  .app{flex:1;display:grid;grid-template-columns:56px 226px 1fr;min-height:0;transition:grid-template-columns .22s cubic-bezier(.4,0,.2,1)}
+  .app.collapsed{grid-template-columns:56px 44px 1fr}
+  .toolrail{border-right:1px solid var(--line);background:#0c1118;display:flex;flex-direction:column;align-items:center;gap:7px;padding:11px 0;min-height:0;overflow:hidden}
+  body.view .toolrail{display:none}
+  .trbtn{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:var(--raised);color:var(--muted);font-size:15px;cursor:pointer;display:grid;place-items:center;flex:none;transition:.13s}
+  .trbtn:hover{background:var(--raised2);color:var(--txt);border-color:#3a4452}
+  .trbtn.on{background:var(--gold);color:#1a1206;border-color:var(--gold)}
+  .tr-sep{width:30px;height:1px;background:var(--line);flex:none}
+  .icon-pal{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:6px;align-items:center;width:100%;padding-bottom:8px}
+  .ipal-btn{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:#c2cad6;cursor:grab;display:grid;place-items:center;flex:none}
+  .ipal-btn:hover{border-color:var(--gold-dim);color:var(--gold)}
+  .ipal-btn svg{width:22px;height:22px}
+  body.view .app{grid-template-columns:0 226px 1fr}
+  body.view .app.collapsed{grid-template-columns:0 44px 1fr}
 
   .side{border-right:1px solid var(--line);background:#10151c;display:flex;flex-direction:column;min-height:0;position:relative}
   .side-toggle{position:absolute;top:10px;right:9px;width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:var(--raised);color:var(--muted);cursor:pointer;font-size:12px;z-index:3;display:grid;place-items:center}
@@ -177,6 +189,16 @@
 </header>
 
 <div class="app" id="app">
+  <aside class="toolrail edit-only" id="toolrail">
+    <button class="trbtn" id="snapBtn" title="자석 정렬" onclick="toggleSnap()">⊹</button>
+    <button class="trbtn" id="lineBtn" title="새 선: 실선/점선" onclick="toggleEdgeStyle()">─</button>
+    <button class="trbtn" id="arrowBtn" title="새 선: 화살표" onclick="toggleEdgeArrow()">▶</button>
+    <div class="tr-sep"></div>
+    <button class="trbtn" title="노드 추가" onclick="addNodeCenter()">▭</button>
+    <button class="trbtn" title="중간 노드 추가" onclick="addMiniCenter()">▬</button>
+    <div class="tr-sep"></div>
+    <div class="icon-pal" id="iconPal"></div>
+  </aside>
   <aside class="side">
     <button class="side-toggle" id="sideBtn" onclick="toggleSide()">«</button>
     <div class="side-scroll">
@@ -373,7 +395,7 @@ function markDirty(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{try{await apiPost({op:'upsert',canvas:c});setSaveState('saved')}catch(e){setSaveState('offline')}},800);
 }
-function saveMeta(){if(!SERVER_OK)return;clearTimeout(metaTimer);metaTimer=setTimeout(async()=>{try{await apiPost({op:'meta',meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}})}catch(e){}},800)}
+function saveMeta(){if(!SERVER_OK)return;clearTimeout(metaTimer);metaTimer=setTimeout(async()=>{try{await apiPost({op:'meta',meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}})}catch(e){}},800)}
 function refreshSidebar(){if(typeof renderSidebar==='function')renderSidebar()}
 function switchCanvas(id){
   if(id===activeId)return;
@@ -591,6 +613,15 @@ cvListEl.addEventListener('keydown',e=>{const n=e.target.closest('[data-cvname]'
 cvListEl.addEventListener('focusout',e=>{const n=e.target.closest('[data-cvname]');if(n){n.contentEditable='false';renameCanvas(n.dataset.cvname,n.innerText)}});
 
 /* sidebar / mode */
+function renderToolbar(){
+  const s=document.getElementById('snapBtn'),l=document.getElementById('lineBtn'),a=document.getElementById('arrowBtn');
+  if(s)s.classList.toggle('on',!!TOOLBAR.snap);
+  if(l){l.classList.toggle('on',TOOLBAR.edgeStyle==='dashed');l.textContent=TOOLBAR.edgeStyle==='dashed'?'┄':'─'}
+  if(a)a.classList.toggle('on',TOOLBAR.edgeArrow!==false);
+}
+function toggleSnap(){TOOLBAR.snap=!TOOLBAR.snap;renderToolbar();saveMeta()}
+function toggleEdgeStyle(){TOOLBAR.edgeStyle=TOOLBAR.edgeStyle==='dashed'?'solid':'dashed';renderToolbar();saveMeta()}
+function toggleEdgeArrow(){TOOLBAR.edgeArrow=!(TOOLBAR.edgeArrow!==false);renderToolbar();saveMeta()}
 function toggleSide(){const a=document.getElementById('app');a.classList.toggle('collapsed');document.getElementById('sideBtn').textContent=a.classList.contains('collapsed')?'»':'«';setTimeout(paint,230)}
 document.getElementById('modeSeg').addEventListener('click',e=>{const m=e.target.dataset.mode;if(!m)return;mode=m;document.body.className=m;[...e.currentTarget.children].forEach(b=>b.classList.toggle('on',b.dataset.mode===m));render();renderSidebar()});
 
@@ -646,6 +677,7 @@ async function boot(){
     if(doc&&Array.isArray(doc.canvases)&&doc.canvases.length){
       canvases=doc.canvases;
       if(doc.meta&&Array.isArray(doc.meta.library)){LIBRARY.length=0;doc.meta.library.forEach(x=>LIBRARY.push(x))}
+      if(doc.meta&&doc.meta.toolbar)Object.assign(TOOLBAR,doc.meta.toolbar);
       activeId=(doc.meta&&doc.meta.activeId&&canvases.some(c=>c.id===doc.meta.activeId))?doc.meta.activeId:canvases[0].id;
       loadCanvas(activeId);
       setSaveState('saved');
@@ -659,6 +691,7 @@ async function boot(){
     setSaveState('offline');
   }
   if(typeof renderSidebar==='function')renderSidebar();
+  renderToolbar();
 }
 boot();
 </script>
