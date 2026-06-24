@@ -95,6 +95,13 @@
   .group-del:hover{color:var(--red);border-color:var(--red)}
 
   .node{position:absolute;width:246px;background:var(--surface);border:1.5px solid var(--line);border-radius:13px;box-shadow:0 12px 30px -18px #000;cursor:grab;transition:border-color .12s,box-shadow .12s}
+  .node.mini{width:150px}
+  .node.mini .n-body{padding:8px 11px}
+  .node.mini .n-title{font-size:12.5px;min-height:16px}
+  .node.icon{width:auto;min-width:88px;max-width:140px;text-align:center;padding:12px 12px 10px;display:flex;flex-direction:column;align-items:center;gap:7px}
+  .node.icon .n-icon{width:40px;height:40px;color:var(--gold)}
+  .node.icon .n-icon svg{width:40px;height:40px}
+  .node.icon .n-title{font-size:12.5px;font-weight:600;min-height:16px}
   .node:hover{border-color:#3a4452}
   .node.selected{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,188,0,.22),0 14px 32px -16px #000}
   .node.dragover{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
@@ -221,6 +228,8 @@ function imgSrc(id){return IMAGES[id]||''}
 function putImg(id,src){IMAGES[id]=src;if(SERVER_OK)apiPost({op:'putimg',id,src}).catch(()=>setSaveState('offline'))}
 function downscaleImage(src,cb){const img=new Image();img.onload=()=>{let w=img.width,h=img.height;const md=1000,sc=Math.min(1,md/Math.max(w,h));w=Math.max(1,Math.round(w*sc));h=Math.max(1,Math.round(h*sc));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);let q=0.82,out=c.toDataURL('image/jpeg',q);while(out.length>120000&&q>0.4){q-=0.1;out=c.toDataURL('image/jpeg',q)}cb(out)};img.onerror=()=>{if(src.length<120000)cb(src);else toast('이미지를 불러올 수 없어요')};img.src=src}
 async function loadImages(){try{const r=await fetch(API+'?images=1',{cache:'no-store'});if(!r.ok)return;const m=await r.json();if(m&&typeof m==='object')Object.assign(IMAGES,m)}catch(e){}}
+const ICONS={};
+function iconSvg(id){return ICONS[id]?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[id]}</svg>`:''}
 function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
 
 function defaultState(){
@@ -266,18 +275,28 @@ function renderLib(){
     +`<div class="lib-add edit-only" onclick="document.getElementById('imgFile').click()">＋ 이미지 추가</div>`;
 }
 function nodeHTML(n){
+  const t=n.type||'full';
+  const ports=`<div class="port top edit-only" data-act="port" data-side="top"></div>
+    <div class="port right edit-only" data-act="port" data-side="right"></div>
+    <div class="port bottom edit-only" data-act="port" data-side="bottom"></div>
+    <div class="port left edit-only" data-act="port" data-side="left"></div>`;
+  const head=`<div class="n-in"></div><button class="n-del edit-only" data-act="del">✕</button>`;
+  if(t==='mini'){
+    return `<div class="node mini" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">${head}
+      <div class="n-body"><div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div></div>${ports}</div>`;
+  }
+  if(t==='icon'){
+    return `<div class="node icon" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">${head}
+      <div class="n-icon">${iconSvg(n.iconId)}</div>
+      <div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div>${ports}</div>`;
+  }
   let media;
   if(n.thumb) media=`<div class="n-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span>
      <span class="rmth edit-only" data-act="rmthumb">✕</span>${n.thumb.label?`<span class="cap">${esc(n.thumb.label)}</span>`:''}</div>`;
   else media=`<div class="n-drop edit-only">썸네일 드래그</div>`;
-  return `<div class="node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">
-    <div class="n-in"></div><button class="n-del edit-only" data-act="del">✕</button>
+  return `<div class="node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">${head}
     <div class="n-body"><div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div>
-      <div class="n-desc" contenteditable="${ce()}" data-field="desc">${esc(n.desc)}</div>${media}</div>
-    <div class="port top edit-only" data-act="port" data-side="top"></div>
-    <div class="port right edit-only" data-act="port" data-side="right"></div>
-    <div class="port bottom edit-only" data-act="port" data-side="bottom"></div>
-    <div class="port left edit-only" data-act="port" data-side="left"></div></div>`;
+      <div class="n-desc" contenteditable="${ce()}" data-field="desc">${esc(n.desc)}</div>${media}</div>${ports}</div>`;
 }
 function groupHTML(g){
   return `<div class="group" data-gid="${g.id}"><div class="group-label" contenteditable="${ce()}" data-gfield="title">${esc(g.title)}</div><button class="group-del edit-only" data-gact="del">✕</button></div>`;
@@ -390,7 +409,7 @@ function deleteCanvas(id){
 }
 
 /* ---------- node ops ---------- */
-function makeNode(x,y,title){const n={id:uid('n'),x,y,title:title||'새 단계',desc:'',thumb:null};state.nodes.push(n);return n}
+function makeNode(x,y,title,type,iconId){const n={id:uid('n'),x,y,title:title||'새 단계',desc:'',thumb:null,type:type||'full'};if(iconId)n.iconId=iconId;state.nodes.push(n);return n}
 function addNodeCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const n=makeNode(p.x-W_NODE/2,p.y-30);render();selectOnly(n.id);markDirty()}
 function addEdge(from,fromSide,to,toSide){if(from===to)return;if(state.edges.some(e=>e.from===from&&e.to===to))return;state.edges.push({id:uid('e'),from,fromSide:fromSide||'right',to,toSide:toSide||'left',style:TOOLBAR.edgeStyle,arrow:TOOLBAR.edgeArrow});markDirty()}
 function delEdge(id){state.edges=state.edges.filter(e=>e.id!==id);if(selEdge===id)selEdge=null;paint();markDirty()}
@@ -403,6 +422,9 @@ const parentsOf=id=>state.edges.filter(e=>e.to===id).map(e=>e.from);
 function addSibling(id){const n=N(id);const nn=makeNode(n.x,n.y+(n._h||90)+34);const ps=parentsOf(id);if(ps[0])addEdge(ps[0],'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('형제 추가')}
 function addChild(id){const n=N(id);const nn=makeNode(n.x+300,n.y);addEdge(id,'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('하위 추가')}
 function addParent(id){const n=N(id);const nn=makeNode(n.x-300,n.y);addEdge(nn.id,'right',id,'left');render();selectOnly(nn.id);markDirty();toast('상위 추가')}
+function addChildMini(id){const n=N(id);const nn=makeNode(n.x+260,n.y,'',"mini");addEdge(id,'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('하위 노드')}
+function addSiblingMini(id){const n=N(id);const nn=makeNode(n.x,n.y+(n._h||90)+30,'',"mini");const ps=parentsOf(id);if(ps[0])addEdge(ps[0],'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('형제 노드')}
+function addMiniCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const nn=makeNode(p.x-75,p.y-20,'',"mini");render();selectOnly(nn.id);markDirty()}
 function makeGroup(){if(sel.length<2)return;state.groups=state.groups||[];state.groups.push({id:uid('g'),nodes:[...sel],title:'그룹'});render();markDirty();toast('그룹 생성')}
 
 /* ---------- stage pointer ---------- */
@@ -532,7 +554,8 @@ window.addEventListener('keydown',e=>{
   if(e.key==='Escape'){deselectAll();closeZoom();return}
   if(isEditing())return;
   const primary=sel[sel.length-1];
-  if(e.key==='Tab'){e.preventDefault();if(primary)addSibling(primary);return}
+  if(e.key==='Tab'){e.preventDefault();if(primary)addChildMini(primary);return}
+  if(e.key==='Enter'){e.preventDefault();if(primary)addSiblingMini(primary);return}
   if(e.key==='-'||e.key==='_'){e.preventDefault();if(primary)addChild(primary);return}
   if(e.key==='+'||e.key==='='){e.preventDefault();if(primary)addParent(primary);return}
   if(e.key==='g'||e.key==='G'){if(sel.length>=2)makeGroup();return}
