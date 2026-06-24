@@ -449,7 +449,7 @@ function polyPath(pts){if(pts.length<2)return'';if(pts.length===2)return`M${pts[
     d+=` L${p1[0]},${p1[1]} Q${b[0]},${b[1]} ${p2[0]},${p2[1]}`}
   const z=pts[pts.length-1];return d+` L${z[0]},${z[1]}`}
 function edgeGeo(e){const a=N(e.from),b=N(e.to);if(!a||!b)return null;const s=sidesOf(e),A=anchor(a,s.fs),B=anchor(b,s.ts);let d;
-  if(e.route==='ortho'){d=polyPath(orthoPath(A,B,s.fs,s.ts))}
+  if(e.route!=='curve'){d=polyPath(orthoPath(A,B,s.fs,s.ts))}   // 직각이 기본, 'curve'만 곡선
   else{const dd=Math.hypot(B.x-A.x,B.y-A.y),k=Math.min(120,Math.max(38,dd*0.4)),d1=DIR[s.fs],d2=DIR[s.ts];d=`M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${B.x+d2[0]*k},${B.y+d2[1]*k} ${B.x},${B.y}`}
   return{A,B,fs:s.fs,ts:s.ts,d}}
 function nodeAt(pt){let r=null;state.nodes.forEach(n=>{const w=n._w||W_NODE,h=n._h||90;if(pt.x>=n.x&&pt.x<=n.x+w&&pt.y>=n.y&&pt.y<=n.y+h)r=n});return r}
@@ -521,7 +521,7 @@ function drawEhud(){
   if(mode!=='edit'||!selEdge){hud.innerHTML='';return}
   const e=E(selEdge),g=e&&edgeGeo(e);if(!g){hud.innerHTML='';return}
   const mx=(g.A.x+g.B.x)/2,my=(g.A.y+g.B.y)/2;
-  const dash=e.style==='dashed',arr=e.arrow!==false,w=e.width||2,ortho=e.route==='ortho',hasLabel=e.label!=null;
+  const dash=e.style==='dashed',arr=e.arrow!==false,w=e.width||2,ortho=e.route!=='curve',hasLabel=e.label!=null;
   hud.innerHTML=`<div class="ehandle" data-end="from" style="left:${g.A.x}px;top:${g.A.y}px"></div>
     <div class="ehandle" data-end="to" style="left:${g.B.x}px;top:${g.B.y}px"></div>
     <div class="hbar ebar" style="left:${mx}px;top:${my}px">
@@ -814,7 +814,7 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-eline]')){if(selEdge){const ed=E(selEdge);ed.style=ed.style==='dashed'?'solid':'dashed';paint();markDirty()}return}
   if(e.target.closest('[data-earrow]')){if(selEdge){const ed=E(selEdge);ed.arrow=!(ed.arrow!==false);paint();markDirty()}return}
   if(e.target.closest('[data-ewidth]')){if(selEdge){const ed=E(selEdge);ed.width=((ed.width||2)%3)+1;paint();markDirty()}return}
-  if(e.target.closest('[data-eroute]')){if(selEdge){const ed=E(selEdge);ed.route=ed.route==='ortho'?'curve':'ortho';paint();markDirty()}return}
+  if(e.target.closest('[data-eroute]')){if(selEdge){const ed=E(selEdge);ed.route=ed.route!=='curve'?'curve':'ortho';paint();markDirty()}return}
   if(e.target.closest('[data-elabeladd]')){if(selEdge){const ed=E(selEdge);if(ed.label==null)ed.label='';paint();const le=document.querySelector(`.elabel[data-elabel="${selEdge}"]`);if(le){le.focus();const r=document.createRange();r.selectNodeContents(le);const s=window.getSelection();s.removeAllRanges();s.addRange(r)}}return}
   const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='parent')addParent(id);else if(a==='child')addChild(id);else if(a==='del')delNodes([id])}return}
   const al=e.target.closest('[data-align]');if(al){alignSel(al.dataset.align);return}

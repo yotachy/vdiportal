@@ -36,7 +36,7 @@ state = {
              style:"solid"|"dashed",     // 실선 / 점선
              arrow:bool,                 // true=화살표 머리 표시
              width:1|2|3,                // 선 굵기 3단계(EWIDTHS, 미지정=2)
-             route:"curve"|"ortho",      // 곡선(기본) / 직각(꺾은선). 미지정=curve
+             route:"curve"|"ortho",      // **미지정/ortho=직각(기본)**, "curve"만 곡선(베지어)
              label:string|null }],       // 연결선 라벨(중앙 pill). null=없음
   //        fromSide/toSide="auto" → sidesOf(e)가 두 노드 위치 기준 최단 연결면 동적 계산
   groups: [{ id, nodes:[nodeId...], title }],
@@ -146,7 +146,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - **단일 선택 시 카드 위 라벨형 노드 툴바**(`drawNhud`→`.nbar`): `상위`(addParent)·`하위`(addChild)·`삭제` 버튼 + 배경색 스와치(`n.bg`). 노드엔 상시 코너 버튼 없음(삭제는 툴바/`Del`).
 - 노드 4면 포트(hover 시 표시)를 **실제로 드래그**(임계 6px — 단순 포트 클릭은 무시) → **4점 자석**: 대상 노드 위에선 가장 가까운 포트로 흡착(포트 하이라이트), 노드 중앙부에 놓으면 `auto`(최단 연결면). 빈 곳이면 새 노드 생성+연결.
 - 연결선 클릭 = 선택 → **라벨형 미니 HUD 툴바**(`.ebar`): `삭제`·`방향`·`실선/점선`·`화살표`·`굵기(1·2·3)`·**`곡선/직각`**(라우팅 토글)·**`라벨`**(추가·편집). 양 끝 핸들 **드래그**(임계 6px)로 4점 자석 재부착.
-- **직각 라우팅**(`e.route='ortho'`): `orthoPath`+`polyPath`(모서리 둥근 꺾은선). 곡선은 베지어. `edgeGeo`가 분기.
+- **직각 라우팅(기본)**: `e.route` 미지정·`ortho`면 `orthoPath`+`polyPath`(모서리 둥근 꺾은선). HUD에서 개별로 `curve`(곡선·베지어) 전환. `edgeGeo`가 `e.route!=='curve'`로 분기.
 - **연결선 라벨**(`e.label`): `drawLabels()`가 라벨 있는 모든 엣지의 중앙에 `.elabel` pill 렌더(편집은 contenteditable, 빈 값이면 제거). `라벨` 버튼이 빈 라벨 생성 후 포커스.
 - **캔버스 배경색**: 헤더 `배경` 버튼 → 스와치 팝오버(`#bgPop`, `CANVAS_BGS`), 캔버스별 `canvas.bg`로 영속(`applyCanvasBg`).
 - **다중 선택(2개↑) 정렬·배포**: 선택 묶음 위 `.abar` 툴바(좌/가운데/우·상/가운데/하 정렬 + 가로/세로 등간격). `alignSel(mode)`.
