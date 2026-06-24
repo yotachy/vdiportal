@@ -435,11 +435,22 @@ function sidesOf(e){const a=N(e.from),b=N(e.to);if(!a||!b)return{fs:'right',ts:'
   else if(tA){ts=nearestSide(b,anchor(a,fs))}
   return{fs,ts}}
 // 직각(꺾은선) 경로: 면 방향에 맞춰 꺾는 점들 산출
-function orthoPath(A,B,fs,ts){const hz=s=>(s==='left'||s==='right'),fH=hz(fs),tH=hz(ts);
-  if(fH&&tH){const mx=(A.x+B.x)/2;return[[A.x,A.y],[mx,A.y],[mx,B.y],[B.x,B.y]]}
-  if(!fH&&!tH){const my=(A.y+B.y)/2;return[[A.x,A.y],[A.x,my],[B.x,my],[B.x,B.y]]}
-  if(fH&&!tH)return[[A.x,A.y],[B.x,A.y],[B.x,B.y]];
-  return[[A.x,A.y],[A.x,B.y],[B.x,B.y]]}
+// 직각 경로: 포트에서 수직으로 stub만큼 빠져나온 뒤 꺾고, 중복·일직선 점은 정리
+function cleanPts(pts){const out=[pts[0]];for(let i=1;i<pts.length;i++){const p=pts[i],b=out[out.length-1];
+    if(Math.abs(p[0]-b[0])<0.5&&Math.abs(p[1]-b[1])<0.5)continue;              // 중복점 제거
+    if(out.length>=2){const a=out[out.length-2];
+      const hRun=Math.abs(a[1]-b[1])<0.5&&Math.abs(b[1]-p[1])<0.5,vRun=Math.abs(a[0]-b[0])<0.5&&Math.abs(b[0]-p[0])<0.5;
+      if(hRun||vRun){out[out.length-1]=p;continue}}                            // 일직선이면 가운데 점 합침
+    out.push(p)}return out}
+function orthoPath(A,B,fs,ts){const hz=s=>(s==='left'||s==='right'),fH=hz(fs),tH=hz(ts),d1=DIR[fs],d2=DIR[ts];
+  const dist=Math.hypot(B.x-A.x,B.y-A.y),S=Math.max(11,Math.min(26,dist*0.42));
+  const A1=[A.x+d1[0]*S,A.y+d1[1]*S],B1=[B.x+d2[0]*S,B.y+d2[1]*S];           // 포트 수직 stub
+  let mids;
+  if(fH&&tH){const mx=(A1[0]+B1[0])/2;mids=[[mx,A1[1]],[mx,B1[1]]]}           // 가로↔가로: 중앙 수직 점프
+  else if(!fH&&!tH){const my=(A1[1]+B1[1])/2;mids=[[A1[0],my],[B1[0],my]]}   // 세로↔세로: 중앙 수평 점프
+  else if(fH&&!tH){mids=[[B1[0],A1[1]]]}                                       // 가로→세로: ㄱ자
+  else{mids=[[A1[0],B1[1]]]}                                                   // 세로→가로: ㄴ자
+  return cleanPts([[A.x,A.y],A1,...mids,B1,[B.x,B.y]])}
 // 꺾는점들 → 모서리 둥근 SVG path
 function polyPath(pts){if(pts.length<2)return'';if(pts.length===2)return`M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
   let d=`M${pts[0][0]},${pts[0][1]}`;
