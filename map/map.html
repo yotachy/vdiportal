@@ -181,7 +181,13 @@ function stamp(){return new Date().toISOString()}
 function setSaveState(s){const el=document.getElementById('saveStat');if(!el)return;el.className='savestat '+s;el.textContent=s==='saving'?'● 저장 중…':s==='offline'?'● 오프라인':'● 저장됨'}
 async function apiGet(){const r=await fetch(API,{cache:'no-store'});if(!r.ok)throw new Error('http');return r.json()}
 async function apiPost(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();if(!j||!j.ok)throw j;return j}
-function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{src:l.src,label:l.label}:null}
+const IMAGES={};
+LIBRARY.forEach(l=>{if(l.src)IMAGES[l.id]=l.src});
+function imgSrc(id){return IMAGES[id]||''}
+function putImg(id,src){IMAGES[id]=src;if(SERVER_OK)apiPost({op:'putimg',id,src}).catch(()=>setSaveState('offline'))}
+function downscaleImage(src,cb){const img=new Image();img.onload=()=>{let w=img.width,h=img.height;const md=1000,sc=Math.min(1,md/Math.max(w,h));w=Math.max(1,Math.round(w*sc));h=Math.max(1,Math.round(h*sc));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);let q=0.82,out=c.toDataURL('image/jpeg',q);while(out.length>120000&&q>0.4){q-=0.1;out=c.toDataURL('image/jpeg',q)}cb(out)};img.onerror=()=>cb(src);img.src=src}
+async function loadImages(){try{const r=await fetch(API+'?images=1',{cache:'no-store'});if(!r.ok)return;const m=await r.json();if(m&&typeof m==='object')Object.assign(IMAGES,m)}catch(e){}}
+function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
 
 function defaultState(){
   const n=(id,x,y,t,d,tm)=>({id,x,y,title:t,desc:d,thumb:tm||null});
@@ -222,12 +228,12 @@ const stage=document.getElementById('stage'),world=document.getElementById('worl
 function renderLib(){
   document.getElementById('lib').innerHTML=LIBRARY.map(l=>`
     <div class="lib-item" draggable="true" data-lib="${l.id}"><span class="del edit-only" data-libdel="${l.id}">✕</span>
-      <img src="${l.src}" alt=""><div class="cap">${esc(l.label)}<span class="gr">⠿</span></div></div>`).join('')
+      <img src="${imgSrc(l.id)}" alt=""><div class="cap">${esc(l.label)}<span class="gr">⠿</span></div></div>`).join('')
     +`<div class="lib-add edit-only" onclick="document.getElementById('imgFile').click()">＋ 이미지 추가</div>`;
 }
 function nodeHTML(n){
   let media;
-  if(n.thumb) media=`<div class="n-thumb"><img src="${n.thumb.src}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span>
+  if(n.thumb) media=`<div class="n-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span>
      <span class="rmth edit-only" data-act="rmthumb">✕</span>${n.thumb.label?`<span class="cap">${esc(n.thumb.label)}</span>`:''}</div>`;
   else media=`<div class="n-drop edit-only">썸네일 드래그</div>`;
   return `<div class="node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">
@@ -310,11 +316,7 @@ function markDirty(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{try{await apiPost({op:'upsert',canvas:c});setSaveState('saved')}catch(e){setSaveState('offline')}},800);
 }
-function saveMeta(){
-  if(!SERVER_OK)return;
-  clearTimeout(metaTimer);
-  metaTimer=setTimeout(async()=>{try{await apiPost({op:'meta',meta:{library:LIBRARY,activeId}})}catch(e){}},800);
-}
+function saveMeta(){if(!SERVER_OK)return;clearTimeout(metaTimer);metaTimer=setTimeout(async()=>{try{await apiPost({op:'meta',meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}})}catch(e){}},800)}
 
 /* ---------- node ops ---------- */
 function makeNode(x,y,title){const n={id:uid('n'),x,y,title:title||'새 단계',desc:'',thumb:null};state.nodes.push(n);return n}
@@ -442,14 +444,14 @@ world.addEventListener('focusout',e=>{
 stage.addEventListener('dragover',e=>{const n=e.target.closest('.node');if(n){e.preventDefault();n.classList.add('dragover')}});
 stage.addEventListener('dragleave',e=>{const n=e.target.closest('.node');if(n&&!n.contains(e.relatedTarget))n.classList.remove('dragover')});
 stage.addEventListener('drop',e=>{const el=e.target.closest('.node');if(!el)return;e.preventDefault();el.classList.remove('dragover');const id=el.dataset.id,lib=e.dataTransfer.getData('libid');
-  if(lib){const l=LIBRARY.find(x=>x.id===lib);if(l)setThumb(id,{src:l.src,label:l.label});return}
-  const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){const r=new FileReader();r.onload=()=>setThumb(id,{src:r.result,label:f.name.replace(/\.[^.]+$/,'')});r.readAsDataURL(f)}});
+  if(lib){const l=LIBRARY.find(x=>x.id===lib);if(l)setThumb(id,{imgId:l.id,label:l.label});return}
+  const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){const r=new FileReader();r.onload=()=>downscaleImage(r.result,out=>{const iid=uid('img');putImg(iid,out);setThumb(id,{imgId:iid,label:f.name.replace(/\.[^.]+$/,'')})});r.readAsDataURL(f)}});
 
 /* library */
 const libEl=document.getElementById('lib');
 libEl.addEventListener('dragstart',e=>{const li=e.target.closest('.lib-item');if(li)e.dataTransfer.setData('libid',li.dataset.lib)});
 libEl.addEventListener('click',e=>{const id=e.target.closest('[data-libdel]')?.dataset.libdel;if(!id)return;const i=LIBRARY.findIndex(x=>x.id===id);if(i>=0){LIBRARY.splice(i,1);renderLib();saveMeta();toast('삭제됨')}});
-document.getElementById('imgFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{LIBRARY.push({id:uid('lib'),label:f.name.replace(/\.[^.]+$/,''),src:r.result});renderLib();saveMeta();toast('썸네일 추가됨')};r.readAsDataURL(f);e.target.value=''});
+document.getElementById('imgFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>downscaleImage(r.result,out=>{const iid=uid('img');putImg(iid,out);LIBRARY.push({id:iid,label:f.name.replace(/\.[^.]+$/,'')});renderLib();saveMeta();toast('썸네일 추가됨')});r.readAsDataURL(f);e.target.value=''});
 
 /* keyboard */
 window.addEventListener('keydown',e=>{
@@ -498,7 +500,7 @@ document.getElementById('impFile').addEventListener('change',e=>{const f=e.targe
 function resetAll(){if(confirm('기본 구성으로 초기화할까요?')){state=defaultState();view={tx:30,ty:20,scale:1};sel=[];selEdge=null;render();fitView();toast('초기화됨')}}
 
 /* lightbox / toast */
-function zoom(id){if(justDragged)return;const n=N(id);if(n&&n.thumb){document.getElementById('lbimg').src=n.thumb.src;document.getElementById('lb').classList.add('on')}}
+function zoom(id){if(justDragged)return;const n=N(id);if(n&&n.thumb){document.getElementById('lbimg').src=imgSrc(n.thumb.imgId);document.getElementById('lb').classList.add('on')}}
 function closeZoom(){document.getElementById('lb').classList.remove('on')}
 let tt;function toast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),1500)}
 
@@ -510,6 +512,7 @@ async function boot(){
   try{
     const doc=await apiGet();
     SERVER_OK=true;
+    await loadImages();
     if(doc&&Array.isArray(doc.canvases)&&doc.canvases.length){
       canvases=doc.canvases;
       if(doc.meta&&Array.isArray(doc.meta.library)){LIBRARY.length=0;doc.meta.library.forEach(x=>LIBRARY.push(x))}
@@ -518,7 +521,7 @@ async function boot(){
       setSaveState('saved');
     }else{
       const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);
-      try{await apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY,activeId}}});setSaveState('saved')}catch(e){setSaveState('offline')}
+      try{await apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}});setSaveState('saved')}catch(e){setSaveState('offline')}
     }
   }catch(e){
     SERVER_OK=false;
