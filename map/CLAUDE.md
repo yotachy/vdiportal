@@ -37,7 +37,7 @@ selEdge = edgeId | null       // 선택된 연결선(1개)
 IMAGES  = { [id]: dataURL }   // 빌트인(HTML 내장) + 사용자 업로드(api.php ?images=1 로드)
 TOOLBAR = { snap:bool, edgeStyle:"solid"|"dashed", edgeArrow:bool }
           // 전역 작성 도구 상태. saveMeta()로 서버 meta.toolbar에 영속, exportJSON에 포함.
-ICONS   = { [id]: {label:string, path:string} }  // 아이콘 세트(SVG path) — 현재 20종
+ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(path/shape 문자열). 현재 20종
 ```
 
 - 좌표는 모두 **월드 좌표**. 화면 좌표 변환은 `worldPt(clientX,clientY)`.
@@ -124,7 +124,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - 연결선 클릭 = 선택 → 중앙 `✕`(삭제)·`⇄`(시작/끝 방향 바꾸기), **실선/점선 토글**·**화살표 토글** 버튼, 양 끝 핸들 드래그로 다른 노드/면 재부착.
 - 단축키(노드 선택 후): `Tab` = 하위 mini 노드 추가, `Enter` = 형제 mini 노드 추가, `−` 하위, `+` 상위, `G` 그룹(2개 이상), `Del` 삭제(선택 엣지 우선), `Esc` 해제.
 - 썸네일: 왼쪽 라이브러리에서 카드로 드래그(또는 OS 이미지 파일 드롭). 카드 썸네일 클릭 = 원본 라이트박스.
-- **좌측 툴 레일**: 자석 스냅 토글(🧲), 엣지 기본 실선/점선 토글, 노드 추가 버튼(full/mini), 아이콘 팔레트 열기.
+- **좌측 툴 레일**: 자석 스냅 토글, 엣지 기본 실선/점선·화살표 토글, 노드 추가 버튼(full/mini), 아이콘 팔레트(세로 스크롤).
 - **아이콘 팔레트**: 20종 아이콘 그리드 → 클릭 시 icon 타입 노드를 캔버스 중앙에 추가.
 - 편집/보기 토글, 사이드바 접기, 가로/세로 자동정렬.
 
@@ -136,7 +136,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 
 | 버튼 | 동작 | TOOLBAR 필드 |
 |---|---|---|
-| 자석(🧲) | 노드 드래그 시 정렬 스냅 + 가이드선 | `snap` (bool) |
+| 자석 | 노드 드래그 시 정렬 스냅 + 가이드선 | `snap` (bool) |
 | 실선/점선 | 새로 그릴 엣지의 기본 스타일 전환 | `edgeStyle` ("solid"/"dashed") |
 | 화살표 | 새로 그릴 엣지에 화살표 머리 표시 여부 | `edgeArrow` (bool) |
 | 아이콘 팔레트 | `ICONS` 20종 그리드 표시 → 클릭 시 icon 노드 추가 | — |
@@ -149,7 +149,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 |---|---|---|
 | `"full"` | 기본 카드 (썸네일+제목+설명) | 주요 단계 노드 |
 | `"mini"` | 작은 카드 (제목만) | 보조/중간 단계 |
-| `"icon"` | 원형 아이콘 + 라벨 | 시스템/역할 표시 |
+| `"icon"` | 아이콘(상단) + 라벨 | 시스템/역할 표시 |
 
 - `Tab` 단축키 → `addChildMini` (선택 노드의 하위 mini 노드 추가 + 연결)
 - `Enter` 단축키 → `addSiblingMini` (선택 노드와 같은 레벨의 형제 mini 노드 추가 + 연결)
@@ -157,7 +157,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 
 ### 아이콘 세트 (`ICONS`)
 
-`ICONS` 상수에 20종의 아이콘이 `{ label, path }` 형태로 정의됨. `iconSvg(id)` 함수로 SVG 문자열 생성. `renderPalette()`로 팔레트 그리드 렌더. `addIconCenter(iconId)`로 `type:"icon"` 노드를 캔버스 중앙에 삽입.
+`ICONS` 상수에 20종의 아이콘이 `id: "<svg 내부 마크업>"`(path/shape 문자열) 형태로 정의됨. `iconSvg(id)` 함수가 `viewBox 0 0 24 24 · stroke=currentColor` 래퍼로 감싸 SVG 문자열 생성. `renderPalette()`로 팔레트 그리드 렌더. `addIconCenter(iconId)`로 `type:"icon"` 노드를 캔버스 중앙에 삽입. 외부 아이콘 라이브러리 금지(직접 path 작성).
 
 ## 썸네일 / 이미지
 
