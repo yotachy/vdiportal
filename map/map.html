@@ -228,7 +228,7 @@
     </div>
     <div class="marquee" id="marquee"></div>
     <div class="zoomctl"><button onclick="zoomBy(1.2)">＋</button><div class="zlabel" id="zlabel">100%</div><button onclick="zoomBy(.83)">−</button></div>
-    <div class="hint edit-only">배경 드래그 <b>화면이동</b> · Shift+드래그 <b>다중선택</b> · 휠 <b>줌</b> · 노드 4면 포트 드래그 <b>연결</b><br>연결선 클릭 <b>선택</b>·꼭지 드래그로 <b>면 이동</b> · <b>Tab</b> 형제 · <b>−</b> 하위 · <b>+</b> 상위 · <b>G</b> 그룹 · <b>Del</b> 삭제</div>
+    <div class="hint edit-only">배경 드래그 <b>화면이동</b> · Shift+드래그 <b>다중선택</b> · 휠 <b>줌</b> · 노드 4면 포트 드래그 <b>연결</b><br>연결선 클릭 <b>선택</b>·꼭지 드래그로 <b>면 이동</b> · <b>Tab</b> 하위 · <b>Enter</b> 형제 · <b>−</b> 하위 · <b>+</b> 상위 · <b>G</b> 그룹 · <b>Del</b> 삭제</div>
   </div>
 </div>
 
@@ -356,7 +356,7 @@ function render(){
   world.insertAdjacentHTML('beforeend',state.nodes.map(nodeHTML).join(''));
   measure();paint();applySel();applyView();
 }
-function measure(){state.nodes.forEach(n=>{const el=q(n.id);n._h=el?el.offsetHeight:90;n._w=W_NODE})}
+function measure(){state.nodes.forEach(n=>{const el=q(n.id);n._h=el?el.offsetHeight:90;n._w=el?el.offsetWidth:W_NODE})}
 const q=id=>document.querySelector(`.node[data-id="${id}"]`);
 function edgePath(a,b){const x1=a.x+a._w,y1=a.y+a._h/2,x2=b.x,y2=b.y+(b._h||90)/2,dx=Math.max(45,Math.abs(x2-x1)/2);
   return `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`}
@@ -468,7 +468,7 @@ function delNodes(ids){const s=new Set(ids);state.nodes=state.nodes.filter(n=>!s
 function setThumb(id,t){const n=N(id);if(n)n.thumb=t;render();markDirty()}
 const parentsOf=id=>state.edges.filter(e=>e.to===id).map(e=>e.from);
 
-function addSibling(id){const n=N(id);const nn=makeNode(n.x,n.y+(n._h||90)+34);const ps=parentsOf(id);if(ps[0])addEdge(ps[0],'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('형제 추가')}
+
 function addChild(id){const n=N(id);const nn=makeNode(n.x+300,n.y);addEdge(id,'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('하위 추가')}
 function addParent(id){const n=N(id);const nn=makeNode(n.x-300,n.y);addEdge(nn.id,'right',id,'left');render();selectOnly(nn.id);markDirty();toast('상위 추가')}
 function addChildMini(id){const n=N(id);const nn=makeNode(n.x+260,n.y,'',"mini");addEdge(id,'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('하위 노드')}
@@ -605,7 +605,7 @@ world.addEventListener('focusout',e=>{
 stage.addEventListener('dragover',e=>{const n=e.target.closest('.node');if(n){e.preventDefault();n.classList.add('dragover')}else if(e.dataTransfer.types&&[...e.dataTransfer.types].includes('iconid')){e.preventDefault()}});
 stage.addEventListener('dragleave',e=>{const n=e.target.closest('.node');if(n&&!n.contains(e.relatedTarget))n.classList.remove('dragover')});
 stage.addEventListener('drop',e=>{const iid=e.dataTransfer.getData('iconid');
-  if(iid){e.preventDefault();const p=worldPt(e.clientX,e.clientY);const nn=makeNode(p.x-44,p.y-34,iid,"icon",iid);render();selectOnly(nn.id);markDirty();return}
+  if(iid){e.preventDefault();const p=worldPt(e.clientX,e.clientY);const nn=makeNode(p.x-44,p.y-34,"","icon",iid);render();selectOnly(nn.id);markDirty();return}
   const el=e.target.closest('.node');if(!el)return;e.preventDefault();el.classList.remove('dragover');const id=el.dataset.id,lib=e.dataTransfer.getData('libid');
   if(lib){const l=LIBRARY.find(x=>x.id===lib);if(l)setThumb(id,{imgId:l.id,label:l.label});return}
   const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){const r=new FileReader();r.onload=()=>downscaleImage(r.result,out=>{const iid2=uid('img');putImg(iid2,out);setThumb(id,{imgId:iid2,label:f.name.replace(/\.[^.]+$/,'')})});r.readAsDataURL(f)}});
@@ -672,7 +672,7 @@ function renderPalette(){
   const el=document.getElementById('iconPal');if(!el)return;
   el.innerHTML=Object.keys(ICONS).map(id=>`<button class="ipal-btn" draggable="true" data-icon="${id}" title="${id}">${iconSvg(id)}</button>`).join('');
 }
-function addIconCenter(iconId){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const nn=makeNode(p.x-44,p.y-34,iconId,"icon",iconId);render();selectOnly(nn.id);markDirty()}
+function addIconCenter(iconId){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const nn=makeNode(p.x-44,p.y-34,"","icon",iconId);render();selectOnly(nn.id);markDirty()}
 function toggleSnap(){TOOLBAR.snap=!TOOLBAR.snap;renderToolbar();saveMeta()}
 function toggleEdgeStyle(){TOOLBAR.edgeStyle=TOOLBAR.edgeStyle==='dashed'?'solid':'dashed';renderToolbar();saveMeta()}
 function toggleEdgeArrow(){TOOLBAR.edgeArrow=!(TOOLBAR.edgeArrow!==false);renderToolbar();saveMeta()}
@@ -711,9 +711,9 @@ document.getElementById('impFile').addEventListener('change',e=>{const f=e.targe
   else{const st=d.state||d;if(!st.groups)st.groups=[];const c={id:uid('c'),title:'불러온 캔버스',nodes:st.nodes||[],edges:st.edges||[],groups:st.groups||[],view:d.view||{tx:30,ty:20,scale:1},updated:stamp()};canvases=[c];activeId=c.id}
   canvases.forEach(c=>{(c.nodes||[]).forEach(n=>{n.thumb=(n.thumb&&n.thumb.imgId)?{imgId:n.thumb.imgId,label:n.thumb.label}:null})});
   loadCanvas(activeId);refreshSidebar();
-  if(SERVER_OK){Promise.all(Object.keys(d.images||{}).map(k=>apiPost({op:'putimg',id:k,src:d.images[k]}).catch(()=>{}))).then(()=>apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}})).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}
+  if(SERVER_OK){Promise.all(Object.keys(d.images||{}).map(k=>apiPost({op:'putimg',id:k,src:d.images[k]}).catch(()=>{}))).then(()=>apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}}})).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}
   toast('불러오기 완료')}catch(err){toast('JSON 형식 오류')}};r.readAsText(f);e.target.value=''});
-function resetAll(){if(confirm('모든 캔버스를 기본 구성으로 초기화할까요?')){Object.keys(IMAGES).forEach(k=>delete IMAGES[k]);LIBRARY.forEach(l=>{if(l.src)IMAGES[l.id]=l.src});const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);refreshSidebar();if(SERVER_OK){apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}toast('초기화됨')}}
+function resetAll(){if(confirm('모든 캔버스를 기본 구성으로 초기화할까요?')){Object.keys(IMAGES).forEach(k=>delete IMAGES[k]);LIBRARY.forEach(l=>{if(l.src)IMAGES[l.id]=l.src});const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);refreshSidebar();if(SERVER_OK){apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}}}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}toast('초기화됨')}}
 
 /* lightbox / toast */
 function zoom(id){if(justDragged)return;const n=N(id);if(n&&n.thumb){document.getElementById('lbimg').src=imgSrc(n.thumb.imgId);document.getElementById('lb').classList.add('on')}}
@@ -738,7 +738,7 @@ async function boot(){
       setSaveState('saved');
     }else{
       const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);
-      try{await apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}});setSaveState('saved')}catch(e){setSaveState('offline')}
+      try{await apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}}});setSaveState('saved')}catch(e){setSaveState('offline')}
     }
   }catch(e){
     SERVER_OK=false;
