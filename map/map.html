@@ -3,28 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>업무가상화(VDI) 접속 흐름 다이어그램 — KB손해보험</title>
+<title>스쿱보드 · Scoop Board by MoneyScoop — 노드 다이어그램 빌더</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <style>
   :root{
-    --bg:#0e1116; --surface:#171d26; --raised:#1d2530; --raised2:#252e3b;
-    --line:#2a323e; --line2:#222a35;
-    --gold:#ffbc00; --gold-deep:#e5a800; --gold-dim:#6b5618;
-    --txt:#e8ebf0; --muted:#8b94a3; --faint:#5b6675;
-    --ok:#3dd68c; --red:#ff6b6b; --edge:#5e6b7e;
+    --bg:#0b0f14; --surface:#141a22; --raised:#1b232d; --raised2:#27313e;
+    --line:#232d38; --line2:#1b2430;
+    --gold:#e8b463; --gold-deep:#cf9a4e; --gold-dim:#5e4d2c;
+    --txt:#e6edf3; --muted:#8b98a6; --faint:#5c6875;
+    --ok:#46c28e; --red:#e06a6a; --edge:#566472; --eth:#8a92b2;
     --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
   body{background:var(--bg);color:var(--txt);font-family:"Pretendard",system-ui,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em;display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
-  header{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#141922,#10141b);flex:none;z-index:20}
-  .kbmark{width:31px;height:31px;border-radius:7px;background:var(--gold);color:#1a1206;font-weight:800;display:grid;place-items:center;font-size:14px;letter-spacing:-.04em;box-shadow:0 2px 0 var(--gold-deep)}
-  .brand b{font-size:14px;font-weight:700}.brand span{display:block;font-size:11px;color:var(--muted);margin-top:1px}
+  header{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#141a22,#0e131a);flex:none;z-index:20}
+  .brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:inherit;border-radius:9px;padding:3px 6px 3px 4px;cursor:pointer;transition:background .15s}
+  .brand:hover{background:#ffffff0a}
+  .brand:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .brand-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#1d2532,#141a22);border:1px solid var(--line);display:grid;place-items:center;color:var(--gold);box-shadow:0 2px 0 #0007;flex:none}
+  .brand-mark svg{width:21px;height:21px}
+  .brand-txt{display:flex;flex-direction:column;line-height:1.18;min-width:0}
+  .brand-txt b{font-size:14.5px;font-weight:800;letter-spacing:-.02em}
+  .brand-txt .em{color:var(--gold)}
+  .brand-txt small{font-size:10.5px;color:var(--muted);font-weight:600}
   .tools{margin-left:auto;display:flex;align-items:center;gap:7px}
   .btn{font-family:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:var(--raised);color:var(--txt);border-radius:8px;padding:7px 12px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
   .btn:hover{background:var(--raised2);border-color:#3a4452}
-  .btn.gold{background:var(--gold);color:#1a1206;border-color:var(--gold)}.btn.gold:hover{background:#ffc933}
+  .btn.gold{background:var(--gold);color:#1a1206;border-color:var(--gold)}.btn.gold:hover{background:#f1c87f}
   .btn.ghost{background:transparent}
   .btn.ico{padding:7px 9px;font-size:15px;line-height:1}
   .btn:disabled{opacity:.35;cursor:default;pointer-events:none}
@@ -52,10 +59,12 @@
   .ipal-btn svg{width:19px;height:19px}
   /* 노드 배경색 팝오버 */
   .nhud{position:absolute;left:0;top:0;pointer-events:none}
-  .nclr{position:absolute;display:flex;gap:4px;background:#0e1116;border:1px solid var(--line);border-radius:9px;padding:4px 5px;transform:translateY(-100%);pointer-events:auto;box-shadow:0 6px 18px #0008;z-index:8}
+  .nbar{position:absolute;flex-direction:column;gap:5px;transform:translateY(calc(-100% - 9px))}
+  .nbar-row{display:flex;gap:2px}
+  .nbar-sw{display:flex;gap:4px;justify-content:center;padding:1px 2px 0}
   .nsw{width:17px;height:17px;border-radius:5px;border:1.5px solid #2a323d;cursor:pointer;padding:0;transition:transform .1s}
   .nsw:hover{transform:scale(1.15)}
-  .nsw.on{border-color:var(--gold);box-shadow:0 0 0 2px rgba(255,188,0,.3)}
+  .nsw.on{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,180,99,.3)}
   .nsw.def{background:var(--surface);position:relative;overflow:hidden}
   .nsw.def::after{content:"";position:absolute;left:1px;top:7px;width:13px;height:1.5px;background:var(--red);transform:rotate(-45deg);transform-origin:center}
 
@@ -89,7 +98,7 @@
   .cv-item:hover{background:var(--surface)}
   .cv-item.on{background:var(--surface);border-color:var(--gold-dim)}
   .cv-dot{width:7px;height:7px;border-radius:50%;background:var(--faint);flex:none}
-  .cv-item.on .cv-dot{background:var(--gold);box-shadow:0 0 7px rgba(255,188,0,.6)}
+  .cv-item.on .cv-dot{background:var(--gold);box-shadow:0 0 7px rgba(232,180,99,.6)}
   .cv-name{flex:1;font-size:12.5px;color:#c2cad6;outline:none;border-radius:5px;padding:1px 3px;margin:-1px -3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   .cv-item.on .cv-name{color:var(--txt);font-weight:600}
   .cv-name[contenteditable="true"]{background:#0d1117;color:#fff;text-overflow:clip;cursor:text}
@@ -104,7 +113,14 @@
   .lib-acc>summary:hover{color:var(--txt)}
 
   .stage{position:relative;overflow:hidden;cursor:grab;
-    background:radial-gradient(circle at 1px 1px,#ffffff0a 1px,transparent 0) 0 0/26px 26px,radial-gradient(120% 120% at 30% 0%,#131a24,#0c0f15)}
+    background:radial-gradient(circle at 1px 1px,#ffffff0a 1px,transparent 0) 0 0/26px 26px,radial-gradient(120% 120% at 30% 0%,#141c28,#0b0f14)}
+  .bgpop{position:absolute;z-index:40;display:none;flex-wrap:wrap;gap:6px;width:150px;background:var(--raised);border:1px solid var(--line);border-radius:11px;padding:9px;box-shadow:0 12px 30px #000a}
+  .bgpop.open{display:flex}
+  .bgsw{width:27px;height:27px;border-radius:7px;border:1.5px solid var(--line);cursor:pointer;padding:0;transition:transform .1s}
+  .bgsw:hover{transform:scale(1.1)}
+  .bgsw.on{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,180,99,.32)}
+  .bgsw.def{background:radial-gradient(120% 120% at 30% 0%,#141c28,#0b0f14);position:relative;overflow:hidden}
+  .bgsw.def::after{content:"기본";position:absolute;inset:0;display:grid;place-items:center;font-size:8px;color:var(--muted)}
   .stage.panning{cursor:grabbing}
   .stage.space{cursor:grab}
   .stage.selmode{cursor:crosshair}
@@ -116,7 +132,7 @@
   .edges path.tmp{fill:none;stroke:var(--gold);stroke-width:2;stroke-dasharray:5 4}
 
   /* group box */
-  .group{position:absolute;border:1.5px dashed var(--gold-dim);border-radius:14px;background:rgba(255,188,0,.04);pointer-events:none}
+  .group{position:absolute;border:1.5px dashed var(--gold-dim);border-radius:14px;background:rgba(232,180,99,.04);pointer-events:none}
   .group-label{position:absolute;top:-11px;left:14px;font-size:11.5px;font-weight:700;color:var(--gold);background:#0e1116;padding:1px 8px;border-radius:6px;border:1px solid var(--gold-dim);pointer-events:auto;outline:none;font-family:var(--mono)}
   .group-del{position:absolute;top:-12px;right:10px;width:20px;height:20px;border-radius:6px;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);cursor:pointer;font-size:11px;display:grid;place-items:center;pointer-events:auto}
   .group-del:hover{color:var(--red);border-color:var(--red)}
@@ -130,8 +146,8 @@
   .node.icon .n-icon svg{width:40px;height:40px}
   .node.icon .n-title{font-size:12.5px;font-weight:600;min-height:16px}
   .node:hover{border-color:#3a4452}
-  .node.selected{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,188,0,.22),0 14px 32px -16px #000}
-  .node.dragover{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,188,0,.18)}
+  .node.selected{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.22),0 14px 32px -16px #000}
+  .node.dragover{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.18)}
   .node.linktarget{border-color:var(--ok);box-shadow:0 0 0 3px rgba(61,214,140,.25)}
   .n-in{position:absolute;left:-7px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;background:var(--edge)}
   .n-del{position:absolute;top:-9px;right:-9px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:var(--raised);color:var(--muted);cursor:pointer;font-size:11px;display:none;place-items:center;z-index:4}
@@ -154,24 +170,32 @@
   .n-thumb .cap{position:absolute;left:7px;bottom:7px;font-size:10px;font-family:var(--mono);color:#dfe4ea;background:#0d1117c0;padding:3px 6px;border-radius:5px;line-height:1}
   .n-drop{margin-top:9px;border:1.5px dashed var(--line);border-radius:9px;padding:9px;text-align:center;font-size:11px;color:var(--faint)}
   .port{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--raised);border:2px solid var(--gold-dim);cursor:crosshair;z-index:5;opacity:0;transition:opacity .12s}
-  .node:hover .port,.node.selected .port{opacity:1}
-  .port:hover{border-color:var(--gold);background:var(--gold);box-shadow:0 0 9px rgba(255,188,0,.6);opacity:1}
+  .node:hover .port,.node.selected .port,.node.linkhover .port{opacity:1}
+  .node.linkhover .port{border-color:var(--gold);opacity:.85}
+  .port:hover,.port.snaptarget{border-color:var(--gold);background:var(--gold);box-shadow:0 0 10px rgba(232,180,99,.75);opacity:1;transform:scale(1.25)}
+  .port.top.snaptarget,.port.bottom.snaptarget{transform:translateX(-50%) scale(1.25)}
+  .port.left.snaptarget,.port.right.snaptarget{transform:translateY(-50%) scale(1.25)}
   .port.top{top:-8px;left:50%;transform:translateX(-50%)}
   .port.bottom{bottom:-8px;left:50%;transform:translateX(-50%)}
   .port.left{left:-8px;top:50%;transform:translateY(-50%)}
   .port.right{right:-8px;top:50%;transform:translateY(-50%)}
   /* edge select handles */
   .ehud{position:absolute;left:0;top:0;pointer-events:none}
-  .ehandle{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--gold);border:2px solid #1a1206;transform:translate(-50%,-50%);cursor:grab;z-index:7;pointer-events:auto;box-shadow:0 2px 8px #0008}
-  .edel{position:absolute;width:22px;height:22px;border-radius:50%;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);transform:translate(-50%,-50%);cursor:pointer;display:grid;place-items:center;font-size:12px;z-index:7;pointer-events:auto}
-  .edel:hover{color:var(--red);border-color:var(--red)}
-  .erev{position:absolute;width:22px;height:22px;border-radius:50%;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);transform:translate(-50%,-50%);cursor:pointer;display:grid;place-items:center;font-size:12px;z-index:7;pointer-events:auto}
-  .erev:hover{background:var(--gold);color:#1a1206}
+  .ehandle{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--gold);border:2px solid #11161d;transform:translate(-50%,-50%);cursor:grab;z-index:7;pointer-events:auto;box-shadow:0 2px 8px #000a}
+  .ehandle:hover{transform:translate(-50%,-50%) scale(1.2)}
+  /* 라벨형 미니 툴바 (엣지·노드 공용) */
+  .hbar{position:absolute;display:flex;gap:2px;background:#0e1218f2;border:1px solid var(--line);border-radius:11px;padding:4px;box-shadow:0 10px 26px #000b;pointer-events:auto;backdrop-filter:blur(5px);z-index:8}
+  .ebar{transform:translate(-50%,-138%)}
+  .hbtn{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:42px;padding:5px 6px;border:none;background:transparent;color:var(--muted);border-radius:7px;cursor:pointer;font-size:9.5px;font-weight:600;line-height:1;letter-spacing:-.01em}
+  .hbtn svg{width:16px;height:16px}
+  .hbtn:hover{background:var(--raised2);color:var(--txt)}
+  .hbtn.on{color:var(--gold)}
+  .hbtn.danger:hover{color:var(--red)}
 
   body.view .edit-only{display:none!important}
   body.view .node{cursor:default}body.view .n-title,body.view .n-desc{cursor:default}
 
-  .marquee{position:absolute;display:none;border:1.5px solid var(--gold);background:rgba(255,188,0,.1);border-radius:4px;z-index:8;pointer-events:none}
+  .marquee{position:absolute;display:none;border:1.5px solid var(--gold);background:rgba(232,180,99,.1);border-radius:4px;z-index:8;pointer-events:none}
   .snap-guide{position:absolute;display:none;z-index:6;pointer-events:none}
   #snapV{width:0;border-left:1px dashed var(--gold)}
   #snapH{height:0;border-top:1px dashed var(--gold)}
@@ -199,8 +223,10 @@
 </head>
 <body class="edit">
 <header>
-  <div class="kbmark">KB</div>
-  <div class="brand"><b>업무가상화(VDI) 접속 흐름</b><span>다이어그램 빌더 · KB손해보험</span></div>
+  <a class="brand" href="https://moneyscoop.co.kr" title="머니스쿱 홈으로 이동">
+    <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="3.5" width="7.5" height="6" rx="1.6"/><rect x="13.5" y="14.5" width="7.5" height="6" rx="1.6"/><path d="M6.75 9.5V13a1.5 1.5 0 0 0 1.5 1.5H17.25"/></svg></span>
+    <span class="brand-txt"><b>Scoop<span class="em">Board</span></b><small>by MoneyScoop · 다이어그램 빌더</small></span>
+  </a>
   <div class="tools">
     <span class="savestat" id="saveStat" title="저장 상태">●</span>
     <div class="seg" id="modeSeg"><button data-mode="edit" class="on">편집</button><button data-mode="view">보기</button></div>
@@ -210,10 +236,12 @@
     <button class="btn ghost" onclick="fitView()">화면맞춤</button>
     <button class="btn ghost edit-only" onclick="autoLayout('h')">가로정렬</button>
     <button class="btn ghost edit-only" onclick="autoLayout('v')">세로정렬</button>
+    <button class="btn ghost edit-only" id="bgBtn" onclick="toggleBgPop(event)">배경</button>
     <button class="btn ghost" onclick="exportJSON()">내보내기</button>
     <button class="btn ghost" onclick="document.getElementById('impFile').click()">불러오기</button>
     <button class="btn ghost edit-only" onclick="resetAll()" style="color:var(--faint)">초기화</button>
   </div>
+  <div class="bgpop" id="bgPop"></div>
 </header>
 
 <div class="app" id="app">
@@ -248,8 +276,6 @@
         <div class="tr-gh">도구</div>
         <button class="trbtn" id="selBtn" title="드래그로 영역 다중선택 (Ctrl+드래그와 동일)" onclick="toggleSelectMode()"><span class="tr-ico">⬚</span><span class="tr-name">영역 선택</span></button>
         <button class="trbtn" id="snapBtn" title="노드 정렬을 격자에 맞춤" onclick="toggleSnap()"><span class="tr-ico">⊹</span><span class="tr-name">자석 정렬</span></button>
-        <button class="trbtn" id="lineBtn" title="새로 그릴 연결선 스타일" onclick="toggleEdgeStyle()"><span class="tr-ico">─</span><span class="tr-name">선: 실선</span></button>
-        <button class="trbtn" id="arrowBtn" title="새 연결선에 화살표 머리" onclick="toggleEdgeArrow()"><span class="tr-ico">▶</span><span class="tr-name">화살표 머리</span></button>
         <button class="trbtn" title="기본 카드 노드 추가" onclick="addNodeCenter()"><span class="tr-ico">▭</span><span class="tr-name">기본 노드</span></button>
         <button class="trbtn" title="작은 중간 노드 추가" onclick="addMiniCenter()"><span class="tr-ico">▬</span><span class="tr-name">중간 노드</span></button>
       </div>
@@ -279,6 +305,8 @@ const API='api.php';
 let canvases=[]; let activeId=null; let SERVER_OK=false;
 let TOOLBAR={snap:true,edgeStyle:"solid",edgeArrow:true,selectMode:false};  // selectMode=영역선택(영속)
 const NODE_COLORS=[null,"#3a1d1d","#3b2c12","#16321f","#152a3a","#2a1f3a","#243040"]; // 기본+6색 배경 틴트
+const CANVAS_BGS=[null,"#0b0f14","#0e131a","#141a22","#10171c","#161320","#1a1410"];  // 캔버스 배경(기본+6종)
+let canvasBg=null;                                       // 활성 캔버스 배경(canvas.bg에 영속)
 const EWIDTHS={1:1.6,2:2.4,3:3.8};                      // 연결선 굵기 3단계
 let undoStack=[], redoStack=[], histBase=null, histSuspend=false;  // 되돌리기/다시실행
 let saveTimer=null, metaTimer=null;
@@ -316,6 +344,17 @@ Object.assign(ICONS,{
   check:'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>'
 });
 const ICON_LABELS={pc:'PC',laptop:'노트북',thinclient:'씬클라이언트',mobile:'모바일',server:'서버',cloud:'클라우드',database:'데이터베이스',monitor:'모니터',network:'네트워크',user:'사용자',users:'사용자 그룹',lock:'잠금',key:'인증키',decision:'분기',start:'시작',end:'종료',process:'처리',document:'문서',warning:'경고',check:'완료'};
+// HUD 미니 툴바용 인라인 아이콘
+const SVG=s=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${s}</svg>`;
+const ICO={
+  trash:SVG('<path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/>'),
+  swap:SVG('<path d="M6 9h13l-3.5-3.5M18 15H5l3.5 3.5"/>'),
+  dash:SVG('<path d="M3 12h4M10 12h4M17 12h4"/>'),
+  arrow:SVG('<path d="M4 12h13M12 6l6 6-6 6"/>'),
+  width:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path stroke-width="1.1" d="M4 7h16"/><path stroke-width="2.1" d="M4 12h16"/><path stroke-width="3.4" d="M4 17.2h16"/></svg>',
+  parent:SVG('<path d="M19 12H6M11 7l-5 5 5 5"/><path d="M21 8.5v7" opacity=".45"/>'),
+  child:SVG('<path d="M5 12h13M13 7l5 5-5 5"/><path d="M3 8.5v7" opacity=".45"/>'),
+};
 function iconSvg(id){return ICONS[id]?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[id]}</svg>`:''}
 function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
 
@@ -377,7 +416,7 @@ function nodeHTML(n){
     <div class="port right edit-only" data-act="port" data-side="right"></div>
     <div class="port bottom edit-only" data-act="port" data-side="bottom"></div>
     <div class="port left edit-only" data-act="port" data-side="left"></div>`;
-  const head=`<div class="n-in"></div><button class="n-del edit-only" data-act="del" title="노드 삭제">✕</button><button class="n-add edit-only" data-act="add" title="다음 노드 추가">＋</button>`;
+  const head=`<div class="n-in"></div>`;
   const bg=n.bg?`;background:${n.bg}`:'';
   if(t==='mini'){
     return `<div class="node mini" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}">${head}
@@ -422,21 +461,30 @@ function drawEhud(){
   if(mode!=='edit'||!selEdge){hud.innerHTML='';return}
   const e=E(selEdge),g=e&&edgeGeo(e);if(!g){hud.innerHTML='';return}
   const mx=(g.A.x+g.B.x)/2,my=(g.A.y+g.B.y)/2;
-  const wg=['─','━','▬'][(e.width||2)-1];
+  const dash=e.style==='dashed',arr=e.arrow!==false,w=e.width||2;
   hud.innerHTML=`<div class="ehandle" data-end="from" style="left:${g.A.x}px;top:${g.A.y}px"></div>
     <div class="ehandle" data-end="to" style="left:${g.B.x}px;top:${g.B.y}px"></div>
-    <div class="edel" data-edel="1" title="연결선 삭제" style="left:${mx-44}px;top:${my}px">✕</div>
-    <div class="erev" data-erev="1" title="시작/끝 바꾸기" style="left:${mx-22}px;top:${my}px">⇄</div>
-    <div class="erev" data-eline="1" title="실선/점선" style="left:${mx}px;top:${my}px">${e.style==='dashed'?'┄':'─'}</div>
-    <div class="erev" data-earrow="1" title="화살표 켜기/끄기" style="left:${mx+22}px;top:${my}px">${e.arrow!==false?'▶':'╴'}</div>
-    <div class="erev" data-ewidth="1" title="선 굵기 (1·2·3단계)" style="left:${mx+44}px;top:${my}px">${wg}</div>`;
+    <div class="hbar ebar" style="left:${mx}px;top:${my}px">
+      <button class="hbtn danger" data-edel="1" title="연결선 삭제">${ICO.trash}<span>삭제</span></button>
+      <button class="hbtn" data-erev="1" title="시작/끝 방향 바꾸기">${ICO.swap}<span>방향</span></button>
+      <button class="hbtn ${dash?'on':''}" data-eline="1" title="실선/점선">${ICO.dash}<span>${dash?'점선':'실선'}</span></button>
+      <button class="hbtn ${arr?'on':''}" data-earrow="1" title="화살표 머리">${ICO.arrow}<span>화살표</span></button>
+      <button class="hbtn" data-ewidth="1" title="선 굵기 (1·2·3단계)">${ICO.width}<span>굵기 ${w}</span></button>
+    </div>`;
 }
 function drawNhud(){
   const hud=document.getElementById('nhud');
   if(mode!=='edit'||sel.length!==1||drag){hud.innerHTML='';return}
   const n=N(sel[0]);if(!n){hud.innerHTML='';return}
   const sw=NODE_COLORS.map(c=>`<button class="nsw ${c?'':'def'} ${(n.bg||null)===c?'on':''}" data-bg="${c||''}" style="${c?`background:${c}`:''}" title="${c||'기본'}"></button>`).join('');
-  hud.innerHTML=`<div class="nclr" style="left:${n.x}px;top:${n.y-7}px">${sw}</div>`;
+  hud.innerHTML=`<div class="hbar nbar" style="left:${n.x}px;top:${n.y}px">
+    <div class="nbar-row">
+      <button class="hbtn" data-nact="parent" title="상위(부모) 노드 추가">${ICO.parent}<span>상위</span></button>
+      <button class="hbtn" data-nact="child" title="하위(자식) 노드 추가">${ICO.child}<span>하위</span></button>
+      <button class="hbtn danger" data-nact="del" title="노드 삭제">${ICO.trash}<span>삭제</span></button>
+    </div>
+    <div class="nbar-sw">${sw}</div>
+  </div>`;
 }
 function layoutGroups(){
   (state.groups||[]).slice().forEach(g=>{
@@ -463,14 +511,20 @@ function worldPt(cx,cy){const r=stage.getBoundingClientRect();return{x:(cx-r.lef
 /* ---------- canvas store ---------- */
 function writeBackActive(){
   const c=canvases.find(x=>x.id===activeId);if(!c)return null;
-  c.nodes=state.nodes;c.edges=state.edges;c.groups=state.groups||[];c.view=view;c.updated=stamp();return c;
+  c.nodes=state.nodes;c.edges=state.edges;c.groups=state.groups||[];c.view=view;c.bg=canvasBg;c.updated=stamp();return c;
 }
+function applyCanvasBg(bg){const dots='radial-gradient(circle at 1px 1px,#ffffff0a 1px,transparent 0) 0 0/26px 26px';stage.style.background=bg?`${dots},${bg}`:''}
+function setCanvasBg(bg){canvasBg=bg||null;applyCanvasBg(canvasBg);renderBgPop();markDirty()}
+function renderBgPop(){const el=document.getElementById('bgPop');if(!el)return;el.innerHTML=CANVAS_BGS.map(c=>`<button class="bgsw ${c?'':'def'} ${(canvasBg||null)===c?'on':''}" style="${c?`background:${c}`:''}" title="${c||'기본'}" onclick="setCanvasBg('${c||''}')"></button>`).join('')}
+function toggleBgPop(e){if(e)e.stopPropagation();const el=document.getElementById('bgPop'),b=document.getElementById('bgBtn');renderBgPop();const open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
+document.addEventListener('click',e=>{const el=document.getElementById('bgPop');if(el&&el.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))el.classList.remove('open')});
 function loadCanvas(id){
   const c=canvases.find(x=>x.id===id);if(!c)return;
   activeId=id;
   state={nodes:c.nodes||[],edges:c.edges||[],groups:c.groups||[]};
   state.edges.forEach(e=>{if(!e.fromSide)e.fromSide='right';if(!e.toSide)e.toSide='left';if(!e.style)e.style='solid';if(e.arrow===undefined)e.arrow=true});
   view=c.view&&typeof c.view.scale==='number'?c.view:{tx:30,ty:20,scale:1};
+  canvasBg=c.bg||null;applyCanvasBg(canvasBg);
   sel=[];selEdge=null;
   resetHistory();
   renderLib();render();setTimeout(fitView,30);
@@ -547,7 +601,7 @@ function makeGroup(){if(sel.length<2)return;state.groups=state.groups||[];state.
 
 /* ---------- stage pointer ---------- */
 stage.addEventListener('pointerdown',e=>{
-  if(e.target.closest('.group-label,.group-del,.edel,.erev,.nclr,.nsw'))return;
+  if(e.target.closest('.group-label,.group-del,.hbar,.hbtn,.nsw'))return;
   if(e.button===1||(spaceDown&&e.button===0)){startPan(e);return}
   if(e.button!==0)return;
   if(mode==='edit'){
@@ -610,45 +664,46 @@ function onMove(e){
     if(!drag.moved&&Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<6)return;  // 임계 전엔 선 안 그림(클릭 무시)
     drag.moved=true;
     const a=N(drag.from),A=anchor(a,drag.fromSide),p=worldPt(e.clientX,e.clientY),d1=DIR[drag.fromSide],k=70;
-    document.getElementById('tmp').setAttribute('d',`M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${p.x},${p.y} ${p.x},${p.y}`);
-    hi(p,drag.from);return;
+    const snap=hi(p,drag.from),end=snap||p;   // 노드 위면 4점 자석으로 흡착
+    document.getElementById('tmp').setAttribute('d',`M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${end.x},${end.y} ${end.x},${end.y}`);return;
   }
   if(drag.type==='endpoint'){
     const ed=E(drag.edge);if(!ed)return;
     if(!drag.moved&&Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<6)return;
     drag.moved=true;
     const rs=sidesOf(ed),fixed=drag.end==='from'?anchor(N(ed.to),rs.ts):anchor(N(ed.from),rs.fs);
-    const p=worldPt(e.clientX,e.clientY);
-    document.getElementById('tmp').setAttribute('d',`M${fixed.x},${fixed.y} C${(fixed.x+p.x)/2},${fixed.y} ${(fixed.x+p.x)/2},${p.y} ${p.x},${p.y}`);
-    hi(p,drag.end==='from'?ed.to:ed.from);return;
+    const p=worldPt(e.clientX,e.clientY),excl=drag.end==='from'?ed.to:ed.from;
+    const snap=hi(p,excl),end=snap||p;
+    document.getElementById('tmp').setAttribute('d',`M${fixed.x},${fixed.y} C${(fixed.x+end.x)/2},${fixed.y} ${(fixed.x+end.x)/2},${end.y} ${end.x},${end.y}`);return;
   }
   if(drag.type==='marquee'){drag.moved=true;posMarquee(e.clientX,e.clientY)}
 }
-function hi(pt,exclude){document.querySelectorAll('.node.linktarget').forEach(n=>n.classList.remove('linktarget'));const over=nodeAt(pt);if(over&&over.id!==exclude){const el=q(over.id);if(el)el.classList.add('linktarget')}}
+// 4점 자석: 노드 위 포인터를 가장 가까운 포트로 흡착(중앙부는 'auto' 최단면). DOM 변경 없는 순수 계산.
+function portSnap(n,pt){let best=null,bd=1e9;['top','right','bottom','left'].forEach(s=>{const a=anchor(n,s),d=Math.hypot(a.x-pt.x,a.y-pt.y);if(d<bd){bd=d;best={side:s,x:a.x,y:a.y}}});const c=centerOf(n),w=n._w||W_NODE,h=n._h||90;if(Math.hypot(pt.x-c.x,pt.y-c.y)<Math.min(w,h)*0.30){const s=nearestSide(n,pt),a=anchor(n,s);return{side:'auto',x:a.x,y:a.y}}return best}
+function snapAt(pt,exclude){const over=nodeAt(pt);if(!over||over.id===exclude)return null;const s=portSnap(over,pt);return{node:over.id,side:s.side,x:s.x,y:s.y}}
+function clearLinkHi(){document.querySelectorAll('.node.linktarget,.node.linkhover').forEach(n=>n.classList.remove('linktarget','linkhover'));document.querySelectorAll('.port.snaptarget').forEach(p=>p.classList.remove('snaptarget'))}
+function hi(pt,exclude){clearLinkHi();const snap=snapAt(pt,exclude);if(snap){const el=q(snap.node);if(el){el.classList.add('linktarget','linkhover');if(snap.side!=='auto'){const pe=el.querySelector('.port.'+snap.side);if(pe)pe.classList.add('snaptarget')}}}return snap}
 function onUp(e){
   window.removeEventListener('pointermove',onMove);window.removeEventListener('pointerup',onUp);
   const d=drag;drag=null;document.body.style.userSelect='';stage.classList.remove('panning');
   document.getElementById('snapV').style.display='none';document.getElementById('snapH').style.display='none';
-  document.getElementById('tmp').setAttribute('d','');document.querySelectorAll('.node.linktarget').forEach(n=>n.classList.remove('linktarget'));
+  document.getElementById('tmp').setAttribute('d','');clearLinkHi();
   if(!d)return;
   if(d.type==='pan'){if(d.canClear&&!d.moved)deselectAll();return}
   if(d.type==='nodePending'){if(e.shiftKey)toggleSel(d.id);else selectOnly(d.id);selEdge=null;paint();return}
   if(d.type==='node'){setTimeout(()=>justDragged=false,30);markDirty();return}
   if(d.type==='link'){
     if(!d.moved){return}                    // 포트 클릭만 — 아무 동작 안 함(노드 추가 방지)
-    const p=worldPt(e.clientX,e.clientY),over=nodeAt(p);
-    // 포트에 정확히 떨어지면 그 면 고정, 아니면 'auto'(최단 연결면 자동)
-    if(over&&over.id!==d.from){addEdge(d.from,d.fromSide,over.id,portAt(over,p)||'auto');paint();toast('연결됨')}
-    else if(!over){const nn=makeNode(p.x-W_NODE/2,p.y-30);addEdge(d.from,d.fromSide,nn.id,'auto');render();selectOnly(nn.id);toast('노드 생성·연결')}
-    markDirty();return;                      // 출발 노드 위에 놓으면(over===from) 아무 동작 안 함
+    const p=worldPt(e.clientX,e.clientY),snap=snapAt(p,d.from);
+    if(snap){addEdge(d.from,d.fromSide,snap.node,snap.side);paint();toast('연결됨')}        // 4점 자석/auto
+    else{const nn=makeNode(p.x-W_NODE/2,p.y-30);addEdge(d.from,d.fromSide,nn.id,'auto');render();selectOnly(nn.id);toast('노드 생성·연결')}
+    markDirty();return;
   }
   if(d.type==='endpoint'){
     const ed=E(d.edge);if(!ed)return;
     if(!d.moved){return}                     // 핸들 클릭만 — 재연결 안 함
-    const p=worldPt(e.clientX,e.clientY),over=nodeAt(p);
-    if(over){const tid=over.id,other=d.end==='from'?ed.to:ed.from;
-      const side=portAt(over,p)||'auto';   // 끝점을 포트에 정확히 떨어뜨린 게 아니면 최단 연결면
-      if(tid!==other){if(d.end==='from'){ed.from=tid;ed.fromSide=side}else{ed.to=tid;ed.toSide=side}toast('끝점 이동')}}
+    const p=worldPt(e.clientX,e.clientY),other=d.end==='from'?ed.to:ed.from,snap=snapAt(p,other);
+    if(snap){if(d.end==='from'){ed.from=snap.node;ed.fromSide=snap.side}else{ed.to=snap.node;ed.toSide=snap.side}toast('끝점 이동')}
     markDirty();paint();return;
   }
   if(d.type==='marquee'){
@@ -671,6 +726,7 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-eline]')){if(selEdge){const ed=E(selEdge);ed.style=ed.style==='dashed'?'solid':'dashed';paint();markDirty()}return}
   if(e.target.closest('[data-earrow]')){if(selEdge){const ed=E(selEdge);ed.arrow=!(ed.arrow!==false);paint();markDirty()}return}
   if(e.target.closest('[data-ewidth]')){if(selEdge){const ed=E(selEdge);ed.width=((ed.width||2)%3)+1;paint();markDirty()}return}
+  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='parent')addParent(id);else if(a==='child')addChild(id);else if(a==='del')delNodes([id])}return}
   const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='add')addChild(id);else if(a==='rmthumb')setThumb(id,null);return}
   const gb=e.target.closest('[data-gact]');if(gb&&gb.dataset.gact==='del'){const id=gb.closest('.group').dataset.gid;state.groups=state.groups.filter(g=>g.id!==id);render();markDirty();toast('그룹 해제')}

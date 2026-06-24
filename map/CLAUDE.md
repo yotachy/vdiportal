@@ -1,6 +1,11 @@
-# CLAUDE.md — 업무가상화(VDI) 접속 흐름 다이어그램 빌더
+# CLAUDE.md — 스쿱보드 (Scoop Board)
 
-KB손해보험 업무가상화(VDI) 사용자 접속 흐름을 그리는 **자유 캔버스 노드 다이어그램 빌더**(GitMind 스타일). 단일 HTML 파일, 빌드 도구 없음, 바닐라 JS.
+**스쿱보드 · Scoop Board by MoneyScoop** — 자유 캔버스 노드 다이어그램 빌더(GitMind 스타일). 단일 HTML 파일, 빌드 도구 없음, 바닐라 JS.
+
+- **정체성**: 머니스쿱(MoneyScoop)의 부가 유료 서비스로 독립. **KB손해보험과 무관**(과거 VDI 접속흐름 도구에서 리브랜드). [[scoopsignal-deploy]]·ScoopSignal과 같은 MoneyScoop 브랜드 패밀리.
+- **브랜드**: 워드마크 `Scoop`+**`Board`**(골드 em)+`by MoneyScoop`, 헤더 노드-다이어그램 글리프 마크. 홈 링크 → `https://moneyscoop.co.kr`.
+- **테마**: ScoopSignal과 공통 팔레트 — 부드러운 골드 `--gold:#e8b463`, 네이비 잉크 `--bg:#0b0f14`, 보조 `--eth:#8a92b2`, bull/bear `#46c28e`/`#e06a6a`.
+- **기본 다이어그램**: 당분간 기존 노드(VDI 접속흐름) 유지 — 추후 중립 예시로 교체 예정.
 
 ## 파일
 
@@ -67,7 +72,10 @@ ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(
 | 스냅 | `onMove`에서 `TOOLBAR.snap` 활성 시 다른 노드에 x/y 정렬 스냅 + `#snapV`/`#snapH` 가이드선 표시 |
 | 노드 편집 | `world` 위임: `click`(del/rmthumb/그룹·엣지 버튼), `focusout`(title/desc/그룹 라벨) |
 | 추가/연결 | `makeNode(x,y,title,type,iconId)`, `addEdge(from,fromSide,to,toSide)`, `addSibling/addChild/addParent` |
-| 툴레일 | `renderToolbar()` — 플로팅 도구 팔레트 버튼 상태 갱신(선 버튼 글리프·라벨 동적, 영역선택 on). `toggleSnap/toggleEdgeStyle/toggleEdgeArrow` → TOOLBAR + `saveMeta()`. `toggleSelectMode()` → `selectMode` 토글(`.stage.selmode` 커서, 영속 안 함) |
+| 툴레일 | `renderToolbar()` — 팔레트 버튼 상태(영역선택·자석 on, `.stage.selmode` 커서). `toggleSnap` / `toggleSelectMode`(→`TOOLBAR.selectMode` 영속) → `saveMeta()`. (선/화살표 토글은 팔레트에서 제거 — 엣지 HUD에서 처리) |
+| HUD 툴바 | `drawEhud()`(`.ebar`)·`drawNhud()`(`.nbar`) — 라벨형 미니 툴바(아이콘 `ICO.*` + 한글 라벨). 엣지: 삭제/방향/실선점선/화살표/굵기. 노드: 상위/하위/삭제 + 색상 스와치 |
+| 4점 자석 | `portSnap(n,pt)`(가장 가까운 포트, 중앙부 `auto`), `snapAt(pt,excl)`(DOM무관 계산), `hi()`(흡착+포트 하이라이트 `.linkhover`/`.snaptarget`), `clearLinkHi()` |
+| 캔버스 배경 | `applyCanvasBg(bg)`·`setCanvasBg(bg)`·`renderBgPop()`·`toggleBgPop()`, `CANVAS_BGS`. loadCanvas/writeBackActive에서 `canvas.bg` 동기화 |
 | 아이콘 | `ICONS`(20종 SVG path 상수), `iconSvg(id)` — path→SVG 문자열, `renderPalette()` — 팔레트 그리드, `addIconCenter(iconId)` — 아이콘 노드 추가 |
 | 정렬/뷰 | `autoLayout('h'|'v')`(레이어 배치), `fitView()`, `zoomBy(f)` |
 | 되돌리기 | `recordHistory()`(markDirty 안에서 호출, 변경 없으면 dedup), `undo()`/`redo()`, `resetHistory()`(loadCanvas마다), `snapState()`/`applySnap()`. 키 `Ctrl+Z`/`Ctrl+Shift+Z`·`Ctrl+Y`, 헤더 `↶`/`↷` 버튼(`updateUndoBtns`) |
@@ -83,7 +91,7 @@ ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(
 
 ```js
 doc = {
-  canvases: [{ id, title, nodes, edges, groups, view, updated }],
+  canvases: [{ id, title, nodes, edges, groups, view, bg, updated }],  // bg=캔버스 배경색(CANVAS_BGS, null=기본)
   meta: { library: [...], activeId: "..." },
   _rev: 0   // 충돌 감지용 리비전
 }
@@ -129,14 +137,15 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - 카드 전체 드래그로 이동(임계 4px — 그 미만 클릭은 선택). 다중선택 상태면 함께 이동.
 - **노드 클릭이 텍스트 편집보다 우선**: 단일 클릭=선택/이동(캡션 mousedown `preventDefault`로 캐럿 차단), **더블클릭=편집 진입**(`caretRangeFromPoint`로 클릭 위치에 캐럿).
 - **자석 스냅**: `TOOLBAR.snap` 활성 시 노드 드래그 중 다른 노드와 x/y 정렬이 맞으면 스냅 + 노란 가이드선(`#snapV`/`#snapH`) 표시.
-- 카드 클릭 = 선택(골드 링). Shift+클릭 = 토글. 빈 곳 클릭 = 해제. **단일 선택 시 카드 위에 배경색 팝오버**(`drawNhud`) — 스와치 클릭으로 `n.bg` 변경(기본=× 스와치).
-- 노드 우상단 버튼(hover/선택 시): `✕`(삭제) + 아래 `＋`(다음 노드 추가=`addChild`). 키 `Tab`/`−`/`+`는 보조.
-- 노드 4면 포트(hover 시 표시)를 **실제로 드래그**(임계 6px — 단순 포트 클릭은 무시, 노드 추가 안 함) → 다른 노드면 연결, 빈 곳이면 새 노드 생성+연결. **떨어뜨린 면**: 포트에 정확히 떨어지면 그 면 고정, 아니면 `auto`(최단 연결면 자동·노드 이동에 따라 동적 갱신).
-- 연결선 클릭 = 선택 → 중앙 HUD `✕`(삭제)·`⇄`(방향)·**실선/점선**·**화살표**·**굵기(1·2·3단계)** 토글, 양 끝 핸들 **드래그**(임계 6px)로 다른 노드/면 재부착(포트 정확히 안 맞으면 `auto` 최단면).
+- 카드 클릭 = 선택(골드 링). Shift+클릭 = 토글. 빈 곳 클릭 = 해제.
+- **단일 선택 시 카드 위 라벨형 노드 툴바**(`drawNhud`→`.nbar`): `상위`(addParent)·`하위`(addChild)·`삭제` 버튼 + 배경색 스와치(`n.bg`). 노드엔 상시 코너 버튼 없음(삭제는 툴바/`Del`).
+- 노드 4면 포트(hover 시 표시)를 **실제로 드래그**(임계 6px — 단순 포트 클릭은 무시) → **4점 자석**: 대상 노드 위에선 가장 가까운 포트로 흡착(포트 하이라이트), 노드 중앙부에 놓으면 `auto`(최단 연결면). 빈 곳이면 새 노드 생성+연결.
+- 연결선 클릭 = 선택 → **라벨형 미니 HUD 툴바**(`.ebar`): `삭제`·`방향`·`실선/점선`·`화살표`·`굵기(1·2·3)`. 양 끝 핸들 **드래그**(임계 6px)로 4점 자석 재부착.
+- **캔버스 배경색**: 헤더 `배경` 버튼 → 스와치 팝오버(`#bgPop`, `CANVAS_BGS`), 캔버스별 `canvas.bg`로 영속(`applyCanvasBg`).
 - **되돌리기/다시실행**: `Ctrl+Z` / `Ctrl+Shift+Z`(또는 `Ctrl+Y`), 헤더 `↶`/`↷` 버튼. 캔버스별 스택(전환 시 초기화).
 - 단축키(노드 선택 후): `Tab` = 하위 mini 노드 추가, `Enter` = 형제 mini 노드 추가, `−` 하위, `+` 상위, `G` 그룹(2개 이상), `Del` 삭제(선택 엣지 우선), `Esc` 해제.
 - 썸네일: 왼쪽 라이브러리에서 카드로 드래그(또는 OS 이미지 파일 드롭). 카드 썸네일 클릭 = 원본 라이트박스.
-- **플로팅 도구 팔레트**(캔버스 좌상단, `.stage` 내부 `position:absolute`): **도구** 섹션(이름 라벨 달린 행 버튼 — 자석 정렬·선 실선/점선·화살표 머리·기본 노드·중간 노드)과 **아이콘** 섹션을 헤더(`.tr-gh`)로 명확히 구분. `body.view`(보기 모드)에선 숨김.
+- **플로팅 도구 팔레트**(캔버스 좌상단, `.stage` 내부 `position:absolute`): **도구** 섹션(영역 선택·자석 정렬·기본 노드·중간 노드 — **선/화살표는 제거**, 연결선 클릭 HUD에서 적용)과 **아이콘** 섹션을 헤더(`.tr-gh`)로 구분. `body.view`(보기 모드)에선 숨김.
 - **아이콘 팔레트**(도구 팔레트 하단 섹션): 20종 아이콘 **3열 그리드(스크롤 없음, 전체 노출)** → 클릭/드래그 시 icon 타입 노드를 캔버스 중앙에 추가. 한글 툴팁은 `ICON_LABELS` 맵.
 - 편집/보기 토글, 사이드바 접기, 가로/세로 자동정렬.
 
@@ -202,6 +211,8 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - ~~노드 타입 mini/icon + 단축키(Tab/Enter) + 좌측 툴 레일 + 자석 스냅 + 아이콘 팔레트~~ ✅ 완료
 - ~~플로팅 도구 팔레트(도구/아이콘 분리·라벨) + 노드 배경색 + 엣지 굵기 3단계 + 끝점 재연결 auto 최단면 + 영역 선택 도구~~ ✅ 완료
 - ~~되돌리기/다시실행(Ctrl+Z) + 연결 임계(포트 클릭 오작동 방지) + 노드 클릭 우선·더블클릭 편집 + 노드 ＋ 추가 버튼~~ ✅ 완료
+- ~~**스쿱보드 리브랜드**(MoneyScoop 테마·워드마크·홈링크) + 라벨형 HUD 툴바(노드/엣지) + 4점 자석 + 캔버스 배경색 + 팔레트 정리(선/화살표 제거)~~ ✅ 완료
+- **다음 라운드 예정**: 연결선 라벨 · PNG/SVG 내보내기 · 직각(꺾은선) 라우팅 · 정렬·등간격 배포 (브레인스토밍서 합의)
 1. 직각(꺾은선/orthogonal) 연결선 스타일 토글.
 2. 연결선 라벨(예: "승인"/"반려") 추가·편집.
 3. 노드 리사이즈(너비/높이 핸들 드래그).
