@@ -338,7 +338,7 @@ function renameCanvas(id,title){
   const c=canvases.find(x=>x.id===id);if(!c)return;
   c.title=(title||'').trim()||'제목없음';c.updated=stamp();
   refreshSidebar();
-  if(SERVER_OK)apiPost({op:'upsert',canvas:c}).catch(()=>setSaveState('offline'));
+  if(SERVER_OK)apiPost({op:'upsert',canvas:c}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'));
 }
 function deleteCanvas(id){
   if(canvases.length<=1){toast('마지막 캔버스는 삭제할 수 없어요');return}
@@ -347,7 +347,7 @@ function deleteCanvas(id){
   canvases=canvases.filter(c=>c.id!==id);
   if(wasActive){activeId=canvases[0].id;loadCanvas(activeId)}
   refreshSidebar();
-  if(SERVER_OK){apiPost({op:'delete',id}).catch(()=>setSaveState('offline'));saveMeta()}
+  if(SERVER_OK){apiPost({op:'delete',id}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'));saveMeta()}
   toast('캔버스 삭제');
 }
 
@@ -535,9 +535,9 @@ document.getElementById('impFile').addEventListener('change',e=>{const f=e.targe
   if(Array.isArray(d.canvases)&&d.canvases.length){canvases=d.canvases;activeId=(d.activeId&&canvases.some(c=>c.id===d.activeId))?d.activeId:canvases[0].id}
   else{const st=d.state||d;if(!st.groups)st.groups=[];const c={id:uid('c'),title:'불러온 캔버스',nodes:st.nodes||[],edges:st.edges||[],groups:st.groups||[],view:d.view||{tx:30,ty:20,scale:1},updated:stamp()};canvases=[c];activeId=c.id}
   loadCanvas(activeId);refreshSidebar();
-  if(SERVER_OK){Object.keys(d.images||{}).forEach(k=>apiPost({op:'putimg',id:k,src:d.images[k]}).catch(()=>{}));apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}
+  if(SERVER_OK){Promise.all(Object.keys(d.images||{}).map(k=>apiPost({op:'putimg',id:k,src:d.images[k]}).catch(()=>{}))).then(()=>apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}})).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}
   toast('불러오기 완료')}catch(err){toast('JSON 형식 오류')}};r.readAsText(f);e.target.value=''});
-function resetAll(){if(confirm('모든 캔버스를 기본 구성으로 초기화할까요?')){const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);refreshSidebar();if(SERVER_OK){apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}toast('초기화됨')}}
+function resetAll(){if(confirm('모든 캔버스를 기본 구성으로 초기화할까요?')){Object.keys(IMAGES).forEach(k=>delete IMAGES[k]);LIBRARY.forEach(l=>{if(l.src)IMAGES[l.id]=l.src});const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);refreshSidebar();if(SERVER_OK){apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}toast('초기화됨')}}
 
 /* lightbox / toast */
 function zoom(id){if(justDragged)return;const n=N(id);if(n&&n.thumb){document.getElementById('lbimg').src=imgSrc(n.thumb.imgId);document.getElementById('lb').classList.add('on')}}
