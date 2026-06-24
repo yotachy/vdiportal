@@ -186,7 +186,10 @@
 
   <div class="stage" id="stage">
     <div class="world" id="world">
-      <svg class="edges" id="edges"><g id="edgeG" transform="translate(10000,10000)"></g><path class="tmp" id="tmp" transform="translate(10000,10000)" d=""></path></svg>
+      <svg class="edges" id="edges"><defs>
+        <marker id="arw" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"></path></marker>
+        <marker id="dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto"><circle cx="5" cy="5" r="3.5" fill="context-stroke"></circle></marker>
+      </defs><g id="edgeG" transform="translate(10000,10000)"></g><path class="tmp" id="tmp" transform="translate(10000,10000)" d=""></path></svg>
       <div class="ehud" id="ehud"></div>
     </div>
     <div class="marquee" id="marquee"></div>
@@ -206,6 +209,7 @@ let uidc=0;const uid=p=>(p||'id')+'_'+(++uidc)+'_'+Math.random().toString(36).sl
 let mode='edit';const W_NODE=246;
 const API='api.php';
 let canvases=[]; let activeId=null; let SERVER_OK=false;
+let TOOLBAR={snap:true,edgeStyle:"solid",edgeArrow:true};
 let saveTimer=null, metaTimer=null;
 function stamp(){return new Date().toISOString()}
 function setSaveState(s){const el=document.getElementById('saveStat');if(!el)return;el.className='savestat '+s;el.textContent=s==='saving'?'● 저장 중…':s==='offline'?'● 오프라인':'● 저장됨'}
@@ -290,7 +294,9 @@ function edgePath(a,b){const x1=a.x+a._w,y1=a.y+a._h/2,x2=b.x,y2=b.y+(b._h||90)/
   return `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`}
 function paint(){
   document.getElementById('edgeG').innerHTML=state.edges.map(e=>{const g=edgeGeo(e);if(!g)return'';
-    return `<path class="ew ${selEdge===e.id?'sel':''}" d="${g.d}"/><path class="eh" data-edge="${e.id}" d="${g.d}"/>`}).join('');
+    const dash=e.style==='dashed'?'stroke-dasharray:7 5':'';
+    const mk=(e.arrow!==false)?'marker-start="url(#dot)" marker-end="url(#arw)"':'';
+    return `<path class="ew ${selEdge===e.id?'sel':''}" style="${dash}" ${mk} d="${g.d}"/><path class="eh" data-edge="${e.id}" d="${g.d}"/>`}).join('');
   layoutGroups(); drawEhud();
 }
 function drawEhud(){
@@ -300,8 +306,10 @@ function drawEhud(){
   const mx=(g.A.x+g.B.x)/2,my=(g.A.y+g.B.y)/2;
   hud.innerHTML=`<div class="ehandle" data-end="from" style="left:${g.A.x}px;top:${g.A.y}px"></div>
     <div class="ehandle" data-end="to" style="left:${g.B.x}px;top:${g.B.y}px"></div>
-    <div class="edel" data-edel="1" style="left:${mx-15}px;top:${my}px">✕</div>
-    <div class="erev" data-erev="1" title="시작/끝 바꾸기" style="left:${mx+15}px;top:${my}px">⇄</div>`;
+    <div class="edel" data-edel="1" style="left:${mx-33}px;top:${my}px">✕</div>
+    <div class="erev" data-erev="1" title="시작/끝 바꾸기" style="left:${mx-11}px;top:${my}px">⇄</div>
+    <div class="erev" data-eline="1" title="실선/점선" style="left:${mx+11}px;top:${my}px">${e.style==='dashed'?'┄':'─'}</div>
+    <div class="erev" data-earrow="1" title="화살표 켜기/끄기" style="left:${mx+33}px;top:${my}px">${e.arrow!==false?'▶':'╴'}</div>`;
 }
 function layoutGroups(){
   (state.groups||[]).slice().forEach(g=>{
@@ -334,7 +342,7 @@ function loadCanvas(id){
   const c=canvases.find(x=>x.id===id);if(!c)return;
   activeId=id;
   state={nodes:c.nodes||[],edges:c.edges||[],groups:c.groups||[]};
-  state.edges.forEach(e=>{if(!e.fromSide)e.fromSide='right';if(!e.toSide)e.toSide='left'});
+  state.edges.forEach(e=>{if(!e.fromSide)e.fromSide='right';if(!e.toSide)e.toSide='left';if(!e.style)e.style='solid';if(e.arrow===undefined)e.arrow=true});
   view=c.view&&typeof c.view.scale==='number'?c.view:{tx:30,ty:20,scale:1};
   sel=[];selEdge=null;
   renderLib();render();setTimeout(fitView,30);
@@ -384,7 +392,7 @@ function deleteCanvas(id){
 /* ---------- node ops ---------- */
 function makeNode(x,y,title){const n={id:uid('n'),x,y,title:title||'새 단계',desc:'',thumb:null};state.nodes.push(n);return n}
 function addNodeCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const n=makeNode(p.x-W_NODE/2,p.y-30);render();selectOnly(n.id);markDirty()}
-function addEdge(from,fromSide,to,toSide){if(from===to)return;if(state.edges.some(e=>e.from===from&&e.to===to))return;state.edges.push({id:uid('e'),from,fromSide:fromSide||'right',to,toSide:toSide||'left'});markDirty()}
+function addEdge(from,fromSide,to,toSide){if(from===to)return;if(state.edges.some(e=>e.from===from&&e.to===to))return;state.edges.push({id:uid('e'),from,fromSide:fromSide||'right',to,toSide:toSide||'left',style:TOOLBAR.edgeStyle,arrow:TOOLBAR.edgeArrow});markDirty()}
 function delEdge(id){state.edges=state.edges.filter(e=>e.id!==id);if(selEdge===id)selEdge=null;paint();markDirty()}
 function selectEdge(id){selEdge=id;sel=[];applySel();paint()}
 function deselectAll(){if(!sel.length&&!selEdge)return;sel=[];selEdge=null;applySel();paint()}
@@ -495,6 +503,8 @@ stage.addEventListener('dblclick',e=>{if(mode!=='edit')return;if(e.target.closes
 world.addEventListener('click',e=>{
   if(e.target.closest('[data-erev]')){if(selEdge){const ed=E(selEdge);[ed.from,ed.to]=[ed.to,ed.from];[ed.fromSide,ed.toSide]=[ed.toSide,ed.fromSide];paint();markDirty();toast('방향 변경')}return}
   if(e.target.closest('[data-edel]')){if(selEdge)delEdge(selEdge);return}
+  if(e.target.closest('[data-eline]')){if(selEdge){const ed=E(selEdge);ed.style=ed.style==='dashed'?'solid':'dashed';paint();markDirty()}return}
+  if(e.target.closest('[data-earrow]')){if(selEdge){const ed=E(selEdge);ed.arrow=!(ed.arrow!==false);paint();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='rmthumb')setThumb(id,null);return}
   const gb=e.target.closest('[data-gact]');if(gb&&gb.dataset.gact==='del'){const id=gb.closest('.group').dataset.gid;state.groups=state.groups.filter(g=>g.id!==id);render();markDirty();toast('그룹 해제')}
 });
