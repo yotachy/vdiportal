@@ -317,6 +317,39 @@ function markDirty(){
   saveTimer=setTimeout(async()=>{try{await apiPost({op:'upsert',canvas:c});setSaveState('saved')}catch(e){setSaveState('offline')}},800);
 }
 function saveMeta(){if(!SERVER_OK)return;clearTimeout(metaTimer);metaTimer=setTimeout(async()=>{try{await apiPost({op:'meta',meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}})}catch(e){}},800)}
+function refreshSidebar(){if(typeof renderSidebar==='function')renderSidebar()}
+function switchCanvas(id){
+  if(id===activeId)return;
+  writeBackActive();
+  loadCanvas(id);
+  refreshSidebar();
+  saveMeta();
+}
+function newCanvas(){
+  writeBackActive();
+  const n={id:uid('n'),x:80,y:80,title:'시작',desc:'',thumb:null};
+  const c={id:uid('c'),title:'새 캔버스',nodes:[n],edges:[],groups:[],view:{tx:30,ty:20,scale:1},updated:stamp()};
+  canvases.push(c);activeId=c.id;
+  loadCanvas(c.id);refreshSidebar();
+  if(SERVER_OK){apiPost({op:'upsert',canvas:c}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'));saveMeta()}
+  toast('캔버스 추가');
+}
+function renameCanvas(id,title){
+  const c=canvases.find(x=>x.id===id);if(!c)return;
+  c.title=(title||'').trim()||'제목없음';c.updated=stamp();
+  refreshSidebar();
+  if(SERVER_OK)apiPost({op:'upsert',canvas:c}).catch(()=>setSaveState('offline'));
+}
+function deleteCanvas(id){
+  if(canvases.length<=1){toast('마지막 캔버스는 삭제할 수 없어요');return}
+  if(!confirm('이 캔버스를 삭제할까요?'))return;
+  const wasActive=(id===activeId);
+  canvases=canvases.filter(c=>c.id!==id);
+  if(wasActive){activeId=canvases[0].id;loadCanvas(activeId)}
+  refreshSidebar();
+  if(SERVER_OK){apiPost({op:'delete',id}).catch(()=>setSaveState('offline'));saveMeta()}
+  toast('캔버스 삭제');
+}
 
 /* ---------- node ops ---------- */
 function makeNode(x,y,title){const n={id:uid('n'),x,y,title:title||'새 단계',desc:'',thumb:null};state.nodes.push(n);return n}
@@ -495,9 +528,16 @@ function autoLayout(dir){
 function fitView(){if(!state.nodes.length)return;measure();let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;state.nodes.forEach(n=>{minx=Math.min(minx,n.x);miny=Math.min(miny,n.y);maxx=Math.max(maxx,n.x+n._w);maxy=Math.max(maxy,n.y+(n._h||90))});const r=stage.getBoundingClientRect(),pad=70,s=Math.min(2.4,Math.max(.3,Math.min((r.width-pad*2)/(maxx-minx),(r.height-pad*2)/(maxy-miny))));view.scale=s;view.tx=pad-minx*s+(r.width-pad*2-(maxx-minx)*s)/2;view.ty=pad-miny*s+(r.height-pad*2-(maxy-miny)*s)/2;applyView()}
 
 /* import/export */
-function exportJSON(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({state,library:LIBRARY,view},null,2)],{type:'application/json'}));a.download='vdi-diagram.json';a.click();toast('내보냄')}
-document.getElementById('impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.library){LIBRARY.length=0;d.library.forEach(x=>LIBRARY.push(x))}state=d.state||d;if(!state.groups)state.groups=[];state.edges.forEach(e=>{if(!e.fromSide)e.fromSide='right';if(!e.toSide)e.toSide='left'});if(d.view)view=d.view;sel=[];selEdge=null;renderLib();render();toast('불러오기 완료')}catch(err){toast('JSON 형식 오류')}};r.readAsText(f);e.target.value=''});
-function resetAll(){if(confirm('기본 구성으로 초기화할까요?')){state=defaultState();view={tx:30,ty:20,scale:1};sel=[];selEdge=null;render();fitView();toast('초기화됨')}}
+function exportJSON(){writeBackActive();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({canvases,library:LIBRARY.map(l=>({id:l.id,label:l.label})),images:IMAGES,activeId},null,2)],{type:'application/json'}));a.download='vdi-canvases.json';a.click();toast('내보냄')}
+document.getElementById('impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
+  if(d.images&&typeof d.images==='object')Object.assign(IMAGES,d.images);
+  if(d.library)LIBRARY.length=0,d.library.forEach(x=>LIBRARY.push({id:x.id,label:x.label}));
+  if(Array.isArray(d.canvases)&&d.canvases.length){canvases=d.canvases;activeId=(d.activeId&&canvases.some(c=>c.id===d.activeId))?d.activeId:canvases[0].id}
+  else{const st=d.state||d;if(!st.groups)st.groups=[];const c={id:uid('c'),title:'불러온 캔버스',nodes:st.nodes||[],edges:st.edges||[],groups:st.groups||[],view:d.view||{tx:30,ty:20,scale:1},updated:stamp()};canvases=[c];activeId=c.id}
+  loadCanvas(activeId);refreshSidebar();
+  if(SERVER_OK){Object.keys(d.images||{}).forEach(k=>apiPost({op:'putimg',id:k,src:d.images[k]}).catch(()=>{}));apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}
+  toast('불러오기 완료')}catch(err){toast('JSON 형식 오류')}};r.readAsText(f);e.target.value=''});
+function resetAll(){if(confirm('모든 캔버스를 기본 구성으로 초기화할까요?')){const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);refreshSidebar();if(SERVER_OK){apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId}}}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}toast('초기화됨')}}
 
 /* lightbox / toast */
 function zoom(id){if(justDragged)return;const n=N(id);if(n&&n.thumb){document.getElementById('lbimg').src=imgSrc(n.thumb.imgId);document.getElementById('lb').classList.add('on')}}
