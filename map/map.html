@@ -35,20 +35,27 @@
   body.view .app{grid-template-columns:226px 1fr}
   body.view .app.collapsed{grid-template-columns:44px 1fr}
   /* 캔버스 좌측 플로팅 도구 팔레트 */
-  .toolrail{position:absolute;left:14px;top:14px;z-index:20;width:158px;max-height:calc(100% - 28px);border:1px solid var(--line);background:rgba(12,17,24,.92);backdrop-filter:blur(7px);border-radius:13px;box-shadow:0 10px 30px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:11px;padding:11px 10px;overflow:hidden}
+  .toolrail{position:absolute;left:14px;top:14px;z-index:20;width:166px;border:1px solid var(--line);background:rgba(12,17,24,.92);backdrop-filter:blur(7px);border-radius:13px;box-shadow:0 10px 30px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:11px;padding:11px 10px}
   body.view .toolrail{display:none}
   .tr-group{display:flex;flex-direction:column;gap:5px;min-height:0}
-  .tr-group.icons{flex:1;min-height:0}
   .tr-gh{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--faint);padding:0 3px 1px}
   .trbtn{display:flex;align-items:center;gap:9px;width:100%;height:33px;padding:0 9px;border-radius:9px;border:1px solid var(--line);background:var(--raised);color:var(--muted);cursor:pointer;transition:.13s;text-align:left}
   .trbtn:hover{background:var(--raised2);color:var(--txt);border-color:#3a4452}
   .trbtn.on{background:var(--gold);color:#1a1206;border-color:var(--gold)}
   .tr-ico{width:17px;text-align:center;font-size:14px;flex:none}
   .tr-name{flex:1;font-size:12px;letter-spacing:-0.01em;white-space:nowrap}
-  .icon-pal{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:5px;align-content:start;padding-right:2px}
-  .ipal-btn{width:100%;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:#c2cad6;cursor:grab;display:grid;place-items:center}
+  .icon-pal{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;align-content:start}
+  .ipal-btn{width:100%;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:#c2cad6;cursor:grab;display:grid;place-items:center}
   .ipal-btn:hover{border-color:var(--gold-dim);color:var(--gold)}
-  .ipal-btn svg{width:18px;height:18px}
+  .ipal-btn svg{width:19px;height:19px}
+  /* 노드 배경색 팝오버 */
+  .nhud{position:absolute;left:0;top:0;pointer-events:none}
+  .nclr{position:absolute;display:flex;gap:4px;background:#0e1116;border:1px solid var(--line);border-radius:9px;padding:4px 5px;transform:translateY(-100%);pointer-events:auto;box-shadow:0 6px 18px #0008;z-index:8}
+  .nsw{width:17px;height:17px;border-radius:5px;border:1.5px solid #2a323d;cursor:pointer;padding:0;transition:transform .1s}
+  .nsw:hover{transform:scale(1.15)}
+  .nsw.on{border-color:var(--gold);box-shadow:0 0 0 2px rgba(255,188,0,.3)}
+  .nsw.def{background:var(--surface);position:relative;overflow:hidden}
+  .nsw.def::after{content:"";position:absolute;left:1px;top:7px;width:13px;height:1.5px;background:var(--red);transform:rotate(-45deg);transform-origin:center}
 
   .side{border-right:1px solid var(--line);background:#10151c;display:flex;flex-direction:column;min-height:0;position:relative}
   .side-toggle{position:absolute;top:10px;right:9px;width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:var(--raised);color:var(--muted);cursor:pointer;font-size:12px;z-index:3;display:grid;place-items:center}
@@ -98,6 +105,7 @@
     background:radial-gradient(circle at 1px 1px,#ffffff0a 1px,transparent 0) 0 0/26px 26px,radial-gradient(120% 120% at 30% 0%,#131a24,#0c0f15)}
   .stage.panning{cursor:grabbing}
   .stage.space{cursor:grab}
+  .stage.selmode{cursor:crosshair}
   .world{position:absolute;left:0;top:0;transform-origin:0 0}
   .edges{position:absolute;left:-10000px;top:-10000px;width:20000px;height:20000px;overflow:visible;pointer-events:none}
   .edges .ew{fill:none;stroke:var(--edge);stroke-width:2}
@@ -166,8 +174,12 @@
   .zoomctl button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:#161b22e0;backdrop-filter:blur(4px);color:var(--txt);font-size:16px;cursor:pointer;display:grid;place-items:center}
   .zoomctl button:hover{background:var(--raised2)}
   .zlabel{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:center;background:#161b22cc;border:1px solid var(--line);border-radius:7px;padding:4px}
-  .hint{position:absolute;right:16px;bottom:16px;font-size:11px;color:var(--faint);font-family:var(--mono);background:#161b22d8;border:1px solid var(--line);border-radius:9px;padding:9px 12px;z-index:10;line-height:1.7;max-width:330px}
-  .hint b{color:var(--gold)}
+  .hint{position:absolute;right:16px;bottom:16px;font-size:11px;color:var(--faint);font-family:var(--mono);background:#161b22e0;border:1px solid var(--line);border-radius:9px;padding:8px 11px;z-index:10;line-height:1.65;max-width:340px}
+  .hint b{color:var(--gold);font-weight:700}
+  .hint-row{display:flex;gap:7px;align-items:baseline}
+  .hint-row+.hint-row{margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
+  .hint-h{flex:none;align-self:flex-start;background:var(--gold);color:#1a1206;border-radius:4px;padding:1px 5px;font-size:9.5px;font-weight:700;letter-spacing:.02em;margin-top:1px}
+  .hint-b{flex:1}
 
   .lb{position:fixed;inset:0;background:#070a0ee6;backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:90;padding:32px;cursor:zoom-out}
   .lb.on{display:flex}.lb img{max-width:1150px;width:100%;border-radius:12px;border:1px solid var(--line);box-shadow:0 40px 90px -30px #000}
@@ -218,6 +230,7 @@
         <marker id="dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto"><circle cx="5" cy="5" r="3.5" fill="context-stroke"></circle></marker>
       </defs><g id="edgeG" transform="translate(10000,10000)"></g><path class="tmp" id="tmp" transform="translate(10000,10000)" d=""></path></svg>
       <div class="ehud" id="ehud"></div>
+      <div class="nhud" id="nhud"></div>
       <div class="snap-guide" id="snapV"></div>
       <div class="snap-guide" id="snapH"></div>
     </div>
@@ -225,6 +238,7 @@
     <aside class="toolrail edit-only" id="toolrail">
       <div class="tr-group">
         <div class="tr-gh">도구</div>
+        <button class="trbtn" id="selBtn" title="드래그로 영역 다중선택 (Ctrl+드래그와 동일)" onclick="toggleSelectMode()"><span class="tr-ico">⬚</span><span class="tr-name">영역 선택</span></button>
         <button class="trbtn" id="snapBtn" title="노드 정렬을 격자에 맞춤" onclick="toggleSnap()"><span class="tr-ico">⊹</span><span class="tr-name">자석 정렬</span></button>
         <button class="trbtn" id="lineBtn" title="새로 그릴 연결선 스타일" onclick="toggleEdgeStyle()"><span class="tr-ico">─</span><span class="tr-name">선: 실선</span></button>
         <button class="trbtn" id="arrowBtn" title="새 연결선에 화살표 머리" onclick="toggleEdgeArrow()"><span class="tr-ico">▶</span><span class="tr-name">화살표 머리</span></button>
@@ -237,7 +251,10 @@
       </div>
     </aside>
     <div class="zoomctl"><button onclick="zoomBy(1.2)">＋</button><div class="zlabel" id="zlabel">100%</div><button onclick="zoomBy(.83)">−</button></div>
-    <div class="hint edit-only">배경 드래그 <b>화면이동</b> · Shift+드래그 <b>다중선택</b> · 휠 <b>줌</b> · 노드 4면 포트 드래그 <b>연결</b><br>연결선 클릭 <b>선택</b>·꼭지 드래그로 <b>면 이동</b> · <b>Tab</b> 하위 · <b>Enter</b> 형제 · <b>−</b> 하위 · <b>+</b> 상위 · <b>G</b> 그룹 · <b>Del</b> 삭제</div>
+    <div class="hint edit-only">
+      <div class="hint-row"><span class="hint-h">조작</span><span class="hint-b">배경 드래그 <b>이동</b> · Ctrl+드래그 <b>영역선택</b> · 휠 <b>줌</b> · 포트 드래그 <b>연결</b> · 연결선 클릭 <b>편집</b> · 끝점 드래그 <b>재연결</b> · 노드 선택 시 <b>색상</b></span></div>
+      <div class="hint-row"><span class="hint-h">단축키</span><span class="hint-b"><b>Tab</b> 하위 · <b>Enter</b> 형제 · <b>−</b> 하위 · <b>+</b> 상위 · <b>G</b> 그룹 · <b>Del</b> 삭제 · <b>Esc</b> 해제</span></div>
+    </div>
   </div>
 </div>
 
@@ -253,6 +270,9 @@ let mode='edit';const W_NODE=246;
 const API='api.php';
 let canvases=[]; let activeId=null; let SERVER_OK=false;
 let TOOLBAR={snap:true,edgeStyle:"solid",edgeArrow:true};
+let selectMode=false;                                   // 영역 선택 도구(세션 한정, 영속 안 함)
+const NODE_COLORS=[null,"#3a1d1d","#3b2c12","#16321f","#152a3a","#2a1f3a","#243040"]; // 기본+6색 배경 틴트
+const EWIDTHS={1:1.6,2:2.4,3:3.8};                      // 연결선 굵기 3단계
 let saveTimer=null, metaTimer=null;
 function stamp(){return new Date().toISOString()}
 function setSaveState(s){const el=document.getElementById('saveStat');if(!el)return;el.className='savestat '+s;el.textContent=s==='saving'?'● 저장 중…':s==='offline'?'● 오프라인':'● 저장됨'}
@@ -320,7 +340,17 @@ const G=id=>state.groups.find(g=>g.id===id);
 const DIR={right:[1,0],left:[-1,0],top:[0,-1],bottom:[0,1]};
 function anchor(n,side){const w=n._w||W_NODE,h=n._h||90;switch(side){case'left':return{x:n.x,y:n.y+h/2};case'top':return{x:n.x+w/2,y:n.y};case'bottom':return{x:n.x+w/2,y:n.y+h};default:return{x:n.x+w,y:n.y+h/2}}}
 function nearestSide(n,pt){const w=n._w||W_NODE,h=n._h||90,dx=(pt.x-(n.x+w/2))/w,dy=(pt.y-(n.y+h/2))/h;return Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'bottom':'top')}
-function edgeGeo(e){const a=N(e.from),b=N(e.to);if(!a||!b)return null;const A=anchor(a,e.fromSide||'right'),B=anchor(b,e.toSide||'left'),dd=Math.hypot(B.x-A.x,B.y-A.y),k=Math.min(120,Math.max(38,dd*0.4)),d1=DIR[e.fromSide||'right'],d2=DIR[e.toSide||'left'];return{A,B,d:`M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${B.x+d2[0]*k},${B.y+d2[1]*k} ${B.x},${B.y}`}}
+function centerOf(n){return{x:n.x+(n._w||W_NODE)/2,y:n.y+(n._h||90)/2}}
+// 끝점 근처(18px)의 포트면을 반환 — 끝점을 포트에 정확히 떨어뜨리면 그 면 고정(직접 지정)
+function portAt(n,pt){for(const s of['top','right','bottom','left']){const a=anchor(n,s);if(Math.hypot(a.x-pt.x,a.y-pt.y)<18)return s}return null}
+// side가 'auto'(또는 미지정)면 두 노드 위치 기준 최단 연결면을 동적 계산
+function sidesOf(e){const a=N(e.from),b=N(e.to);if(!a||!b)return{fs:'right',ts:'left'};
+  let fs=e.fromSide,ts=e.toSide;const fA=(!fs||fs==='auto'),tA=(!ts||ts==='auto');
+  if(fA&&tA){fs=nearestSide(a,centerOf(b));ts=nearestSide(b,centerOf(a))}
+  else if(fA){fs=nearestSide(a,anchor(b,ts))}
+  else if(tA){ts=nearestSide(b,anchor(a,fs))}
+  return{fs,ts}}
+function edgeGeo(e){const a=N(e.from),b=N(e.to);if(!a||!b)return null;const s=sidesOf(e),A=anchor(a,s.fs),B=anchor(b,s.ts),dd=Math.hypot(B.x-A.x,B.y-A.y),k=Math.min(120,Math.max(38,dd*0.4)),d1=DIR[s.fs],d2=DIR[s.ts];return{A,B,fs:s.fs,ts:s.ts,d:`M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${B.x+d2[0]*k},${B.y+d2[1]*k} ${B.x},${B.y}`}}
 function nodeAt(pt){let r=null;state.nodes.forEach(n=>{const w=n._w||W_NODE,h=n._h||90;if(pt.x>=n.x&&pt.x<=n.x+w&&pt.y>=n.y&&pt.y<=n.y+h)r=n});return r}
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const ce=()=>mode==='edit'?'true':'false';
@@ -340,12 +370,13 @@ function nodeHTML(n){
     <div class="port bottom edit-only" data-act="port" data-side="bottom"></div>
     <div class="port left edit-only" data-act="port" data-side="left"></div>`;
   const head=`<div class="n-in"></div><button class="n-del edit-only" data-act="del">✕</button>`;
+  const bg=n.bg?`;background:${n.bg}`:'';
   if(t==='mini'){
-    return `<div class="node mini" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">${head}
+    return `<div class="node mini" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}">${head}
       <div class="n-body"><div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div></div>${ports}</div>`;
   }
   if(t==='icon'){
-    return `<div class="node icon" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">${head}
+    return `<div class="node icon" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}">${head}
       <div class="n-icon">${iconSvg(n.iconId)}</div>
       <div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div>${ports}</div>`;
   }
@@ -353,7 +384,7 @@ function nodeHTML(n){
   if(n.thumb) media=`<div class="n-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span>
      <span class="rmth edit-only" data-act="rmthumb">✕</span>${n.thumb.label?`<span class="cap">${esc(n.thumb.label)}</span>`:''}</div>`;
   else media=`<div class="n-drop edit-only">썸네일 드래그</div>`;
-  return `<div class="node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">${head}
+  return `<div class="node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}">${head}
     <div class="n-body"><div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div>
       <div class="n-desc" contenteditable="${ce()}" data-field="desc">${esc(n.desc)}</div>${media}</div>${ports}</div>`;
 }
@@ -372,22 +403,32 @@ function edgePath(a,b){const x1=a.x+a._w,y1=a.y+a._h/2,x2=b.x,y2=b.y+(b._h||90)/
   return `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`}
 function paint(){
   document.getElementById('edgeG').innerHTML=state.edges.map(e=>{const g=edgeGeo(e);if(!g)return'';
-    const dash=e.style==='dashed'?'stroke-dasharray:7 5':'';
+    const dash=e.style==='dashed'?'stroke-dasharray:7 5;':'';
+    const sw=`stroke-width:${EWIDTHS[e.width||2]}`;
     const mk=(e.arrow!==false)?'marker-start="url(#dot)" marker-end="url(#arw)"':'';
-    return `<path class="ew ${selEdge===e.id?'sel':''}" style="${dash}" ${mk} d="${g.d}"/><path class="eh" data-edge="${e.id}" d="${g.d}"/>`}).join('');
-  layoutGroups(); drawEhud();
+    return `<path class="ew ${selEdge===e.id?'sel':''}" style="${dash}${sw}" ${mk} d="${g.d}"/><path class="eh" data-edge="${e.id}" d="${g.d}"/>`}).join('');
+  layoutGroups(); drawEhud(); drawNhud();
 }
 function drawEhud(){
   const hud=document.getElementById('ehud');
   if(mode!=='edit'||!selEdge){hud.innerHTML='';return}
   const e=E(selEdge),g=e&&edgeGeo(e);if(!g){hud.innerHTML='';return}
   const mx=(g.A.x+g.B.x)/2,my=(g.A.y+g.B.y)/2;
+  const wg=['─','━','▬'][(e.width||2)-1];
   hud.innerHTML=`<div class="ehandle" data-end="from" style="left:${g.A.x}px;top:${g.A.y}px"></div>
     <div class="ehandle" data-end="to" style="left:${g.B.x}px;top:${g.B.y}px"></div>
-    <div class="edel" data-edel="1" style="left:${mx-33}px;top:${my}px">✕</div>
-    <div class="erev" data-erev="1" title="시작/끝 바꾸기" style="left:${mx-11}px;top:${my}px">⇄</div>
-    <div class="erev" data-eline="1" title="실선/점선" style="left:${mx+11}px;top:${my}px">${e.style==='dashed'?'┄':'─'}</div>
-    <div class="erev" data-earrow="1" title="화살표 켜기/끄기" style="left:${mx+33}px;top:${my}px">${e.arrow!==false?'▶':'╴'}</div>`;
+    <div class="edel" data-edel="1" title="연결선 삭제" style="left:${mx-44}px;top:${my}px">✕</div>
+    <div class="erev" data-erev="1" title="시작/끝 바꾸기" style="left:${mx-22}px;top:${my}px">⇄</div>
+    <div class="erev" data-eline="1" title="실선/점선" style="left:${mx}px;top:${my}px">${e.style==='dashed'?'┄':'─'}</div>
+    <div class="erev" data-earrow="1" title="화살표 켜기/끄기" style="left:${mx+22}px;top:${my}px">${e.arrow!==false?'▶':'╴'}</div>
+    <div class="erev" data-ewidth="1" title="선 굵기 (1·2·3단계)" style="left:${mx+44}px;top:${my}px">${wg}</div>`;
+}
+function drawNhud(){
+  const hud=document.getElementById('nhud');
+  if(mode!=='edit'||sel.length!==1||drag){hud.innerHTML='';return}
+  const n=N(sel[0]);if(!n){hud.innerHTML='';return}
+  const sw=NODE_COLORS.map(c=>`<button class="nsw ${c?'':'def'} ${(n.bg||null)===c?'on':''}" data-bg="${c||''}" style="${c?`background:${c}`:''}" title="${c||'기본'}"></button>`).join('');
+  hud.innerHTML=`<div class="nclr" style="left:${n.x}px;top:${n.y-7}px">${sw}</div>`;
 }
 function layoutGroups(){
   (state.groups||[]).slice().forEach(g=>{
@@ -488,14 +529,14 @@ function makeGroup(){if(sel.length<2)return;state.groups=state.groups||[];state.
 
 /* ---------- stage pointer ---------- */
 stage.addEventListener('pointerdown',e=>{
-  if(e.target.closest('.group-label,.group-del,.edel,.erev'))return;
+  if(e.target.closest('.group-label,.group-del,.edel,.erev,.nclr,.nsw'))return;
   if(e.button===1||(spaceDown&&e.button===0)){startPan(e);return}
   if(e.button!==0)return;
   if(mode==='edit'){
     const eh=e.target.closest('.ehandle');if(eh){startEndpoint(eh.dataset.end,e);return}
     const edge=e.target.closest('[data-edge]');if(edge){selectEdge(edge.dataset.edge);return}
     const nodeEl=e.target.closest('.node');if(nodeEl){nodePointerDown(nodeEl.dataset.id,e);return}
-    if(e.ctrlKey||e.metaKey){startMarquee(e);return}
+    if(e.ctrlKey||e.metaKey||selectMode){startMarquee(e);return}
     startPan(e,true);return;
   }
   if(!e.target.closest('.node'))startPan(e);
@@ -554,7 +595,7 @@ function onMove(e){
   }
   if(drag.type==='endpoint'){
     const ed=E(drag.edge);if(!ed)return;
-    const fixed=drag.end==='from'?anchor(N(ed.to),ed.toSide):anchor(N(ed.from),ed.fromSide);
+    const rs=sidesOf(ed),fixed=drag.end==='from'?anchor(N(ed.to),rs.ts):anchor(N(ed.from),rs.fs);
     const p=worldPt(e.clientX,e.clientY);
     document.getElementById('tmp').setAttribute('d',`M${fixed.x},${fixed.y} C${(fixed.x+p.x)/2},${fixed.y} ${(fixed.x+p.x)/2},${p.y} ${p.x},${p.y}`);
     hi(p,drag.end==='from'?ed.to:ed.from);return;
@@ -573,15 +614,17 @@ function onUp(e){
   if(d.type==='node'){setTimeout(()=>justDragged=false,30);markDirty();return}
   if(d.type==='link'){
     const p=worldPt(e.clientX,e.clientY),over=nodeAt(p);
-    if(over&&over.id!==d.from){addEdge(d.from,d.fromSide,over.id,nearestSide(over,p));paint();toast('연결됨')}
-    else{const nn=makeNode(p.x-W_NODE/2,p.y-30);addEdge(d.from,d.fromSide,nn.id,nearestSide(nn,anchor(N(d.from),d.fromSide)));render();selectOnly(nn.id);toast('노드 생성·연결')}
+    // 포트에 정확히 떨어지면 그 면 고정, 아니면 'auto'(최단 연결면 자동)
+    if(over&&over.id!==d.from){addEdge(d.from,d.fromSide,over.id,portAt(over,p)||'auto');paint();toast('연결됨')}
+    else{const nn=makeNode(p.x-W_NODE/2,p.y-30);addEdge(d.from,d.fromSide,nn.id,'auto');render();selectOnly(nn.id);toast('노드 생성·연결')}
     markDirty();return;
   }
   if(d.type==='endpoint'){
     const ed=E(d.edge);if(!ed)return;
     const p=worldPt(e.clientX,e.clientY),over=nodeAt(p);
     if(over){const tid=over.id,other=d.end==='from'?ed.to:ed.from;
-      if(tid!==other){if(d.end==='from'){ed.from=tid;ed.fromSide=nearestSide(over,p)}else{ed.to=tid;ed.toSide=nearestSide(over,p)}toast('끝점 이동')}}
+      const side=portAt(over,p)||'auto';   // 끝점을 포트에 정확히 떨어뜨린 게 아니면 최단 연결면
+      if(tid!==other){if(d.end==='from'){ed.from=tid;ed.fromSide=side}else{ed.to=tid;ed.toSide=side}toast('끝점 이동')}}
     markDirty();paint();return;
   }
   if(d.type==='marquee'){
@@ -603,6 +646,8 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-edel]')){if(selEdge)delEdge(selEdge);return}
   if(e.target.closest('[data-eline]')){if(selEdge){const ed=E(selEdge);ed.style=ed.style==='dashed'?'solid':'dashed';paint();markDirty()}return}
   if(e.target.closest('[data-earrow]')){if(selEdge){const ed=E(selEdge);ed.arrow=!(ed.arrow!==false);paint();markDirty()}return}
+  if(e.target.closest('[data-ewidth]')){if(selEdge){const ed=E(selEdge);ed.width=((ed.width||2)%3)+1;paint();markDirty()}return}
+  const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='rmthumb')setThumb(id,null);return}
   const gb=e.target.closest('[data-gact]');if(gb&&gb.dataset.gact==='del'){const id=gb.closest('.group').dataset.gid;state.groups=state.groups.filter(g=>g.id!==id);render();markDirty();toast('그룹 해제')}
 });
@@ -673,11 +718,13 @@ cvListEl.addEventListener('focusout',e=>{const n=e.target.closest('[data-cvname]
 
 /* sidebar / mode */
 function renderToolbar(){
-  const s=document.getElementById('snapBtn'),l=document.getElementById('lineBtn'),a=document.getElementById('arrowBtn');
+  const s=document.getElementById('snapBtn'),l=document.getElementById('lineBtn'),a=document.getElementById('arrowBtn'),sm=document.getElementById('selBtn');
+  if(sm)sm.classList.toggle('on',selectMode);
   if(s)s.classList.toggle('on',!!TOOLBAR.snap);
   if(l){const dash=TOOLBAR.edgeStyle==='dashed';l.classList.toggle('on',dash);const ic=l.querySelector('.tr-ico'),nm=l.querySelector('.tr-name');if(ic)ic.textContent=dash?'┄':'─';if(nm)nm.textContent=dash?'선: 점선':'선: 실선'}
   if(a)a.classList.toggle('on',TOOLBAR.edgeArrow!==false);
 }
+function toggleSelectMode(){selectMode=!selectMode;stage.classList.toggle('selmode',selectMode);renderToolbar()}
 function renderPalette(){
   const el=document.getElementById('iconPal');if(!el)return;
   el.innerHTML=Object.keys(ICONS).map(id=>`<button class="ipal-btn" draggable="true" data-icon="${id}" title="${ICON_LABELS[id]||id}">${iconSvg(id)}</button>`).join('');
