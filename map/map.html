@@ -30,20 +30,25 @@
   .seg button{font-family:inherit;font-size:12.5px;font-weight:600;border:0;background:transparent;color:var(--muted);padding:7px 13px;cursor:pointer}
   .seg button.on{background:var(--gold);color:#1a1206}
 
-  .app{flex:1;display:grid;grid-template-columns:56px 226px 1fr;min-height:0;transition:grid-template-columns .22s cubic-bezier(.4,0,.2,1)}
-  .app.collapsed{grid-template-columns:56px 44px 1fr}
-  .toolrail{border-right:1px solid var(--line);background:#0c1118;display:flex;flex-direction:column;align-items:center;gap:7px;padding:11px 0;min-height:0;overflow:hidden}
+  .app{flex:1;display:grid;grid-template-columns:226px 1fr;min-height:0;transition:grid-template-columns .22s cubic-bezier(.4,0,.2,1)}
+  .app.collapsed{grid-template-columns:44px 1fr}
+  body.view .app{grid-template-columns:226px 1fr}
+  body.view .app.collapsed{grid-template-columns:44px 1fr}
+  /* 캔버스 좌측 플로팅 도구 팔레트 */
+  .toolrail{position:absolute;left:14px;top:14px;z-index:20;width:158px;max-height:calc(100% - 28px);border:1px solid var(--line);background:rgba(12,17,24,.92);backdrop-filter:blur(7px);border-radius:13px;box-shadow:0 10px 30px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:11px;padding:11px 10px;overflow:hidden}
   body.view .toolrail{display:none}
-  .trbtn{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:var(--raised);color:var(--muted);font-size:15px;cursor:pointer;display:grid;place-items:center;flex:none;transition:.13s}
+  .tr-group{display:flex;flex-direction:column;gap:5px;min-height:0}
+  .tr-group.icons{flex:1;min-height:0}
+  .tr-gh{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--faint);padding:0 3px 1px}
+  .trbtn{display:flex;align-items:center;gap:9px;width:100%;height:33px;padding:0 9px;border-radius:9px;border:1px solid var(--line);background:var(--raised);color:var(--muted);cursor:pointer;transition:.13s;text-align:left}
   .trbtn:hover{background:var(--raised2);color:var(--txt);border-color:#3a4452}
   .trbtn.on{background:var(--gold);color:#1a1206;border-color:var(--gold)}
-  .tr-sep{width:30px;height:1px;background:var(--line);flex:none}
-  .icon-pal{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:6px;align-items:center;width:100%;padding-bottom:8px}
-  .ipal-btn{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:#c2cad6;cursor:grab;display:grid;place-items:center;flex:none}
+  .tr-ico{width:17px;text-align:center;font-size:14px;flex:none}
+  .tr-name{flex:1;font-size:12px;letter-spacing:-0.01em;white-space:nowrap}
+  .icon-pal{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:5px;align-content:start;padding-right:2px}
+  .ipal-btn{width:100%;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:#c2cad6;cursor:grab;display:grid;place-items:center}
   .ipal-btn:hover{border-color:var(--gold-dim);color:var(--gold)}
-  .ipal-btn svg{width:22px;height:22px}
-  body.view .app{grid-template-columns:0 226px 1fr}
-  body.view .app.collapsed{grid-template-columns:0 44px 1fr}
+  .ipal-btn svg{width:18px;height:18px}
 
   .side{border-right:1px solid var(--line);background:#10151c;display:flex;flex-direction:column;min-height:0;position:relative}
   .side-toggle{position:absolute;top:10px;right:9px;width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:var(--raised);color:var(--muted);cursor:pointer;font-size:12px;z-index:3;display:grid;place-items:center}
@@ -192,16 +197,6 @@
 </header>
 
 <div class="app" id="app">
-  <aside class="toolrail edit-only" id="toolrail">
-    <button class="trbtn" id="snapBtn" title="자석 정렬" onclick="toggleSnap()">⊹</button>
-    <button class="trbtn" id="lineBtn" title="새 선: 실선/점선" onclick="toggleEdgeStyle()">─</button>
-    <button class="trbtn" id="arrowBtn" title="새 선: 화살표" onclick="toggleEdgeArrow()">▶</button>
-    <div class="tr-sep"></div>
-    <button class="trbtn" title="노드 추가" onclick="addNodeCenter()">▭</button>
-    <button class="trbtn" title="중간 노드 추가" onclick="addMiniCenter()">▬</button>
-    <div class="tr-sep"></div>
-    <div class="icon-pal" id="iconPal"></div>
-  </aside>
   <aside class="side">
     <button class="side-toggle" id="sideBtn" onclick="toggleSide()">«</button>
     <div class="side-scroll">
@@ -227,6 +222,20 @@
       <div class="snap-guide" id="snapH"></div>
     </div>
     <div class="marquee" id="marquee"></div>
+    <aside class="toolrail edit-only" id="toolrail">
+      <div class="tr-group">
+        <div class="tr-gh">도구</div>
+        <button class="trbtn" id="snapBtn" title="노드 정렬을 격자에 맞춤" onclick="toggleSnap()"><span class="tr-ico">⊹</span><span class="tr-name">자석 정렬</span></button>
+        <button class="trbtn" id="lineBtn" title="새로 그릴 연결선 스타일" onclick="toggleEdgeStyle()"><span class="tr-ico">─</span><span class="tr-name">선: 실선</span></button>
+        <button class="trbtn" id="arrowBtn" title="새 연결선에 화살표 머리" onclick="toggleEdgeArrow()"><span class="tr-ico">▶</span><span class="tr-name">화살표 머리</span></button>
+        <button class="trbtn" title="기본 카드 노드 추가" onclick="addNodeCenter()"><span class="tr-ico">▭</span><span class="tr-name">기본 노드</span></button>
+        <button class="trbtn" title="작은 중간 노드 추가" onclick="addMiniCenter()"><span class="tr-ico">▬</span><span class="tr-name">중간 노드</span></button>
+      </div>
+      <div class="tr-group icons">
+        <div class="tr-gh">아이콘</div>
+        <div class="icon-pal" id="iconPal"></div>
+      </div>
+    </aside>
     <div class="zoomctl"><button onclick="zoomBy(1.2)">＋</button><div class="zlabel" id="zlabel">100%</div><button onclick="zoomBy(.83)">−</button></div>
     <div class="hint edit-only">배경 드래그 <b>화면이동</b> · Shift+드래그 <b>다중선택</b> · 휠 <b>줌</b> · 노드 4면 포트 드래그 <b>연결</b><br>연결선 클릭 <b>선택</b>·꼭지 드래그로 <b>면 이동</b> · <b>Tab</b> 하위 · <b>Enter</b> 형제 · <b>−</b> 하위 · <b>+</b> 상위 · <b>G</b> 그룹 · <b>Del</b> 삭제</div>
   </div>
@@ -278,6 +287,7 @@ Object.assign(ICONS,{
   warning:'<path d="M12 3 22 20H2z"/><path d="M12 10v5M12 18h.01"/>',
   check:'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>'
 });
+const ICON_LABELS={pc:'PC',laptop:'노트북',thinclient:'씬클라이언트',mobile:'모바일',server:'서버',cloud:'클라우드',database:'데이터베이스',monitor:'모니터',network:'네트워크',user:'사용자',users:'사용자 그룹',lock:'잠금',key:'인증키',decision:'분기',start:'시작',end:'종료',process:'처리',document:'문서',warning:'경고',check:'완료'};
 function iconSvg(id){return ICONS[id]?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[id]}</svg>`:''}
 function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
 
@@ -665,12 +675,12 @@ cvListEl.addEventListener('focusout',e=>{const n=e.target.closest('[data-cvname]
 function renderToolbar(){
   const s=document.getElementById('snapBtn'),l=document.getElementById('lineBtn'),a=document.getElementById('arrowBtn');
   if(s)s.classList.toggle('on',!!TOOLBAR.snap);
-  if(l){l.classList.toggle('on',TOOLBAR.edgeStyle==='dashed');l.textContent=TOOLBAR.edgeStyle==='dashed'?'┄':'─'}
+  if(l){const dash=TOOLBAR.edgeStyle==='dashed';l.classList.toggle('on',dash);const ic=l.querySelector('.tr-ico'),nm=l.querySelector('.tr-name');if(ic)ic.textContent=dash?'┄':'─';if(nm)nm.textContent=dash?'선: 점선':'선: 실선'}
   if(a)a.classList.toggle('on',TOOLBAR.edgeArrow!==false);
 }
 function renderPalette(){
   const el=document.getElementById('iconPal');if(!el)return;
-  el.innerHTML=Object.keys(ICONS).map(id=>`<button class="ipal-btn" draggable="true" data-icon="${id}" title="${id}">${iconSvg(id)}</button>`).join('');
+  el.innerHTML=Object.keys(ICONS).map(id=>`<button class="ipal-btn" draggable="true" data-icon="${id}" title="${ICON_LABELS[id]||id}">${iconSvg(id)}</button>`).join('');
 }
 function addIconCenter(iconId){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const nn=makeNode(p.x-44,p.y-34,"","icon",iconId);render();selectOnly(nn.id);markDirty()}
 function toggleSnap(){TOOLBAR.snap=!TOOLBAR.snap;renderToolbar();saveMeta()}

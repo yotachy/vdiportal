@@ -59,7 +59,7 @@ ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(
 | 스냅 | `onMove`에서 `TOOLBAR.snap` 활성 시 다른 노드에 x/y 정렬 스냅 + `#snapV`/`#snapH` 가이드선 표시 |
 | 노드 편집 | `world` 위임: `click`(del/rmthumb/그룹·엣지 버튼), `focusout`(title/desc/그룹 라벨) |
 | 추가/연결 | `makeNode(x,y,title,type,iconId)`, `addEdge(from,fromSide,to,toSide)`, `addSibling/addChild/addParent` |
-| 툴레일 | `renderToolbar()` — 좌측 툴 레일 버튼 상태 갱신. `toggleSnap/toggleEdgeStyle/toggleEdgeArrow` → TOOLBAR 변경 + `saveMeta()` |
+| 툴레일 | `renderToolbar()` — 플로팅 도구 팔레트 버튼 상태 갱신(선 버튼 글리프·라벨 동적). `toggleSnap/toggleEdgeStyle/toggleEdgeArrow` → TOOLBAR 변경 + `saveMeta()` |
 | 아이콘 | `ICONS`(20종 SVG path 상수), `iconSvg(id)` — path→SVG 문자열, `renderPalette()` — 팔레트 그리드, `addIconCenter(iconId)` — 아이콘 노드 추가 |
 | 정렬/뷰 | `autoLayout('h'|'v')`(레이어 배치), `fitView()`, `zoomBy(f)` |
 | 입출력 | `exportJSON()`(toolbar 포함), 불러오기(`impFile` change — toolbar 복원), `resetAll()` |
@@ -124,22 +124,23 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - 연결선 클릭 = 선택 → 중앙 `✕`(삭제)·`⇄`(시작/끝 방향 바꾸기), **실선/점선 토글**·**화살표 토글** 버튼, 양 끝 핸들 드래그로 다른 노드/면 재부착.
 - 단축키(노드 선택 후): `Tab` = 하위 mini 노드 추가, `Enter` = 형제 mini 노드 추가, `−` 하위, `+` 상위, `G` 그룹(2개 이상), `Del` 삭제(선택 엣지 우선), `Esc` 해제.
 - 썸네일: 왼쪽 라이브러리에서 카드로 드래그(또는 OS 이미지 파일 드롭). 카드 썸네일 클릭 = 원본 라이트박스.
-- **좌측 툴 레일**: 자석 스냅 토글, 엣지 기본 실선/점선·화살표 토글, 노드 추가 버튼(full/mini), 아이콘 팔레트(세로 스크롤).
-- **아이콘 팔레트**: 20종 아이콘 그리드 → 클릭 시 icon 타입 노드를 캔버스 중앙에 추가.
+- **플로팅 도구 팔레트**(캔버스 좌상단, `.stage` 내부 `position:absolute`): **도구** 섹션(이름 라벨 달린 행 버튼 — 자석 정렬·선 실선/점선·화살표 머리·기본 노드·중간 노드)과 **아이콘** 섹션을 헤더(`.tr-gh`)로 명확히 구분. `body.view`(보기 모드)에선 숨김.
+- **아이콘 팔레트**(도구 팔레트 하단 섹션): 20종 아이콘 4열 그리드 → 클릭/드래그 시 icon 타입 노드를 캔버스 중앙에 추가. 한글 툴팁은 `ICON_LABELS` 맵.
 - 편집/보기 토글, 사이드바 접기, 가로/세로 자동정렬.
 
 ## 작성 도구 (툴 레일·노드 타입·아이콘)
 
-### 툴 레일 (좌측 고정)
+### 도구 팔레트 (캔버스 좌상단 플로팅)
 
-좌측 수직 툴 레일에 4종 토글/버튼이 있으며, 상태는 `TOOLBAR` 전역 객체에 보관된다.
+`.stage` 내부에 `position:absolute`로 떠 있는 카드(`.toolrail`). **도구**·**아이콘** 두 섹션(`.tr-group`)을 헤더(`.tr-gh`)로 구분한다. 도구 버튼(`.trbtn`)은 글리프(`.tr-ico`) + **이름 라벨**(`.tr-name`) 행 형태 — 기능을 직관적으로 드러낸다. 상태는 `TOOLBAR` 전역 객체에 보관.
 
-| 버튼 | 동작 | TOOLBAR 필드 |
+| 버튼(라벨) | 동작 | TOOLBAR 필드 |
 |---|---|---|
-| 자석 | 노드 드래그 시 정렬 스냅 + 가이드선 | `snap` (bool) |
-| 실선/점선 | 새로 그릴 엣지의 기본 스타일 전환 | `edgeStyle` ("solid"/"dashed") |
-| 화살표 | 새로 그릴 엣지에 화살표 머리 표시 여부 | `edgeArrow` (bool) |
-| 아이콘 팔레트 | `ICONS` 20종 그리드 표시 → 클릭 시 icon 노드 추가 | — |
+| 자석 정렬 | 노드 드래그 시 정렬 스냅 + 가이드선 | `snap` (bool) |
+| 선: 실선/점선 | 새로 그릴 엣지의 기본 스타일 전환(라벨·글리프가 현재 상태 반영) | `edgeStyle` ("solid"/"dashed") |
+| 화살표 머리 | 새로 그릴 엣지에 화살표 머리 표시 여부 | `edgeArrow` (bool) |
+| 기본 노드 / 중간 노드 | full / mini 노드를 캔버스 중앙에 추가 | — |
+| 아이콘(섹션) | `ICONS` 20종 4열 그리드 → 클릭 시 icon 노드 추가 | — |
 
 `TOOLBAR`는 `saveMeta()`로 서버 `meta.toolbar`에 영속되며, `exportJSON()`으로 내보낸 JSON에도 포함된다. 불러오기 시 `d.toolbar`가 있으면 `Object.assign(TOOLBAR, d.toolbar)` 후 `renderToolbar()`로 UI 갱신.
 
@@ -153,7 +154,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 
 - `Tab` 단축키 → `addChildMini` (선택 노드의 하위 mini 노드 추가 + 연결)
 - `Enter` 단축키 → `addSiblingMini` (선택 노드와 같은 레벨의 형제 mini 노드 추가 + 연결)
-- `addMiniCenter()` — 툴 레일 버튼으로 캔버스 중앙에 mini 노드 추가
+- `addMiniCenter()` — 도구 팔레트 버튼으로 캔버스 중앙에 mini 노드 추가
 
 ### 아이콘 세트 (`ICONS`)
 
