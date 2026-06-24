@@ -180,6 +180,12 @@
   .port.left{left:-8px;top:50%;transform:translateY(-50%)}
   .port.right{right:-8px;top:50%;transform:translateY(-50%)}
   /* edge select handles */
+  .elabels{position:absolute;left:0;top:0;pointer-events:none}
+  .elabel{position:absolute;transform:translate(-50%,-50%);background:#11161deb;border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;color:var(--txt);white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis;cursor:text;pointer-events:auto;z-index:6;outline:none}
+  .elabel.sel{border-color:var(--gold);color:var(--gold)}
+  .elabel:focus{border-color:var(--gold);background:#0e1218;overflow:visible}
+  .elabel:empty::before{content:"라벨";color:var(--faint)}
+  body.view .elabel{cursor:default}
   .ehud{position:absolute;left:0;top:0;pointer-events:none}
   .ehandle{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--gold);border:2px solid #11161d;transform:translate(-50%,-50%);cursor:grab;z-index:7;pointer-events:auto;box-shadow:0 2px 8px #000a}
   .ehandle:hover{transform:translate(-50%,-50%) scale(1.2)}
@@ -265,6 +271,7 @@
         <marker id="arw" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"></path></marker>
         <marker id="dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto"><circle cx="5" cy="5" r="3.5" fill="context-stroke"></circle></marker>
       </defs><g id="edgeG" transform="translate(10000,10000)"></g><path class="tmp" id="tmp" transform="translate(10000,10000)" d=""></path></svg>
+      <div class="elabels" id="elabels"></div>
       <div class="ehud" id="ehud"></div>
       <div class="nhud" id="nhud"></div>
       <div class="snap-guide" id="snapV"></div>
@@ -354,6 +361,9 @@ const ICO={
   width:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path stroke-width="1.1" d="M4 7h16"/><path stroke-width="2.1" d="M4 12h16"/><path stroke-width="3.4" d="M4 17.2h16"/></svg>',
   parent:SVG('<path d="M19 12H6M11 7l-5 5 5 5"/><path d="M21 8.5v7" opacity=".45"/>'),
   child:SVG('<path d="M5 12h13M13 7l5 5-5 5"/><path d="M3 8.5v7" opacity=".45"/>'),
+  route:SVG('<path d="M5 5v8a2 2 0 0 0 2 2h12"/><path d="M16 12l3 3-3 3"/>'),
+  curve:SVG('<path d="M5 18C5 9 19 15 19 6"/>'),
+  tag:SVG('<path d="M3 11.5V5a2 2 0 0 1 2-2h6.5a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-6.5 6.5a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 11.5z"/><circle cx="7.5" cy="7.5" r="1.4"/>'),
 };
 function iconSvg(id){return ICONS[id]?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[id]}</svg>`:''}
 function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
@@ -397,7 +407,24 @@ function sidesOf(e){const a=N(e.from),b=N(e.to);if(!a||!b)return{fs:'right',ts:'
   else if(fA){fs=nearestSide(a,anchor(b,ts))}
   else if(tA){ts=nearestSide(b,anchor(a,fs))}
   return{fs,ts}}
-function edgeGeo(e){const a=N(e.from),b=N(e.to);if(!a||!b)return null;const s=sidesOf(e),A=anchor(a,s.fs),B=anchor(b,s.ts),dd=Math.hypot(B.x-A.x,B.y-A.y),k=Math.min(120,Math.max(38,dd*0.4)),d1=DIR[s.fs],d2=DIR[s.ts];return{A,B,fs:s.fs,ts:s.ts,d:`M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${B.x+d2[0]*k},${B.y+d2[1]*k} ${B.x},${B.y}`}}
+// 직각(꺾은선) 경로: 면 방향에 맞춰 꺾는 점들 산출
+function orthoPath(A,B,fs,ts){const hz=s=>(s==='left'||s==='right'),fH=hz(fs),tH=hz(ts);
+  if(fH&&tH){const mx=(A.x+B.x)/2;return[[A.x,A.y],[mx,A.y],[mx,B.y],[B.x,B.y]]}
+  if(!fH&&!tH){const my=(A.y+B.y)/2;return[[A.x,A.y],[A.x,my],[B.x,my],[B.x,B.y]]}
+  if(fH&&!tH)return[[A.x,A.y],[B.x,A.y],[B.x,B.y]];
+  return[[A.x,A.y],[A.x,B.y],[B.x,B.y]]}
+// 꺾는점들 → 모서리 둥근 SVG path
+function polyPath(pts){if(pts.length<2)return'';if(pts.length===2)return`M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
+  let d=`M${pts[0][0]},${pts[0][1]}`;
+  for(let i=1;i<pts.length-1;i++){const a=pts[i-1],b=pts[i],c=pts[i+1];
+    const l1=Math.hypot(b[0]-a[0],b[1]-a[1])||1,l2=Math.hypot(c[0]-b[0],c[1]-b[1])||1,r=Math.min(9,l1/2,l2/2);
+    const p1=[b[0]-(b[0]-a[0])/l1*r,b[1]-(b[1]-a[1])/l1*r],p2=[b[0]+(c[0]-b[0])/l2*r,b[1]+(c[1]-b[1])/l2*r];
+    d+=` L${p1[0]},${p1[1]} Q${b[0]},${b[1]} ${p2[0]},${p2[1]}`}
+  const z=pts[pts.length-1];return d+` L${z[0]},${z[1]}`}
+function edgeGeo(e){const a=N(e.from),b=N(e.to);if(!a||!b)return null;const s=sidesOf(e),A=anchor(a,s.fs),B=anchor(b,s.ts);let d;
+  if(e.route==='ortho'){d=polyPath(orthoPath(A,B,s.fs,s.ts))}
+  else{const dd=Math.hypot(B.x-A.x,B.y-A.y),k=Math.min(120,Math.max(38,dd*0.4)),d1=DIR[s.fs],d2=DIR[s.ts];d=`M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${B.x+d2[0]*k},${B.y+d2[1]*k} ${B.x},${B.y}`}
+  return{A,B,fs:s.fs,ts:s.ts,d}}
 function nodeAt(pt){let r=null;state.nodes.forEach(n=>{const w=n._w||W_NODE,h=n._h||90;if(pt.x>=n.x&&pt.x<=n.x+w&&pt.y>=n.y&&pt.y<=n.y+h)r=n});return r}
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const ce=()=>mode==='edit'?'true':'false';
@@ -454,14 +481,20 @@ function paint(){
     const sw=`stroke-width:${EWIDTHS[e.width||2]}`;
     const mk=(e.arrow!==false)?'marker-start="url(#dot)" marker-end="url(#arw)"':'';
     return `<path class="ew ${selEdge===e.id?'sel':''}" style="${dash}${sw}" ${mk} d="${g.d}"/><path class="eh" data-edge="${e.id}" d="${g.d}"/>`}).join('');
+  drawLabels();
   layoutGroups(); drawEhud(); drawNhud();
+}
+function drawLabels(){
+  document.getElementById('elabels').innerHTML=state.edges.filter(e=>e.label!=null).map(e=>{const g=edgeGeo(e);if(!g)return'';
+    const mx=(g.A.x+g.B.x)/2,my=(g.A.y+g.B.y)/2;
+    return `<div class="elabel ${selEdge===e.id?'sel':''}" data-elabel="${e.id}" contenteditable="${ce()}" style="left:${mx}px;top:${my}px">${esc(e.label)}</div>`}).join('');
 }
 function drawEhud(){
   const hud=document.getElementById('ehud');
   if(mode!=='edit'||!selEdge){hud.innerHTML='';return}
   const e=E(selEdge),g=e&&edgeGeo(e);if(!g){hud.innerHTML='';return}
   const mx=(g.A.x+g.B.x)/2,my=(g.A.y+g.B.y)/2;
-  const dash=e.style==='dashed',arr=e.arrow!==false,w=e.width||2;
+  const dash=e.style==='dashed',arr=e.arrow!==false,w=e.width||2,ortho=e.route==='ortho',hasLabel=e.label!=null;
   hud.innerHTML=`<div class="ehandle" data-end="from" style="left:${g.A.x}px;top:${g.A.y}px"></div>
     <div class="ehandle" data-end="to" style="left:${g.B.x}px;top:${g.B.y}px"></div>
     <div class="hbar ebar" style="left:${mx}px;top:${my}px">
@@ -470,6 +503,8 @@ function drawEhud(){
       <button class="hbtn ${dash?'on':''}" data-eline="1" title="실선/점선">${ICO.dash}<span>${dash?'점선':'실선'}</span></button>
       <button class="hbtn ${arr?'on':''}" data-earrow="1" title="화살표 머리">${ICO.arrow}<span>화살표</span></button>
       <button class="hbtn" data-ewidth="1" title="선 굵기 (1·2·3단계)">${ICO.width}<span>굵기 ${w}</span></button>
+      <button class="hbtn ${ortho?'on':''}" data-eroute="1" title="곡선/직각 라우팅">${ortho?ICO.route:ICO.curve}<span>${ortho?'직각':'곡선'}</span></button>
+      <button class="hbtn ${hasLabel?'on':''}" data-elabeladd="1" title="연결선 라벨 추가·편집">${ICO.tag}<span>라벨</span></button>
     </div>`;
 }
 function drawNhud(){
@@ -601,7 +636,7 @@ function makeGroup(){if(sel.length<2)return;state.groups=state.groups||[];state.
 
 /* ---------- stage pointer ---------- */
 stage.addEventListener('pointerdown',e=>{
-  if(e.target.closest('.group-label,.group-del,.hbar,.hbtn,.nsw'))return;
+  if(e.target.closest('.group-label,.group-del,.hbar,.hbtn,.nsw,.elabel'))return;
   if(e.button===1||(spaceDown&&e.button===0)){startPan(e);return}
   if(e.button!==0)return;
   if(mode==='edit'){
@@ -726,6 +761,8 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-eline]')){if(selEdge){const ed=E(selEdge);ed.style=ed.style==='dashed'?'solid':'dashed';paint();markDirty()}return}
   if(e.target.closest('[data-earrow]')){if(selEdge){const ed=E(selEdge);ed.arrow=!(ed.arrow!==false);paint();markDirty()}return}
   if(e.target.closest('[data-ewidth]')){if(selEdge){const ed=E(selEdge);ed.width=((ed.width||2)%3)+1;paint();markDirty()}return}
+  if(e.target.closest('[data-eroute]')){if(selEdge){const ed=E(selEdge);ed.route=ed.route==='ortho'?'curve':'ortho';paint();markDirty()}return}
+  if(e.target.closest('[data-elabeladd]')){if(selEdge){const ed=E(selEdge);if(ed.label==null)ed.label='';paint();const le=document.querySelector(`.elabel[data-elabel="${selEdge}"]`);if(le){le.focus();const r=document.createRange();r.selectNodeContents(le);const s=window.getSelection();s.removeAllRanges();s.addRange(r)}}return}
   const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='parent')addParent(id);else if(a==='child')addChild(id);else if(a==='del')delNodes([id])}return}
   const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='add')addChild(id);else if(a==='rmthumb')setThumb(id,null);return}
@@ -733,6 +770,7 @@ world.addEventListener('click',e=>{
 });
 world.addEventListener('focusout',e=>{
   const f=e.target.dataset?.field;if(f){const id=e.target.closest('.node').dataset.id,n=N(id);if(n)n[f]=e.target.innerText.replace(/\u00a0/g,' ').trim();markDirty();return}
+  const lb=e.target.dataset?.elabel;if(lb){const ed=E(lb);if(ed){const t=e.target.innerText.replace(/\u00a0/g,' ').trim();ed.label=t||null}markDirty();paint();return}
   const gf=e.target.dataset?.gfield;if(gf){const id=e.target.closest('.group').dataset.gid,g=G(id);if(g)g[gf]=e.target.innerText.trim();markDirty()}
 });
 // \ub178\ub4dc \ud074\ub9ad/\uc774\ub3d9\uc744 \ud14d\uc2a4\ud2b8 \ud3b8\uc9d1\ubcf4\ub2e4 \uc6b0\uc120 \u2014 \ub2e8\uc77c \ud074\ub9ad=\uc120\ud0dd\u00b7\uc774\ub3d9, \ub354\ube14\ud074\ub9ad=\ud3b8\uc9d1 \uc9c4\uc785

@@ -35,7 +35,9 @@ state = {
   edges:  [{ id, from, fromSide, to, toSide,   // *Side = "left"|"right"|"top"|"bottom"|"auto"
              style:"solid"|"dashed",     // 실선 / 점선
              arrow:bool,                 // true=화살표 머리 표시
-             width:1|2|3 }],             // 선 굵기 3단계(EWIDTHS, 미지정=2)
+             width:1|2|3,                // 선 굵기 3단계(EWIDTHS, 미지정=2)
+             route:"curve"|"ortho",      // 곡선(기본) / 직각(꺾은선). 미지정=curve
+             label:string|null }],       // 연결선 라벨(중앙 pill). null=없음
   //        fromSide/toSide="auto" → sidesOf(e)가 두 노드 위치 기준 최단 연결면 동적 계산
   groups: [{ id, nodes:[nodeId...], title }],
 }
@@ -63,8 +65,9 @@ ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(
 |---|---|
 | 렌더 | `render()` → `measure()` → `paint()` → `applySel()` → `applyView()` |
 | 그리기 | `paint()` = 엣지(`ew` 보이는선 + `eh` 히트영역) + `layoutGroups()` + `drawEhud()` + `drawNhud()` |
-| 엣지 기하 | `edgeGeo(e)`(4면 베지어, 해석된 면 사용), `anchor(n,side)`, `nearestSide(n,pt)`, `centerOf(n)`, `sidesOf(e)`(auto면 최단면 계산), `portAt(n,pt)`(끝점 근처 포트면), `DIR` |
-| 엣지 스타일 | `paint()`에서 `e.style==='dashed'`면 `stroke-dasharray`, `e.arrow`면 `<marker>` 화살표 머리, `e.width`→`EWIDTHS` `stroke-width`. 엣지 HUD(`drawEhud`)에서 삭제/방향/실선점선/화살표/굵기 토글 |
+| 엣지 기하 | `edgeGeo(e)`(curve=베지어 / ortho=`orthoPath`+`polyPath` 분기), `anchor`, `nearestSide`, `centerOf`, `sidesOf`(auto 최단면), `DIR` |
+| 엣지 스타일 | `paint()`에서 `e.style==='dashed'`→`stroke-dasharray`, `e.arrow`→`<marker>`, `e.width`→`EWIDTHS`. 엣지 HUD(`drawEhud`)에서 삭제/방향/실선점선/화살표/굵기/**라우팅(곡선·직각)**/**라벨** 토글 |
+| 엣지 라벨 | `drawLabels()`(`#elabels`에 `.elabel` pill, paint마다), world `focusout`/`[data-elabeladd]`로 `e.label` 저장·생성, 빈 값→제거 |
 | 노드 배경색 | `drawNhud()` — 단일 선택 노드 위 `.nclr` 색상 팝오버(`NODE_COLORS` 스와치). `world` click `[data-bg]` → `n.bg` 설정 후 `render()` |
 | 노드 판정 | `nodeAt(pt)` — 좌표로 노드 탐색(연결 드롭/하이라이트에 사용, elementFromPoint 안 씀) |
 | 노드 타입 | `nodeHTML(n)` — `n.type`('full'/'mini'/'icon') 분기 렌더. `addChildMini/addSiblingMini` = mini 단축 생성, `addMiniCenter` = 캔버스 중앙에 mini 추가 |
@@ -140,7 +143,9 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - 카드 클릭 = 선택(골드 링). Shift+클릭 = 토글. 빈 곳 클릭 = 해제.
 - **단일 선택 시 카드 위 라벨형 노드 툴바**(`drawNhud`→`.nbar`): `상위`(addParent)·`하위`(addChild)·`삭제` 버튼 + 배경색 스와치(`n.bg`). 노드엔 상시 코너 버튼 없음(삭제는 툴바/`Del`).
 - 노드 4면 포트(hover 시 표시)를 **실제로 드래그**(임계 6px — 단순 포트 클릭은 무시) → **4점 자석**: 대상 노드 위에선 가장 가까운 포트로 흡착(포트 하이라이트), 노드 중앙부에 놓으면 `auto`(최단 연결면). 빈 곳이면 새 노드 생성+연결.
-- 연결선 클릭 = 선택 → **라벨형 미니 HUD 툴바**(`.ebar`): `삭제`·`방향`·`실선/점선`·`화살표`·`굵기(1·2·3)`. 양 끝 핸들 **드래그**(임계 6px)로 4점 자석 재부착.
+- 연결선 클릭 = 선택 → **라벨형 미니 HUD 툴바**(`.ebar`): `삭제`·`방향`·`실선/점선`·`화살표`·`굵기(1·2·3)`·**`곡선/직각`**(라우팅 토글)·**`라벨`**(추가·편집). 양 끝 핸들 **드래그**(임계 6px)로 4점 자석 재부착.
+- **직각 라우팅**(`e.route='ortho'`): `orthoPath`+`polyPath`(모서리 둥근 꺾은선). 곡선은 베지어. `edgeGeo`가 분기.
+- **연결선 라벨**(`e.label`): `drawLabels()`가 라벨 있는 모든 엣지의 중앙에 `.elabel` pill 렌더(편집은 contenteditable, 빈 값이면 제거). `라벨` 버튼이 빈 라벨 생성 후 포커스.
 - **캔버스 배경색**: 헤더 `배경` 버튼 → 스와치 팝오버(`#bgPop`, `CANVAS_BGS`), 캔버스별 `canvas.bg`로 영속(`applyCanvasBg`).
 - **되돌리기/다시실행**: `Ctrl+Z` / `Ctrl+Shift+Z`(또는 `Ctrl+Y`), 헤더 `↶`/`↷` 버튼. 캔버스별 스택(전환 시 초기화).
 - 단축키(노드 선택 후): `Tab` = 하위 mini 노드 추가, `Enter` = 형제 mini 노드 추가, `−` 하위, `+` 상위, `G` 그룹(2개 이상), `Del` 삭제(선택 엣지 우선), `Esc` 해제.
@@ -212,7 +217,8 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - ~~플로팅 도구 팔레트(도구/아이콘 분리·라벨) + 노드 배경색 + 엣지 굵기 3단계 + 끝점 재연결 auto 최단면 + 영역 선택 도구~~ ✅ 완료
 - ~~되돌리기/다시실행(Ctrl+Z) + 연결 임계(포트 클릭 오작동 방지) + 노드 클릭 우선·더블클릭 편집 + 노드 ＋ 추가 버튼~~ ✅ 완료
 - ~~**스쿱보드 리브랜드**(MoneyScoop 테마·워드마크·홈링크) + 라벨형 HUD 툴바(노드/엣지) + 4점 자석 + 캔버스 배경색 + 팔레트 정리(선/화살표 제거)~~ ✅ 완료
-- **다음 라운드 예정**: 연결선 라벨 · PNG/SVG 내보내기 · 직각(꺾은선) 라우팅 · 정렬·등간격 배포 (브레인스토밍서 합의)
+- ~~연결선 라벨 + 직각(꺾은선) 라우팅~~ ✅ 완료
+- **다음 라운드 예정**: PNG/SVG 내보내기 · 정렬·등간격 배포 (브레인스토밍서 합의)
 1. 직각(꺾은선/orthogonal) 연결선 스타일 토글.
 2. 연결선 라벨(예: "승인"/"반려") 추가·편집.
 3. 노드 리사이즈(너비/높이 핸들 드래그).
