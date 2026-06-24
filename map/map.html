@@ -197,6 +197,17 @@
   .hbtn:hover{background:var(--raised2);color:var(--txt)}
   .hbtn.on{color:var(--gold)}
   .hbtn.danger:hover{color:var(--red)}
+  .abar{transform:translate(-50%,calc(-100% - 10px));align-items:center}
+  .hbtn2{display:grid;place-items:center;width:30px;height:30px;border:none;background:transparent;color:var(--muted);border-radius:7px;cursor:pointer}
+  .hbtn2 svg{width:18px;height:18px}
+  .hbtn2:hover{background:var(--raised2);color:var(--gold)}
+  .vsep{width:1px;align-self:stretch;background:var(--line);margin:4px 3px}
+  .menupop{position:absolute;z-index:40;display:none;flex-direction:column;gap:1px;background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 12px 30px #000a;min-width:158px}
+  .menupop.open{display:flex}
+  .menupop button{display:flex;align-items:center;gap:9px;padding:8px 10px;border:none;background:transparent;color:var(--txt);border-radius:7px;cursor:pointer;font-size:12.5px;font-weight:600;text-align:left;font-family:inherit}
+  .menupop button:hover{background:var(--raised2)}
+  .menupop button svg{width:16px;height:16px;color:var(--muted);flex:none}
+  .menupop small{color:var(--faint);font-weight:400;margin-left:auto}
 
   body.view .edit-only{display:none!important}
   body.view .node{cursor:default}body.view .n-title,body.view .n-desc{cursor:default}
@@ -243,11 +254,16 @@
     <button class="btn ghost edit-only" onclick="autoLayout('h')">가로정렬</button>
     <button class="btn ghost edit-only" onclick="autoLayout('v')">세로정렬</button>
     <button class="btn ghost edit-only" id="bgBtn" onclick="toggleBgPop(event)">배경</button>
-    <button class="btn ghost" onclick="exportJSON()">내보내기</button>
+    <button class="btn ghost" id="exBtn" onclick="toggleExportPop(event)">내보내기 ▾</button>
     <button class="btn ghost" onclick="document.getElementById('impFile').click()">불러오기</button>
     <button class="btn ghost edit-only" onclick="resetAll()" style="color:var(--faint)">초기화</button>
   </div>
   <div class="bgpop" id="bgPop"></div>
+  <div class="menupop" id="exPop">
+    <button onclick="exportPNG();closeMenus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-7 7"/></svg>PNG 이미지<small>발표용</small></button>
+    <button onclick="exportSVG();closeMenus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M5 19h14"/></svg>SVG 벡터</button>
+    <button onclick="exportJSON();closeMenus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M9 4h6v3H9z"/></svg>JSON 데이터<small>백업</small></button>
+  </div>
 </header>
 
 <div class="app" id="app">
@@ -364,6 +380,17 @@ const ICO={
   route:SVG('<path d="M5 5v8a2 2 0 0 0 2 2h12"/><path d="M16 12l3 3-3 3"/>'),
   curve:SVG('<path d="M5 18C5 9 19 15 19 6"/>'),
   tag:SVG('<path d="M3 11.5V5a2 2 0 0 1 2-2h6.5a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-6.5 6.5a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 11.5z"/><circle cx="7.5" cy="7.5" r="1.4"/>'),
+};
+const SVGF=s=>`<svg viewBox="0 0 24 24" fill="currentColor">${s}</svg>`;
+const ALI={  // 정렬·등간격 아이콘(채움형)
+  left:SVGF('<rect x="3" y="3" width="2.2" height="18" rx="1"/><rect x="7" y="6.5" width="8" height="3.2" rx="1"/><rect x="7" y="14.3" width="12.5" height="3.2" rx="1"/>'),
+  cx:SVGF('<rect x="10.9" y="3" width="2.2" height="18" rx="1"/><rect x="8" y="6.5" width="8" height="3.2" rx="1"/><rect x="5.5" y="14.3" width="13" height="3.2" rx="1"/>'),
+  right:SVGF('<rect x="18.8" y="3" width="2.2" height="18" rx="1"/><rect x="9" y="6.5" width="8" height="3.2" rx="1"/><rect x="4.5" y="14.3" width="12.5" height="3.2" rx="1"/>'),
+  top:SVGF('<rect x="3" y="3" width="18" height="2.2" rx="1"/><rect x="6.5" y="7" width="3.2" height="8" rx="1"/><rect x="14.3" y="7" width="3.2" height="12.5" rx="1"/>'),
+  cy:SVGF('<rect x="3" y="10.9" width="18" height="2.2" rx="1"/><rect x="6.5" y="8" width="3.2" height="8" rx="1"/><rect x="14.3" y="5.5" width="3.2" height="13" rx="1"/>'),
+  bottom:SVGF('<rect x="3" y="18.8" width="18" height="2.2" rx="1"/><rect x="6.5" y="9" width="3.2" height="8" rx="1"/><rect x="14.3" y="4.5" width="3.2" height="12.5" rx="1"/>'),
+  dh:SVGF('<rect x="2.5" y="4" width="2" height="16" rx="1"/><rect x="19.5" y="4" width="2" height="16" rx="1"/><rect x="10.5" y="8" width="3" height="8" rx="1"/>'),
+  dv:SVGF('<rect x="4" y="2.5" width="16" height="2" rx="1"/><rect x="4" y="19.5" width="16" height="2" rx="1"/><rect x="8" y="10.5" width="8" height="3" rx="1"/>'),
 };
 function iconSvg(id){return ICONS[id]?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[id]}</svg>`:''}
 function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
@@ -509,7 +536,18 @@ function drawEhud(){
 }
 function drawNhud(){
   const hud=document.getElementById('nhud');
-  if(mode!=='edit'||sel.length!==1||drag){hud.innerHTML='';return}
+  if(mode!=='edit'||drag){hud.innerHTML='';return}
+  if(sel.length>=2){
+    const ns=sel.map(N).filter(Boolean);if(ns.length<2){hud.innerHTML='';return}
+    let a=1e9,b=1e9,c=-1e9;ns.forEach(n=>{a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+(n._w||W_NODE))});
+    const A=(k,t)=>`<button class="hbtn2" data-align="${k}" title="${t}">${ALI[k]}</button>`;
+    hud.innerHTML=`<div class="hbar abar" style="left:${(a+c)/2}px;top:${b}px">
+      ${A('left','왼쪽 정렬')}${A('cx','가로 가운데')}${A('right','오른쪽 정렬')}
+      <div class="vsep"></div>${A('top','위 정렬')}${A('cy','세로 가운데')}${A('bottom','아래 정렬')}
+      <div class="vsep"></div>${A('dh','가로 등간격')}${A('dv','세로 등간격')}</div>`;
+    return;
+  }
+  if(sel.length!==1){hud.innerHTML='';return}
   const n=N(sel[0]);if(!n){hud.innerHTML='';return}
   const sw=NODE_COLORS.map(c=>`<button class="nsw ${c?'':'def'} ${(n.bg||null)===c?'on':''}" data-bg="${c||''}" style="${c?`background:${c}`:''}" title="${c||'기본'}"></button>`).join('');
   hud.innerHTML=`<div class="hbar nbar" style="left:${n.x}px;top:${n.y}px">
@@ -520,6 +558,21 @@ function drawNhud(){
     </div>
     <div class="nbar-sw">${sw}</div>
   </div>`;
+}
+function alignSel(mode){
+  const ns=sel.map(N).filter(Boolean);if(ns.length<2)return;
+  const w=n=>n._w||W_NODE,h=n=>n._h||90;
+  const minx=Math.min(...ns.map(n=>n.x)),maxr=Math.max(...ns.map(n=>n.x+w(n)));
+  const miny=Math.min(...ns.map(n=>n.y)),maxb=Math.max(...ns.map(n=>n.y+h(n)));
+  if(mode==='left')ns.forEach(n=>n.x=minx);
+  else if(mode==='right')ns.forEach(n=>n.x=maxr-w(n));
+  else if(mode==='cx'){const cc=(minx+maxr)/2;ns.forEach(n=>n.x=cc-w(n)/2)}
+  else if(mode==='top')ns.forEach(n=>n.y=miny);
+  else if(mode==='bottom')ns.forEach(n=>n.y=maxb-h(n));
+  else if(mode==='cy'){const cc=(miny+maxb)/2;ns.forEach(n=>n.y=cc-h(n)/2)}
+  else if(mode==='dh'){const s=[...ns].sort((p,q)=>p.x-q.x);const span=(s[s.length-1].x+w(s[s.length-1]))-s[0].x;const tot=s.reduce((a,n)=>a+w(n),0);const gap=(span-tot)/(s.length-1);let cur=s[0].x;s.forEach(n=>{n.x=cur;cur+=w(n)+gap})}
+  else if(mode==='dv'){const s=[...ns].sort((p,q)=>p.y-q.y);const span=(s[s.length-1].y+h(s[s.length-1]))-s[0].y;const tot=s.reduce((a,n)=>a+h(n),0);const gap=(span-tot)/(s.length-1);let cur=s[0].y;s.forEach(n=>{n.y=cur;cur+=h(n)+gap})}
+  render();markDirty();toast('정렬 적용')
 }
 function layoutGroups(){
   (state.groups||[]).slice().forEach(g=>{
@@ -552,7 +605,7 @@ function applyCanvasBg(bg){const dots='radial-gradient(circle at 1px 1px,#ffffff
 function setCanvasBg(bg){canvasBg=bg||null;applyCanvasBg(canvasBg);renderBgPop();markDirty()}
 function renderBgPop(){const el=document.getElementById('bgPop');if(!el)return;el.innerHTML=CANVAS_BGS.map(c=>`<button class="bgsw ${c?'':'def'} ${(canvasBg||null)===c?'on':''}" style="${c?`background:${c}`:''}" title="${c||'기본'}" onclick="setCanvasBg('${c||''}')"></button>`).join('')}
 function toggleBgPop(e){if(e)e.stopPropagation();const el=document.getElementById('bgPop'),b=document.getElementById('bgBtn');renderBgPop();const open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-document.addEventListener('click',e=>{const el=document.getElementById('bgPop');if(el&&el.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))el.classList.remove('open')});
+document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open')});
 function loadCanvas(id){
   const c=canvases.find(x=>x.id===id);if(!c)return;
   activeId=id;
@@ -636,7 +689,7 @@ function makeGroup(){if(sel.length<2)return;state.groups=state.groups||[];state.
 
 /* ---------- stage pointer ---------- */
 stage.addEventListener('pointerdown',e=>{
-  if(e.target.closest('.group-label,.group-del,.hbar,.hbtn,.nsw,.elabel'))return;
+  if(e.target.closest('.group-label,.group-del,.hbar,.hbtn,.hbtn2,.nsw,.elabel'))return;
   if(e.button===1||(spaceDown&&e.button===0)){startPan(e);return}
   if(e.button!==0)return;
   if(mode==='edit'){
@@ -764,6 +817,7 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-eroute]')){if(selEdge){const ed=E(selEdge);ed.route=ed.route==='ortho'?'curve':'ortho';paint();markDirty()}return}
   if(e.target.closest('[data-elabeladd]')){if(selEdge){const ed=E(selEdge);if(ed.label==null)ed.label='';paint();const le=document.querySelector(`.elabel[data-elabel="${selEdge}"]`);if(le){le.focus();const r=document.createRange();r.selectNodeContents(le);const s=window.getSelection();s.removeAllRanges();s.addRange(r)}}return}
   const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='parent')addParent(id);else if(a==='child')addChild(id);else if(a==='del')delNodes([id])}return}
+  const al=e.target.closest('[data-align]');if(al){alignSel(al.dataset.align);return}
   const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='add')addChild(id);else if(a==='rmthumb')setThumb(id,null);return}
   const gb=e.target.closest('[data-gact]');if(gb&&gb.dataset.gact==='del'){const id=gb.closest('.group').dataset.gid;state.groups=state.groups.filter(g=>g.id!==id);render();markDirty();toast('그룹 해제')}
@@ -893,7 +947,48 @@ function autoLayout(dir){
 function fitView(){if(!state.nodes.length)return;measure();let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;state.nodes.forEach(n=>{minx=Math.min(minx,n.x);miny=Math.min(miny,n.y);maxx=Math.max(maxx,n.x+n._w);maxy=Math.max(maxy,n.y+(n._h||90))});const r=stage.getBoundingClientRect(),pad=70,s=Math.min(2.4,Math.max(.3,Math.min((r.width-pad*2)/(maxx-minx),(r.height-pad*2)/(maxy-miny))));view.scale=s;view.tx=pad-minx*s+(r.width-pad*2-(maxx-minx)*s)/2;view.ty=pad-miny*s+(r.height-pad*2-(maxy-miny)*s)/2;applyView()}
 
 /* import/export */
-function exportJSON(){writeBackActive();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({canvases,library:LIBRARY.map(l=>({id:l.id,label:l.label})),images:IMAGES,activeId,toolbar:TOOLBAR},null,2)],{type:'application/json'}));a.download='vdi-canvases.json';a.click();toast('내보냄')}
+function exportJSON(){writeBackActive();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({canvases,library:LIBRARY.map(l=>({id:l.id,label:l.label})),images:IMAGES,activeId,toolbar:TOOLBAR},null,2)],{type:'application/json'}));a.download='scoopboard.json';a.click();toast('JSON 내보냄')}
+
+/* ---------- PNG/SVG 내보내기 (상태→벡터 SVG 재드로잉, 라이브러리 없음) ---------- */
+const _mctx=document.createElement('canvas').getContext('2d');
+function _exX(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function _wrap(text,fontPx,fontW,maxW){_mctx.font=`${fontW} ${fontPx}px Pretendard,sans-serif`;const out=[];(text||'').split('\n').forEach(seg=>{let line='';for(const ch of seg){const t=line+ch;if(_mctx.measureText(t).width>maxW&&line){out.push(line);line=ch}else line=t}out.push(line)});return out}
+function _trunc(text,fontPx,fontW,maxW){_mctx.font=`${fontW} ${fontPx}px Pretendard,sans-serif`;let t=text||'';if(_mctx.measureText(t).width<=maxW)return t;while(t&&_mctx.measureText(t+'…').width>maxW)t=t.slice(0,-1);return t+'…'}
+function _txt(s,x,y,sz,wt,col,anc){return`<text x="${x}" y="${y}" font-family="Pretendard,-apple-system,'Malgun Gothic',sans-serif" font-size="${sz}" font-weight="${wt}" fill="${col}"${anc?` text-anchor="${anc}"`:''}>${_exX(s)}</text>`}
+function _exColors(){const cs=getComputedStyle(document.documentElement),V=k=>cs.getPropertyValue(k).trim();return{bg:V('--bg'),surface:V('--surface'),raised:V('--raised'),line:V('--line'),txt:V('--txt'),muted:V('--muted'),gold:V('--gold'),edge:V('--edge')}}
+function _svgNode(n,C){
+  const t=n.type||'full',w=n._w||W_NODE,h=n._h||90,x=n.x,y=n.y,pad=13,bg=n.bg||C.surface;
+  let s=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="${bg}" stroke="${C.line}" stroke-width="1.5"/>`;
+  if(t==='icon'){const ic=ICONS[n.iconId]||'';s+=`<g transform="translate(${x+w/2-19},${y+12}) scale(1.58)" fill="none" stroke="${C.gold}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${ic}</g>`;s+=_txt(_trunc(n.title||'',12,600,w-12),x+w/2,y+h-12,12,600,C.txt,'middle');return s}
+  if(t==='mini'){s+=_txt(_trunc(n.title||'',12.5,700,w-pad*2),x+pad,y+h/2+4,12.5,700,C.txt);return s}
+  let ty=y+pad+12;
+  _wrap(n.title||'',14,700,w-pad*2).forEach(ln=>{s+=_txt(ln,x+pad,ty,14,700,C.txt);ty+=18});
+  if(n.desc){ty+=2;_wrap(n.desc,11.5,400,w-pad*2).forEach(ln=>{s+=_txt(ln,x+pad,ty,11.5,400,C.muted);ty+=16})}
+  if(n.thumb){const src=imgSrc(n.thumb.imgId);if(src){const iy=ty+4,iw=w-pad*2,ih=Math.max(34,(y+h-pad)-iy);if(ih>20){s+=`<clipPath id="exc-${n.id}"><rect x="${x+pad}" y="${iy}" width="${iw}" height="${ih}" rx="9"/></clipPath><image xlink:href="${src}" x="${x+pad}" y="${iy}" width="${iw}" height="${ih}" preserveAspectRatio="xMidYMid slice" clip-path="url(#exc-${n.id})"/>`}}}
+  return s;
+}
+function buildSVG(){
+  measure();const C=_exColors(),PAD=64;
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  state.nodes.forEach(n=>{minx=Math.min(minx,n.x);miny=Math.min(miny,n.y);maxx=Math.max(maxx,n.x+(n._w||W_NODE));maxy=Math.max(maxy,n.y+(n._h||90))});
+  (state.groups||[]).forEach(g=>g.nodes.map(N).filter(Boolean).forEach(n=>{minx=Math.min(minx,n.x-20);miny=Math.min(miny,n.y-34);maxx=Math.max(maxx,n.x+n._w+20);maxy=Math.max(maxy,n.y+(n._h||90)+20)}));
+  if(!isFinite(minx)){minx=0;miny=0;maxx=400;maxy=300}
+  const W=Math.round(maxx-minx+PAD*2),H=Math.round(maxy-miny+PAD*2),ox=PAD-minx,oy=PAD-miny;
+  let body='';
+  (state.groups||[]).forEach(g=>{const ns=g.nodes.map(N).filter(Boolean);if(!ns.length)return;let a=1e9,b=1e9,c=-1e9,d=-1e9;ns.forEach(n=>{a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+n._w);d=Math.max(d,n.y+(n._h||90))});const p=18;body+=`<rect x="${a-p}" y="${b-p}" width="${c-a+p*2}" height="${d-b+p*2}" rx="16" fill="none" stroke="${C.line}" stroke-dasharray="6 5"/>`+_txt(g.title,a-p+4,b-p-7,12,600,C.muted)});
+  state.edges.forEach(e=>{const g=edgeGeo(e);if(!g)return;const sw=EWIDTHS[e.width||2],dash=e.style==='dashed'?' stroke-dasharray="7 5"':'',mk=e.arrow!==false?' marker-start="url(#exdot)" marker-end="url(#exarw)"':'';body+=`<path d="${g.d}" fill="none" stroke="${C.edge}" stroke-width="${sw}"${dash}${mk}/>`;if(e.label){const mx=(g.A.x+g.B.x)/2,my=(g.A.y+g.B.y)/2;_mctx.font='600 11px Pretendard,sans-serif';const tw=_mctx.measureText(e.label).width;body+=`<rect x="${mx-tw/2-7}" y="${my-10}" width="${tw+14}" height="20" rx="6" fill="${C.raised}" stroke="${C.line}"/>`+_txt(e.label,mx,my+4,11,600,C.txt,'middle')}});
+  state.nodes.forEach(n=>{body+=_svgNode(n,C)});
+  const defs=`<defs><marker id="exarw" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${C.edge}"/></marker><marker id="exdot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto"><circle cx="5" cy="5" r="3.5" fill="${C.edge}"/></marker></defs>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${canvasBg||C.bg}"/>${defs}<g transform="translate(${ox},${oy})">${body}</g></svg>`;
+  return{svg,w:W,h:H};
+}
+function _dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+function exportSVG(){const{svg}=buildSVG();_dl(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}),'scoopboard.svg');toast('SVG 내보냄')}
+function exportPNG(){const{svg,w,h}=buildSVG();const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'})),img=new Image();
+  img.onload=()=>{const sc=2,cv=document.createElement('canvas');cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);const cx=cv.getContext('2d');cx.scale(sc,sc);cx.drawImage(img,0,0);URL.revokeObjectURL(url);try{cv.toBlob(b=>{b?(_dl(b,'scoopboard.png'),toast('PNG 내보냄')):toast('PNG 변환 실패')},'image/png')}catch(err){toast('PNG 변환 실패')}};
+  img.onerror=()=>{URL.revokeObjectURL(url);toast('PNG 변환 실패')};img.src=url}
+function toggleExportPop(e){if(e)e.stopPropagation();closeMenus('exPop');const el=document.getElementById('exPop'),b=document.getElementById('exBtn'),open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
+function closeMenus(except){['exPop','bgPop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
 document.getElementById('impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
   if(d.images&&typeof d.images==='object')Object.assign(IMAGES,d.images);
   if(d.toolbar&&typeof d.toolbar==='object'){Object.assign(TOOLBAR,d.toolbar);renderToolbar()}

@@ -79,6 +79,8 @@ ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(
 | HUD 툴바 | `drawEhud()`(`.ebar`)·`drawNhud()`(`.nbar`) — 라벨형 미니 툴바(아이콘 `ICO.*` + 한글 라벨). 엣지: 삭제/방향/실선점선/화살표/굵기. 노드: 상위/하위/삭제 + 색상 스와치 |
 | 4점 자석 | `portSnap(n,pt)`(가장 가까운 포트, 중앙부 `auto`), `snapAt(pt,excl)`(DOM무관 계산), `hi()`(흡착+포트 하이라이트 `.linkhover`/`.snaptarget`), `clearLinkHi()` |
 | 캔버스 배경 | `applyCanvasBg(bg)`·`setCanvasBg(bg)`·`renderBgPop()`·`toggleBgPop()`, `CANVAS_BGS`. loadCanvas/writeBackActive에서 `canvas.bg` 동기화 |
+| 정렬·배포 | `alignSel(mode)` — 선택 2개↑ 좌/우/cx·상/하/cy 정렬, dh/dv 등간격(gap 기준). `drawNhud`가 다중선택 시 `.abar`(8버튼) 렌더. `ALI`(채움 아이콘) |
+| 내보내기 | `buildSVG()`(상태→벡터 SVG: 노드 rect+텍스트 wrap·아이콘·썸네일 `<image xlink:href>`, 엣지 path+라벨, 그룹), `exportSVG()`/`exportPNG()`(SVG→Image→canvas→toBlob, 라이브러리 없음·타인트 없음), `exportJSON()`. 헤더 `내보내기 ▾` → `.menupop`(`toggleExportPop`/`closeMenus`) |
 | 아이콘 | `ICONS`(20종 SVG path 상수), `iconSvg(id)` — path→SVG 문자열, `renderPalette()` — 팔레트 그리드, `addIconCenter(iconId)` — 아이콘 노드 추가 |
 | 정렬/뷰 | `autoLayout('h'|'v')`(레이어 배치), `fitView()`, `zoomBy(f)` |
 | 되돌리기 | `recordHistory()`(markDirty 안에서 호출, 변경 없으면 dedup), `undo()`/`redo()`, `resetHistory()`(loadCanvas마다), `snapState()`/`applySnap()`. 키 `Ctrl+Z`/`Ctrl+Shift+Z`·`Ctrl+Y`, 헤더 `↶`/`↷` 버튼(`updateUndoBtns`) |
@@ -147,6 +149,8 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - **직각 라우팅**(`e.route='ortho'`): `orthoPath`+`polyPath`(모서리 둥근 꺾은선). 곡선은 베지어. `edgeGeo`가 분기.
 - **연결선 라벨**(`e.label`): `drawLabels()`가 라벨 있는 모든 엣지의 중앙에 `.elabel` pill 렌더(편집은 contenteditable, 빈 값이면 제거). `라벨` 버튼이 빈 라벨 생성 후 포커스.
 - **캔버스 배경색**: 헤더 `배경` 버튼 → 스와치 팝오버(`#bgPop`, `CANVAS_BGS`), 캔버스별 `canvas.bg`로 영속(`applyCanvasBg`).
+- **다중 선택(2개↑) 정렬·배포**: 선택 묶음 위 `.abar` 툴바(좌/가운데/우·상/가운데/하 정렬 + 가로/세로 등간격). `alignSel(mode)`.
+- **내보내기**: 헤더 `내보내기 ▾` → PNG 이미지 / SVG 벡터 / JSON. 상태를 벡터 SVG로 재드로잉(`buildSVG`) 후 PNG는 브라우저 래스터화(라이브러리 없음). 썸네일은 dataURL로 임베드 → canvas 타인트 없음.
 - **되돌리기/다시실행**: `Ctrl+Z` / `Ctrl+Shift+Z`(또는 `Ctrl+Y`), 헤더 `↶`/`↷` 버튼. 캔버스별 스택(전환 시 초기화).
 - 단축키(노드 선택 후): `Tab` = 하위 mini 노드 추가, `Enter` = 형제 mini 노드 추가, `−` 하위, `+` 상위, `G` 그룹(2개 이상), `Del` 삭제(선택 엣지 우선), `Esc` 해제.
 - 썸네일: 왼쪽 라이브러리에서 카드로 드래그(또는 OS 이미지 파일 드롭). 카드 썸네일 클릭 = 원본 라이트박스.
@@ -218,7 +222,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - ~~되돌리기/다시실행(Ctrl+Z) + 연결 임계(포트 클릭 오작동 방지) + 노드 클릭 우선·더블클릭 편집 + 노드 ＋ 추가 버튼~~ ✅ 완료
 - ~~**스쿱보드 리브랜드**(MoneyScoop 테마·워드마크·홈링크) + 라벨형 HUD 툴바(노드/엣지) + 4점 자석 + 캔버스 배경색 + 팔레트 정리(선/화살표 제거)~~ ✅ 완료
 - ~~연결선 라벨 + 직각(꺾은선) 라우팅~~ ✅ 완료
-- **다음 라운드 예정**: PNG/SVG 내보내기 · 정렬·등간격 배포 (브레인스토밍서 합의)
+- ~~PNG/SVG 내보내기 + 정렬·등간격 배포~~ ✅ 완료 — **브레인스토밍 합의 기능 전부 구현 완료**
 1. 직각(꺾은선/orthogonal) 연결선 스타일 토글.
 2. 연결선 라벨(예: "승인"/"반려") 추가·편집.
 3. 노드 리사이즈(너비/높이 핸들 드래그).
