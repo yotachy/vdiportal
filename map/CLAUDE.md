@@ -3,7 +3,7 @@
 **스쿱보드 · Scoop Board by MoneyScoop** — 자유 캔버스 노드 다이어그램 빌더(GitMind 스타일). 단일 HTML 파일, 빌드 도구 없음, 바닐라 JS.
 
 - **정체성**: 머니스쿱(MoneyScoop)의 부가 유료 서비스로 독립. **KB손해보험과 무관**(과거 VDI 접속흐름 도구에서 리브랜드). [[scoopsignal-deploy]]·ScoopSignal과 같은 MoneyScoop 브랜드 패밀리.
-- **브랜드**: 워드마크 `Scoop`+**`Board`**(골드 em)+`by MoneyScoop`, 헤더 노드-다이어그램 글리프 마크. 홈 링크 → `https://moneyscoop.co.kr`.
+- **브랜드**: 워드마크 `Scoop`+**`Board`**(골드 em)+`by MoneyScoop`, 헤더 노드-다이어그램 글리프 마크. 홈 링크 → `map.html`(현재 페이지·스쿱보드 홈). **테스트 중 — 실제 머니스쿱 사이트/서비스는 건드리지 말 것**(외부 링크 X).
 - **테마**: ScoopSignal과 공통 팔레트 — 부드러운 골드 `--gold:#e8b463`, 네이비 잉크 `--bg:#0b0f14`, 보조 `--eth:#8a92b2`, bull/bear `#46c28e`/`#e06a6a`.
 - **기본 다이어그램**: 당분간 기존 노드(VDI 접속흐름) 유지 — 추후 중립 예시로 교체 예정.
 
