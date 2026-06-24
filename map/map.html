@@ -26,6 +26,8 @@
   .btn:hover{background:var(--raised2);border-color:#3a4452}
   .btn.gold{background:var(--gold);color:#1a1206;border-color:var(--gold)}.btn.gold:hover{background:#ffc933}
   .btn.ghost{background:transparent}
+  .btn.ico{padding:7px 9px;font-size:15px;line-height:1}
+  .btn:disabled{opacity:.35;cursor:default;pointer-events:none}
   .seg{display:flex;background:var(--raised);border:1px solid var(--line);border-radius:8px;overflow:hidden}
   .seg button{font-family:inherit;font-size:12.5px;font-weight:600;border:0;background:transparent;color:var(--muted);padding:7px 13px;cursor:pointer}
   .seg button.on{background:var(--gold);color:#1a1206}
@@ -135,6 +137,10 @@
   .n-del{position:absolute;top:-9px;right:-9px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:var(--raised);color:var(--muted);cursor:pointer;font-size:11px;display:none;place-items:center;z-index:4}
   .node:hover .n-del,.node.selected .n-del{display:grid}
   .n-del:hover{color:var(--red);border-color:var(--red)}
+  .n-add{position:absolute;top:16px;right:-9px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:var(--raised);color:var(--muted);cursor:pointer;font-size:14px;display:none;place-items:center;z-index:4}
+  .node:hover .n-add,.node.selected .n-add{display:grid}
+  .n-add:hover{color:var(--gold);border-color:var(--gold-dim)}
+  .n-del:hover{color:var(--red);border-color:var(--red)}
   .n-body{padding:12px 13px 12px}
   .n-title{font-size:14px;font-weight:700;outline:none;border-radius:6px;padding:2px 4px;margin:-2px -4px;line-height:1.4;min-height:20px;cursor:text}
   .n-title:empty::before{content:"제목";color:var(--faint)}
@@ -198,6 +204,8 @@
   <div class="tools">
     <span class="savestat" id="saveStat" title="저장 상태">●</span>
     <div class="seg" id="modeSeg"><button data-mode="edit" class="on">편집</button><button data-mode="view">보기</button></div>
+    <button class="btn ghost edit-only ico" id="undoBtn" onclick="undo()" title="되돌리기 (Ctrl+Z)" disabled>↶</button>
+    <button class="btn ghost edit-only ico" id="redoBtn" onclick="redo()" title="다시 실행 (Ctrl+Shift+Z)" disabled>↷</button>
     <button class="btn gold edit-only" onclick="addNodeCenter()">＋ 노드</button>
     <button class="btn ghost" onclick="fitView()">화면맞춤</button>
     <button class="btn ghost edit-only" onclick="autoLayout('h')">가로정렬</button>
@@ -269,10 +277,10 @@ let uidc=0;const uid=p=>(p||'id')+'_'+(++uidc)+'_'+Math.random().toString(36).sl
 let mode='edit';const W_NODE=246;
 const API='api.php';
 let canvases=[]; let activeId=null; let SERVER_OK=false;
-let TOOLBAR={snap:true,edgeStyle:"solid",edgeArrow:true};
-let selectMode=false;                                   // 영역 선택 도구(세션 한정, 영속 안 함)
+let TOOLBAR={snap:true,edgeStyle:"solid",edgeArrow:true,selectMode:false};  // selectMode=영역선택(영속)
 const NODE_COLORS=[null,"#3a1d1d","#3b2c12","#16321f","#152a3a","#2a1f3a","#243040"]; // 기본+6색 배경 틴트
 const EWIDTHS={1:1.6,2:2.4,3:3.8};                      // 연결선 굵기 3단계
+let undoStack=[], redoStack=[], histBase=null, histSuspend=false;  // 되돌리기/다시실행
 let saveTimer=null, metaTimer=null;
 function stamp(){return new Date().toISOString()}
 function setSaveState(s){const el=document.getElementById('saveStat');if(!el)return;el.className='savestat '+s;el.textContent=s==='saving'?'● 저장 중…':s==='offline'?'● 오프라인':'● 저장됨'}
@@ -369,7 +377,7 @@ function nodeHTML(n){
     <div class="port right edit-only" data-act="port" data-side="right"></div>
     <div class="port bottom edit-only" data-act="port" data-side="bottom"></div>
     <div class="port left edit-only" data-act="port" data-side="left"></div>`;
-  const head=`<div class="n-in"></div><button class="n-del edit-only" data-act="del">✕</button>`;
+  const head=`<div class="n-in"></div><button class="n-del edit-only" data-act="del" title="노드 삭제">✕</button><button class="n-add edit-only" data-act="add" title="다음 노드 추가">＋</button>`;
   const bg=n.bg?`;background:${n.bg}`:'';
   if(t==='mini'){
     return `<div class="node mini" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}">${head}
@@ -464,9 +472,19 @@ function loadCanvas(id){
   state.edges.forEach(e=>{if(!e.fromSide)e.fromSide='right';if(!e.toSide)e.toSide='left';if(!e.style)e.style='solid';if(e.arrow===undefined)e.arrow=true});
   view=c.view&&typeof c.view.scale==='number'?c.view:{tx:30,ty:20,scale:1};
   sel=[];selEdge=null;
+  resetHistory();
   renderLib();render();setTimeout(fitView,30);
 }
+/* ---------- 되돌리기/다시실행 (서버 유무 무관, 캔버스별로 초기화) ---------- */
+function snapState(){const clean=a=>(a||[]).map(o=>{const r={};for(const k in o)if(k[0]!=='_')r[k]=o[k];return r});return JSON.stringify({nodes:clean(state.nodes),edges:state.edges,groups:state.groups||[]})}
+function resetHistory(){undoStack=[];redoStack=[];histBase=snapState();updateUndoBtns()}
+function recordHistory(){const cur=snapState();if(cur===histBase)return;undoStack.push(histBase);if(undoStack.length>80)undoStack.shift();redoStack=[];histBase=cur;updateUndoBtns()}
+function applySnap(s){const d=JSON.parse(s);state={nodes:d.nodes,edges:d.edges,groups:d.groups||[]};sel=[];selEdge=null;render()}
+function undo(){if(!undoStack.length){toast('되돌릴 작업 없음');return}redoStack.push(histBase);const prev=undoStack.pop();histBase=prev;histSuspend=true;applySnap(prev);markDirty();histSuspend=false;updateUndoBtns();toast('되돌리기')}
+function redo(){if(!redoStack.length){toast('다시 실행할 작업 없음');return}undoStack.push(histBase);const nx=redoStack.pop();histBase=nx;histSuspend=true;applySnap(nx);markDirty();histSuspend=false;updateUndoBtns();toast('다시 실행')}
+function updateUndoBtns(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u)u.disabled=!undoStack.length;if(r)r.disabled=!redoStack.length}
 function markDirty(){
+  if(!histSuspend)recordHistory();
   if(!SERVER_OK)return;
   const c=writeBackActive();if(!c)return;
   setSaveState('saving');
@@ -536,7 +554,7 @@ stage.addEventListener('pointerdown',e=>{
     const eh=e.target.closest('.ehandle');if(eh){startEndpoint(eh.dataset.end,e);return}
     const edge=e.target.closest('[data-edge]');if(edge){selectEdge(edge.dataset.edge);return}
     const nodeEl=e.target.closest('.node');if(nodeEl){nodePointerDown(nodeEl.dataset.id,e);return}
-    if(e.ctrlKey||e.metaKey||selectMode){startMarquee(e);return}
+    if(e.ctrlKey||e.metaKey||TOOLBAR.selectMode){startMarquee(e);return}
     startPan(e,true);return;
   }
   if(!e.target.closest('.node'))startPan(e);
@@ -552,8 +570,8 @@ function nodePointerDown(id,e){
   window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
 }
 function startPan(e,canClear){drag={type:'pan',sx:e.clientX,sy:e.clientY,otx:view.tx,oty:view.ty,canClear:!!canClear,moved:false};stage.classList.add('panning');window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
-function startLink(id,side,e){e.preventDefault();e.stopPropagation();selEdge=null;paint();drag={type:'link',from:id,fromSide:side};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
-function startEndpoint(end,e){e.preventDefault();e.stopPropagation();drag={type:'endpoint',end,edge:selEdge};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
+function startLink(id,side,e){e.preventDefault();e.stopPropagation();selEdge=null;paint();drag={type:'link',from:id,fromSide:side,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
+function startEndpoint(end,e){e.preventDefault();e.stopPropagation();drag={type:'endpoint',end,edge:selEdge,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
 function startMarquee(e){drag={type:'marquee',sx:e.clientX,sy:e.clientY,add:e.shiftKey,moved:false};const m=document.getElementById('marquee');m.style.display='block';posMarquee(e.clientX,e.clientY);window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
 function posMarquee(cx,cy){const r=stage.getBoundingClientRect(),x=Math.min(drag.sx,cx)-r.left,y=Math.min(drag.sy,cy)-r.top,w=Math.abs(cx-drag.sx),h=Math.abs(cy-drag.sy);const m=document.getElementById('marquee');m.style.left=x+'px';m.style.top=y+'px';m.style.width=w+'px';m.style.height=h+'px'}
 
@@ -589,12 +607,16 @@ function onMove(e){
     paint();return;
   }
   if(drag.type==='link'){
+    if(!drag.moved&&Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<6)return;  // 임계 전엔 선 안 그림(클릭 무시)
+    drag.moved=true;
     const a=N(drag.from),A=anchor(a,drag.fromSide),p=worldPt(e.clientX,e.clientY),d1=DIR[drag.fromSide],k=70;
     document.getElementById('tmp').setAttribute('d',`M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${p.x},${p.y} ${p.x},${p.y}`);
     hi(p,drag.from);return;
   }
   if(drag.type==='endpoint'){
     const ed=E(drag.edge);if(!ed)return;
+    if(!drag.moved&&Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<6)return;
+    drag.moved=true;
     const rs=sidesOf(ed),fixed=drag.end==='from'?anchor(N(ed.to),rs.ts):anchor(N(ed.from),rs.fs);
     const p=worldPt(e.clientX,e.clientY);
     document.getElementById('tmp').setAttribute('d',`M${fixed.x},${fixed.y} C${(fixed.x+p.x)/2},${fixed.y} ${(fixed.x+p.x)/2},${p.y} ${p.x},${p.y}`);
@@ -613,14 +635,16 @@ function onUp(e){
   if(d.type==='nodePending'){if(e.shiftKey)toggleSel(d.id);else selectOnly(d.id);selEdge=null;paint();return}
   if(d.type==='node'){setTimeout(()=>justDragged=false,30);markDirty();return}
   if(d.type==='link'){
+    if(!d.moved){return}                    // 포트 클릭만 — 아무 동작 안 함(노드 추가 방지)
     const p=worldPt(e.clientX,e.clientY),over=nodeAt(p);
     // 포트에 정확히 떨어지면 그 면 고정, 아니면 'auto'(최단 연결면 자동)
     if(over&&over.id!==d.from){addEdge(d.from,d.fromSide,over.id,portAt(over,p)||'auto');paint();toast('연결됨')}
-    else{const nn=makeNode(p.x-W_NODE/2,p.y-30);addEdge(d.from,d.fromSide,nn.id,'auto');render();selectOnly(nn.id);toast('노드 생성·연결')}
-    markDirty();return;
+    else if(!over){const nn=makeNode(p.x-W_NODE/2,p.y-30);addEdge(d.from,d.fromSide,nn.id,'auto');render();selectOnly(nn.id);toast('노드 생성·연결')}
+    markDirty();return;                      // 출발 노드 위에 놓으면(over===from) 아무 동작 안 함
   }
   if(d.type==='endpoint'){
     const ed=E(d.edge);if(!ed)return;
+    if(!d.moved){return}                     // 핸들 클릭만 — 재연결 안 함
     const p=worldPt(e.clientX,e.clientY),over=nodeAt(p);
     if(over){const tid=over.id,other=d.end==='from'?ed.to:ed.from;
       const side=portAt(over,p)||'auto';   // 끝점을 포트에 정확히 떨어뜨린 게 아니면 최단 연결면
@@ -648,12 +672,25 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-earrow]')){if(selEdge){const ed=E(selEdge);ed.arrow=!(ed.arrow!==false);paint();markDirty()}return}
   if(e.target.closest('[data-ewidth]')){if(selEdge){const ed=E(selEdge);ed.width=((ed.width||2)%3)+1;paint();markDirty()}return}
   const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
-  const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='rmthumb')setThumb(id,null);return}
+  const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='add')addChild(id);else if(a==='rmthumb')setThumb(id,null);return}
   const gb=e.target.closest('[data-gact]');if(gb&&gb.dataset.gact==='del'){const id=gb.closest('.group').dataset.gid;state.groups=state.groups.filter(g=>g.id!==id);render();markDirty();toast('그룹 해제')}
 });
 world.addEventListener('focusout',e=>{
   const f=e.target.dataset?.field;if(f){const id=e.target.closest('.node').dataset.id,n=N(id);if(n)n[f]=e.target.innerText.replace(/\u00a0/g,' ').trim();markDirty();return}
   const gf=e.target.dataset?.gfield;if(gf){const id=e.target.closest('.group').dataset.gid,g=G(id);if(g)g[gf]=e.target.innerText.trim();markDirty()}
+});
+// \ub178\ub4dc \ud074\ub9ad/\uc774\ub3d9\uc744 \ud14d\uc2a4\ud2b8 \ud3b8\uc9d1\ubcf4\ub2e4 \uc6b0\uc120 \u2014 \ub2e8\uc77c \ud074\ub9ad=\uc120\ud0dd\u00b7\uc774\ub3d9, \ub354\ube14\ud074\ub9ad=\ud3b8\uc9d1 \uc9c4\uc785
+world.addEventListener('mousedown',e=>{
+  if(mode!=='edit')return;
+  const ed=e.target.closest('.n-title,.n-desc');
+  if(ed&&document.activeElement!==ed)e.preventDefault();   // \ucea1\uc158 \ud3ec\ucee4\uc2a4(\uce90\ub7ff)\ub97c \ub9c9\uc544 \ub4dc\ub798\uadf8/\uc120\ud0dd\uc774 \uc6b0\uc120
+});
+world.addEventListener('dblclick',e=>{
+  if(mode!=='edit')return;
+  const ed=e.target.closest('.n-title,.n-desc');if(!ed)return;
+  e.stopPropagation();ed.focus();
+  const r=document.caretRangeFromPoint&&document.caretRangeFromPoint(e.clientX,e.clientY);
+  if(r){const s=window.getSelection();s.removeAllRanges();s.addRange(r)}
 });
 
 /* thumbnail drop */
@@ -678,7 +715,9 @@ document.getElementById('imgFile').addEventListener('change',e=>{const f=e.targe
 window.addEventListener('keydown',e=>{
   if(e.code==='Space'){spaceDown=true;if(!isEditing())e.preventDefault();return}
   if(e.key==='Escape'){deselectAll();closeZoom();return}
-  if(isEditing())return;
+  if(isEditing())return;                                  // 편집 중엔 브라우저 기본 텍스트 undo에 양보
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==='z'||e.key==='Z')){e.preventDefault();if(e.shiftKey)redo();else undo();return}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='y'||e.key==='Y')){e.preventDefault();redo();return}
   const primary=sel[sel.length-1];
   if(e.key==='Tab'){e.preventDefault();if(primary)addChildMini(primary);return}
   if(e.key==='Enter'){e.preventDefault();if(primary)addSiblingMini(primary);return}
@@ -719,12 +758,13 @@ cvListEl.addEventListener('focusout',e=>{const n=e.target.closest('[data-cvname]
 /* sidebar / mode */
 function renderToolbar(){
   const s=document.getElementById('snapBtn'),l=document.getElementById('lineBtn'),a=document.getElementById('arrowBtn'),sm=document.getElementById('selBtn');
-  if(sm)sm.classList.toggle('on',selectMode);
+  if(sm)sm.classList.toggle('on',!!TOOLBAR.selectMode);
+  stage.classList.toggle('selmode',!!TOOLBAR.selectMode);
   if(s)s.classList.toggle('on',!!TOOLBAR.snap);
   if(l){const dash=TOOLBAR.edgeStyle==='dashed';l.classList.toggle('on',dash);const ic=l.querySelector('.tr-ico'),nm=l.querySelector('.tr-name');if(ic)ic.textContent=dash?'┄':'─';if(nm)nm.textContent=dash?'선: 점선':'선: 실선'}
   if(a)a.classList.toggle('on',TOOLBAR.edgeArrow!==false);
 }
-function toggleSelectMode(){selectMode=!selectMode;stage.classList.toggle('selmode',selectMode);renderToolbar()}
+function toggleSelectMode(){TOOLBAR.selectMode=!TOOLBAR.selectMode;renderToolbar();saveMeta()}
 function renderPalette(){
   const el=document.getElementById('iconPal');if(!el)return;
   el.innerHTML=Object.keys(ICONS).map(id=>`<button class="ipal-btn" draggable="true" data-icon="${id}" title="${ICON_LABELS[id]||id}">${iconSvg(id)}</button>`).join('');

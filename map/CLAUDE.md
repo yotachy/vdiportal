@@ -38,11 +38,12 @@ view = { tx, ty, scale }      // 캔버스 팬/줌
 sel  = [nodeId...]            // 선택된 노드들
 selEdge = edgeId | null       // 선택된 연결선(1개)
 IMAGES  = { [id]: dataURL }   // 빌트인(HTML 내장) + 사용자 업로드(api.php ?images=1 로드)
-TOOLBAR = { snap:bool, edgeStyle:"solid"|"dashed", edgeArrow:bool }
+TOOLBAR = { snap:bool, edgeStyle:"solid"|"dashed", edgeArrow:bool, selectMode:bool }
           // 전역 작성 도구 상태. saveMeta()로 서버 meta.toolbar에 영속, exportJSON에 포함.
-selectMode = bool            // 영역 선택 도구(드래그=마퀴). 세션 한정 — 영속 안 함
+          // selectMode = 영역 선택(드래그=마퀴). 영속됨.
 NODE_COLORS = [null,...6色]   // 노드 배경색 팔레트(첫 항목 null=기본)
 EWIDTHS = { 1:1.6, 2:2.4, 3:3.8 }  // 엣지 굵기 단계→stroke-width(px)
+undoStack/redoStack, histBase  // 되돌리기/다시실행 스택. snapState()=_접두 필드 제외 JSON 스냅샷
 ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(path/shape 문자열). 현재 20종
 ```
 
@@ -69,6 +70,7 @@ ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(
 | 툴레일 | `renderToolbar()` — 플로팅 도구 팔레트 버튼 상태 갱신(선 버튼 글리프·라벨 동적, 영역선택 on). `toggleSnap/toggleEdgeStyle/toggleEdgeArrow` → TOOLBAR + `saveMeta()`. `toggleSelectMode()` → `selectMode` 토글(`.stage.selmode` 커서, 영속 안 함) |
 | 아이콘 | `ICONS`(20종 SVG path 상수), `iconSvg(id)` — path→SVG 문자열, `renderPalette()` — 팔레트 그리드, `addIconCenter(iconId)` — 아이콘 노드 추가 |
 | 정렬/뷰 | `autoLayout('h'|'v')`(레이어 배치), `fitView()`, `zoomBy(f)` |
+| 되돌리기 | `recordHistory()`(markDirty 안에서 호출, 변경 없으면 dedup), `undo()`/`redo()`, `resetHistory()`(loadCanvas마다), `snapState()`/`applySnap()`. 키 `Ctrl+Z`/`Ctrl+Shift+Z`·`Ctrl+Y`, 헤더 `↶`/`↷` 버튼(`updateUndoBtns`) |
 | 입출력 | `exportJSON()`(toolbar 포함), 불러오기(`impFile` change — toolbar 복원), `resetAll()` |
 | 서버 저장 | `boot()`, `loadCanvas(id)`, `writeBackActive()`, `markDirty()`, `saveMeta()`(toolbar 포함) |
 | 캔버스 관리 | `switchCanvas(id)`, `newCanvas()`, `renameCanvas(id,title)`, `deleteCanvas(id)`, `renderSidebar()` |
@@ -123,12 +125,15 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 
 - 배경 드래그 = 화면 이동(팬). `Space+드래그` / 휠클릭도 팬.
 - 휠 = 커서 기준 줌(0.3~2.4x).
-- **Ctrl(⌘)+드래그 = 영역 다중선택**(마퀴). 이때 팬 안 됨. **도구 팔레트 `영역 선택`(`selectMode`)**을 켜면 일반 배경 드래그도 마퀴(= Ctrl+드래그와 동일).
-- 카드 전체 드래그로 이동(임계 4px — 그 미만 클릭은 선택/편집). 다중선택 상태면 함께 이동.
+- **Ctrl(⌘)+드래그 = 영역 다중선택**(마퀴). 이때 팬 안 됨. **도구 팔레트 `영역 선택`(`TOOLBAR.selectMode`, 영속)**을 켜면 일반 배경 드래그도 마퀴(= Ctrl+드래그와 동일).
+- 카드 전체 드래그로 이동(임계 4px — 그 미만 클릭은 선택). 다중선택 상태면 함께 이동.
+- **노드 클릭이 텍스트 편집보다 우선**: 단일 클릭=선택/이동(캡션 mousedown `preventDefault`로 캐럿 차단), **더블클릭=편집 진입**(`caretRangeFromPoint`로 클릭 위치에 캐럿).
 - **자석 스냅**: `TOOLBAR.snap` 활성 시 노드 드래그 중 다른 노드와 x/y 정렬이 맞으면 스냅 + 노란 가이드선(`#snapV`/`#snapH`) 표시.
 - 카드 클릭 = 선택(골드 링). Shift+클릭 = 토글. 빈 곳 클릭 = 해제. **단일 선택 시 카드 위에 배경색 팝오버**(`drawNhud`) — 스와치 클릭으로 `n.bg` 변경(기본=× 스와치).
-- 노드 4면 포트(hover 시 표시) 드래그 → 다른 노드면 연결, 빈 곳이면 새 노드 생성+연결. **떨어뜨린 면 처리**: 포트에 정확히 떨어지면 그 면 고정, 아니면 `auto`(최단 연결면 자동·노드 이동에 따라 동적 갱신).
-- 연결선 클릭 = 선택 → 중앙 HUD `✕`(삭제)·`⇄`(방향)·**실선/점선**·**화살표**·**굵기(1·2·3단계)** 토글, 양 끝 핸들 드래그로 다른 노드/면 재부착(포트 정확히 안 맞으면 `auto` 최단면).
+- 노드 우상단 버튼(hover/선택 시): `✕`(삭제) + 아래 `＋`(다음 노드 추가=`addChild`). 키 `Tab`/`−`/`+`는 보조.
+- 노드 4면 포트(hover 시 표시)를 **실제로 드래그**(임계 6px — 단순 포트 클릭은 무시, 노드 추가 안 함) → 다른 노드면 연결, 빈 곳이면 새 노드 생성+연결. **떨어뜨린 면**: 포트에 정확히 떨어지면 그 면 고정, 아니면 `auto`(최단 연결면 자동·노드 이동에 따라 동적 갱신).
+- 연결선 클릭 = 선택 → 중앙 HUD `✕`(삭제)·`⇄`(방향)·**실선/점선**·**화살표**·**굵기(1·2·3단계)** 토글, 양 끝 핸들 **드래그**(임계 6px)로 다른 노드/면 재부착(포트 정확히 안 맞으면 `auto` 최단면).
+- **되돌리기/다시실행**: `Ctrl+Z` / `Ctrl+Shift+Z`(또는 `Ctrl+Y`), 헤더 `↶`/`↷` 버튼. 캔버스별 스택(전환 시 초기화).
 - 단축키(노드 선택 후): `Tab` = 하위 mini 노드 추가, `Enter` = 형제 mini 노드 추가, `−` 하위, `+` 상위, `G` 그룹(2개 이상), `Del` 삭제(선택 엣지 우선), `Esc` 해제.
 - 썸네일: 왼쪽 라이브러리에서 카드로 드래그(또는 OS 이미지 파일 드롭). 카드 썸네일 클릭 = 원본 라이트박스.
 - **플로팅 도구 팔레트**(캔버스 좌상단, `.stage` 내부 `position:absolute`): **도구** 섹션(이름 라벨 달린 행 버튼 — 자석 정렬·선 실선/점선·화살표 머리·기본 노드·중간 노드)과 **아이콘** 섹션을 헤더(`.tr-gh`)로 명확히 구분. `body.view`(보기 모드)에선 숨김.
@@ -143,7 +148,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 
 | 버튼(라벨) | 동작 | 상태 필드 |
 |---|---|---|
-| 영역 선택 | 배경 드래그를 마퀴 선택으로(Ctrl+드래그와 동일) | `selectMode` (bool, 비영속) |
+| 영역 선택 | 배경 드래그를 마퀴 선택으로(Ctrl+드래그와 동일) | `TOOLBAR.selectMode` (bool, 영속) |
 | 자석 정렬 | 노드 드래그 시 정렬 스냅 + 가이드선 | `TOOLBAR.snap` |
 | 선: 실선/점선 | 새로 그릴 엣지의 기본 스타일 전환(라벨·글리프가 현재 상태 반영) | `TOOLBAR.edgeStyle` |
 | 화살표 머리 | 새로 그릴 엣지에 화살표 머리 표시 여부 | `TOOLBAR.edgeArrow` |
@@ -196,6 +201,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - ~~연결선 화살표 머리(방향 표시) + 실선/점선 스타일 토글~~ ✅ 완료
 - ~~노드 타입 mini/icon + 단축키(Tab/Enter) + 좌측 툴 레일 + 자석 스냅 + 아이콘 팔레트~~ ✅ 완료
 - ~~플로팅 도구 팔레트(도구/아이콘 분리·라벨) + 노드 배경색 + 엣지 굵기 3단계 + 끝점 재연결 auto 최단면 + 영역 선택 도구~~ ✅ 완료
+- ~~되돌리기/다시실행(Ctrl+Z) + 연결 임계(포트 클릭 오작동 방지) + 노드 클릭 우선·더블클릭 편집 + 노드 ＋ 추가 버튼~~ ✅ 완료
 1. 직각(꺾은선/orthogonal) 연결선 스타일 토글.
 2. 연결선 라벨(예: "승인"/"반려") 추가·편집.
 3. 노드 리사이즈(너비/높이 핸들 드래그).
