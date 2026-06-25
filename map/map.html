@@ -28,6 +28,7 @@
   .brand-txt b{font-size:14.5px;font-weight:800;letter-spacing:-.02em}
   .brand-txt .em{color:var(--gold)}
   .brand-txt small{font-size:10.5px;color:var(--muted);font-weight:600}
+  body.local .brand-txt{display:none}                    /* 로컬 모드: 폐쇄망 회의용 — 브랜드 워드마크 숨김(익명 글리프만) */
   .tools{margin-left:auto;display:flex;align-items:center;gap:7px}
   .btn{font-family:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:var(--raised);color:var(--txt);border-radius:8px;padding:7px 12px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
   .btn:hover{background:var(--raised2);border-color:#3a4452}
@@ -246,6 +247,7 @@
   </a>
   <div class="tools">
     <span class="savestat" id="saveStat" title="저장 상태">●</span>
+    <div class="seg" id="storeSeg" title="저장 위치 — 로컬 모드는 이 PC에만 저장하고 워드마크를 숨깁니다"><button data-store="server" class="on">서버</button><button data-store="local">로컬</button></div>
     <div class="seg" id="modeSeg"><button data-mode="edit" class="on">편집</button><button data-mode="view">보기</button></div>
     <button class="btn ghost edit-only ico" id="undoBtn" onclick="undo()" title="되돌리기 (Ctrl+Z)" disabled>↶</button>
     <button class="btn ghost edit-only ico" id="redoBtn" onclick="redo()" title="다시 실행 (Ctrl+Shift+Z)" disabled>↷</button>
@@ -333,14 +335,27 @@ let canvasBg=null;                                       // 활성 캔버스 배
 const EWIDTHS={1:1.6,2:2.4,3:3.8};                      // 연결선 굵기 3단계
 let undoStack=[], redoStack=[], histBase=null, histSuspend=false;  // 되돌리기/다시실행
 let saveTimer=null, metaTimer=null;
+let storeMode='server';                                  // 'server'|'local' — 저장 대상(로컬=localStorage)
+const ORIG_TITLE=document.title;
 function stamp(){return new Date().toISOString()}
-function setSaveState(s){const el=document.getElementById('saveStat');if(!el)return;el.className='savestat '+s;el.textContent=s==='saving'?'● 저장 중…':s==='offline'?'● 오프라인':'● 저장됨'}
+/* ---------- localStorage 저장 레이어 (샌드박스/ file:// 에서 throw 시 폴백) ---------- */
+const LS_MODE='scoopboard_mode',LS_DOC='scoopboard_doc',LS_IMG='scoopboard_imgs';
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
+function metaObj(){return{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}}
+function docStamp(cs){let m='';(cs||[]).forEach(c=>{if(c.updated&&c.updated>m)m=c.updated});return m}
+function userImagesOnly(){const o={};LIBRARY.forEach(l=>{if(IMAGES[l.id])o[l.id]=IMAGES[l.id]});return o}
+function localLoad(){try{const s=localStorage.getItem(LS_DOC);return s?JSON.parse(s):null}catch(e){return null}}
+function localSaveDoc(){return lsSet(LS_DOC,JSON.stringify({canvases,meta:metaObj()}))}
+function localSaveImgs(){return lsSet(LS_IMG,JSON.stringify(userImagesOnly()))}
+function localLoadImgs(){try{const s=localStorage.getItem(LS_IMG);if(s){const o=JSON.parse(s);if(o&&typeof o==='object')Object.assign(IMAGES,o)}}catch(e){}}
+function setSaveState(s){const el=document.getElementById('saveStat');if(!el)return;el.className='savestat '+s;const loc=storeMode==='local';el.textContent=s==='saving'?'● 저장 중…':s==='offline'?'● 오프라인':(loc?'● 로컬 저장됨':'● 저장됨')}
 async function apiGet(){const r=await fetch(API,{cache:'no-store'});if(!r.ok)throw new Error('http');return r.json()}
 async function apiPost(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();if(!j||!j.ok)throw j;return j}
 const IMAGES={};
 LIBRARY.forEach(l=>{if(l.src)IMAGES[l.id]=l.src});
 function imgSrc(id){return IMAGES[id]||''}
-function putImg(id,src){IMAGES[id]=src;if(SERVER_OK)apiPost({op:'putimg',id,src}).catch(()=>setSaveState('offline'))}
+function putImg(id,src){IMAGES[id]=src;if(storeMode==='local'){localSaveImgs();return}if(SERVER_OK)apiPost({op:'putimg',id,src}).catch(()=>setSaveState('offline'))}
 function downscaleImage(src,cb){const img=new Image();img.onload=()=>{let w=img.width,h=img.height;const md=1000,sc=Math.min(1,md/Math.max(w,h));w=Math.max(1,Math.round(w*sc));h=Math.max(1,Math.round(h*sc));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);let q=0.82,out=c.toDataURL('image/jpeg',q);while(out.length>120000&&q>0.4){q-=0.1;out=c.toDataURL('image/jpeg',q)}cb(out)};img.onerror=()=>{if(src.length<120000)cb(src);else toast('이미지를 불러올 수 없어요')};img.src=src}
 async function loadImages(){try{const r=await fetch(API+'?images=1',{cache:'no-store'});if(!r.ok)return;const m=await r.json();if(m&&typeof m==='object')Object.assign(IMAGES,m)}catch(e){}}
 const ICONS={};
@@ -459,8 +474,52 @@ function polyPath(pts){if(pts.length<2)return'';if(pts.length===2)return`M${pts[
     const p1=[b[0]-(b[0]-a[0])/l1*r,b[1]-(b[1]-a[1])/l1*r],p2=[b[0]+(c[0]-b[0])/l2*r,b[1]+(c[1]-b[1])/l2*r];
     d+=` L${p1[0]},${p1[1]} Q${b[0]},${b[1]} ${p2[0]},${p2[1]}`}
   const z=pts[pts.length-1];return d+` L${z[0]},${z[1]}`}
+// 직교 선분(p1-p2)이 사각형들 내부를 통과하면 true (경계선 위는 허용 — 부풀린 마진으로 카드에서 띄움)
+function segHitsRects(x1,y1,x2,y2,rects){
+  if(x1===x2){const lo=Math.min(y1,y2),hi=Math.max(y1,y2);for(const r of rects)if(x1>r.l&&x1<r.r&&hi>r.t&&lo<r.b)return true;}
+  else{const lo=Math.min(x1,x2),hi=Math.max(x1,x2);for(const r of rects)if(y1>r.t&&y1<r.b&&hi>r.l&&lo<r.r)return true;}
+  return false;
+}
+// 카드 회피 직각 라우팅: 모든 노드 사각형을 장애물로 두고 A*로 우회 경로 탐색. 실패 시 null(→단순 orthoPath 폴백)
+function routeOrtho(A,B,fs,ts){
+  const NN=state.nodes.length;if(NN<1||NN>60)return null;     // 성능 가드
+  const M=14,S=18;
+  const rects=state.nodes.map(n=>{const w=n._w||W_NODE,h=n._h||90;return{l:n.x-M,t:n.y-M,r:n.x+w+M,b:n.y+h+M}});
+  const d1=DIR[fs],d2=DIR[ts];
+  const P0=[A.x+d1[0]*S,A.y+d1[1]*S],P1=[B.x+d2[0]*S,B.y+d2[1]*S];   // 포트에서 띄운 진출·진입점
+  const xset=new Set([P0[0],P1[0]]),yset=new Set([P0[1],P1[1]]);
+  rects.forEach(r=>{xset.add(r.l);xset.add(r.r);yset.add(r.t);yset.add(r.b)});
+  const X=[...xset].sort((a,b)=>a-b),Y=[...yset].sort((a,b)=>a-b);
+  const nx=X.length,ny=Y.length;
+  const ix=new Map(X.map((v,i)=>[v,i])),iy=new Map(Y.map((v,i)=>[v,i]));
+  const sx=ix.get(P0[0]),sy=iy.get(P0[1]),txi=ix.get(P1[0]),tyi=iy.get(P1[1]);
+  if(sx==null||sy==null||txi==null||tyi==null)return null;
+  const hit=(a,b,c,d)=>segHitsRects(a,b,c,d,rects);
+  const BEND=22,key=(i,j,dir)=>(j*nx+i)*3+dir;            // dir 0=가로,1=세로,2=시작
+  const hh=(i,j)=>Math.abs(X[i]-X[txi])+Math.abs(Y[j]-Y[tyi]);
+  const gsc=new Map(),prev=new Map(),heap=[];
+  const push=(f,i,j,dir)=>{heap.push([f,i,j,dir]);let c=heap.length-1;while(c>0){const p=(c-1)>>1;if(heap[p][0]<=heap[c][0])break;[heap[p],heap[c]]=[heap[c],heap[p]];c=p}};
+  const pop=()=>{const top=heap[0],last=heap.pop();if(heap.length){heap[0]=last;let c=0;for(;;){const l=2*c+1,r=l+1;let m=c;if(l<heap.length&&heap[l][0]<heap[m][0])m=l;if(r<heap.length&&heap[r][0]<heap[m][0])m=r;if(m===c)break;[heap[m],heap[c]]=[heap[c],heap[m]];c=m}}return top};
+  gsc.set(key(sx,sy,2),0);push(hh(sx,sy),sx,sy,2);
+  let found=null;
+  while(heap.length){
+    const cur=pop(),f=cur[0],i=cur[1],j=cur[2],dir=cur[3],ck=key(i,j,dir),cg=gsc.get(ck);
+    if(f-hh(i,j)>cg+0.001)continue;                       // 낡은 항목
+    if(i===txi&&j===tyi){found=ck;break}
+    const step=(ni,nj,nd,len,ok)=>{if(!ok)return;const ng=cg+len+(dir!==2&&dir!==nd?BEND:0),nk=key(ni,nj,nd);if(!gsc.has(nk)||ng<gsc.get(nk)){gsc.set(nk,ng);prev.set(nk,ck);push(ng+hh(ni,nj),ni,nj,nd)}};
+    if(i+1<nx)step(i+1,j,0,X[i+1]-X[i],!hit(X[i],Y[j],X[i+1],Y[j]));
+    if(i-1>=0)step(i-1,j,0,X[i]-X[i-1],!hit(X[i-1],Y[j],X[i],Y[j]));
+    if(j+1<ny)step(i,j+1,1,Y[j+1]-Y[j],!hit(X[i],Y[j],X[i],Y[j+1]));
+    if(j-1>=0)step(i,j-1,1,Y[j]-Y[j-1],!hit(X[i],Y[j-1],X[i],Y[j]));
+  }
+  if(found==null)return null;
+  const pts=[];let ck=found;
+  while(ck!=null){const cell=Math.floor(ck/3),i=cell%nx,j=Math.floor(cell/nx);pts.push([X[i],Y[j]]);ck=prev.has(ck)?prev.get(ck):null}
+  pts.reverse();
+  return [[A.x,A.y],...pts,[B.x,B.y]];
+}
 function edgeGeo(e){const a=N(e.from),b=N(e.to);if(!a||!b)return null;const s=sidesOf(e),A=anchor(a,s.fs),B=anchor(b,s.ts);let d;
-  if(e.route!=='curve'){d=polyPath(orthoPath(A,B,s.fs,s.ts))}   // 직각이 기본, 'curve'만 곡선
+  if(e.route!=='curve'){const path=(drag?null:routeOrtho(A,B,s.fs,s.ts))||orthoPath(A,B,s.fs,s.ts);d=polyPath(cleanPts(path))}   // 직각이 기본(카드 회피), 'curve'만 곡선. 드래그 중엔 단순 경로
   else{const dd=Math.hypot(B.x-A.x,B.y-A.y),k=Math.min(120,Math.max(38,dd*0.4)),d1=DIR[s.fs],d2=DIR[s.ts];d=`M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${B.x+d2[0]*k},${B.y+d2[1]*k} ${B.x},${B.y}`}
   return{A,B,fs:s.fs,ts:s.ts,d}}
 function nodeAt(pt){let r=null;state.nodes.forEach(n=>{const w=n._w||W_NODE,h=n._h||90;if(pt.x>=n.x&&pt.x<=n.x+w&&pt.y>=n.y&&pt.y<=n.y+h)r=n});return r}
@@ -638,13 +697,14 @@ function redo(){if(!redoStack.length){toast('다시 실행할 작업 없음');re
 function updateUndoBtns(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u)u.disabled=!undoStack.length;if(r)r.disabled=!redoStack.length}
 function markDirty(){
   if(!histSuspend)recordHistory();
-  if(!SERVER_OK)return;
   const c=writeBackActive();if(!c)return;
+  if(storeMode==='local'){setSaveState('saving');clearTimeout(saveTimer);saveTimer=setTimeout(()=>setSaveState(localSaveDoc()?'saved':'offline'),400);return}
+  if(!SERVER_OK)return;
   setSaveState('saving');
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{try{await apiPost({op:'upsert',canvas:c});setSaveState('saved')}catch(e){setSaveState('offline')}},800);
 }
-function saveMeta(){if(!SERVER_OK)return;clearTimeout(metaTimer);metaTimer=setTimeout(async()=>{try{await apiPost({op:'meta',meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}})}catch(e){}},800)}
+function saveMeta(){if(storeMode==='local'){localSaveDoc();return}if(!SERVER_OK)return;clearTimeout(metaTimer);metaTimer=setTimeout(async()=>{try{await apiPost({op:'meta',meta:metaObj()})}catch(e){}},800)}
 function refreshSidebar(){if(typeof renderSidebar==='function')renderSidebar()}
 function switchCanvas(id){
   if(id===activeId)return;
@@ -659,14 +719,14 @@ function newCanvas(){
   const c={id:uid('c'),title:'새 캔버스',nodes:[n],edges:[],groups:[],view:{tx:30,ty:20,scale:1},updated:stamp()};
   canvases.push(c);activeId=c.id;
   loadCanvas(c.id);refreshSidebar();
-  if(SERVER_OK){apiPost({op:'upsert',canvas:c}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'));saveMeta()}
+  if(storeMode==='local'){saveMeta()}else if(SERVER_OK){apiPost({op:'upsert',canvas:c}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'));saveMeta()}
   toast('캔버스 추가');
 }
 function renameCanvas(id,title){
   const c=canvases.find(x=>x.id===id);if(!c)return;
   c.title=(title||'').trim()||'제목없음';c.updated=stamp();
   refreshSidebar();
-  if(SERVER_OK)apiPost({op:'upsert',canvas:c}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'));
+  if(storeMode==='local'){saveMeta()}else if(SERVER_OK)apiPost({op:'upsert',canvas:c}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'));
 }
 function deleteCanvas(id){
   if(canvases.length<=1){toast('마지막 캔버스는 삭제할 수 없어요');return}
@@ -675,7 +735,7 @@ function deleteCanvas(id){
   canvases=canvases.filter(c=>c.id!==id);
   if(wasActive){activeId=canvases[0].id;loadCanvas(activeId)}
   refreshSidebar();
-  if(SERVER_OK){apiPost({op:'delete',id}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'));saveMeta()}
+  if(storeMode==='local'){saveMeta()}else if(SERVER_OK){apiPost({op:'delete',id}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'));saveMeta()}
   toast('캔버스 삭제');
 }
 
@@ -933,7 +993,8 @@ function toggleSnap(){TOOLBAR.snap=!TOOLBAR.snap;renderToolbar();saveMeta()}
 function toggleEdgeStyle(){TOOLBAR.edgeStyle=TOOLBAR.edgeStyle==='dashed'?'solid':'dashed';renderToolbar();saveMeta()}
 function toggleEdgeArrow(){TOOLBAR.edgeArrow=!(TOOLBAR.edgeArrow!==false);renderToolbar();saveMeta()}
 function toggleSide(){const a=document.getElementById('app');a.classList.toggle('collapsed');document.getElementById('sideBtn').textContent=a.classList.contains('collapsed')?'»':'«';setTimeout(paint,230)}
-document.getElementById('modeSeg').addEventListener('click',e=>{const m=e.target.dataset.mode;if(!m)return;mode=m;document.body.className=m;[...e.currentTarget.children].forEach(b=>b.classList.toggle('on',b.dataset.mode===m));render();renderSidebar()});
+document.getElementById('modeSeg').addEventListener('click',e=>{const m=e.target.dataset.mode;if(!m)return;mode=m;document.body.classList.toggle('view',m==='view');[...e.currentTarget.children].forEach(b=>b.classList.toggle('on',b.dataset.mode===m));render();renderSidebar()});
+document.getElementById('storeSeg').addEventListener('click',e=>{const s=e.target.dataset.store;if(s)setStoreMode(s)});
 
 /* auto layout */
 function autoLayout(dir){
@@ -1008,9 +1069,16 @@ document.getElementById('impFile').addEventListener('change',e=>{const f=e.targe
   else{const st=d.state||d;if(!st.groups)st.groups=[];const c={id:uid('c'),title:'불러온 캔버스',nodes:st.nodes||[],edges:st.edges||[],groups:st.groups||[],view:d.view||{tx:30,ty:20,scale:1},updated:stamp()};canvases=[c];activeId=c.id}
   canvases.forEach(c=>{(c.nodes||[]).forEach(n=>{n.thumb=(n.thumb&&n.thumb.imgId)?{imgId:n.thumb.imgId,label:n.thumb.label}:null})});
   loadCanvas(activeId);refreshSidebar();
-  if(SERVER_OK){Promise.all(Object.keys(d.images||{}).map(k=>apiPost({op:'putimg',id:k,src:d.images[k]}).catch(()=>{}))).then(()=>apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}}})).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}
+  if(storeMode==='local'){localSaveImgs();setSaveState(localSaveDoc()?'saved':'offline')}
+  else if(SERVER_OK){Promise.all(Object.keys(d.images||{}).map(k=>apiPost({op:'putimg',id:k,src:d.images[k]}).catch(()=>{}))).then(()=>apiPost({op:'replace',doc:{canvases,meta:metaObj()}})).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}
   toast('불러오기 완료')}catch(err){toast('JSON 형식 오류')}};r.readAsText(f);e.target.value=''});
-function resetAll(){if(confirm('모든 캔버스를 기본 구성으로 초기화할까요?')){Object.keys(IMAGES).forEach(k=>delete IMAGES[k]);LIBRARY.forEach(l=>{if(l.src)IMAGES[l.id]=l.src});const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);refreshSidebar();if(SERVER_OK){apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}}}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}toast('초기화됨')}}
+// 전체 문서를 활성 스토어(로컬/서버)에 통째로 기록 — 모드 전환·초기화·부팅 수렴에 사용
+function persistDoc(){
+  if(storeMode==='local'){localSaveImgs();setSaveState(localSaveDoc()?'saved':'offline');return}
+  if(SERVER_OK){apiPost({op:'replace',doc:{canvases,meta:metaObj()}}).then(()=>setSaveState('saved')).catch(()=>setSaveState('offline'))}
+  else setSaveState('offline');
+}
+function resetAll(){if(confirm('모든 캔버스를 기본 구성으로 초기화할까요?')){Object.keys(IMAGES).forEach(k=>delete IMAGES[k]);LIBRARY.forEach(l=>{if(l.src)IMAGES[l.id]=l.src});const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);refreshSidebar();persistDoc();toast('초기화됨')}}
 
 /* lightbox / toast */
 function zoom(id){if(justDragged)return;const n=N(id);if(n&&n.thumb){document.getElementById('lbimg').src=imgSrc(n.thumb.imgId);document.getElementById('lb').classList.add('on')}}
@@ -1021,27 +1089,61 @@ function seedCanvas(title){
   const ds=defaultState();
   return {id:uid('c'),title:title||'VDI 접속 흐름',nodes:ds.nodes,edges:ds.edges,groups:ds.groups,view:{tx:30,ty:20,scale:1},updated:stamp()};
 }
-async function boot(){
-  try{
-    const doc=await apiGet();
-    SERVER_OK=true;
-    await loadImages();
-    if(doc&&Array.isArray(doc.canvases)&&doc.canvases.length){
-      canvases=doc.canvases;
-      if(doc.meta&&Array.isArray(doc.meta.library)){LIBRARY.length=0;doc.meta.library.forEach(x=>LIBRARY.push(x))}
-      if(doc.meta&&doc.meta.toolbar)Object.assign(TOOLBAR,doc.meta.toolbar);
-      activeId=(doc.meta&&doc.meta.activeId&&canvases.some(c=>c.id===doc.meta.activeId))?doc.meta.activeId:canvases[0].id;
-      loadCanvas(activeId);
-      setSaveState('saved');
-    }else{
-      const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);
-      try{await apiPost({op:'replace',doc:{canvases,meta:{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}}});setSaveState('saved')}catch(e){setSaveState('offline')}
+/* 문서(canvases+meta) 채택 — 메모리에 반영 후 렌더 */
+function adoptDoc(doc){
+  canvases=doc.canvases||[];
+  const meta=doc.meta||{};
+  if(Array.isArray(meta.library)){LIBRARY.length=0;meta.library.forEach(x=>LIBRARY.push(x))}
+  if(meta.toolbar)Object.assign(TOOLBAR,meta.toolbar);
+  activeId=(meta.activeId&&canvases.some(c=>c.id===meta.activeId))?meta.activeId:(canvases[0]&&canvases[0].id);
+  if(activeId)loadCanvas(activeId);
+}
+/* 저장 모드 UI 반영 (body.local, 탭 제목, 세그, 저장 배지) */
+function applyStoreMode(){
+  document.body.classList.toggle('local',storeMode==='local');
+  document.title=storeMode==='local'?'보드':ORIG_TITLE;
+  const seg=document.getElementById('storeSeg');
+  if(seg)[...seg.children].forEach(b=>b.classList.toggle('on',b.dataset.store===storeMode));
+}
+/* 서버 ↔ 로컬 전환 — 최신본 유지(메모리 채택 우선, 대상이 더 최신이면 확인 후 불러오기) */
+async function setStoreMode(m){
+  if(m===storeMode)return;
+  writeBackActive();
+  const memStamp=docStamp(canvases);
+  let tgtDoc=null,tgtStamp='';
+  if(m==='local'){tgtDoc=localLoad();tgtStamp=tgtDoc?docStamp(tgtDoc.canvases):'';}
+  else{try{tgtDoc=await apiGet();SERVER_OK=true;tgtStamp=(tgtDoc&&tgtDoc.canvases)?docStamp(tgtDoc.canvases):'';}catch(e){SERVER_OK=false;}}
+  if(tgtStamp&&tgtStamp>memStamp&&tgtDoc&&tgtDoc.canvases&&tgtDoc.canvases.length){
+    if(confirm((m==='local'?'로컬':'서버')+'에 더 최신 데이터가 있습니다.\n불러올까요?  (취소 = 현재 화면 내용을 유지)')){
+      if(m==='server')await loadImages(); else localLoadImgs();
+      adoptDoc(tgtDoc);
     }
-  }catch(e){
-    SERVER_OK=false;
-    const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);
-    setSaveState('offline');
   }
+  storeMode=m;lsSet(LS_MODE,m);
+  applyStoreMode();refreshSidebar();renderToolbar();renderLib();
+  persistDoc();                                         // 유지된(최신) 내용을 활성 스토어로 수렴
+  toast(m==='local'?'로컬 저장 모드 — 워드마크 숨김':'서버 저장 모드');
+}
+async function boot(){
+  storeMode=lsGet(LS_MODE)||'server';
+  let serverDoc=null;
+  try{serverDoc=await apiGet();SERVER_OK=true;await loadImages();}catch(e){SERVER_OK=false;}
+  localLoadImgs();
+  const localDoc=localLoad();
+  const sOk=serverDoc&&Array.isArray(serverDoc.canvases)&&serverDoc.canvases.length;
+  const lOk=localDoc&&Array.isArray(localDoc.canvases)&&localDoc.canvases.length;
+  const sStamp=sOk?docStamp(serverDoc.canvases):'',lStamp=lOk?docStamp(localDoc.canvases):'';
+  let chosen=null,fromServer=false,fromLocal=false;
+  if(sOk&&lOk){if(sStamp>=lStamp){chosen=serverDoc;fromServer=true}else{chosen=localDoc;fromLocal=true}}
+  else if(sOk){chosen=serverDoc;fromServer=true}
+  else if(lOk){chosen=localDoc;fromLocal=true}
+  if(chosen)adoptDoc(chosen);
+  else{const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id)}
+  applyStoreMode();
+  // 활성 스토어 수렴: 선택본이 다른 스토어/신규면 활성 스토어에 기록
+  if(storeMode==='local'){if(!fromLocal){localSaveImgs();localSaveDoc()}setSaveState(lsGet(LS_DOC)?'saved':'offline')}
+  else if(SERVER_OK){if(!fromServer){try{await apiPost({op:'replace',doc:{canvases,meta:metaObj()}})}catch(e){}}setSaveState('saved')}
+  else setSaveState('offline');
   if(typeof renderSidebar==='function')renderSidebar();
   renderToolbar();
   renderPalette();

@@ -51,6 +51,7 @@ TOOLBAR = { snap:bool, edgeStyle:"solid"|"dashed", edgeArrow:bool, selectMode:bo
 NODE_COLORS = [null,...6色]   // 노드 배경색 팔레트(첫 항목 null=기본)
 EWIDTHS = { 1:1.6, 2:2.4, 3:3.8 }  // 엣지 굵기 단계→stroke-width(px)
 undoStack/redoStack, histBase  // 되돌리기/다시실행 스택. snapState()=_접두 필드 제외 JSON 스냅샷
+storeMode = "server"|"local"   // 저장 대상. 'local'=localStorage(scoopboard_doc/_imgs/_mode) + 워드마크 숨김(body.local). 전환 시 docStamp 비교로 최신본 유지
 ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(path/shape 문자열). 현재 20종
 ```
 
@@ -65,7 +66,7 @@ ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(
 |---|---|
 | 렌더 | `render()` → `measure()` → `paint()` → `applySel()` → `applyView()` |
 | 그리기 | `paint()` = 엣지(`ew` 보이는선 + `eh` 히트영역) + `layoutGroups()` + `drawEhud()` + `drawNhud()` |
-| 엣지 기하 | `edgeGeo(e)`(curve=베지어 / ortho=`orthoPath`+`polyPath` 분기), `anchor`, `nearestSide`, `centerOf`, `sidesOf`(auto 최단면), `DIR` |
+| 엣지 기하 | `edgeGeo(e)`(curve=베지어 / ortho=`routeOrtho`(카드회피 A\*)→실패 시 `orthoPath` 폴백→`cleanPts`+`polyPath`), `routeOrtho`/`segHitsRects`(장애물 회피), `anchor`, `nearestSide`, `centerOf`, `sidesOf`(auto 최단면), `DIR` |
 | 엣지 스타일 | `paint()`에서 `e.style==='dashed'`→`stroke-dasharray`, `e.arrow`→`<marker>`, `e.width`→`EWIDTHS`. 엣지 HUD(`drawEhud`)에서 삭제/방향/실선점선/화살표/굵기/**라우팅(곡선·직각)**/**라벨** 토글 |
 | 엣지 라벨 | `drawLabels()`(`#elabels`에 `.elabel` pill, paint마다), world `focusout`/`[data-elabeladd]`로 `e.label` 저장·생성, 빈 값→제거 |
 | 노드 배경색 | `drawNhud()` — 단일 선택 노드 위 `.nclr` 색상 팝오버(`NODE_COLORS` 스와치). `world` click `[data-bg]` → `n.bg` 설정 후 `render()` |
@@ -85,7 +86,8 @@ ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(
 | 정렬/뷰 | `autoLayout('h'|'v')`(레이어 배치), `fitView()`, `zoomBy(f)` |
 | 되돌리기 | `recordHistory()`(markDirty 안에서 호출, 변경 없으면 dedup), `undo()`/`redo()`, `resetHistory()`(loadCanvas마다), `snapState()`/`applySnap()`. 키 `Ctrl+Z`/`Ctrl+Shift+Z`·`Ctrl+Y`, 헤더 `↶`/`↷` 버튼(`updateUndoBtns`) |
 | 입출력 | `exportJSON()`(toolbar 포함), 불러오기(`impFile` change — toolbar 복원), `resetAll()` |
-| 서버 저장 | `boot()`, `loadCanvas(id)`, `writeBackActive()`, `markDirty()`, `saveMeta()`(toolbar 포함) |
+| 서버 저장 | `boot()`(서버·로컬 최신 수렴), `loadCanvas(id)`, `writeBackActive()`, `markDirty()`, `saveMeta()`(toolbar 포함), `persistDoc()`(활성 스토어 통째 기록) |
+| 저장 모드 | `setStoreMode(m)`(서버↔로컬, 최신본 유지), `applyStoreMode()`(body.local·탭제목·세그), `adoptDoc(doc)`, `docStamp(cs)`, `localLoad/localSaveDoc/localSaveImgs/localLoadImgs`, `lsGet/lsSet`(try/catch), `metaObj()` |
 | 캔버스 관리 | `switchCanvas(id)`, `newCanvas()`, `renameCanvas(id,title)`, `deleteCanvas(id)`, `renderSidebar()` |
 | 이미지 | `imgSrc(id)`, `putImg(id,dataURL)`, `downscaleImage(src,cb)`, `loadImages()` |
 | 기타 | `zoom(id)`(라이트박스), `toast(msg)`, `toggleSide()`(사이드바 접기) |
@@ -117,7 +119,14 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 
 ### 자동저장
 
-편집(노드·엣지·뷰 변경) 시 `markDirty()` 호출 → 디바운스 후 `writeBackActive()` → `upsert` POST. 저장 상태는 UI에 `● 저장됨` / `● 저장 중…` / `● 오프라인` 으로 표시.
+편집(노드·엣지·뷰 변경) 시 `markDirty()` 호출 → 디바운스 후 `writeBackActive()` → `upsert` POST. 저장 상태는 UI에 `● 저장됨`(로컬 모드 `● 로컬 저장됨`) / `● 저장 중…` / `● 오프라인` 으로 표시.
+
+### 서버 / 로컬 저장 모드 (`storeMode`)
+
+헤더 `서버 | 로컬` 세그(`#storeSeg`)로 전환. `storeMode` 전역(선택은 `scoopboard_mode`에 영속). **로컬 모드는 저장 대상이 localStorage**(`scoopboard_doc`=canvases+meta, `scoopboard_imgs`=사용자 이미지)로 바뀌며 **서버에 아무것도 쓰지 않음**. `markDirty`/`saveMeta`/`putImg`/`persistDoc`·캔버스 관리·`resetAll`·import가 모두 `storeMode` 분기.
+- **최신본 유지(핵심)**: `setStoreMode(m)`가 `writeBackActive()` 후 메모리 `docStamp` vs 대상 스토어 `docStamp`(`canvas.updated` 최댓값, ISO 문자열 비교) 비교 → 메모리가 같거나 최신이면 **메모리를 대상에 채택**, 대상이 더 최신일 때만 확인 후 `adoptDoc`. 이후 `persistDoc()`로 유지된 내용을 활성 스토어에 수렴.
+- **부팅 수렴**: `boot()`가 서버·로컬 두 스토어를 모두 읽어 **`docStamp`가 더 최신인 쪽을 채택**하고, 선택본이 활성 스토어와 다르면 활성 스토어에 기록 → 새로고침·재방문에도 최신본 유지.
+- **로컬 모드 = 브랜드 워드마크 숨김**: `applyStoreMode()`가 `body.local` 토글 → CSS `body.local .brand-txt{display:none}`(익명 글리프만), `document.title`→`보드`(폐쇄망 회의 시 이름 노출 방지). 서버 모드 복귀 시 `ORIG_TITLE` 원복.
 
 ### 인증
 
@@ -146,7 +155,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - **단일 선택 시 카드 위 라벨형 노드 툴바**(`drawNhud`→`.nbar`): `상위`(addParent)·`하위`(addChild)·`삭제` 버튼 + 배경색 스와치(`n.bg`). 노드엔 상시 코너 버튼 없음(삭제는 툴바/`Del`).
 - 노드 4면 포트(hover 시 표시)를 **실제로 드래그**(임계 6px — 단순 포트 클릭은 무시) → **4점 자석**: 대상 노드 위에선 가장 가까운 포트로 흡착(포트 하이라이트), 노드 중앙부에 놓으면 `auto`(최단 연결면). 빈 곳이면 새 노드 생성+연결.
 - 연결선 클릭 = 선택 → **라벨형 미니 HUD 툴바**(`.ebar`): `삭제`·`방향`·`실선/점선`·`화살표`·`굵기(1·2·3)`·**`곡선/직각`**(라우팅 토글)·**`라벨`**(추가·편집). 양 끝 핸들 **드래그**(임계 6px)로 4점 자석 재부착.
-- **직각 라우팅(기본)**: `e.route` 미지정·`ortho`면 직각. `orthoPath`가 **포트에서 수직 stub(11~26px)로 빠져나온 뒤** 중앙 점프(가로↔가로/세로↔세로)나 ㄱ/ㄴ자로 꺾고, `cleanPts`로 중복·일직선 점 제거, `polyPath`로 모서리 라운딩. HUD에서 개별 `curve`(곡선·베지어) 전환. `edgeGeo`가 `e.route!=='curve'`로 분기.
+- **직각 라우팅(기본·카드 회피)**: `e.route` 미지정·`ortho`면 직각. **`routeOrtho(A,B,fs,ts)`가 모든 노드 사각형(마진 `M=14`)을 장애물로 두고 A\*(Hanan 격자 + 꺾임 패널티 `BEND`)로 우회 경로 탐색** → 선이 카드 위/뒤로 침범하지 않음(`segHitsRects`가 사각형 내부 통과 차단, 경계선은 허용). 포트에서 `S=18` 띄운 진출·진입점에서 시작. 실패하거나 노드 60개 초과면 `null`→ 단순 `orthoPath`(포트 stub+중앙 점프/ㄱㄴ자) 폴백. 결과는 `cleanPts`+`polyPath`(모서리 라운딩). **노드 드래그 중(`drag` truthy)엔 성능 위해 단순 경로**, 드롭 시 재라우팅. HUD에서 개별 `curve`(곡선·베지어) 전환. `edgeGeo`가 `e.route!=='curve'`로 분기(`buildSVG` 내보내기도 동일 경로 사용).
 - **연결선 라벨**(`e.label`): `drawLabels()`가 라벨 있는 모든 엣지의 중앙에 `.elabel` pill 렌더(편집은 contenteditable, 빈 값이면 제거). `라벨` 버튼이 빈 라벨 생성 후 포커스.
 - **캔버스 배경색**: 헤더 `배경` 버튼 → 스와치 팝오버(`#bgPop`, `CANVAS_BGS`), 캔버스별 `canvas.bg`로 영속(`applyCanvasBg`).
 - **다중 선택(2개↑) 정렬·배포**: 선택 묶음 위 `.abar` 툴바(좌/가운데/우·상/가운데/하 정렬 + 가로/세로 등간격). `alignSel(mode)`.
@@ -207,7 +216,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 
 ## 제약 / 주의
 
-- **localStorage/sessionStorage 사용 금지**: claude.ai 미리보기 샌드박스에서 실패함. 자체 호스팅/로컬에서는 동작하나, 미리보기 호환을 위해 현재는 사용하지 않음. 서버 저장은 `api.php`로 처리(자체 호스팅). 미리보기/`file://`에선 메모리 모드로 자동 폴백.
+- **localStorage는 로컬 저장 모드 한정 opt-in**: 과거 전면 금지였으나(claude.ai 미리보기 샌드박스 throw), **`storeMode==='local'`일 때만** `lsGet/lsSet`(전부 try/catch — throw 시 메모리 폴백)로 사용. 키: `scoopboard_mode`(선택) · `scoopboard_doc`(canvases+meta) · `scoopboard_imgs`(사용자 이미지). 서버 모드에선 종전대로 `api.php`만 사용. 미리보기/`file://`에선 자동 폴백. sessionStorage는 계속 미사용.
 - **POST 본문 <128KB 유지**: cafe24 openresty는 POST 본문 >128KiB(131072B)를 404로 거부. 이미지는 `putimg` op로 개별 분리 저장(각 <128KB). 캔버스·메타 JSON에 이미지 dataURL을 포함하지 말 것 — `imgId` 참조만 허용.
 - 엣지 SVG는 `left/top:-10000, 20000×20000, overflow:visible`로 깔고 `#edgeG`를 `translate(10000,10000)`. 히트영역(`.eh`)만 `pointer-events:stroke`, 컨테이너는 `none`. 이 구조 유지해야 선 클릭과 노드/팬이 안 충돌함.
 - 줌 선명도: `.world`에 `will-change:transform`을 **넣지 말 것**(레이어 캐싱되면 줌 시 흐려짐). 현재 빠져 있음.
@@ -223,6 +232,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - ~~**스쿱보드 리브랜드**(MoneyScoop 테마·워드마크·홈링크) + 라벨형 HUD 툴바(노드/엣지) + 4점 자석 + 캔버스 배경색 + 팔레트 정리(선/화살표 제거)~~ ✅ 완료
 - ~~연결선 라벨 + 직각(꺾은선) 라우팅~~ ✅ 완료
 - ~~PNG/SVG 내보내기 + 정렬·등간격 배포~~ ✅ 완료 — **브레인스토밍 합의 기능 전부 구현 완료**
+- ~~카드 회피 직각 라우팅(A\* 장애물 회피) + 서버/로컬 저장 모드 토글(최신본 유지) + 로컬 모드 워드마크 숨김(폐쇄망 회의용)~~ ✅ 완료
 1. 직각(꺾은선/orthogonal) 연결선 스타일 토글.
 2. 연결선 라벨(예: "승인"/"반려") 추가·편집.
 3. 노드 리사이즈(너비/높이 핸들 드래그).
