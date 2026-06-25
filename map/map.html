@@ -159,10 +159,12 @@
   .n-add:hover{color:var(--gold);border-color:var(--gold-dim)}
   .n-del:hover{color:var(--red);border-color:var(--red)}
   .n-body{padding:12px 13px 12px}
-  .n-title{font-size:14px;font-weight:700;outline:none;border-radius:6px;padding:2px 4px;margin:-2px -4px;line-height:1.4;min-height:20px;cursor:text}
+  .n-title{font-size:14px;font-weight:700;outline:none;border-radius:6px;padding:2px 4px;margin:-2px -4px;line-height:1.4;min-height:20px;white-space:pre-wrap;overflow-wrap:break-word;cursor:inherit}
   .n-title:empty::before{content:"제목";color:var(--faint)}
-  .n-desc{font-size:12px;color:#b9c1cd;line-height:1.55;outline:none;border-radius:6px;padding:3px 4px;margin:6px -4px 0;min-height:16px;cursor:text}
+  .n-desc{font-size:12px;color:#b9c1cd;line-height:1.55;outline:none;border-radius:6px;padding:3px 4px;margin:6px -4px 0;min-height:16px;white-space:pre-wrap;overflow-wrap:break-word;cursor:inherit}
   .n-desc:empty::before{content:"설명";color:var(--faint)}
+  .n-title:focus,.n-desc:focus{cursor:text}
+  body.ndrag,body.ndrag *{cursor:grabbing!important}
   .n-thumb{margin-top:10px;position:relative;border:1px solid var(--line);border-radius:9px;overflow:hidden;line-height:0;background:#0d1117}
   .n-thumb img{width:100%;height:92px;object-fit:cover;object-position:top center;display:block;cursor:zoom-in}
   .n-thumb .zh{position:absolute;right:6px;bottom:6px;width:21px;height:21px;border-radius:6px;background:#0d1117cc;border:1px solid var(--line);color:#cfd6df;display:grid;place-items:center;font-size:11px;pointer-events:none}
@@ -801,7 +803,7 @@ function onMove(e){
   if(drag.type==='pan'){drag.moved=true;view.tx=drag.otx+(e.clientX-drag.sx);view.ty=drag.oty+(e.clientY-drag.sy);applyView();return}
   if(drag.type==='nodePending'){
     if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<4)return;
-    drag.type='node';justDragged=true;document.body.style.userSelect='none';
+    drag.type='node';justDragged=true;document.body.style.userSelect='none';document.body.classList.add('ndrag');
     if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
     if(!sel.includes(drag.id))selectOnly(drag.id);
     drag.origins=sel.map(id=>{const n=N(id);return{id,ox:n.x,oy:n.y}});
@@ -852,7 +854,7 @@ function clearLinkHi(){document.querySelectorAll('.node.linktarget,.node.linkhov
 function hi(pt,exclude){clearLinkHi();const snap=snapAt(pt,exclude);if(snap){const el=q(snap.node);if(el){el.classList.add('linktarget','linkhover');if(snap.side!=='auto'){const pe=el.querySelector('.port.'+snap.side);if(pe)pe.classList.add('snaptarget')}}}return snap}
 function onUp(e){
   window.removeEventListener('pointermove',onMove);window.removeEventListener('pointerup',onUp);
-  const d=drag;drag=null;document.body.style.userSelect='';stage.classList.remove('panning');
+  const d=drag;drag=null;document.body.style.userSelect='';stage.classList.remove('panning');document.body.classList.remove('ndrag');
   document.getElementById('snapV').style.display='none';document.getElementById('snapH').style.display='none';
   document.getElementById('tmp').setAttribute('d','');clearLinkHi();
   if(!d)return;
