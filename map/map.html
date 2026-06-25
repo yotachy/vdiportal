@@ -944,6 +944,7 @@ document.getElementById('imgFile').addEventListener('change',e=>{const f=e.targe
 window.addEventListener('keydown',e=>{
   if(e.code==='Space'){spaceDown=true;if(!isEditing())e.preventDefault();return}
   if(e.key==='Escape'){deselectAll();closeZoom();return}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')){e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();exportJSON();return}
   if(isEditing())return;                                  // 편집 중엔 브라우저 기본 텍스트 undo에 양보
   if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==='z'||e.key==='Z')){e.preventDefault();if(e.shiftKey)redo();else undo();return}
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||e.key==='Y')){e.preventDefault();redo();return}
@@ -1031,7 +1032,8 @@ function autoLayout(dir){
 function fitView(){if(!state.nodes.length)return;measure();let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;state.nodes.forEach(n=>{minx=Math.min(minx,n.x);miny=Math.min(miny,n.y);maxx=Math.max(maxx,n.x+n._w);maxy=Math.max(maxy,n.y+(n._h||90))});const r=stage.getBoundingClientRect(),pad=70,s=Math.min(2.4,Math.max(.3,Math.min((r.width-pad*2)/(maxx-minx),(r.height-pad*2)/(maxy-miny))));view.scale=s;view.tx=pad-minx*s+(r.width-pad*2-(maxx-minx)*s)/2;view.ty=pad-miny*s+(r.height-pad*2-(maxy-miny)*s)/2;applyView()}
 
 /* import/export */
-function exportJSON(){writeBackActive();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({canvases,library:LIBRARY.map(l=>({id:l.id,label:l.label})),images:IMAGES,activeId,toolbar:TOOLBAR},null,2)],{type:'application/json'}));a.download='scoopboard.json';a.click();toast('JSON 내보냄')}
+function tsName(ext){const c=canvases.find(x=>x.id===activeId);let base=((c&&c.title)||'scoopboard').replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'-').slice(0,40)||'scoopboard';const d=new Date(),p=n=>String(n).padStart(2,'0');const ts=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;return`${base}_${ts}.${ext||'json'}`}
+function exportJSON(){writeBackActive();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({canvases,library:LIBRARY.map(l=>({id:l.id,label:l.label})),images:IMAGES,activeId,toolbar:TOOLBAR},null,2)],{type:'application/json'}));a.download=tsName('json');a.click();toast('저장됨 · '+a.download)}
 
 /* ---------- PNG/SVG 내보내기 (상태→벡터 SVG 재드로잉, 라이브러리 없음) ---------- */
 const _mctx=document.createElement('canvas').getContext('2d');
