@@ -497,7 +497,8 @@
   function activeDoc() { return DOCS.find(d => d.id === activeId) || null; }
   function serializeActive() {
     const dc = activeDoc(); if (!dc) return null;
-    dc.nodes = boardState.nodes; dc.edges = boardState.edges;
+    dc.nodes = boardState.nodes.map(n => { const o = {}; for (const k in n) { if (k[0] !== "_") o[k] = n[k]; } return o; });
+    dc.edges = boardState.edges.map(e => { const o = {}; for (const k in e) { if (k[0] !== "_") o[k] = e[k]; } return o; });
     dc.themeImgId = themeState.imgId; dc.title = themeState.title || dc.title;
     dc.view = { tx: view.tx, ty: view.ty, scale: view.scale };
     dc.updated = new Date().toISOString();
