@@ -92,6 +92,31 @@
   /* toast (positioned in left half) */
   .b-toast{position:fixed;bottom:18px;left:25%;transform:translateX(-50%);background:#1d2530;border:1px solid var(--gold-dim);color:#fff;padding:8px 16px;border-radius:99px;font-size:12px;z-index:99;box-shadow:0 10px 26px -8px #000;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap}
   .b-toast.on{opacity:1}
+
+  /* block palette (floats over board-pane) */
+  .forge-palette{
+    position:absolute;left:12px;top:12px;z-index:10;
+    display:flex;flex-direction:column;gap:4px;
+    background:#0e1218ee;border:1px solid var(--line);
+    border-radius:12px;padding:8px 7px;
+    box-shadow:0 8px 22px -8px #000c;
+    backdrop-filter:blur(6px);
+  }
+  .forge-palette .pal-label{
+    font-size:9px;font-weight:700;letter-spacing:.06em;
+    color:var(--eth);text-transform:uppercase;
+    padding:0 3px 3px;
+  }
+  .forge-palette .pal-btn{
+    display:block;width:100%;
+    padding:6px 11px;border:1px solid var(--line);
+    border-radius:8px;background:var(--surface);
+    color:var(--ink);font-size:11px;font-weight:600;
+    font-family:inherit;cursor:pointer;text-align:left;
+    white-space:nowrap;transition:background .1s,border-color .1s;
+  }
+  .forge-palette .pal-btn:hover{background:var(--raised2);border-color:#3a4452}
+  .forge-palette .pal-btn.pal-free{color:var(--eth);border-style:dashed}
 </style>
 </head>
 <body>
@@ -138,6 +163,16 @@
 
   const W_NODE = 200;   // default node width (block kind)
   const EWIDTHS = { 1: 1.6, 2: 2.4, 3: 3.8 };
+
+  /* ── Block definitions ───────────────────────────────────────── */
+  const BLOCK_DEFS = [
+    { type: "price",     label: "가격",        kind: "block" },
+    { type: "ma",        label: "이동평균",    kind: "block", params: { len: 10 } },
+    { type: "phasefold", label: "위상폴딩",    kind: "block", params: { pmin: 16, pmax: 128 } },
+    { type: "combine",   label: "가중결합",    kind: "block" },
+    { type: "predict",   label: "예측·시그널", kind: "block" },
+    { type: "free",      label: "메모",        kind: "free" }
+  ];
 
   /* helpers */
   const bN = id => boardState.nodes.find(n => n.id === id);
@@ -392,6 +427,27 @@
     const p = worldPt(r.left + r.width/2, r.top + r.height/2);
     const n = makeNode(p.x - W_NODE/2, p.y - 35, title, kind, blockType);
     renderBoard(); selectOnly(n.id); fireBoardChange();
+  }
+
+  /* ── addBlock: insert a typed block at canvas center ─────────── */
+  function addBlock(type) {
+    const d = BLOCK_DEFS.find(b => b.type === type) || {};
+    const r = bStage.getBoundingClientRect();
+    const c = worldPt(r.left + r.width / 2, r.top + r.height / 2);
+    const halfW = d.kind === "free" ? 70 : W_NODE / 2;
+    const n = {
+      id: uid("n"),
+      x: c.x - halfW,
+      y: c.y - 35,
+      title: d.label || "노드",
+      kind: d.kind || "free",
+      blockType: d.kind === "block" ? type : null,
+      params: d.params ? { ...d.params } : {}
+    };
+    boardState.nodes.push(n);
+    renderBoard();
+    selectOnly(n.id);
+    fireBoardChange();
   }
 
   /* ── 4-point magnet / link-hover ─────────────────────────────── */
@@ -788,23 +844,39 @@
     });
     window.addEventListener("keyup", e => { if (e.code === "Space") spaceDown = false; });
 
-    /* seed demo nodes, render, fit */
-    seedBoard();
+    /* seed default strategy, render, fit */
+    seedDefaultStrategy();
     renderBoard();
     fitView();
+
+    /* floating block palette */
+    const _pal = document.createElement("div");
+    _pal.className = "forge-palette";
+    _pal.innerHTML = `<div class="pal-label">블록 추가</div>` +
+      BLOCK_DEFS.filter(d => d.kind === "block").map(d =>
+        `<button class="pal-btn" onclick="addBlock('${d.type}')">${d.label}</button>`
+      ).join("") +
+      `<button class="pal-btn pal-free" onclick="addBlock('free')">메모</button>`;
+    pane.appendChild(_pal);
   }
 
-  /* ── Seed demo nodes ─────────────────────────────────────────── */
-  function seedBoard() {
-    const n1 = makeNode(40,  60, "가격 데이터", "block", "price",      {});
-    const n2 = makeNode(320, 60, "이동평균",    "block", "ma",         { len: 20 });
-    const n3 = makeNode(600, 60, "위상 접기",   "block", "phasefold",  { pmin: 8, pmax: 120 });
-    const n4 = makeNode(320, 200, "합성",       "block", "combine",    {});
-    /* addEdge calls fireBoardChange; _boardChangeCb is null here — no-op, that is correct */
-    addEdge(n1.id, "right", n2.id, "left");
-    addEdge(n2.id, "bottom", n4.id, "top");
-    addEdge(n1.id, "bottom", n3.id, "left");
-    addEdge(n3.id, "bottom", n4.id, "right");
+  /* ── Default strategy seed ───────────────────────────────────── */
+  /* price → {ma, phasefold} → combine → predict  +  free memo    */
+  function seedDefaultStrategy() {
+    boardState.nodes = [];
+    boardState.edges = [];
+    /* addEdge calls fireBoardChange; _boardChangeCb is null here — no-op */
+    const price     = makeNode(60,  110, "가격",        "block", "price",     {});
+    const ma        = makeNode(310,  40, "이동평균",    "block", "ma",        { len: 10 });
+    const phasefold = makeNode(310, 200, "위상폴딩",    "block", "phasefold", { pmin: 16, pmax: 128 });
+    const combine   = makeNode(560, 120, "가중결합",    "block", "combine",   {});
+    const predict   = makeNode(810, 120, "예측·시그널", "block", "predict",   {});
+    const memo      = makeNode(60,  290, "전략 메모",   "free",  null,        {});
+    addEdge(price.id,     "right",  ma.id,        "left");
+    addEdge(price.id,     "bottom", phasefold.id, "left");
+    addEdge(ma.id,        "right",  combine.id,   "left");
+    addEdge(phasefold.id, "right",  combine.id,   "left");
+    addEdge(combine.id,   "right",  predict.id,   "left");
   }
 
   /* ── Boot ────────────────────────────────────────────────────── */
