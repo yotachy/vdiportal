@@ -571,8 +571,14 @@
   }
   function renameDoc(id, title) {
     const d = DOCS.find(x => x.id === id); if (!d) return; d.title = title;
-    if (id === activeId) { themeState.title = title; renderTheme(); }
-    renderSidebar(); writeBackActive();
+    if (id === activeId) {
+      themeState.title = title; renderTheme();
+      writeBackActive();
+    } else {
+      d.updated = new Date().toISOString();
+      if (SERVER_OK) apiPost({ op: "upsert", document: d });
+    }
+    renderSidebar();
   }
   function deleteDoc(id) {
     if (DOCS.length <= 1) { bToast("최소 1개 문서는 필요해요"); return; }
