@@ -237,10 +237,10 @@
       const v = arr[i];
       if (trend >= 0) {
         if (v > extVal) { extVal = v; extIdx = i; }
-        else if (extVal - v >= thr) { piv.push({ idx: extIdx, price: extVal }); trend = -1; extVal = v; extIdx = i; }
+        else if (extVal - v >= thr) { if (piv[piv.length - 1].idx !== extIdx) piv.push({ idx: extIdx, price: extVal }); trend = -1; extVal = v; extIdx = i; }
       } else if (trend < 0) {
         if (v < extVal) { extVal = v; extIdx = i; }
-        else if (v - extVal >= thr) { piv.push({ idx: extIdx, price: extVal }); trend = 1; extVal = v; extIdx = i; }
+        else if (v - extVal >= thr) { if (piv[piv.length - 1].idx !== extIdx) piv.push({ idx: extIdx, price: extVal }); trend = 1; extVal = v; extIdx = i; }
       }
     }
     if (extIdx !== piv[piv.length - 1].idx) piv.push({ idx: extIdx, price: extVal });

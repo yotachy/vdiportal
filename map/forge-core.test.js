@@ -263,3 +263,19 @@ test("elliott: too-short series -> zeros, no error", () => {
   const r = ForgeCore.evalBlocks(g, { price: [5], n: 1 });
   assert.deepStrictEqual(r.values.e, [0]);
 });
+
+test("elliott: down-first series has no duplicate pivot, correct dir", () => {
+  const pts = [100, 60, 78, 40, 58, 20];
+  const price = [];
+  for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; for (let k = 0; k < 20; k++) price.push(a + (b - a) * k / 20); }
+  price.push(pts[pts.length - 1]);
+  const g = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "e", kind: "block", blockType: "elliott", params: { swing: 5 } }], edges: [{ from: "p", to: "e" }] };
+  const r = ForgeCore.evalBlocks(g, { price, n: price.length });
+  // last leg is down -> negative bias, dir -1
+  assert.ok(r.values.e[r.values.e.length - 1] < 0);
+  assert.strictEqual(r.meta.e.current.dir, -1);
+  // no zero-length duplicate leg at start: first two wave idx differ
+  const w = r.meta.e.waves;
+  assert.ok(w.length >= 3);
+  assert.ok(w[0].idx !== w[1].idx);
+});
