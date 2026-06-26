@@ -1338,6 +1338,379 @@
     }
   }
 
+  /* ════════════════════════════════════════════════════════════════
+     SIGNATURE OVERLAY — 합의 필드 + 예측 콘 + 살아있는 그래프 맥동
+     Two pointer-events:none canvases:
+       #boardOverlay (over .board-pane) — pulses flowing along the very
+         edges drawn on the board (left→right toward the predict block)
+         + subtle node-border glow.
+       #fcOverlay (over #fcMain) — consensus/interference band (signal
+         coherence → gold glow) + prediction cone (gradient extrusion).
+     A pulse reaching the predict node "jumps" to the chart and flashes
+     the consensus band once.
+     Coordinate reuse:
+       board: worldX*view.scale + view.tx (bStage is inset:0).
+       edges: same sidesOf/anchor/orthoPath/cleanPts as paintEdges().
+       chart: fcMap() reproduces fcDrawMain()'s toX/toY/predStartX with
+         cw=fcMain.clientWidth, ch=fcMain.clientHeight (==cw*0.54).
+     Respects prefers-reduced-motion (single static frame, no rAF) and
+     pauses on document.hidden.
+     ════════════════════════════════════════════════════════════════ */
+
+  let boardOverlay = null, bovCtx = null, _bovW = 0, _bovH = 0;
+  let fcOverlay = null, fcovCtx = null, _fcovW = 0, _fcovH = 0;
+  let _ovResult = null, _ovGraph = null;
+  let _flash = 0;                 // consensus-band flash level (0..1), decays
+  const _edgePhase = {};          // per-edge lead-dot phase (arrival detection)
+  const _rmq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const prefersReducedMotion = () => _rmq.matches;
+
+  /* ── small helpers ───────────────────────────────────────────── */
+  const _clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+  const _ah = a => Math.round(_clamp01(a) * 255).toString(16).padStart(2, "0");
+  function _lerpHex(h1, h2, t) {
+    const c1 = parseInt(h1.slice(1), 16), c2 = parseInt(h2.slice(1), 16);
+    const r = Math.round(((c1 >> 16) & 255) + (((c2 >> 16) & 255) - ((c1 >> 16) & 255)) * t);
+    const g = Math.round(((c1 >> 8) & 255) + (((c2 >> 8) & 255) - ((c1 >> 8) & 255)) * t);
+    const b = Math.round((c1 & 255) + ((c2 & 255) - (c1 & 255)) * t);
+    return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+  }
+  function _rr(ctx, x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function _glowDot(ctx, x, y, r, col, a) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, col + _ah(a));
+    g.addColorStop(0.45, col + _ah(a * 0.6));
+    g.addColorStop(1, col + "00");
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+  }
+  function _pointAt(pts, frac) {
+    frac = _clamp01(frac);
+    const seg = []; let tot = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      seg.push(d); tot += d;
+    }
+    if (tot <= 0) return { x: pts[0][0], y: pts[0][1] };
+    let target = frac * tot, acc = 0;
+    for (let i = 1; i < pts.length; i++) {
+      if (acc + seg[i - 1] >= target) {
+        const u = seg[i - 1] ? (target - acc) / seg[i - 1] : 0;
+        return { x: pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * u,
+                 y: pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * u };
+      }
+      acc += seg[i - 1];
+    }
+    const L = pts[pts.length - 1]; return { x: L[0], y: L[1] };
+  }
+
+  /* ── edge polyline in WORLD coords (mirrors edgeGeo's geometry) ─ */
+  function edgeWorldPolyline(e) {
+    const a = bN(e.from), b = bN(e.to);
+    if (!a || !b) return null;
+    const s = sidesOf(e), A = anchor(a, s.fs), B = anchor(b, s.ts);
+    if (e.route === "curve") {
+      const dd = Math.hypot(B.x - A.x, B.y - A.y), k = Math.min(120, Math.max(38, dd * 0.4));
+      const d1 = DIR[s.fs], d2 = DIR[s.ts];
+      const P0 = A, P1 = { x: A.x + d1[0] * k, y: A.y + d1[1] * k },
+            P2 = { x: B.x + d2[0] * k, y: B.y + d2[1] * k }, P3 = B, N = 24, out = [];
+      for (let i = 0; i <= N; i++) {
+        const t = i / N, u = 1 - t;
+        out.push([
+          u * u * u * P0.x + 3 * u * u * t * P1.x + 3 * u * t * t * P2.x + t * t * t * P3.x,
+          u * u * u * P0.y + 3 * u * u * t * P1.y + 3 * u * t * t * P2.y + t * t * t * P3.y
+        ]);
+      }
+      return out;
+    }
+    return cleanPts(orthoPath(A, B, s.fs, s.ts));
+  }
+  const _toScreen = p => [p[0] * view.scale + view.tx, p[1] * view.scale + view.ty];
+
+  /* ── chart coordinate map (faithful port of fcDrawMain math) ──── */
+  function fcMap(candles, pred, signal, cw, ch) {
+    const n = candles.length;
+    let pmin = Infinity, pmax = -Infinity;
+    candles.forEach(cd => { if (cd.l < pmin) pmin = cd.l; if (cd.h > pmax) pmax = cd.h; });
+    (pred.hi || []).forEach(v => { if (v > pmax) pmax = v; });
+    (pred.lo || []).forEach(v => { if (v < pmin) pmin = v; });
+    const pspan = (pmax - pmin) || 1, padTop = 6, padBot = 4;
+    const SIG_FRAC = signal.length ? 0.18 : 0;
+    const candleBase = ch * (1 - SIG_FRAC);
+    const toY = v => padTop + (pmax - v) / pspan * (candleBase - padTop - padBot);
+    const futW = pred.futW || 0, totalBars = n + futW, barW = cw / Math.max(1, totalBars);
+    const toX = i => (i + 0.5) * barW;
+    return { n, futW, toX, toY, predStartX: n * barW, candleBase, barW, cw, ch };
+  }
+
+  /* ── overlay canvas lifecycle ─────────────────────────────────── */
+  function ensureOverlays() {
+    const bp = document.getElementById("boardPane");
+    if (bp && !boardOverlay) {
+      boardOverlay = document.createElement("canvas");
+      boardOverlay.id = "boardOverlay";
+      boardOverlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:6";
+      bp.appendChild(boardOverlay);
+    }
+    const main = document.getElementById("fcMain");
+    if (main && !fcOverlay) {
+      const body = main.parentNode;          // .fc-pbody of the main panel
+      body.style.position = "relative";
+      fcOverlay = document.createElement("canvas");
+      fcOverlay.id = "fcOverlay";
+      fcOverlay.style.cssText = "position:absolute;pointer-events:none;z-index:2";
+      body.appendChild(fcOverlay);
+    }
+  }
+  function _sizeCanvas(cv, w, h) {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    cv.style.width = w + "px"; cv.style.height = h + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    const c = cv.getContext("2d");
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return c;
+  }
+  function layoutOverlays() {
+    ensureOverlays();
+    const bp = document.getElementById("boardPane");
+    if (boardOverlay && bp) {
+      _bovW = bp.clientWidth; _bovH = bp.clientHeight;
+      bovCtx = _sizeCanvas(boardOverlay, _bovW, _bovH);
+    }
+    const main = document.getElementById("fcMain");
+    if (fcOverlay && main) {
+      fcOverlay.style.left = main.offsetLeft + "px";
+      fcOverlay.style.top  = main.offsetTop + "px";
+      _fcovW = main.clientWidth; _fcovH = main.clientHeight;
+      fcovCtx = _sizeCanvas(fcOverlay, _fcovW, _fcovH);
+    }
+  }
+
+  /* ── consensus coherence from recent signal dispersion ────────── */
+  function _coherence(result) {
+    const sig = result.signal || [];
+    const recent = sig.slice(-24);
+    if (recent.length < 4) return { coh: 0.5, mag: 0 };
+    const m = recent.reduce((s, v) => s + v, 0) / recent.length;
+    let v = 0; recent.forEach(x => v += (x - m) * (x - m));
+    const sd = Math.sqrt(v / recent.length);
+    return {
+      coh: _clamp01(1 - sd / 45),                       // low dispersion → high coherence
+      mag: _clamp01(Math.abs(m) / 60)                   // conviction magnitude
+    };
+  }
+
+  /* ── drawConsensus: interference / consensus band (clears chart) ─ */
+  function drawConsensus(result) {
+    const ctx = fcovCtx; if (!ctx) return;
+    ctx.clearRect(0, 0, _fcovW, _fcovH);
+    const candles = data.candle || []; if (!candles.length) return;
+    const pred = result.prediction || { path: [], lo: [], hi: [], futW: 0 };
+    const sig = result.signal || [];
+    const M = fcMap(candles, pred, sig, _fcovW, _fcovH);
+    const { coh } = _coherence(result);
+    const reg = (result.verdict && result.verdict.regime) || "neutral";
+    /* divergent → cool grey, convergent → gold; regime tints the gold end */
+    const goldEnd = reg === "bull" ? "#ecc06a" : reg === "bear" ? "#e2a85e" : "#e8b463";
+    const col = _lerpHex("#6b7686", goldEnd, coh);
+    const cx = M.predStartX, top = 2, bot = M.candleBase, halfW = Math.max(20, M.barW * 6);
+    const aBand = 0.05 + 0.28 * coh + 0.45 * _flash;
+
+    /* luminous consensus column at the "now" seam (where signals arrive) */
+    const g = ctx.createLinearGradient(cx - halfW, 0, cx + halfW, 0);
+    g.addColorStop(0, col + "00");
+    g.addColorStop(0.5, col + _ah(aBand));
+    g.addColorStop(1, col + "00");
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - halfW, top, halfW * 2, bot - top);
+    ctx.globalCompositeOperation = "source-over";
+
+    /* seam line, glow scales with coherence + flash */
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.6 + 1.2 * _flash;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 5 + 16 * coh + 24 * _flash;
+    ctx.beginPath(); ctx.moveTo(cx, top); ctx.lineTo(cx, bot); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    /* consensus % pill (top of prediction zone) */
+    const pct = Math.round(coh * 100), txt = "합의 " + pct + "%";
+    ctx.font = "bold 10px ui-monospace,monospace";
+    const tw = ctx.measureText(txt).width, px = cx + 7, py = 4, pw = tw + 12, ph = 16;
+    ctx.fillStyle = "rgba(11,15,20,.72)";
+    _rr(ctx, px, py, pw, ph, 8); ctx.fill();
+    ctx.fillStyle = col;
+    ctx.fillText(txt, px + 6, py + 11.5);
+  }
+
+  /* ── drawCone: prediction cone (gradient extrusion, over band) ── */
+  function drawCone(result) {
+    const ctx = fcovCtx; if (!ctx) return;
+    const candles = data.candle || [];
+    const pred = result.prediction;
+    if (!candles.length || !pred || !pred.path.length) return;
+    const sig = result.signal || [];
+    const M = fcMap(candles, pred, sig, _fcovW, _fcovH);
+    const reg = (result.verdict && result.verdict.regime) || "neutral";
+    const dirCol = reg === "bull" ? "#46c28e" : reg === "bear" ? "#e06a6a" : "#e8b463";
+    const np = pred.path.length;
+
+    /* filled cone lo–hi, gold fading left→right */
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(M.toX(M.n), M.toY(pred.hi[0]));
+    for (let k = 0; k < np; k++) ctx.lineTo(M.toX(M.n + k), M.toY(pred.hi[k]));
+    for (let k = np - 1; k >= 0; k--) ctx.lineTo(M.toX(M.n + k), M.toY(pred.lo[k]));
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(M.predStartX, 0, M.toX(M.n + np - 1), 0);
+    grad.addColorStop(0, "#e8b463" + _ah(0.34 + 0.25 * _flash));
+    grad.addColorStop(1, "#e8b463" + _ah(0.03));
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = grad; ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+
+    /* glowing centerline path (regime-coloured) */
+    ctx.strokeStyle = dirCol;
+    ctx.lineWidth = 1.8;
+    ctx.shadowColor = dirCol;
+    ctx.shadowBlur = 7 + 12 * _flash;
+    ctx.beginPath();
+    for (let k = 0; k < np; k++) {
+      const x = M.toX(M.n + k), y = M.toY(pred.path[k]);
+      k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    /* leading glow at the cone tip */
+    _glowDot(ctx, M.toX(M.n + np - 1), M.toY(pred.path[np - 1]), 9 + 6 * _flash, dirCol, 0.9);
+  }
+
+  /* ── drawPulse: living-graph signals flowing along board edges ── */
+  function drawPulse(t, isStatic) {
+    const ctx = bovCtx; if (!ctx || !_ovResult) return;
+    ctx.clearRect(0, 0, _bovW, _bovH);
+    const sig = _ovResult.signal || [];
+    let mag = 0;
+    if (sig.length) {
+      const r = sig.slice(-12);
+      mag = _clamp01(r.reduce((s, v) => s + Math.abs(v), 0) / r.length / 70);
+    }
+    const speed = 0.26 + 0.55 * mag;           // cycles/sec, faster when signal strong
+    const ND = 3;
+    const dotR = (7 + 6 * mag) * Math.max(0.6, Math.min(1.6, view.scale));
+
+    /* node-border glow (block nodes) */
+    boardState.nodes.forEach(n => {
+      if (n.kind !== "block") return;
+      const x = n.x * view.scale + view.tx, y = n.y * view.scale + view.ty;
+      const w = (n._w || W_NODE) * view.scale, h = (n._h || 70) * view.scale;
+      const isPredict = n.blockType === "predict";
+      const pulse = 0.5 + 0.5 * Math.sin(t * 2.2 + (n.x + n.y) * 0.01);
+      const a = _clamp01(0.10 + 0.16 * pulse + (isPredict ? _flash * 0.55 : 0));
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = "#e8b463";
+      ctx.lineWidth = 1.8;
+      ctx.shadowColor = "#e8b463";
+      ctx.shadowBlur = 8 + 12 * pulse + (isPredict ? _flash * 26 : 0);
+      _rr(ctx, x, y, w, h, 12 * view.scale);
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    /* flowing dots along each edge (from → to) */
+    boardState.edges.forEach(e => {
+      const wpts = edgeWorldPolyline(e);
+      if (!wpts || wpts.length < 2) return;
+      const spts = wpts.map(_toScreen);
+
+      /* energized wire underglow */
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = "#e8b463";
+      ctx.globalAlpha = 0.05 + 0.13 * mag;
+      ctx.lineWidth = 2.2;
+      ctx.shadowColor = "#e8b463"; ctx.shadowBlur = 6;
+      ctx.beginPath();
+      spts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+      ctx.stroke();
+      ctx.restore();
+
+      const lead = isStatic ? 0.5 : (t * speed) % 1;
+      for (let k = 0; k < ND; k++) {
+        const phase = isStatic ? (k + 1) / (ND + 1) : (lead + k / ND) % 1;
+        const pos = _pointAt(spts, phase);
+        const fade = 0.55 + 0.45 * Math.sin(phase * Math.PI);   // brightest mid-wire
+        _glowDot(ctx, pos.x, pos.y, dotR, "#f0c878", _clamp01((0.5 + 0.5 * mag) * fade));
+      }
+
+      /* arrival → flash the chart consensus band */
+      if (!isStatic) {
+        const prev = _edgePhase[e.id];
+        _edgePhase[e.id] = lead;
+        if (prev != null && lead < prev) {
+          const to = bN(e.to);
+          if (to && to.blockType === "predict") _flash = 1;
+        }
+      }
+    });
+  }
+
+  /* ── animation loop ───────────────────────────────────────────── */
+  let _raf = null, _t0 = 0, _lastNow = 0;
+  function startPulse() {
+    stopPulse();
+    if (prefersReducedMotion()) { drawStaticFrame(); return; }
+    _t0 = performance.now(); _lastNow = _t0;
+    const loop = now => {
+      const dt = Math.min(0.05, (now - _lastNow) / 1000); _lastNow = now;
+      _flash = Math.max(0, _flash - dt * 2.2);
+      if (_ovResult) { drawConsensus(_ovResult); drawCone(_ovResult); drawPulse((now - _t0) / 1000); }
+      _raf = requestAnimationFrame(loop);
+    };
+    _raf = requestAnimationFrame(loop);
+  }
+  function stopPulse() { if (_raf) { cancelAnimationFrame(_raf); _raf = null; } }
+  function drawStaticFrame() {
+    _flash = 0;
+    if (_ovResult) { drawConsensus(_ovResult); drawCone(_ovResult); drawPulse(0, true); }
+  }
+
+  /* ── renderOverlay: entry hook called by runForge ─────────────── */
+  function renderOverlay(result, graph) {
+    _ovResult = result; _ovGraph = graph;
+    layoutOverlays();
+    if (prefersReducedMotion()) { stopPulse(); drawStaticFrame(); }
+    else startPulse();
+  }
+
+  /* reduced-motion / visibility / resize guards */
+  _rmq.addEventListener("change", () => { if (_ovResult) renderOverlay(_ovResult, _ovGraph); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopPulse();
+    else if (_ovResult && !prefersReducedMotion()) startPulse();
+  });
+  let _ovRz = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(_ovRz);
+    _ovRz = setTimeout(() => { if (_ovResult) renderOverlay(_ovResult, _ovGraph); }, 90);
+  });
+
   /* ── Boot ────────────────────────────────────────────────────── */
   document.addEventListener("DOMContentLoaded", () => {
     boardInit();
