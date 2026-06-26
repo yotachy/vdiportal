@@ -51,5 +51,40 @@
     return { order, byId, inputsOf };
   }
 
-  return { version, makeDemoSeries, buildDAG };
+  function sma(arr, len) {
+    const out = [];
+    let s = 0;
+    for (let i = 0; i < arr.length; i++) {
+      s += arr[i];
+      if (i >= len) s -= arr[i - len];
+      out.push(s / Math.min(i + 1, len));
+    }
+    return out;
+  }
+
+  function evalBlocks(graph, data) {
+    const { order, byId, inputsOf } = buildDAG(graph), values = {};
+    for (const id of order) {
+      const n = byId[id], ins = inputsOf[id].map(i => values[i]);
+      if (n.blockType === "price") {
+        values[id] = data.price.slice();
+      } else if (n.blockType === "ma") {
+        values[id] = sma(ins[0] || data.price, (n.params && n.params.len) || 5);
+      } else if (n.blockType === "combine") {
+        const w = (n.params && n.params.weights) || {}, keys = inputsOf[id];
+        const tot = keys.reduce((a, k) => a + (w[k] != null ? w[k] : 1), 0) || 1;
+        const len = ins[0] ? ins[0].length : 0, out = new Array(len).fill(0);
+        keys.forEach((k, j) => {
+          const wk = (w[k] != null ? w[k] : 1) / tot;
+          for (let t = 0; t < len; t++) out[t] += (ins[j][t] || 0) * wk;
+        });
+        values[id] = out;
+      } else {
+        values[id] = ins[0] ? ins[0].slice() : [];
+      }
+    }
+    return { values };
+  }
+
+  return { version, makeDemoSeries, buildDAG, evalBlocks };
 });

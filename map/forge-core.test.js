@@ -38,3 +38,19 @@ test("buildDAG topo-sorts blocks, drops free nodes, detects cycles", () => {
   };
   assert.throws(() => ForgeCore.buildDAG(cyc), /cycle/);
 });
+
+test("evalBlocks computes price, ma, weighted combine", () => {
+  const data = { price: [2, 4, 6, 8, 10], n: 5 };
+  const g = {
+    nodes: [
+      { id: "p", kind: "block", blockType: "price" },
+      { id: "m", kind: "block", blockType: "ma", params: { len: 2 } },
+      { id: "c", kind: "block", blockType: "combine", params: { weights: { p: 1, m: 1 } } }
+    ],
+    edges: [{ from: "p", to: "m" }, { from: "p", to: "c" }, { from: "m", to: "c" }]
+  };
+  const { values } = ForgeCore.evalBlocks(g, data);
+  assert.deepStrictEqual(values.p, [2, 4, 6, 8, 10]);
+  assert.deepStrictEqual(values.m, [2, 3, 5, 7, 9]);            // len2 SMA(앞쪽 부분창)
+  assert.deepStrictEqual(values.c, [2, 3.5, 5.5, 7.5, 9.5]);    // (p+m)/2
+});
