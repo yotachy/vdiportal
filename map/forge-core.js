@@ -27,7 +27,7 @@
       p = p + trend + cyc * 0.6 + noise;
       const op = p - (rnd() - 0.5) * 0.8, cl = p + (rnd() - 0.5) * 0.8;
       const hi = Math.max(op, cl) + rnd() * 0.6, lo = Math.min(op, cl) - rnd() * 0.6;
-      price.push(p);
+      price.push(cl); // price === candle close (예측 seam이 마지막 캔들과 정확히 정합)
       candle.push({ o: op, h: hi, l: lo, c: cl });
       orange.push(cyc + (rnd() - 0.5) * 0.15);
       blue.push(cyc2 + (rnd() - 0.5) * 0.15);
