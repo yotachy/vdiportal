@@ -242,3 +242,24 @@ test("prediction is continuous: anchored at last close, bands widen", () => {
   assert.ok((pr.hi[0] - pr.lo[0]) < (pr.hi[59] - pr.lo[59]));
   assert.ok([...pr.path, ...pr.lo, ...pr.hi].every(v => isFinite(v)));
 });
+
+test("elliott: 5-wave up impulse -> positive last bias + waves", () => {
+  const pts = [10, 30, 22, 50, 40, 70];
+  const price = [];
+  for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; for (let k = 0; k < 20; k++) price.push(a + (b - a) * k / 20); }
+  price.push(pts[pts.length - 1]);
+  const g = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "e", kind: "block", blockType: "elliott", params: { swing: 5 } }], edges: [{ from: "p", to: "e" }] };
+  const r = ForgeCore.evalBlocks(g, { price, n: price.length });
+  const v = r.values.e;
+  assert.strictEqual(v.length, price.length);
+  assert.ok(v[v.length - 1] > 0);            // last leg up
+  assert.ok(v.every(x => x >= -1 && x <= 1));
+  assert.ok(r.meta.e.waves.length >= 3);
+  assert.strictEqual(r.meta.e.current.dir, 1);
+});
+
+test("elliott: too-short series -> zeros, no error", () => {
+  const g = { nodes: [{ id: "e", kind: "block", blockType: "elliott" }], edges: [] };
+  const r = ForgeCore.evalBlocks(g, { price: [5], n: 1 });
+  assert.deepStrictEqual(r.values.e, [0]);
+});

@@ -161,6 +161,12 @@
         values[id] = rsiSeries(ins[0] || data.price, (n.params && n.params.period) || 14);
       } else if (n.blockType === "fib") {
         values[id] = fibPos(ins[0] || data.price, (n.params && n.params.len) || 120);
+      } else if (n.blockType === "elliott") {
+        const src = ins[0] || data.price;
+        const sens = (n.params && n.params.swing != null) ? n.params.swing / 100 : 0.03;
+        const ea = elliottAnalyze(src, sens);
+        values[id] = ea.values;
+        meta[id] = { waves: ea.waves, current: ea.current };
       } else if (n.blockType === "volume") {
         values[id] = [];
       } else {
@@ -219,6 +225,45 @@
       out.push(((arr[i] - lo) / rng) * 2 - 1);
     }
     return out;
+  }
+
+  function detectSwings(arr, sens) {
+    const n = arr.length; if (n < 2) return [];
+    const rng = (Math.max(...arr) - Math.min(...arr)) || 1;
+    const thr = rng * (sens || 0.03);
+    const piv = [{ idx: 0, price: arr[0] }];
+    let trend = 0, extIdx = 0, extVal = arr[0];
+    for (let i = 1; i < n; i++) {
+      const v = arr[i];
+      if (trend >= 0) {
+        if (v > extVal) { extVal = v; extIdx = i; }
+        else if (extVal - v >= thr) { piv.push({ idx: extIdx, price: extVal }); trend = -1; extVal = v; extIdx = i; }
+      } else if (trend < 0) {
+        if (v < extVal) { extVal = v; extIdx = i; }
+        else if (v - extVal >= thr) { piv.push({ idx: extIdx, price: extVal }); trend = 1; extVal = v; extIdx = i; }
+      }
+    }
+    if (extIdx !== piv[piv.length - 1].idx) piv.push({ idx: extIdx, price: extVal });
+    return piv;
+  }
+
+  function elliottAnalyze(arr, sens) {
+    const n = arr.length;
+    const sw = detectSwings(arr, sens);
+    const values = new Array(n).fill(0);
+    if (sw.length < 2) return { values, waves: [], current: { label: "-", dir: 0 } };
+    const labels = ["1", "2", "3", "4", "5", "A", "B", "C"];
+    const legs = [];
+    for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
+    const recent = legs.slice(-8);
+    recent.forEach((lg, i) => { lg.label = labels[i] || ""; });
+    recent.forEach(lg => { const val = lg.up ? 0.7 : -0.7; for (let t = lg.from.idx; t <= lg.to.idx && t < n; t++) values[t] = val; });
+    const last = recent[recent.length - 1];
+    return {
+      values,
+      waves: recent.map(lg => ({ idx: lg.to.idx, price: lg.to.price, label: lg.label })),
+      current: { label: last.label || "-", dir: last.up ? 1 : -1 }
+    };
   }
 
   function aggregateConviction(graph) {
