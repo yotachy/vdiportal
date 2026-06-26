@@ -1508,18 +1508,31 @@
 
   /* ── exportStrategy: download strategy as JSON blob ──────────── */
   function exportStrategy() {
+    // collect image ids referenced by nodes and theme
+    const usedIds = new Set();
+    boardState.nodes.forEach(n => { if (n.thumb && n.thumb.imgId) usedIds.add(n.thumb.imgId); });
+    if (themeState.imgId) usedIds.add(themeState.imgId);
+    const images = {};
+    usedIds.forEach(id => { if (IMAGES[id]) images[id] = IMAGES[id]; });
+
     const payload = {
       version: ForgeCore.version,
+      theme: { ...themeState },
       nodes: boardState.nodes.map(n => {
         const out = { id: n.id, kind: n.kind, title: n.title, x: n.x, y: n.y };
         if (n.blockType) out.blockType = n.blockType;
         if (n.params && Object.keys(n.params).length) out.params = { ...n.params };
+        if (n.conviction) out.conviction = n.conviction;
+        if (n.note) out.note = n.note;
+        if (n.thumb) out.thumb = { ...n.thumb };
         return out;
       }),
       edges: boardState.edges.map(e => ({
         id: e.id, from: e.from, to: e.to,
         fromSide: e.fromSide, toSide: e.toSide
-      }))
+      })),
+      library: LIBRARY.filter(it => usedIds.has(it.id)),
+      images
     };
     const json = JSON.stringify(payload, null, 2);
     const blob = new Blob([json], { type: "application/json" });
