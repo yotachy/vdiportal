@@ -515,6 +515,7 @@
   function markDirty() { if (!SERVER_OK) return; clearTimeout(_saveT); _saveT = setTimeout(writeBackActive, 800); }
   async function saveMeta() { if (!SERVER_OK) return; await apiPost({ op: "meta", meta: { library: LIBRARY, activeId } }); }
   function loadDoc(id) {
+    clearTimeout(_saveT);
     const dc = DOCS.find(d => d.id === id); if (!dc) return;
     activeId = id; META.activeId = id;
     boardState.nodes = dc.nodes || []; boardState.edges = dc.edges || [];
@@ -563,7 +564,7 @@
     writeBackActive();
     const dc = { id: uid("doc"), title: "새 전략", themeImgId: null, nodes: [], edges: [],
       view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
-    DOCS.push(dc); loadDoc(dc.id); seedDefaultStrategy(); writeBackActive(); saveMeta(); renderSidebar();
+    DOCS.push(dc); loadDoc(dc.id); seedDefaultStrategy(); renderBoard(); fitView(); writeBackActive(); saveMeta();
   }
   function renameDoc(id, title) {
     const d = DOCS.find(x => x.id === id); if (!d) return; d.title = title;
