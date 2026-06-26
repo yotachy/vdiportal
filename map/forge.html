@@ -90,6 +90,9 @@
   /* thumbnail */
   .b-n-thumb{margin:-2px -2px 6px;border-radius:8px 8px 0 0;overflow:hidden;background:var(--bg);max-height:84px}
   .b-n-thumb img{display:block;width:100%;height:auto;max-height:84px;object-fit:cover}
+  /* weight importance badge */
+  .b-n-wt{position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;
+    background:var(--gold);color:#1a1206;font-size:10px;font-weight:700;line-height:18px;text-align:center;z-index:4}
   /* drag cursor override */
   body.b-ndrag,body.b-ndrag *{cursor:grabbing!important}
   /* toast (positioned in left half) */
@@ -449,6 +452,11 @@
   }
 
   /* ── Node HTML ───────────────────────────────────────────────── */
+  function weightScale(w) {
+    const x = (w != null ? w : 50);
+    return x <= 50 ? 0.8 + 0.2 * (x / 50) : 1.0 + 0.4 * ((x - 50) / 50); // 0→0.8, 50→1.0, 100→1.4
+  }
+
   function nodeHTML(n) {
     const ports = [
       `<div class="b-port b-port-top" data-act="port" data-side="top"></div>`,
@@ -463,9 +471,16 @@
     const thumb = n.thumb
       ? `<div class="b-n-thumb"><img src="${imgSrc(n.thumb.imgId)}" alt=""></div>` : "";
     const cls = "b-node" + (isBlock ? "" : " b-mini");
-    return `<div class="${cls}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">
+    const wt = (n.weight != null ? n.weight : 50), sf = weightScale(wt);
+    const baseW = isBlock ? W_NODE : 140;
+    const cardW = Math.round(baseW * sf);
+    const glow = wt > 55
+      ? `box-shadow:0 0 ${Math.round((wt - 55) * 0.5)}px rgba(232,180,99,${((wt - 55) / 45 * 0.6).toFixed(2)});`
+      : "";
+    const wbadge = `<div class="b-n-wt" title="중요도">${wt}</div>`;
+    return `<div class="${cls}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${cardW}px;font-size:${(13 * sf).toFixed(1)}px;${glow}">
   ${inDot}
-  ${thumb}<div class="b-n-body">
+  ${wbadge}${thumb}<div class="b-n-body">
     <div class="b-n-title" contenteditable="true" data-field="title">${esc(n.title || "")}</div>
     ${badge}
   </div>
@@ -1863,14 +1878,15 @@
       const w = (n._w || W_NODE) * view.scale, h = (n._h || 70) * view.scale;
       const isPredict = n.blockType === "predict";
       const pulse = 0.5 + 0.5 * Math.sin(t * 2.2 + (n.x + n.y) * 0.01);
-      const a = _clamp01(0.10 + 0.16 * pulse + (isPredict ? _flash * 0.55 : 0));
+      const wf = 0.6 + 0.8 * ((n.weight != null ? n.weight : 50) / 100);
+      const a = _clamp01((0.10 + 0.16 * pulse + (isPredict ? _flash * 0.55 : 0)) * wf);
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
       ctx.globalAlpha = a;
       ctx.strokeStyle = "#e8b463";
       ctx.lineWidth = 1.8;
       ctx.shadowColor = "#e8b463";
-      ctx.shadowBlur = 8 + 12 * pulse + (isPredict ? _flash * 26 : 0);
+      ctx.shadowBlur = (8 + 12 * pulse + (isPredict ? _flash * 26 : 0)) * wf;
       _rr(ctx, x, y, w, h, 12 * view.scale);
       ctx.stroke();
       ctx.restore();
@@ -1882,11 +1898,15 @@
       if (!wpts || wpts.length < 2) return;
       const spts = wpts.map(_toScreen);
 
+      /* weight factor from source node (brightness + speed scale) */
+      const fromNode = bN(e.from);
+      const ewf = 0.6 + 0.8 * ((fromNode && fromNode.weight != null ? fromNode.weight : 50) / 100);
+
       /* energized wire underglow */
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
       ctx.strokeStyle = "#e8b463";
-      ctx.globalAlpha = 0.05 + 0.13 * mag;
+      ctx.globalAlpha = (0.05 + 0.13 * mag) * ewf;
       ctx.lineWidth = 2.2;
       ctx.shadowColor = "#e8b463"; ctx.shadowBlur = 6;
       ctx.beginPath();
@@ -1894,12 +1914,13 @@
       ctx.stroke();
       ctx.restore();
 
-      const lead = isStatic ? 0.5 : (t * speed) % 1;
+      const eSpeed = speed * ewf;
+      const lead = isStatic ? 0.5 : (t * eSpeed) % 1;
       for (let k = 0; k < ND; k++) {
         const phase = isStatic ? (k + 1) / (ND + 1) : (lead + k / ND) % 1;
         const pos = _pointAt(spts, phase);
         const fade = 0.55 + 0.45 * Math.sin(phase * Math.PI);   // brightest mid-wire
-        _glowDot(ctx, pos.x, pos.y, dotR, "#f0c878", _clamp01((0.5 + 0.5 * mag) * fade));
+        _glowDot(ctx, pos.x, pos.y, dotR, "#f0c878", _clamp01((0.5 + 0.5 * mag) * fade * ewf));
       }
 
       /* arrival → flash the chart consensus band */
