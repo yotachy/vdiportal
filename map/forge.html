@@ -21,8 +21,8 @@
   .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
   .forge-split{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 54px)}
   .board-pane{position:relative;overflow:hidden;border-right:1px solid var(--line)}
-  .chart-pane{position:relative;overflow:hidden}
-  .run-btn{margin-left:auto;background:var(--gold);color:#1a1206;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer}
+  .chart-pane{position:relative;overflow:hidden;display:flex;flex-direction:column}
+  .run-btn{background:var(--gold);color:#1a1206;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer}
 
   /* ════════════════════════════════════════════════════
      BOARD ENGINE STYLES  (ported + scoped with b- prefix)
@@ -96,7 +96,7 @@
   /* ════════════════════════════════════════════════════
      CHART PANE  (PHASE-FOLD render port from chart.html)
      ════════════════════════════════════════════════════ */
-  .fc-wrap{height:100%;overflow-y:auto;display:flex;flex-direction:column;padding:10px;gap:8px;
+  .fc-wrap{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;padding:10px;gap:8px;
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
   .fc-panel{background:linear-gradient(180deg,var(--panel),#0e1218);border:1px solid var(--line);
     border-radius:12px;overflow:hidden;flex-shrink:0}
@@ -108,6 +108,24 @@
   .fc-pbody{padding:8px 10px}
   .fc-cv{display:block;width:100%;border-radius:6px}
   .fc-folds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 10px}
+
+  /* ══ verdict badge (top of chart-pane) ══ */
+  .verdict-badge{
+    display:none;flex-shrink:0;align-items:center;gap:8px;
+    padding:6px 14px;border-bottom:1px solid var(--line);
+    background:rgba(11,15,20,.92);
+    font-family:ui-monospace,monospace;font-size:11px;color:var(--eth);
+  }
+  .verdict-badge.active{display:flex}
+  .verdict-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+  /* ══ export button ══ */
+  .export-btn{
+    margin-left:auto;background:transparent;color:var(--eth);
+    border:1px solid var(--line);border-radius:8px;padding:8px 16px;
+    font-weight:600;cursor:pointer;font-family:inherit;font-size:14px;
+  }
+  .export-btn:hover{background:var(--raised2);color:var(--ink)}
 
   /* block palette (floats over board-pane) */
   .forge-palette{
@@ -138,6 +156,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span style="color:var(--eth);font-weight:500">by MoneyScoop</span></div>
+    <button class="export-btn" id="exportBtn" onclick="exportStrategy()">내보내기</button>
     <button class="run-btn" id="runBtn">▷ 실행</button>
   </header>
   <div class="forge-split">
@@ -145,6 +164,7 @@
       <!-- Board DOM injected by boardInit() on DOMContentLoaded -->
     </section>
     <section class="chart-pane" id="chartPane">
+      <div id="verdictBadge" class="verdict-badge"></div>
       <div class="fc-wrap">
         <div class="fc-panel">
           <div class="fc-phead">
@@ -1322,6 +1342,53 @@
     fcRAF = requestAnimationFrame(() => renderChart(_fcLastResult, _fcLastData));
   });
 
+  /* ── renderVerdict: regime badge at top of chart pane ────────── */
+  function renderVerdict(verdict) {
+    const el = document.getElementById("verdictBadge");
+    if (!el || !verdict) return;
+    const REGIME_LABEL = { bull: "상승", bear: "하락", neutral: "중립" };
+    const REGIME_COL   = { bull: "#46c28e", bear: "#e06a6a", neutral: "#8a92b2" };
+    const regime = verdict.regime || "neutral";
+    const col    = REGIME_COL[regime] || "#8a92b2";
+    const label  = REGIME_LABEL[regime] || "중립";
+    const score  = (typeof verdict.score === "number" && isFinite(verdict.score))
+      ? verdict.score.toFixed(1) : "—";
+    const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(2) : "—";
+    el.className = "verdict-badge active";
+    el.innerHTML =
+      `<span class="verdict-dot" style="background:${col};box-shadow:0 0 6px ${col}88"></span>` +
+      `<span>국면: <b style="color:${col}">${label}</b>` +
+      ` &nbsp;·&nbsp; 시그널 ${score}` +
+      ` &nbsp;·&nbsp; 목표가 ${fmt(verdict.target)}` +
+      ` &nbsp;·&nbsp; 무효화 ${fmt(verdict.invalidation)}</span>`;
+  }
+
+  /* ── exportStrategy: download strategy as JSON blob ──────────── */
+  function exportStrategy() {
+    const payload = {
+      version: ForgeCore.version,
+      nodes: boardState.nodes.map(n => {
+        const out = { id: n.id, kind: n.kind, title: n.title, x: n.x, y: n.y };
+        if (n.blockType) out.blockType = n.blockType;
+        if (n.params && Object.keys(n.params).length) out.params = { ...n.params };
+        return out;
+      }),
+      edges: boardState.edges.map(e => ({
+        id: e.id, from: e.from, to: e.to,
+        fromSide: e.fromSide, toSide: e.toSide
+      }))
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = "scoopforge-strategy.json";
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    bToast("전략 내보내기 완료");
+  }
+
   /* ── Forge data + runForge ───────────────────────────────────── */
   let data = ForgeCore.makeDemoSeries({ n: 480, seed: 1, period: 64 });
   let lastResult = null;
@@ -1333,6 +1400,7 @@
       lastResult = ForgeCore.run(g, data, { futW: 120 });
       renderChart(lastResult, data);
       if (window.renderOverlay) renderOverlay(lastResult, g);
+      if (lastResult && lastResult.verdict) renderVerdict(lastResult.verdict);
     } catch (e) {
       console.warn("run", e);
     }
