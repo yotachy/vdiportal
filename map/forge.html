@@ -183,18 +183,10 @@
   .forge-params input[type=range]{flex:1}
   .forge-params .pp-conv-val{flex:0 0 34px;text-align:right;color:var(--gold)}
 
-  /* ── 썸네일 라이브러리 패널 ── */
-  .forge-lib{position:absolute;left:52px;bottom:12px;z-index:9;width:150px;max-height:42%;overflow:auto;
-    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px}
-  .forge-lib h4{margin:0 0 6px;font-size:11px;color:var(--eth);cursor:pointer;user-select:none}
-  .forge-lib h4:hover{color:var(--ink)}
-  .forge-lib .lib-add{font-size:11px;color:var(--gold);cursor:pointer;padding:4px;border:1px dashed var(--line);
-    border-radius:6px;text-align:center;margin-bottom:6px}
-  .forge-lib .lib-add:hover{border-color:var(--gold)}
-  .forge-lib .lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-  .forge-lib .lib-it img{width:100%;height:46px;object-fit:cover;border-radius:6px;cursor:grab;border:1px solid var(--line)}
-  .forge-lib .lib-it img:hover{border-color:var(--gold)}
-  .forge-lib.collapsed .lib-grid,.forge-lib.collapsed .lib-add,.forge-lib.collapsed h4 span{display:none}
+  /* ── 사이드바 이미지 라이브러리 ── */
+  .forge-side .lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding-top:4px}
+  .forge-side .lib-it img{width:100%;height:46px;object-fit:cover;border-radius:6px;cursor:grab;border:1px solid var(--line)}
+  .forge-side .lib-it img:hover{border-color:var(--gold)}
 
   /* ════════════════════════════════════════════════════
      SIDEBAR  (Task 3)
@@ -471,7 +463,7 @@
     if (document.activeElement !== t) t.textContent = themeState.title || "";
   }
 
-  function setThemeImg(imgId) { themeState.imgId = imgId; renderTheme(); fireBoardChange(); }
+  function setThemeImg(imgId) { themeState.imgId = imgId; renderTheme(); markDirty(); }
   function downscaleImage(src, cb){
     const img = new Image();
     img.onload = () => { let w=img.width,h=img.height; const md=1000, sc=Math.min(1,md/Math.max(w,h));
@@ -487,15 +479,18 @@
 
   /* ── renderLib ────────────────────────────────────────────────── */
   function renderLib() {
-    const grid = document.getElementById("libGrid");
-    if (!grid) return;
-    grid.innerHTML = LIBRARY.length
-      ? LIBRARY.map(it =>
-          `<div class="lib-it" draggable="true" data-img="${it.id}">` +
-          `<img src="${esc(imgSrc(it.id))}" alt="${esc(it.label || "")}" title="${esc(it.label || "")}">` +
-          `</div>`
-        ).join("")
-      : `<div style="grid-column:1/-1;font-size:11px;color:var(--eth)">이미지를 추가하거나<br>노드에 파일을 드롭</div>`;
+    const el = document.getElementById("libSec"); if (!el) return;
+    el.innerHTML =
+      `<div class="side-h"><span>이미지 라이브러리</span><button class="side-btn" id="libAddBtn">＋ 추가</button></div>` +
+      `<div class="lib-grid">` +
+      (LIBRARY.length
+        ? LIBRARY.map(it =>
+            `<div class="lib-it" draggable="true" data-img="${esc(it.id)}">` +
+            `<img src="${esc(imgSrc(it.id))}" alt="${esc(it.label || "")}" title="${esc(it.label || "")}">` +
+            `</div>`
+          ).join("")
+        : `<div style="grid-column:1/-1;font-size:11px;color:var(--eth)">이미지를 추가하거나 Ctrl+V로 붙여넣기</div>`) +
+      `</div>`;
   }
 
   /* ── Server save layer ───────────────────────────────────────── */
@@ -1202,10 +1197,11 @@
       fireBoardChange();
     });
 
-    /* 주제 배너 제목 저장 */
+    /* 주제 배너 제목 저장 + 활성 문서 제목 동기화 */
     pane.querySelector(".th-title").addEventListener("focusout", e => {
       themeState.title = e.target.textContent.trim();
-      fireBoardChange();
+      if (activeId) renameDoc(activeId, themeState.title);
+      markDirty();
     });
 
     /* keyboard */
@@ -1244,17 +1240,7 @@
     _pp.hidden = true;
     pane.appendChild(_pp);
 
-    /* 썸네일 라이브러리 패널 (좌하단, 줌 컨트롤 우측) */
-    const _lib = document.createElement("div");
-    _lib.className = "forge-lib";
-    _lib.id = "libPanel";
-    _lib.innerHTML =
-      `<h4 id="libHead">▸ <span>라이브러리</span></h4>` +
-      `<div class="lib-add" id="libAddBtn">＋ 이미지 추가</div>` +
-      `<div class="lib-grid" id="libGrid"></div>`;
-    pane.appendChild(_lib);
-
-    /* 숨김 file input */
+    /* 숨김 file input (라이브러리 추가용) */
     const _fi = document.createElement("input");
     _fi.type = "file"; _fi.id = "libFile"; _fi.accept = "image/*"; _fi.hidden = true;
     document.body.appendChild(_fi);
@@ -2266,13 +2252,7 @@
       });
     }
 
-    /* ── 라이브러리 패널 이벤트 ── */
-    document.getElementById("libHead").addEventListener("click", () => {
-      document.getElementById("libPanel").classList.toggle("collapsed");
-    });
-    document.getElementById("libAddBtn").addEventListener("click", () => {
-      document.getElementById("libFile").click();
-    });
+    /* ── 라이브러리 이벤트 ── */
     document.getElementById("libFile").addEventListener("change", e => {
       const f = e.target.files[0]; if (!f) return;
       const r = new FileReader();
@@ -2280,14 +2260,15 @@
         const id = uid("img");
         putImg(id, out);
         LIBRARY.push({ id, label: f.name.replace(/\.[^.]+$/, "") });
+        saveMeta();
         renderLib();
         bToast("썸네일 추가됨");
       });
       r.readAsDataURL(f); e.target.value = "";
     });
 
-    /* lib thumbnail dragstart — delegation on #libPanel */
-    document.getElementById("libPanel").addEventListener("dragstart", e => {
+    /* lib thumbnail dragstart — delegation on #forgeSide (libSec 재생성에도 안전) */
+    document.getElementById("forgeSide").addEventListener("dragstart", e => {
       const it = e.target.closest(".lib-it[data-img]");
       if (!it) return;
       e.dataTransfer.setData("text/forge-img", it.dataset.img);
@@ -2326,7 +2307,9 @@
           putImg(id, out);
           const label = f.name.replace(/\.[^.]+$/, "");
           LIBRARY.push({ id, label });
+          saveMeta();
           setThumb(n.id, { imgId: id, label });
+          markDirty();
           renderLib();
           bToast("썸네일 적용됨");
         });
@@ -2345,8 +2328,8 @@
       const file = imgItem.getAsFile(); if (!file) return;
       const r = new FileReader();
       r.onload = () => downscaleImage(r.result, out => {
-        const id = uid("img"); putImg(id, out); LIBRARY.push({ id, label: "붙여넣기" }); renderLib();
-        if (sel.length === 1 && bN(sel[0])) { setThumb(sel[0], { imgId: id, label: "붙여넣기" }); bToast("노드 이미지 적용"); }
+        const id = uid("img"); putImg(id, out); LIBRARY.push({ id, label: "붙여넣기" }); saveMeta(); renderLib();
+        if (sel.length === 1 && bN(sel[0])) { setThumb(sel[0], { imgId: id, label: "붙여넣기" }); markDirty(); bToast("노드 이미지 적용"); }
         else { setThemeImg(id); bToast("주제 이미지 적용"); }
       });
       r.readAsDataURL(file);
@@ -2356,6 +2339,7 @@
 
     /* ── 사이드바 이벤트 위임 ── */
     document.getElementById("forgeSide").addEventListener("click", e => {
+      if (e.target.id === "libAddBtn") { document.getElementById("libFile").click(); return; }
       if (e.target.id === "newDocBtn") { newDoc(); return; }
       const renBtn = e.target.closest("[data-docren]");
       if (renBtn) {
