@@ -1841,10 +1841,13 @@
     _ovRz = setTimeout(() => { if (_ovResult) renderOverlay(_ovResult, _ovGraph); }, 90);
   });
 
-  /* ── 파라미터 패널 입력 이벤트 위임 ────────────────────────────── */
-  (function bindParams() {
-    document.addEventListener("DOMContentLoaded", () => {
-      const panel = document.getElementById("paramPanel"); if (!panel) return;
+  /* ── Boot ────────────────────────────────────────────────────── */
+  document.addEventListener("DOMContentLoaded", () => {
+    boardInit();
+
+    /* 파라미터 패널 입력 이벤트 위임 (boardInit 후 #paramPanel 존재 보장) */
+    const panel = document.getElementById("paramPanel");
+    if (panel) {
       panel.addEventListener("input", ev => {
         if (sel.length !== 1) return; const n = bN(sel[0]); if (!n) return;
         const t = ev.target;
@@ -1861,12 +1864,8 @@
         }
         fireBoardChange();
       });
-    });
-  })();
+    }
 
-  /* ── Boot ────────────────────────────────────────────────────── */
-  document.addEventListener("DOMContentLoaded", () => {
-    boardInit();
     onBoardChange(() => { clearTimeout(_t); _t = setTimeout(runForge, 180); });
     document.getElementById("runBtn").addEventListener("click", runForge);
     requestAnimationFrame(runForge);
