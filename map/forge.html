@@ -204,7 +204,7 @@
   .side-btn{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;font-size:11px;padding:2px 8px;cursor:pointer}
   .side-btn:hover{color:var(--ink);border-color:var(--eth)}
 
-  /* ── 포지 분析 재생 ── */
+  /* ── 포지 분석 재생 ── */
   .analyze-prog{font-size:11px;color:var(--eth);margin-left:auto}
   .analyze-btn{background:transparent;color:var(--gold);border:1px solid var(--gold)}
   .analyze-btn:hover{background:rgba(232,180,99,.12)}
@@ -1822,7 +1822,7 @@
     });
   }
 
-  /* ── 포지 분析 재생 ─────────────────────────────────────────── */
+  /* ── 포지 분석 재생 ─────────────────────────────────────────── */
   function stopPlay() {
     if (_playT) clearTimeout(_playT);
     if (_playRaf) cancelAnimationFrame(_playRaf);
@@ -1847,7 +1847,7 @@
     try { steps = ForgeCore.runSteps(boardToGraph(), data, { futW: 120 }); }
     catch (e) { console.warn("steps", e); return; }
     if (!steps.length) return;
-    if (prefersReducedMotion()) { renderChart(lastResult, data); bToast("포지 분析 완료"); return; }
+    if (prefersReducedMotion()) { renderChart(lastResult, data); bToast("포지 분석 완료"); return; }
     _playing = true;
     const N = steps.length, progEl = document.getElementById("analyzeProg");
     let i = 0, prevPred = steps[0].prediction;
@@ -1860,11 +1860,11 @@
       if (i >= N) {
         renderChart(lastResult, data);
         if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
-        stopPlay(); bToast("포지 분析 완료"); return;
+        stopPlay(); bToast("포지 분석 완료"); return;
       }
       const s = steps[i];
       const node = boardState.nodes.find(n => n.id === s.nodeId);
-      if (progEl) progEl.textContent = "분析 중: " + ((node && node.title) || "노드") + " (" + (i + 1) + "/" + N + ")";
+      if (progEl) progEl.textContent = "분석 중: " + ((node && node.title) || "노드") + " (" + (i + 1) + "/" + N + ")";
       highlight(s.nodeId);
       if (s.verdict) renderVerdict(s.verdict);
       const from = prevPred, to = s.prediction, t0 = performance.now(), dur = 350;
