@@ -1865,6 +1865,92 @@
     _glowDot(ctx, M.toX(M.n + np - 1), M.toY(pred.path[np - 1]), 9 + 6 * _flash, dirCol, 0.9);
   }
 
+  /* ── drawTrendFib: price regression line + fib retracement levels ── */
+  function drawTrendFib(result, graph) {
+    const ctx = fcovCtx; if (!ctx) return;
+    const candles = data.candle || []; if (!candles.length) return;
+    const pred = result.prediction || { path: [], lo: [], hi: [], futW: 0 };
+    const sig = result.signal || [];
+    const M = fcMap(candles, pred, sig, _fcovW, _fcovH);
+    const n = M.n; if (!n) return;
+
+    const nodes = (graph && graph.nodes) ? graph.nodes : [];
+    const trendNode = nodes.find(nd => nd.blockType === "trend");
+    const fibNode   = nodes.find(nd => nd.blockType === "fib");
+    if (!trendNode && !fibNode) return;
+
+    const closes = candles.map(cd => cd.c);
+
+    /* ── trend: linear-regression line across full historical region ── */
+    if (trendNode) {
+      /* ordinary least squares: y = slope * i + intercept */
+      let sx = 0, sy = 0, sxy = 0, sx2 = 0;
+      for (let i = 0; i < n; i++) {
+        sx += i; sy += closes[i]; sxy += i * closes[i]; sx2 += i * i;
+      }
+      const denom = n * sx2 - sx * sx;
+      if (denom !== 0) {
+        const slope = (n * sxy - sx * sy) / denom;
+        const intercept = (sy - slope * sx) / n;
+        ctx.save();
+        ctx.strokeStyle = FC_ETH;           /* eth (#8a92b2) dashed, per design token */
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 4]);
+        ctx.globalAlpha = 0.82;
+        ctx.beginPath();
+        ctx.moveTo(M.toX(0), M.toY(intercept));
+        ctx.lineTo(M.toX(n - 1), M.toY(intercept + slope * (n - 1)));
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+    }
+
+    /* ── fib: Fibonacci retracement from recent len-bar candle high/low ── */
+    if (fibNode) {
+      const len = Math.max(2, Number((fibNode.params && fibNode.params.len) || 120));
+      const start = Math.max(0, n - len);
+      let hi = -Infinity, lo = Infinity;
+      for (let i = start; i < n; i++) {
+        if (candles[i].h > hi) hi = candles[i].h;
+        if (candles[i].l < lo) lo = candles[i].l;
+      }
+      const range = hi - lo;
+      if (range > 0) {
+        /* 6 standard retracement ratios: 0 = range low, 1 = range high */
+        const FIB_LEVELS = [
+          { r: 0,     lbl: "0" },
+          { r: 0.236, lbl: "0.236" },
+          { r: 0.382, lbl: "0.382" },
+          { r: 0.5,   lbl: "0.5" },
+          { r: 0.618, lbl: "0.618" },
+          { r: 1,     lbl: "1" }
+        ];
+        const x0 = M.toX(0), x1 = M.predStartX;
+        ctx.save();
+        ctx.font = "9px ui-monospace,monospace";
+        FIB_LEVELS.forEach(({ r, lbl }) => {
+          const price = lo + r * range;
+          const y = M.toY(price);
+          /* dashed gold translucent line */
+          ctx.globalAlpha = 0.48;
+          ctx.strokeStyle = FC_GOLD;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x0, y); ctx.lineTo(x1, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          /* label at right edge of historical region */
+          ctx.globalAlpha = 0.8;
+          ctx.fillStyle = FC_GOLD;
+          ctx.fillText(lbl, x1 - 40, y - 2);
+        });
+        ctx.restore();
+      }
+    }
+  }
+
   /* ── drawPulse: living-graph signals flowing along board edges ── */
   function drawPulse(t, isStatic) {
     const ctx = bovCtx; if (!ctx || !_ovResult) return;
@@ -1952,7 +2038,7 @@
     const loop = now => {
       const dt = Math.min(0.05, (now - _lastNow) / 1000); _lastNow = now;
       _flash = Math.max(0, _flash - dt * 2.2);
-      if (_ovResult) { drawConsensus(_ovResult); drawCone(_ovResult); drawPulse((now - _t0) / 1000); }
+      if (_ovResult) { drawConsensus(_ovResult); drawCone(_ovResult); drawTrendFib(_ovResult, _ovGraph); drawPulse((now - _t0) / 1000); }
       _raf = requestAnimationFrame(loop);
     };
     _raf = requestAnimationFrame(loop);
@@ -1960,7 +2046,7 @@
   function stopPulse() { if (_raf) { cancelAnimationFrame(_raf); _raf = null; } }
   function drawStaticFrame() {
     _flash = 0;
-    if (_ovResult) { drawConsensus(_ovResult); drawCone(_ovResult); drawPulse(0, true); }
+    if (_ovResult) { drawConsensus(_ovResult); drawCone(_ovResult); drawTrendFib(_ovResult, _ovGraph); drawPulse(0, true); }
   }
 
   /* ── renderOverlay: entry hook called by runForge ─────────────── */

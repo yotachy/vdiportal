@@ -202,6 +202,21 @@ test("trend/rsi/fib blocks on rising price are bullish-shaped", () => {
   assert.ok(trend.every(v => v >= -1.5 && v <= 1.5));
 });
 
+test("phase2 regression: trend+rsi+combine+predict run end-to-end via run()", () => {
+  const data = ForgeCore.makeDemoSeries({ n: 300, seed: 2, period: 50 });
+  const g = { nodes: [
+    { id: "p", kind: "block", blockType: "price" },
+    { id: "t", kind: "block", blockType: "trend", params: { len: 30 } },
+    { id: "r", kind: "block", blockType: "rsi", params: { period: 14 } },
+    { id: "c", kind: "block", blockType: "combine" },
+    { id: "o", kind: "block", blockType: "predict" } ],
+    edges: [{from:"p",to:"t"},{from:"p",to:"r"},{from:"t",to:"c"},{from:"r",to:"c"},{from:"c",to:"o"}] };
+  const out = ForgeCore.run(g, data, { futW: 60 });
+  assert.strictEqual(out.signal.length, 300);
+  assert.strictEqual(out.prediction.path.length, 60);
+  assert.ok(out.signal.every(v => v >= -100 && v <= 100));
+});
+
 test("volume block produces no signal series (empty)", () => {
   const data = { price: [1,2,3], n: 3 };
   const g = { nodes: [{ id: "v", kind: "block", blockType: "volume" }], edges: [] };
