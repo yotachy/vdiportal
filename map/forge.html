@@ -536,7 +536,7 @@
       // 첫 부팅/빈 데이터 → 기본 문서 시드
       seedDefaultStrategy();
       renderBoard(); fitView();
-      const dc = { id: uid("doc"), title: "새 전략", themeImgId: themeState.imgId || null,
+      const dc = { id: uid("doc"), title: "New Forge", themeImgId: themeState.imgId || null,
         nodes: boardState.nodes, edges: boardState.edges, view: { tx: view.tx, ty: view.ty, scale: view.scale }, updated: new Date().toISOString() };
       DOCS = [dc]; activeId = dc.id; META = { library: [], activeId: dc.id };
       if (window.renderSidebar) renderSidebar(); runForge();
@@ -555,14 +555,14 @@
          <button class="side-btn" data-docdel="${d.id}">✕</button>
        </div>`).join("");
     el.innerHTML =
-      `<div class="side-sec"><div class="side-h"><span>전략 문서</span><button class="side-btn" id="newDocBtn">＋ 새 문서</button></div>${docs}</div>
+      `<div class="side-sec"><div class="side-h"><span>포지</span><button class="side-btn" id="newDocBtn">＋ New Forge</button></div>${docs}</div>
        <div class="side-sec" id="libSec"></div>`;
     if (window.renderLib) renderLib();   // 라이브러리 섹션(Task 4)
   }
   function switchDoc(id) { if (id === activeId) return; writeBackActive(); loadDoc(id); saveMeta(); }
   function newDoc() {
     writeBackActive();
-    const dc = { id: uid("doc"), title: "새 전략", themeImgId: null, nodes: [], edges: [],
+    const dc = { id: uid("doc"), title: "New Forge", themeImgId: null, nodes: [], edges: [],
       view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
     DOCS.push(dc); loadDoc(dc.id); seedDefaultStrategy(); renderBoard(); fitView(); writeBackActive(); saveMeta();
   }
@@ -578,7 +578,7 @@
     renderSidebar();
   }
   function deleteDoc(id) {
-    if (DOCS.length <= 1) { bToast("최소 1개 문서는 필요해요"); return; }
+    if (DOCS.length <= 1) { bToast("최소 1개 포지는 필요해요"); return; }
     DOCS = DOCS.filter(d => d.id !== id);
     if (SERVER_OK) apiPost({ op: "delete", id });
     if (id === activeId) loadDoc(DOCS[0].id);
@@ -1259,7 +1259,7 @@
     const phasefold = makeNode(310, 200, "위상폴딩",    "block", "phasefold", { pmin: 16, pmax: 128 });
     const combine   = makeNode(560, 120, "가중결합",    "block", "combine",   {});
     const predict   = makeNode(810, 120, "예측·시그널", "block", "predict",   {});
-    const memo      = makeNode(60,  290, "전략 메모",   "free",  null,        {});
+    const memo      = makeNode(60,  290, "포지 메모",   "free",  null,        {});
     addEdge(price.id,     "right",  ma.id,        "left");
     addEdge(price.id,     "bottom", phasefold.id, "left");
     addEdge(ma.id,        "right",  combine.id,   "left");
@@ -1720,7 +1720,7 @@
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    bToast("전략 내보내기 완료");
+    bToast("포지 내보내기 완료");
   }
 
   /* ── Forge data + runForge ───────────────────────────────────── */
