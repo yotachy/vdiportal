@@ -113,3 +113,33 @@ test("run returns prediction, signal, verdict shapes", () => {
   assert.ok(["bull","bear","neutral"].includes(out.verdict.regime));
   assert.ok(typeof out.verdict.target === "number");
 });
+
+test("conviction bias tilts signal and verdict, zero is no-op", () => {
+  const data = ForgeCore.makeDemoSeries({ n: 300, seed: 5, period: 48 });
+  const base = {
+    nodes: [
+      { id: "p", kind: "block", blockType: "price" },
+      { id: "f", kind: "block", blockType: "phasefold", params: { pmin: 20, pmax: 96 } },
+      { id: "c", kind: "block", blockType: "combine" },
+      { id: "o", kind: "block", blockType: "predict" }
+    ],
+    edges: [{ from: "p", to: "f" }, { from: "f", to: "c" }, { from: "c", to: "o" }]
+  };
+  const r0 = ForgeCore.run(base, data, { futW: 60 });
+  // conviction 0/absent → identical signal & verdict.score
+  const baseZero = JSON.parse(JSON.stringify(base));
+  baseZero.nodes.forEach(n => n.conviction = 0);
+  const rz = ForgeCore.run(baseZero, data, { futW: 60 });
+  assert.deepStrictEqual(rz.signal, r0.signal);
+  assert.strictEqual(rz.verdict.score, r0.verdict.score);
+  // positive conviction → signal mean up, score up, still clamped
+  const pos = JSON.parse(JSON.stringify(base));
+  pos.nodes.find(n => n.id === "c").conviction = 80;
+  const rp = ForgeCore.run(pos, data, { futW: 60 });
+  const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+  assert.ok(mean(rp.signal) > mean(r0.signal));
+  assert.ok(rp.verdict.score >= r0.verdict.score);
+  assert.ok(rp.signal.every(v => v >= -100 && v <= 100));
+  // prediction unaffected by conviction
+  assert.deepStrictEqual(rp.prediction.path, r0.prediction.path);
+});

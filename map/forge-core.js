@@ -172,6 +172,18 @@
     return { a, b };
   }
 
+  function aggregateConviction(graph) {
+    let s = 0, c = 0;
+    (graph.nodes || []).forEach(n => {
+      const v = n && n.conviction;
+      if (typeof v === "number" && isFinite(v) && v !== 0) {
+        s += v;
+        c++;
+      }
+    });
+    return c ? s / c : 0;
+  }
+
   function run(graph, data, opts) {
     const futW = (opts && opts.futW) || 120;
     const ev = evalBlocks(graph, data), { values, meta } = ev;
@@ -189,6 +201,9 @@
     }
     if (!sigSrc) sigSrc = data.price;
     const dn = detrendNorm(sigSrc), signal = dn.map(v => Math.max(-100, Math.min(100, Math.round(100 * tanh(v / 1.5)))));
+    // 확신 바이어스 적용
+    const bias = aggregateConviction(graph), K = 0.5;
+    const sigB = bias ? signal.map(v => Math.max(-100, Math.min(100, Math.round(v + bias * K)))) : signal;
     // 예측: 가격 추세 + (phasefold 메타 있으면) 주기 외삽
     const price = data.price, { a, b } = linfit(price), n = price.length;
     const fmeta = Object.values(meta || {}).find(m => m && m.best);
@@ -212,12 +227,12 @@
       lo.push(v - band);
       hi.push(v + band);
     }
-    const lastSig = signal.slice(-10).reduce((s, v) => s + v, 0) / 10;
+    const lastSig = sigB.slice(-10).reduce((s, v) => s + v, 0) / 10;
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
     const last = price[n - 1], target = last * (1 + lastSig / 1000);
     const recent = price.slice(-30), invalidation = regime === "bear" ? Math.max(...recent) : Math.min(...recent);
     return {
-      values, meta, prediction: { path, lo, hi, futW }, signal,
+      values, meta, prediction: { path, lo, hi, futW }, signal: sigB,
       verdict: { regime, score: Math.round(lastSig), target, invalidation }
     };
   }
