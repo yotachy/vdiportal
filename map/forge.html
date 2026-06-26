@@ -1287,17 +1287,32 @@
     /* update meta chip */
     const fcMetaEl = document.getElementById("fcMeta");
     if (fcMetaEl) {
+      const thetaTxt = fmeta && Number.isFinite(fmeta.theta) ? fmeta.theta.toFixed(3) : "—";
       fcMetaEl.textContent = fmeta
-        ? "P*≈" + bestP.toFixed(1) + " · θ=" + fmeta.theta.toFixed(3)
+        ? "P*≈" + bestP.toFixed(1) + " · θ=" + thetaTxt
         : "위상폴딩 블록 없음";
     }
 
     /* draw all panels */
     fcDrawMain(candles, result.signal || [], pred.path, pred.lo, pred.hi, pred.futW || 0);
     fcDrawPdm(pdmCurve, bestP);
-    fcDrawFold(document.getElementById("fcFoldA"), orangeArr,  "주황 osc", FC_ORA,  bestP, 0);
-    fcDrawFold(document.getElementById("fcFoldB"), blueArr,    "파랑 osc", FC_BLU,  bestP, 0);
-    fcDrawFold(document.getElementById("fcFoldC"), closeArr,   "가격 close", FC_GOLD, bestP, 0);
+    if (!fmeta) {
+      ["fcFoldA", "fcFoldB", "fcFoldC"].forEach(id => {
+        const cv = document.getElementById(id);
+        if (!cv) return;
+        const ch = 100, c = fcFit(cv, ch);
+        const cw = cv.clientWidth || 180;
+        c.clearRect(0, 0, cw, ch);
+        c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace";
+        c.textAlign = "center";
+        c.fillText("위상폴딩 블록 없음", cw / 2, ch / 2);
+        c.textAlign = "left";
+      });
+    } else {
+      fcDrawFold(document.getElementById("fcFoldA"), orangeArr,  "주황 osc", FC_ORA,  bestP, 0);
+      fcDrawFold(document.getElementById("fcFoldB"), blueArr,    "파랑 osc", FC_BLU,  bestP, 0);
+      fcDrawFold(document.getElementById("fcFoldC"), closeArr,   "가격 close", FC_GOLD, bestP, 0);
+    }
   }
 
   /* resize: re-render with stored last result/data */
