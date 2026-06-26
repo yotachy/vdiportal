@@ -155,6 +155,14 @@
         const sc = scanPeriod(dn, { pmin: (n.params && n.params.pmin) || 8, pmax: (n.params && n.params.pmax) || Math.floor(src.length / 3) });
         values[id] = dn;
         meta[id] = { best: sc.best, theta: pdmTheta(dn, sc.best), curve: sc.curve };
+      } else if (n.blockType === "trend") {
+        values[id] = rollingSlope(ins[0] || data.price, (n.params && n.params.len) || 40);
+      } else if (n.blockType === "rsi") {
+        values[id] = rsiSeries(ins[0] || data.price, (n.params && n.params.period) || 14);
+      } else if (n.blockType === "fib") {
+        values[id] = fibPos(ins[0] || data.price, (n.params && n.params.len) || 120);
+      } else if (n.blockType === "volume") {
+        values[id] = [];
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -178,6 +186,39 @@
     }
     const b = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1), a = (sy - b * sx) / n;
     return { a, b };
+  }
+
+  function rollingSlope(arr, len) {
+    const out = [];
+    for (let i = 0; i < arr.length; i++) {
+      const a = Math.max(0, i - len + 1), win = arr.slice(a, i + 1);
+      const { b } = linfit(win);
+      out.push(Math.max(-1.5, Math.min(1.5, tanh(b * 6))));
+    }
+    return out;
+  }
+
+  function rsiSeries(arr, period) {
+    const out = [], n = arr.length; let avgG = 0, avgL = 0;
+    for (let i = 0; i < n; i++) {
+      if (i === 0) { out.push(0); continue; }
+      const ch = arr[i] - arr[i - 1], g = Math.max(0, ch), l = Math.max(0, -ch);
+      if (i <= period) { avgG += g / period; avgL += l / period; }
+      else { avgG = (avgG * (period - 1) + g) / period; avgL = (avgL * (period - 1) + l) / period; }
+      const rs = avgL === 0 ? 100 : avgG / avgL, rsi = 100 - 100 / (1 + rs);
+      out.push((rsi - 50) / 50);
+    }
+    return out;
+  }
+
+  function fibPos(arr, len) {
+    const out = [];
+    for (let i = 0; i < arr.length; i++) {
+      const a = Math.max(0, i - len + 1), win = arr.slice(a, i + 1);
+      const lo = Math.min(...win), hi = Math.max(...win), rng = (hi - lo) || 1;
+      out.push(((arr[i] - lo) / rng) * 2 - 1);
+    }
+    return out;
   }
 
   function aggregateConviction(graph) {

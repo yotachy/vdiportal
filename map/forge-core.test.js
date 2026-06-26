@@ -185,3 +185,26 @@ test("weight: combine contribution scales by source node weight", () => {
   assert.strictEqual(values.c.length, 5);
   assert.ok(values.c.every(v => v === 0));
 });
+
+test("trend/rsi/fib blocks on rising price are bullish-shaped", () => {
+  const price = []; for (let i = 0; i < 120; i++) price.push(100 + i * 0.7);
+  const data = { price, n: price.length };
+  const mk = bt => ({ nodes: [{ id: "p", kind: "block", blockType: "price" },
+    { id: "x", kind: "block", blockType: bt, params: { len: 30, period: 14 } }],
+    edges: [{ from: "p", to: "x" }] });
+  const trend = ForgeCore.evalBlocks(mk("trend"), data).values.x;
+  const rsi = ForgeCore.evalBlocks(mk("rsi"), data).values.x;
+  const fib = ForgeCore.evalBlocks(mk("fib"), data).values.x;
+  assert.strictEqual(trend.length, 120);
+  assert.ok(trend[trend.length - 1] > 0);       // rising → positive slope
+  assert.ok(rsi[rsi.length - 1] > 0);           // rising → RSI>50 → centered>0
+  assert.ok(fib[fib.length - 1] > 0.5);         // price near range top → near +1
+  assert.ok(trend.every(v => v >= -1.5 && v <= 1.5));
+});
+
+test("volume block produces no signal series (empty)", () => {
+  const data = { price: [1,2,3], n: 3 };
+  const g = { nodes: [{ id: "v", kind: "block", blockType: "volume" }], edges: [] };
+  const { values } = ForgeCore.evalBlocks(g, data);
+  assert.deepStrictEqual(values.v, []);
+});
