@@ -331,5 +331,24 @@
     };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run };
+  function runSteps(graph, data, opts) {
+    const { order } = buildDAG(graph);
+    const allNodes = graph.nodes || [], allEdges = graph.edges || [];
+    if (!order.length) {
+      const r = run(graph, data, opts);
+      return [{ nodeId: null, signal: r.signal, prediction: r.prediction, verdict: r.verdict }];
+    }
+    const steps = [];
+    for (let k = 1; k <= order.length; k++) {
+      const ids = new Set(order.slice(0, k));
+      const nodes = allNodes.filter(n => (n.kind === "block" && ids.has(n.id)) || n.kind !== "block");
+      const nidset = new Set(nodes.map(n => n.id));
+      const edges = allEdges.filter(e => nidset.has(e.from) && nidset.has(e.to));
+      const r = run({ nodes, edges }, data, opts);
+      steps.push({ nodeId: order[k - 1], signal: r.signal, prediction: r.prediction, verdict: r.verdict });
+    }
+    return steps;
+  }
+
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps };
 });

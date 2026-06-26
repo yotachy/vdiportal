@@ -279,3 +279,29 @@ test("elliott: down-first series has no duplicate pivot, correct dir", () => {
   assert.ok(w.length >= 3);
   assert.ok(w[0].idx !== w[1].idx);
 });
+
+test("runSteps: one step per block, last === full run()", () => {
+  const data = ForgeCore.makeDemoSeries({ n: 300, seed: 4, period: 48 });
+  const g = { nodes: [
+    { id: "p", kind: "block", blockType: "price" },
+    { id: "f", kind: "block", blockType: "phasefold", params: { pmin: 20, pmax: 96 } },
+    { id: "c", kind: "block", blockType: "combine" },
+    { id: "o", kind: "block", blockType: "predict" },
+    { id: "m", kind: "free" }
+  ], edges: [{ from: "p", to: "f" }, { from: "f", to: "c" }, { from: "c", to: "o" }] };
+  const steps = ForgeCore.runSteps(g, data, { futW: 60 });
+  assert.strictEqual(steps.length, 4);                 // 4 blocks
+  steps.forEach(s => {
+    assert.strictEqual(s.prediction.path.length, 60);
+    assert.strictEqual(s.signal.length, data.n);
+  });
+  const full = ForgeCore.run(g, data, { futW: 60 });
+  assert.deepStrictEqual(steps[steps.length - 1].prediction.path, full.prediction.path);
+  assert.deepStrictEqual(steps[steps.length - 1].signal, full.signal);
+});
+
+test("runSteps: no blocks -> single graceful step", () => {
+  const steps = ForgeCore.runSteps({ nodes: [{ id: "m", kind: "free" }], edges: [] }, { price: [1, 2, 3], n: 3 }, { futW: 10 });
+  assert.strictEqual(steps.length, 1);
+  assert.strictEqual(steps[0].prediction.path.length, 10);
+});
