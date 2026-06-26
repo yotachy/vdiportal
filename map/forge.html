@@ -93,6 +93,7 @@
   /* weight importance badge */
   .b-n-wt{position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;
     background:var(--gold);color:#1a1206;font-size:10px;font-weight:700;line-height:18px;text-align:center;z-index:4}
+  .b-n-scan{margin-top:4px;font-size:10px;color:var(--eth);font-family:ui-monospace,monospace}
   /* drag cursor override */
   body.b-ndrag,body.b-ndrag *{cursor:grabbing!important}
   /* toast (positioned in left half) */
@@ -315,11 +316,12 @@
   const BLOCK_DEFS = [
     { type: "price",     label: "가격",        kind: "block" },
     { type: "ma",        label: "이동평균",    kind: "block", params: { len: 10 } },
-    { type: "phasefold", label: "위상폴딩",    kind: "block", params: { pmin: 16, pmax: 128 } },
+    { type: "phasefold", label: "파동 스캔",    kind: "block", params: { pmin: 16, pmax: 128 } },
     { type: "combine",   label: "가중결합",    kind: "block" },
     { type: "trend",     label: "추세선",      kind: "block", params: { len: 40 } },
     { type: "rsi",       label: "RSI",         kind: "block", params: { period: 14 } },
     { type: "fib",       label: "피보나치",    kind: "block", params: { len: 120 } },
+    { type: "elliott",   label: "엘리어트",    kind: "block", params: { swing: 3 } },
     { type: "volume",    label: "거래량",      kind: "block" },
     { type: "predict",   label: "예측·시그널", kind: "block" },
     { type: "free",      label: "메모",        kind: "free" }
@@ -762,9 +764,10 @@
     const rows = [];
     if (n.blockType === "ma") rows.push(numRow("len", "이동평균 길이", (n.params && n.params.len) ?? 10));
     if (n.blockType === "phasefold") {
-      rows.push(numRow("pmin", "주기 최소", (n.params && n.params.pmin) ?? 16));
-      rows.push(numRow("pmax", "주기 최대", (n.params && n.params.pmax) ?? 128));
+      rows.push(numRow("pmin", "스캔 범위 최소", (n.params && n.params.pmin) ?? 16));
+      rows.push(numRow("pmax", "스캔 범위 최대", (n.params && n.params.pmax) ?? 128));
     }
+    if (n.blockType === "elliott") rows.push(numRow("swing", "스윙 민감도(%)", (n.params && n.params.swing) ?? 3));
     if (n.blockType === "trend") rows.push(numRow("len", "추세 기간", (n.params && n.params.len) ?? 40));
     if (n.blockType === "rsi") rows.push(numRow("period", "RSI 기간", (n.params && n.params.period) ?? 14));
     if (n.blockType === "fib") rows.push(numRow("len", "피보 구간", (n.params && n.params.len) ?? 120));
@@ -1789,11 +1792,33 @@
   let lastResult = null;
   let _t = null;
 
+  function paintScanBadges() {
+    if (!lastResult || !bWorld) return;
+    boardState.nodes.forEach(n => {
+      if (n.blockType !== "phasefold" && n.blockType !== "elliott") return;
+      const el = bq(n.id); if (!el) return;
+      const body = el.querySelector(".b-n-body"); if (!body) return;
+      let s = el.querySelector(".b-n-scan");
+      if (!s) { s = document.createElement("div"); s.className = "b-n-scan"; body.appendChild(s); }
+      const m = lastResult.meta && lastResult.meta[n.id];
+      if (n.blockType === "phasefold") {
+        s.textContent = m && m.best != null
+          ? "P*≈" + Math.round(m.best) + (Number.isFinite(m.theta) ? " θ" + m.theta.toFixed(2) : "")
+          : "스캔 대기";
+      } else {
+        s.textContent = m && m.current
+          ? "파동 " + m.current.label + " " + (m.current.dir > 0 ? "▲" : m.current.dir < 0 ? "▼" : "–")
+          : "스캔 대기";
+      }
+    });
+  }
+
   function runForge() {
     try {
       const g = boardToGraph();
       lastResult = ForgeCore.run(g, data, { futW: 120 });
       renderChart(lastResult, data);
+      paintScanBadges();
       if (window.renderOverlay) renderOverlay(lastResult, g);
       if (lastResult && lastResult.verdict) renderVerdict(lastResult.verdict);
     } catch (e) {
