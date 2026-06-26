@@ -207,6 +207,8 @@
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span style="color:var(--eth);font-weight:500">by MoneyScoop</span></div>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
+    <button class="export-btn" onclick="autoLayout('v')">세로 정렬</button>
+    <button class="export-btn" onclick="autoLayout('h')">가로 정렬</button>
     <button class="export-btn" id="exportBtn" onclick="exportStrategy()">내보내기</button>
     <button class="run-btn" id="runBtn">▷ 실행</button>
   </header>
@@ -324,6 +326,39 @@
   const bE = id => boardState.edges.find(e => e.id === id);
   const DIR = { right: [1, 0], left: [-1, 0], top: [0, -1], bottom: [0, 1] };
   const esc = s => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  /* ── autoLayout helpers ──────────────────────────────────────── */
+  function parentsOf(id) {
+    return boardState.edges.filter(e => e.to === id).map(e => e.from);
+  }
+  function autoLayout(dir) {
+    if (!boardState.nodes.length) return;
+    measure();
+    const layer = {}, vis = {};
+    const lay = id => {
+      if (layer[id] != null) return layer[id];
+      if (vis[id]) return 0;
+      vis[id] = 1;
+      const ps = parentsOf(id);
+      let m = 0;
+      if (ps.length) m = Math.max(...ps.map(p => lay(p) + 1));
+      layer[id] = m; vis[id] = 0; return m;
+    };
+    boardState.nodes.forEach(n => lay(n.id));
+    const byL = {};
+    boardState.nodes.forEach(n => { (byL[layer[n.id]] = byL[layer[n.id]] || []).push(n); });
+    const layers = Object.keys(byL).map(Number).sort((a, b) => a - b);
+    const PAD = 40;
+    if (dir === "h") {
+      layers.forEach(L => { const col = byL[L].slice().sort((a, b) => a.y - b.y); let cy = PAD; const x = PAD + L * 330; col.forEach(n => { n.x = x; n.y = cy; cy += (n._h || 90) + 38; }); });
+      boardState.edges.forEach(e => { e.fromSide = "right"; e.toSide = "left"; });
+    } else {
+      let cy = PAD; layers.forEach(L => { const row = byL[L].slice().sort((a, b) => a.x - b.x); let cx = PAD, mh = 0; row.forEach(n => { n.x = cx; n.y = cy; cx += (n._w || W_NODE) + 50; mh = Math.max(mh, n._h || 90); }); cy += mh + 56; });
+      boardState.edges.forEach(e => { e.fromSide = "bottom"; e.toSide = "top"; });
+    }
+    renderBoard(); fitView(); markDirty();
+    bToast(dir === "h" ? "가로 정렬" : "세로 정렬");
+  }
 
   /* ── Change notification ─────────────────────────────────────── */
   let _boardChangeCb = null;
@@ -535,7 +570,7 @@
     } else {
       // 첫 부팅/빈 데이터 → 기본 문서 시드
       seedDefaultStrategy();
-      renderBoard(); fitView();
+      autoLayout("v");
       const dc = { id: uid("doc"), title: "New Forge", themeImgId: themeState.imgId || null,
         nodes: boardState.nodes, edges: boardState.edges, view: { tx: view.tx, ty: view.ty, scale: view.scale }, updated: new Date().toISOString() };
       DOCS = [dc]; activeId = dc.id; META = { library: [], activeId: dc.id };
@@ -564,7 +599,7 @@
     writeBackActive();
     const dc = { id: uid("doc"), title: "New Forge", themeImgId: null, nodes: [], edges: [],
       view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
-    DOCS.push(dc); loadDoc(dc.id); seedDefaultStrategy(); renderBoard(); fitView(); writeBackActive(); saveMeta();
+    DOCS.push(dc); loadDoc(dc.id); seedDefaultStrategy(); autoLayout("v"); writeBackActive(); saveMeta();
   }
   function renameDoc(id, title) {
     const d = DOCS.find(x => x.id === id); if (!d) return; d.title = title;
