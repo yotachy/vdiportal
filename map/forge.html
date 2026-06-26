@@ -20,7 +20,7 @@
   .forge-top{display:flex;align-items:center;gap:14px;height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
   .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
   .forge-split{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 54px)}
-  .board-pane{position:relative;overflow:hidden;border-right:1px solid var(--line)}
+  .board-pane{position:relative;overflow:hidden;border-right:1px solid var(--line);display:flex;flex-direction:column}
   .chart-pane{position:relative;overflow:hidden;display:flex;flex-direction:column}
   .run-btn{background:var(--gold);color:#1a1206;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer}
 
@@ -29,7 +29,7 @@
      NOTE: no will-change:transform on .b-world (zoom blur)
      ════════════════════════════════════════════════════ */
   .b-stage{
-    position:absolute;inset:0;overflow:hidden;cursor:grab;
+    position:relative;flex:1;min-height:0;overflow:hidden;cursor:grab;
     background:radial-gradient(circle at 1px 1px,#ffffff0a 1px,transparent 0) 0 0/26px 26px,
                radial-gradient(120% 120% at 30% 0%,#141c28,#0b0f14)}
   .b-stage.panning{cursor:grabbing}
@@ -130,9 +130,16 @@
   }
   .export-btn:hover{background:var(--raised2);color:var(--ink)}
 
+  /* theme banner */
+  .forge-theme{flex:0 0 96px;display:flex;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel);flex-shrink:0}
+  .forge-theme .th-img{flex:0 0 200px;height:80px;border-radius:8px;overflow:hidden;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--eth);font-size:11px;text-align:center;line-height:1.4}
+  .forge-theme .th-img img{width:100%;height:100%;object-fit:contain}
+  .forge-theme .th-title{flex:1;font-size:18px;font-weight:700;color:var(--ink);outline:none;min-height:24px}
+  .forge-theme .th-title:empty::before{content:"주제 제목…";color:var(--eth)}
+
   /* block palette (floats over board-pane) */
   .forge-palette{
-    position:absolute;left:12px;top:12px;z-index:10;
+    position:absolute;left:12px;top:108px;z-index:10;
     display:flex;flex-direction:column;gap:4px;
     background:#0e1218ee;border:1px solid var(--line);
     border-radius:12px;padding:8px 7px;
@@ -156,7 +163,7 @@
   .forge-palette .pal-btn.pal-free{color:var(--eth);border-style:dashed}
 
   /* ── 파라미터 편집기 패널 ── */
-  .forge-params{position:absolute;right:12px;top:12px;z-index:6;width:230px;background:var(--panel);
+  .forge-params{position:absolute;right:12px;top:108px;z-index:6;width:230px;background:var(--panel);
     border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;color:var(--ink);box-shadow:0 6px 20px #0008}
   .forge-params h4{margin:0 0 8px;font-size:12px;color:var(--gold);font-weight:700}
   .forge-params .pp-row{display:flex;align-items:center;gap:8px;margin:6px 0}
@@ -399,6 +406,21 @@
   const LIBRARY = [];
   function imgSrc(id){ return IMAGES[id] || ""; }
   function putImg(id, src){ IMAGES[id] = src; }
+
+  /* ── 주제 배너 ───────────────────────────────────────────────── */
+  let themeState = { imgId: null, title: "" };
+
+  function renderTheme() {
+    const el = document.getElementById("themeBar"); if (!el) return;
+    const img = themeState.imgId
+      ? `<img src="${imgSrc(themeState.imgId)}" alt="">`
+      : "주제 이미지<br>붙여넣기(Ctrl+V)";
+    el.querySelector(".th-img").innerHTML = img;
+    const t = el.querySelector(".th-title");
+    if (document.activeElement !== t) t.textContent = themeState.title || "";
+  }
+
+  function setThemeImg(imgId) { themeState.imgId = imgId; renderTheme(); fireBoardChange(); }
   function downscaleImage(src, cb){
     const img = new Image();
     img.onload = () => { let w=img.width,h=img.height; const md=1000, sc=Math.min(1,md/Math.max(w,h));
@@ -880,7 +902,10 @@
   /* ── Board DOM init ──────────────────────────────────────────── */
   function boardInit() {
     const pane = document.getElementById("boardPane");
-    pane.innerHTML = `<div class="b-stage" id="bStage">
+    pane.innerHTML = `<div id="themeBar" class="forge-theme">
+  <div class="th-img"></div>
+  <div class="th-title" contenteditable="true" spellcheck="false"></div>
+</div><div class="b-stage" id="bStage">
   <div class="b-world" id="bWorld">
     <svg class="b-edges" id="bEdges">
       <defs>
@@ -980,6 +1005,12 @@
       if (!nodeEl) return;
       const n = bN(nodeEl.dataset.id);
       if (n) n[f] = e.target.innerText.replace(/ /g, " ").trim();
+      fireBoardChange();
+    });
+
+    /* 주제 배너 제목 저장 */
+    pane.querySelector(".th-title").addEventListener("focusout", e => {
+      themeState.title = e.target.textContent.trim();
       fireBoardChange();
     });
 
@@ -1638,12 +1669,15 @@
 
   /* ── overlay canvas lifecycle ─────────────────────────────────── */
   function ensureOverlays() {
-    const bp = document.getElementById("boardPane");
-    if (bp && !boardOverlay) {
+    /* Attach boardOverlay to bStage (not boardPane) so its coordinate system
+       aligns with _toScreen (view.tx/ty are relative to the stage area, not
+       the full board-pane which now includes the 96px theme banner). */
+    const stage = bStage || document.getElementById("bStage");
+    if (stage && !boardOverlay) {
       boardOverlay = document.createElement("canvas");
       boardOverlay.id = "boardOverlay";
       boardOverlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:6";
-      bp.appendChild(boardOverlay);
+      stage.appendChild(boardOverlay);
     }
     const main = document.getElementById("fcMain");
     if (main && !fcOverlay) {
@@ -1672,9 +1706,10 @@
   }
   function layoutOverlays() {
     ensureOverlays();
-    const bp = document.getElementById("boardPane");
-    if (boardOverlay && bp) {
-      _bovW = bp.clientWidth; _bovH = bp.clientHeight;
+    /* Use bStage dimensions — boardOverlay is now inside bStage */
+    const stage = bStage || document.getElementById("bStage");
+    if (boardOverlay && stage) {
+      _bovW = stage.clientWidth; _bovH = stage.clientHeight;
       bovCtx = _sizeCanvas(boardOverlay, _bovW, _bovH);
     }
     const main = document.getElementById("fcMain");
@@ -1908,6 +1943,7 @@
   /* ── Boot ────────────────────────────────────────────────────── */
   document.addEventListener("DOMContentLoaded", () => {
     boardInit();
+    renderTheme();
 
     /* 파라미터 패널 입력 이벤트 위임 (boardInit 후 #paramPanel 존재 보장) */
     const panel = document.getElementById("paramPanel");
