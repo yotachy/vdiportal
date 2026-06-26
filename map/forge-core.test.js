@@ -223,3 +223,22 @@ test("volume block produces no signal series (empty)", () => {
   const { values } = ForgeCore.evalBlocks(g, data);
   assert.deepStrictEqual(values.v, []);
 });
+
+test("prediction is continuous: anchored at last close, bands widen", () => {
+  const price = []; for (let i = 0; i < 240; i++) price.push(100 + 0.5 * i + 3 * Math.sin(2 * Math.PI * i / 40));
+  const data = { price, candle: price.map(p => ({ o: p, h: p + 1, l: p - 1, c: p })), orange: [], blue: [], n: price.length };
+  const g = { nodes: [
+    { id: "p", kind: "block", blockType: "price" },
+    { id: "f", kind: "block", blockType: "phasefold", params: { pmin: 20, pmax: 96 } },
+    { id: "c", kind: "block", blockType: "combine" },
+    { id: "o", kind: "block", blockType: "predict" } ],
+    edges: [{from:"p",to:"f"},{from:"f",to:"c"},{from:"c",to:"o"}] };
+  const { prediction: pr } = ForgeCore.run(g, data, { futW: 60 });
+  assert.strictEqual(pr.anchor, price[price.length - 1]);
+  assert.strictEqual(pr.path.length, 60);
+  // 시작이 앵커에 가깝고 시간이 갈수록 멀어짐 (점프 아님)
+  assert.ok(Math.abs(pr.path[0] - pr.anchor) < Math.abs(pr.path[59] - pr.anchor));
+  // 밴드는 seam에서 좁게 시작해 확대
+  assert.ok((pr.hi[0] - pr.lo[0]) < (pr.hi[59] - pr.lo[59]));
+  assert.ok([...pr.path, ...pr.lo, ...pr.hi].every(v => isFinite(v)));
+});

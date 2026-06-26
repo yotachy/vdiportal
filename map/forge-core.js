@@ -264,15 +264,14 @@
       res += e * e;
     }
     res = Math.sqrt(res / n);
+    // forecast와 동일 공식의 모델값 — 마지막 실값에 앵커링(연속성)
+    const modelAt = j => a + b * j + (fmeta ? Math.sin(2 * Math.PI * j / fmeta.best) * res * 0.8 : 0);
+    const offset = price[n - 1] - modelAt(n - 1);
     const path = [], lo = [], hi = [];
     for (let k = 1; k <= futW; k++) {
       const i = n - 1 + k;
-      let v = a + b * i;
-      if (fmeta) {
-        const P = fmeta.best;
-        v += Math.sin(2 * Math.PI * i / P) * res * 0.8;
-      }
-      const band = res * (0.6 + 0.02 * k);
+      const v = modelAt(i) + offset;
+      const band = res * (0.15 + 0.03 * k);   // seam에서 좁게 시작 → 확대
       path.push(v);
       lo.push(v - band);
       hi.push(v + band);
@@ -282,7 +281,7 @@
     const last = price[n - 1], target = last * (1 + lastSig / 1000);
     const recent = price.slice(-30), invalidation = regime === "bear" ? Math.max(...recent) : Math.min(...recent);
     return {
-      values, meta, prediction: { path, lo, hi, futW }, signal: sigB,
+      values, meta, prediction: { path, lo, hi, futW, anchor: price[n - 1] }, signal: sigB,
       verdict: { regime, score: Math.round(lastSig), target, invalidation }
     };
   }
