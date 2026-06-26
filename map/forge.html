@@ -1194,7 +1194,7 @@
   }
 
   /* ── fcDrawMain: candles + signal strip + prediction cone ── */
-  function fcDrawMain(candles, signal, predPath, predLo, predHi, futW) {
+  function fcDrawMain(candles, signal, predPath, predLo, predHi, futW, predAnchor) {
     const cv = document.getElementById("fcMain");
     if (!cv) return;
     const { c, cw, ch } = fcSizeMain(cv);
@@ -1246,26 +1246,26 @@
 
     /* prediction cone */
     if (predPath.length) {
-      /* filled band lo–hi */
+      const anchorV = (predAnchor != null) ? predAnchor : candles[n - 1].c;
+      const anchorY = toY(anchorV);
+      /* filled band lo–hi (seam에서 시작) */
       c.beginPath();
-      c.moveTo(toX(n), toY(predHi[0]));
+      c.moveTo(predStartX, anchorY);
       for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predHi[k]));
       for (let k = predPath.length - 1; k >= 0; k--) c.lineTo(toX(n + k), toY(predLo[k]));
+      c.lineTo(predStartX, anchorY);
       c.closePath();
       c.fillStyle = "rgba(232,180,99,.14)";
       c.fill();
-      /* path line */
+      /* path line (seam에서 시작) */
       c.strokeStyle = FC_GOLD; c.lineWidth = 1.8; c.setLineDash([5, 4]);
-      c.beginPath(); let pf = true;
-      for (let k = 0; k < predPath.length; k++) {
-        const px = toX(n + k), py = toY(predPath[k]);
-        if (pf) { c.moveTo(px, py); pf = false; } else c.lineTo(px, py);
-      }
+      c.beginPath();
+      c.moveTo(predStartX, anchorY);
+      for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predPath[k]));
       c.stroke(); c.setLineDash([]);
       /* seam dot at last real close */
-      const lastClose = candles[n - 1].c;
       c.fillStyle = FC_GOLD; c.beginPath();
-      c.arc(predStartX, toY(lastClose), 3, 0, Math.PI * 2); c.fill();
+      c.arc(predStartX, anchorY, 3, 0, Math.PI * 2); c.fill();
     }
 
     /* candles */
@@ -1518,7 +1518,7 @@
     }
 
     /* draw all panels */
-    fcDrawMain(candles, result.signal || [], pred.path, pred.lo, pred.hi, pred.futW || 0);
+    fcDrawMain(candles, result.signal || [], pred.path, pred.lo, pred.hi, pred.futW || 0, pred.anchor);
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
       ["fcFoldA", "fcFoldB", "fcFoldC"].forEach(id => {
@@ -1866,12 +1866,15 @@
     const dirCol = reg === "bull" ? "#46c28e" : reg === "bear" ? "#e06a6a" : "#e8b463";
     const np = pred.path.length;
 
-    /* filled cone lo–hi, gold fading left→right */
+    /* filled cone lo–hi, gold fading left→right (seam에서 시작) */
+    const aV = (pred.anchor != null) ? pred.anchor : candles[candles.length - 1].c;
+    const aY = M.toY(aV);
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(M.toX(M.n), M.toY(pred.hi[0]));
+    ctx.moveTo(M.predStartX, aY);
     for (let k = 0; k < np; k++) ctx.lineTo(M.toX(M.n + k), M.toY(pred.hi[k]));
     for (let k = np - 1; k >= 0; k--) ctx.lineTo(M.toX(M.n + k), M.toY(pred.lo[k]));
+    ctx.lineTo(M.predStartX, aY);
     ctx.closePath();
     const grad = ctx.createLinearGradient(M.predStartX, 0, M.toX(M.n + np - 1), 0);
     grad.addColorStop(0, "#e8b463" + _ah(0.34 + 0.25 * _flash));
@@ -1880,16 +1883,14 @@
     ctx.fillStyle = grad; ctx.fill();
     ctx.globalCompositeOperation = "source-over";
 
-    /* glowing centerline path (regime-coloured) */
+    /* glowing centerline path (regime-coloured, seam에서 시작) */
     ctx.strokeStyle = dirCol;
     ctx.lineWidth = 1.8;
     ctx.shadowColor = dirCol;
     ctx.shadowBlur = 7 + 12 * _flash;
     ctx.beginPath();
-    for (let k = 0; k < np; k++) {
-      const x = M.toX(M.n + k), y = M.toY(pred.path[k]);
-      k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-    }
+    ctx.moveTo(M.predStartX, aY);
+    for (let k = 0; k < np; k++) ctx.lineTo(M.toX(M.n + k), M.toY(pred.path[k]));
     ctx.stroke();
     ctx.shadowBlur = 0;
     ctx.restore();
