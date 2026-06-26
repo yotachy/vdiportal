@@ -139,12 +139,13 @@
   }
   .export-btn:hover{background:var(--raised2);color:var(--ink)}
 
-  /* theme banner */
-  .forge-theme{flex:0 0 96px;display:flex;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel);flex-shrink:0}
-  .forge-theme .th-img{flex:0 0 200px;height:80px;border-radius:8px;overflow:hidden;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--eth);font-size:11px;text-align:center;line-height:1.4}
-  .forge-theme .th-img img{width:100%;height:100%;object-fit:contain}
-  .forge-theme .th-title{flex:1;font-size:18px;font-weight:700;color:var(--ink);outline:none;min-height:24px}
-  .forge-theme .th-title:empty::before{content:"주제 제목…";color:var(--eth)}
+  /* hero panel (대표 이미지) */
+  .fc-panel-hero{flex:1 1 auto;min-height:300px}
+  .fc-hero{display:flex;gap:6px;height:100%;min-height:260px}
+  .fc-hero-img{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .fc-hero-img img{width:100%;height:100%;object-fit:contain}
+  .fc-hero .fc-hero-ph{color:var(--eth);font-size:12px;text-align:center;padding:0 14px;line-height:1.5}
+  #fcFuture{flex:0 0 200px;height:100%}
 
   /* block palette (floats over board-pane) */
   .forge-palette{
@@ -221,13 +222,16 @@
     <section class="chart-pane" id="chartPane">
       <div id="verdictBadge" class="verdict-badge"></div>
       <div class="fc-wrap">
-        <div class="fc-panel">
+        <div class="fc-panel fc-panel-hero">
           <div class="fc-phead">
-            <span class="fc-t"><b>가격 차트</b> · 예측·시그널</span>
+            <span class="fc-t"><b>대표 이미지</b> · 가격 차트</span>
             <span class="fc-meta" id="fcMeta">–</span>
           </div>
           <div class="fc-pbody">
-            <canvas id="fcMain" class="fc-cv"></canvas>
+            <div class="fc-hero">
+              <div class="fc-hero-img" id="fcHeroImg"><span class="fc-hero-ph">라이브러리에서 대표 이미지를 드래그하세요</span></div>
+              <canvas id="fcFuture" class="fc-cv"></canvas>
+            </div>
           </div>
         </div>
         <div class="fc-panel">
@@ -488,15 +492,13 @@
   /* ── 주제 배너 ───────────────────────────────────────────────── */
   let themeState = { imgId: null, title: "" };
 
-  function renderTheme() {
-    const el = document.getElementById("themeBar"); if (!el) return;
-    const img = themeState.imgId
+  function renderHero() {
+    const el = document.getElementById("fcHeroImg"); if (!el) return;
+    el.innerHTML = themeState.imgId
       ? `<img src="${imgSrc(themeState.imgId)}" alt="">`
-      : "주제 이미지<br>붙여넣기(Ctrl+V)";
-    el.querySelector(".th-img").innerHTML = img;
-    const t = el.querySelector(".th-title");
-    if (document.activeElement !== t) t.textContent = themeState.title || "";
+      : `<span class="fc-hero-ph">라이브러리에서 대표 이미지를 드래그하세요</span>`;
   }
+  function renderTheme() { renderHero(); }
 
   function setThemeImg(imgId) { themeState.imgId = imgId; renderTheme(); markDirty(); }
   function downscaleImage(src, cb){
@@ -1128,10 +1130,7 @@
   /* ── Board DOM init ──────────────────────────────────────────── */
   function boardInit() {
     const pane = document.getElementById("boardPane");
-    pane.innerHTML = `<div id="themeBar" class="forge-theme">
-  <div class="th-img"></div>
-  <div class="th-title" contenteditable="true" spellcheck="false"></div>
-</div><div class="b-stage" id="bStage">
+    pane.innerHTML = `<div class="b-stage" id="bStage">
   <div class="b-world" id="bWorld">
     <svg class="b-edges" id="bEdges">
       <defs>
@@ -1232,13 +1231,6 @@
       const n = bN(nodeEl.dataset.id);
       if (n) n[f] = e.target.innerText.replace(/ /g, " ").trim();
       fireBoardChange();
-    });
-
-    /* 주제 배너 제목 저장 + 활성 문서 제목 동기화 */
-    pane.querySelector(".th-title").addEventListener("focusout", e => {
-      themeState.title = e.target.textContent.trim();
-      if (activeId) renameDoc(activeId, themeState.title);
-      markDirty();
     });
 
     /* keyboard */
@@ -1669,7 +1661,7 @@
     }
 
     /* draw all panels */
-    fcDrawMain(candles, result.signal || [], pred.path, pred.lo, pred.hi, pred.futW || 0, pred.anchor);
+    renderHero(); /* R2: fcDrawMain 비활성 — 히어로 이미지 갱신. 미래 존은 Task 2에서. */
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
       ["fcFoldA", "fcFoldB", "fcFoldC"].forEach(id => {
@@ -1896,8 +1888,7 @@
   /* ── overlay canvas lifecycle ─────────────────────────────────── */
   function ensureOverlays() {
     /* Attach boardOverlay to bStage (not boardPane) so its coordinate system
-       aligns with _toScreen (view.tx/ty are relative to the stage area, not
-       the full board-pane which now includes the 96px theme banner). */
+       aligns with _toScreen (view.tx/ty are relative to the stage area). */
     const stage = bStage || document.getElementById("bStage");
     if (stage && !boardOverlay) {
       boardOverlay = document.createElement("canvas");
@@ -1905,6 +1896,7 @@
       boardOverlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:6";
       stage.appendChild(boardOverlay);
     }
+    /* #fcMain 제거됨(R2) — fcOverlay 생성 블록을 안전하게 스킵. R5에서 히어로 이미지 위로 부활 예정. */
     const main = document.getElementById("fcMain");
     if (main && !fcOverlay) {
       const body = main.parentNode;          // .fc-pbody of the main panel
@@ -2223,7 +2215,7 @@
     const loop = now => {
       const dt = Math.min(0.05, (now - _lastNow) / 1000); _lastNow = now;
       _flash = Math.max(0, _flash - dt * 2.2);
-      if (_ovResult) { drawConsensus(_ovResult); drawCone(_ovResult); drawTrendFib(_ovResult, _ovGraph); drawPulse((now - _t0) / 1000); }
+      if (_ovResult) { /* drawConsensus/drawCone — R2 비활성(R5에서 이미지 위로 부활) */ drawTrendFib(_ovResult, _ovGraph); drawPulse((now - _t0) / 1000); }
       _raf = requestAnimationFrame(loop);
     };
     _raf = requestAnimationFrame(loop);
@@ -2231,7 +2223,7 @@
   function stopPulse() { if (_raf) { cancelAnimationFrame(_raf); _raf = null; } }
   function drawStaticFrame() {
     _flash = 0;
-    if (_ovResult) { drawConsensus(_ovResult); drawCone(_ovResult); drawTrendFib(_ovResult, _ovGraph); drawPulse(0, true); }
+    if (_ovResult) { /* drawConsensus/drawCone — R2 비활성(R5에서 이미지 위로 부활) */ drawTrendFib(_ovResult, _ovGraph); drawPulse(0, true); }
   }
 
   /* ── renderOverlay: entry hook called by runForge ─────────────── */
