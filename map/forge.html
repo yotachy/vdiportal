@@ -203,6 +203,12 @@
   .forge-side .doc-row:hover{background:var(--raised2)}
   .side-btn{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;font-size:11px;padding:2px 8px;cursor:pointer}
   .side-btn:hover{color:var(--ink);border-color:var(--eth)}
+
+  /* ── 포지 분析 재생 ── */
+  .analyze-prog{font-size:11px;color:var(--eth);margin-left:auto}
+  .analyze-btn{background:transparent;color:var(--gold);border:1px solid var(--gold)}
+  .analyze-btn:hover{background:rgba(232,180,99,.12)}
+  .b-node.analyzing{box-shadow:0 0 0 2px var(--gold), 0 0 20px rgba(232,180,99,.6); border-radius:12px}
 </style>
 </head>
 <body>
@@ -212,6 +218,8 @@
     <button class="export-btn" onclick="autoLayout('v')">세로 정렬</button>
     <button class="export-btn" onclick="autoLayout('h')">가로 정렬</button>
     <button class="export-btn" id="exportBtn" onclick="exportStrategy()">내보내기</button>
+    <span id="analyzeProg" class="analyze-prog"></span>
+    <button class="run-btn analyze-btn" id="analyzeBtn" onclick="playAnalysis()">▷ 포지 분석</button>
     <button class="run-btn" id="runBtn">▷ 실행</button>
   </header>
   <div class="forge-shell">
@@ -1791,6 +1799,7 @@
   let data = ForgeCore.makeDemoSeries({ n: 480, seed: 1, period: 64 });
   let lastResult = null;
   let _t = null;
+  let _playT = null, _playRaf = null, _playing = false, _analyzeNode = null;
 
   function paintScanBadges() {
     if (!lastResult || !bWorld) return;
@@ -1813,7 +1822,66 @@
     });
   }
 
+  /* ── 포지 분析 재생 ─────────────────────────────────────────── */
+  function stopPlay() {
+    if (_playT) clearTimeout(_playT);
+    if (_playRaf) cancelAnimationFrame(_playRaf);
+    _playT = null; _playRaf = null; _playing = false;
+    if (_analyzeNode) { const el = bq(_analyzeNode); if (el) el.classList.remove("analyzing"); _analyzeNode = null; }
+    const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
+  }
+  function lerpPred(a, b, u) {
+    const n = Math.min((a.path || []).length, (b.path || []).length);
+    const path = [], lo = [], hi = [];
+    for (let k = 0; k < n; k++) {
+      path.push(a.path[k] + (b.path[k] - a.path[k]) * u);
+      lo.push(a.lo[k] + (b.lo[k] - a.lo[k]) * u);
+      hi.push(a.hi[k] + (b.hi[k] - a.hi[k]) * u);
+    }
+    return { path, lo, hi, anchor: (b.anchor != null ? b.anchor : a.anchor) };
+  }
+  function playAnalysis() {
+    if (_playing) { stopPlay(); return; }      // 토글: 재생 중 누르면 중단
+    runForge();
+    let steps;
+    try { steps = ForgeCore.runSteps(boardToGraph(), data, { futW: 120 }); }
+    catch (e) { console.warn("steps", e); return; }
+    if (!steps.length) return;
+    if (prefersReducedMotion()) { renderChart(lastResult, data); bToast("포지 분析 완료"); return; }
+    _playing = true;
+    const N = steps.length, progEl = document.getElementById("analyzeProg");
+    let i = 0, prevPred = steps[0].prediction;
+    function highlight(id) {
+      if (_analyzeNode) { const e = bq(_analyzeNode); if (e) e.classList.remove("analyzing"); }
+      _analyzeNode = id; const el = id && bq(id); if (el) el.classList.add("analyzing");
+    }
+    function step() {
+      if (!_playing) return;
+      if (i >= N) {
+        renderChart(lastResult, data);
+        if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
+        stopPlay(); bToast("포지 분析 완료"); return;
+      }
+      const s = steps[i];
+      const node = boardState.nodes.find(n => n.id === s.nodeId);
+      if (progEl) progEl.textContent = "분析 중: " + ((node && node.title) || "노드") + " (" + (i + 1) + "/" + N + ")";
+      highlight(s.nodeId);
+      if (s.verdict) renderVerdict(s.verdict);
+      const from = prevPred, to = s.prediction, t0 = performance.now(), dur = 350;
+      function morph(now) {
+        if (!_playing) return;
+        const u = Math.min(1, (now - t0) / dur);
+        fcDrawFuture(lerpPred(from, to, u));
+        if (u < 1) { _playRaf = requestAnimationFrame(morph); }
+        else { prevPred = to; i++; _playT = setTimeout(step, 180); }
+      }
+      _playRaf = requestAnimationFrame(morph);
+    }
+    step();
+  }
+
   function runForge() {
+    if (_playing) stopPlay();
     try {
       const g = boardToGraph();
       lastResult = ForgeCore.run(g, data, { futW: 120 });
@@ -2443,7 +2511,7 @@
       if (row) { switchDoc(row.dataset.doc); }
     });
 
-    onBoardChange(() => { clearTimeout(_t); _t = setTimeout(runForge, 180); markDirty(); });
+    onBoardChange(() => { if (_playing) stopPlay(); clearTimeout(_t); _t = setTimeout(runForge, 180); markDirty(); });
     document.getElementById("runBtn").addEventListener("click", runForge);
     boot();
   });
