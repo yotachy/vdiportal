@@ -135,11 +135,19 @@
         values[id] = sma(ins[0] || data.price, (n.params && n.params.len) || 5);
       } else if (n.blockType === "combine") {
         const w = (n.params && n.params.weights) || {}, keys = inputsOf[id];
-        const tot = keys.reduce((a, k) => a + (w[k] != null ? w[k] : 1), 0) || 1;
-        const len = ins[0] ? ins[0].length : 0, out = new Array(len).fill(0);
+        const eff = keys.map(k => {
+          const manual = (w[k] != null ? w[k] : 1);
+          const sw = (byId[k] && byId[k].weight != null && isFinite(byId[k].weight)) ? byId[k].weight : 50;
+          const arr = values[k];
+          return (arr && arr.length) ? manual * (sw / 50) : 0;
+        });
+        const tot = eff.reduce((a, e) => a + e, 0) || 1;
+        const len = Math.max(0, ...keys.map(k => (values[k] ? values[k].length : 0)));
+        const out = new Array(len).fill(0);
         keys.forEach((k, j) => {
-          const wk = (w[k] != null ? w[k] : 1) / tot;
-          for (let t = 0; t < len; t++) out[t] += (ins[j][t] || 0) * wk;
+          const wk = eff[j] / tot;
+          const arr = values[k] || [];
+          for (let t = 0; t < len; t++) out[t] += (arr[t] || 0) * wk;
         });
         values[id] = out;
       } else if (n.blockType === "phasefold") {
@@ -173,15 +181,16 @@
   }
 
   function aggregateConviction(graph) {
-    let s = 0, c = 0;
+    let s = 0, w = 0;
     (graph.nodes || []).forEach(n => {
       const v = n && n.conviction;
       if (typeof v === "number" && isFinite(v) && v !== 0) {
-        s += v;
-        c++;
+        const wi = (n.weight != null && isFinite(n.weight)) ? n.weight : 50;
+        s += v * wi;
+        w += wi;
       }
     });
-    return c ? s / c : 0;
+    return w ? s / w : 0;
   }
 
   function run(graph, data, opts) {

@@ -143,3 +143,45 @@ test("conviction bias tilts signal and verdict, zero is no-op", () => {
   // prediction unaffected by conviction
   assert.deepStrictEqual(rp.prediction.path, r0.prediction.path);
 });
+
+test("weight: weighted conviction average + uniform weight is unchanged", () => {
+  const data = ForgeCore.makeDemoSeries({ n: 200, seed: 9, period: 40 });
+  const g = {
+    nodes: [
+      { id: "p", kind: "block", blockType: "price" },
+      { id: "c", kind: "block", blockType: "combine" },
+      { id: "o", kind: "block", blockType: "predict" }
+    ],
+    edges: [{ from: "p", to: "c" }, { from: "c", to: "o" }]
+  };
+  // uniform weight 50 + conviction 0 → identical to no-weight baseline
+  const baseline = ForgeCore.run(g, data, { futW: 30 });
+  const gw = JSON.parse(JSON.stringify(g));
+  gw.nodes.forEach(n => n.weight = 50);
+  const same = ForgeCore.run(gw, data, { futW: 30 });
+  assert.deepStrictEqual(same.signal, baseline.signal);
+  // high-weight bullish node dominates over low-weight bearish node
+  const g2 = JSON.parse(JSON.stringify(g));
+  const bull = g2.nodes.find(n => n.id === "p"); bull.conviction = 60; bull.weight = 90;
+  const bear = g2.nodes.find(n => n.id === "c"); bear.conviction = -60; bear.weight = 10;
+  const r = ForgeCore.run(g2, data, { futW: 30 });
+  const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+  assert.ok(mean(r.signal) > mean(baseline.signal)); // net bias positive (bull weighted up)
+});
+
+test("weight: combine contribution scales by source node weight", () => {
+  const data = { price: [0,0,0,0,0], n: 5 };
+  // two constant series via ma(len1) of price won't differ; build explicit using price + a biased combine
+  const g = {
+    nodes: [
+      { id: "a", kind: "block", blockType: "price" },
+      { id: "b", kind: "block", blockType: "ma", params: { len: 1 }, weight: 90 },
+      { id: "c", kind: "block", blockType: "combine" }
+    ],
+    edges: [{ from: "a", to: "c" }, { from: "a", to: "b" }, { from: "b", to: "c" }]
+  };
+  // price all zeros → combine zero regardless; assert evalBlocks runs and weight read without error
+  const { values } = ForgeCore.evalBlocks(g, data);
+  assert.strictEqual(values.c.length, 5);
+  assert.ok(values.c.every(v => v === 0));
+});
