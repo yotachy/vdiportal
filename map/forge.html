@@ -481,7 +481,7 @@
     const glow = wt > 55
       ? `box-shadow:0 0 ${Math.round((wt - 55) * 0.5)}px rgba(232,180,99,${((wt - 55) / 45 * 0.6).toFixed(2)});`
       : "";
-    const wbadge = `<div class="b-n-wt" title="중요도">${wt}</div>`;
+    const wbadge = wt !== 50 ? `<div class="b-n-wt" title="중요도">${wt}</div>` : "";
     return `<div class="${cls}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${cardW}px;font-size:${(13 * sf).toFixed(1)}px;${glow}">
   ${inDot}
   ${wbadge}${thumb}<div class="b-n-body">
@@ -494,6 +494,39 @@
 
   /* ── bq: node element by id ──────────────────────────────────── */
   const bq = id => bWorld ? bWorld.querySelector(`.b-node[data-id="${id}"]`) : null;
+
+  /* ── applyNodeWeightVisual: live weight update without panel rebuild ── */
+  function applyNodeWeightVisual(n) {
+    if (!n) return;
+    const el = bq(n.id);
+    if (!el) return;
+    const wt = n.weight != null ? n.weight : 50;
+    const sf = weightScale(wt);
+    const isBlock = n.kind === "block";
+    const baseW = isBlock ? W_NODE : 140;
+    el.style.width    = Math.round(baseW * sf) + "px";
+    el.style.fontSize = (13 * sf).toFixed(1) + "px";
+    if (wt > 55) {
+      el.style.boxShadow = `0 0 ${Math.round((wt - 55) * 0.5)}px rgba(232,180,99,${((wt - 55) / 45 * 0.6).toFixed(2)})`;
+    } else {
+      el.style.boxShadow = "";
+    }
+    /* update importance badge: show only when weight !== 50 */
+    let badge = el.querySelector(".b-n-wt");
+    if (wt !== 50) {
+      if (!badge) {
+        badge = document.createElement("div");
+        badge.className = "b-n-wt";
+        badge.title = "중요도";
+        el.insertBefore(badge, el.firstChild);
+      }
+      badge.textContent = wt;
+    } else {
+      if (badge) badge.remove();
+    }
+    measure();
+    paintEdges();
+  }
 
   /* ── renderBoard ─────────────────────────────────────────────── */
   function renderBoard() {
@@ -2093,6 +2126,7 @@
         } else if (t.id === "ppWeight") {
           n.weight = Number(t.value);
           const v = document.getElementById("ppWeightVal"); if (v) v.textContent = n.weight;
+          applyNodeWeightVisual(n);
         } else if (t.id === "ppConv") {
           n.conviction = Number(t.value) || 0;
           const v = document.getElementById("ppConvVal"); if (v) v.textContent = n.conviction;
