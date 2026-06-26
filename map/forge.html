@@ -1322,28 +1322,28 @@
     fcRAF = requestAnimationFrame(() => renderChart(_fcLastResult, _fcLastData));
   });
 
+  /* ── Forge data + runForge ───────────────────────────────────── */
+  let data = ForgeCore.makeDemoSeries({ n: 480, seed: 1, period: 64 });
+  let lastResult = null;
+  let _t = null;
+
+  function runForge() {
+    try {
+      const g = boardToGraph();
+      lastResult = ForgeCore.run(g, data, { futW: 120 });
+      renderChart(lastResult, data);
+      if (window.renderOverlay) renderOverlay(lastResult, g);
+    } catch (e) {
+      console.warn("run", e);
+    }
+  }
+
   /* ── Boot ────────────────────────────────────────────────────── */
   document.addEventListener("DOMContentLoaded", () => {
     boardInit();
-
-    /* initial chart render: demo data through ForgeCore */
-    const _demoData = ForgeCore.makeDemoSeries({ n: 480, seed: 1, period: 64 });
-    requestAnimationFrame(() => {
-      const _demoResult = ForgeCore.run(boardToGraph(), _demoData, { futW: 120 });
-      renderChart(_demoResult, _demoData);
-    });
-
-    document.getElementById("runBtn").addEventListener("click", () => {
-      const g = boardToGraph();
-      try {
-        const result = ForgeCore.run(g, _demoData, { futW: 120 });
-        renderChart(result, _demoData);
-        bToast("차트 갱신");
-      } catch (err) {
-        bToast("오류: " + err.message);
-        console.error("[Forge]", err);
-      }
-    });
+    onBoardChange(() => { clearTimeout(_t); _t = setTimeout(runForge, 180); });
+    document.getElementById("runBtn").addEventListener("click", runForge);
+    requestAnimationFrame(runForge);
   });
   </script>
 </body>
