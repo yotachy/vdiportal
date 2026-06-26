@@ -87,6 +87,9 @@
   .b-zoomctl button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#161b22e0;backdrop-filter:blur(4px);color:var(--ink);font-size:15px;cursor:pointer;display:grid;place-items:center;font-family:inherit}
   .b-zoomctl button:hover{background:var(--raised2)}
   .b-zlabel{font-size:10px;color:var(--muted);text-align:center;background:#161b22cc;border:1px solid var(--line);border-radius:6px;padding:3px}
+  /* thumbnail */
+  .b-n-thumb{margin:-2px -2px 6px;border-radius:8px 8px 0 0;overflow:hidden;background:var(--bg);max-height:84px}
+  .b-n-thumb img{display:block;width:100%;height:auto;max-height:84px;object-fit:cover}
   /* drag cursor override */
   body.b-ndrag,body.b-ndrag *{cursor:grabbing!important}
   /* toast (positioned in left half) */
@@ -378,6 +381,24 @@
     return r;
   }
 
+  /* ── Image core ─────────────────────────────────────────────── */
+  const IMAGES = {};
+  const LIBRARY = [];
+  function imgSrc(id){ return IMAGES[id] || ""; }
+  function putImg(id, src){ IMAGES[id] = src; }
+  function downscaleImage(src, cb){
+    const img = new Image();
+    img.onload = () => { let w=img.width,h=img.height; const md=1000, sc=Math.min(1,md/Math.max(w,h));
+      w=Math.max(1,Math.round(w*sc)); h=Math.max(1,Math.round(h*sc));
+      const c=document.createElement("canvas"); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(img,0,0,w,h);
+      let q=0.82,out=c.toDataURL("image/jpeg",q);
+      while(out.length>120000&&q>0.4){ q-=0.1; out=c.toDataURL("image/jpeg",q); } cb(out); };
+    img.onerror = () => { if(src.length<120000) cb(src); else bToast("이미지를 불러올 수 없어요"); };
+    img.src = src;
+  }
+  function setThumb(id, t){ const n=bN(id); if(n){ n.thumb=t; renderBoard(); fireBoardChange(); } }
+
   /* ── Node HTML ───────────────────────────────────────────────── */
   function nodeHTML(n) {
     const ports = [
@@ -390,10 +411,12 @@
     const isBlock = n.kind === "block";
     const badge = (isBlock && n.blockType)
       ? `<div class="b-n-type">${esc(n.blockType)}</div>` : "";
+    const thumb = n.thumb
+      ? `<div class="b-n-thumb"><img src="${imgSrc(n.thumb.imgId)}" alt=""></div>` : "";
     const cls = "b-node" + (isBlock ? "" : " b-mini");
     return `<div class="${cls}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">
   ${inDot}
-  <div class="b-n-body">
+  ${thumb}<div class="b-n-body">
     <div class="b-n-title" contenteditable="true" data-field="title">${esc(n.title || "")}</div>
     ${badge}
   </div>
