@@ -8,7 +8,13 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
 <style>
-  :root{--gold:#e8b463;--bg:#0b0f14;--panel:#121822;--ink:#e7ecf5;--eth:#8a92b2;--bull:#46c28e;--bear:#e06a6a;--line:#222b39}
+  :root{
+    --gold:#e8b463;--bg:#0b0f14;--panel:#121822;--ink:#e7ecf5;--eth:#8a92b2;
+    --bull:#46c28e;--bear:#e06a6a;--line:#222b39;
+    /* board engine tokens (ported from map.html) */
+    --surface:#141a22;--raised:#1b232d;--raised2:#27313e;
+    --edge:#566472;--muted:#8b98a6;--faint:#5c6875;--gold-dim:#5e4d2c;
+  }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,system-ui,sans-serif;letter-spacing:-0.01em}
   .forge-top{display:flex;align-items:center;gap:14px;height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
@@ -17,6 +23,75 @@
   .board-pane{position:relative;overflow:hidden;border-right:1px solid var(--line)}
   .chart-pane{position:relative;overflow:hidden}
   .run-btn{margin-left:auto;background:var(--gold);color:#1a1206;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer}
+
+  /* ════════════════════════════════════════════════════
+     BOARD ENGINE STYLES  (ported + scoped with b- prefix)
+     NOTE: no will-change:transform on .b-world (zoom blur)
+     ════════════════════════════════════════════════════ */
+  .b-stage{
+    position:absolute;inset:0;overflow:hidden;cursor:grab;
+    background:radial-gradient(circle at 1px 1px,#ffffff0a 1px,transparent 0) 0 0/26px 26px,
+               radial-gradient(120% 120% at 30% 0%,#141c28,#0b0f14)}
+  .b-stage.panning{cursor:grabbing}
+  .b-stage.selmode{cursor:crosshair}
+  .b-world{position:absolute;left:0;top:0;transform-origin:0 0}
+  /* edge SVG: 20000×20000 centered on -10000,-10000 so world(0,0) maps to SVG(10000,10000) */
+  .b-edges{position:absolute;left:-10000px;top:-10000px;width:20000px;height:20000px;overflow:visible;pointer-events:none}
+  .b-edges .b-ew{fill:none;stroke:var(--edge);stroke-width:2.4}
+  .b-edges .b-ew.sel{stroke:var(--gold);stroke-width:3}
+  .b-edges .b-eh{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}
+  .b-edges path.b-tmp{fill:none;stroke:var(--gold);stroke-width:2;stroke-dasharray:5 4}
+
+  /* nodes */
+  .b-node{position:absolute;width:200px;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;box-shadow:0 10px 26px -16px #000;cursor:grab;transition:border-color .12s,box-shadow .12s}
+  .b-node.b-mini{width:140px}
+  .b-node:hover{border-color:#3a4452}
+  .b-node.selected{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.22),0 12px 28px -14px #000}
+  .b-node.b-linktarget{border-color:var(--bull);box-shadow:0 0 0 3px rgba(70,194,142,.25)}
+  .b-n-in{position:absolute;left:-6px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;background:var(--edge)}
+  .b-n-body{padding:10px 12px}
+  .b-mini .b-n-body{padding:7px 10px}
+  .b-n-title{font-size:13px;font-weight:700;outline:none;border-radius:5px;padding:2px 3px;margin:-2px -3px;line-height:1.4;min-height:18px;white-space:pre-wrap;overflow-wrap:break-word;cursor:inherit;color:var(--ink)}
+  .b-n-title:empty::before{content:"제목";color:var(--faint)}
+  .b-n-title:focus{cursor:text}
+  .b-mini .b-n-title{font-size:12px}
+  .b-n-type{display:inline-block;margin-top:4px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--gold);background:rgba(232,180,99,.1);border:1px solid var(--gold-dim);border-radius:4px;padding:1px 6px;text-transform:uppercase}
+  /* ports */
+  .b-port{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--raised);border:2px solid var(--gold-dim);cursor:crosshair;z-index:5;opacity:0;transition:opacity .12s}
+  .b-node:hover .b-port,.b-node.selected .b-port,.b-node.b-linkhover .b-port{opacity:1}
+  .b-port:hover,.b-port.snaptgt{border-color:var(--gold);background:var(--gold);box-shadow:0 0 8px rgba(232,180,99,.75);opacity:1;transform:scale(1.25)}
+  .b-port-top.snaptgt,.b-port-bottom.snaptgt{transform:translateX(-50%) scale(1.25)}
+  .b-port-left.snaptgt,.b-port-right.snaptgt{transform:translateY(-50%) scale(1.25)}
+  .b-port-top{top:-7px;left:50%;transform:translateX(-50%)}
+  .b-port-bottom{bottom:-7px;left:50%;transform:translateX(-50%)}
+  .b-port-left{left:-7px;top:50%;transform:translateY(-50%)}
+  .b-port-right{right:-7px;top:50%;transform:translateY(-50%)}
+  /* edge + node HUDs */
+  .b-ehud,.b-nhud{position:absolute;left:0;top:0;pointer-events:none}
+  .b-ehandle{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--gold);border:2px solid #11161d;transform:translate(-50%,-50%);cursor:grab;z-index:7;pointer-events:auto;box-shadow:0 2px 6px #000a}
+  .b-ehandle:hover{transform:translate(-50%,-50%) scale(1.2)}
+  .b-hbar{position:absolute;display:flex;gap:2px;background:#0e1218f2;border:1px solid var(--line);border-radius:10px;padding:4px;box-shadow:0 8px 22px #000b;pointer-events:auto;backdrop-filter:blur(5px);z-index:8}
+  .b-ebar{transform:translate(-50%,-135%)}
+  .b-nbar{transform:translate(-50%,calc(-100% - 8px))}
+  .b-hbtn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:36px;padding:4px 5px;border:none;background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-size:9px;font-weight:600;line-height:1;font-family:inherit}
+  .b-hbtn svg{width:14px;height:14px}
+  .b-hbtn:hover{background:var(--raised2);color:var(--ink)}
+  .b-hbtn.danger:hover{color:var(--bear)}
+  /* marquee + snap guides */
+  .b-marquee{position:absolute;display:none;border:1.5px solid var(--gold);background:rgba(232,180,99,.08);border-radius:3px;z-index:8;pointer-events:none}
+  .b-snap-guide{position:absolute;display:none;z-index:6;pointer-events:none}
+  #bSnapV{width:0;border-left:1px dashed var(--gold)}
+  #bSnapH{height:0;border-top:1px dashed var(--gold)}
+  /* zoom controls */
+  .b-zoomctl{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:5px;z-index:10}
+  .b-zoomctl button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#161b22e0;backdrop-filter:blur(4px);color:var(--ink);font-size:15px;cursor:pointer;display:grid;place-items:center;font-family:inherit}
+  .b-zoomctl button:hover{background:var(--raised2)}
+  .b-zlabel{font-size:10px;color:var(--muted);text-align:center;background:#161b22cc;border:1px solid var(--line);border-radius:6px;padding:3px}
+  /* drag cursor override */
+  body.b-ndrag,body.b-ndrag *{cursor:grabbing!important}
+  /* toast (positioned in left half) */
+  .b-toast{position:fixed;bottom:18px;left:25%;transform:translateX(-50%);background:#1d2530;border:1px solid var(--gold-dim);color:#fff;padding:8px 16px;border-radius:99px;font-size:12px;z-index:99;box-shadow:0 10px 26px -8px #000;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap}
+  .b-toast.on{opacity:1}
 </style>
 </head>
 <body>
@@ -25,15 +100,724 @@
     <button class="run-btn" id="runBtn">▷ 실행</button>
   </header>
   <div class="forge-split">
-    <section class="board-pane" id="boardPane"></section>
+    <section class="board-pane" id="boardPane">
+      <!-- Board DOM injected by boardInit() on DOMContentLoaded -->
+    </section>
     <section class="chart-pane" id="chartPane"></section>
   </div>
+  <div class="b-toast" id="bToast"></div>
+
   <script src="forge-core.js"></script>
   <script>
-    /* Task 1: 스모크 — 코어 로드 확인 */
-    document.getElementById("runBtn").addEventListener("click", () => {
-      console.log("ForgeCore", window.ForgeCore.version);
+  /* ════════════════════════════════════════════════════════════════
+     BOARD ENGINE  — lightweight port of Scoop Board (map/map.html)
+     Omitted: thumbnails, server-save, undo/redo, groups, icons,
+              multi-canvas, copy/paste, auto-layout, A* routing.
+     Kept: pan/zoom, node render (block+free kinds), edge render
+           (ortho path), port-drag connect, selection, minimal HUDs.
+     Forge semantics: boardState / boardToGraph / fireBoardChange.
+     ════════════════════════════════════════════════════════════════ */
+
+  /* ── uid ─────────────────────────────────────────────────────── */
+  let _uidc = 0;
+  function uid(p) {
+    return (p || "id") + "_" + (++_uidc) + "_" + Math.random().toString(36).slice(2, 5);
+  }
+
+  /* ── DOM refs (set by boardInit) ─────────────────────────────── */
+  let bStage = null, bWorld = null;
+
+  /* ── Core state ──────────────────────────────────────────────── */
+  let boardState = { nodes: [], edges: [] };
+  let view = { tx: 30, ty: 20, scale: 1 };
+  let sel = [];           // selected node id[]
+  let selEdge = null;     // selected edge id | null
+  let drag = null;
+  let spaceDown = false;
+  let justDragged = false;
+
+  const W_NODE = 200;   // default node width (block kind)
+  const EWIDTHS = { 1: 1.6, 2: 2.4, 3: 3.8 };
+
+  /* helpers */
+  const bN = id => boardState.nodes.find(n => n.id === id);
+  const bE = id => boardState.edges.find(e => e.id === id);
+  const DIR = { right: [1, 0], left: [-1, 0], top: [0, -1], bottom: [0, 1] };
+  const esc = s => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  /* ── Change notification ─────────────────────────────────────── */
+  let _boardChangeCb = null;
+  function onBoardChange(cb) { _boardChangeCb = cb; }
+  function fireBoardChange() { if (_boardChangeCb) _boardChangeCb(); }
+
+  /* ── boardToGraph ────────────────────────────────────────────── */
+  function boardToGraph() {
+    return {
+      nodes: boardState.nodes.map(n => ({
+        id: n.id,
+        kind: n.kind || "free",
+        blockType: n.blockType || null,
+        params: n.params || {}
+      })),
+      edges: boardState.edges.map(e => ({ from: e.from, to: e.to }))
+    };
+  }
+
+  /* ── worldPt ─────────────────────────────────────────────────── */
+  function worldPt(cx, cy) {
+    const r = bStage.getBoundingClientRect();
+    return {
+      x: (cx - r.left - view.tx) / view.scale,
+      y: (cy - r.top  - view.ty) / view.scale
+    };
+  }
+
+  /* ── Edge geometry ───────────────────────────────────────────── */
+  function anchor(n, side) {
+    const w = n._w || W_NODE, h = n._h || 70;
+    switch (side) {
+      case "left":   return { x: n.x,       y: n.y + h / 2 };
+      case "top":    return { x: n.x + w/2,  y: n.y         };
+      case "bottom": return { x: n.x + w/2,  y: n.y + h     };
+      default:       return { x: n.x + w,    y: n.y + h / 2 };
+    }
+  }
+  function nearestSide(n, pt) {
+    const w = n._w || W_NODE, h = n._h || 70;
+    const dx = (pt.x - (n.x + w/2)) / w, dy = (pt.y - (n.y + h/2)) / h;
+    return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "bottom" : "top");
+  }
+  function centerOf(n) { return { x: n.x + (n._w || W_NODE)/2, y: n.y + (n._h || 70)/2 }; }
+  function sidesOf(e) {
+    const a = bN(e.from), b = bN(e.to);
+    if (!a || !b) return { fs: "right", ts: "left" };
+    let fs = e.fromSide, ts = e.toSide;
+    const fA = (!fs || fs === "auto"), tA = (!ts || ts === "auto");
+    if (fA && tA) { fs = nearestSide(a, centerOf(b)); ts = nearestSide(b, centerOf(a)); }
+    else if (fA) { fs = nearestSide(a, anchor(b, ts)); }
+    else if (tA) { ts = nearestSide(b, anchor(a, fs)); }
+    return { fs, ts };
+  }
+  function cleanPts(pts) {
+    const out = [pts[0]];
+    for (let i = 1; i < pts.length; i++) {
+      const p = pts[i], b = out[out.length - 1];
+      if (Math.abs(p[0]-b[0]) < 0.5 && Math.abs(p[1]-b[1]) < 0.5) continue;
+      if (out.length >= 2) {
+        const a = out[out.length - 2];
+        const hR = Math.abs(a[1]-b[1]) < 0.5 && Math.abs(b[1]-p[1]) < 0.5;
+        const vR = Math.abs(a[0]-b[0]) < 0.5 && Math.abs(b[0]-p[0]) < 0.5;
+        if (hR || vR) { out[out.length - 1] = p; continue; }
+      }
+      out.push(p);
+    }
+    return out;
+  }
+  function orthoPath(A, B, fs, ts) {
+    const hz = s => s === "left" || s === "right";
+    const fH = hz(fs), tH = hz(ts), d1 = DIR[fs], d2 = DIR[ts];
+    const dist = Math.hypot(B.x-A.x, B.y-A.y), S = Math.max(11, Math.min(26, dist * 0.42));
+    const A1 = [A.x + d1[0]*S, A.y + d1[1]*S], B1 = [B.x + d2[0]*S, B.y + d2[1]*S];
+    let mids;
+    if (fH && tH)        { const mx = (A1[0]+B1[0])/2; mids = [[mx, A1[1]], [mx, B1[1]]]; }
+    else if (!fH && !tH) { const my = (A1[1]+B1[1])/2; mids = [[A1[0], my], [B1[0], my]]; }
+    else if (fH && !tH)  { mids = [[B1[0], A1[1]]]; }
+    else                  { mids = [[A1[0], B1[1]]]; }
+    return cleanPts([[A.x, A.y], A1, ...mids, B1, [B.x, B.y]]);
+  }
+  function polyPath(pts) {
+    if (pts.length < 2) return "";
+    if (pts.length === 2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
+    let d = `M${pts[0][0]},${pts[0][1]}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const a = pts[i-1], b = pts[i], c = pts[i+1];
+      const l1 = Math.hypot(b[0]-a[0], b[1]-a[1]) || 1, l2 = Math.hypot(c[0]-b[0], c[1]-b[1]) || 1;
+      const r = Math.min(8, l1/2, l2/2);
+      const p1 = [b[0]-(b[0]-a[0])/l1*r, b[1]-(b[1]-a[1])/l1*r];
+      const p2 = [b[0]+(c[0]-b[0])/l2*r, b[1]+(c[1]-b[1])/l2*r];
+      d += ` L${p1[0]},${p1[1]} Q${b[0]},${b[1]} ${p2[0]},${p2[1]}`;
+    }
+    return d + ` L${pts[pts.length-1][0]},${pts[pts.length-1][1]}`;
+  }
+  function edgeGeo(e) {
+    const a = bN(e.from), b = bN(e.to);
+    if (!a || !b) return null;
+    const s = sidesOf(e), A = anchor(a, s.fs), B = anchor(b, s.ts);
+    let d;
+    if (e.route === "curve") {
+      const dd = Math.hypot(B.x-A.x, B.y-A.y), k = Math.min(120, Math.max(38, dd*0.4));
+      const d1 = DIR[s.fs], d2 = DIR[s.ts];
+      d = `M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${B.x+d2[0]*k},${B.y+d2[1]*k} ${B.x},${B.y}`;
+    } else {
+      d = polyPath(cleanPts(orthoPath(A, B, s.fs, s.ts)));
+    }
+    return { A, B, fs: s.fs, ts: s.ts, d };
+  }
+  function nodeAt(pt) {
+    let r = null;
+    boardState.nodes.forEach(n => {
+      const w = n._w || W_NODE, h = n._h || 70;
+      if (pt.x >= n.x && pt.x <= n.x + w && pt.y >= n.y && pt.y <= n.y + h) r = n;
     });
+    return r;
+  }
+
+  /* ── Node HTML ───────────────────────────────────────────────── */
+  function nodeHTML(n) {
+    const ports = [
+      `<div class="b-port b-port-top" data-act="port" data-side="top"></div>`,
+      `<div class="b-port b-port-right" data-act="port" data-side="right"></div>`,
+      `<div class="b-port b-port-bottom" data-act="port" data-side="bottom"></div>`,
+      `<div class="b-port b-port-left" data-act="port" data-side="left"></div>`
+    ].join("");
+    const inDot = `<div class="b-n-in"></div>`;
+    const isBlock = n.kind === "block";
+    const badge = (isBlock && n.blockType)
+      ? `<div class="b-n-type">${esc(n.blockType)}</div>` : "";
+    const cls = "b-node" + (isBlock ? "" : " b-mini");
+    return `<div class="${cls}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px">
+  ${inDot}
+  <div class="b-n-body">
+    <div class="b-n-title" contenteditable="true" data-field="title">${esc(n.title || "")}</div>
+    ${badge}
+  </div>
+  ${ports}
+</div>`;
+  }
+
+  /* ── bq: node element by id ──────────────────────────────────── */
+  const bq = id => bWorld ? bWorld.querySelector(`.b-node[data-id="${id}"]`) : null;
+
+  /* ── renderBoard ─────────────────────────────────────────────── */
+  function renderBoard() {
+    if (!bWorld) return;
+    bWorld.querySelectorAll(".b-node").forEach(el => el.remove());
+    bWorld.insertAdjacentHTML("beforeend", boardState.nodes.map(nodeHTML).join(""));
+    measure();
+    paintEdges();
+    applySel();
+    applyView();
+  }
+
+  /* ── measure ─────────────────────────────────────────────────── */
+  function measure() {
+    boardState.nodes.forEach(n => {
+      const el = bq(n.id);
+      n._h = el ? el.offsetHeight : 70;
+      n._w = el ? el.offsetWidth  : W_NODE;
+    });
+  }
+
+  /* ── paintEdges ──────────────────────────────────────────────── */
+  function paintEdges() {
+    if (!bWorld) return;
+    const edgeG = document.getElementById("bEdgeG");
+    if (!edgeG) return;
+    edgeG.innerHTML = boardState.edges.map(e => {
+      const g = edgeGeo(e);
+      if (!g) return "";
+      const sw = EWIDTHS[e.width || 2];
+      const sel_ = selEdge === e.id ? " sel" : "";
+      return `<path class="b-ew${sel_}" style="stroke-width:${sw}" marker-start="url(#b-dot)" marker-end="url(#b-arw)" d="${g.d}"/>
+<path class="b-eh" data-edge="${e.id}" d="${g.d}"/>`;
+    }).join("");
+    drawEhud();
+    drawNhud();
+  }
+
+  /* ── applyView ───────────────────────────────────────────────── */
+  function applyView() {
+    if (!bWorld) return;
+    bWorld.style.transform = `translate(${view.tx}px,${view.ty}px) scale(${view.scale})`;
+    const zl = document.getElementById("bZlabel");
+    if (zl) zl.textContent = Math.round(view.scale * 100) + "%";
+  }
+
+  /* ── applySel ────────────────────────────────────────────────── */
+  function applySel() {
+    if (!bWorld) return;
+    bWorld.querySelectorAll(".b-node").forEach(el => {
+      el.classList.toggle("selected", sel.includes(el.dataset.id));
+    });
+  }
+
+  function selectOnly(id)   { sel = [id]; applySel(); }
+  function toggleSel(id)    { const i = sel.indexOf(id); if (i >= 0) sel.splice(i, 1); else sel.push(id); applySel(); }
+  function clearSel()       { sel = []; applySel(); }
+  function setSel(ids)      { sel = ids; applySel(); }
+  function selectEdge(id)   { selEdge = id; sel = []; applySel(); paintEdges(); }
+  function deselectAll() {
+    if (!sel.length && !selEdge) return;
+    sel = []; selEdge = null; applySel(); paintEdges();
+  }
+
+  /* ── CRUD ────────────────────────────────────────────────────── */
+  function makeNode(x, y, title, kind, blockType, params) {
+    const n = {
+      id: uid("n"), x, y,
+      title: title || "노드",
+      kind: kind || "free",
+      blockType: blockType || null,
+      params: params || {}
+    };
+    boardState.nodes.push(n);
+    return n;
+  }
+  function addEdge(from, fromSide, to, toSide) {
+    if (from === to) return;
+    if (boardState.edges.some(e => e.from === from && e.to === to)) return;
+    boardState.edges.push({
+      id: uid("e"),
+      from, fromSide: fromSide || "right",
+      to,   toSide:   toSide   || "left"
+    });
+    fireBoardChange();
+  }
+  function delEdge(id) {
+    boardState.edges = boardState.edges.filter(e => e.id !== id);
+    if (selEdge === id) selEdge = null;
+    paintEdges();
+    fireBoardChange();
+  }
+  function delNodes(ids) {
+    const s = new Set(ids);
+    boardState.nodes = boardState.nodes.filter(n => !s.has(n.id));
+    boardState.edges = boardState.edges.filter(e => !s.has(e.from) && !s.has(e.to));
+    sel = sel.filter(i => !s.has(i));
+    renderBoard();
+    fireBoardChange();
+  }
+  function addNodeCenter(kind, title, blockType) {
+    const r = bStage.getBoundingClientRect();
+    const p = worldPt(r.left + r.width/2, r.top + r.height/2);
+    const n = makeNode(p.x - W_NODE/2, p.y - 35, title, kind, blockType);
+    renderBoard(); selectOnly(n.id); fireBoardChange();
+  }
+
+  /* ── 4-point magnet / link-hover ─────────────────────────────── */
+  function portSnap(n, pt) {
+    let best = null, bd = 1e9;
+    ["top", "right", "bottom", "left"].forEach(s => {
+      const a = anchor(n, s), d = Math.hypot(a.x-pt.x, a.y-pt.y);
+      if (d < bd) { bd = d; best = { side: s, x: a.x, y: a.y }; }
+    });
+    const c = centerOf(n), w = n._w || W_NODE, h = n._h || 70;
+    if (Math.hypot(pt.x-c.x, pt.y-c.y) < Math.min(w, h) * 0.30) {
+      const s = nearestSide(n, pt), a = anchor(n, s);
+      return { side: "auto", x: a.x, y: a.y };
+    }
+    return best;
+  }
+  function snapAt(pt, exclude) {
+    const over = nodeAt(pt);
+    if (!over || over.id === exclude) return null;
+    const s = portSnap(over, pt);
+    return { node: over.id, side: s.side, x: s.x, y: s.y };
+  }
+  function clearLinkHi() {
+    if (!bWorld) return;
+    bWorld.querySelectorAll(".b-node.b-linktarget,.b-node.b-linkhover")
+          .forEach(n => n.classList.remove("b-linktarget", "b-linkhover"));
+    bWorld.querySelectorAll(".b-port.snaptgt")
+          .forEach(p => p.classList.remove("snaptgt"));
+  }
+  function hi(pt, exclude) {
+    clearLinkHi();
+    const snap = snapAt(pt, exclude);
+    if (snap) {
+      const el = bq(snap.node);
+      if (el) {
+        el.classList.add("b-linktarget", "b-linkhover");
+        if (snap.side !== "auto") {
+          const pe = el.querySelector(`.b-port-${snap.side}`);
+          if (pe) pe.classList.add("snaptgt");
+        }
+      }
+    }
+    return snap;
+  }
+
+  /* ── HUDs ────────────────────────────────────────────────────── */
+  const _ico_trash = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></svg>`;
+  const _ico_swap  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9h13l-3.5-3.5M18 15H5l3.5 3.5"/></svg>`;
+
+  function drawEhud() {
+    const hud = document.getElementById("bEhud");
+    if (!hud) return;
+    if (!selEdge) { hud.innerHTML = ""; return; }
+    const e = bE(selEdge), g = e && edgeGeo(e);
+    if (!g) { hud.innerHTML = ""; return; }
+    const mx = (g.A.x + g.B.x) / 2, my = (g.A.y + g.B.y) / 2;
+    hud.innerHTML =
+      `<div class="b-ehandle" data-end="from" style="left:${g.A.x}px;top:${g.A.y}px"></div>
+<div class="b-ehandle" data-end="to" style="left:${g.B.x}px;top:${g.B.y}px"></div>
+<div class="b-hbar b-ebar" style="left:${mx}px;top:${my}px">
+  <button class="b-hbtn danger" data-edel="1" title="연결선 삭제">${_ico_trash}<span>삭제</span></button>
+  <button class="b-hbtn" data-erev="1" title="방향 반전">${_ico_swap}<span>방향</span></button>
+</div>`;
+  }
+
+  function drawNhud() {
+    const hud = document.getElementById("bNhud");
+    if (!hud) return;
+    if (drag || sel.length !== 1) { hud.innerHTML = ""; return; }
+    const n = bN(sel[0]);
+    if (!n) { hud.innerHTML = ""; return; }
+    const cx = n.x + (n._w || W_NODE) / 2;
+    hud.innerHTML =
+      `<div class="b-hbar b-nbar" style="left:${cx}px;top:${n.y}px">
+  <button class="b-hbtn danger" data-nact="del" title="노드 삭제">${_ico_trash}<span>삭제</span></button>
+</div>`;
+  }
+
+  /* ── Pointer handlers ────────────────────────────────────────── */
+  function nodePointerDown(id, e) {
+    const t = e.target;
+    const port = t.closest("[data-act=\"port\"]");
+    if (port) return startLink(id, port.dataset.side || "right", e);
+    if (t.closest("[data-act]")) return;
+    const ed = t.closest(".b-n-title");
+    if (ed && document.activeElement === ed) return;
+    drag = { type: "nodePending", id, sx: e.clientX, sy: e.clientY };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+  function startPan(e, canClear) {
+    drag = { type: "pan", sx: e.clientX, sy: e.clientY, otx: view.tx, oty: view.ty,
+             canClear: !!canClear, moved: false };
+    bStage.classList.add("panning");
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+  function startLink(id, side, e) {
+    e.preventDefault(); e.stopPropagation();
+    selEdge = null; paintEdges();
+    drag = { type: "link", from: id, fromSide: side, sx: e.clientX, sy: e.clientY, moved: false };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+  function startEndpoint(end, e) {
+    e.preventDefault(); e.stopPropagation();
+    drag = { type: "endpoint", end, edge: selEdge, sx: e.clientX, sy: e.clientY, moved: false };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+  function startMarquee(e) {
+    drag = { type: "marquee", sx: e.clientX, sy: e.clientY, add: e.shiftKey, moved: false };
+    const m = document.getElementById("bMarquee");
+    if (m) { m.style.display = "block"; posMarquee(e.clientX, e.clientY); }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+  function posMarquee(cx, cy) {
+    const r = bStage.getBoundingClientRect();
+    const x = Math.min(drag.sx, cx) - r.left, y = Math.min(drag.sy, cy) - r.top;
+    const w = Math.abs(cx - drag.sx), h = Math.abs(cy - drag.sy);
+    const m = document.getElementById("bMarquee");
+    if (m) { m.style.left = x+"px"; m.style.top = y+"px"; m.style.width = w+"px"; m.style.height = h+"px"; }
+  }
+
+  function onMove(e) {
+    if (!drag) return;
+    if (drag.type === "pan") {
+      drag.moved = true;
+      view.tx = drag.otx + (e.clientX - drag.sx);
+      view.ty = drag.oty + (e.clientY - drag.sy);
+      applyView(); return;
+    }
+    if (drag.type === "nodePending") {
+      if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return;
+      drag.type = "node"; justDragged = true;
+      document.body.style.userSelect = "none";
+      document.body.classList.add("b-ndrag");
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      if (!sel.includes(drag.id)) selectOnly(drag.id);
+      drag.origins = sel.map(id => { const n = bN(id); return { id, ox: n.x, oy: n.y }; });
+    }
+    if (drag.type === "node") {
+      const dx = (e.clientX - drag.sx) / view.scale, dy = (e.clientY - drag.sy) / view.scale;
+      drag.origins.forEach(o => {
+        const n = bN(o.id); n.x = o.ox + dx; n.y = o.oy + dy;
+        const el = bq(o.id); if (el) { el.style.left = n.x+"px"; el.style.top = n.y+"px"; }
+      });
+      paintEdges(); return;
+    }
+    if (drag.type === "link") {
+      if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+      drag.moved = true;
+      const a = bN(drag.from), A = anchor(a, drag.fromSide);
+      const p = worldPt(e.clientX, e.clientY), d1 = DIR[drag.fromSide], k = 70;
+      const snap = hi(p, drag.from), end = snap || p;
+      const tmp = document.getElementById("bTmp");
+      if (tmp) tmp.setAttribute("d",
+        `M${A.x},${A.y} C${A.x+d1[0]*k},${A.y+d1[1]*k} ${end.x},${end.y} ${end.x},${end.y}`);
+      return;
+    }
+    if (drag.type === "endpoint") {
+      const ed = bE(drag.edge); if (!ed) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+      drag.moved = true;
+      const s = sidesOf(ed);
+      const fixed = drag.end === "from" ? anchor(bN(ed.to), s.ts) : anchor(bN(ed.from), s.fs);
+      const p = worldPt(e.clientX, e.clientY), excl = drag.end === "from" ? ed.to : ed.from;
+      const snap = hi(p, excl), end = snap || p;
+      const tmp = document.getElementById("bTmp");
+      if (tmp) tmp.setAttribute("d",
+        `M${fixed.x},${fixed.y} C${(fixed.x+end.x)/2},${fixed.y} ${(fixed.x+end.x)/2},${end.y} ${end.x},${end.y}`);
+      return;
+    }
+    if (drag.type === "marquee") { drag.moved = true; posMarquee(e.clientX, e.clientY); }
+  }
+
+  function onUp(e) {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    const d = drag; drag = null;
+    document.body.style.userSelect = "";
+    bStage.classList.remove("panning");
+    document.body.classList.remove("b-ndrag");
+    const sv = document.getElementById("bSnapV"), sh = document.getElementById("bSnapH");
+    if (sv) sv.style.display = "none";
+    if (sh) sh.style.display = "none";
+    const tmp = document.getElementById("bTmp");
+    if (tmp) tmp.setAttribute("d", "");
+    clearLinkHi();
+    if (!d) return;
+    if (d.type === "pan") { if (d.canClear && !d.moved) deselectAll(); return; }
+    if (d.type === "nodePending") {
+      if (e.shiftKey) toggleSel(d.id); else selectOnly(d.id);
+      selEdge = null; paintEdges(); return;
+    }
+    if (d.type === "node") {
+      setTimeout(() => justDragged = false, 30);
+      measure(); paintEdges(); fireBoardChange(); return;
+    }
+    if (d.type === "link") {
+      if (!d.moved) return;
+      const p = worldPt(e.clientX, e.clientY), snap = snapAt(p, d.from);
+      if (snap) {
+        addEdge(d.from, d.fromSide, snap.node, snap.side);
+        paintEdges(); bToast("연결됨");
+      } else {
+        const nn = makeNode(p.x - W_NODE/2, p.y - 35, "노드", "free");
+        addEdge(d.from, d.fromSide, nn.id, "auto");
+        renderBoard(); selectOnly(nn.id); bToast("노드 생성·연결");
+      }
+      fireBoardChange(); return;
+    }
+    if (d.type === "endpoint") {
+      const ed = bE(d.edge); if (!ed || !d.moved) return;
+      const p = worldPt(e.clientX, e.clientY), other = d.end === "from" ? ed.to : ed.from;
+      const snap = snapAt(p, other);
+      if (snap) {
+        if (d.end === "from") { ed.from = snap.node; ed.fromSide = snap.side; }
+        else                  { ed.to   = snap.node; ed.toSide   = snap.side; }
+        bToast("끝점 이동");
+      }
+      paintEdges(); fireBoardChange(); return;
+    }
+    if (d.type === "marquee") {
+      const m = document.getElementById("bMarquee");
+      if (m) m.style.display = "none";
+      if (!d.moved) { if (!e.shiftKey) deselectAll(); return; }
+      const a = worldPt(Math.min(d.sx, e.clientX), Math.min(d.sy, e.clientY));
+      const b = worldPt(Math.max(d.sx, e.clientX), Math.max(d.sy, e.clientY));
+      const hit = boardState.nodes
+        .filter(n => n.x < b.x && n.x + (n._w||W_NODE) > a.x && n.y < b.y && n.y + (n._h||70) > a.y)
+        .map(n => n.id);
+      selEdge = null; setSel(d.add ? [...new Set([...sel, ...hit])] : hit); paintEdges();
+    }
+  }
+
+  /* ── Zoom / fit ──────────────────────────────────────────────── */
+  function zoomBy(f) {
+    const r = bStage.getBoundingClientRect(), cx = r.width/2, cy = r.height/2;
+    const wx = (cx - view.tx) / view.scale, wy = (cy - view.ty) / view.scale;
+    view.scale = Math.min(2.4, Math.max(0.3, view.scale * f));
+    view.tx = cx - wx * view.scale; view.ty = cy - wy * view.scale;
+    applyView();
+  }
+  function fitView() {
+    if (!boardState.nodes.length) return;
+    measure();
+    let mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9;
+    boardState.nodes.forEach(n => {
+      mnx = Math.min(mnx, n.x); mny = Math.min(mny, n.y);
+      mxx = Math.max(mxx, n.x + (n._w||W_NODE)); mxy = Math.max(mxy, n.y + (n._h||70));
+    });
+    const r = bStage.getBoundingClientRect(), pad = 50;
+    const s = Math.min(2.4, Math.max(0.3,
+      Math.min((r.width-pad*2) / (mxx-mnx), (r.height-pad*2) / (mxy-mny))));
+    view.scale = s;
+    view.tx = pad - mnx*s + (r.width-pad*2  - (mxx-mnx)*s) / 2;
+    view.ty = pad - mny*s + (r.height-pad*2 - (mxy-mny)*s) / 2;
+    applyView();
+  }
+
+  /* ── Toast ───────────────────────────────────────────────────── */
+  let _btt;
+  function bToast(m) {
+    const el = document.getElementById("bToast");
+    if (!el) return;
+    el.textContent = m; el.classList.add("on");
+    clearTimeout(_btt); _btt = setTimeout(() => el.classList.remove("on"), 1400);
+  }
+
+  /* ── Board DOM init ──────────────────────────────────────────── */
+  function boardInit() {
+    const pane = document.getElementById("boardPane");
+    pane.innerHTML = `<div class="b-stage" id="bStage">
+  <div class="b-world" id="bWorld">
+    <svg class="b-edges" id="bEdges">
+      <defs>
+        <marker id="b-arw" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"></path>
+        </marker>
+        <marker id="b-dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+          <circle cx="5" cy="5" r="3.5" fill="context-stroke"></circle>
+        </marker>
+      </defs>
+      <g id="bEdgeG" transform="translate(10000,10000)"></g>
+      <path class="b-tmp" id="bTmp" transform="translate(10000,10000)" d=""></path>
+    </svg>
+    <div class="b-ehud" id="bEhud"></div>
+    <div class="b-nhud" id="bNhud"></div>
+    <div class="b-snap-guide" id="bSnapV"></div>
+    <div class="b-snap-guide" id="bSnapH"></div>
+  </div>
+  <div class="b-marquee" id="bMarquee"></div>
+  <div class="b-zoomctl">
+    <button onclick="zoomBy(1.2)" title="확대">＋</button>
+    <div class="b-zlabel" id="bZlabel">100%</div>
+    <button onclick="zoomBy(.83)" title="축소">−</button>
+  </div>
+</div>`;
+
+    bStage = document.getElementById("bStage");
+    bWorld = document.getElementById("bWorld");
+
+    /* stage pointer/wheel/dblclick */
+    bStage.addEventListener("pointerdown", e => {
+      if (e.target.closest(".b-hbar,.b-hbtn")) return;
+      if (e.button === 1 || (spaceDown && e.button === 0)) { startPan(e); return; }
+      if (e.button !== 0) return;
+      const eh = e.target.closest(".b-ehandle");
+      if (eh) { startEndpoint(eh.dataset.end, e); return; }
+      const edge = e.target.closest("[data-edge]");
+      if (edge) { selectEdge(edge.dataset.edge); return; }
+      const nodeEl = e.target.closest(".b-node");
+      if (nodeEl) { nodePointerDown(nodeEl.dataset.id, e); return; }
+      if (e.ctrlKey || e.metaKey) { startMarquee(e); return; }
+      startPan(e, true);
+    });
+
+    bStage.addEventListener("wheel", e => {
+      e.preventDefault();
+      const r = bStage.getBoundingClientRect();
+      const cx = e.clientX - r.left, cy = e.clientY - r.top;
+      const wx = (cx - view.tx) / view.scale, wy = (cy - view.ty) / view.scale;
+      const ns = Math.min(2.4, Math.max(0.3, view.scale * (1 - e.deltaY * 0.0014)));
+      view.scale = ns; view.tx = cx - wx*ns; view.ty = cy - wy*ns;
+      applyView();
+    }, { passive: false });
+
+    bStage.addEventListener("dblclick", e => {
+      if (e.target.closest(".b-node")) return;
+      const p = worldPt(e.clientX, e.clientY);
+      const n = makeNode(p.x - W_NODE/2, p.y - 35, "노드", "free");
+      renderBoard(); selectOnly(n.id); fireBoardChange();
+    });
+
+    /* world click delegation */
+    bWorld.addEventListener("click", e => {
+      if (e.target.closest("[data-edel]")) { if (selEdge) delEdge(selEdge); return; }
+      if (e.target.closest("[data-erev]")) {
+        if (selEdge) {
+          const ed = bE(selEdge);
+          [ed.from, ed.to] = [ed.to, ed.from];
+          [ed.fromSide, ed.toSide] = [ed.toSide, ed.fromSide];
+          paintEdges(); fireBoardChange();
+        }
+        return;
+      }
+      const na = e.target.closest("[data-nact]");
+      if (na && na.dataset.nact === "del" && sel.length === 1) { delNodes([sel[0]]); return; }
+    });
+
+    /* single-click → select/move first; dblclick → edit */
+    bWorld.addEventListener("mousedown", e => {
+      const ed = e.target.closest(".b-n-title");
+      if (ed && document.activeElement !== ed) e.preventDefault();
+    });
+    bWorld.addEventListener("dblclick", e => {
+      const ed = e.target.closest(".b-n-title");
+      if (!ed) return;
+      e.stopPropagation();
+      ed.focus();
+      const rng = document.caretRangeFromPoint && document.caretRangeFromPoint(e.clientX, e.clientY);
+      if (rng) { const s = window.getSelection(); s.removeAllRanges(); s.addRange(rng); }
+    });
+
+    /* save title edits back to state */
+    bWorld.addEventListener("focusout", e => {
+      const f = e.target.dataset && e.target.dataset.field;
+      if (!f) return;
+      const nodeEl = e.target.closest(".b-node");
+      if (!nodeEl) return;
+      const n = bN(nodeEl.dataset.id);
+      if (n) n[f] = e.target.innerText.replace(/ /g, " ").trim();
+      fireBoardChange();
+    });
+
+    /* keyboard */
+    window.addEventListener("keydown", e => {
+      const ae = document.activeElement;
+      const typing = !!(ae && (ae.isContentEditable || ae.tagName === "INPUT" || ae.tagName === "TEXTAREA"));
+      if (e.code === "Space") { spaceDown = true; if (!typing) e.preventDefault(); return; }
+      if (e.key === "Escape") { deselectAll(); return; }
+      if (typing) return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selEdge) delEdge(selEdge);
+        else if (sel.length) delNodes([...sel]);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "a" || e.key === "A")) {
+        e.preventDefault();
+        sel = boardState.nodes.map(n => n.id); selEdge = null; applySel(); paintEdges();
+      }
+    });
+    window.addEventListener("keyup", e => { if (e.code === "Space") spaceDown = false; });
+
+    /* seed demo nodes, render, fit */
+    seedBoard();
+    renderBoard();
+    fitView();
+  }
+
+  /* ── Seed demo nodes ─────────────────────────────────────────── */
+  function seedBoard() {
+    const n1 = makeNode(40,  60, "가격 데이터", "block", "price",      {});
+    const n2 = makeNode(320, 60, "이동평균",    "block", "ma",         { len: 20 });
+    const n3 = makeNode(600, 60, "위상 접기",   "block", "phasefold",  { pmin: 8, pmax: 120 });
+    const n4 = makeNode(320, 200, "합성",       "block", "combine",    {});
+    /* addEdge calls fireBoardChange; _boardChangeCb is null here — no-op, that is correct */
+    addEdge(n1.id, "right", n2.id, "left");
+    addEdge(n2.id, "bottom", n4.id, "top");
+    addEdge(n1.id, "bottom", n3.id, "left");
+    addEdge(n3.id, "bottom", n4.id, "right");
+  }
+
+  /* ── Boot ────────────────────────────────────────────────────── */
+  document.addEventListener("DOMContentLoaded", () => {
+    boardInit();
+
+    document.getElementById("runBtn").addEventListener("click", () => {
+      const g = boardToGraph();
+      console.log("[Forge] boardToGraph →", g);
+      console.log("[Forge] ForgeCore version:", window.ForgeCore.version);
+      bToast("실행 · 콘솔 확인");
+    });
+  });
   </script>
 </body>
 </html>
