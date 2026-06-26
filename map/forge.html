@@ -1436,6 +1436,7 @@
     }
     return cleanPts(orthoPath(A, B, s.fs, s.ts));
   }
+  // NOTE: relies on cleanPts/orthoPath returning [x,y] pair arrays (NOT {x,y} objects) — keep in sync if those helpers are refactored.
   const _toScreen = p => [p[0] * view.scale + view.tx, p[1] * view.scale + view.ty];
 
   /* ── chart coordinate map (faithful port of fcDrawMain math) ──── */
@@ -1475,10 +1476,17 @@
   }
   function _sizeCanvas(cv, w, h) {
     const dpr = Math.min(devicePixelRatio || 1, 2);
-    cv.style.width = w + "px"; cv.style.height = h + "px";
-    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    const pw = Math.round(w * dpr), ph = Math.round(h * dpr);
     const c = cv.getContext("2d");
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Guard: only reset pixel buffer when CSS size or DPR actually changed.
+    // Setting cv.width/cv.height clears the canvas AND resets 2D context state,
+    // causing a blank-frame flicker every renderOverlay call (debounced ~180ms).
+    if (cv._lastW !== pw || cv._lastH !== ph || cv._lastDpr !== dpr) {
+      cv.style.width = w + "px"; cv.style.height = h + "px";
+      cv.width = pw; cv.height = ph;
+      cv._lastW = pw; cv._lastH = ph; cv._lastDpr = dpr;
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
     return c;
   }
   function layoutOverlays() {
@@ -1694,6 +1702,11 @@
   /* ── renderOverlay: entry hook called by runForge ─────────────── */
   function renderOverlay(result, graph) {
     _ovResult = result; _ovGraph = graph;
+    // Prune stale _edgePhase entries so deleted edges don't accumulate forever.
+    // Only runs here (debounced ~180ms), NOT inside the rAF loop, so in-flight
+    // phase for surviving edges is preserved and no visible phase jump occurs.
+    const _currentEdgeIds = new Set(boardState.edges.map(e => e.id));
+    Object.keys(_edgePhase).forEach(k => { if (!_currentEdgeIds.has(k)) delete _edgePhase[k]; });
     layoutOverlays();
     if (prefersReducedMotion()) { stopPulse(); drawStaticFrame(); }
     else startPulse();
