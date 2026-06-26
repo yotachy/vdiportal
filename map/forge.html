@@ -99,6 +99,12 @@
   .b-toast{position:fixed;bottom:18px;left:25%;transform:translateX(-50%);background:#1d2530;border:1px solid var(--gold-dim);color:#fff;padding:8px 16px;border-radius:99px;font-size:12px;z-index:99;box-shadow:0 10px 26px -8px #000;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap}
   .b-toast.on{opacity:1}
 
+  /* save badge */
+  .save-badge{font-size:11px;font-family:ui-monospace,monospace;border-radius:6px;padding:3px 9px;font-weight:600;white-space:nowrap}
+  .save-badge.saved{color:var(--bull);background:rgba(70,194,142,.1);border:1px solid rgba(70,194,142,.25)}
+  .save-badge.saving{color:var(--eth);background:rgba(138,146,178,.1);border:1px solid rgba(138,146,178,.25)}
+  .save-badge.offline{color:var(--bear);background:rgba(224,106,106,.1);border:1px solid rgba(224,106,106,.25)}
+
   /* ════════════════════════════════════════════════════
      CHART PANE  (PHASE-FOLD render port from chart.html)
      ════════════════════════════════════════════════════ */
@@ -194,6 +200,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span style="color:var(--eth);font-weight:500">by MoneyScoop</span></div>
+    <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <button class="export-btn" id="exportBtn" onclick="exportStrategy()">내보내기</button>
     <button class="run-btn" id="runBtn">▷ 실행</button>
   </header>
@@ -266,6 +273,25 @@
   let drag = null;
   let spaceDown = false;
   let justDragged = false;
+
+  /* ── Server layer globals ──────────────────────────────────────── */
+  const FORGE_API = "forge-api.php";
+  let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
+  async function apiGet(qs) {
+    try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
+      if (!r.ok) throw 0; SERVER_OK = true; return await r.json(); }
+    catch (e) { SERVER_OK = false; setSaveState("offline"); return undefined; }
+  }
+  async function apiPost(body) {
+    try { const r = await fetch(FORGE_API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw 0; SERVER_OK = true; return await r.json(); }
+    catch (e) { SERVER_OK = false; setSaveState("offline"); return undefined; }
+  }
+  function setSaveState(s) {
+    const el = document.getElementById("saveBadge"); if (!el) return;
+    el.textContent = s === "saving" ? "● 저장 중…" : s === "offline" ? "● 오프라인" : "● 저장됨";
+    el.className = "save-badge " + s;
+  }
 
   const W_NODE = 200;   // default node width (block kind)
   const EWIDTHS = { 1: 1.6, 2: 2.4, 3: 3.8 };
@@ -413,7 +439,7 @@
   const IMAGES = {};
   const LIBRARY = [];
   function imgSrc(id){ return IMAGES[id] || ""; }
-  function putImg(id, src){ IMAGES[id] = src; }
+  function putImg(id, src) { IMAGES[id] = src; if (SERVER_OK) apiPost({ op: "putimg", id, src }); }
 
   /* ── 주제 배너 ───────────────────────────────────────────────── */
   let themeState = { imgId: null, title: "" };
@@ -453,6 +479,56 @@
           `</div>`
         ).join("")
       : `<div style="grid-column:1/-1;font-size:11px;color:var(--eth)">이미지를 추가하거나<br>노드에 파일을 드롭</div>`;
+  }
+
+  /* ── Server save layer ───────────────────────────────────────── */
+  function activeDoc() { return DOCS.find(d => d.id === activeId) || null; }
+  function serializeActive() {
+    const dc = activeDoc(); if (!dc) return null;
+    dc.nodes = boardState.nodes; dc.edges = boardState.edges;
+    dc.themeImgId = themeState.imgId; dc.title = themeState.title || dc.title;
+    dc.view = { tx: view.tx, ty: view.ty, scale: view.scale };
+    dc.updated = new Date().toISOString();
+    return dc;
+  }
+  async function writeBackActive() {
+    const dc = serializeActive(); if (!dc) return;
+    if (!SERVER_OK) return;
+    setSaveState("saving");
+    const r = await apiPost({ op: "upsert", document: dc });
+    setSaveState(r && r.ok ? "saved" : "offline");
+  }
+  let _saveT = null;
+  function markDirty() { if (!SERVER_OK) return; clearTimeout(_saveT); _saveT = setTimeout(writeBackActive, 800); }
+  async function saveMeta() { if (!SERVER_OK) return; await apiPost({ op: "meta", meta: { library: LIBRARY, activeId } }); }
+  function loadDoc(id) {
+    const dc = DOCS.find(d => d.id === id); if (!dc) return;
+    activeId = id; META.activeId = id;
+    boardState.nodes = dc.nodes || []; boardState.edges = dc.edges || [];
+    themeState.imgId = dc.themeImgId || null; themeState.title = dc.title || "";
+    if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
+    sel = []; selEdge = null;
+    renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); runForge();
+  }
+  async function loadImages() { const m = await apiGet("?images=1"); if (m && typeof m === "object") Object.assign(IMAGES, m); }
+  async function boot() {
+    const doc = await apiGet("");
+    await loadImages();
+    if (doc && doc.documents && doc.documents.length) {
+      DOCS = doc.documents; META = doc.meta || { library: [], activeId: null };
+      LIBRARY.length = 0; (META.library || []).forEach(it => LIBRARY.push(it));
+      loadDoc(META.activeId && DOCS.some(d => d.id === META.activeId) ? META.activeId : DOCS[0].id);
+    } else {
+      // 첫 부팅/빈 데이터 → 기본 문서 시드
+      seedDefaultStrategy();
+      renderBoard(); fitView();
+      const dc = { id: uid("doc"), title: "새 전략", themeImgId: themeState.imgId || null,
+        nodes: boardState.nodes, edges: boardState.edges, view: { tx: view.tx, ty: view.ty, scale: view.scale }, updated: new Date().toISOString() };
+      DOCS = [dc]; activeId = dc.id; META = { library: [], activeId: dc.id };
+      if (window.renderSidebar) renderSidebar(); runForge();
+      if (SERVER_OK) writeBackActive();
+    }
+    setSaveState(SERVER_OK ? "saved" : "offline");
   }
 
   /* ── Node HTML ───────────────────────────────────────────────── */
@@ -1093,11 +1169,6 @@
       }
     });
     window.addEventListener("keyup", e => { if (e.code === "Space") spaceDown = false; });
-
-    /* seed default strategy, render, fit */
-    seedDefaultStrategy();
-    renderBoard();
-    fitView();
 
     /* floating block palette */
     const _pal = document.createElement("div");
@@ -2226,9 +2297,9 @@
 
     renderLib();
 
-    onBoardChange(() => { clearTimeout(_t); _t = setTimeout(runForge, 180); });
+    onBoardChange(() => { clearTimeout(_t); _t = setTimeout(runForge, 180); markDirty(); });
     document.getElementById("runBtn").addEventListener("click", runForge);
-    requestAnimationFrame(runForge);
+    boot();
   });
   </script>
 </body>
