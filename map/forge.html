@@ -296,7 +296,8 @@
         kind: n.kind || "free",
         blockType: n.blockType || null,
         params: n.params || {},
-        conviction: n.conviction || 0
+        conviction: n.conviction || 0,
+        weight: (n.weight != null ? n.weight : 50)
       })),
       edges: boardState.edges.map(e => ({ from: e.from, to: e.to }))
     };
@@ -554,7 +555,11 @@
       });
     }
     const conv = n.conviction ?? 0;
+    const wt = (n.weight != null) ? n.weight : 50;
     panel.innerHTML = `<h4>${esc(n.title || "노드")} · 파라미터</h4>${rows.join("")}
+      <div class="pp-row"><label>중요도</label>
+        <input type="range" id="ppWeight" min="0" max="100" step="1" value="${wt}">
+        <span class="pp-conv-val" id="ppWeightVal">${wt}</span></div>
       <div class="pp-row"><label>확신</label>
         <input type="range" id="ppConv" min="-100" max="100" step="1" value="${conv}">
         <span class="pp-conv-val" id="ppConvVal">${conv}</span></div>
@@ -1523,6 +1528,7 @@
         if (n.blockType) out.blockType = n.blockType;
         if (n.params && Object.keys(n.params).length) out.params = { ...n.params };
         if (n.conviction) out.conviction = n.conviction;
+        if (n.weight != null && n.weight !== 50) out.weight = n.weight;
         if (n.note) out.note = n.note;
         if (n.thumb) out.thumb = { ...n.thumb };
         return out;
@@ -1969,6 +1975,9 @@
         } else if (t.dataset.wkey) {
           n.params = n.params || {}; n.params.weights = n.params.weights || {};
           n.params.weights[t.dataset.wkey] = Number(t.value) || 0;
+        } else if (t.id === "ppWeight") {
+          n.weight = Number(t.value);
+          const v = document.getElementById("ppWeightVal"); if (v) v.textContent = n.weight;
         } else if (t.id === "ppConv") {
           n.conviction = Number(t.value) || 0;
           const v = document.getElementById("ppConvVal"); if (v) v.textContent = n.conviction;
