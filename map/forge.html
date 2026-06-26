@@ -1632,6 +1632,39 @@
     c.fillText("1", cw - padR - 5, ch - 1);
   }
 
+  /* ── fcDrawFuture: draw prediction cone + dashed path on #fcFuture ── */
+  function fcDrawFuture(pred) {
+    const cv = document.getElementById("fcFuture"); if (!cv) return;
+    const ch = cv.clientHeight || 240, c = fcFit(cv, ch);
+    const cw = cv.clientWidth || 200;
+    c.clearRect(0, 0, cw, ch);
+    const path = (pred && pred.path) || [], lo = (pred && pred.lo) || [], hi = (pred && pred.hi) || [];
+    if (!path.length) {
+      c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
+      c.fillText("예측 미리보기", cw / 2, ch / 2); c.textAlign = "left"; return;
+    }
+    let loMin = Infinity, hiMax = -Infinity;
+    for (let i = 0; i < path.length; i++) { loMin = Math.min(loMin, lo[i]); hiMax = Math.max(hiMax, hi[i]); }
+    if (pred.anchor != null) { loMin = Math.min(loMin, pred.anchor); hiMax = Math.max(hiMax, pred.anchor); }
+    const pad = (hiMax - loMin) * 0.1 || 1; loMin -= pad; hiMax += pad;
+    const toY = v => 16 + (1 - (v - loMin) / ((hiMax - loMin) || 1)) * (ch - 32);
+    const toX = k => 8 + (k / Math.max(1, path.length - 1)) * (cw - 14);
+    const anchorY = toY(pred.anchor != null ? pred.anchor : path[0]);
+    /* seam ("지금") */
+    c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.beginPath(); c.moveTo(8, 0); c.lineTo(8, ch); c.stroke();
+    c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.fillText("지금", 11, 12);
+    /* cone fill */
+    c.beginPath(); c.moveTo(8, anchorY);
+    for (let k = 0; k < path.length; k++) c.lineTo(toX(k), toY(hi[k]));
+    for (let k = path.length - 1; k >= 0; k--) c.lineTo(toX(k), toY(lo[k]));
+    c.lineTo(8, anchorY); c.closePath(); c.fillStyle = "rgba(232,180,99,.14)"; c.fill();
+    /* path line */
+    c.strokeStyle = FC_GOLD; c.lineWidth = 1.8; c.setLineDash([5, 4]);
+    c.beginPath(); c.moveTo(8, anchorY);
+    for (let k = 0; k < path.length; k++) c.lineTo(toX(k), toY(path[k]));
+    c.stroke(); c.setLineDash([]);
+  }
+
   /* ── renderChart: top-level, consumes ForgeCore output ── */
   function renderChart(result, data) {
     if (!result || !data) return;
@@ -1662,6 +1695,7 @@
 
     /* draw all panels */
     renderHero(); /* R2: fcDrawMain 비활성 — 히어로 이미지 갱신. 미래 존은 Task 2에서. */
+    fcDrawFuture(result.prediction || { path: [], lo: [], hi: [] });
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
       ["fcFoldA", "fcFoldB", "fcFoldC"].forEach(id => {
