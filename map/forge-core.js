@@ -192,7 +192,6 @@
     // 예측: 가격 추세 + (phasefold 메타 있으면) 주기 외삽
     const price = data.price, { a, b } = linfit(price), n = price.length;
     const fmeta = Object.values(meta || {}).find(m => m && m.best);
-    const pdn = detrendNorm(price);
     // 잔차표준편차
     let res = 0;
     for (let i = 0; i < n; i++) {

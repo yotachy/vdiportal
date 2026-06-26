@@ -490,13 +490,6 @@
     renderBoard();
     fireBoardChange();
   }
-  function addNodeCenter(kind, title, blockType) {
-    const r = bStage.getBoundingClientRect();
-    const p = worldPt(r.left + r.width/2, r.top + r.height/2);
-    const n = makeNode(p.x - W_NODE/2, p.y - 35, title, kind, blockType);
-    renderBoard(); selectOnly(n.id); fireBoardChange();
-  }
-
   /* ── addBlock: insert a typed block at canvas center ─────────── */
   function addBlock(type) {
     const d = BLOCK_DEFS.find(b => b.type === type) || {};
@@ -1403,6 +1396,7 @@
       if (lastResult && lastResult.verdict) renderVerdict(lastResult.verdict);
     } catch (e) {
       console.warn("run", e);
+      if (typeof bToast === "function") bToast(/cycle/.test(String(e && e.message)) ? "그래프 오류: 순환 연결" : "그래프 오류: 계산 실패");
     }
   }
 
