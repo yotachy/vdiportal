@@ -35,5 +35,21 @@
     return { price, orange, blue, candle, n };
   }
 
-  return { version, makeDemoSeries };
+  function buildDAG(graph) {
+    const blocks = graph.nodes.filter(n => n.kind === "block");
+    const ids = new Set(blocks.map(n => n.id)), byId = {};
+    blocks.forEach(n => byId[n.id] = n);
+    const inputsOf = {}; blocks.forEach(n => inputsOf[n.id] = []);
+    graph.edges.forEach(e => { if (ids.has(e.from) && ids.has(e.to)) inputsOf[e.to].push(e.from); });
+    const indeg = {}; blocks.forEach(n => indeg[n.id] = inputsOf[n.id].length);
+    const q = blocks.filter(n => indeg[n.id] === 0).map(n => n.id), order = [];
+    const adj = {}; blocks.forEach(n => adj[n.id] = []);
+    graph.edges.forEach(e => { if (ids.has(e.from) && ids.has(e.to)) adj[e.from].push(e.to); });
+    while (q.length) { const u = q.shift(); order.push(u);
+      adj[u].forEach(v => { if (--indeg[v] === 0) q.push(v); }); }
+    if (order.length !== blocks.length) throw new Error("cycle");
+    return { order, byId, inputsOf };
+  }
+
+  return { version, makeDemoSeries, buildDAG };
 });
