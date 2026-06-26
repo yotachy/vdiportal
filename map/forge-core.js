@@ -154,5 +154,74 @@
     return { values, meta };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod };
+  function tanh(x) {
+    const e = Math.exp(-2 * x);
+    return (1 - e) / (1 + e);
+  }
+
+  function linfit(y) {
+    const n = y.length;
+    let sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (let i = 0; i < n; i++) {
+      sx += i;
+      sy += y[i];
+      sxx += i * i;
+      sxy += i * y[i];
+    }
+    const b = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1), a = (sy - b * sx) / n;
+    return { a, b };
+  }
+
+  function run(graph, data, opts) {
+    const futW = (opts && opts.futW) || 120;
+    const ev = evalBlocks(graph, data), { values, meta } = ev;
+    const outNode = graph.nodes.find(n => n.kind === "block" && (n.blockType === "predict"));
+    const inputsOf = buildDAG(graph).inputsOf;
+    // 합성 시그널: 출력 입력(없으면 combine/마지막) 시계열을 정규화
+    let sigSrc = null;
+    if (outNode) {
+      const ins = inputsOf[outNode.id];
+      if (ins && ins[0]) sigSrc = values[ins[0]];
+    }
+    if (!sigSrc) {
+      const c = graph.nodes.find(n => n.blockType === "combine");
+      if (c) sigSrc = values[c.id];
+    }
+    if (!sigSrc) sigSrc = data.price;
+    const dn = detrendNorm(sigSrc), signal = dn.map(v => Math.max(-100, Math.min(100, Math.round(100 * tanh(v / 1.5)))));
+    // 예측: 가격 추세 + (phasefold 메타 있으면) 주기 외삽
+    const price = data.price, { a, b } = linfit(price), n = price.length;
+    const fmeta = Object.values(meta || {}).find(m => m && m.best);
+    const pdn = detrendNorm(price);
+    // 잔차표준편차
+    let res = 0;
+    for (let i = 0; i < n; i++) {
+      const e = price[i] - (a + b * i);
+      res += e * e;
+    }
+    res = Math.sqrt(res / n);
+    const path = [], lo = [], hi = [];
+    for (let k = 1; k <= futW; k++) {
+      const i = n - 1 + k;
+      let v = a + b * i;
+      if (fmeta) {
+        const P = fmeta.best;
+        v += Math.sin(2 * Math.PI * i / P) * res * 0.8;
+      }
+      const band = res * (0.6 + 0.02 * k);
+      path.push(v);
+      lo.push(v - band);
+      hi.push(v + band);
+    }
+    const lastSig = signal.slice(-10).reduce((s, v) => s + v, 0) / 10;
+    const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
+    const last = price[n - 1], target = last * (1 + lastSig / 1000);
+    const recent = price.slice(-30), invalidation = regime === "bear" ? Math.max(...recent) : Math.min(...recent);
+    return {
+      values, meta, prediction: { path, lo, hi, futW }, signal,
+      verdict: { regime, score: Math.round(lastSig), target, invalidation }
+    };
+  }
+
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run };
 });

@@ -73,3 +73,22 @@ test("evalBlocks phasefold attaches period meta", () => {
   const r = ForgeCore.evalBlocks(g, { price, n: price.length });
   assert.ok(r.meta && r.meta.f && Math.abs(r.meta.f.best - P0) <= 2);
 });
+
+test("run returns prediction, signal, verdict shapes", () => {
+  const data = ForgeCore.makeDemoSeries({n:300, seed:3, period:48});
+  const g = { nodes:[
+      {id:"p",kind:"block",blockType:"price"},
+      {id:"f",kind:"block",blockType:"phasefold",params:{pmin:20,pmax:96}},
+      {id:"m",kind:"block",blockType:"ma",params:{len:10}},
+      {id:"c",kind:"block",blockType:"combine"},
+      {id:"o",kind:"block",blockType:"predict"}
+    ], edges:[{from:"p",to:"f"},{from:"p",to:"m"},{from:"f",to:"c"},{from:"m",to:"c"},{from:"c",to:"o"}] };
+  const out = ForgeCore.run(g, data, {futW:60});
+  assert.strictEqual(out.prediction.path.length, 60);
+  assert.strictEqual(out.prediction.lo.length, 60);
+  assert.ok(out.prediction.hi[0] >= out.prediction.lo[0]);
+  assert.strictEqual(out.signal.length, data.n);
+  assert.ok(out.signal.every(v => v>=-100 && v<=100));
+  assert.ok(["bull","bear","neutral"].includes(out.verdict.regime));
+  assert.ok(typeof out.verdict.target === "number");
+});
