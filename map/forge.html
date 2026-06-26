@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>스쿱포지 · Scoop Forge</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{--gold:#e8b463;--bg:#0b0f14;--panel:#121822;--ink:#e7ecf5;--eth:#8a92b2;--bull:#46c28e;--bear:#e06a6a;--line:#222b39}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,system-ui,sans-serif;letter-spacing:-0.01em}
+  .forge-top{display:flex;align-items:center;gap:14px;height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
+  .forge-split{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 54px)}
+  .board-pane{position:relative;overflow:hidden;border-right:1px solid var(--line)}
+  .chart-pane{position:relative;overflow:hidden}
+  .run-btn{margin-left:auto;background:var(--gold);color:#1a1206;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+  <header class="forge-top">
+    <div class="brand">Scoop<em>Forge</em> <span style="color:var(--eth);font-weight:500">by MoneyScoop</span></div>
+    <button class="run-btn" id="runBtn">▷ 실행</button>
+  </header>
+  <div class="forge-split">
+    <section class="board-pane" id="boardPane"></section>
+    <section class="chart-pane" id="chartPane"></section>
+  </div>
+  <script src="forge-core.js"></script>
+  <script>
+    /* Task 1: 스모크 — 코어 로드 확인 */
+    document.getElementById("runBtn").addEventListener("click", () => {
+      console.log("ForgeCore", window.ForgeCore.version);
+    });
+  </script>
+</body>
+</html>
