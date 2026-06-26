@@ -2034,6 +2034,24 @@
       }
     });
 
+    /* ── Ctrl+V 이미지 붙여넣기 라우팅 ── */
+    document.addEventListener("paste", ev => {
+      const items = ev.clipboardData && ev.clipboardData.items;
+      if (!items) return;
+      let imgItem = null;
+      for (const it of items) { if (it.type && it.type.indexOf("image") === 0) { imgItem = it; break; } }
+      if (!imgItem) return;               // 이미지 없으면 일반(텍스트) 붙여넣기 그대로 둠
+      ev.preventDefault();
+      const file = imgItem.getAsFile(); if (!file) return;
+      const r = new FileReader();
+      r.onload = () => downscaleImage(r.result, out => {
+        const id = uid("img"); putImg(id, out); LIBRARY.push({ id, label: "붙여넣기" }); renderLib();
+        if (sel.length === 1 && bN(sel[0])) { setThumb(sel[0], { imgId: id, label: "붙여넣기" }); bToast("노드 이미지 적용"); }
+        else { setThemeImg(id); bToast("주제 이미지 적용"); }
+      });
+      r.readAsDataURL(file);
+    });
+
     renderLib();
 
     onBoardChange(() => { clearTimeout(_t); _t = setTimeout(runForge, 180); });
