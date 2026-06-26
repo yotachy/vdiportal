@@ -151,6 +151,18 @@
   }
   .forge-palette .pal-btn:hover{background:var(--raised2);border-color:#3a4452}
   .forge-palette .pal-btn.pal-free{color:var(--eth);border-style:dashed}
+
+  /* ── 파라미터 편집기 패널 ── */
+  .forge-params{position:absolute;right:12px;top:12px;z-index:6;width:230px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;color:var(--ink);box-shadow:0 6px 20px #0008}
+  .forge-params h4{margin:0 0 8px;font-size:12px;color:var(--gold);font-weight:700}
+  .forge-params .pp-row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .forge-params .pp-row label{flex:0 0 78px;color:var(--eth)}
+  .forge-params input[type=number],.forge-params textarea{flex:1;background:var(--bg);border:1px solid var(--line);
+    border-radius:6px;color:var(--ink);padding:4px 6px;font:inherit}
+  .forge-params textarea{min-height:48px;resize:vertical}
+  .forge-params input[type=range]{flex:1}
+  .forge-params .pp-conv-val{flex:0 0 34px;text-align:right;color:var(--gold)}
 </style>
 </head>
 <body>
@@ -260,7 +272,8 @@
         id: n.id,
         kind: n.kind || "free",
         blockType: n.blockType || null,
-        params: n.params || {}
+        params: n.params || {},
+        conviction: n.conviction || 0
       })),
       edges: boardState.edges.map(e => ({ from: e.from, to: e.to }))
     };
@@ -442,6 +455,41 @@
     bWorld.querySelectorAll(".b-node").forEach(el => {
       el.classList.toggle("selected", sel.includes(el.dataset.id));
     });
+    renderParams();
+  }
+
+  /* ── 파라미터 편집기 패널 ──────────────────────────────────────── */
+  function numRow(key, label, val) {
+    return `<div class="pp-row"><label>${esc(label)}</label>
+      <input type="number" step="1" data-pkey="${key}" value="${val}"></div>`;
+  }
+  function renderParams() {
+    const panel = document.getElementById("paramPanel"); if (!panel) return;
+    if (sel.length !== 1) { panel.hidden = true; return; }
+    const n = bN(sel[0]); if (!n) { panel.hidden = true; return; }
+    panel.hidden = false;
+    const rows = [];
+    if (n.blockType === "ma") rows.push(numRow("len", "이동평균 길이", (n.params && n.params.len) ?? 10));
+    if (n.blockType === "phasefold") {
+      rows.push(numRow("pmin", "주기 최소", (n.params && n.params.pmin) ?? 16));
+      rows.push(numRow("pmax", "주기 최대", (n.params && n.params.pmax) ?? 128));
+    }
+    if (n.blockType === "combine") {
+      boardState.edges.filter(e => e.to === n.id).forEach(e => {
+        const src = bN(e.from);
+        const w = (n.params && n.params.weights && n.params.weights[e.from]) ?? 1;
+        rows.push(`<div class="pp-row"><label>${esc((src && src.title) || e.from)}</label>
+          <input type="number" step="0.1" data-wkey="${e.from}" value="${w}"></div>`);
+      });
+    }
+    const conv = n.conviction ?? 0;
+    panel.innerHTML = `<h4>${esc(n.title || "노드")} · 파라미터</h4>${rows.join("")}
+      <div class="pp-row"><label>확신</label>
+        <input type="range" id="ppConv" min="-100" max="100" step="1" value="${conv}">
+        <span class="pp-conv-val" id="ppConvVal">${conv}</span></div>
+      <div class="pp-row" style="flex-direction:column;align-items:stretch">
+        <label style="flex:none;margin-bottom:4px">서술 메모</label>
+        <textarea id="ppNote" placeholder="분석 근거·기준 (계산엔 미반영)">${esc(n.note || "")}</textarea></div>`;
   }
 
   function selectOnly(id)   { sel = [id]; applySel(); }
@@ -919,6 +967,13 @@
       ).join("") +
       `<button class="pal-btn pal-free" onclick="addBlock('free')">메모</button>`;
     pane.appendChild(_pal);
+
+    /* 파라미터 편집기 패널 (우상단 플로팅) */
+    const _pp = document.createElement("div");
+    _pp.className = "forge-params";
+    _pp.id = "paramPanel";
+    _pp.hidden = true;
+    pane.appendChild(_pp);
   }
 
   /* ── Default strategy seed ───────────────────────────────────── */
@@ -1785,6 +1840,29 @@
     clearTimeout(_ovRz);
     _ovRz = setTimeout(() => { if (_ovResult) renderOverlay(_ovResult, _ovGraph); }, 90);
   });
+
+  /* ── 파라미터 패널 입력 이벤트 위임 ────────────────────────────── */
+  (function bindParams() {
+    document.addEventListener("DOMContentLoaded", () => {
+      const panel = document.getElementById("paramPanel"); if (!panel) return;
+      panel.addEventListener("input", ev => {
+        if (sel.length !== 1) return; const n = bN(sel[0]); if (!n) return;
+        const t = ev.target;
+        if (t.dataset.pkey) {
+          n.params = n.params || {}; n.params[t.dataset.pkey] = Math.round(Number(t.value) || 0);
+        } else if (t.dataset.wkey) {
+          n.params = n.params || {}; n.params.weights = n.params.weights || {};
+          n.params.weights[t.dataset.wkey] = Number(t.value) || 0;
+        } else if (t.id === "ppConv") {
+          n.conviction = Number(t.value) || 0;
+          const v = document.getElementById("ppConvVal"); if (v) v.textContent = n.conviction;
+        } else if (t.id === "ppNote") {
+          n.note = t.value;
+        }
+        fireBoardChange();
+      });
+    });
+  })();
 
   /* ── Boot ────────────────────────────────────────────────────── */
   document.addEventListener("DOMContentLoaded", () => {
