@@ -62,8 +62,71 @@
     return out;
   }
 
+  function detrendNorm(y) {
+    const n = y.length;
+    if (!n) return [];
+    let sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (let i = 0; i < n; i++) {
+      sx += i;
+      sy += y[i];
+      sxx += i * i;
+      sxy += i * y[i];
+    }
+    const b = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1), a = (sy - b * sx) / n;
+    const d = y.map((v, i) => v - (a + b * i));
+    let m = 0;
+    d.forEach(v => m += v);
+    m /= n;
+    let s = 0;
+    d.forEach(v => s += (v - m) * (v - m));
+    s = Math.sqrt(s / n) || 1;
+    return d.map(v => (v - m) / s);
+  }
+
+  function pdmTheta(z, P, nbins) {
+    nbins = nbins || 10;
+    const n = z.length;
+    const bins = Array.from({ length: nbins }, () => []);
+    for (let i = 0; i < n; i++) {
+      const ph = ((i % P) + P) % P / P;
+      bins[Math.min(nbins - 1, Math.floor(ph * nbins))].push(z[i]);
+    }
+    let num = 0, cnt = 0, gm = 0;
+    for (let i = 0; i < n; i++) gm += z[i];
+    gm /= n;
+    let gv = 0;
+    for (let i = 0; i < n; i++) gv += (z[i] - gm) * (z[i] - gm);
+    gv /= n;
+    bins.forEach(b => {
+      if (b.length < 2) return;
+      let m = 0;
+      b.forEach(v => m += v);
+      m /= b.length;
+      let v = 0;
+      b.forEach(x => v += (x - m) * (x - m));
+      num += v;
+      cnt += b.length - 1;
+    });
+    return cnt > 0 && gv > 0 ? (num / cnt) / gv : NaN;
+  }
+
+  function scanPeriod(z, opts) {
+    const o = opts || {}, pmin = o.pmin || 8, pmax = o.pmax || Math.floor(z.length / 3), step = o.step || 0.5;
+    const curve = [];
+    let best = pmin, bt = Infinity;
+    for (let P = pmin; P <= pmax; P += step) {
+      const t = pdmTheta(z, P);
+      curve.push({ P, theta: t });
+      if (!isNaN(t) && t < bt) {
+        bt = t;
+        best = P;
+      }
+    }
+    return { best, curve };
+  }
+
   function evalBlocks(graph, data) {
-    const { order, byId, inputsOf } = buildDAG(graph), values = {};
+    const { order, byId, inputsOf } = buildDAG(graph), values = {}, meta = {};
     for (const id of order) {
       const n = byId[id], ins = inputsOf[id].map(i => values[i]);
       if (n.blockType === "price") {
@@ -79,12 +142,17 @@
           for (let t = 0; t < len; t++) out[t] += (ins[j][t] || 0) * wk;
         });
         values[id] = out;
+      } else if (n.blockType === "phasefold") {
+        const src = ins[0] || data.price, dn = detrendNorm(src);
+        const sc = scanPeriod(dn, { pmin: (n.params && n.params.pmin) || 8, pmax: (n.params && n.params.pmax) || Math.floor(src.length / 3) });
+        values[id] = dn;
+        meta[id] = { best: sc.best, theta: pdmTheta(dn, sc.best), curve: sc.curve };
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
     }
-    return { values };
+    return { values, meta };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod };
 });

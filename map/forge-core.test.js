@@ -54,3 +54,22 @@ test("evalBlocks computes price, ma, weighted combine", () => {
   assert.deepStrictEqual(values.m, [2, 3, 5, 7, 9]);            // len2 SMA(앞쪽 부분창)
   assert.deepStrictEqual(values.c, [2, 3.5, 5.5, 7.5, 9.5]);    // (p+m)/2
 });
+
+test("PDM finds the embedded period", () => {
+  const P0 = 40, z = []; for (let i = 0; i < 400; i++) z.push(Math.sin(2 * Math.PI * i / P0));
+  const dn = ForgeCore.detrendNorm(z);
+  assert.strictEqual(dn.length, z.length);
+  const tNear = ForgeCore.pdmTheta(dn, P0), tFar = ForgeCore.pdmTheta(dn, P0 * 1.37);
+  assert.ok(tNear < tFar); // 진짜 주기에서 θ가 더 작다
+  const { best } = ForgeCore.scanPeriod(dn, { pmin: 20, pmax: 80, step: 1 });
+  assert.ok(Math.abs(best - P0) <= 2); // 임베드 주기 복원
+});
+
+test("evalBlocks phasefold attaches period meta", () => {
+  const P0 = 32, price = []; for (let i = 0; i < 256; i++) price.push(100 + Math.sin(2 * Math.PI * i / P0));
+  const g = { nodes: [{ id: "p", kind: "block", blockType: "price" },
+                      { id: "f", kind: "block", blockType: "phasefold", params: { pmin: 16, pmax: 64 } }],
+           edges: [{ from: "p", to: "f" }] };
+  const r = ForgeCore.evalBlocks(g, { price, n: price.length });
+  assert.ok(r.meta && r.meta.f && Math.abs(r.meta.f.best - P0) <= 2);
+});
