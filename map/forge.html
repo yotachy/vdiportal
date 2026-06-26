@@ -166,6 +166,19 @@
   .forge-params textarea{min-height:48px;resize:vertical}
   .forge-params input[type=range]{flex:1}
   .forge-params .pp-conv-val{flex:0 0 34px;text-align:right;color:var(--gold)}
+
+  /* ── 썸네일 라이브러리 패널 ── */
+  .forge-lib{position:absolute;left:52px;bottom:12px;z-index:9;width:150px;max-height:42%;overflow:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px}
+  .forge-lib h4{margin:0 0 6px;font-size:11px;color:var(--eth);cursor:pointer;user-select:none}
+  .forge-lib h4:hover{color:var(--ink)}
+  .forge-lib .lib-add{font-size:11px;color:var(--gold);cursor:pointer;padding:4px;border:1px dashed var(--line);
+    border-radius:6px;text-align:center;margin-bottom:6px}
+  .forge-lib .lib-add:hover{border-color:var(--gold)}
+  .forge-lib .lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .forge-lib .lib-it img{width:100%;height:46px;object-fit:cover;border-radius:6px;cursor:grab;border:1px solid var(--line)}
+  .forge-lib .lib-it img:hover{border-color:var(--gold)}
+  .forge-lib.collapsed .lib-grid,.forge-lib.collapsed .lib-add,.forge-lib.collapsed h4 span{display:none}
 </style>
 </head>
 <body>
@@ -398,6 +411,19 @@
     img.src = src;
   }
   function setThumb(id, t){ const n=bN(id); if(n){ n.thumb=t; renderBoard(); fireBoardChange(); } }
+
+  /* ── renderLib ────────────────────────────────────────────────── */
+  function renderLib() {
+    const grid = document.getElementById("libGrid");
+    if (!grid) return;
+    grid.innerHTML = LIBRARY.length
+      ? LIBRARY.map(it =>
+          `<div class="lib-it" draggable="true" data-img="${it.id}">` +
+          `<img src="${esc(imgSrc(it.id))}" alt="${esc(it.label || "")}" title="${esc(it.label || "")}">` +
+          `</div>`
+        ).join("")
+      : `<div style="grid-column:1/-1;font-size:11px;color:var(--eth)">이미지를 추가하거나<br>노드에 파일을 드롭</div>`;
+  }
 
   /* ── Node HTML ───────────────────────────────────────────────── */
   function nodeHTML(n) {
@@ -997,6 +1023,21 @@
     _pp.id = "paramPanel";
     _pp.hidden = true;
     pane.appendChild(_pp);
+
+    /* 썸네일 라이브러리 패널 (좌하단, 줌 컨트롤 우측) */
+    const _lib = document.createElement("div");
+    _lib.className = "forge-lib";
+    _lib.id = "libPanel";
+    _lib.innerHTML =
+      `<h4 id="libHead">▸ <span>라이브러리</span></h4>` +
+      `<div class="lib-add" id="libAddBtn">＋ 이미지 추가</div>` +
+      `<div class="lib-grid" id="libGrid"></div>`;
+    pane.appendChild(_lib);
+
+    /* 숨김 file input */
+    const _fi = document.createElement("input");
+    _fi.type = "file"; _fi.id = "libFile"; _fi.accept = "image/*"; _fi.hidden = true;
+    document.body.appendChild(_fi);
   }
 
   /* ── Default strategy seed ───────────────────────────────────── */
@@ -1888,6 +1929,76 @@
         fireBoardChange();
       });
     }
+
+    /* ── 라이브러리 패널 이벤트 ── */
+    document.getElementById("libHead").addEventListener("click", () => {
+      document.getElementById("libPanel").classList.toggle("collapsed");
+    });
+    document.getElementById("libAddBtn").addEventListener("click", () => {
+      document.getElementById("libFile").click();
+    });
+    document.getElementById("libFile").addEventListener("change", e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => downscaleImage(r.result, out => {
+        const id = uid("img");
+        putImg(id, out);
+        LIBRARY.push({ id, label: f.name.replace(/\.[^.]+$/, "") });
+        renderLib();
+        bToast("썸네일 추가됨");
+      });
+      r.readAsDataURL(f); e.target.value = "";
+    });
+
+    /* lib thumbnail dragstart — delegation on #libPanel */
+    document.getElementById("libPanel").addEventListener("dragstart", e => {
+      const it = e.target.closest(".lib-it[data-img]");
+      if (!it) return;
+      e.dataTransfer.setData("text/forge-img", it.dataset.img);
+      e.dataTransfer.effectAllowed = "copy";
+    });
+
+    /* board stage drag-over + drop — no existing handler; adding fresh */
+    bStage.addEventListener("dragover", e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    });
+    bStage.addEventListener("drop", e => {
+      e.preventDefault();
+      const pt = worldPt(e.clientX, e.clientY);
+      const n = nodeAt(pt);
+
+      /* (a) library thumbnail drag → node */
+      const imgId = e.dataTransfer.getData("text/forge-img");
+      if (imgId) {
+        if (!n) { bToast("노드 위에 드롭하세요"); return; }
+        const it = LIBRARY.find(l => l.id === imgId);
+        setThumb(n.id, { imgId, label: it ? it.label : "" });
+        bToast("썸네일 적용됨");
+        return;
+      }
+
+      /* (b) OS image file drop → node */
+      const files = e.dataTransfer.files;
+      if (files && files.length) {
+        const f = Array.from(files).find(fl => fl.type.startsWith("image/"));
+        if (!f) return;
+        if (!n) { bToast("노드 위에 파일을 드롭하세요"); return; }
+        const r = new FileReader();
+        r.onload = () => downscaleImage(r.result, out => {
+          const id = uid("img");
+          putImg(id, out);
+          const label = f.name.replace(/\.[^.]+$/, "");
+          LIBRARY.push({ id, label });
+          setThumb(n.id, { imgId: id, label });
+          renderLib();
+          bToast("썸네일 적용됨");
+        });
+        r.readAsDataURL(f);
+      }
+    });
+
+    renderLib();
 
     onBoardChange(() => { clearTimeout(_t); _t = setTimeout(runForge, 180); });
     document.getElementById("runBtn").addEventListener("click", runForge);
