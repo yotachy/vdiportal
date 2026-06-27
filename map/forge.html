@@ -605,11 +605,13 @@
       LIBRARY.length = 0; (META.library || []).forEach(it => LIBRARY.push(it));
       await loadDoc(META.activeId && DOCS.some(d => d.id === META.activeId) ? META.activeId : DOCS[0].id);
     } else {
-      // 첫 부팅/빈 데이터 → 기본 문서 시드
-      seedDefaultStrategy();
+      // 첫 부팅/빈 데이터 → BTC/USD 샘플 포지 시드
+      buildSampleForge();
       autoLayout("v");
-      const dc = { id: uid("doc"), title: "New Forge", themeImgId: themeState.imgId || null,
-        nodes: boardState.nodes, edges: boardState.edges, view: { tx: view.tx, ty: view.ty, scale: view.scale }, updated: new Date().toISOString() };
+      const dc = { id: uid("doc"), title: "BTC/USD 분석 (샘플)", themeImgId: themeState.imgId || null,
+        nodes: boardState.nodes, edges: boardState.edges,
+        vision: _visionData ? { series: _visionData.price, bias: ForgeCore.sampleGraph().vision.bias, note: _visionNote, waves: _visionWaves } : null,
+        view: { tx: view.tx, ty: view.ty, scale: view.scale }, updated: new Date().toISOString() };
       DOCS = [dc]; activeId = dc.id; META = { library: [], activeId: dc.id };
       if (window.renderSidebar) renderSidebar(); runForge();
       if (SERVER_OK) writeBackActive();
@@ -1329,6 +1331,20 @@
     addEdge(ma.id,        "right",  combine.id,   "left");
     addEdge(phasefold.id, "right",  combine.id,   "left");
     addEdge(combine.id,   "right",  predict.id,   "left");
+  }
+
+  /* ── Sample Forge seed ──────────────────────────────────────── */
+  function buildSampleForge() {
+    const g = ForgeCore.sampleGraph();
+    // 깊은 복사(공유 객체 변형 방지) + 렌더 캐시 필드 없음
+    boardState.nodes = g.nodes.map(n => JSON.parse(JSON.stringify(n)));
+    boardState.edges = g.edges.map(e => ({ id: uid("e"), ...e }));
+    themeState.imgId = g.themeImgId || null;
+    const s = g.vision.series;
+    _visionData = { price: s, n: s.length };
+    _visionBias = ForgeCore.visionBiasFrom(g.vision.bias);
+    _visionNote = g.vision.note || "";
+    _visionWaves = g.vision.waves || [];
   }
 
   /* ════════════════════════════════════════════════════════════════
