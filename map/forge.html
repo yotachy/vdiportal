@@ -1951,10 +1951,11 @@
     if (!SERVER_OK) { bToast("서버 연결이 필요합니다(분석 요청)"); return; }
     if (!themeState.imgId) { bToast("대표 이미지를 먼저 추가하세요"); return; }
     if (_pollT) { bToast("이미 분석 요청 중입니다"); return; }
+    _pollT = 1;                              // sentinel: 가드 즉시 닫음(await 중 더블클릭 방지)
+    _setReqStat("분석 대기 중…", "pending");  // 버튼 비활성
     runForge();
     const r = await apiPost({ op: "enqueue", docId: activeId, imgId: themeState.imgId, board: boardToGraph() });
-    if (!r || !r.ok || !r.job) { bToast("분석 요청 실패"); return; }
-    _setReqStat("분석 대기 중…", "pending");
+    if (!r || !r.ok || !r.job) { _stopPoll(); _setReqStat("", ""); bToast("분석 요청 실패"); return; }
     _startPoll(r.job.id);
   }
   function _startPoll(jobId) {
