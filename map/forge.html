@@ -341,6 +341,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628a</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -450,6 +451,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = false;   // 비전 분석 워커 준비 전까지 '☁ 분석 요청' 비활성('곧 제공'). 워커 구현 시 true.
+  console.log("[forge] build b0628a");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -3189,6 +3191,7 @@
         if (ev.target.closest("#neDelNode")) { delNodes([node.id]); return; }
         if (ev.target.closest("#neSeriesEx")) {            // 예시 데이터 원클릭 → 적용 + 차트
           node.series = sampleCloseSeries(); markDirty(); runForge(); deselectAll();
+          console.log("[forge] 예시데이터 적용 — series", node.series.length, "hasRealSeries", hasRealSeries(), "pred.path", lastResult && lastResult.prediction && lastResult.prediction.path.length);
           bToast("예시 데이터 적용 — 연속 차트(과거+예측)"); return;
         }
         if (ev.target.closest("#neSeriesApply")) {         // 붙여넣은 데이터 적용 + 차트
