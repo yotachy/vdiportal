@@ -630,13 +630,19 @@
   /* ── 주제 배너 ───────────────────────────────────────────────── */
   let themeState = { imgId: null, title: "" };
 
+  /* 대표(주제) 이미지 = 가격 노드 이미지 우선, 없으면 문서 주제 이미지 */
+  function heroImgId() {
+    const price = boardState.nodes.find(n => n.blockType === "price" && n.thumb && n.thumb.imgId);
+    return price ? price.thumb.imgId : (themeState.imgId || null);
+  }
   function renderHero() {
     const el = document.getElementById("fcHeroImg"); if (!el) return;
-    el.innerHTML = themeState.imgId
-      ? `<img src="${imgSrc(themeState.imgId)}" alt="">`
-      : `<span class="fc-hero-ph">라이브러리에서 대표 이미지를 드래그하세요</span>`;
+    const id = heroImgId();
+    el.innerHTML = id
+      ? `<img src="${imgSrc(id)}" alt="">`
+      : `<span class="fc-hero-ph">가격 노드에 차트 이미지를 추가하세요<br>(노드 선택 후 클릭 · 드래그 · Ctrl+V)</span>`;
   }
-  function renderTheme() { renderHero(); if (_visionData && lastResult) renderChart(lastResult, currentData()); }
+  function renderTheme() { renderHero(); if (visionLive() && lastResult) renderChart(lastResult, currentData()); }
 
   function setThemeImg(imgId) { themeState.imgId = imgId; renderTheme(); markDirty(); }
   function downscaleImage(src, cb){
@@ -691,7 +697,8 @@
     dc.nodes = boardState.nodes.map(n => { const o = {}; for (const k in n) { if (k[0] !== "_") o[k] = n[k]; } return o; });
     dc.edges = boardState.edges.map(e => { const o = {}; for (const k in e) { if (k[0] !== "_") o[k] = e[k]; } return o; });
     dc.themeImgId = themeState.imgId; dc.title = themeState.title || dc.title;
-    dc.vision = _visionData
+    /* 실제 분석 시계열만 저장. 비전 비활성 동안엔 null로 정리(누수된 샘플 시계열 자동 제거). */
+    dc.vision = visionLive()
       ? { series: _visionData.price, bias: dc.vision && dc.vision.bias || null, note: _visionNote, waves: _visionWaves }
       : null;
     dc.view = { tx: view.tx, ty: view.ty, scale: view.scale };
@@ -1963,12 +1970,12 @@
       if (t) t.innerHTML = "<b>분석 차트</b> · 과거+예측";
     } else {
       if (img) img.style.display = ""; if (fut) fut.style.display = ""; if (main) main.style.display = "none";
-      if (t) t.innerHTML = "<b>대표 이미지</b> · 가격 차트";
+      if (t) t.innerHTML = "<b>가격 차트</b> · 이미지 + 예측";
     }
   }
 
   function fcRenderForecast(pred) {
-    if (_visionData) fcDrawMainChart(currentData().price, pred);
+    if (visionLive()) fcDrawMainChart(currentData().price, pred);
     else fcDrawFuture(pred);
   }
 
@@ -2001,8 +2008,8 @@
     }
 
     /* draw all panels */
-    fcHeroMode(_visionData ? "chart" : "image");
-    if (!_visionData) renderHero();
+    fcHeroMode(visionLive() ? "chart" : "image");
+    if (!visionLive()) renderHero();
     fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] });
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
@@ -2130,7 +2137,11 @@
   /* ── Forge data + runForge ───────────────────────────────────── */
   let data = ForgeCore.makeDemoSeries({ n: 480, seed: 1, period: 64 });
   let _visionData = null, _visionBias = 0, _visionNote = "", _visionWaves = [];
-  function currentData() { return _visionData || data; }
+  /* 실제 분석 시계열만 연속 '분석 차트'를 구동. 비전 워커 비활성 동안엔 항상 null
+     → 가격 노드 이미지 + 예측 콘(이미지 모드). 워커 도입(VISION_ENABLED) 시 부활. */
+  function visionLive() { return (VISION_ENABLED && _visionData) ? _visionData : null; }
+  function visionBiasLive() { return visionLive() ? _visionBias : 0; }
+  function currentData() { return visionLive() || data; }
   let lastResult = null;
   let _t = null;
   let _playT = null, _playRaf = null, _playing = false, _analyzeNode = null;
@@ -2188,7 +2199,7 @@
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
     runForge();
     let steps;
-    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: 120, visionBias: _visionBias }); }
+    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: 120, visionBias: visionBiasLive() }); }
     catch (e) { console.warn("steps", e); return; }
     if (!steps.length) return;
     if (prefersReducedMotion()) { renderChart(lastResult, currentData()); bToast("포지 분석 완료"); return; }
@@ -2249,7 +2260,7 @@
     try {
       const g = boardToGraph();
       const d = currentData();
-      lastResult = ForgeCore.run(g, d, { futW: 120, visionBias: _visionBias });
+      lastResult = ForgeCore.run(g, d, { futW: 120, visionBias: visionBiasLive() });
       renderChart(lastResult, d);
       paintScanBadges();
       if (window.renderOverlay) renderOverlay(lastResult, g);
