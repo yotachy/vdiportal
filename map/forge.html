@@ -19,9 +19,15 @@
   body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,system-ui,sans-serif;letter-spacing:-0.01em}
   .forge-top{display:flex;align-items:center;gap:14px;height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
   .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
-  .forge-split{display:grid;grid-template-columns:1fr 1fr;flex:1;min-width:0}
-  .board-pane{position:relative;overflow:hidden;border-right:1px solid var(--line);display:flex;flex-direction:column}
-  .chart-pane{position:relative;overflow:hidden;display:flex;flex-direction:column}
+  .forge-split{display:flex;flex:1;min-width:0}
+  .board-pane{position:relative;flex:1 1 auto;min-width:280px;overflow:hidden;display:flex;flex-direction:column}
+  .chart-pane{position:relative;flex:0 0 460px;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
+  /* 좌우 크기조절 거터 */
+  .forge-gutter{flex:0 0 7px;background:var(--line);cursor:col-resize;position:relative;z-index:6;transition:background .12s}
+  .forge-gutter::before{content:"";position:absolute;left:-4px;right:-4px;top:0;bottom:0}
+  .forge-gutter::after{content:"";position:absolute;left:2px;top:50%;width:3px;height:34px;transform:translateY(-50%);border-radius:2px;background:#3a4452;transition:background .12s}
+  .forge-gutter:hover,.forge-gutter.dragging{background:var(--gold-dim)}
+  .forge-gutter:hover::after,.forge-gutter.dragging::after{background:var(--gold)}
   .run-btn{background:var(--gold);color:#1a1206;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer}
 
   /* ════════════════════════════════════════════════════
@@ -140,6 +146,23 @@
   }
   .export-btn:hover{background:var(--raised2);color:var(--ink)}
 
+  /* ══ header groups + buttons ══ */
+  .brand-by{color:var(--eth);font-weight:500;font-size:13px}
+  .h-group{display:flex;align-items:center;gap:8px}
+  .h-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .tool-btn{background:transparent;color:var(--eth);border:1px solid var(--line);border-radius:8px;
+    padding:7px 13px;font-weight:600;cursor:pointer;font-family:inherit;font-size:13px;white-space:nowrap;
+    transition:background .12s,color .12s,border-color .12s}
+  .tool-btn:hover{background:var(--raised2);color:var(--ink);border-color:#3a4452}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+  .seg-btn{background:transparent;color:var(--eth);border:0;border-right:1px solid var(--line);
+    padding:7px 12px;font-weight:600;cursor:pointer;font-family:inherit;font-size:13px;white-space:nowrap;
+    transition:background .12s,color .12s}
+  .seg-btn:last-child{border-right:0}
+  .seg-btn:hover{background:var(--raised2);color:var(--ink)}
+  .seg-btn:active{color:var(--gold)}
+  .h-sep{width:1px;align-self:stretch;margin:6px 2px;background:var(--line)}
+
   /* hero panel (대표 이미지) */
   .fc-panel-hero{flex:1 1 auto;min-height:300px}
   .fc-hero{display:flex;gap:6px;height:100%;min-height:260px}
@@ -148,6 +171,18 @@
   .fc-hero .fc-hero-ph{color:var(--eth);font-size:12px;text-align:center;padding:0 14px;line-height:1.5}
   #fcFuture{flex:0 0 200px;height:100%}
   #fcMainChart{flex:1;height:100%;display:none}
+
+  /* 결과 영역 반응형: 폭이 좁아지면 패널을 세로로 적층 */
+  @container (max-width:440px){
+    .fc-folds{grid-template-columns:1fr}
+  }
+  @container (max-width:380px){
+    .fc-hero{flex-direction:column;min-height:auto}
+    .fc-hero-img{min-height:150px}
+    #fcFuture{flex:0 0 140px;width:100%;height:140px}
+    .fc-phead{flex-direction:column;align-items:flex-start;gap:2px}
+    .fc-pbody,.fc-folds{padding:8px}
+  }
 
   /* block palette (floats over board-pane) */
   .forge-palette{
@@ -187,11 +222,12 @@
   .forge-params .pp-conv-val{flex:0 0 34px;text-align:right;color:var(--gold)}
 
   /* ── 사이드바 이미지 라이브러리 ── */
-  .forge-side .lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding-top:4px}
-  .forge-side .lib-it{position:relative}
-  .forge-side .lib-it img{width:100%;height:46px;object-fit:cover;border-radius:6px;cursor:grab;border:1px solid var(--line)}
+  .forge-side .lib-grid{display:flex;gap:5px;padding:4px 0 2px;overflow-x:auto;overflow-y:hidden;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .forge-side .lib-it{position:relative;flex:0 0 46px}
+  .forge-side .lib-it img{width:46px;height:42px;object-fit:cover;border-radius:6px;cursor:grab;border:1px solid var(--line)}
   .forge-side .lib-it:hover img{border-color:var(--gold)}
-  .forge-side .lib-del{position:absolute;top:3px;right:3px;width:18px;height:18px;padding:0;border:0;border-radius:5px;
+  .forge-side .lib-del{position:absolute;top:2px;right:2px;width:16px;height:16px;padding:0;border:0;border-radius:5px;
     background:rgba(11,15,20,.72);color:#fff;font-size:12px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center}
   .forge-side .lib-it:hover .lib-del{display:flex}
   .forge-side .lib-del:hover{background:var(--bear,#e06a6a)}
@@ -200,10 +236,12 @@
      SIDEBAR  (Task 3)
      ════════════════════════════════════════════════════ */
   .forge-shell{display:flex;height:calc(100vh - 54px)}
-  .forge-side{flex:0 0 220px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+  .forge-side{flex:0 0 168px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
   .forge-side.collapsed{flex-basis:0;border:0}
   .forge-side .side-sec{padding:10px;border-bottom:1px solid var(--line)}
   .forge-side .side-h{font-size:11px;color:var(--eth);margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
+  .forge-side .side-actions{display:flex;gap:6px;margin:0 0 8px}
+  .forge-side .side-actions .side-btn{flex:1;text-align:center;padding:5px 4px}
   .forge-side .doc-row{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--ink)}
   .forge-side .doc-row.active{background:var(--raised2);color:var(--gold)}
   .forge-side .doc-row:hover{background:var(--raised2)}
@@ -211,7 +249,7 @@
   .side-btn:hover{color:var(--ink);border-color:var(--eth)}
 
   /* ── 포지 분석 재생 ── */
-  .analyze-prog{font-size:11px;color:var(--eth);margin-left:auto}
+  .analyze-prog{font-size:11px;color:var(--eth)}
   .req-stat{font-size:12px;color:var(--eth);letter-spacing:-0.01em;min-width:0}
   .req-stat.working{color:var(--gold)}
   .req-stat.err{color:var(--bear,#e06a6a)}
@@ -223,16 +261,24 @@
 </head>
 <body>
   <header class="forge-top">
-    <div class="brand">Scoop<em>Forge</em> <span style="color:var(--eth);font-weight:500">by MoneyScoop</span></div>
+    <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
-    <button class="export-btn" onclick="autoLayout('v')">세로 정렬</button>
-    <button class="export-btn" onclick="autoLayout('h')">가로 정렬</button>
-    <button class="export-btn" id="exportBtn" onclick="exportStrategy()">내보내기</button>
-    <span id="analyzeProg" class="analyze-prog"></span>
-    <span id="reqStat" class="req-stat"></span>
-    <button class="export-btn" id="reqBtn" onclick="requestAnalysis()">☁ 분석 요청</button>
-    <button class="run-btn analyze-btn" id="analyzeBtn" onclick="playAnalysis()">▷ 포지 분석</button>
-    <button class="run-btn" id="runBtn">▷ 실행</button>
+    <span class="h-sep"></span>
+    <div class="h-group">
+      <div class="seg" role="group" aria-label="노드 정렬">
+        <button class="seg-btn" id="alignVBtn" onclick="autoLayout('v')" title="세로 정렬">⬍ 세로</button>
+        <button class="seg-btn" id="alignHBtn" onclick="autoLayout('h')" title="가로 정렬">⬌ 가로</button>
+      </div>
+      <button class="tool-btn" id="exportBtn" onclick="exportStrategy()" title="전략 내보내기">↧ 내보내기</button>
+    </div>
+    <div class="h-actions">
+      <span id="analyzeProg" class="analyze-prog"></span>
+      <span id="reqStat" class="req-stat"></span>
+      <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()">☁ 분석 요청</button>
+      <span class="h-sep"></span>
+      <button class="run-btn analyze-btn" id="analyzeBtn" onclick="playAnalysis()">▷ 포지 분석</button>
+      <button class="run-btn" id="runBtn">▷ 실행</button>
+    </div>
   </header>
   <div class="forge-shell">
   <aside class="forge-side" id="forgeSide"></aside>
@@ -240,6 +286,7 @@
     <section class="board-pane" id="boardPane">
       <!-- Board DOM injected by boardInit() on DOMContentLoaded -->
     </section>
+    <div class="forge-gutter" id="forgeGutter" title="드래그하여 좌우 크기 조절 · 더블클릭 초기화"></div>
     <section class="chart-pane" id="chartPane">
       <div id="verdictBadge" class="verdict-badge"></div>
       <div class="fc-wrap">
@@ -377,7 +424,9 @@
     boardState.nodes.forEach(n => { (byL[layer[n.id]] = byL[layer[n.id]] || []).push(n); });
     const layers = Object.keys(byL).map(Number).sort((a, b) => a - b);
     const PAD = 40;
-    if (dir === "h") {
+    /* 형태 기준 매핑: '세로'(v)=레이어를 가로로 펼치고 형제는 세로로 쌓아 길쭉(tall),
+       '가로'(h)=레이어를 세로로 쌓고 형제는 가로로 펼쳐 넓적(wide). */
+    if (dir === "v") {
       layers.forEach(L => { const col = byL[L].slice().sort((a, b) => a.y - b.y); let cy = PAD; const x = PAD + L * 330; col.forEach(n => { n.x = x; n.y = cy; cy += (n._h || 90) + 38; }); });
       boardState.edges.forEach(e => { e.fromSide = "right"; e.toSide = "left"; });
     } else {
@@ -554,7 +603,7 @@
             `<button class="lib-del" data-libdel="${esc(it.id)}" title="라이브러리에서 삭제" aria-label="삭제">✕</button>` +
             `</div>`
           ).join("")
-        : `<div style="grid-column:1/-1;font-size:11px;color:var(--eth)">이미지를 추가하거나 Ctrl+V로 붙여넣기</div>`) +
+        : `<div style="font-size:11px;color:var(--eth);padding:2px 0">이미지를 추가하거나 Ctrl+V로 붙여넣기</div>`) +
       `</div>`;
   }
   /* 라이브러리(팔레트)에서 이미지 제거 — 노드/대표이미지는 그대로 유지(graceful) */
@@ -656,7 +705,8 @@
          <button class="side-btn" data-docdel="${d.id}">✕</button>
        </div>`).join("");
     el.innerHTML =
-      `<div class="side-sec"><div class="side-h"><span>포지</span><button class="side-btn" id="sampleDocBtn">＋ 샘플</button><button class="side-btn" id="newDocBtn">＋ New Forge</button></div>${docs}</div>
+      `<div class="side-sec"><div class="side-h"><span>포지</span></div>
+         <div class="side-actions"><button class="side-btn" id="sampleDocBtn">＋ 샘플</button><button class="side-btn" id="newDocBtn">＋ 새 포지</button></div>${docs}</div>
        <div class="side-sec" id="libSec"></div>`;
     if (window.renderLib) renderLib();   // 라이브러리 섹션(Task 4)
   }
@@ -1888,11 +1938,46 @@
   }
 
   /* resize: re-render with stored last result/data */
-  window.addEventListener("resize", () => {
+  function redrawCharts() {
     if (!_fcLastResult || !_fcLastData) return;
     if (fcRAF) cancelAnimationFrame(fcRAF);
     fcRAF = requestAnimationFrame(() => renderChart(_fcLastResult, _fcLastData));
-  });
+  }
+  window.addEventListener("resize", redrawCharts);
+
+  /* ── 거터: 캔버스 / 결과 영역 좌우 크기 조절 ───────────────────── */
+  (function initGutter() {
+    const split = document.querySelector(".forge-split");
+    const gutter = document.getElementById("forgeGutter");
+    const chart = document.getElementById("chartPane");
+    if (!split || !gutter || !chart) return;
+    const DEFW = 460, MINC = 240, MINB = 280;
+    let dragging = false;
+    gutter.addEventListener("pointerdown", e => {
+      dragging = true; gutter.classList.add("dragging");
+      try { gutter.setPointerCapture(e.pointerId); } catch (_) {}
+      document.body.style.userSelect = "none";
+      e.preventDefault();
+    });
+    gutter.addEventListener("pointermove", e => {
+      if (!dragging) return;
+      const r = split.getBoundingClientRect();
+      const maxC = r.width - MINB - 7;
+      const w = Math.max(MINC, Math.min(maxC, r.right - e.clientX));
+      chart.style.flexBasis = w + "px";
+      redrawCharts();
+    });
+    function end(e) {
+      if (!dragging) return;
+      dragging = false; gutter.classList.remove("dragging");
+      try { gutter.releasePointerCapture(e.pointerId); } catch (_) {}
+      document.body.style.userSelect = "";
+      redrawCharts();
+    }
+    gutter.addEventListener("pointerup", end);
+    gutter.addEventListener("pointercancel", end);
+    gutter.addEventListener("dblclick", () => { chart.style.flexBasis = DEFW + "px"; redrawCharts(); });
+  })();
 
   /* ── renderVerdict: regime badge at top of chart pane ────────── */
   function renderVerdict(verdict) {
