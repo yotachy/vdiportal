@@ -520,7 +520,7 @@
       ? `<img src="${imgSrc(themeState.imgId)}" alt="">`
       : `<span class="fc-hero-ph">라이브러리에서 대표 이미지를 드래그하세요</span>`;
   }
-  function renderTheme() { renderHero(); }
+  function renderTheme() { renderHero(); if (_visionData && lastResult) renderChart(lastResult, currentData()); }
 
   function setThemeImg(imgId) { themeState.imgId = imgId; renderTheme(); markDirty(); }
   function downscaleImage(src, cb){
@@ -1393,6 +1393,15 @@
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     return c;
   }
+  /* fcFit과 동일하나 크기 변동 없으면 백버퍼 재할당 생략(재생 프레임마다 호출용 — 호출부가 clearRect 직접 수행). */
+  function fcFitKeep(cv, h) {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const W = Math.round(cv.clientWidth * dpr), H = Math.round(h * dpr);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    const c = cv.getContext("2d");
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return c;
+  }
 
   /* ── fcSizeMain: main chart auto-height from clientWidth ── */
   function fcSizeMain(cv) {
@@ -1737,7 +1746,7 @@
 
   function fcDrawMainChart(series, pred) {
     const cv = document.getElementById("fcMainChart"); if (!cv) return;
-    const ch = cv.clientHeight || 260, c = fcFit(cv, ch);
+    const ch = cv.clientHeight || 260, c = fcFitKeep(cv, ch);
     const cw = cv.clientWidth || 600;
     c.clearRect(0, 0, cw, ch);
     const hist = (series || []).slice(-180);
@@ -1747,7 +1756,7 @@
       c.fillText("분석 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return;
     }
     const anchor = (pred && pred.anchor != null) ? pred.anchor : hist[hist.length - 1];
-    let loV = Math.min.apply(null, hist), hiV = Math.max.apply(null, hist);
+    let loV = Math.min(...hist), hiV = Math.max(...hist);
     for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); }
     loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);
     const padV = (hiV - loV) * 0.1 || 1; loV -= padV; hiV += padV;
@@ -1765,12 +1774,11 @@
     // history line
     c.strokeStyle = FC_GOLD; c.lineWidth = 2; c.beginPath();
     hist.forEach((v, i) => { const x = toXh(i), y = toY(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
-    // seam ("지금")
-    c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
-    c.beginPath(); c.moveTo(seamX, padTop - 6); c.lineTo(seamX, ch - padBot); c.stroke(); c.setLineDash([]);
-    c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.fillText("지금", seamX + 3, padTop - 2);
-    // forecast cone + path (continues from anchor)
+    // seam ("지금") + forecast cone + path — 예측 path 있을 때만(없으면 과거가 전폭, y라벨 겹침 방지)
     if (path.length) {
+      c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
+      c.beginPath(); c.moveTo(seamX, padTop - 6); c.lineTo(seamX, ch - padBot); c.stroke(); c.setLineDash([]);
+      c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.fillText("지금", seamX + 3, padTop - 2);
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k]));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(lo[k]));
