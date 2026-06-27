@@ -359,5 +359,52 @@
     return dir * s * SCALE;
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom };
+  function sampleSeries() {
+    const n = 480, out = [];
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      let v = 30000 + 38000 * t;                         // 상승추세 30k→68k
+      v += 5000 * Math.sin(t * Math.PI * 2.2);           // 큰 주기
+      v += 1800 * Math.sin(t * Math.PI * 5.5 + 0.8);     // 작은 주기
+      if (t > 0.50 && t < 0.68) v -= 8000 * Math.sin((t - 0.50) / 0.18 * Math.PI); // 중간 조정 딥
+      // 마지막 상승 강화 (t > 0.72)
+      if (t > 0.72) v += 4000 * Math.sin((t - 0.72) / 0.28 * Math.PI * 0.5);
+      out.push(Math.round(v));
+    }
+    return out;
+  }
+
+  function sampleGraph() {
+    const T = (imgId, label) => ({ imgId, label });
+    const nodes = [
+      { id: "s_price", kind: "block", blockType: "price",     params: {},                 x: 40,  y: 120, title: "가격",        conviction: 0,   weight: 50, thumb: T("smp_main", "BTC/USD"), desc: "BTC/USD 일봉 — 상승추세 속 단기 조정 구간" },
+      { id: "s_ma",    kind: "block", blockType: "ma",        params: { len: 20 },        x: 320, y: 0,   title: "이동평균(20)", conviction: 40,  weight: 55, thumb: T("smp_ma", "MA20"),     desc: "가격이 MA20 상회 — 추세 지지 유효" },
+      { id: "s_wave",  kind: "block", blockType: "phasefold", params: { pmin: 16, pmax: 128 }, x: 320, y: 100, title: "파동 스캔",  conviction: 0,   weight: 60, thumb: T("smp_wave", "주기"),   desc: "지배 주기 검출 — 다음 저점 구간 추정" },
+      { id: "s_rsi",   kind: "block", blockType: "rsi",       params: { period: 14 },     x: 320, y: 200, title: "RSI(14)",     conviction: -20, weight: 50, thumb: T("smp_rsi", "RSI"),     desc: "과매수 근접 — 단기 과열 신호" },
+      { id: "s_fib",   kind: "block", blockType: "fib",       params: { len: 120 },       x: 320, y: 300, title: "피보나치",    conviction: 30,  weight: 50, thumb: T("smp_fib", "Fib"),     desc: "0.618 되돌림 지지 확인 후 반등" },
+      { id: "s_trend", kind: "block", blockType: "trend",     params: { len: 40 },        x: 320, y: 400, title: "추세선",      conviction: 35,  weight: 70, thumb: T("smp_trend", "Trend"), desc: "상승 회귀선 — 우상향 추세 유지" },
+      { id: "s_ell",   kind: "block", blockType: "elliott",   params: { swing: 3 },       x: 320, y: 500, title: "엘리어트",    conviction: 25,  weight: 55, thumb: T("smp_elliott", "Wave"),desc: "5파 진행 추정 — 상승 후반 경계" },
+      { id: "s_comb",  kind: "block", blockType: "combine",   params: {},                 x: 600, y: 250, title: "가중결합",    conviction: 0,   weight: 50, desc: "소스별 weight 가중 결합" },
+      { id: "s_pred",  kind: "block", blockType: "predict",   params: {},                 x: 860, y: 250, title: "예측·시그널", conviction: 0,   weight: 50, thumb: T("smp_predict", "예측"), desc: "" },
+      { id: "s_memo",  kind: "free",  blockType: null,        params: {},                 x: 40,  y: 320, title: "포지 메모",   conviction: 0,   weight: 50, desc: "종합: 상승 우세. RSI 과열로 단기 조정 가능하나 추세선·피보 지지로 추가 상승 시나리오 우위." }
+    ];
+    const E = (from, to) => ({ from, fromSide: "right", to, toSide: "left" });
+    const edges = [
+      E("s_price", "s_ma"), E("s_price", "s_wave"), E("s_price", "s_rsi"),
+      E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"),
+      E("s_ma", "s_comb"), E("s_wave", "s_comb"), E("s_rsi", "s_comb"),
+      E("s_fib", "s_comb"), E("s_trend", "s_comb"), E("s_ell", "s_comb"),
+      E("s_comb", "s_pred")
+    ];
+    const series = sampleSeries();
+    const vision = {
+      series,
+      bias: { dir: "bull", strength: 0.55 },
+      note: "베이크된 BTC/USD 샘플 — 상승추세 속 조정 후 반등",
+      waves: [{ from: 0, to: 160, label: "1파" }, { from: 160, to: 326, label: "조정" }, { from: 326, to: 479, label: "상승" }]
+    };
+    return { nodes, edges, vision, themeImgId: "smp_main" };
+  }
+
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph };
 });

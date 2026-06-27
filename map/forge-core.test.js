@@ -357,3 +357,48 @@ test("runSteps forwards opts.visionBias (last step === run(full))", () => {
   assert.deepStrictEqual(steps[steps.length - 1].signal, full.signal);
   assert.deepStrictEqual(steps[steps.length - 1].prediction.path, full.prediction.path);
 });
+
+test("sampleSeries: deterministic, 480 pts, net uptrend with mid correction", () => {
+  const a = ForgeCore.sampleSeries(), b = ForgeCore.sampleSeries();
+  assert.strictEqual(a.length, 480);
+  assert.deepStrictEqual(a, b);                       // 결정적
+  assert.ok(a[479] > a[0]);                            // 순상승
+  assert.ok(a.every(v => isFinite(v) && v > 0));
+  // 중간 조정 딥(i≈240~326): 구간 최저가 양 끝보다 낮음
+  const seg = a.slice(240, 327), lo = Math.min(...seg);
+  assert.ok(lo < a[240] && lo < a[326]);
+  // 최근 상승(과매수 서술 근거): 마지막 10봉 상승
+  assert.ok(a[479] > a[469]);
+  // MA20 상회 서술 근거: 마지막 종가 > 최근 20봉 평균
+  const last20 = a.slice(-20), mean20 = last20.reduce((s, v) => s + v, 0) / 20;
+  assert.ok(a[479] > mean20);
+});
+
+test("sampleGraph: 10 nodes, DAG runs, descriptions are truthful, bullish net", () => {
+  const g = ForgeCore.sampleGraph();
+  assert.strictEqual(g.nodes.length, 10);
+  assert.strictEqual(g.themeImgId, "smp_main");
+  assert.ok(Array.isArray(g.vision.series) && g.vision.series.length === 480);
+  const data = { price: g.vision.series, n: g.vision.series.length };
+  const vb = ForgeCore.visionBiasFrom(g.vision.bias);
+  const r = ForgeCore.run(g, data, { futW: 120, visionBias: vb });
+  assert.strictEqual(r.signal.length, 480);
+  assert.strictEqual(r.prediction.path.length, 120);
+  // 추세선 우상향 서술 근거: 마지막 40봉 회귀 기울기 > 0
+  const last40 = data.price.slice(-40);
+  const nn = last40.length, xs = last40.map((_, i) => i);
+  const mx = xs.reduce((s, v) => s + v, 0) / nn, my = last40.reduce((s, v) => s + v, 0) / nn;
+  let num = 0, den = 0; for (let i = 0; i < nn; i++) { num += (xs[i] - mx) * (last40[i] - my); den += (xs[i] - mx) ** 2; }
+  assert.ok(num / den > 0);
+  // 파동 스캔: 지배 주기 검출(meta.best 존재)
+  assert.ok(Object.values(r.meta || {}).some(m => m && m.best));
+  // 엘리어트: 파동 meta 존재
+  assert.ok(Object.values(r.meta || {}).some(m => m && Array.isArray(m.waves)));
+  // 종합 강세: bull 확신/바이어스로 score 양수
+  assert.ok(r.verdict.score > 0);
+  // conviction/weight가 실제로 시그널을 끌어올림: 확신 0화 대비 score 상승
+  const g0 = JSON.parse(JSON.stringify(g));
+  g0.nodes.forEach(n => n.conviction = 0);
+  const r0 = ForgeCore.run(g0, data, { futW: 120, visionBias: 0 });
+  assert.ok(r.verdict.score >= r0.verdict.score);
+});
