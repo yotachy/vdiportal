@@ -154,6 +154,11 @@
     padding:7px 13px;font-weight:600;cursor:pointer;font-family:inherit;font-size:13px;white-space:nowrap;
     transition:background .12s,color .12s,border-color .12s}
   .tool-btn:hover{background:var(--raised2);color:var(--ink);border-color:#3a4452}
+  .tool-btn:disabled{cursor:not-allowed}
+  .tool-btn.req-soon{display:inline-flex;align-items:center;gap:7px;color:var(--faint);border-style:dashed;border-color:var(--line);opacity:.7}
+  .tool-btn.req-soon:hover{background:transparent;color:var(--faint);border-color:var(--line)}
+  .soon-tag{font-size:9px;font-weight:700;letter-spacing:.02em;color:var(--gold);background:rgba(232,180,99,.12);
+    border:1px solid var(--gold-dim);border-radius:5px;padding:1px 5px;line-height:1.4}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
   .seg-btn{background:transparent;color:var(--eth);border:0;border-right:1px solid var(--line);
     padding:7px 12px;font-weight:600;cursor:pointer;font-family:inherit;font-size:13px;white-space:nowrap;
@@ -291,7 +296,7 @@
     <div class="h-actions">
       <span id="analyzeProg" class="analyze-prog"></span>
       <span id="reqStat" class="req-stat"></span>
-      <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()">☁ 분석 요청</button>
+      <button class="tool-btn req-soon" id="reqBtn" onclick="requestAnalysis()" disabled aria-disabled="true" title="비전 분석은 준비 중입니다 — 곧 제공 예정">☁ 분석 요청<span class="soon-tag">곧 제공</span></button>
       <span class="h-sep"></span>
       <button class="run-btn analyze-btn" id="analyzeBtn" onclick="playAnalysis()">▷ 포지 분석</button>
       <button class="run-btn" id="runBtn">▷ 실행</button>
@@ -379,6 +384,7 @@
 
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
+  const VISION_ENABLED = false;   // 비전 분석 워커 준비 전까지 '☁ 분석 요청' 비활성('곧 제공'). 워커 구현 시 true.
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -682,8 +688,8 @@
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
     renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); runForge();
-    // 새 문서의 진행 중 잡 복원
-    if (SERVER_OK && activeId) {
+    // 새 문서의 진행 중 잡 복원 (비전 분석 활성 시에만)
+    if (VISION_ENABLED && SERVER_OK && activeId) {
       const jr = await apiGet("?jobs&docId=" + encodeURIComponent(activeId));
       const live = jr && jr.jobs && jr.jobs.filter(j => j.status === "pending" || j.status === "working").sort((a, b) => strCmp(b.created, a.created))[0];
       if (live) { _setReqStat(live.status === "working" ? "분석 중…" : "분석 대기 중…", live.status); _startPoll(live.id); }
@@ -2213,6 +2219,7 @@
     const b = document.getElementById("reqBtn"); if (b) b.disabled = !!cls && cls !== "err";
   }
   async function requestAnalysis() {
+    if (!VISION_ENABLED) { bToast("비전 분석은 준비 중입니다 (곧 제공)"); return; }
     if (!SERVER_OK) { bToast("서버 연결이 필요합니다(분석 요청)"); return; }
     if (!themeState.imgId) { bToast("대표 이미지를 먼저 추가하세요"); return; }
     if (_pollT) { bToast("이미 분석 요청 중입니다"); return; }
