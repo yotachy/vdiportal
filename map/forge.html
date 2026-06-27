@@ -1040,8 +1040,13 @@
     const cal = ensureCal(n);
     bindConeDrag(ov, n);
     const pred = lastResult && lastResult.prediction;
-    const d = () => drawCalCone(ov, im, pred, cal, true);
-    if (!d()) im.addEventListener("load", d, { once: true });
+    coneRetry(() => drawCalCone(ov, im, pred, cal, true), im);
+  }
+  /* 이미지 디코드/레이아웃 타이밍에 강한 콘 그리기: 즉시 + onload + 다음 프레임 */
+  function coneRetry(drawFn, img) {
+    drawFn();                                              // 폴백 박스로라도 즉시 표시
+    if (img) { img.addEventListener("load", drawFn, { once: true }); if (img.decode) img.decode().then(drawFn).catch(() => {}); }
+    requestAnimationFrame(drawFn);                         // 레이아웃 반영 후 정밀 재그리기
   }
 
   function selectOnly(id)   { sel = [id]; applySel(); }
@@ -1921,12 +1926,12 @@
     const p = boardState.nodes.find(n => n.blockType === "price");
     return calComplete(p && p.cal) ? p.cal : null;
   }
-  /* 표시 이미지 사각형(object-fit:contain letterbox) */
+  /* 표시 이미지 사각형(object-fit:contain letterbox). 이미지 로드 전엔 전체 박스로 폴백(가이드 즉시 표시). */
   function coneGeo(cv, imgEl) {
     const box = cv && cv.parentElement; if (!box) return null;
     const W = box.clientWidth, H = box.clientHeight; if (!W || !H) return null;
     const nw = (imgEl && imgEl.naturalWidth) || 0, nh = (imgEl && imgEl.naturalHeight) || 0;
-    if (!nw || !nh) return null;
+    if (!nw || !nh) return { W, H, dw: W, dh: H, ox: 0, oy: 0, est: true };   // 임시(이미지 미로드)
     const sc = Math.min(W / nw, H / nh), dw = nw * sc, dh = nh * sc;
     return { W, H, dw, dh, ox: (W - dw) / 2, oy: (H - dh) / 2 };
   }
@@ -2026,7 +2031,8 @@
       const r = cv.getBoundingClientRect();
       if (drag === "nx") n.cal.nx = _clamp01((e.clientX - r.left - g.ox) / g.dw);
       else n.cal[drag] = _clamp01((e.clientY - r.top - g.oy) / g.dh);
-      refreshEditorCone();
+      const im = cv.parentElement && cv.parentElement.querySelector("img");
+      drawCalCone(cv, im, lastResult && lastResult.prediction, n.cal, true);   // 드래그 중 직접 재그리기
     });
     const end = e => { if (!drag) return; drag = null; try { cv.releasePointerCapture(e.pointerId); } catch (_) {} markDirty(); };
     cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
@@ -2142,7 +2148,7 @@
       const draw = cal
         ? () => drawCalCone(cone, img, pred, cal, false)   // 보정 완료 → 이미지 축에 콘
         : () => drawConeHint(cone, img);                   // 미보정 → 작은 안내만
-      if (!draw()) img.addEventListener("load", draw, { once: true });   // dataURL 디코드 후 재시도
+      coneRetry(draw, img);
     } else {
       if (fut) fut.style.display = "";              // 이미지 없음 → 기존 분리 콘
       if (cone) { const cc = cone.getContext("2d"); if (cc) cc.clearRect(0, 0, cone.width, cone.height); }
