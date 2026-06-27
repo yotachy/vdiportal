@@ -238,7 +238,7 @@
   .ne-img .ne-ph b{color:var(--ink)}
   .ne-img-del{position:absolute;top:7px;right:7px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;
     border:0;border-radius:7px;background:rgba(11,15,20,.66);color:#fff;font-size:14px;line-height:1;cursor:pointer;
-    opacity:.62;transition:opacity .12s,background .12s;z-index:2}
+    opacity:.62;transition:opacity .12s,background .12s;z-index:4}
   .ne-img:hover .ne-img-del{opacity:1}
   .ne-img-del:hover{background:var(--bear)}
   .ne-imgbar{display:flex;gap:6px}
@@ -1003,10 +1003,10 @@
       : `<span class="ne-ph">이미지 없음<br>클릭 · 드래그 · <b>Ctrl+V</b> 로 추가</span>`;
     const paramSec = rows.length ? `<div class="ne-sec">파라미터</div>${rows.join("")}` : "";
     const calSec = isPrice
-      ? `<div class="ne-sec">이미지 가격 보정 <span class="ne-hint">예측 콘을 이미지 축에 정렬</span></div>
-         <div class="pp-row"><label>상단가</label><input type="number" step="any" data-calkey="top" value="${cal0.top ?? ""}" placeholder="이미지 위 끝 가격"></div>
-         <div class="pp-row"><label>하단가</label><input type="number" step="any" data-calkey="bot" value="${cal0.bot ?? ""}" placeholder="이미지 아래 끝 가격"></div>
-         <div class="pp-row"><label>현재가</label><input type="number" step="any" data-calkey="now" value="${cal0.now ?? ""}" placeholder="최근 종가(콘 시작점)"></div>`
+      ? `<div class="ne-sec">이미지 가격 보정 <span class="ne-hint">위 미리보기에서 A·B선을 가격 격자에, 현재선을 최근봉에 끌어다 맞추고 가격 입력</span></div>
+         <div class="pp-row"><label>A선 가격</label><input type="number" step="any" data-calp="ap" value="${cal0.ap ?? ""}" placeholder="위쪽 기준선의 가격"></div>
+         <div class="pp-row"><label>B선 가격</label><input type="number" step="any" data-calp="bp" value="${cal0.bp ?? ""}" placeholder="아래쪽 기준선의 가격"></div>
+         <div class="pp-row"><label>현재가</label><input type="number" step="any" data-calp="np" value="${cal0.np ?? ""}" placeholder="최근 종가(현재선)"></div>`
       : "";
     panel.innerHTML =
       `<div class="ne-head"><span class="ne-type">${esc(neTypeLabel(n))}</span>
@@ -1030,17 +1030,18 @@
        <div class="ne-foot"><button class="ne-del-node" id="neDelNode" type="button">${_ico_trash}<span>노드 삭제</span></button></div>`;
     if (isPrice) refreshEditorCone();
   }
-  /* 편집기 이미지 미리보기 위 보정 콘 갱신(가격 노드 선택 시 즉시 피드백) */
+  /* 편집기 이미지 미리보기 위 보정 콘 + 드래그 핸들(가격 노드 선택 시 즉시 피드백) */
   function refreshEditorCone() {
     const ov = document.getElementById("neConeOv"); if (!ov) return;
     const neImg = document.getElementById("neImg");
     const im = neImg && neImg.querySelector("img");
-    const cal = priceCal();
-    const cc = ov.getContext("2d"); if (cc) cc.clearRect(0, 0, ov.width, ov.height);
-    if (im && cal && lastResult) {
-      const d = () => drawCalCone(ov, im, lastResult.prediction, cal);
-      if (!d()) im.addEventListener("load", d, { once: true });
-    }
+    const n = (sel.length === 1) ? bN(sel[0]) : null;
+    if (!im || !n || n.blockType !== "price") { const cc = ov.getContext("2d"); if (cc) cc.clearRect(0, 0, ov.width, ov.height); return; }
+    const cal = ensureCal(n);
+    bindConeDrag(ov, n);
+    const pred = lastResult && lastResult.prediction;
+    const d = () => drawCalCone(ov, im, pred, cal, true);
+    if (!d()) im.addEventListener("load", d, { once: true });
   }
 
   function selectOnly(id)   { sel = [id]; applySel(); }
@@ -1903,69 +1904,132 @@
     c.fillText("1", cw - padR - 5, ch - 1);
   }
 
-  /* 가격 노드의 이미지 보정값 {top,bot,now} — 유효할 때만 반환 */
+  /* 이미지 가격 보정(드래그식): cal = {ay,by(기준선 y비율 0..1), nx(현재선 x비율), ap,bp(기준선 가격), np(현재가)} */
+  const fmtNum = v => Math.round(v).toLocaleString();
+  function ensureCal(n) {
+    const c = n.cal || (n.cal = {});
+    if (c.ay == null) c.ay = 0.22; if (c.by == null) c.by = 0.78; if (c.nx == null) c.nx = 0.82;
+    if (!("ap" in c)) c.ap = null; if (!("bp" in c)) c.bp = null; if (!("np" in c)) c.np = null;
+    return c;
+  }
+  function calComplete(c) {
+    return c && isFinite(c.ap) && isFinite(c.bp) && c.ap !== c.bp && isFinite(c.np)
+      && c.ay != null && c.by != null && c.nx != null;
+  }
+  /* 히어로용: 완성된 보정만 반환 */
   function priceCal() {
     const p = boardState.nodes.find(n => n.blockType === "price");
-    const c = p && p.cal;
-    if (c && isFinite(c.top) && isFinite(c.bot) && c.top > c.bot && isFinite(c.now)) return c;
-    return null;
+    return calComplete(p && p.cal) ? p.cal : null;
   }
-  const fmtNum = v => Math.round(v).toLocaleString();
-
-  /* 보정 콘: imgEl(object-fit:contain) 위 오버레이 캔버스 cv에, cal 가격축으로 예측 콘을 그림.
-     모델 예측(데모 단위)은 앵커 대비 상대%를 사용자 현재가에 적용해 같은 축으로 매핑. */
-  function drawCalCone(cv, imgEl, pred, cal) {
-    if (!cv) return false;
-    const box = cv.parentElement; if (!box) return false;
-    const W = box.clientWidth, H = box.clientHeight;
-    if (!W || !H) return false;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    cv.style.width = W + "px"; cv.style.height = H + "px";
-    const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  /* 표시 이미지 사각형(object-fit:contain letterbox) */
+  function coneGeo(cv, imgEl) {
+    const box = cv && cv.parentElement; if (!box) return null;
+    const W = box.clientWidth, H = box.clientHeight; if (!W || !H) return null;
     const nw = (imgEl && imgEl.naturalWidth) || 0, nh = (imgEl && imgEl.naturalHeight) || 0;
-    if (!nw || !nh) return false;                       // 이미지 미로드 → 호출부가 onload 재시도
-    const sc = Math.min(W / nw, H / nh), dw = nw * sc, dh = nh * sc, ox = (W - dw) / 2, oy = (H - dh) / 2;
-    const yOf = p => oy + (1 - (p - cal.bot) / (cal.top - cal.bot)) * dh;
+    if (!nw || !nh) return null;
+    const sc = Math.min(W / nw, H / nh), dw = nw * sc, dh = nh * sc;
+    return { W, H, dw, dh, ox: (W - dw) / 2, oy: (H - dh) / 2 };
+  }
+  /* cv 크기를 부모 박스에 맞춤(dpr) — 항상 호출. img 미로드면 false */
+  function sizeOverlay(cv) {
+    const box = cv && cv.parentElement; const W = box ? box.clientWidth : 0, H = box ? box.clientHeight : 0;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (W && H) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.width = W + "px"; cv.style.height = H + "px"; }
+    const c = cv.getContext("2d"); if (c) { c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); }
+    return { c, W, H };
+  }
+  /* 보정 콘 렌더. interactive=true면 기준선/현재선 + 그립(편집기 미리보기). 미완성이면 가이드만. */
+  function drawCalCone(cv, imgEl, pred, cal, interactive) {
+    if (!cv) return false;
+    const { c, W, H } = sizeOverlay(cv);
+    if (!c) return false;
+    const g = coneGeo(cv, imgEl); if (!g) return false;   // img 미로드 → onload 재시도
+    cv._cg = g;
+    const { dw, dh, ox, oy } = g;
+    const aY = oy + cal.ay * dh, bY = oy + cal.by * dh, nowX = ox + cal.nx * dw;
+    const complete = calComplete(cal);
+    const yOf = p => aY + (p - cal.ap) * (bY - aY) / (cal.bp - cal.ap);
+    c.font = "10px ui-monospace,monospace"; c.lineWidth = 1;
+    if (interactive) {
+      /* A·B 기준선(파랑) */
+      [[aY, "A", cal.ap], [bY, "B", cal.bp]].forEach(([y, nm, pr]) => {
+        c.strokeStyle = "rgba(124,200,255,.55)"; c.setLineDash([4, 3]);
+        c.beginPath(); c.moveTo(ox, y); c.lineTo(ox + dw, y); c.stroke(); c.setLineDash([]);
+        c.fillStyle = "rgba(150,205,245,.95)"; c.textAlign = "left";
+        c.fillText(nm + "선 " + (isFinite(pr) ? fmtNum(pr) : "가격?"), ox + 5, y - 4);
+        c.fillStyle = "#7cc8ff"; c.beginPath(); c.arc(ox + dw - 9, y, 4.5, 0, 7); c.fill();
+      });
+      /* 현재선(세로, 골드) */
+      c.strokeStyle = "rgba(232,180,99,.6)"; c.setLineDash([4, 3]);
+      c.beginPath(); c.moveTo(nowX, oy); c.lineTo(nowX, oy + dh); c.stroke(); c.setLineDash([]);
+      c.fillStyle = "rgba(232,180,99,.95)"; c.textAlign = "left"; c.fillText("현재선", nowX + 3, oy + 11);
+      c.fillStyle = FC_GOLD; c.beginPath(); c.arc(nowX, oy + 20, 4.5, 0, 7); c.fill();
+    }
+    if (!complete) { return interactive; }   // 미완성: 편집기는 가이드만, 히어로는 false(안내)
+    /* 예측 콘(현재선에서 시작, 이미지 가격축으로) */
     const path = (pred && pred.path) || [], lo = (pred && pred.lo) || [], hi = (pred && pred.hi) || [];
     const a = (pred && pred.anchor != null) ? pred.anchor : (path[0] || 0);
-    const up = v => cal.now * (1 + (a ? (v - a) / a : 0));     // 데모→사용자가
-    const x0 = ox + dw * 0.60, x1 = ox + dw * 0.985;
+    const up = v => cal.np * (1 + (a ? (v - a) / a : 0));
+    const x0 = nowX, x1 = ox + dw * 0.99;
     const xOf = k => x0 + (path.length > 1 ? k / (path.length - 1) : 0) * (x1 - x0);
-    c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
-    /* 상단가/하단가 가이드(이미지 위·아래 끝) */
-    c.strokeStyle = "rgba(138,146,178,.35)"; c.setLineDash([3, 3]); c.lineWidth = 1;
-    c.beginPath(); c.moveTo(ox, yOf(cal.top) + .5); c.lineTo(ox + dw, yOf(cal.top) + .5); c.stroke();
-    c.beginPath(); c.moveTo(ox, yOf(cal.bot) - .5); c.lineTo(ox + dw, yOf(cal.bot) - .5); c.stroke();
-    c.setLineDash([]);
-    c.fillStyle = "rgba(160,168,196,.95)";
-    c.fillText("상단가 " + fmtNum(cal.top), ox + 5, yOf(cal.top) + 12);
-    c.fillText("하단가 " + fmtNum(cal.bot), ox + 5, yOf(cal.bot) - 5);
-    /* 현재가 가이드 */
-    const ynow = yOf(cal.now);
-    c.strokeStyle = "rgba(232,180,99,.65)"; c.setLineDash([4, 3]); c.lineWidth = 1;
+    const ynow = yOf(cal.np);
+    c.strokeStyle = "rgba(232,180,99,.55)"; c.setLineDash([4, 3]); c.lineWidth = 1;
     c.beginPath(); c.moveTo(ox, ynow); c.lineTo(x1, ynow); c.stroke(); c.setLineDash([]);
     if (path.length) {
-      /* 콘 채움 */
       c.beginPath(); c.moveTo(x0, ynow);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(up(hi[k])));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(xOf(k), yOf(up(lo[k])));
       c.closePath(); c.fillStyle = "rgba(232,180,99,.17)"; c.fill();
-      /* 예측 경로(점선) */
       c.strokeStyle = FC_GOLD; c.lineWidth = 1.8; c.setLineDash([5, 4]);
       c.beginPath(); c.moveTo(x0, ynow);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(up(path[k])));
       c.stroke(); c.setLineDash([]);
-      /* 예측 끝값 라벨 */
       const endP = up(path[path.length - 1]);
       c.fillStyle = FC_ETH; c.textAlign = "right";
-      c.fillText(fmtNum(endP), x1 - 2, Math.max(10, Math.min(H - 3, yOf(endP) - 5)));
-      c.textAlign = "left";
+      c.fillText(fmtNum(endP), x1 - 2, Math.max(10, Math.min(H - 3, yOf(endP) - 5))); c.textAlign = "left";
     }
-    /* 현재가 점+라벨 */
     c.fillStyle = FC_GOLD; c.beginPath(); c.arc(x0, ynow, 3.5, 0, 7); c.fill();
-    c.fillText("현재가 " + fmtNum(cal.now), x0 + 7, ynow - 6);
+    c.fillStyle = "rgba(232,180,99,.95)"; c.textAlign = "left";
+    c.fillText("현재가 " + fmtNum(cal.np), x0 + 7, ynow - 6);
     return true;
+  }
+  /* 미보정 안내(히어로) — 떠다니는 분리 콘 대신 이미지 위 작은 안내 */
+  function drawConeHint(cv, imgEl) {
+    const { c, W, H } = sizeOverlay(cv); if (!c) return false;
+    const g = coneGeo(cv, imgEl); if (!g) return false;
+    c.font = "11px Pretendard,system-ui,sans-serif"; c.textAlign = "center";
+    c.fillStyle = "rgba(180,188,210,.85)";
+    c.fillText("예측 콘 정렬 — 가격 노드 ▸ 이미지 보정", W / 2, H - 11);
+    return true;
+  }
+  /* 편집기 미리보기 콘 드래그(기준선/현재선) */
+  function bindConeDrag(cv, n) {
+    if (!cv || cv._coneBound) return; cv._coneBound = true;
+    cv.style.pointerEvents = "auto";
+    const hit = e => {
+      const g = cv._cg; if (!g) return null;
+      const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      const aY = g.oy + n.cal.ay * g.dh, bY = g.oy + n.cal.by * g.dh, nowX = g.ox + n.cal.nx * g.dw;
+      if (Math.abs(x - nowX) < 9 && y > g.oy - 4 && y < g.oy + g.dh + 4) return "nx";
+      if (Math.abs(y - aY) < 10) return "ay";
+      if (Math.abs(y - bY) < 10) return "by";
+      return null;
+    };
+    let drag = null;
+    cv.addEventListener("pointerdown", e => {
+      const h = hit(e); if (!h) return;
+      drag = h; try { cv.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault();
+    });
+    cv.addEventListener("pointermove", e => {
+      const g = cv._cg; if (!g) return;
+      if (!drag) { const h = hit(e); cv.style.cursor = h ? (h === "nx" ? "ew-resize" : "ns-resize") : "default"; return; }
+      const r = cv.getBoundingClientRect();
+      if (drag === "nx") n.cal.nx = _clamp01((e.clientX - r.left - g.ox) / g.dw);
+      else n.cal[drag] = _clamp01((e.clientY - r.top - g.oy) / g.dh);
+      refreshEditorCone();
+    });
+    const end = e => { if (!drag) return; drag = null; try { cv.releasePointerCapture(e.pointerId); } catch (_) {} markDirty(); };
+    cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
   }
 
   /* ── fcDrawFuture: draw prediction cone + dashed path on #fcFuture ── */
@@ -2073,12 +2137,14 @@
     const img = heroImg && heroImg.querySelector("img");
     const cone = document.getElementById("fcCone");
     const fut = document.getElementById("fcFuture");
-    if (cal && img && cone) {
-      if (fut) fut.style.display = "none";          // 보정 콘 사용 → 분리 콘 숨김(이미지 전체폭)
-      const draw = () => drawCalCone(cone, img, pred, cal);
+    if (img && cone) {
+      if (fut) fut.style.display = "none";          // 이미지 모드: 떠다니는 분리 콘 제거
+      const draw = cal
+        ? () => drawCalCone(cone, img, pred, cal, false)   // 보정 완료 → 이미지 축에 콘
+        : () => drawConeHint(cone, img);                   // 미보정 → 작은 안내만
       if (!draw()) img.addEventListener("load", draw, { once: true });   // dataURL 디코드 후 재시도
     } else {
-      if (fut) fut.style.display = "";
+      if (fut) fut.style.display = "";              // 이미지 없음 → 기존 분리 콘
       if (cone) { const cc = cone.getContext("2d"); if (cc) cc.clearRect(0, 0, cone.width, cone.height); }
       fcDrawFuture(pred);
     }
@@ -2946,10 +3012,10 @@
           n.title = t.value;
           const tEl = bWorld && bWorld.querySelector(`.b-node[data-id="${n.id}"] .b-n-title`);
           if (tEl && tEl.textContent !== t.value) tEl.textContent = t.value;
-        } else if (t.dataset.calkey) {
-          n.cal = n.cal || {};
+        } else if (t.dataset.calp) {
+          ensureCal(n);
           const raw = String(t.value).trim(), v = raw === "" ? null : Number(raw);
-          n.cal[t.dataset.calkey] = (v == null || !isFinite(v)) ? null : v;
+          n.cal[t.dataset.calp] = (v == null || !isFinite(v)) ? null : v;
           refreshEditorCone();            // 편집기 미리보기 즉시 갱신
         }
         fireBoardChange();
