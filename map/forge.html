@@ -1028,10 +1028,14 @@
     const paramSec = rows.length ? `<div class="ne-sec">파라미터</div>${rows.join("")}` : "";
     const series = (Array.isArray(n.series) && n.series.length) ? n.series : null;
     const dataSec = isPrice
-      ? `<div class="ne-sec">가격 데이터 <span class="ne-hint">종가를 붙여넣으면 실제 분석·예측이 켜집니다 (한 줄에 한 봉, 20개+)</span></div>
+      ? `<div class="ne-sec">가격 데이터 <span class="ne-hint">종가 붙여넣기 → 실제 분석·예측 (한 줄 한 봉, OHLC/CSV 자동인식)</span></div>
          <div class="pp-row" style="flex-direction:column;align-items:stretch">
-           <textarea id="neSeries" placeholder="종가 붙여넣기&#10;412.5&#10;418.0&#10;420.3&#10;...">${esc(series ? series.join("\n") : "")}</textarea></div>
-         <div class="na-empty" id="neSeriesStat" style="text-align:left;padding:3px 2px 0">${series ? (series.length + "개 적용됨 — 연속 차트(과거+예측) ON") : "데이터 없음 — 데모로 표시 중"}</div>`
+           <textarea id="neSeries" placeholder="종가 붙여넣기 (20개+)&#10;412.5&#10;418.0&#10;420.3&#10;...">${esc(series ? series.join("\n") : "")}</textarea></div>
+         <div class="ne-imgbar">
+           <button class="tool-btn" type="button" id="neSeriesEx">예시 데이터로 보기</button>
+           <button class="tool-btn" type="button" id="neSeriesApply">적용하고 차트 보기</button>
+         </div>
+         <div class="na-empty" id="neSeriesStat" style="text-align:left;padding:3px 2px 0">${series ? ("✓ " + series.length + "개 적용됨 — 배경 클릭 시 연속 차트") : "데이터 없음 — 데모로 표시 중"}</div>`
       : "";
     /* 보정(이미지 축)은 실데이터가 없을 때만(실데이터면 연속 차트가 흐름을 보여줌) */
     const calSec = (isPrice && !series)
@@ -2446,6 +2450,12 @@
     });
     return out;
   }
+  /* 결정적 예시 종가 시계열(데이터 없이 연속 차트 기능 확인용) */
+  function sampleCloseSeries() {
+    const out = []; let p = 230;
+    for (let i = 0; i < 170; i++) { p += Math.sin(i / 8) * 7 + Math.sin(i / 3) * 2.2 + (i > 95 ? 1.7 : 0.4); out.push(Math.round(p * 100) / 100); }
+    return out;
+  }
   let lastResult = null;
   let _t = null;
   let _playT = null, _playRaf = null, _playing = false, _analyzeNode = null;
@@ -3177,6 +3187,18 @@
         const node = neNode(); if (!node) return;
         if (ev.target.closest("#neImgDel")) { setThumb(node.id, null); return; }
         if (ev.target.closest("#neDelNode")) { delNodes([node.id]); return; }
+        if (ev.target.closest("#neSeriesEx")) {            // 예시 데이터 원클릭 → 적용 + 차트
+          node.series = sampleCloseSeries(); markDirty(); runForge(); deselectAll();
+          bToast("예시 데이터 적용 — 연속 차트(과거+예측)"); return;
+        }
+        if (ev.target.closest("#neSeriesApply")) {         // 붙여넣은 데이터 적용 + 차트
+          const ta = document.getElementById("neSeries");
+          let arr = ta ? parseSeries(ta.value) : [];
+          if (arr.length > 2000) arr = arr.slice(-2000);
+          if (arr.length >= 20) { node.series = arr; markDirty(); runForge(); deselectAll(); bToast(arr.length + "개 적용 — 연속 차트"); }
+          else { delete node.series; bToast("종가 20개 이상 필요 (현재 " + arr.length + "개)"); }
+          return;
+        }
         const hasImg = node.thumb && node.thumb.imgId;
         if (ev.target.closest("#neImgPick") || (ev.target.closest("#neImg") && !hasImg)) {
           const fi = document.getElementById("neImgFile"); if (fi) fi.click();
