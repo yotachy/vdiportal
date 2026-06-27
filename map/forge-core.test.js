@@ -400,5 +400,5 @@ test("sampleGraph: 10 nodes, DAG runs, descriptions are truthful, bullish net", 
   const g0 = JSON.parse(JSON.stringify(g));
   g0.nodes.forEach(n => n.conviction = 0);
   const r0 = ForgeCore.run(g0, data, { futW: 120, visionBias: 0 });
-  assert.ok(r.verdict.score >= r0.verdict.score);
+  assert.ok(r.verdict.score > r0.verdict.score);
 });
