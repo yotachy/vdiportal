@@ -670,7 +670,7 @@
       : `<span class="fc-hero-ph">가격 노드에 차트 이미지를 추가하세요<br>(노드 선택 후 클릭 · 드래그 · Ctrl+V)</span>`)
       + `<canvas id="fcCone" class="fc-cone-ov"></canvas>`;
   }
-  function renderTheme() { renderHero(); if (visionLive() && lastResult) renderChart(lastResult, currentData()); }
+  function renderTheme() { renderHero(); if (hasRealSeries() && lastResult) renderChart(lastResult, currentData()); }
 
   function setThemeImg(imgId) { themeState.imgId = imgId; renderTheme(); markDirty(); }
   function downscaleImage(src, cb){
@@ -1026,8 +1026,16 @@
          ${isPrice ? `<canvas id="neConeOv" class="fc-cone-ov"></canvas>` : ""}`
       : `<span class="ne-ph">이미지 없음<br>클릭 · 드래그 · <b>Ctrl+V</b> 로 추가</span>`;
     const paramSec = rows.length ? `<div class="ne-sec">파라미터</div>${rows.join("")}` : "";
-    const calSec = isPrice
-      ? `<div class="ne-sec">이미지 가격 보정 <span class="ne-hint">위 미리보기에서 A·B선을 가격 격자에, 현재선을 최근봉에 끌어다 맞추고 가격 입력</span></div>
+    const series = (Array.isArray(n.series) && n.series.length) ? n.series : null;
+    const dataSec = isPrice
+      ? `<div class="ne-sec">가격 데이터 <span class="ne-hint">종가를 붙여넣으면 실제 분석·예측이 켜집니다 (한 줄에 한 봉, 20개+)</span></div>
+         <div class="pp-row" style="flex-direction:column;align-items:stretch">
+           <textarea id="neSeries" placeholder="종가 붙여넣기&#10;412.5&#10;418.0&#10;420.3&#10;...">${esc(series ? series.join("\n") : "")}</textarea></div>
+         <div class="na-empty" id="neSeriesStat" style="text-align:left;padding:3px 2px 0">${series ? (series.length + "개 적용됨 — 연속 차트(과거+예측) ON") : "데이터 없음 — 데모로 표시 중"}</div>`
+      : "";
+    /* 보정(이미지 축)은 실데이터가 없을 때만(실데이터면 연속 차트가 흐름을 보여줌) */
+    const calSec = (isPrice && !series)
+      ? `<div class="ne-sec">이미지 가격 보정 <span class="ne-hint">데이터가 없을 때만 — A·B선을 격자에, 현재선을 최근봉에 끌어다 맞추고 가격 입력</span></div>
          <div class="pp-row"><label>A선 가격</label><input type="number" step="any" data-calp="ap" value="${cal0.ap ?? ""}" placeholder="위쪽 기준선의 가격"></div>
          <div class="pp-row"><label>B선 가격</label><input type="number" step="any" data-calp="bp" value="${cal0.bp ?? ""}" placeholder="아래쪽 기준선의 가격"></div>
          <div class="pp-row"><label>현재가</label><input type="number" step="any" data-calp="np" value="${cal0.np ?? ""}" placeholder="최근 종가(현재선)"></div>`
@@ -1039,6 +1047,7 @@
        <div class="ne-imgbar">
          <button class="tool-btn" type="button" id="neImgPick">${hasImg ? "이미지 교체" : "이미지 추가"}</button>
        </div>
+       ${dataSec}
        ${paramSec}
        ${calSec}
        <div class="ne-sec">가중치</div>
@@ -2168,7 +2177,7 @@
   }
 
   function fcRenderForecast(pred) {
-    if (visionLive()) { fcDrawMainChart(currentData().price, pred); return; }
+    if (hasRealSeries()) { fcDrawMainChart(currentData().price, pred); return; }   // 실데이터 → 연속 차트(예측 흐름)
     const cal = priceCal();
     const heroImg = document.getElementById("fcHeroImg");
     const img = heroImg && heroImg.querySelector("img");
@@ -2216,8 +2225,8 @@
     }
 
     /* draw all panels */
-    fcHeroMode(visionLive() ? "chart" : "image");
-    if (!visionLive()) renderHero();
+    fcHeroMode(hasRealSeries() ? "chart" : "image");
+    if (!hasRealSeries()) renderHero();
     fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] });
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
@@ -2415,7 +2424,28 @@
      → 가격 노드 이미지 + 예측 콘(이미지 모드). 워커 도입(VISION_ENABLED) 시 부활. */
   function visionLive() { return (VISION_ENABLED && _visionData) ? _visionData : null; }
   function visionBiasLive() { return visionLive() ? _visionBias : 0; }
-  function currentData() { return visionLive() || data; }
+  /* 실데이터(가격 노드에 붙여넣은 시계열) 우선 → 연속 차트(과거+예측). 없으면 비전, 둘 다 없으면 데모. */
+  function priceSeries() {
+    const p = boardState.nodes.find(n => n.blockType === "price");
+    const s = p && p.series;
+    if (Array.isArray(s) && s.length >= 20 && s.every(x => isFinite(x))) return s;
+    if (visionLive()) return _visionData.price;
+    return null;
+  }
+  function buildData(series) {
+    return { price: series.slice(), candle: series.map(c => ({ o: c, h: c, l: c, c })), orange: [], blue: [], n: series.length };
+  }
+  function hasRealSeries() { return !!priceSeries(); }
+  function currentData() { const s = priceSeries(); return s ? buildData(s) : data; }
+  /* 붙여넣은 텍스트 → 종가 배열. 한 줄=한 봉. 줄에 4개 이상 수면 OHLC(V)로 보고 종가(4번째) 사용. */
+  function parseSeries(txt) {
+    const out = [];
+    String(txt).split(/[\n\r]+/).forEach(ln => {
+      const nums = ln.split(/[\s,;\t]+/).map(Number).filter(v => isFinite(v));
+      if (nums.length) out.push(nums.length >= 4 ? nums[3] : nums[nums.length - 1]);
+    });
+    return out;
+  }
   let lastResult = null;
   let _t = null;
   let _playT = null, _playRaf = null, _playing = false, _analyzeNode = null;
@@ -3120,6 +3150,13 @@
           const raw = String(t.value).trim(), v = raw === "" ? null : Number(raw);
           n.cal[t.dataset.calp] = (v == null || !isFinite(v)) ? null : v;
           refreshEditorCone();            // 편집기 미리보기 즉시 갱신
+        } else if (t.id === "neSeries") {
+          let arr = parseSeries(t.value);
+          if (arr.length > 2000) arr = arr.slice(-2000);   // 저장 크기·속도 한도(최근 2000봉)
+          if (arr.length >= 20) n.series = arr; else delete n.series;
+          const stat = document.getElementById("neSeriesStat");
+          if (stat) stat.textContent = arr.length >= 20 ? (arr.length + "개 적용됨 — 연속 차트(과거+예측) ON")
+            : arr.length ? (arr.length + "개 — 20개 이상 필요") : "데이터 없음 — 데모로 표시 중";
         }
         fireBoardChange();
       });
