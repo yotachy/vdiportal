@@ -342,7 +342,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628b</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628c</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -452,7 +452,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = false;   // 비전 분석 워커 준비 전까지 '☁ 분석 요청' 비활성('곧 제공'). 워커 구현 시 true.
-  console.log("[forge] build b0628b");
+  console.log("[forge] build b0628c");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2125,6 +2125,7 @@
     c.clearRect(0, 0, cw, ch);
     const hist = (series || []).slice(-180);
     const path = (pred && pred.path) || [], lo = (pred && pred.lo) || [], hi = (pred && pred.hi) || [];
+    console.log("[forge] mainChart: clientWxH", cv.clientWidth + "x" + cv.clientHeight, "cw/ch", cw + "/" + ch, "disp", getComputedStyle(cv).display, "hist", hist.length, "path", path.length);
     if (hist.length < 2) {
       c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
       c.fillText("분석 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return;
@@ -2184,6 +2185,7 @@
   }
 
   function fcRenderForecast(pred) {
+    console.log("[forge] forecast: hasRealSeries", hasRealSeries(), "pred.path", pred && pred.path && pred.path.length);
     if (hasRealSeries()) { fcDrawMainChart(currentData().price, pred); return; }   // 실데이터 → 연속 차트(예측 흐름)
     const cal = priceCal();
     const heroImg = document.getElementById("fcHeroImg");
