@@ -319,6 +319,23 @@
   .play-hud .ph-seg{width:9px;height:5px;border-radius:2px;background:var(--raised2);transition:background .2s}
   .play-hud .ph-seg.done{background:var(--gold)}
   .play-hud .ph-seg.cur{background:var(--gold);box-shadow:0 0 7px rgba(232,180,99,.8)}
+
+  /* ── 노드별 분석 패널 ── */
+  .na-list{display:flex;flex-direction:column;gap:6px}
+  .na-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;
+    background:linear-gradient(180deg,rgba(255,255,255,.012),transparent)}
+  .na-type{flex:0 0 auto;min-width:60px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--gold);background:rgba(232,180,99,.1);border:1px solid var(--gold-dim);border-radius:5px;padding:3px 7px;text-align:center}
+  .na-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .na-name{font-size:12px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+  .na-read{font-size:11px;color:var(--eth);font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .na-stance{flex:0 0 auto;display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .na-dir{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px}
+  .na-dir.bull{color:var(--bull);background:rgba(70,194,142,.12)}
+  .na-dir.bear{color:var(--bear);background:rgba(224,106,106,.12)}
+  .na-dir.neutral{color:var(--eth);background:rgba(138,146,178,.1)}
+  .na-wt{font-size:10px;color:var(--faint);font-family:ui-monospace,monospace}
+  .na-empty{font-size:12px;color:var(--eth);padding:10px 2px;text-align:center}
 </style>
 </head>
 <body>
@@ -366,7 +383,14 @@
             </div>
           </div>
         </div>
-        <div class="fc-panel">
+        <div class="fc-panel" id="fcNodesPanel">
+          <div class="fc-phead">
+            <span class="fc-t"><b>노드별 분석</b> · 각 블록의 판독</span>
+            <span class="fc-meta" id="fcNodesMeta">–</span>
+          </div>
+          <div class="fc-pbody"><div id="fcNodes" class="na-list"></div></div>
+        </div>
+        <div class="fc-panel" id="fcPdmPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>PDM 스펙트럼</b> · 주기별 정합도</span>
             <span class="fc-meta">y = 100·(1−θ)</span>
@@ -375,7 +399,7 @@
             <canvas id="fcPdm" class="fc-cv"></canvas>
           </div>
         </div>
-        <div class="fc-panel">
+        <div class="fc-panel" id="fcFoldPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>위상 폴딩</b> · 구간 포개기</span>
             <span class="fc-meta">traces tighten when locked</span>
@@ -1040,7 +1064,6 @@
     const cal = ensureCal(n);
     bindConeDrag(ov, n);
     const box = ov.parentElement;
-    console.log("[cone] refresh: box", box && (box.clientWidth + "x" + box.clientHeight), "imgNat", im.naturalWidth + "x" + im.naturalHeight, "complete", im.complete);
     const drawFn = () => drawCalCone(ov, ov.parentElement && ov.parentElement.querySelector("img"), lastResult && lastResult.prediction, cal, true);
     coneRetry(drawFn, im);
     /* 박스가 레이아웃을 얻는 순간 확실히 재그리기 */
@@ -1956,7 +1979,6 @@
     const { c, W, H } = sizeOverlay(cv);
     if (!c) return false;
     const g = coneGeo(cv, imgEl);
-    if (cv.id === "neConeOv") console.log("[cone] draw: box", W + "x" + H, "g", g ? (Math.round(g.dw) + "x" + Math.round(g.dh) + (g.est ? " est" : "")) : "NULL", "interactive", interactive);
     if (!g) return false;   // 박스 0크기 → 재시도
     cv._cg = g;
     const { dw, dh, ox, oy } = g;
@@ -2215,6 +2237,72 @@
       fcDrawFold(document.getElementById("fcFoldB"), blueArr,    "파랑 osc", FC_BLU,  bestP, 0);
       fcDrawFold(document.getElementById("fcFoldC"), closeArr,   "가격 close", FC_GOLD, bestP, 0);
     }
+    renderNodeAnalysis(result);
+    togglePhasefoldPanels();
+  }
+
+  /* ── 노드별 분석 패널 ──────────────────────────────────────────── */
+  const BTLABEL = { price: "가격", ma: "이동평균", phasefold: "파동스캔", combine: "가중결합", trend: "추세선", rsi: "RSI", fib: "피보나치", elliott: "엘리어트", volume: "거래량", predict: "예측" };
+  function regimeKo(r) { return r === "bull" ? "상승" : r === "bear" ? "하락" : "중립"; }
+  function nodeReadText(n, result, priceLast) {
+    const v = result && result.values && result.values[n.id];
+    const last = (v && v.length) ? v[v.length - 1] : null;
+    const m = result && result.meta && result.meta[n.id];
+    switch (n.blockType) {
+      case "price": return last != null ? "현재가 " + fmtNum(last) : "—";
+      case "ma": {
+        if (last == null) return "—";
+        const rel = priceLast != null ? (priceLast >= last ? " · 가격 상회 ↑" : " · 가격 하회 ↓") : "";
+        return "MA " + fmtNum(last) + rel;
+      }
+      case "rsi": {
+        if (last == null) return "—";
+        const rsi = Math.round(last * 50 + 50);
+        return "RSI " + rsi + " · " + (rsi >= 70 ? "과매수" : rsi <= 30 ? "과매도" : "중립");
+      }
+      case "trend":
+        return last == null ? "—" : "기울기 " + (last > 0.12 ? "상승 ↑" : last < -0.12 ? "하락 ↓" : "횡보 →");
+      case "fib": {
+        if (last == null) return "—";
+        const pct = Math.round((last + 1) / 2 * 100);
+        return "범위 " + pct + "% " + (pct >= 66 ? "(상단권)" : pct <= 33 ? "(하단권)" : "(중단권)");
+      }
+      case "phasefold": return (m && m.best != null) ? "지배주기 P*≈" + Math.round(m.best) + (isFinite(m.theta) ? " · θ" + m.theta.toFixed(2) : "") : "스캔 대기";
+      case "elliott": return (m && m.current) ? "파동 " + m.current.label + " " + (m.current.dir > 0 ? "▲" : m.current.dir < 0 ? "▼" : "–") : "—";
+      case "combine": return last != null ? "결합값 " + (last > 0 ? "+" : "") + (Math.round(last * 1000) / 1000) : "—";
+      case "predict": return (result && result.verdict) ? "국면 " + regimeKo(result.verdict.regime) + " · 시그널 " + Math.round(result.verdict.score) : "—";
+      case "volume": return "참고 입력(계산 없음)";
+      default: return n.note ? n.note : "—";
+    }
+  }
+  function renderNodeAnalysis(result) {
+    const host = document.getElementById("fcNodes"); if (!host) return;
+    const blocks = boardState.nodes.filter(n => n.kind === "block");
+    const metaEl = document.getElementById("fcNodesMeta");
+    if (metaEl) metaEl.textContent = blocks.length ? blocks.length + "개 블록" : "";
+    if (!blocks.length || !result) { host.innerHTML = `<div class="na-empty">블록을 추가하면 노드별 판독이 표시됩니다</div>`; return; }
+    const priceNode = blocks.find(n => n.blockType === "price");
+    const pv = priceNode && result.values && result.values[priceNode.id];
+    const priceLast = (pv && pv.length) ? pv[pv.length - 1] : null;
+    host.innerHTML = blocks.map(n => {
+      const conv = n.conviction || 0;
+      const dir = conv > 5 ? "bull" : conv < -5 ? "bear" : "neutral";
+      const dirTxt = dir === "bull" ? "상승편향" : dir === "bear" ? "하락편향" : "중립";
+      const wt = (n.weight != null) ? n.weight : 50;
+      const read = nodeReadText(n, result, priceLast);
+      return `<div class="na-row">
+        <span class="na-type">${esc(BTLABEL[n.blockType] || n.blockType || "노드")}</span>
+        <div class="na-mid"><div class="na-name">${esc(n.title || "노드")}</div>
+          <div class="na-read">${esc(read)}</div></div>
+        <div class="na-stance"><span class="na-dir ${dir}">${dirTxt}</span><span class="na-wt">중요도 ${wt}</span></div>
+      </div>`;
+    }).join("");
+  }
+  function togglePhasefoldPanels() {
+    const has = boardState.nodes.some(n => n.blockType === "phasefold");
+    const pdm = document.getElementById("fcPdmPanel"), fold = document.getElementById("fcFoldPanel");
+    if (pdm) pdm.style.display = has ? "" : "none";
+    if (fold) fold.style.display = has ? "" : "none";
   }
 
   /* resize: re-render with stored last result/data */
