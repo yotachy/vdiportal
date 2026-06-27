@@ -71,6 +71,11 @@ if ($op === "enqueue" || $op === "claim" || $op === "result") {
   $jdoc = is_file($jf) ? json_decode(file_get_contents($jf), true) : null;
   if (!is_array($jdoc) || !isset($jdoc["jobs"]) || !is_array($jdoc["jobs"])) $jdoc = ["jobs"=>[], "_rev"=>0];
   $now = gmdate("c");
+  $JOB_TTL = 300;  // working 잡 TTL(초): 이 시간 초과 시 stale로 간주하여 재수거
+  $is_stale = function($j) use ($JOB_TTL, $now) {
+    if (!isset($j["claimed"]) || !$j["claimed"]) return false;
+    return (strtotime($now) - strtotime($j["claimed"])) > $JOB_TTL;
+  };
   $resp = null; $code = 0;
 
   if ($op === "enqueue") {
@@ -79,11 +84,20 @@ if ($op === "enqueue" || $op === "claim" || $op === "result") {
     $board = isset($d["board"]) && is_array($d["board"]) ? $d["board"] : null;
     if ($docId === null || $board === null) { $code = 400; }
     else {
-      $dup = null;
-      foreach ($jdoc["jobs"] as $j) {
-        if (isset($j["docId"]) && $j["docId"] === $docId && ($j["status"] === "pending" || $j["status"] === "working")) { $dup = $j; break; }
+      $dup = null; $stale_idx = null;
+      foreach ($jdoc["jobs"] as $i => $j) {
+        if (!isset($j["docId"]) || $j["docId"] !== $docId) continue;
+        if ($j["status"] === "pending" || ($j["status"] === "working" && !$is_stale($j))) { $dup = $j; break; }
+        if ($j["status"] === "working" && $is_stale($j)) { $stale_idx = $i; }
       }
       if ($dup) { $resp = ["ok"=>true, "job"=>$dup]; }
+      elseif ($stale_idx !== null) {
+        // stale working 잡 재수거 → pending으로 복귀 (토큰 무효화, 워커 늦은 result는 409)
+        $jdoc["jobs"][$stale_idx]["status"] = "pending";
+        $jdoc["jobs"][$stale_idx]["token"] = null;
+        $jdoc["jobs"][$stale_idx]["claimed"] = null;
+        $resp = ["ok"=>true, "job"=>$jdoc["jobs"][$stale_idx]];
+      }
       else {
         $job = [
           "id" => "job_" . bin2hex(random_bytes(6)),
@@ -107,7 +121,7 @@ if ($op === "enqueue" || $op === "claim" || $op === "result") {
   } elseif ($op === "claim") {
     $picked = null;
     foreach ($jdoc["jobs"] as $i => $j) {
-      if ($j["status"] === "pending") {
+      if ($j["status"] === "pending" || ($j["status"] === "working" && $is_stale($j))) {
         $tok = bin2hex(random_bytes(8));
         $jdoc["jobs"][$i]["status"] = "working";
         $jdoc["jobs"][$i]["token"] = $tok;

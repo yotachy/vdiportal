@@ -209,6 +209,7 @@
   .req-stat{font-size:12px;color:var(--eth);letter-spacing:-0.01em;min-width:0}
   .req-stat.working{color:var(--gold)}
   .req-stat.err{color:var(--bear,#e06a6a)}
+  .req-stat.pending{color:var(--eth);opacity:.75}
   .analyze-btn{background:transparent;color:var(--gold);border:1px solid var(--gold)}
   .analyze-btn:hover{background:rgba(232,180,99,.12)}
   .b-node.analyzing{box-shadow:0 0 0 2px var(--gold), 0 0 20px rgba(232,180,99,.6); border-radius:12px}
@@ -570,9 +571,10 @@
   let _saveT = null;
   function markDirty() { if (!SERVER_OK) return; clearTimeout(_saveT); _saveT = setTimeout(writeBackActive, 800); }
   async function saveMeta() { if (!SERVER_OK) return; await apiPost({ op: "meta", meta: { library: LIBRARY, activeId } }); }
-  function loadDoc(id) {
+  async function loadDoc(id) {
     clearTimeout(_saveT);
     const dc = DOCS.find(d => d.id === id); if (!dc) return;
+    _stopPoll(); _setReqStat("", "");  // 기존 폴 즉시 정리
     activeId = id; META.activeId = id;
     boardState.nodes = dc.nodes || []; boardState.edges = dc.edges || [];
     themeState.imgId = dc.themeImgId || null; themeState.title = dc.title || "";
@@ -587,6 +589,12 @@
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
     renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); runForge();
+    // 새 문서의 진행 중 잡 복원
+    if (SERVER_OK && activeId) {
+      const jr = await apiGet("?jobs&docId=" + encodeURIComponent(activeId));
+      const live = jr && jr.jobs && jr.jobs.filter(j => j.status === "pending" || j.status === "working").sort((a, b) => strCmp(b.created, a.created))[0];
+      if (live) { _setReqStat(live.status === "working" ? "분석 중…" : "분석 대기 중…", live.status); _startPoll(live.id); }
+    }
   }
   async function loadImages() { const m = await apiGet("?images=1"); if (m && typeof m === "object") Object.assign(IMAGES, m); }
   async function boot() {
@@ -595,7 +603,7 @@
     if (doc && doc.documents && doc.documents.length) {
       DOCS = doc.documents; META = doc.meta || { library: [], activeId: null };
       LIBRARY.length = 0; (META.library || []).forEach(it => LIBRARY.push(it));
-      loadDoc(META.activeId && DOCS.some(d => d.id === META.activeId) ? META.activeId : DOCS[0].id);
+      await loadDoc(META.activeId && DOCS.some(d => d.id === META.activeId) ? META.activeId : DOCS[0].id);
     } else {
       // 첫 부팅/빈 데이터 → 기본 문서 시드
       seedDefaultStrategy();
@@ -606,11 +614,7 @@
       if (window.renderSidebar) renderSidebar(); runForge();
       if (SERVER_OK) writeBackActive();
     }
-    if (SERVER_OK && activeId) {
-      const jr = await apiGet("?jobs&docId=" + encodeURIComponent(activeId));
-      const live = jr && jr.jobs && jr.jobs.filter(j => j.status === "pending" || j.status === "working").sort((a, b) => strCmp(b.created, a.created))[0];
-      if (live) { _setReqStat(live.status === "working" ? "분석 중…" : "분석 대기 중…", live.status); _startPoll(live.id); }
-    }
+    // poll restore는 loadDoc이 처리 (boot else 분기는 신규 문서 → 잡 없음)
     setSaveState(SERVER_OK ? "saved" : "offline");
   }
 
