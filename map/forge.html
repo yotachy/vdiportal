@@ -188,8 +188,13 @@
 
   /* ── 사이드바 이미지 라이브러리 ── */
   .forge-side .lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding-top:4px}
+  .forge-side .lib-it{position:relative}
   .forge-side .lib-it img{width:100%;height:46px;object-fit:cover;border-radius:6px;cursor:grab;border:1px solid var(--line)}
-  .forge-side .lib-it img:hover{border-color:var(--gold)}
+  .forge-side .lib-it:hover img{border-color:var(--gold)}
+  .forge-side .lib-del{position:absolute;top:3px;right:3px;width:18px;height:18px;padding:0;border:0;border-radius:5px;
+    background:rgba(11,15,20,.72);color:#fff;font-size:12px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center}
+  .forge-side .lib-it:hover .lib-del{display:flex}
+  .forge-side .lib-del:hover{background:var(--bear,#e06a6a)}
 
   /* ════════════════════════════════════════════════════
      SIDEBAR  (Task 3)
@@ -546,10 +551,26 @@
         ? LIBRARY.map(it =>
             `<div class="lib-it" draggable="true" data-img="${esc(it.id)}">` +
             `<img src="${esc(imgSrc(it.id))}" alt="${esc(it.label || "")}" title="${esc(it.label || "")}">` +
+            `<button class="lib-del" data-libdel="${esc(it.id)}" title="라이브러리에서 삭제" aria-label="삭제">✕</button>` +
             `</div>`
           ).join("")
         : `<div style="grid-column:1/-1;font-size:11px;color:var(--eth)">이미지를 추가하거나 Ctrl+V로 붙여넣기</div>`) +
       `</div>`;
+  }
+  /* 라이브러리(팔레트)에서 이미지 제거 — 노드/대표이미지는 그대로 유지(graceful) */
+  function delLibImg(id) {
+    const i = LIBRARY.findIndex(it => it.id === id); if (i < 0) return;
+    let used = 0;
+    boardState.nodes.forEach(n => { if (n.thumb && n.thumb.imgId === id) used++; });
+    if (themeState.imgId === id) used++;
+    const msg = used
+      ? `이 이미지를 라이브러리에서 삭제할까요?\n사용 중인 노드/대표이미지 ${used}곳은 그대로 유지됩니다.`
+      : "이 이미지를 라이브러리에서 삭제할까요?";
+    if (!confirm(msg)) return;
+    LIBRARY.splice(i, 1);
+    saveMeta();
+    renderLib();
+    bToast("라이브러리에서 삭제됨");
   }
 
   /* ── Server save layer ───────────────────────────────────────── */
@@ -2695,6 +2716,8 @@
     /* ── 사이드바 이벤트 위임 ── */
     document.getElementById("forgeSide").addEventListener("click", e => {
       if (e.target.id === "libAddBtn") { document.getElementById("libFile").click(); return; }
+      const libDel = e.target.closest("[data-libdel]");
+      if (libDel) { delLibImg(libDel.dataset.libdel); return; }
       if (e.target.id === "sampleDocBtn") { newSampleDoc(); return; }
       if (e.target.id === "newDocBtn") { newDoc(); return; }
       const renBtn = e.target.closest("[data-docren]");
