@@ -633,7 +633,7 @@
          <button class="side-btn" data-docdel="${d.id}">✕</button>
        </div>`).join("");
     el.innerHTML =
-      `<div class="side-sec"><div class="side-h"><span>포지</span><button class="side-btn" id="newDocBtn">＋ New Forge</button></div>${docs}</div>
+      `<div class="side-sec"><div class="side-h"><span>포지</span><button class="side-btn" id="sampleDocBtn">＋ 샘플</button><button class="side-btn" id="newDocBtn">＋ New Forge</button></div>${docs}</div>
        <div class="side-sec" id="libSec"></div>`;
     if (window.renderLib) renderLib();   // 라이브러리 섹션(Task 4)
   }
@@ -643,6 +643,14 @@
     const dc = { id: uid("doc"), title: "New Forge", themeImgId: null, nodes: [], edges: [],
       view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
     DOCS.push(dc); loadDoc(dc.id); seedDefaultStrategy(); autoLayout("v"); writeBackActive(); saveMeta();
+  }
+  function newSampleDoc() {
+    writeBackActive();
+    const dc = { id: uid("doc"), title: "BTC/USD 분석 (샘플)", themeImgId: null, nodes: [], edges: [],
+      view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
+    DOCS.push(dc); loadDoc(dc.id); buildSampleForge(); autoLayout("v"); writeBackActive(); saveMeta();
+    if (window.renderSidebar) renderSidebar();
+    bToast("BTC/USD 샘플 포지를 추가했어요");
   }
   function renameDoc(id, title) {
     const d = DOCS.find(x => x.id === id); if (!d) return; d.title = title;
@@ -2601,6 +2609,7 @@
     /* ── 사이드바 이벤트 위임 ── */
     document.getElementById("forgeSide").addEventListener("click", e => {
       if (e.target.id === "libAddBtn") { document.getElementById("libFile").click(); return; }
+      if (e.target.id === "sampleDocBtn") { newSampleDoc(); return; }
       if (e.target.id === "newDocBtn") { newDoc(); return; }
       const renBtn = e.target.closest("[data-docren]");
       if (renBtn) {
