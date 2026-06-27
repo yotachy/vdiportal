@@ -209,23 +209,40 @@
   .forge-palette .pal-btn:hover{background:var(--raised2);border-color:#3a4452}
   .forge-palette .pal-btn.pal-free{color:var(--eth);border-style:dashed}
 
-  /* ── 파라미터 편집기 패널 ── */
-  .forge-params{position:absolute;right:12px;top:108px;z-index:6;width:230px;background:var(--panel);
-    border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;color:var(--ink);box-shadow:0 6px 20px #0008}
-  .forge-params h4{margin:0 0 8px;font-size:12px;color:var(--gold);font-weight:700}
-  .forge-params .pp-row{display:flex;align-items:center;gap:8px;margin:6px 0}
-  .forge-params .pp-row label{flex:0 0 78px;color:var(--eth)}
-  .forge-params input[type=number],.forge-params textarea{flex:1;background:var(--bg);border:1px solid var(--line);
-    border-radius:6px;color:var(--ink);padding:4px 6px;font:inherit}
-  .forge-params textarea{min-height:48px;resize:vertical}
-  .forge-params input[type=range]{flex:1}
-  .forge-params .pp-conv-val{flex:0 0 34px;text-align:right;color:var(--gold)}
+  /* ── 노드 편집기 (우측 패널) ── */
+  .node-editor{flex:1;min-height:0;overflow-y:auto;display:none;flex-direction:column;gap:11px;padding:13px 15px;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .chart-pane.editing .fc-wrap{display:none}
+  .chart-pane.editing .verdict-badge{display:none!important}
+  .chart-pane.editing .node-editor{display:flex}
+  .ne-head{display:flex;align-items:center;gap:8px}
+  .ne-type{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--gold);background:rgba(232,180,99,.1);
+    border:1px solid var(--gold-dim);border-radius:4px;padding:3px 7px;text-transform:uppercase;white-space:nowrap}
+  .ne-title{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--ink);
+    padding:7px 9px;font:inherit;font-size:14px;font-weight:700}
+  .ne-title:focus{outline:none;border-color:var(--gold)}
+  .ne-img{position:relative;width:100%;height:200px;border:1px solid var(--line);border-radius:9px;overflow:hidden;
+    background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .12s,box-shadow .12s}
+  .ne-img:hover{border-color:#3a4452}
+  .ne-img.drop{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,180,99,.25)}
+  .ne-img img{width:100%;height:100%;object-fit:contain;pointer-events:none}
+  .ne-img .ne-ph{color:var(--eth);font-size:12px;text-align:center;padding:0 16px;line-height:1.6}
+  .ne-imgbar{display:flex;gap:6px}
+  .ne-imgbar .tool-btn{padding:6px 11px;font-size:12px}
+  .ne-sec{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--eth);margin:3px 0 -3px}
+  .node-editor .pp-row{display:flex;align-items:center;gap:8px;margin:0}
+  .node-editor .pp-row label{flex:0 0 92px;color:var(--eth);font-size:12px}
+  .node-editor input[type=number],.node-editor textarea{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);
+    border-radius:6px;color:var(--ink);padding:6px 8px;font:inherit;font-size:12px}
+  .node-editor textarea{min-height:64px;resize:vertical}
+  .node-editor input[type=range]{flex:1}
+  .node-editor .pp-conv-val{flex:0 0 34px;text-align:right;color:var(--gold);font-size:12px}
 
   /* ── 사이드바 이미지 라이브러리 ── */
-  .forge-side .lib-grid{display:flex;gap:5px;padding:4px 0 2px;overflow-x:auto;overflow-y:hidden;
-    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-  .forge-side .lib-it{position:relative;flex:0 0 46px}
-  .forge-side .lib-it img{width:46px;height:42px;object-fit:cover;border-radius:6px;cursor:grab;border:1px solid var(--line)}
+  .forge-side .lib-grid{display:flex;flex-direction:column;gap:6px;padding:4px 0 2px;max-height:300px;
+    overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .forge-side .lib-it{position:relative;flex:0 0 auto}
+  .forge-side .lib-it img{width:100%;height:70px;object-fit:cover;border-radius:6px;cursor:grab;border:1px solid var(--line)}
   .forge-side .lib-it:hover img{border-color:var(--gold)}
   .forge-side .lib-del{position:absolute;top:2px;right:2px;width:16px;height:16px;padding:0;border:0;border-radius:5px;
     background:rgba(11,15,20,.72);color:#fff;font-size:12px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center}
@@ -324,6 +341,7 @@
           </div>
         </div>
       </div>
+      <div id="paramPanel" class="node-editor"></div>
     </section>
   </div>
   </div><!-- /.forge-shell -->
@@ -880,11 +898,25 @@
     return `<div class="pp-row"><label>${esc(label)}</label>
       <input type="number" step="1" data-pkey="${key}" value="${val}"></div>`;
   }
+  function neTypeLabel(n) {
+    if (n.kind === "free") return "메모";
+    const d = BLOCK_DEFS.find(b => b.type === n.blockType);
+    return d ? d.label : (n.blockType || "노드");
+  }
+  /* 노드 선택 시 우측 패널을 편집기로 전환, 미선택 시 결과 차트로 복귀 */
   function renderParams() {
-    const panel = document.getElementById("paramPanel"); if (!panel) return;
-    if (sel.length !== 1) { panel.hidden = true; return; }
-    const n = bN(sel[0]); if (!n) { panel.hidden = true; return; }
-    panel.hidden = false;
+    const panel = document.getElementById("paramPanel");
+    const pane = document.getElementById("chartPane");
+    if (!panel || !pane) return;
+    const n = (sel.length === 1) ? bN(sel[0]) : null;
+    if (!n) {
+      const wasEditing = pane.classList.contains("editing");
+      pane.classList.remove("editing");
+      panel.innerHTML = "";
+      if (wasEditing) redrawCharts();   // 차트 다시 보일 때 캔버스 재맞춤
+      return;
+    }
+    pane.classList.add("editing");
     const rows = [];
     if (n.blockType === "ma") rows.push(numRow("len", "이동평균 길이", (n.params && n.params.len) ?? 10));
     if (n.blockType === "phasefold") {
@@ -906,16 +938,30 @@
     }
     const conv = n.conviction ?? 0;
     const wt = (n.weight != null) ? n.weight : 50;
-    panel.innerHTML = `<h4>${esc(n.title || "노드")} · 파라미터</h4>${rows.join("")}
-      <div class="pp-row"><label>중요도</label>
-        <input type="range" id="ppWeight" min="0" max="100" step="1" value="${wt}">
-        <span class="pp-conv-val" id="ppWeightVal">${wt}</span></div>
-      <div class="pp-row"><label>확신</label>
-        <input type="range" id="ppConv" min="-100" max="100" step="1" value="${conv}">
-        <span class="pp-conv-val" id="ppConvVal">${conv}</span></div>
-      <div class="pp-row" style="flex-direction:column;align-items:stretch">
-        <label style="flex:none;margin-bottom:4px">서술 메모</label>
-        <textarea id="ppNote" placeholder="분석 근거·기준 (계산엔 미반영)">${esc(n.note || "")}</textarea></div>`;
+    const hasImg = n.thumb && n.thumb.imgId;
+    const imgInner = hasImg
+      ? `<img src="${esc(imgSrc(n.thumb.imgId))}" alt="">`
+      : `<span class="ne-ph">이미지 없음<br>클릭해서 추가하거나 라이브러리에서 드래그</span>`;
+    const paramSec = rows.length ? `<div class="ne-sec">파라미터</div>${rows.join("")}` : "";
+    panel.innerHTML =
+      `<div class="ne-head"><span class="ne-type">${esc(neTypeLabel(n))}</span>
+         <input class="ne-title" id="neTitle" value="${esc(n.title || "")}" placeholder="노드 제목"></div>
+       <div class="ne-img" id="neImg" title="클릭 또는 드래그로 이미지 설정">${imgInner}</div>
+       <div class="ne-imgbar">
+         <button class="tool-btn" type="button" id="neImgPick">이미지 추가</button>
+         ${hasImg ? `<button class="tool-btn" type="button" id="neImgDel">이미지 제거</button>` : ""}
+       </div>
+       ${paramSec}
+       <div class="ne-sec">가중치</div>
+       <div class="pp-row"><label>중요도</label>
+         <input type="range" id="ppWeight" min="0" max="100" step="1" value="${wt}">
+         <span class="pp-conv-val" id="ppWeightVal">${wt}</span></div>
+       <div class="pp-row"><label>확신</label>
+         <input type="range" id="ppConv" min="-100" max="100" step="1" value="${conv}">
+         <span class="pp-conv-val" id="ppConvVal">${conv}</span></div>
+       <div class="ne-sec">서술 메모</div>
+       <div class="pp-row" style="flex-direction:column;align-items:stretch">
+         <textarea id="ppNote" placeholder="분석 근거·기준 (계산엔 미반영)">${esc(n.note || "")}</textarea></div>`;
   }
 
   function selectOnly(id)   { sel = [id]; applySel(); }
@@ -1389,17 +1435,13 @@
       `<button class="pal-btn pal-free" onclick="addBlock('free')">메모</button>`;
     pane.appendChild(_pal);
 
-    /* 파라미터 편집기 패널 (우상단 플로팅) */
-    const _pp = document.createElement("div");
-    _pp.className = "forge-params";
-    _pp.id = "paramPanel";
-    _pp.hidden = true;
-    pane.appendChild(_pp);
-
-    /* 숨김 file input (라이브러리 추가용) */
+    /* 숨김 file input (라이브러리 추가용 / 노드 이미지용) */
     const _fi = document.createElement("input");
     _fi.type = "file"; _fi.id = "libFile"; _fi.accept = "image/*"; _fi.hidden = true;
     document.body.appendChild(_fi);
+    const _nfi = document.createElement("input");
+    _nfi.type = "file"; _nfi.id = "neImgFile"; _nfi.accept = "image/*"; _nfi.hidden = true;
+    document.body.appendChild(_nfi);
   }
 
   /* ── Default strategy seed ───────────────────────────────────── */
@@ -2708,8 +2750,62 @@
           const v = document.getElementById("ppConvVal"); if (v) v.textContent = n.conviction;
         } else if (t.id === "ppNote") {
           n.note = t.value;
+        } else if (t.id === "neTitle") {
+          n.title = t.value;
+          const tEl = bWorld && bWorld.querySelector(`.b-node[data-id="${n.id}"] .b-n-title`);
+          if (tEl && tEl.textContent !== t.value) tEl.textContent = t.value;
         }
         fireBoardChange();
+      });
+
+      /* 노드 이미지: 클릭(파일선택) / 제거 / 드래그&드롭 */
+      function neNode() { return sel.length === 1 ? bN(sel[0]) : null; }
+      function neApplyFile(f, node) {
+        const r = new FileReader();
+        r.onload = () => downscaleImage(r.result, out => {
+          const id = uid("img"); putImg(id, out);
+          const label = f.name.replace(/\.[^.]+$/, "");
+          LIBRARY.push({ id, label }); saveMeta(); renderLib();
+          setThumb(node.id, { imgId: id, label }); bToast("이미지 적용됨");
+        });
+        r.readAsDataURL(f);
+      }
+      panel.addEventListener("click", ev => {
+        const node = neNode(); if (!node) return;
+        if (ev.target.closest("#neImgDel")) { setThumb(node.id, null); return; }
+        if (ev.target.closest("#neImgPick") || ev.target.closest("#neImg")) {
+          const fi = document.getElementById("neImgFile"); if (fi) fi.click();
+        }
+      });
+      panel.addEventListener("dragover", ev => {
+        if (!ev.target.closest("#neImg")) return;
+        ev.preventDefault(); ev.dataTransfer.dropEffect = "copy";
+        const z = document.getElementById("neImg"); if (z) z.classList.add("drop");
+      });
+      panel.addEventListener("dragleave", ev => {
+        const z = document.getElementById("neImg");
+        if (z && !z.contains(ev.relatedTarget)) z.classList.remove("drop");
+      });
+      panel.addEventListener("drop", ev => {
+        const z = ev.target.closest("#neImg"); if (!z) return;
+        ev.preventDefault(); z.classList.remove("drop");
+        const node = neNode(); if (!node) return;
+        const imgId = ev.dataTransfer.getData("text/forge-img");
+        if (imgId) {
+          const it = LIBRARY.find(l => l.id === imgId);
+          setThumb(node.id, { imgId, label: it ? it.label : "" }); bToast("이미지 적용됨"); return;
+        }
+        const files = ev.dataTransfer.files;
+        if (files && files.length) {
+          const f = Array.from(files).find(fl => fl.type.startsWith("image/"));
+          if (f) neApplyFile(f, node);
+        }
+      });
+      const neFi = document.getElementById("neImgFile");
+      if (neFi) neFi.addEventListener("change", e => {
+        const f = e.target.files[0]; const node = neNode();
+        if (f && node) neApplyFile(f, node);
+        e.target.value = "";
       });
     }
 
