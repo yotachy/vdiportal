@@ -28,6 +28,16 @@ if ($method === "GET") {
     if (is_file($imgf)) { readfile($imgf); } else { echo "{}"; }
     exit;
   }
+  if (isset($_GET["jobs"])) {
+    $jf = __DIR__ . "/forge_jobs.json";
+    $jdoc = is_file($jf) ? json_decode(file_get_contents($jf), true) : null;
+    if (!is_array($jdoc) || !isset($jdoc["jobs"]) || !is_array($jdoc["jobs"])) $jdoc = ["jobs"=>[]];
+    $list = $jdoc["jobs"];
+    $docId = isset($_GET["docId"]) ? $_GET["docId"] : null;
+    if ($docId !== null) $list = array_values(array_filter($list, function($j) use ($docId){ return isset($j["docId"]) && $j["docId"] === $docId; }));
+    echo json_encode(["ok"=>true, "jobs"=>$list], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
   if (is_file($f)) { readfile($f); } else { echo "null"; }
   exit;
 }
@@ -53,6 +63,89 @@ if ($op === "putimg") {
   if ($ilock) { flock($ilock, LOCK_UN); fclose($ilock); }
   if (!$okw) { http_response_code(500); jout(["ok"=>false,"error"=>"write"]); }
   jout(["ok"=>true]);
+}
+
+if ($op === "enqueue" || $op === "claim" || $op === "result") {
+  $jf = __DIR__ . "/forge_jobs.json";
+  $jlock = fopen($jf . ".lock", "c"); if ($jlock) { flock($jlock, LOCK_EX); }
+  $jdoc = is_file($jf) ? json_decode(file_get_contents($jf), true) : null;
+  if (!is_array($jdoc) || !isset($jdoc["jobs"]) || !is_array($jdoc["jobs"])) $jdoc = ["jobs"=>[], "_rev"=>0];
+  $now = gmdate("c");
+  $resp = null; $code = 0;
+
+  if ($op === "enqueue") {
+    $docId = isset($d["docId"]) ? $d["docId"] : null;
+    $imgId = isset($d["imgId"]) ? $d["imgId"] : null;
+    $board = isset($d["board"]) && is_array($d["board"]) ? $d["board"] : null;
+    if ($docId === null || $board === null) { $code = 400; }
+    else {
+      $dup = null;
+      foreach ($jdoc["jobs"] as $j) {
+        if (isset($j["docId"]) && $j["docId"] === $docId && ($j["status"] === "pending" || $j["status"] === "working")) { $dup = $j; break; }
+      }
+      if ($dup) { $resp = ["ok"=>true, "job"=>$dup]; }
+      else {
+        $job = [
+          "id" => "job_" . bin2hex(random_bytes(6)),
+          "docId" => $docId, "imgId" => $imgId, "board" => $board,
+          "status" => "pending", "token" => null,
+          "created" => $now, "claimed" => null, "finished" => null,
+          "result" => null, "error" => null
+        ];
+        $jdoc["jobs"][] = $job;
+        // GC: done/error 잡 20개 초과 시 created 오름차순으로 초과분 제거
+        $done = array_values(array_filter($jdoc["jobs"], function($j){ return $j["status"] === "done" || $j["status"] === "error"; }));
+        if (count($done) > 20) {
+          usort($done, function($a, $b){ return strcmp($a["created"], $b["created"]); });
+          $remove = array_slice($done, 0, count($done) - 20);
+          $rmids = array_map(function($j){ return $j["id"]; }, $remove);
+          $jdoc["jobs"] = array_values(array_filter($jdoc["jobs"], function($j) use ($rmids){ return !in_array($j["id"], $rmids, true); }));
+        }
+        $resp = ["ok"=>true, "job"=>$job];
+      }
+    }
+  } elseif ($op === "claim") {
+    $picked = null;
+    foreach ($jdoc["jobs"] as $i => $j) {
+      if ($j["status"] === "pending") {
+        $tok = bin2hex(random_bytes(8));
+        $jdoc["jobs"][$i]["status"] = "working";
+        $jdoc["jobs"][$i]["token"] = $tok;
+        $jdoc["jobs"][$i]["claimed"] = $now;
+        $picked = $jdoc["jobs"][$i];
+        break;
+      }
+    }
+    $resp = ["ok"=>true, "job"=>$picked, "token"=>($picked ? $picked["token"] : null)];
+  } elseif ($op === "result") {
+    $jid = isset($d["jobId"]) ? $d["jobId"] : null;
+    $tok = isset($d["token"]) ? $d["token"] : null;
+    $found = false;
+    foreach ($jdoc["jobs"] as $i => $j) {
+      if (isset($j["id"]) && $j["id"] === $jid) {
+        $found = true;
+        if (!isset($j["token"]) || $j["token"] !== $tok) { $code = 409; break; }
+        if (isset($d["error"])) { $jdoc["jobs"][$i]["status"] = "error"; $jdoc["jobs"][$i]["error"] = $d["error"]; }
+        else { $jdoc["jobs"][$i]["status"] = "done"; $jdoc["jobs"][$i]["result"] = isset($d["result"]) ? $d["result"] : null; }
+        $jdoc["jobs"][$i]["finished"] = $now;
+        $resp = ["ok"=>true];
+        break;
+      }
+    }
+    if (!$found) { $code = 404; }
+  }
+
+  if ($code !== 0) {
+    if ($jlock) { flock($jlock, LOCK_UN); fclose($jlock); }
+    http_response_code($code);
+    jout(["ok"=>false, "error"=>($code === 404 ? "nojob" : ($code === 409 ? "token" : "invalid"))]);
+  }
+  $jdoc["_rev"] = (isset($jdoc["_rev"]) ? intval($jdoc["_rev"]) : 0) + 1;
+  $jtmp = $jf . ".tmp." . getmypid();
+  $okw = file_put_contents($jtmp, json_encode($jdoc, JSON_UNESCAPED_UNICODE)) !== false && rename($jtmp, $jf);
+  if ($jlock) { flock($jlock, LOCK_UN); fclose($jlock); }
+  if (!$okw) { http_response_code(500); jout(["ok"=>false,"error"=>"write"]); }
+  jout($resp);
 }
 
 $lock = fopen($f . ".lock", "c");
