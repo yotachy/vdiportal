@@ -547,6 +547,9 @@
     dc.nodes = boardState.nodes.map(n => { const o = {}; for (const k in n) { if (k[0] !== "_") o[k] = n[k]; } return o; });
     dc.edges = boardState.edges.map(e => { const o = {}; for (const k in e) { if (k[0] !== "_") o[k] = e[k]; } return o; });
     dc.themeImgId = themeState.imgId; dc.title = themeState.title || dc.title;
+    dc.vision = _visionData
+      ? { series: _visionData.price, bias: dc.vision && dc.vision.bias || null, note: _visionNote, waves: _visionWaves }
+      : null;
     dc.view = { tx: view.tx, ty: view.ty, scale: view.scale };
     dc.updated = new Date().toISOString();
     return dc;
@@ -567,6 +570,14 @@
     activeId = id; META.activeId = id;
     boardState.nodes = dc.nodes || []; boardState.edges = dc.edges || [];
     themeState.imgId = dc.themeImgId || null; themeState.title = dc.title || "";
+    const vz = dc.vision;
+    if (vz && Array.isArray(vz.series) && vz.series.length >= 2) {
+      _visionData = { price: vz.series, n: vz.series.length };
+      _visionBias = vz.bias ? ForgeCore.visionBiasFrom(vz.bias) : 0;
+      _visionNote = vz.note || ""; _visionWaves = vz.waves || [];
+    } else {
+      _visionData = null; _visionBias = 0; _visionNote = ""; _visionWaves = [];
+    }
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
     renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); runForge();
@@ -1797,6 +1808,8 @@
 
   /* ── Forge data + runForge ───────────────────────────────────── */
   let data = ForgeCore.makeDemoSeries({ n: 480, seed: 1, period: 64 });
+  let _visionData = null, _visionBias = 0, _visionNote = "", _visionWaves = [];
+  function currentData() { return _visionData || data; }
   let lastResult = null;
   let _t = null;
   let _playT = null, _playRaf = null, _playing = false, _analyzeNode = null;
@@ -1844,7 +1857,7 @@
     if (_playing) { stopPlay(); return; }      // 토글: 재생 중 누르면 중단
     runForge();
     let steps;
-    try { steps = ForgeCore.runSteps(boardToGraph(), data, { futW: 120 }); }
+    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: 120, visionBias: _visionBias }); }
     catch (e) { console.warn("steps", e); return; }
     if (!steps.length) return;
     if (prefersReducedMotion()) { renderChart(lastResult, data); bToast("포지 분석 완료"); return; }
@@ -1884,8 +1897,9 @@
     if (_playing) stopPlay();
     try {
       const g = boardToGraph();
-      lastResult = ForgeCore.run(g, data, { futW: 120 });
-      renderChart(lastResult, data);
+      const d = currentData();
+      lastResult = ForgeCore.run(g, d, { futW: 120, visionBias: _visionBias });
+      renderChart(lastResult, d);
       paintScanBadges();
       if (window.renderOverlay) renderOverlay(lastResult, g);
       if (lastResult && lastResult.verdict) renderVerdict(lastResult.verdict);
@@ -1893,6 +1907,27 @@
       console.warn("run", e);
       if (typeof bToast === "function") bToast(/cycle/.test(String(e && e.message)) ? "그래프 오류: 순환 연결" : "그래프 오류: 계산 실패");
     }
+  }
+
+  function applyVision(result) {
+    if (result && Array.isArray(result.series) && result.series.length >= 2) {
+      const px = result.series.map(Number).filter(v => isFinite(v));
+      _visionData = px.length >= 2 ? { price: px, n: px.length } : null;
+    } else {
+      _visionData = null;
+    }
+    _visionBias = (result && result.bias) ? ForgeCore.visionBiasFrom(result.bias) : 0;
+    _visionNote = (result && typeof result.note === "string") ? result.note : "";
+    _visionWaves = (result && Array.isArray(result.waves)) ? result.waves : [];
+    const dc = activeDoc();
+    if (dc) {
+      dc.vision = _visionData
+        ? { series: _visionData.price, bias: result.bias || null, note: _visionNote, waves: _visionWaves }
+        : null;
+      markDirty();
+    }
+    runForge();
+    bToast(_visionData ? ("AI 분석 반영" + (_visionNote ? " · " + _visionNote : "")) : "분석 데이터 없음");
   }
 
   /* ════════════════════════════════════════════════════════════════
