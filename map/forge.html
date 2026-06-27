@@ -290,7 +290,32 @@
   .req-stat.pending{color:var(--eth);opacity:.75}
   .analyze-btn{background:transparent;color:var(--gold);border:1px solid var(--gold)}
   .analyze-btn:hover{background:rgba(232,180,99,.12)}
-  .b-node.analyzing{box-shadow:0 0 0 2px var(--gold), 0 0 20px rgba(232,180,99,.6); border-radius:12px}
+  @keyframes nodePulse{0%,100%{box-shadow:0 0 0 2px var(--gold),0 0 16px rgba(232,180,99,.45)}50%{box-shadow:0 0 0 3px var(--gold),0 0 30px rgba(232,180,99,.85)}}
+  .b-node.analyzing{border-color:var(--gold);border-radius:12px;animation:nodePulse 1.05s ease-in-out infinite}
+  .b-node.analyzed{border-color:var(--gold-dim);box-shadow:0 0 0 1.5px rgba(232,180,99,.38)}
+  .b-node.analyzed::after{content:"✓";position:absolute;top:-8px;left:-8px;width:18px;height:18px;border-radius:50%;
+    background:var(--gold);color:#1a1206;font-size:11px;font-weight:800;line-height:18px;text-align:center;z-index:4}
+
+  /* ── 포지 분석 재생 HUD (결과 영역 상단 오버레이) ── */
+  .play-hud{position:absolute;left:0;right:0;top:0;z-index:9;display:none;align-items:center;gap:12px;
+    padding:9px 14px;background:linear-gradient(180deg,rgba(14,18,24,.97),rgba(14,18,24,.88));
+    border-bottom:1px solid var(--gold-dim);backdrop-filter:blur(6px);
+    transform:translateY(-100%);transition:transform .28s ease}
+  .play-hud.on{display:flex;transform:translateY(0)}
+  .play-hud .ph-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--eth);box-shadow:0 0 8px currentColor}
+  .play-hud .ph-node{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .play-hud .ph-title{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+  .play-hud .ph-type{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--eth)}
+  .play-hud .ph-sig{margin-left:auto;display:flex;align-items:baseline;gap:7px;font-family:ui-monospace,monospace;white-space:nowrap}
+  .play-hud .ph-sig b{font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+  .play-hud .ph-delta{font-size:11px;font-weight:700}
+  .play-hud .ph-delta.up{color:var(--bull)}.play-hud .ph-delta.down{color:var(--bear)}.play-hud .ph-delta.flat{color:var(--eth)}
+  .play-hud .ph-prog{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .play-hud .ph-knt{font-family:ui-monospace,monospace;font-size:10px;color:var(--eth)}
+  .play-hud .ph-bar{display:flex;gap:3px}
+  .play-hud .ph-seg{width:9px;height:5px;border-radius:2px;background:var(--raised2);transition:background .2s}
+  .play-hud .ph-seg.done{background:var(--gold)}
+  .play-hud .ph-seg.cur{background:var(--gold);box-shadow:0 0 7px rgba(232,180,99,.8)}
 </style>
 </head>
 <body>
@@ -322,6 +347,7 @@
     </section>
     <div class="forge-gutter" id="forgeGutter" title="드래그하여 좌우 크기 조절 · 더블클릭 초기화"></div>
     <section class="chart-pane" id="chartPane">
+      <div id="playHud" class="play-hud" aria-hidden="true"></div>
       <div id="verdictBadge" class="verdict-badge"></div>
       <div class="fc-wrap">
         <div class="fc-panel fc-panel-hero">
@@ -2131,11 +2157,17 @@
   }
 
   /* ── 포지 분석 재생 ─────────────────────────────────────────── */
+  function clearAnalyzeViz() {
+    if (bWorld) bWorld.querySelectorAll(".b-node.analyzing,.b-node.analyzed")
+      .forEach(el => el.classList.remove("analyzing", "analyzed"));
+    _analyzeNode = null;
+    const hud = document.getElementById("playHud"); if (hud) hud.classList.remove("on");
+  }
   function stopPlay() {
     if (_playT) clearTimeout(_playT);
     if (_playRaf) cancelAnimationFrame(_playRaf);
     _playT = null; _playRaf = null; _playing = false;
-    if (_analyzeNode) { const el = bq(_analyzeNode); if (el) el.classList.remove("analyzing"); _analyzeNode = null; }
+    clearAnalyzeViz();
     const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
   }
   function lerpPred(a, b, u) {
@@ -2148,8 +2180,12 @@
     }
     return { path, lo, hi, anchor: (b.anchor != null ? b.anchor : a.anchor) };
   }
+  const _ease = t => (t < 0.5) ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;   // easeInOutQuad
+  const _REG = { bull: { c: "var(--bull)", t: "상승" }, bear: { c: "var(--bear)", t: "하락" }, neutral: { c: "var(--eth)", t: "중립" } };
+  const _sigOf = s => (s.signal && s.signal.length) ? s.signal[s.signal.length - 1] : 0;
   function playAnalysis() {
     if (_playing) { stopPlay(); return; }      // 토글: 재생 중 누르면 중단
+    deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
     runForge();
     let steps;
     try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: 120, visionBias: _visionBias }); }
@@ -2157,11 +2193,30 @@
     if (!steps.length) return;
     if (prefersReducedMotion()) { renderChart(lastResult, currentData()); bToast("포지 분석 완료"); return; }
     _playing = true;
+    clearAnalyzeViz();
     const N = steps.length, progEl = document.getElementById("analyzeProg");
-    let i = 0, prevPred = steps[0].prediction;
+    const hud = document.getElementById("playHud");
+    if (hud) hud.classList.add("on");
+    let i = 0, prevPred = steps[0].prediction, prevSig = 0;
     function highlight(id) {
-      if (_analyzeNode) { const e = bq(_analyzeNode); if (e) e.classList.remove("analyzing"); }
-      _analyzeNode = id; const el = id && bq(id); if (el) el.classList.add("analyzing");
+      if (_analyzeNode && _analyzeNode !== id) { const e = bq(_analyzeNode); if (e) { e.classList.remove("analyzing"); e.classList.add("analyzed"); } }
+      _analyzeNode = id; const el = id && bq(id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); }
+    }
+    function renderHud(s, sig) {
+      if (!hud) return;
+      const node = boardState.nodes.find(n => n.id === s.nodeId);
+      const reg = _REG[(s.verdict && s.verdict.regime) || "neutral"] || _REG.neutral;
+      const isFirst = (i === 0), d = Math.round(sig - prevSig);
+      const dCls = isFirst ? "flat" : d > 0 ? "up" : d < 0 ? "down" : "flat";
+      const dTxt = isFirst ? "기준" : d > 0 ? "▲ +" + d : d < 0 ? "▼ " + d : "– 0";
+      const segs = steps.map((_, k) => `<span class="ph-seg ${k < i ? "done" : k === i ? "cur" : ""}"></span>`).join("");
+      hud.innerHTML =
+        `<span class="ph-dot" style="color:${reg.c}"></span>
+         <div class="ph-node"><span class="ph-title">${esc((node && node.title) || "노드")}</span>
+           <span class="ph-type">${esc(node ? neTypeLabel(node) : "")} · 국면 ${reg.t}</span></div>
+         <div class="ph-sig"><span class="ph-type">시그널</span><b>${Math.round(sig)}</b>
+           <span class="ph-delta ${dCls}">${dTxt}</span></div>
+         <div class="ph-prog"><span class="ph-knt">${i + 1}/${N}</span><span class="ph-bar">${segs}</span></div>`;
     }
     function step() {
       if (!_playing) return;
@@ -2170,18 +2225,19 @@
         if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
         stopPlay(); bToast("포지 분석 완료"); return;
       }
-      const s = steps[i];
+      const s = steps[i], sig = _sigOf(s);
       const node = boardState.nodes.find(n => n.id === s.nodeId);
-      if (progEl) progEl.textContent = "분석 중: " + ((node && node.title) || "노드") + " (" + (i + 1) + "/" + N + ")";
+      if (progEl) progEl.textContent = "분석 중 " + (i + 1) + "/" + N + " · " + ((node && node.title) || "노드");
       highlight(s.nodeId);
+      renderHud(s, sig);
       if (s.verdict) renderVerdict(s.verdict);
-      const from = prevPred, to = s.prediction, t0 = performance.now(), dur = 350;
+      const from = prevPred, to = s.prediction, t0 = performance.now(), dur = 430;
       function morph(now) {
         if (!_playing) return;
         const u = Math.min(1, (now - t0) / dur);
-        fcRenderForecast(lerpPred(from, to, u));
+        fcRenderForecast(lerpPred(from, to, _ease(u)));
         if (u < 1) { _playRaf = requestAnimationFrame(morph); }
-        else { prevPred = to; i++; _playT = setTimeout(step, 180); }
+        else { prevPred = to; prevSig = sig; i++; _playT = setTimeout(step, 230); }
       }
       _playRaf = requestAnimationFrame(morph);
     }
