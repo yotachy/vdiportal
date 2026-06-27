@@ -297,7 +297,8 @@
     if (!sigSrc) sigSrc = data.price;
     const dn = detrendNorm(sigSrc), signal = dn.map(v => Math.max(-100, Math.min(100, Math.round(100 * tanh(v / 1.5)))));
     // 확신 바이어스 적용
-    const bias = aggregateConviction(graph), K = 0.5;
+    const vbias = (opts && typeof opts.visionBias === "number" && isFinite(opts.visionBias)) ? opts.visionBias : 0;
+    const bias = aggregateConviction(graph) + vbias, K = 0.5;
     const sigB = bias ? signal.map(v => Math.max(-100, Math.min(100, Math.round(v + bias * K)))) : signal;
     // 예측: 가격 추세 + (phasefold 메타 있으면) 주기 외삽
     const price = data.price, { a, b } = linfit(price), n = price.length;
@@ -350,5 +351,13 @@
     return steps;
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps };
+  function visionBiasFrom(b) {
+    if (!b || typeof b !== "object") return 0;
+    const SCALE = 60;
+    const s = (typeof b.strength === "number" && isFinite(b.strength)) ? Math.max(0, Math.min(1, b.strength)) : 0;
+    const dir = b.dir === "bull" ? 1 : b.dir === "bear" ? -1 : 0;
+    return dir * s * SCALE;
+  }
+
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom };
 });

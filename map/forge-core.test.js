@@ -305,3 +305,55 @@ test("runSteps: no blocks -> single graceful step", () => {
   assert.strictEqual(steps.length, 1);
   assert.strictEqual(steps[0].prediction.path.length, 10);
 });
+
+test("visionBias: zero/absent is no-op, positive tilts up, negative down", () => {
+  const data = ForgeCore.makeDemoSeries({ n: 300, seed: 5, period: 48 });
+  const g = {
+    nodes: [
+      { id: "p", kind: "block", blockType: "price" },
+      { id: "f", kind: "block", blockType: "phasefold", params: { pmin: 20, pmax: 96 } },
+      { id: "c", kind: "block", blockType: "combine" },
+      { id: "o", kind: "block", blockType: "predict" }
+    ],
+    edges: [{ from: "p", to: "f" }, { from: "f", to: "c" }, { from: "c", to: "o" }]
+  };
+  const r0 = ForgeCore.run(g, data, { futW: 60 });
+  const rz = ForgeCore.run(g, data, { futW: 60, visionBias: 0 });
+  assert.deepStrictEqual(rz.signal, r0.signal);
+  assert.strictEqual(rz.verdict.score, r0.verdict.score);
+  const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+  const rp = ForgeCore.run(g, data, { futW: 60, visionBias: 60 });
+  assert.ok(mean(rp.signal) > mean(r0.signal));
+  assert.ok(rp.verdict.score >= r0.verdict.score);
+  assert.ok(rp.signal.every(v => v >= -100 && v <= 100));
+  const rn = ForgeCore.run(g, data, { futW: 60, visionBias: -60 });
+  assert.ok(mean(rn.signal) < mean(r0.signal));
+  // prediction.path는 conviction/visionBias 영향 없음(가격 외삽만)
+  assert.deepStrictEqual(rp.prediction.path, r0.prediction.path);
+});
+
+test("visionBiasFrom: dir/strength → conviction-scale number", () => {
+  assert.strictEqual(ForgeCore.visionBiasFrom({ dir: "bull", strength: 1 }), 60);
+  assert.strictEqual(ForgeCore.visionBiasFrom({ dir: "bear", strength: 0.5 }), -30);
+  assert.strictEqual(ForgeCore.visionBiasFrom({ dir: "neutral", strength: 1 }), 0);
+  assert.strictEqual(ForgeCore.visionBiasFrom({ dir: "bull", strength: 5 }), 60); // clamp
+  assert.strictEqual(ForgeCore.visionBiasFrom(null), 0);
+  assert.strictEqual(ForgeCore.visionBiasFrom({}), 0);
+});
+
+test("runSteps forwards opts.visionBias (last step === run(full))", () => {
+  const data = ForgeCore.makeDemoSeries({ n: 240, seed: 3, period: 40 });
+  const g = {
+    nodes: [
+      { id: "p", kind: "block", blockType: "price" },
+      { id: "f", kind: "block", blockType: "phasefold", params: { pmin: 16, pmax: 80 } },
+      { id: "c", kind: "block", blockType: "combine" },
+      { id: "o", kind: "block", blockType: "predict" }
+    ],
+    edges: [{ from: "p", to: "f" }, { from: "f", to: "c" }, { from: "c", to: "o" }]
+  };
+  const steps = ForgeCore.runSteps(g, data, { futW: 60, visionBias: 40 });
+  const full = ForgeCore.run(g, data, { futW: 60, visionBias: 40 });
+  assert.deepStrictEqual(steps[steps.length - 1].signal, full.signal);
+  assert.deepStrictEqual(steps[steps.length - 1].prediction.path, full.prediction.path);
+});
