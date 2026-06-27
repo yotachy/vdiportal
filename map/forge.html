@@ -147,6 +147,7 @@
   .fc-hero-img img{width:100%;height:100%;object-fit:contain}
   .fc-hero .fc-hero-ph{color:var(--eth);font-size:12px;text-align:center;padding:0 14px;line-height:1.5}
   #fcFuture{flex:0 0 200px;height:100%}
+  #fcMainChart{flex:1;height:100%;display:none}
 
   /* block palette (floats over board-pane) */
   .forge-palette{
@@ -246,6 +247,7 @@
             <div class="fc-hero">
               <div class="fc-hero-img" id="fcHeroImg"><span class="fc-hero-ph">라이브러리에서 대표 이미지를 드래그하세요</span></div>
               <canvas id="fcFuture" class="fc-cv"></canvas>
+              <canvas id="fcMainChart" class="fc-cv"></canvas>
             </div>
           </div>
         </div>
@@ -1733,6 +1735,77 @@
     c.stroke(); c.setLineDash([]);
   }
 
+  function fcDrawMainChart(series, pred) {
+    const cv = document.getElementById("fcMainChart"); if (!cv) return;
+    const ch = cv.clientHeight || 260, c = fcFit(cv, ch);
+    const cw = cv.clientWidth || 600;
+    c.clearRect(0, 0, cw, ch);
+    const hist = (series || []).slice(-180);
+    const path = (pred && pred.path) || [], lo = (pred && pred.lo) || [], hi = (pred && pred.hi) || [];
+    if (hist.length < 2) {
+      c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
+      c.fillText("분석 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return;
+    }
+    const anchor = (pred && pred.anchor != null) ? pred.anchor : hist[hist.length - 1];
+    let loV = Math.min.apply(null, hist), hiV = Math.max.apply(null, hist);
+    for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); }
+    loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);
+    const padV = (hiV - loV) * 0.1 || 1; loV -= padV; hiV += padV;
+    const padX = 8, padTop = 16, padBot = 16, axisW = 46;
+    const plotW = cw - padX - axisW;
+    const total = hist.length + path.length;
+    const histW = plotW * (hist.length / total);
+    const seamX = padX + histW;
+    const toY = v => padTop + (1 - (v - loV) / ((hiV - loV) || 1)) * (ch - padTop - padBot);
+    const toXh = i => padX + (i / (hist.length - 1)) * histW;
+    const toXf = k => seamX + ((k + 1) / Math.max(1, path.length)) * (plotW - histW);
+    // grid
+    c.strokeStyle = FC_GRID; c.lineWidth = 1;
+    for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
+    // history line
+    c.strokeStyle = FC_GOLD; c.lineWidth = 2; c.beginPath();
+    hist.forEach((v, i) => { const x = toXh(i), y = toY(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+    // seam ("지금")
+    c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
+    c.beginPath(); c.moveTo(seamX, padTop - 6); c.lineTo(seamX, ch - padBot); c.stroke(); c.setLineDash([]);
+    c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.fillText("지금", seamX + 3, padTop - 2);
+    // forecast cone + path (continues from anchor)
+    if (path.length) {
+      c.beginPath(); c.moveTo(seamX, toY(anchor));
+      for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k]));
+      for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(lo[k]));
+      c.closePath(); c.fillStyle = "rgba(232,180,99,.14)"; c.fill();
+      c.strokeStyle = FC_GOLD; c.lineWidth = 1.8; c.setLineDash([5, 4]);
+      c.beginPath(); c.moveTo(seamX, toY(anchor));
+      for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k]));
+      c.stroke(); c.setLineDash([]);
+    }
+    // y labels (right)
+    c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
+    const lx = padX + plotW + 4;
+    c.fillText(Math.round(hiV).toLocaleString(), lx, padTop + 4);
+    c.fillText(Math.round(loV).toLocaleString(), lx, ch - padBot);
+    c.fillStyle = FC_GOLD; c.fillText(Math.round(anchor).toLocaleString(), lx, toY(anchor) + 3);
+    if (path.length) { c.fillStyle = FC_ETH; c.fillText(Math.round(path[path.length - 1]).toLocaleString(), lx, toY(path[path.length - 1]) + 3); }
+  }
+
+  function fcHeroMode(mode) {
+    const img = document.getElementById("fcHeroImg"), fut = document.getElementById("fcFuture"), main = document.getElementById("fcMainChart");
+    const t = document.querySelector(".fc-panel-hero .fc-t");
+    if (mode === "chart") {
+      if (img) img.style.display = "none"; if (fut) fut.style.display = "none"; if (main) main.style.display = "block";
+      if (t) t.innerHTML = "<b>분석 차트</b> · 과거+예측";
+    } else {
+      if (img) img.style.display = ""; if (fut) fut.style.display = ""; if (main) main.style.display = "none";
+      if (t) t.innerHTML = "<b>대표 이미지</b> · 가격 차트";
+    }
+  }
+
+  function fcRenderForecast(pred) {
+    if (_visionData) fcDrawMainChart(currentData().price, pred);
+    else fcDrawFuture(pred);
+  }
+
   /* ── renderChart: top-level, consumes ForgeCore output ── */
   function renderChart(result, data) {
     if (!result || !data) return;
@@ -1762,8 +1835,9 @@
     }
 
     /* draw all panels */
-    renderHero(); /* R2: fcDrawMain 비활성 — 히어로 이미지 갱신. 미래 존은 Task 2에서. */
-    fcDrawFuture(result.prediction || { path: [], lo: [], hi: [] });
+    fcHeroMode(_visionData ? "chart" : "image");
+    if (!_visionData) renderHero();
+    fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] });
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
       ["fcFoldA", "fcFoldB", "fcFoldC"].forEach(id => {
