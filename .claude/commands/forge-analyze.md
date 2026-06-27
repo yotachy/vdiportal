@@ -14,8 +14,18 @@ description: 스쿱포지 비전 분석 워커 — 큐에서 잡을 claim해 대
 1. **claim**: `curl -s -X POST "$FORGE_API" -H "Content-Type: application/json" -d '{"op":"claim"}'`
    - 응답 `job` 이 `null` 이면 "대기 중인 분석 잡 없음" 보고 후 종료.
    - 응답에서 `job.id`, `token`, `job.imgId`, `job.docId`, `job.board`(전략 nodes/edges) 확보.
+   - **주의**: result POST 시 `job.id`를 `jobId` 로 사용 (5단계 참조).
 2. **이미지 로드**: `curl -s "$FORGE_API?images=1"` 로 전체 이미지 맵을 받아 `job.imgId` 키의 dataURL을 꺼낸다.
    - dataURL의 base64 본문을 디코드해 스크래치패드에 임시 파일로 저장(예: `.../forge_img.jpg`).
+   - 구체 명령:
+     ```bash
+     IMGID="<job.imgId>"  # claim 응답에서 확보
+     curl -s "$FORGE_API?images=1" \
+       | jq -r --arg k "$IMGID" '.[$k]' \
+       | sed 's/^data:[^,]*,//' \
+       | base64 -d > /tmp/claude-*/scratchpad/forge_img.jpg
+     # 확장자는 dataURL MIME에 맞게 (보통 .jpg/.png)
+     ```
    - 그 파일을 `Read` 로 열어 **비전으로 가격 차트를 판독**한다.
 3. **전략 파악**: `job.board` 의 노드(블록 종류·메모·conviction)와 엣지를 읽어 어떤 분석 의도인지 맥락으로만 활용(결과를 좌우하진 않음).
 4. **분석 생산 (C 스키마)** — 아래 JSON 을 만든다:
@@ -33,6 +43,13 @@ description: 스쿱포지 비전 분석 워커 — 큐에서 잡을 claim해 대
 ## 가드
 
 - 쓰기 키가 설정돼 있으면 모든 POST 에 `-H "X-Write-Key: <키>"` 추가(키는 로컬에만, 커밋 금지).
-- 토큰 불일치(409)·이미지 없음 → 명확히 보고하고 그 잡은 건너뛴다.
+- **토큰 불일치(409)** → 다른 워커가 소유, 그 잡은 건너뛴다 (**POST 금지**, 고착 위험).
+- **이미지 없음(404·null)** → 복구 불가 오류, 반드시 error POST로 슬롯 해제:
+  ```
+  curl -s -X POST "$FORGE_API" \
+    -H "Content-Type: application/json" \
+    -d '{"op":"result","jobId":"<job.id>","token":"<token>","error":"이미지 없음: <imgId>"}'
+  ```
+  그래야 서버가 `job.status`를 error로 마크하고 슬롯을 회수한다.
 - POST 본문 <128KB 엄수(series 길이/자릿수로 조절).
 - 차트 판독은 근사치임을 `note` 에 드러낸다.
