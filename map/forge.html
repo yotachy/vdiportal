@@ -2004,7 +2004,7 @@
       function morph(now) {
         if (!_playing) return;
         const u = Math.min(1, (now - t0) / dur);
-        fcDrawFuture(lerpPred(from, to, u));
+        fcRenderForecast(lerpPred(from, to, u));
         if (u < 1) { _playRaf = requestAnimationFrame(morph); }
         else { prevPred = to; i++; _playT = setTimeout(step, 180); }
       }
