@@ -648,7 +648,11 @@
     writeBackActive();
     const dc = { id: uid("doc"), title: "BTC/USD 분석 (샘플)", themeImgId: null, nodes: [], edges: [],
       view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
-    DOCS.push(dc); loadDoc(dc.id); buildSampleForge(); autoLayout("v"); writeBackActive(); saveMeta();
+    DOCS.push(dc); loadDoc(dc.id); buildSampleForge(); autoLayout("v");
+    const ad = activeDoc();
+    if (ad && _visionData) ad.vision = { series: _visionData.price, bias: ForgeCore.sampleGraph().vision.bias, note: _visionNote, waves: _visionWaves };
+    runForge();
+    writeBackActive(); saveMeta();
     if (window.renderSidebar) renderSidebar();
     bToast("BTC/USD 샘플 포지를 추가했어요");
   }
