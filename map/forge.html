@@ -1860,7 +1860,7 @@
     try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: 120, visionBias: _visionBias }); }
     catch (e) { console.warn("steps", e); return; }
     if (!steps.length) return;
-    if (prefersReducedMotion()) { renderChart(lastResult, data); bToast("포지 분석 완료"); return; }
+    if (prefersReducedMotion()) { renderChart(lastResult, currentData()); bToast("포지 분석 완료"); return; }
     _playing = true;
     const N = steps.length, progEl = document.getElementById("analyzeProg");
     let i = 0, prevPred = steps[0].prediction;
@@ -1871,7 +1871,7 @@
     function step() {
       if (!_playing) return;
       if (i >= N) {
-        renderChart(lastResult, data);
+        renderChart(lastResult, currentData());
         if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
         stopPlay(); bToast("포지 분석 완료"); return;
       }
@@ -1916,7 +1916,7 @@
     } else {
       _visionData = null;
     }
-    _visionBias = (result && result.bias) ? ForgeCore.visionBiasFrom(result.bias) : 0;
+    _visionBias = (_visionData && result && result.bias) ? ForgeCore.visionBiasFrom(result.bias) : 0;
     _visionNote = (result && typeof result.note === "string") ? result.note : "";
     _visionWaves = (result && Array.isArray(result.waves)) ? result.waves : [];
     const dc = activeDoc();
