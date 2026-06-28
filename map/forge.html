@@ -368,7 +368,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628j</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628k</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -490,7 +490,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628j");
+  console.log("[forge] build b0628k");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -809,11 +809,11 @@
       const jobs = (jr && jr.jobs) || [];
       const live = jobs.filter(j => j.status === "pending" || j.status === "working").sort((a, b) => strCmp(b.created, a.created))[0];
       if (live) { _setReqStat(live.status === "working" ? "분석 중…" : "분석 대기 중…", live.status); _startPoll(live.id); }
-      else {   // 폴링 중 아니어도 완료된 분석이 있으면 반영(없을 때 OR coords 업그레이드)
+      else {   // 폴링 중 아니어도 최신 완료 분석(잡 id 다르면)이 있으면 반영
         const done = jobs.filter(j => j.status === "done" && j.result && Array.isArray(j.result.series))
           .sort((a, b) => strCmp(b.finished || b.created, a.finished || a.created))[0];
         const dv = dc.vision;
-        if (done && (!dv || (done.result.coords && !dv.coords) || (done.result.timeframe && !dv.timeframe))) applyVision(done.result);
+        if (done && done.id !== (dv && dv.jobId)) applyVision(done.result, done.id);
       }
     }
   }
@@ -2788,7 +2788,7 @@
     }
   }
 
-  function applyVision(result) {
+  function applyVision(result, jobId) {
     if (result && Array.isArray(result.series) && result.series.length >= 2) {
       const px = result.series.map(Number).filter(v => isFinite(v));
       _visionData = px.length >= 2 ? { price: px, n: px.length } : null;
@@ -2804,7 +2804,7 @@
     const dc = activeDoc();
     if (dc) {
       dc.vision = _visionData
-        ? { series: _visionData.price, bias: result.bias || null, note: _visionNote, waves: _visionWaves, coords: _visionCoords, timeframe: _visionTF, futBars: _visionFut }
+        ? { series: _visionData.price, bias: result.bias || null, note: _visionNote, waves: _visionWaves, coords: _visionCoords, timeframe: _visionTF, futBars: _visionFut, jobId: jobId || null }
         : null;
       markDirty();
     }
@@ -2842,7 +2842,7 @@
       if (!job) { _pollT = setTimeout(tick, 2500); return; }
       if (job.status === "pending") { _setReqStat("분석 대기 중…", "pending"); _pollT = setTimeout(tick, 2500); return; }
       if (job.status === "working") { _setReqStat("분석 중…", "working"); _pollT = setTimeout(tick, 2500); return; }
-      if (job.status === "done") { _stopPoll(); _setReqStat("", ""); applyVision(job.result || {}); return; }
+      if (job.status === "done") { _stopPoll(); _setReqStat("", ""); applyVision(job.result || {}, job.id); return; }
       if (job.status === "error") { _stopPoll(); _setReqStat("분석 실패: " + (job.error || "알 수 없음"), "err"); return; }
       _pollT = setTimeout(tick, 2500);
     };
