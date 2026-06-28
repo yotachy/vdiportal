@@ -458,7 +458,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b062a5</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b062a6</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -604,7 +604,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b062a5");
+  console.log("[forge] build b062a6");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2502,8 +2502,11 @@
         } else if (n.blockType === "trend") {
           const len = Math.min(Hn, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
           const i0 = Hn - len, i1 = Hn - 1, x0 = toXh(i0), x1 = toXh(i1), y0 = toY(lr.b), y1 = toY(lr.a * (len - 1) + lr.b);
-          c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1);
-          const sl = (y1 - y0) / ((x1 - x0) || 1); c.lineTo(g.seamX, y1 + sl * (g.seamX - x1)); c.stroke(); c.setLineDash([]);
+          const sl = (y1 - y0) / ((x1 - x0) || 1), xS = g.seamX, yS = y1 + sl * (xS - x1);
+          c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = 4.5; c.beginPath(); c.moveTo(x0, y0); c.lineTo(xS, yS); c.stroke();
+          c.strokeStyle = col; c.lineWidth = 2.6; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+          c.globalAlpha = .7; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(x1, y1); c.lineTo(xS, yS); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+          c.fillStyle = col; c.font = "700 10px ui-monospace,monospace"; c.fillText("추세", x0 + 3, y0 - 4);
           legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "fib") {
           const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
@@ -2552,11 +2555,15 @@
           c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
         } else if (n.blockType === "trend") {
           const len = Math.min(P, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
-          const x0 = xOf(P - len), x1 = g.nowX, y0 = yOf(lr.b), y1 = yOf(lr.a * (len - 1) + lr.b);
-          // 예측 영역까지 추세 연장(점선·연하게)
-          const futBars = (g.path && g.path.length) || 24, xR = g.rightX || (g.ox + g.dw), yR = yOf(lr.a * (len - 1 + futBars) + lr.b);
-          c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([7, 4]); c.beginPath(); c.moveTo(x0, clipY(y0)); c.lineTo(x1, clipY(y1)); c.stroke();
-          c.globalAlpha = .5; c.setLineDash([3, 5]); c.beginPath(); c.moveTo(x1, clipY(y1)); c.lineTo(xR, clipY(yR)); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+          const x0 = xOf(P - len), x1 = g.nowX;
+          const yAt = j => clipY(yOf(lr.a * j + lr.b));             // 회귀 j번째 봉의 y
+          const futBars = (g.path && g.path.length) || 24, xR = g.rightX || (g.ox + g.dw);
+          const y0 = yAt(0), y1 = yAt(len - 1), yR = yAt(len - 1 + futBars);
+          // 다크 외곽(대비) → 본선(굵게) → 예측 연장(점선)
+          c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = 4.5; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+          c.strokeStyle = col; c.lineWidth = 2.6; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+          c.globalAlpha = .7; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(x1, y1); c.lineTo(xR, yR); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+          c.fillStyle = col; c.font = "700 10px ui-monospace,monospace"; c.textAlign = "left"; c.fillText("추세", x0 + 3, y0 - 4);
           legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "elliott") {
           const piv = _zigzag(price, 0.18).slice(-8);
