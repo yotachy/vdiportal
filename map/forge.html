@@ -342,7 +342,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628e</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628f</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -452,7 +452,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628e");
+  console.log("[forge] build b0628f");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -757,9 +757,9 @@
     if (vz && Array.isArray(vz.series) && vz.series.length >= 2) {
       _visionData = { price: vz.series, n: vz.series.length };
       _visionBias = vz.bias ? ForgeCore.visionBiasFrom(vz.bias) : 0;
-      _visionNote = vz.note || ""; _visionWaves = vz.waves || [];
+      _visionNote = vz.note || ""; _visionWaves = vz.waves || []; _visionCoords = vz.coords || null;
     } else {
-      _visionData = null; _visionBias = 0; _visionNote = ""; _visionWaves = [];
+      _visionData = null; _visionBias = 0; _visionNote = ""; _visionWaves = []; _visionCoords = null;
     }
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
@@ -770,10 +770,10 @@
       const jobs = (jr && jr.jobs) || [];
       const live = jobs.filter(j => j.status === "pending" || j.status === "working").sort((a, b) => strCmp(b.created, a.created))[0];
       if (live) { _setReqStat(live.status === "working" ? "분석 중…" : "분석 대기 중…", live.status); _startPoll(live.id); }
-      else if (!dc.vision) {   // 폴링 중이 아니어도 완료된 분석이 있으면 반영
+      else {   // 폴링 중 아니어도 완료된 분석이 있으면 반영(없을 때 OR coords 업그레이드)
         const done = jobs.filter(j => j.status === "done" && j.result && Array.isArray(j.result.series))
           .sort((a, b) => strCmp(b.finished || b.created, a.finished || a.created))[0];
-        if (done) applyVision(done.result);
+        if (done && (!dc.vision || (done.result.coords && !(dc.vision && dc.vision.coords)))) applyVision(done.result);
       }
     }
   }
@@ -2199,13 +2199,59 @@
     }
   }
 
-  function fcRenderForecast(pred, chartMode) {
-    if (chartMode) { fcDrawMainChart(currentData().price, pred); return; }   // 실데이터/비전 → 연속 차트
-    // 이미지 모드(분석 전): 이미지 위에 '분석 요청' 안내만
+  function fcRenderForecast(pred, mode) {
+    if (mode === "chart") { fcDrawMainChart(currentData().price, pred); return; }   // 연속 선 차트
     const cone = document.getElementById("fcCone");
     const heroImg = document.getElementById("fcHeroImg");
     const img = heroImg && heroImg.querySelector("img");
-    if (cone && img) coneRetry(() => drawConeHint(cone, img), img);
+    if (!cone || !img) return;
+    if (mode === "overlay" && _visionCoords) {   // 원본 이미지 위에 예측 오버레이(같은 축으로 이어 그림)
+      coneRetry(() => drawVisionOverlay(cone, img, pred, _visionCoords, currentData().price), img);
+    } else {                                      // 분석 전: 이미지 위 '분석 요청' 안내
+      coneRetry(() => drawConeHint(cone, img), img);
+    }
+  }
+  /* 원본 차트 이미지 위, 비전 좌표(coords)로 예측을 같은 가격축(로그) 미래영역에 이어 그림 */
+  function drawVisionOverlay(cv, img, pred, coords, series) {
+    const sz = sizeOverlay(cv); if (!sz.c) return false;
+    const c = sz.c, H = sz.H;
+    const g = coneGeo(cv, img); if (!g) return false;
+    const { ox, oy, dw, dh } = g;
+    const p1 = coords.p1, p2 = coords.p2;
+    if (!p1 || !p2 || !isFinite(p1.price) || !isFinite(p2.price) || p1.price === p2.price) return false;
+    const lg = coords.log !== false;
+    const tf = p => lg ? Math.log(Math.max(1e-9, p)) : p;
+    const y1 = oy + ((p1.yf != null ? p1.yf : 0.15)) * dh, y2 = oy + ((p2.yf != null ? p2.yf : 0.85)) * dh;
+    const t1 = tf(p1.price), t2 = tf(p2.price);
+    const yOf = p => y1 + (tf(p) - t1) * (y2 - y1) / ((t2 - t1) || 1);
+    const nowX = ox + ((coords.nowXf != null ? coords.nowXf : 0.6)) * dw;
+    const rightX = ox + ((coords.rightXf != null ? coords.rightXf : 0.98)) * dw;
+    const path = (pred && pred.path) || [], lo = (pred && pred.lo) || [], hi = (pred && pred.hi) || [];
+    const anchorP = (pred && pred.anchor != null) ? pred.anchor : (series && series.length ? series[series.length - 1] : null);
+    if (anchorP == null) return false;
+    const xOf = k => nowX + (path.length > 1 ? k / (path.length - 1) : 0) * (rightX - nowX);
+    const anchorY = yOf(anchorP);
+    c.font = "10px ui-monospace,monospace"; c.textAlign = "left"; c.lineWidth = 1;
+    /* '지금' 세로선(데이터 끝) */
+    c.strokeStyle = "rgba(232,180,99,.5)"; c.setLineDash([4, 3]);
+    c.beginPath(); c.moveTo(nowX, oy); c.lineTo(nowX, oy + dh); c.stroke(); c.setLineDash([]);
+    c.fillStyle = "rgba(232,180,99,.92)"; c.fillText("지금", nowX + 3, oy + 11);
+    if (path.length) {
+      c.beginPath(); c.moveTo(nowX, anchorY);
+      for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(hi[k]));
+      for (let k = path.length - 1; k >= 0; k--) c.lineTo(xOf(k), yOf(lo[k]));
+      c.closePath(); c.fillStyle = "rgba(232,180,99,.18)"; c.fill();
+      c.strokeStyle = FC_GOLD; c.lineWidth = 2; c.setLineDash([5, 4]);
+      c.beginPath(); c.moveTo(nowX, anchorY);
+      for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(path[k]));
+      c.stroke(); c.setLineDash([]);
+      const endP = path[path.length - 1];
+      c.fillStyle = FC_ETH; c.textAlign = "right";
+      c.fillText(fmtNum(endP), rightX - 2, Math.max(10, Math.min(H - 3, yOf(endP) - 5))); c.textAlign = "left";
+    }
+    c.fillStyle = FC_GOLD; c.beginPath(); c.arc(nowX, anchorY, 3.5, 0, 7); c.fill();
+    c.fillStyle = "rgba(232,180,99,.95)"; c.fillText("현재가 " + fmtNum(anchorP), nowX + 7, anchorY - 6);
+    return true;
   }
 
   /* ── renderChart: top-level, consumes ForgeCore output ── */
@@ -2237,11 +2283,15 @@
     }
 
     /* draw all panels.
-       실데이터/비전 있으면 연속 예측 차트, 없는데 가격 이미지가 있으면 이미지(분석 대기) 모드 */
-    const chartMode = hasRealSeries() || !heroImgId();
-    fcHeroMode(chartMode ? "chart" : "image");
-    if (!chartMode) renderHero();
-    fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] }, chartMode);
+       overlay=원본 이미지 보존+예측 오버레이(비전 coords), chart=연속 선차트, image=분석 대기 */
+    let mode;
+    if (hasRealSeries() && heroImgId() && _visionCoords) mode = "overlay";
+    else if (hasRealSeries()) mode = "chart";
+    else if (heroImgId()) mode = "image";
+    else mode = "chart";
+    fcHeroMode(mode === "chart" ? "chart" : "image");
+    if (mode !== "chart") renderHero();
+    fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] }, mode);
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
       ["fcFoldA", "fcFoldB", "fcFoldC"].forEach(id => {
@@ -2433,7 +2483,7 @@
 
   /* ── Forge data + runForge ───────────────────────────────────── */
   let data = ForgeCore.makeDemoSeries({ n: 480, seed: 1, period: 64 });
-  let _visionData = null, _visionBias = 0, _visionNote = "", _visionWaves = [];
+  let _visionData = null, _visionBias = 0, _visionNote = "", _visionWaves = [], _visionCoords = null;
   /* 실제 분석 시계열만 연속 '분석 차트'를 구동. 비전 워커 비활성 동안엔 항상 null
      → 가격 노드 이미지 + 예측 콘(이미지 모드). 워커 도입(VISION_ENABLED) 시 부활. */
   function visionLive() { return (VISION_ENABLED && _visionData) ? _visionData : null; }
@@ -2605,10 +2655,11 @@
     _visionBias = (_visionData && result && result.bias) ? ForgeCore.visionBiasFrom(result.bias) : 0;
     _visionNote = (result && typeof result.note === "string") ? result.note : "";
     _visionWaves = (result && Array.isArray(result.waves)) ? result.waves : [];
+    _visionCoords = (_visionData && result && result.coords && typeof result.coords === "object") ? result.coords : null;
     const dc = activeDoc();
     if (dc) {
       dc.vision = _visionData
-        ? { series: _visionData.price, bias: result.bias || null, note: _visionNote, waves: _visionWaves }
+        ? { series: _visionData.price, bias: result.bias || null, note: _visionNote, waves: _visionWaves, coords: _visionCoords }
         : null;
       markDirty();
     }
