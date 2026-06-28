@@ -428,7 +428,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629k</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629l</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -442,9 +442,9 @@
     <div class="h-actions">
       <span id="analyzeProg" class="analyze-prog"></span>
       <span id="reqStat" class="req-stat" onclick="cancelReq()"></span>
-      <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="1차 웹분석 — 이미지를 비전으로 판독해 시계열·축보정 생성(데이터 준비 · 워커)">① 웹분석</button>
+      <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="웹분석 — 이미지를 비전으로 판독해 시계열 데이터 생성(필요할 때만 · 워커)">☁ 웹분석</button>
       <span class="h-sep"></span>
-      <button class="run-btn" id="analyzeBtn" onclick="playAnalysis()" title="2차 엔진분석 — 1차 데이터를 노드 그래프로 계산해 포지결과(예측·시그널) 산출">② 엔진분석 ▶</button>
+      <button class="run-btn" id="analyzeBtn" onclick="playAnalysis()" title="재생 — 포지결과는 편집/웹분석 시 자동 계산됨. 이 버튼은 그 분석 과정을 애니메이션으로 다시 보기만 함">▶ 재생</button>
     </div>
   </header>
   <div class="forge-shell">
@@ -569,7 +569,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629k");
+  console.log("[forge] build b0629l");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2213,7 +2213,7 @@
     const { c, W, H } = sizeOverlay(cv); if (!c) return false;
     const g = coneGeo(cv, imgEl); if (!g) return false;
     c.font = "12px Pretendard,system-ui,sans-serif"; c.textAlign = "center";
-    const txt = "① 웹분석 — 이 이미지를 판독해 시계열을 만듭니다 (그 뒤 ② 엔진분석)";
+    const txt = "☁ 웹분석 — 이 이미지를 판독해 시계열을 만들면 포지결과가 자동 계산됩니다";
     const tw = c.measureText(txt).width + 22;
     c.fillStyle = "rgba(11,15,20,.66)"; c.fillRect((W - tw) / 2, H - 30, tw, 22);
     c.fillStyle = "rgba(232,180,99,.95)"; c.fillText(txt, W / 2, H - 15);
