@@ -428,7 +428,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629f</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629g</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -569,7 +569,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629f");
+  console.log("[forge] build b0629g");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -877,7 +877,8 @@
     dc.themeImgId = themeState.imgId; dc.title = themeState.title || dc.title;
     /* 실제 분석 시계열만 저장. 비전 비활성 동안엔 null로 정리(누수된 샘플 시계열 자동 제거). */
     dc.vision = visionLive()
-      ? { series: _visionData.price, bias: dc.vision && dc.vision.bias || null, note: _visionNote, waves: _visionWaves }
+      ? { series: _visionData.price, bias: dc.vision && dc.vision.bias || null, note: _visionNote, waves: _visionWaves,
+          coords: _visionCoords, timeframe: _visionTF, futBars: _visionFut, jobId: (dc.vision && dc.vision.jobId) || null }
       : null;
     dc.view = { tx: view.tx, ty: view.ty, scale: view.scale };
     dc.updated = new Date().toISOString();
@@ -3166,7 +3167,7 @@
   /* ── Forge data + runForge ───────────────────────────────────── */
   let data = ForgeCore.makeDemoSeries({ n: 480, seed: 1, period: 64 });
   let _visionData = null, _visionBias = 0, _visionNote = "", _visionWaves = [], _visionCoords = null, _visionTF = null, _visionFut = 0;
-  function visionFutW() { return (_visionFut >= 4 && _visionFut <= 240) ? _visionFut : 120; }
+  function visionFutW() { return (_visionFut >= 4 && _visionFut <= 60) ? _visionFut : 24; }
   /* 실제 분석 시계열만 연속 '분석 차트'를 구동. 비전 워커 비활성 동안엔 항상 null
      → 가격 노드 이미지 + 예측 콘(이미지 모드). 워커 도입(VISION_ENABLED) 시 부활. */
   function visionLive() { return (VISION_ENABLED && _visionData) ? _visionData : null; }

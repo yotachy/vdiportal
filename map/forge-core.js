@@ -280,7 +280,7 @@
   }
 
   function run(graph, data, opts) {
-    const futW = (opts && opts.futW) || 120;
+    const futW = Math.min(((opts && opts.futW) || 24), 60);   // 예측 horizon 상한(과도한 장기 외삽 방지)
     const ev = evalBlocks(graph, data), { values, meta } = ev;
     const outNode = graph.nodes.find(n => n.kind === "block" && (n.blockType === "predict"));
     const inputsOf = buildDAG(graph).inputsOf;
@@ -315,10 +315,11 @@
     let vsum = 0; for (const r of lr) vsum += (r - muMom) * (r - muMom);
     let sigma = lr.length > 1 ? Math.sqrt(vsum / (lr.length - 1)) : 0.05;
     sigma = Math.max(sigma, 0.008);
-    // 평활 베이스라인(EMA of log price, span ~2·horizon) → 평균회귀 목표
-    const span = Math.max(8, Math.min(n, 2 * futW)), alpha = 2 / (span + 1);
-    let ema = logP[0]; for (let i = 1; i < n; i++) ema += alpha * (logP[i] - ema);
-    const dev = logP[n - 1] - ema;                  // 현재가의 베이스라인 대비 로그편차
+    // 평활 베이스라인(최근 구간 EMA of log price) → 평균회귀 목표.
+    // span을 '최근'으로 캡(최대 24봉): 장기 추세주(예: 280배 성장)에서 옛 저가로 회귀하는 폭락 예측 방지.
+    const span = Math.max(6, Math.min(n - 1, 2 * futW, 24)), alpha = 2 / (span + 1);
+    let ema = logP[Math.max(0, n - 1 - span * 3)]; for (let i = Math.max(1, n - 1 - span * 3) + 1; i < n; i++) ema += alpha * (logP[i] - ema);
+    const dev = logP[n - 1] - ema;                  // 현재가의 (최근)베이스라인 대비 로그편차
     const theta = 0.045;                            // 평균회귀 속도(반감기 ~15봉)
     const tauM = Math.max(3, futW * 0.4);           // 모멘텀 감쇠 시정수
     const sigDriftTotal = (lastSig / 100) * 0.20;   // 신호 방향 누적 드리프트(만점 ±20%)

@@ -74,7 +74,7 @@ test("evalBlocks phasefold attaches period meta", () => {
   assert.ok(r.meta && r.meta.f && Math.abs(r.meta.f.best - P0) <= 2);
 });
 
-test("regression guard: prediction.path.length===120 and signal.length===data.n", () => {
+test("regression guard: futW capped to 60 and signal.length===data.n", () => {
   const data = ForgeCore.makeDemoSeries({ n: 300, seed: 1, period: 64 });
   const g = {
     nodes: [
@@ -91,7 +91,7 @@ test("regression guard: prediction.path.length===120 and signal.length===data.n"
     ]
   };
   const out = ForgeCore.run(g, data, { futW: 120 });
-  assert.strictEqual(out.prediction.path.length, 120);
+  assert.strictEqual(out.prediction.path.length, 60);   // futW 상한 60으로 캡
   assert.strictEqual(out.signal.length, data.n);
 });
 
@@ -386,7 +386,7 @@ test("sampleGraph: 10 nodes, DAG runs, descriptions are truthful, bullish net", 
   const vb = ForgeCore.visionBiasFrom(g.vision.bias);
   const r = ForgeCore.run(g, data, { futW: 120, visionBias: vb });
   assert.strictEqual(r.signal.length, 480);
-  assert.strictEqual(r.prediction.path.length, 120);
+  assert.strictEqual(r.prediction.path.length, 60);   // futW 상한 60
   // 추세선 우상향 서술 근거: 마지막 40봉 회귀 기울기 > 0
   const last40 = data.price.slice(-40);
   const nn = last40.length, xs = last40.map((_, i) => i);
