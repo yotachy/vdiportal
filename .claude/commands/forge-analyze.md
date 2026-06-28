@@ -43,7 +43,13 @@ description: 스쿱포지 비전 분석 워커 — 큐에서 잡을 claim해 대
    - `bias`: `{ "dir": "bull"|"bear"|"neutral", "strength": 0~1 }` — 최근 모멘텀·구조 기반(데이터에서 산출 권장).
    - `timeframe`: 타임프레임 한글 라벨(예: `"월봉(1M)"` / `"주봉"` / `"일봉"`).
    - `futBars`: 예측 봉 수(타임프레임에 맞게: 월봉≈24, 주봉≈26, 일봉≈30). 미지정 시 클라가 120.
-   - `coords`: 이미지 가격축 정렬용. `{ "log": true|false, "p1": {"price":P, "yf":0~1}, "p2": {"price":P, "yf":0~1}, "nowXf":0~1, "rightXf":0~1 }` — 두 축 라벨의 (가격, y픽셀비율) + '지금' x비율 + 예측영역 우측 x비율. 측정 불가면 `null`.
+   - `coords`: 이미지 가격축 정렬용. `{ "log": true|false, "p1": {"price":P, "yf":0~1}, "p2": {"price":P, "yf":0~1}, "nowXf":0~1, "rightXf":0~1 }` — 두 축 기준의 (가격, y픽셀비율) + '지금' x비율 + 예측영역 우측 x비율. **눈대중 금지 — 픽셀 정밀측정**: numpy+PIL로 (1) 우측 축 가격 라벨 배지 색검출(파란 High/Low, 빨간 현재가) → 배지 y중심/이미지높이 = yf, (2) '지금' 세로 점선 = 세로로 색픽셀 최다 열 → x/너비 = nowXf, (3) 예측영역 우측 = 축 라벨 시작 직전. 로그축 여부는 라벨 간격이 등비면 log=true. 측정 불가 시에만 `null`.
+     ```python
+     import numpy as np; from PIL import Image
+     im=np.asarray(Image.open(p).convert("RGB")).astype(int); H,W,_=im.shape; R,G,B=im[:,:,0],im[:,:,1],im[:,:,2]
+     ax=slice(int(W*.88),W); blue=(B>110)&(B-R>35)&(B-G>20); red=(R>150)&(R-G>70)&(R-B>70)   # 배지: row별 sum의 밴드 중심 = yf
+     gold=(R>150)&(G>110)&(G<200)&(B<120); gray=(np.abs(R-G)<40)&(np.abs(G-B)<40)&(R>55)&(R<150)  # 세로선: col별 sum 최다 = nowX
+     ```
    - `waves`: 파동/스윙 `[{from,to,label}]`(series 인덱스). 없으면 `[]`.
    - `note`: 1~2문장 한국어 근거(실데이터/근사 여부 명시).
 6. **result POST**:
