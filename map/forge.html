@@ -364,6 +364,8 @@
   .play-hud .ph-node{display:flex;flex-direction:column;gap:1px;min-width:0}
   .play-hud .ph-title{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
   .play-hud .ph-type{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--eth)}
+  .play-hud .ph-type b{text-transform:none;letter-spacing:0}
+  .play-hud .ph-memo{font-size:11px;color:var(--gold);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em;margin-top:1px}
   .play-hud .ph-sig{margin-left:auto;display:flex;align-items:baseline;gap:7px;font-family:ui-monospace,monospace;white-space:nowrap}
   .play-hud .ph-sig b{font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
   .play-hud .ph-delta{font-size:11px;font-weight:700}
@@ -395,7 +397,8 @@
 
   /* ── 분석 해설 패널 ── */
   .nr-list{display:flex;flex-direction:column;gap:0}
-  .nr-step{display:flex;gap:10px;padding:7px 2px;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.5;align-items:baseline}
+  .nr-step{display:flex;flex-wrap:wrap;gap:6px 10px;padding:7px 2px;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.5;align-items:baseline}
+  .nr-memo{flex-basis:100%;margin-left:28px;color:var(--gold);font-style:italic;font-size:11.5px;line-height:1.45}
   .nr-step:last-of-type{border-bottom:0}
   .nr-num{flex:0 0 18px;width:18px;height:18px;border-radius:50%;background:rgba(232,180,99,.14);border:1px solid var(--gold-dim);
     color:var(--gold);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,monospace}
@@ -435,7 +438,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629m</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629n</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -577,7 +580,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629m");
+  console.log("[forge] build b0629n");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2781,7 +2784,9 @@
       const read = nodeReadText(n, result, priceLast);
       const conv = n.conviction || 0;
       const lean = conv > 5 ? '<span class="nr-up">▲ 상승 가중</span>' : conv < -5 ? '<span class="nr-dn">▼ 하락 가중</span>' : '<span class="nr-fl">중립</span>';
-      steps.push(`<div class="nr-step"><span class="nr-num">${i++}</span><b>${esc(BTLABEL[n.blockType] || n.blockType)}</b><span class="nr-read">${esc(read)} · ${lean}</span></div>`);
+      const memo = (n.note && n.note.trim()) || (n.desc && n.desc.trim()) || "";
+      const memoHtml = memo ? `<span class="nr-memo">“${esc(memo)}”</span>` : "";
+      steps.push(`<div class="nr-step"><span class="nr-num">${i++}</span><b>${esc(BTLABEL[n.blockType] || n.blockType)}</b><span class="nr-read">${esc(read)} · ${lean}</span>${memoHtml}</div>`);
     });
     const reg = regimeKo(v.regime);
     const score = Math.round(v.score || 0);
@@ -3380,37 +3385,44 @@
     const eg = document.getElementById("bEdges"); if (eg) eg.classList.add("flow");
     const hud = document.getElementById("playHud"); if (hud) hud.classList.add("on");
     const progEl = document.getElementById("analyzeProg");
-    // 모든 지표 노드 동시 점등(찰나의 스태거로 '동시 가동' 느낌)
+    const _pnode = boardState.nodes.find(n => n.blockType === "price");
+    const _pv = _pnode && lastResult.values && lastResult.values[_pnode.id];
+    const priceLast0 = (_pv && _pv.length) ? _pv[_pv.length - 1] : null;
+    function _hudNode(n, idx) {
+      if (!hud) return;
+      const read = nodeReadText(n, lastResult, priceLast0);
+      const memo = (n.note && n.note.trim()) || (n.desc && n.desc.trim()) || "";
+      const conv = n.conviction || 0;
+      const lean = conv > 5 ? "▲ 상승 가중 +" + conv : conv < -5 ? "▼ 하락 가중 " + conv : "중립";
+      const lc = conv > 5 ? "var(--bull)" : conv < -5 ? "var(--bear)" : "var(--eth)";
+      const segs = indNodes.map((_, k) => `<span class="ph-seg ${k < idx ? "done" : k === idx ? "cur" : ""}"></span>`).join("");
+      hud.innerHTML =
+        `<span class="ph-dot" style="color:${lc}"></span>
+         <div class="ph-node"><span class="ph-title">${esc(BTLABEL[n.blockType] || n.blockType)}${n.title ? " · " + esc(n.title) : ""}</span>
+           <span class="ph-type">${esc(read)} · <b style="color:${lc}">${lean}</b></span>
+           ${memo ? `<span class="ph-memo">“${esc(memo)}”</span>` : ""}</div>
+         <div class="ph-prog"><span class="ph-knt">${idx + 1}/${indNodes.length}</span><span class="ph-bar">${segs}</span></div>`;
+    }
+    // 노드별 순차 내레이션 — 천천히(읽을 수 있게), 각 노드의 서술/메모를 HUD에 표시
+    const STEP = 1500;   // 노드당 시연 시간(ms)
     indNodes.forEach((n, idx) => {
-      _playTimers.push(setTimeout(() => { if (!_playing) return; const el = bq(n.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); } }, 40 * idx));
+      _playTimers.push(setTimeout(() => {
+        if (!_playing) return;
+        if (idx > 0) { const pe = bq(indNodes[idx - 1].id); if (pe) { pe.classList.remove("analyzing"); pe.classList.add("analyzed"); } }
+        const el = bq(n.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); }
+        _evidenceSet.add(n.id);
+        _hudNode(n, idx);
+        if (progEl) progEl.textContent = "분석 중 " + (idx + 1) + "/" + indNodes.length + " · " + (n.title || BTLABEL[n.blockType] || "노드");
+      }, idx * STEP));
     });
-    // 근거 작도는 살짝 더 벌려 순차로 그려지는 게 보이게(동시 분석이되 작도 과정은 가시화)
-    indNodes.forEach((n, idx) => {
-      _playTimers.push(setTimeout(() => { if (!_playing) return; _evidenceSet.add(n.id); }, 130 * idx + 120));
-    });
-    // 예측 부채꼴이 평평(anchor)에서 최종 예측으로 '펼쳐지며' 포지가 형성
+    // 예측 부채꼴이 평평(anchor)에서 최종 예측으로 '펼쳐지며' 포지가 형성 — 내레이션 길이에 맞춰 천천히
     const A = finPred.anchor;
     const flat = { path: finPred.path.map(() => A), lo: finPred.path.map(() => A), hi: finPred.path.map(() => A), anchor: A };
-    const total = Math.max(1400, 130 * indNodes.length + 700), t0 = performance.now();
-    function renderHud(u) {
-      if (!hud) return;
-      const reg = _REG[(fin.verdict && fin.verdict.regime) || "neutral"] || _REG.neutral;
-      const lit = Math.min(indNodes.length, Math.round(u * total / 130) + 1);
-      const segs = indNodes.map((_, k) => `<span class="ph-seg ${k < lit ? "done" : "cur"}"></span>`).join("");
-      const sigNow = Math.round(finSig * _ease(u));
-      hud.innerHTML =
-        `<span class="ph-dot" style="color:${reg.c}"></span>
-         <div class="ph-node"><span class="ph-title">동시 분석 · 포지 형성</span>
-           <span class="ph-type">${indNodes.length}개 지표 가중 결합 · 국면 ${reg.t}</span></div>
-         <div class="ph-sig"><span class="ph-type">시그널</span><b>${sigNow}</b></div>
-         <div class="ph-prog"><span class="ph-knt">${Math.min(lit, indNodes.length)}/${indNodes.length}</span><span class="ph-bar">${segs}</span></div>`;
-    }
-    if (progEl) progEl.textContent = "동시 분석 중 · " + indNodes.length + "개 지표 결합";
+    const total = Math.max(2600, indNodes.length * STEP + 800), t0 = performance.now();
     function morph(now) {
       if (!_playing) return;
       const u = Math.min(1, (now - t0) / total);
       fcRenderForecast(lerpPred(flat, finPred, _ease(u)));
-      renderHud(u);
       if (u < 1) { _playRaf = requestAnimationFrame(morph); return; }
       finishPlay();
     }
@@ -3425,7 +3437,16 @@
       if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
       const eg2 = document.getElementById("bEdges"); if (eg2) eg2.classList.remove("flow");
       const hud2 = document.getElementById("playHud");
-      _playTimers.push(setTimeout(() => { if (hud2) hud2.classList.remove("on"); }, 1600));
+      if (hud2) {   // 종합 결론 HUD(천천히 사라짐 — 읽을 시간)
+        const reg = _REG[(fin.verdict && fin.verdict.regime) || "neutral"] || _REG.neutral;
+        const tgt = fin.verdict && isFinite(fin.verdict.target) ? fmtNum(fin.verdict.target) : "—";
+        hud2.innerHTML =
+          `<span class="ph-dot" style="color:${reg.c}"></span>
+           <div class="ph-node"><span class="ph-title">종합 — 포지결과</span>
+             <span class="ph-type">${indNodes.length}개 지표 결합 · 국면 <b style="color:${reg.c}">${reg.t}</b> · 목표가 ${tgt}</span></div>
+           <div class="ph-sig"><span class="ph-type">시그널</span><b>${Math.round(finSig)}</b></div>`;
+      }
+      _playTimers.push(setTimeout(() => { if (hud2) hud2.classList.remove("on"); }, 3200));
       const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
       bToast("포지 완료 · " + indNodes.length + "개 지표 결합 → 시그널 " + Math.round(finSig));
     }
