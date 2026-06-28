@@ -418,7 +418,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628y</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628z</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -452,6 +452,7 @@
           <div class="fc-phead">
             <span class="fc-t"><b>대표 이미지</b> · 가격 차트</span>
             <span class="fc-meta" id="fcMeta">–</span>
+            <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈 차트뷰</button>
             <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
             <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
           </div>
@@ -553,7 +554,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628y");
+  console.log("[forge] build b0628z");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2468,11 +2469,31 @@
   }
 
   /* 결과 영역 표시 모드: overlay(원본 이미지+예측 오버레이) / chart(연속 선차트) / image(분석 대기) */
+  let _heroView = "auto";   // auto | chart | image (사용자 강제 뷰)
   function heroMode() {
+    if (_heroView === "chart" && hasRealSeries()) return "chart";   // 강제 차트뷰: 작도가 항상 선에 정합
+    if (_heroView === "image" && heroImgId()) return _visionCoords ? "overlay" : "image";
     if (hasRealSeries() && heroImgId() && _visionCoords) return "overlay";
     if (hasRealSeries()) return "chart";
     if (heroImgId()) return "image";
     return "chart";
+  }
+  function cycleHeroView() {
+    const canImg = !!heroImgId(), canChart = !!hasRealSeries();
+    if (!canImg || !canChart) { bToast(canChart ? "이미지가 없어요" : "실 시계열이 없어요"); return; }
+    _heroView = (_heroView === "chart") ? "image" : "chart";
+    updateViewToggle();
+    renderTheme();
+    if (lastResult && hasRealSeries()) renderChart(lastResult, currentData());
+    bToast(_heroView === "chart" ? "차트뷰 · 작도가 선에 정합" : "이미지뷰 · 원본 위 예측");
+  }
+  function updateViewToggle() {
+    const b = document.getElementById("viewToggle"); if (!b) return;
+    const both = !!heroImgId() && !!hasRealSeries();
+    b.style.display = both ? "" : "none";
+    const m = heroMode();
+    b.textContent = (m === "chart") ? "🖼 이미지뷰" : "📈 차트뷰";
+    b.title = (m === "chart") ? "원본 이미지 위 예측으로 전환" : "연속 차트로 전환 — 작도가 선에 정확히 정합";
   }
   function fcRenderForecast(pred) {
     const mode = heroMode();
@@ -2591,6 +2612,7 @@
 
     /* draw all panels — overlay=원본 이미지+예측 오버레이, chart=연속 선차트, image=분석 대기 */
     const mode = heroMode();
+    updateViewToggle();
     fcHeroMode(mode === "chart" ? "chart" : "image");
     if (mode !== "chart") renderHero();
     fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] });
