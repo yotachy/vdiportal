@@ -170,7 +170,7 @@
 
   /* hero panel (대표 이미지) — 확정 높이(차트 모드 캔버스 height:100% 붕괴·overflow:hidden 클리핑 방지) */
   .fc-panel-hero{flex:0 0 auto;min-height:0}
-  .fc-hero{display:flex;gap:6px;height:312px}
+  .fc-hero{display:flex;gap:6px;height:312px;position:relative}
   .fc-hero-img{position:relative;flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
   .fc-hero-img img{width:100%;height:100%;object-fit:contain}
   /* 예측 콘 오버레이(이미지 가격축 위) — 히어로/편집기 공용 */
@@ -386,7 +386,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628p</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628q</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -426,6 +426,8 @@
               <div class="fc-hero-img" id="fcHeroImg"><span class="fc-hero-ph">라이브러리에서 대표 이미지를 드래그하세요</span></div>
               <canvas id="fcFuture" class="fc-cv"></canvas>
               <canvas id="fcMainChart" class="fc-cv"></canvas>
+              <div class="fc-cone-vline" id="fcMainVline"></div>
+              <div class="fc-cone-tip" id="fcMainTip"></div>
             </div>
           </div>
         </div>
@@ -515,7 +517,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628p");
+  console.log("[forge] build b0628q");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2216,6 +2218,8 @@
     const toY = v => padTop + (1 - (v - loV) / ((hiV - loV) || 1)) * (ch - padTop - padBot);
     const toXh = i => padX + (i / (hist.length - 1)) * histW;
     const toXf = k => seamX + ((k + 1) / Math.max(1, path.length)) * (plotW - histW);
+    /* 호버 툴팁용 기하 stash(CSS px 공간) */
+    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉") };
     // grid
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
@@ -2630,6 +2634,43 @@
       tip.style.display = "block";
       const tw = tip.offsetWidth, th = tip.offsetHeight, rx = e.clientX - rect.left, ry = e.clientY - rect.top;
       let lx = rx + 14; if (lx + tw > rect.width - 4) lx = rx - tw - 14; if (lx < 4) lx = 4;
+      let ly = ry - th - 10; if (ly < 4) ly = ry + 16;
+      tip.style.left = lx + "px"; tip.style.top = ly + "px";
+    });
+  })();
+
+  /* ── 연속 차트(메인) 호버 툴팁: 과거가/예측가 동시 지원 ── */
+  (function initMainHover() {
+    const cv = document.getElementById("fcMainChart"); if (!cv) return;
+    const hero = cv.parentElement;
+    const hide = () => { const t = document.getElementById("fcMainTip"), v = document.getElementById("fcMainVline"); if (t) t.style.display = "none"; if (v) v.style.display = "none"; };
+    cv.addEventListener("mouseleave", hide);
+    cv.addEventListener("mousemove", e => {
+      const g = cv._mainGeo, tip = document.getElementById("fcMainTip"), vline = document.getElementById("fcMainVline");
+      if (!g || !tip) { hide(); return; }
+      const rect = cv.getBoundingClientRect();
+      const cwid = cv.clientWidth || rect.width, sx = cwid ? rect.width / cwid : 1;
+      const x = (e.clientX - rect.left) / (sx || 1);
+      if (x < g.padX || x > g.padX + g.plotW) { hide(); return; }
+      let isFut = false, k = 0, i = 0, price, lo, hi, label = "", chg = null, snapX;
+      if (x <= g.seamX && g.histLen > 1) {
+        i = Math.round((x - g.padX) / (g.histW || 1) * (g.histLen - 1)); i = Math.max(0, Math.min(g.histLen - 1, i));
+        price = g.hist[i]; const ago = g.histLen - 1 - i; label = ago === 0 ? "현재" : "과거 " + ago + g.unit + " 전";
+        snapX = g.padX + (i / (g.histLen - 1)) * g.histW;
+      } else if (g.pathLen > 0) {
+        isFut = true; k = Math.round((x - g.seamX) / ((g.plotW - g.histW) || 1) * g.pathLen - 1); k = Math.max(0, Math.min(g.pathLen - 1, k));
+        price = g.path[k]; lo = g.lo[k]; hi = g.hi[k]; label = "+" + (k + 1) + g.unit;
+        chg = g.anchor ? (price - g.anchor) / g.anchor * 100 : 0;
+        snapX = g.seamX + ((k + 1) / Math.max(1, g.pathLen)) * (g.plotW - g.histW);
+      } else { hide(); return; }
+      const hr = hero.getBoundingClientRect(), offX = rect.left - hr.left, offY = rect.top - hr.top;
+      if (vline) { vline.style.display = "block"; vline.style.left = (offX + snapX * sx) + "px"; vline.style.top = (offY + g.padTop * sx) + "px"; vline.style.height = ((g.ch - g.padTop - g.padBot) * sx) + "px"; }
+      let inner = `<span class="ct-t">${label}</span><span class="ct-v">${_hzFmt(price)}</span>`;
+      if (chg != null) { const col = chg > 0.3 ? "var(--bull)" : chg < -0.3 ? "var(--bear)" : "var(--eth)"; inner += `<span class="ct-chg" style="color:${col}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>`; }
+      if (isFinite(lo) && isFinite(hi)) inner += `<span class="ct-band">${_hzFmt(lo)} ~ ${_hzFmt(hi)}</span>`;
+      tip.innerHTML = inner; tip.style.display = "block";
+      const tw = tip.offsetWidth, th = tip.offsetHeight, rx = e.clientX - hr.left, ry = e.clientY - hr.top;
+      let lx = rx + 14; if (lx + tw > hr.width - 4) lx = rx - tw - 14; if (lx < 4) lx = 4;
       let ly = ry - th - 10; if (ly < 4) ly = ry + 16;
       tip.style.left = lx + "px"; tip.style.top = ly + "px";
     });
