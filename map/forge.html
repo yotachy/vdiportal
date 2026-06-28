@@ -191,6 +191,11 @@
   body.evhide .fc-evidence{display:none}
   .ev-toggle{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:-.01em}
   .ev-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.1)}
+  /* 데이터 소스 배지(이미지뷰=비전 시계열 자동 감지 안내) */
+  .fc-src{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:11px;letter-spacing:-.01em;white-space:nowrap;cursor:default}
+  .fc-src-info{color:#9db8f0;background:rgba(91,141,239,.13);border:1px solid rgba(91,141,239,.4)}
+  .fc-src-vision{color:#7ed0c0;background:rgba(63,182,192,.13);border:1px solid rgba(63,182,192,.42)}
+  .fc-src-warn{color:var(--gold);background:rgba(232,180,99,.13);border:1px solid var(--gold-dim)}
   .fc-hero-img{position:relative;flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
   .fc-hero-img img{width:100%;height:100%;object-fit:contain}
   /* 예측 콘 오버레이(이미지 가격축 위) — 히어로/편집기 공용 */
@@ -418,7 +423,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629a</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629b</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -452,6 +457,7 @@
           <div class="fc-phead">
             <span class="fc-t"><b>대표 이미지</b> · 가격 차트</span>
             <span class="fc-meta" id="fcMeta">–</span>
+            <span class="fc-src" id="fcSrcBadge" style="display:none"></span>
             <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈 차트뷰</button>
             <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
             <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
@@ -554,7 +560,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629a");
+  console.log("[forge] build b0629b");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2494,6 +2500,30 @@
     const m = heroMode();
     b.textContent = (m === "chart") ? "🖼 이미지뷰" : "📈 차트뷰";
     b.title = (m === "chart") ? "원본 이미지 위 예측으로 전환" : "연속 차트로 전환 — 작도가 선에 정확히 정합";
+    updateSrcBadge();
+  }
+  /* 데이터 소스 배지 — 어떤 시계열로 작도·예측 중인지 자동 감지 안내 */
+  function updateSrcBadge() {
+    const el = document.getElementById("fcSrcBadge"); if (!el) return;
+    const p = boardState.nodes.find(n => n.blockType === "price");
+    const ps = (Array.isArray(p && p.series) && p.series.length >= 20) ? p.series : null;
+    const vs = (visionLive() && Array.isArray(_visionData.price) && _visionData.price.length >= 2) ? _visionData.price : null;
+    const active = priceSeries();
+    if (!active) { el.style.display = "none"; return; }
+    el.style.display = "";
+    const usingVision = !!(vs && active === vs);
+    const n = active.length;
+    let cls = "info", txt, tip;
+    if (usingVision) {
+      cls = "vision"; txt = "🖼 이미지 정합 · 비전 " + n + "봉"; tip = "이미지에서 추출한 비전 시계열로 작도·예측 — 원본 캔들에 정합";
+      if (ps) {  // 입력 시계열도 있는데 이미지와 다르면 안내
+        const a = ps[ps.length - 1], b = vs[vs.length - 1], mism = (isFinite(a) && isFinite(b) && Math.abs(a - b) / Math.max(1e-9, Math.abs(b)) > 0.05);
+        if (mism) { cls = "warn"; txt = "🖼 이미지 정합 · 비전 " + n + "봉 · 입력본 ≠ 이미지"; tip = "붙여넣은 시계열(" + fmtNum(a) + ")이 이미지(" + fmtNum(b) + ")와 달라 이미지뷰는 비전 시계열 사용 · 입력본은 📈 차트뷰에서"; }
+      }
+    } else {
+      txt = "📈 입력 시계열 " + n + "봉"; tip = "붙여넣은 시계열로 작도·예측 (연속 차트)";
+    }
+    el.textContent = txt; el.className = "fc-src fc-src-" + cls; el.title = tip;
   }
   function fcRenderForecast(pred) {
     const mode = heroMode();
