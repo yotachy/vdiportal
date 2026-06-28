@@ -443,7 +443,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629t</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629u</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -585,7 +585,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629t");
+  console.log("[forge] build b0629u");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2952,7 +2952,21 @@
         if (P.length && m.best > 2) { const ph = ((P.length - 1) % m.best) / m.best; f.push("현재 위상 " + Math.round(ph * 100) + "% · " + (ph < 0.5 ? "주기 상승 구간" : "주기 하강 구간")); }
         return f;
       }
-      case "volume": return ["거래량 시계열 미입력 — 참고용(계산 제외)"];
+      case "volume": {
+        const vol = (v && v.length) ? v : (Array.isArray(n.series) ? n.series : []);
+        if (vol.length < 6) return ["거래량 시계열 미입력 — 이미지만 추가됨(분석 위해 데이터 필요)"];
+        const N = vol.length, U = x => x >= 1000 ? (x / 1000).toFixed(1) + "B" : Math.round(x) + "M";
+        const recent = vol.slice(-3).reduce((a, b) => a + b, 0) / 3, base = vol.slice(-Math.min(12, N)).reduce((a, b) => a + b, 0) / Math.min(12, N);
+        const ratio = base ? recent / base : 1;
+        f.push("최근 거래량 " + U(recent) + " vs 12개월 평균 " + U(base) + " · " + ratio.toFixed(2) + "x " + (ratio > 1.15 ? "(급증)" : ratio < 0.85 ? "(위축)" : "(평이)"));
+        const seg = vol.slice(-Math.min(12, N)), lr = _linreg(seg), slp = base ? lr.a / base * 100 : 0;
+        f.push("거래량 추세 " + (slp > 1 ? "증가 ↑" : slp < -1 ? "감소 ↓" : "횡보 →") + " (" + (slp >= 0 ? "+" : "") + slp.toFixed(1) + "%/봉)");
+        if (P.length === N && N > 7) {
+          const w = 6, pUp = P[N - 1] > P[N - 1 - w], vUp = slp > 0 || recent > base;
+          f.push("가격-거래량: " + (pUp && vUp ? "상승에 거래량 동반 — 추세 건강(확인)" : pUp && !vUp ? "상승하나 거래량 감소 — 추진력 약화(주의)" : !pUp && vUp ? "하락에 거래량 증가 — 매도 압력(약세 확인)" : "하락+거래량 위축 — 투매 진정(바닥 가능)"));
+        }
+        return f;
+      }
       default: return [nodeReadText(n, result, priceLast)];
     }
   }
@@ -2968,6 +2982,11 @@
       case "ma": return (last != null && priceLast) ? cl((priceLast - last) / last * 5) : 0;     // 가격>MA=상승
       case "fib": return last != null ? cl(last) : 0;                                  // 범위 내 위치(상단=+)
       case "elliott": return (m && m.current) ? cl(m.current.dir || 0) : 0;            // 현재 파동 방향
+      case "volume": {                                                                // 거래량 추세(참여 증가=+, 위축=-)
+        const vol = (v && v.length) ? v : null; if (!vol || vol.length < 8) return 0;
+        const N = vol.length, recent = (vol[N - 1] + vol[N - 2] + vol[N - 3]) / 3, base = vol.slice(-12).reduce((a, b) => a + b, 0) / 12;
+        return cl((recent - base) / (base || 1) * 0.6);
+      }
       default: return 0;
     }
   }

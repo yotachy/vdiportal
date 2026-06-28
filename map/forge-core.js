@@ -190,7 +190,7 @@
         values[id] = ea.values;
         meta[id] = { waves: ea.waves, current: ea.current };
       } else if (n.blockType === "volume") {
-        values[id] = [];
+        values[id] = (Array.isArray(n.series) && n.series.length) ? n.series.slice() : [];   // 거래량 시계열 통과
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
