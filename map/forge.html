@@ -342,7 +342,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628d</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628e</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -355,7 +355,7 @@
     <div class="h-actions">
       <span id="analyzeProg" class="analyze-prog"></span>
       <span id="reqStat" class="req-stat"></span>
-      <button class="tool-btn req-soon" id="reqBtn" onclick="requestAnalysis()" disabled aria-disabled="true" title="비전 분석은 준비 중입니다 — 곧 제공 예정">☁ 분석 요청<span class="soon-tag">곧 제공</span></button>
+      <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="가격 노드 이미지를 분석해 예측을 생성">☁ 분석 요청</button>
       <span class="h-sep"></span>
       <button class="run-btn analyze-btn" id="analyzeBtn" onclick="playAnalysis()">▷ 포지 분석</button>
       <button class="run-btn" id="runBtn">▷ 실행</button>
@@ -451,8 +451,8 @@
 
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
-  const VISION_ENABLED = false;   // 비전 분석 워커 준비 전까지 '☁ 분석 요청' 비활성('곧 제공'). 워커 구현 시 true.
-  console.log("[forge] build b0628d");
+  const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
+  console.log("[forge] build b0628e");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -767,8 +767,14 @@
     // 새 문서의 진행 중 잡 복원 (비전 분석 활성 시에만)
     if (VISION_ENABLED && SERVER_OK && activeId) {
       const jr = await apiGet("?jobs&docId=" + encodeURIComponent(activeId));
-      const live = jr && jr.jobs && jr.jobs.filter(j => j.status === "pending" || j.status === "working").sort((a, b) => strCmp(b.created, a.created))[0];
+      const jobs = (jr && jr.jobs) || [];
+      const live = jobs.filter(j => j.status === "pending" || j.status === "working").sort((a, b) => strCmp(b.created, a.created))[0];
       if (live) { _setReqStat(live.status === "working" ? "분석 중…" : "분석 대기 중…", live.status); _startPoll(live.id); }
+      else if (!dc.vision) {   // 폴링 중이 아니어도 완료된 분석이 있으면 반영
+        const done = jobs.filter(j => j.status === "done" && j.result && Array.isArray(j.result.series))
+          .sort((a, b) => strCmp(b.finished || b.created, a.finished || a.created))[0];
+        if (done) applyVision(done.result);
+      }
     }
   }
   async function loadImages() { const m = await apiGet("?images=1"); if (m && typeof m === "object") Object.assign(IMAGES, m); }
@@ -2049,9 +2055,11 @@
   function drawConeHint(cv, imgEl) {
     const { c, W, H } = sizeOverlay(cv); if (!c) return false;
     const g = coneGeo(cv, imgEl); if (!g) return false;
-    c.font = "11px Pretendard,system-ui,sans-serif"; c.textAlign = "center";
-    c.fillStyle = "rgba(180,188,210,.85)";
-    c.fillText("예측 콘 정렬 — 가격 노드 ▸ 이미지 보정", W / 2, H - 11);
+    c.font = "12px Pretendard,system-ui,sans-serif"; c.textAlign = "center";
+    const txt = "☁ 분석 요청 — 이 이미지를 분석해 예측 차트를 만듭니다";
+    const tw = c.measureText(txt).width + 22;
+    c.fillStyle = "rgba(11,15,20,.66)"; c.fillRect((W - tw) / 2, H - 30, tw, 22);
+    c.fillStyle = "rgba(232,180,99,.95)"; c.fillText(txt, W / 2, H - 15);
     return true;
   }
   /* 편집기 미리보기 콘 드래그(기준선/현재선) */
@@ -2191,8 +2199,13 @@
     }
   }
 
-  function fcRenderForecast(pred) {
-    fcDrawMainChart(currentData().price, pred);   // 항상 연속 차트(과거+예측)
+  function fcRenderForecast(pred, chartMode) {
+    if (chartMode) { fcDrawMainChart(currentData().price, pred); return; }   // 실데이터/비전 → 연속 차트
+    // 이미지 모드(분석 전): 이미지 위에 '분석 요청' 안내만
+    const cone = document.getElementById("fcCone");
+    const heroImg = document.getElementById("fcHeroImg");
+    const img = heroImg && heroImg.querySelector("img");
+    if (cone && img) coneRetry(() => drawConeHint(cone, img), img);
   }
 
   /* ── renderChart: top-level, consumes ForgeCore output ── */
@@ -2223,9 +2236,12 @@
         : "위상폴딩 블록 없음";
     }
 
-    /* draw all panels */
-    fcHeroMode("chart");   // 항상 연속 예측 차트(실데이터 없으면 데모) — 예측 흐름이 늘 보이게
-    fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] });
+    /* draw all panels.
+       실데이터/비전 있으면 연속 예측 차트, 없는데 가격 이미지가 있으면 이미지(분석 대기) 모드 */
+    const chartMode = hasRealSeries() || !heroImgId();
+    fcHeroMode(chartMode ? "chart" : "image");
+    if (!chartMode) renderHero();
+    fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] }, chartMode);
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
       ["fcFoldA", "fcFoldB", "fcFoldC"].forEach(id => {
@@ -2609,12 +2625,13 @@
   async function requestAnalysis() {
     if (!VISION_ENABLED) { bToast("비전 분석은 준비 중입니다 (곧 제공)"); return; }
     if (!SERVER_OK) { bToast("서버 연결이 필요합니다(분석 요청)"); return; }
-    if (!themeState.imgId) { bToast("대표 이미지를 먼저 추가하세요"); return; }
+    const aimg = heroImgId();                // 분석 대상 = 가격 노드 이미지
+    if (!aimg) { bToast("가격 노드에 차트 이미지를 먼저 추가하세요"); return; }
     if (_pollT) { bToast("이미 분석 요청 중입니다"); return; }
     _pollT = 1;                              // sentinel: 가드 즉시 닫음(await 중 더블클릭 방지)
     _setReqStat("분석 대기 중…", "pending");  // 버튼 비활성
     runForge();
-    const r = await apiPost({ op: "enqueue", docId: activeId, imgId: themeState.imgId, board: boardToGraph() });
+    const r = await apiPost({ op: "enqueue", docId: activeId, imgId: aimg, board: boardToGraph() });
     if (!r || !r.ok || !r.job) { _stopPoll(); _setReqStat("", ""); bToast("분석 요청 실패"); return; }
     _startPoll(r.job.id);
   }
