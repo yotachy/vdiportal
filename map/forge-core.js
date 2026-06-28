@@ -300,7 +300,10 @@
     const vbias = (opts && typeof opts.visionBias === "number" && isFinite(opts.visionBias)) ? opts.visionBias : 0;
     const bias = aggregateConviction(graph) + vbias, K = 0.5;
     const sigB = bias ? signal.map(v => Math.max(-100, Math.min(100, Math.round(v + bias * K)))) : signal;
-    // 예측: 가격 추세 + (phasefold 메타 있으면) 주기 외삽
+    const lastSig = sigB.slice(-10).reduce((s, v) => s + v, 0) / 10;
+    // 신호(확신·중요도·visionBias 포함)에 따른 예측 드리프트 — 강할수록 예측 기울기 변화
+    const driftPct = (lastSig / 100) * 0.30;
+    // 예측: 가격 추세 + (phasefold 메타 있으면) 주기 외삽 + 신호 드리프트
     const price = data.price, { a, b } = linfit(price), n = price.length;
     const fmeta = Object.values(meta || {}).find(m => m && m.best);
     // 잔차표준편차
@@ -316,13 +319,13 @@
     const path = [], lo = [], hi = [];
     for (let k = 1; k <= futW; k++) {
       const i = n - 1 + k;
-      const v = modelAt(i) + offset;
-      const band = res * (0.15 + 0.03 * k);   // seam에서 좁게 시작 → 확대
+      const v = (modelAt(i) + offset) * (1 + driftPct * (k / futW));   // 신호 방향으로 누적 드리프트
+      // 밴드: 절대 잔차 기반, 단 가격 대비 %로 상한(로그스케일 자산에서 과도한 콘 방지)
+      const band = Math.min(res * (0.15 + 0.03 * k), Math.abs(v) * Math.min(0.05 + 0.011 * k, 0.45));
       path.push(v);
       lo.push(v - band);
       hi.push(v + band);
     }
-    const lastSig = sigB.slice(-10).reduce((s, v) => s + v, 0) / 10;
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
     const last = price[n - 1], target = last * (1 + lastSig / 1000);
     const recent = price.slice(-30), invalidation = regime === "bear" ? Math.max(...recent) : Math.min(...recent);

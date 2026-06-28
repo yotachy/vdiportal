@@ -355,7 +355,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628h</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628i</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -370,8 +370,7 @@
       <span id="reqStat" class="req-stat"></span>
       <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="가격 노드 이미지를 분석해 예측을 생성">☁ 분석 요청</button>
       <span class="h-sep"></span>
-      <button class="run-btn analyze-btn" id="analyzeBtn" onclick="playAnalysis()">▷ 포지 분석</button>
-      <button class="run-btn" id="runBtn">▷ 실행</button>
+      <button class="run-btn" id="analyzeBtn" onclick="playAnalysis()">▷ 포지 분석</button>
     </div>
   </header>
   <div class="forge-shell">
@@ -472,7 +471,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628h");
+  console.log("[forge] build b0628i");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2220,17 +2219,24 @@
     }
   }
 
-  function fcRenderForecast(pred, mode) {
-    if (mode === "chart") { fcDrawMainChart(currentData().price, pred); return; }   // 연속 선 차트
+  /* 결과 영역 표시 모드: overlay(원본 이미지+예측 오버레이) / chart(연속 선차트) / image(분석 대기) */
+  function heroMode() {
+    if (hasRealSeries() && heroImgId() && _visionCoords) return "overlay";
+    if (hasRealSeries()) return "chart";
+    if (heroImgId()) return "image";
+    return "chart";
+  }
+  function fcRenderForecast(pred) {
+    const mode = heroMode();
+    if (mode === "chart") { fcDrawMainChart(currentData().price, pred); return; }
     const cone = document.getElementById("fcCone");
     const heroImg = document.getElementById("fcHeroImg");
     const img = heroImg && heroImg.querySelector("img");
     if (!cone || !img) return;
-    if (mode === "overlay" && _visionCoords) {   // 원본 이미지 위에 예측 오버레이(같은 축으로 이어 그림)
-      coneRetry(() => drawVisionOverlay(cone, img, pred, _visionCoords, currentData().price), img);
-    } else {                                      // 분석 전: 이미지 위 '분석 요청' 안내
-      coneRetry(() => drawConeHint(cone, img), img);
-    }
+    const draw = (mode === "overlay" && _visionCoords)
+      ? () => drawVisionOverlay(cone, img, pred, _visionCoords, currentData().price)
+      : () => drawConeHint(cone, img);
+    if (!draw()) coneRetry(draw, img);   // 평상시 즉시 그리기(재생 morph마다 직접), 첫 미로드만 재시도
   }
   /* 원본 차트 이미지 위, 비전 좌표(coords)로 예측을 같은 가격축(로그) 미래영역에 이어 그림 */
   function drawVisionOverlay(cv, img, pred, coords, series) {
@@ -2303,16 +2309,11 @@
         : "위상폴딩 블록 없음";
     }
 
-    /* draw all panels.
-       overlay=원본 이미지 보존+예측 오버레이(비전 coords), chart=연속 선차트, image=분석 대기 */
-    let mode;
-    if (hasRealSeries() && heroImgId() && _visionCoords) mode = "overlay";
-    else if (hasRealSeries()) mode = "chart";
-    else if (heroImgId()) mode = "image";
-    else mode = "chart";
+    /* draw all panels — overlay=원본 이미지+예측 오버레이, chart=연속 선차트, image=분석 대기 */
+    const mode = heroMode();
     fcHeroMode(mode === "chart" ? "chart" : "image");
     if (mode !== "chart") renderHero();
-    fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] }, mode);
+    fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] });
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
       ["fcFoldA", "fcFoldB", "fcFoldC"].forEach(id => {
@@ -3459,7 +3460,7 @@
     });
 
     onBoardChange(() => { if (_playing) stopPlay(); clearTimeout(_t); _t = setTimeout(runForge, 180); markDirty(); });
-    document.getElementById("runBtn").addEventListener("click", runForge);
+    /* 실행 버튼 제거됨 — runForge는 편집 시 자동 호출(markDirty/onBoardChange) */
     boot();
   });
   </script>

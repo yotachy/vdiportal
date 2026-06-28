@@ -140,8 +140,9 @@ test("conviction bias tilts signal and verdict, zero is no-op", () => {
   assert.ok(mean(rp.signal) > mean(r0.signal));
   assert.ok(rp.verdict.score >= r0.verdict.score);
   assert.ok(rp.signal.every(v => v >= -100 && v <= 100));
-  // prediction unaffected by conviction
-  assert.deepStrictEqual(rp.prediction.path, r0.prediction.path);
+  // 예측도 확신에 따라 기울어진다(상승 확신 → 예측 끝값 상향), seam은 거의 불변
+  assert.notDeepStrictEqual(rp.prediction.path, r0.prediction.path);
+  assert.ok(rp.prediction.path[rp.prediction.path.length - 1] > r0.prediction.path[r0.prediction.path.length - 1]);
 });
 
 test("weight: weighted conviction average + uniform weight is unchanged", () => {
@@ -328,8 +329,10 @@ test("visionBias: zero/absent is no-op, positive tilts up, negative down", () =>
   assert.ok(rp.signal.every(v => v >= -100 && v <= 100));
   const rn = ForgeCore.run(g, data, { futW: 60, visionBias: -60 });
   assert.ok(mean(rn.signal) < mean(r0.signal));
-  // prediction.path는 conviction/visionBias 영향 없음(가격 외삽만)
-  assert.deepStrictEqual(rp.prediction.path, r0.prediction.path);
+  // 예측도 visionBias에 따라 기울어진다(상승 bias → 예측 끝 상향, 하락 bias → 하향)
+  const endp = pr => pr.prediction.path[pr.prediction.path.length - 1];
+  assert.ok(endp(rp) > endp(r0));
+  assert.ok(endp(rn) < endp(r0));
 });
 
 test("visionBiasFrom: dir/strength → conviction-scale number", () => {
