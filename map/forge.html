@@ -445,7 +445,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629y</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629z</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -587,7 +587,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629y");
+  console.log("[forge] build b0629z");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2364,7 +2364,12 @@
     c.fillText(Math.round(hiV).toLocaleString(), lx, padTop + 4);
     c.fillText(Math.round(loV).toLocaleString(), lx, ch - padBot);
     c.fillStyle = FC_GOLD; c.fillText(Math.round(anchor).toLocaleString(), lx, toY(anchor) + 3);
-    if (path.length) { c.fillStyle = FC_ETH; c.fillText(Math.round(path[path.length - 1]).toLocaleString(), lx, toY(path[path.length - 1]) + 3); }
+    if (path.length) {
+      const ep = path[path.length - 1], eh = hi[hi.length - 1], el = lo[lo.length - 1], cy = y => Math.max(padTop + 8, Math.min(ch - padBot - 2, y));
+      c.fillStyle = "#46c28e"; c.fillText("▲" + Math.round(eh).toLocaleString(), lx, cy(toY(eh) - 1));
+      c.fillStyle = FC_GOLD; c.fillText(Math.round(ep).toLocaleString(), lx, cy(toY(ep) + 3));
+      c.fillStyle = "#e06a6a"; c.fillText("▼" + Math.round(el).toLocaleString(), lx, cy(toY(el) + 8));
+    }
     // 데모/실데이터 배지
     if (!hasRealSeries()) {
       c.font = "10px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
@@ -2652,9 +2657,16 @@
       c.beginPath(); c.moveTo(nowX, anchorY);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(path[k]));
       c.stroke(); c.setLineDash([]);
-      const endP = path[path.length - 1];
-      c.fillStyle = FC_ETH; c.textAlign = "right";
-      c.fillText(fmtNum(endP), rightX - 2 * fs, Math.max(10 * fs, Math.min(Hclip - 3 * fs, yOf(endP) - 5 * fs))); c.textAlign = "left";
+      const endP = path[path.length - 1], hiP = hi[hi.length - 1], loP = lo[lo.length - 1];
+      const clampY = y => Math.max(9 * fs, Math.min(Hclip - 3 * fs, y));
+      c.textAlign = "right";
+      // 최대(상단)
+      c.fillStyle = "rgba(70,194,142,.95)"; c.fillText("최대 " + fmtNum(hiP), rightX - 2 * fs, clampY(yOf(hiP) - 4 * fs));
+      // 중앙(예측)
+      c.fillStyle = FC_GOLD; c.font = "700 " + Math.round(10.5 * fs) + "px ui-monospace,monospace"; c.fillText(fmtNum(endP), rightX - 2 * fs, clampY(yOf(endP) - 5 * fs)); c.font = Math.round(10 * fs) + "px ui-monospace,monospace";
+      // 최소(하단)
+      c.fillStyle = "rgba(224,106,106,.95)"; c.fillText("최소 " + fmtNum(loP), rightX - 2 * fs, clampY(yOf(loP) + 11 * fs));
+      c.textAlign = "left";
     }
     c.fillStyle = FC_GOLD; c.beginPath(); c.arc(nowX, anchorY, 3.5 * fs, 0, 7); c.fill();
     c.fillStyle = "rgba(232,180,99,.95)"; c.fillText("현재가 " + fmtNum(anchorP), nowX + 7 * fs, anchorY - 6 * fs);
