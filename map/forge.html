@@ -197,6 +197,14 @@
   .fc-vgutter:hover,.fc-vgutter.dragging{background:linear-gradient(180deg,transparent,rgba(232,180,99,.4),transparent)}
   .fc-vgutter::after{content:"";display:block;width:34px;height:3px;margin:3px auto;border-radius:2px;background:rgba(138,146,178,.5)}
   .fc-vgutter:hover::after,.fc-vgutter.dragging::after{background:var(--gold)}
+  /* 결과 패널 간 조절 구분선(개별 패널 높이) */
+  .fc-rgutter{height:7px;margin:1px 0;border-radius:4px;cursor:row-resize;flex:0 0 auto;
+    background:linear-gradient(180deg,transparent,rgba(138,146,178,.12),transparent);transition:background .12s}
+  .fc-rgutter:hover,.fc-rgutter.dragging{background:linear-gradient(180deg,transparent,rgba(232,180,99,.35),transparent)}
+  .fc-rgutter::after{content:"";display:block;width:28px;height:2.5px;margin:2px auto;border-radius:2px;background:rgba(138,146,178,.4)}
+  .fc-rgutter:hover::after,.fc-rgutter.dragging::after{background:var(--gold)}
+  .fc-panel.fc-sized{flex:0 0 auto;display:flex;flex-direction:column}
+  .fc-panel.fc-sized .fc-pbody{flex:1;min-height:0;overflow:auto}
   .fc-hero #fcHeroImg,.fc-hero #fcMainChart,.fc-hero #fcEvidence{transition:transform .5s cubic-bezier(.4,0,.2,1)}
   .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3}
   body.evhide .fc-evidence{display:none}
@@ -450,7 +458,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b062a4</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b062a5</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -513,6 +521,7 @@
           </div>
           <div class="fc-pbody"><div id="fcHorizons" class="hz-list"><div class="na-empty">분석 후 시점별 예측가가 표시됩니다</div></div></div>
         </div>
+        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
         <div class="fc-panel" id="fcNarrPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>노드별 전문 분석</b> · 지표별 산출·해석</span>
@@ -520,6 +529,7 @@
           </div>
           <div class="fc-pbody"><div id="fcNarr" class="nr-list"></div></div>
         </div>
+        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
         <div class="fc-panel" id="fcNodesPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>노드별 레이더</b> · 지표별 방향·강도</span>
@@ -527,6 +537,7 @@
           </div>
           <div class="fc-pbody"><canvas id="fcRadar" class="fc-radar"></canvas></div>
         </div>
+        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
         <div class="fc-panel" id="fcPdmPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>PDM 스펙트럼</b> · 주기별 정합도</span>
@@ -536,6 +547,7 @@
             <canvas id="fcPdm" class="fc-cv"></canvas>
           </div>
         </div>
+        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
         <div class="fc-panel" id="fcFoldPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>위상 폴딩</b> · 구간 포개기</span>
@@ -592,7 +604,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b062a4");
+  console.log("[forge] build b062a5");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -3333,6 +3345,30 @@
     const end = e => { if (!drag) return; drag = null; g.classList.remove("dragging"); try { g.releasePointerCapture(e.pointerId); } catch (_) {} document.body.style.userSelect = ""; redrawCharts(); };
     g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
     g.addEventListener("dblclick", () => { document.documentElement.style.setProperty("--hero-h", DEF + "px"); redrawCharts(); });
+  })();
+
+  /* ── 결과 패널 개별 높이 조절(.fc-rgutter — 위 패널 리사이즈) ── */
+  (function initPanelGutters() {
+    const wrap = document.querySelector(".fc-wrap"); if (!wrap) return;
+    let drag = null;
+    wrap.addEventListener("pointerdown", e => {
+      const g = e.target.closest(".fc-rgutter"); if (!g) return;
+      const panel = g.previousElementSibling; if (!panel || !panel.classList.contains("fc-panel")) return;
+      drag = { y: e.clientY, h: panel.getBoundingClientRect().height, panel, g };
+      panel.classList.add("fc-sized"); panel.style.height = drag.h + "px";
+      g.classList.add("dragging"); try { g.setPointerCapture(e.pointerId); } catch (_) {} document.body.style.userSelect = "none"; e.preventDefault();
+    });
+    wrap.addEventListener("pointermove", e => {
+      if (!drag) return;
+      const h = Math.max(80, Math.min(820, drag.h + (e.clientY - drag.y)));
+      drag.panel.style.height = h + "px";
+    });
+    const end = e => { if (!drag) return; drag.g.classList.remove("dragging"); try { drag.g.releasePointerCapture(e.pointerId); } catch (_) {} drag = null; document.body.style.userSelect = ""; };
+    wrap.addEventListener("pointerup", end); wrap.addEventListener("pointercancel", end);
+    wrap.addEventListener("dblclick", e => {
+      const g = e.target.closest(".fc-rgutter"); if (!g) return;
+      const panel = g.previousElementSibling; if (panel && panel.classList.contains("fc-panel")) { panel.classList.remove("fc-sized"); panel.style.height = ""; }
+    });
   })();
 
   /* ── renderVerdict: regime badge at top of chart pane ────────── */
