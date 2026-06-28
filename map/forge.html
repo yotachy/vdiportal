@@ -129,11 +129,14 @@
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
   .fc-panel{background:linear-gradient(180deg,var(--panel),#0e1218);border:1px solid var(--line);
     border-radius:12px;overflow:hidden;flex-shrink:0}
-  .fc-phead{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;
+  .fc-phead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;
     border-bottom:1px solid var(--line)}
-  .fc-t{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--eth)}
+  .fc-head-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow:hidden}
+  .fc-head-left .fc-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .fc-t{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--eth)}
   .fc-t b{color:var(--ink)}
-  .fc-meta{font-family:ui-monospace,monospace;font-size:10px;color:#5a6478}
+  .fc-meta{font-family:ui-monospace,monospace;font-size:10px;color:#5a6478;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fc-pbody{padding:8px 10px}
   .fc-cv{display:block;width:100%;border-radius:6px}
   .fc-folds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 10px}
@@ -425,7 +428,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629d</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629e</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -457,12 +460,16 @@
       <div class="fc-wrap">
         <div class="fc-panel fc-panel-hero">
           <div class="fc-phead">
-            <span class="fc-t"><b>대표 이미지</b> · 가격 차트</span>
-            <span class="fc-meta" id="fcMeta">–</span>
-            <span class="fc-src" id="fcSrcBadge" style="display:none"></span>
-            <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈 차트뷰</button>
-            <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
-            <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
+            <div class="fc-head-left">
+              <span class="fc-t"><b>가격 차트</b></span>
+              <span class="fc-meta" id="fcMeta">–</span>
+            </div>
+            <div class="fc-head-actions">
+              <span class="fc-src" id="fcSrcBadge" style="display:none"></span>
+              <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈 차트뷰</button>
+              <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
+              <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
+            </div>
           </div>
           <div class="fc-pbody">
             <div class="fc-hero">
@@ -562,7 +569,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629d");
+  console.log("[forge] build b0629e");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2776,7 +2783,22 @@
       default: return n.note ? n.note : "—";
     }
   }
-  /* 노드별 레이더: 각 지표를 스포크로, 길이=확신 강도·색=방향(상승 초록/하락 빨강)·점크기=중요도 */
+  /* 지표 노드의 '실제 산출값' 방향(-1..1): 엔진 values/meta에서 도출 */
+  function _engSig(n, result, priceLast) {
+    const v = result && result.values && result.values[n.id];
+    const m = result && result.meta && result.meta[n.id];
+    const last = (v && v.length) ? v[v.length - 1] : null;
+    const cl = x => Math.max(-1, Math.min(1, x));
+    switch (n.blockType) {
+      case "rsi": return last != null ? cl(last) : 0;                                  // 정규화 RSI(+과열/모멘텀↑)
+      case "trend": return last != null ? cl(Math.tanh(last / ((priceLast || 1) * 0.02))) : 0;  // 회귀 기울기
+      case "ma": return (last != null && priceLast) ? cl((priceLast - last) / last * 5) : 0;     // 가격>MA=상승
+      case "fib": return last != null ? cl(last) : 0;                                  // 범위 내 위치(상단=+)
+      case "elliott": return (m && m.current) ? cl(m.current.dir || 0) : 0;            // 현재 파동 방향
+      default: return 0;
+    }
+  }
+  /* 노드별 레이더: 컬러 스포크=엔진 실측 방향·강도(상승 초록/하락 빨강), 골드 외곽=사용자 확신, 점=중요도 */
   function renderNodeAnalysis(result) {
     const cv = document.getElementById("fcRadar"); if (!cv) return;
     const metaEl = document.getElementById("fcNodesMeta");
@@ -2788,39 +2810,51 @@
       c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
       c.fillText("지표 블록을 추가하면 방향·강도 레이더가 표시됩니다", W / 2, Hh / 2); c.textAlign = "left"; return;
     }
+    const priceNode = boardState.nodes.find(n => n.blockType === "price");
+    const pv = priceNode && result.values && result.values[priceNode.id];
+    const priceLast = (pv && pv.length) ? pv[pv.length - 1] : null;
     const cx = W / 2, cy = Hh / 2 + 4, R = Math.min(W, Hh) / 2 - 46;
     const N = blocks.length, GREEN = "#46c28e", RED = "#e06a6a", GRAY = "#8a92b2";
     const ang = i => -Math.PI / 2 + i / N * Math.PI * 2;
     // grid rings + spoke axes
-    c.strokeStyle = "rgba(138,146,178,.18)"; c.lineWidth = 1;
+    c.strokeStyle = "rgba(138,146,178,.16)"; c.lineWidth = 1;
     for (let g = 1; g <= 4; g++) { c.beginPath(); for (let i = 0; i <= N; i++) { const a = ang(i % N), r = R * g / 4, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r; i ? c.lineTo(x, y) : c.moveTo(x, y); } c.closePath(); c.stroke(); }
-    c.strokeStyle = "rgba(138,146,178,.22)";
+    c.strokeStyle = "rgba(138,146,178,.2)";
     for (let i = 0; i < N; i++) { const a = ang(i); c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); c.stroke(); }
-    // polygon outline (shape)
-    const pts = blocks.map((n, i) => { const conv = Math.max(-100, Math.min(100, n.conviction || 0)); const r = Math.abs(conv) / 100 * R; const a = ang(i); return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, a, conv, n }; });
-    c.beginPath(); pts.forEach((p, i) => { i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y); }); c.closePath();
-    c.fillStyle = "rgba(232,180,99,.08)"; c.fill(); c.strokeStyle = "rgba(232,180,99,.45)"; c.lineWidth = 1.4; c.stroke();
-    // colored spokes + dots(weight) + labels
+    const data = blocks.map((n, i) => {
+      const a = ang(i), conv = Math.max(-100, Math.min(100, n.conviction || 0));
+      const sig = _engSig(n, result, priceLast);   // -1..1 실측
+      return { n, a, conv, sig, wt: (n.weight != null ? n.weight : 50) };
+    });
+    // 확신(conviction) 외곽 폴리곤 — 사용자 가중 형태
+    c.beginPath(); data.forEach((d, i) => { const r = Math.abs(d.conv) / 100 * R, x = cx + Math.cos(d.a) * r, y = cy + Math.sin(d.a) * r; i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.closePath();
+    c.strokeStyle = "rgba(232,180,99,.5)"; c.setLineDash([3, 3]); c.lineWidth = 1.3; c.stroke(); c.setLineDash([]);
+    // 엔진 실측 컬러 스포크 + 점(중요도) + 라벨
     c.font = "10px Pretendard,system-ui,sans-serif";
-    for (const p of pts) {
-      const col = p.conv > 5 ? GREEN : p.conv < -5 ? RED : GRAY;
-      c.strokeStyle = col; c.lineWidth = 2.4; c.beginPath(); c.moveTo(cx, cy); c.lineTo(p.x, p.y); c.stroke();
-      const wt = (p.n.weight != null) ? p.n.weight : 50, dr = 2.4 + wt / 100 * 4;
-      c.fillStyle = col; c.beginPath(); c.arc(p.x, p.y, dr, 0, 7); c.fill();
+    for (const d of data) {
+      const col = d.sig > 0.08 ? GREEN : d.sig < -0.08 ? RED : GRAY;
+      const r = Math.abs(d.sig) * R, x = cx + Math.cos(d.a) * r, y = cy + Math.sin(d.a) * r;
+      c.strokeStyle = col; c.lineWidth = 2.6; c.beginPath(); c.moveTo(cx, cy); c.lineTo(x, y); c.stroke();
+      const dr = 2.4 + d.wt / 100 * 4.5;
+      c.fillStyle = col; c.beginPath(); c.arc(x, y, dr, 0, 7); c.fill();
       c.strokeStyle = "#0b0f14"; c.lineWidth = 1; c.stroke();
-      // label at rim
-      const lx = cx + Math.cos(p.a) * (R + 12), ly = cy + Math.sin(p.a) * (R + 12);
-      const ca = Math.cos(p.a); c.textAlign = ca > 0.3 ? "left" : ca < -0.3 ? "right" : "center";
-      c.fillStyle = "rgba(224,229,239,.92)"; c.fillText(esc(BTLABEL[p.n.blockType] || p.n.blockType || "노드"), lx, ly - 1);
-      c.fillStyle = col; c.font = "9px ui-monospace,monospace"; c.fillText((p.conv >= 0 ? "+" : "") + Math.round(p.conv), lx, ly + 10); c.font = "10px Pretendard,system-ui,sans-serif";
+      const lx = cx + Math.cos(d.a) * (R + 13), ly = cy + Math.sin(d.a) * (R + 13), ca = Math.cos(d.a);
+      c.textAlign = ca > 0.3 ? "left" : ca < -0.3 ? "right" : "center";
+      c.fillStyle = "rgba(224,229,239,.92)"; c.fillText(esc(BTLABEL[d.n.blockType] || d.n.blockType || "노드"), lx, ly - 1);
+      c.fillStyle = col; c.font = "9px ui-monospace,monospace";
+      c.fillText((d.sig >= 0 ? "+" : "") + Math.round(d.sig * 100), lx, ly + 10); c.font = "10px Pretendard,system-ui,sans-serif";
     }
     c.textAlign = "left";
-    // center net bias
-    const net = blocks.reduce((s, n) => s + (n.conviction || 0) * ((n.weight != null ? n.weight : 50) / 50), 0);
-    const ncol = net > 8 ? GREEN : net < -8 ? RED : GRAY, ntxt = net > 8 ? "상승" : net < -8 ? "하락" : "중립";
+    // 중심 net 국면(실측 가중 합)
+    const net = data.reduce((s, d) => s + d.sig * (d.wt / 50), 0);
+    const ncol = net > 0.15 ? GREEN : net < -0.15 ? RED : GRAY, ntxt = net > 0.15 ? "상승" : net < -0.15 ? "하락" : "중립";
     c.fillStyle = ncol; c.beginPath(); c.arc(cx, cy, 4, 0, 7); c.fill();
     c.textAlign = "center"; c.fillStyle = ncol; c.font = "700 11px Pretendard,system-ui,sans-serif";
     c.fillText(ntxt, cx, cy - 9); c.textAlign = "left";
+    // 범례
+    c.font = "9px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
+    c.fillStyle = "#8a92b2"; c.fillText("● 실측 방향", 6, Hh - 16);
+    c.fillStyle = "rgba(232,180,99,.7)"; c.fillText("┈ 확신(가중)", 6, Hh - 4);
   }
   function togglePhasefoldPanels() {
     const has = boardState.nodes.some(n => n.blockType === "phasefold");
