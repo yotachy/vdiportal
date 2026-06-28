@@ -380,7 +380,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628n</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628o</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -509,7 +509,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628n");
+  console.log("[forge] build b0628o");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2315,15 +2315,24 @@
     }
     c.fillStyle = FC_GOLD; c.beginPath(); c.arc(nowX, anchorY, 3.5 * fs, 0, 7); c.fill();
     c.fillStyle = "rgba(232,180,99,.95)"; c.fillText("현재가 " + fmtNum(anchorP), nowX + 7 * fs, anchorY - 6 * fs);
-    /* X축 시간 표기(미래 구간) */
-    if (_visionTF && path.length) {
-      const u = _tfUnit(_visionTF);
-      c.strokeStyle = "rgba(232,180,99,.3)";
-      c.fillStyle = "rgba(184,192,214,.92)"; c.textAlign = "center"; c.font = Math.round(9.5 * fs) + "px Pretendard,system-ui,sans-serif";
-      for (let i = 1; i <= 3; i++) {
-        const tx = nowX + (rightX - nowX) * (i / 3), nb = Math.round(path.length * i / 3);
-        c.beginPath(); c.moveTo(tx, oy + dh - 7 * fs); c.lineTo(tx, oy + dh - 1 * fs); c.stroke();
-        c.fillText("+" + nb + u, tx, oy + dh - 10 * fs);
+    /* 시점 마커(3·6·12·24… — 예측 시점별 표와 동일 시점) */
+    if (path.length) {
+      const u = _visionTF ? _tfUnit(_visionTF) : "봉";
+      const hs = _hzList(u, path.length);
+      const clamp = x => Math.max(ox + 16 * fs, Math.min(ox + dw - 16 * fs, x));
+      for (const h of hs) {
+        const k = h - 1, mx = xOf(k), my = yOf(path[k]), isEnd = (h === path.length);
+        c.strokeStyle = "rgba(232,180,99,.22)"; c.lineWidth = fs; c.setLineDash([3 * fs, 3 * fs]);
+        c.beginPath(); c.moveTo(mx, my); c.lineTo(mx, oy + dh - 13 * fs); c.stroke(); c.setLineDash([]);
+        c.fillStyle = FC_GOLD; c.beginPath(); c.arc(mx, my, 3 * fs, 0, 7); c.fill();
+        c.strokeStyle = "#0b0f14"; c.lineWidth = 1.2 * fs; c.stroke();
+        c.fillStyle = "rgba(184,192,214,.96)"; c.textAlign = "center";
+        c.font = Math.round(9.5 * fs) + "px Pretendard,system-ui,sans-serif";
+        c.fillText("+" + h + u, clamp(mx), oy + dh - 3 * fs);
+        if (!isEnd) {
+          c.fillStyle = FC_ETH; c.font = Math.round(9 * fs) + "px ui-monospace,monospace";
+          c.fillText(fmtNum(path[k]), clamp(mx), Math.max(9 * fs, my - 7 * fs));
+        }
       }
       c.textAlign = "left";
     }
