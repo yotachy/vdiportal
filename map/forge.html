@@ -171,7 +171,11 @@
   /* hero panel (대표 이미지) — 확정 높이(차트 모드 캔버스 height:100% 붕괴·overflow:hidden 클리핑 방지) */
   .fc-panel-hero{flex:0 0 auto;min-height:0}
   .fc-hero{display:flex;gap:6px;height:312px;position:relative;overflow:hidden}
-  .fc-hero #fcHeroImg,.fc-hero #fcMainChart{transition:transform .5s cubic-bezier(.4,0,.2,1)}
+  .fc-hero #fcHeroImg,.fc-hero #fcMainChart,.fc-hero #fcEvidence{transition:transform .5s cubic-bezier(.4,0,.2,1)}
+  .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:2}
+  body.evhide .fc-evidence{display:none}
+  .ev-toggle{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:-.01em}
+  .ev-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.1)}
   .fc-hero-img{position:relative;flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
   .fc-hero-img img{width:100%;height:100%;object-fit:contain}
   /* 예측 콘 오버레이(이미지 가격축 위) — 히어로/편집기 공용 */
@@ -390,7 +394,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628u</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628v</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -423,6 +427,7 @@
           <div class="fc-phead">
             <span class="fc-t"><b>대표 이미지</b> · 가격 차트</span>
             <span class="fc-meta" id="fcMeta">–</span>
+            <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
             <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
           </div>
           <div class="fc-pbody">
@@ -430,6 +435,7 @@
               <div class="fc-hero-img" id="fcHeroImg"><span class="fc-hero-ph">라이브러리에서 대표 이미지를 드래그하세요</span></div>
               <canvas id="fcFuture" class="fc-cv"></canvas>
               <canvas id="fcMainChart" class="fc-cv"></canvas>
+              <canvas id="fcEvidence" class="fc-evidence"></canvas>
               <div class="fc-cone-vline" id="fcMainVline"></div>
               <div class="fc-cone-tip" id="fcMainTip"></div>
             </div>
@@ -521,7 +527,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628u");
+  console.log("[forge] build b0628v");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2222,8 +2228,11 @@
     const toY = v => padTop + (1 - (v - loV) / ((hiV - loV) || 1)) * (ch - padTop - padBot);
     const toXh = i => padX + (i / (hist.length - 1)) * histW;
     const toXf = k => seamX + ((k + 1) / Math.max(1, path.length)) * (plotW - histW);
-    /* 호버 툴팁용 기하 stash(CSS px 공간) */
-    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉") };
+    /* 예측 밴드 세로 범위(줌 세로중심용) */
+    let bandTop = toY(anchor), bandBot = toY(anchor);
+    for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, toY(hi[k])); bandBot = Math.max(bandBot, toY(lo[k])); }
+    /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간) */
+    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉") };
     // grid
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
@@ -2258,6 +2267,114 @@
       const tw = c.measureText(txt).width + 14;
       c.fillStyle = "rgba(232,180,99,.14)"; c.fillRect(padX + 4, padTop + 2, tw, 16);
       c.fillStyle = "rgba(232,180,99,.95)"; c.fillText(txt, padX + 11, padTop + 13);
+    }
+    drawEvidence();
+  }
+
+  /* ── 노드별 근거 작도(추세선·피보·파동 등) 누적 오버레이 ───────── */
+  let _evidenceSet = new Set();
+  let _evidenceShow = true;
+  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#e8b463", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2" };
+  const EV_LABEL = { ma: "이동평균", trend: "추세선", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
+  function evIndicatorNodes() {
+    const order = ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume"];
+    return boardState.nodes.filter(n => n.kind === "block" && order.includes(n.blockType))
+      .sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
+  }
+  function toggleEvidence() {
+    _evidenceShow = !_evidenceShow;
+    document.body.classList.toggle("evhide", !_evidenceShow);
+    const b = document.getElementById("evToggle"); if (b) b.classList.toggle("on", _evidenceShow);
+  }
+  function _linreg(arr) {
+    const n = arr.length; let sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (let i = 0; i < n; i++) { sx += i; sy += arr[i]; sxx += i * i; sxy += i * arr[i]; }
+    const d = (n * sxx - sx * sx) || 1, a = (n * sxy - sx * sy) / d; return { a, b: (sy - a * sx) / n };
+  }
+  function _evLegend(c, x0, topY, items) {
+    if (!items.length) return;
+    c.font = "10px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
+    let y = topY + 22;
+    for (const it of items) {
+      c.fillStyle = it.col; c.fillRect(x0 + 2, y, 9, 9);
+      c.fillStyle = "rgba(11,15,20,.55)"; c.fillRect(x0 + 14, y - 1, c.measureText(it.t).width + 6, 12);
+      c.fillStyle = "rgba(224,229,239,.95)"; c.fillText(it.t, x0 + 16, y + 8);
+      y += 14;
+    }
+  }
+  function drawEvidence() {
+    const cv = document.getElementById("fcEvidence"); if (!cv) return;
+    const hero = cv.parentElement; const W = hero.clientWidth, H = hero.clientHeight;
+    if (!W || !H) return;
+    const c = fcFitKeep(cv, H); c.clearRect(0, 0, W, H);
+    if (!_evidenceShow || !_evidenceSet.size || !lastResult) return;
+    const price = (currentData().price) || []; const P = price.length; if (P < 2) return;
+    const mode = heroMode();
+    const nodes = evIndicatorNodes().filter(n => _evidenceSet.has(n.id));
+    if (!nodes.length) return;
+    const legend = [];
+    c.lineWidth = 1.5; c.lineJoin = "round";
+    if (mode === "chart") {
+      const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
+      const toY = v => g.padTop + (1 - (v - g.loV) / ((g.hiV - g.loV) || 1)) * (g.ch - g.padTop - g.padBot);
+      const Hn = g.histLen, off = P - Hn, plotR = g.padX + g.plotW;
+      const toXh = i => g.padX + (i / (Hn - 1)) * g.histW;
+      for (const n of nodes) {
+        const col = EV_COLORS[n.blockType] || "#8a92b2", vals = lastResult.values && lastResult.values[n.id];
+        if (n.blockType === "ma" && vals) {
+          const seg = vals.slice(-Hn); c.strokeStyle = col; c.setLineDash([]); c.beginPath(); let st = false;
+          for (let i = 0; i < Hn; i++) { const v = seg[i]; if (!isFinite(v)) continue; const x = toXh(i), y = toY(v); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
+          c.stroke(); legend.push({ col, t: EV_LABEL.ma + (n.params && n.params.len ? "(" + n.params.len + ")" : "") });
+        } else if (n.blockType === "trend") {
+          const len = Math.min(Hn, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
+          const i0 = Hn - len, i1 = Hn - 1, x0 = toXh(i0), x1 = toXh(i1), y0 = toY(lr.b), y1 = toY(lr.a * (len - 1) + lr.b);
+          c.strokeStyle = col; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1);
+          const sl = (y1 - y0) / ((x1 - x0) || 1); c.lineTo(g.seamX, y1 + sl * (g.seamX - x1)); c.stroke(); c.setLineDash([]);
+          legend.push({ col, t: EV_LABEL.trend });
+        } else if (n.blockType === "fib") {
+          const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
+          c.setLineDash([3, 3]); c.strokeStyle = col; c.fillStyle = col;
+          for (const r of [0, .236, .382, .5, .618, .786, 1]) { const lv = lo + (hi - lo) * r, y = toY(lv); c.globalAlpha = .5; c.beginPath(); c.moveTo(g.padX, y); c.lineTo(plotR, y); c.stroke(); c.globalAlpha = 1; c.fillText(r.toFixed(3), g.padX + 2, y - 2); }
+          c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib });
+        } else if (n.blockType === "elliott") {
+          const waves = (lastResult.meta && lastResult.meta[n.id] && lastResult.meta[n.id].waves) || [];
+          c.strokeStyle = col; c.fillStyle = col; c.setLineDash([]); c.beginPath(); let st = false; const pts = [];
+          for (const w of waves) { const hx = w.idx - off; if (hx < 0 || hx >= Hn) continue; const x = toXh(hx), y = toY(w.price); pts.push({ x, y, l: w.label }); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
+          c.stroke(); for (const p of pts) { c.beginPath(); c.arc(p.x, p.y, 2.6, 0, 7); c.fill(); c.fillText(p.l, p.x + 3, p.y - 3); }
+          if (pts.length) legend.push({ col, t: EV_LABEL.elliott });
+        } else if (n.blockType === "rsi" && vals) {
+          const rsi = Math.round(vals[vals.length - 1] * 50 + 50);
+          legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
+        } else if (n.blockType === "phasefold") {
+          const m = lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
+        }
+      }
+      _evLegend(c, g.padX, g.padTop, legend);
+    } else {
+      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; if (!g) return;
+      const tf = v => g.log ? Math.log(Math.max(1e-9, v)) : v;
+      const yOf = p => g.p1y + (tf(p) - tf(g.p1p)) * (g.p2y - g.p1y) / ((tf(g.p2p) - tf(g.p1p)) || 1);
+      const L = g.ox, R = g.ox + g.dw;
+      for (const n of nodes) {
+        const col = EV_COLORS[n.blockType] || "#8a92b2", vals = lastResult.values && lastResult.values[n.id];
+        if (n.blockType === "fib") {
+          const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
+          c.setLineDash([3, 3]); c.strokeStyle = col; c.fillStyle = col;
+          for (const r of [0, .236, .382, .5, .618, .786, 1]) { const lv = lo + (hi - lo) * r, y = yOf(lv); if (y < g.oy - 2 || y > g.oy + g.dh + 2) continue; c.globalAlpha = .5; c.beginPath(); c.moveTo(L, y); c.lineTo(R, y); c.stroke(); c.globalAlpha = 1; c.fillText(r.toFixed(3), L + 2, y - 2); }
+          c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib });
+        } else if (n.blockType === "ma" && vals) {
+          const last = vals[vals.length - 1]; if (isFinite(last)) { const y = yOf(last); c.setLineDash([6, 4]); c.strokeStyle = col; c.beginPath(); c.moveTo(L, y); c.lineTo(R, y); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.fillText("MA " + fmtNum(last), L + 2, y - 2); }
+          legend.push({ col, t: EV_LABEL.ma });
+        } else if (n.blockType === "elliott") {
+          const waves = (lastResult.meta && lastResult.meta[n.id] && lastResult.meta[n.id].waves) || [];
+          c.fillStyle = col; for (const w of waves) { const y = yOf(w.price); if (y < g.oy || y > g.oy + g.dh) continue; c.fillText(w.label + " " + fmtNum(w.price), R - 56, y - 2); }
+          if (waves.length) legend.push({ col, t: EV_LABEL.elliott });
+        } else if (n.blockType === "rsi" && vals) {
+          const rsi = Math.round(vals[vals.length - 1] * 50 + 50);
+          legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
+        } else if (n.blockType === "trend") { legend.push({ col, t: EV_LABEL.trend + "(기울기)" }); }
+      }
+      _evLegend(c, g.ox + 4, g.oy, legend);
     }
   }
 
@@ -2311,8 +2428,11 @@
     if (anchorP == null) return false;
     const xOf = k => nowX + (path.length > 1 ? k / (path.length - 1) : 0) * (rightX - nowX);
     const anchorY = yOf(anchorP);
-    /* 호버 툴팁용 기하 stash(CSS px 공간) */
-    if (c.canvas) c.canvas._coneGeo = { ox, oy, dw, dh, nowX, rightX, path, lo, hi, anchorP, unit: (_visionTF ? _tfUnit(_visionTF) : "봉") };
+    /* 예측 밴드 세로 범위(줌 세로중심용) */
+    let bandTop = anchorY, bandBot = anchorY;
+    for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, yOf(hi[k])); bandBot = Math.max(bandBot, yOf(lo[k])); }
+    /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간 · 가격→y 매핑 포함) */
+    if (c.canvas) c.canvas._coneGeo = { ox, oy, dw, dh, nowX, rightX, path, lo, hi, anchorP, bandTop, bandBot, p1p: p1.price, p1y: y1, p2p: p2.price, p2y: y2, log: lg, unit: (_visionTF ? _tfUnit(_visionTF) : "봉") };
     c.textAlign = "left"; c.lineWidth = fs; c.font = Math.round(10 * fs) + "px ui-monospace,monospace";
     c.strokeStyle = "rgba(232,180,99,.5)"; c.setLineDash([4 * fs, 3 * fs]);
     c.beginPath(); c.moveTo(nowX, oy); c.lineTo(nowX, oy + dh); c.stroke(); c.setLineDash([]);
@@ -2359,13 +2479,16 @@
   function drawVisionOverlay(cv, img, pred, coords, series) {
     const sz = sizeOverlay(cv); if (!sz.c) return false;
     const g = coneGeo(cv, img); if (!g) return false;
-    return _drawCone(sz.c, g.ox, g.oy, g.dw, g.dh, sz.H, pred, coords, series, 1);
+    const ok = _drawCone(sz.c, g.ox, g.oy, g.dw, g.dh, sz.H, pred, coords, series, 1);
+    drawEvidence();
+    return ok;
   }
 
   /* ── renderChart: top-level, consumes ForgeCore output ── */
   function renderChart(result, data) {
     if (!result || !data) return;
     _fcLastResult = result; _fcLastData = data;
+    if (!_playing) _evidenceSet = new Set(evIndicatorNodes().map(n => n.id));   // 평상시: 모든 지표 근거 표시
 
     const candles  = data.candle  || [];
     const orangeArr = data.orange || [];
@@ -2875,29 +2998,34 @@
   /* 재생 중 예측구간 줌인(끝나면 줌아웃) — 차트/오버레이 공용 */
   function predZoomIn() {
     const mode = (typeof heroMode === "function") ? heroMode() : "chart";
-    let el, nowX = null, rightX = null, W = 0;
+    let el, nowX = null, rightX = null, bandTop = null, bandBot = null, W = 0, H = 0;
     if (mode === "chart") {
       el = document.getElementById("fcMainChart");
-      const g = el && el._mainGeo; W = el ? el.clientWidth : 0;
-      if (g) { nowX = g.seamX; rightX = g.padX + g.plotW; }
+      const g = el && el._mainGeo; W = el ? el.clientWidth : 0; H = el ? el.clientHeight : 0;
+      if (g) { nowX = g.seamX; rightX = g.padX + g.plotW; bandTop = g.bandTop; bandBot = g.bandBot; }
     } else {
       el = document.getElementById("fcHeroImg");
-      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; W = cone ? cone.clientWidth : 0;
-      if (g) { nowX = g.nowX; rightX = g.rightX; }
+      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; W = cone ? cone.clientWidth : 0; H = cone ? cone.clientHeight : 0;
+      if (g) { nowX = g.nowX; rightX = g.rightX; bandTop = g.bandTop; bandBot = g.bandBot; }
     }
     if (!el) return;
     _zoomEl = el;
-    if (!W || nowX == null || rightX <= nowX) { el.style.transformOrigin = "72% 50%"; el.style.transform = "scale(1.6)"; return; }
+    const ev = document.getElementById("fcEvidence");
+    if (!W || nowX == null || rightX <= nowX) { const t = "scale(1.6)"; el.style.transformOrigin = "72% 50%"; el.style.transform = t; if (ev) { ev.style.transformOrigin = "72% 50%"; ev.style.transform = t; } return; }
     const regionW = rightX - nowX, m = (nowX + rightX) / 2;
     let s = 0.94 * W / regionW; s = Math.max(1.4, Math.min(2.6, s));   // 예측범위가 뷰 폭의 ~94%를 채우게
-    const ox = (W / 2 - m * s) / (1 - s);   // 예측범위 중점이 화면 정중앙에 오도록 origin(px) 역산
-    el.style.transformOrigin = ox + "px 50%";
-    el.style.transform = "scale(" + s + ")";
+    const ox = (W / 2 - m * s) / (1 - s);   // 예측범위 중점 → 화면 가로 정중앙
+    const bandC = (bandTop != null && bandBot != null) ? (bandTop + bandBot) / 2 : (H / 2);
+    const oy = (H / 2 - bandC * s) / (1 - s);   // 예측 밴드 중심 → 화면 세로 정중앙
+    const org = ox + "px " + oy + "px", tr = "scale(" + s + ")";
+    el.style.transformOrigin = org; el.style.transform = tr;
+    if (ev) { ev.style.transformOrigin = org; ev.style.transform = tr; }   // 근거 레이어도 동일 변환(정합)
   }
   function predZoomOut() {
     if (!_zoomEl) return;
     const el = _zoomEl; _zoomEl = null;
     el.style.transform = "scale(1)";
+    const ev = document.getElementById("fcEvidence"); if (ev) ev.style.transform = "scale(1)";
   }
 
   function paintScanBadges() {
@@ -2961,6 +3089,7 @@
     if (prefersReducedMotion()) { renderChart(lastResult, currentData()); bToast("포지 분석 완료"); return; }
     _playing = true;
     clearAnalyzeViz();
+    _evidenceSet = new Set();   // 근거 작도: 재생하며 노드별로 누적
     const eg = document.getElementById("bEdges"); if (eg) eg.classList.add("flow");
     requestAnimationFrame(predZoomIn);   // 첫 렌더 후 예측구간 줌인
     const N = steps.length, progEl = document.getElementById("analyzeProg");
@@ -2997,6 +3126,7 @@
       const s = steps[i], sig = _sigOf(s);
       const node = boardState.nodes.find(n => n.id === s.nodeId);
       if (progEl) progEl.textContent = "분석 중 " + (i + 1) + "/" + N + " · " + ((node && node.title) || "노드");
+      if (s.nodeId) _evidenceSet.add(s.nodeId);   // 이 노드 근거 작도 추가(누적)
       highlight(s.nodeId);
       renderHud(s, sig);
       if (s.verdict) renderVerdict(s.verdict);
