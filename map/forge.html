@@ -378,7 +378,7 @@
   .fc-zoom-bar{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;border-bottom:1px solid var(--line);
     color:var(--eth);font-size:12px;font-family:ui-monospace,monospace}
   .fc-zoom-actions{display:flex;gap:8px}
-  .fc-zoom-stage{flex:1;overflow:hidden;position:relative;cursor:grab}
+  .fc-zoom-stage{flex:1;overflow:hidden;position:relative;cursor:grab;touch-action:none}
   .fc-zoom-stage.drag{cursor:grabbing}
   #fcZoomCv{position:absolute;left:0;top:0;transform-origin:0 0;image-rendering:auto}
 </style>
@@ -386,7 +386,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628r</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628s</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -517,7 +517,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628r");
+  console.log("[forge] build b0628s");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2601,19 +2601,18 @@
       if (info) info.textContent = "줌 " + Math.round(vw.s * 100) + "% · 휠=줌, 드래그=이동, 더블클릭=맞춤";
     }, { passive: false });
     let drag = null;
-    stage.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, tx: vw.tx, ty: vw.ty }; stage.classList.add("drag"); try { stage.setPointerCapture(e.pointerId); } catch (_) {} });
-    stage.addEventListener("pointermove", e => { if (!drag) return; vw.tx = drag.tx + (e.clientX - drag.x); vw.ty = drag.ty + (e.clientY - drag.y); apply(); });
-    const end = e => { if (drag) { drag = null; stage.classList.remove("drag"); try { stage.releasePointerCapture(e.pointerId); } catch (_) {} } };
+    stage.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, tx: vw.tx, ty: vw.ty, type: e.pointerType, moved: false }; stage.classList.add("drag"); try { stage.setPointerCapture(e.pointerId); } catch (_) {} });
+    stage.addEventListener("pointermove", e => { if (!drag) return; if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 6) { drag.moved = true; zHide(); } vw.tx = drag.tx + (e.clientX - drag.x); vw.ty = drag.ty + (e.clientY - drag.y); apply(); });
+    const end = e => { if (drag) { const tap = !drag.moved && drag.type === "touch"; stage.classList.remove("drag"); try { stage.releasePointerCapture(e.pointerId); } catch (_) {} drag = null; if (tap) zShow(e.clientX, e.clientY); } };
     stage.addEventListener("pointerup", end); stage.addEventListener("pointercancel", end);
     stage.addEventListener("dblclick", fit);
-    /* 확대 모달 호버 툴팁(transform 역변환) */
+    /* 확대 모달 호버/탭 툴팁(transform 역변환 · 데스크톱=호버, 터치=탭) */
     const zHide = () => { const t = document.getElementById("fcZoomTip"), v = document.getElementById("fcZoomVline"); if (t) t.style.display = "none"; if (v) v.style.display = "none"; };
-    stage.addEventListener("mouseleave", zHide);
-    stage.addEventListener("mousemove", e => {
+    const zShow = (clientX, clientY) => {
       const tip = document.getElementById("fcZoomTip"), vline = document.getElementById("fcZoomVline");
-      if (drag || !tip) { if (drag) zHide(); return; }
+      if (!tip) return;
       const sr = stage.getBoundingClientRect();
-      const cx = (e.clientX - sr.left - vw.tx) / (vw.s || 1);   // 캔버스 내부 px
+      const cx = (clientX - sr.left - vw.tx) / (vw.s || 1);   // 캔버스 내부 px
       let d = null;
       if (zKind === "cone") {
         const g = cv._coneGeo;
@@ -2643,11 +2642,13 @@
       if (d.chg != null) { const col = d.chg > 0.3 ? "var(--bull)" : d.chg < -0.3 ? "var(--bear)" : "var(--eth)"; inner += `<span class="ct-chg" style="color:${col}">${d.chg >= 0 ? "+" : ""}${d.chg.toFixed(1)}%</span>`; }
       if (isFinite(d.lo) && isFinite(d.hi)) inner += `<span class="ct-band">${_hzFmt(d.lo)} ~ ${_hzFmt(d.hi)}</span>`;
       tip.innerHTML = inner; tip.style.display = "block";
-      const tw = tip.offsetWidth, th = tip.offsetHeight, rx = e.clientX - sr.left, ry = e.clientY - sr.top;
+      const tw = tip.offsetWidth, th = tip.offsetHeight, rx = clientX - sr.left, ry = clientY - sr.top;
       let lx = rx + 14; if (lx + tw > sr.width - 4) lx = rx - tw - 14; if (lx < 4) lx = 4;
       let ly = ry - th - 10; if (ly < 4) ly = ry + 16;
       tip.style.left = lx + "px"; tip.style.top = ly + "px";
-    });
+    };
+    stage.addEventListener("mouseleave", zHide);
+    stage.addEventListener("mousemove", e => { if (drag) { zHide(); return; } zShow(e.clientX, e.clientY); });
     const rb = document.getElementById("fcZoomReset"); if (rb) rb.addEventListener("click", fit);
     const cb = document.getElementById("fcZoomClose"); if (cb) cb.addEventListener("click", close);
     window.addEventListener("keydown", e => { if (e.key === "Escape" && modal.classList.contains("on")) close(); });
@@ -2655,18 +2656,25 @@
     const heroImg = document.getElementById("fcHeroImg"); if (heroImg) heroImg.addEventListener("click", open);
   })();
 
+  /* 마우스+터치 공용 호버 바인딩(터치=드래그 스크럽, touch-action:none로 스크롤 차단) */
+  function bindTouchHover(el, show, hide) {
+    el.style.touchAction = "none";
+    el.addEventListener("touchstart", e => { const t = e.touches && e.touches[0]; if (t) show(t.clientX, t.clientY); }, { passive: true });
+    el.addEventListener("touchmove", e => { const t = e.touches && e.touches[0]; if (t) { show(t.clientX, t.clientY); if (e.cancelable) e.preventDefault(); } }, { passive: false });
+    el.addEventListener("touchend", hide);
+    el.addEventListener("touchcancel", hide);
+  }
   /* ── 콘 호버 툴팁: 마우스 위치의 시점 예측가/변화/범위 ── */
   (function initConeHover() {
     const host = document.getElementById("fcHeroImg"); if (!host) return;
     const hide = () => { const t = document.getElementById("fcConeTip"), v = document.getElementById("fcConeVline"); if (t) t.style.display = "none"; if (v) v.style.display = "none"; };
-    host.addEventListener("mouseleave", hide);
-    host.addEventListener("mousemove", e => {
+    const show = (clientX, clientY) => {
       const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo;
       const tip = document.getElementById("fcConeTip"), vline = document.getElementById("fcConeVline");
       if (!g || !g.path || !g.path.length || !tip) { hide(); return; }
       const rect = host.getBoundingClientRect();
       const cw = cone.clientWidth || rect.width, sx = cw ? rect.width / cw : 1;
-      const x = (e.clientX - rect.left) / (sx || 1);
+      const x = (clientX - rect.left) / (sx || 1);
       if (x < g.nowX - 2 || x > g.rightX + 2) { hide(); return; }
       const frac = (x - g.nowX) / ((g.rightX - g.nowX) || 1);
       let k = Math.round(frac * (g.path.length - 1)); k = Math.max(0, Math.min(g.path.length - 1, k));
@@ -2678,11 +2686,14 @@
       const band = (isFinite(lo) && isFinite(hi)) ? `<span class="ct-band">${_hzFmt(lo)} ~ ${_hzFmt(hi)}</span>` : "";
       tip.innerHTML = `<span class="ct-t">+${k + 1}${g.unit}</span><span class="ct-v">${_hzFmt(price)}</span><span class="ct-chg" style="color:${col}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>${band}`;
       tip.style.display = "block";
-      const tw = tip.offsetWidth, th = tip.offsetHeight, rx = e.clientX - rect.left, ry = e.clientY - rect.top;
+      const tw = tip.offsetWidth, th = tip.offsetHeight, rx = clientX - rect.left, ry = clientY - rect.top;
       let lx = rx + 14; if (lx + tw > rect.width - 4) lx = rx - tw - 14; if (lx < 4) lx = 4;
       let ly = ry - th - 10; if (ly < 4) ly = ry + 16;
       tip.style.left = lx + "px"; tip.style.top = ly + "px";
-    });
+    };
+    host.addEventListener("mouseleave", hide);
+    host.addEventListener("mousemove", e => show(e.clientX, e.clientY));
+    bindTouchHover(host, show, hide);
   })();
 
   /* ── 연속 차트(메인) 호버 툴팁: 과거가/예측가 동시 지원 ── */
@@ -2690,13 +2701,12 @@
     const cv = document.getElementById("fcMainChart"); if (!cv) return;
     const hero = cv.parentElement;
     const hide = () => { const t = document.getElementById("fcMainTip"), v = document.getElementById("fcMainVline"); if (t) t.style.display = "none"; if (v) v.style.display = "none"; };
-    cv.addEventListener("mouseleave", hide);
-    cv.addEventListener("mousemove", e => {
+    const show = (clientX, clientY) => {
       const g = cv._mainGeo, tip = document.getElementById("fcMainTip"), vline = document.getElementById("fcMainVline");
       if (!g || !tip) { hide(); return; }
       const rect = cv.getBoundingClientRect();
       const cwid = cv.clientWidth || rect.width, sx = cwid ? rect.width / cwid : 1;
-      const x = (e.clientX - rect.left) / (sx || 1);
+      const x = (clientX - rect.left) / (sx || 1);
       if (x < g.padX || x > g.padX + g.plotW) { hide(); return; }
       let isFut = false, k = 0, i = 0, price, lo, hi, label = "", chg = null, snapX;
       if (x <= g.seamX && g.histLen > 1) {
@@ -2715,11 +2725,14 @@
       if (chg != null) { const col = chg > 0.3 ? "var(--bull)" : chg < -0.3 ? "var(--bear)" : "var(--eth)"; inner += `<span class="ct-chg" style="color:${col}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>`; }
       if (isFinite(lo) && isFinite(hi)) inner += `<span class="ct-band">${_hzFmt(lo)} ~ ${_hzFmt(hi)}</span>`;
       tip.innerHTML = inner; tip.style.display = "block";
-      const tw = tip.offsetWidth, th = tip.offsetHeight, rx = e.clientX - hr.left, ry = e.clientY - hr.top;
+      const tw = tip.offsetWidth, th = tip.offsetHeight, rx = clientX - hr.left, ry = clientY - hr.top;
       let lx = rx + 14; if (lx + tw > hr.width - 4) lx = rx - tw - 14; if (lx < 4) lx = 4;
       let ly = ry - th - 10; if (ly < 4) ly = ry + 16;
       tip.style.left = lx + "px"; tip.style.top = ly + "px";
-    });
+    };
+    cv.addEventListener("mouseleave", hide);
+    cv.addEventListener("mousemove", e => show(e.clientX, e.clientY));
+    bindTouchHover(cv, show, hide);
   })();
 
   (function initGutter() {
