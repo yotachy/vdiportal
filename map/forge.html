@@ -350,12 +350,25 @@
   .nr-concl{margin-top:9px;padding:11px 12px;border-radius:9px;background:rgba(232,180,99,.07);border:1px solid var(--gold-dim);
     font-size:12.5px;line-height:1.65;color:var(--ink)}
   .nr-concl b{color:var(--gold)}
+
+  /* ── 차트 확대 모달 ── */
+  .fc-expand{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;width:24px;height:22px;
+    cursor:pointer;font-size:13px;line-height:1;margin-left:8px;flex:0 0 auto}
+  .fc-expand:hover{color:var(--gold);border-color:var(--gold-dim)}
+  .fc-zoom{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;background:rgba(8,11,16,.97)}
+  .fc-zoom.on{display:flex}
+  .fc-zoom-bar{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;border-bottom:1px solid var(--line);
+    color:var(--eth);font-size:12px;font-family:ui-monospace,monospace}
+  .fc-zoom-actions{display:flex;gap:8px}
+  .fc-zoom-stage{flex:1;overflow:hidden;position:relative;cursor:grab}
+  .fc-zoom-stage.drag{cursor:grabbing}
+  #fcZoomCv{position:absolute;left:0;top:0;transform-origin:0 0;image-rendering:auto}
 </style>
 </head>
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628i</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628j</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -388,6 +401,7 @@
           <div class="fc-phead">
             <span class="fc-t"><b>대표 이미지</b> · 가격 차트</span>
             <span class="fc-meta" id="fcMeta">–</span>
+            <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
           </div>
           <div class="fc-pbody">
             <div class="fc-hero">
@@ -436,6 +450,11 @@
     </section>
   </div>
   </div><!-- /.forge-shell -->
+  <div class="fc-zoom" id="fcZoom" aria-hidden="true">
+    <div class="fc-zoom-bar"><span id="fcZoomInfo">차트 확대 · 휠=줌, 드래그=이동</span>
+      <span class="fc-zoom-actions"><button id="fcZoomReset" class="tool-btn">맞춤</button><button id="fcZoomClose" class="tool-btn">✕ 닫기</button></span></div>
+    <div class="fc-zoom-stage" id="fcZoomStage"><canvas id="fcZoomCv"></canvas></div>
+  </div>
   <div class="b-toast" id="bToast"></div>
 
   <script src="forge-core.js"></script>
@@ -471,7 +490,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628i");
+  console.log("[forge] build b0628j");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -777,8 +796,9 @@
       _visionData = { price: vz.series, n: vz.series.length };
       _visionBias = vz.bias ? ForgeCore.visionBiasFrom(vz.bias) : 0;
       _visionNote = vz.note || ""; _visionWaves = vz.waves || []; _visionCoords = vz.coords || null;
+      _visionTF = vz.timeframe || null; _visionFut = vz.futBars || 0;
     } else {
-      _visionData = null; _visionBias = 0; _visionNote = ""; _visionWaves = []; _visionCoords = null;
+      _visionData = null; _visionBias = 0; _visionNote = ""; _visionWaves = []; _visionCoords = null; _visionTF = null; _visionFut = 0;
     }
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
@@ -792,7 +812,8 @@
       else {   // 폴링 중 아니어도 완료된 분석이 있으면 반영(없을 때 OR coords 업그레이드)
         const done = jobs.filter(j => j.status === "done" && j.result && Array.isArray(j.result.series))
           .sort((a, b) => strCmp(b.finished || b.created, a.finished || a.created))[0];
-        if (done && (!dc.vision || (done.result.coords && !(dc.vision && dc.vision.coords)))) applyVision(done.result);
+        const dv = dc.vision;
+        if (done && (!dv || (done.result.coords && !dv.coords) || (done.result.timeframe && !dv.timeframe))) applyVision(done.result);
       }
     }
   }
@@ -2215,7 +2236,7 @@
     } else {
       // 이미지/오버레이 모드: 예측은 이미지 위(#fcCone)에 그림 → 분리 콘(#fcFuture) 숨김(여백 제거·이미지 전폭)
       if (img) img.style.display = ""; if (fut) fut.style.display = "none"; if (main) main.style.display = "none";
-      if (t) t.innerHTML = "<b>가격 차트</b> · 이미지 + 예측";
+      if (t) t.innerHTML = "<b>가격 차트</b> · " + (_visionTF ? esc(_visionTF) + " · " : "") + "이미지 + 예측";
     }
   }
 
@@ -2238,47 +2259,62 @@
       : () => drawConeHint(cone, img);
     if (!draw()) coneRetry(draw, img);   // 평상시 즉시 그리기(재생 morph마다 직접), 첫 미로드만 재시도
   }
-  /* 원본 차트 이미지 위, 비전 좌표(coords)로 예측을 같은 가격축(로그) 미래영역에 이어 그림 */
-  function drawVisionOverlay(cv, img, pred, coords, series) {
-    const sz = sizeOverlay(cv); if (!sz.c) return false;
-    const c = sz.c, H = sz.H;
-    const g = coneGeo(cv, img); if (!g) return false;
-    const { ox, oy, dw, dh } = g;
+  function _tfUnit(tf) { return /월/.test(tf) ? "개월" : /주/.test(tf) ? "주" : /일/.test(tf) ? "일" : "봉"; }
+  /* 예측 콘 + 시간축을 주어진 사각형(ox,oy,dw,dh)에 그림. fs=해상도 스케일(확대 모달용). 공용. */
+  function _drawCone(c, ox, oy, dw, dh, Hclip, pred, coords, series, fs) {
+    fs = fs || 1;
     const p1 = coords.p1, p2 = coords.p2;
     if (!p1 || !p2 || !isFinite(p1.price) || !isFinite(p2.price) || p1.price === p2.price) return false;
     const lg = coords.log !== false;
     const tf = p => lg ? Math.log(Math.max(1e-9, p)) : p;
-    const y1 = oy + ((p1.yf != null ? p1.yf : 0.15)) * dh, y2 = oy + ((p2.yf != null ? p2.yf : 0.85)) * dh;
+    const y1 = oy + (p1.yf != null ? p1.yf : 0.15) * dh, y2 = oy + (p2.yf != null ? p2.yf : 0.85) * dh;
     const t1 = tf(p1.price), t2 = tf(p2.price);
     const yOf = p => y1 + (tf(p) - t1) * (y2 - y1) / ((t2 - t1) || 1);
-    const nowX = ox + ((coords.nowXf != null ? coords.nowXf : 0.6)) * dw;
-    const rightX = ox + ((coords.rightXf != null ? coords.rightXf : 0.98)) * dw;
+    const nowX = ox + (coords.nowXf != null ? coords.nowXf : 0.6) * dw;
+    const rightX = ox + (coords.rightXf != null ? coords.rightXf : 0.98) * dw;
     const path = (pred && pred.path) || [], lo = (pred && pred.lo) || [], hi = (pred && pred.hi) || [];
     const anchorP = (pred && pred.anchor != null) ? pred.anchor : (series && series.length ? series[series.length - 1] : null);
     if (anchorP == null) return false;
     const xOf = k => nowX + (path.length > 1 ? k / (path.length - 1) : 0) * (rightX - nowX);
     const anchorY = yOf(anchorP);
-    c.font = "10px ui-monospace,monospace"; c.textAlign = "left"; c.lineWidth = 1;
-    /* '지금' 세로선(데이터 끝) */
-    c.strokeStyle = "rgba(232,180,99,.5)"; c.setLineDash([4, 3]);
+    c.textAlign = "left"; c.lineWidth = fs; c.font = Math.round(10 * fs) + "px ui-monospace,monospace";
+    c.strokeStyle = "rgba(232,180,99,.5)"; c.setLineDash([4 * fs, 3 * fs]);
     c.beginPath(); c.moveTo(nowX, oy); c.lineTo(nowX, oy + dh); c.stroke(); c.setLineDash([]);
-    c.fillStyle = "rgba(232,180,99,.92)"; c.fillText("지금", nowX + 3, oy + 11);
+    c.fillStyle = "rgba(232,180,99,.92)"; c.fillText("지금", nowX + 3 * fs, oy + 11 * fs);
     if (path.length) {
       c.beginPath(); c.moveTo(nowX, anchorY);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(hi[k]));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(xOf(k), yOf(lo[k]));
       c.closePath(); c.fillStyle = "rgba(232,180,99,.18)"; c.fill();
-      c.strokeStyle = FC_GOLD; c.lineWidth = 2; c.setLineDash([5, 4]);
+      c.strokeStyle = FC_GOLD; c.lineWidth = 2 * fs; c.setLineDash([5 * fs, 4 * fs]);
       c.beginPath(); c.moveTo(nowX, anchorY);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(path[k]));
       c.stroke(); c.setLineDash([]);
       const endP = path[path.length - 1];
       c.fillStyle = FC_ETH; c.textAlign = "right";
-      c.fillText(fmtNum(endP), rightX - 2, Math.max(10, Math.min(H - 3, yOf(endP) - 5))); c.textAlign = "left";
+      c.fillText(fmtNum(endP), rightX - 2 * fs, Math.max(10 * fs, Math.min(Hclip - 3 * fs, yOf(endP) - 5 * fs))); c.textAlign = "left";
     }
-    c.fillStyle = FC_GOLD; c.beginPath(); c.arc(nowX, anchorY, 3.5, 0, 7); c.fill();
-    c.fillStyle = "rgba(232,180,99,.95)"; c.fillText("현재가 " + fmtNum(anchorP), nowX + 7, anchorY - 6);
+    c.fillStyle = FC_GOLD; c.beginPath(); c.arc(nowX, anchorY, 3.5 * fs, 0, 7); c.fill();
+    c.fillStyle = "rgba(232,180,99,.95)"; c.fillText("현재가 " + fmtNum(anchorP), nowX + 7 * fs, anchorY - 6 * fs);
+    /* X축 시간 표기(미래 구간) */
+    if (_visionTF && path.length) {
+      const u = _tfUnit(_visionTF);
+      c.strokeStyle = "rgba(232,180,99,.3)";
+      c.fillStyle = "rgba(184,192,214,.92)"; c.textAlign = "center"; c.font = Math.round(9.5 * fs) + "px Pretendard,system-ui,sans-serif";
+      for (let i = 1; i <= 3; i++) {
+        const tx = nowX + (rightX - nowX) * (i / 3), nb = Math.round(path.length * i / 3);
+        c.beginPath(); c.moveTo(tx, oy + dh - 7 * fs); c.lineTo(tx, oy + dh - 1 * fs); c.stroke();
+        c.fillText("+" + nb + u, tx, oy + dh - 10 * fs);
+      }
+      c.textAlign = "left";
+    }
     return true;
+  }
+  /* 인라인 오버레이(letterbox geo) */
+  function drawVisionOverlay(cv, img, pred, coords, series) {
+    const sz = sizeOverlay(cv); if (!sz.c) return false;
+    const g = coneGeo(cv, img); if (!g) return false;
+    return _drawCone(sz.c, g.ox, g.oy, g.dw, g.dh, sz.H, pred, coords, series, 1);
   }
 
   /* ── renderChart: top-level, consumes ForgeCore output ── */
@@ -2442,6 +2478,57 @@
   window.addEventListener("resize", redrawCharts);
 
   /* ── 거터: 캔버스 / 결과 영역 좌우 크기 조절 ───────────────────── */
+  /* ── 차트 확대 모달(휠 줌 + 드래그) ── */
+  (function initZoom() {
+    const modal = document.getElementById("fcZoom"), stage = document.getElementById("fcZoomStage"), cv = document.getElementById("fcZoomCv"), info = document.getElementById("fcZoomInfo");
+    if (!modal || !stage || !cv) return;
+    let vw = { s: 1, tx: 0, ty: 0 };
+    const apply = () => { cv.style.transform = `translate(${vw.tx}px,${vw.ty}px) scale(${vw.s})`; };
+    function composite() {
+      const heroImg = document.getElementById("fcHeroImg"), img = heroImg && heroImg.querySelector("img");
+      const c = cv.getContext("2d");
+      if (img && img.naturalWidth && getComputedStyle(heroImg).display !== "none") {
+        const W = img.naturalWidth, Hh = img.naturalHeight;
+        cv.width = W; cv.height = Hh; cv.style.width = W + "px"; cv.style.height = Hh + "px";
+        c.clearRect(0, 0, W, Hh); c.drawImage(img, 0, 0, W, Hh);
+        if (heroMode() === "overlay" && _visionCoords && lastResult)
+          _drawCone(c, 0, 0, W, Hh, Hh, lastResult.prediction, _visionCoords, currentData().price, Math.max(1.2, W / 520));
+        return true;
+      }
+      const main = document.getElementById("fcMainChart");
+      if (main && main.width) {
+        cv.width = main.width; cv.height = main.height; cv.style.width = main.width + "px"; cv.style.height = main.height + "px";
+        c.clearRect(0, 0, main.width, main.height); c.drawImage(main, 0, 0); return true;
+      }
+      return false;
+    }
+    function fit() {
+      const sw = stage.clientWidth, sh = stage.clientHeight, s = Math.min(sw / cv.width, sh / cv.height) * 0.96;
+      vw = { s, tx: (sw - cv.width * s) / 2, ty: (sh - cv.height * s) / 2 }; apply();
+      if (info) info.textContent = "줌 " + Math.round(s * 100) + "% · 휠=줌, 드래그=이동, 더블클릭=맞춤";
+    }
+    function open() { if (!composite()) { bToast("표시할 차트가 없습니다"); return; } modal.classList.add("on"); modal.setAttribute("aria-hidden", "false"); requestAnimationFrame(fit); }
+    function close() { modal.classList.remove("on"); modal.setAttribute("aria-hidden", "true"); }
+    stage.addEventListener("wheel", e => {
+      e.preventDefault();
+      const r = stage.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, f = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const ns = Math.max(0.2, Math.min(8, vw.s * f));
+      vw.tx = mx - (mx - vw.tx) * (ns / vw.s); vw.ty = my - (my - vw.ty) * (ns / vw.s); vw.s = ns; apply();
+      if (info) info.textContent = "줌 " + Math.round(vw.s * 100) + "% · 휠=줌, 드래그=이동, 더블클릭=맞춤";
+    }, { passive: false });
+    let drag = null;
+    stage.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, tx: vw.tx, ty: vw.ty }; stage.classList.add("drag"); try { stage.setPointerCapture(e.pointerId); } catch (_) {} });
+    stage.addEventListener("pointermove", e => { if (!drag) return; vw.tx = drag.tx + (e.clientX - drag.x); vw.ty = drag.ty + (e.clientY - drag.y); apply(); });
+    const end = e => { if (drag) { drag = null; stage.classList.remove("drag"); try { stage.releasePointerCapture(e.pointerId); } catch (_) {} } };
+    stage.addEventListener("pointerup", end); stage.addEventListener("pointercancel", end);
+    stage.addEventListener("dblclick", fit);
+    const rb = document.getElementById("fcZoomReset"); if (rb) rb.addEventListener("click", fit);
+    const cb = document.getElementById("fcZoomClose"); if (cb) cb.addEventListener("click", close);
+    window.addEventListener("keydown", e => { if (e.key === "Escape" && modal.classList.contains("on")) close(); });
+    const exp = document.getElementById("fcExpand"); if (exp) exp.addEventListener("click", open);
+    const heroImg = document.getElementById("fcHeroImg"); if (heroImg) heroImg.addEventListener("click", open);
+  })();
+
   (function initGutter() {
     const split = document.querySelector(".forge-split");
     const gutter = document.getElementById("forgeGutter");
@@ -2538,7 +2625,8 @@
 
   /* ── Forge data + runForge ───────────────────────────────────── */
   let data = ForgeCore.makeDemoSeries({ n: 480, seed: 1, period: 64 });
-  let _visionData = null, _visionBias = 0, _visionNote = "", _visionWaves = [], _visionCoords = null;
+  let _visionData = null, _visionBias = 0, _visionNote = "", _visionWaves = [], _visionCoords = null, _visionTF = null, _visionFut = 0;
+  function visionFutW() { return (_visionFut >= 4 && _visionFut <= 240) ? _visionFut : 120; }
   /* 실제 분석 시계열만 연속 '분석 차트'를 구동. 비전 워커 비활성 동안엔 항상 null
      → 가격 노드 이미지 + 예측 콘(이미지 모드). 워커 도입(VISION_ENABLED) 시 부활. */
   function visionLive() { return (VISION_ENABLED && _visionData) ? _visionData : null; }
@@ -2628,7 +2716,7 @@
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
     runForge();
     let steps;
-    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: 120, visionBias: visionBiasLive() }); }
+    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive() }); }
     catch (e) { console.warn("steps", e); return; }
     if (!steps.length) return;
     if (prefersReducedMotion()) { renderChart(lastResult, currentData()); bToast("포지 분석 완료"); return; }
@@ -2689,7 +2777,7 @@
     try {
       const g = boardToGraph();
       const d = currentData();
-      lastResult = ForgeCore.run(g, d, { futW: 120, visionBias: visionBiasLive() });
+      lastResult = ForgeCore.run(g, d, { futW: visionFutW(), visionBias: visionBiasLive() });
       renderChart(lastResult, d);
       paintScanBadges();
       if (window.renderOverlay) renderOverlay(lastResult, g);
@@ -2711,10 +2799,12 @@
     _visionNote = (result && typeof result.note === "string") ? result.note : "";
     _visionWaves = (result && Array.isArray(result.waves)) ? result.waves : [];
     _visionCoords = (_visionData && result && result.coords && typeof result.coords === "object") ? result.coords : null;
+    _visionTF = (_visionData && result && typeof result.timeframe === "string") ? result.timeframe : null;
+    _visionFut = (_visionData && result && isFinite(result.futBars)) ? result.futBars : 0;
     const dc = activeDoc();
     if (dc) {
       dc.vision = _visionData
-        ? { series: _visionData.price, bias: result.bias || null, note: _visionNote, waves: _visionWaves, coords: _visionCoords }
+        ? { series: _visionData.price, bias: result.bias || null, note: _visionNote, waves: _visionWaves, coords: _visionCoords, timeframe: _visionTF, futBars: _visionFut }
         : null;
       markDirty();
     }
