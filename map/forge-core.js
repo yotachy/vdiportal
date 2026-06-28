@@ -359,8 +359,8 @@
     const dev = logP[n - 1] - ema;                  // 현재가의 (최근)베이스라인 대비 로그편차
     const theta = 0.045;                            // 평균회귀 속도(반감기 ~15봉)
     const tauM = Math.max(3, futW * 0.4);           // 모멘텀 감쇠 시정수
-    const sigDriftTotal = (lastSig / 100) * 0.20;   // 신호 방향 누적 드리프트(만점 ±20%)
-    const sigBand = Math.min(sigma, 0.085);
+    const sigDriftTotal = (lastSig / 100) * 0.28;   // 신호 방향 누적 드리프트(만점 ±28%)
+    const sigBand = Math.max(0.02, Math.min(sigma, 0.18));   // 밴드 변동성 상한 0.18(고변동주의 실제 변동폭 반영)
     /* 계절성(주기) 성분 — phasefold 노드가 검출한 지배주기를 예측에 직접 반영(chart.html 시즌 형상).
        로그가격 추세 잔차의 위상별 평균 형상을 미래 위상에 투영. 신뢰도(정합 θ↓·FFT 피크↑)로 진폭 스케일. */
     let seasFn = null, seasInfo = null;
