@@ -351,6 +351,18 @@
     font-size:12.5px;line-height:1.65;color:var(--ink)}
   .nr-concl b{color:var(--gold)}
 
+  /* ── 예측 시점별 표 ── */
+  .hz-list{display:flex;flex-direction:column}
+  .hz-row{display:flex;align-items:baseline;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);font-family:ui-monospace,monospace}
+  .hz-row:last-child{border-bottom:0}
+  .hz-row.hz-head{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;padding-bottom:5px}
+  .hz-t{flex:0 0 70px;font-weight:700;color:var(--gold);font-size:13px}
+  .hz-v{flex:0 0 76px;font-weight:700;color:var(--ink);font-size:13.5px}
+  .hz-chg{flex:0 0 62px;font-weight:700;font-size:12.5px}
+  .hz-chg.hz-up{color:var(--bull)}.hz-chg.hz-dn{color:var(--bear)}.hz-chg.hz-fl{color:var(--eth)}
+  .hz-band{flex:1;color:var(--eth);font-size:11px;text-align:right}
+  .hz-head .hz-t,.hz-head .hz-v,.hz-head .hz-chg,.hz-head .hz-band{color:var(--faint);font-weight:600}
+
   /* ── 차트 확대 모달 ── */
   .fc-expand{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;width:24px;height:22px;
     cursor:pointer;font-size:13px;line-height:1;margin-left:8px;flex:0 0 auto}
@@ -368,7 +380,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628m</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628n</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -410,6 +422,13 @@
               <canvas id="fcMainChart" class="fc-cv"></canvas>
             </div>
           </div>
+        </div>
+        <div class="fc-panel" id="fcHzPanel">
+          <div class="fc-phead">
+            <span class="fc-t"><b>예측 시점별</b> · 현재가 대비</span>
+            <span class="fc-meta" id="fcHzMeta">–</span>
+          </div>
+          <div class="fc-pbody"><div id="fcHorizons" class="hz-list"><div class="na-empty">분석 후 시점별 예측가가 표시됩니다</div></div></div>
         </div>
         <div class="fc-panel" id="fcNarrPanel">
           <div class="fc-phead">
@@ -490,7 +509,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628m");
+  console.log("[forge] build b0628n");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2369,8 +2388,47 @@
       fcDrawFold(document.getElementById("fcFoldC"), closeArr,   "가격 close", FC_GOLD, bestP, 0);
     }
     renderNodeAnalysis(result);
+    renderHorizons(result);
     renderNarrative(result);
     togglePhasefoldPanels();
+  }
+  /* ── 예측 시점별 표(3·6·12·24 등) ── */
+  function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
+  function _hzList(unit, fb) {
+    let hs = unit === "개월" ? [3, 6, 12, 24]
+      : unit === "주" ? [4, 8, 13, 26]
+      : unit === "일" ? [5, 10, 20, 30]
+      : [Math.ceil(fb / 4), Math.ceil(fb / 2), Math.ceil(fb * 3 / 4), fb];
+    return hs.filter(h => h >= 1 && h <= fb).filter((h, i, a) => a.indexOf(h) === i);
+  }
+  function renderHorizons(result) {
+    const host = document.getElementById("fcHorizons"); if (!host) return;
+    const metaEl = document.getElementById("fcHzMeta");
+    const p = result && result.prediction;
+    const path = p && p.path;
+    if (!path || !path.length) {
+      if (metaEl) metaEl.textContent = "";
+      host.innerHTML = `<div class="na-empty">분석 후 시점별 예측가가 표시됩니다</div>`; return;
+    }
+    const anchor = (p.anchor != null && isFinite(p.anchor)) ? p.anchor : path[0];
+    const unit = _visionTF ? _tfUnit(_visionTF) : "봉";
+    const fb = path.length;
+    if (metaEl) metaEl.textContent = "현재가 " + _hzFmt(anchor);
+    const hs = _hzList(unit, fb);
+    const head = `<div class="hz-row hz-head"><span class="hz-t">시점</span><span class="hz-v">예측가</span><span class="hz-chg">변화</span><span class="hz-band">예상 범위</span></div>`;
+    const rows = hs.map(h => {
+      const v = path[h - 1], lo = (p.lo && p.lo[h - 1]), hi = (p.hi && p.hi[h - 1]);
+      const chg = anchor ? (v - anchor) / anchor * 100 : 0;
+      const cls = chg > 0.5 ? "hz-up" : chg < -0.5 ? "hz-dn" : "hz-fl";
+      const band = (isFinite(lo) && isFinite(hi)) ? `${_hzFmt(lo)} ~ ${_hzFmt(hi)}` : "–";
+      return `<div class="hz-row">
+        <span class="hz-t">+${h}${unit}</span>
+        <span class="hz-v">${_hzFmt(v)}</span>
+        <span class="hz-chg ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>
+        <span class="hz-band">${band}</span>
+      </div>`;
+    }).join("");
+    host.innerHTML = head + rows;
   }
   /* ── 분석 해설(단계별 근거 + 예측 이유) ── */
   function renderNarrative(result) {
