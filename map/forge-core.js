@@ -309,8 +309,10 @@
     // 합성 시그널: 출력 입력(없으면 combine/마지막) 시계열을 정규화
     let sigSrc = null;
     if (outNode) {
-      const ins = inputsOf[outNode.id];
-      if (ins && ins[0]) sigSrc = values[ins[0]];
+      const ins = inputsOf[outNode.id] || [];
+      // 방향성 없는 거래량/티커는 시그널 베이스에서 제외(원시 거래량 오염 방지)
+      const dirIns = ins.filter(id => { const nn = graph.nodes.find(x => x.id === id); return nn && nn.blockType !== "volume" && nn.blockType !== "ticker"; });
+      if (dirIns[0]) sigSrc = values[dirIns[0]];
     }
     if (!sigSrc) {
       const c = graph.nodes.find(n => n.blockType === "combine");
@@ -318,9 +320,22 @@
     }
     if (!sigSrc) sigSrc = data.price;
     const dn = detrendNorm(sigSrc), signal = dn.map(v => Math.max(-100, Math.min(100, Math.round(100 * tanh(v / 1.5)))));
+    // 거래량 확인 바이어스 — predict에 연결된 volume 노드의 가격-거래량 확인을 방향으로 변환
+    let volBias = 0;
+    if (outNode) {
+      const volN = graph.nodes.find(nn => nn.kind === "block" && nn.blockType === "volume" && Array.isArray(values[nn.id]) && values[nn.id].length >= 8
+        && (graph.edges || []).some(e => e.from === nn.id && e.to === outNode.id));
+      if (volN) {
+        const vol = values[volN.id], N = vol.length;
+        const recent = (vol[N - 1] + vol[N - 2] + vol[N - 3]) / 3, base = vol.slice(-12).reduce((a, b) => a + b, 0) / Math.min(12, N), volUp = recent > base;
+        const pw = Math.min(6, data.price.length - 1), priceUp = data.price[data.price.length - 1] > data.price[data.price.length - 1 - pw];
+        const conf = priceUp ? (volUp ? 1 : -0.6) : (volUp ? -1 : 0.4);   // 가격-거래량 확인 점수
+        volBias = conf * 12 * ((volN.weight != null ? volN.weight : 50) / 50);
+      }
+    }
     // 확신 바이어스 적용
     const vbias = (opts && typeof opts.visionBias === "number" && isFinite(opts.visionBias)) ? opts.visionBias : 0;
-    const bias = aggregateConviction(graph) + vbias, K = 0.5;
+    const bias = aggregateConviction(graph) + vbias + volBias, K = 0.5;
     const sigB = bias ? signal.map(v => Math.max(-100, Math.min(100, Math.round(v + bias * K)))) : signal;
     const lastSig = sigB.slice(-10).reduce((s, v) => s + v, 0) / 10;
     /* 예측 모델: 로그공간 평균회귀(OU형) + 감쇠 모멘텀 + 신호 드리프트, √시간 밴드.
