@@ -26,19 +26,31 @@ description: 스쿱포지 비전 분석 워커 — 큐에서 잡을 claim해 대
        | base64 -d > /tmp/claude-*/scratchpad/forge_img.jpg
      # 확장자는 dataURL MIME에 맞게 (보통 .jpg/.png)
      ```
-   - 그 파일을 `Read` 로 열어 **비전으로 가격 차트를 판독**한다.
-3. **전략 파악**: `job.board` 의 노드(블록 종류·메모·conviction)와 엣지를 읽어 어떤 분석 의도인지 맥락으로만 활용(결과를 좌우하진 않음).
-4. **분석 생산 (C 스키마)** — 아래 JSON 을 만든다:
-   - `series`: 차트의 종가 곡선을 왼→오른쪽으로 **균등 샘플링한 종가 배열**. 200~400 포인트로 다운샘플, 가격은 차트 축 스케일 기준 실제 값(정수 또는 소수 2자리). POST 본문이 128KB 미만이 되도록 길이/자릿수 제한.
-   - `bias`: `{ "dir": "bull"|"bear"|"neutral", "strength": 0~1 }` — 추세·구조 종합 방향 판단.
-   - `waves`: 눈에 띄는 파동/스윙 구간 `[{ "from": idx, "to": idx, "label": "..." }]`(series 인덱스 기준). 없으면 `[]`.
-   - `note`: 1~2문장 한국어 판독 근거.
-   - `coords`: `null` (R5b-2 예약).
-5. **result POST**:
+   - 그 파일을 `Read` 로 열어 **비전으로 판독**: 종목 티커·거래소, 타임프레임(일/주/월봉), 가격 축(로그/선형)과 축 라벨 위치, '지금'(데이터 끝) 위치.
+3. **실데이터 수집(정확화 핵심)**: 식별된 티커로 **실제 과거가를 받아 `series` 로 쓴다**(눈대중 금지). 무키 소스:
+   ```bash
+   # 예: TSLA 월봉. interval=1mo|1wk|1d, range=max
+   curl -s -H "User-Agent: Mozilla/5.0" \
+     "https://query1.finance.yahoo.com/v8/finance/chart/TSLA?interval=1mo&range=max"
+   # JSON.chart.result[0].indicators.quote[0].close (null 제거) = 실제 종가배열
+   # meta.regularMarketPrice / fiftyTwoWeekHigh 로 이미지 현재가·고점과 대조해 종목/축 검증
+   ```
+   - **검증**: 받은 마지막 종가·52주고점이 이미지의 현재가·High와 맞는지 확인(틀리면 티커/타임프레임 재식별).
+   - 티커 식별 불가/소스 실패 시에만 **비전 샘플링으로 폴백**(차트 곡선 균등 추출, `note`에 "근사" 명시).
+4. **전략 파악**: `job.board` 노드/엣지로 분석 의도만 맥락 활용(결과를 좌우하진 않음).
+5. **분석 생산 (C 스키마)** — JSON:
+   - `series`: 실제 종가 배열(3단계). POST <128KB 되게 길이/자릿수 제한(보통 정수, <10은 소수2자리).
+   - `bias`: `{ "dir": "bull"|"bear"|"neutral", "strength": 0~1 }` — 최근 모멘텀·구조 기반(데이터에서 산출 권장).
+   - `timeframe`: 타임프레임 한글 라벨(예: `"월봉(1M)"` / `"주봉"` / `"일봉"`).
+   - `futBars`: 예측 봉 수(타임프레임에 맞게: 월봉≈24, 주봉≈26, 일봉≈30). 미지정 시 클라가 120.
+   - `coords`: 이미지 가격축 정렬용. `{ "log": true|false, "p1": {"price":P, "yf":0~1}, "p2": {"price":P, "yf":0~1}, "nowXf":0~1, "rightXf":0~1 }` — 두 축 라벨의 (가격, y픽셀비율) + '지금' x비율 + 예측영역 우측 x비율. 측정 불가면 `null`.
+   - `waves`: 파동/스윙 `[{from,to,label}]`(series 인덱스). 없으면 `[]`.
+   - `note`: 1~2문장 한국어 근거(실데이터/근사 여부 명시).
+6. **result POST**:
    `curl -s -X POST "$FORGE_API" -H "Content-Type: application/json" -d '{"op":"result","jobId":"<id>","token":"<token>","result":{...}}'`
    - 판독 불가/오류 시: `-d '{"op":"result","jobId":"<id>","token":"<token>","error":"<사유>"}'`.
    - 응답 `{"ok":true}` 확인.
-6. **인자 `all`**: 1~5를 `claim` 이 `job:null` 을 줄 때까지 반복.
+7. **인자 `all`**: 1~6를 `claim` 이 `job:null` 을 줄 때까지 반복.
 
 ## 가드
 
