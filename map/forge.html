@@ -175,6 +175,12 @@
   .fc-hero-img img{width:100%;height:100%;object-fit:contain}
   /* 예측 콘 오버레이(이미지 가격축 위) — 히어로/편집기 공용 */
   .fc-cone-ov{position:absolute;inset:0;pointer-events:none;z-index:2}
+  .fc-cone-vline{position:absolute;width:1px;background:rgba(232,180,99,.55);pointer-events:none;z-index:3;display:none}
+  .fc-cone-tip{position:absolute;z-index:4;display:none;pointer-events:none;background:rgba(11,15,20,.95);border:1px solid rgba(232,180,99,.42);border-radius:7px;padding:5px 9px;font-family:ui-monospace,monospace;font-size:11px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+  .fc-cone-tip .ct-t{color:var(--gold);font-weight:700;margin-right:7px}
+  .fc-cone-tip .ct-v{color:#fff;font-weight:700;margin-right:7px}
+  .fc-cone-tip .ct-chg{font-weight:700;margin-right:7px}
+  .fc-cone-tip .ct-band{color:var(--eth);font-size:10px}
   .fc-hero .fc-hero-ph{color:var(--eth);font-size:12px;text-align:center;padding:0 14px;line-height:1.5}
   #fcFuture{flex:0 0 200px;height:100%;min-width:0;align-self:stretch}
   #fcMainChart{flex:1;height:100%;min-width:0;display:none}
@@ -380,7 +386,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628o</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628p</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -509,7 +515,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628o");
+  console.log("[forge] build b0628p");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -728,7 +734,8 @@
     el.innerHTML = (id
       ? `<img src="${imgSrc(id)}" alt="">`
       : `<span class="fc-hero-ph">가격 노드에 차트 이미지를 추가하세요<br>(노드 선택 후 클릭 · 드래그 · Ctrl+V)</span>`)
-      + `<canvas id="fcCone" class="fc-cone-ov"></canvas>`;
+      + `<canvas id="fcCone" class="fc-cone-ov"></canvas>`
+      + `<div class="fc-cone-vline" id="fcConeVline"></div><div class="fc-cone-tip" id="fcConeTip"></div>`;
   }
   function renderTheme() { renderHero(); if (hasRealSeries() && lastResult) renderChart(lastResult, currentData()); }
 
@@ -2296,6 +2303,8 @@
     if (anchorP == null) return false;
     const xOf = k => nowX + (path.length > 1 ? k / (path.length - 1) : 0) * (rightX - nowX);
     const anchorY = yOf(anchorP);
+    /* 호버 툴팁용 기하 stash(CSS px 공간) */
+    if (c.canvas) c.canvas._coneGeo = { ox, oy, dw, dh, nowX, rightX, path, lo, hi, anchorP, unit: (_visionTF ? _tfUnit(_visionTF) : "봉") };
     c.textAlign = "left"; c.lineWidth = fs; c.font = Math.round(10 * fs) + "px ui-monospace,monospace";
     c.strokeStyle = "rgba(232,180,99,.5)"; c.setLineDash([4 * fs, 3 * fs]);
     c.beginPath(); c.moveTo(nowX, oy); c.lineTo(nowX, oy + dh); c.stroke(); c.setLineDash([]);
@@ -2594,6 +2603,36 @@
     window.addEventListener("keydown", e => { if (e.key === "Escape" && modal.classList.contains("on")) close(); });
     const exp = document.getElementById("fcExpand"); if (exp) exp.addEventListener("click", open);
     const heroImg = document.getElementById("fcHeroImg"); if (heroImg) heroImg.addEventListener("click", open);
+  })();
+
+  /* ── 콘 호버 툴팁: 마우스 위치의 시점 예측가/변화/범위 ── */
+  (function initConeHover() {
+    const host = document.getElementById("fcHeroImg"); if (!host) return;
+    const hide = () => { const t = document.getElementById("fcConeTip"), v = document.getElementById("fcConeVline"); if (t) t.style.display = "none"; if (v) v.style.display = "none"; };
+    host.addEventListener("mouseleave", hide);
+    host.addEventListener("mousemove", e => {
+      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo;
+      const tip = document.getElementById("fcConeTip"), vline = document.getElementById("fcConeVline");
+      if (!g || !g.path || !g.path.length || !tip) { hide(); return; }
+      const rect = host.getBoundingClientRect();
+      const cw = cone.clientWidth || rect.width, sx = cw ? rect.width / cw : 1;
+      const x = (e.clientX - rect.left) / (sx || 1);
+      if (x < g.nowX - 2 || x > g.rightX + 2) { hide(); return; }
+      const frac = (x - g.nowX) / ((g.rightX - g.nowX) || 1);
+      let k = Math.round(frac * (g.path.length - 1)); k = Math.max(0, Math.min(g.path.length - 1, k));
+      const price = g.path[k], lo = g.lo && g.lo[k], hi = g.hi && g.hi[k], anchor = g.anchorP;
+      const chg = anchor ? (price - anchor) / anchor * 100 : 0;
+      const col = chg > 0.3 ? "var(--bull)" : chg < -0.3 ? "var(--bear)" : "var(--eth)";
+      const mx = g.nowX + (g.path.length > 1 ? k / (g.path.length - 1) : 0) * (g.rightX - g.nowX);
+      if (vline) { vline.style.display = "block"; vline.style.left = (mx * sx) + "px"; vline.style.top = (g.oy * sx) + "px"; vline.style.height = (g.dh * sx) + "px"; }
+      const band = (isFinite(lo) && isFinite(hi)) ? `<span class="ct-band">${_hzFmt(lo)} ~ ${_hzFmt(hi)}</span>` : "";
+      tip.innerHTML = `<span class="ct-t">+${k + 1}${g.unit}</span><span class="ct-v">${_hzFmt(price)}</span><span class="ct-chg" style="color:${col}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>${band}`;
+      tip.style.display = "block";
+      const tw = tip.offsetWidth, th = tip.offsetHeight, rx = e.clientX - rect.left, ry = e.clientY - rect.top;
+      let lx = rx + 14; if (lx + tw > rect.width - 4) lx = rx - tw - 14; if (lx < 4) lx = 4;
+      let ly = ry - th - 10; if (ly < 4) ly = ry + 16;
+      tip.style.left = lx + "px"; tip.style.top = ly + "px";
+    });
   })();
 
   (function initGutter() {
