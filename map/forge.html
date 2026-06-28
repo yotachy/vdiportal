@@ -445,7 +445,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b062a2</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b062a3</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -587,7 +587,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b062a2");
+  console.log("[forge] build b062a3");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2456,7 +2456,11 @@
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
     const hero = cv.parentElement; const W = hero.clientWidth, H = hero.clientHeight;
     if (!W || !H) return;
-    const c = fcFitKeep(cv, H); c.clearRect(0, 0, W, H);
+    // 캔버스를 hero 전체 크기로 명시(style.width 포함) — 콘과 같은 좌표계. (inset:0이 안 먹어 300px에 갇히던 버그)
+    const dpr = Math.min(devicePixelRatio || 1, 2), ww = Math.round(W * dpr), hh = Math.round(H * dpr);
+    if (cv.width !== ww || cv.height !== hh) { cv.width = ww; cv.height = hh; }
+    cv.style.width = W + "px"; cv.style.height = H + "px";
+    const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
     if (!_evidenceShow || !_evidenceSet.size || !lastResult) return;
     // 예측을 계산한 바로 그 시계열을 사용(차트/콘과 동일) — 작도·예측 정합 보장
     const price = ((_fcLastData && _fcLastData.price) || currentData().price) || []; const P = price.length; if (P < 2) return;
@@ -2506,8 +2510,7 @@
       const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; if (!g) return;
       const tf = v => g.log ? Math.log(Math.max(1e-9, v)) : v;
       const yOf = p => g.p1y + (tf(p) - tf(g.p1p)) * (g.p2y - g.p1y) / ((tf(g.p2p) - tf(g.p1p)) || 1);
-      const cw0 = cv.clientWidth || (g.ox + g.dw);
-      const L = 0, R = cw0, top = g.oy, bot = g.oy + g.dh;   // 수평선(피보)은 캔버스 전체 폭(예측 영역 포함)
+      const L = 0, R = W, top = g.oy, bot = g.oy + g.dh;   // 수평선(피보)은 hero 전체 폭(예측 영역 포함)
       const xOf = i => g.ox + (P > 1 ? i / (P - 1) : 0) * (g.nowX - g.ox);   // 과거 시계열을 이미지 좌측~지금선에 매핑
       const clipY = y => Math.max(top, Math.min(bot, y));
       const within = y => y >= top - 2 && y <= bot + 2;
