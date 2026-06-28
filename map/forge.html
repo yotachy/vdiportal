@@ -443,7 +443,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629r</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629s</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -585,7 +585,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629r");
+  console.log("[forge] build b0629s");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2920,18 +2920,28 @@
         const lab = _EWLAB[Math.min(c - 1, 7)] || "-", up = piv[c - 1].p > piv[c - 2].p;
         f.push("스윙 " + c + "개 · 현재 파동 " + lab + " 추정");
         f.push("직전 파동 " + (up ? "상승 ▲" : "하락 ▼") + " ($" + fmtNum(piv[c - 2].p) + "→$" + fmtNum(piv[c - 1].p) + ")");
-        // 5파 임펄스 규칙 검증(최근 6 스윙점 = 파동 1~5)
+        // 5파 다각 검증: 하드 규칙 + 피보 되돌림/연장 비율 + 종합 정합도
         if (c >= 6) {
           const p = piv.slice(-6).map(x => x.p), d = Math.sign(p[1] - p[0]) || 1;
-          const len = (a, b) => Math.abs(p[b] - p[a]), len1 = len(0, 1), len3 = len(2, 3), len5 = len(4, 5);
+          const L = (a, b) => Math.abs(p[b] - p[a]);
+          const W1 = L(0, 1), W2 = L(1, 2), W3 = L(2, 3), W4 = L(3, 4), W5 = L(4, 5);
           const r1 = d > 0 ? p[2] > p[0] : p[2] < p[0];           // 파동2: 100% 초과 되돌림 금지
-          const r2 = !(len3 < len1 && len3 < len5);               // 파동3: 최단 금지
+          const r2 = !(W3 < W1 && W3 < W5);                       // 파동3: 최단 금지
           const r3 = d > 0 ? p[4] > p[1] : p[4] < p[1];           // 파동4: 파동1 영역 미겹침
           const pass = [r1, r2, r3].filter(Boolean).length;
-          f.push("규칙 검증 — 파동2 되돌림 " + (r1 ? "✓" : "✗") + " · 파동3 비최단 " + (r2 ? "✓" : "✗") + " · 파동4 비겹침 " + (r3 ? "✓" : "✗"));
-          f.push(pass === 3 ? "→ 유효한 5파 임펄스(" + (d > 0 ? "상승" : "하락") + ") · 파동3 " + (len3 >= len1 && len3 >= len5 ? "최장(강함)" : "정상") : pass === 2 ? "→ 임펄스 가능성(1개 규칙 경계 — 주의)" : "→ 규칙 위반 — 수정파동(ABC)/대안 카운트 가능성");
+          f.push("규칙 — 파동2 되돌림 " + (r1 ? "✓" : "✗") + " · 파동3 비최단 " + (r2 ? "✓" : "✗") + " · 파동4 비겹침 " + (r3 ? "✓" : "✗") + " (" + pass + "/3)");
+          const RET = [0.236, 0.382, 0.5, 0.618, 0.786], EXT = [1.0, 1.272, 1.618, 2.0, 2.618];
+          const near = (r, lvs) => { let b = lvs[0], bd = 9; for (const x of lvs) { const dd = Math.abs(r - x) / x; if (dd < bd) { bd = dd; b = x; } } return { lv: b, ok: bd <= 0.08 }; };
+          const a2 = W1 ? W2 / W1 : 0, a3 = W1 ? W3 / W1 : 0, a4 = W3 ? W4 / W3 : 0, a5 = W1 ? W5 / W1 : 0;
+          const n2 = near(a2, RET), n3 = near(a3, EXT), n4 = near(a4, RET), n5 = near(a5, [0.618, 1.0, 1.618]);
+          f.push("피보 파동2: W1의 " + Math.round(a2 * 100) + "% ≈ " + n2.lv + (n2.ok ? " ✓" : " (이탈)") + " · " + (a2 >= 0.382 && a2 <= 0.786 ? "전형적 되돌림" : "이례적"));
+          f.push("피보 파동3: W1의 ×" + a3.toFixed(2) + " ≈ " + n3.lv + (n3.ok ? " ✓" : " (이탈)") + " · " + (a3 >= 1.5 ? "강한 연장" : a3 >= 1 ? "보통" : "약한 3파"));
+          f.push("피보 파동4: W3의 " + Math.round(a4 * 100) + "% ≈ " + n4.lv + (n4.ok ? " ✓" : " (이탈)") + " · " + (a4 <= 0.5 ? "얕은 조정(정상)" : "깊은 조정"));
+          f.push("피보 파동5: W1의 ×" + a5.toFixed(2) + " ≈ " + n5.lv + (n5.ok ? " ✓" : " (이탈)"));
+          const fibHits = [n2, n3, n4, n5].filter(x => x.ok).length;
+          f.push("→ " + (pass === 3 && fibHits >= 2 ? "유효한 5파 임펄스(" + (d > 0 ? "상승" : "하락") + ")" : pass >= 2 ? "임펄스 가능성(경계)" : "규칙 위반 — 수정(ABC)/대안 카운트") + " · 규칙 " + pass + "/3 · 피보 정합 " + fibHits + "/4");
         } else {
-          f.push("5파 규칙 검증엔 스윙 6개+ 필요(현재 " + c + ")");
+          f.push("5파+피보 검증엔 스윙 6개+ 필요(현재 " + c + ")");
         }
         return f;
       }
