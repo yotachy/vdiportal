@@ -443,7 +443,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629s</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629t</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -585,7 +585,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629s");
+  console.log("[forge] build b0629t");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2931,7 +2931,7 @@
           const pass = [r1, r2, r3].filter(Boolean).length;
           f.push("규칙 — 파동2 되돌림 " + (r1 ? "✓" : "✗") + " · 파동3 비최단 " + (r2 ? "✓" : "✗") + " · 파동4 비겹침 " + (r3 ? "✓" : "✗") + " (" + pass + "/3)");
           const RET = [0.236, 0.382, 0.5, 0.618, 0.786], EXT = [1.0, 1.272, 1.618, 2.0, 2.618];
-          const near = (r, lvs) => { let b = lvs[0], bd = 9; for (const x of lvs) { const dd = Math.abs(r - x) / x; if (dd < bd) { bd = dd; b = x; } } return { lv: b, ok: bd <= 0.08 }; };
+          const near = (r, lvs) => { let b = lvs[0], bd = 9; for (const x of lvs) { const dd = Math.abs(r - x) / x; if (dd < bd) { bd = dd; b = x; } } return { lv: b, ok: bd <= 0.12 }; };
           const a2 = W1 ? W2 / W1 : 0, a3 = W1 ? W3 / W1 : 0, a4 = W3 ? W4 / W3 : 0, a5 = W1 ? W5 / W1 : 0;
           const n2 = near(a2, RET), n3 = near(a3, EXT), n4 = near(a4, RET), n5 = near(a5, [0.618, 1.0, 1.618]);
           f.push("피보 파동2: W1의 " + Math.round(a2 * 100) + "% ≈ " + n2.lv + (n2.ok ? " ✓" : " (이탈)") + " · " + (a2 >= 0.382 && a2 <= 0.786 ? "전형적 되돌림" : "이례적"));
