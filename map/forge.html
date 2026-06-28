@@ -198,7 +198,7 @@
   .fc-vgutter::after{content:"";display:block;width:34px;height:3px;margin:3px auto;border-radius:2px;background:rgba(138,146,178,.5)}
   .fc-vgutter:hover::after,.fc-vgutter.dragging::after{background:var(--gold)}
   .fc-hero #fcHeroImg,.fc-hero #fcMainChart,.fc-hero #fcEvidence{transition:transform .5s cubic-bezier(.4,0,.2,1)}
-  .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:2}
+  .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3}
   body.evhide .fc-evidence{display:none}
   .ev-toggle{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:-.01em}
   .ev-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.1)}
@@ -445,7 +445,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b062a1</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b062a2</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -587,7 +587,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b062a1");
+  console.log("[forge] build b062a2");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2384,7 +2384,7 @@
   /* ── 노드별 근거 작도(추세선·피보·파동 등) 누적 오버레이 ───────── */
   let _evidenceSet = new Set();
   let _evidenceShow = true;
-  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#e8b463", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2" };
+  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
   function evIndicatorNodes() {
     const order = ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume"];
@@ -2532,7 +2532,10 @@
         } else if (n.blockType === "trend") {
           const len = Math.min(P, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
           const x0 = xOf(P - len), x1 = g.nowX, y0 = yOf(lr.b), y1 = yOf(lr.a * (len - 1) + lr.b);
-          c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([7, 4]); c.beginPath(); c.moveTo(x0, clipY(y0)); c.lineTo(x1, clipY(y1)); c.stroke(); c.setLineDash([]);
+          // 예측 영역까지 추세 연장(점선·연하게)
+          const futBars = (g.path && g.path.length) || 24, xR = g.rightX || (g.ox + g.dw), yR = yOf(lr.a * (len - 1 + futBars) + lr.b);
+          c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([7, 4]); c.beginPath(); c.moveTo(x0, clipY(y0)); c.lineTo(x1, clipY(y1)); c.stroke();
+          c.globalAlpha = .5; c.setLineDash([3, 5]); c.beginPath(); c.moveTo(x1, clipY(y1)); c.lineTo(xR, clipY(yR)); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
           legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "elliott") {
           const piv = _zigzag(price, 0.18).slice(-8);
