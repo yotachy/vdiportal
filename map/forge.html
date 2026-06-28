@@ -313,6 +313,12 @@
   /* 분석 중 엣지 흐름(마칭 앤츠) — 재생할 때만 #bEdges.flow */
   #bEdges.flow .b-ew{stroke:var(--gold);stroke-dasharray:7 7;animation:bedgeFlow .5s linear infinite}
   @keyframes bedgeFlow{to{stroke-dashoffset:-14}}
+  /* 은하 배치: 주변 지표 노드가 중심 포지를 둘러싸고 두둥실 부유 */
+  @keyframes floatNode{0%,100%{transform:translate(0,0)}25%{transform:translate(4px,-6px)}50%{transform:translate(-3px,-10px)}75%{transform:translate(-5px,-4px)}}
+  body.galaxy .b-node{animation:floatNode var(--fdur,6s) ease-in-out infinite;animation-delay:var(--fdl,0s)}
+  body.galaxy .b-node.b-center{animation:none;box-shadow:0 0 0 2px var(--gold),0 0 46px rgba(232,180,99,.4)}
+  body.galaxy .b-node:hover,body.galaxy .b-node.selected,body.galaxy .b-node.b-mini{animation:none}
+  body.galaxy #bEdges .b-ew{stroke-opacity:.5}
 
   /* ── 포지 분석 재생 HUD (결과 영역 상단 오버레이) ── */
   .play-hud{position:absolute;left:0;right:0;top:0;z-index:9;display:none;align-items:center;gap:12px;
@@ -394,13 +400,14 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628v</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628w</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
       <div class="seg" role="group" aria-label="노드 정렬">
         <button class="seg-btn" id="alignVBtn" onclick="autoLayout('v')" title="세로 정렬">⬍ 세로</button>
         <button class="seg-btn" id="alignHBtn" onclick="autoLayout('h')" title="가로 정렬">⬌ 가로</button>
+        <button class="seg-btn" id="galaxyBtn" onclick="toggleGalaxy()" title="은하 배치 — 포지를 중심에 두고 지표가 둘러싸 부유">✦ 은하</button>
       </div>
       <button class="tool-btn" id="exportBtn" onclick="exportStrategy()" title="전략 내보내기">↧ 내보내기</button>
     </div>
@@ -527,7 +534,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628v");
+  console.log("[forge] build b0628w");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -602,6 +609,35 @@
     }
     renderBoard(); fitView(); markDirty();
     bToast(dir === "h" ? "가로 정렬" : "세로 정렬");
+  }
+  /* 은하 배치: '포지'(predict)를 중심에 두고 지표 노드들이 둘러싸 떠다니는 형태.
+     동시 분석 모델의 시각화 — 주변 지표가 중심 포지로 종합된다. */
+  function galaxyLayout() {
+    if (!boardState.nodes.length) return;
+    measure();
+    const center = boardState.nodes.find(n => n.blockType === "predict")
+      || boardState.nodes.find(n => n.blockType === "combine")
+      || boardState.nodes.find(n => n.kind === "block");
+    if (!center) return;
+    const cx = 760, cy = 460;
+    center.x = cx - (center._w || W_NODE) / 2; center.y = cy - (center._h || 90) / 2;
+    const combine = boardState.nodes.find(n => n.blockType === "combine" && n !== center);
+    const ring = boardState.nodes.filter(n => n.kind === "block" && n !== center && n !== combine);
+    const R = Math.max(320, ring.length * 64 + 150);
+    ring.forEach((n, i) => {
+      const ang = -Math.PI / 2 + (i / Math.max(1, ring.length)) * Math.PI * 2;
+      n.x = cx + Math.cos(ang) * R - (n._w || W_NODE) / 2;
+      n.y = cy + Math.sin(ang) * R * 0.74 - (n._h || 90) / 2;   // 살짝 납작한 은하 타원
+    });
+    if (combine) { combine.x = cx - (combine._w || W_NODE) / 2; combine.y = cy - (combine._h || 90) - 150; }
+    boardState.edges.forEach(e => { e.fromSide = "auto"; e.toSide = "auto"; });
+    document.body.classList.add("galaxy");
+    renderBoard(); fitView(); markDirty();
+    bToast("은하 배치 · 포지 중심 · 지표가 둘러싸 부유");
+  }
+  function toggleGalaxy() {
+    if (document.body.classList.contains("galaxy")) { document.body.classList.remove("galaxy"); bToast("은하 배치 해제"); }
+    else galaxyLayout();
   }
 
   /* ── Change notification ─────────────────────────────────────── */
@@ -951,7 +987,9 @@
       ? `<div class="b-n-type">${esc(n.blockType)}</div>` : "";
     const thumb = n.thumb
       ? `<div class="b-n-thumb"><img src="${imgSrc(n.thumb.imgId)}" alt=""></div>` : "";
-    const cls = "b-node" + (isBlock ? "" : " b-mini");
+    const cls = "b-node" + (isBlock ? "" : " b-mini") + (n.blockType === "predict" ? " b-center" : "");
+    const _seed = [...(n.id || "")].reduce((a, c) => a + c.charCodeAt(0), 0);
+    const _fl = `--fdl:${((_seed % 40) / 10).toFixed(1)}s;--fdur:${(5 + (_seed % 28) / 10).toFixed(1)}s;`;
     const wt = (n.weight != null ? n.weight : 50), sf = weightScale(wt);
     const baseW = isBlock ? W_NODE : 140;
     const cardW = Math.round(baseW * sf);
@@ -959,7 +997,7 @@
       ? `box-shadow:0 0 ${Math.round((wt - 55) * 0.5)}px rgba(232,180,99,${((wt - 55) / 45 * 0.6).toFixed(2)});`
       : "";
     const wbadge = wt !== 50 ? `<div class="b-n-wt" title="중요도">${wt}</div>` : "";
-    return `<div class="${cls}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${cardW}px;font-size:${(13 * sf).toFixed(1)}px;${glow}">
+    return `<div class="${cls}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${cardW}px;font-size:${(13 * sf).toFixed(1)}px;${glow}${_fl}">
   ${inDot}
   ${wbadge}${thumb}<div class="b-n-body">
     <div class="b-n-title" contenteditable="true" data-field="title">${esc(n.title || "")}</div>
@@ -2994,7 +3032,7 @@
   }
   let lastResult = null;
   let _t = null;
-  let _playT = null, _playRaf = null, _playing = false, _analyzeNode = null, _zoomEl = null;
+  let _playT = null, _playRaf = null, _playing = false, _analyzeNode = null, _zoomEl = null, _playTimers = [];
   /* 재생 중 예측구간 줌인(끝나면 줌아웃) — 차트/오버레이 공용 */
   function predZoomIn() {
     const mode = (typeof heroMode === "function") ? heroMode() : "chart";
@@ -3060,8 +3098,8 @@
   function stopPlay() {
     if (_playT) clearTimeout(_playT);
     if (_playRaf) cancelAnimationFrame(_playRaf);
+    _playTimers.forEach(clearTimeout); _playTimers = [];
     _playT = null; _playRaf = null; _playing = false;
-    predZoomOut();
     clearAnalyzeViz();
     const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
   }
@@ -3078,6 +3116,8 @@
   const _ease = t => (t < 0.5) ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;   // easeInOutQuad
   const _REG = { bull: { c: "var(--bull)", t: "상승" }, bear: { c: "var(--bear)", t: "하락" }, neutral: { c: "var(--eth)", t: "중립" } };
   const _sigOf = s => (s.signal && s.signal.length) ? s.signal[s.signal.length - 1] : 0;
+  /* 동시 분석: 모든 지표가 각자의 가중치·근거로 동시에 의견을 내고, 마지막에 버무려 '포지'가 형성된다.
+     (순차 파이프라인이 아니라 '의회/은하' 모델 — 중심의 포지가 주변 지표를 종합) */
   function playAnalysis() {
     if (_playing) { stopPlay(); return; }      // 토글: 재생 중 누르면 중단
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
@@ -3086,61 +3126,73 @@
     try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive() }); }
     catch (e) { console.warn("steps", e); return; }
     if (!steps.length) return;
-    if (prefersReducedMotion()) { renderChart(lastResult, currentData()); bToast("포지 분석 완료"); return; }
+    const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
+    const finPred = fin.prediction, finSig = _sigOf(fin);
+    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume"].includes(n.blockType));
+    const center = boardState.nodes.find(n => n.blockType === "predict") || boardState.nodes.find(n => n.blockType === "combine");
+    if (prefersReducedMotion()) {
+      _evidenceSet = new Set(indNodes.map(n => n.id));
+      renderChart(lastResult, currentData());
+      if (fin.verdict) renderVerdict(fin.verdict);
+      if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
+      bToast("포지 분석 완료 · " + indNodes.length + "개 지표 결합"); return;
+    }
     _playing = true;
     clearAnalyzeViz();
-    _evidenceSet = new Set();   // 근거 작도: 재생하며 노드별로 누적
+    _evidenceSet = new Set();
     const eg = document.getElementById("bEdges"); if (eg) eg.classList.add("flow");
-    requestAnimationFrame(predZoomIn);   // 첫 렌더 후 예측구간 줌인
-    const N = steps.length, progEl = document.getElementById("analyzeProg");
-    const hud = document.getElementById("playHud");
-    if (hud) hud.classList.add("on");
-    let i = 0, prevPred = steps[0].prediction, prevSig = 0;
-    function highlight(id) {
-      if (_analyzeNode && _analyzeNode !== id) { const e = bq(_analyzeNode); if (e) { e.classList.remove("analyzing"); e.classList.add("analyzed"); } }
-      _analyzeNode = id; const el = id && bq(id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); }
-    }
-    function renderHud(s, sig) {
+    const hud = document.getElementById("playHud"); if (hud) hud.classList.add("on");
+    const progEl = document.getElementById("analyzeProg");
+    // 모든 지표 노드 동시 점등(찰나의 스태거로 '동시 가동' 느낌)
+    indNodes.forEach((n, idx) => {
+      _playTimers.push(setTimeout(() => { if (!_playing) return; const el = bq(n.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); } }, 40 * idx));
+    });
+    // 근거 작도는 살짝 더 벌려 순차로 그려지는 게 보이게(동시 분석이되 작도 과정은 가시화)
+    indNodes.forEach((n, idx) => {
+      _playTimers.push(setTimeout(() => { if (!_playing) return; _evidenceSet.add(n.id); }, 130 * idx + 120));
+    });
+    // 예측 부채꼴이 평평(anchor)에서 최종 예측으로 '펼쳐지며' 포지가 형성
+    const A = finPred.anchor;
+    const flat = { path: finPred.path.map(() => A), lo: finPred.path.map(() => A), hi: finPred.path.map(() => A), anchor: A };
+    const total = Math.max(1400, 130 * indNodes.length + 700), t0 = performance.now();
+    function renderHud(u) {
       if (!hud) return;
-      const node = boardState.nodes.find(n => n.id === s.nodeId);
-      const reg = _REG[(s.verdict && s.verdict.regime) || "neutral"] || _REG.neutral;
-      const isFirst = (i === 0), d = Math.round(sig - prevSig);
-      const dCls = isFirst ? "flat" : d > 0 ? "up" : d < 0 ? "down" : "flat";
-      const dTxt = isFirst ? "기준" : d > 0 ? "▲ +" + d : d < 0 ? "▼ " + d : "– 0";
-      const segs = steps.map((_, k) => `<span class="ph-seg ${k < i ? "done" : k === i ? "cur" : ""}"></span>`).join("");
+      const reg = _REG[(fin.verdict && fin.verdict.regime) || "neutral"] || _REG.neutral;
+      const lit = Math.min(indNodes.length, Math.round(u * total / 130) + 1);
+      const segs = indNodes.map((_, k) => `<span class="ph-seg ${k < lit ? "done" : "cur"}"></span>`).join("");
+      const sigNow = Math.round(finSig * _ease(u));
       hud.innerHTML =
         `<span class="ph-dot" style="color:${reg.c}"></span>
-         <div class="ph-node"><span class="ph-title">${esc((node && node.title) || "노드")}</span>
-           <span class="ph-type">${esc(node ? neTypeLabel(node) : "")} · 국면 ${reg.t}</span></div>
-         <div class="ph-sig"><span class="ph-type">시그널</span><b>${Math.round(sig)}</b>
-           <span class="ph-delta ${dCls}">${dTxt}</span></div>
-         <div class="ph-prog"><span class="ph-knt">${i + 1}/${N}</span><span class="ph-bar">${segs}</span></div>`;
+         <div class="ph-node"><span class="ph-title">동시 분석 · 포지 형성</span>
+           <span class="ph-type">${indNodes.length}개 지표 가중 결합 · 국면 ${reg.t}</span></div>
+         <div class="ph-sig"><span class="ph-type">시그널</span><b>${sigNow}</b></div>
+         <div class="ph-prog"><span class="ph-knt">${Math.min(lit, indNodes.length)}/${indNodes.length}</span><span class="ph-bar">${segs}</span></div>`;
     }
-    function step() {
+    if (progEl) progEl.textContent = "동시 분석 중 · " + indNodes.length + "개 지표 결합";
+    function morph(now) {
       if (!_playing) return;
-      if (i >= N) {
-        renderChart(lastResult, currentData());
-        if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
-        stopPlay(); bToast("포지 분석 완료"); return;
-      }
-      const s = steps[i], sig = _sigOf(s);
-      const node = boardState.nodes.find(n => n.id === s.nodeId);
-      if (progEl) progEl.textContent = "분석 중 " + (i + 1) + "/" + N + " · " + ((node && node.title) || "노드");
-      if (s.nodeId) _evidenceSet.add(s.nodeId);   // 이 노드 근거 작도 추가(누적)
-      highlight(s.nodeId);
-      renderHud(s, sig);
-      if (s.verdict) renderVerdict(s.verdict);
-      const from = prevPred, to = s.prediction, t0 = performance.now(), dur = 430;
-      function morph(now) {
-        if (!_playing) return;
-        const u = Math.min(1, (now - t0) / dur);
-        fcRenderForecast(lerpPred(from, to, _ease(u)));
-        if (u < 1) { _playRaf = requestAnimationFrame(morph); }
-        else { prevPred = to; prevSig = sig; i++; _playT = setTimeout(step, 230); }
-      }
-      _playRaf = requestAnimationFrame(morph);
+      const u = Math.min(1, (now - t0) / total);
+      fcRenderForecast(lerpPred(flat, finPred, _ease(u)));
+      renderHud(u);
+      if (u < 1) { _playRaf = requestAnimationFrame(morph); return; }
+      finishPlay();
     }
-    step();
+    function finishPlay() {
+      _evidenceSet = new Set(indNodes.map(n => n.id));        // 모든 근거 확정 표시
+      indNodes.forEach(n => { const el = bq(n.id); if (el) { el.classList.remove("analyzing"); el.classList.add("analyzed"); } });
+      if (center) { const el = bq(center.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); _analyzeNode = center.id; } }  // 중심 포지 점등
+      _playing = false; _playRaf = null;
+      _playTimers.forEach(clearTimeout); _playTimers = [];
+      renderChart(lastResult, currentData());
+      if (fin.verdict) renderVerdict(fin.verdict);
+      if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
+      const eg2 = document.getElementById("bEdges"); if (eg2) eg2.classList.remove("flow");
+      const hud2 = document.getElementById("playHud");
+      _playTimers.push(setTimeout(() => { if (hud2) hud2.classList.remove("on"); }, 1600));
+      const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
+      bToast("포지 완료 · " + indNodes.length + "개 지표 결합 → 시그널 " + Math.round(finSig));
+    }
+    _playRaf = requestAnimationFrame(morph);
   }
 
   function runForge() {
