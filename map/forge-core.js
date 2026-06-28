@@ -301,34 +301,39 @@
     const bias = aggregateConviction(graph) + vbias, K = 0.5;
     const sigB = bias ? signal.map(v => Math.max(-100, Math.min(100, Math.round(v + bias * K)))) : signal;
     const lastSig = sigB.slice(-10).reduce((s, v) => s + v, 0) / 10;
-    // 신호(확신·중요도·visionBias 포함)에 따른 예측 드리프트 — 강할수록 예측 기울기 변화
-    const driftPct = (lastSig / 100) * 0.30;
-    // 예측: 가격 추세 + (phasefold 메타 있으면) 주기 외삽 + 신호 드리프트
-    const price = data.price, { a, b } = linfit(price), n = price.length;
-    const fmeta = Object.values(meta || {}).find(m => m && m.best);
-    // 잔차표준편차
-    let res = 0;
-    for (let i = 0; i < n; i++) {
-      const e = price[i] - (a + b * i);
-      res += e * e;
+    /* 예측 모델: 로그수익률 기반 기하 랜덤워크 + 신호 드리프트.
+       - 스케일 불변(로그스케일 자산도 정상 동작), 가격 = last·exp(μ·k ± σ·√k)
+       - μ = 댐핑된 최근 모멘텀 + 신호(확신·중요도·visionBias)에 따른 드리프트
+       - 밴드 = σ·√k (랜덤워크 표준 — 시간의 제곱근으로 확대) */
+    const price = data.price, n = price.length;
+    const last = price[n - 1];
+    const W = Math.min(n - 1, Math.max(12, Math.round(n * 0.3)));   // 최근 윈도(통계 추정)
+    const lr = [];
+    for (let i = Math.max(1, n - W); i < n; i++) {
+      if (price[i - 1] > 0 && price[i] > 0) { const r = Math.log(price[i] / price[i - 1]); if (isFinite(r)) lr.push(r); }
     }
-    res = Math.sqrt(res / n);
-    // forecast와 동일 공식의 모델값 — 마지막 실값에 앵커링(연속성)
-    const modelAt = j => a + b * j + (fmeta ? Math.sin(2 * Math.PI * j / fmeta.best) * res * 0.8 : 0);
-    const offset = price[n - 1] - modelAt(n - 1);
+    const muH = lr.length ? lr.reduce((s, v) => s + v, 0) / lr.length : 0;
+    let vsum = 0; for (const r of lr) vsum += (r - muH) * (r - muH);
+    let sigma = lr.length > 1 ? Math.sqrt(vsum / (lr.length - 1)) : 0.05;
+    sigma = Math.max(sigma, 0.008);
+    /* horizon 끝까지의 총 로그드리프트을 한도 안에서 구성(고변동 자산 폭주 방지):
+       - 신호 성분: 확신·중요도 종합(lastSig)에 비례, 만점이면 ±25%
+       - 모멘텀 성분: 최근 로그수익률을 horizon에 반영하되 ±12% 상한 */
+    const sigDriftTotal = (lastSig / 100) * 0.25;
+    const momTotal = Math.max(-0.12, Math.min(0.12, muH * futW * 0.15));
+    const muPer = (sigDriftTotal + momTotal) / futW;
+    const sigBand = Math.min(sigma, 0.085);                // 밴드용 변동성 상한
     const path = [], lo = [], hi = [];
     for (let k = 1; k <= futW; k++) {
-      const i = n - 1 + k;
-      const v = (modelAt(i) + offset) * (1 + driftPct * (k / futW));   // 신호 방향으로 누적 드리프트
-      // 밴드: 절대 잔차 기반, 단 가격 대비 %로 상한(로그스케일 자산에서 과도한 콘 방지)
-      const band = Math.min(res * (0.15 + 0.03 * k), Math.abs(v) * Math.min(0.05 + 0.011 * k, 0.45));
-      path.push(v);
-      lo.push(v - band);
-      hi.push(v + band);
+      const m = muPer * k, sd = sigBand * Math.sqrt(k) * 0.8;   // √시간 밴드(랜덤워크)
+      path.push(last * Math.exp(m));
+      lo.push(last * Math.exp(m - sd));
+      hi.push(last * Math.exp(m + sd));
     }
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
-    const last = price[n - 1], target = last * (1 + lastSig / 1000);
-    const recent = price.slice(-30), invalidation = regime === "bear" ? Math.max(...recent) : Math.min(...recent);
+    const target = path[path.length - 1];                  // 예측 horizon 끝값
+    const invIdx = Math.min(2, futW - 1);                  // 근단기 반대 밴드 = 무효화 기준
+    const invalidation = regime === "bear" ? hi[invIdx] : lo[invIdx];
     return {
       values, meta, prediction: { path, lo, hi, futW, anchor: price[n - 1] }, signal: sigB,
       verdict: { regime, score: Math.round(lastSig), target, invalidation }
