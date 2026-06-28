@@ -147,6 +147,7 @@
   }
   .verdict-badge.active{display:flex}
   .verdict-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .verdict-tag{font-size:9.5px;font-weight:800;letter-spacing:.02em;color:#0b0f14;background:var(--gold);border-radius:4px;padding:1px 6px;flex-shrink:0}
 
   /* ══ export button ══ */
   .export-btn{
@@ -364,6 +365,7 @@
   .play-hud .ph-seg.done{background:var(--gold)}
   .play-hud .ph-seg.cur{background:var(--gold);box-shadow:0 0 7px rgba(232,180,99,.8)}
 
+  .fc-radar{width:100%;height:280px;display:block}
   /* ── 노드별 분석 패널 ── */
   .na-list{display:flex;flex-direction:column;gap:6px}
   .na-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;
@@ -423,7 +425,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629c</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629d</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -437,9 +439,9 @@
     <div class="h-actions">
       <span id="analyzeProg" class="analyze-prog"></span>
       <span id="reqStat" class="req-stat"></span>
-      <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="가격 노드 이미지를 분석해 예측을 생성">☁ 분석 요청</button>
+      <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="1차 웹분석 — 이미지를 비전으로 판독해 시계열·축보정 생성(워커)">☁ 1차 웹분석</button>
       <span class="h-sep"></span>
-      <button class="run-btn" id="analyzeBtn" onclick="playAnalysis()">▷ 포지 분석</button>
+      <button class="run-btn" id="analyzeBtn" onclick="playAnalysis()" title="2차 엔진분석 — 노드 그래프로 시계열을 계산해 포지결과(예측·시그널) 산출">▷ 2차 엔진분석</button>
     </div>
   </header>
   <div class="forge-shell">
@@ -490,10 +492,10 @@
         </div>
         <div class="fc-panel" id="fcNodesPanel">
           <div class="fc-phead">
-            <span class="fc-t"><b>노드별 분석</b> · 각 블록의 판독</span>
+            <span class="fc-t"><b>노드별 레이더</b> · 지표별 방향·강도</span>
             <span class="fc-meta" id="fcNodesMeta">–</span>
           </div>
-          <div class="fc-pbody"><div id="fcNodes" class="na-list"></div></div>
+          <div class="fc-pbody"><canvas id="fcRadar" class="fc-radar"></canvas></div>
         </div>
         <div class="fc-panel" id="fcPdmPanel">
           <div class="fc-phead">
@@ -560,7 +562,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629c");
+  console.log("[forge] build b0629d");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2203,7 +2205,7 @@
     const { c, W, H } = sizeOverlay(cv); if (!c) return false;
     const g = coneGeo(cv, imgEl); if (!g) return false;
     c.font = "12px Pretendard,system-ui,sans-serif"; c.textAlign = "center";
-    const txt = "☁ 분석 요청 — 이 이미지를 분석해 예측 차트를 만듭니다";
+    const txt = "☁ 1차 웹분석 — 이 이미지를 판독해 시계열·예측을 만듭니다";
     const tw = c.measureText(txt).width + 22;
     c.fillStyle = "rgba(11,15,20,.66)"; c.fillRect((W - tw) / 2, H - 30, tw, 22);
     c.fillStyle = "rgba(232,180,99,.95)"; c.fillText(txt, W / 2, H - 15);
@@ -2774,28 +2776,51 @@
       default: return n.note ? n.note : "—";
     }
   }
+  /* 노드별 레이더: 각 지표를 스포크로, 길이=확신 강도·색=방향(상승 초록/하락 빨강)·점크기=중요도 */
   function renderNodeAnalysis(result) {
-    const host = document.getElementById("fcNodes"); if (!host) return;
-    const blocks = boardState.nodes.filter(n => n.kind === "block");
+    const cv = document.getElementById("fcRadar"); if (!cv) return;
     const metaEl = document.getElementById("fcNodesMeta");
-    if (metaEl) metaEl.textContent = blocks.length ? blocks.length + "개 블록" : "";
-    if (!blocks.length || !result) { host.innerHTML = `<div class="na-empty">블록을 추가하면 노드별 판독이 표시됩니다</div>`; return; }
-    const priceNode = blocks.find(n => n.blockType === "price");
-    const pv = priceNode && result.values && result.values[priceNode.id];
-    const priceLast = (pv && pv.length) ? pv[pv.length - 1] : null;
-    host.innerHTML = blocks.map(n => {
-      const conv = n.conviction || 0;
-      const dir = conv > 5 ? "bull" : conv < -5 ? "bear" : "neutral";
-      const dirTxt = dir === "bull" ? "상승편향" : dir === "bear" ? "하락편향" : "중립";
-      const wt = (n.weight != null) ? n.weight : 50;
-      const read = nodeReadText(n, result, priceLast);
-      return `<div class="na-row">
-        <span class="na-type">${esc(BTLABEL[n.blockType] || n.blockType || "노드")}</span>
-        <div class="na-mid"><div class="na-name">${esc(n.title || "노드")}</div>
-          <div class="na-read">${esc(read)}</div></div>
-        <div class="na-stance"><span class="na-dir ${dir}">${dirTxt}</span><span class="na-wt">중요도 ${wt}</span></div>
-      </div>`;
-    }).join("");
+    const blocks = boardState.nodes.filter(n => n.kind === "block" && !["price", "predict", "combine"].includes(n.blockType));
+    const host = cv.parentElement; const W = host.clientWidth || 360, Hh = 280;
+    const c = fcFit(cv, Hh); c.clearRect(0, 0, W, Hh);
+    if (metaEl) metaEl.textContent = blocks.length ? blocks.length + "개 지표" : "";
+    if (!blocks.length || !result) {
+      c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
+      c.fillText("지표 블록을 추가하면 방향·강도 레이더가 표시됩니다", W / 2, Hh / 2); c.textAlign = "left"; return;
+    }
+    const cx = W / 2, cy = Hh / 2 + 4, R = Math.min(W, Hh) / 2 - 46;
+    const N = blocks.length, GREEN = "#46c28e", RED = "#e06a6a", GRAY = "#8a92b2";
+    const ang = i => -Math.PI / 2 + i / N * Math.PI * 2;
+    // grid rings + spoke axes
+    c.strokeStyle = "rgba(138,146,178,.18)"; c.lineWidth = 1;
+    for (let g = 1; g <= 4; g++) { c.beginPath(); for (let i = 0; i <= N; i++) { const a = ang(i % N), r = R * g / 4, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r; i ? c.lineTo(x, y) : c.moveTo(x, y); } c.closePath(); c.stroke(); }
+    c.strokeStyle = "rgba(138,146,178,.22)";
+    for (let i = 0; i < N; i++) { const a = ang(i); c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); c.stroke(); }
+    // polygon outline (shape)
+    const pts = blocks.map((n, i) => { const conv = Math.max(-100, Math.min(100, n.conviction || 0)); const r = Math.abs(conv) / 100 * R; const a = ang(i); return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, a, conv, n }; });
+    c.beginPath(); pts.forEach((p, i) => { i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y); }); c.closePath();
+    c.fillStyle = "rgba(232,180,99,.08)"; c.fill(); c.strokeStyle = "rgba(232,180,99,.45)"; c.lineWidth = 1.4; c.stroke();
+    // colored spokes + dots(weight) + labels
+    c.font = "10px Pretendard,system-ui,sans-serif";
+    for (const p of pts) {
+      const col = p.conv > 5 ? GREEN : p.conv < -5 ? RED : GRAY;
+      c.strokeStyle = col; c.lineWidth = 2.4; c.beginPath(); c.moveTo(cx, cy); c.lineTo(p.x, p.y); c.stroke();
+      const wt = (p.n.weight != null) ? p.n.weight : 50, dr = 2.4 + wt / 100 * 4;
+      c.fillStyle = col; c.beginPath(); c.arc(p.x, p.y, dr, 0, 7); c.fill();
+      c.strokeStyle = "#0b0f14"; c.lineWidth = 1; c.stroke();
+      // label at rim
+      const lx = cx + Math.cos(p.a) * (R + 12), ly = cy + Math.sin(p.a) * (R + 12);
+      const ca = Math.cos(p.a); c.textAlign = ca > 0.3 ? "left" : ca < -0.3 ? "right" : "center";
+      c.fillStyle = "rgba(224,229,239,.92)"; c.fillText(esc(BTLABEL[p.n.blockType] || p.n.blockType || "노드"), lx, ly - 1);
+      c.fillStyle = col; c.font = "9px ui-monospace,monospace"; c.fillText((p.conv >= 0 ? "+" : "") + Math.round(p.conv), lx, ly + 10); c.font = "10px Pretendard,system-ui,sans-serif";
+    }
+    c.textAlign = "left";
+    // center net bias
+    const net = blocks.reduce((s, n) => s + (n.conviction || 0) * ((n.weight != null ? n.weight : 50) / 50), 0);
+    const ncol = net > 8 ? GREEN : net < -8 ? RED : GRAY, ntxt = net > 8 ? "상승" : net < -8 ? "하락" : "중립";
+    c.fillStyle = ncol; c.beginPath(); c.arc(cx, cy, 4, 0, 7); c.fill();
+    c.textAlign = "center"; c.fillStyle = ncol; c.font = "700 11px Pretendard,system-ui,sans-serif";
+    c.fillText(ntxt, cx, cy - 9); c.textAlign = "left";
   }
   function togglePhasefoldPanels() {
     const has = boardState.nodes.some(n => n.blockType === "phasefold");
@@ -3057,6 +3082,7 @@
     el.className = "verdict-badge active";
     el.innerHTML =
       `<span class="verdict-dot" style="background:${col};box-shadow:0 0 6px ${col}88"></span>` +
+      `<span class="verdict-tag">포지결과</span>` +
       `<span>국면: <b style="color:${col}">${label}</b>` +
       ` &nbsp;·&nbsp; 시그널 ${score}` +
       ` &nbsp;·&nbsp; 목표가 ${fmt(verdict.target)}` +
