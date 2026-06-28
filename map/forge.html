@@ -271,8 +271,13 @@
   .ne-title{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--ink);
     padding:7px 9px;font:inherit;font-size:14px;font-weight:700}
   .ne-title:focus{outline:none;border-color:var(--gold)}
-  .ne-img{position:relative;width:100%;height:200px;border:1px solid var(--line);border-radius:9px;overflow:hidden;
+  .ne-img{position:relative;width:100%;height:var(--ne-img-h,400px);flex:0 0 auto;border:1px solid var(--line);border-radius:9px;overflow:hidden;
     background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:default;transition:border-color .12s,box-shadow .12s}
+  .ne-gutter{height:9px;margin:1px 0;border-radius:5px;cursor:row-resize;flex:0 0 auto;
+    background:linear-gradient(180deg,transparent,rgba(138,146,178,.18),transparent);transition:background .12s}
+  .ne-gutter:hover,.ne-gutter.dragging{background:linear-gradient(180deg,transparent,rgba(232,180,99,.4),transparent)}
+  .ne-gutter::after{content:"";display:block;width:34px;height:3px;margin:3px auto;border-radius:2px;background:rgba(138,146,178,.5)}
+  .ne-gutter:hover::after,.ne-gutter.dragging::after{background:var(--gold)}
   .ne-img.empty{cursor:pointer}
   .ne-img.empty:hover{border-color:#3a4452}
   .ne-img.drop{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,180,99,.25)}
@@ -445,7 +450,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b062a3</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b062a4</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -587,7 +592,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b062a3");
+  console.log("[forge] build b062a4");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -1240,6 +1245,7 @@
       `<div class="ne-head"><span class="ne-type">${esc(neTypeLabel(n))}</span>
          <input class="ne-title" id="neTitle" value="${esc(n.title || "")}" placeholder="노드 제목"></div>
        <div class="ne-img${hasImg ? "" : " empty"}" id="neImg" title="${hasImg ? "드래그 · Ctrl+V로 교체" : "클릭 · 드래그 · Ctrl+V로 이미지 추가"}">${imgInner}</div>
+       <div class="ne-gutter" id="neImgGutter" title="드래그하여 이미지 영역 높이 조절 · 더블클릭 초기화"></div>
        <div class="ne-imgbar">
          <button class="tool-btn" type="button" id="neImgPick">${hasImg ? "이미지 교체" : "이미지 추가"}</button>
        </div>
@@ -4205,6 +4211,23 @@
     /* 파라미터 패널 입력 이벤트 위임 (boardInit 후 #paramPanel 존재 보장) */
     const panel = document.getElementById("paramPanel");
     if (panel) {
+      // 이미지 영역 높이 조절 구분선(편집기 재렌더돼도 위임으로 동작)
+      let _neDrag = null;
+      const _neImgH = () => { const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ne-img-h")); return isFinite(v) ? v : 400; };
+      panel.addEventListener("pointerdown", e => {
+        const g = e.target.closest(".ne-gutter"); if (!g) return;
+        _neDrag = { y: e.clientY, h: _neImgH(), g }; g.classList.add("dragging");
+        try { g.setPointerCapture(e.pointerId); } catch (_) {} document.body.style.userSelect = "none"; e.preventDefault();
+      });
+      panel.addEventListener("pointermove", e => {
+        if (!_neDrag) return;
+        const h = Math.max(140, Math.min(760, _neDrag.h + (e.clientY - _neDrag.y)));
+        document.documentElement.style.setProperty("--ne-img-h", h + "px");
+        if (typeof refreshEditorCone === "function") refreshEditorCone();
+      });
+      const _neEnd = e => { if (!_neDrag) return; _neDrag.g.classList.remove("dragging"); try { _neDrag.g.releasePointerCapture(e.pointerId); } catch (_) {} _neDrag = null; document.body.style.userSelect = ""; if (typeof refreshEditorCone === "function") refreshEditorCone(); };
+      panel.addEventListener("pointerup", _neEnd); panel.addEventListener("pointercancel", _neEnd);
+      panel.addEventListener("dblclick", e => { if (e.target.closest(".ne-gutter")) { document.documentElement.style.setProperty("--ne-img-h", "400px"); if (typeof refreshEditorCone === "function") refreshEditorCone(); } });
       panel.addEventListener("input", ev => {
         if (sel.length !== 1) return; const n = bN(sel[0]); if (!n) return;
         const t = ev.target;
