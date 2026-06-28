@@ -418,7 +418,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628z</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629a</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -554,7 +554,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628z");
+  console.log("[forge] build b0629a");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2484,8 +2484,8 @@
     _heroView = (_heroView === "chart") ? "image" : "chart";
     updateViewToggle();
     renderTheme();
-    if (lastResult && hasRealSeries()) renderChart(lastResult, currentData());
-    bToast(_heroView === "chart" ? "차트뷰 · 작도가 선에 정합" : "이미지뷰 · 원본 위 예측");
+    runForge();   // 뷰별 데이터(차트=붙여넣은 시계열 / 이미지=비전 시계열)로 재계산
+    bToast(_heroView === "chart" ? "차트뷰 · 붙여넣은 시계열 기준" : "이미지뷰 · 비전 시계열로 원본에 정합");
   }
   function updateViewToggle() {
     const b = document.getElementById("viewToggle"); if (!b) return;
@@ -3085,9 +3085,12 @@
   function priceSeries() {
     const p = boardState.nodes.find(n => n.blockType === "price");
     const s = p && p.series;
-    if (Array.isArray(s) && s.length >= 20 && s.every(x => isFinite(x))) return s;
-    if (visionLive()) return _visionData.price;
-    return null;
+    const ps = (Array.isArray(s) && s.length >= 20 && s.every(x => isFinite(x))) ? s : null;
+    const vs = (visionLive() && Array.isArray(_visionData.price) && _visionData.price.length >= 2) ? _visionData.price : null;
+    // 원본 이미지를 띄우는 뷰(auto/image)에서는 이미지에서 추출한 비전 시계열을 써야
+    // 작도·예측이 캔들에 정합한다(붙여넣은 시계열이 이미지와 다른 데이터여도 어긋나지 않음).
+    if (vs && heroImgId() && _heroView !== "chart") return vs;
+    return ps || vs;
   }
   function buildData(series) {
     return { price: series.slice(), candle: series.map(c => ({ o: c, h: c, l: c, c })), orange: [], blue: [], n: series.length };
