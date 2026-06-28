@@ -428,7 +428,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629j</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629k</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -441,7 +441,7 @@
     </div>
     <div class="h-actions">
       <span id="analyzeProg" class="analyze-prog"></span>
-      <span id="reqStat" class="req-stat"></span>
+      <span id="reqStat" class="req-stat" onclick="cancelReq()"></span>
       <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="1차 웹분석 — 이미지를 비전으로 판독해 시계열·축보정 생성(데이터 준비 · 워커)">① 웹분석</button>
       <span class="h-sep"></span>
       <button class="run-btn" id="analyzeBtn" onclick="playAnalysis()" title="2차 엔진분석 — 1차 데이터를 노드 그래프로 계산해 포지결과(예측·시그널) 산출">② 엔진분석 ▶</button>
@@ -569,7 +569,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629j");
+  console.log("[forge] build b0629k");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -3439,9 +3439,11 @@
   /* ── 분석 요청 버튼 + 작업큐 폴링 ───────────────────────────────── */
   let _pollT = null, _pollN = 0;
   function _setReqStat(txt, cls) {
-    const el = document.getElementById("reqStat"); if (el) { el.textContent = txt || ""; el.className = "req-stat" + (cls ? " " + cls : ""); }
+    const el = document.getElementById("reqStat");
+    if (el) { el.textContent = txt || ""; el.className = "req-stat" + (cls ? " " + cls : ""); el.title = txt ? "클릭해 닫기/취소" : ""; el.style.cursor = txt ? "pointer" : ""; }
     const b = document.getElementById("reqBtn"); if (b) b.disabled = !!cls && cls !== "err";
   }
+  function cancelReq() { _stopPoll(); _setReqStat("", ""); }   // 상태 클릭 → 대기 취소
   async function requestAnalysis() {
     if (!VISION_ENABLED) { bToast("비전 분석은 준비 중입니다 (곧 제공)"); return; }
     if (!SERVER_OK) { bToast("서버 연결이 필요합니다(분석 요청)"); return; }
@@ -3460,7 +3462,7 @@
     clearTimeout(_pollT);
     const tick = async () => {
       _pollN++;
-      if (_pollN > 72) { _stopPoll(); _setReqStat("워커 대기 중 — /forge-analyze 실행 필요", "err"); return; }
+      if (_pollN > 16) { _stopPoll(); _setReqStat("판독 워커 대기 — 자동 처리 미설정(클릭해 닫기)", "err"); return; }
       const r = await apiGet("?jobs&docId=" + encodeURIComponent(activeId));
       const job = r && r.jobs && r.jobs.find(j => j.id === jobId);
       if (!job) { _pollT = setTimeout(tick, 2500); return; }
