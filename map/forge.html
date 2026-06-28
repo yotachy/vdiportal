@@ -170,7 +170,8 @@
 
   /* hero panel (대표 이미지) — 확정 높이(차트 모드 캔버스 height:100% 붕괴·overflow:hidden 클리핑 방지) */
   .fc-panel-hero{flex:0 0 auto;min-height:0}
-  .fc-hero{display:flex;gap:6px;height:312px;position:relative}
+  .fc-hero{display:flex;gap:6px;height:312px;position:relative;overflow:hidden}
+  .fc-hero #fcHeroImg,.fc-hero #fcMainChart{transition:transform .5s cubic-bezier(.4,0,.2,1)}
   .fc-hero-img{position:relative;flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
   .fc-hero-img img{width:100%;height:100%;object-fit:contain}
   /* 예측 콘 오버레이(이미지 가격축 위) — 히어로/편집기 공용 */
@@ -305,6 +306,9 @@
   .b-node.analyzed{border-color:var(--gold-dim);box-shadow:0 0 0 1.5px rgba(232,180,99,.38)}
   .b-node.analyzed::after{content:"✓";position:absolute;top:-8px;left:-8px;width:18px;height:18px;border-radius:50%;
     background:var(--gold);color:#1a1206;font-size:11px;font-weight:800;line-height:18px;text-align:center;z-index:4}
+  /* 분석 중 엣지 흐름(마칭 앤츠) — 재생할 때만 #bEdges.flow */
+  #bEdges.flow .b-ew{stroke:var(--gold);stroke-dasharray:7 7;animation:bedgeFlow .5s linear infinite}
+  @keyframes bedgeFlow{to{stroke-dashoffset:-14}}
 
   /* ── 포지 분석 재생 HUD (결과 영역 상단 오버레이) ── */
   .play-hud{position:absolute;left:0;right:0;top:0;z-index:9;display:none;align-items:center;gap:12px;
@@ -386,7 +390,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628s</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628t</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -517,7 +521,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628s");
+  console.log("[forge] build b0628t");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2867,7 +2871,30 @@
   }
   let lastResult = null;
   let _t = null;
-  let _playT = null, _playRaf = null, _playing = false, _analyzeNode = null;
+  let _playT = null, _playRaf = null, _playing = false, _analyzeNode = null, _zoomEl = null;
+  /* 재생 중 예측구간 줌인(끝나면 줌아웃) — 차트/오버레이 공용 */
+  function predZoomIn() {
+    const mode = (typeof heroMode === "function") ? heroMode() : "chart";
+    let el, originX = 72;
+    if (mode === "chart") {
+      el = document.getElementById("fcMainChart");
+      const g = el && el._mainGeo, w = el && el.clientWidth;
+      if (g && w) originX = ((g.seamX + g.padX + g.plotW) / 2) / w * 100;
+    } else {
+      el = document.getElementById("fcHeroImg");
+      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo, w = cone && cone.clientWidth;
+      if (g && w) originX = ((g.nowX + g.rightX) / 2) / w * 100;
+    }
+    if (!el) return;
+    _zoomEl = el;
+    el.style.transformOrigin = Math.max(50, Math.min(88, originX)) + "% 50%";
+    el.style.transform = "scale(1.55)";
+  }
+  function predZoomOut() {
+    if (!_zoomEl) return;
+    const el = _zoomEl; _zoomEl = null;
+    el.style.transform = "scale(1)";
+  }
 
   function paintScanBadges() {
     if (!lastResult || !bWorld) return;
@@ -2895,12 +2922,14 @@
     if (bWorld) bWorld.querySelectorAll(".b-node.analyzing,.b-node.analyzed")
       .forEach(el => el.classList.remove("analyzing", "analyzed"));
     _analyzeNode = null;
+    const eg = document.getElementById("bEdges"); if (eg) eg.classList.remove("flow");
     const hud = document.getElementById("playHud"); if (hud) hud.classList.remove("on");
   }
   function stopPlay() {
     if (_playT) clearTimeout(_playT);
     if (_playRaf) cancelAnimationFrame(_playRaf);
     _playT = null; _playRaf = null; _playing = false;
+    predZoomOut();
     clearAnalyzeViz();
     const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
   }
@@ -2928,6 +2957,8 @@
     if (prefersReducedMotion()) { renderChart(lastResult, currentData()); bToast("포지 분석 완료"); return; }
     _playing = true;
     clearAnalyzeViz();
+    const eg = document.getElementById("bEdges"); if (eg) eg.classList.add("flow");
+    requestAnimationFrame(predZoomIn);   // 첫 렌더 후 예측구간 줌인
     const N = steps.length, progEl = document.getElementById("analyzeProg");
     const hud = document.getElementById("playHud");
     if (hud) hud.classList.add("on");
