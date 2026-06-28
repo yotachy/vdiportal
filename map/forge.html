@@ -443,7 +443,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629q</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629r</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -585,7 +585,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629q");
+  console.log("[forge] build b0629r");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2406,6 +2406,20 @@
     for (let i = n - period; i < n; i++) { const d = arr[i] - arr[i - 1]; if (d > 0) g += d; else l -= d; }
     const rs = l === 0 ? 100 : g / l; return 100 - 100 / (1 + rs);
   }
+  /* RSI 전체 시계열(Wilder 평활) — 다이버전스 판정용 */
+  function _rsiSeries(arr, period) {
+    period = period || 14; const n = arr.length, out = new Array(n).fill(50);
+    if (n < period + 1) return out;
+    let g = 0, l = 0;
+    for (let i = 1; i <= period; i++) { const d = arr[i] - arr[i - 1]; if (d > 0) g += d; else l -= d; }
+    g /= period; l /= period;
+    for (let i = period; i < n; i++) {
+      const d = arr[i] - arr[i - 1], gain = d > 0 ? d : 0, loss = d < 0 ? -d : 0;
+      g = (g * (period - 1) + gain) / period; l = (l * (period - 1) + loss) / period;
+      out[i] = l === 0 ? 100 : 100 - 100 / (1 + g / l);
+    }
+    return out;
+  }
   function _zigzag(price, minPct) {
     minPct = minPct || 0.18; const n = price.length; if (n < 3) return [];
     const piv = []; let extI = 0, extP = price[0], dir = 0;
@@ -2879,6 +2893,16 @@
         const dir = rsi > prev + 2 ? "상승 중(모멘텀 강화)" : rsi < prev - 2 ? "하락 중(모멘텀 둔화)" : "횡보";
         f.push("RSI " + rsi + " · " + (rsi >= 70 ? "과매수(과열·되돌림 주의)" : rsi <= 30 ? "과매도(반등 가능)" : "중립 구간"));
         f.push("RSI " + dir + " (3봉 전 " + prev + ")");
+        // 다이버전스: 가격 스윙 고점/저점 vs 그 시점 RSI 비교
+        if (P.length > 20) {
+          const rs = _rsiSeries(P, (n.params && n.params.period) || 14), piv = _zigzag(P, 0.10);
+          const highs = [], lows = [];
+          for (let k = 0; k < piv.length; k++) { const pp = piv[k].p, a = k > 0 ? piv[k - 1].p : pp, b = k < piv.length - 1 ? piv[k + 1].p : pp; if (pp >= a && pp >= b) highs.push(piv[k]); else if (pp <= a && pp <= b) lows.push(piv[k]); }
+          let div = "";
+          if (highs.length >= 2) { const h2 = highs[highs.length - 1], h1 = highs[highs.length - 2]; if (h2.p > h1.p && rs[h2.i] < rs[h1.i] - 2) div = "베어리시 다이버전스 — 고점↑·RSI↓ (상승 모멘텀 약화·반락 주의)"; }
+          if (!div && lows.length >= 2) { const l2 = lows[lows.length - 1], l1 = lows[lows.length - 2]; if (l2.p < l1.p && rs[l2.i] > rs[l1.i] + 2) div = "불리시 다이버전스 — 저점↓·RSI↑ (하락 모멘텀 약화·반등 가능)"; }
+          f.push(div || "다이버전스 없음 (가격-RSI 동행)");
+        }
         return f;
       }
       case "fib": {
@@ -2891,11 +2915,24 @@
         return f;
       }
       case "elliott": {
-        const piv = _zigzag(P, 0.18), c = piv.length;
+        const piv = _zigzag(P, 0.13), c = piv.length;
         if (c < 2) return ["뚜렷한 파동 없음"];
         const lab = _EWLAB[Math.min(c - 1, 7)] || "-", up = piv[c - 1].p > piv[c - 2].p;
         f.push("스윙 " + c + "개 · 현재 파동 " + lab + " 추정");
         f.push("직전 파동 " + (up ? "상승 ▲" : "하락 ▼") + " ($" + fmtNum(piv[c - 2].p) + "→$" + fmtNum(piv[c - 1].p) + ")");
+        // 5파 임펄스 규칙 검증(최근 6 스윙점 = 파동 1~5)
+        if (c >= 6) {
+          const p = piv.slice(-6).map(x => x.p), d = Math.sign(p[1] - p[0]) || 1;
+          const len = (a, b) => Math.abs(p[b] - p[a]), len1 = len(0, 1), len3 = len(2, 3), len5 = len(4, 5);
+          const r1 = d > 0 ? p[2] > p[0] : p[2] < p[0];           // 파동2: 100% 초과 되돌림 금지
+          const r2 = !(len3 < len1 && len3 < len5);               // 파동3: 최단 금지
+          const r3 = d > 0 ? p[4] > p[1] : p[4] < p[1];           // 파동4: 파동1 영역 미겹침
+          const pass = [r1, r2, r3].filter(Boolean).length;
+          f.push("규칙 검증 — 파동2 되돌림 " + (r1 ? "✓" : "✗") + " · 파동3 비최단 " + (r2 ? "✓" : "✗") + " · 파동4 비겹침 " + (r3 ? "✓" : "✗"));
+          f.push(pass === 3 ? "→ 유효한 5파 임펄스(" + (d > 0 ? "상승" : "하락") + ") · 파동3 " + (len3 >= len1 && len3 >= len5 ? "최장(강함)" : "정상") : pass === 2 ? "→ 임펄스 가능성(1개 규칙 경계 — 주의)" : "→ 규칙 위반 — 수정파동(ABC)/대안 카운트 가능성");
+        } else {
+          f.push("5파 규칙 검증엔 스윙 6개+ 필요(현재 " + c + ")");
+        }
         return f;
       }
       case "phasefold": {
