@@ -21,7 +21,7 @@
   .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
   .forge-split{display:flex;flex:1;min-width:0}
   .board-pane{position:relative;flex:1 1 auto;min-width:280px;overflow:hidden;display:flex;flex-direction:column}
-  .chart-pane{position:relative;flex:0 0 620px;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
+  .chart-pane{position:relative;flex:0 0 50%;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
   /* 좌우 크기조절 거터 */
   .forge-gutter{flex:0 0 7px;background:var(--line);cursor:col-resize;position:relative;z-index:6;transition:background .12s}
   .forge-gutter::before{content:"";position:absolute;left:-4px;right:-4px;top:0;bottom:0}
@@ -180,7 +180,7 @@
 
   /* hero panel (대표 이미지) — 확정 높이(차트 모드 캔버스 height:100% 붕괴·overflow:hidden 클리핑 방지) */
   .fc-panel-hero{flex:0 0 auto;min-height:0}
-  .fc-hero{display:flex;gap:6px;height:var(--hero-h,312px);position:relative;overflow:hidden}
+  .fc-hero{display:flex;gap:6px;height:var(--hero-h,440px);position:relative;overflow:hidden}
   .fc-vgutter{height:9px;margin:2px 0;border-radius:5px;cursor:row-resize;flex:0 0 auto;
     background:linear-gradient(180deg,transparent,rgba(138,146,178,.18),transparent);transition:background .12s}
   .fc-vgutter:hover,.fc-vgutter.dragging{background:linear-gradient(180deg,transparent,rgba(232,180,99,.4),transparent)}
@@ -423,7 +423,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629b</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629c</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -560,7 +560,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629b");
+  console.log("[forge] build b0629c");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -3020,14 +3020,14 @@
     }
     gutter.addEventListener("pointerup", end);
     gutter.addEventListener("pointercancel", end);
-    gutter.addEventListener("dblclick", () => { chart.style.flexBasis = DEFW + "px"; redrawCharts(); });
+    gutter.addEventListener("dblclick", () => { chart.style.flexBasis = "50%"; redrawCharts(); });
   })();
 
   /* ── 차트 높이 조절(세로 거터): 가격차트를 키우고 아래 패널을 내림 ── */
   (function initVGutter() {
     const g = document.getElementById("fcVGutter"), hero = document.querySelector(".fc-hero");
     if (!g || !hero) return;
-    const DEF = 312, MIN = 200, MAX = 820;
+    const DEF = 440, MIN = 200, MAX = 900;
     let drag = null;
     const curH = () => { const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hero-h")); return isFinite(v) ? v : (hero.getBoundingClientRect().height || DEF); };
     g.addEventListener("pointerdown", e => { drag = { y: e.clientY, h: curH() }; g.classList.add("dragging"); try { g.setPointerCapture(e.pointerId); } catch (_) {} document.body.style.userSelect = "none"; e.preventDefault(); });
