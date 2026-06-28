@@ -61,7 +61,17 @@
   .b-n-title:empty::before{content:"제목";color:var(--faint)}
   .b-n-title:focus{cursor:text}
   .b-mini .b-n-title{font-size:12px}
-  .b-n-type{display:inline-block;margin-top:4px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--gold);background:rgba(232,180,99,.1);border:1px solid var(--gold-dim);border-radius:4px;padding:1px 6px;text-transform:uppercase}
+  .b-n-type{display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--gold);background:rgba(232,180,99,.1);border:1px solid var(--gold-dim);border-radius:4px;padding:1px 6px;text-transform:uppercase}
+  .b-tier-tag{font-size:9.5px;font-weight:800;padding:0 4px;border-radius:3px;letter-spacing:0;text-transform:none;color:#0b0f14}
+  /* 3단계 tier: 원본(파랑)·지표(회청)·결합(보라)·포지(골드) */
+  .b-node.b-tier-src{border-left:3px solid #5b8def}
+  .b-node.b-tier-ind{border-left:3px solid #8a92b2}
+  .b-node.b-tier-mix{border-left:3px solid #c47ae0}
+  .b-node.b-tier-pos{border-left:3px solid var(--gold);background:linear-gradient(180deg,rgba(232,180,99,.10),var(--surface))}
+  .b-n-type.b-t-src{color:#9db8f0;background:rgba(91,141,239,.12);border-color:rgba(91,141,239,.5)} .b-t-src .b-tier-tag{background:#5b8def}
+  .b-n-type.b-t-ind{color:#aeb6cf;background:rgba(138,146,178,.12);border-color:rgba(138,146,178,.45)} .b-t-ind .b-tier-tag{background:#8a92b2}
+  .b-n-type.b-t-mix{color:#d3a6e8;background:rgba(196,122,224,.12);border-color:rgba(196,122,224,.5)} .b-t-mix .b-tier-tag{background:#c47ae0}
+  .b-n-type.b-t-pos{color:var(--gold);background:rgba(232,180,99,.12);border-color:var(--gold-dim)} .b-t-pos .b-tier-tag{background:var(--gold)}
   /* ports */
   .b-port{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--raised);border:2px solid var(--gold-dim);cursor:crosshair;z-index:5;opacity:0;transition:opacity .12s}
   .b-node:hover .b-port,.b-node.selected .b-port,.b-node.b-linkhover .b-port{opacity:1}
@@ -313,12 +323,15 @@
   /* 분석 중 엣지 흐름(마칭 앤츠) — 재생할 때만 #bEdges.flow */
   #bEdges.flow .b-ew{stroke:var(--gold);stroke-dasharray:7 7;animation:bedgeFlow .5s linear infinite}
   @keyframes bedgeFlow{to{stroke-dashoffset:-14}}
-  /* 은하 배치: 주변 지표 노드가 중심 포지를 둘러싸고 두둥실 부유 */
+  /* 은하 배치: 네트워크 노드 느낌 — tier별 글로우 + 부유 + 희미한 연결선 */
   @keyframes floatNode{0%,100%{transform:translate(0,0)}25%{transform:translate(4px,-6px)}50%{transform:translate(-3px,-10px)}75%{transform:translate(-5px,-4px)}}
-  body.galaxy .b-node{animation:floatNode var(--fdur,6s) ease-in-out infinite;animation-delay:var(--fdl,0s)}
-  body.galaxy .b-node.b-center{animation:none;box-shadow:0 0 0 2px var(--gold),0 0 46px rgba(232,180,99,.4)}
+  body.galaxy .b-node{animation:floatNode var(--fdur,6s) ease-in-out infinite;animation-delay:var(--fdl,0s);border-radius:16px}
+  body.galaxy .b-node.b-tier-src{box-shadow:0 0 0 2px rgba(91,141,239,.6),0 0 24px rgba(91,141,239,.28),0 6px 20px -8px #000}
+  body.galaxy .b-node.b-tier-ind{box-shadow:0 0 0 1.5px rgba(138,146,178,.55),0 0 18px rgba(138,146,178,.2),0 6px 20px -8px #000}
+  body.galaxy .b-node.b-tier-mix{box-shadow:0 0 0 2px rgba(196,122,224,.6),0 0 22px rgba(196,122,224,.28),0 6px 20px -8px #000}
+  body.galaxy .b-node.b-center,body.galaxy .b-node.b-tier-pos{animation:none;box-shadow:0 0 0 2px var(--gold),0 0 50px rgba(232,180,99,.45),0 6px 22px -8px #000}
   body.galaxy .b-node:hover,body.galaxy .b-node.selected,body.galaxy .b-node.b-mini{animation:none}
-  body.galaxy #bEdges .b-ew{stroke-opacity:.5}
+  body.galaxy #bEdges .b-ew{stroke-opacity:.4;stroke-dasharray:2 5}
 
   /* ── 포지 분석 재생 HUD (결과 영역 상단 오버레이) ── */
   .play-hud{position:absolute;left:0;right:0;top:0;z-index:9;display:none;align-items:center;gap:12px;
@@ -400,7 +413,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628w</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628x</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -534,7 +547,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628w");
+  console.log("[forge] build b0628x");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -983,11 +996,16 @@
     ].join("");
     const inDot = `<div class="b-n-in"></div>`;
     const isBlock = n.kind === "block";
+    /* 3단계 tier: 원본(price) → 중간(지표/결합) → 포지(predict) */
+    const tier = n.blockType === "price" ? ["src", "원본"]
+      : n.blockType === "predict" ? ["pos", "포지"]
+        : n.blockType === "combine" ? ["mix", "결합"]
+          : isBlock ? ["ind", "지표"] : ["", ""];
     const badge = (isBlock && n.blockType)
-      ? `<div class="b-n-type">${esc(n.blockType)}</div>` : "";
+      ? `<div class="b-n-type b-t-${tier[0]}"><span class="b-tier-tag">${tier[1]}</span>${esc(n.blockType)}</div>` : "";
     const thumb = n.thumb
       ? `<div class="b-n-thumb"><img src="${imgSrc(n.thumb.imgId)}" alt=""></div>` : "";
-    const cls = "b-node" + (isBlock ? "" : " b-mini") + (n.blockType === "predict" ? " b-center" : "");
+    const cls = "b-node" + (isBlock ? "" : " b-mini") + (n.blockType === "predict" ? " b-center" : "") + (tier[0] ? " b-tier-" + tier[0] : "");
     const _seed = [...(n.id || "")].reduce((a, c) => a + c.charCodeAt(0), 0);
     const _fl = `--fdl:${((_seed % 40) / 10).toFixed(1)}s;--fdur:${(5 + (_seed % 28) / 10).toFixed(1)}s;`;
     const wt = (n.weight != null ? n.weight : 50), sf = weightScale(wt);
@@ -2340,7 +2358,8 @@
       y += 14;
     }
   }
-  function drawEvidence() {
+  function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
+  function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
     const hero = cv.parentElement; const W = hero.clientWidth, H = hero.clientHeight;
     if (!W || !H) return;
