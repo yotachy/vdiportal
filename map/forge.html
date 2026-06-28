@@ -390,7 +390,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628t</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628u</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -521,7 +521,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628t");
+  console.log("[forge] build b0628u");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2875,20 +2875,24 @@
   /* 재생 중 예측구간 줌인(끝나면 줌아웃) — 차트/오버레이 공용 */
   function predZoomIn() {
     const mode = (typeof heroMode === "function") ? heroMode() : "chart";
-    let el, originX = 72;
+    let el, nowX = null, rightX = null, W = 0;
     if (mode === "chart") {
       el = document.getElementById("fcMainChart");
-      const g = el && el._mainGeo, w = el && el.clientWidth;
-      if (g && w) originX = ((g.seamX + g.padX + g.plotW) / 2) / w * 100;
+      const g = el && el._mainGeo; W = el ? el.clientWidth : 0;
+      if (g) { nowX = g.seamX; rightX = g.padX + g.plotW; }
     } else {
       el = document.getElementById("fcHeroImg");
-      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo, w = cone && cone.clientWidth;
-      if (g && w) originX = ((g.nowX + g.rightX) / 2) / w * 100;
+      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; W = cone ? cone.clientWidth : 0;
+      if (g) { nowX = g.nowX; rightX = g.rightX; }
     }
     if (!el) return;
     _zoomEl = el;
-    el.style.transformOrigin = Math.max(50, Math.min(88, originX)) + "% 50%";
-    el.style.transform = "scale(1.55)";
+    if (!W || nowX == null || rightX <= nowX) { el.style.transformOrigin = "72% 50%"; el.style.transform = "scale(1.6)"; return; }
+    const regionW = rightX - nowX, m = (nowX + rightX) / 2;
+    let s = 0.94 * W / regionW; s = Math.max(1.4, Math.min(2.6, s));   // 예측범위가 뷰 폭의 ~94%를 채우게
+    const ox = (W / 2 - m * s) / (1 - s);   // 예측범위 중점이 화면 정중앙에 오도록 origin(px) 역산
+    el.style.transformOrigin = ox + "px 50%";
+    el.style.transform = "scale(" + s + ")";
   }
   function predZoomOut() {
     if (!_zoomEl) return;
