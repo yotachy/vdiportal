@@ -180,7 +180,12 @@
 
   /* hero panel (대표 이미지) — 확정 높이(차트 모드 캔버스 height:100% 붕괴·overflow:hidden 클리핑 방지) */
   .fc-panel-hero{flex:0 0 auto;min-height:0}
-  .fc-hero{display:flex;gap:6px;height:312px;position:relative;overflow:hidden}
+  .fc-hero{display:flex;gap:6px;height:var(--hero-h,312px);position:relative;overflow:hidden}
+  .fc-vgutter{height:9px;margin:2px 0;border-radius:5px;cursor:row-resize;flex:0 0 auto;
+    background:linear-gradient(180deg,transparent,rgba(138,146,178,.18),transparent);transition:background .12s}
+  .fc-vgutter:hover,.fc-vgutter.dragging{background:linear-gradient(180deg,transparent,rgba(232,180,99,.4),transparent)}
+  .fc-vgutter::after{content:"";display:block;width:34px;height:3px;margin:3px auto;border-radius:2px;background:rgba(138,146,178,.5)}
+  .fc-vgutter:hover::after,.fc-vgutter.dragging::after{background:var(--gold)}
   .fc-hero #fcHeroImg,.fc-hero #fcMainChart,.fc-hero #fcEvidence{transition:transform .5s cubic-bezier(.4,0,.2,1)}
   .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:2}
   body.evhide .fc-evidence{display:none}
@@ -413,7 +418,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628x</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628y</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -461,6 +466,7 @@
             </div>
           </div>
         </div>
+        <div class="fc-vgutter" id="fcVGutter" title="드래그하여 차트 높이 조절 · 더블클릭 초기화"></div>
         <div class="fc-panel" id="fcHzPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>예측 시점별</b> · 현재가 대비</span>
@@ -547,7 +553,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0628x");
+  console.log("[forge] build b0628y");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2411,25 +2417,38 @@
       const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; if (!g) return;
       const tf = v => g.log ? Math.log(Math.max(1e-9, v)) : v;
       const yOf = p => g.p1y + (tf(p) - tf(g.p1p)) * (g.p2y - g.p1y) / ((tf(g.p2p) - tf(g.p1p)) || 1);
-      const L = g.ox, R = g.ox + g.dw;
+      const L = g.ox, R = g.ox + g.dw, top = g.oy, bot = g.oy + g.dh;
+      const xOf = i => g.ox + (P > 1 ? i / (P - 1) : 0) * (g.nowX - g.ox);   // 과거 시계열을 이미지 좌측~지금선에 매핑
+      const clipY = y => Math.max(top, Math.min(bot, y));
+      const within = y => y >= top - 2 && y <= bot + 2;
       for (const n of nodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2", vals = lastResult.values && lastResult.values[n.id];
         if (n.blockType === "fib") {
           const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
-          c.setLineDash([3, 3]); c.strokeStyle = col; c.fillStyle = col;
-          for (const r of [0, .236, .382, .5, .618, .786, 1]) { const lv = lo + (hi - lo) * r, y = yOf(lv); if (y < g.oy - 2 || y > g.oy + g.dh + 2) continue; c.globalAlpha = .5; c.beginPath(); c.moveTo(L, y); c.lineTo(R, y); c.stroke(); c.globalAlpha = 1; c.fillText(r.toFixed(3), L + 2, y - 2); }
+          c.setLineDash([3, 4]); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1;
+          for (const r of [0, .236, .382, .5, .618, .786, 1]) { const lv = lo + (hi - lo) * r, y = yOf(lv); if (!within(y)) continue; c.globalAlpha = .42; c.beginPath(); c.moveTo(L, y); c.lineTo(R, y); c.stroke(); c.globalAlpha = .85; c.fillText(r.toFixed(3) + " · " + fmtNum(lv), L + 3, y - 2); c.globalAlpha = 1; }
           c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib });
         } else if (n.blockType === "ma" && vals) {
-          const last = vals[vals.length - 1]; if (isFinite(last)) { const y = yOf(last); c.setLineDash([6, 4]); c.strokeStyle = col; c.beginPath(); c.moveTo(L, y); c.lineTo(R, y); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.fillText("MA " + fmtNum(last), L + 2, y - 2); }
-          legend.push({ col, t: EV_LABEL.ma });
+          c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([]); c.beginPath(); let st = false;
+          for (let i = 0; i < P; i++) { const v = vals[i]; if (!isFinite(v)) continue; const x = xOf(i), y = clipY(yOf(v)); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
+          c.stroke(); legend.push({ col, t: EV_LABEL.ma + (n.params && n.params.len ? "(" + n.params.len + ")" : "") });
+        } else if (n.blockType === "trend") {
+          const len = Math.min(P, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
+          const x0 = xOf(P - len), x1 = g.nowX, y0 = yOf(lr.b), y1 = yOf(lr.a * (len - 1) + lr.b);
+          c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([7, 4]); c.beginPath(); c.moveTo(x0, clipY(y0)); c.lineTo(x1, clipY(y1)); c.stroke(); c.setLineDash([]);
+          legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "elliott") {
           const waves = (lastResult.meta && lastResult.meta[n.id] && lastResult.meta[n.id].waves) || [];
-          c.fillStyle = col; for (const w of waves) { const y = yOf(w.price); if (y < g.oy || y > g.oy + g.dh) continue; c.fillText(w.label + " " + fmtNum(w.price), R - 56, y - 2); }
-          if (waves.length) legend.push({ col, t: EV_LABEL.elliott });
+          c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1.6; c.setLineDash([]); c.beginPath(); let st = false; const pts = [];
+          for (const w of waves) { const x = xOf(w.idx), y = clipY(yOf(w.price)); pts.push({ x, y, l: w.label }); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
+          c.stroke(); for (const p of pts) { c.beginPath(); c.arc(p.x, p.y, 2.6, 0, 7); c.fill(); c.fillText(p.l, p.x + 3, p.y - 3); }
+          if (pts.length) legend.push({ col, t: EV_LABEL.elliott });
         } else if (n.blockType === "rsi" && vals) {
           const rsi = Math.round(vals[vals.length - 1] * 50 + 50);
           legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
-        } else if (n.blockType === "trend") { legend.push({ col, t: EV_LABEL.trend + "(기울기)" }); }
+        } else if (n.blockType === "phasefold") {
+          const m = lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
+        }
       }
       _evLegend(c, g.ox + 4, g.oy, legend);
     }
@@ -2950,6 +2969,25 @@
     gutter.addEventListener("pointerup", end);
     gutter.addEventListener("pointercancel", end);
     gutter.addEventListener("dblclick", () => { chart.style.flexBasis = DEFW + "px"; redrawCharts(); });
+  })();
+
+  /* ── 차트 높이 조절(세로 거터): 가격차트를 키우고 아래 패널을 내림 ── */
+  (function initVGutter() {
+    const g = document.getElementById("fcVGutter"), hero = document.querySelector(".fc-hero");
+    if (!g || !hero) return;
+    const DEF = 312, MIN = 200, MAX = 820;
+    let drag = null;
+    const curH = () => { const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hero-h")); return isFinite(v) ? v : (hero.getBoundingClientRect().height || DEF); };
+    g.addEventListener("pointerdown", e => { drag = { y: e.clientY, h: curH() }; g.classList.add("dragging"); try { g.setPointerCapture(e.pointerId); } catch (_) {} document.body.style.userSelect = "none"; e.preventDefault(); });
+    g.addEventListener("pointermove", e => {
+      if (!drag) return;
+      const h = Math.max(MIN, Math.min(MAX, drag.h + (e.clientY - drag.y)));
+      document.documentElement.style.setProperty("--hero-h", h + "px");
+      redrawCharts();
+    });
+    const end = e => { if (!drag) return; drag = null; g.classList.remove("dragging"); try { g.releasePointerCapture(e.pointerId); } catch (_) {} document.body.style.userSelect = ""; redrawCharts(); };
+    g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
+    g.addEventListener("dblclick", () => { document.documentElement.style.setProperty("--hero-h", DEF + "px"); redrawCharts(); });
   })();
 
   /* ── renderVerdict: regime badge at top of chart pane ────────── */
