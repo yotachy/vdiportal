@@ -428,7 +428,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629h</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629i</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -569,7 +569,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629h");
+  console.log("[forge] build b0629i");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2370,6 +2370,31 @@
     for (let i = 0; i < n; i++) { sx += i; sy += arr[i]; sxx += i * i; sxy += i * arr[i]; }
     const d = (n * sxx - sx * sx) || 1, a = (n * sxy - sx * sy) / d; return { a, b: (sy - a * sx) / n };
   }
+  /* 작도용 재계산 헬퍼 — 표시 시계열(price)에서 직접 산출(lastResult 의존 제거 → 항상 정합) */
+  function _sma(arr, len) {
+    const n = arr.length, out = new Array(n); let sum = 0;
+    for (let i = 0; i < n; i++) { sum += arr[i]; if (i >= len) sum -= arr[i - len]; out[i] = i >= len - 1 ? sum / len : sum / (i + 1); }
+    return out;
+  }
+  function _rsiLast(arr, period) {
+    period = period || 14; const n = arr.length; if (n < period + 1) return 50;
+    let g = 0, l = 0;
+    for (let i = n - period; i < n; i++) { const d = arr[i] - arr[i - 1]; if (d > 0) g += d; else l -= d; }
+    const rs = l === 0 ? 100 : g / l; return 100 - 100 / (1 + rs);
+  }
+  function _zigzag(price, minPct) {
+    minPct = minPct || 0.18; const n = price.length; if (n < 3) return [];
+    const piv = []; let extI = 0, extP = price[0], dir = 0;
+    for (let i = 1; i < n; i++) {
+      const p = price[i];
+      if (dir === 0) { if (p > extP * (1 + minPct)) { dir = 1; extI = i; extP = p; } else if (p < extP * (1 - minPct)) { dir = -1; extI = i; extP = p; } else if (p > extP) { extP = p; extI = i; } }
+      else if (dir === 1) { if (p > extP) { extP = p; extI = i; } else if (p < extP * (1 - minPct)) { piv.push({ i: extI, p: extP }); dir = -1; extP = p; extI = i; } }
+      else { if (p < extP) { extP = p; extI = i; } else if (p > extP * (1 + minPct)) { piv.push({ i: extI, p: extP }); dir = 1; extP = p; extI = i; } }
+    }
+    piv.push({ i: extI, p: extP });
+    return piv;
+  }
+  const _EWLAB = ["1", "2", "3", "4", "5", "A", "B", "C"];
   function _evLegend(c, x0, topY, items) {
     if (!items.length) return;
     c.font = "10px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
@@ -2401,33 +2426,34 @@
       const Hn = g.histLen, off = P - Hn, plotR = g.padX + g.plotW;
       const toXh = i => g.padX + (i / (Hn - 1)) * g.histW;
       for (const n of nodes) {
-        const col = EV_COLORS[n.blockType] || "#8a92b2", vals = lastResult.values && lastResult.values[n.id];
-        if (n.blockType === "ma" && vals) {
-          const seg = vals.slice(-Hn); c.strokeStyle = col; c.setLineDash([]); c.beginPath(); let st = false;
-          for (let i = 0; i < Hn; i++) { const v = seg[i]; if (!isFinite(v)) continue; const x = toXh(i), y = toY(v); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
-          c.stroke(); legend.push({ col, t: EV_LABEL.ma + (n.params && n.params.len ? "(" + n.params.len + ")" : "") });
+        const col = EV_COLORS[n.blockType] || "#8a92b2";
+        if (n.blockType === "ma") {
+          const len = (n.params && n.params.len) || 20, ma = _sma(price, len).slice(-Hn);
+          c.strokeStyle = col; c.setLineDash([]); c.lineWidth = 1.8; c.beginPath(); let st = false;
+          for (let i = 0; i < Hn; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = toXh(i), y = toY(v); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
+          c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
         } else if (n.blockType === "trend") {
           const len = Math.min(Hn, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
           const i0 = Hn - len, i1 = Hn - 1, x0 = toXh(i0), x1 = toXh(i1), y0 = toY(lr.b), y1 = toY(lr.a * (len - 1) + lr.b);
-          c.strokeStyle = col; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1);
+          c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1);
           const sl = (y1 - y0) / ((x1 - x0) || 1); c.lineTo(g.seamX, y1 + sl * (g.seamX - x1)); c.stroke(); c.setLineDash([]);
           legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "fib") {
           const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
-          c.setLineDash([3, 3]); c.strokeStyle = col; c.fillStyle = col;
-          for (const r of [0, .236, .382, .5, .618, .786, 1]) { const lv = lo + (hi - lo) * r, y = toY(lv); c.globalAlpha = .5; c.beginPath(); c.moveTo(g.padX, y); c.lineTo(plotR, y); c.stroke(); c.globalAlpha = 1; c.fillText(r.toFixed(3), g.padX + 2, y - 2); }
+          c.setLineDash([3, 3]); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1;
+          for (const r of [0, .236, .382, .5, .618, .786, 1]) { const lv = lo + (hi - lo) * r, y = toY(lv); c.globalAlpha = .45; c.beginPath(); c.moveTo(g.padX, y); c.lineTo(plotR, y); c.stroke(); c.globalAlpha = .85; c.fillText(r.toFixed(3), g.padX + 2, y - 2); c.globalAlpha = 1; }
           c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib });
         } else if (n.blockType === "elliott") {
-          const waves = (lastResult.meta && lastResult.meta[n.id] && lastResult.meta[n.id].waves) || [];
-          c.strokeStyle = col; c.fillStyle = col; c.setLineDash([]); c.beginPath(); let st = false; const pts = [];
-          for (const w of waves) { const hx = w.idx - off; if (hx < 0 || hx >= Hn) continue; const x = toXh(hx), y = toY(w.price); pts.push({ x, y, l: w.label }); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
+          const piv = _zigzag(price, 0.18).slice(-8);
+          c.strokeStyle = col; c.fillStyle = col; c.setLineDash([]); c.lineWidth = 1.6; c.beginPath(); let st = false; const pts = [];
+          piv.forEach((w, k) => { const hx = w.i - off; if (hx < 0 || hx >= Hn) return; const x = toXh(hx), y = toY(w.p); pts.push({ x, y, l: _EWLAB[k] || "" }); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; });
           c.stroke(); for (const p of pts) { c.beginPath(); c.arc(p.x, p.y, 2.6, 0, 7); c.fill(); c.fillText(p.l, p.x + 3, p.y - 3); }
           if (pts.length) legend.push({ col, t: EV_LABEL.elliott });
-        } else if (n.blockType === "rsi" && vals) {
-          const rsi = Math.round(vals[vals.length - 1] * 50 + 50);
+        } else if (n.blockType === "rsi") {
+          const rsi = Math.round(_rsiLast(price, (n.params && n.params.period) || 14));
           legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
         } else if (n.blockType === "phasefold") {
-          const m = lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
+          const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
       }
       _evLegend(c, g.padX, g.padTop, legend);
@@ -2440,32 +2466,33 @@
       const clipY = y => Math.max(top, Math.min(bot, y));
       const within = y => y >= top - 2 && y <= bot + 2;
       for (const n of nodes) {
-        const col = EV_COLORS[n.blockType] || "#8a92b2", vals = lastResult.values && lastResult.values[n.id];
+        const col = EV_COLORS[n.blockType] || "#8a92b2";
         if (n.blockType === "fib") {
           const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
           c.setLineDash([3, 4]); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1;
           for (const r of [0, .236, .382, .5, .618, .786, 1]) { const lv = lo + (hi - lo) * r, y = yOf(lv); if (!within(y)) continue; c.globalAlpha = .42; c.beginPath(); c.moveTo(L, y); c.lineTo(R, y); c.stroke(); c.globalAlpha = .85; c.fillText(r.toFixed(3) + " · " + fmtNum(lv), L + 3, y - 2); c.globalAlpha = 1; }
           c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib });
-        } else if (n.blockType === "ma" && vals) {
+        } else if (n.blockType === "ma") {
+          const len = (n.params && n.params.len) || 20, ma = _sma(price, len);
           c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([]); c.beginPath(); let st = false;
-          for (let i = 0; i < P; i++) { const v = vals[i]; if (!isFinite(v)) continue; const x = xOf(i), y = clipY(yOf(v)); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
-          c.stroke(); legend.push({ col, t: EV_LABEL.ma + (n.params && n.params.len ? "(" + n.params.len + ")" : "") });
+          for (let i = 0; i < P; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = xOf(i), y = clipY(yOf(v)); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
+          c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
         } else if (n.blockType === "trend") {
           const len = Math.min(P, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
           const x0 = xOf(P - len), x1 = g.nowX, y0 = yOf(lr.b), y1 = yOf(lr.a * (len - 1) + lr.b);
           c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([7, 4]); c.beginPath(); c.moveTo(x0, clipY(y0)); c.lineTo(x1, clipY(y1)); c.stroke(); c.setLineDash([]);
           legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "elliott") {
-          const waves = (lastResult.meta && lastResult.meta[n.id] && lastResult.meta[n.id].waves) || [];
+          const piv = _zigzag(price, 0.18).slice(-8);
           c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1.6; c.setLineDash([]); c.beginPath(); let st = false; const pts = [];
-          for (const w of waves) { const x = xOf(w.idx), y = clipY(yOf(w.price)); pts.push({ x, y, l: w.label }); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
+          piv.forEach((w, k) => { const x = xOf(w.i), y = clipY(yOf(w.p)); pts.push({ x, y, l: _EWLAB[k] || "" }); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; });
           c.stroke(); for (const p of pts) { c.beginPath(); c.arc(p.x, p.y, 2.6, 0, 7); c.fill(); c.fillText(p.l, p.x + 3, p.y - 3); }
           if (pts.length) legend.push({ col, t: EV_LABEL.elliott });
-        } else if (n.blockType === "rsi" && vals) {
-          const rsi = Math.round(vals[vals.length - 1] * 50 + 50);
+        } else if (n.blockType === "rsi") {
+          const rsi = Math.round(_rsiLast(price, (n.params && n.params.period) || 14));
           legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
         } else if (n.blockType === "phasefold") {
-          const m = lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
+          const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
       }
       _evLegend(c, g.ox + 4, g.oy, legend);
