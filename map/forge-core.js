@@ -386,13 +386,21 @@
         seasInfo = { period: Math.round(P * 10) / 10, rel: Math.round(rel * 100) / 100 };
       }
     }
+    // 추세 추종 성분 — 장기 회귀 기울기(봉당 로그)를 감쇠 투영(상한 캡으로 과도 외삽 방지)
+    const trW = Math.min(n - 1, Math.max(18, Math.round(n * 0.4))), t0 = Math.max(0, n - trW), m0 = n - t0;
+    let qx = 0, qy = 0, qxx = 0, qxy = 0;
+    for (let i = 0; i < m0; i++) { const y = logP[t0 + i]; qx += i; qy += y; qxx += i * i; qxy += i * y; }
+    const trSlope = (m0 * qxy - qx * qy) / (m0 * qxx - qx * qx || 1);
+    const trS = Math.max(-0.012, Math.min(0.012, trSlope));   // 봉당 추세 상한 ±1.2%
+    const REV_W = 0.5;                                          // 평균회귀 약화(추세 추종)
     const path = [], lo = [], hi = [];
     for (let k = 1; k <= futW; k++) {
-      const rev = -dev * (1 - Math.exp(-theta * k));                                       // 평균회귀
-      const mom = Math.max(-0.12, Math.min(0.12, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀
+      const rev = -dev * (1 - Math.exp(-theta * k)) * REV_W;                                // 평균회귀(약화)
+      const mom = Math.max(-0.20, Math.min(0.20, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀(상향)
+      const trend = trS * k * Math.exp(-k / (futW * 1.6));                                   // 추세 투영(완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + sig + seas, sd = sigBand * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas, sd = sigBand * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
