@@ -419,12 +419,14 @@
   .hz-row{display:flex;align-items:baseline;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);font-family:ui-monospace,monospace}
   .hz-row:last-child{border-bottom:0}
   .hz-row.hz-head{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;padding-bottom:5px}
-  .hz-t{flex:0 0 70px;font-weight:700;color:var(--gold);font-size:13px}
-  .hz-v{flex:0 0 76px;font-weight:700;color:var(--ink);font-size:13.5px}
-  .hz-chg{flex:0 0 62px;font-weight:700;font-size:12.5px}
+  .hz-t{flex:0 0 60px;font-weight:700;color:var(--gold);font-size:13px}
+  .hz-v{flex:0 0 64px;font-weight:700;color:var(--ink);font-size:13.5px}
+  .hz-chg{flex:0 0 54px;font-weight:700;font-size:12px}
   .hz-chg.hz-up{color:var(--bull)}.hz-chg.hz-dn{color:var(--bear)}.hz-chg.hz-fl{color:var(--eth)}
-  .hz-band{flex:1;color:var(--eth);font-size:11px;text-align:right}
-  .hz-head .hz-t,.hz-head .hz-v,.hz-head .hz-chg,.hz-head .hz-band{color:var(--faint);font-weight:600}
+  .hz-prob{flex:0 0 94px;font-weight:700;font-size:11px;font-family:ui-monospace,monospace}
+  .hz-prob.hz-up{color:var(--bull)}.hz-prob.hz-dn{color:var(--bear)}.hz-prob.hz-fl{color:var(--eth)}
+  .hz-band{flex:1;color:var(--eth);font-size:10.5px;text-align:right}
+  .hz-head .hz-t,.hz-head .hz-v,.hz-head .hz-chg,.hz-head .hz-prob,.hz-head .hz-band{color:var(--faint);font-weight:600}
 
   /* ── 차트 확대 모달 ── */
   .fc-expand{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;width:24px;height:22px;
@@ -443,7 +445,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629x</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629y</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -585,7 +587,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629x");
+  console.log("[forge] build b0629y");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2507,12 +2509,13 @@
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         if (n.blockType === "fib") {
           const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
+          const lvFn = (g.log && lo > 0) ? r => lo * Math.pow(hi / lo, r) : r => lo + (hi - lo) * r;   // 로그축=기하 피보(레벨 균등 분포)
           c.setLineDash([3, 4]); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1;
-          for (const r of [0, .236, .382, .5, .618, .786, 1]) { const lv = lo + (hi - lo) * r, y = yOf(lv); if (!within(y)) continue; c.globalAlpha = .42; c.beginPath(); c.moveTo(L, y); c.lineTo(R, y); c.stroke(); c.globalAlpha = .85; c.fillText(r.toFixed(3) + " · " + fmtNum(lv), L + 3, y - 2); c.globalAlpha = 1; }
-          c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib });
+          for (const r of [0, .236, .382, .5, .618, .786, 1]) { const lv = lvFn(r), y = yOf(lv); if (!within(y)) continue; c.globalAlpha = .42; c.beginPath(); c.moveTo(L, y); c.lineTo(R, y); c.stroke(); c.globalAlpha = .85; c.fillText(r.toFixed(3) + " · " + fmtNum(lv), L + 3, y - 2); c.globalAlpha = 1; }
+          c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib + (g.log ? "(log)" : "") });
         } else if (n.blockType === "ma") {
           const len = (n.params && n.params.len) || 20, ma = _sma(price, len);
-          c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([]); c.beginPath(); let st = false;
+          c.strokeStyle = col; c.lineWidth = 2.4; c.setLineDash([]); c.beginPath(); let st = false;
           for (let i = 0; i < P; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = xOf(i), y = clipY(yOf(v)); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
           c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
         } else if (n.blockType === "trend") {
@@ -2749,6 +2752,13 @@
   }
   /* ── 예측 시점별 표(3·6·12·24 등) ── */
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
+  function _normCdf(z) { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2); let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; }
+  /* 현재가 대비 상승확률(%) — 로그정규: m=log(예측/현재), sd=log(상단/예측) */
+  function _upProb(pred, hi, anchor) {
+    if (!(pred > 0 && hi > 0 && anchor > 0)) return 50;
+    const m = Math.log(pred / anchor), sd = Math.log(hi / pred);
+    return Math.round(_normCdf(m / (sd || 1e-6)) * 100);
+  }
   function _hzList(unit, fb) {
     let hs = unit === "개월" ? [3, 6, 12, 24]
       : unit === "주" ? [4, 8, 13, 26]
@@ -2770,16 +2780,18 @@
     const fb = path.length;
     if (metaEl) metaEl.textContent = "현재가 " + _hzFmt(anchor);
     const hs = _hzList(unit, fb);
-    const head = `<div class="hz-row hz-head"><span class="hz-t">시점</span><span class="hz-v">예측가</span><span class="hz-chg">변화</span><span class="hz-band">예상 범위</span></div>`;
+    const head = `<div class="hz-row hz-head"><span class="hz-t">시점</span><span class="hz-v">예측가</span><span class="hz-chg">변화</span><span class="hz-prob">↑확률</span><span class="hz-band">예상 범위</span></div>`;
     const rows = hs.map(h => {
       const v = path[h - 1], lo = (p.lo && p.lo[h - 1]), hi = (p.hi && p.hi[h - 1]);
       const chg = anchor ? (v - anchor) / anchor * 100 : 0;
       const cls = chg > 0.5 ? "hz-up" : chg < -0.5 ? "hz-dn" : "hz-fl";
       const band = (isFinite(lo) && isFinite(hi)) ? `${_hzFmt(lo)} ~ ${_hzFmt(hi)}` : "–";
+      const up = _upProb(v, hi, anchor), pc = up >= 55 ? "hz-up" : up <= 45 ? "hz-dn" : "hz-fl";
       return `<div class="hz-row">
         <span class="hz-t">+${h}${unit}</span>
         <span class="hz-v">${_hzFmt(v)}</span>
         <span class="hz-chg ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>
+        <span class="hz-prob ${pc}">↑${up}% / ↓${100 - up}%</span>
         <span class="hz-band">${band}</span>
       </div>`;
     }).join("");
@@ -3306,10 +3318,13 @@
       ? verdict.score.toFixed(1) : "—";
     const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(2) : "—";
     el.className = "verdict-badge active";
+    const _pp = lastResult && lastResult.prediction, _pa = _pp && _pp.anchor, _pe = _pp && _pp.path && _pp.path.length ? _pp.path[_pp.path.length - 1] : null, _ph = _pp && _pp.hi && _pp.hi.length ? _pp.hi[_pp.hi.length - 1] : null;
+    const _up = (_pe && _ph && _pa) ? _upProb(_pe, _ph, _pa) : null;
+    const _probHtml = (_up != null) ? ` &nbsp;·&nbsp; 확률 <b style="color:${_up >= 50 ? "#46c28e" : "#e06a6a"}">↑${_up}%</b><span style="color:#8a92b2"> / ↓${100 - _up}%</span>` : "";
     el.innerHTML =
       `<span class="verdict-dot" style="background:${col};box-shadow:0 0 6px ${col}88"></span>` +
       `<span class="verdict-tag">포지결과</span>` +
-      `<span>국면: <b style="color:${col}">${label}</b>` +
+      `<span>국면: <b style="color:${col}">${label}</b>` + _probHtml.replace("&nbsp;·&nbsp; ", "&nbsp; ") +
       ` &nbsp;·&nbsp; 시그널 ${score}` +
       ` &nbsp;·&nbsp; 목표가 ${fmt(verdict.target)}` +
       ` &nbsp;·&nbsp; 무효화 ${fmt(verdict.invalidation)}</span>`;
