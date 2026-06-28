@@ -346,12 +346,38 @@
     const tauM = Math.max(3, futW * 0.4);           // 모멘텀 감쇠 시정수
     const sigDriftTotal = (lastSig / 100) * 0.20;   // 신호 방향 누적 드리프트(만점 ±20%)
     const sigBand = Math.min(sigma, 0.085);
+    /* 계절성(주기) 성분 — phasefold 노드가 검출한 지배주기를 예측에 직접 반영(chart.html 시즌 형상).
+       로그가격 추세 잔차의 위상별 평균 형상을 미래 위상에 투영. 신뢰도(정합 θ↓·FFT 피크↑)로 진폭 스케일. */
+    let seasFn = null, seasInfo = null;
+    const pfNode = graph.nodes.find(nn => nn.kind === "block" && nn.blockType === "phasefold");
+    if (pfNode && meta[pfNode.id] && meta[pfNode.id].best > 2 && n >= 24) {
+      const P = meta[pfNode.id].best, th = meta[pfNode.id].theta, str = meta[pfNode.id].strength || 0;
+      const rel = Math.max(0, Math.min(1, 1 - (isFinite(th) ? th : 1))) * Math.min(1, str / 3);   // 0..1
+      if (rel > 0.05) {
+        const NBP = 48;
+        let sx = 0, sy = 0, sxx = 0, sxy = 0;
+        for (let i = 0; i < n; i++) { sx += i; sy += logP[i]; sxx += i * i; sxy += i * logP[i]; }
+        const sl = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1), ic = (sy - sl * sx) / n;
+        const sum = new Array(NBP).fill(0), cnt = new Array(NBP).fill(0);
+        for (let i = 0; i < n; i++) { const r = logP[i] - (ic + sl * i); let b = Math.floor(((i % P) / P) * NBP); if (b >= NBP) b = NBP - 1; sum[b] += r; cnt[b]++; }
+        const seas = new Array(NBP), filled = [];
+        for (let b = 0; b < NBP; b++) { if (cnt[b] > 0) { seas[b] = sum[b] / cnt[b]; filled.push(b); } else seas[b] = NaN; }
+        if (filled.length) { for (let b = 0; b < NBP; b++) if (isNaN(seas[b])) { let lo2 = filled[0], hi2 = filled[0], dl = 1e9, dh = 1e9; for (const fb of filled) { const d1 = ((b - fb) + NBP) % NBP; if (d1 < dl) { dl = d1; lo2 = fb; } const d2 = ((fb - b) + NBP) % NBP; if (d2 < dh) { dh = d2; hi2 = fb; } } const t = dl / (dl + dh || 1); seas[b] = seas[lo2] * (1 - t) + seas[hi2] * t; } }
+        else seas.fill(0);
+        const sm = new Array(NBP); for (let b = 0; b < NBP; b++) sm[b] = (seas[(b - 1 + NBP) % NBP] + 2 * seas[b] + seas[(b + 1) % NBP]) / 4;
+        const seasAt = ph => { const fb = ph * NBP - 0.5, b0 = Math.floor(fb), t = fb - b0, i0 = ((b0 % NBP) + NBP) % NBP, i1 = (i0 + 1) % NBP; return sm[i0] * (1 - t) + sm[i1] * t; };
+        const s0 = seasAt(((n - 1) % P) / P);
+        seasFn = k => (seasAt((((n - 1 + k) % P) / P)) - s0) * rel;   // k=0에서 0(이음매 없음)
+        seasInfo = { period: Math.round(P * 10) / 10, rel: Math.round(rel * 100) / 100 };
+      }
+    }
     const path = [], lo = [], hi = [];
     for (let k = 1; k <= futW; k++) {
       const rev = -dev * (1 - Math.exp(-theta * k));                                       // 평균회귀
       const mom = Math.max(-0.12, Math.min(0.12, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
-      const m = rev + mom + sig, sd = sigBand * Math.sqrt(k) * 0.85;
+      const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
+      const m = rev + mom + sig + seas, sd = sigBand * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
@@ -361,7 +387,7 @@
     const invIdx = Math.min(2, futW - 1);                  // 근단기 반대 밴드 = 무효화 기준
     const invalidation = regime === "bear" ? hi[invIdx] : lo[invIdx];
     return {
-      values, meta, prediction: { path, lo, hi, futW, anchor: price[n - 1] }, signal: sigB,
+      values, meta, prediction: { path, lo, hi, futW, anchor: price[n - 1], seasonal: seasInfo }, signal: sigB,
       verdict: { regime, score: Math.round(lastSig), target, invalidation }
     };
   }

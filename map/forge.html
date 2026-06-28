@@ -438,7 +438,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629o</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629p</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -580,7 +580,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629o");
+  console.log("[forge] build b0629p");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2793,11 +2793,13 @@
     const reg = regimeKo(v.regime);
     const score = Math.round(v.score || 0);
     const lean = score > 12 ? "상승 우세" : score < -12 ? "하락 우세" : "방향성 혼조(중립)";
+    const seas = result.prediction && result.prediction.seasonal;
+    const seasTxt = seas ? ` 또한 파동스캔의 <b>지배주기 ${seas.period}봉 시즌 형상</b>을 예측에 반영했습니다(진폭 ${Math.round(seas.rel * 100)}% · 정합 신뢰도 비례).` : "";
     const concl =
       `종합하면 국면은 <b>${reg}</b>(시그널 ${score}), 지표 가중 결과 <b>${lean}</b>로 판단됩니다. ` +
       (isFinite(v.target) ? `목표가 <b>${fmtNum(v.target)}</b>` : "") +
       (isFinite(v.invalidation) ? ` · 무효화 <b>${fmtNum(v.invalidation)}</b>` : "") +
-      `. 예측 콘은 현재가에서 지표 종합 방향으로 연장한 경로이며, 확신·중요도를 조정하면 추세 강도가 바뀝니다.`;
+      `. 예측 콘은 현재가에서 지표 종합 방향으로 연장한 경로이며, 확신·중요도를 조정하면 추세 강도가 바뀝니다.` + seasTxt;
     host.innerHTML = steps.join("") + `<div class="nr-concl">${concl}</div>`;
   }
 
