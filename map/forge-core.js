@@ -301,31 +301,34 @@
     const bias = aggregateConviction(graph) + vbias, K = 0.5;
     const sigB = bias ? signal.map(v => Math.max(-100, Math.min(100, Math.round(v + bias * K)))) : signal;
     const lastSig = sigB.slice(-10).reduce((s, v) => s + v, 0) / 10;
-    /* 예측 모델: 로그수익률 기반 기하 랜덤워크 + 신호 드리프트.
-       - 스케일 불변(로그스케일 자산도 정상 동작), 가격 = last·exp(μ·k ± σ·√k)
-       - μ = 댐핑된 최근 모멘텀 + 신호(확신·중요도·visionBias)에 따른 드리프트
-       - 밴드 = σ·√k (랜덤워크 표준 — 시간의 제곱근으로 확대) */
-    const price = data.price, n = price.length;
-    const last = price[n - 1];
-    const W = Math.min(n - 1, Math.max(12, Math.round(n * 0.3)));   // 최근 윈도(통계 추정)
+    /* 예측 모델: 로그공간 평균회귀(OU형) + 감쇠 모멘텀 + 신호 드리프트, √시간 밴드.
+       log P(k) = log(last) + 평균회귀(편차 보정) + 감쇠 모멘텀 + 신호 드리프트
+       - 평균회귀: 현재가가 평활 베이스라인(EMA)에서 벗어난 만큼 시간에 따라 되돌림(추세 폭주 방지)
+       - 모멘텀: 최근 로그수익률, 시간에 따라 감쇠(영원히 지속 안 함)
+       - 신호: 확신·중요도·visionBias 종합(lastSig) 방향 */
+    const price = data.price, n = price.length, last = price[n - 1];
+    const logP = price.map(p => Math.log(Math.max(1e-9, p)));
+    const W = Math.min(n - 1, Math.max(12, Math.round(n * 0.3)));
     const lr = [];
-    for (let i = Math.max(1, n - W); i < n; i++) {
-      if (price[i - 1] > 0 && price[i] > 0) { const r = Math.log(price[i] / price[i - 1]); if (isFinite(r)) lr.push(r); }
-    }
-    const muH = lr.length ? lr.reduce((s, v) => s + v, 0) / lr.length : 0;
-    let vsum = 0; for (const r of lr) vsum += (r - muH) * (r - muH);
+    for (let i = Math.max(1, n - W); i < n; i++) { const r = logP[i] - logP[i - 1]; if (isFinite(r)) lr.push(r); }
+    const muMom = lr.length ? lr.reduce((s, v) => s + v, 0) / lr.length : 0;
+    let vsum = 0; for (const r of lr) vsum += (r - muMom) * (r - muMom);
     let sigma = lr.length > 1 ? Math.sqrt(vsum / (lr.length - 1)) : 0.05;
     sigma = Math.max(sigma, 0.008);
-    /* horizon 끝까지의 총 로그드리프트을 한도 안에서 구성(고변동 자산 폭주 방지):
-       - 신호 성분: 확신·중요도 종합(lastSig)에 비례, 만점이면 ±25%
-       - 모멘텀 성분: 최근 로그수익률을 horizon에 반영하되 ±12% 상한 */
-    const sigDriftTotal = (lastSig / 100) * 0.25;
-    const momTotal = Math.max(-0.12, Math.min(0.12, muH * futW * 0.15));
-    const muPer = (sigDriftTotal + momTotal) / futW;
-    const sigBand = Math.min(sigma, 0.085);                // 밴드용 변동성 상한
+    // 평활 베이스라인(EMA of log price, span ~2·horizon) → 평균회귀 목표
+    const span = Math.max(8, Math.min(n, 2 * futW)), alpha = 2 / (span + 1);
+    let ema = logP[0]; for (let i = 1; i < n; i++) ema += alpha * (logP[i] - ema);
+    const dev = logP[n - 1] - ema;                  // 현재가의 베이스라인 대비 로그편차
+    const theta = 0.045;                            // 평균회귀 속도(반감기 ~15봉)
+    const tauM = Math.max(3, futW * 0.4);           // 모멘텀 감쇠 시정수
+    const sigDriftTotal = (lastSig / 100) * 0.20;   // 신호 방향 누적 드리프트(만점 ±20%)
+    const sigBand = Math.min(sigma, 0.085);
     const path = [], lo = [], hi = [];
     for (let k = 1; k <= futW; k++) {
-      const m = muPer * k, sd = sigBand * Math.sqrt(k) * 0.8;   // √시간 밴드(랜덤워크)
+      const rev = -dev * (1 - Math.exp(-theta * k));                                       // 평균회귀
+      const mom = Math.max(-0.12, Math.min(0.12, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀
+      const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
+      const m = rev + mom + sig, sd = sigBand * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
