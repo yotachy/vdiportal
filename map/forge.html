@@ -342,7 +342,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628c</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0628d</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -452,7 +452,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = false;   // 비전 분석 워커 준비 전까지 '☁ 분석 요청' 비활성('곧 제공'). 워커 구현 시 true.
-  console.log("[forge] build b0628c");
+  console.log("[forge] build b0628d");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2125,7 +2125,6 @@
     c.clearRect(0, 0, cw, ch);
     const hist = (series || []).slice(-180);
     const path = (pred && pred.path) || [], lo = (pred && pred.lo) || [], hi = (pred && pred.hi) || [];
-    console.log("[forge] mainChart: clientWxH", cv.clientWidth + "x" + cv.clientHeight, "cw/ch", cw + "/" + ch, "disp", getComputedStyle(cv).display, "hist", hist.length, "path", path.length);
     if (hist.length < 2) {
       c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
       c.fillText("분석 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return;
@@ -2170,6 +2169,14 @@
     c.fillText(Math.round(loV).toLocaleString(), lx, ch - padBot);
     c.fillStyle = FC_GOLD; c.fillText(Math.round(anchor).toLocaleString(), lx, toY(anchor) + 3);
     if (path.length) { c.fillStyle = FC_ETH; c.fillText(Math.round(path[path.length - 1]).toLocaleString(), lx, toY(path[path.length - 1]) + 3); }
+    // 데모/실데이터 배지
+    if (!hasRealSeries()) {
+      c.font = "10px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
+      const txt = "예시(데모) 데이터 · 가격 노드에 실제 종가 입력 →";
+      const tw = c.measureText(txt).width + 14;
+      c.fillStyle = "rgba(232,180,99,.14)"; c.fillRect(padX + 4, padTop + 2, tw, 16);
+      c.fillStyle = "rgba(232,180,99,.95)"; c.fillText(txt, padX + 11, padTop + 13);
+    }
   }
 
   function fcHeroMode(mode) {
@@ -2185,24 +2192,7 @@
   }
 
   function fcRenderForecast(pred) {
-    console.log("[forge] forecast: hasRealSeries", hasRealSeries(), "pred.path", pred && pred.path && pred.path.length);
-    if (hasRealSeries()) { fcDrawMainChart(currentData().price, pred); return; }   // 실데이터 → 연속 차트(예측 흐름)
-    const cal = priceCal();
-    const heroImg = document.getElementById("fcHeroImg");
-    const img = heroImg && heroImg.querySelector("img");
-    const cone = document.getElementById("fcCone");
-    const fut = document.getElementById("fcFuture");
-    if (img && cone) {
-      if (fut) fut.style.display = "none";          // 이미지 모드: 떠다니는 분리 콘 제거
-      const draw = cal
-        ? () => drawCalCone(cone, img, pred, cal, false)   // 보정 완료 → 이미지 축에 콘
-        : () => drawConeHint(cone, img);                   // 미보정 → 작은 안내만
-      coneRetry(draw, img);
-    } else {
-      if (fut) fut.style.display = "";              // 이미지 없음 → 기존 분리 콘
-      if (cone) { const cc = cone.getContext("2d"); if (cc) cc.clearRect(0, 0, cone.width, cone.height); }
-      fcDrawFuture(pred);
-    }
+    fcDrawMainChart(currentData().price, pred);   // 항상 연속 차트(과거+예측)
   }
 
   /* ── renderChart: top-level, consumes ForgeCore output ── */
@@ -2234,8 +2224,7 @@
     }
 
     /* draw all panels */
-    fcHeroMode(hasRealSeries() ? "chart" : "image");
-    if (!hasRealSeries()) renderHero();
+    fcHeroMode("chart");   // 항상 연속 예측 차트(실데이터 없으면 데모) — 예측 흐름이 늘 보이게
     fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] });
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
@@ -3194,8 +3183,7 @@
         if (ev.target.closest("#neDelNode")) { delNodes([node.id]); return; }
         if (ev.target.closest("#neSeriesEx")) {            // 예시 데이터 원클릭 → 적용 + 차트
           node.series = sampleCloseSeries(); markDirty(); runForge(); deselectAll();
-          console.log("[forge] 예시데이터 적용 — series", node.series.length, "hasRealSeries", hasRealSeries(), "pred.path", lastResult && lastResult.prediction && lastResult.prediction.path.length);
-          bToast("예시 데이터 적용 — 연속 차트(과거+예측)"); return;
+          bToast("예시 데이터 적용 — 실데이터 차트"); return;
         }
         if (ev.target.closest("#neSeriesApply")) {         // 붙여넣은 데이터 적용 + 차트
           const ta = document.getElementById("neSeries");
