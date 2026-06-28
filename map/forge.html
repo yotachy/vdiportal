@@ -29,6 +29,8 @@
   .forge-gutter:hover,.forge-gutter.dragging{background:var(--gold-dim)}
   .forge-gutter:hover::after,.forge-gutter.dragging::after{background:var(--gold)}
   .run-btn{background:var(--gold);color:#1a1206;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer}
+  .run-btn.needs-run{animation:engPulse 1.3s ease-in-out infinite}
+  @keyframes engPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,180,99,.55)}50%{box-shadow:0 0 0 5px rgba(232,180,99,0)}}
 
   /* ════════════════════════════════════════════════════
      BOARD ENGINE STYLES  (ported + scoped with b- prefix)
@@ -64,6 +66,11 @@
   .b-n-type{display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--gold);background:rgba(232,180,99,.1);border:1px solid var(--gold-dim);border-radius:4px;padding:1px 6px;text-transform:uppercase}
   .b-tier-tag{font-size:9.5px;font-weight:800;padding:0 4px;border-radius:3px;letter-spacing:0;text-transform:none;color:#0b0f14}
   /* 3단계 tier: 원본(파랑)·지표(회청)·결합(보라)·포지(골드) */
+  .b-node.b-tier-tkr{border-left:3px solid var(--gold)}
+  .b-n-type.b-t-tkr{color:var(--gold);background:rgba(232,180,99,.12);border-color:var(--gold-dim)} .b-t-tkr .b-tier-tag{background:var(--gold)}
+  .b-tkr{display:flex;align-items:baseline;gap:8px;margin-top:5px;padding:5px 8px;border-radius:6px;background:rgba(232,180,99,.08);border:1px solid var(--gold-dim)}
+  .b-tkr-sym{font-weight:800;font-size:15px;letter-spacing:.02em;color:var(--gold)}
+  .b-tkr-px{font-family:ui-monospace,monospace;font-size:13px;font-weight:700;color:var(--ink)}
   .b-node.b-tier-src{border-left:3px solid #5b8def}
   .b-node.b-tier-ind{border-left:3px solid #8a92b2}
   .b-node.b-tier-mix{border-left:3px solid #c47ae0}
@@ -428,7 +435,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629l</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629m</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -442,9 +449,10 @@
     <div class="h-actions">
       <span id="analyzeProg" class="analyze-prog"></span>
       <span id="reqStat" class="req-stat" onclick="cancelReq()"></span>
-      <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="웹분석 — 이미지를 비전으로 판독해 시계열 데이터 생성(필요할 때만 · 워커)">☁ 웹분석</button>
+      <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="웹분석 — 이미지를 비전으로 판독해 시계열 데이터 생성(워커 · 필요할 때만)">☁ 웹분석</button>
       <span class="h-sep"></span>
-      <button class="run-btn" id="analyzeBtn" onclick="playAnalysis()" title="재생 — 포지결과는 편집/웹분석 시 자동 계산됨. 이 버튼은 그 분석 과정을 애니메이션으로 다시 보기만 함">▶ 재생</button>
+      <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="엔진분석 — 노드 그래프로 시계열을 계산해 포지결과(예측·시그널) 산출. 변경 시 이 버튼을 눌러 갱신">▷ 엔진분석</button>
+      <button class="tool-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 엔진분석이 어떻게 도출됐는지 노드별 과정을 애니메이션으로 보기">▶ 시연</button>
     </div>
   </header>
   <div class="forge-shell">
@@ -569,7 +577,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629l");
+  console.log("[forge] build b0629m");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -592,6 +600,7 @@
 
   /* ── Block definitions ───────────────────────────────────────── */
   const BLOCK_DEFS = [
+    { type: "ticker",    label: "티커",        kind: "block", params: { symbol: "", price: null } },
     { type: "price",     label: "가격",        kind: "block" },
     { type: "ma",        label: "이동평균",    kind: "block", params: { len: 10 } },
     { type: "phasefold", label: "파동 스캔",    kind: "block", params: { pmin: 16, pmax: 128 } },
@@ -1019,13 +1028,16 @@
     ].join("");
     const inDot = `<div class="b-n-in"></div>`;
     const isBlock = n.kind === "block";
-    /* 3단계 tier: 원본(price) → 중간(지표/결합) → 포지(predict) */
-    const tier = n.blockType === "price" ? ["src", "원본"]
-      : n.blockType === "predict" ? ["pos", "포지"]
-        : n.blockType === "combine" ? ["mix", "결합"]
-          : isBlock ? ["ind", "지표"] : ["", ""];
+    /* tier: 티커(입력) · 원본(price) → 중간(지표/결합) → 포지(predict) */
+    const tier = n.blockType === "ticker" ? ["tkr", "티커"]
+      : n.blockType === "price" ? ["src", "원본"]
+        : n.blockType === "predict" ? ["pos", "포지"]
+          : n.blockType === "combine" ? ["mix", "결합"]
+            : isBlock ? ["ind", "지표"] : ["", ""];
     const badge = (isBlock && n.blockType)
       ? `<div class="b-n-type b-t-${tier[0]}"><span class="b-tier-tag">${tier[1]}</span>${esc(n.blockType)}</div>` : "";
+    const tkrBody = n.blockType === "ticker"
+      ? `<div class="b-tkr"><span class="b-tkr-sym">${esc((n.params && n.params.symbol) || "종목?")}</span><span class="b-tkr-px">${(n.params && isFinite(n.params.price)) ? "$" + fmtNum(n.params.price) : "현재가 미입력"}</span></div>` : "";
     const thumb = n.thumb
       ? `<div class="b-n-thumb"><img src="${imgSrc(n.thumb.imgId)}" alt=""></div>` : "";
     const cls = "b-node" + (isBlock ? "" : " b-mini") + (n.blockType === "predict" ? " b-center" : "") + (tier[0] ? " b-tier-" + tier[0] : "");
@@ -1042,7 +1054,7 @@
   ${inDot}
   ${wbadge}${thumb}<div class="b-n-body">
     <div class="b-n-title" contenteditable="true" data-field="title">${esc(n.title || "")}</div>
-    ${badge}
+    ${tkrBody}${badge}
   </div>
   ${ports}
 </div>`;
@@ -1172,6 +1184,10 @@
     if (n.blockType === "trend") rows.push(numRow("len", "추세 기간", (n.params && n.params.len) ?? 40));
     if (n.blockType === "rsi") rows.push(numRow("period", "RSI 기간", (n.params && n.params.period) ?? 14));
     if (n.blockType === "fib") rows.push(numRow("len", "피보 구간", (n.params && n.params.len) ?? 120));
+    if (n.blockType === "ticker") {
+      rows.push(`<div class="pp-row"><label>티커 심볼</label><input type="text" data-tkr="symbol" value="${esc((n.params && n.params.symbol) || "")}" placeholder="예: TSLA"></div>`);
+      rows.push(`<div class="pp-row"><label>현재가</label><input type="number" step="any" data-tkr="price" value="${(n.params && isFinite(n.params.price)) ? n.params.price : ""}" placeholder="예: 379.71"></div>`);
+    }
     // volume: 수치 param 없음(확신/중요도/메모/이미지만)
     if (n.blockType === "combine") {
       boardState.edges.filter(e => e.to === n.id).forEach(e => {
@@ -2779,7 +2795,7 @@
   }
 
   /* ── 노드별 분석 패널 ──────────────────────────────────────────── */
-  const BTLABEL = { price: "가격", ma: "이동평균", phasefold: "파동스캔", combine: "가중결합", trend: "추세선", rsi: "RSI", fib: "피보나치", elliott: "엘리어트", volume: "거래량", predict: "예측" };
+  const BTLABEL = { ticker: "티커", price: "가격", ma: "이동평균", phasefold: "파동스캔", combine: "가중결합", trend: "추세선", rsi: "RSI", fib: "피보나치", elliott: "엘리어트", volume: "거래량", predict: "예측" };
   function regimeKo(r) { return r === "bull" ? "상승" : r === "bear" ? "하락" : "중립"; }
   function nodeReadText(n, result, priceLast) {
     const v = result && result.values && result.values[n.id];
@@ -2831,7 +2847,7 @@
   function renderNodeAnalysis(result) {
     const cv = document.getElementById("fcRadar"); if (!cv) return;
     const metaEl = document.getElementById("fcNodesMeta");
-    const blocks = boardState.nodes.filter(n => n.kind === "block" && !["price", "predict", "combine"].includes(n.blockType));
+    const blocks = boardState.nodes.filter(n => n.kind === "block" && !["price", "predict", "combine", "ticker"].includes(n.blockType));
     const host = cv.parentElement; const W = host.clientWidth || 360, Hh = 280;
     const c = fcFit(cv, Hh); c.clearRect(0, 0, W, Hh);
     if (metaEl) metaEl.textContent = blocks.length ? blocks.length + "개 지표" : "";
@@ -3215,7 +3231,27 @@
     return { price: series.slice(), candle: series.map(c => ({ o: c, h: c, l: c, c })), orange: [], blue: [], n: series.length };
   }
   function hasRealSeries() { return !!priceSeries(); }
-  function currentData() { const s = priceSeries(); return s ? buildData(s) : data; }
+  /* 티커 노드에 입력한 현재가 → 시계열을 그 값에 맞게 스케일(현재가를 쉽게 지정) */
+  function tickerPrice() {
+    const t = boardState.nodes.find(n => n.blockType === "ticker" && n.params && isFinite(n.params.price) && n.params.price > 0);
+    return t ? t.params.price : null;
+  }
+  function currentData() {
+    let s = priceSeries(); if (!s) return data;
+    const tp = tickerPrice();
+    if (tp && s.length) { const last = s[s.length - 1]; if (last > 0 && Math.abs(last - tp) / tp > 0.001) s = s.map(v => v * tp / last); }
+    return buildData(s);
+  }
+  /* ── 엔진분석: 수동 실행(버튼) ─────────────────────────────────
+     포지결과는 '엔진분석' 버튼을 눌러야 계산된다. 노드/가중치/웹분석 변경은 '변경됨'으로 표시만. */
+  let _engineDirty = false;
+  function updateEngineBtn() {
+    const b = document.getElementById("analyzeBtn"); if (!b) return;
+    b.classList.toggle("needs-run", _engineDirty);
+    b.textContent = _engineDirty ? "▷ 엔진분석 ●" : "▷ 엔진분석";
+  }
+  function markEngineDirty() { _engineDirty = true; updateEngineBtn(); }
+  function runEngine() { if (_playing) stopPlay(); runForge(); _engineDirty = false; updateEngineBtn(); bToast("엔진분석 완료 · 포지결과 갱신"); }
   /* 붙여넣은 텍스트 → 종가 배열. 한 줄=한 봉. 줄에 4개 이상 수면 OHLC(V)로 보고 종가(4번째) 사용. */
   function parseSeries(txt) {
     const out = [];
@@ -3322,7 +3358,7 @@
   function playAnalysis() {
     if (_playing) { stopPlay(); return; }      // 토글: 재생 중 누르면 중단
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
-    runForge();
+    runForge(); _engineDirty = false; updateEngineBtn();   // 시연도 재계산 → 변경됨 해제
     let steps;
     try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive() }); }
     catch (e) { console.warn("steps", e); return; }
@@ -3432,8 +3468,8 @@
         : null;
       markDirty();
     }
-    runForge();
-    bToast(_visionData ? ("AI 분석 반영" + (_visionNote ? " · " + _visionNote : "")) : "분석 데이터 없음");
+    renderHero(); markEngineDirty();   // 이미지·데이터만 갱신, 포지결과는 '엔진분석' 버튼으로
+    bToast(_visionData ? ("웹분석 반영 — '엔진분석'을 눌러 계산" + (_visionNote ? " · " + _visionNote : "")) : "분석 데이터 없음");
   }
 
   /* ── 분석 요청 버튼 + 작업큐 폴링 ───────────────────────────────── */
@@ -3970,7 +4006,13 @@
       panel.addEventListener("input", ev => {
         if (sel.length !== 1) return; const n = bN(sel[0]); if (!n) return;
         const t = ev.target;
-        if (t.dataset.pkey) {
+        if (t.dataset.tkr) {
+          n.params = n.params || {};
+          if (t.dataset.tkr === "symbol") n.params.symbol = t.value;
+          else { const v = Number(t.value); n.params.price = (t.value !== "" && isFinite(v)) ? v : null; }
+          const el = bWorld && bWorld.querySelector(`.b-node[data-id="${n.id}"] .b-tkr`);
+          if (el) { const sy = el.querySelector(".b-tkr-sym"), px = el.querySelector(".b-tkr-px"); if (sy) sy.textContent = n.params.symbol || "종목?"; if (px) px.textContent = isFinite(n.params.price) ? "$" + fmtNum(n.params.price) : "현재가 미입력"; }
+        } else if (t.dataset.pkey) {
           n.params = n.params || {}; n.params[t.dataset.pkey] = Math.round(Number(t.value) || 0);
         } else if (t.dataset.wkey) {
           n.params = n.params || {}; n.params.weights = n.params.weights || {};
@@ -4175,7 +4217,7 @@
       if (row) { switchDoc(row.dataset.doc); }
     });
 
-    onBoardChange(() => { if (_playing) stopPlay(); clearTimeout(_t); _t = setTimeout(runForge, 180); markDirty(); });
+    onBoardChange(() => { if (_playing) stopPlay(); markEngineDirty(); markDirty(); });   // 엔진은 수동(버튼) — 변경됨 표시만
     /* 실행 버튼 제거됨 — runForge는 편집 시 자동 호출(markDirty/onBoardChange) */
     boot();
   });
