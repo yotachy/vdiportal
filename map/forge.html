@@ -402,8 +402,13 @@
   .nr-step:last-of-type{border-bottom:0}
   .nr-num{flex:0 0 18px;width:18px;height:18px;border-radius:50%;background:rgba(232,180,99,.14);border:1px solid var(--gold-dim);
     color:var(--gold);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,monospace}
-  .nr-step b{color:var(--ink);font-weight:700;flex:0 0 64px}
+  .nr-step b{color:var(--ink);font-weight:700}
   .nr-step .nr-read{color:var(--eth);flex:1;min-width:0}
+  .nr-main{flex:1;min-width:0}
+  .nr-head{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
+  .nr-facts{margin:0;padding:0 0 0 2px;list-style:none}
+  .nr-facts li{position:relative;padding-left:12px;color:var(--eth);font-size:12px;line-height:1.55}
+  .nr-facts li::before{content:"·";position:absolute;left:2px;color:var(--gold);font-weight:800}
   .nr-up{color:var(--bull);font-weight:700}.nr-dn{color:var(--bear);font-weight:700}.nr-fl{color:var(--eth)}
   .nr-concl{margin-top:9px;padding:11px 12px;border-radius:9px;background:rgba(232,180,99,.07);border:1px solid var(--gold-dim);
     font-size:12.5px;line-height:1.65;color:var(--ink)}
@@ -438,7 +443,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629p</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629q</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -503,7 +508,7 @@
         </div>
         <div class="fc-panel" id="fcNarrPanel">
           <div class="fc-phead">
-            <span class="fc-t"><b>분석 해설</b> · 단계별 근거와 예측 이유</span>
+            <span class="fc-t"><b>노드별 전문 분석</b> · 지표별 산출·해석</span>
             <span class="fc-meta" id="fcNarrMeta">–</span>
           </div>
           <div class="fc-pbody"><div id="fcNarr" class="nr-list"></div></div>
@@ -580,7 +585,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629p");
+  console.log("[forge] build b0629q");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2782,13 +2787,15 @@
     const steps = [];
     let i = 1;
     if (_visionNote) steps.push(`<div class="nr-step"><span class="nr-num">${i++}</span><b>차트 판독</b><span class="nr-read">${esc(_visionNote)}</span></div>`);
+    const px = (pv && pv.length) ? pv : [];
     inds.forEach(n => {
-      const read = nodeReadText(n, result, priceLast);
+      const facts = nodeExpert(n, result, px, priceLast);
       const conv = n.conviction || 0;
       const lean = conv > 5 ? '<span class="nr-up">▲ 상승 가중</span>' : conv < -5 ? '<span class="nr-dn">▼ 하락 가중</span>' : '<span class="nr-fl">중립</span>';
       const memo = (n.note && n.note.trim()) || (n.desc && n.desc.trim()) || "";
-      const memoHtml = memo ? `<span class="nr-memo">“${esc(memo)}”</span>` : "";
-      steps.push(`<div class="nr-step"><span class="nr-num">${i++}</span><b>${esc(BTLABEL[n.blockType] || n.blockType)}</b><span class="nr-read">${esc(read)} · ${lean}</span>${memoHtml}</div>`);
+      const memoHtml = memo ? `<div class="nr-memo">“${esc(memo)}”</div>` : "";
+      const factsHtml = `<ul class="nr-facts">${facts.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
+      steps.push(`<div class="nr-step"><span class="nr-num">${i++}</span><div class="nr-main"><div class="nr-head"><b>${esc(BTLABEL[n.blockType] || n.blockType)}</b> ${lean}</div>${factsHtml}${memoHtml}</div></div>`);
     });
     const reg = regimeKo(v.regime);
     const score = Math.round(v.score || 0);
@@ -2835,6 +2842,71 @@
       case "predict": return (result && result.verdict) ? "국면 " + regimeKo(result.verdict.regime) + " · 시그널 " + Math.round(result.verdict.score) : "—";
       case "volume": return "참고 입력(계산 없음)";
       default: return n.note ? n.note : "—";
+    }
+  }
+  /* 노드별 '전문 분석' — 각 기술지표가 도메인 지식으로 여러 사실을 산출(우측 패널 나열용) */
+  function nodeExpert(n, result, px, priceLast) {
+    const v = result && result.values && result.values[n.id];
+    const m = result && result.meta && result.meta[n.id];
+    const f = [];
+    const P = Array.isArray(px) ? px : [];
+    switch (n.blockType) {
+      case "ma": {
+        if (!v || !v.length) return ["데이터 없음"];
+        const last = v[v.length - 1];
+        const dist = (priceLast != null && last) ? (priceLast - last) / last * 100 : null;
+        const slope = v.length >= 6 ? (last - v[v.length - 6]) / (Math.abs(v[v.length - 6]) || 1) * 100 : 0;
+        let cross = "";
+        if (P.length === v.length) for (let i = Math.max(1, v.length - 6); i < v.length; i++) { const a = P[i - 1] - v[i - 1], b = P[i] - v[i]; if (a < 0 && b >= 0) cross = "최근 골든크로스 — 가격이 MA 상향 돌파"; else if (a > 0 && b <= 0) cross = "최근 데드크로스 — 가격이 MA 하향 이탈"; }
+        f.push("MA " + fmtNum(last) + (dist != null ? (" · 가격 " + (dist >= 0 ? "+" : "") + dist.toFixed(1) + "% " + (dist >= 0 ? "상회(지지 우위)" : "하회(저항 우위)")) : ""));
+        f.push("MA 기울기 " + (slope > 0.5 ? "상승 ↑" : slope < -0.5 ? "하락 ↓" : "평탄 →") + " (" + (slope >= 0 ? "+" : "") + slope.toFixed(1) + "%/5봉)");
+        if (cross) f.push(cross);
+        return f;
+      }
+      case "trend": {
+        const len = Math.min(P.length, (n.params && n.params.len) || 40), seg = P.slice(P.length - len);
+        if (seg.length < 3) return ["데이터 부족"];
+        const lr = _linreg(seg); let ssr = 0, sst = 0, mean = seg.reduce((s, x) => s + x, 0) / seg.length;
+        for (let i = 0; i < seg.length; i++) { const pr = lr.a * i + lr.b; ssr += (seg[i] - pr) ** 2; sst += (seg[i] - mean) ** 2; }
+        const r2 = sst > 0 ? 1 - ssr / sst : 0, slPct = mean ? lr.a / Math.abs(mean) * 100 : 0;
+        f.push("회귀 추세 " + (lr.a > 0 ? "우상향 ↑" : lr.a < 0 ? "우하향 ↓" : "수평 →") + " (" + (slPct >= 0 ? "+" : "") + slPct.toFixed(2) + "%/봉, " + len + "봉)");
+        f.push("적합도 R²=" + r2.toFixed(2) + " · " + (r2 > 0.8 ? "추세 견고(직선적)" : r2 > 0.5 ? "추세 보통" : "불규칙(추세 약함)"));
+        return f;
+      }
+      case "rsi": {
+        if (!v || !v.length) return ["데이터 없음"];
+        const rsi = Math.round(v[v.length - 1] * 50 + 50), prev = v.length >= 4 ? Math.round(v[v.length - 4] * 50 + 50) : rsi;
+        const dir = rsi > prev + 2 ? "상승 중(모멘텀 강화)" : rsi < prev - 2 ? "하락 중(모멘텀 둔화)" : "횡보";
+        f.push("RSI " + rsi + " · " + (rsi >= 70 ? "과매수(과열·되돌림 주의)" : rsi <= 30 ? "과매도(반등 가능)" : "중립 구간"));
+        f.push("RSI " + dir + " (3봉 전 " + prev + ")");
+        return f;
+      }
+      case "fib": {
+        const len = Math.min(P.length, (n.params && n.params.len) || 120), seg = P.slice(P.length - len);
+        if (!seg.length) return ["데이터 없음"];
+        const hi = Math.max(...seg), lo = Math.min(...seg), pos = (priceLast - lo) / ((hi - lo) || 1);
+        const lv = [0, .236, .382, .5, .618, .786, 1]; let near = lv[0], nd = 9; for (const r of lv) { const d = Math.abs(pos - r); if (d < nd) { nd = d; near = r; } }
+        f.push("스윙 " + fmtNum(lo) + "~" + fmtNum(hi) + " · 현재 " + Math.round(pos * 100) + "% 지점");
+        f.push("최근접 되돌림 " + near.toFixed(3) + " · " + (pos >= 0.66 ? "상단권(추가상승 vs 저항)" : pos <= 0.33 ? "하단권(지지 시험)" : "중단권"));
+        return f;
+      }
+      case "elliott": {
+        const piv = _zigzag(P, 0.18), c = piv.length;
+        if (c < 2) return ["뚜렷한 파동 없음"];
+        const lab = _EWLAB[Math.min(c - 1, 7)] || "-", up = piv[c - 1].p > piv[c - 2].p;
+        f.push("스윙 " + c + "개 · 현재 파동 " + lab + " 추정");
+        f.push("직전 파동 " + (up ? "상승 ▲" : "하락 ▼") + " ($" + fmtNum(piv[c - 2].p) + "→$" + fmtNum(piv[c - 1].p) + ")");
+        return f;
+      }
+      case "phasefold": {
+        if (!m || m.best == null) return ["스캔 대기"];
+        f.push("지배주기 " + Math.round(m.best) + "봉" + (m.kbest ? " (" + m.kbest + "주기/창)" : ""));
+        f.push("검출 " + (m.method || "PDM") + (isFinite(m.strength) ? " · FFT 피크 " + m.strength.toFixed(1) + "x" : "") + (isFinite(m.theta) ? " · 정합 θ" + m.theta.toFixed(2) + (m.theta < 0.6 ? "(뚜렷)" : m.theta < 0.85 ? "(보통)" : "(약함)") : ""));
+        if (P.length && m.best > 2) { const ph = ((P.length - 1) % m.best) / m.best; f.push("현재 위상 " + Math.round(ph * 100) + "% · " + (ph < 0.5 ? "주기 상승 구간" : "주기 하강 구간")); }
+        return f;
+      }
+      case "volume": return ["거래량 시계열 미입력 — 참고용(계산 제외)"];
+      default: return [nodeReadText(n, result, priceLast)];
     }
   }
   /* 지표 노드의 '실제 산출값' 방향(-1..1): 엔진 values/meta에서 도출 */
