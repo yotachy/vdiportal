@@ -84,7 +84,7 @@
   }
 
   function pdmTheta(z, P, nbins) {
-    nbins = nbins || 10;
+    nbins = nbins || 12;
     const n = z.length;
     const bins = Array.from({ length: nbins }, () => []);
     for (let i = 0; i < n; i++) {
@@ -110,19 +110,41 @@
     return cnt > 0 && gv > 0 ? (num / cnt) / gv : NaN;
   }
 
-  function scanPeriod(z, opts) {
-    const o = opts || {}, pmin = o.pmin || 8, pmax = o.pmax || Math.floor(z.length / 3), step = o.step || 0.5;
-    const curve = [];
-    let best = pmin, bt = Infinity;
-    for (let P = pmin; P <= pmax; P += step) {
-      const t = pdmTheta(z, P);
-      curve.push({ P, theta: t });
-      if (!isNaN(t) && t < bt) {
-        bt = t;
-        best = P;
-      }
+  /* 실수열 DFT 진폭 스펙트럼(k=1..n/2). n≤~600이라 단순 DFT로 충분(분석당 1회). */
+  function dftSpectrum(z) {
+    const n = z.length, half = Math.floor(n / 2), mag = new Array(half + 1).fill(0);
+    for (let k = 1; k <= half; k++) {
+      let re = 0, im = 0; const w = -2 * Math.PI * k / n;
+      for (let i = 0; i < n; i++) { const a = w * i; re += z[i] * Math.cos(a); im += z[i] * Math.sin(a); }
+      mag[k] = Math.sqrt(re * re + im * im);
     }
-    return { best, curve };
+    return mag;
+  }
+  /* chart.html 수준 주기 스캔: FFT 지배 주파수로 앵커 + PDM 정밀화.
+     장주기 편향 차단(최소 2.5주기 보장: pmax ≤ n/2.5). FFT 피크가 뚜렷하면 그 근방 PDM 최소를,
+     아니면 전역 PDM 최소를 채택. */
+  function scanPeriod(z, opts) {
+    const o = opts || {}, n = z.length, step = o.step || 0.5;
+    const pmin = Math.max(4, o.pmin || 8);
+    const hardMax = Math.floor(n / 2.5);                       // 장주기 편향 차단(≥2.5주기)
+    const pmax = Math.max(pmin + 2, Math.min(o.pmax || hardMax, hardMax));
+    // 전역 PDM 곡선 + 최소
+    const curve = []; let best = pmin, bt = Infinity;
+    for (let P = pmin; P <= pmax; P += step) { const t = pdmTheta(z, P); curve.push({ P, theta: t }); if (!isNaN(t) && t < bt) { bt = t; best = P; } }
+    // FFT 지배 주파수 → 주기 후보
+    const mag = dftSpectrum(z);
+    const kmin = Math.max(1, Math.ceil(n / pmax)), kmax = Math.min(mag.length - 1, Math.floor(n / pmin));
+    let kbest = kmin, mbest = -1, msum = 0, mc = 0;
+    for (let k = 1; k < mag.length; k++) { msum += mag[k]; mc++; }
+    for (let k = kmin; k <= kmax; k++) { if (mag[k] > mbest) { mbest = mag[k]; kbest = k; } }
+    const pFFT = kbest > 0 ? n / kbest : best;
+    const strength = (msum / (mc || 1)) > 0 ? mbest / (msum / mc) : 0;   // 피크/평균 (뚜렷할수록 큼)
+    // FFT 앵커 ±15% 근방 PDM 정밀화
+    let refined = pFFT, rt = Infinity;
+    for (let P = pFFT * 0.85; P <= pFFT * 1.15; P += 0.25) { if (P < pmin || P > pmax) continue; const t = pdmTheta(z, P); if (!isNaN(t) && t < rt) { rt = t; refined = P; } }
+    // 채택: FFT 피크가 뚜렷하면(평균의 1.8배+) FFT 정밀화 결과, 아니면 전역 PDM 최소
+    const useFFT = strength >= 1.8 && isFinite(refined);
+    return { best: useFFT ? refined : best, curve, pFFT, kbest, strength, pdmBest: best, method: useFFT ? "FFT+PDM" : "PDM" };
   }
 
   function evalBlocks(graph, data) {
@@ -154,7 +176,7 @@
         const src = ins[0] || data.price, dn = detrendNorm(src);
         const sc = scanPeriod(dn, { pmin: (n.params && n.params.pmin) || 8, pmax: (n.params && n.params.pmax) || Math.floor(src.length / 3) });
         values[id] = dn;
-        meta[id] = { best: sc.best, theta: pdmTheta(dn, sc.best), curve: sc.curve };
+        meta[id] = { best: sc.best, theta: pdmTheta(dn, sc.best), curve: sc.curve, pFFT: sc.pFFT, kbest: sc.kbest, strength: sc.strength, method: sc.method };
       } else if (n.blockType === "trend") {
         values[id] = rollingSlope(ins[0] || data.price, (n.params && n.params.len) || 40);
       } else if (n.blockType === "rsi") {

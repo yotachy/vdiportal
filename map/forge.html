@@ -438,7 +438,7 @@
 <body>
   <header class="forge-top">
     <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
-    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629n</span>
+    <span style="font-size:10px;color:var(--gold);font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.05em">build b0629o</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -580,7 +580,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
-  console.log("[forge] build b0629n");
+  console.log("[forge] build b0629o");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -2692,8 +2692,10 @@
     const fcMetaEl = document.getElementById("fcMeta");
     if (fcMetaEl) {
       const thetaTxt = fmeta && Number.isFinite(fmeta.theta) ? fmeta.theta.toFixed(3) : "—";
+      const cyc = fmeta && fmeta.kbest ? " · " + fmeta.kbest + "주기/창" : "";
+      const meth = fmeta && fmeta.method ? " · " + fmeta.method + (Number.isFinite(fmeta.strength) ? "(피크 " + fmeta.strength.toFixed(1) + "x)" : "") : "";
       fcMetaEl.textContent = fmeta
-        ? "P*≈" + bestP.toFixed(1) + " · θ=" + thetaTxt
+        ? "지배주기 P*≈" + bestP.toFixed(1) + cyc + " · θ=" + thetaTxt + meth
         : "위상폴딩 블록 없음";
     }
 
@@ -2825,7 +2827,7 @@
         const pct = Math.round((last + 1) / 2 * 100);
         return "범위 " + pct + "% " + (pct >= 66 ? "(상단권)" : pct <= 33 ? "(하단권)" : "(중단권)");
       }
-      case "phasefold": return (m && m.best != null) ? "지배주기 P*≈" + Math.round(m.best) + (isFinite(m.theta) ? " · θ" + m.theta.toFixed(2) : "") : "스캔 대기";
+      case "phasefold": return (m && m.best != null) ? "지배주기 P*≈" + Math.round(m.best) + (m.kbest ? " (" + m.kbest + "주기/창)" : "") + (isFinite(m.theta) ? " · 정합 θ" + m.theta.toFixed(2) : "") + (m.method ? " · " + m.method : "") : "스캔 대기";
       case "elliott": return (m && m.current) ? "파동 " + m.current.label + " " + (m.current.dir > 0 ? "▲" : m.current.dir < 0 ? "▼" : "–") : "—";
       case "combine": return last != null ? "결합값 " + (last > 0 ? "+" : "") + (Math.round(last * 1000) / 1000) : "—";
       case "predict": return (result && result.verdict) ? "국면 " + regimeKo(result.verdict.regime) + " · 시그널 " + Math.round(result.verdict.score) : "—";
@@ -3319,7 +3321,7 @@
       const m = lastResult.meta && lastResult.meta[n.id];
       if (n.blockType === "phasefold") {
         s.textContent = m && m.best != null
-          ? "P*≈" + Math.round(m.best) + (Number.isFinite(m.theta) ? " θ" + m.theta.toFixed(2) : "")
+          ? "P*≈" + Math.round(m.best) + (m.kbest ? " ·" + m.kbest + "주기" : "") + (Number.isFinite(m.theta) ? " θ" + m.theta.toFixed(2) : "")
           : "스캔 대기";
       } else {
         s.textContent = m && m.current
