@@ -876,6 +876,7 @@
       { id: "s_fib",   kind: "block", blockType: "fib",       params: { len: 120 },       x: 320, y: 300, title: "피보나치",    conviction: 30,  weight: 50, thumb: T("smp_fib", "Fib"),     desc: "조정 구간 저점 반등 — 단기 범위 하단 지지" },
       { id: "s_trend", kind: "block", blockType: "trend",     params: { len: 40 },        x: 320, y: 400, title: "추세선",      conviction: 35,  weight: 70, thumb: T("smp_trend", "Trend"), desc: "상승 회귀선 — 우상향 추세 유지" },
       { id: "s_ell",   kind: "block", blockType: "elliott",   params: { swing: 3 },       x: 320, y: 500, title: "엘리어트",    conviction: 25,  weight: 55, thumb: T("smp_elliott", "Wave"),desc: "파동 구간 분석 — 추세 전환점 추정" },
+      { id: "s_vol",   kind: "block", blockType: "volume",    params: {},                 x: 320, y: 600, title: "거래량",      conviction: 0,   weight: 55, thumb: T("smp_main", "거래량"), desc: "상승 구간 거래량 동반 — 추세 확인", series: synthVolume(sampleSeries()) },
       { id: "s_comb",  kind: "block", blockType: "combine",   params: {},                 x: 600, y: 250, title: "가중결합",    conviction: 0,   weight: 50, desc: "소스별 weight 가중 결합" },
       { id: "s_pred",  kind: "block", blockType: "predict",   params: {},                 x: 860, y: 250, title: "예측·시그널", conviction: 0,   weight: 50, thumb: T("smp_predict", "예측"), desc: "" },
       { id: "s_memo",  kind: "free",  blockType: null,        params: {},                 x: 40,  y: 320, title: "포지 메모",   conviction: 0,   weight: 50, desc: "종합: 상승 우세. RSI 과열로 단기 조정 가능하나 추세선·피보 지지로 추가 상승 시나리오 우위." }
@@ -883,9 +884,9 @@
     const E = (from, to) => ({ from, fromSide: "right", to, toSide: "left" });
     const edges = [
       E("s_price", "s_ma"), E("s_price", "s_wave"), E("s_price", "s_rsi"),
-      E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"),
+      E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"), E("s_price", "s_vol"),
       E("s_ma", "s_comb"), E("s_wave", "s_comb"), E("s_rsi", "s_comb"),
-      E("s_fib", "s_comb"), E("s_trend", "s_comb"), E("s_ell", "s_comb"),
+      E("s_fib", "s_comb"), E("s_trend", "s_comb"), E("s_ell", "s_comb"), E("s_vol", "s_comb"),
       E("s_comb", "s_pred")
     ];
     const series = sampleSeries();

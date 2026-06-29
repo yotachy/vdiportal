@@ -377,9 +377,9 @@ test("sampleSeries: deterministic, 480 pts, net uptrend with mid correction", ()
   assert.ok(a[479] > mean20);
 });
 
-test("sampleGraph: 10 nodes, DAG runs, descriptions are truthful, bullish net", () => {
+test("sampleGraph: 11 nodes, DAG runs, descriptions are truthful, bullish net", () => {
   const g = ForgeCore.sampleGraph();
-  assert.strictEqual(g.nodes.length, 10);
+  assert.strictEqual(g.nodes.length, 11);
   assert.strictEqual(g.themeImgId, "smp_main");
   assert.ok(Array.isArray(g.vision.series) && g.vision.series.length === 480);
   const data = { price: g.vision.series, n: g.vision.series.length };
@@ -909,4 +909,17 @@ test("run: volume 블록 timeframe 가중(월봉 vs 5분 차이)", () => {
   const tMin = ForgeCore.run(g, data, { timeframe: "5분" }).prediction.target;
   assert.ok(isFinite(tMon) && isFinite(tMin));
   assert.notStrictEqual(tMon, tMin);
+});
+
+test("sampleGraph: 거래량 노드 포함 + 실행 시 유한 예측", () => {
+  const g = ForgeCore.sampleGraph();
+  const vol = g.nodes.find(n => n.blockType === "volume");
+  assert.ok(vol, "거래량 노드 존재");
+  assert.ok(Array.isArray(vol.series) && vol.series.length >= 2, "베이크 거래량 시계열");
+  assert.ok(g.edges.some(e => e.to === vol.id), "price->volume 엣지");
+  assert.ok(g.edges.some(e => e.from === vol.id), "volume->combine 엣지");
+  const price = ForgeCore.sampleSeries();
+  const data = { price, candle: price.map(c => ({ o: c, h: c + 1, l: c - 1, c })) };
+  const r = ForgeCore.run(g, data, { timeframe: "일봉" });
+  assert.ok(isFinite(r.prediction.target));
 });
