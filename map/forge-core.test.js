@@ -553,3 +553,25 @@ test("analyzeMA: 소량 데이터(P<len) → 예외 없음·유한 bias", () => 
   assert.ok(isFinite(r.bias));
   assert.ok(["bull", "bear", "mixed"].includes(r.align.order));
 });
+
+test("run: MA 블록 상승 국면 → 타깃 상향 + TF 월봉>5분", () => {
+  const G = { nodes: [
+    { id: "p", kind: "block", blockType: "price" },
+    { id: "m", kind: "block", blockType: "ma", params: { len: 5 } },
+    { id: "o", kind: "block", blockType: "predict" }
+  ], edges: [{ from: "p", to: "m" }, { from: "m", to: "o" }] };
+  const up = { price: Array.from({ length: 70 }, (_, i) => 100 + i * 1.5) };   // 정배열 상승
+  const rM = ForgeCore.run(G, up, { futW: 12, timeframe: "월봉" });
+  const rI = ForgeCore.run(G, up, { futW: 12, timeframe: "5분" });
+  assert.ok(rM.prediction.path.every(isFinite) && rI.prediction.path.every(isFinite));
+  const gain = r => r.prediction.target / r.prediction.anchor;
+  assert.ok(gain(rM) > 1, "상승 국면 → target>anchor");
+  assert.ok(gain(rM) > gain(rI), "월봉(MA 국면 강가중)이 5분보다 상향");
+});
+
+test("run: MA 블록 없으면 MA 기여 0(기존 동작 보존)", () => {
+  const G = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "o" }] };
+  const data = { price: Array.from({ length: 40 }, (_, i) => 100 + i) };
+  const r = ForgeCore.run(G, data, { futW: 8, timeframe: "월봉" });
+  assert.ok(r.prediction.path.every(isFinite));
+});
