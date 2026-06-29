@@ -1230,6 +1230,17 @@
       el.classList.toggle("selected", sel.includes(el.dataset.id));
     });
     renderParams();
+    syncFocusFromSel();
+  }
+
+  function syncFocusFromSel() {
+    let nf = null;
+    if (sel.length === 1) {
+      const n = boardState.nodes.find(x => x.id === sel[0]);
+      const IND = ["ma", "trend", "fib", "elliott", "rsi", "volume"];
+      if (n && IND.includes(n.blockType)) nf = n.blockType;
+    }
+    if (nf !== _focusInd) { _focusInd = nf; drawEvidence(); }
   }
 
   /* ── 파라미터 편집기 패널 ──────────────────────────────────────── */
@@ -2515,6 +2526,8 @@
   let _evidenceSet = new Set();
   let _evReveal = {};   // 시연 중 노드별 작도 레이어 출현 상한(nodeId→layer). 비재생=전체(∞)
   let _evidenceShow = true;
+  let _focusInd = null;          // 포커스 지표 blockType | null(전체)
+  let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
   function evIndicatorNodes() {
@@ -2568,13 +2581,19 @@
     c.fillText(text, bx + pad, by + h - 1);
   }
   function _evLegend(c, x0, topY, items) {
-    if (!items.length) return;
+    _legendHits = [];
+    const rows = [{ col: "#8a92b2", t: "전체", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key || null })));
     c.font = "10px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
     let y = topY + 22;
-    for (const it of items) {
+    for (const it of rows) {
+      const tw = c.measureText(it.t).width, bx = x0 + 14, bw = tw + 6, bh = 12;
+      const active = (it.key === _focusInd) || (it.key === null && _focusInd === null);
+      c.globalAlpha = (_focusInd && !active) ? 0.45 : 1;
       c.fillStyle = it.col; c.fillRect(x0 + 2, y, 9, 9);
-      c.fillStyle = "rgba(11,15,20,.55)"; c.fillRect(x0 + 14, y - 1, c.measureText(it.t).width + 6, 12);
+      c.fillStyle = active ? "rgba(232,180,99,.30)" : "rgba(11,15,20,.55)"; c.fillRect(bx, y - 1, bw, bh);
       c.fillStyle = "rgba(224,229,239,.95)"; c.fillText(it.t, x0 + 16, y + 8);
+      c.globalAlpha = 1;
+      _legendHits.push({ x: x0, y: y - 1, w: 16 + bw, h: bh + 2, key: it.key });
       y += 14;
     }
   }
@@ -2820,6 +2839,7 @@
     const mode = heroMode();
     const nodes = evIndicatorNodes().filter(n => _evidenceSet.has(n.id));
     if (!nodes.length) return;
+    const drawNodes = _focusInd ? nodes.filter(n => n.blockType === _focusInd) : nodes;
     c.save(); c.translate(_heroZoom.tx, _heroZoom.ty); c.scale(_heroZoom.s, _heroZoom.s);
     const legend = [];
     c.lineWidth = 1.5; c.lineJoin = "round";
@@ -2829,12 +2849,12 @@
       const Hn = g.histLen, off = P - Hn, plotR = g.padX + g.plotW;
       const toXh = i => g.padX + (i / (Hn - 1)) * g.histW;
       let _slot = 0; const _slotY = () => g.padTop + 2 + (_slot++) * 18;   // 우상단 배지 세로 슬롯(18px 간격)
-      for (const n of nodes) {
+      for (const n of drawNodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
           _drawMALayers(c, ma, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
-          legend.push({ col, t: EV_LABEL.ma + "(다중)" });
+          legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
           const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
@@ -2844,26 +2864,26 @@
             pToY: v => toY(v),
             nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: off
           });
-          legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " · " + _prof.label : "") });
+          legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "fib") {
           const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
           _drawFibLayers(c, fib, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
-          legend.push({ col, t: EV_LABEL.fib + "(전문)" });
+          legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "elliott") {
           const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
           _drawElliottLayers(c, ea, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
-          legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
+          legend.push({ col, t: EV_LABEL.elliott + "(전문)", _key: n.blockType });
         } else if (n.blockType === "rsi") {
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
           _drawRsiLayers(c, rsi, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
-          legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
+          legend.push({ col, t: EV_LABEL.rsi + "(전문)", _key: n.blockType });
         } else if (n.blockType === "volume") {
           const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
           const va = ForgeCore.analyzeVolume(price, vser);
           _drawVolumeLayers(c, va, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1], badgeY: _slotY() });
-          legend.push({ col, t: EV_LABEL.volume + "(전문)" });
+          legend.push({ col, t: EV_LABEL.volume + "(전문)", _key: n.blockType });
         } else if (n.blockType === "phasefold") {
-          const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
+          const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best), _key: n.blockType });
         }
       }
       _evLegend(c, g.padX, g.padTop, legend);
@@ -2875,16 +2895,16 @@
       const xOf = i => g.ox + (P > 1 ? i / (P - 1) : 0) * (g.nowX - g.ox);   // 과거 시계열을 이미지 좌측~지금선에 매핑
       const clipY = y => Math.max(top, Math.min(bot, y));
       const within = y => y >= top - 2 && y <= bot + 2;
-      for (const n of nodes) {
+      for (const n of drawNodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         if (n.blockType === "fib") {
           const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
           _drawFibLayers(c, fib, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
-          legend.push({ col, t: EV_LABEL.fib + "(전문)" });
+          legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
           _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
-          legend.push({ col, t: EV_LABEL.ma + "(다중)" });
+          legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
           const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
@@ -2894,22 +2914,22 @@
             pToY: v => clipY(yOf(v)),
             nowFi: P - 1, xNow: g.nowX, xRight: xR, futBars
           });
-          legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " · " + _prof.label : "") });
+          legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "elliott") {
           const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
           _drawElliottLayers(c, ea, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
-          legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
+          legend.push({ col, t: EV_LABEL.elliott + "(전문)", _key: n.blockType });
         } else if (n.blockType === "rsi") {
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
           _drawRsiLayers(c, rsi, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
-          legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
+          legend.push({ col, t: EV_LABEL.rsi + "(전문)", _key: n.blockType });
         } else if (n.blockType === "volume") {
           const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
           const va = ForgeCore.analyzeVolume(price, vser);
           _drawVolumeLayers(c, va, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw), lastPrice: price[P - 1] });
-          legend.push({ col, t: EV_LABEL.volume + "(전문)" });
+          legend.push({ col, t: EV_LABEL.volume + "(전문)", _key: n.blockType });
         } else if (n.blockType === "phasefold") {
-          const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
+          const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best), _key: n.blockType });
         }
       }
       _evLegend(c, g.ox + 4, g.oy, legend);
@@ -3705,6 +3725,18 @@
     const endDrag = () => { hDrag = null; _heroZoomDragging = false; };
     cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
     cv.addEventListener("dblclick", () => { resetHeroView(); renderHeroZoom(); });
+    cv.addEventListener("click", e => {
+      if (_heroZoomDragging) return;
+      const r = cv.getBoundingClientRect();
+      const lx = ((e.clientX - r.left) - _heroZoom.tx) / _heroZoom.s;
+      const ly = ((e.clientY - r.top) - _heroZoom.ty) / _heroZoom.s;
+      for (const hgt of _legendHits) {
+        if (lx >= hgt.x && lx <= hgt.x + hgt.w && ly >= hgt.y && ly <= hgt.y + hgt.h) {
+          _focusInd = (hgt.key === _focusInd) ? null : hgt.key;
+          drawEvidence(); return;
+        }
+      }
+    });
   })();
   (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetHeroView(); renderHeroZoom(); }); })();
 
