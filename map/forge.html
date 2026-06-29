@@ -576,6 +576,14 @@
             <canvas id="fcFoldC" class="fc-cv"></canvas>
           </div>
         </div>
+        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
+        <div class="fc-panel" id="fcRsiPanel" style="display:none">
+          <div class="fc-phead">
+            <span class="fc-t"><b>RSI 오실레이터</b> · 0~100 · 30/70</span>
+            <span class="fc-meta" id="fcRsiMeta">–</span>
+          </div>
+          <div class="fc-pbody"><canvas id="fcRsi" class="fc-cv"></canvas></div>
+        </div>
       </div>
       <div id="paramPanel" class="node-editor"></div>
     </section>
@@ -2077,6 +2085,31 @@
     c.fillText(bestP.toFixed(0) + " 주기", Math.min(xc + 4, cw - 52), 22);
   }
 
+  /* ── fcDrawRsi: RSI oscillator sub-panel (0–100) ── */
+  function fcDrawRsi(rsi) {
+    const cv = document.getElementById("fcRsi"); if (!cv) return;
+    const ch = cv.clientHeight || 120, c = fcFit(cv, ch), cw = cv.clientWidth || 400;
+    c.clearRect(0, 0, cw, ch);
+    const s = (rsi && rsi.series) || [];
+    if (s.length < 2) { c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center"; c.fillText("RSI 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return; }
+    const padL = 6, padR = 28, padV = 8, plotW = cw - padL - padR, plotH = ch - 2 * padV;
+    const yOf = v => padV + (1 - v / 100) * plotH, xOf = i => padL + (i / (s.length - 1)) * plotW;
+    c.fillStyle = "rgba(224,106,106,.10)"; c.fillRect(padL, yOf(100), plotW, yOf(70) - yOf(100));
+    c.fillStyle = "rgba(70,194,142,.10)"; c.fillRect(padL, yOf(30), plotW, yOf(0) - yOf(30));
+    c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
+    [30, 50, 70].forEach(lv => { const y = yOf(lv); c.beginPath(); c.moveTo(padL, y); c.lineTo(padL + plotW, y); c.stroke(); c.fillStyle = "#8a92b2"; c.font = "9px ui-monospace,monospace"; c.fillText(lv, padL + plotW + 3, y + 3); });
+    c.setLineDash([]);
+    c.strokeStyle = "#e8b463"; c.lineWidth = 1.8; c.beginPath();
+    s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+    const lx = xOf(s.length - 1), ly = yOf(rsi.last);
+    c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(lx, ly, 3, 0, 7); c.fill();
+    if (rsi.divergence && rsi.divergence.pricePts) {
+      const col = rsi.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
+      rsi.divergence.pricePts.forEach(p => { const i = p.idx; if (i < 0 || i >= s.length) return; const x = xOf(i), y = yOf(s[i]); c.fillStyle = col; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); });
+    }
+    const meta = document.getElementById("fcRsiMeta"); if (meta) meta.textContent = "RSI " + Math.round(rsi.last) + " \xb7 " + (rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립");
+  }
+
   /* ── fcDrawFold: phase-fold trace (port of chart.html drawFold()) ── */
   /* seriesArr: number[], color: hex, P: period, PHI: phase offset, ACC: accent */
   function fcDrawFold(cv, seriesArr, label, color, P, PHI) {
@@ -2439,12 +2472,6 @@
     for (let i = 0; i < n; i++) { sum += arr[i]; if (i >= len) sum -= arr[i - len]; out[i] = i >= len - 1 ? sum / len : sum / (i + 1); }
     return out;
   }
-  function _rsiLast(arr, period) {
-    period = period || 14; const n = arr.length; if (n < period + 1) return 50;
-    let g = 0, l = 0;
-    for (let i = n - period; i < n; i++) { const d = arr[i] - arr[i - 1]; if (d > 0) g += d; else l -= d; }
-    const rs = l === 0 ? 100 : g / l; return 100 - 100 / (1 + rs);
-  }
   /* RSI 전체 시계열(Wilder 평활) — 다이버전스 판정용 */
   function _rsiSeries(arr, period) {
     period = period || 14; const n = arr.length, out = new Array(n).fill(50);
@@ -2668,6 +2695,27 @@
     }
     c.restore();
   }
+  // RSI hero 작도(차트·오버레이, reveal). 다이버전스 선 + 값/구간 배지.
+  function _drawRsiLayers(c, rsi, M) {
+    c.save();
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    if (reveal >= 1 && rsi.divergence.type && rsi.divergence.pricePts) {
+      const a = rsi.divergence.pricePts[0], b = rsi.divergence.pricePts[1];
+      const xa = fiToX(Math.max(fiMin, a.idx)), ya = pToY(a.price), xb = fiToX(Math.max(fiMin, b.idx)), yb = pToY(b.price);
+      if ([xa, ya, xb, yb].every(isFinite)) {
+        const col = rsi.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
+        c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.setLineDash([]);
+        _evLabel(c, (rsi.divergence.type === "bullish" ? "강세" : "약세") + " 다이버전스", xb, yb, col, "left");
+      }
+    }
+    if (reveal >= 2) {
+      const zt = rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립";
+      const col = rsi.zone === "overbought" ? "#e06a6a" : rsi.zone === "oversold" ? "#46c28e" : "#8a92b2";
+      const xb = (xRight != null ? xRight : fiToX(nowFi));
+      _evLabel(c, "RSI " + Math.round(rsi.last) + " \xb7 " + zt, xb, 28, col, "right");
+    }
+    c.restore();
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -2717,8 +2765,9 @@
           _drawElliottLayers(c, ea, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
         } else if (n.blockType === "rsi") {
-          const rsi = Math.round(_rsiLast(price, (n.params && n.params.period) || 14));
-          legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
+          const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
+          _drawRsiLayers(c, rsi, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
@@ -2757,8 +2806,9 @@
           _drawElliottLayers(c, ea, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
           legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
         } else if (n.blockType === "rsi") {
-          const rsi = Math.round(_rsiLast(price, (n.params && n.params.period) || 14));
-          legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
+          const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
+          _drawRsiLayers(c, rsi, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
+          legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
@@ -2983,6 +3033,8 @@
     renderHorizons(result);
     renderNarrative(result);
     togglePhasefoldPanels();
+    toggleRsiPanel();
+    { const _rn = boardState.nodes.find(n => n.blockType === "rsi"); if (_rn) fcDrawRsi(ForgeCore.analyzeRSI((data && data.price) || [], { period: (_rn.params && _rn.params.period) || 14 })); }
   }
   /* ── 예측 시점별 표(3·6·12·24 등) ── */
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
@@ -3120,6 +3172,11 @@
     if (n.blockType === "elliott" && Array.isArray(price) && price.length >= 2) {
       const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
       const texts = ForgeCore.elliottSteps(ea), layers = [1, 1, 2, 3, 4];
+      return texts.map((t, i) => ({ text: t, layer: layers[i] }));
+    }
+    if (n.blockType === "rsi" && Array.isArray(price) && price.length >= 2) {
+      const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
+      const texts = ForgeCore.rsiSteps(rsi), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
@@ -3319,6 +3376,10 @@
     const pdm = document.getElementById("fcPdmPanel"), fold = document.getElementById("fcFoldPanel");
     if (pdm) pdm.style.display = has ? "" : "none";
     if (fold) fold.style.display = has ? "" : "none";
+  }
+  function toggleRsiPanel() {
+    const has = boardState.nodes.some(n => n.blockType === "rsi");
+    const p = document.getElementById("fcRsiPanel"); if (p) p.style.display = has ? "" : "none";
   }
 
   /* resize: re-render with stored last result/data */
