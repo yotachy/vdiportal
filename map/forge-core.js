@@ -534,7 +534,7 @@
     else if (recent.length >= 3) structure = "corrective";
     const span1 = imp.length ? Math.abs(imp[0].to.price - imp[0].from.price) : 0;
     let next = null;
-    if (recent.length === 2 && imp.length >= 1) next = { label: "3", target: imp[0].from.price + sgn * 1.618 * span1, dir: sgn };
+    if (recent.length === 2 && imp.length >= 2) next = { label: "3", target: imp[1].to.price + sgn * 1.618 * span1, dir: sgn };
     else if (recent.length === 4 && imp.length >= 4) next = { label: "5", target: imp[3].to.price + sgn * span1, dir: sgn };
     else if (recent.length === 5 && imp.length >= 5) { const span15 = Math.abs(imp[4].to.price - imp[0].from.price); next = { label: "A", target: imp[4].to.price - sgn * 0.5 * span15, dir: -sgn }; }
     let bias;
