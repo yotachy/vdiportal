@@ -575,3 +575,15 @@ test("run: MA 블록 없으면 MA 기여 0(기존 동작 보존)", () => {
   const r = ForgeCore.run(G, data, { futW: 8, timeframe: "월봉" });
   assert.ok(r.prediction.path.every(isFinite));
 });
+
+test("run: MA 블록 유무가 예측 타깃을 가른다 (MA 드리프트 격리)", () => {
+  const base = [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }];
+  const withMA = { nodes: [...base, { id: "m", kind: "block", blockType: "ma", params: { len: 5 } }], edges: [{ from: "p", to: "o" }, { from: "p", to: "m" }] };
+  const without = { nodes: base, edges: [{ from: "p", to: "o" }] };
+  const up = { price: Array.from({ length: 70 }, (_, i) => 100 + i * 1.5) };   // 정배열 상승 → MA bias>0
+  const rWith = ForgeCore.run(withMA, up, { futW: 12, timeframe: "월봉" });
+  const rNo = ForgeCore.run(without, up, { futW: 12, timeframe: "월봉" });
+  assert.ok(rWith.prediction.path.every(isFinite) && rNo.prediction.path.every(isFinite));
+  const gain = r => r.prediction.target / r.prediction.anchor;
+  assert.ok(gain(rWith) > gain(rNo), "상승국면 MA 블록이 있으면 maDrift로 타깃이 더 높다");
+});
