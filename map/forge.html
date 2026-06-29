@@ -2594,8 +2594,8 @@
   // 피보 작도(차트·오버레이 공용, reveal 인지). M=좌표 매퍼.
   function _drawFibLayers(c, fib, M) {
     c.save();
-    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity } = M;
-    const xL = fiToX(Math.max(fiMin, 0)), xR = fiToX(nowFi), GOLD = "#ffd24d", DIM = "#e8b463";
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    const xL = fiToX(Math.max(fiMin, 0)), xR = (xRight != null ? xRight : fiToX(nowFi)), GOLD = "#ffd24d", DIM = "#e8b463";
     function levelLine(L) {
       const y = pToY(L.price); if (![y, xL, xR].every(isFinite)) return;
       const ext = L.kind === "ext";
@@ -2669,7 +2669,7 @@
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " · " + _prof.label : "") });
         } else if (n.blockType === "fib") {
           const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
-          _drawFibLayers(c, fib, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          _drawFibLayers(c, fib, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.fib + "(전문)" });
         } else if (n.blockType === "elliott") {
           const piv = _zigzag(price, 0.18).slice(-8);
@@ -2697,7 +2697,7 @@
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         if (n.blockType === "fib") {
           const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
-          _drawFibLayers(c, fib, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          _drawFibLayers(c, fib, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
           legend.push({ col, t: EV_LABEL.fib + "(전문)" });
         } else if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
