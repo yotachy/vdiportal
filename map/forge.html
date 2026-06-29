@@ -1208,7 +1208,11 @@
       rows.push(numRow("pmax", "스캔 범위 최대", (n.params && n.params.pmax) ?? 128));
     }
     if (n.blockType === "elliott") rows.push(numRow("swing", "스윙 민감도(%)", (n.params && n.params.swing) ?? 3));
-    if (n.blockType === "trend") rows.push(numRow("len", "추세 기간", (n.params && n.params.len) ?? 40));
+    if (n.blockType === "trend") {
+      rows.push(numRow("len", "단기 길이(봉)", (n.params && n.params.len) ?? 40));
+      rows.push(numRow("pivotSwing", "피봇 민감도(%)", (n.params && n.params.pivotSwing) ?? 8));
+      rows.push(numRow("channelK", "채널 σ배수(k)", (n.params && n.params.channelK) ?? 2));
+    }
     if (n.blockType === "rsi") rows.push(numRow("period", "RSI 기간", (n.params && n.params.period) ?? 14));
     if (n.blockType === "fib") rows.push(numRow("len", "피보 구간", (n.params && n.params.len) ?? 120));
     if (n.blockType === "ticker") {
@@ -2403,7 +2407,7 @@
   let _evidenceSet = new Set();
   let _evidenceShow = true;
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2" };
-  const EV_LABEL = { ma: "이동평균", trend: "추세선", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
+  const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
   function evIndicatorNodes() {
     const order = ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume"];
     return boardState.nodes.filter(n => n.kind === "block" && order.includes(n.blockType))
