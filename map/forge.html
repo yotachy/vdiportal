@@ -2439,12 +2439,6 @@
     for (let i = 0; i < n; i++) { sum += arr[i]; if (i >= len) sum -= arr[i - len]; out[i] = i >= len - 1 ? sum / len : sum / (i + 1); }
     return out;
   }
-  function _rsiLast(arr, period) {
-    period = period || 14; const n = arr.length; if (n < period + 1) return 50;
-    let g = 0, l = 0;
-    for (let i = n - period; i < n; i++) { const d = arr[i] - arr[i - 1]; if (d > 0) g += d; else l -= d; }
-    const rs = l === 0 ? 100 : g / l; return 100 - 100 / (1 + rs);
-  }
   /* RSI 전체 시계열(Wilder 평활) — 다이버전스 판정용 */
   function _rsiSeries(arr, period) {
     period = period || 14; const n = arr.length, out = new Array(n).fill(50);
