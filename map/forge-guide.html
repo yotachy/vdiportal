@@ -141,6 +141,28 @@
   .path-card ul{margin:6px 0 0;padding-left:17px;font-size:12.8px;color:var(--eth)}
   .path-card li{margin-bottom:4px}
 
+  /* ---- evidence table ---- */
+  .ev-wrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+  .ev-head,.ev-row{display:grid;grid-template-columns:1fr 64px 92px 1fr;align-items:center;gap:10px;padding:11px 16px}
+  .ev-head{background:var(--raised);font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--faint);text-transform:uppercase}
+  .ev-head span:nth-child(2),.ev-head span:nth-child(3){text-align:right}
+  .ev-row{border-top:1px solid var(--line);font-size:13.5px}
+  .ev-row span:first-child{color:var(--ink)}
+  .ev-row u{text-decoration:none;color:var(--gold);border-bottom:1px dashed var(--gold-dim)}
+  .ev-row b{text-align:right;font-family:ui-monospace,monospace;font-weight:700;color:var(--eth)}
+  .ev-row em{font-style:normal;font-size:12px;font-weight:600}
+  .ev-row em.same{color:var(--bull)}.ev-row em.diff{color:var(--gold)}
+  .ev-row.hl{background:linear-gradient(90deg,rgba(70,194,142,.09),transparent)}
+  .ev-row.hl b{color:var(--bull)}
+  .ev-row.hl2{background:linear-gradient(90deg,rgba(232,180,99,.09),transparent)}
+  .ev-row.base b{color:var(--ink)}
+  @media(max-width:680px){
+    .ev-head{display:none}
+    .ev-row{grid-template-columns:1fr auto;gap:4px 12px;row-gap:2px}
+    .ev-row span:first-child{grid-column:1/-1;font-weight:600;margin-bottom:2px}
+    .ev-row b{text-align:left}.ev-row b::before{content:attr(data-l)}
+  }
+
   /* ---- live demo ---- */
   .demo{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:4px}
   .demo-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
@@ -327,9 +349,55 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
     </div>
   </section>
 
-  <!-- 7. LIVE DEMO -->
-  <section id="demo">
+  <!-- 7. EDGES -->
+  <section id="edges">
     <div class="sec-num">07</div>
+    <h2>연결선은 분석에 영향이 있을까?</h2>
+    <p class="sec-desc">직관적으로는 "선을 이었으니 분석에 반영된다"고 기대하지만 — 실측 결과는 다릅니다.
+      <b>지금 구조에서 연결선은 분석에 거의 영향을 주지 않습니다.</b> 진짜 영향을 주는 건
+      <b>노드의 존재 + 그 노드의 확신·중요도·타입</b>이지, 연결선이 아닙니다.</p>
+
+    <div class="ev-wrap">
+      <div class="ev-head"><span>실험 (내장 BTC 샘플)</span><span>시그널</span><span>예측 목표</span><span>판정</span></div>
+      <div class="ev-row base"><span>① 원본 (전부 연결)</span><b>90</b><b>102,390</b><em class="same">기준</em></div>
+      <div class="ev-row hl"><span>② 추세 노드 <u>연결만</u> 끊기 (노드 잔존)</span><b>90</b><b>102,390</b><em class="same">완전 동일</em></div>
+      <div class="ev-row"><span>③ 추세 <u>노드 자체</u> 제거</span><b>88</b><b>101,819</b><em class="diff">바뀜</em></div>
+      <div class="ev-row"><span>④ MA <u>노드 자체</u> 제거</span><b>69</b><b>92,371</b><em class="diff">크게 바뀜</em></div>
+      <div class="ev-row hl2"><span>⑤ <u>연결 0</u>인데 확신 −100 노드 추가</span><b>73</b><b>97,631</b><em class="diff">공중부양인데 끌어내림</em></div>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:13px">②가 ①과 똑같다 = 선을 다 끊어도 결과 불변. ⑤ = 아무 데도 안 이은 노드의 확신이 점수를 90→73으로 끌어내림.</p>
+
+    <div class="twocol" style="margin-top:22px">
+      <div class="path-card c1">
+        <h4><span class="pdot"></span>연결이 영향 주는 곳 — 제한적</h4>
+        <ul>
+          <li><code>combine</code> 결합 입력 구성 · 위상 계산순서</li>
+          <li><code>predict</code> 시그널 소스 선택</li>
+          <li>거래량 확인 bias (volume이 predict에 <b>직접</b> 연결 시만)</li>
+          <li>단, <b>fallback이 강함</b>: predict 입력없음→combine, combine 비면→raw price</li>
+        </ul>
+      </div>
+      <div class="path-card c2">
+        <h4><span class="pdot"></span>연결과 무관한 곳 — 핵심</h4>
+        <ul>
+          <li>예측 곡선의 <b>추세·MA·계절성 드리프트</b> → 타입으로 노드 찾아 raw price 재계산</li>
+          <li><b>확신(conviction) 바이어스</b> → 모든 노드 순회, 연결 0이어도 기여</li>
+          <li><code>run()</code>이 <code>graph.nodes.find(blockType===…)</code>로 조회 — 와이어링 무시</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note warn">
+      <div class="nh">⚠ 진화 1순위 후보</div>
+      <p>지금 연결선은 <b>계산용이라기보다 의미·시각 표현에 가깝습니다.</b> "나만의 엔진"으로 키운다면 여기가 핵심 한 수예요 —
+        연결을 진짜 데이터 흐름으로 만들면(추세 드리프트도 wired input 기반, 확신도 predict까지 도달한 노드만 집계)
+        그래프가 <b>장식에서 진짜 알고리즘으로</b> 바뀝니다. 06의 "두 경로" 통합과 같은 뿌리의 작업입니다.</p>
+    </div>
+  </section>
+
+  <!-- 8. LIVE DEMO -->
+  <section id="demo">
+    <div class="sec-num">08</div>
     <h2>라이브 — 엔진을 직접 돌려보기</h2>
     <p class="sec-desc">이 페이지는 실제 <code>forge-core.js</code>를 불러와 내장 BTC 샘플 포지를 계산합니다.
       슬라이더로 <b>A층(확신)</b>과 <b>타임프레임</b>을 바꾸면 예측이 어떻게 기우는지 바로 보입니다.</p>
