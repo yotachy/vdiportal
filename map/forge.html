@@ -1202,7 +1202,10 @@
     }
     pane.classList.add("editing");
     const rows = [];
-    if (n.blockType === "ma") rows.push(numRow("len", "이동평균 길이", (n.params && n.params.len) ?? 10));
+    if (n.blockType === "ma") {
+      rows.push(numRow("len", "이동평균 길이", (n.params && n.params.len) ?? 10));
+      rows.push(numRow("ema", "EMA 사용(0/1)", (n.params && n.params.ema) ? 1 : 0));
+    }
     if (n.blockType === "phasefold") {
       rows.push(numRow("pmin", "스캔 범위 최소", (n.params && n.params.pmin) ?? 16));
       rows.push(numRow("pmax", "스캔 범위 최대", (n.params && n.params.pmax) ?? 128));
@@ -2524,6 +2527,55 @@
     pivLine(ta.pivots.support, "#46c28e"); pivLine(ta.pivots.resistance, "#e06a6a");
     c.restore();
   }
+  // 다중 MA 작도(차트·오버레이 공용). M=좌표 매퍼.
+  function _drawMALayers(c, ma, M) {
+    c.save();
+    const { fiToX, pToY, nowFi, fiMin = 0 } = M;
+    const COL = { short: "#7fb0ff", mid: "#5b8def", long: "#3b62c0" };
+    const WID = { short: 1.4, mid: 2.0, long: 2.6 };
+    function strokeSeries(series, key, srOn) {
+      c.beginPath(); let started = false;
+      for (let fi = Math.max(fiMin, 0); fi <= nowFi; fi++) {
+        const v = series[fi]; if (!isFinite(v)) continue;
+        const x = fiToX(fi), y = pToY(v); if (!isFinite(x) || !isFinite(y)) continue;
+        started ? c.lineTo(x, y) : c.moveTo(x, y); started = true;
+      }
+      c.stroke();
+    }
+    function drawMA(s, key) {
+      if (!s) return;
+      const srOn = ma.sr.ma === key;
+      if (key === "long") { c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = WID[key] + 1.9; strokeSeries(s.series, key); }
+      c.strokeStyle = COL[key]; c.lineWidth = srOn ? WID[key] + 1.2 : WID[key]; c.setLineDash(srOn ? [5, 4] : []);
+      strokeSeries(s.series, key); c.setLineDash([]);
+    }
+    drawMA(ma.mas.long, "long"); drawMA(ma.mas.mid, "mid"); drawMA(ma.mas.short, "short");
+    // 크로스 마커
+    if (ma.cross.type && ma.cross.barsAgo != null && ma.mas.short) {
+      const fi = Math.max(fiMin, nowFi - ma.cross.barsAgo), v = ma.mas.short.series[fi];
+      if (isFinite(v)) {
+        const x = fiToX(fi), y = pToY(v);
+        if (isFinite(x) && isFinite(y)) {
+          const gold = ma.cross.type === "golden";
+          c.fillStyle = gold ? "#46c28e" : "#e06a6a";
+          c.beginPath(); c.arc(x, y, 4, 0, 7); c.fill();
+          c.font = "700 9.5px ui-monospace,monospace"; c.textAlign = "center";
+          c.fillText((gold ? "골든 " : "데드 ") + ma.cross.barsAgo + "봉", x, y - 7);
+        }
+      }
+    }
+    // 배열 라벨
+    if (ma.mas.short) {
+      const x = fiToX(nowFi), y = pToY(ma.mas.short.last);
+      if (isFinite(x) && isFinite(y)) {
+        const o = ma.align.order;
+        c.fillStyle = o === "bull" ? "#46c28e" : o === "bear" ? "#e06a6a" : "#8a92b2";
+        c.font = "700 9.5px ui-monospace,monospace"; c.textAlign = "left";
+        c.fillText((o === "bull" ? "정배열 ▲" : o === "bear" ? "역배열 ▼" : "혼조 –") + (ma.sr.ma ? " · " + (ma.sr.side === "support" ? "지지" : "저항") : ""), x + 4, y - 6);
+      }
+    }
+    c.restore();
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -2550,10 +2602,9 @@
       for (const n of nodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         if (n.blockType === "ma") {
-          const len = (n.params && n.params.len) || 20, ma = _sma(price, len).slice(-Hn);
-          c.strokeStyle = col; c.setLineDash([]); c.lineWidth = 1.8; c.beginPath(); let st = false;
-          for (let i = 0; i < Hn; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = toXh(i), y = toY(v); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
-          c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
+          const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
+          _drawMALayers(c, ma, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off });
+          legend.push({ col, t: EV_LABEL.ma + "(다중)" });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
           const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
