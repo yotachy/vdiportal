@@ -2471,14 +2471,16 @@
   }
   // 다각도 추세 4레이어 작도(차트·오버레이 공용). M=좌표 매퍼.
   function _drawTrendLayers(c, ta, M) {
-    const { fiToX, pToY, nowFi, xNow, xRight, futBars } = M;
+    c.save();
+    const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0 } = M;
     const COL = { long: "#46c28e", mid: "#5b8def", short: "#e8b463" };
     const W = { long: 2.6, mid: 2.0, short: 1.6 };
     const DASH = { long: [], mid: [], short: [5, 4] };
     function winLine(w, key) {
       if (!w) return;
       const valAt = fi => w.bRaw + w.slopeRaw * (fi - w.startIdx);
-      const xa = fiToX(w.startIdx), ya = pToY(valAt(w.startIdx)), xb = xNow, yb = pToY(valAt(nowFi));
+      const fiL = Math.max(w.startIdx, fiMin);
+      const xa = fiToX(fiL), ya = pToY(valAt(fiL)), xb = xNow, yb = pToY(valAt(nowFi));
       if (![xa, ya, xb, yb].every(isFinite)) return;
       c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = W[key] + 1.9;
       c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke();
@@ -2495,7 +2497,7 @@
     // 채널(장기 ±k·σ)
     if (ta.channel) {
       const ch = ta.channel, upAt = fi => pToY(ch.bRaw + ch.slopeRaw * fi + ch.k * ch.sigma), loAt = fi => pToY(ch.bRaw + ch.slopeRaw * fi - ch.k * ch.sigma);
-      const x0 = fiToX(0), u0 = upAt(0), l0 = loAt(0), u1 = upAt(nowFi), l1 = loAt(nowFi);
+      const x0 = fiToX(fiMin), u0 = upAt(fiMin), l0 = loAt(fiMin), u1 = upAt(nowFi), l1 = loAt(nowFi);
       if ([x0, u0, l0, u1, l1].every(isFinite)) {
         c.globalAlpha = .10; c.fillStyle = COL.long; c.beginPath();
         c.moveTo(x0, u0); c.lineTo(xNow, u1); c.lineTo(xNow, l1); c.lineTo(x0, l0); c.closePath(); c.fill(); c.globalAlpha = 1;
@@ -2509,12 +2511,14 @@
     // 피봇 지지/저항
     function pivLine(L, col) {
       if (!L) return;
-      const xa = fiToX(L.fromIdx), ya = pToY(L.slope * L.fromIdx + L.b), xb = xNow, yb = pToY(L.slope * nowFi + L.b);
+      const fiL = Math.max(L.fromIdx, fiMin);
+      const xa = fiToX(fiL), ya = pToY(L.slope * fiL + L.b), xb = xNow, yb = pToY(L.slope * nowFi + L.b);
       if (![xa, ya, xb, yb].every(isFinite)) return;
       c.strokeStyle = col; c.lineWidth = 1.4; c.setLineDash([4, 4]); c.globalAlpha = .85;
       c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
     }
     pivLine(ta.pivots.support, "#46c28e"); pivLine(ta.pivots.resistance, "#e06a6a");
+    c.restore();
   }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
@@ -2552,7 +2556,7 @@
           _drawTrendLayers(c, ta, {
             fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))),
             pToY: v => toY(v),
-            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars
+            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: off
           });
           legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "fib") {
