@@ -359,6 +359,83 @@
     ];
   }
 
+  function synthVolume(price) {
+    const n = price.length;
+    if (n < 2) return [];
+    const BASE = 1000000, out = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const ret = i > 0 ? (price[i] - price[i - 1]) / (Math.abs(price[i - 1]) || 1) : 0;
+      const cyc = 0.6 * Math.abs(Math.sin(i * 0.5));
+      out[i] = Math.round(BASE * (1 + 3.2 * Math.abs(ret) + cyc));
+    }
+    return out;
+  }
+
+  function analyzeVolume(price, volume, opts) {
+    opts = opts || {};
+    const len = opts.len || 12, spikeMult = opts.spikeMult != null ? opts.spikeMult : 1.5;
+    const P = price.length;
+    const EMPTY = { series: [], obv: [], trend: 0, ratio: 1, state: "normal", obvTrend: 0, relationship: "weakening", divergence: { type: null, pricePts: null }, bias: 0 };
+    const vol = (Array.isArray(volume) && volume.length >= 2) ? volume : synthVolume(price);
+    const L = Math.min(P, vol.length);
+    if (L < 2) return EMPTY;
+    const offset = P - L;
+    const priceA = price.slice(P - L), series = vol.slice(vol.length - L);
+    const obv = new Array(L); obv[0] = 0;
+    for (let i = 1; i < L; i++) obv[i] = obv[i - 1] + (priceA[i] > priceA[i - 1] ? series[i] : priceA[i] < priceA[i - 1] ? -series[i] : 0);
+    const w = Math.max(2, Math.min(len, L - 1));
+    const fV = linfit(series.slice(L - w));
+    let meanV = 0; for (const v of series) meanV += v; meanV = (meanV / L) || 1;
+    const trend = Math.max(-1, Math.min(1, Math.tanh((fV.b / (Math.abs(meanV) || 1)) * 100)));
+    const rN = Math.min(3, L), bN = Math.min(len, L);
+    let rs = 0; for (let i = L - rN; i < L; i++) rs += series[i]; const recent = rs / rN;
+    let bs = 0; for (let i = L - bN; i < L; i++) bs += series[i]; const base = bs / bN;
+    const ratio = base > 0 ? recent / base : 1;
+    const state = ratio >= spikeMult ? "spike" : ratio <= 1 / spikeMult ? "contract" : "normal";
+    const fO = linfit(obv.slice(L - w));
+    let maxAbsO = 1; for (const v of obv) maxAbsO = Math.max(maxAbsO, Math.abs(v));
+    const obvTrend = Math.max(-1, Math.min(1, Math.tanh((fO.b / maxAbsO) * 100)));
+    const pw = Math.min(6, L - 1);
+    const priceUp = priceA[L - 1] > priceA[L - 1 - pw], volUp = recent > base;
+    const relationship = priceUp ? (volUp ? "confirm" : "weakening") : (volUp ? "selling" : "capitulation");
+    const sw = detectSwings(priceA, 0.03), pts = sw.map(p => ({ idx: p.idx, price: p.price }));
+    const lows = [], highs = [];
+    for (let i = 0; i < pts.length; i++) {
+      const pr = pts[i - 1], nx = pts[i + 1], pv = pts[i].price;
+      const isHigh = (pr && nx) ? (pv >= pr.price && pv >= nx.price) : (nx ? pv >= nx.price : (pr ? pv >= pr.price : true));
+      (isHigh ? highs : lows).push(pts[i]);
+    }
+    const obvAt = idx => obv[Math.max(0, Math.min(L - 1, idx))];
+    const abs = p => ({ idx: p.idx + offset, price: p.price });
+    let divergence = { type: null, pricePts: null };
+    if (lows.length >= 2) { const a = lows[lows.length - 2], b = lows[lows.length - 1]; if (b.price < a.price && obvAt(b.idx) > obvAt(a.idx)) divergence = { type: "bullish", pricePts: [abs(a), abs(b)] }; }
+    if (!divergence.type && highs.length >= 2) { const a = highs[highs.length - 2], b = highs[highs.length - 1]; if (b.price > a.price && obvAt(b.idx) < obvAt(a.idx)) divergence = { type: "bearish", pricePts: [abs(a), abs(b)] }; }
+    const divDir = divergence.type === "bullish" ? 1 : divergence.type === "bearish" ? -1 : 0;
+    const confDir = relationship === "confirm" ? 1 : relationship === "weakening" ? -0.4 : relationship === "selling" ? -0.7 : 0.3;
+    const bias = Math.max(-1, Math.min(1, 0.45 * divDir + 0.35 * confDir + 0.20 * obvTrend));
+    return { series, obv, trend, ratio, state, obvTrend, relationship, divergence, bias };
+  }
+
+  function volumeSteps(va) {
+    const tTxt = va.trend > 0.1 ? "증가 ↑" : va.trend < -0.1 ? "감소 ↓" : "황보 →";
+    const sTxt = va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이";
+    const rel = va.relationship === "confirm" ? "상승에 거래량 동반 — 추세 건강(확인)"
+      : va.relationship === "weakening" ? "상승하나 거래량 감소 — 추진력 약화"
+      : va.relationship === "selling" ? "하락에 거래량 증가 — 매도 압력"
+      : "하락+거래량 위축 — 투매 진정(바닥 가능)";
+    const dv = va.divergence.type === "bullish" ? "강세 거래량 다이버전스"
+      : va.divergence.type === "bearish" ? "약세 거래량 다이버전스"
+      : "OBV " + (va.obvTrend > 0.1 ? "상승" : va.obvTrend < -0.1 ? "하락" : "황보");
+    const bTxt = va.bias > 0.1 ? "상승" : va.bias < -0.1 ? "하락" : "중립";
+    return [
+      "거래량 추세 " + tTxt,
+      "최근/평균 " + va.ratio.toFixed(2) + "x \xb7 " + sTxt,
+      "가격-거래량: " + rel,
+      dv,
+      "종합 방향 " + bTxt + " (bias " + va.bias.toFixed(2) + ")"
+    ];
+  }
+
   function fibPos(arr, len) {
     const out = [];
     for (let i = 0; i < arr.length; i++) {
@@ -831,5 +908,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, analyzeRSI, rsiSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps };
 });
