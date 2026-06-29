@@ -2716,6 +2716,37 @@
     }
     c.restore();
   }
+  /* 거래량 hero 작도 — 다이버전스 선(reveal≥1) + 급증 마커·상태 배지(reveal≥2) */
+  function _drawVolumeLayers(c, va, M) {
+    if (!va) return;
+    const { fiToX, pToY, fiMin, reveal, xRight } = M;
+    c.save();
+    // 레이어1: 가격-OBV 다이버전스 선
+    if (reveal >= 1 && va.divergence.type && va.divergence.pricePts) {
+      const col = va.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
+      const a = va.divergence.pricePts[0], b = va.divergence.pricePts[1];
+      const xa = fiToX(Math.max(fiMin, a.idx)), ya = pToY(a.price);
+      const xb = fiToX(Math.max(fiMin, b.idx)), yb = pToY(b.price);
+      if ([xa, ya, xb, yb].every(isFinite)) {
+        c.strokeStyle = col; c.lineWidth = 2; c.setLineDash([5, 4]);
+        c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.setLineDash([]);
+        _evLabel(c, (va.divergence.type === "bullish" ? "강세" : "약세") + " 거래량 다이버전스", (xa + xb) / 2, Math.min(ya, yb) - 8, col, "center");
+      }
+    }
+    // 레이어2: 급증 마커 + 상태/관계 배지
+    if (reveal >= 2) {
+      const relTxt = va.relationship === "confirm" ? "상승 확인" : va.relationship === "weakening" ? "추진력 약화" : va.relationship === "selling" ? "매도 압력" : "투매 진정";
+      const relCol = (va.relationship === "confirm" || va.relationship === "capitulation") ? "#46c28e" : "#e06a6a";
+      const stTxt = va.state === "spike" ? "거래량 급증" : va.state === "contract" ? "거래량 위축" : "거래량 평이";
+      // 급증 시 마지막 봉(현재) 가격 위에 짧은 골드 수직 틱
+      if (va.state === "spike" && isFinite(M.lastPrice)) {
+        const x = fiToX(Math.max(fiMin, M.nowFi)), y = pToY(M.lastPrice);
+        if (isFinite(x) && isFinite(y)) { c.strokeStyle = "#e8b463"; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x, y - 14); c.lineTo(x, y - 4); c.stroke(); }
+      }
+      _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, 28, relCol, "right");
+    }
+    c.restore();
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -2768,6 +2799,11 @@
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
           _drawRsiLayers(c, rsi, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
+        } else if (n.blockType === "volume") {
+          const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
+          const va = ForgeCore.analyzeVolume(price, vser);
+          _drawVolumeLayers(c, va, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1] });
+          legend.push({ col, t: EV_LABEL.volume + "(전문)" });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
@@ -2809,6 +2845,11 @@
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
           _drawRsiLayers(c, rsi, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
           legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
+        } else if (n.blockType === "volume") {
+          const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
+          const va = ForgeCore.analyzeVolume(price, vser);
+          _drawVolumeLayers(c, va, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw), lastPrice: price[P - 1] });
+          legend.push({ col, t: EV_LABEL.volume + "(전문)" });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
@@ -3178,6 +3219,11 @@
       const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
       const texts = ForgeCore.rsiSteps(rsi), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
+    }
+    if (n.blockType === "volume") {
+      const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
+      const va = ForgeCore.analyzeVolume(price, vser);
+      return ForgeCore.volumeSteps(va).map((text, i) => ({ text, layer: [1, 1, 2, 2, 2][i] }));
     }
     return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
   }
