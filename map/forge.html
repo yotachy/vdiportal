@@ -2679,7 +2679,7 @@
           const piv = _zigzag(price, 0.18).slice(-8);
           c.strokeStyle = col; c.fillStyle = col; c.setLineDash([]); c.lineWidth = 1.6; c.beginPath(); let st = false; const pts = [];
           piv.forEach((w, k) => { const hx = w.i - off; if (hx < 0 || hx >= Hn) return; const x = toXh(hx), y = toY(w.p); pts.push({ x, y, l: _EWLAB[k] || "" }); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; });
-          c.stroke(); for (const p of pts) { c.beginPath(); c.arc(p.x, p.y, 2.6, 0, 7); c.fill(); c.fillText(p.l, p.x + 3, p.y - 3); }
+          c.stroke(); for (const p of pts) { c.beginPath(); c.arc(p.x, p.y, 2.6, 0, 7); c.fill(); _evLabel(c, p.l, p.x + 3, p.y - 3, col, "left"); }
           if (pts.length) legend.push({ col, t: EV_LABEL.elliott });
         } else if (n.blockType === "rsi") {
           const rsi = Math.round(_rsiLast(price, (n.params && n.params.period) || 14));
@@ -2721,7 +2721,7 @@
           const piv = _zigzag(price, 0.18).slice(-8);
           c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1.6; c.setLineDash([]); c.beginPath(); let st = false; const pts = [];
           piv.forEach((w, k) => { const x = xOf(w.i), y = clipY(yOf(w.p)); pts.push({ x, y, l: _EWLAB[k] || "" }); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; });
-          c.stroke(); for (const p of pts) { c.beginPath(); c.arc(p.x, p.y, 2.6, 0, 7); c.fill(); c.fillText(p.l, p.x + 3, p.y - 3); }
+          c.stroke(); for (const p of pts) { c.beginPath(); c.arc(p.x, p.y, 2.6, 0, 7); c.fill(); _evLabel(c, p.l, p.x + 3, p.y - 3, col, "left"); }
           if (pts.length) legend.push({ col, t: EV_LABEL.elliott });
         } else if (n.blockType === "rsi") {
           const rsi = Math.round(_rsiLast(price, (n.params && n.params.period) || 14));
