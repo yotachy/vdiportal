@@ -269,6 +269,85 @@
     return piv;
   }
 
+  function analyzeTrend(price, opts) {
+    opts = opts || {};
+    const shortLen = opts.shortLen || 40;
+    const pivotSwing = opts.pivotSwing != null ? opts.pivotSwing : 0.08;
+    const channelK = opts.channelK != null ? opts.channelK : 2;
+    const weights = opts.weights || { long: 0.5, mid: 0.3, short: 0.2 };
+    const P = price.length;
+    const EMPTY = {
+      windows: { long: null, mid: null, short: null },
+      pivots: { support: null, resistance: null, points: [] },
+      channel: null, blend: { slopeLog: 0, channelSigmaLog: 0 }, dominant: null
+    };
+    if (P < 2) return EMPTY;
+    const logP = price.map(p => Math.log(Math.max(1e-9, p)));
+
+    function winFit(m) {
+      if (m < 2 || m > P) return null;
+      const start = P - m, seg = price.slice(start), lseg = logP.slice(start);
+      const fr = linfit(seg), fl = linfit(lseg);   // {a:절편, b:기울기}
+      let mean = 0; for (let i = 0; i < m; i++) mean += seg[i]; mean /= m;
+      let ssT = 0, ssR = 0;
+      for (let i = 0; i < m; i++) { const pr = fr.a + fr.b * i, d = seg[i] - mean, e = seg[i] - pr; ssT += d * d; ssR += e * e; }
+      const r2 = ssT > 0 ? Math.max(0, 1 - ssR / ssT) : 0;
+      return { startIdx: start, m, slopeRaw: fr.b, bRaw: fr.a, slopeLog: fl.b, bLog: fl.a, r2 };
+    }
+
+    let long = winFit(P), mid = winFit(Math.round(P * 0.5)), short = winFit(Math.min(P, shortLen));
+    if (mid && long && mid.m >= long.m) mid = null;
+    if (short && mid && short.m >= mid.m) short = null;
+    else if (short && !mid && long && short.m >= long.m) short = null;
+    if (P < 15) { mid = null; short = null; }
+
+    // 피봇 분류(지그재그는 교대 → 이웃 비교로 high/low)
+    const sw = detectSwings(price, pivotSwing), points = [];
+    for (let i = 0; i < sw.length; i++) {
+      const pv = sw[i].price, pr = sw[i - 1], nx = sw[i + 1];
+      let type;
+      if (pr && nx) type = (pv >= pr.price && pv >= nx.price) ? "high" : "low";
+      else if (nx) type = pv >= nx.price ? "high" : "low";
+      else if (pr) type = pv >= pr.price ? "high" : "low";
+      else type = "high";
+      points.push({ idx: sw[i].idx, price: pv, type });
+    }
+    function fitPivots(pts) {
+      if (pts.length < 2) return null;
+      let sx = 0, sy = 0, sxx = 0, sxy = 0;
+      for (const p of pts) { sx += p.idx; sy += p.price; sxx += p.idx * p.idx; sxy += p.idx * p.price; }
+      const m = pts.length, slope = (m * sxy - sx * sy) / (m * sxx - sx * sx || 1), b = (sy - slope * sx) / m;
+      return { slope, b, fromIdx: pts[0].idx, toIdx: pts[pts.length - 1].idx };
+    }
+    const support = fitPivots(points.filter(p => p.type === "low"));
+    const resistance = fitPivots(points.filter(p => p.type === "high"));
+
+    // 채널(장기 원시회귀 잔차 σ) + 채널 로그 σ(예측용)
+    let channel = null, channelSigmaLog = 0;
+    if (long) {
+      let s = 0; const r = [];
+      for (let i = 0; i < P; i++) { const e = price[i] - (long.bRaw + long.slopeRaw * i); r.push(e); s += e; }
+      const mu = s / P; let v = 0; for (const e of r) v += (e - mu) * (e - mu);
+      channel = { slopeRaw: long.slopeRaw, bRaw: long.bRaw, sigma: Math.sqrt(v / P), k: channelK };
+      let sl = 0; const rl = [];
+      for (let i = 0; i < P; i++) { const e = logP[i] - (long.bLog + long.slopeLog * i); rl.push(e); sl += e; }
+      const ml = sl / P; let vl = 0; for (const e of rl) vl += (e - ml) * (e - ml);
+      channelSigmaLog = Math.sqrt(vl / P);
+    }
+
+    // 블렌드(R²가중·장기우선) + 지배창
+    const wins = [["long", long], ["mid", mid], ["short", short]];
+    let num = 0, den = 0, dominant = null, best = -1;
+    for (const [name, w] of wins) {
+      if (!w) continue;
+      const eff = (weights[name] || 0) * w.r2; num += eff * w.slopeLog; den += eff;
+      const sc = Math.abs(w.slopeLog) * w.r2; if (sc > best) { best = sc; dominant = name; }
+    }
+    const slopeLog = den > 0 ? num / den : (long ? long.slopeLog : 0);
+
+    return { windows: { long, mid, short }, pivots: { support, resistance, points }, channel, blend: { slopeLog, channelSigmaLog }, dominant };
+  }
+
   function elliottAnalyze(arr, sens) {
     const n = arr.length;
     const sw = detectSwings(arr, sens);
@@ -489,5 +568,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend };
 });

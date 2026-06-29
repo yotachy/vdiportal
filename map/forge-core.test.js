@@ -405,3 +405,48 @@ test("sampleGraph: 10 nodes, DAG runs, descriptions are truthful, bullish net", 
   const r0 = ForgeCore.run(g0, data, { futW: 120, visionBias: 0 });
   assert.ok(r.verdict.score > r0.verdict.score);
 });
+
+test("analyzeTrend: 완전 직선 → r2≈1, slopeRaw 정확, blend 유한·양수", () => {
+  const price = Array.from({ length: 60 }, (_, i) => 100 + 2 * i); // 기울기 2/봉
+  const ta = ForgeCore.analyzeTrend(price, { shortLen: 20 });
+  assert.ok(ta.windows.long, "long 창 존재");
+  assert.ok(Math.abs(ta.windows.long.slopeRaw - 2) < 1e-6);
+  assert.ok(ta.windows.long.r2 > 0.999);
+  assert.ok(ta.blend.slopeLog > 0 && isFinite(ta.blend.slopeLog));
+});
+
+test("analyzeTrend: 지수성장 → slopeLog 일정, channelSigmaLog≈0", () => {
+  const g = Math.log(1.05);
+  const price = Array.from({ length: 80 }, (_, i) => 10 * Math.exp(g * i));
+  const ta = ForgeCore.analyzeTrend(price);
+  assert.ok(Math.abs(ta.windows.long.slopeLog - g) < 1e-6);
+  assert.ok(ta.blend.channelSigmaLog < 1e-6);
+});
+
+test("analyzeTrend: 지그재그 → 피봇 고/저점 둘 다 존재", () => {
+  const price = [];
+  for (let c = 0; c < 4; c++) { for (let i = 0; i < 10; i++) price.push(100 + i); for (let i = 0; i < 10; i++) price.push(110 - i); }
+  const ta = ForgeCore.analyzeTrend(price, { pivotSwing: 0.05 });
+  assert.ok(ta.pivots.points.length >= 3);
+  assert.ok(ta.pivots.points.some(p => p.type === "high"));
+  assert.ok(ta.pivots.points.some(p => p.type === "low"));
+});
+
+test("analyzeTrend: 노이즈 직선 → 채널 sigma 유한·양수", () => {
+  const price = Array.from({ length: 50 }, (_, i) => 100 + i + ((i * 7) % 5 - 2));
+  const ta = ForgeCore.analyzeTrend(price);
+  assert.ok(ta.channel && ta.channel.sigma > 0 && isFinite(ta.channel.sigma));
+});
+
+test("analyzeTrend: 소량 데이터(P<15) → long만, 예외 없음", () => {
+  const ta = ForgeCore.analyzeTrend([10, 11, 12, 13, 14, 15]);
+  assert.ok(ta.windows.long);
+  assert.strictEqual(ta.windows.mid, null);
+  assert.strictEqual(ta.windows.short, null);
+});
+
+test("analyzeTrend: P<2 → 빈 결과, 예외 없음", () => {
+  const ta = ForgeCore.analyzeTrend([42]);
+  assert.strictEqual(ta.windows.long, null);
+  assert.strictEqual(ta.blend.slopeLog, 0);
+});
