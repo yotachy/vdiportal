@@ -20,7 +20,7 @@
   .forge-top{display:flex;align-items:center;gap:14px;height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
   .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
   .forge-split{display:flex;flex:1;min-width:0}
-  .board-pane{position:relative;flex:0 0 var(--board-w,640px);min-width:280px;overflow:hidden;display:flex;flex-direction:column}
+  .board-pane{position:relative;flex:0 0 var(--board-w,480px);min-width:280px;overflow:hidden;display:flex;flex-direction:column}
   .chart-pane{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
   /* 좌우 크기조절 거터 */
   .forge-gutter{flex:0 0 7px;background:var(--line);cursor:col-resize;position:relative;z-index:6;transition:background .12s}
@@ -3474,7 +3474,7 @@
     const gutter = document.getElementById("forgeGutter");
     const chart = document.getElementById("chartPane");
     if (!split || !gutter || !chart) return;
-    const DEFW = 640, MINB = 280, MINC = 320;
+    const DEFW = 480, MINB = 280, MINC = 320;
     const board = document.getElementById("boardPane");
     let saved = null; try { saved = localStorage.getItem("scoopforge_board_w"); } catch (_) {}
     if (saved && board) board.style.flexBasis = saved;
