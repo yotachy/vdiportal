@@ -1208,7 +1208,11 @@
       rows.push(numRow("pmax", "스캔 범위 최대", (n.params && n.params.pmax) ?? 128));
     }
     if (n.blockType === "elliott") rows.push(numRow("swing", "스윙 민감도(%)", (n.params && n.params.swing) ?? 3));
-    if (n.blockType === "trend") rows.push(numRow("len", "추세 기간", (n.params && n.params.len) ?? 40));
+    if (n.blockType === "trend") {
+      rows.push(numRow("len", "단기 길이(봉)", (n.params && n.params.len) ?? 40));
+      rows.push(numRow("pivotSwing", "피봇 민감도(%)", (n.params && n.params.pivotSwing) ?? 8));
+      rows.push(numRow("channelK", "채널 σ배수(k)", (n.params && n.params.channelK) ?? 2));
+    }
     if (n.blockType === "rsi") rows.push(numRow("period", "RSI 기간", (n.params && n.params.period) ?? 14));
     if (n.blockType === "fib") rows.push(numRow("len", "피보 구간", (n.params && n.params.len) ?? 120));
     if (n.blockType === "ticker") {
@@ -2403,7 +2407,7 @@
   let _evidenceSet = new Set();
   let _evidenceShow = true;
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2" };
-  const EV_LABEL = { ma: "이동평균", trend: "추세선", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
+  const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
   function evIndicatorNodes() {
     const order = ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume"];
     return boardState.nodes.filter(n => n.kind === "block" && order.includes(n.blockType))
@@ -2469,6 +2473,57 @@
       y += 14;
     }
   }
+  // 다각도 추세 4레이어 작도(차트·오버레이 공용). M=좌표 매퍼.
+  function _drawTrendLayers(c, ta, M) {
+    c.save();
+    const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0 } = M;
+    const COL = { long: "#46c28e", mid: "#5b8def", short: "#e8b463" };
+    const W = { long: 2.6, mid: 2.0, short: 1.6 };
+    const DASH = { long: [], mid: [], short: [5, 4] };
+    function winLine(w, key) {
+      if (!w) return;
+      const valAt = fi => w.bRaw + w.slopeRaw * (fi - w.startIdx);
+      const fiL = Math.max(w.startIdx, fiMin);
+      const xa = fiToX(fiL), ya = pToY(valAt(fiL)), xb = xNow, yb = pToY(valAt(nowFi));
+      if (![xa, ya, xb, yb].every(isFinite)) return;
+      c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = W[key] + 1.9;
+      c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke();
+      c.strokeStyle = COL[key]; c.lineWidth = W[key]; c.setLineDash(DASH[key]);
+      c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke();
+      const ye = pToY(valAt(nowFi + futBars));
+      if (isFinite(ye)) { c.globalAlpha = .65; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(xb, yb); c.lineTo(xRight, ye); c.stroke(); c.globalAlpha = 1; }
+      c.setLineDash([]);
+      // 강도/각도 라벨
+      const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
+      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + w.r2.toFixed(2) + " " + dir;
+      c.fillStyle = COL[key]; c.font = "700 9.5px ui-monospace,monospace"; c.textAlign = "left"; c.fillText(lab, Math.min(xb, xRight - 4) + 3, yb - 4);
+    }
+    // 채널(장기 ±k·σ)
+    if (ta.channel) {
+      const ch = ta.channel, upAt = fi => pToY(ch.bRaw + ch.slopeRaw * fi + ch.k * ch.sigma), loAt = fi => pToY(ch.bRaw + ch.slopeRaw * fi - ch.k * ch.sigma);
+      const x0 = fiToX(fiMin), u0 = upAt(fiMin), l0 = loAt(fiMin), u1 = upAt(nowFi), l1 = loAt(nowFi);
+      if ([x0, u0, l0, u1, l1].every(isFinite)) {
+        c.globalAlpha = .10; c.fillStyle = COL.long; c.beginPath();
+        c.moveTo(x0, u0); c.lineTo(xNow, u1); c.lineTo(xNow, l1); c.lineTo(x0, l0); c.closePath(); c.fill(); c.globalAlpha = 1;
+        c.strokeStyle = COL.long; c.lineWidth = 1; c.setLineDash([2, 4]); c.globalAlpha = .5;
+        c.beginPath(); c.moveTo(x0, u0); c.lineTo(xNow, u1); c.stroke();
+        c.beginPath(); c.moveTo(x0, l0); c.lineTo(xNow, l1); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+      }
+    }
+    // 회귀 3중
+    winLine(ta.windows.long, "long"); winLine(ta.windows.mid, "mid"); winLine(ta.windows.short, "short");
+    // 피봇 지지/저항
+    function pivLine(L, col) {
+      if (!L) return;
+      const fiL = Math.max(L.fromIdx, fiMin);
+      const xa = fiToX(fiL), ya = pToY(L.slope * fiL + L.b), xb = xNow, yb = pToY(L.slope * nowFi + L.b);
+      if (![xa, ya, xb, yb].every(isFinite)) return;
+      c.strokeStyle = col; c.lineWidth = 1.4; c.setLineDash([4, 4]); c.globalAlpha = .85;
+      c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+    }
+    pivLine(ta.pivots.support, "#46c28e"); pivLine(ta.pivots.resistance, "#e06a6a");
+    c.restore();
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -2500,13 +2555,13 @@
           for (let i = 0; i < Hn; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = toXh(i), y = toY(v); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
           c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
         } else if (n.blockType === "trend") {
-          const len = Math.min(Hn, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
-          const i0 = Hn - len, i1 = Hn - 1, x0 = toXh(i0), x1 = toXh(i1), y0 = toY(lr.b), y1 = toY(lr.a * (len - 1) + lr.b);
-          const sl = (y1 - y0) / ((x1 - x0) || 1), xS = g.seamX, yS = y1 + sl * (xS - x1);
-          c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = 4.5; c.beginPath(); c.moveTo(x0, y0); c.lineTo(xS, yS); c.stroke();
-          c.strokeStyle = col; c.lineWidth = 2.6; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
-          c.globalAlpha = .7; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(x1, y1); c.lineTo(xS, yS); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
-          c.fillStyle = col; c.font = "700 10px ui-monospace,monospace"; c.fillText("추세", x0 + 3, y0 - 4);
+          const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2 });
+          const off = P - Hn, futBars = (g.path && g.path.length) || 24;
+          _drawTrendLayers(c, ta, {
+            fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))),
+            pToY: v => toY(v),
+            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: off
+          });
           legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "fib") {
           const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
@@ -2554,16 +2609,13 @@
           for (let i = 0; i < P; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = xOf(i), y = clipY(yOf(v)); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
           c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
         } else if (n.blockType === "trend") {
-          const len = Math.min(P, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
-          const x0 = xOf(P - len), x1 = g.nowX;
-          const yAt = j => clipY(yOf(lr.a * j + lr.b));             // 회귀 j번째 봉의 y
+          const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2 });
           const futBars = (g.path && g.path.length) || 24, xR = g.rightX || (g.ox + g.dw);
-          const y0 = yAt(0), y1 = yAt(len - 1), yR = yAt(len - 1 + futBars);
-          // 다크 외곽(대비) → 본선(굵게) → 예측 연장(점선)
-          c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = 4.5; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
-          c.strokeStyle = col; c.lineWidth = 2.6; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
-          c.globalAlpha = .7; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(x1, y1); c.lineTo(xR, yR); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
-          c.fillStyle = col; c.font = "700 10px ui-monospace,monospace"; c.textAlign = "left"; c.fillText("추세", x0 + 3, y0 - 4);
+          _drawTrendLayers(c, ta, {
+            fiToX: fi => xOf(fi),
+            pToY: v => clipY(yOf(v)),
+            nowFi: P - 1, xNow: g.nowX, xRight: xR, futBars
+          });
           legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "elliott") {
           const piv = _zigzag(price, 0.18).slice(-8);
