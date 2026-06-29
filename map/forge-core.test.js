@@ -499,3 +499,20 @@ test("trendProfileForTF: null/미상 → default", () => {
   assert.strictEqual(p.trendScale, 0.8);
   assert.strictEqual(p.label, "");
 });
+
+test("run: 타임프레임 — 월봉이 5분보다 추세 상승 강하게 투영", () => {
+  const G = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "o" }] };
+  const data = { price: Array.from({ length: 60 }, (_, i) => 10 * Math.exp(0.03 * i)) };
+  const rM = ForgeCore.run(G, data, { futW: 12, timeframe: "월봉" });
+  const rI = ForgeCore.run(G, data, { futW: 12, timeframe: "5분" });
+  assert.ok(rM.prediction.path.every(isFinite) && rI.prediction.path.every(isFinite), "NaN 없음");
+  const gain = r => r.prediction.target / r.prediction.anchor;
+  assert.ok(gain(rM) > gain(rI), "월봉(배율1.0)이 5분(배율0.45)보다 상승 큼");
+});
+
+test("run: timeframe 없이도 동작(default)", () => {
+  const G = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "o" }] };
+  const data = { price: Array.from({ length: 40 }, (_, i) => 100 + i) };
+  const r = ForgeCore.run(G, data, { futW: 8 });
+  assert.ok(r.prediction.path.every(isFinite));
+});

@@ -476,7 +476,8 @@
     // 추세 추종 성분 — 다각도 블렌드(장기우선·R²가중) 로그기울기, 캡 ±3%/봉으로 완화
     const _tn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "trend");
     const _tp = (_tn && _tn.params) || {};
-    const _ta = analyzeTrend(price, { shortLen: _tp.len || 40, pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2 });
+    const _prof = trendProfileForTF(opts && opts.timeframe);
+    const _ta = analyzeTrend(price, { shortLen: _tp.len || 40, pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
     const REV_W = 0.5;                                          // 평균회귀 약화(추세 추종)
@@ -484,7 +485,7 @@
     for (let k = 1; k <= futW; k++) {
       const rev = -dev * (1 - Math.exp(-theta * k)) * REV_W;                                // 평균회귀(약화)
       const mom = Math.max(-0.20, Math.min(0.20, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀(상향)
-      const trend = trS * k * Math.exp(-k / (futW * 1.6));                                   // 추세 투영(완만 감쇠)
+      const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
       const m = rev + mom + trend + sig + seas, sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
