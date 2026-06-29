@@ -62,6 +62,55 @@
     return out;
   }
 
+  function ema(arr, len) {
+    const out = [], a = 2 / (len + 1); let prev;
+    for (let i = 0; i < arr.length; i++) { const v = arr[i]; prev = (i === 0) ? v : (prev + a * (v - prev)); out.push(prev); }
+    return out;
+  }
+
+  function analyzeMA(price, opts) {
+    opts = opts || {};
+    const len = opts.len || 20, useEma = !!opts.ema, srPct = opts.srPct != null ? opts.srPct : 0.015;
+    const P = price.length;
+    const EMPTY = { mas: { short: null, mid: null, long: null }, cross: { type: null, barsAgo: null }, align: { order: "mixed", score: 0 }, sr: { ma: null, side: null, distPct: null }, bias: 0 };
+    if (P < 2) return EMPTY;
+    const mk = period => {
+      const series = useEma ? ema(price, period) : sma(price, period);
+      const last = series[P - 1];
+      const w = Math.max(2, Math.min(period, P - 1));
+      const seg = series.slice(P - w);
+      const f = linfit(seg);   // {a:절편, b:기울기}
+      const slope = Math.max(-1, Math.min(1, Math.tanh((f.b / (Math.abs(last) || 1)) * 100)));
+      return { period, series, slope, last };
+    };
+    const short = mk(len), mid = mk(len * 3), long = mk(len * 6), pl = price[P - 1];
+    let cross = { type: null, barsAgo: null };
+    const lim = Math.min(P - 1, len * 6);
+    for (let i = P - 1; i >= Math.max(1, P - 1 - lim); i--) {
+      const ds = short.series[i] - long.series[i], dp = short.series[i - 1] - long.series[i - 1];
+      if (ds === 0) continue;
+      if (dp <= 0 && ds > 0) { cross = { type: "golden", barsAgo: (P - 1) - i }; break; }
+      if (dp >= 0 && ds < 0) { cross = { type: "dead", barsAgo: (P - 1) - i }; break; }
+    }
+    const pairs = [pl > short.last, short.last > mid.last, mid.last > long.last];
+    const upCnt = pairs.filter(Boolean).length;
+    const bull = pl > short.last && short.last > mid.last && mid.last > long.last;
+    const bear = pl < short.last && short.last < mid.last && mid.last < long.last;
+    let order = "mixed", score = 0;
+    if (bull) { order = "bull"; score = upCnt / 3; }
+    else if (bear) { order = "bear"; score = (3 - upCnt) / 3; }
+    const cand = [["short", short.last], ["mid", mid.last], ["long", long.last]];
+    let near = null, nd = Infinity;
+    for (const [name, val] of cand) { const d = Math.abs(pl - val) / (Math.abs(pl) || 1); if (d < nd) { nd = d; near = name; } }
+    let sr = { ma: null, side: null, distPct: null };
+    if (near && nd <= srPct) { const val = near === "short" ? short.last : near === "mid" ? mid.last : long.last; sr = { ma: near, side: pl >= val ? "support" : "resistance", distPct: nd }; }
+    const alignDir = order === "bull" ? 1 : order === "bear" ? -1 : 0;
+    let crossDir = cross.type === "golden" ? 1 : cross.type === "dead" ? -1 : 0;
+    if (crossDir !== 0 && cross.barsAgo != null) crossDir *= Math.max(0, 1 - cross.barsAgo / (len * 6));
+    const bias = Math.max(-1, Math.min(1, 0.5 * alignDir * score + 0.3 * crossDir + 0.2 * long.slope));
+    return { mas: { short, mid, long }, cross, align: { order, score }, sr, bias };
+  }
+
   function detrendNorm(y) {
     const n = y.length;
     if (!n) return [];
@@ -577,5 +626,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA };
 });

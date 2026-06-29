@@ -516,3 +516,40 @@ test("run: timeframe 없이도 동작(default)", () => {
   const r = ForgeCore.run(G, data, { futW: 8 });
   assert.ok(r.prediction.path.every(isFinite));
 });
+
+test("analyzeMA: 정배열 상승 → bull, bias>0, long.slope>0", () => {
+  const price = Array.from({ length: 80 }, (_, i) => 100 + i * 2);
+  const r = ForgeCore.analyzeMA(price, { len: 5 });
+  assert.strictEqual(r.align.order, "bull");
+  assert.ok(r.bias > 0);
+  assert.ok(r.mas.long.slope > 0);
+});
+
+test("analyzeMA: 역배열 하락 → bear, bias<0", () => {
+  const price = Array.from({ length: 80 }, (_, i) => 300 - i * 2);
+  const r = ForgeCore.analyzeMA(price, { len: 5 });
+  assert.strictEqual(r.align.order, "bear");
+  assert.ok(r.bias < 0);
+});
+
+test("analyzeMA: 최근 하락→상승 전환 → 골든크로스 감지", () => {
+  const down = Array.from({ length: 30 }, (_, i) => 100 - i);      // 100→71
+  const up = Array.from({ length: 14 }, (_, i) => 71 + (i + 1) * 4); // 가파른 반등
+  const r = ForgeCore.analyzeMA(down.concat(up), { len: 5 });
+  assert.strictEqual(r.cross.type, "golden");
+  assert.ok(r.cross.barsAgo >= 0 && r.cross.barsAgo < 14);
+});
+
+test("analyzeMA: EMA vs SMA → 다른 last(둘 다 유한)", () => {
+  const price = Array.from({ length: 60 }, (_, i) => 100 + Math.sin(i / 3) * 5 + i);
+  const s = ForgeCore.analyzeMA(price, { len: 10, ema: false });
+  const e = ForgeCore.analyzeMA(price, { len: 10, ema: true });
+  assert.ok(isFinite(s.mas.short.last) && isFinite(e.mas.short.last));
+  assert.notStrictEqual(s.mas.short.last, e.mas.short.last);
+});
+
+test("analyzeMA: 소량 데이터(P<len) → 예외 없음·유한 bias", () => {
+  const r = ForgeCore.analyzeMA([10, 11, 12], { len: 20 });
+  assert.ok(isFinite(r.bias));
+  assert.ok(["bull", "bear", "mixed"].includes(r.align.order));
+});
