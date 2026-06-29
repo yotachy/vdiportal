@@ -3767,7 +3767,6 @@
     clearAnalyzeViz();
     _evidenceSet = new Set();
     const _lg0 = document.getElementById("analyzeLog"); if (_lg0) { _lg0.innerHTML = ""; _lg0.classList.remove("on"); }
-    const eg = document.getElementById("bEdges"); if (eg) eg.classList.add("flow");
     const hud = document.getElementById("playHud"); if (hud) hud.classList.add("on");
     const progEl = document.getElementById("analyzeProg");
     const _pnode = boardState.nodes.find(n => n.blockType === "price");
@@ -3808,6 +3807,7 @@
           if (tk.idx > 0) { const pe = bq(indNodes[tk.idx - 1].id); if (pe) { pe.classList.remove("analyzing"); pe.classList.add("analyzed"); } }
           const el = bq(tk.n.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); }
           _evidenceSet.add(tk.n.id);
+          _analyzeNode = tk.n.id;            // 현재 동작 노드 추적(드로펄스 활성 효과용)
         }
         _hudNodeSteps(tk.n, tk.idx, tk.steps, tk.sIdx);
         _logAppend(tk.n, tk.st.text);
@@ -4298,6 +4298,8 @@
   function drawPulse(t, isStatic) {
     const ctx = bovCtx; if (!ctx || !_ovResult) return;
     ctx.clearRect(0, 0, _bovW, _bovH);
+    if (!_playing) return;            // 재생(시연) 중에만 — 평상시 보드 깜빡임 제거
+    const _actId = _analyzeNode;      // 현재 동작 중인 노드 + 그 연결선에만 효과
     const sig = _ovResult.signal || [];
     let mag = 0;
     if (sig.length) {
@@ -4311,6 +4313,7 @@
     /* node-border glow (block nodes) */
     boardState.nodes.forEach(n => {
       if (n.kind !== "block") return;
+      if (n.id !== _actId) return;            // 활성 노드만 글로우
       const x = n.x * view.scale + view.tx, y = n.y * view.scale + view.ty;
       const w = (n._w || W_NODE) * view.scale, h = (n._h || 70) * view.scale;
       const isPredict = n.blockType === "predict";
@@ -4331,6 +4334,7 @@
 
     /* flowing dots along each edge (from → to) */
     boardState.edges.forEach(e => {
+      if (e.from !== _actId && e.to !== _actId) return;   // 활성 노드에 연결된 엣지만
       const wpts = edgeWorldPolyline(e);
       if (!wpts || wpts.length < 2) return;
       const spts = wpts.map(_toScreen);
