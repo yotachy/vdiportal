@@ -417,7 +417,7 @@
   }
 
   function volumeSteps(va) {
-    const tTxt = va.trend > 0.1 ? "증가 ↑" : va.trend < -0.1 ? "감소 ↓" : "황보 →";
+    const tTxt = va.trend > 0.1 ? "증가 ↑" : va.trend < -0.1 ? "감소 ↓" : "횡보 →";
     const sTxt = va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이";
     const rel = va.relationship === "confirm" ? "상승에 거래량 동반 — 추세 건강(확인)"
       : va.relationship === "weakening" ? "상승하나 거래량 감소 — 추진력 약화"
@@ -425,7 +425,7 @@
       : "하락+거래량 위축 — 투매 진정(바닥 가능)";
     const dv = va.divergence.type === "bullish" ? "강세 거래량 다이버전스"
       : va.divergence.type === "bearish" ? "약세 거래량 다이버전스"
-      : "OBV " + (va.obvTrend > 0.1 ? "상승" : va.obvTrend < -0.1 ? "하락" : "황보");
+      : "OBV " + (va.obvTrend > 0.1 ? "상승" : va.obvTrend < -0.1 ? "하락" : "횡보");
     const bTxt = va.bias > 0.1 ? "상승" : va.bias < -0.1 ? "하락" : "중립";
     return [
       "거래량 추세 " + tTxt,
