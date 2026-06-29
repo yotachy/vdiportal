@@ -2555,14 +2555,15 @@
           for (let i = 0; i < Hn; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = toXh(i), y = toY(v); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
           c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
         } else if (n.blockType === "trend") {
-          const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2 });
+          const _prof = ForgeCore.trendProfileForTF(_visionTF);
+          const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const off = P - Hn, futBars = (g.path && g.path.length) || 24;
           _drawTrendLayers(c, ta, {
             fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))),
             pToY: v => toY(v),
             nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: off
           });
-          legend.push({ col, t: EV_LABEL.trend });
+          legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " · " + _prof.label : "") });
         } else if (n.blockType === "fib") {
           const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
           c.setLineDash([3, 3]); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1;
@@ -2609,14 +2610,15 @@
           for (let i = 0; i < P; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = xOf(i), y = clipY(yOf(v)); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
           c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
         } else if (n.blockType === "trend") {
-          const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2 });
+          const _prof = ForgeCore.trendProfileForTF(_visionTF);
+          const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const futBars = (g.path && g.path.length) || 24, xR = g.rightX || (g.ox + g.dw);
           _drawTrendLayers(c, ta, {
             fiToX: fi => xOf(fi),
             pToY: v => clipY(yOf(v)),
             nowFi: P - 1, xNow: g.nowX, xRight: xR, futBars
           });
-          legend.push({ col, t: EV_LABEL.trend });
+          legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " · " + _prof.label : "") });
         } else if (n.blockType === "elliott") {
           const piv = _zigzag(price, 0.18).slice(-8);
           c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1.6; c.setLineDash([]); c.beginPath(); let st = false; const pts = [];
@@ -3647,7 +3649,7 @@
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
     runForge(); _engineDirty = false; updateEngineBtn();   // 시연도 재계산 → 변경됨 해제
     let steps;
-    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive() }); }
+    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: _visionTF }); }
     catch (e) { console.warn("steps", e); return; }
     if (!steps.length) return;
     const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
@@ -3740,7 +3742,7 @@
     try {
       const g = boardToGraph();
       const d = currentData();
-      lastResult = ForgeCore.run(g, d, { futW: visionFutW(), visionBias: visionBiasLive() });
+      lastResult = ForgeCore.run(g, d, { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: _visionTF });
       renderChart(lastResult, d);
       paintScanBadges();
       if (window.renderOverlay) renderOverlay(lastResult, g);
