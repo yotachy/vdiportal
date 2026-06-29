@@ -373,6 +373,12 @@
     border-bottom:1px solid var(--gold-dim);backdrop-filter:blur(6px);
     transform:translateY(-100%);transition:transform .28s ease}
   .play-hud.on{display:flex;transform:translateY(0)}
+  .analyze-log{position:absolute;right:10px;bottom:10px;z-index:9;width:300px;max-height:38%;overflow-y:auto;
+    background:rgba(11,15,20,.82);border:1px solid var(--line);border-radius:8px;padding:7px 10px;
+    font-family:ui-monospace,monospace;font-size:10px;line-height:1.55;color:var(--eth);display:none}
+  .analyze-log.on{display:block}
+  .analyze-log .lg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .analyze-log .lg b{color:var(--gold);font-weight:700}
   .play-hud .ph-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--eth);box-shadow:0 0 8px currentColor}
   .play-hud .ph-node{display:flex;flex-direction:column;gap:1px;min-width:0}
   .play-hud .ph-title{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
@@ -389,6 +395,10 @@
   .play-hud .ph-seg{width:9px;height:5px;border-radius:2px;background:var(--raised2);transition:background .2s}
   .play-hud .ph-seg.done{background:var(--gold)}
   .play-hud .ph-seg.cur{background:var(--gold);box-shadow:0 0 7px rgba(232,180,99,.8)}
+  .play-hud .ph-steps{display:flex;flex-direction:column;gap:1px;margin-top:2px}
+  .play-hud .ph-step{font-size:10px;color:var(--eth);opacity:.38;transition:opacity .2s,color .2s;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .play-hud .ph-step.lit{opacity:1;color:var(--ink)}
+  .play-hud .ph-step.cur{color:var(--gold);font-weight:700;opacity:1}
 
   .fc-radar{width:100%;height:280px;display:block}
   /* ── 노드별 분석 패널 ── */
@@ -487,6 +497,7 @@
     <div class="forge-gutter" id="forgeGutter" title="드래그하여 좌우 크기 조절 · 더블클릭 초기화"></div>
     <section class="chart-pane" id="chartPane">
       <div id="playHud" class="play-hud" aria-hidden="true"></div>
+      <div id="analyzeLog" class="analyze-log" aria-hidden="true"></div>
       <div id="verdictBadge" class="verdict-badge"></div>
       <div class="fc-wrap">
         <div class="fc-panel fc-panel-hero">
@@ -2408,6 +2419,7 @@
 
   /* ── 노드별 근거 작도(추세선·피보·파동 등) 누적 오버레이 ───────── */
   let _evidenceSet = new Set();
+  let _evReveal = {};   // 시연 중 노드별 작도 레이어 출현 상한(nodeId→layer). 비재생=전체(∞)
   let _evidenceShow = true;
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
@@ -2530,7 +2542,7 @@
   // 다중 MA 작도(차트·오버레이 공용). M=좌표 매퍼.
   function _drawMALayers(c, ma, M) {
     c.save();
-    const { fiToX, pToY, nowFi, fiMin = 0 } = M;
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity } = M;
     const COL = { short: "#7fb0ff", mid: "#5b8def", long: "#3b62c0" };
     const WID = { short: 1.4, mid: 2.0, long: 2.6 };
     function strokeSeries(series, key, srOn) {
@@ -2549,9 +2561,9 @@
       c.strokeStyle = COL[key]; c.lineWidth = srOn ? WID[key] + 1.2 : WID[key]; c.setLineDash(srOn ? [5, 4] : []);
       strokeSeries(s.series, key); c.setLineDash([]);
     }
-    drawMA(ma.mas.long, "long"); drawMA(ma.mas.mid, "mid"); drawMA(ma.mas.short, "short");
+    if (reveal >= 1) { drawMA(ma.mas.long, "long"); drawMA(ma.mas.mid, "mid"); drawMA(ma.mas.short, "short"); }
     // 크로스 마커
-    if (ma.cross.type && ma.cross.barsAgo != null && ma.mas.short) {
+    if (reveal >= 2 && ma.cross.type && ma.cross.barsAgo != null && ma.mas.short) {
       const fi = Math.max(fiMin, nowFi - ma.cross.barsAgo), v = ma.mas.short.series[fi];
       if (isFinite(v)) {
         const x = fiToX(fi), y = pToY(v);
@@ -2565,7 +2577,7 @@
       }
     }
     // 배열 라벨
-    if (ma.mas.short) {
+    if (reveal >= 3 && ma.mas.short) {
       const x = fiToX(nowFi), y = pToY(ma.mas.short.last);
       if (isFinite(x) && isFinite(y)) {
         const o = ma.align.order;
@@ -2603,7 +2615,7 @@
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
-          _drawMALayers(c, ma, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off });
+          _drawMALayers(c, ma, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.ma + "(다중)" });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
@@ -2657,7 +2669,7 @@
           c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib + (g.log ? "(log)" : "") });
         } else if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
-          _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0 });
+          _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.ma + "(다중)" });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
@@ -2972,7 +2984,7 @@
       const conv = n.conviction || 0;
       const lean = conv > 5 ? '<span class="nr-up">▲ 상승 가중</span>' : conv < -5 ? '<span class="nr-dn">▼ 하락 가중</span>' : '<span class="nr-fl">중립</span>';
       const memo = (n.note && n.note.trim()) || (n.desc && n.desc.trim()) || "";
-      const memoHtml = memo ? `<div class="nr-memo">“${esc(memo)}”</div>` : "";
+      const memoHtml = memo ? `<div class="nr-memo">&ldquo;${esc(memo)}&rdquo;</div>` : "";
       const factsHtml = `<ul class="nr-facts">${facts.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
       steps.push(`<div class="nr-step"><span class="nr-num">${i++}</span><div class="nr-main"><div class="nr-head"><b>${esc(BTLABEL[n.blockType] || n.blockType)}</b> ${lean}</div>${factsHtml}${memoHtml}</div></div>`);
     });
@@ -3022,6 +3034,16 @@
       case "volume": return "참고 입력(계산 없음)";
       default: return n.note ? n.note : "—";
     }
+  }
+  // 노드별 분석 단계 배열 [{text, layer}]. MA는 다단계, 그 외는 기존 한 줄 폴백.
+  function analysisSteps(n, result, priceLast, price) {
+    if (n.blockType === "ma" && Array.isArray(price) && price.length >= 2) {
+      const len = (n.params && n.params.len) || 20, ema = !!(n.params && n.params.ema);
+      const ma = ForgeCore.analyzeMA(price, { len, ema });
+      const texts = ForgeCore.maSteps(ma, len), layers = [1, 1, 2, 3, 4];
+      return texts.map((t, i) => ({ text: t, layer: layers[i] }));
+    }
+    return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
   }
   /* 노드별 '전문 분석' — 각 기술지표가 도메인 지식으로 여러 사실을 산출(우측 패널 나열용) */
   function nodeExpert(n, result, px, priceLast) {
@@ -3676,6 +3698,7 @@
     if (_playRaf) cancelAnimationFrame(_playRaf);
     _playTimers.forEach(clearTimeout); _playTimers = [];
     _playT = null; _playRaf = null; _playing = false;
+    _evReveal = {};
     clearAnalyzeViz();
     const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
   }
@@ -3716,43 +3739,59 @@
     _playing = true;
     clearAnalyzeViz();
     _evidenceSet = new Set();
+    const _lg0 = document.getElementById("analyzeLog"); if (_lg0) { _lg0.innerHTML = ""; _lg0.classList.remove("on"); }
     const eg = document.getElementById("bEdges"); if (eg) eg.classList.add("flow");
     const hud = document.getElementById("playHud"); if (hud) hud.classList.add("on");
     const progEl = document.getElementById("analyzeProg");
     const _pnode = boardState.nodes.find(n => n.blockType === "price");
     const _pv = _pnode && lastResult.values && lastResult.values[_pnode.id];
     const priceLast0 = (_pv && _pv.length) ? _pv[_pv.length - 1] : null;
-    function _hudNode(n, idx) {
+    // 하위단계 순차 점등 HUD. steps=[{text,layer}], upto=현재 점등 인덱스
+    function _hudNodeSteps(n, idx, steps, upto) {
       if (!hud) return;
-      const read = nodeReadText(n, lastResult, priceLast0);
-      const memo = (n.note && n.note.trim()) || (n.desc && n.desc.trim()) || "";
       const conv = n.conviction || 0;
-      const lean = conv > 5 ? "▲ 상승 가중 +" + conv : conv < -5 ? "▼ 하락 가중 " + conv : "중립";
       const lc = conv > 5 ? "var(--bull)" : conv < -5 ? "var(--bear)" : "var(--eth)";
+      const memo = (n.note && n.note.trim()) || (n.desc && n.desc.trim()) || "";
       const segs = indNodes.map((_, k) => `<span class="ph-seg ${k < idx ? "done" : k === idx ? "cur" : ""}"></span>`).join("");
+      const stepHtml = steps.map((st, i) => `<span class="ph-step ${i < upto ? "lit" : i === upto ? "lit cur" : ""}">${esc(st.text)}</span>`).join("");
       hud.innerHTML =
         `<span class="ph-dot" style="color:${lc}"></span>
          <div class="ph-node"><span class="ph-title">${esc(BTLABEL[n.blockType] || n.blockType)}${n.title ? " · " + esc(n.title) : ""}</span>
-           <span class="ph-type">${esc(read)} · <b style="color:${lc}">${lean}</b></span>
-           ${memo ? `<span class="ph-memo">“${esc(memo)}”</span>` : ""}</div>
+           <div class="ph-steps">${stepHtml}</div>
+           ${memo ? `<span class="ph-memo">&ldquo;${esc(memo)}&rdquo;</span>` : ""}</div>
          <div class="ph-prog"><span class="ph-knt">${idx + 1}/${indNodes.length}</span><span class="ph-bar">${segs}</span></div>`;
     }
-    // 노드별 순차 내레이션 — 천천히(읽을 수 있게), 각 노드의 서술/메모를 HUD에 표시
-    const STEP = 1500;   // 노드당 시연 시간(ms)
-    indNodes.forEach((n, idx) => {
+    function _logAppend(n, text) {
+      const lg = document.getElementById("analyzeLog"); if (!lg) return;
+      lg.classList.add("on");
+      const row = document.createElement("div"); row.className = "lg";
+      row.innerHTML = "<b>[" + esc(BTLABEL[n.blockType] || n.blockType) + "]</b> " + esc(text);
+      lg.appendChild(row); lg.scrollTop = lg.scrollHeight;
+    }
+    // 노드별 다단계 시연 — 각 노드의 분석단계를 틱으로 펼쳐 순차 점등(시연 길어짐 OK)
+    const STEP_SUB = 750;   // 하위단계 간격(ms)
+    const _allPrice = (currentData().price) || [];
+    const stepsByNode = indNodes.map(n => analysisSteps(n, lastResult, priceLast0, _allPrice));
+    const ticks = [];
+    indNodes.forEach((n, idx) => { stepsByNode[idx].forEach((st, sIdx) => ticks.push({ n, idx, steps: stepsByNode[idx], sIdx, st })); });
+    ticks.forEach((tk, tIdx) => {
       _playTimers.push(setTimeout(() => {
         if (!_playing) return;
-        if (idx > 0) { const pe = bq(indNodes[idx - 1].id); if (pe) { pe.classList.remove("analyzing"); pe.classList.add("analyzed"); } }
-        const el = bq(n.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); }
-        _evidenceSet.add(n.id);
-        _hudNode(n, idx);
-        if (progEl) progEl.textContent = "분석 중 " + (idx + 1) + "/" + indNodes.length + " · " + (n.title || BTLABEL[n.blockType] || "노드");
-      }, idx * STEP));
+        if (tk.sIdx === 0) {
+          if (tk.idx > 0) { const pe = bq(indNodes[tk.idx - 1].id); if (pe) { pe.classList.remove("analyzing"); pe.classList.add("analyzed"); } }
+          const el = bq(tk.n.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); }
+          _evidenceSet.add(tk.n.id);
+        }
+        _hudNodeSteps(tk.n, tk.idx, tk.steps, tk.sIdx);
+        _logAppend(tk.n, tk.st.text);
+        _evReveal[tk.n.id] = tk.st.layer; drawEvidence();
+        if (progEl) progEl.textContent = "분석 중 " + (tk.idx + 1) + "/" + indNodes.length + " · " + (BTLABEL[tk.n.blockType] || "노드") + " (" + (tk.sIdx + 1) + "/" + tk.steps.length + ")";
+      }, tIdx * STEP_SUB));
     });
     // 예측 부채꼴이 평평(anchor)에서 최종 예측으로 '펼쳐지며' 포지가 형성 — 내레이션 길이에 맞춰 천천히
     const A = finPred.anchor;
     const flat = { path: finPred.path.map(() => A), lo: finPred.path.map(() => A), hi: finPred.path.map(() => A), anchor: A };
-    const total = Math.max(2600, indNodes.length * STEP + 800), t0 = performance.now();
+    const total = Math.max(2600, ticks.length * STEP_SUB + 800), t0 = performance.now();
     function morph(now) {
       if (!_playing) return;
       const u = Math.min(1, (now - t0) / total);
@@ -3762,6 +3801,7 @@
     }
     function finishPlay() {
       _evidenceSet = new Set(indNodes.map(n => n.id));        // 모든 근거 확정 표시
+      _evReveal = {};
       indNodes.forEach(n => { const el = bq(n.id); if (el) { el.classList.remove("analyzing"); el.classList.add("analyzed"); } });
       if (center) { const el = bq(center.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); _analyzeNode = center.id; } }  // 중심 포지 점등
       _playing = false; _playRaf = null;

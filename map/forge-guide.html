@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Scoop Forge — 엔진 작동 원리</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --gold:#e8b463;--gold-dim:#5e4d2c;--bg:#0b0f14;--panel:#121822;--surface:#161d28;
+    --ink:#e7ecf5;--eth:#8a92b2;--muted:#8b98a6;--faint:#5c6875;
+    --bull:#46c28e;--bear:#e06a6a;--line:#222b39;--raised:#1b2330;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(232,180,99,.06), transparent 60%),
+      radial-gradient(900px 500px at 0% 10%, rgba(70,194,142,.04), transparent 55%),
+      var(--bg);
+    color:var(--ink);font-family:Pretendard,system-ui,sans-serif;letter-spacing:-0.01em;
+    line-height:1.7;-webkit-font-smoothing:antialiased}
+  a{color:var(--gold);text-decoration:none}
+
+  /* ---- shell ---- */
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+  header.top{position:sticky;top:0;z-index:50;background:rgba(11,15,20,.82);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line)}
+  .top-in{max-width:1040px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;gap:14px}
+  .mark{width:30px;height:30px;flex:0 0 auto}
+  .brand{font-weight:800;letter-spacing:-0.02em;font-size:17px}
+  .brand em{color:var(--gold);font-style:normal}
+  .brand .by{color:var(--faint);font-weight:600;font-size:12px;margin-left:6px}
+  .top-tag{margin-left:auto;font-size:12px;color:var(--muted);border:1px solid var(--line);
+    padding:5px 11px;border-radius:999px}
+
+  /* ---- hero ---- */
+  .hero{padding:62px 0 30px}
+  .hero h1{font-size:38px;line-height:1.25;letter-spacing:-0.03em;margin:0 0 16px;font-weight:800}
+  .hero h1 .hl{color:var(--gold)}
+  .hero p.lead{font-size:17px;color:var(--eth);max-width:660px;margin:0}
+  .kicker{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--gold);background:rgba(232,180,99,.1);border:1px solid var(--gold-dim);
+    padding:4px 11px;border-radius:999px;margin-bottom:20px}
+
+  /* ---- sections ---- */
+  section{padding:42px 0;border-top:1px solid var(--line)}
+  .sec-num{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold);font-weight:700}
+  h2{font-size:26px;letter-spacing:-0.02em;margin:6px 0 10px;font-weight:800}
+  .sec-desc{color:var(--eth);max-width:720px;margin:0 0 26px;font-size:15px}
+  h3{font-size:16px;margin:26px 0 10px;color:var(--ink);font-weight:700}
+  p{margin:0 0 14px}
+  .muted{color:var(--muted)}
+  code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.88em;background:var(--raised);
+    border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--gold)}
+
+  /* ---- pipeline flow ---- */
+  .flow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin:8px 0 4px}
+  .flow-step{flex:1 1 0;min-width:140px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:16px 14px;position:relative;text-align:center}
+  .flow-step .fs-i{width:34px;height:34px;margin:0 auto 9px;color:var(--gold)}
+  .flow-step b{display:block;font-size:14px;margin-bottom:3px}
+  .flow-step span{font-size:11.5px;color:var(--muted);font-family:ui-monospace,monospace}
+  .flow-arrow{flex:0 0 30px;display:flex;align-items:center;justify-content:center;color:var(--gold-dim)}
+  @media(max-width:760px){.flow{flex-direction:column}.flow-arrow{transform:rotate(90deg);height:24px}}
+
+  /* ---- block catalog ---- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:14px}
+  .blk{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 16px;
+    transition:border-color .15s,transform .15s}
+  .blk:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
+  .blk .bh{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+  .blk .bi{width:30px;height:30px;flex:0 0 auto;border-radius:8px;display:grid;place-items:center;
+    background:rgba(232,180,99,.1);border:1px solid var(--gold-dim);color:var(--gold)}
+  .blk .bi svg{width:18px;height:18px}
+  .blk .bn{font-size:14.5px;font-weight:700}
+  .blk .bt{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--faint);letter-spacing:.03em}
+  .blk p{font-size:12.8px;color:var(--eth);margin:0;line-height:1.6}
+
+  /* ---- two layer centerpiece ---- */
+  .layers{display:grid;grid-template-columns:1fr;gap:0;margin:10px 0}
+  .layer{border:1px solid var(--line);border-radius:14px;padding:20px 22px;position:relative;background:var(--panel)}
+  .layer.a{border-color:rgba(70,194,142,.35);background:linear-gradient(180deg,rgba(70,194,142,.06),var(--panel))}
+  .layer.b{border-color:var(--gold-dim);background:linear-gradient(180deg,rgba(232,180,99,.06),var(--panel))}
+  .layer .ltag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.05em;padding:3px 10px;
+    border-radius:999px;margin-bottom:10px}
+  .layer.a .ltag{color:var(--bull);background:rgba(70,194,142,.12);border:1px solid rgba(70,194,142,.4)}
+  .layer.b .ltag{color:var(--gold);background:rgba(232,180,99,.12);border:1px solid var(--gold-dim)}
+  .layer h4{margin:0 0 8px;font-size:18px;letter-spacing:-0.02em}
+  .layer p{font-size:13.5px;color:var(--eth);margin:0}
+  .bridge{display:flex;flex-direction:column;align-items:center;padding:6px 0;color:var(--muted)}
+  .bridge .pipe{width:2px;height:14px;background:linear-gradient(var(--bull),var(--gold))}
+  .bridge .bchip{font-size:12px;font-weight:700;color:var(--bg);background:var(--gold);
+    padding:5px 13px;border-radius:999px;margin:5px 0;box-shadow:0 4px 14px -4px rgba(232,180,99,.6)}
+  .formula{font-family:ui-monospace,monospace;font-size:12.5px;color:var(--ink);background:var(--bg);
+    border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-top:13px;overflow-x:auto;
+    white-space:pre;color:var(--eth)}
+  .formula .v{color:var(--gold)}
+  .formula .g{color:var(--bull)}
+
+  /* ---- contribution bars ---- */
+  .bars{display:flex;flex-direction:column;gap:11px;margin:6px 0}
+  .bar-row{display:grid;grid-template-columns:128px 1fr 60px;align-items:center;gap:13px}
+  .bar-row .blab{font-size:13px;font-weight:600}
+  .bar-row .blab small{display:block;font-size:10.5px;color:var(--faint);font-weight:400;font-family:ui-monospace,monospace}
+  .bar-track{height:14px;background:var(--raised);border-radius:7px;overflow:hidden;border:1px solid var(--line)}
+  .bar-fill{height:100%;border-radius:7px;background:linear-gradient(90deg,var(--gold-dim),var(--gold))}
+  .bar-fill.dyn{background:repeating-linear-gradient(45deg,var(--gold-dim),var(--gold-dim) 5px,#3d3318 5px,#3d3318 10px)}
+  .bar-val{font-family:ui-monospace,monospace;font-size:12px;color:var(--gold);text-align:right}
+
+  /* ---- tf table ---- */
+  .tf{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+  .tf-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .tf-card h4{margin:0 0 13px;font-size:15px}
+  .tf-card h4 small{color:var(--faint);font-weight:500;font-size:11.5px}
+  .stack{display:flex;height:13px;border-radius:7px;overflow:hidden;border:1px solid var(--line);margin-bottom:9px}
+  .stack i{display:block}
+  .stack .s-l{background:var(--gold)}.stack .s-m{background:#9c8348}.stack .s-s{background:var(--gold-dim)}
+  .tf-leg{font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:9px}
+  .tf-leg b{color:var(--ink)}
+  .tf-scale{margin-top:10px;font-size:12px;color:var(--eth)}
+  .tf-scale b{color:var(--gold);font-family:ui-monospace,monospace}
+  @media(max-width:680px){.tf{grid-template-columns:1fr}}
+
+  /* ---- callout ---- */
+  .note{border:1px solid var(--line);border-left:3px solid var(--gold);background:var(--panel);
+    border-radius:0 12px 12px 0;padding:16px 19px;margin:18px 0}
+  .note.warn{border-left-color:var(--bear)}
+  .note b{color:var(--ink)}
+  .note .nh{font-size:13px;font-weight:800;letter-spacing:.02em;margin-bottom:6px;display:flex;align-items:center;gap:7px}
+  .note.warn .nh{color:var(--bear)}.note:not(.warn) .nh{color:var(--gold)}
+  .note p{font-size:13.5px;color:var(--eth);margin:0}
+
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.twocol{grid-template-columns:1fr}}
+  .path-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .path-card h4{margin:0 0 7px;font-size:14.5px;display:flex;align-items:center;gap:8px}
+  .path-card .pdot{width:9px;height:9px;border-radius:50%}
+  .path-card.c1 .pdot{background:var(--bull)}.path-card.c2 .pdot{background:var(--gold)}
+  .path-card ul{margin:6px 0 0;padding-left:17px;font-size:12.8px;color:var(--eth)}
+  .path-card li{margin-bottom:4px}
+
+  /* ---- live demo ---- */
+  .demo{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:4px}
+  .demo-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+  .demo-head .dt{font-size:14px;font-weight:700}
+  .demo-head .dt .live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--bull);
+    margin-right:7px;box-shadow:0 0 0 0 rgba(70,194,142,.5);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(70,194,142,.5)}70%{box-shadow:0 0 0 7px rgba(70,194,142,0)}100%{box-shadow:0 0 0 0 rgba(70,194,142,0)}}
+  #demoCanvas{width:100%;height:300px;display:block;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px}
+  @media(max-width:680px){.controls{grid-template-columns:1fr}}
+  .ctrl label{font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;margin-bottom:7px}
+  .ctrl label .cv{font-family:ui-monospace,monospace;color:var(--gold)}
+  .ctrl input[type=range]{width:100%;accent-color:var(--gold)}
+  .seg{display:flex;gap:6px;margin-top:5px}
+  .seg button{flex:1;background:var(--raised);border:1px solid var(--line);color:var(--muted);
+    border-radius:8px;padding:7px 4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:.12s}
+  .seg button.on{background:rgba(232,180,99,.14);border-color:var(--gold-dim);color:var(--gold)}
+  .verdict{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;padding-top:15px;border-top:1px solid var(--line)}
+  .vd{display:flex;flex-direction:column;gap:2px}
+  .vd .vk{font-size:11px;color:var(--faint);letter-spacing:.03em}
+  .vd .vv{font-size:19px;font-weight:800;font-family:ui-monospace,monospace}
+  .vd .vv.bull{color:var(--bull)}.vd .vv.bear{color:var(--bear)}.vd .vv.neutral{color:var(--eth)}
+  .demo-fallback{display:none;color:var(--muted);font-size:13px;padding:18px;text-align:center;
+    border:1px dashed var(--line);border-radius:10px}
+
+  footer{padding:40px 0 60px;border-top:1px solid var(--line);color:var(--faint);font-size:12.5px;text-align:center}
+  .legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--muted)}
+  .legend i{display:inline-block;width:18px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <svg class="mark" viewBox="0 0 32 32" fill="none">
+      <rect x="3" y="3" width="9" height="9" rx="2.4" stroke="#e8b463" stroke-width="2"/>
+      <rect x="20" y="3" width="9" height="9" rx="2.4" stroke="#8a92b2" stroke-width="2"/>
+      <rect x="11.5" y="20" width="9" height="9" rx="2.4" fill="#e8b463"/>
+      <path d="M12 7.5h8M7.5 12v4.5a3 3 0 003 3h2.5M24.5 12v4.5a3 3 0 01-3 3H19" stroke="#e8b463" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <div class="brand">Scoop<em>Forge</em><span class="by">by MoneyScoop</span></div>
+    <div class="top-tag">엔진 작동 원리 · Engine Internals</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <span class="kicker">How the engine thinks</span>
+    <h1>노드로 조립한 전략이<br><span class="hl">예측 곡선</span>이 되기까지</h1>
+    <p class="lead">스쿱포지는 당신이 노드로 엮은 분석을 받아 합성 시그널과 미래 예측 경로를 그립니다.
+      그 안에서 <b>"무엇을, 얼마의 비중으로"</b> 계산하는지 — 한 장으로 풀었습니다.</p>
+  </div>
+
+  <!-- 1. PIPELINE -->
+  <section id="pipeline">
+    <div class="sec-num">01</div>
+    <h2>전체 파이프라인</h2>
+    <p class="sec-desc">노드(분석 블록)와 엣지(배선)로 그린 그래프가 네 단계를 거쳐 예측이 됩니다.
+      각 블록은 입력을 받아 <b>시계열 하나</b>를 내놓고, 마지막 <code>predict</code> 노드에서 신호와 예측이 나옵니다.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <svg class="fs-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 6h8M7 8.2 11 16M17 8.2 13 16" stroke-linecap="round"/></svg>
+        <b>그래프</b><span>nodes + edges</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <svg class="fs-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h6M4 12h10M4 17h7" stroke-linecap="round"/><path d="M17 5v14M14 16l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <b>buildDAG</b><span>위상정렬</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <svg class="fs-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11" stroke-linecap="round"/></svg>
+        <b>evalBlocks</b><span>블록별 시계열</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <svg class="fs-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 16c4 0 5-9 9-9s5 6 9 6" stroke-linecap="round"/><circle cx="12" cy="7" r="1.4" fill="currentColor"/></svg>
+        <b>run</b><span>결합→신호→예측</span>
+      </div>
+    </div>
+    <p class="muted" style="font-size:12.5px;margin-top:14px"><code>buildDAG</code>가 계산 순서를 정하고, <code>runSteps</code>는 같은 과정을
+      노드 1개→2개→…→전체로 누적 재생해 "포지 분석" 애니메이션을 만듭니다.</p>
+  </section>
+
+  <!-- 2. BLOCKS -->
+  <section id="blocks">
+    <div class="sec-num">02</div>
+    <h2>영역별 분석 블록</h2>
+    <p class="sec-desc">각 블록이 실제로 무엇을 계산하는지. 가격에서 출발해 기술적 분석을 거쳐 결합·예측으로 모입니다.</p>
+    <div class="grid" id="blockGrid"></div>
+  </section>
+
+  <!-- 3. TWO LAYER -->
+  <section id="weights">
+    <div class="sec-num">03</div>
+    <h2>핵심 — 비중은 <span style="color:var(--gold)">두 층</span>으로 나뉜다</h2>
+    <p class="sec-desc">엔진을 이해하는 열쇠입니다. 스쿱포지는 "비중"을 한 군데가 아니라 서로 다른 두 곳에서 씁니다.
+      <b>주관(A층)</b>은 신호의 방향을 밀고, <b>객관(B층)</b>은 예측의 뼈대를 만듭니다.</p>
+
+    <div class="layers">
+      <div class="layer a">
+        <span class="ltag">A층 · 주관 / 사용자 설정</span>
+        <h4>결합 &amp; 신호 비중</h4>
+        <p>노드마다 정하는 <b>확신(conviction)</b>과 <b>중요도(weight)</b>가 소스를 가중 결합하고,
+          시그널의 방향을 밀어줍니다. "이 분석을 얼마나 믿고, 얼마나 중요하게 보는가."</p>
+        <div class="formula">실효가중 = 수동가중 × (노드.<span class="v">weight</span>/50)
+bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
+신호′ = 신호 + bias × <span class="g">0.5</span></div>
+      </div>
+
+      <div class="bridge">
+        <div class="pipe"></div>
+        <div class="bchip">두 층을 잇는 다리 = 신호 드리프트 ±28%</div>
+        <div class="pipe"></div>
+      </div>
+
+      <div class="layer b">
+        <span class="ltag">B층 · 객관 / 가격에서 직접 계산</span>
+        <h4>예측 모델 비중 (구조 상수)</h4>
+        <p>예측 곡선의 <b>모양</b>은 주관 가중이 아니라 고정된 물리 상수와 가격 자체에서 뽑은 분석이 만듭니다.
+          평균회귀·모멘텀·추세·계절성·MA가 각자의 상한을 가지고 합쳐집니다.</p>
+        <div class="formula">log P(k) = log(현재가)
+  + 평균회귀 + 모멘텀 + 추세
+  + <span class="g">신호드리프트</span> + 계절성 + MA드리프트</div>
+      </div>
+    </div>
+
+    <div class="note">
+      <div class="nh">⬡ 한 줄 요약</div>
+      <p>A층(주관 확신/중요도)이 예측 곡선에 들어가는 통로는 결국 <b>신호 드리프트(±28%)</b> 하나뿐입니다.
+        나머지 추세·계절성·평균회귀·MA는 사용자 설정과 무관하게 <b>가격 구조에서 직접</b> 계산됩니다.
+        즉 — <b>객관적 뼈대 위에 주관적 확신으로 한 방향 기울이는</b> 구조예요.</p>
+    </div>
+  </section>
+
+  <!-- 4. CONTRIBUTIONS -->
+  <section id="contrib">
+    <div class="sec-num">04</div>
+    <h2>예측 성분 기여도</h2>
+    <p class="sec-desc">미래 k봉 예측 <code>log P(k)</code>를 구성하는 성분과 각각의 상한·비중.
+      막대는 누적 드리프트 상한(만점 기준)을 비교한 것이고, <span style="color:var(--gold)">빗금</span>은 가변(변동성/주기 신뢰도로 스케일)을 뜻합니다.</p>
+    <div class="bars" id="contribBars"></div>
+    <p class="muted" style="font-size:12px;margin-top:16px">※ 평균회귀는 EMA 베이스라인 대비 편차를 θ=0.045(반감기 ~15봉) 속도로 되돌리며 가중 <code>REV_W=0.5</code>로 약화 — 추세 추종 성향.</p>
+  </section>
+
+  <!-- 5. TIMEFRAME -->
+  <section id="timeframe">
+    <div class="sec-num">05</div>
+    <h2>타임프레임이 비중을 바꾼다</h2>
+    <p class="sec-desc"><code>trendProfileForTF</code>가 시간축에 따라 장/중/단 추세창 비중과 추세 영향력(<code>trendScale</code>)을 조정합니다.
+      장기 차트일수록 장기추세를 강하게, 단기일수록 단기창을 키우고 추세 영향을 줄입니다.</p>
+    <div class="tf" id="tfCards"></div>
+  </section>
+
+  <!-- 6. TWO PATHS -->
+  <section id="paths">
+    <div class="sec-num">06</div>
+    <h2>놓치기 쉬운 점 — 두 개의 계산 경로</h2>
+    <p class="sec-desc">같은 분석이 <b>신호용</b>과 <b>예측용</b>에서 다르게 계산됩니다. 이걸 모르면
+      "블록 파라미터를 바꿔도 예측이 기대만큼 안 변하는" 이유를 놓칩니다.</p>
+    <div class="twocol">
+      <div class="path-card c1">
+        <h4><span class="pdot"></span>신호 경로 (combine으로)</h4>
+        <ul>
+          <li><code>ma</code> → 단순 <code>SMA(len)</code> 한 줄</li>
+          <li><code>trend</code> → <code>rollingSlope</code></li>
+          <li>→ combine에서 가중 결합 → 시그널 ±100</li>
+        </ul>
+      </div>
+      <div class="path-card c2">
+        <h4><span class="pdot"></span>예측 경로 (run 내부)</h4>
+        <ul>
+          <li><code>ma</code> → <code>analyzeMA(raw)</code> 단·중·장+크로스+배열</li>
+          <li><code>trend</code> → <code>analyzeTrend</code> 3창 R²가중 회귀</li>
+          <li>→ 예측 곡선의 드리프트/기울기 형성</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note warn">
+      <div class="nh">⚠ 진화 관점</div>
+      <p>두 경로가 분리된 건 의도일 수 있지만, "나만의 엔진"으로 키울 때 <b>가장 먼저 통합을 고민할 지점</b>입니다.
+        지금은 combine 파라미터를 바꿔도 예측의 추세 뼈대는 raw price 기반이라 직접 흔들리지 않습니다.</p>
+    </div>
+  </section>
+
+  <!-- 7. LIVE DEMO -->
+  <section id="demo">
+    <div class="sec-num">07</div>
+    <h2>라이브 — 엔진을 직접 돌려보기</h2>
+    <p class="sec-desc">이 페이지는 실제 <code>forge-core.js</code>를 불러와 내장 BTC 샘플 포지를 계산합니다.
+      슬라이더로 <b>A층(확신)</b>과 <b>타임프레임</b>을 바꾸면 예측이 어떻게 기우는지 바로 보입니다.</p>
+
+    <div class="demo">
+      <div class="demo-head">
+        <div class="dt"><span class="live"></span>내장 샘플 · BTC/USD 480봉 → 미래 24봉 예측</div>
+      </div>
+      <canvas id="demoCanvas"></canvas>
+      <div class="legend" style="margin-top:13px">
+        <span><i style="background:var(--eth)"></i>과거 가격</span>
+        <span><i style="background:var(--gold)"></i>예측 경로</span>
+        <span><i style="background:rgba(232,180,99,.25)"></i>신뢰 밴드</span>
+      </div>
+
+      <div class="controls">
+        <div class="ctrl">
+          <label>A층 · 확신 바이어스(visionBias) <span class="cv" id="convVal">0</span></label>
+          <input type="range" id="convSlider" min="-60" max="60" step="5" value="0">
+          <p class="muted" style="font-size:11.5px;margin:7px 0 0">음수=하락 확신, 양수=상승 확신. 신호 드리프트로 예측을 기울입니다.</p>
+        </div>
+        <div class="ctrl">
+          <label>타임프레임 <span class="cv" id="tfVal">일·주봉</span></label>
+          <div class="seg" id="tfSeg">
+            <button data-tf="분" >분·시간</button>
+            <button data-tf="일" class="on">일·주봉</button>
+            <button data-tf="월" >월·분기</button>
+          </div>
+          <p class="muted" style="font-size:11.5px;margin:7px 0 0">추세 영향력(trendScale)과 장/중/단 비중을 바꿉니다.</p>
+        </div>
+      </div>
+
+      <div class="verdict" id="verdict"></div>
+      <div class="demo-fallback" id="demoFallback">
+        ⚠ <code>forge-core.js</code>를 불러오지 못했습니다. 이 페이지를 <code>forge-core.js</code>와 같은 폴더에서 열거나,
+        배포 서버(<code>/map/</code>)에서 확인하세요.
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="legend">
+      <span>Scoop Forge · MoneyScoop</span>
+      <span><a href="forge.html">← 스쿱포지 빌더로</a></span>
+    </div>
+    이 문서는 <code>forge-core.js v<span id="coreVer">?</span></code>를 직접 읽어 작성된 엔진 설명서입니다. · 비공개(noindex)
+  </footer>
+</div>
+
+<script src="forge-core.js"></script>
+<script>
+/* ---------- block catalog ---------- */
+const BLOCKS = [
+  {n:"가격", t:"price", svg:'<path d="M3 17l5-6 4 3 5-7 4 4" stroke-linecap="round" stroke-linejoin="round"/>', d:"원본 가격 시계열. 모든 분석의 출발점."},
+  {n:"이동평균", t:"ma", svg:'<path d="M3 15c4 0 5-6 9-6s5 4 9 4" stroke-linecap="round"/><path d="M3 18h18" opacity=".4"/>', d:"단·중·장 MA(len/×3/×6) + 골든·데드크로스 + 정/역배열 + 지지·저항 근접 → bias −1~+1."},
+  {n:"파동 스캔", t:"phasefold", svg:'<path d="M3 12c2-5 5-5 6 0s4 5 6 0 3-3 6-1" stroke-linecap="round"/>', d:"detrend 후 FFT 지배주파수 + PDM으로 지배주기 검출. 계절성 예측의 원천."},
+  {n:"추세선", t:"trend", svg:'<path d="M4 18L20 6" stroke-linecap="round"/><path d="M4 20h16" opacity=".4"/><circle cx="9" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.3" fill="currentColor" stroke="none"/>', d:"장/중/단 3창 회귀 + R²가중 블렌드 + 피봇 지지/저항선 + 채널 σ."},
+  {n:"RSI", t:"rsi", svg:'<path d="M3 8h18M3 16h18" opacity=".4"/><path d="M3 14c3 0 3-6 6-6s3 8 6 8 3-4 6-4" stroke-linecap="round"/>', d:"RSI를 −1~+1로 정규화. 과열/과매도 신호."},
+  {n:"피보나치", t:"fib", svg:'<path d="M3 5h18M3 9h18M3 14h18M3 20h18" stroke-linecap="round"/>', d:"롤링 구간 내 현재가 위치를 −1~+1로. 되돌림 위치 추정."},
+  {n:"엘리어트", t:"elliott", svg:'<path d="M3 18l3-8 3 5 3-10 3 7 3-4 3 6" stroke-linecap="round" stroke-linejoin="round"/>', d:"스윙 검출 → 1·2·3·4·5·A·B·C 파동 라벨 + 현재 파동/방향."},
+  {n:"거래량", t:"volume", svg:'<path d="M5 20V11M10 20V6M15 20v-7M20 20v-11" stroke-linecap="round"/>', d:"계산 없이 통과. 가격-거래량 확인으로 예측 bias(±)에 기여."},
+  {n:"가중결합", t:"combine", svg:'<path d="M5 5v6a4 4 0 004 4h6M19 5v6" stroke-linecap="round"/><circle cx="19" cy="18" r="2"/>', d:"입력들을 실효가중(수동×weight)으로 결합 → 합성 시계열."},
+  {n:"예측·시그널", t:"predict", svg:'<path d="M3 14c4 0 5-7 9-7M12 7c2 0 3 4 9 4" stroke-linecap="round" stroke-dasharray="0.1 4"/><path d="M3 14c4 0 5-7 9-7" stroke-linecap="round"/>', d:"신호 ±100 + 예측 경로 + 신뢰 밴드 + 국면 판정 출력."},
+];
+document.getElementById("blockGrid").innerHTML = BLOCKS.map(b=>`
+  <div class="blk">
+    <div class="bh">
+      <div class="bi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${b.svg}</svg></div>
+      <div><div class="bn">${b.n}</div><div class="bt">${b.t}</div></div>
+    </div>
+    <p>${b.d}</p>
+  </div>`).join("");
+
+/* ---------- contribution bars ---------- */
+const CONTRIB = [
+  {n:"신호 드리프트", s:"lastSig ÷100 ×0.28", w:100, val:"±28%", dyn:false},
+  {n:"모멘텀", s:"최근 로그수익률·감쇠", w:71, val:"±20%", dyn:false},
+  {n:"MA 드리프트", s:"analyzeMA.bias ×TF", w:36, val:"±10%", dyn:false},
+  {n:"추세 투영", s:"기울기 캡 ×k", w:54, val:"±3%/봉", dyn:false},
+  {n:"평균회귀", s:"REV_W=0.5 · θ=0.045", w:50, val:"가변", dyn:true},
+  {n:"계절성", s:"주기 신뢰도 rel로 스케일", w:42, val:"가변", dyn:true},
+];
+document.getElementById("contribBars").innerHTML = CONTRIB.map(c=>`
+  <div class="bar-row">
+    <div class="blab">${c.n}<small>${c.s}</small></div>
+    <div class="bar-track"><div class="bar-fill ${c.dyn?'dyn':''}" style="width:${c.w}%"></div></div>
+    <div class="bar-val">${c.val}</div>
+  </div>`).join("");
+
+/* ---------- timeframe cards ---------- */
+const TFS = [
+  {name:"월·분기·년", sub:"장기가중", l:60,m:30,s:10, scale:"1.0"},
+  {name:"주·일", sub:"균형", l:45,m:35,s:20, scale:"0.8"},
+  {name:"분·시간", sub:"단기가중", l:25,m:35,s:40, scale:"0.45"},
+];
+document.getElementById("tfCards").innerHTML = TFS.map(t=>`
+  <div class="tf-card">
+    <h4>${t.name} <small>· ${t.sub}</small></h4>
+    <div class="stack">
+      <i class="s-l" style="width:${t.l}%"></i><i class="s-m" style="width:${t.m}%"></i><i class="s-s" style="width:${t.s}%"></i>
+    </div>
+    <div class="tf-leg"><span><b>장</b> ${t.l}%</span><span><b>중</b> ${t.m}%</span><span><b>단</b> ${t.s}%</span></div>
+    <div class="tf-scale">추세 영향력 <b>${t.scale}</b></div>
+  </div>`).join("");
+
+/* ---------- live demo ---------- */
+(function(){
+  const FC = window.ForgeCore;
+  const fb = document.getElementById("demoFallback");
+  const cv = document.getElementById("demoCanvas");
+  if(!FC || !FC.sampleSeries || !FC.run){ fb.style.display="block"; cv.style.display="none";
+    document.querySelector(".controls").style.display="none"; return; }
+  document.getElementById("coreVer").textContent = FC.version || "?";
+
+  const sg = FC.sampleGraph(), series = FC.sampleSeries();
+  const graph = { nodes: sg.nodes, edges: sg.edges };
+  const data = { price: series };
+  let conv = 0, tf = "일";
+  const tfLabel = {"분":"분·시간","일":"일·주봉","월":"월·분기"};
+  const tfArg   = {"분":"5분봉","일":"일봉","월":"월봉"};
+
+  const ctx = cv.getContext("2d");
+  function fit(){ const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio||1);
+    cv.width = r.width*dpr; cv.height = r.height*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); return {w:r.width,h:r.height}; }
+
+  function compute(){
+    const res = FC.run(graph, data, { futW:24, timeframe: tfArg[tf], visionBias: conv });
+    draw(res); verdict(res);
+  }
+
+  function draw(res){
+    const {w,h} = fit(); ctx.clearRect(0,0,w,h);
+    const PAST = 130, past = series.slice(-PAST);
+    const path = res.prediction.path, lo = res.prediction.lo, hi = res.prediction.hi;
+    const anchor = res.prediction.anchor;
+    const all = past.concat([anchor], path, lo, hi).filter(v=>isFinite(v));
+    let mn = Math.min(...all), mx = Math.max(...all); const pad=(mx-mn)*0.08||1; mn-=pad; mx+=pad;
+    const padL=8, padR=8, padT=12, padB=12;
+    const n = past.length + path.length;
+    const X = i => padL + (w-padL-padR) * (i/(n-1));
+    const Y = v => padT + (h-padT-padB) * (1-(v-mn)/(mx-mn));
+
+    // grid
+    ctx.strokeStyle="rgba(255,255,255,.04)"; ctx.lineWidth=1;
+    for(let g=0;g<=3;g++){ const yy=padT+(h-padT-padB)*g/3; ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke(); }
+
+    // seam x
+    const seam = past.length-1;
+    ctx.strokeStyle="rgba(232,180,99,.28)"; ctx.setLineDash([3,4]); ctx.beginPath();
+    ctx.moveTo(X(seam),padT); ctx.lineTo(X(seam),h-padB); ctx.stroke(); ctx.setLineDash([]);
+
+    // band
+    ctx.beginPath();
+    for(let k=0;k<path.length;k++){ const x=X(seam+1+k); if(k===0)ctx.moveTo(x,Y(hi[k])); else ctx.lineTo(x,Y(hi[k])); }
+    for(let k=path.length-1;k>=0;k--){ const x=X(seam+1+k); ctx.lineTo(x,Y(lo[k])); }
+    ctx.closePath(); ctx.fillStyle="rgba(232,180,99,.13)"; ctx.fill();
+
+    // past line
+    ctx.beginPath(); ctx.lineWidth=1.8; ctx.strokeStyle="#8a92b2";
+    past.forEach((v,i)=>{ const x=X(i),y=Y(v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
+
+    // pred line (from anchor)
+    ctx.beginPath(); ctx.lineWidth=2.4; ctx.strokeStyle="#e8b463";
+    ctx.moveTo(X(seam),Y(anchor));
+    path.forEach((v,k)=>ctx.lineTo(X(seam+1+k),Y(v))); ctx.stroke();
+
+    // anchor dot
+    ctx.fillStyle="#e8b463"; ctx.beginPath(); ctx.arc(X(seam),Y(anchor),3.2,0,7); ctx.fill();
+    // target dot
+    ctx.fillStyle = res.verdict.regime==="bear" ? "#e06a6a" : res.verdict.regime==="bull" ? "#46c28e" : "#8a92b2";
+    ctx.beginPath(); ctx.arc(X(n-1),Y(path[path.length-1]),3.4,0,7); ctx.fill();
+  }
+
+  function verdict(res){
+    const v = res.verdict, reg = v.regime;
+    const regTxt = reg==="bull"?"상승":reg==="bear"?"하락":"중립";
+    const chg = ((v.target - res.prediction.anchor)/res.prediction.anchor*100);
+    const seas = res.prediction.seasonal;
+    document.getElementById("verdict").innerHTML = `
+      <div class="vd"><span class="vk">국면</span><span class="vv ${reg}">${regTxt}</span></div>
+      <div class="vd"><span class="vk">시그널 점수</span><span class="vv">${v.score>0?'+':''}${v.score}</span></div>
+      <div class="vd"><span class="vk">24봉 예측 변화</span><span class="vv ${chg>=0?'bull':'bear'}">${chg>=0?'+':''}${chg.toFixed(1)}%</span></div>
+      <div class="vd"><span class="vk">검출 주기</span><span class="vv neutral">${seas?('≈'+seas.period):'—'}</span></div>`;
+  }
+
+  // controls
+  document.getElementById("convSlider").addEventListener("input", e=>{
+    conv = +e.target.value; document.getElementById("convVal").textContent = (conv>0?'+':'')+conv; compute(); });
+  document.getElementById("tfSeg").addEventListener("click", e=>{
+    const b = e.target.closest("button"); if(!b) return;
+    tf = b.dataset.tf; document.getElementById("tfVal").textContent = tfLabel[tf];
+    [...e.currentTarget.children].forEach(x=>x.classList.toggle("on", x===b)); compute(); });
+
+  window.addEventListener("resize", ()=>compute());
+  compute();
+})();
+</script>
+</body>
+</html>

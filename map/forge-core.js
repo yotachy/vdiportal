@@ -111,6 +111,21 @@
     return { mas: { short, mid, long }, cross, align: { order, score }, sr, bias };
   }
 
+  function maSteps(ma, len) {
+    const a = ma.align.order, aTxt = a === "bull" ? "정배열" : a === "bear" ? "역배열" : "혼조";
+    const cTxt = ma.cross.type ? (ma.cross.type === "golden" ? "골든크로스 " : "데드크로스 ") + ma.cross.barsAgo + "봉 전" : "교차 신호 없음";
+    const sl = ma.mas.long ? ma.mas.long.slope : 0, slopeTxt = sl > 0.1 ? "상승" : sl < -0.1 ? "하락" : "횡보";
+    const srTxt = ma.sr.ma ? " · " + (ma.sr.side === "support" ? "지지" : "저항") + " 근접" : "";
+    const bTxt = ma.bias > 0.1 ? "상승" : ma.bias < -0.1 ? "하락" : "중립";
+    return [
+      "단·중·장 MA 산출 (" + len + "/" + (len * 3) + "/" + (len * 6) + ")",
+      aTxt + " (정렬도 " + Math.round(ma.align.score * 100) + "%)",
+      cTxt,
+      "장기 기울기 " + slopeTxt + srTxt,
+      "종합 방향 " + bTxt + " (bias " + ma.bias.toFixed(2) + ")"
+    ];
+  }
+
   function detrendNorm(y) {
     const n = y.length;
     if (!n) return [];
@@ -629,5 +644,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps };
 });
