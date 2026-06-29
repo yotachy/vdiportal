@@ -2687,6 +2687,7 @@
   function _drawElliottLayers(c, ea, M) {
     c.save();
     const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    const _by = (M.badgeY != null) ? M.badgeY : 14;
     const COL = "#c47ae0", BAD = "#e06a6a";
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
     // layer1: 파동 폴리라인 + 라벨
@@ -2706,7 +2707,7 @@
       const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
       const bcol = ea.structure.indexOf("impulse") === 0 ? COL : ea.structure === "corrective" ? "#e8b463" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));
-      _evLabel(c, stx + " " + ok + "/3 유효" + ea.rules.score.toFixed(2), xb, 14, bcol, "right");
+      _evLabel(c, stx + " " + ok + "/3 유효" + ea.rules.score.toFixed(2), xb, _by, bcol, "right");
     }
     // layer3: 다음 파동 투영선
     if (reveal >= 3 && ea.next && ea.waves.length) {
@@ -2724,6 +2725,7 @@
   function _drawRsiLayers(c, rsi, M) {
     c.save();
     const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    const _by = (M.badgeY != null) ? M.badgeY : 28;
     if (reveal >= 1 && rsi.divergence.type && rsi.divergence.pricePts) {
       const a = rsi.divergence.pricePts[0], b = rsi.divergence.pricePts[1];
       const xa = fiToX(Math.max(fiMin, a.idx)), ya = pToY(a.price), xb = fiToX(Math.max(fiMin, b.idx)), yb = pToY(b.price);
@@ -2737,7 +2739,7 @@
       const zt = rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립";
       const col = rsi.zone === "overbought" ? "#e06a6a" : rsi.zone === "oversold" ? "#46c28e" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));
-      _evLabel(c, "RSI " + Math.round(rsi.last) + " \xb7 " + zt, xb, 28, col, "right");
+      _evLabel(c, "RSI " + Math.round(rsi.last) + " \xb7 " + zt, xb, _by, col, "right");
     }
     c.restore();
   }
@@ -2745,6 +2747,7 @@
   function _drawVolumeLayers(c, va, M) {
     if (!va) return;
     const { fiToX, pToY, fiMin, reveal, xRight } = M;
+    const _by = (M.badgeY != null) ? M.badgeY : 28;
     c.save();
     // 레이어1: 가격-OBV 다이버전스 선
     if (reveal >= 1 && va.divergence.type && va.divergence.pricePts) {
@@ -2768,7 +2771,7 @@
         const x = fiToX(Math.max(fiMin, M.nowFi)), y = pToY(M.lastPrice);
         if (isFinite(x) && isFinite(y)) { c.strokeStyle = "#e8b463"; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x, y - 14); c.lineTo(x, y - 4); c.stroke(); }
       }
-      _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, 28, relCol, "right");
+      _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, _by, relCol, "right");
     }
     c.restore();
   }
@@ -2796,6 +2799,7 @@
       const toY = v => g.padTop + (1 - (v - g.loV) / ((g.hiV - g.loV) || 1)) * (g.ch - g.padTop - g.padBot);
       const Hn = g.histLen, off = P - Hn, plotR = g.padX + g.plotW;
       const toXh = i => g.padX + (i / (Hn - 1)) * g.histW;
+      let _slot = 0; const _slotY = () => g.padTop + 2 + (_slot++) * 18;   // 우상단 배지 세로 슬롯(18px 간격)
       for (const n of nodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         if (n.blockType === "ma") {
@@ -2818,16 +2822,16 @@
           legend.push({ col, t: EV_LABEL.fib + "(전문)" });
         } else if (n.blockType === "elliott") {
           const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
-          _drawElliottLayers(c, ea, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          _drawElliottLayers(c, ea, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
         } else if (n.blockType === "rsi") {
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
-          _drawRsiLayers(c, rsi, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          _drawRsiLayers(c, rsi, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
         } else if (n.blockType === "volume") {
           const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
           const va = ForgeCore.analyzeVolume(price, vser);
-          _drawVolumeLayers(c, va, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1] });
+          _drawVolumeLayers(c, va, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1], badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.volume + "(전문)" });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
