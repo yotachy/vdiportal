@@ -2511,19 +2511,6 @@
     return out;
   }
   /* RSI 전체 시계열(Wilder 평활) — 다이버전스 판정용 */
-  function _rsiSeries(arr, period) {
-    period = period || 14; const n = arr.length, out = new Array(n).fill(50);
-    if (n < period + 1) return out;
-    let g = 0, l = 0;
-    for (let i = 1; i <= period; i++) { const d = arr[i] - arr[i - 1]; if (d > 0) g += d; else l -= d; }
-    g /= period; l /= period;
-    for (let i = period; i < n; i++) {
-      const d = arr[i] - arr[i - 1], gain = d > 0 ? d : 0, loss = d < 0 ? -d : 0;
-      g = (g * (period - 1) + gain) / period; l = (l * (period - 1) + loss) / period;
-      out[i] = l === 0 ? 100 : 100 - 100 / (1 + g / l);
-    }
-    return out;
-  }
   function _zigzag(price, minPct) {
     minPct = minPct || 0.18; const n = price.length; if (n < 3) return [];
     const piv = []; let extI = 0, extP = price[0], dir = 0;
@@ -3298,21 +3285,14 @@
         return f;
       }
       case "rsi": {
-        if (!v || !v.length) return ["데이터 없음"];
-        const rsi = Math.round(v[v.length - 1] * 50 + 50), prev = v.length >= 4 ? Math.round(v[v.length - 4] * 50 + 50) : rsi;
-        const dir = rsi > prev + 2 ? "상승 중(모멘텀 강화)" : rsi < prev - 2 ? "하락 중(모멘텀 둔화)" : "횡보";
-        f.push("RSI " + rsi + " · " + (rsi >= 70 ? "과매수(과열·되돌림 주의)" : rsi <= 30 ? "과매도(반등 가능)" : "중립 구간"));
-        f.push("RSI " + dir + " (3봉 전 " + prev + ")");
-        // 다이버전스: 가격 스윙 고점/저점 vs 그 시점 RSI 비교
-        if (P.length > 20) {
-          const rs = _rsiSeries(P, (n.params && n.params.period) || 14), piv = _zigzag(P, 0.10);
-          const highs = [], lows = [];
-          for (let k = 0; k < piv.length; k++) { const pp = piv[k].p, a = k > 0 ? piv[k - 1].p : pp, b = k < piv.length - 1 ? piv[k + 1].p : pp; if (pp >= a && pp >= b) highs.push(piv[k]); else if (pp <= a && pp <= b) lows.push(piv[k]); }
-          let div = "";
-          if (highs.length >= 2) { const h2 = highs[highs.length - 1], h1 = highs[highs.length - 2]; if (h2.p > h1.p && rs[h2.i] < rs[h1.i] - 2) div = "베어리시 다이버전스 — 고점↑·RSI↓ (상승 모멘텀 약화·반락 주의)"; }
-          if (!div && lows.length >= 2) { const l2 = lows[lows.length - 1], l1 = lows[lows.length - 2]; if (l2.p < l1.p && rs[l2.i] > rs[l1.i] + 2) div = "불리시 다이버전스 — 저점↓·RSI↑ (하락 모멘텀 약화·반등 가능)"; }
-          f.push(div || "다이버전스 없음 (가격-RSI 동행)");
-        }
+        if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
+        const r = ForgeCore.analyzeRSI(P, { period: (n.params && n.params.period) || 14 });
+        f.push("RSI " + Math.round(r.last) + " \xb7 " + (r.zone === "overbought" ? "과매수(과열·되돌림 주의)" : r.zone === "oversold" ? "과매도(반등 가능)" : "중립 구간"));
+        const c50 = (r.cross50 === "above" || r.cross50 === "cross_up") ? "50선 위" : "50선 아래";
+        f.push(c50 + " \xb7 추세 " + (r.trend > 0.1 ? "상승(모멘텀 강화)" : r.trend < -0.1 ? "하락(모멘텀 둔화)" : "횡보"));
+        f.push(r.divergence.type === "bearish" ? "베어리시 다이버전스 — 고점↑·RSI↓ (상승 모멘텀 약화·반락 주의)"
+          : r.divergence.type === "bullish" ? "불리시 다이버전스 — 저점↓·RSI↑ (하락 모멘텀 약화·반등 가능)"
+          : "다이버전스 없음 (가격-RSI 동행)");
         return f;
       }
       case "fib": {
