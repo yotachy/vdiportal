@@ -303,6 +303,62 @@
     return out;
   }
 
+  function analyzeRSI(price, opts) {
+    opts = opts || {};
+    const period = opts.period || 14, swing = opts.swing != null ? opts.swing : 0.03;
+    const P = price.length;
+    const EMPTY = { series: [], last: 50, zone: "neutral", trend: 0, cross50: "above", divergence: { type: null, pricePts: null }, bias: 0 };
+    if (P < 2) return EMPTY;
+    const series = new Array(P); let avgG = 0, avgL = 0;
+    for (let i = 0; i < P; i++) {
+      if (i === 0) { series[i] = 50; continue; }
+      const ch = price[i] - price[i - 1], g = Math.max(0, ch), l = Math.max(0, -ch);
+      if (i <= period) { avgG += g / period; avgL += l / period; }
+      else { avgG = (avgG * (period - 1) + g) / period; avgL = (avgL * (period - 1) + l) / period; }
+      const rs = avgL === 0 ? 100 : avgG / avgL;
+      series[i] = 100 - 100 / (1 + rs);
+    }
+    const last = series[P - 1];
+    const zone = last >= 70 ? "overbought" : last <= 30 ? "oversold" : "neutral";
+    const w = Math.max(2, Math.min(period, P - 1)), seg = series.slice(P - w), f = linfit(seg);
+    const trend = Math.max(-1, Math.min(1, Math.tanh(f.b * 0.5)));
+    const prev = series[P - 2];
+    let cross50 = last >= 50 ? "above" : "below";
+    if (prev < 50 && last >= 50) cross50 = "cross_up";
+    else if (prev >= 50 && last < 50) cross50 = "cross_down";
+    const sw = detectSwings(price, swing), pts = sw.map(p => ({ idx: p.idx, price: p.price }));
+    const lows = [], highs = [];
+    for (let i = 0; i < pts.length; i++) {
+      const pr = pts[i - 1], nx = pts[i + 1], pv = pts[i].price;
+      const isHigh = (pr && nx) ? (pv >= pr.price && pv >= nx.price) : (nx ? pv >= nx.price : (pr ? pv >= pr.price : true));
+      (isHigh ? highs : lows).push(pts[i]);
+    }
+    const rsiAt = idx => series[Math.max(0, Math.min(P - 1, idx))];
+    let divergence = { type: null, pricePts: null };
+    if (lows.length >= 2) { const a = lows[lows.length - 2], b = lows[lows.length - 1]; if (b.price < a.price && rsiAt(b.idx) > rsiAt(a.idx)) divergence = { type: "bullish", pricePts: [a, b] }; }
+    if (!divergence.type && highs.length >= 2) { const a = highs[highs.length - 2], b = highs[highs.length - 1]; if (b.price > a.price && rsiAt(b.idx) < rsiAt(a.idx)) divergence = { type: "bearish", pricePts: [a, b] }; }
+    const divDir = divergence.type === "bullish" ? 1 : divergence.type === "bearish" ? -1 : 0;
+    const zoneDir = zone === "oversold" ? 0.5 : zone === "overbought" ? -0.5 : 0;
+    const crossDir = cross50 === "cross_up" ? 0.3 : cross50 === "cross_down" ? -0.3 : 0;
+    const bias = Math.max(-1, Math.min(1, 0.5 * divDir + zoneDir + 0.3 * crossDir));
+    return { series, last, zone, trend, cross50, divergence, bias };
+  }
+
+  function rsiSteps(rsi) {
+    const zTxt = rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립";
+    const c50 = (rsi.cross50 === "above" || rsi.cross50 === "cross_up") ? "50선 위" : "50선 아래";
+    const tTxt = rsi.trend > 0.1 ? "상승" : rsi.trend < -0.1 ? "하락" : "횟보";
+    const dv = rsi.divergence.type === "bullish" ? "강세 다이버전스" : rsi.divergence.type === "bearish" ? "약세 다이버전스" : "다이버전스 없음";
+    const bTxt = rsi.bias > 0.1 ? "상승" : rsi.bias < -0.1 ? "하락" : "중립";
+    return [
+      "RSI " + Math.round(rsi.last) + " \xb7 " + zTxt,
+      c50 + " \xb7 추세 " + tTxt,
+      dv,
+      "RSI 오실레이터 갱신",
+      "종합 방향 " + bTxt + " (bias " + rsi.bias.toFixed(2) + ")"
+    ];
+  }
+
   function fibPos(arr, len) {
     const out = [];
     for (let i = 0; i < arr.length; i++) {
@@ -772,5 +828,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, analyzeRSI, rsiSteps };
 });

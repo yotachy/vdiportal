@@ -738,3 +738,39 @@ test("run: 엘리어트 블록 없으면 기여 0", () => {
   const r = ForgeCore.run(G, { price: Array.from({ length: 40 }, (_, i) => 100 + i) }, { futW: 8, timeframe: "월봉" });
   assert.ok(r.prediction.path.every(isFinite));
 });
+
+test("analyzeRSI: 단조 상승 → overbought, trend>=0", () => {
+  const price = Array.from({ length: 40 }, (_, i) => 100 + i * 2);
+  const r = ForgeCore.analyzeRSI(price, { period: 14 });
+  assert.ok(r.last > 70);
+  assert.strictEqual(r.zone, "overbought");
+  assert.ok(r.trend >= 0);
+});
+
+test("analyzeRSI: 강세 다이버전스(가격 LL·RSI HL) → bullish", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 70, 10), ...seg(70, 85, 6), ...seg(85, 68, 8)];  // 저점1≈70, 반등85, 저점2≈68(LL)
+  const r = ForgeCore.analyzeRSI(price, { period: 5, swing: 0.05 });
+  assert.strictEqual(r.divergence.type, "bullish");
+  assert.ok(r.divergence.pricePts && r.divergence.pricePts.length === 2);
+});
+
+test("analyzeRSI: 약세 다이버전스(가격 HH·RSI LH) → bearish", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 130, 10), ...seg(130, 115, 6), ...seg(115, 134, 8)];  // 고점1≈130, 조정115, 고점2≈134(HH)
+  const r = ForgeCore.analyzeRSI(price, { period: 5, swing: 0.05 });
+  assert.strictEqual(r.divergence.type, "bearish");
+});
+
+test("analyzeRSI: 소량 → 폴백(divergence null, bias 유한)", () => {
+  const r = ForgeCore.analyzeRSI([10, 11], {});
+  assert.ok(isFinite(r.bias));
+  assert.strictEqual(r.divergence.type, null);
+});
+
+test("rsiSteps: 5단계, bias 반영", () => {
+  const r = ForgeCore.analyzeRSI(Array.from({ length: 40 }, (_, i) => 100 + i * 2), { period: 14 });
+  const s = ForgeCore.rsiSteps(r);
+  assert.strictEqual(s.length, 5);
+  assert.ok(/bias/.test(s[4]));
+});
