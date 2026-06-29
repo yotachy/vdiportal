@@ -62,6 +62,55 @@
     return out;
   }
 
+  function ema(arr, len) {
+    const out = [], a = 2 / (len + 1); let prev;
+    for (let i = 0; i < arr.length; i++) { const v = arr[i]; prev = (i === 0) ? v : (prev + a * (v - prev)); out.push(prev); }
+    return out;
+  }
+
+  function analyzeMA(price, opts) {
+    opts = opts || {};
+    const len = opts.len || 20, useEma = !!opts.ema, srPct = opts.srPct != null ? opts.srPct : 0.015;
+    const P = price.length;
+    const EMPTY = { mas: { short: null, mid: null, long: null }, cross: { type: null, barsAgo: null }, align: { order: "mixed", score: 0 }, sr: { ma: null, side: null, distPct: null }, bias: 0 };
+    if (P < 2) return EMPTY;
+    const mk = period => {
+      const series = useEma ? ema(price, period) : sma(price, period);
+      const last = series[P - 1];
+      const w = Math.max(2, Math.min(period, P - 1));
+      const seg = series.slice(P - w);
+      const f = linfit(seg);   // {a:절편, b:기울기}
+      const slope = Math.max(-1, Math.min(1, Math.tanh((f.b / (Math.abs(last) || 1)) * 100)));
+      return { period, series, slope, last };
+    };
+    const short = mk(len), mid = mk(len * 3), long = mk(len * 6), pl = price[P - 1];
+    let cross = { type: null, barsAgo: null };
+    const lim = Math.min(P - 1, len * 6);
+    for (let i = P - 1; i >= Math.max(1, P - 1 - lim); i--) {
+      const ds = short.series[i] - long.series[i], dp = short.series[i - 1] - long.series[i - 1];
+      if (ds === 0) continue;
+      if (dp <= 0 && ds > 0) { cross = { type: "golden", barsAgo: (P - 1) - i }; break; }
+      if (dp >= 0 && ds < 0) { cross = { type: "dead", barsAgo: (P - 1) - i }; break; }
+    }
+    const pairs = [pl > short.last, short.last > mid.last, mid.last > long.last];
+    const upCnt = pairs.filter(Boolean).length;
+    const bull = pl > short.last && short.last > mid.last && mid.last > long.last;
+    const bear = pl < short.last && short.last < mid.last && mid.last < long.last;
+    let order = "mixed", score = 0;
+    if (bull) { order = "bull"; score = upCnt / 3; }
+    else if (bear) { order = "bear"; score = (3 - upCnt) / 3; }
+    const cand = [["short", short.last], ["mid", mid.last], ["long", long.last]];
+    let near = null, nd = Infinity;
+    for (const [name, val] of cand) { const d = Math.abs(pl - val) / (Math.abs(pl) || 1); if (d < nd) { nd = d; near = name; } }
+    let sr = { ma: null, side: null, distPct: null };
+    if (near && nd <= srPct) { const val = near === "short" ? short.last : near === "mid" ? mid.last : long.last; sr = { ma: near, side: pl >= val ? "support" : "resistance", distPct: nd }; }
+    const alignDir = order === "bull" ? 1 : order === "bear" ? -1 : 0;
+    let crossDir = cross.type === "golden" ? 1 : cross.type === "dead" ? -1 : 0;
+    if (crossDir !== 0 && cross.barsAgo != null) crossDir *= Math.max(0, 1 - cross.barsAgo / (len * 6));
+    const bias = Math.max(-1, Math.min(1, 0.5 * alignDir * score + 0.3 * crossDir + 0.2 * long.slope));
+    return { mas: { short, mid, long }, cross, align: { order, score }, sr, bias };
+  }
+
   function detrendNorm(y) {
     const n = y.length;
     if (!n) return [];
@@ -477,6 +526,9 @@
     const _tn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "trend");
     const _tp = (_tn && _tn.params) || {};
     const _prof = trendProfileForTF(opts && opts.timeframe);
+    const _mn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "ma");
+    const _ma = _mn ? analyzeMA(price, { len: (_mn.params && _mn.params.len) || 20, ema: !!(_mn.params && _mn.params.ema) }) : null;
+    const maDrift = _ma ? _ma.bias * _prof.trendScale * 0.10 : 0;   // MA 국면 방향 드리프트(±10% 상한·TF가중)
     const _ta = analyzeTrend(price, { shortLen: _tp.len || 40, pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -488,7 +540,7 @@
       const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas, sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
@@ -577,5 +629,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA };
 });
