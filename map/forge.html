@@ -2469,6 +2469,53 @@
       y += 14;
     }
   }
+  // 다각도 추세 4레이어 작도(차트·오버레이 공용). M=좌표 매퍼.
+  function _drawTrendLayers(c, ta, M) {
+    const { fiToX, pToY, nowFi, xNow, xRight, futBars } = M;
+    const COL = { long: "#46c28e", mid: "#5b8def", short: "#e8b463" };
+    const W = { long: 2.6, mid: 2.0, short: 1.6 };
+    const DASH = { long: [], mid: [], short: [5, 4] };
+    function winLine(w, key) {
+      if (!w) return;
+      const valAt = fi => w.bRaw + w.slopeRaw * (fi - w.startIdx);
+      const xa = fiToX(w.startIdx), ya = pToY(valAt(w.startIdx)), xb = xNow, yb = pToY(valAt(nowFi));
+      if (![xa, ya, xb, yb].every(isFinite)) return;
+      c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = W[key] + 1.9;
+      c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke();
+      c.strokeStyle = COL[key]; c.lineWidth = W[key]; c.setLineDash(DASH[key]);
+      c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke();
+      const ye = pToY(valAt(nowFi + futBars));
+      if (isFinite(ye)) { c.globalAlpha = .65; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(xb, yb); c.lineTo(xRight, ye); c.stroke(); c.globalAlpha = 1; }
+      c.setLineDash([]);
+      // 강도/각도 라벨
+      const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
+      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + w.r2.toFixed(2) + " " + dir;
+      c.fillStyle = COL[key]; c.font = "700 9.5px ui-monospace,monospace"; c.textAlign = "left"; c.fillText(lab, Math.min(xb, xRight - 4) + 3, yb - 4);
+    }
+    // 채널(장기 ±k·σ)
+    if (ta.channel) {
+      const ch = ta.channel, upAt = fi => pToY(ch.bRaw + ch.slopeRaw * fi + ch.k * ch.sigma), loAt = fi => pToY(ch.bRaw + ch.slopeRaw * fi - ch.k * ch.sigma);
+      const x0 = fiToX(0), u0 = upAt(0), l0 = loAt(0), u1 = upAt(nowFi), l1 = loAt(nowFi);
+      if ([x0, u0, l0, u1, l1].every(isFinite)) {
+        c.globalAlpha = .10; c.fillStyle = COL.long; c.beginPath();
+        c.moveTo(x0, u0); c.lineTo(xNow, u1); c.lineTo(xNow, l1); c.lineTo(x0, l0); c.closePath(); c.fill(); c.globalAlpha = 1;
+        c.strokeStyle = COL.long; c.lineWidth = 1; c.setLineDash([2, 4]); c.globalAlpha = .5;
+        c.beginPath(); c.moveTo(x0, u0); c.lineTo(xNow, u1); c.stroke();
+        c.beginPath(); c.moveTo(x0, l0); c.lineTo(xNow, l1); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+      }
+    }
+    // 회귀 3중
+    winLine(ta.windows.long, "long"); winLine(ta.windows.mid, "mid"); winLine(ta.windows.short, "short");
+    // 피봇 지지/저항
+    function pivLine(L, col) {
+      if (!L) return;
+      const xa = fiToX(L.fromIdx), ya = pToY(L.slope * L.fromIdx + L.b), xb = xNow, yb = pToY(L.slope * nowFi + L.b);
+      if (![xa, ya, xb, yb].every(isFinite)) return;
+      c.strokeStyle = col; c.lineWidth = 1.4; c.setLineDash([4, 4]); c.globalAlpha = .85;
+      c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+    }
+    pivLine(ta.pivots.support, "#46c28e"); pivLine(ta.pivots.resistance, "#e06a6a");
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -2500,13 +2547,13 @@
           for (let i = 0; i < Hn; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = toXh(i), y = toY(v); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
           c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
         } else if (n.blockType === "trend") {
-          const len = Math.min(Hn, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
-          const i0 = Hn - len, i1 = Hn - 1, x0 = toXh(i0), x1 = toXh(i1), y0 = toY(lr.b), y1 = toY(lr.a * (len - 1) + lr.b);
-          const sl = (y1 - y0) / ((x1 - x0) || 1), xS = g.seamX, yS = y1 + sl * (xS - x1);
-          c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = 4.5; c.beginPath(); c.moveTo(x0, y0); c.lineTo(xS, yS); c.stroke();
-          c.strokeStyle = col; c.lineWidth = 2.6; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
-          c.globalAlpha = .7; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(x1, y1); c.lineTo(xS, yS); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
-          c.fillStyle = col; c.font = "700 10px ui-monospace,monospace"; c.fillText("추세", x0 + 3, y0 - 4);
+          const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2 });
+          const off = P - Hn, futBars = (g.path && g.path.length) || 24;
+          _drawTrendLayers(c, ta, {
+            fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))),
+            pToY: v => toY(v),
+            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars
+          });
           legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "fib") {
           const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
