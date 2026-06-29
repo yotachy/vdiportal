@@ -3116,7 +3116,7 @@
     { const _rn = boardState.nodes.find(n => n.blockType === "rsi"); if (_rn) fcDrawRsi(ForgeCore.analyzeRSI((data && data.price) || [], { period: (_rn.params && _rn.params.period) || 14 })); }
     toggleVolPanel();
     const _vn = boardState.nodes.find(n => n.kind === "block" && n.blockType === "volume");
-    if (_vn) { const vser = (Array.isArray(_vn.series) && _vn.series.length >= 2) ? _vn.series : ForgeCore.synthVolume(data.price); fcDrawVol(ForgeCore.analyzeVolume(data.price, vser)); }
+    if (_vn) { const vser = (Array.isArray(_vn.series) && _vn.series.length >= 2) ? _vn.series : ForgeCore.synthVolume((data && data.price) || []); fcDrawVol(ForgeCore.analyzeVolume((data && data.price) || [], vser)); }
   }
   /* ── 예측 시점별 표(3·6·12·24 등) ── */
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }

@@ -923,3 +923,11 @@ test("sampleGraph: 거래량 노드 포함 + 실행 시 유한 예측", () => {
   const r = ForgeCore.run(g, data, { timeframe: "일봉" });
   assert.ok(isFinite(r.prediction.target));
 });
+
+test("combine: 방향성 없는 거래량 입력은 블렌드에서 제외(시그널 오염 방지)", () => {
+  const g = ForgeCore.sampleGraph();
+  const price = ForgeCore.sampleSeries();
+  const data = { price, candle: price.map(c => ({ o: c, h: c + 1, l: c - 1, c })) };
+  const r = ForgeCore.run(g, data, { timeframe: "일봉" });
+  assert.ok(r.verdict.score > 50, "샘플 강세 시그널이 거래량 magnitude에 붕괴되지 않아야 (score=" + r.verdict.score + ")");
+});

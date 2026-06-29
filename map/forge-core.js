@@ -220,7 +220,7 @@
       } else if (n.blockType === "ma") {
         values[id] = sma(ins[0] || data.price, (n.params && n.params.len) || 5);
       } else if (n.blockType === "combine") {
-        const w = (n.params && n.params.weights) || {}, keys = inputsOf[id];
+        const w = (n.params && n.params.weights) || {}, keys = inputsOf[id].filter(k => byId[k] && byId[k].blockType !== "volume" && byId[k].blockType !== "ticker");
         const eff = keys.map(k => {
           const manual = (w[k] != null ? w[k] : 1);
           const sw = (byId[k] && byId[k].weight != null && isFinite(byId[k].weight)) ? byId[k].weight : 50;
