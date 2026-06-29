@@ -20,8 +20,8 @@
   .forge-top{display:flex;align-items:center;gap:14px;height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
   .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
   .forge-split{display:flex;flex:1;min-width:0}
-  .board-pane{position:relative;flex:1 1 auto;min-width:280px;overflow:hidden;display:flex;flex-direction:column}
-  .chart-pane{position:relative;flex:0 0 50%;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
+  .board-pane{position:relative;flex:0 0 var(--board-w,640px);min-width:280px;overflow:hidden;display:flex;flex-direction:column}
+  .chart-pane{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
   /* 좌우 크기조절 거터 */
   .forge-gutter{flex:0 0 7px;background:var(--line);cursor:col-resize;position:relative;z-index:6;transition:background .12s}
   .forge-gutter::before{content:"";position:absolute;left:-4px;right:-4px;top:0;bottom:0}
@@ -3460,32 +3460,24 @@
     const gutter = document.getElementById("forgeGutter");
     const chart = document.getElementById("chartPane");
     if (!split || !gutter || !chart) return;
-    const DEFW = 460, MINC = 240, MINB = 280;
+    const DEFW = 640, MINB = 280, MINC = 320;
+    const board = document.getElementById("boardPane");
+    let saved = null; try { saved = localStorage.getItem("scoopforge_board_w"); } catch (_) {}
+    if (saved && board) board.style.flexBasis = saved;
     let dragging = false;
-    gutter.addEventListener("pointerdown", e => {
-      dragging = true; gutter.classList.add("dragging");
-      try { gutter.setPointerCapture(e.pointerId); } catch (_) {}
-      document.body.style.userSelect = "none";
-      e.preventDefault();
-    });
+    function persist() { try { if (board) localStorage.setItem("scoopforge_board_w", board.style.flexBasis || (DEFW + "px")); } catch (_) {} }
+    gutter.addEventListener("pointerdown", e => { dragging = true; gutter.classList.add("dragging"); try { gutter.setPointerCapture(e.pointerId); } catch (_) {} document.body.style.userSelect = "none"; e.preventDefault(); });
     gutter.addEventListener("pointermove", e => {
-      if (!dragging) return;
+      if (!dragging || !board) return;
       const r = split.getBoundingClientRect();
-      const maxC = r.width - MINB - 7;
-      const w = Math.max(MINC, Math.min(maxC, r.right - e.clientX));
-      chart.style.flexBasis = w + "px";
-      redrawCharts();
+      const maxB = r.width - MINC - 7;
+      const w = Math.max(MINB, Math.min(maxB, e.clientX - r.left));
+      board.style.flexBasis = w + "px"; redrawCharts();
     });
-    function end(e) {
-      if (!dragging) return;
-      dragging = false; gutter.classList.remove("dragging");
-      try { gutter.releasePointerCapture(e.pointerId); } catch (_) {}
-      document.body.style.userSelect = "";
-      redrawCharts();
-    }
+    function end(e) { if (!dragging) return; dragging = false; gutter.classList.remove("dragging"); try { gutter.releasePointerCapture(e.pointerId); } catch (_) {} document.body.style.userSelect = ""; persist(); redrawCharts(); }
     gutter.addEventListener("pointerup", end);
     gutter.addEventListener("pointercancel", end);
-    gutter.addEventListener("dblclick", () => { chart.style.flexBasis = "50%"; redrawCharts(); });
+    gutter.addEventListener("dblclick", () => { if (board) board.style.flexBasis = DEFW + "px"; persist(); redrawCharts(); });
   })();
 
   /* ── 차트 높이 조절(세로 거터): 가격차트를 키우고 아래 패널을 내림 ── */
