@@ -211,6 +211,8 @@
   .fc-hero #fcHeroImg,.fc-hero #fcMainChart,.fc-hero #fcEvidence{transition:transform .5s cubic-bezier(.4,0,.2,1)}
   .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3}
   body.evhide .fc-evidence{display:none}
+  .fc-zoom-reset{position:absolute;top:8px;right:8px;z-index:4;width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:13px;cursor:pointer;display:none}
+  .fc-zoom-reset.on{display:block}
   .ev-toggle{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:-.01em}
   .ev-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.1)}
   /* 데이터 소스 배지(이미지뷰=비전 시계열 자동 감지 안내) */
@@ -525,6 +527,7 @@
               <canvas id="fcFuture" class="fc-cv"></canvas>
               <canvas id="fcMainChart" class="fc-cv"></canvas>
               <canvas id="fcEvidence" class="fc-evidence"></canvas>
+              <button id="fcZoomReset" class="fc-zoom-reset" title="줌 초기화">&#x2295;</button>
               <div class="fc-cone-vline" id="fcMainVline"></div>
               <div class="fc-cone-tip" id="fcMainTip"></div>
             </div>
@@ -633,6 +636,29 @@
   let drag = null;
   let spaceDown = false;
   let justDragged = false;
+
+  /* ── Hero 줌/팬 상태 ─────────────────────────────────────────── */
+  let _heroZoom = { s: 1, tx: 0, ty: 0 };
+  let _heroZoomDragging = false;
+  function resetHeroView() { _heroZoom = { s: 1, tx: 0, ty: 0 }; }
+  function clampPan() {
+    const cv = document.getElementById("fcMainChart"); if (!cv) return;
+    const W = cv.clientWidth || 1, H = cv.clientHeight || 1, s = _heroZoom.s;
+    if (s <= 1.0001) { _heroZoom.tx = 0; _heroZoom.ty = 0; _heroZoom.s = 1; return; }
+    const minVis = 0.25;
+    const maxTx = W * (1 - minVis), minTx = W * minVis - W * s;
+    const maxTy = H * (1 - minVis), minTy = H * minVis - H * s;
+    _heroZoom.tx = Math.max(minTx, Math.min(maxTx, _heroZoom.tx));
+    _heroZoom.ty = Math.max(minTy, Math.min(maxTy, _heroZoom.ty));
+  }
+  function _syncZoomBtn() { const b = document.getElementById("fcZoomReset"); if (b) b.classList.toggle("on", _heroZoom.s > 1.0001); }
+  function renderHeroZoom() {
+    const pred = _fcLastResult && _fcLastResult.prediction;
+    const px = (_fcLastData && _fcLastData.price) || (currentData && currentData().price) || [];
+    fcDrawMainChart(px, pred);
+    drawEvidence();
+    _syncZoomBtn();
+  }
 
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
@@ -2422,6 +2448,7 @@
       c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
       c.fillText("분석 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return;
     }
+    c.save(); c.translate(_heroZoom.tx, _heroZoom.ty); c.scale(_heroZoom.s, _heroZoom.s);
     const anchor = (pred && pred.anchor != null) ? pred.anchor : hist[hist.length - 1];
     let loV = Math.min(...hist), hiV = Math.max(...hist);
     for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); }
@@ -2481,6 +2508,7 @@
       c.fillStyle = "rgba(232,180,99,.95)"; c.fillText(txt, padX + 11, padTop + 13);
     }
     drawEvidence();
+    c.restore();
   }
 
   /* ── 노드별 근거 작도(추세선·피보·파동 등) 누적 오버레이 ───────── */
@@ -2792,10 +2820,11 @@
     const mode = heroMode();
     const nodes = evIndicatorNodes().filter(n => _evidenceSet.has(n.id));
     if (!nodes.length) return;
+    c.save(); c.translate(_heroZoom.tx, _heroZoom.ty); c.scale(_heroZoom.s, _heroZoom.s);
     const legend = [];
     c.lineWidth = 1.5; c.lineJoin = "round";
     if (mode === "chart") {
-      const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
+      const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) { c.restore(); return; }
       const toY = v => g.padTop + (1 - (v - g.loV) / ((g.hiV - g.loV) || 1)) * (g.ch - g.padTop - g.padBot);
       const Hn = g.histLen, off = P - Hn, plotR = g.padX + g.plotW;
       const toXh = i => g.padX + (i / (Hn - 1)) * g.histW;
@@ -2839,7 +2868,7 @@
       }
       _evLegend(c, g.padX, g.padTop, legend);
     } else {
-      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; if (!g) return;
+      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; if (!g) { c.restore(); return; }
       const tf = v => g.log ? Math.log(Math.max(1e-9, v)) : v;
       const yOf = p => g.p1y + (tf(p) - tf(g.p1p)) * (g.p2y - g.p1y) / ((tf(g.p2p) - tf(g.p1p)) || 1);
       const L = 0, R = W, top = g.oy, bot = g.oy + g.dh;   // 수평선(피보)은 hero 전체 폭(예측 영역 포함)
@@ -2885,6 +2914,7 @@
       }
       _evLegend(c, g.ox + 4, g.oy, legend);
     }
+    c.restore();
   }
 
   function fcHeroMode(mode) {
@@ -3047,6 +3077,7 @@
   /* ── renderChart: top-level, consumes ForgeCore output ── */
   function renderChart(result, data) {
     if (!result || !data) return;
+    resetHeroView();
     _fcLastResult = result; _fcLastData = data;
     if (!_playing) _evidenceSet = new Set(evIndicatorNodes().map(n => n.id));   // 평상시: 모든 지표 근거 표시
 
@@ -3608,11 +3639,13 @@
     const hero = cv.parentElement;
     const hide = () => { const t = document.getElementById("fcMainTip"), v = document.getElementById("fcMainVline"); if (t) t.style.display = "none"; if (v) v.style.display = "none"; };
     const show = (clientX, clientY) => {
+      if (_heroZoomDragging) { hide(); return; }
       const g = cv._mainGeo, tip = document.getElementById("fcMainTip"), vline = document.getElementById("fcMainVline");
       if (!g || !tip) { hide(); return; }
       const rect = cv.getBoundingClientRect();
       const cwid = cv.clientWidth || rect.width, sx = cwid ? rect.width / cwid : 1;
-      const x = (clientX - rect.left) / (sx || 1);
+      const rawX = (clientX - rect.left) / (sx || 1);
+      const x = _heroZoom.s > 1.0001 ? (rawX - _heroZoom.tx) / _heroZoom.s : rawX;
       if (x < g.padX || x > g.padX + g.plotW) { hide(); return; }
       let isFut = false, k = 0, i = 0, price, lo, hi, label = "", chg = null, snapX;
       if (x <= g.seamX && g.histLen > 1) {
@@ -3626,7 +3659,10 @@
         snapX = g.seamX + ((k + 1) / Math.max(1, g.pathLen)) * (g.plotW - g.histW);
       } else { hide(); return; }
       const hr = hero.getBoundingClientRect(), offX = rect.left - hr.left, offY = rect.top - hr.top;
-      if (vline) { vline.style.display = "block"; vline.style.left = (offX + snapX * sx) + "px"; vline.style.top = (offY + g.padTop * sx) + "px"; vline.style.height = ((g.ch - g.padTop - g.padBot) * sx) + "px"; }
+      const vSnap = (snapX * _heroZoom.s + _heroZoom.tx) * sx;
+      const vTop = (g.padTop * _heroZoom.s + _heroZoom.ty) * sx;
+      const vH = (g.ch - g.padTop - g.padBot) * _heroZoom.s * sx;
+      if (vline) { vline.style.display = "block"; vline.style.left = (offX + vSnap) + "px"; vline.style.top = (offY + vTop) + "px"; vline.style.height = vH + "px"; }
       let inner = `<span class="ct-t">${label}</span><span class="ct-v">${_hzFmt(price)}</span>`;
       if (chg != null) { const col = chg > 0.3 ? "var(--bull)" : chg < -0.3 ? "var(--bear)" : "var(--eth)"; inner += `<span class="ct-chg" style="color:${col}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>`; }
       if (isFinite(lo) && isFinite(hi)) inner += `<span class="ct-band">${_hzFmt(lo)} ~ ${_hzFmt(hi)}</span>`;
@@ -3640,6 +3676,37 @@
     cv.addEventListener("mousemove", e => show(e.clientX, e.clientY));
     bindTouchHover(cv, show, hide);
   })();
+
+  /* ── Hero 휠줌 + 드래그팬 + 더블클릭 리셋 ──────────────────── */
+  (function heroZoomInit() {
+    const cv = document.getElementById("fcMainChart"); if (!cv) return;
+    cv.addEventListener("wheel", e => {
+      e.preventDefault();
+      const r = cv.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const ns = Math.max(1, Math.min(6, _heroZoom.s * factor)), k = ns / _heroZoom.s;
+      _heroZoom.tx = cx - (cx - _heroZoom.tx) * k;
+      _heroZoom.ty = cy - (cy - _heroZoom.ty) * k;
+      _heroZoom.s = ns; clampPan(); renderHeroZoom();
+    }, { passive: false });
+    let hDrag = null;
+    cv.addEventListener("pointerdown", e => {
+      if (_heroZoom.s <= 1.0001) return;
+      hDrag = { x: e.clientX, y: e.clientY, tx: _heroZoom.tx, ty: _heroZoom.ty, moved: false };
+      try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    cv.addEventListener("pointermove", e => {
+      if (!hDrag) return;
+      const dx = e.clientX - hDrag.x, dy = e.clientY - hDrag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 6) { hDrag.moved = true; _heroZoomDragging = true; }
+      if (!hDrag.moved) return;
+      _heroZoom.tx = hDrag.tx + dx; _heroZoom.ty = hDrag.ty + dy; clampPan(); renderHeroZoom();
+    });
+    const endDrag = () => { hDrag = null; _heroZoomDragging = false; };
+    cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
+    cv.addEventListener("dblclick", () => { resetHeroView(); renderHeroZoom(); });
+  })();
+  (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetHeroView(); renderHeroZoom(); }); })();
 
   (function initGutter() {
     const split = document.querySelector(".forge-split");
