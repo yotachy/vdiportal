@@ -2976,7 +2976,7 @@
       const conv = n.conviction || 0;
       const lean = conv > 5 ? '<span class="nr-up">▲ 상승 가중</span>' : conv < -5 ? '<span class="nr-dn">▼ 하락 가중</span>' : '<span class="nr-fl">중립</span>';
       const memo = (n.note && n.note.trim()) || (n.desc && n.desc.trim()) || "";
-      const memoHtml = memo ? `<div class="nr-memo">"${esc(memo)}"</div>` : "";
+      const memoHtml = memo ? `<div class="nr-memo">&ldquo;${esc(memo)}&rdquo;</div>` : "";
       const factsHtml = `<ul class="nr-facts">${facts.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
       steps.push(`<div class="nr-step"><span class="nr-num">${i++}</span><div class="nr-main"><div class="nr-head"><b>${esc(BTLABEL[n.blockType] || n.blockType)}</b> ${lean}</div>${factsHtml}${memoHtml}</div></div>`);
     });
@@ -3748,7 +3748,7 @@
         `<span class="ph-dot" style="color:${lc}"></span>
          <div class="ph-node"><span class="ph-title">${esc(BTLABEL[n.blockType] || n.blockType)}${n.title ? " · " + esc(n.title) : ""}</span>
            <div class="ph-steps">${stepHtml}</div>
-           ${memo ? `<span class="ph-memo">"${esc(memo)}"</span>` : ""}</div>
+           ${memo ? `<span class="ph-memo">&ldquo;${esc(memo)}&rdquo;</span>` : ""}</div>
          <div class="ph-prog"><span class="ph-knt">${idx + 1}/${indNodes.length}</span><span class="ph-bar">${segs}</span></div>`;
     }
     // 노드별 다단계 시연 — 각 노드의 분석단계를 틱으로 펼쳐 순차 점등(시연 길어짐 OK)
