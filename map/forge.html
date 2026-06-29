@@ -3220,7 +3220,7 @@
       const texts = ForgeCore.rsiSteps(rsi), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
-    if (n.blockType === "volume") {
+    if (n.blockType === "volume" && Array.isArray(price) && price.length >= 2) {
       const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
       const va = ForgeCore.analyzeVolume(price, vser);
       return ForgeCore.volumeSteps(va).map((text, i) => ({ text, layer: [1, 1, 2, 2, 2][i] }));
