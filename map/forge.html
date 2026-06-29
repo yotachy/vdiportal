@@ -584,6 +584,14 @@
           </div>
           <div class="fc-pbody"><canvas id="fcRsi" class="fc-cv"></canvas></div>
         </div>
+        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
+        <div class="fc-panel" id="fcVolPanel" style="display:none">
+          <div class="fc-phead">
+            <span class="fc-t"><b>거래량</b> · 막대 · OBV</span>
+            <span class="fc-meta" id="fcVolMeta">–</span>
+          </div>
+          <div class="fc-pbody"><canvas id="fcVol" class="fc-cv"></canvas></div>
+        </div>
       </div>
       <div id="paramPanel" class="node-editor"></div>
     </section>
@@ -2110,6 +2118,36 @@
     const meta = document.getElementById("fcRsiMeta"); if (meta) meta.textContent = "RSI " + Math.round(rsi.last) + " \xb7 " + (rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립");
   }
 
+  /* ── fcDrawVol: 거래량 막대 서브패널 (상승하락색·급증골드·OBV라인) ── */
+  function fcDrawVol(va) {
+    const cv = document.getElementById("fcVol"); if (!cv) return;
+    const cw = cv.clientWidth || 300, ch = cv.clientHeight || 120;
+    const c = fcFit(cv, ch); c.clearRect(0, 0, cw, ch);
+    const s = (va && va.series) || [];
+    if (s.length < 2) { c.fillStyle = "#8a92b2"; c.font = "12px Pretendard, sans-serif"; c.fillText("거래량 데이터 없음", 10, ch / 2); return; }
+    const pad = 6, w = cw - pad * 2, h = ch - pad * 2 - 14;
+    const maxV = Math.max.apply(null, s) || 1, n = s.length, bw = Math.max(1, w / n - 1);
+    // 막대: 상승봉 bull / 하락봉 bear / 급증봉 골드
+    const obv = va.obv || [];
+    for (let i = 0; i < n; i++) {
+      const x = pad + (i / n) * w, bh = (s[i] / maxV) * h, y = pad + h - bh;
+      const up = i > 0 && obv[i] >= obv[i - 1];
+      const spike = va.state === "spike" && i >= n - 3;
+      c.fillStyle = spike ? "#e8b463" : up ? "rgba(70,194,142,.7)" : "rgba(224,106,106,.7)";
+      c.fillRect(x, y, bw, bh);
+    }
+    // OBV 라인(보조 스케일)
+    if (obv.length === n) {
+      let omin = Math.min.apply(null, obv), omax = Math.max.apply(null, obv); const orng = (omax - omin) || 1;
+      c.strokeStyle = "#8a92b2"; c.lineWidth = 1.5; c.beginPath();
+      for (let i = 0; i < n; i++) { const x = pad + (i / n) * w + bw / 2, y = pad + h - ((obv[i] - omin) / orng) * h; i ? c.lineTo(x, y) : c.moveTo(x, y); }
+      c.stroke();
+    }
+    // 상태 라벨
+    const meta = document.getElementById("fcVolMeta");
+    if (meta) meta.textContent = "거래량 " + (va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이") + " " + va.ratio.toFixed(2) + "x \xb7 OBV " + (va.obvTrend > 0.1 ? "상승" : va.obvTrend < -0.1 ? "하락" : "횡보");
+  }
+
   /* ── fcDrawFold: phase-fold trace (port of chart.html drawFold()) ── */
   /* seriesArr: number[], color: hex, P: period, PHI: phase offset, ACC: accent */
   function fcDrawFold(cv, seriesArr, label, color, P, PHI) {
@@ -2716,6 +2754,37 @@
     }
     c.restore();
   }
+  /* 거래량 hero 작도 — 다이버전스 선(reveal≥1) + 급증 마커·상태 배지(reveal≥2) */
+  function _drawVolumeLayers(c, va, M) {
+    if (!va) return;
+    const { fiToX, pToY, fiMin, reveal, xRight } = M;
+    c.save();
+    // 레이어1: 가격-OBV 다이버전스 선
+    if (reveal >= 1 && va.divergence.type && va.divergence.pricePts) {
+      const col = va.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
+      const a = va.divergence.pricePts[0], b = va.divergence.pricePts[1];
+      const xa = fiToX(Math.max(fiMin, a.idx)), ya = pToY(a.price);
+      const xb = fiToX(Math.max(fiMin, b.idx)), yb = pToY(b.price);
+      if ([xa, ya, xb, yb].every(isFinite)) {
+        c.strokeStyle = col; c.lineWidth = 2; c.setLineDash([5, 4]);
+        c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.setLineDash([]);
+        _evLabel(c, (va.divergence.type === "bullish" ? "강세" : "약세") + " 거래량 다이버전스", (xa + xb) / 2, Math.min(ya, yb) - 8, col, "center");
+      }
+    }
+    // 레이어2: 급증 마커 + 상태/관계 배지
+    if (reveal >= 2) {
+      const relTxt = va.relationship === "confirm" ? "상승 확인" : va.relationship === "weakening" ? "추진력 약화" : va.relationship === "selling" ? "매도 압력" : "투매 진정";
+      const relCol = (va.relationship === "confirm" || va.relationship === "capitulation") ? "#46c28e" : "#e06a6a";
+      const stTxt = va.state === "spike" ? "거래량 급증" : va.state === "contract" ? "거래량 위축" : "거래량 평이";
+      // 급증 시 마지막 봉(현재) 가격 위에 짧은 골드 수직 틱
+      if (va.state === "spike" && isFinite(M.lastPrice)) {
+        const x = fiToX(Math.max(fiMin, M.nowFi)), y = pToY(M.lastPrice);
+        if (isFinite(x) && isFinite(y)) { c.strokeStyle = "#e8b463"; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x, y - 14); c.lineTo(x, y - 4); c.stroke(); }
+      }
+      _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, 28, relCol, "right");
+    }
+    c.restore();
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -2768,6 +2837,11 @@
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
           _drawRsiLayers(c, rsi, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
+        } else if (n.blockType === "volume") {
+          const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
+          const va = ForgeCore.analyzeVolume(price, vser);
+          _drawVolumeLayers(c, va, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1] });
+          legend.push({ col, t: EV_LABEL.volume + "(전문)" });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
@@ -2809,6 +2883,11 @@
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
           _drawRsiLayers(c, rsi, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
           legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
+        } else if (n.blockType === "volume") {
+          const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
+          const va = ForgeCore.analyzeVolume(price, vser);
+          _drawVolumeLayers(c, va, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw), lastPrice: price[P - 1] });
+          legend.push({ col, t: EV_LABEL.volume + "(전문)" });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
@@ -3035,6 +3114,9 @@
     togglePhasefoldPanels();
     toggleRsiPanel();
     { const _rn = boardState.nodes.find(n => n.blockType === "rsi"); if (_rn) fcDrawRsi(ForgeCore.analyzeRSI((data && data.price) || [], { period: (_rn.params && _rn.params.period) || 14 })); }
+    toggleVolPanel();
+    const _vn = boardState.nodes.find(n => n.kind === "block" && n.blockType === "volume");
+    if (_vn) { const vser = (Array.isArray(_vn.series) && _vn.series.length >= 2) ? _vn.series : ForgeCore.synthVolume((data && data.price) || []); fcDrawVol(ForgeCore.analyzeVolume((data && data.price) || [], vser)); }
   }
   /* ── 예측 시점별 표(3·6·12·24 등) ── */
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
@@ -3179,6 +3261,11 @@
       const texts = ForgeCore.rsiSteps(rsi), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
+    if (n.blockType === "volume" && Array.isArray(price) && price.length >= 2) {
+      const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
+      const va = ForgeCore.analyzeVolume(price, vser);
+      return ForgeCore.volumeSteps(va).map((text, i) => ({ text, layer: [1, 1, 2, 2, 2][i] }));
+    }
     return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
   }
   /* 노드별 '전문 분석' — 각 기술지표가 도메인 지식으로 여러 사실을 산출(우측 패널 나열용) */
@@ -3276,18 +3363,15 @@
         return f;
       }
       case "volume": {
-        const vol = (v && v.length) ? v : (Array.isArray(n.series) ? n.series : []);
-        if (vol.length < 6) return ["거래량 시계열 미입력 — 이미지만 추가됨(분석 위해 데이터 필요)"];
-        const N = vol.length, U = x => x >= 1000 ? (x / 1000).toFixed(1) + "B" : Math.round(x) + "M";
-        const recent = vol.slice(-3).reduce((a, b) => a + b, 0) / 3, base = vol.slice(-Math.min(12, N)).reduce((a, b) => a + b, 0) / Math.min(12, N);
-        const ratio = base ? recent / base : 1;
-        f.push("최근 거래량 " + U(recent) + " vs 12개월 평균 " + U(base) + " · " + ratio.toFixed(2) + "x " + (ratio > 1.15 ? "(급증)" : ratio < 0.85 ? "(위축)" : "(평이)"));
-        const seg = vol.slice(-Math.min(12, N)), lr = _linreg(seg), slp = base ? lr.a / base * 100 : 0;
-        f.push("거래량 추세 " + (slp > 1 ? "증가 ↑" : slp < -1 ? "감소 ↓" : "횡보 →") + " (" + (slp >= 0 ? "+" : "") + slp.toFixed(1) + "%/봉)");
-        if (P.length === N && N > 7) {
-          const w = 6, pUp = P[N - 1] > P[N - 1 - w], vUp = slp > 0 || recent > base;
-          f.push("가격-거래량: " + (pUp && vUp ? "상승에 거래량 동반 — 추세 건강(확인)" : pUp && !vUp ? "상승하나 거래량 감소 — 추진력 약화(주의)" : !pUp && vUp ? "하락에 거래량 증가 — 매도 압력(약세 확인)" : "하락+거래량 위축 — 투매 진정(바닥 가능)"));
-        }
+        const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(P);
+        const va = ForgeCore.analyzeVolume(P, vser);
+        if (!va.series.length) return ["거래량 데이터 없음"];
+        const f = [];
+        f.push("최근/평균 " + va.ratio.toFixed(2) + "x \xb7 " + (va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이"));
+        f.push("거래량 추세 " + (va.trend > 0.1 ? "증가 ↑" : va.trend < -0.1 ? "감소 ↓" : "횡보 →"));
+        const rel = va.relationship === "confirm" ? "상승에 거래량 동반 — 추세 건강(확인)" : va.relationship === "weakening" ? "상승하나 거래량 감소 — 추진력 약화(주의)" : va.relationship === "selling" ? "하락에 거래량 증가 — 매도 압력(약세 확인)" : "하락+거래량 위축 — 투매 진정(바닥 가능)";
+        f.push("가격-거래량: " + rel);
+        f.push(va.divergence.type ? ((va.divergence.type === "bullish" ? "강세" : "약세") + " 거래량 다이버전스") : ("OBV " + (va.obvTrend > 0.1 ? "상승" : va.obvTrend < -0.1 ? "하락" : "횡보")));
         return f;
       }
       default: return [nodeReadText(n, result, priceLast)];
@@ -3380,6 +3464,11 @@
   function toggleRsiPanel() {
     const has = boardState.nodes.some(n => n.blockType === "rsi");
     const p = document.getElementById("fcRsiPanel"); if (p) p.style.display = has ? "" : "none";
+  }
+  function toggleVolPanel() {
+    const p = document.getElementById("fcVolPanel"); if (!p) return;
+    const has = boardState.nodes.some(n => n.kind === "block" && n.blockType === "volume");
+    p.style.display = has ? "" : "none";
   }
 
   /* resize: re-render with stored last result/data */

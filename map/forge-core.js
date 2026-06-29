@@ -220,7 +220,7 @@
       } else if (n.blockType === "ma") {
         values[id] = sma(ins[0] || data.price, (n.params && n.params.len) || 5);
       } else if (n.blockType === "combine") {
-        const w = (n.params && n.params.weights) || {}, keys = inputsOf[id];
+        const w = (n.params && n.params.weights) || {}, keys = inputsOf[id].filter(k => byId[k] && byId[k].blockType !== "volume" && byId[k].blockType !== "ticker");
         const eff = keys.map(k => {
           const manual = (w[k] != null ? w[k] : 1);
           const sw = (byId[k] && byId[k].weight != null && isFinite(byId[k].weight)) ? byId[k].weight : 50;
@@ -356,6 +356,83 @@
       dv,
       "RSI 오실레이터 갱신",
       "종합 방향 " + bTxt + " (bias " + rsi.bias.toFixed(2) + ")"
+    ];
+  }
+
+  function synthVolume(price) {
+    const n = price.length;
+    if (n < 2) return [];
+    const BASE = 1000000, out = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const ret = i > 0 ? (price[i] - price[i - 1]) / (Math.abs(price[i - 1]) || 1) : 0;
+      const cyc = 0.6 * Math.abs(Math.sin(i * 0.5));
+      out[i] = Math.round(BASE * (1 + 3.2 * Math.abs(ret) + cyc));
+    }
+    return out;
+  }
+
+  function analyzeVolume(price, volume, opts) {
+    opts = opts || {};
+    const len = opts.len || 12, spikeMult = opts.spikeMult != null ? opts.spikeMult : 1.5;
+    const P = price.length;
+    const EMPTY = { series: [], obv: [], trend: 0, ratio: 1, state: "normal", obvTrend: 0, relationship: "weakening", divergence: { type: null, pricePts: null }, bias: 0 };
+    const vol = (Array.isArray(volume) && volume.length >= 2) ? volume : synthVolume(price);
+    const L = Math.min(P, vol.length);
+    if (L < 2) return EMPTY;
+    const offset = P - L;
+    const priceA = price.slice(P - L), series = vol.slice(vol.length - L);
+    const obv = new Array(L); obv[0] = 0;
+    for (let i = 1; i < L; i++) obv[i] = obv[i - 1] + (priceA[i] > priceA[i - 1] ? series[i] : priceA[i] < priceA[i - 1] ? -series[i] : 0);
+    const w = Math.max(2, Math.min(len, L - 1));
+    const fV = linfit(series.slice(L - w));
+    let meanV = 0; for (const v of series) meanV += v; meanV = (meanV / L) || 1;
+    const trend = Math.max(-1, Math.min(1, Math.tanh((fV.b / (Math.abs(meanV) || 1)) * 100)));
+    const rN = Math.min(3, L), bN = Math.min(len, L);
+    let rs = 0; for (let i = L - rN; i < L; i++) rs += series[i]; const recent = rs / rN;
+    let bs = 0; for (let i = L - bN; i < L; i++) bs += series[i]; const base = bs / bN;
+    const ratio = base > 0 ? recent / base : 1;
+    const state = ratio >= spikeMult ? "spike" : ratio <= 1 / spikeMult ? "contract" : "normal";
+    const fO = linfit(obv.slice(L - w));
+    let maxAbsO = 1; for (const v of obv) maxAbsO = Math.max(maxAbsO, Math.abs(v));
+    const obvTrend = Math.max(-1, Math.min(1, Math.tanh((fO.b / maxAbsO) * 100)));
+    const pw = Math.min(6, L - 1);
+    const priceUp = priceA[L - 1] > priceA[L - 1 - pw], volUp = recent > base;
+    const relationship = priceUp ? (volUp ? "confirm" : "weakening") : (volUp ? "selling" : "capitulation");
+    const sw = detectSwings(priceA, 0.03), pts = sw.map(p => ({ idx: p.idx, price: p.price }));
+    const lows = [], highs = [];
+    for (let i = 0; i < pts.length; i++) {
+      const pr = pts[i - 1], nx = pts[i + 1], pv = pts[i].price;
+      const isHigh = (pr && nx) ? (pv >= pr.price && pv >= nx.price) : (nx ? pv >= nx.price : (pr ? pv >= pr.price : true));
+      (isHigh ? highs : lows).push(pts[i]);
+    }
+    const obvAt = idx => obv[Math.max(0, Math.min(L - 1, idx))];
+    const abs = p => ({ idx: p.idx + offset, price: p.price });
+    let divergence = { type: null, pricePts: null };
+    if (lows.length >= 2) { const a = lows[lows.length - 2], b = lows[lows.length - 1]; if (b.price < a.price && obvAt(b.idx) > obvAt(a.idx)) divergence = { type: "bullish", pricePts: [abs(a), abs(b)] }; }
+    if (!divergence.type && highs.length >= 2) { const a = highs[highs.length - 2], b = highs[highs.length - 1]; if (b.price > a.price && obvAt(b.idx) < obvAt(a.idx)) divergence = { type: "bearish", pricePts: [abs(a), abs(b)] }; }
+    const divDir = divergence.type === "bullish" ? 1 : divergence.type === "bearish" ? -1 : 0;
+    const confDir = relationship === "confirm" ? 1 : relationship === "weakening" ? -0.4 : relationship === "selling" ? -0.7 : 0.3;
+    const bias = Math.max(-1, Math.min(1, 0.45 * divDir + 0.35 * confDir + 0.20 * obvTrend));
+    return { series, obv, trend, ratio, state, obvTrend, relationship, divergence, bias };
+  }
+
+  function volumeSteps(va) {
+    const tTxt = va.trend > 0.1 ? "증가 ↑" : va.trend < -0.1 ? "감소 ↓" : "횡보 →";
+    const sTxt = va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이";
+    const rel = va.relationship === "confirm" ? "상승에 거래량 동반 — 추세 건강(확인)"
+      : va.relationship === "weakening" ? "상승하나 거래량 감소 — 추진력 약화"
+      : va.relationship === "selling" ? "하락에 거래량 증가 — 매도 압력"
+      : "하락+거래량 위축 — 투매 진정(바닥 가능)";
+    const dv = va.divergence.type === "bullish" ? "강세 거래량 다이버전스"
+      : va.divergence.type === "bearish" ? "약세 거래량 다이버전스"
+      : "OBV " + (va.obvTrend > 0.1 ? "상승" : va.obvTrend < -0.1 ? "하락" : "횡보");
+    const bTxt = va.bias > 0.1 ? "상승" : va.bias < -0.1 ? "하락" : "중립";
+    return [
+      "거래량 추세 " + tTxt,
+      "최근/평균 " + va.ratio.toFixed(2) + "x \xb7 " + sTxt,
+      "가격-거래량: " + rel,
+      dv,
+      "종합 방향 " + bTxt + " (bias " + va.bias.toFixed(2) + ")"
     ];
   }
 
@@ -649,22 +726,9 @@
     }
     if (!sigSrc) sigSrc = data.price;
     const dn = detrendNorm(sigSrc), signal = dn.map(v => Math.max(-100, Math.min(100, Math.round(100 * tanh(v / 1.5)))));
-    // 거래량 확인 바이어스 — predict에 연결된 volume 노드의 가격-거래량 확인을 방향으로 변환
-    let volBias = 0;
-    if (outNode) {
-      const volN = graph.nodes.find(nn => nn.kind === "block" && nn.blockType === "volume" && Array.isArray(values[nn.id]) && values[nn.id].length >= 8
-        && (graph.edges || []).some(e => e.from === nn.id && e.to === outNode.id));
-      if (volN) {
-        const vol = values[volN.id], N = vol.length;
-        const recent = (vol[N - 1] + vol[N - 2] + vol[N - 3]) / 3, base = vol.slice(-12).reduce((a, b) => a + b, 0) / Math.min(12, N), volUp = recent > base;
-        const pw = Math.min(6, data.price.length - 1), priceUp = data.price[data.price.length - 1] > data.price[data.price.length - 1 - pw];
-        const conf = priceUp ? (volUp ? 1 : -0.6) : (volUp ? -1 : 0.4);   // 가격-거래량 확인 점수
-        volBias = conf * 12 * ((volN.weight != null ? volN.weight : 50) / 50);
-      }
-    }
     // 확신 바이어스 적용
     const vbias = (opts && typeof opts.visionBias === "number" && isFinite(opts.visionBias)) ? opts.visionBias : 0;
-    const bias = aggregateConviction(graph) + vbias + volBias, K = 0.5;
+    const bias = aggregateConviction(graph) + vbias, K = 0.5;
     const sigB = bias ? signal.map(v => Math.max(-100, Math.min(100, Math.round(v + bias * K)))) : signal;
     const lastSig = sigB.slice(-10).reduce((s, v) => s + v, 0) / 10;
     /* 예측 모델: 로그공간 평균회귀(OU형) + 감쇠 모멘텀 + 신호 드리프트, √시간 밴드.
@@ -731,6 +795,9 @@
     const _rn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "rsi");
     const _rsi = _rn ? analyzeRSI(price, { period: (_rn.params && _rn.params.period) || 14 }) : null;
     const rsiDrift = _rsi ? _rsi.bias * _prof.trendScale * 0.06 : 0;   // RSI 다이버전스/구간 방향 드리프트(±6%·TF가중·보수적)
+    const _vn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "volume");
+    const _vol = _vn ? ((Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;
+    const volDrift = _vol ? analyzeVolume(price, _vol).bias * _prof.trendScale * 0.05 : 0;   // 거래량 확인 방향 드리프트(±5% 상한·TF가중·보수적)
     const _ta = analyzeTrend(price, { shortLen: _tp.len || 40, pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -742,7 +809,7 @@
       const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
@@ -809,6 +876,7 @@
       { id: "s_fib",   kind: "block", blockType: "fib",       params: { len: 120 },       x: 320, y: 300, title: "피보나치",    conviction: 30,  weight: 50, thumb: T("smp_fib", "Fib"),     desc: "조정 구간 저점 반등 — 단기 범위 하단 지지" },
       { id: "s_trend", kind: "block", blockType: "trend",     params: { len: 40 },        x: 320, y: 400, title: "추세선",      conviction: 35,  weight: 70, thumb: T("smp_trend", "Trend"), desc: "상승 회귀선 — 우상향 추세 유지" },
       { id: "s_ell",   kind: "block", blockType: "elliott",   params: { swing: 3 },       x: 320, y: 500, title: "엘리어트",    conviction: 25,  weight: 55, thumb: T("smp_elliott", "Wave"),desc: "파동 구간 분석 — 추세 전환점 추정" },
+      { id: "s_vol",   kind: "block", blockType: "volume",    params: {},                 x: 320, y: 600, title: "거래량",      conviction: 0,   weight: 55, thumb: T("smp_main", "거래량"), desc: "상승 구간 거래량 동반 — 추세 확인", series: synthVolume(sampleSeries()) },
       { id: "s_comb",  kind: "block", blockType: "combine",   params: {},                 x: 600, y: 250, title: "가중결합",    conviction: 0,   weight: 50, desc: "소스별 weight 가중 결합" },
       { id: "s_pred",  kind: "block", blockType: "predict",   params: {},                 x: 860, y: 250, title: "예측·시그널", conviction: 0,   weight: 50, thumb: T("smp_predict", "예측"), desc: "" },
       { id: "s_memo",  kind: "free",  blockType: null,        params: {},                 x: 40,  y: 320, title: "포지 메모",   conviction: 0,   weight: 50, desc: "종합: 상승 우세. RSI 과열로 단기 조정 가능하나 추세선·피보 지지로 추가 상승 시나리오 우위." }
@@ -816,9 +884,9 @@
     const E = (from, to) => ({ from, fromSide: "right", to, toSide: "left" });
     const edges = [
       E("s_price", "s_ma"), E("s_price", "s_wave"), E("s_price", "s_rsi"),
-      E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"),
+      E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"), E("s_price", "s_vol"),
       E("s_ma", "s_comb"), E("s_wave", "s_comb"), E("s_rsi", "s_comb"),
-      E("s_fib", "s_comb"), E("s_trend", "s_comb"), E("s_ell", "s_comb"),
+      E("s_fib", "s_comb"), E("s_trend", "s_comb"), E("s_ell", "s_comb"), E("s_vol", "s_comb"),
       E("s_comb", "s_pred")
     ];
     const series = sampleSeries();
@@ -831,5 +899,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, analyzeRSI, rsiSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps };
 });

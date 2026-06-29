@@ -377,9 +377,9 @@ test("sampleSeries: deterministic, 480 pts, net uptrend with mid correction", ()
   assert.ok(a[479] > mean20);
 });
 
-test("sampleGraph: 10 nodes, DAG runs, descriptions are truthful, bullish net", () => {
+test("sampleGraph: 11 nodes, DAG runs, descriptions are truthful, bullish net", () => {
   const g = ForgeCore.sampleGraph();
-  assert.strictEqual(g.nodes.length, 10);
+  assert.strictEqual(g.nodes.length, 11);
   assert.strictEqual(g.themeImgId, "smp_main");
   assert.ok(Array.isArray(g.vision.series) && g.vision.series.length === 480);
   const data = { price: g.vision.series, n: g.vision.series.length };
@@ -794,4 +794,140 @@ test("run: RSI 블록 없으면 기여 0", () => {
   const G = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "o" }] };
   const r = ForgeCore.run(G, { price: Array.from({ length: 40 }, (_, i) => 100 + i) }, { futW: 8, timeframe: "월봉" });
   assert.ok(r.prediction.path.every(isFinite));
+});
+
+test("synthVolume: 길이=price, 결정적·양수, 큰 변동봉이 더 큼", () => {
+  const calm = Array.from({ length: 30 }, (_, i) => 100 + i * 0.1);   // 완만
+  const v1 = ForgeCore.synthVolume(calm);
+  assert.equal(v1.length, calm.length);
+  assert.ok(v1.every(x => isFinite(x) && x > 0));
+  assert.deepEqual(ForgeCore.synthVolume(calm), v1);                  // 결정적(동일 입력→동일 출력)
+  const jump = calm.slice(); jump[20] = 130;                          // 20번째에 급변
+  const v2 = ForgeCore.synthVolume(jump);
+  assert.ok(v2[20] > v1[20], "급변 봉의 합성 거래량이 더 커야");
+  assert.deepEqual(ForgeCore.synthVolume([1]), []);                   // 소량
+});
+
+test("analyzeVolume: 상승+거래량증가 → confirm·trend>0·bias>0", () => {
+  const price = Array.from({ length: 24 }, (_, i) => 100 + i);        // 단조 상승
+  const volume = Array.from({ length: 24 }, (_, i) => 100 + i * 5);   // 단조 증가
+  const va = ForgeCore.analyzeVolume(price, volume);
+  assert.equal(va.relationship, "confirm");
+  assert.ok(va.trend > 0);
+  assert.ok(va.bias > 0);
+  assert.ok(va.series.length >= 2 && va.obv.length === va.series.length);
+});
+
+test("analyzeVolume: 상승+거래량감소 → weakening", () => {
+  const price = Array.from({ length: 24 }, (_, i) => 100 + i);
+  const volume = Array.from({ length: 24 }, (_, i) => 300 - i * 8);   // 단조 감소
+  const va = ForgeCore.analyzeVolume(price, volume);
+  assert.equal(va.relationship, "weakening");
+});
+
+test("analyzeVolume: 최근 3봉 급증 → state spike·ratio>1.5", () => {
+  const price = Array.from({ length: 18 }, (_, i) => 100 + i * 0.2);
+  const volume = Array.from({ length: 18 }, () => 100);
+  volume[15] = 500; volume[16] = 520; volume[17] = 540;
+  const va = ForgeCore.analyzeVolume(price, volume, { len: 12, spikeMult: 1.5 });
+  assert.equal(va.state, "spike");
+  assert.ok(va.ratio > 1.5);
+});
+
+test("analyzeVolume: 강세 가격-OBV 다이버전스 → bullish·bias>0 경향", () => {
+  // 가격: 저점2(끝)가 저점1보다 낮음(LL). 거래량: 첫 하락엔 큰 매도량, 둘째 하락엔 적은 매도량 → OBV 저점2 > 저점1(HL)
+  // 조정: 회복구간(idx6-7) 거래량 300/280으로 키우고, 2차 하락(idx8-13) 거래량 30/25/20/20/15/15로 축소
+  // → OBV[13]=-1580 > OBV[5]=-2035 (HL) ✓, price[13]=99 < price[5]=100 (LL) ✓
+  const price = [120, 116, 112, 108, 104, 100, 106, 112, 110, 108, 106, 104, 102, 99, 103, 108];
+  const volume = [100, 400, 420, 410, 405, 400, 300, 280, 30, 25, 20, 20, 15, 15, 90, 95];
+  const va = ForgeCore.analyzeVolume(price, volume, { len: 12 });
+  assert.equal(va.divergence.type, "bullish");
+  assert.ok(Array.isArray(va.divergence.pricePts) && va.divergence.pricePts.length === 2);
+  assert.ok(va.bias > 0);
+});
+
+test("analyzeVolume: volume null → synthVolume 폴백·예외 없음·유한", () => {
+  const price = Array.from({ length: 20 }, (_, i) => 100 + Math.sin(i) * 3 + i * 0.5);
+  const va = ForgeCore.analyzeVolume(price, null);
+  assert.ok(va.series.length >= 2);
+  assert.ok(isFinite(va.bias) && va.bias >= -1 && va.bias <= 1);
+});
+
+test("analyzeVolume: 소량 → 폴백 객체(divergence null, bias 유한)", () => {
+  const va = ForgeCore.analyzeVolume([100], [10]);
+  assert.equal(va.divergence.type, null);
+  assert.ok(isFinite(va.bias));
+});
+
+test("volumeSteps: 5단계·관계·bias 반영", () => {
+  const price = Array.from({ length: 24 }, (_, i) => 100 + i);
+  const volume = Array.from({ length: 24 }, (_, i) => 100 + i * 5);
+  const steps = ForgeCore.volumeSteps(ForgeCore.analyzeVolume(price, volume));
+  assert.equal(steps.length, 5);
+  assert.ok(steps[4].includes("bias"));
+  assert.ok(steps[2].includes("가격-거래량"));
+});
+
+test("run: volume 블록 유무로 예측 타깃 격리(volDrift)", () => {
+  // 가격: 상승추세, 거래량: 상승 동반(confirm·bias>0) → volDrift가 타깃을 올림
+  const price = Array.from({ length: 60 }, (_, i) => 100 + i + Math.sin(i / 5) * 2);
+  const volume = Array.from({ length: 60 }, (_, i) => 100 + i * 4);
+  const data = { price, candle: price.map(c => ({ o: c, h: c + 1, l: c - 1, c })) };
+  const base = [
+    { id: "p", kind: "block", blockType: "price", params: {} },
+    { id: "pred", kind: "block", blockType: "predict", params: {} }
+  ];
+  const eBase = [{ from: "p", to: "pred", fromSide: "right", toSide: "left" }];
+  const withV = {
+    nodes: base.concat([{ id: "v", kind: "block", blockType: "volume", params: {}, series: volume, weight: 50 }]),
+    edges: eBase.concat([{ from: "p", to: "v", fromSide: "right", toSide: "left" }, { from: "v", to: "pred", fromSide: "right", toSide: "left" }])
+  };
+  const without = { nodes: base, edges: eBase };
+  const tV = ForgeCore.run(withV, data, { timeframe: "일봉" }).prediction.target;
+  const tN = ForgeCore.run(without, data, { timeframe: "일봉" }).prediction.target;
+  assert.ok(isFinite(tV) && isFinite(tN));
+  assert.notStrictEqual(tV, tN);   // volDrift 제거 시 동일해짐(RED)
+});
+
+test("run: volume 블록 timeframe 가중(월봉 vs 5분 차이)", () => {
+  const price = Array.from({ length: 60 }, (_, i) => 100 + i + Math.sin(i / 5) * 2);
+  const volume = Array.from({ length: 60 }, (_, i) => 100 + i * 4);
+  const data = { price, candle: price.map(c => ({ o: c, h: c + 1, l: c - 1, c })) };
+  const g = {
+    nodes: [
+      { id: "p", kind: "block", blockType: "price", params: {} },
+      { id: "v", kind: "block", blockType: "volume", params: {}, series: volume, weight: 50 },
+      { id: "pred", kind: "block", blockType: "predict", params: {} }
+    ],
+    edges: [
+      { from: "p", to: "v", fromSide: "right", toSide: "left" },
+      { from: "p", to: "pred", fromSide: "right", toSide: "left" },
+      { from: "v", to: "pred", fromSide: "right", toSide: "left" }
+    ]
+  };
+  const tMon = ForgeCore.run(g, data, { timeframe: "월봉" }).prediction.target;
+  const tMin = ForgeCore.run(g, data, { timeframe: "5분" }).prediction.target;
+  assert.ok(isFinite(tMon) && isFinite(tMin));
+  assert.notStrictEqual(tMon, tMin);
+});
+
+test("sampleGraph: 거래량 노드 포함 + 실행 시 유한 예측", () => {
+  const g = ForgeCore.sampleGraph();
+  const vol = g.nodes.find(n => n.blockType === "volume");
+  assert.ok(vol, "거래량 노드 존재");
+  assert.ok(Array.isArray(vol.series) && vol.series.length >= 2, "베이크 거래량 시계열");
+  assert.ok(g.edges.some(e => e.to === vol.id), "price->volume 엣지");
+  assert.ok(g.edges.some(e => e.from === vol.id), "volume->combine 엣지");
+  const price = ForgeCore.sampleSeries();
+  const data = { price, candle: price.map(c => ({ o: c, h: c + 1, l: c - 1, c })) };
+  const r = ForgeCore.run(g, data, { timeframe: "일봉" });
+  assert.ok(isFinite(r.prediction.target));
+});
+
+test("combine: 방향성 없는 거래량 입력은 블렌드에서 제외(시그널 오염 방지)", () => {
+  const g = ForgeCore.sampleGraph();
+  const price = ForgeCore.sampleSeries();
+  const data = { price, candle: price.map(c => ({ o: c, h: c + 1, l: c - 1, c })) };
+  const r = ForgeCore.run(g, data, { timeframe: "일봉" });
+  assert.ok(r.verdict.score > 50, "샘플 강세 시그널이 거래량 magnitude에 붕괴되지 않아야 (score=" + r.verdict.score + ")");
 });
