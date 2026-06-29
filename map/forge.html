@@ -389,6 +389,10 @@
   .play-hud .ph-seg{width:9px;height:5px;border-radius:2px;background:var(--raised2);transition:background .2s}
   .play-hud .ph-seg.done{background:var(--gold)}
   .play-hud .ph-seg.cur{background:var(--gold);box-shadow:0 0 7px rgba(232,180,99,.8)}
+  .play-hud .ph-steps{display:flex;flex-direction:column;gap:1px;margin-top:2px}
+  .play-hud .ph-step{font-size:10px;color:var(--eth);opacity:.38;transition:opacity .2s,color .2s;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .play-hud .ph-step.lit{opacity:1;color:var(--ink)}
+  .play-hud .ph-step.cur{color:var(--gold);font-weight:700;opacity:1}
 
   .fc-radar{width:100%;height:280px;display:block}
   /* ── 노드별 분석 패널 ── */
@@ -2972,7 +2976,7 @@
       const conv = n.conviction || 0;
       const lean = conv > 5 ? '<span class="nr-up">▲ 상승 가중</span>' : conv < -5 ? '<span class="nr-dn">▼ 하락 가중</span>' : '<span class="nr-fl">중립</span>';
       const memo = (n.note && n.note.trim()) || (n.desc && n.desc.trim()) || "";
-      const memoHtml = memo ? `<div class="nr-memo">“${esc(memo)}”</div>` : "";
+      const memoHtml = memo ? `<div class="nr-memo">"${esc(memo)}"</div>` : "";
       const factsHtml = `<ul class="nr-facts">${facts.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
       steps.push(`<div class="nr-step"><span class="nr-num">${i++}</span><div class="nr-main"><div class="nr-head"><b>${esc(BTLABEL[n.blockType] || n.blockType)}</b> ${lean}</div>${factsHtml}${memoHtml}</div></div>`);
     });
@@ -3732,37 +3736,43 @@
     const _pnode = boardState.nodes.find(n => n.blockType === "price");
     const _pv = _pnode && lastResult.values && lastResult.values[_pnode.id];
     const priceLast0 = (_pv && _pv.length) ? _pv[_pv.length - 1] : null;
-    function _hudNode(n, idx) {
+    // 하위단계 순차 점등 HUD. steps=[{text,layer}], upto=현재 점등 인덱스
+    function _hudNodeSteps(n, idx, steps, upto) {
       if (!hud) return;
-      const read = nodeReadText(n, lastResult, priceLast0);
-      const memo = (n.note && n.note.trim()) || (n.desc && n.desc.trim()) || "";
       const conv = n.conviction || 0;
-      const lean = conv > 5 ? "▲ 상승 가중 +" + conv : conv < -5 ? "▼ 하락 가중 " + conv : "중립";
       const lc = conv > 5 ? "var(--bull)" : conv < -5 ? "var(--bear)" : "var(--eth)";
+      const memo = (n.note && n.note.trim()) || (n.desc && n.desc.trim()) || "";
       const segs = indNodes.map((_, k) => `<span class="ph-seg ${k < idx ? "done" : k === idx ? "cur" : ""}"></span>`).join("");
+      const stepHtml = steps.map((st, i) => `<span class="ph-step ${i < upto ? "lit" : i === upto ? "lit cur" : ""}">${esc(st.text)}</span>`).join("");
       hud.innerHTML =
         `<span class="ph-dot" style="color:${lc}"></span>
          <div class="ph-node"><span class="ph-title">${esc(BTLABEL[n.blockType] || n.blockType)}${n.title ? " · " + esc(n.title) : ""}</span>
-           <span class="ph-type">${esc(read)} · <b style="color:${lc}">${lean}</b></span>
-           ${memo ? `<span class="ph-memo">“${esc(memo)}”</span>` : ""}</div>
+           <div class="ph-steps">${stepHtml}</div>
+           ${memo ? `<span class="ph-memo">"${esc(memo)}"</span>` : ""}</div>
          <div class="ph-prog"><span class="ph-knt">${idx + 1}/${indNodes.length}</span><span class="ph-bar">${segs}</span></div>`;
     }
-    // 노드별 순차 내레이션 — 천천히(읽을 수 있게), 각 노드의 서술/메모를 HUD에 표시
-    const STEP = 1500;   // 노드당 시연 시간(ms)
-    indNodes.forEach((n, idx) => {
+    // 노드별 다단계 시연 — 각 노드의 분석단계를 틱으로 펼쳐 순차 점등(시연 길어짐 OK)
+    const STEP_SUB = 750;   // 하위단계 간격(ms)
+    const _allPrice = (currentData().price) || [];
+    const stepsByNode = indNodes.map(n => analysisSteps(n, lastResult, priceLast0, _allPrice));
+    const ticks = [];
+    indNodes.forEach((n, idx) => { stepsByNode[idx].forEach((st, sIdx) => ticks.push({ n, idx, steps: stepsByNode[idx], sIdx, st })); });
+    ticks.forEach((tk, tIdx) => {
       _playTimers.push(setTimeout(() => {
         if (!_playing) return;
-        if (idx > 0) { const pe = bq(indNodes[idx - 1].id); if (pe) { pe.classList.remove("analyzing"); pe.classList.add("analyzed"); } }
-        const el = bq(n.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); }
-        _evidenceSet.add(n.id);
-        _hudNode(n, idx);
-        if (progEl) progEl.textContent = "분석 중 " + (idx + 1) + "/" + indNodes.length + " · " + (n.title || BTLABEL[n.blockType] || "노드");
-      }, idx * STEP));
+        if (tk.sIdx === 0) {
+          if (tk.idx > 0) { const pe = bq(indNodes[tk.idx - 1].id); if (pe) { pe.classList.remove("analyzing"); pe.classList.add("analyzed"); } }
+          const el = bq(tk.n.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); }
+          _evidenceSet.add(tk.n.id);
+        }
+        _hudNodeSteps(tk.n, tk.idx, tk.steps, tk.sIdx);
+        if (progEl) progEl.textContent = "분석 중 " + (tk.idx + 1) + "/" + indNodes.length + " · " + (BTLABEL[tk.n.blockType] || "노드") + " (" + (tk.sIdx + 1) + "/" + tk.steps.length + ")";
+      }, tIdx * STEP_SUB));
     });
     // 예측 부채꼴이 평평(anchor)에서 최종 예측으로 '펼쳐지며' 포지가 형성 — 내레이션 길이에 맞춰 천천히
     const A = finPred.anchor;
     const flat = { path: finPred.path.map(() => A), lo: finPred.path.map(() => A), hi: finPred.path.map(() => A), anchor: A };
-    const total = Math.max(2600, indNodes.length * STEP + 800), t0 = performance.now();
+    const total = Math.max(2600, ticks.length * STEP_SUB + 800), t0 = performance.now();
     function morph(now) {
       if (!_playing) return;
       const u = Math.min(1, (now - t0) / total);
