@@ -461,3 +461,41 @@ test("run: 캡 완화 — 급한 추세가 완만한 추세보다 더 큰 상승
   assert.ok(gain(r2) > gain(r1), "급한 추세(0.04)가 더 큰 상승 — 옛 ±1.2%캡이면 동일했을 것");
   assert.ok(gain(r2) > 1, "상승추세 → target>anchor");
 });
+
+test("trendProfileForTF: 월봉 → long 프로파일", () => {
+  const p = ForgeCore.trendProfileForTF("월봉");
+  assert.strictEqual(p.tier, "long");
+  assert.deepStrictEqual(p.weights, { long: 0.6, mid: 0.3, short: 0.1 });
+  assert.strictEqual(p.trendScale, 1.0);
+  assert.strictEqual(p.label, "월봉 장기가중");
+});
+
+test("trendProfileForTF: 일봉·주봉 → mid", () => {
+  for (const tf of ["일봉", "주봉"]) {
+    const p = ForgeCore.trendProfileForTF(tf);
+    assert.strictEqual(p.tier, "mid");
+    assert.deepStrictEqual(p.weights, { long: 0.45, mid: 0.35, short: 0.2 });
+    assert.strictEqual(p.trendScale, 0.8);
+  }
+});
+
+test("trendProfileForTF: 1시간·5분 → intra", () => {
+  for (const tf of ["1시간", "5분"]) {
+    const p = ForgeCore.trendProfileForTF(tf);
+    assert.strictEqual(p.tier, "intra");
+    assert.deepStrictEqual(p.weights, { long: 0.25, mid: 0.35, short: 0.4 });
+    assert.strictEqual(p.trendScale, 0.45);
+  }
+});
+
+test("trendProfileForTF: 분기 → long (분 오분류 안 됨)", () => {
+  assert.strictEqual(ForgeCore.trendProfileForTF("분기").tier, "long");
+});
+
+test("trendProfileForTF: null/미상 → default", () => {
+  const p = ForgeCore.trendProfileForTF(null);
+  assert.strictEqual(p.tier, "default");
+  assert.deepStrictEqual(p.weights, { long: 0.5, mid: 0.3, short: 0.2 });
+  assert.strictEqual(p.trendScale, 0.8);
+  assert.strictEqual(p.label, "");
+});
