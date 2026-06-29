@@ -1864,8 +1864,8 @@
   const FC_GRID = "#1b2334";   /* grid lines */
 
   /* ── fcFit: DPR-correct canvas sizing (port of chart.html fit()) ── */
-  function fcFit(cv, h) {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+  function fcFit(cv, h, cap) {
+    const dpr = Math.min(devicePixelRatio || 1, cap || 2);
     const w = cv.clientWidth;
     cv.width  = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
@@ -1874,8 +1874,8 @@
     return c;
   }
   /* fcFit과 동일하나 크기 변동 없으면 백버퍼 재할당 생략(재생 프레임마다 호출용 — 호출부가 clearRect 직접 수행). */
-  function fcFitKeep(cv, h) {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+  function fcFitKeep(cv, h, cap) {
+    const dpr = Math.min(devicePixelRatio || 1, cap || 2);
     const W = Math.round(cv.clientWidth * dpr), H = Math.round(h * dpr);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     const c = cv.getContext("2d");
@@ -2413,7 +2413,7 @@
 
   function fcDrawMainChart(series, pred) {
     const cv = document.getElementById("fcMainChart"); if (!cv) return;
-    const ch = cv.clientHeight || 260, c = fcFitKeep(cv, ch);
+    const ch = cv.clientHeight || 260, c = fcFitKeep(cv, ch, 3);
     const cw = cv.clientWidth || 600;
     c.clearRect(0, 0, cw, ch);
     const hist = (series || []).slice(-180);
@@ -2527,8 +2527,8 @@
   let _evW = 0, _evH = 0;   // 현재 작도 캔버스 논리 크기(라벨 클램프용)
   // 라벨: 반투명 pill 배경 + 경계 클램프. align "left"(기본)|"right"
   function _evLabel(c, text, x, y, color, align) {
-    c.font = "700 10px ui-monospace,monospace";
-    const w = c.measureText(text).width, h = 12, M = 3, pad = 3;
+    c.font = "700 12px ui-monospace,monospace";
+    const w = c.measureText(text).width, h = 14, M = 3, pad = 4;
     let bx = (align === "right") ? x - w - pad : x;          // 박스 좌상 x
     bx = Math.max(M, Math.min(bx, (_evW || 1e4) - w - 2 * pad - M));
     let by = y - h;                                          // 박스 좌상 y(텍스트 baseline 위)
@@ -2779,7 +2779,7 @@
     _evW = W; _evH = H;
     if (!W || !H) return;
     // 캔버스를 hero 전체 크기로 명시(style.width 포함) — 콘과 같은 좌표계. (inset:0이 안 먹어 300px에 갇히던 버그)
-    const dpr = Math.min(devicePixelRatio || 1, 2), ww = Math.round(W * dpr), hh = Math.round(H * dpr);
+    const dpr = Math.min(devicePixelRatio || 1, 3), ww = Math.round(W * dpr), hh = Math.round(H * dpr);
     if (cv.width !== ww || cv.height !== hh) { cv.width = ww; cv.height = hh; }
     cv.style.width = W + "px"; cv.style.height = H + "px";
     const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
