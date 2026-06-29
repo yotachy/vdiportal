@@ -1228,7 +1228,10 @@
       rows.push(numRow("channelK", "채널 σ배수(k)", (n.params && n.params.channelK) ?? 2));
     }
     if (n.blockType === "rsi") rows.push(numRow("period", "RSI 기간", (n.params && n.params.period) ?? 14));
-    if (n.blockType === "fib") rows.push(numRow("len", "피보 구간", (n.params && n.params.len) ?? 120));
+    if (n.blockType === "fib") {
+      rows.push(numRow("len", "피보 구간", (n.params && n.params.len) ?? 120));
+      rows.push(numRow("swing", "스윙 민감도(%)", (n.params && n.params.swing) ?? 5));
+    }
     if (n.blockType === "ticker") {
       rows.push(`<div class="pp-row"><label>티커 심볼</label><input type="text" data-tkr="symbol" value="${esc((n.params && n.params.symbol) || "")}" placeholder="예: TSLA"></div>`);
       rows.push(`<div class="pp-row"><label>현재가</label><input type="number" step="any" data-tkr="price" value="${(n.params && isFinite(n.params.price)) ? n.params.price : ""}" placeholder="예: 379.71"></div>`);
@@ -2588,6 +2591,43 @@
     }
     c.restore();
   }
+  // 피보 작도(차트·오버레이 공용, reveal 인지). M=좌표 매퍼.
+  function _drawFibLayers(c, fib, M) {
+    c.save();
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity } = M;
+    const xL = fiToX(Math.max(fiMin, 0)), xR = fiToX(nowFi), GOLD = "#ffd24d", DIM = "#e8b463";
+    function levelLine(L) {
+      const y = pToY(L.price); if (![y, xL, xR].every(isFinite)) return;
+      const ext = L.kind === "ext";
+      c.setLineDash(ext ? [5, 4] : (L.confluent ? [] : [2, 3]));
+      c.strokeStyle = L.golden ? GOLD : ext ? DIM : "rgba(232,180,99,.55)";
+      c.lineWidth = L.confluent ? 2.2 : ext ? 1.2 : 1; c.globalAlpha = ext ? .6 : .85;
+      c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y); c.stroke();
+      c.globalAlpha = 1; c.setLineDash([]);
+      c.fillStyle = L.golden ? GOLD : DIM; c.font = "700 9px ui-monospace,monospace"; c.textAlign = "left";
+      c.fillText((L.confluent ? "✦" : "") + L.ratio.toFixed(3) + (ext ? " 목표" : ""), xL + 3, y - 2);
+    }
+    if (reveal >= 1) fib.levels.filter(L => L.kind === "retr").forEach(levelLine);
+    if (reveal >= 2) fib.levels.filter(L => L.kind === "ext").forEach(levelLine);
+    if (reveal >= 3) {
+      const z = fib.zone;
+      if (z && isFinite(z.goldenLo) && isFinite(z.goldenHi)) {
+        const yH = pToY(z.goldenHi), yL = pToY(z.goldenLo);
+        if (isFinite(yH) && isFinite(yL)) { c.globalAlpha = .16; c.fillStyle = "#e8b463"; c.fillRect(xL, Math.min(yH, yL), Math.max(2, xR - xL), Math.abs(yL - yH)); c.globalAlpha = 1; }
+      }
+      if (z && z.nearest) {
+        const y = pToY(z.nearest.price);
+        if (isFinite(y)) { c.fillStyle = z.inGolden ? GOLD : DIM; c.font = "700 9.5px ui-monospace,monospace"; c.textAlign = "right"; c.fillText((z.inGolden ? "골든포켓 · " : "") + (z.nearest.side === "support" ? "지지" : "저항"), xR - 3, y - 3); }
+      }
+      if (fib.swing) {
+        [[fib.swing.fromIdx, fib.swing.fromPrice], [fib.swing.toIdx, fib.swing.toPrice]].forEach(pr => {
+          const x = fiToX(Math.max(fiMin, pr[0])), y = pToY(pr[1]);
+          if (isFinite(x) && isFinite(y)) { c.fillStyle = DIM; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); }
+        });
+      }
+    }
+    c.restore();
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -2628,10 +2668,9 @@
           });
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " · " + _prof.label : "") });
         } else if (n.blockType === "fib") {
-          const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
-          c.setLineDash([3, 3]); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1;
-          for (const r of [0, .236, .382, .5, .618, .786, 1]) { const lv = lo + (hi - lo) * r, y = toY(lv); c.globalAlpha = .45; c.beginPath(); c.moveTo(g.padX, y); c.lineTo(plotR, y); c.stroke(); c.globalAlpha = .85; c.fillText(r.toFixed(3), g.padX + 2, y - 2); c.globalAlpha = 1; }
-          c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib });
+          const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
+          _drawFibLayers(c, fib, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          legend.push({ col, t: EV_LABEL.fib + "(전문)" });
         } else if (n.blockType === "elliott") {
           const piv = _zigzag(price, 0.18).slice(-8);
           c.strokeStyle = col; c.fillStyle = col; c.setLineDash([]); c.lineWidth = 1.6; c.beginPath(); let st = false; const pts = [];
