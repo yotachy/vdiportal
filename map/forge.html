@@ -585,8 +585,12 @@
           <div class="fc-pbody"><canvas id="fcRsi" class="fc-cv"></canvas></div>
         </div>
         <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
-        <div id="fcVolPanel" class="fc-panel" style="display:none">
-          <div class="fc-pbody"><canvas id="fcVol" class="fc-cv"></canvas><div id="fcVolMeta" class="fc-pmeta"></div></div>
+        <div class="fc-panel" id="fcVolPanel" style="display:none">
+          <div class="fc-phead">
+            <span class="fc-t"><b>거래량</b> · 막대 · OBV</span>
+            <span class="fc-meta" id="fcVolMeta">–</span>
+          </div>
+          <div class="fc-pbody"><canvas id="fcVol" class="fc-cv"></canvas></div>
         </div>
       </div>
       <div id="paramPanel" class="node-editor"></div>
