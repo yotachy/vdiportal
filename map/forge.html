@@ -194,7 +194,7 @@
 
   /* hero panel (대표 이미지) — 확정 높이(차트 모드 캔버스 height:100% 붕괴·overflow:hidden 클리핑 방지) */
   .fc-panel-hero{flex:0 0 auto;min-height:0}
-  .fc-hero{display:flex;gap:6px;height:var(--hero-h,440px);position:relative;overflow:hidden}
+  .fc-hero{display:flex;gap:6px;height:var(--hero-h,560px);position:relative;overflow:hidden}
   .fc-vgutter{height:9px;margin:2px 0;border-radius:5px;cursor:row-resize;flex:0 0 auto;
     background:linear-gradient(180deg,transparent,rgba(138,146,178,.18),transparent);transition:background .12s}
   .fc-vgutter:hover,.fc-vgutter.dragging{background:linear-gradient(180deg,transparent,rgba(232,180,99,.4),transparent)}
@@ -2472,6 +2472,21 @@
     return piv;
   }
   const _EWLAB = ["1", "2", "3", "4", "5", "A", "B", "C"];
+  let _evW = 0, _evH = 0;   // 현재 작도 캔버스 논리 크기(라벨 클램프용)
+  // 라벨: 반투명 pill 배경 + 경계 클램프. align "left"(기본)|"right"
+  function _evLabel(c, text, x, y, color, align) {
+    c.font = "700 10px ui-monospace,monospace";
+    const w = c.measureText(text).width, h = 12, M = 3, pad = 3;
+    let bx = (align === "right") ? x - w - pad : x;          // 박스 좌상 x
+    bx = Math.max(M, Math.min(bx, (_evW || 1e4) - w - 2 * pad - M));
+    let by = y - h;                                          // 박스 좌상 y(텍스트 baseline 위)
+    by = Math.max(M, Math.min(by, (_evH || 1e4) - h - M));
+    c.fillStyle = "rgba(11,15,20,.66)";
+    if (c.roundRect) { c.beginPath(); c.roundRect(bx, by, w + 2 * pad, h + 2, 3); c.fill(); }
+    else c.fillRect(bx, by, w + 2 * pad, h + 2);
+    c.fillStyle = color; c.textAlign = "left";
+    c.fillText(text, bx + pad, by + h - 1);
+  }
   function _evLegend(c, x0, topY, items) {
     if (!items.length) return;
     c.font = "10px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
@@ -2506,7 +2521,7 @@
       // 강도/각도 라벨
       const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
       const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + w.r2.toFixed(2) + " " + dir;
-      c.fillStyle = COL[key]; c.font = "700 9.5px ui-monospace,monospace"; c.textAlign = "left"; c.fillText(lab, Math.min(xb, xRight - 4) + 3, yb - 4);
+      _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, COL[key], "left");
     }
     // 채널(장기 ±k·σ)
     if (ta.channel) {
@@ -2566,8 +2581,7 @@
           const gold = ma.cross.type === "golden";
           c.fillStyle = gold ? "#46c28e" : "#e06a6a";
           c.beginPath(); c.arc(x, y, 4, 0, 7); c.fill();
-          c.font = "700 9.5px ui-monospace,monospace"; c.textAlign = "center";
-          c.fillText((gold ? "골든 " : "데드 ") + ma.cross.barsAgo + "봉", x, y - 7);
+          _evLabel(c, (gold ? "골든 " : "데드 ") + ma.cross.barsAgo + "봉", x, y - 7, gold ? "#46c28e" : "#e06a6a", "left");
         }
       }
     }
@@ -2576,9 +2590,7 @@
       const x = fiToX(nowFi), y = pToY(ma.mas.short.last);
       if (isFinite(x) && isFinite(y)) {
         const o = ma.align.order;
-        c.fillStyle = o === "bull" ? "#46c28e" : o === "bear" ? "#e06a6a" : "#8a92b2";
-        c.font = "700 9.5px ui-monospace,monospace"; c.textAlign = "left";
-        c.fillText((o === "bull" ? "정배열 ▲" : o === "bear" ? "역배열 ▼" : "혼조 –") + (ma.sr.ma ? " · " + (ma.sr.side === "support" ? "지지" : "저항") : ""), x + 4, y - 6);
+        _evLabel(c, (o === "bull" ? "정배열 ▲" : o === "bear" ? "역배열 ▼" : "혼조 –") + (ma.sr.ma ? " · " + (ma.sr.side === "support" ? "지지" : "저항") : ""), x + 4, y - 6, o === "bull" ? "#46c28e" : o === "bear" ? "#e06a6a" : "#8a92b2", "left");
       }
     }
     c.restore();
@@ -2596,8 +2608,7 @@
       c.lineWidth = L.confluent ? 2.2 : ext ? 1.2 : 1; c.globalAlpha = ext ? .6 : .85;
       c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y); c.stroke();
       c.globalAlpha = 1; c.setLineDash([]);
-      c.fillStyle = L.golden ? GOLD : DIM; c.font = "700 9px ui-monospace,monospace"; c.textAlign = "left";
-      c.fillText((L.confluent ? "✦" : "") + L.ratio.toFixed(3) + (ext ? " 목표" : ""), xL + 3, y - 2);
+      _evLabel(c, (L.confluent ? "✦" : "") + L.ratio.toFixed(3) + (ext ? " 목표" : ""), xL + 3, y - 2, L.golden ? GOLD : DIM, "left");
     }
     if (reveal >= 1) fib.levels.filter(L => L.kind === "retr").forEach(levelLine);
     if (reveal >= 2) fib.levels.filter(L => L.kind === "ext").forEach(levelLine);
@@ -2609,7 +2620,7 @@
       }
       if (z && z.nearest) {
         const y = pToY(z.nearest.price);
-        if (isFinite(y)) { c.fillStyle = z.inGolden ? GOLD : DIM; c.font = "700 9.5px ui-monospace,monospace"; c.textAlign = "right"; c.fillText((z.inGolden ? "골든포켓 · " : "") + (z.nearest.side === "support" ? "지지" : "저항"), xR - 3, y - 3); }
+        if (isFinite(y)) { _evLabel(c, (z.inGolden ? "골든포켓 · " : "") + (z.nearest.side === "support" ? "지지" : "저항"), xR - 3, y - 3, z.inGolden ? GOLD : DIM, "right"); }
       }
       if (fib.swing) {
         [[fib.swing.fromIdx, fib.swing.fromPrice], [fib.swing.toIdx, fib.swing.toPrice]].forEach(pr => {
@@ -2624,6 +2635,7 @@
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
     const hero = cv.parentElement; const W = hero.clientWidth, H = hero.clientHeight;
+    _evW = W; _evH = H;
     if (!W || !H) return;
     // 캔버스를 hero 전체 크기로 명시(style.width 포함) — 콘과 같은 좌표계. (inset:0이 안 먹어 300px에 갇히던 버그)
     const dpr = Math.min(devicePixelRatio || 1, 2), ww = Math.round(W * dpr), hh = Math.round(H * dpr);
