@@ -2631,6 +2631,43 @@
     }
     c.restore();
   }
+  // 엘리어트 작도(차트·오버레이 공용, reveal 인지). M=좌표 매퍼.
+  function _drawElliottLayers(c, ea, M) {
+    c.save();
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    const COL = "#c47ae0", BAD = "#e06a6a";
+    const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
+    // layer1: 파동 폴리라인 + 라벨
+    if (reveal >= 1 && ea.waves.length) {
+      c.strokeStyle = COL; c.lineWidth = 1.8; c.setLineDash([]); c.beginPath(); let st = false;
+      for (const w of ea.waves) { const x = fiToX(Math.max(fiMin, w.idx)), y = pToY(w.price); if (!isFinite(x) || !isFinite(y)) continue; st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
+      c.stroke();
+      for (const w of ea.waves) {
+        const x = fiToX(Math.max(fiMin, w.idx)), y = pToY(w.price); if (!isFinite(x) || !isFinite(y)) continue;
+        c.fillStyle = COL; c.beginPath(); c.arc(x, y, 2.6, 0, 7); c.fill();
+        _evLabel(c, w.label, x + 3, y - 3, COL, "left");
+      }
+    }
+    // layer2: 유효도/구조 배지(우상단)
+    if (reveal >= 2) {
+      const stx = ea.structure === "impulse_up" ? "임펄스↑" : ea.structure === "impulse_down" ? "임펄스↓" : ea.structure === "corrective" ? "ABC 조정" : "불확실";
+      const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
+      const bcol = ea.structure.indexOf("impulse") === 0 ? COL : ea.structure === "corrective" ? "#e8b463" : "#8a92b2";
+      const xb = (xRight != null ? xRight : fiToX(nowFi));
+      _evLabel(c, stx + " " + ok + "/3 유효" + ea.rules.score.toFixed(2), xb, 14, bcol, "right");
+    }
+    // layer3: 다음 파동 투영선
+    if (reveal >= 3 && ea.next && ea.waves.length) {
+      const lw = ea.waves[ea.waves.length - 1];
+      const x0 = fiToX(Math.max(fiMin, lw.idx)), y0 = pToY(lw.price);
+      const xR = (xRight != null ? xRight : fiToX(nowFi)), yT = pToY(ea.next.target);
+      if ([x0, y0, xR, yT].every(isFinite)) {
+        c.strokeStyle = COL; c.globalAlpha = .7; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(x0, y0); c.lineTo(xR, yT); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+        _evLabel(c, "→" + ea.next.label + " " + fmt(ea.next.target), xR, yT, COL, "right");
+      }
+    }
+    c.restore();
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -2676,11 +2713,9 @@
           _drawFibLayers(c, fib, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.fib + "(전문)" });
         } else if (n.blockType === "elliott") {
-          const piv = _zigzag(price, 0.18).slice(-8);
-          c.strokeStyle = col; c.fillStyle = col; c.setLineDash([]); c.lineWidth = 1.6; c.beginPath(); let st = false; const pts = [];
-          piv.forEach((w, k) => { const hx = w.i - off; if (hx < 0 || hx >= Hn) return; const x = toXh(hx), y = toY(w.p); pts.push({ x, y, l: _EWLAB[k] || "" }); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; });
-          c.stroke(); for (const p of pts) { c.beginPath(); c.arc(p.x, p.y, 2.6, 0, 7); c.fill(); _evLabel(c, p.l, p.x + 3, p.y - 3, col, "left"); }
-          if (pts.length) legend.push({ col, t: EV_LABEL.elliott });
+          const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+          _drawElliottLayers(c, ea, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
         } else if (n.blockType === "rsi") {
           const rsi = Math.round(_rsiLast(price, (n.params && n.params.period) || 14));
           legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
