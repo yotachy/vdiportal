@@ -1203,7 +1203,7 @@
     pane.classList.add("editing");
     const rows = [];
     if (n.blockType === "ma") {
-      rows.push(numRow("len", "이동평균 길이", (n.params && n.params.len) ?? 10));
+      rows.push(numRow("len", "이동평균 길이", (n.params && n.params.len) ?? 20));
       rows.push(numRow("ema", "EMA 사용(0/1)", (n.params && n.params.ema) ? 1 : 0));
     }
     if (n.blockType === "phasefold") {
