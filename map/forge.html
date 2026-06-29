@@ -2605,16 +2605,13 @@
           for (let i = 0; i < P; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = xOf(i), y = clipY(yOf(v)); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
           c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
         } else if (n.blockType === "trend") {
-          const len = Math.min(P, (n.params && n.params.len) || 40), seg = price.slice(P - len), lr = _linreg(seg);
-          const x0 = xOf(P - len), x1 = g.nowX;
-          const yAt = j => clipY(yOf(lr.a * j + lr.b));             // 회귀 j번째 봉의 y
+          const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2 });
           const futBars = (g.path && g.path.length) || 24, xR = g.rightX || (g.ox + g.dw);
-          const y0 = yAt(0), y1 = yAt(len - 1), yR = yAt(len - 1 + futBars);
-          // 다크 외곽(대비) → 본선(굵게) → 예측 연장(점선)
-          c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = 4.5; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
-          c.strokeStyle = col; c.lineWidth = 2.6; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
-          c.globalAlpha = .7; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(x1, y1); c.lineTo(xR, yR); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
-          c.fillStyle = col; c.font = "700 10px ui-monospace,monospace"; c.textAlign = "left"; c.fillText("추세", x0 + 3, y0 - 4);
+          _drawTrendLayers(c, ta, {
+            fiToX: fi => xOf(fi),
+            pToY: v => clipY(yOf(v)),
+            nowFi: P - 1, xNow: g.nowX, xRight: xR, futBars
+          });
           legend.push({ col, t: EV_LABEL.trend });
         } else if (n.blockType === "elliott") {
           const piv = _zigzag(price, 0.18).slice(-8);
