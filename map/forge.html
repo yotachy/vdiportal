@@ -2656,10 +2656,9 @@
           }
           c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib + (g.log ? "(log)" : "") });
         } else if (n.blockType === "ma") {
-          const len = (n.params && n.params.len) || 20, ma = _sma(price, len);
-          c.strokeStyle = col; c.lineWidth = 2.4; c.setLineDash([]); c.beginPath(); let st = false;
-          for (let i = 0; i < P; i++) { const v = ma[i]; if (!isFinite(v)) continue; const x = xOf(i), y = clipY(yOf(v)); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
-          c.stroke(); legend.push({ col, t: EV_LABEL.ma + "(" + len + ")" });
+          const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
+          _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0 });
+          legend.push({ col, t: EV_LABEL.ma + "(다중)" });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
           const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
