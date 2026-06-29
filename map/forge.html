@@ -2696,16 +2696,9 @@
       for (const n of nodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         if (n.blockType === "fib") {
-          const len = Math.min(P, (n.params && n.params.len) || 120), seg = price.slice(P - len), hi = Math.max(...seg), lo = Math.min(...seg);
-          const lvFn = (g.log && lo > 0) ? r => lo * Math.pow(hi / lo, r) : r => lo + (hi - lo) * r;   // 로그축=기하 피보(레벨 균등 분포)
-          c.setLineDash([5, 4]); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1.3;
-          for (const r of [0, .236, .382, .5, .618, .786, 1]) {
-            const lv = lvFn(r), y = yOf(lv); if (!within(y)) continue;
-            c.globalAlpha = .6; c.beginPath(); c.moveTo(L, y); c.lineTo(R, y); c.stroke();   // 전체 폭(과거~예측 끝까지)
-            c.globalAlpha = .95; c.textAlign = "left"; c.fillText(r.toFixed(3), L + 3, y - 2);
-            c.textAlign = "right"; c.fillText(fmtNum(lv), R - 2, y - 2); c.textAlign = "left"; c.globalAlpha = 1;
-          }
-          c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib + (g.log ? "(log)" : "") });
+          const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
+          _drawFibLayers(c, fib, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          legend.push({ col, t: EV_LABEL.fib + "(전문)" });
         } else if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
           _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
@@ -3080,6 +3073,11 @@
       const len = (n.params && n.params.len) || 20, ema = !!(n.params && n.params.ema);
       const ma = ForgeCore.analyzeMA(price, { len, ema });
       const texts = ForgeCore.maSteps(ma, len), layers = [1, 1, 2, 3, 4];
+      return texts.map((t, i) => ({ text: t, layer: layers[i] }));
+    }
+    if (n.blockType === "fib" && Array.isArray(price) && price.length >= 2) {
+      const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
+      const texts = ForgeCore.fibSteps(fib), layers = [1, 1, 2, 3, 4];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
