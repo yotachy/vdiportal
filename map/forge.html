@@ -211,6 +211,8 @@
   .fc-hero #fcHeroImg,.fc-hero #fcMainChart,.fc-hero #fcEvidence{transition:transform .5s cubic-bezier(.4,0,.2,1)}
   .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3}
   body.evhide .fc-evidence{display:none}
+  .fc-zoom-reset{position:absolute;top:8px;right:8px;z-index:4;width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:13px;cursor:pointer;display:none}
+  .fc-zoom-reset.on{display:block}
   .ev-toggle{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:-.01em}
   .ev-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.1)}
   /* 데이터 소스 배지(이미지뷰=비전 시계열 자동 감지 안내) */
@@ -525,6 +527,7 @@
               <canvas id="fcFuture" class="fc-cv"></canvas>
               <canvas id="fcMainChart" class="fc-cv"></canvas>
               <canvas id="fcEvidence" class="fc-evidence"></canvas>
+              <button id="fcZoomReset" class="fc-zoom-reset" title="줌 초기화">&#x2295;</button>
               <div class="fc-cone-vline" id="fcMainVline"></div>
               <div class="fc-cone-tip" id="fcMainTip"></div>
             </div>
@@ -633,6 +636,29 @@
   let drag = null;
   let spaceDown = false;
   let justDragged = false;
+
+  /* ── Hero 줌/팬 상태 ─────────────────────────────────────────── */
+  let _heroZoom = { s: 1, tx: 0, ty: 0 };
+  let _heroZoomDragging = false;
+  function resetHeroView() { _heroZoom = { s: 1, tx: 0, ty: 0 }; }
+  function clampPan() {
+    const cv = document.getElementById("fcMainChart"); if (!cv) return;
+    const W = cv.clientWidth || 1, H = cv.clientHeight || 1, s = _heroZoom.s;
+    if (s <= 1.0001) { _heroZoom.tx = 0; _heroZoom.ty = 0; _heroZoom.s = 1; return; }
+    const minVis = 0.25;
+    const maxTx = W * (1 - minVis), minTx = W * minVis - W * s;
+    const maxTy = H * (1 - minVis), minTy = H * minVis - H * s;
+    _heroZoom.tx = Math.max(minTx, Math.min(maxTx, _heroZoom.tx));
+    _heroZoom.ty = Math.max(minTy, Math.min(maxTy, _heroZoom.ty));
+  }
+  function _syncZoomBtn() { const b = document.getElementById("fcZoomReset"); if (b) b.classList.toggle("on", _heroZoom.s > 1.0001); }
+  function renderHeroZoom() {
+    const pred = _fcLastResult && _fcLastResult.prediction;
+    const px = (_fcLastData && _fcLastData.price) || (currentData && currentData().price) || [];
+    fcDrawMainChart(px, pred);
+    drawEvidence();
+    _syncZoomBtn();
+  }
 
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
@@ -1204,6 +1230,17 @@
       el.classList.toggle("selected", sel.includes(el.dataset.id));
     });
     renderParams();
+    syncFocusFromSel();
+  }
+
+  function syncFocusFromSel() {
+    let nf = null;
+    if (sel.length === 1) {
+      const n = boardState.nodes.find(x => x.id === sel[0]);
+      const IND = ["ma", "trend", "fib", "elliott", "rsi", "volume"];
+      if (n && IND.includes(n.blockType)) nf = n.blockType;
+    }
+    if (nf !== _focusInd) { _focusInd = nf; drawEvidence(); }
   }
 
   /* ── 파라미터 편집기 패널 ──────────────────────────────────────── */
@@ -1788,7 +1825,7 @@
       const ae = document.activeElement;
       const typing = !!(ae && (ae.isContentEditable || ae.tagName === "INPUT" || ae.tagName === "TEXTAREA"));
       if (e.code === "Space") { spaceDown = true; if (!typing) e.preventDefault(); return; }
-      if (e.key === "Escape") { deselectAll(); return; }
+      if (e.key === "Escape") { if (_focusInd) { _focusInd = null; drawEvidence(); } deselectAll(); return; }
       if (typing) return;
       if (e.key === "Delete" || e.key === "Backspace") {
         if (selEdge) delEdge(selEdge);
@@ -1846,7 +1883,7 @@
 
   /* ════════════════════════════════════════════════════════════════
      CHART PANE — PHASE-FOLD render (ported from chart.html)
-     Globals: fcFit(cv,h), renderChart(result,data)
+     Globals: fcFit(cv,h,cap), renderChart(result,data)
      Canvases: #fcMain · #fcPdm · #fcFoldA · #fcFoldB · #fcFoldC
      ════════════════════════════════════════════════════════════════ */
 
@@ -1864,8 +1901,8 @@
   const FC_GRID = "#1b2334";   /* grid lines */
 
   /* ── fcFit: DPR-correct canvas sizing (port of chart.html fit()) ── */
-  function fcFit(cv, h) {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+  function fcFit(cv, h, cap) {
+    const dpr = Math.min(devicePixelRatio || 1, cap || 2);
     const w = cv.clientWidth;
     cv.width  = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
@@ -1874,8 +1911,8 @@
     return c;
   }
   /* fcFit과 동일하나 크기 변동 없으면 백버퍼 재할당 생략(재생 프레임마다 호출용 — 호출부가 clearRect 직접 수행). */
-  function fcFitKeep(cv, h) {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+  function fcFitKeep(cv, h, cap) {
+    const dpr = Math.min(devicePixelRatio || 1, cap || 2);
     const W = Math.round(cv.clientWidth * dpr), H = Math.round(h * dpr);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     const c = cv.getContext("2d");
@@ -2413,7 +2450,7 @@
 
   function fcDrawMainChart(series, pred) {
     const cv = document.getElementById("fcMainChart"); if (!cv) return;
-    const ch = cv.clientHeight || 260, c = fcFitKeep(cv, ch);
+    const ch = cv.clientHeight || 260, c = fcFitKeep(cv, ch, 3);
     const cw = cv.clientWidth || 600;
     c.clearRect(0, 0, cw, ch);
     const hist = (series || []).slice(-180);
@@ -2422,6 +2459,7 @@
       c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
       c.fillText("분석 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return;
     }
+    c.save(); c.translate(_heroZoom.tx, _heroZoom.ty); c.scale(_heroZoom.s, _heroZoom.s);
     const anchor = (pred && pred.anchor != null) ? pred.anchor : hist[hist.length - 1];
     let loV = Math.min(...hist), hiV = Math.max(...hist);
     for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); }
@@ -2481,12 +2519,15 @@
       c.fillStyle = "rgba(232,180,99,.95)"; c.fillText(txt, padX + 11, padTop + 13);
     }
     drawEvidence();
+    c.restore();
   }
 
   /* ── 노드별 근거 작도(추세선·피보·파동 등) 누적 오버레이 ───────── */
   let _evidenceSet = new Set();
   let _evReveal = {};   // 시연 중 노드별 작도 레이어 출현 상한(nodeId→layer). 비재생=전체(∞)
   let _evidenceShow = true;
+  let _focusInd = null;          // 포커스 지표 blockType | null(전체)
+  let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
   function evIndicatorNodes() {
@@ -2527,8 +2568,8 @@
   let _evW = 0, _evH = 0;   // 현재 작도 캔버스 논리 크기(라벨 클램프용)
   // 라벨: 반투명 pill 배경 + 경계 클램프. align "left"(기본)|"right"
   function _evLabel(c, text, x, y, color, align) {
-    c.font = "700 10px ui-monospace,monospace";
-    const w = c.measureText(text).width, h = 12, M = 3, pad = 3;
+    c.font = "700 12px ui-monospace,monospace";
+    const w = c.measureText(text).width, h = 14, M = 3, pad = 4;
     let bx = (align === "right") ? x - w - pad : x;          // 박스 좌상 x
     bx = Math.max(M, Math.min(bx, (_evW || 1e4) - w - 2 * pad - M));
     let by = y - h;                                          // 박스 좌상 y(텍스트 baseline 위)
@@ -2540,13 +2581,19 @@
     c.fillText(text, bx + pad, by + h - 1);
   }
   function _evLegend(c, x0, topY, items) {
-    if (!items.length) return;
+    _legendHits = [];
+    const rows = [{ col: "#8a92b2", t: "전체", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key })));
     c.font = "10px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
     let y = topY + 22;
-    for (const it of items) {
+    for (const it of rows) {
+      const tw = c.measureText(it.t).width, bx = x0 + 14, bw = tw + 6, bh = 12;
+      const active = (it.key === _focusInd) || (it.key === null && _focusInd === null);
+      c.globalAlpha = (_focusInd && !active) ? 0.45 : 1;
       c.fillStyle = it.col; c.fillRect(x0 + 2, y, 9, 9);
-      c.fillStyle = "rgba(11,15,20,.55)"; c.fillRect(x0 + 14, y - 1, c.measureText(it.t).width + 6, 12);
+      c.fillStyle = active ? "rgba(232,180,99,.30)" : "rgba(11,15,20,.55)"; c.fillRect(bx, y - 1, bw, bh);
       c.fillStyle = "rgba(224,229,239,.95)"; c.fillText(it.t, x0 + 16, y + 8);
+      c.globalAlpha = 1;
+      _legendHits.push({ x: x0, y: y - 1, w: 16 + bw, h: bh + 2, key: it.key });
       y += 14;
     }
   }
@@ -2687,6 +2734,7 @@
   function _drawElliottLayers(c, ea, M) {
     c.save();
     const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    const _by = (M.badgeY != null) ? M.badgeY : 14;
     const COL = "#c47ae0", BAD = "#e06a6a";
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
     // layer1: 파동 폴리라인 + 라벨
@@ -2706,7 +2754,7 @@
       const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
       const bcol = ea.structure.indexOf("impulse") === 0 ? COL : ea.structure === "corrective" ? "#e8b463" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));
-      _evLabel(c, stx + " " + ok + "/3 유효" + ea.rules.score.toFixed(2), xb, 14, bcol, "right");
+      _evLabel(c, stx + " " + ok + "/3 유효" + ea.rules.score.toFixed(2), xb, _by, bcol, "right");
     }
     // layer3: 다음 파동 투영선
     if (reveal >= 3 && ea.next && ea.waves.length) {
@@ -2724,6 +2772,7 @@
   function _drawRsiLayers(c, rsi, M) {
     c.save();
     const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    const _by = (M.badgeY != null) ? M.badgeY : 28;
     if (reveal >= 1 && rsi.divergence.type && rsi.divergence.pricePts) {
       const a = rsi.divergence.pricePts[0], b = rsi.divergence.pricePts[1];
       const xa = fiToX(Math.max(fiMin, a.idx)), ya = pToY(a.price), xb = fiToX(Math.max(fiMin, b.idx)), yb = pToY(b.price);
@@ -2737,7 +2786,7 @@
       const zt = rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립";
       const col = rsi.zone === "overbought" ? "#e06a6a" : rsi.zone === "oversold" ? "#46c28e" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));
-      _evLabel(c, "RSI " + Math.round(rsi.last) + " \xb7 " + zt, xb, 28, col, "right");
+      _evLabel(c, "RSI " + Math.round(rsi.last) + " \xb7 " + zt, xb, _by, col, "right");
     }
     c.restore();
   }
@@ -2745,6 +2794,7 @@
   function _drawVolumeLayers(c, va, M) {
     if (!va) return;
     const { fiToX, pToY, fiMin, reveal, xRight } = M;
+    const _by = (M.badgeY != null) ? M.badgeY : 28;
     c.save();
     // 레이어1: 가격-OBV 다이버전스 선
     if (reveal >= 1 && va.divergence.type && va.divergence.pricePts) {
@@ -2768,7 +2818,7 @@
         const x = fiToX(Math.max(fiMin, M.nowFi)), y = pToY(M.lastPrice);
         if (isFinite(x) && isFinite(y)) { c.strokeStyle = "#e8b463"; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x, y - 14); c.lineTo(x, y - 4); c.stroke(); }
       }
-      _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, 28, relCol, "right");
+      _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, _by, relCol, "right");
     }
     c.restore();
   }
@@ -2779,7 +2829,7 @@
     _evW = W; _evH = H;
     if (!W || !H) return;
     // 캔버스를 hero 전체 크기로 명시(style.width 포함) — 콘과 같은 좌표계. (inset:0이 안 먹어 300px에 갇히던 버그)
-    const dpr = Math.min(devicePixelRatio || 1, 2), ww = Math.round(W * dpr), hh = Math.round(H * dpr);
+    const dpr = Math.min(devicePixelRatio || 1, 3), ww = Math.round(W * dpr), hh = Math.round(H * dpr);
     if (cv.width !== ww || cv.height !== hh) { cv.width = ww; cv.height = hh; }
     cv.style.width = W + "px"; cv.style.height = H + "px";
     const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
@@ -2789,53 +2839,56 @@
     const mode = heroMode();
     const nodes = evIndicatorNodes().filter(n => _evidenceSet.has(n.id));
     if (!nodes.length) return;
+    c.save(); c.translate(_heroZoom.tx, _heroZoom.ty); c.scale(_heroZoom.s, _heroZoom.s);
     const legend = [];
     c.lineWidth = 1.5; c.lineJoin = "round";
     if (mode === "chart") {
-      const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
+      const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) { c.restore(); return; }
       const toY = v => g.padTop + (1 - (v - g.loV) / ((g.hiV - g.loV) || 1)) * (g.ch - g.padTop - g.padBot);
       const Hn = g.histLen, off = P - Hn, plotR = g.padX + g.plotW;
       const toXh = i => g.padX + (i / (Hn - 1)) * g.histW;
+      let _slot = 0; const _slotY = () => g.padTop + 2 + (_slot++) * 18;   // 우상단 배지 세로 슬롯(18px 간격)
       for (const n of nodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
+        const _drawThis = (!_focusInd || n.blockType === _focusInd);
         if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
-          _drawMALayers(c, ma, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
-          legend.push({ col, t: EV_LABEL.ma + "(다중)" });
+          if (_drawThis) _drawMALayers(c, ma, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
           const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const off = P - Hn, futBars = (g.path && g.path.length) || 24;
-          _drawTrendLayers(c, ta, {
+          if (_drawThis) _drawTrendLayers(c, ta, {
             fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))),
             pToY: v => toY(v),
             nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: off
           });
-          legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " · " + _prof.label : "") });
+          legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "fib") {
           const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
-          _drawFibLayers(c, fib, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
-          legend.push({ col, t: EV_LABEL.fib + "(전문)" });
+          if (_drawThis) _drawFibLayers(c, fib, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "elliott") {
           const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
-          _drawElliottLayers(c, ea, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
-          legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
+          if (_drawThis) _drawElliottLayers(c, ea, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
+          legend.push({ col, t: EV_LABEL.elliott + "(전문)", _key: n.blockType });
         } else if (n.blockType === "rsi") {
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
-          _drawRsiLayers(c, rsi, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
-          legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
+          if (_drawThis) _drawRsiLayers(c, rsi, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
+          legend.push({ col, t: EV_LABEL.rsi + "(전문)", _key: n.blockType });
         } else if (n.blockType === "volume") {
           const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
           const va = ForgeCore.analyzeVolume(price, vser);
-          _drawVolumeLayers(c, va, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1] });
-          legend.push({ col, t: EV_LABEL.volume + "(전문)" });
+          if (_drawThis) _drawVolumeLayers(c, va, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1], badgeY: _slotY() });
+          legend.push({ col, t: EV_LABEL.volume + "(전문)", _key: n.blockType });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
       }
       _evLegend(c, g.padX, g.padTop, legend);
     } else {
-      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; if (!g) return;
+      const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; if (!g) { c.restore(); return; }
       const tf = v => g.log ? Math.log(Math.max(1e-9, v)) : v;
       const yOf = p => g.p1y + (tf(p) - tf(g.p1p)) * (g.p2y - g.p1y) / ((tf(g.p2p) - tf(g.p1p)) || 1);
       const L = 0, R = W, top = g.oy, bot = g.oy + g.dh;   // 수평선(피보)은 hero 전체 폭(예측 영역 포함)
@@ -2844,43 +2897,45 @@
       const within = y => y >= top - 2 && y <= bot + 2;
       for (const n of nodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
+        const _drawThis = (!_focusInd || n.blockType === _focusInd);
         if (n.blockType === "fib") {
           const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
-          _drawFibLayers(c, fib, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
-          legend.push({ col, t: EV_LABEL.fib + "(전문)" });
+          if (_drawThis) _drawFibLayers(c, fib, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
+          legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
-          _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
-          legend.push({ col, t: EV_LABEL.ma + "(다중)" });
+          if (_drawThis) _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
           const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const futBars = (g.path && g.path.length) || 24, xR = g.rightX || (g.ox + g.dw);
-          _drawTrendLayers(c, ta, {
+          if (_drawThis) _drawTrendLayers(c, ta, {
             fiToX: fi => xOf(fi),
             pToY: v => clipY(yOf(v)),
             nowFi: P - 1, xNow: g.nowX, xRight: xR, futBars
           });
-          legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " · " + _prof.label : "") });
+          legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "elliott") {
           const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
-          _drawElliottLayers(c, ea, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
-          legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
+          if (_drawThis) _drawElliottLayers(c, ea, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
+          legend.push({ col, t: EV_LABEL.elliott + "(전문)", _key: n.blockType });
         } else if (n.blockType === "rsi") {
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
-          _drawRsiLayers(c, rsi, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
-          legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
+          if (_drawThis) _drawRsiLayers(c, rsi, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
+          legend.push({ col, t: EV_LABEL.rsi + "(전문)", _key: n.blockType });
         } else if (n.blockType === "volume") {
           const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
           const va = ForgeCore.analyzeVolume(price, vser);
-          _drawVolumeLayers(c, va, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw), lastPrice: price[P - 1] });
-          legend.push({ col, t: EV_LABEL.volume + "(전문)" });
+          if (_drawThis) _drawVolumeLayers(c, va, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw), lastPrice: price[P - 1] });
+          legend.push({ col, t: EV_LABEL.volume + "(전문)", _key: n.blockType });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
       }
       _evLegend(c, g.ox + 4, g.oy, legend);
     }
+    c.restore();
   }
 
   function fcHeroMode(mode) {
@@ -3043,6 +3098,7 @@
   /* ── renderChart: top-level, consumes ForgeCore output ── */
   function renderChart(result, data) {
     if (!result || !data) return;
+    resetHeroView();
     _fcLastResult = result; _fcLastData = data;
     if (!_playing) _evidenceSet = new Set(evIndicatorNodes().map(n => n.id));   // 평상시: 모든 지표 근거 표시
 
@@ -3604,11 +3660,13 @@
     const hero = cv.parentElement;
     const hide = () => { const t = document.getElementById("fcMainTip"), v = document.getElementById("fcMainVline"); if (t) t.style.display = "none"; if (v) v.style.display = "none"; };
     const show = (clientX, clientY) => {
+      if (_heroZoomDragging) { hide(); return; }
       const g = cv._mainGeo, tip = document.getElementById("fcMainTip"), vline = document.getElementById("fcMainVline");
       if (!g || !tip) { hide(); return; }
       const rect = cv.getBoundingClientRect();
       const cwid = cv.clientWidth || rect.width, sx = cwid ? rect.width / cwid : 1;
-      const x = (clientX - rect.left) / (sx || 1);
+      const rawX = (clientX - rect.left) / (sx || 1);
+      const x = _heroZoom.s > 1.0001 ? (rawX - _heroZoom.tx) / _heroZoom.s : rawX;
       if (x < g.padX || x > g.padX + g.plotW) { hide(); return; }
       let isFut = false, k = 0, i = 0, price, lo, hi, label = "", chg = null, snapX;
       if (x <= g.seamX && g.histLen > 1) {
@@ -3622,7 +3680,10 @@
         snapX = g.seamX + ((k + 1) / Math.max(1, g.pathLen)) * (g.plotW - g.histW);
       } else { hide(); return; }
       const hr = hero.getBoundingClientRect(), offX = rect.left - hr.left, offY = rect.top - hr.top;
-      if (vline) { vline.style.display = "block"; vline.style.left = (offX + snapX * sx) + "px"; vline.style.top = (offY + g.padTop * sx) + "px"; vline.style.height = ((g.ch - g.padTop - g.padBot) * sx) + "px"; }
+      const vSnap = (snapX * _heroZoom.s + _heroZoom.tx) * sx;
+      const vTop = (g.padTop * _heroZoom.s + _heroZoom.ty) * sx;
+      const vH = (g.ch - g.padTop - g.padBot) * _heroZoom.s * sx;
+      if (vline) { vline.style.display = "block"; vline.style.left = (offX + vSnap) + "px"; vline.style.top = (offY + vTop) + "px"; vline.style.height = vH + "px"; }
       let inner = `<span class="ct-t">${label}</span><span class="ct-v">${_hzFmt(price)}</span>`;
       if (chg != null) { const col = chg > 0.3 ? "var(--bull)" : chg < -0.3 ? "var(--bear)" : "var(--eth)"; inner += `<span class="ct-chg" style="color:${col}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>`; }
       if (isFinite(lo) && isFinite(hi)) inner += `<span class="ct-band">${_hzFmt(lo)} ~ ${_hzFmt(hi)}</span>`;
@@ -3636,6 +3697,50 @@
     cv.addEventListener("mousemove", e => show(e.clientX, e.clientY));
     bindTouchHover(cv, show, hide);
   })();
+
+  /* ── Hero 휠줌 + 드래그팬 + 더블클릭 리셋 ──────────────────── */
+  (function heroZoomInit() {
+    const cv = document.getElementById("fcMainChart"); if (!cv) return;
+    cv.addEventListener("wheel", e => {
+      e.preventDefault();
+      const r = cv.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const ns = Math.max(1, Math.min(6, _heroZoom.s * factor)), k = ns / _heroZoom.s;
+      _heroZoom.tx = cx - (cx - _heroZoom.tx) * k;
+      _heroZoom.ty = cy - (cy - _heroZoom.ty) * k;
+      _heroZoom.s = ns; clampPan(); renderHeroZoom();
+    }, { passive: false });
+    let hDrag = null;
+    cv.addEventListener("pointerdown", e => {
+      if (_heroZoom.s <= 1.0001) return;
+      hDrag = { x: e.clientX, y: e.clientY, tx: _heroZoom.tx, ty: _heroZoom.ty, moved: false };
+      try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    cv.addEventListener("pointermove", e => {
+      if (!hDrag) return;
+      const dx = e.clientX - hDrag.x, dy = e.clientY - hDrag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 6) { hDrag.moved = true; _heroZoomDragging = true; }
+      if (!hDrag.moved) return;
+      _heroZoom.tx = hDrag.tx + dx; _heroZoom.ty = hDrag.ty + dy; clampPan(); renderHeroZoom();
+    });
+    const endDrag = () => { hDrag = null; _heroZoomDragging = false; };
+    cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
+    cv.addEventListener("dblclick", () => { resetHeroView(); renderHeroZoom(); });
+    cv.addEventListener("click", e => {
+      if (_heroZoomDragging) return;
+      const r = cv.getBoundingClientRect();
+      const lx = ((e.clientX - r.left) - _heroZoom.tx) / _heroZoom.s;
+      const ly = ((e.clientY - r.top) - _heroZoom.ty) / _heroZoom.s;
+      for (const hgt of _legendHits) {
+        if (lx >= hgt.x && lx <= hgt.x + hgt.w && ly >= hgt.y && ly <= hgt.y + hgt.h) {
+          if (typeof hgt.key === "undefined") return;
+          _focusInd = (hgt.key === _focusInd) ? null : hgt.key;
+          drawEvidence(); return;
+        }
+      }
+    });
+  })();
+  (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetHeroView(); renderHeroZoom(); }); })();
 
   (function initGutter() {
     const split = document.querySelector(".forge-split");
