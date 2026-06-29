@@ -450,3 +450,14 @@ test("analyzeTrend: P<2 → 빈 결과, 예외 없음", () => {
   assert.strictEqual(ta.windows.long, null);
   assert.strictEqual(ta.blend.slopeLog, 0);
 });
+
+test("run: 캡 완화 — 급한 추세가 완만한 추세보다 더 큰 상승 투영", () => {
+  const G = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "o" }] };
+  const mk = g => ({ price: Array.from({ length: 60 }, (_, i) => 10 * Math.exp(g * i)) });
+  const r1 = ForgeCore.run(G, mk(0.02), { futW: 12 });
+  const r2 = ForgeCore.run(G, mk(0.04), { futW: 12 });
+  assert.ok(r1.prediction.path.every(isFinite) && r2.prediction.path.every(isFinite), "NaN 없음");
+  const gain = r => r.prediction.target / r.prediction.anchor;
+  assert.ok(gain(r2) > gain(r1), "급한 추세(0.04)가 더 큰 상승 — 옛 ±1.2%캡이면 동일했을 것");
+  assert.ok(gain(r2) > 1, "상승추세 → target>anchor");
+});
