@@ -584,6 +584,10 @@
           </div>
           <div class="fc-pbody"><canvas id="fcRsi" class="fc-cv"></canvas></div>
         </div>
+        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
+        <div id="fcVolPanel" class="fc-panel" style="display:none">
+          <div class="fc-pbody"><canvas id="fcVol" class="fc-cv"></canvas><div id="fcVolMeta" class="fc-pmeta"></div></div>
+        </div>
       </div>
       <div id="paramPanel" class="node-editor"></div>
     </section>
@@ -2110,6 +2114,36 @@
     const meta = document.getElementById("fcRsiMeta"); if (meta) meta.textContent = "RSI " + Math.round(rsi.last) + " \xb7 " + (rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립");
   }
 
+  /* ── fcDrawVol: 거래량 막대 서브패널 (상승하락색·급증골드·OBV라인) ── */
+  function fcDrawVol(va) {
+    const cv = document.getElementById("fcVol"); if (!cv) return;
+    const cw = cv.clientWidth || 300, ch = cv.clientHeight || 120;
+    const c = fcFit(cv, ch); c.clearRect(0, 0, cw, ch);
+    const s = (va && va.series) || [];
+    if (s.length < 2) { c.fillStyle = "#8a92b2"; c.font = "12px Pretendard, sans-serif"; c.fillText("거래량 데이터 없음", 10, ch / 2); return; }
+    const pad = 6, w = cw - pad * 2, h = ch - pad * 2 - 14;
+    const maxV = Math.max.apply(null, s) || 1, n = s.length, bw = Math.max(1, w / n - 1);
+    // 막대: 상승봉 bull / 하락봉 bear / 급증봉 골드
+    const obv = va.obv || [];
+    for (let i = 0; i < n; i++) {
+      const x = pad + (i / n) * w, bh = (s[i] / maxV) * h, y = pad + h - bh;
+      const up = i > 0 && obv[i] >= obv[i - 1];
+      const spike = va.state === "spike" && i >= n - 3;
+      c.fillStyle = spike ? "#e8b463" : up ? "rgba(70,194,142,.7)" : "rgba(224,106,106,.7)";
+      c.fillRect(x, y, bw, bh);
+    }
+    // OBV 라인(보조 스케일)
+    if (obv.length === n) {
+      let omin = Math.min.apply(null, obv), omax = Math.max.apply(null, obv); const orng = (omax - omin) || 1;
+      c.strokeStyle = "#8a92b2"; c.lineWidth = 1.5; c.beginPath();
+      for (let i = 0; i < n; i++) { const x = pad + (i / n) * w + bw / 2, y = pad + h - ((obv[i] - omin) / orng) * h; i ? c.lineTo(x, y) : c.moveTo(x, y); }
+      c.stroke();
+    }
+    // 상태 라벨
+    const meta = document.getElementById("fcVolMeta");
+    if (meta) meta.textContent = "거래량 " + (va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이") + " " + va.ratio.toFixed(2) + "x \xb7 OBV " + (va.obvTrend > 0.1 ? "상승" : va.obvTrend < -0.1 ? "하락" : "횡보");
+  }
+
   /* ── fcDrawFold: phase-fold trace (port of chart.html drawFold()) ── */
   /* seriesArr: number[], color: hex, P: period, PHI: phase offset, ACC: accent */
   function fcDrawFold(cv, seriesArr, label, color, P, PHI) {
@@ -3076,6 +3110,9 @@
     togglePhasefoldPanels();
     toggleRsiPanel();
     { const _rn = boardState.nodes.find(n => n.blockType === "rsi"); if (_rn) fcDrawRsi(ForgeCore.analyzeRSI((data && data.price) || [], { period: (_rn.params && _rn.params.period) || 14 })); }
+    toggleVolPanel();
+    const _vn = boardState.nodes.find(n => n.kind === "block" && n.blockType === "volume");
+    if (_vn) { const vser = (Array.isArray(_vn.series) && _vn.series.length >= 2) ? _vn.series : ForgeCore.synthVolume(data.price); fcDrawVol(ForgeCore.analyzeVolume(data.price, vser)); }
   }
   /* ── 예측 시점별 표(3·6·12·24 등) ── */
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
@@ -3426,6 +3463,11 @@
   function toggleRsiPanel() {
     const has = boardState.nodes.some(n => n.blockType === "rsi");
     const p = document.getElementById("fcRsiPanel"); if (p) p.style.display = has ? "" : "none";
+  }
+  function toggleVolPanel() {
+    const p = document.getElementById("fcVolPanel"); if (!p) return;
+    const has = boardState.nodes.some(n => n.kind === "block" && n.blockType === "volume");
+    p.style.display = has ? "" : "none";
   }
 
   /* resize: re-render with stored last result/data */
