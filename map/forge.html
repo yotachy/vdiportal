@@ -340,6 +340,10 @@
   .forge-side .doc-row:hover{background:var(--raised2)}
   .side-btn{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;font-size:11px;padding:2px 8px;cursor:pointer}
   .side-btn:hover{color:var(--ink);border-color:var(--eth)}
+  .forge-side .pal-side{display:flex;flex-direction:column;gap:5px}
+  .forge-side .pal-side .pal-btn{display:block;width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;white-space:nowrap;transition:background .1s,border-color .1s}
+  .forge-side .pal-side .pal-btn:hover{background:var(--raised2);border-color:#3a4452}
+  .forge-side .pal-side .pal-btn.pal-free{color:var(--eth);border-style:dashed}
 
   /* ── 포지 분석 재생 ── */
   .analyze-prog{font-size:11px;color:var(--eth)}
@@ -887,17 +891,8 @@
   function renderLib() {
     const el = document.getElementById("libSec"); if (!el) return;
     el.innerHTML =
-      `<div class="side-h"><span>이미지 라이브러리</span><button class="side-btn" id="libAddBtn">＋ 추가</button></div>` +
-      `<div class="lib-grid">` +
-      (LIBRARY.length
-        ? LIBRARY.map(it =>
-            `<div class="lib-it" draggable="true" data-img="${esc(it.id)}">` +
-            `<img src="${esc(imgSrc(it.id))}" alt="${esc(it.label || "")}" title="${esc(it.label || "")}">` +
-            `<button class="lib-del" data-libdel="${esc(it.id)}" title="라이브러리에서 삭제" aria-label="삭제">✕</button>` +
-            `</div>`
-          ).join("")
-        : `<div style="font-size:11px;color:var(--eth);padding:2px 0">이미지를 추가하거나 Ctrl+V로 붙여넣기</div>`) +
-      `</div>`;
+      `<div class="side-h"><span>대표 이미지</span><button class="side-btn" id="libAddBtn">＋ 이미지</button></div>` +
+      `<div style="font-size:10px;color:var(--eth);padding:2px 0;line-height:1.5">가격 노드에 드래그 · Ctrl+V 로도 추가</div>`;
   }
   /* 라이브러리(팔레트)에서 이미지 제거 — 노드/대표이미지는 그대로 유지(graceful) */
   function delLibImg(id) {
@@ -1010,6 +1005,11 @@
     el.innerHTML =
       `<div class="side-sec"><div class="side-h"><span>포지</span></div>
          <div class="side-actions"><button class="side-btn" id="sampleDocBtn">＋ 샘플</button><button class="side-btn" id="newDocBtn">＋ 새 포지</button></div>${docs}</div>
+       <div class="side-sec"><div class="side-h"><span>블록 도구</span></div>
+         <div class="pal-side">` +
+         BLOCK_DEFS.filter(d => d.kind === "block").map(d => `<button class="pal-btn" onclick="addBlock('${d.type}')">${d.label}</button>`).join("") +
+         `<button class="pal-btn pal-free" onclick="addBlock('free')">메모</button>` +
+       `</div></div>
        <div class="side-sec" id="libSec"></div>`;
     if (window.renderLib) renderLib();   // 라이브러리 섹션(Task 4)
   }
@@ -1783,16 +1783,6 @@
       }
     });
     window.addEventListener("keyup", e => { if (e.code === "Space") spaceDown = false; });
-
-    /* floating block palette */
-    const _pal = document.createElement("div");
-    _pal.className = "forge-palette";
-    _pal.innerHTML = `<div class="pal-label">블록 추가</div>` +
-      BLOCK_DEFS.filter(d => d.kind === "block").map(d =>
-        `<button class="pal-btn" onclick="addBlock('${d.type}')">${d.label}</button>`
-      ).join("") +
-      `<button class="pal-btn pal-free" onclick="addBlock('free')">메모</button>`;
-    pane.appendChild(_pal);
 
     /* 숨김 file input (라이브러리 추가용 / 노드 이미지용) */
     const _fi = document.createElement("input");
