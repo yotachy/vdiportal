@@ -774,3 +774,24 @@ test("rsiSteps: 5단계, bias 반영", () => {
   assert.strictEqual(s.length, 5);
   assert.ok(/bias/.test(s[4]));
 });
+
+test("run: RSI 블록 유무가 예측 타깃을 가른다(격리) + TF", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const data = { price: [100, ...seg(100, 72, 10), ...seg(72, 88, 8), ...seg(88, 70, 8)] };  // 강세 다이버전스(price LL 70<72, RSI HL)
+  const base = [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }];
+  const withR = { nodes: [...base, { id: "r", kind: "block", blockType: "rsi", params: { period: 5 } }], edges: [{ from: "p", to: "o" }, { from: "p", to: "r" }] };
+  const without = { nodes: base, edges: [{ from: "p", to: "o" }] };
+  const rW = ForgeCore.run(withR, data, { futW: 12, timeframe: "월봉" });
+  const rN = ForgeCore.run(without, data, { futW: 12, timeframe: "월봉" });
+  const rI = ForgeCore.run(withR, data, { futW: 12, timeframe: "5분" });
+  assert.ok(rW.prediction.path.every(isFinite) && rN.prediction.path.every(isFinite) && rI.prediction.path.every(isFinite));
+  assert.notStrictEqual(rW.prediction.target, rN.prediction.target);
+  const gain = r => r.prediction.target / r.prediction.anchor;
+  assert.ok(Math.abs(gain(rW) - 1) > Math.abs(gain(rI) - 1) - 1e-9);   // 월봉 가중 >= 5분(부호 무관 크기)
+});
+
+test("run: RSI 블록 없으면 기여 0", () => {
+  const G = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "o" }] };
+  const r = ForgeCore.run(G, { price: Array.from({ length: 40 }, (_, i) => 100 + i) }, { futW: 8, timeframe: "월봉" });
+  assert.ok(r.prediction.path.every(isFinite));
+});

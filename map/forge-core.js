@@ -728,6 +728,9 @@
     const _en = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "elliott");
     const _ew = _en ? analyzeElliott(price, { swing: ((_en.params && _en.params.swing) != null ? _en.params.swing : 3) / 100 }) : null;
     const ewDrift = _ew ? _ew.bias * _prof.trendScale * 0.08 : 0;   // 엘리어트 추진/조정 방향 드리프트(±8%·TF가중·유효도 반영)
+    const _rn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "rsi");
+    const _rsi = _rn ? analyzeRSI(price, { period: (_rn.params && _rn.params.period) || 14 }) : null;
+    const rsiDrift = _rsi ? _rsi.bias * _prof.trendScale * 0.06 : 0;   // RSI 다이버전스/구간 방향 드리프트(±6%·TF가중·보수적)
     const _ta = analyzeTrend(price, { shortLen: _tp.len || 40, pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -739,7 +742,7 @@
       const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
