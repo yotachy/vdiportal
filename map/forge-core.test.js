@@ -605,3 +605,61 @@ test("maSteps: 정배열 상승 → 배열·종합 방향 반영", () => {
   assert.ok(s[1].includes("정배열"), "2단계: 정배열");
   assert.ok(s[4].includes("상승"), "5단계: 상승");
 });
+
+test("analyzeFib: 상승 스윙 → dir up, 0.618 되돌림·1.618 확장 존재", () => {
+  const up = Array.from({ length: 50 }, (_, i) => 100 + i * 2);   // 100→198
+  const price = up.concat([197, 196, 195]);                       // 되돌림(thr=4.9 미만, 피벗 미생성)
+  const f = ForgeCore.analyzeFib(price, { swing: 0.05 });
+  assert.strictEqual(f.dir, "up");
+  assert.ok(f.swing.toPrice > f.swing.fromPrice);
+  assert.ok(f.levels.some(L => L.kind === "retr" && Math.abs(L.ratio - 0.618) < 1e-9 && isFinite(L.price)));
+  assert.ok(f.levels.some(L => L.kind === "ext" && Math.abs(L.ratio - 1.618) < 1e-9 && isFinite(L.price)));
+  assert.ok(isFinite(f.bias));
+});
+
+test("analyzeFib: 하락 스윙 → dir down, 유한 bias", () => {
+  const down = Array.from({ length: 50 }, (_, i) => 200 - i * 2);
+  const price = down.concat([104, 103, 102]);                     // 소폭 반등(thr=4.9 미만, 피벗 미생성)
+  const f = ForgeCore.analyzeFib(price, { swing: 0.05 });
+  assert.strictEqual(f.dir, "down");
+  assert.ok(isFinite(f.bias));
+});
+
+test("analyzeFib: 골든포켓 구간 현재가 → inGolden true", () => {
+  // 상승 100→200 후, 0.618~0.65 되돌림 가격대(135~138.2)에 현재가
+  const up = Array.from({ length: 60 }, (_, i) => 100 + (100 * i / 59));   // 100→200
+  const price = up.concat([137]);
+  const f = ForgeCore.analyzeFib(price, { swing: 0.70 });        // swing=0.70: thr=70>63, 137이 새 피벗 미생성→up 스윙 유지
+  // dir up, golden band ~[135,138.2], 137 내부
+  assert.strictEqual(f.zone.inGolden, true);
+});
+
+test("analyzeFib: 소량/피벗부족 → 폴백, 유한 bias·레벨 배열", () => {
+  const f = ForgeCore.analyzeFib([10, 11, 12, 13], {});
+  assert.ok(isFinite(f.bias));
+  assert.ok(Array.isArray(f.levels) && f.levels.length > 0);
+});
+
+test("fibSteps: 5단계, bias 반영", () => {
+  const up = Array.from({ length: 50 }, (_, i) => 100 + i * 2).concat([190, 185]);
+  const s = ForgeCore.fibSteps(ForgeCore.analyzeFib(up, { swing: 0.05 }));
+  assert.strictEqual(s.length, 5);
+  assert.ok(/bias/.test(s[4]));
+});
+
+test("run: 피보 블록 유무가 예측 타깃을 가른다 (격리) + TF", () => {
+  const base = [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }];
+  const up = { price: Array.from({ length: 60 }, (_, i) => 100 + i * 1.5) };
+  const withFib = { nodes: [...base, { id: "f", kind: "block", blockType: "fib", params: { len: 120 } }], edges: [{ from: "p", to: "o" }, { from: "p", to: "f" }] };
+  const without = { nodes: base, edges: [{ from: "p", to: "o" }] };
+  const rW = ForgeCore.run(withFib, up, { futW: 12, timeframe: "월봉" });
+  const rN = ForgeCore.run(without, up, { futW: 12, timeframe: "월봉" });
+  assert.ok(rW.prediction.path.every(isFinite) && rN.prediction.path.every(isFinite));
+  assert.notStrictEqual(rW.prediction.target, rN.prediction.target);   // 피보 기여로 달라짐(드리프트 격리)
+});
+
+test("run: 피보 블록 없으면 기여 0(기존 동작)", () => {
+  const G = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "o" }] };
+  const r = ForgeCore.run(G, { price: Array.from({ length: 40 }, (_, i) => 100 + i) }, { futW: 8, timeframe: "월봉" });
+  assert.ok(r.prediction.path.every(isFinite));
+});

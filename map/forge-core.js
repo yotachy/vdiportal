@@ -333,6 +333,71 @@
     return piv;
   }
 
+  function analyzeFib(price, opts) {
+    opts = opts || {};
+    const len = opts.len || 120, swing = opts.swing != null ? opts.swing : 0.05, srPct = opts.srPct != null ? opts.srPct : 0.01;
+    const P = price.length;
+    const EMPTY = { dir: null, swing: null, levels: [], zone: { nearest: null, inGolden: false, lower: null, upper: null, goldenLo: null, goldenHi: null }, bias: 0 };
+    if (P < 2) return EMPTY;
+    const RETR = [0, .236, .382, .5, .618, .786, 1], EXT = [1.272, 1.414, 1.618, 2.0, 2.618];
+    const sw = detectSwings(price, swing);
+    let fromIdx, toIdx, fromPrice, toPrice, dir;
+    if (sw.length >= 2) {
+      const a = sw[sw.length - 2], b = sw[sw.length - 1];
+      fromIdx = a.idx; fromPrice = a.price; toIdx = b.idx; toPrice = b.price;
+      dir = toPrice >= fromPrice ? "up" : "down";
+    } else {
+      const s0 = Math.max(0, P - len), seg = price.slice(s0);
+      const hiV = Math.max(...seg), loV = Math.min(...seg);
+      const hiIdx = s0 + seg.indexOf(hiV), loIdx = s0 + seg.indexOf(loV);
+      dir = hiIdx >= loIdx ? "up" : "down";
+      if (dir === "up") { fromIdx = loIdx; fromPrice = loV; toIdx = hiIdx; toPrice = hiV; }
+      else { fromIdx = hiIdx; fromPrice = hiV; toIdx = loIdx; toPrice = loV; }
+    }
+    const hi = Math.max(fromPrice, toPrice), lo = Math.min(fromPrice, toPrice), rng = (hi - lo) || 1;
+    const priceAt = (r, kind) => kind === "retr"
+      ? (dir === "up" ? hi - rng * r : lo + rng * r)
+      : (dir === "up" ? hi + rng * (r - 1) : lo - rng * (r - 1));
+    // 2차(장기 창 hi/lo) 레벨 — 합류
+    const s2 = Math.max(0, P - len), seg2 = price.slice(s2);
+    const hi2 = Math.max(...seg2), lo2 = Math.min(...seg2), rng2 = (hi2 - lo2) || 1;
+    const sec = RETR.map(r => dir === "up" ? hi2 - rng2 * r : lo2 + rng2 * r);
+    const levels = [];
+    for (const r of RETR) { const p = priceAt(r, "retr"); levels.push({ ratio: r, price: p, kind: "retr", golden: (r >= 0.618 && r <= 0.65), confluent: sec.some(q => Math.abs(p - q) / (Math.abs(p) || 1) <= srPct) }); }
+    for (const r of EXT) levels.push({ ratio: r, price: priceAt(r, "ext"), kind: "ext", golden: false, confluent: false });
+    const pl = price[P - 1];
+    let nearest = null, nd = Infinity;
+    for (const L of levels) { const d = Math.abs(pl - L.price) / (Math.abs(pl) || 1); if (d < nd) { nd = d; nearest = { ratio: L.ratio, price: L.price, side: pl >= L.price ? "support" : "resistance" }; } }
+    const gpA = priceAt(0.618, "retr"), gpB = priceAt(0.65, "retr");
+    const goldenLo = Math.min(gpA, gpB), goldenHi = Math.max(gpA, gpB);
+    const inGolden = pl >= goldenLo && pl <= goldenHi;
+    let lower = null, upper = null;
+    const rs = levels.filter(L => L.kind === "retr").slice().sort((x, y) => x.price - y.price);
+    for (let i = 0; i < rs.length - 1; i++) { if (pl >= rs[i].price && pl <= rs[i + 1].price) { lower = rs[i].ratio; upper = rs[i + 1].ratio; break; } }
+    const srDir = nearest ? (nearest.side === "support" ? 1 : -1) : 0;
+    const proximity = nearest ? Math.max(0, 1 - nd / srPct) : 0;
+    const goldenBoost = inGolden ? (dir === "up" ? 0.25 : dir === "down" ? -0.25 : 0) : 0;
+    const bias = Math.max(-1, Math.min(1, srDir * proximity + goldenBoost));
+    return { dir, swing: { fromIdx, toIdx, fromPrice, toPrice }, levels, zone: { nearest, inGolden, lower, upper, goldenLo, goldenHi }, bias };
+  }
+
+  function fibSteps(fib) {
+    const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
+    const d = fib.dir === "up" ? "상승" : fib.dir === "down" ? "하락" : "중립";
+    const ext = fib.levels.find(L => L.kind === "ext" && Math.abs(L.ratio - 1.618) < 1e-9);
+    const conf = fib.levels.filter(L => L.confluent).length;
+    const near = fib.zone.nearest;
+    const zTxt = near ? (near.side === "support" ? "지지" : "저항") + " 근접(" + near.ratio + ")" : "구간 중앙";
+    const bTxt = fib.bias > 0.1 ? "상승" : fib.bias < -0.1 ? "하락" : "중립";
+    return [
+      fib.swing ? d + " 스윙 식별 (" + fmt(fib.swing.fromPrice) + "→" + fmt(fib.swing.toPrice) + ")" : "스윙 식별 폴백",
+      "되돌림 레벨 7개" + (conf ? " · 합류 " + conf + "곳" : ""),
+      ext ? "확장 목표 1.618 = " + fmt(ext.price) : "확장 레벨",
+      (fib.zone.inGolden ? "골든포켓 진입 · " : "") + zTxt,
+      "종합 방향 " + bTxt + " (bias " + fib.bias.toFixed(2) + ")"
+    ];
+  }
+
   function analyzeTrend(price, opts) {
     opts = opts || {};
     const shortLen = opts.shortLen || 40;
@@ -544,6 +609,9 @@
     const _mn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "ma");
     const _ma = _mn ? analyzeMA(price, { len: (_mn.params && _mn.params.len) || 20, ema: !!(_mn.params && _mn.params.ema) }) : null;
     const maDrift = _ma ? _ma.bias * _prof.trendScale * 0.10 : 0;   // MA 국면 방향 드리프트(±10% 상한·TF가중)
+    const _fn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "fib");
+    const _fib = _fn ? analyzeFib(price, { len: (_fn.params && _fn.params.len) || 120, swing: ((_fn.params && _fn.params.swing) != null ? _fn.params.swing : 5) / 100 }) : null;
+    const fibDrift = _fib ? _fib.bias * _prof.trendScale * 0.08 : 0;   // 피보 S/R 방향 드리프트(±8% 상한·TF가중)
     const _ta = analyzeTrend(price, { shortLen: _tp.len || 40, pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -555,7 +623,7 @@
       const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
@@ -644,5 +712,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps };
 });
