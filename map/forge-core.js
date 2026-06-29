@@ -726,22 +726,9 @@
     }
     if (!sigSrc) sigSrc = data.price;
     const dn = detrendNorm(sigSrc), signal = dn.map(v => Math.max(-100, Math.min(100, Math.round(100 * tanh(v / 1.5)))));
-    // 거래량 확인 바이어스 — predict에 연결된 volume 노드의 가격-거래량 확인을 방향으로 변환
-    let volBias = 0;
-    if (outNode) {
-      const volN = graph.nodes.find(nn => nn.kind === "block" && nn.blockType === "volume" && Array.isArray(values[nn.id]) && values[nn.id].length >= 8
-        && (graph.edges || []).some(e => e.from === nn.id && e.to === outNode.id));
-      if (volN) {
-        const vol = values[volN.id], N = vol.length;
-        const recent = (vol[N - 1] + vol[N - 2] + vol[N - 3]) / 3, base = vol.slice(-12).reduce((a, b) => a + b, 0) / Math.min(12, N), volUp = recent > base;
-        const pw = Math.min(6, data.price.length - 1), priceUp = data.price[data.price.length - 1] > data.price[data.price.length - 1 - pw];
-        const conf = priceUp ? (volUp ? 1 : -0.6) : (volUp ? -1 : 0.4);   // 가격-거래량 확인 점수
-        volBias = conf * 12 * ((volN.weight != null ? volN.weight : 50) / 50);
-      }
-    }
     // 확신 바이어스 적용
     const vbias = (opts && typeof opts.visionBias === "number" && isFinite(opts.visionBias)) ? opts.visionBias : 0;
-    const bias = aggregateConviction(graph) + vbias + volBias, K = 0.5;
+    const bias = aggregateConviction(graph) + vbias, K = 0.5;
     const sigB = bias ? signal.map(v => Math.max(-100, Math.min(100, Math.round(v + bias * K)))) : signal;
     const lastSig = sigB.slice(-10).reduce((s, v) => s + v, 0) / 10;
     /* 예측 모델: 로그공간 평균회귀(OU형) + 감쇠 모멘텀 + 신호 드리프트, √시간 밴드.
@@ -808,6 +795,9 @@
     const _rn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "rsi");
     const _rsi = _rn ? analyzeRSI(price, { period: (_rn.params && _rn.params.period) || 14 }) : null;
     const rsiDrift = _rsi ? _rsi.bias * _prof.trendScale * 0.06 : 0;   // RSI 다이버전스/구간 방향 드리프트(±6%·TF가중·보수적)
+    const _vn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "volume");
+    const _vol = _vn ? ((Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;
+    const volDrift = _vol ? analyzeVolume(price, _vol).bias * _prof.trendScale * 0.05 : 0;   // 거래량 확인 방향 드리프트(±5% 상한·TF가중·보수적)
     const _ta = analyzeTrend(price, { shortLen: _tp.len || 40, pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -819,7 +809,7 @@
       const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));

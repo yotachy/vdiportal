@@ -867,3 +867,46 @@ test("volumeSteps: 5단계·관계·bias 반영", () => {
   assert.ok(steps[4].includes("bias"));
   assert.ok(steps[2].includes("가격-거래량"));
 });
+
+test("run: volume 블록 유무로 예측 타깃 격리(volDrift)", () => {
+  // 가격: 상승추세, 거래량: 상승 동반(confirm·bias>0) → volDrift가 타깃을 올림
+  const price = Array.from({ length: 60 }, (_, i) => 100 + i + Math.sin(i / 5) * 2);
+  const volume = Array.from({ length: 60 }, (_, i) => 100 + i * 4);
+  const data = { price, candle: price.map(c => ({ o: c, h: c + 1, l: c - 1, c })) };
+  const base = [
+    { id: "p", kind: "block", blockType: "price", params: {} },
+    { id: "pred", kind: "block", blockType: "predict", params: {} }
+  ];
+  const eBase = [{ from: "p", to: "pred", fromSide: "right", toSide: "left" }];
+  const withV = {
+    nodes: base.concat([{ id: "v", kind: "block", blockType: "volume", params: {}, series: volume, weight: 50 }]),
+    edges: eBase.concat([{ from: "p", to: "v", fromSide: "right", toSide: "left" }, { from: "v", to: "pred", fromSide: "right", toSide: "left" }])
+  };
+  const without = { nodes: base, edges: eBase };
+  const tV = ForgeCore.run(withV, data, { timeframe: "일봉" }).prediction.target;
+  const tN = ForgeCore.run(without, data, { timeframe: "일봉" }).prediction.target;
+  assert.ok(isFinite(tV) && isFinite(tN));
+  assert.notStrictEqual(tV, tN);   // volDrift 제거 시 동일해짐(RED)
+});
+
+test("run: volume 블록 timeframe 가중(월봉 vs 5분 차이)", () => {
+  const price = Array.from({ length: 60 }, (_, i) => 100 + i + Math.sin(i / 5) * 2);
+  const volume = Array.from({ length: 60 }, (_, i) => 100 + i * 4);
+  const data = { price, candle: price.map(c => ({ o: c, h: c + 1, l: c - 1, c })) };
+  const g = {
+    nodes: [
+      { id: "p", kind: "block", blockType: "price", params: {} },
+      { id: "v", kind: "block", blockType: "volume", params: {}, series: volume, weight: 50 },
+      { id: "pred", kind: "block", blockType: "predict", params: {} }
+    ],
+    edges: [
+      { from: "p", to: "v", fromSide: "right", toSide: "left" },
+      { from: "p", to: "pred", fromSide: "right", toSide: "left" },
+      { from: "v", to: "pred", fromSide: "right", toSide: "left" }
+    ]
+  };
+  const tMon = ForgeCore.run(g, data, { timeframe: "월봉" }).prediction.target;
+  const tMin = ForgeCore.run(g, data, { timeframe: "5분" }).prediction.target;
+  assert.ok(isFinite(tMon) && isFinite(tMin));
+  assert.notStrictEqual(tMon, tMin);
+});
