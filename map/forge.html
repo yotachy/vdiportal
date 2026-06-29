@@ -3023,6 +3023,16 @@
       default: return n.note ? n.note : "—";
     }
   }
+  // 노드별 분석 단계 배열 [{text, layer}]. MA는 다단계, 그 외는 기존 한 줄 폴백.
+  function analysisSteps(n, result, priceLast, price) {
+    if (n.blockType === "ma" && Array.isArray(price) && price.length >= 2) {
+      const len = (n.params && n.params.len) || 20, ema = !!(n.params && n.params.ema);
+      const ma = ForgeCore.analyzeMA(price, { len, ema });
+      const texts = ForgeCore.maSteps(ma, len), layers = [1, 1, 2, 3, 4];
+      return texts.map((t, i) => ({ text: t, layer: layers[i] }));
+    }
+    return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
+  }
   /* 노드별 '전문 분석' — 각 기술지표가 도메인 지식으로 여러 사실을 산출(우측 패널 나열용) */
   function nodeExpert(n, result, px, priceLast) {
     const v = result && result.values && result.values[n.id];
