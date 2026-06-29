@@ -2419,6 +2419,7 @@
 
   /* ── 노드별 근거 작도(추세선·피보·파동 등) 누적 오버레이 ───────── */
   let _evidenceSet = new Set();
+  let _evReveal = {};   // 시연 중 노드별 작도 레이어 출현 상한(nodeId→layer). 비재생=전체(∞)
   let _evidenceShow = true;
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
@@ -2541,7 +2542,7 @@
   // 다중 MA 작도(차트·오버레이 공용). M=좌표 매퍼.
   function _drawMALayers(c, ma, M) {
     c.save();
-    const { fiToX, pToY, nowFi, fiMin = 0 } = M;
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity } = M;
     const COL = { short: "#7fb0ff", mid: "#5b8def", long: "#3b62c0" };
     const WID = { short: 1.4, mid: 2.0, long: 2.6 };
     function strokeSeries(series, key, srOn) {
@@ -2560,9 +2561,9 @@
       c.strokeStyle = COL[key]; c.lineWidth = srOn ? WID[key] + 1.2 : WID[key]; c.setLineDash(srOn ? [5, 4] : []);
       strokeSeries(s.series, key); c.setLineDash([]);
     }
-    drawMA(ma.mas.long, "long"); drawMA(ma.mas.mid, "mid"); drawMA(ma.mas.short, "short");
+    if (reveal >= 1) { drawMA(ma.mas.long, "long"); drawMA(ma.mas.mid, "mid"); drawMA(ma.mas.short, "short"); }
     // 크로스 마커
-    if (ma.cross.type && ma.cross.barsAgo != null && ma.mas.short) {
+    if (reveal >= 2 && ma.cross.type && ma.cross.barsAgo != null && ma.mas.short) {
       const fi = Math.max(fiMin, nowFi - ma.cross.barsAgo), v = ma.mas.short.series[fi];
       if (isFinite(v)) {
         const x = fiToX(fi), y = pToY(v);
@@ -2576,7 +2577,7 @@
       }
     }
     // 배열 라벨
-    if (ma.mas.short) {
+    if (reveal >= 3 && ma.mas.short) {
       const x = fiToX(nowFi), y = pToY(ma.mas.short.last);
       if (isFinite(x) && isFinite(y)) {
         const o = ma.align.order;
@@ -2614,7 +2615,7 @@
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
-          _drawMALayers(c, ma, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off });
+          _drawMALayers(c, ma, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.ma + "(다중)" });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
@@ -2668,7 +2669,7 @@
           c.setLineDash([]); legend.push({ col, t: EV_LABEL.fib + (g.log ? "(log)" : "") });
         } else if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
-          _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0 });
+          _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.ma + "(다중)" });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
@@ -3697,6 +3698,7 @@
     if (_playRaf) cancelAnimationFrame(_playRaf);
     _playTimers.forEach(clearTimeout); _playTimers = [];
     _playT = null; _playRaf = null; _playing = false;
+    _evReveal = {};
     clearAnalyzeViz();
     const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
   }
@@ -3782,6 +3784,7 @@
         }
         _hudNodeSteps(tk.n, tk.idx, tk.steps, tk.sIdx);
         _logAppend(tk.n, tk.st.text);
+        _evReveal[tk.n.id] = tk.st.layer; drawEvidence();
         if (progEl) progEl.textContent = "분석 중 " + (tk.idx + 1) + "/" + indNodes.length + " · " + (BTLABEL[tk.n.blockType] || "노드") + " (" + (tk.sIdx + 1) + "/" + tk.steps.length + ")";
       }, tIdx * STEP_SUB));
     });
@@ -3798,6 +3801,7 @@
     }
     function finishPlay() {
       _evidenceSet = new Set(indNodes.map(n => n.id));        // 모든 근거 확정 표시
+      _evReveal = {};
       indNodes.forEach(n => { const el = bq(n.id); if (el) { el.classList.remove("analyzing"); el.classList.add("analyzed"); } });
       if (center) { const el = bq(center.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); _analyzeNode = center.id; } }  // 중심 포지 점등
       _playing = false; _playRaf = null;
