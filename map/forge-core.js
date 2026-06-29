@@ -347,7 +347,7 @@
   function rsiSteps(rsi) {
     const zTxt = rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립";
     const c50 = (rsi.cross50 === "above" || rsi.cross50 === "cross_up") ? "50선 위" : "50선 아래";
-    const tTxt = rsi.trend > 0.1 ? "상승" : rsi.trend < -0.1 ? "하락" : "횟보";
+    const tTxt = rsi.trend > 0.1 ? "상승" : rsi.trend < -0.1 ? "하락" : "횡보";
     const dv = rsi.divergence.type === "bullish" ? "강세 다이버전스" : rsi.divergence.type === "bearish" ? "약세 다이버전스" : "다이버전스 없음";
     const bTxt = rsi.bias > 0.1 ? "상승" : rsi.bias < -0.1 ? "하락" : "중립";
     return [
