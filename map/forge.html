@@ -2668,6 +2668,27 @@
     }
     c.restore();
   }
+  // RSI hero 작도(차트·오버레이, reveal). 다이버전스 선 + 값/구간 배지.
+  function _drawRsiLayers(c, rsi, M) {
+    c.save();
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    if (reveal >= 1 && rsi.divergence.type && rsi.divergence.pricePts) {
+      const a = rsi.divergence.pricePts[0], b = rsi.divergence.pricePts[1];
+      const xa = fiToX(Math.max(fiMin, a.idx)), ya = pToY(a.price), xb = fiToX(Math.max(fiMin, b.idx)), yb = pToY(b.price);
+      if ([xa, ya, xb, yb].every(isFinite)) {
+        const col = rsi.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
+        c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.setLineDash([]);
+        _evLabel(c, (rsi.divergence.type === "bullish" ? "강세" : "약세") + " 다이버전스", xb, yb, col, "left");
+      }
+    }
+    if (reveal >= 2) {
+      const zt = rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립";
+      const col = rsi.zone === "overbought" ? "#e06a6a" : rsi.zone === "oversold" ? "#46c28e" : "#8a92b2";
+      const xb = (xRight != null ? xRight : fiToX(nowFi));
+      _evLabel(c, "RSI " + Math.round(rsi.last) + " \xb7 " + zt, xb, 28, col, "right");
+    }
+    c.restore();
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -2717,8 +2738,9 @@
           _drawElliottLayers(c, ea, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
         } else if (n.blockType === "rsi") {
-          const rsi = Math.round(_rsiLast(price, (n.params && n.params.period) || 14));
-          legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
+          const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
+          _drawRsiLayers(c, rsi, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
@@ -2757,8 +2779,9 @@
           _drawElliottLayers(c, ea, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
           legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
         } else if (n.blockType === "rsi") {
-          const rsi = Math.round(_rsiLast(price, (n.params && n.params.period) || 14));
-          legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
+          const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
+          _drawRsiLayers(c, rsi, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
+          legend.push({ col, t: EV_LABEL.rsi + "(전문)" });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
@@ -3120,6 +3143,11 @@
     if (n.blockType === "elliott" && Array.isArray(price) && price.length >= 2) {
       const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
       const texts = ForgeCore.elliottSteps(ea), layers = [1, 1, 2, 3, 4];
+      return texts.map((t, i) => ({ text: t, layer: layers[i] }));
+    }
+    if (n.blockType === "rsi" && Array.isArray(price) && price.length >= 2) {
+      const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
+      const texts = ForgeCore.rsiSteps(rsi), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
