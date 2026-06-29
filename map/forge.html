@@ -2753,11 +2753,9 @@
           });
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " · " + _prof.label : "") });
         } else if (n.blockType === "elliott") {
-          const piv = _zigzag(price, 0.18).slice(-8);
-          c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1.6; c.setLineDash([]); c.beginPath(); let st = false; const pts = [];
-          piv.forEach((w, k) => { const x = xOf(w.i), y = clipY(yOf(w.p)); pts.push({ x, y, l: _EWLAB[k] || "" }); st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; });
-          c.stroke(); for (const p of pts) { c.beginPath(); c.arc(p.x, p.y, 2.6, 0, 7); c.fill(); _evLabel(c, p.l, p.x + 3, p.y - 3, col, "left"); }
-          if (pts.length) legend.push({ col, t: EV_LABEL.elliott });
+          const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+          _drawElliottLayers(c, ea, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
+          legend.push({ col, t: EV_LABEL.elliott + "(전문)" });
         } else if (n.blockType === "rsi") {
           const rsi = Math.round(_rsiLast(price, (n.params && n.params.period) || 14));
           legend.push({ col, t: "RSI " + rsi + (rsi >= 70 ? " 과열" : rsi <= 30 ? " 과매도" : " 중립") });
@@ -3117,6 +3115,11 @@
     if (n.blockType === "fib" && Array.isArray(price) && price.length >= 2) {
       const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
       const texts = ForgeCore.fibSteps(fib), layers = [1, 1, 2, 3, 4];
+      return texts.map((t, i) => ({ text: t, layer: layers[i] }));
+    }
+    if (n.blockType === "elliott" && Array.isArray(price) && price.length >= 2) {
+      const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+      const texts = ForgeCore.elliottSteps(ea), layers = [1, 1, 2, 3, 4];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
