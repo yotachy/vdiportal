@@ -141,6 +141,9 @@
   .fc-head-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow:hidden}
   .fc-head-left .fc-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .verdict-inline{font-family:ui-monospace,monospace;font-size:11px;color:var(--eth);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+  .verdict-inline b{font-weight:800}
+  .chart-pane.editing .verdict-inline{display:none}
   .fc-t{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--eth)}
   .fc-t b{color:var(--ink)}
   .fc-meta{font-family:ui-monospace,monospace;font-size:10px;color:#5a6478;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -271,7 +274,6 @@
   .node-editor{flex:1;min-height:0;overflow-y:auto;display:none;flex-direction:column;gap:11px;padding:13px 15px;
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
   .chart-pane.editing .fc-wrap{display:none}
-  .chart-pane.editing .verdict-badge{display:none!important}
   .chart-pane.editing .node-editor{display:flex}
   .ne-head{display:flex;align-items:center;gap:8px}
   .ne-type{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--gold);background:rgba(232,180,99,.1);
@@ -502,7 +504,6 @@
     <section class="chart-pane" id="chartPane">
       <div id="playHud" class="play-hud" aria-hidden="true"></div>
       <div id="analyzeLog" class="analyze-log" aria-hidden="true"></div>
-      <div id="verdictBadge" class="verdict-badge"></div>
       <div class="fc-wrap">
         <div class="fc-panel fc-panel-hero">
           <div class="fc-phead">
@@ -510,6 +511,7 @@
               <span class="fc-t"><b>가격 차트</b></span>
               <span class="fc-meta" id="fcMeta">–</span>
             </div>
+              <span class="verdict-inline" id="verdictInline"></span>
             <div class="fc-head-actions">
               <span class="fc-src" id="fcSrcBadge" style="display:none"></span>
               <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈 차트뷰</button>
@@ -3523,29 +3525,23 @@
     });
   })();
 
-  /* ── renderVerdict: regime badge at top of chart pane ────────── */
+  /* ── renderVerdict: inline signal in chart panel header ────────── */
   function renderVerdict(verdict) {
-    const el = document.getElementById("verdictBadge");
+    const el = document.getElementById("verdictInline");
     if (!el || !verdict) return;
     const REGIME_LABEL = { bull: "상승", bear: "하락", neutral: "중립" };
-    const REGIME_COL   = { bull: "#46c28e", bear: "#e06a6a", neutral: "#8a92b2" };
+    const REGIME_COL = { bull: "#46c28e", bear: "#e06a6a", neutral: "#8a92b2" };
     const regime = verdict.regime || "neutral";
-    const col    = REGIME_COL[regime] || "#8a92b2";
-    const label  = REGIME_LABEL[regime] || "중립";
-    const score  = (typeof verdict.score === "number" && isFinite(verdict.score))
-      ? verdict.score.toFixed(1) : "—";
+    const col = REGIME_COL[regime] || "#8a92b2", label = REGIME_LABEL[regime] || "중립";
+    const score = (typeof verdict.score === "number" && isFinite(verdict.score)) ? verdict.score.toFixed(1) : "—";
     const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(2) : "—";
-    el.className = "verdict-badge active";
     const _pp = lastResult && lastResult.prediction, _pa = _pp && _pp.anchor, _pe = _pp && _pp.path && _pp.path.length ? _pp.path[_pp.path.length - 1] : null, _ph = _pp && _pp.hi && _pp.hi.length ? _pp.hi[_pp.hi.length - 1] : null;
     const _up = (_pe && _ph && _pa) ? _upProb(_pe, _ph, _pa) : null;
-    const _probHtml = (_up != null) ? ` &nbsp;·&nbsp; 확률 <b style="color:${_up >= 50 ? "#46c28e" : "#e06a6a"}">↑${_up}%</b><span style="color:#8a92b2"> / ↓${100 - _up}%</span>` : "";
     el.innerHTML =
-      `<span class="verdict-dot" style="background:${col};box-shadow:0 0 6px ${col}88"></span>` +
-      `<span class="verdict-tag">포지결과</span>` +
-      `<span>국면: <b style="color:${col}">${label}</b>` + _probHtml.replace("&nbsp;·&nbsp; ", "&nbsp; ") +
-      ` &nbsp;·&nbsp; 시그널 ${score}` +
-      ` &nbsp;·&nbsp; 목표가 ${fmt(verdict.target)}` +
-      ` &nbsp;·&nbsp; 무효화 ${fmt(verdict.invalidation)}</span>`;
+      `국면 <b style="color:${col}">${label}</b>` +
+      (_up != null ? ` · ↑<b style="color:${_up >= 50 ? "#46c28e" : "#e06a6a"}">${_up}%</b>` : "") +
+      ` · 시그널 <b style="color:${col}">${score}</b>` +
+      ` · 목표 ${fmt(verdict.target)}`;
   }
 
   /* ── exportStrategy: download strategy as JSON blob ──────────── */
