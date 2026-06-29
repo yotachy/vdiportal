@@ -646,3 +646,20 @@ test("fibSteps: 5단계, bias 반영", () => {
   assert.strictEqual(s.length, 5);
   assert.ok(/bias/.test(s[4]));
 });
+
+test("run: 피보 블록 유무가 예측 타깃을 가른다 (격리) + TF", () => {
+  const base = [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }];
+  const up = { price: Array.from({ length: 60 }, (_, i) => 100 + i * 1.5) };
+  const withFib = { nodes: [...base, { id: "f", kind: "block", blockType: "fib", params: { len: 120 } }], edges: [{ from: "p", to: "o" }, { from: "p", to: "f" }] };
+  const without = { nodes: base, edges: [{ from: "p", to: "o" }] };
+  const rW = ForgeCore.run(withFib, up, { futW: 12, timeframe: "월봉" });
+  const rN = ForgeCore.run(without, up, { futW: 12, timeframe: "월봉" });
+  assert.ok(rW.prediction.path.every(isFinite) && rN.prediction.path.every(isFinite));
+  assert.notStrictEqual(rW.prediction.target, rN.prediction.target);   // 피보 기여로 달라짐(드리프트 격리)
+});
+
+test("run: 피보 블록 없으면 기여 0(기존 동작)", () => {
+  const G = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "o" }] };
+  const r = ForgeCore.run(G, { price: Array.from({ length: 40 }, (_, i) => 100 + i) }, { futW: 8, timeframe: "월봉" });
+  assert.ok(r.prediction.path.every(isFinite));
+});
