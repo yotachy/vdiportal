@@ -663,3 +663,44 @@ test("run: 피보 블록 없으면 기여 0(기존 동작)", () => {
   const r = ForgeCore.run(G, { price: Array.from({ length: 40 }, (_, i) => 100 + i) }, { futW: 8, timeframe: "월봉" });
   assert.ok(r.prediction.path.every(isFinite));
 });
+
+test("analyzeElliott: 5파 상승 임펄스 → impulse_up, 규칙·투영·bias", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6), ...seg(132, 165, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
+  assert.strictEqual(ea.structure, "impulse_up");
+  assert.ok(ea.rules.score > 0);
+  assert.ok(ea.bias > 0);
+  assert.ok(ea.next !== null);
+});
+
+test("analyzeElliott: 5파 하락 임펄스 → impulse_down, bias<0", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [200, ...seg(200, 180, 8), ...seg(180, 192, 6), ...seg(192, 150, 10), ...seg(150, 168, 6), ...seg(168, 135, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
+  assert.strictEqual(ea.structure, "impulse_down");
+  assert.ok(ea.bias < 0);
+});
+
+test("analyzeElliott: 3레그(ABC형) → corrective", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 88, 8), ...seg(88, 96, 6), ...seg(96, 84, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
+  assert.strictEqual(ea.structure, "corrective");
+  assert.ok(isFinite(ea.bias));
+});
+
+test("analyzeElliott: 소량/피벗부족 → 폴백(uncertain, bias 0, next null)", () => {
+  const ea = ForgeCore.analyzeElliott([10, 11, 12], {});
+  assert.strictEqual(ea.structure, "uncertain");
+  assert.strictEqual(ea.bias, 0);
+  assert.strictEqual(ea.next, null);
+});
+
+test("elliottSteps: 5단계, bias 반영", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6), ...seg(132, 165, 8)];
+  const s = ForgeCore.elliottSteps(ForgeCore.analyzeElliott(price, { swing: 0.04 }));
+  assert.strictEqual(s.length, 5);
+  assert.ok(/bias/.test(s[4]));
+});
