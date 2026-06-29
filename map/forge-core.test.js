@@ -663,3 +663,78 @@ test("run: 피보 블록 없으면 기여 0(기존 동작)", () => {
   const r = ForgeCore.run(G, { price: Array.from({ length: 40 }, (_, i) => 100 + i) }, { futW: 8, timeframe: "월봉" });
   assert.ok(r.prediction.path.every(isFinite));
 });
+
+test("analyzeElliott: 5파 상승 임펄스 → impulse_up, 규칙·투영·bias", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6), ...seg(132, 165, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
+  assert.strictEqual(ea.structure, "impulse_up");
+  assert.ok(ea.rules.score > 0);
+  assert.ok(ea.bias > 0);
+  assert.ok(ea.next !== null);
+  assert.ok(typeof ea.next.label === "string" && ea.next.label.length > 0, "next.label 비어있지 않음");
+  assert.ok(isFinite(ea.next.target), "next.target 유한값");
+  assert.ok([1, -1].includes(ea.next.dir), "next.dir ±1");
+});
+
+test("analyzeElliott: 2파 끝 → 3파 투영이 2파 끝 기준(1.618×1파)", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  // 1파 100→120(span 20), 2파 120→108 (2파 끝=108) — 여기서 멈춤
+  const price = [100, ...seg(100, 120, 10), ...seg(120, 108, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
+  assert.ok(ea.next && ea.next.label === "3", "다음=3파 투영");
+  // 2파 끝(≈108) + 1.618×20 ≈ 140.36 (1파 시작 기준 132.36이 아님)
+  assert.ok(ea.next.target > 138 && ea.next.target < 143, "3파 목표가 2파끝 기준(≈140)");
+});
+
+test("analyzeElliott: 5파 하락 임펄스 → impulse_down, bias<0", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [200, ...seg(200, 180, 8), ...seg(180, 192, 6), ...seg(192, 150, 10), ...seg(150, 168, 6), ...seg(168, 135, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
+  assert.strictEqual(ea.structure, "impulse_down");
+  assert.ok(ea.bias < 0);
+});
+
+test("analyzeElliott: 3레그(ABC형) → corrective", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 88, 8), ...seg(88, 96, 6), ...seg(96, 84, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
+  assert.strictEqual(ea.structure, "corrective");
+  assert.notStrictEqual(ea.bias, 0);
+});
+
+test("analyzeElliott: 소량/피벗부족 → 폴백(uncertain, bias 0, next null)", () => {
+  const ea = ForgeCore.analyzeElliott([10, 11, 12], {});
+  assert.strictEqual(ea.structure, "uncertain");
+  assert.strictEqual(ea.bias, 0);
+  assert.strictEqual(ea.next, null);
+});
+
+test("elliottSteps: 5단계, bias 반영", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6), ...seg(132, 165, 8)];
+  const s = ForgeCore.elliottSteps(ForgeCore.analyzeElliott(price, { swing: 0.04 }));
+  assert.strictEqual(s.length, 5);
+  assert.ok(/bias/.test(s[4]));
+});
+
+test("run: 엘리어트 블록 유무가 예측 타깃을 가른다(격리) + TF", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const data = { price: [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6), ...seg(132, 165, 8)] };
+  const base = [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }];
+  const withEW = { nodes: [...base, { id: "e", kind: "block", blockType: "elliott", params: { swing: 4 } }], edges: [{ from: "p", to: "o" }, { from: "p", to: "e" }] };
+  const without = { nodes: base, edges: [{ from: "p", to: "o" }] };
+  const rW = ForgeCore.run(withEW, data, { futW: 12, timeframe: "월봉" });
+  const rN = ForgeCore.run(without, data, { futW: 12, timeframe: "월봉" });
+  const rI = ForgeCore.run(withEW, data, { futW: 12, timeframe: "5분" });
+  assert.ok(rW.prediction.path.every(isFinite) && rN.prediction.path.every(isFinite) && rI.prediction.path.every(isFinite));
+  assert.notStrictEqual(rW.prediction.target, rN.prediction.target);   // 엘리어트 기여로 달라짐
+  const gain = r => r.prediction.target / r.prediction.anchor;
+  assert.ok(gain(rW) > gain(rI));   // 월봉 TF 가중 > 5분
+});
+
+test("run: 엘리어트 블록 없으면 기여 0", () => {
+  const G = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "o", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "o" }] };
+  const r = ForgeCore.run(G, { price: Array.from({ length: 40 }, (_, i) => 100 + i) }, { futW: 8, timeframe: "월봉" });
+  assert.ok(r.prediction.path.every(isFinite));
+});

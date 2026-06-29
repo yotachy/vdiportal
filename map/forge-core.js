@@ -504,6 +504,63 @@
     };
   }
 
+  function analyzeElliott(price, opts) {
+    opts = opts || {};
+    const swing = opts.swing != null ? opts.swing : 0.03;
+    const P = price.length;
+    const EMPTY = { waves: [], rules: { r1: false, r2: false, r3: false, score: 0 }, structure: "uncertain", current: { label: "-", dir: 0 }, next: null, bias: 0 };
+    if (P < 2) return EMPTY;
+    const LAB = ["1", "2", "3", "4", "5", "A", "B", "C"];
+    const sw = detectSwings(price, swing);
+    if (sw.length < 2) return EMPTY;
+    const legs = [];
+    for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
+    const recent = legs.slice(-8);
+    const waves = recent.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
+    const last = recent[recent.length - 1];
+    const current = { label: (waves[waves.length - 1] && waves[waves.length - 1].label) || "-", dir: last.up ? 1 : -1 };
+    const imp = recent.slice(0, 5), dirUp = imp.length ? imp[0].up : true, sgn = dirUp ? 1 : -1;
+    let r1 = false, r2 = false, r3 = false;
+    if (imp.length >= 2) { const w1s = imp[0].from.price, w2e = imp[1].to.price; r1 = dirUp ? (w2e >= w1s) : (w2e <= w1s); }
+    if (imp.length >= 3) { const len = lg => Math.abs(lg.to.price - lg.from.price); const l1 = len(imp[0]), l3 = len(imp[2]), l5 = imp.length >= 5 ? len(imp[4]) : Infinity; r2 = !(l3 <= l1 && l3 <= l5); }
+    if (imp.length >= 4) { const w1e = imp[0].to.price, w4e = imp[3].to.price; r3 = dirUp ? (w4e > w1e) : (w4e < w1e); }
+    const passed = [r1, r2, r3].filter(Boolean).length;
+    const checked = imp.length >= 4 ? 3 : imp.length >= 3 ? 2 : imp.length >= 2 ? 1 : 0;
+    const completeness = Math.min(1, imp.length / 5);
+    const score = checked ? (passed / checked) * completeness : 0;
+    const allDirOk = imp.length >= 5 && imp[0].up === imp[2].up && imp[0].up === imp[4].up && imp[1].up !== imp[0].up;
+    let structure = "uncertain";
+    if (imp.length >= 5 && passed >= 2 && allDirOk) structure = dirUp ? "impulse_up" : "impulse_down";
+    else if (recent.length >= 3) structure = "corrective";
+    const span1 = imp.length ? Math.abs(imp[0].to.price - imp[0].from.price) : 0;
+    let next = null;
+    if (recent.length === 2 && imp.length >= 2) next = { label: "3", target: imp[1].to.price + sgn * 1.618 * span1, dir: sgn };
+    else if (recent.length === 4 && imp.length >= 4) next = { label: "5", target: imp[3].to.price + sgn * span1, dir: sgn };
+    else if (recent.length === 5 && imp.length >= 5) { const span15 = Math.abs(imp[4].to.price - imp[0].from.price); next = { label: "A", target: imp[4].to.price - sgn * 0.5 * span15, dir: -sgn }; }
+    let bias;
+    if (structure === "impulse_up") bias = 0.4 + 0.6 * score;
+    else if (structure === "impulse_down") bias = -(0.4 + 0.6 * score);
+    else if (structure === "corrective") bias = -current.dir * 0.4;
+    else bias = 0;
+    bias = Math.max(-1, Math.min(1, bias));
+    return { waves, rules: { r1, r2, r3, score }, structure, current, next, bias };
+  }
+
+  function elliottSteps(ea) {
+    const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
+    const st = ea.structure === "impulse_up" ? "상승 임펄스" : ea.structure === "impulse_down" ? "하락 임펄스" : ea.structure === "corrective" ? "ABC 조정" : "불확실";
+    const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
+    const nx = ea.next ? "다음 " + ea.next.label + "파 목표 " + fmt(ea.next.target) : "투영 없음";
+    const bTxt = ea.bias > 0.1 ? "상승" : ea.bias < -0.1 ? "하락" : "중립";
+    return [
+      ea.waves.length ? "파동 카운트 " + ea.waves.length + "개 (현재 " + ea.current.label + ")" : "스윙 부족",
+      "규칙 " + ok + "/3 · 유효 " + ea.rules.score.toFixed(2),
+      st + " 분류",
+      nx,
+      "종합 방향 " + bTxt + " (bias " + ea.bias.toFixed(2) + ")"
+    ];
+  }
+
   function aggregateConviction(graph) {
     let s = 0, w = 0;
     (graph.nodes || []).forEach(n => {
@@ -612,6 +669,9 @@
     const _fn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "fib");
     const _fib = _fn ? analyzeFib(price, { len: (_fn.params && _fn.params.len) || 120, swing: ((_fn.params && _fn.params.swing) != null ? _fn.params.swing : 5) / 100 }) : null;
     const fibDrift = _fib ? _fib.bias * _prof.trendScale * 0.08 : 0;   // 피보 S/R 방향 드리프트(±8% 상한·TF가중)
+    const _en = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "elliott");
+    const _ew = _en ? analyzeElliott(price, { swing: ((_en.params && _en.params.swing) != null ? _en.params.swing : 3) / 100 }) : null;
+    const ewDrift = _ew ? _ew.bias * _prof.trendScale * 0.08 : 0;   // 엘리어트 추진/조정 방향 드리프트(±8%·TF가중·유효도 반영)
     const _ta = analyzeTrend(price, { shortLen: _tp.len || 40, pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -623,7 +683,7 @@
       const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
@@ -712,5 +772,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps };
 });
