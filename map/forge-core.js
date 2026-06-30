@@ -700,7 +700,17 @@
     const legs = [];
     for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
     const minor = elliottDegree(legs);
-    return { waves: minor.waves, rules: minor.rules, structure: minor.structure, current: minor.current, next: minor.next, bias: minor.bias };
+    let primary = null, bias = minor.bias;
+    if (!opts._minorOnly) {
+      const ps = primarySwings(price, swing);
+      if (ps && ps.swings.length >= 2) {
+        const pl = [];
+        for (let i = 1; i < ps.swings.length; i++) pl.push({ from: ps.swings[i - 1], to: ps.swings[i], up: ps.swings[i].price >= ps.swings[i - 1].price });
+        primary = elliottDegree(pl);
+        bias = Math.max(-1, Math.min(1, minor.bias * 0.35 + primary.bias * 0.65));
+      }
+    }
+    return { waves: minor.waves, rules: minor.rules, structure: minor.structure, current: minor.current, next: minor.next, primary: primary, bias: bias };
   }
 
   function elliottSteps(ea) {

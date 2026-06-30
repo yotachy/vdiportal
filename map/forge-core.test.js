@@ -953,3 +953,28 @@ test("primarySwings: 긴 다중파 시계열 -> 큰 다리 6~9개, sens>minorSen
   assert.ok(legs >= 6 && legs <= 9, "큰 다리 6~9개 (실제 " + legs + ")");
   assert.ok(ps.sens > 0.03, "대형 민감도가 소형보다 큼");
 });
+
+test("analyzeElliott: 긴 시계열 -> primary degree 동반 + bias 블렌드", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100,
+    ...seg(100, 200, 40), ...seg(200, 150, 30), ...seg(150, 320, 50),
+    ...seg(320, 250, 30), ...seg(250, 400, 45), ...seg(400, 300, 30),
+    ...seg(300, 360, 25), ...seg(360, 260, 30)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.03 });
+  assert.ok(ea.primary && Array.isArray(ea.primary.waves), "primary degree 존재");
+  assert.ok(ea.primary.waves.length >= 5, "대형 파동 카운트 충분");
+  // 블렌드: 최상위 bias === clamp(minor*0.35 + primary*0.65)
+  const minorB = ForgeCore.analyzeElliott(price, { swing: 0.03, _minorOnly: true });
+  // 최상위 bias가 primary.bias 쪽으로 가중되었는지(대형이 더 큰 가중)
+  const expected = Math.max(-1, Math.min(1, minorB.bias * 0.35 + ea.primary.bias * 0.65));
+  assert.ok(Math.abs(ea.bias - expected) < 1e-9, "bias=minor*0.35+primary*0.65 clamp");
+});
+
+test("analyzeElliott: 짧은 시계열 -> primary null, bias=minor (회귀 0)", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6), ...seg(132, 165, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
+  assert.strictEqual(ea.primary, null, "짧으면 primary 없음");
+  // 같은 입력의 소형 bias와 동일해야 함(회귀 0)
+  assert.ok(ea.structure === "impulse_up" && ea.bias > 0, "소형 분석은 종전대로");
+});
