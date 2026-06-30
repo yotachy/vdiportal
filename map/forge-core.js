@@ -869,6 +869,7 @@
   function sampleGraph() {
     const T = (imgId, label) => ({ imgId, label });
     const nodes = [
+      { id: "s_ticker", kind: "block", blockType: "ticker", params: { symbol: "BTC-USD", tf: "1day" }, x: 40, y: 30, title: "티커", conviction: 0, weight: 50, desc: "실 종목 데이터 — 불러오기로 실 캔들 적용" },
       { id: "s_price", kind: "block", blockType: "price",     params: {},                 x: 40,  y: 120, title: "가격",        conviction: 0,   weight: 50, thumb: T("smp_main", "BTC/USD"), desc: "BTC/USD 일봉 — 상승추세 속 단기 조정 구간" },
       { id: "s_ma",    kind: "block", blockType: "ma",        params: { len: 20 },        x: 320, y: 0,   title: "이동평균(20)", conviction: 40,  weight: 55, thumb: T("smp_ma", "MA20"),     desc: "가격이 MA20 상회 — 추세 지지 유효" },
       { id: "s_wave",  kind: "block", blockType: "phasefold", params: { pmin: 16, pmax: 128 }, x: 320, y: 100, title: "파동 스캔",  conviction: 0,   weight: 60, thumb: T("smp_wave", "주기"),   desc: "지배 주기 검출 — 다음 저점 구간 추정" },
