@@ -637,17 +637,9 @@
     };
   }
 
-  function analyzeElliott(price, opts) {
-    opts = opts || {};
-    const swing = opts.swing != null ? opts.swing : 0.03;
-    const P = price.length;
-    const EMPTY = { waves: [], rules: { r1: false, r2: false, r3: false, score: 0 }, structure: "uncertain", current: { label: "-", dir: 0 }, next: null, bias: 0 };
-    if (P < 2) return EMPTY;
+  // 한 degree의 파동 카운트/규칙/구조/투영/bias 계산 (legs = 인접 스윙 다리 배열)
+  function elliottDegree(legs) {
     const LAB = ["1", "2", "3", "4", "5", "A", "B", "C"];
-    const sw = detectSwings(price, swing);
-    if (sw.length < 2) return EMPTY;
-    const legs = [];
-    for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
     const recent = legs.slice(-8);
     const waves = recent.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
     const last = recent[recent.length - 1];
@@ -677,6 +669,20 @@
     else bias = 0;
     bias = Math.max(-1, Math.min(1, bias));
     return { waves, rules: { r1, r2, r3, score }, structure, current, next, bias };
+  }
+
+  function analyzeElliott(price, opts) {
+    opts = opts || {};
+    const swing = opts.swing != null ? opts.swing : 0.03;
+    const P = price.length;
+    const EMPTY = { waves: [], rules: { r1: false, r2: false, r3: false, score: 0 }, structure: "uncertain", current: { label: "-", dir: 0 }, next: null, bias: 0 };
+    if (P < 2) return EMPTY;
+    const sw = detectSwings(price, swing);
+    if (sw.length < 2) return EMPTY;
+    const legs = [];
+    for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
+    const minor = elliottDegree(legs);
+    return { waves: minor.waves, rules: minor.rules, structure: minor.structure, current: minor.current, next: minor.next, bias: minor.bias };
   }
 
   function elliottSteps(ea) {
