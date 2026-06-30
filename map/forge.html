@@ -213,6 +213,9 @@
   body.evhide .fc-evidence{display:none}
   .fc-zoom-reset{position:absolute;top:8px;right:8px;z-index:4;width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:13px;cursor:pointer;display:none}
   .fc-zoom-reset.on{display:block}
+  .fc-axis-btns{position:absolute;right:6px;bottom:8px;z-index:4;display:flex;gap:4px}
+  .fc-axis-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:12px;font-weight:700;cursor:pointer;line-height:1}
+  .fc-axis-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.14)}
   .ev-toggle{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:-.01em}
   .ev-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.1)}
   /* 데이터 소스 배지(이미지뷰=비전 시계열 자동 감지 안내) */
@@ -520,7 +523,6 @@
               <span class="fc-src" id="fcSrcBadge" style="display:none"></span>
               <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈 차트뷰</button>
               <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
-              <button id="logToggle" class="ev-toggle" title="로그/선형 스케일" onclick="toggleLogChart()">📊 LOG</button>
               <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
             </div>
           </div>
@@ -531,6 +533,10 @@
               <canvas id="fcMainChart" class="fc-cv"></canvas>
               <canvas id="fcEvidence" class="fc-evidence"></canvas>
               <button id="fcZoomReset" class="fc-zoom-reset" title="줌 초기화">&#x2295;</button>
+              <div class="fc-axis-btns" id="fcAxisBtns">
+                <button id="autoBtn" class="fc-axis-btn" title="자동 스케일">A</button>
+                <button id="logBtn" class="fc-axis-btn" title="로그/선형 스케일">L</button>
+              </div>
               <div class="fc-cone-vline" id="fcMainVline"></div>
               <div class="fc-cone-tip" id="fcMainTip"></div>
             </div>
@@ -645,6 +651,8 @@
   let _heroZoomDragging = false;
   let _logChart = false;
   let _chartWin = { start: 0, count: 0 };   // count 0 = 미초기화(전체 시계열 길이로 기본화)
+  let _yScale = { mode: "auto", lo: null, hi: null };
+  function resetYScale() { _yScale = { mode: "auto", lo: null, hi: null }; }
   function resetChartWin() {
     const s = (typeof priceSeries === "function") ? priceSeries() : null;
     const N = (s && s.length) || 0;
@@ -670,6 +678,7 @@
     fcDrawMainChart(px, pred);
     drawEvidence();
     _syncZoomBtn();
+    if (typeof updateAxisBtns === "function") updateAxisBtns();   // A/L 버튼 상태 동기화(y드래그→manual 시 A 꺼짐)
   }
 
   /* ── Server layer globals ──────────────────────────────────────── */
@@ -1000,7 +1009,7 @@
     activeId = id; META.activeId = id;
     boardState.nodes = dc.nodes || []; boardState.edges = dc.edges || [];
     themeState.imgId = dc.themeImgId || null; themeState.title = dc.title || "";
-    _logChart = !!dc.logChart; updateLogBtn();
+    _logChart = !!dc.logChart; updateAxisBtns();
     const vz = dc.vision;
     if (vz && Array.isArray(vz.series) && vz.series.length >= 2) {
       _visionData = { price: vz.series, n: vz.series.length };
@@ -1025,6 +1034,7 @@
           n.params.fetched = true;                            // 레거시 노드 마이그레이션
           delete n.series; delete n.ohlc;                     // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
           if (typeof resetChartWin === "function") resetChartWin();
+          if (typeof resetYScale === "function") resetYScale();
           runForge();
         }
       } catch (e) { /* 오프라인/실패 무시 — 차트 없이 그레이스풀 */ }
@@ -2511,10 +2521,11 @@
     if (atLatest) { for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); } loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor); }
     if (!isFinite(loV) || !isFinite(hiV)) { loV = 0; hiV = 1; }
     const padV = (hiV - loV) * 0.08 || 1; loV -= padV; hiV += padV;
+    if (_yScale.mode === "manual" && isFinite(_yScale.lo) && isFinite(_yScale.hi) && _yScale.hi > _yScale.lo) { loV = _yScale.lo; hiV = _yScale.hi; }
     const padX = 8, padTop = 16, padBot = 16, axisW = 46;
     const plotW = cw - padX - axisW;
     const total = hist.length + path.length;
-    const histW = plotW * (hist.length / total);
+    const histW = plotW * Math.max(0.78, hist.length / total);
     const seamX = padX + histW;
     const _lo = tvLog(loV, _logChart), _hi = tvLog(hiV, _logChart);
     const toY = v => padTop + (1 - (tvLog(v, _logChart) - _lo) / ((_hi - _lo) || 1)) * (ch - padTop - padBot);
@@ -2524,7 +2535,7 @@
     let bandTop = toY(anchor), bandBot = toY(anchor);
     for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, toY(hi[k])); bandBot = Math.max(bandBot, toY(lo[k])); }
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간) */
-    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉"), log: _logChart, start: wStart, count: wCount, winN: N };
+    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉"), log: _logChart, start: wStart, count: wCount, winN: N, plotRight: padX + plotW };
     // grid
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
@@ -2598,13 +2609,13 @@
     document.body.classList.toggle("evhide", !_evidenceShow);
     const b = document.getElementById("evToggle"); if (b) b.classList.toggle("on", _evidenceShow);
   }
-  function updateLogBtn() {
-    const b = document.getElementById("logToggle");
-    if (b) { b.classList.toggle("on", _logChart); b.textContent = _logChart ? "📊 선형" : "📊 LOG"; }
+  function updateAxisBtns() {
+    const a = document.getElementById("autoBtn"); if (a) a.classList.toggle("on", _yScale.mode === "auto");
+    const l = document.getElementById("logBtn"); if (l) l.classList.toggle("on", _logChart);
   }
   function toggleLogChart() {
     _logChart = !_logChart;
-    updateLogBtn();
+    updateAxisBtns();
     if (hasRealSeries() && lastResult) renderChart(lastResult, currentData());
     markDirty();
   }
@@ -3789,11 +3800,26 @@
     let hDrag = null;
     cv.addEventListener("pointerdown", e => {
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
-      hDrag = { x: e.clientX, start: _chartWin.start, moved: false, barW: (g.histW || 1) / Math.max(1, g.count) };
+      const r = cv.getBoundingClientRect(), cx = e.clientX - r.left;
+      if (cx > g.plotRight) {   // 우측 y축 스트립 → 가격축 수동 스케일
+        hDrag = { mode: "yscale", y: e.clientY, lo: g.loV, hi: g.hiV, moved: false };
+      } else {                  // 플롯 영역 → 시간 스크롤(기존)
+        hDrag = { mode: "time", x: e.clientX, start: _chartWin.start, moved: false, barW: (g.histW || 1) / Math.max(1, g.count) };
+      }
       try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     });
     cv.addEventListener("pointermove", e => {
       if (!hDrag) return;
+      if (hDrag.mode === "yscale") {
+        const dy = e.clientY - hDrag.y;
+        if (Math.abs(dy) > 4) { hDrag.moved = true; _heroZoomDragging = true; }
+        if (!hDrag.moved) return;
+        const c = (hDrag.lo + hDrag.hi) / 2, half = (hDrag.hi - hDrag.lo) / 2 * Math.exp(dy / 150);   // 아래로=확대·위로=축소
+        const newLo = (hDrag.lo > 0) ? Math.max(hDrag.lo * 0.01, c - half) : c - half;
+        _yScale = { mode: "manual", lo: newLo, hi: c + half };
+        renderHeroZoom();
+        return;
+      }
       const dx = e.clientX - hDrag.x;
       if (Math.abs(dx) > 6) { hDrag.moved = true; _heroZoomDragging = true; }
       if (!hDrag.moved) return;
@@ -3804,7 +3830,13 @@
     });
     const endDrag = () => { hDrag = null; _heroZoomDragging = false; };
     cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
-    cv.addEventListener("dblclick", () => { resetChartWin(); renderHeroZoom(); });
+    cv.addEventListener("dblclick", e => {
+      const main = document.getElementById("fcMainChart"), g = main && main._mainGeo;
+      const r = cv.getBoundingClientRect(), cx = e.clientX - r.left;
+      if (g && cx > g.plotRight) { resetYScale(); }   // y축 더블클릭 → 자동 스케일
+      else { resetChartWin(); }                        // 플롯 더블클릭 → 윈도 리셋
+      renderHeroZoom();
+    });
     cv.addEventListener("click", e => {
       if (_heroZoomDragging) return;
       const r = cv.getBoundingClientRect();
@@ -3819,7 +3851,11 @@
       }
     });
   })();
-  (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetChartWin(); renderHeroZoom(); }); })();
+  (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetChartWin(); resetYScale(); renderHeroZoom(); }); })();
+  (function() {
+    const a = document.getElementById("autoBtn"); if (a) a.addEventListener("click", () => { _yScale.mode = "auto"; updateAxisBtns(); renderHeroZoom(); });
+    const l = document.getElementById("logBtn"); if (l) l.addEventListener("click", () => { toggleLogChart(); });
+  })();
 
   (function initGutter() {
     const split = document.querySelector(".forge-split");
@@ -3992,6 +4028,7 @@
     n.params.fetched = true;                  // 로드 시 자동 재fetch 대상
     _heroView = "chart";
     if (typeof resetChartWin === "function") resetChartWin();   // 새 데이터 → 기본 윈도(Task 3)
+    if (typeof resetYScale === "function") resetYScale();
     markDirty(); runForge();
   }
   function buildData(series) {
