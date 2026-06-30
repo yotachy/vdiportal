@@ -2481,9 +2481,22 @@
     // grid
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
-    // history line
-    c.strokeStyle = FC_GOLD; c.lineWidth = 2; c.beginPath();
-    hist.forEach((v, i) => { const x = toXh(i), y = toY(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+    // history: 캔들(OHLC 있을 때) 또는 선
+    const _oh = (typeof priceOHLC === "function") ? priceOHLC() : null;
+    const _ohH = (_oh && _oh.length) ? _oh.slice(-hist.length) : null;
+    if (_ohH && _ohH.length === hist.length) {
+      const bw = Math.max(1, (histW / hist.length) * 0.7);
+      for (let i = 0; i < hist.length; i++) {
+        const d = _ohH[i], x = toXh(i), up = d.c >= d.o, col = up ? "#46c28e" : "#e06a6a";
+        c.strokeStyle = col; c.lineWidth = Math.max(0.7, bw * 0.16);
+        c.beginPath(); c.moveTo(x, toY(d.h)); c.lineTo(x, toY(d.l)); c.stroke();
+        const yt = toY(Math.max(d.o, d.c)), yb = toY(Math.min(d.o, d.c));
+        c.fillStyle = col; c.fillRect(x - bw / 2, yt, bw, Math.max(1, yb - yt));
+      }
+    } else {
+      c.strokeStyle = FC_GOLD; c.lineWidth = 2; c.beginPath();
+      hist.forEach((v, i) => { const x = toXh(i), y = toY(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+    }
     // seam ("지금") + forecast cone + path — 예측 path 있을 때만(없으면 과거가 전폭, y라벨 겹침 방지)
     if (path.length) {
       c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
@@ -3879,6 +3892,8 @@
   function visionBiasLive() { return visionLive() ? _visionBias : 0; }
   /* 실데이터(가격 노드에 붙여넣은 시계열) 우선 → 연속 차트(과거+예측). 없으면 비전, 둘 다 없으면 데모. */
   function priceSeries() {
+    const tk = boardState.nodes.find(n => n.blockType === "ticker" && Array.isArray(n.series) && n.series.length >= 20 && n.series.every(x => isFinite(x)));
+    if (tk) return tk.series;
     const p = boardState.nodes.find(n => n.blockType === "price");
     const s = p && p.series;
     const ps = (Array.isArray(s) && s.length >= 20 && s.every(x => isFinite(x))) ? s : null;
@@ -3888,8 +3903,16 @@
     if (vs && heroImgId() && _heroView !== "chart") return vs;
     return ps || vs;
   }
+  function priceOHLC() {
+    const tk = boardState.nodes.find(n => n.blockType === "ticker" && Array.isArray(n.ohlc) && n.ohlc.length >= 2);
+    return tk ? tk.ohlc : null;
+  }
   function buildData(series) {
-    return { price: series.slice(), candle: series.map(c => ({ o: c, h: c, l: c, c })), orange: [], blue: [], n: series.length };
+    const oh = priceOHLC();
+    const candle = (oh && oh.length === series.length)
+      ? oh.map(d => ({ o: d.o, h: d.h, l: d.l, c: d.c }))
+      : series.map(c => ({ o: c, h: c, l: c, c }));
+    return { price: series.slice(), candle, orange: [], blue: [], n: series.length };
   }
   function hasRealSeries() { return !!priceSeries(); }
   /* 티커 노드에 입력한 현재가 → 시계열을 그 값에 맞게 스케일(현재가를 쉽게 지정) */
