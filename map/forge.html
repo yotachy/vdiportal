@@ -1013,6 +1013,7 @@
         if (rr && rr.ok && Array.isArray(rr.candles) && rr.candles.length >= 2) {
           n._ohlc = rr.candles.map(d => ({ o: +(+d.o).toFixed(4), h: +(+d.h).toFixed(4), l: +(+d.l).toFixed(4), c: +(+d.c).toFixed(4) }));
           n._series = n._ohlc.map(d => d.c);
+          n.params.price = n._series[n._series.length - 1];   // 스케일 앵커 갱신 → currentData 계수 1(캔들·선 정합)
           if (typeof resetChartWin === "function") resetChartWin();
           runForge();
         }
