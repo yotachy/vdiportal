@@ -1006,6 +1006,18 @@
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
     renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); runForge();
+    // fetched 티커 자동 재fetch(비차단) — 캔들은 문서에 없으므로 메모리 복원
+    boardState.nodes.filter(n => n.blockType === "ticker" && n.params && n.params.fetched && n.params.symbol).forEach(async n => {
+      try {
+        const rr = await fetchOHLC(n.params.symbol, (n.params.tf) || "1day");
+        if (rr && rr.ok && Array.isArray(rr.candles) && rr.candles.length >= 2) {
+          n._ohlc = rr.candles.map(d => ({ o: +(+d.o).toFixed(4), h: +(+d.h).toFixed(4), l: +(+d.l).toFixed(4), c: +(+d.c).toFixed(4) }));
+          n._series = n._ohlc.map(d => d.c);
+          if (typeof resetChartWin === "function") resetChartWin();
+          runForge();
+        }
+      } catch (e) { /* 오프라인/실패 무시 — 차트 없이 그레이스풀 */ }
+    });
     // 새 문서의 진행 중 잡 복원 (비전 분석 활성 시에만)
     if (VISION_ENABLED && SERVER_OK && activeId) {
       const jr = await apiGet("?jobs&docId=" + encodeURIComponent(activeId));
@@ -1296,7 +1308,7 @@
     }
     if (n.blockType === "ticker") {
       rows.push(`<div class="pp-row"><label>티커 심볼</label><input type="text" data-tkr="symbol" value="${esc((n.params && n.params.symbol) || "")}" placeholder="예: TSLA"></div>`);
-      rows.push(`<div class="pp-row"><label>현재가</label><input type="number" step="any" data-tkr="price" value="${(n.params && isFinite(n.params.price)) ? n.params.price : ""}" placeholder="예: 379.71"${(Array.isArray(n.ohlc) && n.ohlc.length >= 2) ? " readonly title='실데이터 로드됨 — 자동 설정'" : ""}></div>`);
+      rows.push(`<div class="pp-row"><label>현재가</label><input type="number" step="any" data-tkr="price" value="${(n.params && isFinite(n.params.price)) ? n.params.price : ""}" placeholder="예: 379.71"${(Array.isArray(n._ohlc) && n._ohlc.length >= 2) ? " readonly title='실데이터 로드됨 — 자동 설정'" : ""}></div>`);
       rows.push(`<div class="pp-row"><label>주기</label><select data-tkr="tf">
         <option value="1day"${((n.params&&n.params.tf)||"1day")==="1day"?" selected":""}>일봉</option>
         <option value="1week"${(n.params&&n.params.tf)==="1week"?" selected":""}>주봉</option>
@@ -3917,8 +3929,8 @@
   function visionBiasLive() { return visionLive() ? _visionBias : 0; }
   /* 실데이터(가격 노드에 붙여넣은 시계열) 우선 → 연속 차트(과거+예측). 없으면 비전, 둘 다 없으면 데모. */
   function priceSeries() {
-    const tk = boardState.nodes.find(n => n.blockType === "ticker" && Array.isArray(n.series) && n.series.length >= 20 && n.series.every(x => isFinite(x)));
-    if (tk) return tk.series;
+    const tk = boardState.nodes.find(n => n.blockType === "ticker" && Array.isArray(n._series) && n._series.length >= 20 && n._series.every(x => isFinite(x)));
+    if (tk) return tk._series;
     const p = boardState.nodes.find(n => n.blockType === "price");
     const s = p && p.series;
     const ps = (Array.isArray(s) && s.length >= 20 && s.every(x => isFinite(x))) ? s : null;
@@ -3929,8 +3941,8 @@
     return ps || vs;
   }
   function priceOHLC() {
-    const tk = boardState.nodes.find(n => n.blockType === "ticker" && Array.isArray(n.ohlc) && n.ohlc.length >= 2);
-    return tk ? tk.ohlc : null;
+    const tk = boardState.nodes.find(n => n.blockType === "ticker" && Array.isArray(n._ohlc) && n._ohlc.length >= 2);
+    return tk ? tk._ohlc : null;
   }
   async function fetchOHLC(symbol, tf) {
     const r = await fetch(FORGE_API + "?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(tf || "1day"), { cache: "no-store" });
@@ -3939,15 +3951,17 @@
     return await r.json();
   }
   function applyTickerOHLC(n, r) {
-    const cs = r.candles.slice(-250).map(d => ({   // 250봉 캡 + 반올림(POST<128KB)
-      t: d.t, o: +(+d.o).toFixed(4), h: +(+d.h).toFixed(4), l: +(+d.l).toFixed(4), c: +(+d.c).toFixed(4)
+    const cs = r.candles.map(d => ({          // 전체(캡 없음) — 인메모리라 128KB 무관
+      o: +(+d.o).toFixed(4), h: +(+d.h).toFixed(4), l: +(+d.l).toFixed(4), c: +(+d.c).toFixed(4)
     }));
-    n.series = cs.map(d => d.c);
-    n.ohlc = cs;
+    n._series = cs.map(d => d.c);             // 인메모리(직렬화 제외)
+    n._ohlc = cs;
     n.params = n.params || {};
     n.params.tf = r.tf || "1day";
-    n.params.price = cs[cs.length - 1].c;   // 현재가=마지막 실 종가 → currentData 스케일 계수 1(스케일 생략)·배지 표시
-    _heroView = "chart";                 // 캔들차트를 주 화면으로
+    n.params.price = cs[cs.length - 1].c;     // 현재가=마지막 종가 → currentData 스케일 계수 1
+    n.params.fetched = true;                  // 로드 시 자동 재fetch 대상
+    _heroView = "chart";
+    if (typeof resetChartWin === "function") resetChartWin();   // 새 데이터 → 기본 윈도(Task 3)
     markDirty(); runForge();
   }
   function buildData(series) {
@@ -4841,7 +4855,7 @@
           const r = await fetchOHLC(sym, tf);
           if (r && r.ok && Array.isArray(r.candles) && r.candles.length >= 2) {
             applyTickerOHLC(n, r);
-            bToast(sym + " " + (n.ohlc ? n.ohlc.length : r.candles.length) + "봉 (" + (r.source === "stooq" ? "Stooq" : "Twelve Data") + ")");
+            bToast(sym + " " + (n._ohlc ? n._ohlc.length : r.candles.length) + "봉 (" + (r.source === "stooq" ? "Stooq" : "Twelve Data") + ")");
           } else bToast("심볼을 찾을 수 없어요: " + sym);
         } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
         b.disabled = false; b.textContent = _t;
