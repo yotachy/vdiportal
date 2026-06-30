@@ -645,6 +645,8 @@
   let _heroZoomDragging = false;
   let _logChart = false;
   let _chartWin = { start: 0, count: 0 };   // count 0 = 미초기화(전체 시계열 길이로 기본화)
+  let _yScale = { mode: "auto", lo: null, hi: null };
+  function resetYScale() { _yScale = { mode: "auto", lo: null, hi: null }; }
   function resetChartWin() {
     const s = (typeof priceSeries === "function") ? priceSeries() : null;
     const N = (s && s.length) || 0;
@@ -1025,6 +1027,7 @@
           n.params.fetched = true;                            // 레거시 노드 마이그레이션
           delete n.series; delete n.ohlc;                     // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
           if (typeof resetChartWin === "function") resetChartWin();
+          if (typeof resetYScale === "function") resetYScale();
           runForge();
         }
       } catch (e) { /* 오프라인/실패 무시 — 차트 없이 그레이스풀 */ }
@@ -2511,6 +2514,7 @@
     if (atLatest) { for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); } loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor); }
     if (!isFinite(loV) || !isFinite(hiV)) { loV = 0; hiV = 1; }
     const padV = (hiV - loV) * 0.08 || 1; loV -= padV; hiV += padV;
+    if (_yScale.mode === "manual" && isFinite(_yScale.lo) && isFinite(_yScale.hi) && _yScale.hi > _yScale.lo) { loV = _yScale.lo; hiV = _yScale.hi; }
     const padX = 8, padTop = 16, padBot = 16, axisW = 46;
     const plotW = cw - padX - axisW;
     const total = hist.length + path.length;
@@ -3819,7 +3823,7 @@
       }
     });
   })();
-  (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetChartWin(); renderHeroZoom(); }); })();
+  (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetChartWin(); resetYScale(); renderHeroZoom(); }); })();
 
   (function initGutter() {
     const split = document.querySelector(".forge-split");
@@ -3992,6 +3996,7 @@
     n.params.fetched = true;                  // 로드 시 자동 재fetch 대상
     _heroView = "chart";
     if (typeof resetChartWin === "function") resetChartWin();   // 새 데이터 → 기본 윈도(Task 3)
+    if (typeof resetYScale === "function") resetYScale();
     markDirty(); runForge();
   }
   function buildData(series) {
