@@ -1291,7 +1291,7 @@
     }
     if (n.blockType === "ticker") {
       rows.push(`<div class="pp-row"><label>티커 심볼</label><input type="text" data-tkr="symbol" value="${esc((n.params && n.params.symbol) || "")}" placeholder="예: TSLA"></div>`);
-      rows.push(`<div class="pp-row"><label>현재가</label><input type="number" step="any" data-tkr="price" value="${(n.params && isFinite(n.params.price)) ? n.params.price : ""}" placeholder="예: 379.71"></div>`);
+      rows.push(`<div class="pp-row"><label>현재가</label><input type="number" step="any" data-tkr="price" value="${(n.params && isFinite(n.params.price)) ? n.params.price : ""}" placeholder="예: 379.71"${(Array.isArray(n.ohlc) && n.ohlc.length >= 2) ? " readonly title='실데이터 로드됨 — 자동 설정'" : ""}></div>`);
       rows.push(`<div class="pp-row"><label>주기</label><select data-tkr="tf">
         <option value="1day"${((n.params&&n.params.tf)||"1day")==="1day"?" selected":""}>일봉</option>
         <option value="1week"${(n.params&&n.params.tf)==="1week"?" selected":""}>주봉</option>
@@ -4824,7 +4824,7 @@
           const r = await fetchOHLC(sym, tf);
           if (r && r.ok && Array.isArray(r.candles) && r.candles.length >= 2) {
             applyTickerOHLC(n, r);
-            bToast(sym + " " + r.candles.length + "봉 (" + (r.source === "stooq" ? "Stooq" : "Twelve Data") + ")");
+            bToast(sym + " " + (n.ohlc ? n.ohlc.length : r.candles.length) + "봉 (" + (r.source === "stooq" ? "Stooq" : "Twelve Data") + ")");
           } else bToast("심볼을 찾을 수 없어요: " + sym);
         } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
         b.disabled = false; b.textContent = _t;
