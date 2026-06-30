@@ -38,6 +38,75 @@ if ($method === "GET") {
     echo json_encode(["ok"=>true, "jobs"=>$list], JSON_UNESCAPED_UNICODE);
     exit;
   }
+  if (isset($_GET["ohlc"])) {
+    $sym = isset($_GET["symbol"]) ? trim($_GET["symbol"]) : "";
+    $tf  = isset($_GET["tf"]) ? $_GET["tf"] : "1day";
+    if (!in_array($tf, ["1day","1week","1month"], true)) $tf = "1day";
+    if (!preg_match('/^[A-Za-z0-9.\-^=]{1,16}$/', $sym)) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"badsymbol"]); exit; }
+
+    // 캐시 (일봉 1h / 주·월 6h)
+    $ttl = ($tf === "1day") ? 3600 : 21600;
+    $cf = __DIR__ . "/forge_ohlc_cache_" . md5($sym . "|" . $tf) . ".json";
+    if (is_readable($cf) && (time() - filemtime($cf)) < $ttl) { readfile($cf); exit; }
+
+    // curl 헬퍼
+    $fetch = function($url, $isJson) {
+      $ch = curl_init($url);
+      curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_HTTPHEADER => [$isJson ? "accept: application/json" : "accept: text/csv"],
+        CURLOPT_USERAGENT => "ScoopForge/1.0 (+moneyscoop.co.kr)",
+      ]);
+      $r = curl_exec($ch); $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+      return ($r === false || $code < 200 || $code >= 300) ? null : $r;
+    };
+
+    $candles = null; $source = null;
+
+    // 1) Twelve Data (서버 전용 키)
+    $TD_KEY = is_file(__DIR__ . "/forge_td_key.txt") ? trim(file_get_contents(__DIR__ . "/forge_td_key.txt")) : "";
+    if ($TD_KEY !== "") {
+      $u = "https://api.twelvedata.com/time_series?symbol=" . urlencode($sym) . "&interval=" . urlencode($tf) . "&outputsize=400&format=JSON&apikey=" . urlencode($TD_KEY);
+      $raw = $fetch($u, true);
+      if ($raw !== null) {
+        $j = json_decode($raw, true);
+        if (is_array($j) && isset($j["values"]) && is_array($j["values"]) && count($j["values"]) >= 2) {
+          $rows = array_reverse($j["values"]);   // 최신→과거 → 과거→최신
+          $out = [];
+          foreach ($rows as $r) {
+            $o=(float)$r["open"]; $h=(float)$r["high"]; $l=(float)$r["low"]; $c=(float)$r["close"];
+            $v=isset($r["volume"]) ? (float)$r["volume"] : 0;
+            if (is_finite($o)&&is_finite($h)&&is_finite($l)&&is_finite($c)) $out[] = ["t"=>$r["datetime"],"o"=>$o,"h"=>$h,"l"=>$l,"c"=>$c,"v"=>$v];
+          }
+          if (count($out) >= 2) { $candles = $out; $source = "twelvedata"; }
+        }
+      }
+    }
+
+    // 2) Stooq 폴백 (무키 CSV) — 미국주식/지수/포렉스 일봉
+    if ($candles === null) {
+      $ss = strtolower($sym);
+      if (strpos($ss, ".") === false && strpos($ss, "^") === false && strpos($ss, "=") === false) $ss .= ".us";  // 평이 심볼=미국주식 가정
+      $ss = str_replace("-usd", "usd", $ss);   // BTC-USD → btcusd
+      $raw = $fetch("https://stooq.com/q/d/l/?s=" . urlencode($ss) . "&i=d", false);
+      if ($raw !== null) {
+        $lines = preg_split('/\r?\n/', trim($raw));
+        $out = [];
+        for ($i = 1; $i < count($lines); $i++) {   // 0=헤더
+          $p = explode(",", $lines[$i]);
+          if (count($p) < 5 || $p[1] === "N/D" || $p[1] === "") continue;
+          $o=(float)$p[1]; $h=(float)$p[2]; $l=(float)$p[3]; $c=(float)$p[4]; $v=isset($p[5])?(float)$p[5]:0;
+          if (is_finite($o)&&is_finite($h)&&is_finite($l)&&is_finite($c)&&$c>0) $out[] = ["t"=>$p[0],"o"=>$o,"h"=>$h,"l"=>$l,"c"=>$c,"v"=>$v];
+        }
+        if (count($out) >= 2) { $candles = array_slice($out, -400); $source = "stooq"; }
+      }
+    }
+
+    if ($candles === null) { http_response_code(502); echo json_encode(["ok"=>false,"error"=>"notfound","symbol"=>$sym]); exit; }
+    $payload = json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>$source,"candles"=>$candles], JSON_UNESCAPED_UNICODE);
+    @file_put_contents($cf, $payload);
+    echo $payload; exit;
+  }
   if (is_file($f)) { readfile($f); } else { echo "null"; }
   exit;
 }
