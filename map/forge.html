@@ -520,6 +520,7 @@
               <span class="fc-src" id="fcSrcBadge" style="display:none"></span>
               <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈 차트뷰</button>
               <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
+              <button id="logToggle" class="ev-toggle" title="로그/선형 스케일" onclick="toggleLogChart()">📊 LOG</button>
               <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
             </div>
           </div>
@@ -642,6 +643,8 @@
   /* ── Hero 줌/팬 상태 ─────────────────────────────────────────── */
   let _heroZoom = { s: 1, tx: 0, ty: 0 };
   let _heroZoomDragging = false;
+  let _logChart = false;
+  function tvLog(x, on) { return on ? Math.log(Math.max(1e-9, x)) : x; }
   function resetHeroView() { _heroZoom = { s: 1, tx: 0, ty: 0 }; }
   function clampPan() {
     const cv = document.getElementById("fcMainChart"); if (!cv) return;
@@ -969,6 +972,7 @@
           coords: _visionCoords, timeframe: _visionTF, futBars: _visionFut, jobId: (dc.vision && dc.vision.jobId) || null }
       : null;
     dc.view = { tx: view.tx, ty: view.ty, scale: view.scale };
+    dc.logChart = _logChart;
     dc.updated = new Date().toISOString();
     return dc;
   }
@@ -989,6 +993,7 @@
     activeId = id; META.activeId = id;
     boardState.nodes = dc.nodes || []; boardState.edges = dc.edges || [];
     themeState.imgId = dc.themeImgId || null; themeState.title = dc.title || "";
+    _logChart = !!dc.logChart; updateLogBtn();
     const vz = dc.vision;
     if (vz && Array.isArray(vz.series) && vz.series.length >= 2) {
       _visionData = { price: vz.series, n: vz.series.length };
@@ -2478,14 +2483,15 @@
     const total = hist.length + path.length;
     const histW = plotW * (hist.length / total);
     const seamX = padX + histW;
-    const toY = v => padTop + (1 - (v - loV) / ((hiV - loV) || 1)) * (ch - padTop - padBot);
+    const _lo = tvLog(loV, _logChart), _hi = tvLog(hiV, _logChart);
+    const toY = v => padTop + (1 - (tvLog(v, _logChart) - _lo) / ((_hi - _lo) || 1)) * (ch - padTop - padBot);
     const toXh = i => padX + (i / (hist.length - 1)) * histW;
     const toXf = k => seamX + ((k + 1) / Math.max(1, path.length)) * (plotW - histW);
     /* 예측 밴드 세로 범위(줌 세로중심용) */
     let bandTop = toY(anchor), bandBot = toY(anchor);
     for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, toY(hi[k])); bandBot = Math.max(bandBot, toY(lo[k])); }
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간) */
-    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉") };
+    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉"), log: _logChart };
     // grid
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
@@ -2560,6 +2566,16 @@
     _evidenceShow = !_evidenceShow;
     document.body.classList.toggle("evhide", !_evidenceShow);
     const b = document.getElementById("evToggle"); if (b) b.classList.toggle("on", _evidenceShow);
+  }
+  function updateLogBtn() {
+    const b = document.getElementById("logToggle");
+    if (b) { b.classList.toggle("on", _logChart); b.textContent = _logChart ? "📊 선형" : "📊 LOG"; }
+  }
+  function toggleLogChart() {
+    _logChart = !_logChart;
+    updateLogBtn();
+    if (hasRealSeries() && lastResult) renderChart(lastResult, currentData());
+    markDirty();
   }
   function _linreg(arr) {
     const n = arr.length; let sx = 0, sy = 0, sxx = 0, sxy = 0;
@@ -2865,7 +2881,8 @@
     c.lineWidth = 1.5; c.lineJoin = "round";
     if (mode === "chart") {
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) { c.restore(); return; }
-      const toY = v => g.padTop + (1 - (v - g.loV) / ((g.hiV - g.loV) || 1)) * (g.ch - g.padTop - g.padBot);
+      const _elo = tvLog(g.loV, g.log), _ehi = tvLog(g.hiV, g.log);
+      const toY = v => g.padTop + (1 - (tvLog(v, g.log) - _elo) / ((_ehi - _elo) || 1)) * (g.ch - g.padTop - g.padBot);
       const Hn = g.histLen, off = P - Hn, plotR = g.padX + g.plotW;
       const toXh = i => g.padX + (i / (Hn - 1)) * g.histW;
       let _slot = 0; const _slotY = () => g.padTop + 2 + (_slot++) * 18;   // 우상단 배지 세로 슬롯(18px 간격)
