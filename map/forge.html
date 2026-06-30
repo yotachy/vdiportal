@@ -2514,7 +2514,7 @@
     const padX = 8, padTop = 16, padBot = 16, axisW = 46;
     const plotW = cw - padX - axisW;
     const total = hist.length + path.length;
-    const histW = plotW * (hist.length / total);
+    const histW = plotW * Math.max(0.78, hist.length / total);
     const seamX = padX + histW;
     const _lo = tvLog(loV, _logChart), _hi = tvLog(hiV, _logChart);
     const toY = v => padTop + (1 - (tvLog(v, _logChart) - _lo) / ((_hi - _lo) || 1)) * (ch - padTop - padBot);
@@ -2524,7 +2524,7 @@
     let bandTop = toY(anchor), bandBot = toY(anchor);
     for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, toY(hi[k])); bandBot = Math.max(bandBot, toY(lo[k])); }
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간) */
-    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉"), log: _logChart, start: wStart, count: wCount, winN: N };
+    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉"), log: _logChart, start: wStart, count: wCount, winN: N, plotRight: padX + plotW };
     // grid
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
