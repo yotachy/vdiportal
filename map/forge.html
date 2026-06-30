@@ -663,7 +663,7 @@
     _heroZoom.tx = Math.max(minTx, Math.min(maxTx, _heroZoom.tx));
     _heroZoom.ty = Math.max(minTy, Math.min(maxTy, _heroZoom.ty));
   }
-  function _syncZoomBtn() { const b = document.getElementById("fcZoomReset"); if (b) b.classList.toggle("on", _heroZoom.s > 1.0001); }
+  function _syncZoomBtn() { const b = document.getElementById("fcZoomReset"); if (b) { const ps = priceSeries(); b.classList.toggle("on", !!(ps && (_chartWin.start > 0 || _chartWin.count < ps.length))); } }
   function renderHeroZoom() {
     const pred = _fcLastResult && _fcLastResult.prediction;
     const px = (_fcLastData && _fcLastData.price) || (currentData && currentData().price) || [];
@@ -3770,29 +3770,38 @@
     const cv = document.getElementById("fcMainChart"); if (!cv) return;
     cv.addEventListener("wheel", e => {
       e.preventDefault();
-      const r = cv.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
-      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-      const ns = Math.max(1, Math.min(6, _heroZoom.s * factor)), k = ns / _heroZoom.s;
-      _heroZoom.tx = cx - (cx - _heroZoom.tx) * k;
-      _heroZoom.ty = cy - (cy - _heroZoom.ty) * k;
-      _heroZoom.s = ns; clampPan(); renderHeroZoom();
+      const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
+      const N = g.winN || 0; if (N < 2) return;
+      const r = cv.getBoundingClientRect(), cx = e.clientX - r.left;
+      // 커서 아래 윈도 봉 인덱스(절대)
+      const rel = Math.max(0, Math.min(1, (cx - g.padX) / (g.histW || 1)));
+      const bi = g.start + Math.round(rel * (g.count - 1));
+      const factor = e.deltaY < 0 ? 0.85 : 1 / 0.85;          // 휠업=줌인(봉 수 감소)
+      let nc = Math.round(_chartWin.count * factor);
+      nc = Math.max(20, Math.min(N, nc));
+      let ns = Math.round(bi - rel * (nc - 1));
+      ns = Math.max(0, Math.min(N - nc, ns));
+      _chartWin.count = nc; _chartWin.start = ns; renderHeroZoom();
     }, { passive: false });
     let hDrag = null;
     cv.addEventListener("pointerdown", e => {
-      if (_heroZoom.s <= 1.0001) return;
-      hDrag = { x: e.clientX, y: e.clientY, tx: _heroZoom.tx, ty: _heroZoom.ty, moved: false };
+      const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
+      hDrag = { x: e.clientX, start: _chartWin.start, moved: false, barW: (g.histW || 1) / Math.max(1, g.count) };
       try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     });
     cv.addEventListener("pointermove", e => {
       if (!hDrag) return;
-      const dx = e.clientX - hDrag.x, dy = e.clientY - hDrag.y;
-      if (Math.abs(dx) + Math.abs(dy) > 6) { hDrag.moved = true; _heroZoomDragging = true; }
+      const dx = e.clientX - hDrag.x;
+      if (Math.abs(dx) > 6) { hDrag.moved = true; _heroZoomDragging = true; }
       if (!hDrag.moved) return;
-      _heroZoom.tx = hDrag.tx + dx; _heroZoom.ty = hDrag.ty + dy; clampPan(); renderHeroZoom();
+      const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
+      const N = g.winN || 0, dBars = Math.round(-dx / (hDrag.barW || 1));
+      _chartWin.start = Math.max(0, Math.min(N - _chartWin.count, hDrag.start + dBars));
+      renderHeroZoom();
     });
     const endDrag = () => { hDrag = null; _heroZoomDragging = false; };
     cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
-    cv.addEventListener("dblclick", () => { resetHeroView(); renderHeroZoom(); });
+    cv.addEventListener("dblclick", () => { resetChartWin(); renderHeroZoom(); });
     cv.addEventListener("click", e => {
       if (_heroZoomDragging) return;
       const r = cv.getBoundingClientRect();
@@ -3807,7 +3816,7 @@
       }
     });
   })();
-  (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetHeroView(); renderHeroZoom(); }); })();
+  (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetChartWin(); renderHeroZoom(); }); })();
 
   (function initGutter() {
     const split = document.querySelector(".forge-split");
