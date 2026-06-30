@@ -1014,13 +1014,16 @@
     sel = []; selEdge = null;
     renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); runForge();
     // fetched 티커 자동 재fetch(비차단) — 캔들은 문서에 없으므로 메모리 복원
-    boardState.nodes.filter(n => n.blockType === "ticker" && n.params && n.params.fetched && n.params.symbol).forEach(async n => {
+    // fetched 플래그 또는 레거시(구버전이 저장한 params.price 보유) 티커를 자동 재fetch. 샘플(price=null)은 제외.
+    boardState.nodes.filter(n => n.blockType === "ticker" && n.params && n.params.symbol && (n.params.fetched || isFinite(n.params.price))).forEach(async n => {
       try {
         const rr = await fetchOHLC(n.params.symbol, (n.params.tf) || "1day");
         if (rr && rr.ok && Array.isArray(rr.candles) && rr.candles.length >= 2) {
           n._ohlc = rr.candles.map(d => ({ o: +(+d.o).toFixed(4), h: +(+d.h).toFixed(4), l: +(+d.l).toFixed(4), c: +(+d.c).toFixed(4) }));
           n._series = n._ohlc.map(d => d.c);
           n.params.price = n._series[n._series.length - 1];   // 스케일 앵커 갱신 → currentData 계수 1(캔들·선 정합)
+          n.params.fetched = true;                            // 레거시 노드 마이그레이션
+          delete n.series; delete n.ohlc;                     // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
           if (typeof resetChartWin === "function") resetChartWin();
           runForge();
         }
@@ -3982,6 +3985,7 @@
     }));
     n._series = cs.map(d => d.c);             // 인메모리(직렬화 제외)
     n._ohlc = cs;
+    delete n.series; delete n.ohlc;           // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
     n.params = n.params || {};
     n.params.tf = r.tf || "1day";
     n.params.price = cs[cs.length - 1].c;     // 현재가=마지막 종가 → currentData 스케일 계수 1
