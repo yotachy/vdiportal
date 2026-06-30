@@ -3391,7 +3391,13 @@
         return "범위 " + pct + "% " + (pct >= 66 ? "(상단권)" : pct <= 33 ? "(하단권)" : "(중단권)");
       }
       case "phasefold": return (m && m.best != null) ? "지배주기 P*≈" + Math.round(m.best) + (m.kbest ? " (" + m.kbest + "주기/창)" : "") + (isFinite(m.theta) ? " · 정합 θ" + m.theta.toFixed(2) : "") + (m.method ? " · " + m.method : "") : "스캔 대기";
-      case "elliott": return (m && m.current) ? "파동 " + m.current.label + " " + (m.current.dir > 0 ? "▲" : m.current.dir < 0 ? "▼" : "–") : "—";
+      case "elliott": {
+        if (!(m && m.current)) return "—";
+        const minorTxt = "소(" + m.current.label + " " + (m.current.dir > 0 ? "▲" : m.current.dir < 0 ? "▼" : "–") + ")";
+        const pst = m.primary && m.primary.structure;
+        const pAbbr = pst === "impulse_up" ? "임펄스↑" : pst === "impulse_down" ? "임펄스↓" : pst === "corrective" ? "ABC" : null;
+        return pAbbr ? "대(" + pAbbr + ") · " + minorTxt : minorTxt;
+      }
       case "combine": return last != null ? "결합값 " + (last > 0 ? "+" : "") + (Math.round(last * 1000) / 1000) : "—";
       case "predict": return (result && result.verdict) ? "국면 " + regimeKo(result.verdict.regime) + " · 시그널 " + Math.round(result.verdict.score) : "—";
       case "volume": return "참고 입력(계산 없음)";
@@ -4161,9 +4167,14 @@
           ? "P*≈" + Math.round(m.best) + (m.kbest ? " ·" + m.kbest + "주기" : "") + (Number.isFinite(m.theta) ? " θ" + m.theta.toFixed(2) : "")
           : "스캔 대기";
       } else {
-        s.textContent = m && m.current
-          ? "파동 " + m.current.label + " " + (m.current.dir > 0 ? "▲" : m.current.dir < 0 ? "▼" : "–")
-          : "스캔 대기";
+        if (m && m.current) {
+          const minorTxt = "소(" + m.current.label + " " + (m.current.dir > 0 ? "▲" : m.current.dir < 0 ? "▼" : "–") + ")";
+          const pst = m.primary && m.primary.structure;
+          const pAbbr = pst === "impulse_up" ? "임펄스↑" : pst === "impulse_down" ? "임펄스↓" : pst === "corrective" ? "ABC" : null;
+          s.textContent = pAbbr ? "대(" + pAbbr + ") · " + minorTxt : minorTxt;
+        } else {
+          s.textContent = "스캔 대기";
+        }
       }
     });
   }
