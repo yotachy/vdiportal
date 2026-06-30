@@ -678,6 +678,7 @@
     fcDrawMainChart(px, pred);
     drawEvidence();
     _syncZoomBtn();
+    if (typeof updateAxisBtns === "function") updateAxisBtns();   // A/L 버튼 상태 동기화(y드래그→manual 시 A 꺼짐)
   }
 
   /* ── Server layer globals ──────────────────────────────────────── */
