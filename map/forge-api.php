@@ -68,7 +68,7 @@ if ($method === "GET") {
     if ($TD_KEY !== "") {
       // 암호화폐 페어(BTC-USD)는 Twelve Data가 슬래시(BTC/USD)를 요구 — fiat 접미사일 때만 변환(주식 BRK-B 보호)
       $tdSym = preg_match('/^[A-Za-z]{2,6}-(USD|USDT|EUR|KRW|JPY|GBP|BTC|ETH)$/i', $sym) ? str_replace("-", "/", $sym) : $sym;
-      $u = "https://api.twelvedata.com/time_series?symbol=" . urlencode($tdSym) . "&interval=" . urlencode($tf) . "&outputsize=400&format=JSON&apikey=" . urlencode($TD_KEY);
+      $u = "https://api.twelvedata.com/time_series?symbol=" . urlencode($tdSym) . "&interval=" . urlencode($tf) . "&outputsize=5000&format=JSON&apikey=" . urlencode($TD_KEY);
       $raw = $fetch($u, true);
       if ($raw !== null) {
         $j = json_decode($raw, true);
