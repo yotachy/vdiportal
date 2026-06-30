@@ -720,6 +720,22 @@ test("elliottSteps: 5단계, bias 반영", () => {
   assert.ok(/bias/.test(s[4]));
 });
 
+test("elliottSteps: primary 있으면 대형 요약 줄 추가, 없으면 5줄", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const longP = [100,
+    ...seg(100, 200, 40), ...seg(200, 150, 30), ...seg(150, 320, 50),
+    ...seg(320, 250, 30), ...seg(250, 400, 45), ...seg(400, 300, 30),
+    ...seg(300, 360, 25), ...seg(360, 260, 30)];
+  const eaLong = ForgeCore.analyzeElliott(longP, { swing: 0.03 });
+  const stepsLong = ForgeCore.elliottSteps(eaLong);
+  assert.ok(stepsLong.length === 6, "대형 줄 포함 6줄 (실제 " + stepsLong.length + ")");
+  assert.ok(stepsLong[5].indexOf("대형") === 0, "마지막 줄이 '대형'으로 시작");
+
+  const shortP = [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6), ...seg(132, 165, 8)];
+  const eaShort = ForgeCore.analyzeElliott(shortP, { swing: 0.04 });
+  assert.strictEqual(ForgeCore.elliottSteps(eaShort).length, 5, "primary 없으면 5줄");
+});
+
 test("run: 엘리어트 블록 유무가 예측 타깃을 가른다(격리) + TF", () => {
   const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
   const data = { price: [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6), ...seg(132, 165, 8)] };

@@ -724,17 +724,19 @@
 
   function elliottSteps(ea) {
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
-    const st = ea.structure === "impulse_up" ? "상승 임펄스" : ea.structure === "impulse_down" ? "하락 임펄스" : ea.structure === "corrective" ? "ABC 조정" : "불확실";
+    const stKo = s => s === "impulse_up" ? "상승 임펄스" : s === "impulse_down" ? "하락 임펄스" : s === "corrective" ? "ABC 조정" : "불확실";
     const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
     const nx = ea.next ? "다음 " + ea.next.label + "파 목표 " + fmt(ea.next.target) : "투영 없음";
     const bTxt = ea.bias > 0.1 ? "상승" : ea.bias < -0.1 ? "하락" : "중립";
-    return [
+    const lines = [
       ea.waves.length ? "파동 카운트 " + ea.waves.length + "개 (현재 " + ea.current.label + ")" : "스윙 부족",
       "규칙 " + ok + "/3 · 유효 " + ea.rules.score.toFixed(2),
-      st + " 분류",
+      stKo(ea.structure) + " 분류",
       nx,
       "종합 방향 " + bTxt + " (bias " + ea.bias.toFixed(2) + ")"
     ];
+    if (ea.primary) lines.push("대형 " + stKo(ea.primary.structure) + " · 현재 " + ea.primary.current.label + "파(" + (ea.primary.current.dir > 0 ? "↑" : ea.primary.current.dir < 0 ? "↓" : "–") + ")");
+    return lines;
   }
 
   function aggregateConviction(graph) {
