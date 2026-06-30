@@ -637,6 +637,24 @@
     };
   }
 
+  // 차트 전체를 덮는 대형 degree용 스윙 추출: 큰 다리 6~9개를 목표로 민감도 적응 선택(결정적)
+  function primarySwings(price, minorSens) {
+    const P = Array.isArray(price) ? price.length : 0;
+    if (P < 40) return null;                      // 너무 짧으면 대형 의미 없음
+    const LADDER = [0.30, 0.22, 0.16, 0.12, 0.09];
+    let pick = null, bestDist = Infinity;
+    for (const s of LADDER) {
+      if (s <= minorSens) continue;               // 소형보다 굵어야 의미
+      const sw = detectSwings(price, s);
+      const legs = sw.length - 1;
+      const dist = (legs >= 6 && legs <= 9) ? 0 : (legs < 6 ? 6 - legs : legs - 9);
+      if (dist < bestDist) { bestDist = dist; pick = { swings: sw, sens: s, legs: legs }; }
+      if (dist === 0) break;                       // 6~9 구간의 첫(가장 굵은) 민감도 채택
+    }
+    if (!pick || pick.legs < 5 || pick.swings.length < 2) return null;  // 5파도 못 그리면 생략
+    return { swings: pick.swings, sens: pick.sens };
+  }
+
   // 한 degree의 파동 카운트/규칙/구조/투영/bias 계산 (legs = 인접 스윙 다리 배열)
   function elliottDegree(legs) {
     const LAB = ["1", "2", "3", "4", "5", "A", "B", "C"];
@@ -906,5 +924,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps };
 });
