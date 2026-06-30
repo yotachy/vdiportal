@@ -644,6 +644,13 @@
   let _heroZoom = { s: 1, tx: 0, ty: 0 };
   let _heroZoomDragging = false;
   let _logChart = false;
+  let _chartWin = { start: 0, count: 0 };   // count 0 = 미초기화(전체 시계열 길이로 기본화)
+  function resetChartWin() {
+    const s = (typeof priceSeries === "function") ? priceSeries() : null;
+    const N = (s && s.length) || 0;
+    _chartWin.count = Math.min(180, N);
+    _chartWin.start = Math.max(0, N - _chartWin.count);
+  }
   function tvLog(x, on) { return on ? Math.log(Math.max(1e-9, x)) : x; }
   function resetHeroView() { _heroZoom = { s: 1, tx: 0, ty: 0 }; }
   function clampPan() {
@@ -2479,18 +2486,28 @@
     const ch = cv.clientHeight || 260, c = fcFitKeep(cv, ch, 3);
     const cw = cv.clientWidth || 600;
     c.clearRect(0, 0, cw, ch);
-    const hist = (series || []).slice(-180);
-    const path = (pred && pred.path) || [], lo = (pred && pred.lo) || [], hi = (pred && pred.hi) || [];
+    const N = (series || []).length;
+    if (!_chartWin.count || _chartWin.start + _chartWin.count > N || _chartWin.start < 0) {
+      _chartWin.count = Math.min(_chartWin.count || 180, N); _chartWin.start = Math.max(0, N - _chartWin.count);
+    }
+    const wStart = _chartWin.start, wCount = _chartWin.count;
+    const hist = (series || []).slice(wStart, wStart + wCount);
+    const atLatest = (wStart + wCount >= N);
+    const path = atLatest ? ((pred && pred.path) || []) : [], lo = atLatest ? ((pred && pred.lo) || []) : [], hi = atLatest ? ((pred && pred.hi) || []) : [];
     if (hist.length < 2) {
       c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
       c.fillText("분석 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return;
     }
     c.save(); c.translate(_heroZoom.tx, _heroZoom.ty); c.scale(_heroZoom.s, _heroZoom.s);
     const anchor = (pred && pred.anchor != null) ? pred.anchor : hist[hist.length - 1];
-    let loV = Math.min(...hist), hiV = Math.max(...hist);
-    for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); }
-    loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);
-    const padV = (hiV - loV) * 0.1 || 1; loV -= padV; hiV += padV;
+    const _oh = (typeof priceOHLC === "function") ? priceOHLC() : null;
+    const _ohW = (_oh && _oh.length === N) ? _oh.slice(wStart, wStart + wCount) : null;
+    let loV = Infinity, hiV = -Infinity;
+    if (_ohW) { for (const d of _ohW) { if (d.l < loV) loV = d.l; if (d.h > hiV) hiV = d.h; } }
+    else { for (const v of hist) { if (v < loV) loV = v; if (v > hiV) hiV = v; } }
+    if (atLatest) { for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); } loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor); }
+    if (!isFinite(loV) || !isFinite(hiV)) { loV = 0; hiV = 1; }
+    const padV = (hiV - loV) * 0.08 || 1; loV -= padV; hiV += padV;
     const padX = 8, padTop = 16, padBot = 16, axisW = 46;
     const plotW = cw - padX - axisW;
     const total = hist.length + path.length;
@@ -2504,17 +2521,15 @@
     let bandTop = toY(anchor), bandBot = toY(anchor);
     for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, toY(hi[k])); bandBot = Math.max(bandBot, toY(lo[k])); }
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간) */
-    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉"), log: _logChart };
+    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉"), log: _logChart, start: wStart, count: wCount, winN: N };
     // grid
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
     // history: 캔들(OHLC 있을 때) 또는 선
-    const _oh = (typeof priceOHLC === "function") ? priceOHLC() : null;
-    const _ohH = (_oh && _oh.length) ? _oh.slice(-hist.length) : null;
-    if (_ohH && _ohH.length === hist.length) {
+    if (_ohW && _ohW.length === hist.length) {
       const bw = Math.max(1, (histW / hist.length) * 0.7);
       for (let i = 0; i < hist.length; i++) {
-        const d = _ohH[i], x = toXh(i), up = d.c >= d.o, col = up ? "#46c28e" : "#e06a6a";
+        const d = _ohW[i], x = toXh(i), up = d.c >= d.o, col = up ? "#46c28e" : "#e06a6a";
         c.strokeStyle = col; c.lineWidth = Math.max(0.7, bw * 0.16);
         c.beginPath(); c.moveTo(x, toY(d.h)); c.lineTo(x, toY(d.l)); c.stroke();
         const yt = toY(Math.max(d.o, d.c)), yb = toY(Math.min(d.o, d.c));
@@ -2896,42 +2911,43 @@
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) { c.restore(); return; }
       const _elo = tvLog(g.loV, g.log), _ehi = tvLog(g.hiV, g.log);
       const toY = v => g.padTop + (1 - (tvLog(v, g.log) - _elo) / ((_ehi - _elo) || 1)) * (g.ch - g.padTop - g.padBot);
-      const Hn = g.histLen, off = P - Hn, plotR = g.padX + g.plotW;
-      const toXh = i => g.padX + (i / (Hn - 1)) * g.histW;
+      const wS = g.start, wC = g.count, plotR = g.padX + g.plotW;
+      const toXh = i => g.padX + (i / (wC - 1)) * g.histW;       // i = 윈도 상대 인덱스(0..wC-1)
+      const fiToX = fi => (fi >= wS && fi <= wS + wC - 1) ? toXh(fi - wS) : NaN;   // 절대 fi → 윈도 x, 밖=NaN
       let _slot = 0; const _slotY = () => g.padTop + 2 + (_slot++) * 18;   // 우상단 배지 세로 슬롯(18px 간격)
       for (const n of nodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         const _drawThis = (!_focusInd || n.blockType === _focusInd);
         if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
-          if (_drawThis) _drawMALayers(c, ma, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          if (_drawThis) _drawMALayers(c, ma, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(_visionTF);
           const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
-          const off = P - Hn, futBars = (g.path && g.path.length) || 24;
+          const futBars = (g.path && g.path.length) || 24;
           if (_drawThis) _drawTrendLayers(c, ta, {
-            fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))),
+            fiToX,
             pToY: v => toY(v),
-            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: off
+            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: wS
           });
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "fib") {
           const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
-          if (_drawThis) _drawFibLayers(c, fib, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          if (_drawThis) _drawFibLayers(c, fib, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "elliott") {
           const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
-          if (_drawThis) _drawElliottLayers(c, ea, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
+          if (_drawThis) _drawElliottLayers(c, ea, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.elliott + "(전문)", _key: n.blockType });
         } else if (n.blockType === "rsi") {
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
-          if (_drawThis) _drawRsiLayers(c, rsi, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
+          if (_drawThis) _drawRsiLayers(c, rsi, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.rsi + "(전문)", _key: n.blockType });
         } else if (n.blockType === "volume") {
           const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
           const va = ForgeCore.analyzeVolume(price, vser);
-          if (_drawThis) _drawVolumeLayers(c, va, { fiToX: fi => toXh(Math.max(0, Math.min(Hn - 1, fi - off))), pToY: v => toY(v), nowFi: P - 1, fiMin: off, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1], badgeY: _slotY() });
+          if (_drawThis) _drawVolumeLayers(c, va, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1], badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.volume + "(전문)", _key: n.blockType });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
