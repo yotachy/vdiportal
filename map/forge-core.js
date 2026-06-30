@@ -252,7 +252,7 @@
         const sens = (n.params && n.params.swing != null) ? n.params.swing / 100 : 0.03;
         const ea = elliottAnalyze(src, sens);
         values[id] = ea.values;
-        meta[id] = { waves: ea.waves, current: ea.current };
+        meta[id] = { waves: ea.waves, current: ea.current, primary: ea.primary };
       } else if (n.blockType === "volume") {
         values[id] = (Array.isArray(n.series) && n.series.length) ? n.series.slice() : [];   // 거래량 시계열 통과
       } else {
@@ -622,7 +622,7 @@
     const n = arr.length;
     const sw = detectSwings(arr, sens);
     const values = new Array(n).fill(0);
-    if (sw.length < 2) return { values, waves: [], current: { label: "-", dir: 0 } };
+    if (sw.length < 2) return { values, waves: [], current: { label: "-", dir: 0 }, primary: null };
     const labels = ["1", "2", "3", "4", "5", "A", "B", "C"];
     const legs = [];
     for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
@@ -630,10 +630,19 @@
     recent.forEach((lg, i) => { lg.label = labels[i] || ""; });
     recent.forEach(lg => { const val = lg.up ? 0.7 : -0.7; for (let t = lg.from.idx; t <= lg.to.idx && t < n; t++) values[t] = val; });
     const last = recent[recent.length - 1];
+    let primary = null;
+    const ps = primarySwings(arr, sens);
+    if (ps && ps.swings.length >= 2) {
+      const pl = [];
+      for (let i = 1; i < ps.swings.length; i++) pl.push({ from: ps.swings[i - 1], to: ps.swings[i], up: ps.swings[i].price >= ps.swings[i - 1].price });
+      const pd = elliottDegree(pl);
+      primary = { current: pd.current, structure: pd.structure };
+    }
     return {
       values,
       waves: recent.map(lg => ({ idx: lg.to.idx, price: lg.to.price, label: lg.label })),
-      current: { label: last.label || "-", dir: last.up ? 1 : -1 }
+      current: { label: last.label || "-", dir: last.up ? 1 : -1 },
+      primary: primary
     };
   }
 

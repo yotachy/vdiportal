@@ -978,3 +978,30 @@ test("analyzeElliott: 짧은 시계열 -> primary null, bias=minor (회귀 0)", 
   // 같은 입력의 소형 bias와 동일해야 함(회귀 0)
   assert.ok(ea.structure === "impulse_up" && ea.bias > 0, "소형 분석은 종전대로");
 });
+
+test("elliottAnalyze: 긴 시계열 -> meta.primary 노출, values 불변", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100,
+    ...seg(100, 200, 40), ...seg(200, 150, 30), ...seg(150, 320, 50),
+    ...seg(320, 250, 30), ...seg(250, 400, 45), ...seg(400, 300, 30),
+    ...seg(300, 360, 25), ...seg(360, 260, 30)];
+  // values 스냅샷(변경 금지 검증용): evalBlocks 경유로 elliott 노드 값 취득
+  const g = { nodes: [
+    { id: "p", kind: "block", blockType: "price" },
+    { id: "e", kind: "block", blockType: "elliott", params: { swing: 3 } }
+  ], edges: [{ from: "p", to: "e" }] };
+  const before = ForgeCore.evalBlocks(g, { price: price, n: price.length });
+  assert.ok(before.meta.e.primary && before.meta.e.primary.current, "elliott 노드 meta.primary.current 존재");
+  assert.ok(Array.isArray(before.values.e) && before.values.e.length === price.length, "values 길이 불변");
+});
+
+test("elliottAnalyze: 짧은 시계열 -> meta.primary null", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10)];
+  const g = { nodes: [
+    { id: "p", kind: "block", blockType: "price" },
+    { id: "e", kind: "block", blockType: "elliott", params: { swing: 4 } }
+  ], edges: [{ from: "p", to: "e" }] };
+  const r = ForgeCore.evalBlocks(g, { price: price, n: price.length });
+  assert.strictEqual(r.meta.e.primary, null, "짧으면 primary null");
+});
