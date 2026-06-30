@@ -252,7 +252,7 @@
         const sens = (n.params && n.params.swing != null) ? n.params.swing / 100 : 0.03;
         const ea = elliottAnalyze(src, sens);
         values[id] = ea.values;
-        meta[id] = { waves: ea.waves, current: ea.current };
+        meta[id] = { waves: ea.waves, current: ea.current, primary: ea.primary };
       } else if (n.blockType === "volume") {
         values[id] = (Array.isArray(n.series) && n.series.length) ? n.series.slice() : [];   // 거래량 시계열 통과
       } else {
@@ -622,7 +622,7 @@
     const n = arr.length;
     const sw = detectSwings(arr, sens);
     const values = new Array(n).fill(0);
-    if (sw.length < 2) return { values, waves: [], current: { label: "-", dir: 0 } };
+    if (sw.length < 2) return { values, waves: [], current: { label: "-", dir: 0 }, primary: null };
     const labels = ["1", "2", "3", "4", "5", "A", "B", "C"];
     const legs = [];
     for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
@@ -630,24 +630,43 @@
     recent.forEach((lg, i) => { lg.label = labels[i] || ""; });
     recent.forEach(lg => { const val = lg.up ? 0.7 : -0.7; for (let t = lg.from.idx; t <= lg.to.idx && t < n; t++) values[t] = val; });
     const last = recent[recent.length - 1];
+    let primary = null;
+    const ps = primarySwings(arr, sens);
+    if (ps && ps.swings.length >= 2) {
+      const pl = [];
+      for (let i = 1; i < ps.swings.length; i++) pl.push({ from: ps.swings[i - 1], to: ps.swings[i], up: ps.swings[i].price >= ps.swings[i - 1].price });
+      const pd = elliottDegree(pl);
+      primary = { current: pd.current, structure: pd.structure };
+    }
     return {
       values,
       waves: recent.map(lg => ({ idx: lg.to.idx, price: lg.to.price, label: lg.label })),
-      current: { label: last.label || "-", dir: last.up ? 1 : -1 }
+      current: { label: last.label || "-", dir: last.up ? 1 : -1 },
+      primary: primary
     };
   }
 
-  function analyzeElliott(price, opts) {
-    opts = opts || {};
-    const swing = opts.swing != null ? opts.swing : 0.03;
-    const P = price.length;
-    const EMPTY = { waves: [], rules: { r1: false, r2: false, r3: false, score: 0 }, structure: "uncertain", current: { label: "-", dir: 0 }, next: null, bias: 0 };
-    if (P < 2) return EMPTY;
+  // 차트 전체를 덮는 대형 degree용 스윙 추출: 큰 다리 6~9개를 목표로 민감도 적응 선택(결정적)
+  function primarySwings(price, minorSens) {
+    const P = Array.isArray(price) ? price.length : 0;
+    if (P < 40) return null;                      // 너무 짧으면 대형 의미 없음
+    const LADDER = [0.30, 0.22, 0.16, 0.12, 0.09];
+    let pick = null, bestDist = Infinity;
+    for (const s of LADDER) {
+      if (s <= minorSens) continue;               // 소형보다 굵어야 의미
+      const sw = detectSwings(price, s);
+      const legs = sw.length - 1;
+      const dist = (legs >= 6 && legs <= 9) ? 0 : (legs < 6 ? 6 - legs : legs - 9);
+      if (dist < bestDist) { bestDist = dist; pick = { swings: sw, sens: s, legs: legs }; }
+      if (dist === 0) break;                       // 6~9 구간의 첫(가장 굵은) 민감도 채택
+    }
+    if (!pick || pick.legs < 5 || pick.swings.length < 2) return null;  // 5파도 못 그리면 생략
+    return { swings: pick.swings, sens: pick.sens };
+  }
+
+  // 한 degree의 파동 카운트/규칙/구조/투영/bias 계산 (legs = 인접 스윙 다리 배열)
+  function elliottDegree(legs) {
     const LAB = ["1", "2", "3", "4", "5", "A", "B", "C"];
-    const sw = detectSwings(price, swing);
-    if (sw.length < 2) return EMPTY;
-    const legs = [];
-    for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
     const recent = legs.slice(-8);
     const waves = recent.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
     const last = recent[recent.length - 1];
@@ -679,19 +698,45 @@
     return { waves, rules: { r1, r2, r3, score }, structure, current, next, bias };
   }
 
+  function analyzeElliott(price, opts) {
+    opts = opts || {};
+    const swing = opts.swing != null ? opts.swing : 0.03;
+    const P = price.length;
+    const EMPTY = { waves: [], rules: { r1: false, r2: false, r3: false, score: 0 }, structure: "uncertain", current: { label: "-", dir: 0 }, next: null, bias: 0 };
+    if (P < 2) return EMPTY;
+    const sw = detectSwings(price, swing);
+    if (sw.length < 2) return EMPTY;
+    const legs = [];
+    for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
+    const minor = elliottDegree(legs);
+    let primary = null, bias = minor.bias;
+    if (!opts._minorOnly) {
+      const ps = primarySwings(price, swing);
+      if (ps && ps.swings.length >= 2) {
+        const pl = [];
+        for (let i = 1; i < ps.swings.length; i++) pl.push({ from: ps.swings[i - 1], to: ps.swings[i], up: ps.swings[i].price >= ps.swings[i - 1].price });
+        primary = elliottDegree(pl);
+        bias = Math.max(-1, Math.min(1, minor.bias * 0.35 + primary.bias * 0.65));
+      }
+    }
+    return { waves: minor.waves, rules: minor.rules, structure: minor.structure, current: minor.current, next: minor.next, primary: primary, bias: bias };
+  }
+
   function elliottSteps(ea) {
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
-    const st = ea.structure === "impulse_up" ? "상승 임펄스" : ea.structure === "impulse_down" ? "하락 임펄스" : ea.structure === "corrective" ? "ABC 조정" : "불확실";
+    const stKo = s => s === "impulse_up" ? "상승 임펄스" : s === "impulse_down" ? "하락 임펄스" : s === "corrective" ? "ABC 조정" : "불확실";
     const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
     const nx = ea.next ? "다음 " + ea.next.label + "파 목표 " + fmt(ea.next.target) : "투영 없음";
     const bTxt = ea.bias > 0.1 ? "상승" : ea.bias < -0.1 ? "하락" : "중립";
-    return [
+    const lines = [
       ea.waves.length ? "파동 카운트 " + ea.waves.length + "개 (현재 " + ea.current.label + ")" : "스윙 부족",
       "규칙 " + ok + "/3 · 유효 " + ea.rules.score.toFixed(2),
-      st + " 분류",
+      stKo(ea.structure) + " 분류",
       nx,
       "종합 방향 " + bTxt + " (bias " + ea.bias.toFixed(2) + ")"
     ];
+    if (ea.primary) lines.push("대형 " + stKo(ea.primary.structure) + " · 현재 " + ea.primary.current.label + "파(" + (ea.primary.current.dir > 0 ? "↑" : ea.primary.current.dir < 0 ? "↓" : "–") + ")");
+    return lines;
   }
 
   function aggregateConviction(graph) {
@@ -900,5 +945,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps };
 });
