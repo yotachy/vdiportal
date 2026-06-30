@@ -42,7 +42,7 @@ if ($method === "GET") {
     $sym = isset($_GET["symbol"]) ? trim($_GET["symbol"]) : "";
     $tf  = isset($_GET["tf"]) ? $_GET["tf"] : "1day";
     if (!in_array($tf, ["1day","1week","1month"], true)) $tf = "1day";
-    if (!preg_match('/^[A-Za-z0-9.\-^=]{1,16}$/', $sym)) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"badsymbol"]); exit; }
+    if (!preg_match('/^[A-Za-z0-9.\-^=\/]{1,16}$/', $sym)) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"badsymbol"]); exit; }
 
     // 캐시 (일봉 1h / 주·월 6h)
     $ttl = ($tf === "1day") ? 3600 : 21600;
@@ -66,7 +66,9 @@ if ($method === "GET") {
     // 1) Twelve Data (서버 전용 키)
     $TD_KEY = is_file(__DIR__ . "/forge_td_key.txt") ? trim(file_get_contents(__DIR__ . "/forge_td_key.txt")) : "";
     if ($TD_KEY !== "") {
-      $u = "https://api.twelvedata.com/time_series?symbol=" . urlencode($sym) . "&interval=" . urlencode($tf) . "&outputsize=400&format=JSON&apikey=" . urlencode($TD_KEY);
+      // 암호화폐 페어(BTC-USD)는 Twelve Data가 슬래시(BTC/USD)를 요구 — fiat 접미사일 때만 변환(주식 BRK-B 보호)
+      $tdSym = preg_match('/^[A-Za-z]{2,6}-(USD|USDT|EUR|KRW|JPY|GBP|BTC|ETH)$/i', $sym) ? str_replace("-", "/", $sym) : $sym;
+      $u = "https://api.twelvedata.com/time_series?symbol=" . urlencode($tdSym) . "&interval=" . urlencode($tf) . "&outputsize=400&format=JSON&apikey=" . urlencode($TD_KEY);
       $raw = $fetch($u, true);
       if ($raw !== null) {
         $j = json_decode($raw, true);
@@ -85,9 +87,9 @@ if ($method === "GET") {
 
     // 2) Stooq 폴백 (무키 CSV) — 미국주식/지수/포렉스 일봉
     if ($candles === null) {
-      $ss = strtolower($sym);
-      if (strpos($ss, ".") === false && strpos($ss, "^") === false && strpos($ss, "=") === false) $ss .= ".us";  // 평이 심볼=미국주식 가정
-      $ss = str_replace("-usd", "usd", $ss);   // BTC-USD → btcusd
+      $isCrypto = (bool) preg_match('/^[A-Za-z]{2,6}[-\/](USD|USDT|EUR|KRW|JPY|GBP|BTC|ETH)$/i', $sym);
+      $ss = strtolower(str_replace(["-", "/"], "", $sym));   // BTC-USD · BTC/USD → btcusd
+      if (!$isCrypto && strpos($ss, ".") === false && strpos($ss, "^") === false && strpos($ss, "=") === false) $ss .= ".us";  // 평이 주식만 .us
       $raw = $fetch("https://stooq.com/q/d/l/?s=" . urlencode($ss) . "&i=d", false);
       if ($raw !== null) {
         $lines = preg_split('/\r?\n/', trim($raw));
