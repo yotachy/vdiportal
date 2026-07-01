@@ -580,7 +580,6 @@
               <canvas id="fcFuture" class="fc-cv"></canvas>
               <canvas id="fcMainChart" class="fc-cv"></canvas>
               <canvas id="fcEvidence" class="fc-evidence"></canvas>
-              <button id="fcZoomReset" class="fc-zoom-reset" title="줌 초기화">&#x2295;</button>
               <div class="fc-axis-btns" id="fcAxisBtns">
                 <button id="autoBtn" class="fc-axis-btn" title="자동 배열 — 시간창·가격축을 전체가 잘 보이게 맞춤">A</button>
                 <button id="logBtn" class="fc-axis-btn" title="로그/선형 스케일">L</button>
@@ -721,7 +720,7 @@
     _heroZoom.tx = Math.max(minTx, Math.min(maxTx, _heroZoom.tx));
     _heroZoom.ty = Math.max(minTy, Math.min(maxTy, _heroZoom.ty));
   }
-  function _syncZoomBtn() { const b = document.getElementById("fcZoomReset"); if (b) { const ps = priceSeries(); b.classList.toggle("on", !!(ps && (_chartWin.start > 0 || _chartWin.count < ps.length))); } }
+  function _syncZoomBtn() { /* 오버레이 ⊕ 제거됨 — A 버튼이 전체 자동배열 담당 */ }
   function renderHeroZoom() {
     const pred = _fcLastResult && _fcLastResult.prediction;
     const px = (_fcLastData && _fcLastData.price) || (currentData && currentData().price) || [];
@@ -2652,6 +2651,7 @@
   let _evidenceShow = true;
   let _focusInd = null;          // 포커스 지표 blockType | null(전체)
   let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
+  let _evLabelBoxes = [];        // 라벨 겹침 회피용 박스 레지스트리(_drawEvidence마다 리셋)
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량" };
   function evIndicatorNodes() {
@@ -2708,6 +2708,10 @@
     bx = Math.max(M, Math.min(bx, (_evW || 1e4) - w - 2 * pad - M));
     let by = y - h;                                          // 박스 좌상 y(텍스트 baseline 위)
     by = Math.max(M, Math.min(by, (_evH || 1e4) - h - M));
+    const bw = w + 2 * pad, bh = h + 2;
+    // 겹침 회피: 이미 그린 라벨과 교차하면 생략(그리기 순서=중요도 → 핵심 라벨 우선, 뭉침 방지)
+    for (const r of _evLabelBoxes) { if (bx < r.x + r.w && bx + bw > r.x && by < r.y + r.h && by + bh > r.y) return; }
+    _evLabelBoxes.push({ x: bx, y: by, w: bw, h: bh });
     c.fillStyle = "rgba(11,15,20,.66)";
     if (c.roundRect) { c.beginPath(); c.roundRect(bx, by, w + 2 * pad, h + 2, 3); c.fill(); }
     else c.fillRect(bx, by, w + 2 * pad, h + 2);
@@ -2718,16 +2722,20 @@
     _legendHits = [];
     const rows = [{ col: "#8a92b2", t: "전체", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key })));
     c.font = "10px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
-    let y = topY + 22;
+    // 통합 반투명 패널(캔들 위 겹침에도 가독) — 개별 칩 배경 대신 한 판으로 정리
+    let maxW = 0; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
+    const px = x0, py = topY + 8, panelW = 20 + maxW + 8, panelH = rows.length * 14 + 8;
+    c.fillStyle = "rgba(11,15,20,.74)";
+    if (c.roundRect) { c.beginPath(); c.roundRect(px, py, panelW, panelH, 6); c.fill(); } else c.fillRect(px, py, panelW, panelH);
+    let y = py + 12;
     for (const it of rows) {
-      const tw = c.measureText(it.t).width, bx = x0 + 14, bw = tw + 6, bh = 12;
       const active = (it.key === _focusInd) || (it.key === null && _focusInd === null);
-      c.globalAlpha = (_focusInd && !active) ? 0.45 : 1;
-      c.fillStyle = it.col; c.fillRect(x0 + 2, y, 9, 9);
-      c.fillStyle = active ? "rgba(232,180,99,.30)" : "rgba(11,15,20,.55)"; c.fillRect(bx, y - 1, bw, bh);
-      c.fillStyle = "rgba(224,229,239,.95)"; c.fillText(it.t, x0 + 16, y + 8);
+      c.globalAlpha = (_focusInd && !active) ? 0.4 : 1;
+      c.fillStyle = it.col; c.fillRect(px + 7, y, 9, 9);
+      if (active) { c.fillStyle = "rgba(232,180,99,.22)"; c.fillRect(px + 19, y - 1, c.measureText(it.t).width + 6, 12); }
+      c.fillStyle = "rgba(224,229,239,.95)"; c.fillText(it.t, px + 21, y + 8);
       c.globalAlpha = 1;
-      _legendHits.push({ x: x0, y: y - 1, w: 16 + bw, h: bh + 2, key: it.key });
+      _legendHits.push({ x: px, y: y - 2, w: panelW, h: 13, key: it.key });
       y += 14;
     }
   }
@@ -3029,6 +3037,7 @@
     if (cv.width !== ww || cv.height !== hh) { cv.width = ww; cv.height = hh; }
     cv.style.width = W + "px"; cv.style.height = H + "px";
     const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+    _evLabelBoxes = [];   // 라벨 겹침 회피 레지스트리 초기화
     if (!_evidenceShow || !_evidenceSet.size || !lastResult) return;
     // 예측을 계산한 바로 그 시계열을 사용(차트/콘과 동일) — 작도·예측 정합 보장
     const price = ((_fcLastData && _fcLastData.price) || currentData().price) || []; const P = price.length; if (P < 2) return;
@@ -3320,9 +3329,9 @@
       const thetaTxt = fmeta && Number.isFinite(fmeta.theta) ? fmeta.theta.toFixed(3) : "—";
       const cyc = fmeta && fmeta.kbest ? " · " + fmeta.kbest + "주기/창" : "";
       const meth = fmeta && fmeta.method ? " · " + fmeta.method + (Number.isFinite(fmeta.strength) ? "(피크 " + fmeta.strength.toFixed(1) + "x)" : "") : "";
-      fcMetaEl.textContent = fmeta
-        ? "지배주기 P*≈" + bestP.toFixed(1) + cyc + " · θ=" + thetaTxt + meth
-        : "위상폴딩 블록 없음";
+      // 헤더엔 핵심만(주기 ≈N봉), 상세(주기/창·θ·방법)는 툴팁으로 — 헤더 밀집/잘림 방지
+      fcMetaEl.textContent = fmeta ? ("주기 ≈" + Math.round(bestP) + "봉") : "";
+      fcMetaEl.title = fmeta ? ("지배주기 P*≈" + bestP.toFixed(1) + cyc + " · θ=" + thetaTxt + meth) : "위상폴딩 블록 없음";
     }
 
     /* draw all panels — overlay=원본 이미지+예측 오버레이, chart=연속 선차트, image=분석 대기 */
@@ -3978,7 +3987,6 @@
       }
     });
   })();
-  (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetChartWin(); resetYScale(); renderHeroZoom(); }); })();
   (function() {
     const a = document.getElementById("autoBtn"); if (a) a.addEventListener("click", () => { resetChartWin(); resetYScale(); _chartNav = false; updateAxisBtns(); renderHeroZoom(); });   // A=자동 배열(전체 맞춤): 시간창+가격축 리셋, 예측 콘 포함
     const l = document.getElementById("logBtn"); if (l) l.addEventListener("click", () => { toggleLogChart(); });
@@ -4097,8 +4105,8 @@
     el.innerHTML =
       `국면 <b style="color:${col}">${label}</b>` +
       (_up != null ? ` · ↑<b style="color:${_up >= 50 ? "#46c28e" : "#e06a6a"}">${_up}%</b>` : "") +
-      ` · 시그널 <b style="color:${col}">${score}</b>` +
-      ` · 목표 ${fmt(verdict.target)}`;
+      ` · 시그널 <b style="color:${col}">${score}</b>`;   // 목표는 예측표·차트 콘 라벨에 이미 있음(헤더 잘림 방지)
+    el.title = "국면 " + label + " · 상승확률 " + (_up != null ? _up + "%" : "—") + " · 시그널 " + score + " · 목표 " + fmt(verdict.target);
   }
 
   /* ── exportStrategy: download strategy as JSON blob ──────────── */
