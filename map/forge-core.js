@@ -705,9 +705,9 @@
     const impulseValid = imp.length >= 5 && r1 && r2 && r3 && allDirOk;
     let structure;
     if (impulseValid) structure = dirUp ? "impulse_up" : "impulse_down";
-    else if (recent.length === 3 || recent.length >= 5) structure = "corrective";   // 3파=ABC 조정, 5파+규칙위반=삼각/복합 조정
-    else structure = "uncertain";                                                    // 1·2·4파=발달중(임펄스 카운트)
-    // 라벨: 조정=A,B,C,D,E…(letter), 임펄스/발달중=1,2,3,4,5,A,B,C(number-first)
+    else if (recent.length >= 5) structure = "corrective";   // 5파 완성인데 규칙 위반 → 삼각/복합 조정(A-E). 임펄스 아님
+    else structure = "uncertain";                            // 1~4파 진행 중 → 발달중 임펄스 카운트(숫자로 표기)
+    // 라벨: 조정=A,B,C,D,E…(letter). 임펄스·발달중=1,2,3,4,5,A,B,C(숫자 우선, 5파 뒤 조정 A-C)
     const LAB = (structure === "corrective") ? ["A", "B", "C", "D", "E", "F", "G", "H"] : ["1", "2", "3", "4", "5", "A", "B", "C"];
     const waves = recent.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
     const current = { label: (waves[waves.length - 1] && waves[waves.length - 1].label) || "-", dir: last.up ? 1 : -1 };
@@ -754,18 +754,18 @@
 
   function elliottSteps(ea) {
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
-    const stKo = s => s === "impulse_up" ? "상승 임펄스" : s === "impulse_down" ? "하락 임펄스" : s === "corrective" ? "ABC 조정" : "불확실";
+    const stKo = (s, wc) => s === "impulse_up" ? "상승 임펄스" : s === "impulse_down" ? "하락 임펄스" : s === "corrective" ? ((wc || 0) >= 5 ? "삼각/복합 조정" : "ABC 조정") : ((wc || 0) >= 2 ? "발달중 임펄스" : "불확실");
     const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
     const nx = ea.next ? "다음 " + ea.next.label + "파 목표 " + fmt(ea.next.target) : "투영 없음";
     const bTxt = ea.bias > 0.1 ? "상승" : ea.bias < -0.1 ? "하락" : "중립";
     const lines = [
       ea.waves.length ? "파동 카운트 " + ea.waves.length + "개 (현재 " + ea.current.label + ")" : "스윙 부족",
       "규칙 " + ok + "/3 · 유효 " + ea.rules.score.toFixed(2),
-      stKo(ea.structure) + " 분류",
+      stKo(ea.structure, ea.waves.length) + " 분류",
       nx,
       "종합 방향 " + bTxt + " (bias " + ea.bias.toFixed(2) + ")"
     ];
-    if (ea.primary) lines.push("대형 " + stKo(ea.primary.structure) + " · 현재 " + ea.primary.current.label + "파(" + (ea.primary.current.dir > 0 ? "↑" : ea.primary.current.dir < 0 ? "↓" : "–") + ")");
+    if (ea.primary) lines.push("대형 " + stKo(ea.primary.structure, ea.primary.waves ? ea.primary.waves.length : 0) + " · 현재 " + ea.primary.current.label + "파(" + (ea.primary.current.dir > 0 ? "↑" : ea.primary.current.dir < 0 ? "↓" : "–") + ")");
     return lines;
   }
 

@@ -723,12 +723,21 @@ test("analyzeElliott: 5파 하락 임펄스 → impulse_down, bias<0", () => {
   assert.ok(ea.bias < 0);
 });
 
-test("analyzeElliott: 3레그(ABC형) → corrective", () => {
+test("analyzeElliott: 3레그(미완성 5파) → 발달중(uncertain) + 숫자 라벨(1..)", () => {
   const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
   const price = [100, ...seg(100, 88, 8), ...seg(88, 96, 6), ...seg(96, 84, 8)];
   const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
-  assert.strictEqual(ea.structure, "corrective");
-  assert.notStrictEqual(ea.bias, 0);
+  assert.strictEqual(ea.structure, "uncertain");                 // 5파 미완성 → 조정 단정 안 함
+  assert.ok(/^[1-9]$/.test(ea.waves[0].label), "발달중은 숫자 라벨(1..)");
+});
+
+test("analyzeElliott: 4레그 발달중 → 숫자 라벨 + 5파 투영", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
+  assert.strictEqual(ea.structure, "uncertain");
+  assert.strictEqual(ea.waves[0].label, "1");
+  assert.ok(ea.next && ea.next.label === "5", "4파 발달중 → 다음 5파 투영");
 });
 
 test("analyzeElliott: 소량/피벗부족 → 폴백(uncertain, bias 0, next null)", () => {
