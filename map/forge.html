@@ -30,6 +30,11 @@
   .forge-gutter:hover::after,.forge-gutter.dragging::after{background:var(--gold)}
   .run-btn{background:var(--gold);color:#1a1206;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer}
   .run-btn.needs-run{animation:engPulse 1.3s ease-in-out infinite}
+  /* 분석 버전/신선도 칩 — "언제 분석된 결과인지" 인지용 */
+  .eng-stat{font-size:11px;font-weight:600;letter-spacing:-.01em;padding:3px 8px;border-radius:6px;white-space:nowrap;font-family:ui-monospace,monospace}
+  .eng-stat:empty{display:none}
+  .eng-stat.ok{color:var(--eth);background:rgba(138,146,178,.12)}
+  .eng-stat.stale{color:#e8b463;background:rgba(232,180,99,.14);border:1px solid var(--gold-dim)}
   @keyframes engPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,180,99,.55)}50%{box-shadow:0 0 0 5px rgba(232,180,99,0)}}
 
   /* ════════════════════════════════════════════════════
@@ -512,6 +517,7 @@
       <span id="reqStat" class="req-stat" onclick="cancelReq()"></span>
       <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="웹분석 — 이미지를 비전으로 판독해 시계열 데이터 생성(워커 · 필요할 때만)">☁ 웹분석</button>
       <span class="h-sep"></span>
+      <span id="engStat" class="eng-stat" title="현재 표시된 결과가 언제 분석된 것인지"></span>
       <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="엔진분석 — 노드 그래프로 시계열을 계산해 포지결과(예측·시그널) 산출. 변경 시 이 버튼을 눌러 갱신">▷ 엔진분석</button>
       <button class="tool-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 엔진분석이 어떻게 도출됐는지 노드별 과정을 애니메이션으로 보기">▶ 시연</button>
     </div>
@@ -4196,11 +4202,29 @@
   }
   /* ── 엔진분석: 수동 실행(버튼) ─────────────────────────────────
      포지결과는 '엔진분석' 버튼을 눌러야 계산된다. 노드/가중치/웹분석 변경은 '변경됨'으로 표시만. */
-  let _engineDirty = false;
+  let _engineDirty = false, _lastAnalyzedAt = null;
+  function _fmtAgo(ts) {
+    const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    if (s < 60) return "방금";
+    const m = Math.round(s / 60); if (m < 60) return m + "분 전";
+    const h = Math.round(m / 60); return h + "시간 전";
+  }
   function updateEngineBtn() {
-    const b = document.getElementById("analyzeBtn"); if (!b) return;
-    b.classList.toggle("needs-run", _engineDirty);
-    b.textContent = _engineDirty ? "▷ 엔진분석 ●" : "▷ 엔진분석";
+    const b = document.getElementById("analyzeBtn");
+    if (b) b.classList.toggle("needs-run", _engineDirty);
+    const st = document.getElementById("engStat"); if (!st) return;
+    if (_engineDirty) {
+      st.className = "eng-stat stale";
+      st.textContent = "● 변경됨 · 재분석 필요";
+      st.title = "노드/설정이 바뀌었습니다 — ▷ 엔진분석을 눌러 결과를 갱신하세요";
+    } else if (_lastAnalyzedAt) {
+      const d = new Date(_lastAnalyzedAt), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
+      st.className = "eng-stat ok";
+      st.textContent = "✓ 분석 " + hh + ":" + mm;
+      st.title = "현재 결과는 " + hh + ":" + mm + " 분석본입니다 (" + _fmtAgo(_lastAnalyzedAt) + ")";
+    } else {
+      st.className = "eng-stat"; st.textContent = "";
+    }
   }
   function markEngineDirty() { _engineDirty = true; updateEngineBtn(); }
   function runEngine() { if (_playing) stopPlay(); runForge(); _engineDirty = false; updateEngineBtn(); bToast("엔진분석 완료 · 포지결과 갱신"); }
@@ -4432,10 +4456,12 @@
       const g = boardToGraph();
       const d = currentData();
       lastResult = ForgeCore.run(g, d, { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF() });
+      _lastAnalyzedAt = Date.now();          // 이 결과의 분석 시각(자동·수동 모든 실행 공통)
       renderChart(lastResult, d);
       paintScanBadges();
       if (window.renderOverlay) renderOverlay(lastResult, g);
       if (lastResult && lastResult.verdict) renderVerdict(lastResult.verdict);
+      updateEngineBtn();                      // "✓ 분석 HH:MM" 칩 갱신
     } catch (e) {
       console.warn("run", e);
       if (typeof bToast === "function") bToast(/cycle/.test(String(e && e.message)) ? "그래프 오류: 순환 연결" : "그래프 오류: 계산 실패");
