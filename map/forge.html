@@ -1214,12 +1214,7 @@
   }
 
   function nodeHTML(n) {
-    const ports = [
-      `<div class="b-port b-port-top" data-act="port" data-side="top"></div>`,
-      `<div class="b-port b-port-right" data-act="port" data-side="right"></div>`,
-      `<div class="b-port b-port-bottom" data-act="port" data-side="bottom"></div>`,
-      `<div class="b-port b-port-left" data-act="port" data-side="left"></div>`
-    ].join("");
+    const ports = "";   // 연결선 UI 제거 — 포트 없음
     const inDot = `<div class="b-n-in"></div>`;
     const isBlock = n.kind === "block";
     /* tier: 티커(입력) · 원본(price) → 중간(지표/결합) → 포지(predict) */
@@ -1315,20 +1310,14 @@
   }
 
   /* ── paintEdges ──────────────────────────────────────────────── */
+  /* 연결선 UI 제거: 엣지 레이어를 비우기만 한다(다른 곳의 기존 호출과 안전 공존). */
   function paintEdges() {
     if (!bWorld) return;
     const edgeG = document.getElementById("bEdgeG");
-    if (!edgeG) return;
-    edgeG.innerHTML = boardState.edges.map(e => {
-      const g = edgeGeo(e);
-      if (!g) return "";
-      const sw = EWIDTHS[e.width || 2];
-      const sel_ = selEdge === e.id ? " sel" : "";
-      return `<path class="b-ew${sel_}" style="stroke-width:${sw}" marker-start="url(#b-dot)" marker-end="url(#b-arw)" d="${g.d}"/>
-<path class="b-eh" data-edge="${e.id}" d="${g.d}"/>`;
-    }).join("");
-    drawEhud();
-    drawNhud();
+    if (edgeG) edgeG.innerHTML = "";
+    const ehud = document.getElementById("bEhud");
+    if (ehud) ehud.innerHTML = "";
+    drawNhud();   // 노드 HUD(삭제 버튼)는 연결선 UI가 아니므로 유지 — 브리프 대비 의도적 보존(report 참고)
   }
 
   /* ── applyView ───────────────────────────────────────────────── */
@@ -1648,8 +1637,6 @@
   /* ── Pointer handlers ────────────────────────────────────────── */
   function nodePointerDown(id, e) {
     const t = e.target;
-    const port = t.closest("[data-act=\"port\"]");
-    if (port) return startLink(id, port.dataset.side || "right", e);
     if (t.closest("[data-act]")) return;
     const ed = t.closest(".b-n-title");
     if (ed && document.activeElement === ed) return;
@@ -1877,10 +1864,6 @@
       if (e.target.closest(".b-n-ctrl")) return;   // 카드 인라인 슬라이더는 드래그/팬 대상 아님
       if (e.button === 1 || (spaceDown && e.button === 0)) { startPan(e); return; }
       if (e.button !== 0) return;
-      const eh = e.target.closest(".b-ehandle");
-      if (eh) { startEndpoint(eh.dataset.end, e); return; }
-      const edge = e.target.closest("[data-edge]");
-      if (edge) { selectEdge(edge.dataset.edge); return; }
       const nodeEl = e.target.closest(".b-node");
       if (nodeEl) { nodePointerDown(nodeEl.dataset.id, e); return; }
       if (e.ctrlKey || e.metaKey) { startMarquee(e); return; }
