@@ -651,6 +651,7 @@
   let _heroZoomDragging = false;
   let _logChart = false;
   let _chartWin = { start: 0, count: 0 };   // count 0 = 미초기화(전체 시계열 길이로 기본화)
+  let _chartNav = false;   // 사용자가 시간축을 수동 조작(드래그/휠) 중 — true면 세로 오토스케일이 예측밴드 제외(캔들 상세 유지)
   let _yScale = { mode: "auto", lo: null, hi: null };
   function resetYScale() { _yScale = { mode: "auto", lo: null, hi: null }; }
   function resetChartWin() {
@@ -658,6 +659,7 @@
     const N = (s && s.length) || 0;
     _chartWin.count = Math.min(180, N);
     _chartWin.start = Math.max(0, N - _chartWin.count);
+    _chartNav = false;   // 맞춤/리셋/새데이터 → 예측 콘 전체가 보이도록 세로 오토스케일 복귀
   }
   function tvLog(x, on) { return on ? Math.log(Math.max(1e-9, x)) : x; }
   function resetHeroView() { _heroZoom = { s: 1, tx: 0, ty: 0 }; }
@@ -2518,7 +2520,11 @@
     let loV = Infinity, hiV = -Infinity;
     if (_ohW) { for (const d of _ohW) { if (d.l < loV) loV = d.l; if (d.h > hiV) hiV = d.h; } }
     else { for (const v of hist) { if (v < loV) loV = v; if (v > hiV) hiV = v; } }
-    if (atLatest) { for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); } loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor); }
+    if (atLatest) {
+      loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);   // '지금'(앵커)은 항상 세로축에 포함
+      // 수동 조작(드래그/휠) 중이 아닐 때만 예측 밴드 전체를 세로축에 포함 → 조작 중엔 캔들 상세 유지, 콘은 위/아래로 잘릴 수 있음
+      if (!_chartNav) { for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); } }
+    }
     if (!isFinite(loV) || !isFinite(hiV)) { loV = 0; hiV = 1; }
     const padV = (hiV - loV) * 0.08 || 1; loV -= padV; hiV += padV;
     if (_yScale.mode === "manual" && isFinite(_yScale.lo) && isFinite(_yScale.hi) && _yScale.hi > _yScale.lo) { loV = _yScale.lo; hiV = _yScale.hi; }
@@ -3837,7 +3843,7 @@
       nc = Math.max(20, Math.min(N, nc));
       let ns = Math.round(bi - rel * (nc - 1));
       ns = Math.max(0, Math.min(N - nc, ns));
-      _chartWin.count = nc; _chartWin.start = ns; renderHeroZoom();
+      _chartWin.count = nc; _chartWin.start = ns; _chartNav = true; renderHeroZoom();
     }, { passive: false });
     let hDrag = null;
     cv.addEventListener("pointerdown", e => {
@@ -3863,7 +3869,7 @@
         return;
       }
       const dx = e.clientX - hDrag.x;
-      if (Math.abs(dx) > 6) { hDrag.moved = true; _heroZoomDragging = true; }
+      if (Math.abs(dx) > 6) { hDrag.moved = true; _heroZoomDragging = true; _chartNav = true; }
       if (!hDrag.moved) return;
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
       const N = g.winN || 0, dBars = Math.round(-dx / (hDrag.barW || 1));
