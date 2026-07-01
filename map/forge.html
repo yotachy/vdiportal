@@ -846,18 +846,34 @@
   function fireBoardChange() { if (_boardChangeCb) _boardChangeCb(); }
 
   /* ── boardToGraph ────────────────────────────────────────────── */
+  /* 연결선 UI를 없앤 뒤에도 엔진 위상을 보존: 지표 → combine(있으면) → predict 를 계산 직전 합성. */
+  function synthEdges(nodes) {
+    const blocks = nodes.filter(n => n.kind === "block");
+    const predict = blocks.find(n => n.blockType === "predict");
+    const combine = blocks.find(n => n.blockType === "combine");
+    const hub = combine || predict;
+    const edges = [];
+    if (!hub) return edges;
+    // combine 입력에서 제외할 비지표(원본/티커/거래량/허브 자신)
+    const SKIP = new Set(["price", "ticker", "volume", "combine", "predict"]);
+    blocks.forEach(n => {
+      if (n === hub) return;
+      if (SKIP.has(n.blockType)) return;
+      edges.push({ from: n.id, to: hub.id });
+    });
+    if (combine && predict && combine !== predict) edges.push({ from: combine.id, to: predict.id });
+    return edges;
+  }
   function boardToGraph() {
-    return {
-      nodes: boardState.nodes.map(n => ({
-        id: n.id,
-        kind: n.kind || "free",
-        blockType: n.blockType || null,
-        params: n.params || {},
-        conviction: n.conviction || 0,
-        weight: (n.weight != null ? n.weight : 50)
-      })),
-      edges: boardState.edges.map(e => ({ from: e.from, to: e.to }))
-    };
+    const nodes = boardState.nodes.map(n => ({
+      id: n.id,
+      kind: n.kind || "free",
+      blockType: n.blockType || null,
+      params: n.params || {},
+      conviction: n.conviction || 0,
+      weight: (n.weight != null ? n.weight : 50)
+    }));
+    return { nodes, edges: synthEdges(boardState.nodes) };
   }
 
   /* ── worldPt ─────────────────────────────────────────────────── */
