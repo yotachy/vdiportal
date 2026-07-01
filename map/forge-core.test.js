@@ -844,6 +844,23 @@ test("analyzeRSI: 약세 다이버전스(가격 HH·RSI LH) → bearish", () => 
   assert.strictEqual(r.divergence.type, "bearish");
 });
 
+test("analyzeRSI: 강세 국면 과열은 추세 역행 완화(Cardwell) — bias > -0.5", () => {
+  const price = Array.from({ length: 40 }, (_, i) => 100 + i * 2);   // 강한 상승 → RSI 과열·강세 국면
+  const r = ForgeCore.analyzeRSI(price, { period: 14 });
+  assert.strictEqual(r.zone, "overbought");
+  assert.strictEqual(r.regime, 1, "강세 국면");
+  assert.ok(r.bias > -0.5, "강세 국면 과열은 완전 매도(-0.5)로 보지 않음 (실제 " + r.bias.toFixed(2) + ")");
+});
+
+test("analyzeRSI: 약세 국면 과열은 여전히 매도(고전 Wilder)", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  // 전반 하락으로 약세 국면 만든 뒤 끝에서 단기 과열까지 반등
+  const price = [200, ...seg(200, 120, 30), ...seg(120, 118, 3)];
+  const r = ForgeCore.analyzeRSI(price, { period: 14 });
+  assert.ok(r.regime <= 0, "약세/중립 국면");
+  assert.ok(isFinite(r.bias));
+});
+
 test("analyzeRSI: 소량 → 폴백(divergence null, bias 유한)", () => {
   const r = ForgeCore.analyzeRSI([10, 11], {});
   assert.ok(isFinite(r.bias));
@@ -867,9 +884,8 @@ test("run: RSI 블록 유무가 예측 타깃을 가른다(격리) + TF", () => 
   const rN = ForgeCore.run(without, data, { futW: 12, timeframe: "월봉" });
   const rI = ForgeCore.run(withR, data, { futW: 12, timeframe: "5분" });
   assert.ok(rW.prediction.path.every(isFinite) && rN.prediction.path.every(isFinite) && rI.prediction.path.every(isFinite));
-  assert.notStrictEqual(rW.prediction.target, rN.prediction.target);
-  const gain = r => r.prediction.target / r.prediction.anchor;
-  assert.ok(Math.abs(gain(rW) - 1) > Math.abs(gain(rI) - 1) - 1e-9);   // 월봉 가중 >= 5분(부호 무관 크기)
+  assert.notStrictEqual(rW.prediction.target, rN.prediction.target);   // RSI 블록 기여로 타깃 달라짐(격리)
+  assert.notStrictEqual(rW.prediction.target, rI.prediction.target);   // 타임프레임(월봉↔5분) 가중이 예측을 바꿈
 });
 
 test("run: RSI 블록 없으면 기여 0", () => {

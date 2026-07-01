@@ -338,10 +338,15 @@
     if (lows.length >= 2) { const a = lows[lows.length - 2], b = lows[lows.length - 1]; if (b.price < a.price && rsiAt(b.idx) > rsiAt(a.idx)) divergence = { type: "bullish", pricePts: [a, b] }; }
     if (!divergence.type && highs.length >= 2) { const a = highs[highs.length - 2], b = highs[highs.length - 1]; if (b.price > a.price && rsiAt(b.idx) < rsiAt(a.idx)) divergence = { type: "bearish", pricePts: [a, b] }; }
     const divDir = divergence.type === "bullish" ? 1 : divergence.type === "bearish" ? -1 : 0;
-    const zoneDir = zone === "oversold" ? 0.5 : zone === "overbought" ? -0.5 : 0;
+    // 국면(Cardwell RSI range rule): 최근 RSI 평균으로 강세/약세 국면 판정 → 추세장에선 과열/과매도를 추세 역행 신호로 쓰지 않음
+    const rWin = series.slice(Math.max(0, P - period * 2)), rAvg = rWin.reduce((a, b) => a + b, 0) / (rWin.length || 1);
+    const regime = rAvg >= 55 ? 1 : rAvg <= 45 ? -1 : 0;   // 강세 / 약세 / 중립 국면
+    // 과매도=반등(강세·중립 강함, 약세 약함) / 과열=조정(약세·중립 강함, 강세 경미 — 추세 지속 존중)
+    const zoneDir = zone === "oversold" ? (regime < 0 ? 0.2 : 0.5)
+      : zone === "overbought" ? (regime > 0 ? -0.15 : -0.5) : 0;
     const crossDir = cross50 === "cross_up" ? 0.3 : cross50 === "cross_down" ? -0.3 : 0;
     const bias = Math.max(-1, Math.min(1, 0.5 * divDir + zoneDir + 0.3 * crossDir));
-    return { series, last, zone, trend, cross50, divergence, bias };
+    return { series, last, zone, trend, cross50, regime, divergence, bias };
   }
 
   function rsiSteps(rsi) {
@@ -350,8 +355,9 @@
     const tTxt = rsi.trend > 0.1 ? "상승" : rsi.trend < -0.1 ? "하락" : "횡보";
     const dv = rsi.divergence.type === "bullish" ? "강세 다이버전스" : rsi.divergence.type === "bearish" ? "약세 다이버전스" : "다이버전스 없음";
     const bTxt = rsi.bias > 0.1 ? "상승" : rsi.bias < -0.1 ? "하락" : "중립";
+    const gTxt = rsi.regime > 0 ? " \xb7 강세 국면" : rsi.regime < 0 ? " \xb7 약세 국면" : "";
     return [
-      "RSI " + Math.round(rsi.last) + " \xb7 " + zTxt,
+      "RSI " + Math.round(rsi.last) + " \xb7 " + zTxt + gTxt,
       c50 + " \xb7 추세 " + tTxt,
       dv,
       "RSI 오실레이터 갱신",
