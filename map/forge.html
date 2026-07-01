@@ -1528,10 +1528,11 @@
     const r = bStage.getBoundingClientRect();
     const c = worldPt(r.left + r.width / 2, r.top + r.height / 2);
     const halfW = d.kind === "free" ? 70 : W_NODE / 2;
+    const off = (boardState.nodes.length % 8) * 24;   // 겹침 방지 계단식 오프셋
     const n = {
       id: uid("n"),
-      x: c.x - halfW,
-      y: c.y - 35,
+      x: c.x - halfW + off,
+      y: c.y - 35 + off,
       title: d.label || "노드",
       kind: d.kind || "free",
       blockType: d.kind === "block" ? type : null,
