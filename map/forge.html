@@ -3949,8 +3949,10 @@
       const r = cv.getBoundingClientRect(), cx = e.clientX - r.left;
       if (cx > g.plotRight) {   // 우측 y축 스트립 → 가격축 수동 스케일
         hDrag = { mode: "yscale", y: e.clientY, lo: g.loV, hi: g.hiV, moved: false };
-      } else {                  // 플롯 영역 → 시간 스크롤(기존)
-        hDrag = { mode: "time", x: e.clientX, start: _chartWin.start, moved: false, barW: (g.histW || 1) / Math.max(1, g.count) };
+      } else {                  // 플롯 영역 → 2D 패닝(가로=시간 · 세로=가격)
+        hDrag = { mode: "time", x: e.clientX, y: e.clientY, start: _chartWin.start, moved: false,
+                  barW: (g.histW || 1) / Math.max(1, g.count),
+                  loV: g.loV, hiV: g.hiV, plotH: Math.max(1, g.ch - g.padTop - g.padBot), log: g.log };
       }
       try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     });
@@ -3970,12 +3972,20 @@
         renderHeroZoom();
         return;
       }
-      const dx = e.clientX - hDrag.x;
-      if (Math.abs(dx) > 6) { hDrag.moved = true; _heroZoomDragging = true; _chartNav = true; }
+      const dx = e.clientX - hDrag.x, dy = e.clientY - hDrag.y;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) { hDrag.moved = true; _heroZoomDragging = true; _chartNav = true; }
       if (!hDrag.moved) return;
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
       const N = g.winN || 0, dBars = Math.round(-dx / (hDrag.barW || 1));
       _chartWin.start = Math.max(0, Math.min(N - _chartWin.count, hDrag.start + dBars));
+      /* 세로 패닝: 드래그 방향으로 가격축 평행이동(로그/선형 공용). 아래로 끌면 콘텐츠가 아래로. */
+      if (isFinite(hDrag.loV) && isFinite(hDrag.hiV) && hDrag.hiV > hDrag.loV) {
+        const _lg = x => hDrag.log ? Math.log(Math.max(1e-9, x)) : x;
+        const _inv = x => hDrag.log ? Math.exp(x) : x;
+        const sLo = _lg(hDrag.loV), sHi = _lg(hDrag.hiV);
+        const shift = (dy / hDrag.plotH) * (sHi - sLo);
+        _yScale = { mode: "manual", lo: _inv(sLo + shift), hi: _inv(sHi + shift) };
+      }
       renderHeroZoom();
     });
     const endDrag = () => { hDrag = null; _heroZoomDragging = false; };
@@ -3983,8 +3993,8 @@
     cv.addEventListener("dblclick", e => {
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo;
       const r = cv.getBoundingClientRect(), cx = e.clientX - r.left;
-      if (g && cx > g.plotRight) { resetYScale(); }   // y축 더블클릭 → 자동 스케일
-      else { resetChartWin(); }                        // 플롯 더블클릭 → 윈도 리셋
+      if (g && cx > g.plotRight) { resetYScale(); }             // y축 더블클릭 → 자동 스케일
+      else { resetChartWin(); resetYScale(); }                  // 플롯 더블클릭 → 윈도+세로 스케일 전체 리셋
       renderHeroZoom();
     });
     cv.addEventListener("click", e => {
