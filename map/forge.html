@@ -2570,7 +2570,7 @@
     let bandTop = toY(anchor), bandBot = toY(anchor);
     for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, toY(hi[k])); bandBot = Math.max(bandBot, toY(lo[k])); }
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간) */
-    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: (_visionTF ? _tfUnit(_visionTF) : "봉"), log: _logChart, start: wStart, count: wCount, winN: N, plotRight: padX + plotW };
+    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: tfUnit(), log: _logChart, start: wStart, count: wCount, winN: N, plotRight: padX + plotW };
     // grid
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
@@ -3035,7 +3035,7 @@
           if (_drawThis) _drawMALayers(c, ma, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
-          const _prof = ForgeCore.trendProfileForTF(_visionTF);
+          const _prof = ForgeCore.trendProfileForTF(activeTF());
           const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const futBars = (g.path && g.path.length) || 24;
           if (_drawThis) _drawTrendLayers(c, ta, {
@@ -3086,7 +3086,7 @@
           if (_drawThis) _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
-          const _prof = ForgeCore.trendProfileForTF(_visionTF);
+          const _prof = ForgeCore.trendProfileForTF(activeTF());
           const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const futBars = (g.path && g.path.length) || 24, xR = g.rightX || (g.ox + g.dw);
           if (_drawThis) _drawTrendLayers(c, ta, {
@@ -3126,7 +3126,7 @@
     } else {
       // 이미지/오버레이 모드: 예측은 이미지 위(#fcCone)에 그림 → 분리 콘(#fcFuture) 숨김(여백 제거·이미지 전폭)
       if (img) img.style.display = ""; if (fut) fut.style.display = "none"; if (main) main.style.display = "none";
-      if (t) t.innerHTML = "<b>가격 차트</b> · " + (_visionTF ? esc(_visionTF) + " · " : "") + "이미지 + 예측";
+      if (t) t.innerHTML = "<b>가격 차트</b> · " + (activeTF() ? esc(activeTF()) + " · " : "") + "이미지 + 예측";
     }
   }
 
@@ -3135,8 +3135,7 @@
   function heroMode() {
     if (_heroView === "chart" && hasRealSeries()) return "chart";   // 강제 차트뷰: 작도가 항상 선에 정합
     if (_heroView === "image" && heroImgId()) return _visionCoords ? "overlay" : "image";
-    if (hasRealSeries() && heroImgId() && _visionCoords) return "overlay";
-    if (hasRealSeries()) return "chart";
+    if (hasRealSeries()) return "chart";           // 기본: 시계열 있으면 최초 진입부터 차트뷰(오버레이/이미지보다 우선)
     if (heroImgId()) return "image";
     return "chart";
   }
@@ -3215,7 +3214,7 @@
     let bandTop = anchorY, bandBot = anchorY;
     for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, yOf(hi[k])); bandBot = Math.max(bandBot, yOf(lo[k])); }
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간 · 가격→y 매핑 포함) */
-    if (c.canvas) c.canvas._coneGeo = { ox, oy, dw, dh, nowX, rightX, path, lo, hi, anchorP, bandTop, bandBot, p1p: p1.price, p1y: y1, p2p: p2.price, p2y: y2, log: lg, unit: (_visionTF ? _tfUnit(_visionTF) : "봉") };
+    if (c.canvas) c.canvas._coneGeo = { ox, oy, dw, dh, nowX, rightX, path, lo, hi, anchorP, bandTop, bandBot, p1p: p1.price, p1y: y1, p2p: p2.price, p2y: y2, log: lg, unit: tfUnit() };
     c.textAlign = "left"; c.lineWidth = fs; c.font = Math.round(10 * fs) + "px ui-monospace,monospace";
     c.strokeStyle = "rgba(232,180,99,.5)"; c.setLineDash([4 * fs, 3 * fs]);
     c.beginPath(); c.moveTo(nowX, oy); c.lineTo(nowX, oy + dh); c.stroke(); c.setLineDash([]);
@@ -3244,7 +3243,7 @@
     c.fillStyle = "rgba(232,180,99,.95)"; c.fillText("현재가 " + fmtNum(anchorP), nowX + 7 * fs, anchorY - 6 * fs);
     /* 시점 마커(3·6·12·24… — 예측 시점별 표와 동일 시점) */
     if (path.length) {
-      const u = _visionTF ? _tfUnit(_visionTF) : "봉";
+      const u = tfUnit();
       const hs = _hzList(u, path.length);
       const clamp = x => Math.max(ox + 16 * fs, Math.min(ox + dw - 16 * fs, x));
       for (const h of hs) {
@@ -3366,7 +3365,7 @@
       host.innerHTML = `<div class="na-empty">분석 후 시점별 예측가가 표시됩니다</div>`; return;
     }
     const anchor = (p.anchor != null && isFinite(p.anchor)) ? p.anchor : path[0];
-    const unit = _visionTF ? _tfUnit(_visionTF) : "봉";
+    const unit = tfUnit();
     const fb = path.length;
     if (metaEl) metaEl.textContent = "현재가 " + _hzFmt(anchor);
     const hs = _hzList(unit, fb);
@@ -4125,7 +4124,14 @@
   /* ── Forge data + runForge ───────────────────────────────────── */
   let data = ForgeCore.makeDemoSeries({ n: 480, seed: 1, period: 64 });
   let _visionData = null, _visionBias = 0, _visionNote = "", _visionWaves = [], _visionCoords = null, _visionTF = null, _visionFut = 0;
-  function visionFutW() { return (_visionFut >= 4 && _visionFut <= 60) ? _visionFut : 24; }
+  // 타임프레임 정규화(티커 1day/1week/1month·비전 한글 모두 → 한글 canonical)
+  function tfKo(tf) { if (!tf) return null; if (/month|월/.test(tf)) return "월봉"; if (/week|주/.test(tf)) return "주봉"; if (/day|일/.test(tf)) return "일봉"; if (/hour|분|시/.test(tf)) return tf; return tf; }
+  // 현재 활성 타임프레임: 비전 결과 우선, 없으면 티커 노드 params.tf
+  function activeTF() { if (_visionTF) return tfKo(_visionTF); const t = boardState.nodes.find(n => n.blockType === "ticker" && n.params && n.params.tf); return t ? tfKo(t.params.tf) : null; }
+  // TF별 기본 예측범위(작도 horizon): 일봉 30일 · 주봉 50주 · 월봉 12개월 · 기타 24
+  function horizonForTF(tf) { const s = tf || ""; if (/월|month|개월|년|연/.test(s)) return 12; if (/주|week/.test(s)) return 50; if (/일|day/.test(s)) return 30; return 24; }
+  function tfUnit() { const t = activeTF(); return t ? _tfUnit(t) : "봉"; }
+  function visionFutW() { return (_visionFut >= 4 && _visionFut <= 60) ? _visionFut : horizonForTF(activeTF()); }
   /* 실제 분석 시계열만 연속 '분석 차트'를 구동. 비전 워커 비활성 동안엔 항상 null
      → 가격 노드 이미지 + 예측 콘(이미지 모드). 워커 도입(VISION_ENABLED) 시 부활. */
   function visionLive() { return (VISION_ENABLED && _visionData) ? _visionData : null; }
@@ -4312,7 +4318,7 @@
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
     runForge(); _engineDirty = false; updateEngineBtn();   // 시연도 재계산 → 변경됨 해제
     let steps;
-    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: _visionTF }); }
+    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF() }); }
     catch (e) { console.warn("steps", e); return; }
     if (!steps.length) return;
     const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
@@ -4425,7 +4431,7 @@
     try {
       const g = boardToGraph();
       const d = currentData();
-      lastResult = ForgeCore.run(g, d, { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: _visionTF });
+      lastResult = ForgeCore.run(g, d, { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF() });
       renderChart(lastResult, d);
       paintScanBadges();
       if (window.renderOverlay) renderOverlay(lastResult, g);
