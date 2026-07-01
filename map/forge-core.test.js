@@ -738,6 +738,35 @@ test("analyzeElliott: 소량/피벗부족 → 폴백(uncertain, bias 0, next nul
   assert.strictEqual(ea.next, null);
 });
 
+test("analyzeElliott: 규칙 위반(3파 최단) 5파 하락 → corrective + 문자 라벨(A..), 임펄스 아님", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  // 하락 5레그지만 3파(190→185, span5)가 1파(span20)·5파(span35)보다 짧음 → R2 위반 → 임펄스 불가
+  const price = [200, ...seg(200, 180, 8), ...seg(180, 190, 6), ...seg(190, 185, 6), ...seg(185, 195, 6), ...seg(195, 160, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.02 });
+  assert.strictEqual(ea.structure, "corrective", "규칙 위반 → 임펄스 아님");
+  assert.ok(ea.rules.r2 === false, "R2(3파 최단) 위반 감지");
+  assert.ok(/^[A-H]$/.test(ea.waves[0].label), "조정은 문자 라벨(A..) — 1,2,3 아님");
+  assert.ok(ea.waves.every(w => /^[A-H]$/.test(w.label)), "모든 조정 파 문자 라벨");
+});
+
+test("analyzeElliott: 유효 5파 하락 임펄스는 여전히 숫자 라벨(1..5)", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [200, ...seg(200, 180, 8), ...seg(180, 192, 6), ...seg(192, 150, 10), ...seg(150, 168, 6), ...seg(168, 135, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.04 });
+  assert.strictEqual(ea.structure, "impulse_down");
+  assert.strictEqual(ea.waves[0].label, "1", "유효 임펄스는 숫자 라벨");
+});
+
+test("analyzeElliott: 임펄스 판정은 3대 규칙 모두 충족해야(strict)", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  // 4파(150→175)가 1파 끝(120) 위로 회복 못함 → 여기선 R3 성립. 대신 4파가 1파 영역 침범하도록 구성:
+  // 1파 100→120, 2파 120→105, 3파 105→140, 4파 140→118(1파 끝 120 아래=침범 → R3 위반), 5파 118→150
+  const price = [100, ...seg(100, 120, 8), ...seg(120, 105, 6), ...seg(105, 140, 10), ...seg(140, 118, 6), ...seg(118, 150, 8)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.02 });
+  assert.ok(ea.rules.r3 === false, "R3(4파 1파 침범) 위반");
+  assert.strictEqual(ea.structure, "corrective", "규칙 위반 → 조정 분류");
+});
+
 test("elliottSteps: 5단계, bias 반영", () => {
   const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
   const price = [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6), ...seg(132, 165, 8)];

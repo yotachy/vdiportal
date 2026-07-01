@@ -2891,7 +2891,7 @@
     }
     // layer2: 유효도/구조 배지(우상단)
     if (reveal >= 2) {
-      const stx = ea.structure === "impulse_up" ? "임펄스↑" : ea.structure === "impulse_down" ? "임펄스↓" : ea.structure === "corrective" ? "ABC 조정" : "불확실";
+      const stx = ea.structure === "impulse_up" ? "임펄스↑" : ea.structure === "impulse_down" ? "임펄스↓" : ea.structure === "corrective" ? (ea.waves.length >= 5 ? "삼각 조정(A-E)" : "ABC 조정") : "불확실";
       const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
       const bcol = ea.structure.indexOf("impulse") === 0 ? COL : ea.structure === "corrective" ? "#e8b463" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));

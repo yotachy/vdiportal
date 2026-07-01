@@ -649,14 +649,12 @@
     const n = arr.length;
     const sw = detectSwings(arr, sens);
     const values = new Array(n).fill(0);
-    if (sw.length < 2) return { values, waves: [], current: { label: "-", dir: 0 }, primary: null };
-    const labels = ["1", "2", "3", "4", "5", "A", "B", "C"];
+    if (sw.length < 2) return { values, waves: [], current: { label: "-", dir: 0 }, structure: "uncertain", primary: null };
     const legs = [];
     for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
+    const deg = elliottDegree(legs);   // 구조 인지 라벨(임펄스=숫자·조정=문자) 공유
     const recent = legs.slice(-8);
-    recent.forEach((lg, i) => { lg.label = labels[i] || ""; });
     recent.forEach(lg => { const val = lg.up ? 0.7 : -0.7; for (let t = lg.from.idx; t <= lg.to.idx && t < n; t++) values[t] = val; });
-    const last = recent[recent.length - 1];
     let primary = null;
     const ps = primarySwings(arr, sens);
     if (ps && ps.swings.length >= 2) {
@@ -665,12 +663,7 @@
       const pd = elliottDegree(pl);
       primary = { current: pd.current, structure: pd.structure };
     }
-    return {
-      values,
-      waves: recent.map(lg => ({ idx: lg.to.idx, price: lg.to.price, label: lg.label })),
-      current: { label: last.label || "-", dir: last.up ? 1 : -1 },
-      primary: primary
-    };
+    return { values, waves: deg.waves, current: deg.current, structure: deg.structure, primary: primary };
   }
 
   // 차트 전체를 덮는 대형 degree용 스윙 추출: 큰 다리 6~9개를 목표로 민감도 적응 선택(결정적)
@@ -693,33 +686,43 @@
 
   // 한 degree의 파동 카운트/규칙/구조/투영/bias 계산 (legs = 인접 스윙 다리 배열)
   function elliottDegree(legs) {
-    const LAB = ["1", "2", "3", "4", "5", "A", "B", "C"];
     const recent = legs.slice(-8);
-    const waves = recent.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
     const last = recent[recent.length - 1];
-    const current = { label: (waves[waves.length - 1] && waves[waves.length - 1].label) || "-", dir: last.up ? 1 : -1 };
     const imp = recent.slice(0, 5), dirUp = imp.length ? imp[0].up : true, sgn = dirUp ? 1 : -1;
+    const len = lg => Math.abs(lg.to.price - lg.from.price);
+    // 엘리어트 3대 불가침 규칙
     let r1 = false, r2 = false, r3 = false;
-    if (imp.length >= 2) { const w1s = imp[0].from.price, w2e = imp[1].to.price; r1 = dirUp ? (w2e >= w1s) : (w2e <= w1s); }
-    if (imp.length >= 3) { const len = lg => Math.abs(lg.to.price - lg.from.price); const l1 = len(imp[0]), l3 = len(imp[2]), l5 = imp.length >= 5 ? len(imp[4]) : Infinity; r2 = !(l3 <= l1 && l3 <= l5); }
-    if (imp.length >= 4) { const w1e = imp[0].to.price, w4e = imp[3].to.price; r3 = dirUp ? (w4e > w1e) : (w4e < w1e); }
+    if (imp.length >= 2) { const w1s = imp[0].from.price, w2e = imp[1].to.price; r1 = dirUp ? (w2e >= w1s) : (w2e <= w1s); }   // 2파는 1파 시작을 넘지 않음
+    if (imp.length >= 3) { const l1 = len(imp[0]), l3 = len(imp[2]), l5 = imp.length >= 5 ? len(imp[4]) : Infinity; r2 = !(l3 <= l1 && l3 <= l5); }   // 3파가 1·3·5 중 최단 아님
+    if (imp.length >= 4) { const w1e = imp[0].to.price, w4e = imp[3].to.price; r3 = dirUp ? (w4e > w1e) : (w4e < w1e); }   // 4파는 1파 영역과 겹치지 않음
     const passed = [r1, r2, r3].filter(Boolean).length;
     const checked = imp.length >= 4 ? 3 : imp.length >= 3 ? 2 : imp.length >= 2 ? 1 : 0;
     const completeness = Math.min(1, imp.length / 5);
     const score = checked ? (passed / checked) * completeness : 0;
-    const allDirOk = imp.length >= 5 && imp[0].up === imp[2].up && imp[0].up === imp[4].up && imp[1].up !== imp[0].up;
-    let structure = "uncertain";
-    if (imp.length >= 5 && passed >= 2 && allDirOk) structure = dirUp ? "impulse_up" : "impulse_down";
-    else if (recent.length >= 3) structure = "corrective";
+    // 교대(alternation): 1·3·5 동일 방향, 2·4 반대 방향
+    const allDirOk = imp.length >= 5 && imp[0].up === imp[2].up && imp[0].up === imp[4].up && imp[1].up !== imp[0].up && imp[3].up !== imp[0].up;
+    // 임펄스(motive)로 인정하려면 5파 완성 + 3대 규칙 전부 + 교대 충족. 아니면 조정/발달중.
+    const impulseValid = imp.length >= 5 && r1 && r2 && r3 && allDirOk;
+    let structure;
+    if (impulseValid) structure = dirUp ? "impulse_up" : "impulse_down";
+    else if (recent.length === 3 || recent.length >= 5) structure = "corrective";   // 3파=ABC 조정, 5파+규칙위반=삼각/복합 조정
+    else structure = "uncertain";                                                    // 1·2·4파=발달중(임펄스 카운트)
+    // 라벨: 조정=A,B,C,D,E…(letter), 임펄스/발달중=1,2,3,4,5,A,B,C(number-first)
+    const LAB = (structure === "corrective") ? ["A", "B", "C", "D", "E", "F", "G", "H"] : ["1", "2", "3", "4", "5", "A", "B", "C"];
+    const waves = recent.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
+    const current = { label: (waves[waves.length - 1] && waves[waves.length - 1].label) || "-", dir: last.up ? 1 : -1 };
     const span1 = imp.length ? Math.abs(imp[0].to.price - imp[0].from.price) : 0;
+    // 투영: 임펄스는 진행 파(2끝→3 / 4끝→5 / 5완성→A). 조정은 투영 생략(방향 근사만 bias로).
     let next = null;
-    if (recent.length === 2 && imp.length >= 2) next = { label: "3", target: imp[1].to.price + sgn * 1.618 * span1, dir: sgn };
-    else if (recent.length === 4 && imp.length >= 4) next = { label: "5", target: imp[3].to.price + sgn * span1, dir: sgn };
-    else if (recent.length === 5 && imp.length >= 5) { const span15 = Math.abs(imp[4].to.price - imp[0].from.price); next = { label: "A", target: imp[4].to.price - sgn * 0.5 * span15, dir: -sgn }; }
+    if (structure !== "corrective") {
+      if (recent.length === 2 && imp.length >= 2) next = { label: "3", target: imp[1].to.price + sgn * 1.618 * span1, dir: sgn };
+      else if (recent.length === 4 && imp.length >= 4) next = { label: "5", target: imp[3].to.price + sgn * span1, dir: sgn };
+      else if (impulseValid) { const span15 = Math.abs(imp[4].to.price - imp[0].from.price); next = { label: "A", target: imp[4].to.price - sgn * 0.5 * span15, dir: -sgn }; }
+    }
     let bias;
     if (structure === "impulse_up") bias = 0.4 + 0.6 * score;
     else if (structure === "impulse_down") bias = -(0.4 + 0.6 * score);
-    else if (structure === "corrective") bias = -current.dir * 0.4;
+    else if (structure === "corrective") bias = -current.dir * 0.4;   // 조정 종료 후 추세 재개 방향
     else bias = 0;
     bias = Math.max(-1, Math.min(1, bias));
     return { waves, rules: { r1, r2, r3, score }, structure, current, next, bias };
