@@ -4622,6 +4622,7 @@
   let _ovResult = null, _ovGraph = null;
   let _flash = 0;                 // consensus-band flash level (0..1), decays
   const _edgePhase = {};          // per-edge lead-dot phase (arrival detection)
+  let _consensusPhase = null;     // 예측 노드 활성 시 합의 플래시 위상(연결선 점 대체)
   const _rmq = window.matchMedia("(prefers-reduced-motion: reduce)");
   const prefersReducedMotion = () => _rmq.matches;
 
@@ -4996,48 +4997,16 @@
       ctx.restore();
     });
 
-    /* flowing dots along each edge (from → to) */
-    boardState.edges.forEach(e => {
-      if (e.from !== _actId && e.to !== _actId) return;   // 활성 노드에 연결된 엣지만
-      const wpts = edgeWorldPolyline(e);
-      if (!wpts || wpts.length < 2) return;
-      const spts = wpts.map(_toScreen);
-
-      /* weight factor from source node (brightness + speed scale) */
-      const fromNode = bN(e.from);
-      const ewf = 0.6 + 0.8 * ((fromNode && fromNode.weight != null ? fromNode.weight : 50) / 100);
-
-      /* energized wire underglow */
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      ctx.strokeStyle = "#e8b463";
-      ctx.globalAlpha = (0.05 + 0.13 * mag) * ewf;
-      ctx.lineWidth = 2.2;
-      ctx.shadowColor = "#e8b463"; ctx.shadowBlur = 6;
-      ctx.beginPath();
-      spts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
-      ctx.stroke();
-      ctx.restore();
-
-      const eSpeed = speed * ewf;
-      const lead = isStatic ? 0.5 : (t * eSpeed) % 1;
-      for (let k = 0; k < ND; k++) {
-        const phase = isStatic ? (k + 1) / (ND + 1) : (lead + k / ND) % 1;
-        const pos = _pointAt(spts, phase);
-        const fade = 0.55 + 0.45 * Math.sin(phase * Math.PI);   // brightest mid-wire
-        _glowDot(ctx, pos.x, pos.y, dotR, "#f0c878", _clamp01((0.5 + 0.5 * mag) * fade * ewf));
-      }
-
-      /* arrival → flash the chart consensus band */
-      if (!isStatic) {
-        const prev = _edgePhase[e.id];
-        _edgePhase[e.id] = lead;
-        if (prev != null && lead < prev) {
-          const to = bN(e.to);
-          if (to && to.blockType === "predict") _flash = 1;
-        }
-      }
-    });
+    /* 연결선 시각화 제거: 흐르는 점/에너지 와이어 미표시.
+       분석이 예측 노드에 도달하면 합의 밴드 플래시만 위상 기반으로 유지. */
+    const _actNode = _actId ? bN(_actId) : null;
+    if (!isStatic && _actNode && _actNode.blockType === "predict") {
+      const lead = (t * speed) % 1;
+      if (_consensusPhase != null && lead < _consensusPhase) _flash = 1;
+      _consensusPhase = lead;
+    } else {
+      _consensusPhase = null;
+    }
   }
 
   /* ── animation loop ───────────────────────────────────────────── */
