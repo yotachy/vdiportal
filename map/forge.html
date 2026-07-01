@@ -706,7 +706,7 @@
     const N = (s && s.length) || 0;
     _chartWin.count = Math.min(180, N);
     _chartWin.start = Math.max(0, N - _chartWin.count);
-    _chartNav = false;   // 맞춤/리셋/새데이터 → 예측 콘 전체가 보이도록 세로 오토스케일 복귀
+    _chartNav = false;   // (레거시) 세로 오토스케일은 이제 항상 캔들 기준이라 _chartNav는 스케일에 영향 없음
   }
   function tvLog(x, on) { return on ? Math.log(Math.max(1e-9, x)) : x; }
   function resetHeroView() { _heroZoom = { s: 1, tx: 0, ty: 0 }; }
@@ -2568,9 +2568,7 @@
     if (_ohW) { for (const d of _ohW) { if (d.l < loV) loV = d.l; if (d.h > hiV) hiV = d.h; } }
     else { for (const v of hist) { if (v < loV) loV = v; if (v > hiV) hiV = v; } }
     if (atLatest) {
-      loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);   // '지금'(앵커)은 항상 세로축에 포함
-      // 수동 조작(드래그/휠) 중이 아닐 때만 예측 밴드 전체를 세로축에 포함 → 조작 중엔 캔들 상세 유지, 콘은 위/아래로 잘릴 수 있음
-      if (!_chartNav) { for (let i = 0; i < path.length; i++) { loV = Math.min(loV, lo[i]); hiV = Math.max(hiV, hi[i]); } }
+      loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);   // '지금'(앵커=현재가)만 포함. 세로 오토스케일은 항상 "보이는 캔들 기준" — 예측 콘은 제외(넘치면 위/아래로 잘림). 콘이 스케일을 끌어올려 '전체 차트'처럼 보이던 문제 해소.
     }
     if (!isFinite(loV) || !isFinite(hiV)) { loV = 0; hiV = 1; }
     const padV = (hiV - loV) * 0.08 || 1; loV -= padV; hiV += padV;
@@ -3988,7 +3986,7 @@
     });
   })();
   (function() {
-    const a = document.getElementById("autoBtn"); if (a) a.addEventListener("click", () => { resetYScale(); _chartNav = true; updateAxisBtns(); renderHeroZoom(); });   // A=현재 구간 세로축 오토스케일: 시간창 유지, 보이는 캔들에 맞춤(예측 콘은 제외해 상세 확보)
+    const a = document.getElementById("autoBtn"); if (a) a.addEventListener("click", () => { resetYScale(); updateAxisBtns(); renderHeroZoom(); });   // A=현재 구간 세로축 오토스케일(보이는 캔들 기준, 시간창 유지). 세로 스케일은 항상 캔들 기준이라 콘 영향 없음
     const l = document.getElementById("logBtn"); if (l) l.addEventListener("click", () => { toggleLogChart(); });
   })();
   /* ── 시연 오버레이 제어: 상단 HUD(접기·드래그이동·숨김) + 하단 로그(접기) ── */
