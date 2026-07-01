@@ -224,6 +224,12 @@
   .fc-axis-btns{position:absolute;right:6px;bottom:8px;z-index:4;display:flex;gap:4px}
   .fc-axis-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:12px;font-weight:700;cursor:pointer;line-height:1}
   .fc-axis-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.14)}
+  /* 봉 주기 세그먼트(일/주/월 직접 선택) */
+  .fc-tfseg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .fc-tfseg button{background:transparent;color:var(--eth);border:0;border-left:1px solid var(--line);padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em}
+  .fc-tfseg button:first-child{border-left:0}
+  .fc-tfseg button.on{background:rgba(232,180,99,.16);color:var(--gold)}
+  .fc-tfseg button:hover:not(.on){background:var(--raised2);color:var(--ink)}
   .ev-toggle{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:-.01em}
   .ev-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.1)}
   /* 데이터 소스 배지(이미지뷰=비전 시계열 자동 감지 안내) */
@@ -558,6 +564,11 @@
               <span class="verdict-inline" id="verdictInline"></span>
             <div class="fc-head-actions">
               <span class="fc-src" id="fcSrcBadge" style="display:none"></span>
+              <div class="fc-tfseg" id="fcTfSeg" style="display:none" title="봉 주기 선택 — 클릭 시 해당 주기로 불러와 자동 배열">
+                <button data-tf="1day" onclick="chartSetTF('1day')">일</button>
+                <button data-tf="1week" onclick="chartSetTF('1week')">주</button>
+                <button data-tf="1month" onclick="chartSetTF('1month')">월</button>
+              </div>
               <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈 차트뷰</button>
               <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
               <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
@@ -571,7 +582,7 @@
               <canvas id="fcEvidence" class="fc-evidence"></canvas>
               <button id="fcZoomReset" class="fc-zoom-reset" title="줌 초기화">&#x2295;</button>
               <div class="fc-axis-btns" id="fcAxisBtns">
-                <button id="autoBtn" class="fc-axis-btn" title="자동 스케일">A</button>
+                <button id="autoBtn" class="fc-axis-btn" title="자동 배열 — 시간창·가격축을 전체가 잘 보이게 맞춤">A</button>
                 <button id="logBtn" class="fc-axis-btn" title="로그/선형 스케일">L</button>
               </div>
               <div class="fc-cone-vline" id="fcMainVline"></div>
@@ -3285,6 +3296,7 @@
   function renderChart(result, data) {
     if (!result || !data) return;
     resetHeroView();
+    if (typeof renderTfSeg === "function") renderTfSeg();   // 일/주/월 세그먼트 노출·현재 주기 동기화
     _fcLastResult = result; _fcLastData = data;
     if (!_playing) _evidenceSet = new Set(evIndicatorNodes().map(n => n.id));   // 평상시: 모든 지표 근거 표시
 
@@ -3968,7 +3980,7 @@
   })();
   (function() { const b = document.getElementById("fcZoomReset"); if (b) b.addEventListener("click", () => { resetChartWin(); resetYScale(); renderHeroZoom(); }); })();
   (function() {
-    const a = document.getElementById("autoBtn"); if (a) a.addEventListener("click", () => { resetYScale(); _chartNav = false; updateAxisBtns(); renderHeroZoom(); });   // A=화면 맞춤: 가격축 자동 + 예측 콘 포함(수동조작 해제)
+    const a = document.getElementById("autoBtn"); if (a) a.addEventListener("click", () => { resetChartWin(); resetYScale(); _chartNav = false; updateAxisBtns(); renderHeroZoom(); });   // A=자동 배열(전체 맞춤): 시간창+가격축 리셋, 예측 콘 포함
     const l = document.getElementById("logBtn"); if (l) l.addEventListener("click", () => { toggleLogChart(); });
   })();
   /* ── 시연 오버레이 제어: 상단 HUD(접기·드래그이동·숨김) + 하단 로그(접기) ── */
@@ -4182,6 +4194,33 @@
     if (typeof resetChartWin === "function") resetChartWin();   // 새 데이터 → 기본 윈도(Task 3)
     if (typeof resetYScale === "function") resetYScale();
     markDirty(); runForge();
+  }
+  // 차트 헤더 일/주/월 세그먼트 — 티커 실데이터일 때만 노출, 현재 주기 하이라이트
+  function renderTfSeg() {
+    const seg = document.getElementById("fcTfSeg"); if (!seg) return;
+    const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim());
+    seg.style.display = tk ? "inline-flex" : "none";
+    if (!tk) return;
+    const cur = tk.params.tf || "1day";
+    seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.tf === cur));
+  }
+  // 봉 주기 직접 전환: 해당 주기로 재fetch → applyTickerOHLC가 창·가격축 리셋+재계산(자동 배열)
+  const _TFKO = { "1day": "일봉", "1week": "주봉", "1month": "월봉" };
+  async function chartSetTF(tf) {
+    const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim());
+    if (!tk) { bToast("티커 종목을 추가하면 일·주·월 전환이 됩니다"); return; }
+    const sym = tk.params.symbol.trim();
+    if ((tk.params.tf || "1day") === tf && Array.isArray(tk._series) && tk._series.length >= 20) { bToast(_TFKO[tf] + " 표시 중"); return; }
+    if (!SERVER_OK) { bToast("오프라인 — 서버 연결이 필요해요"); return; }
+    tk.params.tf = tf; renderTfSeg();
+    bToast(_TFKO[tf] + " 불러오는 중…");
+    try {
+      const r = await fetchOHLC(sym, tf);
+      if (r && r.ok && Array.isArray(r.candles) && r.candles.length >= 2) {
+        applyTickerOHLC(tk, r);   // resetChartWin + resetYScale + runForge → 자동 배열
+        bToast(sym + " " + (tk._ohlc ? tk._ohlc.length : r.candles.length) + "봉 · " + _TFKO[tf]);
+      } else bToast("데이터를 찾을 수 없어요: " + sym);
+    } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
   }
   function buildData(series) {
     const oh = priceOHLC();
