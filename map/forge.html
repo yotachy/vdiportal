@@ -183,6 +183,9 @@
     padding:7px 13px;font-weight:600;cursor:pointer;font-family:inherit;font-size:13px;white-space:nowrap;
     transition:background .12s,color .12s,border-color .12s}
   .tool-btn:hover{background:var(--raised2);color:var(--ink);border-color:#3a4452}
+  /* 예정 기능 버튼(클로드 엔진분석) — 점선 테두리·흐린 색으로 '준비 중' 시각 구분 */
+  .tool-btn.is-soon{border-style:dashed;color:var(--faint);opacity:.85}
+  .tool-btn.is-soon:hover{color:var(--eth);border-color:var(--gold-dim);background:transparent}
   .tool-btn:disabled{cursor:not-allowed}
   .tool-btn.req-soon{display:inline-flex;align-items:center;gap:7px;color:var(--faint);border-style:dashed;border-color:var(--line);opacity:.7}
   .tool-btn.req-soon:hover{background:transparent;color:var(--faint);border-color:var(--line)}
@@ -514,12 +517,11 @@
     </div>
     <div class="h-actions">
       <span id="analyzeProg" class="analyze-prog"></span>
-      <span id="reqStat" class="req-stat" onclick="cancelReq()"></span>
-      <button class="tool-btn" id="reqBtn" onclick="requestAnalysis()" title="웹분석 — 이미지를 비전으로 판독해 시계열 데이터 생성(워커 · 필요할 때만)">☁ 웹분석</button>
       <span class="h-sep"></span>
       <span id="engStat" class="eng-stat" title="현재 표시된 결과가 언제 분석된 것인지"></span>
-      <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="엔진분석 — 노드 그래프로 시계열을 계산해 포지결과(예측·시그널) 산출. 변경 시 이 버튼을 눌러 갱신">▷ 엔진분석</button>
-      <button class="tool-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 엔진분석이 어떻게 도출됐는지 노드별 과정을 애니메이션으로 보기">▶ 시연</button>
+      <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 브라우저 엔진이 노드 그래프로 시계열을 계산해 예측·시그널 산출(수동 갱신)">▷ 웹분석</button>
+      <button class="tool-btn is-soon" id="engineBtn" onclick="claudeEngine()" title="엔진분석 — 클로드 수동분석(예정 기능, 준비 중)">✦ 엔진분석</button>
+      <button class="tool-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 웹분석이 어떻게 도출됐는지 노드별 과정을 애니메이션으로 보기">▶ 시연</button>
     </div>
   </header>
   <div class="forge-shell">
@@ -4200,8 +4202,9 @@
     if (tp && s.length) { const last = s[s.length - 1]; if (last > 0 && Math.abs(last - tp) / tp > 0.001) s = s.map(v => v * tp / last); }
     return buildData(s);
   }
-  /* ── 엔진분석: 수동 실행(버튼) ─────────────────────────────────
-     포지결과는 '엔진분석' 버튼을 눌러야 계산된다. 노드/가중치/웹분석 변경은 '변경됨'으로 표시만. */
+  /* ── 웹분석(runEngine): 브라우저 엔진 수동 실행(버튼) ─────────────────────────────────
+     포지결과는 '웹분석' 버튼을 눌러야 계산된다. 노드/가중치 변경은 '변경됨'으로 표시만.
+     ('엔진분석' 버튼=claudeEngine은 클로드 수동분석 예정 기능 스텁) */
   let _engineDirty = false, _lastAnalyzedAt = null;
   function _fmtAgo(ts) {
     const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
@@ -4216,7 +4219,7 @@
     if (_engineDirty) {
       st.className = "eng-stat stale";
       st.textContent = "● 변경됨 · 재분석 필요";
-      st.title = "노드/설정이 바뀌었습니다 — ▷ 엔진분석을 눌러 결과를 갱신하세요";
+      st.title = "노드/설정이 바뀌었습니다 — ▷ 웹분석을 눌러 결과를 갱신하세요";
     } else if (_lastAnalyzedAt) {
       const d = new Date(_lastAnalyzedAt), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
       st.className = "eng-stat ok";
@@ -4227,7 +4230,9 @@
     }
   }
   function markEngineDirty() { _engineDirty = true; updateEngineBtn(); }
-  function runEngine() { if (_playing) stopPlay(); runForge(); _engineDirty = false; updateEngineBtn(); bToast("엔진분석 완료 · 포지결과 갱신"); }
+  function runEngine() { if (_playing) stopPlay(); runForge(); _engineDirty = false; updateEngineBtn(); bToast("웹분석 완료 · 포지결과 갱신"); }
+  // 엔진분석 = 클로드 수동분석(예정 기능). 현재는 안내만.
+  function claudeEngine() { bToast("엔진분석(클로드 수동분석)은 준비 중입니다 — 예정 기능"); }
   /* 붙여넣은 텍스트 → 종가 배열. 한 줄=한 봉. 줄에 4개 이상 수면 OHLC(V)로 보고 종가(4번째) 사용. */
   function parseSeries(txt) {
     const out = [];
@@ -4488,8 +4493,8 @@
         : null;
       markDirty();
     }
-    renderHero(); markEngineDirty();   // 이미지·데이터만 갱신, 포지결과는 '엔진분석' 버튼으로
-    bToast(_visionData ? ("웹분석 반영 — '엔진분석'을 눌러 계산" + (_visionNote ? " · " + _visionNote : "")) : "분석 데이터 없음");
+    renderHero(); markEngineDirty();   // 이미지·데이터만 갱신, 포지결과는 '웹분석' 버튼으로
+    bToast(_visionData ? ("웹분석 반영 — '웹분석'을 눌러 계산" + (_visionNote ? " · " + _visionNote : "")) : "분석 데이터 없음");
   }
 
   /* ── 분석 요청 버튼 + 작업큐 폴링 ───────────────────────────────── */
