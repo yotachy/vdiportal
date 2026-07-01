@@ -121,6 +121,13 @@
   /* weight importance badge */
   .b-n-wt{position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;
     background:var(--gold);color:#1a1206;font-size:10px;font-weight:700;line-height:18px;text-align:center;z-index:4}
+  /* inline node controls (중요도/확신) — 단일 선택 시에만 노출 */
+  .b-n-ctrl{display:none;flex-direction:column;gap:5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+  .b-node.b-solo .b-n-ctrl{display:flex}
+  .b-n-ctrl .cr{display:flex;align-items:center;gap:7px}
+  .b-n-ctrl .cr label{flex:0 0 34px;font-size:9.5px;font-weight:700;letter-spacing:.02em;color:var(--eth)}
+  .b-n-ctrl .cr input[type=range]{flex:1;min-width:0;height:14px;accent-color:var(--gold);cursor:pointer}
+  .b-n-ctrl .cr .cv{flex:0 0 30px;text-align:right;font-size:10px;font-weight:700;color:var(--gold);font-family:ui-monospace,monospace}
   .b-n-scan{margin-top:4px;font-size:10px;color:var(--eth);font-family:ui-monospace,monospace}
   /* drag cursor override */
   body.b-ndrag,body.b-ndrag *{cursor:grabbing!important}
@@ -846,18 +853,34 @@
   function fireBoardChange() { if (_boardChangeCb) _boardChangeCb(); }
 
   /* ── boardToGraph ────────────────────────────────────────────── */
+  /* 연결선 UI를 없앤 뒤에도 엔진 위상을 보존: 지표 → combine(있으면) → predict 를 계산 직전 합성. */
+  function synthEdges(nodes) {
+    const blocks = nodes.filter(n => n.kind === "block");
+    const predict = blocks.find(n => n.blockType === "predict");
+    const combine = blocks.find(n => n.blockType === "combine");
+    const hub = combine || predict;
+    const edges = [];
+    if (!hub) return edges;
+    // combine 입력에서 제외할 비지표(원본/티커/거래량/허브 자신)
+    const SKIP = new Set(["price", "ticker", "volume", "combine", "predict"]);
+    blocks.forEach(n => {
+      if (n === hub) return;
+      if (SKIP.has(n.blockType)) return;
+      edges.push({ from: n.id, to: hub.id });
+    });
+    if (combine && predict && combine !== predict) edges.push({ from: combine.id, to: predict.id });
+    return edges;
+  }
   function boardToGraph() {
-    return {
-      nodes: boardState.nodes.map(n => ({
-        id: n.id,
-        kind: n.kind || "free",
-        blockType: n.blockType || null,
-        params: n.params || {},
-        conviction: n.conviction || 0,
-        weight: (n.weight != null ? n.weight : 50)
-      })),
-      edges: boardState.edges.map(e => ({ from: e.from, to: e.to }))
-    };
+    const nodes = boardState.nodes.map(n => ({
+      id: n.id,
+      kind: n.kind || "free",
+      blockType: n.blockType || null,
+      params: n.params || {},
+      conviction: n.conviction || 0,
+      weight: (n.weight != null ? n.weight : 50)
+    }));
+    return { nodes, edges: synthEdges(boardState.nodes) };
   }
 
   /* ── worldPt ─────────────────────────────────────────────────── */
@@ -1191,12 +1214,7 @@
   }
 
   function nodeHTML(n) {
-    const ports = [
-      `<div class="b-port b-port-top" data-act="port" data-side="top"></div>`,
-      `<div class="b-port b-port-right" data-act="port" data-side="right"></div>`,
-      `<div class="b-port b-port-bottom" data-act="port" data-side="bottom"></div>`,
-      `<div class="b-port b-port-left" data-act="port" data-side="left"></div>`
-    ].join("");
+    const ports = "";   // 연결선 UI 제거 — 포트 없음
     const inDot = `<div class="b-n-in"></div>`;
     const isBlock = n.kind === "block";
     /* tier: 티커(입력) · 원본(price) → 중간(지표/결합) → 포지(predict) */
@@ -1226,6 +1244,10 @@
   ${wbadge}${thumb}<div class="b-n-body">
     <div class="b-n-title" contenteditable="true" data-field="title">${esc(n.title || "")}</div>
     ${tkrBody}${badge}
+    <div class="b-n-ctrl">
+      <div class="cr"><label>중요도</label><input type="range" class="b-ctrl-wt" min="0" max="100" step="1" value="${wt}"><span class="cv">${wt}</span></div>
+      <div class="cr"><label>확신</label><input type="range" class="b-ctrl-conv" min="-100" max="100" step="1" value="${n.conviction || 0}"><span class="cv">${n.conviction || 0}</span></div>
+    </div>
   </div>
   ${ports}
 </div>`;
@@ -1288,20 +1310,14 @@
   }
 
   /* ── paintEdges ──────────────────────────────────────────────── */
+  /* 연결선 UI 제거: 엣지 레이어를 비우기만 한다(다른 곳의 기존 호출과 안전 공존). */
   function paintEdges() {
     if (!bWorld) return;
     const edgeG = document.getElementById("bEdgeG");
-    if (!edgeG) return;
-    edgeG.innerHTML = boardState.edges.map(e => {
-      const g = edgeGeo(e);
-      if (!g) return "";
-      const sw = EWIDTHS[e.width || 2];
-      const sel_ = selEdge === e.id ? " sel" : "";
-      return `<path class="b-ew${sel_}" style="stroke-width:${sw}" marker-start="url(#b-dot)" marker-end="url(#b-arw)" d="${g.d}"/>
-<path class="b-eh" data-edge="${e.id}" d="${g.d}"/>`;
-    }).join("");
-    drawEhud();
-    drawNhud();
+    if (edgeG) edgeG.innerHTML = "";
+    const ehud = document.getElementById("bEhud");
+    if (ehud) ehud.innerHTML = "";
+    drawNhud();   // 노드 HUD(삭제 버튼)는 연결선 UI가 아니므로 유지 — 브리프 대비 의도적 보존(report 참고)
   }
 
   /* ── applyView ───────────────────────────────────────────────── */
@@ -1315,8 +1331,10 @@
   /* ── applySel ────────────────────────────────────────────────── */
   function applySel() {
     if (!bWorld) return;
+    const solo = sel.length === 1 ? sel[0] : null;
     bWorld.querySelectorAll(".b-node").forEach(el => {
       el.classList.toggle("selected", sel.includes(el.dataset.id));
+      el.classList.toggle("b-solo", el.dataset.id === solo);
     });
     renderParams();
     syncFocusFromSel();
@@ -1387,14 +1405,6 @@
       rows.push(`<div class="pp-row"><label></label><button type="button" class="pp-load" data-tkr-load="1">📈 캔들 불러오기</button></div>`);
     }
     // volume: 수치 param 없음(확신/중요도/메모/이미지만)
-    if (n.blockType === "combine") {
-      boardState.edges.filter(e => e.to === n.id).forEach(e => {
-        const src = bN(e.from);
-        const w = (n.params && n.params.weights && n.params.weights[e.from]) ?? 1;
-        rows.push(`<div class="pp-row"><label>${esc((src && src.title) || e.from)}</label>
-          <input type="number" step="0.1" data-wkey="${e.from}" value="${w}"></div>`);
-      });
-    }
     const conv = n.conviction ?? 0;
     const wt = (n.weight != null) ? n.weight : 50;
     const hasImg = n.thumb && n.thumb.imgId;
@@ -1435,13 +1445,6 @@
        ${dataSec}
        ${paramSec}
        ${calSec}
-       <div class="ne-sec">가중치</div>
-       <div class="pp-row"><label>중요도</label>
-         <input type="range" id="ppWeight" min="0" max="100" step="1" value="${wt}">
-         <span class="pp-conv-val" id="ppWeightVal">${wt}</span></div>
-       <div class="pp-row"><label>확신</label>
-         <input type="range" id="ppConv" min="-100" max="100" step="1" value="${conv}">
-         <span class="pp-conv-val" id="ppConvVal">${conv}</span></div>
        <div class="ne-sec">서술 메모</div>
        <div class="pp-row" style="flex-direction:column;align-items:stretch">
          <textarea id="ppNote" placeholder="분석 근거·기준 (계산엔 미반영)">${esc(n.note || "")}</textarea></div>
@@ -1525,10 +1528,11 @@
     const r = bStage.getBoundingClientRect();
     const c = worldPt(r.left + r.width / 2, r.top + r.height / 2);
     const halfW = d.kind === "free" ? 70 : W_NODE / 2;
+    const off = (boardState.nodes.length % 8) * 24;   // 겹침 방지 계단식 오프셋
     const n = {
       id: uid("n"),
-      x: c.x - halfW,
-      y: c.y - 35,
+      x: c.x - halfW + off,
+      y: c.y - 35 + off,
       title: d.label || "노드",
       kind: d.kind || "free",
       blockType: d.kind === "block" ? type : null,
@@ -1619,8 +1623,6 @@
   /* ── Pointer handlers ────────────────────────────────────────── */
   function nodePointerDown(id, e) {
     const t = e.target;
-    const port = t.closest("[data-act=\"port\"]");
-    if (port) return startLink(id, port.dataset.side || "right", e);
     if (t.closest("[data-act]")) return;
     const ed = t.closest(".b-n-title");
     if (ed && document.activeElement === ed) return;
@@ -1845,12 +1847,9 @@
     /* stage pointer/wheel/dblclick */
     bStage.addEventListener("pointerdown", e => {
       if (e.target.closest(".b-hbar,.b-hbtn")) return;
+      if (e.target.closest(".b-n-ctrl")) return;   // 카드 인라인 슬라이더는 드래그/팬 대상 아님
       if (e.button === 1 || (spaceDown && e.button === 0)) { startPan(e); return; }
       if (e.button !== 0) return;
-      const eh = e.target.closest(".b-ehandle");
-      if (eh) { startEndpoint(eh.dataset.end, e); return; }
-      const edge = e.target.closest("[data-edge]");
-      if (edge) { selectEdge(edge.dataset.edge); return; }
       const nodeEl = e.target.closest(".b-node");
       if (nodeEl) { nodePointerDown(nodeEl.dataset.id, e); return; }
       if (e.ctrlKey || e.metaKey) { startMarquee(e); return; }
@@ -1888,6 +1887,23 @@
       }
       const na = e.target.closest("[data-nact]");
       if (na && na.dataset.nact === "del" && sel.length === 1) { delNodes([sel[0]]); return; }
+    });
+
+    /* 카드 인라인 중요도/확신 슬라이더 */
+    bWorld.addEventListener("input", e => {
+      const t = e.target;
+      const card = t.closest(".b-node"); if (!card) return;
+      const n = bN(card.dataset.id); if (!n) return;
+      if (t.classList.contains("b-ctrl-wt")) {
+        n.weight = Number(t.value);
+        const cv = t.parentElement.querySelector(".cv"); if (cv) cv.textContent = n.weight;
+        applyNodeWeightVisual(n);
+        fireBoardChange();
+      } else if (t.classList.contains("b-ctrl-conv")) {
+        n.conviction = Number(t.value) || 0;
+        const cv = t.parentElement.querySelector(".cv"); if (cv) cv.textContent = n.conviction;
+        fireBoardChange();
+      }
     });
 
     /* single-click → select/move first; dblclick → edit */
@@ -4606,6 +4622,7 @@
   let _ovResult = null, _ovGraph = null;
   let _flash = 0;                 // consensus-band flash level (0..1), decays
   const _edgePhase = {};          // per-edge lead-dot phase (arrival detection)
+  let _consensusPhase = null;     // 예측 노드 활성 시 합의 플래시 위상(연결선 점 대체)
   const _rmq = window.matchMedia("(prefers-reduced-motion: reduce)");
   const prefersReducedMotion = () => _rmq.matches;
 
@@ -4980,48 +4997,16 @@
       ctx.restore();
     });
 
-    /* flowing dots along each edge (from → to) */
-    boardState.edges.forEach(e => {
-      if (e.from !== _actId && e.to !== _actId) return;   // 활성 노드에 연결된 엣지만
-      const wpts = edgeWorldPolyline(e);
-      if (!wpts || wpts.length < 2) return;
-      const spts = wpts.map(_toScreen);
-
-      /* weight factor from source node (brightness + speed scale) */
-      const fromNode = bN(e.from);
-      const ewf = 0.6 + 0.8 * ((fromNode && fromNode.weight != null ? fromNode.weight : 50) / 100);
-
-      /* energized wire underglow */
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      ctx.strokeStyle = "#e8b463";
-      ctx.globalAlpha = (0.05 + 0.13 * mag) * ewf;
-      ctx.lineWidth = 2.2;
-      ctx.shadowColor = "#e8b463"; ctx.shadowBlur = 6;
-      ctx.beginPath();
-      spts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
-      ctx.stroke();
-      ctx.restore();
-
-      const eSpeed = speed * ewf;
-      const lead = isStatic ? 0.5 : (t * eSpeed) % 1;
-      for (let k = 0; k < ND; k++) {
-        const phase = isStatic ? (k + 1) / (ND + 1) : (lead + k / ND) % 1;
-        const pos = _pointAt(spts, phase);
-        const fade = 0.55 + 0.45 * Math.sin(phase * Math.PI);   // brightest mid-wire
-        _glowDot(ctx, pos.x, pos.y, dotR, "#f0c878", _clamp01((0.5 + 0.5 * mag) * fade * ewf));
-      }
-
-      /* arrival → flash the chart consensus band */
-      if (!isStatic) {
-        const prev = _edgePhase[e.id];
-        _edgePhase[e.id] = lead;
-        if (prev != null && lead < prev) {
-          const to = bN(e.to);
-          if (to && to.blockType === "predict") _flash = 1;
-        }
-      }
-    });
+    /* 연결선 시각화 제거: 흐르는 점/에너지 와이어 미표시.
+       분석이 예측 노드에 도달하면 합의 밴드 플래시만 위상 기반으로 유지. */
+    const _actNode = _actId ? bN(_actId) : null;
+    if (!isStatic && _actNode && _actNode.blockType === "predict") {
+      const lead = (t * speed) % 1;
+      if (_consensusPhase != null && lead < _consensusPhase) _flash = 1;
+      _consensusPhase = lead;
+    } else {
+      _consensusPhase = null;
+    }
   }
 
   /* ── animation loop ───────────────────────────────────────────── */
@@ -5106,16 +5091,6 @@
           if (el) { const sy = el.querySelector(".b-tkr-sym"), px = el.querySelector(".b-tkr-px"); if (sy) sy.textContent = n.params.symbol || "종목?"; if (px) px.textContent = isFinite(n.params.price) ? "$" + fmtNum(n.params.price) : "현재가 미입력"; }
         } else if (t.dataset.pkey) {
           n.params = n.params || {}; n.params[t.dataset.pkey] = Math.round(Number(t.value) || 0);
-        } else if (t.dataset.wkey) {
-          n.params = n.params || {}; n.params.weights = n.params.weights || {};
-          n.params.weights[t.dataset.wkey] = Number(t.value) || 0;
-        } else if (t.id === "ppWeight") {
-          n.weight = Number(t.value);
-          const v = document.getElementById("ppWeightVal"); if (v) v.textContent = n.weight;
-          applyNodeWeightVisual(n);
-        } else if (t.id === "ppConv") {
-          n.conviction = Number(t.value) || 0;
-          const v = document.getElementById("ppConvVal"); if (v) v.textContent = n.conviction;
         } else if (t.id === "ppNote") {
           n.note = t.value;
         } else if (t.id === "neTitle") {
