@@ -581,7 +581,7 @@
               <canvas id="fcMainChart" class="fc-cv"></canvas>
               <canvas id="fcEvidence" class="fc-evidence"></canvas>
               <div class="fc-axis-btns" id="fcAxisBtns">
-                <button id="autoBtn" class="fc-axis-btn" title="자동 배열 — 시간창·가격축을 전체가 잘 보이게 맞춤">A</button>
+                <button id="autoBtn" class="fc-axis-btn" title="세로축 오토스케일 — 현재 구간의 보이는 캔들에 맞춤(시간창 유지). 전체 초기화는 플롯 더블클릭">A</button>
                 <button id="logBtn" class="fc-axis-btn" title="로그/선형 스케일">L</button>
               </div>
               <div class="fc-cone-vline" id="fcMainVline"></div>
@@ -3988,7 +3988,7 @@
     });
   })();
   (function() {
-    const a = document.getElementById("autoBtn"); if (a) a.addEventListener("click", () => { resetChartWin(); resetYScale(); _chartNav = false; updateAxisBtns(); renderHeroZoom(); });   // A=자동 배열(전체 맞춤): 시간창+가격축 리셋, 예측 콘 포함
+    const a = document.getElementById("autoBtn"); if (a) a.addEventListener("click", () => { resetYScale(); _chartNav = true; updateAxisBtns(); renderHeroZoom(); });   // A=현재 구간 세로축 오토스케일: 시간창 유지, 보이는 캔들에 맞춤(예측 콘은 제외해 상세 확보)
     const l = document.getElementById("logBtn"); if (l) l.addEventListener("click", () => { toggleLogChart(); });
   })();
   /* ── 시연 오버레이 제어: 상단 HUD(접기·드래그이동·숨김) + 하단 로그(접기) ── */
