@@ -666,6 +666,32 @@ test("run: 피보 블록 없으면 기여 0(기존 동작)", () => {
   assert.ok(r.prediction.path.every(isFinite));
 });
 
+test("analyzeFib: 다중파 시계열 → 단/중/장 degree 동반 + bias 가중 블렌드", () => {
+  const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
+  const price = [100, ...seg(100, 300, 99), ...seg(300, 250, 50), ...seg(250, 320, 40), ...seg(320, 300, 10)];
+  const f = ForgeCore.analyzeFib(price, { swing: 0.05, len: 120 });
+  assert.ok(f.degrees.length >= 2 && f.degrees.length <= 3, "여러 degree 산출");
+  assert.strictEqual(f.degrees[0].name, "단기");
+  assert.ok(f.degrees.every(d => ["단기", "중기", "장기"].includes(d.name)));
+  assert.ok(f.degrees.every(d => d.levels.length === 12 && d.levels.every(L => isFinite(L.price))), "각 degree 12레벨 유한");
+  // top-level = 단기 (하위호환)
+  assert.strictEqual(f.dir, f.degrees[0].dir);
+  assert.strictEqual(f.swing.fromIdx, f.degrees[0].swing.fromIdx);
+  // bias = 존재 degree 가중(단.5/중.3/장.2) 재정규화
+  const W = { "단기": 0.5, "중기": 0.3, "장기": 0.2 };
+  let bw = 0, bs = 0; for (const d of f.degrees) { bw += W[d.name]; bs += W[d.name] * d.bias; }
+  const expect = Math.max(-1, Math.min(1, bs / bw));
+  assert.ok(Math.abs(f.bias - expect) < 1e-9, "bias 블렌드 일치");
+});
+
+test("analyzeFib: 단조 시계열 → degree 중복 제거(단기만), bias=단기(회귀 0)", () => {
+  const up = Array.from({ length: 60 }, (_, i) => 100 + i * 1.5);
+  const f = ForgeCore.analyzeFib(up, { swing: 0.05, len: 120 });
+  assert.strictEqual(f.degrees.length, 1);
+  assert.strictEqual(f.degrees[0].name, "단기");
+  assert.ok(Math.abs(f.bias - f.degrees[0].bias) < 1e-9);
+});
+
 test("analyzeElliott: 5파 상승 임펄스 → impulse_up, 규칙·투영·bias", () => {
   const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
   const price = [100, ...seg(100, 120, 8), ...seg(120, 108, 6), ...seg(108, 150, 10), ...seg(150, 132, 6), ...seg(132, 165, 8)];

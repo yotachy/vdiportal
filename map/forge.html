@@ -2843,6 +2843,32 @@
         });
       }
     }
+    // ── 중기·장기 degree: 핵심 레벨(0.382/0.5/0.618)+골든존+스윙 스팬만, 구분 스타일(단기와 혼동 방지) ──
+    if (reveal >= 1 && fib.degrees && fib.degrees.length > 1) {
+      const KEY = [0.382, 0.5, 0.618];
+      const STY = { "중기": { col: "rgba(232,180,99,.5)", w: 1.6, dash: [7, 5], dot: 3.2 }, "장기": { col: "rgba(201,146,46,.85)", w: 2.4, dash: [11, 6], dot: 4 } };
+      for (const dg of fib.degrees) {
+        const st = STY[dg.name]; if (!st) continue;   // 단기는 위에서 이미 전체 그리드로 작도
+        // 스윙 스팬(얇은 연결선) — 이 degree가 어느 구간을 보는지
+        if (dg.swing) {
+          const x0 = fiToX(Math.max(fiMin, dg.swing.fromIdx)), y0 = pToY(dg.swing.fromPrice), x1 = fiToX(Math.max(fiMin, dg.swing.toIdx)), y1 = pToY(dg.swing.toPrice);
+          if ([x0, y0, x1, y1].every(isFinite)) { c.save(); c.globalAlpha = .4; c.strokeStyle = st.col; c.lineWidth = st.w; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); c.restore(); }
+          [[dg.swing.fromIdx, dg.swing.fromPrice], [dg.swing.toIdx, dg.swing.toPrice]].forEach(pr => {
+            const x = fiToX(Math.max(fiMin, pr[0])), y = pToY(pr[1]);
+            if (isFinite(x) && isFinite(y)) { c.fillStyle = st.col; c.beginPath(); c.arc(x, y, st.dot, 0, 7); c.fill(); }
+          });
+        }
+        // 핵심 되돌림 레벨
+        for (const L of dg.levels) {
+          if (L.kind !== "retr" || !KEY.some(k => Math.abs(L.ratio - k) < 1e-9)) continue;
+          const y = pToY(L.price); if (![y, xL, xR].every(isFinite)) continue;
+          c.setLineDash(st.dash); c.strokeStyle = L.golden ? GOLD : st.col; c.lineWidth = st.w; c.globalAlpha = .9;
+          c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y); c.stroke();
+          c.globalAlpha = 1; c.setLineDash([]);
+          _evLabel(c, dg.name.charAt(0) + " " + L.ratio.toFixed(3), xL + 3, y - 2, L.golden ? GOLD : DIM, "left");
+        }
+      }
+    }
     c.restore();
   }
   // 엘리어트 작도(차트·오버레이 공용, reveal 인지). M=좌표 매퍼.

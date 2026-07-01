@@ -466,32 +466,28 @@
     return piv;
   }
 
-  function analyzeFib(price, opts) {
-    opts = opts || {};
-    const len = opts.len || 120, swing = opts.swing != null ? opts.swing : 0.05, srPct = opts.srPct != null ? opts.srPct : 0.01;
-    const P = price.length;
-    const EMPTY = { dir: null, swing: null, levels: [], zone: { nearest: null, inGolden: false, lower: null, upper: null, goldenLo: null, goldenHi: null }, bias: 0 };
-    if (P < 2) return EMPTY;
+  // 시계열 [s0..끝] 구간의 지배 스윙(최저↔최고, 방향=나중에 온 극점 기준). null=자료부족
+  function _domSwing(price, s0) {
+    const seg = price.slice(s0);
+    if (seg.length < 2) return null;
+    const hiV = Math.max(...seg), loV = Math.min(...seg);
+    const hiIdx = s0 + seg.indexOf(hiV), loIdx = s0 + seg.indexOf(loV);
+    const dir = hiIdx >= loIdx ? "up" : "down";
+    return dir === "up"
+      ? { fromIdx: loIdx, fromPrice: loV, toIdx: hiIdx, toPrice: hiV, dir }
+      : { fromIdx: hiIdx, fromPrice: hiV, toIdx: loIdx, toPrice: loV, dir };
+  }
+
+  // 한 스윙(degree)의 되돌림/확장 레벨·존·bias 계산. sw={fromIdx,toIdx,fromPrice,toPrice,dir}
+  function _fibDegree(price, sw, len, srPct) {
     const RETR = [0, .236, .382, .5, .618, .786, 1], EXT = [1.272, 1.414, 1.618, 2.0, 2.618];
-    const sw = detectSwings(price, swing);
-    let fromIdx, toIdx, fromPrice, toPrice, dir;
-    if (sw.length >= 2) {
-      const a = sw[sw.length - 2], b = sw[sw.length - 1];
-      fromIdx = a.idx; fromPrice = a.price; toIdx = b.idx; toPrice = b.price;
-      dir = toPrice >= fromPrice ? "up" : "down";
-    } else {
-      const s0 = Math.max(0, P - len), seg = price.slice(s0);
-      const hiV = Math.max(...seg), loV = Math.min(...seg);
-      const hiIdx = s0 + seg.indexOf(hiV), loIdx = s0 + seg.indexOf(loV);
-      dir = hiIdx >= loIdx ? "up" : "down";
-      if (dir === "up") { fromIdx = loIdx; fromPrice = loV; toIdx = hiIdx; toPrice = hiV; }
-      else { fromIdx = hiIdx; fromPrice = hiV; toIdx = loIdx; toPrice = loV; }
-    }
+    const { fromIdx, toIdx, fromPrice, toPrice, dir } = sw;
+    const P = price.length;
     const hi = Math.max(fromPrice, toPrice), lo = Math.min(fromPrice, toPrice), rng = (hi - lo) || 1;
     const priceAt = (r, kind) => kind === "retr"
       ? (dir === "up" ? hi - rng * r : lo + rng * r)
       : (dir === "up" ? hi + rng * (r - 1) : lo - rng * (r - 1));
-    // 2차(장기 창 hi/lo) 레벨 — 합류
+    // 2차(len 창 hi/lo) 레벨 — 합류 판정
     const s2 = Math.max(0, P - len), seg2 = price.slice(s2);
     const hi2 = Math.max(...seg2), lo2 = Math.min(...seg2), rng2 = (hi2 - lo2) || 1;
     const sec = RETR.map(r => dir === "up" ? hi2 - rng2 * r : lo2 + rng2 * r);
@@ -514,6 +510,36 @@
     return { dir, swing: { fromIdx, toIdx, fromPrice, toPrice }, levels, zone: { nearest, inGolden, lower, upper, goldenLo, goldenHi }, bias };
   }
 
+  // 단기(최근 피벗 스윙)·중기(len 창 지배 스윙)·장기(전체 지배 스윙) 3 degree 동시 분석.
+  // top-level shape(dir/swing/levels/zone/bias)=단기(하위호환·combine 보호: values는 fibPos 별도). degrees=[{name,...}] 추가.
+  function analyzeFib(price, opts) {
+    opts = opts || {};
+    const len = opts.len || 120, swing = opts.swing != null ? opts.swing : 0.05, srPct = opts.srPct != null ? opts.srPct : 0.01;
+    const P = price.length;
+    const EMPTY = { dir: null, swing: null, levels: [], zone: { nearest: null, inGolden: false, lower: null, upper: null, goldenLo: null, goldenHi: null }, bias: 0, degrees: [] };
+    if (P < 2) return EMPTY;
+    // 단기: 최근 피벗 스윙(없으면 len 창 폴백)
+    const sw = detectSwings(price, swing);
+    let shortSw;
+    if (sw.length >= 2) { const a = sw[sw.length - 2], b = sw[sw.length - 1]; shortSw = { fromIdx: a.idx, fromPrice: a.price, toIdx: b.idx, toPrice: b.price, dir: b.price >= a.price ? "up" : "down" }; }
+    else shortSw = _domSwing(price, Math.max(0, P - len)) || _domSwing(price, 0);
+    if (!shortSw) return EMPTY;
+    const shortDeg = _fibDegree(price, shortSw, len, srPct); shortDeg.name = "단기";
+    const degrees = [shortDeg];
+    const dup = (deg, s) => deg.swing.fromIdx === s.fromIdx && deg.swing.toIdx === s.toIdx;
+    // 중기: 최근 len(기본 120)봉 지배 스윙
+    const midSw = _domSwing(price, Math.max(0, P - len));
+    if (midSw && !dup(shortDeg, midSw)) { const m = _fibDegree(price, midSw, len, srPct); m.name = "중기"; degrees.push(m); }
+    // 장기: 전체 시계열 지배 스윙
+    const longSw = _domSwing(price, 0);
+    if (longSw && !degrees.some(d => dup(d, longSw))) { const l = _fibDegree(price, longSw, len, srPct); l.name = "장기"; degrees.push(l); }
+    // bias 블렌드(존재 degree만 가중 재정규화: 단.5/중.3/장.2)
+    const W = { "단기": 0.5, "중기": 0.3, "장기": 0.2 };
+    let bw = 0, bs = 0; for (const d of degrees) { bw += W[d.name]; bs += W[d.name] * d.bias; }
+    const bias = bw ? Math.max(-1, Math.min(1, bs / bw)) : shortDeg.bias;
+    return { dir: shortDeg.dir, swing: shortDeg.swing, levels: shortDeg.levels, zone: shortDeg.zone, bias: bias, degrees: degrees };
+  }
+
   function fibSteps(fib) {
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
     const d = fib.dir === "up" ? "상승" : fib.dir === "down" ? "하락" : "중립";
@@ -522,8 +548,9 @@
     const near = fib.zone.nearest;
     const zTxt = near ? (near.side === "support" ? "지지" : "저항") + " 근접(" + near.ratio + ")" : "구간 중앙";
     const bTxt = fib.bias > 0.1 ? "상승" : fib.bias < -0.1 ? "하락" : "중립";
+    const multi = fib.degrees && fib.degrees.length > 1 ? " · " + fib.degrees.map(g => g.name.charAt(0)).join("·") + " " + fib.degrees.length + "단계 작도" : "";
     return [
-      fib.swing ? d + " 스윙 식별 (" + fmt(fib.swing.fromPrice) + "→" + fmt(fib.swing.toPrice) + ")" : "스윙 식별 폴백",
+      (fib.swing ? d + " 스윙 식별 (" + fmt(fib.swing.fromPrice) + "→" + fmt(fib.swing.toPrice) + ")" : "스윙 식별 폴백") + multi,
       "되돌림 레벨 7개" + (conf ? " · 합류 " + conf + "곳" : ""),
       ext ? "확장 목표 1.618 = " + fmt(ext.price) : "확장 레벨",
       (fib.zone.inGolden ? "골든포켓 진입 · " : "") + zTxt,
