@@ -119,8 +119,8 @@
   .b-zoomctl button:hover{background:var(--raised2)}
   .b-zlabel{font-size:11px;color:var(--muted);text-align:center;background:#161b22cc;border:1px solid var(--line);border-radius:6px;padding:3px}
   /* thumbnail */
-  .b-n-thumb{margin:-2px -2px 6px;border-radius:8px 8px 0 0;overflow:hidden;background:var(--bg);max-height:84px}
-  .b-n-thumb img{display:block;width:100%;height:auto;max-height:84px;object-fit:cover}
+  .b-n-thumb{margin:-2px -2px 6px;border-radius:8px 8px 0 0;overflow:hidden;background:var(--bg);height:84px}
+  .b-n-thumb img{display:block;width:100%;height:100%;object-fit:cover}
   /* weight importance badge */
   .b-n-wt{position:absolute;top:-8px;right:-8px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;
     background:var(--gold);color:#1a1206;font-size:11px;font-weight:700;line-height:18px;text-align:center;z-index:4}
@@ -131,6 +131,16 @@
   .b-n-ctrl .cr label{flex:0 0 34px;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:var(--eth)}
   .b-n-ctrl .cr input[type=range]{flex:1;min-width:0;height:14px;accent-color:var(--gold);cursor:pointer}
   .b-n-ctrl .cr .cv{flex:0 0 30px;text-align:right;font-size:11px;font-weight:700;color:var(--gold);font-family:var(--mono)}
+  /* 통합 영향력 게이지(방향+세기 한 바) — 항상 표시, 직접 드래그 */
+  .b-n-gauge{margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.06)}
+  .b-n-glabel{display:flex;justify-content:space-between;align-items:baseline;font-size:10.5px;font-weight:700;color:var(--eth);margin-bottom:5px;letter-spacing:.01em}
+  .b-n-gval{font-family:var(--mono);font-weight:800;font-size:12.5px}
+  .b-n-gauge.g-up .b-n-gval{color:#46c28e}.b-n-gauge.g-dn .b-n-gval{color:#e06a6a}.b-n-gauge.g-0 .b-n-gval{color:var(--muted)}
+  .b-ctrl-sig{display:block;width:100%;height:16px;cursor:pointer;-webkit-appearance:none;appearance:none;background:transparent;margin:0}
+  .b-ctrl-sig::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(90deg,#e06a6a 0%,#e06a6a 40%,rgba(138,146,178,.4) 47%,rgba(138,146,178,.4) 53%,#46c28e 60%,#46c28e 100%)}
+  .b-ctrl-sig::-moz-range-track{height:6px;border-radius:3px;background:linear-gradient(90deg,#e06a6a,rgba(138,146,178,.4) 50%,#46c28e)}
+  .b-ctrl-sig::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:15px;height:15px;margin-top:-4.5px;border-radius:50%;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.6);cursor:grab}
+  .b-ctrl-sig::-moz-range-thumb{width:15px;height:15px;border:none;border-radius:50%;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.6);cursor:grab}
   .b-n-scan{margin-top:4px;font-size:11px;color:var(--eth);font-family:var(--mono)}
   /* drag cursor override */
   body.b-ndrag,body.b-ndrag *{cursor:grabbing!important}
@@ -841,6 +851,36 @@
 
   const W_NODE = 200;   // default node width (block kind)
   const EWIDTHS = { 1: 1.6, 2: 2.4, 3: 3.8 };
+  /* 고정 배치 모드: 블록을 일정한 격자에 자동 정렬(드래그/연결 없음). 관련 기능 코드는 남겨두고 게이트만. */
+  const FIXED_LAYOUT = true;
+  function layoutBlocks() {
+    if (!FIXED_LAYOUT) return;
+    const order = BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker").map(d => d.type);
+    const rank = t => { const i = order.indexOf(t); return i < 0 ? 99 : i; };
+    const blocks = boardState.nodes.filter(n => n.blockType && n.blockType !== "ticker");
+    blocks.sort((a, b) => rank(a.blockType) - rank(b.blockType));
+    const COLS = 2, X0 = 50, Y0 = 38, GX = W_NODE + 46, GY = 132;
+    blocks.forEach((n, i) => { n.x = X0 + (i % COLS) * GX; n.y = Y0 + Math.floor(i / COLS) * GY; });
+    const memos = boardState.nodes.filter(n => n.kind !== "block" && n.blockType !== "ticker");
+    const base = Y0 + Math.ceil(blocks.length / COLS) * GY + 12;
+    memos.forEach((n, i) => { n.x = X0 + (i % COLS) * GX; n.y = base + Math.floor(i / COLS) * GY; });
+  }
+  /* 측정 높이 기반 정밀 배치(masonry 2단) — 썸네일로 카드 높이가 달라도 겹치지 않게. measure() 후 호출. */
+  function flowLayout() {
+    if (!FIXED_LAYOUT) return;
+    const order = BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker").map(d => d.type);
+    const rank = t => { const i = order.indexOf(t); return i < 0 ? 99 : i; };
+    const blocks = boardState.nodes.filter(n => n.blockType && n.blockType !== "ticker").sort((a, b) => rank(a.blockType) - rank(b.blockType));
+    const memos = boardState.nodes.filter(n => n.kind !== "block" && n.blockType !== "ticker");
+    const items = blocks.concat(memos);
+    const COLS = 2, X0 = 50, Y0 = 38, GX = W_NODE + 46, GAP = 16, colY = [Y0, Y0];
+    items.forEach(n => {
+      const col = colY[0] <= colY[1] ? 0 : 1;   // 더 짧은 열에 쌓기(masonry)
+      n.x = X0 + col * GX; n.y = colY[col];
+      colY[col] += (n._h || 120) + GAP;
+      const el = bq(n.id); if (el) { el.style.left = n.x + "px"; el.style.top = n.y + "px"; }
+    });
+  }
 
   /* ── Block definitions ───────────────────────────────────────── */
   const BLOCK_DEFS = [
@@ -1313,22 +1353,27 @@
     const cls = "b-node" + (isBlock ? "" : " b-mini") + (n.blockType === "predict" ? " b-center" : "") + (tier[0] ? " b-tier-" + tier[0] : "");
     const _seed = [...(n.id || "")].reduce((a, c) => a + c.charCodeAt(0), 0);
     const _fl = `--fdl:${((_seed % 40) / 10).toFixed(1)}s;--fdur:${(5 + (_seed % 28) / 10).toFixed(1)}s;`;
-    const wt = (n.weight != null ? n.weight : 50), sf = weightScale(wt);
+    const wt = (n.weight != null ? n.weight : 50), sf = FIXED_LAYOUT ? 1 : weightScale(wt);
     const baseW = isBlock ? W_NODE : 140;
     const cardW = Math.round(baseW * sf);
-    const glow = wt > 55
+    const glow = (!FIXED_LAYOUT && wt > 55)
       ? `box-shadow:0 0 ${Math.round((wt - 55) * 0.5)}px rgba(232,180,99,${((wt - 55) / 45 * 0.6).toFixed(2)});`
       : "";
-    const wbadge = wt !== 50 ? `<div class="b-n-wt" title="중요도">${wt}</div>` : "";
+    // 중요도+확신 통합 게이지: sig(-100~+100). 방향=확신, 세기=|sig|가 중요도(가중치)로. 지표 블록에만.
+    const GAUGE_TYPES = ["ma", "trend", "rsi", "fib", "elliott", "phasefold", "volume"];
+    const sig = Math.round(n.conviction || 0);
+    const gCls = sig > 0 ? "g-up" : sig < 0 ? "g-dn" : "g-0";
+    const gauge = (isBlock && GAUGE_TYPES.includes(n.blockType))
+      ? `<div class="b-n-gauge ${gCls}">
+      <div class="b-n-glabel"><span>영향력</span><span class="b-n-gval">${sig > 0 ? "▲" : sig < 0 ? "▼" : "–"}${Math.abs(sig)}</span></div>
+      <input type="range" class="b-ctrl-sig" min="-100" max="100" step="1" value="${sig}" title="왼쪽 하락 · 가운데 중립 · 오른쪽 상승 — 세기가 곧 중요도">
+    </div>` : "";
     return `<div class="${cls}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${cardW}px;font-size:${(13 * sf).toFixed(1)}px;${glow}${_fl}">
   ${inDot}
-  ${wbadge}${thumb}<div class="b-n-body">
+  ${thumb}<div class="b-n-body">
     <div class="b-n-title" contenteditable="true" data-field="title">${esc(n.title || "")}</div>
     ${tkrBody}${badge}
-    <div class="b-n-ctrl">
-      <div class="cr"><label>중요도</label><input type="range" class="b-ctrl-wt" min="0" max="100" step="1" value="${wt}"><span class="cv">${wt}</span></div>
-      <div class="cr"><label>확신</label><input type="range" class="b-ctrl-conv" min="-100" max="100" step="1" value="${n.conviction || 0}"><span class="cv">${n.conviction || 0}</span></div>
-    </div>
+    ${gauge}
   </div>
   ${ports}
 </div>`;
@@ -1373,10 +1418,12 @@
   /* ── renderBoard ─────────────────────────────────────────────── */
   function renderBoard() {
     if (!bWorld) return;
+    layoutBlocks();   // 고정 배치 좌표 항상 적용(로드·삭제 후에도 일정)
     bWorld.querySelectorAll(".b-node").forEach(el => el.remove());
     // 티커는 캔버스 카드가 아니라 상단 패널로 표시(엔진 입력용 노드는 유지)
     bWorld.insertAdjacentHTML("beforeend", boardState.nodes.filter(n => n.blockType !== "ticker").map(nodeHTML).join(""));
     measure();
+    flowLayout();   // 측정 높이로 정밀 재배치(겹침 방지)
     paintEdges();
     applySel();
     applyView();
@@ -1620,7 +1667,13 @@
   }
   function addBlock(type) {
     const d = BLOCK_DEFS.find(b => b.type === type) || {};
-    const slot = freeSlot();
+    if (type !== "free" && boardState.nodes.some(n => n.blockType === type)) {   // 중복 방지 — 같은 블록 2개↑ 금지
+      const ex = boardState.nodes.find(n => n.blockType === type);
+      if (ex) selectOnly(ex.id);
+      bToast((d.label || type) + " 블록은 이미 있어요");
+      return;
+    }
+    const slot = FIXED_LAYOUT ? { x: 0, y: 0 } : freeSlot();
     const n = {
       id: uid("n"),
       x: slot.x, y: slot.y,
@@ -1630,6 +1683,7 @@
       params: d.params ? { ...d.params } : {}
     };
     boardState.nodes.push(n);
+    layoutBlocks();
     renderBoard();
     selectOnly(n.id);
     fireBoardChange();
@@ -1766,6 +1820,7 @@
     }
     if (drag.type === "nodePending") {
       if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return;
+      if (FIXED_LAYOUT) return;   // 고정 배치 — 노드 이동 비활성(클릭 선택만 유지)
       drag.type = "node"; justDragged = true;
       document.body.style.userSelect = "none";
       document.body.classList.add("b-ndrag");
@@ -1952,7 +2007,7 @@
     /* stage pointer/wheel/dblclick */
     bStage.addEventListener("pointerdown", e => {
       if (e.target.closest(".b-hbar,.b-hbtn")) return;
-      if (e.target.closest(".b-n-ctrl")) return;   // 카드 인라인 슬라이더는 드래그/팬 대상 아님
+      if (e.target.closest(".b-n-ctrl") || e.target.closest(".b-n-gauge")) return;   // 카드 인라인 게이지/슬라이더는 드래그/팬 대상 아님
       if (e.button === 1 || (spaceDown && e.button === 0)) { startPan(e); return; }
       if (e.button !== 0) return;
       const nodeEl = e.target.closest(".b-node");
@@ -1999,7 +2054,16 @@
       const t = e.target;
       const card = t.closest(".b-node"); if (!card) return;
       const n = bN(card.dataset.id); if (!n) return;
-      if (t.classList.contains("b-ctrl-wt")) {
+      if (t.classList.contains("b-ctrl-sig")) {   // 통합 게이지: 방향=확신, 세기=중요도
+        const sig = Number(t.value) || 0;
+        n.conviction = sig; n.weight = Math.abs(sig);
+        const g = t.closest(".b-n-gauge");
+        if (g) {
+          g.classList.remove("g-up", "g-dn", "g-0"); g.classList.add(sig > 0 ? "g-up" : sig < 0 ? "g-dn" : "g-0");
+          const gv = g.querySelector(".b-n-gval"); if (gv) gv.textContent = (sig > 0 ? "▲" : sig < 0 ? "▼" : "–") + Math.abs(sig);
+        }
+        fireBoardChange();
+      } else if (t.classList.contains("b-ctrl-wt")) {   // (레거시) 개별 슬라이더 — 코드 유지
         n.weight = Number(t.value);
         const cv = t.parentElement.querySelector(".cv"); if (cv) cv.textContent = n.weight;
         applyNodeWeightVisual(n);
@@ -2069,18 +2133,22 @@
   function seedDefaultStrategy() {
     boardState.nodes = [];
     boardState.edges = [];
-    /* addEdge calls fireBoardChange; _boardChangeCb is null here — no-op */
-    const price     = makeNode(60,  110, "가격",        "block", "price",     {});
-    const ma        = makeNode(310,  40, "이동평균",    "block", "ma",        { len: 10 });
-    const phasefold = makeNode(310, 200, "위상폴딩",    "block", "phasefold", { pmin: 16, pmax: 128 });
-    const combine   = makeNode(560, 120, "가중결합",    "block", "combine",   {});
-    const predict   = makeNode(810, 120, "예측·시그널", "block", "predict",   {});
-    const memo      = makeNode(60,  290, "포지 메모",   "free",  null,        {});
-    addEdge(price.id,     "right",  ma.id,        "left");
-    addEdge(price.id,     "bottom", phasefold.id, "left");
-    addEdge(ma.id,        "right",  combine.id,   "left");
-    addEdge(phasefold.id, "right",  combine.id,   "left");
-    addEdge(combine.id,   "right",  predict.id,   "left");
+    /* 기본으로 모든 블록 도구 포함(고정 배치). 지표→결합→예측 연결(엔진용, 화면엔 선 없음) */
+    const mk = (t, title, params) => makeNode(0, 0, title, "block", t, params || {});
+    const price     = mk("price", "가격", {});
+    const ma        = mk("ma", "이동평균", { len: 20 });
+    const trend     = mk("trend", "추세선", { len: 40 });
+    const rsi       = mk("rsi", "RSI", { period: 14 });
+    const fib       = mk("fib", "피보나치", { len: 120 });
+    const elliott   = mk("elliott", "엘리어트", { swing: 3 });
+    const phasefold = mk("phasefold", "파동 스캔", { pmin: 16, pmax: 128 });
+    const volume    = mk("volume", "거래량", {});
+    const combine   = mk("combine", "가중결합", {});
+    const predict   = mk("predict", "예측·시그널", {});
+    makeNode(0, 0, "포지 메모", "free", null, {});
+    [price, ma, trend, rsi, fib, elliott, phasefold, volume].forEach(ind => addEdge(ind.id, "right", combine.id, "left"));
+    addEdge(combine.id, "right", predict.id, "left");
+    layoutBlocks();
   }
 
   /* ── Sample Forge seed ──────────────────────────────────────── */
