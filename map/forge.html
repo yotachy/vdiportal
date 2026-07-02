@@ -229,8 +229,9 @@
   .fc-zoom-reset{position:absolute;top:8px;right:8px;z-index:4;width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:13px;cursor:pointer;display:none}
   .fc-zoom-reset.on{display:block}
   .fc-axis-btns{position:absolute;right:6px;bottom:8px;z-index:4;display:flex;gap:4px}
-  .fc-axis-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:12px;font-weight:700;cursor:pointer;line-height:1}
+  .fc-axis-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:12px;font-weight:700;cursor:pointer;line-height:1;transition:background .35s,color .35s,border-color .35s}
   .fc-axis-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.14)}
+  .fc-axis-btn.flash{border-color:var(--gold);color:#1a1206;background:var(--gold);transition:none}
   /* 봉 주기 세그먼트(일/주/월 직접 선택) */
   .fc-tfseg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
   .fc-tfseg button{background:transparent;color:var(--eth);border:0;border-left:1px solid var(--line);padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em}
@@ -1849,9 +1850,8 @@
     pane.innerHTML = `<div class="tk-panel" id="tkPanel">
     <span class="tk-lbl">티커</span>
     <input class="tk-sym" id="tkSym" placeholder="종목 심볼 (예: BTC-USD · AAPL)" spellcheck="false">
-    <div class="tk-seg" id="tkSeg"><button data-tf="1day">일</button><button data-tf="1week">주</button><button data-tf="1month">월</button></div>
     <button class="tk-load" id="tkLoad">불러오기</button>
-    <span class="tk-stat" id="tkStat">종목 입력</span>
+    <span class="tk-stat" id="tkStat">종목 입력 후 불러오기 · 일/주/월은 차트에서</span>
   </div>
   <div class="b-stage" id="bStage">
   <div class="b-world" id="bWorld">
@@ -1889,7 +1889,6 @@
       _tkSym.addEventListener("input", e => { const t = ensureTickerNode(); t.params.symbol = e.target.value.trim(); markDirty(); renderTickerPanel(); });
       _tkSym.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); loadTicker(); } });
       document.getElementById("tkLoad").addEventListener("click", loadTicker);
-      document.getElementById("tkSeg").addEventListener("click", e => { const b = e.target.closest("button[data-tf]"); if (b) chartSetTF(b.dataset.tf); });
     }
 
     /* stage pointer/wheel/dblclick */
@@ -2746,7 +2745,7 @@
     const b = document.getElementById("evToggle"); if (b) b.classList.toggle("on", _evidenceShow);
   }
   function updateAxisBtns() {
-    const a = document.getElementById("autoBtn"); if (a) a.classList.toggle("on", _yScale.mode === "auto");
+    // A는 상태 토글이 아니라 매번 동작하는 액션 버튼(눌린 것처럼 보여 안 눌리는 오해 방지). L만 토글 상태.
     const l = document.getElementById("logBtn"); if (l) l.classList.toggle("on", _logChart);
   }
   function toggleLogChart() {
@@ -3500,14 +3499,6 @@
     const fb = path.length;
     if (metaEl) metaEl.textContent = "현재가 " + _hzFmt(anchor);
     const hs = _hzList(unit, fb);
-    // 종합 상승/하락 확률 게이지 — 시점별 상승확률의 근시일 가중 평균(가까울수록 신뢰↑)
-    const _ups = hs.map(h => ({ up: _upProb(path[h - 1], p.hi && p.hi[h - 1], anchor), w: 1 / Math.sqrt(h) }));
-    const _wsum = _ups.reduce((a, x) => a + x.w, 0) || 1;
-    const upAgg = Math.round(_ups.reduce((a, x) => a + x.up * x.w, 0) / _wsum);
-    const gauge = `<div class="hz-gauge">
-      <div class="hzg-top"><span class="hzg-up">▲ 상승 ${upAgg}%</span><span class="hzg-cap">시점 가중 종합</span><span class="hzg-dn">${100 - upAgg}% 하락 ▼</span></div>
-      <div class="hzg-bar"><div class="hzg-fill" style="width:${upAgg}%"></div><div class="hzg-mid"></div></div>
-    </div>`;
     const head = `<div class="hz-row hz-head"><span class="hz-t">시점</span><span class="hz-v">예측가</span><span class="hz-chg">변화</span><span class="hz-prob">↑확률</span><span class="hz-band">예상 범위</span></div>`;
     const rows = hs.map(h => {
       const v = path[h - 1], lo = (p.lo && p.lo[h - 1]), hi = (p.hi && p.hi[h - 1]);
@@ -3523,7 +3514,15 @@
         <span class="hz-band">${band}</span>
       </div>`;
     }).join("");
-    host.innerHTML = gauge + head + rows;
+    host.innerHTML = head + rows;
+  }
+  /* 시점 가중 종합 상승확률(%) — 가까운 시점일수록 신뢰↑. 헤더 국면/시그널 문구에 통합 표기 */
+  function aggUpProb(pred) {
+    const path = pred && pred.path; if (!path || !path.length) return null;
+    const anchor = (pred.anchor != null && isFinite(pred.anchor)) ? pred.anchor : path[0];
+    let s = 0, w = 0;
+    for (let k = 0; k < path.length; k++) { const h = k + 1, wt = 1 / Math.sqrt(h); s += _upProb(path[k], pred.hi && pred.hi[k], anchor) * wt; w += wt; }
+    return w ? Math.round(s / w) : null;
   }
   /* ── 분석 해설(단계별 근거 + 예측 이유) ── */
   function renderNarrative(result) {
@@ -4115,7 +4114,12 @@
     });
   })();
   (function() {
-    const a = document.getElementById("autoBtn"); if (a) a.addEventListener("click", () => { resetYScale(); updateAxisBtns(); renderHeroZoom(); });   // A=현재 구간 세로축 오토스케일(보이는 캔들 기준, 시간창 유지). 세로 스케일은 항상 캔들 기준이라 콘 영향 없음
+    const a = document.getElementById("autoBtn");   // A=매번 세로축을 보이는 캔들에 재맞춤(누를 때마다 강제 재적용)
+    if (a) a.addEventListener("click", () => {
+      resetYScale(); _chartNav = false; _heroZoomDragging = false; resetHeroView();
+      renderHeroZoom();
+      a.classList.add("flash"); setTimeout(() => a.classList.remove("flash"), 200);
+    });
     const l = document.getElementById("logBtn"); if (l) l.addEventListener("click", () => { toggleLogChart(); });
   })();
   /* ── 시연 오버레이 제어: 상단 HUD(접기·드래그이동·숨김) + 하단 로그(접기) ── */
@@ -4227,13 +4231,12 @@
     const col = REGIME_COL[regime] || "#8a92b2", label = REGIME_LABEL[regime] || "중립";
     const score = (typeof verdict.score === "number" && isFinite(verdict.score)) ? verdict.score.toFixed(1) : "—";
     const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(2) : "—";
-    const _pp = lastResult && lastResult.prediction, _pa = _pp && _pp.anchor, _pe = _pp && _pp.path && _pp.path.length ? _pp.path[_pp.path.length - 1] : null, _ph = _pp && _pp.hi && _pp.hi.length ? _pp.hi[_pp.hi.length - 1] : null;
-    const _up = (_pe && _ph && _pa) ? _upProb(_pe, _ph, _pa) : null;
+    const _up = (typeof aggUpProb === "function" && lastResult) ? aggUpProb(lastResult.prediction) : null;
     el.innerHTML =
       `국면 <b style="color:${col}">${label}</b>` +
-      (_up != null ? ` · <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
-      ` · 시그널 <b style="color:${col}">${score}</b>`;   // 목표는 예측표·차트 콘 라벨에 이미 있음(헤더 잘림 방지)
-    el.title = "국면 " + label + " · 상승확률 " + (_up != null ? _up + "%" : "—") + " · 시그널 " + score + " · 목표 " + fmt(verdict.target);
+      (_up != null ? ` · 확률 <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
+      ` · 시그널 <b style="color:${col}">${score}</b>`;
+    el.title = "국면 " + label + " · 상승확률 " + (_up != null ? _up + "% / 하락 " + (100 - _up) + "%" : "—") + " · 시그널 " + score + " · 목표 " + fmt(verdict.target);
   }
 
   /* ── exportStrategy: download strategy as JSON blob ──────────── */
