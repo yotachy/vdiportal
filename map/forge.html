@@ -2847,6 +2847,16 @@
 
   /* ── 노드별 근거 작도(추세선·피보·파동 등) 누적 오버레이 ───────── */
   let _evidenceSet = new Set();
+  /* 손그림 진행형 작도: _skFrac(0~1, null=평상시 전체). 모든 도구가 동시에 이 진행도로 그려짐. */
+  let _skFrac = null;
+  function _polyLen(pts) { let L = 0; for (let i = 1; i < pts.length; i++) { const dx = pts[i][0] - pts[i - 1][0], dy = pts[i][1] - pts[i - 1][1]; L += Math.hypot(dx, dy); } return L; }
+  function _skStroke(c, len) {   // len=경로 길이. 진행 중이면 dash로 앞부분만 그림(펜이 긋는 느낌)
+    if (_skFrac == null || _skFrac >= 1 || !(len > 0)) { c.stroke(); return; }
+    const pd = c.getLineDash(), po = c.lineDashOffset;
+    c.setLineDash([len, len + 4]); c.lineDashOffset = len * (1 - Math.max(0, _skFrac));
+    c.stroke(); c.setLineDash(pd); c.lineDashOffset = po;
+  }
+  function _skReady() { return _skFrac == null || _skFrac >= 0.82; }   // 라벨·마커·점은 선이 거의 다 그려진 뒤 등장
   let _evReveal = {};   // 시연 중 노드별 작도 레이어 출현 상한(nodeId→layer). 비재생=전체(∞)
   let _evidenceShow = true;
   let _focusInd = null;          // 포커스 지표 blockType | null(전체)
@@ -2968,19 +2978,21 @@
       for (let s = 0; s <= HS; s++) { const fi = fiL + (nowFi - fiL) * s / HS; const x = fiToX(fi), y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) hp.push([x, y]); }
       if (hp.length < 2 || !isFinite(yb)) return;
       const stroke = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); };
+      const pstroke = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); _skStroke(c, _polyLen(pts)); };   // 진행형(손그림)
       const rq = (w.r2Log != null ? w.r2Log : w.r2), weak = rq < 0.15;   // 저신뢰(노이즈성) 추세선 — 흐리게+방향 화살표 생략
       c.setLineDash([]);
-      if (!weak) { c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = W[key] + CW.halo; stroke(hp); }
+      if (!weak) { c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = W[key] + CW.halo; pstroke(hp); }
       c.globalAlpha = weak ? 0.3 : 1;
-      c.strokeStyle = COL[key]; c.lineWidth = weak ? Math.max(0.8, W[key] - 0.4) : W[key]; c.setLineDash(weak ? CDASH.fine : DASH[key]); stroke(hp);
+      c.strokeStyle = COL[key]; c.lineWidth = weak ? Math.max(0.8, W[key] - 0.4) : W[key]; c.setLineDash(weak ? CDASH.fine : DASH[key]); pstroke(hp);
       c.globalAlpha = 1;
-      // 투영(현재→미래): 신뢰도 낮으면 생략(추세 없는데 예측선처럼 보이는 오해 방지)
-      if (!weak) {
+      // 투영(현재→미래): 신뢰도 낮으면 생략. 손그림 중엔 본선 다 그려진 뒤 등장.
+      if (!weak && _skReady()) {
         const FS = 12, fp = [[xb, yb]];
         for (let s = 1; s <= FS; s++) { const fi = nowFi + futBars * s / FS, x = xb + (xRight - xb) * s / FS, y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) fp.push([x, y]); }
         if (fp.length >= 2) { c.globalAlpha = .6; c.setLineDash(CDASH.std); stroke(fp); c.globalAlpha = 1; }
       }
       c.setLineDash([]);
+      if (!_skReady()) return;   // 라벨은 선이 거의 다 그려진 뒤
       // 강도/각도 라벨 — 저신뢰는 화살표 대신 '약함' + 흐린 색
       const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = weak ? "· 약함" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
       const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir;
@@ -3019,13 +3031,14 @@
     const COL = { short: "#7fb0ff", mid: "#5b8def", long: "#3b62c0" };
     const WID = { short: 1.15, mid: 1.4, long: 1.7 };
     function strokeSeries(series, key, srOn) {
-      c.beginPath(); let started = false;
+      const pts = [];
       for (let fi = Math.max(fiMin, 0); fi <= nowFi; fi++) {
         const v = series[fi]; if (!isFinite(v)) continue;
-        const x = fiToX(fi), y = pToY(v); if (!isFinite(x) || !isFinite(y)) continue;
-        started ? c.lineTo(x, y) : c.moveTo(x, y); started = true;
+        const x = fiToX(fi), y = pToY(v); if (isFinite(x) && isFinite(y)) pts.push([x, y]);
       }
-      c.stroke();
+      if (pts.length < 2) return;
+      c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
+      _skStroke(c, _polyLen(pts));   // 진행형 스트로크(손그림)
     }
     function drawMA(s, key) {
       if (!s) return;
@@ -3069,8 +3082,10 @@
       c.setLineDash(ext ? CDASH.std : (L.confluent ? [] : CDASH.fine));
       c.strokeStyle = L.golden ? GOLD : ext ? DIM : "rgba(232,180,99,.5)";
       c.lineWidth = L.confluent ? CW.bold : ext ? CW.thin : CW.hair; c.globalAlpha = ext ? .55 : .8;
-      c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y); c.stroke();
+      const xE = (_skFrac == null || _skFrac >= 1) ? xR : xL + (xR - xL) * Math.max(0, _skFrac);   // 좌→우로 그어짐(dash 스타일 보존)
+      c.beginPath(); c.moveTo(xL, y); c.lineTo(xE, y); c.stroke();
       c.globalAlpha = 1; c.setLineDash([]);
+      if (!_skReady()) return;   // 라벨은 선이 거의 다 그려진 뒤
       const _txt = (L.confluent ? "✦" : "") + L.ratio.toFixed(3) + (ext ? " 목표" : "") + " · " + fmtNum(L.price);
       if (ext) _evLabel(c, _txt, xR - 3, y - 2, L.golden ? GOLD : DIM, "right");   // 확장 목표는 우측(가격축 근처에서 읽기)
       else _evLabel(c, _txt, xL + 3, y - 2, L.golden ? GOLD : DIM, "left");
@@ -3137,17 +3152,20 @@
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
     // layer1: 파동 폴리라인 + 라벨
     if (reveal >= 1 && ea.waves.length) {
-      c.strokeStyle = COL; c.lineWidth = 1.4; c.setLineDash([]); c.beginPath(); let st = false;
-      for (const w of ea.waves) { const x = fiToX(Math.max(fiMin, w.idx)), y = pToY(w.price); if (!isFinite(x) || !isFinite(y)) continue; st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
-      c.stroke();
-      for (const w of ea.waves) {
-        const x = fiToX(Math.max(fiMin, w.idx)), y = pToY(w.price); if (!isFinite(x) || !isFinite(y)) continue;
-        c.fillStyle = COL; c.beginPath(); c.arc(x, y, 2.2, 0, 7); c.fill();
-        _evLabel(c, w.label, x + 3, y - 3, COL, "left");
+      const pts = [];
+      for (const w of ea.waves) { const x = fiToX(Math.max(fiMin, w.idx)), y = pToY(w.price); if (isFinite(x) && isFinite(y)) pts.push([x, y, w]); }
+      if (pts.length >= 2) {
+        c.strokeStyle = COL; c.lineWidth = 1.4; c.setLineDash([]);
+        c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
+        _skStroke(c, _polyLen(pts));   // 지그재그 진행형 작도
+      }
+      if (_skReady()) for (const p of pts) {   // 점·라벨은 선이 다 그려진 뒤
+        c.fillStyle = COL; c.beginPath(); c.arc(p[0], p[1], 2.2, 0, 7); c.fill();
+        _evLabel(c, p[2].label, p[0] + 3, p[1] - 3, COL, "left");
       }
     }
     // layer2: 유효도/구조 배지(우상단)
-    if (reveal >= 2) {
+    if (reveal >= 2 && _skReady()) {
       const _cl = ea.current.label, _isL = /[A-Z]/.test(_cl);
       const stx = ea.structure === "impulse_up" ? "임펄스↑" : ea.structure === "impulse_down" ? "임펄스↓" : ea.structure === "corrective" ? "조정 진행(" + _cl + ")" : _isL ? "되돌림 진행(" + _cl + ")" : (ea.waves.length >= 2 ? "발달중(" + _cl + "파)" : "불확실");
       const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
@@ -3156,7 +3174,7 @@
       _evLabel(c, stx + " " + ok + "/3 유효" + ea.rules.score.toFixed(2), xb, _by, bcol, "right");
     }
     // layer3: 다음 파동 투영선
-    if (reveal >= 3 && ea.next && ea.waves.length) {
+    if (reveal >= 3 && _skReady() && ea.next && ea.waves.length) {
       const lw = ea.waves[ea.waves.length - 1];
       const x0 = fiToX(Math.max(fiMin, lw.idx)), y0 = pToY(lw.price);
       const xR = (xRight != null ? xRight : fiToX(nowFi)), yT = pToY(ea.next.target);
@@ -3282,6 +3300,7 @@
     const cvHi = document.getElementById("fcEvidenceHi"); let cHi = null;
     if (cvHi) { if (cvHi.width !== ww || cvHi.height !== hh) { cvHi.width = ww; cvHi.height = hh; } cvHi.style.width = W + "px"; cvHi.style.height = H + "px"; cHi = cvHi.getContext("2d"); cHi.setTransform(dpr, 0, 0, dpr, 0, 0); cHi.clearRect(0, 0, W, H); cHi.lineJoin = "round"; }
     _evLabelBoxes = [];   // 라벨 겹침 회피 레지스트리 초기화
+    _skFrac = (_scanning && _scanU < 1) ? _scanU : null;   // 시연 중이면 진행형 작도(손그림)
     if (!_evidenceShow || !_evidenceSet.size || !lastResult) return;
     // 예측을 계산한 바로 그 시계열을 사용(차트/콘과 동일) — 작도·예측 정합 보장
     const price = ((_fcLastData && _fcLastData.price) || currentData().price) || []; const P = price.length; if (P < 2) return;
@@ -4594,19 +4613,6 @@
     cv.style.width = W + "px"; cv.style.height = H + "px";
     const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
     if (heroMode() !== "chart") return;
-    // 스케치 스캔 펜(재생 중) — 근거가 왼→오른쪽으로 그어지는 지점에 빛나는 세로 펜 + 깜빡이는 헤드
-    if (_scanning) {
-      const px = _scanU * W, tn = now || 0, beat = 0.6 + 0.4 * Math.sin(tn / 90);
-      const gx = c.createLinearGradient(px - 64, 0, px, 0);
-      gx.addColorStop(0, "rgba(232,180,99,0)"); gx.addColorStop(1, "rgba(232,180,99,.16)");
-      c.fillStyle = gx; c.fillRect(px - 64, 0, 64, H);            // 지나간 직후 잔광
-      c.save(); c.shadowColor = "rgba(232,180,99,.9)"; c.shadowBlur = 15 * beat;
-      c.strokeStyle = "rgba(255,214,90," + (0.6 + 0.4 * beat).toFixed(2) + ")"; c.lineWidth = 2;
-      c.beginPath(); c.moveTo(px, 6); c.lineTo(px, H - 6); c.stroke();
-      c.fillStyle = "rgba(255,214,90," + beat.toFixed(2) + ")";
-      for (let k = 0; k < 3; k++) { const yy = H * (0.32 + 0.18 * k) + Math.sin(tn / 200 + k * 1.7) * 7; c.beginPath(); c.arc(px, yy, 2.3, 0, 7); c.fill(); }
-      c.restore();
-    }
     const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g || !g.path || !g.path.length) return;
     const t = now || 0;
     const _lo = tvLog(g.loV, g.log), _hi = tvLog(g.hiV, g.log);
@@ -4882,7 +4888,7 @@
     _playTimers.forEach(clearTimeout); _playTimers = [];
     _playT = null; _playRaf = null; _playing = false;
     _evReveal = {};
-    _scanning = false; _scanU = 1; _applyScanClip(1);   // 스캔 클립 해제(전체 표시)
+    _scanning = false; _scanU = 1;   // 작도 중단 → 전체 표시
     clearAnalyzeViz();
     const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
   }
@@ -4922,10 +4928,10 @@
     }
     _playing = true;
     clearAnalyzeViz();
-    // 스케치 스캔: 전체 근거를 미리 작도해두고, 왼→오른쪽 스캔으로 점진 공개(선이 쭉쭉 그어지는 느낌)
+    // 손그림 작도: 모든 도구를 동시에, 진행도(_scanU 0→1)에 맞춰 선이 그어지듯 작도(스캔 아님)
     _evidenceSet = new Set(indNodes.map(n => n.id));
     _evReveal = {}; indNodes.forEach(n => { _evReveal[n.id] = Infinity; });
-    _scanning = true; _scanU = 0; drawEvidence(); _applyScanClip(0);
+    _scanning = true; _scanU = 0; drawEvidence();
     const _lg0 = document.getElementById("analyzeLog"); if (_lg0) { const _lb0 = document.getElementById("analyzeLogBody"); if (_lb0) _lb0.innerHTML = ""; _lg0.classList.remove("on"); }
     const hud = document.getElementById("playHud"); if (hud) hud.classList.add("on");
     const progEl = document.getElementById("analyzeProg");
@@ -4984,13 +4990,13 @@
     function morph(now) {
       if (!_playing) return;
       const u = Math.min(1, (now - t0) / total);
-      _scanU = Math.min(1, _ease(u) * 1.12); _applyScanClip(_scanU);   // 스케치 스캔: 근거를 왼→오른쪽 점진 공개
+      _scanU = _ease(u); drawEvidence();   // 손그림 진행도 반영 — 모든 도구가 동시에 그어짐
       fcRenderForecast(lerpPred(flat, finPred, _ease(u)));
       if (u < 1) { _playRaf = requestAnimationFrame(morph); return; }
       finishPlay();
     }
     function finishPlay() {
-      _scanning = false; _scanU = 1; _applyScanClip(1);      // 스캔 종료 → 전체 표시
+      _scanning = false; _scanU = 1;                          // 작도 완료 → 전체 표시
       _evidenceSet = new Set(indNodes.map(n => n.id));        // 모든 근거 확정 표시
       _evReveal = {};
       indNodes.forEach(n => { const el = bq(n.id); if (el) { el.classList.remove("analyzing"); el.classList.add("analyzed"); } });
