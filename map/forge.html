@@ -53,8 +53,8 @@
   .b-world{position:absolute;left:0;top:0;transform-origin:0 0}
   /* ── 패널 모드: 캔버스(팬/줌/절대배치) 대신 스크롤 패널 + 2단 그리드 ── */
   body.panel-mode .b-stage{overflow-y:auto;overflow-x:hidden;cursor:default;background:radial-gradient(130% 100% at 50% 0%,#111925,#0b0f14)}
-  body.panel-mode .b-world{position:static!important;transform:none!important;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;padding:14px 14px 60px;width:auto;height:auto;transform-origin:initial}
-  body.panel-mode .b-node{position:static!important;left:auto!important;top:auto!important;width:auto!important;margin:0;font-size:12.5px!important;animation:none!important;transition:box-shadow .14s}
+  body.panel-mode .b-world{position:static!important;transform:none!important;transform-origin:initial;display:block;column-count:2;column-gap:10px;padding:11px 11px 60px;width:auto;height:auto}
+  body.panel-mode .b-node{position:relative!important;left:auto!important;top:auto!important;width:100%!important;margin:0 0 10px;font-size:12.5px!important;animation:none!important;transition:box-shadow .14s;break-inside:avoid;display:inline-block;vertical-align:top}
   body.panel-mode .b-node:hover{transform:none}
   body.panel-mode .b-zoomctl,body.panel-mode .b-edges,body.panel-mode .b-marquee,body.panel-mode .b-snap-guide,body.panel-mode .b-ehud,body.panel-mode .b-nhud{display:none!important}
   /* edge SVG: 20000×20000 centered on -10000,-10000 so world(0,0) maps to SVG(10000,10000) */
@@ -148,6 +148,10 @@
   .b-ctrl-sig::-moz-range-track{height:6px;border-radius:3px;background:linear-gradient(90deg,#e06a6a,rgba(138,146,178,.4) 50%,#46c28e)}
   .b-ctrl-sig::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:15px;height:15px;margin-top:-4.5px;border-radius:50%;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.6);cursor:grab}
   .b-ctrl-sig::-moz-range-thumb{width:15px;height:15px;border:none;border-radius:50%;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.6);cursor:grab}
+  /* 카드 삭제 버튼(우상단, 호버 시) */
+  .b-n-del{position:absolute;top:5px;right:5px;width:21px;height:21px;border:none;border-radius:6px;background:rgba(224,106,106,.16);color:#e06a6a;font-size:15px;line-height:1;font-weight:700;cursor:pointer;opacity:0;transition:opacity .12s,background .12s;z-index:4;display:grid;place-items:center;padding:0}
+  .b-node:hover .b-n-del,.b-node.selected .b-n-del{opacity:1}
+  .b-n-del:hover{background:rgba(224,106,106,.36)}
   .b-n-scan{margin-top:4px;font-size:11px;color:var(--eth);font-family:var(--mono)}
   /* drag cursor override */
   body.b-ndrag,body.b-ndrag *{cursor:grabbing!important}
@@ -1379,6 +1383,7 @@
     </div>` : "";
     return `<div class="${cls}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${cardW}px;font-size:${(13 * sf).toFixed(1)}px;${glow}${_fl}">
   ${inDot}
+  <button class="b-n-del" data-nact="del" title="블록 삭제">×</button>
   ${thumb}<div class="b-n-body">
     <div class="b-n-title" contenteditable="true" data-field="title">${esc(n.title || "")}</div>
     ${tkrBody}${badge}
@@ -1784,7 +1789,7 @@
   /* ── Pointer handlers ────────────────────────────────────────── */
   function nodePointerDown(id, e) {
     const t = e.target;
-    if (t.closest("[data-act]")) return;
+    if (t.closest("[data-act]") || t.closest("[data-nact]")) return;   // 액션 버튼(삭제 등)은 선택/드래그 대상 아님
     const ed = t.closest(".b-n-title");
     if (ed && document.activeElement === ed) return;
     drag = { type: "nodePending", id, sx: e.clientX, sy: e.clientY };
@@ -2069,7 +2074,12 @@
         return;
       }
       const na = e.target.closest("[data-nact]");
-      if (na && na.dataset.nact === "del" && sel.length === 1) { delNodes([sel[0]]); return; }
+      if (na && na.dataset.nact === "del") {   // 카드 × 버튼 → 해당 노드 삭제(선택 무관)
+        const card = na.closest(".b-node");
+        if (card && card.dataset.id) delNodes([card.dataset.id]);
+        else if (sel.length === 1) delNodes([sel[0]]);
+        return;
+      }
     });
 
     /* 카드 인라인 중요도/확신 슬라이더 */
