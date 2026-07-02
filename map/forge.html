@@ -2108,10 +2108,10 @@
       for (let k = predPath.length - 1; k >= 0; k--) c.lineTo(toX(n + k), toY(predLo[k]));
       c.lineTo(predStartX, anchorY);
       c.closePath();
-      c.fillStyle = "rgba(232,180,99,.14)";
+      c.fillStyle = "rgba(232,180,99,.09)";
       c.fill();
       /* path line (seam에서 시작) */
-      c.strokeStyle = FC_GOLD; c.lineWidth = 1.8; c.setLineDash([5, 4]);
+      c.strokeStyle = FC_GOLD; c.lineWidth = 1.3; c.setLineDash(CDASH.std);
       c.beginPath();
       c.moveTo(predStartX, anchorY);
       for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predPath[k]));
@@ -2253,8 +2253,8 @@
     if (s.length < 2) { c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center"; c.fillText("RSI 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return; }
     const padL = 6, padR = 28, padV = 8, plotW = cw - padL - padR, plotH = ch - 2 * padV;
     const yOf = v => padV + (1 - v / 100) * plotH, xOf = i => padL + (i / (s.length - 1)) * plotW;
-    c.fillStyle = "rgba(224,106,106,.10)"; c.fillRect(padL, yOf(100), plotW, yOf(70) - yOf(100));
-    c.fillStyle = "rgba(70,194,142,.10)"; c.fillRect(padL, yOf(30), plotW, yOf(0) - yOf(30));
+    c.fillStyle = "rgba(224,106,106,.06)"; c.fillRect(padL, yOf(100), plotW, yOf(70) - yOf(100));
+    c.fillStyle = "rgba(70,194,142,.06)"; c.fillRect(padL, yOf(30), plotW, yOf(0) - yOf(30));
     c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
     [30, 50, 70].forEach(lv => { const y = yOf(lv); c.beginPath(); c.moveTo(padL, y); c.lineTo(padL + plotW, y); c.stroke(); c.fillStyle = "#8a92b2"; c.font = "9px ui-monospace,monospace"; c.fillText(lv, padL + plotW + 3, y + 3); });
     c.setLineDash([]);
@@ -2473,7 +2473,7 @@
       c.beginPath(); c.moveTo(x0, ynow);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(up(hi[k])));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(xOf(k), yOf(up(lo[k])));
-      c.closePath(); c.fillStyle = "rgba(232,180,99,.17)"; c.fill();
+      c.closePath(); c.fillStyle = "rgba(232,180,99,.10)"; c.fill();
       c.strokeStyle = FC_GOLD; c.lineWidth = 1.8; c.setLineDash([5, 4]);
       c.beginPath(); c.moveTo(x0, ynow);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(up(path[k])));
@@ -2554,7 +2554,7 @@
     c.beginPath(); c.moveTo(8, anchorY);
     for (let k = 0; k < path.length; k++) c.lineTo(toX(k), toY(hi[k]));
     for (let k = path.length - 1; k >= 0; k--) c.lineTo(toX(k), toY(lo[k]));
-    c.lineTo(8, anchorY); c.closePath(); c.fillStyle = "rgba(232,180,99,.14)"; c.fill();
+    c.lineTo(8, anchorY); c.closePath(); c.fillStyle = "rgba(232,180,99,.09)"; c.fill();
     /* path line */
     c.strokeStyle = FC_GOLD; c.lineWidth = 1.8; c.setLineDash([5, 4]);
     c.beginPath(); c.moveTo(8, anchorY);
@@ -2631,7 +2631,7 @@
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k]));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(lo[k]));
-      c.closePath(); c.fillStyle = "rgba(232,180,99,.14)"; c.fill();
+      c.closePath(); c.fillStyle = "rgba(232,180,99,.09)"; c.fill();
       c.strokeStyle = FC_GOLD; c.lineWidth = 1.3; c.setLineDash(CDASH.std);
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k]));
@@ -2876,7 +2876,7 @@
       const z = fib.zone;
       if (z && isFinite(z.goldenLo) && isFinite(z.goldenHi)) {
         const yH = pToY(z.goldenHi), yL = pToY(z.goldenLo);
-        if (isFinite(yH) && isFinite(yL)) { c.globalAlpha = .16; c.fillStyle = "#e8b463"; c.fillRect(xL, Math.min(yH, yL), Math.max(2, xR - xL), Math.abs(yL - yH)); c.globalAlpha = 1; }
+        if (isFinite(yH) && isFinite(yL)) { c.globalAlpha = .09; c.fillStyle = "#e8b463"; c.fillRect(xL, Math.min(yH, yL), Math.max(2, xR - xL), Math.abs(yL - yH)); c.globalAlpha = 1; }
       }
       if (z && z.nearest) {
         const y = pToY(z.nearest.price);
@@ -3270,7 +3270,7 @@
       c.beginPath(); c.moveTo(nowX, anchorY);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(hi[k]));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(xOf(k), yOf(lo[k]));
-      c.closePath(); c.fillStyle = "rgba(232,180,99,.18)"; c.fill();
+      c.closePath(); c.fillStyle = "rgba(232,180,99,.11)"; c.fill();
       c.strokeStyle = FC_GOLD; c.lineWidth = 2 * fs; c.setLineDash([5 * fs, 4 * fs]);
       c.beginPath(); c.moveTo(nowX, anchorY);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(path[k]));
