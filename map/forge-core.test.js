@@ -1128,3 +1128,57 @@ test("elliottAnalyze: 짧은 시계열 -> meta.primary null", () => {
   const r = ForgeCore.evalBlocks(g, { price: price, n: price.length });
   assert.strictEqual(r.meta.e.primary, null, "짧으면 primary null");
 });
+
+/* ── 신규 지표: 볼린저 · MACD · ADX ── */
+const _up = (n, drift) => { const s = []; let p = 100; for (let i = 0; i < n; i++) { p *= 1 + (drift + Math.sin(i / 7) * 0.02); s.push(p); } return s; };
+const _dn = (n) => _up(n, -0.006).map(v => v);
+
+test("analyzeBollinger: 밴드·%B·바이어스(상승추세→bias>0)", () => {
+  const bb = ForgeCore.analyzeBollinger(_up(140, 0.005), { len: 20, k: 2 });
+  assert.strictEqual(bb.mid.length, 140, "중심선 길이");
+  assert.ok(bb.upper[139] > bb.mid[139] && bb.mid[139] > bb.lower[139], "upper>mid>lower");
+  assert.ok(bb.last.pctB >= 0 && bb.last.pctB <= 1.5, "%B 범위");
+  assert.ok(bb.bias > 0, "상승추세 bias>0");
+  assert.strictEqual(ForgeCore.bollSeries === undefined, true, "bollSeries는 비공개(export 안 함)");
+});
+test("analyzeBollinger: 하락추세 → bias<0, 짧으면 EMPTY", () => {
+  assert.ok(ForgeCore.analyzeBollinger(_up(140, -0.006), { len: 20, k: 2 }).bias < 0, "하락 bias<0");
+  assert.strictEqual(ForgeCore.analyzeBollinger([1, 2, 3], { len: 20 }).mid.length, 0, "짧으면 빈 배열");
+});
+test("bollingerSteps: 5줄 요약", () => {
+  const bb = ForgeCore.analyzeBollinger(_up(120, 0.004), {});
+  assert.strictEqual(ForgeCore.bollingerSteps(bb, 20, 2).length, 5);
+});
+
+test("analyzeMACD: macd/sig/hist + 상승추세 bias>0", () => {
+  const m = ForgeCore.analyzeMACD(_up(160, 0.006), { fast: 12, slow: 26, signal: 9 });
+  assert.strictEqual(m.macd.length, 160);
+  assert.ok(Math.abs(m.last.hist - (m.last.macd - m.last.sig)) < 1e-6, "hist=macd-sig");
+  assert.ok(m.bias > 0, "상승추세 bias>0");
+  assert.ok(["bull", "bear", "mixed", "neutral"].includes(m.state));
+});
+test("analyzeMACD: 짧으면 EMPTY, 하락추세 bias<0", () => {
+  assert.strictEqual(ForgeCore.analyzeMACD([1, 2, 3], {}).macd.length, 0);
+  assert.ok(ForgeCore.analyzeMACD(_up(160, -0.006), {}).bias < 0, "하락 bias<0");
+});
+test("macdSteps: 5줄", () => { assert.strictEqual(ForgeCore.macdSteps(ForgeCore.analyzeMACD(_up(120, 0.005), {}), 12, 26, 9).length, 5); });
+
+test("analyzeADX: adx/DI + 강한 상승추세 → dir>0, 강도 강함", () => {
+  const a = ForgeCore.analyzeADX(_up(140, 0.008), { period: 14 });
+  assert.strictEqual(a.adx.length, 140);
+  assert.ok(a.last.adx >= 0 && a.last.adx <= 100, "ADX 0~100");
+  assert.strictEqual(a.dir, 1, "상승 → +DI 우세");
+  assert.ok(a.bias > 0, "강한 상승추세 bias>0");
+});
+test("analyzeADX: 짧으면 EMPTY", () => { assert.strictEqual(ForgeCore.analyzeADX([1, 2, 3], {}).adx.length, 0); });
+test("adxSteps: 5줄", () => { assert.strictEqual(ForgeCore.adxSteps(ForgeCore.analyzeADX(_up(120, 0.006), {}), 14).length, 5); });
+
+test("run: 볼린저/MACD/ADX 노드가 예측 드리프트에 반영(격리)", () => {
+  const price = _up(160, 0.006);
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const withInd = { nodes: base.nodes.concat([{ id: "bb", kind: "block", blockType: "bollinger" }, { id: "mc", kind: "block", blockType: "macd" }, { id: "ax", kind: "block", blockType: "adx" }]), edges: base.edges.concat([{ from: "bb", to: "pr" }, { from: "mc", to: "pr" }, { from: "ax", to: "pr" }]) };
+  const r0 = ForgeCore.run(base, { price }, { futW: 24 });
+  const r1 = ForgeCore.run(withInd, { price }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-6, "지표 추가로 예측 타깃이 달라짐");
+  assert.strictEqual((r1.values.bb || []).length, 160, "evalBlocks bollinger 시계열");
+});

@@ -255,6 +255,12 @@
         meta[id] = { waves: ea.waves, current: ea.current, primary: ea.primary };
       } else if (n.blockType === "volume") {
         values[id] = (Array.isArray(n.series) && n.series.length) ? n.series.slice() : [];   // 거래량 시계열 통과
+      } else if (n.blockType === "bollinger") {
+        values[id] = bollSeries(ins[0] || data.price, (n.params && n.params.len) || 20, (n.params && n.params.k) || 2);
+      } else if (n.blockType === "macd") {
+        values[id] = macdSeries(ins[0] || data.price, (n.params && n.params.fast) || 12, (n.params && n.params.slow) || 26, (n.params && n.params.signal) || 9);
+      } else if (n.blockType === "adx") {
+        values[id] = adxSeries(ins[0] || data.price, (n.params && n.params.period) || 14);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -835,6 +841,131 @@
     return w ? s / w : 0;
   }
 
+  /* ── 볼린저 밴드 ── */
+  function stdev(seg) { const n = seg.length; if (n < 2) return 0; let m = 0; for (const v of seg) m += v; m /= n; let s = 0; for (const v of seg) s += (v - m) * (v - m); return Math.sqrt(s / n); }
+  function analyzeBollinger(price, opts) {
+    opts = opts || {};
+    const len = opts.len || 20, k = opts.k != null ? opts.k : 2, P = price.length;
+    const EMPTY = { mid: [], upper: [], lower: [], pctB: [], bandwidth: [], last: { price: null, mid: null, upper: null, lower: null, pctB: null, bandwidth: null }, squeeze: false, state: "neutral", midSlope: 0, bias: 0 };
+    if (P < len + 1) return EMPTY;
+    const mid = sma(price, len), upper = [], lower = [], pctB = [], bandwidth = [];
+    for (let i = 0; i < P; i++) {
+      const a = Math.max(0, i - len + 1), sd = stdev(price.slice(a, i + 1));
+      const u = mid[i] + k * sd, l = mid[i] - k * sd;
+      upper.push(u); lower.push(l);
+      pctB.push((u - l) ? (price[i] - l) / (u - l) : 0.5);
+      bandwidth.push(mid[i] ? (u - l) / mid[i] : 0);
+    }
+    const li = P - 1, bw = bandwidth[li], b = pctB[li];
+    const bwWin = bandwidth.slice(Math.max(0, P - len * 3)).filter(isFinite).slice().sort((x, y) => x - y);
+    const bwPct = bwWin.length ? bwWin.filter(x => x < bw).length / bwWin.length : 0.5;
+    const squeeze = bwPct < 0.2;
+    let state = "neutral";
+    if (b > 1) state = "breakout_up"; else if (b < 0) state = "breakout_dn";
+    else if (b > 0.8) state = "upper"; else if (b < 0.2) state = "lower";
+    const w = Math.max(2, Math.min(len, P - 1)), f = linfit(mid.slice(P - w));
+    const midSlope = Math.max(-1, Math.min(1, Math.tanh((f.b / (Math.abs(mid[li]) || 1)) * 100)));
+    let bias = 0.6 * (b - 0.5) * 2 + 0.4 * midSlope;
+    if (b > 1 || b < 0) bias *= 0.7;
+    if (squeeze) bias *= 0.6;
+    bias = Math.max(-1, Math.min(1, bias));
+    return { mid, upper, lower, pctB, bandwidth, last: { price: price[li], mid: mid[li], upper: upper[li], lower: lower[li], pctB: b, bandwidth: bw }, squeeze, state, midSlope, bias };
+  }
+  function bollSeries(arr, len, k) { const bb = analyzeBollinger(arr, { len, k }); return (bb.pctB || []).map(b => Math.max(-1, Math.min(1, (b - 0.5) * 2))); }
+  function bollingerSteps(bb, len, k) {
+    const st = bb.state, stTxt = st === "breakout_up" ? "상단 돌파" : st === "breakout_dn" ? "하단 이탈" : st === "upper" ? "상단 근접(과열)" : st === "lower" ? "하단 근접(과매도)" : "밴드 중앙";
+    const bw = bb.last.bandwidth != null ? bb.last.bandwidth * 100 : NaN;
+    return [
+      "볼린저 산출 (" + len + "·" + k + "σ)",
+      "%B " + (bb.last.pctB != null ? bb.last.pctB.toFixed(2) : "-") + " · " + stTxt,
+      "밴드폭 " + (isFinite(bw) ? bw.toFixed(1) : "-") + "%" + (bb.squeeze ? " · 스퀴즈(수축·돌파 대기)" : ""),
+      "중심선 " + (bb.midSlope > 0.1 ? "상승" : bb.midSlope < -0.1 ? "하락" : "횡보"),
+      "종합 방향 " + (bb.bias > 0.1 ? "상승" : bb.bias < -0.1 ? "하락" : "중립") + " (bias " + bb.bias.toFixed(2) + ")"
+    ];
+  }
+
+  /* ── MACD ── */
+  function analyzeMACD(price, opts) {
+    opts = opts || {};
+    const fast = opts.fast || 12, slow = opts.slow || 26, sigN = opts.signal || 9, P = price.length;
+    const EMPTY = { macd: [], sig: [], hist: [], last: { macd: 0, sig: 0, hist: 0 }, cross: { type: null, barsAgo: null }, state: "neutral", rising: false, bias: 0 };
+    if (P < slow + sigN) return EMPTY;
+    const ef = ema(price, fast), es = ema(price, slow), macd = ef.map((v, i) => v - es[i]);
+    const sig = ema(macd, sigN), hist = macd.map((v, i) => v - sig[i]), li = P - 1;
+    let cross = { type: null, barsAgo: null };
+    for (let i = P - 1; i >= Math.max(1, P - 1 - slow * 3); i--) {
+      const d = macd[i] - sig[i], dp = macd[i - 1] - sig[i - 1];
+      if (d === 0) continue;
+      if (dp <= 0 && d > 0) { cross = { type: "bull", barsAgo: (P - 1) - i }; break; }
+      if (dp >= 0 && d < 0) { cross = { type: "bear", barsAgo: (P - 1) - i }; break; }
+    }
+    const win = macd.slice(Math.max(0, P - slow * 3)).map(Math.abs), scale = Math.max(1e-9, (win.reduce((a, v) => a + v, 0) / (win.length || 1)) || 1);
+    const histN = Math.max(-1, Math.min(1, hist[li] / scale / 1.2)), macdN = Math.max(-1, Math.min(1, macd[li] / scale / 1.5));
+    const rising = hist[li] > hist[Math.max(0, li - 1)];
+    const state = macd[li] > 0 && hist[li] > 0 ? "bull" : macd[li] < 0 && hist[li] < 0 ? "bear" : "mixed";
+    let crossDir = cross.type === "bull" ? 1 : cross.type === "bear" ? -1 : 0;
+    if (crossDir && cross.barsAgo != null) crossDir *= Math.max(0, 1 - cross.barsAgo / (slow * 2));
+    let bias = 0.5 * histN + 0.3 * macdN + 0.2 * crossDir;
+    bias = Math.max(-1, Math.min(1, bias));
+    return { macd, sig, hist, last: { macd: macd[li], sig: sig[li], hist: hist[li] }, cross, state, rising, bias, scale };
+  }
+  function macdSeries(arr, f, s, g) { const m = analyzeMACD(arr, { fast: f, slow: s, signal: g }); const sc = m.scale || 1; return (m.hist || []).map(h => Math.max(-1, Math.min(1, h / sc / 1.2))); }
+  function macdSteps(m, f, s, g) {
+    const cTxt = m.cross.type ? (m.cross.type === "bull" ? "골든(상향) 교차 " : "데드(하향) 교차 ") + m.cross.barsAgo + "봉 전" : "교차 신호 없음";
+    return [
+      "MACD 산출 (" + f + "/" + s + "/" + g + ")",
+      "MACD " + m.last.macd.toFixed(2) + " · 시그널 " + m.last.sig.toFixed(2),
+      "히스토그램 " + (m.last.hist >= 0 ? "+" : "") + m.last.hist.toFixed(2) + (m.rising ? " · 확대(모멘텀↑)" : " · 축소"),
+      cTxt,
+      "종합 방향 " + (m.bias > 0.1 ? "상승" : m.bias < -0.1 ? "하락" : "중립") + " (bias " + m.bias.toFixed(2) + ")"
+    ];
+  }
+
+  /* ── ADX / DMI (종가 근사 — high/low를 인접 종가로 프록시) ── */
+  function analyzeADX(price, opts) {
+    opts = opts || {};
+    const period = opts.period || 14, P = price.length;
+    const EMPTY = { adx: [], plusDI: [], minusDI: [], last: { adx: 0, plusDI: 0, minusDI: 0 }, strength: "weak", dir: 0, bias: 0 };
+    if (P < period * 2 + 2) return EMPTY;
+    const trArr = [0], pDMArr = [0], mDMArr = [0];
+    for (let i = 1; i < P; i++) {
+      const up = price[i] - price[i - 1], dn = -up;
+      trArr.push(Math.max(Math.abs(up), 1e-9));
+      pDMArr.push(up > 0 && up >= Math.abs(dn) ? up : 0);
+      mDMArr.push(dn > 0 && dn > Math.abs(up) ? dn : 0);
+    }
+    const rma = arr => {
+      const out = new Array(arr.length).fill(0); if (arr.length <= period) return out;
+      let s = 0; for (let i = 1; i <= period; i++) s += arr[i]; let prev = s; out[period] = prev;
+      for (let i = period + 1; i < arr.length; i++) { prev = prev - prev / period + arr[i]; out[i] = prev; }
+      return out;
+    };
+    const trR = rma(trArr), pR = rma(pDMArr), mR = rma(mDMArr);
+    const plusDI = [], minusDI = [], dx = [];
+    for (let i = 0; i < P; i++) { const t = trR[i] || 1e-9; const pdi = 100 * (pR[i] / t), mdi = 100 * (mR[i] / t); plusDI.push(pdi); minusDI.push(mdi); const sum = pdi + mdi; dx.push(sum ? 100 * Math.abs(pdi - mdi) / sum : 0); }
+    const adx = new Array(P).fill(0), start = period * 2;
+    if (start < P) { let s = 0, c = 0; for (let i = period; i < start; i++) { s += dx[i]; c++; } let prev = c ? s / c : 0; adx[start - 1] = prev; for (let i = start; i < P; i++) { prev = (prev * (period - 1) + dx[i]) / period; adx[i] = prev; } }
+    const li = P - 1, aVal = adx[li], pdi = plusDI[li], mdi = minusDI[li];
+    const strength = aVal >= 40 ? "very_strong" : aVal >= 25 ? "strong" : aVal >= 20 ? "developing" : "weak";
+    const dir = pdi > mdi ? 1 : pdi < mdi ? -1 : 0;
+    const strFac = Math.max(0, Math.min(1, (aVal - 15) / 35));
+    let bias = dir * strFac * (0.4 + 0.6 * Math.min(1, Math.abs(pdi - mdi) / 40));
+    bias = Math.max(-1, Math.min(1, bias));
+    return { adx, plusDI, minusDI, last: { adx: aVal, plusDI: pdi, minusDI: mdi }, strength, dir, bias };
+  }
+  function adxSeries(arr, period) { const a = analyzeADX(arr, { period }); return (a.adx || []).map((v, i) => { const sd = Math.max(-1, Math.min(1, (a.plusDI[i] - a.minusDI[i]) / 40)), st = Math.max(0, Math.min(1, (v - 15) / 35)); return sd * st; }); }
+  function adxSteps(a, period) {
+    const sTxt = a.strength === "very_strong" ? "매우 강한 추세" : a.strength === "strong" ? "강한 추세" : a.strength === "developing" ? "추세 형성 중" : "추세 약함(횡보)";
+    const dTxt = a.dir > 0 ? "+DI 우세(상승 방향)" : a.dir < 0 ? "-DI 우세(하락 방향)" : "방향 혼조";
+    return [
+      "ADX/DMI 산출 (" + period + ")",
+      "ADX " + a.last.adx.toFixed(1) + " · " + sTxt,
+      "+DI " + a.last.plusDI.toFixed(1) + " / -DI " + a.last.minusDI.toFixed(1),
+      dTxt,
+      "종합 방향 " + (a.bias > 0.1 ? "상승" : a.bias < -0.1 ? "하락" : "중립") + " (bias " + a.bias.toFixed(2) + ")"
+    ];
+  }
+
   function run(graph, data, opts) {
     const futW = Math.min(((opts && opts.futW) || 24), 60);   // 예측 horizon 상한(과도한 장기 외삽 방지)
     const ev = evalBlocks(graph, data), { values, meta } = ev;
@@ -926,6 +1057,15 @@
     const _vn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "volume");
     const _vol = _vn ? ((Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;
     const volDrift = _vol ? analyzeVolume(price, _vol).bias * _prof.trendScale * 0.05 : 0;   // 거래량 확인 방향 드리프트(±5% 상한·TF가중·보수적)
+    const _bn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "bollinger");
+    const _bb = _bn ? analyzeBollinger(price, { len: (_bn.params && _bn.params.len) || 20, k: (_bn.params && _bn.params.k) || 2 }) : null;
+    const bbDrift = _bb ? _bb.bias * _prof.trendScale * 0.06 : 0;   // 볼린저 위치/중심선 방향(±6%)
+    const _mcn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "macd");
+    const _macd = _mcn ? analyzeMACD(price, { fast: (_mcn.params && _mcn.params.fast) || 12, slow: (_mcn.params && _mcn.params.slow) || 26, signal: (_mcn.params && _mcn.params.signal) || 9 }) : null;
+    const macdDrift = _macd ? _macd.bias * _prof.trendScale * 0.07 : 0;   // MACD 모멘텀/교차 방향(±7%)
+    const _axn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "adx");
+    const _adx = _axn ? analyzeADX(price, { period: (_axn.params && _axn.params.period) || 14 }) : null;
+    const adxDrift = _adx ? _adx.bias * _prof.trendScale * 0.06 : 0;   // ADX 추세강도×방향(±6%·약한추세면 0에 수렴)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -937,7 +1077,7 @@
       const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
@@ -1002,6 +1142,9 @@
       { id: "s_ma",    kind: "block", blockType: "ma",        params: { len: 20 },        x: 320, y: 0,   title: "이동평균(20)", conviction: 40,  weight: 55, thumb: T("smp_ma", "MA20"),     desc: "가격이 MA20 상회 — 추세 지지 유효" },
       { id: "s_wave",  kind: "block", blockType: "phasefold", params: { pmin: 16, pmax: 128 }, x: 320, y: 100, title: "파동 스캔",  conviction: 0,   weight: 60, thumb: T("smp_wave", "주기"),   desc: "지배 주기 검출 — 다음 저점 구간 추정" },
       { id: "s_rsi",   kind: "block", blockType: "rsi",       params: { period: 14 },     x: 320, y: 200, title: "RSI(14)",     conviction: -20, weight: 50, thumb: T("smp_rsi", "RSI"),     desc: "최근 상승 가속 — 단기 과열 주의" },
+      { id: "s_boll",  kind: "block", blockType: "bollinger", params: { len: 20, k: 2 },  x: 320, y: 250, title: "볼린저밴드",  conviction: 20,  weight: 50, desc: "중심선 상회 · 밴드 상단 접근 — 변동성 확장 국면" },
+      { id: "s_macd",  kind: "block", blockType: "macd",      params: { fast: 12, slow: 26, signal: 9 }, x: 320, y: 270, title: "MACD", conviction: 25, weight: 55, desc: "히스토그램 확대 · 골든 교차 — 모멘텀 상승" },
+      { id: "s_adx",   kind: "block", blockType: "adx",       params: { period: 14 },     x: 320, y: 290, title: "ADX 추세강도", conviction: 30, weight: 55, desc: "ADX 상승 · +DI 우세 — 상승 추세 강함" },
       { id: "s_fib",   kind: "block", blockType: "fib",       params: { len: 120 },       x: 320, y: 300, title: "피보나치",    conviction: 30,  weight: 50, thumb: T("smp_fib", "Fib"),     desc: "조정 구간 저점 반등 — 단기 범위 하단 지지" },
       { id: "s_trend", kind: "block", blockType: "trend",     params: { len: 40 },        x: 320, y: 400, title: "추세선",      conviction: 35,  weight: 70, thumb: T("smp_trend", "Trend"), desc: "상승 회귀선 — 우상향 추세 유지" },
       { id: "s_ell",   kind: "block", blockType: "elliott",   params: { swing: 3 },       x: 320, y: 500, title: "엘리어트",    conviction: 25,  weight: 55, thumb: T("smp_elliott", "Wave"),desc: "파동 구간 분석 — 추세 전환점 추정" },
@@ -1014,7 +1157,9 @@
     const edges = [
       E("s_price", "s_ma"), E("s_price", "s_wave"), E("s_price", "s_rsi"),
       E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"), E("s_price", "s_vol"),
+      E("s_price", "s_boll"), E("s_price", "s_macd"), E("s_price", "s_adx"),
       E("s_ma", "s_comb"), E("s_wave", "s_comb"), E("s_rsi", "s_comb"),
+      E("s_boll", "s_comb"), E("s_macd", "s_comb"), E("s_adx", "s_comb"),
       E("s_fib", "s_comb"), E("s_trend", "s_comb"), E("s_ell", "s_comb"), E("s_vol", "s_comb"),
       E("s_comb", "s_pred")
     ];
@@ -1028,5 +1173,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps };
 });
