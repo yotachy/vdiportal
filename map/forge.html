@@ -161,27 +161,28 @@
   .fcv-sig{font-size:12px;font-weight:700;color:var(--eth);font-family:ui-monospace,monospace}
   .fcv-op{flex:1;min-width:120px;font-size:12.5px;font-weight:600;color:var(--ink);opacity:.92;padding-left:12px;border-left:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chart-pane.editing .fc-verdict-bar{display:none!important}
-  /* 일·주·월 종합 대시보드(비교 매트릭스) */
-  .fc-dash{margin:0 0 8px;border:1px solid var(--line);border-radius:9px;background:var(--surface);overflow:hidden}
-  .fc-dash-head{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,rgba(255,255,255,.03),transparent)}
-  .fc-dash-head b{font-size:12.5px;letter-spacing:-.01em}
-  .fc-dash-head .dash-load{margin-left:auto;background:rgba(232,180,99,.14);border:1px solid var(--gold-dim);color:var(--gold);border-radius:6px;padding:4px 11px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
-  .fc-dash-body{padding:6px 4px}
-  .dash-table{width:100%;border-collapse:collapse;font-size:12px;letter-spacing:-.01em}
-  .dash-table th,.dash-table td{padding:5px 12px;border-bottom:1px solid rgba(255,255,255,.045)}
-  .dash-table th{font-size:10.5px;font-weight:800;color:var(--eth);text-align:left;border-bottom:1px solid var(--line);text-transform:none}
-  .dash-table th:first-child,.dash-table td:first-child{color:var(--eth);font-weight:700;white-space:nowrap;width:96px}
-  .dash-table tr:last-child td{border-bottom:0}
-  .dash-cell{display:flex;align-items:center;gap:8px;min-height:16px}      /* 바(좌) + 값(우 정렬) */
-  .dash-cell .dval{margin-left:auto;font-family:ui-monospace,monospace;font-weight:800;white-space:nowrap}
-  .dash-cell .dval-l{font-weight:800;white-space:nowrap}                    /* 텍스트 행은 좌측 정렬 */
-  .dash-reg{font-weight:800;font-size:12.5px}
-  .dash-bar{flex:1;max-width:108px;height:7px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden}
-  .dash-fill{display:block;height:100%;border-radius:4px}
-  .dash-best{background:rgba(52,138,200,.16);box-shadow:inset 0 0 0 1px rgba(91,141,239,.55);border-radius:5px}
-  .dash-sub{font-size:10px;color:var(--eth);font-family:ui-monospace,monospace;font-weight:600}
-  .dash-sec td{padding:3px 12px;font-size:9.5px;font-weight:800;letter-spacing:.06em;color:var(--gold);text-transform:uppercase;background:rgba(232,180,99,.06);border-bottom:1px solid var(--line)}
-  .chart-pane.editing .fc-dash{display:none}
+  /* 타임프레임 매트릭스(일·주·월 비교) — 트레이딩 터미널 스타일 */
+  #fcDashBody{padding:2px}
+  .dash-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;letter-spacing:-.01em;table-layout:fixed}
+  .dash-table th,.dash-table td{padding:6px 12px}
+  .dash-table td:not(:first-child),.dash-table th:not(:first-child){border-left:1px solid rgba(255,255,255,.05)}
+  .dash-table th{font-size:11px;font-weight:800;text-align:right;padding-bottom:7px;border-bottom:2px solid rgba(255,255,255,.09)}
+  .dash-table th .thdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  .dash-table th:first-child{text-align:left;color:#6b7391;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;width:88px}
+  .dash-table td:first-child{color:var(--eth);font-weight:700;white-space:nowrap;font-size:11.5px}
+  .dash-table tbody tr:not(.dash-sec):hover td{background:rgba(255,255,255,.018)}
+  .dash-cell{display:flex;align-items:center;gap:9px;min-height:15px;justify-content:flex-end}   /* 세그먼트(좌)+값(우) */
+  .dash-cell.txt{justify-content:flex-start}
+  .dash-cell .dval{font-family:ui-monospace,monospace;font-weight:800;white-space:nowrap;min-width:30px;text-align:right}
+  .dash-cell .dval-l{font-weight:800;white-space:nowrap}
+  .dash-cell .dstar{color:#8fb4f0;font-size:11px}
+  .dash-reg{font-weight:800;font-size:12.5px;padding:1px 9px;border-radius:11px}
+  .dseg{display:inline-flex;gap:2px}                     /* 세그먼트 바(이미지식) */
+  .dseg i{width:5px;height:13px;border-radius:1px;background:rgba(255,255,255,.08);display:block}
+  .dash-best{background:linear-gradient(90deg,rgba(91,141,239,.04),rgba(91,141,239,.17))!important;box-shadow:inset 0 0 0 1px rgba(91,141,239,.5)}
+  .dash-sub{font-size:11px;color:var(--eth);font-family:ui-monospace,monospace;font-weight:700}
+  .dash-sec td{padding:4px 12px!important;font-size:9px;font-weight:800;letter-spacing:.14em;color:var(--gold);background:rgba(232,180,99,.07);border-top:1px solid var(--gold-dim);border-bottom:1px solid var(--gold-dim);border-left:0!important}
+  .chart-pane.editing #fcDashPanel{display:none}
   .verdict-inline{display:none}   /* 강조 바(fc-verdict-bar)로 대체 — 헤더 중복 제거 */
   .verdict-inline b{font-weight:800}
   .chart-pane.editing .verdict-inline{display:none}
@@ -636,10 +637,6 @@
             </div>
           </div>
           <div class="fc-verdict-bar" id="fcVerdictBar" style="display:none"></div>
-          <div class="fc-dash" id="fcDashPanel">
-            <div class="fc-dash-head"><b>일·주·월 종합</b><span class="fc-meta" style="font-size:10px">지표를 주기별로 비교</span><button class="dash-load" id="dashLoad" onclick="renderDashboard()">불러와 비교</button></div>
-            <div class="fc-dash-body" id="fcDashBody"><div class="na-empty">상단 티커 종목을 불러온 뒤 ‘불러와 비교’ — 일·주·월을 각각 분석해 한눈에 보여줍니다</div></div>
-          </div>
           <div class="fc-pbody">
             <div class="fc-hero">
               <div class="fc-hero-img" id="fcHeroImg"><span class="fc-hero-ph">라이브러리에서 대표 이미지를 드래그하세요</span></div>
@@ -658,6 +655,13 @@
           </div>
         </div>
         <div class="fc-vgutter" id="fcVGutter" title="드래그하여 차트 높이 조절 · 더블클릭 초기화"></div>
+        <div class="fc-panel" id="fcDashPanel">
+          <div class="fc-phead">
+            <span class="fc-t"><b>타임프레임 매트릭스</b> · 일 · 주 · 월</span>
+            <span class="fc-meta" id="fcDashMeta">–</span>
+          </div>
+          <div class="fc-pbody"><div id="fcDashBody"><div class="na-empty">티커 종목을 불러오면 일·주·월 비교가 자동으로 표시됩니다</div></div></div>
+        </div>
         <div class="fc-panel" id="fcHzPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>예측 시점별</b> · 현재가 대비</span>
@@ -4383,6 +4387,7 @@
         `<span class="fcv-sig">시그널 ${score}${isFinite(verdict.target) ? " · 목표 " + fmtNum(verdict.target) : ""}</span>` +
         `<span class="fcv-op">“${op}”</span>`;
     }
+    if (typeof scheduleDash === "function") scheduleDash();   // 타임프레임 매트릭스 자동 갱신
   }
   /* 핵심 의견 한 줄(간결) — 국면·상승확률·시그널 강도 종합 */
   function verdictOpinion(v, up) {
@@ -4391,10 +4396,14 @@
     if (v.regime === "bear") return u <= 40 ? (strong ? "하락 우세 — 반등은 제한적" : "하락 우위 — 반등 시 비중 축소") : "약세 — 지지선 이탈 여부 주시";
     return "방향성 혼재 — 돌파 확인 전 관망";
   }
-  /* ── 일·주·월 종합 대시보드(비교 매트릭스) ── */
+  /* ── 타임프레임 매트릭스(일·주·월 비교) ── */
+  let _dashCache = { sym: null, cand: {} }, _dashTmr = null;
+  const _TFCOL = { "일봉": "#e8b463", "주봉": "#5b8def", "월봉": "#3fb6c0" };
   async function _computeTf(symbol, tf) {
     try {
-      const r = await fetchOHLC(symbol, tf);
+      let r;
+      if (_dashCache.sym === symbol && _dashCache.cand[tf]) r = _dashCache.cand[tf];   // 재분석 시 재fetch 방지(캔들 캐시)
+      else { r = await fetchOHLC(symbol, tf); if (r && r.ok) { if (_dashCache.sym !== symbol) _dashCache = { sym: symbol, cand: {} }; _dashCache.cand[tf] = r; } }
       if (!r || !r.ok || !Array.isArray(r.candles) || r.candles.length < 24) return null;
       const series = r.candles.map(d => +d.c).filter(isFinite); if (series.length < 24) return null;
       const data = { price: series, candle: r.candles.map(d => ({ o: +d.o, h: +d.h, l: +d.l, c: +d.c })), orange: [], blue: [], n: series.length };
@@ -4426,23 +4435,26 @@
   function _volTxt(v) { if (!v) return ["–", "#8a92b2"]; const st = v.state === "spike" ? "급증" : v.state === "contract" ? "위축" : "평이";
     const rel = v.relationship === "confirm" ? "확인" : v.relationship === "weakening" ? "약화" : v.relationship === "selling" ? "매도압력" : "투매진정";
     return [st + " · " + rel, (v.relationship === "confirm" || v.relationship === "capitulation") ? "#46c28e" : "#e06a6a"]; }
-  // 셀: 바(좌) + 값(우 정렬) / 텍스트(좌 정렬). best=행 최고 강조
-  function _barC(pct, col, val, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell"><span class="dash-bar"><span class="dash-fill" style="width:${Math.max(0, Math.min(100, pct || 0))}%;background:${col}"></span></span><b class="dval">${val}${best ? " ★" : ""}</b></div></td>`; }
-  function _txtC(html, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell"><span class="dval-l">${html}${best ? " ★" : ""}</span></div></td>`; }
+  // 셀: 세그먼트 바(좌) + 값(우 정렬) / 텍스트(좌 정렬). best=행 최고 강조
+  function _segBar(pct, col) { const N = 10, on = Math.round(Math.max(0, Math.min(100, pct || 0)) / 100 * N); let s = ""; for (let i = 0; i < N; i++) s += `<i${i < on ? ` style="background:${col}"` : ""}></i>`; return `<span class="dseg">${s}</span>`; }
+  function _barC(pct, col, val, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell">${_segBar(pct, col)}<b class="dval">${val}</b>${best ? `<span class="dstar">★</span>` : ""}</div></td>`; }
+  function _txtC(html, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell txt"><span class="dval-l">${html}</span>${best ? `<span class="dstar">★</span>` : ""}</div></td>`; }
   async function renderDashboard() {
     const host = document.getElementById("fcDashBody"); if (!host) return;
+    const meta = document.getElementById("fcDashMeta");
     const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim());
-    if (!tk) { host.innerHTML = `<div class="na-empty">상단 티커에 종목을 입력·불러온 뒤 다시 눌러 주세요</div>`; return; }
+    if (!tk) { host.innerHTML = `<div class="na-empty">티커 종목을 불러오면 일·주·월 비교가 자동으로 표시됩니다</div>`; if (meta) meta.textContent = "–"; return; }
     if (!SERVER_OK) { host.innerHTML = `<div class="na-empty">오프라인 — 서버 연결이 필요해요</div>`; return; }
     const sym = tk.params.symbol.trim();
-    host.innerHTML = `<div class="na-empty">${esc(sym)} 일·주·월 분석 중…</div>`;
+    if (_dashCache.sym !== sym) host.innerHTML = `<div class="na-empty">${esc(sym)} 일·주·월 분석 중…</div>`;   // 캐시 있으면 깜빡임 없이 갱신
     const [d, w, m] = await Promise.all([_computeTf(sym, "1day"), _computeTf(sym, "1week"), _computeTf(sym, "1month")]);
     const cols = [["일봉", d], ["주봉", w], ["월봉", m]].filter(x => x[1]);
     if (!cols.length) { host.innerHTML = `<div class="na-empty">데이터를 불러올 수 없어요: ${esc(sym)}</div>`; return; }
+    if (meta) meta.textContent = esc(sym);
     const REG = { bull: ["▲ 상승", "#46c28e"], bear: ["▼ 하락", "#e06a6a"], neutral: ["– 중립", "#8a92b2"] };
-    const th = `<tr><th>지표</th>${cols.map(c => `<th>${c[0]}</th>`).join("")}</tr>`;
+    const th = `<tr><th>지표</th>${cols.map(c => `<th><span class="thdot" style="background:${_TFCOL[c[0]] || "#8a92b2"}"></span>${c[0]}</th>`).join("")}</tr>`;
     const rows = [];
-    rows.push(`<tr><td>국면</td>${cols.map(c => { const g = REG[c[1].regime] || REG.neutral; return _txtC(`<span class="dash-reg" style="color:${g[1]}">${g[0]}</span>`, false); }).join("")}</tr>`);
+    rows.push(`<tr><td>국면</td>${cols.map(c => { const g = REG[c[1].regime] || REG.neutral; return _txtC(`<span class="dash-reg" style="color:${g[1]};background:${g[1]}22">${g[0]}</span>`, false); }).join("")}</tr>`);
     { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, "#46c28e", c[1].up + "%", i === bi)).join("")}</tr>`); }
     { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return _barC((s + 100) / 2, s >= 0 ? "#46c28e" : "#e06a6a", Math.round(s), i === bi); }).join("")}</tr>`); }
     { const bi = _dbest(cols.map(c => c[1].trend), 1); rows.push(`<tr><td>추세 %/봉</td>${cols.map((c, i) => { const t = c[1].trend; return _txtC(`<span style="color:${t >= 0 ? "#46c28e" : "#e06a6a"}">${t >= 0 ? "+" : ""}${t.toFixed(2)}</span>`, i === bi); }).join("")}</tr>`); }
@@ -4451,10 +4463,11 @@
     rows.push(`<tr><td>RSI</td>${cols.map(c => { const rv = c[1].rsi, col = rv >= 70 ? "#e06a6a" : rv <= 30 ? "#46c28e" : "#8a92b2"; return _barC(rv, col, Math.round(rv), false); }).join("")}</tr>`);
     rows.push(`<tr><td>엘리어트</td>${cols.map(c => { const e = _elTxt(c[1].el); return _txtC(`<span style="color:${e[1]}">${e[0]}</span>`, false); }).join("")}</tr>`);
     rows.push(`<tr><td>거래량</td>${cols.map(c => { const vv = _volTxt(c[1].vol); return _txtC(`<span style="color:${vv[1]}">${vv[0]}</span>`, false); }).join("")}</tr>`);
-    rows.push(`<tr><td>목표가</td>${cols.map(c => _txtC(isFinite(c[1].target) ? `<span style="font-family:ui-monospace,monospace">${fmtNum(c[1].target)}</span>` : "–", false)).join("")}</tr>`);
-    rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:#46c28e">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> / <span style="color:#e06a6a">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
+    rows.push(`<tr><td>목표가</td>${cols.map(c => _txtC(isFinite(c[1].target) ? `<span class="dash-sub">${fmtNum(c[1].target)}</span>` : "–", false)).join("")}</tr>`);
+    rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:#46c28e">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> <span style="opacity:.35">/</span> <span style="color:#e06a6a">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
     host.innerHTML = `<table class="dash-table">${th}${rows.join("")}</table>`;
   }
+  function scheduleDash() { clearTimeout(_dashTmr); _dashTmr = setTimeout(() => { renderDashboard().catch(() => {}); }, 350); }   // 분석/티커 변경 시 자동 갱신(디바운스)
 
   /* ── exportStrategy: download strategy as JSON blob ──────────── */
   function exportStrategy() {
