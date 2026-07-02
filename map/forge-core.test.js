@@ -377,9 +377,9 @@ test("sampleSeries: deterministic, 480 pts, net uptrend with mid correction", ()
   assert.ok(a[479] > mean20);
 });
 
-test("sampleGraph: 12 nodes, DAG runs, descriptions are truthful, bullish net", () => {
+test("sampleGraph: 15 nodes, DAG runs, descriptions are truthful, bullish net", () => {
   const g = ForgeCore.sampleGraph();
-  assert.strictEqual(g.nodes.length, 12);
+  assert.strictEqual(g.nodes.length, 15);
   const tk = g.nodes.find(n => n.blockType === "ticker");
   assert.ok(tk && tk.params && tk.params.symbol === "BTC-USD", "샘플에 BTC-USD 티커 노드");
   assert.strictEqual(g.themeImgId, "smp_main");
