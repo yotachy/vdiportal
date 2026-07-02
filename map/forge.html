@@ -16,7 +16,7 @@
     --edge:#566472;--muted:#8b98a6;--faint:#5c6875;--gold-dim:#5e4d2c;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,system-ui,sans-serif;letter-spacing:-0.01em}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,-apple-system,"Segoe UI",'Malgun Gothic',"Apple SD Gothic Neo",system-ui,sans-serif;letter-spacing:-0.01em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
   .forge-top{display:flex;align-items:center;gap:14px;height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
   .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
   .forge-split{display:flex;flex:1;min-width:0}
@@ -56,11 +56,12 @@
   .b-edges path.b-tmp{fill:none;stroke:var(--gold);stroke-width:2;stroke-dasharray:5 4}
 
   /* nodes */
-  .b-node{position:absolute;width:200px;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;box-shadow:0 10px 26px -16px #000;cursor:grab;transition:border-color .12s,box-shadow .12s}
+  /* 노드: 테두리 라인 없이 입체(고도)+부드러운 색조로 구분 */
+  .b-node{position:absolute;width:200px;background:var(--raised);border:none;border-radius:14px;box-shadow:0 6px 20px -8px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,255,255,.05);cursor:grab;transition:box-shadow .14s,transform .14s}
   .b-node.b-mini{width:140px}
-  .b-node:hover{border-color:#3a4452}
-  .b-node.selected{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.22),0 12px 28px -14px #000}
-  .b-node.b-linktarget{border-color:var(--bull);box-shadow:0 0 0 3px rgba(70,194,142,.25)}
+  .b-node:hover{box-shadow:0 12px 28px -8px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.08);transform:translateY(-1px)}
+  .b-node.selected{box-shadow:0 0 0 2px var(--gold),0 0 26px -4px rgba(232,180,99,.5),0 10px 30px -10px rgba(0,0,0,.85)}
+  .b-node.b-linktarget{box-shadow:0 0 0 2px var(--bull),0 0 22px -4px rgba(70,194,142,.5)}
   .b-n-in{position:absolute;left:-6px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;background:var(--edge)}
   .b-n-body{padding:10px 12px}
   .b-mini .b-n-body{padding:7px 10px}
@@ -71,15 +72,15 @@
   .b-n-type{display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--gold);background:rgba(232,180,99,.1);border:1px solid var(--gold-dim);border-radius:4px;padding:1px 6px;text-transform:uppercase}
   .b-tier-tag{font-size:9.5px;font-weight:800;padding:0 4px;border-radius:3px;letter-spacing:0;text-transform:none;color:#0b0f14}
   /* 3단계 tier: 원본(파랑)·지표(회청)·결합(보라)·포지(골드) */
-  .b-node.b-tier-tkr{border-left:3px solid var(--gold)}
+  .b-node.b-tier-tkr{background:linear-gradient(158deg,rgba(232,180,99,.15),var(--raised) 44%)}
   .b-n-type.b-t-tkr{color:var(--gold);background:rgba(232,180,99,.12);border-color:var(--gold-dim)} .b-t-tkr .b-tier-tag{background:var(--gold)}
   .b-tkr{display:flex;align-items:baseline;gap:8px;margin-top:5px;padding:5px 8px;border-radius:6px;background:rgba(232,180,99,.08);border:1px solid var(--gold-dim)}
   .b-tkr-sym{font-weight:800;font-size:15px;letter-spacing:.02em;color:var(--gold)}
   .b-tkr-px{font-family:ui-monospace,monospace;font-size:13px;font-weight:700;color:var(--ink)}
-  .b-node.b-tier-src{border-left:3px solid #5b8def}
-  .b-node.b-tier-ind{border-left:3px solid #8a92b2}
-  .b-node.b-tier-mix{border-left:3px solid #c47ae0}
-  .b-node.b-tier-pos{border-left:3px solid var(--gold);background:linear-gradient(180deg,rgba(232,180,99,.10),var(--surface))}
+  .b-node.b-tier-src{background:linear-gradient(158deg,rgba(91,141,239,.15),var(--raised) 44%)}
+  .b-node.b-tier-ind{background:linear-gradient(158deg,rgba(138,146,178,.13),var(--raised) 44%)}
+  .b-node.b-tier-mix{background:linear-gradient(158deg,rgba(196,122,224,.15),var(--raised) 44%)}
+  .b-node.b-tier-pos{background:linear-gradient(158deg,rgba(232,180,99,.18),var(--raised) 48%)}
   .b-n-type.b-t-src{color:#9db8f0;background:rgba(91,141,239,.12);border-color:rgba(91,141,239,.5)} .b-t-src .b-tier-tag{background:#5b8def}
   .b-n-type.b-t-ind{color:#aeb6cf;background:rgba(138,146,178,.12);border-color:rgba(138,146,178,.45)} .b-t-ind .b-tier-tag{background:#8a92b2}
   .b-n-type.b-t-mix{color:#d3a6e8;background:rgba(196,122,224,.12);border-color:rgba(196,122,224,.5)} .b-t-mix .b-tier-tag{background:#c47ae0}
@@ -154,12 +155,13 @@
   .fc-head-left .fc-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   /* 국면/확률/시그널 강조 바 + 핵심 의견 */
-  .fc-verdict-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 14px;margin:2px 0 8px;border-radius:9px;background:linear-gradient(90deg,rgba(255,255,255,.03),transparent);border:1px solid var(--line);border-left-width:3px;letter-spacing:-.01em}
-  .fcv-reg{font-size:16px;font-weight:800}
-  .fcv-prob{font-size:14px;font-weight:800;font-family:ui-monospace,monospace}
-  .fcv-prob .up{color:#46c28e}.fcv-prob .dn{color:#e06a6a}
-  .fcv-sig{font-size:12px;font-weight:700;color:var(--eth);font-family:ui-monospace,monospace}
-  .fcv-op{flex:1;min-width:120px;font-size:12.5px;font-weight:600;color:var(--ink);opacity:.92;padding-left:12px;border-left:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* 국면/확률 — 박스·테두리 없이 순수 타이포로(가독성 우선) */
+  .fc-verdict-bar{display:flex;align-items:baseline;gap:9px 20px;flex-wrap:wrap;padding:9px 2px 13px;margin:0;letter-spacing:-.02em}
+  .fcv-reg{font-size:21px;font-weight:800;letter-spacing:-.03em}
+  .fcv-prob{font-size:17px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-.02em}
+  .fcv-prob .up{color:#46c28e}.fcv-prob .dn{color:#e06a6a;opacity:.82}
+  .fcv-sig{font-size:12px;font-weight:600;color:var(--muted);font-family:ui-monospace,monospace}
+  .fcv-op{flex:1;min-width:150px;font-size:13.5px;font-weight:500;color:var(--eth);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chart-pane.editing .fc-verdict-bar{display:none!important}
   /* 타임프레임 매트릭스(일·주·월 비교) — 트레이딩 터미널 스타일 */
   #fcDashBody{padding:1px}
@@ -551,8 +553,10 @@
   .hz-v{flex:0 0 64px;font-weight:700;color:var(--ink);font-size:13.5px}
   .hz-chg{flex:0 0 54px;font-weight:700;font-size:12px}
   .hz-chg.hz-up{color:var(--bull)}.hz-chg.hz-dn{color:var(--bear)}.hz-chg.hz-fl{color:var(--eth)}
-  .hz-prob{flex:0 0 94px;font-weight:700;font-size:11px;font-family:ui-monospace,monospace}
-  .hz-prob.hz-up{color:var(--bull)}.hz-prob.hz-dn{color:var(--bear)}.hz-prob.hz-fl{color:var(--eth)}
+  .hz-prob{flex:0 0 104px;display:flex;align-items:center;gap:7px;font-weight:800;font-size:11.5px;font-family:ui-monospace,monospace}
+  .hz-probbar{position:relative;flex:1;height:6px;border-radius:3px;background:rgba(224,106,106,.45);overflow:hidden}
+  .hz-probbar i{display:block;height:100%;background:var(--bull);border-radius:3px}
+  .hz-prob b.hz-up{color:var(--bull)}.hz-prob b.hz-dn{color:var(--bear)}.hz-prob b.hz-fl{color:var(--eth)}
   /* 상승/하락 확률 게이지(예측 패널 상단) */
   .hz-gauge{padding:2px 2px 11px;margin-bottom:8px;border-bottom:1px solid var(--line)}
   .hzg-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;letter-spacing:-.01em}
@@ -2374,7 +2378,7 @@
     const cw = cv.clientWidth || 300, ch = cv.clientHeight || 120;
     const c = fcFit(cv, ch); c.clearRect(0, 0, cw, ch);
     const s = (va && va.series) || [];
-    if (s.length < 2) { c.fillStyle = "#8a92b2"; c.font = "12px Pretendard, sans-serif"; c.fillText("거래량 데이터 없음", 10, ch / 2); return; }
+    if (s.length < 2) { c.fillStyle = "#8a92b2"; c.font = "12px Pretendard,'Malgun Gothic',sans-serif"; c.fillText("거래량 데이터 없음", 10, ch / 2); return; }
     const pad = 6, w = cw - pad * 2, h = ch - pad * 2 - 14;
     const maxV = Math.max.apply(null, s) || 1, n = s.length, bw = Math.max(1, w / n - 1);
     // 막대: 상승봉 bull / 하락봉 bear / 급증봉 골드
@@ -2590,7 +2594,7 @@
   function drawConeHint(cv, imgEl) {
     const { c, W, H } = sizeOverlay(cv); if (!c) return false;
     const g = coneGeo(cv, imgEl); if (!g) return false;
-    c.font = "12px Pretendard,system-ui,sans-serif"; c.textAlign = "center";
+    c.font = "12px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "center";
     const txt = "☁ 웹분석 — 이 이미지를 판독해 시계열을 만들면 포지결과가 자동 계산됩니다";
     const tw = c.measureText(txt).width + 22;
     c.fillStyle = "rgba(11,15,20,.66)"; c.fillRect((W - tw) / 2, H - 30, tw, 22);
@@ -2822,7 +2826,7 @@
     }
     // 데모/실데이터 배지
     if (!hasRealSeries()) {
-      c.font = "10px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
+      c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
       const txt = "예시(데모) 데이터 · 가격 노드에 실제 종가 입력 →";
       const tw = c.measureText(txt).width + 14;
       c.fillStyle = "rgba(232,180,99,.14)"; c.fillRect(padX + 4, padTop + 2, tw, 16);
@@ -2921,7 +2925,7 @@
   function _evLegend(c, x0, topY, items) {
     _legendHits = [];
     const rows = [{ col: "#8a92b2", t: "전체", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key })));
-    c.font = "10px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
+    c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
     // 통합 반투명 패널(캔들 위 겹침에도 가독) — 개별 칩 배경 대신 한 판으로 정리
     let maxW = 0; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
     const px = x0, py = topY + 8, panelW = 20 + maxW + 8, panelH = rows.length * 14 + 8;
@@ -3515,7 +3519,7 @@
         c.fillStyle = FC_GOLD; c.beginPath(); c.arc(mx, my, 3 * fs, 0, 7); c.fill();
         c.strokeStyle = "#0b0f14"; c.lineWidth = 1.2 * fs; c.stroke();
         c.fillStyle = "rgba(184,192,214,.96)"; c.textAlign = "center";
-        c.font = Math.round(9.5 * fs) + "px Pretendard,system-ui,sans-serif";
+        c.font = Math.round(9.5 * fs) + "px Pretendard,'Malgun Gothic',system-ui,sans-serif";
         c.fillText("+" + h + u, clamp(mx), oy + dh - 3 * fs);
         if (!isEnd) {
           c.fillStyle = FC_ETH; c.font = Math.round(9 * fs) + "px ui-monospace,monospace";
@@ -3643,7 +3647,7 @@
         <span class="hz-t">+${h}${unit}</span>
         <span class="hz-v">${_hzFmt(v)}</span>
         <span class="hz-chg ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>
-        <span class="hz-prob ${pc}">↑${up}% / ↓${100 - up}%</span>
+        <span class="hz-prob"><span class="hz-probbar"><i style="width:${up}%"></i></span><b class="${pc}">${up}%</b></span>
         <span class="hz-band">${band}</span>
       </div>`;
     }).join("");
@@ -3920,7 +3924,7 @@
     c.beginPath(); data.forEach((d, i) => { const r = Math.abs(d.conv) / 100 * R, x = cx + Math.cos(d.a) * r, y = cy + Math.sin(d.a) * r; i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.closePath();
     c.strokeStyle = "rgba(232,180,99,.5)"; c.setLineDash([3, 3]); c.lineWidth = 1.3; c.stroke(); c.setLineDash([]);
     // 엔진 실측 컬러 스포크 + 점(중요도) + 라벨
-    c.font = "10px Pretendard,system-ui,sans-serif";
+    c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
     for (const d of data) {
       const col = d.sig > 0.08 ? GREEN : d.sig < -0.08 ? RED : GRAY;
       const r = Math.abs(d.sig) * R, x = cx + Math.cos(d.a) * r, y = cy + Math.sin(d.a) * r;
@@ -3932,17 +3936,17 @@
       c.textAlign = ca > 0.3 ? "left" : ca < -0.3 ? "right" : "center";
       c.fillStyle = "rgba(224,229,239,.92)"; c.fillText(esc(BTLABEL[d.n.blockType] || d.n.blockType || "노드"), lx, ly - 1);
       c.fillStyle = col; c.font = "9px ui-monospace,monospace";
-      c.fillText((d.sig >= 0 ? "+" : "") + Math.round(d.sig * 100), lx, ly + 10); c.font = "10px Pretendard,system-ui,sans-serif";
+      c.fillText((d.sig >= 0 ? "+" : "") + Math.round(d.sig * 100), lx, ly + 10); c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
     }
     c.textAlign = "left";
     // 중심 net 국면(실측 가중 합)
     const net = data.reduce((s, d) => s + d.sig * (d.wt / 50), 0);
     const ncol = net > 0.15 ? GREEN : net < -0.15 ? RED : GRAY, ntxt = net > 0.15 ? "상승" : net < -0.15 ? "하락" : "중립";
     c.fillStyle = ncol; c.beginPath(); c.arc(cx, cy, 4, 0, 7); c.fill();
-    c.textAlign = "center"; c.fillStyle = ncol; c.font = "700 11px Pretendard,system-ui,sans-serif";
+    c.textAlign = "center"; c.fillStyle = ncol; c.font = "700 11px Pretendard,'Malgun Gothic',system-ui,sans-serif";
     c.fillText(ntxt, cx, cy - 9); c.textAlign = "left";
     // 범례
-    c.font = "9px Pretendard,system-ui,sans-serif"; c.textAlign = "left";
+    c.font = "9px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
     c.fillStyle = "#8a92b2"; c.fillText("● 실측 방향", 6, Hh - 16);
     c.fillStyle = "rgba(232,180,99,.7)"; c.fillText("┈ 확신(가중)", 6, Hh - 4);
   }
@@ -4389,13 +4393,14 @@
     // 강조 바 + 핵심 의견 한 줄
     const bar = document.getElementById("fcVerdictBar");
     if (bar) {
-      bar.style.display = "flex"; bar.style.borderLeftColor = col;
+      bar.style.display = "flex";
       const op = verdictOpinion(verdict, _up);
+      const arrow = regime === "bull" ? "▲" : regime === "bear" ? "▼" : "▸";
       bar.innerHTML =
-        `<span class="fcv-reg" style="color:${col}">${label}</span>` +
-        (_up != null ? `<span class="fcv-prob"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span>` : "") +
-        `<span class="fcv-sig">시그널 ${score}${isFinite(verdict.target) ? " · 목표 " + fmtNum(verdict.target) : ""}</span>` +
-        `<span class="fcv-op">“${op}”</span>`;
+        `<span class="fcv-reg" style="color:${col};text-shadow:0 0 22px ${col}55">${arrow} ${label}</span>` +
+        (_up != null ? `<span class="fcv-prob"><span class="up">▲ ${_up}%</span> <span class="dn">▼ ${100 - _up}%</span></span>` : "") +
+        `<span class="fcv-sig">시그널 ${score}${isFinite(verdict.target) ? "  ·  목표 " + fmtNum(verdict.target) : ""}</span>` +
+        `<span class="fcv-op">${op}</span>`;
     }
     if (typeof scheduleDash === "function") scheduleDash();   // 타임프레임 매트릭스 자동 갱신
   }
