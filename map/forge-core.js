@@ -713,9 +713,11 @@
     if (impulseValid) structure = dirUp ? "impulse_up" : "impulse_down";
     else if (recent.length >= 5) structure = "corrective";   // 5파 완성인데 규칙 위반 → 삼각/복합 조정(A-E). 임펄스 아님
     else structure = "uncertain";                            // 1~4파 진행 중 → 발달중 임펄스 카운트(숫자로 표기)
-    // 라벨: 조정=A,B,C,D,E…(letter). 임펄스·발달중=1,2,3,4,5,A,B,C(숫자 우선, 5파 뒤 조정 A-C)
-    const LAB = (structure === "corrective") ? ["A", "B", "C", "D", "E", "F", "G", "H"] : ["1", "2", "3", "4", "5", "A", "B", "C"];
-    const waves = recent.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
+    // 라벨: 조정=A~E(지그재그 ABC / 삼각 A-E까지, 표준). 임펄스·발달중=1,2,3,4,5,A,B,C(5파 뒤 조정 A-C).
+    // 표준 패턴 길이(조정 5 / 임펄스 8)만 라벨 → 무의미한 F·G·H, 과다 카운트 방지.
+    const LAB = (structure === "corrective") ? ["A", "B", "C", "D", "E"] : ["1", "2", "3", "4", "5", "A", "B", "C"];
+    const labeled = recent.slice(-LAB.length);
+    const waves = labeled.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
     const current = { label: (waves[waves.length - 1] && waves[waves.length - 1].label) || "-", dir: last.up ? 1 : -1 };
     const span1 = imp.length ? Math.abs(imp[0].to.price - imp[0].from.price) : 0;
     // 투영: 임펄스는 진행 파(2끝→3 / 4끝→5 / 5완성→A). 조정은 투영 생략(방향 근사만 bias로).

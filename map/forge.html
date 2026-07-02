@@ -613,6 +613,22 @@
           <div class="fc-pbody"><div id="fcNarr" class="nr-list"></div></div>
         </div>
         <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
+        <div class="fc-panel" id="fcRsiPanel" style="display:none">
+          <div class="fc-phead">
+            <span class="fc-t"><b>RSI 오실레이터</b> · 0~100 · 30/70</span>
+            <span class="fc-meta" id="fcRsiMeta">–</span>
+          </div>
+          <div class="fc-pbody"><canvas id="fcRsi" class="fc-cv"></canvas></div>
+        </div>
+        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
+        <div class="fc-panel" id="fcVolPanel" style="display:none">
+          <div class="fc-phead">
+            <span class="fc-t"><b>거래량</b> · 막대 · OBV</span>
+            <span class="fc-meta" id="fcVolMeta">–</span>
+          </div>
+          <div class="fc-pbody"><canvas id="fcVol" class="fc-cv"></canvas></div>
+        </div>
+        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
         <div class="fc-panel" id="fcNodesPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>노드별 레이더</b> · 지표별 방향·강도</span>
@@ -641,22 +657,6 @@
             <canvas id="fcFoldB" class="fc-cv"></canvas>
             <canvas id="fcFoldC" class="fc-cv"></canvas>
           </div>
-        </div>
-        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
-        <div class="fc-panel" id="fcRsiPanel" style="display:none">
-          <div class="fc-phead">
-            <span class="fc-t"><b>RSI 오실레이터</b> · 0~100 · 30/70</span>
-            <span class="fc-meta" id="fcRsiMeta">–</span>
-          </div>
-          <div class="fc-pbody"><canvas id="fcRsi" class="fc-cv"></canvas></div>
-        </div>
-        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
-        <div class="fc-panel" id="fcVolPanel" style="display:none">
-          <div class="fc-phead">
-            <span class="fc-t"><b>거래량</b> · 막대 · OBV</span>
-            <span class="fc-meta" id="fcVolMeta">–</span>
-          </div>
-          <div class="fc-pbody"><canvas id="fcVol" class="fc-cv"></canvas></div>
         </div>
       </div>
       <div id="paramPanel" class="node-editor"></div>
@@ -2628,14 +2628,30 @@
       c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
       c.beginPath(); c.moveTo(seamX, padTop - 6); c.lineTo(seamX, ch - padBot); c.stroke(); c.setLineDash([]);
       c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.fillText("지금", seamX + 3, padTop - 2);
+      const coneR = toXf(path.length - 1);
+      // 밴드 채움: 현재(씨앗)에서 진하게 → 먼 미래로 갈수록 옅게(불확실성↑ 시각화)
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k]));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(lo[k]));
-      c.closePath(); c.fillStyle = "rgba(232,180,99,.09)"; c.fill();
-      c.strokeStyle = FC_GOLD; c.lineWidth = 1.3; c.setLineDash(CDASH.std);
+      c.closePath();
+      const gcone = c.createLinearGradient(seamX, 0, coneR, 0);
+      gcone.addColorStop(0, "rgba(232,180,99,.22)"); gcone.addColorStop(1, "rgba(232,180,99,.03)");
+      c.fillStyle = gcone; c.fill();
+      // 밴드 경계(은은한 헤어라인 점선)
+      c.strokeStyle = "rgba(232,180,99,.30)"; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine);
+      c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k])); c.stroke();
+      c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(lo[k])); c.stroke();
+      c.setLineDash([]);
+      // 중앙 예측선: 솔리드 + 소프트 글로우
+      c.save();
+      c.strokeStyle = FC_GOLD; c.lineWidth = 1.6; c.shadowColor = "rgba(232,180,99,.5)"; c.shadowBlur = 6;
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k]));
-      c.stroke(); c.setLineDash([]);
+      c.stroke(); c.restore();
+      // 예측 종점 마커
+      const _ex = coneR, _ey = toY(path[path.length - 1]);
+      c.fillStyle = FC_GOLD; c.beginPath(); c.arc(_ex, _ey, 3, 0, 7); c.fill();
+      c.strokeStyle = "#0b0f14"; c.lineWidth = 1.4; c.stroke();
     }
     // y labels (right)
     c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
