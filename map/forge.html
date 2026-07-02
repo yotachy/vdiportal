@@ -224,7 +224,7 @@
   .fc-panel.fc-sized{flex:0 0 auto;display:flex;flex-direction:column}
   .fc-panel.fc-sized .fc-pbody{flex:1;min-height:0;overflow:auto}
   .fc-hero #fcHeroImg,.fc-hero #fcMainChart,.fc-hero #fcEvidence{transition:transform .5s cubic-bezier(.4,0,.2,1)}
-  .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3}
+  .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.8}   /* 지표 오버레이는 뒤로(희미) — 가격·예측이 앞에서 선명하게 */
   body.evhide .fc-evidence{display:none}
   .fc-fx{position:absolute;inset:0;pointer-events:none;z-index:4}
   .fc-zoom-reset{position:absolute;top:8px;right:8px;z-index:4;width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:13px;cursor:pointer;display:none}
@@ -2731,7 +2731,7 @@
       c.setLineDash([]);
       // 중앙 예측선: 솔리드 + 소프트 글로우(방향 색조)
       c.save();
-      c.strokeStyle = CT.core; c.lineWidth = 1.6; c.shadowColor = CT.glow; c.shadowBlur = 6;
+      c.strokeStyle = CT.core; c.lineWidth = 2.4; c.shadowColor = CT.glow; c.shadowBlur = 10;   // 예측 중앙선 = 핵심 산출물 → 굵게·강한 글로우로 강조
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k]));
       c.stroke(); c.restore();
@@ -4431,16 +4431,28 @@
     const ex = toXf(g.path.length - 1), ey = toY(pEnd);
     if (!isFinite(ex) || !isFinite(ey)) return;
     c.save(); c.translate(_heroZoom.tx, _heroZoom.ty); c.scale(_heroZoom.s, _heroZoom.s);
+    const xy = k => [toXf(k), toY(g.path[k])];
     if (prefersReducedMotion()) {
-      c.strokeStyle = "rgba(" + col + ",.5)"; c.lineWidth = 1.5; c.beginPath(); c.arc(ex, ey, 7, 0, 7); c.stroke();
+      c.strokeStyle = "rgba(" + col + ",.6)"; c.lineWidth = 2; c.beginPath(); c.arc(ex, ey, 9, 0, 7); c.stroke();
+      c.save(); c.shadowColor = "rgba(" + col + ",.9)"; c.shadowBlur = 12; c.fillStyle = "rgba(" + col + ",1)"; c.beginPath(); c.arc(ex, ey, 3.6, 0, 7); c.fill(); c.restore();
     } else {
-      // 종점 브레딩 링 2겹(예측 목표 강조)
-      for (let rr = 0; rr < 2; rr++) { const ph = ((t / 1500) + rr * 0.5) % 1, rad = 4 + ph * 13, a = (1 - ph) * 0.5; c.strokeStyle = "rgba(" + col + "," + a.toFixed(3) + ")"; c.lineWidth = 1.6; c.beginPath(); c.arc(ex, ey, rad, 0, 7); c.stroke(); }
-      c.save(); c.shadowColor = "rgba(" + col + ",.85)"; c.shadowBlur = 9; c.fillStyle = "rgba(" + col + ",.95)"; c.beginPath(); c.arc(ex, ey, 2.6, 0, 7); c.fill(); c.restore();
-      // 중앙 예측선 따라 흐르는 shimmer(지금→미래, 루프)
-      const fp = (t / 1700) % 1, fk = fp * (g.path.length - 1), k0 = Math.max(0, Math.floor(fk)), k1 = Math.min(g.path.length - 1, k0 + 1), fr = fk - k0;
+      const beat = 0.5 + 0.5 * Math.sin(t / 520);   // 코어 맥동
+      // 예측 중앙선 전체에 은은한 진행 글로우(지금→미래) + 밝은 러너
+      c.save(); c.strokeStyle = "rgba(" + col + ",.28)"; c.lineWidth = 3.2; c.shadowColor = "rgba(" + col + ",.6)"; c.shadowBlur = 8;
+      c.beginPath(); for (let k = 0; k < g.path.length; k++) { const p = xy(k); k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); } c.stroke(); c.restore();
+      // 종점 브레딩 링 3겹(예측 목표 강조 — 크게·밝게)
+      for (let rr = 0; rr < 3; rr++) { const ph = ((t / 1300) + rr / 3) % 1, rad = 5 + ph * 22, a = (1 - ph) * 0.8; c.strokeStyle = "rgba(" + col + "," + a.toFixed(3) + ")"; c.lineWidth = 2.2; c.beginPath(); c.arc(ex, ey, rad, 0, 7); c.stroke(); }
+      c.save(); c.shadowColor = "rgba(" + col + ",1)"; c.shadowBlur = 12 + beat * 8; c.fillStyle = "rgba(" + col + ",1)"; c.beginPath(); c.arc(ex, ey, 3.4 + beat * 1.2, 0, 7); c.fill(); c.restore();
+      // 중앙선 따라 흐르는 밝은 러너 + 짧은 꼬리(지금→미래 루프)
+      const fp = (t / 1500) % 1, fk = fp * (g.path.length - 1), k0 = Math.max(0, Math.floor(fk)), k1 = Math.min(g.path.length - 1, k0 + 1), fr = fk - k0;
       const sx = toXf(k0) + (toXf(k1) - toXf(k0)) * fr, sy = toY(g.path[k0]) + (toY(g.path[k1]) - toY(g.path[k0])) * fr;
-      if (isFinite(sx) && isFinite(sy)) { c.save(); c.shadowColor = "rgba(" + col + ",.9)"; c.shadowBlur = 10; c.globalAlpha = 0.5 + 0.5 * Math.sin(fp * Math.PI); c.fillStyle = "rgba(255,255,255,.92)"; c.beginPath(); c.arc(sx, sy, 2.1, 0, 7); c.fill(); c.restore(); }
+      if (isFinite(sx) && isFinite(sy)) {
+        const tk = Math.max(0, k0 - 6), tp = xy(tk), grad = c.createLinearGradient(tp[0], tp[1], sx, sy);
+        grad.addColorStop(0, "rgba(" + col + ",0)"); grad.addColorStop(1, "rgba(" + col + ",.85)");
+        c.save(); c.strokeStyle = grad; c.lineWidth = 3; c.shadowColor = "rgba(" + col + ",.9)"; c.shadowBlur = 10;
+        c.beginPath(); for (let k = tk; k <= k0; k++) { const p = xy(k); k === tk ? c.moveTo(p[0], p[1]) : c.lineTo(p[0], p[1]); } c.lineTo(sx, sy); c.stroke();
+        c.shadowBlur = 16; c.fillStyle = "rgba(255,255,255,.98)"; c.beginPath(); c.arc(sx, sy, 3, 0, 7); c.fill(); c.restore();
+      }
     }
     c.restore();
   }
