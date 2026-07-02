@@ -719,9 +719,18 @@
       const p = tail[i].from.price;
       if (netUp ? (p < ext) : (p > ext)) { ext = p; anchorRel = i; }
     }
-    // 앵커부터 현재까지 = 현재 degree 진행 파동(최대 8 = 임펄스 5 + 조정 ABC). 초과 시 최근 8로 재앵커(새 사이클).
+    // 앵커부터 현재까지 = 현재 degree 진행 파동(최대 8 = 임펄스 5 + 조정 ABC).
+    // 8다리 초과(한 사이클 이상 경과)면 단순 잘라내기(slice-8) 대신 최근 구간에서 기점을 재탐색 —
+    // 잘라내기는 파동1을 실제 극단이 아닌 임의 지점에 놓아 라벨이 밀리는 문제가 있었음.
     let recent = tail.slice(anchorRel);
-    if (recent.length > 8) recent = recent.slice(-8);
+    if (recent.length > 8) {
+      const win = recent.slice(-9);
+      const wUp = win[win.length - 1].to.price >= win[0].from.price;
+      let wExt = win[0].from.price, wRel = 0;
+      for (let i = 0; i < win.length; i++) { const p = win[i].from.price; if (wUp ? p < wExt : p > wExt) { wExt = p; wRel = i; } }
+      recent = win.slice(wRel);
+      if (recent.length > 8) recent = recent.slice(0, 8);
+    }
     const last = recent[recent.length - 1];
     const imp = recent.slice(0, 5), dirUp = imp.length ? imp[0].up : true, sgn = dirUp ? 1 : -1;
     // 엘리어트 3대 불가침 규칙
@@ -742,8 +751,13 @@
     let structure;
     if (impulseValid) structure = (recent.length > 5) ? "corrective" : (dirUp ? "impulse_up" : "impulse_down");
     else structure = "uncertain";                            // 불완전 모티브 = 발달중/복합(숫자 카운트)
-    // 라벨: 항상 1,2,3,4,5(모티브) → A,B,C(완성 후 역추세 조정). 문자는 6번째 다리부터만.
-    const LAB = ["1", "2", "3", "4", "5", "A", "B", "C"];
+    // 라벨(이론 정합): 유효 임펄스 또는 발달중(5파 미완) = 모티브 숫자 1..5 → 완성 후 역추세 조정 A,B,C.
+    // 5다리인데 규칙(교대·2파·3파·4파 비침범) 위반 = 임펄스 아님 → 조정성(삼각형/복합) 구조로 보고 문자 A..E 라벨.
+    //  → '규칙 어긴 지그재그·겹침 구조'에 1-2-3-4-5 모티브가 찍히던 오표기 제거. 문자 라벨이면 소비처가 '되돌림/조정'으로 렌더.
+    const developing = imp.length < 5;
+    const LAB = (impulseValid || developing)
+      ? ["1", "2", "3", "4", "5", "A", "B", "C"]
+      : ["A", "B", "C", "D", "E", "A", "B", "C"];
     const waves = recent.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
     const current = { label: (waves[waves.length - 1] && waves[waves.length - 1].label) || "-", dir: last.up ? 1 : -1 };
     const span1 = imp.length ? Math.abs(imp[0].to.price - imp[0].from.price) : 0;
