@@ -153,7 +153,15 @@
   .fc-head-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow:hidden}
   .fc-head-left .fc-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
-  .verdict-inline{font-family:ui-monospace,monospace;font-size:11px;color:var(--eth);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+  /* 국면/확률/시그널 강조 바 + 핵심 의견 */
+  .fc-verdict-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 14px;margin:2px 0 8px;border-radius:9px;background:linear-gradient(90deg,rgba(255,255,255,.03),transparent);border:1px solid var(--line);border-left-width:3px;letter-spacing:-.01em}
+  .fcv-reg{font-size:16px;font-weight:800}
+  .fcv-prob{font-size:14px;font-weight:800;font-family:ui-monospace,monospace}
+  .fcv-prob .up{color:#46c28e}.fcv-prob .dn{color:#e06a6a}
+  .fcv-sig{font-size:12px;font-weight:700;color:var(--eth);font-family:ui-monospace,monospace}
+  .fcv-op{flex:1;min-width:120px;font-size:12.5px;font-weight:600;color:var(--ink);opacity:.92;padding-left:12px;border-left:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chart-pane.editing .fc-verdict-bar{display:none!important}
+  .verdict-inline{display:none}   /* 강조 바(fc-verdict-bar)로 대체 — 헤더 중복 제거 */
   .verdict-inline b{font-weight:800}
   .chart-pane.editing .verdict-inline{display:none}
   .fc-t{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--eth)}
@@ -224,8 +232,9 @@
   .fc-panel.fc-sized{flex:0 0 auto;display:flex;flex-direction:column}
   .fc-panel.fc-sized .fc-pbody{flex:1;min-height:0;overflow:auto}
   .fc-hero #fcHeroImg,.fc-hero #fcMainChart,.fc-hero #fcEvidence{transition:transform .5s cubic-bezier(.4,0,.2,1)}
-  .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.8}   /* 지표 오버레이는 뒤로(희미) — 가격·예측이 앞에서 선명하게 */
-  body.evhide .fc-evidence{display:none}
+  .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.5}   /* 비결정 지표 = 희미(뒤로) */
+  .fc-evidence-hi{position:absolute;inset:0;pointer-events:none;z-index:3;filter:drop-shadow(0 0 2.5px rgba(255,255,255,.28))}   /* 결정적 지표 = 선명 + 은은한 글로우 */
+  body.evhide .fc-evidence,body.evhide .fc-evidence-hi{display:none}
   .fc-fx{position:absolute;inset:0;pointer-events:none;z-index:4}
   .fc-zoom-reset{position:absolute;top:8px;right:8px;z-index:4;width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:13px;cursor:pointer;display:none}
   .fc-zoom-reset.on{display:block}
@@ -605,12 +614,14 @@
               <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
             </div>
           </div>
+          <div class="fc-verdict-bar" id="fcVerdictBar" style="display:none"></div>
           <div class="fc-pbody">
             <div class="fc-hero">
               <div class="fc-hero-img" id="fcHeroImg"><span class="fc-hero-ph">라이브러리에서 대표 이미지를 드래그하세요</span></div>
               <canvas id="fcFuture" class="fc-cv"></canvas>
               <canvas id="fcMainChart" class="fc-cv"></canvas>
               <canvas id="fcEvidence" class="fc-evidence"></canvas>
+              <canvas id="fcEvidenceHi" class="fc-evidence-hi"></canvas>
               <canvas id="fcFx" class="fc-fx"></canvas>
               <div class="fc-axis-btns" id="fcAxisBtns">
                 <button id="autoBtn" class="fc-axis-btn" title="세로축 오토스케일 — 현재 구간의 보이는 캔들에 맞춤(시간창 유지). 전체 초기화는 플롯 더블클릭">A</button>
@@ -2654,6 +2665,18 @@
     if (_yScale.mode === "manual" && isFinite(_yScale.lo) && isFinite(_yScale.hi) && _yScale.hi > _yScale.lo) { loV = _yScale.lo; hiV = _yScale.hi; }
     const padX = 8, padTop = 16, padBot = 26, axisW = 46;   // padBot=시간축 눈금·드래그 스트립 공간
     const plotW = cw - padX - axisW;
+    // 축 스트립 어포던스(드래그로 배율 조정 가능 느낌) — y축(우)·시간축(하) 은은한 밴드 + 그립
+    { const yStripX = padX + plotW, yStripW = cw - yStripX, plotH2 = ch - padTop - padBot;
+      c.save();
+      const gy = c.createLinearGradient(yStripX, 0, cw, 0); gy.addColorStop(0, "rgba(138,146,178,0)"); gy.addColorStop(1, "rgba(138,146,178,.06)");
+      c.fillStyle = gy; c.fillRect(yStripX, padTop, yStripW, plotH2);
+      const gx = c.createLinearGradient(0, ch - padBot, 0, ch); gx.addColorStop(0, "rgba(138,146,178,0)"); gx.addColorStop(1, "rgba(138,146,178,.06)");
+      c.fillStyle = gx; c.fillRect(padX, ch - padBot, plotW, padBot);
+      c.fillStyle = "rgba(138,146,178,.4)";   // y 스트립 그립(⋮, 세로 중앙)
+      const gcx = yStripX + yStripW / 2, gcy = padTop + plotH2 / 2;
+      for (let i = -1; i <= 1; i++) c.fillRect(gcx - 1, gcy + i * 5 - 1, 2, 2);
+      c.restore();
+    }
     const total = hist.length + path.length;
     const histW = plotW * Math.max(0.78, hist.length / total);
     const seamX = padX + histW;
@@ -3203,6 +3226,9 @@
     if (cv.width !== ww || cv.height !== hh) { cv.width = ww; cv.height = hh; }
     cv.style.width = W + "px"; cv.style.height = H + "px";
     const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+    // 결정적 지표 전용 캔버스(선명+글로우) — 중요도 높은 노드만 여기로 라우팅. _heroZoom은 차트모드서 항등이라 DPR 변환만.
+    const cvHi = document.getElementById("fcEvidenceHi"); let cHi = null;
+    if (cvHi) { if (cvHi.width !== ww || cvHi.height !== hh) { cvHi.width = ww; cvHi.height = hh; } cvHi.style.width = W + "px"; cvHi.style.height = H + "px"; cHi = cvHi.getContext("2d"); cHi.setTransform(dpr, 0, 0, dpr, 0, 0); cHi.clearRect(0, 0, W, H); cHi.lineJoin = "round"; }
     _evLabelBoxes = [];   // 라벨 겹침 회피 레지스트리 초기화
     if (!_evidenceShow || !_evidenceSet.size || !lastResult) return;
     // 예측을 계산한 바로 그 시계열을 사용(차트/콘과 동일) — 작도·예측 정합 보장
@@ -3224,15 +3250,17 @@
       for (const n of nodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         const _drawThis = (!_focusInd || n.blockType === _focusInd);
+        const _dec = ((n.weight != null ? n.weight : 50) >= 58) || Math.abs(n.conviction || 0) >= 30;   // 중요도↑ 또는 확신(방향)↑ = 예측에 결정적
+        const cc = (cHi && _dec) ? cHi : c;   // 결정적 → 선명 캔버스(글로우), 나머지 → 희미
         if (n.blockType === "ma") {
           const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
-          if (_drawThis) _drawMALayers(c, ma, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          if (_drawThis) _drawMALayers(cc, ma, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(activeTF());
           const ta = ForgeCore.analyzeTrend(price, { shortLen: Math.max(8, Math.round(((n.params && n.params.len) || 40) * (_prof.shortScale || 1))), pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const futBars = (g.path && g.path.length) || 24;
-          if (_drawThis) _drawTrendLayers(c, ta, {
+          if (_drawThis) _drawTrendLayers(cc, ta, {
             fiToX,
             pToY: v => toY(v),
             nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: wS
@@ -3240,26 +3268,26 @@
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "fib") {
           const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
-          if (_drawThis) _drawFibLayers(c, fib, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, top: g.padTop, bot: g.ch - g.padBot });
+          if (_drawThis) _drawFibLayers(cc, fib, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, top: g.padTop, bot: g.ch - g.padBot });
           legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "elliott") {
           const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
-          if (_drawThis) _drawElliottLayers(c, ea, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY(), top: g.padTop, bot: g.ch - g.padBot });
+          if (_drawThis) _drawElliottLayers(cc, ea, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY(), top: g.padTop, bot: g.ch - g.padBot });
           legend.push({ col, t: EV_LABEL.elliott + "(전문·다중degree)", _key: n.blockType });
         } else if (n.blockType === "rsi") {
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
-          if (_drawThis) _drawRsiLayers(c, rsi, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
+          if (_drawThis) _drawRsiLayers(cc, rsi, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.rsi + "(전문)", _key: n.blockType });
         } else if (n.blockType === "volume") {
           const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
           const va = ForgeCore.analyzeVolume(price, vser);
-          if (_drawThis) _drawVolumeLayers(c, va, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1], badgeY: _slotY() });
+          if (_drawThis) _drawVolumeLayers(cc, va, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1], badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.volume + "(전문)", _key: n.blockType });
         } else if (n.blockType === "phasefold") {
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
       }
-      _evLegend(c, g.padX, g.padTop, legend);
+      _evLegend(cHi || c, g.padX, g.padTop, legend);   // 범례는 선명 캔버스에(항상 읽힘)
     } else {
       const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; if (!g) { c.restore(); return; }
       const tf = v => g.log ? Math.log(Math.max(1e-9, v)) : v;
@@ -3373,6 +3401,7 @@
       txt = "📈 입력 시계열 " + n + "봉"; tip = "붙여넣은 시계열로 작도·예측 (연속 차트)";
     }
     el.textContent = txt; el.className = "fc-src fc-src-" + cls; el.title = tip;
+    if (cls !== "warn") el.style.display = "none";   // 정보성 '입력 시계열/비전 N봉' 배지는 숨김 — 이미지≠입력 불일치 경고만 노출
   }
   function fcRenderForecast(pred) {
     const mode = heroMode();
@@ -4315,9 +4344,27 @@
     const _up = (typeof aggUpProb === "function" && lastResult) ? aggUpProb(lastResult.prediction) : null;
     el.innerHTML =
       `국면 <b style="color:${col}">${label}</b>` +
-      (_up != null ? ` · 확률 <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
+      (_up != null ? ` · <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
       ` · 시그널 <b style="color:${col}">${score}</b>`;
     el.title = "국면 " + label + " · 상승확률 " + (_up != null ? _up + "% / 하락 " + (100 - _up) + "%" : "—") + " · 시그널 " + score + " · 목표 " + fmt(verdict.target);
+    // 강조 바 + 핵심 의견 한 줄
+    const bar = document.getElementById("fcVerdictBar");
+    if (bar) {
+      bar.style.display = "flex"; bar.style.borderLeftColor = col;
+      const op = verdictOpinion(verdict, _up);
+      bar.innerHTML =
+        `<span class="fcv-reg" style="color:${col}">${label}</span>` +
+        (_up != null ? `<span class="fcv-prob"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span>` : "") +
+        `<span class="fcv-sig">시그널 ${score}${isFinite(verdict.target) ? " · 목표 " + fmtNum(verdict.target) : ""}</span>` +
+        `<span class="fcv-op">“${op}”</span>`;
+    }
+  }
+  /* 핵심 의견 한 줄(간결) — 국면·상승확률·시그널 강도 종합 */
+  function verdictOpinion(v, up) {
+    const s = Math.abs(v.score || 0), strong = s >= 60, u = (up == null) ? 50 : up;
+    if (v.regime === "bull") return u >= 60 ? (strong ? "상승 우세 — 추세 지속 유력" : "상승 우위 — 눌림목 매수 관점") : "완만한 상승 — 되돌림 후 방향 확인";
+    if (v.regime === "bear") return u <= 40 ? (strong ? "하락 우세 — 반등은 제한적" : "하락 우위 — 반등 시 비중 축소") : "약세 — 지지선 이탈 여부 주시";
+    return "방향성 혼재 — 돌파 확인 전 관망";
   }
 
   /* ── exportStrategy: download strategy as JSON blob ──────────── */
