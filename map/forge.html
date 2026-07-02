@@ -2942,7 +2942,7 @@
   // 엘리어트 작도(차트·오버레이 공용, reveal 인지). M=좌표 매퍼.
   function _drawElliottLayers(c, ea, M) {
     c.save();
-    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight, top, bot } = M;
     const _by = (M.badgeY != null) ? M.badgeY : 14;
     const COL = "#c47ae0", BAD = "#e06a6a";
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
@@ -2959,7 +2959,7 @@
     }
     // layer2: 유효도/구조 배지(우상단)
     if (reveal >= 2) {
-      const stx = ea.structure === "impulse_up" ? "임펄스↑" : ea.structure === "impulse_down" ? "임펄스↓" : ea.structure === "corrective" ? (ea.waves.length >= 5 ? "삼각 조정(A-E)" : "ABC 조정") : (ea.waves.length >= 2 ? "발달중(1-" + ea.waves.length + ")" : "불확실");
+      const stx = ea.structure === "impulse_up" ? "임펄스↑" : ea.structure === "impulse_down" ? "임펄스↓" : ea.structure === "corrective" ? "조정(ABC)" : (ea.waves.length >= 2 ? "발달중(현재 " + ea.current.label + ")" : "불확실");
       const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
       const bcol = ea.structure.indexOf("impulse") === 0 ? COL : ea.structure === "corrective" ? "#e8b463" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));
@@ -2986,6 +2986,12 @@
         c.stroke();
         for (const w of pw) {
           const x = fiToX(Math.max(fiMin, w.idx)), y = pToY(w.price); if (!isFinite(x) || !isFinite(y)) continue;
+          // 대형 파동 꼭짓점이 현재 y스케일 밖 → 가장자리에 ▲/▼ (라벨) 가격 마커(피보와 동일 정책)
+          if (top != null && bot != null && (y < top || y > bot)) {
+            const cy = y < top ? top + 7 : bot - 3, arw = y < top ? "▲" : "▼";
+            _evLabel(c, arw + "(" + w.label + ") " + fmt(w.price), x + 4, cy, COL, "left");
+            continue;
+          }
           c.fillStyle = COL; c.beginPath(); c.arc(x, y, 2.8, 0, 7); c.fill();
           _evLabel(c, "(" + w.label + ")", x + 4, y - 4, COL, "left");
         }
@@ -3005,9 +3011,12 @@
         const x0 = fiToX(Math.max(fiMin, lw.idx)), y0 = pToY(lw.price);
         const xR = (xRight != null ? xRight : fiToX(nowFi)), yT = pToY(ea.primary.next.target);
         if ([x0, y0, xR, yT].every(isFinite)) {
+          const offT = top != null && bot != null && (yT < top || yT > bot);
+          const yTc = offT ? (yT < top ? top : bot) : yT;   // 목표가 화면 밖이면 가장자리로 클램프
           c.save(); c.strokeStyle = COL; c.globalAlpha = .55; c.lineWidth = 1.5; c.setLineDash(CDASH.long);
-          c.beginPath(); c.moveTo(x0, y0); c.lineTo(xR, yT); c.stroke(); c.restore();
-          _evLabel(c, "→(" + ea.primary.next.label + ") " + fmt(ea.primary.next.target), xR, yT, COL, "right");
+          c.beginPath(); c.moveTo(x0, y0); c.lineTo(xR, yTc); c.stroke(); c.restore();
+          const arw = offT ? (yT < top ? "▲" : "▼") : "";
+          _evLabel(c, arw + "→(" + ea.primary.next.label + ") " + fmt(ea.primary.next.target), xR, offT ? (yT < top ? top + 7 : bot - 3) : yT, COL, "right");
         }
       }
     }
@@ -3119,7 +3128,7 @@
           legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "elliott") {
           const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
-          if (_drawThis) _drawElliottLayers(c, ea, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
+          if (_drawThis) _drawElliottLayers(c, ea, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY(), top: g.padTop, bot: g.ch - g.padBot });
           legend.push({ col, t: EV_LABEL.elliott + "(전문·다중degree)", _key: n.blockType });
         } else if (n.blockType === "rsi") {
           const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });

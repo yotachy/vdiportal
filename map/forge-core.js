@@ -730,23 +730,26 @@
     const allDirOk = imp.length >= 5 && imp[0].up === imp[2].up && imp[0].up === imp[4].up && imp[1].up !== imp[0].up && imp[3].up !== imp[0].up;
     // 임펄스(motive)로 인정하려면 5파 완성 + 3대 규칙 전부 + 교대 충족. 아니면 조정/발달중.
     const impulseValid = imp.length >= 5 && r1 && r2 && r3 && allDirOk;
+    // 구조: 앵커(추세 극단)부터 세므로 1~5는 항상 '모티브'(추세 방향). 조정 A,B,C는 5파 이후의 '역추세' 다리(6~8)에만 붙음.
+    //  → 상승 모티브에 a,b,c가 찍히던 이론 오류 제거(ABC는 완성 임펄스 뒤 되돌림에만).
     let structure;
-    if (impulseValid) structure = dirUp ? "impulse_up" : "impulse_down";
-    else if (recent.length >= 5) structure = "corrective";   // 5파 완성인데 규칙 위반 → 삼각/복합 조정(A-E). 임펄스 아님
-    else structure = "uncertain";                            // 1~4파 진행 중 → 발달중 임펄스 카운트(숫자로 표기)
-    // 라벨: 조정=A~E(지그재그 ABC / 삼각 A-E까지, 표준). 임펄스·발달중=1,2,3,4,5,A,B,C(5파 뒤 조정 A-C).
-    // 표준 패턴 길이(조정 5 / 임펄스 8)만 라벨 → 무의미한 F·G·H, 과다 카운트 방지.
-    const LAB = (structure === "corrective") ? ["A", "B", "C", "D", "E"] : ["1", "2", "3", "4", "5", "A", "B", "C"];
-    const labeled = recent.slice(-LAB.length);
-    const waves = labeled.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
+    if (impulseValid) structure = (recent.length > 5) ? "corrective" : (dirUp ? "impulse_up" : "impulse_down");
+    else structure = "uncertain";                            // 불완전 모티브 = 발달중/복합(숫자 카운트)
+    // 라벨: 항상 1,2,3,4,5(모티브) → A,B,C(완성 후 역추세 조정). 문자는 6번째 다리부터만.
+    const LAB = ["1", "2", "3", "4", "5", "A", "B", "C"];
+    const waves = recent.map((lg, i) => ({ idx: lg.to.idx, price: lg.to.price, label: LAB[i] || "" }));
     const current = { label: (waves[waves.length - 1] && waves[waves.length - 1].label) || "-", dir: last.up ? 1 : -1 };
     const span1 = imp.length ? Math.abs(imp[0].to.price - imp[0].from.price) : 0;
-    // 투영: 임펄스는 진행 파(2끝→3 / 4끝→5 / 5완성→A). 조정은 투영 생략(방향 근사만 bias로).
+    // 투영: 발달중 임펄스(2끝→3 / 4끝→5) · 완성 임펄스 뒤 조정(A→B→C 순차, 역추세).
     let next = null;
-    if (structure !== "corrective") {
-      if (recent.length === 2 && imp.length >= 2) next = { label: "3", target: imp[1].to.price + sgn * 1.618 * span1, dir: sgn };
-      else if (recent.length === 4 && imp.length >= 4) next = { label: "5", target: imp[3].to.price + sgn * span1, dir: sgn };
-      else if (impulseValid) { const span15 = Math.abs(imp[4].to.price - imp[0].from.price); const clab = ["A", "B", "C"][Math.max(0, Math.min(recent.length - 5, 2))]; next = { label: clab, target: imp[4].to.price - sgn * 0.5 * span15, dir: -sgn }; }
+    if (impulseValid) {
+      const span15 = Math.abs(imp[4].to.price - imp[0].from.price);
+      const clab = ["A", "B", "C"][Math.max(0, Math.min(recent.length - 5, 2))];
+      next = { label: clab, target: imp[4].to.price - sgn * 0.5 * span15, dir: -sgn };
+    } else if (recent.length === 2 && imp.length >= 2) {
+      next = { label: "3", target: imp[1].to.price + sgn * 1.618 * span1, dir: sgn };
+    } else if (recent.length === 4 && imp.length >= 4) {
+      next = { label: "5", target: imp[3].to.price + sgn * span1, dir: sgn };
     }
     let bias;
     if (structure === "impulse_up") bias = 0.4 + 0.6 * score;
@@ -783,7 +786,7 @@
 
   function elliottSteps(ea) {
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
-    const stKo = (s, wc) => s === "impulse_up" ? "상승 임펄스" : s === "impulse_down" ? "하락 임펄스" : s === "corrective" ? ((wc || 0) >= 5 ? "삼각/복합 조정" : "ABC 조정") : ((wc || 0) >= 2 ? "발달중 임펄스" : "불확실");
+    const stKo = (s, wc) => s === "impulse_up" ? "상승 임펄스" : s === "impulse_down" ? "하락 임펄스" : s === "corrective" ? "조정(ABC·역추세)" : ((wc || 0) >= 2 ? "발달중 임펄스" : "불확실");
     const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
     const nx = ea.next ? "다음 " + ea.next.label + "파 목표 " + fmt(ea.next.target) : "투영 없음";
     const bTxt = ea.bias > 0.1 ? "상승" : ea.bias < -0.1 ? "하락" : "중립";

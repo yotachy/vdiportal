@@ -747,31 +747,27 @@ test("analyzeElliott: 소량/피벗부족 → 폴백(uncertain, bias 0, next nul
   assert.strictEqual(ea.next, null);
 });
 
-test("analyzeElliott: 규칙 위반(3파 최단) 5파 하락 → corrective + 문자 라벨(A..), 임펄스 아님", () => {
+test("analyzeElliott: 규칙 위반 5레그 → 유효 임펄스 아님, 모티브는 숫자(문자 오분류 없음)", () => {
   const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
   // 하락 5레그지만 3파(190→185, span5)가 1파(span20)·5파(span35)보다 짧음 → R2 위반 → 임펄스 불가
   const price = [200, ...seg(200, 180, 8), ...seg(180, 190, 6), ...seg(190, 185, 6), ...seg(185, 195, 6), ...seg(195, 160, 8)];
   const ea = ForgeCore.analyzeElliott(price, { swing: 0.02 });
-  assert.strictEqual(ea.structure, "corrective", "규칙 위반 → 임펄스 아님");
   assert.ok(ea.rules.r2 === false, "R2(3파 최단) 위반 감지");
-  assert.ok(/^[A-H]$/.test(ea.waves[0].label), "조정은 문자 라벨(A..) — 1,2,3 아님");
-  assert.ok(ea.waves.every(w => /^[A-H]$/.test(w.label)), "모든 조정 파 문자 라벨");
+  assert.notStrictEqual(ea.structure, "impulse_down", "규칙 위반 → 유효 임펄스 아님");
+  assert.notStrictEqual(ea.structure, "impulse_up");
+  // 모티브(추세방향) 다리 1~5는 숫자 — 하락 모티브에 A,B,C 안 붙음(문자는 6번째부터만)
+  ea.waves.forEach((w, i) => { if (i < 5) assert.ok(/^[1-5]$/.test(w.label), "모티브 다리는 숫자"); else assert.ok(/^[A-C]$/.test(w.label), "6번째+는 A-C"); });
 });
 
-test("analyzeElliott: 조정 라벨은 A~E까지만 — 무의미한 F·G·H 없음, 카운트 상한", () => {
+test("analyzeElliott: 라벨은 1-5→A-C만 — D~Z 없음, 문자는 6번째 다리부터만", () => {
   const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
-  // 8+ 레그의 들쭉날쭉 시계열 — 오래된 다리를 F·G·H로 이어붙이는 과다 카운트가 없어야
   const price = [100,
     ...seg(100, 120, 6), ...seg(120, 108, 5), ...seg(108, 116, 5), ...seg(116, 104, 5),
     ...seg(104, 113, 5), ...seg(113, 101, 5), ...seg(101, 110, 5), ...seg(110, 98, 6)];
   const ea = ForgeCore.analyzeElliott(price, { swing: 0.02 });
-  assert.ok(ea.waves.every(w => !/[F-Z]/.test(w.label)), "F·G·H 등 비표준 라벨 없음");
-  if (ea.structure === "corrective") {
-    assert.ok(ea.waves.length <= 5, "조정 카운트는 최대 5(A-E)");
-    assert.ok(ea.waves.every(w => /^[A-E]$/.test(w.label)), "조정 라벨 A~E");
-  } else {
-    assert.ok(ea.waves.length <= 8, "임펄스+조정 최대 8");
-  }
+  assert.ok(ea.waves.every(w => !/[D-Z]/.test(w.label)), "D~Z 등 비표준 라벨 없음");
+  assert.ok(ea.waves.length <= 8, "카운트 최대 8(1-5+ABC)");
+  ea.waves.forEach((w, i) => { if (i < 5) assert.ok(/^[1-5]?$/.test(w.label), "모티브(1~5)엔 문자 없음"); });
 });
 
 test("analyzeElliott: 앵커 카운팅 — 최근 저점 이후 상승은 숫자 카운트(조정 오분류 아님)", () => {
@@ -802,7 +798,8 @@ test("analyzeElliott: 임펄스 판정은 3대 규칙 모두 충족해야(strict
   const price = [100, ...seg(100, 120, 8), ...seg(120, 105, 6), ...seg(105, 140, 10), ...seg(140, 118, 6), ...seg(118, 150, 8)];
   const ea = ForgeCore.analyzeElliott(price, { swing: 0.02 });
   assert.ok(ea.rules.r3 === false, "R3(4파 1파 침범) 위반");
-  assert.strictEqual(ea.structure, "corrective", "규칙 위반 → 조정 분류");
+  assert.notStrictEqual(ea.structure, "impulse_up", "규칙 위반 → 유효 임펄스 아님");
+  assert.notStrictEqual(ea.structure, "impulse_down");
 });
 
 test("elliottSteps: 5단계, bias 반영", () => {
