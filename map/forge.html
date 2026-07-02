@@ -1516,8 +1516,7 @@
     let nf = null;
     if (sel.length === 1) {
       const n = boardState.nodes.find(x => x.id === sel[0]);
-      const IND = ["ma", "trend", "fib", "elliott", "rsi", "volume"];
-      if (n && IND.includes(n.blockType)) nf = n.blockType;
+      if (n && EV_COLORS[n.blockType]) nf = n.blockType;   // 지표 노드 선택 시 해당 지표 포커스(전 지표)
     }
     if (nf !== _focusInd) { _focusInd = nf; drawEvidence(); }
   }
@@ -3020,7 +3019,10 @@
   function _skReady() { return _skFrac == null || _skFrac >= 0.82; }   // 라벨·마커·점은 선이 거의 다 그려진 뒤 등장
   let _evReveal = {};   // 시연 중 노드별 작도 레이어 출현 상한(nodeId→layer). 비재생=전체(∞)
   let _evidenceShow = true;
-  let _focusInd = null;          // 포커스 지표 blockType | null(전체)
+  let _focusInd = null;          // 포커스 지표 blockType | null(전체) — 클릭 잠금
+  let _evHover = null;           // 범례 hover 임시 포커스(프리뷰) blockType | null
+  const EV_DEFAULT_VISIBLE = ["trend", "bollinger", "fib", "rsi", "macd", "adx"];   // 기본 표시(나머지는 범례 클릭으로 켜기)
+  let _evVisible = new Set(EV_DEFAULT_VISIBLE);   // 차트에 그릴 지표 집합
   let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
   let _evLabelBoxes = [];        // 라벨 겹침 회피용 박스 레지스트리(_drawEvidence마다 리셋)
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#c9a3ff", ichimoku: "#8fd0c0" };
@@ -3103,22 +3105,30 @@
   }
   function _evLegend(c, x0, topY, items) {
     _legendHits = [];
-    const rows = [{ col: "#8a92b2", t: "전체", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key })));
+    const focus = _evHover || _focusInd;
+    const allVis = items.length && items.every(it => _evVisible.has(it._key));
+    const rows = [{ col: "#8a92b2", t: allVis ? "전체 표시" : "전체 표시(클릭)", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key })));
     c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
-    // 통합 반투명 패널(캔들 위 겹침에도 가독) — 개별 칩 배경 대신 한 판으로 정리
-    let maxW = 0; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
-    const px = x0, py = topY + 8, panelW = 20 + maxW + 8, panelH = rows.length * 14 + 8;
-    c.fillStyle = "rgba(11,15,20,.74)";
+    const hint = "클릭=표시토글 · 올려두면 단독강조";
+    let maxW = c.measureText(hint).width; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
+    const px = x0, py = topY + 8, panelW = 22 + maxW + 8, panelH = rows.length * 14 + 22;
+    c.fillStyle = "rgba(11,15,20,.78)";
     if (c.roundRect) { c.beginPath(); c.roundRect(px, py, panelW, panelH, 6); c.fill(); } else c.fillRect(px, py, panelW, panelH);
-    let y = py + 12;
+    c.fillStyle = "rgba(138,146,178,.75)"; c.font = "8.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.fillText(hint, px + 8, py + 11);
+    c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
+    let y = py + 24;
     for (const it of rows) {
-      const active = (it.key === _focusInd) || (it.key === null && _focusInd === null);
-      c.globalAlpha = (_focusInd && !active) ? 0.4 : 1;
-      c.fillStyle = it.col; c.fillRect(px + 7, y, 9, 9);
-      if (active) { c.fillStyle = "rgba(232,180,99,.22)"; c.fillRect(px + 19, y - 1, c.measureText(it.t).width + 6, 12); }
-      c.fillStyle = "rgba(224,229,239,.95)"; c.fillText(it.t, px + 21, y + 8);
+      const isAll = it.key === null;
+      const visible = isAll ? true : _evVisible.has(it.key);
+      const active = focus ? (it.key === focus) : false;                 // hover/포커스 대상
+      const dim = focus ? !active : !visible;                            // 포커스 중엔 대상 외 흐림 / 아니면 숨김 흐림
+      c.globalAlpha = active ? 1 : dim ? 0.32 : 1;
+      c.fillStyle = it.col; c.fillRect(px + 8, y, 9, 9);
+      if (active) { c.fillStyle = "rgba(232,180,99,.26)"; c.fillRect(px + 20, y - 2, c.measureText(it.t).width + 6, 13); }
+      c.fillStyle = "rgba(224,229,239,.95)"; c.fillText(it.t, px + 22, y + 8);
+      if (!isAll && !visible && !focus) { c.strokeStyle = "rgba(224,229,239,.6)"; c.lineWidth = 1; c.beginPath(); c.moveTo(px + 22, y + 4); c.lineTo(px + 22 + c.measureText(it.t).width, y + 4); c.stroke(); }   // 숨김=취소선
       c.globalAlpha = 1;
-      _legendHits.push({ x: px, y: y - 2, w: panelW, h: 13, key: it.key });
+      _legendHits.push({ x: px, y: y - 3, w: panelW, h: 14, key: it.key });
       y += 14;
     }
   }
@@ -3581,9 +3591,13 @@
       const toXh = i => g.padX + (i / (wC - 1)) * g.histW;       // i = 윈도 상대 인덱스(0..wC-1)
       const fiToX = fi => (fi >= wS && fi <= wS + wC - 1) ? toXh(fi - wS) : NaN;   // 절대 fi → 윈도 x, 밖=NaN
       let _slot = 0; const _slotY = () => g.padTop + 2 + (_slot++) * 18;   // 우상단 배지 세로 슬롯(18px 간격)
+      const _focus = _evHover || _focusInd;   // hover 프리뷰 > 클릭 잠금
+      // 범례는 분석된 모든 지표를 나열(숨김 것도 켤 수 있게). 표시 여부는 _evVisible/_focus로 결정.
+      const legendAll = []; const _seenT = new Set();
+      for (const n of nodes) { if (n.blockType && !_seenT.has(n.blockType)) { _seenT.add(n.blockType); legendAll.push({ col: EV_COLORS[n.blockType] || "#8a92b2", t: EV_LABEL[n.blockType] || n.blockType, _key: n.blockType }); } }
       for (const n of nodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
-        const _drawThis = (!_focusInd || n.blockType === _focusInd);
+        const _drawThis = _focus ? (n.blockType === _focus) : _evVisible.has(n.blockType);
         const _dec = ((n.weight != null ? n.weight : 50) >= 58) || Math.abs(n.conviction || 0) >= 30;   // 중요도↑ 또는 확신(방향)↑ = 예측에 결정적
         const cc = (cHi && _dec) ? cHi : c;   // 결정적 → 선명 캔버스(글로우), 나머지 → 희미
         if (n.blockType === "ma") {
@@ -3643,7 +3657,7 @@
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
       }
-      _evLegend(cHi || c, g.padX, g.padTop, legend);   // 범례는 선명 캔버스에(항상 읽힘)
+      _evLegend(cHi || c, g.padX, g.padTop, legendAll);   // 범례는 선명 캔버스에(모든 지표 나열, 표시/숨김 토글)
     } else {
       const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; if (!g) { c.restore(); return; }
       const tf = v => g.log ? Math.log(Math.max(1e-9, v)) : v;
@@ -3652,9 +3666,10 @@
       const xOf = i => g.ox + (P > 1 ? i / (P - 1) : 0) * (g.nowX - g.ox);   // 과거 시계열을 이미지 좌측~지금선에 매핑
       const clipY = y => Math.max(top, Math.min(bot, y));
       const within = y => y >= top - 2 && y <= bot + 2;
+      const _focusI = _evHover || _focusInd;
       for (const n of nodes) {
         const col = EV_COLORS[n.blockType] || "#8a92b2";
-        const _drawThis = (!_focusInd || n.blockType === _focusInd);
+        const _drawThis = _focusI ? (n.blockType === _focusI) : _evVisible.has(n.blockType);
         if (n.blockType === "fib") {
           const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
           if (_drawThis) _drawFibLayers(c, fib, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
@@ -4634,11 +4649,21 @@
       for (const hgt of _legendHits) {
         if (lx >= hgt.x && lx <= hgt.x + hgt.w && ly >= hgt.y && ly <= hgt.y + hgt.h) {
           if (typeof hgt.key === "undefined") return;
-          _focusInd = (hgt.key === _focusInd) ? null : hgt.key;
-          drawEvidence(); return;
+          if (hgt.key === null) { _evVisible = new Set(Object.keys(EV_COLORS)); _focusInd = null; }   // 전체 표시
+          else { if (_evVisible.has(hgt.key)) _evVisible.delete(hgt.key); else _evVisible.add(hgt.key); }   // 표시 토글
+          _focusInd = null; drawEvidence(); return;
         }
       }
     });
+    cv.addEventListener("mousemove", e => {   // 범례 위에 올리면 해당 지표 단독 강조(프리뷰)
+      if (_heroZoomDragging) return;
+      const r = cv.getBoundingClientRect();
+      const lx = ((e.clientX - r.left) - _heroZoom.tx) / _heroZoom.s, ly = ((e.clientY - r.top) - _heroZoom.ty) / _heroZoom.s;
+      let hov = null;
+      for (const hgt of _legendHits) { if (lx >= hgt.x && lx <= hgt.x + hgt.w && ly >= hgt.y && ly <= hgt.y + hgt.h) { hov = hgt.key; break; } }
+      if (hov !== _evHover) { _evHover = hov; drawEvidence(); }
+    });
+    cv.addEventListener("mouseleave", () => { if (_evHover !== null) { _evHover = null; drawEvidence(); } });
   })();
   (function() {
     const a = document.getElementById("autoBtn");   // A=매번 세로축을 보이는 캔들에 재맞춤(누를 때마다 강제 재적용)
