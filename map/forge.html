@@ -3127,7 +3127,7 @@
           legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(activeTF());
-          const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
+          const ta = ForgeCore.analyzeTrend(price, { shortLen: Math.max(8, Math.round(((n.params && n.params.len) || 40) * (_prof.shortScale || 1))), pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const futBars = (g.path && g.path.length) || 24;
           if (_drawThis) _drawTrendLayers(c, ta, {
             fiToX,
@@ -3178,7 +3178,7 @@
           legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(activeTF());
-          const ta = ForgeCore.analyzeTrend(price, { shortLen: (n.params && n.params.len) || 40, pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
+          const ta = ForgeCore.analyzeTrend(price, { shortLen: Math.max(8, Math.round(((n.params && n.params.len) || 40) * (_prof.shortScale || 1))), pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const futBars = (g.path && g.path.length) || 24, xR = g.rightX || (g.ox + g.dw);
           if (_drawThis) _drawTrendLayers(c, ta, {
             fiToX: fi => xOf(fi),
@@ -4004,8 +4004,12 @@
     cv.addEventListener("pointerdown", e => {
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
       const r = cv.getBoundingClientRect(), cx = e.clientX - r.left;
-      if (cx > g.plotRight) {   // 우측 y축 스트립 → 가격축 수동 스케일
-        hDrag = { mode: "yscale", y: e.clientY, lo: g.loV, hi: g.hiV, moved: false };
+      if (cx > g.plotRight) {   // 우측 y축 스트립 → 가격축 수동 스케일(커서 가격 고정 앵커)
+        const cy = e.clientY - r.top, plotH0 = Math.max(1, g.ch - g.padTop - g.padBot);
+        const lg0 = x => g.log ? Math.log(Math.max(1e-9, x)) : x, inv0 = x => g.log ? Math.exp(x) : x;
+        const _lo0 = lg0(g.loV), _hi0 = lg0(g.hiV), fracTop = Math.min(1, Math.max(0, (cy - g.padTop) / plotH0));
+        const pa = inv0(_lo0 + (1 - fracTop) * (_hi0 - _lo0));   // 커서 아래 가격(스케일 중 고정)
+        hDrag = { mode: "yscale", y: e.clientY, lo: g.loV, hi: g.hiV, log: g.log, pa, moved: false };
       } else {                  // 플롯 영역 → 2D 패닝(가로=시간 · 세로=가격)
         hDrag = { mode: "time", x: e.clientX, y: e.clientY, start: _chartWin.start, moved: false,
                   barW: (g.histW || 1) / Math.max(1, g.count),
@@ -4023,9 +4027,12 @@
         const dy = e.clientY - hDrag.y;
         if (Math.abs(dy) > 4) { hDrag.moved = true; _heroZoomDragging = true; }
         if (!hDrag.moved) return;
-        const c = (hDrag.lo + hDrag.hi) / 2, half = (hDrag.hi - hDrag.lo) / 2 * Math.exp(dy / 150);   // 아래로=확대·위로=축소
-        const newLo = (hDrag.lo > 0) ? Math.max(hDrag.lo * 0.01, c - half) : c - half;
-        _yScale = { mode: "manual", lo: newLo, hi: c + half };
+        // 커서 가격(pa)을 고정하고 확대/축소 — 로그/선형 공용. 아래로=확대·위로=축소.
+        const lg = x => hDrag.log ? Math.log(Math.max(1e-9, x)) : x, inv = x => hDrag.log ? Math.exp(x) : x;
+        const sA = lg(hDrag.pa), sLo0 = lg(hDrag.lo), sHi0 = lg(hDrag.hi), k = Math.exp(dy / 150);
+        const nLo = sA - (sA - sLo0) * k, nHi = sA + (sHi0 - sA) * k;
+        if (nHi - nLo < 1e-9) { renderHeroZoom(); return; }
+        _yScale = { mode: "manual", lo: inv(nLo), hi: inv(nHi) };
         renderHeroZoom();
         return;
       }
