@@ -374,6 +374,19 @@
   .forge-side .pal-side .pal-btn{display:block;width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;white-space:nowrap;transition:background .1s,border-color .1s}
   .forge-side .pal-side .pal-btn:hover{background:var(--raised2);border-color:#3a4452}
   .forge-side .pal-side .pal-btn.pal-free{color:var(--eth);border-style:dashed}
+  /* 티커 패널(캔버스 상단 고정) */
+  .tk-panel{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--line);flex:0 0 auto}
+  .tk-panel .tk-lbl{font-size:11px;font-weight:800;letter-spacing:.04em;color:var(--gold);text-transform:uppercase;flex:0 0 auto}
+  .tk-panel .tk-sym{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font:inherit;font-size:13px;font-weight:700;color:var(--ink);letter-spacing:.02em}
+  .tk-panel .tk-sym:focus{outline:none;border-color:var(--gold-dim)}
+  .tk-panel .tk-seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;flex:0 0 auto}
+  .tk-panel .tk-seg button{background:transparent;color:var(--eth);border:0;border-left:1px solid var(--line);padding:6px 11px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  .tk-panel .tk-seg button:first-child{border-left:0}
+  .tk-panel .tk-seg button.on{background:var(--gold);color:#1a1206}
+  .tk-panel .tk-load{background:rgba(232,180,99,.14);border:1px solid var(--gold-dim);color:var(--gold);border-radius:7px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;flex:0 0 auto}
+  .tk-panel .tk-load:hover{background:rgba(232,180,99,.22)}
+  .tk-panel .tk-stat{font-size:11px;color:var(--eth);white-space:nowrap;flex:0 0 auto;font-family:ui-monospace,monospace}
+  body.view .tk-panel{display:none}
 
   /* ── 포지 분석 재생 ── */
   .analyze-prog{font-size:11px;color:var(--eth)}
@@ -1172,7 +1185,7 @@
          <div class="side-actions"><button class="side-btn" id="sampleDocBtn">＋ 샘플</button><button class="side-btn" id="newDocBtn">＋ 새 포지</button></div>${docs}</div>
        <div class="side-sec"><div class="side-h"><span>블록 도구</span></div>
          <div class="pal-side">` +
-         BLOCK_DEFS.filter(d => d.kind === "block").map(d => `<button class="pal-btn" onclick="addBlock('${d.type}')">${d.label}</button>`).join("") +
+         BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker").map(d => `<button class="pal-btn" onclick="addBlock('${d.type}')">${d.label}</button>`).join("") +
          `<button class="pal-btn pal-free" onclick="addBlock('free')">메모</button>` +
        `</div></div>
        <div class="side-sec" id="libSec"></div>`;
@@ -1302,11 +1315,13 @@
   function renderBoard() {
     if (!bWorld) return;
     bWorld.querySelectorAll(".b-node").forEach(el => el.remove());
-    bWorld.insertAdjacentHTML("beforeend", boardState.nodes.map(nodeHTML).join(""));
+    // 티커는 캔버스 카드가 아니라 상단 패널로 표시(엔진 입력용 노드는 유지)
+    bWorld.insertAdjacentHTML("beforeend", boardState.nodes.filter(n => n.blockType !== "ticker").map(nodeHTML).join(""));
     measure();
     paintEdges();
     applySel();
     applyView();
+    if (typeof renderTickerPanel === "function") renderTickerPanel();
   }
 
   /* ── measure ─────────────────────────────────────────────────── */
@@ -1532,16 +1547,24 @@
     fireBoardChange();
   }
   /* ── addBlock: insert a typed block at canvas center ─────────── */
+  function freeSlot() {
+    // 화면 좌상단부터 그리드로 비어있는 첫 칸 찾기(겹치지 않게 정렬 배치)
+    const r = bStage.getBoundingClientRect();
+    const tl = worldPt(r.left + 46, r.top + 40);
+    const COLS = 4, GX = W_NODE + 30, GY = 118;
+    for (let i = 0; i < 240; i++) {
+      const x = tl.x + (i % COLS) * GX, y = tl.y + Math.floor(i / COLS) * GY;
+      const hit = boardState.nodes.some(nn => nn.blockType !== "ticker" && Math.abs((nn.x || 0) - x) < GX * 0.72 && Math.abs((nn.y || 0) - y) < GY * 0.72);
+      if (!hit) return { x, y };
+    }
+    return { x: tl.x, y: tl.y };
+  }
   function addBlock(type) {
     const d = BLOCK_DEFS.find(b => b.type === type) || {};
-    const r = bStage.getBoundingClientRect();
-    const c = worldPt(r.left + r.width / 2, r.top + r.height / 2);
-    const halfW = d.kind === "free" ? 70 : W_NODE / 2;
-    const off = (boardState.nodes.length % 8) * 24;   // 겹침 방지 계단식 오프셋
+    const slot = freeSlot();
     const n = {
       id: uid("n"),
-      x: c.x - halfW + off,
-      y: c.y - 35 + off,
+      x: slot.x, y: slot.y,
       title: d.label || "노드",
       kind: d.kind || "free",
       blockType: d.kind === "block" ? type : null,
@@ -1823,7 +1846,14 @@
   /* ── Board DOM init ──────────────────────────────────────────── */
   function boardInit() {
     const pane = document.getElementById("boardPane");
-    pane.innerHTML = `<div class="b-stage" id="bStage">
+    pane.innerHTML = `<div class="tk-panel" id="tkPanel">
+    <span class="tk-lbl">티커</span>
+    <input class="tk-sym" id="tkSym" placeholder="종목 심볼 (예: BTC-USD · AAPL)" spellcheck="false">
+    <div class="tk-seg" id="tkSeg"><button data-tf="1day">일</button><button data-tf="1week">주</button><button data-tf="1month">월</button></div>
+    <button class="tk-load" id="tkLoad">불러오기</button>
+    <span class="tk-stat" id="tkStat">종목 입력</span>
+  </div>
+  <div class="b-stage" id="bStage">
   <div class="b-world" id="bWorld">
     <svg class="b-edges" id="bEdges">
       <defs>
@@ -1852,6 +1882,15 @@
 
     bStage = document.getElementById("bStage");
     bWorld = document.getElementById("bWorld");
+
+    /* 티커 패널 이벤트(심볼 입력·주기·불러오기) */
+    const _tkSym = document.getElementById("tkSym");
+    if (_tkSym) {
+      _tkSym.addEventListener("input", e => { const t = ensureTickerNode(); t.params.symbol = e.target.value.trim(); markDirty(); renderTickerPanel(); });
+      _tkSym.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); loadTicker(); } });
+      document.getElementById("tkLoad").addEventListener("click", loadTicker);
+      document.getElementById("tkSeg").addEventListener("click", e => { const b = e.target.closest("button[data-tf]"); if (b) chartSetTF(b.dataset.tf); });
+    }
 
     /* stage pointer/wheel/dblclick */
     bStage.addEventListener("pointerdown", e => {
@@ -4296,6 +4335,42 @@
     if (typeof resetYScale === "function") resetYScale();
     markDirty(); runForge();
   }
+  // ── 티커 패널(캔버스 상단) ──
+  function ensureTickerNode() {
+    let t = boardState.nodes.find(n => n.blockType === "ticker");
+    if (!t) t = makeNode(20, 20, "티커", "block", "ticker", { symbol: "", tf: "1day", price: null });
+    return t;
+  }
+  function renderTickerPanel() {
+    const symEl = document.getElementById("tkSym"); if (!symEl) return;
+    const t = boardState.nodes.find(n => n.blockType === "ticker");
+    const sym = (t && t.params && t.params.symbol) || "";
+    if (document.activeElement !== symEl) symEl.value = sym;
+    const cur = (t && t.params && t.params.tf) || "1day";
+    const seg = document.getElementById("tkSeg");
+    if (seg) seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.tf === cur));
+    const stat = document.getElementById("tkStat");
+    if (stat) { const loaded = t && Array.isArray(t._series) && t._series.length >= 2; stat.textContent = loaded ? (t._series.length + "봉 · " + (_TFKO[cur] || cur)) : (sym ? "불러오기 필요" : "종목 입력"); }
+  }
+  function autoLogForTicker(tk) {   // 광범위(월봉 등 max/min>5) → 로그 기본(세로 가독·제어 자연스럽게)
+    const cs = (tk && tk._series) || []; if (cs.length < 2) return;
+    let mn = Infinity, mx = -Infinity; for (const v of cs) { if (v < mn) mn = v; if (v > mx) mx = v; }
+    if (mn > 0 && mx / mn > 5 && !_logChart) { _logChart = true; if (typeof updateAxisBtns === "function") updateAxisBtns(); }
+  }
+  async function loadTicker() {
+    const t = ensureTickerNode(); const sym = (t.params.symbol || "").trim();
+    if (!sym) { bToast("종목 심볼을 입력하세요 (예: BTC-USD)"); return; }
+    if (!SERVER_OK) { bToast("오프라인 — 서버 연결이 필요해요"); return; }
+    const tf = t.params.tf || "1day";
+    bToast(sym + " 불러오는 중…");
+    try {
+      const r = await fetchOHLC(sym, tf);
+      if (r && r.ok && Array.isArray(r.candles) && r.candles.length >= 2) {
+        applyTickerOHLC(t, r); autoLogForTicker(t); runForge(); renderTickerPanel();
+        bToast(sym + " " + (t._ohlc ? t._ohlc.length : r.candles.length) + "봉 · " + (_TFKO[tf] || tf));
+      } else bToast("데이터를 찾을 수 없어요: " + sym);
+    } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
+  }
   // 차트 헤더 일/주/월 세그먼트 — 티커 실데이터일 때만 노출, 현재 주기 하이라이트
   function renderTfSeg() {
     const seg = document.getElementById("fcTfSeg"); if (!seg) return;
@@ -4309,16 +4384,16 @@
   const _TFKO = { "1day": "일봉", "1week": "주봉", "1month": "월봉" };
   async function chartSetTF(tf) {
     const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim());
-    if (!tk) { bToast("티커 종목을 추가하면 일·주·월 전환이 됩니다"); return; }
+    if (!tk) { bToast("상단 티커 패널에 종목을 입력하면 일·주·월 전환이 됩니다"); return; }
     const sym = tk.params.symbol.trim();
-    if ((tk.params.tf || "1day") === tf && Array.isArray(tk._series) && tk._series.length >= 20) { bToast(_TFKO[tf] + " 표시 중"); return; }
+    if ((tk.params.tf || "1day") === tf && Array.isArray(tk._series) && tk._series.length >= 20) { bToast(_TFKO[tf] + " 표시 중"); renderTickerPanel(); return; }
     if (!SERVER_OK) { bToast("오프라인 — 서버 연결이 필요해요"); return; }
-    tk.params.tf = tf; renderTfSeg();
+    tk.params.tf = tf; renderTfSeg(); renderTickerPanel();
     bToast(_TFKO[tf] + " 불러오는 중…");
     try {
       const r = await fetchOHLC(sym, tf);
       if (r && r.ok && Array.isArray(r.candles) && r.candles.length >= 2) {
-        applyTickerOHLC(tk, r);   // resetChartWin + resetYScale + runForge → 자동 배열
+        applyTickerOHLC(tk, r); autoLogForTicker(tk); runForge(); renderTickerPanel();   // 월봉 등 광범위 → 로그 기본
         bToast(sym + " " + (tk._ohlc ? tk._ohlc.length : r.candles.length) + "봉 · " + _TFKO[tf]);
       } else bToast("데이터를 찾을 수 없어요: " + sym);
     } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
