@@ -2361,8 +2361,14 @@
     c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
     [30, 50, 70].forEach(lv => { const y = yOf(lv); c.beginPath(); c.moveTo(padL, y); c.lineTo(padL + plotW, y); c.stroke(); c.fillStyle = "#8a92b2"; c.font = "9px ui-monospace,monospace"; c.fillText(lv, padL + plotW + 3, y + 3); });
     c.setLineDash([]);
-    c.strokeStyle = "#e8b463"; c.lineWidth = 1.8; c.beginPath();
-    s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+    // 라인 아래 그라디언트 채움(가독성 · 이미지3 차용)
+    const rgrad = c.createLinearGradient(0, padV, 0, padV + plotH);
+    rgrad.addColorStop(0, "rgba(232,180,99,.30)"); rgrad.addColorStop(.6, "rgba(232,180,99,.08)"); rgrad.addColorStop(1, "rgba(232,180,99,0)");
+    c.fillStyle = rgrad; c.beginPath();
+    s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); });
+    c.lineTo(xOf(s.length - 1), padV + plotH); c.lineTo(xOf(0), padV + plotH); c.closePath(); c.fill();
+    c.strokeStyle = "#e8b463"; c.lineWidth = 1.8; c.lineJoin = "round"; c.shadowColor = "rgba(232,180,99,.5)"; c.shadowBlur = 6; c.beginPath();
+    s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
     const lx = xOf(s.length - 1), ly = yOf(rsi.last);
     c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(lx, ly, 3, 0, 7); c.fill();
     if (rsi.divergence && rsi.divergence.pricePts) {
