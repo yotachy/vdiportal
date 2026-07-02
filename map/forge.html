@@ -2010,6 +2010,9 @@
   const FC_BEAR = "#e06a6a";   /* bear candle */
   const FC_DIM  = "#5A6478";   /* axis labels */
   const FC_GRID = "#1b2334";   /* grid lines */
+  /* 작도 스타일 토큰(정교·절제): stroke 폭 + 세밀 점선 패턴 — 한 곳에서 관리 */
+  const CW = { hair: 0.85, thin: 1, base: 1.25, bold: 1.6, halo: 1.2 };
+  const CDASH = { fine: [2, 3], std: [3, 3], long: [5, 4] };
 
   /* ── fcFit: DPR-correct canvas sizing (port of chart.html fit()) ── */
   function fcFit(cv, h, cap) {
@@ -2629,7 +2632,7 @@
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k]));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(lo[k]));
       c.closePath(); c.fillStyle = "rgba(232,180,99,.14)"; c.fill();
-      c.strokeStyle = FC_GOLD; c.lineWidth = 1.8; c.setLineDash([5, 4]);
+      c.strokeStyle = FC_GOLD; c.lineWidth = 1.3; c.setLineDash(CDASH.std);
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k]));
       c.stroke(); c.setLineDash([]);
@@ -2716,8 +2719,9 @@
   let _evW = 0, _evH = 0;   // 현재 작도 캔버스 논리 크기(라벨 클램프용)
   // 라벨: 반투명 pill 배경 + 경계 클램프. align "left"(기본)|"right"
   function _evLabel(c, text, x, y, color, align) {
-    c.font = "700 12px ui-monospace,monospace";
-    const w = c.measureText(text).width, h = 14, M = 3, pad = 4;
+    c.font = "600 11px Pretendard, ui-monospace, monospace";
+    try { c.letterSpacing = "-0.2px"; } catch (_) {}
+    const w = c.measureText(text).width, h = 14, M = 3, pad = 5;
     let bx = (align === "right") ? x - w - pad : x;          // 박스 좌상 x
     bx = Math.max(M, Math.min(bx, (_evW || 1e4) - w - 2 * pad - M));
     let by = y - h;                                          // 박스 좌상 y(텍스트 baseline 위)
@@ -2726,11 +2730,12 @@
     // 겹침 회피: 이미 그린 라벨과 교차하면 생략(그리기 순서=중요도 → 핵심 라벨 우선, 뭉침 방지)
     for (const r of _evLabelBoxes) { if (bx < r.x + r.w && bx + bw > r.x && by < r.y + r.h && by + bh > r.y) return; }
     _evLabelBoxes.push({ x: bx, y: by, w: bw, h: bh });
-    c.fillStyle = "rgba(11,15,20,.66)";
-    if (c.roundRect) { c.beginPath(); c.roundRect(bx, by, w + 2 * pad, h + 2, 3); c.fill(); }
+    c.fillStyle = "rgba(11,15,20,.74)";
+    if (c.roundRect) { c.beginPath(); c.roundRect(bx, by, w + 2 * pad, h + 2, 4); c.fill(); }
     else c.fillRect(bx, by, w + 2 * pad, h + 2);
     c.fillStyle = color; c.textAlign = "left";
     c.fillText(text, bx + pad, by + h - 1);
+    try { c.letterSpacing = "0px"; } catch (_) {}   // 공유 컨텍스트 오염 방지(다른 텍스트에 안 번지게)
   }
   function _evLegend(c, x0, topY, items) {
     _legendHits = [];
@@ -2758,20 +2763,20 @@
     c.save();
     const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0 } = M;
     const COL = { long: "#46c28e", mid: "#5b8def", short: "#e8b463" };
-    const W = { long: 2.6, mid: 2.0, short: 1.6 };
-    const DASH = { long: [], mid: [], short: [5, 4] };
+    const W = { long: 1.7, mid: 1.4, short: 1.15 };
+    const DASH = { long: [], mid: [], short: CDASH.std };
     function winLine(w, key) {
       if (!w) return;
       const valAt = fi => w.bRaw + w.slopeRaw * (fi - w.startIdx);
       const fiL = Math.max(w.startIdx, fiMin);
       const xa = fiToX(fiL), ya = pToY(valAt(fiL)), xb = xNow, yb = pToY(valAt(nowFi));
       if (![xa, ya, xb, yb].every(isFinite)) return;
-      c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = W[key] + 1.9;
+      c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = W[key] + CW.halo;
       c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke();
       c.strokeStyle = COL[key]; c.lineWidth = W[key]; c.setLineDash(DASH[key]);
       c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke();
       const ye = pToY(valAt(nowFi + futBars));
-      if (isFinite(ye)) { c.globalAlpha = .65; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(xb, yb); c.lineTo(xRight, ye); c.stroke(); c.globalAlpha = 1; }
+      if (isFinite(ye)) { c.globalAlpha = .6; c.setLineDash(CDASH.std); c.beginPath(); c.moveTo(xb, yb); c.lineTo(xRight, ye); c.stroke(); c.globalAlpha = 1; }
       c.setLineDash([]);
       // 강도/각도 라벨
       const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
@@ -2785,7 +2790,7 @@
       if ([x0, u0, l0, u1, l1].every(isFinite)) {
         c.globalAlpha = .10; c.fillStyle = COL.long; c.beginPath();
         c.moveTo(x0, u0); c.lineTo(xNow, u1); c.lineTo(xNow, l1); c.lineTo(x0, l0); c.closePath(); c.fill(); c.globalAlpha = 1;
-        c.strokeStyle = COL.long; c.lineWidth = 1; c.setLineDash([2, 4]); c.globalAlpha = .5;
+        c.strokeStyle = COL.long; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine); c.globalAlpha = .45;
         c.beginPath(); c.moveTo(x0, u0); c.lineTo(xNow, u1); c.stroke();
         c.beginPath(); c.moveTo(x0, l0); c.lineTo(xNow, l1); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
       }
@@ -2798,7 +2803,7 @@
       const fiL = Math.max(L.fromIdx, fiMin);
       const xa = fiToX(fiL), ya = pToY(L.slope * fiL + L.b), xb = xNow, yb = pToY(L.slope * nowFi + L.b);
       if (![xa, ya, xb, yb].every(isFinite)) return;
-      c.strokeStyle = col; c.lineWidth = 1.4; c.setLineDash([4, 4]); c.globalAlpha = .85;
+      c.strokeStyle = col; c.lineWidth = CW.thin; c.setLineDash(CDASH.std); c.globalAlpha = .8;
       c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
     }
     pivLine(ta.pivots.support, "#46c28e"); pivLine(ta.pivots.resistance, "#e06a6a");
@@ -2809,7 +2814,7 @@
     c.save();
     const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity } = M;
     const COL = { short: "#7fb0ff", mid: "#5b8def", long: "#3b62c0" };
-    const WID = { short: 1.4, mid: 2.0, long: 2.6 };
+    const WID = { short: 1.15, mid: 1.4, long: 1.7 };
     function strokeSeries(series, key, srOn) {
       c.beginPath(); let started = false;
       for (let fi = Math.max(fiMin, 0); fi <= nowFi; fi++) {
@@ -2822,8 +2827,8 @@
     function drawMA(s, key) {
       if (!s) return;
       const srOn = ma.sr.ma === key;
-      if (key === "long") { c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.85)"; c.lineWidth = WID[key] + 1.9; strokeSeries(s.series, key); }
-      c.strokeStyle = COL[key]; c.lineWidth = srOn ? WID[key] + 1.2 : WID[key]; c.setLineDash(srOn ? [5, 4] : []);
+      if (key === "long") { c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = WID[key] + CW.halo; strokeSeries(s.series, key); }
+      c.strokeStyle = COL[key]; c.lineWidth = srOn ? WID[key] + 1 : WID[key]; c.setLineDash(srOn ? CDASH.std : []);
       strokeSeries(s.series, key); c.setLineDash([]);
     }
     if (reveal >= 1) { drawMA(ma.mas.long, "long"); drawMA(ma.mas.mid, "mid"); drawMA(ma.mas.short, "short"); }
@@ -2858,9 +2863,9 @@
     function levelLine(L) {
       const y = pToY(L.price); if (![y, xL, xR].every(isFinite)) return;
       const ext = L.kind === "ext";
-      c.setLineDash(ext ? [5, 4] : (L.confluent ? [] : [2, 3]));
-      c.strokeStyle = L.golden ? GOLD : ext ? DIM : "rgba(232,180,99,.55)";
-      c.lineWidth = L.confluent ? 2.2 : ext ? 1.2 : 1; c.globalAlpha = ext ? .6 : .85;
+      c.setLineDash(ext ? CDASH.std : (L.confluent ? [] : CDASH.fine));
+      c.strokeStyle = L.golden ? GOLD : ext ? DIM : "rgba(232,180,99,.5)";
+      c.lineWidth = L.confluent ? CW.bold : ext ? CW.thin : CW.hair; c.globalAlpha = ext ? .55 : .8;
       c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y); c.stroke();
       c.globalAlpha = 1; c.setLineDash([]);
       _evLabel(c, (L.confluent ? "✦" : "") + L.ratio.toFixed(3) + (ext ? " 목표" : ""), xL + 3, y - 2, L.golden ? GOLD : DIM, "left");
@@ -2887,7 +2892,7 @@
     // ── 중기·장기 degree: 핵심 레벨(0.382/0.5/0.618)+골든존+스윙 스팬만, 구분 스타일(단기와 혼동 방지) ──
     if (reveal >= 1 && fib.degrees && fib.degrees.length > 1) {
       const KEY = [0.382, 0.5, 0.618];
-      const STY = { "중기": { col: "rgba(232,180,99,.5)", w: 1.6, dash: [7, 5], dot: 3.2 }, "장기": { col: "rgba(201,146,46,.85)", w: 2.4, dash: [11, 6], dot: 4 } };
+      const STY = { "중기": { col: "rgba(232,180,99,.5)", w: 1.2, dash: CDASH.long, dot: 2.8 }, "장기": { col: "rgba(201,146,46,.85)", w: 1.6, dash: [6, 4], dot: 3.4 } };
       for (const dg of fib.degrees) {
         const st = STY[dg.name]; if (!st) continue;   // 단기는 위에서 이미 전체 그리드로 작도
         // 스윙 스팬(얇은 연결선) — 이 degree가 어느 구간을 보는지
@@ -2921,12 +2926,12 @@
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
     // layer1: 파동 폴리라인 + 라벨
     if (reveal >= 1 && ea.waves.length) {
-      c.strokeStyle = COL; c.lineWidth = 1.8; c.setLineDash([]); c.beginPath(); let st = false;
+      c.strokeStyle = COL; c.lineWidth = 1.4; c.setLineDash([]); c.beginPath(); let st = false;
       for (const w of ea.waves) { const x = fiToX(Math.max(fiMin, w.idx)), y = pToY(w.price); if (!isFinite(x) || !isFinite(y)) continue; st ? c.lineTo(x, y) : c.moveTo(x, y); st = true; }
       c.stroke();
       for (const w of ea.waves) {
         const x = fiToX(Math.max(fiMin, w.idx)), y = pToY(w.price); if (!isFinite(x) || !isFinite(y)) continue;
-        c.fillStyle = COL; c.beginPath(); c.arc(x, y, 2.6, 0, 7); c.fill();
+        c.fillStyle = COL; c.beginPath(); c.arc(x, y, 2.2, 0, 7); c.fill();
         _evLabel(c, w.label, x + 3, y - 3, COL, "left");
       }
     }
@@ -2944,7 +2949,7 @@
       const x0 = fiToX(Math.max(fiMin, lw.idx)), y0 = pToY(lw.price);
       const xR = (xRight != null ? xRight : fiToX(nowFi)), yT = pToY(ea.next.target);
       if ([x0, y0, xR, yT].every(isFinite)) {
-        c.strokeStyle = COL; c.globalAlpha = .7; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(x0, y0); c.lineTo(xR, yT); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+        c.strokeStyle = COL; c.globalAlpha = .65; c.setLineDash(CDASH.std); c.beginPath(); c.moveTo(x0, y0); c.lineTo(xR, yT); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
         _evLabel(c, "→" + ea.next.label + " " + fmt(ea.next.target), xR, yT, COL, "right");
       }
     }
@@ -2953,13 +2958,13 @@
       const pw = ea.primary.waves;
       if (reveal >= 1) {
         c.save();
-        c.globalAlpha = 0.85; c.strokeStyle = COL; c.lineWidth = 2.8; c.setLineDash([]);
+        c.globalAlpha = 0.85; c.strokeStyle = COL; c.lineWidth = 1.9; c.setLineDash([]);
         c.beginPath(); let pst = false;
         for (const w of pw) { const x = fiToX(Math.max(fiMin, w.idx)), y = pToY(w.price); if (!isFinite(x) || !isFinite(y)) continue; pst ? c.lineTo(x, y) : c.moveTo(x, y); pst = true; }
         c.stroke();
         for (const w of pw) {
           const x = fiToX(Math.max(fiMin, w.idx)), y = pToY(w.price); if (!isFinite(x) || !isFinite(y)) continue;
-          c.fillStyle = COL; c.beginPath(); c.arc(x, y, 3.4, 0, 7); c.fill();
+          c.fillStyle = COL; c.beginPath(); c.arc(x, y, 2.8, 0, 7); c.fill();
           _evLabel(c, "(" + w.label + ")", x + 4, y - 4, COL, "left");
         }
         c.restore();
@@ -2978,7 +2983,7 @@
         const x0 = fiToX(Math.max(fiMin, lw.idx)), y0 = pToY(lw.price);
         const xR = (xRight != null ? xRight : fiToX(nowFi)), yT = pToY(ea.primary.next.target);
         if ([x0, y0, xR, yT].every(isFinite)) {
-          c.save(); c.strokeStyle = COL; c.globalAlpha = .6; c.lineWidth = 2.2; c.setLineDash([7, 5]);
+          c.save(); c.strokeStyle = COL; c.globalAlpha = .55; c.lineWidth = 1.5; c.setLineDash(CDASH.long);
           c.beginPath(); c.moveTo(x0, y0); c.lineTo(xR, yT); c.stroke(); c.restore();
           _evLabel(c, "→(" + ea.primary.next.label + ") " + fmt(ea.primary.next.target), xR, yT, COL, "right");
         }
