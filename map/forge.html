@@ -2695,6 +2695,11 @@
       const gcone = c.createLinearGradient(seamX, 0, coneR, 0);
       gcone.addColorStop(0, CT.fa); gcone.addColorStop(1, CT.fb);
       c.fillStyle = gcone; c.fill();
+      // 내부 신뢰밴드(중앙값 ±절반) — 겹쳐 그려 코어가 더 진해짐(고확률 구간 강조, fan-chart 2단)
+      c.beginPath(); c.moveTo(seamX, toY(anchor));
+      for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k] + (hi[k] - path[k]) * 0.5));
+      for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(path[k] - (path[k] - lo[k]) * 0.5));
+      c.closePath(); c.fillStyle = gcone; c.fill();
       // 밴드 경계(은은한 헤어라인 점선)
       c.strokeStyle = CT.edge; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine);
       c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k])); c.stroke();
@@ -2706,6 +2711,12 @@
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k]));
       c.stroke(); c.restore();
+      // 마일스톤 시점 점(예측표와 동일 시점) — 중앙선 위 작은 참조점
+      try {
+        const _mhs = _hzList(tfUnit(), path.length);
+        c.fillStyle = CT.core;
+        for (const h of _mhs) { if (h < 1 || h >= path.length) continue; const mx = toXf(h - 1), my = toY(path[h - 1]); c.beginPath(); c.arc(mx, my, 2, 0, 7); c.fill(); c.strokeStyle = "#0b0f14"; c.lineWidth = 1; c.stroke(); }
+      } catch (e) {}
       // 예측 종점 마커
       const _ex = coneR, _ey = toY(path[path.length - 1]);
       c.fillStyle = CT.core; c.beginPath(); c.arc(_ex, _ey, 3, 0, 7); c.fill();
@@ -2962,7 +2973,9 @@
       c.lineWidth = L.confluent ? CW.bold : ext ? CW.thin : CW.hair; c.globalAlpha = ext ? .55 : .8;
       c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y); c.stroke();
       c.globalAlpha = 1; c.setLineDash([]);
-      _evLabel(c, (L.confluent ? "✦" : "") + L.ratio.toFixed(3) + (ext ? " 목표" : ""), xL + 3, y - 2, L.golden ? GOLD : DIM, "left");
+      const _txt = (L.confluent ? "✦" : "") + L.ratio.toFixed(3) + (ext ? " 목표" : "") + " · " + fmtNum(L.price);
+      if (ext) _evLabel(c, _txt, xR - 3, y - 2, L.golden ? GOLD : DIM, "right");   // 확장 목표는 우측(가격축 근처에서 읽기)
+      else _evLabel(c, _txt, xL + 3, y - 2, L.golden ? GOLD : DIM, "left");
     }
     if (reveal >= 1) fib.levels.filter(L => L.kind === "retr").forEach(levelLine);
     if (reveal >= 2) fib.levels.filter(L => L.kind === "ext").forEach(levelLine);
@@ -3011,7 +3024,7 @@
           c.setLineDash(st.dash); c.strokeStyle = L.golden ? GOLD : st.col; c.lineWidth = st.w; c.globalAlpha = .9;
           c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y); c.stroke();
           c.globalAlpha = 1; c.setLineDash([]);
-          _evLabel(c, dg.name.charAt(0) + " " + L.ratio.toFixed(3), xL + 3, y - 2, L.golden ? GOLD : DIM, "left");
+          _evLabel(c, dg.name.charAt(0) + " " + L.ratio.toFixed(3) + " · " + fmtNum(L.price), xL + 3, y - 2, L.golden ? GOLD : DIM, "left");
         }
       }
     }
@@ -3037,7 +3050,8 @@
     }
     // layer2: 유효도/구조 배지(우상단)
     if (reveal >= 2) {
-      const stx = ea.structure === "impulse_up" ? "임펄스↑" : ea.structure === "impulse_down" ? "임펄스↓" : ea.structure === "corrective" ? "조정(ABC)" : (ea.waves.length >= 2 ? "발달중(현재 " + ea.current.label + ")" : "불확실");
+      const _cl = ea.current.label, _isL = /[A-Z]/.test(_cl);
+      const stx = ea.structure === "impulse_up" ? "임펄스↑" : ea.structure === "impulse_down" ? "임펄스↓" : ea.structure === "corrective" ? "조정 진행(" + _cl + ")" : _isL ? "되돌림 진행(" + _cl + ")" : (ea.waves.length >= 2 ? "발달중(" + _cl + "파)" : "불확실");
       const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
       const bcol = ea.structure.indexOf("impulse") === 0 ? COL : ea.structure === "corrective" ? "#e8b463" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));

@@ -793,18 +793,18 @@
 
   function elliottSteps(ea) {
     const fmt = v => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
-    const stKo = (s, wc) => s === "impulse_up" ? "상승 임펄스" : s === "impulse_down" ? "하락 임펄스" : s === "corrective" ? "조정(ABC·역추세)" : ((wc || 0) >= 2 ? "발달중 임펄스" : "불확실");
+    const stKo = (s, wc, cl) => { const isL = cl && /[A-Z]/.test(cl); return s === "impulse_up" ? "상승 임펄스" : s === "impulse_down" ? "하락 임펄스" : s === "corrective" ? "조정 진행(" + cl + ")" : isL ? "되돌림 진행(" + cl + ")" : ((wc || 0) >= 2 ? "발달중 임펄스" : "불확실"); };
     const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
     const nx = ea.next ? "다음 " + ea.next.label + "파 목표 " + fmt(ea.next.target) : "투영 없음";
     const bTxt = ea.bias > 0.1 ? "상승" : ea.bias < -0.1 ? "하락" : "중립";
     const lines = [
       ea.waves.length ? "파동 카운트 " + ea.waves.length + "개 (현재 " + ea.current.label + ")" : "스윙 부족",
       "규칙 " + ok + "/3 · 유효 " + ea.rules.score.toFixed(2),
-      stKo(ea.structure, ea.waves.length) + " 분류",
+      stKo(ea.structure, ea.waves.length, ea.current.label) + " 분류",
       nx,
       "종합 방향 " + bTxt + " (bias " + ea.bias.toFixed(2) + ")"
     ];
-    if (ea.primary) lines.push("대형 " + stKo(ea.primary.structure, ea.primary.waves ? ea.primary.waves.length : 0) + " · 현재 " + ea.primary.current.label + "파(" + (ea.primary.current.dir > 0 ? "↑" : ea.primary.current.dir < 0 ? "↓" : "–") + ")");
+    if (ea.primary) lines.push("대형 " + stKo(ea.primary.structure, ea.primary.waves ? ea.primary.waves.length : 0, ea.primary.current.label) + " · 현재 " + ea.primary.current.label + "(" + (ea.primary.current.dir > 0 ? "↑" : ea.primary.current.dir < 0 ? "↓" : "–") + ")");
     return lines;
   }
 
