@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
 <title>스쿱포지 · Scoop Forge</title>
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<link rel="preload" href="fonts/PretendardVariable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+  /* Pretendard 자가호스팅(cafe24 동일 출처) — CDN 미로딩·돋움/굴림 폴백 방지 */
+  @font-face{font-family:'Pretendard';font-weight:45 920;font-style:normal;font-display:swap;src:url('fonts/PretendardVariable.woff2') format('woff2')}
   :root{
     --gold:#e8b463;--bg:#0b0f14;--panel:#121822;--ink:#e7ecf5;--eth:#8a92b2;
     --bull:#46c28e;--bear:#e06a6a;--line:#222b39;
@@ -50,6 +51,12 @@
   .b-stage.panning{cursor:grabbing}
   .b-stage.selmode{cursor:crosshair}
   .b-world{position:absolute;left:0;top:0;transform-origin:0 0}
+  /* ── 패널 모드: 캔버스(팬/줌/절대배치) 대신 스크롤 패널 + 2단 그리드 ── */
+  body.panel-mode .b-stage{overflow-y:auto;overflow-x:hidden;cursor:default;background:radial-gradient(130% 100% at 50% 0%,#111925,#0b0f14)}
+  body.panel-mode .b-world{position:static!important;transform:none!important;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;padding:14px 14px 60px;width:auto;height:auto;transform-origin:initial}
+  body.panel-mode .b-node{position:static!important;left:auto!important;top:auto!important;width:auto!important;margin:0;font-size:12.5px!important;animation:none!important;transition:box-shadow .14s}
+  body.panel-mode .b-node:hover{transform:none}
+  body.panel-mode .b-zoomctl,body.panel-mode .b-edges,body.panel-mode .b-marquee,body.panel-mode .b-snap-guide,body.panel-mode .b-ehud,body.panel-mode .b-nhud{display:none!important}
   /* edge SVG: 20000×20000 centered on -10000,-10000 so world(0,0) maps to SVG(10000,10000) */
   .b-edges{position:absolute;left:-10000px;top:-10000px;width:20000px;height:20000px;overflow:visible;pointer-events:none}
   .b-edges .b-ew{fill:none;stroke:var(--edge);stroke-width:2.4}
@@ -853,8 +860,10 @@
   const EWIDTHS = { 1: 1.6, 2: 2.4, 3: 3.8 };
   /* 고정 배치 모드: 블록을 일정한 격자에 자동 정렬(드래그/연결 없음). 관련 기능 코드는 남겨두고 게이트만. */
   const FIXED_LAYOUT = true;
+  /* 패널 모드: 캔버스(팬/줌/절대배치/마퀴)를 끄고 스크롤 패널 + CSS 그리드로. 캔버스 기능 코드는 남겨두고 게이트만. */
+  const PANEL_MODE = FIXED_LAYOUT;
   function layoutBlocks() {
-    if (!FIXED_LAYOUT) return;
+    if (!FIXED_LAYOUT || PANEL_MODE) return;   // 패널 모드는 CSS 그리드가 배치
     const order = BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker").map(d => d.type);
     const rank = t => { const i = order.indexOf(t); return i < 0 ? 99 : i; };
     const blocks = boardState.nodes.filter(n => n.blockType && n.blockType !== "ticker");
@@ -867,7 +876,7 @@
   }
   /* 측정 높이 기반 정밀 배치(masonry 2단) — 썸네일로 카드 높이가 달라도 겹치지 않게. measure() 후 호출. */
   function flowLayout() {
-    if (!FIXED_LAYOUT) return;
+    if (!FIXED_LAYOUT || PANEL_MODE) return;   // 패널 모드는 CSS 그리드가 배치
     const order = BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker").map(d => d.type);
     const rank = t => { const i = order.indexOf(t); return i < 0 ? 99 : i; };
     const blocks = boardState.nodes.filter(n => n.blockType && n.blockType !== "ticker").sort((a, b) => rank(a.blockType) - rank(b.blockType));
@@ -1418,10 +1427,17 @@
   /* ── renderBoard ─────────────────────────────────────────────── */
   function renderBoard() {
     if (!bWorld) return;
-    layoutBlocks();   // 고정 배치 좌표 항상 적용(로드·삭제 후에도 일정)
+    if (PANEL_MODE) document.body.classList.add("panel-mode");
+    layoutBlocks();   // 고정 배치 좌표 항상 적용(로드·삭제 후에도 일정 · 패널모드 no-op)
     bWorld.querySelectorAll(".b-node").forEach(el => el.remove());
     // 티커는 캔버스 카드가 아니라 상단 패널로 표시(엔진 입력용 노드는 유지)
-    bWorld.insertAdjacentHTML("beforeend", boardState.nodes.filter(n => n.blockType !== "ticker").map(nodeHTML).join(""));
+    let _list = boardState.nodes.filter(n => n.blockType !== "ticker");
+    if (PANEL_MODE) {   // 패널 그리드 흐름 순서 = 블록 정의 순서
+      const _ord = BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker").map(d => d.type);
+      const _rk = t => { const i = _ord.indexOf(t); return i < 0 ? 99 : i; };
+      _list = _list.slice().sort((a, b) => (a.blockType ? _rk(a.blockType) : 98) - (b.blockType ? _rk(b.blockType) : 98));
+    }
+    bWorld.insertAdjacentHTML("beforeend", _list.map(nodeHTML).join(""));
     measure();
     flowLayout();   // 측정 높이로 정밀 재배치(겹침 방지)
     paintEdges();
@@ -2008,6 +2024,11 @@
     bStage.addEventListener("pointerdown", e => {
       if (e.target.closest(".b-hbar,.b-hbtn")) return;
       if (e.target.closest(".b-n-ctrl") || e.target.closest(".b-n-gauge")) return;   // 카드 인라인 게이지/슬라이더는 드래그/팬 대상 아님
+      if (PANEL_MODE) {   // 패널 모드: 팬/마퀴 없음(네이티브 스크롤). 노드 클릭=선택만
+        const nEl = e.target.closest(".b-node");
+        if (nEl && e.button === 0) nodePointerDown(nEl.dataset.id, e);
+        return;
+      }
       if (e.button === 1 || (spaceDown && e.button === 0)) { startPan(e); return; }
       if (e.button !== 0) return;
       const nodeEl = e.target.closest(".b-node");
@@ -2017,6 +2038,7 @@
     });
 
     bStage.addEventListener("wheel", e => {
+      if (PANEL_MODE) return;   // 패널 모드: 네이티브 스크롤 사용
       e.preventDefault();
       const r = bStage.getBoundingClientRect();
       const cx = e.clientX - r.left, cy = e.clientY - r.top;
@@ -2027,6 +2049,7 @@
     }, { passive: false });
 
     bStage.addEventListener("dblclick", e => {
+      if (PANEL_MODE) return;   // 패널 모드: 배경 더블클릭 노드 생성 없음
       if (e.target.closest(".b-node")) return;
       const p = worldPt(e.clientX, e.clientY);
       const n = makeNode(p.x - W_NODE/2, p.y - 35, "노드", "free");
