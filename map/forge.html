@@ -497,6 +497,15 @@
   .hz-chg.hz-up{color:var(--bull)}.hz-chg.hz-dn{color:var(--bear)}.hz-chg.hz-fl{color:var(--eth)}
   .hz-prob{flex:0 0 94px;font-weight:700;font-size:11px;font-family:ui-monospace,monospace}
   .hz-prob.hz-up{color:var(--bull)}.hz-prob.hz-dn{color:var(--bear)}.hz-prob.hz-fl{color:var(--eth)}
+  /* 상승/하락 확률 게이지(예측 패널 상단) */
+  .hz-gauge{padding:2px 2px 11px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+  .hzg-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;letter-spacing:-.01em}
+  .hzg-up{color:#46c28e;font-weight:800;font-size:15px}
+  .hzg-dn{color:#e06a6a;font-weight:800;font-size:15px}
+  .hzg-cap{font-size:10.5px;font-weight:600;color:var(--eth);opacity:.85}
+  .hzg-bar{position:relative;height:10px;border-radius:6px;background:rgba(224,106,106,.22);overflow:hidden}
+  .hzg-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#37a978,#46c28e);box-shadow:0 0 8px rgba(70,194,142,.4)}
+  .hzg-mid{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:rgba(184,192,214,.5)}
   .hz-band{flex:1;color:var(--eth);font-size:10.5px;text-align:right}
   .hz-head .hz-t,.hz-head .hz-v,.hz-head .hz-chg,.hz-head .hz-prob,.hz-head .hz-band{color:var(--faint);font-weight:600}
 
@@ -2785,14 +2794,18 @@
       if (!w) return;
       const valAt = fi => w.bRaw + w.slopeRaw * (fi - w.startIdx);
       const fiL = Math.max(w.startIdx, fiMin);
-      const xa = fiToX(fiL), ya = pToY(valAt(fiL)), xb = xNow, yb = pToY(valAt(nowFi));
-      if (![xa, ya, xb, yb].every(isFinite)) return;
-      c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = W[key] + CW.halo;
-      c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke();
-      c.strokeStyle = COL[key]; c.lineWidth = W[key]; c.setLineDash(DASH[key]);
-      c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke();
-      const ye = pToY(valAt(nowFi + futBars));
-      if (isFinite(ye)) { c.globalAlpha = .6; c.setLineDash(CDASH.std); c.beginPath(); c.moveTo(xb, yb); c.lineTo(xRight, ye); c.stroke(); c.globalAlpha = 1; }
+      const xb = xNow, yb = pToY(valAt(nowFi));
+      // 히스토리 구간 다점 샘플 → 로그차트에서 직선근사 bow 제거(회귀선이 로그축에서 곡선)
+      const HS = 24, hp = [];
+      for (let s = 0; s <= HS; s++) { const fi = fiL + (nowFi - fiL) * s / HS; const x = fiToX(fi), y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) hp.push([x, y]); }
+      if (hp.length < 2 || !isFinite(yb)) return;
+      const stroke = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); };
+      c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = W[key] + CW.halo; stroke(hp);
+      c.strokeStyle = COL[key]; c.lineWidth = W[key]; c.setLineDash(DASH[key]); stroke(hp);
+      // 투영(현재→미래): fiToX는 미래에 NaN이라 x를 xNow→xRight 선형 매핑하며 y는 회귀 샘플
+      const FS = 12, fp = [[xb, yb]];
+      for (let s = 1; s <= FS; s++) { const fi = nowFi + futBars * s / FS, x = xb + (xRight - xb) * s / FS, y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) fp.push([x, y]); }
+      if (fp.length >= 2) { c.globalAlpha = .6; c.setLineDash(CDASH.std); stroke(fp); c.globalAlpha = 1; }
       c.setLineDash([]);
       // 강도/각도 라벨
       const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
@@ -3448,6 +3461,14 @@
     const fb = path.length;
     if (metaEl) metaEl.textContent = "현재가 " + _hzFmt(anchor);
     const hs = _hzList(unit, fb);
+    // 종합 상승/하락 확률 게이지 — 시점별 상승확률의 근시일 가중 평균(가까울수록 신뢰↑)
+    const _ups = hs.map(h => ({ up: _upProb(path[h - 1], p.hi && p.hi[h - 1], anchor), w: 1 / Math.sqrt(h) }));
+    const _wsum = _ups.reduce((a, x) => a + x.w, 0) || 1;
+    const upAgg = Math.round(_ups.reduce((a, x) => a + x.up * x.w, 0) / _wsum);
+    const gauge = `<div class="hz-gauge">
+      <div class="hzg-top"><span class="hzg-up">▲ 상승 ${upAgg}%</span><span class="hzg-cap">시점 가중 종합</span><span class="hzg-dn">${100 - upAgg}% 하락 ▼</span></div>
+      <div class="hzg-bar"><div class="hzg-fill" style="width:${upAgg}%"></div><div class="hzg-mid"></div></div>
+    </div>`;
     const head = `<div class="hz-row hz-head"><span class="hz-t">시점</span><span class="hz-v">예측가</span><span class="hz-chg">변화</span><span class="hz-prob">↑확률</span><span class="hz-band">예상 범위</span></div>`;
     const rows = hs.map(h => {
       const v = path[h - 1], lo = (p.lo && p.lo[h - 1]), hi = (p.hi && p.hi[h - 1]);
@@ -3463,7 +3484,7 @@
         <span class="hz-band">${band}</span>
       </div>`;
     }).join("");
-    host.innerHTML = head + rows;
+    host.innerHTML = gauge + head + rows;
   }
   /* ── 분석 해설(단계별 근거 + 예측 이유) ── */
   function renderNarrative(result) {
@@ -4164,7 +4185,7 @@
     const _up = (_pe && _ph && _pa) ? _upProb(_pe, _ph, _pa) : null;
     el.innerHTML =
       `국면 <b style="color:${col}">${label}</b>` +
-      (_up != null ? ` · ↑<b style="color:${_up >= 50 ? "#46c28e" : "#e06a6a"}">${_up}%</b>` : "") +
+      (_up != null ? ` · <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
       ` · 시그널 <b style="color:${col}">${score}</b>`;   // 목표는 예측표·차트 콘 라벨에 이미 있음(헤더 잘림 방지)
     el.title = "국면 " + label + " · 상승확률 " + (_up != null ? _up + "%" : "—") + " · 시그널 " + score + " · 목표 " + fmt(verdict.target);
   }

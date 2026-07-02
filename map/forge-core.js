@@ -452,23 +452,26 @@
     return out;
   }
 
-  function detectSwings(arr, sens) {
+  function detectSwings(arr, sens, opts) {
     const n = arr.length; if (n < 2) return [];
-    const rng = (Math.max(...arr) - Math.min(...arr)) || 1;
+    // opts.log: 임계를 로그가격 범위로(지수성장 자산서 시대별 스윙 감지 편향 제거·척도불변). 기본=선형(하위호환).
+    const useLog = !!(opts && opts.log);
+    const val = useLog ? arr.map(x => Math.log(Math.max(1e-9, x))) : arr;
+    const rng = (Math.max(...val) - Math.min(...val)) || 1;
     const thr = rng * (sens || 0.03);
-    const piv = [{ idx: 0, price: arr[0] }];
-    let trend = 0, extIdx = 0, extVal = arr[0];
+    const piv = [{ idx: 0, price: arr[0] }];   // price는 항상 원가격
+    let trend = 0, extIdx = 0, extVal = val[0];
     for (let i = 1; i < n; i++) {
-      const v = arr[i];
+      const v = val[i];
       if (trend >= 0) {
         if (v > extVal) { extVal = v; extIdx = i; }
-        else if (extVal - v >= thr) { if (piv[piv.length - 1].idx !== extIdx) piv.push({ idx: extIdx, price: extVal }); trend = -1; extVal = v; extIdx = i; }
+        else if (extVal - v >= thr) { if (piv[piv.length - 1].idx !== extIdx) piv.push({ idx: extIdx, price: arr[extIdx] }); trend = -1; extVal = v; extIdx = i; }
       } else if (trend < 0) {
         if (v < extVal) { extVal = v; extIdx = i; }
-        else if (v - extVal >= thr) { if (piv[piv.length - 1].idx !== extIdx) piv.push({ idx: extIdx, price: extVal }); trend = 1; extVal = v; extIdx = i; }
+        else if (v - extVal >= thr) { if (piv[piv.length - 1].idx !== extIdx) piv.push({ idx: extIdx, price: arr[extIdx] }); trend = 1; extVal = v; extIdx = i; }
       }
     }
-    if (extIdx !== piv[piv.length - 1].idx) piv.push({ idx: extIdx, price: extVal });
+    if (extIdx !== piv[piv.length - 1].idx) piv.push({ idx: extIdx, price: arr[extIdx] });
     return piv;
   }
 
@@ -601,8 +604,8 @@
     else if (short && !mid && long && short.m >= long.m) short = null;
     if (P < 15) { mid = null; short = null; }
 
-    // 피봇 분류(지그재그는 교대 → 이웃 비교로 high/low)
-    const sw = detectSwings(price, pivotSwing), points = [];
+    // 피봇 분류(지그재그는 교대 → 이웃 비교로 high/low). 로그 임계로 시대별 편향 제거(척도불변).
+    const sw = detectSwings(price, pivotSwing, { log: true }), points = [];
     for (let i = 0; i < sw.length; i++) {
       const pv = sw[i].price, pr = sw[i - 1], nx = sw[i + 1];
       let type;
@@ -614,9 +617,11 @@
     }
     function fitPivots(pts) {
       if (pts.length < 2) return null;
-      let sx = 0, sy = 0, sxx = 0, sxy = 0;
-      for (const p of pts) { sx += p.idx; sy += p.price; sxx += p.idx * p.idx; sxy += p.idx * p.price; }
-      const m = pts.length, slope = (m * sxy - sx * sy) / (m * sxx - sx * sx || 1), b = (sy - slope * sx) / m;
+      // 리센시 가중 최소제곱: 최근 피봇에 더 큰 가중(오래된 극단이 선을 과하게 끌지 않게)
+      const i0 = pts[0].idx, iN = pts[pts.length - 1].idx, span = (iN - i0) || 1;
+      let sw = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+      for (const p of pts) { const wt = 0.4 + 0.6 * ((p.idx - i0) / span); sw += wt; sx += wt * p.idx; sy += wt * p.price; sxx += wt * p.idx * p.idx; sxy += wt * p.idx * p.price; }
+      const denom = (sw * sxx - sx * sx) || 1, slope = (sw * sxy - sx * sy) / denom, b = (sy - slope * sx) / sw;
       return { slope, b, fromIdx: pts[0].idx, toIdx: pts[pts.length - 1].idx };
     }
     const support = fitPivots(points.filter(p => p.type === "low"));
@@ -628,11 +633,12 @@
       let s = 0; const r = [];
       for (let i = 0; i < P; i++) { const e = price[i] - (long.bRaw + long.slopeRaw * i); r.push(e); s += e; }
       const mu = s / P; let v = 0; for (const e of r) v += (e - mu) * (e - mu);
-      channel = { slopeRaw: long.slopeRaw, bRaw: long.bRaw, sigma: Math.sqrt(v / P), k: channelK };
+      const dof = Math.max(1, P - 2);   // 회귀 잔차 자유도(P-2) — 모분산(/P)의 과소추정 보정
+      channel = { slopeRaw: long.slopeRaw, bRaw: long.bRaw, sigma: Math.sqrt(v / dof), k: channelK };
       let sl = 0; const rl = [];
       for (let i = 0; i < P; i++) { const e = logP[i] - (long.bLog + long.slopeLog * i); rl.push(e); sl += e; }
       const ml = sl / P; let vl = 0; for (const e of rl) vl += (e - ml) * (e - ml);
-      channelSigmaLog = Math.sqrt(vl / P);
+      channelSigmaLog = Math.sqrt(vl / dof);
     }
 
     // 블렌드(R²가중·장기우선) + 지배창
