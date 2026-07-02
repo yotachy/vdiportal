@@ -162,26 +162,26 @@
   .fcv-op{flex:1;min-width:120px;font-size:12.5px;font-weight:600;color:var(--ink);opacity:.92;padding-left:12px;border-left:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chart-pane.editing .fc-verdict-bar{display:none!important}
   /* 타임프레임 매트릭스(일·주·월 비교) — 트레이딩 터미널 스타일 */
-  #fcDashBody{padding:2px}
-  .dash-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;letter-spacing:-.01em;table-layout:fixed}
-  .dash-table th,.dash-table td{padding:6px 12px}
+  #fcDashBody{padding:1px}
+  .dash-table{width:100%;border-collapse:separate;border-spacing:0;font-size:11.5px;letter-spacing:-.01em;table-layout:fixed}
+  .dash-table th,.dash-table td{padding:2.5px 9px}
   .dash-table td:not(:first-child),.dash-table th:not(:first-child){border-left:1px solid rgba(255,255,255,.05)}
-  .dash-table th{font-size:11px;font-weight:800;text-align:right;padding-bottom:7px;border-bottom:2px solid rgba(255,255,255,.09)}
+  .dash-table th{font-size:10.5px;font-weight:800;text-align:right;padding-bottom:5px;border-bottom:2px solid rgba(255,255,255,.09)}
   .dash-table th .thdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:middle}
   .dash-table th:first-child{text-align:left;color:#6b7391;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;width:88px}
   .dash-table td:first-child{color:var(--eth);font-weight:700;white-space:nowrap;font-size:11.5px}
   .dash-table tbody tr:not(.dash-sec):hover td{background:rgba(255,255,255,.018)}
-  .dash-cell{display:flex;align-items:center;gap:9px;min-height:15px;justify-content:flex-end}   /* 세그먼트(좌)+값(우) */
+  .dash-cell{display:flex;align-items:center;gap:8px;min-height:13px;justify-content:flex-end}   /* 세그먼트(좌)+값(우) */
   .dash-cell.txt{justify-content:flex-start}
   .dash-cell .dval{font-family:ui-monospace,monospace;font-weight:800;white-space:nowrap;min-width:30px;text-align:right}
   .dash-cell .dval-l{font-weight:800;white-space:nowrap}
   .dash-cell .dstar{color:#8fb4f0;font-size:11px}
-  .dash-reg{font-weight:800;font-size:12.5px;padding:1px 9px;border-radius:11px}
+  .dash-reg{font-weight:800;font-size:12px;padding:0 8px;border-radius:10px}
   .dseg{display:inline-flex;gap:2px}                     /* 세그먼트 바(이미지식) */
-  .dseg i{width:5px;height:13px;border-radius:1px;background:rgba(255,255,255,.08);display:block}
+  .dseg i{width:4px;height:11px;border-radius:1px;background:rgba(255,255,255,.08);display:block}
   .dash-best{background:linear-gradient(90deg,rgba(91,141,239,.04),rgba(91,141,239,.17))!important;box-shadow:inset 0 0 0 1px rgba(91,141,239,.5)}
   .dash-sub{font-size:11px;color:var(--eth);font-family:ui-monospace,monospace;font-weight:700}
-  .dash-sec td{padding:4px 12px!important;font-size:9px;font-weight:800;letter-spacing:.14em;color:var(--gold);background:rgba(232,180,99,.07);border-top:1px solid var(--gold-dim);border-bottom:1px solid var(--gold-dim);border-left:0!important}
+  .dash-sec td{padding:2px 10px!important;font-size:8.5px;font-weight:800;letter-spacing:.14em;color:var(--gold);background:rgba(232,180,99,.07);border-top:1px solid var(--gold-dim);border-bottom:1px solid var(--gold-dim);border-left:0!important}
   .chart-pane.editing #fcDashPanel{display:none}
   .verdict-inline{display:none}   /* 강조 바(fc-verdict-bar)로 대체 — 헤더 중복 제거 */
   .verdict-inline b{font-weight:800}
@@ -190,6 +190,9 @@
   .fc-t b{color:var(--ink)}
   .fc-meta{font-family:ui-monospace,monospace;font-size:10px;color:#5a6478;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fc-pbody{padding:8px 10px}
+  .fc-prow{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}   /* 하단 상세 패널 2단 배치 */
+  .fc-prow>.fc-panel{flex:1 1 300px;min-width:0}
+  .fc-prow>.fc-panel[style*="display:none"]{flex:0 0 0;min-width:0}      /* 숨김 패널은 폭 0 → 나머지 전체폭 */
   .fc-cv{display:block;width:100%;border-radius:6px}
   .fc-folds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 10px}
 
@@ -655,21 +658,56 @@
           </div>
         </div>
         <div class="fc-vgutter" id="fcVGutter" title="드래그하여 차트 높이 조절 · 더블클릭 초기화"></div>
-        <div class="fc-panel" id="fcDashPanel">
-          <div class="fc-phead">
-            <span class="fc-t"><b>타임프레임 매트릭스</b> · 일 · 주 · 월</span>
-            <span class="fc-meta" id="fcDashMeta">–</span>
+        <div class="fc-prow">
+          <div class="fc-panel" id="fcDashPanel">
+            <div class="fc-phead">
+              <span class="fc-t"><b>타임프레임 매트릭스</b> · 일 · 주 · 월</span>
+              <span class="fc-meta" id="fcDashMeta">–</span>
+            </div>
+            <div class="fc-pbody"><div id="fcDashBody"><div class="na-empty">티커 종목을 불러오면 일·주·월 비교가 자동으로 표시됩니다</div></div></div>
           </div>
-          <div class="fc-pbody"><div id="fcDashBody"><div class="na-empty">티커 종목을 불러오면 일·주·월 비교가 자동으로 표시됩니다</div></div></div>
-        </div>
-        <div class="fc-panel" id="fcHzPanel">
-          <div class="fc-phead">
-            <span class="fc-t"><b>예측 시점별</b> · 현재가 대비</span>
-            <span class="fc-meta" id="fcHzMeta">–</span>
+          <div class="fc-panel" id="fcHzPanel">
+            <div class="fc-phead">
+              <span class="fc-t"><b>예측 시점별</b> · 현재가 대비</span>
+              <span class="fc-meta" id="fcHzMeta">–</span>
+            </div>
+            <div class="fc-pbody"><div id="fcHorizons" class="hz-list"><div class="na-empty">분석 후 시점별 예측가가 표시됩니다</div></div></div>
           </div>
-          <div class="fc-pbody"><div id="fcHorizons" class="hz-list"><div class="na-empty">분석 후 시점별 예측가가 표시됩니다</div></div></div>
         </div>
-        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
+        <div class="fc-prow">
+          <div class="fc-panel" id="fcRsiPanel" style="display:none">
+            <div class="fc-phead">
+              <span class="fc-t"><b>RSI 오실레이터</b> · 0~100 · 30/70</span>
+              <span class="fc-meta" id="fcRsiMeta">–</span>
+            </div>
+            <div class="fc-pbody"><canvas id="fcRsi" class="fc-cv"></canvas></div>
+          </div>
+          <div class="fc-panel" id="fcVolPanel" style="display:none">
+            <div class="fc-phead">
+              <span class="fc-t"><b>거래량</b> · 막대 · OBV</span>
+              <span class="fc-meta" id="fcVolMeta">–</span>
+            </div>
+            <div class="fc-pbody"><canvas id="fcVol" class="fc-cv"></canvas></div>
+          </div>
+        </div>
+        <div class="fc-prow">
+          <div class="fc-panel" id="fcNodesPanel">
+            <div class="fc-phead">
+              <span class="fc-t"><b>노드별 레이더</b> · 지표별 방향·강도</span>
+              <span class="fc-meta" id="fcNodesMeta">–</span>
+            </div>
+            <div class="fc-pbody"><canvas id="fcRadar" class="fc-radar"></canvas></div>
+          </div>
+          <div class="fc-panel" id="fcPdmPanel">
+            <div class="fc-phead">
+              <span class="fc-t"><b>PDM 스펙트럼</b> · 주기별 정합도</span>
+              <span class="fc-meta">y = 100·(1−θ)</span>
+            </div>
+            <div class="fc-pbody">
+              <canvas id="fcPdm" class="fc-cv"></canvas>
+            </div>
+          </div>
+        </div>
         <div class="fc-panel" id="fcNarrPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>노드별 전문 분석</b> · 지표별 산출·해석</span>
@@ -677,41 +715,6 @@
           </div>
           <div class="fc-pbody"><div id="fcNarr" class="nr-list"></div></div>
         </div>
-        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
-        <div class="fc-panel" id="fcRsiPanel" style="display:none">
-          <div class="fc-phead">
-            <span class="fc-t"><b>RSI 오실레이터</b> · 0~100 · 30/70</span>
-            <span class="fc-meta" id="fcRsiMeta">–</span>
-          </div>
-          <div class="fc-pbody"><canvas id="fcRsi" class="fc-cv"></canvas></div>
-        </div>
-        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
-        <div class="fc-panel" id="fcVolPanel" style="display:none">
-          <div class="fc-phead">
-            <span class="fc-t"><b>거래량</b> · 막대 · OBV</span>
-            <span class="fc-meta" id="fcVolMeta">–</span>
-          </div>
-          <div class="fc-pbody"><canvas id="fcVol" class="fc-cv"></canvas></div>
-        </div>
-        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
-        <div class="fc-panel" id="fcNodesPanel">
-          <div class="fc-phead">
-            <span class="fc-t"><b>노드별 레이더</b> · 지표별 방향·강도</span>
-            <span class="fc-meta" id="fcNodesMeta">–</span>
-          </div>
-          <div class="fc-pbody"><canvas id="fcRadar" class="fc-radar"></canvas></div>
-        </div>
-        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
-        <div class="fc-panel" id="fcPdmPanel">
-          <div class="fc-phead">
-            <span class="fc-t"><b>PDM 스펙트럼</b> · 주기별 정합도</span>
-            <span class="fc-meta">y = 100·(1−θ)</span>
-          </div>
-          <div class="fc-pbody">
-            <canvas id="fcPdm" class="fc-cv"></canvas>
-          </div>
-        </div>
-        <div class="fc-rgutter" title="드래그하여 패널 높이 조절 · 더블클릭 초기화"></div>
         <div class="fc-panel" id="fcFoldPanel">
           <div class="fc-phead">
             <span class="fc-t"><b>위상 폴딩</b> · 구간 포개기</span>
