@@ -2637,7 +2637,12 @@
       for (const d of _ohW) { const b0 = Math.min(d.o, d.c), b1 = Math.max(d.o, d.c); if (b0 < bLo) bLo = b0; if (b1 > bHi) bHi = b1; if (d.l < wLo) wLo = d.l; if (d.h > wHi) wHi = d.h; }
       const br = (bHi - bLo) || 1;
       loV = Math.max(wLo, bLo - br * 0.6); hiV = Math.min(wHi, bHi + br * 0.6);   // 위크는 몸통범위 60%까지만(초과분은 잘림)
-    } else { for (const v of hist) { if (v < loV) loV = v; if (v > hiV) hiV = v; } }
+    } else {
+      // robust(선 시계열/붙여넣기·웹분석): 극단 2% 절단 → 단일 이상치가 세로 스케일을 통째로 벌려 '전부 다 보여주는' 문제 방지(벗어난 점은 잘림)
+      const srt = hist.filter(v => isFinite(v)).slice().sort((a, b) => a - b);
+      if (srt.length >= 8) { const q = p => srt[Math.min(srt.length - 1, Math.max(0, Math.round(p * (srt.length - 1))))]; loV = q(0.02); hiV = q(0.98); }
+      else { for (const v of hist) { if (v < loV) loV = v; if (v > hiV) hiV = v; } }
+    }
     if (atLatest) {
       loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);   // '지금'(앵커=현재가)만 포함. 세로 오토스케일은 항상 "보이는 캔들 기준" — 예측 콘은 제외(넘치면 위/아래로 잘림). 콘이 스케일을 끌어올려 '전체 차트'처럼 보이던 문제 해소.
     }
@@ -4108,7 +4113,7 @@
         if (!hDrag.moved) return;
         // 커서 가격(pa)을 고정하고 확대/축소 — 로그/선형 공용. 아래로=확대·위로=축소.
         const lg = x => hDrag.log ? Math.log(Math.max(1e-9, x)) : x, inv = x => hDrag.log ? Math.exp(x) : x;
-        const sA = lg(hDrag.pa), sLo0 = lg(hDrag.lo), sHi0 = lg(hDrag.hi), k = Math.exp(dy / 150);
+        const sA = lg(hDrag.pa), sLo0 = lg(hDrag.lo), sHi0 = lg(hDrag.hi), k = Math.exp(dy / 240);   // 완만하게(급격한 줌아웃 방지)
         const nLo = sA - (sA - sLo0) * k, nHi = sA + (sHi0 - sA) * k;
         if (nHi - nLo < 1e-9) { renderHeroZoom(); return; }
         _yScale = { mode: "manual", lo: inv(nLo), hi: inv(nHi) };
