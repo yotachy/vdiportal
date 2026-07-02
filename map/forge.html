@@ -2631,8 +2631,13 @@
     const _oh = (typeof priceOHLC === "function") ? priceOHLC() : null;
     const _ohW = (_oh && _oh.length === N) ? _oh.slice(wStart, wStart + wCount) : null;
     let loV = Infinity, hiV = -Infinity;
-    if (_ohW) { for (const d of _ohW) { if (d.l < loV) loV = d.l; if (d.h > hiV) hiV = d.h; } }
-    else { for (const v of hist) { if (v < loV) loV = v; if (v > hiV) hiV = v; } }
+    if (_ohW) {
+      // robust: 몸통(시·종가) 범위 + 위크는 과도 이탈 제한 → 단일 이상치 위크가 세로 스케일을 지배해 화면 낭비하던 문제 방지
+      let bLo = Infinity, bHi = -Infinity, wLo = Infinity, wHi = -Infinity;
+      for (const d of _ohW) { const b0 = Math.min(d.o, d.c), b1 = Math.max(d.o, d.c); if (b0 < bLo) bLo = b0; if (b1 > bHi) bHi = b1; if (d.l < wLo) wLo = d.l; if (d.h > wHi) wHi = d.h; }
+      const br = (bHi - bLo) || 1;
+      loV = Math.max(wLo, bLo - br * 0.6); hiV = Math.min(wHi, bHi + br * 0.6);   // 위크는 몸통범위 60%까지만(초과분은 잘림)
+    } else { for (const v of hist) { if (v < loV) loV = v; if (v > hiV) hiV = v; } }
     if (atLatest) {
       loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);   // '지금'(앵커=현재가)만 포함. 세로 오토스케일은 항상 "보이는 캔들 기준" — 예측 콘은 제외(넘치면 위/아래로 잘림). 콘이 스케일을 끌어올려 '전체 차트'처럼 보이던 문제 해소.
     }
@@ -2676,28 +2681,34 @@
       c.beginPath(); c.moveTo(seamX, padTop - 6); c.lineTo(seamX, ch - padBot); c.stroke(); c.setLineDash([]);
       c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.fillText("지금", seamX + 3, padTop - 2);
       const coneR = toXf(path.length - 1);
+      // 방향 색조(약한 적/녹) — 하락/상승 예측을 국면과 정합되게 한눈에
+      const _pEnd = path[path.length - 1];
+      const _pd = (_pEnd > anchor * 1.004) ? 1 : (_pEnd < anchor * 0.996) ? -1 : 0;
+      const CT = _pd > 0 ? { fa: "rgba(70,194,142,.22)", fb: "rgba(70,194,142,.03)", edge: "rgba(70,194,142,.34)", core: "#46c28e", glow: "rgba(70,194,142,.5)" }
+        : _pd < 0 ? { fa: "rgba(224,106,106,.22)", fb: "rgba(224,106,106,.03)", edge: "rgba(224,106,106,.34)", core: "#e06a6a", glow: "rgba(224,106,106,.5)" }
+          : { fa: "rgba(232,180,99,.22)", fb: "rgba(232,180,99,.03)", edge: "rgba(232,180,99,.3)", core: FC_GOLD, glow: "rgba(232,180,99,.5)" };
       // 밴드 채움: 현재(씨앗)에서 진하게 → 먼 미래로 갈수록 옅게(불확실성↑ 시각화)
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k]));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(lo[k]));
       c.closePath();
       const gcone = c.createLinearGradient(seamX, 0, coneR, 0);
-      gcone.addColorStop(0, "rgba(232,180,99,.22)"); gcone.addColorStop(1, "rgba(232,180,99,.03)");
+      gcone.addColorStop(0, CT.fa); gcone.addColorStop(1, CT.fb);
       c.fillStyle = gcone; c.fill();
       // 밴드 경계(은은한 헤어라인 점선)
-      c.strokeStyle = "rgba(232,180,99,.30)"; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine);
+      c.strokeStyle = CT.edge; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine);
       c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k])); c.stroke();
       c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(lo[k])); c.stroke();
       c.setLineDash([]);
-      // 중앙 예측선: 솔리드 + 소프트 글로우
+      // 중앙 예측선: 솔리드 + 소프트 글로우(방향 색조)
       c.save();
-      c.strokeStyle = FC_GOLD; c.lineWidth = 1.6; c.shadowColor = "rgba(232,180,99,.5)"; c.shadowBlur = 6;
+      c.strokeStyle = CT.core; c.lineWidth = 1.6; c.shadowColor = CT.glow; c.shadowBlur = 6;
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k]));
       c.stroke(); c.restore();
       // 예측 종점 마커
       const _ex = coneR, _ey = toY(path[path.length - 1]);
-      c.fillStyle = FC_GOLD; c.beginPath(); c.arc(_ex, _ey, 3, 0, 7); c.fill();
+      c.fillStyle = CT.core; c.beginPath(); c.arc(_ex, _ey, 3, 0, 7); c.fill();
       c.strokeStyle = "#0b0f14"; c.lineWidth = 1.4; c.stroke();
     }
     // y labels (right)
@@ -2790,8 +2801,18 @@
     let by = y - h;                                          // 박스 좌상 y(텍스트 baseline 위)
     by = Math.max(M, Math.min(by, (_evH || 1e4) - h - M));
     const bw = w + 2 * pad, bh = h + 2;
-    // 겹침 회피: 이미 그린 라벨과 교차하면 생략(그리기 순서=중요도 → 핵심 라벨 우선, 뭉침 방지)
-    for (const r of _evLabelBoxes) { if (bx < r.x + r.w && bx + bw > r.x && by < r.y + r.h && by + bh > r.y) return; }
+    // 겹침 회피: 충돌하면 아래/위로 밀어 빈 슬롯 탐색(라벨이 사라지지 않고 계단식으로 정렬). 정말 못 놓으면 생략.
+    const _ov = yy => _evLabelBoxes.some(r => bx < r.x + r.w && bx + bw > r.x && yy < r.y + r.h && yy + bh > r.y);
+    if (_ov(by)) {
+      let ok = false;
+      for (let stp = 1; stp <= 12 && !ok; stp++) {
+        for (const dr of [1, -1]) {
+          const ny = by + dr * stp * (bh + 1);
+          if (ny >= M && ny <= (_evH || 1e4) - bh - M && !_ov(ny)) { by = ny; ok = true; break; }
+        }
+      }
+      if (!ok) return;
+    }
     _evLabelBoxes.push({ x: bx, y: by, w: bw, h: bh });
     c.fillStyle = "rgba(11,15,20,.74)";
     if (c.roundRect) { c.beginPath(); c.roundRect(bx, by, w + 2 * pad, h + 2, 4); c.fill(); }
@@ -2838,17 +2859,23 @@
       for (let s = 0; s <= HS; s++) { const fi = fiL + (nowFi - fiL) * s / HS; const x = fiToX(fi), y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) hp.push([x, y]); }
       if (hp.length < 2 || !isFinite(yb)) return;
       const stroke = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); };
-      c.setLineDash([]); c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = W[key] + CW.halo; stroke(hp);
-      c.strokeStyle = COL[key]; c.lineWidth = W[key]; c.setLineDash(DASH[key]); stroke(hp);
-      // 투영(현재→미래): fiToX는 미래에 NaN이라 x를 xNow→xRight 선형 매핑하며 y는 회귀 샘플
-      const FS = 12, fp = [[xb, yb]];
-      for (let s = 1; s <= FS; s++) { const fi = nowFi + futBars * s / FS, x = xb + (xRight - xb) * s / FS, y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) fp.push([x, y]); }
-      if (fp.length >= 2) { c.globalAlpha = .6; c.setLineDash(CDASH.std); stroke(fp); c.globalAlpha = 1; }
+      const rq = (w.r2Log != null ? w.r2Log : w.r2), weak = rq < 0.15;   // 저신뢰(노이즈성) 추세선 — 흐리게+방향 화살표 생략
       c.setLineDash([]);
-      // 강도/각도 라벨
-      const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
-      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + (w.r2Log != null ? w.r2Log : w.r2).toFixed(2) + " " + dir;
-      _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, COL[key], "left");
+      if (!weak) { c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = W[key] + CW.halo; stroke(hp); }
+      c.globalAlpha = weak ? 0.3 : 1;
+      c.strokeStyle = COL[key]; c.lineWidth = weak ? Math.max(0.8, W[key] - 0.4) : W[key]; c.setLineDash(weak ? CDASH.fine : DASH[key]); stroke(hp);
+      c.globalAlpha = 1;
+      // 투영(현재→미래): 신뢰도 낮으면 생략(추세 없는데 예측선처럼 보이는 오해 방지)
+      if (!weak) {
+        const FS = 12, fp = [[xb, yb]];
+        for (let s = 1; s <= FS; s++) { const fi = nowFi + futBars * s / FS, x = xb + (xRight - xb) * s / FS, y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) fp.push([x, y]); }
+        if (fp.length >= 2) { c.globalAlpha = .6; c.setLineDash(CDASH.std); stroke(fp); c.globalAlpha = 1; }
+      }
+      c.setLineDash([]);
+      // 강도/각도 라벨 — 저신뢰는 화살표 대신 '약함' + 흐린 색
+      const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = weak ? "· 약함" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
+      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir;
+      _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, weak ? "rgba(138,146,178,.92)" : COL[key], "left");
     }
     // 채널(장기 ±k·σ)
     if (ta.channel) {
