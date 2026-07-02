@@ -168,16 +168,19 @@
   .fc-dash-head .dash-load{margin-left:auto;background:rgba(232,180,99,.14);border:1px solid var(--gold-dim);color:var(--gold);border-radius:6px;padding:4px 11px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
   .fc-dash-body{padding:6px 4px}
   .dash-table{width:100%;border-collapse:collapse;font-size:12px;letter-spacing:-.01em}
-  .dash-table th,.dash-table td{padding:6px 10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.04)}
-  .dash-table th:first-child,.dash-table td:first-child{text-align:left;color:var(--eth);font-weight:700;white-space:nowrap}
-  .dash-table th{font-size:11px;font-weight:800;color:var(--ink);border-bottom:1px solid var(--line)}
+  .dash-table th,.dash-table td{padding:5px 12px;border-bottom:1px solid rgba(255,255,255,.045)}
+  .dash-table th{font-size:10.5px;font-weight:800;color:var(--eth);text-align:left;border-bottom:1px solid var(--line);text-transform:none}
+  .dash-table th:first-child,.dash-table td:first-child{color:var(--eth);font-weight:700;white-space:nowrap;width:96px}
   .dash-table tr:last-child td{border-bottom:0}
-  .dash-table td b{font-family:ui-monospace,monospace;font-weight:800}
+  .dash-cell{display:flex;align-items:center;gap:8px;min-height:16px}      /* 바(좌) + 값(우 정렬) */
+  .dash-cell .dval{margin-left:auto;font-family:ui-monospace,monospace;font-weight:800;white-space:nowrap}
+  .dash-cell .dval-l{font-weight:800;white-space:nowrap}                    /* 텍스트 행은 좌측 정렬 */
   .dash-reg{font-weight:800;font-size:12.5px}
-  .dash-bar{display:inline-block;vertical-align:middle;width:52px;height:7px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;margin-right:6px}
+  .dash-bar{flex:1;max-width:108px;height:7px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden}
   .dash-fill{display:block;height:100%;border-radius:4px}
-  .dash-best{background:rgba(52,138,200,.16);box-shadow:inset 0 0 0 1px rgba(91,141,239,.5);border-radius:5px}
-  .dash-sub{font-size:10px;color:var(--eth);font-family:ui-monospace,monospace}
+  .dash-best{background:rgba(52,138,200,.16);box-shadow:inset 0 0 0 1px rgba(91,141,239,.55);border-radius:5px}
+  .dash-sub{font-size:10px;color:var(--eth);font-family:ui-monospace,monospace;font-weight:600}
+  .dash-sec td{padding:3px 12px;font-size:9.5px;font-weight:800;letter-spacing:.06em;color:var(--gold);text-transform:uppercase;background:rgba(232,180,99,.06);border-bottom:1px solid var(--line)}
   .chart-pane.editing .fc-dash{display:none}
   .verdict-inline{display:none}   /* 강조 바(fc-verdict-bar)로 대체 — 헤더 중복 제거 */
   .verdict-inline b{font-weight:800}
@@ -4388,7 +4391,7 @@
     if (v.regime === "bear") return u <= 40 ? (strong ? "하락 우세 — 반등은 제한적" : "하락 우위 — 반등 시 비중 축소") : "약세 — 지지선 이탈 여부 주시";
     return "방향성 혼재 — 돌파 확인 전 관망";
   }
-  /* ── 일·주·월 종합 대시보드 ── */
+  /* ── 일·주·월 종합 대시보드(비교 매트릭스) ── */
   async function _computeTf(symbol, tf) {
     try {
       const r = await fetchOHLC(symbol, tf);
@@ -4400,15 +4403,32 @@
       const tp = ForgeCore.trendProfileForTF(tfk);
       const ta = ForgeCore.analyzeTrend(series, { shortLen: Math.max(8, Math.round(40 * (tp.shortScale || 1))), weights: tp.weights });
       const rsi = ForgeCore.analyzeRSI(series, { period: 14 });
+      const ea = ForgeCore.analyzeElliott(series, { swing: 0.03 });
+      const vser = r.candles.map(d => +d.v);
+      const volSrc = (vser.length === series.length && vser.some(x => isFinite(x) && x > 0)) ? vser.map(x => isFinite(x) ? x : 0) : ForgeCore.synthVolume(series);
+      const vol = ForgeCore.analyzeVolume(series, volSrc);
       const v = res.verdict || {}, pr = res.prediction || {}, up = aggUpProb(pr);
       const pend = (pr.path && pr.path.length) ? pr.path[pr.path.length - 1] : null;
       const chg = (pend != null && pr.anchor) ? (pend - pr.anchor) / pr.anchor * 100 : null;
+      const ni = series.length - 1;
+      const sup = (ta.pivots && ta.pivots.support) ? ta.pivots.support.slope * ni + ta.pivots.support.b : null;
+      const rez = (ta.pivots && ta.pivots.resistance) ? ta.pivots.resistance.slope * ni + ta.pivots.resistance.b : null;
       return { regime: v.regime || "neutral", score: isFinite(v.score) ? v.score : 0, up: up == null ? 50 : up,
-        trend: (Math.exp(ta.blend.slopeLog) - 1) * 100, rsi: isFinite(rsi.last) ? rsi.last : 50, chg, target: v.target };
+        trend: (Math.exp(ta.blend.slopeLog) - 1) * 100, rsi: isFinite(rsi.last) ? rsi.last : 50, chg, target: v.target,
+        el: ea, vol: vol, sup: isFinite(sup) ? sup : null, rez: isFinite(rez) ? rez : null };
     } catch (e) { return null; }
   }
-  function _dseg(pct, col) { const p = Math.max(0, Math.min(100, pct || 0)); return `<span class="dash-bar"><span class="dash-fill" style="width:${p}%;background:${col}"></span></span>`; }
   function _dbest(vals, dir) { let bi = -1, bv = dir > 0 ? -1e9 : 1e9; vals.forEach((v, i) => { if (v == null || !isFinite(v)) return; if (dir > 0 ? v > bv : v < bv) { bv = v; bi = i; } }); return bi; }
+  function _elTxt(ea) { if (!ea) return ["–", "#8a92b2"]; const cl = ea.current.label, isL = /[A-Z]/.test(cl);
+    const t = ea.structure === "impulse_up" ? "상승 임펄스" : ea.structure === "impulse_down" ? "하락 임펄스" : ea.structure === "corrective" ? "조정(" + cl + ")" : isL ? "되돌림(" + cl + ")" : (ea.waves.length >= 2 ? "발달중(" + cl + "파)" : "불확실");
+    const col = ea.structure === "impulse_up" ? "#46c28e" : ea.structure === "impulse_down" ? "#e06a6a" : ea.structure === "corrective" ? "#e8b463" : "#8a92b2";
+    return [t, col]; }
+  function _volTxt(v) { if (!v) return ["–", "#8a92b2"]; const st = v.state === "spike" ? "급증" : v.state === "contract" ? "위축" : "평이";
+    const rel = v.relationship === "confirm" ? "확인" : v.relationship === "weakening" ? "약화" : v.relationship === "selling" ? "매도압력" : "투매진정";
+    return [st + " · " + rel, (v.relationship === "confirm" || v.relationship === "capitulation") ? "#46c28e" : "#e06a6a"]; }
+  // 셀: 바(좌) + 값(우 정렬) / 텍스트(좌 정렬). best=행 최고 강조
+  function _barC(pct, col, val, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell"><span class="dash-bar"><span class="dash-fill" style="width:${Math.max(0, Math.min(100, pct || 0))}%;background:${col}"></span></span><b class="dval">${val}${best ? " ★" : ""}</b></div></td>`; }
+  function _txtC(html, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell"><span class="dval-l">${html}${best ? " ★" : ""}</span></div></td>`; }
   async function renderDashboard() {
     const host = document.getElementById("fcDashBody"); if (!host) return;
     const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim());
@@ -4422,12 +4442,17 @@
     const REG = { bull: ["▲ 상승", "#46c28e"], bear: ["▼ 하락", "#e06a6a"], neutral: ["– 중립", "#8a92b2"] };
     const th = `<tr><th>지표</th>${cols.map(c => `<th>${c[0]}</th>`).join("")}</tr>`;
     const rows = [];
-    rows.push(`<tr><td>국면</td>${cols.map(c => { const g = REG[c[1].regime] || REG.neutral; return `<td><span class="dash-reg" style="color:${g[1]}">${g[0]}</span></td>`; }).join("")}</tr>`);
-    { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => `<td class="${i === bi ? "dash-best" : ""}">${_dseg(c[1].up, "#46c28e")}<b>${c[1].up}%</b>${i === bi ? " ★" : ""}</td>`).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return `<td class="${i === bi ? "dash-best" : ""}">${_dseg((s + 100) / 2, s >= 0 ? "#46c28e" : "#e06a6a")}<b>${Math.round(s)}</b>${i === bi ? " ★" : ""}</td>`; }).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => c[1].trend), 1); rows.push(`<tr><td>추세 %/봉</td>${cols.map((c, i) => { const t = c[1].trend; return `<td class="${i === bi ? "dash-best" : ""}"><b style="color:${t >= 0 ? "#46c28e" : "#e06a6a"}">${t >= 0 ? "+" : ""}${t.toFixed(2)}</b>${i === bi ? " ★" : ""}</td>`; }).join("")}</tr>`); }
-    rows.push(`<tr><td>RSI</td>${cols.map(c => { const rv = c[1].rsi, col = rv >= 70 ? "#e06a6a" : rv <= 30 ? "#46c28e" : "#8a92b2"; return `<td>${_dseg(rv, col)}<b>${Math.round(rv)}</b></td>`; }).join("")}</tr>`);
-    rows.push(`<tr><td>예측</td>${cols.map(c => c[1].chg == null ? `<td>–</td>` : `<td><b style="color:${c[1].chg >= 0 ? "#46c28e" : "#e06a6a"}">${c[1].chg >= 0 ? "+" : ""}${c[1].chg.toFixed(1)}%</b>${isFinite(c[1].target) ? ` <span class="dash-sub">${fmtNum(c[1].target)}</span>` : ""}</td>`).join("")}</tr>`);
+    rows.push(`<tr><td>국면</td>${cols.map(c => { const g = REG[c[1].regime] || REG.neutral; return _txtC(`<span class="dash-reg" style="color:${g[1]}">${g[0]}</span>`, false); }).join("")}</tr>`);
+    { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, "#46c28e", c[1].up + "%", i === bi)).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return _barC((s + 100) / 2, s >= 0 ? "#46c28e" : "#e06a6a", Math.round(s), i === bi); }).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].trend), 1); rows.push(`<tr><td>추세 %/봉</td>${cols.map((c, i) => { const t = c[1].trend; return _txtC(`<span style="color:${t >= 0 ? "#46c28e" : "#e06a6a"}">${t >= 0 ? "+" : ""}${t.toFixed(2)}</span>`, i === bi); }).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].chg), 1); rows.push(`<tr><td>예측</td>${cols.map((c, i) => c[1].chg == null ? _txtC("–", false) : _txtC(`<span style="color:${c[1].chg >= 0 ? "#46c28e" : "#e06a6a"}">${c[1].chg >= 0 ? "+" : ""}${c[1].chg.toFixed(1)}%</span>`, i === bi)).join("")}</tr>`); }
+    rows.push(`<tr class="dash-sec"><td colspan="${cols.length + 1}">구조 · 레벨</td></tr>`);
+    rows.push(`<tr><td>RSI</td>${cols.map(c => { const rv = c[1].rsi, col = rv >= 70 ? "#e06a6a" : rv <= 30 ? "#46c28e" : "#8a92b2"; return _barC(rv, col, Math.round(rv), false); }).join("")}</tr>`);
+    rows.push(`<tr><td>엘리어트</td>${cols.map(c => { const e = _elTxt(c[1].el); return _txtC(`<span style="color:${e[1]}">${e[0]}</span>`, false); }).join("")}</tr>`);
+    rows.push(`<tr><td>거래량</td>${cols.map(c => { const vv = _volTxt(c[1].vol); return _txtC(`<span style="color:${vv[1]}">${vv[0]}</span>`, false); }).join("")}</tr>`);
+    rows.push(`<tr><td>목표가</td>${cols.map(c => _txtC(isFinite(c[1].target) ? `<span style="font-family:ui-monospace,monospace">${fmtNum(c[1].target)}</span>` : "–", false)).join("")}</tr>`);
+    rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:#46c28e">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> / <span style="color:#e06a6a">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
     host.innerHTML = `<table class="dash-table">${th}${rows.join("")}</table>`;
   }
 
