@@ -2788,7 +2788,7 @@
       const ch = ta.channel, upAt = fi => pToY(ch.bRaw + ch.slopeRaw * fi + ch.k * ch.sigma), loAt = fi => pToY(ch.bRaw + ch.slopeRaw * fi - ch.k * ch.sigma);
       const x0 = fiToX(fiMin), u0 = upAt(fiMin), l0 = loAt(fiMin), u1 = upAt(nowFi), l1 = loAt(nowFi);
       if ([x0, u0, l0, u1, l1].every(isFinite)) {
-        c.globalAlpha = .10; c.fillStyle = COL.long; c.beginPath();
+        c.globalAlpha = .055; c.fillStyle = COL.long; c.beginPath();
         c.moveTo(x0, u0); c.lineTo(xNow, u1); c.lineTo(xNow, l1); c.lineTo(x0, l0); c.closePath(); c.fill(); c.globalAlpha = 1;
         c.strokeStyle = COL.long; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine); c.globalAlpha = .45;
         c.beginPath(); c.moveTo(x0, u0); c.lineTo(xNow, u1); c.stroke();
