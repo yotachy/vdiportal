@@ -2649,7 +2649,7 @@
     if (!isFinite(loV) || !isFinite(hiV)) { loV = 0; hiV = 1; }
     const padV = (hiV - loV) * 0.08 || 1; loV -= padV; hiV += padV;
     if (_yScale.mode === "manual" && isFinite(_yScale.lo) && isFinite(_yScale.hi) && _yScale.hi > _yScale.lo) { loV = _yScale.lo; hiV = _yScale.hi; }
-    const padX = 8, padTop = 16, padBot = 16, axisW = 46;
+    const padX = 8, padTop = 16, padBot = 26, axisW = 46;   // padBot=시간축 눈금·드래그 스트립 공간
     const plotW = cw - padX - axisW;
     const total = hist.length + path.length;
     const histW = plotW * Math.max(0.78, hist.length / total);
@@ -2666,6 +2666,18 @@
     // grid
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
+    // 시간축 눈금(하단) — 창 등분 위치에 '−N{단위}' + 짧은 틱 + 은은한 세로 그리드(캔들 아래)
+    { const uAx = tfUnit(), TN = 5, ay = ch - padBot;
+      c.font = "9px ui-monospace,monospace"; c.textAlign = "center";
+      for (let i = 0; i <= TN; i++) {
+        const wi = Math.round(i / TN * (hist.length - 1)), x = toXh(wi), ago = (N - 1) - (wStart + wi);
+        const lbl = ago <= 0 ? "지금" : "−" + ago + uAx;
+        if (i > 0 && i < TN) { c.strokeStyle = FC_GRID; c.globalAlpha = .5; c.lineWidth = 1; c.beginPath(); c.moveTo(x, padTop); c.lineTo(x, ay); c.stroke(); c.globalAlpha = 1; }
+        c.strokeStyle = FC_GRID; c.lineWidth = 1; c.beginPath(); c.moveTo(x, ay); c.lineTo(x, ay + 4); c.stroke();
+        c.fillStyle = ago <= 0 ? FC_GOLD : FC_DIM; c.fillText(lbl, Math.max(padX + 14, Math.min(padX + plotW - 14, x)), ay + 15);
+      }
+      c.textAlign = "left";
+    }
     // history: 캔들(OHLC 있을 때) 또는 선
     if (_ohW && _ohW.length === hist.length) {
       const bw = Math.max(1, (histW / hist.length) * 0.7);
@@ -4094,6 +4106,10 @@
         const _lo0 = lg0(g.loV), _hi0 = lg0(g.hiV), fracTop = Math.min(1, Math.max(0, (cy - g.padTop) / plotH0));
         const pa = inv0(_lo0 + (1 - fracTop) * (_hi0 - _lo0));   // 커서 아래 가격(스케일 중 고정)
         hDrag = { mode: "yscale", y: e.clientY, lo: g.loV, hi: g.hiV, log: g.log, pa, moved: false };
+      } else if ((e.clientY - r.top) > g.ch - g.padBot) {   // 하단 시간축 스트립 → 가로 배율(기간 폭) 조정(커서 봉 고정)
+        const rel = Math.max(0, Math.min(1, (cx - g.padX) / (g.histW || 1)));
+        const bi = g.start + Math.round(rel * (g.count - 1));
+        hDrag = { mode: "xscale", x: e.clientX, count0: g.count, rel, bi, moved: false };
       } else {                  // 플롯 영역 → 2D 패닝(가로=시간 · 세로=가격)
         hDrag = { mode: "time", x: e.clientX, y: e.clientY, start: _chartWin.start, moved: false,
                   barW: (g.histW || 1) / Math.max(1, g.count),
@@ -4102,9 +4118,20 @@
       try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     });
     cv.addEventListener("pointermove", e => {
-      if (!hDrag) {   // 호버 커서 힌트: y축 스트립 위=세로 스케일(↕), 플롯=시간 이동(↔)
+      if (!hDrag) {   // 호버 커서 힌트: y축 스트립=세로 스케일(↕) · 하단 시간축=가로 배율(↔) · 플롯=이동(grab)
         const g = cv._mainGeo;
-        if (g) { const r = cv.getBoundingClientRect(); cv.style.cursor = ((e.clientX - r.left) > g.plotRight) ? "ns-resize" : "ew-resize"; }
+        if (g) { const r = cv.getBoundingClientRect(), cxh = e.clientX - r.left, cyh = e.clientY - r.top; cv.style.cursor = (cxh > g.plotRight) ? "ns-resize" : (cyh > g.ch - g.padBot) ? "ew-resize" : "grab"; }
+        return;
+      }
+      if (hDrag.mode === "xscale") {   // 하단 시간축 드래그 = 가로 배율(오른쪽=확대·왼쪽=축소, 커서 봉 고정)
+        const dx = e.clientX - hDrag.x;
+        if (Math.abs(dx) > 4) { hDrag.moved = true; _heroZoomDragging = true; _chartNav = true; }
+        if (!hDrag.moved) return;
+        const g2 = cv._mainGeo; if (!g2) return; const N = g2.winN || 0; if (N < 2) return;
+        const k = Math.exp(-dx / 220);
+        const nc = Math.max(20, Math.min(N, Math.round(hDrag.count0 * k)));
+        const ns = Math.max(0, Math.min(N - nc, Math.round(hDrag.bi - hDrag.rel * (nc - 1))));
+        _chartWin.count = nc; _chartWin.start = ns; renderHeroZoom();
         return;
       }
       if (hDrag.mode === "yscale") {
@@ -4140,8 +4167,9 @@
     cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
     cv.addEventListener("dblclick", e => {
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo;
-      const r = cv.getBoundingClientRect(), cx = e.clientX - r.left;
+      const r = cv.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
       if (g && cx > g.plotRight) { resetYScale(); }             // y축 더블클릭 → 자동 스케일
+      else if (g && cy > g.ch - g.padBot) { resetChartWin(); }  // 시간축 더블클릭 → 기간 창 리셋
       else { resetChartWin(); resetYScale(); }                  // 플롯 더블클릭 → 윈도+세로 스케일 전체 리셋
       renderHeroZoom();
     });
