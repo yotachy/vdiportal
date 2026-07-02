@@ -774,6 +774,19 @@ test("analyzeElliott: 조정 라벨은 A~E까지만 — 무의미한 F·G·H 없
   }
 });
 
+test("analyzeElliott: 앵커 카운팅 — 최근 저점 이후 상승은 숫자 카운트(조정 오분류 아님)", () => {
+  const seg = (a, b, n) => Array.from({ length: n }, (_, i) => a + (b - a) * (i + 1) / n);
+  // 초반 노이즈(100→150→80) 뒤 최근 저점 80에서 깔끔한 상승 → 데이터 시작이 아닌 저점에 앵커
+  const price = [100, ...seg(100, 150, 10), ...seg(150, 80, 12),
+    ...seg(80, 125, 9), ...seg(125, 110, 5), ...seg(110, 185, 10)];
+  const ea = ForgeCore.analyzeElliott(price, { swing: 0.05 });
+  assert.ok(/^[0-9]$/.test(ea.waves[0].label), "앵커 상승 카운트는 숫자 라벨(1..)");
+  assert.notStrictEqual(ea.structure, "corrective", "최근 저점 이후 상승을 조정(A..)으로 오분류하지 않음");
+  // 카운트가 초반 노이즈가 아니라 최근 저점 이후 구간에 위치
+  const loIdx = price.indexOf(Math.min.apply(null, price));
+  assert.ok(ea.waves[ea.waves.length - 1].idx > loIdx, "최종 파동이 최근 저점 이후");
+});
+
 test("analyzeElliott: 유효 5파 하락 임펄스는 여전히 숫자 라벨(1..5)", () => {
   const seg = (from, to, n) => Array.from({ length: n }, (_, i) => from + (to - from) * (i + 1) / n);
   const price = [200, ...seg(200, 180, 8), ...seg(180, 192, 6), ...seg(192, 150, 10), ...seg(150, 168, 6), ...seg(168, 135, 8)];

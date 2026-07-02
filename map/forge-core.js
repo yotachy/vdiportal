@@ -583,11 +583,16 @@
       if (m < 2 || m > P) return null;
       const start = P - m, seg = price.slice(start), lseg = logP.slice(start);
       const fr = linfit(seg), fl = linfit(lseg);   // {a:절편, b:기울기}
-      let mean = 0; for (let i = 0; i < m; i++) mean += seg[i]; mean /= m;
-      let ssT = 0, ssR = 0;
-      for (let i = 0; i < m; i++) { const pr = fr.a + fr.b * i, d = seg[i] - mean, e = seg[i] - pr; ssT += d * d; ssR += e * e; }
+      let mean = 0, meanL = 0; for (let i = 0; i < m; i++) { mean += seg[i]; meanL += lseg[i]; } mean /= m; meanL /= m;
+      let ssT = 0, ssR = 0, ssTL = 0, ssRL = 0;
+      for (let i = 0; i < m; i++) {
+        const pr = fr.a + fr.b * i, d = seg[i] - mean, e = seg[i] - pr; ssT += d * d; ssR += e * e;
+        const prl = fl.a + fl.b * i, dl = lseg[i] - meanL, el = lseg[i] - prl; ssTL += dl * dl; ssRL += el * el;
+      }
       const r2 = ssT > 0 ? Math.max(0, 1 - ssR / ssT) : 0;
-      return { startIdx: start, m, slopeRaw: fr.b, bRaw: fr.a, slopeLog: fl.b, bLog: fl.a, r2 };
+      // 로그공간 R²: 지수성장 자산(예: BTC)에서 장기 로그추세의 신뢰도를 올바로 반영(블렌드 가중은 slopeLog를 쓰므로 로그 적합도로 가중)
+      const r2Log = ssTL > 0 ? Math.max(0, 1 - ssRL / ssTL) : 0;
+      return { startIdx: start, m, slopeRaw: fr.b, bRaw: fr.a, slopeLog: fl.b, bLog: fl.a, r2, r2Log };
     }
 
     let long = winFit(P), mid = winFit(Math.round(P * 0.5)), short = winFit(Math.min(P, shortLen));
@@ -635,8 +640,9 @@
     let num = 0, den = 0, dominant = null, best = -1;
     for (const [name, w] of wins) {
       if (!w) continue;
-      const eff = (weights[name] || 0) * w.r2; num += eff * w.slopeLog; den += eff;
-      const sc = Math.abs(w.slopeLog) * w.r2; if (sc > best) { best = sc; dominant = name; }
+      const rq = (w.r2Log != null ? w.r2Log : w.r2);   // slopeLog 가중은 로그공간 적합도로
+      const eff = (weights[name] || 0) * rq; num += eff * w.slopeLog; den += eff;
+      const sc = Math.abs(w.slopeLog) * rq; if (sc > best) { best = sc; dominant = name; }
     }
     const slopeLog = den > 0 ? num / den : (long ? long.slopeLog : 0);
 
@@ -692,10 +698,25 @@
 
   // 한 degree의 파동 카운트/규칙/구조/투영/bias 계산 (legs = 인접 스윙 다리 배열)
   function elliottDegree(legs) {
-    const recent = legs.slice(-8);
+    const EMPTYD = { waves: [], rules: { r1: false, r2: false, r3: false, score: 0 }, structure: "uncertain", current: { label: "-", dir: 0 }, next: null, bias: 0 };
+    if (!legs || !legs.length) return EMPTYD;
+    const len = lg => Math.abs(lg.to.price - lg.from.price);
+    // ── degree별 앵커 카운팅 ──
+    // '마지막 8다리 재라벨'식 드리프트 대신, 최근 구간의 방향 극단(상승=최저점 / 하락=최고점)을
+    // 현재 임펄스의 기점(wave 1 시작)으로 고정해 1..5 → A,B,C로 카운트. 봉이 늘어도 번호가 밀리지 않음.
+    const LOOK = Math.min(legs.length, 13);          // 최근 최대 13다리에서 기점 탐색
+    const tail = legs.slice(-LOOK);
+    const netUp = tail[tail.length - 1].to.price >= tail[0].from.price;
+    let anchorRel = 0, ext = tail[0].from.price;
+    for (let i = 0; i < tail.length; i++) {
+      const p = tail[i].from.price;
+      if (netUp ? (p < ext) : (p > ext)) { ext = p; anchorRel = i; }
+    }
+    // 앵커부터 현재까지 = 현재 degree 진행 파동(최대 8 = 임펄스 5 + 조정 ABC). 초과 시 최근 8로 재앵커(새 사이클).
+    let recent = tail.slice(anchorRel);
+    if (recent.length > 8) recent = recent.slice(-8);
     const last = recent[recent.length - 1];
     const imp = recent.slice(0, 5), dirUp = imp.length ? imp[0].up : true, sgn = dirUp ? 1 : -1;
-    const len = lg => Math.abs(lg.to.price - lg.from.price);
     // 엘리어트 3대 불가침 규칙
     let r1 = false, r2 = false, r3 = false;
     if (imp.length >= 2) { const w1s = imp[0].from.price, w2e = imp[1].to.price; r1 = dirUp ? (w2e >= w1s) : (w2e <= w1s); }   // 2파는 1파 시작을 넘지 않음
@@ -725,7 +746,7 @@
     if (structure !== "corrective") {
       if (recent.length === 2 && imp.length >= 2) next = { label: "3", target: imp[1].to.price + sgn * 1.618 * span1, dir: sgn };
       else if (recent.length === 4 && imp.length >= 4) next = { label: "5", target: imp[3].to.price + sgn * span1, dir: sgn };
-      else if (impulseValid) { const span15 = Math.abs(imp[4].to.price - imp[0].from.price); next = { label: "A", target: imp[4].to.price - sgn * 0.5 * span15, dir: -sgn }; }
+      else if (impulseValid) { const span15 = Math.abs(imp[4].to.price - imp[0].from.price); const clab = ["A", "B", "C"][Math.max(0, Math.min(recent.length - 5, 2))]; next = { label: clab, target: imp[4].to.price - sgn * 0.5 * span15, dir: -sgn }; }
     }
     let bias;
     if (structure === "impulse_up") bias = 0.4 + 0.6 * score;

@@ -2796,7 +2796,7 @@
       c.setLineDash([]);
       // 강도/각도 라벨
       const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
-      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + w.r2.toFixed(2) + " " + dir;
+      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + (w.r2Log != null ? w.r2Log : w.r2).toFixed(2) + " " + dir;
       _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, COL[key], "left");
     }
     // 채널(장기 ±k·σ)
@@ -2874,7 +2874,7 @@
   // 피보 작도(차트·오버레이 공용, reveal 인지). M=좌표 매퍼.
   function _drawFibLayers(c, fib, M) {
     c.save();
-    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight, top, bot } = M;
     const xL = fiToX(Math.max(fiMin, 0)), xR = (xRight != null ? xRight : fiToX(nowFi)), GOLD = "#ffd24d", DIM = "#e8b463";
     function levelLine(L) {
       const y = pToY(L.price); if (![y, xL, xR].every(isFinite)) return;
@@ -2924,6 +2924,12 @@
         for (const L of dg.levels) {
           if (L.kind !== "retr" || !KEY.some(k => Math.abs(L.ratio - k) < 1e-9)) continue;
           const y = pToY(L.price); if (![y, xL, xR].every(isFinite)) continue;
+          // 화면 밖(장기 레벨이 현재 y스케일 범위 밖) → 가장자리에 방향 마커+가격으로 표시(놓치지 않게)
+          if (top != null && bot != null && (y < top || y > bot)) {
+            const cy = y < top ? top + 7 : bot - 3, arw = y < top ? "▲" : "▼";
+            _evLabel(c, arw + " " + dg.name.charAt(0) + " " + L.ratio.toFixed(3) + " " + fmtNum(L.price), xR - 3, cy, L.golden ? GOLD : st.col, "right");
+            continue;
+          }
           c.setLineDash(st.dash); c.strokeStyle = L.golden ? GOLD : st.col; c.lineWidth = st.w; c.globalAlpha = .9;
           c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y); c.stroke();
           c.globalAlpha = 1; c.setLineDash([]);
@@ -3109,7 +3115,7 @@
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "fib") {
           const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
-          if (_drawThis) _drawFibLayers(c, fib, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          if (_drawThis) _drawFibLayers(c, fib, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, top: g.padTop, bot: g.ch - g.padBot });
           legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "elliott") {
           const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
