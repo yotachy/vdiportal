@@ -4223,6 +4223,11 @@
     n.params.price = cs[cs.length - 1].c;     // 현재가=마지막 종가 → currentData 스케일 계수 1
     n.params.fetched = true;                  // 로드 시 자동 재fetch 대상
     _heroView = "chart";
+    /* 티커 실데이터 = 활성 가격원 → 이전 웹분석(비전) 오버라이드 해제.
+       (안 그러면 activeTF/visionFutW가 stale _visionTF/_visionFut을 계속 써서
+        일/주/월을 눌러도 단위·예측지평이 웹분석 추정값(예: 개월/24)에 갇힘) */
+    _visionData = null; _visionBias = 0; _visionNote = ""; _visionWaves = [];
+    _visionCoords = null; _visionTF = null; _visionFut = 0;
     if (typeof resetChartWin === "function") resetChartWin();   // 새 데이터 → 기본 윈도(Task 3)
     if (typeof resetYScale === "function") resetYScale();
     markDirty(); runForge();
