@@ -923,6 +923,8 @@
     { type: "bollinger", label: "볼린저밴드",  kind: "block", params: { len: 20, k: 2 } },
     { type: "macd",      label: "MACD",        kind: "block", params: { fast: 12, slow: 26, signal: 9 } },
     { type: "adx",       label: "ADX 추세강도", kind: "block", params: { period: 14 } },
+    { type: "volumeprofile", label: "볼륨 프로파일", kind: "block", params: { len: 120, bins: 24 } },
+    { type: "ichimoku",  label: "일목균형표",  kind: "block", params: { tenkan: 9, kijun: 26, senkouB: 52, shift: 26 } },
     { type: "fib",       label: "피보나치",    kind: "block", params: { len: 120 } },
     { type: "elliott",   label: "엘리어트",    kind: "block", params: { swing: 3 } },
     { type: "volume",    label: "거래량",      kind: "block" },
@@ -1392,7 +1394,7 @@
       ? `box-shadow:0 0 ${Math.round((wt - 55) * 0.5)}px rgba(232,180,99,${((wt - 55) / 45 * 0.6).toFixed(2)});`
       : "";
     // 중요도+확신 통합 게이지: sig(-100~+100). 방향=확신, 세기=|sig|가 중요도(가중치)로. 지표 블록에만.
-    const GAUGE_TYPES = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "fib", "elliott", "phasefold", "volume"];
+    const GAUGE_TYPES = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "fib", "elliott", "phasefold", "volume"];
     const sig = Math.round(n.conviction || 0);
     const gCls = sig > 0 ? "g-up" : sig < 0 ? "g-dn" : "g-0";
     const gauge = (isBlock && GAUGE_TYPES.includes(n.blockType))
@@ -2194,6 +2196,8 @@
     const bollinger = mk("bollinger", "볼린저밴드", { len: 20, k: 2 });
     const macd      = mk("macd", "MACD", { fast: 12, slow: 26, signal: 9 });
     const adx       = mk("adx", "ADX 추세강도", { period: 14 });
+    const vprof     = mk("volumeprofile", "볼륨 프로파일", { len: 120, bins: 24 });
+    const ichi      = mk("ichimoku", "일목균형표", { tenkan: 9, kijun: 26, senkouB: 52, shift: 26 });
     const fib       = mk("fib", "피보나치", { len: 120 });
     const elliott   = mk("elliott", "엘리어트", { swing: 3 });
     const phasefold = mk("phasefold", "파동 스캔", { pmin: 16, pmax: 128 });
@@ -2201,7 +2205,7 @@
     const combine   = mk("combine", "가중결합", {});
     const predict   = mk("predict", "예측·시그널", {});
     makeNode(0, 0, "포지 메모", "free", null, {});
-    [price, ma, trend, rsi, bollinger, macd, adx, fib, elliott, phasefold, volume].forEach(ind => addEdge(ind.id, "right", combine.id, "left"));
+    [price, ma, trend, rsi, bollinger, macd, adx, vprof, ichi, fib, elliott, phasefold, volume].forEach(ind => addEdge(ind.id, "right", combine.id, "left"));
     addEdge(combine.id, "right", predict.id, "left");
     layoutBlocks();
   }
@@ -3019,10 +3023,10 @@
   let _focusInd = null;          // 포커스 지표 blockType | null(전체)
   let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
   let _evLabelBoxes = [];        // 라벨 겹침 회피용 박스 레지스트리(_drawEvidence마다 리셋)
-  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a" };
-  const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도" };
+  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#c9a3ff", ichimoku: "#8fd0c0" };
+  const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표" };
   function evIndicatorNodes() {
-    const order = ["ma", "trend", "fib", "elliott", "rsi", "bollinger", "macd", "adx", "phasefold", "volume"];
+    const order = ["ma", "trend", "fib", "elliott", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "phasefold", "volume"];
     return boardState.nodes.filter(n => n.kind === "block" && order.includes(n.blockType))
       .sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
   }
@@ -3486,6 +3490,63 @@
     const col = a.dir > 0 && a.last.adx >= 20 ? "#46c28e" : a.dir < 0 && a.last.adx >= 20 ? "#e06a6a" : "#8a92b2";
     if (isFinite(x) && isFinite(y)) _evLabel(c, "ADX " + a.last.adx.toFixed(0) + " 추세" + sTxt + (a.dir > 0 ? " ▲" : a.dir < 0 ? " ▼" : ""), x, y, col, "right");
   }
+  // 볼륨 프로파일(매물대) — 우측에 가격대별 수평 거래량 막대 + POC·밸류에어리어(이미지3식)
+  function _drawVolumeProfileLayers(c, vp, M) {
+    c.save();
+    const { pToY, xRight, reveal = Infinity } = M;
+    if (!vp.bins || !vp.bins.length || !vp.maxVol) { c.restore(); return; }
+    const xR = (xRight != null ? xRight : 0), maxW = 66, prog = (_skFrac != null ? Math.max(0, _skFrac) : 1);
+    if (reveal >= 1) {
+      for (const bin of vp.bins) {
+        const y0 = pToY(bin.hi), y1 = pToY(bin.lo); if (!isFinite(y0) || !isFinite(y1)) continue;
+        const h = Math.max(1, Math.abs(y1 - y0) - 1), w = (bin.vol / vp.maxVol) * maxW * prog;
+        const inVA = bin.mid >= vp.val && bin.mid <= vp.vah, isPOC = Math.abs(bin.mid - vp.poc) < vp.binWidth * 0.6;
+        c.fillStyle = isPOC ? "rgba(232,180,99,.6)" : inVA ? "rgba(201,163,255,.34)" : "rgba(201,163,255,.16)";
+        c.fillRect(xR - w, Math.min(y0, y1), w, h);
+      }
+    }
+    if (reveal >= 2 && _skReady()) {
+      const y = pToY(vp.poc);
+      if (isFinite(y)) _evLabel(c, "POC " + fmtNum(vp.poc), xR - 4, y, "#e8b463", "right");
+    }
+    c.restore();
+  }
+  // 일목균형표 — 전환/기준선 + 선행스팬 구름(전방 +26 이동, 예측영역까지) + 상태 배지
+  function _drawIchimokuLayers(c, ic, M) {
+    c.save();
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xNow, xRight } = M;
+    if (!ic.tenkan || ic.tenkan.length < 2) { c.restore(); return; }
+    const shift = ic.shift || 26, fb = M.futBars || shift, seam = (xNow != null ? xNow : fiToX(nowFi)), xr = (xRight != null ? xRight : seam + 80);
+    const xAt = fi => fi <= nowFi ? fiToX(fi) : (seam + Math.min(1, (fi - nowFi) / fb) * (xr - seam));
+    if (reveal >= 1) {
+      const topPts = [], botPts = [];
+      for (let i = Math.max(fiMin, 0); i <= nowFi + shift; i++) {
+        const src = i - shift; if (src < 0) continue;
+        const a = ic.spanA[src], b = ic.spanB[src]; if (!isFinite(a) || !isFinite(b)) continue;
+        const x = xAt(i); if (!isFinite(x)) continue;
+        topPts.push([x, pToY(Math.max(a, b))]); botPts.push([x, pToY(Math.min(a, b))]);
+      }
+      if (topPts.length > 1 && _skReady()) {
+        const bull = ic.cloud === "bull";
+        c.globalAlpha = .13; c.fillStyle = bull ? "#46c28e" : "#e06a6a";
+        c.beginPath(); topPts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
+        for (let i = botPts.length - 1; i >= 0; i--) c.lineTo(botPts[i][0], botPts[i][1]);
+        c.closePath(); c.fill(); c.globalAlpha = 1;
+        c.strokeStyle = bull ? "rgba(70,194,142,.45)" : "rgba(224,106,106,.45)"; c.lineWidth = 1; c.setLineDash([]);
+        c.beginPath(); topPts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+        c.beginPath(); botPts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+      }
+      const line = (series, col, wid) => { const pts = []; for (let fi = Math.max(fiMin, 0); fi <= nowFi; fi++) { const v = series[fi]; if (!isFinite(v)) continue; const x = fiToX(fi), y = pToY(v); if (isFinite(x) && isFinite(y)) pts.push([x, y]); } if (pts.length < 2) return; c.strokeStyle = col; c.lineWidth = wid; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); _skStroke(c, _polyLen(pts)); };
+      line(ic.kijun, "#e0a86a", 1.4); line(ic.tenkan, "#8fd0c0", 1.2);
+    }
+    if (reveal >= 2 && _skReady()) {
+      const x = (xRight != null ? xRight : fiToX(nowFi)), y = pToY(ic.last.price);
+      const pos = ic.pricePos === "above" ? "구름 위" : ic.pricePos === "below" ? "구름 아래" : "구름 안";
+      const col = ic.bias > 0.15 ? "#46c28e" : ic.bias < -0.15 ? "#e06a6a" : "#8a92b2";
+      if (isFinite(x) && isFinite(y)) _evLabel(c, "일목 " + pos + " · " + (ic.cloud === "bull" ? "양운" : ic.cloud === "bear" ? "음운" : "중립"), x - 6, y - 14, col, "right");
+    }
+    c.restore();
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -3563,6 +3624,16 @@
           const ax = ForgeCore.analyzeADX(price, { period: (n.params && n.params.period) || 14 });
           if (_drawThis) _drawAdxLayers(cc, ax, { fiToX, nowFi: P - 1, xRight: g.padX + g.plotW, badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.adx, _key: n.blockType });
+        } else if (n.blockType === "volumeprofile") {
+          const _vn2 = boardState.nodes.find(x => x.blockType === "volume");
+          const vpv = (_vn2 && Array.isArray(_vn2.series) && _vn2.series.length === price.length) ? _vn2.series : ForgeCore.synthVolume(price);
+          const vp = ForgeCore.analyzeVolumeProfile(price, vpv, { len: (n.params && n.params.len) || 120, bins: (n.params && n.params.bins) || 24 });
+          if (_drawThis) _drawVolumeProfileLayers(cc, vp, { pToY: v => toY(v), xRight: g.padX + g.plotW, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          legend.push({ col, t: EV_LABEL.volumeprofile, _key: n.blockType });
+        } else if (n.blockType === "ichimoku") {
+          const ic = ForgeCore.analyzeIchimoku(price, { tenkan: (n.params && n.params.tenkan) || 9, kijun: (n.params && n.params.kijun) || 26, senkouB: (n.params && n.params.senkouB) || 52, shift: (n.params && n.params.shift) || 26 });
+          if (_drawThis) _drawIchimokuLayers(cc, ic, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xNow: g.seamX, xRight: g.padX + g.plotW, futBars: (g.path && g.path.length) || 24 });
+          legend.push({ col, t: EV_LABEL.ichimoku, _key: n.blockType });
         } else if (n.blockType === "volume") {
           const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
           const va = ForgeCore.analyzeVolume(price, vser);
@@ -3917,7 +3988,7 @@
     const priceNode = blocks.find(n => n.blockType === "price");
     const pv = priceNode && result.values && result.values[priceNode.id];
     const priceLast = (pv && pv.length) ? pv[pv.length - 1] : null;
-    const order = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "fib", "elliott", "phasefold", "volume"];
+    const order = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "fib", "elliott", "phasefold", "volume"];
     const inds = blocks.filter(n => order.includes(n.blockType)).sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
     if (metaEl) metaEl.textContent = (inds.length + 1) + "단계";
     const steps = [];
@@ -3947,7 +4018,7 @@
   }
 
   /* ── 노드별 분석 패널 ──────────────────────────────────────────── */
-  const BTLABEL = { ticker: "티커", price: "가격", ma: "이동평균", phasefold: "파동스캔", combine: "가중결합", trend: "추세선", rsi: "RSI", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX", fib: "피보나치", elliott: "엘리어트", volume: "거래량", predict: "예측" };
+  const BTLABEL = { ticker: "티커", price: "가격", ma: "이동평균", phasefold: "파동스캔", combine: "가중결합", trend: "추세선", rsi: "RSI", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX", volumeprofile: "볼륨프로파일", ichimoku: "일목균형표", fib: "피보나치", elliott: "엘리어트", volume: "거래량", predict: "예측" };
   function regimeKo(r) { return r === "bull" ? "상승" : r === "bear" ? "하락" : "중립"; }
   function nodeReadText(n, result, priceLast) {
     const v = result && result.values && result.values[n.id];
@@ -4027,6 +4098,18 @@
       const texts = ForgeCore.adxSteps(ax, period), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
+    if (n.blockType === "volumeprofile" && Array.isArray(price) && price.length >= 2) {
+      const _vn2 = boardState.nodes.find(x => x.blockType === "volume");
+      const vpv = (_vn2 && Array.isArray(_vn2.series) && _vn2.series.length === price.length) ? _vn2.series : ForgeCore.synthVolume(price);
+      const vp = ForgeCore.analyzeVolumeProfile(price, vpv, { len: (n.params && n.params.len) || 120, bins: (n.params && n.params.bins) || 24 });
+      const texts = ForgeCore.volumeProfileSteps(vp), layers = [1, 1, 1, 2, 2];
+      return texts.map((t, i) => ({ text: t, layer: layers[i] }));
+    }
+    if (n.blockType === "ichimoku" && Array.isArray(price) && price.length >= 2) {
+      const ic = ForgeCore.analyzeIchimoku(price, { tenkan: (n.params && n.params.tenkan) || 9, kijun: (n.params && n.params.kijun) || 26, senkouB: (n.params && n.params.senkouB) || 52, shift: (n.params && n.params.shift) || 26 });
+      const texts = ForgeCore.ichimokuSteps(ic), layers = [1, 2, 1, 1, 2];
+      return texts.map((t, i) => ({ text: t, layer: layers[i] }));
+    }
     if (n.blockType === "volume" && Array.isArray(price) && price.length >= 2) {
       const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
       const va = ForgeCore.analyzeVolume(price, vser);
@@ -4088,6 +4171,16 @@
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
         const pd = (n.params && n.params.period) || 14;
         return ForgeCore.adxSteps(ForgeCore.analyzeADX(P, { period: pd }), pd).slice(1, 4);
+      }
+      case "volumeprofile": {
+        if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
+        const _vn2 = boardState.nodes.find(x => x.blockType === "volume");
+        const vpv = (_vn2 && Array.isArray(_vn2.series) && _vn2.series.length === P.length) ? _vn2.series : ForgeCore.synthVolume(P);
+        return ForgeCore.volumeProfileSteps(ForgeCore.analyzeVolumeProfile(P, vpv, { len: (n.params && n.params.len) || 120, bins: (n.params && n.params.bins) || 24 })).slice(1, 4);
+      }
+      case "ichimoku": {
+        if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
+        return ForgeCore.ichimokuSteps(ForgeCore.analyzeIchimoku(P, { tenkan: (n.params && n.params.tenkan) || 9, kijun: (n.params && n.params.kijun) || 26, senkouB: (n.params && n.params.senkouB) || 52, shift: (n.params && n.params.shift) || 26 })).slice(1, 4);
       }
       case "fib": {
         const len = Math.min(P.length, (n.params && n.params.len) || 120), seg = P.slice(P.length - len);

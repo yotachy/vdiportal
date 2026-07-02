@@ -377,9 +377,9 @@ test("sampleSeries: deterministic, 480 pts, net uptrend with mid correction", ()
   assert.ok(a[479] > mean20);
 });
 
-test("sampleGraph: 15 nodes, DAG runs, descriptions are truthful, bullish net", () => {
+test("sampleGraph: 17 nodes, DAG runs, descriptions are truthful, bullish net", () => {
   const g = ForgeCore.sampleGraph();
-  assert.strictEqual(g.nodes.length, 15);
+  assert.strictEqual(g.nodes.length, 17);
   const tk = g.nodes.find(n => n.blockType === "ticker");
   assert.ok(tk && tk.params && tk.params.symbol === "BTC-USD", "샘플에 BTC-USD 티커 노드");
   assert.strictEqual(g.themeImgId, "smp_main");
@@ -1181,4 +1181,39 @@ test("run: 볼린저/MACD/ADX 노드가 예측 드리프트에 반영(격리)", 
   const r1 = ForgeCore.run(withInd, { price }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-6, "지표 추가로 예측 타깃이 달라짐");
   assert.strictEqual((r1.values.bb || []).length, 160, "evalBlocks bollinger 시계열");
+});
+
+/* ── 신규 지표: 볼륨 프로파일 · 일목균형표 ── */
+test("analyzeVolumeProfile: POC/밸류에어리어 + 상승추세 bias>0", () => {
+  const price = _up(160, 0.005), vol = price.map((_, i) => 1 + (i % 7));
+  const vp = ForgeCore.analyzeVolumeProfile(price, vol, { len: 120, bins: 24 });
+  assert.ok(vp.poc != null && vp.poc >= vp.lo && vp.poc <= vp.hi, "POC 범위 내");
+  assert.ok(vp.val <= vp.poc && vp.poc <= vp.vah, "VAL≤POC≤VAH");
+  assert.ok(["above", "below", "in"].includes(vp.priceRel));
+  assert.ok(vp.bias > 0, "상승추세(신고가) → 밸류에어리어 상단 → bias>0");
+});
+test("analyzeVolumeProfile: 짧으면 EMPTY, steps 5줄", () => {
+  assert.strictEqual(ForgeCore.analyzeVolumeProfile([1, 2, 3], null, {}).poc, null);
+  assert.strictEqual(ForgeCore.volumeProfileSteps(ForgeCore.analyzeVolumeProfile(_up(140, 0.004), null, {})).length, 5);
+});
+
+test("analyzeIchimoku: 구름/전환기준 + 상승추세 → 구름 위, bias>0", () => {
+  const ic = ForgeCore.analyzeIchimoku(_up(160, 0.006), { tenkan: 9, kijun: 26, senkouB: 52, shift: 26 });
+  assert.strictEqual(ic.tenkan.length, 160);
+  assert.strictEqual(ic.pricePos, "above", "상승추세 → 가격이 구름 위");
+  assert.ok(ic.bias > 0, "상승 정렬 bias>0");
+  assert.ok(["bull", "bear", "neutral"].includes(ic.cloud));
+});
+test("analyzeIchimoku: 짧으면 EMPTY, 하락추세 bias<0, steps 5줄", () => {
+  assert.strictEqual(ForgeCore.analyzeIchimoku([1, 2, 3], {}).tenkan.length, 0);
+  assert.ok(ForgeCore.analyzeIchimoku(_up(160, -0.006), {}).bias < 0, "하락 bias<0");
+  assert.strictEqual(ForgeCore.ichimokuSteps(ForgeCore.analyzeIchimoku(_up(160, 0.005), {})).length, 5);
+});
+
+test("run: 볼륨프로파일/일목 노드가 예측에 반영(격리)", () => {
+  const price = _up(170, 0.005);
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const withInd = { nodes: base.nodes.concat([{ id: "vp", kind: "block", blockType: "volumeprofile" }, { id: "ic", kind: "block", blockType: "ichimoku" }]), edges: base.edges.concat([{ from: "vp", to: "pr" }, { from: "ic", to: "pr" }]) };
+  const r0 = ForgeCore.run(base, { price }, { futW: 24 }), r1 = ForgeCore.run(withInd, { price }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-6, "지표 추가로 예측 달라짐");
 });

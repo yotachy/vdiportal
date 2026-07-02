@@ -261,6 +261,10 @@
         values[id] = macdSeries(ins[0] || data.price, (n.params && n.params.fast) || 12, (n.params && n.params.slow) || 26, (n.params && n.params.signal) || 9);
       } else if (n.blockType === "adx") {
         values[id] = adxSeries(ins[0] || data.price, (n.params && n.params.period) || 14);
+      } else if (n.blockType === "volumeprofile") {
+        values[id] = vpSeries(ins[0] || data.price, null, (n.params && n.params.len) || 120, (n.params && n.params.bins) || 24);
+      } else if (n.blockType === "ichimoku") {
+        values[id] = ichiSeries(ins[0] || data.price, (n.params && n.params.tenkan) || 9, (n.params && n.params.kijun) || 26, (n.params && n.params.senkouB) || 52, (n.params && n.params.shift) || 26);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -966,6 +970,84 @@
     ];
   }
 
+  function nfmt(v) { return (v == null || !isFinite(v)) ? "-" : (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100); }
+
+  /* ── 볼륨 프로파일(매물대) ── */
+  function analyzeVolumeProfile(price, volume, opts) {
+    opts = opts || {};
+    const P = price.length, len = opts.len || 120, bins = opts.bins || 24;
+    const EMPTY = { bins: [], poc: null, vah: null, val: null, priceRel: "in", bias: 0, maxVol: 0, lo: null, hi: null, binWidth: 0 };
+    if (P < 10) return EMPTY;
+    const a = Math.max(0, P - len), seg = price.slice(a);
+    const vseg = (Array.isArray(volume) && volume.length === P) ? volume.slice(a) : seg.map(() => 1);
+    let lo = Infinity, hi = -Infinity; for (const v of seg) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    if (!(hi > lo)) return EMPTY;
+    const bw = (hi - lo) / bins, binVol = new Array(bins).fill(0);
+    for (let i = 0; i < seg.length; i++) { let b = Math.floor((seg[i] - lo) / bw); if (b >= bins) b = bins - 1; if (b < 0) b = 0; binVol[b] += (vseg[i] > 0 ? vseg[i] : 1); }
+    const binsArr = binVol.map((vol, i) => ({ lo: lo + i * bw, hi: lo + (i + 1) * bw, mid: lo + (i + 0.5) * bw, vol }));
+    let pocIdx = 0; for (let i = 1; i < bins; i++) if (binVol[i] > binVol[pocIdx]) pocIdx = i;
+    const poc = binsArr[pocIdx].mid, maxVol = binVol[pocIdx], totalVol = binVol.reduce((s, v) => s + v, 0) || 1;
+    let loI = pocIdx, hiI = pocIdx, acc = binVol[pocIdx];
+    while (acc < totalVol * 0.7 && (loI > 0 || hiI < bins - 1)) {
+      const dn = loI > 0 ? binVol[loI - 1] : -1, up = hiI < bins - 1 ? binVol[hiI + 1] : -1;
+      if (up >= dn) { hiI++; acc += binVol[hiI]; } else { loI--; acc += binVol[loI]; }
+    }
+    const vah = binsArr[hiI].hi, val = binsArr[loI].lo, last = price[P - 1];
+    const priceRel = last > vah ? "above" : last < val ? "below" : "in";
+    let bias = 0;
+    if (priceRel === "above") bias = Math.min(1, (last - vah) / (hi - lo) * 4 + 0.25);
+    else if (priceRel === "below") bias = -Math.min(1, (val - last) / (hi - lo) * 4 + 0.25);
+    else bias = Math.max(-0.3, Math.min(0.3, (last - poc) / (hi - lo) * 2));
+    bias = Math.max(-1, Math.min(1, bias));
+    return { bins: binsArr, poc, vah, val, priceRel, bias, maxVol, lo, hi, binWidth: bw };
+  }
+  function vpSeries(price, volume, len, bins) { const vp = analyzeVolumeProfile(price, volume, { len, bins }); if (!vp.poc) return price.map(() => 0); const rng = (vp.hi - vp.lo) || 1; return price.map(p => Math.max(-1, Math.min(1, Math.tanh((p - vp.poc) / rng * 3)))); }
+  function volumeProfileSteps(vp) {
+    const rel = vp.priceRel === "above" ? "밸류에어리어 상단 이탈(수용 상승)" : vp.priceRel === "below" ? "밸류에어리어 하단 이탈(수용 하락)" : "밸류에어리어 내(균형)";
+    return [
+      "매물대 프로파일 산출 (" + (vp.bins.length || 0) + "구간)",
+      "POC " + nfmt(vp.poc) + " (최대 거래 가격대)",
+      "밸류에어리어 " + nfmt(vp.val) + " ~ " + nfmt(vp.vah) + " (70%)",
+      "현재가 " + rel,
+      "종합 방향 " + (vp.bias > 0.1 ? "상승" : vp.bias < -0.1 ? "하락" : "중립") + " (bias " + vp.bias.toFixed(2) + ")"
+    ];
+  }
+
+  /* ── 일목균형표 ── */
+  function analyzeIchimoku(price, opts) {
+    opts = opts || {};
+    const t = opts.tenkan || 9, k = opts.kijun || 26, sb = opts.senkouB || 52, shift = opts.shift || 26, P = price.length;
+    const EMPTY = { tenkan: [], kijun: [], spanA: [], spanB: [], last: { tenkan: null, kijun: null, spanA: null, spanB: null, price: null }, cloud: "neutral", pricePos: "in", tkCross: { type: null, barsAgo: null }, bias: 0, shift };
+    if (P < sb + shift) return EMPTY;
+    const midOf = period => { const out = []; for (let i = 0; i < P; i++) { const a = Math.max(0, i - period + 1); let lo = Infinity, hi = -Infinity; for (let j = a; j <= i; j++) { if (price[j] < lo) lo = price[j]; if (price[j] > hi) hi = price[j]; } out.push((lo + hi) / 2); } return out; };
+    const tenkan = midOf(t), kijun = midOf(k), sbLine = midOf(sb);
+    const spanA = tenkan.map((v, i) => (v + kijun[i]) / 2), spanB = sbLine.slice(), li = P - 1;
+    const cA = spanA[Math.max(0, li - shift)], cB = spanB[Math.max(0, li - shift)], last = price[li];
+    const cloud = cA > cB ? "bull" : cA < cB ? "bear" : "neutral";
+    const cloudHi = Math.max(cA, cB), cloudLo = Math.min(cA, cB);
+    const pricePos = last > cloudHi ? "above" : last < cloudLo ? "below" : "in";
+    let tkCross = { type: null, barsAgo: null };
+    for (let i = li; i >= Math.max(1, li - k * 2); i--) { const d = tenkan[i] - kijun[i], dp = tenkan[i - 1] - kijun[i - 1]; if (d === 0) continue; if (dp <= 0 && d > 0) { tkCross = { type: "bull", barsAgo: li - i }; break; } if (dp >= 0 && d < 0) { tkCross = { type: "bear", barsAgo: li - i }; break; } }
+    let bias = (pricePos === "above" ? 0.5 : pricePos === "below" ? -0.5 : 0) + (cloud === "bull" ? 0.2 : cloud === "bear" ? -0.2 : 0);
+    let tk = tkCross.type === "bull" ? 1 : tkCross.type === "bear" ? -1 : 0; if (tk && tkCross.barsAgo != null) tk *= Math.max(0, 1 - tkCross.barsAgo / k); bias += 0.2 * tk;
+    const past = price[Math.max(0, li - shift)]; bias += last > past ? 0.1 : last < past ? -0.1 : 0;
+    bias = Math.max(-1, Math.min(1, bias));
+    return { tenkan, kijun, spanA, spanB, last: { tenkan: tenkan[li], kijun: kijun[li], spanA: cA, spanB: cB, price: last }, cloud, pricePos, tkCross, bias, shift, cloudHi, cloudLo };
+  }
+  function ichiSeries(price, t, k, sb, shift) { const ic = analyzeIchimoku(price, { tenkan: t, kijun: k, senkouB: sb, shift }); if (!ic.spanA.length) return price.map(() => 0); const out = []; for (let i = 0; i < price.length; i++) { const s = Math.max(0, i - shift), a = ic.spanA[s], b = ic.spanB[s], hi = Math.max(a, b), lo = Math.min(a, b), p = price[i]; out.push(p > hi ? 0.8 : p < lo ? -0.8 : Math.max(-0.4, Math.min(0.4, (p - (hi + lo) / 2) / ((hi - lo) || 1)))); } return out; }
+  function ichimokuSteps(ic) {
+    const pos = ic.pricePos === "above" ? "구름 위(상승 우위)" : ic.pricePos === "below" ? "구름 아래(하락 우위)" : "구름 안(중립·전환 구간)";
+    const cl = ic.cloud === "bull" ? "양운(상승)" : ic.cloud === "bear" ? "음운(하락)" : "중립";
+    const tk = ic.tkCross.type ? (ic.tkCross.type === "bull" ? "전환>기준 골든 " : "전환<기준 데드 ") + ic.tkCross.barsAgo + "봉 전" : "전환·기준 교차 없음";
+    return [
+      "일목균형표 산출 (전환·기준·선행·후행)",
+      "현재가 " + pos,
+      "구름 " + cl + " · " + tk,
+      "전환 " + nfmt(ic.last.tenkan) + " / 기준 " + nfmt(ic.last.kijun),
+      "종합 방향 " + (ic.bias > 0.1 ? "상승" : ic.bias < -0.1 ? "하락" : "중립") + " (bias " + ic.bias.toFixed(2) + ")"
+    ];
+  }
+
   function run(graph, data, opts) {
     const futW = Math.min(((opts && opts.futW) || 24), 60);   // 예측 horizon 상한(과도한 장기 외삽 방지)
     const ev = evalBlocks(graph, data), { values, meta } = ev;
@@ -1066,6 +1148,13 @@
     const _axn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "adx");
     const _adx = _axn ? analyzeADX(price, { period: (_axn.params && _axn.params.period) || 14 }) : null;
     const adxDrift = _adx ? _adx.bias * _prof.trendScale * 0.06 : 0;   // ADX 추세강도×방향(±6%·약한추세면 0에 수렴)
+    const _vpn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "volumeprofile");
+    const _vpvol = _vpn ? ((_vn && Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;
+    const _vp = _vpn ? analyzeVolumeProfile(price, _vpvol, { len: (_vpn.params && _vpn.params.len) || 120, bins: (_vpn.params && _vpn.params.bins) || 24 }) : null;
+    const vpDrift = _vp ? _vp.bias * _prof.trendScale * 0.05 : 0;   // 매물대(밸류에어리어) 수용 방향(±5%)
+    const _icn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "ichimoku");
+    const _ic = _icn ? analyzeIchimoku(price, { tenkan: (_icn.params && _icn.params.tenkan) || 9, kijun: (_icn.params && _icn.params.kijun) || 26, senkouB: (_icn.params && _icn.params.senkouB) || 52, shift: (_icn.params && _icn.params.shift) || 26 }) : null;
+    const icDrift = _ic ? _ic.bias * _prof.trendScale * 0.07 : 0;   // 일목 구름/전환기준 방향(±7%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1077,7 +1166,7 @@
       const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
@@ -1145,6 +1234,8 @@
       { id: "s_boll",  kind: "block", blockType: "bollinger", params: { len: 20, k: 2 },  x: 320, y: 250, title: "볼린저밴드",  conviction: 20,  weight: 50, desc: "중심선 상회 · 밴드 상단 접근 — 변동성 확장 국면" },
       { id: "s_macd",  kind: "block", blockType: "macd",      params: { fast: 12, slow: 26, signal: 9 }, x: 320, y: 270, title: "MACD", conviction: 25, weight: 55, desc: "히스토그램 확대 · 골든 교차 — 모멘텀 상승" },
       { id: "s_adx",   kind: "block", blockType: "adx",       params: { period: 14 },     x: 320, y: 290, title: "ADX 추세강도", conviction: 30, weight: 55, desc: "ADX 상승 · +DI 우세 — 상승 추세 강함" },
+      { id: "s_vprof", kind: "block", blockType: "volumeprofile", params: { len: 120, bins: 24 }, x: 320, y: 295, title: "볼륨 프로파일", conviction: 20, weight: 50, desc: "현재가가 밸류에어리어 상단 — 매물 소화 후 상승 수용" },
+      { id: "s_ichi",  kind: "block", blockType: "ichimoku",  params: { tenkan: 9, kijun: 26, senkouB: 52, shift: 26 }, x: 320, y: 297, title: "일목균형표", conviction: 30, weight: 55, desc: "구름 위 · 양운 · 전환>기준 — 상승 정렬" },
       { id: "s_fib",   kind: "block", blockType: "fib",       params: { len: 120 },       x: 320, y: 300, title: "피보나치",    conviction: 30,  weight: 50, thumb: T("smp_fib", "Fib"),     desc: "조정 구간 저점 반등 — 단기 범위 하단 지지" },
       { id: "s_trend", kind: "block", blockType: "trend",     params: { len: 40 },        x: 320, y: 400, title: "추세선",      conviction: 35,  weight: 70, thumb: T("smp_trend", "Trend"), desc: "상승 회귀선 — 우상향 추세 유지" },
       { id: "s_ell",   kind: "block", blockType: "elliott",   params: { swing: 3 },       x: 320, y: 500, title: "엘리어트",    conviction: 25,  weight: 55, thumb: T("smp_elliott", "Wave"),desc: "파동 구간 분석 — 추세 전환점 추정" },
@@ -1158,8 +1249,10 @@
       E("s_price", "s_ma"), E("s_price", "s_wave"), E("s_price", "s_rsi"),
       E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"), E("s_price", "s_vol"),
       E("s_price", "s_boll"), E("s_price", "s_macd"), E("s_price", "s_adx"),
+      E("s_price", "s_vprof"), E("s_price", "s_ichi"),
       E("s_ma", "s_comb"), E("s_wave", "s_comb"), E("s_rsi", "s_comb"),
       E("s_boll", "s_comb"), E("s_macd", "s_comb"), E("s_adx", "s_comb"),
+      E("s_vprof", "s_comb"), E("s_ichi", "s_comb"),
       E("s_fib", "s_comb"), E("s_trend", "s_comb"), E("s_ell", "s_comb"), E("s_vol", "s_comb"),
       E("s_comb", "s_pred")
     ];
@@ -1173,5 +1266,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps };
 });
