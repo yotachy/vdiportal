@@ -2666,15 +2666,19 @@
     // grid
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
-    // 시간축 눈금(하단) — 창 등분 위치에 '−N{단위}' + 짧은 틱 + 은은한 세로 그리드(캔들 아래)
+    // 시간축 눈금(하단) — 실제 날짜(티커 데이터 있을 때) 또는 상대 봉('−N{단위}') + 짧은 틱 + 은은한 세로 그리드
     { const uAx = tfUnit(), TN = 5, ay = ch - padBot;
+      const _times = priceTimes(), _tfk = activeTF() || "", _useDate = !!(_times && _times.length === N);
+      let _prevY = null;
       c.font = "9px ui-monospace,monospace"; c.textAlign = "center";
       for (let i = 0; i <= TN; i++) {
-        const wi = Math.round(i / TN * (hist.length - 1)), x = toXh(wi), ago = (N - 1) - (wStart + wi);
-        const lbl = ago <= 0 ? "지금" : "−" + ago + uAx;
+        const wi = Math.round(i / TN * (hist.length - 1)), x = toXh(wi), absIdx = wStart + wi, ago = (N - 1) - absIdx, isNow = ago <= 0;
+        let lbl;
+        if (_useDate && _times[absIdx]) { const d = _fmtAxisDate(_times[absIdx], _tfk, _prevY); lbl = d.text; _prevY = d.year; }
+        else lbl = isNow ? "지금" : "−" + ago + uAx;
         if (i > 0 && i < TN) { c.strokeStyle = FC_GRID; c.globalAlpha = .5; c.lineWidth = 1; c.beginPath(); c.moveTo(x, padTop); c.lineTo(x, ay); c.stroke(); c.globalAlpha = 1; }
         c.strokeStyle = FC_GRID; c.lineWidth = 1; c.beginPath(); c.moveTo(x, ay); c.lineTo(x, ay + 4); c.stroke();
-        c.fillStyle = ago <= 0 ? FC_GOLD : FC_DIM; c.fillText(lbl, Math.max(padX + 14, Math.min(padX + plotW - 14, x)), ay + 15);
+        c.fillStyle = (isNow && !_useDate) ? FC_GOLD : FC_DIM; c.fillText(lbl, Math.max(padX + 20, Math.min(padX + plotW - 20, x)), ay + 15);
       }
       c.textAlign = "left";
     }
@@ -3966,7 +3970,7 @@
           if (xc <= g.seamX && g.histLen > 1) {
             let i = Math.round((xc - g.padX) / (g.histW || 1) * (g.histLen - 1)); i = Math.max(0, Math.min(g.histLen - 1, i));
             const ago = g.histLen - 1 - i, snap = g.padX + (i / (g.histLen - 1)) * g.histW;
-            d = { label: ago === 0 ? "현재" : "과거 " + ago + g.unit + " 전", price: g.hist[i], chg: null, snap: snap * dpr, top: g.padTop * dpr, h: (g.ch - g.padTop - g.padBot) * dpr };
+            d = { label: _axisFullDate(g.start + i, g.winN) || (ago === 0 ? "현재" : "과거 " + ago + g.unit + " 전"), price: g.hist[i], chg: null, snap: snap * dpr, top: g.padTop * dpr, h: (g.ch - g.padTop - g.padBot) * dpr };
           } else if (g.pathLen > 0) {
             let k = Math.round((xc - g.seamX) / ((g.plotW - g.histW) || 1) * g.pathLen - 1); k = Math.max(0, Math.min(g.pathLen - 1, k));
             const snap = g.seamX + ((k + 1) / Math.max(1, g.pathLen)) * (g.plotW - g.histW);
@@ -4051,7 +4055,7 @@
       let isFut = false, k = 0, i = 0, price, lo, hi, label = "", chg = null, snapX;
       if (x <= g.seamX && g.histLen > 1) {
         i = Math.round((x - g.padX) / (g.histW || 1) * (g.histLen - 1)); i = Math.max(0, Math.min(g.histLen - 1, i));
-        price = g.hist[i]; const ago = g.histLen - 1 - i; label = ago === 0 ? "현재" : "과거 " + ago + g.unit + " 전";
+        price = g.hist[i]; const ago = g.histLen - 1 - i; label = _axisFullDate(g.start + i, g.winN) || (ago === 0 ? "현재" : "과거 " + ago + g.unit + " 전");
         snapX = g.padX + (i / (g.histLen - 1)) * g.histW;
       } else if (g.pathLen > 0) {
         isFut = true; k = Math.round((x - g.seamX) / ((g.plotW - g.histW) || 1) * g.pathLen - 1); k = Math.max(0, Math.min(g.pathLen - 1, k));
@@ -4385,6 +4389,23 @@
     const tk = boardState.nodes.find(n => n.blockType === "ticker" && Array.isArray(n._ohlc) && n._ohlc.length >= 2);
     return tk ? tk._ohlc : null;
   }
+  function priceTimes() {   // 티커 실데이터의 날짜 배열(시간축 눈금용). 없으면 null(붙여넣기 → 상대 봉 표기)
+    const tk = boardState.nodes.find(n => n.blockType === "ticker" && Array.isArray(n._times) && n._times.length >= 2);
+    return tk ? tk._times : null;
+  }
+  /* 축 날짜 포맷(트레이딩뷰식): 월봉=YY.MM · 일/주봉=MM/DD(연 바뀌면 'YY 접두) */
+  function _fmtAxisDate(dstr, tf, prevY) {
+    const m = String(dstr).match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return { text: String(dstr).slice(0, 7), year: prevY };
+    const y = m[1], mo = m[2], da = m[3];
+    if (/월|month/.test(tf || "")) return { text: y.slice(2) + "." + mo, year: y };
+    return { text: (prevY !== y ? "'" + y.slice(2) + " " : "") + mo + "/" + da, year: y };
+  }
+  function _axisFullDate(absIdx, winN) {   // 호버 툴팁용 전체 날짜(YYYY.MM.DD) — 없으면 null
+    const t = priceTimes(); if (!t || t.length !== winN || !t[absIdx]) return null;
+    const m = String(t[absIdx]).match(/(\d{4})-(\d{2})-(\d{2})/);
+    return m ? (m[1] + "." + m[2] + "." + m[3]) : null;
+  }
   async function fetchOHLC(symbol, tf) {
     const r = await fetch(FORGE_API + "?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(tf || "1day"), { cache: "no-store" });
     SERVER_OK = true;
@@ -4397,6 +4418,7 @@
     }));
     n._series = cs.map(d => d.c);             // 인메모리(직렬화 제외)
     n._ohlc = cs;
+    n._times = r.candles.map(d => d.t);       // 실제 날짜(시간축 눈금용, 인메모리)
     delete n.series; delete n.ohlc;           // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
     n.params = n.params || {};
     n.params.tf = r.tf || "1day";
