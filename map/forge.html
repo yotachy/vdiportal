@@ -1692,11 +1692,11 @@
     applyView();
     if (typeof renderTickerPanel === "function") renderTickerPanel();
     renderWeightList();
-    if (typeof renderSignalBoard === "function") renderSignalBoard();
+    // renderSignalBoard()는 runForge에서 갱신(구조 변경 → fireBoardChange → runForge). 여기서 중복 호출 안 함(성능)
   }
   /* ── 노드 가중치 접이식 한 줄 리스트(패널모드에서 카드 대체) ── */
   let _wlistOpen = false;   // 기본 접힘 — 헤더(버튼)로 펼침
-  function toggleWList() { _wlistOpen = !_wlistOpen; renderWeightList(); }
+  function toggleWList() { _wlistOpen = !_wlistOpen; renderWeightList(); if (!_wlistOpen) renderSignalBoard(); }
   function renderWeightList() {
     const host = document.getElementById("wlist"); if (!host) return;
     const nodes = (typeof evIndicatorNodes === "function") ? evIndicatorNodes() : [];
@@ -1714,29 +1714,39 @@
     host.classList.toggle("collapsed", !_wlistOpen);
   }
   /* ── 지표 신호 한 줄 요약(보드 하단, 가중치 접힘 시) ── */
+  // 프레임 단위 analyze 메모(같은 price·지표·파라미터면 한 번만 계산 → run/근거작도/신호보드/해설의 중복 제거)
+  let _anMemo = new Map(), _anMemoP = null;
+  function _an(name, P, opts) {
+    if (_anMemoP !== P) { _anMemo.clear(); _anMemoP = P; }
+    const k = name + "|" + (opts ? JSON.stringify(opts) : "");
+    let v = _anMemo.get(k);
+    if (v === undefined) { v = ForgeCore["analyze" + name](P, opts); _anMemo.set(k, v); }
+    return v;
+  }
   function _nodeBias(n, P) {
     const p = n.params || {}, bt = n.blockType;
     try {
       switch (bt) {
-        case "ma": return ForgeCore.analyzeMA(P, { len: p.len || 20, ema: p.ema }).bias;
-        case "rsi": return ForgeCore.analyzeRSI(P, { period: p.period || 14 }).bias;
-        case "fib": return ForgeCore.analyzeFib(P, { len: p.len || 120, swing: ((p.swing != null ? p.swing : 5) / 100) }).bias;
-        case "elliott": return ForgeCore.analyzeElliott(P, { swing: ((p.swing != null ? p.swing : 3) / 100) }).bias;
+        case "ma": return _an("MA", P, { len: p.len || 20, ema: p.ema }).bias;
+        case "rsi": return _an("RSI", P, { period: p.period || 14 }).bias;
+        case "fib": return _an("Fib", P, { len: p.len || 120, swing: ((p.swing != null ? p.swing : 5) / 100) }).bias;
+        case "elliott": return _an("Elliott", P, { swing: ((p.swing != null ? p.swing : 3) / 100) }).bias;
         case "volume": { const v = (Array.isArray(n.series) && n.series.length) ? n.series : ForgeCore.synthVolume(P); return ForgeCore.analyzeVolume(P, v).bias; }
-        case "bollinger": return ForgeCore.analyzeBollinger(P, { len: p.len || 20, k: p.k || 2 }).bias;
-        case "macd": return ForgeCore.analyzeMACD(P, { fast: p.fast || 12, slow: p.slow || 26, signal: p.signal || 9 }).bias;
-        case "adx": return ForgeCore.analyzeADX(P, { period: p.period || 14 }).bias;
+        case "bollinger": return _an("Bollinger", P, { len: p.len || 20, k: p.k || 2 }).bias;
+        case "macd": return _an("MACD", P, { fast: p.fast || 12, slow: p.slow || 26, signal: p.signal || 9 }).bias;
+        case "adx": return _an("ADX", P, { period: p.period || 14 }).bias;
         case "volumeprofile": { const _vn = boardState.nodes.find(x => x.blockType === "volume"); const vv = (_vn && Array.isArray(_vn.series) && _vn.series.length === P.length) ? _vn.series : ForgeCore.synthVolume(P); return ForgeCore.analyzeVolumeProfile(P, vv, { len: p.len || 120, bins: p.bins || 24 }).bias; }
-        case "ichimoku": return ForgeCore.analyzeIchimoku(P, { tenkan: p.tenkan || 9, kijun: p.kijun || 26, senkouB: p.senkouB || 52, shift: p.shift || 26 }).bias;
-        case "structure": return ForgeCore.analyzeStructure(P, { swing: ((p.swing != null ? p.swing : 3) / 100) }).bias;
+        case "ichimoku": return _an("Ichimoku", P, { tenkan: p.tenkan || 9, kijun: p.kijun || 26, senkouB: p.senkouB || 52, shift: p.shift || 26 }).bias;
+        case "structure": return _an("Structure", P, { swing: ((p.swing != null ? p.swing : 3) / 100) }).bias;
         case "smc": return ForgeCore.analyzeSMC((currentData().candle) || []).bias;
-        case "cycle": return ForgeCore.analyzeCycle(P, { pmin: p.pmin || 10, pmax: p.pmax || 0 }).bias;
-        case "trend": { const r = ForgeCore.analyzeTrend(P); return Math.max(-1, Math.min(1, ((r.blend && r.blend.slopeLog) || 0) * 40)); }
+        case "cycle": return _an("Cycle", P, { pmin: p.pmin || 10, pmax: p.pmax || 0 }).bias;
+        case "trend": { const r = _an("Trend", P, undefined); return Math.max(-1, Math.min(1, ((r.blend && r.blend.slopeLog) || 0) * 40)); }
         default: return 0;   // atr(변동성)·phasefold(주기) = 방향 무관
       }
     } catch (e) { return 0; }
   }
   function renderSignalBoard() {
+    if (_wlistOpen) return;   // 가중치 리스트 펼침 = 보드 데이터 숨김 → 신호 계산 생략(성능)
     const wb = document.getElementById("wboard"); if (!wb) return;
     let host = document.getElementById("wsignals");
     if (!host) { host = document.createElement("div"); host.id = "wsignals"; host.className = "fc-panel"; wb.appendChild(host); }
@@ -4356,12 +4366,12 @@
         }
         const cc = (cHi && _dec) ? cHi : c;   // 결정적 → 선명 캔버스(글로우), 나머지 → 희미
         if (n.blockType === "ma") {
-          const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
+          const ma = _an("MA", price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
           if (_drawThis) _drawMALayers(cc, ma, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(activeTF());
-          const ta = ForgeCore.analyzeTrend(price, { shortLen: Math.max(8, Math.round(((n.params && n.params.len) || 40) * (_prof.shortScale || 1))), pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
+          const ta = _an("Trend", price, { shortLen: Math.max(8, Math.round(((n.params && n.params.len) || 40) * (_prof.shortScale || 1))), pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const futBars = (g.path && g.path.length) || 24;
           if (_drawThis) _drawTrendLayers(cc, ta, {
             fiToX,
@@ -4370,27 +4380,27 @@
           });
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "fib") {
-          const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
+          const fib = _an("Fib", price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
           if (_drawThis) _drawFibLayers(cc, fib, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, top: g.padTop, bot: g.ch - g.padBot });
           legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "elliott") {
-          const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+          const ea = _an("Elliott", price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
           if (_drawThis) _drawElliottLayers(cc, ea, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY(), top: g.padTop, bot: g.ch - g.padBot });
           legend.push({ col, t: EV_LABEL.elliott + "(전문·다중degree)", _key: n.blockType });
         } else if (n.blockType === "rsi") {
-          const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
+          const rsi = _an("RSI", price, { period: (n.params && n.params.period) || 14 });
           if (_drawThis) _drawRsiLayers(cc, rsi, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.rsi + "(전문)", _key: n.blockType });
         } else if (n.blockType === "bollinger") {
-          const bb = ForgeCore.analyzeBollinger(price, { len: (n.params && n.params.len) || 20, k: (n.params && n.params.k) || 2 });
+          const bb = _an("Bollinger", price, { len: (n.params && n.params.len) || 20, k: (n.params && n.params.k) || 2 });
           if (_drawThis) _drawBollingerLayers(cc, bb, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.bollinger, _key: n.blockType });
         } else if (n.blockType === "macd") {
-          const mac = ForgeCore.analyzeMACD(price, { fast: (n.params && n.params.fast) || 12, slow: (n.params && n.params.slow) || 26, signal: (n.params && n.params.signal) || 9 });
+          const mac = _an("MACD", price, { fast: (n.params && n.params.fast) || 12, slow: (n.params && n.params.slow) || 26, signal: (n.params && n.params.signal) || 9 });
           if (_drawThis) _drawMacdLayers(cc, mac, { fiToX, nowFi: P - 1, xRight: g.padX + g.plotW, badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.macd, _key: n.blockType });
         } else if (n.blockType === "adx") {
-          const ax = ForgeCore.analyzeADX(price, { period: (n.params && n.params.period) || 14 });
+          const ax = _an("ADX", price, { period: (n.params && n.params.period) || 14 });
           if (_drawThis) _drawAdxLayers(cc, ax, { fiToX, nowFi: P - 1, xRight: g.padX + g.plotW, badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.adx, _key: n.blockType });
         } else if (n.blockType === "volumeprofile") {
@@ -4400,11 +4410,11 @@
           if (_drawThis) _drawVolumeProfileLayers(cc, vp, { pToY: v => toY(v), xRight: g.padX + g.plotW, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.volumeprofile, _key: n.blockType });
         } else if (n.blockType === "ichimoku") {
-          const ic = ForgeCore.analyzeIchimoku(price, { tenkan: (n.params && n.params.tenkan) || 9, kijun: (n.params && n.params.kijun) || 26, senkouB: (n.params && n.params.senkouB) || 52, shift: (n.params && n.params.shift) || 26 });
+          const ic = _an("Ichimoku", price, { tenkan: (n.params && n.params.tenkan) || 9, kijun: (n.params && n.params.kijun) || 26, senkouB: (n.params && n.params.senkouB) || 52, shift: (n.params && n.params.shift) || 26 });
           if (_drawThis) _drawIchimokuLayers(cc, ic, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xNow: g.seamX, xRight: g.padX + g.plotW, futBars: (g.path && g.path.length) || 24 });
           legend.push({ col, t: EV_LABEL.ichimoku, _key: n.blockType });
         } else if (n.blockType === "structure") {
-          const st = ForgeCore.analyzeStructure(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+          const st = _an("Structure", price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
           if (_drawThis) _drawStructureLayers(cc, st, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.structure, _key: n.blockType });
         } else if (n.blockType === "atr") {
@@ -4417,7 +4427,7 @@
           if (_drawThis) _drawSmcLayers(cc, smc, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.smc, _key: n.blockType });
         } else if (n.blockType === "cycle") {
-          const cy = ForgeCore.analyzeCycle(price, { pmin: (n.params && n.params.pmin) || 10, pmax: (n.params && n.params.pmax) || 0 });
+          const cy = _an("Cycle", price, { pmin: (n.params && n.params.pmin) || 10, pmax: (n.params && n.params.pmax) || 0 });
           if (_drawThis) _drawCycleLayers(cc, cy, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xNow: g.seamX, xRight: g.padX + g.plotW, futBars: (g.path && g.path.length) || 24, col });
           legend.push({ col, t: EV_LABEL.cycle, _key: n.blockType });
         } else if (n.blockType === "volume") {
@@ -4443,16 +4453,16 @@
         const col = EV_COLORS[n.blockType] || "#8a92b2";
         const _drawThis = _focusI ? (n.blockType === _focusI) : _evVisible.has(n.blockType);
         if (n.blockType === "fib") {
-          const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
+          const fib = _an("Fib", price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
           if (_drawThis) _drawFibLayers(c, fib, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
           legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "ma") {
-          const ma = ForgeCore.analyzeMA(price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
+          const ma = _an("MA", price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
           if (_drawThis) _drawMALayers(c, ma, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(activeTF());
-          const ta = ForgeCore.analyzeTrend(price, { shortLen: Math.max(8, Math.round(((n.params && n.params.len) || 40) * (_prof.shortScale || 1))), pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
+          const ta = _an("Trend", price, { shortLen: Math.max(8, Math.round(((n.params && n.params.len) || 40) * (_prof.shortScale || 1))), pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
           const futBars = (g.path && g.path.length) || 24, xR = g.rightX || (g.ox + g.dw);
           if (_drawThis) _drawTrendLayers(c, ta, {
             fiToX: fi => xOf(fi),
@@ -4461,11 +4471,11 @@
           });
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "elliott") {
-          const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+          const ea = _an("Elliott", price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
           if (_drawThis) _drawElliottLayers(c, ea, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
           legend.push({ col, t: EV_LABEL.elliott + "(전문·다중degree)", _key: n.blockType });
         } else if (n.blockType === "rsi") {
-          const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
+          const rsi = _an("RSI", price, { period: (n.params && n.params.period) || 14 });
           if (_drawThis) _drawRsiLayers(c, rsi, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
           legend.push({ col, t: EV_LABEL.rsi + "(전문)", _key: n.blockType });
         } else if (n.blockType === "volume") {
@@ -4850,40 +4860,40 @@
   function analysisSteps(n, result, priceLast, price) {
     if (n.blockType === "ma" && Array.isArray(price) && price.length >= 2) {
       const len = (n.params && n.params.len) || 20, ema = !!(n.params && n.params.ema);
-      const ma = ForgeCore.analyzeMA(price, { len, ema });
+      const ma = _an("MA", price, { len, ema });
       const texts = ForgeCore.maSteps(ma, len), layers = [1, 1, 2, 3, 4];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "fib" && Array.isArray(price) && price.length >= 2) {
-      const fib = ForgeCore.analyzeFib(price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
+      const fib = _an("Fib", price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
       const texts = ForgeCore.fibSteps(fib), layers = [1, 1, 2, 3, 4];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "elliott" && Array.isArray(price) && price.length >= 2) {
-      const ea = ForgeCore.analyzeElliott(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+      const ea = _an("Elliott", price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
       const texts = ForgeCore.elliottSteps(ea), layers = [1, 1, 2, 3, 4];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "rsi" && Array.isArray(price) && price.length >= 2) {
-      const rsi = ForgeCore.analyzeRSI(price, { period: (n.params && n.params.period) || 14 });
+      const rsi = _an("RSI", price, { period: (n.params && n.params.period) || 14 });
       const texts = ForgeCore.rsiSteps(rsi), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "bollinger" && Array.isArray(price) && price.length >= 2) {
       const len = (n.params && n.params.len) || 20, k = (n.params && n.params.k) || 2;
-      const bb = ForgeCore.analyzeBollinger(price, { len, k });
+      const bb = _an("Bollinger", price, { len, k });
       const texts = ForgeCore.bollingerSteps(bb, len, k), layers = [1, 1, 2, 1, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "macd" && Array.isArray(price) && price.length >= 2) {
       const f = (n.params && n.params.fast) || 12, s = (n.params && n.params.slow) || 26, g = (n.params && n.params.signal) || 9;
-      const mac = ForgeCore.analyzeMACD(price, { fast: f, slow: s, signal: g });
+      const mac = _an("MACD", price, { fast: f, slow: s, signal: g });
       const texts = ForgeCore.macdSteps(mac, f, s, g), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "adx" && Array.isArray(price) && price.length >= 2) {
       const period = (n.params && n.params.period) || 14;
-      const ax = ForgeCore.analyzeADX(price, { period });
+      const ax = _an("ADX", price, { period });
       const texts = ForgeCore.adxSteps(ax, period), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
@@ -4895,12 +4905,12 @@
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "ichimoku" && Array.isArray(price) && price.length >= 2) {
-      const ic = ForgeCore.analyzeIchimoku(price, { tenkan: (n.params && n.params.tenkan) || 9, kijun: (n.params && n.params.kijun) || 26, senkouB: (n.params && n.params.senkouB) || 52, shift: (n.params && n.params.shift) || 26 });
+      const ic = _an("Ichimoku", price, { tenkan: (n.params && n.params.tenkan) || 9, kijun: (n.params && n.params.kijun) || 26, senkouB: (n.params && n.params.senkouB) || 52, shift: (n.params && n.params.shift) || 26 });
       const texts = ForgeCore.ichimokuSteps(ic), layers = [1, 2, 1, 1, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "structure" && Array.isArray(price) && price.length >= 2) {
-      const st = ForgeCore.analyzeStructure(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+      const st = _an("Structure", price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
       const texts = ForgeCore.structureSteps(st), layers = [1, 1, 2, 1, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
@@ -4915,7 +4925,7 @@
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "cycle" && Array.isArray(price) && price.length >= 2) {
-      const cy = ForgeCore.analyzeCycle(price, { pmin: (n.params && n.params.pmin) || 10, pmax: (n.params && n.params.pmax) || 0 });
+      const cy = _an("Cycle", price, { pmin: (n.params && n.params.pmin) || 10, pmax: (n.params && n.params.pmax) || 0 });
       const texts = ForgeCore.cycleSteps(cy), layers = [1, 1, 2, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
@@ -4957,7 +4967,7 @@
       }
       case "rsi": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
-        const r = ForgeCore.analyzeRSI(P, { period: (n.params && n.params.period) || 14 });
+        const r = _an("RSI", P, { period: (n.params && n.params.period) || 14 });
         f.push("RSI " + Math.round(r.last) + " \xb7 " + (r.zone === "overbought" ? "과매수(과열·되돌림 주의)" : r.zone === "oversold" ? "과매도(반등 가능)" : "중립 구간"));
         const c50 = (r.cross50 === "above" || r.cross50 === "cross_up") ? "50선 위" : "50선 아래";
         f.push(c50 + " \xb7 추세 " + (r.trend > 0.1 ? "상승(모멘텀 강화)" : r.trend < -0.1 ? "하락(모멘텀 둔화)" : "횡보"));
@@ -4969,17 +4979,17 @@
       case "bollinger": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
         const len = (n.params && n.params.len) || 20, k = (n.params && n.params.k) || 2;
-        return ForgeCore.bollingerSteps(ForgeCore.analyzeBollinger(P, { len, k }), len, k).slice(1, 4);
+        return ForgeCore.bollingerSteps(_an("Bollinger", P, { len, k }), len, k).slice(1, 4);
       }
       case "macd": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
         const fa = (n.params && n.params.fast) || 12, sl = (n.params && n.params.slow) || 26, si = (n.params && n.params.signal) || 9;
-        return ForgeCore.macdSteps(ForgeCore.analyzeMACD(P, { fast: fa, slow: sl, signal: si }), fa, sl, si).slice(1, 4);
+        return ForgeCore.macdSteps(_an("MACD", P, { fast: fa, slow: sl, signal: si }), fa, sl, si).slice(1, 4);
       }
       case "adx": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
         const pd = (n.params && n.params.period) || 14;
-        return ForgeCore.adxSteps(ForgeCore.analyzeADX(P, { period: pd }), pd).slice(1, 4);
+        return ForgeCore.adxSteps(_an("ADX", P, { period: pd }), pd).slice(1, 4);
       }
       case "volumeprofile": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
@@ -4989,11 +4999,11 @@
       }
       case "ichimoku": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
-        return ForgeCore.ichimokuSteps(ForgeCore.analyzeIchimoku(P, { tenkan: (n.params && n.params.tenkan) || 9, kijun: (n.params && n.params.kijun) || 26, senkouB: (n.params && n.params.senkouB) || 52, shift: (n.params && n.params.shift) || 26 })).slice(1, 4);
+        return ForgeCore.ichimokuSteps(_an("Ichimoku", P, { tenkan: (n.params && n.params.tenkan) || 9, kijun: (n.params && n.params.kijun) || 26, senkouB: (n.params && n.params.senkouB) || 52, shift: (n.params && n.params.shift) || 26 })).slice(1, 4);
       }
       case "structure": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
-        return ForgeCore.structureSteps(ForgeCore.analyzeStructure(P, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 })).slice(1, 4);
+        return ForgeCore.structureSteps(_an("Structure", P, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 })).slice(1, 4);
       }
       case "atr": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
@@ -5004,7 +5014,7 @@
       }
       case "cycle": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
-        return ForgeCore.cycleSteps(ForgeCore.analyzeCycle(P, { pmin: (n.params && n.params.pmin) || 10, pmax: (n.params && n.params.pmax) || 0 })).slice(1, 4);
+        return ForgeCore.cycleSteps(_an("Cycle", P, { pmin: (n.params && n.params.pmin) || 10, pmax: (n.params && n.params.pmax) || 0 })).slice(1, 4);
       }
       case "fib": {
         const len = Math.min(P.length, (n.params && n.params.len) || 120), seg = P.slice(P.length - len);
