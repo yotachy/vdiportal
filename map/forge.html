@@ -275,9 +275,9 @@
   .verdict-inline{display:none}   /* 강조 바(fc-verdict-bar)로 대체 — 헤더 중복 제거 */
   .verdict-inline b{font-weight:800}
   .chart-pane.editing .verdict-inline{display:none}
-  .fc-t{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--eth)}
+  .fc-t{font-family:Pretendard,system-ui,sans-serif;font-size:12px;letter-spacing:-.01em;color:var(--eth);font-weight:600}
   .fc-t b{color:var(--ink)}
-  .fc-meta{font-family:var(--mono);font-size:11px;color:#5a6478;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fc-meta{font-family:Pretendard,system-ui,sans-serif;font-size:11px;color:#5a6478;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fc-pbody{padding:8px 10px}
   .fc-prow{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}   /* 하단 상세 패널 2단 배치 */
   .fc-prow>.fc-panel{flex:1 1 300px;min-width:0}
@@ -574,7 +574,7 @@
   /* ── 포지 분석 재생 HUD (결과 영역 상단 오버레이) ── */
   /* 상단 진행 HUD = 차트 위 플로팅 칩(접기·이동·숨김) */
   .play-hud{position:absolute;left:12px;top:12px;right:auto;z-index:10;display:none;flex-direction:column;
-    width:auto;max-width:290px;min-width:172px;
+    width:auto;max-width:440px;min-width:320px;
     background:linear-gradient(180deg,rgba(14,18,24,.97),rgba(14,18,24,.9));
     border:1px solid var(--gold-dim);border-radius:10px;overflow:hidden;backdrop-filter:blur(6px);
     box-shadow:0 8px 24px rgba(0,0,0,.42);
@@ -582,24 +582,24 @@
   .play-hud.on{display:flex;transform:translateY(0);opacity:1}
   .play-hud .ph-ctl{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 9px;border-bottom:1px solid var(--line);cursor:move;user-select:none}
   .play-hud .ph-grip{color:var(--faint);font-size:11px;letter-spacing:-2px;flex:0 0 auto}
-  .play-hud .ph-ctl-title{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--eth);text-transform:uppercase;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .play-hud .ph-body{display:flex;align-items:center;gap:12px;padding:9px 12px}
+  .play-hud .ph-ctl-title{font-size:11px;font-weight:700;color:var(--ink);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .play-hud .ph-body{display:flex;align-items:flex-start;gap:12px;padding:9px 12px}
   .play-hud.collapsed .ph-body{display:none}
   .ph-btn{width:19px;height:19px;flex:0 0 auto;border-radius:5px;border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:12px;font-weight:700;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0;font-family:inherit}
   .ph-btn:hover{border-color:var(--gold);color:var(--gold)}
   /* 하단 진행 로그 = 접기 가능 */
-  .analyze-log{position:absolute;right:10px;bottom:10px;z-index:9;width:300px;
+  .analyze-log{position:fixed;right:16px;bottom:16px;z-index:40;width:340px;
     background:rgba(11,15,20,.86);border:1px solid var(--line);border-radius:8px;overflow:hidden;
-    font-family:var(--mono);font-size:11px;color:var(--eth);display:none}
+    font-family:Pretendard,system-ui,sans-serif;font-size:11.5px;color:var(--ink);display:none}
   .analyze-log.on{display:block}
   .analyze-log .al-ctl{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-bottom:1px solid var(--line)}
-  .analyze-log .al-title{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--eth);text-transform:uppercase;flex:1}
-  .analyze-log .al-body{max-height:32vh;overflow-y:auto;padding:6px 10px;line-height:1.55}
+  .analyze-log .al-title{font-size:11px;font-weight:700;color:var(--ink);flex:1}
+  .analyze-log .al-body{max-height:38vh;overflow-y:auto;padding:7px 11px;line-height:1.6;font-size:11.5px}
   .analyze-log.collapsed .al-body{display:none}
   .analyze-log .lg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .analyze-log .lg b{color:var(--gold);font-weight:700}
   .play-hud .ph-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--eth);box-shadow:0 0 8px currentColor}
-  .play-hud .ph-node{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .play-hud .ph-node{display:flex;flex-direction:column;gap:2px;min-width:120px;flex:1 1 auto}
   .play-hud .ph-title{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
   .play-hud .ph-type{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--eth)}
   .play-hud .ph-type b{text-transform:none;letter-spacing:0}
@@ -3318,10 +3318,12 @@
       for (let g = 0; g <= 3; g++) {
         const gy = padTop + g / 3 * _plotH;
         c.strokeStyle = FC_GRID; c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke();
-        const _vL = _loL + (1 - g / 3) * (_hiL - _loL), pv = _logChart ? Math.exp(_vL) : _vL, t = _hzFmt(pv);
-        c.font = "9.5px ui-monospace,monospace"; c.textAlign = "right"; const tw = c.measureText(t).width;
-        c.fillStyle = "rgba(11,15,20,.66)"; c.fillRect(padX + plotW - tw - 6, gy - 6, tw + 6, 12);
-        c.fillStyle = "#96a0b8"; c.fillText(t, padX + plotW - 2, gy + 3.3); c.textAlign = "left";
+        if (g === 0 || g === 3) {   // 위/아래 두 눈금만(복잡함 완화)
+          const _vL = _loL + (1 - g / 3) * (_hiL - _loL), pv = _logChart ? Math.exp(_vL) : _vL, t = _hzFmt(pv);
+          c.font = "9.5px ui-monospace,monospace"; c.textAlign = "right"; const tw = c.measureText(t).width;
+          c.fillStyle = "rgba(11,15,20,.66)"; c.fillRect(padX + plotW - tw - 6, gy - 5, tw + 6, 11);
+          c.fillStyle = "#8892a8"; c.fillText(t, padX + plotW - 2, gy + 3); c.textAlign = "left";
+        }
       }
     }
     // 시간축 눈금(하단) — 실제 날짜(티커 데이터 있을 때) 또는 상대 봉('−N{단위}') + 짧은 틱 + 은은한 세로 그리드
@@ -6478,7 +6480,7 @@
              <span class="ph-type">${indNodes.length}개 지표 결합 · 국면 <b style="color:${reg.c}">${reg.t}</b> · 목표가 ${tgt}</span></div>
            <div class="ph-sig"><span class="ph-type">시그널</span><b>${Math.round(finSig)}</b></div>`;
       }
-      _playTimers.push(setTimeout(() => { if (hud2) hud2.classList.remove("on"); }, 3200));
+      _playTimers.push(setTimeout(() => { if (hud2) hud2.classList.remove("on"); }, 7000));   // 최종 결과 오래 보여주기
       const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
       bToast("포지 완료 · " + indNodes.length + "개 지표 결합 → 시그널 " + Math.round(finSig));
     }
