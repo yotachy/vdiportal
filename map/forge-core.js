@@ -271,6 +271,8 @@
         values[id] = atrSeries(ins[0] || data.price, (n.params && n.params.period) || 14);
       } else if (n.blockType === "smc") {
         values[id] = smcSeries(data.candle);
+      } else if (n.blockType === "cycle") {
+        values[id] = cycleSeries(ins[0] || data.price, (n.params && n.params.pmin) || 10, (n.params && n.params.pmax) || 0);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -1163,6 +1165,49 @@
     ];
   }
 
+  /* ── 사이클(주기 위상) — 지배주기 검출 + 현재 위상·방향·다음 전환시점 ── */
+  function analyzeCycle(price, opts) {
+    opts = opts || {};
+    const P = price.length;
+    const EMPTY = { period: 0, phase: 0, phaseLabel: "—", amp: 0, strength: 0, clarity: 0, dir: "flat", nextTurn: null, bias: 0, fit: [], w: 0, phi: 0 };
+    if (P < 24) return EMPTY;
+    let sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (let i = 0; i < P; i++) { sx += i; sy += price[i]; sxx += i * i; sxy += i * price[i]; }
+    const den = P * sxx - sx * sx, slope = den ? (P * sxy - sx * sy) / den : 0, icpt = (sy - slope * sx) / P;
+    const base = [], z = [];
+    for (let i = 0; i < P; i++) { const b = icpt + slope * i; base.push(b); z.push(price[i] - b); }
+    const sc = scanPeriod(z, { pmin: (opts.pmin || 10), pmax: (opts.pmax || Math.floor(P / 2.5)) });
+    const per = sc.best, strength = sc.strength || 0;
+    if (!(per > 2)) return Object.assign({}, EMPTY, { base });
+    const w = 2 * Math.PI / per;
+    let cc = 0, cs = 0;
+    for (let i = 0; i < P; i++) { cc += z[i] * Math.cos(w * i); cs += z[i] * Math.sin(w * i); }
+    cc *= 2 / P; cs *= 2 / P;
+    const amp = Math.hypot(cc, cs), phi = Math.atan2(cs, cc);   // z ≈ amp·cos(w·i − phi)
+    let theta = (w * (P - 1) - phi) % (2 * Math.PI); if (theta < 0) theta += 2 * Math.PI;
+    const deriv = -Math.sin(theta), cosv = Math.cos(theta);   // deriv>0 상승중
+    const clarity = Math.max(0, Math.min(1, (strength - 1) / 2.5));
+    const bias = Math.max(-1, Math.min(1, deriv * (0.5 + 0.5 * clarity)));
+    const phaseLabel = cosv > 0.7 ? "고점 부근(하락 전환 임박)" : cosv < -0.7 ? "저점 부근(상승 전환 임박)" : deriv > 0 ? "상승 국면(저점→고점)" : "하락 국면(고점→저점)";
+    const dir = deriv > 0.05 ? "rising" : deriv < -0.05 ? "falling" : "flat";
+    const toPeak = ((2 * Math.PI - theta) % (2 * Math.PI)), toTrough = ((Math.PI - theta + 2 * Math.PI) % (2 * Math.PI));
+    const barsPeak = Math.round(toPeak / w), barsTrough = Math.round(toTrough / w);
+    const nextTurn = barsPeak <= barsTrough ? { type: "peak", bars: barsPeak } : { type: "trough", bars: barsTrough };
+    const fit = []; for (let i = 0; i < P; i++) fit.push(base[i] + amp * Math.cos(w * i - phi));
+    return { period: per, phase: theta, phaseLabel, amp, strength, clarity, dir, nextTurn, bias, fit, base, slope, icpt, w, phi };
+  }
+  function cycleSeries(price, pmin, pmax) { const cy = analyzeCycle(price, { pmin, pmax }); if (!cy.period) return price.map(() => 0); const { w, phi, clarity } = cy; return price.map((p, i) => Math.max(-1, Math.min(1, Math.cos(w * i - phi) * (0.4 + 0.6 * (clarity || 0))))); }
+  function cycleSteps(cy) {
+    if (!cy.period) return ["사이클(주기) 분석", "지배 주기 검출 실패 — 데이터·주기성 부족", "규칙적 파동이 있어야 검출", "-", "방향 무관(대기)"];
+    return [
+      "지배 주기 " + Math.round(cy.period) + "봉 검출 (뚜렷도 " + cy.strength.toFixed(1) + ")",
+      "현재 위상 " + cy.phaseLabel,
+      "국면 " + (cy.dir === "rising" ? "상승" : cy.dir === "falling" ? "하락" : "횡보") + " · 진폭 " + nfmt(cy.amp),
+      "다음 " + (cy.nextTurn.type === "peak" ? "고점" : "저점") + " 약 " + cy.nextTurn.bars + "봉 후 예상",
+      "종합 방향 " + (cy.bias > 0.1 ? "상승" : cy.bias < -0.1 ? "하락" : "중립") + " (bias " + cy.bias.toFixed(2) + ")"
+    ];
+  }
+
   function run(graph, data, opts) {
     const futW = Math.min(((opts && opts.futW) || 24), 60);   // 예측 horizon 상한(과도한 장기 외삽 방지)
     const _dw = (opts && opts.driftWeights) || {}, DW = t => (typeof _dw[t] === "number" && isFinite(_dw[t]) ? Math.max(0, Math.min(3, _dw[t])) : 1);   // 지표별 bias 기여 가중치(기본 1×, 0~3×)
@@ -1280,6 +1325,9 @@
     const _smn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "smc");
     const _smc = _smn ? analyzeSMC(data.candle) : null;
     const smcDrift = _smc ? _smc.bias * _prof.trendScale * 0.07 * DW("smc") : 0;   // SMC 수요/공급 존 방향(±7%)
+    const _cyn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "cycle");
+    const _cy = _cyn ? analyzeCycle(price, { pmin: (_cyn.params && _cyn.params.pmin) || 10, pmax: (_cyn.params && _cyn.params.pmax) || 0 }) : null;
+    const cyDrift = _cy ? _cy.bias * _prof.trendScale * 0.06 * DW("cycle") : 0;   // 사이클 위상 방향(±6%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1291,14 +1339,14 @@
       const trend = trS * _prof.trendScale * DW("trend") * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW) + stDrift * (k / futW) + smcDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW) + stDrift * (k / futW) + smcDrift * (k / futW) + cyDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
     }
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
     // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율
-    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);
+    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);
     const _cdir = lastSig > 0 ? 1 : lastSig < 0 ? -1 : (_allBias.reduce((a, b) => a + b, 0) >= 0 ? 1 : -1);
     const _agree = _allBias.filter(b => (b > 0 ? 1 : -1) === _cdir).length;
     const confluence = { score: _allBias.length ? Math.round(_agree / _allBias.length * 100) : 0, agree: _agree, total: _allBias.length };
@@ -1369,6 +1417,7 @@
       { id: "s_struct",kind: "block", blockType: "structure", params: { swing: 3 },        x: 320, y: 298, title: "시장구조", conviction: 25, weight: 55, desc: "고점·저점 상승 구조 · BOS 상향 — 상승 지속" },
       { id: "s_atr",   kind: "block", blockType: "atr",       params: { period: 14, mult: 2 }, x: 320, y: 299, title: "ATR 변동성", conviction: 0, weight: 50, desc: "변동성 보통 — 예측 콘 폭·손절 기준(방향 무관)" },
       { id: "s_smc",   kind: "block", blockType: "smc",       params: {},                 x: 320, y: 301, title: "스마트머니(FVG·OB)", conviction: 0, weight: 50, desc: "실 OHLC 로드 시 공정가치갭·오더블록 감지" },
+      { id: "s_cycle", kind: "block", blockType: "cycle",     params: { pmin: 10, pmax: 120 }, x: 320, y: 303, title: "사이클 분석", conviction: 15, weight: 45, desc: "지배 주기·현재 위상·다음 전환 시점 추정" },
       { id: "s_fib",   kind: "block", blockType: "fib",       params: { len: 120 },       x: 320, y: 300, title: "피보나치",    conviction: 30,  weight: 50, thumb: T("smp_fib", "Fib"),     desc: "조정 구간 저점 반등 — 단기 범위 하단 지지" },
       { id: "s_trend", kind: "block", blockType: "trend",     params: { len: 40 },        x: 320, y: 400, title: "추세선",      conviction: 35,  weight: 70, thumb: T("smp_trend", "Trend"), desc: "상승 회귀선 — 우상향 추세 유지" },
       { id: "s_ell",   kind: "block", blockType: "elliott",   params: { swing: 3 },       x: 320, y: 500, title: "엘리어트",    conviction: 25,  weight: 55, thumb: T("smp_elliott", "Wave"),desc: "파동 구간 분석 — 추세 전환점 추정" },
@@ -1382,7 +1431,7 @@
       E("s_price", "s_ma"), E("s_price", "s_wave"), E("s_price", "s_rsi"),
       E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"), E("s_price", "s_vol"),
       E("s_price", "s_boll"), E("s_price", "s_macd"), E("s_price", "s_adx"),
-      E("s_price", "s_vprof"), E("s_price", "s_ichi"), E("s_price", "s_struct"), E("s_price", "s_atr"), E("s_price", "s_smc"), E("s_smc", "s_comb"),
+      E("s_price", "s_vprof"), E("s_price", "s_ichi"), E("s_price", "s_struct"), E("s_price", "s_atr"), E("s_price", "s_smc"), E("s_smc", "s_comb"), E("s_price", "s_cycle"), E("s_cycle", "s_comb"),
       E("s_ma", "s_comb"), E("s_wave", "s_comb"), E("s_rsi", "s_comb"),
       E("s_boll", "s_comb"), E("s_macd", "s_comb"), E("s_adx", "s_comb"),
       E("s_vprof", "s_comb"), E("s_ichi", "s_comb"), E("s_struct", "s_comb"), E("s_atr", "s_comb"),
@@ -1399,5 +1448,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps };
 });

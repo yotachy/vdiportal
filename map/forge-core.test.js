@@ -377,9 +377,9 @@ test("sampleSeries: deterministic, 480 pts, net uptrend with mid correction", ()
   assert.ok(a[479] > mean20);
 });
 
-test("sampleGraph: 20 nodes, DAG runs, descriptions are truthful, bullish net", () => {
+test("sampleGraph: 21 nodes, DAG runs, descriptions are truthful, bullish net", () => {
   const g = ForgeCore.sampleGraph();
-  assert.strictEqual(g.nodes.length, 20);
+  assert.strictEqual(g.nodes.length, 21);
   const tk = g.nodes.find(n => n.blockType === "ticker");
   assert.ok(tk && tk.params && tk.params.symbol === "BTC-USD", "샘플에 BTC-USD 티커 노드");
   assert.strictEqual(g.themeImgId, "smp_main");
@@ -1280,4 +1280,28 @@ test("run: SMC 노드(실 candle)로 예측 반영 + 종가전용은 무영향",
   const flatC = price.map(c => ({ o: c, h: c, l: c, c }));
   const r2 = ForgeCore.run(g, { price, candle: flatC }, { futW: 24 });
   assert.ok(Math.abs(r2.prediction.target - ForgeCore.run(base, { price, candle: flatC }, { futW: 24 }).prediction.target) < 1e-6, "종가전용 SMC 무영향");
+});
+
+/* ── 신규 지표: 사이클(주기 위상) ── */
+test("analyzeCycle: 사인파 → 주기 검출 + 위상/다음전환/steps", () => {
+  const price = []; for (let i = 0; i < 160; i++) price.push(100 + i * 0.2 + 6 * Math.sin(2 * Math.PI * i / 20));
+  const cy = ForgeCore.analyzeCycle(price, { pmin: 8, pmax: 60 });
+  assert.ok(cy.period > 12 && cy.period < 30, "주기 ~20 검출 (got " + cy.period.toFixed(1) + ")");
+  assert.ok(cy.nextTurn && ["peak", "trough"].includes(cy.nextTurn.type), "다음 전환 타입");
+  assert.ok(["rising", "falling", "flat"].includes(cy.dir));
+  assert.strictEqual(ForgeCore.cycleSteps(cy).length, 5);
+});
+test("analyzeCycle: 짧으면 EMPTY, bias 범위", () => {
+  assert.strictEqual(ForgeCore.analyzeCycle([1, 2, 3], {}).period, 0);
+  const price = []; for (let i = 0; i < 120; i++) price.push(100 + 5 * Math.sin(2 * Math.PI * i / 16));
+  const cy = ForgeCore.analyzeCycle(price, {});
+  assert.ok(cy.bias >= -1 && cy.bias <= 1);
+  assert.strictEqual(ForgeCore.cycleSteps(ForgeCore.analyzeCycle([1, 2, 3], {})).length, 5);
+});
+test("run: 사이클 노드가 예측에 반영(격리)", () => {
+  const price = []; for (let i = 0; i < 150; i++) price.push(100 + i * 0.1 + 5 * Math.sin(2 * Math.PI * i / 18));
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const withCy = { nodes: base.nodes.concat([{ id: "cy", kind: "block", blockType: "cycle" }]), edges: base.edges.concat([{ from: "cy", to: "pr" }]) };
+  const r0 = ForgeCore.run(base, { price }, { futW: 24 }), r1 = ForgeCore.run(withCy, { price }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "사이클 추가로 예측 달라짐");
 });
