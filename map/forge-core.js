@@ -269,6 +269,8 @@
         values[id] = structSeries(ins[0] || data.price, ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100);
       } else if (n.blockType === "atr") {
         values[id] = atrSeries(ins[0] || data.price, (n.params && n.params.period) || 14);
+      } else if (n.blockType === "smc") {
+        values[id] = smcSeries(data.candle);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -1116,6 +1118,51 @@
     ];
   }
 
+  /* ── 스마트머니(SMC): FVG(공정가치갭) · 오더블록 — 실 OHLC 필요 ── */
+  function _candATR(candle, period) { let s = 0, c = 0; const n = candle.length; for (let i = Math.max(1, n - period); i < n; i++) { s += Math.abs(candle[i].c - candle[i - 1].c); c++; } return c ? s / c : 0; }
+  function analyzeSMC(candle, opts) {
+    opts = opts || {};
+    const P = candle ? candle.length : 0;
+    const EMPTY = { fvgs: [], obs: [], bias: 0, last: null, ok: false };
+    if (!candle || P < 24) return EMPTY;
+    let hasRange = false; for (let i = Math.max(0, P - 40); i < P; i++) { const cd = candle[i]; if (cd && isFinite(cd.h) && isFinite(cd.l) && cd.h > cd.l) { hasRange = true; break; } }
+    if (!hasRange) return EMPTY;   // 종가전용(고=저) → SMC 불가
+    const last = candle[P - 1].c;
+    // FVG(3봉 불균형): 상승 갭 = a.high < c.low, 하락 갭 = a.low > c.high
+    const fvgs = [];
+    for (let i = 2; i < P; i++) { const a = candle[i - 2], c3 = candle[i];
+      if (a.h < c3.l) fvgs.push({ type: "bull", lo: a.h, hi: c3.l, idx: i - 1, filled: false });
+      else if (a.l > c3.h) fvgs.push({ type: "bear", lo: c3.h, hi: a.l, idx: i - 1, filled: false });
+    }
+    for (const g of fvgs) { for (let j = g.idx + 2; j < P; j++) { const cd = candle[j]; if (cd.l <= g.hi && cd.h >= g.lo) { g.filled = true; break; } } }
+    // 오더블록: 강한 변위 직전의 반대색 봉(수요/공급 존)
+    const atr = _candATR(candle, 14), obs = [];
+    for (let i = 3; i < P; i++) { const disp = candle[i].c - candle[i - 1].c; if (atr > 0 && Math.abs(disp) > atr * 1.6) { const bull = disp > 0;
+      for (let j = i - 1; j >= Math.max(0, i - 4); j--) { const cd = candle[j], down = cd.c < cd.o; if (bull ? down : !down) { obs.push({ type: bull ? "bull" : "bear", lo: cd.l, hi: cd.h, idx: j, mitigated: false }); break; } }
+    } }
+    for (const ob of obs) { for (let j = ob.idx + 3; j < P; j++) { const cd = candle[j]; if (cd.l <= ob.hi && cd.h >= ob.lo) { ob.mitigated = true; break; } } }
+    const openFvgs = fvgs.filter(g => !g.filled).slice(-5), openObs = obs.filter(o => !o.mitigated).slice(-4);
+    let bull = 0, bear = 0;
+    for (const z of openFvgs.concat(openObs)) { const mid = (z.lo + z.hi) / 2; if (z.type === "bull") bull += (mid <= last ? 1 : 0.5); else bear += (mid >= last ? 1 : 0.5); }
+    let bias = (bull - bear) * 0.22;
+    for (const z of openObs.concat(openFvgs)) { if (last >= z.lo && last <= z.hi) bias += z.type === "bull" ? 0.15 : -0.15; }
+    bias = Math.max(-1, Math.min(1, bias));
+    return { fvgs: openFvgs, obs: openObs, bias, last, ok: true };
+  }
+  function smcSeries(candle) { return (candle || []).map(() => 0); }   // 방향은 존 기반 drift로 기여
+  function smcSteps(smc) {
+    if (!smc.ok) return ["SMC(FVG·오더블록)", "실 OHLC 필요 — 티커로 실 캔들 불러오기", "종가전용(붙여넣기) 데이터는 감지 불가", "봉의 고가·저가로 갭·존 판별", "방향 무관(데이터 대기)"];
+    const fb = smc.fvgs.filter(g => g.type === "bull").length, fr = smc.fvgs.filter(g => g.type === "bear").length;
+    const ob = smc.obs.filter(o => o.type === "bull").length, or = smc.obs.filter(o => o.type === "bear").length;
+    return [
+      "SMC(FVG·오더블록) 산출",
+      "미충족 FVG 상승 " + fb + " / 하락 " + fr,
+      "오더블록 수요 " + ob + " / 공급 " + or,
+      (smc.bias > 0.1 ? "수요존 우위(지지 유효)" : smc.bias < -0.1 ? "공급존 우위(저항 유효)" : "수요·공급 균형"),
+      "종합 방향 " + (smc.bias > 0.1 ? "상승" : smc.bias < -0.1 ? "하락" : "중립") + " (bias " + smc.bias.toFixed(2) + ")"
+    ];
+  }
+
   function run(graph, data, opts) {
     const futW = Math.min(((opts && opts.futW) || 24), 60);   // 예측 horizon 상한(과도한 장기 외삽 방지)
     const ev = evalBlocks(graph, data), { values, meta } = ev;
@@ -1229,6 +1276,9 @@
     const _atn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "atr");
     const _atr = _atn ? analyzeATR(price, { period: (_atn.params && _atn.params.period) || 14, mult: (_atn.params && _atn.params.mult) || 2 }) : null;
     if (_atr && _atr.pct) sigBand = Math.max(sigBand, Math.min(0.18, (_atr.pct / 100) * 0.85));   // ATR 노드: 변동성을 예측 콘 폭에 반영
+    const _smn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "smc");
+    const _smc = _smn ? analyzeSMC(data.candle) : null;
+    const smcDrift = _smc ? _smc.bias * _prof.trendScale * 0.07 : 0;   // SMC 수요/공급 존 방향(±7%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1240,14 +1290,14 @@
       const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW) + stDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW) + stDrift * (k / futW) + smcDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
     }
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
     // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율
-    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);
+    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);
     const _cdir = lastSig > 0 ? 1 : lastSig < 0 ? -1 : (_allBias.reduce((a, b) => a + b, 0) >= 0 ? 1 : -1);
     const _agree = _allBias.filter(b => (b > 0 ? 1 : -1) === _cdir).length;
     const confluence = { score: _allBias.length ? Math.round(_agree / _allBias.length * 100) : 0, agree: _agree, total: _allBias.length };
@@ -1317,6 +1367,7 @@
       { id: "s_ichi",  kind: "block", blockType: "ichimoku",  params: { tenkan: 9, kijun: 26, senkouB: 52, shift: 26 }, x: 320, y: 297, title: "일목균형표", conviction: 30, weight: 55, desc: "구름 위 · 양운 · 전환>기준 — 상승 정렬" },
       { id: "s_struct",kind: "block", blockType: "structure", params: { swing: 3 },        x: 320, y: 298, title: "시장구조", conviction: 25, weight: 55, desc: "고점·저점 상승 구조 · BOS 상향 — 상승 지속" },
       { id: "s_atr",   kind: "block", blockType: "atr",       params: { period: 14, mult: 2 }, x: 320, y: 299, title: "ATR 변동성", conviction: 0, weight: 50, desc: "변동성 보통 — 예측 콘 폭·손절 기준(방향 무관)" },
+      { id: "s_smc",   kind: "block", blockType: "smc",       params: {},                 x: 320, y: 301, title: "스마트머니(FVG·OB)", conviction: 0, weight: 50, desc: "실 OHLC 로드 시 공정가치갭·오더블록 감지" },
       { id: "s_fib",   kind: "block", blockType: "fib",       params: { len: 120 },       x: 320, y: 300, title: "피보나치",    conviction: 30,  weight: 50, thumb: T("smp_fib", "Fib"),     desc: "조정 구간 저점 반등 — 단기 범위 하단 지지" },
       { id: "s_trend", kind: "block", blockType: "trend",     params: { len: 40 },        x: 320, y: 400, title: "추세선",      conviction: 35,  weight: 70, thumb: T("smp_trend", "Trend"), desc: "상승 회귀선 — 우상향 추세 유지" },
       { id: "s_ell",   kind: "block", blockType: "elliott",   params: { swing: 3 },       x: 320, y: 500, title: "엘리어트",    conviction: 25,  weight: 55, thumb: T("smp_elliott", "Wave"),desc: "파동 구간 분석 — 추세 전환점 추정" },
@@ -1330,7 +1381,7 @@
       E("s_price", "s_ma"), E("s_price", "s_wave"), E("s_price", "s_rsi"),
       E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"), E("s_price", "s_vol"),
       E("s_price", "s_boll"), E("s_price", "s_macd"), E("s_price", "s_adx"),
-      E("s_price", "s_vprof"), E("s_price", "s_ichi"), E("s_price", "s_struct"), E("s_price", "s_atr"),
+      E("s_price", "s_vprof"), E("s_price", "s_ichi"), E("s_price", "s_struct"), E("s_price", "s_atr"), E("s_price", "s_smc"), E("s_smc", "s_comb"),
       E("s_ma", "s_comb"), E("s_wave", "s_comb"), E("s_rsi", "s_comb"),
       E("s_boll", "s_comb"), E("s_macd", "s_comb"), E("s_adx", "s_comb"),
       E("s_vprof", "s_comb"), E("s_ichi", "s_comb"), E("s_struct", "s_comb"), E("s_atr", "s_comb"),
@@ -1347,5 +1398,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps };
 });

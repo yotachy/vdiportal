@@ -377,9 +377,9 @@ test("sampleSeries: deterministic, 480 pts, net uptrend with mid correction", ()
   assert.ok(a[479] > mean20);
 });
 
-test("sampleGraph: 19 nodes, DAG runs, descriptions are truthful, bullish net", () => {
+test("sampleGraph: 20 nodes, DAG runs, descriptions are truthful, bullish net", () => {
   const g = ForgeCore.sampleGraph();
-  assert.strictEqual(g.nodes.length, 19);
+  assert.strictEqual(g.nodes.length, 20);
   const tk = g.nodes.find(n => n.blockType === "ticker");
   assert.ok(tk && tk.params && tk.params.symbol === "BTC-USD", "샘플에 BTC-USD 티커 노드");
   assert.strictEqual(g.themeImgId, "smp_main");
@@ -1243,4 +1243,41 @@ test("run: 시장구조 노드가 예측 반영 + ATR이 콘 폭 확대 + verdic
   assert.ok(r0.verdict.confluence && typeof r0.verdict.confluence.score === "number", "verdict.confluence 존재");
   const withSt = { nodes: base.nodes.concat([{ id: "st", kind: "block", blockType: "structure" }]), edges: base.edges.concat([{ from: "st", to: "pr" }]) };
   assert.ok(Math.abs(ForgeCore.run(withSt, { price }, { futW: 24 }).prediction.target - r0.prediction.target) > 1e-6, "시장구조로 예측 달라짐");
+});
+
+/* ── 신규 지표: SMC(FVG·오더블록) — 실 OHLC ── */
+test("analyzeSMC: 실 OHLC → FVG/오더블록 감지, ok=true", () => {
+  // 상승 갭(FVG) + 변위 포함 캔들 생성
+  const candle = []; let p = 100;
+  for (let i = 0; i < 60; i++) {
+    let o = p, c;
+    if (i === 30) { o = p; c = p * 1.06; }        // 강한 상승 변위(갭 유발)
+    else c = p * (1 + (Math.sin(i / 5) * 0.01 + 0.002));
+    const h = Math.max(o, c) * 1.004, l = Math.min(o, c) * 0.996;
+    candle.push({ o, h, l, c }); p = c;
+  }
+  const smc = ForgeCore.analyzeSMC(candle, {});
+  assert.strictEqual(smc.ok, true, "실 OHLC → ok");
+  assert.ok(Array.isArray(smc.fvgs) && Array.isArray(smc.obs), "fvgs/obs 배열");
+  assert.strictEqual(ForgeCore.smcSteps(smc).length, 5);
+});
+test("analyzeSMC: 종가전용(고=저) → ok=false, bias 0", () => {
+  const flat = Array.from({ length: 40 }, (_, i) => { const c = 100 + i; return { o: c, h: c, l: c, c }; });
+  const smc = ForgeCore.analyzeSMC(flat, {});
+  assert.strictEqual(smc.ok, false, "고=저 → SMC 불가");
+  assert.strictEqual(smc.bias, 0);
+  assert.strictEqual(ForgeCore.smcSteps(smc).length, 5);
+});
+test("run: SMC 노드(실 candle)로 예측 반영 + 종가전용은 무영향", () => {
+  const price = _up(70, 0.005);
+  const candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
+  const g = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "sm", kind: "block", blockType: "smc" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }, { from: "sm", to: "pr" }] };
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle }, { futW: 24 });
+  const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
+  assert.ok(typeof r1.prediction.target === "number", "실행 성공");
+  // 종가전용(flat candle)이면 SMC 무영향
+  const flatC = price.map(c => ({ o: c, h: c, l: c, c }));
+  const r2 = ForgeCore.run(g, { price, candle: flatC }, { futW: 24 });
+  assert.ok(Math.abs(r2.prediction.target - ForgeCore.run(base, { price, candle: flatC }, { futW: 24 }).prediction.target) < 1e-6, "종가전용 SMC 무영향");
 });
