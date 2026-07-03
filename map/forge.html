@@ -123,6 +123,10 @@
   .wboard .fc-pbody{padding:2px}
   .wboard .fc-panel .fc-t b{color:var(--ink);letter-spacing:-.01em;font-weight:700;font-size:11.5px}
   .wboard .fc-head-left::before{content:"";width:2px;height:12px;background:var(--gold);border-radius:1px;flex:0 0 auto;margin-right:2px}   /* 섹션 마커(정밀 룰) */
+  /* 정밀 계기: 차트 패널도 카드 프레임 제거(테두리 불필요) → 툴바 아래 헤어라인만 유지 */
+  .chart-pane .fc-panel{background:transparent;border:0;border-radius:0}
+  .chart-pane .fc-panel-hero>.fc-phead{border-bottom:1px solid var(--line);padding-left:2px;padding-right:2px}
+  .chart-pane .fc-panel .fc-head-left::before{content:"";width:2px;height:13px;background:var(--gold);border-radius:1px;flex:0 0 auto;margin-right:3px}   /* 섹션 마커 */
   /* 패널 해석 배지 — 헤더 우측에 현재 판정을 색으로 */
   .fc-verdit{font-size:10.5px;font-weight:800;letter-spacing:-.01em;padding:1px 7px;border-radius:var(--r-lg);white-space:nowrap}
   .fc-verdit.up{color:#46c28e;background:rgba(70,194,142,.13)}
