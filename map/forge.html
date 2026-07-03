@@ -32,6 +32,9 @@
   .forge-gutter:hover,.forge-gutter.dragging{background:var(--gold-dim)}
   .forge-gutter:hover::after,.forge-gutter.dragging::after{background:var(--gold)}
   .run-btn{background:var(--gold);color:#1a1206;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer}
+  .forge-top .seg{display:none}   /* 캔버스 정렬·은하(사실상 미사용) 헤더에서 숨김 */
+  .play-btn{color:#8fd0c0!important;border-color:rgba(143,208,192,.45)!important}   /* 시연 = 과정 재생(웹분석과 구분: 청록 아웃라인) */
+  .play-btn:hover{background:rgba(143,208,192,.14)!important;border-color:#8fd0c0!important;color:#ade0d4!important}
   .run-btn.needs-run{animation:engPulse 1.3s ease-in-out infinite}
   /* 분석 버전/신선도 칩 — "언제 분석된 결과인지" 인지용 */
   .eng-stat{font-size:11px;font-weight:600;letter-spacing:-.01em;padding:3px 8px;border-radius:6px;white-space:nowrap;font-family:var(--mono)}
@@ -219,6 +222,7 @@
   .fc-prow>.fc-panel{flex:1 1 300px;min-width:0}
   .fc-prow>.fc-panel[style*="display:none"]{flex:0 0 0;min-width:0}      /* 숨김 패널은 폭 0 → 나머지 전체폭 */
   .fc-cv{display:block;width:100%;border-radius:6px}
+  .fc-hero canvas{touch-action:none}   /* 모바일 두 손가락 핀치 줌 — 브라우저 기본 제스처 차단 */
   .fc-folds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 10px}
   /* 접기 가능 패널(위상 폴딩 등) */
   .fc-phead-tog{cursor:pointer;user-select:none}
@@ -695,8 +699,9 @@
   @media (max-width: 860px) {
     .forge-side .doc-row{display:none}     /* 모바일: 개별 포지 행 숨김 → 드롭다운으로 간단 표기 */
     .doc-select{display:block}
-    .forge-top{gap:6px;padding:7px 10px}                             /* 가로 스크롤 없이 줄바꿈으로 꽉 채움(base flex-wrap) */
+    .forge-top{gap:6px;padding:7px 10px}                             /* 가로 스크롤 없이 한 줄로(정렬/엔진분석/시각칩 숨겨 폭 확보) */
     .forge-top .h-actions{margin-left:0}                             /* 모바일: 우측 밀착 해제 → 좌→우로 흘려 채움 */
+    .forge-top .eng-stat,.forge-top #engineBtn{display:none}         /* 모바일: 분석시각칩·엔진분석(예정) 숨김 → 헤더 1줄 유지 */
     .hlbl{display:none}                                              /* 헤더·차트툴바 버튼 = 아이콘만 */
     .forge-top .brand-by,.forge-top .build-tag,.forge-top .save-badge,.forge-top .h-sep{display:none}   /* 군더더기 정리 */
     .forge-top .seg-btn,.forge-top .tool-btn,.forge-top .run-btn{padding:0 11px;font-size:15px}
@@ -738,9 +743,9 @@
       <span id="analyzeProg" class="analyze-prog"></span>
       <span class="h-sep"></span>
       <span id="engStat" class="eng-stat" title="현재 표시된 결과가 언제 분석된 것인지"></span>
-      <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 브라우저 엔진이 노드 그래프로 시계열을 계산해 예측·시그널 산출(수동 갱신)">▷<span class="hlbl"> 웹분석</span></button>
+      <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출(결과만 갱신)">⚡<span class="hlbl"> 웹분석</span></button>
       <button class="tool-btn is-soon" id="engineBtn" onclick="claudeEngine()" title="엔진분석 — 클로드 수동분석(예정 기능, 준비 중)">✦<span class="hlbl"> 엔진분석</span></button>
-      <button class="tool-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 웹분석이 어떻게 도출됐는지 노드별 과정을 애니메이션으로 보기">▶<span class="hlbl"> 시연</span></button>
+      <button class="tool-btn play-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 웹분석 결과가 어떻게 나왔는지 지표별 작도 과정을 애니메이션으로 재생(결과는 동일, 과정 설명용)">▶<span class="hlbl"> 시연</span></button>
     </div>
   </header>
   <div class="forge-shell">
@@ -3605,7 +3610,10 @@
     const DASH = { long: [], mid: [], short: CDASH.std };
     function winLine(w, key) {
       if (!w) return;
-      const valAt = fi => w.bRaw + w.slopeRaw * (fi - w.startIdx);
+      // 차트 스케일에 맞는 회귀선: 로그차트면 로그공간 적합(지수추세, 로그축에서 직선) / 선형차트면 선형 적합
+      const valAt = _logChart
+        ? (fi => Math.exp(w.bLog + w.slopeLog * (fi - w.startIdx)))
+        : (fi => w.bRaw + w.slopeRaw * (fi - w.startIdx));
       const fiL = Math.max(w.startIdx, fiMin);
       const xb = xNow, yb = pToY(valAt(nowFi));
       // 히스토리 구간 다점 샘플 → 로그차트에서 직선근사 bow 제거(회귀선이 로그축에서 곡선)
@@ -3633,16 +3641,23 @@
       const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir;
       _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, weak ? "rgba(138,146,178,.92)" : COL[key], "left");
     }
-    // 채널(장기 ±k·σ)
+    // 채널(장기 ±k·σ) — 로그차트면 로그공간(지수) 중심±σ, 다점 샘플로 곡선 정합
     if (ta.channel) {
-      const ch = ta.channel, upAt = fi => pToY(ch.bRaw + ch.slopeRaw * fi + ch.k * ch.sigma), loAt = fi => pToY(ch.bRaw + ch.slopeRaw * fi - ch.k * ch.sigma);
-      const x0 = fiToX(fiMin), u0 = upAt(fiMin), l0 = loAt(fiMin), u1 = upAt(nowFi), l1 = loAt(nowFi);
-      if ([x0, u0, l0, u1, l1].every(isFinite)) {
+      const ch = ta.channel, Wl = ta.windows.long, sL = (ta.blend && ta.blend.channelSigmaLog) || 0, k = ch.k;
+      const logCh = _logChart && Wl && isFinite(Wl.bLog);
+      const upAt = fi => logCh ? pToY(Math.exp(Wl.bLog + Wl.slopeLog * (fi - Wl.startIdx) + k * sL)) : pToY(ch.bRaw + ch.slopeRaw * fi + k * ch.sigma);
+      const loAt = fi => logCh ? pToY(Math.exp(Wl.bLog + Wl.slopeLog * (fi - Wl.startIdx) - k * sL)) : pToY(ch.bRaw + ch.slopeRaw * fi - k * ch.sigma);
+      const CS = 20, up = [], lo = [];
+      for (let s = 0; s <= CS; s++) { const fi = fiMin + (nowFi - fiMin) * s / CS, x = fiToX(fi), yu = upAt(fi), yl = loAt(fi); if (isFinite(x) && isFinite(yu) && isFinite(yl)) { up.push([x, yu]); lo.push([x, yl]); } }
+      if (up.length >= 2) {
         c.globalAlpha = .055; c.fillStyle = COL.long; c.beginPath();
-        c.moveTo(x0, u0); c.lineTo(xNow, u1); c.lineTo(xNow, l1); c.lineTo(x0, l0); c.closePath(); c.fill(); c.globalAlpha = 1;
+        up.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
+        for (let i = lo.length - 1; i >= 0; i--) c.lineTo(lo[i][0], lo[i][1]);
+        c.closePath(); c.fill(); c.globalAlpha = 1;
         c.strokeStyle = COL.long; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine); c.globalAlpha = .45;
-        c.beginPath(); c.moveTo(x0, u0); c.lineTo(xNow, u1); c.stroke();
-        c.beginPath(); c.moveTo(x0, l0); c.lineTo(xNow, l1); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+        c.beginPath(); up.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+        c.beginPath(); lo.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+        c.globalAlpha = 1; c.setLineDash([]);
       }
     }
     // 회귀 3중
@@ -3650,11 +3665,11 @@
     // 피봇 지지/저항
     function pivLine(L, col) {
       if (!L) return;
-      const fiL = Math.max(L.fromIdx, fiMin);
-      const xa = fiToX(fiL), ya = pToY(L.slope * fiL + L.b), xb = xNow, yb = pToY(L.slope * nowFi + L.b);
-      if (![xa, ya, xb, yb].every(isFinite)) return;
+      const fiL = Math.max(L.fromIdx, fiMin), PS = 16, pts = [];
+      for (let s = 0; s <= PS; s++) { const fi = fiL + (nowFi - fiL) * s / PS, x = fiToX(fi), y = pToY(L.slope * fi + L.b); if (isFinite(x) && isFinite(y)) pts.push([x, y]); }   // 다점 샘플 → 로그차트 곡선 정합
+      if (pts.length < 2) return;
       c.strokeStyle = col; c.lineWidth = CW.thin; c.setLineDash(CDASH.std); c.globalAlpha = .8;
-      c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+      c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
     }
     pivLine(ta.pivots.support, "#46c28e"); pivLine(ta.pivots.resistance, "#e06a6a");
     c.restore();
@@ -5165,7 +5180,33 @@
       _chartWin.count = nc; _chartWin.start = ns; _chartNav = true; renderHeroZoom();
     }, { passive: false });
     let hDrag = null;
+    // 모바일 두 손가락 핀치 = 가로 확대/축소(보이는 봉 수 조절, 중앙 봉 고정) — 휠 줌과 동일 메커니즘
+    let _pinch = null;
+    cv.addEventListener("touchstart", e => {
+      if (e.touches.length === 2) {
+        const g = cv._mainGeo; if (!g) return;
+        const a = e.touches[0], b = e.touches[1], dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        const r = cv.getBoundingClientRect(), cx = (a.clientX + b.clientX) / 2 - r.left;
+        const rel = Math.max(0, Math.min(1, (cx - g.padX) / (g.histW || 1)));
+        _pinch = { dist0: Math.max(1, dist), count0: _chartWin.count, rel, bi: g.start + Math.round(rel * (g.count - 1)) };
+        hDrag = null; _heroZoomDragging = true; _chartNav = true;
+        if (e.cancelable) e.preventDefault();
+      }
+    }, { passive: false });
+    cv.addEventListener("touchmove", e => {
+      if (!_pinch || e.touches.length !== 2) return;
+      const g = cv._mainGeo; if (!g) return; const N = g.winN || 0; if (N < 2) return;
+      const a = e.touches[0], b = e.touches[1], dist = Math.max(1, Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY));
+      const ratio = _pinch.dist0 / dist;                      // 벌리면 dist↑ → ratio<1 → 봉수 감소 = 줌인
+      const nc = Math.max(20, Math.min(N, Math.round(_pinch.count0 * ratio)));
+      const ns = Math.max(0, Math.min(N - nc, Math.round(_pinch.bi - _pinch.rel * (nc - 1))));
+      _chartWin.count = nc; _chartWin.start = ns; _chartNav = true; renderHeroZoom();
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    const _pinchEnd = e => { if (!e.touches || e.touches.length < 2) { _pinch = null; setTimeout(() => { _heroZoomDragging = false; }, 60); } };
+    cv.addEventListener("touchend", _pinchEnd); cv.addEventListener("touchcancel", _pinchEnd);
     cv.addEventListener("pointerdown", e => {
+      if (_pinch) return;   // 핀치 중엔 단일 포인터 팬 무시
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
       const r = cv.getBoundingClientRect(), cx = e.clientX - r.left;
       if (cx > g.plotRight) {   // 우측 y축 스트립 → 가격축 수동 스케일(커서 가격 고정 앵커)
