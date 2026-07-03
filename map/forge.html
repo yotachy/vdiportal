@@ -1716,13 +1716,17 @@
   /* ── 지표 신호 한 줄 요약(보드 하단, 가중치 접힘 시) ── */
   // 프레임 단위 analyze 메모(같은 price·지표·파라미터면 한 번만 계산 → run/근거작도/신호보드/해설의 중복 제거)
   let _anMemo = new Map(), _anMemoP = null;
-  function _an(name, P, opts) {
+  function _anGet(P, key, compute) {   // 프레임(=price 참조) 캐시. price 바뀌면 전체 무효화
     if (_anMemoP !== P) { _anMemo.clear(); _anMemoP = P; }
-    const k = name + "|" + (opts ? JSON.stringify(opts) : "");
-    let v = _anMemo.get(k);
-    if (v === undefined) { v = ForgeCore["analyze" + name](P, opts); _anMemo.set(k, v); }
+    let v = _anMemo.get(key); if (v === undefined) { v = compute(); _anMemo.set(key, v); }
     return v;
   }
+  function _an(name, P, opts) { return _anGet(P, name + "|" + (opts ? JSON.stringify(opts) : ""), () => ForgeCore["analyze" + name](P, opts)); }
+  function _anSynthVol(P) { return _anGet(P, "synthVol", () => ForgeCore.synthVolume(P)); }
+  function _anVolSeries(P) { const vn = boardState.nodes.find(x => x.blockType === "volume"); return (vn && Array.isArray(vn.series) && vn.series.length === P.length) ? vn.series : _anSynthVol(P); }
+  function _anVolume(P) { return _anGet(P, "Volume", () => ForgeCore.analyzeVolume(P, _anVolSeries(P))); }
+  function _anVP(P, opts) { return _anGet(P, "VP|" + JSON.stringify(opts), () => ForgeCore.analyzeVolumeProfile(P, _anVolSeries(P), opts)); }
+  function _anSMC(P) { return _anGet(P, "SMC", () => ForgeCore.analyzeSMC((_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [])); }
   function _nodeBias(n, P) {
     const p = n.params || {}, bt = n.blockType;
     try {
@@ -1731,14 +1735,14 @@
         case "rsi": return _an("RSI", P, { period: p.period || 14 }).bias;
         case "fib": return _an("Fib", P, { len: p.len || 120, swing: ((p.swing != null ? p.swing : 5) / 100) }).bias;
         case "elliott": return _an("Elliott", P, { swing: ((p.swing != null ? p.swing : 3) / 100) }).bias;
-        case "volume": { const v = (Array.isArray(n.series) && n.series.length) ? n.series : ForgeCore.synthVolume(P); return ForgeCore.analyzeVolume(P, v).bias; }
+        case "volume": return _anVolume(P).bias;
         case "bollinger": return _an("Bollinger", P, { len: p.len || 20, k: p.k || 2 }).bias;
         case "macd": return _an("MACD", P, { fast: p.fast || 12, slow: p.slow || 26, signal: p.signal || 9 }).bias;
         case "adx": return _an("ADX", P, { period: p.period || 14 }).bias;
-        case "volumeprofile": { const _vn = boardState.nodes.find(x => x.blockType === "volume"); const vv = (_vn && Array.isArray(_vn.series) && _vn.series.length === P.length) ? _vn.series : ForgeCore.synthVolume(P); return ForgeCore.analyzeVolumeProfile(P, vv, { len: p.len || 120, bins: p.bins || 24 }).bias; }
+        case "volumeprofile": return _anVP(P, { len: p.len || 120, bins: p.bins || 24 }).bias;
         case "ichimoku": return _an("Ichimoku", P, { tenkan: p.tenkan || 9, kijun: p.kijun || 26, senkouB: p.senkouB || 52, shift: p.shift || 26 }).bias;
         case "structure": return _an("Structure", P, { swing: ((p.swing != null ? p.swing : 3) / 100) }).bias;
-        case "smc": return ForgeCore.analyzeSMC((currentData().candle) || []).bias;
+        case "smc": return _anSMC(P).bias;
         case "cycle": return _an("Cycle", P, { pmin: p.pmin || 10, pmax: p.pmax || 0 }).bias;
         case "trend": { const r = _an("Trend", P, undefined); return Math.max(-1, Math.min(1, ((r.blend && r.blend.slopeLog) || 0) * 40)); }
         default: return 0;   // atr(변동성)·phasefold(주기) = 방향 무관
@@ -4405,8 +4409,7 @@
           legend.push({ col, t: EV_LABEL.adx, _key: n.blockType });
         } else if (n.blockType === "volumeprofile") {
           const _vn2 = boardState.nodes.find(x => x.blockType === "volume");
-          const vpv = (_vn2 && Array.isArray(_vn2.series) && _vn2.series.length === price.length) ? _vn2.series : ForgeCore.synthVolume(price);
-          const vp = ForgeCore.analyzeVolumeProfile(price, vpv, { len: (n.params && n.params.len) || 120, bins: (n.params && n.params.bins) || 24 });
+          const vp = _anVP(price, { len: (n.params && n.params.len) || 120, bins: (n.params && n.params.bins) || 24 });
           if (_drawThis) _drawVolumeProfileLayers(cc, vp, { pToY: v => toY(v), xRight: g.padX + g.plotW, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.volumeprofile, _key: n.blockType });
         } else if (n.blockType === "ichimoku") {
@@ -4423,7 +4426,7 @@
           legend.push({ col, t: EV_LABEL.atr, _key: n.blockType });
         } else if (n.blockType === "smc") {
           const _cand = (_fcLastData && _fcLastData.candle) || (currentData().candle) || [];
-          const smc = ForgeCore.analyzeSMC(_cand);
+          const smc = _anSMC(price);
           if (_drawThis) _drawSmcLayers(cc, smc, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.smc, _key: n.blockType });
         } else if (n.blockType === "cycle") {
@@ -4431,8 +4434,7 @@
           if (_drawThis) _drawCycleLayers(cc, cy, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xNow: g.seamX, xRight: g.padX + g.plotW, futBars: (g.path && g.path.length) || 24, col });
           legend.push({ col, t: EV_LABEL.cycle, _key: n.blockType });
         } else if (n.blockType === "volume") {
-          const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
-          const va = ForgeCore.analyzeVolume(price, vser);
+          const va = _anVolume(price);
           if (_drawThis) _drawVolumeLayers(cc, va, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1], badgeY: _slotY() });
           legend.push({ col, t: EV_LABEL.volume + "(전문)", _key: n.blockType });
         } else if (n.blockType === "phasefold") {
@@ -4479,8 +4481,7 @@
           if (_drawThis) _drawRsiLayers(c, rsi, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw) });
           legend.push({ col, t: EV_LABEL.rsi + "(전문)", _key: n.blockType });
         } else if (n.blockType === "volume") {
-          const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
-          const va = ForgeCore.analyzeVolume(price, vser);
+          const va = _anVolume(price);
           if (_drawThis) _drawVolumeLayers(c, va, { fiToX: fi => xOf(fi), pToY: v => clipY(yOf(v)), nowFi: P - 1, fiMin: 0, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.rightX || (g.ox + g.dw), lastPrice: price[P - 1] });
           legend.push({ col, t: EV_LABEL.volume + "(전문)", _key: n.blockType });
         } else if (n.blockType === "phasefold") {
@@ -4899,8 +4900,7 @@
     }
     if (n.blockType === "volumeprofile" && Array.isArray(price) && price.length >= 2) {
       const _vn2 = boardState.nodes.find(x => x.blockType === "volume");
-      const vpv = (_vn2 && Array.isArray(_vn2.series) && _vn2.series.length === price.length) ? _vn2.series : ForgeCore.synthVolume(price);
-      const vp = ForgeCore.analyzeVolumeProfile(price, vpv, { len: (n.params && n.params.len) || 120, bins: (n.params && n.params.bins) || 24 });
+      const vp = _anVP(price, { len: (n.params && n.params.len) || 120, bins: (n.params && n.params.bins) || 24 });
       const texts = ForgeCore.volumeProfileSteps(vp), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
@@ -4920,7 +4920,7 @@
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "smc") {
-      const smc = ForgeCore.analyzeSMC((currentData().candle) || []);
+      const smc = _anSMC(P);
       const texts = ForgeCore.smcSteps(smc), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
@@ -4930,8 +4930,7 @@
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "volume" && Array.isArray(price) && price.length >= 2) {
-      const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(price);
-      const va = ForgeCore.analyzeVolume(price, vser);
+      const va = _anVolume(price);
       return ForgeCore.volumeSteps(va).map((text, i) => ({ text, layer: [1, 1, 2, 2, 2][i] }));
     }
     return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
@@ -4994,8 +4993,7 @@
       case "volumeprofile": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
         const _vn2 = boardState.nodes.find(x => x.blockType === "volume");
-        const vpv = (_vn2 && Array.isArray(_vn2.series) && _vn2.series.length === P.length) ? _vn2.series : ForgeCore.synthVolume(P);
-        return ForgeCore.volumeProfileSteps(ForgeCore.analyzeVolumeProfile(P, vpv, { len: (n.params && n.params.len) || 120, bins: (n.params && n.params.bins) || 24 })).slice(1, 4);
+        return ForgeCore.volumeProfileSteps(_anVP(P, { len: (n.params && n.params.len) || 120, bins: (n.params && n.params.bins) || 24 })).slice(1, 4);
       }
       case "ichimoku": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
@@ -5010,7 +5008,7 @@
         return ForgeCore.atrSteps(ForgeCore.analyzeATR(P, { period: (n.params && n.params.period) || 14, mult: (n.params && n.params.mult) || 2 }), (n.params && n.params.period) || 14).slice(1, 4);
       }
       case "smc": {
-        return ForgeCore.smcSteps(ForgeCore.analyzeSMC((currentData().candle) || [])).slice(1, 4);
+        return ForgeCore.smcSteps(_anSMC(P)).slice(1, 4);
       }
       case "cycle": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
@@ -5064,8 +5062,7 @@
         return f;
       }
       case "volume": {
-        const vser = (Array.isArray(n.series) && n.series.length >= 2) ? n.series : ForgeCore.synthVolume(P);
-        const va = ForgeCore.analyzeVolume(P, vser);
+        const va = _anVolume(P);
         if (!va.series.length) return ["거래량 데이터 없음"];
         const f = [];
         f.push("최근/평균 " + va.ratio.toFixed(2) + "x \xb7 " + (va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이"));
