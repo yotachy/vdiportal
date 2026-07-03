@@ -18,12 +18,19 @@
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,-apple-system,"Segoe UI",'Malgun Gothic',"Apple SD Gothic Neo",system-ui,sans-serif;letter-spacing:-0.003em;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  /* 테마 스크롤바(얇고 은은하게 · 트랙 투명 · hover 시 진해짐) */
+  *{scrollbar-width:thin;scrollbar-color:rgba(138,146,178,.3) transparent}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(138,146,178,.26);border-radius:8px;border:3px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(138,146,178,.46);background-clip:padding-box}
+  ::-webkit-scrollbar-corner{background:transparent}
   /* 숫자·코드용 공통 모노(가독성) */
   :root{--mono:ui-monospace,"SF Mono","Cascadia Mono","Segoe UI Mono",Consolas,"D2Coding",monospace}
   .forge-top{display:flex;align-items:center;flex-wrap:wrap;gap:14px;min-height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
   .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
   .forge-split{display:flex;flex:1;min-width:0}
-  .board-pane{position:relative;flex:0 0 var(--board-w,480px);min-width:280px;overflow:hidden;display:flex;flex-direction:column}
+  .board-pane{position:relative;flex:0 0 var(--board-w,600px);min-width:340px;overflow:hidden;display:flex;flex-direction:column}
   .chart-pane{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
   /* 좌우 크기조절 거터 */
   .forge-gutter{flex:0 0 7px;background:var(--line);cursor:col-resize;position:relative;z-index:6;transition:background .12s}
@@ -480,15 +487,20 @@
   .side-btn{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;font-size:11px;padding:2px 8px;cursor:pointer}
   .side-btn:hover{color:var(--ink);border-color:var(--eth)}
   .forge-side .pal-side{display:flex;flex-direction:column;gap:5px}
-  .forge-side .pal-side .pal-btn{display:block;width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;white-space:nowrap;transition:background .1s,border-color .1s}
-  .forge-side .pal-side .pal-btn:hover{background:var(--raised2);border-color:#3a4452}
-  .forge-side .pal-side .pal-btn.added{color:var(--gold);background:rgba(232,180,99,.07);box-shadow:inset 2px 0 0 rgba(232,180,99,.5)}   /* 이 포지에 추가된 지표 = 활성 표시 */
-  .forge-side .pal-side .pal-btn.added:hover{background:rgba(232,180,99,.13);border-color:var(--gold-dim)}
-  .forge-side .pal-side .pal-btn.sel,.forge-side .pal-side .pal-btn.sel:hover{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.18);box-shadow:inset 3px 0 0 var(--gold);font-weight:700}   /* 선택(포커스)된 노드 = 더 강한 강조 */
+  /* 도구 리스트: 카드·테두리 없이 평면 + 지표색 상태 점(미추가=빈 원 / 추가=지표색 발광 점 / 선택=골드 링) */
+  .forge-side .pal-side .pal-btn{position:relative;display:flex;align-items:center;gap:9px;width:100%;padding:7px 11px;border:0;border-radius:9px;background:transparent;color:var(--eth);font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;white-space:nowrap;transition:background .12s,color .12s}
+  .forge-side .pal-side .pal-btn::before{content:"";width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:transparent;box-shadow:inset 0 0 0 1.5px rgba(138,146,178,.35);transition:box-shadow .12s,background .12s}
+  .forge-side .pal-side .pal-btn:hover{background:rgba(255,255,255,.05);color:var(--ink)}
+  .forge-side .pal-side .pal-btn.added{color:var(--ink);background:rgba(255,255,255,.05)}
+  .forge-side .pal-side .pal-btn.added::before{background:var(--ic,#8a92b2);box-shadow:0 0 8px -1px var(--ic,#8a92b2)}
+  .forge-side .pal-side .pal-btn.added:hover{background:rgba(255,255,255,.085)}
+  .forge-side .pal-side .pal-btn.sel{color:var(--ink);background:rgba(232,180,99,.14);font-weight:700}
+  .forge-side .pal-side .pal-btn.sel::before{background:var(--ic,var(--gold));box-shadow:0 0 0 3px rgba(232,180,99,.28),0 0 8px -1px var(--ic,var(--gold))}
   .side-allbtn{margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;font-size:10px;font-weight:600;padding:2px 7px;cursor:pointer;line-height:1.5}
   .side-allbtn:hover{border-color:var(--gold);color:var(--gold)}
   .side-h-toggle .side-caret{margin-left:8px}
-  .forge-side .pal-side .pal-btn.pal-free{color:var(--eth);border-style:dashed}
+  .forge-side .pal-side .pal-btn.pal-free{color:var(--faint)}
+  .forge-side .pal-side .pal-btn.pal-free::before{box-shadow:inset 0 0 0 1.5px rgba(138,146,178,.22)}
   /* 티커 패널(캔버스 상단 고정) */
   .tk-panel{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(90deg,rgba(232,180,99,.1),var(--surface) 62%);border-bottom:2px solid rgba(232,180,99,.34);flex:0 0 auto}
   .tk-panel .tk-lbl{font-size:11.5px;font-weight:800;letter-spacing:.06em;color:var(--gold);text-transform:uppercase;flex:0 0 auto;display:flex;align-items:center;gap:5px}
@@ -1035,7 +1047,7 @@
 
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
-  const VISION_ENABLED = true;    // 비전 분석 ON — '☁ 분석 요청'으로 가격 노드 이미지를 분석(워커=/forge-analyze).
+  const VISION_ENABLED = true;    // 비전 시계열(샘플 데모 데이터 소스). 이미지 분석 UI는 추후 고도화 — 실 티커 포지에선 저장된 vision 무시(loadDoc)
   console.log("[forge] build b062a6");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
@@ -1428,6 +1440,10 @@
     } else {
       _visionData = null; _visionBias = 0; _visionNote = ""; _visionWaves = []; _visionCoords = null; _visionTF = null; _visionFut = 0;
     }
+    // 실 데이터(불러온 티커) 포지에선 저장된 이미지분석(vision)을 초기화 — 로드 시 stale 이미지가 떴다 사라지는 플래시 제거(이미지 분석 추후 고도화)
+    if (boardState.nodes.some(n => n.blockType === "ticker" && n.params && (n.params.fetched || isFinite(n.params.price)))) {
+      _visionData = null; _visionBias = 0; _visionNote = ""; _visionWaves = []; _visionCoords = null; _visionTF = null; _visionFut = 0; _heroView = "chart";
+    }
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
     renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); runForge();
@@ -1448,8 +1464,9 @@
         }
       } catch (e) { /* 오프라인/실패 무시 — 차트 없이 그레이스풀 */ }
     });
-    // 새 문서의 진행 중 잡 복원 (비전 분석 활성 시에만)
-    if (VISION_ENABLED && SERVER_OK && activeId) {
+    // 새 문서의 진행 중 잡 복원 (비전 분석 활성 시에만) — 실 티커 포지는 이미지분석 초기화이므로 잡 복원도 생략
+    const _realTicker = boardState.nodes.some(n => n.blockType === "ticker" && n.params && (n.params.fetched || isFinite(n.params.price)));
+    if (VISION_ENABLED && SERVER_OK && activeId && !_realTicker) {
       const jr = await apiGet("?jobs&docId=" + encodeURIComponent(activeId));
       const jobs = (jr && jr.jobs) || [];
       const live = jobs.filter(j => j.status === "pending" || j.status === "working").sort((a, b) => strCmp(b.created, a.created))[0];
@@ -1521,7 +1538,7 @@
          <select class="doc-select" aria-label="포지 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === activeId ? " selected" : ""}>${esc(d.title || "제목 없음")}</option>`).join("")}</select></div>
        <div class="side-sec tool-sec${_toolsOpen ? "" : " collapsed"}"><div class="side-h side-h-toggle" onclick="toggleTools()" title="블록 도구 접기/펼치기"><span>블록 도구</span><button class="side-allbtn" onclick="event.stopPropagation();toggleAllBlocks()" title="지표 전체 추가/해제">${_allIndAdded() ? "전체 해제" : "전체 적용"}</button><span class="side-caret">${_toolsOpen ? "▾" : "▸"}</span></div>
          <div class="pal-side">` +
-         BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker" && d.type !== "price").map(d => `<button class="pal-btn${_hasBlock(d.type) ? " added" : ""}${d.type === _selType() ? " sel" : ""}" data-bt="${d.type}" onclick="addBlock('${d.type}')" title="${_hasBlock(d.type) ? (EV_COLORS[d.type] ? "추가됨 · 클릭하면 제거" : "추가됨 · 클릭하면 선택") : "클릭하면 추가"}">${d.label}</button>`).join("") +
+         BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker" && d.type !== "price").map(d => `<button class="pal-btn${_hasBlock(d.type) ? " added" : ""}${d.type === _selType() ? " sel" : ""}" data-bt="${d.type}" style="--ic:${EV_COLORS[d.type] || "#8a92b2"}" onclick="addBlock('${d.type}')" title="${_hasBlock(d.type) ? (EV_COLORS[d.type] ? "추가됨 · 클릭하면 제거" : "추가됨 · 클릭하면 선택") : "클릭하면 추가"}">${d.label}</button>`).join("") +
          `<button class="pal-btn pal-free" onclick="addBlock('free')">메모</button>` +
        `</div></div>
        <div class="side-sec" id="libSec"></div>`;
