@@ -683,7 +683,7 @@
     const s = typeof tf === "string" ? tf : "";
     // shortScale: '단기' 창 길이 배율(월봉은 40봉=3.3년이라 과함→0.5로 축소, 단주기는 확대). "단기"의 실제 기간을 tf 간 정규화.
     // bandScale: 예측 콘 폭 배율 — 일봉은 고변동이라 콘이 비현실적으로 벌어져 타이트하게, 주·월로 갈수록 넓게(현실적)
-    if (/월|분기|년|연/.test(s)) return { tier: "long", weights: { long: 0.6, mid: 0.3, short: 0.1 }, trendScale: 1.0, shortScale: 0.5, bandScale: 1.0, label: "월봉 장기가중" };
+    if (/월|분기|년|연/.test(s)) return { tier: "long", weights: { long: 0.6, mid: 0.3, short: 0.1 }, trendScale: 1.0, shortScale: 0.5, bandScale: 1.2, label: "월봉 장기가중" };
     if (/주/.test(s)) return { tier: "mid", weights: { long: 0.45, mid: 0.35, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.82, label: "주봉 균형" };
     if (/일/.test(s)) return { tier: "mid", weights: { long: 0.45, mid: 0.35, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.58, label: "일봉 균형" };
     if (/분|시간|시/.test(s)) return { tier: "intra", weights: { long: 0.25, mid: 0.35, short: 0.4 }, trendScale: 0.45, shortScale: 2.0, bandScale: 0.5, label: "단주기 단기가중" };
