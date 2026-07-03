@@ -300,6 +300,11 @@
   .dbar-f{position:absolute;left:0;top:0;bottom:0;border-radius:2px;transition:width .3s cubic-bezier(.4,0,.2,1)}
   .dash-best{background:linear-gradient(90deg,rgba(91,141,239,.06),rgba(91,141,239,.22))!important;box-shadow:inset 0 0 0 1px rgba(91,141,239,.6)}
   .dash-sub{font-size:11px;color:var(--eth);font-family:var(--mono);font-weight:700}
+  .dash-guide{display:flex;flex-direction:column;align-items:center;gap:9px;padding:24px 16px;text-align:center}
+  .dash-guide .dg-ico{width:32px;height:32px;color:var(--gold);opacity:.85}
+  .dash-guide .dg-title{font-size:13px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+  .dash-guide .dg-desc{font-size:11.5px;color:var(--eth);line-height:1.65;max-width:340px}
+  .dash-guide .dg-desc b{color:var(--gold)}
   .dash-sec td{padding:2px 10px!important;font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--gold);background:rgba(232,180,99,.07);border-top:1px solid var(--gold-dim);border-bottom:1px solid var(--gold-dim);border-left:0!important}
   .chart-pane.editing #fcDashPanel{display:none}
   .verdict-inline{display:none}   /* 강조 바(fc-verdict-bar)로 대체 — 헤더 중복 제거 */
@@ -966,7 +971,7 @@
               <span class="fc-t"><b>타임프레임 매트릭스</b> · 일 · 주 · 월</span>
               <span class="fc-meta" id="fcDashMeta">–</span>
             </div>
-            <div class="fc-pbody"><div id="fcDashBody"><div class="na-empty">티커 종목을 불러오면 일·주·월 비교가 자동으로 표시됩니다</div></div></div>
+            <div class="fc-pbody"><div id="fcDashBody"><div class="dash-guide"><svg class="dg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7" rx="1"/><rect x="12" y="7" width="3" height="11" rx="1"/><rect x="17" y="4" width="3" height="14" rx="1"/></svg><div class="dg-title">타임프레임 매트릭스</div><div class="dg-desc">종목을 <b>불러오기</b> 하면 일·주·월봉을 한눈에 비교합니다 —<br>국면·확률·시그널·목표가·RSI·지지/저항까지.</div></div></div></div>
           </div>
           <div class="fc-panel" id="fcHzPanel">
             <div class="fc-phead">
@@ -3397,6 +3402,7 @@
     for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, toY(hi[k])); bandBot = Math.max(bandBot, toY(lo[k])); }
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간) */
     cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: tfUnit(), log: _logChart, start: wStart, count: wCount, winN: N, plotRight: padX + plotW };
+    _axisLabelBoxes = [];   // 이번 프레임 축 라벨 박스 초기화
     // grid + 세로축 가격 눈금(각 그리드선의 가격 — 우측, 어두운 pill로 가독)
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     { const _plotH = ch - padTop - padBot, _loL = tvLog(loV, _logChart), _hiL = tvLog(hiV, _logChart);
@@ -3406,7 +3412,7 @@
         if (g === 0 || g === 3) {   // 위/아래 두 눈금만(복잡함 완화)
           const _vL = _loL + (1 - g / 3) * (_hiL - _loL), pv = _logChart ? Math.exp(_vL) : _vL, t = _hzFmt(pv);
           c.font = "9.5px ui-monospace,monospace"; c.textAlign = "right"; const tw = c.measureText(t).width;
-          c.fillStyle = "rgba(11,15,20,.66)"; c.fillRect(padX + plotW - tw - 6, gy - 5, tw + 6, 11);
+          c.fillStyle = "rgba(11,15,20,.66)"; c.fillRect(padX + plotW - tw - 6, gy - 5, tw + 6, 11); _axisLabelBoxes.push({ x: padX + plotW - tw - 6, y: gy - 6, w: tw + 8, h: 13 });
           c.fillStyle = "#8892a8"; c.fillText(t, padX + plotW - 2, gy + 3); c.textAlign = "left";
         }
       }
@@ -3449,7 +3455,7 @@
       // 현재가 수평선 + 우측 골드 pill(항상 표시 — 어디서든 현재가 기준선)
       { const yA = toY(anchor); c.save(); c.strokeStyle = "rgba(232,180,99,.5)"; c.lineWidth = 1; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(padX, yA); c.lineTo(padX + plotW, yA); c.stroke(); c.setLineDash([]);
         const t = _hzFmt(anchor); c.font = "700 10px ui-monospace,monospace"; c.textAlign = "right"; const tw = c.measureText(t).width;
-        c.fillStyle = "#e8b463"; c.fillRect(padX + plotW - tw - 7, yA - 7, tw + 7, 14); c.fillStyle = "#0b0f14"; c.fillText(t, padX + plotW - 3, yA + 3.3); c.textAlign = "left"; c.restore(); }
+        c.fillStyle = "#e8b463"; c.fillRect(padX + plotW - tw - 7, yA - 7, tw + 7, 14); _axisLabelBoxes.push({ x: padX + plotW - tw - 8, y: yA - 8, w: tw + 9, h: 16 }); c.fillStyle = "#0b0f14"; c.fillText(t, padX + plotW - 3, yA + 3.3); c.textAlign = "left"; c.restore(); }
       const coneR = toXf(path.length - 1);
       // 방향 색조(약한 적/녹) — 하락/상승 예측을 국면과 정합되게 한눈에
       const _pEnd = path[path.length - 1];
@@ -3561,6 +3567,7 @@
   let _evVisible = new Set(EV_DEFAULT_VISIBLE);   // 차트에 그릴 지표 집합
   let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
   let _evLabelBoxes = [];        // 라벨 겹침 회피용 박스 레지스트리(_drawEvidence마다 리셋)
+  let _axisLabelBoxes = [];      // 세로축 눈금·현재가 pill 박스(라벨 회피용으로 미리 예약)
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#c9a3ff", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#a99ae8", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#c99ad8" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱" };
   function evIndicatorNodes() {
@@ -3893,7 +3900,7 @@
     const _ov = yy => _evLabelBoxes.some(r => bx < r.x + r.w && bx + bw > r.x && yy < r.y + r.h && yy + bh > r.y);
     if (_ov(by)) {
       let ok = false;
-      for (let stp = 1; stp <= 12 && !ok; stp++) {
+      for (let stp = 1; stp <= 18 && !ok; stp++) {
         for (const dr of [1, -1]) {
           const ny = by + dr * stp * (bh + 1);
           if (ny >= M && ny <= (_evH || 1e4) - bh - M && !_ov(ny)) { by = ny; ok = true; break; }
@@ -4558,7 +4565,7 @@
     // 결정적 지표 전용 캔버스(선명+글로우) — 중요도 높은 노드만 여기로 라우팅. _heroZoom은 차트모드서 항등이라 DPR 변환만.
     const cvHi = document.getElementById("fcEvidenceHi"); let cHi = null;
     if (cvHi) { if (cvHi.width !== ww || cvHi.height !== hh) { cvHi.width = ww; cvHi.height = hh; } cvHi.style.width = W + "px"; cvHi.style.height = H + "px"; cHi = cvHi.getContext("2d"); cHi.setTransform(dpr, 0, 0, dpr, 0, 0); cHi.clearRect(0, 0, W, H); cHi.lineJoin = "round"; cHi.lineCap = "round"; }
-    _evLabelBoxes = [];   // 라벨 겹침 회피 레지스트리 초기화
+    _evLabelBoxes = _axisLabelBoxes.slice();   // 축 눈금·현재가 pill을 먼저 예약 → 근거 라벨이 이를 피함
     _skFrac = (_scanning && _scanU < 1) ? _scanU : null;   // 시연 중이면 진행형 작도(손그림)
     if (!_evidenceShow || !_evidenceSet.size || !lastResult) return;
     // 예측을 계산한 바로 그 시계열을 사용(차트/콘과 동일) — 작도·예측 정합 보장
@@ -5936,10 +5943,10 @@
       } catch (e) {}
       bar.innerHTML =
         (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
-        `<span class="fcv-reg" style="color:${col};text-shadow:0 0 22px ${col}55">${arrow} ${label}</span>` +
-        (_up != null ? `<span class="fcv-prob"><span class="up">▲ ${_up}%</span> <span class="dn">▼ ${100 - _up}%</span></span>` : "") +
-        `<span class="fcv-sig">시그널 ${score}${isFinite(_targetN) ? "  ·  목표 " + fmtNum(_targetN) : ""}${(verdict.confluence && verdict.confluence.total) ? "  ·  컨플루언스 " + verdict.confluence.score + "% (" + verdict.confluence.agree + "/" + verdict.confluence.total + ")" : ""}</span>` +
-        `<span class="fcv-op">${op}</span>` + _bd;
+        `<span class="fcv-reg" title="국면 — 지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};text-shadow:0 0 22px ${col}55">${arrow} ${label}</span>` +
+        (_up != null ? `<span class="fcv-prob" title="상승/하락 확률 — 예측 콘 기준, 가까운 시점에 가중한 종합 상승확률"><span class="up">▲ ${_up}%</span> <span class="dn">▼ ${100 - _up}%</span></span>` : "") +
+        `<span class="fcv-sig" title="시그널=신호 강도(−100~+100) · 목표=예측 도달가 · 컨플루언스=지표 합의도(같은 방향 지표 수 / 전체)">시그널 ${score}${isFinite(_targetN) ? "  ·  목표 " + fmtNum(_targetN) : ""}${(verdict.confluence && verdict.confluence.total) ? "  ·  컨플루언스 " + verdict.confluence.score + "% (" + verdict.confluence.agree + "/" + verdict.confluence.total + ")" : ""}</span>` +
+        `<span class="fcv-op" title="핵심 의견 — 국면·확률·강도 종합 한 줄 요약">${op}</span>` + _bd;
     }
     if (u >= 1 && bar) { bar.classList.remove("flash"); void bar.offsetWidth; bar.classList.add("flash"); }   // 최종 결과 등장 강조
     if (typeof scheduleDash === "function" && u >= 1) scheduleDash();   // 타임프레임 매트릭스 자동 갱신(시연 충전 중엔 생략)
@@ -5998,8 +6005,8 @@
     const host = document.getElementById("fcDashBody"); if (!host) return;
     const meta = document.getElementById("fcDashMeta");
     const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim());
-    if (!tk) { host.innerHTML = `<div class="na-empty">티커 종목을 불러오면 일·주·월 비교가 자동으로 표시됩니다</div>`; if (meta) meta.textContent = "–"; return; }
-    if (!SERVER_OK) { host.innerHTML = `<div class="na-empty">오프라인 — 서버 연결이 필요해요</div>`; return; }
+    if (!tk) { host.innerHTML = `<div class="dash-guide"><svg class="dg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7" rx="1"/><rect x="12" y="7" width="3" height="11" rx="1"/><rect x="17" y="4" width="3" height="14" rx="1"/></svg><div class="dg-title">타임프레임 매트릭스</div><div class="dg-desc">종목을 <b>불러오기</b> 하면 일·주·월봉을 한눈에 비교합니다 —<br>국면·확률·시그널·목표가·RSI·지지/저항까지.</div></div>`; if (meta) meta.textContent = "–"; return; }
+    if (!SERVER_OK) { host.innerHTML = `<div class="dash-guide"><svg class="dg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7" rx="1"/><rect x="12" y="7" width="3" height="11" rx="1"/><rect x="17" y="4" width="3" height="14" rx="1"/></svg><div class="dg-title">타임프레임 매트릭스</div><div class="dg-desc">서버에 연결되면 일·주·월봉 비교가 표시됩니다.<br><span style="opacity:.7">로컬 파일 모드에선 미지원</span></div></div>`; return; }
     const sym = tk.params.symbol.trim();
     if (_dashCache.sym !== sym) host.innerHTML = `<div class="na-empty">${esc(sym)} 일·주·월 분석 중…</div>`;   // 캐시 있으면 깜빡임 없이 갱신
     const [d, w, m] = await Promise.all([_computeTf(sym, "1day"), _computeTf(sym, "1week"), _computeTf(sym, "1month")]);
