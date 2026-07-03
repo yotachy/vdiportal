@@ -266,13 +266,8 @@
   .dash-reg{font-weight:800;font-size:12px;padding:0 8px;border-radius:10px}
   .dseg{display:inline-flex;gap:2px}                     /* 세그먼트 바(이미지식) */
   .dseg i{width:4px;height:11px;border-radius:1px;background:rgba(255,255,255,.08);display:block}
-  /* 타임프레임 매트릭스: 세그먼트가 좌→우로 차오르는 게이지 효과(렌더 시) */
-  @keyframes segfill{0%{opacity:0;transform:translateX(-3px) scaleY(.4)}100%{opacity:1;transform:none}}
-  .dseg i[style]{animation:segfill .4s both}
-  .dseg i:nth-child(1){animation-delay:.02s}.dseg i:nth-child(2){animation-delay:.05s}.dseg i:nth-child(3){animation-delay:.08s}.dseg i:nth-child(4){animation-delay:.11s}.dseg i:nth-child(5){animation-delay:.14s}
-  .dseg i:nth-child(6){animation-delay:.17s}.dseg i:nth-child(7){animation-delay:.2s}.dseg i:nth-child(8){animation-delay:.23s}.dseg i:nth-child(9){animation-delay:.26s}.dseg i:nth-child(10){animation-delay:.29s}
-  .dash-cell .dval{animation:hzfade .5s both}
-  @keyframes hzfade{from{opacity:0}to{opacity:1}}
+  /* 매트릭스 세그먼트: 값 채워질 때 부드럽게(순차 등장 아님) */
+  .dseg i{transition:background .18s}
   .dash-best{background:linear-gradient(90deg,rgba(91,141,239,.04),rgba(91,141,239,.17))!important;box-shadow:inset 0 0 0 1px rgba(91,141,239,.5)}
   .dash-sub{font-size:11px;color:var(--eth);font-family:var(--mono);font-weight:700}
   .dash-sec td{padding:2px 10px!important;font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--gold);background:rgba(232,180,99,.07);border-top:1px solid var(--gold-dim);border-bottom:1px solid var(--gold-dim);border-left:0!important}
@@ -4898,7 +4893,7 @@
       const cls = chg > 0.5 ? "hz-up" : chg < -0.5 ? "hz-dn" : "hz-fl";
       const band = (isFinite(lo) && isFinite(hi)) ? `${_hzFmt(lo)} ~ ${_hzFmt(hi)}` : "–";
       const upF = _upProb(vF, hiF, anchor);                                   // 최종 확률
-      const up = Math.round(50 + (upF - 50) * u);                            // 확률 게이지: 중립50→최종 충전
+      const up = Math.round(upF * u);                                        // 확률 게이지: 0→최종 충전
       const pc = upF >= 55 ? "hz-up" : upF <= 45 ? "hz-dn" : "hz-fl";        // 색은 최종 방향 고정(깜빡임 방지)
       return `<div class="hz-row">
         <span class="hz-t">+${h}${unit}</span>
@@ -5790,7 +5785,7 @@
     const _targetN = (isFinite(verdict.target) && _anchor != null) ? _anchor + (verdict.target - _anchor) * u : verdict.target;
     const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(2) : "—";
     const _upF = (typeof aggUpProb === "function") ? aggUpProb(lastResult && lastResult.prediction) : null;
-    const _up = (_upF != null) ? Math.round(50 + (_upF - 50) * u) : null;
+    const _up = (_upF != null) ? Math.round(_upF * u) : null;
     el.innerHTML =
       `국면 <b style="color:${col}">${label}</b>` +
       (_up != null ? ` · <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
@@ -5862,7 +5857,7 @@
     return [st + " · " + rel, (v.relationship === "confirm" || v.relationship === "capitulation") ? "#46c28e" : "#e06a6a"]; }
   // 셀: 세그먼트 바(좌) + 값(우 정렬) / 텍스트(좌 정렬). best=행 최고 강조
   function _segBar(pct, col) { const N = 10, on = Math.round(Math.max(0, Math.min(100, pct || 0)) / 100 * N); let s = ""; for (let i = 0; i < N; i++) s += `<i${i < on ? ` style="background:${col}"` : ""}></i>`; return `<span class="dseg">${s}</span>`; }
-  function _barC(pct, col, val, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell">${_segBar(pct, col)}<b class="dval">${val}</b>${best ? `<span class="dstar">★</span>` : ""}</div></td>`; }
+  function _barC(pct, col, val, best, fnum, suf) { const dn = (fnum != null) ? ` data-fnum="${fnum}" data-suf="${suf || ""}"` : ""; return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell" data-pct="${Math.round(pct || 0)}" data-col="${col}"${dn}>${_segBar(pct, col)}<b class="dval">${val}</b>${best ? `<span class="dstar">★</span>` : ""}</div></td>`; }
   function _txtC(html, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell txt"><span class="dval-l">${html}</span>${best ? `<span class="dstar">★</span>` : ""}</div></td>`; }
   async function renderDashboard() {
     const host = document.getElementById("fcDashBody"); if (!host) return;
@@ -5880,17 +5875,18 @@
     const th = `<tr><th>지표</th>${cols.map(c => `<th><span class="thdot" style="background:${_TFCOL[c[0]] || "#8a92b2"}"></span>${c[0]}</th>`).join("")}</tr>`;
     const rows = [];
     rows.push(`<tr><td>국면</td>${cols.map(c => { const g = REG[c[1].regime] || REG.neutral; return _txtC(`<span class="dash-reg" style="color:${g[1]};background:${g[1]}22">${g[0]}</span>`, false); }).join("")}</tr>`);
-    { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, "#46c28e", c[1].up + "%", i === bi)).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return _barC((s + 100) / 2, s >= 0 ? "#46c28e" : "#e06a6a", Math.round(s), i === bi); }).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, "#46c28e", c[1].up + "%", i === bi, c[1].up, "%")).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return _barC((s + 100) / 2, s >= 0 ? "#46c28e" : "#e06a6a", Math.round(s), i === bi, Math.round(s), ""); }).join("")}</tr>`); }
     { const bi = _dbest(cols.map(c => c[1].trend), 1); rows.push(`<tr><td>추세 %/봉</td>${cols.map((c, i) => { const t = c[1].trend; return _txtC(`<span style="color:${t >= 0 ? "#46c28e" : "#e06a6a"}">${t >= 0 ? "+" : ""}${t.toFixed(2)}</span>`, i === bi); }).join("")}</tr>`); }
     { const bi = _dbest(cols.map(c => c[1].chg), 1); rows.push(`<tr><td>예측</td>${cols.map((c, i) => c[1].chg == null ? _txtC("–", false) : _txtC(`<span style="color:${c[1].chg >= 0 ? "#46c28e" : "#e06a6a"}">${c[1].chg >= 0 ? "+" : ""}${c[1].chg.toFixed(1)}%</span>`, i === bi)).join("")}</tr>`); }
     rows.push(`<tr class="dash-sec"><td colspan="${cols.length + 1}">구조 · 레벨</td></tr>`);
-    rows.push(`<tr><td>RSI</td>${cols.map(c => { const rv = c[1].rsi, col = rv >= 70 ? "#e06a6a" : rv <= 30 ? "#46c28e" : "#8a92b2"; return _barC(rv, col, Math.round(rv), false); }).join("")}</tr>`);
+    rows.push(`<tr><td>RSI</td>${cols.map(c => { const rv = c[1].rsi, col = rv >= 70 ? "#e06a6a" : rv <= 30 ? "#46c28e" : "#8a92b2"; return _barC(rv, col, Math.round(rv), false, Math.round(rv), ""); }).join("")}</tr>`);
     rows.push(`<tr><td>엘리어트</td>${cols.map(c => { const e = _elTxt(c[1].el); return _txtC(`<span style="color:${e[1]}">${e[0]}</span>`, false); }).join("")}</tr>`);
     rows.push(`<tr><td>거래량</td>${cols.map(c => { const vv = _volTxt(c[1].vol); return _txtC(`<span style="color:${vv[1]}">${vv[0]}</span>`, false); }).join("")}</tr>`);
     rows.push(`<tr><td>목표가</td>${cols.map(c => _txtC(isFinite(c[1].target) ? `<span class="dash-sub">${fmtNum(c[1].target)}</span>` : "–", false)).join("")}</tr>`);
     rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:#46c28e">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> <span style="opacity:.35">/</span> <span style="color:#e06a6a">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
     host.innerHTML = `<table class="dash-table">${th}${rows.join("")}</table>`;
+    _dashFill(_playing ? _playReveal.u : null);
   }
   function scheduleDash() { clearTimeout(_dashTmr); _dashTmr = setTimeout(() => { renderDashboard().catch(() => {}); }, 350); }   // 분석/티커 변경 시 자동 갱신(디바운스)
 
@@ -6281,7 +6277,7 @@
     _playT = null; _playRaf = null; _playing = false;
     _evReveal = {}; _playReveal = { ids: null, u: 1 };   // 중단 → 차트 외 시각화 전체 확정 표시
     _scanning = false; _scanU = 1;   // 작도 중단 → 전체 표시
-    _revealDashRows(null);
+    _dashFill(null);
     clearAnalyzeViz();
     try { if (lastResult) { renderNodeAnalysis(lastResult); renderSignalBoard(); renderHorizons(lastResult); if (lastResult.verdict) renderVerdict(lastResult.verdict); } } catch (e) {}
     const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
@@ -6308,16 +6304,17 @@
     try {
       if ((n = boardState.nodes.find(x => x.blockType === "rsi"))) fcDrawRsi(_an("RSI", price, { period: (n.params && n.params.period) || 14 }), r);
       if ((n = boardState.nodes.find(x => x.blockType === "volume"))) fcDrawVol(_anVolume(price), r);
-      if ((n = boardState.nodes.find(x => x.blockType === "macd"))) fcDrawMacd(_an("MACD", price, { fast: (n.params && n.params.fast) || 12, slow: (n.params && n.params.slow) || 26, signal: (n.params && n.params.signal) || 9 }), r);
-      if ((n = boardState.nodes.find(x => x.blockType === "adx"))) fcDrawAdx(_an("ADX", price, { period: (n.params && n.params.period) || 14 }), r);
     } catch (e) {}
   }
-  // 타임프레임 매트릭스 행을 데모 진행 u(0→1)에 맞춰 순차 공개 — u=null이면 전체 표시(종료)
-  function _revealDashRows(u) {
-    const rows = document.querySelectorAll("#fcDashBody .dash-table tbody tr");
-    if (!rows.length) return;
-    const shown = Math.ceil(Math.max(0, Math.min(1, u || 0)) * rows.length);
-    rows.forEach((tr, i) => { tr.style.transition = "opacity .3s"; tr.style.opacity = (u == null || i < shown) ? "1" : "0.1"; });
+  // 타임프레임 매트릭스: 각 게이지 셀의 값·막대를 진행 u(0→1)에 맞춰 0→최종으로 채움(순차 공개 아님). u=null=최종
+  function _dashFill(u) {
+    const f = (u == null) ? 1 : Math.max(0, Math.min(1, u));
+    document.querySelectorAll("#fcDashBody .dash-cell[data-pct]").forEach(cell => {
+      const pct = +cell.getAttribute("data-pct"), col = cell.getAttribute("data-col") || "#46c28e";
+      const on = Math.round(pct * f / 100 * 10);
+      cell.querySelectorAll(".dseg i").forEach((t, i) => { t.style.background = i < on ? col : ""; });
+      if (cell.hasAttribute("data-fnum")) { const fn = +cell.getAttribute("data-fnum"), suf = cell.getAttribute("data-suf") || ""; const dv = cell.querySelector(".dval"); if (dv) dv.textContent = Math.round(fn * f) + suf; }
+    });
   }
   function playAnalysis() {
     if (_playing) { stopPlay(); return; }      // 토글: 재생 중 누르면 중단
@@ -6421,7 +6418,7 @@
         _lastCU = now;
         renderHorizons(lastResult, e);
         if (fin.verdict) renderVerdict(fin.verdict, e);
-        _revealDashRows(e);   // 타임프레임 매트릭스도 데모 진행 e에 맞춰 행을 순차 공개(빨리 차버리지 않게)
+        _dashFill(e);   // 타임프레임 매트릭스 게이지·값도 e에 맞춰 0→최종으로 채움
       }
       if (u < 1) { _playRaf = requestAnimationFrame(morph); return; }
       finishPlay();
@@ -6435,7 +6432,7 @@
       _playing = false; _playRaf = null;
       _playTimers.forEach(clearTimeout); _playTimers = [];
       _playReveal = { ids: null, u: 1 };                      // 시연 종료 → 전체 확정 표시
-      _revealDashRows(null);
+      _dashFill(null);
       renderChart(lastResult, currentData());
       if (fin.verdict) renderVerdict(fin.verdict);
       renderNodeAnalysis(lastResult); renderSignalBoard(); renderHorizons(lastResult);
