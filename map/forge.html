@@ -114,9 +114,15 @@
   .wboard .fc-pbody{max-height:none;padding:5px 9px}
   .wboard .fc-cv{height:78px}                 /* RSI·MACD·ADX·거래량 오실레이터 압축 */
   .wboard .fc-radar{height:220px}
-  .wboard .fc-panel{border-radius:var(--r-lg)}
   .wboard .fc-meta{font-size:10.5px}
-  .wboard .fc-panel .fc-t b{letter-spacing:.02em}
+  /* 정밀 계기: 보드 패널 = 카드 프레임 제거 → 헤어라인 룰 + 여백으로 섹션 구분(박스 다이어트) */
+  .wboard .fc-panel{background:transparent;border:0;border-radius:0;overflow:visible}
+  .wboard .fc-prow{border-top:1px solid var(--line);padding-top:14px}
+  .wboard .fc-prow:first-child{border-top:0;padding-top:2px}
+  .wboard .fc-phead{border-bottom:0;padding:0 2px 8px}
+  .wboard .fc-pbody{padding:2px}
+  .wboard .fc-panel .fc-t b{color:var(--ink);letter-spacing:-.01em;font-weight:700;font-size:11.5px}
+  .wboard .fc-head-left::before{content:"";width:2px;height:12px;background:var(--gold);border-radius:1px;flex:0 0 auto;margin-right:2px}   /* 섹션 마커(정밀 룰) */
   /* 패널 해석 배지 — 헤더 우측에 현재 판정을 색으로 */
   .fc-verdit{font-size:10.5px;font-weight:800;letter-spacing:-.01em;padding:1px 7px;border-radius:var(--r-lg);white-space:nowrap}
   .fc-verdit.up{color:#46c28e;background:rgba(70,194,142,.13)}
