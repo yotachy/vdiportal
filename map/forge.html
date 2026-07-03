@@ -83,6 +83,17 @@
   .wboard .fc-phead{padding:7px 10px}
   .wboard .fc-panel .fc-t{font-size:11.5px}
   .wboard .fc-pbody{max-height:none}
+  /* 지표 신호 한 줄 요약 */
+  .sig-list{display:flex;flex-direction:column}
+  .sig-row{display:grid;grid-template-columns:14px 66px 1fr 44px;align-items:center;gap:7px;padding:4px 2px;border-bottom:1px solid rgba(138,146,178,.08);font-size:11.5px}
+  .sig-row:last-child{border-bottom:0}
+  .sig-arw{font-size:10px;text-align:center}
+  .sig-arw.up{color:#46c28e}.sig-arw.dn{color:#e06a6a}.sig-arw.fl{color:var(--muted)}
+  .sig-name{color:var(--ink);font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sig-note{color:var(--eth);font-family:var(--mono);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sig-bar{height:5px;border-radius:3px;background:rgba(138,146,178,.16);overflow:hidden}
+  .sig-bar>i{display:block;height:100%;border-radius:3px}
+  .sig-bar>i.up{background:#46c28e}.sig-bar>i.dn{background:#e06a6a}.sig-bar>i.fl{background:var(--muted)}
   .wl-name{font-size:12.5px;color:var(--ink);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
   .wl-name:hover{color:var(--gold)}
   .wl-sig{margin:0}
@@ -1641,6 +1652,7 @@
     applyView();
     if (typeof renderTickerPanel === "function") renderTickerPanel();
     renderWeightList();
+    if (typeof renderSignalBoard === "function") renderSignalBoard();
   }
   /* ── 노드 가중치 접이식 한 줄 리스트(패널모드에서 카드 대체) ── */
   let _wlistOpen = false;   // 기본 접힘 — 헤더(버튼)로 펼침
@@ -1660,6 +1672,45 @@
     host.innerHTML = `<div class="wl-head" onclick="toggleWList()"><span>노드 가중치 · ${nodes.length}</span><span class="wl-caret">${_wlistOpen ? "▾" : "▸"}</span></div>
       <div class="wl-body">${rows || '<div class="na-empty" style="padding:16px 4px">사이드바 블록 도구로 지표를 추가하세요</div>'}</div>`;
     host.classList.toggle("collapsed", !_wlistOpen);
+  }
+  /* ── 지표 신호 한 줄 요약(보드 하단, 가중치 접힘 시) ── */
+  function _nodeBias(n, P) {
+    const p = n.params || {}, bt = n.blockType;
+    try {
+      switch (bt) {
+        case "ma": return ForgeCore.analyzeMA(P, { len: p.len || 20, ema: p.ema }).bias;
+        case "rsi": return ForgeCore.analyzeRSI(P, { period: p.period || 14 }).bias;
+        case "fib": return ForgeCore.analyzeFib(P, { len: p.len || 120, swing: ((p.swing != null ? p.swing : 5) / 100) }).bias;
+        case "elliott": return ForgeCore.analyzeElliott(P, { swing: ((p.swing != null ? p.swing : 3) / 100) }).bias;
+        case "volume": { const v = (Array.isArray(n.series) && n.series.length) ? n.series : ForgeCore.synthVolume(P); return ForgeCore.analyzeVolume(P, v).bias; }
+        case "bollinger": return ForgeCore.analyzeBollinger(P, { len: p.len || 20, k: p.k || 2 }).bias;
+        case "macd": return ForgeCore.analyzeMACD(P, { fast: p.fast || 12, slow: p.slow || 26, signal: p.signal || 9 }).bias;
+        case "adx": return ForgeCore.analyzeADX(P, { period: p.period || 14 }).bias;
+        case "volumeprofile": { const _vn = boardState.nodes.find(x => x.blockType === "volume"); const vv = (_vn && Array.isArray(_vn.series) && _vn.series.length === P.length) ? _vn.series : ForgeCore.synthVolume(P); return ForgeCore.analyzeVolumeProfile(P, vv, { len: p.len || 120, bins: p.bins || 24 }).bias; }
+        case "ichimoku": return ForgeCore.analyzeIchimoku(P, { tenkan: p.tenkan || 9, kijun: p.kijun || 26, senkouB: p.senkouB || 52, shift: p.shift || 26 }).bias;
+        case "structure": return ForgeCore.analyzeStructure(P, { swing: ((p.swing != null ? p.swing : 3) / 100) }).bias;
+        case "smc": return ForgeCore.analyzeSMC((currentData().candle) || []).bias;
+        case "cycle": return ForgeCore.analyzeCycle(P, { pmin: p.pmin || 10, pmax: p.pmax || 0 }).bias;
+        case "trend": { const r = ForgeCore.analyzeTrend(P); return Math.max(-1, Math.min(1, ((r.blend && r.blend.slopeLog) || 0) * 40)); }
+        default: return 0;   // atr(변동성)·phasefold(주기) = 방향 무관
+      }
+    } catch (e) { return 0; }
+  }
+  function renderSignalBoard() {
+    const wb = document.getElementById("wboard"); if (!wb) return;
+    let host = document.getElementById("wsignals");
+    if (!host) { host = document.createElement("div"); host.id = "wsignals"; host.className = "fc-panel"; wb.appendChild(host); }
+    const P = ((_fcLastData && _fcLastData.price) || (typeof currentData === "function" && currentData().price) || []);
+    const nodes = (typeof evIndicatorNodes === "function") ? evIndicatorNodes() : [];
+    if (!P || P.length < 2 || !nodes.length) { host.innerHTML = `<div class="fc-phead"><span class="fc-t"><b>지표 신호</b> · 현재 판정</span></div><div class="fc-pbody"><div class="na-empty" style="padding:14px 4px">분석 후 표시됩니다</div></div>`; return; }
+    const pLast = P[P.length - 1];
+    const rows = nodes.map(n => {
+      const bias = _nodeBias(n, P), dir = bias > 0.05 ? "up" : bias < -0.05 ? "dn" : "fl", mag = Math.round(Math.min(1, Math.abs(bias)) * 100);
+      let note = ""; try { const f = nodeExpert(n, lastResult, P, pLast); note = (f && f[0]) || ""; } catch (e) {}
+      const arw = dir === "up" ? "▲" : dir === "dn" ? "▼" : "–";
+      return `<div class="sig-row"><span class="sig-arw ${dir}">${arw}</span><span class="sig-name">${esc(BTLABEL[n.blockType] || n.blockType)}</span><span class="sig-note" title="${esc(note)}">${esc(note)}</span><span class="sig-bar"><i class="${dir}" style="width:${mag}%"></i></span></div>`;
+    }).join("");
+    host.innerHTML = `<div class="fc-phead"><span class="fc-t"><b>지표 신호</b> · 현재 판정</span></div><div class="fc-pbody"><div class="sig-list">${rows}</div></div>`;
   }
 
   /* ── measure ─────────────────────────────────────────────────── */
@@ -6157,6 +6208,7 @@
       if (lastResult && lastResult.verdict) renderVerdict(lastResult.verdict);
       updateEngineBtn();                      // "✓ 분석 HH:MM" 칩 갱신
       updateTuneBtn();                        // 가중치 튜닝 버튼 활성 표시(기본값이 아니면 골드)
+      if (typeof renderSignalBoard === "function") renderSignalBoard();   // 지표 신호 요약 갱신
     } catch (e) {
       console.warn("run", e);
       if (typeof bToast === "function") bToast(/cycle/.test(String(e && e.message)) ? "그래프 오류: 순환 연결" : "그래프 오류: 계산 실패");
