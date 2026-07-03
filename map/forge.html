@@ -685,6 +685,35 @@
   .opt-apply{padding:8px 14px;border-radius:9px;border:1px solid var(--gold);background:transparent;color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
   .opt-apply:hover{background:var(--gold);color:#1a1206}
   .opt-busy{padding:30px 12px;text-align:center;color:var(--gold);font-size:13px;font-family:var(--mono)}
+  /* 사이드바 블록도구 접기/펼치기 */
+  .side-h-toggle{cursor:pointer;user-select:none}
+  .side-caret{color:var(--eth);font-size:10px;transition:color .12s}
+  .side-h-toggle:hover .side-caret,.side-h-toggle:hover span{color:var(--ink)}
+  .tool-sec.collapsed .pal-side{display:none}
+  /* ── 모바일: 세로 스택 · 노드 1열 · 차트 전폭 ── */
+  @media (max-width: 860px) {
+    .forge-top{overflow-x:auto;overflow-y:hidden;gap:8px;padding:0 10px;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+    .forge-top>*{flex:0 0 auto}
+    .forge-shell{flex-direction:column;height:auto}
+    .forge-side{flex:0 0 auto;width:100%;border-right:none;border-bottom:1px solid var(--line);max-height:44vh;overflow-y:auto}
+    .forge-split{flex-direction:column;min-width:0}
+    .forge-gutter{display:none}
+    .board-pane{flex:0 0 auto;width:100%;min-width:0;height:auto;overflow:visible;border-bottom:2px solid var(--line)}
+    body.panel-mode .b-stage{flex:0 0 auto;height:auto;overflow:visible}
+    body.panel-mode .b-world{column-count:1;padding:10px 10px 18px}
+    body.panel-mode .b-n-thumb{height:64px}
+    .chart-pane{order:-1;flex:0 0 auto;width:100%;min-width:0;min-height:84vh;border-bottom:2px solid var(--line)}
+    .board-pane{order:1}
+    .fc-phead{flex-wrap:wrap;row-gap:6px}
+    .fc-head-right{flex-wrap:wrap;justify-content:flex-start}
+    .forge-palette{display:none}
+    body{overflow-x:hidden}
+  }
+  @media (max-width: 520px) {
+    .forge-side{max-height:38vh}
+    .chart-pane{min-height:78vh}
+    .pal-btn{font-size:12px;padding:7px 8px}
+  }
 </style>
 </head>
 <body>
@@ -1392,6 +1421,8 @@
   }
 
   /* ── 사이드바 + 문서 CRUD (Task 3) ─────────────────────────────── */
+  let _toolsOpen = !(typeof window !== "undefined" && window.innerWidth <= 860);   // 모바일 기본 접힘
+  function toggleTools() { _toolsOpen = !_toolsOpen; renderSidebar(); }
   function renderSidebar() {
     const el = document.getElementById("forgeSide"); if (!el) return;
     const docs = DOCS.map(d =>
@@ -1403,7 +1434,7 @@
     el.innerHTML =
       `<div class="side-sec"><div class="side-h"><span>포지</span></div>
          <div class="side-actions"><button class="side-btn" id="sampleDocBtn">＋ 샘플</button><button class="side-btn" id="newDocBtn">＋ 새 포지</button></div>${docs}</div>
-       <div class="side-sec"><div class="side-h"><span>블록 도구</span></div>
+       <div class="side-sec tool-sec${_toolsOpen ? "" : " collapsed"}"><div class="side-h side-h-toggle" onclick="toggleTools()" title="블록 도구 접기/펼치기"><span>블록 도구</span><span class="side-caret">${_toolsOpen ? "▾" : "▸"}</span></div>
          <div class="pal-side">` +
          BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker").map(d => `<button class="pal-btn" onclick="addBlock('${d.type}')">${d.label}</button>`).join("") +
          `<button class="pal-btn pal-free" onclick="addBlock('free')">메모</button>` +
