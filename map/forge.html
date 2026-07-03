@@ -690,8 +690,11 @@
   .side-caret{color:var(--eth);font-size:10px;transition:color .12s}
   .side-h-toggle:hover .side-caret,.side-h-toggle:hover span{color:var(--ink)}
   .tool-sec.collapsed .pal-side{display:none}
+  .doc-select{display:none;width:100%;background:#0b1016;border:1.5px solid var(--line);border-radius:8px;color:var(--ink);font-size:13px;padding:8px 10px;margin-top:2px}
   /* ── 모바일: 세로 스택 · 노드 1열 · 차트 전폭 ── */
   @media (max-width: 860px) {
+    .forge-side .doc-row{display:none}     /* 모바일: 개별 포지 행 숨김 → 드롭다운으로 간단 표기 */
+    .doc-select{display:block}
     .forge-top{overflow-x:auto;overflow-y:hidden;gap:8px;padding:0 10px;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
     .forge-top>*{flex:0 0 auto}
     .forge-shell{flex-direction:column;height:auto}
@@ -1430,7 +1433,8 @@
        </div>`).join("");
     el.innerHTML =
       `<div class="side-sec"><div class="side-h"><span>포지</span></div>
-         <div class="side-actions"><button class="side-btn" id="sampleDocBtn">＋ 샘플</button><button class="side-btn" id="newDocBtn">＋ 새 포지</button></div>${docs}</div>
+         <div class="side-actions"><button class="side-btn" id="sampleDocBtn">＋ 샘플</button><button class="side-btn" id="newDocBtn">＋ 새 포지</button></div>${docs}
+         <select class="doc-select" aria-label="포지 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === activeId ? " selected" : ""}>${esc(d.title || "제목 없음")}</option>`).join("")}</select></div>
        <div class="side-sec tool-sec${_toolsOpen ? "" : " collapsed"}"><div class="side-h side-h-toggle" onclick="toggleTools()" title="블록 도구 접기/펼치기"><span>블록 도구</span><span class="side-caret">${_toolsOpen ? "▾" : "▸"}</span></div>
          <div class="pal-side">` +
          BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker").map(d => `<button class="pal-btn" onclick="addBlock('${d.type}')">${d.label}</button>`).join("") +
