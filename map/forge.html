@@ -30,7 +30,7 @@
   .forge-top{display:flex;align-items:center;flex-wrap:wrap;gap:14px;min-height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
   .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
   .forge-split{display:flex;flex:1;min-width:0}
-  .board-pane{position:relative;flex:0 0 var(--board-w,700px);min-width:360px;overflow:hidden;display:flex;flex-direction:column}
+  .board-pane{position:relative;flex:0 0 var(--board-w,560px);min-width:320px;overflow:hidden;display:flex;flex-direction:column}
   .chart-pane{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
   /* 좌우 크기조절 거터 */
   .forge-gutter{flex:0 0 7px;background:var(--line);cursor:col-resize;position:relative;z-index:6;transition:background .12s}
@@ -248,8 +248,10 @@
   .fcv-prob .up{color:#46c28e}.fcv-prob .dn{color:#e06a6a;opacity:.82}
   .fcv-sig{font-size:12px;font-weight:600;color:var(--muted);font-family:var(--mono)}
   .fcv-op{flex:1;min-width:150px;font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .fc-verdict-bar.flash .fcv-reg,.fc-verdict-bar.flash .fcv-prob,.fc-verdict-bar.flash .fcv-op{animation:verdflash 1.1s ease-out}
+  .fc-verdict-bar.flash .fcv-prob,.fc-verdict-bar.flash .fcv-op{animation:verdflash 1.1s ease-out}
   @keyframes verdflash{0%{filter:brightness(2) drop-shadow(0 0 12px currentColor)}45%{filter:brightness(1.35)}100%{filter:none}}
+  .fcv-reg{animation:verdglow 2.6s ease-in-out infinite}   /* 국면 = 지속 은은한 발광(계속 강조) */
+  @keyframes verdglow{0%,100%{filter:drop-shadow(0 0 2px currentColor)}50%{filter:drop-shadow(0 0 11px currentColor) brightness(1.18)}}
   .chart-pane.editing .fc-verdict-bar{display:none!important}
   /* 타임프레임 매트릭스(일·주·월 비교) — 트레이딩 터미널 스타일 */
   #fcDashBody{padding:1px}
@@ -438,6 +440,8 @@
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
   .chart-pane.editing .fc-wrap{display:none}
   .chart-pane.editing .node-editor{display:flex}
+  .ne-back{align-self:flex-start;background:rgba(232,180,99,.14);border:1px solid var(--gold-dim);color:var(--gold);border-radius:8px;font-size:12.5px;font-weight:700;padding:7px 13px;cursor:pointer;font-family:inherit}
+  .ne-back:hover{background:rgba(232,180,99,.24);border-color:var(--gold)}
   .ne-head{display:flex;align-items:center;gap:8px}
   .ne-type{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--gold);background:rgba(232,180,99,.1);
     border:1px solid var(--gold-dim);border-radius:4px;padding:3px 7px;text-transform:uppercase;white-space:nowrap}
@@ -1983,7 +1987,8 @@
          <div class="pp-row"><label>현재가</label><input type="number" step="any" data-calp="np" value="${cal0.np ?? ""}" placeholder="최근 종가(현재선)"></div>`
       : "";
     panel.innerHTML =
-      `<div class="ne-head"><span class="ne-type">${esc(neTypeLabel(n))}</span>
+      `<button class="ne-back" onclick="deselectAll()" title="차트 결과로 돌아가기">← 차트로 돌아가기</button>
+       <div class="ne-head"><span class="ne-type">${esc(neTypeLabel(n))}</span>
          <input class="ne-title" id="neTitle" value="${esc(n.title || "")}" placeholder="노드 제목"></div>
        <div class="ne-img${hasImg ? "" : " empty"}" id="neImg" title="${hasImg ? "드래그 · Ctrl+V로 교체" : "클릭 · 드래그 · Ctrl+V로 이미지 추가"}">${imgInner}</div>
        <div class="ne-gutter" id="neImgGutter" title="드래그하여 이미지 영역 높이 조절 · 더블클릭 초기화"></div>
@@ -2860,8 +2865,8 @@
     c.beginPath(); c.moveTo(44, y0); c.lineTo(cw - 14, y0); c.stroke();
     c.setLineDash([]);
 
-    /* commonality curve */
-    c.strokeStyle = FC_ACC; c.lineWidth = 2.2;
+    /* commonality curve (가늘고 정밀하게) */
+    c.strokeStyle = FC_ACC; c.lineWidth = 1.4; c.lineJoin = "round";
     c.beginPath(); let st = false;
     for (let i = 0; i < SP.length; i++) {
       const v = comm[i];
@@ -2885,7 +2890,11 @@
     c.strokeStyle = "#fff"; c.lineWidth = 1.5; c.shadowColor = "#fff"; c.shadowBlur = 8;
     c.beginPath(); c.moveTo(xc, 12); c.lineTo(xc, ch - 26); c.stroke(); c.shadowBlur = 0;
     c.fillStyle = "#fff"; c.font = "10px ui-monospace,monospace";
-    c.fillText(bestP.toFixed(0) + " 주기", Math.min(xc + 4, cw - 52), 22);
+    c.fillText(bestP.toFixed(0) + "봉 주기", Math.min(xc + 4, cw - 58), 22);
+    // '읽는 법' 캡션(초보 인지성)
+    c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
+    c.fillStyle = "rgba(11,15,20,.6)"; c.fillRect(44, ch - 12, cw - 58, 12);
+    c.fillStyle = "#8892a8"; c.fillText("봉우리(%↑) = 그 주기가 뚜렷 · 흰선 = 지배 주기(가격이 반복되는 간격)", 46, ch - 3);
   }
 
   /* ── fcDrawRsi: RSI oscillator sub-panel (0–100) ── */
@@ -2956,7 +2965,13 @@
     [20, 40].forEach(lv => { const y = yOf(lv); c.beginPath(); c.moveTo(padL, y); c.lineTo(padL + plotW, y); c.stroke(); c.fillStyle = "#8a92b2"; c.font = "10px ui-monospace,monospace"; c.fillText(lv, padL + plotW + 3, y + 3); });
     c.setLineDash([]);
     const drawLine = (arr, col, wid) => { c.strokeStyle = col; c.lineWidth = wid; c.lineJoin = "round"; c.beginPath(); arr.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); };
-    drawLine(pDI, "#46c28e", 1.3); drawLine(mDI, "#e06a6a", 1.3); drawLine(adx, "#e8b463", 1.9);
+    drawLine(pDI, "#46c28e", 1.1); drawLine(mDI, "#e06a6a", 1.1); drawLine(adx, "#e8b463", 1.7);
+    // 끝점 라벨 + '읽는 법' 캡션(초보 인지성)
+    { const _le = adx.length - 1; c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
+      c.fillStyle = "#46c28e"; c.fillText("+DI", padL + plotW + 3, yOf(pDI[_le]) + 3);
+      c.fillStyle = "#e06a6a"; c.fillText("−DI", padL + plotW + 3, yOf(mDI[_le]) + 3);
+      c.fillStyle = "rgba(11,15,20,.6)"; c.fillRect(padL, ch - 12, 250, 12);
+      c.fillStyle = "#8892a8"; c.fillText("ADX선↑ = 추세 강함(25+) · +DI(초록)>−DI(빨강) = 상승 우위", padL + 1, ch - 3); }
     { const meta = document.getElementById("fcAdxMeta"); if (meta) { const strong = a.last.adx >= 40 ? "매우 강한 추세" : a.last.adx >= 25 ? "추세 형성" : "추세 약함(횡보)"; const weak = a.last.adx < 25; const ac = weak ? "fl" : a.dir > 0 ? "up" : a.dir < 0 ? "dn" : "fl"; const dir = a.dir > 0 ? " · 상승 우위" : a.dir < 0 ? " · 하락 우위" : ""; meta.innerHTML = "ADX " + a.last.adx.toFixed(0) + " <span class='fc-verdit " + ac + "'>" + strong + (weak ? "" : dir) + "</span>"; } } _osReveal(c, cw, ch, reveal);
   }
 
@@ -3418,17 +3433,17 @@
         let _cs = 0, _cw = 0; for (let k = 0; k < path.length; k++) { const wt = 1 / Math.sqrt(k + 1); _cs += _upProb(path[k], hi[k], anchor) * wt; _cw += wt; }
         const _upP = _cw ? _cs / _cw : 50, _cProb = Math.round(_pd > 0 ? (100 - _upP) : _upP);
         const _cCol = _pd > 0 ? "224,106,106" : "70,194,142";   // 메인 상승→반대 하락(적) / 메인 하락→반대 상승(녹)
-        const _cA = Math.max(0.16, Math.min(0.62, _cProb / 100 * 0.85));   // 확률 낮을수록 더 희미(최소 0.16 유지)
+        const _cA = Math.max(0.34, Math.min(0.8, _cProb / 100 * 1.15));   // 반대선 ~80% 강조(확률 반영, 최소 0.34)
         const _yA = toY(anchor), _yT = padTop + 4, _yB = ch - padBot - 4;   // 화면-Y 반사(로그/음수가 안전) + 화면에 맞게 스케일
         const _yRawEnd = 2 * _yA - toY(path[path.length - 1]);
         let _cSc = 1; if (_yRawEnd > _yB) _cSc = (_yB - _yA) / (_yRawEnd - _yA); else if (_yRawEnd < _yT) _cSc = (_yT - _yA) / (_yRawEnd - _yA);
         _cSc = Math.max(0, Math.min(1, _cSc));
         const _cY = k => _yA + ((2 * _yA - toY(path[k])) - _yA) * _cSc;
         c.save();
-        c.strokeStyle = "rgba(" + _cCol + "," + _cA + ")"; c.lineWidth = 1.6; c.setLineDash([5, 4]);
+        c.strokeStyle = "rgba(" + _cCol + "," + _cA + ")"; c.lineWidth = 2; c.lineJoin = "round"; c.setLineDash([5, 4]); c.shadowColor = "rgba(" + _cCol + ",.35)"; c.shadowBlur = 4;
         c.beginPath(); c.moveTo(seamX, _yA);
         for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), _cY(k));
-        c.stroke(); c.setLineDash([]);
+        c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
         const _cey = _cY(path.length - 1);
         c.fillStyle = "rgba(" + _cCol + "," + Math.min(0.65, _cA + 0.18) + ")"; c.beginPath(); c.arc(coneR, _cey, 2.3, 0, 7); c.fill();
         c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right";
@@ -5753,11 +5768,11 @@
     const gutter = document.getElementById("forgeGutter");
     const chart = document.getElementById("chartPane");
     if (!split || !gutter || !chart) return;
-    const DEFW = 700, MINB = 360, MINC = 320;
+    const DEFW = 560, MINB = 320, MINC = 340;
     const board = document.getElementById("boardPane");
     let saved = null; try { saved = localStorage.getItem("scoopforge_board_w"); } catch (_) {}
     // 매트릭스가 겹치지 않게 최소 폭 확보 — 과거에 저장된 좁은 값(<620px)은 무시하고 기본(넓게) 사용
-    if (saved && parseInt(saved, 10) >= 620 && board) board.style.flexBasis = saved;
+    if (saved && parseInt(saved, 10) >= 380 && parseInt(saved, 10) <= 760 && board) board.style.flexBasis = saved;
     let dragging = false;
     function persist() { try { if (board) localStorage.setItem("scoopforge_board_w", board.style.flexBasis || (DEFW + "px")); } catch (_) {} }
     gutter.addEventListener("pointerdown", e => { dragging = true; gutter.classList.add("dragging"); try { gutter.setPointerCapture(e.pointerId); } catch (_) {} document.body.style.userSelect = "none"; e.preventDefault(); });
