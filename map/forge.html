@@ -698,12 +698,8 @@
     .forge-side{flex:0 0 auto;width:100%;border-right:none;border-bottom:1px solid var(--line);max-height:44vh;overflow-y:auto}
     .forge-split{flex-direction:column;min-width:0}
     .forge-gutter{display:none}
-    .board-pane{flex:0 0 auto;width:100%;min-width:0;height:auto;overflow:visible;border-bottom:2px solid var(--line)}
-    body.panel-mode .b-stage{flex:0 0 auto;height:auto;overflow:visible}
-    body.panel-mode .b-world{column-count:1;padding:10px 10px 18px}
-    body.panel-mode .b-n-thumb{height:64px}
-    .chart-pane{order:-1;flex:0 0 auto;width:100%;min-width:0;min-height:84vh;border-bottom:2px solid var(--line)}
-    .board-pane{order:1}
+    .board-pane{display:none}   /* 모바일: 개별 노드 카드 숨김 — 가중치는 ⚖ 가중치 모달로 조절, 블록 추가는 사이드바 도구로 */
+    .chart-pane{flex:0 0 auto;width:100%;min-width:0;min-height:84vh}
     .fc-phead{flex-wrap:wrap;row-gap:6px}
     .fc-head-right{flex-wrap:wrap;justify-content:flex-start}
     .forge-palette{display:none}
