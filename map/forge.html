@@ -2881,7 +2881,14 @@
   }
 
   /* ── fcDrawRsi: RSI oscillator sub-panel (0–100) ── */
-  function fcDrawRsi(rsi) {
+  // 오실레이터 '계산되는 중' 효과 — 그려진 그림의 우측(미공개)을 지우고 진행 선단에 글로우. reveal 0→1
+  function _osReveal(c, cw, ch, reveal) {
+    if (reveal == null || reveal >= 1) return;
+    const rx = cw * Math.max(0, Math.min(1, reveal));
+    c.clearRect(rx, 0, cw - rx + 3, ch + 3);
+    c.save(); c.fillStyle = FC_ACC; c.shadowColor = FC_ACC; c.shadowBlur = 9; c.fillRect(rx - 1.4, 2, 2.4, ch - 4); c.restore();
+  }
+  function fcDrawRsi(rsi, reveal) {
     const cv = document.getElementById("fcRsi"); if (!cv) return;
     const ch = cv.clientHeight || 120, c = fcFit(cv, ch), cw = cv.clientWidth || 400;
     c.clearRect(0, 0, cw, ch);
@@ -2908,11 +2915,11 @@
       const col = rsi.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
       rsi.divergence.pricePts.forEach(p => { const i = p.idx; if (i < 0 || i >= s.length) return; const x = xOf(i), y = yOf(s[i]); c.fillStyle = col; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); });
     }
-    { const meta = document.getElementById("fcRsiMeta"); if (meta) { const z = rsi.zone === "overbought" ? ["과열 · 되돌림 주의", "dn"] : rsi.zone === "oversold" ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "RSI " + Math.round(rsi.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>"; } }
+    { const meta = document.getElementById("fcRsiMeta"); if (meta) { const z = rsi.zone === "overbought" ? ["과열 · 되돌림 주의", "dn"] : rsi.zone === "oversold" ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "RSI " + Math.round(rsi.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>"; } } _osReveal(c, cw, ch, reveal);
   }
 
   /* ── fcDrawMacd: MACD 서브패널 (히스토그램 + MACD/시그널 라인 + 0선) ── */
-  function fcDrawMacd(m) {
+  function fcDrawMacd(m, reveal) {
     const cv = document.getElementById("fcMacd"); if (!cv) return;
     const ch = cv.clientHeight || 120, c = fcFit(cv, ch), cw = cv.clientWidth || 400;
     c.clearRect(0, 0, cw, ch);
@@ -2926,10 +2933,10 @@
     for (let i = 0; i < hist.length; i++) { const x = xOf(i), y0 = yOf(0), y = yOf(hist[i]); c.fillStyle = hist[i] >= 0 ? "rgba(70,194,142,.55)" : "rgba(224,106,106,.55)"; c.fillRect(x - bw / 2, Math.min(y0, y), bw, Math.abs(y - y0) || 1); }
     const drawLine = (arr, col, wid) => { c.strokeStyle = col; c.lineWidth = wid; c.lineJoin = "round"; c.beginPath(); arr.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); };
     drawLine(macd, "#e0a86a", 1.7); drawLine(sig, "#8fb4f0", 1.4);
-    { const meta = document.getElementById("fcMacdMeta"); if (meta) { const g = m.bias > 0.1 ? [((m.cross && m.cross.type === "golden") ? "골든크로스 · " : "") + "상승 모멘텀", "up"] : m.bias < -0.1 ? [((m.cross && m.cross.type === "dead") ? "데드크로스 · " : "") + "하락 모멘텀", "dn"] : ["모멘텀 중립", "fl"]; meta.innerHTML = "Hist " + (m.last.hist >= 0 ? "+" : "") + m.last.hist.toFixed(1) + " <span class='fc-verdit " + g[1] + "'>" + g[0] + "</span>"; } }
+    { const meta = document.getElementById("fcMacdMeta"); if (meta) { const g = m.bias > 0.1 ? [((m.cross && m.cross.type === "golden") ? "골든크로스 · " : "") + "상승 모멘텀", "up"] : m.bias < -0.1 ? [((m.cross && m.cross.type === "dead") ? "데드크로스 · " : "") + "하락 모멘텀", "dn"] : ["모멘텀 중립", "fl"]; meta.innerHTML = "Hist " + (m.last.hist >= 0 ? "+" : "") + m.last.hist.toFixed(1) + " <span class='fc-verdit " + g[1] + "'>" + g[0] + "</span>"; } } _osReveal(c, cw, ch, reveal);
   }
   /* ── fcDrawAdx: ADX/DMI 서브패널 (ADX + +DI/-DI + 20/40 임계선) ── */
-  function fcDrawAdx(a) {
+  function fcDrawAdx(a, reveal) {
     const cv = document.getElementById("fcAdx"); if (!cv) return;
     const ch = cv.clientHeight || 120, c = fcFit(cv, ch), cw = cv.clientWidth || 400;
     c.clearRect(0, 0, cw, ch);
@@ -2942,11 +2949,11 @@
     c.setLineDash([]);
     const drawLine = (arr, col, wid) => { c.strokeStyle = col; c.lineWidth = wid; c.lineJoin = "round"; c.beginPath(); arr.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); };
     drawLine(pDI, "#46c28e", 1.3); drawLine(mDI, "#e06a6a", 1.3); drawLine(adx, "#e8b463", 1.9);
-    { const meta = document.getElementById("fcAdxMeta"); if (meta) { const strong = a.last.adx >= 40 ? "매우 강한 추세" : a.last.adx >= 25 ? "추세 형성" : "추세 약함(횡보)"; const weak = a.last.adx < 25; const ac = weak ? "fl" : a.dir > 0 ? "up" : a.dir < 0 ? "dn" : "fl"; const dir = a.dir > 0 ? " · 상승 우위" : a.dir < 0 ? " · 하락 우위" : ""; meta.innerHTML = "ADX " + a.last.adx.toFixed(0) + " <span class='fc-verdit " + ac + "'>" + strong + (weak ? "" : dir) + "</span>"; } }
+    { const meta = document.getElementById("fcAdxMeta"); if (meta) { const strong = a.last.adx >= 40 ? "매우 강한 추세" : a.last.adx >= 25 ? "추세 형성" : "추세 약함(횡보)"; const weak = a.last.adx < 25; const ac = weak ? "fl" : a.dir > 0 ? "up" : a.dir < 0 ? "dn" : "fl"; const dir = a.dir > 0 ? " · 상승 우위" : a.dir < 0 ? " · 하락 우위" : ""; meta.innerHTML = "ADX " + a.last.adx.toFixed(0) + " <span class='fc-verdit " + ac + "'>" + strong + (weak ? "" : dir) + "</span>"; } } _osReveal(c, cw, ch, reveal);
   }
 
   /* ── fcDrawVol: 거래량 막대 서브패널 (상승하락색·급증골드·OBV라인) ── */
-  function fcDrawVol(va) {
+  function fcDrawVol(va, reveal) {
     const cv = document.getElementById("fcVol"); if (!cv) return;
     const cw = cv.clientWidth || 300, ch = cv.clientHeight || 120;
     const c = fcFit(cv, ch); c.clearRect(0, 0, cw, ch);
@@ -2971,7 +2978,7 @@
       c.stroke();
     }
     // 상태 라벨
-    { const meta = document.getElementById("fcVolMeta"); if (meta) { const st = va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이"; const oc = va.obvTrend > 0.1 ? ["OBV 상승 확인", "up"] : va.obvTrend < -0.1 ? ["OBV 하락", "dn"] : ["OBV 횡보", "fl"]; meta.innerHTML = st + " " + va.ratio.toFixed(2) + "x <span class='fc-verdit " + oc[1] + "'>" + oc[0] + "</span>"; } }
+    { const meta = document.getElementById("fcVolMeta"); if (meta) { const st = va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이"; const oc = va.obvTrend > 0.1 ? ["OBV 상승 확인", "up"] : va.obvTrend < -0.1 ? ["OBV 하락", "dn"] : ["OBV 횡보", "fl"]; meta.innerHTML = st + " " + va.ratio.toFixed(2) + "x <span class='fc-verdit " + oc[1] + "'>" + oc[0] + "</span>"; } } _osReveal(c, cw, ch, reveal);
   }
 
   /* ── fcDrawFold: phase-fold trace (port of chart.html drawFold()) ── */
@@ -6294,6 +6301,17 @@
   const _sigOf = s => (s.signal && s.signal.length) ? s.signal[s.signal.length - 1] : 0;
   /* 동시 분석: 모든 지표가 각자의 가중치·근거로 동시에 의견을 내고, 마지막에 버무려 '포지'가 형성된다.
      (순차 파이프라인이 아니라 '의회/은하' 모델 — 중심의 포지가 주변 지표를 종합) */
+  // 시연: 오실레이터(RSI·거래량·MACD·ADX)를 진행도 r(0→1)에 맞춰 좌→우로 '계산되며 그려지는' 효과
+  function _redrawOscForPlay(r) {
+    const price = (currentData().price) || []; if (price.length < 2) return;
+    let n;
+    try {
+      if ((n = boardState.nodes.find(x => x.blockType === "rsi"))) fcDrawRsi(_an("RSI", price, { period: (n.params && n.params.period) || 14 }), r);
+      if ((n = boardState.nodes.find(x => x.blockType === "volume"))) fcDrawVol(_anVolume(price), r);
+      if ((n = boardState.nodes.find(x => x.blockType === "macd"))) fcDrawMacd(_an("MACD", price, { fast: (n.params && n.params.fast) || 12, slow: (n.params && n.params.slow) || 26, signal: (n.params && n.params.signal) || 9 }), r);
+      if ((n = boardState.nodes.find(x => x.blockType === "adx"))) fcDrawAdx(_an("ADX", price, { period: (n.params && n.params.period) || 14 }), r);
+    } catch (e) {}
+  }
   // 타임프레임 매트릭스 행을 데모 진행 u(0→1)에 맞춰 순차 공개 — u=null이면 전체 표시(종료)
   function _revealDashRows(u) {
     const rows = document.querySelectorAll("#fcDashBody .dash-table tbody tr");
@@ -6330,6 +6348,7 @@
     // 차트 외 시각화 초기화: 레이더·신호보드 전부 흐리게(아직 계산 전), 예측·국면은 0에서 형성
     _playReveal = { ids: new Set(), u: 0 };
     renderNodeAnalysis(lastResult); renderSignalBoard();
+    _redrawOscForPlay(0);   // 오실레이터 비우고 시작 → 데모 진행에 맞춰 좌→우로 그려짐
     const _lg0 = document.getElementById("analyzeLog"); if (_lg0) { const _lb0 = document.getElementById("analyzeLogBody"); if (_lb0) _lb0.innerHTML = ""; _lg0.classList.remove("on"); }
     const hud = document.getElementById("playHud"); if (hud) hud.classList.add("on");
     const progEl = document.getElementById("analyzeProg");
@@ -6393,6 +6412,7 @@
       if (!_playing) return;
       const u = Math.min(1, (now - t0) / total), e = _ease(u);
       _scanU = e; drawEvidence();   // 손그림 진행도 반영 — 모든 도구가 동시에 그어짐
+      _redrawOscForPlay(e);         // RSI·거래량·MACD·ADX도 같은 진행도로 계산되며 그려짐(메인 차트와 동기)
       const ip = lerpPred(flat, finPred, e);
       fcRenderForecast(ip);
       // 동적 계산 효과: 예측 시점별·국면·확률·목표가가 현재가/중립에서 최종으로 '게이지 차듯' 단조 충전(진행 e에 정합, 왔다갔다 없음)
