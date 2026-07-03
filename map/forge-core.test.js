@@ -377,9 +377,9 @@ test("sampleSeries: deterministic, 480 pts, net uptrend with mid correction", ()
   assert.ok(a[479] > mean20);
 });
 
-test("sampleGraph: 17 nodes, DAG runs, descriptions are truthful, bullish net", () => {
+test("sampleGraph: 19 nodes, DAG runs, descriptions are truthful, bullish net", () => {
   const g = ForgeCore.sampleGraph();
-  assert.strictEqual(g.nodes.length, 17);
+  assert.strictEqual(g.nodes.length, 19);
   const tk = g.nodes.find(n => n.blockType === "ticker");
   assert.ok(tk && tk.params && tk.params.symbol === "BTC-USD", "샘플에 BTC-USD 티커 노드");
   assert.strictEqual(g.themeImgId, "smp_main");
@@ -1216,4 +1216,31 @@ test("run: 볼륨프로파일/일목 노드가 예측에 반영(격리)", () => 
   const withInd = { nodes: base.nodes.concat([{ id: "vp", kind: "block", blockType: "volumeprofile" }, { id: "ic", kind: "block", blockType: "ichimoku" }]), edges: base.edges.concat([{ from: "vp", to: "pr" }, { from: "ic", to: "pr" }]) };
   const r0 = ForgeCore.run(base, { price }, { futW: 24 }), r1 = ForgeCore.run(withInd, { price }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-6, "지표 추가로 예측 달라짐");
+});
+
+/* ── 신규 지표: 시장구조 · ATR + 컨플루언스 ── */
+test("analyzeStructure: 상승구조 → trend up, bias>0; steps 5줄", () => {
+  const st = ForgeCore.analyzeStructure(_up(160, 0.006), { swing: 0.03 });
+  assert.ok(["up", "down", "none"].includes(st.trend));
+  assert.ok(st.bias > 0, "상승추세 bias>0");
+  assert.strictEqual(ForgeCore.structureSteps(st).length, 5);
+});
+test("analyzeStructure: 하락구조 bias<0, 짧으면 EMPTY", () => {
+  assert.ok(ForgeCore.analyzeStructure(_up(160, -0.006), {}).bias < 0);
+  assert.strictEqual(ForgeCore.analyzeStructure([1, 2, 3], {}).trend, "none");
+});
+test("analyzeATR: atr/pct/손절 + bias 0(방향무관); steps 5줄", () => {
+  const at = ForgeCore.analyzeATR(_up(120, 0.005), { period: 14, mult: 2 });
+  assert.ok(at.last > 0 && at.pct > 0, "ATR 양수");
+  assert.strictEqual(at.bias, 0, "ATR은 방향 무관(bias 0)");
+  assert.ok(at.stopLong < at.stopShort, "롱손절<숏손절");
+  assert.strictEqual(ForgeCore.atrSteps(at, 14).length, 5);
+});
+test("run: 시장구조 노드가 예측 반영 + ATR이 콘 폭 확대 + verdict.confluence", () => {
+  const price = _up(170, 0.005);
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price }, { futW: 24 });
+  assert.ok(r0.verdict.confluence && typeof r0.verdict.confluence.score === "number", "verdict.confluence 존재");
+  const withSt = { nodes: base.nodes.concat([{ id: "st", kind: "block", blockType: "structure" }]), edges: base.edges.concat([{ from: "st", to: "pr" }]) };
+  assert.ok(Math.abs(ForgeCore.run(withSt, { price }, { futW: 24 }).prediction.target - r0.prediction.target) > 1e-6, "시장구조로 예측 달라짐");
 });

@@ -265,6 +265,10 @@
         values[id] = vpSeries(ins[0] || data.price, null, (n.params && n.params.len) || 120, (n.params && n.params.bins) || 24);
       } else if (n.blockType === "ichimoku") {
         values[id] = ichiSeries(ins[0] || data.price, (n.params && n.params.tenkan) || 9, (n.params && n.params.kijun) || 26, (n.params && n.params.senkouB) || 52, (n.params && n.params.shift) || 26);
+      } else if (n.blockType === "structure") {
+        values[id] = structSeries(ins[0] || data.price, ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100);
+      } else if (n.blockType === "atr") {
+        values[id] = atrSeries(ins[0] || data.price, (n.params && n.params.period) || 14);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -1048,6 +1052,70 @@
     ];
   }
 
+  /* ── 시장구조(Market Structure · BOS/CHoCH) ── */
+  function analyzeStructure(price, opts) {
+    opts = opts || {};
+    const swing = opts.swing != null ? opts.swing : 0.03, P = price.length;
+    const EMPTY = { swings: [], trend: "none", event: "none", swingHigh: null, swingLow: null, bias: 0 };
+    if (P < 12) return EMPTY;
+    const sw = detectSwings(price, swing); if (sw.length < 4) return EMPTY;
+    const pts = sw.map((s, i) => ({ idx: s.idx, price: s.price, type: (i > 0 ? (s.price > sw[i - 1].price ? "H" : "L") : (s.price > sw[1].price ? "H" : "L")) }));
+    const highs = pts.filter(p => p.type === "H"), lows = pts.filter(p => p.type === "L");
+    const lastH = highs[highs.length - 1] || null, prevH = highs[highs.length - 2] || null;
+    const lastL = lows[lows.length - 1] || null, prevL = lows[lows.length - 2] || null;
+    let trend = "none";
+    const hUp = (lastH && prevH) ? Math.sign(lastH.price - prevH.price) : 0;   // 고점 상승/하락
+    const lUp = (lastL && prevL) ? Math.sign(lastL.price - prevL.price) : 0;   // 저점 상승/하락
+    const vote = hUp + lUp;
+    if (vote > 0) trend = "up"; else if (vote < 0) trend = "down";
+    else { const nP = pts.length, net = pts[nP - 1].price - pts[Math.max(0, nP - 4)].price; trend = net > 0 ? "up" : net < 0 ? "down" : "none"; }   // 불명확 시 최근 스윙 넷 방향
+    const last = price[P - 1], refH = lastH ? lastH.price : Infinity, refL = lastL ? lastL.price : -Infinity;
+    let event = "none";
+    if (last > refH) event = trend === "down" ? "CHoCH_up" : "BOS_up";
+    else if (last < refL) event = trend === "up" ? "CHoCH_down" : "BOS_down";
+    let bias = event === "BOS_up" ? 0.6 : event === "BOS_down" ? -0.6 : event === "CHoCH_up" ? 0.5 : event === "CHoCH_down" ? -0.5 : (trend === "up" ? 0.3 : trend === "down" ? -0.3 : 0);
+    bias = Math.max(-1, Math.min(1, bias));
+    return { swings: pts, trend, event, swingHigh: lastH, swingLow: lastL, bias };
+  }
+  function structSeries(price, swing) { const st = analyzeStructure(price, { swing }); const h = st.swingHigh ? st.swingHigh.price : null, l = st.swingLow ? st.swingLow.price : null; if (h == null || l == null || h <= l) return price.map(() => 0); const mid = (h + l) / 2, rng = (h - l) || 1; return price.map(p => Math.max(-1, Math.min(1, Math.tanh((p - mid) / rng * 2)))); }
+  function structureSteps(st) {
+    const tr = st.trend === "up" ? "상승 구조(고점·저점 상승)" : st.trend === "down" ? "하락 구조(고점·저점 하락)" : "구조 불명확(횡보)";
+    const ev = st.event === "BOS_up" ? "BOS 상향 — 상승 지속" : st.event === "BOS_down" ? "BOS 하향 — 하락 지속" : st.event === "CHoCH_up" ? "CHoCH 상향 — 반전 신호" : st.event === "CHoCH_down" ? "CHoCH 하향 — 반전 신호" : "구조 이벤트 없음";
+    return [
+      "시장구조 산출(스윙 고·저점)",
+      tr,
+      ev,
+      "직전 스윙 고 " + nfmt(st.swingHigh ? st.swingHigh.price : null) + " / 저 " + nfmt(st.swingLow ? st.swingLow.price : null),
+      "종합 방향 " + (st.bias > 0.1 ? "상승" : st.bias < -0.1 ? "하락" : "중립") + " (bias " + st.bias.toFixed(2) + ")"
+    ];
+  }
+
+  /* ── ATR(변동성) — 종가기반 근사(TR=|Δclose|) ── */
+  function analyzeATR(price, opts) {
+    opts = opts || {};
+    const period = opts.period || 14, mult = opts.mult || 2, P = price.length;
+    const EMPTY = { atr: [], last: 0, pct: 0, stopLong: null, stopShort: null, avg: 0, regime: "normal", mult, bias: 0 };
+    if (P < period + 2) return EMPTY;
+    const tr = [0]; for (let i = 1; i < P; i++) tr.push(Math.abs(price[i] - price[i - 1]));
+    const atr = new Array(P).fill(0); let s = 0; for (let i = 1; i <= period; i++) s += tr[i]; let prev = s / period; atr[period] = prev;
+    for (let i = period + 1; i < P; i++) { prev = (prev * (period - 1) + tr[i]) / period; atr[i] = prev; }
+    const last = price[P - 1], a = atr[P - 1], pct = last ? a / last * 100 : 0;
+    const win = atr.slice(Math.max(period, P - period * 3)).filter(x => x > 0), avg = win.length ? win.reduce((x, y) => x + y, 0) / win.length : a;
+    const regime = a > avg * 1.3 ? "expanding" : a < avg * 0.7 ? "contracting" : "normal";
+    return { atr, last: a, pct, stopLong: last - mult * a, stopShort: last + mult * a, avg, regime, mult, bias: 0 };
+  }
+  function atrSeries(price, period) { return price.map(() => 0); }   // 변동성 지표 — 방향 신호 없음(콘 폭·손절에 기여)
+  function atrSteps(at, period) {
+    const rg = at.regime === "expanding" ? "확장(변동성↑·리스크↑)" : at.regime === "contracting" ? "수축(변동성↓·돌파 대기)" : "보통";
+    return [
+      "ATR 변동성 산출(" + period + ")",
+      "ATR " + nfmt(at.last) + " (" + at.pct.toFixed(1) + "%/봉)",
+      "변동성 국면 " + rg,
+      "손절 기준 롱 " + nfmt(at.stopLong) + " / 숏 " + nfmt(at.stopShort),
+      "방향 무관(변동성) · 예측 콘 폭·손절 산정에 반영"
+    ];
+  }
+
   function run(graph, data, opts) {
     const futW = Math.min(((opts && opts.futW) || 24), 60);   // 예측 horizon 상한(과도한 장기 외삽 방지)
     const ev = evalBlocks(graph, data), { values, meta } = ev;
@@ -1094,7 +1162,7 @@
     const theta = 0.045;                            // 평균회귀 속도(반감기 ~15봉)
     const tauM = Math.max(3, futW * 0.4);           // 모멘텀 감쇠 시정수
     const sigDriftTotal = (lastSig / 100) * 0.28;   // 신호 방향 누적 드리프트(만점 ±28%)
-    const sigBand = Math.max(0.02, Math.min(sigma, 0.18));   // 밴드 변동성 상한 0.18(고변동주의 실제 변동폭 반영)
+    let sigBand = Math.max(0.02, Math.min(sigma, 0.18));   // 밴드 변동성 상한 0.18(고변동주의 실제 변동폭 반영)
     /* 계절성(주기) 성분 — phasefold 노드가 검출한 지배주기를 예측에 직접 반영(chart.html 시즌 형상).
        로그가격 추세 잔차의 위상별 평균 형상을 미래 위상에 투영. 신뢰도(정합 θ↓·FFT 피크↑)로 진폭 스케일. */
     let seasFn = null, seasInfo = null;
@@ -1155,6 +1223,12 @@
     const _icn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "ichimoku");
     const _ic = _icn ? analyzeIchimoku(price, { tenkan: (_icn.params && _icn.params.tenkan) || 9, kijun: (_icn.params && _icn.params.kijun) || 26, senkouB: (_icn.params && _icn.params.senkouB) || 52, shift: (_icn.params && _icn.params.shift) || 26 }) : null;
     const icDrift = _ic ? _ic.bias * _prof.trendScale * 0.07 : 0;   // 일목 구름/전환기준 방향(±7%)
+    const _stn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "structure");
+    const _struct = _stn ? analyzeStructure(price, { swing: ((_stn.params && _stn.params.swing) != null ? _stn.params.swing : 3) / 100 }) : null;
+    const stDrift = _struct ? _struct.bias * _prof.trendScale * 0.08 : 0;   // 시장구조 BOS/CHoCH 방향(±8%)
+    const _atn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "atr");
+    const _atr = _atn ? analyzeATR(price, { period: (_atn.params && _atn.params.period) || 14, mult: (_atn.params && _atn.params.mult) || 2 }) : null;
+    if (_atr && _atr.pct) sigBand = Math.max(sigBand, Math.min(0.18, (_atr.pct / 100) * 0.85));   // ATR 노드: 변동성을 예측 콘 폭에 반영
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1166,18 +1240,23 @@
       const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW) + stDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
     }
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
+    // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율
+    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);
+    const _cdir = lastSig > 0 ? 1 : lastSig < 0 ? -1 : (_allBias.reduce((a, b) => a + b, 0) >= 0 ? 1 : -1);
+    const _agree = _allBias.filter(b => (b > 0 ? 1 : -1) === _cdir).length;
+    const confluence = { score: _allBias.length ? Math.round(_agree / _allBias.length * 100) : 0, agree: _agree, total: _allBias.length };
     const target = path[path.length - 1];                  // 예측 horizon 끝값
     const invIdx = Math.min(2, futW - 1);                  // 근단기 반대 밴드 = 무효화 기준
     const invalidation = regime === "bear" ? hi[invIdx] : lo[invIdx];
     return {
       values, meta, prediction: { path, lo, hi, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
-      verdict: { regime, score: Math.round(lastSig), target, invalidation }
+      verdict: { regime, score: Math.round(lastSig), target, invalidation, confluence }
     };
   }
 
@@ -1236,6 +1315,8 @@
       { id: "s_adx",   kind: "block", blockType: "adx",       params: { period: 14 },     x: 320, y: 290, title: "ADX 추세강도", conviction: 30, weight: 55, desc: "ADX 상승 · +DI 우세 — 상승 추세 강함" },
       { id: "s_vprof", kind: "block", blockType: "volumeprofile", params: { len: 120, bins: 24 }, x: 320, y: 295, title: "볼륨 프로파일", conviction: 20, weight: 50, desc: "현재가가 밸류에어리어 상단 — 매물 소화 후 상승 수용" },
       { id: "s_ichi",  kind: "block", blockType: "ichimoku",  params: { tenkan: 9, kijun: 26, senkouB: 52, shift: 26 }, x: 320, y: 297, title: "일목균형표", conviction: 30, weight: 55, desc: "구름 위 · 양운 · 전환>기준 — 상승 정렬" },
+      { id: "s_struct",kind: "block", blockType: "structure", params: { swing: 3 },        x: 320, y: 298, title: "시장구조", conviction: 25, weight: 55, desc: "고점·저점 상승 구조 · BOS 상향 — 상승 지속" },
+      { id: "s_atr",   kind: "block", blockType: "atr",       params: { period: 14, mult: 2 }, x: 320, y: 299, title: "ATR 변동성", conviction: 0, weight: 50, desc: "변동성 보통 — 예측 콘 폭·손절 기준(방향 무관)" },
       { id: "s_fib",   kind: "block", blockType: "fib",       params: { len: 120 },       x: 320, y: 300, title: "피보나치",    conviction: 30,  weight: 50, thumb: T("smp_fib", "Fib"),     desc: "조정 구간 저점 반등 — 단기 범위 하단 지지" },
       { id: "s_trend", kind: "block", blockType: "trend",     params: { len: 40 },        x: 320, y: 400, title: "추세선",      conviction: 35,  weight: 70, thumb: T("smp_trend", "Trend"), desc: "상승 회귀선 — 우상향 추세 유지" },
       { id: "s_ell",   kind: "block", blockType: "elliott",   params: { swing: 3 },       x: 320, y: 500, title: "엘리어트",    conviction: 25,  weight: 55, thumb: T("smp_elliott", "Wave"),desc: "파동 구간 분석 — 추세 전환점 추정" },
@@ -1249,10 +1330,10 @@
       E("s_price", "s_ma"), E("s_price", "s_wave"), E("s_price", "s_rsi"),
       E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"), E("s_price", "s_vol"),
       E("s_price", "s_boll"), E("s_price", "s_macd"), E("s_price", "s_adx"),
-      E("s_price", "s_vprof"), E("s_price", "s_ichi"),
+      E("s_price", "s_vprof"), E("s_price", "s_ichi"), E("s_price", "s_struct"), E("s_price", "s_atr"),
       E("s_ma", "s_comb"), E("s_wave", "s_comb"), E("s_rsi", "s_comb"),
       E("s_boll", "s_comb"), E("s_macd", "s_comb"), E("s_adx", "s_comb"),
-      E("s_vprof", "s_comb"), E("s_ichi", "s_comb"),
+      E("s_vprof", "s_comb"), E("s_ichi", "s_comb"), E("s_struct", "s_comb"), E("s_atr", "s_comb"),
       E("s_fib", "s_comb"), E("s_trend", "s_comb"), E("s_ell", "s_comb"), E("s_vol", "s_comb"),
       E("s_comb", "s_pred")
     ];
@@ -1266,5 +1347,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps };
 });
