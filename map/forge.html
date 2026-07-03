@@ -482,7 +482,12 @@
   .forge-side .pal-side{display:flex;flex-direction:column;gap:5px}
   .forge-side .pal-side .pal-btn{display:block;width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;white-space:nowrap;transition:background .1s,border-color .1s}
   .forge-side .pal-side .pal-btn:hover{background:var(--raised2);border-color:#3a4452}
-  .forge-side .pal-side .pal-btn.sel,.forge-side .pal-side .pal-btn.sel:hover{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.16);box-shadow:inset 3px 0 0 var(--gold);font-weight:700}   /* 선택된 노드 = 좌측 항목: 골드 좌측바+골드 글자 */
+  .forge-side .pal-side .pal-btn.added{color:var(--gold);background:rgba(232,180,99,.07);box-shadow:inset 2px 0 0 rgba(232,180,99,.5)}   /* 이 포지에 추가된 지표 = 활성 표시 */
+  .forge-side .pal-side .pal-btn.added:hover{background:rgba(232,180,99,.13);border-color:var(--gold-dim)}
+  .forge-side .pal-side .pal-btn.sel,.forge-side .pal-side .pal-btn.sel:hover{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.18);box-shadow:inset 3px 0 0 var(--gold);font-weight:700}   /* 선택(포커스)된 노드 = 더 강한 강조 */
+  .side-allbtn{margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;font-size:10px;font-weight:600;padding:2px 7px;cursor:pointer;line-height:1.5}
+  .side-allbtn:hover{border-color:var(--gold);color:var(--gold)}
+  .side-h-toggle .side-caret{margin-left:8px}
   .forge-side .pal-side .pal-btn.pal-free{color:var(--eth);border-style:dashed}
   /* 티커 패널(캔버스 상단 고정) */
   .tk-panel{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(90deg,rgba(232,180,99,.1),var(--surface) 62%);border-bottom:2px solid rgba(232,180,99,.34);flex:0 0 auto}
@@ -1485,6 +1490,23 @@
   let _toolsOpen = !(typeof window !== "undefined" && window.innerWidth <= 860);   // 모바일 기본 접힘
   function toggleTools() { _toolsOpen = !_toolsOpen; renderSidebar(); }
   function _selType() { if (sel.length !== 1) return null; const n = boardState.nodes.find(x => x.id === sel[0]); return n ? n.blockType : null; }
+  function _hasBlock(type) { return boardState.nodes.some(n => n.blockType === type); }
+  function _indTypes() { return BLOCK_DEFS.filter(d => d.kind === "block" && EV_COLORS[d.type]).map(d => d.type); }   // 토글 가능한 지표 타입
+  function _allIndAdded() { const t = _indTypes(); return t.length > 0 && t.every(x => _hasBlock(x)); }
+  function toggleAllBlocks() {
+    const types = _indTypes();
+    if (_allIndAdded()) {   // 전체 해제: 지표 노드 모두 제거
+      const ids = boardState.nodes.filter(n => types.includes(n.blockType)).map(n => n.id);
+      if (ids.length) delNodes(ids);
+      bToast("지표 전체 해제");
+    } else {   // 전체 적용: 없는 지표 모두 추가
+      let added = 0;
+      types.forEach(t => { if (!_hasBlock(t)) { const d = BLOCK_DEFS.find(b => b.type === t) || {}; boardState.nodes.push({ id: uid("n"), x: 0, y: 0, title: d.label || t, kind: "block", blockType: t, params: d.params ? { ...d.params } : {} }); added++; } });
+      if (added) { layoutBlocks(); renderBoard(); fireBoardChange(); }
+      bToast("지표 전체 적용 (+" + added + ")");
+    }
+    if (window.renderSidebar) renderSidebar();
+  }
   function renderSidebar() {
     const el = document.getElementById("forgeSide"); if (!el) return;
     const docs = DOCS.map(d =>
@@ -1497,9 +1519,9 @@
       `<div class="side-sec"><div class="side-h"><span>포지</span></div>
          <div class="side-actions"><button class="side-btn" id="newDocBtn">＋ 새 포지</button></div>${docs}
          <select class="doc-select" aria-label="포지 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === activeId ? " selected" : ""}>${esc(d.title || "제목 없음")}</option>`).join("")}</select></div>
-       <div class="side-sec tool-sec${_toolsOpen ? "" : " collapsed"}"><div class="side-h side-h-toggle" onclick="toggleTools()" title="블록 도구 접기/펼치기"><span>블록 도구</span><span class="side-caret">${_toolsOpen ? "▾" : "▸"}</span></div>
+       <div class="side-sec tool-sec${_toolsOpen ? "" : " collapsed"}"><div class="side-h side-h-toggle" onclick="toggleTools()" title="블록 도구 접기/펼치기"><span>블록 도구</span><button class="side-allbtn" onclick="event.stopPropagation();toggleAllBlocks()" title="지표 전체 추가/해제">${_allIndAdded() ? "전체 해제" : "전체 적용"}</button><span class="side-caret">${_toolsOpen ? "▾" : "▸"}</span></div>
          <div class="pal-side">` +
-         BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker").map(d => `<button class="pal-btn${d.type === _selType() ? " sel" : ""}" data-bt="${d.type}" onclick="addBlock('${d.type}')">${d.label}</button>`).join("") +
+         BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker" && d.type !== "price").map(d => `<button class="pal-btn${_hasBlock(d.type) ? " added" : ""}${d.type === _selType() ? " sel" : ""}" data-bt="${d.type}" onclick="addBlock('${d.type}')" title="${_hasBlock(d.type) ? (EV_COLORS[d.type] ? "추가됨 · 클릭하면 제거" : "추가됨 · 클릭하면 선택") : "클릭하면 추가"}">${d.label}</button>`).join("") +
          `<button class="pal-btn pal-free" onclick="addBlock('free')">메모</button>` +
        `</div></div>
        <div class="side-sec" id="libSec"></div>`;
@@ -1966,6 +1988,7 @@
     boardState.edges = boardState.edges.filter(e => !s.has(e.from) && !s.has(e.to));
     sel = sel.filter(i => !s.has(i));
     renderBoard();
+    if (window.renderSidebar) renderSidebar();   // 사이드바 '추가됨' 표시 갱신
     fireBoardChange();
   }
   /* ── addBlock: insert a typed block at canvas center ─────────── */
@@ -1983,10 +2006,13 @@
   }
   function addBlock(type) {
     const d = BLOCK_DEFS.find(b => b.type === type) || {};
-    if (type !== "free" && boardState.nodes.some(n => n.blockType === type)) {   // 중복 방지 — 같은 블록 2개↑ 금지
+    if (type !== "free") {
       const ex = boardState.nodes.find(n => n.blockType === type);
-      if (ex) { selectOnly(ex.id); bToast((d.label || type) + " 선택 — 우측에서 편집"); }
-      return;
+      if (ex) {   // 이미 추가됨: 지표=토글 제거 / 구조노드=선택
+        if (EV_COLORS[type]) { delNodes([ex.id]); bToast((d.label || type) + " 제거됨"); }
+        else { selectOnly(ex.id); bToast((d.label || type) + " 선택 — 우측에서 편집"); }
+        return;
+      }
     }
     const slot = FIXED_LAYOUT ? { x: 0, y: 0 } : freeSlot();
     const n = {
@@ -2000,6 +2026,7 @@
     boardState.nodes.push(n);
     layoutBlocks();
     renderBoard();
+    if (window.renderSidebar) renderSidebar();   // '추가됨' 표시 갱신
     selectOnly(n.id);
     fireBoardChange();
   }
