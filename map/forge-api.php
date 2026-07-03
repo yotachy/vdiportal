@@ -61,7 +61,7 @@ if ($method === "GET") {
       return ($r === false || $code < 200 || $code >= 300) ? null : $r;
     };
 
-    $candles = null; $source = null;
+    $candles = null; $source = null; $name = "";
 
     // 국내주식(6자리 코드 · 예: 005930, 000660) 또는 명시적 .kr → Twelve Data 무료키 미지원 → Stooq(.kr)로만 처리
     $isKR = (bool) preg_match('/^\d{6}(\.kr)?$/i', $sym);
@@ -104,6 +104,11 @@ if ($method === "GET") {
         }
         if (count($out) >= 2) { $candles = array_slice($out, -400); $source = "naver"; }
       }
+      // 종목명(신뢰 확인용) — 예: 005930 → 삼성전자
+      if ($candles !== null) {
+        $nb = $fetch("https://m.stock.naver.com/api/stock/" . urlencode($code) . "/basic", true);
+        if ($nb !== null) { $nj = json_decode($nb, true); if (is_array($nj) && !empty($nj["stockName"])) $name = $nj["stockName"]; }
+      }
     }
 
     // 2) Stooq 폴백 (무키 CSV) — 미국주식/지수/포렉스 일봉
@@ -127,7 +132,7 @@ if ($method === "GET") {
     }
 
     if ($candles === null) { http_response_code(502); echo json_encode(["ok"=>false,"error"=>"notfound","symbol"=>$sym]); exit; }
-    $payload = json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>$source,"candles"=>$candles], JSON_UNESCAPED_UNICODE);
+    $payload = json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>$source,"name"=>$name,"candles"=>$candles], JSON_UNESCAPED_UNICODE);
     @file_put_contents($cf, $payload);
     echo $payload; exit;
   }
