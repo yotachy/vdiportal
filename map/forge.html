@@ -937,6 +937,7 @@
               </div>
               <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈<span class="hlbl"> 차트뷰</span></button>
               <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3.5l2.4-7 4 14 2.4-7H21"/></svg><span class="hlbl"> 근거</span></button>
+              <button class="ev-toggle" id="lblBtn" title="중요 라벨만 — 목표·반대·지지/저항만 표시(라벨 겹침 완화)" onclick="toggleLabelMode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7.5V19l-4 2v-8.5z"/></svg><span class="hlbl"> 핵심라벨</span></button>
               <button class="ev-toggle" id="tuneBtn" title="지표별 bias 기여 가중치 조절 — 각 지표가 예측 방향에 얼마나 반영될지" onclick="toggleTunePop()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="10" cy="8" r="2.6" fill="currentColor" stroke="none"/><circle cx="15" cy="16" r="2.6" fill="currentColor" stroke="none"/></svg><span class="hlbl"> 가중치</span></button>
               <button class="ev-toggle" id="riskBtn" title="리스크·포지션 사이징 — 분석 기준 진입/손절/목표로 수량·손익비 계산" onclick="openRiskTool()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.3-2.9 7.2-7 8.5-4.1-1.3-7-4.2-7-8.5V6z"/></svg><span class="hlbl"> 리스크</span></button>
               <button class="ev-toggle" id="optBtn" title="파라미터 최적화 — 지표 설정을 과거 데이터로 백테스트해 적중률 지형 탐색" onclick="openOptTool()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.3"/></svg><span class="hlbl"> 최적화</span></button>
@@ -3568,6 +3569,8 @@
   let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
   let _evLabelBoxes = [];        // 라벨 겹침 회피용 박스 레지스트리(_drawEvidence마다 리셋)
   let _axisLabelBoxes = [];      // 세로축 눈금·현재가 pill 박스(라벨 회피용으로 미리 예약)
+  let _labelMode = "all";        // "all"=전체 라벨 / "key"=중요 라벨만
+  const _KEYLBL = /목표|반대|지지|저항|골든포켓/;   // 중요 라벨 판별
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#c9a3ff", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#a99ae8", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#c99ad8" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱" };
   function evIndicatorNodes() {
@@ -3575,6 +3578,7 @@
     return boardState.nodes.filter(n => n.kind === "block" && order.includes(n.blockType))
       .sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
   }
+  function toggleLabelMode() { _labelMode = _labelMode === "key" ? "all" : "key"; const b = document.getElementById("lblBtn"); if (b) b.classList.toggle("on", _labelMode === "key"); drawEvidence(); }
   function toggleEvidence() {
     _evidenceShow = !_evidenceShow;
     document.body.classList.toggle("evhide", !_evidenceShow);
@@ -3888,6 +3892,7 @@
   let _evW = 0, _evH = 0;   // 현재 작도 캔버스 논리 크기(라벨 클램프용)
   // 라벨: 반투명 pill 배경 + 경계 클램프. align "left"(기본)|"right"
   function _evLabel(c, text, x, y, color, align) {
+    if (_labelMode === "key" && !_KEYLBL.test(text)) return;   // 중요 라벨만 모드: 목표·반대·지지/저항 외 생략
     c.font = "600 11px Pretendard, ui-monospace, monospace";
     try { c.letterSpacing = "-0.2px"; } catch (_) {}
     const w = c.measureText(text).width, h = 14, M = 3, pad = 5;
