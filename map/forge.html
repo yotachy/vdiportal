@@ -300,6 +300,11 @@
   .dbar-f{position:absolute;left:0;top:0;bottom:0;border-radius:2px;transition:width .3s cubic-bezier(.4,0,.2,1)}
   .dash-best{background:linear-gradient(90deg,rgba(91,141,239,.06),rgba(91,141,239,.22))!important;box-shadow:inset 0 0 0 1px rgba(91,141,239,.6)}
   .dash-sub{font-size:11px;color:var(--eth);font-family:var(--mono);font-weight:700}
+  /* 예측 시점별 = 매트릭스와 동일 표 포맷 */
+  .hz-table td:first-child{color:var(--gold);font-weight:800;font-size:12px;white-space:nowrap}
+  .dash-cell .dval.hz-up{color:var(--bull)}
+  .dash-cell .dval.hz-dn{color:var(--bear)}
+  .dash-cell .dval.hz-fl{color:var(--eth)}
   .dash-guide{display:flex;flex-direction:column;align-items:center;gap:9px;padding:24px 16px;text-align:center}
   .dash-guide .dg-ico{width:32px;height:32px;color:var(--gold);opacity:.85}
   .dash-guide .dg-title{font-size:13px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
@@ -4998,7 +5003,7 @@
     const fb = path.length;
     if (metaEl) metaEl.textContent = "현재가 " + _hzFmt(anchor);
     const hs = _hzList(unit, fb);
-    const head = `<div class="hz-row hz-head"><span class="hz-t">시점</span><span class="hz-v">예측가</span><span class="hz-chg">변화</span><span class="hz-prob">↑확률</span><span class="hz-band">예상 범위</span></div>`;
+    const head = `<tr><th>시점</th><th>예측가</th><th>변화</th><th>↑확률</th><th>예상 범위</th></tr>`;
     const rows = hs.map(h => {
       const vF = path[h - 1], loF = (p.lo && p.lo[h - 1]), hiF = (p.hi && p.hi[h - 1]);
       const v = anchor + (vF - anchor) * u;                                   // 예측가: 현재가→최종 단조 상승(왔다갔다 없음)
@@ -5010,15 +5015,16 @@
       const upF = _upProb(vF, hiF, anchor);                                   // 최종 확률
       const up = Math.round(upF * u);                                        // 확률 게이지: 0→최종 충전
       const pc = upF >= 55 ? "hz-up" : upF <= 45 ? "hz-dn" : "hz-fl";        // 색은 최종 방향 고정(깜빡임 방지)
-      return `<div class="hz-row">
-        <span class="hz-t">+${h}${unit}</span>
-        <span class="hz-v ${cls}">${_hzFmt(v)}</span>
-        <span class="hz-chg ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>
-        <span class="hz-prob"><span class="hz-probbar"><i style="width:${up}%"></i></span><b class="${pc}">${up}%</b></span>
-        <span class="hz-band">${band}</span>
-      </div>`;
+      const probCol = upF >= 55 ? "#46c28e" : upF <= 45 ? "#e06a6a" : "#8a92b2";
+      return `<tr>
+        <td>+${h}${unit}</td>
+        <td><span class="dash-cell"><b class="dval ${cls}">${_hzFmt(v)}</b></span></td>
+        <td><span class="dash-cell"><b class="dval ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</b></span></td>
+        <td><span class="dash-cell"><span class="dbar"><span class="dbar-f" style="width:${up}%;background:${probCol}"></span></span><b class="dval ${pc}">${up}%</b></span></td>
+        <td><span class="dash-cell"><span class="dash-sub">${band}</span></span></td>
+      </tr>`;
     }).join("");
-    host.innerHTML = head + rows;
+    host.innerHTML = `<table class="dash-table hz-table"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
   }
   /* 시점 가중 종합 상승확률(%) — 가까운 시점일수록 신뢰↑. 헤더 국면/시그널 문구에 통합 표기 */
   function aggUpProb(pred) {
