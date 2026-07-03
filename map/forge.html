@@ -2915,10 +2915,10 @@
     c.fillStyle = rgrad; c.beginPath();
     s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); });
     c.lineTo(xOf(s.length - 1), padV + plotH); c.lineTo(xOf(0), padV + plotH); c.closePath(); c.fill();
-    c.strokeStyle = "#e8b463"; c.lineWidth = 1.8; c.lineJoin = "round"; c.shadowColor = "rgba(232,180,99,.5)"; c.shadowBlur = 6; c.beginPath();
+    c.strokeStyle = "#e8b463"; c.lineWidth = 1.05; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(232,180,99,.4)"; c.shadowBlur = 3.5; c.beginPath();
     s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
     const lx = xOf(s.length - 1), ly = yOf(rsi.last);
-    c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(lx, ly, 3, 0, 7); c.fill();
+    c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(lx, ly, 2.4, 0, 7); c.fill();
     if (rsi.divergence && rsi.divergence.pricePts) {
       const col = rsi.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
       rsi.divergence.pricePts.forEach(p => { const i = p.idx; if (i < 0 || i >= s.length) return; const x = xOf(i), y = yOf(s[i]); c.fillStyle = col; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); });
@@ -2968,22 +2968,29 @@
     const s = (va && va.series) || [];
     if (s.length < 2) { c.fillStyle = "#8a92b2"; c.font = "12px Pretendard,'Malgun Gothic',sans-serif"; c.fillText("거래량 데이터 없음", 10, ch / 2); return; }
     const pad = 6, w = cw - pad * 2, h = ch - pad * 2 - 14;
-    const maxV = Math.max.apply(null, s) || 1, n = s.length, bw = Math.max(1, w / n - 1);
-    // 막대: 상승봉 bull / 하락봉 bear / 급증봉 골드
-    const obv = va.obv || [];
-    for (let i = 0; i < n; i++) {
-      const x = pad + (i / n) * w, bh = (s[i] / maxV) * h, y = pad + h - bh;
-      const up = i > 0 && obv[i] >= obv[i - 1];
-      const spike = va.state === "spike" && i >= n - 3;
-      c.fillStyle = spike ? "rgba(232,180,99,.55)" : up ? "rgba(70,194,142,.22)" : "rgba(224,106,106,.22)";   // 막대는 흐리게(보조)
+    const n = s.length, obv = va.obv || [];
+    // 막대 다운샘플: 너무 많으면(성능·가독성) ~76개 버킷 평균으로 축약 → 눈에 유의미한 정도만
+    const MAXB = 76, step = Math.max(1, Math.ceil(n / MAXB)), nb = Math.ceil(n / step);
+    const bvals = [], bup = []; let bmax = 1;
+    for (let b = 0; b < nb; b++) {
+      const i0 = b * step, i1 = Math.min(n, i0 + step);
+      let sv = 0; for (let i = i0; i < i1; i++) sv += s[i];
+      const avg = sv / Math.max(1, i1 - i0); bvals.push(avg); if (avg > bmax) bmax = avg;
+      const li = i1 - 1; bup.push(li > 0 && obv[li] >= obv[Math.max(0, i0 - 1)]);
+    }
+    const bw = Math.max(1.5, w / nb - 1.6);
+    for (let b = 0; b < nb; b++) {
+      const bh = (bvals[b] / bmax) * h, x = pad + (b / nb) * w, y = pad + h - bh;
+      const spike = va.state === "spike" && b >= nb - 2;
+      c.fillStyle = spike ? "rgba(232,180,99,.42)" : bup[b] ? "rgba(70,194,142,.13)" : "rgba(224,106,106,.13)";   // 막대는 아주 흐리게(배경 보조)
       c.fillRect(x, y, bw, bh);
     }
     // OBV 라인(보조 스케일)
     if (obv.length === n) {
       let omin = Math.min.apply(null, obv), omax = Math.max.apply(null, obv); const orng = (omax - omin) || 1;
-      const _oc = va.obvTrend > 0.05 ? "#46c28e" : va.obvTrend < -0.05 ? "#e06a6a" : "#c7cede";   // OBV 추이선 = 주인공(RSI처럼 강조)
-      c.save(); c.strokeStyle = _oc; c.lineWidth = 2.4; c.lineJoin = "round"; c.shadowColor = _oc; c.shadowBlur = 7; c.beginPath();
-      for (let i = 0; i < n; i++) { const x = pad + (i / n) * w + bw / 2, y = pad + h - ((obv[i] - omin) / orng) * h; i ? c.lineTo(x, y) : c.moveTo(x, y); }
+      const _oc = va.obvTrend > 0.05 ? "#46c28e" : va.obvTrend < -0.05 ? "#e06a6a" : "#c7cede";   // OBV 추이선 = 주인공(가늘고 정밀하게)
+      c.save(); c.strokeStyle = _oc; c.lineWidth = 1.2; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = _oc; c.shadowBlur = 4.5; c.beginPath();
+      for (let i = 0; i < n; i++) { const x = pad + (i / n) * w, y = pad + h - ((obv[i] - omin) / orng) * h; i ? c.lineTo(x, y) : c.moveTo(x, y); }
       c.stroke(); c.restore();
     }
     // 상태 라벨
