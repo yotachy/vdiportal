@@ -658,6 +658,33 @@
   .risk-warn.good{background:rgba(70,194,142,.1);color:#7fd8b0;border:1px solid rgba(70,194,142,.25)}
   .risk-warn.warn{background:rgba(232,180,99,.1);color:#e8c07a;border:1px solid rgba(232,180,99,.25)}
   .risk-warn.bad{background:rgba(224,106,106,.1);color:#e69a9a;border:1px solid rgba(224,106,106,.25)}
+  /* 파라미터 최적화 서피스 모달 */
+  .opt-modal{position:fixed;inset:0;z-index:120;background:rgba(6,9,13,.62);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);animation:tuneIn .14s ease}
+  .opt-box{width:min(560px,95vw);max-height:90vh;overflow:auto;background:#0f151c;border:1px solid rgba(138,146,178,.22);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.5);padding:18px 20px}
+  .opt-head{display:flex;align-items:center;gap:10px;margin-bottom:3px}
+  .opt-title{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+  .opt-x{margin-left:auto;width:28px;height:28px;border-radius:8px;border:none;background:rgba(138,146,178,.12);color:var(--eth);font-size:15px;cursor:pointer}
+  .opt-x:hover{background:rgba(138,146,178,.22);color:var(--ink)}
+  .opt-sub{font-size:11.5px;color:var(--eth);margin-bottom:14px;line-height:1.5}
+  .opt-ctrls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+  .opt-fld{display:flex;flex-direction:column;gap:4px}
+  .opt-fld label{font-size:10.5px;color:var(--eth)}
+  .opt-fld select{background:#0b1016;border:1.5px solid rgba(138,146,178,.22);border-radius:9px;padding:8px 11px;color:var(--ink);font-size:13px;min-width:150px}
+  .opt-run{padding:9px 16px;border-radius:9px;border:none;background:var(--gold);color:#1a1206;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:-.01em}
+  .opt-run:hover{filter:brightness(1.06)} .opt-run:disabled{opacity:.5;cursor:default}
+  .opt-result{margin-top:4px}
+  .opt-canvas-wrap{position:relative;background:#0b1016;border:1px solid rgba(138,146,178,.14);border-radius:12px;padding:12px}
+  #optSurface{width:100%;display:block;border-radius:6px}
+  .opt-empty{padding:34px 12px;text-align:center;color:var(--eth);font-size:12.5px}
+  .opt-legend{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:10px;color:var(--eth);font-family:var(--mono)}
+  .opt-legend .bar{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,#e06a6a,#7a828f,#46c28e)}
+  .opt-best{margin-top:14px;padding:12px 14px;background:rgba(232,180,99,.09);border:1px solid rgba(232,180,99,.26);border-radius:11px;display:flex;align-items:center;gap:12px}
+  .opt-best .ob-txt{flex:1;font-size:12.5px;color:var(--ink);line-height:1.5}
+  .opt-best .ob-txt b{color:var(--gold);font-family:var(--mono)}
+  .opt-best .ob-cur{color:var(--eth);font-size:11px}
+  .opt-apply{padding:8px 14px;border-radius:9px;border:1px solid var(--gold);background:transparent;color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .opt-apply:hover{background:var(--gold);color:#1a1206}
+  .opt-busy{padding:30px 12px;text-align:center;color:var(--gold);font-size:13px;font-family:var(--mono)}
 </style>
 </head>
 <body>
@@ -726,6 +753,7 @@
               <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
               <button class="ev-toggle" id="tuneBtn" title="지표별 bias 기여 가중치 조절 — 각 지표가 예측 방향에 얼마나 반영될지" onclick="toggleTunePop()">⚖ 가중치</button>
               <button class="ev-toggle" id="riskBtn" title="리스크·포지션 사이징 — 분석 기준 진입/손절/목표로 수량·손익비 계산" onclick="openRiskTool()">🧮 리스크</button>
+              <button class="ev-toggle" id="optBtn" title="파라미터 최적화 — 지표 설정을 과거 데이터로 백테스트해 적중률 지형 탐색" onclick="openOptTool()">🎯 최적화</button>
               <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
             </div>
           </div>
@@ -3250,6 +3278,146 @@
     else if (RR >= 2) { cls = "risk-warn good"; msg = "손익비 " + RR.toFixed(2) + " — 양호(2:1 이상)." + (lev > 1 ? " 다만 계좌 대비 " + lev.toFixed(2) + "× 레버리지가 필요합니다." : ""); }
     else { cls = "risk-warn warn"; msg = "손익비 " + RR.toFixed(2) + " — 보통(1~2). 관리 가능하나 여유는 크지 않습니다." + (lev > 1 ? " 레버리지 " + lev.toFixed(2) + "× 필요." : ""); }
     set("rkWarn", msg, cls);
+  }
+
+  /* ── 파라미터 최적화 서피스 (메타 도구) ── */
+  const OPT_SPECS = {
+    ma: { label: "이동평균", fn: (p, o) => ForgeCore.analyzeMA(p, o), params: [{ key: "len", label: "길이", lo: 5, hi: 60 }] },
+    rsi: { label: "RSI", fn: (p, o) => ForgeCore.analyzeRSI(p, o), params: [{ key: "period", label: "기간", lo: 5, hi: 30 }] },
+    fib: { label: "피보나치", fn: (p, o) => ForgeCore.analyzeFib(p, o), params: [{ key: "len", label: "구간", lo: 60, hi: 160 }] },
+    structure: { label: "시장구조", fn: (p, o) => ForgeCore.analyzeStructure(p, o), params: [{ key: "swing", label: "스윙민감도(%)", lo: 1, hi: 8, dec: true, div: 100 }] },
+    bollinger: { label: "볼린저밴드", fn: (p, o) => ForgeCore.analyzeBollinger(p, o), params: [{ key: "len", label: "기간", lo: 10, hi: 40 }, { key: "k", label: "σ배수", lo: 1, hi: 3, dec: true }] },
+    macd: { label: "MACD", fn: (p, o) => ForgeCore.analyzeMACD(p, o), params: [{ key: "fast", label: "단기", lo: 5, hi: 20 }, { key: "slow", label: "장기", lo: 20, hi: 45 }], valid: (a, b) => a < b },
+    adx: { label: "ADX", fn: (p, o) => ForgeCore.analyzeADX(p, o), params: [{ key: "period", label: "기간", lo: 7, hi: 30 }] }
+  };
+  function optRange(p, N) { const out = []; for (let i = 0; i < N; i++) { let v = p.lo + (p.hi - p.lo) * i / (N - 1); v = p.dec ? Math.round(v * 10) / 10 : Math.round(v); out.push(v); } return [...new Set(out)]; }
+  function optOpts(spec, v1, v2) { const o = {}; const P = spec.params; o[P[0].key] = P[0].div ? v1 / P[0].div : v1; if (P[1] && v2 != null) o[P[1].key] = P[1].div ? v2 / P[1].div : v2; return o; }
+  function backtestCombo(fn, opts, price, h, thr) {
+    let hit = 0, tot = 0, edge = 0;
+    for (let t = 40; t < price.length - h; t += 2) {
+      let b; try { b = fn(price.slice(0, t + 1), opts).bias; } catch (e) { b = 0; }
+      if (!isFinite(b) || Math.abs(b) < thr) continue;
+      const fwd = (price[t + h] - price[t]) / price[t]; if (fwd === 0) continue;
+      tot++; edge += Math.sign(b) * fwd; if (Math.sign(b) === Math.sign(fwd)) hit++;
+    }
+    return { hit: tot ? hit / tot : 0, edge: tot ? edge / tot : 0, n: tot };
+  }
+  function openOptTool() {
+    const ex = document.getElementById("optModal"); if (ex) { ex.remove(); return; }
+    const present = boardState.nodes.filter(n => n.kind === "block" && OPT_SPECS[n.blockType]).map(n => n.blockType);
+    const uniq = [...new Set(present)];
+    const opts = uniq.length ? uniq.map(t => `<option value="${t}">${OPT_SPECS[t].label}</option>`).join("") : Object.keys(OPT_SPECS).map(t => `<option value="${t}">${OPT_SPECS[t].label}</option>`).join("");
+    const m = document.createElement("div"); m.id = "optModal"; m.className = "opt-modal";
+    m.innerHTML = `<div class="opt-box">
+      <div class="opt-head"><span class="opt-title">파라미터 최적화 서피스</span><button class="opt-x" onclick="openOptTool()" aria-label="닫기">✕</button></div>
+      <div class="opt-sub">지표 설정을 <b>과거 데이터로 워크포워드 백테스트</b>해, 방향 <b>적중률</b>이 높은 파라미터 조합을 지형으로 보여줍니다. (봉 <span id="optH">–</span>개 앞 방향 기준)</div>
+      <div class="opt-ctrls">
+        <div class="opt-fld"><label>지표</label><select id="optSel">${opts}</select></div>
+        <button class="opt-run" id="optRun" onclick="runOptimize()">최적화 실행</button>
+      </div>
+      <div class="opt-result" id="optResult"><div class="opt-empty">지표를 고르고 <b>최적화 실행</b>을 누르세요.</div></div>
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener("click", e => { if (e.target === m) openOptTool(); });
+    const h = Math.max(3, Math.round(visionFutW() / 3)); const he = document.getElementById("optH"); if (he) he.textContent = h;
+  }
+  function runOptimize() {
+    const sel = document.getElementById("optSel"); if (!sel) return;
+    const type = sel.value, spec = OPT_SPECS[type];
+    const price = (currentData().price || []).map(Number).filter(isFinite);
+    const res = document.getElementById("optResult");
+    if (price.length < 70) { res.innerHTML = `<div class="opt-empty">데이터가 부족합니다(70봉 이상 필요, 현재 ${price.length}). 티커를 불러오거나 종가를 더 붙여넣으세요.</div>`; return; }
+    res.innerHTML = `<div class="opt-busy">⏳ 백테스트 중… 조합 계산</div>`;
+    const btn = document.getElementById("optRun"); if (btn) btn.disabled = true;
+    setTimeout(() => {
+      try {
+        const h = Math.max(3, Math.round(visionFutW() / 3)), thr = 0.05;
+        const P = spec.params, v1s = optRange(P[0], 11), v2s = P[1] ? optRange(P[1], 9) : [null];
+        const grid = []; let best = null;
+        for (const v1 of v1s) for (const v2 of v2s) {
+          if (spec.valid && v2 != null && !spec.valid(v1, v2)) { grid.push({ v1, v2, score: NaN, n: 0 }); continue; }
+          const r = backtestCombo(spec.fn, optOpts(spec, v1, v2), price, h, thr);
+          const cell = { v1, v2, score: r.hit, edge: r.edge, n: r.n };
+          grid.push(cell);
+          if (r.n >= 5 && (!best || cell.score > best.score)) best = cell;
+        }
+        // 현재 노드 파라미터 기준선
+        const node = boardState.nodes.find(n => n.kind === "block" && n.blockType === type);
+        let curScore = null;
+        if (node) { const cv1 = (node.params && node.params[P[0].key]) ?? P[0].lo, cv2 = P[1] ? ((node.params && node.params[P[1].key]) ?? P[1].lo) : null; curScore = backtestCombo(spec.fn, optOpts(spec, cv1, cv2), price, h, thr).hit; }
+        renderOptResult(type, spec, v1s, v2s, grid, best, curScore);
+      } catch (e) { res.innerHTML = `<div class="opt-empty">최적화 오류: ${esc(String(e && e.message || e))}</div>`; }
+      if (btn) btn.disabled = false;
+    }, 40);
+  }
+  let _optBest = null, _optType = null;
+  function renderOptResult(type, spec, v1s, v2s, grid, best, curScore) {
+    _optBest = best; _optType = type;
+    const P = spec.params, is2D = !!P[1];
+    const res = document.getElementById("optResult");
+    if (!best) { res.innerHTML = `<div class="opt-empty">유효한 신호가 부족해 최적값을 찾지 못했습니다. 다른 지표나 더 긴 데이터로 시도하세요.</div>`; return; }
+    const bestTxt = is2D
+      ? `<b>${P[0].label} ${best.v1}</b> · <b>${P[1].label} ${best.v2}</b>`
+      : `<b>${P[0].label} ${best.v1}</b>`;
+    const cur = (curScore != null) ? `<div class="ob-cur">현재 설정 적중률 ${Math.round(curScore * 100)}%</div>` : "";
+    res.innerHTML = `<div class="opt-canvas-wrap"><canvas id="optSurface" width="1040" height="${is2D ? 460 : 300}"></canvas></div>
+      <div class="opt-legend"><span>낮음(적중↓)</span><span class="bar"></span><span>높음(적중↑)</span></div>
+      <div class="opt-best"><div class="ob-txt">최적 조합 ${bestTxt} → 적중률 <b>${Math.round(best.score * 100)}%</b> · 표본 ${best.n}${cur}</div>
+        <button class="opt-apply" onclick="applyOptBest()">이 값 적용</button></div>`;
+    drawOptSurface(document.getElementById("optSurface"), spec, v1s, v2s, grid, best);
+  }
+  function _optColor(s, mn, mx) { // 그리드 자체 min~max에 적응(상대 지형) → 적~회~녹
+    if (!isFinite(s)) return "#161d26";
+    const t = (mx > mn) ? Math.max(0, Math.min(1, (s - mn) / (mx - mn))) : 0.5;
+    const lo = [224, 106, 106], mi = [122, 130, 143], hi = [70, 194, 142];
+    const mix = (a, b, u) => a.map((x, i) => Math.round(x + (b[i] - x) * u));
+    const c = t < 0.5 ? mix(lo, mi, t * 2) : mix(mi, hi, (t - 0.5) * 2);
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+  function drawOptSurface(cv, spec, v1s, v2s, grid, best) {
+    if (!cv) return; const c = cv.getContext("2d"); const W = cv.width, H = cv.height;
+    c.clearRect(0, 0, W, H); c.font = "13px Pretendard,'Malgun Gothic',sans-serif";
+    const P = spec.params, is2D = !!P[1];
+    const scores = grid.filter(g => isFinite(g.score) && g.n >= 5).map(g => g.score);
+    const mn = scores.length ? Math.min(...scores) : 0, mx = scores.length ? Math.max(...scores) : 1;
+    const padL = 64, padB = 40, padT = 14, padR = 16;
+    const gx = padL, gy = padT, gw = W - padL - padR, gh = H - padT - padB;
+    const at = (v1, v2) => grid.find(c2 => c2.v1 === v1 && (v2 == null || c2.v2 === v2));
+    if (is2D) {
+      const cols = v2s.length, rows = v1s.length, cw = gw / cols, ch = gh / rows;
+      for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
+        const cell = at(v1s[r], v2s[col]); const x = gx + col * cw, y = gy + r * ch;
+        c.fillStyle = _optColor(cell ? cell.score : NaN, mn, mx); c.fillRect(x + 1, y + 1, cw - 1, ch - 1);
+        if (best && cell && cell.v1 === best.v1 && cell.v2 === best.v2) { c.strokeStyle = "#e8b463"; c.lineWidth = 2.5; c.strokeRect(x + 1.5, y + 1.5, cw - 2, ch - 2); c.fillStyle = "#1a1206"; c.font = "bold 15px Pretendard"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("★", x + cw / 2, y + ch / 2); c.font = "13px Pretendard,'Malgun Gothic',sans-serif"; }
+      }
+      c.fillStyle = "rgba(138,146,178,.9)"; c.textAlign = "center"; c.textBaseline = "top";
+      for (let col = 0; col < cols; col++) c.fillText(String(v2s[col]), gx + col * cw + cw / 2, gy + gh + 7);
+      c.textAlign = "right"; c.textBaseline = "middle";
+      for (let r = 0; r < rows; r++) c.fillText(String(v1s[r]), gx - 8, gy + r * ch + ch / 2);
+      c.fillStyle = "rgba(224,229,239,.85)"; c.textAlign = "center"; c.textBaseline = "top"; c.fillText(P[1].label, gx + gw / 2, H - 18);
+      c.save(); c.translate(16, gy + gh / 2); c.rotate(-Math.PI / 2); c.textAlign = "center"; c.fillText(P[0].label, 0, 0); c.restore();
+    } else {
+      // 1D: 적중률 프로파일(막대)
+      const n = v1s.length, bw = gw / n, base = gy + gh;
+      for (let i = 0; i < n; i++) { const cell = at(v1s[i], null); const s = cell ? cell.score : 0; const bh = gh * Math.max(0, Math.min(1, s)); const x = gx + i * bw; c.fillStyle = _optColor(s, mn, mx); c.fillRect(x + 3, base - bh, bw - 6, bh); if (best && cell && cell.v1 === best.v1) { c.strokeStyle = "#e8b463"; c.lineWidth = 2; c.strokeRect(x + 2, base - bh, bw - 4, bh); c.fillStyle = "#e8b463"; c.font = "bold 14px Pretendard"; c.textAlign = "center"; c.fillText("★", x + bw / 2, base - bh - 8); c.font = "13px Pretendard,'Malgun Gothic',sans-serif"; } }
+      c.strokeStyle = "rgba(138,146,178,.3)"; c.lineWidth = 1; const y50 = base - gh * 0.5; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(gx, y50); c.lineTo(gx + gw, y50); c.stroke(); c.setLineDash([]);
+      c.fillStyle = "rgba(138,146,178,.7)"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText("50%", gx + gw - 30, y50 - 8);
+      c.fillStyle = "rgba(138,146,178,.9)"; c.textAlign = "center"; c.textBaseline = "top";
+      for (let i = 0; i < n; i++) c.fillText(String(v1s[i]), gx + i * bw + bw / 2, base + 7);
+      c.fillStyle = "rgba(224,229,239,.85)"; c.fillText(P[0].label, gx + gw / 2, H - 18);
+    }
+  }
+  function applyOptBest() {
+    if (!_optBest || !_optType) return;
+    const spec = OPT_SPECS[_optType], node = boardState.nodes.find(n => n.kind === "block" && n.blockType === _optType);
+    if (!node) { bToast("해당 지표 블록이 보드에 없습니다"); return; }
+    node.params = node.params || {};
+    node.params[spec.params[0].key] = _optBest.v1;
+    if (spec.params[1] && _optBest.v2 != null) node.params[spec.params[1].key] = _optBest.v2;
+    fireBoardChange(); runForge();
+    if (sel.length === 1 && sel[0] === node.id) renderParams();   // 편집기 열려있으면 갱신
+    bToast(spec.label + " 최적값 적용 · 재분석");
+    openOptTool();   // 닫기
   }
   function updateAxisBtns() {
     // A는 상태 토글이 아니라 매번 동작하는 액션 버튼(눌린 것처럼 보여 안 눌리는 오해 방지). L만 토글 상태.
