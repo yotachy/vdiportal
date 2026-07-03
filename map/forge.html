@@ -277,11 +277,10 @@
   .dash-cell .dval-l{font-weight:800;white-space:nowrap}
   .dash-cell .dstar{color:#8fb4f0;font-size:11px}
   .dash-reg{font-weight:800;font-size:12px;padding:0 8px;border-radius:10px}
-  .dseg{display:inline-flex;gap:2px}                     /* 세그먼트 바(이미지식) */
-  .dseg i{width:4px;height:11px;border-radius:1px;background:rgba(255,255,255,.08);display:block}
-  /* 매트릭스 세그먼트: 값 채워질 때 부드럽게(순차 등장 아님) */
-  .dseg i{transition:background .18s}
-  .dash-best{background:linear-gradient(90deg,rgba(91,141,239,.04),rgba(91,141,239,.17))!important;box-shadow:inset 0 0 0 1px rgba(91,141,239,.5)}
+  /* 게이지 바(트레이딩 터미널식): 채운 부분 + 대각 해치 빈 트랙 */
+  .dbar{position:relative;flex:1;min-width:36px;height:11px;border-radius:2px;overflow:hidden;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.055) 0 3px,rgba(255,255,255,0) 3px 6px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+  .dbar-f{position:absolute;left:0;top:0;bottom:0;border-radius:2px;transition:width .3s cubic-bezier(.4,0,.2,1)}
+  .dash-best{background:linear-gradient(90deg,rgba(91,141,239,.06),rgba(91,141,239,.22))!important;box-shadow:inset 0 0 0 1px rgba(91,141,239,.6)}
   .dash-sub{font-size:11px;color:var(--eth);font-family:var(--mono);font-weight:700}
   .dash-sec td{padding:2px 10px!important;font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--gold);background:rgba(232,180,99,.07);border-top:1px solid var(--gold-dim);border-bottom:1px solid var(--gold-dim);border-left:0!important}
   .chart-pane.editing #fcDashPanel{display:none}
@@ -5154,7 +5153,9 @@
         const slope = v.length >= 6 ? (last - v[v.length - 6]) / (Math.abs(v[v.length - 6]) || 1) * 100 : 0;
         let cross = "";
         if (P.length === v.length) for (let i = Math.max(1, v.length - 6); i < v.length; i++) { const a = P[i - 1] - v[i - 1], b = P[i] - v[i]; if (a < 0 && b >= 0) cross = "최근 골든크로스 — 가격이 MA 상향 돌파"; else if (a > 0 && b <= 0) cross = "최근 데드크로스 — 가격이 MA 하향 이탈"; }
-        f.push("MA " + fmtNum(last) + (dist != null ? (" · 가격 " + (dist >= 0 ? "+" : "") + dist.toFixed(1) + "% " + (dist >= 0 ? "상회(지지 우위)" : "하회(저항 우위)")) : ""));
+        // 화살표(bias)와 모순 없게: 위치는 사실만(상회/하회) + 추세로 방향을 명시. '저항/지지 우위'(방향 단정) 표현 제거
+        const _trd = slope > 0.5 ? "상승추세" : slope < -0.5 ? "하락추세" : "횡보";
+        f.push("MA " + fmtNum(last) + " · " + _trd + (dist != null ? (" · 가격 " + (dist >= 0 ? "+" : "") + dist.toFixed(1) + "% " + (dist >= 0 ? "상회" : "하회(단기 조정)")) : ""));
         f.push("MA 기울기 " + (slope > 0.5 ? "상승 ↑" : slope < -0.5 ? "하락 ↓" : "평탄 →") + " (" + (slope >= 0 ? "+" : "") + slope.toFixed(1) + "%/5봉)");
         if (cross) f.push(cross);
         return f;
@@ -5944,7 +5945,7 @@
     const rel = v.relationship === "confirm" ? "확인" : v.relationship === "weakening" ? "약화" : v.relationship === "selling" ? "매도압력" : "투매진정";
     return [st + " · " + rel, (v.relationship === "confirm" || v.relationship === "capitulation") ? "#46c28e" : "#e06a6a"]; }
   // 셀: 세그먼트 바(좌) + 값(우 정렬) / 텍스트(좌 정렬). best=행 최고 강조
-  function _segBar(pct, col) { const N = 10, on = Math.round(Math.max(0, Math.min(100, pct || 0)) / 100 * N); let s = ""; for (let i = 0; i < N; i++) s += `<i${i < on ? ` style="background:${col}"` : ""}></i>`; return `<span class="dseg">${s}</span>`; }
+  function _segBar(pct, col) { const p = Math.max(0, Math.min(100, pct || 0)); return `<span class="dbar"><span class="dbar-f" style="width:${p}%;background:${col}"></span></span>`; }
   function _barC(pct, col, val, best, fnum, suf) { const dn = (fnum != null) ? ` data-fnum="${fnum}" data-suf="${suf || ""}"` : ""; return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell" data-pct="${Math.round(pct || 0)}" data-col="${col}"${dn}>${_segBar(pct, col)}<b class="dval">${val}</b>${best ? `<span class="dstar">★</span>` : ""}</div></td>`; }
   function _txtC(html, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell txt"><span class="dval-l">${html}</span>${best ? `<span class="dstar">★</span>` : ""}</div></td>`; }
   async function renderDashboard() {
@@ -5960,7 +5961,7 @@
     if (!cols.length) { host.innerHTML = `<div class="na-empty">데이터를 불러올 수 없어요: ${esc(sym)}</div>`; return; }
     if (meta) meta.textContent = esc(sym);
     const REG = { bull: ["▲ 상승", "#46c28e"], bear: ["▼ 하락", "#e06a6a"], neutral: ["– 중립", "#8a92b2"] };
-    const th = `<tr><th>지표</th>${cols.map(c => `<th><span class="thdot" style="background:${_TFCOL[c[0]] || "#8a92b2"}"></span>${c[0]}</th>`).join("")}</tr>`;
+    const th = `<tr><th>지표</th>${cols.map(c => `<th style="color:${_TFCOL[c[0]] || "#8a92b2"}"><span class="thdot" style="background:${_TFCOL[c[0]] || "#8a92b2"}"></span>${c[0]}</th>`).join("")}</tr>`;
     const rows = [];
     rows.push(`<tr><td>국면</td>${cols.map(c => { const g = REG[c[1].regime] || REG.neutral; return _txtC(`<span class="dash-reg" style="color:${g[1]};background:${g[1]}22">${g[0]}</span>`, false); }).join("")}</tr>`);
     { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, "#46c28e", c[1].up + "%", i === bi, c[1].up, "%")).join("")}</tr>`); }
@@ -6398,9 +6399,8 @@
   function _dashFill(u) {
     const f = (u == null) ? 1 : Math.max(0, Math.min(1, u));
     document.querySelectorAll("#fcDashBody .dash-cell[data-pct]").forEach(cell => {
-      const pct = +cell.getAttribute("data-pct"), col = cell.getAttribute("data-col") || "#46c28e";
-      const on = Math.round(pct * f / 100 * 10);
-      cell.querySelectorAll(".dseg i").forEach((t, i) => { t.style.background = i < on ? col : ""; });
+      const pct = +cell.getAttribute("data-pct");
+      const fbar = cell.querySelector(".dbar-f"); if (fbar) fbar.style.width = (pct * f) + "%";
       if (cell.hasAttribute("data-fnum")) { const fn = +cell.getAttribute("data-fnum"), suf = cell.getAttribute("data-suf") || ""; const dv = cell.querySelector(".dval"); if (dv) dv.textContent = Math.round(fn * f) + suf; }
     });
   }
