@@ -88,6 +88,24 @@ if ($method === "GET") {
       }
     }
 
+    // 1.5) 국내주식 → Naver Finance(무키, KRX 일/주/월봉). Stooq가 국내주식·봇차단으로 막혀 이 소스를 KR 기본으로 사용
+    if ($candles === null && $isKR) {
+      $code = preg_replace('/\.kr$/i', '', $sym);   // 005930.kr → 005930
+      $nvtf = ($tf === "1week" || $tf === "week") ? "week" : (($tf === "1month" || $tf === "month") ? "month" : "day");
+      $start = date("Ymd", strtotime("-4 years")); $end = date("Ymd");
+      $u = "https://api.finance.naver.com/siseJson.naver?symbol=" . urlencode($code) . "&requestType=1&startTime=" . $start . "&endTime=" . $end . "&timeframe=" . $nvtf;
+      $raw = $fetch($u, false);
+      if ($raw !== null && preg_match_all('/\["(\d{8})",\s*([0-9.]+),\s*([0-9.]+),\s*([0-9.]+),\s*([0-9.]+),\s*([0-9.]+)/', $raw, $mm, PREG_SET_ORDER)) {
+        $out = [];
+        foreach ($mm as $r) {
+          $o=(float)$r[2]; $h=(float)$r[3]; $l=(float)$r[4]; $c=(float)$r[5]; $v=(float)$r[6];
+          $dt = substr($r[1],0,4)."-".substr($r[1],4,2)."-".substr($r[1],6,2);
+          if (is_finite($o)&&is_finite($h)&&is_finite($l)&&is_finite($c)&&$c>0) $out[] = ["t"=>$dt,"o"=>$o,"h"=>$h,"l"=>$l,"c"=>$c,"v"=>$v];
+        }
+        if (count($out) >= 2) { $candles = array_slice($out, -400); $source = "naver"; }
+      }
+    }
+
     // 2) Stooq 폴백 (무키 CSV) — 미국주식/지수/포렉스 일봉
     if ($candles === null) {
       $isCrypto = (bool) preg_match('/^[A-Za-z]{2,6}[-\/](USD|USDT|EUR|KRW|JPY|GBP|BTC|ETH)$/i', $sym);

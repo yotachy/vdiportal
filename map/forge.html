@@ -1605,7 +1605,7 @@
     const badge = (isBlock && n.blockType)
       ? `<div class="b-n-type b-t-${tier[0]}"><span class="b-tier-tag">${tier[1]}</span>${esc(n.blockType)}</div>` : "";
     const tkrBody = n.blockType === "ticker"
-      ? `<div class="b-tkr"><span class="b-tkr-sym">${esc((n.params && n.params.symbol) || "종목?")}</span><span class="b-tkr-px">${(n.params && isFinite(n.params.price)) ? "$" + fmtNum(n.params.price) : "현재가 미입력"}</span></div>` : "";
+      ? `<div class="b-tkr"><span class="b-tkr-sym">${esc((n.params && n.params.symbol) || "종목?")}</span><span class="b-tkr-px">${(n.params && isFinite(n.params.price)) ? _curSym() + fmtNum(n.params.price) : "현재가 미입력"}</span></div>` : "";
     const thumb = n.thumb
       ? `<div class="b-n-thumb"><img src="${imgSrc(n.thumb.imgId)}" alt=""></div>` : "";
     const cls = "b-node" + (isBlock ? "" : " b-mini") + (n.blockType === "predict" ? " b-center" : "") + (tier[0] ? " b-tier-" + tier[0] : "");
@@ -3046,6 +3046,8 @@
 
   /* 이미지 가격 보정(드래그식): cal = {ay,by(기준선 y비율 0..1), nx(현재선 x비율), ap,bp(기준선 가격), np(현재가)} */
   const fmtNum = v => Math.round(v).toLocaleString();
+  // 통화 기호 — 국내주식(6자리 코드·.kr)이면 ₩, 그 외 $
+  function _curSym() { const t = boardState.nodes.find(n => n.blockType === "ticker" && n.params && n.params.symbol); return /^\d{6}(\.kr)?$/i.test(String(t ? t.params.symbol : "")) ? "₩" : "$"; }
   function ensureCal(n) {
     const c = n.cal || (n.cal = {});
     if (c.ay == null) c.ay = 0.22; if (c.by == null) c.by = 0.78; if (c.nx == null) c.nx = 0.82;
@@ -5145,7 +5147,7 @@
         if (c < 2) return ["뚜렷한 파동 없음"];
         const lab = _EWLAB[Math.min(c - 1, 7)] || "-", up = piv[c - 1].p > piv[c - 2].p;
         f.push("스윙 " + c + "개 · 현재 파동 " + lab + " 추정");
-        f.push("직전 파동 " + (up ? "상승 ▲" : "하락 ▼") + " ($" + fmtNum(piv[c - 2].p) + "→$" + fmtNum(piv[c - 1].p) + ")");
+        f.push("직전 파동 " + (up ? "상승 ▲" : "하락 ▼") + " (" + _curSym() + fmtNum(piv[c - 2].p) + "→" + _curSym() + fmtNum(piv[c - 1].p) + ")");
         // 5파 다각 검증: 하드 규칙 + 피보 되돌림/연장 비율 + 종합 정합도
         if (c >= 6) {
           const p = piv.slice(-6).map(x => x.p), d = Math.sign(p[1] - p[0]) || 1;
@@ -6959,7 +6961,7 @@
           else if (t.dataset.tkr === "tf") n.params.tf = t.value;
           else { const v = Number(t.value); n.params.price = (t.value !== "" && isFinite(v)) ? v : null; }
           const el = bWorld && bWorld.querySelector(`.b-node[data-id="${n.id}"] .b-tkr`);
-          if (el) { const sy = el.querySelector(".b-tkr-sym"), px = el.querySelector(".b-tkr-px"); if (sy) sy.textContent = n.params.symbol || "종목?"; if (px) px.textContent = isFinite(n.params.price) ? "$" + fmtNum(n.params.price) : "현재가 미입력"; }
+          if (el) { const sy = el.querySelector(".b-tkr-sym"), px = el.querySelector(".b-tkr-px"); if (sy) sy.textContent = n.params.symbol || "종목?"; if (px) px.textContent = isFinite(n.params.price) ? _curSym() + fmtNum(n.params.price) : "현재가 미입력"; }
         } else if (t.dataset.pkey) {
           n.params = n.params || {};
           const _pk = t.dataset.pkey, _raw = Number(t.value) || 0, _dec = (_pk === "k" || _pk === "mult");   // σ배수·손절배수는 소수 허용
