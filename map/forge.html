@@ -3197,7 +3197,7 @@
   let _evidenceShow = true;
   let _focusInd = null;          // 포커스 지표 blockType | null(전체) — 클릭 잠금
   let _evHover = null;           // 범례 hover 임시 포커스(프리뷰) blockType | null
-  const EV_DEFAULT_VISIBLE = ["trend", "bollinger", "fib", "rsi", "macd", "adx", "structure", "smc"];   // 기본 표시(나머지는 범례 클릭으로 켜기)
+  const EV_DEFAULT_VISIBLE = ["trend", "bollinger", "fib", "rsi", "macd", "adx", "structure", "smc", "cycle"];   // 기본 표시(나머지는 범례 클릭으로 켜기)
   let _evVisible = new Set(EV_DEFAULT_VISIBLE);   // 차트에 그릴 지표 집합
   let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
   let _evLabelBoxes = [];        // 라벨 겹침 회피용 박스 레지스트리(_drawEvidence마다 리셋)
