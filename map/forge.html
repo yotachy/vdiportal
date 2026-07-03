@@ -41,6 +41,7 @@
   .run-btn{background:var(--gold);color:#1a1206;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer}
   .forge-top .seg{display:none}   /* 캔버스 정렬·은하(사실상 미사용) 헤더에서 숨김 */
   .play-btn{color:#8fd0c0!important;border-color:rgba(143,208,192,.45)!important}   /* 시연 = 과정 재생(웹분석과 구분: 청록 아웃라인) */
+  .play-btn.playing{color:#e06a6a!important;border-color:rgba(224,106,106,.6)!important;background:rgba(224,106,106,.12)!important}   /* 재생 중 = 중지(빨강) */
   .play-btn:hover{background:rgba(143,208,192,.14)!important;border-color:#8fd0c0!important;color:#ade0d4!important}
   .run-btn.needs-run{animation:engPulse 1.3s ease-in-out infinite}
   /* 분석 버전/신선도 칩 — "언제 분석된 결과인지" 인지용 */
@@ -109,7 +110,7 @@
   .sig-arw{font-size:10px;text-align:center}
   .sig-arw.up{color:#46c28e}.sig-arw.dn{color:#e06a6a}.sig-arw.fl{color:var(--muted)}
   .sig-name{color:var(--ink);font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .sig-note{color:var(--eth);font-family:var(--mono);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sig-note{color:var(--eth);font-family:Pretendard,system-ui,sans-serif;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sig-bar{height:5px;border-radius:3px;background:rgba(138,146,178,.16);overflow:hidden}
   .sig-bar>i{display:block;height:100%;border-radius:3px}
   .sig-bar>i.up{background:#46c28e}.sig-bar>i.dn{background:#e06a6a}.sig-bar>i.fl{background:var(--muted)}
@@ -242,22 +243,25 @@
   /* 국면/확률 — 박스·테두리 없이 순수 타이포로(가독성 우선) */
   .fc-verdict-bar{display:flex;align-items:baseline;gap:9px 20px;flex-wrap:wrap;padding:9px 2px 13px;margin:0;letter-spacing:-.02em}
   .fcv-tkr{font-size:19px;font-weight:800;color:var(--ink);letter-spacing:-.03em;padding-right:14px;margin-right:2px;border-right:2px solid var(--line)}
-  .fcv-reg{font-size:21px;font-weight:800;letter-spacing:-.03em}
+  .fcv-reg{font-size:23px;font-weight:900;letter-spacing:-.03em}
   .fcv-prob{font-size:17px;font-weight:800;font-family:var(--mono);letter-spacing:-.02em}
   .fcv-prob .up{color:#46c28e}.fcv-prob .dn{color:#e06a6a;opacity:.82}
   .fcv-sig{font-size:12px;font-weight:600;color:var(--muted);font-family:var(--mono)}
-  .fcv-op{flex:1;min-width:150px;font-size:13.5px;font-weight:500;color:var(--eth);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fcv-op{flex:1;min-width:150px;font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fc-verdict-bar.flash .fcv-reg,.fc-verdict-bar.flash .fcv-prob,.fc-verdict-bar.flash .fcv-op{animation:verdflash 1.1s ease-out}
+  @keyframes verdflash{0%{filter:brightness(2) drop-shadow(0 0 12px currentColor)}45%{filter:brightness(1.35)}100%{filter:none}}
   .chart-pane.editing .fc-verdict-bar{display:none!important}
   /* 타임프레임 매트릭스(일·주·월 비교) — 트레이딩 터미널 스타일 */
   #fcDashBody{padding:1px}
-  .dash-table{width:100%;border-collapse:separate;border-spacing:0;font-size:11.5px;letter-spacing:-.01em;table-layout:fixed}
-  .dash-table th,.dash-table td{padding:2.5px 9px}
+  .dash-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;letter-spacing:-.01em;table-layout:fixed;font-family:Pretendard,system-ui,sans-serif}
+  .dash-table th,.dash-table td{padding:4px 10px}
   .dash-table td:not(:first-child),.dash-table th:not(:first-child){border-left:1px solid rgba(255,255,255,.05)}
   .dash-table th{font-size:11.5px;font-weight:800;text-align:right;padding-bottom:5px;border-bottom:2px solid rgba(255,255,255,.09)}
   .dash-table th .thdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:middle}
-  .dash-table th:first-child{text-align:left;color:#6b7391;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;width:88px}
-  .dash-table td:first-child{color:var(--eth);font-weight:700;white-space:nowrap;font-size:11.5px}
-  .dash-table tbody tr:not(.dash-sec):hover td{background:rgba(255,255,255,.018)}
+  .dash-table th:first-child{text-align:left;color:#8892a8;font-size:11px;font-weight:800;width:92px}
+  .dash-table td:first-child{color:var(--ink);font-weight:700;white-space:nowrap;font-size:12px}
+  .dash-table tbody tr:not(.dash-sec):nth-child(even) td{background:rgba(255,255,255,.014)}
+  .dash-table tbody tr:not(.dash-sec):hover td{background:rgba(232,180,99,.05)}
   .dash-cell{display:flex;align-items:center;gap:8px;min-height:13px;justify-content:flex-end}   /* 세그먼트(좌)+값(우) */
   .dash-cell.txt{justify-content:flex-start}
   .dash-cell .dval{font-family:var(--mono);font-weight:800;white-space:nowrap;min-width:30px;text-align:right}
@@ -664,7 +668,11 @@
   .hz-row:last-child{border-bottom:0}
   .hz-row.hz-head{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;padding-bottom:5px}
   .hz-t{flex:0 0 60px;font-weight:700;color:var(--gold);font-size:13px}
-  .hz-v{flex:0 0 64px;font-weight:700;color:var(--ink);font-size:13.5px}
+  .hz-v{flex:0 0 68px;font-weight:800;color:var(--ink);font-size:14px}
+  .hz-v.hz-up{color:var(--bull);text-shadow:0 0 10px rgba(70,194,142,.35)}
+  .hz-v.hz-dn{color:var(--bear);text-shadow:0 0 10px rgba(224,106,106,.35)}
+  .hz-row .hz-v{animation:hzpulse .5s ease-out}
+  @keyframes hzpulse{0%{transform:scale(1.14);filter:brightness(1.5)}100%{transform:scale(1);filter:none}}
   .hz-chg{flex:0 0 54px;font-weight:700;font-size:12px}
   .hz-chg.hz-up{color:var(--bull)}.hz-chg.hz-dn{color:var(--bear)}.hz-chg.hz-fl{color:var(--eth)}
   .hz-prob{flex:0 0 104px;display:flex;align-items:center;gap:7px;font-weight:800;font-size:11.5px;font-family:var(--mono)}
@@ -2967,15 +2975,16 @@
       const x = pad + (i / n) * w, bh = (s[i] / maxV) * h, y = pad + h - bh;
       const up = i > 0 && obv[i] >= obv[i - 1];
       const spike = va.state === "spike" && i >= n - 3;
-      c.fillStyle = spike ? "#e8b463" : up ? "rgba(70,194,142,.7)" : "rgba(224,106,106,.7)";
+      c.fillStyle = spike ? "rgba(232,180,99,.55)" : up ? "rgba(70,194,142,.22)" : "rgba(224,106,106,.22)";   // 막대는 흐리게(보조)
       c.fillRect(x, y, bw, bh);
     }
     // OBV 라인(보조 스케일)
     if (obv.length === n) {
       let omin = Math.min.apply(null, obv), omax = Math.max.apply(null, obv); const orng = (omax - omin) || 1;
-      c.strokeStyle = "#8a92b2"; c.lineWidth = 1.5; c.beginPath();
+      const _oc = va.obvTrend > 0.05 ? "#46c28e" : va.obvTrend < -0.05 ? "#e06a6a" : "#c7cede";   // OBV 추이선 = 주인공(RSI처럼 강조)
+      c.save(); c.strokeStyle = _oc; c.lineWidth = 2.4; c.lineJoin = "round"; c.shadowColor = _oc; c.shadowBlur = 7; c.beginPath();
       for (let i = 0; i < n; i++) { const x = pad + (i / n) * w + bw / 2, y = pad + h - ((obv[i] - omin) / orng) * h; i ? c.lineTo(x, y) : c.moveTo(x, y); }
-      c.stroke();
+      c.stroke(); c.restore();
     }
     // 상태 라벨
     { const meta = document.getElementById("fcVolMeta"); if (meta) { const st = va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이"; const oc = va.obvTrend > 0.1 ? ["OBV 상승 확인", "up"] : va.obvTrend < -0.1 ? ["OBV 하락", "dn"] : ["OBV 횡보", "fl"]; meta.innerHTML = st + " " + va.ratio.toFixed(2) + "x <span class='fc-verdit " + oc[1] + "'>" + oc[0] + "</span>"; } } _osReveal(c, cw, ch, reveal);
@@ -4917,7 +4926,7 @@
       const pc = upF >= 55 ? "hz-up" : upF <= 45 ? "hz-dn" : "hz-fl";        // 색은 최종 방향 고정(깜빡임 방지)
       return `<div class="hz-row">
         <span class="hz-t">+${h}${unit}</span>
-        <span class="hz-v">${_hzFmt(v)}</span>
+        <span class="hz-v ${cls}">${_hzFmt(v)}</span>
         <span class="hz-chg ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>
         <span class="hz-prob"><span class="hz-probbar"><i style="width:${up}%"></i></span><b class="${pc}">${up}%</b></span>
         <span class="hz-band">${band}</span>
@@ -5839,6 +5848,7 @@
         `<span class="fcv-sig">시그널 ${score}${isFinite(_targetN) ? "  ·  목표 " + fmtNum(_targetN) : ""}${(verdict.confluence && verdict.confluence.total) ? "  ·  컨플루언스 " + verdict.confluence.score + "% (" + verdict.confluence.agree + "/" + verdict.confluence.total + ")" : ""}</span>` +
         `<span class="fcv-op">${op}</span>`;
     }
+    if (u >= 1 && bar) { bar.classList.remove("flash"); void bar.offsetWidth; bar.classList.add("flash"); }   // 최종 결과 등장 강조
     if (typeof scheduleDash === "function" && u >= 1) scheduleDash();   // 타임프레임 매트릭스 자동 갱신(시연 충전 중엔 생략)
   }
   /* 핵심 의견 한 줄(간결) — 국면·상승확률·시그널 강도 종합 */
@@ -6306,7 +6316,7 @@
     if (_playT) clearTimeout(_playT);
     if (_playRaf) cancelAnimationFrame(_playRaf);
     _playTimers.forEach(clearTimeout); _playTimers = [];
-    _playT = null; _playRaf = null; _playing = false;
+    _playT = null; _playRaf = null; _playing = false; updatePlayBtn();
     _evReveal = {}; _playReveal = { ids: null, u: 1 };   // 중단 → 차트 외 시각화 전체 확정 표시
     _scanning = false; _scanU = 1;   // 작도 중단 → 전체 표시
     _dashFill(null);
@@ -6348,6 +6358,11 @@
       if (cell.hasAttribute("data-fnum")) { const fn = +cell.getAttribute("data-fnum"), suf = cell.getAttribute("data-suf") || ""; const dv = cell.querySelector(".dval"); if (dv) dv.textContent = Math.round(fn * f) + suf; }
     });
   }
+  function updatePlayBtn() {
+    const b = document.getElementById("playBtn"); if (!b) return;
+    if (_playing) { b.innerHTML = '■<span class="hlbl"> 중지</span>'; b.classList.add("playing"); b.title = "시연 중지"; }
+    else { b.innerHTML = '▶<span class="hlbl"> 시연</span>'; b.classList.remove("playing"); b.title = "시연 — 지표별 작도 과정을 애니메이션으로 재생"; }
+  }
   function playAnalysis() {
     if (_playing) { stopPlay(); return; }      // 토글: 재생 중 누르면 중단
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
@@ -6368,7 +6383,7 @@
       if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
       bToast("포지 분석 완료 · " + indNodes.length + "개 지표 결합"); return;
     }
-    _playing = true;
+    _playing = true; updatePlayBtn();
     clearAnalyzeViz();
     // 손그림 작도: 모든 도구를 동시에, 진행도(_scanU 0→1)에 맞춰 선이 그어지듯 작도(스캔 아님)
     _evidenceSet = new Set(indNodes.map(n => n.id));
@@ -6464,7 +6479,7 @@
       _evReveal = {};
       indNodes.forEach(n => { const el = bq(n.id); if (el) { el.classList.remove("analyzing"); el.classList.add("analyzed"); } });
       if (center) { const el = bq(center.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); _analyzeNode = center.id; } }  // 중심 포지 점등
-      _playing = false; _playRaf = null;
+      _playing = false; _playRaf = null; updatePlayBtn();
       _playTimers.forEach(clearTimeout); _playTimers = [];
       _playReveal = { ids: null, u: 1 };                      // 시연 종료 → 전체 확정 표시
       _dashFill(null);
@@ -6484,7 +6499,7 @@
              <span class="ph-type">${indNodes.length}개 지표 결합 · 국면 <b style="color:${reg.c}">${reg.t}</b> · 목표가 ${tgt}</span></div>
            <div class="ph-sig"><span class="ph-type">시그널</span><b>${Math.round(finSig)}</b></div>`;
       }
-      _playTimers.push(setTimeout(() => { if (hud2) hud2.classList.remove("on"); }, 7000));   // 최종 결과 오래 보여주기
+      // 시연 진행 창은 자동으로 숨기지 않음 — 사용자가 ✕로 닫거나 다음 동작까지 유지
       const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
       bToast("포지 완료 · " + indNodes.length + "개 지표 결합 → 시그널 " + Math.round(finSig));
     }
