@@ -32,6 +32,12 @@
   .forge-split{display:flex;flex:1;min-width:0}
   .board-pane{position:relative;flex:0 0 var(--board-w,560px);min-width:320px;overflow:hidden;display:flex;flex-direction:column}
   .chart-pane{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
+  /* 포지 전환 로딩 오버레이(2·3번째 영역) */
+  .pane-loading{position:absolute;inset:0;z-index:70;display:none;flex-direction:column;align-items:center;justify-content:center;gap:13px;background:rgba(11,15,20,.72);backdrop-filter:blur(2px);opacity:0;transition:opacity .18s}
+  .pane-loading.on{opacity:1}
+  .pl-spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(232,180,99,.18);border-top-color:var(--gold);animation:plspin .75s linear infinite}
+  @keyframes plspin{to{transform:rotate(360deg)}}
+  .pl-txt{font-size:12.5px;font-weight:600;color:var(--eth);letter-spacing:-.01em}
   /* 좌우 크기조절 거터 */
   .forge-gutter{flex:0 0 7px;background:var(--line);cursor:col-resize;position:relative;z-index:6;transition:background .12s}
   .forge-gutter::before{content:"";position:absolute;left:-4px;right:-4px;top:0;bottom:0}
@@ -1475,9 +1481,22 @@
   let _saveT = null;
   function markDirty() { if (!SERVER_OK) return; clearTimeout(_saveT); _saveT = setTimeout(writeBackActive, 800); }
   async function saveMeta() { if (!SERVER_OK) return; await apiPost({ op: "meta", meta: { library: LIBRARY, activeId } }); }
+  function setDocLoading(on) {
+    ["boardPane", "chartPane"].forEach(pid => {
+      const pane = document.getElementById(pid); if (!pane) return;
+      let ov = pane.querySelector(":scope > .pane-loading");
+      if (on) {
+        if (!ov) { ov = document.createElement("div"); ov.className = "pane-loading"; ov.innerHTML = '<div class="pl-spin"></div><span class="pl-txt">불러오는 중…</span>'; pane.appendChild(ov); }
+        else pane.appendChild(ov);   // 렌더로 밀려도 최상단 유지
+        ov.style.display = "flex"; void ov.offsetWidth; ov.classList.add("on");
+      } else if (ov) { ov.classList.remove("on"); setTimeout(() => { if (ov && !ov.classList.contains("on")) ov.style.display = "none"; }, 220); }
+    });
+  }
   async function loadDoc(id) {
     clearTimeout(_saveT);
     const dc = DOCS.find(d => d.id === id); if (!dc) return;
+    setDocLoading(true);
+    await new Promise(r => requestAnimationFrame(() => setTimeout(r, 45)));   // 로딩 UI 페인트+최소 노출
     _stopPoll(); _setReqStat("", "");  // 기존 폴 즉시 정리
     activeId = id; META.activeId = id;
     boardState.nodes = dc.nodes || []; boardState.edges = dc.edges || [];
@@ -1502,23 +1521,28 @@
     renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); runForge();
     // fetched 티커 자동 재fetch(비차단) — 캔들은 문서에 없으므로 메모리 복원
     // fetched 플래그 또는 레거시(구버전이 저장한 params.price 보유) 티커를 자동 재fetch. 샘플(price=null)은 제외.
-    boardState.nodes.filter(n => n.blockType === "ticker" && n.params && n.params.symbol && (n.params.fetched || isFinite(n.params.price))).forEach(async n => {
-      try {
-        const rr = await fetchOHLC(n.params.symbol, (n.params.tf) || "1day");
-        if (rr && rr.ok && Array.isArray(rr.candles) && rr.candles.length >= 2) {
-          n._ohlc = rr.candles.map(d => ({ o: +(+d.o).toFixed(4), h: +(+d.h).toFixed(4), l: +(+d.l).toFixed(4), c: +(+d.c).toFixed(4) }));
-          n._series = n._ohlc.map(d => d.c);
-          n._times = rr.candles.map(d => d.t);                // 실제 날짜(시간축)
-          n.params.price = n._series[n._series.length - 1];   // 스케일 앵커 갱신 → currentData 계수 1(캔들·선 정합)
-          n.params.name = rr.name || n.params.name || "";     // 종목명 복원
-          n.params.fetched = true;                            // 레거시 노드 마이그레이션
-          delete n.series; delete n.ohlc;                     // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
-          if (typeof resetChartWin === "function") resetChartWin();
-          if (typeof resetYScale === "function") resetYScale();
-          runForge();
-        }
-      } catch (e) { /* 오프라인/실패 무시 — 차트 없이 그레이스풀 */ }
-    });
+    const _tks = boardState.nodes.filter(n => n.blockType === "ticker" && n.params && n.params.symbol && (n.params.fetched || isFinite(n.params.price)));
+    if (!_tks.length) setDocLoading(false);   // 티커 없으면 렌더 후 즉시 로딩 종료
+    else {
+      const _ldSafe = setTimeout(() => setDocLoading(false), 6000);   // 안전장치(fetch 지연/실패 대비)
+      Promise.all(_tks.map(async n => {
+        try {
+          const rr = await fetchOHLC(n.params.symbol, (n.params.tf) || "1day");
+          if (rr && rr.ok && Array.isArray(rr.candles) && rr.candles.length >= 2) {
+            n._ohlc = rr.candles.map(d => ({ o: +(+d.o).toFixed(4), h: +(+d.h).toFixed(4), l: +(+d.l).toFixed(4), c: +(+d.c).toFixed(4) }));
+            n._series = n._ohlc.map(d => d.c);
+            n._times = rr.candles.map(d => d.t);                // 실제 날짜(시간축)
+            n.params.price = n._series[n._series.length - 1];   // 스케일 앵커 갱신 → currentData 계수 1(캔들·선 정합)
+            n.params.name = rr.name || n.params.name || "";     // 종목명 복원
+            n.params.fetched = true;                            // 레거시 노드 마이그레이션
+            delete n.series; delete n.ohlc;                     // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
+            if (typeof resetChartWin === "function") resetChartWin();
+            if (typeof resetYScale === "function") resetYScale();
+            runForge();
+          }
+        } catch (e) { /* 오프라인/실패 무시 — 차트 없이 그레이스풀 */ }
+      })).finally(() => { clearTimeout(_ldSafe); setDocLoading(false); });   // 실 데이터 반영 후 로딩 종료
+    }
     // 새 문서의 진행 중 잡 복원 (비전 분석 활성 시에만) — 실 티커 포지는 이미지분석 초기화이므로 잡 복원도 생략
     const _realTicker = boardState.nodes.some(n => n.blockType === "ticker" && n.params && (n.params.fetched || isFinite(n.params.price)));
     if (VISION_ENABLED && SERVER_OK && activeId && !_realTicker) {
