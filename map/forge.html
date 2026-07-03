@@ -38,6 +38,18 @@
   .pl-spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(232,180,99,.18);border-top-color:var(--gold);animation:plspin .75s linear infinite}
   @keyframes plspin{to{transform:rotate(360deg)}}
   .pl-txt{font-size:12.5px;font-weight:600;color:var(--eth);letter-spacing:-.01em}
+  /* 웹분석 진행 게이지(화면 가운데·짧고 전문적) */
+  .analyze-gauge{position:absolute;inset:0;z-index:80;display:none;align-items:center;justify-content:center;background:rgba(11,15,20,.5);backdrop-filter:blur(3px);opacity:0;transition:opacity .2s}
+  .analyze-gauge.on{display:flex;opacity:1}
+  .ag-card{width:min(430px,82%);background:linear-gradient(180deg,rgba(20,26,34,.98),rgba(13,17,23,.98));border:1px solid var(--gold-dim);border-radius:16px;padding:24px 30px 26px;box-shadow:0 22px 64px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05);text-align:center}
+  .ag-title{font-size:11px;font-weight:800;letter-spacing:.16em;color:var(--gold);text-transform:uppercase;margin-bottom:5px;display:flex;align-items:center;justify-content:center;gap:7px}
+  .ag-title::before{content:"⚡"}
+  .ag-stage{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:16px;min-height:20px;letter-spacing:-.01em}
+  .ag-bar{position:relative;height:8px;border-radius:6px;background:rgba(138,146,178,.16);overflow:hidden}
+  .ag-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,#e8b463,#ffd98a);box-shadow:0 0 14px rgba(232,180,99,.55);width:0}
+  .ag-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:agshine .9s linear infinite}
+  @keyframes agshine{0%{transform:translateX(-110%)}100%{transform:translateX(110%)}}
+  .ag-pct{margin-top:11px;font-size:22px;font-weight:900;font-family:var(--mono);color:var(--gold);letter-spacing:-.02em}
   /* 좌우 크기조절 거터 */
   .forge-gutter{flex:0 0 7px;background:var(--line);cursor:col-resize;position:relative;z-index:6;transition:background .12s}
   .forge-gutter::before{content:"";position:absolute;left:-4px;right:-4px;top:0;bottom:0}
@@ -452,8 +464,10 @@
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
   .chart-pane.editing .fc-wrap{display:none}
   .chart-pane.editing .node-editor{display:flex}
-  .ne-back{align-self:flex-start;background:rgba(232,180,99,.14);border:1px solid var(--gold-dim);color:var(--gold);border-radius:8px;font-size:12.5px;font-weight:700;padding:7px 13px;cursor:pointer;font-family:inherit}
-  .ne-back:hover{background:rgba(232,180,99,.24);border-color:var(--gold)}
+  /* 차트로 돌아가기 = 편집기 상단 고정 바(항상 보이게·눈에 띄게) */
+  .ne-back{position:sticky;top:-13px;z-index:6;margin:-13px -15px 6px;align-self:stretch;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(22,29,38,.99),rgba(22,29,38,.92));border:0;border-bottom:1px solid var(--gold-dim);color:var(--gold);border-radius:0;font-size:13px;font-weight:800;padding:12px 15px;cursor:pointer;font-family:inherit;backdrop-filter:blur(5px);letter-spacing:-.01em}
+  .ne-back:hover{background:rgba(232,180,99,.16)}
+  .ne-back .neb-esc{margin-left:auto;font-size:10px;font-weight:700;color:var(--eth);border:1px solid var(--line);border-radius:5px;padding:2px 7px;letter-spacing:.02em}
   .ne-head{display:flex;align-items:center;gap:8px}
   .ne-type{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--gold);background:rgba(232,180,99,.1);
     border:1px solid var(--gold-dim);border-radius:4px;padding:3px 7px;text-transform:uppercase;white-space:nowrap}
@@ -532,14 +546,20 @@
   .ne-img,.ne-gutter,.ne-imgbar{display:none!important}
   .forge-side .pal-side{display:flex;flex-direction:column;gap:5px}
   /* 도구 리스트: 카드·테두리 없이 평면 + 지표색 상태 점(미추가=빈 원 / 추가=지표색 발광 점 / 선택=골드 링) */
-  .forge-side .pal-side .pal-btn{position:relative;display:flex;align-items:center;gap:9px;width:100%;padding:7px 11px;border:0;border-radius:9px;background:transparent;color:var(--eth);font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;white-space:nowrap;transition:background .12s,color .12s}
-  .forge-side .pal-side .pal-btn::before{content:"";width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:transparent;box-shadow:inset 0 0 0 1.5px rgba(138,146,178,.35);transition:box-shadow .12s,background .12s}
+  /* 블록 도구 = 체크박스 행(직관적) + 추가 시 상세편집 버튼 */
+  .forge-side .pal-side .pal-btn{position:relative;display:flex;align-items:center;gap:9px;width:100%;padding:6px 7px 6px 9px;border:0;border-radius:9px;background:transparent;color:var(--eth);font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;white-space:nowrap;transition:background .12s,color .12s}
+  .forge-side .pal-side .pal-chk{flex:0 0 auto;width:15px;height:15px;border-radius:4px;border:1.5px solid rgba(138,146,178,.42);display:grid;place-items:center;transition:background .12s,border-color .12s}
+  .forge-side .pal-side .pal-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
+  .forge-side .pal-side .pal-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .forge-side .pal-side .pal-edit{flex:0 0 auto;width:22px;height:22px;border-radius:6px;border:1px solid var(--line);background:rgba(232,180,99,.1);color:var(--gold);font-size:12px;cursor:pointer;display:grid;place-items:center;padding:0;line-height:1}
+  .forge-side .pal-side .pal-edit:hover{background:rgba(232,180,99,.24);border-color:var(--gold)}
   .forge-side .pal-side .pal-btn:hover{background:rgba(255,255,255,.05);color:var(--ink)}
-  .forge-side .pal-side .pal-btn.added{color:var(--ink);background:rgba(255,255,255,.05)}
-  .forge-side .pal-side .pal-btn.added::before{background:var(--ic,#8a92b2);box-shadow:0 0 8px -1px var(--ic,#8a92b2)}
-  .forge-side .pal-side .pal-btn.added:hover{background:rgba(255,255,255,.085)}
+  .forge-side .pal-side .pal-btn.added{color:var(--ink);background:rgba(255,255,255,.045)}
+  .forge-side .pal-side .pal-btn.added .pal-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2);box-shadow:0 0 8px -2px var(--ic,#8a92b2)}
+  .forge-side .pal-side .pal-btn.added .pal-chk::after{opacity:1;transform:scale(1)}
+  .forge-side .pal-side .pal-btn.added:hover{background:rgba(255,255,255,.08)}
   .forge-side .pal-side .pal-btn.sel{color:var(--ink);background:rgba(232,180,99,.14);font-weight:700}
-  .forge-side .pal-side .pal-btn.sel::before{background:var(--ic,var(--gold));box-shadow:0 0 0 3px rgba(232,180,99,.28),0 0 8px -1px var(--ic,var(--gold))}
+  .forge-side .pal-side .pal-btn.sel .pal-chk{box-shadow:0 0 0 2px rgba(232,180,99,.35)}
   .side-allbtn{margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;font-size:10px;font-weight:600;padding:2px 7px;cursor:pointer;line-height:1.5}
   .side-allbtn:hover{border-color:var(--gold);color:var(--gold)}
   .side-h-toggle .side-caret{margin-left:8px}
@@ -1617,8 +1637,8 @@
          <select class="doc-select" aria-label="포지 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === activeId ? " selected" : ""}>${esc(d.title || "제목 없음")}</option>`).join("")}</select></div>
        <div class="side-sec tool-sec${_toolsOpen ? "" : " collapsed"}"><div class="side-h side-h-toggle" onclick="toggleTools()" title="블록 도구 접기/펼치기"><span>블록 도구</span><button class="side-allbtn" onclick="event.stopPropagation();toggleAllBlocks()" title="지표 전체 추가/해제">${_allIndAdded() ? "전체 해제" : "전체 적용"}</button><span class="side-caret">${_toolsOpen ? "▾" : "▸"}</span></div>
          <div class="pal-side">` +
-         BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker" && d.type !== "price").map(d => `<button class="pal-btn${_hasBlock(d.type) ? " added" : ""}${d.type === _selType() ? " sel" : ""}" data-bt="${d.type}" style="--ic:${EV_COLORS[d.type] || "#8a92b2"}" onclick="addBlock('${d.type}')" title="${_hasBlock(d.type) ? (EV_COLORS[d.type] ? "추가됨 · 클릭하면 제거" : "추가됨 · 클릭하면 선택") : "클릭하면 추가"}">${d.label}</button>`).join("") +
-         `<button class="pal-btn pal-free" onclick="addBlock('free')">메모</button>` +
+         BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker" && d.type !== "price").map(d => { const _a = _hasBlock(d.type), _s = d.type === _selType(); return `<div class="pal-btn${_a ? " added" : ""}${_s ? " sel" : ""}" data-bt="${d.type}" style="--ic:${EV_COLORS[d.type] || "#8a92b2"}" onclick="addBlock('${d.type}')" title="${_a ? "체크 해제 = 지표 제거" : "체크 = 지표 추가"}"><span class="pal-chk"></span><span class="pal-lbl">${d.label}</span>${_a ? `<button class="pal-edit" onclick="event.stopPropagation();editBlock('${d.type}')" title="상세 편집(파라미터)">✎</button>` : ""}</div>`; }).join("") +
+         `<div class="pal-btn pal-free" onclick="addBlock('free')"><span class="pal-chk"></span><span class="pal-lbl">메모</span></div>` +
        `</div></div>
        <div class="side-sec" id="libSec"></div>`;
     if (window.renderLib) renderLib();   // 라이브러리 섹션(Task 4)
@@ -2017,7 +2037,7 @@
          <div class="pp-row"><label>현재가</label><input type="number" step="any" data-calp="np" value="${cal0.np ?? ""}" placeholder="최근 종가(현재선)"></div>`
       : "";
     panel.innerHTML =
-      `<button class="ne-back" onclick="deselectAll()" title="차트 결과로 돌아가기">← 차트로 돌아가기</button>
+      `<button class="ne-back" onclick="deselectAll()" title="차트 결과로 돌아가기 (Esc)">← 차트 결과로 돌아가기<span class="neb-esc">Esc</span></button>
        <div class="ne-head"><span class="ne-type">${esc(neTypeLabel(n))}</span>
          <input class="ne-title" id="neTitle" value="${esc(n.title || "")}" placeholder="노드 제목"></div>
        <div class="ne-img${hasImg ? "" : " empty"}" id="neImg" title="${hasImg ? "드래그 · Ctrl+V로 교체" : "클릭 · 드래그 · Ctrl+V로 이미지 추가"}">${imgInner}</div>
@@ -2060,6 +2080,7 @@
   }
 
   function selectOnly(id)   { sel = [id]; applySel(); }
+  function editBlock(type)  { let n = boardState.nodes.find(x => x.blockType === type); if (!n) { addBlock(type); n = boardState.nodes.find(x => x.blockType === type); } if (n) selectOnly(n.id); }
   function toggleSel(id)    { const i = sel.indexOf(id); if (i >= 0) sel.splice(i, 1); else sel.push(id); applySel(); }
   function clearSel()       { sel = []; applySel(); }
   function setSel(ids)      { sel = ids; applySel(); }
@@ -6285,7 +6306,35 @@
     }
   }
   function markEngineDirty() { _engineDirty = true; updateEngineBtn(); }
-  function runEngine() { if (_playing) stopPlay(); runForge(); _engineDirty = false; updateEngineBtn(); bToast("웹분석 완료 · 포지결과 갱신"); }
+  function _ensureAnalyzeGauge() {
+    const pane = document.getElementById("chartPane") || document.body;
+    let ov = document.getElementById("analyzeGauge");
+    if (!ov) { ov = document.createElement("div"); ov.id = "analyzeGauge"; ov.className = "analyze-gauge";
+      ov.innerHTML = '<div class="ag-card"><div class="ag-title">웹분석</div><div class="ag-stage" id="agStage">지표 계산 중…</div><div class="ag-bar"><span class="ag-fill" id="agFill"></span></div><div class="ag-pct" id="agPct">0%</div></div>'; }
+    pane.appendChild(ov);   // 항상 최상단
+    return ov;
+  }
+  let _agBusy = false;
+  async function runEngine() {
+    if (_playing) stopPlay();
+    if (_agBusy) return; _agBusy = true;
+    const ov = _ensureAnalyzeGauge(); ov.classList.add("on");
+    const fill = document.getElementById("agFill"), pct = document.getElementById("agPct"), stg = document.getElementById("agStage");
+    const stages = ["지표 계산 중…", "예측 시나리오 산출 중…", "종합 판정 중…"];
+    await new Promise(r => requestAnimationFrame(() => setTimeout(r, 30)));   // 오버레이 페인트
+    runForge(); _engineDirty = false; updateEngineBtn();                       // 실제 계산(오버레이 뒤)
+    await new Promise(res => {
+      const t0 = performance.now(), dur = 950;
+      (function step(now) {
+        const u = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - u, 2.2), p = Math.round(e * 100);
+        if (fill) fill.style.width = p + "%"; if (pct) pct.textContent = p + "%";
+        if (stg) stg.textContent = stages[Math.min(stages.length - 1, Math.floor(e * stages.length))];
+        if (u < 1) { requestAnimationFrame(step); return; } res();
+      })(t0);
+    });
+    ov.classList.remove("on"); _agBusy = false;
+    bToast("웹분석 완료 · 포지결과 갱신");
+  }
   // 엔진분석 = 클로드 수동분석(예정 기능). 현재는 안내만.
   function claudeEngine() { bToast("엔진분석(클로드 수동분석)은 준비 중입니다 — 예정 기능"); }
   /* 붙여넣은 텍스트 → 종가 배열. 한 줄=한 봉. 줄에 4개 이상 수면 OHLC(V)로 보고 종가(4번째) 사용. */
