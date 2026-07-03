@@ -64,6 +64,20 @@
   body.panel-mode .b-n-body{padding:8px 11px}
   body.panel-mode .b-n-gauge{margin-top:6px;padding-top:6px}
   body.panel-mode .b-zoomctl,body.panel-mode .b-edges,body.panel-mode .b-marquee,body.panel-mode .b-snap-guide,body.panel-mode .b-ehud,body.panel-mode .b-nhud{display:none!important}
+  /* ── 노드 가중치 접이식 한 줄 리스트(카드 대체) ── */
+  .wlist{display:none}
+  body.panel-mode .wlist{display:block;flex:1 1 auto;overflow-y:auto;padding:6px 10px 40px;background:radial-gradient(130% 100% at 50% 0%,#111925,#0b0f14)}
+  body.panel-mode .b-stage{display:none}   /* 큰 카드 대신 가중치 리스트 */
+  .wl-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 4px;font-size:11.5px;font-weight:700;letter-spacing:.02em;color:var(--eth);cursor:pointer;user-select:none;position:sticky;top:0;background:linear-gradient(180deg,#0e1622,#0e1622ee);z-index:2}
+  .wl-head:hover{color:var(--ink)} .wl-caret{color:var(--eth);font-size:10px}
+  .wlist.collapsed .wl-body{display:none}
+  .wrow{display:grid;grid-template-columns:86px 1fr 40px;align-items:center;gap:9px;padding:5px 4px;border-radius:6px}
+  .wrow:hover{background:rgba(255,255,255,.035)}
+  .wl-name{font-size:12.5px;color:var(--ink);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
+  .wl-name:hover{color:var(--gold)}
+  .wl-sig{margin:0}
+  .wl-val{font-size:12px;font-family:var(--mono);text-align:right;font-weight:700}
+  .wl-val.g-up{color:#46c28e}.wl-val.g-dn{color:#e06a6a}.wl-val.g-0{color:var(--muted)}
   /* edge SVG: 20000×20000 centered on -10000,-10000 so world(0,0) maps to SVG(10000,10000) */
   .b-edges{position:absolute;left:-10000px;top:-10000px;width:20000px;height:20000px;overflow:visible;pointer-events:none}
   .b-edges .b-ew{fill:none;stroke:var(--edge);stroke-width:2.4}
@@ -1608,6 +1622,26 @@
     applySel();
     applyView();
     if (typeof renderTickerPanel === "function") renderTickerPanel();
+    renderWeightList();
+  }
+  /* ── 노드 가중치 접이식 한 줄 리스트(패널모드에서 카드 대체) ── */
+  let _wlistOpen = !(typeof window !== "undefined" && window.innerWidth <= 860);   // 모바일 기본 접힘
+  function toggleWList() { _wlistOpen = !_wlistOpen; renderWeightList(); }
+  function renderWeightList() {
+    const host = document.getElementById("wlist"); if (!host) return;
+    const nodes = (typeof evIndicatorNodes === "function") ? evIndicatorNodes() : [];
+    const rows = nodes.map(n => {
+      const sig = n.conviction || 0, cls = sig > 0 ? "g-up" : sig < 0 ? "g-dn" : "g-0";
+      const label = esc(n.title || BTLABEL[n.blockType] || n.blockType || "노드");
+      return `<div class="wrow" data-id="${n.id}">
+        <span class="wl-name" data-wedit="${n.id}" title="클릭 = 상세 편집(파라미터·이미지)">${label}</span>
+        <input type="range" class="b-ctrl-sig wl-sig" data-id="${n.id}" min="-100" max="100" step="1" value="${sig}" title="왼쪽 하락 · 가운데 중립 · 오른쪽 상승 — 세기가 곧 중요도">
+        <span class="wl-val ${cls}">${sig > 0 ? "▲" : sig < 0 ? "▼" : "–"}${Math.abs(sig)}</span>
+      </div>`;
+    }).join("");
+    host.innerHTML = `<div class="wl-head" onclick="toggleWList()"><span>노드 가중치 · ${nodes.length}</span><span class="wl-caret">${_wlistOpen ? "▾" : "▸"}</span></div>
+      <div class="wl-body">${rows || '<div class="na-empty" style="padding:16px 4px">사이드바 블록 도구로 지표를 추가하세요</div>'}</div>`;
+    host.classList.toggle("collapsed", !_wlistOpen);
   }
 
   /* ── measure ─────────────────────────────────────────────────── */
@@ -2175,6 +2209,7 @@
     <button class="tk-load" id="tkLoad">불러오기</button>
     <span class="tk-stat" id="tkStat">종목 입력 후 불러오기 · 일/주/월은 차트에서</span>
   </div>
+  <div class="wlist" id="wlist"></div>
   <div class="b-stage" id="bStage">
   <div class="b-world" id="bWorld">
     <svg class="b-edges" id="bEdges">
@@ -2211,6 +2246,20 @@
       _tkSym.addEventListener("input", e => { const t = ensureTickerNode(); t.params.symbol = e.target.value.trim(); markDirty(); renderTickerPanel(); });
       _tkSym.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); loadTicker(); } });
       document.getElementById("tkLoad").addEventListener("click", loadTicker);
+    }
+
+    /* 가중치 리스트: 슬라이더=가중치 조절, 이름 클릭=상세 편집 */
+    const _wl = document.getElementById("wlist");
+    if (_wl) {
+      _wl.addEventListener("input", e => {
+        const t = e.target; if (!t.classList.contains("wl-sig")) return;
+        const n = bN(t.dataset.id); if (!n) return;
+        const sig = Number(t.value) || 0; n.conviction = sig; n.weight = Math.abs(sig);
+        const row = t.closest(".wrow"), val = row && row.querySelector(".wl-val");
+        if (val) { val.className = "wl-val " + (sig > 0 ? "g-up" : sig < 0 ? "g-dn" : "g-0"); val.textContent = (sig > 0 ? "▲" : sig < 0 ? "▼" : "–") + Math.abs(sig); }
+        fireBoardChange();
+      });
+      _wl.addEventListener("click", e => { const nm = e.target.closest("[data-wedit]"); if (nm) selectOnly(nm.dataset.wedit); });
     }
 
     /* stage pointer/wheel/dblclick */
