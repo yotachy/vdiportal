@@ -255,6 +255,13 @@
   .dash-reg{font-weight:800;font-size:12px;padding:0 8px;border-radius:10px}
   .dseg{display:inline-flex;gap:2px}                     /* 세그먼트 바(이미지식) */
   .dseg i{width:4px;height:11px;border-radius:1px;background:rgba(255,255,255,.08);display:block}
+  /* 타임프레임 매트릭스: 세그먼트가 좌→우로 차오르는 게이지 효과(렌더 시) */
+  @keyframes segfill{0%{opacity:0;transform:translateX(-3px) scaleY(.4)}100%{opacity:1;transform:none}}
+  .dseg i[style]{animation:segfill .4s both}
+  .dseg i:nth-child(1){animation-delay:.02s}.dseg i:nth-child(2){animation-delay:.05s}.dseg i:nth-child(3){animation-delay:.08s}.dseg i:nth-child(4){animation-delay:.11s}.dseg i:nth-child(5){animation-delay:.14s}
+  .dseg i:nth-child(6){animation-delay:.17s}.dseg i:nth-child(7){animation-delay:.2s}.dseg i:nth-child(8){animation-delay:.23s}.dseg i:nth-child(9){animation-delay:.26s}.dseg i:nth-child(10){animation-delay:.29s}
+  .dash-cell .dval{animation:hzfade .5s both}
+  @keyframes hzfade{from{opacity:0}to{opacity:1}}
   .dash-best{background:linear-gradient(90deg,rgba(91,141,239,.04),rgba(91,141,239,.17))!important;box-shadow:inset 0 0 0 1px rgba(91,141,239,.5)}
   .dash-sub{font-size:11px;color:var(--eth);font-family:var(--mono);font-weight:700}
   .dash-sec td{padding:2px 10px!important;font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--gold);background:rgba(232,180,99,.07);border-top:1px solid var(--gold-dim);border-bottom:1px solid var(--gold-dim);border-left:0!important}
@@ -654,7 +661,7 @@
   .hz-chg.hz-up{color:var(--bull)}.hz-chg.hz-dn{color:var(--bear)}.hz-chg.hz-fl{color:var(--eth)}
   .hz-prob{flex:0 0 104px;display:flex;align-items:center;gap:7px;font-weight:800;font-size:11.5px;font-family:var(--mono)}
   .hz-probbar{position:relative;flex:1;height:6px;border-radius:3px;background:rgba(224,106,106,.45);overflow:hidden}
-  .hz-probbar i{display:block;height:100%;background:var(--bull);border-radius:3px}
+  .hz-probbar i{display:block;height:100%;background:var(--bull);border-radius:3px;transition:width .14s cubic-bezier(.4,0,.2,1)}
   .hz-prob b.hz-up{color:var(--bull)}.hz-prob b.hz-dn{color:var(--bear)}.hz-prob b.hz-fl{color:var(--eth)}
   /* 상승/하락 확률 게이지(예측 패널 상단) */
   .hz-gauge{padding:2px 2px 11px;margin-bottom:8px;border-bottom:1px solid var(--line)}
@@ -896,6 +903,7 @@
           </div>
         </div>
         <div class="fc-vgutter" id="fcVGutter" title="드래그하여 차트 높이 조절 · 더블클릭 초기화"></div>
+        <div class="fc-prow" id="sigProw"><!-- 지표 신호(텍스트) — 차트 바로 아래 --></div>
         <div class="fc-prow">
           <div class="fc-panel" id="fcDashPanel">
             <div class="fc-phead">
@@ -1760,9 +1768,10 @@
   }
   function renderSignalBoard() {
     if (_wlistOpen) return;   // 가중치 리스트 펼침 = 보드 데이터 숨김 → 신호 계산 생략(성능)
-    const wb = document.getElementById("wboard"); if (!wb) return;
+    const wb = document.getElementById("sigProw") || document.getElementById("wboard"); if (!wb) return;   // 텍스트 신호 = 차트 아래
     let host = document.getElementById("wsignals");
     if (!host) { host = document.createElement("div"); host.id = "wsignals"; host.className = "fc-panel"; wb.appendChild(host); }
+    else if (host.parentElement !== wb) wb.appendChild(host);   // 위치 보정(차트 아래로)
     const P = ((_fcLastData && _fcLastData.price) || (typeof currentData === "function" && currentData().price) || []);
     const nodes = (typeof evIndicatorNodes === "function") ? evIndicatorNodes() : [];
     if (!P || P.length < 2 || !nodes.length) { host.innerHTML = `<div class="fc-phead"><span class="fc-t"><b>지표 신호</b> · 현재 판정</span></div><div class="fc-pbody"><div class="na-empty" style="padding:14px 4px">분석 후 표시됩니다</div></div>`; return; }
@@ -4843,7 +4852,7 @@
       : [Math.ceil(fb / 4), Math.ceil(fb / 2), Math.ceil(fb * 3 / 4), fb];
     return hs.filter(h => h >= 1 && h <= fb).filter((h, i, a) => a.indexOf(h) === i);
   }
-  function renderHorizons(result) {
+  function renderHorizons(result, fillU) {
     const host = document.getElementById("fcHorizons"); if (!host) return;
     const metaEl = document.getElementById("fcHzMeta");
     const p = result && result.prediction;
@@ -4853,17 +4862,23 @@
       host.innerHTML = `<div class="na-empty">분석 후 시점별 예측가가 표시됩니다</div>`; return;
     }
     const anchor = (p.anchor != null && isFinite(p.anchor)) ? p.anchor : path[0];
+    const u = (fillU == null || !isFinite(fillU)) ? 1 : Math.max(0, Math.min(1, fillU));   // 게이지 충전 비율(시연)
     const unit = tfUnit();
     const fb = path.length;
     if (metaEl) metaEl.textContent = "현재가 " + _hzFmt(anchor);
     const hs = _hzList(unit, fb);
     const head = `<div class="hz-row hz-head"><span class="hz-t">시점</span><span class="hz-v">예측가</span><span class="hz-chg">변화</span><span class="hz-prob">↑확률</span><span class="hz-band">예상 범위</span></div>`;
     const rows = hs.map(h => {
-      const v = path[h - 1], lo = (p.lo && p.lo[h - 1]), hi = (p.hi && p.hi[h - 1]);
+      const vF = path[h - 1], loF = (p.lo && p.lo[h - 1]), hiF = (p.hi && p.hi[h - 1]);
+      const v = anchor + (vF - anchor) * u;                                   // 예측가: 현재가→최종 단조 상승(왔다갔다 없음)
+      const lo = isFinite(loF) ? anchor + (loF - anchor) * u : loF;
+      const hi = isFinite(hiF) ? anchor + (hiF - anchor) * u : hiF;
       const chg = anchor ? (v - anchor) / anchor * 100 : 0;
       const cls = chg > 0.5 ? "hz-up" : chg < -0.5 ? "hz-dn" : "hz-fl";
       const band = (isFinite(lo) && isFinite(hi)) ? `${_hzFmt(lo)} ~ ${_hzFmt(hi)}` : "–";
-      const up = _upProb(v, hi, anchor), pc = up >= 55 ? "hz-up" : up <= 45 ? "hz-dn" : "hz-fl";
+      const upF = _upProb(vF, hiF, anchor);                                   // 최종 확률
+      const up = Math.round(50 + (upF - 50) * u);                            // 확률 게이지: 중립50→최종 충전
+      const pc = upF >= 55 ? "hz-up" : upF <= 45 ? "hz-dn" : "hz-fl";        // 색은 최종 방향 고정(깜빡임 방지)
       return `<div class="hz-row">
         <span class="hz-t">+${h}${unit}</span>
         <span class="hz-v">${_hzFmt(v)}</span>
@@ -5739,21 +5754,27 @@
   })();
 
   /* ── renderVerdict: inline signal in chart panel header ────────── */
-  function renderVerdict(verdict, predOverride) {
+  function renderVerdict(verdict, fillU) {
     const el = document.getElementById("verdictInline");
     if (!el || !verdict) return;
     const REGIME_LABEL = { bull: "상승", bear: "하락", neutral: "중립" };
     const REGIME_COL = { bull: "#46c28e", bear: "#e06a6a", neutral: "#8a92b2" };
     const regime = verdict.regime || "neutral";
     const col = REGIME_COL[regime] || "#8a92b2", label = REGIME_LABEL[regime] || "중립";
-    const score = (typeof verdict.score === "number" && isFinite(verdict.score)) ? verdict.score.toFixed(1) : "—";
+    // 시연: 국면·확률·시그널·목표가가 중립/현재가에서 최종으로 단조 충전(u)
+    const u = (fillU == null || !isFinite(fillU)) ? 1 : Math.max(0, Math.min(1, fillU));
+    const _anchor = (lastResult && lastResult.prediction && isFinite(lastResult.prediction.anchor)) ? lastResult.prediction.anchor : null;
+    const _scoreN = (typeof verdict.score === "number" && isFinite(verdict.score)) ? verdict.score * u : null;
+    const score = (_scoreN != null) ? _scoreN.toFixed(1) : "—";
+    const _targetN = (isFinite(verdict.target) && _anchor != null) ? _anchor + (verdict.target - _anchor) * u : verdict.target;
     const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(2) : "—";
-    const _up = (typeof aggUpProb === "function") ? aggUpProb(predOverride || (lastResult && lastResult.prediction)) : null;
+    const _upF = (typeof aggUpProb === "function") ? aggUpProb(lastResult && lastResult.prediction) : null;
+    const _up = (_upF != null) ? Math.round(50 + (_upF - 50) * u) : null;
     el.innerHTML =
       `국면 <b style="color:${col}">${label}</b>` +
       (_up != null ? ` · <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
       ` · 시그널 <b style="color:${col}">${score}</b>`;
-    el.title = "국면 " + label + " · 상승확률 " + (_up != null ? _up + "% / 하락 " + (100 - _up) + "%" : "—") + " · 시그널 " + score + " · 목표 " + fmt(verdict.target);
+    el.title = "국면 " + label + " · 상승확률 " + (_up != null ? _up + "% / 하락 " + (100 - _up) + "%" : "—") + " · 시그널 " + score + " · 목표 " + fmt(_targetN);
     // 강조 바 + 핵심 의견 한 줄
     const bar = document.getElementById("fcVerdictBar");
     if (bar) {
@@ -5767,10 +5788,10 @@
         (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
         `<span class="fcv-reg" style="color:${col};text-shadow:0 0 22px ${col}55">${arrow} ${label}</span>` +
         (_up != null ? `<span class="fcv-prob"><span class="up">▲ ${_up}%</span> <span class="dn">▼ ${100 - _up}%</span></span>` : "") +
-        `<span class="fcv-sig">시그널 ${score}${isFinite(verdict.target) ? "  ·  목표 " + fmtNum(verdict.target) : ""}${(verdict.confluence && verdict.confluence.total) ? "  ·  컨플루언스 " + verdict.confluence.score + "% (" + verdict.confluence.agree + "/" + verdict.confluence.total + ")" : ""}</span>` +
+        `<span class="fcv-sig">시그널 ${score}${isFinite(_targetN) ? "  ·  목표 " + fmtNum(_targetN) : ""}${(verdict.confluence && verdict.confluence.total) ? "  ·  컨플루언스 " + verdict.confluence.score + "% (" + verdict.confluence.agree + "/" + verdict.confluence.total + ")" : ""}</span>` +
         `<span class="fcv-op">${op}</span>`;
     }
-    if (typeof scheduleDash === "function") scheduleDash();   // 타임프레임 매트릭스 자동 갱신
+    if (typeof scheduleDash === "function" && u >= 1) scheduleDash();   // 타임프레임 매트릭스 자동 갱신(시연 충전 중엔 생략)
   }
   /* 핵심 의견 한 줄(간결) — 국면·상승확률·시그널 강도 종합 */
   function verdictOpinion(v, up) {
@@ -6351,12 +6372,12 @@
       _scanU = e; drawEvidence();   // 손그림 진행도 반영 — 모든 도구가 동시에 그어짐
       const ip = lerpPred(flat, finPred, e);
       fcRenderForecast(ip);
-      // 동적 계산 효과: 예측 시점별·국면·확률·목표가가 anchor(평평)에서 최종값으로 함께 count-up (실제 종합 진행 e에 정합)
+      // 동적 계산 효과: 예측 시점별·국면·확률·목표가가 현재가/중립에서 최종으로 '게이지 차듯' 단조 충전(진행 e에 정합, 왔다갔다 없음)
       _playReveal.u = e;
       if (now - _lastCU > 55) {   // DOM 갱신은 ~18fps로 스로틀(과부하 방지)
         _lastCU = now;
-        renderHorizons({ prediction: ip });
-        if (fin.verdict) renderVerdict({ ...fin.verdict, score: (fin.verdict.score || 0) * e, target: A + (((fin.verdict.target != null ? fin.verdict.target : A)) - A) * e }, ip);
+        renderHorizons(lastResult, e);
+        if (fin.verdict) renderVerdict(fin.verdict, e);
       }
       if (u < 1) { _playRaf = requestAnimationFrame(morph); return; }
       finishPlay();
