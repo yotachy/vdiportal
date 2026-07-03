@@ -59,6 +59,10 @@
   body.panel-mode .b-world{position:static!important;transform:none!important;transform-origin:initial;display:block;column-count:2;column-gap:10px;padding:11px 11px 60px;width:auto;height:auto}
   body.panel-mode .b-node{position:relative!important;left:auto!important;top:auto!important;width:100%!important;margin:0 0 10px;font-size:12.5px!important;animation:none!important;transition:box-shadow .14s;break-inside:avoid;display:inline-block;vertical-align:top}
   body.panel-mode .b-node:hover{transform:none}
+  /* 패널 모드 카드 간소화: 썸네일 축소 → 가중치 게이지가 카드의 중심 */
+  body.panel-mode .b-n-thumb{height:40px;margin:-2px -2px 5px}
+  body.panel-mode .b-n-body{padding:8px 11px}
+  body.panel-mode .b-n-gauge{margin-top:6px;padding-top:6px}
   body.panel-mode .b-zoomctl,body.panel-mode .b-edges,body.panel-mode .b-marquee,body.panel-mode .b-snap-guide,body.panel-mode .b-ehud,body.panel-mode .b-nhud{display:none!important}
   /* edge SVG: 20000×20000 centered on -10000,-10000 so world(0,0) maps to SVG(10000,10000) */
   .b-edges{position:absolute;left:-10000px;top:-10000px;width:20000px;height:20000px;overflow:visible;pointer-events:none}
