@@ -2651,7 +2651,8 @@
 
   /* ── fcFit: DPR-correct canvas sizing (port of chart.html fit()) ── */
   function fcFit(cv, h, cap) {
-    const dpr = Math.min(Math.max(devicePixelRatio || 1, 2), cap || 3);   // 저해상도(1×) 화면도 최소 2×로 슈퍼샘플 → 텍스트·선 선명
+    // 시연 중엔 기기 DPR만(매 프레임 재작도 과부하 방지), 정지 시엔 약간 슈퍼샘플(선명)
+    const dpr = _playing ? Math.min(devicePixelRatio || 1, 2) : Math.min(Math.max(devicePixelRatio || 1, 1.5), cap || 2.5);
     const w = cv.clientWidth;
     cv.width  = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
@@ -2661,7 +2662,7 @@
   }
   /* fcFit과 동일하나 크기 변동 없으면 백버퍼 재할당 생략(재생 프레임마다 호출용 — 호출부가 clearRect 직접 수행). */
   function fcFitKeep(cv, h, cap) {
-    const dpr = Math.min(Math.max(devicePixelRatio || 1, 2), cap || 3);
+    const dpr = _playing ? Math.min(devicePixelRatio || 1, 2) : Math.min(Math.max(devicePixelRatio || 1, 1.5), cap || 2.5);
     const W = Math.round(cv.clientWidth * dpr), H = Math.round(h * dpr);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     const c = cv.getContext("2d");
@@ -6435,17 +6436,20 @@
     const A = finPred.anchor;
     const flat = { path: finPred.path.map(() => A), lo: finPred.path.map(() => A), hi: finPred.path.map(() => A), anchor: A };
     const total = Math.max(2600, ticks.length * STEP_SUB + 800), t0 = performance.now();
-    let _lastCU = 0;
+    let _lastCU = 0, _lastDraw = 0;
     function morph(now) {
       if (!_playing) return;
       const u = Math.min(1, (now - t0) / total), e = _ease(u);
-      _scanU = e; drawEvidence();   // 손그림 진행도 반영 — 모든 도구가 동시에 그어짐
-      _redrawOscForPlay(e);         // RSI·거래량·MACD·ADX도 같은 진행도로 계산되며 그려짐(메인 차트와 동기)
-      const ip = lerpPred(flat, finPred, e);
-      fcRenderForecast(ip);
-      // 동적 계산 효과: 예측 시점별·국면·확률·목표가가 현재가/중립에서 최종으로 '게이지 차듯' 단조 충전(진행 e에 정합, 왔다갔다 없음)
+      _scanU = e;
+      // 무거운 캔버스 작도(19지표 근거+오실레이터+콘)는 ~28fps로 스로틀 → 응답없음 방지(RAF는 계속 돌되 그리기만 제한)
+      if (now - _lastDraw > 35 || u >= 1) {
+        _lastDraw = now;
+        drawEvidence();               // 손그림 진행도 반영 — 모든 도구가 동시에 그어짐
+        _redrawOscForPlay(e);         // RSI·거래량 계산되며 그려짐(메인 차트와 동기)
+        fcRenderForecast(lerpPred(flat, finPred, e));
+      }
       _playReveal.u = e;
-      if (now - _lastCU > 55) {   // DOM 갱신은 ~18fps로 스로틀(과부하 방지)
+      if (now - _lastCU > 70) {   // DOM 게이지 갱신 ~14fps로 스로틀(충분히 부드럽고 가벼움)
         _lastCU = now;
         renderHorizons(lastResult, e);
         if (fin.verdict) renderVerdict(fin.verdict, e);
