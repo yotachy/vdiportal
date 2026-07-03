@@ -5964,8 +5964,8 @@
     const th = `<tr><th>지표</th>${cols.map(c => `<th style="color:${_TFCOL[c[0]] || "#8a92b2"}"><span class="thdot" style="background:${_TFCOL[c[0]] || "#8a92b2"}"></span>${c[0]}</th>`).join("")}</tr>`;
     const rows = [];
     rows.push(`<tr><td>국면</td>${cols.map(c => { const g = REG[c[1].regime] || REG.neutral; return _txtC(`<span class="dash-reg" style="color:${g[1]};background:${g[1]}22">${g[0]}</span>`, false); }).join("")}</tr>`);
-    { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, "#46c28e", c[1].up + "%", i === bi, c[1].up, "%")).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return _barC((s + 100) / 2, s >= 0 ? "#46c28e" : "#e06a6a", Math.round(s), i === bi, Math.round(s), ""); }).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, _TFCOL[c[0]] || "#8a92b2", c[1].up + "%", i === bi, c[1].up, "%")).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return _barC((s + 100) / 2, _TFCOL[c[0]] || "#8a92b2", Math.round(s), i === bi, Math.round(s), ""); }).join("")}</tr>`); }
     { const bi = _dbest(cols.map(c => c[1].trend), 1); rows.push(`<tr><td>추세 %/봉</td>${cols.map((c, i) => { const t = c[1].trend; return _txtC(`<span style="color:${t >= 0 ? "#46c28e" : "#e06a6a"}">${t >= 0 ? "+" : ""}${t.toFixed(2)}</span>`, i === bi); }).join("")}</tr>`); }
     { const bi = _dbest(cols.map(c => c[1].chg), 1); rows.push(`<tr><td>예측</td>${cols.map((c, i) => c[1].chg == null ? _txtC("–", false) : _txtC(`<span style="color:${c[1].chg >= 0 ? "#46c28e" : "#e06a6a"}">${c[1].chg >= 0 ? "+" : ""}${c[1].chg.toFixed(1)}%</span>`, i === bi)).join("")}</tr>`); }
     rows.push(`<tr class="dash-sec"><td colspan="${cols.length + 1}">구조 · 레벨</td></tr>`);
