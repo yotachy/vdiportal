@@ -604,6 +604,22 @@
   .fc-zoom-stage{flex:1;overflow:hidden;position:relative;cursor:grab;touch-action:none}
   .fc-zoom-stage.drag{cursor:grabbing}
   #fcZoomCv{position:absolute;left:0;top:0;transform-origin:0 0;image-rendering:auto}
+  /* 지표 가중치 튜닝 모달 */
+  .tune-modal{position:fixed;inset:0;z-index:120;background:rgba(6,9,13,.62);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);animation:tuneIn .14s ease}
+  @keyframes tuneIn{from{opacity:0}to{opacity:1}}
+  .tune-box{width:min(460px,92vw);max-height:84vh;overflow:auto;background:#0f151c;border:1px solid rgba(138,146,178,.22);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.5);padding:18px 20px}
+  .tune-head{display:flex;align-items:center;justify-content:space-between;font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin-bottom:6px}
+  .tune-x{width:28px;height:28px;border-radius:8px;border:none;background:rgba(138,146,178,.12);color:var(--eth);font-size:15px;cursor:pointer}
+  .tune-x:hover{background:rgba(138,146,178,.22);color:var(--ink)}
+  .tune-hint{font-size:11.5px;line-height:1.5;color:var(--eth);margin-bottom:14px}
+  .tune-list{display:flex;flex-direction:column;gap:9px}
+  .tune-row{display:grid;grid-template-columns:96px 1fr 40px;align-items:center;gap:10px}
+  .tune-lbl{font-size:12.5px;color:var(--ink);letter-spacing:-.01em}
+  .tune-row input[type=range]{width:100%;accent-color:var(--gold);cursor:pointer}
+  .tune-val{font-size:12px;font-family:var(--mono);color:var(--gold);text-align:right}
+  .tune-foot{margin-top:16px;display:flex;justify-content:flex-end}
+  .tune-reset{padding:8px 14px;border-radius:9px;border:1px solid rgba(138,146,178,.24);background:transparent;color:var(--eth);font-size:12px;cursor:pointer}
+  .tune-reset:hover{border-color:var(--gold);color:var(--gold)}
 </style>
 </head>
 <body>
@@ -670,6 +686,7 @@
               </div>
               <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈 차트뷰</button>
               <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
+              <button class="ev-toggle" id="tuneBtn" title="지표별 bias 기여 가중치 조절 — 각 지표가 예측 방향에 얼마나 반영될지" onclick="toggleTunePop()">⚖ 가중치</button>
               <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
             </div>
           </div>
@@ -1525,9 +1542,9 @@
   }
 
   /* ── 파라미터 편집기 패널 ──────────────────────────────────────── */
-  function numRow(key, label, val) {
+  function numRow(key, label, val, step) {
     return `<div class="pp-row"><label>${esc(label)}</label>
-      <input type="number" step="1" data-pkey="${key}" value="${val}"></div>`;
+      <input type="number" step="${step || 1}" data-pkey="${key}" value="${val}"></div>`;
   }
   function neTypeLabel(n) {
     if (n.kind === "free") return "메모";
@@ -1568,6 +1585,32 @@
       rows.push(numRow("len", "피보 구간", (n.params && n.params.len) ?? 120));
       rows.push(numRow("swing", "스윙 민감도(%)", (n.params && n.params.swing) ?? 5));
     }
+    if (n.blockType === "bollinger") {
+      rows.push(numRow("len", "기간(SMA)", (n.params && n.params.len) ?? 20));
+      rows.push(numRow("k", "σ 배수(폭)", (n.params && n.params.k) ?? 2, 0.1));
+    }
+    if (n.blockType === "macd") {
+      rows.push(numRow("fast", "단기 EMA", (n.params && n.params.fast) ?? 12));
+      rows.push(numRow("slow", "장기 EMA", (n.params && n.params.slow) ?? 26));
+      rows.push(numRow("signal", "시그널", (n.params && n.params.signal) ?? 9));
+    }
+    if (n.blockType === "adx") rows.push(numRow("period", "ADX 기간", (n.params && n.params.period) ?? 14));
+    if (n.blockType === "volumeprofile") {
+      rows.push(numRow("len", "구간 길이(봉)", (n.params && n.params.len) ?? 120));
+      rows.push(numRow("bins", "가격 구간 수", (n.params && n.params.bins) ?? 24));
+    }
+    if (n.blockType === "ichimoku") {
+      rows.push(numRow("tenkan", "전환선", (n.params && n.params.tenkan) ?? 9));
+      rows.push(numRow("kijun", "기준선", (n.params && n.params.kijun) ?? 26));
+      rows.push(numRow("senkouB", "선행스팬B", (n.params && n.params.senkouB) ?? 52));
+      rows.push(numRow("shift", "선행 이동", (n.params && n.params.shift) ?? 26));
+    }
+    if (n.blockType === "structure") rows.push(numRow("swing", "스윙 민감도(%)", (n.params && n.params.swing) ?? 3));
+    if (n.blockType === "atr") {
+      rows.push(numRow("period", "ATR 기간", (n.params && n.params.period) ?? 14));
+      rows.push(numRow("mult", "손절 배수", (n.params && n.params.mult) ?? 2, 0.1));
+    }
+    if (n.blockType === "smc") rows.push(`<div class="pp-row"><label></label><span class="ne-hint">파라미터 없음 · 티커로 실 OHLC 불러오면 활성</span></div>`);
     if (n.blockType === "ticker") {
       rows.push(`<div class="pp-row"><label>티커 심볼</label><input type="text" data-tkr="symbol" value="${esc((n.params && n.params.symbol) || "")}" placeholder="예: TSLA"></div>`);
       rows.push(`<div class="pp-row"><label>현재가</label><input type="number" step="any" data-tkr="price" value="${(n.params && isFinite(n.params.price)) ? n.params.price : ""}" placeholder="예: 379.71"${(Array.isArray(n._ohlc) && n._ohlc.length >= 2) ? " readonly title='실데이터 로드됨 — 자동 설정'" : ""}></div>`);
@@ -3043,6 +3086,34 @@
     document.body.classList.toggle("evhide", !_evidenceShow);
     const b = document.getElementById("evToggle"); if (b) b.classList.toggle("on", _evidenceShow);
   }
+  /* ── 지표별 bias 기여 가중치 튜닝 모달 ── */
+  const TUNE_TYPES = [["trend", "추세선"], ["ma", "이동평균"], ["fib", "피보나치"], ["elliott", "엘리어트"], ["rsi", "RSI"], ["bollinger", "볼린저밴드"], ["macd", "MACD"], ["adx", "ADX"], ["volume", "거래량"], ["volumeprofile", "볼륨 프로파일"], ["ichimoku", "일목균형표"], ["structure", "시장구조"], ["atr", "ATR 변동성"], ["smc", "스마트머니"]];
+  let _tuneRunT = null;
+  function _tw(t) { return (typeof _driftW[t] === "number" && isFinite(_driftW[t])) ? _driftW[t] : 1; }
+  function toggleTunePop() {
+    const ex = document.getElementById("tuneModal"); if (ex) { ex.remove(); return; }
+    const m = document.createElement("div"); m.id = "tuneModal"; m.className = "tune-modal";
+    const rows = TUNE_TYPES.map(([t, label]) => { const v = _tw(t); return `<div class="tune-row"><span class="tune-lbl">${label}</span><input type="range" min="0" max="3" step="0.1" value="${v}" data-tw="${t}"><span class="tune-val" data-tv="${t}">${v.toFixed(1)}×</span></div>`; }).join("");
+    m.innerHTML = `<div class="tune-box"><div class="tune-head">지표 영향 가중치 <button class="tune-x" onclick="toggleTunePop()" aria-label="닫기">✕</button></div>
+      <div class="tune-hint">각 지표의 방향(bias)이 <b>예측 콘</b>에 얼마나 반영될지 조절합니다. <b>0×</b>=무시 · <b>1×</b>=기본 · <b>3×</b>=최대. (노드의 확신·중요도 게이지와는 별개 채널)</div>
+      <div class="tune-list">${rows}</div>
+      <div class="tune-foot"><button class="tune-reset" onclick="resetTune()">기본값으로(전부 1×)</button></div></div>`;
+    document.body.appendChild(m);
+    m.addEventListener("click", e => { if (e.target === m) toggleTunePop(); });
+    m.addEventListener("input", e => {
+      const t = e.target.getAttribute("data-tw"); if (!t) return;
+      const v = +e.target.value; _driftW[t] = v;
+      const lab = m.querySelector(`[data-tv="${t}"]`); if (lab) lab.textContent = v.toFixed(1) + "×";
+      saveDriftW(); clearTimeout(_tuneRunT); _tuneRunT = setTimeout(() => runForge(), 180);
+    });
+  }
+  function resetTune() {
+    _driftW = {}; saveDriftW();
+    const m = document.getElementById("tuneModal");
+    if (m) m.querySelectorAll("[data-tw]").forEach(sl => { sl.value = 1; const t = sl.getAttribute("data-tw"); const lab = m.querySelector(`[data-tv="${t}"]`); if (lab) lab.textContent = "1.0×"; });
+    runForge();
+  }
+  function updateTuneBtn() { const b = document.getElementById("tuneBtn"); if (b) b.classList.toggle("on", TUNE_TYPES.some(([t]) => _tw(t) !== 1)); }
   function updateAxisBtns() {
     // A는 상태 토글이 아니라 매번 동작하는 액션 버튼(눌린 것처럼 보여 안 눌리는 오해 방지). L만 토글 상태.
     const l = document.getElementById("logBtn"); if (l) l.classList.toggle("on", _logChart);
@@ -4918,7 +4989,7 @@
       const series = r.candles.map(d => +d.c).filter(isFinite); if (series.length < 24) return null;
       const data = { price: series, candle: r.candles.map(d => ({ o: +d.o, h: +d.h, l: +d.l, c: +d.c })), orange: [], blue: [], n: series.length };
       const tfk = tfKo(tf);
-      const res = ForgeCore.run(boardToGraph(), data, { futW: horizonForTF(tfk), timeframe: tfk });
+      const res = ForgeCore.run(boardToGraph(), data, { futW: horizonForTF(tfk), timeframe: tfk, driftWeights: _driftW });
       const tp = ForgeCore.trendProfileForTF(tfk);
       const ta = ForgeCore.analyzeTrend(series, { shortLen: Math.max(8, Math.round(40 * (tp.shortScale || 1))), weights: tp.weights });
       const rsi = ForgeCore.analyzeRSI(series, { period: 14 });
@@ -5379,7 +5450,7 @@
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
     runForge(); _engineDirty = false; updateEngineBtn();   // 시연도 재계산 → 변경됨 해제
     let steps;
-    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF() }); }
+    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF(), driftWeights: _driftW }); }
     catch (e) { console.warn("steps", e); return; }
     if (!steps.length) return;
     const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
@@ -5492,18 +5563,22 @@
     _playRaf = requestAnimationFrame(morph);
   }
 
+  /* 지표별 bias 기여 가중치(0~3×, 기본 1) — 튜닝 패널에서 조절, localStorage 영속 */
+  let _driftW = (function () { try { return JSON.parse(localStorage.getItem("scoopforge_driftw") || "{}") || {}; } catch (e) { return {}; } })();
+  function saveDriftW() { try { localStorage.setItem("scoopforge_driftw", JSON.stringify(_driftW)); } catch (e) {} }
   function runForge() {
     if (_playing) stopPlay();
     try {
       const g = boardToGraph();
       const d = currentData();
-      lastResult = ForgeCore.run(g, d, { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF() });
+      lastResult = ForgeCore.run(g, d, { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF(), driftWeights: _driftW });
       _lastAnalyzedAt = Date.now();          // 이 결과의 분석 시각(자동·수동 모든 실행 공통)
       renderChart(lastResult, d);
       paintScanBadges();
       if (window.renderOverlay) renderOverlay(lastResult, g);
       if (lastResult && lastResult.verdict) renderVerdict(lastResult.verdict);
       updateEngineBtn();                      // "✓ 분석 HH:MM" 칩 갱신
+      updateTuneBtn();                        // 가중치 튜닝 버튼 활성 표시(기본값이 아니면 골드)
     } catch (e) {
       console.warn("run", e);
       if (typeof bToast === "function") bToast(/cycle/.test(String(e && e.message)) ? "그래프 오류: 순환 연결" : "그래프 오류: 계산 실패");
@@ -6067,7 +6142,9 @@
           const el = bWorld && bWorld.querySelector(`.b-node[data-id="${n.id}"] .b-tkr`);
           if (el) { const sy = el.querySelector(".b-tkr-sym"), px = el.querySelector(".b-tkr-px"); if (sy) sy.textContent = n.params.symbol || "종목?"; if (px) px.textContent = isFinite(n.params.price) ? "$" + fmtNum(n.params.price) : "현재가 미입력"; }
         } else if (t.dataset.pkey) {
-          n.params = n.params || {}; n.params[t.dataset.pkey] = Math.round(Number(t.value) || 0);
+          n.params = n.params || {};
+          const _pk = t.dataset.pkey, _raw = Number(t.value) || 0, _dec = (_pk === "k" || _pk === "mult");   // σ배수·손절배수는 소수 허용
+          n.params[_pk] = _dec ? _raw : Math.round(_raw);
         } else if (t.id === "ppNote") {
           n.note = t.value;
         } else if (t.id === "neTitle") {

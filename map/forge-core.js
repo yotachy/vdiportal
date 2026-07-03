@@ -1165,6 +1165,7 @@
 
   function run(graph, data, opts) {
     const futW = Math.min(((opts && opts.futW) || 24), 60);   // 예측 horizon 상한(과도한 장기 외삽 방지)
+    const _dw = (opts && opts.driftWeights) || {}, DW = t => (typeof _dw[t] === "number" && isFinite(_dw[t]) ? Math.max(0, Math.min(3, _dw[t])) : 1);   // 지표별 bias 기여 가중치(기본 1×, 0~3×)
     const ev = evalBlocks(graph, data), { values, meta } = ev;
     const outNode = graph.nodes.find(n => n.kind === "block" && (n.blockType === "predict"));
     const inputsOf = buildDAG(graph).inputsOf;
@@ -1241,44 +1242,44 @@
     const _prof = trendProfileForTF(opts && opts.timeframe);
     const _mn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "ma");
     const _ma = _mn ? analyzeMA(price, { len: (_mn.params && _mn.params.len) || 20, ema: !!(_mn.params && _mn.params.ema) }) : null;
-    const maDrift = _ma ? _ma.bias * _prof.trendScale * 0.10 : 0;   // MA 국면 방향 드리프트(±10% 상한·TF가중)
+    const maDrift = _ma ? _ma.bias * _prof.trendScale * 0.10 * DW("ma") : 0;   // MA 국면 방향 드리프트(±10% 상한·TF가중)
     const _fn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "fib");
     const _fib = _fn ? analyzeFib(price, { len: (_fn.params && _fn.params.len) || 120, swing: ((_fn.params && _fn.params.swing) != null ? _fn.params.swing : 5) / 100 }) : null;
-    const fibDrift = _fib ? _fib.bias * _prof.trendScale * 0.08 : 0;   // 피보 S/R 방향 드리프트(±8% 상한·TF가중)
+    const fibDrift = _fib ? _fib.bias * _prof.trendScale * 0.08 * DW("fib") : 0;   // 피보 S/R 방향 드리프트(±8% 상한·TF가중)
     const _en = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "elliott");
     const _ew = _en ? analyzeElliott(price, { swing: ((_en.params && _en.params.swing) != null ? _en.params.swing : 3) / 100 }) : null;
-    const ewDrift = _ew ? _ew.bias * _prof.trendScale * 0.08 : 0;   // 엘리어트 추진/조정 방향 드리프트(±8%·TF가중·유효도 반영)
+    const ewDrift = _ew ? _ew.bias * _prof.trendScale * 0.08 * DW("elliott") : 0;   // 엘리어트 추진/조정 방향 드리프트(±8%·TF가중·유효도 반영)
     const _rn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "rsi");
     const _rsi = _rn ? analyzeRSI(price, { period: (_rn.params && _rn.params.period) || 14 }) : null;
-    const rsiDrift = _rsi ? _rsi.bias * _prof.trendScale * 0.06 : 0;   // RSI 다이버전스/구간 방향 드리프트(±6%·TF가중·보수적)
+    const rsiDrift = _rsi ? _rsi.bias * _prof.trendScale * 0.06 * DW("rsi") : 0;   // RSI 다이버전스/구간 방향 드리프트(±6%·TF가중·보수적)
     const _vn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "volume");
     const _vol = _vn ? ((Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;
-    const volDrift = _vol ? analyzeVolume(price, _vol).bias * _prof.trendScale * 0.05 : 0;   // 거래량 확인 방향 드리프트(±5% 상한·TF가중·보수적)
+    const volDrift = _vol ? analyzeVolume(price, _vol).bias * _prof.trendScale * 0.05 * DW("volume") : 0;   // 거래량 확인 방향 드리프트(±5% 상한·TF가중·보수적)
     const _bn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "bollinger");
     const _bb = _bn ? analyzeBollinger(price, { len: (_bn.params && _bn.params.len) || 20, k: (_bn.params && _bn.params.k) || 2 }) : null;
-    const bbDrift = _bb ? _bb.bias * _prof.trendScale * 0.06 : 0;   // 볼린저 위치/중심선 방향(±6%)
+    const bbDrift = _bb ? _bb.bias * _prof.trendScale * 0.06 * DW("bollinger") : 0;   // 볼린저 위치/중심선 방향(±6%)
     const _mcn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "macd");
     const _macd = _mcn ? analyzeMACD(price, { fast: (_mcn.params && _mcn.params.fast) || 12, slow: (_mcn.params && _mcn.params.slow) || 26, signal: (_mcn.params && _mcn.params.signal) || 9 }) : null;
-    const macdDrift = _macd ? _macd.bias * _prof.trendScale * 0.07 : 0;   // MACD 모멘텀/교차 방향(±7%)
+    const macdDrift = _macd ? _macd.bias * _prof.trendScale * 0.07 * DW("macd") : 0;   // MACD 모멘텀/교차 방향(±7%)
     const _axn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "adx");
     const _adx = _axn ? analyzeADX(price, { period: (_axn.params && _axn.params.period) || 14 }) : null;
-    const adxDrift = _adx ? _adx.bias * _prof.trendScale * 0.06 : 0;   // ADX 추세강도×방향(±6%·약한추세면 0에 수렴)
+    const adxDrift = _adx ? _adx.bias * _prof.trendScale * 0.06 * DW("adx") : 0;   // ADX 추세강도×방향(±6%·약한추세면 0에 수렴)
     const _vpn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "volumeprofile");
     const _vpvol = _vpn ? ((_vn && Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;
     const _vp = _vpn ? analyzeVolumeProfile(price, _vpvol, { len: (_vpn.params && _vpn.params.len) || 120, bins: (_vpn.params && _vpn.params.bins) || 24 }) : null;
-    const vpDrift = _vp ? _vp.bias * _prof.trendScale * 0.05 : 0;   // 매물대(밸류에어리어) 수용 방향(±5%)
+    const vpDrift = _vp ? _vp.bias * _prof.trendScale * 0.05 * DW("volumeprofile") : 0;   // 매물대(밸류에어리어) 수용 방향(±5%)
     const _icn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "ichimoku");
     const _ic = _icn ? analyzeIchimoku(price, { tenkan: (_icn.params && _icn.params.tenkan) || 9, kijun: (_icn.params && _icn.params.kijun) || 26, senkouB: (_icn.params && _icn.params.senkouB) || 52, shift: (_icn.params && _icn.params.shift) || 26 }) : null;
-    const icDrift = _ic ? _ic.bias * _prof.trendScale * 0.07 : 0;   // 일목 구름/전환기준 방향(±7%)
+    const icDrift = _ic ? _ic.bias * _prof.trendScale * 0.07 * DW("ichimoku") : 0;   // 일목 구름/전환기준 방향(±7%)
     const _stn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "structure");
     const _struct = _stn ? analyzeStructure(price, { swing: ((_stn.params && _stn.params.swing) != null ? _stn.params.swing : 3) / 100 }) : null;
-    const stDrift = _struct ? _struct.bias * _prof.trendScale * 0.08 : 0;   // 시장구조 BOS/CHoCH 방향(±8%)
+    const stDrift = _struct ? _struct.bias * _prof.trendScale * 0.08 * DW("structure") : 0;   // 시장구조 BOS/CHoCH 방향(±8%)
     const _atn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "atr");
     const _atr = _atn ? analyzeATR(price, { period: (_atn.params && _atn.params.period) || 14, mult: (_atn.params && _atn.params.mult) || 2 }) : null;
     if (_atr && _atr.pct) sigBand = Math.max(sigBand, Math.min(0.18, (_atr.pct / 100) * 0.85));   // ATR 노드: 변동성을 예측 콘 폭에 반영
     const _smn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "smc");
     const _smc = _smn ? analyzeSMC(data.candle) : null;
-    const smcDrift = _smc ? _smc.bias * _prof.trendScale * 0.07 : 0;   // SMC 수요/공급 존 방향(±7%)
+    const smcDrift = _smc ? _smc.bias * _prof.trendScale * 0.07 * DW("smc") : 0;   // SMC 수요/공급 존 방향(±7%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1287,7 +1288,7 @@
     for (let k = 1; k <= futW; k++) {
       const rev = -dev * (1 - Math.exp(-theta * k)) * REV_W;                                // 평균회귀(약화)
       const mom = Math.max(-0.20, Math.min(0.20, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀(상향)
-      const trend = trS * _prof.trendScale * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
+      const trend = trS * _prof.trendScale * DW("trend") * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
       const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW) + stDrift * (k / futW) + smcDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
