@@ -379,7 +379,9 @@
   .fc-hero-img img{width:100%;height:100%;object-fit:contain}
   /* 예측 콘 오버레이(이미지 가격축 위) — 히어로/편집기 공용 */
   .fc-cone-ov{position:absolute;inset:0;pointer-events:none;z-index:2}
-  .fc-cone-vline{position:absolute;width:1px;background:rgba(232,180,99,.55);pointer-events:none;z-index:3;display:none}
+  .fc-cone-vline{position:absolute;width:0;border-left:1px dashed rgba(232,180,99,.6);pointer-events:none;z-index:3;display:none}
+  .fc-cross-hline{position:absolute;height:0;border-top:1px dashed rgba(232,180,99,.55);pointer-events:none;z-index:3;display:none}
+  .fc-axlab{position:absolute;z-index:5;display:none;pointer-events:none;background:rgba(232,180,99,.96);color:#0b0f14;font-family:var(--mono);font-size:10.5px;font-weight:800;letter-spacing:-.02em;padding:1px 6px;border-radius:4px;white-space:nowrap;transform:translateY(-50%);box-shadow:0 1px 5px rgba(0,0,0,.4)}
   .fc-cone-tip{position:absolute;z-index:4;display:none;pointer-events:none;background:rgba(11,15,20,.95);border:1px solid rgba(232,180,99,.42);border-radius:7px;padding:5px 9px;font-family:var(--mono);font-size:11px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.45)}
   .fc-cone-tip .ct-t{color:var(--gold);font-weight:700;margin-right:7px}
   .fc-cone-tip .ct-v{color:#fff;font-weight:700;margin-right:7px}
@@ -904,6 +906,8 @@
                 <button id="logBtn" class="fc-axis-btn" title="로그/선형 스케일">L</button>
               </div>
               <div class="fc-cone-vline" id="fcMainVline"></div>
+              <div class="fc-cross-hline" id="fcMainHline"></div>
+              <div class="fc-axlab" id="fcMainYlab"></div>
               <div class="fc-cone-tip" id="fcMainTip"></div>
             </div>
           </div>
@@ -2647,7 +2651,7 @@
 
   /* ── fcFit: DPR-correct canvas sizing (port of chart.html fit()) ── */
   function fcFit(cv, h, cap) {
-    const dpr = Math.min(devicePixelRatio || 1, cap || 2);
+    const dpr = Math.min(Math.max(devicePixelRatio || 1, 2), cap || 3);   // 저해상도(1×) 화면도 최소 2×로 슈퍼샘플 → 텍스트·선 선명
     const w = cv.clientWidth;
     cv.width  = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
@@ -2657,7 +2661,7 @@
   }
   /* fcFit과 동일하나 크기 변동 없으면 백버퍼 재할당 생략(재생 프레임마다 호출용 — 호출부가 clearRect 직접 수행). */
   function fcFitKeep(cv, h, cap) {
-    const dpr = Math.min(devicePixelRatio || 1, cap || 2);
+    const dpr = Math.min(Math.max(devicePixelRatio || 1, 2), cap || 3);
     const W = Math.round(cv.clientWidth * dpr), H = Math.round(h * dpr);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     const c = cv.getContext("2d");
@@ -3308,9 +3312,18 @@
     for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, toY(hi[k])); bandBot = Math.max(bandBot, toY(lo[k])); }
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간) */
     cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: tfUnit(), log: _logChart, start: wStart, count: wCount, winN: N, plotRight: padX + plotW };
-    // grid
+    // grid + 세로축 가격 눈금(각 그리드선의 가격 — 우측, 어두운 pill로 가독)
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
-    for (let g = 0; g <= 3; g++) { const gy = padTop + g / 3 * (ch - padTop - padBot); c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke(); }
+    { const _plotH = ch - padTop - padBot, _loL = tvLog(loV, _logChart), _hiL = tvLog(hiV, _logChart);
+      for (let g = 0; g <= 3; g++) {
+        const gy = padTop + g / 3 * _plotH;
+        c.strokeStyle = FC_GRID; c.beginPath(); c.moveTo(padX, gy); c.lineTo(padX + plotW, gy); c.stroke();
+        const _vL = _loL + (1 - g / 3) * (_hiL - _loL), pv = _logChart ? Math.exp(_vL) : _vL, t = _hzFmt(pv);
+        c.font = "9.5px ui-monospace,monospace"; c.textAlign = "right"; const tw = c.measureText(t).width;
+        c.fillStyle = "rgba(11,15,20,.66)"; c.fillRect(padX + plotW - tw - 6, gy - 6, tw + 6, 12);
+        c.fillStyle = "#96a0b8"; c.fillText(t, padX + plotW - 2, gy + 3.3); c.textAlign = "left";
+      }
+    }
     // 시간축 눈금(하단) — 실제 날짜(티커 데이터 있을 때) 또는 상대 봉('−N{단위}') + 짧은 틱 + 은은한 세로 그리드
     { const uAx = tfUnit(), TN = 5, ay = ch - padBot;
       const _times = priceTimes(), _tfk = activeTF() || "", _useDate = !!(_times && _times.length === N);
@@ -3346,6 +3359,10 @@
       c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
       c.beginPath(); c.moveTo(seamX, padTop - 6); c.lineTo(seamX, ch - padBot); c.stroke(); c.setLineDash([]);
       c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.fillText("지금", seamX + 3, padTop - 2);
+      // 현재가 수평선 + 우측 골드 pill(항상 표시 — 어디서든 현재가 기준선)
+      { const yA = toY(anchor); c.save(); c.strokeStyle = "rgba(232,180,99,.5)"; c.lineWidth = 1; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(padX, yA); c.lineTo(padX + plotW, yA); c.stroke(); c.setLineDash([]);
+        const t = _hzFmt(anchor); c.font = "700 10px ui-monospace,monospace"; c.textAlign = "right"; const tw = c.measureText(t).width;
+        c.fillStyle = "#e8b463"; c.fillRect(padX + plotW - tw - 7, yA - 7, tw + 7, 14); c.fillStyle = "#0b0f14"; c.fillText(t, padX + plotW - 3, yA + 3.3); c.textAlign = "left"; c.restore(); }
       const coneR = toXf(path.length - 1);
       // 방향 색조(약한 적/녹) — 하락/상승 예측을 국면과 정합되게 한눈에
       const _pEnd = path[path.length - 1];
@@ -5473,7 +5490,7 @@
   (function initMainHover() {
     const cv = document.getElementById("fcMainChart"); if (!cv) return;
     const hero = cv.parentElement;
-    const hide = () => { const t = document.getElementById("fcMainTip"), v = document.getElementById("fcMainVline"); if (t) t.style.display = "none"; if (v) v.style.display = "none"; };
+    const hide = () => { ["fcMainTip", "fcMainVline", "fcMainHline", "fcMainYlab"].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = "none"; }); };
     const show = (clientX, clientY) => {
       if (_heroZoomDragging) { hide(); return; }
       const g = cv._mainGeo, tip = document.getElementById("fcMainTip"), vline = document.getElementById("fcMainVline");
@@ -5499,6 +5516,18 @@
       const vTop = (g.padTop * _heroZoom.s + _heroZoom.ty) * sx;
       const vH = (g.ch - g.padTop - g.padBot) * _heroZoom.s * sx;
       if (vline) { vline.style.display = "block"; vline.style.left = (offX + vSnap) + "px"; vline.style.top = (offY + vTop) + "px"; vline.style.height = vH + "px"; }
+      // 가로 십자선 + 세로축 가격(마우스 Y 위치의 가격)
+      const hline = document.getElementById("fcMainHline"), ylab = document.getElementById("fcMainYlab");
+      const syR = (cv.clientHeight && rect.height) ? rect.height / cv.clientHeight : 1;
+      let yLog = _heroZoom.s > 1.0001 ? ((clientY - rect.top) / (syR || 1) - _heroZoom.ty) / _heroZoom.s : (clientY - rect.top) / (syR || 1);
+      yLog = Math.max(g.padTop, Math.min(g.ch - g.padBot, yLog));
+      const _plotH = g.ch - g.padTop - g.padBot, _frac = 1 - (yLog - g.padTop) / (_plotH || 1);
+      const _loL = tvLog(g.loV, g.log), _hiL = tvLog(g.hiV, g.log), _vL = _loL + _frac * (_hiL - _loL);
+      const yPrice = g.log ? Math.exp(_vL) : _vL;
+      const hY = (yLog * _heroZoom.s + _heroZoom.ty) * syR;
+      const hL = (g.padX * _heroZoom.s + _heroZoom.tx) * sx, hR = ((g.padX + g.plotW) * _heroZoom.s + _heroZoom.tx) * sx;
+      if (hline) { hline.style.display = "block"; hline.style.left = (offX + hL) + "px"; hline.style.top = (offY + hY) + "px"; hline.style.width = Math.max(0, hR - hL) + "px"; }
+      if (ylab) { ylab.style.display = "block"; ylab.textContent = _hzFmt(yPrice); ylab.style.left = (offX + hR + 3) + "px"; ylab.style.top = (offY + hY) + "px"; }
       let inner = `<span class="ct-t">${label}</span><span class="ct-v">${_hzFmt(price)}</span>`;
       if (chg != null) { const col = chg > 0.3 ? "var(--bull)" : chg < -0.3 ? "var(--bear)" : "var(--eth)"; inner += `<span class="ct-chg" style="color:${col}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</span>`; }
       if (isFinite(lo) && isFinite(hi)) inner += `<span class="ct-band">${_hzFmt(lo)} ~ ${_hzFmt(hi)}</span>`;
