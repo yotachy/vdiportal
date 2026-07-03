@@ -805,7 +805,7 @@
         <button class="seg-btn" id="alignHBtn" onclick="autoLayout('h')" title="가로 정렬">⬌<span class="hlbl"> 가로</span></button>
         <button class="seg-btn" id="galaxyBtn" onclick="toggleGalaxy()" title="은하 배치 — 포지를 중심에 두고 지표가 둘러싸 부유">✦<span class="hlbl"> 은하</span></button>
       </div>
-      <button class="tool-btn" id="exportBtn" onclick="exportStrategy()" title="전략 내보내기">↧<span class="hlbl"> 내보내기</span></button>
+      <button class="tool-btn" id="exportBtn" onclick="exportStrategy()" title="전략 내보내기" style="display:none">↧<span class="hlbl"> 내보내기</span></button>
     </div>
     <div class="h-actions">
       <span id="analyzeProg" class="analyze-prog"></span>
@@ -1911,7 +1911,7 @@
     }
     if (n.blockType === "smc") rows.push(`<div class="pp-row"><label></label><span class="ne-hint">파라미터 없음 · 티커로 실 OHLC 불러오면 활성</span></div>`);
     if (n.blockType === "ticker") {
-      rows.push(`<div class="pp-row"><label>티커 심볼</label><input type="text" data-tkr="symbol" value="${esc((n.params && n.params.symbol) || "")}" placeholder="예: TSLA"></div>`);
+      rows.push(`<div class="pp-row"><label>티커 심볼</label><input type="text" data-tkr="symbol" value="${esc((n.params && n.params.symbol) || "")}" placeholder="예: TSLA · 005930(국내)"></div>`);
       rows.push(`<div class="pp-row"><label>현재가</label><input type="number" step="any" data-tkr="price" value="${(n.params && isFinite(n.params.price)) ? n.params.price : ""}" placeholder="예: 379.71"${(Array.isArray(n._ohlc) && n._ohlc.length >= 2) ? " readonly title='실데이터 로드됨 — 자동 설정'" : ""}></div>`);
       rows.push(`<div class="pp-row"><label>주기</label><select data-tkr="tf">
         <option value="1day"${((n.params&&n.params.tf)||"1day")==="1day"?" selected":""}>일봉</option>
@@ -2352,7 +2352,7 @@
     const pane = document.getElementById("boardPane");
     pane.innerHTML = `<div class="tk-panel" id="tkPanel">
     <span class="tk-lbl">티커</span>
-    <input class="tk-sym" id="tkSym" placeholder="종목 심볼 (예: BTC-USD · AAPL)" spellcheck="false">
+    <input class="tk-sym" id="tkSym" placeholder="종목 심볼 (예: BTC-USD · AAPL · 005930 국내)" spellcheck="false">
     <button class="tk-load" id="tkLoad">불러오기</button>
     <span class="tk-stat tk-dot empty" id="tkStat" title="종목 심볼 입력"></span>
   </div>

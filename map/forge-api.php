@@ -63,9 +63,12 @@ if ($method === "GET") {
 
     $candles = null; $source = null;
 
-    // 1) Twelve Data (서버 전용 키)
+    // 국내주식(6자리 코드 · 예: 005930, 000660) 또는 명시적 .kr → Twelve Data 무료키 미지원 → Stooq(.kr)로만 처리
+    $isKR = (bool) preg_match('/^\d{6}(\.kr)?$/i', $sym);
+
+    // 1) Twelve Data (서버 전용 키) — 국내주식은 건너뜀
     $TD_KEY = is_file(__DIR__ . "/forge_td_key.txt") ? trim(file_get_contents(__DIR__ . "/forge_td_key.txt")) : "";
-    if ($TD_KEY !== "") {
+    if ($TD_KEY !== "" && !$isKR) {
       // 암호화폐 페어(BTC-USD)는 Twelve Data가 슬래시(BTC/USD)를 요구 — fiat 접미사일 때만 변환(주식 BRK-B 보호)
       $tdSym = preg_match('/^[A-Za-z]{2,6}-(USD|USDT|EUR|KRW|JPY|GBP|BTC|ETH)$/i', $sym) ? str_replace("-", "/", $sym) : $sym;
       $u = "https://api.twelvedata.com/time_series?symbol=" . urlencode($tdSym) . "&interval=" . urlencode($tf) . "&outputsize=5000&format=JSON&apikey=" . urlencode($TD_KEY);
@@ -89,7 +92,8 @@ if ($method === "GET") {
     if ($candles === null) {
       $isCrypto = (bool) preg_match('/^[A-Za-z]{2,6}[-\/](USD|USDT|EUR|KRW|JPY|GBP|BTC|ETH)$/i', $sym);
       $ss = strtolower(str_replace(["-", "/"], "", $sym));   // BTC-USD · BTC/USD → btcusd
-      if (!$isCrypto && strpos($ss, ".") === false && strpos($ss, "^") === false && strpos($ss, "=") === false) $ss .= ".us";  // 평이 주식만 .us
+      if ($isKR) { if (strpos($ss, ".") === false) $ss .= ".kr"; }   // 국내주식 → .kr (예: 005930 → 005930.kr)
+      elseif (!$isCrypto && strpos($ss, ".") === false && strpos($ss, "^") === false && strpos($ss, "=") === false) $ss .= ".us";  // 평이 미국주식만 .us
       $raw = $fetch("https://stooq.com/q/d/l/?s=" . urlencode($ss) . "&i=d", false);
       if ($raw !== null) {
         $lines = preg_split('/\r?\n/', trim($raw));
