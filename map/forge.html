@@ -92,7 +92,8 @@
   .wboard .fc-pbody{max-height:none}
   /* 지표 신호 한 줄 요약 */
   .sig-list{display:flex;flex-direction:column}
-  .sig-row{display:grid;grid-template-columns:14px 66px 1fr 44px;align-items:center;gap:7px;padding:4px 2px;border-bottom:1px solid rgba(138,146,178,.08);font-size:11.5px}
+  .sig-row{display:grid;grid-template-columns:14px 66px 1fr 44px;align-items:center;gap:7px;padding:4px 2px;border-bottom:1px solid rgba(138,146,178,.08);font-size:11.5px;transition:opacity .28s}
+  .sig-row.dim{opacity:.24}   /* 시연: 아직 계산 전 지표는 흐리게 → 계산되면 점등 */
   .sig-row:last-child{border-bottom:0}
   .sig-arw{font-size:10px;text-align:center}
   .sig-arw.up{color:#46c28e}.sig-arw.dn{color:#e06a6a}.sig-arw.fl{color:var(--muted)}
@@ -946,7 +947,7 @@
         <div class="fc-prow">
           <div class="fc-panel" id="fcNodesPanel">
             <div class="fc-phead">
-              <span class="fc-t"><b>노드별 레이더</b> · 지표별 방향·강도</span>
+              <span class="fc-t"><b>지표 방향·강도</b> · 상승▶ 하락◀ · 강도순</span>
               <span class="fc-meta" id="fcNodesMeta">–</span>
             </div>
             <div class="fc-pbody"><canvas id="fcRadar" class="fc-radar"></canvas></div>
@@ -1711,24 +1712,12 @@
     renderWeightList();
     // renderSignalBoard()는 runForge에서 갱신(구조 변경 → fireBoardChange → runForge). 여기서 중복 호출 안 함(성능)
   }
-  /* ── 노드 가중치 접이식 한 줄 리스트(패널모드에서 카드 대체) ── */
-  let _wlistOpen = false;   // 기본 접힘 — 헤더(버튼)로 펼침
-  function toggleWList() { _wlistOpen = !_wlistOpen; renderWeightList(); if (!_wlistOpen) renderSignalBoard(); }
+  /* ── 노드 가중치 리스트 제거 — 가중치는 차트 상단 ⚖ 가중치 하나로 통합 ── */
+  let _wlistOpen = false;   // 항상 접힘(보드 데이터 패널만 노출). 가중치 편집은 ⚖ 팝오버로 일원화
+  function toggleWList() { if (!document.getElementById("tuneModal")) toggleTunePop(); }   // 하위호환: 가중치 조절 요청 → ⚖ 팝오버 열기
   function renderWeightList() {
     const host = document.getElementById("wlist"); if (!host) return;
-    const nodes = (typeof evIndicatorNodes === "function") ? evIndicatorNodes() : [];
-    const rows = nodes.map(n => {
-      const sig = n.conviction || 0, cls = sig > 0 ? "g-up" : sig < 0 ? "g-dn" : "g-0";
-      const label = esc(n.title || BTLABEL[n.blockType] || n.blockType || "노드");
-      return `<div class="wrow" data-id="${n.id}">
-        <span class="wl-name" data-wedit="${n.id}" title="클릭 = 상세 편집(파라미터·이미지)">${label}</span>
-        <input type="range" class="b-ctrl-sig wl-sig" data-id="${n.id}" min="-100" max="100" step="1" value="${sig}" title="왼쪽 하락 · 가운데 중립 · 오른쪽 상승 — 세기가 곧 중요도">
-        <span class="wl-val ${cls}">${sig > 0 ? "▲" : sig < 0 ? "▼" : "–"}${Math.abs(sig)}</span>
-      </div>`;
-    }).join("");
-    host.innerHTML = `<div class="wl-head" onclick="toggleWList()"><span>노드 가중치 · ${nodes.length}</span><span class="wl-caret">${_wlistOpen ? "▾" : "▸"}</span></div>
-      <div class="wl-body">${rows || '<div class="na-empty" style="padding:16px 4px">사이드바 블록 도구로 지표를 추가하세요</div>'}</div>`;
-    host.classList.toggle("collapsed", !_wlistOpen);
+    host.innerHTML = ""; host.classList.add("collapsed"); host.style.display = "none";   // 리스트 숨김 → `.wlist.collapsed ~ .wboard`로 데이터 패널 노출
   }
   /* ── 지표 신호 한 줄 요약(보드 하단, 가중치 접힘 시) ── */
   // 프레임 단위 analyze 메모(같은 price·지표·파라미터면 한 번만 계산 → run/근거작도/신호보드/해설의 중복 제거)
@@ -1778,11 +1767,13 @@
     const nodes = (typeof evIndicatorNodes === "function") ? evIndicatorNodes() : [];
     if (!P || P.length < 2 || !nodes.length) { host.innerHTML = `<div class="fc-phead"><span class="fc-t"><b>지표 신호</b> · 현재 판정</span></div><div class="fc-pbody"><div class="na-empty" style="padding:14px 4px">분석 후 표시됩니다</div></div>`; return; }
     const pLast = P[P.length - 1];
+    const _revIds = (_playing && _playReveal.ids) ? _playReveal.ids : null;   // 시연: 계산 완료 지표만 점등
     const rows = nodes.map(n => {
       const bias = _nodeBias(n, P), dir = bias > 0.05 ? "up" : bias < -0.05 ? "dn" : "fl", mag = Math.round(Math.min(1, Math.abs(bias)) * 100);
       let note = ""; try { const f = nodeExpert(n, lastResult, P, pLast); note = (f && f[0]) || ""; } catch (e) {}
       const arw = dir === "up" ? "▲" : dir === "dn" ? "▼" : "–";
-      return `<div class="sig-row"><span class="sig-arw ${dir}">${arw}</span><span class="sig-name">${esc(BTLABEL[n.blockType] || n.blockType)}</span><span class="sig-note" title="${esc(note)}">${esc(note)}</span><span class="sig-bar"><i class="${dir}" style="width:${mag}%"></i></span></div>`;
+      const dim = (_revIds && !_revIds.has(n.id)) ? " dim" : "";
+      return `<div class="sig-row${dim}" data-nid="${n.id}"><span class="sig-arw ${dir}">${arw}</span><span class="sig-name">${esc(BTLABEL[n.blockType] || n.blockType)}</span><span class="sig-note" title="${esc(note)}">${esc(note)}</span><span class="sig-bar"><i class="${dir}" style="width:${mag}%"></i></span></div>`;
     }).join("");
     host.innerHTML = `<div class="fc-phead"><span class="fc-t"><b>지표 신호</b> · 현재 판정</span></div><div class="fc-pbody"><div class="sig-list">${rows}</div></div>`;
   }
@@ -3460,18 +3451,22 @@
   function toggleTunePop() {
     const ex = document.getElementById("tuneModal"); if (ex) { ex.remove(); return; }
     const m = document.createElement("div"); m.id = "tuneModal"; m.className = "tune-modal";
-    const rows = TUNE_TYPES.map(([t, label]) => { const v = _tw(t); return `<div class="tune-row"><span class="tune-lbl">${label}</span><input type="range" min="0" max="3" step="0.1" value="${v}" data-tw="${t}"><span class="tune-val" data-tv="${t}">${v.toFixed(1)}×</span></div>`; }).join("");
-    m.innerHTML = `<div class="tune-box"><div class="tune-head">지표 영향 가중치 <button class="tune-x" onclick="toggleTunePop()" aria-label="닫기">✕</button></div>
-      <div class="tune-hint">각 지표의 방향(bias)이 <b>예측 콘</b>에 얼마나 반영될지 조절합니다. <b>0×</b>=무시 · <b>1×</b>=기본 · <b>3×</b>=최대. (노드의 확신·중요도 게이지와는 별개 채널)</div>
-      <div class="tune-list">${rows}</div>
+    // 이 포지에 추가된 지표만 — 도구별 하나의 가중치(0~3×)로 일원화
+    const added = TUNE_TYPES.filter(([t]) => boardState.nodes.some(n => n.kind === "block" && n.blockType === t));
+    const rows = added.map(([t, label]) => { const v = _tw(t); return `<div class="tune-row"><span class="tune-lbl" style="border-left:3px solid ${EV_COLORS[t] || "#8a92b2"};padding-left:8px">${label}</span><input type="range" min="0" max="3" step="0.1" value="${v}" data-tw="${t}"><span class="tune-val" data-tv="${t}">${v.toFixed(1)}×</span></div>`; }).join("");
+    m.innerHTML = `<div class="tune-box"><div class="tune-head">지표 가중치 <button class="tune-x" onclick="toggleTunePop()" aria-label="닫기">✕</button></div>
+      <div class="tune-hint">각 지표가 <b>예측·시그널</b>에 얼마나 반영될지 조절합니다. <b>0×</b>=무시 · <b>1×</b>=기본 · <b>3×</b>=최대.</div>
+      <div class="tune-list">${rows || '<div class="na-empty" style="padding:14px 4px;color:var(--eth)">사이드바 블록 도구로 지표를 추가하세요</div>'}</div>
       <div class="tune-foot"><button class="tune-reset" onclick="resetTune()">기본값으로(전부 1×)</button></div></div>`;
     document.body.appendChild(m);
     m.addEventListener("click", e => { if (e.target === m) toggleTunePop(); });
     m.addEventListener("input", e => {
       const t = e.target.getAttribute("data-tw"); if (!t) return;
       const v = +e.target.value; _driftW[t] = v;
+      // 통합: 이 지표 노드의 중요도(n.weight)도 함께 스케일 → 예측 콘·시그널 양쪽에 하나의 가중치로 반영(0×→0, 1×→50, 3×→150)
+      boardState.nodes.forEach(n => { if (n.kind === "block" && n.blockType === t) n.weight = Math.round(50 * v); });
       const lab = m.querySelector(`[data-tv="${t}"]`); if (lab) lab.textContent = v.toFixed(1) + "×";
-      saveDriftW(); clearTimeout(_tuneRunT); _tuneRunT = setTimeout(() => runForge(), 180);
+      saveDriftW(); markDirty(); clearTimeout(_tuneRunT); _tuneRunT = setTimeout(() => runForge(), 180);
     });
   }
   function resetTune() {
@@ -5228,8 +5223,11 @@
       default: return 0;
     }
   }
-  /* 노드별 레이더: 컬러 스포크=엔진 실측 방향·강도(상승 초록/하락 빨강), 골드 외곽=사용자 확신, 점=중요도 */
-  function renderNodeAnalysis(result) {
+  function _rrf(c, x, y, w, h, r) { if (w <= 0) return; r = Math.min(r, h / 2, w / 2); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); c.fill(); }
+  /* 지표 방향·강도 막대(발산형): 상승=우측 초록 / 하락=좌측 빨강, 길이=강도, 두께=중요도. 강도순 정렬.
+     reveal(선택)=시연 시 위에서부터 몇 개까지 채울지(나머지는 흐릿). 기본=전체 */
+  let _radarData = [];   // 최근 정렬 데이터(시연 reveal 순서 공유)
+  function renderNodeAnalysis(result, reveal) {
     const cv = document.getElementById("fcRadar"); if (!cv) return;
     const metaEl = document.getElementById("fcNodesMeta");
     const blocks = boardState.nodes.filter(n => n.kind === "block" && !["price", "predict", "combine", "ticker"].includes(n.blockType));
@@ -5238,53 +5236,42 @@
     if (metaEl) metaEl.textContent = blocks.length ? blocks.length + "개 지표" : "";
     if (!blocks.length || !result) {
       c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
-      c.fillText("지표 블록을 추가하면 방향·강도 레이더가 표시됩니다", W / 2, Hh / 2); c.textAlign = "left"; return;
+      c.fillText("지표 블록을 추가하면 방향·강도가 표시됩니다", W / 2, Hh / 2); c.textAlign = "left"; return;
     }
     const priceNode = boardState.nodes.find(n => n.blockType === "price");
     const pv = priceNode && result.values && result.values[priceNode.id];
-    const priceLast = (pv && pv.length) ? pv[pv.length - 1] : null;
-    const cx = W / 2, cy = Hh / 2 + 4, R = Math.min(W, Hh) / 2 - 46;
-    const N = blocks.length, GREEN = "#46c28e", RED = "#e06a6a", GRAY = "#8a92b2";
-    const ang = i => -Math.PI / 2 + i / N * Math.PI * 2;
-    // grid rings + spoke axes
-    c.strokeStyle = "rgba(138,146,178,.16)"; c.lineWidth = 1;
-    for (let g = 1; g <= 4; g++) { c.beginPath(); for (let i = 0; i <= N; i++) { const a = ang(i % N), r = R * g / 4, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r; i ? c.lineTo(x, y) : c.moveTo(x, y); } c.closePath(); c.stroke(); }
-    c.strokeStyle = "rgba(138,146,178,.2)";
-    for (let i = 0; i < N; i++) { const a = ang(i); c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); c.stroke(); }
-    const data = blocks.map((n, i) => {
-      const a = ang(i), conv = Math.max(-100, Math.min(100, n.conviction || 0));
-      const sig = _engSig(n, result, priceLast);   // -1..1 실측
-      return { n, a, conv, sig, wt: (n.weight != null ? n.weight : 50) };
+    const P = (pv && pv.length >= 2) ? pv : ((typeof currentData === "function" && currentData().price) || []);
+    const GREEN = "#46c28e", RED = "#e06a6a", GRAY = "#8a92b2";
+    // 신호 보드와 동일한 _nodeBias 사용(일관성) — 전 지표 실측 방향·강도
+    let data = blocks.map(n => ({ n, label: BTLABEL[n.blockType] || n.blockType || "노드", sig: (P.length >= 2 ? _nodeBias(n, P) : 0), wt: (n.weight != null ? n.weight : 50) }));
+    data.sort((a, b) => Math.abs(b.sig) - Math.abs(a.sig));   // 강한 신호 위로
+    _radarData = data;
+    const _revIds = (_playing && _playReveal.ids) ? _playReveal.ids : null;   // 시연: 계산 완료된 지표만 점등
+    const N = data.length, top = 8, rowH = Math.max(11, Math.min(19, Math.floor((Hh - top - 8) / N)));
+    const labelW = 76, midX = labelW + (W - labelW - 40) / 2, maxBar = (W - labelW - 40) / 2 - 4;
+    // 중앙(중립) 세로 기준선
+    c.strokeStyle = "rgba(138,146,178,.22)"; c.lineWidth = 1; c.beginPath(); c.moveTo(midX, top - 2); c.lineTo(midX, top + N * rowH + 1); c.stroke();
+    c.textBaseline = "middle";
+    data.forEach((d, i) => {
+      const y = top + i * rowH + rowH / 2, lit = !_revIds || _revIds.has(d.n.id), aA = lit ? 1 : 0.14;
+      const up = d.sig >= 0, mag = Math.min(1, Math.abs(d.sig));
+      const col = mag < 0.08 ? GRAY : (up ? GREEN : RED);
+      const len = mag * maxBar, bh = Math.min(rowH - 3, 4 + (d.wt / 100) * 6);
+      c.globalAlpha = aA * 0.92; c.fillStyle = col;
+      _rrf(c, up ? midX : midX - len, y - bh / 2, Math.max(1.5, len), bh, 2);
+      c.globalAlpha = aA;
+      c.font = "600 10.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "right";
+      c.fillStyle = "rgba(224,229,239,.9)"; c.fillText(esc(d.label), labelW - 6, y);
+      c.font = "700 10px ui-monospace,monospace"; c.fillStyle = col; c.textAlign = up ? "left" : "right";
+      if (lit) c.fillText((d.sig >= 0 ? "+" : "") + Math.round(d.sig * 100), up ? (midX + len + 4) : (midX - len - 4), y);
+      c.globalAlpha = 1;
     });
-    // 확신(conviction) 외곽 폴리곤 — 사용자 가중 형태
-    c.beginPath(); data.forEach((d, i) => { const r = Math.abs(d.conv) / 100 * R, x = cx + Math.cos(d.a) * r, y = cy + Math.sin(d.a) * r; i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.closePath();
-    c.strokeStyle = "rgba(232,180,99,.5)"; c.setLineDash([3, 3]); c.lineWidth = 1.3; c.stroke(); c.setLineDash([]);
-    // 엔진 실측 컬러 스포크 + 점(중요도) + 라벨
-    c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
-    for (const d of data) {
-      const col = d.sig > 0.08 ? GREEN : d.sig < -0.08 ? RED : GRAY;
-      const r = Math.abs(d.sig) * R, x = cx + Math.cos(d.a) * r, y = cy + Math.sin(d.a) * r;
-      c.strokeStyle = col; c.lineWidth = 2.6; c.beginPath(); c.moveTo(cx, cy); c.lineTo(x, y); c.stroke();
-      const dr = 2.4 + d.wt / 100 * 4.5;
-      c.fillStyle = col; c.beginPath(); c.arc(x, y, dr, 0, 7); c.fill();
-      c.strokeStyle = "#0b0f14"; c.lineWidth = 1; c.stroke();
-      const lx = cx + Math.cos(d.a) * (R + 13), ly = cy + Math.sin(d.a) * (R + 13), ca = Math.cos(d.a);
-      c.textAlign = ca > 0.3 ? "left" : ca < -0.3 ? "right" : "center";
-      c.fillStyle = "rgba(224,229,239,.92)"; c.fillText(esc(BTLABEL[d.n.blockType] || d.n.blockType || "노드"), lx, ly - 1);
-      c.fillStyle = col; c.font = "10px ui-monospace,monospace";
-      c.fillText((d.sig >= 0 ? "+" : "") + Math.round(d.sig * 100), lx, ly + 10); c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
-    }
-    c.textAlign = "left";
-    // 중심 net 국면(실측 가중 합)
-    const net = data.reduce((s, d) => s + d.sig * (d.wt / 50), 0);
-    const ncol = net > 0.15 ? GREEN : net < -0.15 ? RED : GRAY, ntxt = net > 0.15 ? "상승" : net < -0.15 ? "하락" : "중립";
-    c.fillStyle = ncol; c.beginPath(); c.arc(cx, cy, 4, 0, 7); c.fill();
-    c.textAlign = "center"; c.fillStyle = ncol; c.font = "700 11px Pretendard,'Malgun Gothic',system-ui,sans-serif";
-    c.fillText(ntxt, cx, cy - 9); c.textAlign = "left";
-    // 범례
-    c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
-    c.fillStyle = "#8a92b2"; c.fillText("● 실측 방향", 6, Hh - 16);
-    c.fillStyle = "rgba(232,180,99,.7)"; c.fillText("┈ 확신(가중)", 6, Hh - 4);
+    c.textBaseline = "alphabetic"; c.textAlign = "left";
+    // 하단 범례
+    c.font = "9.5px Pretendard,'Malgun Gothic',system-ui,sans-serif";
+    c.fillStyle = GREEN; c.fillText("▶ 상승", 6, Hh - 4);
+    c.fillStyle = RED; c.fillText("◀ 하락", 58, Hh - 4);
+    c.fillStyle = "#6b7391"; c.fillText("· 길이=강도 · 두께=중요도", 108, Hh - 4);
   }
   function togglePhasefoldPanels() {
     const has = boardState.nodes.some(n => n.blockType === "phasefold");
@@ -5752,7 +5739,7 @@
   })();
 
   /* ── renderVerdict: inline signal in chart panel header ────────── */
-  function renderVerdict(verdict) {
+  function renderVerdict(verdict, predOverride) {
     const el = document.getElementById("verdictInline");
     if (!el || !verdict) return;
     const REGIME_LABEL = { bull: "상승", bear: "하락", neutral: "중립" };
@@ -5761,7 +5748,7 @@
     const col = REGIME_COL[regime] || "#8a92b2", label = REGIME_LABEL[regime] || "중립";
     const score = (typeof verdict.score === "number" && isFinite(verdict.score)) ? verdict.score.toFixed(1) : "—";
     const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(2) : "—";
-    const _up = (typeof aggUpProb === "function" && lastResult) ? aggUpProb(lastResult.prediction) : null;
+    const _up = (typeof aggUpProb === "function") ? aggUpProb(predOverride || (lastResult && lastResult.prediction)) : null;
     el.innerHTML =
       `국면 <b style="color:${col}">${label}</b>` +
       (_up != null ? ` · <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
@@ -6168,6 +6155,9 @@
   let lastResult = null;
   let _t = null;
   let _playT = null, _playRaf = null, _playing = false, _analyzeNode = null, _zoomEl = null, _playTimers = [];
+  // 시연 진행 상태 — 차트 외 시각화(레이더·신호보드·예측·국면)를 실제 분석 진행에 맞춰 동적 반영
+  // ids=현재까지 '계산 완료'된 지표 노드 집합(null=전체 표시) · u=종합(예측/국면) 형성 진행도 0→1
+  let _playReveal = { ids: null, u: 1 };
   /* 스케치 스캔 공개: 근거 오버레이를 왼→오른쪽으로 점진 공개(clip-path). 캔들/차트는 안 건드림. */
   let _scanning = false, _scanU = 0;
   function _applyScanClip(u) {
@@ -6247,9 +6237,10 @@
     if (_playRaf) cancelAnimationFrame(_playRaf);
     _playTimers.forEach(clearTimeout); _playTimers = [];
     _playT = null; _playRaf = null; _playing = false;
-    _evReveal = {};
+    _evReveal = {}; _playReveal = { ids: null, u: 1 };   // 중단 → 차트 외 시각화 전체 확정 표시
     _scanning = false; _scanU = 1;   // 작도 중단 → 전체 표시
     clearAnalyzeViz();
+    try { if (lastResult) { renderNodeAnalysis(lastResult); renderSignalBoard(); renderHorizons(lastResult); if (lastResult.verdict) renderVerdict(lastResult.verdict); } } catch (e) {}
     const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
   }
   function lerpPred(a, b, u) {
@@ -6277,7 +6268,7 @@
     if (!steps.length) return;
     const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
     const finPred = fin.prediction, finSig = _sigOf(fin);
-    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume"].includes(n.blockType));
+    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic"].includes(n.blockType));
     const center = boardState.nodes.find(n => n.blockType === "predict") || boardState.nodes.find(n => n.blockType === "combine");
     if (prefersReducedMotion()) {
       _evidenceSet = new Set(indNodes.map(n => n.id));
@@ -6292,6 +6283,9 @@
     _evidenceSet = new Set(indNodes.map(n => n.id));
     _evReveal = {}; indNodes.forEach(n => { _evReveal[n.id] = Infinity; });
     _scanning = true; _scanU = 0; drawEvidence();
+    // 차트 외 시각화 초기화: 레이더·신호보드 전부 흐리게(아직 계산 전), 예측·국면은 0에서 형성
+    _playReveal = { ids: new Set(), u: 0 };
+    renderNodeAnalysis(lastResult); renderSignalBoard();
     const _lg0 = document.getElementById("analyzeLog"); if (_lg0) { const _lb0 = document.getElementById("analyzeLogBody"); if (_lb0) _lb0.innerHTML = ""; _lg0.classList.remove("on"); }
     const hud = document.getElementById("playHud"); if (hud) hud.classList.add("on");
     const progEl = document.getElementById("analyzeProg");
@@ -6336,6 +6330,8 @@
           const el = bq(tk.n.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); }
           _evidenceSet.add(tk.n.id);
           _analyzeNode = tk.n.id;            // 현재 동작 노드 추적(드로펄스 활성 효과용)
+          // 차트 외 시각화 동기: 이 지표가 계산되면 레이더 막대·신호보드 행이 점등
+          if (_playReveal.ids) { _playReveal.ids.add(tk.n.id); renderNodeAnalysis(lastResult); renderSignalBoard(); }
         }
         _hudNodeSteps(tk.n, tk.idx, tk.steps, tk.sIdx);
         _logAppend(tk.n, tk.st.text);
@@ -6347,11 +6343,20 @@
     const A = finPred.anchor;
     const flat = { path: finPred.path.map(() => A), lo: finPred.path.map(() => A), hi: finPred.path.map(() => A), anchor: A };
     const total = Math.max(2600, ticks.length * STEP_SUB + 800), t0 = performance.now();
+    let _lastCU = 0;
     function morph(now) {
       if (!_playing) return;
-      const u = Math.min(1, (now - t0) / total);
-      _scanU = _ease(u); drawEvidence();   // 손그림 진행도 반영 — 모든 도구가 동시에 그어짐
-      fcRenderForecast(lerpPred(flat, finPred, _ease(u)));
+      const u = Math.min(1, (now - t0) / total), e = _ease(u);
+      _scanU = e; drawEvidence();   // 손그림 진행도 반영 — 모든 도구가 동시에 그어짐
+      const ip = lerpPred(flat, finPred, e);
+      fcRenderForecast(ip);
+      // 동적 계산 효과: 예측 시점별·국면·확률·목표가가 anchor(평평)에서 최종값으로 함께 count-up (실제 종합 진행 e에 정합)
+      _playReveal.u = e;
+      if (now - _lastCU > 55) {   // DOM 갱신은 ~18fps로 스로틀(과부하 방지)
+        _lastCU = now;
+        renderHorizons({ prediction: ip });
+        if (fin.verdict) renderVerdict({ ...fin.verdict, score: (fin.verdict.score || 0) * e, target: A + (((fin.verdict.target != null ? fin.verdict.target : A)) - A) * e }, ip);
+      }
       if (u < 1) { _playRaf = requestAnimationFrame(morph); return; }
       finishPlay();
     }
@@ -6363,8 +6368,10 @@
       if (center) { const el = bq(center.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); _analyzeNode = center.id; } }  // 중심 포지 점등
       _playing = false; _playRaf = null;
       _playTimers.forEach(clearTimeout); _playTimers = [];
+      _playReveal = { ids: null, u: 1 };                      // 시연 종료 → 전체 확정 표시
       renderChart(lastResult, currentData());
       if (fin.verdict) renderVerdict(fin.verdict);
+      renderNodeAnalysis(lastResult); renderSignalBoard(); renderHorizons(lastResult);
       if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
       const eg2 = document.getElementById("bEdges"); if (eg2) eg2.classList.remove("flow");
       const hud2 = document.getElementById("playHud");
