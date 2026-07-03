@@ -20,7 +20,7 @@
   body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,-apple-system,"Segoe UI",'Malgun Gothic',"Apple SD Gothic Neo",system-ui,sans-serif;letter-spacing:-0.003em;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
   /* 숫자·코드용 공통 모노(가독성) */
   :root{--mono:ui-monospace,"SF Mono","Cascadia Mono","Segoe UI Mono",Consolas,"D2Coding",monospace}
-  .forge-top{display:flex;align-items:center;gap:14px;height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .forge-top{display:flex;align-items:center;flex-wrap:wrap;gap:14px;min-height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
   .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
   .forge-split{display:flex;flex:1;min-width:0}
   .board-pane{position:relative;flex:0 0 var(--board-w,480px);min-width:280px;overflow:hidden;display:flex;flex-direction:column}
@@ -695,8 +695,8 @@
   @media (max-width: 860px) {
     .forge-side .doc-row{display:none}     /* 모바일: 개별 포지 행 숨김 → 드롭다운으로 간단 표기 */
     .doc-select{display:block}
-    .forge-top{overflow-x:auto;overflow-y:hidden;gap:6px;padding:0 10px;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
-    .forge-top>*{flex:0 0 auto}
+    .forge-top{gap:6px;padding:7px 10px}                             /* 가로 스크롤 없이 줄바꿈으로 꽉 채움(base flex-wrap) */
+    .forge-top .h-actions{margin-left:0}                             /* 모바일: 우측 밀착 해제 → 좌→우로 흘려 채움 */
     .hlbl{display:none}                                              /* 헤더·차트툴바 버튼 = 아이콘만 */
     .forge-top .brand-by,.forge-top .build-tag,.forge-top .save-badge,.forge-top .h-sep{display:none}   /* 군더더기 정리 */
     .forge-top .seg-btn,.forge-top .tool-btn,.forge-top .run-btn{padding:0 11px;font-size:15px}
@@ -3202,6 +3202,7 @@
   let _evidenceShow = true;
   let _focusInd = null;          // 포커스 지표 blockType | null(전체) — 클릭 잠금
   let _evHover = null;           // 범례 hover 임시 포커스(프리뷰) blockType | null
+  let _legendCollapsed = (typeof window !== "undefined" && window.innerWidth <= 860);   // 범례 플로팅 접기(모바일 기본 접힘)
   const EV_DEFAULT_VISIBLE = ["trend", "bollinger", "fib", "rsi", "macd", "adx", "structure", "smc", "cycle"];   // 기본 표시(나머지는 범례 클릭으로 켜기)
   let _evVisible = new Set(EV_DEFAULT_VISIBLE);   // 차트에 그릴 지표 집합
   let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
@@ -3552,15 +3553,31 @@
   }
   function _evLegend(c, x0, topY, items) {
     _legendHits = [];
+    const px = x0, py = topY + 8;
+    c.textAlign = "left"; c.textBaseline = "alphabetic";
+    if (_legendCollapsed) {   // 접힘: 작은 '범례 ▸' 알약만
+      c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
+      const label = "☰ 범례 ▸", w = c.measureText(label).width + 16, h = 20;
+      c.fillStyle = "rgba(11,15,20,.82)";
+      if (c.roundRect) { c.beginPath(); c.roundRect(px, py, w, h, 6); c.fill(); } else c.fillRect(px, py, w, h);
+      c.fillStyle = "rgba(224,229,239,.9)"; c.fillText(label, px + 8, py + 14);
+      _legendHits.push({ x: px, y: py, w: w, h: h, key: "__toggle__" });
+      return;
+    }
     const focus = _evHover || _focusInd;
     const allVis = items.length && items.every(it => _evVisible.has(it._key));
     const rows = [{ col: "#8a92b2", t: allVis ? "전체 표시" : "전체 표시(클릭)", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key })));
-    c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
+    c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
     const hint = "클릭=표시토글 · 올려두면 단독강조";
     let maxW = c.measureText(hint).width; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
-    const px = x0, py = topY + 8, panelW = 22 + maxW + 8, panelH = rows.length * 14 + 22;
+    const panelW = 22 + maxW + 8, panelH = rows.length * 14 + 22;
     c.fillStyle = "rgba(11,15,20,.78)";
     if (c.roundRect) { c.beginPath(); c.roundRect(px, py, panelW, panelH, 6); c.fill(); } else c.fillRect(px, py, panelW, panelH);
+    // 접기 토글(우상단 −)
+    const tbW = 15, tbX = px + panelW - tbW - 4, tbY = py + 3;
+    c.fillStyle = "rgba(138,146,178,.2)"; if (c.roundRect) { c.beginPath(); c.roundRect(tbX, tbY, tbW, 14, 4); c.fill(); } else c.fillRect(tbX, tbY, tbW, 14);
+    c.fillStyle = "rgba(224,229,239,.9)"; c.textAlign = "center"; c.fillText("−", tbX + tbW / 2, tbY + 11); c.textAlign = "left";
+    _legendHits.push({ x: tbX, y: tbY, w: tbW, h: 14, key: "__toggle__" });
     c.fillStyle = "rgba(138,146,178,.75)"; c.font = "8.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.fillText(hint, px + 8, py + 11);
     c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
     let y = py + 24;
@@ -5232,6 +5249,7 @@
       for (const hgt of _legendHits) {
         if (lx >= hgt.x && lx <= hgt.x + hgt.w && ly >= hgt.y && ly <= hgt.y + hgt.h) {
           if (typeof hgt.key === "undefined") return;
+          if (hgt.key === "__toggle__") { _legendCollapsed = !_legendCollapsed; _evHover = null; drawEvidence(); return; }   // 범례 접기/펼치기
           if (hgt.key === null) { _evVisible = new Set(Object.keys(EV_COLORS)); _focusInd = null; }   // 전체 표시
           else { if (_evVisible.has(hgt.key)) _evVisible.delete(hgt.key); else _evVisible.add(hgt.key); }   // 표시 토글
           _focusInd = null; drawEvidence(); return;
@@ -5244,6 +5262,7 @@
       const lx = ((e.clientX - r.left) - _heroZoom.tx) / _heroZoom.s, ly = ((e.clientY - r.top) - _heroZoom.ty) / _heroZoom.s;
       let hov = null;
       for (const hgt of _legendHits) { if (lx >= hgt.x && lx <= hgt.x + hgt.w && ly >= hgt.y && ly <= hgt.y + hgt.h) { hov = hgt.key; break; } }
+      if (hov === "__toggle__") hov = null;   // 토글 버튼은 포커스 대상 아님(전체 숨김 방지)
       if (hov !== _evHover) { _evHover = hov; drawEvidence(); }
     });
     cv.addEventListener("mouseleave", () => { if (_evHover !== null) { _evHover = null; drawEvidence(); } });
