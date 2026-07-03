@@ -1443,6 +1443,7 @@
     // 실 데이터(불러온 티커) 포지에선 저장된 이미지분석(vision)을 초기화 — 로드 시 stale 이미지가 떴다 사라지는 플래시 제거(이미지 분석 추후 고도화)
     if (boardState.nodes.some(n => n.blockType === "ticker" && n.params && (n.params.fetched || isFinite(n.params.price)))) {
       _visionData = null; _visionBias = 0; _visionNote = ""; _visionWaves = []; _visionCoords = null; _visionTF = null; _visionFut = 0; _heroView = "chart";
+      const _hi = document.getElementById("fcHeroImg"); if (_hi) _hi.style.display = "none";   // 즉시 이미지 숨김(첫 렌더 전 플래시 방지)
     }
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
@@ -4496,8 +4497,10 @@
 
   /* 결과 영역 표시 모드: overlay(원본 이미지+예측 오버레이) / chart(연속 선차트) / image(분석 대기) */
   let _heroView = "auto";   // auto | chart | image (사용자 강제 뷰)
+  function _docHasRealTicker() { return boardState.nodes.some(n => n.blockType === "ticker" && n.params && (n.params.fetched || isFinite(n.params.price))); }
   function heroMode() {
-    if (_heroView === "chart" && hasRealSeries()) return "chart";   // 강제 차트뷰: 작도가 항상 선에 정합
+    if (_docHasRealTicker()) return "chart";        // 실 티커 포지 = 항상 차트(이미지 분석 비표시 · 로드 시 stale 이미지 플래시 방지)
+    if (_heroView === "chart") return "chart";      // 강제 차트뷰: 시계열 없어도 이미지로 폴백 안 함
     if (_heroView === "image" && heroImgId()) return _visionCoords ? "overlay" : "image";
     if (hasRealSeries()) return "chart";           // 기본: 시계열 있으면 최초 진입부터 차트뷰(오버레이/이미지보다 우선)
     if (heroImgId()) return "image";
