@@ -398,8 +398,10 @@
   .fc-tfseg button:first-child{border-left:0}
   .fc-tfseg button.on{background:rgba(232,180,99,.16);color:var(--gold)}
   .fc-tfseg button:hover:not(.on){background:var(--raised2);color:var(--ink)}
-  .ev-toggle{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:-.01em}
-  .ev-toggle.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.1)}
+  .ev-toggle{display:inline-flex;align-items:center;gap:5px;background:transparent;border:0;color:var(--eth);border-radius:7px;padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:-.01em;transition:background .12s,color .12s}
+  .ev-toggle:hover{background:rgba(255,255,255,.06);color:var(--ink)}
+  .ev-toggle.on{color:var(--gold);background:rgba(232,180,99,.13)}
+  .ev-toggle svg{width:14px;height:14px;flex:0 0 auto}
   /* 데이터 소스 배지(이미지뷰=비전 시계열 자동 감지 안내) */
   .fc-src{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:11px;letter-spacing:-.01em;white-space:nowrap;cursor:default}
   .fc-src-info{color:#9db8f0;background:rgba(91,141,239,.13);border:1px solid rgba(91,141,239,.4)}
@@ -555,11 +557,11 @@
   .forge-side .pal-side .pal-edit:hover{background:rgba(232,180,99,.24);border-color:var(--gold)}
   .forge-side .pal-side .pal-btn:hover{background:rgba(255,255,255,.05);color:var(--ink)}
   .forge-side .pal-side .pal-btn.added{color:var(--ink);background:rgba(255,255,255,.045)}
-  .forge-side .pal-side .pal-btn.added .pal-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2);box-shadow:0 0 8px -2px var(--ic,#8a92b2)}
+  .forge-side .pal-side .pal-btn.added .pal-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2);filter:saturate(.6) brightness(.9)}
   .forge-side .pal-side .pal-btn.added .pal-chk::after{opacity:1;transform:scale(1)}
   .forge-side .pal-side .pal-btn.added:hover{background:rgba(255,255,255,.08)}
   .forge-side .pal-side .pal-btn.sel{color:var(--ink);background:rgba(232,180,99,.14);font-weight:700}
-  .forge-side .pal-side .pal-btn.sel .pal-chk{box-shadow:0 0 0 2px rgba(232,180,99,.35)}
+  .forge-side .pal-side .pal-btn.sel .pal-chk{box-shadow:0 0 0 2px rgba(232,180,99,.3)}
   .side-allbtn{margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:6px;font-size:10px;font-weight:600;padding:2px 7px;cursor:pointer;line-height:1.5}
   .side-allbtn:hover{border-color:var(--gold);color:var(--gold)}
   .side-h-toggle .side-caret{margin-left:8px}
@@ -929,10 +931,10 @@
                 <button data-tf="1month" onclick="chartSetTF('1month')">월</button>
               </div>
               <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈<span class="hlbl"> 차트뷰</span></button>
-              <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈<span class="hlbl"> 근거</span></button>
-              <button class="ev-toggle" id="tuneBtn" title="지표별 bias 기여 가중치 조절 — 각 지표가 예측 방향에 얼마나 반영될지" onclick="toggleTunePop()">⚖<span class="hlbl"> 가중치</span></button>
-              <button class="ev-toggle" id="riskBtn" title="리스크·포지션 사이징 — 분석 기준 진입/손절/목표로 수량·손익비 계산" onclick="openRiskTool()">🧮<span class="hlbl"> 리스크</span></button>
-              <button class="ev-toggle" id="optBtn" title="파라미터 최적화 — 지표 설정을 과거 데이터로 백테스트해 적중률 지형 탐색" onclick="openOptTool()">🎯<span class="hlbl"> 최적화</span></button>
+              <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3.5l2.4-7 4 14 2.4-7H21"/></svg><span class="hlbl"> 근거</span></button>
+              <button class="ev-toggle" id="tuneBtn" title="지표별 bias 기여 가중치 조절 — 각 지표가 예측 방향에 얼마나 반영될지" onclick="toggleTunePop()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="10" cy="8" r="2.6" fill="currentColor" stroke="none"/><circle cx="15" cy="16" r="2.6" fill="currentColor" stroke="none"/></svg><span class="hlbl"> 가중치</span></button>
+              <button class="ev-toggle" id="riskBtn" title="리스크·포지션 사이징 — 분석 기준 진입/손절/목표로 수량·손익비 계산" onclick="openRiskTool()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.3-2.9 7.2-7 8.5-4.1-1.3-7-4.2-7-8.5V6z"/></svg><span class="hlbl"> 리스크</span></button>
+              <button class="ev-toggle" id="optBtn" title="파라미터 최적화 — 지표 설정을 과거 데이터로 백테스트해 적중률 지형 탐색" onclick="openOptTool()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.3"/></svg><span class="hlbl"> 최적화</span></button>
               <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
             </div>
           </div>
@@ -4759,8 +4761,7 @@
   }
   function updateViewToggle() {
     const b = document.getElementById("viewToggle"); if (!b) return;
-    const both = !!heroImgId() && !!hasRealSeries();
-    b.style.display = both ? "" : "none";
+    b.style.display = "none";   // 이미지 분석 보류 → 이미지뷰 토글 숨김
     const m = heroMode();
     b.innerHTML = (m === "chart") ? "🖼<span class=\"hlbl\"> 이미지뷰</span>" : "📈<span class=\"hlbl\"> 차트뷰</span>";
     b.title = (m === "chart") ? "원본 이미지 위 예측으로 전환" : "연속 차트로 전환 — 작도가 선에 정확히 정합";
