@@ -1453,16 +1453,24 @@
     const trChSig = _ta.blend.channelSigmaLog;
     const REV_W = 0.5;                                          // 평균회귀 약화(추세 추종)
     const path = [], lo = [], hi = [];
+    // 지표 드리프트 합 상한 — 다수(최대 19종) 지표가 같은 방향으로 정렬되면 additive 합이 커져 exp(m)이 폭발(비현실적 목표가)함.
+    // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
+    const _auxSum = maDrift + fibDrift + ewDrift + rsiDrift + volDrift + bbDrift + macdDrift + adxDrift + vpDrift + icDrift + stDrift + smcDrift + cyDrift + vwDrift + stDrift2 + stochDrift;
+    const _auxCap = Math.max(-0.28, Math.min(0.28, _auxSum));
     for (let k = 1; k <= futW; k++) {
       const rev = -dev * (1 - Math.exp(-theta * k)) * REV_W;                                // 평균회귀(약화)
       const mom = Math.max(-0.20, Math.min(0.20, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀(상향)
       const trend = trS * _prof.trendScale * DW("trend") * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW) + stDrift * (k / futW) + smcDrift * (k / futW) + cyDrift * (k / futW) + vwDrift * (k / futW) + stDrift2 * (k / futW) + stochDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * (_prof.bandScale || 1);   // TF별 콘 폭(일봉 타이트)
-      path.push(last * Math.exp(m));
-      lo.push(last * Math.exp(m - sd));
-      hi.push(last * Math.exp(m + sd));
+      const m = rev + mom + trend + sig + seas + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * (_prof.bandScale || 1);   // TF별 콘 폭(일봉 타이트)
+      // 종합 신호와 반대 방향으로 크게 드리프트하면 완화 — '지표 종합=하락인데 예측 급등/상승확률 86%' 같은 모순 억제
+      let mC = m;
+      if (lastSig < -8 && mC > 0) mC *= 0.25;
+      else if (lastSig > 8 && mC < 0) mC *= 0.25;
+      path.push(last * Math.exp(mC));
+      lo.push(last * Math.exp(mC - sd));
+      hi.push(last * Math.exp(mC + sd));
     }
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
     // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율

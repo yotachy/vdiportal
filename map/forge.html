@@ -58,17 +58,17 @@
   .forge-gutter::after{content:"";position:absolute;left:2px;top:50%;width:3px;height:34px;transform:translateY(-50%);border-radius:var(--r-sm);background:#3a4452;transition:background .12s}
   .forge-gutter:hover,.forge-gutter.dragging{background:var(--gold-dim)}
   .forge-gutter:hover::after,.forge-gutter.dragging::after{background:var(--gold)}
-  .run-btn{background:var(--gold);color:#1a1206;border:0;border-radius:var(--r-lg);padding:8px 16px;font-weight:700;cursor:pointer}
+  .run-btn{background:var(--gold);color:#1a1206;border:0;border-radius:var(--r-md);padding:8px 16px;font-weight:700;cursor:pointer}
   .forge-top .seg{display:none}   /* 캔버스 정렬·은하(사실상 미사용) 헤더에서 숨김 */
   .play-btn{color:#8fd0c0!important;border-color:rgba(143,208,192,.45)!important}   /* 시연 = 과정 재생(웹분석과 구분: 청록 아웃라인) */
   .play-btn.playing{color:#e06a6a!important;border-color:rgba(224,106,106,.6)!important;background:rgba(224,106,106,.12)!important}   /* 재생 중 = 중지(빨강) */
   .play-btn:hover{background:rgba(143,208,192,.14)!important;border-color:#8fd0c0!important;color:#ade0d4!important}
   .run-btn.needs-run{animation:engPulse 1.3s ease-in-out infinite}
   /* 분석 버전/신선도 칩 — "언제 분석된 결과인지" 인지용 */
-  .eng-stat{font-size:11px;font-weight:600;letter-spacing:-.01em;padding:3px 8px;border-radius:var(--r-md);white-space:nowrap;font-family:var(--mono)}
+  .eng-stat{font-size:11px;font-weight:600;letter-spacing:-.01em;padding:3px 2px;white-space:nowrap;font-family:var(--mono);background:transparent}
   .eng-stat:empty{display:none}
-  .eng-stat.ok{color:var(--eth);background:rgba(138,146,178,.12)}
-  .eng-stat.stale{color:#e8b463;background:rgba(232,180,99,.14);border:1px solid var(--gold-dim)}
+  .eng-stat.ok{color:var(--eth)}
+  .eng-stat.stale{color:#e8b463}
   @keyframes engPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,180,99,.55)}50%{box-shadow:0 0 0 5px rgba(232,180,99,0)}}
 
   /* ════════════════════════════════════════════════════
@@ -252,10 +252,10 @@
   .b-toast.on{opacity:1}
 
   /* save badge */
-  .save-badge{font-size:11px;font-family:var(--mono);border-radius:var(--r-md);padding:3px 9px;font-weight:600;white-space:nowrap}
-  .save-badge.saved{color:var(--bull);background:rgba(70,194,142,.1);border:1px solid rgba(70,194,142,.25)}
-  .save-badge.saving{color:var(--eth);background:rgba(138,146,178,.1);border:1px solid rgba(138,146,178,.25)}
-  .save-badge.offline{color:var(--bear);background:rgba(224,106,106,.1);border:1px solid rgba(224,106,106,.25)}
+  .save-badge{font-size:11px;font-family:var(--mono);padding:3px 2px;font-weight:600;white-space:nowrap;background:transparent}
+  .save-badge.saved{color:var(--bull)}
+  .save-badge.saving{color:var(--eth)}
+  .save-badge.offline{color:var(--bear)}
 
   /* ════════════════════════════════════════════════════
      CHART PANE  (PHASE-FOLD render port from chart.html)
@@ -366,7 +366,7 @@
   .brand-by{color:var(--eth);font-weight:500;font-size:13px}
   .h-group{display:flex;align-items:center;gap:8px}
   .h-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
-  .tool-btn{background:transparent;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-lg);
+  .tool-btn{background:transparent;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-md);
     padding:7px 13px;font-weight:600;cursor:pointer;font-family:inherit;font-size:13px;white-space:nowrap;
     transition:background .12s,color .12s,border-color .12s}
   .tool-btn:hover{background:var(--raised2);color:var(--ink);border-color:#3a4452}
@@ -600,7 +600,7 @@
   .tk-panel .tk-seg button{background:transparent;color:var(--eth);border:0;border-left:1px solid var(--line);padding:6px 11px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
   .tk-panel .tk-seg button:first-child{border-left:0}
   .tk-panel .tk-seg button.on{background:var(--gold);color:#1a1206}
-  .tk-panel .tk-load{background:var(--gold);border:1px solid var(--gold);color:#1a1206;border-radius:var(--r-lg);padding:7px 15px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;flex:0 0 auto}
+  .tk-panel .tk-load{background:var(--gold);border:1px solid var(--gold);color:#1a1206;border-radius:var(--r-md);padding:7px 15px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;flex:0 0 auto}
   .tk-panel .tk-load:hover{filter:brightness(1.07)}
   .tk-panel .tk-stat{font-size:11px;color:var(--eth);white-space:nowrap;flex:0 0 auto;font-family:var(--mono)}
   .tk-dot{display:inline-flex;align-items:center;gap:5px}
