@@ -410,6 +410,11 @@
   .fc-fx{position:absolute;inset:0;pointer-events:none;z-index:4}
   .fc-zoom-reset{position:absolute;top:8px;right:8px;z-index:4;width:24px;height:24px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:13px;cursor:pointer;display:none}
   .fc-zoom-reset.on{display:block}
+  /* 예측 구간 프레이밍 버튼 — 현재가 근처에 떠서, 예측 콘이 화면 밖으로 벗어났을 때만 표시 */
+  .fc-fit-btn{position:absolute;z-index:6;display:inline-flex;align-items:center;gap:6px;padding:5px 10px 5px 8px;border-radius:var(--r-md);border:1px solid var(--gold);background:rgba(232,180,99,.16);color:var(--gold);font-family:inherit;font-size:11.5px;font-weight:700;letter-spacing:-.01em;cursor:pointer;white-space:nowrap;backdrop-filter:blur(2px);box-shadow:0 4px 14px rgba(0,0,0,.4);transform:translateY(-50%);transition:opacity .2s;animation:fitpulse 1.8s ease-in-out infinite}
+  .fc-fit-btn:hover{background:rgba(232,180,99,.28)}
+  .fc-fit-btn svg{width:13px;height:13px}
+  @keyframes fitpulse{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.4),0 0 0 0 rgba(232,180,99,.5)}50%{box-shadow:0 4px 14px rgba(0,0,0,.4),0 0 0 5px rgba(232,180,99,0)}}
   .fc-axis-btns{position:absolute;right:6px;bottom:8px;z-index:4;display:flex;gap:4px}
   .fc-axis-btn{width:22px;height:22px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:12px;font-weight:700;cursor:pointer;line-height:1;transition:background .35s,color .35s,border-color .35s}
   .fc-axis-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.14)}
@@ -975,6 +980,7 @@
                 <button id="autoBtn" class="fc-axis-btn" title="세로축 오토스케일 — 현재 구간의 보이는 캔들에 맞춤(시간창 유지). 전체 초기화는 플롯 더블클릭">A</button>
                 <button id="logBtn" class="fc-axis-btn" title="로그/선형 스케일">L</button>
               </div>
+              <button id="fcFitBtn" class="fc-fit-btn" title="예측 구간이 화면에 잘 담기도록 가로·세로를 자동 배치" style="display:none" onclick="fitPrediction()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span>예측 구간 보기</span></button>
               <div class="fc-cone-vline" id="fcMainVline"></div>
               <div class="fc-cross-hline" id="fcMainHline"></div>
               <div class="fc-axlab" id="fcMainYlab"></div>
@@ -1145,6 +1151,39 @@
     drawEvidence();
     _syncZoomBtn();
     if (typeof updateAxisBtns === "function") updateAxisBtns();   // A/L 버튼 상태 동기화(y드래그→manual 시 A 꺼짐)
+  }
+  // 예측 구간이 화면에 잘 담기도록 가로(최근이력+콘)·세로(콘 전체 lo~hi)를 자동 배치
+  function fitPrediction() {
+    const cv = document.getElementById("fcMainChart"), g = cv && cv._mainGeo; if (!g) return;
+    const price = (_fcLastData && _fcLastData.price) || (currentData && currentData().price) || [];
+    const N = price.length, pl = (g.path && g.path.length) || 0;
+    if (!N || !pl || !g.lo || !g.hi) return;
+    const histShow = Math.min(N, Math.max(24, Math.round(pl * 1.4)));   // 가로: 최근 이력 + 콘(폭 ~45%)
+    _chartWin.count = histShow; _chartWin.start = Math.max(0, N - histShow);   // 최신에 끝나게 → 콘 표시
+    let lo = Infinity, hi = -Infinity;                                  // 세로: 최근 이력 + 예측 콘 전체
+    for (let i = _chartWin.start; i < N; i++) { const v = price[i]; if (isFinite(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+    for (const v of g.lo) if (isFinite(v) && v < lo) lo = v;
+    for (const v of g.hi) if (isFinite(v) && v > hi) hi = v;
+    if (isFinite(g.anchor)) { lo = Math.min(lo, g.anchor); hi = Math.max(hi, g.anchor); }
+    if (!isFinite(lo) || !isFinite(hi) || hi <= lo) return;
+    const pad = (hi - lo) * 0.08 || 1;
+    _yScale = { mode: "manual", lo: lo - pad, hi: hi + pad };
+    if (typeof resetHeroView === "function") resetHeroView();
+    renderHeroZoom();   // 재그리면 콘이 화면 안 → updateFitBtn이 버튼 숨김
+  }
+  // 예측 콘이 세로로 화면을 벗어났을(클리핑) 때만 현재가 근처에 버튼 표시
+  function updateFitBtn() {
+    const btn = document.getElementById("fcFitBtn"); if (!btn) return;
+    const cv = document.getElementById("fcMainChart"), g = cv && cv._mainGeo;
+    if (!g || !g.pathLen || !g.atLatest) { btn.style.display = "none"; return; }   // 콘 없거나 최신 아님 → 숨김
+    const M = 6;   // 허용 마진(px) — 이보다 많이 벗어나면 버튼 재등장
+    const clipped = g.bandTop < g.padTop - M || g.bandBot > g.ch - g.padBot + M;
+    if (!clipped) { btn.style.display = "none"; return; }   // 잘 담김 → 숨김
+    btn.style.display = "inline-flex";
+    const bw = btn.offsetWidth || 120;
+    const top = Math.max(g.padTop + 14, Math.min(g.ch - g.padBot - 14, g.anchorY));   // 현재가 Y(플롯 안 유지)
+    btn.style.top = top + "px";
+    btn.style.left = Math.max(g.padX + 4, g.plotRight - bw - 8) + "px";   // 현재가 pill 왼쪽
   }
 
   /* ── Server layer globals ──────────────────────────────────────── */
@@ -3420,7 +3459,8 @@
     let bandTop = toY(anchor), bandBot = toY(anchor);
     for (let k = 0; k < path.length; k++) { bandTop = Math.min(bandTop, toY(hi[k])); bandBot = Math.max(bandBot, toY(lo[k])); }
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간) */
-    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: tfUnit(), log: _logChart, start: wStart, count: wCount, winN: N, plotRight: padX + plotW };
+    cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: tfUnit(), log: _logChart, start: wStart, count: wCount, winN: N, plotRight: padX + plotW, anchorY: toY(anchor), atLatest };
+    if (typeof updateFitBtn === "function") updateFitBtn();   // 예측 구간 프레이밍 버튼 표시/숨김 갱신
     _axisLabelBoxes = [];   // 이번 프레임 축 라벨 박스 초기화
     // grid + 세로축 가격 눈금(각 그리드선의 가격 — 우측, 어두운 pill로 가독)
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
