@@ -620,6 +620,44 @@
   .tune-foot{margin-top:16px;display:flex;justify-content:flex-end}
   .tune-reset{padding:8px 14px;border-radius:9px;border:1px solid rgba(138,146,178,.24);background:transparent;color:var(--eth);font-size:12px;cursor:pointer}
   .tune-reset:hover{border-color:var(--gold);color:var(--gold)}
+  /* 리스크·포지션 사이징 모달 */
+  .risk-modal{position:fixed;inset:0;z-index:120;background:rgba(6,9,13,.62);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);animation:tuneIn .14s ease}
+  .risk-box{width:min(520px,94vw);max-height:88vh;overflow:auto;background:#0f151c;border:1px solid rgba(138,146,178,.22);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.5);padding:18px 20px}
+  .risk-head{display:flex;align-items:center;gap:10px;margin-bottom:3px}
+  .risk-title{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+  .risk-dir{font-size:11px;font-weight:800;letter-spacing:.02em;padding:3px 9px;border-radius:999px;cursor:pointer;user-select:none;border:1px solid transparent}
+  .risk-dir.long{color:var(--bull,#46c28e);background:rgba(70,194,142,.13);border-color:rgba(70,194,142,.35)}
+  .risk-dir.short{color:var(--bear,#e06a6a);background:rgba(224,106,106,.13);border-color:rgba(224,106,106,.35)}
+  .risk-x{margin-left:auto;width:28px;height:28px;border-radius:8px;border:none;background:rgba(138,146,178,.12);color:var(--eth);font-size:15px;cursor:pointer}
+  .risk-x:hover{background:rgba(138,146,178,.22);color:var(--ink)}
+  .risk-sub{font-size:11.5px;color:var(--eth);margin-bottom:15px}
+  .risk-inputs{display:flex;flex-direction:column;gap:11px;margin-bottom:16px}
+  .risk-grid{display:grid;gap:10px}
+  .risk-fld{display:flex;flex-direction:column;gap:4px}
+  .risk-fld label{font-size:10.5px;color:var(--eth);letter-spacing:-.01em;text-transform:none}
+  .risk-fld input{background:#0b1016;border:1.5px solid rgba(138,146,178,.22);border-radius:9px;padding:9px 11px;color:var(--ink);font-size:14px;font-family:var(--mono);width:100%}
+  .risk-fld input:focus{outline:none;border-color:var(--gold)}
+  .risk-fld.stop input{border-color:rgba(224,106,106,.4)} .risk-fld.tgt input{border-color:rgba(70,194,142,.4)}
+  /* 시그니처: 손익비 바 */
+  .rr-wrap{margin:4px 0 18px;padding:14px 14px 12px;background:#0b1016;border-radius:12px;border:1px solid rgba(138,146,178,.14)}
+  .rr-cap{display:flex;justify-content:space-between;font-size:10.5px;color:var(--eth);margin-bottom:8px}
+  .rr-bar{height:30px;border-radius:8px;overflow:hidden;display:flex;background:#141b23}
+  .rr-risk{background:linear-gradient(180deg,#e06a6a,#c85555);min-width:2px;transition:width .18s ease}
+  .rr-reward{background:linear-gradient(180deg,#46c28e,#38a878);min-width:2px;transition:width .18s ease}
+  .rr-ratio{text-align:center;margin-top:9px;font-size:19px;font-weight:800;letter-spacing:-.01em;color:var(--ink);font-family:var(--mono)}
+  .rr-ratio b{color:var(--gold)}
+  .risk-out{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(138,146,178,.14);border-radius:12px;overflow:hidden;border:1px solid rgba(138,146,178,.14)}
+  .risk-metric{background:#0f151c;padding:12px 14px}
+  .risk-metric .rm-k{font-size:10.5px;color:var(--eth);margin-bottom:3px}
+  .risk-metric .rm-v{font-size:17px;font-weight:800;letter-spacing:-.01em;color:var(--ink);font-family:var(--mono)}
+  .risk-metric .rm-v.pos{color:var(--bull,#46c28e)} .risk-metric .rm-v.neg{color:var(--bear,#e06a6a)}
+  .risk-metric .rm-sub{font-size:10.5px;color:var(--eth);margin-top:1px;font-family:var(--mono)}
+  .risk-metric.big{grid-column:1/-1}
+  .risk-metric.big .rm-v{font-size:23px;color:var(--gold)}
+  .risk-warn{margin-top:14px;padding:10px 12px;border-radius:9px;font-size:12px;line-height:1.5;display:flex;gap:8px;align-items:flex-start}
+  .risk-warn.good{background:rgba(70,194,142,.1);color:#7fd8b0;border:1px solid rgba(70,194,142,.25)}
+  .risk-warn.warn{background:rgba(232,180,99,.1);color:#e8c07a;border:1px solid rgba(232,180,99,.25)}
+  .risk-warn.bad{background:rgba(224,106,106,.1);color:#e69a9a;border:1px solid rgba(224,106,106,.25)}
 </style>
 </head>
 <body>
@@ -687,6 +725,7 @@
               <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈 차트뷰</button>
               <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()">◈ 근거</button>
               <button class="ev-toggle" id="tuneBtn" title="지표별 bias 기여 가중치 조절 — 각 지표가 예측 방향에 얼마나 반영될지" onclick="toggleTunePop()">⚖ 가중치</button>
+              <button class="ev-toggle" id="riskBtn" title="리스크·포지션 사이징 — 분석 기준 진입/손절/목표로 수량·손익비 계산" onclick="openRiskTool()">🧮 리스크</button>
               <button class="fc-expand" id="fcExpand" title="확대(휠로 줌)" aria-label="확대">⛶</button>
             </div>
           </div>
@@ -3114,6 +3153,104 @@
     runForge();
   }
   function updateTuneBtn() { const b = document.getElementById("tuneBtn"); if (b) b.classList.toggle("on", TUNE_TYPES.some(([t]) => _tw(t) !== 1)); }
+
+  /* ── 리스크·포지션 사이징 (메타 도구) ── */
+  let _riskPref = (function () { try { return JSON.parse(localStorage.getItem("scoopforge_risk") || "{}") || {}; } catch (e) { return {}; } })();
+  let _riskDir = "long";
+  function _riskDefaults() {
+    const v = lastResult && lastResult.verdict, p = lastResult && lastResult.prediction;
+    const entry = (p && isFinite(p.anchor)) ? p.anchor : (v && isFinite(v.target) ? v.target : null);
+    const target = (v && isFinite(v.target)) ? v.target : (entry != null ? entry * 1.1 : null);
+    let stop = (v && isFinite(v.invalidation)) ? v.invalidation : null;
+    const dir = (v && v.regime === "bear") ? "short" : "long";
+    if (stop == null && entry != null) stop = dir === "short" ? entry * 1.05 : entry * 0.95;   // 손절 폴백 ±5%
+    return { entry, stop, target, dir };
+  }
+  function openRiskTool() {
+    const ex = document.getElementById("riskModal"); if (ex) { ex.remove(); return; }
+    const d = _riskDefaults();
+    _riskDir = d.dir;
+    const acct = isFinite(_riskPref.account) ? _riskPref.account : 10000000;
+    const rpct = isFinite(_riskPref.riskPct) ? _riskPref.riskPct : 1;
+    const nf = x => (x == null || !isFinite(x)) ? "" : (Math.abs(x) >= 100 ? Math.round(x) : Math.round(x * 1e4) / 1e4);
+    const m = document.createElement("div"); m.id = "riskModal"; m.className = "risk-modal";
+    m.innerHTML = `<div class="risk-box">
+      <div class="risk-head"><span class="risk-title">리스크 · 포지션 사이징</span>
+        <span class="risk-dir ${_riskDir}" id="riskDir" title="클릭해 롱/숏 전환">${_riskDir === "short" ? "숏 ▼" : "롱 ▲"}</span>
+        <button class="risk-x" onclick="openRiskTool()" aria-label="닫기">✕</button></div>
+      <div class="risk-sub">현재 분석 기준 자동 계산 — 값을 조정하면 즉시 반영됩니다.</div>
+      <div class="risk-inputs">
+        <div class="risk-grid" style="grid-template-columns:1.4fr 1fr">
+          <div class="risk-fld"><label>계좌 자본</label><input type="number" step="any" id="rkAcct" value="${acct}"></div>
+          <div class="risk-fld"><label>거래당 리스크 (%)</label><input type="number" step="0.1" id="rkPct" value="${rpct}"></div>
+        </div>
+        <div class="risk-grid" style="grid-template-columns:1fr 1fr 1fr">
+          <div class="risk-fld"><label>진입가</label><input type="number" step="any" id="rkEntry" value="${nf(d.entry)}"></div>
+          <div class="risk-fld stop"><label>손절가</label><input type="number" step="any" id="rkStop" value="${nf(d.stop)}"></div>
+          <div class="risk-fld tgt"><label>목표가</label><input type="number" step="any" id="rkTgt" value="${nf(d.target)}"></div>
+        </div>
+      </div>
+      <div class="rr-wrap">
+        <div class="rr-cap"><span>손익비 (Risk : Reward)</span><span id="rrLbls">손실 1R · 이익 <span id="rrR">–</span>R</span></div>
+        <div class="rr-bar"><div class="rr-risk" id="rrRisk"></div><div class="rr-reward" id="rrReward"></div></div>
+        <div class="rr-ratio" id="rrRatio">–</div>
+      </div>
+      <div class="risk-out">
+        <div class="risk-metric big"><div class="rm-k">진입 수량</div><div class="rm-v" id="rkUnits">–</div><div class="rm-sub" id="rkUnitsSub"></div></div>
+        <div class="risk-metric"><div class="rm-k">포지션 규모</div><div class="rm-v" id="rkVal">–</div><div class="rm-sub" id="rkValSub"></div></div>
+        <div class="risk-metric"><div class="rm-k">필요 레버리지</div><div class="rm-v" id="rkLev">–</div><div class="rm-sub">계좌 대비</div></div>
+        <div class="risk-metric"><div class="rm-k">최대 손실 (손절 시)</div><div class="rm-v neg" id="rkLoss">–</div><div class="rm-sub neg" id="rkLossSub"></div></div>
+        <div class="risk-metric"><div class="rm-k">기대 수익 (목표 시)</div><div class="rm-v pos" id="rkProfit">–</div><div class="rm-sub pos" id="rkProfitSub"></div></div>
+      </div>
+      <div class="risk-warn" id="rkWarn"></div>
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener("click", e => { if (e.target === m) openRiskTool(); });
+    m.addEventListener("input", computeRisk);
+    document.getElementById("riskDir").addEventListener("click", () => { _riskDir = _riskDir === "long" ? "short" : "long"; const el = document.getElementById("riskDir"); el.className = "risk-dir " + _riskDir; el.textContent = _riskDir === "short" ? "숏 ▼" : "롱 ▲"; computeRisk(); });
+    computeRisk();
+  }
+  function computeRisk() {
+    const g = id => { const el = document.getElementById(id); return el ? Number(el.value) : NaN; };
+    const set = (id, txt, cls) => { const el = document.getElementById(id); if (!el) return; el.textContent = txt; if (cls != null) el.className = cls; };
+    const acct = g("rkAcct"), pct = g("rkPct"), entry = g("rkEntry"), stop = g("rkStop"), tgt = g("rkTgt");
+    _riskPref = { account: acct, riskPct: pct }; try { localStorage.setItem("scoopforge_risk", JSON.stringify(_riskPref)); } catch (e) {}
+    const long = _riskDir === "long";
+    const riskPU = Math.abs(entry - stop), rewPU = Math.abs(tgt - entry);
+    const RR = riskPU > 0 ? rewPU / riskPU : 0;
+    // 손익비 바
+    const total = 1 + (RR || 0), rw = total > 0 ? (RR / total) * 100 : 0;
+    const rRisk = document.getElementById("rrRisk"), rRew = document.getElementById("rrReward");
+    if (rRisk && rRew) { rRisk.style.width = (100 - rw) + "%"; rRew.style.width = rw + "%"; }
+    set("rrR", RR > 0 ? RR.toFixed(1) : "–");
+    const rr = document.getElementById("rrRatio"); if (rr) rr.innerHTML = RR > 0 ? `1 : <b>${RR.toFixed(2)}</b>` : "–";
+    const riskAmt = (isFinite(acct) && isFinite(pct)) ? acct * pct / 100 : 0;
+    const units = (riskPU > 0 && riskAmt > 0) ? Math.floor(riskAmt / riskPU) : 0;
+    const posVal = units * (isFinite(entry) ? entry : 0);
+    const maxLoss = units * riskPU, profit = units * rewPU;
+    const lev = (posVal > 0 && acct > 0) ? posVal / acct : 0;
+    const fmt = x => isFinite(x) ? fmtNum(Math.round(x)) : "–";
+    set("rkUnits", units > 0 ? fmtNum(units) : "–");
+    set("rkUnitsSub", units > 0 ? "단위당 위험 " + fmtNum(Math.round(riskPU)) : "");
+    set("rkVal", posVal > 0 ? fmt(posVal) : "–");
+    set("rkValSub", (posVal > 0 && acct > 0) ? "계좌의 " + (posVal / acct * 100).toFixed(0) + "%" : "");
+    set("rkLev", lev > 0 ? lev.toFixed(2) + "×" : "–");
+    set("rkLoss", maxLoss > 0 ? "−" + fmt(maxLoss) : "–");
+    set("rkLossSub", (maxLoss > 0 && acct > 0) ? "−" + (maxLoss / acct * 100).toFixed(2) + "%" : "");
+    set("rkProfit", profit > 0 ? "+" + fmt(profit) : "–");
+    set("rkProfitSub", (profit > 0 && acct > 0) ? "+" + (profit / acct * 100).toFixed(2) + "%" : "");
+    // 경고
+    let cls = "risk-warn warn", msg = "값을 입력하세요.";
+    if (!(riskPU > 0)) { cls = "risk-warn bad"; msg = "손절가가 진입가와 같습니다 — 손절 레벨을 설정하세요."; }
+    else if (long && stop >= entry) { cls = "risk-warn bad"; msg = "롱인데 손절가가 진입가 이상입니다 — 방향(롱/숏)이나 손절값을 확인하세요."; }
+    else if (!long && stop <= entry) { cls = "risk-warn bad"; msg = "숏인데 손절가가 진입가 이하입니다 — 방향이나 손절값을 확인하세요."; }
+    else if (long && tgt <= entry) { cls = "risk-warn bad"; msg = "롱인데 목표가가 진입가 이하입니다 — 목표값을 확인하세요."; }
+    else if (!long && tgt >= entry) { cls = "risk-warn bad"; msg = "숏인데 목표가가 진입가 이상입니다 — 목표값을 확인하세요."; }
+    else if (RR < 1) { cls = "risk-warn bad"; msg = "손익비 " + RR.toFixed(2) + " — 위험이 보상보다 큽니다(1 미만). 진입을 재고하세요."; }
+    else if (RR >= 2) { cls = "risk-warn good"; msg = "손익비 " + RR.toFixed(2) + " — 양호(2:1 이상)." + (lev > 1 ? " 다만 계좌 대비 " + lev.toFixed(2) + "× 레버리지가 필요합니다." : ""); }
+    else { cls = "risk-warn warn"; msg = "손익비 " + RR.toFixed(2) + " — 보통(1~2). 관리 가능하나 여유는 크지 않습니다." + (lev > 1 ? " 레버리지 " + lev.toFixed(2) + "× 필요." : ""); }
+    set("rkWarn", msg, cls);
+  }
   function updateAxisBtns() {
     // A는 상태 토글이 아니라 매번 동작하는 액션 버튼(눌린 것처럼 보여 안 눌리는 오해 방지). L만 토글 상태.
     const l = document.getElementById("logBtn"); if (l) l.classList.toggle("on", _logChart);
