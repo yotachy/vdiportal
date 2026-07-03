@@ -85,11 +85,22 @@
   /* 보드 하단 데이터 패널(가중치 접었을 때 예측·타임프레임 요약 노출) */
   .wboard{display:none}
   body.panel-mode .wlist.collapsed ~ .wboard{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow-y:auto;padding:2px 10px 24px;gap:8px}
-  .wboard .fc-prow{display:flex;flex-direction:column;gap:8px;padding:0;margin:0}
+  .wboard .fc-prow{display:flex;flex-direction:column;gap:7px;padding:0;margin:0}
   .wboard .fc-prow>.fc-panel{flex:0 0 auto;width:100%;min-width:0}
-  .wboard .fc-phead{padding:7px 10px}
-  .wboard .fc-panel .fc-t{font-size:11.5px}
-  .wboard .fc-pbody{max-height:none}
+  /* 컴팩트: 데이터 시각화 패널을 좌측에 밀도 높게 */
+  .wboard .fc-phead{padding:5px 9px}
+  .wboard .fc-panel .fc-t{font-size:11px}
+  .wboard .fc-pbody{max-height:none;padding:5px 9px}
+  .wboard .fc-cv{height:78px}                 /* RSI·MACD·ADX·거래량 오실레이터 압축 */
+  .wboard .fc-radar{height:220px}
+  .wboard .fc-panel{border-radius:8px}
+  .wboard .fc-meta{font-size:10.5px}
+  .wboard .fc-panel .fc-t b{letter-spacing:.02em}
+  /* 패널 해석 배지 — 헤더 우측에 현재 판정을 색으로 */
+  .fc-verdit{font-size:10.5px;font-weight:800;letter-spacing:-.01em;padding:1px 7px;border-radius:9px;white-space:nowrap}
+  .fc-verdit.up{color:#46c28e;background:rgba(70,194,142,.13)}
+  .fc-verdit.dn{color:#e06a6a;background:rgba(224,106,106,.13)}
+  .fc-verdit.fl{color:#8a92b2;background:rgba(138,146,178,.12)}
   /* 지표 신호 한 줄 요약 */
   .sig-list{display:flex;flex-direction:column}
   .sig-row{display:grid;grid-template-columns:14px 66px 1fr 44px;align-items:center;gap:7px;padding:4px 2px;border-bottom:1px solid rgba(138,146,178,.08);font-size:11.5px;transition:opacity .28s}
@@ -2423,10 +2434,14 @@
       });
       _wl.addEventListener("click", e => { const nm = e.target.closest("[data-wedit]"); if (nm) selectOnly(nm.dataset.wedit); });
     }
-    /* 예측 시점별·타임프레임 매트릭스를 보드 패널로 이동(가중치 접었을 때 이 공간에 노출) */
-    const _dashProw = document.getElementById("fcDashPanel") && document.getElementById("fcDashPanel").closest(".fc-prow");
+    /* 데이터 시각화 패널을 전부 좌측 보드로 이동(매트릭스·예측·오실레이터·레이더 등) — 차트 우측은 메인 차트+지표 신호만.
+       sigProw(지표 신호 텍스트)는 차트 아래 유지. */
     const _wb = document.getElementById("wboard");
-    if (_dashProw && _wb) _wb.appendChild(_dashProw);
+    const _cp = document.getElementById("chartPane");
+    if (_wb && _cp) {
+      _cp.querySelectorAll(".fc-prow").forEach(prow => { if (prow.id !== "sigProw") _wb.appendChild(prow); });
+      ["fcNarrPanel", "fcFoldPanel"].forEach(id => { const el = document.getElementById(id); if (el) _wb.appendChild(el); });
+    }
 
     /* stage pointer/wheel/dblclick */
     bStage.addEventListener("pointerdown", e => {
@@ -2893,7 +2908,7 @@
       const col = rsi.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
       rsi.divergence.pricePts.forEach(p => { const i = p.idx; if (i < 0 || i >= s.length) return; const x = xOf(i), y = yOf(s[i]); c.fillStyle = col; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); });
     }
-    const meta = document.getElementById("fcRsiMeta"); if (meta) meta.textContent = "RSI " + Math.round(rsi.last) + " \xb7 " + (rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립");
+    { const meta = document.getElementById("fcRsiMeta"); if (meta) { const z = rsi.zone === "overbought" ? ["과열 · 되돌림 주의", "dn"] : rsi.zone === "oversold" ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "RSI " + Math.round(rsi.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>"; } }
   }
 
   /* ── fcDrawMacd: MACD 서브패널 (히스토그램 + MACD/시그널 라인 + 0선) ── */
@@ -2911,7 +2926,7 @@
     for (let i = 0; i < hist.length; i++) { const x = xOf(i), y0 = yOf(0), y = yOf(hist[i]); c.fillStyle = hist[i] >= 0 ? "rgba(70,194,142,.55)" : "rgba(224,106,106,.55)"; c.fillRect(x - bw / 2, Math.min(y0, y), bw, Math.abs(y - y0) || 1); }
     const drawLine = (arr, col, wid) => { c.strokeStyle = col; c.lineWidth = wid; c.lineJoin = "round"; c.beginPath(); arr.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); };
     drawLine(macd, "#e0a86a", 1.7); drawLine(sig, "#8fb4f0", 1.4);
-    const meta = document.getElementById("fcMacdMeta"); if (meta) meta.textContent = "MACD " + m.last.macd.toFixed(1) + " \xb7 Hist " + (m.last.hist >= 0 ? "+" : "") + m.last.hist.toFixed(1);
+    { const meta = document.getElementById("fcMacdMeta"); if (meta) { const g = m.bias > 0.1 ? [((m.cross && m.cross.type === "golden") ? "골든크로스 · " : "") + "상승 모멘텀", "up"] : m.bias < -0.1 ? [((m.cross && m.cross.type === "dead") ? "데드크로스 · " : "") + "하락 모멘텀", "dn"] : ["모멘텀 중립", "fl"]; meta.innerHTML = "Hist " + (m.last.hist >= 0 ? "+" : "") + m.last.hist.toFixed(1) + " <span class='fc-verdit " + g[1] + "'>" + g[0] + "</span>"; } }
   }
   /* ── fcDrawAdx: ADX/DMI 서브패널 (ADX + +DI/-DI + 20/40 임계선) ── */
   function fcDrawAdx(a) {
@@ -2927,7 +2942,7 @@
     c.setLineDash([]);
     const drawLine = (arr, col, wid) => { c.strokeStyle = col; c.lineWidth = wid; c.lineJoin = "round"; c.beginPath(); arr.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); };
     drawLine(pDI, "#46c28e", 1.3); drawLine(mDI, "#e06a6a", 1.3); drawLine(adx, "#e8b463", 1.9);
-    const meta = document.getElementById("fcAdxMeta"); if (meta) meta.textContent = "ADX " + a.last.adx.toFixed(0) + " \xb7 " + (a.dir > 0 ? "+DI" : a.dir < 0 ? "-DI" : "–") + " 우세";
+    { const meta = document.getElementById("fcAdxMeta"); if (meta) { const strong = a.last.adx >= 40 ? "매우 강한 추세" : a.last.adx >= 25 ? "추세 형성" : "추세 약함(횡보)"; const weak = a.last.adx < 25; const ac = weak ? "fl" : a.dir > 0 ? "up" : a.dir < 0 ? "dn" : "fl"; const dir = a.dir > 0 ? " · 상승 우위" : a.dir < 0 ? " · 하락 우위" : ""; meta.innerHTML = "ADX " + a.last.adx.toFixed(0) + " <span class='fc-verdit " + ac + "'>" + strong + (weak ? "" : dir) + "</span>"; } }
   }
 
   /* ── fcDrawVol: 거래량 막대 서브패널 (상승하락색·급증골드·OBV라인) ── */
@@ -2956,8 +2971,7 @@
       c.stroke();
     }
     // 상태 라벨
-    const meta = document.getElementById("fcVolMeta");
-    if (meta) meta.textContent = "거래량 " + (va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이") + " " + va.ratio.toFixed(2) + "x \xb7 OBV " + (va.obvTrend > 0.1 ? "상승" : va.obvTrend < -0.1 ? "하락" : "횡보");
+    { const meta = document.getElementById("fcVolMeta"); if (meta) { const st = va.state === "spike" ? "급증" : va.state === "contract" ? "위축" : "평이"; const oc = va.obvTrend > 0.1 ? ["OBV 상승 확인", "up"] : va.obvTrend < -0.1 ? ["OBV 하락", "dn"] : ["OBV 횡보", "fl"]; meta.innerHTML = st + " " + va.ratio.toFixed(2) + "x <span class='fc-verdit " + oc[1] + "'>" + oc[0] + "</span>"; } }
   }
 
   /* ── fcDrawFold: phase-fold trace (port of chart.html drawFold()) ── */
@@ -5246,7 +5260,7 @@
     const cv = document.getElementById("fcRadar"); if (!cv) return;
     const metaEl = document.getElementById("fcNodesMeta");
     const blocks = boardState.nodes.filter(n => n.kind === "block" && !["price", "predict", "combine", "ticker"].includes(n.blockType));
-    const host = cv.parentElement; const W = host.clientWidth || 360, Hh = 280;
+    const host = cv.parentElement; const W = host.clientWidth || 360, Hh = cv.clientHeight || 220;
     const c = fcFit(cv, Hh); c.clearRect(0, 0, W, Hh);
     if (metaEl) metaEl.textContent = blocks.length ? blocks.length + "개 지표" : "";
     if (!blocks.length || !result) {
@@ -6260,6 +6274,7 @@
     _playT = null; _playRaf = null; _playing = false;
     _evReveal = {}; _playReveal = { ids: null, u: 1 };   // 중단 → 차트 외 시각화 전체 확정 표시
     _scanning = false; _scanU = 1;   // 작도 중단 → 전체 표시
+    _revealDashRows(null);
     clearAnalyzeViz();
     try { if (lastResult) { renderNodeAnalysis(lastResult); renderSignalBoard(); renderHorizons(lastResult); if (lastResult.verdict) renderVerdict(lastResult.verdict); } } catch (e) {}
     const pr = document.getElementById("analyzeProg"); if (pr) pr.textContent = "";
@@ -6279,10 +6294,18 @@
   const _sigOf = s => (s.signal && s.signal.length) ? s.signal[s.signal.length - 1] : 0;
   /* 동시 분석: 모든 지표가 각자의 가중치·근거로 동시에 의견을 내고, 마지막에 버무려 '포지'가 형성된다.
      (순차 파이프라인이 아니라 '의회/은하' 모델 — 중심의 포지가 주변 지표를 종합) */
+  // 타임프레임 매트릭스 행을 데모 진행 u(0→1)에 맞춰 순차 공개 — u=null이면 전체 표시(종료)
+  function _revealDashRows(u) {
+    const rows = document.querySelectorAll("#fcDashBody .dash-table tbody tr");
+    if (!rows.length) return;
+    const shown = Math.ceil(Math.max(0, Math.min(1, u || 0)) * rows.length);
+    rows.forEach((tr, i) => { tr.style.transition = "opacity .3s"; tr.style.opacity = (u == null || i < shown) ? "1" : "0.1"; });
+  }
   function playAnalysis() {
     if (_playing) { stopPlay(); return; }      // 토글: 재생 중 누르면 중단
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
     runForge(); _engineDirty = false; updateEngineBtn();   // 시연도 재계산 → 변경됨 해제
+    if (typeof scheduleDash === "function") scheduleDash();   // 매트릭스 데이터 준비(있으면) — 데모 중 순차 공개
     let steps;
     try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF(), driftWeights: _driftW }); }
     catch (e) { console.warn("steps", e); return; }
@@ -6378,6 +6401,7 @@
         _lastCU = now;
         renderHorizons(lastResult, e);
         if (fin.verdict) renderVerdict(fin.verdict, e);
+        _revealDashRows(e);   // 타임프레임 매트릭스도 데모 진행 e에 맞춰 행을 순차 공개(빨리 차버리지 않게)
       }
       if (u < 1) { _playRaf = requestAnimationFrame(morph); return; }
       finishPlay();
@@ -6391,6 +6415,7 @@
       _playing = false; _playRaf = null;
       _playTimers.forEach(clearTimeout); _playTimers = [];
       _playReveal = { ids: null, u: 1 };                      // 시연 종료 → 전체 확정 표시
+      _revealDashRows(null);
       renderChart(lastResult, currentData());
       if (fin.verdict) renderVerdict(fin.verdict);
       renderNodeAnalysis(lastResult); renderSignalBoard(); renderHorizons(lastResult);
