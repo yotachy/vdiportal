@@ -5024,7 +5024,7 @@
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
     if (n.blockType === "smc") {
-      const smc = _anSMC(P);
+      const smc = _anSMC(price);
       const texts = ForgeCore.smcSteps(smc), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
     }
@@ -6317,11 +6317,12 @@
       body.appendChild(row); body.scrollTop = body.scrollHeight;
     }
     // 노드별 다단계 시연 — 각 노드의 분석단계를 틱으로 펼쳐 순차 점등(시연 길어짐 OK)
-    const STEP_SUB = 750;   // 하위단계 간격(ms)
     const _allPrice = (currentData().price) || [];
-    const stepsByNode = indNodes.map(n => analysisSteps(n, lastResult, priceLast0, _allPrice));
+    const stepsByNode = indNodes.map(n => { try { return analysisSteps(n, lastResult, priceLast0, _allPrice); } catch (e) { return [{ text: (BTLABEL[n.blockType] || n.blockType) + " 분석", layer: 1 }]; } });
     const ticks = [];
     indNodes.forEach((n, idx) => { stepsByNode[idx].forEach((st, sIdx) => ticks.push({ n, idx, steps: stepsByNode[idx], sIdx, st })); });
+    // 하위단계 간격 — 지표가 많을수록 짧게(총 시연 ~16초 목표, 지표당 최소 리듬 유지)
+    const STEP_SUB = Math.max(150, Math.min(620, Math.round(16000 / Math.max(1, ticks.length))));
     ticks.forEach((tk, tIdx) => {
       _playTimers.push(setTimeout(() => {
         if (!_playing) return;
