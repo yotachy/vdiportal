@@ -273,6 +273,12 @@
         values[id] = smcSeries(data.candle);
       } else if (n.blockType === "cycle") {
         values[id] = cycleSeries(ins[0] || data.price, (n.params && n.params.pmin) || 10, (n.params && n.params.pmax) || 0);
+      } else if (n.blockType === "vwap") {
+        values[id] = vwapSeries(ins[0] || data.price, data.volume, (n.params && n.params.len) || 20);
+      } else if (n.blockType === "supertrend") {
+        values[id] = supertrendSeries(ins[0] || data.price, (n.params && n.params.period) || 10, (n.params && n.params.mult) || 3);
+      } else if (n.blockType === "stochastic") {
+        values[id] = stochSeries(ins[0] || data.price, (n.params && n.params.kLen) || 14, (n.params && n.params.kSmooth) || 3, (n.params && n.params.dLen) || 3);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -1208,6 +1214,108 @@
     ];
   }
 
+  /* ── VWAP(거래량 가중 평균가) ── */
+  function analyzeVWAP(price, volume, opts) {
+    opts = opts || {};
+    const P = price.length, len = opts.len || 20, kb = opts.k || 2;
+    const EMPTY = { vwap: [], upper: [], lower: [], last: 0, pct: 0, bias: 0 };
+    if (P < Math.max(5, len)) return EMPTY;
+    const vol = (Array.isArray(volume) && volume.length === P) ? volume : price.map(() => 1);
+    const vwap = new Array(P).fill(NaN), upper = new Array(P).fill(NaN), lower = new Array(P).fill(NaN);
+    for (let i = len - 1; i < P; i++) {
+      let spv = 0, sv = 0; for (let j = i - len + 1; j <= i; j++) { const w = vol[j] > 0 ? vol[j] : 1; spv += price[j] * w; sv += w; }
+      const vw = sv ? spv / sv : price[i]; vwap[i] = vw;
+      let sd = 0, sw = 0; for (let j = i - len + 1; j <= i; j++) { const w = vol[j] > 0 ? vol[j] : 1; sd += w * (price[j] - vw) * (price[j] - vw); sw += w; }
+      const s = Math.sqrt(sd / (sw || 1)); upper[i] = vw + kb * s; lower[i] = vw - kb * s;
+    }
+    const last = price[P - 1], vwl = vwap[P - 1], pct = vwl ? ((last - vwl) / vwl * 100) : 0;
+    const bias = Math.max(-1, Math.min(1, Math.tanh(pct / 2) * 0.9));
+    return { vwap, upper, lower, last: vwl, pct, bias };
+  }
+  function vwapSeries(price, volume, len) { const v = analyzeVWAP(price, volume, { len }); if (!v.vwap.length) return price.map(() => 0); return price.map((p, i) => { const vw = v.vwap[i]; return isFinite(vw) ? Math.max(-1, Math.min(1, Math.tanh((p - vw) / (vw || 1) * 40))) : 0; }); }
+  function vwapSteps(v) {
+    return [
+      "VWAP(거래량 가중 평균가) 산출",
+      "현재가 VWAP " + (v.pct > 0.1 ? "상단 +" : v.pct < -0.1 ? "하단 " : "근접 ") + v.pct.toFixed(2) + "%",
+      "VWAP " + nfmt(v.last) + (v.pct > 0 ? " — 매수세 우위" : v.pct < 0 ? " — 매도세 우위" : " — 균형"),
+      "밴드 " + nfmt(v.lower[v.lower.length - 1]) + " ~ " + nfmt(v.upper[v.upper.length - 1]),
+      "종합 방향 " + (v.bias > 0.1 ? "상승" : v.bias < -0.1 ? "하락" : "중립") + " (bias " + v.bias.toFixed(2) + ")"
+    ];
+  }
+
+  /* ── 슈퍼트렌드(ATR 추적선·추세 플립) — 종가근사 ── */
+  function analyzeSupertrend(price, opts) {
+    opts = opts || {};
+    const period = opts.period || 10, mult = opts.mult || 3, P = price.length;
+    const EMPTY = { line: [], trend: [], last: 0, dir: 0, flip: null, bias: 0 };
+    if (P < period + 2) return EMPTY;
+    const tr = [0]; for (let i = 1; i < P; i++) tr.push(Math.abs(price[i] - price[i - 1]));
+    const atr = new Array(P).fill(0); let s = 0; for (let i = 1; i <= period; i++) s += tr[i]; let prev = s / period; atr[period] = prev;
+    for (let i = period + 1; i < P; i++) { prev = (prev * (period - 1) + tr[i]) / period; atr[i] = prev; }
+    const upF = new Array(P).fill(0), loF = new Array(P).fill(0), trend = new Array(P).fill(1), line = new Array(P).fill(NaN);
+    upF[period] = price[period] + mult * atr[period]; loF[period] = price[period] - mult * atr[period];
+    for (let i = period + 1; i < P; i++) {
+      const ub = price[i] + mult * atr[i], lb = price[i] - mult * atr[i];
+      upF[i] = (ub < upF[i - 1] || price[i - 1] > upF[i - 1]) ? ub : upF[i - 1];
+      loF[i] = (lb > loF[i - 1] || price[i - 1] < loF[i - 1]) ? lb : loF[i - 1];
+      trend[i] = trend[i - 1] === 1 ? (price[i] < loF[i] ? -1 : 1) : (price[i] > upF[i] ? 1 : -1);
+      line[i] = trend[i] === 1 ? loF[i] : upF[i];
+    }
+    for (let i = 0; i <= period; i++) trend[i] = trend[period + 1] || 1;
+    const li = P - 1, dir = trend[li];
+    let flip = null; for (let i = li; i > Math.max(1, li - 60); i--) { if (trend[i] !== trend[i - 1]) { flip = { dir: trend[i], barsAgo: li - i }; break; } }
+    let bias = dir === 1 ? 0.5 : dir === -1 ? -0.5 : 0;
+    if (flip && flip.barsAgo != null) bias += dir * Math.max(0, 1 - flip.barsAgo / period) * 0.3;
+    bias = Math.max(-1, Math.min(1, bias));
+    return { line, trend, last: line[li], dir, flip, bias, atr };
+  }
+  function supertrendSeries(price, period, mult) { const st = analyzeSupertrend(price, { period, mult }); if (!st.trend.length) return price.map(() => 0); return st.trend.map(t => t * 0.7); }
+  function supertrendSteps(st) {
+    const d = st.dir === 1 ? "상승(지지선 하단 추적)" : st.dir === -1 ? "하락(저항선 상단 추적)" : "중립";
+    const fl = st.flip ? ((st.flip.dir === 1 ? "상승 전환 " : "하락 전환 ") + st.flip.barsAgo + "봉 전") : "전환 없음(추세 유지)";
+    return [
+      "슈퍼트렌드 산출(ATR 추적선)",
+      "현재 추세 " + d,
+      "추적선 " + nfmt(st.last) + " · " + fl,
+      (st.dir === 1 ? "지지 " + nfmt(st.last) + " 이탈 시 하락 전환" : "저항 " + nfmt(st.last) + " 돌파 시 상승 전환"),
+      "종합 방향 " + (st.bias > 0.1 ? "상승" : st.bias < -0.1 ? "하락" : "중립") + " (bias " + st.bias.toFixed(2) + ")"
+    ];
+  }
+
+  /* ── 스토캐스틱(%K/%D) — 종가근사 ── */
+  function analyzeStochastic(price, opts) {
+    opts = opts || {};
+    const kLen = opts.kLen || 14, kSm = opts.kSmooth || 3, dLen = opts.dLen || 3, P = price.length;
+    const EMPTY = { k: [], d: [], last: { k: 50, d: 50 }, state: "neutral", cross: null, bias: 0 };
+    if (P < kLen + kSm + dLen) return EMPTY;
+    const rawK = new Array(P).fill(NaN);
+    for (let i = kLen - 1; i < P; i++) { let lo = Infinity, hi = -Infinity; for (let j = i - kLen + 1; j <= i; j++) { if (price[j] < lo) lo = price[j]; if (price[j] > hi) hi = price[j]; } rawK[i] = (hi > lo) ? ((price[i] - lo) / (hi - lo) * 100) : 50; }
+    const sma = (arr, n, i) => { let s = 0, c = 0; for (let j = i - n + 1; j <= i; j++) { if (j >= 0 && isFinite(arr[j])) { s += arr[j]; c++; } } return c ? s / c : NaN; };
+    const k = new Array(P).fill(NaN), d = new Array(P).fill(NaN);
+    for (let i = 0; i < P; i++) k[i] = sma(rawK, kSm, i);
+    for (let i = 0; i < P; i++) d[i] = sma(k, dLen, i);
+    const li = P - 1, lk = k[li], ld = d[li];
+    const state = lk >= 80 ? "overbought" : lk <= 20 ? "oversold" : "neutral";
+    let cross = null; for (let i = li; i > Math.max(1, li - 10); i--) { if (isFinite(k[i]) && isFinite(d[i]) && isFinite(k[i - 1]) && isFinite(d[i - 1])) { const a = k[i] - d[i], b = k[i - 1] - d[i - 1]; if (b <= 0 && a > 0) { cross = { type: "bull", barsAgo: li - i }; break; } if (b >= 0 && a < 0) { cross = { type: "bear", barsAgo: li - i }; break; } } }
+    let bias = 0;
+    if (cross) { let c = cross.type === "bull" ? 1 : -1; c *= Math.max(0, 1 - cross.barsAgo / 6); bias += 0.5 * c; }
+    if (state === "oversold") bias += 0.2; else if (state === "overbought") bias -= 0.2;
+    bias = Math.max(-1, Math.min(1, bias));
+    return { k, d, last: { k: isFinite(lk) ? lk : 50, d: isFinite(ld) ? ld : 50 }, state, cross, bias };
+  }
+  function stochSeries(price, kLen, kSm, dLen) { const st = analyzeStochastic(price, { kLen, kSmooth: kSm, dLen }); if (!st.k.length) return price.map(() => 0); return st.k.map(v => isFinite(v) ? Math.max(-1, Math.min(1, (v - 50) / 50)) : 0); }
+  function stochSteps(st) {
+    const s = st.state === "overbought" ? "과매수(80↑)" : st.state === "oversold" ? "과매도(20↓)" : "중립대";
+    const cr = st.cross ? ((st.cross.type === "bull" ? "%K>%D 골든 " : "%K<%D 데드 ") + st.cross.barsAgo + "봉 전") : "교차 없음";
+    return [
+      "스토캐스틱 산출(%K/%D)",
+      "%K " + Math.round(st.last.k) + " / %D " + Math.round(st.last.d) + " · " + s,
+      cr,
+      (st.bias > 0.1 ? "상승 모멘텀" : st.bias < -0.1 ? "하락 모멘텀" : "모멘텀 중립"),
+      "종합 방향 " + (st.bias > 0.1 ? "상승" : st.bias < -0.1 ? "하락" : "중립") + " (bias " + st.bias.toFixed(2) + ")"
+    ];
+  }
+
   function run(graph, data, opts) {
     const futW = Math.min(((opts && opts.futW) || 24), 60);   // 예측 horizon 상한(과도한 장기 외삽 방지)
     const _dw = (opts && opts.driftWeights) || {}, DW = t => (typeof _dw[t] === "number" && isFinite(_dw[t]) ? Math.max(0, Math.min(3, _dw[t])) : 1);   // 지표별 bias 기여 가중치(기본 1×, 0~3×)
@@ -1328,6 +1436,16 @@
     const _cyn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "cycle");
     const _cy = _cyn ? analyzeCycle(price, { pmin: (_cyn.params && _cyn.params.pmin) || 10, pmax: (_cyn.params && _cyn.params.pmax) || 0 }) : null;
     const cyDrift = _cy ? _cy.bias * _prof.trendScale * 0.06 * DW("cycle") : 0;   // 사이클 위상 방향(±6%)
+    const _vwn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "vwap");
+    const _vwvol = _vwn ? ((_vn && Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;
+    const _vw = _vwn ? analyzeVWAP(price, _vwvol, { len: (_vwn.params && _vwn.params.len) || 20 }) : null;
+    const vwDrift = _vw ? _vw.bias * _prof.trendScale * 0.05 * DW("vwap") : 0;   // VWAP 위/아래 방향(±5%)
+    const _spn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "supertrend");
+    const _stt = _spn ? analyzeSupertrend(price, { period: (_spn.params && _spn.params.period) || 10, mult: (_spn.params && _spn.params.mult) || 3 }) : null;
+    const stDrift2 = _stt ? _stt.bias * _prof.trendScale * 0.07 * DW("supertrend") : 0;   // 슈퍼트렌드 추세 방향(±7%)
+    const _scn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "stochastic");
+    const _stoch = _scn ? analyzeStochastic(price, { kLen: (_scn.params && _scn.params.kLen) || 14, kSmooth: (_scn.params && _scn.params.kSmooth) || 3, dLen: (_scn.params && _scn.params.dLen) || 3 }) : null;
+    const stochDrift = _stoch ? _stoch.bias * _prof.trendScale * 0.05 * DW("stochastic") : 0;   // 스토캐스틱 교차/구간(±5%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1339,14 +1457,14 @@
       const trend = trS * _prof.trendScale * DW("trend") * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW) + stDrift * (k / futW) + smcDrift * (k / futW) + cyDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
+      const m = rev + mom + trend + sig + seas + maDrift * (k / futW) + fibDrift * (k / futW) + ewDrift * (k / futW) + rsiDrift * (k / futW) + volDrift * (k / futW) + bbDrift * (k / futW) + macdDrift * (k / futW) + adxDrift * (k / futW) + vpDrift * (k / futW) + icDrift * (k / futW) + stDrift * (k / futW) + smcDrift * (k / futW) + cyDrift * (k / futW) + vwDrift * (k / futW) + stDrift2 * (k / futW) + stochDrift * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85;
       path.push(last * Math.exp(m));
       lo.push(last * Math.exp(m - sd));
       hi.push(last * Math.exp(m + sd));
     }
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
     // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율
-    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);
+    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);
     const _cdir = lastSig > 0 ? 1 : lastSig < 0 ? -1 : (_allBias.reduce((a, b) => a + b, 0) >= 0 ? 1 : -1);
     const _agree = _allBias.filter(b => (b > 0 ? 1 : -1) === _cdir).length;
     const confluence = { score: _allBias.length ? Math.round(_agree / _allBias.length * 100) : 0, agree: _agree, total: _allBias.length };
@@ -1418,6 +1536,9 @@
       { id: "s_atr",   kind: "block", blockType: "atr",       params: { period: 14, mult: 2 }, x: 320, y: 299, title: "ATR 변동성", conviction: 0, weight: 50, desc: "변동성 보통 — 예측 콘 폭·손절 기준(방향 무관)" },
       { id: "s_smc",   kind: "block", blockType: "smc",       params: {},                 x: 320, y: 301, title: "스마트머니(FVG·OB)", conviction: 0, weight: 50, desc: "실 OHLC 로드 시 공정가치갭·오더블록 감지" },
       { id: "s_cycle", kind: "block", blockType: "cycle",     params: { pmin: 10, pmax: 120 }, x: 320, y: 303, title: "사이클 분석", conviction: 15, weight: 45, desc: "지배 주기·현재 위상·다음 전환 시점 추정" },
+      { id: "s_vwap",  kind: "block", blockType: "vwap",      params: { len: 20 },        x: 320, y: 305, title: "VWAP", conviction: 20, weight: 50, desc: "현재가가 VWAP 상단 — 매수세 우위" },
+      { id: "s_super", kind: "block", blockType: "supertrend", params: { period: 10, mult: 3 }, x: 320, y: 307, title: "슈퍼트렌드", conviction: 30, weight: 55, desc: "상승 추세 · 지지선 추적 중" },
+      { id: "s_stoch", kind: "block", blockType: "stochastic", params: { kLen: 14, kSmooth: 3, dLen: 3 }, x: 320, y: 309, title: "스토캐스틱", conviction: 20, weight: 45, desc: "%K/%D 골든 · 상승 모멘텀" },
       { id: "s_fib",   kind: "block", blockType: "fib",       params: { len: 120 },       x: 320, y: 300, title: "피보나치",    conviction: 30,  weight: 50, thumb: T("smp_fib", "Fib"),     desc: "조정 구간 저점 반등 — 단기 범위 하단 지지" },
       { id: "s_trend", kind: "block", blockType: "trend",     params: { len: 40 },        x: 320, y: 400, title: "추세선",      conviction: 35,  weight: 70, thumb: T("smp_trend", "Trend"), desc: "상승 회귀선 — 우상향 추세 유지" },
       { id: "s_ell",   kind: "block", blockType: "elliott",   params: { swing: 3 },       x: 320, y: 500, title: "엘리어트",    conviction: 25,  weight: 55, thumb: T("smp_elliott", "Wave"),desc: "파동 구간 분석 — 추세 전환점 추정" },
@@ -1432,6 +1553,7 @@
       E("s_price", "s_fib"), E("s_price", "s_trend"), E("s_price", "s_ell"), E("s_price", "s_vol"),
       E("s_price", "s_boll"), E("s_price", "s_macd"), E("s_price", "s_adx"),
       E("s_price", "s_vprof"), E("s_price", "s_ichi"), E("s_price", "s_struct"), E("s_price", "s_atr"), E("s_price", "s_smc"), E("s_smc", "s_comb"), E("s_price", "s_cycle"), E("s_cycle", "s_comb"),
+      E("s_price", "s_vwap"), E("s_vwap", "s_comb"), E("s_price", "s_super"), E("s_super", "s_comb"), E("s_price", "s_stoch"), E("s_stoch", "s_comb"),
       E("s_ma", "s_comb"), E("s_wave", "s_comb"), E("s_rsi", "s_comb"),
       E("s_boll", "s_comb"), E("s_macd", "s_comb"), E("s_adx", "s_comb"),
       E("s_vprof", "s_comb"), E("s_ichi", "s_comb"), E("s_struct", "s_comb"), E("s_atr", "s_comb"),
@@ -1448,5 +1570,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps };
 });

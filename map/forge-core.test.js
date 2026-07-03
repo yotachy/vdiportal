@@ -377,9 +377,9 @@ test("sampleSeries: deterministic, 480 pts, net uptrend with mid correction", ()
   assert.ok(a[479] > mean20);
 });
 
-test("sampleGraph: 21 nodes, DAG runs, descriptions are truthful, bullish net", () => {
+test("sampleGraph: 24 nodes, DAG runs, descriptions are truthful, bullish net", () => {
   const g = ForgeCore.sampleGraph();
-  assert.strictEqual(g.nodes.length, 21);
+  assert.strictEqual(g.nodes.length, 24);
   const tk = g.nodes.find(n => n.blockType === "ticker");
   assert.ok(tk && tk.params && tk.params.symbol === "BTC-USD", "샘플에 BTC-USD 티커 노드");
   assert.strictEqual(g.themeImgId, "smp_main");
@@ -1304,4 +1304,40 @@ test("run: 사이클 노드가 예측에 반영(격리)", () => {
   const withCy = { nodes: base.nodes.concat([{ id: "cy", kind: "block", blockType: "cycle" }]), edges: base.edges.concat([{ from: "cy", to: "pr" }]) };
   const r0 = ForgeCore.run(base, { price }, { futW: 24 }), r1 = ForgeCore.run(withCy, { price }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "사이클 추가로 예측 달라짐");
+});
+
+/* ── 신규 지표: VWAP · 슈퍼트렌드 · 스토캐스틱 ── */
+test("analyzeVWAP: 상승추세 → VWAP 위, bias>0; steps 5줄", () => {
+  const price = []; { let p = 100; for (let i = 0; i < 120; i++) { p *= 1.006; price.push(p); } }
+  const vol = price.map((_, i) => 1 + (i % 5));
+  const v = ForgeCore.analyzeVWAP(price, vol, { len: 20, k: 2 });
+  assert.ok(v.last > 0 && isFinite(v.last), "VWAP 값");
+  assert.ok(v.bias > 0, "상승추세 → 현재가 VWAP 위 → bias>0");
+  assert.ok(v.upper[v.upper.length - 1] > v.lower[v.lower.length - 1], "밴드 상>하");
+  assert.strictEqual(ForgeCore.vwapSteps(v).length, 5);
+});
+test("analyzeSupertrend: 상승추세 dir=1 bias>0; 하락 dir=-1; steps 5줄", () => {
+  const mono = (r) => { const s = []; let p = 100; for (let i = 0; i < 120; i++) { p *= 1 + r; s.push(p); } return s; };
+  const up = ForgeCore.analyzeSupertrend(mono(0.006), { period: 10, mult: 3 });
+  assert.strictEqual(up.dir, 1, "상승추세 dir=1");
+  assert.ok(up.bias > 0);
+  assert.ok(ForgeCore.analyzeSupertrend(mono(-0.006), {}).dir === -1, "하락 dir=-1");
+  assert.strictEqual(ForgeCore.supertrendSteps(up).length, 5);
+});
+test("analyzeStochastic: %K/%D 0~100 + state + steps 5줄", () => {
+  const price = []; for (let i = 0; i < 120; i++) price.push(100 + 8 * Math.sin(i / 7));
+  const st = ForgeCore.analyzeStochastic(price, { kLen: 14, kSmooth: 3, dLen: 3 });
+  assert.ok(st.last.k >= 0 && st.last.k <= 100, "%K 0~100");
+  assert.ok(["overbought", "oversold", "neutral"].includes(st.state));
+  assert.ok(st.bias >= -1 && st.bias <= 1);
+  assert.strictEqual(ForgeCore.stochSteps(st).length, 5);
+});
+test("run: VWAP·슈퍼트렌드·스토캐스틱 노드가 예측 반영", () => {
+  const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c })), volume = price.map(() => 1000);
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle, volume }, { futW: 24 });
+  ["vwap", "supertrend", "stochastic"].forEach(bt => {
+    const g = { nodes: base.nodes.concat([{ id: bt, kind: "block", blockType: bt }]), edges: base.edges.concat([{ from: bt, to: "pr" }]) };
+    assert.ok(Math.abs(ForgeCore.run(g, { price, candle, volume }, { futW: 24 }).prediction.target - r0.prediction.target) > 1e-9, bt + " 예측 반영");
+  });
 });
