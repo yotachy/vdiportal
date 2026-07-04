@@ -887,7 +887,8 @@
     .forge-top .eng-stat,.forge-top #engineBtn{display:none}         /* 모바일: 분석시각칩·엔진분석(예정) 숨김 → 헤더 1줄 유지 */
     .hlbl{display:none}                                              /* 헤더·차트툴바 버튼 = 아이콘만 */
     .forge-top .brand-by,.forge-top .build-tag,.forge-top .save-badge,.forge-top .h-sep{display:none}   /* 군더더기 정리 */
-    .forge-top .seg-btn,.forge-top .tool-btn,.forge-top .run-btn{padding:0 11px;font-size:15px}
+    .forge-top .seg-btn,.forge-top .tool-btn,.forge-top .run-btn{padding:7px 12px;font-size:12.5px;display:inline-flex;align-items:center;gap:4px;line-height:1;height:auto}   /* 세로패딩 복원 → 찌그러짐 해소, 아이콘+라벨 정렬 */
+    .fc-hero canvas{touch-action:pan-y}   /* 모바일: 한 손가락 세로 = 페이지 스크롤(차트가 안 가로챔), 2손가락 = 핀치 줌 */
     .forge-top .brand{font-size:15px}
     .fc-head-right .ev-toggle{padding:5px 9px;font-size:15px}
     .forge-shell{flex-direction:column;height:auto}
@@ -5651,9 +5652,10 @@
 
   /* 마우스+터치 공용 호버 바인딩(터치=드래그 스크럽, touch-action:none로 스크롤 차단) */
   function bindTouchHover(el, show, hide) {
-    el.style.touchAction = "none";
-    el.addEventListener("touchstart", e => { const t = e.touches && e.touches[0]; if (t) show(t.clientX, t.clientY); }, { passive: true });
-    el.addEventListener("touchmove", e => { const t = e.touches && e.touches[0]; if (t) { show(t.clientX, t.clientY); if (e.cancelable) e.preventDefault(); } }, { passive: false });
+    const mob = () => window.innerWidth <= 860;
+    el.style.touchAction = mob() ? "pan-y" : "none";   // 모바일: 세로 스크롤 허용(크로스헤어 스크럽은 비활성)
+    el.addEventListener("touchstart", e => { if (mob()) return; const t = e.touches && e.touches[0]; if (t) show(t.clientX, t.clientY); }, { passive: true });
+    el.addEventListener("touchmove", e => { if (mob()) return; const t = e.touches && e.touches[0]; if (t) { show(t.clientX, t.clientY); if (e.cancelable) e.preventDefault(); } }, { passive: false });
     el.addEventListener("touchend", hide);
     el.addEventListener("touchcancel", hide);
   }
