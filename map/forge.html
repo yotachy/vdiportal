@@ -3577,7 +3577,8 @@
       c.restore();
     }
     const total = hist.length + path.length;
-    const histW = plotW * Math.max(0.78, hist.length / total);
+    // 히스토리·미래 봉당 가로폭 동일 → 예상구간이 캔들 폭만큼 확장(확대해도 미래가 압축되지 않음)
+    const histW = plotW * (hist.length / total);
     const seamX = padX + histW;
     const _lo = tvLog(loV, _logChart), _hi = tvLog(hiV, _logChart);
     const toY = v => padTop + (1 - (tvLog(v, _logChart) - _lo) / ((_hi - _lo) || 1)) * (ch - padTop - padBot);
