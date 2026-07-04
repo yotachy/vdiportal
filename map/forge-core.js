@@ -1484,6 +1484,29 @@
         }
       }
     }
+    // 데이터 기반 밴드 질감: 변동성 클러스터링(GARCH1,1 근사). 제곱수익률의 지속성으로 조건부 변동성을 k스텝 예측 → 콘 폭을 평균회귀 형상으로 변조.
+    // 최근 변동성이 장기평균과 다르면 그 차이가 감쇠하며 밴드에 반영(잡음/난수 아님). 클러스터링 없으면 volFac≈1(기존 매끈함 유지).
+    let _volFac = null;
+    if (n >= 40) {
+      const rr = [];
+      for (let i = 1; i < n; i++) rr.push(logP[i] - logP[i - 1]);
+      const mR = rr.reduce((a, b) => a + b, 0) / rr.length;
+      const sq = rr.map(v => (v - mR) * (v - mR));
+      const LR = sq.reduce((a, b) => a + b, 0) / sq.length;   // 장기 분산
+      let ewma = LR; const lam = 0.94;
+      for (let i = 0; i < sq.length; i++) ewma = lam * ewma + (1 - lam) * sq[i];   // 최근 조건부 분산(EWMA)
+      const ms = LR; let num = 0, den = 0;
+      for (let i = 1; i < sq.length; i++) num += (sq[i] - ms) * (sq[i - 1] - ms);
+      for (let i = 0; i < sq.length; i++) den += (sq[i] - ms) * (sq[i] - ms);
+      const persist = Math.max(0, Math.min(0.97, den ? num / den : 0));   // 변동성 지속성(제곱수익률 lag1 자기상관≈GARCH α+β)
+      if (LR > 1e-12 && persist > 0.03) {
+        _volFac = [1];
+        for (let k = 1; k <= futW; k++) {
+          const varK = LR + Math.pow(persist, k - 1) * (ewma - LR);   // k스텝 조건부 분산 예측(장기평균 회귀)
+          _volFac[k] = Math.max(0.6, Math.min(1.8, Math.sqrt(Math.max(1e-12, varK) / LR)));
+        }
+      }
+    }
     for (let k = 1; k <= futW; k++) {
       const rev = -dev * (1 - Math.exp(-theta * k)) * REV_W;                                // 평균회귀(약화)
       const mom = Math.max(-0.20, Math.min(0.20, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀(상향)
@@ -1491,7 +1514,7 @@
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
       const tex = _texArr ? _texArr[k] : 0;                                                // 데이터 기반 미세질감(AR)
-      const m = rev + mom + trend + sig + seas + tex + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * (_prof.bandScale || 1);   // TF별 콘 폭(일봉 타이트)
+      const m = rev + mom + trend + sig + seas + tex + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * (_prof.bandScale || 1) * (_volFac ? _volFac[k] : 1);   // TF별 콘 폭(일봉 타이트)
       // 종합 신호와 반대 방향으로 크게 드리프트하면 완화 — '지표 종합=하락인데 예측 급등/상승확률 86%' 같은 모순 억제
       let mC = m;
       if (lastSig < -8 && mC > 0) mC *= 0.25;
