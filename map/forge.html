@@ -2077,16 +2077,21 @@
   }
   function toggleChartLock() { _chartLock = !_chartLock; applyChartLock(); if (typeof bToast === "function") bToast(_chartLock ? "스크롤 모드 — 페이지 이동" : "차트 조작 모드 — 드래그=팬·축, 두 손가락=줌"); }
   function switchDoc(id) { if (id === activeId) return; writeBackActive(); loadDoc(id); saveMeta(); }
-  function newDoc() {
-    // 현재 문서가 이미 '빈 새 종목'(티커 미불러옴)이면 새로 만들지 않고 티커 입력만 포커스 — 빈 문서 누적·불필요한 종목 전환 방지
-    const ad = activeDoc();
-    const adEmpty = ad && !(_docTicker(ad) || "").trim() && !(ad.nodes || []).some(n => n.blockType === "ticker" && n.params && n.params.fetched);
-    if (adEmpty) { const tk0 = document.getElementById("tkSym"); if (tk0) { tk0.focus(); tk0.select(); } if (typeof bToast === "function") bToast("티커를 입력해 불러오세요"); return; }
+  async function newDoc() {
+    // 티커를 먼저 입력받고, 입력했을 때만 새 문서 생성+불러오기. 취소 시 현재 종목 유지·빈 문서 안 생김.
+    const sym = ((typeof prompt === "function" ? prompt("추가할 종목 티커를 입력하세요 (예: TSLA · BTC-USD · 005930)") : "") || "").trim();
+    if (!sym) return;
     writeBackActive();
-    const dc = { id: uid("doc"), title: "새 종목", themeImgId: null, nodes: [], edges: [],
+    const dc = { id: uid("doc"), title: sym, themeImgId: null, nodes: [], edges: [],
       view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
-    DOCS.push(dc); loadDoc(dc.id); seedDefaultStrategy(); autoLayout("v"); writeBackActive(); saveMeta();
-    setTimeout(() => { const tk = document.getElementById("tkSym"); if (tk) { tk.focus(); tk.select(); } }, 120);   // 종목 추가 = 바로 티커 입력
+    DOCS.push(dc);
+    await loadDoc(dc.id);   // loadDoc는 async — 전환(activeId·boardState) 완료까지 대기(경합 방지)
+    seedDefaultStrategy(); autoLayout("v");
+    const tk = (typeof ensureTickerNode === "function") ? ensureTickerNode() : null;
+    if (tk) { tk.params = tk.params || {}; tk.params.symbol = sym; }
+    const tkI = document.getElementById("tkSym"); if (tkI) tkI.value = sym;
+    writeBackActive(); saveMeta();
+    if (typeof loadTicker === "function") loadTicker();   // 입력한 티커 즉시 불러오기
   }
   function newSampleDoc() {
     writeBackActive();
