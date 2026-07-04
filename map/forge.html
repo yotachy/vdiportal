@@ -380,8 +380,22 @@
   .auth-btn.signup{background:transparent;color:var(--ink);border:1px solid var(--line)}
   .auth-btn.signup:hover{border-color:var(--gold);color:var(--gold)}
   .auth-btn .g-icon{width:15px;height:15px;flex:0 0 auto}
+  .theme-wrap{position:relative;flex:0 0 auto}
+  .theme-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--line);border-radius:var(--r-md);background:transparent;color:var(--eth);cursor:pointer;transition:border-color .12s,color .12s}
+  .theme-btn:hover{border-color:var(--gold);color:var(--gold)}
+  .theme-btn svg{width:17px;height:17px}
+  .theme-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:120;display:none;flex-direction:column;gap:2px;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 12px 32px rgba(0,0,0,.5);min-width:158px}
+  .theme-pop.open{display:flex}
+  .theme-pop .th-h{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--eth);padding:4px 8px 6px}
+  .theme-opt{display:flex;align-items:center;gap:10px;padding:8px 10px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;border-radius:var(--r-md);cursor:pointer;text-align:left}
+  .theme-opt:hover{background:rgba(255,255,255,.05)}
+  .theme-opt.on{color:var(--gold)}
+  .theme-opt.on::after{content:"✓";margin-left:auto;color:var(--gold);font-weight:800}
+  .th-sw{width:20px;height:20px;border-radius:6px;flex:0 0 auto}
   .h-group{display:flex;align-items:center;gap:8px}
   .h-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .forge-top .h-actions .run-btn,.forge-top .h-actions .tool-btn,.forge-top .h-actions .play-btn{padding:8px 14px;font-size:13px;gap:6px;display:inline-flex;align-items:center;height:auto}
+  .forge-top .h-actions .tool-btn svg,.forge-top .h-actions .run-btn svg,.forge-top .h-actions .play-btn svg{width:14px;height:14px;flex:0 0 auto}
   .tool-btn{background:transparent;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-md);
     padding:7px 13px;font-weight:600;cursor:pointer;font-family:inherit;font-size:13px;white-space:nowrap;
     transition:background .12s,color .12s,border-color .12s}
@@ -574,7 +588,7 @@
      SIDEBAR  (Task 3)
      ════════════════════════════════════════════════════ */
   .forge-shell{display:flex;height:calc(100vh - 54px)}
-  .forge-side{flex:0 0 168px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+  .forge-side{flex:0 0 168px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
   .forge-side.collapsed{flex-basis:0;border:0}
   .forge-side .side-sec{padding:10px;border-bottom:1px solid var(--line)}
   .forge-side .side-h{font-size:11px;color:var(--eth);margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
@@ -582,6 +596,12 @@
   .forge-side .side-actions .side-btn{flex:1;text-align:center;padding:5px 4px}
   .forge-side .doc-row{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:var(--r-md);cursor:pointer;font-size:13px;color:var(--ink)}
   .forge-side .doc-row.active{background:var(--raised2);color:var(--gold)}
+  .doc-ico,.m-chip-ico{flex:0 0 auto;width:15px;height:15px;display:inline-grid;place-items:center}
+  .doc-ico svg,.m-chip-ico svg{width:15px;height:15px}
+  .m-chip-ico{margin-right:5px;vertical-align:-2px}
+  .doc-ico.kr,.m-chip-ico.kr{color:#e8b463}
+  .doc-ico.us,.m-chip-ico.us{color:#5b8def}
+  .doc-ico.crypto,.m-chip-ico.crypto{color:#3fb6c0}
   .forge-side .doc-row:hover{background:var(--raised2)}
   .side-btn{background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:var(--r-md);font-size:11px;padding:2px 8px;cursor:pointer}
   .side-btn:hover{color:var(--ink);border-color:var(--eth)}
@@ -944,7 +964,7 @@
 </head>
 <body>
   <header class="forge-top">
-    <div class="brand"><svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true"><rect x="1.5" y="1.5" width="25" height="25" rx="7.5" fill="#e8b463"/><path d="M7.3 17.6a6.7 6.7 0 0 1 13.4 0" fill="none" stroke="#0b0f14" stroke-width="2.4" stroke-linecap="round"/><circle cx="14" cy="9" r="2.1" fill="#0b0f14"/></svg><span class="brand-txt">Scoop <span class="brand-by">by 머니스쿱</span></span></div>
+    <div class="brand" onclick="location.href=location.pathname" title="Scoop 홈(새로고침)" style="cursor:pointer"><svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true"><rect x="1.5" y="1.5" width="25" height="25" rx="7.5" fill="#e8b463"/><path d="M7.3 17.6a6.7 6.7 0 0 1 13.4 0" fill="none" stroke="#0b0f14" stroke-width="2.4" stroke-linecap="round"/><circle cx="14" cy="9" r="2.1" fill="#0b0f14"/></svg><span class="brand-txt">Scoop <span class="brand-by">by 머니스쿱</span></span></div>
     <span style="font-size:11px;color:var(--gold);font-family:var(--mono);font-weight:700;letter-spacing:.05em" class="build-tag">build b062a6</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
@@ -961,8 +981,12 @@
       <span class="h-sep"></span>
       <span id="engStat" class="eng-stat" title="현재 표시된 결과가 언제 분석된 것인지"></span>
       <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출(결과만 갱신)"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l2.2 6.2 6.3.3-5 4 1.8 6-5.3-3.4L6.7 18.5l1.8-6-5-4 6.3-.3z" opacity=".92"/></svg><span class="hlbl">웹분석</span></button>
-      <button class="tool-btn is-soon" id="engineBtn" onclick="claudeEngine()" title="엔진분석 — 클로드 수동분석(예정 기능, 준비 중)">✦<span class="hlbl"> 엔진분석</span></button>
+      <button class="tool-btn is-soon" id="engineBtn" onclick="claudeEngine()" title="엔진분석 — 클로드 수동분석(예정 기능, 준비 중)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/><path d="M10 10h4v4h-4z"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><span class="hlbl">엔진분석</span></button>
       <button class="tool-btn play-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 웹분석 결과가 어떻게 나왔는지 지표별 작도 과정을 애니메이션으로 재생(결과는 동일, 과정 설명용)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시연</span></button>
+    </div>
+    <div class="theme-wrap">
+      <button id="themeBtn" class="theme-btn" onclick="toggleThemePop()" title="화면 색상 테마" aria-label="테마"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 2-.9 2-2 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1 .8-1.8 1.8-1.8H16a5 5 0 0 0 5-5c0-3.9-4-6.7-9-6.7z"/><circle cx="8" cy="9.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16" cy="9.5" r="1.1" fill="currentColor" stroke="none"/></svg></button>
+      <div id="themePop" class="theme-pop"></div>
     </div>
     <div class="h-auth">
       <button class="auth-btn login" onclick="authSoon()" title="로그인(준비 중)"><svg class="g-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.09a6.6 6.6 0 0 1 0-4.18V7.07H2.18a11 11 0 0 0 0 9.86z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg><span>Login</span></button>
@@ -1742,11 +1766,16 @@
     }
     if (window.renderSidebar) renderSidebar();
   }
+  // 포지(문서)의 등록 티커 → 자산유형 분류 + 플랫 아이콘(포지 목록 앞)
+  function _docTicker(d) { const t = ((d && d.nodes) || []).find(n => n.blockType === "ticker"); return (t && t.params && t.params.symbol) || ""; }
+  function _assetType(sym) { sym = (sym || "").toUpperCase().trim(); if (!sym) return ""; if (/^\d{6}$/.test(sym)) return "kr"; if (/-USDT?$/.test(sym) || /^(BTC|ETH|SOL|XRP|DOGE|ADA|BNB|USDT|LTC|DOT|AVAX|TRX|LINK)\b/.test(sym)) return "crypto"; return "us"; }
+  function _assetIco(t) { const g = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"'; if (t === "kr") return `<svg ${g}><path d="M4 21V6l7-3v18M11 21h9V10l-9-3"/><path d="M7 10h.01M7 14h.01M15 13h.01M15 17h.01"/></svg>`; if (t === "us") return `<svg ${g}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 2.6 15.6 0 18M12 3c-2.6 2.4-2.6 15.6 0 18"/></svg>`; if (t === "crypto") return `<svg ${g}><circle cx="12" cy="12" r="9"/><path d="M10 8h4a2 2 0 0 1 0 4h-4M10 12h4.5a2 2 0 0 1 0 4H10M10 6.5v11"/></svg>`; return ""; }
+  function _assetHtml(d, cls) { const t = _assetType(_docTicker(d)); return t ? `<span class="${cls} ${t}">${_assetIco(t)}</span>` : ""; }
   function renderSidebar() {
     const el = document.getElementById("forgeSide"); if (!el) return;
     const docs = DOCS.map(d =>
       `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}">
-         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.title || "제목 없음")}</span>
+         ${_assetHtml(d, "doc-ico")}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.title || "제목 없음")}</span>
          <button class="side-btn" data-docren="${d.id}">✎</button>
          <button class="side-btn" data-docdel="${d.id}">✕</button>
        </div>`).join("");
@@ -1766,7 +1795,7 @@
   // 모바일 포지 가로 칩(고정 서브바)
   function renderMobilePoji() {
     const el = document.getElementById("mPoji"); if (!el) return;
-    el.innerHTML = DOCS.map(d => `<button class="m-chip${d.id === activeId ? " on" : ""}" onclick="switchDoc('${d.id}')" title="${esc(d.title || "")}">${esc(d.title || "제목 없음")}</button>`).join("") +
+    el.innerHTML = DOCS.map(d => `<button class="m-chip${d.id === activeId ? " on" : ""}" onclick="switchDoc('${d.id}')" title="${esc(d.title || "")}">${_assetHtml(d, "m-chip-ico")}${esc(d.title || "제목 없음")}</button>`).join("") +
       `<button class="m-chip m-chip-add" onclick="newDoc()" title="새 포지">＋</button>`;
   }
   // 모바일: 고정 헤더 서브바 생성 + 티커를 그 안으로 이동(데스크톱 복귀 시 원위치). 본문 padding-top 보정.
@@ -6536,6 +6565,31 @@
   }
   // 엔진분석 = 클로드 수동분석(예정 기능). 현재는 안내만.
   function authSoon() { if (typeof bToast === "function") bToast("로그인·회원가입은 준비 중입니다"); }
+  const THEMES = {
+    navy:     { name: "네이비 (기본)", c: "#0b0f14", g: "#e8b463", vars: { "--bg": "#0b0f14", "--panel": "#121822", "--surface": "#141a22", "--gold": "#e8b463", "--raised": "#1b232d", "--raised2": "#27313e" } },
+    midnight: { name: "미드나잇",     c: "#07080b", g: "#e8b463", vars: { "--bg": "#07080b", "--panel": "#0d0f13", "--surface": "#101318", "--gold": "#e8b463", "--raised": "#171a20", "--raised2": "#222631" } },
+    charcoal: { name: "차콜 그레이",   c: "#15171c", g: "#e8b463", vars: { "--bg": "#15171c", "--panel": "#1d2027", "--surface": "#20242c", "--gold": "#e8b463", "--raised": "#262a33", "--raised2": "#333844" } },
+    teal:     { name: "딥틸 (청록)",   c: "#0a1113", g: "#4fd0c0", vars: { "--bg": "#0a1113", "--panel": "#0f191c", "--surface": "#122023", "--gold": "#4fd0c0", "--raised": "#16262a", "--raised2": "#213539" } },
+  };
+  let _theme = (function () { try { return localStorage.getItem("scoopforge_theme") || "navy"; } catch (e) { return "navy"; } })();
+  function applyTheme(key) {
+    const t = THEMES[key] || THEMES.navy; _theme = THEMES[key] ? key : "navy";
+    const r = document.documentElement.style; Object.entries(t.vars).forEach(([k, v]) => r.setProperty(k, v));
+    try { localStorage.setItem("scoopforge_theme", _theme); } catch (e) {}
+    renderThemePop();
+    if (typeof renderHeroZoom === "function") try { renderHeroZoom(); } catch (e) {}   // 차트 골드/배경 갱신
+  }
+  function renderThemePop() {
+    const pop = document.getElementById("themePop"); if (!pop) return;
+    pop.innerHTML = '<div class="th-h">화면 테마</div>' + Object.entries(THEMES).map(([k, t]) => `<button class="theme-opt${k === _theme ? " on" : ""}" onclick="applyTheme('${k}');toggleThemePop(true)"><span class="th-sw" style="background:${t.c};box-shadow:inset 0 0 0 2px ${t.g}"></span>${t.name}</button>`).join("");
+  }
+  function toggleThemePop(close) {
+    const pop = document.getElementById("themePop"); if (!pop) return;
+    if (close) { pop.classList.remove("open"); return; }
+    if (!pop.classList.contains("open")) renderThemePop();
+    pop.classList.toggle("open");
+  }
+  document.addEventListener("click", e => { const w = e.target.closest(".theme-wrap"); if (!w) { const p = document.getElementById("themePop"); if (p) p.classList.remove("open"); } });
   function claudeEngine() { bToast("엔진분석(클로드 수동분석)은 준비 중입니다 — 예정 기능"); }
   /* 붙여넣은 텍스트 → 종가 배열. 한 줄=한 봉. 줄에 4개 이상 수면 OHLC(V)로 보고 종가(4번째) 사용. */
   function parseSeries(txt) {
@@ -7641,6 +7695,7 @@
     /* 실행 버튼 제거됨 — runForge는 편집 시 자동 호출(markDirty/onBoardChange) */
     boot();
     if (typeof syncMobileHead === "function") { syncMobileHead(); setTimeout(syncMobileHead, 400); }   // 모바일 고정 헤더 구성(부팅 후 재보정)
+    if (typeof applyTheme === "function") applyTheme(_theme);   // 저장된 테마 적용
   });
   </script>
 </body>
