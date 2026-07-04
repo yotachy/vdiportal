@@ -65,6 +65,7 @@
   .ind-rail .ir-head .ir-sub{font-size:9px;font-weight:600;color:var(--faint);letter-spacing:-.02em}
   .ind-rail .ir-row{position:relative;display:flex;align-items:center;gap:5px;padding:4px 8px;border-bottom:1px solid var(--line);color:var(--eth);font-size:12px;font-weight:600;user-select:none;transition:color .12s}
   .ind-rail .ir-fill{position:absolute;left:0;top:0;bottom:0;background:var(--ic,#8a92b2);opacity:.16;z-index:0;pointer-events:none;transition:width .06s linear}
+  .ind-rail .ir-tick{position:absolute;left:33.33%;top:3px;bottom:3px;width:1px;background:rgba(232,180,99,.45);z-index:0;pointer-events:none}
   .ind-rail .ir-row.on .ir-fill{opacity:.28}
   .ind-rail .ir-chk,.ind-rail .ir-lbl,.ind-rail .ir-wval{position:relative;z-index:1}
   .ind-rail .ir-wval{flex:0 0 auto;font-size:9.5px;font-weight:700;font-family:ui-monospace,monospace;color:var(--eth);letter-spacing:-.02em;min-width:30px;text-align:right}
@@ -633,7 +634,14 @@
   .forge-side .side-h{font-size:11px;color:var(--eth);margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
   .forge-side .side-actions{display:flex;gap:6px;margin:0 0 8px}
   .forge-side .side-actions .side-btn{flex:1;text-align:center;padding:5px 4px}
-  .forge-side .doc-row{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:var(--r-md);cursor:grab;font-size:13px;color:var(--ink)}
+  .forge-side .doc-row{display:flex;flex-direction:column;align-items:stretch;gap:1px;padding:6px 8px;border-radius:var(--r-md);cursor:grab;font-size:13px;color:var(--ink)}
+  .forge-side .doc-r1{display:flex;align-items:center;gap:6px;width:100%}
+  .forge-side .doc-nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .forge-side .doc-sub{display:flex;align-items:center;gap:7px;padding-left:23px;font-size:10.5px;font-family:ui-monospace,monospace;letter-spacing:-.02em;line-height:1.2}
+  .forge-side .doc-px{color:var(--eth);font-weight:600}
+  .forge-side .doc-chg{font-weight:700}
+  .forge-side .doc-chg.up{color:#46c28e}
+  .forge-side .doc-chg.dn{color:#e06a6a}
   .forge-side .doc-row.dragging{opacity:.4;cursor:grabbing}
   .forge-side .doc-row.drop-before{box-shadow:inset 0 2px 0 var(--gold)}
   .forge-side .doc-row.drop-after{box-shadow:inset 0 -2px 0 var(--gold)}
@@ -1769,6 +1777,7 @@
             n.params.price = n._series[n._series.length - 1];   // 스케일 앵커 갱신 → currentData 계수 1(캔들·선 정합)
             n.params.name = rr.name || n.params.name || "";     // 종목명 복원
             n.params.fetched = true;                            // 레거시 노드 마이그레이션
+            if (typeof autoLogForTicker === "function") autoLogForTicker(n);   // 광범위 → 로그축 자동
             delete n.series; delete n.ohlc;                     // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
             if (typeof resetChartWin === "function") resetChartWin();
             if (typeof resetYScale === "function") resetYScale();
@@ -1885,7 +1894,7 @@
     el.innerHTML = `<div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시 · 바=가중치</span></div>` +
       `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "전체 해제" : "전체 포함"}</button><button class="ir-allbtn ir-resetw" onclick="_resetIndWeights()" title="모든 지표 가중치를 기본값 100%로">가중치 기본값 100%</button></div>` +
       types.map(t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3));
-        return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; }).join("");
+        return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; }).join("");
   }
   function _railEdit(type) {   // 편집 버튼: 이미 그 지표 편집중이면 분석으로 복귀, 아니면 편집 열기
     const n = boardState.nodes.find(x => x.blockType === type);
@@ -1986,9 +1995,10 @@
       const nm = _docTicker(d) || d.title || "새 종목";
       const v = d._verdict;
       const vb = v ? `<span class="doc-vd ${v.regime}">${v.regime === "bull" ? "▲" + v.up + "%" : v.regime === "bear" ? "▼" + (100 - v.up) + "%" : "–"}</span>` : "";
+      const _px = d._px, _chg = d._chg;
+      const sub = isFinite(_px) ? `<div class="doc-sub"><span class="doc-px">${_hzFmt(_px)}</span>${isFinite(_chg) ? `<span class="doc-chg ${_chg >= 0 ? "up" : "dn"}">${_chg >= 0 ? "▲" : "▼"}${Math.abs(_chg).toFixed(2)}%</span>` : ""}</div>` : "";
       return `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}" draggable="true">
-         ${_assetHtml(d, "doc-ico")}<span class="doc-nm" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nm)}</span>${vb}
-         <button class="side-btn" data-docdel="${d.id}" title="목록에서 제거">✕</button>
+         <div class="doc-r1">${_assetHtml(d, "doc-ico")}<span class="doc-nm">${esc(nm)}</span>${vb}<button class="side-btn" data-docdel="${d.id}" title="목록에서 제거">✕</button></div>${sub}
        </div>`; }).join("");
     el.innerHTML =
       `<div class="side-sec"><div class="side-h"><span>종목</span></div>
@@ -3962,13 +3972,15 @@
       };
       _predPill(hiMax, "#46c28e"); _predPill(loMin, "#e06a6a");
     }
-    // 데모/실데이터 배지
-    if (!hasRealSeries()) {
-      c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
-      const txt = "예시(데모) 데이터 · 가격 노드에 실제 종가 입력 →";
-      const tw = c.measureText(txt).width + 14;
-      c.fillStyle = "rgba(232,180,99,.14)"; c.fillRect(padX + 4, padTop + 2, tw, 16);
-      c.fillStyle = "rgba(232,180,99,.95)"; c.fillText(txt, padX + 11, padTop + 13);
+    // 데모(예시) 안내 — 중앙 워터마크 + 상단 배지. 불러온(fetched) 실티커가 없으면 예시로 간주.
+    if (!boardState.nodes.some(n => n.blockType === "ticker" && n.params && n.params.fetched)) {
+      c.save(); c.textAlign = "center"; c.fillStyle = "rgba(232,180,99,.07)"; c.font = "800 42px Pretendard,'Malgun Gothic',sans-serif";
+      c.fillText("예시 데이터", padX + plotW / 2, padTop + (ch - padTop - padBot) / 2 + 12); c.restore();
+      c.font = "700 10.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
+      const txt = "예시 차트입니다 — 위 티커에 종목을 입력해 ‘불러오기’ 하세요";
+      const tw = c.measureText(txt).width + 18;
+      c.fillStyle = "rgba(232,180,99,.18)"; if (c.roundRect) { c.beginPath(); c.roundRect(padX + 4, padTop + 24, tw, 19, 5); c.fill(); } else c.fillRect(padX + 4, padTop + 24, tw, 19);
+      c.fillStyle = "rgba(240,200,120,.98)"; c.fillText(txt, padX + 13, padTop + 36.5); c.textAlign = "left";
     }
     drawEvidence();
     c.restore();
@@ -6551,7 +6563,9 @@
     const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(2) : "—";
     const _upF = (typeof aggUpProb === "function") ? aggUpProb(lastResult && lastResult.prediction) : null;
     const _up = (_upF != null) ? Math.round(_upF * u) : null;
-    if (u >= 1 && _up != null) { const _ad = activeDoc(); if (_ad) { _ad._verdict = { regime, up: _up }; if (typeof renderSidebar === "function") renderSidebar(); } }   // 종목 목록 미니판정 갱신
+    if (u >= 1 && _up != null) { const _ad = activeDoc(); if (_ad) { _ad._verdict = { regime, up: _up };
+      try { const _px = (lastResult && lastResult.prediction && lastResult.prediction.anchor), _ps = ((_fcLastData && _fcLastData.price) || []); if (isFinite(_px)) _ad._px = _px; if (_ps.length >= 2 && _ps[_ps.length - 2]) _ad._chg = (_ps[_ps.length - 1] - _ps[_ps.length - 2]) / _ps[_ps.length - 2] * 100; } catch (e) {}
+      if (typeof renderSidebar === "function") renderSidebar(); } }   // 종목 목록 미니판정·현재가·변화율 갱신
     el.innerHTML =
       `국면 <b style="color:${col}">${label}</b>` +
       (_up != null ? ` · <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
@@ -6869,7 +6883,9 @@
   function autoLogForTicker(tk) {   // 광범위(월봉 등 max/min>5) → 로그 기본(세로 가독·제어 자연스럽게)
     const cs = (tk && tk._series) || []; if (cs.length < 2) return;
     let mn = Infinity, mx = -Infinity; for (const v of cs) { if (v < mn) mn = v; if (v > mx) mx = v; }
-    if (mn > 0 && mx / mn > 5 && !_logChart) { _logChart = true; if (typeof updateAxisBtns === "function") updateAxisBtns(); }
+    if (!(mn > 0)) return;
+    const wide = mx / mn > 4;   // 광범위(월봉·대급등 등) → 로그, 좁으면 선형(양방향 적응)
+    if (wide !== _logChart) { _logChart = wide; if (typeof updateAxisBtns === "function") updateAxisBtns(); }
   }
   async function loadTicker() {
     const t = ensureTickerNode(); const sym = (t.params.symbol || "").trim();
