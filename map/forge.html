@@ -1301,13 +1301,15 @@
     if (!N || !pl || !g.lo || !g.hi) return;
     const histShow = Math.min(N, Math.max(24, Math.round(pl * 1.4)));   // 가로: 최근 이력 + 콘(폭 ~45%)
     _chartWin.count = histShow; _chartWin.start = Math.max(0, N - histShow);   // 최신에 끝나게 → 콘 표시
-    let lo = Infinity, hi = -Infinity;                                  // 세로: 최근 이력 + 예측 콘 전체
-    for (let i = _chartWin.start; i < N; i++) { const v = price[i]; if (isFinite(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+    // 세로: 예측 밴드(콘 lo~hi)가 주(主) + 현재가 + '최근' 캔들만. 먼 과거 저/고점(대급등 이력 등)은 제외 → 예측치가 위아래로 꽉 차게(일·주·월 무관)
+    let lo = Infinity, hi = -Infinity;
     for (const v of g.lo) if (isFinite(v) && v < lo) lo = v;
     for (const v of g.hi) if (isFinite(v) && v > hi) hi = v;
     if (isFinite(g.anchor)) { lo = Math.min(lo, g.anchor); hi = Math.max(hi, g.anchor); }
+    const _vN = Math.max(16, Math.round(pl * 0.6));                      // 세로 스케일엔 최근 예측길이×0.6 캔들만
+    for (let i = Math.max(_chartWin.start, N - _vN); i < N; i++) { const v = price[i]; if (isFinite(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } }
     if (!isFinite(lo) || !isFinite(hi) || hi <= lo) return;
-    const pad = (hi - lo) * 0.08 || 1;
+    const pad = (hi - lo) * 0.06 || 1;
     _yScale = { mode: "manual", lo: lo - pad, hi: hi + pad };
     if (typeof resetHeroView === "function") resetHeroView();
     renderHeroZoom();   // 재그리면 콘이 화면 안 → updateFitBtn이 버튼 숨김
