@@ -4190,7 +4190,7 @@
     const hint = "클릭=표시 토글 · 더블클릭=단독 · 전체표시=모두";
     c.font = "9.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; let maxW = c.measureText(hint).width;
     c.font = "11.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
-    const panelW = 28 + maxW + 12, panelH = rows.length * 17 + 28;
+    const panelW = 28 + maxW + 12, panelH = rows.length * 23 + 30;
     c.fillStyle = "rgba(11,15,20,.82)";
     if (c.roundRect) { c.beginPath(); c.roundRect(px, py, panelW, panelH, 7); c.fill(); } else c.fillRect(px, py, panelW, panelH);
     // 접기 토글(우상단 −)
@@ -4200,26 +4200,26 @@
     _legendHits.push({ x: tbX, y: tbY, w: tbW, h: 15, key: "__toggle__" });
     c.fillStyle = "rgba(138,146,178,.75)"; c.font = "9.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.fillText(hint, px + 9, py + 13);
     c.font = "11.5px Pretendard,'Malgun Gothic',system-ui,sans-serif";
-    let y = py + 30;
+    let y = py + 32;
     for (const it of rows) {
       const isAll = it.key === null;
       const visible = isAll ? true : _evVisible.has(it.key);
       const active = focus ? (it.key === focus) : false;                 // 선택/포커스 대상
       const dim = focus ? !active : !visible;
       if (active) {   // 선택된 도구 = 명확한 선택 표시(테마 액센트 보더+텍스트)
-        c.fillStyle = "rgba(255,255,255,.1)"; c.fillRect(px + 4, y - 4, panelW - 8, 17);
-        c.strokeStyle = _gc; c.lineWidth = 1.2; c.strokeRect(px + 4.5, y - 3.5, panelW - 9, 16);
+        c.fillStyle = "rgba(255,255,255,.1)"; c.fillRect(px + 4, y - 6, panelW - 8, 22);
+        c.strokeStyle = _gc; c.lineWidth = 1.2; c.strokeRect(px + 4.5, y - 5.5, panelW - 9, 21);
       }
       c.globalAlpha = active ? 1 : dim ? 0.3 : 1;
-      c.fillStyle = it.col; c.fillRect(px + 10, y, 11, 11);
+      c.fillStyle = it.col; c.fillRect(px + 10, y + 1, 12, 12);
       c.fillStyle = active ? _gc : "rgba(224,229,239,.95)";
       if (active) c.font = "700 11.5px Pretendard,'Malgun Gothic',system-ui,sans-serif";
-      c.fillText(it.t, px + 26, y + 10);
+      c.fillText(it.t, px + 28, y + 11);
       if (active) c.font = "11.5px Pretendard,'Malgun Gothic',system-ui,sans-serif";
-      if (!isAll && !visible && !focus) { c.strokeStyle = "rgba(224,229,239,.6)"; c.lineWidth = 1; c.beginPath(); c.moveTo(px + 26, y + 5); c.lineTo(px + 26 + c.measureText(it.t).width, y + 5); c.stroke(); }
+      if (!isAll && !visible && !focus) { c.strokeStyle = "rgba(224,229,239,.6)"; c.lineWidth = 1; c.beginPath(); c.moveTo(px + 28, y + 6); c.lineTo(px + 28 + c.measureText(it.t).width, y + 6); c.stroke(); }
       c.globalAlpha = 1;
-      _legendHits.push({ x: px, y: y - 4, w: panelW, h: 17, key: it.key });
-      y += 17;
+      _legendHits.push({ x: px, y: y - 6, w: panelW, h: 23, key: it.key });
+      y += 23;
     }
   }
   // 다각도 추세 4레이어 작도(차트·오버레이 공용). M=좌표 매퍼.
@@ -4271,7 +4271,7 @@
     } catch (e) {}
     const ex = Math.min(coneR, box.padX + box.plotW - 12), ey = Math.max(box.padTop + 14, Math.min(box.ch - box.padBot - 14, toY(pathArr[pl - 1])));
     _epicenterMark(c, ex, ey, col, 1);
-    if (label) { c.save(); c.font = "700 9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right"; c.fillStyle = col; c.fillText(label, ex - 10, ey + (labelDy != null ? labelDy : -12)); c.restore(); }
+    if (label) { c.save(); c.font = "800 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right"; c.fillStyle = col; c.shadowColor = "rgba(11,15,20,.9)"; c.shadowBlur = 3; c.fillText(label, ex - 11, ey + (labelDy != null ? labelDy : -13)); c.restore(); }
   }
   // 시계열을 최근 봉당 기울기로 감쇠 연장 → 예측구간에 강조 투영 + 도달 라벨(포커스 지표 공용)
   function _projFwd(c, series, nowFi, seam, xr, fb, pToY, col, label) {
