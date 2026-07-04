@@ -604,7 +604,10 @@
   .forge-side .side-h{font-size:11px;color:var(--eth);margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
   .forge-side .side-actions{display:flex;gap:6px;margin:0 0 8px}
   .forge-side .side-actions .side-btn{flex:1;text-align:center;padding:5px 4px}
-  .forge-side .doc-row{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:var(--r-md);cursor:pointer;font-size:13px;color:var(--ink)}
+  .forge-side .doc-row{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:var(--r-md);cursor:grab;font-size:13px;color:var(--ink)}
+  .forge-side .doc-row.dragging{opacity:.4;cursor:grabbing}
+  .forge-side .doc-row.drop-before{box-shadow:inset 0 2px 0 var(--gold)}
+  .forge-side .doc-row.drop-after{box-shadow:inset 0 -2px 0 var(--gold)}
   .forge-side .doc-row.active{background:var(--raised2);color:var(--gold)}
   .doc-ico,.m-chip-ico{flex:0 0 auto;width:15px;height:15px;display:inline-grid;place-items:center}
   .doc-ico svg,.m-chip-ico svg{width:15px;height:15px}
@@ -627,11 +630,12 @@
   /* 블록 도구 = 체크박스 행(직관적) + 추가 시 상세편집 버튼 */
   .forge-side .pal-side .pal-btn{position:relative;display:flex;align-items:center;gap:9px;width:100%;padding:4px 6px 4px 9px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;color:var(--eth);font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;white-space:nowrap;transition:background .12s,color .12s}
   .forge-side .pal-side .pal-btn:last-child{border-bottom:0}
-  .forge-side .pal-side .pal-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.42);display:grid;place-items:center;transition:background .12s,border-color .12s}
+  .forge-side .pal-side .pal-chk{flex:0 0 auto;width:14px;height:14px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.34);display:grid;place-items:center;transition:background .12s,border-color .12s}
   .forge-side .pal-side .pal-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
   .forge-side .pal-side .pal-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .forge-side .pal-side .pal-edit{flex:0 0 auto;width:22px;height:22px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(232,180,99,.1);color:var(--gold);font-size:12px;cursor:pointer;display:grid;place-items:center;padding:0;line-height:1}
-  .forge-side .pal-side .pal-edit:hover{background:rgba(232,180,99,.24);border-color:var(--gold)}
+  .forge-side .pal-side .pal-edit{flex:0 0 auto;width:18px;height:18px;border-radius:var(--r-sm);border:0;background:transparent;color:var(--eth);font-size:11px;cursor:pointer;display:grid;place-items:center;padding:0;line-height:1;opacity:0;transition:opacity .12s,color .12s}
+  .forge-side .pal-side .pal-btn:hover .pal-edit,.forge-side .pal-side .pal-btn.sel .pal-edit{opacity:.55}
+  .forge-side .pal-side .pal-edit:hover{opacity:1;color:var(--gold);background:transparent}
   .forge-side .pal-side .pal-btn:hover{background:rgba(255,255,255,.035);color:var(--ink)}
   .forge-side .pal-side .pal-btn.added{color:var(--ink);background:transparent}
   .forge-side .pal-side .pal-btn.added .pal-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2);filter:saturate(.6) brightness(.9)}
@@ -1780,10 +1784,31 @@
   function _assetType(sym) { sym = (sym || "").toUpperCase().trim(); if (!sym) return ""; if (/^\d{6}$/.test(sym)) return "kr"; if (/-USDT?$/.test(sym) || /^(BTC|ETH|SOL|XRP|DOGE|ADA|BNB|USDT|LTC|DOT|AVAX|TRX|LINK)\b/.test(sym)) return "crypto"; return "us"; }
   function _assetIco(t) { const g = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"'; if (t === "kr") return `<svg ${g}><path d="M4 21V6l7-3v18M11 21h9V10l-9-3"/><path d="M7 10h.01M7 14h.01M15 13h.01M15 17h.01"/></svg>`; if (t === "us") return `<svg ${g}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 2.6 15.6 0 18M12 3c-2.6 2.4-2.6 15.6 0 18"/></svg>`; if (t === "crypto") return `<svg ${g}><circle cx="12" cy="12" r="9"/><path d="M10 8h4a2 2 0 0 1 0 4h-4M10 12h4.5a2 2 0 0 1 0 4H10M10 6.5v11"/></svg>`; return ""; }
   function _assetHtml(d, cls) { const t = _assetType(_docTicker(d)); return t ? `<span class="${cls} ${t}">${_assetIco(t)}</span>` : ""; }
+  function _initDocDrag() {
+    const el = document.getElementById("forgeSide"); if (!el || el._dragInit) return; el._dragInit = true;
+    let dragId = null;
+    const clearHi = () => el.querySelectorAll(".doc-row.drop-before,.doc-row.drop-after").forEach(r => r.classList.remove("drop-before", "drop-after"));
+    el.addEventListener("dragstart", e => { const row = e.target.closest && e.target.closest(".doc-row"); if (!row) return; dragId = row.dataset.doc; try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragId); } catch (_) {} row.classList.add("dragging"); });
+    el.addEventListener("dragend", e => { const row = e.target.closest && e.target.closest(".doc-row"); if (row) row.classList.remove("dragging"); clearHi(); dragId = null; });
+    el.addEventListener("dragover", e => { const row = e.target.closest && e.target.closest(".doc-row"); if (!row || !dragId || row.dataset.doc === dragId) return; e.preventDefault(); const rc = row.getBoundingClientRect(), after = (e.clientY - rc.top) > rc.height / 2; clearHi(); row.classList.add(after ? "drop-after" : "drop-before"); });
+    el.addEventListener("drop", e => { const row = e.target.closest && e.target.closest(".doc-row"); if (!row || !dragId) { clearHi(); return; } e.preventDefault(); const targetId = row.dataset.doc, rc = row.getBoundingClientRect(), after = (e.clientY - rc.top) > rc.height / 2; reorderDocs(dragId, targetId, after); });
+  }
+  function reorderDocs(dragId, targetId, after) {
+    if (dragId === targetId) return;
+    const from = DOCS.findIndex(d => d.id === dragId); if (from < 0) return;
+    const [moved] = DOCS.splice(from, 1);
+    let to = DOCS.findIndex(d => d.id === targetId);
+    if (to < 0) { DOCS.splice(from, 0, moved); return; }
+    if (after) to += 1;
+    DOCS.splice(to, 0, moved);
+    if (SERVER_OK) apiPost({ op: "reorder", order: DOCS.map(d => d.id) });
+    renderSidebar();
+    if (typeof bToast === "function") bToast("포지 순서 변경됨");
+  }
   function renderSidebar() {
     const el = document.getElementById("forgeSide"); if (!el) return;
     const docs = DOCS.map(d =>
-      `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}">
+      `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}" draggable="true">
          ${_assetHtml(d, "doc-ico")}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.title || "제목 없음")}</span>
          <button class="side-btn" data-docren="${d.id}">✎</button>
          <button class="side-btn" data-docdel="${d.id}">✕</button>
@@ -1798,6 +1823,7 @@
          `<div class="pal-btn pal-free" onclick="addBlock('free')"><span class="pal-chk"></span><span class="pal-lbl">메모</span></div>` +
        `</div></div>
        <div class="side-sec" id="libSec"></div>`;
+    _initDocDrag();   // 포지 드래그 정렬
     if (window.renderLib) renderLib();   // 라이브러리 섹션(Task 4)
     if (typeof renderMobilePoji === "function") renderMobilePoji();   // 모바일 포지 칩 갱신
   }
@@ -4209,13 +4235,19 @@
     c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
     c.restore();
   }
-  function _projMark(c, x, y, col) {
+  function _predDir() {   // 메인 예상 방향(+1 상승 / -1 하락)
+    try { const p = lastResult && lastResult.prediction && lastResult.prediction.path; const px = (currentData().price || []); if (p && p.length && px.length) return p[p.length - 1] >= px[px.length - 1] ? 1 : -1; } catch (e) {}
+    return 1;
+  }
+  function _projMarkScale(endV, base) { return ((endV >= base ? 1 : -1) === _predDir()) ? 1 : (1 / 3); }   // 반대지표 끝점=메인예상 대비 1/3
+  function _projMark(c, x, y, col, scale) {
     if (!isFinite(x) || !isFinite(y)) return;
+    const sc = scale || 1, op = sc < 1;
     c.save();
-    c.shadowColor = col; c.shadowBlur = 11; c.fillStyle = col;
-    c.beginPath(); c.arc(x, y, 4.8, 0, 7); c.fill();
+    c.shadowColor = col; c.shadowBlur = 11 * sc; c.fillStyle = col; c.globalAlpha = op ? 0.6 : 1;
+    c.beginPath(); c.arc(x, y, 4.8 * sc, 0, 7); c.fill();
     c.shadowBlur = 0; c.strokeStyle = "rgba(11,15,20,.92)"; c.lineWidth = 1.6; c.stroke();
-    c.globalAlpha = .92; c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, 1.7, 0, 7); c.fill();
+    c.globalAlpha = op ? 0.5 : .92; c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, 1.7 * sc, 0, 7); c.fill();
     c.restore();
   }
   // 시계열을 최근 봉당 기울기로 감쇠 연장 → 예측구간에 강조 투영 + 도달 라벨(포커스 지표 공용)
@@ -4226,7 +4258,7 @@
     if (!isFinite(base) || !isFinite(prev)) return;
     const slPer = (base - prev) / w, pts = [[seam, pToY(base)]]; let endV = base;
     for (let k = 1; k <= fb; k++) { endV = base + slPer * k * Math.exp(-k / (fb * 1.5)); pts.push([seam + (xr - seam) * k / fb, pToY(endV)]); }
-    _drawProjLine(c, pts, col); _projMark(c, pts[pts.length - 1][0], pts[pts.length - 1][1], col);
+    _drawProjLine(c, pts, col); _projMark(c, pts[pts.length - 1][0], pts[pts.length - 1][1], col, _projMarkScale(endV, base));
     _evLabel(c, label + " \u2248 " + _hzFmt(endV), xr, pToY(endV), col, "right");
   }
   function _drawTrendLayers(c, ta, M) {
@@ -4260,7 +4292,7 @@
         const FS = 12, fp = [[xb, yb]];
         for (let s = 1; s <= FS; s++) { const fi = nowFi + futBars * s / FS, x = xb + (xRight - xb) * s / FS, y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) fp.push([x, y]); }
         if (fp.length >= 2) {
-          if (M.focused) { _drawProjLine(c, fp, COL[key]); if (key === "mid") _projMark(c, fp[fp.length - 1][0], fp[fp.length - 1][1], COL[key]); }
+          if (M.focused) { _drawProjLine(c, fp, COL[key]); if (key === "mid") _projMark(c, fp[fp.length - 1][0], fp[fp.length - 1][1], COL[key], _projMarkScale(valAt(nowFi + futBars), valAt(nowFi))); }
           else { c.globalAlpha = .6; c.setLineDash(CDASH.std); stroke(fp); c.globalAlpha = 1; c.setLineDash([]); }
         }
       }
@@ -4358,7 +4390,7 @@
         const slPer = (base - prev) / w, seam = M.xNow, xr = M.xRight, fb = M.futBars;
         const pp = [[seam, pToY(base)]]; let endV = base;
         for (let k = 1; k <= fb; k++) { endV = base + slPer * k * Math.exp(-k / (fb * 1.5)); pp.push([seam + (xr - seam) * k / fb, pToY(endV)]); }
-        _drawProjLine(c, pp, COL.long); _projMark(c, pp[pp.length - 1][0], pp[pp.length - 1][1], COL.long);
+        _drawProjLine(c, pp, COL.long); _projMark(c, pp[pp.length - 1][0], pp[pp.length - 1][1], COL.long, _projMarkScale(endV, base));
         _evLabel(c, "이동평균 투영 \u2248 " + _hzFmt(endV), xr, pToY(endV), COL.long, "right");
       }
     }
