@@ -1176,7 +1176,7 @@
   </div>
   <div class="b-toast" id="bToast"></div>
 
-  <script src="forge-core.js?v=20260704h"></script>   <!-- ?v= 캐시버스터: 엔진 수정 시 값 갱신(옛 forge-core.js 캐시 방지) -->
+  <script src="forge-core.js?v=20260704i"></script>   <!-- ?v= 캐시버스터: 엔진 수정 시 값 갱신(옛 forge-core.js 캐시 방지) -->
   <script>
   /* ════════════════════════════════════════════════════════════════
      BOARD ENGINE  — lightweight port of Scoop Board (map/map.html)
@@ -3718,27 +3718,25 @@
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k]));
       c.stroke(); c.restore();
-      // 반대 시나리오(부가정보): 메인 예측선을 현재가 라인 기준으로 상하 반사한 희미한 대칭선 — 확률의 나머지 쪽(상승 70%면 하락 30%를 옅게)
-      if (_pd !== 0) {
+      // 반대 시나리오: '예상대로 가지 않았을 때'의 데이터 기반 대안 경로(엔진 pred.counter — 거울상 반사 아님)
+      const _counter = pred && pred.counter;
+      if (_pd !== 0 && Array.isArray(_counter) && _counter.length === path.length) {
         let _cs = 0, _cw = 0; for (let k = 0; k < path.length; k++) { const wt = 1 / Math.sqrt(k + 1); _cs += _upProb(path[k], hi[k], anchor) * wt; _cw += wt; }
         const _upP = _cw ? _cs / _cw : 50, _cProb = Math.round(_pd > 0 ? (100 - _upP) : _upP);
-        const _cCol = _pd > 0 ? "224,106,106" : "70,194,142";   // 메인 상승→반대 하락(적) / 메인 하락→반대 상승(녹)
-        const _cA = Math.max(0.34, Math.min(0.8, _cProb / 100 * 1.15));   // 반대선 ~80% 강조(확률 반영, 최소 0.34)
-        const _yA = toY(anchor), _yT = padTop + 4, _yB = ch - padBot - 4;   // 화면-Y 반사(로그/음수가 안전) + 화면에 맞게 스케일
-        const _yRawEnd = 2 * _yA - toY(path[path.length - 1]);
-        let _cSc = 1; if (_yRawEnd > _yB) _cSc = (_yB - _yA) / (_yRawEnd - _yA); else if (_yRawEnd < _yT) _cSc = (_yT - _yA) / (_yRawEnd - _yA);
-        _cSc = Math.max(0, Math.min(1, _cSc));
-        const _cY = k => _yA + ((2 * _yA - toY(path[k])) - _yA) * _cSc;
+        const _cUp = _counter[_counter.length - 1] >= anchor;   // 반대 경로 방향(끝점 vs 현재가)
+        const _cCol = _cUp ? "70,194,142" : "224,106,106";      // 반대 상승=녹 / 반대 하락=적
+        const _cA = Math.max(0.34, Math.min(0.8, _cProb / 100 * 1.15));
+        const _cYc = k => Math.max(padTop + 4, Math.min(ch - padBot - 4, toY(_counter[k])));
         c.save();
         c.strokeStyle = "rgba(" + _cCol + "," + _cA + ")"; c.lineWidth = 2; c.lineJoin = "round"; c.setLineDash([5, 4]); c.shadowColor = "rgba(" + _cCol + ",.35)"; c.shadowBlur = 4;
-        c.beginPath(); c.moveTo(seamX, _yA);
-        for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), _cY(k));
+        c.beginPath(); c.moveTo(seamX, toY(anchor));
+        for (let k = 0; k < _counter.length; k++) c.lineTo(toXf(k), _cYc(k));
         c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
-        const _cey = _cY(path.length - 1);
-        _epicenterMark(c, Math.min(coneR, padX + plotW - 7), Math.max(padTop + 14, Math.min(ch - padBot - 14, _cey)), "rgb(" + _cCol + ")", 1 / 3);   // 반대선 끝점 = 진앙지 마커 1/3(플롯 안·점선 유지)
+        const _cey = _cYc(_counter.length - 1);
+        _epicenterMark(c, Math.min(coneR, padX + plotW - 7), Math.max(padTop + 14, Math.min(ch - padBot - 14, _cey)), "rgb(" + _cCol + ")", 1 / 3);   // 반대 경로 끝점 = 진앙지 마커 1/3
         c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right";
         c.fillStyle = "rgba(" + _cCol + "," + Math.min(0.8, _cA + 0.34) + ")";
-        c.fillText((_pd > 0 ? "▼" : "▲") + " 반대 " + _cProb + "%", coneR - 4, Math.max(padTop + 10, Math.min(ch - padBot - 4, _cey + (_pd > 0 ? 11 : -5))));
+        c.fillText((_cUp ? "▲" : "▼") + " 반대 " + _cProb + "%", coneR - 4, Math.max(padTop + 10, Math.min(ch - padBot - 4, _cey + (_cUp ? -5 : 11))));
         c.restore();
       }
       // 마일스톤 시점 점(예측표와 동일 시점) — 중앙선 위 작은 참조점
@@ -7395,22 +7393,21 @@
     /* leading glow at the cone tip */
     _glowDot(ctx, M.toX(M.n + np - 1), M.toY(pred.path[np - 1]), 9 + 6 * _flash, dirCol, 0.9);
 
-    /* 반대 시나리오(부가정보): 현재가 라인 기준 상하 대칭선을 희미하게(확률 나머지 쪽) */
-    if (reg !== "neutral") {
+    /* 반대 시나리오: 예측 실패 시 데이터 기반 대안 경로(pred.counter — 거울상 반사 아님) */
+    if (reg !== "neutral" && Array.isArray(pred.counter) && pred.counter.length === np) {
       const upP = ((typeof aggUpProb === "function" ? aggUpProb(pred) : 50) || 50);
       const cProb = Math.round(reg === "bull" ? (100 - upP) : upP);
-      const cCol = reg === "bull" ? "224,106,106" : "70,194,142";
+      const _cUp = pred.counter[np - 1] >= (pred.anchor != null ? pred.anchor : pred.path[0]);
+      const cCol = _cUp ? "70,194,142" : "224,106,106";
       const cA = Math.max(0.16, Math.min(0.62, cProb / 100 * 0.85));
-      const yT = 8, yB = _fcovH - 8, yRawEnd = 2 * aY - M.toY(pred.path[np - 1]);
-      let cSc = 1; if (yRawEnd > yB) cSc = (yB - aY) / (yRawEnd - aY); else if (yRawEnd < yT) cSc = (yT - aY) / (yRawEnd - aY);
-      cSc = Math.max(0, Math.min(1, cSc));
+      const yT = 8, yB = _fcovH - 8, cYc = k => Math.max(yT, Math.min(yB, M.toY(pred.counter[k])));
       ctx.save(); ctx.strokeStyle = "rgba(" + cCol + "," + cA + ")"; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]);
       ctx.beginPath(); ctx.moveTo(M.predStartX, aY);
-      for (let k = 0; k < np; k++) ctx.lineTo(M.toX(M.n + k), aY + ((2 * aY - M.toY(pred.path[k])) - aY) * cSc);
+      for (let k = 0; k < np; k++) ctx.lineTo(M.toX(M.n + k), cYc(k));
       ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = "rgba(" + cCol + "," + Math.min(0.8, cA + 0.34) + ")"; ctx.font = "9px Pretendard,'Malgun Gothic',sans-serif"; ctx.textAlign = "right";
-      const cey = aY + ((2 * aY - M.toY(pred.path[np - 1])) - aY) * cSc;
-      ctx.fillText((reg === "bull" ? "▼" : "▲") + " 반대 " + cProb + "%", M.toX(M.n + np - 1) - 3, Math.max(yT + 8, Math.min(yB, cey + (reg === "bull" ? 11 : -5)))); ctx.textAlign = "left"; ctx.restore();
+      const cey = cYc(np - 1);
+      ctx.fillText((_cUp ? "▲" : "▼") + " 반대 " + cProb + "%", M.toX(M.n + np - 1) - 3, Math.max(yT + 8, Math.min(yB, cey + (_cUp ? -5 : 11)))); ctx.textAlign = "left"; ctx.restore();
     }
   }
 

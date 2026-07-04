@@ -1523,6 +1523,19 @@
       lo.push(last * Math.exp(mC - sd));
       hi.push(last * Math.exp(mC + sd));
     }
+    // 반대 시나리오(예측 실패 경로) — 거울상 반사(보여주기)가 아니라 '예상대로 가지 않았을 때'의 데이터 기반 대안 경로.
+    // 예측 방향의 반대로, [예측 되돌림 일부(give-back) + 실제 반대지표 합(_opSum) + 정렬드리프트 되돌림]만큼 투영. 평균회귀·계절성·변동성은 유지 → 형상도 메인의 거울상과 다름.
+    const _mainDrift = Math.log((path[path.length - 1] || last) / last);
+    const _cDir = _mainDrift >= 0 ? -1 : 1;
+    const _cMag = Math.min(0.36, 0.5 * _opSum + 0.3 * Math.abs(_auxCap) + 0.5 * Math.abs(_mainDrift) + 0.03);
+    const counter = [];
+    for (let k = 1; k <= futW; k++) {
+      const cRev = -dev * (1 - Math.exp(-theta * k)) * REV_W;
+      const cSeas = seasFn ? seasFn(k) : 0;
+      const cTex = _texArr ? _texArr[k] * 0.6 : 0;
+      const cm = cRev + cSeas + cTex + _cDir * _cMag * (k / futW);
+      counter.push(last * Math.exp(cm));
+    }
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
     // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율
     const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);
@@ -1533,7 +1546,7 @@
     const invIdx = Math.min(2, futW - 1);                  // 근단기 반대 밴드 = 무효화 기준
     const invalidation = regime === "bear" ? hi[invIdx] : lo[invIdx];
     return {
-      values, meta, prediction: { path, lo, hi, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
+      values, meta, prediction: { path, lo, hi, counter, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
       verdict: { regime, score: Math.round(lastSig), target, invalidation, confluence }
     };
   }
