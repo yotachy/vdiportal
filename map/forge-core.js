@@ -683,10 +683,10 @@
     const s = typeof tf === "string" ? tf : "";
     // shortScale: '단기' 창 길이 배율(월봉은 40봉=3.3년이라 과함→0.5로 축소, 단주기는 확대). "단기"의 실제 기간을 tf 간 정규화.
     // bandScale: 예측 콘 폭 배율 — 일봉은 고변동이라 콘이 비현실적으로 벌어져 타이트하게, 주·월로 갈수록 넓게(현실적)
-    if (/월|분기|년|연/.test(s)) return { tier: "long", weights: { long: 0.6, mid: 0.3, short: 0.1 }, trendScale: 1.0, shortScale: 0.5, bandScale: 1.2, label: "월봉 장기가중" };
-    if (/주/.test(s)) return { tier: "mid", weights: { long: 0.45, mid: 0.35, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.82, label: "주봉 균형" };
-    if (/일/.test(s)) return { tier: "mid", weights: { long: 0.45, mid: 0.35, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.58, label: "일봉 균형" };
-    if (/분|시간|시/.test(s)) return { tier: "intra", weights: { long: 0.25, mid: 0.35, short: 0.4 }, trendScale: 0.45, shortScale: 2.0, bandScale: 0.5, label: "단주기 단기가중" };
+    if (/월|분기|년|연/.test(s)) return { tier: "long", weights: { long: 0.6, mid: 0.3, short: 0.1 }, trendScale: 1.0, shortScale: 0.5, bandScale: 1.2, texScale: 0.7, label: "월봉 장기가중" };
+    if (/주/.test(s)) return { tier: "mid", weights: { long: 0.45, mid: 0.35, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.82, texScale: 1.0, label: "주봉 균형" };
+    if (/일/.test(s)) return { tier: "mid", weights: { long: 0.45, mid: 0.35, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.58, texScale: 1.8, label: "일봉 균형" };
+    if (/분|시간|시/.test(s)) return { tier: "intra", weights: { long: 0.25, mid: 0.35, short: 0.4 }, trendScale: 0.45, shortScale: 2.0, bandScale: 0.5, texScale: 2.2, label: "단주기 단기가중" };
     return { tier: "default", weights: { long: 0.5, mid: 0.3, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.75, label: "" };
   }
 
@@ -1476,7 +1476,7 @@
       const r1 = ac(1), r2 = ac(2), dn = (1 - r1 * r1) || 1e-9;
       let a1 = r1 * (1 - r2) / dn * 0.9, a2 = (r2 - r1 * r1) / dn * 0.9;   // AR2 계수(안정화 0.9)
       if (sd0 > 1e-6 && (Math.abs(r1) > 0.08 || Math.abs(r2) > 0.08)) {
-        let f1 = rs[rs.length - 1], f2 = rs[rs.length - 2] || 0, cum = 0, cap = sd0 * 4; _texArr = [0];
+        let f1 = rs[rs.length - 1], f2 = rs[rs.length - 2] || 0, cum = 0, cap = sd0 * 4 * (_prof.texScale || 1); _texArr = [0];
         for (let k = 1; k <= futW; k++) {
           const f = a1 * f1 + a2 * f2; f2 = f1; f1 = f;
           cum += f * Math.exp(-k / (futW * 0.55));   // 감쇠 누적 → 근거리 질감(원거리는 매끄럽게 수렴)

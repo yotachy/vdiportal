@@ -1176,7 +1176,7 @@
   </div>
   <div class="b-toast" id="bToast"></div>
 
-  <script src="forge-core.js?v=20260704e"></script>   <!-- ?v= 캐시버스터: 엔진 수정 시 값 갱신(옛 forge-core.js 캐시 방지) -->
+  <script src="forge-core.js?v=20260704f"></script>   <!-- ?v= 캐시버스터: 엔진 수정 시 값 갱신(옛 forge-core.js 캐시 방지) -->
   <script>
   /* ════════════════════════════════════════════════════════════════
      BOARD ENGINE  — lightweight port of Scoop Board (map/map.html)
@@ -6440,8 +6440,8 @@
   function tfKo(tf) { if (!tf) return null; if (/month|월/.test(tf)) return "월봉"; if (/week|주/.test(tf)) return "주봉"; if (/day|일/.test(tf)) return "일봉"; if (/hour|분|시/.test(tf)) return tf; return tf; }
   // 현재 활성 타임프레임: 비전 결과 우선, 없으면 티커 노드 params.tf
   function activeTF() { if (_visionTF) return tfKo(_visionTF); const t = boardState.nodes.find(n => n.blockType === "ticker" && n.params && n.params.tf); return t ? tfKo(t.params.tf) : null; }
-  // TF별 기본 예측범위(작도 horizon): 일봉 30일 · 주봉 50주 · 월봉 12개월 · 기타 24
-  function horizonForTF(tf) { const s = tf || ""; if (/월|month|개월|년|연/.test(s)) return 12; if (/주|week/.test(s)) return 50; if (/일|day/.test(s)) return 30; return 24; }
+  // TF별 기본 예측범위(작도 horizon): 일봉 40일 · 주봉 50주 · 월봉 12개월 · 기타 24
+  function horizonForTF(tf) { const s = tf || ""; if (/월|month|개월|년|연/.test(s)) return 12; if (/주|week/.test(s)) return 50; if (/일|day/.test(s)) return 40; return 24; }
   function tfUnit() { const t = activeTF(); return t ? _tfUnit(t) : "봉"; }
   function visionFutW() { return (_visionFut >= 4 && _visionFut <= 60) ? _visionFut : horizonForTF(activeTF()); }
   /* 실제 분석 시계열만 연속 '분석 차트'를 구동. 비전 워커 비활성 동안엔 항상 null
