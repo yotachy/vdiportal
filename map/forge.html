@@ -3924,7 +3924,7 @@
   let _axisLabelBoxes = [];      // 세로축 눈금·현재가 pill 박스(라벨 회피용으로 미리 예약)
   let _labelMode = "key";        // 기본 "key"=중요 라벨만(차트 정돈) / "all"=전체(토글)
   const _KEYLBL = /목표|반대|지지|저항|골든포켓|장기|중기|단기/;   // 중요 라벨 판별(목표·S/R·반대·주요 추세선)
-  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#c9a3ff", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#a99ae8", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#c99ad8" };
+  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#c9a3ff", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#c99ad8" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱" };
   function evIndicatorNodes() {
     const order = ["ma", "trend", "fib", "elliott", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "phasefold", "volume"];
@@ -4998,26 +4998,28 @@
     c.save();
     const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xNow, xRight, futBars, col } = M;
     if (!cy.period || !cy.fit || cy.fit.length < 2) { c.restore(); return; }
-    const COL = col || "#a99ae8";
+    const COL = col || "#d07ab0";
     const seam = (xNow != null ? xNow : fiToX(nowFi)), xr = (xRight != null ? xRight : seam + 80), fb = futBars || 24;
     const futX = fi => seam + Math.min(1, (fi - nowFi) / fb) * (xr - seam);
     const xAt = fi => fi <= nowFi ? fiToX(fi) : futX(fi);
     const cyVal = fi => (cy.icpt + cy.slope * fi) + cy.amp * Math.cos(cy.w * fi - cy.phi);
+    // 미래 투영은 진폭을 감쇠(추세선으로 수렴) → 단주기 사이클이 예측구간에서 급격히 꺾여 보이던 현상 완화. k=1은 감쇠 1(이음매 연속).
+    const cyFut = fi => { const kk = fi - nowFi; const cd = kk > 0 ? Math.exp(-(kk - 1) / (fb * 0.5)) : 1; return (cy.icpt + cy.slope * fi) + cy.amp * Math.cos(cy.w * fi - cy.phi) * cd; };
     if (reveal >= 1) {
       const pts = [];
       for (let fi = Math.max(fiMin, 0); fi <= nowFi; fi++) { const x = fiToX(fi), y = pToY(cy.fit[fi]); if (isFinite(x) && isFinite(y)) pts.push([x, y]); }
       const proj = Math.min(fb, Math.max(1, (cy.nextTurn ? cy.nextTurn.bars : 0) + 2));
-      for (let k = 1; k <= proj; k++) { const fi = nowFi + k, x = futX(fi), y = pToY(cyVal(fi)); if (isFinite(x) && isFinite(y)) pts.push([x, y]); }
+      for (let k = 1; k <= proj; k++) { const fi = nowFi + k, x = futX(fi), y = pToY(cyFut(fi)); if (isFinite(x) && isFinite(y)) pts.push([x, y]); }
       if (pts.length > 1 && _skReady()) {
-        c.strokeStyle = COL; c.globalAlpha = .7; c.lineWidth = 1.4; c.setLineDash([]);
+        c.strokeStyle = COL; c.globalAlpha = .6; c.lineWidth = 1.2; c.setLineDash([]);
         c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
         _skStroke(c, _polyLen(pts)); c.globalAlpha = 1;
       }
     }
     if (reveal >= 2 && _skReady() && cy.nextTurn) {
-      const tfi = nowFi + cy.nextTurn.bars, tx = xAt(tfi), ty = pToY(cyVal(tfi));
+      const tfi = nowFi + cy.nextTurn.bars, tx = xAt(tfi), ty = pToY(cyFut(tfi));
       if (isFinite(tx) && isFinite(ty)) {
-        c.setLineDash([3, 3]); c.strokeStyle = "rgba(169,154,232,.5)"; c.lineWidth = 1;
+        c.setLineDash([3, 3]); c.strokeStyle = "rgba(208,122,176,.5)"; c.lineWidth = 1;
         c.beginPath(); c.moveTo(tx, ty - 14); c.lineTo(tx, ty + 14); c.stroke(); c.setLineDash([]);
         c.fillStyle = COL; c.beginPath(); c.arc(tx, ty, 3, 0, 7); c.fill();
         _evLabel(c, (cy.nextTurn.type === "peak" ? "▲고점" : "▼저점") + " ~" + cy.nextTurn.bars + "봉", tx, ty + (cy.nextTurn.type === "peak" ? -8 : 14), COL, "right");
