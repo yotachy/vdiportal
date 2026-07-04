@@ -3705,7 +3705,18 @@
       else { for (const v of hist) { if (v < loV) loV = v; if (v > hiV) hiV = v; } }
     }
     if (atLatest) {
-      loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);   // '지금'(앵커=현재가)만 포함. 세로 오토스케일은 항상 "보이는 캔들 기준" — 예측 콘은 제외(넘치면 위/아래로 잘림). 콘이 스케일을 끌어올려 '전체 차트'처럼 보이던 문제 해소.
+      loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);   // '지금'(앵커=현재가) 포함
+      // 예측 밴드(음영=이론적 min/max)를 세로 스케일에 포함 → 예측 영역 전체가 프레임 안에 들어와 1/2/3차 라인이 화면 밖으로 튀지 않음.
+      // 캔들 과소축소 방지: 밴드가 캔들 범위의 3배를 넘으면 초과분만 잘림(라인 클램프가 안전망).
+      if (lo.length && hi.length) {
+        const _cR = (hiV - loV) || 1, _cap = 3;
+        let _bLo = loV, _bHi = hiV;
+        for (const v of lo) if (isFinite(v)) _bLo = Math.min(_bLo, v);
+        for (const v of hi) if (isFinite(v)) _bHi = Math.max(_bHi, v);
+        loV = Math.max(_bLo, hiV - _cR * _cap);
+        hiV = Math.min(_bHi, loV + _cR * _cap);
+        loV = Math.min(loV, anchor); hiV = Math.max(hiV, anchor);
+      }
     }
     if (!isFinite(loV) || !isFinite(hiV)) { loV = 0; hiV = 1; }
     const padV = (hiV - loV) * 0.08 || 1; loV -= padV; hiV += padV;
@@ -3820,8 +3831,9 @@
       // 중앙 예측선: 솔리드 + 소프트 글로우(방향 색조)
       c.save();
       c.strokeStyle = CT.core; c.lineWidth = 2.4; c.shadowColor = CT.glow; c.shadowBlur = 10;   // 예측 중앙선 = 핵심 산출물 → 굵게·강한 글로우로 강조
-      c.beginPath(); c.moveTo(seamX, toY(anchor));
-      for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k]));
+      const _cyM = y => Math.max(padTop + 1, Math.min(ch - padBot - 1, y));   // 극단 예측도 플롯 안에 유지(축이 밴드를 넘는 경우 안전망)
+      c.beginPath(); c.moveTo(seamX, _cyM(toY(anchor)));
+      for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), _cyM(toY(path[k])));
       c.stroke(); c.restore();
       // 반대 시나리오: '예상대로 가지 않았을 때'의 데이터 기반 대안 경로(엔진 pred.counter — 거울상 반사 아님)
       const _counter = pred && pred.counter;
@@ -5173,8 +5185,9 @@
         if (p2 && p2.path && p2.path.length && _2diff > 0.008) {   // 2차가 1차(종합)와 사실상 같으면 생략(중복 제거)
           const _sx = g.seamX, _cR = plotR, _pl = p2.path.length, _t2x = k => _sx + ((k + 1) / _pl) * (_cR - _sx);
           c.save(); c.strokeStyle = "#c6a3ff"; c.lineWidth = 2.4; c.setLineDash([6, 4]); c.lineJoin = "round"; c.shadowColor = "rgba(198,163,255,.5)"; c.shadowBlur = 6;
-          c.beginPath(); c.moveTo(_sx, toY(g.anchor));
-          for (let k = 0; k < _pl; k++) { const x = _t2x(k), y = toY(p2.path[k]); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
+          const _cy2 = y => Math.max(g.padTop + 1, Math.min(g.ch - g.padBot - 1, y));   // 플롯 밖으로 튀지 않게 클램프(축이 밴드를 넘는 극단 대비 안전망)
+          c.beginPath(); c.moveTo(_sx, _cy2(toY(g.anchor)));
+          for (let k = 0; k < _pl; k++) { const x = _t2x(k), y = _cy2(toY(p2.path[k])); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
           c.stroke(); c.setLineDash([]); c.shadowBlur = 0; c.restore();
           _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#c6a3ff", "2차\u00b7" + _c2.n, 12);
         }
