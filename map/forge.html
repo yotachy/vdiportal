@@ -1308,6 +1308,9 @@
     if (isFinite(g.anchor)) { lo = Math.min(lo, g.anchor); hi = Math.max(hi, g.anchor); }
     const _vN = Math.max(16, Math.round(pl * 0.6));                      // 세로 스케일엔 최근 예측길이×0.6 캔들만
     for (let i = Math.max(_chartWin.start, N - _vN); i < N; i++) { const v = price[i]; if (isFinite(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+    // 프레이밍 캡: 장기·고변동서 예측 밴드가 수배(예: 상단 9×)로 벌어져 캔들·예측이 한쪽에 몰리는 것 방지.
+    // 앵커 기준 상/하 2.8배 이내로 프레이밍 → 예측치가 화면을 위아래로 꽉 채움(극단 tip은 잘림·끝점 마커는 가장자리 클램프).
+    if (isFinite(g.anchor) && g.anchor > 0) { lo = Math.max(lo, g.anchor / 2.8); hi = Math.min(hi, g.anchor * 2.8); }
     if (!isFinite(lo) || !isFinite(hi) || hi <= lo) return;
     const pad = (hi - lo) * 0.06 || 1;
     _yScale = { mode: "manual", lo: lo - pad, hi: hi + pad };
