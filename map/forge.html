@@ -3735,7 +3735,7 @@
         for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), _cY(k));
         c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
         const _cey = _cY(path.length - 1);
-        _projMark(c, coneR, _cey, "rgb(" + _cCol + ")", 1 / 3);   // 반대선 끝점 = 메인과 동형 마커, 1/3 효과
+        _epicenterMark(c, coneR, _cey, "rgb(" + _cCol + ")", 1 / 3);   // 반대선 끝점 = 진앙지 마커 1/3(점선 유지)
         c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right";
         c.fillStyle = "rgba(" + _cCol + "," + Math.min(0.8, _cA + 0.34) + ")";
         c.fillText((_pd > 0 ? "▼" : "▲") + " 반대 " + _cProb + "%", coneR - 4, Math.max(padTop + 10, Math.min(ch - padBot - 4, _cey + (_pd > 0 ? 11 : -5))));
@@ -3748,8 +3748,8 @@
         for (const h of _mhs) { if (h < 1 || h >= path.length) continue; const mx = toXf(h - 1), my = toY(path[h - 1]); c.beginPath(); c.arc(mx, my, 2, 0, 7); c.fill(); c.strokeStyle = "#0b0f14"; c.lineWidth = 1; c.stroke(); }
       } catch (e) {}
       // 예측 종점 마커
-      const _ex = coneR, _ey = toY(path[path.length - 1]);
-      _projMark(c, _ex, _ey, CT.core);   // 메인 예상 끝점 = 글로우 마커(강조)
+      const _ex = coneR, _ey = Math.max(padTop + 12, Math.min(ch - padBot - 12, toY(path[path.length - 1])));
+      _epicenterMark(c, _ex, _ey, CT.core, 1);   // 메인 예상 끝점 = 진앙지 마커(강조·플롯 안 클램프)
     }
     // y labels (right)
     c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
@@ -4260,6 +4260,18 @@
     c.beginPath(); c.arc(x, y, 4.8 * sc, 0, 7); c.fill();
     c.shadowBlur = 0; c.strokeStyle = "rgba(11,15,20,.92)"; c.lineWidth = 1.6; c.stroke();
     c.globalAlpha = op ? 0.5 : .92; c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, 1.7 * sc, 0, 7); c.fill();
+    c.restore();
+  }
+  // 지진 진앙지형 마커 — 동심원 파문 + 글로우 코어. scale<1이면 축소·감광(반대 예상선 끝점=1/3)
+  function _epicenterMark(c, x, y, col, scale) {
+    if (!isFinite(x) || !isFinite(y)) return;
+    const sc = scale || 1, op = sc < 1;
+    c.save(); c.lineCap = "round";
+    c.strokeStyle = col; c.lineWidth = Math.max(1, 1.5 * sc);
+    for (let r = 0; r < 3; r++) { c.globalAlpha = (0.55 - r * 0.15) * (op ? 0.72 : 1); c.beginPath(); c.arc(x, y, (6 + r * 5.5) * sc, 0, 7); c.stroke(); }   // 파문 3겹
+    c.globalAlpha = op ? 0.75 : 1; c.shadowColor = col; c.shadowBlur = 9 * sc; c.fillStyle = col;
+    c.beginPath(); c.arc(x, y, 3.2 * sc, 0, 7); c.fill();
+    c.shadowBlur = 0; c.globalAlpha = op ? 0.85 : 1; c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, Math.max(0.9, 1.2 * sc), 0, 7); c.fill();
     c.restore();
   }
   // 시계열을 최근 봉당 기울기로 감쇠 연장 → 예측구간에 강조 투영 + 도달 라벨(포커스 지표 공용)
