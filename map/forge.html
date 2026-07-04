@@ -893,9 +893,10 @@
   .m-chip.on{background:rgba(232,180,99,.16);border-color:var(--gold);color:var(--gold)}
   .m-chip-add{color:var(--gold);border-style:dashed;font-weight:800;padding:6px 11px}
   .m-sub .tk-panel{border:0}
-  .m-sub .h-auth{flex:0 0 auto;margin:0;gap:6px}
-  .m-sub .auth-btn{padding:5px 9px;font-size:11px;gap:5px}
-  .m-sub .auth-btn .g-icon{width:14px;height:14px}
+  .m-sub .h-actions{flex:0 0 auto;margin:0;display:flex;align-items:center;gap:6px}
+  .m-sub .eng-stat,.m-sub #engineBtn,.m-sub .analyze-prog,.m-sub .h-sep{display:none}
+  .m-sub .run-btn,.m-sub .play-btn{padding:6px 11px;font-size:12px}
+  .m-sub .run-btn .hlbl,.m-sub .play-btn .hlbl{display:inline}
   @media (max-width: 860px) {
     .forge-top{position:fixed;top:0;left:0;right:0;z-index:200}   /* 헤더 고정 — 웹분석/시연 항상 접근 */
     .forge-top .run-btn .hlbl,.forge-top .play-btn .hlbl{display:inline}   /* 웹분석/시연 라벨 복원 */
@@ -915,6 +916,7 @@
     .fc-hero canvas{touch-action:pan-y}   /* 모바일: 한 손가락 세로 = 페이지 스크롤(차트가 안 가로챔), 2손가락 = 핀치 줌 */
     .forge-top .brand{font-size:15px}
     .forge-top .brand-mark{width:22px;height:22px}
+    .forge-top .h-auth{margin-left:auto}   /* 로그인 우측 정렬(웹분석/시연은 포지 줄로 내려감) */
     .fc-head-right .ev-toggle{padding:5px 9px;font-size:15px}
     .forge-shell{flex-direction:column;height:auto}
     .forge-side{flex:0 0 auto;width:100%;border-right:none;border-bottom:1px solid var(--line);max-height:44vh;overflow-y:auto}
@@ -1775,7 +1777,7 @@
     if (mobile) {
       if (!sub) { sub = document.createElement("div"); sub.id = "mSub"; sub.className = "m-sub"; sub.innerHTML = `<div class="m-poji" id="mPoji"></div>`; top.insertAdjacentElement("afterend", sub); }
       if (tk && shell && tk.parentElement !== shell) shell.insertBefore(tk, shell.firstChild);   // 티커는 고정 아님 → 스크롤 본문 최상단(헤더 아래)
-      const _auth = document.querySelector(".h-auth"); if (_auth && _auth.parentElement !== sub) sub.appendChild(_auth);   // 인증 버튼 → 포지 칩 줄 우측
+      const _hact = document.querySelector(".h-actions"); if (_hact && _hact.parentElement !== sub) sub.appendChild(_hact);   // 웹분석/시연 → 포지 칩 줄 우측(로그인은 헤더 상단 유지)
       renderMobilePoji();
       sub.style.top = top.offsetHeight + "px";
       const _hh = top.offsetHeight + sub.offsetHeight;
@@ -1784,8 +1786,8 @@
     } else {
       const bp = document.getElementById("boardPane");
       if (tk && bp && tk.parentElement !== bp) bp.insertBefore(tk, bp.firstChild);   // 데스크톱: 티커 원위치(보드팬 최상단)
-      const _auth = document.querySelector(".h-auth"), _ftop = document.querySelector(".forge-top");
-      if (_auth && _ftop && _auth.parentElement !== _ftop) _ftop.appendChild(_auth);   // 데스크톱: 인증 버튼 헤더 복귀
+      const _hact = document.querySelector(".h-actions"), _ftop = document.querySelector(".forge-top"), _auth2 = document.querySelector(".h-auth");
+      if (_hact && _ftop && _hact.parentElement !== _ftop) { if (_auth2 && _auth2.parentElement === _ftop) _ftop.insertBefore(_hact, _auth2); else _ftop.appendChild(_hact); }   // 데스크톱: h-actions 헤더 복귀(h-auth 앞)
       if (sub) sub.remove();
       if (shell) shell.style.paddingTop = "";
       document.documentElement.style.setProperty("--mhead", "0px");
