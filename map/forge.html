@@ -524,8 +524,8 @@
   /* ── 노드 편집기 (우측 패널) ── */
   .node-editor{flex:1;min-height:0;overflow-y:auto;display:none;flex-direction:column;gap:11px;padding:13px 15px;
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-  .chart-pane.editing .fc-wrap{display:none}
-  .chart-pane.editing .node-editor{display:flex}
+  .board-pane.editing #wlist,.board-pane.editing #wboard,.board-pane.editing .b-stage{display:none}   /* 편집 중 가운데 분석내용 숨김 */
+  .board-pane.editing .node-editor{display:flex}
   /* 차트로 돌아가기 = 편집기 상단 고정 바(항상 보이게·눈에 띄게) */
   .ne-back{position:sticky;top:-13px;z-index:6;margin:-13px -15px 6px;align-self:stretch;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(22,29,38,.99),rgba(22,29,38,.92));border:0;border-bottom:1px solid var(--gold-dim);color:var(--gold);border-radius:0;font-size:13px;font-weight:800;padding:12px 15px;cursor:pointer;font-family:inherit;backdrop-filter:blur(5px);letter-spacing:-.01em}
   .ne-back:hover{background:rgba(232,180,99,.16)}
@@ -2119,7 +2119,7 @@
   /* 노드 선택 시 우측 패널을 편집기로 전환, 미선택 시 결과 차트로 복귀 */
   function renderParams() {
     const panel = document.getElementById("paramPanel");
-    const pane = document.getElementById("chartPane");
+    const pane = document.getElementById("boardPane");   // 편집기는 가운데 패널에서(차트는 계속 보이게)
     if (!panel || !pane) return;
     const n = (sel.length === 1) ? bN(sel[0]) : null;
     if (!n) {
@@ -2231,7 +2231,7 @@
          <div class="pp-row"><label>현재가</label><input type="number" step="any" data-calp="np" value="${cal0.np ?? ""}" placeholder="최근 종가(현재선)"></div>`
       : "";
     panel.innerHTML =
-      `<button class="ne-back" onclick="deselectAll()" title="차트 결과로 돌아가기 (Esc)">← 차트 결과로 돌아가기<span class="neb-esc">Esc</span></button>
+      `<button class="ne-back" onclick="deselectAll()" title="편집 닫기 (Esc)">← 분석으로 돌아가기<span class="neb-esc">Esc</span></button>
        <div class="ne-head"><span class="ne-type">${esc(neTypeLabel(n))}</span>
          <input class="ne-title" id="neTitle" value="${esc(n.title || "")}" placeholder="노드 제목"></div>
        <div class="ne-img${hasImg ? "" : " empty"}" id="neImg" title="${hasImg ? "드래그 · Ctrl+V로 교체" : "클릭 · 드래그 · Ctrl+V로 이미지 추가"}">${imgInner}</div>
@@ -7446,6 +7446,7 @@
   /* ── Boot ────────────────────────────────────────────────────── */
   document.addEventListener("DOMContentLoaded", () => {
     boardInit();
+    { const _pp = document.getElementById("paramPanel"), _bp = document.getElementById("boardPane"); if (_pp && _bp && _pp.parentElement !== _bp) _bp.appendChild(_pp); }   // 편집기를 가운데 패널로 이동
     if (typeof startFx === "function") startFx();   // 예측영역 앰비언트 FX 루프
     renderTheme();
 
