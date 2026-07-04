@@ -4219,6 +4219,7 @@
       const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = weak ? "· 약함" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
       const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir;
       _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, weak ? "rgba(138,146,178,.92)" : COL[key], "left");
+      if (M.focused && !weak && key === "mid") { const endV = valAt(nowFi + futBars); if (isFinite(endV)) _evLabel(c, "\ucd94\uc138 \ub3c4\ub2ec \u2248 " + _hzFmt(endV), xRight, pToY(endV), COL[key], "right"); }   // 추세 도달 ≈
     }
     // 채널(장기 ±k·σ) — 로그차트면 로그공간(지수) 중심±σ, 다점 샘플로 곡선 정합
     if (ta.channel) {
@@ -4697,6 +4698,10 @@
       const col = ic.bias > 0.15 ? "#46c28e" : ic.bias < -0.15 ? "#e06a6a" : "#8a92b2";
       if (isFinite(x) && isFinite(y)) _evLabel(c, "일목 " + pos + " · " + (ic.cloud === "bull" ? "양운" : ic.cloud === "bear" ? "음운" : "중립"), x - 6, y - 14, col, "right");
     }
+    if (M.focused && _skReady() && ic.spanA && ic.spanB) {   // 포커스: 미래 구름 도달 밴드(선행스팬 26앞 투영)
+      const a = ic.spanA[nowFi], b = ic.spanB[nowFi];
+      if (isFinite(a) && isFinite(b)) { const mid = (a + b) / 2, col2 = ic.cloud === "bull" ? "#46c28e" : ic.cloud === "bear" ? "#e06a6a" : "#8a92b2"; _evLabel(c, "일목 구름 \u2248 " + _hzFmt(Math.min(a, b)) + "~" + _hzFmt(Math.max(a, b)), xr, pToY(mid), col2, "right"); }
+    }
     c.restore();
   }
   // 시장구조 — 직전 스윙 고/저 레벨 + 스윙 점 + BOS/CHoCH 마커
@@ -4841,7 +4846,7 @@
           if (_drawThis) _drawTrendLayers(cc, ta, {
             fiToX,
             pToY: v => toY(v),
-            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: wS
+            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: wS, focused: (_focus === "trend")
           });
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "fib") {
@@ -4875,7 +4880,7 @@
           legend.push({ col, t: EV_LABEL.volumeprofile, _key: n.blockType });
         } else if (n.blockType === "ichimoku") {
           const ic = _an("Ichimoku", price, { tenkan: (n.params && n.params.tenkan) || 9, kijun: (n.params && n.params.kijun) || 26, senkouB: (n.params && n.params.senkouB) || 52, shift: (n.params && n.params.shift) || 26 });
-          if (_drawThis) _drawIchimokuLayers(cc, ic, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xNow: g.seamX, xRight: g.padX + g.plotW, futBars: (g.path && g.path.length) || 24 });
+          if (_drawThis) _drawIchimokuLayers(cc, ic, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xNow: g.seamX, xRight: g.padX + g.plotW, futBars: (g.path && g.path.length) || 24, focused: (_focus === "ichimoku") });
           legend.push({ col, t: EV_LABEL.ichimoku, _key: n.blockType });
         } else if (n.blockType === "structure") {
           const st = _an("Structure", price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });

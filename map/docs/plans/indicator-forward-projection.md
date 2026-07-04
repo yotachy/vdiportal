@@ -26,7 +26,8 @@
 - [x] Phase 2: 이동평균 투영 (커밋 대기)
 - [x] Phase 3: 일목균형 — 이미 구름 투영됨(확인). parity 라벨은 후속
 - [~] Phase 4: 성능 — 투영은 focused 시에만 그려짐(포커스 1개). analyze는 _an 캐시. 배포 진행
-- [ ] Phase 5(후속): 추세선·일목 '도달 예상가' end-label parity + 볼린저/VWAP/슈퍼트렌드 확장
+- [x] Phase 5a: 추세선(중기 도달 예상가)·일목(미래 구름 밴드) 포커스 end-label parity 완료
+- [ ] Phase 5b(후속): 볼린저/VWAP/슈퍼트렌드 투영 확장 + (심화)투영곡선 융합
 
 ## 검증
 - `node map/forge-core.test.js` 129+ 통과 유지(엔진 변경 시).
