@@ -1541,6 +1541,22 @@
     else { const above = _lvls.filter(v => v > last * Math.exp(_minMove)).sort((a, b) => a - b); _cTarget = above.length ? above[0] : null; }
     if (_cTarget == null || !isFinite(_cTarget)) { _cTarget = last * Math.exp(_mainUp ? -_sd1 : _sd1); _cBasis = "변동성 1σ"; }   // 레벨 없음 폴백
     const _cDrift = Math.log(_cTarget / last);   // 목표 레벨까지의 로그드리프트(크기=실제 거리)
+    // ── 이론적 min/max 음영: 바깥 경계를 최근접 유의 지지/저항(기술적 레벨)까지 '매끈한 콘'으로 확장 ──
+    // 음영 = 순수 이론적(기술적) 최저/최고치, 그 안이 확률 음영(내부 코어). 라인(1/2/3차)에 밴드를 맞추는 게 아니라
+    // 밴드를 제대로 넓혀 라인이 자연히 그 안에 들게 함. 콘은 반대선(counter)과 동일 수렴형(prog)이라 3차가 항상 안쪽.
+    {
+      const _resAbove = _lvls.filter(v => v > last * Math.exp(_minMove)).sort((a, b) => a - b)[0];   // 최근접 저항
+      const _supBelow = _lvls.filter(v => v < last * Math.exp(-_minMove)).sort((a, b) => b - a)[0];  // 최근접 지지
+      const _volCap = _sd1 * 3.2, _volFloor = _sd1 * 1.1;   // 이론 극값: 변동성 1.1σ~3.2σ 범위로 제한(레벨이 없거나 과도히 멀 때)
+      const _hiExt = Math.min(_volCap, Math.max(_volFloor, _resAbove ? Math.log(_resAbove / last) : 0)) * 1.06;
+      const _loExt = Math.min(_volCap, Math.max(_volFloor, _supBelow ? Math.log(last / _supBelow) : 0)) * 1.06;   // 1.06 = 선 굵기·계절/질감 여유
+      for (let k = 1; k <= futW; k++) {
+        const prog = 1 - Math.exp(-2.6 * k / futW);
+        const _hT = last * Math.exp(_hiExt * prog), _lT = last * Math.exp(-_loExt * prog);
+        if (_hT > hi[k - 1]) hi[k - 1] = _hT;   // 변동성 콘과 이론 콘의 합집합(넓은 쪽)
+        if (_lT < lo[k - 1]) lo[k - 1] = _lT;
+      }
+    }
     const counter = [];
     for (let k = 1; k <= futW; k++) {
       const prog = 1 - Math.exp(-2.6 * k / futW);   // 목표로 수렴(초반 빠르게, 후반 안착)

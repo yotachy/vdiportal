@@ -1215,7 +1215,7 @@
   </div>
   <div class="b-toast" id="bToast"></div>
 
-  <script src="forge-core.js?v=20260704j"></script>   <!-- ?v= 캐시버스터: 엔진 수정 시 값 갱신(옛 forge-core.js 캐시 방지) -->
+  <script src="forge-core.js?v=20260704k"></script>   <!-- ?v= 캐시버스터: 엔진 수정 시 값 갱신(옛 forge-core.js 캐시 방지) -->
   <script>
   /* ════════════════════════════════════════════════════════════════
      BOARD ENGINE  — lightweight port of Scoop Board (map/map.html)
@@ -3682,32 +3682,13 @@
     const wStart = _chartWin.start, wCount = _chartWin.count;
     const hist = (series || []).slice(wStart, wStart + wCount);
     const atLatest = (wStart + wCount >= N);
-    const path = atLatest ? ((pred && pred.path) || []) : [];
-    let lo = atLatest ? ((pred && pred.lo) || []).slice() : [], hi = atLatest ? ((pred && pred.hi) || []).slice() : [];   // 복사본(엔진결과 보존) — 아래서 표시 시나리오 포락선으로 확장
+    const path = atLatest ? ((pred && pred.path) || []) : [], lo = atLatest ? ((pred && pred.lo) || []) : [], hi = atLatest ? ((pred && pred.hi) || []) : [];
     if (hist.length < 2) {
       c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
       c.fillText("분석 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return;
     }
     c.save(); c.translate(_heroZoom.tx, _heroZoom.ty); c.scale(_heroZoom.s, _heroZoom.s);
     const anchor = (pred && pred.anchor != null) ? pred.anchor : hist[hist.length - 1];
-    // 음영 밴드(=이론적 min/max)를 표시되는 모든 예측선의 포락선으로 확장 → 지표 조합과 무관하게 1/2/3차가 항상 음영 안에.
-    if (atLatest && path.length && lo.length === path.length && hi.length === path.length) {
-      try {
-        const _c2 = (typeof _get2ndPred === "function") ? _get2ndPred() : null;
-        const _2p = _c2 && _c2.pred && _c2.pred.path;   // 2차(선택조합)
-        const _3p = pred && pred.counter;               // 3차(최대역치·반대 시나리오)
-        for (let k = 0; k < path.length; k++) {
-          const cands = [];
-          if (_2p && isFinite(_2p[k])) cands.push(_2p[k]);
-          if (_3p && _3p.length === path.length && isFinite(_3p[k])) cands.push(_3p[k]);
-          for (const v of cands) {
-            const pad = Math.abs(v - path[k]) * 0.04 + Math.abs(anchor) * 0.004;   // 선 굵기·글로우가 경계 안쪽에 들어오도록 소폭 여유
-            if (v > hi[k]) hi[k] = v + pad;
-            if (v < lo[k]) lo[k] = v - pad;
-          }
-        }
-      } catch (e) {}
-    }
     const _oh = (typeof priceOHLC === "function") ? priceOHLC() : null;
     const _ohW = (_oh && _oh.length === N) ? _oh.slice(wStart, wStart + wCount) : null;
     let loV = Infinity, hiV = -Infinity;
