@@ -4894,6 +4894,27 @@
     }
     c.restore();
   }
+  // 2차 예측: 범례 표시중(_evVisible / 포커스) 지표만의 조합으로 엔진 재실행(캐시). 메인=전체 추가지표.
+  let _pred2Cache = { key: null, pred: null, n: 0 };
+  function _get2ndPred() {
+    const data = _fcLastData || (typeof currentData === "function" ? currentData() : null);
+    if (!data || typeof ForgeCore === "undefined" || !ForgeCore.run || typeof boardToGraph !== "function") return null;
+    const act = _focusInd ? new Set([_focusInd]) : _evVisible;
+    const tfk = (typeof activeTF === "function") ? activeTF() : "1day";
+    const key = [...act].sort().join(",") + "|" + tfk;
+    if (_pred2Cache.key === key && _pred2Cache.pred) return _pred2Cache;
+    try {
+      const full = boardToGraph();
+      const nodes = full.nodes.filter(nd => nd.kind !== "block" || nd.blockType === "ticker" || nd.blockType === "price" || act.has(nd.blockType));
+      const ids = new Set(nodes.map(nd => nd.id));
+      const edges = (full.edges || []).filter(e => ids.has(e.from) && ids.has(e.to));
+      const nInd = nodes.filter(nd => nd.kind === "block" && act.has(nd.blockType)).length;
+      const dw = (typeof _driftW !== "undefined") ? _driftW : {};
+      const r = ForgeCore.run({ nodes, edges }, data, { futW: horizonForTF(tfk), timeframe: tfk, driftWeights: dw });
+      _pred2Cache = { key, pred: r.prediction, n: nInd };
+      return _pred2Cache;
+    } catch (e) { return null; }
+  }
   function drawEvidence() { try { _drawEvidence(); } catch (e) { console.warn("evidence", e); } }
   function _drawEvidence() {
     const cv = document.getElementById("fcEvidence"); if (!cv) return;
@@ -5025,6 +5046,21 @@
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
       }
+      // 2차 예측선(표시중 지표 조합) — 메인(전체 지표)과 비교용. 보라 점선.
+      try {
+        const _c2 = _get2ndPred(), p2 = _c2 && _c2.pred;
+        if (p2 && p2.path && p2.path.length) {
+          const _sx = g.seamX, _cR = plotR, _pl = p2.path.length, _t2x = k => _sx + ((k + 1) / _pl) * (_cR - _sx);
+          c.save(); c.strokeStyle = "#b892f5"; c.lineWidth = 1.8; c.setLineDash([2, 3]); c.lineJoin = "round"; c.shadowColor = "rgba(184,146,245,.45)"; c.shadowBlur = 5;
+          c.beginPath(); c.moveTo(_sx, toY(g.anchor));
+          for (let k = 0; k < _pl; k++) { const x = _t2x(k), y = toY(p2.path[k]); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
+          c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
+          const _e2x = Math.min(_cR, plotR - 6), _e2y = Math.max(g.padTop + 12, Math.min(g.ch - g.padBot - 12, toY(p2.path[_pl - 1])));
+          c.shadowColor = "#b892f5"; c.shadowBlur = 8; c.fillStyle = "#b892f5"; c.beginPath(); c.arc(_e2x, _e2y, 3.2, 0, 7); c.fill(); c.shadowBlur = 0;
+          c.font = "700 9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right"; c.fillStyle = "rgba(184,146,245,.98)";
+          c.fillText("2차 표시중 " + _c2.n + "개", _e2x - 6, _e2y - 6);
+        }
+      } catch (e) {}
       _evLegend(cHi || c, g.padX, g.padTop, legendAll);   // 범례는 선명 캔버스에(모든 지표 나열, 표시/숨김 토글)
     } else {
       const cone = document.getElementById("fcCone"), g = cone && cone._coneGeo; if (!g) { c.restore(); return; }
