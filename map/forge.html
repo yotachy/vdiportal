@@ -3735,7 +3735,7 @@
         for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), _cY(k));
         c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
         const _cey = _cY(path.length - 1);
-        _epicenterMark(c, coneR, _cey, "rgb(" + _cCol + ")", 1 / 3);   // 반대선 끝점 = 진앙지 마커 1/3(점선 유지)
+        _epicenterMark(c, Math.min(coneR, padX + plotW - 7), Math.max(padTop + 14, Math.min(ch - padBot - 14, _cey)), "rgb(" + _cCol + ")", 1 / 3);   // 반대선 끝점 = 진앙지 마커 1/3(플롯 안·점선 유지)
         c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right";
         c.fillStyle = "rgba(" + _cCol + "," + Math.min(0.8, _cA + 0.34) + ")";
         c.fillText((_pd > 0 ? "▼" : "▲") + " 반대 " + _cProb + "%", coneR - 4, Math.max(padTop + 10, Math.min(ch - padBot - 4, _cey + (_pd > 0 ? 11 : -5))));
@@ -3748,8 +3748,8 @@
         for (const h of _mhs) { if (h < 1 || h >= path.length) continue; const mx = toXf(h - 1), my = toY(path[h - 1]); c.beginPath(); c.arc(mx, my, 2, 0, 7); c.fill(); c.strokeStyle = "#0b0f14"; c.lineWidth = 1; c.stroke(); }
       } catch (e) {}
       // 예측 종점 마커
-      const _ex = coneR, _ey = Math.max(padTop + 12, Math.min(ch - padBot - 12, toY(path[path.length - 1])));
-      _epicenterMark(c, _ex, _ey, CT.core, 1);   // 메인 예상 끝점 = 진앙지 마커(강조·플롯 안 클램프)
+      const _ex = Math.min(coneR, padX + plotW - 12), _ey = Math.max(padTop + 14, Math.min(ch - padBot - 14, toY(path[path.length - 1])));
+      _epicenterMark(c, _ex, _ey, CT.core, 1);   // 메인 예상 끝점 = 진앙지 마커(강조·플롯 안)
     }
     // y labels (right)
     c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
