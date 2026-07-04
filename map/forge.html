@@ -144,9 +144,11 @@
   .sig-arw.up{color:#46c28e}.sig-arw.dn{color:#e06a6a}.sig-arw.fl{color:var(--muted)}
   .sig-name{color:var(--ink);font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sig-note{color:var(--eth);font-family:Pretendard,system-ui,sans-serif;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .sig-bar{height:5px;border-radius:var(--r-sm);background:rgba(138,146,178,.16);overflow:hidden}
-  .sig-bar>i{display:block;height:100%;border-radius:var(--r-sm)}
-  .sig-bar>i.up{background:#46c28e}.sig-bar>i.dn{background:#e06a6a}.sig-bar>i.fl{background:var(--muted)}
+  .sig-bar{height:4px;border-radius:99px;background:rgba(138,146,178,.1);overflow:hidden}
+  .sig-bar>i{display:block;height:100%;border-radius:99px;box-shadow:0 0 5px -1px currentColor;transition:width .4s cubic-bezier(.4,0,.2,1)}
+  .sig-bar>i.up{background:linear-gradient(90deg,rgba(70,194,142,.45),#46c28e);color:#46c28e}
+  .sig-bar>i.dn{background:linear-gradient(90deg,rgba(224,106,106,.45),#e06a6a);color:#e06a6a}
+  .sig-bar>i.fl{background:linear-gradient(90deg,rgba(139,152,166,.4),var(--muted));color:var(--muted)}
   .wl-name{font-size:12.5px;color:var(--ink);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
   .wl-name:hover{color:var(--gold)}
   .wl-sig{margin:0}
@@ -650,8 +652,8 @@
   /* 상단 진행 HUD = 차트 위 플로팅 칩(접기·이동·숨김) */
   .play-hud{position:absolute;left:12px;top:12px;right:auto;z-index:10;display:none;flex-direction:column;
     width:auto;max-width:440px;min-width:320px;
-    background:linear-gradient(180deg,rgba(14,18,24,.97),rgba(14,18,24,.9));
-    border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;backdrop-filter:blur(6px);
+    background:rgba(11,15,20,.82);
+    border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;
     box-shadow:0 8px 24px rgba(0,0,0,.42);
     transform:translateY(-8px);opacity:0;transition:transform .24s ease,opacity .24s ease}
   .play-hud.on{display:flex;transform:translateY(0);opacity:1}
@@ -664,7 +666,7 @@
   .ph-btn:hover{border-color:var(--gold);color:var(--gold)}
   /* 하단 진행 로그 = 접기 가능 */
   .analyze-log{position:fixed;right:16px;top:72px;z-index:40;width:340px;
-    background:rgba(11,15,20,.86);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;
+    background:rgba(11,15,20,.82);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;
     font-family:Pretendard,system-ui,sans-serif;font-size:11.5px;color:var(--ink);display:none}
   .analyze-log.on{display:block}
   .analyze-log .al-ctl{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 8px;border-bottom:1px solid var(--line);cursor:grab;touch-action:none}
@@ -983,7 +985,7 @@
               </div>
               <button class="ev-toggle" id="viewToggle" style="display:none" onclick="cycleHeroView()">📈<span class="hlbl"> 차트뷰</span></button>
               <button class="ev-toggle on" id="evToggle" title="노드별 근거 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3.5l2.4-7 4 14 2.4-7H21"/></svg><span class="hlbl"> 근거</span></button>
-              <button class="ev-toggle" id="lblBtn" title="중요 라벨만 — 목표·반대·지지/저항만 표시(라벨 겹침 완화)" onclick="toggleLabelMode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7.5V19l-4 2v-8.5z"/></svg><span class="hlbl"> 핵심라벨</span></button>
+              <button class="ev-toggle on" id="lblBtn" title="핵심 라벨만 — 목표·반대·지지/저항·추세선만(차트 정돈). 끄면 전체 라벨" onclick="toggleLabelMode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7.5V19l-4 2v-8.5z"/></svg><span class="hlbl"> 핵심라벨</span></button>
               <button class="ev-toggle" id="tuneBtn" title="지표별 bias 기여 가중치 조절 — 각 지표가 예측 방향에 얼마나 반영될지" onclick="toggleTunePop()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="10" cy="8" r="2.6" fill="currentColor" stroke="none"/><circle cx="15" cy="16" r="2.6" fill="currentColor" stroke="none"/></svg><span class="hlbl"> 가중치</span></button>
               <button class="ev-toggle" id="riskBtn" title="리스크·포지션 사이징 — 분석 기준 진입/손절/목표로 수량·손익비 계산" onclick="openRiskTool()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.3-2.9 7.2-7 8.5-4.1-1.3-7-4.2-7-8.5V6z"/></svg><span class="hlbl"> 리스크</span></button>
               <button class="ev-toggle" id="optBtn" title="파라미터 최적화 — 지표 설정을 과거 데이터로 백테스트해 적중률 지형 탐색" onclick="openOptTool()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.3"/></svg><span class="hlbl"> 최적화</span></button>
@@ -1198,6 +1200,7 @@
   // 예측 콘이 세로로 화면을 벗어났을(클리핑) 때만 현재가 근처에 버튼 표시
   function updateFitBtn() {
     const btn = document.getElementById("fcFitBtn"); if (!btn) return;
+    btn.style.display = "none"; return;   // 확대 버튼 보류(추후 개선) — 항상 숨김
     const cv = document.getElementById("fcMainChart"), g = cv && cv._mainGeo;
     if (!g || !g.pathLen || !g.atLatest) { btn.style.display = "none"; return; }   // 콘 없거나 최신 아님 → 숨김
     const M = 6;   // 허용 마진(px) — 이보다 많이 벗어나면 버튼 재등장
@@ -3067,9 +3070,10 @@
     c.fillStyle = "#fff"; c.font = "10px ui-monospace,monospace";
     c.fillText(bestP.toFixed(0) + "봉 주기", Math.min(xc + 4, cw - 58), 22);
     // '읽는 법' 캡션(초보 인지성)
-    c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
-    c.fillStyle = "rgba(11,15,20,.6)"; c.fillRect(44, ch - 12, cw - 58, 12);
-    c.fillStyle = "#8892a8"; c.fillText("봉우리(%↑) = 그 주기가 뚜렷 · 흰선 = 지배 주기(가격이 반복되는 간격)", 46, ch - 3);
+    c.textAlign = "left";
+    c.fillStyle = "rgba(9,12,17,.9)"; c.fillRect(0, ch - 16, cw, 16);
+    c.font = "600 10.5px Pretendard,'Malgun Gothic',sans-serif"; c.fillStyle = "#c4ccdc";
+    c.fillText("주기 스펙트럼: 봉우리(%↑) = 그 주기가 뚜렷 · 흰선 = 지배 주기(가격이 반복되는 간격)", 6, ch - 4.5);
   }
 
   /* ── fcDrawRsi: RSI oscillator sub-panel (0–100) ── */
@@ -3145,8 +3149,8 @@
     { const _le = adx.length - 1; c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
       c.fillStyle = "#46c28e"; c.fillText("+DI", padL + plotW + 3, yOf(pDI[_le]) + 3);
       c.fillStyle = "#e06a6a"; c.fillText("−DI", padL + plotW + 3, yOf(mDI[_le]) + 3);
-      c.fillStyle = "rgba(11,15,20,.6)"; c.fillRect(padL, ch - 12, 250, 12);
-      c.fillStyle = "#8892a8"; c.fillText("ADX선↑ = 추세 강함(25+) · +DI(초록)>−DI(빨강) = 상승 우위", padL + 1, ch - 3); }
+      c.fillStyle = "rgba(9,12,17,.9)"; c.fillRect(0, ch - 16, cw, 16);
+      c.font = "600 10.5px Pretendard,'Malgun Gothic',sans-serif"; c.fillStyle = "#c4ccdc"; c.fillText("ADX↑ = 추세 강함(25+) · +DI(초록) > −DI(빨강) = 상승 우위 · <25 = 횡보", padL + 2, ch - 4.5); }
     { const meta = document.getElementById("fcAdxMeta"); if (meta) { const strong = a.last.adx >= 40 ? "매우 강한 추세" : a.last.adx >= 25 ? "추세 형성" : "추세 약함(횡보)"; const weak = a.last.adx < 25; const ac = weak ? "fl" : a.dir > 0 ? "up" : a.dir < 0 ? "dn" : "fl"; const dir = a.dir > 0 ? " · 상승 우위" : a.dir < 0 ? " · 하락 우위" : ""; meta.innerHTML = "ADX " + a.last.adx.toFixed(0) + " <span class='fc-verdit " + ac + "'>" + strong + (weak ? "" : dir) + "</span>"; } } _osReveal(c, cw, ch, reveal);
   }
 
@@ -3686,7 +3690,7 @@
   let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
   let _evLabelBoxes = [];        // 라벨 겹침 회피용 박스 레지스트리(_drawEvidence마다 리셋)
   let _axisLabelBoxes = [];      // 세로축 눈금·현재가 pill 박스(라벨 회피용으로 미리 예약)
-  let _labelMode = "all";        // "all"=전체 라벨 / "key"=중요 라벨만
+  let _labelMode = "key";        // 기본 "key"=중요 라벨만(차트 정돈) / "all"=전체(토글)
   const _KEYLBL = /목표|반대|지지|저항|골든포켓|장기|중기|단기/;   // 중요 라벨 판별(목표·S/R·반대·주요 추세선)
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#c9a3ff", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#a99ae8", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#c99ad8" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱" };
