@@ -60,6 +60,25 @@
   .forge-gutter::after{content:"";position:absolute;left:2px;top:50%;width:3px;height:34px;transform:translateY(-50%);border-radius:var(--r-sm);background:#3a4452;transition:background .12s}
   .forge-gutter:hover,.forge-gutter.dragging{background:var(--gold-dim)}
   .forge-gutter:hover::after,.forge-gutter.dragging::after{background:var(--gold)}
+  .ind-rail{flex:0 0 178px;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+  .ind-rail .ir-head{font-size:11px;color:var(--eth);padding:11px 10px 7px;display:flex;justify-content:space-between;align-items:baseline;font-weight:700;position:sticky;top:0;background:var(--panel);z-index:2;border-bottom:1px solid var(--line)}
+  .ind-rail .ir-head .ir-sub{font-size:9px;font-weight:600;color:var(--faint);letter-spacing:-.02em}
+  .ind-rail .ir-row{display:flex;align-items:center;gap:9px;padding:6px 8px 6px 10px;border-bottom:1px solid var(--line);color:var(--eth);font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition:background .12s,color .12s}
+  .ind-rail .ir-row:hover{background:rgba(255,255,255,.04);color:var(--ink)}
+  .ind-rail .ir-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.4);display:grid;place-items:center;transition:background .12s,border-color .12s}
+  .ind-rail .ir-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
+  .ind-rail .ir-row.on{color:var(--ink)}
+  .ind-rail .ir-row.on .ir-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2)}
+  .ind-rail .ir-row.on .ir-chk::after{opacity:1;transform:scale(1)}
+  .ind-rail .ir-row.sel{box-shadow:inset 2px 0 0 var(--gold)}
+  .ind-rail .ir-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ind-rail .ir-edit{flex:0 0 auto;width:18px;height:18px;border:0;background:transparent;color:var(--eth);font-size:11px;cursor:pointer;opacity:0;border-radius:var(--r-sm);display:grid;place-items:center;padding:0}
+  .ind-rail .ir-row:hover .ir-edit{opacity:.6}
+  .ind-rail .ir-edit:hover{opacity:1;color:var(--gold)}
+  .ind-rail .ir-foot{padding:8px 10px 12px;margin-top:auto;position:sticky;bottom:0;background:var(--panel)}
+  .ind-rail .ir-allbtn{width:100%;padding:7px;border:1px solid var(--line);border-radius:var(--r-md);background:transparent;color:var(--eth);font-size:11px;font-weight:700;cursor:pointer}
+  .ind-rail .ir-allbtn:hover{border-color:var(--gold);color:var(--gold)}
+  @media (max-width:860px){ .ind-rail{display:none} }
   .run-btn{display:inline-flex;align-items:center;gap:6px;background:var(--gold);color:#1a1206;border:0;border-radius:var(--r-md);padding:8px 15px;font-weight:800;font-size:13px;letter-spacing:-.01em;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 2px 8px rgba(232,180,99,.28);transition:filter .14s,box-shadow .14s}
   .run-btn:hover{filter:brightness(1.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 3px 13px rgba(232,180,99,.4)}
   .run-btn svg{width:14px;height:14px;flex:0 0 auto}
@@ -1017,6 +1036,7 @@
       <!-- Board DOM injected by boardInit() on DOMContentLoaded -->
     </section>
     <div class="forge-gutter" id="forgeGutter" title="드래그하여 좌우 크기 조절 · 더블클릭 초기화"></div>
+    <aside class="ind-rail" id="indRail" aria-label="지표 조합 선택"></aside>
     <section class="chart-pane" id="chartPane">
       <div id="playHud" class="play-hud" aria-hidden="true">
         <div class="ph-ctl" id="playHudCtl">
@@ -1680,6 +1700,7 @@
     _stopPoll(); _setReqStat("", "");  // 기존 폴 즉시 정리
     activeId = id; META.activeId = id;
     boardState.nodes = dc.nodes || []; boardState.edges = dc.edges || [];
+    if (typeof _ensureAllInd === "function") _ensureAllInd();   // 1차(종합)=전체 지표 항상 포함
     themeState.imgId = dc.themeImgId || null; themeState.title = dc.title || "";
     _logChart = !!dc.logChart; updateAxisBtns();
     const vz = dc.vision;
@@ -1809,6 +1830,29 @@
     renderSidebar();
     if (typeof bToast === "function") bToast("순서 변경됨");
   }
+  // 통합 지표 레일(가운데·차트 사이) — 체크=표시+2차 포함. 1차(종합)는 항상 전체.
+  function _ensureAllInd() {
+    const types = _indTypes(); let added = 0;
+    types.forEach(t => { if (!_hasBlock(t)) { const d = BLOCK_DEFS.find(b => b.type === t) || {}; boardState.nodes.push({ id: uid("n"), x: 0, y: 0, title: d.label || t, kind: "block", blockType: t, params: d.params ? { ...d.params } : {} }); added++; } });
+    if (added && typeof layoutBlocks === "function") layoutBlocks();
+    return added;
+  }
+  function _allVisible() { const t = _indTypes(); return t.length > 0 && t.every(x => _evVisible.has(x)); }
+  function _railAll() { const t = _indTypes(); if (_allVisible()) { t.forEach(x => { if (x !== "trend") _evVisible.delete(x); }); } else { t.forEach(x => _evVisible.add(x)); } _focusInd = null; drawEvidence(); renderIndRail(); }
+  function renderIndRail() {
+    const el = document.getElementById("indRail"); if (!el) return;
+    const types = _indTypes();
+    el.innerHTML = `<div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시·2차</span></div>` +
+      types.map(t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd);
+        return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}" title="클릭=표시·2차 토글 · 더블클릭=단독보기"><span class="ir-chk"></span><span class="ir-lbl">${d.label || t}</span><button class="ir-edit" onclick="event.stopPropagation();editBlock('${t}')" title="파라미터 편집">✎</button></div>`; }).join("") +
+      `<div class="ir-foot"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "전체 해제" : "전체 표시"}</button></div>`;
+  }
+  function _initIndRail() {
+    const el = document.getElementById("indRail"); if (!el || el._init) return; el._init = true;
+    let _t = null;
+    el.addEventListener("click", e => { const row = e.target.closest && e.target.closest(".ir-row"); if (!row) return; const type = row.dataset.irt; clearTimeout(_t); _t = setTimeout(() => { _focusInd = null; if (_evVisible.has(type)) _evVisible.delete(type); else _evVisible.add(type); drawEvidence(); renderIndRail(); }, 220); });
+    el.addEventListener("dblclick", e => { const row = e.target.closest && e.target.closest(".ir-row"); if (!row) return; clearTimeout(_t); const type = row.dataset.irt; _focusInd = (_focusInd === type) ? null : type; if (_focusInd) _evVisible.add(_focusInd); drawEvidence(); renderIndRail(); });
+  }
   function renderSidebar() {
     const el = document.getElementById("forgeSide"); if (!el) return;
     const docs = DOCS.map(d => {
@@ -1824,13 +1868,9 @@
       `<div class="side-sec"><div class="side-h"><span>종목</span></div>
          <div class="side-actions"><button class="side-btn" id="newDocBtn">＋ 종목 추가</button></div>${docs}
          <select class="doc-select" aria-label="종목 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === activeId ? " selected" : ""}>${esc(_docTicker(d) || d.title || "새 종목")}</option>`).join("")}</select></div>
-       <div class="side-sec tool-sec${_toolsOpen ? "" : " collapsed"}"><div class="side-h side-h-toggle" onclick="toggleTools()" title="블록 도구 접기/펼치기"><span>블록 도구</span><button class="side-allbtn" onclick="event.stopPropagation();toggleAllBlocks()" title="지표 전체 추가/해제">${_allIndAdded() ? "전체 해제" : "전체 적용"}</button><span class="side-caret">${_toolsOpen ? "▾" : "▸"}</span></div>
-         <div class="pal-side">` +
-         BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker" && d.type !== "price").map(d => { const _a = _hasBlock(d.type), _s = d.type === _selType(); return `<div class="pal-btn${_a ? " added" : ""}${_s ? " sel" : ""}" data-bt="${d.type}" style="--ic:${EV_COLORS[d.type] || "#8a92b2"}" onclick="addBlock('${d.type}')" title="${_a ? "체크 해제 = 지표 제거" : "체크 = 지표 추가"}"><span class="pal-chk"></span><span class="pal-lbl">${d.label}</span>${_a ? `<button class="pal-edit" onclick="event.stopPropagation();editBlock('${d.type}')" title="상세 편집(파라미터)">✎</button>` : ""}</div>`; }).join("") +
-         `<div class="pal-btn pal-free" onclick="addBlock('free')"><span class="pal-chk"></span><span class="pal-lbl">메모</span></div>` +
-       `</div></div>
        <div class="side-sec" id="libSec"></div>`;
-    _initDocDrag();   // 포지 드래그 정렬
+    _initDocDrag();   // 종목 드래그 정렬
+    if (typeof renderIndRail === "function") { renderIndRail(); _initIndRail(); }
     if (window.renderLib) renderLib();   // 라이브러리 섹션(Task 4)
     if (typeof renderMobilePoji === "function") renderMobilePoji();   // 모바일 포지 칩 갱신
   }
@@ -4178,6 +4218,7 @@
     try { c.letterSpacing = "0px"; } catch (_) {}   // 공유 컨텍스트 오염 방지(다른 텍스트에 안 번지게)
   }
   function _evLegend(c, x0, topY, items) {
+    if (typeof window !== "undefined" && window.innerWidth > 860) { _legendHits = []; return; }   // 데스크톱=지표 레일이 대체(범례 숨김) · 모바일 유지
     _legendHits = [];
     const px = x0, py = topY + 8;
     c.textAlign = "left"; c.textBaseline = "alphabetic";
