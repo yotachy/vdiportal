@@ -1463,13 +1463,35 @@
     let _agSum = 0, _opSum = 0;
     for (const d of _drifts) { if (!d) continue; if ((d > 0 ? 1 : -1) === _cdir0) _agSum += Math.abs(d); else _opSum += Math.abs(d); }
     const _auxCap = _cdir0 * Math.max(0, Math.min(0.28, _agSum) - 0.5 * _opSum);   // 반대지표 = 예상지표의 절반 효과(균등 되돌림, 방향 유지)
+    // 데이터 기반 미세질감: 최근 로그수익률의 단기 자기상관(AR2)을 결정론적으로 투영(잡음/난수 없음).
+    // 유의미한 자기상관이 있을 때만 근거리 질감이 생기고, 화이트노이즈면 0 → 장식 아님. 감쇠 누적으로 근거리에 집중, 진폭은 최근 변동성으로 제한.
+    let _texArr = null;
+    if (n >= 40) {
+      const W = Math.min(90, n - 1), rs = [];
+      for (let i = n - W; i < n; i++) rs.push(logP[i] - logP[i - 1]);
+      const m0 = rs.reduce((a, b) => a + b, 0) / rs.length;
+      for (let i = 0; i < rs.length; i++) rs[i] -= m0;
+      const sd0 = Math.sqrt(rs.reduce((a, b) => a + b * b, 0) / rs.length) || 0;
+      const ac = lag => { let num = 0, den = 0; for (let i = 0; i < rs.length; i++) { den += rs[i] * rs[i]; if (i >= lag) num += rs[i] * rs[i - lag]; } return den ? num / den : 0; };
+      const r1 = ac(1), r2 = ac(2), dn = (1 - r1 * r1) || 1e-9;
+      let a1 = r1 * (1 - r2) / dn * 0.9, a2 = (r2 - r1 * r1) / dn * 0.9;   // AR2 계수(안정화 0.9)
+      if (sd0 > 1e-6 && (Math.abs(r1) > 0.08 || Math.abs(r2) > 0.08)) {
+        let f1 = rs[rs.length - 1], f2 = rs[rs.length - 2] || 0, cum = 0, cap = sd0 * 4; _texArr = [0];
+        for (let k = 1; k <= futW; k++) {
+          const f = a1 * f1 + a2 * f2; f2 = f1; f1 = f;
+          cum += f * Math.exp(-k / (futW * 0.55));   // 감쇠 누적 → 근거리 질감(원거리는 매끄럽게 수렴)
+          _texArr[k] = Math.max(-cap, Math.min(cap, cum));
+        }
+      }
+    }
     for (let k = 1; k <= futW; k++) {
       const rev = -dev * (1 - Math.exp(-theta * k)) * REV_W;                                // 평균회귀(약화)
       const mom = Math.max(-0.20, Math.min(0.20, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀(상향)
       const trend = trS * _prof.trendScale * DW("trend") * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
       const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const m = rev + mom + trend + sig + seas + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * (_prof.bandScale || 1);   // TF별 콘 폭(일봉 타이트)
+      const tex = _texArr ? _texArr[k] : 0;                                                // 데이터 기반 미세질감(AR)
+      const m = rev + mom + trend + sig + seas + tex + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * (_prof.bandScale || 1);   // TF별 콘 폭(일봉 타이트)
       // 종합 신호와 반대 방향으로 크게 드리프트하면 완화 — '지표 종합=하락인데 예측 급등/상승확률 86%' 같은 모순 억제
       let mC = m;
       if (lastSig < -8 && mC > 0) mC *= 0.25;
