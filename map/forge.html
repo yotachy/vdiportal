@@ -4201,6 +4201,17 @@
     c.globalAlpha = .92; c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, 1.7, 0, 7); c.fill();
     c.restore();
   }
+  // 시계열을 최근 봉당 기울기로 감쇠 연장 → 예측구간에 강조 투영 + 도달 라벨(포커스 지표 공용)
+  function _projFwd(c, series, nowFi, seam, xr, fb, pToY, col, label) {
+    if (!series || !isFinite(seam) || !isFinite(xr) || !fb) return;
+    const w = Math.min(24, Math.max(6, Math.round(fb / 2)));
+    const base = series[nowFi], prev = series[Math.max(0, nowFi - w)];
+    if (!isFinite(base) || !isFinite(prev)) return;
+    const slPer = (base - prev) / w, pts = [[seam, pToY(base)]]; let endV = base;
+    for (let k = 1; k <= fb; k++) { endV = base + slPer * k * Math.exp(-k / (fb * 1.5)); pts.push([seam + (xr - seam) * k / fb, pToY(endV)]); }
+    _drawProjLine(c, pts, col); _projMark(c, pts[pts.length - 1][0], pts[pts.length - 1][1], col);
+    _evLabel(c, label + " \u2248 " + _hzFmt(endV), xr, pToY(endV), col, "right");
+  }
   function _drawTrendLayers(c, ta, M) {
     c.save();
     const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0 } = M;
@@ -4579,6 +4590,7 @@
       const t = "VWAP " + (!up && !dn ? "근접" : (up ? "상단 +" : "하단 ") + vw.pct.toFixed(1) + "%");
       _evLabel(c, t, (xRight != null ? xRight : fiToX(nowFi)) - 6, _by, up ? "#46c28e" : dn ? "#e06a6a" : "#8a92b2", "right");
     }
+    if (M.focused && M.xNow != null && M.futBars) _projFwd(c, vw.vwap, nowFi, M.xNow, (xRight != null ? xRight : fiToX(nowFi)), M.futBars, pToY, col, "VWAP \ud22c\uc601");
     c.restore();
   }
   // 슈퍼트렌드 hero 작도 — 추세별 색(상승 초록/하락 빨강) 추적선 + 플립 마커 + 배지
@@ -4606,6 +4618,7 @@
       const t = "슈퍼트렌드 " + (up ? "상승 ▲" : dn ? "하락 ▼" : "중립") + (st.flip && st.flip.barsAgo <= 3 ? " · 전환" : "");
       _evLabel(c, t, (xRight != null ? xRight : fiToX(nowFi)) - 6, _by, up ? "#46c28e" : dn ? "#e06a6a" : "#8a92b2", "right");
     }
+    if (M.focused && M.xNow != null && M.futBars && st.line) _projFwd(c, st.line, nowFi, M.xNow, (xRight != null ? xRight : fiToX(nowFi)), M.futBars, pToY, (st.dir === 1 ? "#46c28e" : st.dir === -1 ? "#e06a6a" : "#8fb4f0"), "\uc288\ud37c\ud2b8\ub80c\ub4dc \ud22c\uc601");
     c.restore();
   }
   // 스토캐스틱 hero 작도 — 배지만(%K/%D + 구간 + 교차)
@@ -4644,6 +4657,7 @@
       const col = bb.bias > 0.15 ? "#46c28e" : bb.bias < -0.15 ? "#e06a6a" : COL;
       if (isFinite(x) && isFinite(y)) _evLabel(c, "BB " + sTxt + (bb.squeeze ? " · 스퀴즈" : "") + " · %B" + bb.last.pctB.toFixed(2), x - 6, y, col, "right");
     }
+    if (M.focused && M.xNow != null && M.futBars) _projFwd(c, bb.mid, nowFi, M.xNow, (xRight != null ? xRight : fiToX(nowFi)), M.futBars, pToY, COL, "\ubcfc\ub9b0\uc800 \uc911\uc2ec \ud22c\uc601");
     c.restore();
   }
   // MACD 근거 배지(상세는 서브패널) — 히스토그램/교차 상태
@@ -4884,7 +4898,7 @@
           legend.push({ col, t: EV_LABEL.rsi + "(전문)", _key: n.blockType });
         } else if (n.blockType === "bollinger") {
           const bb = _an("Bollinger", price, { len: (n.params && n.params.len) || 20, k: (n.params && n.params.k) || 2 });
-          if (_drawThis) _drawBollingerLayers(cc, bb, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          if (_drawThis) _drawBollingerLayers(cc, bb, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, xNow: g.seamX, futBars: (g.path && g.path.length) || 24, focused: (_focus === "bollinger") });
           legend.push({ col, t: EV_LABEL.bollinger, _key: n.blockType });
         } else if (n.blockType === "macd") {
           const mac = _an("MACD", price, { fast: (n.params && n.params.fast) || 12, slow: (n.params && n.params.slow) || 26, signal: (n.params && n.params.signal) || 9 });
@@ -4922,11 +4936,11 @@
           legend.push({ col, t: EV_LABEL.cycle, _key: n.blockType });
         } else if (n.blockType === "vwap") {
           const vw = _anGet(price, "VWAPev|" + ((n.params && n.params.len) || 20), () => ForgeCore.analyzeVWAP(price, _anVolSeries(price), { len: (n.params && n.params.len) || 20 }));
-          if (_drawThis) _drawVwapLayers(cc, vw, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY(), col });
+          if (_drawThis) _drawVwapLayers(cc, vw, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY(), col, xNow: g.seamX, futBars: (g.path && g.path.length) || 24, focused: (_focus === "vwap") });
           legend.push({ col, t: EV_LABEL.vwap, _key: n.blockType });
         } else if (n.blockType === "supertrend") {
           const stt = _an("Supertrend", price, { period: (n.params && n.params.period) || 10, mult: (n.params && n.params.mult) || 3 });
-          if (_drawThis) _drawSupertrendLayers(cc, stt, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY() });
+          if (_drawThis) _drawSupertrendLayers(cc, stt, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY(), xNow: g.seamX, futBars: (g.path && g.path.length) || 24, focused: (_focus === "supertrend") });
           legend.push({ col, t: EV_LABEL.supertrend, _key: n.blockType });
         } else if (n.blockType === "stochastic") {
           const stc = _an("Stochastic", price, { kLen: (n.params && n.params.kLen) || 14, kSmooth: (n.params && n.params.kSmooth) || 3, dLen: (n.params && n.params.dLen) || 3 });
