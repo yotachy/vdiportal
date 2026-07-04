@@ -4181,6 +4181,26 @@
     }
   }
   // 다각도 추세 4레이어 작도(차트·오버레이 공용). M=좌표 매퍼.
+  // 예측구간 투영 강조: 다크 헤일로 + 글로우 + 굵은 점선 (포커스 지표의 미래 작도를 눈에 띄게)
+  function _drawProjLine(c, pts, col) {
+    if (!pts || pts.length < 2) return;
+    c.save(); c.lineJoin = "round"; c.lineCap = "round"; c.setLineDash([]);
+    c.strokeStyle = "rgba(11,15,20,.9)"; c.lineWidth = 4.4;
+    c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+    c.shadowColor = col; c.shadowBlur = 9; c.globalAlpha = 1;
+    c.strokeStyle = col; c.lineWidth = 2.7; c.setLineDash([7, 4]);
+    c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+    c.restore();
+  }
+  function _projMark(c, x, y, col) {
+    if (!isFinite(x) || !isFinite(y)) return;
+    c.save();
+    c.shadowColor = col; c.shadowBlur = 11; c.fillStyle = col;
+    c.beginPath(); c.arc(x, y, 4.8, 0, 7); c.fill();
+    c.shadowBlur = 0; c.strokeStyle = "rgba(11,15,20,.92)"; c.lineWidth = 1.6; c.stroke();
+    c.globalAlpha = .92; c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, 1.7, 0, 7); c.fill();
+    c.restore();
+  }
   function _drawTrendLayers(c, ta, M) {
     c.save();
     const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0 } = M;
@@ -4211,7 +4231,10 @@
       if (!weak && _skReady()) {
         const FS = 12, fp = [[xb, yb]];
         for (let s = 1; s <= FS; s++) { const fi = nowFi + futBars * s / FS, x = xb + (xRight - xb) * s / FS, y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) fp.push([x, y]); }
-        if (fp.length >= 2) { c.globalAlpha = .6; c.setLineDash(CDASH.std); stroke(fp); c.globalAlpha = 1; }
+        if (fp.length >= 2) {
+          if (M.focused) { _drawProjLine(c, fp, COL[key]); if (key === "mid") _projMark(c, fp[fp.length - 1][0], fp[fp.length - 1][1], COL[key]); }
+          else { c.globalAlpha = .6; c.setLineDash(CDASH.std); stroke(fp); c.globalAlpha = 1; c.setLineDash([]); }
+        }
       }
       c.setLineDash([]);
       if (!_skReady()) return;   // 라벨은 선이 거의 다 그려진 뒤
@@ -4305,12 +4328,10 @@
       const base = ls[nowFi], prev = ls[Math.max(0, nowFi - w)];
       if (isFinite(base) && isFinite(prev) && w > 0) {
         const slPer = (base - prev) / w, seam = M.xNow, xr = M.xRight, fb = M.futBars;
-        c.save(); c.setLineDash([5, 4]); c.strokeStyle = COL.long; c.lineWidth = 1.6; c.globalAlpha = 0.95;
-        c.beginPath(); c.moveTo(seam, pToY(base)); let endV = base;
-        for (let k = 1; k <= fb; k++) { endV = base + slPer * k * Math.exp(-k / (fb * 1.5)); const x = seam + (xr - seam) * k / fb, y = pToY(endV); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
-        c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+        const pp = [[seam, pToY(base)]]; let endV = base;
+        for (let k = 1; k <= fb; k++) { endV = base + slPer * k * Math.exp(-k / (fb * 1.5)); pp.push([seam + (xr - seam) * k / fb, pToY(endV)]); }
+        _drawProjLine(c, pp, COL.long); _projMark(c, pp[pp.length - 1][0], pp[pp.length - 1][1], COL.long);
         _evLabel(c, "이동평균 투영 \u2248 " + _hzFmt(endV), xr, pToY(endV), COL.long, "right");
-        c.restore();
       }
     }
     c.restore();
@@ -4700,7 +4721,7 @@
     }
     if (M.focused && _skReady() && ic.spanA && ic.spanB) {   // 포커스: 미래 구름 도달 밴드(선행스팬 26앞 투영)
       const a = ic.spanA[nowFi], b = ic.spanB[nowFi];
-      if (isFinite(a) && isFinite(b)) { const mid = (a + b) / 2, col2 = ic.cloud === "bull" ? "#46c28e" : ic.cloud === "bear" ? "#e06a6a" : "#8a92b2"; _evLabel(c, "일목 구름 \u2248 " + _hzFmt(Math.min(a, b)) + "~" + _hzFmt(Math.max(a, b)), xr, pToY(mid), col2, "right"); }
+      if (isFinite(a) && isFinite(b)) { const mid = (a + b) / 2, col2 = ic.cloud === "bull" ? "#46c28e" : ic.cloud === "bear" ? "#e06a6a" : "#8a92b2"; _projMark(c, xr, pToY(a), col2); _projMark(c, xr, pToY(b), col2); _evLabel(c, "일목 구름 \u2248 " + _hzFmt(Math.min(a, b)) + "~" + _hzFmt(Math.max(a, b)), xr, pToY(mid), col2, "right"); }
     }
     c.restore();
   }
