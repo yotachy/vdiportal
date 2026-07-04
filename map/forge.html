@@ -5650,6 +5650,17 @@
     window.addEventListener("keydown", e => { if (e.key === "Escape" && modal.classList.contains("on")) close(); });
     const exp = document.getElementById("fcExpand"); if (exp) exp.addEventListener("click", open);
     const heroImg = document.getElementById("fcHeroImg"); if (heroImg) heroImg.addEventListener("click", open);
+    // 모바일: 인라인 차트 탭 → 전체화면(자유 조작). 스크롤/스와이프는 그대로 통과.
+    const mcv = document.getElementById("fcMainChart");
+    if (mcv) {
+      let _tp = null;
+      mcv.addEventListener("pointerdown", e => { if (e.pointerType === "touch") _tp = { x: e.clientX, y: e.clientY, t: Date.now() }; }, { passive: true });
+      mcv.addEventListener("pointerup", e => {
+        if (e.pointerType !== "touch" || !_tp || window.innerWidth > 860) { _tp = null; return; }
+        const mv = Math.hypot(e.clientX - _tp.x, e.clientY - _tp.y), dt = Date.now() - _tp.t; _tp = null;
+        if (mv < 9 && dt < 400) open();   // 탭(이동<9px·<400ms) = 전체화면
+      }, { passive: true });
+    }
   })();
 
   /* 마우스+터치 공용 호버 바인딩(터치=드래그 스크럽, touch-action:none로 스크롤 차단) */
@@ -5771,6 +5782,7 @@
     // 모바일 두 손가락 핀치 = 가로 확대/축소(보이는 봉 수 조절, 중앙 봉 고정) — 휠 줌과 동일 메커니즘
     let _pinch = null;
     cv.addEventListener("touchstart", e => {
+      if (window.innerWidth <= 860) return;   // 모바일: 인라인 핀치 비활성(전체화면에서 조작)
       if (e.touches.length === 2) {
         const g = cv._mainGeo; if (!g) return;
         const a = e.touches[0], b = e.touches[1], dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
@@ -5795,6 +5807,7 @@
     cv.addEventListener("touchend", _pinchEnd); cv.addEventListener("touchcancel", _pinchEnd);
     cv.addEventListener("pointerdown", e => {
       if (_pinch) return;   // 핀치 중엔 단일 포인터 팬 무시
+      if (e.pointerType === "touch" && window.innerWidth <= 860) return;   // 모바일: 인라인 팬 비활성 → 스크롤/탭만(전체화면에서 조작)
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
       const r = cv.getBoundingClientRect(), cx = e.clientX - r.left;
       if (cx > g.plotRight) {   // 우측 y축 스트립 → 가격축 수동 스케일(커서 가격 고정 앵커)
