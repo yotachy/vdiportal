@@ -128,7 +128,7 @@
   .wboard .fc-head-left::before{content:"";width:2px;height:12px;background:var(--gold);border-radius:1px;flex:0 0 auto;margin-right:2px}   /* 섹션 마커(정밀 룰) */
   /* 정밀 계기: 차트 패널도 카드 프레임 제거(테두리 불필요) → 툴바 아래 헤어라인만 유지 */
   .chart-pane .fc-panel{background:transparent;border:0;border-radius:0}
-  .chart-pane .fc-panel-hero>.fc-phead{border-bottom:1px solid var(--line);padding-left:2px;padding-right:2px}
+  .chart-pane .fc-panel-hero>.fc-phead{border-bottom:1px solid var(--line);padding-left:2px;padding-right:2px;position:sticky;top:0;z-index:9;background:var(--bg)}
   .chart-pane .fc-panel .fc-head-left::before{content:"";width:2px;height:13px;background:var(--gold);border-radius:1px;flex:0 0 auto;margin-right:3px}   /* 섹션 마커 */
   /* 패널 해석 배지 — 헤더 우측에 현재 판정을 색으로 */
   .fc-verdit{font-size:10.5px;font-weight:800;letter-spacing:-.01em;padding:1px 7px;border-radius:var(--r-lg);white-space:nowrap}
@@ -340,6 +340,7 @@
   .fc-prow>.fc-panel{flex:1 1 300px;min-width:0}
   .fc-prow>.fc-panel[style*="display:none"]{flex:0 0 0;min-width:0}      /* 숨김 패널은 폭 0 → 나머지 전체폭 */
   .fc-cv{display:block;width:100%;border-radius:var(--r-md)}
+  .fc-cap{margin-top:5px;font-size:11px;font-weight:600;color:#aeb7c8;letter-spacing:-.01em;line-height:1.45}
   .fc-hero canvas{touch-action:none}   /* 모바일 두 손가락 핀치 줌 — 브라우저 기본 제스처 차단 */
   .fc-folds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 10px}
   /* 접기 가능 패널(위상 폴딩 등) */
@@ -673,10 +674,13 @@
   .analyze-log .al-ctl:active{cursor:grabbing}
   .analyze-log .ph-grip{color:var(--faint);font-size:11px;letter-spacing:-2px;flex:0 0 auto}
   .analyze-log .al-title{font-size:11px;font-weight:700;color:var(--ink);flex:1}
-  .analyze-log .al-body{max-height:38vh;overflow-y:auto;padding:7px 11px;line-height:1.6;font-size:11.5px}
+  .analyze-log .al-body{max-height:25vh;overflow-y:auto;padding:7px 11px;line-height:1.6;font-size:11.5px}
   .analyze-log.collapsed .al-body{display:none}
   .analyze-log .lg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .analyze-log .lg b{color:var(--gold);font-weight:700}
+  .analyze-log .lg-key{color:#ffe0a3;font-weight:700;animation:lgkey 1.6s ease-in-out infinite}
+  .analyze-log .lg-key b{color:#ffd27a}
+  @keyframes lgkey{0%,100%{text-shadow:0 0 0 rgba(232,180,99,0)}50%{text-shadow:0 0 8px rgba(232,180,99,.55)}}
   .play-hud .ph-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--eth);box-shadow:0 0 8px currentColor}
   .play-hud .ph-node{display:flex;flex-direction:column;gap:2px;min-width:120px;flex:1 1 auto}
   .play-hud .ph-title{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
@@ -1061,7 +1065,7 @@
               <span class="fc-t"><b>ADX / DMI</b> · 추세강도 · +DI/−DI</span>
               <span class="fc-meta" id="fcAdxMeta">–</span>
             </div>
-            <div class="fc-pbody"><canvas id="fcAdx" class="fc-cv"></canvas></div>
+            <div class="fc-pbody"><canvas id="fcAdx" class="fc-cv"></canvas><div class="fc-cap">ADX↑ = 추세 강함(25+) · +DI(초록) &gt; −DI(빨강) = 상승 우위 · &lt;25 = 횡보</div></div>
           </div>
         </div>
         <div class="fc-prow">
@@ -1079,6 +1083,7 @@
             </div>
             <div class="fc-pbody">
               <canvas id="fcPdm" class="fc-cv"></canvas>
+              <div class="fc-cap">주기 스펙트럼 — 봉우리(%↑) = 그 주기가 뚜렷 · 흰선 = 지배 주기(가격이 반복되는 간격)</div>
             </div>
           </div>
         </div>
@@ -3069,11 +3074,6 @@
     c.beginPath(); c.moveTo(xc, 12); c.lineTo(xc, ch - 26); c.stroke(); c.shadowBlur = 0;
     c.fillStyle = "#fff"; c.font = "10px ui-monospace,monospace";
     c.fillText(bestP.toFixed(0) + "봉 주기", Math.min(xc + 4, cw - 58), 22);
-    // '읽는 법' 캡션(초보 인지성)
-    c.textAlign = "left";
-    c.fillStyle = "rgba(9,12,17,.9)"; c.fillRect(0, ch - 16, cw, 16);
-    c.font = "600 10.5px Pretendard,'Malgun Gothic',sans-serif"; c.fillStyle = "#c4ccdc";
-    c.fillText("주기 스펙트럼: 봉우리(%↑) = 그 주기가 뚜렷 · 흰선 = 지배 주기(가격이 반복되는 간격)", 6, ch - 4.5);
   }
 
   /* ── fcDrawRsi: RSI oscillator sub-panel (0–100) ── */
@@ -3148,9 +3148,7 @@
     // 끝점 라벨 + '읽는 법' 캡션(초보 인지성)
     { const _le = adx.length - 1; c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
       c.fillStyle = "#46c28e"; c.fillText("+DI", padL + plotW + 3, yOf(pDI[_le]) + 3);
-      c.fillStyle = "#e06a6a"; c.fillText("−DI", padL + plotW + 3, yOf(mDI[_le]) + 3);
-      c.fillStyle = "rgba(9,12,17,.9)"; c.fillRect(0, ch - 16, cw, 16);
-      c.font = "600 10.5px Pretendard,'Malgun Gothic',sans-serif"; c.fillStyle = "#c4ccdc"; c.fillText("ADX↑ = 추세 강함(25+) · +DI(초록) > −DI(빨강) = 상승 우위 · <25 = 횡보", padL + 2, ch - 4.5); }
+      c.fillStyle = "#e06a6a"; c.fillText("−DI", padL + plotW + 3, yOf(mDI[_le]) + 3); }
     { const meta = document.getElementById("fcAdxMeta"); if (meta) { const strong = a.last.adx >= 40 ? "매우 강한 추세" : a.last.adx >= 25 ? "추세 형성" : "추세 약함(횡보)"; const weak = a.last.adx < 25; const ac = weak ? "fl" : a.dir > 0 ? "up" : a.dir < 0 ? "dn" : "fl"; const dir = a.dir > 0 ? " · 상승 우위" : a.dir < 0 ? " · 하락 우위" : ""; meta.innerHTML = "ADX " + a.last.adx.toFixed(0) + " <span class='fc-verdit " + ac + "'>" + strong + (weak ? "" : dir) + "</span>"; } } _osReveal(c, cw, ch, reveal);
   }
 
@@ -6680,11 +6678,11 @@
            ${memo ? `<span class="ph-memo">&ldquo;${esc(memo)}&rdquo;</span>` : ""}</div>
          <div class="ph-prog"><span class="ph-knt">${idx + 1}/${indNodes.length}</span><span class="ph-bar">${segs}</span></div>`;
     }
-    function _logAppend(n, text) {
+    function _logAppend(n, text, important) {
       const lg = document.getElementById("analyzeLog"); if (!lg) return;
       const body = document.getElementById("analyzeLogBody"); if (!body) return;
       lg.classList.add("on");
-      const row = document.createElement("div"); row.className = "lg";
+      const row = document.createElement("div"); row.className = "lg" + (important ? " lg-key" : "");
       row.innerHTML = "<b>[" + esc(BTLABEL[n.blockType] || n.blockType) + "]</b> " + esc(text);
       body.appendChild(row); body.scrollTop = body.scrollHeight;
     }
@@ -6707,7 +6705,7 @@
           if (_playReveal.ids) { _playReveal.ids.add(tk.n.id); renderNodeAnalysis(lastResult); renderSignalBoard(); }
         }
         _hudNodeSteps(tk.n, tk.idx, tk.steps, tk.sIdx);
-        _logAppend(tk.n, tk.st.text);
+        _logAppend(tk.n, tk.st.text, tk.sIdx === tk.steps.length - 1);   // 각 지표의 마지막 단계 = 의견/결론 → 강조
         // 근거는 이미 전체 작도됨 — 스캔(clip)이 점진 공개하므로 매 틱 재작도 안 함(내레이션만)
         if (progEl) progEl.textContent = "분석 중 " + (tk.idx + 1) + "/" + indNodes.length + " · " + (BTLABEL[tk.n.blockType] || "노드") + " (" + (tk.sIdx + 1) + "/" + tk.steps.length + ")";
       }, tIdx * STEP_SUB));
