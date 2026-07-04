@@ -63,20 +63,27 @@
   .ind-rail{flex:0 0 178px;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
   .ind-rail .ir-head{font-size:11px;color:var(--eth);padding:11px 10px 7px;display:flex;justify-content:space-between;align-items:baseline;font-weight:700;position:sticky;top:0;background:var(--panel);z-index:2;border-bottom:1px solid var(--line)}
   .ind-rail .ir-head .ir-sub{font-size:9px;font-weight:600;color:var(--faint);letter-spacing:-.02em}
-  .ind-rail .ir-row{display:flex;align-items:center;gap:9px;padding:6px 8px 6px 10px;border-bottom:1px solid var(--line);color:var(--eth);font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition:background .12s,color .12s}
+  .ind-rail .ir-row{position:relative;display:flex;align-items:center;gap:9px;padding:6px 8px 6px 10px;border-bottom:1px solid var(--line);color:var(--eth);font-size:12px;font-weight:600;cursor:pointer;user-select:none;overflow:hidden;transition:color .12s}
+  .ind-rail .ir-fill{position:absolute;left:0;top:0;bottom:0;background:var(--ic,#8a92b2);opacity:.14;z-index:0;pointer-events:none;transition:width .1s}
+  .ind-rail .ir-row.on .ir-fill{opacity:.22}
+  .ind-rail .ir-chk,.ind-rail .ir-lbl,.ind-rail .ir-wval,.ind-rail .ir-edit{position:relative;z-index:1}
+  .ind-rail .ir-wval{flex:0 0 auto;font-size:9.5px;font-weight:700;font-family:ui-monospace,monospace;color:var(--eth);letter-spacing:-.02em;min-width:30px;text-align:right}
+  .ind-rail .ir-row.on .ir-wval{color:var(--ink)}
   .ind-rail .ir-row:hover{background:rgba(255,255,255,.04);color:var(--ink)}
   .ind-rail .ir-top + .ir-row{padding-top:11px}
   .ind-rail .ir-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.4);display:grid;place-items:center;transition:background .12s,border-color .12s}
+  .ind-rail .ir-chk:hover{border-color:var(--ic,#8a92b2)}
   .ind-rail .ir-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
   .ind-rail .ir-row.on{color:var(--ink)}
   .ind-rail .ir-row.on .ir-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2)}
   .ind-rail .ir-row.on .ir-chk::after{opacity:1;transform:scale(1)}
   .ind-rail .ir-row.sel{box-shadow:inset 2px 0 0 var(--gold)}
   .ind-rail .ir-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .ind-rail .ir-edit{flex:0 0 auto;width:18px;height:18px;border:0;background:transparent;color:var(--eth);font-size:11px;cursor:pointer;opacity:0;border-radius:var(--r-sm);display:grid;place-items:center;padding:0}
-  .ind-rail .ir-row:hover .ir-edit{opacity:.6}
+  .ind-rail .ir-edit{flex:0 0 auto;width:20px;height:18px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--eth);font-size:11px;cursor:pointer;opacity:.7;border-radius:var(--r-sm);display:grid;place-items:center;padding:0;transition:opacity .12s,background .12s,color .12s}
+  .ind-rail .ir-row:hover .ir-edit{opacity:1}
   .ind-rail .ir-edit:hover{opacity:1;color:var(--gold)}
-  .ind-rail .ir-top{padding:9px 10px 13px;border-bottom:1px solid var(--line);position:sticky;top:38px;background:var(--panel);z-index:1}
+  .ind-rail .ir-top{padding:9px 10px 13px;border-bottom:1px solid var(--line);position:sticky;top:38px;background:var(--panel);z-index:2;display:flex;flex-direction:column;gap:6px}
+  .ind-rail .ir-resetw{font-size:10px;color:var(--eth);border-style:dashed}
   .ind-rail .ir-allbtn{width:100%;padding:7px;border:1px solid var(--line);border-radius:var(--r-md);background:transparent;color:var(--eth);font-size:11px;font-weight:700;cursor:pointer}
   .ind-rail .ir-allbtn:hover{border-color:var(--gold);color:var(--gold)}
   @media (max-width:860px){ .ind-rail{display:none} }
@@ -878,7 +885,9 @@
   .tune-lbl{font-size:12.5px;color:var(--ink);letter-spacing:-.01em}
   .tune-row input[type=range]{width:100%;accent-color:var(--gold);cursor:pointer}
   .tune-val{font-size:12px;font-family:var(--mono);color:var(--gold);text-align:right}
-  .tune-foot{margin-top:16px;display:flex;justify-content:flex-end}
+  .tune-foot{margin-top:16px;display:flex;justify-content:flex-end;gap:8px}
+  .tune-save{padding:7px 16px;border:0;border-radius:var(--r-md);background:var(--gold);color:#0b0f14;font-size:12px;font-weight:800;cursor:pointer}
+  .tune-save:hover{filter:brightness(1.08)}
   .tune-reset{padding:8px 14px;border-radius:var(--r-lg);border:1px solid rgba(138,146,178,.24);background:transparent;color:var(--eth);font-size:12px;cursor:pointer}
   .tune-reset:hover{border-color:var(--gold);color:var(--gold)}
   /* 리스크·포지션 사이징 모달 */
@@ -1864,20 +1873,57 @@
   function renderIndRail() {
     const el = document.getElementById("indRail"); if (!el) return;
     const types = _indTypes();
-    el.innerHTML = `<div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시·2차</span></div>` +
-      `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "전체 해제" : "전체 포함"}</button></div>` +
-      types.map(t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd);
-        return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}" title="클릭=표시·2차 토글 · 더블클릭=단독보기"><span class="ir-chk"></span><span class="ir-lbl">${d.label || t}</span><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; }).join("");
+    el.innerHTML = `<div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시 · 바=가중치</span></div>` +
+      `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "전체 해제" : "전체 포함"}</button><button class="ir-allbtn ir-resetw" onclick="_resetIndWeights()" title="모든 지표 가중치를 기본값 100%로">가중치 기본값 100%</button></div>` +
+      types.map(t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 2));
+        return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}" title="행(바) 클릭=가중치 조절 · 체크박스=표시/2차(더블클릭=단독) · ✎=파라미터 편집"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-chk" data-irchk></span><span class="ir-lbl">${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; }).join("");
   }
   function _railEdit(type) {   // 편집 버튼: 이미 그 지표 편집중이면 분석으로 복귀, 아니면 편집 열기
     const n = boardState.nodes.find(x => x.blockType === type);
     if (n && sel.length === 1 && sel[0] === n.id) deselectAll(); else editBlock(type);
   }
+  function _setIndWeight(type, w) {   // 레일 바 클릭 = 가중치(0~2×). 상단 튠 모달과 동기화.
+    w = Math.max(0, Math.min(2, Math.round(w * 20) / 20));
+    _driftW[type] = w;
+    boardState.nodes.forEach(n => { if (n.kind === "block" && n.blockType === type) n.weight = Math.round(50 * w); });
+    saveDriftW(); if (typeof markDirty === "function") markDirty();
+    renderIndRail();
+    const m = document.getElementById("tuneModal");
+    if (m) { const sl = m.querySelector(`[data-tw="${type}"]`); if (sl) sl.value = w; const lab = m.querySelector(`[data-tv="${type}"]`); if (lab) lab.textContent = Math.round(w * 100) + "%"; }
+    if (typeof updateTuneBtn === "function") updateTuneBtn();
+    clearTimeout(_tuneRunT); _tuneRunT = setTimeout(() => runForge(), 200);
+  }
+  function _resetIndWeights() {   // 전체 포함 아래 버튼 — 모든 지표 가중치 기본값 100%(1×)
+    _driftW = {}; saveDriftW();
+    boardState.nodes.forEach(n => { if (n.kind === "block") n.weight = 50; });
+    if (typeof markDirty === "function") markDirty();
+    renderIndRail();
+    const m = document.getElementById("tuneModal");
+    if (m) m.querySelectorAll("[data-tw]").forEach(sl => { sl.value = 1; const t = sl.getAttribute("data-tw"); const lab = m.querySelector(`[data-tv="${t}"]`); if (lab) lab.textContent = "100%"; });
+    if (typeof updateTuneBtn === "function") updateTuneBtn();
+    runForge(); if (typeof bToast === "function") bToast("가중치 기본값 100%로 초기화");
+  }
+  function _saveTuneWeights() { saveDriftW(); if (typeof bToast === "function") bToast("가중치 저장됨"); toggleTunePop(); }
   function _initIndRail() {
     const el = document.getElementById("indRail"); if (!el || el._init) return; el._init = true;
     let _t = null;
-    el.addEventListener("click", e => { const row = e.target.closest && e.target.closest(".ir-row"); if (!row) return; const type = row.dataset.irt; clearTimeout(_t); _t = setTimeout(() => { _focusInd = null; if (_evVisible.has(type)) _evVisible.delete(type); else _evVisible.add(type); drawEvidence(); renderIndRail(); }, 220); });
-    el.addEventListener("dblclick", e => { const row = e.target.closest && e.target.closest(".ir-row"); if (!row) return; clearTimeout(_t); const type = row.dataset.irt; _focusInd = (_focusInd === type) ? null : type; if (_focusInd) _evVisible.add(_focusInd); drawEvidence(); renderIndRail(); });
+    el.addEventListener("click", e => {
+      const row = e.target.closest && e.target.closest(".ir-row"); if (!row) return;
+      const type = row.dataset.irt;
+      if (e.target.closest(".ir-edit")) return;
+      if (e.target.closest("[data-irchk]")) {
+        clearTimeout(_t); _t = setTimeout(() => { _focusInd = null; if (_evVisible.has(type)) _evVisible.delete(type); else _evVisible.add(type); drawEvidence(); renderIndRail(); }, 200);
+        return;
+      }
+      const r = row.getBoundingClientRect(); if (!r.width) return;
+      _setIndWeight(type, ((e.clientX - r.left) / r.width) * 2);
+    });
+    el.addEventListener("dblclick", e => {
+      if (!e.target.closest("[data-irchk]")) return;
+      const row = e.target.closest(".ir-row"); if (!row) return;
+      clearTimeout(_t); const type = row.dataset.irt;
+      _focusInd = (_focusInd === type) ? null : type; if (_focusInd) _evVisible.add(_focusInd); drawEvidence(); renderIndRail();
+    });
   }
   // 분석 프리셋 — 지표 조합 저장/적용(표시·2차). 기본 4종 + 사용자 저장(localStorage).
   const _PRESET_DEF = [
@@ -3856,7 +3902,7 @@
       _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차", -12);
       // 예측선 색상 키(좌상단)
       { c.save(); c.font = "700 9.5px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic";
-        const _ki = [["이론적 최대치", "rgba(70,194,142,.42)", 1], ["1차 종합지표", CT.core, 0], ["2차 선택지표", "#c6a3ff", 0], ["3차 최대역치", (_pd > 0 ? "#e06a6a" : "#46c28e"), 0]];
+        const _ki = [["이론적 최대치", (_pd > 0 ? "rgba(70,194,142,.55)" : "rgba(224,106,106,.55)"), 1], ["1차 종합지표", CT.core, 0], ["2차 선택지표", "#c6a3ff", 0], ["3차 최대역치", (_pd > 0 ? "#e06a6a" : "#46c28e"), 0]];
         let _tot = 10; _ki.forEach(it => { _tot += c.measureText(it[0]).width + 24; });
         const _kx0 = padX + 8, _ky = padTop + 13;
         c.fillStyle = "rgba(11,15,20,.74)"; if (c.roundRect) { c.beginPath(); c.roundRect(_kx0 - 5, _ky - 12, _tot, 18, 5); c.fill(); }
@@ -3946,11 +3992,11 @@
     const m = document.createElement("div"); m.id = "tuneModal"; m.className = "tune-modal";
     // 이 포지에 추가된 지표만 — 도구별 하나의 가중치(0~3×)로 일원화
     const added = TUNE_TYPES.filter(([t]) => boardState.nodes.some(n => n.kind === "block" && n.blockType === t));
-    const rows = added.map(([t, label]) => { const v = _tw(t); return `<div class="tune-row"><span class="tune-lbl" style="border-left:3px solid ${EV_COLORS[t] || "#8a92b2"};padding-left:8px">${label}</span><input type="range" min="0" max="3" step="0.1" value="${v}" data-tw="${t}"><span class="tune-val" data-tv="${t}">${v.toFixed(1)}×</span></div>`; }).join("");
+    const rows = added.map(([t, label]) => { const v = _tw(t); return `<div class="tune-row"><span class="tune-lbl" style="border-left:3px solid ${EV_COLORS[t] || "#8a92b2"};padding-left:8px">${label}</span><input type="range" min="0" max="2" step="0.05" value="${v}" data-tw="${t}"><span class="tune-val" data-tv="${t}">${Math.round(v * 100)}%</span></div>`; }).join("");
     m.innerHTML = `<div class="tune-box"><div class="tune-head">지표 가중치 <button class="tune-x" onclick="toggleTunePop()" aria-label="닫기">✕</button></div>
-      <div class="tune-hint">각 지표가 <b>예측·시그널</b>에 얼마나 반영될지 조절합니다. <b>0×</b>=무시 · <b>1×</b>=기본 · <b>3×</b>=최대.</div>
+      <div class="tune-hint">각 지표가 <b>예측·시그널</b>에 얼마나 반영될지 조절합니다. <b>0%</b>=무시 · <b>100%</b>=기본 · <b>200%</b>=최대. (레일 바 클릭과 동기화)</div>
       <div class="tune-list">${rows || '<div class="na-empty" style="padding:14px 4px;color:var(--eth)">사이드바 블록 도구로 지표를 추가하세요</div>'}</div>
-      <div class="tune-foot"><button class="tune-reset" onclick="resetTune()">기본값으로(전부 1×)</button></div></div>`;
+      <div class="tune-foot"><button class="tune-reset" onclick="resetTune()">기본값(100%)</button><button class="tune-save" onclick="_saveTuneWeights()">저장</button></div></div>`;
     document.body.appendChild(m);
     m.addEventListener("click", e => { if (e.target === m) toggleTunePop(); });
     m.addEventListener("input", e => {
@@ -3958,14 +4004,17 @@
       const v = +e.target.value; _driftW[t] = v;
       // 통합: 이 지표 노드의 중요도(n.weight)도 함께 스케일 → 예측 콘·시그널 양쪽에 하나의 가중치로 반영(0×→0, 1×→50, 3×→150)
       boardState.nodes.forEach(n => { if (n.kind === "block" && n.blockType === t) n.weight = Math.round(50 * v); });
-      const lab = m.querySelector(`[data-tv="${t}"]`); if (lab) lab.textContent = v.toFixed(1) + "×";
+      const lab = m.querySelector(`[data-tv="${t}"]`); if (lab) lab.textContent = Math.round(v * 100) + "%";
+      if (typeof renderIndRail === "function") renderIndRail();
       saveDriftW(); markDirty(); clearTimeout(_tuneRunT); _tuneRunT = setTimeout(() => runForge(), 180);
     });
   }
   function resetTune() {
     _driftW = {}; saveDriftW();
+    boardState.nodes.forEach(n => { if (n.kind === "block") n.weight = 50; });
     const m = document.getElementById("tuneModal");
-    if (m) m.querySelectorAll("[data-tw]").forEach(sl => { sl.value = 1; const t = sl.getAttribute("data-tw"); const lab = m.querySelector(`[data-tv="${t}"]`); if (lab) lab.textContent = "1.0×"; });
+    if (m) m.querySelectorAll("[data-tw]").forEach(sl => { sl.value = 1; const t = sl.getAttribute("data-tw"); const lab = m.querySelector(`[data-tv="${t}"]`); if (lab) lab.textContent = "100%"; });
+    if (typeof renderIndRail === "function") renderIndRail();
     runForge();
   }
   function updateTuneBtn() { const b = document.getElementById("tuneBtn"); if (b) b.classList.toggle("on", TUNE_TYPES.some(([t]) => _tw(t) !== 1)); }
@@ -4406,7 +4455,7 @@
     if (showPx && isFinite(pathArr[pl - 1])) {   // 끝점 예측가 = 현재값처럼 색상 배경 pill(라인색)
       c.save(); c.font = "800 10px ui-monospace,monospace"; c.textAlign = "right";
       const _pv = _hzFmt(pathArr[pl - 1]), _pw = c.measureText(_pv).width;
-      const _pxx = ex - 10, _pyy = ey + (labelDy != null ? labelDy : -13) + 15;   // 이름 라벨 바로 아래
+      const _pxx = ex - 10, _pyy = Math.max(box.padTop + 9, Math.min(box.ch - box.padBot - 4, ey - (labelDy != null ? labelDy : -13)));   // 이름 라벨 반대편(겹침 방지)
       c.fillStyle = col; if (c.roundRect) { c.beginPath(); c.roundRect(_pxx - _pw - 9, _pyy - 10, _pw + 11, 15, 4); c.fill(); } else c.fillRect(_pxx - _pw - 9, _pyy - 10, _pw + 11, 15);
       c.fillStyle = "#0b0f14"; c.fillText(_pv, _pxx - 3, _pyy); c.restore();
     }
