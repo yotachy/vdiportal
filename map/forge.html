@@ -4265,13 +4265,13 @@
   // 지진 진앙지형 마커 — 동심원 파문 + 글로우 코어. scale<1이면 축소·감광(반대 예상선 끝점=1/3)
   function _epicenterMark(c, x, y, col, scale) {
     if (!isFinite(x) || !isFinite(y)) return;
-    const sc = scale || 1, op = sc < 1;
+    const sc = Math.max(0.46, scale || 1);   // 1/3이라도 최소 크기 확보(작지만 진앙지로 식별)
     c.save(); c.lineCap = "round";
-    c.strokeStyle = col; c.lineWidth = Math.max(1, 1.5 * sc);
-    for (let r = 0; r < 3; r++) { c.globalAlpha = (0.55 - r * 0.15) * (op ? 0.72 : 1); c.beginPath(); c.arc(x, y, (6 + r * 5.5) * sc, 0, 7); c.stroke(); }   // 파문 3겹
-    c.globalAlpha = op ? 0.75 : 1; c.shadowColor = col; c.shadowBlur = 9 * sc; c.fillStyle = col;
+    c.strokeStyle = col; c.lineWidth = Math.max(1.1, 1.5 * sc);
+    for (let r = 0; r < 3; r++) { c.globalAlpha = 0.62 - r * 0.16; c.beginPath(); c.arc(x, y, (6 + r * 5.5) * sc, 0, 7); c.stroke(); }   // 파문 3겹(선명)
+    c.globalAlpha = 1; c.shadowColor = col; c.shadowBlur = 9 * sc; c.fillStyle = col;
     c.beginPath(); c.arc(x, y, 3.2 * sc, 0, 7); c.fill();
-    c.shadowBlur = 0; c.globalAlpha = op ? 0.85 : 1; c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, Math.max(0.9, 1.2 * sc), 0, 7); c.fill();
+    c.shadowBlur = 0; c.globalAlpha = 1; c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, Math.max(1, 1.2 * sc), 0, 7); c.fill();
     c.restore();
   }
   // 시계열을 최근 봉당 기울기로 감쇠 연장 → 예측구간에 강조 투영 + 도달 라벨(포커스 지표 공용)
