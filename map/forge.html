@@ -321,6 +321,7 @@
   .dash-sub{font-size:11px;color:var(--eth);font-family:var(--mono);font-weight:700}
   /* 예측 시점별 = 매트릭스와 동일 표 포맷 */
   .hz-table td:first-child{color:var(--gold);font-weight:800;font-size:12px;white-space:nowrap}
+  .hz-table .dash-sub{white-space:nowrap;font-size:10.5px}   /* 예상범위 한 줄 → 매트릭스와 행높이 통일 */
   .dash-cell .dval.hz-up{color:var(--bull)}
   .dash-cell .dval.hz-dn{color:var(--bear)}
   .dash-cell .dval.hz-fl{color:var(--eth)}
@@ -594,7 +595,7 @@
   .forge-side .pal-side{display:flex;flex-direction:column;gap:0}
   /* 도구 리스트: 카드·테두리 없이 평면 + 지표색 상태 점(미추가=빈 원 / 추가=지표색 발광 점 / 선택=골드 링) */
   /* 블록 도구 = 체크박스 행(직관적) + 추가 시 상세편집 버튼 */
-  .forge-side .pal-side .pal-btn{position:relative;display:flex;align-items:center;gap:9px;width:100%;padding:7px 6px 7px 9px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;color:var(--eth);font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;white-space:nowrap;transition:background .12s,color .12s}
+  .forge-side .pal-side .pal-btn{position:relative;display:flex;align-items:center;gap:9px;width:100%;padding:4px 6px 4px 9px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;color:var(--eth);font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;white-space:nowrap;transition:background .12s,color .12s}
   .forge-side .pal-side .pal-btn:last-child{border-bottom:0}
   .forge-side .pal-side .pal-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.42);display:grid;place-items:center;transition:background .12s,border-color .12s}
   .forge-side .pal-side .pal-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
@@ -5201,6 +5202,8 @@
     return w ? Math.round(s / w) : null;
   }
   /* ── 분석 해설(단계별 근거 + 예측 이유) ── */
+  function _saveHudPos(key, el) { if (!el || !el.style.left) return; try { localStorage.setItem(key, JSON.stringify({ left: el.style.left, top: el.style.top })); } catch (_) {} }
+  function _restoreHudPos(key, el) { if (!el) return; try { const p = JSON.parse(localStorage.getItem(key) || "null"); if (p && p.left) { el.style.left = p.left; el.style.top = p.top; el.style.right = "auto"; el.style.bottom = "auto"; } } catch (_) {} }
   function renderNarrative(result) {
     const host = document.getElementById("fcNarr"); if (!host) return;
     const blocks = boardState.nodes.filter(n => n.kind === "block");
@@ -5996,7 +5999,7 @@
           const y = Math.max(0, Math.min(d.ph - 28, e.clientY - d.py - d.dy));
           hud.style.left = x + "px"; hud.style.top = y + "px"; hud.style.right = "auto";
         });
-        const up = e => { if (!d) return; d = null; try { bar.releasePointerCapture(e.pointerId); } catch (_) {} };
+        const up = e => { if (!d) return; d = null; try { bar.releasePointerCapture(e.pointerId); } catch (_) {} _saveHudPos("scoopforge_hud_play", hud); };
         bar.addEventListener("pointerup", up); bar.addEventListener("pointercancel", up);
       }
     }
@@ -6007,7 +6010,7 @@
       let ld = null;
       lctl.addEventListener("pointerdown", e => { if (e.target.closest(".ph-btn")) return; const hr = log.getBoundingClientRect(); ld = { dx: e.clientX - hr.left, dy: e.clientY - hr.top }; try { lctl.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
       lctl.addEventListener("pointermove", e => { if (!ld) return; const x = Math.max(4, Math.min(window.innerWidth - 80, e.clientX - ld.dx)); const y = Math.max(4, Math.min(window.innerHeight - 40, e.clientY - ld.dy)); log.style.left = x + "px"; log.style.top = y + "px"; log.style.right = "auto"; log.style.bottom = "auto"; });
-      const lup = e => { if (!ld) return; ld = null; try { lctl.releasePointerCapture(e.pointerId); } catch (_) {} };
+      const lup = e => { if (!ld) return; ld = null; try { lctl.releasePointerCapture(e.pointerId); } catch (_) {} _saveHudPos("scoopforge_hud_log", log); };
       lctl.addEventListener("pointerup", lup); lctl.addEventListener("pointercancel", lup);
     }
   })();
@@ -6710,7 +6713,7 @@
     renderNodeAnalysis(lastResult); renderSignalBoard();
     _redrawOscForPlay(0);   // 오실레이터 비우고 시작 → 데모 진행에 맞춰 좌→우로 그려짐
     const _lg0 = document.getElementById("analyzeLog"); if (_lg0) { const _lb0 = document.getElementById("analyzeLogBody"); if (_lb0) _lb0.innerHTML = ""; _lg0.classList.remove("on"); }
-    const hud = document.getElementById("playHud"); if (hud) hud.classList.add("on");
+    const hud = document.getElementById("playHud"); if (hud) { hud.classList.add("on"); _restoreHudPos("scoopforge_hud_play", hud); }
     const progEl = document.getElementById("analyzeProg");
     const _pnode = boardState.nodes.find(n => n.blockType === "price");
     const _pv = _pnode && lastResult.values && lastResult.values[_pnode.id];
@@ -6734,7 +6737,7 @@
     function _logAppend(n, text, important) {
       const lg = document.getElementById("analyzeLog"); if (!lg) return;
       const body = document.getElementById("analyzeLogBody"); if (!body) return;
-      lg.classList.add("on");
+      const _wasOn = lg.classList.contains("on"); lg.classList.add("on"); if (!_wasOn) _restoreHudPos("scoopforge_hud_log", lg);
       const row = document.createElement("div"); row.className = "lg" + (important ? " lg-key" : "");
       row.innerHTML = "<b>[" + esc(BTLABEL[n.blockType] || n.blockType) + "]</b> " + esc(text);
       body.appendChild(row); body.scrollTop = body.scrollHeight;
