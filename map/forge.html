@@ -30,6 +30,9 @@
   /* 숫자·코드용 공통 모노(가독성) */
   :root{--mono:ui-monospace,"SF Mono","Cascadia Mono","Segoe UI Mono",Consolas,"D2Coding",monospace}
   .forge-top{display:flex;align-items:center;flex-wrap:wrap;gap:14px;min-height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .forge-top .h-actions > button{min-height:34px}   /* 헤더 액션 버튼 높이 통일 */
+  /* 접근성·폴리시: 키보드 포커스 링(마우스 클릭엔 안 뜸) */
+  :where(button,input,select,textarea,a,[tabindex],.pal-btn,.trbtn,.ir-bar,.doc-row,.pset-btn):focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   .brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em}
   .brand-mark{width:26px;height:26px;flex:0 0 auto;filter:drop-shadow(0 2px 6px rgba(232,180,99,.3))}
   .brand-txt{font-size:17px;color:var(--ink);letter-spacing:-.02em}
@@ -78,6 +81,7 @@
   .ind-rail .ir-chk:hover{border-color:var(--ic,#8a92b2)}
   .ind-rail .ir-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
   .ind-rail .ir-row.on{color:var(--ink)}
+  .ind-rail .ir-row.on .ir-bar{box-shadow:inset 2px 0 0 var(--ic,#8a92b2)}
   .ind-rail .ir-row.on .ir-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2)}
   .ind-rail .ir-row.on .ir-chk::after{opacity:1;transform:scale(1)}
   .ind-rail .ir-row.sel{box-shadow:inset 2px 0 0 var(--gold)}
@@ -304,9 +308,10 @@
   .fc-wrap{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;padding:10px;gap:8px;
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
   .board-pane .fc-panel>.fc-phead{cursor:pointer;transition:background .12s}
-  .board-pane .fc-panel>.fc-phead:hover{background:rgba(255,255,255,.03)}
-  .board-pane .fc-panel>.fc-phead .fc-t::before{content:"▾";margin-right:5px;color:var(--eth);opacity:.5;font-size:9px;display:inline-block;transition:transform .15s;vertical-align:middle}
-  .board-pane .fc-panel.collapsed>.fc-phead .fc-t::before{transform:rotate(-90deg)}
+  .board-pane .fc-panel>.fc-phead:hover{background:rgba(255,255,255,.035);border-radius:var(--r-sm)}
+  .board-pane .fc-panel>.fc-phead .fc-t::before{content:"";display:inline-block;width:5px;height:5px;margin:0 7px 2px 1px;border-right:1.5px solid var(--eth);border-bottom:1.5px solid var(--eth);transform:rotate(45deg);opacity:.55;transition:transform .16s,opacity .16s;vertical-align:middle}
+  .board-pane .fc-panel.collapsed>.fc-phead .fc-t::before{transform:rotate(-45deg);margin-bottom:0}
+  .board-pane .fc-panel>.fc-phead:hover .fc-t::before{opacity:.9;border-color:var(--gold)}
   .board-pane .fc-panel.collapsed>.fc-pbody{display:none}
   .fc-panel{background:linear-gradient(180deg,var(--panel),#0e1218);border:1px solid var(--line);
     border-radius:var(--r-lg);overflow:hidden;flex-shrink:0}
@@ -343,7 +348,7 @@
   .chart-pane.editing .fc-verdict-bar{display:none!important}
   /* 타임프레임 매트릭스(일·주·월 비교) — 트레이딩 터미널 스타일 */
   #fcDashBody{padding:1px}
-  .dash-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;letter-spacing:-.01em;table-layout:fixed;font-family:Pretendard,system-ui,sans-serif}
+  .dash-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;letter-spacing:-.01em;table-layout:fixed;font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums}
   .dash-table th,.dash-table td{padding:4px 10px}
   .dash-table td:not(:first-child),.dash-table th:not(:first-child){border-left:1px solid rgba(255,255,255,.05)}
   .dash-table th{font-size:11.5px;font-weight:800;text-align:right;padding-bottom:5px;border-bottom:2px solid rgba(255,255,255,.09)}
@@ -3988,7 +3993,7 @@
         const _ki = [["이론적 최대치", (_pd > 0 ? "rgba(70,194,142,.55)" : "rgba(224,106,106,.55)"), 1], ["1차 종합지표", CT.core, 0], ["2차 선택지표", "#c6a3ff", 0], ["3차 최대역치", (_pd > 0 ? "#e06a6a" : "#46c28e"), 0]];
         let _tot = 10; _ki.forEach(it => { _tot += c.measureText(it[0]).width + 24; });
         const _kx0 = padX + 8, _ky = padTop + 13;
-        c.fillStyle = "rgba(11,15,20,.74)"; if (c.roundRect) { c.beginPath(); c.roundRect(_kx0 - 5, _ky - 12, _tot, 18, 5); c.fill(); }
+        c.fillStyle = "rgba(11,15,20,.82)"; if (c.roundRect) { c.beginPath(); c.roundRect(_kx0 - 5, _ky - 12, _tot, 18, 5); c.fill(); c.strokeStyle = "rgba(138,146,178,.18)"; c.lineWidth = 1; c.stroke(); }
         let _kx = _kx0; _ki.forEach(it => { c.fillStyle = it[1]; if (it[2]) { c.fillRect(_kx, _ky - 8.5, 9, 9); } else { c.beginPath(); c.arc(_kx + 4, _ky - 3.5, 3, 0, 7); c.fill(); } c.fillStyle = "rgba(224,229,239,.9)"; c.fillText(it[0], _kx + 11, _ky); _kx += c.measureText(it[0]).width + 24; }); c.restore(); }
     }
     // y labels (right)
