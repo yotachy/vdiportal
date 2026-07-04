@@ -1523,18 +1523,30 @@
       lo.push(last * Math.exp(mC - sd));
       hi.push(last * Math.exp(mC + sd));
     }
-    // 반대 시나리오(예측 실패 경로) — 거울상 반사(보여주기)가 아니라 '예상대로 가지 않았을 때'의 데이터 기반 대안 경로.
-    // 예측 방향의 반대로, [예측 되돌림 일부(give-back) + 실제 반대지표 합(_opSum) + 정렬드리프트 되돌림]만큼 투영. 평균회귀·계절성·변동성은 유지 → 형상도 메인의 거울상과 다름.
-    const _mainDrift = Math.log((path[path.length - 1] || last) / last);
-    const _cDir = _mainDrift >= 0 ? -1 : 1;
-    const _cMag = Math.min(0.36, 0.5 * _opSum + 0.3 * Math.abs(_auxCap) + 0.5 * Math.abs(_mainDrift) + 0.03);
+    // 반대 시나리오 = '예상대로 가지 않았을 때' 가격이 향할 실제 구조 레벨(최근접 지지/저항). 비율 아님 — 목표까지 거리는 데이터가 정한다.
+    // 레벨 출처: 피보·구조 스윙·매물대(POC/VAH/VAL)·볼린저·일목 구름·VWAP. 없으면 변동성 1σ로 폴백.
+    const _mainDrift = Math.log((path[path.length - 1] || last) / last), _mainUp = _mainDrift >= 0;
+    const _lvls = [];
+    const _pushL = v => { if (isFinite(v) && v > 0) _lvls.push(v); };
+    if (_fib && _fib.levels) _fib.levels.forEach(L => _pushL(L && L.price));
+    if (_struct) { _pushL(_struct.swingHigh && _struct.swingHigh.price); _pushL(_struct.swingLow && _struct.swingLow.price); }
+    if (_vp) { _pushL(_vp.poc); _pushL(_vp.vah); _pushL(_vp.val); }
+    if (_bb && _bb.last) { _pushL(_bb.last.lower); _pushL(_bb.last.upper); }
+    if (_ic) { _pushL(_ic.cloudHi); _pushL(_ic.cloudLo); }
+    if (_vw && isFinite(_vw.last)) _pushL(_vw.last);
+    const _sd1 = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(futW) * 0.85 * (_prof.bandScale || 1);
+    const _minMove = 0.35 * _sd1;   // 의미있는 최소 이동(변동성 기반) — 바로 옆 미세 레벨 제외
+    let _cTarget = null, _cBasis = "구조 레벨";
+    if (_mainUp) { const below = _lvls.filter(v => v < last * Math.exp(-_minMove)).sort((a, b) => b - a); _cTarget = below.length ? below[0] : null; }
+    else { const above = _lvls.filter(v => v > last * Math.exp(_minMove)).sort((a, b) => a - b); _cTarget = above.length ? above[0] : null; }
+    if (_cTarget == null || !isFinite(_cTarget)) { _cTarget = last * Math.exp(_mainUp ? -_sd1 : _sd1); _cBasis = "변동성 1σ"; }   // 레벨 없음 폴백
+    const _cDrift = Math.log(_cTarget / last);   // 목표 레벨까지의 로그드리프트(크기=실제 거리)
     const counter = [];
     for (let k = 1; k <= futW; k++) {
-      const cRev = -dev * (1 - Math.exp(-theta * k)) * REV_W;
+      const prog = 1 - Math.exp(-2.6 * k / futW);   // 목표로 수렴(초반 빠르게, 후반 안착)
       const cSeas = seasFn ? seasFn(k) : 0;
-      const cTex = _texArr ? _texArr[k] * 0.6 : 0;
-      const cm = cRev + cSeas + cTex + _cDir * _cMag * (k / futW);
-      counter.push(last * Math.exp(cm));
+      const cTex = _texArr ? _texArr[k] * 0.5 : 0;
+      counter.push(last * Math.exp(_cDrift * prog + cSeas + cTex));
     }
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
     // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율
@@ -1546,7 +1558,7 @@
     const invIdx = Math.min(2, futW - 1);                  // 근단기 반대 밴드 = 무효화 기준
     const invalidation = regime === "bear" ? hi[invIdx] : lo[invIdx];
     return {
-      values, meta, prediction: { path, lo, hi, counter, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
+      values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
       verdict: { regime, score: Math.round(lastSig), target, invalidation, confluence }
     };
   }
