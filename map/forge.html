@@ -134,14 +134,14 @@
   .fc-verdit{font-size:10.5px;font-weight:800;letter-spacing:-.01em;padding:1px 7px;border-radius:var(--r-lg);white-space:nowrap}
   .fc-verdit.up{color:#46c28e;background:rgba(70,194,142,.13)}
   .fc-verdit.dn{color:#e06a6a;background:rgba(224,106,106,.13)}
-  .fc-verdit.fl{color:#8a92b2;background:rgba(138,146,178,.12)}
+  .fc-verdit.fl{color:var(--gold);background:rgba(232,180,99,.13)}
   /* 지표 신호 한 줄 요약 */
   .sig-list{display:flex;flex-direction:column}
   .sig-row{display:grid;grid-template-columns:14px 66px 1fr 44px;align-items:center;gap:7px;padding:4px 2px;border-bottom:1px solid rgba(138,146,178,.08);font-size:11.5px;transition:opacity .28s}
   .sig-row.dim{opacity:.24}   /* 시연: 아직 계산 전 지표는 흐리게 → 계산되면 점등 */
   .sig-row:last-child{border-bottom:0}
   .sig-arw{font-size:10px;text-align:center}
-  .sig-arw.up{color:#46c28e}.sig-arw.dn{color:#e06a6a}.sig-arw.fl{color:var(--muted)}
+  .sig-arw.up{color:#46c28e}.sig-arw.dn{color:#e06a6a}.sig-arw.fl{color:var(--gold)}
   .sig-name{color:var(--ink);font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sig-note{color:var(--eth);font-family:Pretendard,system-ui,sans-serif;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sig-bar{height:4px;border-radius:99px;background:rgba(138,146,178,.1);overflow:hidden}
@@ -716,7 +716,7 @@
   .na-dir{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px}
   .na-dir.bull{color:var(--bull);background:rgba(70,194,142,.12)}
   .na-dir.bear{color:var(--bear);background:rgba(224,106,106,.12)}
-  .na-dir.neutral{color:var(--eth);background:rgba(138,146,178,.1)}
+  .na-dir.neutral{color:var(--gold);background:rgba(232,180,99,.12)}
   .na-wt{font-size:11px;color:var(--faint);font-family:var(--mono)}
   .na-empty{font-size:12px;color:var(--eth);padding:10px 2px;text-align:center}
 
@@ -942,7 +942,7 @@
       <span id="analyzeProg" class="analyze-prog"></span>
       <span class="h-sep"></span>
       <span id="engStat" class="eng-stat" title="현재 표시된 결과가 언제 분석된 것인지"></span>
-      <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출(결과만 갱신)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2L4 13.5h6l-1 8.5L18 10h-6l1-8z"/></svg><span class="hlbl">웹분석</span></button>
+      <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출(결과만 갱신)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14l3 6-10 12L2 9z"/><path d="M2 9h20M9 3l3 18M15 3l-3 18" stroke-opacity=".45"/></svg><span class="hlbl">웹분석</span></button>
       <button class="tool-btn is-soon" id="engineBtn" onclick="claudeEngine()" title="엔진분석 — 클로드 수동분석(예정 기능, 준비 중)">✦<span class="hlbl"> 엔진분석</span></button>
       <button class="tool-btn play-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 웹분석 결과가 어떻게 나왔는지 지표별 작도 과정을 애니메이션으로 재생(결과는 동일, 과정 설명용)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시연</span></button>
     </div>
@@ -2848,7 +2848,7 @@
   /* ── fcFit: DPR-correct canvas sizing (port of chart.html fit()) ── */
   function fcFit(cv, h, cap) {
     // 시연 중엔 기기 DPR만(매 프레임 재작도 과부하 방지), 정지 시엔 약간 슈퍼샘플(선명)
-    const dpr = _playing ? Math.min(devicePixelRatio || 1, 2) : Math.min(Math.max(devicePixelRatio || 1, 1.5), cap || 2.5);
+    const dpr = _playing ? Math.min(devicePixelRatio || 1, 2) : Math.min(Math.max(devicePixelRatio || 1, 2), cap || 3);   // 정지 시 floor 2(작은 라벨 선명)
     const w = cv.clientWidth;
     cv.width  = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
@@ -3916,9 +3916,11 @@
     const cur = (curScore != null) ? `<div class="ob-cur">현재 설정 적중률 ${Math.round(curScore * 100)}%</div>` : "";
     res.innerHTML = `<div class="opt-canvas-wrap"><canvas id="optSurface" width="1040" height="${is2D ? 460 : 300}"></canvas></div>
       <div class="opt-legend"><span>낮음(적중↓)</span><span class="bar"></span><span>높음(적중↑)</span></div>
-      <div class="opt-best"><div class="ob-txt">최적 조합 ${bestTxt} → 적중률 <b>${Math.round(best.score * 100)}%</b> · 표본 ${best.n}${cur}</div>
-        <button class="opt-apply" onclick="applyOptBest()">이 값 적용</button></div>`;
-    drawOptSurface(document.getElementById("optSurface"), spec, v1s, v2s, grid, best);
+      <div class="opt-best"><div class="ob-txt">최적 조합 ${bestTxt} → 적중률 <b>${Math.round(best.score * 100)}%</b> · 표본 ${best.n}${cur}<div class="ob-cur">지형의 <b>칸을 클릭</b>하면 최적값이 아닌 그 값으로도 적용됩니다</div></div>
+        <button class="opt-apply" onclick="applyOptBest()">최적값 적용</button></div>`;
+    const _sf = document.getElementById("optSurface");
+    drawOptSurface(_sf, spec, v1s, v2s, grid, best);
+    if (_sf) { _sf.style.cursor = "pointer"; _sf.onclick = e => onOptSurfaceClick(_sf, e); }
   }
   function _optColor(s, mn, mx) { // 그리드 자체 min~max에 적응(상대 지형) → 적~회~녹
     if (!isFinite(s)) return "#161d26";
@@ -3937,6 +3939,7 @@
     const padL = 64, padB = 40, padT = 14, padR = 16;
     const gx = padL, gy = padT, gw = W - padL - padR, gh = H - padT - padB;
     const at = (v1, v2) => grid.find(c2 => c2.v1 === v1 && (v2 == null || c2.v2 === v2));
+    cv._optGeo = { is2D, gx, gy, gw, gh, v1s, v2s, cw: is2D ? gw / v2s.length : 0, chc: is2D ? gh / v1s.length : 0, bw: is2D ? 0 : gw / v1s.length };
     if (is2D) {
       const cols = v2s.length, rows = v1s.length, cw = gw / cols, ch = gh / rows;
       for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
@@ -3961,17 +3964,34 @@
       c.fillStyle = "rgba(224,229,239,.85)"; c.fillText(P[0].label, gx + gw / 2, H - 18);
     }
   }
-  function applyOptBest() {
-    if (!_optBest || !_optType) return;
+  function applyOptValue(v1, v2, tag) {
+    if (!_optType) return;
     const spec = OPT_SPECS[_optType], node = boardState.nodes.find(n => n.kind === "block" && n.blockType === _optType);
     if (!node) { bToast("해당 지표 블록이 보드에 없습니다"); return; }
     node.params = node.params || {};
-    node.params[spec.params[0].key] = _optBest.v1;
-    if (spec.params[1] && _optBest.v2 != null) node.params[spec.params[1].key] = _optBest.v2;
+    node.params[spec.params[0].key] = v1;
+    if (spec.params[1] && v2 != null) node.params[spec.params[1].key] = v2;
     fireBoardChange(); runForge();
-    if (sel.length === 1 && sel[0] === node.id) renderParams();   // 편집기 열려있으면 갱신
-    bToast(spec.label + " 최적값 적용 · 재분석");
-    openOptTool();   // 닫기
+    if (sel.length === 1 && sel[0] === node.id) renderParams();
+    const lbl = spec.params[0].label + " " + v1 + (spec.params[1] && v2 != null ? " · " + spec.params[1].label + " " + v2 : "");
+    bToast(spec.label + " " + (tag || lbl) + " 적용 · 재분석");
+    openOptTool();
+  }
+  function applyOptBest() { if (_optBest && _optType) applyOptValue(_optBest.v1, _optBest.v2, "최적값"); }
+  // 서피스 칸 클릭 → 그 값으로 적용(사용자가 최적값 외 다른 값 직접 선택)
+  function onOptSurfaceClick(cv, e) {
+    const g = cv && cv._optGeo; if (!g) return;
+    const r = cv.getBoundingClientRect();
+    const sx = (e.clientX - r.left) * (cv.width / r.width), sy = (e.clientY - r.top) * (cv.height / r.height);
+    if (g.is2D) {
+      const col = Math.floor((sx - g.gx) / g.cw), row = Math.floor((sy - g.gy) / g.chc);
+      if (col < 0 || row < 0 || col >= g.v2s.length || row >= g.v1s.length) return;
+      applyOptValue(g.v1s[row], g.v2s[col]);
+    } else {
+      const i = Math.floor((sx - g.gx) / g.bw);
+      if (i < 0 || i >= g.v1s.length) return;
+      applyOptValue(g.v1s[i], null);
+    }
   }
   function updateAxisBtns() {
     // A는 상태 토글이 아니라 매번 동작하는 액션 버튼(눌린 것처럼 보여 안 눌리는 오해 방지). L만 토글 상태.
@@ -6071,9 +6091,9 @@
           const tt = bl + ne + be || 1;
           _bd = `<div class="fcv-break">
             <span class="fcv-bd-leg"><i style="background:#46c28e"></i>상승 <b>${bl}</b></span>
-            <span class="fcv-bd-leg"><i style="background:#8a92b2"></i>중립 <b>${ne}</b></span>
+            <span class="fcv-bd-leg" style="color:var(--gold)"><i style="background:#e8b463"></i>중립 <b style="color:var(--gold)">${ne}</b></span>
             <span class="fcv-bd-leg"><i style="background:#e06a6a"></i>하락 <b>${be}</b></span>
-            <span class="fcv-bd-bar" title="상승 ${bl} · 중립 ${ne} · 하락 ${be} 지표"><b style="width:${bl / tt * 100}%;background:#46c28e"></b><b style="width:${ne / tt * 100}%;background:#8a92b2"></b><b style="width:${be / tt * 100}%;background:#e06a6a"></b></span>
+            <span class="fcv-bd-bar" title="상승 ${bl} · 중립 ${ne} · 하락 ${be} 지표"><b style="width:${bl / tt * 100}%;background:#46c28e"></b><b style="width:${ne / tt * 100}%;background:#e8b463"></b><b style="width:${be / tt * 100}%;background:#e06a6a"></b></span>
           </div>`;
         }
       } catch (e) {}
