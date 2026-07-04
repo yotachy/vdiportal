@@ -1176,7 +1176,7 @@
   </div>
   <div class="b-toast" id="bToast"></div>
 
-  <script src="forge-core.js?v=20260704f"></script>   <!-- ?v= 캐시버스터: 엔진 수정 시 값 갱신(옛 forge-core.js 캐시 방지) -->
+  <script src="forge-core.js?v=20260704g"></script>   <!-- ?v= 캐시버스터: 엔진 수정 시 값 갱신(옛 forge-core.js 캐시 방지) -->
   <script>
   /* ════════════════════════════════════════════════════════════════
      BOARD ENGINE  — lightweight port of Scoop Board (map/map.html)
@@ -3735,7 +3735,7 @@
         for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), _cY(k));
         c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
         const _cey = _cY(path.length - 1);
-        c.fillStyle = "rgba(" + _cCol + "," + Math.min(0.65, _cA + 0.18) + ")"; c.beginPath(); c.arc(coneR, _cey, 2.3, 0, 7); c.fill();
+        _projMark(c, coneR, _cey, "rgb(" + _cCol + ")", 1 / 3);   // 반대선 끝점 = 메인과 동형 마커, 1/3 효과
         c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right";
         c.fillStyle = "rgba(" + _cCol + "," + Math.min(0.8, _cA + 0.34) + ")";
         c.fillText((_pd > 0 ? "▼" : "▲") + " 반대 " + _cProb + "%", coneR - 4, Math.max(padTop + 10, Math.min(ch - padBot - 4, _cey + (_pd > 0 ? 11 : -5))));
@@ -3749,8 +3749,7 @@
       } catch (e) {}
       // 예측 종점 마커
       const _ex = coneR, _ey = toY(path[path.length - 1]);
-      c.fillStyle = CT.core; c.beginPath(); c.arc(_ex, _ey, 3, 0, 7); c.fill();
-      c.strokeStyle = "#0b0f14"; c.lineWidth = 1.4; c.stroke();
+      _projMark(c, _ex, _ey, CT.core);   // 메인 예상 끝점 = 글로우 마커(강조)
     }
     // y labels (right)
     c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
