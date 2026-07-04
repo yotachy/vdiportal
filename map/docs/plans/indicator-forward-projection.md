@@ -36,3 +36,12 @@
 ## 참고
 - `_focusInd`(포커스 지표 blockType), `_anGet(P,key,compute)`(프레임 메모이즈), `_mainGeo`(toXf/toY/seamX/path/anchor), `drawEvidence`.
 - 배포: `git add map/forge.html map/forge-core.js && push && lftp put`(forge-core.test.js 배포 금지, 서버 데이터 파일 불가침).
+
+## 엔진 융합 검증 (2026-07-04)
+`forge-core.js` `run()` 확인 결과 **융합은 실제로 독립 해석 기반**(피상적 아님):
+- 각 지표 `analyze<Ind>` → 독립 `.bias`(-1..1, 고유 로직: MA국면·피보S/R·RSI다이버전스·MACD교차·일목구름·구조BOS 등).
+- `run()`서 bias → **지표별 상한 드리프트**(maDrift ±10%·fibDrift ±8%·rsiDrift ±6%·macdDrift ±7%·icDrift ±7%…) × `_prof.trendScale`(TF) × `DW(type)`(사용자 가중).
+- `_auxSum`=전 지표 드리프트 합 → `_auxCap`(±0.28) → 예측경로 `m = rev+mom+trend+sig+seas+_auxCap*(k/futW)`.
+- 컨플루언스 = 종합방향과 일치하는 지표 bias 비율(라인 1477).
+→ **가중 앙상블**. "빠른" 건 결정론적 클라이언트 계산이라서지 피상적이라서가 아님.
+**심화 여지(로드맵)**: 현재는 지표당 스칼라 bias→선형 드리프트. 각 지표의 **전체 미래 투영 곡선**을 예측에 직접 반영하면 더 정밀(엔진 진화 과제).
