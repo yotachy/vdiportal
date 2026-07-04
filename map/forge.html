@@ -4198,7 +4198,7 @@
     const allVis = items.length && items.every(it => _evVisible.has(it._key));
     const rows = [{ col: "#8a92b2", t: allVis ? "전체 표시" : "전체 표시(클릭)", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key })));
     const _gc = ((getComputedStyle(document.documentElement).getPropertyValue("--gold") || "").trim()) || "#e8b463";
-    const hint = "클릭=단독 보기(유지) · 전체 표시로 해제";
+    const hint = "클릭=표시 토글 · 더블클릭=단독 · 전체표시=모두";
     c.font = "9.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; let maxW = c.measureText(hint).width;
     c.font = "11.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
     const panelW = 28 + maxW + 12, panelH = rows.length * 17 + 28;
@@ -6148,9 +6148,19 @@
     });
     const endDrag = () => { hDrag = null; _heroZoomDragging = false; };
     cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
+    let _legendClickT = null;
     cv.addEventListener("dblclick", e => {
+      const r = cv.getBoundingClientRect();
+      // 범례 항목 더블클릭 = 단독 보기(대기중 단일클릭 토글 취소)
+      { const lx = ((e.clientX - r.left) - _heroZoom.tx) / _heroZoom.s, ly = ((e.clientY - r.top) - _heroZoom.ty) / _heroZoom.s;
+        for (const hgt of _legendHits) {
+          if (lx >= hgt.x && lx <= hgt.x + hgt.w && ly >= hgt.y && ly <= hgt.y + hgt.h) {
+            if (hgt.key && hgt.key !== "__toggle__") { clearTimeout(_legendClickT); _focusInd = (_focusInd === hgt.key) ? null : hgt.key; if (_focusInd) { _evVisible.add(_focusInd); _flashPanelFor(_focusInd); } drawEvidence(); }
+            return;
+          }
+        } }
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo;
-      const r = cv.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
+      const cx = e.clientX - r.left, cy = e.clientY - r.top;
       if (g && cx > g.plotRight) { resetYScale(); }             // y축 더블클릭 → 자동 스케일
       else if (g && cy > g.ch - g.padBot) { resetChartWin(); }  // 시간축 더블클릭 → 기간 창 리셋
       else { resetChartWin(); resetYScale(); }                  // 플롯 더블클릭 → 윈도+세로 스케일 전체 리셋
@@ -6165,9 +6175,11 @@
         if (lx >= hgt.x && lx <= hgt.x + hgt.w && ly >= hgt.y && ly <= hgt.y + hgt.h) {
           if (typeof hgt.key === "undefined") return;
           if (hgt.key === "__toggle__") { _legendCollapsed = !_legendCollapsed; _evHover = null; drawEvidence(); return; }   // 범례 접기/펼치기
-          if (hgt.key === null) { _evVisible = new Set(Object.keys(EV_COLORS)); _focusInd = null; }   // 전체 표시(포커스 해제)
-          else { _focusInd = (_focusInd === hgt.key) ? null : hgt.key; if (_focusInd) { _evVisible.add(_focusInd); _flashPanelFor(_focusInd); } }   // 클릭=단독 보기(다른 범례 클릭 전까지 유지) · 재클릭 해제 + 가운데 패널 관련항목 깜빡
-          drawEvidence(); return;
+          if (hgt.key === null) { clearTimeout(_legendClickT); _evVisible = new Set(Object.keys(EV_COLORS)); _focusInd = null; drawEvidence(); return; }   // 전체 표시(포커스 해제)
+          // 지표: 단일클릭=표시 토글(체크박스). 더블클릭이면 취소되고 단독보기. 230ms 지연으로 구분.
+          const _lk = hgt.key; clearTimeout(_legendClickT);
+          _legendClickT = setTimeout(() => { _focusInd = null; if (_evVisible.has(_lk)) _evVisible.delete(_lk); else { _evVisible.add(_lk); _flashPanelFor(_lk); } drawEvidence(); }, 230);
+          return;
         }
       }
     });
