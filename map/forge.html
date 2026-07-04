@@ -2049,8 +2049,12 @@
   function toggleChartLock() { _chartLock = !_chartLock; applyChartLock(); if (typeof bToast === "function") bToast(_chartLock ? "스크롤 모드 — 페이지 이동" : "차트 조작 모드 — 드래그=팬·축, 두 손가락=줌"); }
   function switchDoc(id) { if (id === activeId) return; writeBackActive(); loadDoc(id); saveMeta(); }
   function newDoc() {
+    // 현재 문서가 이미 '빈 새 종목'(티커 미불러옴)이면 새로 만들지 않고 티커 입력만 포커스 — 빈 문서 누적·불필요한 종목 전환 방지
+    const ad = activeDoc();
+    const adEmpty = ad && !(_docTicker(ad) || "").trim() && !(ad.nodes || []).some(n => n.blockType === "ticker" && n.params && n.params.fetched);
+    if (adEmpty) { const tk0 = document.getElementById("tkSym"); if (tk0) { tk0.focus(); tk0.select(); } if (typeof bToast === "function") bToast("티커를 입력해 불러오세요"); return; }
     writeBackActive();
-    const dc = { id: uid("doc"), title: "New Forge", themeImgId: null, nodes: [], edges: [],
+    const dc = { id: uid("doc"), title: "새 종목", themeImgId: null, nodes: [], edges: [],
       view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
     DOCS.push(dc); loadDoc(dc.id); seedDefaultStrategy(); autoLayout("v"); writeBackActive(); saveMeta();
     setTimeout(() => { const tk = document.getElementById("tkSym"); if (tk) { tk.focus(); tk.select(); } }, 120);   // 종목 추가 = 바로 티커 입력
@@ -7330,6 +7334,7 @@
     if (fcRAF) { cancelAnimationFrame(fcRAF); fcRAF = null; }   // 대기 중 애니메이션 재그리기 중단
     ["fcEvidence", "fcEvidenceHi", "fcCone"].forEach(id => { const e = document.getElementById(id); if (e) { const ec = e.getContext("2d"); ec.setTransform(1, 0, 0, 1, 0, 0); ec.clearRect(0, 0, e.width, e.height); } });
     const vb = document.getElementById("fcVerdictBar"); if (vb) { vb.innerHTML = (sym ? '<span class="fcv-tkr">' + sym + '</span>' : '') + '<span class="fcv-op" style="color:var(--eth);animation:none">데이터 부족 — 분석에 최소 20봉 필요</span>'; vb.style.display = "flex"; }
+    const _ad = activeDoc(); if (_ad) { delete _ad._verdict; if (typeof renderSidebar === "function") renderSidebar(); }   // 워치리스트 미니판정 배지 숨김(가짜 판정 방지)
     if (typeof bToast === "function") bToast((sym ? sym + ": " : "") + "데이터 부족 — 상장 초기 등으로 분석 불가(최소 20봉 필요)");
   }
   function runForge() {
