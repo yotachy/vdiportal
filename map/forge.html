@@ -4140,7 +4140,7 @@
     const allVis = items.length && items.every(it => _evVisible.has(it._key));
     const rows = [{ col: "#8a92b2", t: allVis ? "전체 표시" : "전체 표시(클릭)", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key })));
     c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
-    const hint = "클릭=표시토글 · 올려두면 단독강조";
+    const hint = "클릭=단독 보기(유지) · 전체 표시로 해제";
     let maxW = c.measureText(hint).width; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
     const panelW = 22 + maxW + 8, panelH = rows.length * 14 + 22;
     c.fillStyle = "rgba(11,15,20,.78)";
@@ -5677,6 +5677,7 @@
       if (main && main.width) {
         cv.width = main.width; cv.height = main.height; cv.style.width = main.width + "px"; cv.style.height = main.height + "px";
         c.clearRect(0, 0, main.width, main.height); c.drawImage(main, 0, 0);
+        ["fcEvidence", "fcEvidenceHi", "fcFx"].forEach(id => { const ov = document.getElementById(id); if (ov && ov.width && ov.height) { try { c.drawImage(ov, 0, 0, main.width, main.height); } catch (e) {} } });   // 분석 작도(근거·라벨·콘·FX) 포함
         zKind = "chart"; zMain = main; return true;
       }
       return false;
@@ -5686,8 +5687,9 @@
       vw = { s, tx: (sw - cv.width * s) / 2, ty: (sh - cv.height * s) / 2 }; apply();
       if (info) info.textContent = "줌 " + Math.round(s * 100) + "% · 휠=줌, 드래그=이동, 더블클릭=맞춤";
     }
-    function open() { if (!composite()) { bToast("표시할 차트가 없습니다"); return; } modal.classList.add("on"); modal.setAttribute("aria-hidden", "false"); requestAnimationFrame(fit); }
-    function close() { modal.classList.remove("on"); modal.setAttribute("aria-hidden", "true"); }
+    function open() { if (!composite()) { bToast("표시할 차트가 없습니다"); return; } modal.classList.add("on"); modal.setAttribute("aria-hidden", "false"); if (modal.requestFullscreen) { try { modal.requestFullscreen().catch(function () {}); } catch (e) {} } requestAnimationFrame(() => { composite(); fit(); }); }
+    function close() { modal.classList.remove("on"); modal.setAttribute("aria-hidden", "true"); if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) {} } }
+    document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && modal.classList.contains("on")) close(); else if (document.fullscreenElement && modal.classList.contains("on")) requestAnimationFrame(fit); });
     stage.addEventListener("wheel", e => {
       e.preventDefault();
       const r = stage.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, f = e.deltaY < 0 ? 1.12 : 1 / 1.12;
@@ -5980,9 +5982,9 @@
         if (lx >= hgt.x && lx <= hgt.x + hgt.w && ly >= hgt.y && ly <= hgt.y + hgt.h) {
           if (typeof hgt.key === "undefined") return;
           if (hgt.key === "__toggle__") { _legendCollapsed = !_legendCollapsed; _evHover = null; drawEvidence(); return; }   // 범례 접기/펼치기
-          if (hgt.key === null) { _evVisible = new Set(Object.keys(EV_COLORS)); _focusInd = null; }   // 전체 표시
-          else { if (_evVisible.has(hgt.key)) _evVisible.delete(hgt.key); else _evVisible.add(hgt.key); }   // 표시 토글
-          _focusInd = null; drawEvidence(); return;
+          if (hgt.key === null) { _evVisible = new Set(Object.keys(EV_COLORS)); _focusInd = null; }   // 전체 표시(포커스 해제)
+          else { _focusInd = (_focusInd === hgt.key) ? null : hgt.key; if (_focusInd) _evVisible.add(_focusInd); }   // 클릭=단독 보기(다른 범례 클릭 전까지 유지) · 재클릭 해제
+          drawEvidence(); return;
         }
       }
     });
