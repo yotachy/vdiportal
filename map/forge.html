@@ -3764,6 +3764,19 @@
       c.fillStyle = FC_GOLD; c.fillText(Math.round(ep).toLocaleString(), lx, cy(toY(ep) + 3));
       c.fillStyle = "#e06a6a"; c.fillText("▼" + Math.round(el).toLocaleString(), lx, cy(toY(el) + 8));
     }
+    // 예측 최대/최저 pill — 현재가 골드 pill과 동형(초록=예측 최대값, 빨강=예측 최저값)
+    if (path.length) {
+      let hiMax = -Infinity, loMin = Infinity;
+      for (let k = 0; k < path.length; k++) { if (hi[k] > hiMax) hiMax = hi[k]; if (lo[k] < loMin) loMin = lo[k]; }
+      const _predPill = (val, bg) => {
+        if (!isFinite(val)) return;
+        const yv = Math.max(padTop + 8, Math.min(ch - padBot - 8, toY(val)));
+        const t = _hzFmt(val); c.font = "700 10px ui-monospace,monospace"; c.textAlign = "right"; const tw = c.measureText(t).width;
+        c.fillStyle = bg; c.fillRect(padX + plotW - tw - 7, yv - 7, tw + 7, 14); _axisLabelBoxes.push({ x: padX + plotW - tw - 8, y: yv - 8, w: tw + 9, h: 16 });
+        c.fillStyle = "#0b0f14"; c.fillText(t, padX + plotW - 3, yv + 3.3); c.textAlign = "left";
+      };
+      _predPill(hiMax, "#46c28e"); _predPill(loMin, "#e06a6a");
+    }
     // 데모/실데이터 배지
     if (!hasRealSeries()) {
       c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
