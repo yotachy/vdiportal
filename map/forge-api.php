@@ -48,6 +48,10 @@ if ($method === "GET") {
     $ttl = ($tf === "1day") ? 3600 : 21600;
     $cf = __DIR__ . "/forge_ohlc_cache_" . md5($sym . "|" . $tf) . ".json";
     if (is_readable($cf) && (time() - filemtime($cf)) < $ttl) { readfile($cf); exit; }
+    // 증분 저장: 기존 캐시(누적 데이터) 로드 → 새 봉만 머지(TTL 만료해도 전량 재수집 안 함)
+    $prev = [];
+    if (is_readable($cf)) { $pj = json_decode(@file_get_contents($cf), true); if (is_array($pj) && isset($pj["candles"]) && is_array($pj["candles"])) $prev = $pj["candles"]; }
+    $incremental = count($prev) > 1;
 
     // curl 헬퍼
     $fetch = function($url, $isJson) {
@@ -71,7 +75,7 @@ if ($method === "GET") {
     if ($TD_KEY !== "" && !$isKR) {
       // 암호화폐 페어(BTC-USD)는 Twelve Data가 슬래시(BTC/USD)를 요구 — fiat 접미사일 때만 변환(주식 BRK-B 보호)
       $tdSym = preg_match('/^[A-Za-z]{2,6}-(USD|USDT|EUR|KRW|JPY|GBP|BTC|ETH)$/i', $sym) ? str_replace("-", "/", $sym) : $sym;
-      $u = "https://api.twelvedata.com/time_series?symbol=" . urlencode($tdSym) . "&interval=" . urlencode($tf) . "&outputsize=5000&format=JSON&apikey=" . urlencode($TD_KEY);
+      $u = "https://api.twelvedata.com/time_series?symbol=" . urlencode($tdSym) . "&interval=" . urlencode($tf) . "&outputsize=" . ($incremental ? 300 : 5000) . "&format=JSON&apikey=" . urlencode($TD_KEY);
       $raw = $fetch($u, true);
       if ($raw !== null) {
         $j = json_decode($raw, true);
@@ -131,6 +135,18 @@ if ($method === "GET") {
       }
     }
 
+    // 증분 머지: 기존 누적 + 새 봉을 t 기준 병합(같은 t=최신으로 갱신 → 진행중 봉 업데이트, 신규 봉만 추가)
+    if ($candles !== null && $incremental) {
+      $map = [];
+      foreach ($prev as $c) if (isset($c["t"])) $map[(string)$c["t"]] = $c;
+      foreach ($candles as $c) if (isset($c["t"])) $map[(string)$c["t"]] = $c;
+      ksort($map, SORT_STRING);
+      $candles = array_values($map);
+      if (count($candles) > 6000) $candles = array_slice($candles, -6000);
+      if ($source) $source .= "+inc";
+    }
+    // 새 데이터 못 받음 → 저장된 누적 캐시로 폴백(갱신 실패해도 차트 유지)
+    if ($candles === null && $incremental) { touch($cf); echo json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>"cache-stale","name"=>"","candles"=>$prev], JSON_UNESCAPED_UNICODE); exit; }
     if ($candles === null) { http_response_code(502); echo json_encode(["ok"=>false,"error"=>"notfound","symbol"=>$sym]); exit; }
     $payload = json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>$source,"name"=>$name,"candles"=>$candles], JSON_UNESCAPED_UNICODE);
     @file_put_contents($cf, $payload);
