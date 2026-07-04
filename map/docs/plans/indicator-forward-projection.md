@@ -15,17 +15,18 @@
 4. 좌표: `_mainGeo`의 `toXf(k)`(미래 x), `toY(v)`(가격 y) 사용. #2에서 미래폭=캔들폭으로 이미 확장됨.
 
 ## 대상 지표 (순서)
-- [ ] **1. 추세선(trend)** — 회귀선(slopeLog)을 futBars까지 연장. (현재 _drawTrendLayers가 일부 투영 중 → 포커스 시 강조 + 도달 라벨 명확화)
-- [ ] **2. 이동평균(ma)** — 최근 기울기 damped 연장(장기MA 기준). 끝점 라벨.
-- [ ] **3. 일목균형표(ichimoku)** — 선행스팬 A/B를 26기간 앞으로 투영(구름). 미래 구름 영역 + 라벨.
+- [x] **1. 추세선(trend)** — 이미 미래 투영(_drawTrendLayers, futBars/xRight) + 중기/단기/장기 +%/봉·R² 라벨. (parity: 도달 예상가 end-label 추가 예정)
+- [x] **2. 이동평균(ma)** — 완료: 장기MA 봉당 기울기 damped 연장(exp decay), 포커스 시 점선 투영 + '이동평균 투영 ≈ {가격}' 라벨. drawEvidence서 xNow/xRight/futBars/focused 전달.
+- [x] **3. 일목균형표(ichimoku)** — 이미 미래 구름 투영(_drawIchimokuLayers, futBars/shift). (parity: 도달 라벨 추가 예정)
 - [ ] (후속) 볼린저·VWAP·슈퍼트렌드·피보 등 확장.
 
 ## 진행 로그 (완료 시 체크 + 커밋 해시)
-- [ ] Phase 0: 계획서 저장 + 메모리 등록  ← 지금
-- [ ] Phase 1: 추세선 투영 강조 + 라벨
-- [ ] Phase 2: 이동평균 투영
-- [ ] Phase 3: 일목균형 미래 구름
-- [ ] Phase 4: 성능 점검(포커스 토글 시 재계산 1회·메모이즈 확인) + 배포
+- [x] Phase 0: 계획서 저장 + 메모리 등록
+- [x] Phase 1: 추세선 — 이미 투영됨(확인). parity 라벨은 후속
+- [x] Phase 2: 이동평균 투영 (커밋 대기)
+- [x] Phase 3: 일목균형 — 이미 구름 투영됨(확인). parity 라벨은 후속
+- [~] Phase 4: 성능 — 투영은 focused 시에만 그려짐(포커스 1개). analyze는 _an 캐시. 배포 진행
+- [ ] Phase 5(후속): 추세선·일목 '도달 예상가' end-label parity + 볼린저/VWAP/슈퍼트렌드 확장
 
 ## 검증
 - `node map/forge-core.test.js` 129+ 통과 유지(엔진 변경 시).

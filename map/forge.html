@@ -4298,6 +4298,20 @@
         _evLabel(c, (o === "bull" ? "정배열 ▲" : o === "bear" ? "역배열 ▼" : "혼조 –") + (ma.sr.ma ? " · " + (ma.sr.side === "support" ? "지지" : "저항") : ""), x + 4, y - 6, o === "bull" ? "#46c28e" : o === "bear" ? "#e06a6a" : "#8a92b2", "left");
       }
     }
+    // 미래 투영(포커스 시): 장기 MA를 최근 봉당 기울기로 감쇠 연장 → "이 지표가 이렇게 이어져 예측에 기여"하는 독립 해석 시각화
+    if (M.focused && M.xNow != null && M.futBars && ma.mas.long && ma.mas.long.series) {
+      const ls = ma.mas.long.series, w = Math.min(24, Math.max(6, Math.round((ma.mas.long.period || 60) / 3)));
+      const base = ls[nowFi], prev = ls[Math.max(0, nowFi - w)];
+      if (isFinite(base) && isFinite(prev) && w > 0) {
+        const slPer = (base - prev) / w, seam = M.xNow, xr = M.xRight, fb = M.futBars;
+        c.save(); c.setLineDash([5, 4]); c.strokeStyle = COL.long; c.lineWidth = 1.6; c.globalAlpha = 0.95;
+        c.beginPath(); c.moveTo(seam, pToY(base)); let endV = base;
+        for (let k = 1; k <= fb; k++) { endV = base + slPer * k * Math.exp(-k / (fb * 1.5)); const x = seam + (xr - seam) * k / fb, y = pToY(endV); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
+        c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+        _evLabel(c, "이동평균 투영 \u2248 " + _hzFmt(endV), xr, pToY(endV), COL.long, "right");
+        c.restore();
+      }
+    }
     c.restore();
   }
   // 피보 작도(차트·오버레이 공용, reveal 인지). M=좌표 매퍼.
@@ -4818,7 +4832,7 @@
         const cc = (cHi && _dec) ? cHi : c;   // 결정적 → 선명 캔버스(글로우), 나머지 → 희미
         if (n.blockType === "ma") {
           const ma = _an("MA", price, { len: (n.params && n.params.len) || 20, ema: !!(n.params && n.params.ema) });
-          if (_drawThis) _drawMALayers(cc, ma, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          if (_drawThis) _drawMALayers(cc, ma, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xNow: g.seamX, xRight: g.padX + g.plotW, futBars: (g.path && g.path.length) || 24, focused: (_focus === "ma") });
           legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(activeTF());
