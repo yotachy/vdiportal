@@ -5035,7 +5035,9 @@
     if (!data || typeof ForgeCore === "undefined" || !ForgeCore.run || typeof boardToGraph !== "function") return null;
     const act = _focusInd ? new Set([_focusInd]) : _evVisible;
     const tfk = (typeof activeTF === "function") ? activeTF() : "1day";
-    const key = [...act].sort().join(",") + "|" + tfk;
+    // 데이터(종목·기간) 지문을 키에 포함 — 없으면 활성지표·TF가 같은 다른 종목에서 이전 2차가 stale로 남아 엉뚱한 스케일 라인이 그려짐
+    const _dsig = (data.price && data.price.length) ? (data.price.length + ":" + data.price[0] + ":" + data.price[data.price.length - 1]) : "0";
+    const key = [...act].sort().join(",") + "|" + tfk + "|" + _dsig;
     if (_pred2Cache.key === key && _pred2Cache.pred) return _pred2Cache;
     try {
       const full = boardToGraph();
