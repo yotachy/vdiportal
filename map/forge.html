@@ -65,6 +65,7 @@
   .ind-rail .ir-head .ir-sub{font-size:9px;font-weight:600;color:var(--faint);letter-spacing:-.02em}
   .ind-rail .ir-row{display:flex;align-items:center;gap:9px;padding:6px 8px 6px 10px;border-bottom:1px solid var(--line);color:var(--eth);font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition:background .12s,color .12s}
   .ind-rail .ir-row:hover{background:rgba(255,255,255,.04);color:var(--ink)}
+  .ind-rail .ir-top + .ir-row{padding-top:11px}
   .ind-rail .ir-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.4);display:grid;place-items:center;transition:background .12s,border-color .12s}
   .ind-rail .ir-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
   .ind-rail .ir-row.on{color:var(--ink)}
@@ -632,6 +633,13 @@
   .forge-side .doc-vd.bull{color:#46c28e}
   .forge-side .doc-vd.bear{color:#e06a6a}
   .forge-side .doc-vd.neutral{color:var(--eth)}
+  .rgn{flex:0 0 auto;font-size:8.5px;font-weight:800;letter-spacing:.05em;padding:2px 4px;border-radius:var(--r-sm);font-family:ui-monospace,"SF Mono",monospace;line-height:1.1}
+  .rgn-us{color:#6ea0f5;background:rgba(91,141,239,.13)}
+  .rgn-kr{color:#e8b463;background:rgba(232,180,99,.13)}
+  .rgn-jp{color:#f08a9a;background:rgba(224,106,106,.13)}
+  .rgn-cn{color:#e06a6a;background:rgba(214,75,75,.14)}
+  .rgn-cr{color:#4fc8d2;background:rgba(63,182,192,.13)}
+  .m-chip .rgn{margin-right:4px}
   .forge-side .pset-list{display:flex;flex-wrap:wrap;gap:6px}
   .forge-side .pset-btn{padding:5px 10px;border:1px solid var(--line);border-radius:99px;background:transparent;color:var(--eth);font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:border-color .12s,color .12s}
   .forge-side .pset-btn:hover{border-color:var(--gold);color:var(--gold)}
@@ -1813,9 +1821,16 @@
   }
   // 포지(문서)의 등록 티커 → 자산유형 분류 + 플랫 아이콘(포지 목록 앞)
   function _docTicker(d) { const t = ((d && d.nodes) || []).find(n => n.blockType === "ticker"); return (t && t.params && t.params.symbol) || ""; }
-  function _assetType(sym) { sym = (sym || "").toUpperCase().trim(); if (!sym) return ""; if (/^\d{6}$/.test(sym)) return "kr"; if (/-USDT?$/.test(sym) || /^(BTC|ETH|SOL|XRP|DOGE|ADA|BNB|USDT|LTC|DOT|AVAX|TRX|LINK)\b/.test(sym)) return "crypto"; return "us"; }
-  function _assetIco(t) { const g = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"'; if (t === "kr") return `<svg ${g}><path d="M4 21V6l7-3v18M11 21h9V10l-9-3"/><path d="M7 10h.01M7 14h.01M15 13h.01M15 17h.01"/></svg>`; if (t === "us") return `<svg ${g}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 2.6 15.6 0 18M12 3c-2.6 2.4-2.6 15.6 0 18"/></svg>`; if (t === "crypto") return `<svg ${g}><circle cx="12" cy="12" r="9"/><path d="M10 8h4a2 2 0 0 1 0 4h-4M10 12h4.5a2 2 0 0 1 0 4H10M10 6.5v11"/></svg>`; return ""; }
-  function _assetHtml(d, cls) { const t = _assetType(_docTicker(d)); return t ? `<span class="${cls} ${t}">${_assetIco(t)}</span>` : ""; }
+  function _assetType(sym) {
+    sym = (sym || "").toUpperCase().trim(); if (!sym) return "";
+    if (/-USDT?$|-USD$/.test(sym) || /^(BTC|ETH|SOL|XRP|DOGE|ADA|BNB|USDT|LTC|DOT|AVAX|TRX|LINK)\b/.test(sym)) return "cr";
+    if (/\.T$|\.JP$/.test(sym)) return "jp";
+    if (/\.SS$|\.SZ$|\.HK$|\.CN$/.test(sym)) return "cn";
+    if (/^\d{6}$/.test(sym)) return "kr";
+    return "us";
+  }
+  const _RGN_LBL = { us: "US", kr: "KR", jp: "JP", cn: "CN", cr: "CR" };
+  function _assetHtml(d, cls) { const t = _assetType(_docTicker(d)); return t ? `<span class="rgn rgn-${t}">${_RGN_LBL[t] || ""}</span>` : ""; }
   function _initDocDrag() {
     const el = document.getElementById("forgeSide"); if (!el || el._dragInit) return; el._dragInit = true;
     let dragId = null;
@@ -1870,10 +1885,11 @@
     { name: "추세 중심", t: ["ma", "trend", "ichimoku", "supertrend", "adx"] },
     { name: "모멘텀 중심", t: ["rsi", "macd", "stochastic", "bollinger"] },
     { name: "스마트머니", t: ["smc", "structure", "volumeprofile", "vwap"] },
-    { name: "단타·스캘핑", t: ["rsi", "stochastic", "macd", "vwap", "bollinger"] },
-    { name: "스윙", t: ["trend", "ma", "macd", "rsi", "fib", "structure"] },
-    { name: "장기 투자", t: ["ma", "trend", "ichimoku", "volumeprofile", "structure"] },
-    { name: "돌파·변동성", t: ["bollinger", "atr", "supertrend", "structure", "volume"] },
+    { name: "단타·스캘핑", t: ["rsi", "stochastic", "macd", "vwap", "bollinger", "atr", "volume"] },
+    { name: "스윙", t: ["trend", "ma", "macd", "rsi", "bollinger", "fib", "structure", "ichimoku"] },
+    { name: "장기 투자", t: ["ma", "trend", "ichimoku", "volumeprofile", "structure", "elliott", "cycle"] },
+    { name: "돌파·변동성", t: ["bollinger", "atr", "supertrend", "adx", "structure", "volume"] },
+    { name: "역추세·반전", t: ["rsi", "stochastic", "bollinger", "fib", "elliott", "structure"] },
   ];
   let _userPresets = (function () { try { return JSON.parse(localStorage.getItem("scoopforge_presets") || "[]") || []; } catch (e) { return []; } })();
   function _applyPreset(types) { const t = _indTypes(); _evVisible = new Set(types ? types.filter(x => t.includes(x)) : t); _focusInd = null; drawEvidence(); if (typeof renderIndRail === "function") renderIndRail(); if (typeof bToast === "function") bToast("프리셋 적용"); }
@@ -5475,7 +5491,7 @@
     const fb = path.length;
     if (metaEl) metaEl.textContent = "현재가 " + _hzFmt(anchor);
     const hs = _hzList(unit, fb);
-    const head = `<tr><th>시점</th><th>예측가</th><th>변화</th><th>↑확률</th><th>예상 범위</th></tr>`;
+    const head = `<tr><th>시점</th><th>예측가</th><th>변화</th><th title="예측 변화가 일어날 확률(방향 달성확률)">달성확률</th><th>예상 범위</th></tr>`;
     const rows = hs.map(h => {
       const vF = path[h - 1], loF = (p.lo && p.lo[h - 1]), hiF = (p.hi && p.hi[h - 1]);
       const v = anchor + (vF - anchor) * u;                                   // 예측가: 현재가→최종 단조 상승(왔다갔다 없음)
@@ -5484,15 +5500,18 @@
       const chg = anchor ? (v - anchor) / anchor * 100 : 0;
       const cls = chg > 0.5 ? "hz-up" : chg < -0.5 ? "hz-dn" : "hz-fl";
       const band = (isFinite(lo) && isFinite(hi)) ? `${_hzFmt(lo)} ~ ${_hzFmt(hi)}` : "–";
-      const upF = _upProb(vF, hiF, anchor);                                   // 최종 확률
-      const up = Math.round(upF * u);                                        // 확률 게이지: 0→최종 충전
-      const pc = upF >= 55 ? "hz-up" : upF <= 45 ? "hz-dn" : "hz-fl";        // 색은 최종 방향 고정(깜빡임 방지)
-      const probCol = upF >= 55 ? "#46c28e" : upF <= 45 ? "#e06a6a" : "#8a92b2";
+      const upF = _upProb(vF, hiF, anchor);
+      const _dir = chg > 0.3 ? 1 : chg < -0.3 ? -1 : 0;                       // 이 시점 예측 변화 방향
+      const dirProb = _dir >= 0 ? upF : (100 - upF);                          // '그 변화가 일어날' 확률(달성확률) — 하락 예측이면 하락확률
+      const up = Math.round(dirProb * u);
+      const pc = _dir > 0 ? "hz-up" : _dir < 0 ? "hz-dn" : "hz-fl";
+      const probCol = _dir > 0 ? "#46c28e" : _dir < 0 ? "#e06a6a" : "#8a92b2";
+      const _parw = _dir > 0 ? "▲ " : _dir < 0 ? "▼ " : "";
       return `<tr>
         <td>+${h}${unit}</td>
         <td><span class="dash-cell"><b class="dval ${cls}">${_hzFmt(v)}</b></span></td>
         <td><span class="dash-cell"><b class="dval ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</b></span></td>
-        <td><span class="dash-cell"><span class="dbar"><span class="dbar-f" style="width:${up}%;background:${probCol}"></span></span><b class="dval ${pc}">${up}%</b></span></td>
+        <td><span class="dash-cell"><span class="dbar"><span class="dbar-f" style="width:${up}%;background:${probCol}"></span></span><b class="dval ${pc}">${_parw}${up}%</b></span></td>
         <td><span class="dash-cell"><span class="dash-sub">${band}</span></span></td>
       </tr>`;
     }).join("");
