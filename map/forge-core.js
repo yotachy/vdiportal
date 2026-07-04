@@ -1512,8 +1512,9 @@
       const mom = Math.max(-0.20, Math.min(0.20, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀(상향)
       const trend = trS * _prof.trendScale * DW("trend") * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
       const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
-      const seas = seasFn ? seasFn(k) : 0;                                                 // 계절성(주기)
-      const tex = _texArr ? _texArr[k] : 0;                                                // 데이터 기반 미세질감(AR)
+      const _ease = 1 - Math.exp(-k / 3.5);                                                // 이음매(k=0)에서 디테일 성분 완만 진입 → 시작 급변(꺾임) 방지
+      const seas = (seasFn ? seasFn(k) : 0) * _ease;                                        // 계절성(주기) — seasFn(1)이 커도 부드럽게 시작
+      const tex = (_texArr ? _texArr[k] : 0) * _ease;                                       // 데이터 기반 미세질감(AR)
       const m = rev + mom + trend + sig + seas + tex + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * (_prof.bandScale || 1) * (_volFac ? _volFac[k] : 1);   // TF별 콘 폭(일봉 타이트)
       // 종합 신호와 반대 방향으로 크게 드리프트하면 완화 — '지표 종합=하락인데 예측 급등/상승확률 86%' 같은 모순 억제
       let mC = m;
@@ -1560,8 +1561,9 @@
     const counter = [];
     for (let k = 1; k <= futW; k++) {
       const prog = 1 - Math.exp(-2.6 * k / futW);   // 목표로 수렴(초반 빠르게, 후반 안착)
-      const cSeas = seasFn ? seasFn(k) : 0;
-      const cTex = _texArr ? _texArr[k] * 0.5 : 0;
+      const _cEase = 1 - Math.exp(-k / 3.5);        // 디테일 성분 완만 진입(시작 급변 방지)
+      const cSeas = (seasFn ? seasFn(k) : 0) * _cEase;
+      const cTex = (_texArr ? _texArr[k] * 0.5 : 0) * _cEase;
       counter.push(last * Math.exp(_cDrift * prog + cSeas + cTex));
     }
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
