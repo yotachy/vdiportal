@@ -303,6 +303,11 @@
      ════════════════════════════════════════════════════ */
   .fc-wrap{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;padding:10px;gap:8px;
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .board-pane .fc-panel>.fc-phead{cursor:pointer;transition:background .12s}
+  .board-pane .fc-panel>.fc-phead:hover{background:rgba(255,255,255,.03)}
+  .board-pane .fc-panel>.fc-phead .fc-t::before{content:"▾";margin-right:5px;color:var(--eth);opacity:.5;font-size:9px;display:inline-block;transition:transform .15s;vertical-align:middle}
+  .board-pane .fc-panel.collapsed>.fc-phead .fc-t::before{transform:rotate(-90deg)}
+  .board-pane .fc-panel.collapsed>.fc-pbody{display:none}
   .fc-panel{background:linear-gradient(180deg,var(--panel),#0e1218);border:1px solid var(--line);
     border-radius:var(--r-lg);overflow:hidden;flex-shrink:0}
   .fc-phead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;
@@ -4025,6 +4030,11 @@
   let _axisLabelBoxes = [];      // 세로축 눈금·현재가 pill 박스(라벨 회피용으로 미리 예약)
   let _labelMode = "key";        // 기본 "key"=중요 라벨만(차트 정돈) / "all"=전체(토글)
   const _KEYLBL = /목표|반대|지지|저항|골든포켓|장기|중기|단기/;   // 중요 라벨 판별(목표·S/R·반대·주요 추세선)
+  document.addEventListener("click", function (e) {   // 중앙 보드 패널 접기/펼치기(헤더 클릭)
+    const ph = e.target.closest && e.target.closest(".board-pane .fc-phead"); if (!ph) return;
+    if (e.target.closest("button,input,select,a,textarea")) return;   // 헤더 내 컨트롤은 제외
+    const panel = ph.closest(".fc-panel"); if (panel) panel.classList.toggle("collapsed");
+  });
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#d0b25a", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#d87ab8" };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱" };
   function evIndicatorNodes() {
