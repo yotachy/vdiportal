@@ -598,7 +598,7 @@
      SIDEBAR  (Task 3)
      ════════════════════════════════════════════════════ */
   .forge-shell{display:flex;height:calc(100vh - 54px)}
-  .forge-side{flex:0 0 168px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+  .forge-side{flex:0 0 200px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
   .forge-side.collapsed{flex-basis:0;border:0}
   .forge-side .side-sec{padding:10px;border-bottom:1px solid var(--line)}
   .forge-side .side-h{font-size:11px;color:var(--eth);margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
@@ -609,6 +609,10 @@
   .forge-side .doc-row.drop-before{box-shadow:inset 0 2px 0 var(--gold)}
   .forge-side .doc-row.drop-after{box-shadow:inset 0 -2px 0 var(--gold)}
   .forge-side .doc-row.active{background:var(--raised2);color:var(--gold)}
+  .forge-side .doc-vd{flex:0 0 auto;font-size:10.5px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-.02em}
+  .forge-side .doc-vd.bull{color:#46c28e}
+  .forge-side .doc-vd.bear{color:#e06a6a}
+  .forge-side .doc-vd.neutral{color:var(--eth)}
   .doc-ico,.m-chip-ico{flex:0 0 auto;width:15px;height:15px;display:inline-grid;place-items:center}
   .doc-ico svg,.m-chip-ico svg{width:15px;height:15px}
   .m-chip-ico{margin-right:5px;vertical-align:-2px}
@@ -1803,20 +1807,23 @@
     DOCS.splice(to, 0, moved);
     if (SERVER_OK) apiPost({ op: "reorder", order: DOCS.map(d => d.id) });
     renderSidebar();
-    if (typeof bToast === "function") bToast("포지 순서 변경됨");
+    if (typeof bToast === "function") bToast("순서 변경됨");
   }
   function renderSidebar() {
     const el = document.getElementById("forgeSide"); if (!el) return;
-    const docs = DOCS.map(d =>
-      `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}" draggable="true">
-         ${_assetHtml(d, "doc-ico")}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.title || "제목 없음")}</span>
+    const docs = DOCS.map(d => {
+      const nm = _docTicker(d) || d.title || "새 종목";
+      const v = d._verdict;
+      const vb = v ? `<span class="doc-vd ${v.regime}">${v.regime === "bull" ? "▲" + v.up + "%" : v.regime === "bear" ? "▼" + (100 - v.up) + "%" : "–"}</span>` : "";
+      return `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}" draggable="true">
+         ${_assetHtml(d, "doc-ico")}<span class="doc-nm" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nm)}</span>${vb}
          <button class="side-btn" data-docren="${d.id}">✎</button>
          <button class="side-btn" data-docdel="${d.id}">✕</button>
-       </div>`).join("");
+       </div>`; }).join("");
     el.innerHTML =
-      `<div class="side-sec"><div class="side-h"><span>포지</span></div>
-         <div class="side-actions"><button class="side-btn" id="newDocBtn">＋ 새 포지</button></div>${docs}
-         <select class="doc-select" aria-label="포지 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === activeId ? " selected" : ""}>${esc(d.title || "제목 없음")}</option>`).join("")}</select></div>
+      `<div class="side-sec"><div class="side-h"><span>종목</span></div>
+         <div class="side-actions"><button class="side-btn" id="newDocBtn">＋ 종목 추가</button></div>${docs}
+         <select class="doc-select" aria-label="종목 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === activeId ? " selected" : ""}>${esc(_docTicker(d) || d.title || "새 종목")}</option>`).join("")}</select></div>
        <div class="side-sec tool-sec${_toolsOpen ? "" : " collapsed"}"><div class="side-h side-h-toggle" onclick="toggleTools()" title="블록 도구 접기/펼치기"><span>블록 도구</span><button class="side-allbtn" onclick="event.stopPropagation();toggleAllBlocks()" title="지표 전체 추가/해제">${_allIndAdded() ? "전체 해제" : "전체 적용"}</button><span class="side-caret">${_toolsOpen ? "▾" : "▸"}</span></div>
          <div class="pal-side">` +
          BLOCK_DEFS.filter(d => d.kind === "block" && d.type !== "ticker" && d.type !== "price").map(d => { const _a = _hasBlock(d.type), _s = d.type === _selType(); return `<div class="pal-btn${_a ? " added" : ""}${_s ? " sel" : ""}" data-bt="${d.type}" style="--ic:${EV_COLORS[d.type] || "#8a92b2"}" onclick="addBlock('${d.type}')" title="${_a ? "체크 해제 = 지표 제거" : "체크 = 지표 추가"}"><span class="pal-chk"></span><span class="pal-lbl">${d.label}</span>${_a ? `<button class="pal-edit" onclick="event.stopPropagation();editBlock('${d.type}')" title="상세 편집(파라미터)">✎</button>` : ""}</div>`; }).join("") +
@@ -1830,7 +1837,7 @@
   // 모바일 포지 가로 칩(고정 서브바)
   function renderMobilePoji() {
     const el = document.getElementById("mPoji"); if (!el) return;
-    el.innerHTML = DOCS.map(d => `<button class="m-chip${d.id === activeId ? " on" : ""}" onclick="switchDoc('${d.id}')" title="${esc(d.title || "")}">${_assetHtml(d, "m-chip-ico")}${esc(d.title || "제목 없음")}</button>`).join("") +
+    el.innerHTML = DOCS.map(d => `<button class="m-chip${d.id === activeId ? " on" : ""}" onclick="switchDoc('${d.id}')" title="${esc(d.title || "")}">${_assetHtml(d, "m-chip-ico")}${esc(_docTicker(d) || d.title || "새 종목")}</button>`).join("") +
       `<button class="m-chip m-chip-add" onclick="newDoc()" title="새 포지">＋</button>`;
   }
   // 모바일: 고정 헤더 서브바 생성 + 티커를 그 안으로 이동(데스크톱 복귀 시 원위치). 본문 padding-top 보정.
@@ -6327,6 +6334,7 @@
     const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(2) : "—";
     const _upF = (typeof aggUpProb === "function") ? aggUpProb(lastResult && lastResult.prediction) : null;
     const _up = (_upF != null) ? Math.round(_upF * u) : null;
+    if (u >= 1 && _up != null) { const _ad = activeDoc(); if (_ad) { _ad._verdict = { regime, up: _up }; if (typeof renderSidebar === "function") renderSidebar(); } }   // 종목 목록 미니판정 갱신
     el.innerHTML =
       `국면 <b style="color:${col}">${label}</b>` +
       (_up != null ? ` · <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
