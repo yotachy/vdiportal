@@ -3849,18 +3849,18 @@
         c.beginPath(); c.moveTo(seamX, toY(anchor));
         for (let k = 0; k < _counter.length; k++) c.lineTo(toXf(k), _cYc(k));
         c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
-        _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _cCol + ")", "3차\u00b7" + _cProb + "%", (_cUp ? -12 : 14));
+        _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _cCol + ")", "3차\u00b7" + _cProb + "%", (_cUp ? -12 : 14), true);
         c.restore();
       }
       // 1차(종합) 끝단: 흘러가는 점 + 진앙지 + 명칭
       _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차", -12);
       // 예측선 색상 키(좌상단)
       { c.save(); c.font = "700 9.5px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic";
-        const _ki = [["1차 종합", CT.core], ["2차 선택조합", "#c6a3ff"], ["3차 최대역치", (_pd > 0 ? "#e06a6a" : "#46c28e")]];
+        const _ki = [["이론적 최대치", "rgba(70,194,142,.42)", 1], ["1차 종합지표", CT.core, 0], ["2차 선택지표", "#c6a3ff", 0], ["3차 최대역치", (_pd > 0 ? "#e06a6a" : "#46c28e"), 0]];
         let _tot = 10; _ki.forEach(it => { _tot += c.measureText(it[0]).width + 24; });
         const _kx0 = padX + 8, _ky = padTop + 13;
         c.fillStyle = "rgba(11,15,20,.74)"; if (c.roundRect) { c.beginPath(); c.roundRect(_kx0 - 5, _ky - 12, _tot, 18, 5); c.fill(); }
-        let _kx = _kx0; _ki.forEach(it => { c.fillStyle = it[1]; c.beginPath(); c.arc(_kx + 4, _ky - 3.5, 3, 0, 7); c.fill(); c.fillStyle = "rgba(224,229,239,.9)"; c.fillText(it[0], _kx + 11, _ky); _kx += c.measureText(it[0]).width + 24; }); c.restore(); }
+        let _kx = _kx0; _ki.forEach(it => { c.fillStyle = it[1]; if (it[2]) { c.fillRect(_kx, _ky - 8.5, 9, 9); } else { c.beginPath(); c.arc(_kx + 4, _ky - 3.5, 3, 0, 7); c.fill(); } c.fillStyle = "rgba(224,229,239,.9)"; c.fillText(it[0], _kx + 11, _ky); _kx += c.measureText(it[0]).width + 24; }); c.restore(); }
     }
     // y labels (right)
     c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
@@ -4387,7 +4387,7 @@
     c.restore();
   }
   // 예측선 끝단 장식(3개 공용): 흘러가는 마일스톤 점 + 끝점 진앙지(동일 갯수) + 명칭 라벨
-  function _predEndDeco(c, pathArr, seamX, coneR, toY, box, col, label, labelDy) {
+  function _predEndDeco(c, pathArr, seamX, coneR, toY, box, col, label, labelDy, showPx) {
     const pl = pathArr && pathArr.length; if (!pl) return;
     const tX = k => seamX + ((k + 1) / pl) * (coneR - seamX);
     try {
@@ -4402,6 +4402,13 @@
       c.fillStyle = "rgba(11,15,20,.86)"; if (c.roundRect) { c.beginPath(); c.roundRect(_lx - _lw - 7, _ly - 10, _lw + 10, 15, 4); c.fill(); } else c.fillRect(_lx - _lw - 7, _ly - 10, _lw + 10, 15);
       c.strokeStyle = col; c.globalAlpha = .5; c.lineWidth = 1; if (c.roundRect) { c.beginPath(); c.roundRect(_lx - _lw - 6.5, _ly - 9.5, _lw + 9, 14, 4); c.stroke(); } c.globalAlpha = 1;
       c.fillStyle = col; c.fillText(label, _lx, _ly); c.restore();
+    }
+    if (showPx && isFinite(pathArr[pl - 1])) {   // 끝점 예측가 = 현재값처럼 색상 배경 pill(라인색)
+      c.save(); c.font = "800 10px ui-monospace,monospace"; c.textAlign = "right";
+      const _pv = _hzFmt(pathArr[pl - 1]), _pw = c.measureText(_pv).width;
+      const _pxx = ex - 10, _pyy = ey + (labelDy != null ? labelDy : -13) + 15;   // 이름 라벨 바로 아래
+      c.fillStyle = col; if (c.roundRect) { c.beginPath(); c.roundRect(_pxx - _pw - 9, _pyy - 10, _pw + 11, 15, 4); c.fill(); } else c.fillRect(_pxx - _pw - 9, _pyy - 10, _pw + 11, 15);
+      c.fillStyle = "#0b0f14"; c.fillText(_pv, _pxx - 3, _pyy); c.restore();
     }
   }
   // 시계열을 최근 봉당 기울기로 감쇠 연장 → 예측구간에 강조 투영 + 도달 라벨(포커스 지표 공용)
@@ -5193,7 +5200,7 @@
           c.beginPath(); c.moveTo(_sx, _cy2(toY(g.anchor)));
           for (let k = 0; k < _pl; k++) { const x = _t2x(k), y = _cy2(toY(p2.path[k])); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
           c.stroke(); c.setLineDash([]); c.shadowBlur = 0; c.restore();
-          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#c6a3ff", "2차\u00b7" + _c2.n, 12);
+          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#c6a3ff", "2차\u00b7" + _c2.n, 12, true);
         }
       } catch (e) {}
       _evLegend(cHi || c, g.padX, g.padTop, legendAll);   // 범례는 선명 캔버스에(모든 지표 나열, 표시/숨김 토글)
