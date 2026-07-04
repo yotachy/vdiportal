@@ -1455,8 +1455,14 @@
     const path = [], lo = [], hi = [];
     // 지표 드리프트 합 상한 — 다수(최대 19종) 지표가 같은 방향으로 정렬되면 additive 합이 커져 exp(m)이 폭발(비현실적 목표가)함.
     // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
-    const _auxSum = maDrift + fibDrift + ewDrift + rsiDrift + volDrift + bbDrift + macdDrift + adxDrift + vpDrift + icDrift + stDrift + smcDrift + cyDrift + vwDrift + stDrift2 + stochDrift;
-    const _auxCap = Math.max(-0.28, Math.min(0.28, _auxSum));
+    // Phase 6 융합: 지표를 종합방향(예상)·반대로 분리. 예상지표 합은 ±0.28 캡, 반대지표는 그 '절반 가중'으로 항상 되돌림
+    // (기존 단순합은 예상지표가 캡을 포화시키면 반대지표 효과가 캡에 가려져 사라짐 → 반대지표를 캡 이후 별도 차감해 항상 체감되게).
+    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift];
+    const _rawSum = _drifts.reduce((a, b) => a + b, 0);
+    const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
+    let _agSum = 0, _opSum = 0;
+    for (const d of _drifts) { if (!d) continue; if ((d > 0 ? 1 : -1) === _cdir0) _agSum += Math.abs(d); else _opSum += Math.abs(d); }
+    const _auxCap = _cdir0 * Math.max(0, Math.min(0.28, _agSum) - 0.5 * _opSum);   // 반대지표 = 예상지표의 절반 효과(균등 되돌림, 방향 유지)
     for (let k = 1; k <= futW; k++) {
       const rev = -dev * (1 - Math.exp(-theta * k)) * REV_W;                                // 평균회귀(약화)
       const mom = Math.max(-0.20, Math.min(0.20, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀(상향)
