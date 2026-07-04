@@ -75,7 +75,7 @@
   .ind-rail .ir-edit{flex:0 0 auto;width:18px;height:18px;border:0;background:transparent;color:var(--eth);font-size:11px;cursor:pointer;opacity:0;border-radius:var(--r-sm);display:grid;place-items:center;padding:0}
   .ind-rail .ir-row:hover .ir-edit{opacity:.6}
   .ind-rail .ir-edit:hover{opacity:1;color:var(--gold)}
-  .ind-rail .ir-top{padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:38px;background:var(--panel);z-index:1}
+  .ind-rail .ir-top{padding:9px 10px 13px;border-bottom:1px solid var(--line);position:sticky;top:38px;background:var(--panel);z-index:1}
   .ind-rail .ir-allbtn{width:100%;padding:7px;border:1px solid var(--line);border-radius:var(--r-md);background:transparent;color:var(--eth);font-size:11px;font-weight:700;cursor:pointer}
   .ind-rail .ir-allbtn:hover{border-color:var(--gold);color:var(--gold)}
   @media (max-width:860px){ .ind-rail{display:none} }
@@ -1870,6 +1870,10 @@
     { name: "추세 중심", t: ["ma", "trend", "ichimoku", "supertrend", "adx"] },
     { name: "모멘텀 중심", t: ["rsi", "macd", "stochastic", "bollinger"] },
     { name: "스마트머니", t: ["smc", "structure", "volumeprofile", "vwap"] },
+    { name: "단타·스캘핑", t: ["rsi", "stochastic", "macd", "vwap", "bollinger"] },
+    { name: "스윙", t: ["trend", "ma", "macd", "rsi", "fib", "structure"] },
+    { name: "장기 투자", t: ["ma", "trend", "ichimoku", "volumeprofile", "structure"] },
+    { name: "돌파·변동성", t: ["bollinger", "atr", "supertrend", "structure", "volume"] },
   ];
   let _userPresets = (function () { try { return JSON.parse(localStorage.getItem("scoopforge_presets") || "[]") || []; } catch (e) { return []; } })();
   function _applyPreset(types) { const t = _indTypes(); _evVisible = new Set(types ? types.filter(x => t.includes(x)) : t); _focusInd = null; drawEvidence(); if (typeof renderIndRail === "function") renderIndRail(); if (typeof bToast === "function") bToast("프리셋 적용"); }
@@ -3817,11 +3821,18 @@
         c.beginPath(); c.moveTo(seamX, toY(anchor));
         for (let k = 0; k < _counter.length; k++) c.lineTo(toXf(k), _cYc(k));
         c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
-        _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _cCol + ")", "3차(최대역치)\u00b7" + _cProb + "%", (_cUp ? -12 : 14));
+        _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _cCol + ")", "3차\u00b7" + _cProb + "%", (_cUp ? -12 : 14));
         c.restore();
       }
       // 1차(종합) 끝단: 흘러가는 점 + 진앙지 + 명칭
-      _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차(종합)", -12);
+      _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차", -12);
+      // 예측선 색상 키(좌상단)
+      { c.save(); c.font = "700 9.5px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic";
+        const _ki = [["1차 종합", CT.core], ["2차 선택조합", "#c6a3ff"], ["3차 최대역치", (_pd > 0 ? "#e06a6a" : "#46c28e")]];
+        let _tot = 10; _ki.forEach(it => { _tot += c.measureText(it[0]).width + 24; });
+        const _kx0 = padX + 8, _ky = padTop + 13;
+        c.fillStyle = "rgba(11,15,20,.74)"; if (c.roundRect) { c.beginPath(); c.roundRect(_kx0 - 5, _ky - 12, _tot, 18, 5); c.fill(); }
+        let _kx = _kx0; _ki.forEach(it => { c.fillStyle = it[1]; c.beginPath(); c.arc(_kx + 4, _ky - 3.5, 3, 0, 7); c.fill(); c.fillStyle = "rgba(224,229,239,.9)"; c.fillText(it[0], _kx + 11, _ky); _kx += c.measureText(it[0]).width + 24; }); c.restore(); }
     }
     // y labels (right)
     c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
@@ -5149,7 +5160,7 @@
           c.beginPath(); c.moveTo(_sx, toY(g.anchor));
           for (let k = 0; k < _pl; k++) { const x = _t2x(k), y = toY(p2.path[k]); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
           c.stroke(); c.setLineDash([]); c.shadowBlur = 0; c.restore();
-          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#c6a3ff", "2차(선택조합)\u00b7" + _c2.n + "개", 12);
+          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#c6a3ff", "2차\u00b7" + _c2.n, 12);
         }
       } catch (e) {}
       _evLegend(cHi || c, g.padX, g.padTop, legendAll);   // 범례는 선명 캔버스에(모든 지표 나열, 표시/숨김 토글)
