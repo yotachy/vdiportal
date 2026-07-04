@@ -1372,8 +1372,8 @@
     const pfNode = graph.nodes.find(nn => nn.kind === "block" && nn.blockType === "phasefold");
     if (pfNode && meta[pfNode.id] && meta[pfNode.id].best > 2 && n >= 24) {
       const P = meta[pfNode.id].best, th = meta[pfNode.id].theta, str = meta[pfNode.id].strength || 0;
-      const rel = Math.max(0, Math.min(1, 1 - (isFinite(th) ? th : 1))) * Math.min(1, str / 3);   // 0..1
-      if (rel > 0.05) {
+      const rel = Math.max(0, Math.min(1, 1 - (isFinite(th) ? th : 1))) * Math.min(1, str / 2.2);   // 0..1 (약한 주기도 반영 강화 → 예측선 디테일 일관성)
+      if (rel > 0.03) {
         const NBP = 48;
         let sx = 0, sy = 0, sxx = 0, sxy = 0;
         for (let i = 0; i < n; i++) { sx += i; sy += logP[i]; sxx += i * i; sxy += i * logP[i]; }
