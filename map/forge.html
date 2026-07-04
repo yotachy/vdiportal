@@ -1028,8 +1028,8 @@
 <body>
   <header class="forge-top">
     <div class="brand" onclick="location.href=location.pathname" title="Scoop 홈(새로고침)" style="cursor:pointer"><svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true"><rect x="1.5" y="1.5" width="25" height="25" rx="7.5" fill="#e8b463"/><path d="M7.3 17.6a6.7 6.7 0 0 1 13.4 0" fill="none" stroke="#0b0f14" stroke-width="2.4" stroke-linecap="round"/><circle cx="14" cy="9" r="2.1" fill="#0b0f14"/></svg><span class="brand-txt">Scoop <span class="brand-by">by 머니스쿱</span></span></div>
-    <span style="font-size:11px;color:var(--gold);font-family:var(--mono);font-weight:700;letter-spacing:.05em" class="build-tag">build b062a6</span>
-    <span class="save-badge saved" id="saveBadge">● 저장됨</span>
+    <span style="font-size:11px;color:var(--gold);font-family:var(--mono);font-weight:700;letter-spacing:.05em" class="build-tag" title="Scoop Forge 페이지 버전">vb0.1</span>
+    <span class="save-badge" id="saveBadge"></span>
     <span class="h-sep"></span>
     <div class="h-group">
       <div class="seg" role="group" aria-label="정렬">
@@ -1330,7 +1330,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 시계열(샘플 데모 데이터 소스). 이미지 분석 UI는 추후 고도화 — 실 티커 포지에선 저장된 vision 무시(loadDoc)
-  console.log("[forge] build b062a6");
+  console.log("[forge] Scoop Forge vb0.1");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -1344,8 +1344,8 @@
   }
   function setSaveState(s) {
     const el = document.getElementById("saveBadge"); if (!el) return;
-    el.textContent = s === "saving" ? "● 저장 중…" : s === "offline" ? "● 오프라인" : "● 저장됨";
-    el.className = "save-badge " + s;
+    el.textContent = s === "saving" ? "● 저장 중…" : s === "offline" ? "● 오프라인" : "";   // 저장됨 문구 제거(정상 시 비움)
+    el.className = "save-badge " + (s === "saved" ? "" : s);
   }
 
   const W_NODE = 200;   // default node width (block kind)
@@ -6936,10 +6936,10 @@
       st.textContent = "● 변경됨 · 재분석 필요";
       st.title = "노드/설정이 바뀌었습니다 — ▷ 웹분석을 눌러 결과를 갱신하세요";
     } else if (_lastAnalyzedAt) {
-      const d = new Date(_lastAnalyzedAt), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
+      const d = new Date(_lastAnalyzedAt), MM = ("0" + (d.getMonth() + 1)).slice(-2), DD = ("0" + d.getDate()).slice(-2), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
       st.className = "eng-stat ok";
-      st.textContent = "✓ 분석 " + hh + ":" + mm;
-      st.title = "현재 결과는 " + hh + ":" + mm + " 분석본입니다 (" + _fmtAgo(_lastAnalyzedAt) + ")";
+      st.textContent = "✓ 분석 " + MM + "." + DD + " " + hh + ":" + mm;
+      st.title = "현재 결과는 " + MM + "." + DD + " " + hh + ":" + mm + " 분석본입니다 (" + _fmtAgo(_lastAnalyzedAt) + ")";
     } else {
       st.className = "eng-stat"; st.textContent = "";
     }
