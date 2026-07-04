@@ -908,8 +908,8 @@
     .board-pane{display:flex;flex:0 0 auto;width:100%;min-width:0;height:auto;overflow:visible}   /* 티커 입력은 보이게 */
     body.panel-mode .b-stage{display:none}                 /* 개별 노드 카드만 숨김 — 가중치는 ⚖ 모달, 블록추가는 사이드바 */
     .board-pane .b-zoomctl,.board-pane .b-marquee{display:none}
-    .tk-panel{flex-wrap:wrap}
-    .tk-panel .tk-stat{flex-basis:100%;order:5}            /* 상태문구는 아래 줄로 */
+    .tk-panel{flex-wrap:nowrap}                            /* 한 줄 유지 — 불러오기/도트 개행 방지 */
+    .tk-panel .tk-stat{flex-basis:auto;order:0;flex:0 0 auto}   /* 상태 도트 인라인(개행 안 함) */
     .chart-pane{flex:0 0 auto;width:100%;min-width:0;min-height:84vh}
     .fc-phead{flex-wrap:wrap;row-gap:6px}
     .fc-head-right{flex-wrap:wrap;justify-content:flex-start}
