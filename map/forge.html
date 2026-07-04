@@ -421,6 +421,10 @@
 
   /* hero panel (대표 이미지) — 확정 높이(차트 모드 캔버스 height:100% 붕괴·overflow:hidden 클리핑 방지) */
   .fc-panel-hero{flex:0 0 auto;min-height:0}
+  .fc-panel-hero:fullscreen{background:var(--bg);display:flex;flex-direction:column;padding:10px 14px;gap:6px;width:100vw;height:100vh}
+  .fc-panel-hero:fullscreen .fc-pbody{flex:1;min-height:0;display:flex;padding:0}
+  .fc-panel-hero:fullscreen .fc-hero{flex:1;min-height:0;height:auto}
+  .fc-panel-hero:fullscreen .fc-verdict-bar{flex:0 0 auto}
   .fc-hero{display:flex;gap:6px;height:var(--hero-h,560px);position:relative;overflow:hidden}
   .fc-vgutter{height:9px;margin:2px 0;border-radius:var(--r-md);cursor:row-resize;flex:0 0 auto;
     background:linear-gradient(180deg,transparent,rgba(138,146,178,.18),transparent);transition:background .12s}
@@ -4139,33 +4143,40 @@
     const focus = _evHover || _focusInd;
     const allVis = items.length && items.every(it => _evVisible.has(it._key));
     const rows = [{ col: "#8a92b2", t: allVis ? "전체 표시" : "전체 표시(클릭)", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key })));
-    c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
+    const _gc = ((getComputedStyle(document.documentElement).getPropertyValue("--gold") || "").trim()) || "#e8b463";
     const hint = "클릭=단독 보기(유지) · 전체 표시로 해제";
-    let maxW = c.measureText(hint).width; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
-    const panelW = 22 + maxW + 8, panelH = rows.length * 14 + 22;
-    c.fillStyle = "rgba(11,15,20,.78)";
-    if (c.roundRect) { c.beginPath(); c.roundRect(px, py, panelW, panelH, 6); c.fill(); } else c.fillRect(px, py, panelW, panelH);
+    c.font = "9.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; let maxW = c.measureText(hint).width;
+    c.font = "11.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
+    const panelW = 28 + maxW + 12, panelH = rows.length * 17 + 28;
+    c.fillStyle = "rgba(11,15,20,.82)";
+    if (c.roundRect) { c.beginPath(); c.roundRect(px, py, panelW, panelH, 7); c.fill(); } else c.fillRect(px, py, panelW, panelH);
     // 접기 토글(우상단 −)
-    const tbW = 15, tbX = px + panelW - tbW - 4, tbY = py + 3;
-    c.fillStyle = "rgba(138,146,178,.2)"; if (c.roundRect) { c.beginPath(); c.roundRect(tbX, tbY, tbW, 14, 4); c.fill(); } else c.fillRect(tbX, tbY, tbW, 14);
-    c.fillStyle = "rgba(224,229,239,.9)"; c.textAlign = "center"; c.fillText("−", tbX + tbW / 2, tbY + 11); c.textAlign = "left";
-    _legendHits.push({ x: tbX, y: tbY, w: tbW, h: 14, key: "__toggle__" });
-    c.fillStyle = "rgba(138,146,178,.75)"; c.font = "8.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.fillText(hint, px + 8, py + 11);
-    c.font = "10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
-    let y = py + 24;
+    const tbW = 17, tbX = px + panelW - tbW - 4, tbY = py + 4;
+    c.fillStyle = "rgba(138,146,178,.2)"; if (c.roundRect) { c.beginPath(); c.roundRect(tbX, tbY, tbW, 15, 4); c.fill(); } else c.fillRect(tbX, tbY, tbW, 15);
+    c.fillStyle = "rgba(224,229,239,.9)"; c.textAlign = "center"; c.fillText("−", tbX + tbW / 2, tbY + 12); c.textAlign = "left";
+    _legendHits.push({ x: tbX, y: tbY, w: tbW, h: 15, key: "__toggle__" });
+    c.fillStyle = "rgba(138,146,178,.75)"; c.font = "9.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.fillText(hint, px + 9, py + 13);
+    c.font = "11.5px Pretendard,'Malgun Gothic',system-ui,sans-serif";
+    let y = py + 30;
     for (const it of rows) {
       const isAll = it.key === null;
       const visible = isAll ? true : _evVisible.has(it.key);
-      const active = focus ? (it.key === focus) : false;                 // hover/포커스 대상
-      const dim = focus ? !active : !visible;                            // 포커스 중엔 대상 외 흐림 / 아니면 숨김 흐림
-      c.globalAlpha = active ? 1 : dim ? 0.32 : 1;
-      c.fillStyle = it.col; c.fillRect(px + 8, y, 9, 9);
-      if (active) { c.fillStyle = "rgba(232,180,99,.26)"; c.fillRect(px + 20, y - 2, c.measureText(it.t).width + 6, 13); }
-      c.fillStyle = "rgba(224,229,239,.95)"; c.fillText(it.t, px + 22, y + 8);
-      if (!isAll && !visible && !focus) { c.strokeStyle = "rgba(224,229,239,.6)"; c.lineWidth = 1; c.beginPath(); c.moveTo(px + 22, y + 4); c.lineTo(px + 22 + c.measureText(it.t).width, y + 4); c.stroke(); }   // 숨김=취소선
+      const active = focus ? (it.key === focus) : false;                 // 선택/포커스 대상
+      const dim = focus ? !active : !visible;
+      if (active) {   // 선택된 도구 = 명확한 선택 표시(테마 액센트 보더+텍스트)
+        c.fillStyle = "rgba(255,255,255,.1)"; c.fillRect(px + 4, y - 4, panelW - 8, 17);
+        c.strokeStyle = _gc; c.lineWidth = 1.2; c.strokeRect(px + 4.5, y - 3.5, panelW - 9, 16);
+      }
+      c.globalAlpha = active ? 1 : dim ? 0.3 : 1;
+      c.fillStyle = it.col; c.fillRect(px + 10, y, 11, 11);
+      c.fillStyle = active ? _gc : "rgba(224,229,239,.95)";
+      if (active) c.font = "700 11.5px Pretendard,'Malgun Gothic',system-ui,sans-serif";
+      c.fillText(it.t, px + 26, y + 10);
+      if (active) c.font = "11.5px Pretendard,'Malgun Gothic',system-ui,sans-serif";
+      if (!isAll && !visible && !focus) { c.strokeStyle = "rgba(224,229,239,.6)"; c.lineWidth = 1; c.beginPath(); c.moveTo(px + 26, y + 5); c.lineTo(px + 26 + c.measureText(it.t).width, y + 5); c.stroke(); }
       c.globalAlpha = 1;
-      _legendHits.push({ x: px, y: y - 3, w: panelW, h: 14, key: it.key });
-      y += 14;
+      _legendHits.push({ x: px, y: y - 4, w: panelW, h: 17, key: it.key });
+      y += 17;
     }
   }
   // 다각도 추세 4레이어 작도(차트·오버레이 공용). M=좌표 매퍼.
@@ -5749,7 +5760,14 @@
     const rb = document.getElementById("fcZoomReset"); if (rb) rb.addEventListener("click", fit);
     const cb = document.getElementById("fcZoomClose"); if (cb) cb.addEventListener("click", close);
     window.addEventListener("keydown", e => { if (e.key === "Escape" && modal.classList.contains("on")) close(); });
-    const exp = document.getElementById("fcExpand"); if (exp) exp.addEventListener("click", open);
+    function toggleChartFS() {
+      if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) {} return; }
+      const el = document.querySelector(".fc-panel-hero");
+      if (el && el.requestFullscreen) { el.requestFullscreen().then(() => setTimeout(redrawCharts, 70)).catch(() => open()); }
+      else open();   // 폴백(구형): 오버레이 모달
+    }
+    document.addEventListener("fullscreenchange", () => { setTimeout(() => { if (typeof redrawCharts === "function") redrawCharts(); }, 80); });
+    const exp = document.getElementById("fcExpand"); if (exp) exp.addEventListener("click", toggleChartFS);
     const heroImg = document.getElementById("fcHeroImg"); if (heroImg) heroImg.addEventListener("click", open);
   })();
 
