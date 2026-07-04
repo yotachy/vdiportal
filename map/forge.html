@@ -420,6 +420,8 @@
   @keyframes fitpulse{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.4),0 0 0 0 rgba(232,180,99,.5)}50%{box-shadow:0 4px 14px rgba(0,0,0,.4),0 0 0 5px rgba(232,180,99,0)}}
   .fc-axis-btns{position:absolute;right:6px;bottom:8px;z-index:4;display:flex;gap:4px}
   .fc-axis-btn{width:22px;height:22px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:12px;font-weight:700;cursor:pointer;line-height:1;transition:background .35s,color .35s,border-color .35s}
+  .fc-lock{width:auto;height:22px;padding:0 10px;display:inline-flex;align-items:center;gap:4px;font-size:11px;white-space:nowrap;background:rgba(11,15,20,.82)}
+  .fc-lock.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.18)}
   .fc-axis-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.14)}
   .fc-axis-btn.flash{border-color:var(--gold);color:#1a1206;background:var(--gold);transition:none}
   /* 봉 주기 세그먼트(일/주/월 직접 선택) */
@@ -998,6 +1000,7 @@
               <canvas id="fcEvidenceHi" class="fc-evidence-hi"></canvas>
               <canvas id="fcFx" class="fc-fx"></canvas>
               <div class="fc-axis-btns" id="fcAxisBtns">
+                <button id="chartLockBtn" class="fc-axis-btn fc-lock" style="display:none" onclick="toggleChartLock()" title="차트 조작 ↔ 페이지 스크롤 전환">✋ 조작</button>
                 <button id="autoBtn" class="fc-axis-btn" title="세로축 오토스케일 — 현재 구간의 보이는 캔들에 맞춤(시간창 유지). 전체 초기화는 플롯 더블클릭">A</button>
                 <button id="logBtn" class="fc-axis-btn" title="로그/선형 스케일">L</button>
               </div>
@@ -1754,7 +1757,16 @@
       if (sub) sub.remove();
       if (shell) shell.style.paddingTop = "";
     }
+    if (typeof applyChartLock === "function") applyChartLock();
   }
+  let _chartLock = true;   // 모바일 차트 잠금(기본 true=스크롤). false=차트 조작(팬·축·핀치)
+  function applyChartLock() {
+    const cv = document.getElementById("fcMainChart"), mobile = window.innerWidth <= 860;
+    if (cv) cv.style.touchAction = (mobile && _chartLock) ? "pan-y" : "none";
+    const b = document.getElementById("chartLockBtn");
+    if (b) { b.style.display = mobile ? "inline-flex" : "none"; b.classList.toggle("on", !_chartLock); b.innerHTML = _chartLock ? "✋ 조작" : "✕ 스크롤"; }
+  }
+  function toggleChartLock() { _chartLock = !_chartLock; applyChartLock(); if (typeof bToast === "function") bToast(_chartLock ? "스크롤 모드 — 페이지 이동" : "차트 조작 모드 — 드래그=팬·축, 두 손가락=줌"); }
   function switchDoc(id) { if (id === activeId) return; writeBackActive(); loadDoc(id); saveMeta(); }
   function newDoc() {
     writeBackActive();
@@ -5650,17 +5662,6 @@
     window.addEventListener("keydown", e => { if (e.key === "Escape" && modal.classList.contains("on")) close(); });
     const exp = document.getElementById("fcExpand"); if (exp) exp.addEventListener("click", open);
     const heroImg = document.getElementById("fcHeroImg"); if (heroImg) heroImg.addEventListener("click", open);
-    // 모바일: 인라인 차트 탭 → 전체화면(자유 조작). 스크롤/스와이프는 그대로 통과.
-    const mcv = document.getElementById("fcMainChart");
-    if (mcv) {
-      let _tp = null;
-      mcv.addEventListener("pointerdown", e => { if (e.pointerType === "touch") _tp = { x: e.clientX, y: e.clientY, t: Date.now() }; }, { passive: true });
-      mcv.addEventListener("pointerup", e => {
-        if (e.pointerType !== "touch" || !_tp || window.innerWidth > 860) { _tp = null; return; }
-        const mv = Math.hypot(e.clientX - _tp.x, e.clientY - _tp.y), dt = Date.now() - _tp.t; _tp = null;
-        if (mv < 9 && dt < 400) open();   // 탭(이동<9px·<400ms) = 전체화면
-      }, { passive: true });
-    }
   })();
 
   /* 마우스+터치 공용 호버 바인딩(터치=드래그 스크럽, touch-action:none로 스크롤 차단) */
@@ -5782,7 +5783,7 @@
     // 모바일 두 손가락 핀치 = 가로 확대/축소(보이는 봉 수 조절, 중앙 봉 고정) — 휠 줌과 동일 메커니즘
     let _pinch = null;
     cv.addEventListener("touchstart", e => {
-      if (window.innerWidth <= 860) return;   // 모바일: 인라인 핀치 비활성(전체화면에서 조작)
+      if (window.innerWidth <= 860 && _chartLock) return;   // 모바일 잠금 시 핀치 비활성(스크롤)
       if (e.touches.length === 2) {
         const g = cv._mainGeo; if (!g) return;
         const a = e.touches[0], b = e.touches[1], dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
@@ -5807,7 +5808,7 @@
     cv.addEventListener("touchend", _pinchEnd); cv.addEventListener("touchcancel", _pinchEnd);
     cv.addEventListener("pointerdown", e => {
       if (_pinch) return;   // 핀치 중엔 단일 포인터 팬 무시
-      if (e.pointerType === "touch" && window.innerWidth <= 860) return;   // 모바일: 인라인 팬 비활성 → 스크롤/탭만(전체화면에서 조작)
+      if (e.pointerType === "touch" && window.innerWidth <= 860 && _chartLock) return;   // 모바일 잠금 시 팬/축드래그 비활성(스크롤)
       const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g) return;
       const r = cv.getBoundingClientRect(), cx = e.clientX - r.left;
       if (cx > g.plotRight) {   // 우측 y축 스트립 → 가격축 수동 스케일(커서 가격 고정 앵커)
