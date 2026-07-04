@@ -30,7 +30,9 @@
   /* 숫자·코드용 공통 모노(가독성) */
   :root{--mono:ui-monospace,"SF Mono","Cascadia Mono","Segoe UI Mono",Consolas,"D2Coding",monospace}
   .forge-top{display:flex;align-items:center;flex-wrap:wrap;gap:14px;min-height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
-  .brand{font-weight:800;letter-spacing:-0.02em}.brand em{color:var(--gold);font-style:normal}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em}
+  .brand-mark{width:26px;height:26px;flex:0 0 auto;filter:drop-shadow(0 2px 6px rgba(232,180,99,.3))}
+  .brand-txt{font-size:17px;color:var(--ink);letter-spacing:-.02em}
   .forge-split{display:flex;flex:1;min-width:0}
   .board-pane{position:relative;flex:0 0 var(--board-w,560px);min-width:320px;overflow:hidden;display:flex;flex-direction:column}
   .chart-pane{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
@@ -369,7 +371,14 @@
   .export-btn:hover{background:var(--raised2);color:var(--ink)}
 
   /* ══ header groups + buttons ══ */
-  .brand-by{color:var(--eth);font-weight:500;font-size:13px}
+  .brand-by{color:var(--eth);font-weight:500;font-size:12.5px;letter-spacing:0;margin-left:1px}
+  .h-auth{display:flex;align-items:center;gap:8px;flex:0 0 auto;margin-left:4px}
+  .auth-btn{display:inline-flex;align-items:center;gap:7px;font:inherit;font-size:12.5px;font-weight:700;border-radius:var(--r-md);padding:7px 13px;cursor:pointer;letter-spacing:-.01em;transition:background .12s,border-color .12s,color .12s}
+  .auth-btn.login{background:#fff;color:#202430;border:1px solid #dfe3ea}
+  .auth-btn.login:hover{background:#f1f3f7}
+  .auth-btn.signup{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  .auth-btn.signup:hover{border-color:var(--gold);color:var(--gold)}
+  .auth-btn .g-icon{width:15px;height:15px;flex:0 0 auto}
   .h-group{display:flex;align-items:center;gap:8px}
   .h-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
   .tool-btn{background:transparent;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-md);
@@ -423,8 +432,9 @@
   @keyframes fitpulse{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.4),0 0 0 0 rgba(232,180,99,.5)}50%{box-shadow:0 4px 14px rgba(0,0,0,.4),0 0 0 5px rgba(232,180,99,0)}}
   .fc-axis-btns{position:absolute;right:6px;bottom:8px;z-index:4;display:flex;gap:4px}
   .fc-axis-btn{width:22px;height:22px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:12px;font-weight:700;cursor:pointer;line-height:1;transition:background .35s,color .35s,border-color .35s}
-  .fc-lock{width:auto;height:22px;padding:0 10px;display:inline-flex;align-items:center;gap:4px;font-size:11px;white-space:nowrap;background:rgba(11,15,20,.82)}
-  .fc-lock.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.18)}
+  .fc-lock{position:absolute;top:9px;right:10px;z-index:8;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid var(--line);border-radius:99px;background:rgba(9,12,17,.86);color:var(--eth);font:inherit;font-size:12px;font-weight:700;letter-spacing:-.01em;cursor:pointer;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.4)}
+  .fc-lock svg{width:14px;height:14px;flex:0 0 auto}
+  .fc-lock.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.16)}
   .fc-axis-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.14)}
   .fc-axis-btn.flash{border-color:var(--gold);color:#1a1206;background:var(--gold);transition:none}
   /* 봉 주기 세그먼트(일/주/월 직접 선택) */
@@ -658,7 +668,7 @@
     box-shadow:0 8px 24px rgba(0,0,0,.42);
     transform:translateY(-8px);opacity:0;transition:transform .24s ease,opacity .24s ease}
   .play-hud.on{display:flex;transform:translateY(0);opacity:1}
-  .play-hud .ph-ctl{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 9px;border-bottom:1px solid var(--line);cursor:move;user-select:none}
+  .play-hud .ph-ctl{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 9px;border-bottom:1px solid var(--line);cursor:move;user-select:none;touch-action:none}
   .play-hud .ph-grip{color:var(--faint);font-size:11px;letter-spacing:-2px;flex:0 0 auto}
   .play-hud .ph-ctl-title{font-size:11px;font-weight:700;color:var(--ink);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .play-hud .ph-body{display:flex;align-items:flex-start;gap:12px;padding:9px 12px}
@@ -901,6 +911,8 @@
     .forge-top .seg-btn,.forge-top .tool-btn,.forge-top .run-btn{padding:7px 12px;font-size:12.5px;display:inline-flex;align-items:center;gap:4px;line-height:1;height:auto}   /* 세로패딩 복원 → 찌그러짐 해소, 아이콘+라벨 정렬 */
     .fc-hero canvas{touch-action:pan-y}   /* 모바일: 한 손가락 세로 = 페이지 스크롤(차트가 안 가로챔), 2손가락 = 핀치 줌 */
     .forge-top .brand{font-size:15px}
+    .forge-top .h-auth{display:none}
+    .forge-top .brand-mark{width:22px;height:22px}
     .fc-head-right .ev-toggle{padding:5px 9px;font-size:15px}
     .forge-shell{flex-direction:column;height:auto}
     .forge-side{flex:0 0 auto;width:100%;border-right:none;border-bottom:1px solid var(--line);max-height:44vh;overflow-y:auto}
@@ -927,7 +939,7 @@
 </head>
 <body>
   <header class="forge-top">
-    <div class="brand">Scoop<em>Forge</em> <span class="brand-by">by MoneyScoop</span></div>
+    <div class="brand"><svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true"><rect x="1.5" y="1.5" width="25" height="25" rx="7.5" fill="#e8b463"/><path d="M7.3 17.6a6.7 6.7 0 0 1 13.4 0" fill="none" stroke="#0b0f14" stroke-width="2.4" stroke-linecap="round"/><circle cx="14" cy="9" r="2.1" fill="#0b0f14"/></svg><span class="brand-txt">Scoop <span class="brand-by">by 머니스쿱</span></span></div>
     <span style="font-size:11px;color:var(--gold);font-family:var(--mono);font-weight:700;letter-spacing:.05em" class="build-tag">build b062a6</span>
     <span class="save-badge saved" id="saveBadge">● 저장됨</span>
     <span class="h-sep"></span>
@@ -946,6 +958,10 @@
       <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출(결과만 갱신)"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l2.2 6.2 6.3.3-5 4 1.8 6-5.3-3.4L6.7 18.5l1.8-6-5-4 6.3-.3z" opacity=".92"/></svg><span class="hlbl">웹분석</span></button>
       <button class="tool-btn is-soon" id="engineBtn" onclick="claudeEngine()" title="엔진분석 — 클로드 수동분석(예정 기능, 준비 중)">✦<span class="hlbl"> 엔진분석</span></button>
       <button class="tool-btn play-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 웹분석 결과가 어떻게 나왔는지 지표별 작도 과정을 애니메이션으로 재생(결과는 동일, 과정 설명용)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시연</span></button>
+    </div>
+    <div class="h-auth">
+      <button class="auth-btn login" onclick="authSoon()" title="로그인(준비 중)"><svg class="g-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.09a6.6 6.6 0 0 1 0-4.18V7.07H2.18a11 11 0 0 0 0 9.86z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg><span>Login</span></button>
+      <button class="auth-btn signup" onclick="authSoon()" title="회원가입(준비 중)">Sign up</button>
     </div>
   </header>
   <div class="forge-shell">
@@ -1006,8 +1022,8 @@
               <canvas id="fcEvidence" class="fc-evidence"></canvas>
               <canvas id="fcEvidenceHi" class="fc-evidence-hi"></canvas>
               <canvas id="fcFx" class="fc-fx"></canvas>
+              <button id="chartLockBtn" class="fc-lock" style="display:none" onclick="toggleChartLock()" title="차트 조작 ↔ 페이지 스크롤 전환"></button>
               <div class="fc-axis-btns" id="fcAxisBtns">
-                <button id="chartLockBtn" class="fc-axis-btn fc-lock" style="display:none" onclick="toggleChartLock()" title="차트 조작 ↔ 페이지 스크롤 전환">✋ 조작</button>
                 <button id="autoBtn" class="fc-axis-btn" title="세로축 오토스케일 — 현재 구간의 보이는 캔들에 맞춤(시간창 유지). 전체 초기화는 플롯 더블클릭">A</button>
                 <button id="logBtn" class="fc-axis-btn" title="로그/선형 스케일">L</button>
               </div>
@@ -1776,7 +1792,12 @@
     const cv = document.getElementById("fcMainChart"), mobile = window.innerWidth <= 860;
     if (cv) cv.style.touchAction = (mobile && _chartLock) ? "pan-y" : "none";
     const b = document.getElementById("chartLockBtn");
-    if (b) { b.style.display = mobile ? "inline-flex" : "none"; b.classList.toggle("on", !_chartLock); b.innerHTML = _chartLock ? "✋ 조작" : "✕ 스크롤"; }
+    if (b) {
+      b.style.display = mobile ? "inline-flex" : "none"; b.classList.toggle("on", !_chartLock);
+      const icoMove = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3"/><path d="M2 12h20M12 2v20"/></svg>';
+      const icoScroll = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8l4-4 4 4M8 16l4 4 4-4"/></svg>';
+      b.innerHTML = _chartLock ? (icoMove + "<span>조작</span>") : (icoScroll + "<span>스크롤</span>");
+    }
   }
   function toggleChartLock() { _chartLock = !_chartLock; applyChartLock(); if (typeof bToast === "function") bToast(_chartLock ? "스크롤 모드 — 페이지 이동" : "차트 조작 모드 — 드래그=팬·축, 두 손가락=줌"); }
   function switchDoc(id) { if (id === activeId) return; writeBackActive(); loadDoc(id); saveMeta(); }
@@ -6504,6 +6525,7 @@
     bToast("웹분석 완료 · 포지결과 갱신");
   }
   // 엔진분석 = 클로드 수동분석(예정 기능). 현재는 안내만.
+  function authSoon() { if (typeof bToast === "function") bToast("로그인·회원가입은 준비 중입니다"); }
   function claudeEngine() { bToast("엔진분석(클로드 수동분석)은 준비 중입니다 — 예정 기능"); }
   /* 붙여넣은 텍스트 → 종가 배열. 한 줄=한 봉. 줄에 4개 이상 수면 OHLC(V)로 보고 종가(4번째) 사용. */
   function parseSeries(txt) {
