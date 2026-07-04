@@ -1897,8 +1897,7 @@
       const vb = v ? `<span class="doc-vd ${v.regime}">${v.regime === "bull" ? "▲" + v.up + "%" : v.regime === "bear" ? "▼" + (100 - v.up) + "%" : "–"}</span>` : "";
       return `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}" draggable="true">
          ${_assetHtml(d, "doc-ico")}<span class="doc-nm" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nm)}</span>${vb}
-         <button class="side-btn" data-docren="${d.id}">✎</button>
-         <button class="side-btn" data-docdel="${d.id}">✕</button>
+         <button class="side-btn" data-docdel="${d.id}" title="목록에서 제거">✕</button>
        </div>`; }).join("");
     el.innerHTML =
       `<div class="side-sec"><div class="side-h"><span>종목</span></div>
@@ -4358,7 +4357,13 @@
     } catch (e) {}
     const ex = Math.min(coneR, box.padX + box.plotW - 12), ey = Math.max(box.padTop + 14, Math.min(box.ch - box.padBot - 14, toY(pathArr[pl - 1])));
     _epicenterMark(c, ex, ey, col, 1);
-    if (label) { c.save(); c.font = "800 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right"; c.fillStyle = col; c.shadowColor = "rgba(11,15,20,.9)"; c.shadowBlur = 3; c.fillText(label, ex - 11, ey + (labelDy != null ? labelDy : -13)); c.restore(); }
+    if (label) {
+      c.save(); c.font = "800 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right";
+      const _lw = c.measureText(label).width, _lx = ex - 10, _ly = ey + (labelDy != null ? labelDy : -13);
+      c.fillStyle = "rgba(11,15,20,.86)"; if (c.roundRect) { c.beginPath(); c.roundRect(_lx - _lw - 7, _ly - 10, _lw + 10, 15, 4); c.fill(); } else c.fillRect(_lx - _lw - 7, _ly - 10, _lw + 10, 15);
+      c.strokeStyle = col; c.globalAlpha = .5; c.lineWidth = 1; if (c.roundRect) { c.beginPath(); c.roundRect(_lx - _lw - 6.5, _ly - 9.5, _lw + 9, 14, 4); c.stroke(); } c.globalAlpha = 1;
+      c.fillStyle = col; c.fillText(label, _lx, _ly); c.restore();
+    }
   }
   // 시계열을 최근 봉당 기울기로 감쇠 연장 → 예측구간에 강조 투영 + 도달 라벨(포커스 지표 공용)
   function _projFwd(c, series, nowFi, seam, xr, fb, pToY, col, label) {
