@@ -141,8 +141,10 @@
   .sig-list{display:flex;flex-direction:column}
   .sig-row{display:grid;grid-template-columns:14px 66px 1fr 44px;align-items:center;gap:7px;padding:4px 2px;border-bottom:1px solid rgba(138,146,178,.08);font-size:11.5px;transition:opacity .28s}
   .sig-row.dim{opacity:.24}   /* 시연: 아직 계산 전 지표는 흐리게 → 계산되면 점등 */
-  @keyframes wblink{0%,100%{box-shadow:inset 0 0 0 1px transparent;background-color:transparent}35%,65%{box-shadow:inset 0 0 0 2px var(--gold),0 0 16px -3px var(--gold);background-color:rgba(232,180,99,.1)}}
-  .wblink{animation:wblink .5s ease-in-out 3}
+  @media (max-width:860px){ .sig-list{grid-template-columns:1fr} }
+  @keyframes wblink{0%,100%{box-shadow:inset 0 0 0 1px transparent;background-color:transparent}40%,60%{box-shadow:inset 0 0 0 3px var(--gold),0 0 26px -1px var(--gold);background-color:rgba(232,180,99,.24)}}
+  .wblink{animation:wblink .4s ease-in-out 6;border-radius:var(--r-md)}
+  .sig-list{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}   /* PC 2열: 스크롤 없이 한눈에 */
   .sig-row:last-child{border-bottom:0}
   .sig-arw{font-size:10px;text-align:center}
   .sig-arw.up{color:#46c28e}.sig-arw.dn{color:#e06a6a}.sig-arw.fl{color:var(--gold)}
@@ -2043,14 +2045,14 @@
   const _SUBPANEL = { rsi: "fcRsiPanel", volume: "fcVolPanel", macd: "fcMacdPanel" };
   function _flashPanelFor(bt) {
     if (!bt) return;
-    const targets = [];
-    if (_SUBPANEL[bt]) { const el = document.getElementById(_SUBPANEL[bt]); if (el && el.offsetParent !== null) targets.push(el); }
+    const flash = el => { el.classList.remove("wblink"); void el.offsetWidth; el.classList.add("wblink"); setTimeout(() => el.classList.remove("wblink"), 2500); };
+    let scrollTo = null;
+    if (_SUBPANEL[bt]) { const el = document.getElementById(_SUBPANEL[bt]); if (el && el.offsetParent !== null) { flash(el); scrollTo = el; } }   // 서브패널(rsi/vol/macd)만 필요 시 스크롤
     try {
       const nodes = (typeof evIndicatorNodes === "function") ? evIndicatorNodes() : [];
-      nodes.filter(n => n.blockType === bt).forEach(n => { const r = document.querySelector('.sig-row[data-nid="' + n.id + '"]'); if (r) targets.push(r); });
+      nodes.filter(n => n.blockType === bt).forEach(n => { const r = document.querySelector('.sig-row[data-nid="' + n.id + '"]'); if (r) flash(r); });   // 신호행은 깜빡만(스크롤 이동 안 함)
     } catch (e) {}
-    targets.forEach(el => { el.classList.remove("wblink"); void el.offsetWidth; el.classList.add("wblink"); setTimeout(() => el.classList.remove("wblink"), 1700); });
-    if (targets[0] && targets[0].scrollIntoView) { try { targets[0].scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) {} }
+    if (scrollTo && scrollTo.scrollIntoView) { try { scrollTo.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) {} }
   }
   function renderSignalBoard() {
     if (_wlistOpen) return;   // 가중치 리스트 펼침 = 보드 데이터 숨김 → 신호 계산 생략(성능)
