@@ -891,6 +891,7 @@
     .forge-split{order:1}
     .forge-side{order:3;max-height:none}   /* 블록 도구는 맨 아래(접힘) */
     .chart-pane{order:-1}                   /* 차트 먼저(맨 위) */
+    .analyze-log{top:calc(var(--mhead,130px) + 8px);right:8px;width:min(340px,calc(100vw - 16px))}   /* 진행 로그: 고정 헤더 아래(겹침 방지) */
     .board-pane{order:1}
     .forge-top{gap:6px;padding:7px 10px}                             /* 가로 스크롤 없이 한 줄로(정렬/엔진분석/시각칩 숨겨 폭 확보) */
     .forge-top .h-actions{margin-left:0}                             /* 모바일: 우측 밀착 해제 → 좌→우로 흘려 채움 */
@@ -1758,12 +1759,15 @@
       if (tk && shell && tk.parentElement !== shell) shell.insertBefore(tk, shell.firstChild);   // 티커는 고정 아님 → 스크롤 본문 최상단(헤더 아래)
       renderMobilePoji();
       sub.style.top = top.offsetHeight + "px";
-      if (shell) shell.style.paddingTop = (top.offsetHeight + sub.offsetHeight) + "px";
+      const _hh = top.offsetHeight + sub.offsetHeight;
+      if (shell) shell.style.paddingTop = _hh + "px";
+      document.documentElement.style.setProperty("--mhead", _hh + "px");
     } else {
       const bp = document.getElementById("boardPane");
       if (tk && bp && tk.parentElement !== bp) bp.insertBefore(tk, bp.firstChild);   // 데스크톱: 티커 원위치(보드팬 최상단)
       if (sub) sub.remove();
       if (shell) shell.style.paddingTop = "";
+      document.documentElement.style.setProperty("--mhead", "0px");
     }
     if (typeof applyChartLock === "function") applyChartLock();
   }
