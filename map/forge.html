@@ -862,9 +862,23 @@
   .doc-select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.16)}
   .doc-select option{background:#0b1016;color:var(--ink)}
   /* ── 모바일: 세로 스택 · 노드 1열 · 차트 전폭 ── */
+  /* 모바일 고정 서브바(포지 가로칩 + 티커) — JS(syncMobileHead)가 모바일에서만 생성/구성 */
+  .m-sub{position:fixed;left:0;right:0;z-index:199;background:var(--panel);border-bottom:1px solid var(--line);display:flex;flex-direction:column}
+  .m-poji{display:flex;gap:6px;align-items:center;overflow-x:auto;padding:7px 10px;border-bottom:1px solid var(--line);-webkit-overflow-scrolling:touch}
+  .m-poji::-webkit-scrollbar{display:none}
+  .m-chip{flex:0 0 auto;background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:var(--r-md);padding:6px 12px;font:inherit;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+  .m-chip.on{background:rgba(232,180,99,.16);border-color:var(--gold);color:var(--gold)}
+  .m-chip-add{color:var(--gold);border-style:dashed;font-weight:800;padding:6px 11px}
+  .m-sub .tk-panel{border:0}
   @media (max-width: 860px) {
-    .forge-side .doc-row{display:none}     /* 모바일: 개별 포지 행 숨김 → 드롭다운으로 간단 표기 */
-    .doc-select{display:block}
+    .forge-top{position:fixed;top:0;left:0;right:0;z-index:200}   /* 헤더 고정 — 웹분석/시연 항상 접근 */
+    .forge-top .run-btn .hlbl,.forge-top .play-btn .hlbl{display:inline}   /* 웹분석/시연 라벨 복원 */
+    .forge-side .side-sec:first-child{display:none}   /* 포지 섹션 → 고정 서브바 칩으로 이동 */
+    .doc-select{display:none}
+    .forge-split{order:1}
+    .forge-side{order:3;max-height:none}   /* 블록 도구는 맨 아래(접힘) */
+    .chart-pane{order:-1}                   /* 차트 먼저(맨 위) */
+    .board-pane{order:1}
     .forge-top{gap:6px;padding:7px 10px}                             /* 가로 스크롤 없이 한 줄로(정렬/엔진분석/시각칩 숨겨 폭 확보) */
     .forge-top .h-actions{margin-left:0}                             /* 모바일: 우측 밀착 해제 → 좌→우로 흘려 채움 */
     .forge-top .eng-stat,.forge-top #engineBtn{display:none}         /* 모바일: 분석시각칩·엔진분석(예정) 숨김 → 헤더 1줄 유지 */
@@ -1707,6 +1721,30 @@
        `</div></div>
        <div class="side-sec" id="libSec"></div>`;
     if (window.renderLib) renderLib();   // 라이브러리 섹션(Task 4)
+    if (typeof renderMobilePoji === "function") renderMobilePoji();   // 모바일 포지 칩 갱신
+  }
+  // 모바일 포지 가로 칩(고정 서브바)
+  function renderMobilePoji() {
+    const el = document.getElementById("mPoji"); if (!el) return;
+    el.innerHTML = DOCS.map(d => `<button class="m-chip${d.id === activeId ? " on" : ""}" onclick="switchDoc('${d.id}')" title="${esc(d.title || "")}">${esc(d.title || "제목 없음")}</button>`).join("") +
+      `<button class="m-chip m-chip-add" onclick="newDoc()" title="새 포지">＋</button>`;
+  }
+  // 모바일: 고정 헤더 서브바 생성 + 티커를 그 안으로 이동(데스크톱 복귀 시 원위치). 본문 padding-top 보정.
+  function syncMobileHead() {
+    const top = document.querySelector(".forge-top"); if (!top) return;
+    const shell = document.querySelector(".forge-shell"), tk = document.getElementById("tkPanel");
+    const mobile = window.innerWidth <= 860;
+    let sub = document.getElementById("mSub");
+    if (mobile) {
+      if (!sub) { sub = document.createElement("div"); sub.id = "mSub"; sub.className = "m-sub"; sub.innerHTML = `<div class="m-poji" id="mPoji"></div>`; top.insertAdjacentElement("afterend", sub); }
+      if (tk && tk.parentElement !== sub) sub.appendChild(tk);
+      renderMobilePoji();
+      sub.style.top = top.offsetHeight + "px";
+      if (shell) shell.style.paddingTop = (top.offsetHeight + sub.offsetHeight) + "px";
+    } else {
+      if (sub) { const bp = document.getElementById("boardPane"); if (tk && bp && tk.parentElement === sub) bp.insertBefore(tk, bp.firstChild); sub.remove(); }
+      if (shell) shell.style.paddingTop = "";
+    }
   }
   function switchDoc(id) { if (id === activeId) return; writeBackActive(); loadDoc(id); saveMeta(); }
   function newDoc() {
@@ -7255,7 +7293,7 @@
   let _ovRz = null;
   window.addEventListener("resize", () => {
     clearTimeout(_ovRz);
-    _ovRz = setTimeout(() => { if (_ovResult) renderOverlay(_ovResult, _ovGraph); }, 90);
+    _ovRz = setTimeout(() => { if (_ovResult) renderOverlay(_ovResult, _ovGraph); if (typeof syncMobileHead === "function") syncMobileHead(); }, 90);
   });
 
   /* ── Boot ────────────────────────────────────────────────────── */
@@ -7512,6 +7550,7 @@
     onBoardChange(() => { if (_playing) stopPlay(); markEngineDirty(); markDirty(); });   // 엔진은 수동(버튼) — 변경됨 표시만
     /* 실행 버튼 제거됨 — runForge는 편집 시 자동 호출(markDirty/onBoardChange) */
     boot();
+    if (typeof syncMobileHead === "function") { syncMobileHead(); setTimeout(syncMobileHead, 400); }   // 모바일 고정 헤더 구성(부팅 후 재보정)
   });
   </script>
 </body>
