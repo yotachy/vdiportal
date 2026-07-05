@@ -295,6 +295,8 @@
         values[id] = rocSeries(ins[0] || data.price, (n.params && n.params.period) || 12);
       } else if (n.blockType === "ao") {
         values[id] = aoSeries(data, { fast: (n.params && n.params.fast) || 5, slow: (n.params && n.params.slow) || 34 });
+      } else if (n.blockType === "aroon") {
+        values[id] = aroonSeries(data, (n.params && n.params.period) || 25);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -657,6 +659,33 @@
   }
   function aoSteps() {
     return [ { k:"AO", v:"SMA(중앙값,5) − SMA(중앙값,34)" }, { k:"방향", v:"0선 교차 + 새서(3봉 반전)" } ];
+  }
+
+  // Aroon: 오실레이터. H/L 필요(data.candle, 신고가·신저가 이후 경과봉) → 서브패널 없이 hero 배지로만 표시(Phase B 관례).
+  function _aroonAt(data, period, end) {
+    const price = data.price || (data.candle||[]).map(c=>c.c), candle = data.candle || [];
+    const s = Math.max(0, end - period);
+    let hi=-Infinity, lo=Infinity, hIdx=s, lIdx=s;
+    for (let j=s; j<=end; j++){ const h=candle[j]?candle[j].h:price[j], l=candle[j]?candle[j].l:price[j]; if(h>=hi){hi=h;hIdx=j;} if(l<=lo){lo=l;lIdx=j;} }
+    const up = 100*(period - (end - hIdx))/period, down = 100*(period - (end - lIdx))/period;
+    return { up, down };
+  }
+  function analyzeAroon(data, opts) {
+    opts = opts || {};
+    const period = opts.period || 25;
+    const price = data.price || (data.candle||[]).map(c=>c.c), P = price.length;
+    if (P < 2) return { up:0, down:0, osc:0, bias:0 };
+    const { up, down } = _aroonAt(data, period, P-1), osc = up - down;
+    const bias = Math.max(-1, Math.min(1, osc/100));
+    return { up, down, osc, bias };
+  }
+  function aroonSeries(data, period) {
+    const price = data.price || (data.candle||[]).map(c=>c.c), P = price.length, out = new Array(P).fill(0);
+    for (let i=0;i<P;i++){ const a=_aroonAt(data, period||25, i); out[i]=Math.max(-1,Math.min(1,(a.up-a.down)/100)); }
+    return out;
+  }
+  function aroonSteps() {
+    return [ { k:"Aroon", v:"신고가·신저가 이후 경과봉으로 추세강도" }, { k:"방향", v:"Up − Down 오실레이터" } ];
   }
 
   function synthVolume(price) {
@@ -1742,6 +1771,9 @@
     const _aon = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "ao");
     const _ao = _aon ? analyzeAO(data, { fast: (_aon.params && _aon.params.fast) || 5, slow: (_aon.params && _aon.params.slow) || 34 }) : null;
     const aoDrift = _ao ? _ao.bias * _prof.trendScale * 0.06 * DW("ao") : 0;   // AO 0선 교차/가속 방향(±6%)
+    const _arn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "aroon");
+    const _arA = _arn ? analyzeAroon(data, { period: (_arn.params && _arn.params.period) || 25 }) : null;
+    const aroonDrift = _arA ? _arA.bias * _prof.trendScale * 0.06 * DW("aroon") : 0;   // Aroon Up-Down 방향(±6%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1751,7 +1783,7 @@
     // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
     // Phase 6 융합: 지표를 종합방향(예상)·반대로 분리. 예상지표 합은 ±0.28 캡, 반대지표는 그 '절반 가중'으로 항상 되돌림
     // (기존 단순합은 예상지표가 캡을 포화시키면 반대지표 효과가 캡에 가려져 사라짐 → 반대지표를 캡 이후 별도 차감해 항상 체감되게).
-    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift];
+    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift, aroonDrift];
     const _rawSum = _drifts.reduce((a, b) => a + b, 0);
     const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
     let _agSum = 0, _opSum = 0;
@@ -1968,5 +2000,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps };
 });

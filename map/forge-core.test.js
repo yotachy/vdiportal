@@ -1593,3 +1593,35 @@ test("run: ao 노드가 예측 반영", () => {
   const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "ao 예측 반영");
 });
+
+/* ── 신규 지표: Aroon (오실레이터 · hero 배지, H/L 필요) ── */
+test("analyzeAroon: 상승 추세면 up 높고 osc>0·bias>0", () => {
+  const price = Array.from({length:40},(_,i)=>100+i);   // 신고가 갱신 지속
+  const candle = price.map(c=>({o:c,h:c+0.1,l:c-0.1,c}));
+  const r = ForgeCore.analyzeAroon({ candle, price }, { period:25 });
+  assert.ok(r.up > r.down && r.bias > 0, `up ${r.up} down ${r.down}`);
+});
+test("analyzeAroon: 하락 추세면 down 높고 osc<0·bias<0(비단조 부호 검증)", () => {
+  const price = Array.from({length:40},(_,i)=>300-i);   // 신저가 갱신 지속
+  const candle = price.map(c=>({o:c,h:c+0.1,l:c-0.1,c}));
+  const r = ForgeCore.analyzeAroon({ candle, price }, { period:25 });
+  assert.ok(r.down > r.up && r.bias < 0, `up ${r.up} down ${r.down}`);
+});
+test("aroonSeries: 길이 일치·범위 −1..1", () => {
+  const price = Array.from({length:40},(_,i)=>100+Math.sin(i)*10);
+  const candle = price.map(c=>({o:c,h:c+0.3,l:c-0.3,c}));
+  const s = ForgeCore.aroonSeries({ candle, price }, 25);
+  assert.equal(s.length, price.length);
+  assert.ok(s.every(v => v >= -1 && v <= 1));
+});
+test("aroonSteps: 2줄", () => {
+  assert.strictEqual(ForgeCore.aroonSteps().length, 2);
+});
+test("run: aroon 노드가 예측 반영", () => {
+  const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "aroon", kind: "block", blockType: "aroon" }]), edges: base.edges.concat([{ from: "aroon", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "aroon 예측 반영");
+});
