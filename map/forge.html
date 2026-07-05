@@ -519,7 +519,7 @@
   body.chart-fs .forge-top,body.chart-fs .forge-side,body.chart-fs .board-pane,body.chart-fs #forgeGutter{display:none!important}
   body.chart-fs .chart-pane{position:fixed;top:0;left:0;bottom:0;right:186px;z-index:90;background:var(--bg);min-height:0!important;order:0}
   body.chart-fs .ind-rail{position:fixed;top:0;right:0;bottom:0;width:186px;z-index:91;display:flex!important;max-height:none}
-  body.chart-fs .fc-panel-hero{flex:1;min-height:0}
+  body.chart-fs .fc-panel-hero{flex:1;min-height:0;display:flex;flex-direction:column}
   body.chart-fs .fc-panel-hero>.fc-pbody{flex:1;min-height:0;display:flex}
   body.chart-fs .fc-hero{flex:1;min-height:0;height:auto}
   body.chart-fs .tune-modal,body.chart-fs .risk-modal,body.chart-fs .opt-modal{z-index:1000}
@@ -1148,7 +1148,7 @@
       <span id="analyzeProg" class="analyze-prog"></span>
       <span id="engStat" class="eng-stat" title="현재 표시된 결과가 언제 분석된 것인지"></span>
       <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출(결과만 갱신)"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l2.2 6.2 6.3.3-5 4 1.8 6-5.3-3.4L6.7 18.5l1.8-6-5-4 6.3-.3z" opacity=".92"/></svg><span class="hlbl">웹분석</span></button>
-      <button class="tool-btn play-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 웹분석 결과가 어떻게 나왔는지 지표별 작도 과정을 애니메이션으로 재생(결과는 동일, 과정 설명용)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시연</span></button>
+      <button class="tool-btn play-btn" id="playBtn" onclick="playAnalysis()" title="시뮬레이션 — 웹분석 결과가 어떻게 나왔는지 지표별 작도 과정을 애니메이션으로 재생(결과는 동일, 과정 설명용)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시뮬레이션</span></button>
       <button class="tool-btn is-soon" id="engineBtn" onclick="claudeEngine()" title="엔진분석 — 클로드 수동분석(예정 기능, 준비 중)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/><path d="M10 10h4v4h-4z"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><span class="hlbl">엔진분석</span><span class="soon-tag">예정</span></button>
     </div>
     <div class="theme-wrap">
