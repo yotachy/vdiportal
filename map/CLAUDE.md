@@ -1,6 +1,50 @@
-# CLAUDE.md — 스쿱보드 (Scoop Board)
+# CLAUDE.md — map/ : 스쿱포지 & 스쿱보드 (MoneyScoop)
 
-**스쿱보드 · Scoop Board by MoneyScoop** — 자유 캔버스 노드 다이어그램 빌더(GitMind 스타일). 단일 HTML 파일, 빌드 도구 없음, 바닐라 JS.
+`map/`는 MoneyScoop 브랜드의 독립 분석 도구 **두 종**을 담는다. 순수 HTML·CSS·바닐라 JS, 빌드 도구 없음. **KB손해보험 VDI 포탈과 무관**(리브랜드된 별도 제품). 개요·실행법은 [`README.md`](README.md) 참조.
+
+| 도구 | 파일 | 비고 |
+|---|---|---|
+| **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js`(+`forge-api.php`) | 노드 전략보드 + 라이브 차트 통합 분석 도구. **현재 주력·주 작업 대상** |
+| **스쿱보드 (Scoop Board)** | `map.html`(+`api.php`) | 자유 캔버스 노드 다이어그램 빌더 |
+
+> 스쿱포지의 상세 구현 이력·규약은 방대하여 **프로젝트 메모리 `scoopforge-deploy.md`가 단일 출처**. 아래는 현행 요약.
+
+---
+
+# 🔥 스쿱포지 (Scoop Forge) — 플래그십
+
+**`forge.html`(UI+캔버스 작도) + `forge-core.js`(DOM-free UMD 분석엔진)**. 노드로 기술적 분석 전략을 조립→실행하면 예측 경로·합성 시그널·국면을 산출하고, 예측 콘·살아있는 그래프 맥동을 그린다. 좌=노드 전략보드, 우=라이브 차트.
+
+## 파일
+
+- `forge.html` — UI·캔버스 작도(단일). `forge-core.js` — 분석 엔진(**UMD**: 브라우저 `window.ForgeCore` + node `module.exports`. **유일하게 단위테스트** `node --test forge-core.test.js`, 현재 183케이스). `forge-api.php` — 서버 저장 + 티커 OHLC 프록시. `forge-guide.html` — 엔진 작동원리 설명서.
+- **forge.html + forge-core.js 동반 배포 필수**(상대 `<script src>` 동위치). `forge-core.test.js`는 배포 제외.
+- **배포 불가침**(서버 생성·사용자 데이터): `forge_data.json`·`forge_images.json`·`forge_jobs.json`·`forge_td_key.txt`·`forge_ohlc_cache_*.json`. 배포는 `forge.html`+`forge-core.js`+`forge-api.php`만.
+
+## 4패널 구성 (지칭 규칙 — 하단 §"4패널" 상세)
+
+1패널=**종목**(워치리스트 `.forge-side`) / 2패널=**티커**(중앙 보드 `.board-pane`·`.wboard` — 타임프레임 매트릭스·예측시점별·오실레이터 서브패널·지표신호 판정) / 3패널=**지표조합**(지표 레일 `.ind-rail`) / 4패널=**차트**(`.chart-pane` — 예측선 1/2/3차).
+
+## 지표 시스템 (30종)
+
+- `BLOCK_DEFS`에 지표 정의 → 노드로 캔버스 배치. **`IND_TIERS` 4등급**: Lv1 핵심(ma·macd·rsi·bollinger·volume) / Lv2 주요(trend·adx·stochastic·fib·ichimoku·pivot·psar) / Lv3 보조·전문(vwap·supertrend·atr·volumeprofile·structure·keltner·donchian·cci·williams·aroon·mfi) / Lv4 고급·심화(elliott·smc·cycle·phasefold·roc·ao·cmf). 최근 추가 11종(`NEW_INDICATORS`)은 레일에 `new` 배지.
+- **지표당 통합 패턴**: `forge-core.js`에 `analyzeX`(순수·방향 `bias∈[−1,1]`) + 필요시 `xSeries`(combine용 −1..1) + `xSteps`(시연 서술) → `evalBlocks` 케이스 → `run()` **단일 드리프트항**(`bias × trendProfileForTF(tf).trendScale × cap`, `_drifts` 배열 합산·±0.28 캡) → `forge.html` 작도 + `analysisSteps` + `nodeExpert`. **forge.html 16지점 등록**(BLOCK_DEFS·IND_TIERS·GAUGE_TYPES·`_an`프레임캐시래퍼·`_nodeBias`·EV_COLORS/LABEL·TUNE_TYPES·seedDefaultStrategy·hero작도 dispatch·playAnalysis indNodes 등).
+- **규약**: 드리프트 이중계상 금지·cap 보수적(≤.08)·반드시 `trendProfileForTF` 경유. 오버레이(pivot·psar·keltner·donchian)=combine `zeros`(방향은 드리프트), 오실레이터=실 `xSeries`. 파라미터 있는 지표는 `_an` 래퍼 캐시키에 `JSON.stringify(opts)` 포함(안 하면 stale). **mfi·cmf 드리프트는 그래프 volume 노드(`_vn`/`values[_vn.id]`) 실거래량 스레딩 필수**(raw data엔 volume 없음).
+- **작도**: 채널/밴드 오버레이(keltner·donchian)는 **per-bar 움직이는 밴드**로(pivot만 정적 S/R). 신규 오실레이터는 기본 hero 배지(`_drawXLayers` = 스토캐스틱 선례), **핵심 3종(cci·williams·mfi)만 2번 패널에 RSI 동형 서브패널 그래프**(`fcDrawCci/Williams/Mfi`·`_SUBPANEL`).
+
+## 편집창 (`renderParams` → `#paramPanel`)
+
+파라미터 numRow + **도구 안내**(`INDICATOR_INFO` 30종 목적·정의·해석법) + **추천값 세팅**(BLOCK_DEFS 기본값 리셋) · **저장**(markDirty 영속, 재분석은 웹분석 별도) 버튼. 지표 노드에만 표시(구조/데이터 블록 제외).
+
+## 실행 / 저장
+
+**웹분석**(`runEngine` 즉시계산) / **시뮬레이션**(`playAnalysis` 작도 애니메이션·reveal 게이트). 티커 노드로 실 OHLC fetch(`forge-api.php` 프록시 — TwelveData/Stooq/Naver). 서버(`forge-api.php`)·로컬·JSON 내보내기로 영속. 자동저장은 `markDirty`(디바운스).
+
+---
+
+# 🧩 스쿱보드 (Scoop Board)
+
+**스쿱보드 · Scoop Board by MoneyScoop** — 자유 캔버스 노드 다이어그램 빌더(GitMind 스타일). 단일 HTML 파일(`map.html`), 빌드 도구 없음, 바닐라 JS.
 
 - **정체성**: 머니스쿱(MoneyScoop)의 부가 유료 서비스로 독립. **KB손해보험과 무관**(과거 VDI 접속흐름 도구에서 리브랜드). [[scoopsignal-deploy]]·ScoopSignal과 같은 MoneyScoop 브랜드 패밀리.
 - **브랜드**: 워드마크 `Scoop`+**`Board`**(골드 em)+`by MoneyScoop`, 헤더 노드-다이어그램 글리프 마크. 홈 링크 → `map.html`(현재 페이지·스쿱보드 홈). **테스트 중 — 실제 머니스쿱 사이트/서비스는 건드리지 말 것**(외부 링크 X).
@@ -247,12 +291,12 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - 새 노드/엣지 추가 시 `id`는 `uid('n'|'e'|'g')`로. 엣지엔 `fromSide/toSide` 항상 지정(기본 right/left).
 - 불러오기 시 구버전 호환 위해 `state.edges`에 `fromSide/toSide` 기본값 보정 로직 있음(유지).
 
-## 🚫 디자인 금지: 항목 좌측 컬러 라인(accent bar/rail)
+# 🚫 공통 · 디자인 금지: 항목 좌측 컬러 라인(accent bar/rail)
 
 **종목·지표·카드 등 어떤 항목에도 좌측 세로 컬러 라인(accent bar/rail, box-shadow:inset Npx 0 0 color, ::before 세로 마커)을 절대 넣지 말 것.** 클로드 기본 디자인 클리셰이며 사용자가 명시적으로 금지함. 활성/선택/포커스 표시는 **배경색·텍스트색·체크박스·아웃라인**으로만 한다. (2026-07-05 사용자 지시)
 
 
-## 🧭 스쿱포지(forge) 4패널 지칭 규칙
+# 🧭 스쿱포지(forge) 4패널 지칭 규칙 (상세)
 
 forge.html의 가로 4구성을 **1/2/3/4 패널**로 지칭한다(사용자 합의, 2026-07-05):
 - **1패널 = 종목** (워치리스트, 좌측 사이드바 `.forge-side` — 그룹핑·신호등 도트)
