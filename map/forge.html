@@ -733,6 +733,13 @@
   .node-editor .pp-conv-val{flex:0 0 34px;text-align:right;color:var(--gold);font-size:12px}
   .node-editor .pp-load{padding:6px 12px;border-radius:var(--r-md);border:1px solid var(--gold-dim);background:rgba(232,180,99,.14);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer}
   .node-editor .pp-load:disabled{opacity:.5;cursor:default}
+  .node-editor .ne-actions{display:flex;gap:8px;margin:3px 0 2px}
+  .node-editor .ne-actions .tool-btn{flex:1}
+  .node-editor .ne-actions .ne-save{background:rgba(232,180,99,.14);border-color:var(--gold-dim);color:var(--gold);font-weight:700}
+  .node-editor .ne-info{display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:var(--r-md);padding:9px 11px}
+  .node-editor .ne-info-row{display:flex;gap:8px;align-items:baseline}
+  .node-editor .ne-info-k{flex:0 0 30px;color:var(--eth);font-weight:800;font-size:10.5px;letter-spacing:.02em}
+  .node-editor .ne-info-v{flex:1;min-width:0;color:var(--muted);font-size:11.5px;line-height:1.5;letter-spacing:-.01em}
 
   /* ── 사이드바 이미지 라이브러리 ── */
   .forge-side .lib-grid{display:flex;flex-direction:column;gap:6px;padding:4px 0 2px;max-height:300px;
@@ -2797,6 +2804,11 @@
          ${isPrice ? `<canvas id="neConeOv" class="fc-cone-ov"></canvas>` : ""}`
       : `<span class="ne-ph">이미지 없음<br>클릭 · 드래그 · <b>Ctrl+V</b> 로 추가</span>`;
     const paramSec = rows.length ? `<div class="ne-sec">파라미터</div>${rows.join("")}` : "";
+    const info = INDICATOR_INFO[n.blockType];
+    const _defP = (BLOCK_DEFS.find(b => b.type === n.blockType) || {}).params || {};
+    const _hasP = Object.keys(_defP).length > 0;
+    const actionSec = info ? `<div class="ne-actions">${_hasP ? `<button class="tool-btn" type="button" id="neRecommend" title="파라미터를 내장 추천 기본값으로 되돌립니다">추천값 세팅</button>` : ""}<button class="tool-btn ne-save" type="button" id="neSave" title="현재 설정을 저장합니다(재분석은 웹분석 버튼)">저장</button></div>` : "";
+    const infoSec = info ? `<div class="ne-sec">도구 안내</div><div class="ne-info"><div class="ne-info-row"><span class="ne-info-k">목적</span><span class="ne-info-v">${esc(info.p)}</span></div><div class="ne-info-row"><span class="ne-info-k">정의</span><span class="ne-info-v">${esc(info.d)}</span></div><div class="ne-info-row"><span class="ne-info-k">해석</span><span class="ne-info-v">${esc(info.h)}</span></div></div>` : "";
     const series = (Array.isArray(n.series) && n.series.length) ? n.series : null;
     const dataSec = isPrice
       ? `<div class="ne-sec">가격 데이터 <span class="ne-hint">종가 붙여넣기 → 실제 분석·예측 (한 줄 한 봉, OHLC/CSV 자동인식)</span></div>
@@ -2826,6 +2838,8 @@
        </div>
        ${dataSec}
        ${paramSec}
+       ${actionSec}
+       ${infoSec}
        ${calSec}
        <div class="ne-sec">서술 메모</div>
        <div class="pp-row" style="flex-direction:column;align-items:stretch">
@@ -4503,6 +4517,39 @@
     const panel = ph.closest(".fc-panel"); if (panel) panel.classList.toggle("collapsed");
   });
   const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#d0b25a", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#d87ab8", pivot: "#e0b0a0", psar: "#c0a8e0", keltner: "#7fc0d0", donchian: "#d0c080", cci: "#e6785a", williams: "#b56fd6", roc: "#8fb46a", ao: "#5a9ad0", aroon: "#8b7ee0", mfi: "#c8912f", cmf: "#5ac0a0" };
+  /* 지표 도구 안내 — 편집창에 목적(p)·정의(d)·해석법(h) 표시 */
+  const INDICATOR_INFO = {
+    ma: { p: "추세의 방향·기울기를 매끄럽게 파악.", d: "최근 N봉 종가의 단순/지수 평균선.", h: "가격이 선 위=상승 우위, 아래=하락 우위. 단·장기선 정배열·골든/데드크로스로 전환 판단." },
+    trend: { p: "현재 추세의 방향과 강도를 회귀로 정량화.", d: "다중 구간 로그가격 회귀기울기(R²가중) + 피벗 지지·저항.", h: "기울기 상향=상승추세. 회귀채널 상·하단은 되돌림 기준선." },
+    rsi: { p: "모멘텀의 과열·과매도를 판단.", d: "최근 N봉 상승/하락폭 비율(0~100).", h: "70+ 과열·30- 과매도. 다이버전스=추세 약화. 50선(국면)으로 추세 지속 확인." },
+    bollinger: { p: "변동성 기반 가격 위치·확장/수축 파악.", d: "중심 SMA ± 표준편차×k 밴드.", h: "상단 근접=과열·하단=과매도. 밴드 수축(스퀴즈)=변동성 확대 임박." },
+    macd: { p: "추세 모멘텀과 전환을 포착.", d: "단기EMA−장기EMA(MACD)와 시그널선·히스토그램.", h: "MACD>시그널·0선 상향=상승 모멘텀. 골든/데드크로스·히스토그램 방향 확인." },
+    adx: { p: "추세의 강도(방향 무관)와 방향 우위 측정.", d: "ADX(강도) + +DI/−DI(방향).", h: "ADX 25+=강한 추세, +DI>−DI=상승 우위. ADX<20=횡보(추세매매 자제)." },
+    volumeprofile: { p: "거래가 몰린 가격대(매물대)를 파악.", d: "구간 내 가격대별 거래량 분포·POC(최대거래 가격).", h: "POC·밸류에어리어는 지지/저항. 가격이 매물대 위=수용(상승), 아래=저항." },
+    ichimoku: { p: "추세·지지저항·모멘텀을 한 판에 종합.", d: "전환·기준선, 선행스팬 구름, 후행스팬.", h: "가격이 구름 위=상승. 전환선>기준선·구름 두께로 추세 강도 판단." },
+    structure: { p: "고점·저점 구조로 추세 전환(BOS/CHoCH) 식별.", d: "스윙 고·저점의 갱신 패턴 분석.", h: "고점·저점 동반 상승=상승구조. 구조 붕괴(CHoCH)=추세 전환 경보." },
+    atr: { p: "변동성 크기를 측정(손절·목표폭 기준).", d: "최근 N봉 트루레인지 평균.", h: "방향 신호는 없음. 값이 크면 변동성↑ → 손절·예측폭을 넓게. 배수로 트레일링 스톱." },
+    smc: { p: "기관 수요·공급 흔적(FVG·오더블록) 추적.", d: "급격한 변위로 생긴 미체결 갭·오더블록 존(실 OHLC 필요).", h: "미채운 FVG·OB는 되돌림 목표·지지저항. 존 방향으로 반응 기대." },
+    cycle: { p: "가격의 주기적 리듬·위상 파악.", d: "지배 주기 탐지(PDM)와 현재 위상.", h: "위상 저점=반등 기대·고점=조정. 주기 길이로 다음 변곡 시점 추정." },
+    vwap: { p: "거래량 가중 평균가 대비 위치 파악.", d: "기간 내 (가격×거래량) 누적 / 거래량 누적.", h: "가격이 VWAP 위=매수 우위(기관 평단 위). 이탈·회귀로 되돌림 판단." },
+    supertrend: { p: "추세 방향과 추적 손절선 제공.", d: "ATR 기반 밴드로 추세 상태를 전환.", h: "가격>슈퍼트렌드=상승(선이 지지). 선 관통 시 추세 전환·손절." },
+    stochastic: { p: "단기 과열·과매도와 교차 신호.", d: "최근 구간 내 종가 위치(%K)와 평활(%D).", h: "80+ 과매수·20- 과매도. %K>%D 골든크로스=반등. 다이버전스 주의." },
+    fib: { p: "되돌림·확장 목표 가격대 산출.", d: "지배 스윙에 0.382·0.5·0.618 등 비율 적용.", h: "되돌림 후 0.5~0.618(골든존) 지지=추세 지속. 확장 1.618은 목표가." },
+    elliott: { p: "파동 구조로 추세 국면·다음 파동 예측.", d: "임펄스 5파·조정 3파(ABC) 카운팅.", h: "1·3·5 추진파 방향으로 순응. 조정(ABC)은 되돌림. 3파 최장·규칙 위반 시 재카운트." },
+    volume: { p: "가격 움직임의 신뢰도(참여) 확인.", d: "봉별 거래량과 OBV 누적.", h: "상승+거래량 증가=신뢰. 가격·OBV 다이버전스=추세 약화. 방향이 아닌 확인 지표." },
+    phasefold: { p: "숨은 지배 주기를 스캔·정합.", d: "위상 접기(PDM)+FFT로 주기 강도 탐지.", h: "θ가 작을수록 뚜렷한 주기. 지배 주기의 위상으로 리듬 추종." },
+    pivot: { p: "당일 지지·저항 기준선 제공.", d: "직전 기간 고·저·종가로 P·R1~3·S1~3 산출.", h: "종가가 P 위=강세. R=저항(돌파 시 상승)·S=지지. 레벨 이탈로 방향 판단." },
+    psar: { p: "추세 방향·추적 손절·전환 시점.", d: "가속계수(AF)로 따라붙는 SAR 점열.", h: "점이 가격 아래=상승(지지). 가격이 점 관통=추세 전환·청산 신호." },
+    keltner: { p: "ATR 기반 추세·변동성 채널.", d: "중심 EMA ± ATR×배수.", h: "상단 돌파=강한 상승·하단=하락. 볼린저가 켈트너 안=스퀴즈(변동성 확대 임박)." },
+    donchian: { p: "돌파(브레이크아웃) 매매 기준.", d: "최근 N봉 최고가·최저가·중앙선.", h: "상단 돌파=매수·하단 돌파=매도(터틀). 중앙선은 추세 기준·추적 손절." },
+    cci: { p: "평균 대비 이탈로 과열·추세 강도 측정.", d: "(전형가−이동평균)/(0.015×평균편차).", h: "+100 위=강한 상승·−100 아래=강한 하락. 0선 교차로 모멘텀 전환. 국면 반영." },
+    williams: { p: "단기 과매수·과매도 포착.", d: "최근 구간 고저 대비 종가 위치(−100~0).", h: "−20 위=과매수·−80 아래=과매도. 스토캐스틱과 유사, 반전·되돌림 타이밍." },
+    roc: { p: "가격 변화 속도(모멘텀)를 측정.", d: "(종가/N봉전−1)×100.", h: "0선 위=상승 모멘텀·아래=하락. 0선 교차·기울기로 가속/둔화 판단." },
+    ao: { p: "중기 대비 단기 모멘텀의 힘.", d: "SMA(중앙값,5)−SMA(중앙값,34) 히스토그램.", h: "0선 위=상승 우위. 0선 교차·색 전환·새서(3봉 반전)로 진입." },
+    aroon: { p: "추세의 방향과 신선도(경과) 측정.", d: "신고가·신저가 이후 경과봉으로 Up·Down(0~100).", h: "Up 높고 Down 낮음=상승추세. Up−Down 오실레이터로 추세 강도·전환." },
+    mfi: { p: "거래량 가중 자금 유입·이탈 측정.", d: "전형가×거래량 기반 자금흐름지수(0~100).", h: "80+ 과열·20- 과매도. 50 위=자금 유입. 실거래량 있을 때 유효." },
+    cmf: { p: "매집·분산(자금 흐름 방향) 판단.", d: "봉 내 종가 위치×거래량 누적 비율.", h: ">0=매집(자금 유입)·<0=분산. 가격과 다이버전스로 추세 신뢰도. 실거래량 필요." },
+  };
   const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱", pivot: "피벗 포인트(S/R)", psar: "Parabolic SAR(추세전환)", keltner: "Keltner 채널(ATR 밴드)", donchian: "Donchian 채널(N봉 돌파)", cci: "CCI(상품채널지수)", williams: "Williams %R", roc: "ROC/모멘텀", ao: "Awesome Oscillator", aroon: "Aroon", mfi: "MFI(자금흐름지수)", cmf: "CMF(자금흐름·매집분산)" };
   function evIndicatorNodes() {
     const order = ["ma", "trend", "fib", "elliott", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "phasefold", "volume"];
@@ -8916,6 +8963,14 @@
         const node = neNode(); if (!node) return;
         if (ev.target.closest("#neImgDel")) { setThumb(node.id, null); return; }
         if (ev.target.closest("#neDelNode")) { delNodes([node.id]); return; }
+        if (ev.target.closest("#neRecommend")) {           // 파라미터 → 내장 추천 기본값으로 리셋
+          const def = (BLOCK_DEFS.find(b => b.type === node.blockType) || {}).params || {};
+          node.params = JSON.parse(JSON.stringify(def));
+          renderParams(); fireBoardChange(); bToast("추천 기본값으로 설정"); return;
+        }
+        if (ev.target.closest("#neSave")) {                // 명시적 저장(영속) — 재분석은 웹분석 버튼
+          markDirty(); bToast("저장됨"); return;
+        }
         if (ev.target.closest("#neSeriesEx")) {            // 예시 데이터 원클릭 → 적용 + 차트
           node.series = sampleCloseSeries(); markDirty(); runForge(); deselectAll();
           bToast("예시 데이터 적용 — 실데이터 차트"); return;
