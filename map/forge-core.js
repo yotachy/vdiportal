@@ -289,6 +289,8 @@
         values[id] = (ins[0] || data.price).map(() => 0);
       } else if (n.blockType === "cci") {
         values[id] = cciSeries(ins[0] || data.price, (n.params && n.params.period) || 20);
+      } else if (n.blockType === "williams") {
+        values[id] = williamsSeries(data, (n.params && n.params.period) || 14);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -577,6 +579,36 @@
       { k: "CCI", v: "(전형가 − 이동평균) / (0.015 × 평균편차)" },
       { k: "구간", v: "+100 과열 / −100 과매도" },
       { k: "국면", v: "최근 평균으로 강세·약세 국면 보정" },
+    ];
+  }
+
+  // Williams %R: 오실레이터. H/L 필요(data.candle) → 서브패널 없이 hero 배지로만 표시(Phase B 관례).
+  function _willRaw(data, period) {
+    const price = data.price || (data.candle||[]).map(c=>c.c), candle = data.candle || [];
+    const P = price.length, out = new Array(P).fill(-50);
+    for (let i = 0; i < P; i++) {
+      const s = Math.max(0, i - period + 1);
+      let hh = -Infinity, ll = Infinity;
+      for (let j = s; j <= i; j++) { const h=candle[j]?candle[j].h:price[j], l=candle[j]?candle[j].l:price[j]; if(h>hh)hh=h; if(l<ll)ll=l; }
+      out[i] = hh === ll ? -50 : -100 * (hh - price[i]) / (hh - ll);
+    }
+    return out;
+  }
+  function williamsSeries(data, period) {
+    return _willRaw(data, period || 14).map(v => Math.max(-1, Math.min(1, (v + 50) / 50)));   // −50=0, 0=+1, −100=−1
+  }
+  function analyzeWilliams(data, opts) {
+    opts = opts || {};
+    const period = opts.period || 14, raw = _willRaw(data, period), P = raw.length;
+    if (!P) return { series: [], last: -50, bias: 0 };
+    const last = raw[P-1];
+    const bias = Math.max(-1, Math.min(1, (last + 50) / 50));
+    return { series: raw, last, bias };
+  }
+  function williamsSteps() {
+    return [
+      { k: "%R", v: "−100 × (최고−종가) / (최고−최저)" },
+      { k: "구간", v: "−20 과매수 / −80 과매도" },
     ];
   }
 
@@ -1654,6 +1686,9 @@
     const _ccn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "cci");
     const _cci = _ccn ? analyzeCCI(price, { period: (_ccn.params && _ccn.params.period) || 20 }) : null;
     const cciDrift = _cci ? _cci.bias * _prof.trendScale * 0.06 * DW("cci") : 0;   // CCI 구간·국면 방향(±6%)
+    const _wln = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "williams");
+    const _wl = _wln ? analyzeWilliams(data, { period: (_wln.params && _wln.params.period) || 14 }) : null;
+    const williamsDrift = _wl ? _wl.bias * _prof.trendScale * 0.05 * DW("williams") : 0;   // Williams %R 구간 방향(±5%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1663,7 +1698,7 @@
     // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
     // Phase 6 융합: 지표를 종합방향(예상)·반대로 분리. 예상지표 합은 ±0.28 캡, 반대지표는 그 '절반 가중'으로 항상 되돌림
     // (기존 단순합은 예상지표가 캡을 포화시키면 반대지표 효과가 캡에 가려져 사라짐 → 반대지표를 캡 이후 별도 차감해 항상 체감되게).
-    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift];
+    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift];
     const _rawSum = _drifts.reduce((a, b) => a + b, 0);
     const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
     let _agSum = 0, _opSum = 0;
@@ -1880,5 +1915,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps };
 });
