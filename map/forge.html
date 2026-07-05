@@ -2150,7 +2150,7 @@
       const _tf = _tfr ? `<span class="doc-tf" title="일·주·월 예측 신호등 — 초록=상승·노랑=중립·빨강=하락">${_tfDot(_tfr.d)}${_tfDot(_tfr.w)}${_tfDot(_tfr.m)}</span>` : "";
       const sub = (isFinite(_px) || _tf) ? `<div class="doc-sub">${isFinite(_px) ? `<span class="doc-px">${_hzFmt(_px)}</span>${isFinite(_chg) ? `<span class="doc-chg ${_chg >= 0 ? "up" : "dn"}">${_chg >= 0 ? "▲" : "▼"}${Math.abs(_chg).toFixed(2)}%</span>` : ""}` : ""}${_tf}</div>` : "";
       return `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}" draggable="true">
-         <div class="doc-r1">${_assetHtml(d, "doc-ico")}<span class="doc-nm">${esc(nm)}</span>${vb}<button class="side-btn" data-docdel="${d.id}" title="목록에서 제거">✕</button></div>${sub}
+         <div class="doc-r1">${_assetHtml(d, "doc-ico")}<span class="doc-nm">${esc(nm)}</span><button class="side-btn" data-docdel="${d.id}" title="목록에서 제거">✕</button></div>${sub}
        </div>`; };
     const groups = META.groups;
     const ungrouped = DOCS.filter(d => !_grpOf(d.id));
