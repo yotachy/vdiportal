@@ -90,9 +90,9 @@
   .ind-rail .ir-tick{position:absolute;left:33.33%;top:3px;bottom:3px;width:1px;background:rgba(232,180,99,.45);z-index:0;pointer-events:none}
   .ind-rail .ir-row.on .ir-fill{opacity:.44}
   .ind-rail .ir-chk,.ind-rail .ir-lbl,.ind-rail .ir-wval{position:relative;z-index:1}
-  .ind-rail .ir-wval{flex:0 0 auto;font-size:9.5px;font-weight:700;font-family:ui-monospace,monospace;color:var(--faint);letter-spacing:-.02em;min-width:30px;text-align:right}
+  .ind-rail .ir-wval{flex:0 0 auto;font-size:9.5px;font-weight:700;font-family:ui-monospace,monospace;color:var(--faint);letter-spacing:-.02em;min-width:27px;text-align:right}
   .ind-rail .ir-row.on .ir-wval{color:var(--ink)}
-  .ind-rail .ir-bar{flex:1;min-width:0;position:relative;display:flex;align-items:center;gap:9px;overflow:hidden;padding:5px 6px 5px 4px;border-radius:var(--r-sm);cursor:ew-resize;touch-action:none}
+  .ind-rail .ir-bar{flex:1;min-width:0;position:relative;display:flex;align-items:center;gap:6px;overflow:hidden;padding:5px 6px 5px 4px;border-radius:var(--r-sm);cursor:ew-resize;touch-action:none}
   .ind-rail .ir-bar:hover{background:rgba(255,255,255,.035)}
   .ind-rail .ir-bar:hover .ir-lbl{color:var(--ink)}
   .ind-rail .ir-top + .ir-row{padding-top:8px}
@@ -113,6 +113,7 @@
   .ind-rail .ir-tierlv{flex:0 0 auto;font-size:9px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-.02em;color:var(--gold);background:rgba(232,180,99,.12);border:1px solid rgba(232,180,99,.28);border-radius:99px;padding:1px 6px;line-height:1.35}
   .ind-rail .ir-tiername{font-size:9.5px;font-weight:700;letter-spacing:-.01em;color:var(--faint);text-transform:none}
   .ind-rail .ir-tierhead + .ir-row{padding-top:5px}
+  .ind-rail .ir-new{display:inline-block;font-size:6.5px;font-weight:800;line-height:1.35;letter-spacing:.01em;text-transform:uppercase;color:var(--gold);background:rgba(232,180,99,.16);border-radius:2px;padding:0 2px;margin-right:3px;vertical-align:middle;transform:translateY(-.5px)}
   .ind-rail .ir-resetw{flex:0 0 auto;width:32px;padding:0;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-md);background:transparent;cursor:pointer;display:grid;place-items:center;transition:color .12s,border-color .12s}
   .ind-rail .ir-resetw:hover{border-color:var(--gold);color:var(--gold)}
   .ind-rail .ir-resetw svg{width:14px;height:14px}
@@ -1597,6 +1598,7 @@
     { lv: 3, name: "보조·전문",  types: ["vwap", "supertrend", "atr", "volumeprofile", "structure", "keltner", "donchian", "cci", "williams", "aroon", "mfi"] },
     { lv: 4, name: "고급·심화",  types: ["elliott", "smc", "cycle", "phasefold", "roc", "ao", "cmf"] },
   ];
+  const NEW_INDICATORS = new Set(["pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf"]);   // 신규 추가 지표 — 레일에 'new' 표기
 
   /* helpers */
   const bN = id => boardState.nodes.find(n => n.id === id);
@@ -2089,7 +2091,7 @@
     const el = document.getElementById("indRail"); if (!el) return;
     const types = _indTypes();
     const rowHTML = t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3));
-      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
+      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${NEW_INDICATORS.has(t) ? '<span class="ir-new" title="새로 추가된 지표">new</span>' : ''}${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
     let rows = "", seen = new Set();
     IND_TIERS.forEach(tier => { const grp = tier.types.filter(t => types.includes(t)); if (!grp.length) return;
       rows += `<div class="ir-tierhead" title="기술적 분석 중요도·사용빈도 등급"><span class="ir-tierlv">Lv${tier.lv}</span><span class="ir-tiername">${tier.name}</span></div>`;
