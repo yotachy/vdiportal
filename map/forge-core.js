@@ -297,6 +297,8 @@
         values[id] = aoSeries(data, { fast: (n.params && n.params.fast) || 5, slow: (n.params && n.params.slow) || 34 });
       } else if (n.blockType === "aroon") {
         values[id] = aroonSeries(data, (n.params && n.params.period) || 25);
+      } else if (n.blockType === "mfi") {
+        values[id] = mfiSeries(data, (n.params && n.params.period) || 14);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -686,6 +688,36 @@
   }
   function aroonSteps() {
     return [ { k:"Aroon", v:"신고가·신저가 이후 경과봉으로 추세강도" }, { k:"방향", v:"Up − Down 오실레이터" } ];
+  }
+
+  // MFI(Money Flow Index): 오실레이터. H/L+거래량 필요(data.candle+data.volume, 거래량 없으면 synthVolume 폴백) → 서브패널 없이 hero 배지로만 표시(Phase B 관례).
+  function _mfiRaw(data, period) {
+    const price = data.price || (data.candle||[]).map(c=>c.c), candle = data.candle || [];
+    const vol = (Array.isArray(data.volume) && data.volume.length === price.length) ? data.volume : synthVolume(price);
+    const P = price.length, tp = new Array(P), out = new Array(P).fill(50);
+    for (let i=0;i<P;i++){ const c=candle[i]; tp[i]= c ? (c.h+c.l+c.c)/3 : price[i]; }
+    for (let i=0;i<P;i++){
+      let posMF=0, negMF=0, s=Math.max(1, i-period+1);
+      for (let j=s;j<=i;j++){ const raw=tp[j]*(vol[j]||0); if(tp[j]>tp[j-1])posMF+=raw; else if(tp[j]<tp[j-1])negMF+=raw; }
+      const mr = negMF===0 ? (posMF>0?100:1) : posMF/negMF;
+      out[i] = 100 - 100/(1+mr);
+    }
+    return out;
+  }
+  function mfiSeries(data, period) { return _mfiRaw(data, period||14).map(v => Math.max(-1, Math.min(1, (v-50)/50))); }
+  function analyzeMFI(data, opts) {
+    opts = opts || {};
+    const period = opts.period || 14, raw = _mfiRaw(data, period), P = raw.length;
+    if (!P) return { series: [], last: 50, regime: 0, bias: 0 };
+    const last = raw[P-1];
+    const win = raw.slice(Math.max(0,P-period*2)), avg = win.reduce((a,b)=>a+b,0)/(win.length||1);
+    const regime = avg>=55?1:avg<=45?-1:0;
+    let bias = Math.max(-1, Math.min(1, (last-50)/40));
+    if (last>80 && regime<0) bias*=0.4; if (last<20 && regime>0) bias*=0.4;
+    return { series: raw, last, regime, bias };
+  }
+  function mfiSteps() {
+    return [ { k:"MFI", v:"거래량 가중 RSI(전형가×거래량)" }, { k:"구간", v:"80 과열 / 20 과매도" }, { k:"주의", v:"합성거래량 시 참고용" } ];
   }
 
   function synthVolume(price) {
@@ -1774,6 +1806,10 @@
     const _arn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "aroon");
     const _arA = _arn ? analyzeAroon(data, { period: (_arn.params && _arn.params.period) || 25 }) : null;
     const aroonDrift = _arA ? _arA.bias * _prof.trendScale * 0.06 * DW("aroon") : 0;   // Aroon Up-Down 방향(±6%)
+    const _mfn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "mfi");
+    const _mfvol = _mfn ? ((_vn && Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;   // 그래프의 volume 노드 실거래량 사용(배지와 정합) — 없으면 합성
+    const _mfi = _mfn ? analyzeMFI({ candle: data.candle, price, volume: _mfvol }, { period: (_mfn.params && _mfn.params.period) || 14 }) : null;
+    const mfiDrift = _mfi ? _mfi.bias * _prof.trendScale * 0.06 * DW("mfi") : 0;   // MFI 자금흐름 방향(±6%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1783,7 +1819,7 @@
     // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
     // Phase 6 융합: 지표를 종합방향(예상)·반대로 분리. 예상지표 합은 ±0.28 캡, 반대지표는 그 '절반 가중'으로 항상 되돌림
     // (기존 단순합은 예상지표가 캡을 포화시키면 반대지표 효과가 캡에 가려져 사라짐 → 반대지표를 캡 이후 별도 차감해 항상 체감되게).
-    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift, aroonDrift];
+    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift, aroonDrift, mfiDrift];
     const _rawSum = _drifts.reduce((a, b) => a + b, 0);
     const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
     let _agSum = 0, _opSum = 0;
@@ -2000,5 +2036,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps };
 });

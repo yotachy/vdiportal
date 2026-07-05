@@ -1625,3 +1625,60 @@ test("run: aroon 노드가 예측 반영", () => {
   const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "aroon 예측 반영");
 });
+
+/* ── 신규 지표: MFI (자금흐름지수 · 오실레이터 · hero 배지, H/L+거래량 필요) ── */
+test("analyzeMFI: 상승+거래량이면 MFI>50·bias>0", () => {
+  const price = Array.from({length:40},(_,i)=>100+i);
+  const candle = price.map(c=>({o:c,h:c+0.3,l:c-0.3,c}));
+  const volume = price.map(()=>1000);
+  const r = ForgeCore.analyzeMFI({ candle, price, volume }, { period:14 });
+  assert.ok(r.last > 50 && r.bias > 0, `last ${r.last}`);
+});
+test("analyzeMFI: 거래량 없어도 throw 없이 동작(합성 폴백)", () => {
+  const price = Array.from({length:40},(_,i)=>100+Math.sin(i));
+  const r = ForgeCore.analyzeMFI({ candle: price.map(c=>({o:c,h:c+0.2,l:c-0.2,c})), price }, { period:14 });
+  assert.ok(isFinite(r.bias));
+});
+test("mfiSeries: 길이 일치·범위 −1..1", () => {
+  const price = Array.from({length:40},(_,i)=>100+Math.sin(i)*10);
+  const candle = price.map(c=>({o:c,h:c+0.3,l:c-0.3,c}));
+  const volume = price.map(()=>1000+Math.random()*100);
+  const s = ForgeCore.mfiSeries({ candle, price, volume }, 14);
+  assert.equal(s.length, price.length);
+  assert.ok(s.every(v => v >= -1 && v <= 1));
+});
+test("mfiSteps: 3줄", () => {
+  assert.strictEqual(ForgeCore.mfiSteps().length, 3);
+});
+test("run: mfi 노드가 예측 반영", () => {
+  const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
+  const volume = price.map(() => 1000);
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle, volume }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "mfi", kind: "block", blockType: "mfi" }]), edges: base.edges.concat([{ from: "mfi", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle, volume }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "mfi 예측 반영");
+});
+test("run: mfiDrift가 그래프 volume 노드 실거래량에 반응(합성 아님)", () => {
+  // 지그재그 가격(상승일·하락일 공존) — 거래량이 어느 날에 실리는지가 MFI 방향을 가름
+  const price = Array.from({ length: 40 }, (_, i) => 100 + (i % 2 === 0 ? i : i - 1.4));
+  const candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c + 0.3, l: c - 0.3, c }));
+  const volUp = price.map((c, i) => (i > 0 && price[i] > price[i - 1]) ? 5000 : 500);   // 상승일에 거래량 집중
+  const volDn = price.map((c, i) => (i > 0 && price[i] < price[i - 1]) ? 5000 : 500);   // 하락일에 거래량 집중
+  // volume 노드는 volDrift도 유발하므로 driftWeights로 volume 드리프트를 0으로 눌러
+  // volume에 반응하는 유일한 경로를 mfi로 격리한다(volumeprofile·vwap 노드는 그래프에 없음).
+  const mk = s => ({
+    nodes: [
+      { id: "p", kind: "block", blockType: "price" },
+      { id: "v", kind: "block", blockType: "volume", series: s },
+      { id: "mfi", kind: "block", blockType: "mfi" },
+      { id: "pr", kind: "block", blockType: "predict" },
+    ],
+    edges: [{ from: "p", to: "pr" }, { from: "v", to: "mfi" }, { from: "mfi", to: "pr" }],
+  });
+  const opts = { futW: 24, driftWeights: { volume: 0 } };   // volDrift 제거 → 남은 volume 민감 경로는 mfi뿐
+  const tUp = ForgeCore.run(mk(volUp), { price, candle }, opts).prediction.target;
+  const tDn = ForgeCore.run(mk(volDn), { price, candle }, opts).prediction.target;
+  // mfiDrift가 실거래량을 반영하면 상승일 집중 vs 하락일 집중 예측이 달라야 함(합성이면 동일)
+  assert.ok(Math.abs(tUp - tDn) > 1e-9, `tUp ${tUp} tDn ${tDn}`);
+});
