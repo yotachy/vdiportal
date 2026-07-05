@@ -6134,6 +6134,14 @@
     fcRAF = requestAnimationFrame(() => renderChart(_fcLastResult, _fcLastData));
   }
   window.addEventListener("resize", redrawCharts);
+  // 차트 컨테이너 실제 크기 변화(높이 자동맞춤·레이아웃·창)마다 재드로우 → 그리기 높이(ch)가 항상 캔버스와 일치(x축이 하단 유지)
+  (function initHeroResizeObs() {
+    if (!window.ResizeObserver) return;
+    let _rt2;
+    const ro = new ResizeObserver(() => { clearTimeout(_rt2); _rt2 = setTimeout(() => { if (typeof redrawCharts === "function") redrawCharts(); }, 45); });
+    const attach = () => { const hero = document.querySelector(".fc-hero"); if (hero) { ro.observe(hero); return true; } return false; };
+    if (!attach()) { let n = 0; const iv = setInterval(() => { if (attach() || ++n > 40) clearInterval(iv); }, 100); }
+  })();
 
   /* ── 거터: 캔버스 / 결과 영역 좌우 크기 조절 ───────────────────── */
   /* ── 차트 확대 모달(휠 줌 + 드래그) ── */
@@ -6235,10 +6243,11 @@
     function toggleChartFS() {
       if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) {} return; }
       const el = document.querySelector(".fc-panel-hero");
-      if (el && el.requestFullscreen) { el.requestFullscreen().then(() => setTimeout(redrawCharts, 70)).catch(() => open()); }
+      if (el && el.requestFullscreen) { el.requestFullscreen().then(() => setTimeout(_fsRefit, 110)).catch(() => open()); }
       else open();   // 폴백(구형): 오버레이 모달
     }
-    document.addEventListener("fullscreenchange", () => { setTimeout(() => { if (typeof redrawCharts === "function") redrawCharts(); }, 80); });
+    function _fsRefit() { try { if (typeof fitPrediction === "function") fitPrediction(); else if (typeof redrawCharts === "function") redrawCharts(); } catch (e) { if (typeof redrawCharts === "function") redrawCharts(); } }
+    document.addEventListener("fullscreenchange", () => { setTimeout(_fsRefit, 110); });   // 전체화면 진입/해제 → 예측 재프레이밍(세로 y스케일 + 하단 x축)
     const exp = document.getElementById("fcExpand"); if (exp) exp.addEventListener("click", toggleChartFS);
     const heroImg = document.getElementById("fcHeroImg"); if (heroImg) heroImg.addEventListener("click", open);
   })();
