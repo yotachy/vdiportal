@@ -299,6 +299,8 @@
         values[id] = aroonSeries(data, (n.params && n.params.period) || 25);
       } else if (n.blockType === "mfi") {
         values[id] = mfiSeries(data, (n.params && n.params.period) || 14);
+      } else if (n.blockType === "cmf") {
+        values[id] = cmfSeries(data, (n.params && n.params.period) || 20);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -718,6 +720,27 @@
   }
   function mfiSteps() {
     return [ { k:"MFI", v:"거래량 가중 RSI(전형가×거래량)" }, { k:"구간", v:"80 과열 / 20 과매도" }, { k:"주의", v:"합성거래량 시 참고용" } ];
+  }
+
+  // CMF(Chaikin Money Flow): 오실레이터. H/L/C+거래량 필요(data.candle+data.volume, 거래량 없으면 synthVolume 폴백) → 서브패널 없이 hero 배지로만 표시(Phase B/C 관례).
+  function _cmfRaw(data, period) {
+    const price = data.price || (data.candle||[]).map(c=>c.c), candle = data.candle || [];
+    const vol = (Array.isArray(data.volume) && data.volume.length === price.length) ? data.volume : synthVolume(price);
+    const P = price.length, mfv = new Array(P).fill(0), out = new Array(P).fill(0);
+    for (let i=0;i<P;i++){ const c=candle[i]; if(!c){mfv[i]=0;continue;} const rng=c.h-c.l; mfv[i]= rng<=0?0: (((c.c-c.l)-(c.h-c.c))/rng)*(vol[i]||0); }
+    for (let i=0;i<P;i++){ let mf=0, v=0, s=Math.max(0,i-period+1); for(let j=s;j<=i;j++){ mf+=mfv[j]; v+=(vol[j]||0); } out[i]= v===0?0: mf/v; }
+    return out;
+  }
+  function cmfSeries(data, period) { return _cmfRaw(data, period||20).map(v => Math.max(-1, Math.min(1, v))); }
+  function analyzeCMF(data, opts) {
+    opts = opts || {};
+    const raw = _cmfRaw(data, opts.period||20), P = raw.length;
+    if (!P) return { series: [], last: 0, bias: 0 };
+    const last = raw[P-1], bias = Math.max(-1, Math.min(1, last*2));   // ±0.5→±1
+    return { series: raw, last, bias };
+  }
+  function cmfSteps() {
+    return [ { k:"CMF", v:"Σ(자금흐름량) / Σ(거래량)" }, { k:"방향", v:">0 매집 / <0 분산" }, { k:"주의", v:"합성거래량 시 참고용" } ];
   }
 
   function synthVolume(price) {
@@ -1810,6 +1833,10 @@
     const _mfvol = _mfn ? ((_vn && Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;   // 그래프의 volume 노드 실거래량 사용(배지와 정합) — 없으면 합성
     const _mfi = _mfn ? analyzeMFI({ candle: data.candle, price, volume: _mfvol }, { period: (_mfn.params && _mfn.params.period) || 14 }) : null;
     const mfiDrift = _mfi ? _mfi.bias * _prof.trendScale * 0.06 * DW("mfi") : 0;   // MFI 자금흐름 방향(±6%)
+    const _cmn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "cmf");
+    const _cmvol = _cmn ? ((_vn && Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;   // 그래프의 volume 노드 실거래량 사용(배지와 정합) — 없으면 합성
+    const _cmf = _cmn ? analyzeCMF({ candle: data.candle, price, volume: _cmvol }, { period: (_cmn.params && _cmn.params.period) || 20 }) : null;
+    const cmfDrift = _cmf ? _cmf.bias * _prof.trendScale * 0.05 * DW("cmf") : 0;   // CMF 자금흐름 방향(±5%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1819,7 +1846,7 @@
     // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
     // Phase 6 융합: 지표를 종합방향(예상)·반대로 분리. 예상지표 합은 ±0.28 캡, 반대지표는 그 '절반 가중'으로 항상 되돌림
     // (기존 단순합은 예상지표가 캡을 포화시키면 반대지표 효과가 캡에 가려져 사라짐 → 반대지표를 캡 이후 별도 차감해 항상 체감되게).
-    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift, aroonDrift, mfiDrift];
+    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift, aroonDrift, mfiDrift, cmfDrift];
     const _rawSum = _drifts.reduce((a, b) => a + b, 0);
     const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
     let _agSum = 0, _opSum = 0;
@@ -2036,5 +2063,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });

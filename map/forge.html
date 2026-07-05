@@ -1585,6 +1585,7 @@
     { type: "ao",        label: "Awesome Osc.", kind: "block", params: { fast: 5, slow: 34 } },
     { type: "aroon",     label: "Aroon",       kind: "block", params: { period: 25 } },
     { type: "mfi",       label: "MFI",         kind: "block", params: { period: 14 } },
+    { type: "cmf",       label: "CMF",         kind: "block", params: { period: 20 } },
     { type: "predict",   label: "예측·시그널", kind: "block" },
     { type: "free",      label: "메모",        kind: "free" }
   ];
@@ -1594,7 +1595,7 @@
     { lv: 1, name: "핵심 지표",  types: ["ma", "macd", "rsi", "bollinger", "volume"] },
     { lv: 2, name: "주요 지표",  types: ["trend", "adx", "stochastic", "fib", "ichimoku", "pivot", "psar"] },
     { lv: 3, name: "보조·전문",  types: ["vwap", "supertrend", "atr", "volumeprofile", "structure", "keltner", "donchian", "cci", "williams", "aroon", "mfi"] },
-    { lv: 4, name: "고급·심화",  types: ["elliott", "smc", "cycle", "phasefold", "roc", "ao"] },
+    { lv: 4, name: "고급·심화",  types: ["elliott", "smc", "cycle", "phasefold", "roc", "ao", "cmf"] },
   ];
 
   /* helpers */
@@ -2401,7 +2402,7 @@
       ? `box-shadow:0 0 ${Math.round((wt - 55) * 0.5)}px rgba(232,180,99,${((wt - 55) / 45 * 0.6).toFixed(2)});`
       : "";
     // 중요도+확신 통합 게이지: sig(-100~+100). 방향=확신, 세기=|sig|가 중요도(가중치)로. 지표 블록에만.
-    const GAUGE_TYPES = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "fib", "elliott", "phasefold", "volume", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi"];
+    const GAUGE_TYPES = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "fib", "elliott", "phasefold", "volume", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf"];
     const sig = Math.round(n.conviction || 0);
     const gCls = sig > 0 ? "g-up" : sig < 0 ? "g-dn" : "g-0";
     const gauge = (isBlock && GAUGE_TYPES.includes(n.blockType))
@@ -2512,6 +2513,7 @@
   function _anAo(P, opts) { const o = opts || { fast: 5, slow: 34 }; return _anGet(P, "Ao|" + JSON.stringify(o), () => ForgeCore.analyzeAO({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, o)); }
   function _anAroon(P, opts) { const o = opts || { period: 25 }; return _anGet(P, "Aroon|" + JSON.stringify(o), () => ForgeCore.analyzeAroon({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, o)); }
   function _anMfi(P, opts) { const o = opts || { period: 14 }; return _anGet(P, "Mfi|" + JSON.stringify(o), () => ForgeCore.analyzeMFI({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P, volume: _anVolSeries(P) }, o)); }
+  function _anCmf(P, opts) { const o = opts || { period: 20 }; return _anGet(P, "Cmf|" + JSON.stringify(o), () => ForgeCore.analyzeCMF({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P, volume: _anVolSeries(P) }, o)); }
   function _nodeBias(n, P) {
     const p = n.params || {}, bt = n.blockType;
     try {
@@ -2542,6 +2544,7 @@
         case "ao": return _anAo(P, { fast: p.fast || 5, slow: p.slow || 34 }).bias;
         case "aroon": return _anAroon(P, { period: p.period || 25 }).bias;
         case "mfi": return _anMfi(P, { period: p.period || 14 }).bias;
+        case "cmf": return _anCmf(P, { period: p.period || 20 }).bias;
         case "trend": { const r = _an("Trend", P, undefined); return Math.max(-1, Math.min(1, ((r.blend && r.blend.slopeLog) || 0) * 40)); }
         default: return 0;   // atr(변동성)·phasefold(주기) = 방향 무관
       }
@@ -2741,6 +2744,10 @@
     if (n.blockType === "aroon") rows.push(numRow("period", "Aroon 기간(N봉)", (n.params && n.params.period) ?? 25));
     if (n.blockType === "mfi") {
       rows.push(numRow("period", "MFI 기간(N봉)", (n.params && n.params.period) ?? 14));
+      rows.push(`<div class="pp-row"><label></label><span class="ne-hint">실거래량 없으면 합성 거래량 기반 참고용 수치</span></div>`);
+    }
+    if (n.blockType === "cmf") {
+      rows.push(numRow("period", "CMF 기간(N봉)", (n.params && n.params.period) ?? 20));
       rows.push(`<div class="pp-row"><label></label><span class="ne-hint">실거래량 없으면 합성 거래량 기반 참고용 수치</span></div>`);
     }
     if (n.blockType === "ticker") {
@@ -3426,10 +3433,11 @@
     const aon       = mk("ao", "Awesome Osc.", { fast: 5, slow: 34 });
     const aroonn    = mk("aroon", "Aroon", { period: 25 });
     const mfin      = mk("mfi", "MFI", { period: 14 });
+    const cmfn      = mk("cmf", "CMF", { period: 20 });
     const combine   = mk("combine", "가중결합", {});
     const predict   = mk("predict", "예측·시그널", {});
     makeNode(0, 0, "포지 메모", "free", null, {});
-    [price, ma, trend, rsi, bollinger, macd, adx, vprof, ichi, struct, atrn, smcn, cyc, vwapn, supern, stochn, fib, elliott, phasefold, volume, pivotn, psarn, keltnern, donchiann, ccin, willn, rocn, aon, aroonn, mfin].forEach(ind => addEdge(ind.id, "right", combine.id, "left"));
+    [price, ma, trend, rsi, bollinger, macd, adx, vprof, ichi, struct, atrn, smcn, cyc, vwapn, supern, stochn, fib, elliott, phasefold, volume, pivotn, psarn, keltnern, donchiann, ccin, willn, rocn, aon, aroonn, mfin, cmfn].forEach(ind => addEdge(ind.id, "right", combine.id, "left"));
     addEdge(combine.id, "right", predict.id, "left");
     layoutBlocks();
   }
@@ -4398,10 +4406,10 @@
     if (e.target.closest("button,input,select,a,textarea")) return;   // 헤더 내 컨트롤은 제외
     const panel = ph.closest(".fc-panel"); if (panel) panel.classList.toggle("collapsed");
   });
-  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#d0b25a", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#d87ab8", pivot: "#e0b0a0", psar: "#c0a8e0", keltner: "#7fc0d0", donchian: "#d0c080", cci: "#e09a6a", williams: "#d87ac0", roc: "#8fb46a", ao: "#6ac0a0", aroon: "#c0a0e0", mfi: "#d0b25a" };
-  const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱", pivot: "피벗 포인트(S/R)", psar: "Parabolic SAR(추세전환)", keltner: "Keltner 채널(ATR 밴드)", donchian: "Donchian 채널(N봉 돌파)", cci: "CCI(상품채널지수)", williams: "Williams %R", roc: "ROC/모멘텀", ao: "Awesome Oscillator", aroon: "Aroon", mfi: "MFI(자금흐름지수)" };
+  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#d0b25a", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#d87ab8", pivot: "#e0b0a0", psar: "#c0a8e0", keltner: "#7fc0d0", donchian: "#d0c080", cci: "#e09a6a", williams: "#d87ac0", roc: "#8fb46a", ao: "#6ac0a0", aroon: "#c0a0e0", mfi: "#d0b25a", cmf: "#5ac0a0" };
+  const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱", pivot: "피벗 포인트(S/R)", psar: "Parabolic SAR(추세전환)", keltner: "Keltner 채널(ATR 밴드)", donchian: "Donchian 채널(N봉 돌파)", cci: "CCI(상품채널지수)", williams: "Williams %R", roc: "ROC/모멘텀", ao: "Awesome Oscillator", aroon: "Aroon", mfi: "MFI(자금흐름지수)", cmf: "CMF(자금흐름·매집분산)" };
   function evIndicatorNodes() {
-    const order = ["ma", "trend", "fib", "elliott", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "phasefold", "volume"];
+    const order = ["ma", "trend", "fib", "elliott", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "phasefold", "volume"];
     return boardState.nodes.filter(n => n.kind === "block" && order.includes(n.blockType))
       .sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
   }
@@ -4414,7 +4422,7 @@
     const b = document.getElementById("evToggle"); if (b) b.classList.toggle("on", _evidenceShow);
   }
   /* ── 지표별 bias 기여 가중치 튜닝 모달 ── */
-  const TUNE_TYPES = [["trend", "추세선"], ["ma", "이동평균"], ["fib", "피보나치"], ["elliott", "엘리어트"], ["rsi", "RSI"], ["bollinger", "볼린저밴드"], ["macd", "MACD"], ["adx", "ADX"], ["volume", "거래량"], ["volumeprofile", "볼륨 프로파일"], ["ichimoku", "일목균형표"], ["structure", "시장구조"], ["atr", "ATR 변동성"], ["smc", "스마트머니"], ["cycle", "사이클"], ["vwap", "VWAP"], ["supertrend", "슈퍼트렌드"], ["stochastic", "스토캐스틱"], ["pivot", "피벗 포인트"], ["psar", "Parabolic SAR"], ["keltner", "Keltner 채널"], ["donchian", "Donchian 채널"], ["cci", "CCI"], ["williams", "Williams %R"], ["roc", "ROC/모멘텀"], ["ao", "Awesome Oscillator"], ["aroon", "Aroon"], ["mfi", "MFI"]];
+  const TUNE_TYPES = [["trend", "추세선"], ["ma", "이동평균"], ["fib", "피보나치"], ["elliott", "엘리어트"], ["rsi", "RSI"], ["bollinger", "볼린저밴드"], ["macd", "MACD"], ["adx", "ADX"], ["volume", "거래량"], ["volumeprofile", "볼륨 프로파일"], ["ichimoku", "일목균형표"], ["structure", "시장구조"], ["atr", "ATR 변동성"], ["smc", "스마트머니"], ["cycle", "사이클"], ["vwap", "VWAP"], ["supertrend", "슈퍼트렌드"], ["stochastic", "스토캐스틱"], ["pivot", "피벗 포인트"], ["psar", "Parabolic SAR"], ["keltner", "Keltner 채널"], ["donchian", "Donchian 채널"], ["cci", "CCI"], ["williams", "Williams %R"], ["roc", "ROC/모멘텀"], ["ao", "Awesome Oscillator"], ["aroon", "Aroon"], ["mfi", "MFI"], ["cmf", "CMF"]];
   let _tuneRunT = null;
   function _tw(t) { return (typeof _driftW[t] === "number" && isFinite(_driftW[t])) ? _driftW[t] : 1; }
   function toggleTunePop() {
@@ -5376,6 +5384,15 @@
     _evLabel(c, "MFI " + Math.round(a.last) + " · " + (a.last > 80 ? "과열" : a.last < 20 ? "과매도" : a.last > 50 ? "자금 유입" : "자금 이탈"), (xRight != null ? xRight : 0) - 6, _by, col, "right");
     c.restore();
   }
+  // CMF hero 작도 — 배지만(현재값 + 매집/분산 국면), 서브패널 없음(Phase B/C 오실레이터 관례)
+  function _drawCmfLayers(c, a, M) {
+    if (!a || (M.reveal != null && M.reveal < 2)) return;
+    const { xRight } = M, _by = (M.badgeY != null) ? M.badgeY : 28;
+    const col = a.bias > 0.15 ? "#46c28e" : a.bias < -0.15 ? "#e06a6a" : "#8a92b2";
+    c.save();
+    _evLabel(c, "CMF " + a.last.toFixed(2) + " · " + (a.last > 0 ? "매집(자금 유입)" : a.last < 0 ? "분산(자금 이탈)" : "중립"), (xRight != null ? xRight : 0) - 6, _by, col, "right");
+    c.restore();
+  }
   // 볼린저 밴드 작도 — 상/중/하 밴드 + 채움 + 상태 배지(진행형 스트로크 인지)
   function _drawBollingerLayers(c, bb, M) {
     c.save();
@@ -5856,6 +5873,10 @@
           const mf = _anMfi(price, { period: (n.params && n.params.period) || 14 });
           if (_drawThis) _drawMfiLayers(cc, mf, { xRight: g.padX + g.plotW, badgeY: _slotY(), reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.mfi, _key: n.blockType });
+        } else if (n.blockType === "cmf") {
+          const cm = _anCmf(price, { period: (n.params && n.params.period) || 20 });
+          if (_drawThis) _drawCmfLayers(cc, cm, { xRight: g.padX + g.plotW, badgeY: _slotY(), reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          legend.push({ col, t: EV_LABEL.cmf, _key: n.blockType });
         } else if (n.blockType === "volume") {
           const va = _anVolume(price);
           if (_drawThis) _drawVolumeLayers(cc, va, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1], badgeY: _slotY() });
@@ -6240,7 +6261,7 @@
     const priceNode = blocks.find(n => n.blockType === "price");
     const pv = priceNode && result.values && result.values[priceNode.id];
     const priceLast = (pv && pv.length) ? pv[pv.length - 1] : null;
-    const order = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "fib", "elliott", "phasefold", "volume"];
+    const order = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "fib", "elliott", "phasefold", "volume"];
     const inds = blocks.filter(n => order.includes(n.blockType)).sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
     if (metaEl) metaEl.textContent = (inds.length + 1) + "단계";
     const steps = [];
@@ -6437,6 +6458,10 @@
       const texts = ForgeCore.mfiSteps().map(s => s.k + " — " + s.v);
       return texts.map((text, i) => ({ text, layer: [1, 2, 2][i] }));
     }
+    if (n.blockType === "cmf" && Array.isArray(price) && price.length >= 2) {
+      const texts = ForgeCore.cmfSteps().map(s => s.k + " — " + s.v);
+      return texts.map((text, i) => ({ text, layer: [1, 2, 2][i] }));
+    }
     return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
   }
   /* 노드별 '전문 분석' — 각 기술지표가 도메인 지식으로 여러 사실을 산출(우측 패널 나열용) */
@@ -6619,6 +6644,17 @@
         const _vn = boardState.nodes.find(x => x.blockType === "volume");
         const hasVol = !!(_vn && Array.isArray(_vn.series) && _vn.series.length === P.length);
         f.push("MFI " + Math.round(a.last) + " — " + zt);
+        f.push("bias " + a.bias.toFixed(2));
+        f.push(hasVol ? "거래량 노드 반영" : "실거래량 없음 — 합성 거래량 기반 참고용");
+        return f;
+      }
+      case "cmf": {
+        if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
+        const a = _anCmf(P, { period: (n.params && n.params.period) || 20 });
+        const zt = a.last > 0 ? "매집(자금 유입)" : a.last < 0 ? "분산(자금 이탈)" : "중립";
+        const _vn = boardState.nodes.find(x => x.blockType === "volume");
+        const hasVol = !!(_vn && Array.isArray(_vn.series) && _vn.series.length === P.length);
+        f.push("CMF " + a.last.toFixed(2) + " — " + zt);
         f.push("bias " + a.bias.toFixed(2));
         f.push(hasVol ? "거래량 노드 반영" : "실거래량 없음 — 합성 거래량 기반 참고용");
         return f;
@@ -7958,7 +7994,7 @@
     if (!steps.length) return;
     const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
     const finPred = fin.prediction, finSig = _sigOf(fin);
-    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi"].includes(n.blockType) && (!_evVisible || !_evVisible.size || _evVisible.has(n.blockType)));   // 시연=선택(표시)된 지표만 작도·진행
+    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf"].includes(n.blockType) && (!_evVisible || !_evVisible.size || _evVisible.has(n.blockType)));   // 시연=선택(표시)된 지표만 작도·진행
     const center = boardState.nodes.find(n => n.blockType === "predict") || boardState.nodes.find(n => n.blockType === "combine");
     if (prefersReducedMotion()) {
       _evidenceSet = new Set(indNodes.map(n => n.id));

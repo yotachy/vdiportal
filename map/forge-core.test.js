@@ -1682,3 +1682,72 @@ test("run: mfiDrift가 그래프 volume 노드 실거래량에 반응(합성 아
   // mfiDrift가 실거래량을 반영하면 상승일 집중 vs 하락일 집중 예측이 달라야 함(합성이면 동일)
   assert.ok(Math.abs(tUp - tDn) > 1e-9, `tUp ${tUp} tDn ${tDn}`);
 });
+
+/* ── 신규 지표: CMF (Chaikin Money Flow · 자금흐름 오실레이터 · hero 배지, H/L/C+거래량 필요) ── */
+test("analyzeCMF: 종가가 봉 상단서 마감+거래량이면 bias>0", () => {
+  const candle = Array.from({length:30},(_,i)=>({o:100+i,h:100.8+i,l:99.9+i,c:100.7+i}));  // 상단 마감
+  const price = candle.map(c=>c.c), volume = price.map(()=>1000);
+  const r = ForgeCore.analyzeCMF({ candle, price, volume }, { period:20 });
+  assert.ok(r.bias > 0, `bias ${r.bias}`);
+});
+test("analyzeCMF: 종가가 봉 하단서 마감+거래량이면 bias<0", () => {
+  const candle = Array.from({length:30},(_,i)=>({o:100+i,h:100.1+i,l:99.2+i,c:99.3+i}));  // 하단 마감
+  const price = candle.map(c=>c.c), volume = price.map(()=>1000);
+  const r = ForgeCore.analyzeCMF({ candle, price, volume }, { period:20 });
+  assert.ok(r.bias < 0, `bias ${r.bias}`);
+});
+test("analyzeCMF: 거래량 없어도 throw 없이 동작(합성 폴백)", () => {
+  const price = Array.from({length:40},(_,i)=>100+Math.sin(i));
+  const r = ForgeCore.analyzeCMF({ candle: price.map(c=>({o:c,h:c+0.2,l:c-0.2,c})), price }, { period:20 });
+  assert.ok(isFinite(r.bias));
+});
+test("cmfSeries: 길이 일치·범위 −1..1", () => {
+  const price = Array.from({length:40},(_,i)=>100+Math.sin(i)*10);
+  const candle = price.map(c=>({o:c,h:c+0.3,l:c-0.3,c}));
+  const volume = price.map(()=>1000+Math.random()*100);
+  const s = ForgeCore.cmfSeries({ candle, price, volume }, 20);
+  assert.equal(s.length, price.length);
+  assert.ok(s.every(v => v >= -1 && v <= 1));
+});
+test("cmfSteps: 3줄", () => {
+  assert.strictEqual(ForgeCore.cmfSteps().length, 3);
+});
+test("run: cmf 노드가 예측 반영", () => {
+  // CMF는 봉 내 종가 위치(H/L 대비)가 핵심 — 대칭 H/L(c*1.01/c*0.99)이면 자금흐름승수가 항상 0이 되므로
+  // 종가가 상단에 치우친 비대칭 캔들(브리프 실패 테스트와 동일 패턴)을 사용한다.
+  const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c + 0.1, l: c - 0.9, c }));
+  const volume = price.map(() => 1000);
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle, volume }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "cmf", kind: "block", blockType: "cmf" }]), edges: base.edges.concat([{ from: "cmf", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle, volume }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "cmf 예측 반영");
+});
+test("run: cmfDrift가 그래프 volume 노드 실거래량에 반응(합성 아님)", () => {
+  // 지그재그 가격(상승일·하락일 공존) — 거래량이 어느 날에 실리는지가 CMF 방향을 가름.
+  // CMF는 봉 내 종가 위치가 핵심이므로 상승일=종가 상단(자금유입 승수 +), 하락일=종가 하단(자금유출 승수 −)인
+  // 비대칭 캔들로 구성(대칭 H/L이면 승수가 항상 0이 되어 거래량 가중과 무관해짐).
+  const price = Array.from({ length: 40 }, (_, i) => 100 + (i % 2 === 0 ? i : i - 1.4));
+  const candle = price.map((c, i) => {
+    const up = i > 0 ? price[i] > price[i - 1] : true;
+    return up ? { o: i ? price[i - 1] : c, h: c + 0.1, l: c - 1.0, c } : { o: i ? price[i - 1] : c, h: c + 1.0, l: c - 0.1, c };
+  });
+  const volUp = price.map((c, i) => (i > 0 && price[i] > price[i - 1]) ? 5000 : 500);   // 상승일에 거래량 집중
+  const volDn = price.map((c, i) => (i > 0 && price[i] < price[i - 1]) ? 5000 : 500);   // 하락일에 거래량 집중
+  // volume 노드는 volDrift도 유발하므로 driftWeights로 volume 드리프트를 0으로 눌러
+  // volume에 반응하는 유일한 경로를 cmf로 격리한다(volumeprofile·vwap·mfi 노드는 그래프에 없음).
+  const mk = s => ({
+    nodes: [
+      { id: "p", kind: "block", blockType: "price" },
+      { id: "v", kind: "block", blockType: "volume", series: s },
+      { id: "cmf", kind: "block", blockType: "cmf" },
+      { id: "pr", kind: "block", blockType: "predict" },
+    ],
+    edges: [{ from: "p", to: "pr" }, { from: "v", to: "cmf" }, { from: "cmf", to: "pr" }],
+  });
+  const opts = { futW: 24, driftWeights: { volume: 0 } };   // volDrift 제거 → 남은 volume 민감 경로는 cmf뿐
+  const tUp = ForgeCore.run(mk(volUp), { price, candle }, opts).prediction.target;
+  const tDn = ForgeCore.run(mk(volDn), { price, candle }, opts).prediction.target;
+  // cmfDrift가 실거래량을 반영하면 상승일 집중 vs 하락일 집중 예측이 달라야 함(합성이면 동일)
+  assert.ok(Math.abs(tUp - tDn) > 1e-9, `tUp ${tUp} tDn ${tDn}`);
+});
