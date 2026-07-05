@@ -543,6 +543,16 @@
   .chart-pop-head .ph-grip{color:var(--faint);font-size:11px;letter-spacing:-2px;flex:0 0 auto}
   .chart-pop-title{flex:1;font-size:11.5px;font-weight:700;color:var(--ink)}
   .chart-pop-body{padding:10px 11px}
+  /* 프리셋 팝업이 차트 위 플로팅 창(.chart-pop)으로 이동 — .ind-rail/.forge-side 스코프가 안 걸리므로 여기서 재정의 */
+  .chart-pop-body .rpset-head{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:9px}
+  .chart-pop-body .pset-list{display:flex;flex-wrap:wrap;gap:6px}
+  .chart-pop-body .pset-btn{padding:5px 10px;border:1px solid var(--line);border-radius:99px;background:transparent;color:var(--eth);font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:border-color .12s,color .12s,background .12s}
+  .chart-pop-body .pset-btn:hover{border-color:var(--gold);color:var(--gold)}
+  .chart-pop-body .pset-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.13);font-weight:700}
+  .chart-pop-body .pset-wrap{display:inline-flex;align-items:center}
+  .chart-pop-body .pset-wrap .pset-btn{border-radius:99px 0 0 99px}
+  .chart-pop-body .pset-del{border:1px solid var(--line);border-left:0;border-radius:0 99px 99px 0;background:transparent;color:var(--eth);font-size:9.5px;padding:6px 7px;cursor:pointer;line-height:1}
+  .chart-pop-body .pset-del:hover{color:var(--bear,#e06a6a)}
   /* 차트 의사 전체화면(body.chart-fs) — 지표 레일·모달 유지 */
   body.chart-fs .forge-top,body.chart-fs .forge-side,body.chart-fs .board-pane,body.chart-fs #forgeGutter{display:none!important}
   body.chart-fs .chart-pane{position:fixed;top:0;left:0;bottom:0;right:186px;z-index:90;background:var(--bg);min-height:0!important;order:0}
