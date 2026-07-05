@@ -72,10 +72,10 @@
   @keyframes agshine{0%{transform:translateX(-110%)}100%{transform:translateX(110%)}}
   .ag-pct{margin-top:11px;font-size:22px;font-weight:900;font-family:var(--mono);color:var(--gold);letter-spacing:-.02em}
   /* 좌우 크기조절 거터 */
-  .forge-gutter{flex:0 0 7px;background:var(--line);cursor:col-resize;position:relative;z-index:6;transition:background .12s}
+  .forge-gutter{flex:0 0 4px;background:rgba(232,180,99,.22);cursor:col-resize;position:relative;z-index:6;transition:background .12s}
   .forge-gutter::before{content:"";position:absolute;left:-4px;right:-4px;top:0;bottom:0}
-  .forge-gutter::after{content:"";position:absolute;left:2px;top:50%;width:3px;height:34px;transform:translateY(-50%);border-radius:var(--r-sm);background:#3a4452;transition:background .12s}
-  .forge-gutter:hover,.forge-gutter.dragging{background:var(--gold-dim)}
+  .forge-gutter::after{content:"";position:absolute;left:0.5px;top:50%;width:3px;height:30px;transform:translateY(-50%);border-radius:var(--r-sm);background:rgba(232,180,99,.55);transition:background .12s}
+  .forge-gutter:hover,.forge-gutter.dragging{background:rgba(232,180,99,.4)}
   .forge-gutter:hover::after,.forge-gutter.dragging::after{background:var(--gold)}
   .ind-rail{flex:0 0 178px;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
   .ind-rail .ir-head{font-size:11px;color:var(--eth);padding:11px 10px 7px;display:flex;justify-content:space-between;align-items:baseline;font-weight:700;position:sticky;top:0;background:var(--panel);z-index:2;border-bottom:1px solid rgba(138,146,178,.1)}
@@ -744,7 +744,7 @@
   .forge-side .wg-btn{flex:0 0 auto;background:transparent;border:0;color:var(--faint);font-size:11px;cursor:pointer;padding:2px 3px;line-height:1;opacity:0;border-radius:var(--r-sm);transition:opacity .12s,color .12s}
   .forge-side .wg-head:hover .wg-btn{opacity:.85}
   .forge-side .wg-btn:hover{color:var(--gold)}
-  .forge-side .wg-body{display:flex;flex-direction:column;padding-left:11px;margin-left:9px}
+  .forge-side .wg-body{display:flex;flex-direction:column;padding-left:6px;margin-left:5px}
   .forge-side .wg-empty{font-size:10.5px;color:var(--faint);padding:7px 8px}
   .forge-side [data-wgdrop].wg-over{background:rgba(232,180,99,.1);outline:1px dashed var(--gold-dim);outline-offset:-2px;border-radius:var(--r-md)}
   .forge-side .doc-row.drop-before{box-shadow:inset 0 2px 0 var(--gold)}
@@ -1212,7 +1212,7 @@
               <span class="ev-split">
                 <button class="ev-toggle on" id="evToggle" title="분석근거 — 지표별 작도(추세선·피보·파동 등) 표시/숨김" onclick="toggleEvidence()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3.5l2.4-7 4 14 2.4-7H21"/></svg><span class="hlbl"> 분석근거</span></button>
                 <button class="ev-caret" id="evCaret" title="근거 표시 옵션" aria-label="옵션" onclick="_toggleEvOpt(event)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-                <div class="ev-opt-pop" id="evOptPop"><label class="ev-opt-row" onclick="event.stopPropagation();toggleLabelMode()"><span class="ev-opt-chk on" id="lblChk"></span><span>핵심 라벨만 표시</span></label></div>
+                <div class="ev-opt-pop" id="evOptPop"><label class="ev-opt-row" onclick="event.stopPropagation();toggleLabelMode()"><span class="ev-opt-chk" id="lblChk"></span><span>전체 라벨 표시</span></label></div>
               </span>
               <button class="ev-toggle" id="riskBtn" title="리스크·포지션 사이징 — 분석 기준 진입/손절/목표로 수량·손익비 계산" onclick="openRiskTool()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.3-2.9 7.2-7 8.5-4.1-1.3-7-4.2-7-8.5V6z"/></svg><span class="hlbl"> 리스크</span></button>
               <button class="ev-toggle" id="optBtn" title="파라미터 최적화 — 지표 설정을 과거 데이터로 백테스트해 적중률 지형 탐색" onclick="openOptTool()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.3"/></svg><span class="hlbl"> 최적화</span></button>
@@ -4248,7 +4248,7 @@
     return boardState.nodes.filter(n => n.kind === "block" && order.includes(n.blockType))
       .sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
   }
-  function toggleLabelMode() { _labelMode = _labelMode === "key" ? "all" : "key"; const b = document.getElementById("lblChk"); if (b) b.classList.toggle("on", _labelMode === "key"); drawEvidence(); }
+  function toggleLabelMode() { _labelMode = _labelMode === "key" ? "all" : "key"; const b = document.getElementById("lblChk"); if (b) b.classList.toggle("on", _labelMode === "all"); drawEvidence(); }   // 체크=전체(all)·미체크=핵심만(key, 기본)
   function _toggleEvOpt(e) { if (e) e.stopPropagation(); const p = document.getElementById("evOptPop"); if (p) p.classList.toggle("open"); }
   document.addEventListener("click", function (e) { const p = document.getElementById("evOptPop"); if (p && p.classList.contains("open") && !e.target.closest(".ev-split")) p.classList.remove("open"); });
   function toggleEvidence() {
