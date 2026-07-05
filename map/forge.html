@@ -80,7 +80,7 @@
   .ind-rail{flex:0 0 178px;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
   .ind-rail .ir-head{font-size:11px;color:var(--eth);padding:11px 10px 7px;display:flex;justify-content:space-between;align-items:baseline;font-weight:700;position:sticky;top:0;background:var(--panel);z-index:2;border-bottom:1px solid rgba(138,146,178,.1)}
   .ind-rail .ir-head .ir-sub{font-size:9px;font-weight:600;color:var(--faint);letter-spacing:-.02em}
-  .ind-rail .ir-row{position:relative;display:flex;align-items:center;gap:5px;padding:4px 8px;border-bottom:1px solid rgba(138,146,178,.06);color:#5a6472;font-size:12px;font-weight:600;user-select:none;transition:color .12s,background .12s}
+  .ind-rail .ir-row{position:relative;display:flex;align-items:center;gap:5px;padding:2.5px 8px;border-bottom:1px solid rgba(138,146,178,.06);color:#5a6472;font-size:12px;font-weight:600;user-select:none;transition:color .12s,background .12s}
   .ind-rail .ir-fill{position:absolute;left:0;top:0;bottom:0;background:var(--ic,#8a92b2);opacity:.09;z-index:0;pointer-events:none;transition:width .06s linear}
   .ind-rail .ir-tick{position:absolute;left:33.33%;top:3px;bottom:3px;width:1px;background:rgba(232,180,99,.45);z-index:0;pointer-events:none}
   .ind-rail .ir-row.on .ir-fill{opacity:.44}
@@ -90,7 +90,7 @@
   .ind-rail .ir-bar{flex:1;min-width:0;position:relative;display:flex;align-items:center;gap:9px;overflow:hidden;padding:5px 6px 5px 4px;border-radius:var(--r-sm);cursor:ew-resize;touch-action:none}
   .ind-rail .ir-bar:hover{background:rgba(255,255,255,.035)}
   .ind-rail .ir-bar:hover .ir-lbl{color:var(--ink)}
-  .ind-rail .ir-top + .ir-row{padding-top:11px}
+  .ind-rail .ir-top + .ir-row{padding-top:8px}
   .ind-rail .ir-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.26);display:grid;place-items:center;transition:background .12s,border-color .12s}
   .ind-rail .ir-chk:hover{border-color:var(--ic,#8a92b2)}
   .ind-rail .ir-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
@@ -102,8 +102,11 @@
   .ind-rail .ir-edit{flex:0 0 auto;width:23px;height:25px;margin-left:1px;border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--eth);font-size:11px;cursor:pointer;opacity:.9;border-radius:var(--r-sm);display:grid;place-items:center;padding:0;transition:background .12s,color .12s,opacity .12s;box-shadow:-1px 0 0 rgba(11,15,20,.5)}
   .ind-rail .ir-edit:hover{background:rgba(232,180,99,.16);color:var(--gold);opacity:1}
   .ind-rail .ir-edit:hover{opacity:1;color:var(--gold)}
-  .ind-rail .ir-top{padding:9px 10px 13px;border-bottom:1px solid var(--line);position:sticky;top:38px;background:var(--panel);z-index:2;display:flex;flex-direction:column;gap:6px}
-  .ind-rail .ir-resetw{font-size:10px;color:var(--eth);border-style:dashed}
+  .ind-rail .ir-top{padding:9px 10px 10px;border-bottom:1px solid var(--line);position:sticky;top:38px;background:var(--panel);z-index:2;display:flex;flex-direction:row;align-items:stretch;gap:6px}
+  .ind-rail .ir-top .ir-allbtn{flex:1;width:auto}
+  .ind-rail .ir-resetw{flex:0 0 auto;width:32px;padding:0;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-md);background:transparent;cursor:pointer;display:grid;place-items:center;transition:color .12s,border-color .12s}
+  .ind-rail .ir-resetw:hover{border-color:var(--gold);color:var(--gold)}
+  .ind-rail .ir-resetw svg{width:14px;height:14px}
   .ind-rail .ir-allbtn{width:100%;padding:7px;border:1px solid var(--line);border-radius:var(--r-md);background:transparent;color:var(--eth);font-size:11px;font-weight:700;cursor:pointer}
   .ind-rail .ir-allbtn:hover{border-color:var(--gold);color:var(--gold)}
   @media (max-width:860px){ .ind-rail{display:none} }
@@ -2017,7 +2020,7 @@
     const el = document.getElementById("indRail"); if (!el) return;
     const types = _indTypes();
     el.innerHTML = `<div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시 · 바=가중치</span></div>` +
-      `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "전체 해제" : "전체 포함"}</button><button class="ir-allbtn ir-resetw" onclick="_resetIndWeights()" title="모든 지표 가중치를 기본값 100%로">가중치 기본값 100%</button></div>` +
+      `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "전체 해제" : "전체 포함"}</button><button class="ir-resetw" onclick="_resetIndWeights()" title="가중치 전체를 기본값 100%로 초기화" aria-label="가중치 초기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button></div>` +
       types.map(t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3));
         return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; }).join("");
     if (typeof renderPresets === "function") renderPresets();   // 표시조합 변경 → 프리셋 활성 갱신
