@@ -1474,3 +1474,32 @@ test("run: Donchian 채널 노드가 예측 반영", () => {
   const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "donchian 예측 반영");
 });
+
+/* ── 신규 지표: CCI (오실레이터 · hero 배지) ── */
+test("analyzeCCI: 강한 상승 후 CCI last>0·bias>0", () => {
+  const price = Array.from({length:60},(_,i)=>100 + i*0.8);
+  const r = ForgeCore.analyzeCCI(price, { period:20 });
+  assert.ok(r.last > 0 && r.bias > 0, `last ${r.last} bias ${r.bias}`);
+});
+test("cciSeries: 길이 일치·범위 −1..1", () => {
+  const price = Array.from({length:40},(_,i)=>100+Math.sin(i));
+  const s = ForgeCore.cciSeries(price, 20);
+  assert.equal(s.length, price.length);
+  assert.ok(s.every(v => v >= -1 && v <= 1));
+});
+test("cciSteps: 3줄", () => {
+  assert.strictEqual(ForgeCore.cciSteps().length, 3);
+});
+test("analyzeCCI: 강한 하락 후 CCI last<0·bias<0(비단조 부호 검증)", () => {
+  const price = Array.from({length:60},(_,i)=>200 - i*0.8);
+  const r = ForgeCore.analyzeCCI(price, { period:20 });
+  assert.ok(r.last < 0 && r.bias < 0, `last ${r.last} bias ${r.bias}`);
+});
+test("run: CCI 노드가 예측 반영", () => {
+  const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "cci", kind: "block", blockType: "cci" }]), edges: base.edges.concat([{ from: "cci", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "cci 예측 반영");
+});
