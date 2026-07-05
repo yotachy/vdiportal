@@ -3972,7 +3972,7 @@
     const items = [
       ["기술적 최대범위", band, "sq", "기술적으로 도달 가능한 최저~최고 경계입니다. 피보나치·구조 스윙·매물대·볼린저·일목·VWAP를 종합해 산출하며, 예측이 이 범위를 벗어나기는 어렵습니다."],
       ["1차 종합지표", core, "", "전체 지표를 융합한 종합 예측선입니다. 가장 신뢰도 높은 기본 시나리오예요."],
-      ["2차 선택지표", "#2f6be0", "", "범례에서 표시(체크)한 지표 조합만으로 다시 계산한 예측선입니다. 특정 관점으로 비교할 때 씁니다."],
+      ["2차 선택지표", "#4d8bff", "", "범례에서 표시(체크)한 지표 조합만으로 다시 계산한 예측선입니다. 특정 관점으로 비교할 때 씁니다."],
       ["3차 최대역치", c3, "", "예상과 반대로 움직였을 때 가격이 향할 가장 가까운 지지/저항 레벨(반대 시나리오)입니다."]
     ];
     el.style.display = "flex";
@@ -4172,6 +4172,11 @@
       _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차\u00b7" + _p1disp + "%", -12, true);
       _comets.p1 = { pts: path.map((v, k) => [toXf(k), Math.max(padTop + 2, Math.min(ch - padBot - 2, toY(v)))]), col: CT.core };
       if (typeof _startComets === "function") _startComets();
+      // 현재가 = 예측 시작점(1·2·3차가 갈라지는 원점) — 중립 흰색 마커
+      { const _mx = seamX, _my = toY(anchor); c.save();
+        c.strokeStyle = "rgba(255,255,255,.22)"; c.lineWidth = 1; c.beginPath(); c.arc(_mx, _my, 9.5, 0, 7); c.stroke();
+        c.shadowColor = "rgba(255,255,255,.9)"; c.shadowBlur = 10; c.strokeStyle = "rgba(255,255,255,.92)"; c.lineWidth = 1.7; c.beginPath(); c.arc(_mx, _my, 4.6, 0, 7); c.stroke();
+        c.shadowBlur = 0; c.fillStyle = "#fff"; c.beginPath(); c.arc(_mx, _my, 2.3, 0, 7); c.fill(); c.restore(); }
       if (typeof _renderChartLegend === "function") _renderChartLegend(_pd);   // 예측선 범례 = DOM(호버 설명·큰 폰트)
     }
     // y labels (right)
@@ -5512,15 +5517,15 @@
         const _2diff = (p2 && p2.path && p2.path.length && g.path && g.path.length) ? Math.abs(Math.log((p2.path[p2.path.length - 1] || 1) / (g.path[g.path.length - 1] || 1))) : 0;
         if (p2 && p2.path && p2.path.length && _2diff > 0.008) {   // 2차가 1차(종합)와 사실상 같으면 생략(중복 제거)
           const _sx = g.seamX, _cR = plotR, _pl = p2.path.length, _t2x = k => _sx + ((k + 1) / _pl) * (_cR - _sx);
-          c.save(); c.strokeStyle = "#2f6be0"; c.lineWidth = 2.8; c.setLineDash([6, 4]); c.lineJoin = "round"; c.shadowColor = "rgba(47,107,224,.6)"; c.shadowBlur = 7;
+          c.save(); c.strokeStyle = "#4d8bff"; c.lineWidth = 3.1; c.setLineDash([7, 4]); c.lineJoin = "round"; c.shadowColor = "rgba(77,139,255,.85)"; c.shadowBlur = 10;
           const _cy2 = y => Math.max(g.padTop + 1, Math.min(g.ch - g.padBot - 1, y));   // 플롯 밖으로 튀지 않게 클램프(축이 밴드를 넘는 극단 대비 안전망)
           c.beginPath(); c.moveTo(_sx, _cy2(toY(g.anchor)));
           for (let k = 0; k < _pl; k++) { const x = _t2x(k), y = _cy2(toY(p2.path[k])); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
           c.stroke(); c.setLineDash([]); c.shadowBlur = 0; c.restore();
           let _p2s = 0, _p2w = 0; for (let k = 0; k < p2.path.length; k++) { const wt = 1 / Math.sqrt(k + 1); const _hk = (g.hi && g.hi[k]) || p2.path[k]; _p2s += _upProb(p2.path[k], _hk, g.anchor) * wt; _p2w += wt; }
           const _p2up = _p2w ? _p2s / _p2w : 50, _p2dir = p2.path[p2.path.length - 1] >= g.anchor, _p2disp = Math.round(_p2dir ? _p2up : (100 - _p2up));
-          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#2f6be0", "2차\u00b7" + _p2disp + "%", 12, true);
-          _comets.p2 = { pts: p2.path.map((v, k) => [_t2x(k), _cy2(toY(v))]), col: "#2f6be0" };
+          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#4d8bff", "2차\u00b7" + _p2disp + "%", 12, true);
+          _comets.p2 = { pts: p2.path.map((v, k) => [_t2x(k), _cy2(toY(v))]), col: "#4d8bff" };
           if (typeof _startComets === "function") _startComets();
         }
       } catch (e) {}
