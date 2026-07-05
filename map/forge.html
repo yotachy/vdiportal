@@ -537,6 +537,12 @@
   .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.5}   /* 비결정 지표 = 희미(뒤로) */
   .fc-evidence-hi{position:absolute;inset:0;pointer-events:none;z-index:3;filter:drop-shadow(0 0 2.5px rgba(255,255,255,.28))}   /* 결정적 지표 = 선명 + 은은한 글로우 */
   .fc-comet{position:absolute;inset:0;pointer-events:none;z-index:4}   /* 예측선 위 움직이는 밝은 점(1/2/3차) */
+  .chart-pop{position:absolute;left:12px;top:46px;z-index:14;min-width:250px;max-width:330px;background:rgba(11,15,20,.92);border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;transform:translateY(-6px);opacity:0;transition:transform .18s ease,opacity .18s ease}
+  .chart-pop.on{display:block;transform:translateY(0);opacity:1}
+  .chart-pop-head{display:flex;align-items:center;gap:7px;padding:5px 6px 5px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none;touch-action:none}
+  .chart-pop-head .ph-grip{color:var(--faint);font-size:11px;letter-spacing:-2px;flex:0 0 auto}
+  .chart-pop-title{flex:1;font-size:11.5px;font-weight:700;color:var(--ink)}
+  .chart-pop-body{padding:10px 11px}
   /* 차트 의사 전체화면(body.chart-fs) — 지표 레일·모달 유지 */
   body.chart-fs .forge-top,body.chart-fs .forge-side,body.chart-fs .board-pane,body.chart-fs #forgeGutter{display:none!important}
   body.chart-fs .chart-pane{position:fixed;top:0;left:0;bottom:0;right:186px;z-index:90;background:var(--bg);min-height:0!important;order:0}
@@ -1213,6 +1219,10 @@
           <button class="ph-btn" id="analyzeLogMin" title="접기/펼치기" aria-label="접기">–</button>
         </div>
         <div class="al-body" id="analyzeLogBody"></div>
+      </div>
+      <div id="chartPresetPop" class="chart-pop" aria-hidden="true">
+        <div class="chart-pop-head" id="chartPresetHead"><span class="ph-grip" aria-hidden="true">⠿</span><span class="chart-pop-title">분석 프리셋</span><button class="ph-btn" onclick="_toggleRailPreset()" aria-label="닫기">✕</button></div>
+        <div class="chart-pop-body" id="railPresetPop"></div>
       </div>
       <div class="fc-wrap">
         <div class="fc-panel fc-panel-hero">
@@ -2046,7 +2056,7 @@
     const el = document.getElementById("indRail"); if (!el) return;
     const types = _indTypes();
     el.innerHTML = `<div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시 · 바=가중치</span></div>` +
-      `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "전체 해제" : "전체 포함"}</button><button class="ir-preset" onclick="_toggleRailPreset(event)" title="분석 프리셋 조합 적용">프리셋<span class="ir-pcaret">\u25be</span></button><button class="ir-resetw" onclick="_resetIndWeights()" title="가중치 전체를 기본값 100%로 초기화" aria-label="가중치 초기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button></div><div class="ir-presetpop" id="railPresetPop"></div>` +
+      `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "개별" : "전체"}</button><button class="ir-preset" onclick="_toggleRailPreset(event)" title="분석 프리셋 — 차트 위 팝업으로 조합 적용">프리셋</button><button class="ir-resetw" onclick="_resetIndWeights()" title="가중치 전체를 기본값 100%로 초기화" aria-label="가중치 초기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button></div>` +
       types.map(t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3));
         return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; }).join("");
     if (typeof renderPresets === "function") renderPresets();   // 표시조합 변경 → 프리셋 활성 갱신
@@ -2144,14 +2154,18 @@
   }
   function renderPresets() {
     const el = document.getElementById("railPresetPop"); if (!el) return;
-    el.innerHTML = `<div class="rpset-head"><span>분석 프리셋 — 조합 빠른 적용</span><button class="side-btn" onclick="_saveCurrentPreset()" title="현재 표시 조합 저장">＋ 저장</button></div>` +
+    el.innerHTML = `<div class="rpset-head"><span>조합을 눌러 빠르게 적용</span><button class="side-btn" onclick="_saveCurrentPreset()" title="현재 표시 조합 저장">＋ 저장</button></div>` +
       `<div class="pset-list">` +
       _PRESET_DEF.map((p, i) => `<button class="pset-btn${_presetMatch(p.t) ? " on" : ""}" onclick="_applyPresetIdx('d',${i})">${esc(p.name)}</button>`).join("") +
       _userPresets.map((p, i) => `<span class="pset-wrap"><button class="pset-btn${_presetMatch(p.t) ? " on" : ""}" onclick="_applyPresetIdx('u',${i})">${esc(p.name)}</button><button class="pset-del" onclick="_delPreset(${i})" title="삭제">✕</button></span>`).join("") +
       `</div>`;
   }
-  function _toggleRailPreset(e) { if (e) e.stopPropagation(); const p = document.getElementById("railPresetPop"); if (p) p.classList.toggle("open"); }
-  document.addEventListener("click", function (e) { const p = document.getElementById("railPresetPop"); if (p && p.classList.contains("open") && !e.target.closest("#railPresetPop") && !e.target.closest(".ir-preset")) p.classList.remove("open"); });
+  function _toggleRailPreset(e) { if (e) e.stopPropagation(); const p = document.getElementById("chartPresetPop"); if (!p) return; const on = p.classList.toggle("on"); if (on && typeof renderPresets === "function") renderPresets(); }
+  document.addEventListener("click", function (e) { const p = document.getElementById("chartPresetPop"); if (p && p.classList.contains("on") && !e.target.closest("#chartPresetPop") && !e.target.closest(".ir-preset")) p.classList.remove("on"); });
+  (function initPresetDrag() { const h = document.getElementById("chartPresetHead"), p = document.getElementById("chartPresetPop"); if (!h || !p) return; let d = null;
+    h.addEventListener("pointerdown", e => { if (e.target.closest("button")) return; d = { x: e.clientX, y: e.clientY, l: p.offsetLeft, t: p.offsetTop }; try { h.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
+    h.addEventListener("pointermove", e => { if (!d) return; p.style.left = Math.max(4, d.l + e.clientX - d.x) + "px"; p.style.top = Math.max(4, d.t + e.clientY - d.y) + "px"; p.style.right = "auto"; });
+    h.addEventListener("pointerup", () => d = null); h.addEventListener("pointercancel", () => d = null); })();
   function _ensureGroups() { if (!Array.isArray(META.groups)) META.groups = []; if (!META.docGroups || typeof META.docGroups !== "object") META.docGroups = {}; }
   function _grpOf(docId) { _ensureGroups(); const g = META.docGroups[docId]; return (g && META.groups.some(x => x.id === g)) ? g : null; }
   function _saveGroups() { _ensureGroups(); if (SERVER_OK) saveMeta(); renderSidebar(); }
@@ -7500,7 +7514,7 @@
     if (!steps.length) return;
     const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
     const finPred = fin.prediction, finSig = _sigOf(fin);
-    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic"].includes(n.blockType));
+    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic"].includes(n.blockType) && (!_evVisible || !_evVisible.size || _evVisible.has(n.blockType)));   // 시연=선택(표시)된 지표만 작도·진행
     const center = boardState.nodes.find(n => n.blockType === "predict") || boardState.nodes.find(n => n.blockType === "combine");
     if (prefersReducedMotion()) {
       _evidenceSet = new Set(indNodes.map(n => n.id));
