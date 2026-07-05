@@ -537,12 +537,13 @@
   .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.5}   /* 비결정 지표 = 희미(뒤로) */
   .fc-evidence-hi{position:absolute;inset:0;pointer-events:none;z-index:3;filter:drop-shadow(0 0 2.5px rgba(255,255,255,.28))}   /* 결정적 지표 = 선명 + 은은한 글로우 */
   .fc-comet{position:absolute;inset:0;pointer-events:none;z-index:4}   /* 예측선 위 움직이는 밝은 점(1/2/3차) */
-  .chart-pop{position:fixed;left:12px;top:66px;z-index:95;min-width:250px;max-width:330px;background:rgba(11,15,20,.93);border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;transform:translateY(-6px);opacity:0;transition:transform .18s ease,opacity .18s ease}
+  .chart-pop{position:fixed;left:12px;top:352px;z-index:95;min-width:250px;max-width:330px;background:rgba(11,15,20,.93);border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;transform:translateY(-6px);opacity:0;transition:transform .18s ease,opacity .18s ease}
   .chart-pop.on{display:block;transform:translateY(0);opacity:1}
   .chart-pop-head{display:flex;align-items:center;gap:7px;padding:5px 6px 5px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none;touch-action:none}
   .chart-pop-head .ph-grip{color:var(--faint);font-size:11px;letter-spacing:-2px;flex:0 0 auto}
   .chart-pop-title{flex:1;font-size:11.5px;font-weight:700;color:var(--ink)}
   .chart-pop-body{padding:10px 11px}
+  .chart-pop.collapsed .chart-pop-body{display:none}   /* 최소화(접기) — 헤더 바만 */
   /* 프리셋 팝업이 차트 위 플로팅 창(.chart-pop)으로 이동 — .ind-rail/.forge-side 스코프가 안 걸리므로 여기서 재정의 */
   .chart-pop-body .rpset-head{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:9px}
   .chart-pop-body .pset-list{display:flex;flex-wrap:wrap;gap:6px}
@@ -1230,7 +1231,7 @@
         <div class="ph-logsec"><div class="ph-logsec-h">진행 로그</div><div class="al-body" id="analyzeLogBody"></div></div>
       </div>
       <div id="chartPresetPop" class="chart-pop" aria-hidden="true">
-        <div class="chart-pop-head" id="chartPresetHead"><span class="ph-grip" aria-hidden="true">⠿</span><span class="chart-pop-title">자주 쓰는 프리셋</span><button class="ph-btn" onclick="_alignPanels()" title="열린 창 나란히 정렬 (누를 때마다 수직↔수평)" aria-label="정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="6.5" height="14" rx="1"/><rect x="13.5" y="5" width="6.5" height="14" rx="1"/></svg></button><button class="ph-btn" onclick="_toggleRailPreset()" aria-label="닫기">✕</button></div>
+        <div class="chart-pop-head" id="chartPresetHead"><span class="ph-grip" aria-hidden="true">⠿</span><span class="chart-pop-title">자주 쓰는 프리셋</span><button class="ph-btn" onclick="_alignPanels()" title="열린 창 나란히 정렬 (누를 때마다 수직↔수평)" aria-label="정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="6.5" height="14" rx="1"/><rect x="13.5" y="5" width="6.5" height="14" rx="1"/></svg></button><button class="ph-btn" id="railPresetMin" title="접기/펼치기" aria-label="접기">–</button></div>
         <div class="chart-pop-body" id="railPresetPop"></div>
       </div>
       <div class="fc-wrap">
@@ -2185,7 +2186,10 @@
   (function initPresetDrag() { const h = document.getElementById("chartPresetHead"), p = document.getElementById("chartPresetPop"); if (!h || !p) return; let d = null;
     h.addEventListener("pointerdown", e => { if (e.target.closest("button")) return; d = { x: e.clientX, y: e.clientY, l: p.offsetLeft, t: p.offsetTop }; try { h.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
     h.addEventListener("pointermove", e => { if (!d) return; p.style.left = Math.max(0, Math.min(window.innerWidth - 60, d.l + e.clientX - d.x)) + "px"; p.style.top = Math.max(0, Math.min(window.innerHeight - 28, d.t + e.clientY - d.y)) + "px"; p.style.right = "auto"; });
-    const _pu = () => { if (d && typeof _saveHudPos === "function") _saveHudPos("scoopforge_hud_preset", p); d = null; }; h.addEventListener("pointerup", _pu); h.addEventListener("pointercancel", _pu); })();
+    const _pu = () => { if (d && typeof _saveHudPos === "function") _saveHudPos("scoopforge_hud_preset", p); d = null; }; h.addEventListener("pointerup", _pu); h.addEventListener("pointercancel", _pu);
+    const pmin = document.getElementById("railPresetMin");   // ✕(닫기) → 최소화(접기) 버튼
+    if (pmin) pmin.addEventListener("click", () => { p.classList.toggle("collapsed"); pmin.textContent = p.classList.contains("collapsed") ? "+" : "–"; });
+  })();
   function _ensureGroups() { if (!Array.isArray(META.groups)) META.groups = []; if (!META.docGroups || typeof META.docGroups !== "object") META.docGroups = {}; }
   function _grpOf(docId) { _ensureGroups(); const g = META.docGroups[docId]; return (g && META.groups.some(x => x.id === g)) ? g : null; }
   function _saveGroups() { _ensureGroups(); if (SERVER_OK) saveMeta(); renderSidebar(); }
@@ -6757,6 +6761,10 @@
       const min = document.getElementById("playHudMin"), cls = document.getElementById("playHudClose");
       if (min) min.addEventListener("click", () => { hud.classList.toggle("collapsed"); min.textContent = hud.classList.contains("collapsed") ? "+" : "–"; });
       hud.classList.add("on"); if (typeof _restoreHudPos === "function") _restoreHudPos("scoopforge_hud_play", hud);   // 항상 표시
+    }
+    const pp = document.getElementById("chartPresetPop");   // 자주 쓰는 프리셋 — 시연 진행처럼 기본 표시(_evVisible 초기화 이후 렌더)
+    if (pp) { pp.classList.add("on"); if (typeof renderPresets === "function") renderPresets(); if (typeof _restoreHudPos === "function") _restoreHudPos("scoopforge_hud_preset", pp); }
+    {
       const bar = document.getElementById("playHudCtl"), pane = document.getElementById("chartPane");
       let d = null;
       if (bar && pane) {
