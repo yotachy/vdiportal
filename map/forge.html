@@ -109,6 +109,10 @@
   .ind-rail .ir-edit:hover{opacity:1;color:var(--gold)}
   .ind-rail .ir-top{padding:9px 10px 10px;border-bottom:1px solid var(--line);position:sticky;top:38px;background:var(--panel);z-index:2;display:flex;flex-direction:row;align-items:stretch;gap:6px}
   .ind-rail .ir-top .ir-allbtn{flex:1;width:auto}
+  .ind-rail .ir-tierhead{display:flex;align-items:center;gap:6px;padding:10px 10px 4px;border-bottom:1px solid rgba(138,146,178,.06)}
+  .ind-rail .ir-tierlv{flex:0 0 auto;font-size:9px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-.02em;color:var(--gold);background:rgba(232,180,99,.12);border:1px solid rgba(232,180,99,.28);border-radius:99px;padding:1px 6px;line-height:1.35}
+  .ind-rail .ir-tiername{font-size:9.5px;font-weight:700;letter-spacing:-.01em;color:var(--faint);text-transform:none}
+  .ind-rail .ir-tierhead + .ir-row{padding-top:5px}
   .ind-rail .ir-resetw{flex:0 0 auto;width:32px;padding:0;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-md);background:transparent;cursor:pointer;display:grid;place-items:center;transition:color .12s,border-color .12s}
   .ind-rail .ir-resetw:hover{border-color:var(--gold);color:var(--gold)}
   .ind-rail .ir-resetw svg{width:14px;height:14px}
@@ -537,7 +541,7 @@
   .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.5}   /* 비결정 지표 = 희미(뒤로) */
   .fc-evidence-hi{position:absolute;inset:0;pointer-events:none;z-index:3;filter:drop-shadow(0 0 2.5px rgba(255,255,255,.28))}   /* 결정적 지표 = 선명 + 은은한 글로우 */
   .fc-comet{position:absolute;inset:0;pointer-events:none;z-index:4}   /* 예측선 위 움직이는 밝은 점(1/2/3차) */
-  .chart-pop{position:fixed;left:12px;top:352px;z-index:95;min-width:250px;max-width:330px;background:rgba(11,15,20,.93);border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;transform:translateY(-6px);opacity:0;transition:transform .18s ease,opacity .18s ease}
+  .chart-pop{position:fixed;left:12px;top:352px;z-index:95;width:300px;max-width:calc(100vw - 24px);background:rgba(11,15,20,.93);border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;transform:translateY(-6px);opacity:0;transition:transform .18s ease,opacity .18s ease}
   .chart-pop.on{display:block;transform:translateY(0);opacity:1}
   .chart-pop-head{display:flex;align-items:center;gap:7px;padding:5px 6px 5px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none;touch-action:none}
   .chart-pop-head .ph-grip{color:var(--faint);font-size:11px;letter-spacing:-2px;flex:0 0 auto}
@@ -1575,6 +1579,14 @@
     { type: "free",      label: "메모",        kind: "free" }
   ];
 
+  /* 지표 우선순위(등급) — 기술적 분석에서 중요도·사용빈도 순. 지표 레일 정렬 + 등급 배지에 사용 */
+  const IND_TIERS = [
+    { lv: 1, name: "핵심 지표",  types: ["ma", "macd", "rsi", "bollinger", "volume"] },
+    { lv: 2, name: "주요 지표",  types: ["trend", "adx", "stochastic", "fib", "ichimoku"] },
+    { lv: 3, name: "보조·전문",  types: ["vwap", "supertrend", "atr", "volumeprofile", "structure"] },
+    { lv: 4, name: "고급·심화",  types: ["elliott", "smc", "cycle", "phasefold"] },
+  ];
+
   /* helpers */
   const bN = id => boardState.nodes.find(n => n.id === id);
   const bE = id => boardState.edges.find(e => e.id === id);
@@ -2065,10 +2077,17 @@
   function renderIndRail() {
     const el = document.getElementById("indRail"); if (!el) return;
     const types = _indTypes();
+    const rowHTML = t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3));
+      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
+    let rows = "", seen = new Set();
+    IND_TIERS.forEach(tier => { const grp = tier.types.filter(t => types.includes(t)); if (!grp.length) return;
+      rows += `<div class="ir-tierhead" title="기술적 분석 중요도·사용빈도 등급"><span class="ir-tierlv">Lv${tier.lv}</span><span class="ir-tiername">${tier.name}</span></div>`;
+      grp.forEach(t => { seen.add(t); rows += rowHTML(t); }); });
+    const rest = types.filter(t => !seen.has(t));
+    if (rest.length) { rows += `<div class="ir-tierhead"><span class="ir-tierlv">·</span><span class="ir-tiername">기타</span></div>`; rest.forEach(t => rows += rowHTML(t)); }
     el.innerHTML = `<div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시 · 바=가중치</span></div>` +
       `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "개별" : "전체"}</button><button class="ir-preset" onclick="_toggleRailPreset(event)" title="분석 프리셋 — 차트 위 팝업으로 조합 적용">프리셋</button><button class="ir-resetw" onclick="_resetIndWeights()" title="가중치 전체를 기본값 100%로 초기화" aria-label="가중치 초기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button></div>` +
-      types.map(t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3));
-        return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; }).join("");
+      rows;
     if (typeof renderPresets === "function") renderPresets();   // 표시조합 변경 → 프리셋 활성 갱신
   }
   function _railEdit(type) {   // 편집 버튼: 이미 그 지표 편집중이면 분석으로 복귀, 아니면 편집 열기
@@ -6755,15 +6774,16 @@
     const l = document.getElementById("logBtn"); if (l) l.addEventListener("click", () => { toggleLogChart(); });
   })();
   /* ── 시연 오버레이 제어: 상단 HUD(접기·드래그이동·숨김) + 하단 로그(접기) ── */
+  let _playHudUserCollapsed = false;   // 사용자가 명시적으로 접어둔 경우 true → 시뮬레이션 자동 펼침 제외
   (function initPlayOverlayCtl() {
     const hud = document.getElementById("playHud");
     if (hud) {
       const min = document.getElementById("playHudMin"), cls = document.getElementById("playHudClose");
-      if (min) min.addEventListener("click", () => { hud.classList.toggle("collapsed"); min.textContent = hud.classList.contains("collapsed") ? "+" : "–"; });
-      hud.classList.add("on"); if (typeof _restoreHudPos === "function") _restoreHudPos("scoopforge_hud_play", hud);   // 항상 표시
+      if (min) min.addEventListener("click", () => { hud.classList.toggle("collapsed"); const c = hud.classList.contains("collapsed"); min.textContent = c ? "+" : "–"; _playHudUserCollapsed = c; });
+      hud.classList.add("on", "collapsed"); if (min) min.textContent = "+";   // 기본: 표시 + 접힘(헤더만) — 시뮬레이션 시 진행로그 자동 펼침
+      if (typeof _restoreHudPos === "function") _restoreHudPos("scoopforge_hud_play", hud);
     }
-    const pp = document.getElementById("chartPresetPop");   // 자주 쓰는 프리셋 — 시연 진행처럼 기본 표시(_evVisible 초기화 이후 렌더)
-    if (pp) { pp.classList.add("on"); if (typeof renderPresets === "function") renderPresets(); if (typeof _restoreHudPos === "function") _restoreHudPos("scoopforge_hud_preset", pp); }
+    // 자주 쓰는 프리셋 = 기본 닫힘(숨김). 지표 레일 '프리셋' 버튼으로 열기(_toggleRailPreset가 렌더)
     {
       const bar = document.getElementById("playHudCtl"), pane = document.getElementById("chartPane");
       let d = null;
@@ -7536,6 +7556,7 @@
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
     runForge(); _engineDirty = false; updateEngineBtn();   // 시연도 재계산 → 변경됨 해제
     if (typeof scheduleDash === "function") scheduleDash();   // 매트릭스 데이터 준비(있으면) — 데모 중 순차 공개
+    { const _h = document.getElementById("playHud"); if (_h) { _h.classList.add("on"); if (!_playHudUserCollapsed) { _h.classList.remove("collapsed"); const _mb = document.getElementById("playHudMin"); if (_mb) _mb.textContent = "–"; } } }   // 시뮬레이션 = 진행로그 자동 펼침(사용자가 접어둔 경우 제외, 모션축소 모드 포함)
     let steps;
     try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF(), driftWeights: _driftW }); }
     catch (e) { console.warn("steps", e); return; }
@@ -7562,7 +7583,7 @@
     renderNodeAnalysis(lastResult); renderSignalBoard();
     _redrawOscForPlay(0);   // 오실레이터 비우고 시작 → 데모 진행에 맞춰 좌→우로 그려짐
     { const _lb0 = document.getElementById("analyzeLogBody"); if (_lb0) _lb0.innerHTML = ""; }
-    const hud = document.getElementById("playHud"); if (hud) { hud.classList.add("on"); _restoreHudPos("scoopforge_hud_play", hud); }
+    const hud = document.getElementById("playHud"); if (hud) { hud.classList.add("on"); if (!_playHudUserCollapsed) { hud.classList.remove("collapsed"); const _mb = document.getElementById("playHudMin"); if (_mb) _mb.textContent = "–"; } _restoreHudPos("scoopforge_hud_play", hud); }   // 시뮬레이션 = 진행로그 자동 펼침(사용자가 접어둔 경우 제외)
     const progEl = document.getElementById("analyzeProg");
     const _pnode = boardState.nodes.find(n => n.blockType === "price");
     const _pv = _pnode && lastResult.values && lastResult.values[_pnode.id];
