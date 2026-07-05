@@ -727,6 +727,11 @@
   .forge-side .doc-chg{font-weight:700}
   .forge-side .doc-chg.up{color:#46c28e}
   .forge-side .doc-chg.dn{color:#e06a6a}
+  .forge-side .doc-tf{display:inline-flex;gap:3px;align-items:center;margin-left:auto}
+  .forge-side .doc-tfdot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+  .forge-side .doc-tfdot.bull{background:#46c28e}
+  .forge-side .doc-tfdot.bear{background:#e06a6a}
+  .forge-side .doc-tfdot.neutral{background:#e8b463}
   .forge-side .doc-row.dragging{opacity:.4;cursor:grabbing}
   .forge-side .wg-add{font-size:10px;padding:2px 8px;font-weight:700}
   .forge-side .wg-zone{display:flex;flex-direction:column;min-height:6px}
@@ -2140,7 +2145,10 @@
       const v = d._verdict;
       const vb = v ? `<span class="doc-vd ${v.regime}">${v.regime === "bull" ? "▲" + v.up + "%" : v.regime === "bear" ? "▼" + (100 - v.up) + "%" : "–"}</span>` : "";
       const _px = d._px, _chg = d._chg;
-      const sub = isFinite(_px) ? `<div class="doc-sub"><span class="doc-px">${_hzFmt(_px)}</span>${isFinite(_chg) ? `<span class="doc-chg ${_chg >= 0 ? "up" : "dn"}">${_chg >= 0 ? "▲" : "▼"}${Math.abs(_chg).toFixed(2)}%</span>` : ""}</div>` : "";
+      const _tfr = d._tfReg;
+      const _tfDot = r => `<span class="doc-tfdot ${r || "na"}"></span>`;
+      const _tf = _tfr ? `<span class="doc-tf" title="일·주·월 예측 신호등 — 초록=상승·노랑=중립·빨강=하락">${_tfDot(_tfr.d)}${_tfDot(_tfr.w)}${_tfDot(_tfr.m)}</span>` : "";
+      const sub = (isFinite(_px) || _tf) ? `<div class="doc-sub">${isFinite(_px) ? `<span class="doc-px">${_hzFmt(_px)}</span>${isFinite(_chg) ? `<span class="doc-chg ${_chg >= 0 ? "up" : "dn"}">${_chg >= 0 ? "▲" : "▼"}${Math.abs(_chg).toFixed(2)}%</span>` : ""}` : ""}${_tf}</div>` : "";
       return `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}" draggable="true">
          <div class="doc-r1">${_assetHtml(d, "doc-ico")}<span class="doc-nm">${esc(nm)}</span>${vb}<button class="side-btn" data-docdel="${d.id}" title="목록에서 제거">✕</button></div>${sub}
        </div>`; };
@@ -6926,6 +6934,7 @@
     const _actIdx = cols.findIndex(c => c[0] === _tfName);
     if (!cols.length) { host.innerHTML = `<div class="na-empty">데이터를 불러올 수 없어요: ${esc(sym)}</div>`; return; }
     if (meta) meta.textContent = esc(sym);
+    { const _ad = (typeof activeDoc === "function") ? activeDoc() : null; if (_ad) { _ad._tfReg = { d: (d && d.regime) || null, w: (w && w.regime) || null, m: (m && m.regime) || null }; if (typeof renderSidebar === "function") renderSidebar(); } }   // 워치리스트 신호등 도트용
     const REG = { bull: ["▲ 상승", "#46c28e"], bear: ["▼ 하락", "#e06a6a"], neutral: ["– 중립", "#8a92b2"] };
     const th = `<tr><th>지표</th>${cols.map(c => `<th style="color:${_TFCOL[c[0]] || "#8a92b2"}"><span class="thdot" style="background:${_TFCOL[c[0]] || "#8a92b2"}"></span>${c[0]}</th>`).join("")}</tr>`;
     const rows = [];
