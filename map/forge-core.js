@@ -285,6 +285,8 @@
         values[id] = (ins[0] || data.price).map(() => 0);
       } else if (n.blockType === "keltner") {
         values[id] = (ins[0] || data.price).map(() => 0);
+      } else if (n.blockType === "donchian") {
+        values[id] = (ins[0] || data.price).map(() => 0);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -505,6 +507,39 @@
       { k: "중심선", v: "EMA(기간)" },
       { k: "밴드", v: "중심 ± ATR × 배수" },
       { k: "방향", v: "채널 내 위치(상단=강세)" },
+    ];
+  }
+
+  // Donchian 채널: N봉 롤링 최고가/최저가. 봉별 배열(upperArr/lowerArr/midArr)을 따라가는 '움직이는 채널'로 작도(정적 수평선 금지 — pivot과 구분).
+  function analyzeDonchian(data, opts) {
+    opts = opts || {};
+    const len = opts.len || 20;
+    const price = (data && data.price) || (data.candle||[]).map(c=>c.c), candle = (data && data.candle) || [];
+    const P = price.length;
+    if (P < 2) return { upper:0, lower:0, mid:0, midSlope:0, pos:0.5, bias:0, midArr:[], upperArr:[], lowerArr:[] };
+    const upperArr = new Array(P), lowerArr = new Array(P), midArr = new Array(P);
+    for (let i = 0; i < P; i++) {
+      const s = Math.max(0, i - len + 1);
+      let u = -Infinity, l = Infinity;
+      for (let j = s; j <= i; j++) {
+        const h = candle[j] ? candle[j].h : price[j], lo = candle[j] ? candle[j].l : price[j];
+        if (h > u) u = h; if (lo < l) l = lo;
+      }
+      upperArr[i] = u; lowerArr[i] = l; midArr[i] = (u + l) / 2;
+    }
+    const upper = upperArr[P-1], lower = lowerArr[P-1], mid = midArr[P-1], last = price[P-1];
+    // 이전 봉 중앙선 기울기(방향 보조)
+    const midSlope = mid - midArr[P-2];
+    const pos = (last - lower) / Math.max(1e-9, upper - lower);   // 0=하단,1=상단
+    let bias = (pos - 0.5) * 2 * 0.8 + Math.sign(midSlope) * 0.2;
+    bias = Math.max(-1, Math.min(1, bias));
+    return { upper, lower, mid, midSlope, pos, bias, midArr, upperArr, lowerArr };
+  }
+  function donchianSteps() {
+    return [
+      { k: "채널", v: "N봉 최고가·최저가" },
+      { k: "돌파", v: "상단 돌파=매수 / 하단=매도(터틀)" },
+      { k: "방향", v: "채널 내 위치 + 중앙선 기울기" },
     ];
   }
 
@@ -1576,6 +1611,9 @@
     const _ktn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "keltner");
     const _kt = _ktn ? analyzeKeltner(data, { len: (_ktn.params && _ktn.params.len) || 20, atrLen: (_ktn.params && _ktn.params.atrLen) || 10, mult: (_ktn.params && _ktn.params.mult) || 2 }) : null;
     const keltnerDrift = _kt ? _kt.bias * _prof.trendScale * 0.06 * DW("keltner") : 0;   // 채널 내 위치 방향(±6%)
+    const _dcn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "donchian");
+    const _dc = _dcn ? analyzeDonchian(data, { len: (_dcn.params && _dcn.params.len) || 20 }) : null;
+    const donchianDrift = _dc ? _dc.bias * _prof.trendScale * 0.07 * DW("donchian") : 0;   // 채널 돌파/방향(±7%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1585,7 +1623,7 @@
     // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
     // Phase 6 융합: 지표를 종합방향(예상)·반대로 분리. 예상지표 합은 ±0.28 캡, 반대지표는 그 '절반 가중'으로 항상 되돌림
     // (기존 단순합은 예상지표가 캡을 포화시키면 반대지표 효과가 캡에 가려져 사라짐 → 반대지표를 캡 이후 별도 차감해 항상 체감되게).
-    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift];
+    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift];
     const _rawSum = _drifts.reduce((a, b) => a + b, 0);
     const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
     let _agSum = 0, _opSum = 0;
@@ -1802,5 +1840,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps };
 });
