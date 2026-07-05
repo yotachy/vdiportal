@@ -293,6 +293,8 @@
         values[id] = williamsSeries(data, (n.params && n.params.period) || 14);
       } else if (n.blockType === "roc") {
         values[id] = rocSeries(ins[0] || data.price, (n.params && n.params.period) || 12);
+      } else if (n.blockType === "ao") {
+        values[id] = aoSeries(data, { fast: (n.params && n.params.fast) || 5, slow: (n.params && n.params.slow) || 34 });
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -630,6 +632,31 @@
   }
   function rocSteps() {
     return [ { k:"ROC", v:"(종가 / N봉전 − 1) × 100" }, { k:"방향", v:"0선 위=상승 모멘텀" } ];
+  }
+
+  // Awesome Oscillator(AO): 오실레이터. H/L 필요(data.candle, 중앙값=(H+L)/2) → 서브패널 없이 hero 배지로만 표시(Phase B 관례).
+  function analyzeAO(data, opts) {
+    opts = opts || {};
+    const fast = opts.fast || 5, slow = opts.slow || 34;
+    const price = data.price || (data.candle||[]).map(c=>c.c), candle = data.candle || [];
+    const P = price.length;
+    if (P < slow) return { series: new Array(P).fill(0), last: 0, cross: 0, bias: 0 };
+    const med = price.map((c,i)=> candle[i] ? (candle[i].h + candle[i].l)/2 : c);
+    const f = sma(med, fast), s = sma(med, slow), ao = med.map((_,i)=> (f[i]||0) - (s[i]||0));
+    const last = ao[P-1], prev = ao[P-2] || 0;
+    const cross = (prev <= 0 && last > 0) ? 1 : (prev >= 0 && last < 0) ? -1 : 0;
+    // 정규화: 최근 절대값 최대 대비
+    const scale = Math.max(1e-9, ...ao.slice(Math.max(0,P-slow)).map(Math.abs));
+    let bias = Math.max(-1, Math.min(1, last / scale));
+    if (cross) bias = Math.max(-1, Math.min(1, bias + cross*0.2));
+    return { series: ao, last, cross, bias };
+  }
+  function aoSeries(data, opts) {
+    const a = analyzeAO(data, opts||{}); const scale = Math.max(1e-9, ...a.series.map(Math.abs));
+    return a.series.map(v => Math.max(-1, Math.min(1, v/scale)));
+  }
+  function aoSteps() {
+    return [ { k:"AO", v:"SMA(중앙값,5) − SMA(중앙값,34)" }, { k:"방향", v:"0선 교차 + 새서(3봉 반전)" } ];
   }
 
   function synthVolume(price) {
@@ -1712,6 +1739,9 @@
     const _rcn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "roc");
     const _roc = _rcn ? analyzeROC(price, { period: (_rcn.params && _rcn.params.period) || 12 }) : null;
     const rocDrift = _roc ? _roc.bias * _prof.trendScale * 0.06 * DW("roc") : 0;   // ROC 모멘텀 방향(±6%)
+    const _aon = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "ao");
+    const _ao = _aon ? analyzeAO(data, { fast: (_aon.params && _aon.params.fast) || 5, slow: (_aon.params && _aon.params.slow) || 34 }) : null;
+    const aoDrift = _ao ? _ao.bias * _prof.trendScale * 0.06 * DW("ao") : 0;   // AO 0선 교차/가속 방향(±6%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1721,7 +1751,7 @@
     // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
     // Phase 6 융합: 지표를 종합방향(예상)·반대로 분리. 예상지표 합은 ±0.28 캡, 반대지표는 그 '절반 가중'으로 항상 되돌림
     // (기존 단순합은 예상지표가 캡을 포화시키면 반대지표 효과가 캡에 가려져 사라짐 → 반대지표를 캡 이후 별도 차감해 항상 체감되게).
-    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift];
+    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift];
     const _rawSum = _drifts.reduce((a, b) => a + b, 0);
     const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
     let _agSum = 0, _opSum = 0;
@@ -1938,5 +1968,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps };
 });

@@ -1561,3 +1561,35 @@ test("run: ROC 노드가 예측 반영", () => {
   const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "roc 예측 반영");
 });
+
+/* ── 신규 지표: Awesome Oscillator (오실레이터 · hero 배지, H/L 필요) ── */
+test("analyzeAO: 상승 가속이면 AO>0·bias>0", () => {
+  const price = Array.from({length:60},(_,i)=>100 + i*i*0.01);
+  const candle = price.map(c=>({o:c,h:c+0.2,l:c-0.2,c}));
+  const r = ForgeCore.analyzeAO({ candle, price }, { fast:5, slow:34 });
+  assert.ok(r.last > 0 && r.bias > 0, `last ${r.last}`);
+});
+test("analyzeAO: 하락 가속이면 AO<0·bias<0(비단조 부호 검증)", () => {
+  const price = Array.from({length:60},(_,i)=>300 - i*i*0.01);
+  const candle = price.map(c=>({o:c,h:c+0.2,l:c-0.2,c}));
+  const r = ForgeCore.analyzeAO({ candle, price }, { fast:5, slow:34 });
+  assert.ok(r.last < 0 && r.bias < 0, `last ${r.last} bias ${r.bias}`);
+});
+test("aoSeries: 길이 일치·범위 −1..1", () => {
+  const price = Array.from({length:60},(_,i)=>100+Math.sin(i));
+  const candle = price.map(c=>({o:c,h:c+0.3,l:c-0.3,c}));
+  const s = ForgeCore.aoSeries({ candle, price }, { fast:5, slow:34 });
+  assert.equal(s.length, price.length);
+  assert.ok(s.every(v => v >= -1 && v <= 1));
+});
+test("aoSteps: 2줄", () => {
+  assert.strictEqual(ForgeCore.aoSteps().length, 2);
+});
+test("run: ao 노드가 예측 반영", () => {
+  const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "ao", kind: "block", blockType: "ao" }]), edges: base.edges.concat([{ from: "ao", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "ao 예측 반영");
+});
