@@ -3826,8 +3826,12 @@
 
   function fcDrawMainChart(series, pred) {
     const cv = document.getElementById("fcMainChart"); if (!cv) return;
-    const ch = cv.clientHeight || 260, c = fcFitKeep(cv, ch, 3);
-    const cw = cv.clientWidth || 600;
+    // 높이는 hero(부모) 기준 — evidence 캔버스와 동일 기준(정합). fullscreen서 height:100%가 부모 height:auto로 미해결→캔버스가 작아져 캔들과 작도값(evidence)이 어긋나던 버그 방지.
+    const _hero = cv.parentElement;
+    const ch = (_hero && _hero.clientHeight) || cv.clientHeight || 260;
+    cv.style.height = ch + "px";   // 명시적 높이로 고정(부모 auto와 무관하게 evidence와 같은 높이)
+    const c = fcFitKeep(cv, ch, 3);
+    const cw = cv.clientWidth || (_hero && _hero.clientWidth) || 600;
     c.clearRect(0, 0, cw, ch);
     c.lineJoin = "round"; c.lineCap = "round";   // 폴리라인 부드럽게(고급감)
     const N = (series || []).length;
