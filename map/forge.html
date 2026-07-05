@@ -374,9 +374,9 @@
   /* 현재 차트 주기(일/주/월) 컬럼 강조 테두리 */
   .dash-table.tfcol-2 th:nth-child(2),.dash-table.tfcol-2 td:nth-child(2),
   .dash-table.tfcol-3 th:nth-child(3),.dash-table.tfcol-3 td:nth-child(3),
-  .dash-table.tfcol-4 th:nth-child(4),.dash-table.tfcol-4 td:nth-child(4){background:rgba(232,180,99,.08)!important;box-shadow:inset 1px 0 0 rgba(232,180,99,.55),inset -1px 0 0 rgba(232,180,99,.55)}
-  .dash-table.tfcol-2 th:nth-child(2),.dash-table.tfcol-3 th:nth-child(3),.dash-table.tfcol-4 th:nth-child(4){box-shadow:inset 1px 2px 0 rgba(232,180,99,.55),inset -1px 0 0 rgba(232,180,99,.55)}
-  .dash-table.tfcol-2 tr:last-child td:nth-child(2),.dash-table.tfcol-3 tr:last-child td:nth-child(3),.dash-table.tfcol-4 tr:last-child td:nth-child(4){box-shadow:inset 1px 0 0 rgba(232,180,99,.55),inset -1px -2px 0 rgba(232,180,99,.55)}
+  .dash-table.tfcol-4 th:nth-child(4),.dash-table.tfcol-4 td:nth-child(4){background:rgba(232,180,99,.11)!important;box-shadow:inset 2.5px 0 0 #e8b463,inset -2.5px 0 0 #e8b463}
+  .dash-table.tfcol-2 th:nth-child(2),.dash-table.tfcol-3 th:nth-child(3),.dash-table.tfcol-4 th:nth-child(4){box-shadow:inset 2.5px 3px 0 #e8b463,inset -2.5px 0 0 #e8b463}
+  .dash-table.tfcol-2 tr:last-child td:nth-child(2),.dash-table.tfcol-3 tr:last-child td:nth-child(3),.dash-table.tfcol-4 tr:last-child td:nth-child(4){box-shadow:inset 2.5px 0 0 #e8b463,inset -2.5px -3px 0 #e8b463}
   .dash-cell{display:flex;align-items:center;gap:8px;min-height:13px;justify-content:flex-end}   /* 세그먼트(좌)+값(우) */
   .dash-cell.txt{justify-content:flex-start}
   .dash-cell .dval{font-family:var(--mono);font-weight:800;white-space:nowrap;min-width:30px;text-align:right}
@@ -6919,7 +6919,7 @@
     if (_dashCache.sym !== sym) host.innerHTML = `<div class="na-empty">${esc(sym)} 일·주·월 분석 중…</div>`;   // 캐시 있으면 깜빡임 없이 갱신
     const [d, w, m] = await Promise.all([_computeTf(sym, "1day"), _computeTf(sym, "1week"), _computeTf(sym, "1month")]);
     const cols = [["일봉", d], ["주봉", w], ["월봉", m]].filter(x => x[1]);
-    const _tfName = { "1day": "일봉", "1week": "주봉", "1month": "월봉" }[(typeof activeTF === "function" ? activeTF() : "1day")];
+    const _tfName = ((typeof activeTF === "function" ? activeTF() : null) || "일봉");   // activeTF()가 이미 "일봉/주봉/월봉" 반환(미설정 시 일봉)
     const _actIdx = cols.findIndex(c => c[0] === _tfName);
     if (!cols.length) { host.innerHTML = `<div class="na-empty">데이터를 불러올 수 없어요: ${esc(sym)}</div>`; return; }
     if (meta) meta.textContent = esc(sym);
