@@ -1341,3 +1341,26 @@ test("run: VWAP·슈퍼트렌드·스토캐스틱 노드가 예측 반영", () =
     assert.ok(Math.abs(ForgeCore.run(g, { price, candle, volume }, { futW: 24 }).prediction.target - r0.prediction.target) > 1e-9, bt + " 예측 반영");
   });
 });
+
+/* ── 신규 지표: 피벗 포인트 ── */
+test("analyzePivot: 종가가 피벗 위면 bias 양수, 아래면 음수", () => {
+  const up = { candle: [], price: [] };
+  // 전일 H=10,L=6,C=8 → P=8. 오늘 종가 9.5(피벗 위) → bias>0
+  const candle = [{o:6,h:10,l:6,c:8},{o:8,h:9.6,l:7.9,c:9.5}];
+  const r = ForgeCore.analyzePivot({ candle, price: candle.map(c=>c.c) });
+  assert.ok(r.P > 0 && r.bias > 0, `expected bias>0, got ${r.bias} P=${r.P}`);
+  const candle2 = [{o:6,h:10,l:6,c:8},{o:8,h:8.1,l:6.4,c:6.6}];
+  const r2 = ForgeCore.analyzePivot({ candle: candle2, price: candle2.map(c=>c.c) });
+  assert.ok(r2.bias < 0, `expected bias<0, got ${r2.bias}`);
+});
+test("pivotSteps: 3줄", () => {
+  assert.strictEqual(ForgeCore.pivotSteps().length, 3);
+});
+test("run: 피벗 포인트 노드가 예측 반영", () => {
+  const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "piv", kind: "block", blockType: "pivot" }]), edges: base.edges.concat([{ from: "piv", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "pivot 예측 반영");
+});
