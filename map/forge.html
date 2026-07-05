@@ -1345,6 +1345,7 @@
   }
   // 예측 구간이 화면에 잘 담기도록 가로(최근이력+콘)·세로(콘 전체 lo~hi)를 자동 배치
   function fitPrediction() {
+    if (typeof fitHeroHeight === "function") fitHeroHeight(false);   // 세로 여백 채우게 높이 먼저(리드로우는 아래서)
     const cv = document.getElementById("fcMainChart"), g = cv && cv._mainGeo; if (!g) return;
     const price = (_fcLastData && _fcLastData.price) || (currentData && currentData().price) || [];
     const N = price.length, pl = (g.path && g.path.length) || 0;
@@ -6578,7 +6579,8 @@
 
   /* ── 차트 높이 조절(세로 거터): 가격차트를 키우고 아래 패널을 내림 ── */
   let _heroManual = false;   // 사용자가 거터로 직접 조절했는지(true면 자동맞춤 중단)
-  function fitHeroHeight() {   // 차트가 세로 여백을 채우도록 --hero-h 자동 산정(x축이 하단에 오게)
+  function fitHeroHeight(redraw) {   // 차트가 세로 여백을 채우도록 --hero-h 자동 산정(x축이 하단에 오게)
+    if (redraw === undefined) redraw = true;
     if (_heroManual) return;
     const wrap = document.querySelector(".fc-wrap"), hero = document.querySelector(".fc-hero");
     const panel = hero && hero.closest(".fc-panel-hero");
@@ -6588,8 +6590,10 @@
     const nonHero = Math.ceil(panel.getBoundingClientRect().height - hero.getBoundingClientRect().height);   // 헤더+판정+패딩
     const avail = wrap.clientHeight - others - nonHero - 10;
     const h = Math.max(320, Math.min(1600, Math.round(avail)));
+    const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hero-h")) || 0;
+    if (Math.abs(cur - h) < 3) return;   // 변화 없으면 무시(리드로우 루프 방지)
     document.documentElement.style.setProperty("--hero-h", h + "px");
-    if (typeof redrawCharts === "function") redrawCharts();
+    if (redraw && typeof redrawCharts === "function") redrawCharts();
   }
   window.fitHeroHeight = fitHeroHeight;
   (function initVGutter() {
@@ -7460,6 +7464,7 @@
       updateEngineBtn();                      // "✓ 분석 HH:MM" 칩 갱신
       updateTuneBtn();                        // 가중치 튜닝 버튼 활성 표시(기본값이 아니면 골드)
       if (typeof renderSignalBoard === "function") renderSignalBoard();   // 지표 신호 요약 갱신
+      if (typeof fitHeroHeight === "function") fitHeroHeight(true);   // 최종 레이아웃(지표신호 포함)에 맞춰 차트 세로 채움
     } catch (e) {
       console.warn("run", e);
       if (typeof bToast === "function") bToast(/cycle/.test(String(e && e.message)) ? "그래프 오류: 순환 연결" : "그래프 오류: 계산 실패");
