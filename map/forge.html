@@ -36,6 +36,11 @@
   .forge-top .brand-mark{filter:drop-shadow(0 1px 4px rgba(232,180,99,.3))}
   /* 주 액션 '웹분석' 격상 */
   .run-btn{padding:9px 18px!important;font-size:13.5px!important;border-radius:var(--r-lg)!important;letter-spacing:-.01em}
+  .run-group{display:inline-flex;align-items:stretch;min-height:34px}
+  .run-group .run-btn{border-radius:var(--r-lg) 0 0 var(--r-lg)!important}
+  .run-group .play-btn{border-radius:0 var(--r-lg) var(--r-lg) 0!important;border-left:0!important;font-size:11px!important;padding:0 11px!important;min-height:34px}
+  @keyframes runBlink{0%,100%{box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 2px 8px rgba(232,180,99,.3)}50%{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 0 3px rgba(232,180,99,.55),0 2px 15px rgba(232,180,99,.65)}}
+  .run-btn.needs-run{animation:runBlink 1.05s ease-in-out infinite}
   .run-btn svg{width:15px;height:15px}
   .run-btn:hover{filter:brightness(1.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 3px 14px rgba(232,180,99,.4)}
   /* 보조 도구 세그먼트 그룹(엔진분석·시연) — 주 액션 대비 시각적 하위 */
@@ -1155,8 +1160,10 @@
     <div class="h-actions">
       <span id="analyzeProg" class="analyze-prog"></span>
       <span id="engStat" class="eng-stat" title="현재 표시된 결과가 언제 분석된 것인지"></span>
-      <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출(결과만 갱신)"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l2.2 6.2 6.3.3-5 4 1.8 6-5.3-3.4L6.7 18.5l1.8-6-5-4 6.3-.3z" opacity=".92"/></svg><span class="hlbl">웹분석</span></button>
-      <button class="tool-btn play-btn" id="playBtn" onclick="playAnalysis()" title="시뮬레이션 — 웹분석 결과가 어떻게 나왔는지 지표별 작도 과정을 애니메이션으로 재생(결과는 동일, 과정 설명용)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시뮬레이션</span></button>
+      <div class="run-group" role="group" aria-label="웹분석·시뮬레이션">
+        <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출(결과만 갱신)"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l2.2 6.2 6.3.3-5 4 1.8 6-5.3-3.4L6.7 18.5l1.8-6-5-4 6.3-.3z" opacity=".92"/></svg><span class="hlbl">웹분석</span></button>
+        <button class="tool-btn play-btn" id="playBtn" onclick="playAnalysis()" title="시뮬레이션 — 웹분석의 산출 과정을 지표별 작도 애니메이션으로 재생(웹분석의 하위 기능, 결과 동일)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시뮬레이션</span></button>
+      </div>
       <button class="tool-btn is-soon" id="engineBtn" onclick="claudeEngine()" title="엔진분석 — 클로드 수동분석(예정 기능, 준비 중)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/><path d="M10 10h4v4h-4z"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><span class="hlbl">엔진분석</span><span class="soon-tag">예정</span></button>
     </div>
     <div class="theme-wrap">
