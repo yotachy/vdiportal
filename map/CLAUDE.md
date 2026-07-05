@@ -246,3 +246,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 - 구조 변경은 `render()` 호출, 좌표만 바뀌면 `paint()`만 호출(가볍게).
 - 새 노드/엣지 추가 시 `id`는 `uid('n'|'e'|'g')`로. 엣지엔 `fromSide/toSide` 항상 지정(기본 right/left).
 - 불러오기 시 구버전 호환 위해 `state.edges`에 `fromSide/toSide` 기본값 보정 로직 있음(유지).
+
+## 🚫 디자인 금지: 항목 좌측 컬러 라인(accent bar/rail)
+
+**종목·지표·카드 등 어떤 항목에도 좌측 세로 컬러 라인(accent bar/rail, box-shadow:inset Npx 0 0 color, ::before 세로 마커)을 절대 넣지 말 것.** 클로드 기본 디자인 클리셰이며 사용자가 명시적으로 금지함. 활성/선택/포커스 표시는 **배경색·텍스트색·체크박스·아웃라인**으로만 한다. (2026-07-05 사용자 지시)
