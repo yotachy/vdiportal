@@ -80,10 +80,10 @@
   .ind-rail{flex:0 0 178px;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
   .ind-rail .ir-head{font-size:11px;color:var(--eth);padding:11px 10px 7px;display:flex;justify-content:space-between;align-items:baseline;font-weight:700;position:sticky;top:0;background:var(--panel);z-index:2;border-bottom:1px solid rgba(138,146,178,.1)}
   .ind-rail .ir-head .ir-sub{font-size:9px;font-weight:600;color:var(--faint);letter-spacing:-.02em}
-  .ind-rail .ir-row{position:relative;display:flex;align-items:center;gap:5px;padding:4px 8px;border-bottom:1px solid rgba(138,146,178,.06);color:var(--faint);font-size:12px;font-weight:600;user-select:none;transition:color .12s,background .12s}
-  .ind-rail .ir-fill{position:absolute;left:0;top:0;bottom:0;background:var(--ic,#8a92b2);opacity:.16;z-index:0;pointer-events:none;transition:width .06s linear}
+  .ind-rail .ir-row{position:relative;display:flex;align-items:center;gap:5px;padding:4px 8px;border-bottom:1px solid rgba(138,146,178,.06);color:#5a6472;font-size:12px;font-weight:600;user-select:none;transition:color .12s,background .12s}
+  .ind-rail .ir-fill{position:absolute;left:0;top:0;bottom:0;background:var(--ic,#8a92b2);opacity:.09;z-index:0;pointer-events:none;transition:width .06s linear}
   .ind-rail .ir-tick{position:absolute;left:33.33%;top:3px;bottom:3px;width:1px;background:rgba(232,180,99,.45);z-index:0;pointer-events:none}
-  .ind-rail .ir-row.on .ir-fill{opacity:.28}
+  .ind-rail .ir-row.on .ir-fill{opacity:.44}
   .ind-rail .ir-chk,.ind-rail .ir-lbl,.ind-rail .ir-wval{position:relative;z-index:1}
   .ind-rail .ir-wval{flex:0 0 auto;font-size:9.5px;font-weight:700;font-family:ui-monospace,monospace;color:var(--faint);letter-spacing:-.02em;min-width:30px;text-align:right}
   .ind-rail .ir-row.on .ir-wval{color:var(--ink)}
@@ -94,8 +94,8 @@
   .ind-rail .ir-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.26);display:grid;place-items:center;transition:background .12s,border-color .12s}
   .ind-rail .ir-chk:hover{border-color:var(--ic,#8a92b2)}
   .ind-rail .ir-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
-  .ind-rail .ir-row.on{color:var(--ink);background:rgba(255,255,255,.025)}
-  .ind-rail .ir-row.on .ir-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2)}
+  .ind-rail .ir-row.on{color:#fff;background:rgba(255,255,255,.055)}
+  .ind-rail .ir-row.on .ir-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2);box-shadow:0 0 0 2px color-mix(in srgb, var(--ic,#8a92b2) 30%, transparent)}
   .ind-rail .ir-row.on .ir-chk::after{opacity:1;transform:scale(1)}
   .ind-rail .ir-row.sel .ir-bar{background:rgba(232,180,99,.07)}
   .ind-rail .ir-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -371,6 +371,12 @@
   .dash-table td:first-child{color:var(--ink);font-weight:700;white-space:nowrap;font-size:12px}
   .dash-table tbody tr:not(.dash-sec):nth-child(even) td{background:rgba(255,255,255,.014)}
   .dash-table tbody tr:not(.dash-sec):hover td{background:rgba(232,180,99,.05)}
+  /* 현재 차트 주기(일/주/월) 컬럼 강조 테두리 */
+  .dash-table.tfcol-2 th:nth-child(2),.dash-table.tfcol-2 td:nth-child(2),
+  .dash-table.tfcol-3 th:nth-child(3),.dash-table.tfcol-3 td:nth-child(3),
+  .dash-table.tfcol-4 th:nth-child(4),.dash-table.tfcol-4 td:nth-child(4){background:rgba(232,180,99,.08)!important;box-shadow:inset 1px 0 0 rgba(232,180,99,.55),inset -1px 0 0 rgba(232,180,99,.55)}
+  .dash-table.tfcol-2 th:nth-child(2),.dash-table.tfcol-3 th:nth-child(3),.dash-table.tfcol-4 th:nth-child(4){box-shadow:inset 1px 2px 0 rgba(232,180,99,.55),inset -1px 0 0 rgba(232,180,99,.55)}
+  .dash-table.tfcol-2 tr:last-child td:nth-child(2),.dash-table.tfcol-3 tr:last-child td:nth-child(3),.dash-table.tfcol-4 tr:last-child td:nth-child(4){box-shadow:inset 1px 0 0 rgba(232,180,99,.55),inset -1px -2px 0 rgba(232,180,99,.55)}
   .dash-cell{display:flex;align-items:center;gap:8px;min-height:13px;justify-content:flex-end}   /* 세그먼트(좌)+값(우) */
   .dash-cell.txt{justify-content:flex-start}
   .dash-cell .dval{font-family:var(--mono);font-weight:800;white-space:nowrap;min-width:30px;text-align:right}
@@ -506,6 +512,7 @@
   .fc-hero #fcHeroImg,.fc-hero #fcMainChart,.fc-hero #fcEvidence{transition:transform .5s cubic-bezier(.4,0,.2,1)}
   .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.5}   /* 비결정 지표 = 희미(뒤로) */
   .fc-evidence-hi{position:absolute;inset:0;pointer-events:none;z-index:3;filter:drop-shadow(0 0 2.5px rgba(255,255,255,.28))}   /* 결정적 지표 = 선명 + 은은한 글로우 */
+  .fc-comet{position:absolute;inset:0;pointer-events:none;z-index:4}   /* 예측선 위 움직이는 밝은 점(1/2/3차) */
   body.evhide .fc-evidence,body.evhide .fc-evidence-hi{display:none}
   .fc-fx{position:absolute;inset:0;pointer-events:none;z-index:4}
   .fc-zoom-reset{position:absolute;top:8px;right:8px;z-index:4;width:24px;height:24px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:13px;cursor:pointer;display:none}
@@ -1178,6 +1185,7 @@
               <canvas id="fcMainChart" class="fc-cv"></canvas>
               <canvas id="fcEvidence" class="fc-evidence"></canvas>
               <canvas id="fcEvidenceHi" class="fc-evidence-hi"></canvas>
+              <canvas id="fcComet" class="fc-comet"></canvas>
               <canvas id="fcFx" class="fc-fx"></canvas>
               <button id="chartLockBtn" class="fc-lock" style="display:none" onclick="toggleChartLock()" title="차트 조작 ↔ 페이지 스크롤 전환"></button>
               <div class="fc-axis-btns" id="fcAxisBtns">
@@ -3880,6 +3888,36 @@
     c.stroke(); c.setLineDash([]);
   }
 
+  let _comets = {}, _cometRAF = null;
+  function _reduceMotion() { try { return window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } }
+  function _drawComets() {
+    _cometRAF = null;
+    const cm = document.getElementById("fcComet"), main = document.getElementById("fcMainChart");
+    if (!cm || !main) return;
+    const keys = Object.keys(_comets).filter(k => _comets[k] && _comets[k].pts && _comets[k].pts.length > 1);
+    const W = main.clientWidth || 1, H = main.clientHeight || 1;
+    const dpr = Math.min(Math.max(devicePixelRatio || 1, 1.5), 2.5);
+    const ww = Math.round(W * dpr), hh = Math.round(H * dpr);
+    if (cm.width !== ww || cm.height !== hh) { cm.width = ww; cm.height = hh; }
+    cm.style.width = W + "px"; cm.style.height = H + "px";
+    const cx = cm.getContext("2d"); cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, H);
+    if (!keys.length) return;
+    cx.save();
+    if (typeof _heroZoom === "object" && _heroZoom) { cx.translate(_heroZoom.tx || 0, _heroZoom.ty || 0); cx.scale(_heroZoom.s || 1, _heroZoom.s || 1); }
+    const t = (performance.now() % 2800) / 2800;   // 0..1 반복(현재→끝점 흐름)
+    keys.forEach(k => {
+      const pts = _comets[k].pts, col = _comets[k].col;
+      const fk = t * (pts.length - 1), i0 = Math.floor(fk), fr = fk - i0;
+      const a = pts[i0], b = pts[Math.min(pts.length - 1, i0 + 1)];
+      const x = a[0] + (b[0] - a[0]) * fr, y = a[1] + (b[1] - a[1]) * fr;
+      if (!isFinite(x) || !isFinite(y)) return;
+      cx.save(); cx.globalAlpha = .5; cx.shadowColor = col; cx.shadowBlur = 13; cx.fillStyle = col; cx.beginPath(); cx.arc(x, y, 4.6, 0, 7); cx.fill(); cx.restore();
+      cx.save(); cx.shadowColor = "#fff"; cx.shadowBlur = 7; cx.fillStyle = "#fff"; cx.beginPath(); cx.arc(x, y, 2.2, 0, 7); cx.fill(); cx.restore();
+    });
+    cx.restore();
+    _cometRAF = requestAnimationFrame(_drawComets);
+  }
+  function _startComets() { if (_reduceMotion()) { _drawComets(); return; } if (!_cometRAF) _cometRAF = requestAnimationFrame(_drawComets); }
   function fcDrawMainChart(series, pred) {
     const cv = document.getElementById("fcMainChart"); if (!cv) return;
     // 높이는 hero(부모) 기준 — evidence 캔버스와 동일 기준(정합). fullscreen서 height:100%가 부모 height:auto로 미해결→캔버스가 작아져 캔들과 작도값(evidence)이 어긋나던 버그 방지.
@@ -3888,6 +3926,7 @@
     cv.style.height = ch + "px";   // 명시적 높이로 고정(부모 auto와 무관하게 evidence와 같은 높이)
     const c = fcFitKeep(cv, ch, 3);
     const cw = cv.clientWidth || (_hero && _hero.clientWidth) || 600;
+    _comets = {};   // 이번 프레임 예측선 코멧 경로 재수집
     c.clearRect(0, 0, cw, ch);
     c.lineJoin = "round"; c.lineCap = "round";   // 폴리라인 부드럽게(고급감)
     const N = (series || []).length;
@@ -4065,10 +4104,15 @@
         for (let k = 0; k < _counter.length; k++) c.lineTo(toXf(k), _cYc(k));
         c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
         _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _cCol + ")", "3차\u00b7" + _cProb + "%", (_cUp ? -12 : 14), true);
+        _comets.p3 = { pts: _counter.map((v, k) => [toXf(k), _cYc(k)]), col: "rgb(" + _cCol + ")" };
         c.restore();
       }
-      // 1차(종합) 끝단: 흘러가는 점 + 진앙지 + 명칭
-      _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차", -12);
+      // 1차(종합) 끝단: 흘러가는 점 + 진앙지 + 명칭(+ 방향 달성확률)
+      let _p1s = 0, _p1w = 0; for (let k = 0; k < path.length; k++) { const wt = 1 / Math.sqrt(k + 1); _p1s += _upProb(path[k], hi[k], anchor) * wt; _p1w += wt; }
+      const _p1up = _p1w ? _p1s / _p1w : 50, _p1disp = Math.round(_pd >= 0 ? _p1up : (100 - _p1up));
+      _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차\u00b7" + _p1disp + "%", -12);
+      _comets.p1 = { pts: path.map((v, k) => [toXf(k), Math.max(padTop + 2, Math.min(ch - padBot - 2, toY(v)))]), col: CT.core };
+      if (typeof _startComets === "function") _startComets();
       // 예측선 색상 키(좌상단)
       { c.save(); c.font = "700 9.5px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic";
         const _ki = [["이론적 최대치", (_pd > 0 ? "rgba(70,194,142,.55)" : "rgba(224,106,106,.55)"), 1], ["1차 종합지표", CT.core, 0], ["2차 선택지표", "#c6a3ff", 0], ["3차 최대역치", (_pd > 0 ? "#e06a6a" : "#46c28e"), 0]];
@@ -5425,7 +5469,11 @@
           c.beginPath(); c.moveTo(_sx, _cy2(toY(g.anchor)));
           for (let k = 0; k < _pl; k++) { const x = _t2x(k), y = _cy2(toY(p2.path[k])); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
           c.stroke(); c.setLineDash([]); c.shadowBlur = 0; c.restore();
-          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#c6a3ff", "2차\u00b7" + _c2.n, 12, true);
+          let _p2s = 0, _p2w = 0; for (let k = 0; k < p2.path.length; k++) { const wt = 1 / Math.sqrt(k + 1); const _hk = (g.hi && g.hi[k]) || p2.path[k]; _p2s += _upProb(p2.path[k], _hk, g.anchor) * wt; _p2w += wt; }
+          const _p2up = _p2w ? _p2s / _p2w : 50, _p2dir = p2.path[p2.path.length - 1] >= g.anchor, _p2disp = Math.round(_p2dir ? _p2up : (100 - _p2up));
+          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#c6a3ff", "2차\u00b7" + _p2disp + "%", 12, true);
+          _comets.p2 = { pts: p2.path.map((v, k) => [_t2x(k), _cy2(toY(v))]), col: "#c6a3ff" };
+          if (typeof _startComets === "function") _startComets();
         }
       } catch (e) {}
       _evLegend(cHi || c, g.padX, g.padTop, legendAll);   // 범례는 선명 캔버스에(모든 지표 나열, 표시/숨김 토글)
@@ -6832,6 +6880,8 @@
     if (_dashCache.sym !== sym) host.innerHTML = `<div class="na-empty">${esc(sym)} 일·주·월 분석 중…</div>`;   // 캐시 있으면 깜빡임 없이 갱신
     const [d, w, m] = await Promise.all([_computeTf(sym, "1day"), _computeTf(sym, "1week"), _computeTf(sym, "1month")]);
     const cols = [["일봉", d], ["주봉", w], ["월봉", m]].filter(x => x[1]);
+    const _tfName = { "1day": "일봉", "1week": "주봉", "1month": "월봉" }[(typeof activeTF === "function" ? activeTF() : "1day")];
+    const _actIdx = cols.findIndex(c => c[0] === _tfName);
     if (!cols.length) { host.innerHTML = `<div class="na-empty">데이터를 불러올 수 없어요: ${esc(sym)}</div>`; return; }
     if (meta) meta.textContent = esc(sym);
     const REG = { bull: ["▲ 상승", "#46c28e"], bear: ["▼ 하락", "#e06a6a"], neutral: ["– 중립", "#8a92b2"] };
@@ -6839,6 +6889,7 @@
     const rows = [];
     rows.push(`<tr><td>국면</td>${cols.map(c => { const g = REG[c[1].regime] || REG.neutral; return _txtC(`<span class="dash-reg" style="color:${g[1]};background:${g[1]}22">${g[0]}</span>`, false); }).join("")}</tr>`);
     { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, _TFCOL[c[0]] || "#8a92b2", c[1].up + "%", i === bi, c[1].up, "%")).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => 100 - c[1].up), 1); rows.push(`<tr><td>하락확률</td>${cols.map((c, i) => _barC(100 - c[1].up, "#e06a6a", (100 - c[1].up) + "%", i === bi, 100 - c[1].up, "%")).join("")}</tr>`); }
     { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return _barC((s + 100) / 2, _TFCOL[c[0]] || "#8a92b2", Math.round(s), i === bi, Math.round(s), ""); }).join("")}</tr>`); }
     { const bi = _dbest(cols.map(c => c[1].trend), 1); rows.push(`<tr><td>추세 %/봉</td>${cols.map((c, i) => { const t = c[1].trend; return _txtC(`<span style="color:${t >= 0 ? "#46c28e" : "#e06a6a"}">${t >= 0 ? "+" : ""}${t.toFixed(2)}</span>`, i === bi); }).join("")}</tr>`); }
     { const bi = _dbest(cols.map(c => c[1].chg), 1); rows.push(`<tr><td>예측</td>${cols.map((c, i) => c[1].chg == null ? _txtC("–", false) : _txtC(`<span style="color:${c[1].chg >= 0 ? "#46c28e" : "#e06a6a"}">${c[1].chg >= 0 ? "+" : ""}${c[1].chg.toFixed(1)}%</span>`, i === bi)).join("")}</tr>`); }
@@ -6848,7 +6899,7 @@
     rows.push(`<tr><td>거래량</td>${cols.map(c => { const vv = _volTxt(c[1].vol); return _txtC(`<span style="color:${vv[1]}">${vv[0]}</span>`, false); }).join("")}</tr>`);
     rows.push(`<tr><td>목표가</td>${cols.map(c => _txtC(isFinite(c[1].target) ? `<span class="dash-sub">${fmtNum(c[1].target)}</span>` : "–", false)).join("")}</tr>`);
     rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:#46c28e">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> <span style="opacity:.35">/</span> <span style="color:#e06a6a">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
-    host.innerHTML = `<table class="dash-table">${th}${rows.join("")}</table>`;
+    host.innerHTML = `<table class="dash-table${_actIdx >= 0 ? " tfcol-" + (_actIdx + 2) : ""}">${th}${rows.join("")}</table>`;
     _dashFill(_playing ? _playReveal.u : null);
   }
   function scheduleDash() { clearTimeout(_dashTmr); _dashTmr = setTimeout(() => { renderDashboard().catch(() => {}); }, 350); }   // 분석/티커 변경 시 자동 갱신(디바운스)
@@ -7496,7 +7547,9 @@
   /* 지표별 bias 기여 가중치(0~3×, 기본 1) — 튜닝 패널에서 조절, localStorage 영속 */
   let _driftW = (function () { try { return JSON.parse(localStorage.getItem("scoopforge_driftw") || "{}") || {}; } catch (e) { return {}; } })();
   function saveDriftW() { try { localStorage.setItem("scoopforge_driftw", JSON.stringify(_driftW)); } catch (e) {} }
-  function _showInsufficient() {   // 티커 데이터 부족(상장 초기 등) → 데모 사인 대신 명확한 안내(가짜 분석 방지)
+  function _clearComets() { _comets = {}; if (_cometRAF) { cancelAnimationFrame(_cometRAF); _cometRAF = null; } const cm = document.getElementById("fcComet"); if (cm) { const cx = cm.getContext("2d"); cx && cx.clearRect(0, 0, cm.width, cm.height); } }
+  function _showInsufficient() {
+    _clearComets();   // 티커 데이터 부족(상장 초기 등) → 데모 사인 대신 명확한 안내(가짜 분석 방지)
     lastResult = null; _fcLastResult = null; _fcLastData = null;
     const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim());
     const sym = tk ? tk.params.symbol.trim() : "";
