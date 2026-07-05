@@ -474,6 +474,8 @@
   /* 예정 기능 버튼(클로드 엔진분석) — 점선 테두리·흐린 색으로 '준비 중' 시각 구분 */
   .tool-btn.is-soon{border-style:dashed;color:var(--faint);opacity:.85}
   .soon-tag{font-size:8px;font-weight:800;background:rgba(138,146,178,.22);color:var(--eth);padding:1px 4px;border-radius:6px;margin-left:4px;letter-spacing:.02em;vertical-align:middle}
+  .h-actions #engineBtn{margin-left:9px;position:relative}
+  .h-actions #engineBtn::before{content:"";position:absolute;left:-5px;top:5px;bottom:5px;width:1px;background:var(--line)}
   .tool-btn.is-soon:hover{color:var(--eth);border-color:var(--gold-dim);background:transparent}
   .tool-btn:disabled{cursor:not-allowed}
   .tool-btn.req-soon{display:inline-flex;align-items:center;gap:7px;color:var(--faint);border-style:dashed;border-color:var(--line);opacity:.7}
@@ -521,6 +523,10 @@
   body.chart-fs .fc-panel-hero>.fc-pbody{flex:1;min-height:0;display:flex}
   body.chart-fs .fc-hero{flex:1;min-height:0;height:auto}
   body.chart-fs .tune-modal,body.chart-fs .risk-modal,body.chart-fs .opt-modal{z-index:1000}
+  body.chart-fs .sig-list{grid-template-columns:1fr 1fr 1fr;gap:1px 20px}   /* 전체화면=3열(높이↓·차트 넓게) */
+  body.chart-fs .sig-row{padding:4px 6px}
+  body.chart-fs .sig-row .sig-name{font-size:11px}
+  body.chart-fs #wsignals .fc-phead{padding:6px 9px}
   .fc-legend{position:absolute;left:10px;top:9px;z-index:6;display:none;flex-wrap:wrap;gap:5px 16px;align-items:center;background:rgba(11,15,20,.85);border:1px solid rgba(138,146,178,.2);border-radius:7px;padding:6px 12px;pointer-events:none;backdrop-filter:blur(2px)}
   .fc-leg-item{position:relative;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:rgba(231,236,245,.94);letter-spacing:-.01em;cursor:help;pointer-events:auto}
   .fc-leg-sw{flex:0 0 auto;width:11px;height:11px;border-radius:50%}
@@ -1142,10 +1148,8 @@
       <span id="analyzeProg" class="analyze-prog"></span>
       <span id="engStat" class="eng-stat" title="현재 표시된 결과가 언제 분석된 것인지"></span>
       <button class="run-btn" id="analyzeBtn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출(결과만 갱신)"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l2.2 6.2 6.3.3-5 4 1.8 6-5.3-3.4L6.7 18.5l1.8-6-5-4 6.3-.3z" opacity=".92"/></svg><span class="hlbl">웹분석</span></button>
-      <div class="ht-agroup" role="group" aria-label="보조 분석 도구">
-        <button class="tool-btn is-soon" id="engineBtn" onclick="claudeEngine()" title="엔진분석 — 클로드 수동분석(예정 기능, 준비 중)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/><path d="M10 10h4v4h-4z"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><span class="hlbl">엔진분석</span><span class="soon-tag">예정</span></button>
-        <button class="tool-btn play-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 웹분석 결과가 어떻게 나왔는지 지표별 작도 과정을 애니메이션으로 재생(결과는 동일, 과정 설명용)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시연</span></button>
-      </div>
+      <button class="tool-btn play-btn" id="playBtn" onclick="playAnalysis()" title="시연 — 웹분석 결과가 어떻게 나왔는지 지표별 작도 과정을 애니메이션으로 재생(결과는 동일, 과정 설명용)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시연</span></button>
+      <button class="tool-btn is-soon" id="engineBtn" onclick="claudeEngine()" title="엔진분석 — 클로드 수동분석(예정 기능, 준비 중)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/><path d="M10 10h4v4h-4z"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><span class="hlbl">엔진분석</span><span class="soon-tag">예정</span></button>
     </div>
     <div class="theme-wrap">
       <button id="themeBtn" class="theme-btn" onclick="toggleThemePop()" title="화면 색상 테마" aria-label="테마"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 2-.9 2-2 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1 .8-1.8 1.8-1.8H16a5 5 0 0 0 5-5c0-3.9-4-6.7-9-6.7z"/><circle cx="8" cy="9.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16" cy="9.5" r="1.1" fill="currentColor" stroke="none"/></svg></button>
@@ -6734,6 +6738,7 @@
   function fitHeroHeight(redraw) {   // 차트가 세로 여백을 채우도록 --hero-h 자동 산정(x축이 하단에 오게)
     if (redraw === undefined) redraw = true;
     if (_heroManual) return;
+    if (document.body.classList.contains("chart-fs")) return;   // 전체화면은 flex로 채움 — --hero-h 건드리지 않음(해제 시 메인 레이아웃 유지)
     const wrap = document.querySelector(".fc-wrap"), hero = document.querySelector(".fc-hero");
     const panel = hero && hero.closest(".fc-panel-hero");
     if (!wrap || !hero || !panel || getComputedStyle(hero).flexDirection === "column") return;   // 모바일(세로스택)은 제외
