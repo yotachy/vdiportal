@@ -1408,3 +1408,40 @@ test("run: Parabolic SAR 노드가 예측 반영", () => {
   const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "psar 예측 반영");
 });
+
+/* ── 신규 지표: Keltner 채널 ── */
+test("analyzeKeltner: 종가가 상단 밴드 근처면 bias>0", () => {
+  const base = Array.from({length:40},(_,i)=>100+Math.sin(i/5));
+  const price = base.concat([104]);  // 마지막 급등 → 상단 돌파
+  const candle = price.map(c=>({o:c,h:c+0.3,l:c-0.3,c}));
+  const r = ForgeCore.analyzeKeltner({ candle, price }, { len:20, atrLen:10, mult:2 });
+  assert.ok(r.bias > 0, `bias ${r.bias}`);
+});
+test("analyzeKeltner: 종가가 하단 밴드 근처면 bias<0", () => {
+  const base = Array.from({length:40},(_,i)=>100+Math.sin(i/5));
+  const price = base.concat([96]);  // 마지막 급락 → 하단 이탈
+  const candle = price.map(c=>({o:c,h:c+0.3,l:c-0.3,c}));
+  const r = ForgeCore.analyzeKeltner({ candle, price }, { len:20, atrLen:10, mult:2 });
+  assert.ok(r.bias < 0, `bias ${r.bias}`);
+});
+test("keltnerSteps: 3줄", () => {
+  assert.strictEqual(ForgeCore.keltnerSteps().length, 3);
+});
+test("analyzeKeltner: 봉별 밴드 배열 길이=price·상단≥중심≥하단", () => {
+  const price = Array.from({length:50},(_,i)=>100+Math.sin(i/4)+i*0.1);
+  const candle = price.map(c=>({o:c,h:c+0.4,l:c-0.4,c}));
+  const r = ForgeCore.analyzeKeltner({ candle, price }, { len:20, atrLen:10, mult:2 });
+  assert.strictEqual(r.midArr.length, price.length);
+  assert.strictEqual(r.upperArr.length, price.length);
+  assert.strictEqual(r.lowerArr.length, price.length);
+  const i = price.length - 1;
+  assert.ok(r.upperArr[i] >= r.midArr[i] && r.midArr[i] >= r.lowerArr[i], `밴드 순서 어긋남: ${r.upperArr[i]}/${r.midArr[i]}/${r.lowerArr[i]}`);
+});
+test("run: Keltner 채널 노드가 예측 반영", () => {
+  const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "kt", kind: "block", blockType: "keltner" }]), edges: base.edges.concat([{ from: "kt", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "keltner 예측 반영");
+});

@@ -1577,6 +1577,7 @@
     { type: "volume",    label: "거래량",      kind: "block" },
     { type: "pivot",     label: "피벗 포인트",  kind: "block", params: {} },
     { type: "psar",      label: "Parabolic SAR", kind: "block", params: { step: 0.02, max: 0.2 } },
+    { type: "keltner",   label: "Keltner 채널", kind: "block", params: { len: 20, atrLen: 10, mult: 2 } },
     { type: "predict",   label: "예측·시그널", kind: "block" },
     { type: "free",      label: "메모",        kind: "free" }
   ];
@@ -1585,7 +1586,7 @@
   const IND_TIERS = [
     { lv: 1, name: "핵심 지표",  types: ["ma", "macd", "rsi", "bollinger", "volume"] },
     { lv: 2, name: "주요 지표",  types: ["trend", "adx", "stochastic", "fib", "ichimoku", "pivot", "psar"] },
-    { lv: 3, name: "보조·전문",  types: ["vwap", "supertrend", "atr", "volumeprofile", "structure"] },
+    { lv: 3, name: "보조·전문",  types: ["vwap", "supertrend", "atr", "volumeprofile", "structure", "keltner"] },
     { lv: 4, name: "고급·심화",  types: ["elliott", "smc", "cycle", "phasefold"] },
   ];
 
@@ -2393,7 +2394,7 @@
       ? `box-shadow:0 0 ${Math.round((wt - 55) * 0.5)}px rgba(232,180,99,${((wt - 55) / 45 * 0.6).toFixed(2)});`
       : "";
     // 중요도+확신 통합 게이지: sig(-100~+100). 방향=확신, 세기=|sig|가 중요도(가중치)로. 지표 블록에만.
-    const GAUGE_TYPES = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "fib", "elliott", "phasefold", "volume", "pivot", "psar"];
+    const GAUGE_TYPES = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "fib", "elliott", "phasefold", "volume", "pivot", "psar", "keltner"];
     const sig = Math.round(n.conviction || 0);
     const gCls = sig > 0 ? "g-up" : sig < 0 ? "g-dn" : "g-0";
     const gauge = (isBlock && GAUGE_TYPES.includes(n.blockType))
@@ -2496,6 +2497,8 @@
   function _anPivot(P) { return _anGet(P, "Pivot", () => ForgeCore.analyzePivot({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P })); }
   function _psarNodeOpts() { const n = boardState.nodes.find(x => x.blockType === "psar"); const p = (n && n.params) || {}; return { step: p.step || 0.02, max: p.max || 0.2 }; }
   function _anPsar(P, opts) { const o = opts || _psarNodeOpts(); return _anGet(P, "Psar|" + JSON.stringify(o), () => ForgeCore.analyzePSAR({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, o)); }
+  function _keltnerNodeOpts() { const n = boardState.nodes.find(x => x.blockType === "keltner"); const p = (n && n.params) || {}; return { len: p.len || 20, atrLen: p.atrLen || 10, mult: p.mult || 2 }; }
+  function _anKeltner(P, opts) { const o = opts || _keltnerNodeOpts(); return _anGet(P, "Keltner|" + JSON.stringify(o), () => ForgeCore.analyzeKeltner({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, o)); }
   function _nodeBias(n, P) {
     const p = n.params || {}, bt = n.blockType;
     try {
@@ -2518,6 +2521,7 @@
         case "stochastic": return _an("Stochastic", P, { kLen: p.kLen || 14, kSmooth: p.kSmooth || 3, dLen: p.dLen || 3 }).bias;
         case "pivot": return _anPivot(P).bias;
         case "psar": return _anPsar(P, { step: p.step || 0.02, max: p.max || 0.2 }).bias;
+        case "keltner": return _anKeltner(P, { len: p.len || 20, atrLen: p.atrLen || 10, mult: p.mult || 2 }).bias;
         case "trend": { const r = _an("Trend", P, undefined); return Math.max(-1, Math.min(1, ((r.blend && r.blend.slopeLog) || 0) * 40)); }
         default: return 0;   // atr(변동성)·phasefold(주기) = 방향 무관
       }
@@ -2698,6 +2702,11 @@
     if (n.blockType === "psar") {
       rows.push(numRow("step", "가속 단계(AF)", (n.params && n.params.step) ?? 0.02, 0.01));
       rows.push(numRow("max", "AF 상한", (n.params && n.params.max) ?? 0.2, 0.01));
+    }
+    if (n.blockType === "keltner") {
+      rows.push(numRow("len", "중심선 EMA 기간", (n.params && n.params.len) ?? 20));
+      rows.push(numRow("atrLen", "ATR 기간", (n.params && n.params.atrLen) ?? 10));
+      rows.push(numRow("mult", "ATR 배수(폭)", (n.params && n.params.mult) ?? 2, 0.1));
     }
     if (n.blockType === "ticker") {
       rows.push(`<div class="pp-row"><label>티커 심볼</label><input type="text" data-tkr="symbol" value="${esc((n.params && n.params.symbol) || "")}" placeholder="예: TSLA · 005930(국내)"></div>`);
@@ -3374,10 +3383,11 @@
     const volume    = mk("volume", "거래량", {});
     const pivotn    = mk("pivot", "피벗 포인트", {});
     const psarn     = mk("psar", "Parabolic SAR", { step: 0.02, max: 0.2 });
+    const keltnern  = mk("keltner", "Keltner 채널", { len: 20, atrLen: 10, mult: 2 });
     const combine   = mk("combine", "가중결합", {});
     const predict   = mk("predict", "예측·시그널", {});
     makeNode(0, 0, "포지 메모", "free", null, {});
-    [price, ma, trend, rsi, bollinger, macd, adx, vprof, ichi, struct, atrn, smcn, cyc, vwapn, supern, stochn, fib, elliott, phasefold, volume, pivotn, psarn].forEach(ind => addEdge(ind.id, "right", combine.id, "left"));
+    [price, ma, trend, rsi, bollinger, macd, adx, vprof, ichi, struct, atrn, smcn, cyc, vwapn, supern, stochn, fib, elliott, phasefold, volume, pivotn, psarn, keltnern].forEach(ind => addEdge(ind.id, "right", combine.id, "left"));
     addEdge(combine.id, "right", predict.id, "left");
     layoutBlocks();
   }
@@ -4346,10 +4356,10 @@
     if (e.target.closest("button,input,select,a,textarea")) return;   // 헤더 내 컨트롤은 제외
     const panel = ph.closest(".fc-panel"); if (panel) panel.classList.toggle("collapsed");
   });
-  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#d0b25a", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#d87ab8", pivot: "#e0b0a0", psar: "#c0a8e0" };
-  const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱", pivot: "피벗 포인트(S/R)", psar: "Parabolic SAR(추세전환)" };
+  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#d0b25a", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#d87ab8", pivot: "#e0b0a0", psar: "#c0a8e0", keltner: "#7fc0d0" };
+  const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱", pivot: "피벗 포인트(S/R)", psar: "Parabolic SAR(추세전환)", keltner: "Keltner 채널(ATR 밴드)" };
   function evIndicatorNodes() {
-    const order = ["ma", "trend", "fib", "elliott", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "phasefold", "volume"];
+    const order = ["ma", "trend", "fib", "elliott", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "phasefold", "volume"];
     return boardState.nodes.filter(n => n.kind === "block" && order.includes(n.blockType))
       .sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
   }
@@ -4362,7 +4372,7 @@
     const b = document.getElementById("evToggle"); if (b) b.classList.toggle("on", _evidenceShow);
   }
   /* ── 지표별 bias 기여 가중치 튜닝 모달 ── */
-  const TUNE_TYPES = [["trend", "추세선"], ["ma", "이동평균"], ["fib", "피보나치"], ["elliott", "엘리어트"], ["rsi", "RSI"], ["bollinger", "볼린저밴드"], ["macd", "MACD"], ["adx", "ADX"], ["volume", "거래량"], ["volumeprofile", "볼륨 프로파일"], ["ichimoku", "일목균형표"], ["structure", "시장구조"], ["atr", "ATR 변동성"], ["smc", "스마트머니"], ["cycle", "사이클"], ["vwap", "VWAP"], ["supertrend", "슈퍼트렌드"], ["stochastic", "스토캐스틱"], ["pivot", "피벗 포인트"], ["psar", "Parabolic SAR"]];
+  const TUNE_TYPES = [["trend", "추세선"], ["ma", "이동평균"], ["fib", "피보나치"], ["elliott", "엘리어트"], ["rsi", "RSI"], ["bollinger", "볼린저밴드"], ["macd", "MACD"], ["adx", "ADX"], ["volume", "거래량"], ["volumeprofile", "볼륨 프로파일"], ["ichimoku", "일목균형표"], ["structure", "시장구조"], ["atr", "ATR 변동성"], ["smc", "스마트머니"], ["cycle", "사이클"], ["vwap", "VWAP"], ["supertrend", "슈퍼트렌드"], ["stochastic", "스토캐스틱"], ["pivot", "피벗 포인트"], ["psar", "Parabolic SAR"], ["keltner", "Keltner 채널"]];
   let _tuneRunT = null;
   function _tw(t) { return (typeof _driftW[t] === "number" && isFinite(_driftW[t])) ? _driftW[t] : 1; }
   function toggleTunePop() {
@@ -5505,6 +5515,28 @@
     }
     c.restore();
   }
+  // Keltner 채널 hero 작도 — 중심(EMA)·상/하단(±ATR×배수) 3선을 봉별 추종선으로(볼린저 미러). 볼린저와 구분: 채움 없음·긴 대시·teal·라벨 접두 "KC"
+  function _drawKeltnerLayers(c, kt, M) {
+    if (!kt || !kt.midArr || !kt.midArr.length) return;
+    c.save();
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    const COL = "#7fc0d0";
+    const collect = series => { const pts = []; for (let fi = Math.max(fiMin, 0); fi <= nowFi; fi++) { const v = series[fi]; if (v == null || !isFinite(v)) continue; const x = fiToX(fi), y = pToY(v); if (isFinite(x) && isFinite(y)) pts.push([x, y]); } return pts; };
+    const stroke = (series, dash, wid, alpha) => { const pts = collect(series); if (pts.length < 2) return; c.setLineDash(dash || []); c.lineWidth = wid; c.globalAlpha = alpha; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); _skStroke(c, _polyLen(pts)); c.globalAlpha = 1; c.setLineDash([]); };
+    if (reveal >= 1) {
+      c.strokeStyle = COL;
+      stroke(kt.upperArr, CDASH.long, CW.base, 0.5);
+      stroke(kt.lowerArr, CDASH.long, CW.base, 0.5);
+      stroke(kt.midArr, [], CW.bold, 0.85);
+    }
+    if (reveal >= 2 && _skReady()) {
+      const x = (xRight != null ? xRight : fiToX(nowFi)), y = pToY(kt.mid);
+      const posTxt = kt.pctB > 1 ? "상단 돌파" : kt.pctB < 0 ? "하단 이탈" : kt.pctB > 0.8 ? "상단권" : kt.pctB < 0.2 ? "하단권" : "채널 중앙";
+      const col = kt.bias > 0.15 ? "#46c28e" : kt.bias < -0.15 ? "#e06a6a" : COL;
+      if (isFinite(x) && isFinite(y)) _evLabel(c, "KC " + posTxt + (kt.squeeze ? " · 스퀴즈" : "") + " · %B" + kt.pctB.toFixed(2), x - 6, y, col, "right");
+    }
+    c.restore();
+  }
   // 2차 예측: 범례 표시중(_evVisible / 포커스) 지표만의 조합으로 엔진 재실행(캐시). 메인=전체 추가지표.
   let _pred2Cache = { key: null, pred: null, n: 0 };
   function _get2ndPred() {
@@ -5659,6 +5691,10 @@
           const ps = _anPsar(price, { step: (n.params && n.params.step) || 0.02, max: (n.params && n.params.max) || 0.2 });
           if (_drawThis) _drawPsarLayers(cc, ps, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY(), price });
           legend.push({ col, t: EV_LABEL.psar, _key: n.blockType });
+        } else if (n.blockType === "keltner") {
+          const kt = _anKeltner(price, { len: (n.params && n.params.len) || 20, atrLen: (n.params && n.params.atrLen) || 10, mult: (n.params && n.params.mult) || 2 });
+          if (_drawThis) _drawKeltnerLayers(cc, kt, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          legend.push({ col, t: EV_LABEL.keltner, _key: n.blockType });
         } else if (n.blockType === "volume") {
           const va = _anVolume(price);
           if (_drawThis) _drawVolumeLayers(cc, va, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, lastPrice: price[P - 1], badgeY: _slotY() });
@@ -6043,7 +6079,7 @@
     const priceNode = blocks.find(n => n.blockType === "price");
     const pv = priceNode && result.values && result.values[priceNode.id];
     const priceLast = (pv && pv.length) ? pv[pv.length - 1] : null;
-    const order = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "fib", "elliott", "phasefold", "volume"];
+    const order = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "fib", "elliott", "phasefold", "volume"];
     const inds = blocks.filter(n => order.includes(n.blockType)).sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
     if (metaEl) metaEl.textContent = (inds.length + 1) + "단계";
     const steps = [];
@@ -6208,6 +6244,10 @@
       const texts = ForgeCore.psarSteps().map(s => s.k + " — " + s.v);
       return texts.map((text, i) => ({ text, layer: [1, 2, 2][i] }));
     }
+    if (n.blockType === "keltner" && Array.isArray(price) && price.length >= 2) {
+      const texts = ForgeCore.keltnerSteps().map(s => s.k + " — " + s.v);
+      return texts.map((text, i) => ({ text, layer: [1, 1, 2][i] }));
+    }
     return [{ text: nodeReadText(n, result, priceLast), layer: 0 }];
   }
   /* 노드별 '전문 분석' — 각 기술지표가 도메인 지식으로 여러 사실을 산출(우측 패널 나열용) */
@@ -6321,6 +6361,16 @@
         f.push("추세 " + dirTxt + (ps.flip ? " · 최근 전환" : ""));
         f.push("SAR " + fmtNum(ps.sar) + " · 종가 " + fmtNum(ps.last));
         f.push("bias " + ps.bias.toFixed(2) + (ps.flip ? " (전환 직후 완화)" : ""));
+        return f;
+      }
+      case "keltner": {
+        if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
+        const kt = _anKeltner(P, { len: (n.params && n.params.len) || 20, atrLen: (n.params && n.params.atrLen) || 10, mult: (n.params && n.params.mult) || 2 });
+        if (!kt.upper) return ["데이터 없음"];
+        const posTxt = kt.pctB > 1 ? "상단 돌파" : kt.pctB < 0 ? "하단 이탈" : kt.pctB > 0.8 ? "상단 근접" : kt.pctB < 0.2 ? "하단 근접" : "채널 중앙";
+        f.push("중심 " + fmtNum(kt.mid) + " · 상단 " + fmtNum(kt.upper) + " · 하단 " + fmtNum(kt.lower));
+        f.push("%B " + kt.pctB.toFixed(2) + " — " + posTxt + (kt.squeeze ? " · 변동성 수축(스퀴즈)" : ""));
+        f.push("bias " + kt.bias.toFixed(2));
         return f;
       }
       case "fib": {
@@ -7658,7 +7708,7 @@
     if (!steps.length) return;
     const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
     const finPred = fin.prediction, finSig = _sigOf(fin);
-    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar"].includes(n.blockType) && (!_evVisible || !_evVisible.size || _evVisible.has(n.blockType)));   // 시연=선택(표시)된 지표만 작도·진행
+    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner"].includes(n.blockType) && (!_evVisible || !_evVisible.size || _evVisible.has(n.blockType)));   // 시연=선택(표시)된 지표만 작도·진행
     const center = boardState.nodes.find(n => n.blockType === "predict") || boardState.nodes.find(n => n.blockType === "combine");
     if (prefersReducedMotion()) {
       _evidenceSet = new Set(indNodes.map(n => n.id));
