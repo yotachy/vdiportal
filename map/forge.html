@@ -537,7 +537,7 @@
   .fc-evidence{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.5}   /* 비결정 지표 = 희미(뒤로) */
   .fc-evidence-hi{position:absolute;inset:0;pointer-events:none;z-index:3;filter:drop-shadow(0 0 2.5px rgba(255,255,255,.28))}   /* 결정적 지표 = 선명 + 은은한 글로우 */
   .fc-comet{position:absolute;inset:0;pointer-events:none;z-index:4}   /* 예측선 위 움직이는 밝은 점(1/2/3차) */
-  .chart-pop{position:absolute;left:12px;top:46px;z-index:14;min-width:250px;max-width:330px;background:rgba(11,15,20,.92);border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;transform:translateY(-6px);opacity:0;transition:transform .18s ease,opacity .18s ease}
+  .chart-pop{position:fixed;left:12px;top:66px;z-index:95;min-width:250px;max-width:330px;background:rgba(11,15,20,.93);border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;transform:translateY(-6px);opacity:0;transition:transform .18s ease,opacity .18s ease}
   .chart-pop.on{display:block;transform:translateY(0);opacity:1}
   .chart-pop-head{display:flex;align-items:center;gap:7px;padding:5px 6px 5px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none;touch-action:none}
   .chart-pop-head .ph-grip{color:var(--faint);font-size:11px;letter-spacing:-2px;flex:0 0 auto}
@@ -881,9 +881,9 @@
 
   /* ── 포지 분석 재생 HUD (결과 영역 상단 오버레이) ── */
   /* 상단 진행 HUD = 차트 위 플로팅 칩(접기·이동·숨김) */
-  .play-hud{position:absolute;left:12px;top:12px;right:auto;z-index:10;display:none;flex-direction:column;
+  .play-hud{position:fixed;left:12px;top:66px;right:auto;z-index:95;display:none;flex-direction:column;
     width:auto;max-width:440px;min-width:320px;
-    background:rgba(11,15,20,.82);
+    background:rgba(11,15,20,.93);
     border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;
     box-shadow:0 8px 24px rgba(0,0,0,.42);
     transform:translateY(-8px);opacity:0;transition:transform .24s ease,opacity .24s ease}
@@ -896,8 +896,8 @@
   .ph-btn{width:19px;height:19px;flex:0 0 auto;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(11,15,20,.6);color:var(--eth);font-size:12px;font-weight:700;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0;font-family:inherit}
   .ph-btn:hover{border-color:var(--gold);color:var(--gold)}
   /* 하단 진행 로그 = 접기 가능 */
-  .analyze-log{position:fixed;right:16px;top:72px;z-index:40;width:340px;
-    background:rgba(11,15,20,.82);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;
+  .analyze-log{position:fixed;right:16px;top:66px;z-index:95;width:340px;
+    background:rgba(11,15,20,.93);border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;
     font-family:Pretendard,system-ui,sans-serif;font-size:11.5px;color:var(--ink);display:none}
   .analyze-log.on{display:block}
   .analyze-log .al-ctl{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 8px;border-bottom:1px solid var(--line);cursor:grab;touch-action:none}
@@ -1207,7 +1207,7 @@
         <div class="ph-ctl" id="playHudCtl">
           <span class="ph-grip" aria-hidden="true">⠿</span>
           <span class="ph-ctl-title">시연 진행</span>
-          <button class="ph-btn" id="playHudMin" title="접기/펼치기" aria-label="접기">–</button>
+          <button class="ph-btn" onclick="_alignPanels()" title="열린 창 나란히 정렬 (누를 때마다 수직↔수평)" aria-label="정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="6.5" height="14" rx="1"/><rect x="13.5" y="5" width="6.5" height="14" rx="1"/></svg></button><button class="ph-btn" id="playHudMin" title="접기/펼치기" aria-label="접기">–</button>
           <button class="ph-btn" id="playHudClose" title="숨기기" aria-label="숨기기">✕</button>
         </div>
         <div class="ph-body" id="playHudBody"></div>
@@ -1216,12 +1216,12 @@
         <div class="al-ctl" id="analyzeLogCtl">
           <span class="ph-grip" aria-hidden="true">⠿</span>
           <span class="al-title">진행 로그</span>
-          <button class="ph-btn" id="analyzeLogMin" title="접기/펼치기" aria-label="접기">–</button>
+          <button class="ph-btn" onclick="_alignPanels()" title="열린 창 나란히 정렬 (누를 때마다 수직↔수평)" aria-label="정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="6.5" height="14" rx="1"/><rect x="13.5" y="5" width="6.5" height="14" rx="1"/></svg></button><button class="ph-btn" id="analyzeLogMin" title="접기/펼치기" aria-label="접기">–</button>
         </div>
         <div class="al-body" id="analyzeLogBody"></div>
       </div>
       <div id="chartPresetPop" class="chart-pop" aria-hidden="true">
-        <div class="chart-pop-head" id="chartPresetHead"><span class="ph-grip" aria-hidden="true">⠿</span><span class="chart-pop-title">분석 프리셋</span><button class="ph-btn" onclick="_toggleRailPreset()" aria-label="닫기">✕</button></div>
+        <div class="chart-pop-head" id="chartPresetHead"><span class="ph-grip" aria-hidden="true">⠿</span><span class="chart-pop-title">분석 프리셋</span><button class="ph-btn" onclick="_alignPanels()" title="열린 창 나란히 정렬 (누를 때마다 수직↔수평)" aria-label="정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="6.5" height="14" rx="1"/><rect x="13.5" y="5" width="6.5" height="14" rx="1"/></svg></button><button class="ph-btn" onclick="_toggleRailPreset()" aria-label="닫기">✕</button></div>
         <div class="chart-pop-body" id="railPresetPop"></div>
       </div>
       <div class="fc-wrap">
@@ -2160,12 +2160,23 @@
       _userPresets.map((p, i) => `<span class="pset-wrap"><button class="pset-btn${_presetMatch(p.t) ? " on" : ""}" onclick="_applyPresetIdx('u',${i})">${esc(p.name)}</button><button class="pset-del" onclick="_delPreset(${i})" title="삭제">✕</button></span>`).join("") +
       `</div>`;
   }
-  function _toggleRailPreset(e) { if (e) e.stopPropagation(); const p = document.getElementById("chartPresetPop"); if (!p) return; const on = p.classList.toggle("on"); if (on && typeof renderPresets === "function") renderPresets(); }
+  let _panelAlignMode = "h";
+  function _alignPanels() {
+    const open = ["playHud", "analyzeLog", "chartPresetPop"].map(id => document.getElementById(id)).filter(p => p && p.classList.contains("on"));
+    if (!open.length) return;
+    _panelAlignMode = _panelAlignMode === "v" ? "h" : "v";   // 누를 때마다 수직↔수평
+    let x = 14, y = 66; const gap = 10;
+    open.forEach(p => { p.style.right = "auto"; p.style.left = x + "px"; p.style.top = y + "px"; if (_panelAlignMode === "v") y += p.offsetHeight + gap; else x += p.offsetWidth + gap; });
+    open.forEach(p => { const k = p.id === "playHud" ? "scoopforge_hud_play" : p.id === "analyzeLog" ? "scoopforge_hud_log" : "scoopforge_hud_preset"; if (typeof _saveHudPos === "function") _saveHudPos(k, p); });
+    if (typeof bToast === "function") bToast(_panelAlignMode === "v" ? "창 수직 정렬" : "창 수평 정렬");
+  }
+  window._alignPanels = _alignPanels;
+  function _toggleRailPreset(e) { if (e) e.stopPropagation(); const p = document.getElementById("chartPresetPop"); if (!p) return; const on = p.classList.toggle("on"); if (on) { if (typeof renderPresets === "function") renderPresets(); if (typeof _restoreHudPos === "function") _restoreHudPos("scoopforge_hud_preset", p); } }
   document.addEventListener("click", function (e) { const p = document.getElementById("chartPresetPop"); if (p && p.classList.contains("on") && !e.target.closest("#chartPresetPop") && !e.target.closest(".ir-preset")) p.classList.remove("on"); });
   (function initPresetDrag() { const h = document.getElementById("chartPresetHead"), p = document.getElementById("chartPresetPop"); if (!h || !p) return; let d = null;
     h.addEventListener("pointerdown", e => { if (e.target.closest("button")) return; d = { x: e.clientX, y: e.clientY, l: p.offsetLeft, t: p.offsetTop }; try { h.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
-    h.addEventListener("pointermove", e => { if (!d) return; p.style.left = Math.max(4, d.l + e.clientX - d.x) + "px"; p.style.top = Math.max(4, d.t + e.clientY - d.y) + "px"; p.style.right = "auto"; });
-    h.addEventListener("pointerup", () => d = null); h.addEventListener("pointercancel", () => d = null); })();
+    h.addEventListener("pointermove", e => { if (!d) return; p.style.left = Math.max(0, Math.min(window.innerWidth - 60, d.l + e.clientX - d.x)) + "px"; p.style.top = Math.max(0, Math.min(window.innerHeight - 28, d.t + e.clientY - d.y)) + "px"; p.style.right = "auto"; });
+    const _pu = () => { if (d && typeof _saveHudPos === "function") _saveHudPos("scoopforge_hud_preset", p); d = null; }; h.addEventListener("pointerup", _pu); h.addEventListener("pointercancel", _pu); })();
   function _ensureGroups() { if (!Array.isArray(META.groups)) META.groups = []; if (!META.docGroups || typeof META.docGroups !== "object") META.docGroups = {}; }
   function _grpOf(docId) { _ensureGroups(); const g = META.docGroups[docId]; return (g && META.groups.some(x => x.id === g)) ? g : null; }
   function _saveGroups() { _ensureGroups(); if (SERVER_OK) saveMeta(); renderSidebar(); }
@@ -4019,7 +4030,7 @@
     const items = [
       ["기술적 최대범위", band, "sq", "기술적으로 도달 가능한 최저~최고 경계입니다. 피보나치·구조 스윙·매물대·볼린저·일목·VWAP를 종합해 산출하며, 예측이 이 범위를 벗어나기는 어렵습니다."],
       ["1차 종합지표", core, "", "전체 지표를 융합한 종합 예측선입니다. 가장 신뢰도 높은 기본 시나리오예요."],
-      ["2차 선택지표", "#4d8bff", "", "범례에서 표시(체크)한 지표 조합만으로 다시 계산한 예측선입니다. 특정 관점으로 비교할 때 씁니다."],
+      ["2차 선택지표", "#4d9bff", "", "범례에서 표시(체크)한 지표 조합만으로 다시 계산한 예측선입니다. 특정 관점으로 비교할 때 씁니다."],
       ["3차 최대역치", c3, "", "예상과 반대로 움직였을 때 가격이 향할 가장 가까운 지지/저항 레벨(반대 시나리오)입니다."]
     ];
     el.style.display = "flex";
@@ -5563,15 +5574,15 @@
         const _2diff = (p2 && p2.path && p2.path.length && g.path && g.path.length) ? Math.abs(Math.log((p2.path[p2.path.length - 1] || 1) / (g.path[g.path.length - 1] || 1))) : 0;
         if (p2 && p2.path && p2.path.length && _2diff > 0.008) {   // 2차가 1차(종합)와 사실상 같으면 생략(중복 제거)
           const _sx = g.seamX, _cR = plotR, _pl = p2.path.length, _t2x = k => _sx + ((k + 1) / _pl) * (_cR - _sx);
-          c.save(); c.strokeStyle = "#4d8bff"; c.lineWidth = 3.1; c.setLineDash([7, 4]); c.lineJoin = "round"; c.shadowColor = "rgba(77,139,255,.85)"; c.shadowBlur = 10;
+          c.save(); c.strokeStyle = "#4d9bff"; c.lineWidth = 3.8; c.setLineDash([9, 4]); c.lineJoin = "round"; c.shadowColor = "rgba(77,155,255,.95)"; c.shadowBlur = 15;
           const _cy2 = y => Math.max(g.padTop + 1, Math.min(g.ch - g.padBot - 1, y));   // 플롯 밖으로 튀지 않게 클램프(축이 밴드를 넘는 극단 대비 안전망)
           c.beginPath(); c.moveTo(_sx, _cy2(toY(g.anchor)));
           for (let k = 0; k < _pl; k++) { const x = _t2x(k), y = _cy2(toY(p2.path[k])); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
           c.stroke(); c.setLineDash([]); c.shadowBlur = 0; c.restore();
           let _p2s = 0, _p2w = 0; for (let k = 0; k < p2.path.length; k++) { const wt = 1 / Math.sqrt(k + 1); const _hk = (g.hi && g.hi[k]) || p2.path[k]; _p2s += _upProb(p2.path[k], _hk, g.anchor) * wt; _p2w += wt; }
           const _p2up = _p2w ? _p2s / _p2w : 50, _p2dir = p2.path[p2.path.length - 1] >= g.anchor, _p2disp = Math.round(_p2dir ? _p2up : (100 - _p2up));
-          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#4d8bff", "2차\u00b7" + _p2disp + "%", 12, true);
-          _comets.p2 = { pts: p2.path.map((v, k) => [_t2x(k), _cy2(toY(v))]), col: "#4d8bff", prob: _p2disp };
+          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#4d9bff", "2차\u00b7" + _p2disp + "%", 12, true);
+          _comets.p2 = { pts: p2.path.map((v, k) => [_t2x(k), _cy2(toY(v))]), col: "#4d9bff", prob: _p2disp };
           if (typeof _startComets === "function") _startComets();
         }
       } catch (e) {}
@@ -6742,15 +6753,15 @@
       if (bar && pane) {
         bar.addEventListener("pointerdown", e => {
           if (e.target.closest(".ph-btn")) return;   // 버튼 클릭은 드래그로 취급 안 함
-          const pr = pane.getBoundingClientRect(), hr = hud.getBoundingClientRect();
-          d = { dx: e.clientX - hr.left, dy: e.clientY - hr.top, pw: pr.width, ph: pr.height, px: pr.left, py: pr.top };
+          const hr = hud.getBoundingClientRect();
+          d = { dx: e.clientX - hr.left, dy: e.clientY - hr.top };
           try { bar.setPointerCapture(e.pointerId); } catch (_) {}
           e.preventDefault();
         });
         bar.addEventListener("pointermove", e => {
           if (!d) return;
-          const x = Math.max(0, Math.min(d.pw - 60, e.clientX - d.px - d.dx));
-          const y = Math.max(0, Math.min(d.ph - 28, e.clientY - d.py - d.dy));
+          const x = Math.max(0, Math.min(window.innerWidth - 60, e.clientX - d.dx));
+          const y = Math.max(0, Math.min(window.innerHeight - 28, e.clientY - d.dy));
           hud.style.left = x + "px"; hud.style.top = y + "px"; hud.style.right = "auto";
         });
         const up = e => { if (!d) return; d = null; try { bar.releasePointerCapture(e.pointerId); } catch (_) {} _saveHudPos("scoopforge_hud_play", hud); };
