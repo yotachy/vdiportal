@@ -78,23 +78,23 @@
   .forge-gutter:hover,.forge-gutter.dragging{background:var(--gold-dim)}
   .forge-gutter:hover::after,.forge-gutter.dragging::after{background:var(--gold)}
   .ind-rail{flex:0 0 178px;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
-  .ind-rail .ir-head{font-size:11px;color:var(--eth);padding:11px 10px 7px;display:flex;justify-content:space-between;align-items:baseline;font-weight:700;position:sticky;top:0;background:var(--panel);z-index:2;border-bottom:1px solid var(--line)}
+  .ind-rail .ir-head{font-size:11px;color:var(--eth);padding:11px 10px 7px;display:flex;justify-content:space-between;align-items:baseline;font-weight:700;position:sticky;top:0;background:var(--panel);z-index:2;border-bottom:1px solid rgba(138,146,178,.1)}
   .ind-rail .ir-head .ir-sub{font-size:9px;font-weight:600;color:var(--faint);letter-spacing:-.02em}
-  .ind-rail .ir-row{position:relative;display:flex;align-items:center;gap:5px;padding:4px 8px;border-bottom:1px solid var(--line);color:var(--eth);font-size:12px;font-weight:600;user-select:none;transition:color .12s}
+  .ind-rail .ir-row{position:relative;display:flex;align-items:center;gap:5px;padding:4px 8px;border-bottom:1px solid rgba(138,146,178,.06);color:var(--faint);font-size:12px;font-weight:600;user-select:none;transition:color .12s,background .12s}
   .ind-rail .ir-fill{position:absolute;left:0;top:0;bottom:0;background:var(--ic,#8a92b2);opacity:.16;z-index:0;pointer-events:none;transition:width .06s linear}
   .ind-rail .ir-tick{position:absolute;left:33.33%;top:3px;bottom:3px;width:1px;background:rgba(232,180,99,.45);z-index:0;pointer-events:none}
   .ind-rail .ir-row.on .ir-fill{opacity:.28}
   .ind-rail .ir-chk,.ind-rail .ir-lbl,.ind-rail .ir-wval{position:relative;z-index:1}
-  .ind-rail .ir-wval{flex:0 0 auto;font-size:9.5px;font-weight:700;font-family:ui-monospace,monospace;color:var(--eth);letter-spacing:-.02em;min-width:30px;text-align:right}
+  .ind-rail .ir-wval{flex:0 0 auto;font-size:9.5px;font-weight:700;font-family:ui-monospace,monospace;color:var(--faint);letter-spacing:-.02em;min-width:30px;text-align:right}
   .ind-rail .ir-row.on .ir-wval{color:var(--ink)}
   .ind-rail .ir-bar{flex:1;min-width:0;position:relative;display:flex;align-items:center;gap:9px;overflow:hidden;padding:5px 6px 5px 4px;border-radius:var(--r-sm);cursor:ew-resize;touch-action:none}
   .ind-rail .ir-bar:hover{background:rgba(255,255,255,.035)}
   .ind-rail .ir-bar:hover .ir-lbl{color:var(--ink)}
   .ind-rail .ir-top + .ir-row{padding-top:11px}
-  .ind-rail .ir-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.4);display:grid;place-items:center;transition:background .12s,border-color .12s}
+  .ind-rail .ir-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.26);display:grid;place-items:center;transition:background .12s,border-color .12s}
   .ind-rail .ir-chk:hover{border-color:var(--ic,#8a92b2)}
   .ind-rail .ir-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
-  .ind-rail .ir-row.on{color:var(--ink)}
+  .ind-rail .ir-row.on{color:var(--ink);background:rgba(255,255,255,.025)}
   .ind-rail .ir-row.on .ir-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2)}
   .ind-rail .ir-row.on .ir-chk::after{opacity:1;transform:scale(1)}
   .ind-rail .ir-row.sel .ir-bar{background:rgba(232,180,99,.07)}
@@ -684,6 +684,20 @@
   .forge-side .doc-chg.up{color:#46c28e}
   .forge-side .doc-chg.dn{color:#e06a6a}
   .forge-side .doc-row.dragging{opacity:.4;cursor:grabbing}
+  .forge-side .wg-add{font-size:10px;padding:2px 8px;font-weight:700}
+  .forge-side .wg-zone{display:flex;flex-direction:column;min-height:6px}
+  .forge-side .wg-head{display:flex;align-items:center;gap:7px;padding:6px 8px;margin-top:5px;border-radius:var(--r-md);cursor:pointer;font-size:11.5px;font-weight:700;user-select:none;transition:background .12s}
+  .forge-side .wg-head:hover{background:rgba(255,255,255,.03)}
+  .forge-side .wg-caret{flex:0 0 auto;width:0;height:0;border-left:5px solid var(--eth);border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s;transform:rotate(90deg)}
+  .forge-side .wg-head.col .wg-caret{transform:rotate(0)}
+  .forge-side .wg-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);letter-spacing:-.01em}
+  .forge-side .wg-count{flex:0 0 auto;font-size:10px;color:var(--faint);font-family:ui-monospace,monospace;background:rgba(138,146,178,.12);border-radius:99px;padding:0 6px;line-height:16px}
+  .forge-side .wg-btn{flex:0 0 auto;background:transparent;border:0;color:var(--faint);font-size:11px;cursor:pointer;padding:2px 3px;line-height:1;opacity:0;border-radius:var(--r-sm);transition:opacity .12s,color .12s}
+  .forge-side .wg-head:hover .wg-btn{opacity:.85}
+  .forge-side .wg-btn:hover{color:var(--gold)}
+  .forge-side .wg-body{display:flex;flex-direction:column;padding-left:11px;margin-left:9px}
+  .forge-side .wg-empty{font-size:10.5px;color:var(--faint);padding:7px 8px}
+  .forge-side [data-wgdrop].wg-over{background:rgba(232,180,99,.1);outline:1px dashed var(--gold-dim);outline-offset:-2px;border-radius:var(--r-md)}
   .forge-side .doc-row.drop-before{box-shadow:inset 0 2px 0 var(--gold)}
   .forge-side .doc-row.drop-after{box-shadow:inset 0 -2px 0 var(--gold)}
   .forge-side .doc-row.active{background:var(--raised2);color:var(--gold)}
@@ -1764,7 +1778,7 @@
   }
   let _saveT = null;
   function markDirty() { if (!SERVER_OK) return; clearTimeout(_saveT); _saveT = setTimeout(writeBackActive, 800); }
-  async function saveMeta() { if (!SERVER_OK) return; await apiPost({ op: "meta", meta: { library: LIBRARY, activeId } }); }
+  async function saveMeta() { if (!SERVER_OK) return; _ensureGroups(); await apiPost({ op: "meta", meta: { library: LIBRARY, activeId, groups: META.groups, docGroups: META.docGroups } }); }
   function setDocLoading(on) {
     ["boardPane", "chartPane"].forEach(pid => {
       const pane = document.getElementById(pid); if (!pane) return;
@@ -1905,11 +1919,35 @@
   function _initDocDrag() {
     const el = document.getElementById("forgeSide"); if (!el || el._dragInit) return; el._dragInit = true;
     let dragId = null;
-    const clearHi = () => el.querySelectorAll(".doc-row.drop-before,.doc-row.drop-after").forEach(r => r.classList.remove("drop-before", "drop-after"));
+    const clearHi = () => el.querySelectorAll(".doc-row.drop-before,.doc-row.drop-after,.wg-over").forEach(r => r.classList.remove("drop-before", "drop-after", "wg-over"));
     el.addEventListener("dragstart", e => { const row = e.target.closest && e.target.closest(".doc-row"); if (!row) return; dragId = row.dataset.doc; try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragId); } catch (_) {} row.classList.add("dragging"); });
     el.addEventListener("dragend", e => { const row = e.target.closest && e.target.closest(".doc-row"); if (row) row.classList.remove("dragging"); clearHi(); dragId = null; });
-    el.addEventListener("dragover", e => { const row = e.target.closest && e.target.closest(".doc-row"); if (!row || !dragId || row.dataset.doc === dragId) return; e.preventDefault(); const rc = row.getBoundingClientRect(), after = (e.clientY - rc.top) > rc.height / 2; clearHi(); row.classList.add(after ? "drop-after" : "drop-before"); });
-    el.addEventListener("drop", e => { const row = e.target.closest && e.target.closest(".doc-row"); if (!row || !dragId) { clearHi(); return; } e.preventDefault(); const targetId = row.dataset.doc, rc = row.getBoundingClientRect(), after = (e.clientY - rc.top) > rc.height / 2; reorderDocs(dragId, targetId, after); });
+    el.addEventListener("dragover", e => {
+      if (!dragId) return;
+      const row = e.target.closest && e.target.closest(".doc-row");
+      const zone = e.target.closest && e.target.closest("[data-wgdrop]");
+      if (!row && !zone) return;
+      e.preventDefault(); clearHi();
+      if (row && row.dataset.doc !== dragId) { const rc = row.getBoundingClientRect(), after = (e.clientY - rc.top) > rc.height / 2; row.classList.add(after ? "drop-after" : "drop-before"); }
+      else if (zone) zone.classList.add("wg-over");
+    });
+    el.addEventListener("drop", e => {
+      if (!dragId) { clearHi(); return; }
+      e.preventDefault(); _ensureGroups();
+      const row = e.target.closest && e.target.closest(".doc-row");
+      const zone = e.target.closest && e.target.closest("[data-wgdrop]");
+      const curG = _grpOf(dragId);
+      if (row && row.dataset.doc !== dragId) {   // 다른 종목 위 = 재정렬 + 대상의 그룹 상속
+        const tG = _grpOf(row.dataset.doc);
+        if ((tG || null) !== (curG || null)) { if (tG) META.docGroups[dragId] = tG; else delete META.docGroups[dragId]; if (SERVER_OK) saveMeta(); }
+        const rc = row.getBoundingClientRect(), after = (e.clientY - rc.top) > rc.height / 2;
+        reorderDocs(dragId, row.dataset.doc, after);
+      } else if (zone) {   // 그룹 헤더/영역 = 그 그룹(또는 미분류)으로 이동
+        const gid = zone.dataset.wgdrop || null;
+        if ((gid || null) !== (curG || null)) _moveDocToGroup(dragId, gid);
+        else { clearHi(); renderSidebar(); }
+      } else clearHi();
+    });
   }
   function reorderDocs(dragId, targetId, after) {
     if (dragId === targetId) return;
@@ -2040,9 +2078,18 @@
       _userPresets.map((p, i) => `<span class="pset-wrap"><button class="pset-btn${_presetMatch(p.t) ? " on" : ""}" onclick="_applyPresetIdx('u',${i})">${esc(p.name)}</button><button class="pset-del" onclick="_delPreset(${i})" title="삭제">✕</button></span>`).join("") +
       `</div>`;
   }
+  function _ensureGroups() { if (!Array.isArray(META.groups)) META.groups = []; if (!META.docGroups || typeof META.docGroups !== "object") META.docGroups = {}; }
+  function _grpOf(docId) { _ensureGroups(); const g = META.docGroups[docId]; return (g && META.groups.some(x => x.id === g)) ? g : null; }
+  function _saveGroups() { _ensureGroups(); if (SERVER_OK) saveMeta(); renderSidebar(); }
+  function _addGroup() { _ensureGroups(); const name = ((typeof prompt === "function" ? prompt("새 그룹 이름 (예: 관심·보유·미국주)") : "") || "").trim(); if (!name) return; META.groups.push({ id: uid("wg"), name, collapsed: false }); _saveGroups(); if (typeof bToast === "function") bToast("그룹 추가됨"); }
+  function _renameGroup(id) { _ensureGroups(); const g = META.groups.find(x => x.id === id); if (!g) return; const name = ((typeof prompt === "function" ? prompt("그룹 이름 수정", g.name) : "") || "").trim(); if (!name) return; g.name = name; _saveGroups(); }
+  function _deleteGroup(id) { _ensureGroups(); const g = META.groups.find(x => x.id === id); if (!g) return; if (typeof confirm === "function" && !confirm("‘" + g.name + "’ 그룹을 삭제할까요? (종목은 미분류로 이동)")) return; META.groups = META.groups.filter(x => x.id !== id); Object.keys(META.docGroups).forEach(k => { if (META.docGroups[k] === id) delete META.docGroups[k]; }); _saveGroups(); if (typeof bToast === "function") bToast("그룹 삭제됨"); }
+  function _toggleGroup(id) { _ensureGroups(); const g = META.groups.find(x => x.id === id); if (g) { g.collapsed = !g.collapsed; _saveGroups(); } }
+  function _moveDocToGroup(docId, groupId) { _ensureGroups(); if (groupId) META.docGroups[docId] = groupId; else delete META.docGroups[docId]; _saveGroups(); if (typeof bToast === "function") bToast(groupId ? "그룹으로 이동" : "미분류로 이동"); }
   function renderSidebar() {
     const el = document.getElementById("forgeSide"); if (!el) return;
-    const docs = DOCS.map(d => {
+    _ensureGroups();
+    const _docRow = d => {
       const nm = _docTicker(d) || d.title || "새 종목";
       const v = d._verdict;
       const vb = v ? `<span class="doc-vd ${v.regime}">${v.regime === "bull" ? "▲" + v.up + "%" : v.regime === "bear" ? "▼" + (100 - v.up) + "%" : "–"}</span>` : "";
@@ -2050,10 +2097,19 @@
       const sub = isFinite(_px) ? `<div class="doc-sub"><span class="doc-px">${_hzFmt(_px)}</span>${isFinite(_chg) ? `<span class="doc-chg ${_chg >= 0 ? "up" : "dn"}">${_chg >= 0 ? "▲" : "▼"}${Math.abs(_chg).toFixed(2)}%</span>` : ""}</div>` : "";
       return `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}" draggable="true">
          <div class="doc-r1">${_assetHtml(d, "doc-ico")}<span class="doc-nm">${esc(nm)}</span>${vb}<button class="side-btn" data-docdel="${d.id}" title="목록에서 제거">✕</button></div>${sub}
-       </div>`; }).join("");
+       </div>`; };
+    const groups = META.groups;
+    const ungrouped = DOCS.filter(d => !_grpOf(d.id));
+    let sec = `<div class="side-h"><span>종목</span><button class="side-btn wg-add" onclick="_addGroup()" title="새 그룹 만들기">＋ 그룹</button></div>`;
+    sec += `<div class="side-actions" id="addTickerSlot"><button class="side-btn" onclick="_showAddTicker()">＋ 종목 추가</button></div>`;
+    sec += `<div class="wg-zone" data-wgdrop="">${ungrouped.map(_docRow).join("")}</div>`;
+    groups.forEach(g => {
+      const gd = DOCS.filter(d => _grpOf(d.id) === g.id);
+      sec += `<div class="wg-head${g.collapsed ? " col" : ""}" data-wgdrop="${g.id}" onclick="_toggleGroup('${g.id}')"><span class="wg-caret"></span><span class="wg-name">${esc(g.name)}</span><span class="wg-count">${gd.length}</span><button class="wg-btn" onclick="event.stopPropagation();_renameGroup('${g.id}')" title="이름 수정">✎</button><button class="wg-btn" onclick="event.stopPropagation();_deleteGroup('${g.id}')" title="그룹 삭제">✕</button></div>`;
+      if (!g.collapsed) sec += `<div class="wg-body" data-wgdrop="${g.id}">${gd.length ? gd.map(_docRow).join("") : `<div class="wg-empty">여기로 종목을 끌어다 놓기</div>`}</div>`;
+    });
     el.innerHTML =
-      `<div class="side-sec"><div class="side-h"><span>종목</span></div>
-         <div class="side-actions" id="addTickerSlot"><button class="side-btn" onclick="_showAddTicker()">＋ 종목 추가</button></div>${docs}
+      `<div class="side-sec">${sec}
          <select class="doc-select" aria-label="종목 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === activeId ? " selected" : ""}>${esc(_docTicker(d) || d.title || "새 종목")}</option>`).join("")}</select></div>
        <div class="side-sec" id="presetSec"></div>
        <div class="side-sec" id="libSec"></div>`;
