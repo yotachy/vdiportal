@@ -1535,3 +1535,29 @@ test("run: williams 노드가 예측 반영", () => {
   const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "williams 예측 반영");
 });
+
+/* ── 신규 지표: ROC/모멘텀 (오실레이터 · hero 배지, 가격 전용) ── */
+test("analyzeROC: 상승이면 ROC>0·bias>0 / 하락이면 <0", () => {
+  const up = Array.from({length:20},(_,i)=>100+i);
+  const ru = ForgeCore.analyzeROC(up, { period:12 });
+  assert.ok(ru.last > 0 && ru.bias > 0);
+  const dn = Array.from({length:20},(_,i)=>120-i);
+  assert.ok(ForgeCore.analyzeROC(dn, { period:12 }).bias < 0);
+});
+test("rocSeries: 길이 일치·범위 −1..1", () => {
+  const price = Array.from({length:40},(_,i)=>100+Math.sin(i));
+  const s = ForgeCore.rocSeries(price, 12);
+  assert.equal(s.length, price.length);
+  assert.ok(s.every(v => v >= -1 && v <= 1));
+});
+test("rocSteps: 2줄", () => {
+  assert.strictEqual(ForgeCore.rocSteps().length, 2);
+});
+test("run: ROC 노드가 예측 반영", () => {
+  const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "roc", kind: "block", blockType: "roc" }]), edges: base.edges.concat([{ from: "roc", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "roc 예측 반영");
+});
