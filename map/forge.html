@@ -3950,16 +3950,27 @@
     if (!keys.length) return;
     cx.save();
     if (typeof _heroZoom === "object" && _heroZoom) { cx.translate(_heroZoom.tx || 0, _heroZoom.ty || 0); cx.scale(_heroZoom.s || 1, _heroZoom.s || 1); }
-    const t = (performance.now() % 2800) / 2800;   // 0..1 반복(현재→끝점 흐름)
+    const t = (performance.now() % 2800) / 2800;   // 흐르는 점
+    const pt = (performance.now() % 1500) / 1500;   // 펄스 사이클(공통)
     keys.forEach(k => {
-      const pts = _comets[k].pts, col = _comets[k].col;
+      const cmt = _comets[k], pts = cmt.pts, col = cmt.col;
       const fk = t * (pts.length - 1), i0 = Math.floor(fk), fr = fk - i0;
       const a = pts[i0], b = pts[Math.min(pts.length - 1, i0 + 1)];
       const x = a[0] + (b[0] - a[0]) * fr, y = a[1] + (b[1] - a[1]) * fr;
-      if (!isFinite(x) || !isFinite(y)) return;
-      cx.save(); cx.globalAlpha = .5; cx.shadowColor = col; cx.shadowBlur = 13; cx.fillStyle = col; cx.beginPath(); cx.arc(x, y, 4.6, 0, 7); cx.fill(); cx.restore();
-      cx.save(); cx.shadowColor = "#fff"; cx.shadowBlur = 7; cx.fillStyle = "#fff"; cx.beginPath(); cx.arc(x, y, 2.2, 0, 7); cx.fill(); cx.restore();
+      if (isFinite(x) && isFinite(y)) {
+        cx.save(); cx.globalAlpha = .5; cx.shadowColor = col; cx.shadowBlur = 13; cx.fillStyle = col; cx.beginPath(); cx.arc(x, y, 4.6, 0, 7); cx.fill(); cx.restore();
+        cx.save(); cx.shadowColor = "#fff"; cx.shadowBlur = 7; cx.fillStyle = "#fff"; cx.beginPath(); cx.arc(x, y, 2.2, 0, 7); cx.fill(); cx.restore();
+      }
+      const ep = pts[pts.length - 1];   // 끝점 펄스 — 1/2/3차 공통, 확률 클수록 크게
+      if (ep && isFinite(ep[0]) && isFinite(ep[1])) {
+        const psc = 0.55 + (isFinite(cmt.prob) ? cmt.prob : 50) / 100, r = 3.5 + pt * 15 * psc, al = (1 - pt) * 0.5;
+        cx.save(); cx.globalAlpha = al; cx.strokeStyle = col; cx.lineWidth = 2; cx.beginPath(); cx.arc(ep[0], ep[1], r, 0, 7); cx.stroke(); cx.restore();
+      }
     });
+    if (_comets._start && isFinite(_comets._start.x)) {   // 예측 시작점(현재가) 흰색 펄스
+      const sx = _comets._start.x, sy = _comets._start.y, r = 3 + pt * 11, al = (1 - pt) * 0.5;
+      cx.save(); cx.globalAlpha = al; cx.strokeStyle = "#fff"; cx.lineWidth = 1.8; cx.beginPath(); cx.arc(sx, sy, r, 0, 7); cx.stroke(); cx.restore();
+    }
     cx.restore();
     _cometRAF = requestAnimationFrame(_drawComets);
   }
@@ -4163,14 +4174,15 @@
         for (let k = 0; k < _counter.length; k++) c.lineTo(toXf(k), _cYc(k));
         c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
         _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _cCol + ")", "3차\u00b7" + _cProb + "%", (_cUp ? -12 : 14), true);
-        _comets.p3 = { pts: _counter.map((v, k) => [toXf(k), _cYc(k)]), col: "rgb(" + _cCol + ")" };
+        _comets.p3 = { pts: _counter.map((v, k) => [toXf(k), _cYc(k)]), col: "rgb(" + _cCol + ")", prob: _cProb };
         c.restore();
       }
       // 1차(종합) 끝단: 흘러가는 점 + 진앙지 + 명칭(+ 방향 달성확률)
       let _p1s = 0, _p1w = 0; for (let k = 0; k < path.length; k++) { const wt = 1 / Math.sqrt(k + 1); _p1s += _upProb(path[k], hi[k], anchor) * wt; _p1w += wt; }
       const _p1up = _p1w ? _p1s / _p1w : 50, _p1disp = Math.round(_pd >= 0 ? _p1up : (100 - _p1up));
       _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차\u00b7" + _p1disp + "%", -12, true);
-      _comets.p1 = { pts: path.map((v, k) => [toXf(k), Math.max(padTop + 2, Math.min(ch - padBot - 2, toY(v)))]), col: CT.core };
+      _comets.p1 = { pts: path.map((v, k) => [toXf(k), Math.max(padTop + 2, Math.min(ch - padBot - 2, toY(v)))]), col: CT.core, prob: _p1disp };
+      _comets._start = { x: seamX, y: toY(anchor) };
       if (typeof _startComets === "function") _startComets();
       // 현재가 = 예측 시작점(1·2·3차가 갈라지는 원점) — 중립 흰색 마커
       { const _mx = seamX, _my = toY(anchor); c.save();
@@ -4701,9 +4713,7 @@
     if (!isFinite(x) || !isFinite(y)) return;
     const sc = Math.max(0.46, scale || 1);   // 1/3이라도 최소 크기 확보(작지만 진앙지로 식별)
     c.save(); c.lineCap = "round";
-    c.strokeStyle = col; c.lineWidth = Math.max(1.1, 1.5 * sc);
-    for (let r = 0; r < 3; r++) { c.globalAlpha = 0.62 - r * 0.16; c.beginPath(); c.arc(x, y, (6 + r * 5.5) * sc, 0, 7); c.stroke(); }   // 파문 3겹(선명)
-    c.globalAlpha = 1; c.shadowColor = col; c.shadowBlur = 9 * sc; c.fillStyle = col;
+    c.globalAlpha = 1; c.shadowColor = col; c.shadowBlur = 9 * sc; c.fillStyle = col;   // 코어만(파문 링은 코멧 애니메이션 펄스로)
     c.beginPath(); c.arc(x, y, 3.2 * sc, 0, 7); c.fill();
     c.shadowBlur = 0; c.globalAlpha = 1; c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, Math.max(1, 1.2 * sc), 0, 7); c.fill();
     c.restore();
@@ -5525,7 +5535,7 @@
           let _p2s = 0, _p2w = 0; for (let k = 0; k < p2.path.length; k++) { const wt = 1 / Math.sqrt(k + 1); const _hk = (g.hi && g.hi[k]) || p2.path[k]; _p2s += _upProb(p2.path[k], _hk, g.anchor) * wt; _p2w += wt; }
           const _p2up = _p2w ? _p2s / _p2w : 50, _p2dir = p2.path[p2.path.length - 1] >= g.anchor, _p2disp = Math.round(_p2dir ? _p2up : (100 - _p2up));
           _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#4d8bff", "2차\u00b7" + _p2disp + "%", 12, true);
-          _comets.p2 = { pts: p2.path.map((v, k) => [_t2x(k), _cy2(toY(v))]), col: "#4d8bff" };
+          _comets.p2 = { pts: p2.path.map((v, k) => [_t2x(k), _cy2(toY(v))]), col: "#4d8bff", prob: _p2disp };
           if (typeof _startComets === "function") _startComets();
         }
       } catch (e) {}
