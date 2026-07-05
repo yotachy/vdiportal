@@ -1364,3 +1364,47 @@ test("run: 피벗 포인트 노드가 예측 반영", () => {
   const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "pivot 예측 반영");
 });
+
+/* ── 신규 지표: Parabolic SAR ── */
+test("analyzePSAR: 상승 시계열이면 dir=+1·bias>0", () => {
+  const price = Array.from({length:40},(_,i)=>100+i);   // 단조 상승
+  const candle = price.map((c,i)=>({o:c-0.5,h:c+0.6,l:c-0.6,c}));
+  const r = ForgeCore.analyzePSAR({ candle, price });
+  assert.equal(r.dir, 1);
+  assert.ok(r.bias > 0, `bias ${r.bias}`);
+});
+test("analyzePSAR: 하락 시계열이면 dir=−1·bias<0", () => {
+  const price = Array.from({length:40},(_,i)=>140-i);
+  const candle = price.map((c)=>({o:c+0.5,h:c+0.6,l:c-0.6,c}));
+  const r = ForgeCore.analyzePSAR({ candle, price });
+  assert.equal(r.dir, -1);
+  assert.ok(r.bias < 0);
+});
+test("analyzePSAR: Wilder 클램프 — SAR이 직전 2봉 저가 극단을 넘지 않음(상승 중 되돌림)", () => {
+  // 상승 후 마지막 봉에서 되돌림(추세는 유지). 언클램프면 초기 가속에서 직전 저가를 관통함.
+  const highs = [10, 11.2, 12.6, 14.2, 16.0, 18.0, 18.4];
+  const lows  = [ 9, 10.2, 11.6, 13.2, 15.0, 17.0, 15.5];
+  const closes = highs.map((h, i) => (h + lows[i]) / 2);
+  const candle = highs.map((h, i) => ({ o: closes[i], h, l: lows[i], c: closes[i] }));
+  const r = ForgeCore.analyzePSAR({ candle, price: closes });
+  assert.equal(r.dir, 1);           // 추세는 상승 유지(플립 없음)
+  assert.equal(r.flip, false);
+  let bound = false;
+  for (let i = 2; i < candle.length; i++) {
+    const lim = Math.min(lows[i - 1], lows[i - 2]);
+    assert.ok(r.series[i] <= lim + 1e-9, `bar ${i} SAR ${r.series[i]} > 직전2봉 최저 ${lim}`);
+    if (Math.abs(r.series[i] - lim) < 1e-9) bound = true;   // 클램프가 실제로 작동한 봉 존재
+  }
+  assert.ok(bound, "클램프가 최소 한 봉에서 SAR을 직전 저가로 제한해야 함");
+});
+test("psarSteps: 3줄", () => {
+  assert.strictEqual(ForgeCore.psarSteps().length, 3);
+});
+test("run: Parabolic SAR 노드가 예측 반영", () => {
+  const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "ps", kind: "block", blockType: "psar" }]), edges: base.edges.concat([{ from: "ps", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "psar 예측 반영");
+});

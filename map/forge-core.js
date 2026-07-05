@@ -281,6 +281,8 @@
         values[id] = stochSeries(ins[0] || data.price, (n.params && n.params.kLen) || 14, (n.params && n.params.kSmooth) || 3, (n.params && n.params.dLen) || 3);
       } else if (n.blockType === "pivot") {
         values[id] = (ins[0] || data.price).map(() => 0);
+      } else if (n.blockType === "psar") {
+        values[id] = (ins[0] || data.price).map(() => 0);
       } else {
         values[id] = ins[0] ? ins[0].slice() : [];
       }
@@ -417,6 +419,52 @@
       { k: "직전 기간", v: "고·저·종가로 피벗 P 산출" },
       { k: "레벨", v: "R1~R3 저항 · S1~S3 지지 투영" },
       { k: "방향", v: "종가 vs P — 위=강세 / 아래=약세" },
+    ];
+  }
+
+  function analyzePSAR(data, opts) {
+    opts = opts || {};
+    const step = opts.step || 0.02, maxAf = opts.max || 0.2;
+    const candle = (data && data.candle) || [], price = (data && data.price) || candle.map(c => c.c);
+    const P = price.length;
+    const EMPTY = { series: [], last: 0, sar: 0, dir: 0, flip: false, bias: 0 };
+    if (P < 3) return EMPTY;
+    const hi = candle.length ? candle.map(c => c.h) : price;
+    const lo = candle.length ? candle.map(c => c.l) : price;
+    const sarArr = new Array(P).fill(null);
+    let up = price[1] >= price[0];        // 초기 추세
+    let af = step, ep = up ? hi[0] : lo[0], sar = up ? lo[0] : hi[0];
+    let flip = false;
+    for (let i = 1; i < P; i++) {
+      sar = sar + af * (ep - sar);
+      // Wilder 클램프: SAR이 직전 1~2봉 극단을 침범하지 못하도록 제한
+      if (up) {
+        const lim = i >= 2 ? Math.min(lo[i - 1], lo[i - 2]) : lo[i - 1];
+        if (sar > lim) sar = lim;
+      } else {
+        const lim = i >= 2 ? Math.max(hi[i - 1], hi[i - 2]) : hi[i - 1];
+        if (sar < lim) sar = lim;
+      }
+      if (up) {
+        if (lo[i] < sar) { up = false; sar = ep; ep = lo[i]; af = step; flip = (i === P - 1); }
+        else { if (hi[i] > ep) { ep = hi[i]; af = Math.min(maxAf, af + step); } }
+      } else {
+        if (hi[i] > sar) { up = true; sar = ep; ep = hi[i]; af = step; flip = (i === P - 1); }
+        else { if (lo[i] < ep) { ep = lo[i]; af = Math.min(maxAf, af + step); } }
+      }
+      sarArr[i] = sar;
+    }
+    const last = price[P - 1], dir = up ? 1 : -1;
+    // 방향 = 추세부호, 최근 플립이면 강도 완화(전환 직후 불확실)
+    let bias = dir * (flip ? 0.4 : 0.85);
+    bias = Math.max(-1, Math.min(1, bias));
+    return { series: sarArr, last, sar, dir, flip, bias };
+  }
+  function psarSteps() {
+    return [
+      { k: "SAR 점", v: "가속계수 AF로 추적점 갱신" },
+      { k: "추세", v: "가격 > SAR = 상승 / < SAR = 하락" },
+      { k: "전환", v: "가격이 SAR 관통 시 방향 플립" },
     ];
   }
 
@@ -1482,6 +1530,9 @@
     const _pvn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "pivot");
     const _pv2 = _pvn ? analyzePivot(data, {}) : null;
     const pivotDrift = _pv2 ? _pv2.bias * _prof.trendScale * 0.04 * DW("pivot") : 0;   // 피벗 위/아래 방향(±4%·S/R라 약함)
+    const _psn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "psar");
+    const _ps = _psn ? analyzePSAR(data, { step: (_psn.params && _psn.params.step) || 0.02, max: (_psn.params && _psn.params.max) || 0.2 }) : null;
+    const psarDrift = _ps ? _ps.bias * _prof.trendScale * 0.08 * DW("psar") : 0;   // SAR 추세방향(±8%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
     const trChSig = _ta.blend.channelSigmaLog;
@@ -1491,7 +1542,7 @@
     // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
     // Phase 6 융합: 지표를 종합방향(예상)·반대로 분리. 예상지표 합은 ±0.28 캡, 반대지표는 그 '절반 가중'으로 항상 되돌림
     // (기존 단순합은 예상지표가 캡을 포화시키면 반대지표 효과가 캡에 가려져 사라짐 → 반대지표를 캡 이후 별도 차감해 항상 체감되게).
-    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift];
+    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift];
     const _rawSum = _drifts.reduce((a, b) => a + b, 0);
     const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
     let _agSum = 0, _opSum = 0;
@@ -1708,5 +1759,5 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
-  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps };
+  return { version, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps };
 });
