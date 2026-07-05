@@ -1340,6 +1340,29 @@
           </div>
         </div>
         <div class="fc-prow">
+          <div class="fc-panel" id="fcCciPanel" style="display:none">
+            <div class="fc-phead">
+              <span class="fc-t"><b>CCI</b> · ±100 · 과열/과매도</span>
+              <span class="fc-meta" id="fcCciMeta">–</span>
+            </div>
+            <div class="fc-pbody"><canvas id="fcCci" class="fc-cv"></canvas></div>
+          </div>
+          <div class="fc-panel" id="fcWilliamsPanel" style="display:none">
+            <div class="fc-phead">
+              <span class="fc-t"><b>Williams %R</b> · −20/−80</span>
+              <span class="fc-meta" id="fcWilliamsMeta">–</span>
+            </div>
+            <div class="fc-pbody"><canvas id="fcWilliams" class="fc-cv"></canvas></div>
+          </div>
+          <div class="fc-panel" id="fcMfiPanel" style="display:none">
+            <div class="fc-phead">
+              <span class="fc-t"><b>MFI</b> · 0~100 · 20/80 · 자금흐름</span>
+              <span class="fc-meta" id="fcMfiMeta">–</span>
+            </div>
+            <div class="fc-pbody"><canvas id="fcMfi" class="fc-cv"></canvas></div>
+          </div>
+        </div>
+        <div class="fc-prow">
           <div class="fc-panel" id="fcNodesPanel">
             <div class="fc-phead">
               <span class="fc-t"><b>지표 방향·강도</b> · 상승▶ 하락◀ · 강도순</span>
@@ -2553,7 +2576,7 @@
     } catch (e) { return 0; }
   }
   // 범례 지표 포커스 시 가운데 패널의 관련 항목/값을 깜빡여 시선 유도
-  const _SUBPANEL = { rsi: "fcRsiPanel", volume: "fcVolPanel", macd: "fcMacdPanel" };
+  const _SUBPANEL = { rsi: "fcRsiPanel", volume: "fcVolPanel", macd: "fcMacdPanel", cci: "fcCciPanel", williams: "fcWilliamsPanel", mfi: "fcMfiPanel" };
   function _flashPanelFor(bt) {
     if (!bt) return;
     const flash = el => { el.classList.remove("wblink"); void el.offsetWidth; el.classList.add("wblink"); setTimeout(() => el.classList.remove("wblink"), 2500); };
@@ -3747,6 +3770,77 @@
       rsi.divergence.pricePts.forEach(p => { const i = p.idx; if (i < 0 || i >= s.length) return; const x = xOf(i), y = yOf(s[i]); c.fillStyle = col; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); });
     }
     { const meta = document.getElementById("fcRsiMeta"); if (meta) { const z = rsi.zone === "overbought" ? ["과열 · 되돌림 주의", "dn"] : rsi.zone === "oversold" ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "RSI " + Math.round(rsi.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>"; } } _osReveal(c, cw, ch, reveal);
+  }
+
+  /* ── fcDrawMfi: MFI 서브패널 (0–100, 20/80 밴드) — RSI와 동형(자금흐름) ── */
+  function fcDrawMfi(mfi, reveal) {
+    const cv = document.getElementById("fcMfi"); if (!cv) return;
+    const ch = cv.clientHeight || 120, c = fcFit(cv, ch), cw = cv.clientWidth || 400;
+    c.clearRect(0, 0, cw, ch);
+    const s = (mfi && mfi.series) || [];
+    if (s.length < 2) { c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center"; c.fillText("MFI 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return; }
+    const padL = 6, padR = 28, padV = 8, plotW = cw - padL - padR, plotH = ch - 2 * padV;
+    const yOf = v => padV + (1 - v / 100) * plotH, xOf = i => padL + (i / (s.length - 1)) * plotW;
+    c.fillStyle = "rgba(224,106,106,.06)"; c.fillRect(padL, yOf(100), plotW, yOf(80) - yOf(100));
+    c.fillStyle = "rgba(70,194,142,.06)"; c.fillRect(padL, yOf(20), plotW, yOf(0) - yOf(20));
+    c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
+    [20, 50, 80].forEach(lv => { const y = yOf(lv); c.beginPath(); c.moveTo(padL, y); c.lineTo(padL + plotW, y); c.stroke(); c.fillStyle = "#8a92b2"; c.font = "10px ui-monospace,monospace"; c.fillText(lv, padL + plotW + 3, y + 3); });
+    c.setLineDash([]);
+    const grd = c.createLinearGradient(0, padV, 0, padV + plotH);
+    grd.addColorStop(0, "rgba(200,145,47,.30)"); grd.addColorStop(.6, "rgba(200,145,47,.08)"); grd.addColorStop(1, "rgba(200,145,47,0)");
+    c.fillStyle = grd; c.beginPath();
+    s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); });
+    c.lineTo(xOf(s.length - 1), padV + plotH); c.lineTo(xOf(0), padV + plotH); c.closePath(); c.fill();
+    c.strokeStyle = "#c8912f"; c.lineWidth = 1.05; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(200,145,47,.4)"; c.shadowBlur = 3.5; c.beginPath();
+    s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
+    c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(xOf(s.length - 1), yOf(mfi.last), 2.4, 0, 7); c.fill();
+    { const meta = document.getElementById("fcMfiMeta"); if (meta) { const z = mfi.last >= 80 ? ["과열 · 되돌림 주의", "dn"] : mfi.last <= 20 ? ["과매도 · 반등 기대", "up"] : mfi.last >= 50 ? ["자금 유입", "up"] : ["자금 이탈", "dn"]; meta.innerHTML = "MFI " + Math.round(mfi.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>"; } } _osReveal(c, cw, ch, reveal);
+  }
+
+  /* ── fcDrawWilliams: Williams %R 서브패널 (−100..0, −20/−80 밴드) ── */
+  function fcDrawWilliams(w, reveal) {
+    const cv = document.getElementById("fcWilliams"); if (!cv) return;
+    const ch = cv.clientHeight || 120, c = fcFit(cv, ch), cw = cv.clientWidth || 400;
+    c.clearRect(0, 0, cw, ch);
+    const s = (w && w.series) || [];
+    if (s.length < 2) { c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center"; c.fillText("Williams %R 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return; }
+    const padL = 6, padR = 30, padV = 8, plotW = cw - padL - padR, plotH = ch - 2 * padV;
+    const yOf = v => padV + (-v / 100) * plotH, xOf = i => padL + (i / (s.length - 1)) * plotW;   // v: 0(위)~−100(아래)
+    c.fillStyle = "rgba(224,106,106,.06)"; c.fillRect(padL, yOf(0), plotW, yOf(-20) - yOf(0));      // 과매수(상단)
+    c.fillStyle = "rgba(70,194,142,.06)"; c.fillRect(padL, yOf(-80), plotW, yOf(-100) - yOf(-80));   // 과매도(하단)
+    c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
+    [-20, -50, -80].forEach(lv => { const y = yOf(lv); c.beginPath(); c.moveTo(padL, y); c.lineTo(padL + plotW, y); c.stroke(); c.fillStyle = "#8a92b2"; c.font = "10px ui-monospace,monospace"; c.fillText(lv, padL + plotW + 3, y + 3); });
+    c.setLineDash([]);
+    const grd = c.createLinearGradient(0, padV, 0, padV + plotH);
+    grd.addColorStop(0, "rgba(181,111,214,.28)"); grd.addColorStop(.7, "rgba(181,111,214,.06)"); grd.addColorStop(1, "rgba(181,111,214,0)");
+    c.fillStyle = grd; c.beginPath();
+    s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); });
+    c.lineTo(xOf(s.length - 1), padV + plotH); c.lineTo(xOf(0), padV + plotH); c.closePath(); c.fill();
+    c.strokeStyle = "#b56fd6"; c.lineWidth = 1.05; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(181,111,214,.4)"; c.shadowBlur = 3.5; c.beginPath();
+    s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
+    c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(xOf(s.length - 1), yOf(w.last), 2.4, 0, 7); c.fill();
+    { const meta = document.getElementById("fcWilliamsMeta"); if (meta) { const z = w.last >= -20 ? ["과매수 · 되돌림 주의", "dn"] : w.last <= -80 ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "%R " + Math.round(w.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>"; } } _osReveal(c, cw, ch, reveal);
+  }
+
+  /* ── fcDrawCci: CCI 서브패널 (0 중심 대칭, ±100 밴드) ── */
+  function fcDrawCci(cci, reveal) {
+    const cv = document.getElementById("fcCci"); if (!cv) return;
+    const ch = cv.clientHeight || 120, c = fcFit(cv, ch), cw = cv.clientWidth || 400;
+    c.clearRect(0, 0, cw, ch);
+    const s = (cci && cci.series) || [];
+    if (s.length < 2) { c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center"; c.fillText("CCI 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return; }
+    const padL = 6, padR = 32, padV = 8, plotW = cw - padL - padR, plotH = ch - 2 * padV;
+    let mx = 120; for (let i = 0; i < s.length; i++) mx = Math.max(mx, Math.abs(s[i])); mx *= 1.1;
+    const yOf = v => padV + (1 - (v + mx) / (2 * mx)) * plotH, xOf = i => padL + (i / (s.length - 1)) * plotW;
+    c.fillStyle = "rgba(224,106,106,.06)"; c.fillRect(padL, yOf(mx), plotW, yOf(100) - yOf(mx));       // 과열대(+100~상단)
+    c.fillStyle = "rgba(70,194,142,.06)"; c.fillRect(padL, yOf(-100), plotW, yOf(-mx) - yOf(-100));    // 과매도대(−100~하단)
+    c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
+    [100, 0, -100].forEach(lv => { const y = yOf(lv); c.beginPath(); c.moveTo(padL, y); c.lineTo(padL + plotW, y); c.stroke(); c.fillStyle = "#8a92b2"; c.font = "10px ui-monospace,monospace"; c.fillText(lv, padL + plotW + 3, y + 3); });
+    c.setLineDash([]);
+    c.strokeStyle = "#e6785a"; c.lineWidth = 1.15; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(230,120,90,.4)"; c.shadowBlur = 3.5; c.beginPath();
+    s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
+    c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(xOf(s.length - 1), yOf(cci.last), 2.4, 0, 7); c.fill();
+    { const meta = document.getElementById("fcCciMeta"); if (meta) { const z = cci.last >= 100 ? ["과열 · 되돌림 주의", "dn"] : cci.last <= -100 ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "CCI " + Math.round(cci.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>"; } } _osReveal(c, cw, ch, reveal);
   }
 
   /* ── fcDrawMacd: MACD 서브패널 (히스토그램 + MACD/시그널 라인 + 0선) ── */
@@ -6185,6 +6279,12 @@
     { const _mn = boardState.nodes.find(n => n.blockType === "macd"); if (_mn) fcDrawMacd(ForgeCore.analyzeMACD((data && data.price) || [], { fast: (_mn.params && _mn.params.fast) || 12, slow: (_mn.params && _mn.params.slow) || 26, signal: (_mn.params && _mn.params.signal) || 9 })); }
     toggleAdxPanel();
     { const _an = boardState.nodes.find(n => n.blockType === "adx"); if (_an) fcDrawAdx(ForgeCore.analyzeADX((data && data.price) || [], { period: (_an.params && _an.params.period) || 14 })); }
+    toggleCciPanel();
+    { const _cn = boardState.nodes.find(n => n.blockType === "cci"); if (_cn) fcDrawCci(ForgeCore.analyzeCCI((data && data.price) || [], { period: (_cn.params && _cn.params.period) || 20 })); }
+    toggleWilliamsPanel();
+    { const _wn = boardState.nodes.find(n => n.blockType === "williams"); if (_wn) fcDrawWilliams(ForgeCore.analyzeWilliams(data || { price: [] }, { period: (_wn.params && _wn.params.period) || 14 })); }
+    toggleMfiPanel();
+    { const _fn = boardState.nodes.find(n => n.blockType === "mfi"); if (_fn) { const mvol = (_vn && Array.isArray(_vn.series) && _vn.series.length >= 2) ? _vn.series : ForgeCore.synthVolume((data && data.price) || []); fcDrawMfi(ForgeCore.analyzeMFI({ candle: (data && data.candle) || [], price: (data && data.price) || [], volume: mvol }, { period: (_fn.params && _fn.params.period) || 14 })); } }
   }
   /* ── 예측 시점별 표(3·6·12·24 등) ── */
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
@@ -6809,6 +6909,9 @@
   }
   function toggleMacdPanel() { const p = document.getElementById("fcMacdPanel"); if (p) p.style.display = boardState.nodes.some(n => n.blockType === "macd") ? "" : "none"; }
   function toggleAdxPanel() { const p = document.getElementById("fcAdxPanel"); if (p) p.style.display = boardState.nodes.some(n => n.blockType === "adx") ? "" : "none"; }
+  function toggleCciPanel() { const p = document.getElementById("fcCciPanel"); if (p) p.style.display = boardState.nodes.some(n => n.blockType === "cci") ? "" : "none"; }
+  function toggleWilliamsPanel() { const p = document.getElementById("fcWilliamsPanel"); if (p) p.style.display = boardState.nodes.some(n => n.blockType === "williams") ? "" : "none"; }
+  function toggleMfiPanel() { const p = document.getElementById("fcMfiPanel"); if (p) p.style.display = boardState.nodes.some(n => n.blockType === "mfi") ? "" : "none"; }
 
   /* resize: re-render with stored last result/data */
   function redrawCharts() {
@@ -7968,6 +8071,9 @@
     try {
       if ((n = boardState.nodes.find(x => x.blockType === "rsi"))) fcDrawRsi(_an("RSI", price, { period: (n.params && n.params.period) || 14 }), r);
       if ((n = boardState.nodes.find(x => x.blockType === "volume"))) fcDrawVol(_anVolume(price), r);
+      if ((n = boardState.nodes.find(x => x.blockType === "cci"))) fcDrawCci(_an("CCI", price, { period: (n.params && n.params.period) || 20 }), r);
+      if ((n = boardState.nodes.find(x => x.blockType === "williams"))) fcDrawWilliams(_anWilliams(price, { period: (n.params && n.params.period) || 14 }), r);
+      if ((n = boardState.nodes.find(x => x.blockType === "mfi"))) fcDrawMfi(_anMfi(price, { period: (n.params && n.params.period) || 14 }), r);
     } catch (e) {}
   }
   // 타임프레임 매트릭스: 각 게이지 셀의 값·막대를 진행 u(0→1)에 맞춰 0→최종으로 채움(순차 공개 아님). u=null=최종
