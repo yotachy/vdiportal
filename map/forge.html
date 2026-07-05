@@ -112,6 +112,20 @@
   .ind-rail .ir-resetw{flex:0 0 auto;width:32px;padding:0;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-md);background:transparent;cursor:pointer;display:grid;place-items:center;transition:color .12s,border-color .12s}
   .ind-rail .ir-resetw:hover{border-color:var(--gold);color:var(--gold)}
   .ind-rail .ir-resetw svg{width:14px;height:14px}
+  .ind-rail .ir-preset{flex:0 0 auto;padding:0 8px;border:1px solid var(--line);border-radius:var(--r-md);background:transparent;color:var(--eth);font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;transition:color .12s,border-color .12s}
+  .ind-rail .ir-preset:hover{border-color:var(--gold);color:var(--gold)}
+  .ind-rail .ir-pcaret{font-size:9px;opacity:.8}
+  .ind-rail .ir-presetpop{display:none;padding:10px;border-bottom:1px solid var(--line);background:var(--surface)}
+  .ind-rail .ir-presetpop.open{display:block}
+  .ind-rail .rpset-head{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:9px}
+  .ind-rail .ir-presetpop .pset-list{display:flex;flex-wrap:wrap;gap:6px}
+  .ind-rail .ir-presetpop .pset-btn{padding:5px 9px;border:1px solid var(--line);border-radius:99px;background:transparent;color:var(--eth);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:border-color .12s,color .12s,background .12s}
+  .ind-rail .ir-presetpop .pset-btn:hover{border-color:var(--gold);color:var(--gold)}
+  .ind-rail .ir-presetpop .pset-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(232,180,99,.13)}
+  .ind-rail .ir-presetpop .pset-wrap{display:inline-flex}
+  .ind-rail .ir-presetpop .pset-wrap .pset-btn{border-radius:99px 0 0 99px}
+  .ind-rail .ir-presetpop .pset-del{border:1px solid var(--line);border-left:0;border-radius:0 99px 99px 0;background:transparent;color:var(--faint);cursor:pointer;padding:0 7px;font-size:11px}
+  .ind-rail .ir-presetpop .pset-del:hover{color:var(--bear)}
   .ind-rail .ir-allbtn{width:100%;padding:7px;border:1px solid var(--line);border-radius:var(--r-md);background:transparent;color:var(--eth);font-size:11px;font-weight:700;cursor:pointer}
   .ind-rail .ir-allbtn:hover{border-color:var(--gold);color:var(--gold)}
   @media (max-width:860px){ .ind-rail{display:none} }
@@ -2032,7 +2046,7 @@
     const el = document.getElementById("indRail"); if (!el) return;
     const types = _indTypes();
     el.innerHTML = `<div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시 · 바=가중치</span></div>` +
-      `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "전체 해제" : "전체 포함"}</button><button class="ir-resetw" onclick="_resetIndWeights()" title="가중치 전체를 기본값 100%로 초기화" aria-label="가중치 초기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button></div>` +
+      `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "전체 해제" : "전체 포함"}</button><button class="ir-preset" onclick="_toggleRailPreset(event)" title="분석 프리셋 조합 적용">프리셋<span class="ir-pcaret">\u25be</span></button><button class="ir-resetw" onclick="_resetIndWeights()" title="가중치 전체를 기본값 100%로 초기화" aria-label="가중치 초기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button></div><div class="ir-presetpop" id="railPresetPop"></div>` +
       types.map(t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3));
         return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; }).join("");
     if (typeof renderPresets === "function") renderPresets();   // 표시조합 변경 → 프리셋 활성 갱신
@@ -2129,13 +2143,15 @@
     return true;
   }
   function renderPresets() {
-    const el = document.getElementById("presetSec"); if (!el) return;
-    el.innerHTML = `<div class="side-h"><span>분석 프리셋</span><button class="side-btn" onclick="_saveCurrentPreset()" title="현재 표시 조합 저장">＋ 저장</button></div>` +
+    const el = document.getElementById("railPresetPop"); if (!el) return;
+    el.innerHTML = `<div class="rpset-head"><span>분석 프리셋 — 조합 빠른 적용</span><button class="side-btn" onclick="_saveCurrentPreset()" title="현재 표시 조합 저장">＋ 저장</button></div>` +
       `<div class="pset-list">` +
       _PRESET_DEF.map((p, i) => `<button class="pset-btn${_presetMatch(p.t) ? " on" : ""}" onclick="_applyPresetIdx('d',${i})">${esc(p.name)}</button>`).join("") +
       _userPresets.map((p, i) => `<span class="pset-wrap"><button class="pset-btn${_presetMatch(p.t) ? " on" : ""}" onclick="_applyPresetIdx('u',${i})">${esc(p.name)}</button><button class="pset-del" onclick="_delPreset(${i})" title="삭제">✕</button></span>`).join("") +
       `</div>`;
   }
+  function _toggleRailPreset(e) { if (e) e.stopPropagation(); const p = document.getElementById("railPresetPop"); if (p) p.classList.toggle("open"); }
+  document.addEventListener("click", function (e) { const p = document.getElementById("railPresetPop"); if (p && p.classList.contains("open") && !e.target.closest("#railPresetPop") && !e.target.closest(".ir-preset")) p.classList.remove("open"); });
   function _ensureGroups() { if (!Array.isArray(META.groups)) META.groups = []; if (!META.docGroups || typeof META.docGroups !== "object") META.docGroups = {}; }
   function _grpOf(docId) { _ensureGroups(); const g = META.docGroups[docId]; return (g && META.groups.some(x => x.id === g)) ? g : null; }
   function _saveGroups() { _ensureGroups(); if (SERVER_OK) saveMeta(); renderSidebar(); }
@@ -2172,7 +2188,6 @@
     el.innerHTML =
       `<div class="side-sec">${sec}
          <select class="doc-select" aria-label="종목 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === activeId ? " selected" : ""}>${esc(_docTicker(d) || d.title || "새 종목")}</option>`).join("")}</select></div>
-       <div class="side-sec" id="presetSec"></div>
        <div class="side-sec" id="libSec"></div>`;
     _initDocDrag();   // 종목 드래그 정렬
     if (typeof renderIndRail === "function") { renderIndRail(); _initIndRail(); }
