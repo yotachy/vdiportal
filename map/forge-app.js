@@ -1,3 +1,19 @@
+  /* 오프스크린 서브패널 캔버스 지연 렌더 — 보일 때(또는 시뮬 중) 그림. Observer 미지원/실패 시 즉시(폴백) */
+  let _lazyIO = null; const _lazyPending = new Map();   // canvasEl → drawThunk
+  function _lazyDraw(cvId, thunk) {
+    if (_playing || typeof IntersectionObserver !== "function") { thunk(); return; }   // 시뮬 중·미지원: 즉시
+    const cv = document.getElementById(cvId);
+    if (!cv) { thunk(); return; }
+    const rect = cv.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) { thunk(); return; }   // 레이아웃 전(0크기): 즉시
+    const vis = rect.bottom > 0 && rect.top < (window.innerHeight || 9999);
+    if (vis) { thunk(); return; }                    // 보이면 즉시
+    _lazyPending.set(cv, thunk);                      // 안 보이면 진입 시 최초 1회
+    if (!_lazyIO) _lazyIO = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { const t = _lazyPending.get(e.target); if (t) { t(); _lazyPending.delete(e.target); } _lazyIO.unobserve(e.target); } });
+    }, { rootMargin: "150px" });
+    _lazyIO.observe(cv);
+  }
   function renderChart(result, data) {
     if (!result || !data) return;
     resetHeroView();
@@ -58,20 +74,20 @@
     renderNarrative(result);
     togglePhasefoldPanels();
     toggleRsiPanel();
-    { const _rn = boardState.nodes.find(n => n.blockType === "rsi"); if (_rn) fcDrawRsi(ForgeCore.analyzeRSI((data && data.price) || [], { period: (_rn.params && _rn.params.period) || 14 })); }
+    { const _rn = boardState.nodes.find(n => n.blockType === "rsi"); if (_rn) _lazyDraw("fcRsi", () => fcDrawRsi(ForgeCore.analyzeRSI((data && data.price) || [], { period: (_rn.params && _rn.params.period) || 14 }))); }
     toggleVolPanel();
     const _vn = boardState.nodes.find(n => n.kind === "block" && n.blockType === "volume");
-    if (_vn) { const vser = (Array.isArray(_vn.series) && _vn.series.length >= 2) ? _vn.series : ForgeCore.synthVolume((data && data.price) || []); fcDrawVol(ForgeCore.analyzeVolume((data && data.price) || [], vser)); }
+    if (_vn) { const vser = (Array.isArray(_vn.series) && _vn.series.length >= 2) ? _vn.series : ForgeCore.synthVolume((data && data.price) || []); _lazyDraw("fcVol", () => fcDrawVol(ForgeCore.analyzeVolume((data && data.price) || [], vser))); }
     toggleMacdPanel();
-    { const _mn = boardState.nodes.find(n => n.blockType === "macd"); if (_mn) fcDrawMacd(ForgeCore.analyzeMACD((data && data.price) || [], { fast: (_mn.params && _mn.params.fast) || 12, slow: (_mn.params && _mn.params.slow) || 26, signal: (_mn.params && _mn.params.signal) || 9 })); }
+    { const _mn = boardState.nodes.find(n => n.blockType === "macd"); if (_mn) _lazyDraw("fcMacd", () => fcDrawMacd(ForgeCore.analyzeMACD((data && data.price) || [], { fast: (_mn.params && _mn.params.fast) || 12, slow: (_mn.params && _mn.params.slow) || 26, signal: (_mn.params && _mn.params.signal) || 9 }))); }
     toggleAdxPanel();
-    { const _an = boardState.nodes.find(n => n.blockType === "adx"); if (_an) fcDrawAdx(ForgeCore.analyzeADX((data && data.price) || [], { period: (_an.params && _an.params.period) || 14 })); }
+    { const _an = boardState.nodes.find(n => n.blockType === "adx"); if (_an) _lazyDraw("fcAdx", () => fcDrawAdx(ForgeCore.analyzeADX((data && data.price) || [], { period: (_an.params && _an.params.period) || 14 }))); }
     toggleCciPanel();
-    { const _cn = boardState.nodes.find(n => n.blockType === "cci"); if (_cn) fcDrawCci(ForgeCore.analyzeCCI((data && data.price) || [], { period: (_cn.params && _cn.params.period) || 20 })); }
+    { const _cn = boardState.nodes.find(n => n.blockType === "cci"); if (_cn) _lazyDraw("fcCci", () => fcDrawCci(ForgeCore.analyzeCCI((data && data.price) || [], { period: (_cn.params && _cn.params.period) || 20 }))); }
     toggleWilliamsPanel();
-    { const _wn = boardState.nodes.find(n => n.blockType === "williams"); if (_wn) fcDrawWilliams(ForgeCore.analyzeWilliams(data || { price: [] }, { period: (_wn.params && _wn.params.period) || 14 })); }
+    { const _wn = boardState.nodes.find(n => n.blockType === "williams"); if (_wn) _lazyDraw("fcWilliams", () => fcDrawWilliams(ForgeCore.analyzeWilliams(data || { price: [] }, { period: (_wn.params && _wn.params.period) || 14 }))); }
     toggleMfiPanel();
-    { const _fn = boardState.nodes.find(n => n.blockType === "mfi"); if (_fn) { const mvol = (_vn && Array.isArray(_vn.series) && _vn.series.length >= 2) ? _vn.series : ForgeCore.synthVolume((data && data.price) || []); fcDrawMfi(ForgeCore.analyzeMFI({ candle: (data && data.candle) || [], price: (data && data.price) || [], volume: mvol }, { period: (_fn.params && _fn.params.period) || 14 })); } }
+    { const _fn = boardState.nodes.find(n => n.blockType === "mfi"); if (_fn) { const mvol = (_vn && Array.isArray(_vn.series) && _vn.series.length >= 2) ? _vn.series : ForgeCore.synthVolume((data && data.price) || []); _lazyDraw("fcMfi", () => fcDrawMfi(ForgeCore.analyzeMFI({ candle: (data && data.candle) || [], price: (data && data.price) || [], volume: mvol }, { period: (_fn.params && _fn.params.period) || 14 }))); } }
   }
   /* ── 예측 시점별 표(3·6·12·24 등) ── */
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
