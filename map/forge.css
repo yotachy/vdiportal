@@ -676,14 +676,14 @@
   .forge-palette .pal-btn.pal-free{color:var(--eth);border-style:dashed}
 
   /* ── 노드 편집기 (우측 패널) ── */
-  /* 도구 편집기 = 서랍(drawer) — 일반: 오른쪽에서 · 전체화면: 왼쪽에서 슬라이드. fixed 오버레이, 2번 패널 미사용 */
-  .node-editor{position:fixed;top:0;right:0;left:auto;bottom:0;width:min(330px,88vw);z-index:130;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:11px;padding:13px 15px;
-    background:var(--panel);border-left:1px solid var(--line);border-right:0;box-shadow:-12px 0 34px var(--scrim);transform:translateX(105%);transition:transform .2s cubic-bezier(.4,0,.2,1);
-    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-  .node-editor.open{transform:translateX(0)}
-  /* 전체화면: 지표레일이 오른쪽이라 서랍은 왼쪽에서(레일 안 가림) */
-  body.chart-fs .node-editor{right:auto;left:0;border-left:0;border-right:1px solid var(--line);box-shadow:12px 0 34px var(--scrim);transform:translateX(-105%)}
-  body.chart-fs .node-editor.open{transform:translateX(0)}
+  /* 도구 편집기 = 서랍(drawer) — 지표레일에 붙어 차트 쪽으로 슬라이드(위치는 renderParams가 레일 모서리에 지정). 닫으면 visibility로 완전 숨김(빈 판 잔상 방지) */
+  .node-editor{position:fixed;top:0;bottom:0;width:min(330px,88vw);z-index:130;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:11px;padding:13px 15px;
+    background:var(--panel);border:1px solid var(--line);border-radius:0;box-shadow:0 0 40px var(--scrim);
+    visibility:hidden;transition:transform .2s cubic-bezier(.4,0,.2,1);   /* visibility는 즉시 토글 → 닫히면 확실히 사라짐(빈 판 잔상 없음) */
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+    left:0;right:auto;transform:translateX(-105%)}                         /* 일반: 레일 오른쪽에 붙어 슬라이드 인 */
+  body.chart-fs .node-editor{left:auto;right:0;transform:translateX(105%)}  /* 전체화면: 레일 왼쪽에 붙어 슬라이드 인 */
+  .node-editor.open{visibility:visible;transform:translateX(0)}
   /* 차트로 돌아가기 = 편집기 상단 고정 바(항상 보이게·눈에 띄게) */
   .ne-back{position:sticky;top:-13px;z-index:6;margin:-13px -15px 6px;align-self:stretch;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(22,29,38,.99),rgba(22,29,38,.92));border:0;border-bottom:1px solid var(--gold-dim);color:var(--gold);border-radius:0;font-size:13px;font-weight:800;padding:12px 15px;cursor:pointer;font-family:inherit;backdrop-filter:blur(5px);letter-spacing:-.01em}
   .ne-back:hover{background:rgba(232,180,99,.16)}

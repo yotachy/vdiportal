@@ -570,7 +570,14 @@
       panel.innerHTML = "";
       return;
     }
-    panel.classList.add("open");        // 서랍 열기(방향은 CSS: 전체화면=왼쪽 · 일반=오른쪽)
+    // 서랍을 지표레일 모서리에 붙여 차트 쪽으로 열기(근접성). 레일 숨김(좁은 폭)이면 화면 가장자리 폴백(CSS 기본)
+    { const _rail = document.querySelector(".ind-rail"); const _rr = _rail && _rail.getBoundingClientRect();
+      if (_rr && _rr.width > 1) {
+        if (document.body.classList.contains("chart-fs")) { panel.style.right = Math.max(0, Math.round(window.innerWidth - _rr.left)) + "px"; panel.style.left = "auto"; }
+        else { panel.style.left = Math.round(_rr.right) + "px"; panel.style.right = "auto"; }
+      } else { panel.style.left = ""; panel.style.right = ""; }   // 폴백: CSS 기본 가장자리
+    }
+    panel.classList.add("open");        // 서랍 열기(레일에 붙어 차트 쪽으로 슬라이드)
     const rows = [];
     if (n.blockType === "ma") {
       rows.push(numRow("len", "이동평균 길이", (n.params && n.params.len) ?? 20));
