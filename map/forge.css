@@ -2,7 +2,7 @@
   @font-face{font-family:'Pretendard';font-weight:45 920;font-style:normal;font-display:swap;src:url('fonts/PretendardVariable.woff2') format('woff2')}
   :root{
     --gold:#e8b463;--bg:#0b0f14;--panel:#121822;--ink:#e7ecf5;--eth:#8a92b2;
-    --bull:#46c28e;--bear:#e06a6a;--line:#222b39;
+    --bull:#46c28e;--bear:#e06a6a;--line:#1e2633;
     /* board engine tokens (ported from map.html) */
     --surface:#141a22;--raised:#1b232d;--raised2:#27313e;
     --edge:#566472;--muted:#8b98a6;--faint:#5c6875;--gold-dim:#5e4d2c;
@@ -385,7 +385,7 @@
   .dash-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;letter-spacing:-.01em;table-layout:fixed;font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums}
   .dash-table th,.dash-table td{padding:4px 10px}
   .dash-table td:not(:first-child),.dash-table th:not(:first-child){border-left:1px solid rgba(255,255,255,.05)}
-  .dash-table th{font-size:11.5px;font-weight:800;text-align:right;padding-bottom:5px;border-bottom:2px solid rgba(255,255,255,.09)}
+  .dash-table th{font-size:11.5px;font-weight:800;text-align:right;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.07)}
   .dash-table th .thdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:middle}
   .dash-table th:first-child{text-align:left;color:#8892a8;font-size:11px;font-weight:800;width:92px}
   .dash-table td:first-child{color:var(--ink);font-weight:700;white-space:nowrap;font-size:12px}
@@ -855,7 +855,7 @@
   .forge-side .pal-side .pal-btn.pal-free{color:var(--faint)}
   .forge-side .pal-side .pal-btn.pal-free::before{box-shadow:inset 0 0 0 1.5px rgba(138,146,178,.22)}
   /* 티커 패널(캔버스 상단 고정) */
-  .tk-panel{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(90deg,rgba(232,180,99,.1),var(--surface) 62%);border-bottom:2px solid rgba(232,180,99,.34);flex:0 0 auto}
+  .tk-panel{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(90deg,rgba(232,180,99,.1),var(--surface) 62%);border-bottom:1px solid rgba(232,180,99,.24);flex:0 0 auto}
   .tk-panel .tk-lbl{font-size:11.5px;font-weight:800;letter-spacing:.06em;color:var(--gold);text-transform:uppercase;flex:0 0 auto;display:flex;align-items:center;gap:5px}
   .tk-panel .tk-lbl::before{content:"◆";font-size:9px;opacity:.8}
   .tk-panel .tk-sym{flex:1;min-width:0;background:var(--bg);border:1.5px solid rgba(232,180,99,.28);border-radius:var(--r-lg);padding:8px 11px;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);letter-spacing:.02em}
