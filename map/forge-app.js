@@ -1329,6 +1329,12 @@
             <span class="fcv-bd-leg"><i style="background:#e06a6a"></i>하락 <b>${be}</b></span>
             <span class="fcv-bd-bar" title="상승 ${bl} · 중립 ${ne} · 하락 ${be} 지표"><b style="width:${bl / tt * 100}%;background:#46c28e"></b><b style="width:${ne / tt * 100}%;background:#e8b463"></b><b style="width:${be / tt * 100}%;background:#e06a6a"></b></span>
           </div>`;
+          const dirCol = regime === "bull" ? "#46c28e" : regime === "bear" ? "#e06a6a" : "var(--eth)";
+          const cf = verdict.confluence;
+          const cfDonut = (cf && cf.total) ? `<div class="fcv-viz-item">${_donutSVG([{ v: cf.agree, color: dirCol }, { v: Math.max(0, cf.total - cf.agree), color: "var(--faint)" }], { centerText: cf.score + "%" })}<span class="fcv-viz-lab">컨플루언스<br><b>${cf.agree}/${cf.total}</b></span></div>` : "";
+          const bnbDonut = `<div class="fcv-viz-item">${_donutSVG([{ v: bl, color: "#46c28e" }, { v: ne, color: "#e8b463" }, { v: be, color: "#e06a6a" }], { centerText: (regime === "bull" ? "▲" : regime === "bear" ? "▼" : "▸"), centerColor: dirCol, centerSize: 13 })}<span class="fcv-viz-lab">지표 방향<br><b style="color:#46c28e">${bl}</b>·<b style="color:var(--gold)">${ne}</b>·<b style="color:#e06a6a">${be}</b></span></div>`;
+          const sigGauge = (_scoreN != null) ? `<div class="fcv-viz-item">${_gaugeSVG(_scoreN, -100, 100, { color: dirCol })}<span class="fcv-viz-lab">시그널<br><b style="color:${dirCol}">${score}</b></span></div>` : "";
+          _bd += `<div class="fcv-viz">${cfDonut}${bnbDonut}${sigGauge}</div>`;
         }
       } catch (e) {}
       bar.innerHTML =
