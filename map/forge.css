@@ -1268,10 +1268,11 @@
   /* ── 판정 도넛 ⓘ · 달성확률 중앙정렬 · 전체화면 차트 꽉참 ── */
   .fcv-info{font-size:9px;color:var(--eth);vertical-align:middle;cursor:help}
   .hz-table td .os-ringcell{display:flex;width:100%;justify-content:center;gap:0}   /* 달성확률 도넛 가운데 정렬 */
-  /* 전체화면: 히어로가 화면을 꽉 채우고, 지표신호 등은 아래로 스크롤 */
+  /* 전체화면: 히어로 패널이 화면 높이를 꽉 채우고(폭은 flex:1로 유지), 지표신호 등은 아래로 스크롤 */
   body.chart-fs .chart-pane{overflow-y:auto}
-  body.chart-fs .fc-panel-hero{flex:0 0 auto!important;min-height:0}
-  body.chart-fs .fc-hero{flex:0 0 auto!important;height:calc(100vh - 50px)!important;min-height:0;aspect-ratio:auto}
+  body.chart-fs .fc-panel-hero{flex:0 0 auto!important;height:100vh!important;min-height:0;display:flex;flex-direction:column}
+  body.chart-fs .fc-panel-hero>.fc-pbody{flex:1!important;min-height:0;display:flex}
+  body.chart-fs .fc-hero{flex:1!important;min-height:0;height:auto!important;aspect-ratio:auto}
   /* 범례 드래그 그립 */
   .fc-leg-grip{pointer-events:auto;cursor:grab;color:var(--faint);font-size:12px;line-height:1;padding:0 3px 0 0;margin-right:1px;user-select:none;touch-action:none;flex:0 0 auto}
   .fc-leg-grip:active{cursor:grabbing;color:var(--eth)}
