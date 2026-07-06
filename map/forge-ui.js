@@ -1,21 +1,46 @@
+  let _railQuery = "";                 // 지표 검색어
+  const _railCollapsed = new Set();    // 접힌 등급(lv 문자열)
+  // 레일 표시용 간결명(전체명은 툴팁) — 이름 잘림 방지
+  const RAIL_SHORT = { adx: "ADX", atr: "ATR", psar: "PSAR", keltner: "켈트너", donchian: "돈치안", pivot: "피벗", williams: "윌리엄스", ao: "AO", roc: "ROC", smc: "스마트머니", volumeprofile: "볼륨프로파일", cycle: "사이클" };
   function renderIndRail() {
     const el = document.getElementById("indRail"); if (!el) return;
     const types = _indTypes();
     // 지표별 파스텔(산만) 대신 Lv(등급)별 색상으로 정돈 — 같은 등급끼리 같은 색(의미: 중요도 그룹)
     const TIER_COL = { 1: "#4f8fe0", 2: "#3aa5b0", 3: "#8a92b2", 4: "#9b7fd4" };
-    const rowHTML = (t, ic) => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3));
-      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${ic || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${NEW_INDICATORS.has(t) ? '<span class="ir-new" title="새로 추가된 지표">new</span>' : ''}${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
+    const rowHTML = (t, ic, lv) => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3)); const nm = RAIL_SHORT[t] || d.label || t;
+      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" data-lv="${lv}" style="--ic:${ic || "#8a92b2"}"><div class="ir-bar" data-irbar title="${esc(d.label || t)} — 좌우 클릭·드래그 = 가중치(0~300%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${NEW_INDICATORS.has(t) ? '<span class="ir-new" title="새로 추가된 지표">new</span>' : ''}${esc(nm)}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
+    const tierHead = (lv, name, ic, cnt) => `<div class="ir-tierhead${_railCollapsed.has(String(lv)) ? " collapsed" : ""}" data-lv="${lv}" style="--tc:${ic}" onclick="_railTierToggle('${lv}')" title="클릭 = 등급 접기/펼치기"><span class="ir-caret" aria-hidden="true"></span><span class="ir-tierlv">${lv === "etc" ? "·" : "Lv" + lv}</span><span class="ir-tiername">${name}</span><span class="ir-tiercount">${cnt}</span></div>`;
     let rows = "", seen = new Set();
     IND_TIERS.forEach(tier => { const grp = tier.types.filter(t => types.includes(t)); if (!grp.length) return;
       const ic = TIER_COL[tier.lv] || "#8a92b2";
-      rows += `<div class="ir-tierhead" style="--tc:${ic}" title="기술적 분석 중요도·사용빈도 등급"><span class="ir-tierlv">Lv${tier.lv}</span><span class="ir-tiername">${tier.name}</span></div>`;
-      grp.forEach(t => { seen.add(t); rows += rowHTML(t, ic); }); });
+      rows += tierHead(tier.lv, tier.name, ic, grp.length);
+      grp.forEach(t => { seen.add(t); rows += rowHTML(t, ic, tier.lv); }); });
     const rest = types.filter(t => !seen.has(t));
-    if (rest.length) { rows += `<div class="ir-tierhead" style="--tc:#8a92b2"><span class="ir-tierlv">·</span><span class="ir-tiername">기타</span></div>`; rest.forEach(t => rows += rowHTML(t, "#8a92b2")); }
-    el.innerHTML = `<div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시 · 바=가중치</span></div>` +
-      `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "개별" : "전체"}</button><button class="ir-preset" onclick="_toggleRailPreset(event)" title="분석 프리셋 — 차트 위 팝업으로 조합 적용">프리셋</button><button class="ir-resetw" onclick="_resetIndWeights()" title="가중치 전체를 기본값 100%로 초기화" aria-label="가중치 초기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button></div>` +
+    if (rest.length) { rows += tierHead("etc", "기타", "#8a92b2", rest.length); rest.forEach(t => rows += rowHTML(t, "#8a92b2", "etc")); }
+    el.innerHTML = `<div class="ir-stick"><div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시 · 바=가중치</span></div>` +
+      `<div class="ir-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="text" placeholder="지표 검색" spellcheck="false" oninput="_railSearchInput(this.value)" value="${esc(_railQuery)}"></div>` +
+      `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "개별" : "전체"}</button><button class="ir-preset" onclick="_toggleRailPreset(event)" title="분석 프리셋 — 차트 위 팝업으로 조합 적용">프리셋</button><button class="ir-resetw" onclick="_resetIndWeights()" title="가중치 전체를 기본값 100%로 초기화" aria-label="가중치 초기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button></div></div>` +
       rows;
+    _railApplyVis();
     if (typeof renderPresets === "function") renderPresets();   // 표시조합 변경 → 프리셋 활성 갱신
+  }
+  function _railSearchInput(v) { _railQuery = v || ""; _railApplyVis(); }
+  function _railTierToggle(lv) { lv = String(lv); if (_railCollapsed.has(lv)) _railCollapsed.delete(lv); else _railCollapsed.add(lv); const h = document.querySelector('.ind-rail .ir-tierhead[data-lv="' + lv + '"]'); if (h) h.classList.toggle("collapsed", _railCollapsed.has(lv)); _railApplyVis(); }
+  function _railApplyVis() {   // 검색·등급접기 반영(재렌더 없이 display 토글)
+    const rail = document.getElementById("indRail"); if (!rail) return;
+    const q = (_railQuery || "").trim().toLowerCase();
+    rail.querySelectorAll(".ir-row").forEach(r => {
+      const t = r.getAttribute("data-irt"), lv = r.getAttribute("data-lv");
+      const d = BLOCK_DEFS.find(b => b.type === t) || {};
+      const hay = ((RAIL_SHORT[t] || "") + " " + (d.label || t) + " " + t).toLowerCase();
+      const matchQ = !q || hay.indexOf(q) >= 0;
+      const collapsed = !q && _railCollapsed.has(lv);   // 검색 중엔 접힘 무시
+      r.style.display = (matchQ && !collapsed) ? "" : "none";
+    });
+    rail.querySelectorAll(".ir-tierhead").forEach(h => {
+      if (q) { let any = false, n = h.nextElementSibling; while (n && n.classList && n.classList.contains("ir-row")) { if (n.style.display !== "none") { any = true; break; } n = n.nextElementSibling; } h.style.display = any ? "" : "none"; }
+      else h.style.display = "";
+    });
   }
   function _railEdit(type) {   // 편집 버튼: 이미 그 지표 편집중이면 분석으로 복귀, 아니면 편집 열기
     const n = boardState.nodes.find(x => x.blockType === type);

@@ -106,6 +106,19 @@
   .ind-rail .ir-tierlv{flex:0 0 auto;font-size:9px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-.02em;color:var(--tc,var(--gold));background:color-mix(in srgb, var(--tc,#8a92b2) 13%, transparent);border:1px solid color-mix(in srgb, var(--tc,#8a92b2) 34%, transparent);border-radius:99px;padding:1px 6px;line-height:1.35}
   .ind-rail .ir-tiername{font-size:9.5px;font-weight:700;letter-spacing:-.01em;color:var(--faint);text-transform:none}
   .ind-rail .ir-tierhead + .ir-row{padding-top:5px}
+  /* ── 검색 + 등급 접기 + 스티키 헤더 ── */
+  .ind-rail .ir-stick{position:sticky;top:0;z-index:3;background:var(--panel)}
+  .ind-rail .ir-stick .ir-head,.ind-rail .ir-stick .ir-top{position:static;top:auto}
+  .ind-rail .ir-search{display:flex;align-items:center;gap:6px;padding:1px 10px 7px}
+  .ind-rail .ir-search svg{width:13px;height:13px;color:var(--faint);flex:0 0 auto}
+  .ind-rail .ir-search input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:5px 8px;color:var(--ink);font-size:11.5px;font-family:inherit;outline:none;letter-spacing:-.01em}
+  .ind-rail .ir-search input:focus{border-color:var(--eth)}
+  .ind-rail .ir-search input::placeholder{color:var(--faint)}
+  .ind-rail .ir-tierhead{cursor:pointer;transition:background .12s;user-select:none}
+  .ind-rail .ir-tierhead:hover{background:var(--hover)}
+  .ind-rail .ir-caret{flex:0 0 auto;width:0;height:0;border-left:4px solid var(--faint);border-top:3px solid transparent;border-bottom:3px solid transparent;transform:rotate(90deg);transition:transform .14s}
+  .ind-rail .ir-tierhead.collapsed .ir-caret{transform:rotate(0deg)}
+  .ind-rail .ir-tiercount{flex:0 0 auto;margin-left:auto;font-size:9px;font-weight:700;font-family:ui-monospace,monospace;color:var(--faint);background:color-mix(in srgb, var(--tc,#8a92b2) 13%, transparent);border-radius:99px;padding:0 5px;line-height:1.5}
   .ind-rail .ir-new{display:inline-block;font-size:6.5px;font-weight:800;line-height:1.35;letter-spacing:.01em;text-transform:uppercase;color:var(--gold);background:rgba(232,180,99,.16);border-radius:2px;padding:0 2px;margin-right:3px;vertical-align:middle;transform:translateY(-.5px)}
   .ind-rail .ir-resetw{flex:0 0 auto;width:32px;padding:0;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-md);background:transparent;cursor:pointer;display:grid;place-items:center;transition:color .12s,border-color .12s}
   .ind-rail .ir-resetw:hover{border-color:var(--gold);color:var(--gold)}
