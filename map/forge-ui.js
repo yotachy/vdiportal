@@ -1,14 +1,17 @@
   function renderIndRail() {
     const el = document.getElementById("indRail"); if (!el) return;
     const types = _indTypes();
-    const rowHTML = t => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3));
-      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${EV_COLORS[t] || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${NEW_INDICATORS.has(t) ? '<span class="ir-new" title="새로 추가된 지표">new</span>' : ''}${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
+    // 지표별 파스텔(산만) 대신 Lv(등급)별 색상으로 정돈 — 같은 등급끼리 같은 색(의미: 중요도 그룹)
+    const TIER_COL = { 1: "#4f8fe0", 2: "#3aa5b0", 3: "#8a92b2", 4: "#9b7fd4" };
+    const rowHTML = (t, ic) => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3));
+      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" style="--ic:${ic || "#8a92b2"}"><div class="ir-bar" data-irbar title="좌우 클릭·드래그 = 가중치(0~300%, 눈금=기본 100%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${NEW_INDICATORS.has(t) ? '<span class="ir-new" title="새로 추가된 지표">new</span>' : ''}${d.label || t}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
     let rows = "", seen = new Set();
     IND_TIERS.forEach(tier => { const grp = tier.types.filter(t => types.includes(t)); if (!grp.length) return;
-      rows += `<div class="ir-tierhead" title="기술적 분석 중요도·사용빈도 등급"><span class="ir-tierlv">Lv${tier.lv}</span><span class="ir-tiername">${tier.name}</span></div>`;
-      grp.forEach(t => { seen.add(t); rows += rowHTML(t); }); });
+      const ic = TIER_COL[tier.lv] || "#8a92b2";
+      rows += `<div class="ir-tierhead" style="--tc:${ic}" title="기술적 분석 중요도·사용빈도 등급"><span class="ir-tierlv">Lv${tier.lv}</span><span class="ir-tiername">${tier.name}</span></div>`;
+      grp.forEach(t => { seen.add(t); rows += rowHTML(t, ic); }); });
     const rest = types.filter(t => !seen.has(t));
-    if (rest.length) { rows += `<div class="ir-tierhead"><span class="ir-tierlv">·</span><span class="ir-tiername">기타</span></div>`; rest.forEach(t => rows += rowHTML(t)); }
+    if (rest.length) { rows += `<div class="ir-tierhead" style="--tc:#8a92b2"><span class="ir-tierlv">·</span><span class="ir-tiername">기타</span></div>`; rest.forEach(t => rows += rowHTML(t, "#8a92b2")); }
     el.innerHTML = `<div class="ir-head"><span>지표 조합</span><span class="ir-sub">체크=표시 · 바=가중치</span></div>` +
       `<div class="ir-top"><button class="ir-allbtn" onclick="_railAll()">${_allVisible() ? "개별" : "전체"}</button><button class="ir-preset" onclick="_toggleRailPreset(event)" title="분석 프리셋 — 차트 위 팝업으로 조합 적용">프리셋</button><button class="ir-resetw" onclick="_resetIndWeights()" title="가중치 전체를 기본값 100%로 초기화" aria-label="가중치 초기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button></div>` +
       rows;

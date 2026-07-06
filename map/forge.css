@@ -103,7 +103,7 @@
   .ind-rail .ir-top{padding:9px 10px 10px;border-bottom:1px solid var(--line);position:sticky;top:38px;background:var(--panel);z-index:2;display:flex;flex-direction:row;align-items:stretch;gap:6px}
   .ind-rail .ir-top .ir-allbtn{flex:1;width:auto}
   .ind-rail .ir-tierhead{display:flex;align-items:center;gap:6px;padding:10px 10px 4px;border-bottom:1px solid rgba(138,146,178,.06)}
-  .ind-rail .ir-tierlv{flex:0 0 auto;font-size:9px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-.02em;color:var(--gold);background:rgba(232,180,99,.12);border:1px solid rgba(232,180,99,.28);border-radius:99px;padding:1px 6px;line-height:1.35}
+  .ind-rail .ir-tierlv{flex:0 0 auto;font-size:9px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-.02em;color:var(--tc,var(--gold));background:color-mix(in srgb, var(--tc,#8a92b2) 13%, transparent);border:1px solid color-mix(in srgb, var(--tc,#8a92b2) 34%, transparent);border-radius:99px;padding:1px 6px;line-height:1.35}
   .ind-rail .ir-tiername{font-size:9.5px;font-weight:700;letter-spacing:-.01em;color:var(--faint);text-transform:none}
   .ind-rail .ir-tierhead + .ir-row{padding-top:5px}
   .ind-rail .ir-new{display:inline-block;font-size:6.5px;font-weight:800;line-height:1.35;letter-spacing:.01em;text-transform:uppercase;color:var(--gold);background:rgba(232,180,99,.16);border-radius:2px;padding:0 2px;margin-right:3px;vertical-align:middle;transform:translateY(-.5px)}
@@ -1261,8 +1261,11 @@
   :root.light .play-btn.playing{color:var(--bear)!important;border-color:rgba(207,58,52,.5)!important;background:rgba(207,58,52,.12)!important}
   /* ── 라이트: 남은 골드 틴트/보더 잔재 → 슬레이트 ── */
   :root.light .ind-rail .ir-tick{background:rgba(43,52,64,.3)!important}
-  :root.light .ind-rail .ir-tierlv{background:rgba(43,52,64,.07)!important;border-color:rgba(43,52,64,.22)!important}
   :root.light .ind-rail .ir-new{background:rgba(43,52,64,.1)!important}
+  /* 라이트: 지표 조합 항목명 가독성 — 기본 라벨 진하게, 체크(선택) 항목 흰글자(안보임)→다크 */
+  :root.light .ind-rail .ir-row{color:#4b5563}
+  :root.light .ind-rail .ir-row.on{color:#172131}
+  :root.light .ind-rail .ir-bar:hover .ir-lbl{color:#0f1720}
   :root.light .fc-verdit.fl{background:rgba(43,52,64,.09)!important}
   :root.light .dash-table tbody tr:not(.dash-sec):hover td{background:rgba(43,52,64,.04)!important}
   :root.light .dash-table.tfcol-4 th:nth-child(4),:root.light .dash-table.tfcol-4 td:nth-child(4),
