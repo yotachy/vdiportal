@@ -102,9 +102,10 @@
   .ind-rail .ir-edit:hover{opacity:1;color:var(--gold)}
   .ind-rail .ir-top{padding:9px 10px 10px;border-bottom:1px solid var(--line);position:sticky;top:38px;background:var(--panel);z-index:2;display:flex;flex-direction:row;align-items:stretch;gap:6px}
   .ind-rail .ir-top .ir-allbtn{flex:1;width:auto}
-  .ind-rail .ir-tierhead{display:flex;align-items:center;gap:6px;padding:10px 10px 4px;border-bottom:1px solid rgba(138,146,178,.06)}
-  .ind-rail .ir-tierlv{flex:0 0 auto;font-size:9px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-.02em;color:var(--tc,var(--gold));background:color-mix(in srgb, var(--tc,#8a92b2) 13%, transparent);border:1px solid color-mix(in srgb, var(--tc,#8a92b2) 34%, transparent);border-radius:99px;padding:1px 6px;line-height:1.35}
-  .ind-rail .ir-tiername{font-size:9.5px;font-weight:700;letter-spacing:-.01em;color:var(--faint);text-transform:none}
+  .ind-rail .ir-tierhead{display:flex;align-items:center;gap:6px;padding:7px 10px 6px;margin-top:9px;background:color-mix(in srgb, var(--tc,#8a92b2) 8%, transparent);border-top:1.5px solid color-mix(in srgb, var(--tc,#8a92b2) 42%, transparent);border-bottom:1px solid color-mix(in srgb, var(--tc,#8a92b2) 14%, transparent)}
+  .ind-rail .ir-stick + .ir-tierhead{margin-top:0}   /* 첫 등급은 여백 없이 */
+  .ind-rail .ir-tierlv{flex:0 0 auto;font-size:9.5px;font-weight:800;font-family:ui-monospace,monospace;letter-spacing:-.02em;color:var(--tc,var(--gold));background:color-mix(in srgb, var(--tc,#8a92b2) 16%, transparent);border:1px solid color-mix(in srgb, var(--tc,#8a92b2) 38%, transparent);border-radius:99px;padding:1px 6px;line-height:1.35}
+  .ind-rail .ir-tiername{font-size:10.5px;font-weight:700;letter-spacing:-.01em;color:var(--eth);text-transform:none}
   .ind-rail .ir-tierhead + .ir-row{padding-top:5px}
   /* ── 검색 + 등급 접기 + 스티키 헤더 ── */
   .ind-rail .ir-stick{position:sticky;top:0;z-index:3;background:var(--panel)}
