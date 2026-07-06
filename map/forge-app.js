@@ -1354,18 +1354,12 @@
         if (_P.length >= 2 && _inds.length) {
           let bl = 0, ne = 0, be = 0;
           _inds.forEach(nn => { const b = _nodeBias(nn, _P); if (b > 0.05) bl++; else if (b < -0.05) be++; else ne++; });
-          const tt = bl + ne + be || 1;
-          _bd = `<div class="fcv-break">
-            <span class="fcv-bd-leg"><i style="background:var(--bull)"></i>상승 <b>${bl}</b></span>
-            <span class="fcv-bd-leg" style="color:var(--gold)"><i style="background:#e8b463"></i>중립 <b style="color:var(--gold)">${ne}</b></span>
-            <span class="fcv-bd-leg"><i style="background:var(--bear)"></i>하락 <b>${be}</b></span>
-            <span class="fcv-bd-bar" title="상승 ${bl} · 중립 ${ne} · 하락 ${be} 지표"><b style="width:${bl / tt * 100}%;background:var(--bull)"></b><b style="width:${ne / tt * 100}%;background:#e8b463"></b><b style="width:${be / tt * 100}%;background:var(--bear)"></b></span>
-          </div>`;
+          // (스택바 fcv-break 제거 — 아래 '지표 방향' 도넛과 중복이라 시각화 일원화)
           const dirCol = regime === "bull" ? "var(--bull)" : regime === "bear" ? "var(--bear)" : "var(--eth)";
           const cf = verdict.confluence;
-          const cfDonut = (cf && cf.total) ? `<div class="fcv-viz-item">${_donutSVG([{ v: cf.agree, color: dirCol }, { v: Math.max(0, cf.total - cf.agree), color: "var(--faint)" }], { centerText: cf.score + "%" })}<span class="fcv-viz-lab">컨플루언스<br><b>${cf.agree}/${cf.total}</b></span></div>` : "";
-          const bnbDonut = `<div class="fcv-viz-item">${_donutSVG([{ v: bl, color: "var(--bull)" }, { v: ne, color: "#e8b463" }, { v: be, color: "var(--bear)" }], { centerText: (regime === "bull" ? "▲" : regime === "bear" ? "▼" : "▸"), centerColor: dirCol, centerSize: 13 })}<span class="fcv-viz-lab">지표 방향<br><b style="color:var(--bull)">${bl}</b>·<b style="color:var(--gold)">${ne}</b>·<b style="color:var(--bear)">${be}</b></span></div>`;
-          const sigGauge = (_scoreN != null) ? `<div class="fcv-viz-item">${_gaugeSVG(_scoreN, -100, 100, { color: dirCol })}<span class="fcv-viz-lab">시그널<br><b style="color:${dirCol}">${score}</b></span></div>` : "";
+          const cfDonut = (cf && cf.total) ? `<div class="fcv-viz-item" title="컨플루언스 = 지표 합의도. 같은 방향을 가리키는 지표 수 ÷ 전체 지표 수(${cf.agree}/${cf.total}=${cf.score}%). 높을수록 방향 신뢰가 큽니다.">${_donutSVG([{ v: cf.agree, color: dirCol }, { v: Math.max(0, cf.total - cf.agree), color: "var(--faint)" }], { centerText: cf.score + "%" })}<span class="fcv-viz-lab">컨플루언스 <span class="fcv-info">ⓘ</span><br><b>${cf.agree}/${cf.total}</b></span></div>` : "";
+          const bnbDonut = `<div class="fcv-viz-item" title="지표 방향 분포 — 상승/중립/하락으로 판정된 지표 수(${bl}·${ne}·${be} / 총 ${bl + ne + be})">${_donutSVG([{ v: bl, color: "var(--bull)" }, { v: ne, color: "#e8b463" }, { v: be, color: "var(--bear)" }], { centerText: (regime === "bull" ? "▲" : regime === "bear" ? "▼" : "▸"), centerColor: dirCol, centerSize: 13 })}<span class="fcv-viz-lab">지표 방향<br><b style="color:var(--bull)">${bl}</b>·<b style="color:var(--gold)">${ne}</b>·<b style="color:var(--bear)">${be}</b></span></div>`;
+          const sigGauge = (_scoreN != null) ? `<div class="fcv-viz-item" title="시그널 = 종합 신호 강도(−100 ~ +100). 지표·모멘텀·평균회귀를 가중 합성한 값. 양수=상승 우위, 절댓값이 클수록 강한 신호.">${_gaugeSVG(_scoreN, -100, 100, { color: dirCol })}<span class="fcv-viz-lab">시그널 <span class="fcv-info">ⓘ</span><br><b style="color:${dirCol}">${score}</b></span></div>` : "";
           _bd += `<div class="fcv-viz">${cfDonut}${bnbDonut}${sigGauge}</div>`;
         }
       } catch (e) {}

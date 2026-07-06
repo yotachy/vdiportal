@@ -1265,3 +1265,13 @@
   :root.light .dash-table.tfcol-2 th:nth-child(2),:root.light .dash-table.tfcol-2 td:nth-child(2){background:rgba(43,52,64,.06)!important}
   :root.light .dash-table.tfcol-4 th:nth-child(4),:root.light .dash-table.tfcol-3 th:nth-child(3),:root.light .dash-table.tfcol-2 th:nth-child(2){box-shadow:inset 2.5px 3px 0 #2b3440,inset -2.5px 0 0 #2b3440!important}
   :root.light .dash-table.tfcol-4 tr:last-child td:nth-child(4),:root.light .dash-table.tfcol-3 tr:last-child td:nth-child(3),:root.light .dash-table.tfcol-2 tr:last-child td:nth-child(2){box-shadow:inset 2.5px 0 0 #2b3440,inset -2.5px -3px 0 #2b3440!important}
+  /* ── 판정 도넛 ⓘ · 달성확률 중앙정렬 · 전체화면 차트 꽉참 ── */
+  .fcv-info{font-size:9px;color:var(--eth);vertical-align:middle;cursor:help}
+  .hz-table td .os-ringcell{display:flex;width:100%;justify-content:center;gap:0}   /* 달성확률 도넛 가운데 정렬 */
+  /* 전체화면: 히어로가 화면을 꽉 채우고, 지표신호 등은 아래로 스크롤 */
+  body.chart-fs .chart-pane{overflow-y:auto}
+  body.chart-fs .fc-panel-hero{flex:0 0 auto!important;min-height:0}
+  body.chart-fs .fc-hero{flex:0 0 auto!important;height:calc(100vh - 50px)!important;min-height:0;aspect-ratio:auto}
+  /* 범례 드래그 그립 */
+  .fc-leg-grip{pointer-events:auto;cursor:grab;color:var(--faint);font-size:12px;line-height:1;padding:0 3px 0 0;margin-right:1px;user-select:none;touch-action:none;flex:0 0 auto}
+  .fc-leg-grip:active{cursor:grabbing;color:var(--eth)}

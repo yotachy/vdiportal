@@ -766,7 +766,26 @@
       ["3차 최대역치", c3, "", "예상과 반대로 움직였을 때 가격이 향할 가장 가까운 지지/저항 레벨(반대 시나리오)입니다."]
     ];
     el.style.display = "flex";
-    el.innerHTML = items.map(it => `<span class="fc-leg-item"><span class="fc-leg-sw${it[2] === "sq" ? " sq" : ""}" style="background:${it[1]}"></span>${esc(it[0])}<span class="fc-leg-tip">${esc(it[3])}</span></span>`).join("");
+    el.innerHTML = '<span class="fc-leg-grip" title="드래그하여 범례 이동">⠿</span>' + items.map(it => `<span class="fc-leg-item"><span class="fc-leg-sw${it[2] === "sq" ? " sq" : ""}" style="background:${it[1]}"></span>${esc(it[0])}<span class="fc-leg-tip">${esc(it[3])}</span></span>`).join("");
+    if (_legPos) { el.style.left = _legPos.x + "px"; el.style.top = _legPos.y + "px"; el.style.right = "auto"; }   // 드래그 위치 유지
+    _legDragInit();
+  }
+  let _legPos = null, _legDragBound = false;
+  function _legDragInit() {
+    if (_legDragBound) return; _legDragBound = true;   // 문서 위임(범례는 재렌더되므로)
+    document.addEventListener("pointerdown", e => {
+      const grip = e.target && e.target.closest && e.target.closest(".fc-leg-grip"); if (!grip) return;
+      const lg = document.getElementById("fcLegend"), host = lg && lg.parentElement; if (!lg || !host) return;
+      e.preventDefault();
+      const hr = host.getBoundingClientRect(), lr = lg.getBoundingClientRect(), ox = e.clientX - lr.left, oy = e.clientY - lr.top;
+      const mv = ev => {
+        let x = Math.max(2, Math.min(hr.width - lr.width - 2, ev.clientX - hr.left - ox));
+        let y = Math.max(2, Math.min(hr.height - lr.height - 2, ev.clientY - hr.top - oy));
+        _legPos = { x, y }; lg.style.left = x + "px"; lg.style.top = y + "px"; lg.style.right = "auto";
+      };
+      const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); };
+      document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+    });
   }
   function fcDrawMainChart(series, pred) {
     const cv = document.getElementById("fcMainChart"); if (!cv) return;
