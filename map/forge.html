@@ -6344,8 +6344,8 @@
   }
   function _hzList(unit, fb) {
     let hs = unit === "개월" ? [3, 6, 12, 24]
-      : unit === "주" ? [4, 8, 13, 26]
-      : unit === "일" ? [5, 10, 20, 30]
+      : unit === "주" ? [13, 26, 39, 52]
+      : unit === "일" ? [10, 20, 40, 60]
       : [Math.ceil(fb / 4), Math.ceil(fb / 2), Math.ceil(fb * 3 / 4), fb];
     return hs.filter(h => h >= 1 && h <= fb).filter((h, i, a) => a.indexOf(h) === i);
   }
@@ -7685,7 +7685,7 @@
   // 현재 활성 타임프레임: 비전 결과 우선, 없으면 티커 노드 params.tf
   function activeTF() { if (_visionTF) return tfKo(_visionTF); const t = boardState.nodes.find(n => n.blockType === "ticker" && n.params && n.params.tf); return t ? tfKo(t.params.tf) : null; }
   // TF별 기본 예측범위(작도 horizon): 일봉 40일 · 주봉 50주 · 월봉 12개월 · 기타 24
-  function horizonForTF(tf) { const s = tf || ""; if (/월|month|개월|년|연/.test(s)) return 12; if (/주|week/.test(s)) return 50; if (/일|day/.test(s)) return 40; return 24; }
+  function horizonForTF(tf) { const s = tf || ""; if (/월|month|개월|년|연/.test(s)) return 12; if (/주|week/.test(s)) return 52; if (/일|day/.test(s)) return 60; return 24; }   // 지평: 월 12(1년)·주 52(1년)·일 60(~3개월, 종전 40에서 확대해 비대칭 완화·일봉 신뢰한계 내)
   function tfUnit() { const t = activeTF(); return t ? _tfUnit(t) : "봉"; }
   function visionFutW() { return (_visionFut >= 4 && _visionFut <= 60) ? _visionFut : horizonForTF(activeTF()); }
   /* 실제 분석 시계열만 연속 '분석 차트'를 구동. 비전 워커 비활성 동안엔 항상 null

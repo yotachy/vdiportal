@@ -651,16 +651,18 @@
     const fast = opts.fast || 5, slow = opts.slow || 34;
     const price = data.price || (data.candle||[]).map(c=>c.c), candle = data.candle || [];
     const P = price.length;
-    if (P < slow) return { series: new Array(P).fill(0), last: 0, cross: 0, bias: 0 };
+    if (P < fast + 2) return { series: new Array(P).fill(0), last: 0, cross: 0, bias: 0, conf: 0 };   // 하드 플로어만. 이하 테이퍼(짧은 월봉 영구중립 방지)
+    const conf = Math.max(0, Math.min(1, (P - Math.round(slow * 0.7)) / Math.max(1, Math.round(slow * 0.3))));   // 0.7·slow→0, slow→1
     const med = price.map((c,i)=> candle[i] ? (candle[i].h + candle[i].l)/2 : c);
     const f = sma(med, fast), s = sma(med, slow), ao = med.map((_,i)=> (f[i]||0) - (s[i]||0));
     const last = ao[P-1], prev = ao[P-2] || 0;
     const cross = (prev <= 0 && last > 0) ? 1 : (prev >= 0 && last < 0) ? -1 : 0;
-    // 정규화: 최근 절대값 최대 대비
-    const scale = Math.max(1e-9, ...ao.slice(Math.max(0,P-slow)).map(Math.abs));
+    // 정규화: 최근 절대값 '평균'(mean-abs) — 단일 아웃라이어에 덜 민감(MACD scale과 동일 방식)
+    const _aw = ao.slice(Math.max(0, P - slow)).map(Math.abs), scale = Math.max(1e-9, _aw.reduce((a, v) => a + v, 0) / (_aw.length || 1));
     let bias = Math.max(-1, Math.min(1, last / scale));
     if (cross) bias = Math.max(-1, Math.min(1, bias + cross*0.2));
-    return { series: ao, last, cross, bias };
+    bias *= conf;   // 데이터 부족 시 신뢰도 테이퍼
+    return { series: ao, last, cross, bias, conf };
   }
   function aoSeries(data, opts) {
     const a = analyzeAO(data, opts||{}); const scale = Math.max(1e-9, ...a.series.map(Math.abs));
@@ -1267,8 +1269,9 @@
   function analyzeMACD(price, opts) {
     opts = opts || {};
     const fast = opts.fast || 12, slow = opts.slow || 26, sigN = opts.signal || 9, P = price.length;
-    const EMPTY = { macd: [], sig: [], hist: [], last: { macd: 0, sig: 0, hist: 0 }, cross: { type: null, barsAgo: null }, state: "neutral", rising: false, bias: 0 };
-    if (P < slow + sigN) return EMPTY;
+    const EMPTY = { macd: [], sig: [], hist: [], last: { macd: 0, sig: 0, hist: 0 }, cross: { type: null, barsAgo: null }, state: "neutral", rising: false, bias: 0, conf: 0 };
+    if (P < fast + 2) return EMPTY;   // 하드 플로어(fast EMA도 못 웜업)만 EMPTY. 이하는 계산 후 신뢰도 테이퍼(짧은 월봉 영구중립 방지)
+    const conf = Math.max(0, Math.min(1, (P - slow) / Math.max(1, sigN)));   // P=slow에서 0 → slow+sigN에서 1(그 이상 정상)
     const ef = ema(price, fast), es = ema(price, slow), macd = ef.map((v, i) => v - es[i]);
     const sig = ema(macd, sigN), hist = macd.map((v, i) => v - sig[i]), li = P - 1;
     let cross = { type: null, barsAgo: null };
@@ -1285,8 +1288,8 @@
     let crossDir = cross.type === "bull" ? 1 : cross.type === "bear" ? -1 : 0;
     if (crossDir && cross.barsAgo != null) crossDir *= Math.max(0, 1 - cross.barsAgo / (slow * 2));
     let bias = 0.5 * histN + 0.3 * macdN + 0.2 * crossDir;
-    bias = Math.max(-1, Math.min(1, bias));
-    return { macd, sig, hist, last: { macd: macd[li], sig: sig[li], hist: hist[li] }, cross, state, rising, bias, scale };
+    bias = Math.max(-1, Math.min(1, bias)) * conf;   // 데이터 부족(짧은 월봉) 시 신뢰도 테이퍼 — 영구중립 대신 점진 기여
+    return { macd, sig, hist, last: { macd: macd[li], sig: sig[li], hist: hist[li] }, cross, state, rising, bias, scale, conf };
   }
   function macdSeries(arr, f, s, g) { const m = analyzeMACD(arr, { fast: f, slow: s, signal: g }); const sc = m.scale || 1; return (m.hist || []).map(h => Math.max(-1, Math.min(1, h / sc / 1.2))); }
   function macdSteps(m, f, s, g) {
@@ -1395,9 +1398,11 @@
   /* ── 일목균형표 ── */
   function analyzeIchimoku(price, opts) {
     opts = opts || {};
-    const t = opts.tenkan || 9, k = opts.kijun || 26, sb = opts.senkouB || 52, shift = opts.shift || 26, P = price.length;
-    const EMPTY = { tenkan: [], kijun: [], spanA: [], spanB: [], last: { tenkan: null, kijun: null, spanA: null, spanB: null, price: null }, cloud: "neutral", pricePos: "in", tkCross: { type: null, barsAgo: null }, bias: 0, shift };
-    if (P < sb + shift) return EMPTY;
+    const t0 = opts.tenkan || 9, k0 = opts.kijun || 26, sb0 = opts.senkouB || 52, shift0 = opts.shift || 26, P = price.length;
+    const EMPTY = { tenkan: [], kijun: [], spanA: [], spanB: [], last: { tenkan: null, kijun: null, spanA: null, spanB: null, price: null }, cloud: "neutral", pricePos: "in", tkCross: { type: null, barsAgo: null }, bias: 0, shift: shift0, scaled: false, conf: 0 };
+    if (P < 20) return EMPTY;   // 하드 플로어(구름 무의미). 이하는 데이터 비례로 기간 축소해 산출(짧은 월봉 영구중립 방지)
+    const scaled = P < sb0 + shift0, sc = scaled ? Math.max(0.35, (P - shift0) / sb0) : 1;
+    const t = Math.max(3, Math.round(t0 * sc)), k = Math.max(6, Math.round(k0 * sc)), sb = Math.max(12, Math.round(sb0 * sc)), shift = Math.max(4, Math.round(shift0 * sc));
     const midOf = period => { const out = []; for (let i = 0; i < P; i++) { const a = Math.max(0, i - period + 1); let lo = Infinity, hi = -Infinity; for (let j = a; j <= i; j++) { if (price[j] < lo) lo = price[j]; if (price[j] > hi) hi = price[j]; } out.push((lo + hi) / 2); } return out; };
     const tenkan = midOf(t), kijun = midOf(k), sbLine = midOf(sb);
     const spanA = tenkan.map((v, i) => (v + kijun[i]) / 2), spanB = sbLine.slice(), li = P - 1;
@@ -1410,8 +1415,9 @@
     let bias = (pricePos === "above" ? 0.5 : pricePos === "below" ? -0.5 : 0) + (cloud === "bull" ? 0.2 : cloud === "bear" ? -0.2 : 0);
     let tk = tkCross.type === "bull" ? 1 : tkCross.type === "bear" ? -1 : 0; if (tk && tkCross.barsAgo != null) tk *= Math.max(0, 1 - tkCross.barsAgo / k); bias += 0.2 * tk;
     const past = price[Math.max(0, li - shift)]; bias += last > past ? 0.1 : last < past ? -0.1 : 0;
-    bias = Math.max(-1, Math.min(1, bias));
-    return { tenkan, kijun, spanA, spanB, last: { tenkan: tenkan[li], kijun: kijun[li], spanA: cA, spanB: cB, price: last }, cloud, pricePos, tkCross, bias, shift, cloudHi, cloudLo };
+    const conf = scaled ? Math.max(0.6, sc) : 1;   // 압축(짧은 데이터) 시 mild 다운웨이트
+    bias = Math.max(-1, Math.min(1, bias)) * conf;
+    return { tenkan, kijun, spanA, spanB, last: { tenkan: tenkan[li], kijun: kijun[li], spanA: cA, spanB: cB, price: last }, cloud, pricePos, tkCross, bias, shift, cloudHi, cloudLo, scaled, conf };
   }
   function ichiSeries(price, t, k, sb, shift) { const ic = analyzeIchimoku(price, { tenkan: t, kijun: k, senkouB: sb, shift }); if (!ic.spanA.length) return price.map(() => 0); const out = []; for (let i = 0; i < price.length; i++) { const s = Math.max(0, i - shift), a = ic.spanA[s], b = ic.spanB[s], hi = Math.max(a, b), lo = Math.min(a, b), p = price[i]; out.push(p > hi ? 0.8 : p < lo ? -0.8 : Math.max(-0.4, Math.min(0.4, (p - (hi + lo) / 2) / ((hi - lo) || 1)))); } return out; }
   function ichimokuSteps(ic) {

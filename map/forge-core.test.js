@@ -1839,3 +1839,30 @@ test("run(#1): 신호 드리프트가 TF 배율 반영 — 월봉 sig 기여가 
   const dM = Math.log((rM.prediction.path.slice(-1)[0]) / rM.prediction.anchor);
   assert.ok(dM > dD, `월봉 드리프트 ${dM} > 일봉 ${dD} (trendScale 1.0 vs 0.8)`);
 });
+
+// ── 월봉 기아 테이퍼 (MACD·AO·일목, 2026-07-06) ──
+test("analyzeMACD: slow 미만 짧은 시계열도 EMPTY 아닌 데이터+신뢰도 테이퍼", () => {
+  const r = ForgeCore.analyzeMACD(Array.from({ length: 28 }, (_, i) => 100 + i), {});   // P=28 < slow+sigN=35
+  assert.equal(r.macd.length, 28);
+  assert.ok(r.conf > 0 && r.conf < 1, `conf ${r.conf}`);
+  const full = ForgeCore.analyzeMACD(Array.from({ length: 60 }, (_, i) => 100 + i), {});
+  assert.equal(full.conf, 1);
+});
+
+test("analyzeAO: slow 미만 짧은 시계열도 테이퍼 기여(영구중립 방지)", () => {
+  const price = Array.from({ length: 28 }, (_, i) => 100 + i * i * 0.02);
+  const candle = price.map((c) => ({ o: c, h: c + 0.2, l: c - 0.2, c }));
+  const r = ForgeCore.analyzeAO({ candle, price }, {});
+  assert.equal(r.series.length, 28);
+  assert.ok(r.conf > 0 && r.conf < 1, `conf ${r.conf}`);
+});
+
+test("analyzeIchimoku: 78 미만(20 이상) 짧은 시계열도 기간축소로 산출(scaled·conf<1)", () => {
+  const r = ForgeCore.analyzeIchimoku(Array.from({ length: 40 }, (_, i) => 100 + i), {});   // 20<=40<78
+  assert.equal(r.tenkan.length, 40);
+  assert.equal(r.scaled, true);
+  assert.ok(r.conf > 0 && r.conf < 1, `conf ${r.conf}`);
+  const full = ForgeCore.analyzeIchimoku(Array.from({ length: 90 }, (_, i) => 100 + i), {});
+  assert.equal(full.scaled, false);
+  assert.equal(full.conf, 1);
+});
