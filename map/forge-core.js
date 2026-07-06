@@ -1733,7 +1733,7 @@
     const span = Math.max(6, Math.min(n - 1, 2 * futW, 24)), alpha = 2 / (span + 1);
     let ema = logP[Math.max(0, n - 1 - span * 3)]; for (let i = Math.max(1, n - 1 - span * 3) + 1; i < n; i++) ema += alpha * (logP[i] - ema);
     const dev = logP[n - 1] - ema;                  // 현재가의 (최근)베이스라인 대비 로그편차
-    const theta = 0.045;                            // 평균회귀 속도(반감기 ~15봉)
+    const theta = 1 / Math.max(6, futW * 0.55);     // 평균회귀 속도 — 지평(futW)에 비례 스케일(tauM처럼) → TF 무관 회귀완료비율 일정. 일봉(futW40)≈0.045(종전), 월봉(futW12)≈0.15
     const tauM = Math.max(3, futW * 0.4);           // 모멘텀 감쇠 시정수
     const sigDriftTotal = (lastSig / 100) * 0.28;   // 신호 방향 누적 드리프트(만점 ±28%)
     let sigBand = Math.max(0.02, Math.min(sigma, 0.18));   // 밴드 변동성 상한 0.18(고변동주의 실제 변동폭 반영)
@@ -1917,7 +1917,7 @@
       const rev = -dev * (1 - Math.exp(-theta * k)) * REV_W;                                // 평균회귀(약화)
       const mom = Math.max(-0.20, Math.min(0.20, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀(상향)
       const trend = trS * _prof.trendScale * DW("trend") * k * Math.exp(-k / (futW * 1.6));                  // 추세 투영(타임프레임 배율·완만 감쇠)
-      const sig = sigDriftTotal * (k / futW);                                              // 신호 드리프트
+      const sig = sigDriftTotal * _prof.trendScale * (k / futW);                            // 신호 드리프트(TF 배율 — 나머지 지표 드리프트와 일관: 일봉 과대 방지)
       const _ease = 1 - Math.exp(-k / 3.5);                                                // 이음매(k=0)에서 디테일 성분 완만 진입 → 시작 급변(꺾임) 방지
       const seas = (seasFn ? seasFn(k) : 0) * _ease;                                        // 계절성(주기) — seasFn(1)이 커도 부드럽게 시작
       const tex = (_texArr ? _texArr[k] : 0) * _ease;                                       // 데이터 기반 미세질감(AR)
@@ -1974,7 +1974,8 @@
     }
     const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
     // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율
-    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);
+    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias,
+      _pv2 && _pv2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);   // 일치도(confluence)에 신규 11지표 포함 — 예측 드리프트 반영 지표와 파리티
     const _cdir = lastSig > 0 ? 1 : lastSig < 0 ? -1 : (_allBias.reduce((a, b) => a + b, 0) >= 0 ? 1 : -1);
     const _agree = _allBias.filter(b => (b > 0 ? 1 : -1) === _cdir).length;
     const confluence = { score: _allBias.length ? Math.round(_agree / _allBias.length * 100) : 0, agree: _agree, total: _allBias.length };

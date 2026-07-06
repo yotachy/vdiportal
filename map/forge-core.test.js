@@ -1809,3 +1809,33 @@ test("analyzeFib: 짧은 시계열(P<=len)에서 '중기' 오라벨 안 생김",
   const names = (r.degrees || []).map((d) => d.name);
   assert.ok(!names.includes("중기"), `P<len이면 중기 없어야: ${names.join(",")}`);
 });
+
+// ── TF 모델 개선 (#1 sig 배율 · #5 theta 스케일 · #7 일치도 파리티, 2026-07-06) ──
+test("run(#7): 신규 지표(cci·mfi)도 verdict.confluence에 집계됨(파리티)", () => {
+  const price = Array.from({ length: 60 }, (_, i) => 100 + i);   // 강한 상승 → cci·mfi bias>0
+  const candle = price.map((c) => ({ o: c, h: c + 0.5, l: c - 0.5, c }));
+  const volume = price.map(() => 1000);
+  const g = { nodes: [
+    { id: "p", kind: "block", blockType: "price" },
+    { id: "c", kind: "block", blockType: "cci", params: { period: 20 } },
+    { id: "m", kind: "block", blockType: "mfi", params: { period: 14 } },
+  ], edges: [{ from: "p", to: "c" }, { from: "p", to: "m" }] };
+  const r = ForgeCore.run(g, { price, candle, volume }, { futW: 20, timeframe: "일봉" });
+  assert.ok(r.verdict.confluence.total >= 1, `cci/mfi가 일치도에 집계돼야, total=${r.verdict.confluence.total}`);
+});
+
+test("run(#1): 신호 드리프트가 TF 배율 반영 — 월봉 sig 기여가 일봉보다 큼(동일 지평)", () => {
+  const price = Array.from({ length: 80 }, (_, i) => 100 * Math.exp(0.01 * i));   // 일관된 상승
+  const candle = price.map((c) => ({ o: c, h: c * 1.005, l: c * 0.995, c }));
+  const g = { nodes: [
+    { id: "p", kind: "block", blockType: "price" },
+    { id: "r", kind: "block", blockType: "rsi", params: { period: 14 } },
+    { id: "mm", kind: "block", blockType: "macd", params: {} },
+  ], edges: [{ from: "p", to: "r" }, { from: "p", to: "mm" }] };
+  // 동일 futW로 고정해 sig×trendScale만 비교(월 1.0 > 일 0.8)
+  const rD = ForgeCore.run(g, { price, candle }, { futW: 20, timeframe: "일봉" });
+  const rM = ForgeCore.run(g, { price, candle }, { futW: 20, timeframe: "월봉" });
+  const dD = Math.log((rD.prediction.path.slice(-1)[0]) / rD.prediction.anchor);
+  const dM = Math.log((rM.prediction.path.slice(-1)[0]) / rM.prediction.anchor);
+  assert.ok(dM > dD, `월봉 드리프트 ${dM} > 일봉 ${dD} (trendScale 1.0 vs 0.8)`);
+});
