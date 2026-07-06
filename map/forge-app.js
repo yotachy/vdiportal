@@ -31,6 +31,31 @@
     const zero = (mn < 0 && mx > 0) ? `<line x1="${pad}" y1="${y(0).toFixed(1)}" x2="${w - pad}" y2="${y(0).toFixed(1)}" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 2"/>` : "";
     return `<svg class="viz-spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${zero}${area}<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
   }
+  /* 미니 예측 차트 — 지금(0%)부터 전체 경로 + 예측 밴드(lo~hi 콘). anchor=현재가, path/lo/hi=예측가 배열 */
+  function _projSVG(anchor, path, lo, hi, opts) {
+    opts = opts || {}; const w = opts.w || 150, h = opts.h || 42, pad = 3;
+    if (!path || !path.length || !anchor) return "";
+    const pct = v => (v - anchor) / anchor * 100;
+    const ys = [0].concat(path.map(pct));
+    const loA = (lo && lo.length === path.length) ? [0].concat(lo.map(v => isFinite(v) ? pct(v) : 0)) : null;
+    const hiA = (hi && hi.length === path.length) ? [0].concat(hi.map(v => isFinite(v) ? pct(v) : 0)) : null;
+    let mn = Math.min.apply(0, ys), mx = Math.max.apply(0, ys);
+    if (loA && hiA) { mn = Math.min(mn, Math.min.apply(0, loA)); mx = Math.max(mx, Math.max.apply(0, hiA)); }
+    const sp = (mx - mn) || 1, n = ys.length;
+    const x = i => pad + i / (n - 1) * (w - 2 * pad), y = v => h - pad - (v - mn) / sp * (h - 2 * pad);
+    const up = ys[n - 1] >= 0, col = up ? "#46c28e" : "#e06a6a";
+    let band = "";
+    if (loA && hiA) {
+      const top = hiA.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+      const bot = loA.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).reverse().join(" ");
+      band = `<polygon points="${top} ${bot}" fill="${col}" opacity="0.13"/>`;
+    }
+    const line = ys.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    const zero = (mn < 0 && mx > 0) ? `<line x1="${pad}" y1="${y(0).toFixed(1)}" x2="${w - pad}" y2="${y(0).toFixed(1)}" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 2"/>` : "";
+    const nowDot = `<circle cx="${x(0).toFixed(1)}" cy="${y(0).toFixed(1)}" r="2.2" fill="var(--eth)"/>`;
+    const endDot = `<circle cx="${x(n - 1).toFixed(1)}" cy="${y(ys[n - 1]).toFixed(1)}" r="2.6" fill="${col}"/>`;
+    return `<svg class="viz-proj" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${zero}${band}<polyline points="${line}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round"/>${nowDot}${endDot}</svg>`;
+  }
   /* 오프스크린 서브패널 캔버스 지연 렌더 — 보일 때(또는 시뮬 중) 그림. Observer 미지원/실패 시 즉시(폴백) */
   let _lazyIO = null; const _lazyPending = new Map();   // canvasEl → drawThunk
   function _lazyDraw(cvId, thunk) {
@@ -177,9 +202,11 @@
         <td><span class="dash-cell"><span class="dash-sub">${band}</span></span></td>
       </tr>`;
     }).join("");
-    const chgs = hs.map(h => { const vF = path[h - 1]; const v = anchor + (vF - anchor) * u; return anchor ? (v - anchor) / anchor * 100 : 0; });
-    const spark = chgs.length >= 2 ? `<div class="hz-spark">${_sparkSVG(chgs, { color: (chgs[chgs.length - 1] >= 0 ? "#46c28e" : "#e06a6a"), fill: true, w: 130, h: 26 })}<span>변화% 경로 +${hs[0]}~+${hs[hs.length - 1]}${unit}</span></div>` : "";
-    host.innerHTML = spark + `<table class="dash-table hz-table"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+    const projPath = path.map(v => anchor + (v - anchor) * u);
+    const projLo = (p.lo || []).map(v => isFinite(v) ? anchor + (v - anchor) * u : v);
+    const projHi = (p.hi || []).map(v => isFinite(v) ? anchor + (v - anchor) * u : v);
+    const proj = projPath.length >= 2 ? `<div class="hz-spark">${_projSVG(anchor, projPath, projLo, projHi, { w: 150, h: 42 })}<span>예측 경로 · 지금 → +${hs[hs.length - 1]}${unit}<br>음영 = 예상 범위(밴드)</span></div>` : "";
+    host.innerHTML = proj + `<table class="dash-table hz-table"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
   }
   /* 시점 가중 종합 상승확률(%) — 가까운 시점일수록 신뢰↑. 헤더 국면/시그널 문구에 통합 표기 */
   function aggUpProb(pred) {
@@ -1429,7 +1456,16 @@
     rows.push(`<tr><td>거래량</td>${cols.map(c => { const vv = _volTxt(c[1].vol); return _txtC(`<span style="color:${vv[1]}">${vv[0]}</span>`, false); }).join("")}</tr>`);
     rows.push(`<tr><td>목표가</td>${cols.map(c => _txtC(isFinite(c[1].target) ? `<span class="dash-sub">${fmtNum(c[1].target)}</span>` : "–", false)).join("")}</tr>`);
     rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:#46c28e">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> <span style="opacity:.35">/</span> <span style="color:#e06a6a">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
-    host.innerHTML = `<table class="dash-table${_actIdx >= 0 ? " tfcol-" + (_actIdx + 2) : ""}">${th}${rows.join("")}</table>`;
+    const REGC = { bull: ["▲", "#46c28e"], bear: ["▼", "#e06a6a"], neutral: ["▸", "#8a92b2"] };
+    const cards = cols.map(c => {
+      const nm = c[0], v = c[1], rg = REGC[v.regime] || REGC.neutral, tcol = _TFCOL[nm] || "#8a92b2";
+      return `<div class="tf-card">
+        <div class="tf-card-h" style="color:${tcol}"><span class="thdot" style="background:${tcol}"></span>${nm} <b style="color:${rg[1]}">${rg[0]}</b></div>
+        <div class="tf-card-viz">${_ringSVG(v.up, rg[1], 34)}${_gaugeSVG(v.score, -100, 100, { color: rg[1], w: 56, h: 32, r: 23 })}</div>
+        <div class="tf-card-lab">상승 <b style="color:${rg[1]}">${v.up}%</b> · 시그널 <b style="color:${rg[1]}">${Math.round(v.score)}</b></div>
+      </div>`;
+    }).join("");
+    host.innerHTML = `<div class="tf-cards">${cards}</div>` + `<table class="dash-table${_actIdx >= 0 ? " tfcol-" + (_actIdx + 2) : ""}">${th}${rows.join("")}</table>`;
     _dashFill(_playing ? _playReveal.u : null);
   }
   function scheduleDash() { clearTimeout(_dashTmr); _dashTmr = setTimeout(() => { renderDashboard().catch(() => {}); }, 350); }   // 분석/티커 변경 시 자동 갱신(디바운스)
