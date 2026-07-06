@@ -1200,12 +1200,37 @@
   .tf-card-h{font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px}
   .tf-card-viz{display:flex;align-items:center;justify-content:center;gap:5px;margin:4px 0 2px}
   .tf-card-lab{font-size:9.5px;color:var(--eth)}
-  /* ── 라이트 테마 버튼 보정 (하드코딩 다크색·골드버튼 대비) ── */
+  /* ── 라이트 테마 액센트 = 슬레이트 모노톤 (골드 제거) ── */
+  /* 슬레이트 배경(=var(--gold)) 버튼·뱃지·태그 → 흰 텍스트 */
   :root.light .run-btn,
   :root.light .fc-axis-btn.flash,
   :root.light .fc-tfseg button.on,
   :root.light .tk-panel .tk-seg button.on,
-  :root.light .opt-run{background:#d99a2e!important;color:#241a06!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 2px 8px rgba(160,115,35,.3)}
+  :root.light .opt-run,
+  :root.light .verdict-tag,
+  :root.light .b-tier-tag,
+  :root.light .ev-opt-chk.on::after{color:#fff!important}
+  :root.light .run-btn,
+  :root.light .fc-tfseg button.on,
+  :root.light .tk-panel .tk-seg button.on,
+  :root.light .opt-run{box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 8px rgba(43,52,64,.26)!important}
+  :root.light .run-btn:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 3px 13px rgba(43,52,64,.34)!important}
+  /* 골드 틴트(.on 칩·강조 배경) → 슬레이트 틴트 */
+  :root.light .ev-toggle.on,
+  :root.light .ind-rail .ir-presetpop .pset-btn.on,
+  :root.light .forge-side .pset-btn.on{background:rgba(43,52,64,.09)!important}
+  /* play-btn(시뮬레이션)은 청록 유지 — 골드 아님 */
   :root.light .play-btn{color:#0f7a61!important;border-color:rgba(15,122,97,.45)!important;background:rgba(94,200,182,.2)!important}
   :root.light .play-btn:hover{color:#0b6650!important;border-color:#2fa88c!important;background:rgba(94,200,182,.3)!important}
   :root.light .play-btn.playing{color:var(--bear)!important;border-color:rgba(207,58,52,.5)!important;background:rgba(207,58,52,.12)!important}
+  /* ── 라이트: 남은 골드 틴트/보더 잔재 → 슬레이트 ── */
+  :root.light .ind-rail .ir-tick{background:rgba(43,52,64,.3)!important}
+  :root.light .ind-rail .ir-tierlv{background:rgba(43,52,64,.07)!important;border-color:rgba(43,52,64,.22)!important}
+  :root.light .ind-rail .ir-new{background:rgba(43,52,64,.1)!important}
+  :root.light .fc-verdit.fl{background:rgba(43,52,64,.09)!important}
+  :root.light .dash-table tbody tr:not(.dash-sec):hover td{background:rgba(43,52,64,.04)!important}
+  :root.light .dash-table.tfcol-4 th:nth-child(4),:root.light .dash-table.tfcol-4 td:nth-child(4),
+  :root.light .dash-table.tfcol-3 th:nth-child(3),:root.light .dash-table.tfcol-3 td:nth-child(3),
+  :root.light .dash-table.tfcol-2 th:nth-child(2),:root.light .dash-table.tfcol-2 td:nth-child(2){background:rgba(43,52,64,.06)!important}
+  :root.light .dash-table.tfcol-4 th:nth-child(4),:root.light .dash-table.tfcol-3 th:nth-child(3),:root.light .dash-table.tfcol-2 th:nth-child(2){box-shadow:inset 2.5px 3px 0 #2b3440,inset -2.5px 0 0 #2b3440!important}
+  :root.light .dash-table.tfcol-4 tr:last-child td:nth-child(4),:root.light .dash-table.tfcol-3 tr:last-child td:nth-child(3),:root.light .dash-table.tfcol-2 tr:last-child td:nth-child(2){box-shadow:inset 2.5px 0 0 #2b3440,inset -2.5px -3px 0 #2b3440!important}
