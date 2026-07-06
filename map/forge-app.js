@@ -1,3 +1,36 @@
+  /* ── 시각화 인라인 SVG 헬퍼(순수·테마 토큰색) ── */
+  function _donutSVG(segs, opts) {
+    opts = opts || {}; const size = opts.size || 46, th = opts.thickness || 7, r = (size - th) / 2, cx = size / 2, C = 2 * Math.PI * r;
+    const tot = segs.reduce((s, x) => s + Math.max(0, x.v), 0) || 1; let off = 0, arcs = "";
+    segs.forEach(s => { const len = Math.max(0, s.v) / tot * C;
+      arcs += `<circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${th}" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${cx} ${cx})"/>`; off += len; });
+    const ct = opts.centerText ? `<text x="${cx}" y="${cx}" text-anchor="middle" dominant-baseline="central" font-size="${opts.centerSize || 11}" font-weight="800" fill="${opts.centerColor || 'currentColor'}">${opts.centerText}</text>` : "";
+    return `<svg class="viz-donut" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${th}"/>${arcs}${ct}</svg>`;
+  }
+  function _gaugeSVG(val, min, max, opts) {
+    opts = opts || {}; const w = opts.w || 66, h = opts.h || 38, r = opts.r || 26, cx = w / 2, cy = h - 5, th = opts.thickness || 6;
+    const ang = f => Math.PI * (1 - Math.max(0, Math.min(1, f))), pt = f => [cx + r * Math.cos(ang(f)), cy - r * Math.sin(ang(f))];
+    const arc = (f0, f1, col, wd) => { const a = pt(f0), b = pt(f1), lg = (f1 - f0) > 0.5 ? 1 : 0; return `<path d="M${a[0].toFixed(1)} ${a[1].toFixed(1)} A${r} ${r} 0 ${lg} 1 ${b[0].toFixed(1)} ${b[1].toFixed(1)}" fill="none" stroke="${col}" stroke-width="${wd || th}" stroke-linecap="round"/>`; };
+    const norm = v => (Math.max(min, Math.min(max, v)) - min) / ((max - min) || 1);
+    let zoneArcs = ""; (opts.zones || []).forEach(z => { zoneArcs += arc(norm(z.from), norm(z.to), z.color, th); });
+    const track = (opts.zones && opts.zones.length) ? "" : arc(0, 1, "var(--line)", th);
+    const vf = norm(val), valArc = (opts.zones && opts.zones.length) ? "" : arc(0, vf, opts.color || "var(--gold)", th);
+    const n = pt(vf); const needle = `<line x1="${cx}" y1="${cy}" x2="${n[0].toFixed(1)}" y2="${n[1].toFixed(1)}" stroke="${opts.color || 'currentColor'}" stroke-width="2" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="2.5" fill="${opts.color || 'currentColor'}"/>`;
+    return `<svg class="viz-gauge" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${track}${zoneArcs}${valArc}${needle}</svg>`;
+  }
+  function _ringSVG(pct, color, size) {
+    size = size || 30; const th = 4, r = (size - th) / 2, cx = size / 2, C = 2 * Math.PI * r, len = Math.max(0, Math.min(100, pct)) / 100 * C;
+    return `<svg class="viz-ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${th}"/><circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${color}" stroke-width="${th}" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} ${(C - len).toFixed(1)}" transform="rotate(-90 ${cx} ${cx})"/><text x="${cx}" y="${cx}" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="700" fill="currentColor">${Math.round(pct)}</text></svg>`;
+  }
+  function _sparkSVG(vals, opts) {
+    opts = opts || {}; const w = opts.w || 120, h = opts.h || 24, pad = 2; if (!vals || vals.length < 2) return "";
+    const mn = Math.min.apply(0, vals), mx = Math.max.apply(0, vals), sp = (mx - mn) || 1;
+    const x = i => pad + i / (vals.length - 1) * (w - 2 * pad), y = v => h - pad - (v - mn) / sp * (h - 2 * pad);
+    const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" "), col = opts.color || "var(--gold)";
+    const area = opts.fill ? `<polygon points="${pad},${h} ${pts} ${(w - pad)},${h}" fill="${col}" opacity="0.12"/>` : "";
+    const zero = (mn < 0 && mx > 0) ? `<line x1="${pad}" y1="${y(0).toFixed(1)}" x2="${w - pad}" y2="${y(0).toFixed(1)}" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 2"/>` : "";
+    return `<svg class="viz-spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${zero}${area}<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+  }
   /* 오프스크린 서브패널 캔버스 지연 렌더 — 보일 때(또는 시뮬 중) 그림. Observer 미지원/실패 시 즉시(폴백) */
   let _lazyIO = null; const _lazyPending = new Map();   // canvasEl → drawThunk
   function _lazyDraw(cvId, thunk) {
