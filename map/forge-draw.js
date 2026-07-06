@@ -8,15 +8,25 @@
   const FC_BEAR = "#e06a6a";   /* bear candle */
   const FC_DIM  = "#5A6478";   /* axis labels (중간 슬레이트 — 명/암 배경 모두 판독) */
   let   FC_GRID = "#1b2334";   /* grid lines — chart-bg 밝기 따라 명/암 전환 */
-  /* 차트 캔버스 색을 현재 테마에 동기화: --chart-bg 밝기로 그리드 명암 결정, 골드는 --gold 추종. FC_BULL/FC_BEAR(가격 방향)는 상수 유지 */
+  let   FC_OSC  = "#e8b463";   /* 오실레이터 서브패널 액센트 — UI(패널) 밝기 따라 골드/슬레이트 */
+  let   _warmRGB = "232,180,99", _oscRGB = "232,180,99";   /* rgba 헬퍼용 (히어로/서브패널) */
+  const _lumOf = v => { const m = (v || "").match(/#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})/); return m ? (0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16)) : 0; };
+  function _warmA(a) { return "rgba(" + _warmRGB + "," + a + ")"; }   /* 히어로 warm 액센트(alpha) */
+  function _oscA(a)  { return "rgba(" + _oscRGB + "," + a + ")"; }    /* 서브패널 액센트(alpha) */
+  /* 차트 캔버스 색을 현재 테마에 동기화. 히어로 액센트(FC_GOLD)=차트배경(--chart-bg) 밝기 기준, 서브패널 액센트(FC_OSC)=UI(--panel) 밝기 기준(다크→골드·라이트→슬레이트). FC_BULL/FC_BEAR(가격 방향)는 상수. */
+  const _SLATE = "#3a4656", _SLATE_RGB = "58,70,86", _GOLD = "#e8b463", _GOLD_RGB = "232,180,99";
   function _syncChartColors() {
     try {
       const cs = getComputedStyle(document.documentElement);
-      const cb = (cs.getPropertyValue("--chart-bg").trim()) || "#0b0f14";
-      const m = cb.match(/#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})/);
-      const lum = m ? (0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16)) : 0;
-      FC_GRID = lum > 140 ? "#dbe1ea" : "#1b2334";   // 밝은 차트=옅은 회색 격자
-      FC_GOLD = (cs.getPropertyValue("--gold").trim()) || "#e8b463";
+      const cbLum = _lumOf((cs.getPropertyValue("--chart-bg").trim()) || "#0b0f14");
+      const pnLum = _lumOf((cs.getPropertyValue("--panel").trim()) || "#121822");
+      const uiGold = (cs.getPropertyValue("--gold").trim()) || "#e8b463";   // 테마 액센트(다크=골드/청록/퍼플…, 라이트=슬레이트)
+      const uiLight = pnLum > 140;
+      FC_GRID = cbLum > 140 ? "#dbe1ea" : "#1b2334";   // 밝은 차트=옅은 회색 격자
+      // 히어로(차트배경): 밝은차트=슬레이트 · 어두운차트=테마색(라이트테마는 --gold가 슬레이트라 다크차트서 안 보임 → 골드 폴백)
+      if (cbLum > 140) { FC_GOLD = _SLATE; _warmRGB = _SLATE_RGB; } else { FC_GOLD = uiLight ? _GOLD : uiGold; _warmRGB = _GOLD_RGB; }
+      // 서브패널(UI 표면): 라이트=슬레이트 · 다크=테마색(청록/퍼플 등 유지)
+      if (uiLight) { FC_OSC = _SLATE; _oscRGB = _SLATE_RGB; } else { FC_OSC = uiGold; _oscRGB = _GOLD_RGB; }
     } catch (e) {}
   }
   /* 작도 스타일 토큰(정교·절제): stroke 폭 + 세밀 점선 패턴 — 한 곳에서 관리 */
@@ -118,7 +128,7 @@
       for (let k = predPath.length - 1; k >= 0; k--) c.lineTo(toX(n + k), toY(predLo[k]));
       c.lineTo(predStartX, anchorY);
       c.closePath();
-      c.fillStyle = "rgba(232,180,99,.09)";
+      c.fillStyle = _warmA(.09);
       c.fill();
       /* path line (seam에서 시작) */
       c.strokeStyle = FC_GOLD; c.lineWidth = 1.3; c.setLineDash(CDASH.std);
@@ -277,14 +287,14 @@
     c.setLineDash([]);
     // 라인 아래 그라디언트 채움(가독성 · 이미지3 차용)
     const rgrad = c.createLinearGradient(0, padV, 0, padV + plotH);
-    rgrad.addColorStop(0, "rgba(232,180,99,.30)"); rgrad.addColorStop(.6, "rgba(232,180,99,.08)"); rgrad.addColorStop(1, "rgba(232,180,99,0)");
+    rgrad.addColorStop(0, _oscA(.30)); rgrad.addColorStop(.6, _oscA(.08)); rgrad.addColorStop(1, _oscA(0));
     c.fillStyle = rgrad; c.beginPath();
     s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); });
     c.lineTo(xOf(s.length - 1), padV + plotH); c.lineTo(xOf(0), padV + plotH); c.closePath(); c.fill();
-    c.strokeStyle = "#e8b463"; c.lineWidth = 1.05; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(232,180,99,.4)"; c.shadowBlur = 3.5; c.beginPath();
+    c.strokeStyle = FC_OSC; c.lineWidth = 1.05; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = _oscA(.4); c.shadowBlur = 3.5; c.beginPath();
     s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
     const lx = xOf(s.length - 1), ly = yOf(rsi.last);
-    c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(lx, ly, 2.4, 0, 7); c.fill();
+    c.fillStyle = FC_OSC; c.beginPath(); c.arc(lx, ly, 2.4, 0, 7); c.fill();
     if (rsi.divergence && rsi.divergence.pricePts) {
       const col = rsi.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
       rsi.divergence.pricePts.forEach(p => { const i = p.idx; if (i < 0 || i >= s.length) return; const x = xOf(i), y = yOf(s[i]); c.fillStyle = col; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); });
@@ -313,7 +323,7 @@
     c.lineTo(xOf(s.length - 1), padV + plotH); c.lineTo(xOf(0), padV + plotH); c.closePath(); c.fill();
     c.strokeStyle = "#c8912f"; c.lineWidth = 1.05; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(200,145,47,.4)"; c.shadowBlur = 3.5; c.beginPath();
     s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
-    c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(xOf(s.length - 1), yOf(mfi.last), 2.4, 0, 7); c.fill();
+    c.fillStyle = FC_OSC; c.beginPath(); c.arc(xOf(s.length - 1), yOf(mfi.last), 2.4, 0, 7); c.fill();
     { const meta = document.getElementById("fcMfiMeta"); if (meta) { const z = mfi.last >= 80 ? ["과열 · 되돌림 주의", "dn"] : mfi.last <= 20 ? ["과매도 · 반등 기대", "up"] : mfi.last >= 50 ? ["자금 유입", "up"] : ["자금 이탈", "dn"]; meta.innerHTML = "MFI " + Math.round(mfi.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _gaugeSVG(mfi.last, 0, 100, { zones: [{ from: 0, to: 20, color: "var(--bull)" }, { from: 80, to: 100, color: "var(--bear)" }], w: 54, h: 30, r: 22 }) + '</span>'; } } _osReveal(c, cw, ch, reveal);
   }
 
@@ -338,7 +348,7 @@
     c.lineTo(xOf(s.length - 1), padV + plotH); c.lineTo(xOf(0), padV + plotH); c.closePath(); c.fill();
     c.strokeStyle = "#b56fd6"; c.lineWidth = 1.05; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(181,111,214,.4)"; c.shadowBlur = 3.5; c.beginPath();
     s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
-    c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(xOf(s.length - 1), yOf(w.last), 2.4, 0, 7); c.fill();
+    c.fillStyle = FC_OSC; c.beginPath(); c.arc(xOf(s.length - 1), yOf(w.last), 2.4, 0, 7); c.fill();
     { const meta = document.getElementById("fcWilliamsMeta"); if (meta) { const z = w.last >= -20 ? ["과매수 · 되돌림 주의", "dn"] : w.last <= -80 ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "%R " + Math.round(w.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _gaugeSVG(w.last, -100, 0, { zones: [{ from: -100, to: -80, color: "var(--bull)" }, { from: -20, to: 0, color: "var(--bear)" }], w: 54, h: 30, r: 22 }) + '</span>'; } } _osReveal(c, cw, ch, reveal);
   }
 
@@ -359,7 +369,7 @@
     c.setLineDash([]);
     c.strokeStyle = "#e6785a"; c.lineWidth = 1.15; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(230,120,90,.4)"; c.shadowBlur = 3.5; c.beginPath();
     s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
-    c.fillStyle = "#ffd24d"; c.beginPath(); c.arc(xOf(s.length - 1), yOf(cci.last), 2.4, 0, 7); c.fill();
+    c.fillStyle = FC_OSC; c.beginPath(); c.arc(xOf(s.length - 1), yOf(cci.last), 2.4, 0, 7); c.fill();
     { const meta = document.getElementById("fcCciMeta"); if (meta) { const z = cci.last >= 100 ? ["과열 · 되돌림 주의", "dn"] : cci.last <= -100 ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "CCI " + Math.round(cci.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _gaugeSVG(Math.max(-200, Math.min(200, cci.last)), -200, 200, { zones: [{ from: -200, to: -100, color: "var(--bull)" }, { from: 100, to: 200, color: "var(--bear)" }], w: 54, h: 30, r: 22 }) + '</span>'; } } _osReveal(c, cw, ch, reveal);
   }
 
@@ -393,7 +403,7 @@
     [20, 40].forEach(lv => { const y = yOf(lv); c.beginPath(); c.moveTo(padL, y); c.lineTo(padL + plotW, y); c.stroke(); c.fillStyle = "#8a92b2"; c.font = "10px ui-monospace,monospace"; c.fillText(lv, padL + plotW + 3, y + 3); });
     c.setLineDash([]);
     const drawLine = (arr, col, wid) => { c.strokeStyle = col; c.lineWidth = wid; c.lineJoin = "round"; c.beginPath(); arr.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); };
-    drawLine(pDI, "#46c28e", 1.1); drawLine(mDI, "#e06a6a", 1.1); drawLine(adx, "#e8b463", 1.7);
+    drawLine(pDI, "#46c28e", 1.1); drawLine(mDI, "#e06a6a", 1.1); drawLine(adx, FC_OSC, 1.7);
     // 끝점 라벨 + '읽는 법' 캡션(초보 인지성)
     { const _le = adx.length - 1; c.font = "9px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
       c.fillStyle = "#46c28e"; c.fillText("+DI", padL + plotW + 3, yOf(pDI[_le]) + 3);
@@ -423,7 +433,7 @@
     for (let b = 0; b < nb; b++) {
       const bh = (bvals[b] / bmax) * h, x = pad + (b / nb) * w, y = pad + h - bh;
       const spike = va.state === "spike" && b >= nb - 2;
-      c.fillStyle = spike ? "rgba(232,180,99,.42)" : bup[b] ? "rgba(70,194,142,.13)" : "rgba(224,106,106,.13)";   // 막대는 아주 흐리게(배경 보조)
+      c.fillStyle = spike ? _oscA(.42) : bup[b] ? "rgba(70,194,142,.13)" : "rgba(224,106,106,.13)";   // 막대는 아주 흐리게(배경 보조)
       c.fillRect(x, y, bw, bh);
     }
     // OBV 라인(보조 스케일)
@@ -595,9 +605,9 @@
         c.fillStyle = "#7cc8ff"; c.beginPath(); c.arc(ox + dw - 9, y, 4.5, 0, 7); c.fill();
       });
       /* 현재선(세로, 골드) */
-      c.strokeStyle = "rgba(232,180,99,.6)"; c.setLineDash([4, 3]);
+      c.strokeStyle = _warmA(.6); c.setLineDash([4, 3]);
       c.beginPath(); c.moveTo(nowX, oy); c.lineTo(nowX, oy + dh); c.stroke(); c.setLineDash([]);
-      c.fillStyle = "rgba(232,180,99,.95)"; c.textAlign = "left"; c.fillText("현재선", nowX + 3, oy + 11);
+      c.fillStyle = _warmA(.95); c.textAlign = "left"; c.fillText("현재선", nowX + 3, oy + 11);
       c.fillStyle = FC_GOLD; c.beginPath(); c.arc(nowX, oy + 20, 4.5, 0, 7); c.fill();
     }
     if (!complete) { return interactive; }   // 미완성: 편집기는 가이드만, 히어로는 false(안내)
@@ -608,13 +618,13 @@
     const x0 = nowX, x1 = ox + dw * 0.99;
     const xOf = k => x0 + (path.length > 1 ? k / (path.length - 1) : 0) * (x1 - x0);
     const ynow = yOf(cal.np);
-    c.strokeStyle = "rgba(232,180,99,.55)"; c.setLineDash([4, 3]); c.lineWidth = 1;
+    c.strokeStyle = _warmA(.55); c.setLineDash([4, 3]); c.lineWidth = 1;
     c.beginPath(); c.moveTo(ox, ynow); c.lineTo(x1, ynow); c.stroke(); c.setLineDash([]);
     if (path.length) {
       c.beginPath(); c.moveTo(x0, ynow);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(up(hi[k])));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(xOf(k), yOf(up(lo[k])));
-      c.closePath(); c.fillStyle = "rgba(232,180,99,.10)"; c.fill();
+      c.closePath(); c.fillStyle = _warmA(.10); c.fill();
       c.strokeStyle = FC_GOLD; c.lineWidth = 1.8; c.setLineDash([5, 4]);
       c.beginPath(); c.moveTo(x0, ynow);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(up(path[k])));
@@ -624,7 +634,7 @@
       c.fillText(fmtNum(endP), x1 - 2, Math.max(10, Math.min(H - 3, yOf(endP) - 5))); c.textAlign = "left";
     }
     c.fillStyle = FC_GOLD; c.beginPath(); c.arc(x0, ynow, 3.5, 0, 7); c.fill();
-    c.fillStyle = "rgba(232,180,99,.95)"; c.textAlign = "left";
+    c.fillStyle = _warmA(.95); c.textAlign = "left";
     c.fillText("현재가 " + fmtNum(cal.np), x0 + 7, ynow - 6);
     return true;
   }
@@ -636,7 +646,7 @@
     const txt = "☁ 웹분석 — 이 이미지를 판독해 시계열을 만들면 포지결과가 자동 계산됩니다";
     const tw = c.measureText(txt).width + 22;
     c.fillStyle = "rgba(11,15,20,.66)"; c.fillRect((W - tw) / 2, H - 30, tw, 22);
-    c.fillStyle = "rgba(232,180,99,.95)"; c.fillText(txt, W / 2, H - 15);
+    c.fillStyle = _warmA(.95); c.fillText(txt, W / 2, H - 15);
     return true;
   }
   /* 편집기 미리보기 콘 드래그(기준선/현재선) */
@@ -695,7 +705,7 @@
     c.beginPath(); c.moveTo(8, anchorY);
     for (let k = 0; k < path.length; k++) c.lineTo(toX(k), toY(hi[k]));
     for (let k = path.length - 1; k >= 0; k--) c.lineTo(toX(k), toY(lo[k]));
-    c.lineTo(8, anchorY); c.closePath(); c.fillStyle = "rgba(232,180,99,.09)"; c.fill();
+    c.lineTo(8, anchorY); c.closePath(); c.fillStyle = _warmA(.09); c.fill();
     /* path line */
     c.strokeStyle = FC_GOLD; c.lineWidth = 1.8; c.setLineDash([5, 4]);
     c.beginPath(); c.moveTo(8, anchorY);
@@ -746,8 +756,8 @@
   function _startComets() { if (_reduceMotion()) { _drawComets(); return; } if (!_cometRAF) _cometRAF = requestAnimationFrame(_drawComets); }
   function _renderChartLegend(pd) {
     const el = document.getElementById("fcLegend"); if (!el) return;
-    const band = pd > 0 ? "rgba(70,194,142,.72)" : pd < 0 ? "rgba(224,106,106,.72)" : "rgba(232,180,99,.72)";
-    const core = pd > 0 ? "#46c28e" : pd < 0 ? "#e06a6a" : "#e8b463";
+    const band = pd > 0 ? "rgba(70,194,142,.72)" : pd < 0 ? "rgba(224,106,106,.72)" : _warmA(.72);
+    const core = pd > 0 ? "#46c28e" : pd < 0 ? "#e06a6a" : FC_GOLD;
     const c3 = pd > 0 ? "#e06a6a" : "#46c28e";
     const items = [
       ["기술적 최대범위", band, "sq", "기술적으로 도달 가능한 최저~최고 경계입니다. 피보나치·구조 스윙·매물대·볼린저·일목·VWAP를 종합해 산출하며, 예측이 이 범위를 벗어나기는 어렵습니다."],
@@ -895,14 +905,14 @@
       c.beginPath(); c.moveTo(seamX, padTop - 6); c.lineTo(seamX, ch - padBot); c.stroke(); c.setLineDash([]);
       c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.fillText("지금", seamX + 3, padTop - 2);
       // 현재가 수평선 + 우측 골드 pill(항상 표시 — 어디서든 현재가 기준선)
-      { const yA = toY(anchor); c.save(); c.strokeStyle = "rgba(232,180,99,.38)"; c.lineWidth = 1; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(padX, yA); c.lineTo(padX + plotW, yA); c.stroke(); c.setLineDash([]); c.restore(); }   // 현재가 기준선만(pill 제거)
+      { const yA = toY(anchor); c.save(); c.strokeStyle = _warmA(.38); c.lineWidth = 1; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(padX, yA); c.lineTo(padX + plotW, yA); c.stroke(); c.setLineDash([]); c.restore(); }   // 현재가 기준선만(pill 제거)
       const coneR = toXf(path.length - 1);
       // 방향 색조(약한 적/녹) — 하락/상승 예측을 국면과 정합되게 한눈에
       const _pEnd = path[path.length - 1];
       const _pd = (_pEnd > anchor * 1.004) ? 1 : (_pEnd < anchor * 0.996) ? -1 : 0;
       const CT = _pd > 0 ? { fa: "rgba(70,194,142,.22)", fb: "rgba(70,194,142,.03)", edge: "rgba(70,194,142,.34)", core: "#46c28e", glow: "rgba(70,194,142,.5)" }
         : _pd < 0 ? { fa: "rgba(224,106,106,.22)", fb: "rgba(224,106,106,.03)", edge: "rgba(224,106,106,.34)", core: "#e06a6a", glow: "rgba(224,106,106,.5)" }
-          : { fa: "rgba(232,180,99,.22)", fb: "rgba(232,180,99,.03)", edge: "rgba(232,180,99,.3)", core: FC_GOLD, glow: "rgba(232,180,99,.5)" };
+          : { fa: _warmA(.22), fb: _warmA(.03), edge: _warmA(.3), core: FC_GOLD, glow: _warmA(.5) };
       // 밴드 채움: 현재(씨앗)에서 진하게 → 먼 미래로 갈수록 옅게(불확실성↑ 시각화)
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k]));
@@ -980,12 +990,12 @@
     }
     // 데모(예시) 안내 — 중앙 워터마크 + 상단 배지. 불러온(fetched) 실티커가 없으면 예시로 간주.
     if (!boardState.nodes.some(n => n.blockType === "ticker" && n.params && n.params.fetched)) {
-      c.save(); c.textAlign = "center"; c.fillStyle = "rgba(232,180,99,.07)"; c.font = "800 42px Pretendard,'Malgun Gothic',sans-serif";
+      c.save(); c.textAlign = "center"; c.fillStyle = _warmA(.07); c.font = "800 42px Pretendard,'Malgun Gothic',sans-serif";
       c.fillText("예시 데이터", padX + plotW / 2, padTop + (ch - padTop - padBot) / 2 + 12); c.restore();
       c.font = "700 10.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
       const txt = "예시 차트입니다 — 위 티커에 종목을 입력해 ‘불러오기’ 하세요";
       const tw = c.measureText(txt).width + 18;
-      c.fillStyle = "rgba(232,180,99,.18)"; if (c.roundRect) { c.beginPath(); c.roundRect(padX + 4, padTop + 48, tw, 19, 5); c.fill(); } else c.fillRect(padX + 4, padTop + 48, tw, 19);
+      c.fillStyle = _warmA(.18); if (c.roundRect) { c.beginPath(); c.roundRect(padX + 4, padTop + 48, tw, 19, 5); c.fill(); } else c.fillRect(padX + 4, padTop + 48, tw, 19);
       c.fillStyle = "rgba(240,200,120,.98)"; c.fillText(txt, padX + 13, padTop + 60.5); c.textAlign = "left";
     }
     drawEvidence();
@@ -1022,7 +1032,7 @@
     if (e.target.closest("button,input,select,a,textarea")) return;   // 헤더 내 컨트롤은 제외
     const panel = ph.closest(".fc-panel"); if (panel) panel.classList.toggle("collapsed");
   });
-  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: "#ffd24d", elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#d0b25a", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#d87ab8", pivot: "#e0b0a0", psar: "#c0a8e0", keltner: "#7fc0d0", donchian: "#d0c080", cci: "#e6785a", williams: "#b56fd6", roc: "#8fb46a", ao: "#5a9ad0", aroon: "#8b7ee0", mfi: "#c8912f", cmf: "#5ac0a0" };
+  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: FC_GOLD, elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#d0b25a", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#d87ab8", pivot: "#e0b0a0", psar: "#c0a8e0", keltner: "#7fc0d0", donchian: "#d0c080", cci: "#e6785a", williams: "#b56fd6", roc: "#8fb46a", ao: "#5a9ad0", aroon: "#8b7ee0", mfi: "#c8912f", cmf: "#5ac0a0" };
   /* 지표 도구 안내 — 편집창에 목적(p)·정의(d)·해석법(h) 표시 */
   const INDICATOR_INFO = {
     ma: { p: "추세의 방향·기울기를 매끄럽게 파악.", d: "최근 N봉 종가의 단순/지수 평균선.", h: "가격이 선 위=상승 우위, 아래=하락 우위. 단·장기선 정배열·골든/데드크로스로 전환 판단." },
@@ -1315,7 +1325,7 @@
       for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
         const cell = at(v1s[r], v2s[col]); const x = gx + col * cw, y = gy + r * ch;
         c.fillStyle = _optColor(cell ? cell.score : NaN, mn, mx); c.fillRect(x + 1, y + 1, cw - 1, ch - 1);
-        if (best && cell && cell.v1 === best.v1 && cell.v2 === best.v2) { c.strokeStyle = "#e8b463"; c.lineWidth = 2.5; c.strokeRect(x + 1.5, y + 1.5, cw - 2, ch - 2); c.fillStyle = "#1a1206"; c.font = "bold 15px Pretendard"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("★", x + cw / 2, y + ch / 2); c.font = "13px Pretendard,'Malgun Gothic',sans-serif"; }
+        if (best && cell && cell.v1 === best.v1 && cell.v2 === best.v2) { c.strokeStyle = FC_GOLD; c.lineWidth = 2.5; c.strokeRect(x + 1.5, y + 1.5, cw - 2, ch - 2); c.fillStyle = "#1a1206"; c.font = "bold 15px Pretendard"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("★", x + cw / 2, y + ch / 2); c.font = "13px Pretendard,'Malgun Gothic',sans-serif"; }
       }
       c.fillStyle = "rgba(138,146,178,.9)"; c.textAlign = "center"; c.textBaseline = "top";
       for (let col = 0; col < cols; col++) c.fillText(String(v2s[col]), gx + col * cw + cw / 2, gy + gh + 7);
@@ -1326,7 +1336,7 @@
     } else {
       // 1D: 적중률 프로파일(막대)
       const n = v1s.length, bw = gw / n, base = gy + gh;
-      for (let i = 0; i < n; i++) { const cell = at(v1s[i], null); const s = cell ? cell.score : 0; const bh = gh * Math.max(0, Math.min(1, s)); const x = gx + i * bw; c.fillStyle = _optColor(s, mn, mx); c.fillRect(x + 3, base - bh, bw - 6, bh); if (best && cell && cell.v1 === best.v1) { c.strokeStyle = "#e8b463"; c.lineWidth = 2; c.strokeRect(x + 2, base - bh, bw - 4, bh); c.fillStyle = "#e8b463"; c.font = "bold 14px Pretendard"; c.textAlign = "center"; c.fillText("★", x + bw / 2, base - bh - 8); c.font = "13px Pretendard,'Malgun Gothic',sans-serif"; } }
+      for (let i = 0; i < n; i++) { const cell = at(v1s[i], null); const s = cell ? cell.score : 0; const bh = gh * Math.max(0, Math.min(1, s)); const x = gx + i * bw; c.fillStyle = _optColor(s, mn, mx); c.fillRect(x + 3, base - bh, bw - 6, bh); if (best && cell && cell.v1 === best.v1) { c.strokeStyle = FC_GOLD; c.lineWidth = 2; c.strokeRect(x + 2, base - bh, bw - 4, bh); c.fillStyle = FC_GOLD; c.font = "bold 14px Pretendard"; c.textAlign = "center"; c.fillText("★", x + bw / 2, base - bh - 8); c.font = "13px Pretendard,'Malgun Gothic',sans-serif"; } }
       c.strokeStyle = "rgba(138,146,178,.3)"; c.lineWidth = 1; const y50 = base - gh * 0.5; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(gx, y50); c.lineTo(gx + gw, y50); c.stroke(); c.setLineDash([]);
       c.fillStyle = "rgba(138,146,178,.7)"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText("50%", gx + gw - 30, y50 - 8);
       c.fillStyle = "rgba(138,146,178,.9)"; c.textAlign = "center"; c.textBaseline = "top";
@@ -1447,7 +1457,7 @@
     const focus = _evHover || _focusInd;
     const allVis = items.length && items.every(it => _evVisible.has(it._key));
     const rows = [{ col: "#8a92b2", t: allVis ? "전체 표시" : "전체 표시(클릭)", key: null }].concat(items.map(it => ({ col: it.col, t: it.t, key: it._key })));
-    const _gc = ((getComputedStyle(document.documentElement).getPropertyValue("--gold") || "").trim()) || "#e8b463";
+    const _gc = ((getComputedStyle(document.documentElement).getPropertyValue("--gold") || "").trim()) || FC_GOLD;
     const hint = "클릭=표시 토글 · 더블클릭=단독 · 전체표시=모두";
     c.font = "9.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; let maxW = c.measureText(hint).width;
     c.font = "11.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; for (const it of rows) maxW = Math.max(maxW, c.measureText(it.t).width);
@@ -1559,7 +1569,7 @@
   function _drawTrendLayers(c, ta, M) {
     c.save();
     const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0 } = M;
-    const COL = { long: "#46c28e", mid: "#5b8def", short: "#e8b463" };
+    const COL = { long: "#46c28e", mid: "#5b8def", short: FC_GOLD };
     const W = { long: 1.7, mid: 1.4, short: 1.15 };
     const DASH = { long: [], mid: [], short: CDASH.std };
     function winLine(w, key) {
@@ -1695,7 +1705,7 @@
   function _drawFibLayers(c, fib, M) {
     c.save();
     const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight, top, bot } = M;
-    const xL = fiToX(Math.max(fiMin, 0)), xR = (xRight != null ? xRight : fiToX(nowFi)), GOLD = "#ffd24d", DIM = "#e8b463";
+    const xL = fiToX(Math.max(fiMin, 0)), xR = (xRight != null ? xRight : fiToX(nowFi)), GOLD = FC_GOLD, DIM = FC_GOLD;
     const _near = (a, arr) => arr.some(k => Math.abs(a - k) < 0.002);
     const KEYR = [0.382, 0.5, 0.618], KEYE = [1.618, 2.618];   // 되돌림·확장 핵심(골든 포켓)
     function levelLine(L) {
@@ -1705,7 +1715,7 @@
       const emph = isKey || L.confluent;                                  // 강조 선(핵심 or 합류)
       // 선: 강조=굵고 진하게, 그 외=아주 흐리게(강약 대비 뚜렷)
       c.setLineDash(L.confluent ? [] : ext ? CDASH.std : CDASH.fine);
-      c.strokeStyle = emph ? GOLD : "rgba(232,180,99,.38)";
+      c.strokeStyle = emph ? GOLD : _warmA(.38);
       c.lineWidth = L.confluent ? CW.bold : isKey ? CW.base : CW.hair;
       c.globalAlpha = emph ? 0.9 : 0.28;
       const xE = (_skFrac == null || _skFrac >= 1) ? xR : xL + (xR - xL) * Math.max(0, _skFrac);   // 좌→우로 그어짐(dash 스타일 보존)
@@ -1724,7 +1734,7 @@
       const z = fib.zone;
       if (z && isFinite(z.goldenLo) && isFinite(z.goldenHi)) {
         const yH = pToY(z.goldenHi), yL = pToY(z.goldenLo);
-        if (isFinite(yH) && isFinite(yL)) { c.globalAlpha = .09; c.fillStyle = "#e8b463"; c.fillRect(xL, Math.min(yH, yL), Math.max(2, xR - xL), Math.abs(yL - yH)); c.globalAlpha = 1; }
+        if (isFinite(yH) && isFinite(yL)) { c.globalAlpha = .09; c.fillStyle = FC_GOLD; c.fillRect(xL, Math.min(yH, yL), Math.max(2, xR - xL), Math.abs(yL - yH)); c.globalAlpha = 1; }
       }
       if (z && z.nearest) {
         const y = pToY(z.nearest.price);
@@ -1740,7 +1750,7 @@
     // ── 중기·장기 degree: 핵심 레벨(0.382/0.5/0.618)+골든존+스윙 스팬만, 구분 스타일(단기와 혼동 방지) ──
     if (reveal >= 1 && fib.degrees && fib.degrees.length > 1) {
       const KEY = [0.382, 0.5, 0.618];
-      const STY = { "중기": { col: "rgba(232,180,99,.5)", w: 1.2, dash: CDASH.long, dot: 2.8 }, "장기": { col: "rgba(201,146,46,.85)", w: 1.6, dash: [6, 4], dot: 3.4 } };
+      const STY = { "중기": { col: _warmA(.5), w: 1.2, dash: CDASH.long, dot: 2.8 }, "장기": { col: "rgba(201,146,46,.85)", w: 1.6, dash: [6, 4], dot: 3.4 } };
       for (const dg of fib.degrees) {
         const st = STY[dg.name]; if (!st) continue;   // 단기는 위에서 이미 전체 그리드로 작도
         // 스윙 스팬(얇은 연결선) — 이 degree가 어느 구간을 보는지
@@ -1797,7 +1807,7 @@
       const _cl = ea.current.label, _isL = /[A-Z]/.test(_cl);
       const stx = ea.structure === "impulse_up" ? "임펄스↑" : ea.structure === "impulse_down" ? "임펄스↓" : ea.structure === "corrective" ? "조정 진행(" + _cl + ")" : _isL ? "되돌림 진행(" + _cl + ")" : (ea.waves.length >= 2 ? "발달중(" + _cl + "파)" : "불확실");
       const ok = [ea.rules.r1, ea.rules.r2, ea.rules.r3].filter(Boolean).length;
-      const bcol = ea.structure.indexOf("impulse") === 0 ? COL : ea.structure === "corrective" ? "#e8b463" : "#8a92b2";
+      const bcol = ea.structure.indexOf("impulse") === 0 ? COL : ea.structure === "corrective" ? FC_GOLD : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));
       _evLabel(c, stx + " " + ok + "/3 유효" + ea.rules.score.toFixed(2), xb, _by, bcol, "right");
     }
@@ -1837,7 +1847,7 @@
       if (reveal >= 2) {
         const pst2 = ea.primary.structure === "impulse_up" ? "임펄스↑" : ea.primary.structure === "impulse_down" ? "임펄스↓" : ea.primary.structure === "corrective" ? "ABC 조정" : "불확실";
         const pok = [ea.primary.rules.r1, ea.primary.rules.r2, ea.primary.rules.r3].filter(Boolean).length;
-        const pbcol = ea.primary.structure.indexOf("impulse") === 0 ? COL : ea.primary.structure === "corrective" ? "#e8b463" : "#8a92b2";
+        const pbcol = ea.primary.structure.indexOf("impulse") === 0 ? COL : ea.primary.structure === "corrective" ? FC_GOLD : "#8a92b2";
         const xb = (xRight != null ? xRight : fiToX(nowFi));
         _evLabel(c, "대형 " + pst2 + " " + pok + "/3", xb, _by + 15, pbcol, "right");
       }
@@ -1906,7 +1916,7 @@
       // 급증 시 마지막 봉(현재) 가격 위에 짧은 골드 수직 틱
       if (va.state === "spike" && isFinite(M.lastPrice)) {
         const x = fiToX(Math.max(fiMin, M.nowFi)), y = pToY(M.lastPrice);
-        if (isFinite(x) && isFinite(y)) { c.strokeStyle = "#e8b463"; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x, y - 14); c.lineTo(x, y - 4); c.stroke(); }
+        if (isFinite(x) && isFinite(y)) { c.strokeStyle = FC_GOLD; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x, y - 14); c.lineTo(x, y - 4); c.stroke(); }
       }
       _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, _by, relCol, "right");
     }
@@ -2099,13 +2109,13 @@
         const y0 = pToY(bin.hi), y1 = pToY(bin.lo); if (!isFinite(y0) || !isFinite(y1)) continue;
         const h = Math.max(1, Math.abs(y1 - y0) - 1), w = (bin.vol / vp.maxVol) * maxW * prog;
         const inVA = bin.mid >= vp.val && bin.mid <= vp.vah, isPOC = Math.abs(bin.mid - vp.poc) < vp.binWidth * 0.6;
-        c.fillStyle = isPOC ? "rgba(232,180,99,.6)" : inVA ? "rgba(201,163,255,.34)" : "rgba(201,163,255,.16)";
+        c.fillStyle = isPOC ? _warmA(.6) : inVA ? "rgba(201,163,255,.34)" : "rgba(201,163,255,.16)";
         c.fillRect(xR - w, Math.min(y0, y1), w, h);
       }
     }
     if (reveal >= 2 && _skReady()) {
       const y = pToY(vp.poc);
-      if (isFinite(y)) _evLabel(c, "POC " + fmtNum(vp.poc), xR - 4, y, "#e8b463", "right");
+      if (isFinite(y)) _evLabel(c, "POC " + fmtNum(vp.poc), xR - 4, y, FC_GOLD, "right");
     }
     c.restore();
   }
@@ -2240,7 +2250,7 @@
     c.save();
     const { pToY, xRight, padX, top, bot, reveal = Infinity } = M;
     if (!piv || !piv.P) { c.restore(); return; }
-    const xL = (padX != null ? padX : 0), xR = (xRight != null ? xRight : 0), GOLD = "#ffd24d";
+    const xL = (padX != null ? padX : 0), xR = (xRight != null ? xRight : 0), GOLD = FC_GOLD;
     function levelLine(price, label, color, dash, lw) {
       const y = pToY(price); if (!isFinite(y) || !isFinite(xL) || !isFinite(xR)) return;
       if (top != null && bot != null && (y < top || y > bot)) {
@@ -2705,14 +2715,14 @@
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간 · 가격→y 매핑 포함) */
     if (c.canvas) c.canvas._coneGeo = { ox, oy, dw, dh, nowX, rightX, path, lo, hi, anchorP, bandTop, bandBot, p1p: p1.price, p1y: y1, p2p: p2.price, p2y: y2, log: lg, unit: tfUnit() };
     c.textAlign = "left"; c.lineWidth = fs; c.font = Math.round(10 * fs) + "px ui-monospace,monospace";
-    c.strokeStyle = "rgba(232,180,99,.5)"; c.setLineDash([4 * fs, 3 * fs]);
+    c.strokeStyle = _warmA(.5); c.setLineDash([4 * fs, 3 * fs]);
     c.beginPath(); c.moveTo(nowX, oy); c.lineTo(nowX, oy + dh); c.stroke(); c.setLineDash([]);
-    c.fillStyle = "rgba(232,180,99,.92)"; c.fillText("지금", nowX + 3 * fs, oy + 11 * fs);
+    c.fillStyle = _warmA(.92); c.fillText("지금", nowX + 3 * fs, oy + 11 * fs);
     if (path.length) {
       c.beginPath(); c.moveTo(nowX, anchorY);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(hi[k]));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(xOf(k), yOf(lo[k]));
-      c.closePath(); c.fillStyle = "rgba(232,180,99,.11)"; c.fill();
+      c.closePath(); c.fillStyle = _warmA(.11); c.fill();
       c.strokeStyle = FC_GOLD; c.lineWidth = 2 * fs; c.setLineDash([5 * fs, 4 * fs]);
       c.beginPath(); c.moveTo(nowX, anchorY);
       for (let k = 0; k < path.length; k++) c.lineTo(xOf(k), yOf(path[k]));
@@ -2729,7 +2739,7 @@
       c.textAlign = "left";
     }
     c.fillStyle = FC_GOLD; c.beginPath(); c.arc(nowX, anchorY, 3.5 * fs, 0, 7); c.fill();
-    c.fillStyle = "rgba(232,180,99,.95)"; c.fillText("현재가 " + fmtNum(anchorP), nowX + 7 * fs, anchorY - 6 * fs);
+    c.fillStyle = _warmA(.95); c.fillText("현재가 " + fmtNum(anchorP), nowX + 7 * fs, anchorY - 6 * fs);
     /* 시점 마커(3·6·12·24… — 예측 시점별 표와 동일 시점) */
     if (path.length) {
       const u = tfUnit();
@@ -2737,7 +2747,7 @@
       const clamp = x => Math.max(ox + 16 * fs, Math.min(ox + dw - 16 * fs, x));
       for (const h of hs) {
         const k = h - 1, mx = xOf(k), my = yOf(path[k]), isEnd = (h === path.length);
-        c.strokeStyle = "rgba(232,180,99,.22)"; c.lineWidth = fs; c.setLineDash([3 * fs, 3 * fs]);
+        c.strokeStyle = _warmA(.22); c.lineWidth = fs; c.setLineDash([3 * fs, 3 * fs]);
         c.beginPath(); c.moveTo(mx, my); c.lineTo(mx, oy + dh - 13 * fs); c.stroke(); c.setLineDash([]);
         c.fillStyle = FC_GOLD; c.beginPath(); c.arc(mx, my, 3 * fs, 0, 7); c.fill();
         c.strokeStyle = "#0b0f14"; c.lineWidth = 1.2 * fs; c.stroke();
