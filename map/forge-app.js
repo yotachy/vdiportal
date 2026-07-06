@@ -919,13 +919,21 @@
       rs.setProperty("--fs-phead-h", phH + "px");
       rs.setProperty("--fs-head-h", (phH + vbH) + "px");
     }
-    // 차트가 휠을 가로채므로 '지표 신호로 이동' 버튼으로 스크롤(차트↔신호 토글)
-    const _fcScrollEl = () => document.querySelector(".chart-pane");
+    // 차트가 휠을 가로채므로 '지표 신호로 이동' 버튼으로 스크롤(차트↔신호 토글). 실제 스크롤 컨테이너는 .fc-wrap
+    const _fcScrollEl = () => document.querySelector(".chart-pane .fc-wrap");
     let _fcScrollBound = null;
-    function _fcUpdateScrollBtn() { const el = _fcScrollEl(), lbl = document.getElementById("fcScrollLbl"); if (!el || !lbl) return; const atBottom = el.scrollTop > 80 && el.scrollTop > (el.scrollHeight - el.clientHeight - 40); lbl.textContent = atBottom ? "▲ 차트로" : "▼ 지표 신호"; }
+    const _fcAtBottom = el => el.scrollTop > 80 && el.scrollTop > (el.scrollHeight - el.clientHeight - 40);
+    function _fcUpdateScrollBtn() { const el = _fcScrollEl(), lbl = document.getElementById("fcScrollLbl"); if (!el || !lbl) return; lbl.textContent = _fcAtBottom(el) ? "▲ 차트로" : "▼ 지표 신호"; }
     function _fcBindScroll() { const el = _fcScrollEl(); if (!el || _fcScrollBound) return; _fcScrollBound = () => _fcUpdateScrollBtn(); el.addEventListener("scroll", _fcScrollBound, { passive: true }); _fcUpdateScrollBtn(); }
     function _fcUnbindScroll() { const el = _fcScrollEl(); if (el && _fcScrollBound) el.removeEventListener("scroll", _fcScrollBound); _fcScrollBound = null; }
-    window._fcScrollToggle = function () { const el = _fcScrollEl(); if (!el) return; const atBottom = el.scrollTop > (el.scrollHeight - el.clientHeight - 40); if (atBottom) { el.scrollTo({ top: 0, behavior: "smooth" }); } else { const sig = document.getElementById("sigProw"); const off = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--fs-phead-h")) || 46; if (sig) el.scrollTo({ top: Math.max(0, sig.offsetTop - off - 54), behavior: "smooth" }); } };
+    window._fcScrollToggle = function () {
+      const el = _fcScrollEl(); if (!el) return;
+      const sig = document.getElementById("sigProw");
+      if (_fcAtBottom(el) || !sig) { el.scrollTo({ top: 0, behavior: "smooth" }); return; }   // 이미 아래 → 차트로(위로)
+      const off = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--fs-phead-h")) || 46;
+      const target = el.scrollTop + (sig.getBoundingClientRect().top - el.getBoundingClientRect().top) - off - 18;   // 현재 위치 기준(offsetParent 무관)
+      el.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+    };
     window.addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("chart-fs")) toggleChartFS(); });
     function _fsRefit() { try { _fsSyncHeadH(); if (typeof fitPrediction === "function") fitPrediction(); else if (typeof redrawCharts === "function") redrawCharts(); } catch (e) { if (typeof redrawCharts === "function") redrawCharts(); } }
     document.addEventListener("fullscreenchange", () => { setTimeout(_fsRefit, 110); });   // 전체화면 진입/해제 → 예측 재프레이밍(세로 y스케일 + 하단 x축)

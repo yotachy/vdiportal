@@ -70,9 +70,9 @@
             </div>
               <span class="verdict-inline" id="verdictInline"></span>
             <div class="fc-head-actions">
-              <div class="fc-head-run" id="fcHeadRun" role="group" aria-label="웹분석·시뮬레이션"><!-- 전체화면 전용: 시그널 헤더 우측 웹분석/시뮬레이션 -->
-                <button class="ev-toggle" onclick="runEngine()" title="웹분석 — 즉시 계산"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l2.2 6.2 6.3.3-5 4 1.8 6-5.3-3.4L6.7 18.5l1.8-6-5-4 6.3-.3z" opacity=".92"/></svg><span class="hlbl"> 웹분석</span></button>
-                <button class="ev-toggle" id="fcFsPlay" onclick="playAnalysis()" title="시뮬레이션 — 산출 과정 작도 재생"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl"> 시뮬레이션</span></button>
+              <div class="fc-head-run" id="fcHeadRun" role="group" aria-label="웹분석·시뮬레이션"><!-- 전체화면 전용: 시그널 헤더 우측 웹분석/시뮬레이션(헤더와 동일 디자인) -->
+                <button class="run-btn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l2.2 6.2 6.3.3-5 4 1.8 6-5.3-3.4L6.7 18.5l1.8-6-5-4 6.3-.3z" opacity=".92"/></svg><span class="hlbl">웹분석</span></button>
+                <button class="tool-btn play-btn" id="fcFsPlay" onclick="playAnalysis()" title="시뮬레이션 — 웹분석의 산출 과정을 지표별 작도 애니메이션으로 재생"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시뮬레이션</span></button>
               </div>
               <span class="fc-src" id="fcSrcBadge" style="display:none"></span>
               <div class="fc-tfseg" id="fcTfSeg" style="display:none" title="봉 주기 선택 — 클릭 시 해당 주기로 불러와 자동 배열">
