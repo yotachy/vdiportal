@@ -254,7 +254,7 @@
     const el = document.getElementById("addTickerSlot"); if (!el) { newDoc(); return; }
     el.innerHTML = `<div class="add-tk-wrap"><input class="add-tk-in" id="addTkIn" placeholder="티커 입력 (예: TSLA · BTC-USD · 005930)" spellcheck="false" autocomplete="off"><div class="tk-sugg" id="addTkSugg" role="listbox"></div></div><button class="add-tk-go" id="addTkGo" title="추가(Enter)">추가</button>`;
     const inp = document.getElementById("addTkIn"), go = document.getElementById("addTkGo"), sugg = document.getElementById("addTkSugg");
-    const submit = () => { const v = (inp.value || "").trim(); _hideAddTicker(); if (v) _addTickerDoc(v); };
+    const submit = () => { const v = (inp.value || "").trim().toUpperCase(); _hideAddTicker(); if (v) _addTickerDoc(v); };
     _wireSuggest(inp, sugg, sym => { _hideAddTicker(); _addTickerDoc(sym); });   // 자동완성 선택 = 즉시 추가
     inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); submit(); } else if (e.key === "Escape") { e.preventDefault(); _hideAddTicker(); } });
     go.addEventListener("mousedown", e => { e.preventDefault(); submit(); });   // mousedown → blur보다 먼저 처리
@@ -263,7 +263,7 @@
   }
   function _hideAddTicker() { const el = document.getElementById("addTickerSlot"); if (el) el.innerHTML = `<button class="side-btn" onclick="_showAddTicker()">＋ 종목 추가</button>`; }
   async function _addTickerDoc(sym) {
-    sym = (sym || "").trim(); if (!sym) return;
+    sym = (sym || "").trim().toUpperCase(); if (!sym) return;   // 추가 시 대문자로 기재
     writeBackActive();
     const dc = { id: uid("doc"), title: sym, themeImgId: null, nodes: [], edges: [],
       view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
@@ -1171,11 +1171,13 @@
   // 공유: 심볼 필터 + 아이템 HTML
   function _suggFilter(q) { q = (q || "").trim().toLowerCase(); if (!q) return []; return TICKER_SUGGEST.filter(x => x.s.toLowerCase().indexOf(q) >= 0 || x.n.toLowerCase().indexOf(q) >= 0).slice(0, 8); }
   function _suggHTML(hits) { return hits.map(x => `<div class="tk-sugg-item" data-sym="${x.s}"><span class="tk-sugg-s">${esc(x.s)}</span><span class="tk-sugg-n">${esc(x.n)}</span><span class="tk-sugg-t">${esc(x.t)}</span></div>`).join(""); }
+  // 티커 입력 자동 대문자화(소문자 입력해도 대문자 표시·저장 — 한글/숫자는 불변, 캐럿 유지)
+  function _upSym(el) { if (!el) return ""; const up = (el.value || "").toUpperCase(); if (el.value !== up) { const p = el.selectionStart; el.value = up; try { el.setSelectionRange(p, p); } catch (_) {} } return up; }
   // 제네릭: 임의 입력창+드롭다운에 자동완성 부착(선택 시 onPick(sym))
   function _wireSuggest(inp, box, onPick) {
     if (!inp || !box) return; let idx = -1;
     const close = () => { box.classList.remove("open"); box.innerHTML = ""; idx = -1; };
-    inp.addEventListener("input", () => { const hits = _suggFilter(inp.value); idx = -1; if (!hits.length) { close(); return; } box.innerHTML = _suggHTML(hits); box.classList.add("open"); });
+    inp.addEventListener("input", () => { _upSym(inp); const hits = _suggFilter(inp.value); idx = -1; if (!hits.length) { close(); return; } box.innerHTML = _suggHTML(hits); box.classList.add("open"); });
     inp.addEventListener("keydown", e => {
       const open = box.classList.contains("open"); const its = box.querySelectorAll(".tk-sugg-item");
       if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); if (!its.length) return; idx = e.key === "ArrowDown" ? Math.min(its.length - 1, idx + 1) : Math.max(0, idx - 1); its.forEach((it, i) => it.classList.toggle("hl", i === idx)); its[idx].scrollIntoView({ block: "nearest" }); return; }
@@ -1228,7 +1230,7 @@
     /* 티커 패널 이벤트(심볼 입력·주기·불러오기) */
     const _tkSym = document.getElementById("tkSym");
     if (_tkSym) {
-      _tkSym.addEventListener("input", e => { const t = ensureTickerNode(); t.params.symbol = e.target.value.trim(); markDirty(); renderTickerPanel(); _tkSuggRender(e.target.value); });
+      _tkSym.addEventListener("input", e => { const up = _upSym(e.target); const t = ensureTickerNode(); t.params.symbol = up.trim(); markDirty(); renderTickerPanel(); _tkSuggRender(up); });
       _tkSym.addEventListener("keydown", e => {
         const box = document.getElementById("tkSugg"); const open = box && box.classList.contains("open");
         if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {

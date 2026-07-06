@@ -1712,7 +1712,9 @@
     if (wide !== _logChart) { _logChart = wide; if (typeof updateAxisBtns === "function") updateAxisBtns(); }
   }
   async function loadTicker() {
-    const t = ensureTickerNode(); const sym = (t.params.symbol || "").trim();
+    const t = ensureTickerNode(); const sym = (t.params.symbol || "").trim().toUpperCase();
+    if (sym) t.params.symbol = sym;   // 불러오기 시 대문자로 통일
+    const _si = document.getElementById("tkSym"); if (_si && _si.value.toUpperCase() !== _si.value) _si.value = _si.value.toUpperCase();
     if (!sym) { bToast("종목 심볼을 입력하세요 (예: BTC-USD)"); return; }
     if (!SERVER_OK) { bToast("오프라인 — 서버 연결이 필요해요"); return; }
     const tf = t.params.tf || "1day";
