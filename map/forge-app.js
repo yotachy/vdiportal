@@ -198,7 +198,7 @@
         <td>+${h}${unit}</td>
         <td><span class="dash-cell"><b class="dval ${cls}">${_hzFmt(v)}</b></span></td>
         <td><span class="dash-cell"><b class="dval ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</b></span></td>
-        <td><span class="dash-cell os-ringcell">${_ringSVG(up, probCol, 30)}<b class="dval ${pc}">${_parw}${up}%</b></span></td>
+        <td><span class="dash-cell os-ringcell" style="justify-content:center">${_ringSVG(up, probCol, 34)}</span></td>
         <td><span class="dash-cell"><span class="dash-sub">${band}</span></span></td>
       </tr>`;
     }).join("");
@@ -715,7 +715,10 @@
     const cv = document.getElementById("fcRadar"); if (!cv) return;
     const metaEl = document.getElementById("fcNodesMeta");
     const blocks = boardState.nodes.filter(n => n.kind === "block" && !["price", "predict", "combine", "ticker"].includes(n.blockType));
-    const host = cv.parentElement; const W = host.clientWidth || 360, Hh = cv.clientHeight || 220;
+    const host = cv.parentElement; const W = host.clientWidth || 360;
+    const _needH = Math.max(200, 8 + Math.max(1, blocks.length) * 14 + 8);   // 모든 지표가 잘리지 않게 캔버스 높이 확보(지표당 14px)
+    cv.style.height = _needH + "px";
+    const Hh = _needH;
     const c = fcFit(cv, Hh); c.clearRect(0, 0, W, Hh);
     if (metaEl) metaEl.textContent = blocks.length ? blocks.length + "개 지표" : "";
     if (!blocks.length || !result) {

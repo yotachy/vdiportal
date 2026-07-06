@@ -1204,6 +1204,12 @@
     .fcv-viz{gap:6px 8px;justify-content:space-around}
     .fcv-viz-lab{font-size:9px}
     .os-gauge{margin-left:5px}
+    /* TF 카드: 링/게이지 세로 적층 → 좁은 카드서 겹침·색 틀어짐(붙어있음) 해소 */
+    .tf-card-viz{flex-direction:column;gap:2px}
+    .tf-card-viz .viz-gauge{width:52px;height:30px}
+    /* 지표 신호: 좁은 화면에선 가운데 설명값 생략(줄바꿈·침범 방지) */
+    .sig-note{display:none}
+    .sig-row{grid-template-columns:16px 1fr 40px}
     /* 예측 미니차트/스파크: 오른쪽 설명이 안 밀리게 폭 제한 */
     .hz-spark{font-size:9.5px;gap:6px}
     .hz-spark svg{max-width:44vw;height:auto}
