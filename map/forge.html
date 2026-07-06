@@ -441,7 +441,7 @@
   .fc-cv{display:block;width:100%;border-radius:var(--r-md)}
   .fc-cap{margin-top:5px;font-size:11px;font-weight:600;color:#aeb7c8;letter-spacing:-.01em;line-height:1.45}
   .fc-hero canvas{touch-action:none}   /* 모바일 두 손가락 핀치 줌 — 브라우저 기본 제스처 차단 */
-  .fc-folds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 10px}
+  .fc-folds{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 10px}
   /* 접기 가능 패널(위상 폴딩 등) */
   .fc-phead-tog{cursor:pointer;user-select:none}
   .fc-collapse-ic{font-size:11px;color:var(--eth);transition:transform .15s;flex:0 0 auto}
@@ -1379,7 +1379,7 @@
           </div>
           <div class="fc-panel" id="fcPdmPanel">
             <div class="fc-phead">
-              <span class="fc-t"><b>PDM 스펙트럼</b> · 주기별 정합도</span>
+              <span class="fc-t"><b>파동 스캔</b> · 주기 스펙트럼(PDM)</span>
               <span class="fc-meta">y = 100·(1−θ)</span>
             </div>
             <div class="fc-pbody">
@@ -1395,15 +1395,14 @@
           </div>
           <div class="fc-pbody"><div id="fcNarr" class="nr-list"></div></div>
         </div>
-        <div class="fc-panel fc-collapsed" id="fcFoldPanel">
+        <div class="fc-panel" id="fcFoldPanel">
           <div class="fc-phead fc-phead-tog" onclick="this.parentElement.classList.toggle('fc-collapsed')" title="접기 / 펼치기">
-            <span class="fc-t"><b>위상 폴딩</b> · 구간 포개기</span>
-            <span style="display:flex;align-items:center;gap:8px"><span class="fc-meta">traces tighten when locked</span><span class="fc-collapse-ic">▾</span></span>
+            <span class="fc-t"><b>파동 스캔</b> · 위상 폴딩(구간 포개기)</span>
+            <span style="display:flex;align-items:center;gap:8px"><span class="fc-meta">지배주기로 포갤수록 트레이스가 겹침</span><span class="fc-collapse-ic">▾</span></span>
           </div>
           <div class="fc-folds">
             <canvas id="fcFoldA" class="fc-cv"></canvas>
             <canvas id="fcFoldB" class="fc-cv"></canvas>
-            <canvas id="fcFoldC" class="fc-cv"></canvas>
           </div>
         </div>
       </div>
@@ -3498,7 +3497,7 @@
   /* ════════════════════════════════════════════════════════════════
      CHART PANE — PHASE-FOLD render (ported from chart.html)
      Globals: fcFit(cv,h,cap), renderChart(result,data)
-     Canvases: #fcMain · #fcPdm · #fcFoldA · #fcFoldB · #fcFoldC
+     Canvases: #fcMain · #fcPdm · #fcFoldA · #fcFoldB
      ════════════════════════════════════════════════════════════════ */
 
   let _fcLastResult = null, _fcLastData = null, fcRAF = null;
@@ -3681,7 +3680,7 @@
 
     if (!curve || !curve.length) {
       c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace";
-      c.fillText("PDM 데이터 없음 — 그래프에 위상폴딩 블록을 추가하세요", 10, 20);
+      c.fillText("파동 스캔 지표를 추가하세요 (지배 주기 스펙트럼)", 10, 20);
       return;
     }
 
@@ -6265,10 +6264,10 @@
     if (!_playing) _evidenceSet = new Set(evIndicatorNodes().map(n => n.id));   // 평상시: 모든 지표 근거 표시
 
     const candles  = data.candle  || [];
-    const orangeArr = data.orange || [];
-    const blueArr   = data.blue   || [];
     /* candle close for fold */
     const closeArr  = candles.length ? candles.map(cd => cd.c) : (data.price || []);
+    /* 위상 폴딩 대상: 가격(close) + 추세제거·정규화(PDM이 실제 접는 신호) — chart.html 레거시 주황/파랑(data.orange/blue) 제거 */
+    const dnArr     = (closeArr.length >= 4 && ForgeCore.detrendNorm) ? ForgeCore.detrendNorm(closeArr) : [];
 
     /* phasefold meta: first block with best period */
     const metaVals = Object.values(result.meta || {});
@@ -6286,7 +6285,7 @@
       const meth = fmeta && fmeta.method ? " · " + fmeta.method + (Number.isFinite(fmeta.strength) ? "(피크 " + fmeta.strength.toFixed(1) + "x)" : "") : "";
       // 헤더엔 핵심만(주기 ≈N봉), 상세(주기/창·θ·방법)는 툴팁으로 — 헤더 밀집/잘림 방지
       fcMetaEl.textContent = fmeta ? ("주기 ≈" + Math.round(bestP) + "봉") : "";
-      fcMetaEl.title = fmeta ? ("지배주기 P*≈" + bestP.toFixed(1) + cyc + " · θ=" + thetaTxt + meth) : "위상폴딩 블록 없음";
+      fcMetaEl.title = fmeta ? ("파동 스캔 지배주기 P*≈" + bestP.toFixed(1) + cyc + " · θ=" + thetaTxt + meth) : "파동 스캔 지표 없음";
     }
 
     /* draw all panels — overlay=원본 이미지+예측 오버레이, chart=연속 선차트, image=분석 대기 */
@@ -6297,7 +6296,7 @@
     fcRenderForecast(result.prediction || { path: [], lo: [], hi: [] });
     fcDrawPdm(pdmCurve, bestP);
     if (!fmeta) {
-      ["fcFoldA", "fcFoldB", "fcFoldC"].forEach(id => {
+      ["fcFoldA", "fcFoldB"].forEach(id => {
         const cv = document.getElementById(id);
         if (!cv) return;
         const ch = 100, c = fcFit(cv, ch);
@@ -6305,13 +6304,12 @@
         c.clearRect(0, 0, cw, ch);
         c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace";
         c.textAlign = "center";
-        c.fillText("위상폴딩 블록 없음", cw / 2, ch / 2);
+        c.fillText("파동 스캔 지표를 추가하세요", cw / 2, ch / 2);
         c.textAlign = "left";
       });
     } else {
-      fcDrawFold(document.getElementById("fcFoldA"), orangeArr,  "주황 osc", FC_ORA,  bestP, 0);
-      fcDrawFold(document.getElementById("fcFoldB"), blueArr,    "파랑 osc", FC_BLU,  bestP, 0);
-      fcDrawFold(document.getElementById("fcFoldC"), closeArr,   "가격 close", FC_GOLD, bestP, 0);
+      fcDrawFold(document.getElementById("fcFoldA"), closeArr, "가격(close)", FC_GOLD, bestP, 0);
+      fcDrawFold(document.getElementById("fcFoldB"), dnArr,    "추세제거·정규화", FC_ORA, bestP, 0);
     }
     renderNodeAnalysis(result);
     renderHorizons(result);
