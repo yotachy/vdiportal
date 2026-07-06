@@ -173,11 +173,13 @@
         <td>+${h}${unit}</td>
         <td><span class="dash-cell"><b class="dval ${cls}">${_hzFmt(v)}</b></span></td>
         <td><span class="dash-cell"><b class="dval ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</b></span></td>
-        <td><span class="dash-cell"><span class="dbar"><span class="dbar-f" style="width:${up}%;background:${probCol}"></span></span><b class="dval ${pc}">${_parw}${up}%</b></span></td>
+        <td><span class="dash-cell os-ringcell">${_ringSVG(up, probCol, 30)}<b class="dval ${pc}">${_parw}${up}%</b></span></td>
         <td><span class="dash-cell"><span class="dash-sub">${band}</span></span></td>
       </tr>`;
     }).join("");
-    host.innerHTML = `<table class="dash-table hz-table"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+    const chgs = hs.map(h => { const vF = path[h - 1]; const v = anchor + (vF - anchor) * u; return anchor ? (v - anchor) / anchor * 100 : 0; });
+    const spark = chgs.length >= 2 ? `<div class="hz-spark">${_sparkSVG(chgs, { color: (chgs[chgs.length - 1] >= 0 ? "#46c28e" : "#e06a6a"), fill: true, w: 130, h: 26 })}<span>변화% 경로 +${hs[0]}~+${hs[hs.length - 1]}${unit}</span></div>` : "";
+    host.innerHTML = spark + `<table class="dash-table hz-table"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
   }
   /* 시점 가중 종합 상승확률(%) — 가까운 시점일수록 신뢰↑. 헤더 국면/시그널 문구에 통합 표기 */
   function aggUpProb(pred) {
