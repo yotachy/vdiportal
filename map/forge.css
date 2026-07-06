@@ -676,10 +676,11 @@
   .forge-palette .pal-btn.pal-free{color:var(--eth);border-style:dashed}
 
   /* ── 노드 편집기 (우측 패널) ── */
-  .node-editor{flex:1;min-height:0;overflow-y:auto;display:none;flex-direction:column;gap:11px;padding:13px 15px;
+  /* 도구 편집기 = 좌측 서랍(drawer) — 전체화면·일반 모두 fixed 오버레이로 슬라이드. 2번 패널 미사용 */
+  .node-editor{position:fixed;top:0;left:0;bottom:0;width:min(340px,90vw);z-index:130;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:11px;padding:13px 15px;
+    background:var(--panel);border-right:1px solid var(--line);box-shadow:12px 0 34px var(--scrim);transform:translateX(-102%);transition:transform .2s cubic-bezier(.4,0,.2,1);
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-  .board-pane.editing #wlist,.board-pane.editing #wboard,.board-pane.editing .b-stage{display:none}   /* 편집 중 가운데 분석내용 숨김 */
-  .board-pane.editing .node-editor{display:flex}
+  .node-editor.open{transform:translateX(0)}
   /* 차트로 돌아가기 = 편집기 상단 고정 바(항상 보이게·눈에 띄게) */
   .ne-back{position:sticky;top:-13px;z-index:6;margin:-13px -15px 6px;align-self:stretch;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(22,29,38,.99),rgba(22,29,38,.92));border:0;border-bottom:1px solid var(--gold-dim);color:var(--gold);border-radius:0;font-size:13px;font-weight:800;padding:12px 15px;cursor:pointer;font-family:inherit;backdrop-filter:blur(5px);letter-spacing:-.01em}
   .ne-back:hover{background:rgba(232,180,99,.16)}

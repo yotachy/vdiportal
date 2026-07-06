@@ -2734,7 +2734,14 @@
   /* ── Boot ────────────────────────────────────────────────────── */
   document.addEventListener("DOMContentLoaded", () => {
     boardInit();
-    { const _pp = document.getElementById("paramPanel"), _bp = document.getElementById("boardPane"); if (_pp && _bp && _pp.parentElement !== _bp) _bp.appendChild(_pp); }   // 편집기를 가운데 패널로 이동
+    { const _pp = document.getElementById("paramPanel"); if (_pp && _pp.parentElement !== document.body) document.body.appendChild(_pp); }   // 편집기 서랍을 body 직속으로(전체화면서 숨는 boardPane 밖 → 어디서나 오버레이)
+    // 서랍 외부 클릭 시 닫기(서랍·지표레일 내부는 유지 → 다른 지표 ✎로 전환 가능)
+    document.addEventListener("pointerdown", e => {
+      const _pp = document.getElementById("paramPanel");
+      if (!_pp || !_pp.classList.contains("open")) return;
+      if (e.target.closest && (e.target.closest("#paramPanel") || e.target.closest(".ind-rail"))) return;
+      if (typeof deselectAll === "function") deselectAll();   // 그 외 영역 클릭 → 선택 해제 → 서랍 슬라이드 아웃
+    }, true);
     if (typeof startFx === "function") startFx();   // 예측영역 앰비언트 FX 루프
     renderTheme();
 

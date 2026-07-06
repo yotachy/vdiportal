@@ -563,17 +563,14 @@
   /* 노드 선택 시 우측 패널을 편집기로 전환, 미선택 시 결과 차트로 복귀 */
   function renderParams() {
     const panel = document.getElementById("paramPanel");
-    const pane = document.getElementById("boardPane");   // 편집기는 가운데 패널에서(차트는 계속 보이게)
-    if (!panel || !pane) return;
+    if (!panel) return;
     const n = (sel.length === 1) ? bN(sel[0]) : null;
     if (!n) {
-      const wasEditing = pane.classList.contains("editing");
-      pane.classList.remove("editing");
+      panel.classList.remove("open");   // 서랍 닫기(슬라이드 아웃)
       panel.innerHTML = "";
-      if (wasEditing) redrawCharts();   // 차트 다시 보일 때 캔버스 재맞춤
       return;
     }
-    pane.classList.add("editing");
+    panel.classList.add("open");        // 서랍 열기(좌측 슬라이드)
     const rows = [];
     if (n.blockType === "ma") {
       rows.push(numRow("len", "이동평균 길이", (n.params && n.params.len) ?? 20));
