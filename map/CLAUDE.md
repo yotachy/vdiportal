@@ -63,7 +63,8 @@
 ## 작업 원칙 (이 프로젝트 관례)
 
 - 바닐라 JS, 빌드 툴 없음, 단일 HTML 파일 유지. 프레임워크/번들러 도입하지 말 것.
-- UI 텍스트는 한국어. 다크 테마 + KB 골드(`--gold:#ffbc00`) 토큰 사용.
+- UI 텍스트는 한국어. 골드(`--gold`) 액센트 토큰 사용.
+- **색 테마(`THEMES`, forge.html)**: 다크 5종(navy·midnight·teal·purple·orange)+라이트 2종(paper=밝은UI+다크차트·daylight=완전밝은). **정책: 각 테마가 완전 토큰 세트 지정**(bg/panel/surface/raised·line/edge·ink/eth/muted/faint·gold/gold-dim·hover/scrim/grid/chart-bg) — `applyTheme`가 이전 인라인 var를 지우지 않으므로 **모든 테마가 같은 키 전부 지정 필수**(누락 시 테마 전환 간 leak). bull/bear·EV_COLORS·FC_BULL/BEAR는 테마 무관 상수. 차트 캔버스는 `--chart-bg` 배경 + `_syncChartColors()`(chart-bg 밝기로 격자 명암·골드는 --gold 추종). 하드코딩 색은 `--hover`(호버)·`--scrim`(딤)·`--grid`로 토큰화. 좌측 accent line 금지.
 - 상태는 메모리 보관. 영속화는 서버(`api.php`) 또는 JSON 내보내기/불러오기 (이유는 아래 "제약" 참고).
 - 동작하는 프로토타입 우선. 과한 추상화 지양.
 
