@@ -1492,8 +1492,8 @@
       const nm = c[0], v = c[1], rg = REGC[v.regime] || REGC.neutral, tcol = _TFCOL[nm] || "var(--eth)";
       return `<div class="tf-card">
         <div class="tf-card-h" style="color:${tcol}"><span class="thdot" style="background:${tcol}"></span>${nm} <b style="color:${rg[1]}">${rg[0]}</b></div>
-        <div class="tf-card-viz">${_ringSVG(v.up, rg[1], 34)}${_gaugeSVG(v.score, -100, 100, { color: rg[1], w: 56, h: 32, r: 23 })}</div>
-        <div class="tf-card-lab">상승 <b style="color:${rg[1]}">${v.up}%</b> · 시그널 <b style="color:${rg[1]}">${Math.round(v.score)}</b></div>
+        <div class="tf-card-viz" data-up="${v.up}" data-score="${v.score}" data-col="${rg[1]}">${_ringSVG(v.up, rg[1], 34)}${_gaugeSVG(v.score, -100, 100, { color: rg[1], w: 56, h: 32, r: 23 })}</div>
+        <div class="tf-card-lab" data-up="${v.up}" data-score="${v.score}" data-col="${rg[1]}">상승 <b style="color:${rg[1]}">${v.up}%</b> · 시그널 <b style="color:${rg[1]}">${Math.round(v.score)}</b></div>
       </div>`;
     }).join("");
     host.innerHTML = `<div class="tf-cards">${cards}</div>` + `<table class="dash-table${_actIdx >= 0 ? " tfcol-" + (_actIdx + 2) : ""}">${th}${rows.join("")}</table>`;
@@ -2020,6 +2020,15 @@
       const pct = +cell.getAttribute("data-pct");
       const fbar = cell.querySelector(".dbar-f"); if (fbar) fbar.style.width = (pct * f) + "%";
       if (cell.hasAttribute("data-fnum")) { const fn = +cell.getAttribute("data-fnum"), suf = cell.getAttribute("data-suf") || ""; const dv = cell.querySelector(".dval"); if (dv) dv.textContent = Math.round(fn * f) + suf; }
+    });
+    // 일/주/월 카드 도넛(링)·게이지·라벨도 시연 진행도에 맞춰 0→최종으로 채움
+    document.querySelectorAll("#fcDashBody .tf-card-viz[data-up]").forEach(viz => {
+      const up = +viz.getAttribute("data-up"), score = +viz.getAttribute("data-score"), col = viz.getAttribute("data-col");
+      viz.innerHTML = _ringSVG(Math.round(up * f), col, 34) + _gaugeSVG(score * f, -100, 100, { color: col, w: 56, h: 32, r: 23 });
+    });
+    document.querySelectorAll("#fcDashBody .tf-card-lab[data-up]").forEach(lab => {
+      const up = +lab.getAttribute("data-up"), score = +lab.getAttribute("data-score"), col = lab.getAttribute("data-col");
+      lab.innerHTML = '상승 <b style="color:' + col + '">' + Math.round(up * f) + '%</b> · 시그널 <b style="color:' + col + '">' + Math.round(score * f) + '</b>';
     });
   }
   function updatePlayBtn() {
