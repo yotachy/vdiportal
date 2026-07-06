@@ -1469,9 +1469,8 @@
     return m ? (m[1] + "." + m[2] + "." + m[3]) : null;
   }
   /* ── 예측영역 앰비언트 FX(오버레이) — 종점 브레딩 링 + 중앙선 흐름 shimmer. 차트 위 가벼운 rAF(전체 재드로 아님) ── */
-  let _fxRaf = null;
+  let _fxRaf = null, _fxLast = 0;
   function drawFx(now) {
-    _fxRaf = requestAnimationFrame(drawFx);
     const cv = document.getElementById("fcFx"); if (!cv) return;
     const hero = cv.parentElement, W = hero ? hero.clientWidth : 0, H = hero ? hero.clientHeight : 0;
     if (!W || !H) return;
@@ -1515,7 +1514,19 @@
     }
     c.restore();
   }
-  function startFx() { if (!_fxRaf) _fxRaf = requestAnimationFrame(drawFx); }
+  function _fxLoop(now) {
+    _fxRaf = requestAnimationFrame(_fxLoop);
+    if (document.hidden || (typeof heroMode === "function" && heroMode() !== "chart")) return;   // 유휴/비차트: 그리기 skip(빈 콜백)
+    if (now && (now - _fxLast) < 33) return;   // ~30fps 캡(비용 반감·시각차 미미)
+    _fxLast = now || 0;
+    drawFx(now);
+  }
+  function startFx() {
+    stopFx();
+    if (typeof prefersReducedMotion === "function" && prefersReducedMotion()) { drawFx(0); return; }   // 정적 1회, 루프 없음
+    _fxLast = 0; _fxRaf = requestAnimationFrame(_fxLoop);
+  }
+  function stopFx() { if (_fxRaf) { cancelAnimationFrame(_fxRaf); _fxRaf = null; } }
   async function fetchOHLC(symbol, tf) {
     const r = await fetch(FORGE_API + "?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(tf || "1day"), { cache: "no-store" });
     SERVER_OK = true;
@@ -2604,8 +2615,8 @@
   /* reduced-motion / visibility / resize guards */
   _rmq.addEventListener("change", () => { if (_ovResult) renderOverlay(_ovResult, _ovGraph); });
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) stopPulse();
-    else if (_ovResult && !prefersReducedMotion()) startPulse();
+    if (document.hidden) { stopPulse(); if (typeof stopFx === "function") stopFx(); }
+    else { if (_ovResult && !prefersReducedMotion()) startPulse(); if (typeof startFx === "function") startFx(); }
   });
   let _ovRz = null;
   window.addEventListener("resize", () => {
