@@ -43,7 +43,7 @@
     if (loA && hiA) { mn = Math.min(mn, Math.min.apply(0, loA)); mx = Math.max(mx, Math.max.apply(0, hiA)); }
     const sp = (mx - mn) || 1, n = ys.length;
     const x = i => pad + i / (n - 1) * (w - 2 * pad), y = v => h - pad - (v - mn) / sp * (h - 2 * pad);
-    const up = ys[n - 1] >= 0, col = up ? "#46c28e" : "#e06a6a";
+    const up = ys[n - 1] >= 0, col = up ? "var(--bull)" : "var(--bear)";
     let band = "";
     if (loA && hiA) {
       const top = hiA.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
@@ -192,7 +192,7 @@
       const dirProb = _dir >= 0 ? upF : (100 - upF);                          // '그 변화가 일어날' 확률(달성확률) — 하락 예측이면 하락확률
       const up = Math.round(dirProb * u);
       const pc = _dir > 0 ? "hz-up" : _dir < 0 ? "hz-dn" : "hz-fl";
-      const probCol = _dir > 0 ? "#46c28e" : _dir < 0 ? "#e06a6a" : "#8a92b2";
+      const probCol = _dir > 0 ? "var(--bull)" : _dir < 0 ? "var(--bear)" : "var(--eth)";
       const _parw = _dir > 0 ? "▲ " : _dir < 0 ? "▼ " : "";
       return `<tr>
         <td>+${h}${unit}</td>
@@ -1314,9 +1314,9 @@
     const el = document.getElementById("verdictInline");
     if (!el || !verdict) return;
     const REGIME_LABEL = { bull: "상승", bear: "하락", neutral: "중립" };
-    const REGIME_COL = { bull: "#46c28e", bear: "#e06a6a", neutral: "#8a92b2" };
+    const REGIME_COL = { bull: "var(--bull)", bear: "var(--bear)", neutral: "var(--eth)" };
     const regime = verdict.regime || "neutral";
-    const col = REGIME_COL[regime] || "#8a92b2", label = REGIME_LABEL[regime] || "중립";
+    const col = REGIME_COL[regime] || "var(--eth)", label = REGIME_LABEL[regime] || "중립";
     // 시연: 국면·확률·시그널·목표가가 중립/현재가에서 최종으로 단조 충전(u)
     const u = (fillU == null || !isFinite(fillU)) ? 1 : Math.max(0, Math.min(1, fillU));
     const _anchor = (lastResult && lastResult.prediction && isFinite(lastResult.prediction.anchor)) ? lastResult.prediction.anchor : null;
@@ -1331,7 +1331,7 @@
       if (typeof renderSidebar === "function") renderSidebar(); } }   // 종목 목록 미니판정·현재가·변화율 갱신
     el.innerHTML =
       `국면 <b style="color:${col}">${label}</b>` +
-      (_up != null ? ` · <b style="color:#46c28e">▲${_up}%</b> <b style="color:#e06a6a">▼${100 - _up}%</b>` : "") +
+      (_up != null ? ` · <b style="color:var(--bull)">▲${_up}%</b> <b style="color:var(--bear)">▼${100 - _up}%</b>` : "") +
       ` · 시그널 <b style="color:${col}">${score}</b>`;
     el.title = "국면 " + label + " · 상승확률 " + (_up != null ? _up + "% / 하락 " + (100 - _up) + "%" : "—") + " · 시그널 " + score + " · 목표 " + fmt(_targetN);
     // 강조 바 + 핵심 의견 한 줄
@@ -1353,15 +1353,15 @@
           _inds.forEach(nn => { const b = _nodeBias(nn, _P); if (b > 0.05) bl++; else if (b < -0.05) be++; else ne++; });
           const tt = bl + ne + be || 1;
           _bd = `<div class="fcv-break">
-            <span class="fcv-bd-leg"><i style="background:#46c28e"></i>상승 <b>${bl}</b></span>
+            <span class="fcv-bd-leg"><i style="background:var(--bull)"></i>상승 <b>${bl}</b></span>
             <span class="fcv-bd-leg" style="color:var(--gold)"><i style="background:#e8b463"></i>중립 <b style="color:var(--gold)">${ne}</b></span>
-            <span class="fcv-bd-leg"><i style="background:#e06a6a"></i>하락 <b>${be}</b></span>
-            <span class="fcv-bd-bar" title="상승 ${bl} · 중립 ${ne} · 하락 ${be} 지표"><b style="width:${bl / tt * 100}%;background:#46c28e"></b><b style="width:${ne / tt * 100}%;background:#e8b463"></b><b style="width:${be / tt * 100}%;background:#e06a6a"></b></span>
+            <span class="fcv-bd-leg"><i style="background:var(--bear)"></i>하락 <b>${be}</b></span>
+            <span class="fcv-bd-bar" title="상승 ${bl} · 중립 ${ne} · 하락 ${be} 지표"><b style="width:${bl / tt * 100}%;background:var(--bull)"></b><b style="width:${ne / tt * 100}%;background:#e8b463"></b><b style="width:${be / tt * 100}%;background:var(--bear)"></b></span>
           </div>`;
-          const dirCol = regime === "bull" ? "#46c28e" : regime === "bear" ? "#e06a6a" : "var(--eth)";
+          const dirCol = regime === "bull" ? "var(--bull)" : regime === "bear" ? "var(--bear)" : "var(--eth)";
           const cf = verdict.confluence;
           const cfDonut = (cf && cf.total) ? `<div class="fcv-viz-item">${_donutSVG([{ v: cf.agree, color: dirCol }, { v: Math.max(0, cf.total - cf.agree), color: "var(--faint)" }], { centerText: cf.score + "%" })}<span class="fcv-viz-lab">컨플루언스<br><b>${cf.agree}/${cf.total}</b></span></div>` : "";
-          const bnbDonut = `<div class="fcv-viz-item">${_donutSVG([{ v: bl, color: "#46c28e" }, { v: ne, color: "#e8b463" }, { v: be, color: "#e06a6a" }], { centerText: (regime === "bull" ? "▲" : regime === "bear" ? "▼" : "▸"), centerColor: dirCol, centerSize: 13 })}<span class="fcv-viz-lab">지표 방향<br><b style="color:#46c28e">${bl}</b>·<b style="color:var(--gold)">${ne}</b>·<b style="color:#e06a6a">${be}</b></span></div>`;
+          const bnbDonut = `<div class="fcv-viz-item">${_donutSVG([{ v: bl, color: "var(--bull)" }, { v: ne, color: "#e8b463" }, { v: be, color: "var(--bear)" }], { centerText: (regime === "bull" ? "▲" : regime === "bear" ? "▼" : "▸"), centerColor: dirCol, centerSize: 13 })}<span class="fcv-viz-lab">지표 방향<br><b style="color:var(--bull)">${bl}</b>·<b style="color:var(--gold)">${ne}</b>·<b style="color:var(--bear)">${be}</b></span></div>`;
           const sigGauge = (_scoreN != null) ? `<div class="fcv-viz-item">${_gaugeSVG(_scoreN, -100, 100, { color: dirCol })}<span class="fcv-viz-lab">시그널<br><b style="color:${dirCol}">${score}</b></span></div>` : "";
           _bd += `<div class="fcv-viz">${cfDonut}${bnbDonut}${sigGauge}</div>`;
         }
@@ -1415,13 +1415,13 @@
     } catch (e) { return null; }
   }
   function _dbest(vals, dir) { let bi = -1, bv = dir > 0 ? -1e9 : 1e9; vals.forEach((v, i) => { if (v == null || !isFinite(v)) return; if (dir > 0 ? v > bv : v < bv) { bv = v; bi = i; } }); return bi; }
-  function _elTxt(ea) { if (!ea) return ["–", "#8a92b2"]; const cl = ea.current.label, isL = /[A-Z]/.test(cl);
+  function _elTxt(ea) { if (!ea) return ["–", "var(--eth)"]; const cl = ea.current.label, isL = /[A-Z]/.test(cl);
     const t = ea.structure === "impulse_up" ? "상승 임펄스" : ea.structure === "impulse_down" ? "하락 임펄스" : ea.structure === "corrective" ? "조정(" + cl + ")" : isL ? "되돌림(" + cl + ")" : (ea.waves.length >= 2 ? "발달중(" + cl + "파)" : "불확실");
-    const col = ea.structure === "impulse_up" ? "#46c28e" : ea.structure === "impulse_down" ? "#e06a6a" : ea.structure === "corrective" ? "#e8b463" : "#8a92b2";
+    const col = ea.structure === "impulse_up" ? "var(--bull)" : ea.structure === "impulse_down" ? "var(--bear)" : ea.structure === "corrective" ? "#e8b463" : "var(--eth)";
     return [t, col]; }
-  function _volTxt(v) { if (!v) return ["–", "#8a92b2"]; const st = v.state === "spike" ? "급증" : v.state === "contract" ? "위축" : "평이";
+  function _volTxt(v) { if (!v) return ["–", "var(--eth)"]; const st = v.state === "spike" ? "급증" : v.state === "contract" ? "위축" : "평이";
     const rel = v.relationship === "confirm" ? "확인" : v.relationship === "weakening" ? "약화" : v.relationship === "selling" ? "매도압력" : "투매진정";
-    return [st + " · " + rel, (v.relationship === "confirm" || v.relationship === "capitulation") ? "#46c28e" : "#e06a6a"]; }
+    return [st + " · " + rel, (v.relationship === "confirm" || v.relationship === "capitulation") ? "var(--bull)" : "var(--bear)"]; }
   // 셀: 세그먼트 바(좌) + 값(우 정렬) / 텍스트(좌 정렬). best=행 최고 강조
   function _segBar(pct, col) { const p = Math.max(0, Math.min(100, pct || 0)); return `<span class="dbar"><span class="dbar-f" style="width:${p}%;background:${col}"></span></span>`; }
   function _barC(pct, col, val, best, fnum, suf) { const dn = (fnum != null) ? ` data-fnum="${fnum}" data-suf="${suf || ""}"` : ""; return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell" data-pct="${Math.round(pct || 0)}" data-col="${col}"${dn}>${_segBar(pct, col)}<b class="dval">${val}</b>${best ? `<span class="dstar">★</span>` : ""}</div></td>`; }
@@ -1441,24 +1441,24 @@
     if (!cols.length) { host.innerHTML = `<div class="na-empty">데이터를 불러올 수 없어요: ${esc(sym)}</div>`; return; }
     if (meta) meta.textContent = esc(sym);
     { const _ad = (typeof activeDoc === "function") ? activeDoc() : null; if (_ad) { _ad._tfReg = { d: (d && d.regime) || null, w: (w && w.regime) || null, m: (m && m.regime) || null }; if (typeof renderSidebar === "function") renderSidebar(); } }   // 워치리스트 신호등 도트용
-    const REG = { bull: ["▲ 상승", "#46c28e"], bear: ["▼ 하락", "#e06a6a"], neutral: ["– 중립", "#8a92b2"] };
-    const th = `<tr><th>지표</th>${cols.map(c => `<th style="color:${_TFCOL[c[0]] || "#8a92b2"}"><span class="thdot" style="background:${_TFCOL[c[0]] || "#8a92b2"}"></span>${c[0]}</th>`).join("")}</tr>`;
+    const REG = { bull: ["▲ 상승", "var(--bull)"], bear: ["▼ 하락", "var(--bear)"], neutral: ["– 중립", "var(--eth)"] };
+    const th = `<tr><th>지표</th>${cols.map(c => `<th style="color:${_TFCOL[c[0]] || "var(--eth)"}"><span class="thdot" style="background:${_TFCOL[c[0]] || "var(--eth)"}"></span>${c[0]}</th>`).join("")}</tr>`;
     const rows = [];
     rows.push(`<tr><td>국면</td>${cols.map(c => { const g = REG[c[1].regime] || REG.neutral; return _txtC(`<span class="dash-reg" style="color:${g[1]};background:${g[1]}22">${g[0]}</span>`, false); }).join("")}</tr>`);
-    { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, _TFCOL[c[0]] || "#8a92b2", c[1].up + "%", i === bi, c[1].up, "%")).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => 100 - c[1].up), 1); rows.push(`<tr><td>하락확률</td>${cols.map((c, i) => _barC(100 - c[1].up, "#e06a6a", (100 - c[1].up) + "%", i === bi, 100 - c[1].up, "%")).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return _barC((s + 100) / 2, _TFCOL[c[0]] || "#8a92b2", Math.round(s), i === bi, Math.round(s), ""); }).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => c[1].trend), 1); rows.push(`<tr><td>추세 %/봉</td>${cols.map((c, i) => { const t = c[1].trend; return _txtC(`<span style="color:${t >= 0 ? "#46c28e" : "#e06a6a"}">${t >= 0 ? "+" : ""}${t.toFixed(2)}</span>`, i === bi); }).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => c[1].chg), 1); rows.push(`<tr><td>예측</td>${cols.map((c, i) => c[1].chg == null ? _txtC("–", false) : _txtC(`<span style="color:${c[1].chg >= 0 ? "#46c28e" : "#e06a6a"}">${c[1].chg >= 0 ? "+" : ""}${c[1].chg.toFixed(1)}%</span>`, i === bi)).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, _TFCOL[c[0]] || "var(--eth)", c[1].up + "%", i === bi, c[1].up, "%")).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => 100 - c[1].up), 1); rows.push(`<tr><td>하락확률</td>${cols.map((c, i) => _barC(100 - c[1].up, "var(--bear)", (100 - c[1].up) + "%", i === bi, 100 - c[1].up, "%")).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return _barC((s + 100) / 2, _TFCOL[c[0]] || "var(--eth)", Math.round(s), i === bi, Math.round(s), ""); }).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].trend), 1); rows.push(`<tr><td>추세 %/봉</td>${cols.map((c, i) => { const t = c[1].trend; return _txtC(`<span style="color:${t >= 0 ? "var(--bull)" : "var(--bear)"}">${t >= 0 ? "+" : ""}${t.toFixed(2)}</span>`, i === bi); }).join("")}</tr>`); }
+    { const bi = _dbest(cols.map(c => c[1].chg), 1); rows.push(`<tr><td>예측</td>${cols.map((c, i) => c[1].chg == null ? _txtC("–", false) : _txtC(`<span style="color:${c[1].chg >= 0 ? "var(--bull)" : "var(--bear)"}">${c[1].chg >= 0 ? "+" : ""}${c[1].chg.toFixed(1)}%</span>`, i === bi)).join("")}</tr>`); }
     rows.push(`<tr class="dash-sec"><td colspan="${cols.length + 1}">구조 · 레벨</td></tr>`);
-    rows.push(`<tr><td>RSI</td>${cols.map(c => { const rv = c[1].rsi, col = rv >= 70 ? "#e06a6a" : rv <= 30 ? "#46c28e" : "#8a92b2"; return _barC(rv, col, Math.round(rv), false, Math.round(rv), ""); }).join("")}</tr>`);
+    rows.push(`<tr><td>RSI</td>${cols.map(c => { const rv = c[1].rsi, col = rv >= 70 ? "var(--bear)" : rv <= 30 ? "var(--bull)" : "var(--eth)"; return _barC(rv, col, Math.round(rv), false, Math.round(rv), ""); }).join("")}</tr>`);
     rows.push(`<tr><td>엘리어트</td>${cols.map(c => { const e = _elTxt(c[1].el); return _txtC(`<span style="color:${e[1]}">${e[0]}</span>`, false); }).join("")}</tr>`);
     rows.push(`<tr><td>거래량</td>${cols.map(c => { const vv = _volTxt(c[1].vol); return _txtC(`<span style="color:${vv[1]}">${vv[0]}</span>`, false); }).join("")}</tr>`);
     rows.push(`<tr><td>목표가</td>${cols.map(c => _txtC(isFinite(c[1].target) ? `<span class="dash-sub">${fmtNum(c[1].target)}</span>` : "–", false)).join("")}</tr>`);
-    rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:#46c28e">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> <span style="opacity:.35">/</span> <span style="color:#e06a6a">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
-    const REGC = { bull: ["▲", "#46c28e"], bear: ["▼", "#e06a6a"], neutral: ["▸", "#8a92b2"] };
+    rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:var(--bull)">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> <span style="opacity:.35">/</span> <span style="color:var(--bear)">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
+    const REGC = { bull: ["▲", "var(--bull)"], bear: ["▼", "var(--bear)"], neutral: ["▸", "var(--eth)"] };
     const cards = cols.map(c => {
-      const nm = c[0], v = c[1], rg = REGC[v.regime] || REGC.neutral, tcol = _TFCOL[nm] || "#8a92b2";
+      const nm = c[0], v = c[1], rg = REGC[v.regime] || REGC.neutral, tcol = _TFCOL[nm] || "var(--eth)";
       return `<div class="tf-card">
         <div class="tf-card-h" style="color:${tcol}"><span class="thdot" style="background:${tcol}"></span>${nm} <b style="color:${rg[1]}">${rg[0]}</b></div>
         <div class="tf-card-viz">${_ringSVG(v.up, rg[1], 34)}${_gaugeSVG(v.score, -100, 100, { color: rg[1], w: 56, h: 32, r: 23 })}</div>
@@ -1805,13 +1805,13 @@
   // 엔진분석 = 클로드 수동분석(예정 기능). 현재는 안내만.
   function authSoon() { if (typeof bToast === "function") bToast("로그인·회원가입은 준비 중입니다"); }
   const THEMES = {
-    navy:     { name: "네이비", group: "dark", c: "#0b0f14", g: "#e8b463", vars: { "--bg": "#0b0f14", "--panel": "#121822", "--surface": "#141a22", "--raised": "#1b232d", "--raised2": "#27313e", "--line": "#222b39", "--edge": "#566472", "--ink": "#e7ecf5", "--eth": "#8a92b2", "--muted": "#8b98a6", "--faint": "#5c6875", "--gold": "#e8b463", "--gold-dim": "#5e4d2c", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(11,15,20,.72)", "--grid": "#1b2334", "--chart-bg": "#0b0f14" } },
-    midnight: { name: "미드나잇 (기본)", group: "dark", c: "#07080b", g: "#e8b463", vars: { "--bg": "#07080b", "--panel": "#0d0f13", "--surface": "#101318", "--raised": "#171a20", "--raised2": "#222631", "--line": "#1c2029", "--edge": "#4a5560", "--ink": "#e7ecf5", "--eth": "#8a92b2", "--muted": "#8b98a6", "--faint": "#5c6875", "--gold": "#e8b463", "--gold-dim": "#5e4d2c", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(7,8,11,.75)", "--grid": "#161b26", "--chart-bg": "#07080b" } },
-    teal:     { name: "딥틸 (청록)", group: "dark", c: "#0b1517", g: "#5ec8b6", vars: { "--bg": "#0b1517", "--panel": "#101f21", "--surface": "#13262a", "--raised": "#182d31", "--raised2": "#233d42", "--line": "#1a2e30", "--edge": "#3d5a5c", "--ink": "#e6f0ee", "--eth": "#8aa5a2", "--muted": "#8ba6a3", "--faint": "#5c7573", "--gold": "#5ec8b6", "--gold-dim": "#2e5a52", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(11,21,23,.72)", "--grid": "#173033", "--chart-bg": "#0b1517" } },
-    purple:   { name: "로열 퍼플", group: "dark", c: "#100b18", g: "#b58cf0", vars: { "--bg": "#100b18", "--panel": "#181121", "--surface": "#1c1526", "--raised": "#241a30", "--raised2": "#33264a", "--line": "#281d38", "--edge": "#4d3d66", "--ink": "#ece7f5", "--eth": "#9a8ab2", "--muted": "#9b8ba6", "--faint": "#6c5c85", "--gold": "#b58cf0", "--gold-dim": "#4a3a66", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(16,11,24,.72)", "--grid": "#241a34", "--chart-bg": "#100b18" } },
-    orange:   { name: "앰버 오렌지", group: "dark", c: "#14100b", g: "#e8955c", vars: { "--bg": "#14100b", "--panel": "#1d160e", "--surface": "#221a11", "--raised": "#291e13", "--raised2": "#3a2c1b", "--line": "#2b2015", "--edge": "#5a4a30", "--ink": "#f5ece0", "--eth": "#b29a8a", "--muted": "#a6938b", "--faint": "#75685c", "--gold": "#e8955c", "--gold-dim": "#5e412c", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(20,16,11,.72)", "--grid": "#2b2015", "--chart-bg": "#14100b" } },
-    paper:    { name: "페이퍼", group: "light", c: "#f4f2ec", g: "#b0842f", vars: { "--bg": "#f4f2ec", "--panel": "#ffffff", "--surface": "#faf9f5", "--raised": "#eeece4", "--raised2": "#e4e1d7", "--line": "#e2e0d8", "--edge": "#c9c6bb", "--ink": "#1c2128", "--eth": "#5a6472", "--muted": "#6b7280", "--faint": "#9aa0a8", "--gold": "#b0842f", "--gold-dim": "#d8c9a0", "--hover": "rgba(0,0,0,.045)", "--scrim": "rgba(30,34,42,.5)", "--grid": "#d7dde6", "--chart-bg": "#0b0f14" } },
-    daylight: { name: "데이라이트", group: "light", c: "#f7f9fb", g: "#b0842f", vars: { "--bg": "#eef1f5", "--panel": "#ffffff", "--surface": "#f7f9fb", "--raised": "#eef1f5", "--raised2": "#e3e7ee", "--line": "#dde2ea", "--edge": "#c2c9d4", "--ink": "#1a1f27", "--eth": "#586274", "--muted": "#67717f", "--faint": "#98a1ad", "--gold": "#b0842f", "--gold-dim": "#d9cba2", "--hover": "rgba(0,0,0,.045)", "--scrim": "rgba(26,31,39,.5)", "--grid": "#dfe4ec", "--chart-bg": "#f7f9fb" } },
+    navy:     { name: "네이비", group: "dark", c: "#0b0f14", g: "#e8b463", vars: { "--bg": "#0b0f14", "--panel": "#121822", "--surface": "#141a22", "--raised": "#1b232d", "--raised2": "#27313e", "--line": "#222b39", "--edge": "#566472", "--ink": "#e7ecf5", "--eth": "var(--eth)", "--muted": "#8b98a6", "--faint": "#5c6875", "--gold": "#e8b463", "--gold-dim": "#5e4d2c", "--bull": "#46c28e", "--bear": "#e06a6a", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(11,15,20,.72)", "--grid": "#1b2334", "--chart-bg": "#0b0f14" } },
+    midnight: { name: "미드나잇 (기본)", group: "dark", c: "#07080b", g: "#e8b463", vars: { "--bg": "#07080b", "--panel": "#0d0f13", "--surface": "#101318", "--raised": "#171a20", "--raised2": "#222631", "--line": "#1c2029", "--edge": "#4a5560", "--ink": "#e7ecf5", "--eth": "var(--eth)", "--muted": "#8b98a6", "--faint": "#5c6875", "--gold": "#e8b463", "--gold-dim": "#5e4d2c", "--bull": "#46c28e", "--bear": "#e06a6a", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(7,8,11,.75)", "--grid": "#161b26", "--chart-bg": "#07080b" } },
+    teal:     { name: "딥틸 (청록)", group: "dark", c: "#0b1517", g: "#5ec8b6", vars: { "--bg": "#0b1517", "--panel": "#101f21", "--surface": "#13262a", "--raised": "#182d31", "--raised2": "#233d42", "--line": "#1a2e30", "--edge": "#3d5a5c", "--ink": "#e6f0ee", "--eth": "#8aa5a2", "--muted": "#8ba6a3", "--faint": "#5c7573", "--gold": "#5ec8b6", "--gold-dim": "#2e5a52", "--bull": "#46c28e", "--bear": "#e06a6a", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(11,21,23,.72)", "--grid": "#173033", "--chart-bg": "#0b1517" } },
+    purple:   { name: "로열 퍼플", group: "dark", c: "#100b18", g: "#b58cf0", vars: { "--bg": "#100b18", "--panel": "#181121", "--surface": "#1c1526", "--raised": "#241a30", "--raised2": "#33264a", "--line": "#281d38", "--edge": "#4d3d66", "--ink": "#ece7f5", "--eth": "#9a8ab2", "--muted": "#9b8ba6", "--faint": "#6c5c85", "--gold": "#b58cf0", "--gold-dim": "#4a3a66", "--bull": "#46c28e", "--bear": "#e06a6a", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(16,11,24,.72)", "--grid": "#241a34", "--chart-bg": "#100b18" } },
+    orange:   { name: "앰버 오렌지", group: "dark", c: "#14100b", g: "#e8955c", vars: { "--bg": "#14100b", "--panel": "#1d160e", "--surface": "#221a11", "--raised": "#291e13", "--raised2": "#3a2c1b", "--line": "#2b2015", "--edge": "#5a4a30", "--ink": "#f5ece0", "--eth": "#b29a8a", "--muted": "#a6938b", "--faint": "#75685c", "--gold": "#e8955c", "--gold-dim": "#5e412c", "--bull": "#46c28e", "--bear": "#e06a6a", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(20,16,11,.72)", "--grid": "#2b2015", "--chart-bg": "#14100b" } },
+    paper:    { name: "페이퍼", group: "light", c: "#f4f2ec", g: "#b0842f", vars: { "--bg": "#f4f2ec", "--panel": "#ffffff", "--surface": "#faf9f5", "--raised": "#eeece4", "--raised2": "#e4e1d7", "--line": "#e2e0d8", "--edge": "#c9c6bb", "--ink": "#1c2128", "--eth": "#4c5563", "--muted": "#5f6773", "--faint": "#6d747e", "--gold": "#8a6a1f", "--gold-dim": "#d8c9a0", "--bull": "#0f8a4a", "--bear": "#cf3a34", "--hover": "rgba(0,0,0,.045)", "--scrim": "rgba(30,34,42,.5)", "--grid": "#d7dde6", "--chart-bg": "#0b0f14" } },
+    daylight: { name: "데이라이트", group: "light", c: "#f7f9fb", g: "#b0842f", vars: { "--bg": "#eef1f5", "--panel": "#ffffff", "--surface": "#f7f9fb", "--raised": "#eef1f5", "--raised2": "#e3e7ee", "--line": "#dde2ea", "--edge": "#c2c9d4", "--ink": "#1a1f27", "--eth": "#4c5563", "--muted": "#5f6773", "--faint": "#6d747e", "--gold": "#8a6a1f", "--gold-dim": "#d9cba2", "--bull": "#0f8a4a", "--bear": "#cf3a34", "--hover": "rgba(0,0,0,.045)", "--scrim": "rgba(26,31,39,.5)", "--grid": "#dfe4ec", "--chart-bg": "#f7f9fb" } },
   };
   let _theme = (function () { try { return localStorage.getItem("scoopforge_theme") || "midnight"; } catch (e) { return "midnight"; } })();
   function applyTheme(key) {
@@ -2483,7 +2483,7 @@
     const sig = result.signal || [];
     const M = fcMap(candles, pred, sig, _fcovW, _fcovH);
     const reg = (result.verdict && result.verdict.regime) || "neutral";
-    const dirCol = reg === "bull" ? "#46c28e" : reg === "bear" ? "#e06a6a" : "#e8b463";
+    const dirCol = reg === "bull" ? "var(--bull)" : reg === "bear" ? "var(--bear)" : "#e8b463";
     const np = pred.path.length;
 
     /* filled cone lo–hi, gold fading left→right (seam에서 시작) */
