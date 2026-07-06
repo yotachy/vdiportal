@@ -191,7 +191,9 @@
     const o = opts || {}, n = z.length, step = o.step || 0.5;
     const pmin = Math.max(4, o.pmin || 8);
     const hardMax = Math.floor(n / 2.5);                       // 장주기 편향 차단(≥2.5주기)
-    const pmax = Math.max(pmin + 2, Math.min(o.pmax || hardMax, hardMax));
+    // 데이터가 pmin의 2.5주기도 안 되면 주기 판정 불가 → 중립(허위 지배주기·장주기 편향 차단). 짧은 월봉 대응
+    if (hardMax < pmin + 2) return { best: pmin, curve: [], pFFT: pmin, kbest: 0, strength: 0, pdmBest: pmin, method: "insufficient" };
+    const pmax = Math.min(hardMax, Math.max(pmin + 2, Math.min(o.pmax || hardMax, hardMax)));
     // 전역 PDM 곡선 + 최소
     const curve = []; let best = pmin, bt = Infinity;
     for (let P = pmin; P <= pmax; P += step) { const t = pdmTheta(z, P); curve.push({ P, theta: t }); if (!isNaN(t) && t < bt) { bt = t; best = P; } }
@@ -571,11 +573,14 @@
   function cciSeries(price, period) {
     return _cciRaw(price, period || 20).map(v => Math.max(-1, Math.min(1, v / 200)));   // ±200→±1
   }
-  function analyzeCCI(price, opts) {
+  function analyzeCCI(data, opts) {
     opts = opts || {};
+    const price = Array.isArray(data) ? data : ((data && data.price) || ((data && data.candle) || []).map(c => c.c));
+    const candle = (data && !Array.isArray(data)) ? data.candle : null;
     const period = opts.period || 20, P = price.length;
     if (P < 2) return { series: [], last: 0, regime: 0, bias: 0 };
-    const raw = _cciRaw(price, period), last = raw[P-1];
+    const tp = candle ? price.map((c, i) => candle[i] ? (candle[i].h + candle[i].l + candle[i].c) / 3 : c) : price;   // 전형가(H+L+C)/3
+    const raw = _cciRaw(tp, period), last = raw[P-1];
     const win = raw.slice(Math.max(0, P - period*2)), avg = win.reduce((a,b)=>a+b,0)/(win.length||1);
     const regime = avg >= 40 ? 1 : avg <= -40 ? -1 : 0;   // Cardwell식 국면
     // 0선 위/아래 + 국면 반영(추세장 과열은 약하게)
@@ -914,8 +919,8 @@
     const shortDeg = _fibDegree(price, shortSw, len, srPct); shortDeg.name = "단기";
     const degrees = [shortDeg];
     const dup = (deg, s) => deg.swing.fromIdx === s.fromIdx && deg.swing.toIdx === s.toIdx;
-    // 중기: 최근 len(기본 120)봉 지배 스윙
-    const midSw = _domSwing(price, Math.max(0, P - len));
+    // 중기: 최근 len(기본 120)봉 지배 스윙 — 시계열이 len보다 길 때만(짧으면 장기와 동일 스윙이라 오라벨 방지)
+    const midSw = (P > len) ? _domSwing(price, P - len) : null;
     if (midSw && !dup(shortDeg, midSw)) { const m = _fibDegree(price, midSw, len, srPct); m.name = "중기"; degrees.push(m); }
     // 장기: 전체 시계열 지배 스윙
     const longSw = _domSwing(price, 0);
@@ -1296,17 +1301,21 @@
   }
 
   /* ── ADX / DMI (종가 근사 — high/low를 인접 종가로 프록시) ── */
-  function analyzeADX(price, opts) {
+  function analyzeADX(data, opts) {
     opts = opts || {};
+    const price = Array.isArray(data) ? data : ((data && data.price) || ((data && data.candle) || []).map(c => c.c));
+    const candle = (data && !Array.isArray(data)) ? data.candle : null;
     const period = opts.period || 14, P = price.length;
     const EMPTY = { adx: [], plusDI: [], minusDI: [], last: { adx: 0, plusDI: 0, minusDI: 0 }, strength: "weak", dir: 0, bias: 0 };
     if (P < period * 2 + 2) return EMPTY;
+    const H = i => (candle && candle[i]) ? candle[i].h : price[i], L = i => (candle && candle[i]) ? candle[i].l : price[i];
+    const trS = candle ? _trueRangeSeries(candle, price) : null;
     const trArr = [0], pDMArr = [0], mDMArr = [0];
     for (let i = 1; i < P; i++) {
-      const up = price[i] - price[i - 1], dn = -up;
-      trArr.push(Math.max(Math.abs(up), 1e-9));
-      pDMArr.push(up > 0 && up >= Math.abs(dn) ? up : 0);
-      mDMArr.push(dn > 0 && dn > Math.abs(up) ? dn : 0);
+      const upMove = H(i) - H(i - 1), dnMove = L(i - 1) - L(i);   // Wilder +DM/−DM: 더 큰 방향만 채택(반대는 0)
+      trArr.push(Math.max(trS ? trS[i] : Math.abs(price[i] - price[i - 1]), 1e-9));
+      pDMArr.push((upMove > dnMove && upMove > 0) ? upMove : 0);
+      mDMArr.push((dnMove > upMove && dnMove > 0) ? dnMove : 0);
     }
     const rma = arr => {
       const out = new Array(arr.length).fill(0); if (arr.length <= period) return out;
@@ -1457,12 +1466,14 @@
   }
 
   /* ── ATR(변동성) — 종가기반 근사(TR=|Δclose|) ── */
-  function analyzeATR(price, opts) {
+  function analyzeATR(data, opts) {
     opts = opts || {};
+    const price = Array.isArray(data) ? data : ((data && data.price) || ((data && data.candle) || []).map(c => c.c));
+    const candle = (data && !Array.isArray(data)) ? data.candle : null;
     const period = opts.period || 14, mult = opts.mult || 2, P = price.length;
     const EMPTY = { atr: [], last: 0, pct: 0, stopLong: null, stopShort: null, avg: 0, regime: "normal", mult, bias: 0 };
     if (P < period + 2) return EMPTY;
-    const tr = [0]; for (let i = 1; i < P; i++) tr.push(Math.abs(price[i] - price[i - 1]));
+    const tr = candle ? _trueRangeSeries(candle, price) : (function () { const t = new Array(P).fill(0); for (let i = 1; i < P; i++) t[i] = Math.abs(price[i] - price[i - 1]); return t; })();
     const atr = new Array(P).fill(0); let s = 0; for (let i = 1; i <= period; i++) s += tr[i]; let prev = s / period; atr[period] = prev;
     for (let i = period + 1; i < P; i++) { prev = (prev * (period - 1) + tr[i]) / period; atr[i] = prev; }
     const last = price[P - 1], a = atr[P - 1], pct = last ? a / last * 100 : 0;
@@ -1483,7 +1494,7 @@
   }
 
   /* ── 스마트머니(SMC): FVG(공정가치갭) · 오더블록 — 실 OHLC 필요 ── */
-  function _candATR(candle, period) { let s = 0, c = 0; const n = candle.length; for (let i = Math.max(1, n - period); i < n; i++) { s += Math.abs(candle[i].c - candle[i - 1].c); c++; } return c ? s / c : 0; }
+  function _candATR(candle, period) { let s = 0, c = 0; const n = candle.length; for (let i = Math.max(1, n - period); i < n; i++) { const pc = candle[i - 1].c, tr = Math.max(candle[i].h - candle[i].l, Math.abs(candle[i].h - pc), Math.abs(candle[i].l - pc)); s += tr; c++; } return c ? s / c : 0; }
   function analyzeSMC(candle, opts) {
     opts = opts || {};
     const P = candle ? candle.length : 0;
@@ -1600,18 +1611,21 @@
   }
 
   /* ── 슈퍼트렌드(ATR 추적선·추세 플립) — 종가근사 ── */
-  function analyzeSupertrend(price, opts) {
+  function analyzeSupertrend(data, opts) {
     opts = opts || {};
+    const price = Array.isArray(data) ? data : ((data && data.price) || ((data && data.candle) || []).map(c => c.c));
+    const candle = (data && !Array.isArray(data)) ? data.candle : null;
     const period = opts.period || 10, mult = opts.mult || 3, P = price.length;
     const EMPTY = { line: [], trend: [], last: 0, dir: 0, flip: null, bias: 0 };
     if (P < period + 2) return EMPTY;
-    const tr = [0]; for (let i = 1; i < P; i++) tr.push(Math.abs(price[i] - price[i - 1]));
+    const mid = i => (candle && candle[i]) ? (candle[i].h + candle[i].l) / 2 : price[i];   // 기준선 = hl2(캔들) / 종가(폴백)
+    const tr = candle ? _trueRangeSeries(candle, price) : (function () { const t = new Array(P).fill(0); for (let i = 1; i < P; i++) t[i] = Math.abs(price[i] - price[i - 1]); return t; })();
     const atr = new Array(P).fill(0); let s = 0; for (let i = 1; i <= period; i++) s += tr[i]; let prev = s / period; atr[period] = prev;
     for (let i = period + 1; i < P; i++) { prev = (prev * (period - 1) + tr[i]) / period; atr[i] = prev; }
     const upF = new Array(P).fill(0), loF = new Array(P).fill(0), trend = new Array(P).fill(1), line = new Array(P).fill(NaN);
-    upF[period] = price[period] + mult * atr[period]; loF[period] = price[period] - mult * atr[period];
+    upF[period] = mid(period) + mult * atr[period]; loF[period] = mid(period) - mult * atr[period];
     for (let i = period + 1; i < P; i++) {
-      const ub = price[i] + mult * atr[i], lb = price[i] - mult * atr[i];
+      const ub = mid(i) + mult * atr[i], lb = mid(i) - mult * atr[i];
       upF[i] = (ub < upF[i - 1] || price[i - 1] > upF[i - 1]) ? ub : upF[i - 1];
       loF[i] = (lb > loF[i - 1] || price[i - 1] < loF[i - 1]) ? lb : loF[i - 1];
       trend[i] = trend[i - 1] === 1 ? (price[i] < loF[i] ? -1 : 1) : (price[i] > upF[i] ? 1 : -1);
@@ -1639,13 +1653,16 @@
   }
 
   /* ── 스토캐스틱(%K/%D) — 종가근사 ── */
-  function analyzeStochastic(price, opts) {
+  function analyzeStochastic(data, opts) {
     opts = opts || {};
+    const price = Array.isArray(data) ? data : ((data && data.price) || ((data && data.candle) || []).map(c => c.c));
+    const candle = (data && !Array.isArray(data)) ? data.candle : null;
     const kLen = opts.kLen || 14, kSm = opts.kSmooth || 3, dLen = opts.dLen || 3, P = price.length;
     const EMPTY = { k: [], d: [], last: { k: 50, d: 50 }, state: "neutral", cross: null, bias: 0 };
     if (P < kLen + kSm + dLen) return EMPTY;
+    const H = j => (candle && candle[j]) ? candle[j].h : price[j], L = j => (candle && candle[j]) ? candle[j].l : price[j];
     const rawK = new Array(P).fill(NaN);
-    for (let i = kLen - 1; i < P; i++) { let lo = Infinity, hi = -Infinity; for (let j = i - kLen + 1; j <= i; j++) { if (price[j] < lo) lo = price[j]; if (price[j] > hi) hi = price[j]; } rawK[i] = (hi > lo) ? ((price[i] - lo) / (hi - lo) * 100) : 50; }
+    for (let i = kLen - 1; i < P; i++) { let lo = Infinity, hi = -Infinity; for (let j = i - kLen + 1; j <= i; j++) { const l = L(j), h = H(j); if (l < lo) lo = l; if (h > hi) hi = h; } rawK[i] = (hi > lo) ? ((price[i] - lo) / (hi - lo) * 100) : 50; }
     const sma = (arr, n, i) => { let s = 0, c = 0; for (let j = i - n + 1; j <= i; j++) { if (j >= 0 && isFinite(arr[j])) { s += arr[j]; c++; } } return c ? s / c : NaN; };
     const k = new Array(P).fill(NaN), d = new Array(P).fill(NaN);
     for (let i = 0; i < P; i++) k[i] = sma(rawK, kSm, i);
@@ -1771,7 +1788,7 @@
     const _macd = _mcn ? analyzeMACD(price, { fast: (_mcn.params && _mcn.params.fast) || 12, slow: (_mcn.params && _mcn.params.slow) || 26, signal: (_mcn.params && _mcn.params.signal) || 9 }) : null;
     const macdDrift = _macd ? _macd.bias * _prof.trendScale * 0.07 * DW("macd") : 0;   // MACD 모멘텀/교차 방향(±7%)
     const _axn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "adx");
-    const _adx = _axn ? analyzeADX(price, { period: (_axn.params && _axn.params.period) || 14 }) : null;
+    const _adx = _axn ? analyzeADX(data, { period: (_axn.params && _axn.params.period) || 14 }) : null;
     const adxDrift = _adx ? _adx.bias * _prof.trendScale * 0.06 * DW("adx") : 0;   // ADX 추세강도×방향(±6%·약한추세면 0에 수렴)
     const _vpn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "volumeprofile");
     const _vpvol = _vpn ? ((_vn && Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;
@@ -1784,7 +1801,7 @@
     const _struct = _stn ? analyzeStructure(price, { swing: ((_stn.params && _stn.params.swing) != null ? _stn.params.swing : 3) / 100 }) : null;
     const stDrift = _struct ? _struct.bias * _prof.trendScale * 0.08 * DW("structure") : 0;   // 시장구조 BOS/CHoCH 방향(±8%)
     const _atn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "atr");
-    const _atr = _atn ? analyzeATR(price, { period: (_atn.params && _atn.params.period) || 14, mult: (_atn.params && _atn.params.mult) || 2 }) : null;
+    const _atr = _atn ? analyzeATR(data, { period: (_atn.params && _atn.params.period) || 14, mult: (_atn.params && _atn.params.mult) || 2 }) : null;
     if (_atr && _atr.pct) sigBand = Math.max(sigBand, Math.min(0.18, (_atr.pct / 100) * 0.85));   // ATR 노드: 변동성을 예측 콘 폭에 반영
     const _smn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "smc");
     const _smc = _smn ? analyzeSMC(data.candle) : null;
@@ -1797,10 +1814,10 @@
     const _vw = _vwn ? analyzeVWAP(price, _vwvol, { len: (_vwn.params && _vwn.params.len) || 20 }) : null;
     const vwDrift = _vw ? _vw.bias * _prof.trendScale * 0.05 * DW("vwap") : 0;   // VWAP 위/아래 방향(±5%)
     const _spn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "supertrend");
-    const _stt = _spn ? analyzeSupertrend(price, { period: (_spn.params && _spn.params.period) || 10, mult: (_spn.params && _spn.params.mult) || 3 }) : null;
+    const _stt = _spn ? analyzeSupertrend(data, { period: (_spn.params && _spn.params.period) || 10, mult: (_spn.params && _spn.params.mult) || 3 }) : null;
     const stDrift2 = _stt ? _stt.bias * _prof.trendScale * 0.07 * DW("supertrend") : 0;   // 슈퍼트렌드 추세 방향(±7%)
     const _scn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "stochastic");
-    const _stoch = _scn ? analyzeStochastic(price, { kLen: (_scn.params && _scn.params.kLen) || 14, kSmooth: (_scn.params && _scn.params.kSmooth) || 3, dLen: (_scn.params && _scn.params.dLen) || 3 }) : null;
+    const _stoch = _scn ? analyzeStochastic(data, { kLen: (_scn.params && _scn.params.kLen) || 14, kSmooth: (_scn.params && _scn.params.kSmooth) || 3, dLen: (_scn.params && _scn.params.dLen) || 3 }) : null;
     const stochDrift = _stoch ? _stoch.bias * _prof.trendScale * 0.05 * DW("stochastic") : 0;   // 스토캐스틱 교차/구간(±5%)
     const _pvn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "pivot");
     const _pv2 = _pvn ? analyzePivot(data, {}) : null;
@@ -1815,7 +1832,7 @@
     const _dc = _dcn ? analyzeDonchian(data, { len: (_dcn.params && _dcn.params.len) || 20 }) : null;
     const donchianDrift = _dc ? _dc.bias * _prof.trendScale * 0.07 * DW("donchian") : 0;   // 채널 돌파/방향(±7%)
     const _ccn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "cci");
-    const _cci = _ccn ? analyzeCCI(price, { period: (_ccn.params && _ccn.params.period) || 20 }) : null;
+    const _cci = _ccn ? analyzeCCI(data, { period: (_ccn.params && _ccn.params.period) || 20 }) : null;
     const cciDrift = _cci ? _cci.bias * _prof.trendScale * 0.06 * DW("cci") : 0;   // CCI 구간·국면 방향(±6%)
     const _wln = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "williams");
     const _wl = _wln ? analyzeWilliams(data, { period: (_wln.params && _wln.params.period) || 14 }) : null;

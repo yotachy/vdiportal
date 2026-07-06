@@ -1751,3 +1751,61 @@ test("run: cmfDrift가 그래프 volume 노드 실거래량에 반응(합성 아
   // cmfDrift가 실거래량을 반영하면 상승일 집중 vs 하락일 집중 예측이 달라야 함(합성이면 동일)
   assert.ok(Math.abs(tUp - tDn) > 1e-9, `tUp ${tUp} tDn ${tDn}`);
 });
+
+// ── TF/캔들 정밀도 개선 감사 (2026-07-06) ──
+test("analyzeATR: 캔들 트루레인지가 종가차보다 변동성 크게 반영(꼬리)", () => {
+  const price = Array.from({ length: 30 }, (_, i) => 100 + (i % 2 ? 0.2 : -0.2));
+  const candle = price.map((c) => ({ o: c, h: c + 3, l: c - 3, c }));
+  const aClose = ForgeCore.analyzeATR(price, { period: 14 });
+  const aCandle = ForgeCore.analyzeATR({ candle, price }, { period: 14 });
+  assert.ok(aCandle.last > aClose.last * 2, `candle ATR ${aCandle.last} vs close ${aClose.last}`);
+});
+
+test("analyzeADX: 하락 추세면 minusDI>plusDI·bias<0 (mDM 항상 0 버그 수정)", () => {
+  const price = Array.from({ length: 40 }, (_, i) => 140 - i);
+  const r = ForgeCore.analyzeADX(price, { period: 14 });
+  assert.ok(r.last.minusDI > r.last.plusDI, `mDI ${r.last.minusDI} pDI ${r.last.plusDI}`);
+  assert.ok(r.bias < 0, `downtrend bias ${r.bias} should be <0`);
+});
+
+test("analyzeADX: 상승 추세는 plusDI>minusDI·bias>0 유지", () => {
+  const price = Array.from({ length: 40 }, (_, i) => 100 + i);
+  const r = ForgeCore.analyzeADX(price, { period: 14 });
+  assert.ok(r.last.plusDI > r.last.minusDI && r.bias > 0);
+});
+
+test("analyzeStochastic: 캔들 H/L 사용 시 %K가 종가-only와 달라짐", () => {
+  const price = Array.from({ length: 30 }, (_, i) => 100 + Math.sin(i));
+  const candle = price.map((c) => ({ o: c, h: c + 2, l: c - 2, c }));
+  const kClose = ForgeCore.analyzeStochastic(price, {}).last.k;
+  const kCandle = ForgeCore.analyzeStochastic({ candle, price }, {}).last.k;
+  assert.ok(Math.abs(kClose - kCandle) > 1e-6, "candle %K should differ");
+});
+
+test("analyzeCCI: 전형가(캔들·비대칭 꼬리) 사용 시 종가-only와 달라짐", () => {
+  const price = Array.from({ length: 40 }, (_, i) => 100 + Math.sin(i / 3));
+  const candle = price.map((c, i) => ({ o: c, h: c + (i % 3), l: c - (i % 2), c }));
+  const lClose = ForgeCore.analyzeCCI(price, { period: 20 }).last;
+  const lCandle = ForgeCore.analyzeCCI({ candle, price }, { period: 20 }).last;
+  assert.ok(Math.abs(lClose - lCandle) > 1e-6, `close ${lClose} candle ${lCandle}`);
+});
+
+test("scanPeriod: 데이터 부족(2.5주기 미만)이면 strength 0·insufficient (허위 주기 차단)", () => {
+  const z = Array.from({ length: 20 }, (_, i) => Math.sin(i));   // hardMax=8 < pmin+2=12
+  const r = ForgeCore.scanPeriod(z, { pmin: 10 });
+  assert.equal(r.strength, 0);
+  assert.equal(r.method, "insufficient");
+});
+
+test("scanPeriod: 충분한 데이터면 pmax가 hardMax(n/2.5) 초과 안 함", () => {
+  const z = Array.from({ length: 100 }, (_, i) => Math.sin(i / 6));
+  const r = ForgeCore.scanPeriod(z, { pmin: 8 });
+  assert.ok(r.best <= Math.floor(100 / 2.5), `best ${r.best} <= 40`);
+});
+
+test("analyzeFib: 짧은 시계열(P<=len)에서 '중기' 오라벨 안 생김", () => {
+  const price = Array.from({ length: 60 }, (_, i) => 100 + i + 5 * Math.sin(i / 4));
+  const r = ForgeCore.analyzeFib(price, { len: 120, swing: 0.05 });
+  const names = (r.degrees || []).map((d) => d.name);
+  assert.ok(!names.includes("중기"), `P<len이면 중기 없어야: ${names.join(",")}`);
+});
