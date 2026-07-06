@@ -17,9 +17,9 @@
 
 ## 파일
 
-- `forge.html` — UI·캔버스 작도(단일). `forge-core.js` — 분석 엔진(**UMD**: 브라우저 `window.ForgeCore` + node `module.exports`. **유일하게 단위테스트** `node --test forge-core.test.js`, 현재 183케이스). `forge-api.php` — 서버 저장 + 티커 OHLC 프록시. `forge-guide.html` — 엔진 작동원리 설명서.
-- **forge.html + forge-core.js 동반 배포 필수**(상대 `<script src>` 동위치). `forge-core.test.js`는 배포 제외.
-- **배포 불가침**(서버 생성·사용자 데이터): `forge_data.json`·`forge_images.json`·`forge_jobs.json`·`forge_td_key.txt`·`forge_ohlc_cache_*.json`. 배포는 `forge.html`+`forge-core.js`+`forge-api.php`만.
+- `forge.html` — 마크업 + `<link>`/`<script src>` 참조만(현 241줄). **UI는 소스순서 4분할**: `forge-state.js`(상태·`BLOCK_DEFS`·`IND_TIERS`·서버·`boot`·CRUD) → `forge-ui.js`(레일·보드·`renderParams`·HUD·`boardInit`·`seedDefaultStrategy`) → `forge-draw.js`(`FC_*`·`_syncChartColors`·`fcDraw*`·`EV_COLORS`/`INDICATOR_INFO`·엘리어트/피보 레이어) → `forge-app.js`(`renderChart`·`analysisSteps`·`nodeExpert`·`THEMES`/`applyTheme`·`playAnalysis`·`runForge`·부팅 IIFE). 스타일은 `forge.css`. **여러 classic script가 전역 스코프 공유** — 로드 순서(core→state→ui→draw→app) 고정, `defer`/`async` 금지, 중복 최상위 선언 금지. `forge-core.js` — 분석 엔진(**UMD**: 브라우저 `window.ForgeCore` + node `module.exports`. **유일하게 단위테스트** `node --test forge-core.test.js`, 현재 199케이스). `forge-api.php` — 서버 저장 + 티커 OHLC 프록시. `forge-guide.html` — 엔진 작동원리 설명서.
+- **동반 배포 필수**(상대 `<script src>`/`<link>` 동위치): `forge.html` + `forge.css` + `forge-core.js` + `forge-state.js` + `forge-ui.js` + `forge-draw.js` + `forge-app.js`. 하나라도 빠지면 동작 불가. `forge-core.test.js`는 배포 제외.
+- **배포 불가침**(서버 생성·사용자 데이터): `forge_data.json`·`forge_images.json`·`forge_jobs.json`·`forge_td_key.txt`·`forge_ohlc_cache_*.json`. 배포는 위 7개 정적 파일 + `forge-api.php`만.
 
 ## 4패널 구성 (지칭 규칙 — 하단 §"4패널" 상세)
 
