@@ -74,13 +74,16 @@
     const P = price.length;
     const EMPTY = { mas: { short: null, mid: null, long: null }, cross: { type: null, barsAgo: null }, align: { order: "mixed", score: 0 }, sr: { ma: null, side: null, distPct: null }, bias: 0 };
     if (P < 2) return EMPTY;
+    let _vsum = 0, _vc = 0;
+    for (let i = 1; i < P; i++) { if (price[i - 1] > 0 && price[i] > 0) { _vsum += Math.abs(Math.log(price[i] / price[i - 1])); _vc++; } }
+    const _vol = Math.max(0.004, _vc ? _vsum / _vc : 0.012);   // 봉당 평균 절대 로그수익률(변동성) — 기울기 정규화 분모(신호대잡음). 하한 0.4%
     const mk = period => {
       const series = useEma ? ema(price, period) : sma(price, period);
       const last = series[P - 1];
       const w = Math.max(2, Math.min(period, P - 1));
       const seg = series.slice(P - w);
       const f = linfit(seg);   // {a:절편, b:기울기}
-      const slope = Math.max(-1, Math.min(1, Math.tanh((f.b / (Math.abs(last) || 1)) * 100)));
+      const slope = Math.max(-1, Math.min(1, Math.tanh((f.b / (Math.abs(last) || 1)) / _vol * 1.2)));   // 실현 변동성으로 정규화(고정 ×100 제거) → 주·월봉 과포화 해소. 일봉 전형 변동성(≈1.2%)서 종전과 동등
       return { period, series, slope, last };
     };
     const short = mk(len), mid = mk(len * 3), long = mk(len * 6), pl = price[P - 1];
@@ -1044,11 +1047,12 @@
     const s = typeof tf === "string" ? tf : "";
     // shortScale: '단기' 창 길이 배율(월봉은 40봉=3.3년이라 과함→0.5로 축소, 단주기는 확대). "단기"의 실제 기간을 tf 간 정규화.
     // bandScale: 예측 콘 폭 배율 — 일봉은 고변동이라 콘이 비현실적으로 벌어져 타이트하게, 주·월로 갈수록 넓게(현실적)
-    if (/월|분기|년|연/.test(s)) return { tier: "long", weights: { long: 0.6, mid: 0.3, short: 0.1 }, trendScale: 1.0, shortScale: 0.5, bandScale: 1.2, texScale: 0.7, label: "월봉 장기가중" };
-    if (/주/.test(s)) return { tier: "mid", weights: { long: 0.45, mid: 0.35, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.82, texScale: 1.0, label: "주봉 균형" };
-    if (/일/.test(s)) return { tier: "mid", weights: { long: 0.45, mid: 0.35, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.58, texScale: 2.5, label: "일봉 균형" };
-    if (/분|시간|시/.test(s)) return { tier: "intra", weights: { long: 0.25, mid: 0.35, short: 0.4 }, trendScale: 0.45, shortScale: 2.0, bandScale: 0.5, texScale: 2.2, label: "단주기 단기가중" };
-    return { tier: "default", weights: { long: 0.5, mid: 0.3, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.75, label: "" };
+    // sigmaCap: 봉당 변동성 상한(TF별) — 종전 전TF 0.18 고정이라 고변동 종목서 월봉 콘이 주봉보다 좁아지던 역전 해소(월봉 봉이동이 크므로 상한↑). swingScale: 스윙 민감도 배율(월봉은 3%가 흔해 노이즈→상향)
+    if (/월|분기|년|연/.test(s)) return { tier: "long", weights: { long: 0.6, mid: 0.3, short: 0.1 }, trendScale: 1.0, shortScale: 0.5, bandScale: 1.2, texScale: 0.7, sigmaCap: 0.32, swingScale: 1.8, label: "월봉 장기가중" };
+    if (/주/.test(s)) return { tier: "mid", weights: { long: 0.45, mid: 0.35, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.82, texScale: 1.0, sigmaCap: 0.18, swingScale: 1.2, label: "주봉 균형" };
+    if (/일/.test(s)) return { tier: "mid", weights: { long: 0.45, mid: 0.35, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.58, texScale: 2.5, sigmaCap: 0.13, swingScale: 1.0, label: "일봉 균형" };
+    if (/분|시간|시/.test(s)) return { tier: "intra", weights: { long: 0.25, mid: 0.35, short: 0.4 }, trendScale: 0.45, shortScale: 2.0, bandScale: 0.5, texScale: 2.2, sigmaCap: 0.10, swingScale: 0.7, label: "단주기 단기가중" };
+    return { tier: "default", weights: { long: 0.5, mid: 0.3, short: 0.2 }, trendScale: 0.8, shortScale: 1.0, bandScale: 0.75, sigmaCap: 0.18, swingScale: 1.0, label: "" };
   }
 
   function elliottAnalyze(arr, sens) {
@@ -1742,7 +1746,8 @@
     const theta = 1 / Math.max(6, futW * 0.55);     // 평균회귀 속도 — 지평(futW)에 비례 스케일(tauM처럼) → TF 무관 회귀완료비율 일정. 일봉(futW40)≈0.045(종전), 월봉(futW12)≈0.15
     const tauM = Math.max(3, futW * 0.4);           // 모멘텀 감쇠 시정수
     const sigDriftTotal = (lastSig / 100) * 0.28;   // 신호 방향 누적 드리프트(만점 ±28%)
-    let sigBand = Math.max(0.02, Math.min(sigma, 0.18));   // 밴드 변동성 상한 0.18(고변동주의 실제 변동폭 반영)
+    const _sCap = trendProfileForTF(opts && opts.timeframe).sigmaCap || 0.18;   // 봉당 변동성 상한(TF별 — 월봉 콘 역전 해소)
+    let sigBand = Math.max(0.02, Math.min(sigma, _sCap));   // 밴드 변동성 상한(고변동주의 실제 변동폭 반영)
     /* 계절성(주기) 성분 — phasefold 노드가 검출한 지배주기를 예측에 직접 반영(chart.html 시즌 형상).
        로그가격 추세 잔차의 위상별 평균 형상을 미래 위상에 투영. 신뢰도(정합 θ↓·FFT 피크↑)로 진폭 스케일. */
     let seasFn = null, seasInfo = null;
@@ -1776,10 +1781,10 @@
     const _ma = _mn ? analyzeMA(price, { len: (_mn.params && _mn.params.len) || 20, ema: !!(_mn.params && _mn.params.ema) }) : null;
     const maDrift = _ma ? _ma.bias * _prof.trendScale * 0.10 * DW("ma") : 0;   // MA 국면 방향 드리프트(±10% 상한·TF가중)
     const _fn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "fib");
-    const _fib = _fn ? analyzeFib(price, { len: (_fn.params && _fn.params.len) || 120, swing: ((_fn.params && _fn.params.swing) != null ? _fn.params.swing : 5) / 100 }) : null;
+    const _fib = _fn ? analyzeFib(price, { len: (_fn.params && _fn.params.len) || 120, swing: ((_fn.params && _fn.params.swing) != null ? _fn.params.swing : 5) / 100 * (_prof.swingScale || 1) }) : null;
     const fibDrift = _fib ? _fib.bias * _prof.trendScale * 0.08 * DW("fib") : 0;   // 피보 S/R 방향 드리프트(±8% 상한·TF가중)
     const _en = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "elliott");
-    const _ew = _en ? analyzeElliott(price, { swing: ((_en.params && _en.params.swing) != null ? _en.params.swing : 3) / 100 }) : null;
+    const _ew = _en ? analyzeElliott(price, { swing: ((_en.params && _en.params.swing) != null ? _en.params.swing : 3) / 100 * (_prof.swingScale || 1) }) : null;
     const ewDrift = _ew ? _ew.bias * _prof.trendScale * 0.08 * DW("elliott") : 0;   // 엘리어트 추진/조정 방향 드리프트(±8%·TF가중·유효도 반영)
     const _rn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "rsi");
     const _rsi = _rn ? analyzeRSI(price, { period: (_rn.params && _rn.params.period) || 14 }) : null;
@@ -1804,11 +1809,11 @@
     const _ic = _icn ? analyzeIchimoku(price, { tenkan: (_icn.params && _icn.params.tenkan) || 9, kijun: (_icn.params && _icn.params.kijun) || 26, senkouB: (_icn.params && _icn.params.senkouB) || 52, shift: (_icn.params && _icn.params.shift) || 26 }) : null;
     const icDrift = _ic ? _ic.bias * _prof.trendScale * 0.07 * DW("ichimoku") : 0;   // 일목 구름/전환기준 방향(±7%)
     const _stn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "structure");
-    const _struct = _stn ? analyzeStructure(price, { swing: ((_stn.params && _stn.params.swing) != null ? _stn.params.swing : 3) / 100 }) : null;
+    const _struct = _stn ? analyzeStructure(price, { swing: ((_stn.params && _stn.params.swing) != null ? _stn.params.swing : 3) / 100 * (_prof.swingScale || 1) }) : null;
     const stDrift = _struct ? _struct.bias * _prof.trendScale * 0.08 * DW("structure") : 0;   // 시장구조 BOS/CHoCH 방향(±8%)
     const _atn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "atr");
     const _atr = _atn ? analyzeATR(data, { period: (_atn.params && _atn.params.period) || 14, mult: (_atn.params && _atn.params.mult) || 2 }) : null;
-    if (_atr && _atr.pct) sigBand = Math.max(sigBand, Math.min(0.18, (_atr.pct / 100) * 0.85));   // ATR 노드: 변동성을 예측 콘 폭에 반영
+    if (_atr && _atr.pct) sigBand = Math.max(sigBand, Math.min(_sCap, (_atr.pct / 100) * 0.85));   // ATR 노드: 변동성을 예측 콘 폭에 반영(TF별 상한)
     const _smn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "smc");
     const _smc = _smn ? analyzeSMC(data.candle) : null;
     const smcDrift = _smc ? _smc.bias * _prof.trendScale * 0.07 * DW("smc") : 0;   // SMC 수요/공급 존 방향(±7%)

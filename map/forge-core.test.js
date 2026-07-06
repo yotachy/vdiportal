@@ -1866,3 +1866,29 @@ test("analyzeIchimoku: 78 미만(20 이상) 짧은 시계열도 기간축소로 
   assert.equal(full.scaled, false);
   assert.equal(full.conf, 1);
 });
+
+// ── TF 잔여 정밀도 (#4 밴드상한·스윙스케일·MA 정규화, 2026-07-06) ──
+test("trendProfileForTF: sigmaCap·swingScale TF별 차등(월>주>일)", () => {
+  const m = ForgeCore.trendProfileForTF("월봉"), w = ForgeCore.trendProfileForTF("주봉"), d = ForgeCore.trendProfileForTF("일봉");
+  assert.ok(m.sigmaCap > w.sigmaCap && w.sigmaCap > d.sigmaCap, "sigmaCap 월>주>일");
+  assert.ok(m.swingScale > w.swingScale && w.swingScale >= d.swingScale, "swingScale 월>주>=일");
+});
+
+test("run(#4): 고변동 시계열서 월봉 콘 폭이 주봉보다 좁아지지 않음(상한 역전 해소·동일 futW)", () => {
+  const price = Array.from({ length: 80 }, (_, i) => 100 * Math.exp(0.02 * i + 0.12 * Math.sin(i * 1.3)));
+  const candle = price.map((c) => ({ o: c, h: c * 1.05, l: c * 0.95, c }));
+  const g = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "a", kind: "block", blockType: "atr", params: { period: 14 } }], edges: [{ from: "p", to: "a" }] };
+  const band = (r) => { const p = r.prediction, li = p.hi.length - 1; return Math.log(p.hi[li]) - Math.log(p.lo[li]); };
+  const rW = ForgeCore.run(g, { price, candle }, { futW: 24, timeframe: "주봉" });
+  const rM = ForgeCore.run(g, { price, candle }, { futW: 24, timeframe: "월봉" });
+  assert.ok(band(rM) >= band(rW), `월봉 밴드 ${band(rM)} >= 주봉 ${band(rW)}`);
+});
+
+test("analyzeMA: 기울기가 실현 변동성으로 정규화 — 저변동이 고변동보다 더 포화(동일 추세)", () => {
+  const A = Array.from({ length: 60 }, (_, i) => 100 * Math.pow(1.01, i));
+  const B = Array.from({ length: 60 }, (_, i) => 100 * Math.pow(1.01, i) * (1 + 0.12 * Math.sin(i * 1.7)));
+  const sA = ForgeCore.analyzeMA(A, { len: 10 }).mas.long.slope;
+  const sB = ForgeCore.analyzeMA(B, { len: 10 }).mas.long.slope;
+  assert.ok(sA > 0 && sB > 0, "둘 다 상승");
+  assert.ok(sA > sB, `저변동 ${sA} > 고변동 ${sB}`);
+});
