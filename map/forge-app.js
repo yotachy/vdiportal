@@ -785,7 +785,13 @@
   function redrawCharts() {
     if (!_fcLastResult || !_fcLastData) return;
     if (fcRAF) cancelAnimationFrame(fcRAF);
-    fcRAF = requestAnimationFrame(() => renderChart(_fcLastResult, _fcLastData));
+    fcRAF = requestAnimationFrame(() => {
+      if (_playing) {   // 시뮬레이션 중 재드로(스크롤·줌·리사이즈): 최종 결과가 아닌 현재 리빌/모프 프레임으로 다시 그림
+        try { drawEvidence(); if (typeof _redrawOscForPlay === "function") _redrawOscForPlay(_playE); fcRenderForecast(_playPred || _fcLastResult.prediction || { path: [], lo: [], hi: [] }); } catch (e) {}
+        return;
+      }
+      renderChart(_fcLastResult, _fcLastData);
+    });
   }
   window.addEventListener("resize", redrawCharts);
   // 차트 컨테이너 실제 크기 변화(높이 자동맞춤·레이아웃·창)마다 재드로우 → 그리기 높이(ch)가 항상 캔버스와 일치(x축이 하단 유지)
@@ -1859,6 +1865,7 @@
   // 시연 진행 상태 — 차트 외 시각화(레이더·신호보드·예측·국면)를 실제 분석 진행에 맞춰 동적 반영
   // ids=현재까지 '계산 완료'된 지표 노드 집합(null=전체 표시) · u=종합(예측/국면) 형성 진행도 0→1
   let _playReveal = { ids: null, u: 1 };
+  let _playPred = null, _playE = 0;   // 시뮬레이션 현재 모프 프레임(예측)·진행도 — 조작 중 재드로우가 최종 아닌 현재 프레임을 그리게
   /* 스케치 스캔 공개: 근거 오버레이를 왼→오른쪽으로 점진 공개(clip-path). 캔들/차트는 안 건드림. */
   let _scanning = false, _scanU = 0;
   function _applyScanClip(u) {
@@ -1953,7 +1960,13 @@
       lo.push(a.lo[k] + (b.lo[k] - a.lo[k]) * u);
       hi.push(a.hi[k] + (b.hi[k] - a.hi[k]) * u);
     }
-    return { path, lo, hi, anchor: (b.anchor != null ? b.anchor : a.anchor) };
+    const out = { path, lo, hi, anchor: (b.anchor != null ? b.anchor : a.anchor) };
+    // 3차(반대 시나리오) 라인도 anchor에서 최종으로 함께 펼침 — 마지막에 선이 툭 튀어나오지 않게
+    if (Array.isArray(b.counter) && b.counter.length) {
+      const A = out.anchor, ac = (Array.isArray(a.counter) && a.counter.length === b.counter.length) ? a.counter : b.counter.map(() => A);
+      out.counter = b.counter.map((v, k) => ac[k] + (v - ac[k]) * u);
+    }
+    return out;
   }
   const _ease = t => (t < 0.5) ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;   // easeInOutQuad
   const _REG = { bull: { c: "var(--bull)", t: "상승" }, bear: { c: "var(--bear)", t: "하락" }, neutral: { c: "var(--eth)", t: "중립" } };
@@ -2085,7 +2098,8 @@
         _lastDraw = now;
         drawEvidence();               // 손그림 진행도 반영 — 모든 도구가 동시에 그어짐
         _redrawOscForPlay(e);         // RSI·거래량 계산되며 그려짐(메인 차트와 동기)
-        fcRenderForecast(lerpPred(flat, finPred, e));
+        _playPred = lerpPred(flat, finPred, e); _playE = e;   // 현재 프레임 보관(조작 재드로우용)
+        fcRenderForecast(_playPred);
       }
       _playReveal.u = e;
       if (now - _lastCU > 70) {   // DOM 게이지 갱신 ~14fps로 스로틀(충분히 부드럽고 가벼움)
