@@ -95,18 +95,18 @@
   .ind-rail .ir-wval{flex:0 0 auto;font-size:9.5px;font-weight:700;font-family:ui-monospace,monospace;color:var(--faint);letter-spacing:-.02em;min-width:27px;text-align:right}
   .ind-rail .ir-row.on .ir-wval{color:var(--ink)}
   .ind-rail .ir-bar{flex:1;min-width:0;position:relative;display:flex;align-items:center;gap:6px;overflow:hidden;padding:5px 6px 5px 4px;border-radius:var(--r-sm);cursor:ew-resize;touch-action:none}
-  .ind-rail .ir-bar:hover{background:rgba(255,255,255,.035)}
+  .ind-rail .ir-bar:hover{background:var(--hover)}
   .ind-rail .ir-bar:hover .ir-lbl{color:var(--ink)}
   .ind-rail .ir-top + .ir-row{padding-top:8px}
   .ind-rail .ir-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.26);display:grid;place-items:center;transition:background .12s,border-color .12s}
   .ind-rail .ir-chk:hover{border-color:var(--ic,#8a92b2)}
   .ind-rail .ir-chk::after{content:"✓";font-size:10.5px;font-weight:900;color:#0b0f14;opacity:0;transform:scale(.4);transition:opacity .12s,transform .12s}
-  .ind-rail .ir-row.on{color:#fff;background:rgba(255,255,255,.055)}
+  .ind-rail .ir-row.on{color:#fff;background:var(--hover)}
   .ind-rail .ir-row.on .ir-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2);box-shadow:0 0 0 2px color-mix(in srgb, var(--ic,#8a92b2) 30%, transparent)}
   .ind-rail .ir-row.on .ir-chk::after{opacity:1;transform:scale(1)}
   .ind-rail .ir-row.sel .ir-bar{background:rgba(232,180,99,.07)}
   .ind-rail .ir-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .ind-rail .ir-edit{flex:0 0 auto;width:23px;height:25px;margin-left:1px;border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--eth);font-size:11px;cursor:pointer;opacity:.9;border-radius:var(--r-sm);display:grid;place-items:center;padding:0;transition:background .12s,color .12s,opacity .12s;box-shadow:-1px 0 0 rgba(11,15,20,.5)}
+  .ind-rail .ir-edit{flex:0 0 auto;width:23px;height:25px;margin-left:1px;border:1px solid var(--line);background:var(--hover);color:var(--eth);font-size:11px;cursor:pointer;opacity:.9;border-radius:var(--r-sm);display:grid;place-items:center;padding:0;transition:background .12s,color .12s,opacity .12s;box-shadow:-1px 0 0 rgba(11,15,20,.5)}
   .ind-rail .ir-edit:hover{background:rgba(232,180,99,.16);color:var(--gold);opacity:1}
   .ind-rail .ir-edit:hover{opacity:1;color:var(--gold)}
   .ind-rail .ir-top{padding:9px 10px 10px;border-bottom:1px solid var(--line);position:sticky;top:38px;background:var(--panel);z-index:2;display:flex;flex-direction:row;align-items:stretch;gap:6px}
@@ -182,7 +182,7 @@
   .wl-head:hover{color:var(--ink)} .wl-caret{color:var(--eth);font-size:10px}
   .wlist.collapsed .wl-body{display:none}
   .wrow{display:grid;grid-template-columns:86px 1fr 40px;align-items:center;gap:9px;padding:5px 4px;border-radius:var(--r-md)}
-  .wrow:hover{background:rgba(255,255,255,.035)}
+  .wrow:hover{background:var(--hover)}
   .wrow.sel{background:rgba(232,180,99,.1);box-shadow:inset 0 0 0 1px rgba(232,180,99,.32)}
   /* 보드 하단 데이터 패널(가중치 접었을 때 예측·타임프레임 요약 노출) */
   .wboard{display:none}
@@ -216,7 +216,7 @@
   /* 지표 신호 한 줄 요약 */
   .sig-list{display:flex;flex-direction:column}
   .sig-row{display:grid;grid-template-columns:16px 68px 1fr 36px;align-items:center;gap:8px;padding:5px 7px;font-size:11.5px;border-radius:var(--r-sm);transition:background .12s,opacity .28s}
-  .sig-row:hover{background:rgba(255,255,255,.035)}
+  .sig-row:hover{background:var(--hover)}
   .sig-row.dim{opacity:.24}   /* 시연: 아직 계산 전 지표는 흐리게 → 계산되면 점등 */
   @media (max-width:860px){ .sig-list{grid-template-columns:1fr} }
   @keyframes wblink{0%,100%{box-shadow:inset 0 0 0 1px transparent;background-color:transparent}40%,60%{box-shadow:inset 0 0 0 3px var(--gold),0 0 26px -1px var(--gold);background-color:rgba(232,180,99,.24)}}
@@ -351,7 +351,7 @@
   .fc-wrap{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;padding:10px;gap:8px;
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
   .board-pane .fc-panel>.fc-phead{cursor:pointer;transition:background .12s}
-  .board-pane .fc-panel>.fc-phead:hover{background:rgba(255,255,255,.035);border-radius:var(--r-sm)}
+  .board-pane .fc-panel>.fc-phead:hover{background:var(--hover);border-radius:var(--r-sm)}
   .board-pane .fc-panel>.fc-phead .fc-t::before{content:"";display:inline-block;width:5px;height:5px;margin:0 7px 2px 1px;border-right:1.5px solid var(--eth);border-bottom:1.5px solid var(--eth);transform:rotate(45deg);opacity:.55;transition:transform .16s,opacity .16s;vertical-align:middle}
   .board-pane .fc-panel.collapsed>.fc-phead .fc-t::before{transform:rotate(-45deg);margin-bottom:0}
   .board-pane .fc-panel>.fc-phead:hover .fc-t::before{opacity:.9;border-color:var(--gold)}
@@ -398,7 +398,7 @@
   .dash-table th .thdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:middle}
   .dash-table th:first-child{text-align:left;color:#8892a8;font-size:11px;font-weight:800;width:92px}
   .dash-table td:first-child{color:var(--ink);font-weight:700;white-space:nowrap;font-size:12px}
-  .dash-table tbody tr:not(.dash-sec):nth-child(even) td{background:rgba(255,255,255,.014)}
+  .dash-table tbody tr:not(.dash-sec):nth-child(even) td{background:var(--hover)}
   .dash-table tbody tr:not(.dash-sec):hover td{background:rgba(232,180,99,.05)}
   /* 현재 차트 주기(일/주/월) 컬럼 강조 테두리 */
   .dash-table.tfcol-2 th:nth-child(2),.dash-table.tfcol-2 td:nth-child(2),
@@ -488,7 +488,7 @@
   .theme-pop.open{display:flex}
   .theme-pop .th-h{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--eth);padding:4px 8px 6px}
   .theme-opt{display:flex;align-items:center;gap:10px;padding:8px 10px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;border-radius:var(--r-md);cursor:pointer;text-align:left}
-  .theme-opt:hover{background:rgba(255,255,255,.05)}
+  .theme-opt:hover{background:var(--hover)}
   .theme-opt.on{color:var(--gold)}
   .theme-opt.on::after{content:"✓";margin-left:auto;color:var(--gold);font-weight:800}
   .th-sw{width:20px;height:20px;border-radius:6px;flex:0 0 auto}
@@ -600,20 +600,20 @@
   .fc-tfseg button{background:transparent;color:var(--eth);border:0;border-left:1px solid var(--line);padding:5px 13px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:background .12s,color .12s}
   .fc-tfseg button:first-child{border-left:0}
   .fc-tfseg button.on{background:var(--gold);color:#0b0f14}
-  .fc-tfseg button:hover:not(.on){background:rgba(255,255,255,.05);color:var(--ink)}
+  .fc-tfseg button:hover:not(.on){background:var(--hover);color:var(--ink)}
   .fc-tfseg button:hover:not(.on){background:var(--raised2);color:var(--ink)}
   .ev-toggle{display:inline-flex;align-items:center;gap:5px;background:transparent;border:0;color:var(--eth);border-radius:var(--r-md);padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:-.01em;transition:background .12s,color .12s}
-  .ev-toggle:hover{background:rgba(255,255,255,.05);color:var(--ink)}
+  .ev-toggle:hover{background:var(--hover);color:var(--ink)}
   .ev-split{position:relative;display:inline-flex;align-items:stretch}
   .ev-split .ev-toggle{border-radius:var(--r-md) 0 0 var(--r-md)}
   .ev-caret{display:inline-flex;align-items:center;justify-content:center;width:19px;min-height:0;background:transparent;border:0;border-left:1px solid rgba(138,146,178,.22);color:var(--eth);cursor:pointer;border-radius:0 var(--r-md) var(--r-md) 0;padding:0}
   .ev-split.on .ev-caret,.ev-split .ev-toggle.on + .ev-caret{color:var(--gold)}
   .ev-caret svg{width:12px;height:12px}
-  .ev-caret:hover{background:rgba(255,255,255,.05);color:var(--ink)}
+  .ev-caret:hover{background:var(--hover);color:var(--ink)}
   .ev-opt-pop{position:absolute;top:calc(100% + 6px);right:0;z-index:30;min-width:172px;background:#0e1319;border:1px solid var(--line);border-radius:var(--r-md);padding:5px;box-shadow:0 10px 26px rgba(0,0,0,.55);display:none}
   .ev-opt-pop.open{display:block}
   .ev-opt-row{display:flex;align-items:center;gap:8px;padding:7px 9px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;border-radius:var(--r-sm);white-space:nowrap}
-  .ev-opt-row:hover{background:rgba(255,255,255,.04)}
+  .ev-opt-row:hover{background:var(--hover)}
   .ev-opt-chk{flex:0 0 auto;width:15px;height:15px;border-radius:var(--r-sm);border:1.5px solid rgba(138,146,178,.4);display:grid;place-items:center}
   .ev-opt-chk::after{content:"✓";font-size:10px;font-weight:900;color:#0b0f14;opacity:0}
   .ev-opt-chk.on{background:var(--gold);border-color:var(--gold)}
@@ -622,7 +622,7 @@
   /* 차트 상단 컨트롤 그룹 구분(표시 토글 | 분석 도구) */
   .fc-head-actions .ev-split,.fc-head-actions #riskBtn{position:relative;margin-left:8px}
   .fc-head-actions .ev-split::before,.fc-head-actions #riskBtn::before{content:"";position:absolute;left:-5px;top:4px;bottom:4px;width:1px;background:var(--line)}
-  .ev-toggle:hover{background:rgba(255,255,255,.06);color:var(--ink)}
+  .ev-toggle:hover{background:var(--hover);color:var(--ink)}
   .ev-toggle.on{color:var(--gold);background:rgba(232,180,99,.13)}
   .ev-toggle svg{width:14px;height:14px;flex:0 0 auto}
   /* 데이터 소스 배지(이미지뷰=비전 시계열 자동 감지 안내) */
@@ -738,7 +738,7 @@
   .node-editor .ne-actions{display:flex;gap:8px;margin:3px 0 2px}
   .node-editor .ne-actions .tool-btn{flex:1}
   .node-editor .ne-actions .ne-save{background:rgba(232,180,99,.14);border-color:var(--gold-dim);color:var(--gold);font-weight:700}
-  .node-editor .ne-info{display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:var(--r-md);padding:9px 11px}
+  .node-editor .ne-info{display:flex;flex-direction:column;gap:6px;background:var(--hover);border:1px solid var(--line);border-radius:var(--r-md);padding:9px 11px}
   .node-editor .ne-info-row{display:flex;gap:8px;align-items:baseline}
   .node-editor .ne-info-k{flex:0 0 30px;color:var(--eth);font-weight:800;font-size:10.5px;letter-spacing:.02em}
   .node-editor .ne-info-v{flex:1;min-width:0;color:var(--muted);font-size:11.5px;line-height:1.5;letter-spacing:-.01em}
@@ -786,7 +786,7 @@
   .forge-side .wg-add{font-size:10px;padding:2px 8px;font-weight:700}
   .forge-side .wg-zone{display:flex;flex-direction:column;min-height:6px}
   .forge-side .wg-head{display:flex;align-items:center;gap:7px;padding:6px 8px;margin-top:5px;border-radius:var(--r-md);cursor:pointer;font-size:11.5px;font-weight:700;user-select:none;transition:background .12s}
-  .forge-side .wg-head:hover{background:rgba(255,255,255,.03)}
+  .forge-side .wg-head:hover{background:var(--hover)}
   .forge-side .wg-caret{flex:0 0 auto;width:0;height:0;border-left:5px solid var(--eth);border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s;transform:rotate(90deg)}
   .forge-side .wg-head.col .wg-caret{transform:rotate(0)}
   .forge-side .wg-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);letter-spacing:-.01em}
@@ -846,11 +846,11 @@
   .forge-side .pal-side .pal-edit{flex:0 0 auto;width:18px;height:18px;border-radius:var(--r-sm);border:0;background:transparent;color:var(--eth);font-size:11px;cursor:pointer;display:grid;place-items:center;padding:0;line-height:1;opacity:0;transition:opacity .12s,color .12s}
   .forge-side .pal-side .pal-btn:hover .pal-edit,.forge-side .pal-side .pal-btn.sel .pal-edit{opacity:.55}
   .forge-side .pal-side .pal-edit:hover{opacity:1;color:var(--gold);background:transparent}
-  .forge-side .pal-side .pal-btn:hover{background:rgba(255,255,255,.035);color:var(--ink)}
+  .forge-side .pal-side .pal-btn:hover{background:var(--hover);color:var(--ink)}
   .forge-side .pal-side .pal-btn.added{color:var(--ink);background:transparent}
   .forge-side .pal-side .pal-btn.added .pal-chk{background:var(--ic,#8a92b2);border-color:var(--ic,#8a92b2);filter:saturate(.6) brightness(.9)}
   .forge-side .pal-side .pal-btn.added .pal-chk::after{opacity:1;transform:scale(1)}
-  .forge-side .pal-side .pal-btn.added:hover{background:rgba(255,255,255,.05)}
+  .forge-side .pal-side .pal-btn.added:hover{background:var(--hover)}
   .forge-side .pal-side .pal-btn.sel{color:var(--ink);background:var(--raised2);font-weight:700}
   .forge-side .pal-side .pal-btn.sel .pal-chk{box-shadow:0 0 0 2px rgba(232,180,99,.3)}
   .side-allbtn{margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--eth);border-radius:var(--r-md);font-size:10px;font-weight:600;padding:2px 7px;cursor:pointer;line-height:1.5}
