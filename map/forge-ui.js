@@ -252,12 +252,13 @@
   function switchDoc(id) { if (id === activeId) return; writeBackActive(); loadDoc(id); saveMeta(); }
   function _showAddTicker() {   // '종목 추가' → 인라인 티커 입력
     const el = document.getElementById("addTickerSlot"); if (!el) { newDoc(); return; }
-    el.innerHTML = `<input class="add-tk-in" id="addTkIn" placeholder="티커 입력 (예: TSLA · BTC-USD · 005930)" spellcheck="false" autocomplete="off"><button class="add-tk-go" id="addTkGo" title="추가(Enter)">추가</button>`;
-    const inp = document.getElementById("addTkIn"), go = document.getElementById("addTkGo");
+    el.innerHTML = `<div class="add-tk-wrap"><input class="add-tk-in" id="addTkIn" placeholder="티커 입력 (예: TSLA · BTC-USD · 005930)" spellcheck="false" autocomplete="off"><div class="tk-sugg" id="addTkSugg" role="listbox"></div></div><button class="add-tk-go" id="addTkGo" title="추가(Enter)">추가</button>`;
+    const inp = document.getElementById("addTkIn"), go = document.getElementById("addTkGo"), sugg = document.getElementById("addTkSugg");
     const submit = () => { const v = (inp.value || "").trim(); _hideAddTicker(); if (v) _addTickerDoc(v); };
+    _wireSuggest(inp, sugg, sym => { _hideAddTicker(); _addTickerDoc(sym); });   // 자동완성 선택 = 즉시 추가
     inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); submit(); } else if (e.key === "Escape") { e.preventDefault(); _hideAddTicker(); } });
     go.addEventListener("mousedown", e => { e.preventDefault(); submit(); });   // mousedown → blur보다 먼저 처리
-    inp.addEventListener("blur", () => { setTimeout(() => { const c = document.getElementById("addTkIn"); if (c && document.activeElement !== c) _hideAddTicker(); }, 130); });
+    inp.addEventListener("blur", () => { setTimeout(() => { const c = document.getElementById("addTkIn"); if (c && document.activeElement !== c) _hideAddTicker(); }, 180); });
     inp.focus();
   }
   function _hideAddTicker() { const el = document.getElementById("addTickerSlot"); if (el) el.innerHTML = `<button class="side-btn" onclick="_showAddTicker()">＋ 종목 추가</button>`; }
@@ -1166,6 +1167,23 @@
     const box = document.getElementById("tkSugg"); if (box) { box.classList.remove("open"); box.innerHTML = ""; }
     _tkSuggIdx = -1;
     if (typeof loadTicker === "function") loadTicker();   // 선택 즉시 불러오기
+  }
+  // 공유: 심볼 필터 + 아이템 HTML
+  function _suggFilter(q) { q = (q || "").trim().toLowerCase(); if (!q) return []; return TICKER_SUGGEST.filter(x => x.s.toLowerCase().indexOf(q) >= 0 || x.n.toLowerCase().indexOf(q) >= 0).slice(0, 8); }
+  function _suggHTML(hits) { return hits.map(x => `<div class="tk-sugg-item" data-sym="${x.s}"><span class="tk-sugg-s">${esc(x.s)}</span><span class="tk-sugg-n">${esc(x.n)}</span><span class="tk-sugg-t">${esc(x.t)}</span></div>`).join(""); }
+  // 제네릭: 임의 입력창+드롭다운에 자동완성 부착(선택 시 onPick(sym))
+  function _wireSuggest(inp, box, onPick) {
+    if (!inp || !box) return; let idx = -1;
+    const close = () => { box.classList.remove("open"); box.innerHTML = ""; idx = -1; };
+    inp.addEventListener("input", () => { const hits = _suggFilter(inp.value); idx = -1; if (!hits.length) { close(); return; } box.innerHTML = _suggHTML(hits); box.classList.add("open"); });
+    inp.addEventListener("keydown", e => {
+      const open = box.classList.contains("open"); const its = box.querySelectorAll(".tk-sugg-item");
+      if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); if (!its.length) return; idx = e.key === "ArrowDown" ? Math.min(its.length - 1, idx + 1) : Math.max(0, idx - 1); its.forEach((it, i) => it.classList.toggle("hl", i === idx)); its[idx].scrollIntoView({ block: "nearest" }); return; }
+      if (e.key === "Escape" && open) { e.stopPropagation(); close(); return; }   // 드롭다운만 닫기(입력창 유지)
+      if (e.key === "Enter" && open && idx >= 0) { e.preventDefault(); e.stopPropagation(); const it = its[idx]; if (it) { onPick(it.getAttribute("data-sym")); close(); } }
+    }, true);   // 캡처: 드롭다운 선택이 기존 submit보다 먼저
+    box.addEventListener("mousedown", e => { const it = e.target.closest(".tk-sugg-item"); if (it) { e.preventDefault(); onPick(it.getAttribute("data-sym")); close(); } });
+    inp.addEventListener("blur", () => setTimeout(close, 170));
   }
   function boardInit() {
     const pane = document.getElementById("boardPane");

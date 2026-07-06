@@ -777,6 +777,8 @@
   .forge-side .side-actions .add-tk-in{flex:1;min-width:0;background:var(--surface);border:1.5px solid var(--gold-dim);color:var(--ink);border-radius:var(--r-md);font-size:12px;padding:6px 9px;outline:none;font-family:inherit;letter-spacing:-.01em}
   .forge-side .side-actions .add-tk-in::placeholder{color:var(--faint)}
   .forge-side .side-actions .add-tk-in:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.12)}
+  .forge-side .side-actions .add-tk-wrap{position:relative;flex:1;min-width:0;display:flex}
+  .forge-side .side-actions .add-tk-wrap .add-tk-in{flex:1;min-width:0}
   .forge-side .side-actions .add-tk-go{flex:0 0 auto;background:var(--gold);color:#0b0f14;border:0;border-radius:var(--r-md);font-weight:800;font-size:11.5px;padding:0 12px;cursor:pointer;transition:filter .12s}
   .forge-side .side-actions .add-tk-go:hover{filter:brightness(1.08)}
   .forge-side .doc-row{display:flex;flex-direction:column;align-items:stretch;gap:1px;padding:6px 8px;border-radius:var(--r-md);cursor:grab;font-size:13px;color:var(--ink)}
