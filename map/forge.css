@@ -15,9 +15,9 @@
   body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,-apple-system,"Segoe UI",'Malgun Gothic',"Apple SD Gothic Neo",system-ui,sans-serif;letter-spacing:-0.003em;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
   /* 테마 스크롤바(얇고 은은하게 · 트랙 투명 · hover 시 진해짐) */
   *{scrollbar-width:thin;scrollbar-color:rgba(138,146,178,.3) transparent}
-  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar{width:6px;height:6px}                                            /* 전체 패널 공통 얇은 스크롤바(실 두께 ~2px) */
   ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:rgba(138,146,178,.26);border-radius:var(--r-lg);border:3px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb{background:rgba(138,146,178,.26);border-radius:99px;border:2px solid transparent;background-clip:padding-box}
   ::-webkit-scrollbar-thumb:hover{background:rgba(138,146,178,.46);background-clip:padding-box}
   ::-webkit-scrollbar-corner{background:transparent}
   /* 숫자·코드용 공통 모노(가독성) */
@@ -75,9 +75,7 @@
   .forge-gutter::after{content:"";position:absolute;left:0.5px;top:50%;width:3px;height:30px;transform:translateY(-50%);border-radius:var(--r-sm);background:rgba(232,180,99,.55);transition:background .12s}
   .forge-gutter:hover,.forge-gutter.dragging{background:rgba(232,180,99,.4)}
   .forge-gutter:hover::after,.forge-gutter.dragging::after{background:var(--gold)}
-  .ind-rail{flex:0 0 178px;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
-  .ind-rail::-webkit-scrollbar{width:6px}                                              /* 3패널 스크롤바 더 얇게 */
-  .ind-rail::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:99px;background-clip:padding-box}
+  .ind-rail{flex:0 0 178px;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
   .ind-rail .ir-head{font-size:11px;color:var(--eth);padding:11px 10px 7px;display:flex;justify-content:space-between;align-items:baseline;font-weight:700;position:sticky;top:0;background:var(--panel);z-index:2;border-bottom:1px solid rgba(138,146,178,.1)}
   .ind-rail .ir-head .ir-sub{font-size:9px;font-weight:600;color:var(--faint);letter-spacing:-.02em}
   .ind-rail .ir-row{position:relative;display:flex;align-items:center;gap:5px;padding:2.5px 8px;border-bottom:1px solid rgba(138,146,178,.06);color:#5a6472;font-size:12px;font-weight:600;user-select:none;transition:color .12s,background .12s}
