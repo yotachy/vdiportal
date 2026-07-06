@@ -1193,3 +1193,10 @@
   .hz-spark{display:flex;align-items:center;gap:8px;padding:2px 2px 6px;font-size:10.5px;color:var(--eth)}
   .os-ringcell{display:inline-flex;align-items:center;gap:6px}
   .os-gauge{display:inline-flex;vertical-align:middle;margin-left:8px}
+  /* ── 타임프레임 요약 카드 + 미니 예측 차트 ── */
+  .viz-proj{display:block;color:var(--ink)}
+  .tf-cards{display:flex;gap:8px;padding:2px 2px 10px}
+  .tf-card{flex:1;min-width:0;border:1px solid var(--line);border-radius:var(--r-md);padding:6px 4px 5px;text-align:center;background:var(--surface)}
+  .tf-card-h{font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px}
+  .tf-card-viz{display:flex;align-items:center;justify-content:center;gap:5px;margin:4px 0 2px}
+  .tf-card-lab{font-size:9.5px;color:var(--eth)}
