@@ -15,9 +15,9 @@
   body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,-apple-system,"Segoe UI",'Malgun Gothic',"Apple SD Gothic Neo",system-ui,sans-serif;letter-spacing:-0.003em;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
   /* 테마 스크롤바(얇고 은은하게 · 트랙 투명 · hover 시 진해짐) */
   *{scrollbar-width:thin;scrollbar-color:rgba(138,146,178,.3) transparent}
-  ::-webkit-scrollbar{width:6px;height:6px}                                            /* 전체 패널 공통 얇은 스크롤바(실 두께 ~2px) */
+  ::-webkit-scrollbar{width:4px;height:4px}                                            /* 전체 패널 공통 얇은 스크롤바 */
   ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:rgba(138,146,178,.26);border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb{background:rgba(138,146,178,.26);border-radius:99px;border:1px solid transparent;background-clip:padding-box}
   ::-webkit-scrollbar-thumb:hover{background:rgba(138,146,178,.46);background-clip:padding-box}
   ::-webkit-scrollbar-corner{background:transparent}
   /* 숫자·코드용 공통 모노(가독성) */
