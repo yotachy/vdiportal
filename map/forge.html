@@ -70,6 +70,10 @@
             </div>
               <span class="verdict-inline" id="verdictInline"></span>
             <div class="fc-head-actions">
+              <div class="fc-head-run" id="fcHeadRun" role="group" aria-label="웹분석·시뮬레이션"><!-- 전체화면 전용: 시그널 헤더 우측 웹분석/시뮬레이션 -->
+                <button class="ev-toggle" onclick="runEngine()" title="웹분석 — 즉시 계산"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l2.2 6.2 6.3.3-5 4 1.8 6-5.3-3.4L6.7 18.5l1.8-6-5-4 6.3-.3z" opacity=".92"/></svg><span class="hlbl"> 웹분석</span></button>
+                <button class="ev-toggle" id="fcFsPlay" onclick="playAnalysis()" title="시뮬레이션 — 산출 과정 작도 재생"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl"> 시뮬레이션</span></button>
+              </div>
               <span class="fc-src" id="fcSrcBadge" style="display:none"></span>
               <div class="fc-tfseg" id="fcTfSeg" style="display:none" title="봉 주기 선택 — 클릭 시 해당 주기로 불러와 자동 배열">
                 <button data-tf="1day" onclick="chartSetTF('1day')">일</button>
@@ -232,11 +236,8 @@
   </div>
   <div class="b-toast" id="bToast"></div>
 
-  <!-- 전체화면 전용 플로팅 독: 헤더가 숨겨져도 웹분석/시뮬레이션 접근 -->
-  <div class="fc-fs-dock" id="fcFsDock" role="group" aria-label="웹분석·시뮬레이션">
-    <button class="run-btn" onclick="runEngine()" title="웹분석 — 지금 즉시 계산해 예측·시그널 산출"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l2.2 6.2 6.3.3-5 4 1.8 6-5.3-3.4L6.7 18.5l1.8-6-5-4 6.3-.3z" opacity=".92"/></svg><span class="hlbl">웹분석</span></button>
-    <button class="tool-btn play-btn" id="fcFsPlay" onclick="playAnalysis()" title="시뮬레이션 — 산출 과정을 지표별 작도 애니메이션으로 재생"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span class="hlbl">시뮬레이션</span></button>
-  </div>
+  <!-- 전체화면 전용: 차트 하단 '지표 신호로 이동' 버튼(차트가 휠을 가로채므로 스크롤 대체) -->
+  <button class="fc-scrolldown" id="fcScrollDown" onclick="_fcScrollToggle()" title="지표 신호로 이동(차트 스크롤 대신)"><span id="fcScrollLbl">▼ 지표 신호</span></button>
 
   <script src="forge-core.js?v=20260704l"></script>   <!-- ?v= 캐시버스터: 엔진 수정 시 값 갱신(옛 forge-core.js 캐시 방지) -->
   <script src="forge-state.js?v=20260706b"></script>

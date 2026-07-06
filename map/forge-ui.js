@@ -570,7 +570,9 @@
       panel.innerHTML = "";
       return;
     }
-    panel.classList.add("open");        // 서랍 열기(좌측 슬라이드)
+    // 서랍을 지표레일(3패널) 왼쪽 모서리에 붙여 그 면에서 튀어나오게
+    { const _rail = document.querySelector(".ind-rail"); if (_rail) { const _rr = _rail.getBoundingClientRect(); if (_rr.width) panel.style.right = Math.max(0, Math.round(window.innerWidth - _rr.left)) + "px"; } }
+    panel.classList.add("open");        // 서랍 열기(우측 슬라이드)
     const rows = [];
     if (n.blockType === "ma") {
       rows.push(numRow("len", "이동평균 길이", (n.params && n.params.len) ?? 20));

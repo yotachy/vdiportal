@@ -904,10 +904,30 @@
       // 네이티브 전체화면(요소 격리→레일·모달 안 보임) 대신 CSS 의사 전체화면 — 지표레일·리스크·최적화 모두 유지
       const on = document.body.classList.toggle("chart-fs");
       const exp = document.getElementById("fcExpand"); if (exp) { exp.textContent = on ? "✕" : "⛶"; exp.title = on ? "전체화면 닫기 (Esc)" : "전체화면"; }
+      if (on) { _fsSyncHeadH(); _fcBindScroll(); } else { _fcUnbindScroll(); }
+      setTimeout(() => { if (document.body.classList.contains("chart-fs")) { _fsSyncHeadH(); _fcUpdateScrollBtn(); } }, 120);
       setTimeout(_fsRefit, 70); setTimeout(_fsRefit, 260);
     }
+    // 전체화면 고정 헤더 높이 측정 → 판정바 top 오프셋(--fs-phead-h)·차트 상단 여백(--fs-head-h=툴바+판정바)
+    function _fsSyncHeadH() {
+      if (!document.body.classList.contains("chart-fs")) return;
+      const ph = document.querySelector(".chart-pane .fc-phead");
+      const vb = document.querySelector(".chart-pane .fc-verdict-bar");
+      const phH = ph ? Math.round(ph.getBoundingClientRect().height) : 46;
+      const vbH = (vb && getComputedStyle(vb).display !== "none") ? Math.round(vb.getBoundingClientRect().height) : 0;
+      const rs = document.documentElement.style;
+      rs.setProperty("--fs-phead-h", phH + "px");
+      rs.setProperty("--fs-head-h", (phH + vbH) + "px");
+    }
+    // 차트가 휠을 가로채므로 '지표 신호로 이동' 버튼으로 스크롤(차트↔신호 토글)
+    const _fcScrollEl = () => document.querySelector(".chart-pane");
+    let _fcScrollBound = null;
+    function _fcUpdateScrollBtn() { const el = _fcScrollEl(), lbl = document.getElementById("fcScrollLbl"); if (!el || !lbl) return; const atBottom = el.scrollTop > 80 && el.scrollTop > (el.scrollHeight - el.clientHeight - 40); lbl.textContent = atBottom ? "▲ 차트로" : "▼ 지표 신호"; }
+    function _fcBindScroll() { const el = _fcScrollEl(); if (!el || _fcScrollBound) return; _fcScrollBound = () => _fcUpdateScrollBtn(); el.addEventListener("scroll", _fcScrollBound, { passive: true }); _fcUpdateScrollBtn(); }
+    function _fcUnbindScroll() { const el = _fcScrollEl(); if (el && _fcScrollBound) el.removeEventListener("scroll", _fcScrollBound); _fcScrollBound = null; }
+    window._fcScrollToggle = function () { const el = _fcScrollEl(); if (!el) return; const atBottom = el.scrollTop > (el.scrollHeight - el.clientHeight - 40); if (atBottom) { el.scrollTo({ top: 0, behavior: "smooth" }); } else { const sig = document.getElementById("sigProw"); const off = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--fs-phead-h")) || 46; if (sig) el.scrollTo({ top: Math.max(0, sig.offsetTop - off - 54), behavior: "smooth" }); } };
     window.addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("chart-fs")) toggleChartFS(); });
-    function _fsRefit() { try { if (typeof fitPrediction === "function") fitPrediction(); else if (typeof redrawCharts === "function") redrawCharts(); } catch (e) { if (typeof redrawCharts === "function") redrawCharts(); } }
+    function _fsRefit() { try { _fsSyncHeadH(); if (typeof fitPrediction === "function") fitPrediction(); else if (typeof redrawCharts === "function") redrawCharts(); } catch (e) { if (typeof redrawCharts === "function") redrawCharts(); } }
     document.addEventListener("fullscreenchange", () => { setTimeout(_fsRefit, 110); });   // 전체화면 진입/해제 → 예측 재프레이밍(세로 y스케일 + 하단 x축)
     const exp = document.getElementById("fcExpand"); if (exp) exp.addEventListener("click", toggleChartFS);
     const heroImg = document.getElementById("fcHeroImg"); if (heroImg) heroImg.addEventListener("click", open);

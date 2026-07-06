@@ -676,9 +676,9 @@
   .forge-palette .pal-btn.pal-free{color:var(--eth);border-style:dashed}
 
   /* ── 노드 편집기 (우측 패널) ── */
-  /* 도구 편집기 = 좌측 서랍(drawer) — 전체화면·일반 모두 fixed 오버레이로 슬라이드. 2번 패널 미사용 */
-  .node-editor{position:fixed;top:0;left:0;bottom:0;width:min(340px,90vw);z-index:130;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:11px;padding:13px 15px;
-    background:var(--panel);border-right:1px solid var(--line);box-shadow:12px 0 34px var(--scrim);transform:translateX(-102%);transition:transform .2s cubic-bezier(.4,0,.2,1);
+  /* 도구 편집기 = 우측 서랍(drawer) — 지표레일(3패널) 가까운 면에서 슬라이드. 전체화면·일반 공통 fixed 오버레이. 2번 패널 미사용 */
+  .node-editor{position:fixed;top:0;right:0;bottom:0;width:min(330px,88vw);z-index:130;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:11px;padding:13px 15px;
+    background:var(--panel);border-left:1px solid var(--line);box-shadow:-12px 0 34px var(--scrim);transform:translateX(102%);transition:transform .2s cubic-bezier(.4,0,.2,1);
     scrollbar-width:thin;scrollbar-color:var(--line) transparent}
   .node-editor.open{transform:translateX(0)}
   /* 차트로 돌아가기 = 편집기 상단 고정 바(항상 보이게·눈에 띄게) */
@@ -1278,6 +1278,15 @@
   .fc-leg-grip{pointer-events:auto;cursor:grab;color:var(--faint);font-size:12px;line-height:1;padding:0 3px 0 0;margin-right:1px;user-select:none;touch-action:none;flex:0 0 auto}
   .fc-leg-grip:active{cursor:grabbing;color:var(--eth)}
   /* 전체화면 전용 플로팅 독(웹분석·시뮬레이션) — 헤더 숨김 대체 */
-  .fc-fs-dock{display:none}
-  body.chart-fs .fc-fs-dock{display:flex;gap:8px;align-items:center;position:fixed;bottom:18px;left:calc((100vw - 186px)/2);transform:translateX(-50%);z-index:95;background:var(--panel);padding:7px 9px;border-radius:var(--r-lg);box-shadow:0 10px 30px var(--scrim);border:1px solid var(--line)}
+  /* 헤더 우측 웹분석/시뮬레이션(전체화면 전용) */
+  .fc-head-run{display:none;gap:5px;margin-right:6px}
+  body.chart-fs .fc-head-run{display:inline-flex}
+  body.chart-fs .fc-head-run #fcFsPlay.playing{color:var(--bear);border-color:var(--bear)}
+  /* 전체화면: 상단 시그널 영역(툴바+판정바) 고정 — 차트 스크롤 구간 내내 상단 유지 */
+  body.chart-fs .fc-phead{position:sticky;top:0;z-index:97;background:var(--bg);border-bottom:1px solid var(--line)}
+  body.chart-fs .fc-verdict-bar{position:sticky;top:var(--fs-phead-h,46px);z-index:96;background:var(--bg);box-shadow:0 6px 14px -8px var(--scrim)}
+  /* 차트 하단 '지표 신호로 이동' 버튼(전체화면 전용) */
+  .fc-scrolldown{display:none}
+  body.chart-fs .fc-scrolldown{display:inline-flex;align-items:center;position:fixed;bottom:16px;left:calc((100vw - 186px)/2);transform:translateX(-50%);z-index:95;background:var(--panel);color:var(--ink);padding:8px 15px;border-radius:999px;box-shadow:0 8px 24px var(--scrim);border:1px solid var(--line);font-size:12.5px;font-weight:700;letter-spacing:-.01em;cursor:pointer;font-family:inherit}
+  body.chart-fs .fc-scrolldown:hover{background:var(--hover)}
   body.chart-fs .fc-fs-dock .hlbl{display:inline}
