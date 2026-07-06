@@ -56,7 +56,8 @@
   }
   function _syncZoomBtn() { /* 오버레이 ⊕ 제거됨 — A 버튼이 전체 자동배열 담당 */ }
   function renderHeroZoom() {
-    const pred = _fcLastResult && _fcLastResult.prediction;
+    // 시뮬레이션 중(팬·축·줌 드래그)엔 최종 예측이 아니라 현재 모프 프레임(_playPred)을 그림 — 최종 3라인 겹쳐 보이는 스포일러 방지
+    const pred = (typeof _playing !== "undefined" && _playing && typeof _playPred !== "undefined" && _playPred) ? _playPred : (_fcLastResult && _fcLastResult.prediction);
     const px = (_fcLastData && _fcLastData.price) || (currentData && currentData().price) || [];
     fcDrawMainChart(px, pred);
     drawEvidence();
