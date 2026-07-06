@@ -1200,3 +1200,12 @@
   .tf-card-h{font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px}
   .tf-card-viz{display:flex;align-items:center;justify-content:center;gap:5px;margin:4px 0 2px}
   .tf-card-lab{font-size:9.5px;color:var(--eth)}
+  /* ── 라이트 테마 버튼 보정 (하드코딩 다크색·골드버튼 대비) ── */
+  :root.light .run-btn,
+  :root.light .fc-axis-btn.flash,
+  :root.light .fc-tfseg button.on,
+  :root.light .tk-panel .tk-seg button.on,
+  :root.light .opt-run{background:#d99a2e!important;color:#241a06!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 2px 8px rgba(160,115,35,.3)}
+  :root.light .play-btn{color:#0f7a61!important;border-color:rgba(15,122,97,.45)!important;background:rgba(94,200,182,.2)!important}
+  :root.light .play-btn:hover{color:#0b6650!important;border-color:#2fa88c!important;background:rgba(94,200,182,.3)!important}
+  :root.light .play-btn.playing{color:var(--bear)!important;border-color:rgba(207,58,52,.5)!important;background:rgba(207,58,52,.12)!important}

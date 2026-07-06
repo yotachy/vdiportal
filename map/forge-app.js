@@ -1817,6 +1817,7 @@
   function applyTheme(key) {
     const t = THEMES[key] || THEMES.midnight; _theme = THEMES[key] ? key : "midnight";
     const r = document.documentElement.style; Object.entries(t.vars).forEach(([k, v]) => r.setProperty(k, v));
+    document.documentElement.classList.toggle("light", t.group === "light");   // 라이트 전용 CSS 보정(하드코딩 색·골드버튼 대비)
     try { localStorage.setItem("scoopforge_theme", _theme); } catch (e) {}
     renderThemePop();
     _syncChartColors();   // 차트 캔버스 색(격자/골드)을 새 테마에 동기화
