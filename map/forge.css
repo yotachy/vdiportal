@@ -1276,3 +1276,7 @@
   /* 범례 드래그 그립 */
   .fc-leg-grip{pointer-events:auto;cursor:grab;color:var(--faint);font-size:12px;line-height:1;padding:0 3px 0 0;margin-right:1px;user-select:none;touch-action:none;flex:0 0 auto}
   .fc-leg-grip:active{cursor:grabbing;color:var(--eth)}
+  /* 전체화면 전용 플로팅 독(웹분석·시뮬레이션) — 헤더 숨김 대체 */
+  .fc-fs-dock{display:none}
+  body.chart-fs .fc-fs-dock{display:flex;gap:8px;align-items:center;position:fixed;bottom:18px;left:calc((100vw - 186px)/2);transform:translateX(-50%);z-index:95;background:var(--panel);padding:7px 9px;border-radius:var(--r-lg);box-shadow:0 10px 30px var(--scrim);border:1px solid var(--line)}
+  body.chart-fs .fc-fs-dock .hlbl{display:inline}

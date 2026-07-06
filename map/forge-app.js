@@ -1985,6 +1985,8 @@
     const b = document.getElementById("playBtn"); if (!b) return;
     if (_playing) { b.innerHTML = '■<span class="hlbl"> 중지</span>'; b.classList.add("playing"); b.title = "시뮬레이션 중지"; }
     else { b.innerHTML = '▶<span class="hlbl"> 시뮬레이션</span>'; b.classList.remove("playing"); b.title = "시뮬레이션 — 웹분석의 산출 과정을 지표별 작도 애니메이션으로 재생(웹분석의 하위 기능)"; }
+    const bf = document.getElementById("fcFsPlay");   // 전체화면 플로팅 독 버튼도 동기화
+    if (bf) { bf.innerHTML = b.innerHTML; bf.classList.toggle("playing", _playing); bf.title = b.title; }
   }
   function playAnalysis() {
     if (_playing) { stopPlay(); return; }      // 토글: 재생 중 누르면 중단
