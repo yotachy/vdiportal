@@ -684,6 +684,7 @@
     left:0;right:auto;transform:translateX(-105%)}                         /* 일반: 레일 오른쪽에 붙어 슬라이드 인 */
   body.chart-fs .node-editor{left:auto;right:0;transform:translateX(105%)}  /* 전체화면: 레일 왼쪽에 붙어 슬라이드 인 */
   .node-editor.open{visibility:visible;transform:translateX(0)}
+  body.chart-fs .node-editor.open{transform:translateX(0)}   /* body 요소선택자 특이도(0,2,1)를 이기도록 명시 — 전체화면 전개가 확실히 적용 */
   /* 차트로 돌아가기 = 편집기 상단 고정 바(항상 보이게·눈에 띄게) */
   .ne-back{position:sticky;top:-13px;z-index:6;margin:-13px -15px 6px;align-self:stretch;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(22,29,38,.99),rgba(22,29,38,.92));border:0;border-bottom:1px solid var(--gold-dim);color:var(--gold);border-radius:0;font-size:13px;font-weight:800;padding:12px 15px;cursor:pointer;font-family:inherit;backdrop-filter:blur(5px);letter-spacing:-.01em}
   .ne-back:hover{background:rgba(232,180,99,.16)}
