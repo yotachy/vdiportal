@@ -1184,3 +1184,12 @@
     .pal-btn{font-size:12px;padding:7px 8px}
     .wboard .hz-band,.wboard .hz-head .hz-band{display:none}   /* 좁은 폭: 예상범위 열 숨겨 표 정리 */
   }
+  /* ── 패널2 시각화(도넛·게이지·링·스파크) ── */
+  .viz-donut,.viz-gauge,.viz-ring,.viz-spark{display:block;color:var(--ink)}
+  .fcv-viz{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:6px 2px 2px;width:100%}
+  .fcv-viz-item{display:flex;align-items:center;gap:7px}
+  .fcv-viz-lab{font-size:10.5px;color:var(--eth);line-height:1.25}
+  .fcv-viz-lab b{color:var(--ink);font-size:12px}
+  .hz-spark{display:flex;align-items:center;gap:8px;padding:2px 2px 6px;font-size:10.5px;color:var(--eth)}
+  .os-ringcell{display:inline-flex;align-items:center;gap:6px}
+  .os-gauge{display:inline-flex;vertical-align:middle;margin-left:8px}
