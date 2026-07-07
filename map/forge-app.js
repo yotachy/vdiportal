@@ -1346,8 +1346,19 @@
     });
   })();
 
+  /* ── 헤더 중앙: 현재 분석 중인 종목 · 주기 ────────── */
+  function updateHdrContext() {
+    const el = document.getElementById("hdrContext"); if (!el) return;
+    let sym = "";
+    try { const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim()); sym = tk ? (tk.params.symbol || "").trim().toUpperCase() : ""; } catch (e) {}
+    if (!sym) { el.innerHTML = ""; return; }
+    const tf = (typeof activeTF === "function" ? activeTF() : "") || "일봉";
+    el.innerHTML = esc(sym) + (tf ? ` <span class="hc-tf">${esc(tf)}</span>` : "");
+  }
+
   /* ── renderVerdict: inline signal in chart panel header ────────── */
   function renderVerdict(verdict, fillU) {
+    updateHdrContext();
     const el = document.getElementById("verdictInline");
     if (!el || !verdict) return;
     const REGIME_LABEL = { bull: "상승", bear: "하락", neutral: "중립" };
