@@ -1745,7 +1745,7 @@
     const dev = logP[n - 1] - ema;                  // 현재가의 (최근)베이스라인 대비 로그편차
     const theta = 1 / Math.max(6, futW * 0.55);     // 평균회귀 속도 — 지평(futW)에 비례 스케일(tauM처럼) → TF 무관 회귀완료비율 일정. 일봉(futW40)≈0.045(종전), 월봉(futW12)≈0.15
     const tauM = Math.max(3, futW * 0.4);           // 모멘텀 감쇠 시정수
-    const sigDriftTotal = (lastSig / 100) * 0.28;   // 신호 방향 누적 드리프트(만점 ±28%)
+    let sigDriftTotal = (lastSig / 100) * 0.28;   // 신호 방향 누적 드리프트(만점 ±28%) — 아래에서 방향 시그널(_dirSig)로 재산출
     const _sCap = trendProfileForTF(opts && opts.timeframe).sigmaCap || 0.18;   // 봉당 변동성 상한(TF별 — 월봉 콘 역전 해소)
     let sigBand = Math.max(0.02, Math.min(sigma, _sCap));   // 밴드 변동성 상한(고변동주의 실제 변동폭 반영)
     /* 계절성(주기) 성분 — phasefold 노드가 검출한 지배주기를 예측에 직접 반영(chart.html 시즌 형상).
@@ -1880,6 +1880,13 @@
     let _agSum = 0, _opSum = 0;
     for (const d of _drifts) { if (!d) continue; if ((d > 0 ? 1 : -1) === _cdir0) _agSum += Math.abs(d); else _opSum += Math.abs(d); }
     const _auxCap = _cdir0 * Math.max(0, Math.min(0.28, _agSum) - 0.5 * _opSum);   // 반대지표 = 예상지표의 절반 효과(균등 되돌림, 방향 유지)
+    // ── 종합 시그널을 '추세제거 잔차(detrend)' 대신 '지표 방향 합의 + 추세'로 재정의 ──
+    // (기존 lastSig=detrendNorm 기반 → 추세 방향 소실, 폭락장서 +bull로 뒤집히던 결함. verdict.score·regime·신호드리프트·모순완화가 모두 이 방향 시그널을 사용)
+    const _dirBiasList = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, (_vol ? analyzeVolume(price, _vol).bias : null), _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias, _pv2 && _pv2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b));
+    const _biasAvg = _dirBiasList.length ? _dirBiasList.reduce((a, b) => a + b, 0) / _dirBiasList.length : 0;   // 지표 평균 방향(−1..1)
+    const _trendDir = Math.max(-1, Math.min(1, trS / 0.008));   // 추세 슬로프 방향(±0.8%/봉=만점)
+    const _dirSig = Math.max(-100, Math.min(100, Math.round((_biasAvg * 0.66 + _trendDir * 0.34) * 100 + bias * 0.5)));   // 방향 종합 시그널(−100..+100, 사용자 conviction 반영)
+    sigDriftTotal = (_dirSig / 100) * 0.28;   // 신호 드리프트를 방향 시그널로 재산출(예측이 추세와 일관)
     // 데이터 기반 미세질감: 최근 로그수익률의 단기 자기상관(AR2)을 결정론적으로 투영(잡음/난수 없음).
     // 유의미한 자기상관이 있을 때만 근거리 질감이 생기고, 화이트노이즈면 0 → 장식 아님. 감쇠 누적으로 근거리에 집중, 진폭은 최근 변동성으로 제한.
     let _texArr = null;
@@ -1935,8 +1942,8 @@
       const m = rev + mom + trend + sig + seas + tex + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * (_prof.bandScale || 1) * (_volFac ? _volFac[k] : 1);   // TF별 콘 폭(일봉 타이트)
       // 종합 신호와 반대 방향으로 크게 드리프트하면 완화 — '지표 종합=하락인데 예측 급등/상승확률 86%' 같은 모순 억제
       let mC = m;
-      if (lastSig < -8 && mC > 0) mC *= 0.25;
-      else if (lastSig > 8 && mC < 0) mC *= 0.25;
+      if (_dirSig < -8 && mC > 0) mC *= 0.25;
+      else if (_dirSig > 8 && mC < 0) mC *= 0.25;
       path.push(last * Math.exp(mC));
       lo.push(last * Math.exp(mC - sd));
       hi.push(last * Math.exp(mC + sd));
@@ -1983,11 +1990,11 @@
       const cTex = (_texArr ? _texArr[k] * 0.5 : 0) * _cEase;
       counter.push(last * Math.exp(_cDrift * prog + cSeas + cTex));
     }
-    const regime = lastSig > 12 ? "bull" : lastSig < -12 ? "bear" : "neutral";
+    const regime = _dirSig > 12 ? "bull" : _dirSig < -12 ? "bear" : "neutral";
     // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율
     const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias,
       _pv2 && _pv2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);   // 일치도(confluence)에 신규 11지표 포함 — 예측 드리프트 반영 지표와 파리티
-    const _cdir = lastSig > 0 ? 1 : lastSig < 0 ? -1 : (_allBias.reduce((a, b) => a + b, 0) >= 0 ? 1 : -1);
+    const _cdir = _dirSig > 0 ? 1 : _dirSig < 0 ? -1 : (_allBias.reduce((a, b) => a + b, 0) >= 0 ? 1 : -1);
     const _agree = _allBias.filter(b => (b > 0 ? 1 : -1) === _cdir).length;
     const confluence = { score: _allBias.length ? Math.round(_agree / _allBias.length * 100) : 0, agree: _agree, total: _allBias.length };
     const target = path[path.length - 1];                  // 예측 horizon 끝값
@@ -1995,7 +2002,7 @@
     const invalidation = regime === "bear" ? hi[invIdx] : lo[invIdx];
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
-      verdict: { regime, score: Math.round(lastSig), target, invalidation, confluence }
+      verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence }
     };
   }
 
