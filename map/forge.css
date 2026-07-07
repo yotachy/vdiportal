@@ -376,6 +376,7 @@
   .fcv-prob{font-size:14.5px;font-weight:800;font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0}
   .fcv-prob .up{color:var(--bull)}.fcv-prob .dn{color:var(--bear);opacity:.82}
   .fcv-sig{font-size:12.5px;font-weight:600;color:var(--muted);font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.005em}
+  .fcv-sig b{color:var(--ink);font-weight:800}
   .fcv-op{flex:1;min-width:150px;font-size:13.5px;font-weight:700;color:var(--eth);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Pretendard,system-ui,sans-serif;animation:opulse 2.2s ease-in-out infinite}
   @keyframes opulse{0%,100%{opacity:.72}50%{opacity:1;text-shadow:0 0 7px currentColor}}
   /* 지표 방향 분포(도미넌스 스타일 누적 바) */
@@ -428,8 +429,8 @@
   .dash-cell .dval.hz-up{color:var(--bull)}
   .dash-cell .dval.hz-dn{color:var(--bear)}
   .dash-cell .dval.hz-fl{color:var(--eth)}
-  .dash-guide{display:flex;flex-direction:column;align-items:center;gap:9px;padding:24px 16px;text-align:center}
-  .dash-guide .dg-ico{width:32px;height:32px;color:var(--gold);opacity:.85}
+  .dash-guide{display:flex;flex-direction:column;align-items:center;gap:7px;padding:16px 16px 14px;text-align:center}
+  .dash-guide .dg-ico{width:26px;height:26px;color:var(--gold);opacity:.85}
   .dash-guide .dg-title{font-size:13px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
   .dash-guide .dg-desc{font-size:11.5px;color:var(--eth);line-height:1.65;max-width:340px}
   .dash-guide .dg-desc b{color:var(--gold)}
@@ -768,7 +769,7 @@
      SIDEBAR  (Task 3)
      ════════════════════════════════════════════════════ */
   .forge-shell{display:flex;height:calc(100vh - 54px)}
-  .forge-side{flex:0 0 200px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+  .forge-side{flex:0 0 182px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
   .forge-side.collapsed{flex-basis:0;border:0}
   .forge-side .side-sec{padding:10px;border-bottom:1px solid var(--line)}
   .forge-side .side-h{font-size:11px;color:var(--muted);margin:0 0 9px;display:flex;justify-content:space-between;align-items:center;font-weight:700;letter-spacing:.02em}

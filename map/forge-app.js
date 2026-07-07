@@ -1401,7 +1401,7 @@
         (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
         `<span class="fcv-reg" title="국면 — 지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span>` +
         (_up != null ? `<span class="fcv-prob" title="상승/하락 확률 — 예측 콘 기준, 가까운 시점에 가중한 종합 상승확률"><span class="up">▲ ${_up}%</span> <span class="dn">▼ ${100 - _up}%</span></span>` : "") +
-        `<span class="fcv-sig" title="시그널=신호 강도(−100~+100) · 목표=예측 도달가 · 컨플루언스=지표 합의도(같은 방향 지표 수 / 전체)">시그널 ${score}${isFinite(_targetN) ? "  ·  목표 " + fmtNum(_targetN) : ""}${(verdict.confluence && verdict.confluence.total) ? "  ·  컨플루언스 " + verdict.confluence.score + "% (" + verdict.confluence.agree + "/" + verdict.confluence.total + ")" : ""}</span>` +
+        (isFinite(_targetN) ? `<span class="fcv-sig" title="목표=예측 도달가(시그널·컨플루언스는 아래 도넛 참고)">목표 <b>${fmtNum(_targetN)}</b></span>` : "") +
         `<span class="fcv-op" title="핵심 의견 — 국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span>` + _bd;
     }
     if (u >= 1 && bar) { bar.classList.remove("flash"); void bar.offsetWidth; bar.classList.add("flash"); }   // 최종 결과 등장 강조

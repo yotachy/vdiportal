@@ -1624,8 +1624,9 @@
       if (!_skReady()) return;   // 라벨은 선이 거의 다 그려진 뒤
       // 강도/각도 라벨 — 저신뢰는 화살표 대신 '약함' + 흐린 색
       const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = weak ? "· 약함" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
-      const _nrw = ((typeof window !== "undefined" && window.innerWidth) || 9999) < 560;   // 좁은 화면=축약(뭉침 방지)
-      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (_nrw ? (weak ? "·약" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—") : (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir);
+      // 기본=축약(단기 ▲ — 뭉침 방지), '전체 라벨 표시'(_labelMode==='all') 켜면 상세(%/봉·R²)
+      const _full = (typeof _labelMode !== "undefined" && _labelMode === "all") && ((typeof window === "undefined") || window.innerWidth >= 560);
+      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (_full ? (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir : (weak ? "·약" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—"));
       _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, weak ? "rgba(138,146,178,.92)" : COL[key], "left");
       if (M.focused && !weak && key === "mid") { const endV = valAt(nowFi + futBars); if (isFinite(endV)) _evLabel(c, "\ucd94\uc138 \ub3c4\ub2ec \u2248 " + _hzFmt(endV), xRight, pToY(endV), COL[key], "right"); }   // 추세 도달 ≈
     }
