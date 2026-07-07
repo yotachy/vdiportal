@@ -903,6 +903,7 @@
 
   /* ── 포지 분석 재생 ── */
   .analyze-prog{font-size:11px;color:var(--eth)}
+  .analyze-prog:not(:empty){padding:2px 9px;border-radius:99px;background:var(--raised);border:1px solid var(--line);font-size:10.5px;font-weight:600;letter-spacing:-.01em}   /* 변경/재분석 상태 = 은은한 pill(웹분석 버튼 자체가 깜빡여 알림) */
   .req-stat{font-size:12px;color:var(--eth);letter-spacing:-0.01em;min-width:0}
   .req-stat.working{color:var(--gold)}
   .req-stat.err{color:var(--bear)}
@@ -1175,8 +1176,12 @@
   .m-sub .run-btn,.m-sub .play-btn{padding:6px 11px;font-size:12px}
   .m-sub .run-btn .hlbl,.m-sub .play-btn .hlbl{display:inline}
   @media (max-width: 860px) {
-    .forge-top{position:fixed;top:0;left:0;right:0;z-index:200}   /* 헤더 고정 — 웹분석/시연 항상 접근 */
-    .forge-top .run-btn .hlbl,.forge-top .play-btn .hlbl{display:inline}   /* 웹분석/시연 라벨 복원 */
+    .forge-top{position:fixed;top:0;left:0;right:0;z-index:200}   /* 헤더 고정(슬림 — 로고·테마·로그인만) */
+    /* 웹분석/시뮬레이션 → 화면 하단 고정 액션바(엄지 접근). 모바일선 run-group이 #mSub 안에 있음 */
+    .m-sub .run-group{position:fixed!important;left:0;right:0;bottom:0;z-index:210;display:flex!important;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -8px 22px var(--scrim);min-height:auto}
+    .m-sub .run-group .run-btn,.m-sub .run-group .play-btn{flex:1;justify-content:center;border-radius:var(--r-lg)!important;min-height:46px!important;font-size:14px!important;padding:0!important;border-left-width:1px!important}
+    .m-sub .run-group .run-btn .hlbl,.m-sub .run-group .play-btn .hlbl{display:inline}
+    body{padding-bottom:66px}   /* 하단 액션바 공간 확보 */
     .forge-side .side-sec:first-child{display:none}   /* 포지 섹션 → 고정 서브바 칩으로 이동 */
     .doc-select{display:none}
     .forge-split{order:1}
@@ -1209,6 +1214,8 @@
     #fcMainChart{height:100%!important;min-height:0!important;flex:1 1 auto}   /* 68vh 등 고정높이 무력화 → 종횡비 채움 */
     .fc-phead{flex-wrap:wrap;row-gap:6px}
     .fc-head-right{flex-wrap:wrap;justify-content:flex-start}
+    .chart-pane .fc-panel-hero>.fc-phead .fc-head-left{flex:1 1 100%;min-width:0;overflow:hidden}   /* 차트 헤더: 타이틀/메타 전용 줄(잘림 방지, TF·아이콘은 다음 줄) */
+    .chart-pane .fc-panel-hero>.fc-phead .fc-head-left .fc-meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .forge-palette{display:none}
     body{overflow-x:hidden}
     /* 판정 시각 스트립: 겹침/틀어짐 방지 — 균등 배치·라벨 축소 */
