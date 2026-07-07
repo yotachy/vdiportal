@@ -299,7 +299,7 @@
       const col = rsi.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
       rsi.divergence.pricePts.forEach(p => { const i = p.idx; if (i < 0 || i >= s.length) return; const x = xOf(i), y = yOf(s[i]); c.fillStyle = col; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); });
     }
-    { const meta = document.getElementById("fcRsiMeta"); if (meta) { const z = rsi.zone === "overbought" ? ["과열 · 되돌림 주의", "dn"] : rsi.zone === "oversold" ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "RSI " + Math.round(rsi.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _gaugeSVG(rsi.last, 0, 100, { zones: [{ from: 0, to: 30, color: "var(--bull)" }, { from: 70, to: 100, color: "var(--bear)" }], w: 54, h: 30, r: 22 }) + '</span>'; } } _osReveal(c, cw, ch, reveal);
+    { const meta = document.getElementById("fcRsiMeta"); if (meta) { const z = rsi.zone === "overbought" ? ["과열 · 되돌림 주의", "dn"] : rsi.zone === "oversold" ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "RSI " + Math.round(rsi.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _hbarRsi(rsi.last, 30, 70) + '</span>'; } } _osReveal(c, cw, ch, reveal);
   }
 
   /* ── fcDrawMfi: MFI 서브패널 (0–100, 20/80 밴드) — RSI와 동형(자금흐름) ── */
@@ -324,7 +324,7 @@
     c.strokeStyle = "#c8912f"; c.lineWidth = 1.05; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(200,145,47,.4)"; c.shadowBlur = 3.5; c.beginPath();
     s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
     c.fillStyle = FC_OSC; c.beginPath(); c.arc(xOf(s.length - 1), yOf(mfi.last), 2.4, 0, 7); c.fill();
-    { const meta = document.getElementById("fcMfiMeta"); if (meta) { const z = mfi.last >= 80 ? ["과열 · 되돌림 주의", "dn"] : mfi.last <= 20 ? ["과매도 · 반등 기대", "up"] : mfi.last >= 50 ? ["자금 유입", "up"] : ["자금 이탈", "dn"]; meta.innerHTML = "MFI " + Math.round(mfi.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _gaugeSVG(mfi.last, 0, 100, { zones: [{ from: 0, to: 20, color: "var(--bull)" }, { from: 80, to: 100, color: "var(--bear)" }], w: 54, h: 30, r: 22 }) + '</span>'; } } _osReveal(c, cw, ch, reveal);
+    { const meta = document.getElementById("fcMfiMeta"); if (meta) { const z = mfi.last >= 80 ? ["과열 · 되돌림 주의", "dn"] : mfi.last <= 20 ? ["과매도 · 반등 기대", "up"] : mfi.last >= 50 ? ["자금 유입", "up"] : ["자금 이탈", "dn"]; meta.innerHTML = "MFI " + Math.round(mfi.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _hbarRsi(mfi.last, 20, 80) + '</span>'; } } _osReveal(c, cw, ch, reveal);
   }
 
   /* ── fcDrawWilliams: Williams %R 서브패널 (−100..0, −20/−80 밴드) ── */
@@ -349,7 +349,7 @@
     c.strokeStyle = "#b56fd6"; c.lineWidth = 1.05; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(181,111,214,.4)"; c.shadowBlur = 3.5; c.beginPath();
     s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
     c.fillStyle = FC_OSC; c.beginPath(); c.arc(xOf(s.length - 1), yOf(w.last), 2.4, 0, 7); c.fill();
-    { const meta = document.getElementById("fcWilliamsMeta"); if (meta) { const z = w.last >= -20 ? ["과매수 · 되돌림 주의", "dn"] : w.last <= -80 ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "%R " + Math.round(w.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _gaugeSVG(w.last, -100, 0, { zones: [{ from: -100, to: -80, color: "var(--bull)" }, { from: -20, to: 0, color: "var(--bear)" }], w: 54, h: 30, r: 22 }) + '</span>'; } } _osReveal(c, cw, ch, reveal);
+    { const meta = document.getElementById("fcWilliamsMeta"); if (meta) { const z = w.last >= -20 ? ["과매수 · 되돌림 주의", "dn"] : w.last <= -80 ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "%R " + Math.round(w.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _hbarRsi(w.last + 100, 20, 80) + '</span>'; } } _osReveal(c, cw, ch, reveal);
   }
 
   /* ── fcDrawCci: CCI 서브패널 (0 중심 대칭, ±100 밴드) ── */
@@ -370,7 +370,7 @@
     c.strokeStyle = "#e6785a"; c.lineWidth = 1.15; c.lineJoin = "round"; c.lineCap = "round"; c.shadowColor = "rgba(230,120,90,.4)"; c.shadowBlur = 3.5; c.beginPath();
     s.forEach((v, i) => { const x = xOf(i), y = yOf(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.shadowBlur = 0;
     c.fillStyle = FC_OSC; c.beginPath(); c.arc(xOf(s.length - 1), yOf(cci.last), 2.4, 0, 7); c.fill();
-    { const meta = document.getElementById("fcCciMeta"); if (meta) { const z = cci.last >= 100 ? ["과열 · 되돌림 주의", "dn"] : cci.last <= -100 ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "CCI " + Math.round(cci.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _gaugeSVG(Math.max(-200, Math.min(200, cci.last)), -200, 200, { zones: [{ from: -200, to: -100, color: "var(--bull)" }, { from: 100, to: 200, color: "var(--bear)" }], w: 54, h: 30, r: 22 }) + '</span>'; } } _osReveal(c, cw, ch, reveal);
+    { const meta = document.getElementById("fcCciMeta"); if (meta) { const z = cci.last >= 100 ? ["과열 · 되돌림 주의", "dn"] : cci.last <= -100 ? ["과매도 · 반등 기대", "up"] : ["중립대", "fl"]; meta.innerHTML = "CCI " + Math.round(cci.last) + " <span class='fc-verdit " + z[1] + "'>" + z[0] + "</span>" + '<span class="os-gauge">' + _hbarRsi((Math.max(-200, Math.min(200, cci.last)) + 200) / 4, 25, 75) + '</span>'; } } _osReveal(c, cw, ch, reveal);
   }
 
   /* ── fcDrawMacd: MACD 서브패널 (히스토그램 + MACD/시그널 라인 + 0선) ── */

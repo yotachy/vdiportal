@@ -22,6 +22,11 @@
     size = size || 30; const th = 4, r = (size - th) / 2, cx = size / 2, C = 2 * Math.PI * r, len = Math.max(0, Math.min(100, pct)) / 100 * C;
     return `<svg class="viz-ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${th}"/><circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${color}" stroke-width="${th}" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} ${(C - len).toFixed(1)}" transform="rotate(-90 ${cx} ${cx})"/><text x="${cx}" y="${cx}" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="700" fill="currentColor">${Math.round(pct)}</text></svg>`;
   }
+  // 계기판 대체 가로 바(재사용) — 진행바(퍼센트) / 발산바(−100~+100 중앙기준)
+  function _hbarPct(pct, col) { return `<span class="hbar"><i class="hbar-f" style="width:${Math.max(0, Math.min(100, pct))}%;background:${col}"></i></span>`; }
+  function _hbarDiv(val, col) { const v = Math.max(-100, Math.min(100, val)), h = Math.abs(v) / 100 * 50, l = v >= 0 ? 50 : 50 - h; return `<span class="hbar hbar-d"><i class="hbar-mid"></i><i class="hbar-df" style="left:${l.toFixed(1)}%;width:${h.toFixed(1)}%;background:${col}"></i></span>`; }
+  // 0~100 오실레이터 바(RSI·MFI 등) — 과매도(하단 녹색)·과열(상단 적색) 존 + 현재값 마커. 반원 게이지 대체
+  function _hbarRsi(val, lo, hi) { const v = Math.max(0, Math.min(100, val)); return `<span class="hbar hbar-osc"><i class="osc-lo" style="width:${lo}%"></i><i class="osc-hi" style="left:${hi}%;width:${100 - hi}%"></i><i class="osc-mk" style="left:${v.toFixed(1)}%"></i></span>`; }
   function _sparkSVG(vals, opts) {
     opts = opts || {}; const w = opts.w || 120, h = opts.h || 24, pad = 2; if (!vals || vals.length < 2) return "";
     const mn = Math.min.apply(0, vals), mx = Math.max.apply(0, vals), sp = (mx - mn) || 1;
@@ -198,7 +203,7 @@
         <td>+${h}${unit}</td>
         <td><span class="dash-cell"><b class="dval ${cls}">${_hzFmt(v)}</b></span></td>
         <td><span class="dash-cell"><b class="dval ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</b></span></td>
-        <td><span class="dash-cell os-ringcell" style="justify-content:center">${_ringSVG(up, probCol, 34)}</span></td>
+        <td><span class="dash-cell prob-cell"><b style="color:${probCol}">${up}%</b>${_hbarPct(up, probCol)}</span></td>
         <td><span class="dash-cell"><span class="dash-sub">${band}</span></span></td>
       </tr>`;
     }).join("");
@@ -1402,10 +1407,13 @@
           // (스택바 fcv-break 제거 — 아래 '지표 방향' 도넛과 중복이라 시각화 일원화)
           const dirCol = regime === "bull" ? "var(--bull)" : regime === "bear" ? "var(--bear)" : "var(--eth)";
           const cf = verdict.confluence;
-          const cfDonut = (cf && cf.total) ? `<div class="fcv-viz-item" title="컨플루언스 = 지표 합의도. 같은 방향을 가리키는 지표 수 ÷ 전체 지표 수(${cf.agree}/${cf.total}=${cf.score}%). 높을수록 방향 신뢰가 큽니다.">${_donutSVG([{ v: cf.agree, color: dirCol }, { v: Math.max(0, cf.total - cf.agree), color: "var(--faint)" }], { centerText: cf.score + "%" })}<span class="fcv-viz-lab">컨플루언스 <span class="fcv-info">ⓘ</span><br><b>${cf.agree}/${cf.total}</b></span></div>` : "";
-          const bnbDonut = `<div class="fcv-viz-item" title="지표 방향 분포 — 상승/중립/하락으로 판정된 지표 수(${bl}·${ne}·${be} / 총 ${bl + ne + be})">${_donutSVG([{ v: bl, color: "var(--bull)" }, { v: ne, color: "#e8b463" }, { v: be, color: "var(--bear)" }], { centerText: (regime === "bull" ? "▲" : regime === "bear" ? "▼" : "▸"), centerColor: dirCol, centerSize: 13 })}<span class="fcv-viz-lab">지표 방향<br><b style="color:var(--bull)">${bl}</b>·<b style="color:var(--gold)">${ne}</b>·<b style="color:var(--bear)">${be}</b></span></div>`;
-          const sigGauge = (_scoreN != null) ? `<div class="fcv-viz-item" title="시그널 = 종합 신호 강도(−100 ~ +100). 지표·모멘텀·평균회귀를 가중 합성한 값. 양수=상승 우위, 절댓값이 클수록 강한 신호.">${_gaugeSVG(_scoreN, -100, 100, { color: dirCol })}<span class="fcv-viz-lab">시그널 <span class="fcv-info">ⓘ</span><br><b style="color:${dirCol}">${score}</b></span></div>` : "";
-          _bd += `<div class="fcv-viz">${cfDonut}${bnbDonut}${sigGauge}</div>`;
+          // 게이지/도넛 → 가독성 높은 가로 바(진행·누적·발산). 값이 바로 읽힘.
+          const cfBar = (cf && cf.total) ? `<div class="fbar-row" title="컨플루언스 = 지표 합의도. 같은 방향 지표 수 ÷ 전체(${cf.agree}/${cf.total}=${cf.score}%). 높을수록 방향 신뢰가 큽니다."><span class="fbar-lab">컨플루언스</span><span class="fbar-track"><i class="fbar-fill" style="width:${cf.score}%;background:${dirCol}"></i></span><span class="fbar-val"><b>${cf.agree}/${cf.total}</b> ${cf.score}%</span></div>` : "";
+          const _tot = Math.max(1, bl + ne + be);
+          const dirBar = `<div class="fbar-row" title="지표 방향 분포 — 상승/중립/하락 지표 수(${bl}·${ne}·${be} / 총 ${bl + ne + be})"><span class="fbar-lab">지표 방향</span><span class="fbar-track fbar-stack"><i style="width:${(bl / _tot * 100).toFixed(1)}%;background:var(--bull)"></i><i style="width:${(ne / _tot * 100).toFixed(1)}%;background:#e8b463"></i><i style="width:${(be / _tot * 100).toFixed(1)}%;background:var(--bear)"></i></span><span class="fbar-val"><b style="color:var(--bull)">▲${bl}</b> <b style="color:var(--gold)">${ne}</b> <b style="color:var(--bear)">▼${be}</b></span></div>`;
+          let sigBar = "";
+          if (_scoreN != null) { const sv = Math.max(-100, Math.min(100, _scoreN)), half = Math.abs(sv) / 100 * 50, lft = sv >= 0 ? 50 : 50 - half; sigBar = `<div class="fbar-row" title="시그널 = 종합 신호 강도(−100 ~ +100). 지표·모멘텀·평균회귀 가중 합성. 양수=상승 우위, 절댓값 클수록 강함."><span class="fbar-lab">시그널</span><span class="fbar-track fbar-div"><i class="fbar-mid"></i><i class="fbar-dfill" style="left:${lft.toFixed(1)}%;width:${half.toFixed(1)}%;background:${dirCol}"></i></span><span class="fbar-val"><b style="color:${dirCol}">${sv > 0 ? "+" : ""}${score}</b></span></div>`; }
+          _bd += `<div class="fcv-bars">${cfBar}${dirBar}${sigBar}</div>`;
         }
       } catch (e) {}
       bar.innerHTML =
@@ -1503,7 +1511,7 @@
       const nm = c[0], v = c[1], rg = REGC[v.regime] || REGC.neutral, tcol = _TFCOL[nm] || "var(--eth)";
       return `<div class="tf-card">
         <div class="tf-card-h" style="color:${tcol}"><span class="thdot" style="background:${tcol}"></span>${nm} <b style="color:${rg[1]}">${rg[0]}</b></div>
-        <div class="tf-card-viz" data-up="${v.up}" data-score="${v.score}" data-col="${rg[1]}">${_ringSVG(v.up, rg[1], 34)}${_gaugeSVG(v.score, -100, 100, { color: rg[1], w: 56, h: 32, r: 23 })}</div>
+        <div class="tf-card-viz" data-up="${v.up}" data-score="${v.score}" data-col="${rg[1]}"><span class="tfb"><span class="tfb-k">상승</span>${_hbarPct(v.up, rg[1])}</span><span class="tfb"><span class="tfb-k">시그널</span>${_hbarDiv(v.score, rg[1])}</span></div>
         <div class="tf-card-lab" data-up="${v.up}" data-score="${v.score}" data-col="${rg[1]}">상승 <b style="color:${rg[1]}">${v.up}%</b> · 시그널 <b style="color:${rg[1]}">${Math.round(v.score)}</b></div>
       </div>`;
     }).join("");
@@ -2038,7 +2046,7 @@
     // 일/주/월 카드 도넛(링)·게이지·라벨도 시연 진행도에 맞춰 0→최종으로 채움
     document.querySelectorAll("#fcDashBody .tf-card-viz[data-up]").forEach(viz => {
       const up = +viz.getAttribute("data-up"), score = +viz.getAttribute("data-score"), col = viz.getAttribute("data-col");
-      viz.innerHTML = _ringSVG(Math.round(up * f), col, 34) + _gaugeSVG(score * f, -100, 100, { color: col, w: 56, h: 32, r: 23 });
+      viz.innerHTML = '<span class="tfb"><span class="tfb-k">상승</span>' + _hbarPct(Math.round(up * f), col) + '</span><span class="tfb"><span class="tfb-k">시그널</span>' + _hbarDiv(score * f, col) + '</span>';
     });
     document.querySelectorAll("#fcDashBody .tf-card-lab[data-up]").forEach(lab => {
       const up = +lab.getAttribute("data-up"), score = +lab.getAttribute("data-score"), col = lab.getAttribute("data-col");
