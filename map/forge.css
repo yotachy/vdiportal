@@ -774,7 +774,7 @@
      SIDEBAR  (Task 3)
      ════════════════════════════════════════════════════ */
   .forge-shell{display:flex;height:calc(100vh - 54px)}
-  .forge-side{flex:0 0 182px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+  .forge-side{flex:0 0 200px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
   .forge-side.collapsed{flex-basis:0;border:0}
   .forge-side .side-sec{padding:10px;border-bottom:1px solid var(--line)}
   .forge-side .side-h{font-size:11px;color:var(--muted);margin:0 0 9px;display:flex;justify-content:space-between;align-items:center;font-weight:700;letter-spacing:.02em}
@@ -787,10 +787,10 @@
   .forge-side .side-actions .add-tk-wrap .add-tk-in{flex:1;min-width:0}
   .forge-side .side-actions .add-tk-go{flex:0 0 auto;background:var(--gold);color:#0b0f14;border:0;border-radius:var(--r-md);font-weight:800;font-size:11.5px;padding:0 12px;cursor:pointer;transition:filter .12s}
   .forge-side .side-actions .add-tk-go:hover{filter:brightness(1.08)}
-  .forge-side .doc-row{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:2px;padding:5px 9px 6px;border-radius:var(--r-md);cursor:grab;font-size:13px;color:var(--ink);transition:background .12s}
+  .forge-side .doc-row{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:3px;padding:8px 10px 9px;border-radius:var(--r-md);cursor:grab;font-size:13.5px;color:var(--ink);transition:background .12s}
   .forge-side .doc-r1{display:flex;align-items:center;gap:6px;width:100%}
   .forge-side .doc-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;letter-spacing:-.01em}
-  .forge-side .doc-sub{display:flex;align-items:center;gap:7px;padding-left:21px;font-size:10.5px;font-family:ui-monospace,monospace;letter-spacing:-.02em;line-height:1.2}
+  .forge-side .doc-sub{display:flex;align-items:center;gap:8px;padding-left:2px;font-size:10.5px;font-family:ui-monospace,monospace;letter-spacing:-.02em;line-height:1.2}
   .forge-side .doc-px{color:var(--eth);font-weight:600;font-variant-numeric:tabular-nums}
   .forge-side .doc-chg{font-weight:700;font-size:11px;flex:0 0 auto;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
   .forge-side .doc-del{flex:0 0 auto;opacity:0;width:0;min-width:0;max-width:0;overflow:hidden;padding:0;border:0;background:none;transition:opacity .12s;font-size:11px}
@@ -815,7 +815,7 @@
   .forge-side .wg-btn{flex:0 0 auto;background:transparent;border:0;color:var(--faint);font-size:11px;cursor:pointer;padding:2px 3px;line-height:1;opacity:0;border-radius:var(--r-sm);transition:opacity .12s,color .12s}
   .forge-side .wg-head:hover .wg-btn{opacity:.85}
   .forge-side .wg-btn:hover{color:var(--gold)}
-  .forge-side .wg-body{display:flex;flex-direction:column;padding-left:6px;margin-left:5px}
+  .forge-side .wg-body{display:flex;flex-direction:column;padding-left:2px;margin-left:0}
   .forge-side .wg-empty{font-size:10.5px;color:var(--faint);padding:7px 8px}
   .forge-side [data-wgdrop].wg-over{background:rgba(232,180,99,.1);outline:1px dashed var(--gold-dim);outline-offset:-2px;border-radius:var(--r-md)}
   .forge-side .doc-row.drop-before{box-shadow:inset 0 2px 0 var(--gold)}
