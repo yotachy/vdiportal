@@ -900,10 +900,14 @@
     let lower = null, upper = null;
     const rs = levels.filter(L => L.kind === "retr").slice().sort((x, y) => x.price - y.price);
     for (let i = 0; i < rs.length - 1; i++) { if (pl >= rs[i].price && pl <= rs[i + 1].price) { lower = rs[i].ratio; upper = rs[i + 1].ratio; break; } }
-    const srDir = nearest ? (nearest.side === "support" ? 1 : -1) : 0;
-    const proximity = nearest ? Math.max(0, 1 - nd / srPct) : 0;
-    const goldenBoost = inGolden ? (dir === "up" ? 0.25 : dir === "down" ? -0.25 : 0) : 0;
-    const bias = Math.max(-1, Math.min(1, srDir * proximity + goldenBoost));
+    // 되돌림 깊이 기반 대칭 bias — 기존 side(price≥level) 판정이 무추세서 85% support로 +0.4 편향이라 교체. fib=S/R라 보수적.
+    const retr = (dir === "up" ? (hi - pl) : (pl - lo)) / rng;   // 되돌림 비율(≤0=스윙방향 연장, 0.618=골든, ≥1=완전 되돌림)
+    const _dSign = dir === "up" ? 1 : -1;
+    let bias = retr <= 0 ? _dSign * 0.30                          // 신고가/신저가 = 추세 연장
+      : retr <= 1 ? _dSign * 0.35 * (1 - retr)                    // 되돌림 진행 = 추세유지 약화(0.618서 ≈0.13)
+      : -_dSign * 0.28;                                           // 완전 되돌림 돌파 = 반전
+    if (inGolden) bias += _dSign * 0.12;                          // 골든존 반등 기대 소폭 가중
+    bias = Math.max(-1, Math.min(1, bias));
     return { dir, swing: { fromIdx, toIdx, fromPrice, toPrice }, levels, zone: { nearest, inGolden, lower, upper, goldenLo, goldenHi }, bias };
   }
 
