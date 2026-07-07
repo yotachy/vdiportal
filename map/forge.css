@@ -1307,6 +1307,14 @@
   .tf-card-h{font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px}
   .tf-card-viz{display:flex;flex-direction:column;gap:6px;margin:5px 0 3px;padding:0 2px}
   .tf-card-lab{font-size:9.5px;color:var(--eth)}
+  /* 카드 상승/하락 확률 = 핵심(크게·확률바) */
+  .tf-card-prob{display:flex;align-items:center;gap:7px;margin:7px 0 6px}
+  .tcp-up,.tcp-dn{font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;flex:0 0 auto;letter-spacing:-.02em}
+  .tcp-up{color:var(--bull)}.tcp-dn{color:var(--bear);opacity:.9}
+  .tcp-up b,.tcp-dn b{font-size:14px;font-weight:800}
+  .tcp-bar{position:relative;flex:1;min-width:0;height:8px;border-radius:99px;background:rgba(224,106,106,.32);overflow:hidden}
+  .tcp-f{position:absolute;left:0;top:0;height:100%;background:var(--bull);border-radius:99px;transition:width .55s cubic-bezier(.4,0,.2,1)}
+  .tfb-v{font-size:11px;font-weight:800;font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:22px;text-align:right}
   .tf-card-ft{font-size:10px;color:var(--eth);padding:5px 3px 1px;margin-top:4px;border-top:1px solid var(--line);letter-spacing:-.01em}
   .tf-card-ft b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
   .tf-card.act{background:var(--raised);box-shadow:inset 0 0 0 1px var(--gold-dim)}

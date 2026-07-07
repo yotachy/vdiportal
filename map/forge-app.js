@@ -1496,7 +1496,6 @@
     // 국면·상승확률·하락확률·시그널·예측·목표는 위 카드에 표시 → 테이블은 보조(추세·구조·레벨)만
     const rows = [];
     { const bi = _dbest(cols.map(c => c[1].trend), 1); rows.push(`<tr><td>추세 %/봉</td>${cols.map((c, i) => { const t = c[1].trend; return _txtC(`<span style="color:${t >= 0 ? "var(--bull)" : "var(--bear)"}">${t >= 0 ? "+" : ""}${t.toFixed(2)}</span>`, i === bi); }).join("")}</tr>`); }
-    rows.push(`<tr class="dash-sec"><td colspan="${cols.length + 1}">구조 · 레벨</td></tr>`);
     rows.push(`<tr><td>RSI</td>${cols.map(c => { const rv = c[1].rsi, col = rv >= 70 ? "var(--bear)" : rv <= 30 ? "var(--bull)" : "var(--eth)"; return _barC(rv, col, Math.round(rv), false, Math.round(rv), ""); }).join("")}</tr>`);
     rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:var(--bull)">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> <span style="opacity:.35">/</span> <span style="color:var(--bear)">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
     rows.push(`<tr><td>엘리어트</td>${cols.map(c => { const e = _elTxt(c[1].el); return _txtC(`<span style="color:${e[1]}">${e[0]}</span>`, false); }).join("")}</tr>`);
@@ -1508,12 +1507,12 @@
       const tgtHtml = isFinite(v.target) ? `<b>${fmtNum(v.target)}</b>` : "–";
       return `<div class="tf-card${nm === _tfName ? " act" : ""}">
         <div class="tf-card-h" style="color:${tcol}"><span class="thdot" style="background:${tcol}"></span>${nm} <b style="color:${rg[1]}">${rg[0]}</b></div>
-        <div class="tf-card-viz" data-up="${v.up}" data-score="${v.score}" data-col="${rg[1]}"><span class="tfb"><span class="tfb-k">상승</span>${_hbarPct(v.up, rg[1])}</span><span class="tfb"><span class="tfb-k">시그널</span>${_hbarDiv(v.score, rg[1])}</span></div>
-        <div class="tf-card-lab" data-up="${v.up}" data-score="${v.score}" data-col="${rg[1]}">상승 <b style="color:${rg[1]}">${v.up}%</b> · 시그널 <b style="color:${rg[1]}">${Math.round(v.score)}</b></div>
+        <div class="tf-card-prob" data-up="${v.up}"><span class="tcp-up">▲<b>${v.up}</b>%</span><span class="tcp-bar"><i class="tcp-f" style="width:${v.up}%"></i></span><span class="tcp-dn">▼<b>${100 - v.up}</b>%</span></div>
+        <div class="tf-card-viz" data-up="${v.up}" data-score="${v.score}" data-col="${rg[1]}"><span class="tfb"><span class="tfb-k">시그널</span>${_hbarDiv(v.score, rg[1])}<b class="tfb-v" style="color:${rg[1]}">${Math.round(v.score)}</b></span></div>
         <div class="tf-card-ft">예측 ${chgHtml} · 목표 ${tgtHtml}</div>
       </div>`;
     }).join("");
-    host.innerHTML = `<div class="tf-cards">${cards}</div><div class="tf-tbl-cap">타임프레임별 상세 · 구조</div>` + `<table class="dash-table${_actIdx >= 0 ? " tfcol-" + (_actIdx + 2) : ""}">${th}${rows.join("")}</table>`;
+    host.innerHTML = `<div class="tf-cards">${cards}</div><div class="tf-tbl-cap">타임프레임별 상세</div>` + `<table class="dash-table${_actIdx >= 0 ? " tfcol-" + (_actIdx + 2) : ""}">${th}${rows.join("")}</table>`;
     _dashFill(_playing ? _playReveal.u : null);
   }
   function scheduleDash() { clearTimeout(_dashTmr); _dashTmr = setTimeout(() => { renderDashboard().catch(() => {}); }, 350); }   // 분석/티커 변경 시 자동 갱신(디바운스)
@@ -2041,14 +2040,14 @@
       const fbar = cell.querySelector(".dbar-f"); if (fbar) fbar.style.width = (pct * f) + "%";
       if (cell.hasAttribute("data-fnum")) { const fn = +cell.getAttribute("data-fnum"), suf = cell.getAttribute("data-suf") || ""; const dv = cell.querySelector(".dval"); if (dv) dv.textContent = Math.round(fn * f) + suf; }
     });
-    // 일/주/월 카드 도넛(링)·게이지·라벨도 시연 진행도에 맞춰 0→최종으로 채움
-    document.querySelectorAll("#fcDashBody .tf-card-viz[data-up]").forEach(viz => {
-      const up = +viz.getAttribute("data-up"), score = +viz.getAttribute("data-score"), col = viz.getAttribute("data-col");
-      viz.innerHTML = '<span class="tfb"><span class="tfb-k">상승</span>' + _hbarPct(Math.round(up * f), col) + '</span><span class="tfb"><span class="tfb-k">시그널</span>' + _hbarDiv(score * f, col) + '</span>';
+    // 일/주/월 카드 상승/하락 확률 바·시그널 바도 시연 진행도에 맞춰 0→최종으로 채움
+    document.querySelectorAll("#fcDashBody .tf-card-prob[data-up]").forEach(pr => {
+      const up = Math.round(+pr.getAttribute("data-up") * f);
+      pr.innerHTML = '<span class="tcp-up">▲<b>' + up + '</b>%</span><span class="tcp-bar"><i class="tcp-f" style="width:' + up + '%"></i></span><span class="tcp-dn">▼<b>' + (100 - up) + '</b>%</span>';
     });
-    document.querySelectorAll("#fcDashBody .tf-card-lab[data-up]").forEach(lab => {
-      const up = +lab.getAttribute("data-up"), score = +lab.getAttribute("data-score"), col = lab.getAttribute("data-col");
-      lab.innerHTML = '상승 <b style="color:' + col + '">' + Math.round(up * f) + '%</b> · 시그널 <b style="color:' + col + '">' + Math.round(score * f) + '</b>';
+    document.querySelectorAll("#fcDashBody .tf-card-viz[data-up]").forEach(viz => {
+      const score = +viz.getAttribute("data-score"), col = viz.getAttribute("data-col");
+      viz.innerHTML = '<span class="tfb"><span class="tfb-k">시그널</span>' + _hbarDiv(score * f, col) + '<b class="tfb-v" style="color:' + col + '">' + Math.round(score * f) + '</b></span>';
     });
   }
   function updatePlayBtn() {
