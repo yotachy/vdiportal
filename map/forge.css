@@ -231,7 +231,7 @@
   .sig-arw{font-size:10px;text-align:center}
   .sig-arw.up{color:var(--bull)}.sig-arw.dn{color:var(--bear)}.sig-arw.fl{color:var(--gold)}
   .sig-name{color:var(--ink);font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .sig-note{color:var(--eth);font-family:Pretendard,system-ui,sans-serif;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sig-note{color:var(--eth);font-family:Pretendard,system-ui,sans-serif;font-size:11px;line-height:1.32;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}   /* 2줄까지 표시(잘림 완화)·초과는 툴팁 */
   .sig-bar{height:3px;border-radius:99px;background:rgba(138,146,178,.07);overflow:hidden}
   .sig-bar>i{display:block;height:100%;border-radius:99px;transition:width .4s cubic-bezier(.4,0,.2,1)}
   .sig-bar>i.up{background:var(--bull)}
