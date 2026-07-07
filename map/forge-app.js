@@ -1493,29 +1493,27 @@
     { const _ad = (typeof activeDoc === "function") ? activeDoc() : null; if (_ad) { _ad._tfReg = { d: (d && d.regime) || null, w: (w && w.regime) || null, m: (m && m.regime) || null }; if (typeof renderSidebar === "function") renderSidebar(); } }   // 워치리스트 신호등 도트용
     const REG = { bull: ["▲ 상승", "var(--bull)"], bear: ["▼ 하락", "var(--bear)"], neutral: ["– 중립", "var(--eth)"] };
     const th = `<tr><th>지표</th>${cols.map(c => `<th style="color:${_TFCOL[c[0]] || "var(--eth)"}"><span class="thdot" style="background:${_TFCOL[c[0]] || "var(--eth)"}"></span>${c[0]}</th>`).join("")}</tr>`;
+    // 국면·상승확률·하락확률·시그널·예측·목표는 위 카드에 표시 → 테이블은 보조(추세·구조·레벨)만
     const rows = [];
-    rows.push(`<tr><td>국면</td>${cols.map(c => { const g = REG[c[1].regime] || REG.neutral; return _txtC(`<span class="dash-reg" style="color:${g[1]};background:${g[1]}22">${g[0]}</span>`, false); }).join("")}</tr>`);
-    { const bi = _dbest(cols.map(c => c[1].up), 1); rows.push(`<tr><td>상승확률</td>${cols.map((c, i) => _barC(c[1].up, _TFCOL[c[0]] || "var(--eth)", c[1].up + "%", i === bi, c[1].up, "%")).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => 100 - c[1].up), 1); rows.push(`<tr><td>하락확률</td>${cols.map((c, i) => _barC(100 - c[1].up, "var(--bear)", (100 - c[1].up) + "%", i === bi, 100 - c[1].up, "%")).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => c[1].score), 1); rows.push(`<tr><td>시그널</td>${cols.map((c, i) => { const s = c[1].score; return _barC((s + 100) / 2, _TFCOL[c[0]] || "var(--eth)", Math.round(s), i === bi, Math.round(s), ""); }).join("")}</tr>`); }
     { const bi = _dbest(cols.map(c => c[1].trend), 1); rows.push(`<tr><td>추세 %/봉</td>${cols.map((c, i) => { const t = c[1].trend; return _txtC(`<span style="color:${t >= 0 ? "var(--bull)" : "var(--bear)"}">${t >= 0 ? "+" : ""}${t.toFixed(2)}</span>`, i === bi); }).join("")}</tr>`); }
-    { const bi = _dbest(cols.map(c => c[1].chg), 1); rows.push(`<tr><td>예측</td>${cols.map((c, i) => c[1].chg == null ? _txtC("–", false) : _txtC(`<span style="color:${c[1].chg >= 0 ? "var(--bull)" : "var(--bear)"}">${c[1].chg >= 0 ? "+" : ""}${c[1].chg.toFixed(1)}%</span>`, i === bi)).join("")}</tr>`); }
     rows.push(`<tr class="dash-sec"><td colspan="${cols.length + 1}">구조 · 레벨</td></tr>`);
     rows.push(`<tr><td>RSI</td>${cols.map(c => { const rv = c[1].rsi, col = rv >= 70 ? "var(--bear)" : rv <= 30 ? "var(--bull)" : "var(--eth)"; return _barC(rv, col, Math.round(rv), false, Math.round(rv), ""); }).join("")}</tr>`);
+    rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:var(--bull)">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> <span style="opacity:.35">/</span> <span style="color:var(--bear)">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
     rows.push(`<tr><td>엘리어트</td>${cols.map(c => { const e = _elTxt(c[1].el); return _txtC(`<span style="color:${e[1]}">${e[0]}</span>`, false); }).join("")}</tr>`);
     rows.push(`<tr><td>거래량</td>${cols.map(c => { const vv = _volTxt(c[1].vol); return _txtC(`<span style="color:${vv[1]}">${vv[0]}</span>`, false); }).join("")}</tr>`);
-    rows.push(`<tr><td>목표가</td>${cols.map(c => _txtC(isFinite(c[1].target) ? `<span class="dash-sub">${fmtNum(c[1].target)}</span>` : "–", false)).join("")}</tr>`);
-    rows.push(`<tr><td>지지 / 저항</td>${cols.map(c => _txtC(`<span class="dash-sub"><span style="color:var(--bull)">${c[1].sup != null ? fmtNum(c[1].sup) : "–"}</span> <span style="opacity:.35">/</span> <span style="color:var(--bear)">${c[1].rez != null ? fmtNum(c[1].rez) : "–"}</span></span>`, false)).join("")}</tr>`);
     const REGC = { bull: ["▲", "var(--bull)"], bear: ["▼", "var(--bear)"], neutral: ["▸", "var(--eth)"] };
     const cards = cols.map(c => {
       const nm = c[0], v = c[1], rg = REGC[v.regime] || REGC.neutral, tcol = _TFCOL[nm] || "var(--eth)";
-      return `<div class="tf-card">
+      const chgHtml = (v.chg != null && isFinite(v.chg)) ? `<b style="color:${v.chg >= 0 ? "var(--bull)" : "var(--bear)"}">${v.chg >= 0 ? "+" : ""}${v.chg.toFixed(1)}%</b>` : "–";
+      const tgtHtml = isFinite(v.target) ? `<b>${fmtNum(v.target)}</b>` : "–";
+      return `<div class="tf-card${nm === _tfName ? " act" : ""}">
         <div class="tf-card-h" style="color:${tcol}"><span class="thdot" style="background:${tcol}"></span>${nm} <b style="color:${rg[1]}">${rg[0]}</b></div>
         <div class="tf-card-viz" data-up="${v.up}" data-score="${v.score}" data-col="${rg[1]}"><span class="tfb"><span class="tfb-k">상승</span>${_hbarPct(v.up, rg[1])}</span><span class="tfb"><span class="tfb-k">시그널</span>${_hbarDiv(v.score, rg[1])}</span></div>
         <div class="tf-card-lab" data-up="${v.up}" data-score="${v.score}" data-col="${rg[1]}">상승 <b style="color:${rg[1]}">${v.up}%</b> · 시그널 <b style="color:${rg[1]}">${Math.round(v.score)}</b></div>
+        <div class="tf-card-ft">예측 ${chgHtml} · 목표 ${tgtHtml}</div>
       </div>`;
     }).join("");
-    host.innerHTML = `<div class="tf-cards">${cards}</div>` + `<table class="dash-table${_actIdx >= 0 ? " tfcol-" + (_actIdx + 2) : ""}">${th}${rows.join("")}</table>`;
+    host.innerHTML = `<div class="tf-cards">${cards}</div><div class="tf-tbl-cap">타임프레임별 상세 · 구조</div>` + `<table class="dash-table${_actIdx >= 0 ? " tfcol-" + (_actIdx + 2) : ""}">${th}${rows.join("")}</table>`;
     _dashFill(_playing ? _playReveal.u : null);
   }
   function scheduleDash() { clearTimeout(_dashTmr); _dashTmr = setTimeout(() => { renderDashboard().catch(() => {}); }, 350); }   // 분석/티커 변경 시 자동 갱신(디바운스)
