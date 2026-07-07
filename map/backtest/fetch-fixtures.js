@@ -5,10 +5,15 @@ const fs = require("fs"), path = require("path");
 
 const API = process.env.BT_API || "https://parksvc.mycafe24.com/map/forge-api.php";
 const UNIVERSE = [
+  // 강세(secular up) — 기존
   ["NVDA", "1day"], ["AAPL", "1day"], ["MSFT", "1day"],
   ["BTC/USD", "1day"], ["ETH/USD", "1day"],
   ["USD/KRW", "1week"], ["USD/KRW", "1day"],
   ["005930", "1day"], ["000660", "1day"],
+  // 하락/부진 — 국면 다양성 위해 추가
+  ["INTC", "1day"], ["BABA", "1day"], ["PYPL", "1day"], ["DIS", "1day"], ["T", "1day"], ["NIO", "1day"],
+  // 횡보/범위 — 환율·경기민감
+  ["EUR/USD", "1day"], ["F", "1day"], ["GE", "1day"],
 ];
 
 async function fetchOne(symbol, tf) {

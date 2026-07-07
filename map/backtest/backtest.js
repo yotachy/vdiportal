@@ -46,8 +46,10 @@ function walkForward(fixture) {
   return { records, firstPrice: price[WARMUP], lastPrice: price[N - 1] };
 }
 
+function classifyRegime(buyHoldReturn) { return buyHoldReturn == null ? "side" : buyHoldReturn > 0.3 ? "bull" : buyHoldReturn < -0.1 ? "bear" : "side"; }
+
 function runBacktest(fixtures, opts = {}) {
-  const perFixture = [], allRecords = [];
+  const perFixture = [], allRecords = [], byRegime = { bull: [], bear: [], side: [] };
   for (const fx of fixtures) {
     const _t0 = Date.now();
     const { records, firstPrice, lastPrice } = walkForward(fx);
@@ -55,21 +57,25 @@ function runBacktest(fixtures, opts = {}) {
     if (!records.length) continue;
     const dir = M.directionHitRate(records), cov = M.coneCoverage(records), mae = M.priceMAE(records);
     const bl = M.baselines(records, firstPrice, lastPrice), pnl = M.simulatePnL(records, {});
-    perFixture.push({ symbol: fx.symbol, tf: fx.tf, points: records.length, directionHitRate: dir.rate, coneCoverage: cov.coverage, priceMAE: mae.mae, baselineAlwaysUp: bl.alwaysUpHitRate, pnl, buyHoldReturn: bl.buyHoldReturn });
-    allRecords.push(...records);
+    const regime = classifyRegime(bl.buyHoldReturn);
+    perFixture.push({ symbol: fx.symbol, tf: fx.tf, points: records.length, regime, directionHitRate: dir.rate, coneCoverage: cov.coverage, priceMAE: mae.mae, baselineAlwaysUp: bl.alwaysUpHitRate, pnl, buyHoldReturn: bl.buyHoldReturn });
+    allRecords.push(...records); byRegime[regime].push(...records);
   }
   const dirAll = M.directionHitRate(allRecords), covAll = M.coneCoverage(allRecords), maeAll = M.priceMAE(allRecords);
   const calAll = M.calibration(allRecords), blAll = M.baselines(allRecords);
   const pnl = M.aggregatePnL(perFixture);   // 등가중 집계(계좌 순차복리 금지 — 정직)
+  // 국면별 방향 성능(약세편향이 진짜인지: 하락·횡보 국면서도 베이스라인 이기나?)
+  const regimes = {};
+  for (const k of ["bull", "bear", "side"]) { const rec = byRegime[k]; if (!rec.length) continue; const d = M.directionHitRate(rec), b = M.baselines(rec); regimes[k] = { n: rec.length, directionHitRate: d.rate, baselineAlwaysUp: b.alwaysUpHitRate, bullHitRate: d.bullRate, bearHitRate: d.bearRate, lift: (d.rate != null && b.alwaysUpHitRate != null) ? d.rate - b.alwaysUpHitRate : null }; }
   return {
     generatedAt: opts.generatedAt || null,
-    universe: perFixture.map(p => ({ symbol: p.symbol, tf: p.tf, points: p.points })),
+    universe: perFixture.map(p => ({ symbol: p.symbol, tf: p.tf, regime: p.regime, points: p.points })),
     overall: {
       directionHitRate: dirAll.rate, baselineAlwaysUp: blAll.alwaysUpHitRate, coinFlip: 0.5,
       bullHitRate: dirAll.bullRate, bearHitRate: dirAll.bearRate,
       calibrationECE: calAll.ece, coneCoverage: covAll.coverage, priceMAE: maeAll.mae, pnl,
     },
-    perFixture, calibrationCurve: calAll.curve,
+    byRegime: regimes, perFixture, calibrationCurve: calAll.curve,
   };
 }
 
@@ -92,6 +98,9 @@ function main() {
   console.log("가상수익(등가중, 종목별 $" + p.startEquity + " 독립):");
   console.log("  평균 수익률 : " + _pct(p.avgReturn) + " (중앙값 " + _pct(p.medianReturn) + ")  vs Buy&Hold 평균 " + _pct(p.avgBuyHold));
   console.log("  B&H 이긴 종목: " + p.beatBuyHold + "/" + p.nFixtures + "   승률 " + _pct(p.winRate) + "  평균MDD " + _pct(p.avgMDD) + "  거래 " + p.trades);
+  console.log("\n국면별 방향 적중 (약세편향 진위 판별 — 하락·횡보서도 베이스라인 이기나?):");
+  const RG = { bull: "강세장", bear: "하락장", side: "횡보장" };
+  for (const k of ["bull", "bear", "side"]) { const g = rep.byRegime[k]; if (!g) continue; console.log("  " + RG[k] + " (n=" + g.n + ") : 방향 " + _pct(g.directionHitRate) + " vs 항상상승 " + _pct(g.baselineAlwaysUp) + "  → 초과 " + (g.lift >= 0 ? "+" : "") + (g.lift * 100).toFixed(1) + "%p" + (g.lift > 0 ? " ✅" : " 🔴") + "  (강세콜 " + _pct(g.bullHitRate) + "/약세콜 " + _pct(g.bearHitRate) + ")"); }
   fs.writeFileSync(path.join(__dirname, "backtest-report.json"), JSON.stringify(rep, null, 2));
   console.log("→ backtest-report.json 기록됨\n");
 }
