@@ -376,7 +376,11 @@
   /* 국면/확률/시그널 강조 바 + 핵심 의견 */
   /* 국면/확률 — 박스·테두리 없이 순수 타이포로(가독성 우선) */
   .fc-verdict-bar{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;padding:10px 2px 12px;margin:0;letter-spacing:-.02em}
-  .fcv-tkr{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-.03em;padding-right:13px;border-right:1px solid var(--line)}
+  .fcv-tkr{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-.03em;padding-right:9px}
+  .fcv-px{display:inline-flex;align-items:baseline;gap:8px;font-variant-numeric:tabular-nums;padding-right:13px;border-right:1px solid var(--line)}
+  .fcv-px b{font-size:20px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+  .fcv-pxchg{font-size:12px;font-weight:700;letter-spacing:-.01em}
+  .fcv-pxchg.up{color:var(--bull)}.fcv-pxchg.dn{color:var(--bear)}
   .fcv-reg{font-size:15px;font-weight:800;letter-spacing:-.01em;padding:3px 13px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;line-height:1.35;align-self:center}
   .fcv-prob{font-size:14.5px;font-weight:800;font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0}
   .fcv-prob .up{color:var(--bull)}.fcv-prob .dn{color:var(--bear);opacity:.82}

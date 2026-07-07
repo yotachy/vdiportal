@@ -1416,8 +1416,13 @@
           _bd += `<div class="fcv-bars">${cfBar}${dirBar}${sigBar}</div>`;
         }
       } catch (e) {}
+      const _pxArr = (_fcLastData && _fcLastData.price) || (typeof currentData === "function" && currentData().price) || [];
+      const _curPx = _pxArr.length ? _pxArr[_pxArr.length - 1] : null;
+      const _prevPx = _pxArr.length > 1 ? _pxArr[_pxArr.length - 2] : null;
+      const _pxChg = (_curPx != null && _prevPx != null && _prevPx !== 0) ? (_curPx / _prevPx - 1) * 100 : null;
+      const pxHtml = (_curPx != null && isFinite(_curPx)) ? `<span class="fcv-px" title="현재가"><b>${fmtNum(_curPx)}</b>${_pxChg != null ? `<span class="fcv-pxchg ${_pxChg >= 0 ? "up" : "dn"}">${_pxChg >= 0 ? "▲" : "▼"}${Math.abs(_pxChg).toFixed(2)}%</span>` : ""}</span>` : "";
       bar.innerHTML =
-        (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
+        (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") + pxHtml +
         `<span class="fcv-reg" title="국면 — 지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span>` +
         (_up != null ? `<span class="fcv-prob" title="상승/하락 확률 — 예측 콘 기준, 가까운 시점에 가중한 종합 상승확률"><span class="up">▲ ${_up}%</span> <span class="dn">▼ ${100 - _up}%</span></span>` : "") +
         (isFinite(_targetN) ? `<span class="fcv-sig" title="목표=예측 도달가(시그널·컨플루언스는 아래 도넛 참고)">목표 <b>${fmtNum(_targetN)}</b></span>` : "") +
