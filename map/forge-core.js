@@ -1969,7 +1969,11 @@
     if (_mainUp) { const below = _lvls.filter(v => v < last * Math.exp(-_minMove)).sort((a, b) => b - a); _cTarget = below.length ? below[0] : null; }
     else { const above = _lvls.filter(v => v > last * Math.exp(_minMove)).sort((a, b) => a - b); _cTarget = above.length ? above[0] : null; }
     if (_cTarget == null || !isFinite(_cTarget)) { _cTarget = last * Math.exp(_mainUp ? -_sd1 : _sd1); _cBasis = "변동성 1σ"; }   // 레벨 없음 폴백
-    const _cDrift = Math.log(_cTarget / last);   // 목표 레벨까지의 로그드리프트(크기=실제 거리)
+    let _cDrift = Math.log(_cTarget / last);   // 목표 레벨까지의 로그드리프트(크기=실제 거리)
+    // 반대 시나리오 거리 상한 — 고점주식의 옛 저점(예: 200→14) 등 비현실적으로 먼 레벨이 잡히면 지평 변동성으로 캡.
+    // 50봉에 −93% 같은 극단 방지. 상한 = 2.2σ(지평 변동성) 또는 최소 ±20%. 초과 시 그 방향 최대치로 클램프.
+    const _cMax = Math.max(2.2 * _sd1, 0.20);
+    if (Math.abs(_cDrift) > _cMax) { _cDrift = (_cDrift < 0 ? -1 : 1) * _cMax; _cTarget = last * Math.exp(_cDrift); _cBasis = "변동성 캡"; }
     // ── 이론적 min/max 음영: 바깥 경계를 최근접 유의 지지/저항(기술적 레벨)까지 '매끈한 콘'으로 확장 ──
     // 음영 = 순수 이론적(기술적) 최저/최고치, 그 안이 확률 음영(내부 코어). 라인(1/2/3차)에 밴드를 맞추는 게 아니라
     // 밴드를 제대로 넓혀 라인이 자연히 그 안에 들게 함. 콘은 반대선(counter)과 동일 수렴형(prog)이라 3차가 항상 안쪽.
