@@ -2008,9 +2008,14 @@
     const target = path[path.length - 1];                  // 예측 horizon 끝값
     const invIdx = Math.min(2, futW - 1);                  // 근단기 반대 밴드 = 무효화 기준
     const invalidation = regime === "bear" ? hi[invIdx] : lo[invIdx];
+    // 국면 컨텍스트(표시용 — 예측 로직 무관): 추세강도 TS(|slope|/0.004 × r2게이트)로 횡보/추세 분류 + 신뢰도(백테스트: 횡보=엔진 유효·추세=방향신호 신뢰↓)
+    const _cwin = (_ta.windows && _ta.dominant && _ta.windows[_ta.dominant]) || null;
+    const _cr2 = _cwin ? (isFinite(_cwin.r2Log) ? _cwin.r2Log : (_cwin.r2 || 0)) : 0;
+    const _cTS = Math.max(0, Math.min(1, (Math.abs(_ta.blend.slopeLog) / 0.004) * Math.max(0, Math.min(1, (_cr2 - 0.35) / 0.5))));
+    const context = { state: _cTS < 0.35 ? "range" : (_ta.blend.slopeLog >= 0 ? "up" : "down"), strength: Math.round(_cTS * 100) / 100, reliability: _cTS < 0.35 ? "high" : _cTS < 0.6 ? "mid" : "low" };
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
-      verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence }
+      verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence, context }
     };
   }
 

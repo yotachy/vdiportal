@@ -1421,8 +1421,20 @@
       const _prevPx = _pxArr.length > 1 ? _pxArr[_pxArr.length - 2] : null;
       const _pxChg = (_curPx != null && _prevPx != null && _prevPx !== 0) ? (_curPx / _prevPx - 1) * 100 : null;
       const pxHtml = (_curPx != null && isFinite(_curPx)) ? `<span class="fcv-px" title="현재가"><b>${fmtNum(_curPx)}</b>${_pxChg != null ? `<span class="fcv-pxchg ${_pxChg >= 0 ? "up" : "dn"}">${_pxChg >= 0 ? "▲" : "▼"}${Math.abs(_pxChg).toFixed(2)}%</span>` : ""}</span>` : "";
+      // 국면 배지(현재가 옆): 추세/횡보 + 신뢰도(백테스트 근거). 표시용 verdict.context.
+      let ctxHtml = "";
+      const _ctx = verdict.context;
+      if (_ctx && _ctx.state) {
+        const _st = _ctx.state, _rel = _ctx.reliability;
+        const stTxt = _st === "range" ? "횡보장" : (_rel === "low" ? "강한 " : "완만한 ") + (_st === "up" ? "상승추세" : "하락추세");
+        const relTxt = _rel === "high" ? "신뢰 높음" : _rel === "mid" ? "신뢰 중간" : "신뢰 낮음";
+        const tip = _st === "range"
+          ? "횡보 구간 — 백테스트상 엔진의 방향 신호가 유효했던 국면입니다. 신호 신뢰도 높음."
+          : "강한 추세 구간 — 방향 신호는 참고만 하고 추세에 순응하세요(백테스트상 추세장에선 방향 예측이 단순 추세추종을 못 이겼습니다).";
+        ctxHtml = `<span class="fcv-ctx rel-${_rel}" title="${tip}"><span class="ctx-dot"></span>${stTxt} · ${relTxt}</span>`;
+      }
       bar.innerHTML =
-        (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") + pxHtml +
+        (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") + pxHtml + ctxHtml +
         `<span class="fcv-reg" title="국면 — 지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span>` +
         (_up != null ? `<span class="fcv-prob" title="상승/하락 확률 — 예측 콘 기준, 가까운 시점에 가중한 종합 상승확률"><span class="up">▲ ${_up}%</span> <span class="dn">▼ ${100 - _up}%</span></span>` : "") +
         (isFinite(_targetN) ? `<span class="fcv-sig" title="목표=예측 도달가(시그널·컨플루언스는 아래 도넛 참고)">목표 <b>${fmtNum(_targetN)}</b></span>` : "") +

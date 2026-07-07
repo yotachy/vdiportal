@@ -381,6 +381,15 @@
   .fcv-px b{font-size:20px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
   .fcv-pxchg{font-size:12px;font-weight:700;letter-spacing:-.01em}
   .fcv-pxchg.up{color:var(--bull)}.fcv-pxchg.dn{color:var(--bear)}
+  /* 국면 배지(현재가 옆) — 추세/횡보 + 신뢰도. 높음=녹(엔진 유효)·중간=앰버·낮음=뮤트(추세 순응) */
+  .fcv-ctx{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;letter-spacing:-.01em;white-space:nowrap}
+  .fcv-ctx .ctx-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .fcv-ctx.rel-high{color:var(--bull);background:rgba(70,194,142,.13)}
+  .fcv-ctx.rel-high .ctx-dot{background:var(--bull)}
+  .fcv-ctx.rel-mid{color:#e8b463;background:rgba(232,180,99,.13)}
+  .fcv-ctx.rel-mid .ctx-dot{background:#e8b463}
+  .fcv-ctx.rel-low{color:var(--eth);background:var(--raised)}
+  .fcv-ctx.rel-low .ctx-dot{background:var(--eth)}
   .fcv-reg{font-size:15px;font-weight:800;letter-spacing:-.01em;padding:3px 13px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;line-height:1.35;align-self:center}
   .fcv-prob{font-size:14.5px;font-weight:800;font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0}
   .fcv-prob .up{color:var(--bull)}.fcv-prob .dn{color:var(--bear);opacity:.82}

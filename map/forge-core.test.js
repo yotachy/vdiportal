@@ -1892,3 +1892,17 @@ test("analyzeMA: 기울기가 실현 변동성으로 정규화 — 저변동이 
   assert.ok(sA > 0 && sB > 0, "둘 다 상승");
   assert.ok(sA > sB, `저변동 ${sA} > 고변동 ${sB}`);
 });
+
+test("verdict.context: 국면 분류(추세/횡보) + 신뢰도", () => {
+  const up = [], flat = [];
+  let p = 100; for (let i = 0; i < 260; i++) { p *= 1.004; up.push(p); }        // 강한 상승추세
+  for (let i = 0; i < 260; i++) flat.push(100 + Math.sin(i * 0.5) * 1.5);        // 횡보(사인)
+  const g = ForgeCore.sampleGraph();
+  const mk = s => ({ price: s, candle: s.map(c => ({ o: c, h: c + 1, l: c - 1, c })) });
+  const cu = ForgeCore.run(g, mk(up), { timeframe: "일봉" }).verdict.context;
+  const cf = ForgeCore.run(g, mk(flat), { timeframe: "일봉" }).verdict.context;
+  assert.strictEqual(cu.state, "up", "강한 상승 → up (context=" + JSON.stringify(cu) + ")");
+  assert.ok(cu.reliability === "low" || cu.reliability === "mid", "추세 → 신뢰 낮음/중간");
+  assert.strictEqual(cf.state, "range", "횡보 → range (context=" + JSON.stringify(cf) + ")");
+  assert.strictEqual(cf.reliability, "high", "횡보 → 신뢰 높음");
+});
