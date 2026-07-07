@@ -1879,14 +1879,14 @@
     const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
     let _agSum = 0, _opSum = 0;
     for (const d of _drifts) { if (!d) continue; if ((d > 0 ? 1 : -1) === _cdir0) _agSum += Math.abs(d); else _opSum += Math.abs(d); }
-    const _auxCap = _cdir0 * Math.max(0, Math.min(0.28, _agSum) - 0.5 * _opSum);   // 반대지표 = 예상지표의 절반 효과(균등 되돌림, 방향 유지)
+    const _auxCap = _cdir0 * Math.max(0, Math.min(0.05, _agSum) - 0.5 * _opSum);   // 반대지표 = 예상지표의 절반 효과(균등 되돌림, 방향 유지)
     // ── 종합 시그널을 '추세제거 잔차(detrend)' 대신 '지표 방향 합의 + 추세'로 재정의 ──
     // (기존 lastSig=detrendNorm 기반 → 추세 방향 소실, 폭락장서 +bull로 뒤집히던 결함. verdict.score·regime·신호드리프트·모순완화가 모두 이 방향 시그널을 사용)
     const _dirBiasList = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, (_vol ? analyzeVolume(price, _vol).bias : null), _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias, _pv2 && _pv2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b));
     const _biasAvg = _dirBiasList.length ? _dirBiasList.reduce((a, b) => a + b, 0) / _dirBiasList.length : 0;   // 지표 평균 방향(−1..1)
     const _trendDir = Math.max(-1, Math.min(1, trS / 0.008));   // 추세 슬로프 방향(±0.8%/봉=만점)
     const _dirSig = Math.max(-100, Math.min(100, Math.round((_biasAvg * 0.66 + _trendDir * 0.34) * 100 + bias * 0.5)));   // 방향 종합 시그널(−100..+100, 사용자 conviction 반영)
-    sigDriftTotal = (_dirSig / 100) * 0.28;   // 신호 드리프트를 방향 시그널로 재산출(예측이 추세와 일관)
+    sigDriftTotal = (_dirSig / 100) * 0.05;   // 신호 드리프트를 방향 시그널로 재산출(예측이 추세와 일관)
     // 데이터 기반 미세질감: 최근 로그수익률의 단기 자기상관(AR2)을 결정론적으로 투영(잡음/난수 없음).
     // 유의미한 자기상관이 있을 때만 근거리 질감이 생기고, 화이트노이즈면 0 → 장식 아님. 감쇠 누적으로 근거리에 집중, 진폭은 최근 변동성으로 제한.
     let _texArr = null;
