@@ -252,7 +252,7 @@
   function switchDoc(id) { if (id === activeId) return; writeBackActive(); loadDoc(id); saveMeta(); }
   function _showAddTicker() {   // '종목 추가' → 인라인 티커 입력
     const el = document.getElementById("addTickerSlot"); if (!el) { newDoc(); return; }
-    el.innerHTML = `<div class="add-tk-wrap"><input class="add-tk-in" id="addTkIn" placeholder="티커 입력 (예: TSLA · BTC-USD · 005930)" spellcheck="false" autocomplete="off"><div class="tk-sugg" id="addTkSugg" role="listbox"></div></div><button class="add-tk-go" id="addTkGo" title="추가(Enter)">추가</button>`;
+    el.innerHTML = `<div class="add-tk-wrap"><input class="add-tk-in" id="addTkIn" placeholder="티커 입력 (예: TSLA · BTC/USD · 005930)" spellcheck="false" autocomplete="off"><div class="tk-sugg" id="addTkSugg" role="listbox"></div></div><button class="add-tk-go" id="addTkGo" title="추가(Enter)">추가</button>`;
     const inp = document.getElementById("addTkIn"), go = document.getElementById("addTkGo"), sugg = document.getElementById("addTkSugg");
     const submit = () => { const v = (inp.value || "").trim().toUpperCase(); _hideAddTicker(); if (v) _addTickerDoc(v); };
     _wireSuggest(inp, sugg, sym => { _hideAddTicker(); _addTickerDoc(sym); });   // 자동완성 선택 = 즉시 추가
@@ -263,7 +263,7 @@
   }
   function _hideAddTicker() { const el = document.getElementById("addTickerSlot"); if (el) el.innerHTML = `<button class="side-btn" onclick="_showAddTicker()">＋ 종목 추가</button>`; }
   async function _addTickerDoc(sym) {
-    sym = (sym || "").trim().toUpperCase(); if (!sym) return;   // 추가 시 대문자로 기재
+    sym = _normSym(sym); if (!sym) return;   // 대문자 + 크립토 슬래시 정규화(BTC/USD)
     writeBackActive();
     const dc = { id: uid("doc"), title: sym, themeImgId: null, nodes: [], edges: [],
       view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
@@ -278,7 +278,7 @@
   }
   function newDoc() {   // 하위호환(모바일 칩 등): 슬롯 있으면 인라인, 없으면 prompt
     if (document.getElementById("addTickerSlot")) { _showAddTicker(); return; }
-    const sym = ((typeof prompt === "function" ? prompt("추가할 종목 티커 (예: TSLA · BTC-USD · 005930)") : "") || "").trim();
+    const sym = ((typeof prompt === "function" ? prompt("추가할 종목 티커 (예: TSLA · BTC/USD · 005930)") : "") || "").trim();
     if (sym) _addTickerDoc(sym);
   }
   function newSampleDoc() {
@@ -1145,7 +1145,7 @@
   /* ── Board DOM init ──────────────────────────────────────────── */
   // 티커 자동완성 — 큐레이션 심볼 목록(오프라인·즉시). 서버 심볼검색 없이 자주 쓰는 종목 제안
   const TICKER_SUGGEST = [
-    { s: "BTC-USD", n: "비트코인", t: "코인" }, { s: "ETH-USD", n: "이더리움", t: "코인" }, { s: "SOL-USD", n: "솔라나", t: "코인" }, { s: "XRP-USD", n: "리플", t: "코인" }, { s: "DOGE-USD", n: "도지코인", t: "코인" }, { s: "ADA-USD", n: "카르다노", t: "코인" }, { s: "BNB-USD", n: "BNB", t: "코인" }, { s: "AVAX-USD", n: "아발란체", t: "코인" }, { s: "LINK-USD", n: "체인링크", t: "코인" },
+    { s: "BTC/USD", n: "비트코인", t: "코인" }, { s: "ETH/USD", n: "이더리움", t: "코인" }, { s: "SOL/USD", n: "솔라나", t: "코인" }, { s: "XRP/USD", n: "리플", t: "코인" }, { s: "DOGE/USD", n: "도지코인", t: "코인" }, { s: "ADA/USD", n: "카르다노", t: "코인" }, { s: "BNB/USD", n: "BNB", t: "코인" }, { s: "AVAX/USD", n: "아발란체", t: "코인" }, { s: "LINK/USD", n: "체인링크", t: "코인" },
     { s: "AAPL", n: "애플", t: "미국" }, { s: "TSLA", n: "테슬라", t: "미국" }, { s: "NVDA", n: "엔비디아", t: "미국" }, { s: "MSFT", n: "마이크로소프트", t: "미국" }, { s: "GOOGL", n: "알파벳", t: "미국" }, { s: "AMZN", n: "아마존", t: "미국" }, { s: "META", n: "메타", t: "미국" }, { s: "AMD", n: "AMD", t: "미국" }, { s: "NFLX", n: "넷플릭스", t: "미국" }, { s: "COIN", n: "코인베이스", t: "미국" }, { s: "PLTR", n: "팔란티어", t: "미국" }, { s: "AVGO", n: "브로드컴", t: "미국" },
     { s: "SPY", n: "S&P500 ETF", t: "ETF" }, { s: "QQQ", n: "나스닥100 ETF", t: "ETF" },
     { s: "005930", n: "삼성전자", t: "국내" }, { s: "000660", n: "SK하이닉스", t: "국내" }, { s: "035420", n: "NAVER", t: "국내" }, { s: "035720", n: "카카오", t: "국내" }, { s: "005380", n: "현대차", t: "국내" }, { s: "051910", n: "LG화학", t: "국내" }, { s: "005490", n: "POSCO홀딩스", t: "국내" }, { s: "373220", n: "LG에너지솔루션", t: "국내" }, { s: "000270", n: "기아", t: "국내" }, { s: "068270", n: "셀트리온", t: "국내" }, { s: "105560", n: "KB금융", t: "국내" }, { s: "207940", n: "삼성바이오로직스", t: "국내" }, { s: "005935", n: "삼성전자우", t: "국내" }
@@ -1153,12 +1153,10 @@
   let _tkSuggIdx = -1;
   function _tkSuggRender(q) {
     const box = document.getElementById("tkSugg"); if (!box) return;
-    q = (q || "").trim().toLowerCase();
     _tkSuggIdx = -1;
-    if (!q) { box.classList.remove("open"); box.innerHTML = ""; return; }
-    const hits = TICKER_SUGGEST.filter(x => x.s.toLowerCase().indexOf(q) >= 0 || x.n.toLowerCase().indexOf(q) >= 0).slice(0, 8);
+    const hits = _suggFilter(q);   // 구분자 무시 느슨한 매칭(btcusd·btc-usd·btc/usd 공통)
     if (!hits.length) { box.classList.remove("open"); box.innerHTML = ""; return; }
-    box.innerHTML = hits.map(x => `<div class="tk-sugg-item" data-sym="${x.s}"><span class="tk-sugg-s">${esc(x.s)}</span><span class="tk-sugg-n">${esc(x.n)}</span><span class="tk-sugg-t">${esc(x.t)}</span></div>`).join("");
+    box.innerHTML = _suggHTML(hits);
     box.classList.add("open");
   }
   function _tkSuggPick(sym) {
@@ -1168,8 +1166,23 @@
     _tkSuggIdx = -1;
     if (typeof loadTicker === "function") loadTicker();   // 선택 즉시 불러오기
   }
-  // 공유: 심볼 필터 + 아이템 HTML
-  function _suggFilter(q) { q = (q || "").trim().toLowerCase(); if (!q) return []; return TICKER_SUGGEST.filter(x => x.s.toLowerCase().indexOf(q) >= 0 || x.n.toLowerCase().indexOf(q) >= 0).slice(0, 8); }
+  // 크립토 페어를 트레이딩뷰 슬래시 표기로 정규화: BTCUSD·BTC-USD·BTC/USD → BTC/USD (API는 슬래시 처리)
+  const _FIAT = "USDT|USD|EUR|KRW|JPY|GBP|BTC|ETH";
+  function _normSym(sym) {
+    sym = (sym || "").trim().toUpperCase();
+    let m = sym.match(new RegExp("^([A-Z]{2,6})[-/](" + _FIAT + ")$"));            // BTC-USD · BTC/USD
+    if (m) return m[1] + "/" + m[2];
+    m = sym.match(new RegExp("^([A-Z]{2,6})(" + _FIAT + ")$"));                     // BTCUSD (구분자 없음)
+    if (m && (m[1].length + m[2].length) >= 6) return m[1] + "/" + m[2];           // 주식(짧음)과 혼동 방지
+    return sym;
+  }
+  const _sepless = s => (s || "").toLowerCase().replace(/[-/]/g, "");   // 구분자 제거(btcusd 형태 비교용)
+  // 공유: 심볼 필터(구분자 무시 느슨한 매칭) + 아이템 HTML
+  function _suggFilter(q) {
+    q = (q || "").trim().toLowerCase(); if (!q) return [];
+    const qn = _sepless(q);
+    return TICKER_SUGGEST.filter(x => { const sl = x.s.toLowerCase(); return sl.indexOf(q) >= 0 || _sepless(x.s).indexOf(qn) >= 0 || x.n.toLowerCase().indexOf(q) >= 0; }).slice(0, 8);
+  }
   function _suggHTML(hits) { return hits.map(x => `<div class="tk-sugg-item" data-sym="${x.s}"><span class="tk-sugg-s">${esc(x.s)}</span><span class="tk-sugg-n">${esc(x.n)}</span><span class="tk-sugg-t">${esc(x.t)}</span></div>`).join(""); }
   // 티커 입력 자동 대문자화(소문자 입력해도 대문자 표시·저장 — 한글/숫자는 불변, 캐럿 유지)
   function _upSym(el) { if (!el) return ""; const up = (el.value || "").toUpperCase(); if (el.value !== up) { const p = el.selectionStart; el.value = up; try { el.setSelectionRange(p, p); } catch (_) {} } return up; }
@@ -1191,7 +1204,7 @@
     const pane = document.getElementById("boardPane");
     pane.innerHTML = `<div class="tk-panel" id="tkPanel">
     <span class="tk-lbl">티커</span>
-    <div class="tk-symwrap"><input class="tk-sym" id="tkSym" placeholder="종목 심볼 (예: BTC-USD · AAPL · 005930 국내)" spellcheck="false" autocomplete="off"><div class="tk-sugg" id="tkSugg" role="listbox"></div></div>
+    <div class="tk-symwrap"><input class="tk-sym" id="tkSym" placeholder="종목 심볼 (예: BTC/USD · AAPL · 005930 국내)" spellcheck="false" autocomplete="off"><div class="tk-sugg" id="tkSugg" role="listbox"></div></div>
     <button class="tk-load" id="tkLoad">불러오기</button>
     <span class="tk-stat tk-dot empty" id="tkStat" title="종목 심볼 입력"></span>
   </div>

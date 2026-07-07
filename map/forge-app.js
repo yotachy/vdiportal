@@ -1712,9 +1712,10 @@
     if (wide !== _logChart) { _logChart = wide; if (typeof updateAxisBtns === "function") updateAxisBtns(); }
   }
   async function loadTicker() {
-    const t = ensureTickerNode(); const sym = (t.params.symbol || "").trim().toUpperCase();
-    if (sym) t.params.symbol = sym;   // 불러오기 시 대문자로 통일
-    const _si = document.getElementById("tkSym"); if (_si && _si.value.toUpperCase() !== _si.value) _si.value = _si.value.toUpperCase();
+    const t = ensureTickerNode(); let sym = (t.params.symbol || "").trim().toUpperCase();
+    if (typeof _normSym === "function") sym = _normSym(sym);   // 대문자 + 크립토 슬래시 정규화(BTC/USD)
+    if (sym) t.params.symbol = sym;
+    const _si = document.getElementById("tkSym"); if (_si && sym && _si.value !== sym) _si.value = sym;
     if (!sym) { bToast("종목 심볼을 입력하세요 (예: BTC-USD)"); return; }
     if (!SERVER_OK) { bToast("오프라인 — 서버 연결이 필요해요"); return; }
     const tf = t.params.tf || "1day";
