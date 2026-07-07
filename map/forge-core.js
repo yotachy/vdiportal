@@ -1751,7 +1751,7 @@
     const tauM = Math.max(3, futW * 0.4);           // 모멘텀 감쇠 시정수
     let sigDriftTotal = (lastSig / 100) * 0.28;   // 신호 방향 누적 드리프트(만점 ±28%) — 아래에서 방향 시그널(_dirSig)로 재산출
     const _sCap = trendProfileForTF(opts && opts.timeframe).sigmaCap || 0.18;   // 봉당 변동성 상한(TF별 — 월봉 콘 역전 해소)
-    let sigBand = Math.max(0.02, Math.min(sigma, _sCap));   // 밴드 변동성 상한(고변동주의 실제 변동폭 반영)
+    let sigBand = Math.max(0.008, Math.min(sigma, _sCap));   // 밴드 변동성 상한(고변동주의 실제 변동폭 반영)
     /* 계절성(주기) 성분 — phasefold 노드가 검출한 지배주기를 예측에 직접 반영(chart.html 시즌 형상).
        로그가격 추세 잔차의 위상별 평균 형상을 미래 위상에 투영. 신뢰도(정합 θ↓·FFT 피크↑)로 진폭 스케일. */
     let seasFn = null, seasInfo = null;
@@ -1871,7 +1871,7 @@
     const cmfDrift = _cmf ? _cmf.bias * _prof.trendScale * 0.05 * DW("cmf") : 0;   // CMF 자금흐름 방향(±5%)
     const _ta = analyzeTrend(price, { shortLen: Math.max(8, Math.round((_tp.len || 40) * (_prof.shortScale || 1))), pivotSwing: (_tp.pivotSwing != null ? _tp.pivotSwing / 100 : 0.08), channelK: _tp.channelK || 2, weights: _prof.weights });
     const trS = Math.max(-0.03, Math.min(0.03, _ta.blend.slopeLog));
-    const trChSig = _ta.blend.channelSigmaLog;
+    const trChSig = Math.min(_ta.blend.channelSigmaLog, 2.0 * sigBand);   // 채널σ를 스텝변동성의 2배로 캡 — 저변동 자산서 밴드 과대(환율 콘 ±40%) 방지
     const REV_W = 0.5;                                          // 평균회귀 약화(추세 추종)
     const path = [], lo = [], hi = [];
     // 지표 드리프트 합 상한 — 다수(최대 30종) 지표가 같은 방향으로 정렬되면 additive 합이 커져 exp(m)이 폭발(비현실적 목표가)함.
