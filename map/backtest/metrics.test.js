@@ -59,3 +59,15 @@ test("baselines: 항상상승 적중률·Buy&Hold", () => {
   assert.ok(Math.abs(b.alwaysUpHitRate - 0.5) < 1e-9);
   assert.ok(Math.abs(b.buyHoldReturn - 0.3) < 1e-9);
 });
+
+test("aggregatePnL: 등가중 평균·B&H 이긴 종목수·풀드 승률", () => {
+  const pf = [
+    { pnl: { totalReturn: 0.20, wins: 6, losses: 4, sumWin: 0.5, sumLoss: -0.2, maxDrawdown: -0.1, trades: 10 }, buyHoldReturn: 0.30 }, // B&H 못이김
+    { pnl: { totalReturn: 0.40, wins: 5, losses: 5, sumWin: 0.6, sumLoss: -0.3, maxDrawdown: -0.2, trades: 10 }, buyHoldReturn: 0.10 }, // B&H 이김
+  ];
+  const a = M.aggregatePnL(pf);
+  assert.ok(Math.abs(a.avgReturn - 0.30) < 1e-9, "평균 (0.2+0.4)/2");
+  assert.strictEqual(a.beatBuyHold, 1);
+  assert.strictEqual(a.nFixtures, 2);
+  assert.ok(Math.abs(a.winRate - 11 / 20) < 1e-9, "풀드 승률 11/20");
+});

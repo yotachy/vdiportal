@@ -6,8 +6,9 @@ const FC = require("../forge-core.js");
 const M = require("./metrics.js");
 
 const WARMUP = 200;
+const LOOKBACK = 600;   // 각 시점 엔진 입력 창 상한(최근 N봉만) — 실사용 부합 + 속도(전체 5000봉 슬라이스 방지)
 function horizonForTF(tf) { const s = tf || ""; if (/월|month/.test(s)) return 12; if (/주|week/.test(s)) return 52; if (/일|day/.test(s)) return 60; return 24; }
-function strideForTF(tf) { return /일|day/.test(tf || "") ? 5 : 2; }
+function strideForTF(tf) { return /일|day/.test(tf || "") ? 10 : 3; }
 
 function standardGraph() { const g = FC.sampleGraph(); (g.nodes || []).forEach(n => { if (n.conviction) n.conviction = 0; }); return g; }
 
@@ -29,7 +30,8 @@ function walkForward(fixture) {
   const graph = standardGraph();
   const records = [];
   for (let t = WARMUP; t <= N - H - 1; t += STRIDE) {
-    const past = { price: price.slice(0, t + 1), candle: candle.slice(0, t + 1) };   // [0..t] — lookahead 차단
+    const s0 = Math.max(0, t + 1 - LOOKBACK);   // 최근 LOOKBACK봉 창(속도)
+    const past = { price: price.slice(s0, t + 1), candle: candle.slice(s0, t + 1) };   // [s0..t] — lookahead 차단(t 이후 없음)
     let r; try { r = FC.run(graph, past, { futW: H, timeframe: tf }); } catch (e) { continue; }
     const pred = r.prediction, v = r.verdict; if (!pred || !pred.path) continue;
     records.push({
@@ -46,28 +48,26 @@ function walkForward(fixture) {
 
 function runBacktest(fixtures, opts = {}) {
   const perFixture = [], allRecords = [];
-  let bhSum = 0, bhN = 0, pnlSum = 0, pnlN = 0;
   for (const fx of fixtures) {
+    const _t0 = Date.now();
     const { records, firstPrice, lastPrice } = walkForward(fx);
+    if (opts.progress !== false) console.error("  " + fx.symbol + " " + fx.tf + " → " + records.length + "시점 (" + ((Date.now() - _t0) / 1000).toFixed(0) + "s)");
     if (!records.length) continue;
     const dir = M.directionHitRate(records), cov = M.coneCoverage(records), mae = M.priceMAE(records);
     const bl = M.baselines(records, firstPrice, lastPrice), pnl = M.simulatePnL(records, {});
     perFixture.push({ symbol: fx.symbol, tf: fx.tf, points: records.length, directionHitRate: dir.rate, coneCoverage: cov.coverage, priceMAE: mae.mae, baselineAlwaysUp: bl.alwaysUpHitRate, pnl, buyHoldReturn: bl.buyHoldReturn });
     allRecords.push(...records);
-    if (bl.buyHoldReturn != null) { bhSum += bl.buyHoldReturn; bhN++; }
-    pnlSum += pnl.totalReturn; pnlN++;
   }
   const dirAll = M.directionHitRate(allRecords), covAll = M.coneCoverage(allRecords), maeAll = M.priceMAE(allRecords);
   const calAll = M.calibration(allRecords), blAll = M.baselines(allRecords);
-  const pnlAll = M.simulatePnL(allRecords, {});   // 풀드(전 종목 시점 통합) 자본곡선
+  const pnl = M.aggregatePnL(perFixture);   // 등가중 집계(계좌 순차복리 금지 — 정직)
   return {
     generatedAt: opts.generatedAt || null,
     universe: perFixture.map(p => ({ symbol: p.symbol, tf: p.tf, points: p.points })),
     overall: {
       directionHitRate: dirAll.rate, baselineAlwaysUp: blAll.alwaysUpHitRate, coinFlip: 0.5,
       bullHitRate: dirAll.bullRate, bearHitRate: dirAll.bearRate,
-      calibrationECE: calAll.ece, coneCoverage: covAll.coverage, priceMAE: maeAll.mae,
-      pnl: { ...pnlAll, avgFixtureReturn: pnlN ? pnlSum / pnlN : null, buyHoldReturn: bhN ? bhSum / bhN : null },
+      calibrationECE: calAll.ece, coneCoverage: covAll.coverage, priceMAE: maeAll.mae, pnl,
     },
     perFixture, calibrationCurve: calAll.curve,
   };
@@ -88,8 +88,10 @@ function main() {
   console.log("확률 ECE      : " + (o.calibrationECE * 100).toFixed(1) + "%p (낮을수록 정직)");
   console.log("콘 커버리지   : " + _pct(o.coneCoverage) + " (목표 ~68%)");
   console.log("예측가 MAE    : " + _pct(o.priceMAE));
-  console.log("가상수익(풀드): $" + o.pnl.startEquity + " → $" + o.pnl.finalEquity.toFixed(0) + " (" + _pct(o.pnl.totalReturn) + ", 승률 " + _pct(o.pnl.winRate) + ", MDD " + _pct(o.pnl.maxDrawdown) + ", 거래 " + o.pnl.trades + ")");
-  console.log("  vs Buy&Hold : " + _pct(o.pnl.buyHoldReturn));
+  const p = o.pnl;
+  console.log("가상수익(등가중, 종목별 $" + p.startEquity + " 독립):");
+  console.log("  평균 수익률 : " + _pct(p.avgReturn) + " (중앙값 " + _pct(p.medianReturn) + ")  vs Buy&Hold 평균 " + _pct(p.avgBuyHold));
+  console.log("  B&H 이긴 종목: " + p.beatBuyHold + "/" + p.nFixtures + "   승률 " + _pct(p.winRate) + "  평균MDD " + _pct(p.avgMDD) + "  거래 " + p.trades);
   fs.writeFileSync(path.join(__dirname, "backtest-report.json"), JSON.stringify(rep, null, 2));
   console.log("→ backtest-report.json 기록됨\n");
 }

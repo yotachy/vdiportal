@@ -26,7 +26,7 @@ test("runBacktest: 합성 픽스처로 리포트 구조 산출", () => {
   const fx = [B.makeSyntheticFixture("SYN", "1day", { n: 320, drift: 0.002, vol: 0.01 })];
   const rep = B.runBacktest(fx, { generatedAt: "2026-07-07T00:00:00Z" });
   assert.ok(rep.overall.directionHitRate != null);
-  assert.ok(rep.overall.pnl.finalEquity > 0);
+  assert.ok(rep.overall.pnl && rep.overall.pnl.avgReturn != null, "등가중 집계 pnl");
   assert.ok(Array.isArray(rep.calibrationCurve));
   assert.ok(rep.overall.baselineAlwaysUp != null);
 });

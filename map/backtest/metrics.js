@@ -66,7 +66,29 @@ function simulatePnL(records, opts = {}) {
     if (ret > 0) { wins++; sumWin += ret; } else { losses++; sumLoss += ret; }
     if (eq > peak) peak = eq; const dd = eq / peak - 1; if (dd < mdd) mdd = dd;
   }
-  return { startEquity, finalEquity: eq, totalReturn: eq / startEquity - 1, winRate: trades ? wins / trades : null, avgWin: wins ? sumWin / wins : null, avgLoss: losses ? sumLoss / losses : null, maxDrawdown: mdd, trades };
+  return { startEquity, finalEquity: eq, totalReturn: eq / startEquity - 1, winRate: trades ? wins / trades : null, avgWin: wins ? sumWin / wins : null, avgLoss: losses ? sumLoss / losses : null, maxDrawdown: mdd, trades, wins, losses, sumWin, sumLoss };
+}
+
+// 등가중 포트폴리오 집계(종목별 P&L을 정직하게 합산 — 계좌 순차복리 금지)
+function aggregatePnL(perFixture) {
+  const rows = perFixture.filter(f => f.pnl && f.pnl.trades > 0);
+  if (!rows.length) return null;
+  const rets = rows.map(f => f.pnl.totalReturn).sort((a, b) => a - b);
+  const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
+  const median = a => a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2;
+  const bh = rows.map(f => f.buyHoldReturn).filter(x => x != null);
+  const wins = rows.reduce((s, f) => s + f.pnl.wins, 0), losses = rows.reduce((s, f) => s + f.pnl.losses, 0);
+  const sumWin = rows.reduce((s, f) => s + f.pnl.sumWin, 0), sumLoss = rows.reduce((s, f) => s + f.pnl.sumLoss, 0);
+  const trades = wins + losses;
+  return {
+    startEquity: 10000, nFixtures: rows.length,
+    avgReturn: mean(rets), medianReturn: median(rets),
+    avgFinalEquity: 10000 * (1 + mean(rets)),
+    avgBuyHold: bh.length ? mean(bh) : null,
+    beatBuyHold: rows.filter(f => f.buyHoldReturn != null && f.pnl.totalReturn > f.buyHoldReturn).length,
+    winRate: trades ? wins / trades : null, avgWin: wins ? sumWin / wins : null, avgLoss: losses ? sumLoss / losses : null,
+    trades, avgMDD: mean(rows.map(f => f.pnl.maxDrawdown)), worstMDD: Math.min(...rows.map(f => f.pnl.maxDrawdown)),
+  };
 }
 
 function baselines(records, firstPrice, lastPrice) {
@@ -75,4 +97,4 @@ function baselines(records, firstPrice, lastPrice) {
   return { alwaysUpHitRate: n ? up / n : null, coinFlip: 0.5, buyHoldReturn: (firstPrice > 0 && lastPrice > 0) ? lastPrice / firstPrice - 1 : null };
 }
 
-module.exports = { upProbFromPrediction, directionHitRate, calibration, coneCoverage, priceMAE, simulatePnL, baselines };
+module.exports = { upProbFromPrediction, directionHitRate, calibration, coneCoverage, priceMAE, simulatePnL, aggregatePnL, baselines };
