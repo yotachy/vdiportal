@@ -1474,8 +1474,8 @@
     return [st + " · " + rel, (v.relationship === "confirm" || v.relationship === "capitulation") ? "var(--bull)" : "var(--bear)"]; }
   // 셀: 세그먼트 바(좌) + 값(우 정렬) / 텍스트(좌 정렬). best=행 최고 강조
   function _segBar(pct, col) { const p = Math.max(0, Math.min(100, pct || 0)); return `<span class="dbar"><span class="dbar-f" style="width:${p}%;background:${col}"></span></span>`; }
-  function _barC(pct, col, val, best, fnum, suf) { const dn = (fnum != null) ? ` data-fnum="${fnum}" data-suf="${suf || ""}"` : ""; return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell" data-pct="${Math.round(pct || 0)}" data-col="${col}"${dn}>${_segBar(pct, col)}<b class="dval">${val}</b>${best ? `<span class="dstar">★</span>` : ""}</div></td>`; }
-  function _txtC(html, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell txt"><span class="dval-l">${html}</span>${best ? `<span class="dstar">★</span>` : ""}</div></td>`; }
+  function _barC(pct, col, val, best, fnum, suf) { const dn = (fnum != null) ? ` data-fnum="${fnum}" data-suf="${suf || ""}"` : ""; return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell" data-pct="${Math.round(pct || 0)}" data-col="${col}"${dn}>${_segBar(pct, col)}<b class="dval">${val}</b>${best ? `<span class="dstar" title="이 지표에서 가장 강세인 타임프레임">★</span>` : ""}</div></td>`; }
+  function _txtC(html, best) { return `<td class="${best ? "dash-best" : ""}"><div class="dash-cell txt"><span class="dval-l">${html}</span>${best ? `<span class="dstar" title="이 지표에서 가장 강세인 타임프레임">★</span>` : ""}</div></td>`; }
   async function renderDashboard() {
     const host = document.getElementById("fcDashBody"); if (!host) return;
     const meta = document.getElementById("fcDashMeta");

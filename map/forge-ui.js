@@ -8,7 +8,7 @@
     // 지표별 파스텔(산만) 대신 Lv(등급)별 색상으로 정돈 — 같은 등급끼리 같은 색(의미: 중요도 그룹)
     const TIER_COL = { 1: "#4f8fe0", 2: "#3aa5b0", 3: "#8a92b2", 4: "#9b7fd4" };
     const rowHTML = (t, ic, lv) => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3)); const nm = RAIL_SHORT[t] || d.label || t;
-      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" data-lv="${lv}" style="--ic:${ic || "#8a92b2"}"><div class="ir-bar" data-irbar title="${esc(d.label || t)} — 좌우 클릭·드래그 = 가중치(0~300%) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 100%"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${esc(nm)}</span><span class="ir-wval">${Math.round(w * 100)}%</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
+      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" data-lv="${lv}" style="--ic:${ic || "#8a92b2"}"><div class="ir-bar" data-irbar title="${esc(d.label || t)} — 좌우 클릭·드래그 = 가중치(0~3배, 기본 ×1) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 ×1"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${esc(nm)}</span><span class="ir-wval${Math.abs(w - 1) < 0.05 ? " def" : ""}">${Math.abs(w - 1) < 0.05 ? "×1" : "×" + w.toFixed(1)}</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
     const tierHead = (lv, name, ic, cnt) => `<div class="ir-tierhead${_railCollapsed.has(String(lv)) ? " collapsed" : ""}" data-lv="${lv}" style="--tc:${ic}" onclick="_railTierToggle('${lv}')" title="클릭 = 등급 접기/펼치기"><span class="ir-caret" aria-hidden="true"></span><span class="ir-tierlv">${lv === "etc" ? "·" : "Lv" + lv}</span><span class="ir-tiername">${name}</span><span class="ir-tiercount">${cnt}</span></div>`;
     let rows = "", seen = new Set();
     IND_TIERS.forEach(tier => { const grp = tier.types.filter(t => types.includes(t)); if (!grp.length) return;
@@ -50,7 +50,7 @@
     const r = bar.getBoundingClientRect(); if (!r.width) return;
     const w = Math.max(0, Math.min(3, Math.round(((clientX - r.left) / r.width) * 3 * 20) / 20));
     const fill = bar.querySelector(".ir-fill"); if (fill) fill.style.width = (Math.min(1, w / 3) * 100).toFixed(1) + "%";
-    const wv = bar.querySelector(".ir-wval"); if (wv) wv.textContent = Math.round(w * 100) + "%";
+    const wv = bar.querySelector(".ir-wval"); if (wv) { const _def = Math.abs(w - 1) < 0.05; wv.textContent = _def ? "×1" : "×" + w.toFixed(1); wv.classList.toggle("def", _def); }
     _driftW[type] = w;
     boardState.nodes.forEach(n => { if (n.kind === "block" && n.blockType === type) n.weight = Math.round(50 * w); });
     const m = document.getElementById("tuneModal");
