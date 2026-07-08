@@ -1374,7 +1374,7 @@
     universe: "37개 시계열(23종목 × 일·주·월) · 약 14,600 시점 · walk-forward(미래 미참조)",
     direction: { hit: 0.566, baseline: 0.590 },
     coneCoverage: 0.861, coneTarget: 0.68, ece: 0.067,
-    strength: "지지반등 신호(횡보장 바닥+RSI반등+200MA 비하락) = 검증된 유일한 edge: 승률 57.4%·평균 +1.1%/회(20봉)~+1.4%(40봉)로 랜덤 크게 초과(324건). 하락추세는 배제. '방향 예측'이 아니라 박스권 매수 타이밍.",
+    strength: "지지반등 신호(횡보장 바닥+RSI반등+200MA 비하락+낙폭5%) = 검증된 유일한 edge: 승률 60.5%·평균 +1.3%/회(20봉)~+1.6%(40봉)로 랜덤 크게 초과(256건). 하락추세·얕은눌림 배제. '방향 예측'이 아니라 박스권 매수 타이밍.",
     disclaimer: "과거 데이터 시뮬레이션 결과 · 미래 수익을 보장하지 않음 · 투자자문 아님 · 참고용",
   };
   function openBacktestCard() {
@@ -1473,7 +1473,7 @@
       let oppHtml = "";
       const _opp = _ctx && _ctx.opportunity;
       if (_opp && _opp.kind === "buy") {
-        const oppTip = `박스권 하단(%B ${_opp.pctB}) + RSI 반등(+${_opp.rsiUp}) + 200MA 비하락(하락추세 아님) — 눌림목 반등 셋업. 백테스트 검증: 승률 57.4%·평균 +1.1%/회(20봉 보유)로 랜덤 크게 초과(324건). 20봉 이상 보유 관점. 엔진의 유일한 실증 edge.`;
+        const oppTip = `박스권 하단(%B ${_opp.pctB}) + RSI 반등(+${_opp.rsiUp}) + 200MA 비하락 + 낙폭 ${_opp.dd != null ? _opp.dd + "%" : "5%↑"} — 진짜 눌림 반등 셋업. 백테스트 검증(v1.2): 승률 60.5%·평균 +1.3%/회(20봉 보유)로 랜덤 크게 초과(256건). 20봉 이상 보유 관점. 엔진의 유일한 실증 edge.`;
         oppHtml = `<span class="fcv-opp opp-buy" title="${oppTip}"><span class="opp-ico">◎</span>지지 반등 기회<span class="opp-vf">검증됨</span></span>`;
       }
       const _L = t => `<span class="fcv-k">${t}</span>`;
