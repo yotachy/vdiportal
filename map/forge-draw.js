@@ -1143,6 +1143,22 @@
   let _riskShowChart = _riskPref.showChart !== false;   // 기본 표시
   let _riskRepaintT = null;
   function _riskRepaint() { clearTimeout(_riskRepaintT); _riskRepaintT = setTimeout(() => { try { if (typeof hasRealSeries === "function" && hasRealSeries() && typeof lastResult !== "undefined" && lastResult) renderChart(lastResult, currentData()); } catch (e) {} }, 90); }
+  // 천단위 쉼표 유틸(정수부만 그룹핑, 소수·음수 보존)
+  const _grp = s => String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  function _nfc(x) { if (x == null || !isFinite(x)) return ""; const neg = x < 0, r = Math.round(Math.abs(x) * 1e4) / 1e4; const p = String(r).split("."); return (neg ? "-" : "") + _grp(p[0]) + (p[1] ? "." + p[1] : ""); }   // 정수부 쉼표 + 소수 보존(최대 4자리)
+  const _unComma = v => Number(String(v).replace(/,/g, ""));
+  // 입력 중 실시간 쉼표 포맷 + 커서 보존(자릿수 기준)
+  function _commaInput(e) {
+    const el = e.target, v = el.value, selEnd = el.selectionStart || 0, neg = /^\s*-/.test(v);
+    const cleaned = v.replace(/[^\d.]/g, ""), dot = cleaned.indexOf(".");
+    let intp = (dot >= 0 ? cleaned.slice(0, dot) : cleaned).replace(/^0+(?=\d)/, "");
+    const decp = dot >= 0 ? cleaned.slice(dot + 1).replace(/[^\d]/g, "") : null;
+    const out = (neg ? "-" : "") + _grp(intp || (decp != null ? "0" : "")) + (decp != null ? "." + decp : "");
+    const digitsBefore = v.slice(0, selEnd).replace(/[^\d]/g, "").length;
+    el.value = out;
+    let pos = 0, seen = 0; while (pos < out.length && seen < digitsBefore) { if (/\d/.test(out[pos])) seen++; pos++; }
+    try { el.setSelectionRange(pos, pos); } catch (x) {}
+  }
   // 엔진 근거 데이터(진입·손절 후보·변동성·국면) 수집
   function _riskCtx() {
     const v = (typeof lastResult !== "undefined" && lastResult) ? lastResult.verdict : null;
@@ -1257,13 +1273,13 @@
       <div class="risk-diag" id="rkDiag"></div>
       <div class="risk-inputs">
         <div class="risk-grid" style="grid-template-columns:1.4fr 1fr">
-          <div class="risk-fld"><label>계좌 자본</label><input type="number" step="any" id="rkAcct" value="${acct}"></div>
+          <div class="risk-fld"><label>계좌 자본</label><input type="text" inputmode="numeric" data-comma id="rkAcct" value="${_nfc(acct)}"></div>
           <div class="risk-fld"><label>거래당 리스크 (%)</label><input type="number" step="0.1" id="rkPct" value="${rpct}"></div>
         </div>
         <div class="risk-grid" style="grid-template-columns:1fr 1fr 1fr">
-          <div class="risk-fld"><label>진입가</label><input type="number" step="any" id="rkEntry" value="${nf(d.entry)}"></div>
-          <div class="risk-fld stop"><label>손절가</label><input type="number" step="any" id="rkStop" value="${nf(d.stop)}"></div>
-          <div class="risk-fld tgt"><label>목표가</label><input type="number" step="any" id="rkTgt" value="${nf(d.target)}"></div>
+          <div class="risk-fld"><label>진입가</label><input type="text" inputmode="decimal" data-comma id="rkEntry" value="${_nfc(d.entry)}"></div>
+          <div class="risk-fld stop"><label>손절가</label><input type="text" inputmode="decimal" data-comma id="rkStop" value="${_nfc(d.stop)}"></div>
+          <div class="risk-fld tgt"><label>목표가</label><input type="text" inputmode="decimal" data-comma id="rkTgt" value="${_nfc(d.target)}"></div>
         </div>
         <div class="risk-presets" id="rkPresets">
           <span class="rkp-lbl">스마트 손절·목표</span>
@@ -1290,7 +1306,7 @@
     </div>`;
     document.body.appendChild(m);
     m.addEventListener("click", e => { if (e.target === m) openRiskTool(); });
-    m.addEventListener("input", computeRisk);
+    m.addEventListener("input", e => { if (e.target && e.target.hasAttribute && e.target.hasAttribute("data-comma")) _commaInput(e); computeRisk(); });
     document.getElementById("riskDir").addEventListener("click", () => { _riskDir = _riskDir === "long" ? "short" : "long"; const el = document.getElementById("riskDir"); el.className = "risk-dir " + _riskDir; el.textContent = _riskDir === "short" ? "숏 ▼" : "롱 ▲"; _applyPreset(document.querySelector(".rkp-btn.on") ? document.querySelector(".rkp-btn.on").dataset.preset : "base"); });
     m.querySelectorAll(".rkp-btn").forEach(b => b.addEventListener("click", () => { m.querySelectorAll(".rkp-btn").forEach(x => x.classList.remove("on")); b.classList.add("on"); _applyPreset(b.dataset.preset); }));
     document.getElementById("rkShow").addEventListener("change", e => { _riskShowChart = e.target.checked; _riskPref.showChart = _riskShowChart; try { localStorage.setItem("scoopforge_risk", JSON.stringify(_riskPref)); } catch (x) {} _riskRepaint(); });
@@ -1299,15 +1315,14 @@
   // 프리셋 적용: 손절·목표 입력 채우고 재계산
   function _applyPreset(key) {
     const P = _riskPresets(); if (!P || !P[key]) { computeRisk(); return; }
-    const nf = x => (x == null || !isFinite(x)) ? "" : (Math.abs(x) >= 100 ? Math.round(x) : Math.round(x * 1e4) / 1e4);
     const se = document.getElementById("rkStop"), te = document.getElementById("rkTgt"), ee = document.getElementById("rkEntry");
-    if (ee && isFinite(P.entry) && (!ee.value || Number(ee.value) === 0)) ee.value = nf(P.entry);
-    if (se) se.value = nf(P[key].stop);
-    if (te) te.value = nf(P[key].target);
+    if (ee && isFinite(P.entry) && (!ee.value || _unComma(ee.value) === 0)) ee.value = _nfc(P.entry);
+    if (se) se.value = _nfc(P[key].stop);
+    if (te) te.value = _nfc(P[key].target);
     computeRisk();
   }
   function computeRisk() {
-    const g = id => { const el = document.getElementById(id); return el ? Number(el.value) : NaN; };
+    const g = id => { const el = document.getElementById(id); return el ? _unComma(el.value) : NaN; };
     const set = (id, txt, cls) => { const el = document.getElementById(id); if (!el) return; el.textContent = txt; if (cls != null) el.className = cls; };
     const acct = g("rkAcct"), pct = g("rkPct"), entry = g("rkEntry"), stop = g("rkStop"), tgt = g("rkTgt");
     _riskPref = { account: acct, riskPct: pct }; try { localStorage.setItem("scoopforge_risk", JSON.stringify(_riskPref)); } catch (e) {}
