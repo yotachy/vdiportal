@@ -431,7 +431,9 @@
   .fcv-sig{font-size:15px;font-weight:600;color:var(--muted);font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.005em}
   .fcv-sig b{color:var(--ink);font-weight:800;font-size:16px}
   .fcv-op{font-size:14.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Pretendard,system-ui,sans-serif;animation:opulse 2.2s ease-in-out infinite}
-  @keyframes opulse{0%,100%{opacity:.72}50%{opacity:1;text-shadow:0 0 7px currentColor}}
+  @keyframes opulse{0%,100%{opacity:.78}50%{opacity:1}}   /* 발광 제거 — opacity만 */
+  @keyframes ctxBlink{0%,100%{opacity:1}50%{opacity:.58}}   /* 국면·기회 단조 깜빡임(발광 없음) */
+  .fcv-ctx,.fcv-opp{animation:ctxBlink 1.7s ease-in-out infinite}
   /* 지표 방향 분포(도미넌스 스타일 누적 바) */
   .fcv-break{flex:1 1 100%;display:flex;align-items:center;gap:14px;margin-top:3px;flex-wrap:wrap}
   .fcv-bd-leg{font-size:11.5px;font-weight:600;color:var(--eth);display:flex;align-items:center;gap:5px}
