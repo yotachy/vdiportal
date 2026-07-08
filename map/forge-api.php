@@ -67,12 +67,15 @@ if ($method === "GET") {
 
     $candles = null; $source = null; $name = "";
 
-    // 국내주식(6자리 코드 · 예: 005930, 000660) 또는 명시적 .kr → Twelve Data 무료키 미지원 → Stooq(.kr)로만 처리
+    // 국내주식(6자리 코드 · 예: 005930, 000660) 또는 명시적 .kr → Twelve Data 무료키 미지원 → Naver로 처리
     $isKR = (bool) preg_match('/^\d{6}(\.kr)?$/i', $sym);
+    // 국내 지수(KOSPI·KOSDAQ·KOSPI200) → Naver siseJson이 심볼명으로 직접 지원(KOSPI200은 KPI200)
+    $krIdx = strtoupper($sym); if ($krIdx === "KOSPI200") $krIdx = "KPI200";
+    $isKRIndex = in_array($krIdx, ["KOSPI", "KOSDAQ", "KPI200"], true);
 
     // 1) Twelve Data (서버 전용 키) — 국내주식은 건너뜀
     $TD_KEY = is_file(__DIR__ . "/forge_td_key.txt") ? trim(file_get_contents(__DIR__ . "/forge_td_key.txt")) : "";
-    if ($TD_KEY !== "" && !$isKR) {
+    if ($TD_KEY !== "" && !$isKR && !$isKRIndex) {
       // 암호화폐 페어(BTC-USD)는 Twelve Data가 슬래시(BTC/USD)를 요구 — fiat 접미사일 때만 변환(주식 BRK-B 보호)
       $tdSym = preg_match('/^[A-Za-z]{2,6}-(USD|USDT|EUR|KRW|JPY|GBP|BTC|ETH)$/i', $sym) ? str_replace("-", "/", $sym) : $sym;
       $u = "https://api.twelvedata.com/time_series?symbol=" . urlencode($tdSym) . "&interval=" . urlencode($tf) . "&outputsize=" . ($incremental ? 300 : 5000) . "&format=JSON&apikey=" . urlencode($TD_KEY);
@@ -93,8 +96,8 @@ if ($method === "GET") {
     }
 
     // 1.5) 국내주식 → Naver Finance(무키, KRX 일/주/월봉). Stooq가 국내주식·봇차단으로 막혀 이 소스를 KR 기본으로 사용
-    if ($candles === null && $isKR) {
-      $code = preg_replace('/\.kr$/i', '', $sym);   // 005930.kr → 005930
+    if ($candles === null && ($isKR || $isKRIndex)) {
+      $code = $isKRIndex ? $krIdx : preg_replace('/\.kr$/i', '', $sym);   // 005930.kr → 005930 · 지수는 KOSPI/KOSDAQ/KPI200
       $nvtf = ($tf === "1week" || $tf === "week") ? "week" : (($tf === "1month" || $tf === "month") ? "month" : "day");
       $start = date("Ymd", strtotime("-4 years")); $end = date("Ymd");
       $u = "https://api.finance.naver.com/siseJson.naver?symbol=" . urlencode($code) . "&requestType=1&startTime=" . $start . "&endTime=" . $end . "&timeframe=" . $nvtf;
@@ -108,8 +111,10 @@ if ($method === "GET") {
         }
         if (count($out) >= 2) { $candles = array_slice($out, -400); $source = "naver"; }
       }
-      // 종목명(신뢰 확인용) — 예: 005930 → 삼성전자
-      if ($candles !== null) {
+      // 종목명(신뢰 확인용) — 예: 005930 → 삼성전자 / 지수는 고정명
+      if ($candles !== null && $isKRIndex) {
+        $name = ($krIdx === "KPI200") ? "코스피200" : ($krIdx === "KOSDAQ" ? "코스닥" : "코스피");
+      } elseif ($candles !== null) {
         $nb = $fetch("https://m.stock.naver.com/api/stock/" . urlencode($code) . "/basic", true);
         if ($nb !== null) { $nj = json_decode($nb, true); if (is_array($nj) && !empty($nj["stockName"])) $name = $nj["stockName"]; }
       }
