@@ -1169,6 +1169,24 @@
   .rr-reward{background:linear-gradient(180deg,var(--bull),#38a878);min-width:2px;transition:width .18s ease}
   .rr-ratio{text-align:center;margin-top:9px;font-size:19px;font-weight:800;letter-spacing:-.01em;color:var(--ink);font-family:var(--mono)}
   .rr-ratio b{color:var(--gold)}
+  /* 리스크 래더(손절·진입·목표 시각화) */
+  .risk-ladder{margin:8px 0 4px;padding:13px 14px 11px;background:#0b1016;border-radius:var(--r-lg);border:1px solid rgba(138,146,178,.14)}
+  .rl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;font-size:11px;color:var(--eth)}
+  .rl-e{display:inline-flex;align-items:baseline;gap:4px;font-weight:700}
+  .rl-e.stop{color:var(--bear)} .rl-e.tgt{color:var(--bull)}
+  .rl-px{width:76px;background:transparent;border:none;border-bottom:1.5px dashed rgba(138,146,178,.32);color:inherit;font-family:var(--mono);font-size:14px;font-weight:800;padding:1px 2px;text-align:center}
+  .rl-px:focus{outline:none;border-bottom-color:var(--gold);color:var(--ink)}
+  .rl-rr{font-size:11px;color:var(--eth);font-weight:600} .rl-rr b{font-family:var(--mono);font-size:15px;font-weight:800;color:var(--gold);margin-left:3px}
+  .rl-foot{display:flex;justify-content:space-between;margin-top:7px;font-size:11px;font-variant-numeric:tabular-nums}
+  .rl-loss{color:var(--bear);font-weight:700} .rl-profit{color:var(--bull);font-weight:700} .rl-entry{color:var(--eth)}
+  /* 접이식 도우미 */
+  .risk-helper2{margin:2px 0 6px;border:1px solid rgba(138,146,178,.16);border-radius:var(--r-lg);background:#0b1016;padding:0 13px}
+  .risk-helper2 summary{cursor:pointer;list-style:none;padding:11px 0;font-size:12px;font-weight:700;color:var(--eth);display:flex;align-items:center;gap:8px}
+  .risk-helper2 summary::-webkit-details-marker{display:none}
+  .risk-helper2 summary::before{content:"▸";color:var(--faint);font-size:10px;transition:transform .15s}
+  .risk-helper2[open] summary::before{transform:rotate(90deg)}
+  .rh-x{font-size:10.5px;font-weight:500;color:var(--faint)}
+  .risk-helper2 .risk-grid{padding-bottom:13px}
   .risk-out{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(138,146,178,.14);border-radius:var(--r-lg);overflow:hidden;border:1px solid rgba(138,146,178,.14)}
   .risk-metric{background:#0f151c;padding:12px 14px}
   .risk-metric .rm-k{font-size:10.5px;color:var(--eth);margin-bottom:3px}
