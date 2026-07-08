@@ -1433,8 +1433,17 @@
           : "강한 추세 구간 — 방향 신호는 참고만 하고 추세에 순응하세요(백테스트상 추세장에선 방향 예측이 단순 추세추종을 못 이겼습니다).";
         ctxHtml = `<span class="fcv-ctx rel-${_rel}" title="${tip}"><span class="ctx-dot"></span>${stTxt} · ${relTxt}</span>`;
       }
+      // range-bound 기회 pill(별도, 골드 액센트) — 횡보장 평균회귀 셋업 시만
+      let oppHtml = "";
+      const _opp = _ctx && _ctx.opportunity;
+      if (_opp) {
+        const _buy = _opp.kind === "buy";
+        const oppTxt = _buy ? "지지 반등 기회" : "저항 눌림 기회";
+        const oppTip = (_buy ? "박스권 하단" : "박스권 상단") + `(밴드 %B ${_opp.pctB}, RSI ${_opp.rsi}) — 평균회귀 ${_buy ? "반등" : "눌림"} 셋업. 백테스트상 엔진이 유효했던 횡보 구간입니다.`;
+        oppHtml = `<span class="fcv-opp ${_buy ? "opp-buy" : "opp-sell"}" title="${oppTip}"><span class="opp-ico">◎</span>${oppTxt}</span>`;
+      }
       bar.innerHTML =
-        (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") + pxHtml + ctxHtml +
+        (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") + pxHtml + ctxHtml + oppHtml +
         `<span class="fcv-reg" title="국면 — 지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span>` +
         (_up != null ? `<span class="fcv-prob" title="상승/하락 확률 — 예측 콘 기준, 가까운 시점에 가중한 종합 상승확률"><span class="up">▲ ${_up}%</span> <span class="dn">▼ ${100 - _up}%</span></span>` : "") +
         (isFinite(_targetN) ? `<span class="fcv-sig" title="목표=예측 도달가(시그널·컨플루언스는 아래 도넛 참고)">목표 <b>${fmtNum(_targetN)}</b></span>` : "") +

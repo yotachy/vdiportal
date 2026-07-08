@@ -1906,3 +1906,11 @@ test("verdict.context: 국면 분류(추세/횡보) + 신뢰도", () => {
   assert.strictEqual(cf.state, "range", "횡보 → range (context=" + JSON.stringify(cf) + ")");
   assert.strictEqual(cf.reliability, "high", "횡보 → 신뢰 높음");
 });
+
+test("verdict.context.opportunity: 횡보 하단 → 지지 반등(buy) 기회", () => {
+  const s = []; for (let i = 0; i < 240; i++) s.push(100 + Math.sin(i * 0.45) * 5);
+  for (let i = 0; i < 10; i++) s.push(s[s.length - 1] - 1.5);   // 마지막을 밴드 하단으로
+  const r = ForgeCore.run(ForgeCore.sampleGraph(), { price: s, candle: s.map(c => ({ o: c, h: c + 0.5, l: c - 0.5, c })) }, { timeframe: "일봉" });
+  const op = r.verdict.context.opportunity;
+  assert.ok(op && op.kind === "buy", "횡보 하단 → buy 기회 (context=" + JSON.stringify(r.verdict.context) + ")");
+});
