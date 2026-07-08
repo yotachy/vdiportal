@@ -1018,6 +1018,7 @@
       c.fillStyle = "rgba(240,200,120,.98)"; c.fillText(txt, padX + 13, padTop + 60.5); c.textAlign = "left";
     }
     drawEvidence();
+    _drawRiskLevels(c, { toY, padX, plotW, padTop, padBot, ch });   // 리스크 진단 라인(진입/손절/목표)
     c.restore();
     if (typeof updateAxisBtns === "function") updateAxisBtns();   // A/L 버튼 상태 초기 렌더에도 동기화
   }
@@ -1135,9 +1136,102 @@
   }
   function updateTuneBtn() { const b = document.getElementById("tuneBtn"); if (b) b.classList.toggle("on", TUNE_TYPES.some(([t]) => _tw(t) !== 1)); }
 
-  /* ── 리스크·포지션 사이징 (메타 도구) ── */
+  /* ── 리스크 진단 (메타 도구) ── */
   let _riskPref = (function () { try { return JSON.parse(localStorage.getItem("scoopforge_risk") || "{}") || {}; } catch (e) { return {}; } })();
   let _riskDir = "long";
+  let _riskLevels = null;      // {entry, stop, target, dir} — 차트 오버레이용
+  let _riskShowChart = _riskPref.showChart !== false;   // 기본 표시
+  let _riskRepaintT = null;
+  function _riskRepaint() { clearTimeout(_riskRepaintT); _riskRepaintT = setTimeout(() => { try { if (typeof hasRealSeries === "function" && hasRealSeries() && typeof lastResult !== "undefined" && lastResult) renderChart(lastResult, currentData()); } catch (e) {} }, 90); }
+  // 엔진 근거 데이터(진입·손절 후보·변동성·국면) 수집
+  function _riskCtx() {
+    const v = (typeof lastResult !== "undefined" && lastResult) ? lastResult.verdict : null;
+    const p = (typeof lastResult !== "undefined" && lastResult) ? lastResult.prediction : null;
+    const data = (typeof currentData === "function") ? currentData() : null;
+    const price = (data && data.price) || [];
+    const cur = price.length ? price[price.length - 1] : null;
+    let atr = null; try { atr = ForgeCore.analyzeATR(price, { period: 14, mult: 2 }); } catch (e) {}
+    return { v, p, price, cur, atr, ctx: v && v.context };
+  }
+  // 스마트 손절/목표 3프리셋(보수/기본/공격) — 콘·ATR·구조 근거, 방향별
+  function _riskPresets() {
+    const { v, p, atr, cur } = _riskCtx();
+    const entry = (p && isFinite(p.anchor)) ? p.anchor : cur;
+    if (entry == null || !isFinite(entry)) return null;
+    const a = (atr && isFinite(atr.atr) && atr.atr > 0) ? atr.atr : entry * 0.02;
+    const coneLo = (p && p.lo && p.lo.length) ? p.lo[p.lo.length - 1] : null;
+    const coneHi = (p && p.hi && p.hi.length) ? p.hi[p.hi.length - 1] : null;
+    const tgt = (v && isFinite(v.target)) ? v.target : entry * 1.1;
+    const inval = (v && isFinite(v.invalidation)) ? v.invalidation : null;
+    const long = _riskDir === "long";
+    return {
+      entry,
+      aggressive: { stop: long ? entry - 1.5 * a : entry + 1.5 * a, target: tgt },
+      base: { stop: inval != null ? inval : (long ? entry - 2 * a : entry + 2 * a), target: tgt },
+      conservative: {
+        stop: long ? (coneLo != null ? Math.min(coneLo, entry - 3 * a) : entry - 3 * a) : (coneHi != null ? Math.max(coneHi, entry + 3 * a) : entry + 3 * a),
+        target: long ? (coneHi != null ? coneHi : tgt) : (coneLo != null ? coneLo : tgt),
+      },
+    };
+  }
+  // 백테스트 근거 리스크 등급 + 근거
+  function _riskGrade(RR, lev) {
+    const { ctx, atr } = _riskCtx();
+    const long = _riskDir === "long", reasons = []; let score = 0;
+    const opp = ctx && ctx.opportunity;
+    if (opp && opp.kind === "buy" && long) { score -= 2; reasons.push(["good", "검증된 지지반등 자리 — 백테스트 승률 57%"]); }
+    const st = ctx && ctx.state, rel = ctx && ctx.reliability;
+    if (st === "up") { if (long) { score -= 1; reasons.push(["good", "상승추세 순응(롱)"]); } else { score += 2; reasons.push(["bad", "상승추세에 숏 — 역추세 진입"]); } }
+    else if (st === "down") { if (!long) { score -= 1; reasons.push(["good", "하락추세 순응(숏)"]); } else { score += 2; reasons.push(["bad", "하락추세에 롱 — 떨어지는 칼"]); } }
+    else if (st === "range") { reasons.push(["warn", "횡보장 — 방향보다 지지/저항 레벨 중심"]); }
+    if (rel === "low") { score += 1; reasons.push(["warn", "추세 강함 — 엔진 방향 신호 신뢰 낮음(추세 순응 권장)"]); }
+    if (RR >= 2) { score -= 1; reasons.push(["good", "손익비 " + RR.toFixed(1) + " 양호(2:1↑)"]); }
+    else if (RR > 0 && RR < 1) { score += 2; reasons.push(["bad", "손익비 " + RR.toFixed(1) + " — 위험이 보상보다 큼"]); }
+    else if (RR >= 1) { reasons.push(["warn", "손익비 " + RR.toFixed(1) + " 보통"]); }
+    const atrPct = atr && isFinite(atr.pct) ? atr.pct : null;
+    if (atrPct != null && atrPct > 4) { score += 1; reasons.push(["warn", "고변동성(ATR " + atrPct.toFixed(1) + "%) — 손절 여유 필요"]); }
+    if (lev > 2) { score += 1; reasons.push(["warn", "레버리지 " + lev.toFixed(1) + "× 필요 — 과도 주의"]); }
+    const grade = score >= 2 ? ["높음", "bad"] : score <= -2 ? ["낮음", "good"] : ["보통", "warn"];
+    return { grade, reasons: reasons.slice(0, 4) };
+  }
+  // 기대값·켈리(검증된 신호일 때만 승률 근거)
+  function _riskEV(RR) {
+    const { ctx } = _riskCtx();
+    const opp = ctx && ctx.opportunity, long = _riskDir === "long";
+    const validated = !!(opp && opp.kind === "buy" && long);
+    if (!validated || !(RR > 0)) return { validated: false };
+    const pWin = 0.574;
+    const ev = pWin * RR - (1 - pWin);            // 기대값(R 단위)
+    const kelly = pWin - (1 - pWin) / RR;         // 켈리 비율(자본 대비)
+    return { validated: true, pWin, ev, kelly, halfK: Math.max(0, kelly / 2) };
+  }
+  // 차트 오버레이: 진입/손절/목표 라인 + 손실·이익 영역
+  function _drawRiskLevels(c, geo) {
+    if (!_riskLevels || !_riskShowChart) return;
+    const { entry, stop, target } = _riskLevels;
+    if (![entry, stop, target].every(isFinite)) return;
+    const { toY, padX, plotW, padTop, padBot, ch } = geo;
+    const x0 = padX, x1 = padX + plotW, plotBot = ch - padBot;
+    const cl = y => Math.max(padTop, Math.min(plotBot, y));
+    const yE = cl(toY(entry)), yS = cl(toY(stop)), yT = cl(toY(target));
+    c.save();
+    c.globalAlpha = .07;
+    c.fillStyle = FC_BEAR; c.fillRect(x0, Math.min(yE, yS), x1 - x0, Math.abs(yS - yE));
+    c.fillStyle = FC_BULL; c.fillRect(x0, Math.min(yE, yT), x1 - x0, Math.abs(yT - yE));
+    c.globalAlpha = 1;
+    const line = (v, y, col, lab) => {
+      c.strokeStyle = col; c.lineWidth = 1.1; c.setLineDash([5, 4]);
+      c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke(); c.setLineDash([]);
+      c.font = "700 10px Pretendard,'Malgun Gothic',system-ui,sans-serif";
+      const t = lab + " " + _hzFmt(v), tw = c.measureText(t).width + 12;
+      c.fillStyle = col; if (c.roundRect) { c.beginPath(); c.roundRect(x1 - tw - 2, y - 8, tw, 16, 4); c.fill(); } else c.fillRect(x1 - tw - 2, y - 8, tw, 16);
+      c.fillStyle = "#0b0f14"; c.textAlign = "left"; c.fillText(t, x1 - tw + 4, y + 3.5);
+    };
+    line(target, yT, FC_BULL, "목표");
+    line(entry, yE, FC_GOLD, "진입");
+    line(stop, yS, FC_BEAR, "손절");
+    c.restore();
+  }
   function _riskDefaults() {
     const v = lastResult && lastResult.verdict, p = lastResult && lastResult.prediction;
     const entry = (p && isFinite(p.anchor)) ? p.anchor : (v && isFinite(v.target) ? v.target : null);
@@ -1148,7 +1242,7 @@
     return { entry, stop, target, dir };
   }
   function openRiskTool() {
-    const ex = document.getElementById("riskModal"); if (ex) { ex.remove(); return; }
+    const ex = document.getElementById("riskModal"); if (ex) { ex.remove(); _riskRepaint(); return; }
     const d = _riskDefaults();
     _riskDir = d.dir;
     const acct = isFinite(_riskPref.account) ? _riskPref.account : 10000000;
@@ -1159,7 +1253,8 @@
       <div class="risk-head"><span class="risk-title">리스크 · 포지션 사이징</span>
         <span class="risk-dir ${_riskDir}" id="riskDir" title="클릭해 롱/숏 전환">${_riskDir === "short" ? "숏 ▼" : "롱 ▲"}</span>
         <button class="risk-x" onclick="openRiskTool()" aria-label="닫기">✕</button></div>
-      <div class="risk-sub">현재 분석 기준 자동 계산 — 값을 조정하면 즉시 반영됩니다.</div>
+      <div class="risk-sub">현재 분석·백테스트 근거로 진단 — 값을 조정하면 즉시 반영됩니다.</div>
+      <div class="risk-diag" id="rkDiag"></div>
       <div class="risk-inputs">
         <div class="risk-grid" style="grid-template-columns:1.4fr 1fr">
           <div class="risk-fld"><label>계좌 자본</label><input type="number" step="any" id="rkAcct" value="${acct}"></div>
@@ -1169,6 +1264,12 @@
           <div class="risk-fld"><label>진입가</label><input type="number" step="any" id="rkEntry" value="${nf(d.entry)}"></div>
           <div class="risk-fld stop"><label>손절가</label><input type="number" step="any" id="rkStop" value="${nf(d.stop)}"></div>
           <div class="risk-fld tgt"><label>목표가</label><input type="number" step="any" id="rkTgt" value="${nf(d.target)}"></div>
+        </div>
+        <div class="risk-presets" id="rkPresets">
+          <span class="rkp-lbl">스마트 손절·목표</span>
+          <button class="rkp-btn" data-preset="conservative">보수적</button>
+          <button class="rkp-btn on" data-preset="base">기본 추천</button>
+          <button class="rkp-btn" data-preset="aggressive">공격적</button>
         </div>
       </div>
       <div class="rr-wrap">
@@ -1183,12 +1284,26 @@
         <div class="risk-metric"><div class="rm-k">최대 손실 (손절 시)</div><div class="rm-v neg" id="rkLoss">–</div><div class="rm-sub neg" id="rkLossSub"></div></div>
         <div class="risk-metric"><div class="rm-k">기대 수익 (목표 시)</div><div class="rm-v pos" id="rkProfit">–</div><div class="rm-sub pos" id="rkProfitSub"></div></div>
       </div>
+      <div class="risk-ev" id="rkEV" style="display:none"></div>
       <div class="risk-warn" id="rkWarn"></div>
+      <label class="risk-toggle"><input type="checkbox" id="rkShow" ${_riskShowChart ? "checked" : ""}> 차트에 진입·손절·목표 라인 표시</label>
     </div>`;
     document.body.appendChild(m);
     m.addEventListener("click", e => { if (e.target === m) openRiskTool(); });
     m.addEventListener("input", computeRisk);
-    document.getElementById("riskDir").addEventListener("click", () => { _riskDir = _riskDir === "long" ? "short" : "long"; const el = document.getElementById("riskDir"); el.className = "risk-dir " + _riskDir; el.textContent = _riskDir === "short" ? "숏 ▼" : "롱 ▲"; computeRisk(); });
+    document.getElementById("riskDir").addEventListener("click", () => { _riskDir = _riskDir === "long" ? "short" : "long"; const el = document.getElementById("riskDir"); el.className = "risk-dir " + _riskDir; el.textContent = _riskDir === "short" ? "숏 ▼" : "롱 ▲"; _applyPreset(document.querySelector(".rkp-btn.on") ? document.querySelector(".rkp-btn.on").dataset.preset : "base"); });
+    m.querySelectorAll(".rkp-btn").forEach(b => b.addEventListener("click", () => { m.querySelectorAll(".rkp-btn").forEach(x => x.classList.remove("on")); b.classList.add("on"); _applyPreset(b.dataset.preset); }));
+    document.getElementById("rkShow").addEventListener("change", e => { _riskShowChart = e.target.checked; _riskPref.showChart = _riskShowChart; try { localStorage.setItem("scoopforge_risk", JSON.stringify(_riskPref)); } catch (x) {} _riskRepaint(); });
+    computeRisk();
+  }
+  // 프리셋 적용: 손절·목표 입력 채우고 재계산
+  function _applyPreset(key) {
+    const P = _riskPresets(); if (!P || !P[key]) { computeRisk(); return; }
+    const nf = x => (x == null || !isFinite(x)) ? "" : (Math.abs(x) >= 100 ? Math.round(x) : Math.round(x * 1e4) / 1e4);
+    const se = document.getElementById("rkStop"), te = document.getElementById("rkTgt"), ee = document.getElementById("rkEntry");
+    if (ee && isFinite(P.entry) && (!ee.value || Number(ee.value) === 0)) ee.value = nf(P.entry);
+    if (se) se.value = nf(P[key].stop);
+    if (te) te.value = nf(P[key].target);
     computeRisk();
   }
   function computeRisk() {
@@ -1231,6 +1346,32 @@
     else if (RR >= 2) { cls = "risk-warn good"; msg = "손익비 " + RR.toFixed(2) + " — 양호(2:1 이상)." + (lev > 1 ? " 다만 계좌 대비 " + lev.toFixed(2) + "× 레버리지가 필요합니다." : ""); }
     else { cls = "risk-warn warn"; msg = "손익비 " + RR.toFixed(2) + " — 보통(1~2). 관리 가능하나 여유는 크지 않습니다." + (lev > 1 ? " 레버리지 " + lev.toFixed(2) + "× 필요." : ""); }
     set("rkWarn", msg, cls);
+    // 백테스트 근거 리스크 진단 등급
+    const diag = document.getElementById("rkDiag");
+    if (diag) {
+      if (riskPU > 0 && rewPU > 0) {
+        const G = _riskGrade(RR, lev);
+        const rows = G.reasons.map(r => `<div class="rd-r rd-${r[0]}">${r[0] === "good" ? "✓" : r[0] === "bad" ? "✕" : "·"} ${r[1]}</div>`).join("");
+        diag.innerHTML = `<div class="rd-head"><span class="rd-k">리스크 진단</span><span class="rd-grade rd-${G.grade[1]}">${G.grade[0]}</span></div><div class="rd-rs">${rows}</div>`;
+        diag.style.display = "block";
+      } else diag.style.display = "none";
+    }
+    // 기대값·켈리(검증된 신호 한정)
+    const evEl = document.getElementById("rkEV");
+    if (evEl) {
+      const E = _riskEV(RR);
+      if (E.validated) {
+        const halfKpct = E.halfK * 100, recPct = Math.min(halfKpct / 2, 3);   // 실전 권장 = 1/4 켈리, 최대 3%
+        evEl.innerHTML = `<div class="rev-k">수학적 기대값 <span class="mut">(검증 승률 57% 가정)</span></div>`
+          + `<div class="rev-row"><span>기대값</span><b class="${E.ev >= 0 ? "pos" : "neg"}">${E.ev >= 0 ? "+" : ""}${E.ev.toFixed(2)}R</b></div>`
+          + `<div class="rev-row"><span>켈리 상한 <span class="mut">(하프 켈리)</span></span><b>${halfKpct.toFixed(1)}%</b></div>`
+          + `<div class="rev-row"><span>실전 권장 리스크</span><b class="pos">${recPct.toFixed(1)}%</b></div>`
+          + `<div class="rev-note">${E.ev >= 0 ? "기대값 양(+) — 반복하면 우위. " : "기대값 음(−) — 손익비를 높이세요. "}켈리는 승률·손익비가 정확하다는 가정이라, 실전은 그 <b>1/4 이하(최대 3%)</b>를 권장합니다.</div>`;
+        evEl.style.display = "block";
+      } else { evEl.innerHTML = `<div class="rev-note mut">검증된 신호(지지반등 롱)가 아니라 승률 근거가 없습니다 — 손익비·진단 등급으로만 판단하세요.</div>`; evEl.style.display = "block"; }
+    }
+    // 차트 오버레이 레벨 갱신
+    if (isFinite(entry) && isFinite(stop) && isFinite(tgt) && riskPU > 0) { _riskLevels = { entry, stop, target: tgt, dir: _riskDir }; _riskRepaint(); }
   }
 
   /* ── 파라미터 최적화 서피스 (메타 도구) ── */
