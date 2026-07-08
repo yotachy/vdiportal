@@ -31,7 +31,8 @@ function capture() {
       let r; try { r = FC.run(g, { price: price.slice(s0, t + 1), candle: fx.candle.slice(s0, t + 1) }, { futW: 60, timeframe: "1day" }); } catch (e) { continue; }
       const ctx = r.verdict && r.verdict.context; if (!ctx) continue;
       const pb = pctB(price, t), rsi = rsiAt(price, 14, t), rsi3 = rsiAt(price, 14, t - 3);
-      const m20 = sma(price.slice(0, t + 1), 20), m50 = sma(price.slice(0, t + 1), 50);
+      const pw = price.slice(0, t + 1);
+      const m20 = sma(pw, 20), m50 = sma(pw, 50), m200 = sma(pw, 200), m200p = t >= 220 ? sma(price.slice(0, t + 1 - 20), 200) : null;
       const av = vol.slice(Math.max(0, t - 19), t + 1).reduce((a, b) => a + b, 0) / 20;
       if (pb == null || rsi == null) continue;
       const out = {}; for (const h of HOLDS) out[h] = price[t + h] / price[t] - 1;
@@ -40,6 +41,10 @@ function capture() {
         range: ctx.state === "range", strength: ctx.strength,
         pb, rsi, rsiUp: rsi3 != null ? rsi - rsi3 : 0,
         smaDist: m20 ? price[t] / m20 - 1 : 0, sma50Dist: m50 ? price[t] / m50 - 1 : 0,
+        sma200Dist: m200 ? price[t] / m200 - 1 : 0,                    // 200MA 대비(장기추세 위치)
+        ma200Slope: (m200 && m200p) ? m200 / m200p - 1 : 0,           // 200MA 20봉 기울기(하락추세 여부)
+        ret60: t >= 60 ? price[t] / price[t - 60] - 1 : 0,            // 최근 60봉 수익
+        ret120: t >= 120 ? price[t] / price[t - 120] - 1 : 0,
         volR: av > 0 ? (vol[t] || 0) / av : 1,
         out,
       });
@@ -66,41 +71,46 @@ function main() {
   const P = x => x == null ? " – " : (x >= 0 ? "+" : "") + (x * 100).toFixed(2) + "%";
   const W = x => x == null ? " – " : (x * 100).toFixed(1) + "%";
 
-  // 0) 현행 기준
-  const base = r => r.range && r.pb <= 0.2 && r.rsi < 45;
-  console.log("\n[현행] range·%B≤0.2·RSI<45");
+  // 현재 채택 규칙(정교화): range·%B≤0.2·RSI반등
+  const base = r => r.range && r.pb <= 0.2 && r.rsiUp > 0;
+  console.log("\n[현재 규칙] range·%B≤0.2·RSI반등");
   for (const H of HOLDS) { const e = evalCfg(recs, base, H); console.log("  홀드" + H + ": 거래 " + e.n + " · 기대값 " + P(e.exp) + " · 승률 " + W(e.wr)); }
 
-  // 1) %B × RSI 그리드 (홀드 20 기준 기대값)
-  console.log("\n[%B × RSI 그리드 · 홀드20 기대값(거래수)]");
-  const PBs = [0.10, 0.15, 0.20, 0.25], RSIs = [30, 35, 40, 45, 100];
-  process.stdout.write("        " + RSIs.map(x => (x === 100 ? "RSI무시" : "RSI<" + x).padStart(13)).join("") + "\n");
-  for (const pb of PBs) {
-    let row = ("%B≤" + pb).padEnd(8);
-    for (const rs of RSIs) { const e = evalCfg(recs, r => r.range && r.pb <= pb && r.rsi < rs, 20); row += (P(e.exp) + "(" + e.n + ")").padStart(13); }
-    console.log(row);
-  }
-
-  // 2) 필터 마진 효과(기준: range·%B≤0.2·RSI<45, 홀드20)
-  console.log("\n[필터 마진 · 기준 range·%B≤0.2·RSI<45 · 홀드20]");
+  // 하락추세 배제 필터 후보(기준 규칙 위에 얹음, 홀드20·40)
+  console.log("\n[하락추세 배제 필터 · 기준 위에 적용]");
   const filters = [
     ["기준(필터없음)", r => true],
-    ["+ RSI 반등중(rsiUp>0)", r => r.rsiUp > 0],
-    ["+ 깊은눌림(20MA -5%↓)", r => r.smaDist < -0.05],
-    ["+ 깊은눌림(20MA -8%↓)", r => r.smaDist < -0.08],
-    ["+ 거래량스파이크(>1.3x)", r => r.volR > 1.3],
-    ["+ 강한횡보(strength<0.2)", r => r.strength < 0.2],
-    ["+ 50MA 위(추세잔존)", r => r.sma50Dist > 0],
-    ["+ 50MA 아래(과매도심화)", r => r.sma50Dist < 0],
+    ["+ 200MA 위(장기추세 위)", r => r.sma200Dist >= 0],
+    ["+ 200MA -5% 이내", r => r.sma200Dist >= -0.05],
+    ["+ 200MA 기울기 ≥0(비하락)", r => r.ma200Slope >= 0],
+    ["+ 200MA -5%이내 & 기울기≥-0.5%", r => r.sma200Dist >= -0.05 && r.ma200Slope >= -0.005],
+    ["+ 최근60봉 ≥ -8%", r => r.ret60 >= -0.08],
+    ["+ 최근120봉 ≥ -10%", r => r.ret120 >= -0.10],
+    ["+ 200MA-5%이내 & 60봉≥-8%", r => r.sma200Dist >= -0.05 && r.ret60 >= -0.08],
   ];
   for (const [name, f] of filters) {
-    const e = evalCfg(recs, r => base(r) && f(r), 20);
-    const e40 = evalCfg(recs, r => base(r) && f(r), 40);
-    console.log("  " + name.padEnd(26) + " 거래 " + String(e.n).padStart(4) + " · 기대값20 " + P(e.exp) + " · 승률 " + W(e.wr) + " · 기대값40 " + P(e40.exp));
+    const e = evalCfg(recs, r => base(r) && f(r), 20), e40 = evalCfg(recs, r => base(r) && f(r), 40);
+    console.log("  " + name.padEnd(28) + " 거래 " + String(e.n).padStart(4) + " · 기대값20 " + P(e.exp) + " · 승률 " + W(e.wr) + " · 기대값40 " + P(e40.exp));
   }
 
-  // 3) 랜덤 대조(횡보 전체)
+  // 종목별 지지반등 성적(현재 규칙) — 하락추세 종목이 손실 유발하는지(VZ 확인)
+  console.log("\n[종목별 · 현재 규칙 · 홀드20 기대값(거래수) · 200MA대비 평균]");
+  const bySym = {};
+  for (const r of recs) if (base(r)) { (bySym[r.sym] = bySym[r.sym] || []).push(r); }
+  Object.entries(bySym).sort((a, b) => a[1].reduce((s, r) => s + r.out[20], 0) / a[1].length - b[1].reduce((s, r) => s + r.out[20], 0) / b[1].length)
+    .forEach(([sym, rs]) => {
+      const e = rs.reduce((s, r) => s + r.out[20], 0) / rs.length, d200 = rs.reduce((s, r) => s + r.sma200Dist, 0) / rs.length;
+      console.log("  " + sym.padEnd(9) + " " + (P(e) + "(" + rs.length + ")").padStart(12) + " · 200MA " + (d200 * 100).toFixed(1) + "%");
+    });
+
+  // 필터 적용 후 종목별 손실종목 제거 확인
+  const filt = r => base(r) && r.sma200Dist >= -0.05 && r.ret60 >= -0.08;
+  console.log("\n[최종후보 필터(200MA-5%이내 & 60봉≥-8%) 적용 후 손실종목]");
+  const bySym2 = {}; for (const r of recs) if (filt(r)) { (bySym2[r.sym] = bySym2[r.sym] || []).push(r); }
+  const losers = Object.entries(bySym2).filter(([s, rs]) => rs.reduce((a, r) => a + r.out[20], 0) / rs.length < 0);
+  console.log("  손실종목: " + (losers.length ? losers.map(([s, rs]) => s + " " + P(rs.reduce((a, r) => a + r.out[20], 0) / rs.length)).join(", ") : "없음 ✅"));
+
   let s = 0, n = 0, i = 0; for (const r of rng) { s += ((i++ % 2) ? -1 : 1) * r.out[20]; n++; }
-  console.log("\n랜덤대조(홀드20): " + P(n ? s / n : 0) + " — 정교화 후보는 이걸 넉넉히 넘고 거래수 충분해야 채택");
+  console.log("\n랜덤대조(홀드20): " + P(n ? s / n : 0));
 }
 main();

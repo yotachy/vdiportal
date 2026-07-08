@@ -1907,13 +1907,23 @@ test("verdict.context: 국면 분류(추세/횡보) + 신뢰도", () => {
   assert.strictEqual(cf.reliability, "high", "횡보 → 신뢰 높음");
 });
 
-test("verdict.context.opportunity: 횡보 하단 + RSI 반등 → 지지 반등(buy) 기회", () => {
-  const s = []; for (let i = 0; i < 230; i++) s.push(100 + Math.sin(i * 0.45) * 4);
+test("verdict.context.opportunity: 횡보(200MA 비하락) 하단 + RSI 반등 → 지지 반등(buy) 기회", () => {
+  const s = []; for (let i = 0; i < 230; i++) s.push(100 + i * 0.06 + Math.sin(i * 0.45) * 4);   // 완만 상승 횡보(200MA 비하락)
   let last = s[s.length - 1];
   for (let i = 0; i < 10; i++) { last -= 1.8; s.push(last); }   // 급락 → 밴드 하단 이탈(%B≈0.17)
   for (let i = 0; i < 3; i++) { last += 0.3; s.push(last); }    // 3봉 반등 → RSI 위로 꺾임(rsiUp>0)
   const r = ForgeCore.run(ForgeCore.sampleGraph(), { price: s, candle: s.map(c => ({ o: c, h: c + 0.5, l: c - 0.5, c })) }, { timeframe: "일봉" });
   const op = r.verdict.context.opportunity;
-  assert.ok(op && op.kind === "buy", "횡보 하단+RSI반등 → buy 기회 (context=" + JSON.stringify(r.verdict.context) + ")");
+  assert.ok(op && op.kind === "buy", "횡보 하단+RSI반등+200MA비하락 → buy 기회 (context=" + JSON.stringify(r.verdict.context) + ")");
   assert.ok(op.rsiUp > 0, "rsiUp>0 (반등 확인)");
+});
+
+test("verdict.context.opportunity: 하락추세(200MA 하락)에선 지지반등 매수 안 함", () => {
+  const s = []; for (let i = 0; i < 230; i++) s.push(160 - i * 0.20 + Math.sin(i * 0.45) * 4);   // 완만 하락(200MA 하락)
+  let last = s[s.length - 1];
+  for (let i = 0; i < 10; i++) { last -= 1.8; s.push(last); }
+  for (let i = 0; i < 3; i++) { last += 0.3; s.push(last); }
+  const r = ForgeCore.run(ForgeCore.sampleGraph(), { price: s, candle: s.map(c => ({ o: c, h: c + 0.5, l: c - 0.5, c })) }, { timeframe: "일봉" });
+  const op = r.verdict.context.opportunity;
+  assert.ok(!op, "200MA 하락 중이면 buy 기회 없음(떨어지는 칼 방지) (context=" + JSON.stringify(r.verdict.context) + ")");
 });
