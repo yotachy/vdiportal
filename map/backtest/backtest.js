@@ -49,7 +49,7 @@ function walkForward(fixture) {
 function classifyRegime(buyHoldReturn) { return buyHoldReturn == null ? "side" : buyHoldReturn > 0.3 ? "bull" : buyHoldReturn < -0.1 ? "bear" : "side"; }
 
 function runBacktest(fixtures, opts = {}) {
-  const perFixture = [], allRecords = [], byRegime = { bull: [], bear: [], side: [] };
+  const perFixture = [], allRecords = [], byRegime = { bull: [], bear: [], side: [] }, byTf = {};
   for (const fx of fixtures) {
     const _t0 = Date.now();
     const { records, firstPrice, lastPrice } = walkForward(fx);
@@ -58,8 +58,9 @@ function runBacktest(fixtures, opts = {}) {
     const dir = M.directionHitRate(records), cov = M.coneCoverage(records), mae = M.priceMAE(records);
     const bl = M.baselines(records, firstPrice, lastPrice), pnl = M.simulatePnL(records, {});
     const regime = classifyRegime(bl.buyHoldReturn);
-    perFixture.push({ symbol: fx.symbol, tf: fx.tf, points: records.length, regime, directionHitRate: dir.rate, coneCoverage: cov.coverage, priceMAE: mae.mae, baselineAlwaysUp: bl.alwaysUpHitRate, pnl, buyHoldReturn: bl.buyHoldReturn });
+    perFixture.push({ symbol: fx.symbol, tf: fx.tf, from: fx.from || "", to: fx.to || "", points: records.length, regime, directionHitRate: dir.rate, coneCoverage: cov.coverage, priceMAE: mae.mae, baselineAlwaysUp: bl.alwaysUpHitRate, pnl, buyHoldReturn: bl.buyHoldReturn });
     allRecords.push(...records); byRegime[regime].push(...records);
+    (byTf[fx.tf] = byTf[fx.tf] || []).push(...records);
   }
   const dirAll = M.directionHitRate(allRecords), covAll = M.coneCoverage(allRecords), maeAll = M.priceMAE(allRecords);
   const calAll = M.calibration(allRecords), blAll = M.baselines(allRecords);
@@ -67,6 +68,9 @@ function runBacktest(fixtures, opts = {}) {
   // 국면별 방향 성능(약세편향이 진짜인지: 하락·횡보 국면서도 베이스라인 이기나?)
   const regimes = {};
   for (const k of ["bull", "bear", "side"]) { const rec = byRegime[k]; if (!rec.length) continue; const d = M.directionHitRate(rec), b = M.baselines(rec); regimes[k] = { n: rec.length, directionHitRate: d.rate, baselineAlwaysUp: b.alwaysUpHitRate, bullHitRate: d.bullRate, bearHitRate: d.bearRate, lift: (d.rate != null && b.alwaysUpHitRate != null) ? d.rate - b.alwaysUpHitRate : null }; }
+  // 일/주/월 타임프레임별 방향 성능
+  const timeframes = {};
+  for (const k of Object.keys(byTf)) { const rec = byTf[k]; if (!rec.length) continue; const d = M.directionHitRate(rec), b = M.baselines(rec), c = M.coneCoverage(rec); timeframes[k] = { n: rec.length, fixtures: perFixture.filter(f => f.tf === k).length, directionHitRate: d.rate, baselineAlwaysUp: b.alwaysUpHitRate, coneCoverage: c.coverage, lift: (d.rate != null && b.alwaysUpHitRate != null) ? d.rate - b.alwaysUpHitRate : null }; }
   return {
     generatedAt: opts.generatedAt || null,
     universe: perFixture.map(p => ({ symbol: p.symbol, tf: p.tf, regime: p.regime, points: p.points })),
@@ -75,7 +79,7 @@ function runBacktest(fixtures, opts = {}) {
       bullHitRate: dirAll.bullRate, bearHitRate: dirAll.bearRate,
       calibrationECE: calAll.ece, coneCoverage: covAll.coverage, priceMAE: maeAll.mae, pnl,
     },
-    byRegime: regimes, perFixture, calibrationCurve: calAll.curve,
+    byRegime: regimes, byTimeframe: timeframes, perFixture, calibrationCurve: calAll.curve,
   };
 }
 
@@ -101,6 +105,9 @@ function main() {
   console.log("\n국면별 방향 적중 (약세편향 진위 판별 — 하락·횡보서도 베이스라인 이기나?):");
   const RG = { bull: "강세장", bear: "하락장", side: "횡보장" };
   for (const k of ["bull", "bear", "side"]) { const g = rep.byRegime[k]; if (!g) continue; console.log("  " + RG[k] + " (n=" + g.n + ") : 방향 " + _pct(g.directionHitRate) + " vs 항상상승 " + _pct(g.baselineAlwaysUp) + "  → 초과 " + (g.lift >= 0 ? "+" : "") + (g.lift * 100).toFixed(1) + "%p" + (g.lift > 0 ? " ✅" : " 🔴") + "  (강세콜 " + _pct(g.bullHitRate) + "/약세콜 " + _pct(g.bearHitRate) + ")"); }
+  console.log("\n일/주/월 타임프레임별 방향 적중:");
+  const TF = { "1day": "일봉", "1week": "주봉", "1month": "월봉" };
+  for (const k of ["1day", "1week", "1month"]) { const g = rep.byTimeframe[k]; if (!g) continue; console.log("  " + (TF[k] || k) + " (" + g.fixtures + "종·n=" + g.n + ") : 방향 " + _pct(g.directionHitRate) + " vs 항상상승 " + _pct(g.baselineAlwaysUp) + "  → 초과 " + (g.lift >= 0 ? "+" : "") + (g.lift * 100).toFixed(1) + "%p  콘커버 " + _pct(g.coneCoverage)); }
   fs.writeFileSync(path.join(__dirname, "backtest-report.json"), JSON.stringify(rep, null, 2));
   console.log("→ backtest-report.json 기록됨\n");
 }

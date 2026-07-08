@@ -1363,9 +1363,9 @@
 
   // 백테스트 검증 성적(정직 공개용 — backtest/backtest-report.json 스냅샷 요약. 재측정 시 갱신)
   const BACKTEST_SUMMARY = {
-    universe: "25종목(주식·크립토·환율) · 약 10,500 과거시점 · walk-forward(미래 미참조)",
-    direction: { hit: 0.515, baseline: 0.554 },
-    coneCoverage: 0.867, coneTarget: 0.68, ece: 0.082,
+    universe: "37개 시계열(23종목 × 일·주·월) · 약 14,600 시점 · walk-forward(미래 미참조)",
+    direction: { hit: 0.541, baseline: 0.590 },
+    coneCoverage: 0.861, coneTarget: 0.68, ece: 0.069,
     strength: "BABA +149%(단순보유 +25%) · PYPL +390%(+14%) · PFE +23%(−4%) — 횡보 종목 3/4가 단순보유 상회. '방향 정확도'가 아니라 박스권 진입/청산 타이밍의 우위.",
     disclaimer: "과거 데이터 시뮬레이션 결과 · 미래 수익을 보장하지 않음 · 투자자문 아님 · 참고용",
   };

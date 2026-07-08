@@ -66,8 +66,14 @@
   .rp-tbl th,.rp-tbl td{padding:8px 10px}
   .rp-tbl .rp-v{color:var(--ink);font-weight:700}
   .rp-note{font-size:11.5px;color:var(--bull);margin-top:10px;font-weight:600}
+  .univ{display:flex;flex-direction:column;gap:11px}
+  .uv-grp{display:grid;grid-template-columns:90px 1fr;gap:12px;align-items:start}
+  .uv-g{font-size:12.5px;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:6px;padding-top:3px}
+  .uv-n{font-size:10px;color:var(--faint);background:rgba(138,146,178,.12);border-radius:99px;padding:0 6px;line-height:15px}
+  .uv-list{display:flex;flex-wrap:wrap;gap:6px 8px}
+  .uv-item{font-size:12px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:4px 9px;font-variant-numeric:tabular-nums}
   footer{margin-top:36px;font-size:12px;color:var(--faint);text-align:center}
-  @media(max-width:640px){ .cards{grid-template-columns:1fr} h1{font-size:25px} .wrap{padding:28px 16px 60px} }
+  @media(max-width:640px){ .cards{grid-template-columns:1fr} h1{font-size:25px} .wrap{padding:28px 16px 60px} .uv-grp{grid-template-columns:1fr;gap:4px} }
 </style>
 </head>
 <body>
@@ -80,12 +86,20 @@
   <h2>검증 방법</h2>
   <p class="sec-desc" id="method"></p>
 
+  <h2>테스트 대상 종목 · 기간</h2>
+  <p class="sec-desc">주요 종목을 자산군별로, 실제 데이터가 있는 전 기간에 대해 검증했습니다(일봉 기준 · 대부분 2006~2026, 약 20년).</p>
+  <div id="univ" class="univ"></div>
+
   <h2>핵심 지표</h2>
   <p class="sec-desc">각 시점에서 과거 데이터만으로 예측 → 실제 결과와 대조. "항상 상승" 같은 단순 기준과 나란히 봅니다.</p>
   <div class="cards" id="cards"></div>
 
+  <h2>일 · 주 · 월 타임프레임별 적중</h2>
+  <p class="sec-desc">주기가 길수록 <b>방향 적중률 자체는 올라갑니다</b>(월봉 약 66%). 다만 "항상 상승" 기준도 함께 올라가서, 어느 주기도 그 기준을 넘진 못합니다 — 이걸 숨기지 않고 나란히 보여드립니다.</p>
+  <table id="tftbl"><thead><tr><th>주기</th><th>엔진 방향적중</th><th>항상상승</th><th>초과</th><th>콘 커버</th><th>표본</th></tr></thead><tbody></tbody></table>
+
   <h2>국면별 방향 예측</h2>
-  <p class="sec-desc">방향 예측은 <b>어느 국면에서도 "항상 상승" 기준을 넘지 못했습니다</b>(약 3개월 지평, 표본 25종목으로 재확인). 특히 강한 상승 추세장에서 미달 폭이 큽니다 — 그래서 화면 배지가 강한 추세장에선 "방향 신호 신뢰 낮음"을 알립니다.</p>
+  <p class="sec-desc">방향 예측은 <b>어느 국면에서도 "항상 상승" 기준을 넘지 못했습니다</b>(약 3개월 지평, 표본 확대(37 시계열·일주월)로 재확인). 특히 강한 상승 추세장에서 미달 폭이 큽니다 — 그래서 화면 배지가 강한 추세장에선 "방향 신호 신뢰 낮음"을 알립니다.</p>
   <table id="regtbl"><thead><tr><th>국면</th><th>엔진 방향적중</th><th>항상상승</th><th>초과</th><th>표본</th></tr></thead><tbody></tbody></table>
 
   <h2>진짜 강점 — 횡보/박스권 타이밍</h2>
@@ -130,7 +144,7 @@
 
 <script src="forge-core.js?v=20260708b"></script>
 <script>
-const BT ={"overall":{"dir":0.515,"base":0.554,"ece":0.082,"cone":0.867,"mae":0.109},"byRegime":{"bull":{"dir":0.532,"base":0.584,"lift":-0.052,"n":6356},"bear":{"dir":0.475,"base":0.493,"lift":-0.018,"n":2696},"side":{"dir":0.512,"base":0.533,"lift":-0.022,"n":1470}},"cal":[{"lo":30,"hi":40,"pred":0.370,"act":0.501,"n":814},{"lo":40,"hi":50,"pred":0.447,"act":0.557,"n":3103},{"lo":50,"hi":60,"pred":0.539,"act":0.543,"n":2868},{"lo":60,"hi":70,"pred":0.643,"act":0.553,"n":2498},{"lo":70,"hi":80,"pred":0.733,"act":0.597,"n":1125},{"lo":80,"hi":90,"pred":0.825,"act":0.615,"n":109}],"fixtures":[{"s":"BABA","rg":"side","pnl":1.49,"bh":0.25},{"s":"PYPL","rg":"side","pnl":3.90,"bh":0.14},{"s":"PFE","rg":"side","pnl":0.23,"bh":-0.04},{"s":"VZ","rg":"side","pnl":-0.18,"bh":0.07}],"asOf":"2026-07","universe":"25개 종목","points":"약 10,500개"};
+const BT = {"overall":{"dir":0.541,"base":0.59,"ece":0.069,"cone":0.861},"byRegime":{"side":{"dir":0.512,"base":0.533,"lift":-0.022,"n":1470},"bull":{"dir":0.561,"base":0.624,"lift":-0.063,"n":10335},"bear":{"dir":0.481,"base":0.494,"lift":-0.013,"n":2818}},"byTf":{"1day":{"dir":0.515,"base":0.563,"cone":0.872,"fx":23,"n":9169},"1week":{"dir":0.577,"base":0.631,"cone":0.848,"fx":9,"n":4940},"1month":{"dir":0.657,"base":0.679,"cone":0.784,"fx":5,"n":514}},"cal":[{"pred":0.37,"act":0.523},{"pred":0.449,"act":0.582},{"pred":0.54,"act":0.559},{"pred":0.643,"act":0.613},{"pred":0.732,"act":0.656},{"pred":0.82,"act":0.58}],"day":[{"s":"000660","g":"국내","from":"2024","to":"2026"},{"s":"005930","g":"국내","from":"2024","to":"2026"},{"s":"AAPL","g":"미국주식","from":"2006","to":"2026"},{"s":"AUD/USD","g":"환율","from":"2007","to":"2026"},{"s":"BABA","g":"미국주식","from":"2014","to":"2026"},{"s":"BTC/USD","g":"크립토","from":"2014","to":"2026"},{"s":"CSCO","g":"미국주식","from":"2006","to":"2026"},{"s":"DIS","g":"미국주식","from":"2006","to":"2026"},{"s":"ETH/USD","g":"크립토","from":"2021","to":"2026"},{"s":"EUR/USD","g":"환율","from":"2007","to":"2026"},{"s":"GBP/USD","g":"환율","from":"2007","to":"2026"},{"s":"GE","g":"미국주식","from":"2006","to":"2026"},{"s":"IBM","g":"미국주식","from":"2006","to":"2026"},{"s":"INTC","g":"미국주식","from":"2006","to":"2026"},{"s":"KO","g":"미국주식","from":"2006","to":"2026"},{"s":"MSFT","g":"미국주식","from":"2006","to":"2026"},{"s":"NVDA","g":"미국주식","from":"2006","to":"2026"},{"s":"PFE","g":"미국주식","from":"2006","to":"2026"},{"s":"PYPL","g":"미국주식","from":"2015","to":"2026"},{"s":"T","g":"미국주식","from":"2006","to":"2026"},{"s":"USD/JPY","g":"환율","from":"2007","to":"2026"},{"s":"USD/KRW","g":"환율","from":"2007","to":"2026"},{"s":"VZ","g":"미국주식","from":"2006","to":"2026"}],"fixtures":[{"s":"BABA","rg":"횡보","pnl":1.49,"bh":0.26},{"s":"PFE","rg":"횡보","pnl":0.23,"bh":-0.04},{"s":"PYPL","rg":"횡보","pnl":3.9,"bh":0.14},{"s":"VZ","rg":"횡보","pnl":-0.18,"bh":0.07}],"asOf":"2026-07","universe":"37개 시계열(23종목 × 일/주/월)","points":"약 14,600개"};
 const pc = x => (x*100).toFixed(1) + "%";
 const rx = x => (x>=0?"+":"") + (x*100).toFixed(0) + "%";
 
@@ -149,9 +163,23 @@ document.querySelector("#regtbl tbody").innerHTML = ["side","bull","bear"].map(k
   return `<tr><td><span class="rgbar" style="width:10px;background:${c[1]}"></span>${c[0]}</td><td><b>${pc(g.dir)}</b></td><td class="mut">${pc(g.base)}</td><td class="${g.lift>=0?'up':'dn'}">${rx(g.lift)}p</td><td class="mut">${g.n.toLocaleString()}</td></tr>`;
 }).join("");
 
-document.querySelector("#sidetbl tbody").innerHTML = BT.fixtures.filter(f=>f.rg==="side").map(f=>{
+document.querySelector("#sidetbl tbody").innerHTML = BT.fixtures.map(f=>{
   const win = f.pnl > f.bh;
   return `<tr><td>${f.s}</td><td class="${win?'up':'dn'}"><b>${rx(f.pnl)}</b></td><td class="mut">${rx(f.bh)}</td><td class="${win?'up':'dn'}">${win?'B&amp;H 상회 ✓':'미달'}</td></tr>`;
+}).join("");
+
+// 일/주/월 타임프레임별
+const TFN = {"1day":"일봉","1week":"주봉","1month":"월봉"};
+document.querySelector("#tftbl tbody").innerHTML = ["1day","1week","1month"].map(k=>{ const g=BT.byTf[k]; if(!g) return ""; const lift=g.dir-g.base;
+  return `<tr><td><b>${TFN[k]}</b> <span class="mut">(${g.fx}종)</span></td><td class="rp-v" style="font-size:14.5px">${pc(g.dir)}</td><td class="mut">${pc(g.base)}</td><td class="dn">${rx(lift)}p</td><td class="mut">${pc(g.cone)}</td><td class="mut">${g.n.toLocaleString()}</td></tr>`;
+}).join("");
+
+// 테스트 대상 유니버스(자산군별)
+const GRP=["미국주식","크립토","환율","국내"], byg={};
+BT.day.forEach(f=>{(byg[f.g]=byg[f.g]||[]).push(f);});
+document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
+  const items=byg[g].map(f=>`<span class="uv-item"><b>${f.s}</b> <span class="mut">${f.from}~${f.to.slice(2)}</span></span>`).join("");
+  return `<div class="uv-grp"><span class="uv-g">${g}<span class="uv-n">${byg[g].length}</span></span><div class="uv-list">${items}</div></div>`;
 }).join("");
 
 // 캘리브레이션 SVG (예측확률 x, 실제상승률 y, 대각선=완벽)
@@ -176,7 +204,7 @@ document.querySelector("#sidetbl tbody").innerHTML = BT.fixtures.filter(f=>f.rg=
 document.getElementById("foot").innerHTML = "스쿱포지 엔진 검증 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a>";
 
 /* ── 라이브 재현 위젯 — 브라우저에서 실데이터로 walk-forward 직접 실행 ── */
-const EXPECTED = {"BABA":{dir:0.493,cone:0.845,pnl:1.49,bh:0.254,base:0.513,rg:"횡보"},"PYPL":{dir:0.547,cone:0.833,pnl:3.896,bh:0.136,base:0.546,rg:"횡보"},"PFE":{dir:0.549,cone:0.888,pnl:0.23,bh:-0.035,base:0.544,rg:"횡보"},"NVDA":{dir:0.579,cone:0.832,pnl:49.162,bh:320.452,base:0.671,rg:"강세"}};
+const EXPECTED = {"BABA":{dir:0.493,cone:0.845,pnl:1.49,bh:0.259,base:0.513,rg:"횡보"},"PYPL":{dir:0.547,cone:0.833,pnl:3.896,bh:0.139,base:0.546,rg:"횡보"},"PFE":{dir:0.549,cone:0.888,pnl:0.23,bh:-0.035,base:0.544,rg:"횡보"},"NVDA":{dir:0.579,cone:0.832,pnl:49.162,bh:326.235,base:0.671,rg:"강세"}};
 // 앱 상승확률 복제(P&L·검증용)
 function _ncdf(z){const t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);let p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
 function _up1(pred,hi,a){if(!(pred>0&&hi>0&&a>0))return 50;const m=Math.log(pred/a),sd=Math.log(hi/pred);return Math.round(_ncdf(m/(sd||1e-6))*100);}

@@ -16,6 +16,9 @@ const UNIVERSE = [
   ["EUR/USD", "1day"], ["GBP/USD", "1day"], ["USD/JPY", "1day"], ["AUD/USD", "1day"], ["EUR/USD", "1week"],
   // 횡보/박스권 성향 주식(성숙·부진)
   ["IBM", "1day"], ["CSCO", "1day"], ["VZ", "1day"], ["PFE", "1day"], ["KO", "1day"], ["WBA", "1day"], ["GE", "1day"],
+  // 주요 종목 주봉·월봉 — 일/주/월 비교용
+  ["NVDA", "1week"], ["AAPL", "1week"], ["MSFT", "1week"], ["BTC/USD", "1week"], ["005930", "1week"], ["INTC", "1week"], ["BABA", "1week"], ["DIS", "1week"],
+  ["NVDA", "1month"], ["AAPL", "1month"], ["MSFT", "1month"], ["BTC/USD", "1month"], ["005930", "1month"], ["INTC", "1month"], ["BABA", "1month"], ["DIS", "1month"],
 ];
 const _sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -29,7 +32,9 @@ async function fetchOne(symbol, tf) {
     if (d.v != null && isFinite(+d.v)) c.v = +d.v;
     return c;
   }).filter(d => isFinite(d.c) && d.c > 0);
-  return { symbol, tf, candle };
+  const cs = j.candles.filter(d => isFinite(+d.c) && +d.c > 0);
+  const from = cs.length ? (cs[0].t || cs[0].datetime || "") : "", to = cs.length ? (cs[cs.length - 1].t || cs[cs.length - 1].datetime || "") : "";
+  return { symbol, tf, from, to, candle };
 }
 
 (async () => {
