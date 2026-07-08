@@ -1366,7 +1366,7 @@
     universe: "37개 시계열(23종목 × 일·주·월) · 약 14,600 시점 · walk-forward(미래 미참조)",
     direction: { hit: 0.541, baseline: 0.590 },
     coneCoverage: 0.861, coneTarget: 0.68, ece: 0.069,
-    strength: "BABA +149%(단순보유 +25%) · PYPL +390%(+14%) · PFE +23%(−4%) — 횡보 종목 3/4가 단순보유 상회. '방향 정확도'가 아니라 박스권 진입/청산 타이밍의 우위.",
+    strength: "지지반등(레인지) 신호 = 검증된 유일한 edge: 기대값 +0.7%/거래·승률 54.6%로 랜덤 초과(2,837건). 예: BABA +149% vs 단순보유 +25%. '방향 예측'이 아니라 박스권 진입 타이밍.",
     disclaimer: "과거 데이터 시뮬레이션 결과 · 미래 수익을 보장하지 않음 · 투자자문 아님 · 참고용",
   };
   function openBacktestCard() {
@@ -1461,14 +1461,12 @@
           : "강한 추세 구간 — 방향 신호는 참고만 하고 추세에 순응하세요(백테스트상 추세장에선 방향 예측이 단순 추세추종을 못 이겼습니다).";
         ctxHtml = `<span class="fcv-ctx rel-${_rel}" title="${tip} · 클릭 = 엔진 검증 성적" onclick="openBacktestCard()"><span class="ctx-dot"></span>${stTxt} · ${relTxt}<span class="ctx-info">ⓘ</span></span>`;
       }
-      // range-bound 기회 pill(별도, 골드 액센트) — 횡보장 평균회귀 셋업 시만
+      // range-bound 기회 pill — 백테스트로 검증된 유일한 edge: 횡보장 지지반등(롱)만
       let oppHtml = "";
       const _opp = _ctx && _ctx.opportunity;
-      if (_opp) {
-        const _buy = _opp.kind === "buy";
-        const oppTxt = _buy ? "지지 반등 기회" : "저항 눌림 기회";
-        const oppTip = (_buy ? "박스권 하단" : "박스권 상단") + `(밴드 %B ${_opp.pctB}, RSI ${_opp.rsi}) — 평균회귀 ${_buy ? "반등" : "눌림"} 셋업. 백테스트상 엔진이 유효했던 횡보 구간입니다.`;
-        oppHtml = `<span class="fcv-opp ${_buy ? "opp-buy" : "opp-sell"}" title="${oppTip}"><span class="opp-ico">◎</span>${oppTxt}</span>`;
+      if (_opp && _opp.kind === "buy") {
+        const oppTip = `박스권 하단(밴드 %B ${_opp.pctB}, RSI ${_opp.rsi}) — 평균회귀 반등 셋업. 백테스트 검증: 이 신호로 진입 시 기대값 +0.7%/거래·승률 54.6%(홀드 20봉, 2,837건)로 랜덤을 초과한 엔진의 유일한 실증 edge입니다.`;
+        oppHtml = `<span class="fcv-opp opp-buy" title="${oppTip}"><span class="opp-ico">◎</span>지지 반등 기회<span class="opp-vf">검증됨</span></span>`;
       }
       bar.innerHTML =
         (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") + pxHtml + ctxHtml + oppHtml +

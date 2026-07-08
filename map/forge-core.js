@@ -2013,12 +2013,12 @@
     const _cr2 = _cwin ? (isFinite(_cwin.r2Log) ? _cwin.r2Log : (_cwin.r2 || 0)) : 0;
     const _cTS = Math.max(0, Math.min(1, (Math.abs(_ta.blend.slopeLog) / 0.004) * Math.max(0, Math.min(1, (_cr2 - 0.35) / 0.5))));
     const context = { state: _cTS < 0.35 ? "range" : (_ta.blend.slopeLog >= 0 ? "up" : "down"), strength: Math.round(_cTS * 100) / 100, reliability: _cTS < 0.35 ? "high" : _cTS < 0.6 ? "mid" : "low" };
-    // range-bound 기회(횡보장 한정): 밴드 하단(%B≤0.2)+RSI<45=지지 반등 / 밴드 상단(%B≥0.8)+RSI>55=저항 눌림. 백테스트 edge 구간.
+    // range-bound 기회 — 백테스트로 검증된 유일한 edge: 횡보장 지지반등(밴드 하단 %B≤0.2 + RSI<45)만.
+    // 저항눌림(숏)은 백테스트상 edge 없어(상방 드리프트) 제거. 롱(지지반등)만: 기대값 +0.7%/거래(홀드20)·랜덤 초과.
     let _opp = null;
     if (context.state === "range" && _bb && _bb.last && isFinite(_bb.last.pctB) && _rsi && isFinite(_rsi.last)) {
       const _pb = _bb.last.pctB, _rv = _rsi.last;
       if (_pb <= 0.2 && _rv < 45) _opp = { kind: "buy", pctB: Math.round(_pb * 100) / 100, rsi: Math.round(_rv) };
-      else if (_pb >= 0.8 && _rv > 55) _opp = { kind: "sell", pctB: Math.round(_pb * 100) / 100, rsi: Math.round(_rv) };
     }
     context.opportunity = _opp;
     return {

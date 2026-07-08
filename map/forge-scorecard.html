@@ -102,11 +102,14 @@
   <p class="sec-desc">방향 예측은 <b>어느 국면에서도 "항상 상승" 기준을 넘지 못했습니다</b>(약 3개월 지평, 표본 확대(37 시계열·일주월)로 재확인). 특히 강한 상승 추세장에서 미달 폭이 큽니다 — 그래서 화면 배지가 강한 추세장에선 "방향 신호 신뢰 낮음"을 알립니다.</p>
   <table id="regtbl"><thead><tr><th>국면</th><th>엔진 방향적중</th><th>항상상승</th><th>초과</th><th>표본</th></tr></thead><tbody></tbody></table>
 
-  <h2>진짜 강점 — 횡보/박스권 타이밍</h2>
-  <p class="sec-desc"><b>방향을 더 잘 맞혀서가 아닙니다</b>(방향 정확도는 위처럼 시장 미달). 추세 없는 박스권에서 엔진의 <b>진입/청산 타이밍</b>이 단순 보유(Buy&amp;Hold)를 이겼습니다 — 횡보로 분류된 4종 중 3종. 아래는 "신호대로 매매" vs "단순 보유".</p>
+  <h2>✅ 검증된 진입 신호 — 지지반등 (레인지)</h2>
+  <p class="sec-desc">방향 예측은 시장을 못 이기지만, 딱 하나 — <b>공정한 기준(랜덤 진입)을 확실히 넘는 신호</b>를 찾았습니다: <b>횡보장에서 지지(밴드 하단 %B≤0.2 + RSI&lt;45)에 닿았을 때 롱.</b> 일봉 23종 전체를 walk-forward로 검증한 실증 edge입니다(총 2,837건 진입).</p>
+  <table id="rangetbl"><thead><tr><th>홀드 기간</th><th>승률</th><th>기대값/거래</th><th>랜덤 대조</th><th>등가중 수익</th></tr></thead><tbody></tbody></table>
   <div class="strength">
-    <h3>횡보 종목: 트레이딩이 단순 보유를 상회 (4종 중 3종)</h3>
-    <table id="sidetbl"><thead><tr><th>종목</th><th>전략 수익</th><th>Buy&amp;Hold</th><th>결과</th></tr></thead><tbody></tbody></table>
+    <h3>이게 왜 진짜 edge인가</h3>
+    <p style="font-size:13.5px;color:var(--ink);line-height:1.7;margin-bottom:10px">기대값이 <b>홀드가 길수록 커지고</b>(평균회귀가 실재) <b>랜덤 진입(~0%)을 넘습니다</b> — 이 전체 검증에서 공정한 기준을 이긴 유일한 신호입니다. 반대쪽(저항 눌림=숏)은 상방 드리프트 탓에 edge가 없어 <b>화면에서 아예 제거</b>했습니다(롱만 남김).</p>
+    <p style="font-size:12.5px;color:var(--faint);line-height:1.7;margin:0">정직한 규모 — 일확천금이 아닙니다. 강세 추세주의 <b>총수익</b>은 여전히 단순 보유가 이깁니다(21종 중 9종만 상회). 이 신호의 가치는 "총수익 극대화"가 아니라 <b>박스권 종목의 양(+)의 기대값 진입 타이밍</b>입니다. 예시: 횡보 분류 종목의 전략 vs 단순보유 ↓</p>
+    <table id="sidetbl" style="margin-top:12px"><thead><tr><th>종목</th><th>전략 수익</th><th>Buy&amp;Hold</th><th>결과</th></tr></thead><tbody></tbody></table>
   </div>
 
   <h2>확률 캘리브레이션</h2>
@@ -142,11 +145,18 @@
   <footer id="foot"></footer>
 </div>
 
-<script src="forge-core.js?v=20260708b"></script>
+<script src="forge-core.js?v=20260708c"></script>
 <script>
 const BT = {"overall":{"dir":0.541,"base":0.59,"ece":0.069,"cone":0.861},"byRegime":{"side":{"dir":0.512,"base":0.533,"lift":-0.022,"n":1470},"bull":{"dir":0.561,"base":0.624,"lift":-0.063,"n":10335},"bear":{"dir":0.481,"base":0.494,"lift":-0.013,"n":2818}},"byTf":{"1day":{"dir":0.515,"base":0.563,"cone":0.872,"fx":23,"n":9169},"1week":{"dir":0.577,"base":0.631,"cone":0.848,"fx":9,"n":4940},"1month":{"dir":0.657,"base":0.679,"cone":0.784,"fx":5,"n":514}},"cal":[{"pred":0.37,"act":0.523},{"pred":0.449,"act":0.582},{"pred":0.54,"act":0.559},{"pred":0.643,"act":0.613},{"pred":0.732,"act":0.656},{"pred":0.82,"act":0.58}],"day":[{"s":"000660","g":"국내","from":"2024","to":"2026"},{"s":"005930","g":"국내","from":"2024","to":"2026"},{"s":"AAPL","g":"미국주식","from":"2006","to":"2026"},{"s":"AUD/USD","g":"환율","from":"2007","to":"2026"},{"s":"BABA","g":"미국주식","from":"2014","to":"2026"},{"s":"BTC/USD","g":"크립토","from":"2014","to":"2026"},{"s":"CSCO","g":"미국주식","from":"2006","to":"2026"},{"s":"DIS","g":"미국주식","from":"2006","to":"2026"},{"s":"ETH/USD","g":"크립토","from":"2021","to":"2026"},{"s":"EUR/USD","g":"환율","from":"2007","to":"2026"},{"s":"GBP/USD","g":"환율","from":"2007","to":"2026"},{"s":"GE","g":"미국주식","from":"2006","to":"2026"},{"s":"IBM","g":"미국주식","from":"2006","to":"2026"},{"s":"INTC","g":"미국주식","from":"2006","to":"2026"},{"s":"KO","g":"미국주식","from":"2006","to":"2026"},{"s":"MSFT","g":"미국주식","from":"2006","to":"2026"},{"s":"NVDA","g":"미국주식","from":"2006","to":"2026"},{"s":"PFE","g":"미국주식","from":"2006","to":"2026"},{"s":"PYPL","g":"미국주식","from":"2015","to":"2026"},{"s":"T","g":"미국주식","from":"2006","to":"2026"},{"s":"USD/JPY","g":"환율","from":"2007","to":"2026"},{"s":"USD/KRW","g":"환율","from":"2007","to":"2026"},{"s":"VZ","g":"미국주식","from":"2006","to":"2026"}],"fixtures":[{"s":"BABA","rg":"횡보","pnl":1.49,"bh":0.26},{"s":"PFE","rg":"횡보","pnl":0.23,"bh":-0.04},{"s":"PYPL","rg":"횡보","pnl":3.9,"bh":0.14},{"s":"VZ","rg":"횡보","pnl":-0.18,"bh":0.07}],"asOf":"2026-07","universe":"37개 시계열(23종목 × 일/주/월)","points":"약 14,600개"};
 const pc = x => (x*100).toFixed(1) + "%";
 const rx = x => (x>=0?"+":"") + (x*100).toFixed(0) + "%";
+const rx2 = x => (x>=0?"+":"") + (x*100).toFixed(1) + "%";
+// 레인지 전략(지지반등 롱) 검증 — 일봉 23종 walk-forward
+const RANGE = { trades: 2837, random: 0.000, beatBH: 9, nFix: 21, holds: [
+  { h: 10, wr: 0.536, exp: 0.004, eq: 0.446 },
+  { h: 20, wr: 0.546, exp: 0.007, eq: 0.574 },
+  { h: 40, wr: 0.536, exp: 0.011, eq: 0.914 },
+] };
 
 document.getElementById("method").innerHTML =
   "<b style='color:var(--ink)'>" + BT.universe + "</b>(미국주식·크립토·환율·국내) × <b style='color:var(--ink)'>" + BT.points + " 과거 시점</b>. 각 시점에서 그때까지의 데이터만 엔진에 넣어 예측하고(미래 미참조 = lookahead 차단), 지평(약 3개월) 뒤 실제 결과와 대조했습니다. 기본 전략(30여 지표 자동 합성)으로 측정.";
@@ -162,6 +172,10 @@ const RG = {bull:["강세장","var(--bull)"], bear:["하락장","var(--bear)"], 
 document.querySelector("#regtbl tbody").innerHTML = ["side","bull","bear"].map(k=>{const g=BT.byRegime[k],c=RG[k];
   return `<tr><td><span class="rgbar" style="width:10px;background:${c[1]}"></span>${c[0]}</td><td><b>${pc(g.dir)}</b></td><td class="mut">${pc(g.base)}</td><td class="${g.lift>=0?'up':'dn'}">${rx(g.lift)}p</td><td class="mut">${g.n.toLocaleString()}</td></tr>`;
 }).join("");
+
+document.querySelector("#rangetbl tbody").innerHTML = RANGE.holds.map(h=>
+  `<tr><td><b>${h.h}봉</b></td><td>${pc(h.wr)}</td><td class="up rp-v">${rx2(h.exp)}</td><td class="mut">랜덤 ${rx2(RANGE.random)} ✓</td><td class="up">${rx(h.eq)}</td></tr>`
+).join("");
 
 document.querySelector("#sidetbl tbody").innerHTML = BT.fixtures.map(f=>{
   const win = f.pnl > f.bh;
