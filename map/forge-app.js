@@ -1361,6 +1361,33 @@
     el.innerHTML = esc(sym) + (tf ? ` <span class="hc-tf">${esc(tf)}</span>` : "");
   }
 
+  // 백테스트 검증 성적(정직 공개용 — backtest/backtest-report.json 스냅샷 요약. 재측정 시 갱신)
+  const BACKTEST_SUMMARY = {
+    universe: "14종목(주식·크립토·환율) · 약 5,100 과거시점 · walk-forward(미래 미참조)",
+    direction: { hit: 0.537, baseline: 0.577 },
+    coneCoverage: 0.845, coneTarget: 0.68, ece: 0.072,
+    strength: "BABA +149% vs Buy&Hold +25% · PYPL +390% vs +14% (횡보 종목서 트레이딩이 단순보유 상회)",
+    disclaimer: "과거 데이터 시뮬레이션 결과 · 미래 수익을 보장하지 않음 · 투자자문 아님 · 참고용",
+  };
+  function openBacktestCard() {
+    let m = document.getElementById("btModal");
+    if (!m) { m = document.createElement("div"); m.id = "btModal"; m.className = "bt-modal"; m.addEventListener("click", e => { if (e.target === m) closeBacktestCard(); }); document.body.appendChild(m); }
+    const S = BACKTEST_SUMMARY, P = x => (x * 100).toFixed(1) + "%";
+    m.innerHTML = '<div class="bt-card">' +
+      '<div class="bt-head"><b>이 엔진의 검증 성적</b><button class="bt-x" onclick="closeBacktestCard()" aria-label="닫기">✕</button></div>' +
+      '<div class="bt-sub">' + S.universe + '</div>' +
+      '<div class="bt-rows">' +
+      '<div class="bt-row"><span class="bt-k">방향 예측</span><span class="bt-v">' + P(S.direction.hit) + ' <span class="bt-mut">(항상상승 ' + P(S.direction.baseline) + ')</span></span><span class="bt-tag dn">시장 평균 미달</span></div>' +
+      '<div class="bt-row"><span class="bt-k">확률 신뢰</span><span class="bt-v">50~70% 구간 정확 <span class="bt-mut">· 극단 편향</span></span><span class="bt-tag fl">부분 신뢰</span></div>' +
+      '<div class="bt-row"><span class="bt-k">예측 밴드</span><span class="bt-v">커버 ' + P(S.coneCoverage) + ' <span class="bt-mut">(목표 ' + P(S.coneTarget) + ')</span></span><span class="bt-tag fl">다소 넓음</span></div>' +
+      '</div>' +
+      '<div class="bt-strength"><b>진짜 강점 — 횡보/박스권 평균회귀</b><div class="bt-mut">' + S.strength + '</div><div class="bt-mut">국면 신뢰: 횡보 &gt; 추세장(방향 예측 신뢰 낮음, 추세 순응 권장)</div></div>' +
+      '<div class="bt-disc">※ ' + S.disclaimer + '</div>' +
+      '</div>';
+    m.classList.add("open");
+  }
+  function closeBacktestCard() { const m = document.getElementById("btModal"); if (m) m.classList.remove("open"); }
+
   /* ── renderVerdict: inline signal in chart panel header ────────── */
   function renderVerdict(verdict, fillU) {
     updateHdrContext();
@@ -1431,7 +1458,7 @@
         const tip = _st === "range"
           ? "횡보 구간 — 백테스트상 엔진의 방향 신호가 유효했던 국면입니다. 신호 신뢰도 높음."
           : "강한 추세 구간 — 방향 신호는 참고만 하고 추세에 순응하세요(백테스트상 추세장에선 방향 예측이 단순 추세추종을 못 이겼습니다).";
-        ctxHtml = `<span class="fcv-ctx rel-${_rel}" title="${tip}"><span class="ctx-dot"></span>${stTxt} · ${relTxt}</span>`;
+        ctxHtml = `<span class="fcv-ctx rel-${_rel}" title="${tip} · 클릭 = 엔진 검증 성적" onclick="openBacktestCard()"><span class="ctx-dot"></span>${stTxt} · ${relTxt}<span class="ctx-info">ⓘ</span></span>`;
       }
       // range-bound 기회 pill(별도, 골드 액센트) — 횡보장 평균회귀 셋업 시만
       let oppHtml = "";
