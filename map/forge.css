@@ -375,7 +375,7 @@
   .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   /* 국면/확률/시그널 강조 바 + 핵심 의견 */
   /* 국면/확률 — 박스·테두리 없이 순수 타이포로(가독성 우선) */
-  .fc-verdict-bar{display:flex;align-items:stretch;gap:2px 18px;flex-wrap:wrap;padding:11px 16px;margin:0 0 4px;letter-spacing:-.02em;background:var(--raised);border:1px solid var(--line);border-radius:10px}
+  .fc-verdict-bar{display:flex;align-items:stretch;gap:11px 24px;flex-wrap:wrap;padding:12px 18px;margin:0 0 4px;letter-spacing:-.02em;background:var(--raised);border:1px solid var(--line);border-radius:10px}
   .fcv-tkr{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-.03em;align-self:center;padding-right:6px}
   .fcv-cell{display:inline-flex;flex-direction:column;justify-content:center;gap:3px}
   .fcv-k{font-size:9.5px;font-weight:800;letter-spacing:.05em;color:var(--faint);white-space:nowrap}
@@ -386,17 +386,17 @@
   .fcv-pxchg{font-size:12px;font-weight:700;letter-spacing:-.01em}
   .fcv-pxchg.up{color:var(--bull)}.fcv-pxchg.dn{color:var(--bear)}
   /* 국면 배지(현재가 옆) — 추세/횡보 + 신뢰도. 높음=녹(엔진 유효)·중간=앰버·낮음=뮤트(추세 순응) */
-  .fcv-ctx{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;letter-spacing:-.01em;white-space:nowrap}
-  .fcv-ctx .ctx-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
-  .fcv-ctx.rel-high{color:var(--bull);background:rgba(70,194,142,.13)}
+  .fcv-ctx{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:-.01em;white-space:nowrap}
+  .fcv-ctx .ctx-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .fcv-ctx.rel-high{color:var(--bull);background:rgba(70,194,142,.16);box-shadow:inset 0 0 0 1px rgba(70,194,142,.42)}
   .fcv-ctx.rel-high .ctx-dot{background:var(--bull)}
-  .fcv-ctx.rel-mid{color:#e8b463;background:rgba(232,180,99,.13)}
+  .fcv-ctx.rel-mid{color:#e8b463;background:rgba(232,180,99,.16);box-shadow:inset 0 0 0 1px rgba(232,180,99,.42)}
   .fcv-ctx.rel-mid .ctx-dot{background:#e8b463}
-  .fcv-ctx.rel-low{color:var(--eth);background:var(--raised)}
+  .fcv-ctx.rel-low{color:var(--eth);background:var(--raised);box-shadow:inset 0 0 0 1px var(--line)}
   .fcv-ctx.rel-low .ctx-dot{background:var(--eth)}
   /* range-bound 기회 pill(별도·링으로 부각) — 횡보장 평균회귀 셋업 */
-  .fcv-opp{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;letter-spacing:-.01em;white-space:nowrap}
-  .fcv-opp .opp-ico{font-size:12px;line-height:1}
+  .fcv-opp{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:800;padding:4px 11px;border-radius:999px;letter-spacing:-.01em;white-space:nowrap}
+  .fcv-opp .opp-ico{font-size:13px;line-height:1}
   .opp-buy{color:var(--bull);background:rgba(70,194,142,.18);box-shadow:inset 0 0 0 1px rgba(70,194,142,.5)}
   .opp-sell{color:var(--bear);background:rgba(224,106,106,.18);box-shadow:inset 0 0 0 1px rgba(224,106,106,.5)}
   .fcv-opp .opp-vf{font-size:9px;font-weight:900;letter-spacing:0;padding:1px 5px;margin-left:1px;border-radius:99px;background:var(--bull);color:#0b0f14}
