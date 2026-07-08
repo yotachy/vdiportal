@@ -1187,6 +1187,19 @@
   .risk-helper2[open] summary::before{transform:rotate(90deg)}
   .rh-x{font-size:10.5px;font-weight:500;color:var(--faint)}
   .risk-helper2 .risk-grid{padding-bottom:13px}
+  /* 자동진단: 위험 성향 프로필 + 투자 시뮬레이션 */
+  .risk-profiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:6px}
+  .rkpf{display:flex;flex-direction:column;align-items:center;gap:2px;background:#0b1016;border:1.5px solid rgba(138,146,178,.2);border-radius:var(--r-lg);padding:9px 6px;cursor:pointer;font-family:inherit;color:var(--eth)}
+  .rkpf b{font-size:13px;font-weight:800;color:var(--ink)} .rkpf span{font-size:10px;color:var(--faint)}
+  .rkpf.on{background:rgba(232,180,99,.14);border-color:var(--gold)} .rkpf.on b{color:var(--gold)} .rkpf.on span{color:#e8c07a}
+  .rl-pct{font-size:11px;font-weight:700;font-family:var(--mono)}
+  .rl-e.stop .rl-pct{color:var(--bear)} .rl-e.tgt .rl-pct{color:var(--bull)}
+  .rl-e b{font-family:var(--mono);font-size:14px;font-weight:800;color:var(--ink)}
+  .risk-invest{display:grid;grid-template-columns:1fr;gap:10px}
+  .ri-out{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:rgba(138,146,178,.14);border-radius:var(--r-lg);overflow:hidden;border:1px solid rgba(138,146,178,.14)}
+  .ri-cell{background:#0f151c;padding:11px 12px;display:flex;flex-direction:column;gap:3px}
+  .ri-k{font-size:10.5px;color:var(--eth)} .ri-v{font-size:15px;font-weight:800;font-family:var(--mono);color:var(--ink)}
+  .ri-v.neg{color:var(--bear)} .ri-v.pos{color:var(--bull)}
   .risk-out{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(138,146,178,.14);border-radius:var(--r-lg);overflow:hidden;border:1px solid rgba(138,146,178,.14)}
   .risk-metric{background:#0f151c;padding:12px 14px}
   .risk-metric .rm-k{font-size:10.5px;color:var(--eth);margin-bottom:3px}

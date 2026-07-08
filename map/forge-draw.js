@@ -1140,6 +1140,7 @@
   /* ── 리스크 진단 (메타 도구) ── */
   let _riskPref = (function () { try { return JSON.parse(localStorage.getItem("scoopforge_risk") || "{}") || {}; } catch (e) { return {}; } })();
   let _riskDir = "long";
+  let _riskProfile = "base";   // 보수/기본/공격 — 손절·목표 자동 산출 프로필
   let _riskLevels = null;      // {entry, stop, target, dir} — 차트 오버레이용
   let _riskShowChart = _riskPref.showChart !== false;   // 기본 표시
   let _riskRepaintT = null;
@@ -1262,54 +1263,38 @@
     const ex = document.getElementById("riskModal"); if (ex) { ex.remove(); _riskRepaint(); return; }
     const d = _riskDefaults();
     _riskDir = d.dir;
-    const acct = isFinite(_riskPref.account) ? _riskPref.account : 10000000;
-    const rpct = isFinite(_riskPref.riskPct) ? _riskPref.riskPct : 1;
-    const nf = x => (x == null || !isFinite(x)) ? "" : (Math.abs(x) >= 100 ? Math.round(x) : Math.round(x * 1e4) / 1e4);
     const m = document.createElement("div"); m.id = "riskModal"; m.className = "risk-modal";
     m.innerHTML = `<div class="risk-box">
-      <div class="risk-head"><span class="risk-title">리스크 · 포지션 사이징</span>
+      <div class="risk-head"><span class="risk-title">리스크 진단</span>
         <span class="risk-dir ${_riskDir}" id="riskDir" title="클릭해 롱/숏 전환">${_riskDir === "short" ? "숏 ▼" : "롱 ▲"}</span>
         <button class="risk-x" onclick="openRiskTool()" aria-label="닫기">✕</button></div>
-      <div class="risk-sub">현재 분석·백테스트 근거로 진단 — 값을 조정하면 즉시 반영됩니다.</div>
+      <div class="risk-sub">분석·백테스트가 자동으로 진단합니다 — 위험 성향과 투자 금액만 정하세요.</div>
       <div class="risk-diag" id="rkDiag"></div>
-      <div class="risk-sec">거래 설정</div>
-      <div class="risk-inputs">
-        <div class="risk-grid" style="grid-template-columns:1fr 1fr 1.2fr">
-          <div class="risk-fld"><label>진입가</label><input type="text" inputmode="decimal" data-comma id="rkEntry" value="${_nfc(d.entry)}"></div>
-          <div class="risk-fld"><label>수량</label><input type="text" inputmode="numeric" data-comma id="rkQty" placeholder="0"></div>
-          <div class="risk-fld ro"><label>포지션 규모 <span class="fld-auto">자동</span></label><input type="text" id="rkPos" value="–" readonly tabindex="-1"></div>
-        </div>
-        <div class="risk-ladder">
-          <div class="rl-head">
-            <span class="rl-e stop">손절 <input type="text" inputmode="decimal" data-comma id="rkStop" value="${_nfc(d.stop)}"></span>
-            <span class="rl-rr">손익비 <b id="rrRatio">–</b></span>
-            <span class="rl-e tgt">목표 <input type="text" inputmode="decimal" data-comma id="rkTgt" value="${_nfc(d.target)}"></span>
-          </div>
-          <div class="rr-bar"><div class="rr-risk" id="rrRisk"></div><div class="rr-reward" id="rrReward"></div></div>
-          <div class="rl-foot"><span class="rl-loss" id="rlLoss">–</span><span class="rl-entry" id="rlEntry">진입 –</span><span class="rl-profit" id="rlProfit">–</span></div>
-        </div>
-        <div class="risk-presets" id="rkPresets">
-          <span class="rkp-lbl">스마트 손절·목표</span>
-          <button class="rkp-btn" data-preset="conservative">보수적</button>
-          <button class="rkp-btn on" data-preset="base">기본 추천</button>
-          <button class="rkp-btn" data-preset="aggressive">공격적</button>
-        </div>
+      <div class="risk-sec">트레이드 셋업 <span class="risk-sec-x">손절·목표는 분석에서 자동 산출</span></div>
+      <div class="risk-profiles" id="rkPresets">
+        <button class="rkpf" data-preset="conservative"><b>보수적</b><span>넓은 손절</span></button>
+        <button class="rkpf on" data-preset="base"><b>기본</b><span>추천</span></button>
+        <button class="rkpf" data-preset="aggressive"><b>공격적</b><span>좁은 손절</span></button>
       </div>
-      <details class="risk-helper2" id="rkHelper">
-        <summary>계좌 기준 적정 수량 계산 <span class="rh-x">계좌의 일정 %만 잃도록 수량 자동 산출</span></summary>
-        <div class="risk-grid" style="grid-template-columns:1.3fr .85fr auto;margin-top:10px">
-          <div class="risk-fld"><label>계좌 자본</label><input type="text" inputmode="numeric" data-comma id="rkAcct" value="${_nfc(acct)}"></div>
-          <div class="risk-fld"><label>거래당 리스크(%)</label><input type="number" step="0.1" id="rkPct" value="${rpct}"></div>
-          <button class="rk-recalc" id="rkRec" title="계좌×리스크% ÷ 손절폭 = 권장 수량을 계산해 위 수량에 채웁니다">권장 수량<br>적용 →</button>
+      <div class="risk-ladder">
+        <div class="rl-head">
+          <span class="rl-e stop">손절 <b id="rlStopV">–</b> <span class="rl-pct" id="rlLoss">–</span></span>
+          <span class="rl-rr">손익비 <b id="rrRatio">–</b></span>
+          <span class="rl-e tgt">목표 <b id="rlTgtV">–</b> <span class="rl-pct" id="rlProfit">–</span></span>
         </div>
-      </details>
-      <div class="risk-out">
-        <div class="risk-metric"><div class="rm-k">최대 손실 (손절 시)</div><div class="rm-v neg" id="rkLoss">–</div><div class="rm-sub neg" id="rkLossSub"></div></div>
-        <div class="risk-metric"><div class="rm-k">기대 수익 (목표 시)</div><div class="rm-v pos" id="rkProfit">–</div><div class="rm-sub pos" id="rkProfitSub"></div></div>
-        <div class="risk-metric"><div class="rm-k">계좌 대비 리스크</div><div class="rm-v" id="rkAcctRisk">–</div><div class="rm-sub">손절 시 손실률</div></div>
-        <div class="risk-metric"><div class="rm-k">필요 레버리지</div><div class="rm-v" id="rkLev">–</div><div class="rm-sub" id="rkLevSub">계좌 대비</div></div>
+        <div class="rr-bar"><div class="rr-risk" id="rrRisk"></div><div class="rr-reward" id="rrReward"></div></div>
+        <div class="rl-foot"><span class="rl-entry" id="rlEntry">진입 –</span></div>
       </div>
       <div class="risk-ev" id="rkEV" style="display:none"></div>
+      <div class="risk-sec">투자 시뮬레이션 <span class="risk-sec-x">넣을 금액을 정하면 손익이 계산됩니다</span></div>
+      <div class="risk-invest">
+        <div class="risk-fld"><label>투자 금액</label><input type="text" inputmode="numeric" data-comma id="rkAmt" placeholder="예: 5,000,000"></div>
+        <div class="ri-out">
+          <div class="ri-cell"><span class="ri-k">예상 수량</span><span class="ri-v" id="rkQtyOut">–</span></div>
+          <div class="ri-cell"><span class="ri-k">최대 손실</span><span class="ri-v neg" id="rkLoss">–</span></div>
+          <div class="ri-cell"><span class="ri-k">기대 수익</span><span class="ri-v pos" id="rkProfit">–</span></div>
+        </div>
+      </div>
       <div class="risk-warn" id="rkWarn"></div>
       <label class="risk-toggle"><input type="checkbox" id="rkShow" ${_riskShowChart ? "checked" : ""}> 차트에 진입·손절·목표 라인 표시</label>
     </div>`;
@@ -1317,78 +1302,45 @@
     m.addEventListener("pointerdown", e => { m._downBg = (e.target === m); });   // 배경에서 눌러 시작했을 때만 닫기(드래그 종료로 닫힘 방지)
     m.addEventListener("click", e => { if (e.target === m && m._downBg) openRiskTool(); });
     m.addEventListener("input", e => { if (e.target && e.target.hasAttribute && e.target.hasAttribute("data-comma")) _commaInput(e); computeRisk(); });
-    document.getElementById("riskDir").addEventListener("click", () => { _riskDir = _riskDir === "long" ? "short" : "long"; const el = document.getElementById("riskDir"); el.className = "risk-dir " + _riskDir; el.textContent = _riskDir === "short" ? "숏 ▼" : "롱 ▲"; _applyPreset(document.querySelector(".rkp-btn.on") ? document.querySelector(".rkp-btn.on").dataset.preset : "base"); });
-    m.querySelectorAll(".rkp-btn").forEach(b => b.addEventListener("click", () => { m.querySelectorAll(".rkp-btn").forEach(x => x.classList.remove("on")); b.classList.add("on"); _applyPreset(b.dataset.preset); }));
+    document.getElementById("riskDir").addEventListener("click", () => { _riskDir = _riskDir === "long" ? "short" : "long"; const el = document.getElementById("riskDir"); el.className = "risk-dir " + _riskDir; el.textContent = _riskDir === "short" ? "숏 ▼" : "롱 ▲"; computeRisk(); });
+    m.querySelectorAll(".rkpf").forEach(b => { b.classList.toggle("on", b.dataset.preset === _riskProfile); b.addEventListener("click", () => { m.querySelectorAll(".rkpf").forEach(x => x.classList.remove("on")); b.classList.add("on"); _riskProfile = b.dataset.preset; computeRisk(); }); });
     document.getElementById("rkShow").addEventListener("change", e => { _riskShowChart = e.target.checked; _riskPref.showChart = _riskShowChart; try { localStorage.setItem("scoopforge_risk", JSON.stringify(_riskPref)); } catch (x) {} _riskRepaint(); });
-    document.getElementById("rkRec").addEventListener("click", _recalcQty);
-    _recalcQty();   // 초기 수량 = 계좌 기반 권장(비어있지 않게)
-  }
-  // 계좌×리스크% ÷ 손절폭 = 권장 수량 → 수량 입력에 채우고 재계산
-  function _recalcQty() {
-    const gv = id => { const el = document.getElementById(id); return el ? _unComma(el.value) : NaN; };
-    const acct = gv("rkAcct"), pct = Number((document.getElementById("rkPct") || {}).value), entry = gv("rkEntry"), stop = gv("rkStop");
-    const riskPU = Math.abs(entry - stop), riskAmt = (isFinite(acct) && isFinite(pct)) ? acct * pct / 100 : 0;
-    const u = (riskPU > 0 && riskAmt > 0) ? Math.floor(riskAmt / riskPU) : 0;
-    const q = document.getElementById("rkQty"); if (q && u > 0) q.value = _nfc(u);
-    computeRisk();
-  }
-  // 프리셋 적용: 손절·목표 입력 채우고 재계산
-  function _applyPreset(key) {
-    const P = _riskPresets(); if (!P || !P[key]) { computeRisk(); return; }
-    const se = document.getElementById("rkStop"), te = document.getElementById("rkTgt"), ee = document.getElementById("rkEntry");
-    if (ee && isFinite(P.entry) && (!ee.value || _unComma(ee.value) === 0)) ee.value = _nfc(P.entry);
-    if (se) se.value = _nfc(P[key].stop);
-    if (te) te.value = _nfc(P[key].target);
     computeRisk();
   }
   function computeRisk() {
-    const g = id => { const el = document.getElementById(id); return el ? _unComma(el.value) : NaN; };
     const set = (id, txt, cls) => { const el = document.getElementById(id); if (!el) return; el.textContent = txt; if (cls != null) el.className = cls; };
-    const acct = g("rkAcct"), pct = g("rkPct"), entry = g("rkEntry"), stop = g("rkStop"), tgt = g("rkTgt");
-    _riskPref = { account: acct, riskPct: pct }; try { localStorage.setItem("scoopforge_risk", JSON.stringify(_riskPref)); } catch (e) {}
-    const long = _riskDir === "long";
+    const P = _riskPresets();
+    if (!P || !isFinite(P.entry)) {
+      set("rkWarn", "분석 데이터가 없습니다 — 종목을 불러와 웹분석을 먼저 실행하세요.", "risk-warn warn");
+      const dd = document.getElementById("rkDiag"); if (dd) dd.style.display = "none";
+      return;
+    }
+    const entry = P.entry, lv = P[_riskProfile] || P.base, stop = lv.stop, tgt = lv.target;
     const riskPU = Math.abs(entry - stop), rewPU = Math.abs(tgt - entry);
     const RR = riskPU > 0 ? rewPU / riskPU : 0;
-    // 리스크 래더 바(손절:목표 비율 시각화)
+    const lossPct = (riskPU > 0 && entry > 0) ? riskPU / entry * 100 : null;
+    const profPct = (rewPU > 0 && entry > 0) ? rewPU / entry * 100 : null;
+    // 리스크 래더(손절·목표 자동)
     const rw = (RR > 0) ? (RR / (1 + RR)) * 100 : 50;
     const rRisk = document.getElementById("rrRisk"), rRew = document.getElementById("rrReward");
     if (rRisk && rRew) { rRisk.style.width = (100 - rw) + "%"; rRew.style.width = rw + "%"; }
+    set("rlStopV", _nfc(stop)); set("rlTgtV", _nfc(tgt));
     set("rrRatio", RR > 0 ? "1 : " + RR.toFixed(2) : "–");
-    const lossPct = (riskPU > 0 && entry > 0) ? riskPU / entry * 100 : null;
-    const profPct = (rewPU > 0 && entry > 0) ? rewPU / entry * 100 : null;
-    set("rlLoss", lossPct != null ? "손절 −" + lossPct.toFixed(1) + "%" : "손절 –");
-    set("rlEntry", isFinite(entry) ? "진입 " + _nfc(entry) : "진입 –");
-    set("rlProfit", profPct != null ? "목표 +" + profPct.toFixed(1) + "%" : "목표 –");
-    const units = g("rkQty");   // 수량은 직접 입력(1급)
-    const uu = isFinite(units) && units > 0 ? units : 0;
-    const posVal = uu * (isFinite(entry) ? entry : 0);
-    const maxLoss = uu * riskPU, profit = uu * rewPU;
-    const lev = (posVal > 0 && acct > 0) ? posVal / acct : 0;
+    set("rlLoss", lossPct != null ? "−" + lossPct.toFixed(1) + "%" : "–");
+    set("rlProfit", profPct != null ? "+" + profPct.toFixed(1) + "%" : "–");
+    set("rlEntry", "진입 " + _nfc(entry) + " (현재가 기준)");
+    // 투자 시뮬레이션 — 금액만 입력하면 수량·손익 자동
+    const amtEl = document.getElementById("rkAmt"), amt = amtEl ? _unComma(amtEl.value) : NaN;
+    const units = (amt > 0 && entry > 0) ? Math.floor(amt / entry) : 0;
     const fmt = x => isFinite(x) ? fmtNum(Math.round(x)) : "–";
-    const posEl = document.getElementById("rkPos"); if (posEl) posEl.value = posVal > 0 ? fmt(posVal) : "–";   // 포지션=진입×수량(input이라 .value)
-    set("rkLoss", maxLoss > 0 ? "−" + fmt(maxLoss) : "–");
-    set("rkLossSub", uu > 0 && riskPU > 0 ? "단위당 " + _nfc(Math.round(riskPU * 1e2) / 1e2) : "");
-    set("rkProfit", profit > 0 ? "+" + fmt(profit) : "–");
-    set("rkProfitSub", uu > 0 && rewPU > 0 ? "단위당 " + _nfc(Math.round(rewPU * 1e2) / 1e2) : "");
-    set("rkAcctRisk", (maxLoss > 0 && acct > 0) ? "−" + (maxLoss / acct * 100).toFixed(2) + "%" : "–", "rm-v" + (maxLoss / acct * 100 > (pct || 1) * 1.5 ? " neg" : ""));
-    set("rkLev", lev > 0 ? lev.toFixed(2) + "×" : "–");
-    set("rkLevSub", (posVal > 0 && acct > 0) ? "포지션 " + fmt(posVal) : "계좌 대비");
-    // 경고
-    let cls = "risk-warn warn", msg = "값을 입력하세요.";
-    if (!(riskPU > 0)) { cls = "risk-warn bad"; msg = "손절가가 진입가와 같습니다 — 손절 레벨을 설정하세요."; }
-    else if (long && stop >= entry) { cls = "risk-warn bad"; msg = "롱인데 손절가가 진입가 이상입니다 — 방향(롱/숏)이나 손절값을 확인하세요."; }
-    else if (!long && stop <= entry) { cls = "risk-warn bad"; msg = "숏인데 손절가가 진입가 이하입니다 — 방향이나 손절값을 확인하세요."; }
-    else if (long && tgt <= entry) { cls = "risk-warn bad"; msg = "롱인데 목표가가 진입가 이하입니다 — 목표값을 확인하세요."; }
-    else if (!long && tgt >= entry) { cls = "risk-warn bad"; msg = "숏인데 목표가가 진입가 이상입니다 — 목표값을 확인하세요."; }
-    else if (RR < 1) { cls = "risk-warn bad"; msg = "손익비 " + RR.toFixed(2) + " — 위험이 보상보다 큽니다(1 미만). 진입을 재고하세요."; }
-    else if (RR >= 2) { cls = "risk-warn good"; msg = "손익비 " + RR.toFixed(2) + " — 양호(2:1 이상)." + (lev > 1 ? " 다만 계좌 대비 " + lev.toFixed(2) + "× 레버리지가 필요합니다." : ""); }
-    else { cls = "risk-warn warn"; msg = "손익비 " + RR.toFixed(2) + " — 보통(1~2). 관리 가능하나 여유는 크지 않습니다." + (lev > 1 ? " 레버리지 " + lev.toFixed(2) + "× 필요." : ""); }
-    set("rkWarn", msg, cls);
-    // 백테스트 근거 리스크 진단 등급
+    set("rkQtyOut", units > 0 ? _nfc(units) + "주" : "–");
+    set("rkLoss", units > 0 ? "−" + fmt(units * riskPU) : (lossPct != null ? "−" + lossPct.toFixed(1) + "%" : "–"));
+    set("rkProfit", units > 0 ? "+" + fmt(units * rewPU) : (profPct != null ? "+" + profPct.toFixed(1) + "%" : "–"));
+    // 진단 등급
     const diag = document.getElementById("rkDiag");
     if (diag) {
       if (riskPU > 0 && rewPU > 0) {
-        const G = _riskGrade(RR, lev);
+        const G = _riskGrade(RR, 0);
         const rows = G.reasons.map(r => `<div class="rd-r rd-${r[0]}">${r[0] === "good" ? "✓" : r[0] === "bad" ? "✕" : "·"} ${r[1]}</div>`).join("");
         diag.innerHTML = `<div class="rd-head"><span class="rd-k">리스크 진단</span><span class="rd-grade rd-${G.grade[1]}">${G.grade[0]}</span></div><div class="rd-rs">${rows}</div>`;
         diag.style.display = "block";
@@ -1399,17 +1351,23 @@
     if (evEl) {
       const E = _riskEV(RR);
       if (E.validated) {
-        const halfKpct = E.halfK * 100, recPct = Math.min(halfKpct / 2, 3);   // 실전 권장 = 1/4 켈리, 최대 3%
+        const recPct = Math.min(E.halfK * 100 / 2, 3);   // 실전 권장 = 1/4 켈리, 최대 3%
         evEl.innerHTML = `<div class="rev-k">수학적 기대값 <span class="mut">(검증 승률 57% 가정)</span></div>`
           + `<div class="rev-row"><span>기대값</span><b class="${E.ev >= 0 ? "pos" : "neg"}">${E.ev >= 0 ? "+" : ""}${E.ev.toFixed(2)}R</b></div>`
-          + `<div class="rev-row"><span>켈리 상한 <span class="mut">(하프 켈리)</span></span><b>${halfKpct.toFixed(1)}%</b></div>`
-          + `<div class="rev-row"><span>실전 권장 리스크</span><b class="pos">${recPct.toFixed(1)}%</b></div>`
-          + `<div class="rev-note">${E.ev >= 0 ? "기대값 양(+) — 반복하면 우위. " : "기대값 음(−) — 손익비를 높이세요. "}켈리는 승률·손익비가 정확하다는 가정이라, 실전은 그 <b>1/4 이하(최대 3%)</b>를 권장합니다.</div>`;
+          + `<div class="rev-row"><span>실전 권장 리스크 <span class="mut">(1/4 켈리·최대 3%)</span></span><b class="pos">${recPct.toFixed(1)}%</b></div>`
+          + `<div class="rev-note">${E.ev >= 0 ? "기대값 양(+) — 반복하면 통계적 우위." : "기대값 음(−) — 다른 성향을 고르거나 재고하세요."}</div>`;
         evEl.style.display = "block";
-      } else { evEl.innerHTML = `<div class="rev-note mut">검증된 신호(지지반등 롱)가 아니라 승률 근거가 없습니다 — 손익비·진단 등급으로만 판단하세요.</div>`; evEl.style.display = "block"; }
+      } else { evEl.style.display = "none"; }
     }
+    // 경고
+    let cls = "risk-warn warn", msg = "투자 금액을 입력하면 예상 손익이 계산됩니다.";
+    if (!(riskPU > 0)) { cls = "risk-warn bad"; msg = "손절과 진입이 같습니다 — 분석을 다시 실행하세요."; }
+    else if (RR < 1) { cls = "risk-warn bad"; msg = "손익비 " + RR.toFixed(2) + " — 위험이 보상보다 큽니다. 다른 성향을 고르거나 진입을 재고하세요."; }
+    else if (RR >= 2) { cls = "risk-warn good"; msg = "손익비 " + RR.toFixed(2) + " — 양호(2:1 이상)."; }
+    else { cls = "risk-warn warn"; msg = "손익비 " + RR.toFixed(2) + " — 보통(1~2)."; }
+    set("rkWarn", msg, cls);
     // 차트 오버레이 레벨 갱신
-    if (isFinite(entry) && isFinite(stop) && isFinite(tgt) && riskPU > 0) { _riskLevels = { entry, stop, target: tgt, dir: _riskDir }; _riskRepaint(); }
+    _riskLevels = { entry, stop, target: tgt, dir: _riskDir }; _riskRepaint();
   }
 
   /* ── 파라미터 최적화 서피스 (메타 도구) ── */
