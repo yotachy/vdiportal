@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "0.1.0";
+  const version = "1.2.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
 
   function mulberry32(seed) {
     let a = seed >>> 0;
@@ -2033,7 +2033,10 @@
       const _sma200 = off => { const e = price.length - off; if (e < 200) return null; let s = 0; for (let k = e - 200; k < e; k++) s += price[k]; return s / 200; };
       const _m2 = _sma200(0), _m2p = _sma200(20);
       const _trOk = (_m2 == null || _m2p == null) ? true : (_m2 >= _m2p);   // 200MA 비하락(데이터 부족 시 통과)
-      if (_pb <= 0.2 && _rUp > 0 && _trOk) _opp = { kind: "buy", pctB: Math.round(_pb * 100) / 100, rsi: Math.round(_rsi.last), rsiUp: Math.round(_rUp * 10) / 10 };
+      // 낙폭(genuine dip): 최근 60봉 고점 대비 ≥5% 하락일 때만. bounce-lab: 낙폭+과매도+반등이 목표먼저 59.2%(현행 57.6%↑).
+      const _n = price.length, _hh = Math.max.apply(null, price.slice(Math.max(0, _n - 60)));
+      const _dd = _hh > 0 ? price[_n - 1] / _hh - 1 : 0;
+      if (_pb <= 0.2 && _rUp > 0 && _trOk && _dd <= -0.05) _opp = { kind: "buy", pctB: Math.round(_pb * 100) / 100, rsi: Math.round(_rsi.last), rsiUp: Math.round(_rUp * 10) / 10, dd: Math.round(_dd * 1000) / 10 };
     }
     context.opportunity = _opp;
     return {

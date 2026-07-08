@@ -87,6 +87,22 @@
   .use-col li{font-size:12.5px;color:var(--ink);line-height:1.6;margin-bottom:9px}
   .use-sum{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 18px;font-size:13.5px;color:var(--ink);line-height:1.65}
   .use-sum b{color:var(--gold)}
+  .chlog{display:flex;flex-direction:column;gap:10px}
+  .cl-item{border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;background:#0b1016}
+  .cl-item.cl-cur{border-color:var(--gold-dim);background:linear-gradient(180deg,rgba(232,180,99,.06),transparent)}
+  .cl-item.cl-fail{opacity:.72}
+  .cl-head{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+  .cl-v{font-family:var(--mono,monospace);font-size:12px;font-weight:800;color:var(--gold);background:rgba(232,180,99,.12);padding:2px 8px;border-radius:6px}
+  .cl-item.cl-fail .cl-v{color:var(--bear);background:rgba(224,106,106,.12)}
+  .cl-tag{font-size:13.5px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+  .cl-now{margin-left:auto;font-size:10px;font-weight:800;color:#0b0f14;background:var(--gold);padding:2px 8px;border-radius:99px}
+  .cl-items{margin:0 0 2px;padding-left:18px}
+  .cl-items li{font-size:12.5px;color:var(--eth);line-height:1.6;margin-bottom:3px}
+  .cl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:10px}
+  .cl-cell{background:var(--surface);border-radius:var(--r-md);padding:8px 10px;display:flex;flex-direction:column;gap:3px}
+  .cl-k{font-size:10px;color:var(--faint);font-weight:700}
+  .cl-ba{font-size:13px;font-variant-numeric:tabular-nums} .cl-ba b{font-family:var(--mono,monospace)}
+  @media(max-width:640px){.cl-grid{grid-template-columns:1fr 1fr}}
   footer{margin-top:36px;font-size:12px;color:var(--faint);text-align:center}
   @media(max-width:640px){ .cards{grid-template-columns:1fr} h1{font-size:25px} .wrap{padding:28px 16px 60px} .uv-grp{grid-template-columns:1fr;gap:4px} .usage{grid-template-columns:1fr} }
 </style>
@@ -125,6 +141,10 @@
   <h2>국면별 방향 예측</h2>
   <p class="sec-desc">방향 예측은 강세·하락장에선 여전히 "항상 상승" 기준을 못 넘습니다(효율적 시장의 벽). 다만 <b>200MA 하락추세 게이트</b>를 넣어 상승장에서 헛발질하던 약세신호를 억제한 뒤, <b>횡보장은 처음으로 기준을 소폭 넘었습니다(+0.3%p)</b>. 전체 방향 적중도 54→57%로 올라 천장(59%)에 근접합니다.</p>
   <table id="regtbl"><thead><tr><th>국면</th><th>엔진 방향적중</th><th>항상상승</th><th>초과</th><th>표본</th></tr></thead><tbody></tbody></table>
+
+  <h2>🛠 개선 이력 (Changelog)</h2>
+  <p class="sec-desc">엔진은 백테스트로 검증하며 버전업합니다. 개선 전후 수치를 그대로 기록합니다 — 롤백한 실패 실험까지.</p>
+  <div id="changelog" class="chlog"></div>
 
   <h2>✅ 검증된 강점 — 지지반등 신호</h2>
   <p class="sec-desc">방향은 시장을 못 이기지만, <b>딱 하나 통하는 신호</b>를 찾았습니다. 세 조건이 <b>동시에</b> 맞을 때만 매수합니다: <b>① 횡보장에서 밴드 하단까지 하락 → ② RSI가 다시 오르기 시작(반등 확인) → ③ 장기 이동평균(200)이 하락 중이 아님(진짜 하락추세 배제).</b> "떨어지는 칼"과 "하락추세 진입"을 둘 다 걸러, 일봉 23종에서 324번만 발생한 <b>선별 신호</b>입니다.</p>
@@ -192,7 +212,7 @@
   <footer id="foot"></footer>
 </div>
 
-<script src="forge-core.js?v=20260708f"></script>
+<script src="forge-core.js?v=20260709a"></script>
 <script>
 const BT = {"overall":{"dir":0.566,"base":0.59,"ece":0.067,"cone":0.861},"byRegime":{"side":{"dir":0.536,"base":0.533,"lift":0.003,"n":1470},"bull":{"dir":0.595,"base":0.624,"lift":-0.03,"n":10335},"bear":{"dir":0.477,"base":0.494,"lift":-0.017,"n":2818}},"byTf":{"1day":{"dir":0.542,"base":0.563,"cone":0.872,"fx":23,"n":9169},"1week":{"dir":0.6,"base":0.631,"cone":0.848,"fx":9,"n":4940},"1month":{"dir":0.678,"base":0.679,"cone":0.784,"fx":5,"n":514}},"cal":[{"pred":0.37,"act":0.514},{"pred":0.45,"act":0.582},{"pred":0.544,"act":0.563},{"pred":0.643,"act":0.61},{"pred":0.732,"act":0.656},{"pred":0.82,"act":0.58}],"day":[{"s":"000660","g":"국내","from":"2024","to":"2026"},{"s":"005930","g":"국내","from":"2024","to":"2026"},{"s":"AAPL","g":"미국주식","from":"2006","to":"2026"},{"s":"AUD/USD","g":"환율","from":"2007","to":"2026"},{"s":"BABA","g":"미국주식","from":"2014","to":"2026"},{"s":"BTC/USD","g":"크립토","from":"2014","to":"2026"},{"s":"CSCO","g":"미국주식","from":"2006","to":"2026"},{"s":"DIS","g":"미국주식","from":"2006","to":"2026"},{"s":"ETH/USD","g":"크립토","from":"2021","to":"2026"},{"s":"EUR/USD","g":"환율","from":"2007","to":"2026"},{"s":"GBP/USD","g":"환율","from":"2007","to":"2026"},{"s":"GE","g":"미국주식","from":"2006","to":"2026"},{"s":"IBM","g":"미국주식","from":"2006","to":"2026"},{"s":"INTC","g":"미국주식","from":"2006","to":"2026"},{"s":"KO","g":"미국주식","from":"2006","to":"2026"},{"s":"MSFT","g":"미국주식","from":"2006","to":"2026"},{"s":"NVDA","g":"미국주식","from":"2006","to":"2026"},{"s":"PFE","g":"미국주식","from":"2006","to":"2026"},{"s":"PYPL","g":"미국주식","from":"2015","to":"2026"},{"s":"T","g":"미국주식","from":"2006","to":"2026"},{"s":"USD/JPY","g":"환율","from":"2007","to":"2026"},{"s":"USD/KRW","g":"환율","from":"2007","to":"2026"},{"s":"VZ","g":"미국주식","from":"2006","to":"2026"}],"fixtures":[{"s":"BABA","rg":"횡보","pnl":1.85,"bh":0.26},{"s":"PFE","rg":"횡보","pnl":0.17,"bh":-0.04},{"s":"PYPL","rg":"횡보","pnl":2.68,"bh":0.14},{"s":"VZ","rg":"횡보","pnl":-0.1,"bh":0.07}],"asOf":"2026-07","universe":"37개 시계열(23종목 × 일/주/월)","points":"약 14,600개"};
 const pc = x => (x*100).toFixed(1) + "%";
@@ -218,6 +238,24 @@ document.getElementById("cards").innerHTML = [
 const RG = {bull:["강세장","var(--bull)"], bear:["하락장","var(--bear)"], side:["횡보장","var(--gold)"]};
 document.querySelector("#regtbl tbody").innerHTML = ["side","bull","bear"].map(k=>{const g=BT.byRegime[k],c=RG[k];
   return `<tr><td><span class="rgbar" style="width:10px;background:${c[1]}"></span>${c[0]}</td><td><b>${pc(g.dir)}</b></td><td class="mut">${pc(g.base)}</td><td class="${g.lift>=0?'up':'dn'}">${rx(g.lift)}p</td><td class="mut">${g.n.toLocaleString()}</td></tr>`;
+}).join("");
+
+// 개선 이력 — 버전별 before→after(기간·국면). 롤백한 실패도 기록.
+const CHANGELOG = [
+  { v:"1.2.0", tag:"반등 신호 낙폭 조건", cur:true, items:["지지반등 신호에 '최근 고점 대비 −5% 낙폭'(genuine dip) 조건 추가.","트리플배리어 목표먼저 57.6% → 59.2%(±5%) — 진짜 눌림에서만 진입."] },
+  { v:"1.1.0", tag:"200MA 방향 게이트", items:["상승추세(200MA 비하락)에서 약세 방향신호 억제 — '하락 예측은 200MA 하락일 때만'.","6지평×8규칙 전수로 '방향 60% 불가'(효율시장 벽) 확정 후, 달성 가능한 최선을 반영."],
+    ba:{ 방향:[0.541,0.566], 일봉:[0.515,0.542], 주봉:[0.577,0.600], 월봉:[0.657,0.678] },
+    lift:{ "강세장":[-0.063,-0.030], "하락장":[-0.013,-0.017], "횡보장":[-0.022,0.003] } },
+  { v:"—", tag:"콘 폭 축소 시도 → 롤백(실패)", fail:true, items:["예측 밴드를 좁혀 커버리지 68%로 맞추려 했으나 캘리브레이션(ECE 6.7→9.7%p) 악화 → 되돌림.","실패한 실험도 숨기지 않고 기록합니다."] },
+  { v:"1.0.0", tag:"베이스라인 (세션 시작)", items:["초기 엔진. 약세 편향으로 상승 드리프트를 거스름(방향 54.1%)."] },
+];
+const dpc = (a,b)=>{const d=(b-a); return `<span class="cl-ba"><span class="mut">${pc(a)}</span> → <b>${pc(b)}</b> <span class="${d>=0?'up':'dn'}">${d>=0?'+':''}${(d*100).toFixed(1)}p</span></span>`;};
+document.getElementById("changelog").innerHTML = CHANGELOG.map(c=>{
+  let m="";
+  if(c.ba){ m+=`<div class="cl-grid">`+Object.entries(c.ba).map(([k,v])=>`<div class="cl-cell"><span class="cl-k">${k} 적중</span>${dpc(v[0],v[1])}</div>`).join("")+`</div>`; }
+  if(c.lift){ m+=`<div class="cl-grid">`+Object.entries(c.lift).map(([k,v])=>`<div class="cl-cell"><span class="cl-k">${k} 초과</span><span class="cl-ba"><span class="mut">${rx(v[0])}p</span> → <b class="${v[1]>=0?'up':'dn'}">${rx(v[1])}p</b></span></div>`).join("")+`</div>`; }
+  const items = c.items.map(i=>`<li>${i}</li>`).join("");
+  return `<div class="cl-item ${c.cur?'cl-cur':''} ${c.fail?'cl-fail':''}"><div class="cl-head"><span class="cl-v">v${c.v}</span><span class="cl-tag">${c.tag}</span>${c.cur?'<span class="cl-now">현재</span>':''}</div><ul class="cl-items">${items}</ul>${m}</div>`;
 }).join("");
 
 document.querySelector("#rangetbl tbody").innerHTML = RANGE.holds.map(h=>{
@@ -260,7 +298,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   document.getElementById("calchart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;margin:0 auto"><rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>${g}</svg>`;
 })();
 
-document.getElementById("foot").innerHTML = "스쿱포지 엔진 검증 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a>";
+document.getElementById("foot").innerHTML = "스쿱포지 엔진 v1.2.0 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a>";
 
 /* ── 라이브 재현 위젯 — 브라우저에서 실데이터로 walk-forward 직접 실행 ── */
 const EXPECTED = {"BABA":{dir:0.493,cone:0.845,pnl:1.49,bh:0.259,base:0.513,rg:"횡보"},"PYPL":{dir:0.547,cone:0.833,pnl:3.896,bh:0.139,base:0.546,rg:"횡보"},"PFE":{dir:0.549,cone:0.888,pnl:0.23,bh:-0.035,base:0.544,rg:"횡보"},"NVDA":{dir:0.579,cone:0.832,pnl:49.162,bh:326.235,base:0.671,rg:"강세"}};
