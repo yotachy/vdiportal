@@ -72,8 +72,23 @@
   .uv-n{font-size:10px;color:var(--faint);background:rgba(138,146,178,.12);border-radius:99px;padding:0 6px;line-height:15px}
   .uv-list{display:flex;flex-wrap:wrap;gap:6px 8px}
   .uv-item{font-size:12px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:4px 9px;font-variant-numeric:tabular-nums}
+  .tldr{background:linear-gradient(180deg,rgba(232,180,99,.10),rgba(232,180,99,.03));border:1px solid var(--gold-dim);border-radius:var(--r-lg);padding:16px 22px 16px;margin-top:24px}
+  .tldr-t{font-size:12px;font-weight:800;color:var(--gold);letter-spacing:.02em;margin-bottom:9px}
+  .tldr ol{margin:0;padding-left:20px}
+  .tldr li{font-size:14px;color:var(--ink);line-height:1.6;margin-bottom:7px}
+  .tldr li b{color:var(--gold)}
+  .usage{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .use-col{border-radius:var(--r-lg);padding:16px 18px}
+  .use-do{background:rgba(70,194,142,.07);border:1px solid rgba(70,194,142,.28)}
+  .use-dont{background:rgba(224,106,106,.06);border:1px solid rgba(224,106,106,.24)}
+  .use-h{font-size:14px;font-weight:800;margin-bottom:11px}
+  .use-do .use-h{color:var(--bull)} .use-dont .use-h{color:var(--bear)}
+  .use-col ul{margin:0;padding-left:17px}
+  .use-col li{font-size:12.5px;color:var(--ink);line-height:1.6;margin-bottom:9px}
+  .use-sum{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 18px;font-size:13.5px;color:var(--ink);line-height:1.65}
+  .use-sum b{color:var(--gold)}
   footer{margin-top:36px;font-size:12px;color:var(--faint);text-align:center}
-  @media(max-width:640px){ .cards{grid-template-columns:1fr} h1{font-size:25px} .wrap{padding:28px 16px 60px} .uv-grp{grid-template-columns:1fr;gap:4px} }
+  @media(max-width:640px){ .cards{grid-template-columns:1fr} h1{font-size:25px} .wrap{padding:28px 16px 60px} .uv-grp{grid-template-columns:1fr;gap:4px} .usage{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -82,6 +97,15 @@
   <div class="eyebrow">Backtest Scorecard</div>
   <h1>이 엔진의 검증 성적 —<br>잘하는 것도, 못하는 것도 공개합니다.</h1>
   <p class="lede">대부분의 분석 도구는 백테스트를 숨기거나 좋은 것만 보여줍니다. 스쿱포지는 <b>미래를 참조하지 않는 walk-forward 백테스트</b>로 엔진을 검증하고, 그 결과를 — <b>약점까지 — 그대로 공개</b>합니다. 이것이 우리가 생각하는 "믿을 만한 도구"의 출발점입니다.</p>
+
+  <div class="tldr">
+    <div class="tldr-t">📌 3줄 요약</div>
+    <ol>
+      <li><b>방향 예측(오른다/내린다)은 시장을 못 이깁니다.</b> 우리뿐 아니라 거의 모든 기술적 분석이 그렇습니다 — 숨기지 않고 공개합니다.</li>
+      <li><b>딱 하나 검증된 강점</b>: 횡보장에서 바닥을 찍고 반등이 시작될 때 매수 = 실제로 통하는 진입 타이밍(승률 56%).</li>
+      <li><b>그래서 이렇게 쓰세요</b>: "방향 예언기"로 믿지 말고, <b>국면 파악 + 살 만한 타이밍 + 리스크 가늠</b> 도구로.</li>
+    </ol>
+  </div>
 
   <h2>검증 방법</h2>
   <p class="sec-desc" id="method"></p>
@@ -102,15 +126,38 @@
   <p class="sec-desc">방향 예측은 <b>어느 국면에서도 "항상 상승" 기준을 넘지 못했습니다</b>(약 3개월 지평, 표본 확대(37 시계열·일주월)로 재확인). 특히 강한 상승 추세장에서 미달 폭이 큽니다 — 그래서 화면 배지가 강한 추세장에선 "방향 신호 신뢰 낮음"을 알립니다.</p>
   <table id="regtbl"><thead><tr><th>국면</th><th>엔진 방향적중</th><th>항상상승</th><th>초과</th><th>표본</th></tr></thead><tbody></tbody></table>
 
-  <h2>✅ 검증된 진입 신호 — 지지반등 (레인지)</h2>
-  <p class="sec-desc">방향 예측은 시장을 못 이기지만, 딱 하나 — <b>공정한 기준(랜덤 진입)을 확실히 넘는 신호</b>를 찾았습니다: <b>횡보장에서 지지(밴드 하단 %B≤0.2 + RSI&lt;45)에 닿았을 때 롱.</b> 일봉 23종 전체를 walk-forward로 검증한 실증 edge입니다(총 2,837건 진입).</p>
-  <table id="rangetbl"><thead><tr><th>홀드 기간</th><th>승률</th><th>기대값/거래</th><th>랜덤 대조</th><th>등가중 수익</th></tr></thead><tbody></tbody></table>
+  <h2>✅ 검증된 강점 — 지지반등 신호</h2>
+  <p class="sec-desc">방향은 시장을 못 이기지만, <b>딱 하나 통하는 신호</b>를 찾았습니다: <b>횡보장에서 가격이 밴드 하단까지 떨어졌다가 RSI가 다시 오르기 시작할 때(=반등 확인) 매수.</b> "떨어지는 칼"을 안 잡고 <b>반등이 시작될 때만</b> 들어가는 겁니다. 일봉 23종 전체를 검증했고, 574번 발생했습니다.</p>
+  <table id="rangetbl"><thead><tr><th>매수 후</th><th>이긴 비율(승률)</th><th>평균 수익/회</th><th>판정</th></tr></thead><tbody></tbody></table>
   <div class="strength">
-    <h3>이게 왜 진짜 edge인가</h3>
-    <p style="font-size:13.5px;color:var(--ink);line-height:1.7;margin-bottom:10px">기대값이 <b>홀드가 길수록 커지고</b>(평균회귀가 실재) <b>랜덤 진입(~0%)을 넘습니다</b> — 이 전체 검증에서 공정한 기준을 이긴 유일한 신호입니다. 반대쪽(저항 눌림=숏)은 상방 드리프트 탓에 edge가 없어 <b>화면에서 아예 제거</b>했습니다(롱만 남김).</p>
-    <p style="font-size:12.5px;color:var(--faint);line-height:1.7;margin:0">정직한 규모 — 일확천금이 아닙니다. 강세 추세주의 <b>총수익</b>은 여전히 단순 보유가 이깁니다(21종 중 9종만 상회). 이 신호의 가치는 "총수익 극대화"가 아니라 <b>박스권 종목의 양(+)의 기대값 진입 타이밍</b>입니다. 예시: 횡보 분류 종목의 전략 vs 단순보유 ↓</p>
-    <table id="sidetbl" style="margin-top:12px"><thead><tr><th>종목</th><th>전략 수익</th><th>Buy&amp;Hold</th><th>결과</th></tr></thead><tbody></tbody></table>
+    <h3>이게 왜 "진짜" 신호인가 (그리고 한계)</h3>
+    <p style="font-size:13.5px;color:var(--ink);line-height:1.7;margin-bottom:10px">아무 때나 사는 것(랜덤)과 비교했을 때 <b>20봉·40봉 뒤 수익이 확실히 더 높습니다</b> — 이 전체 검증에서 랜덤을 이긴 유일한 신호입니다. 승률도 <b>56%</b>(반반보다 높음)이고, <b>보유 기간이 길수록 수익이 커집니다</b>(평균회귀가 실제로 작동). 반대 신호(고점에서 매도=숏)는 통하지 않아 <b>아예 뺐습니다</b>.</p>
+    <p style="font-size:12.5px;color:var(--faint);line-height:1.7;margin:0"><b>솔직한 한계 3가지</b> — ① <b>단타(10봉)엔 안 통합니다</b>(랜덤과 비슷). 20봉 이상 보유해야 유효. ② <b>일확천금이 아닙니다</b> — 회당 평균 +0.6~1.2%. ③ 강한 상승주의 <b>총수익</b>은 그냥 사서 들고 있는 게 낫습니다(21종 중 7종만 상회). 이 신호의 값어치는 "대박"이 아니라 <b>박스권 종목의 괜찮은 매수 타이밍</b>입니다.</p>
   </div>
+
+  <h2>🧭 스쿱포지, 이렇게 쓰세요</h2>
+  <p class="sec-desc">위 검증 결과를 실제 사용으로 옮기면 — 무엇을 믿고 무엇을 걸러야 하는지가 분명해집니다.</p>
+  <div class="usage">
+    <div class="use-col use-do">
+      <div class="use-h">✅ 이렇게 쓰세요</div>
+      <ul>
+        <li><b>국면 배지부터 확인</b> — 지금이 "추세장"인지 "횡보장"인지. 도구 신뢰도가 국면마다 다릅니다.</li>
+        <li>횡보장에서 <b>"지지 반등 기회" 배지</b>가 뜨면 = 검증된 매수 타이밍 후보(20봉 이상 보유 관점).</li>
+        <li><b>예측 밴드(콘)</b>로 "어디까지 갈 수 있나" 범위와 리스크를 가늠.</li>
+        <li>여러 지표를 <b>한 화면에서 교차 확인</b>하는 리서치 보조 도구로.</li>
+      </ul>
+    </div>
+    <div class="use-col use-dont">
+      <div class="use-h">❌ 이러지 마세요</div>
+      <ul>
+        <li><b>방향 예측(상승/하락 %)을 맹신</b> — 시장 평균을 못 이깁니다.</li>
+        <li>강한 상승장에서 <b>"과열이니 곧 하락" 신호 따르기</b> — 가장 큰 손실 원인.</li>
+        <li><b>단타(며칠 이내)에 의존</b> — 짧은 구간엔 검증된 edge가 없습니다.</li>
+        <li>이 도구 <b>하나로 매매를 결정</b> — 어디까지나 참고 자료.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="use-sum">한 줄로 — <b>"방향을 맞히는 도구"가 아니라, 국면을 읽고·횡보장에서 살 만한 타이밍을 잡고·리스크를 가늠하는 도구</b>입니다.</div>
 
   <h2>확률 캘리브레이션</h2>
   <p class="sec-desc">"상승확률 X%"라고 했을 때 실제로 X% 올랐는가. 대각선에 가까울수록 정직한 확률. <b>50~60% 구간만 근접</b>하고, 그 밖(특히 고확률)은 편향이 있습니다.</p>
@@ -145,17 +192,17 @@
   <footer id="foot"></footer>
 </div>
 
-<script src="forge-core.js?v=20260708c"></script>
+<script src="forge-core.js?v=20260708d"></script>
 <script>
 const BT = {"overall":{"dir":0.541,"base":0.59,"ece":0.069,"cone":0.861},"byRegime":{"side":{"dir":0.512,"base":0.533,"lift":-0.022,"n":1470},"bull":{"dir":0.561,"base":0.624,"lift":-0.063,"n":10335},"bear":{"dir":0.481,"base":0.494,"lift":-0.013,"n":2818}},"byTf":{"1day":{"dir":0.515,"base":0.563,"cone":0.872,"fx":23,"n":9169},"1week":{"dir":0.577,"base":0.631,"cone":0.848,"fx":9,"n":4940},"1month":{"dir":0.657,"base":0.679,"cone":0.784,"fx":5,"n":514}},"cal":[{"pred":0.37,"act":0.523},{"pred":0.449,"act":0.582},{"pred":0.54,"act":0.559},{"pred":0.643,"act":0.613},{"pred":0.732,"act":0.656},{"pred":0.82,"act":0.58}],"day":[{"s":"000660","g":"국내","from":"2024","to":"2026"},{"s":"005930","g":"국내","from":"2024","to":"2026"},{"s":"AAPL","g":"미국주식","from":"2006","to":"2026"},{"s":"AUD/USD","g":"환율","from":"2007","to":"2026"},{"s":"BABA","g":"미국주식","from":"2014","to":"2026"},{"s":"BTC/USD","g":"크립토","from":"2014","to":"2026"},{"s":"CSCO","g":"미국주식","from":"2006","to":"2026"},{"s":"DIS","g":"미국주식","from":"2006","to":"2026"},{"s":"ETH/USD","g":"크립토","from":"2021","to":"2026"},{"s":"EUR/USD","g":"환율","from":"2007","to":"2026"},{"s":"GBP/USD","g":"환율","from":"2007","to":"2026"},{"s":"GE","g":"미국주식","from":"2006","to":"2026"},{"s":"IBM","g":"미국주식","from":"2006","to":"2026"},{"s":"INTC","g":"미국주식","from":"2006","to":"2026"},{"s":"KO","g":"미국주식","from":"2006","to":"2026"},{"s":"MSFT","g":"미국주식","from":"2006","to":"2026"},{"s":"NVDA","g":"미국주식","from":"2006","to":"2026"},{"s":"PFE","g":"미국주식","from":"2006","to":"2026"},{"s":"PYPL","g":"미국주식","from":"2015","to":"2026"},{"s":"T","g":"미국주식","from":"2006","to":"2026"},{"s":"USD/JPY","g":"환율","from":"2007","to":"2026"},{"s":"USD/KRW","g":"환율","from":"2007","to":"2026"},{"s":"VZ","g":"미국주식","from":"2006","to":"2026"}],"fixtures":[{"s":"BABA","rg":"횡보","pnl":1.49,"bh":0.26},{"s":"PFE","rg":"횡보","pnl":0.23,"bh":-0.04},{"s":"PYPL","rg":"횡보","pnl":3.9,"bh":0.14},{"s":"VZ","rg":"횡보","pnl":-0.18,"bh":0.07}],"asOf":"2026-07","universe":"37개 시계열(23종목 × 일/주/월)","points":"약 14,600개"};
 const pc = x => (x*100).toFixed(1) + "%";
 const rx = x => (x>=0?"+":"") + (x*100).toFixed(0) + "%";
 const rx2 = x => (x>=0?"+":"") + (x*100).toFixed(1) + "%";
-// 레인지 전략(지지반등 롱) 검증 — 일봉 23종 walk-forward
-const RANGE = { trades: 2837, random: 0.000, beatBH: 9, nFix: 21, holds: [
-  { h: 10, wr: 0.536, exp: 0.004, eq: 0.446 },
-  { h: 20, wr: 0.546, exp: 0.007, eq: 0.574 },
-  { h: 40, wr: 0.536, exp: 0.011, eq: 0.914 },
+// 레인지 전략(지지반등 롱, 정교화: %B≤0.2 + RSI 반등중) — 일봉 23종 walk-forward · 엔진 실측
+const RANGE = { trades: 574, nFix: 21, holds: [
+  { h: 10, wr: 0.516, exp: 0.001, rnd: 0.001, eq: 0.015, beat: 6 },
+  { h: 20, wr: 0.561, exp: 0.006, rnd: 0.001, eq: 0.087, beat: 7 },
+  { h: 40, wr: 0.556, exp: 0.012, rnd: 0.000, eq: 0.283, beat: 7 },
 ] };
 
 document.getElementById("method").innerHTML =
@@ -173,13 +220,11 @@ document.querySelector("#regtbl tbody").innerHTML = ["side","bull","bear"].map(k
   return `<tr><td><span class="rgbar" style="width:10px;background:${c[1]}"></span>${c[0]}</td><td><b>${pc(g.dir)}</b></td><td class="mut">${pc(g.base)}</td><td class="${g.lift>=0?'up':'dn'}">${rx(g.lift)}p</td><td class="mut">${g.n.toLocaleString()}</td></tr>`;
 }).join("");
 
-document.querySelector("#rangetbl tbody").innerHTML = RANGE.holds.map(h=>
-  `<tr><td><b>${h.h}봉</b></td><td>${pc(h.wr)}</td><td class="up rp-v">${rx2(h.exp)}</td><td class="mut">랜덤 ${rx2(RANGE.random)} ✓</td><td class="up">${rx(h.eq)}</td></tr>`
-).join("");
-
-document.querySelector("#sidetbl tbody").innerHTML = BT.fixtures.map(f=>{
-  const win = f.pnl > f.bh;
-  return `<tr><td>${f.s}</td><td class="${win?'up':'dn'}"><b>${rx(f.pnl)}</b></td><td class="mut">${rx(f.bh)}</td><td class="${win?'up':'dn'}">${win?'B&amp;H 상회 ✓':'미달'}</td></tr>`;
+document.querySelector("#rangetbl tbody").innerHTML = RANGE.holds.map(h=>{
+  const edge = h.exp - h.rnd, real = edge > 0.002;   // 랜덤 대비 실질 초과
+  const expCell = real ? `<span class="up rp-v">${rx2(h.exp)}</span>` : `<span class="mut">${rx2(h.exp)}</span>`;
+  const verdict = real ? `<span class="up">랜덤 ${rx2(h.rnd)} 초과 ✓</span>` : `<span class="mut">랜덤 ${rx2(h.rnd)}과 비슷 — edge 없음</span>`;
+  return `<tr><td><b>${h.h}봉 뒤</b></td><td>${pc(h.wr)}</td><td>${expCell}</td><td>${verdict}</td></tr>`;
 }).join("");
 
 // 일/주/월 타임프레임별

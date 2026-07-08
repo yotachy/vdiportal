@@ -1366,7 +1366,7 @@
     universe: "37개 시계열(23종목 × 일·주·월) · 약 14,600 시점 · walk-forward(미래 미참조)",
     direction: { hit: 0.541, baseline: 0.590 },
     coneCoverage: 0.861, coneTarget: 0.68, ece: 0.069,
-    strength: "지지반등(레인지) 신호 = 검증된 유일한 edge: 기대값 +0.7%/거래·승률 54.6%로 랜덤 초과(2,837건). 예: BABA +149% vs 단순보유 +25%. '방향 예측'이 아니라 박스권 진입 타이밍.",
+    strength: "지지반등 신호(횡보장 바닥+RSI반등) = 검증된 유일한 edge: 승률 56.1%·평균 +0.6%/회(20봉)~+1.2%(40봉)로 랜덤 초과(574건). 단타(10봉)엔 edge 없음. '방향 예측'이 아니라 박스권 매수 타이밍.",
     disclaimer: "과거 데이터 시뮬레이션 결과 · 미래 수익을 보장하지 않음 · 투자자문 아님 · 참고용",
   };
   function openBacktestCard() {
@@ -1465,7 +1465,7 @@
       let oppHtml = "";
       const _opp = _ctx && _ctx.opportunity;
       if (_opp && _opp.kind === "buy") {
-        const oppTip = `박스권 하단(밴드 %B ${_opp.pctB}, RSI ${_opp.rsi}) — 평균회귀 반등 셋업. 백테스트 검증: 이 신호로 진입 시 기대값 +0.7%/거래·승률 54.6%(홀드 20봉, 2,837건)로 랜덤을 초과한 엔진의 유일한 실증 edge입니다.`;
+        const oppTip = `박스권 하단(%B ${_opp.pctB}) + RSI 반등(+${_opp.rsiUp}) — 바닥 찍고 반등 시작. 백테스트 검증: 승률 56.1%·평균 +0.6%/회(20봉 보유)로 랜덤 초과(574건). 단타엔 edge 없어 20봉 이상 보유 관점. 엔진의 유일한 실증 edge.`;
         oppHtml = `<span class="fcv-opp opp-buy" title="${oppTip}"><span class="opp-ico">◎</span>지지 반등 기회<span class="opp-vf">검증됨</span></span>`;
       }
       bar.innerHTML =

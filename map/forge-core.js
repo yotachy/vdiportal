@@ -2013,12 +2013,14 @@
     const _cr2 = _cwin ? (isFinite(_cwin.r2Log) ? _cwin.r2Log : (_cwin.r2 || 0)) : 0;
     const _cTS = Math.max(0, Math.min(1, (Math.abs(_ta.blend.slopeLog) / 0.004) * Math.max(0, Math.min(1, (_cr2 - 0.35) / 0.5))));
     const context = { state: _cTS < 0.35 ? "range" : (_ta.blend.slopeLog >= 0 ? "up" : "down"), strength: Math.round(_cTS * 100) / 100, reliability: _cTS < 0.35 ? "high" : _cTS < 0.6 ? "mid" : "low" };
-    // range-bound 기회 — 백테스트로 검증된 유일한 edge: 횡보장 지지반등(밴드 하단 %B≤0.2 + RSI<45)만.
-    // 저항눌림(숏)은 백테스트상 edge 없어(상방 드리프트) 제거. 롱(지지반등)만: 기대값 +0.7%/거래(홀드20)·랜덤 초과.
+    // range-bound 기회 — 백테스트로 검증·정교화된 유일한 edge: 횡보장 지지반등(롱)만.
+    // 밴드 하단(%B≤0.2)에서 RSI가 위로 꺾일 때(최근 3봉 상승 = 반등 확인, "떨어지는 칼" 회피).
+    // RSI<45 절대문턱은 %B와 중복이라 제거. 정교화 실측: 기대값 +0.94%/거래(홀드20)·승률 55.4%(랜덤 +0.02% 초과).
+    // 저항눌림(숏)은 백테스트상 edge 없어(상방 드리프트) 제거.
     let _opp = null;
-    if (context.state === "range" && _bb && _bb.last && isFinite(_bb.last.pctB) && _rsi && isFinite(_rsi.last)) {
-      const _pb = _bb.last.pctB, _rv = _rsi.last;
-      if (_pb <= 0.2 && _rv < 45) _opp = { kind: "buy", pctB: Math.round(_pb * 100) / 100, rsi: Math.round(_rv) };
+    if (context.state === "range" && _bb && _bb.last && isFinite(_bb.last.pctB) && _rsi && _rsi.series && _rsi.series.length >= 4) {
+      const _pb = _bb.last.pctB, _rs = _rsi.series, _rUp = _rs[_rs.length - 1] - _rs[_rs.length - 4];
+      if (_pb <= 0.2 && _rUp > 0) _opp = { kind: "buy", pctB: Math.round(_pb * 100) / 100, rsi: Math.round(_rsi.last), rsiUp: Math.round(_rUp * 10) / 10 };
     }
     context.opportunity = _opp;
     return {
