@@ -1115,7 +1115,8 @@
       <div class="tune-list">${rows || '<div class="na-empty" style="padding:14px 4px;color:var(--eth)">사이드바 블록 도구로 지표를 추가하세요</div>'}</div>
       <div class="tune-foot"><button class="tune-reset" onclick="resetTune()">기본값(100%)</button><button class="tune-save" onclick="_saveTuneWeights()">저장</button></div></div>`;
     document.body.appendChild(m);
-    m.addEventListener("click", e => { if (e.target === m) toggleTunePop(); });
+    m.addEventListener("pointerdown", e => { m._downBg = (e.target === m); });   // 배경에서 눌러 시작했을 때만 닫기(드래그 종료로 닫힘 방지)
+    m.addEventListener("click", e => { if (e.target === m && m._downBg) toggleTunePop(); });
     m.addEventListener("input", e => {
       const t = e.target.getAttribute("data-tw"); if (!t) return;
       const v = +e.target.value; _driftW[t] = v;
@@ -1311,7 +1312,8 @@
       <label class="risk-toggle"><input type="checkbox" id="rkShow" ${_riskShowChart ? "checked" : ""}> 차트에 진입·손절·목표 라인 표시</label>
     </div>`;
     document.body.appendChild(m);
-    m.addEventListener("click", e => { if (e.target === m) openRiskTool(); });
+    m.addEventListener("pointerdown", e => { m._downBg = (e.target === m); });   // 배경에서 눌러 시작했을 때만 닫기(드래그 종료로 닫힘 방지)
+    m.addEventListener("click", e => { if (e.target === m && m._downBg) openRiskTool(); });
     m.addEventListener("input", e => { if (e.target && e.target.hasAttribute && e.target.hasAttribute("data-comma")) _commaInput(e); computeRisk(); });
     document.getElementById("riskDir").addEventListener("click", () => { _riskDir = _riskDir === "long" ? "short" : "long"; const el = document.getElementById("riskDir"); el.className = "risk-dir " + _riskDir; el.textContent = _riskDir === "short" ? "숏 ▼" : "롱 ▲"; _applyPreset(document.querySelector(".rkp-btn.on") ? document.querySelector(".rkp-btn.on").dataset.preset : "base"); });
     m.querySelectorAll(".rkp-btn").forEach(b => b.addEventListener("click", () => { m.querySelectorAll(".rkp-btn").forEach(x => x.classList.remove("on")); b.classList.add("on"); _applyPreset(b.dataset.preset); }));
@@ -1442,7 +1444,8 @@
       <div class="opt-result" id="optResult"><div class="opt-empty">지표를 고르고 <b>최적화 실행</b>을 누르세요.</div></div>
     </div>`;
     document.body.appendChild(m);
-    m.addEventListener("click", e => { if (e.target === m) openOptTool(); });
+    m.addEventListener("pointerdown", e => { m._downBg = (e.target === m); });   // 배경에서 눌러 시작했을 때만 닫기(드래그 종료로 닫힘 방지)
+    m.addEventListener("click", e => { if (e.target === m && m._downBg) openOptTool(); });
     const h = Math.max(3, Math.round(visionFutW() / 3)); const he = document.getElementById("optH"); if (he) he.textContent = h;
   }
   function runOptimize() {

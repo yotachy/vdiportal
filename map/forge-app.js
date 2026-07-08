@@ -1371,7 +1371,7 @@
   };
   function openBacktestCard() {
     let m = document.getElementById("btModal");
-    if (!m) { m = document.createElement("div"); m.id = "btModal"; m.className = "bt-modal"; m.addEventListener("click", e => { if (e.target === m) closeBacktestCard(); }); document.body.appendChild(m); }
+    if (!m) { m = document.createElement("div"); m.id = "btModal"; m.className = "bt-modal"; m.addEventListener("pointerdown", e => { m._downBg = (e.target === m); }); m.addEventListener("click", e => { if (e.target === m && m._downBg) closeBacktestCard(); }); document.body.appendChild(m); }
     const S = BACKTEST_SUMMARY, P = x => (x * 100).toFixed(1) + "%";
     m.innerHTML = '<div class="bt-card">' +
       '<div class="bt-head"><b>이 엔진의 검증 성적</b><button class="bt-x" onclick="closeBacktestCard()" aria-label="닫기">✕</button></div>' +
