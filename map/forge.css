@@ -30,6 +30,9 @@
   .forge-top .h-actions > button{min-height:34px}   /* 헤더 액션 버튼 높이 통일 */
   /* 헤더 재구성: 브랜드·상태·액션 3존 */
   .build-tag{font-size:10px;color:var(--gold);font-family:var(--mono);font-weight:800;letter-spacing:.06em;border:1px solid var(--gold-dim);border-radius:99px;padding:2px 7px;line-height:1}
+  .eng-ver{font-size:10px;color:var(--gold);font-family:var(--mono);font-weight:800;letter-spacing:.03em;background:rgba(232,180,99,.12);border-radius:99px;padding:2px 8px;line-height:1;cursor:pointer;transition:background .12s;white-space:nowrap}
+  .eng-ver:hover{background:rgba(232,180,99,.22)}
+  .eng-ver:empty{display:none}
   .forge-top .brand-mark{filter:drop-shadow(0 1px 4px rgba(232,180,99,.3))}
   /* 주 액션 '웹분석' 격상 */
   .run-btn{padding:9px 18px!important;font-size:13.5px!important;border-radius:var(--r-lg)!important;letter-spacing:-.01em}
