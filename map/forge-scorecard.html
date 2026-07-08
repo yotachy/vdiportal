@@ -68,25 +68,25 @@
   <div class="cards" id="cards"></div>
 
   <h2>국면별 방향 예측</h2>
-  <p class="sec-desc">방향 예측은 어느 국면에서도 "항상 상승" 기준을 넘지 못했습니다(60봉 지평). 다만 <b>횡보장에서 상대적으로 신뢰</b>할 만합니다.</p>
+  <p class="sec-desc">방향 예측은 <b>어느 국면에서도 "항상 상승" 기준을 넘지 못했습니다</b>(약 3개월 지평, 표본 25종목으로 재확인). 특히 강한 상승 추세장에서 미달 폭이 큽니다 — 그래서 화면 배지가 강한 추세장에선 "방향 신호 신뢰 낮음"을 알립니다.</p>
   <table id="regtbl"><thead><tr><th>국면</th><th>엔진 방향적중</th><th>항상상승</th><th>초과</th><th>표본</th></tr></thead><tbody></tbody></table>
 
-  <h2>진짜 강점 — 횡보/박스권 평균회귀</h2>
-  <p class="sec-desc">추세를 못 이기는 대신, <b>추세 없는 박스권</b>에서 엔진의 평균회귀 신호가 실제로 값을 더했습니다. 아래는 횡보 종목에서 "신호대로 매매" vs "단순 보유(Buy&amp;Hold)".</p>
+  <h2>진짜 강점 — 횡보/박스권 타이밍</h2>
+  <p class="sec-desc"><b>방향을 더 잘 맞혀서가 아닙니다</b>(방향 정확도는 위처럼 시장 미달). 추세 없는 박스권에서 엔진의 <b>진입/청산 타이밍</b>이 단순 보유(Buy&amp;Hold)를 이겼습니다 — 횡보로 분류된 4종 중 3종. 아래는 "신호대로 매매" vs "단순 보유".</p>
   <div class="strength">
-    <h3>횡보 종목: 트레이딩이 단순 보유를 상회</h3>
+    <h3>횡보 종목: 트레이딩이 단순 보유를 상회 (4종 중 3종)</h3>
     <table id="sidetbl"><thead><tr><th>종목</th><th>전략 수익</th><th>Buy&amp;Hold</th><th>결과</th></tr></thead><tbody></tbody></table>
   </div>
 
   <h2>확률 캘리브레이션</h2>
-  <p class="sec-desc">"상승확률 X%"라고 했을 때 실제로 X% 올랐는가. 대각선에 가까울수록 정직한 확률. <b>50~70% 구간은 신뢰</b>할 만하나, 저·고 극단은 편향이 있습니다.</p>
+  <p class="sec-desc">"상승확률 X%"라고 했을 때 실제로 X% 올랐는가. 대각선에 가까울수록 정직한 확률. <b>50~60% 구간만 근접</b>하고, 그 밖(특히 고확률)은 편향이 있습니다.</p>
   <div class="calwrap">
     <div id="calchart"></div>
     <div class="cal-leg"><span><i style="background:var(--faint)"></i>완벽한 캘리브레이션(대각선)</span><span><i style="background:var(--gold)"></i>실제 엔진</span></div>
   </div>
 
   <div class="honest">
-    <b>왜 약점까지 공개하나요?</b> 방향 예측으로 시장을 이기는 도구는 (우리 것을 포함해) 거의 없습니다 — 효율적 시장의 벽입니다. 우리는 그걸 인정하고, 엔진이 <b>실제로 유효한 구간(횡보장)과 확률대(50~70%)</b>를 정직하게 알려주는 데 집중합니다. 화면의 <b>국면 배지</b>가 "지금 이 신호를 믿어도 되는지"를 바로 보여줍니다.
+    <b>왜 약점까지 공개하나요?</b> 방향 예측으로 시장을 이기는 도구는 (우리 것을 포함해) 거의 없습니다 — 효율적 시장의 벽입니다. 우리는 그걸 인정하고, 엔진이 <b>실제로 유효한 구간(횡보장)과 확률대(50~60%)</b>를 정직하게 알려주는 데 집중합니다. 화면의 <b>국면 배지</b>가 "지금 이 신호를 믿어도 되는지"를 바로 보여줍니다.
   </div>
 
   <div class="disc">
@@ -97,17 +97,17 @@
 </div>
 
 <script>
-const BT = {"overall":{"dir":0.537,"base":0.577,"ece":0.072,"cone":0.844,"mae":0.138},"byRegime":{"bull":{"dir":0.551,"base":0.591,"lift":-0.040,"n":3986},"bear":{"dir":0.462,"base":0.529,"lift":-0.067,"n":624},"side":{"dir":0.518,"base":0.529,"lift":-0.010,"n":522}},"cal":[{"lo":30,"hi":40,"pred":0.371,"act":0.582,"n":273},{"lo":40,"hi":50,"pred":0.448,"act":0.569,"n":1369},{"lo":50,"hi":60,"pred":0.540,"act":0.539,"n":1465},{"lo":60,"hi":70,"pred":0.643,"act":0.585,"n":1295},{"lo":70,"hi":80,"pred":0.735,"act":0.652,"n":652},{"lo":80,"hi":90,"pred":0.828,"act":0.627,"n":75}],"fixtures":[{"s":"BABA","rg":"side","pnl":1.49,"bh":0.25},{"s":"PYPL","rg":"side","pnl":3.90,"bh":0.14},{"s":"NVDA","rg":"bull","pnl":49.16,"bh":320.45},{"s":"BTC/USD","rg":"bull","pnl":65.72,"bh":244.19}],"asOf":"2026-07"};
+const BT = {"overall":{"dir":0.515,"base":0.554,"ece":0.082,"cone":0.867,"mae":0.109},"byRegime":{"bull":{"dir":0.532,"base":0.584,"lift":-0.052,"n":6356},"bear":{"dir":0.475,"base":0.493,"lift":-0.018,"n":2696},"side":{"dir":0.512,"base":0.533,"lift":-0.022,"n":1470}},"cal":[{"lo":30,"hi":40,"pred":0.370,"act":0.501,"n":814},{"lo":40,"hi":50,"pred":0.447,"act":0.557,"n":3103},{"lo":50,"hi":60,"pred":0.539,"act":0.543,"n":2868},{"lo":60,"hi":70,"pred":0.643,"act":0.553,"n":2498},{"lo":70,"hi":80,"pred":0.733,"act":0.597,"n":1125},{"lo":80,"hi":90,"pred":0.825,"act":0.615,"n":109}],"fixtures":[{"s":"BABA","rg":"side","pnl":1.49,"bh":0.25},{"s":"PYPL","rg":"side","pnl":3.90,"bh":0.14},{"s":"PFE","rg":"side","pnl":0.23,"bh":-0.04},{"s":"VZ","rg":"side","pnl":-0.18,"bh":0.07}],"asOf":"2026-07","universe":"25개 종목","points":"약 10,500개"};
 const pc = x => (x*100).toFixed(1) + "%";
 const rx = x => (x>=0?"+":"") + (x*100).toFixed(0) + "%";
 
 document.getElementById("method").innerHTML =
-  "<b style='color:var(--ink)'>14개 종목</b>(미국주식·크립토·환율·국내) × <b style='color:var(--ink)'>약 5,100개 과거 시점</b>. 각 시점에서 그때까지의 데이터만 엔진에 넣어 예측하고(미래 미참조 = lookahead 차단), 지평(약 3개월) 뒤 실제 결과와 대조했습니다. 기본 전략(30여 지표 자동 합성)으로 측정.";
+  "<b style='color:var(--ink)'>" + BT.universe + "</b>(미국주식·크립토·환율·국내) × <b style='color:var(--ink)'>" + BT.points + " 과거 시점</b>. 각 시점에서 그때까지의 데이터만 엔진에 넣어 예측하고(미래 미참조 = lookahead 차단), 지평(약 3개월) 뒤 실제 결과와 대조했습니다. 기본 전략(30여 지표 자동 합성)으로 측정.";
 
 const O = BT.overall;
 document.getElementById("cards").innerHTML = [
   {k:"방향 예측", v:pc(O.dir), sub:"'항상 상승' 기준 "+pc(O.base), tag:"시장 평균 미달", cls:"tag-dn"},
-  {k:"확률 신뢰", v:"50~70%", sub:"이 구간만 실제와 근접(극단 편향)", tag:"부분 신뢰", cls:"tag-fl"},
+  {k:"확률 신뢰", v:"50~60%", sub:"이 구간만 실제와 근접(그 밖 편향)", tag:"부분 신뢰", cls:"tag-fl"},
   {k:"예측 밴드 커버", v:pc(O.cone), sub:"목표 68% — 다소 넓음(불확실성 과대)", tag:"보정 여지", cls:"tag-fl"},
 ].map(c=>`<div class="card"><div class="ck">${c.k}</div><div class="cv">${c.v}</div><div class="csub">${c.sub}</div><span class="ctag ${c.cls}">${c.tag}</span></div>`).join("");
 
@@ -116,9 +116,10 @@ document.querySelector("#regtbl tbody").innerHTML = ["side","bull","bear"].map(k
   return `<tr><td><span class="rgbar" style="width:10px;background:${c[1]}"></span>${c[0]}</td><td><b>${pc(g.dir)}</b></td><td class="mut">${pc(g.base)}</td><td class="${g.lift>=0?'up':'dn'}">${rx(g.lift)}p</td><td class="mut">${g.n.toLocaleString()}</td></tr>`;
 }).join("");
 
-document.querySelector("#sidetbl tbody").innerHTML = BT.fixtures.filter(f=>f.rg==="side").map(f=>
-  `<tr><td>${f.s}</td><td class="up"><b>${rx(f.pnl)}</b></td><td class="mut">${rx(f.bh)}</td><td class="up">B&amp;H 상회 ✓</td></tr>`
-).join("");
+document.querySelector("#sidetbl tbody").innerHTML = BT.fixtures.filter(f=>f.rg==="side").map(f=>{
+  const win = f.pnl > f.bh;
+  return `<tr><td>${f.s}</td><td class="${win?'up':'dn'}"><b>${rx(f.pnl)}</b></td><td class="mut">${rx(f.bh)}</td><td class="${win?'up':'dn'}">${win?'B&amp;H 상회 ✓':'미달'}</td></tr>`;
+}).join("");
 
 // 캘리브레이션 SVG (예측확률 x, 실제상승률 y, 대각선=완벽)
 (function(){

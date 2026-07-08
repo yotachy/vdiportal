@@ -10,11 +10,14 @@ const UNIVERSE = [
   ["BTC/USD", "1day"], ["ETH/USD", "1day"],
   ["USD/KRW", "1week"], ["USD/KRW", "1day"],
   ["005930", "1day"], ["000660", "1day"],
-  // 하락/부진 — 국면 다양성 위해 추가
-  ["INTC", "1day"], ["BABA", "1day"], ["PYPL", "1day"], ["DIS", "1day"], ["T", "1day"], ["NIO", "1day"],
-  // 횡보/범위 — 환율·경기민감
-  ["EUR/USD", "1day"], ["F", "1day"], ["GE", "1day"],
+  // 하락/부진
+  ["INTC", "1day"], ["BABA", "1day"], ["PYPL", "1day"], ["DIS", "1day"], ["T", "1day"],
+  // 횡보/범위 확대 — 환율(가장 확실한 range)
+  ["EUR/USD", "1day"], ["GBP/USD", "1day"], ["USD/JPY", "1day"], ["AUD/USD", "1day"], ["EUR/USD", "1week"],
+  // 횡보/박스권 성향 주식(성숙·부진)
+  ["IBM", "1day"], ["CSCO", "1day"], ["VZ", "1day"], ["PFE", "1day"], ["KO", "1day"], ["WBA", "1day"], ["GE", "1day"],
 ];
+const _sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function fetchOne(symbol, tf) {
   const url = API + "?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(tf || "1day");
@@ -32,14 +35,18 @@ async function fetchOne(symbol, tf) {
 (async () => {
   const dir = path.join(__dirname, "fixtures");
   fs.mkdirSync(dir, { recursive: true });
+  const force = process.env.BT_FORCE === "1";
   for (const [sym, tf] of UNIVERSE) {
+    const name = sym.replace(/[\/\\]/g, "-") + "-" + tf + ".json";
+    const fp = path.join(dir, name);
+    if (!force && fs.existsSync(fp)) { console.log("스킵(기존):", name); continue; }
     try {
       const fx = await fetchOne(sym, tf);
-      if (!fx || fx.candle.length < 260) { console.warn("건너뜀(데이터 부족/실패):", sym, tf, fx ? fx.candle.length + "봉" : ""); continue; }
-      const name = sym.replace(/[\/\\]/g, "-") + "-" + tf + ".json";
-      fs.writeFileSync(path.join(dir, name), JSON.stringify(fx));
+      if (!fx || fx.candle.length < 260) { console.warn("건너뜀(데이터 부족/실패):", sym, tf, fx ? fx.candle.length + "봉" : ""); await _sleep(8500); continue; }
+      fs.writeFileSync(fp, JSON.stringify(fx));
       console.log("저장:", name, fx.candle.length, "봉");
     } catch (e) { console.warn("실패:", sym, tf, e.message); }
+    await _sleep(8500);   // 레이트리밋 회피(무료티어 ~8req/min)
   }
   console.log("완료 — 이제 `BT_STAMP=<ISO> node backtest/backtest.js` 실행");
 })();

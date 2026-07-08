@@ -1363,10 +1363,10 @@
 
   // 백테스트 검증 성적(정직 공개용 — backtest/backtest-report.json 스냅샷 요약. 재측정 시 갱신)
   const BACKTEST_SUMMARY = {
-    universe: "14종목(주식·크립토·환율) · 약 5,100 과거시점 · walk-forward(미래 미참조)",
-    direction: { hit: 0.537, baseline: 0.577 },
-    coneCoverage: 0.845, coneTarget: 0.68, ece: 0.072,
-    strength: "BABA +149% vs Buy&Hold +25% · PYPL +390% vs +14% (횡보 종목서 트레이딩이 단순보유 상회)",
+    universe: "25종목(주식·크립토·환율) · 약 10,500 과거시점 · walk-forward(미래 미참조)",
+    direction: { hit: 0.515, baseline: 0.554 },
+    coneCoverage: 0.867, coneTarget: 0.68, ece: 0.082,
+    strength: "BABA +149%(단순보유 +25%) · PYPL +390%(+14%) · PFE +23%(−4%) — 횡보 종목 3/4가 단순보유 상회. '방향 정확도'가 아니라 박스권 진입/청산 타이밍의 우위.",
     disclaimer: "과거 데이터 시뮬레이션 결과 · 미래 수익을 보장하지 않음 · 투자자문 아님 · 참고용",
   };
   function openBacktestCard() {
@@ -1378,7 +1378,7 @@
       '<div class="bt-sub">' + S.universe + '</div>' +
       '<div class="bt-rows">' +
       '<div class="bt-row"><span class="bt-k">방향 예측</span><span class="bt-v">' + P(S.direction.hit) + ' <span class="bt-mut">(항상상승 ' + P(S.direction.baseline) + ')</span></span><span class="bt-tag dn">시장 평균 미달</span></div>' +
-      '<div class="bt-row"><span class="bt-k">확률 신뢰</span><span class="bt-v">50~70% 구간 정확 <span class="bt-mut">· 극단 편향</span></span><span class="bt-tag fl">부분 신뢰</span></div>' +
+      '<div class="bt-row"><span class="bt-k">확률 신뢰</span><span class="bt-v">50~60% 구간만 근접 <span class="bt-mut">· 그 밖 편향</span></span><span class="bt-tag fl">부분 신뢰</span></div>' +
       '<div class="bt-row"><span class="bt-k">예측 밴드</span><span class="bt-v">커버 ' + P(S.coneCoverage) + ' <span class="bt-mut">(목표 ' + P(S.coneTarget) + ')</span></span><span class="bt-tag fl">다소 넓음</span></div>' +
       '</div>' +
       '<div class="bt-strength"><b>진짜 강점 — 횡보/박스권 평균회귀</b><div class="bt-mut">' + S.strength + '</div><div class="bt-mut">국면 신뢰: 횡보 &gt; 추세장(방향 예측 신뢰 낮음, 추세 순응 권장)</div></div>' +
