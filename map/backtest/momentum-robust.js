@@ -3,13 +3,14 @@
 "use strict";
 const fs = require("fs"), path = require("path");
 
-const US = ["AAPL", "MSFT", "NVDA", "INTC", "BABA", "PYPL", "DIS", "T", "IBM", "CSCO", "VZ", "PFE", "KO", "GE"];
-const HOLD = 20, COST = 0.001;   // 리밸런싱 주기 · 편도 거래비용(0.1%)
+const US = ["AAPL", "MSFT", "NVDA", "INTC", "BABA", "PYPL", "DIS", "T", "IBM", "CSCO", "VZ", "PFE", "KO", "GE",
+  "JPM", "BAC", "WMT", "HD", "PG", "JNJ", "UNH", "XOM", "CVX", "V", "MA", "ORCL", "CRM", "AMD", "QCOM", "CAT"];
+const HOLD = 20, COST = 0.001, MINBARS = 4000;   // 리밸런싱 · 편도 비용 · 장기이력 필터(짧은건 제외해 정렬창 확대)
 
 function load() {
   const dir = path.join(__dirname, "fixtures");
   const series = {}; let minLen = Infinity;
-  for (const s of US) { const p = path.join(dir, s + "-1day.json"); if (!fs.existsSync(p)) continue; const c = JSON.parse(fs.readFileSync(p, "utf8")).candle.map(x => x.c); series[s] = c; minLen = Math.min(minLen, c.length); }
+  for (const s of US) { const p = path.join(dir, s + "-1day.json"); if (!fs.existsSync(p)) continue; const c = JSON.parse(fs.readFileSync(p, "utf8")).candle.map(x => x.c); if (c.length < MINBARS) continue; series[s] = c; minLen = Math.min(minLen, c.length); }
   const syms = Object.keys(series); for (const s of syms) series[s] = series[s].slice(-minLen);
   return { series, syms, minLen };
 }
