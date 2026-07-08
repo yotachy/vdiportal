@@ -1,0 +1,891 @@
+{
+  "generatedAt": "2026-07-07T00:00:00Z",
+  "universe": [
+    {
+      "symbol": "000660",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 15
+    },
+    {
+      "symbol": "005930",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 15
+    },
+    {
+      "symbol": "AAPL",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 475
+    },
+    {
+      "symbol": "AUD/USD",
+      "tf": "1day",
+      "regime": "bear",
+      "points": 474
+    },
+    {
+      "symbol": "BABA",
+      "tf": "1day",
+      "regime": "side",
+      "points": 271
+    },
+    {
+      "symbol": "BTC/USD",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 406
+    },
+    {
+      "symbol": "CSCO",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 474
+    },
+    {
+      "symbol": "DIS",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 474
+    },
+    {
+      "symbol": "ETH/USD",
+      "tf": "1day",
+      "regime": "bear",
+      "points": 150
+    },
+    {
+      "symbol": "EUR/USD",
+      "tf": "1day",
+      "regime": "bear",
+      "points": 474
+    },
+    {
+      "symbol": "EUR/USD",
+      "tf": "1week",
+      "regime": "bear",
+      "points": 650
+    },
+    {
+      "symbol": "GBP/USD",
+      "tf": "1day",
+      "regime": "bear",
+      "points": 474
+    },
+    {
+      "symbol": "GE",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 474
+    },
+    {
+      "symbol": "IBM",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 474
+    },
+    {
+      "symbol": "INTC",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 474
+    },
+    {
+      "symbol": "KO",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 474
+    },
+    {
+      "symbol": "MSFT",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 474
+    },
+    {
+      "symbol": "NVDA",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 475
+    },
+    {
+      "symbol": "PFE",
+      "tf": "1day",
+      "regime": "side",
+      "points": 474
+    },
+    {
+      "symbol": "PYPL",
+      "tf": "1day",
+      "regime": "side",
+      "points": 251
+    },
+    {
+      "symbol": "T",
+      "tf": "1day",
+      "regime": "bear",
+      "points": 474
+    },
+    {
+      "symbol": "USD/JPY",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 474
+    },
+    {
+      "symbol": "USD/KRW",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 475
+    },
+    {
+      "symbol": "USD/KRW",
+      "tf": "1week",
+      "regime": "bull",
+      "points": 703
+    },
+    {
+      "symbol": "VZ",
+      "tf": "1day",
+      "regime": "side",
+      "points": 474
+    }
+  ],
+  "overall": {
+    "directionHitRate": 0.5147328760506231,
+    "baselineAlwaysUp": 0.5535680304471932,
+    "coinFlip": 0.5,
+    "bullHitRate": 0.560580204778157,
+    "bearHitRate": 0.45490981963927857,
+    "calibrationECE": 0.08239783311157578,
+    "coneCoverage": 0.8667553697015776,
+    "priceMAE": 0.10891099751492525,
+    "pnl": {
+      "startEquity": 10000,
+      "nFixtures": 25,
+      "avgReturn": 6.677120464250136,
+      "medianReturn": 0.4186293884485519,
+      "avgFinalEquity": 76771.20464250135,
+      "avgBuyHold": 26.94112507667234,
+      "beatBuyHold": 8,
+      "winRate": 0.5660919540229885,
+      "avgWin": 0.12036353515482401,
+      "avgLoss": -0.08068500833258897,
+      "trades": 1044,
+      "avgMDD": -0.4176107951704833,
+      "worstMDD": -0.8446632385915749
+    }
+  },
+  "byRegime": {
+    "bull": {
+      "n": 6356,
+      "directionHitRate": 0.5323327478844004,
+      "baselineAlwaysUp": 0.584002519288301,
+      "bullHitRate": 0.5970386039132733,
+      "bearHitRate": 0.43369609028617495,
+      "lift": -0.05166977140390061
+    },
+    "bear": {
+      "n": 2696,
+      "directionHitRate": 0.47471698113207544,
+      "baselineAlwaysUp": 0.4927590048273301,
+      "bullHitRate": 0.467704280155642,
+      "bearHitRate": 0.48131868131868133,
+      "lift": -0.01804202369525465
+    },
+    "side": {
+      "n": 1470,
+      "directionHitRate": 0.5118219749652295,
+      "baselineAlwaysUp": 0.5334242837653479,
+      "bullHitRate": 0.5372005044136192,
+      "bearHitRate": 0.4806201550387597,
+      "lift": -0.021602308800118375
+    }
+  },
+  "perFixture": [
+    {
+      "symbol": "000660",
+      "tf": "1day",
+      "points": 15,
+      "regime": "bull",
+      "directionHitRate": 1,
+      "coneCoverage": 0.6,
+      "priceMAE": 0.23680027802691617,
+      "baselineAlwaysUp": 1,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 69872.02925045705,
+        "totalReturn": 5.987202925045706,
+        "winRate": 1,
+        "avgWin": 0.9168697391095925,
+        "avgLoss": null,
+        "maxDrawdown": 0,
+        "trades": 3,
+        "wins": 3,
+        "losses": 0,
+        "sumWin": 2.7506092173287775,
+        "sumLoss": 0
+      },
+      "buyHoldReturn": 7.047531992687386
+    },
+    {
+      "symbol": "005930",
+      "tf": "1day",
+      "points": 15,
+      "regime": "bull",
+      "directionHitRate": 1,
+      "coneCoverage": 0.6,
+      "priceMAE": 0.19550978156351823,
+      "baselineAlwaysUp": 1,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 42517.98561151078,
+        "totalReturn": 3.2517985611510785,
+        "winRate": 1,
+        "avgWin": 0.6219173627043585,
+        "avgLoss": null,
+        "maxDrawdown": 0,
+        "trades": 3,
+        "wins": 3,
+        "losses": 0,
+        "sumWin": 1.8657520881130756,
+        "sumLoss": 0
+      },
+      "buyHoldReturn": 3.258992805755396
+    },
+    {
+      "symbol": "AAPL",
+      "tf": "1day",
+      "points": 475,
+      "regime": "bull",
+      "directionHitRate": 0.594017094017094,
+      "coneCoverage": 0.8231578947368421,
+      "priceMAE": 0.13778025321599047,
+      "baselineAlwaysUp": 0.689873417721519,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 223875.68964189876,
+        "totalReturn": 21.387568964189875,
+        "winRate": 0.6911764705882353,
+        "avgWin": 0.14072020746952973,
+        "avgLoss": -0.1218258725013425,
+        "maxDrawdown": -0.5081533101045296,
+        "trades": 68,
+        "wins": 47,
+        "losses": 21,
+        "sumWin": 6.613849751067898,
+        "sumLoss": -2.5583433225281924
+      },
+      "buyHoldReturn": 71.16856892010536
+    },
+    {
+      "symbol": "AUD/USD",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bear",
+      "directionHitRate": 0.47956989247311826,
+      "coneCoverage": 0.930379746835443,
+      "priceMAE": 0.05558267992939502,
+      "baselineAlwaysUp": 0.49156118143459915,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 8959.419737431212,
+        "totalReturn": -0.10405802625687888,
+        "winRate": 0.5454545454545454,
+        "avgWin": 0.035467945817680875,
+        "avgLoss": -0.04481428724721472,
+        "maxDrawdown": -0.3963669732789872,
+        "trades": 44,
+        "wins": 24,
+        "losses": 20,
+        "sumWin": 0.8512306996243411,
+        "sumLoss": -0.8962857449442945
+      },
+      "buyHoldReturn": -0.26375026544913993
+    },
+    {
+      "symbol": "BABA",
+      "tf": "1day",
+      "points": 271,
+      "regime": "side",
+      "directionHitRate": 0.4925925925925926,
+      "coneCoverage": 0.8450184501845018,
+      "priceMAE": 0.1669937785223129,
+      "baselineAlwaysUp": 0.5129151291512916,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 24899.498397913863,
+        "totalReturn": 1.4899498397913864,
+        "winRate": 0.5384615384615384,
+        "avgWin": 0.1881044096949272,
+        "avgLoss": -0.10868118326688421,
+        "maxDrawdown": -0.4921007311817366,
+        "trades": 26,
+        "wins": 14,
+        "losses": 12,
+        "sumWin": 2.633461735728981,
+        "sumLoss": -1.3041741992026106
+      },
+      "buyHoldReturn": 0.25384911470361815
+    },
+    {
+      "symbol": "BTC/USD",
+      "tf": "1day",
+      "points": 406,
+      "regime": "bull",
+      "directionHitRate": 0.5235732009925558,
+      "coneCoverage": 0.7512315270935961,
+      "priceMAE": 0.26304700245379703,
+      "baselineAlwaysUp": 0.5960591133004927,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 667187.0446996869,
+        "totalReturn": 65.7187044699687,
+        "winRate": 0.5319148936170213,
+        "avgWin": 0.41121764903562663,
+        "avgLoss": -0.1558969445473319,
+        "maxDrawdown": -0.7874749664282259,
+        "trades": 47,
+        "wins": 25,
+        "losses": 22,
+        "sumWin": 10.280441225890666,
+        "sumLoss": -3.4297327800413018
+      },
+      "buyHoldReturn": 244.19194314614845
+    },
+    {
+      "symbol": "CSCO",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bull",
+      "directionHitRate": 0.5278969957081545,
+      "coneCoverage": 0.8544303797468354,
+      "priceMAE": 0.106194771752405,
+      "baselineAlwaysUp": 0.580168776371308,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 24610.10001175335,
+        "totalReturn": 1.4610100011753353,
+        "winRate": 0.5636363636363636,
+        "avgWin": 0.10164143384565424,
+        "avgLoss": -0.07629733407255562,
+        "maxDrawdown": -0.4086102188023476,
+        "trades": 55,
+        "wins": 31,
+        "losses": 24,
+        "sumWin": 3.1508844492152814,
+        "sumLoss": -1.831136017741335
+      },
+      "buyHoldReturn": 3.3245647969052223
+    },
+    {
+      "symbol": "DIS",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bull",
+      "directionHitRate": 0.5373134328358209,
+      "coneCoverage": 0.8354430379746836,
+      "priceMAE": 0.11711561647515935,
+      "baselineAlwaysUp": 0.5822784810126582,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 11402.846368775346,
+        "totalReturn": 0.14028463687753456,
+        "winRate": 0.5555555555555556,
+        "avgWin": 0.09853520683320552,
+        "avgLoss": -0.09878008476986071,
+        "maxDrawdown": -0.48609944923185,
+        "trades": 54,
+        "wins": 30,
+        "losses": 24,
+        "sumWin": 2.9560562049961656,
+        "sumLoss": -2.370722034476657
+      },
+      "buyHoldReturn": 1.8925216362156965
+    },
+    {
+      "symbol": "ETH/USD",
+      "tf": "1day",
+      "points": 150,
+      "regime": "bear",
+      "directionHitRate": 0.4594594594594595,
+      "coneCoverage": 0.7466666666666667,
+      "priceMAE": 0.30810671280796964,
+      "baselineAlwaysUp": 0.5266666666666666,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 2637.5190595011954,
+        "totalReturn": -0.7362480940498805,
+        "winRate": 0.4166666666666667,
+        "avgWin": 0.21831002869698643,
+        "avgLoss": -0.2703971970392006,
+        "maxDrawdown": -0.7362480940498805,
+        "trades": 12,
+        "wins": 5,
+        "losses": 7,
+        "sumWin": 1.0915501434849322,
+        "sumLoss": -1.8927803792744045
+      },
+      "buyHoldReturn": -0.4831074483843323
+    },
+    {
+      "symbol": "EUR/USD",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bear",
+      "directionHitRate": 0.47071583514099785,
+      "coneCoverage": 0.9493670886075949,
+      "priceMAE": 0.04808598360123992,
+      "baselineAlwaysUp": 0.4714587737843552,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 6919.648268705375,
+        "totalReturn": -0.3080351731294625,
+        "winRate": 0.42857142857142855,
+        "avgWin": 0.028826080309404218,
+        "avgLoss": -0.03506994588413249,
+        "maxDrawdown": -0.34401123833886305,
+        "trades": 42,
+        "wins": 18,
+        "losses": 24,
+        "sumWin": 0.5188694455692759,
+        "sumLoss": -0.8416787012191796
+      },
+      "buyHoldReturn": -0.2829311211664153
+    },
+    {
+      "symbol": "EUR/USD",
+      "tf": "1week",
+      "points": 650,
+      "regime": "bear",
+      "directionHitRate": 0.45962732919254656,
+      "coneCoverage": 0.8092307692307692,
+      "priceMAE": 0.10225308679217752,
+      "baselineAlwaysUp": 0.4846153846153846,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 10360.508491821167,
+        "totalReturn": 0.03605084918211676,
+        "winRate": 0.42105263157894735,
+        "avgWin": 0.11455937280104858,
+        "avgLoss": -0.07005056888186961,
+        "maxDrawdown": -0.3025922763133928,
+        "trades": 19,
+        "wins": 8,
+        "losses": 11,
+        "sumWin": 0.9164749824083886,
+        "sumLoss": -0.7705562577005657
+      },
+      "buyHoldReturn": -0.23569993302076364
+    },
+    {
+      "symbol": "GBP/USD",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bear",
+      "directionHitRate": 0.5117773019271948,
+      "coneCoverage": 0.9388185654008439,
+      "priceMAE": 0.045841791432969875,
+      "baselineAlwaysUp": 0.47890295358649787,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 8408.126293550793,
+        "totalReturn": -0.15918737064492072,
+        "winRate": 0.4666666666666667,
+        "avgWin": 0.021780002048341712,
+        "avgLoss": -0.02531209186078937,
+        "maxDrawdown": -0.26655730933122845,
+        "trades": 45,
+        "wins": 21,
+        "losses": 24,
+        "sumWin": 0.457380043015176,
+        "sumLoss": -0.6074902046589449
+      },
+      "buyHoldReturn": -0.3259464916708734
+    },
+    {
+      "symbol": "GE",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bull",
+      "directionHitRate": 0.5214592274678111,
+      "coneCoverage": 0.8438818565400844,
+      "priceMAE": 0.14567792959369452,
+      "baselineAlwaysUp": 0.5421940928270043,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 35372.227087059284,
+        "totalReturn": 2.5372227087059285,
+        "winRate": 0.56,
+        "avgWin": 0.12799335722152513,
+        "avgLoss": -0.07838861799357039,
+        "maxDrawdown": -0.6453329391617282,
+        "trades": 50,
+        "wins": 28,
+        "losses": 22,
+        "sumWin": 3.583814002202704,
+        "sumLoss": -1.7245495958585484
+      },
+      "buyHoldReturn": 1.083101549639553
+    },
+    {
+      "symbol": "IBM",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bull",
+      "directionHitRate": 0.44967880085653106,
+      "coneCoverage": 0.8523206751054853,
+      "priceMAE": 0.10136752285974061,
+      "baselineAlwaysUp": 0.6033755274261603,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 17144.981265334358,
+        "totalReturn": 0.7144981265334358,
+        "winRate": 0.5636363636363636,
+        "avgWin": 0.08136547300370384,
+        "avgLoss": -0.07232818149494043,
+        "maxDrawdown": -0.4938155955538084,
+        "trades": 55,
+        "wins": 31,
+        "losses": 24,
+        "sumWin": 2.522329663114819,
+        "sumLoss": -1.7358763558785704
+      },
+      "buyHoldReturn": 2.145501941471244
+    },
+    {
+      "symbol": "INTC",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bull",
+      "directionHitRate": 0.4829059829059829,
+      "coneCoverage": 0.8270042194092827,
+      "priceMAE": 0.14261014024524485,
+      "baselineAlwaysUp": 0.5602536997885835,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 6210.805718837421,
+        "totalReturn": -0.3789194281162579,
+        "winRate": 0.5294117647058824,
+        "avgWin": 0.15463676583772767,
+        "avgLoss": -0.13333900021729453,
+        "maxDrawdown": -0.8446632385915749,
+        "trades": 51,
+        "wins": 27,
+        "losses": 24,
+        "sumWin": 4.175192677618647,
+        "sumLoss": -3.2001360052150685
+      },
+      "buyHoldReturn": 4.122008446738621
+    },
+    {
+      "symbol": "KO",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bull",
+      "directionHitRate": 0.4924731182795699,
+      "coneCoverage": 0.9156118143459916,
+      "priceMAE": 0.0699000985976285,
+      "baselineAlwaysUp": 0.5856236786469344,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 21980.85478236248,
+        "totalReturn": 1.1980854782362478,
+        "winRate": 0.5645161290322581,
+        "avgWin": 0.05716523703039259,
+        "avgLoss": -0.04057165195197259,
+        "maxDrawdown": -0.17991255653215132,
+        "trades": 62,
+        "wins": 35,
+        "losses": 27,
+        "sumWin": 2.000783296063741,
+        "sumLoss": -1.09543460270326
+      },
+      "buyHoldReturn": 2.2717010509926037
+    },
+    {
+      "symbol": "MSFT",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bull",
+      "directionHitRate": 0.5854700854700855,
+      "coneCoverage": 0.890295358649789,
+      "priceMAE": 0.0981089648438346,
+      "baselineAlwaysUp": 0.642706131078224,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 116838.62005851793,
+        "totalReturn": 10.683862005851793,
+        "winRate": 0.6984126984126984,
+        "avgWin": 0.09498703676864606,
+        "avgLoss": -0.07351509191594296,
+        "maxDrawdown": -0.20869305451829734,
+        "trades": 63,
+        "wins": 44,
+        "losses": 19,
+        "sumWin": 4.179429617820427,
+        "sumLoss": -1.3967867464029164
+      },
+      "buyHoldReturn": 12.228561782579337
+    },
+    {
+      "symbol": "NVDA",
+      "tf": "1day",
+      "points": 475,
+      "regime": "bull",
+      "directionHitRate": 0.5787234042553191,
+      "coneCoverage": 0.8315789473684211,
+      "priceMAE": 0.21084372322201064,
+      "baselineAlwaysUp": 0.6708860759493671,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 501615.84576728946,
+        "totalReturn": 49.16158457672895,
+        "winRate": 0.5862068965517241,
+        "avgWin": 0.29001342894490223,
+        "avgLoss": -0.15743822508870778,
+        "maxDrawdown": -0.82564787949468,
+        "trades": 58,
+        "wins": 34,
+        "losses": 24,
+        "sumWin": 9.860456584126675,
+        "sumLoss": -3.7785174021289865
+      },
+      "buyHoldReturn": 320.4523097374543
+    },
+    {
+      "symbol": "PFE",
+      "tf": "1day",
+      "points": 474,
+      "regime": "side",
+      "directionHitRate": 0.5485961123110151,
+      "coneCoverage": 0.8881856540084389,
+      "priceMAE": 0.0882806186362901,
+      "baselineAlwaysUp": 0.5444915254237288,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 12299.246837534809,
+        "totalReturn": 0.22992468375348096,
+        "winRate": 0.5652173913043478,
+        "avgWin": 0.0671802092532875,
+        "avgLoss": -0.06815764426965014,
+        "maxDrawdown": -0.4183907802843968,
+        "trades": 46,
+        "wins": 26,
+        "losses": 20,
+        "sumWin": 1.746685440585475,
+        "sumLoss": -1.3631528853930028
+      },
+      "buyHoldReturn": -0.03500366834916269
+    },
+    {
+      "symbol": "PYPL",
+      "tf": "1day",
+      "points": 251,
+      "regime": "side",
+      "directionHitRate": 0.5465587044534413,
+      "coneCoverage": 0.8326693227091634,
+      "priceMAE": 0.15518303773735018,
+      "baselineAlwaysUp": 0.545816733067729,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 48959.667341138986,
+        "totalReturn": 3.895966734113898,
+        "winRate": 0.6153846153846154,
+        "avgWin": 0.15100443080526313,
+        "avgLoss": -0.056474824144388244,
+        "maxDrawdown": -0.22362547239350117,
+        "trades": 26,
+        "wins": 16,
+        "losses": 10,
+        "sumWin": 2.41607089288421,
+        "sumLoss": -0.5647482414438825
+      },
+      "buyHoldReturn": 0.13560379241516962
+    },
+    {
+      "symbol": "T",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bear",
+      "directionHitRate": 0.46236559139784944,
+      "coneCoverage": 0.8628691983122363,
+      "priceMAE": 0.08755177932865243,
+      "baselineAlwaysUp": 0.5296610169491526,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 8606.177829529017,
+        "totalReturn": -0.1393822170470983,
+        "winRate": 0.525,
+        "avgWin": 0.06179477740884442,
+        "avgLoss": -0.068793920953344,
+        "maxDrawdown": -0.409316724920913,
+        "trades": 40,
+        "wins": 21,
+        "losses": 19,
+        "sumWin": 1.2976903255857328,
+        "sumLoss": -1.3070844981135359
+      },
+      "buyHoldReturn": -0.2974615479967436
+    },
+    {
+      "symbol": "USD/JPY",
+      "tf": "1day",
+      "points": 474,
+      "regime": "bull",
+      "directionHitRate": 0.5107296137339056,
+      "coneCoverage": 0.9156118143459916,
+      "priceMAE": 0.04708408272980264,
+      "baselineAlwaysUp": 0.5464135021097046,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 14009.430642707734,
+        "totalReturn": 0.4009430642707734,
+        "winRate": 0.5918367346938775,
+        "avgWin": 0.041729067700597235,
+        "avgLoss": -0.040182202342231216,
+        "maxDrawdown": -0.21766604536584333,
+        "trades": 49,
+        "wins": 29,
+        "losses": 20,
+        "sumWin": 1.2101429633173197,
+        "sumLoss": -0.8036440468446243
+      },
+      "buyHoldReturn": 0.5303667043740572
+    },
+    {
+      "symbol": "USD/KRW",
+      "tf": "1day",
+      "points": 475,
+      "regime": "bull",
+      "directionHitRate": 0.4978448275862069,
+      "coneCoverage": 0.9536842105263158,
+      "priceMAE": 0.046781566136268236,
+      "baselineAlwaysUp": 0.5157894736842106,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 14186.293884485518,
+        "totalReturn": 0.4186293884485519,
+        "winRate": 0.5686274509803921,
+        "avgWin": 0.04276940790630242,
+        "avgLoss": -0.03650809617578988,
+        "maxDrawdown": -0.29658241500446836,
+        "trades": 51,
+        "wins": 29,
+        "losses": 22,
+        "sumWin": 1.24031282928277,
+        "sumLoss": -0.8031781158673773
+      },
+      "buyHoldReturn": 0.4571515236438237
+    },
+    {
+      "symbol": "USD/KRW",
+      "tf": "1week",
+      "points": 703,
+      "regime": "bull",
+      "directionHitRate": 0.5685425685425686,
+      "coneCoverage": 0.8506401137980085,
+      "priceMAE": 0.09182164454285602,
+      "baselineAlwaysUp": 0.4950213371266003,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 12206.068899319309,
+        "totalReturn": 0.2206068899319309,
+        "winRate": 0.4642857142857143,
+        "avgWin": 0.13586252845870272,
+        "avgLoss": -0.07597922214267804,
+        "maxDrawdown": -0.596300185021162,
+        "trades": 28,
+        "wins": 13,
+        "losses": 15,
+        "sumWin": 1.7662128699631354,
+        "sumLoss": -1.1396883321401705
+      },
+      "buyHoldReturn": 0.8165633062589583
+    },
+    {
+      "symbol": "VZ",
+      "tf": "1day",
+      "points": 474,
+      "regime": "side",
+      "directionHitRate": 0.4672489082969432,
+      "coneCoverage": 0.9092827004219409,
+      "priceMAE": 0.07745195106634908,
+      "baselineAlwaysUp": 0.527542372881356,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 8199.480115411769,
+        "totalReturn": -0.1800519884588232,
+        "winRate": 0.6170212765957447,
+        "avgWin": 0.03617821129284018,
+        "avgLoss": -0.0630340169380768,
+        "maxDrawdown": -0.3521084253585144,
+        "trades": 47,
+        "wins": 29,
+        "losses": 18,
+        "sumWin": 1.0491681274923652,
+        "sumLoss": -1.1346123048853822
+      },
+      "buyHoldReturn": 0.07118514475712856
+    }
+  ],
+  "calibrationCurve": [
+    {
+      "binLo": 20,
+      "binHi": 30,
+      "predicted": 0.29,
+      "actual": 1,
+      "n": 3
+    },
+    {
+      "binLo": 30,
+      "binHi": 40,
+      "predicted": 0.3695454545454545,
+      "actual": 0.5012285012285013,
+      "n": 814
+    },
+    {
+      "binLo": 40,
+      "binHi": 50,
+      "predicted": 0.4467031904608444,
+      "actual": 0.5572027070576862,
+      "n": 3103
+    },
+    {
+      "binLo": 50,
+      "binHi": 60,
+      "predicted": 0.5390306834030683,
+      "actual": 0.5432357043235704,
+      "n": 2868
+    },
+    {
+      "binLo": 60,
+      "binHi": 70,
+      "predicted": 0.6429263410728584,
+      "actual": 0.5528422738190553,
+      "n": 2498
+    },
+    {
+      "binLo": 70,
+      "binHi": 80,
+      "predicted": 0.7333066666666668,
+      "actual": 0.5973333333333334,
+      "n": 1125
+    },
+    {
+      "binLo": 80,
+      "binHi": 90,
+      "predicted": 0.825045871559633,
+      "actual": 0.6146788990825688,
+      "n": 109
+    },
+    {
+      "binLo": 90,
+      "binHi": 100,
+      "predicted": 0.9,
+      "actual": 0,
+      "n": 2
+    }
+  ]
+}

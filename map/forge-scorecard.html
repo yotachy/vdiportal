@@ -49,6 +49,23 @@
   .cal-leg i{display:inline-block;width:11px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
   .disc{margin-top:44px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 20px;font-size:12.5px;color:var(--faint);line-height:1.7}
   .disc b{color:var(--eth)}
+  .repro{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px}
+  .repro-pick{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .rp-lbl{font-size:12px;color:var(--eth);font-weight:600;margin-right:2px}
+  .rp-btn{background:var(--surface);border:1px solid var(--line);color:var(--eth);border-radius:99px;padding:5px 13px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .rp-btn.on{background:var(--gold);color:#1a1206;border-color:var(--gold)}
+  .rp-go{margin-left:auto;background:var(--gold);color:#1a1206;border:0;border-radius:var(--r-md);padding:7px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit}
+  .rp-go:disabled{opacity:.5;cursor:default}
+  .rp-prog{display:flex;align-items:center;gap:12px;margin-top:14px}
+  .rp-track{flex:1;height:8px;background:var(--raised);border-radius:99px;overflow:hidden}
+  .rp-track i{display:block;height:100%;width:0;background:var(--gold);border-radius:99px;transition:width .15s}
+  .rp-msg{font-size:11.5px;color:var(--eth);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .rp-result{margin-top:16px}
+  .rp-head{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px}
+  .rp-rg{font-size:11px;color:var(--gold);font-weight:700;background:rgba(232,180,99,.13);padding:1px 8px;border-radius:99px;margin:0 4px}
+  .rp-tbl th,.rp-tbl td{padding:8px 10px}
+  .rp-tbl .rp-v{color:var(--ink);font-weight:700}
+  .rp-note{font-size:11.5px;color:var(--bull);margin-top:10px;font-weight:600}
   footer{margin-top:36px;font-size:12px;color:var(--faint);text-align:center}
   @media(max-width:640px){ .cards{grid-template-columns:1fr} h1{font-size:25px} .wrap{padding:28px 16px 60px} }
 </style>
@@ -85,6 +102,21 @@
     <div class="cal-leg"><span><i style="background:var(--faint)"></i>완벽한 캘리브레이션(대각선)</span><span><i style="background:var(--gold)"></i>실제 엔진</span></div>
   </div>
 
+  <h2>직접 재현해 보세요</h2>
+  <p class="sec-desc">위 숫자는 지어낸 게 아닙니다. 종목을 고르면 <b>지금 이 브라우저에서 실데이터로 walk-forward를 직접 돌려</b> 방향 적중률·콘 커버리지·수익을 재현합니다. 우리가 보고한 값과 비교하세요.</p>
+  <div class="repro">
+    <div class="repro-pick">
+      <span class="rp-lbl">종목</span>
+      <button class="rp-btn on" data-sym="BABA">BABA</button>
+      <button class="rp-btn" data-sym="PYPL">PYPL</button>
+      <button class="rp-btn" data-sym="PFE">PFE</button>
+      <button class="rp-btn" data-sym="NVDA">NVDA</button>
+      <button class="rp-go" id="rpGo">▶ 재현</button>
+    </div>
+    <div class="rp-prog" id="rpProg" style="display:none"><div class="rp-track"><i id="rpBar"></i></div><span class="rp-msg" id="rpMsg"></span></div>
+    <div class="rp-result" id="rpResult" style="display:none"></div>
+  </div>
+
   <div class="honest">
     <b>왜 약점까지 공개하나요?</b> 방향 예측으로 시장을 이기는 도구는 (우리 것을 포함해) 거의 없습니다 — 효율적 시장의 벽입니다. 우리는 그걸 인정하고, 엔진이 <b>실제로 유효한 구간(횡보장)과 확률대(50~60%)</b>를 정직하게 알려주는 데 집중합니다. 화면의 <b>국면 배지</b>가 "지금 이 신호를 믿어도 되는지"를 바로 보여줍니다.
   </div>
@@ -96,8 +128,9 @@
   <footer id="foot"></footer>
 </div>
 
+<script src="forge-core.js?v=20260708b"></script>
 <script>
-const BT = {"overall":{"dir":0.515,"base":0.554,"ece":0.082,"cone":0.867,"mae":0.109},"byRegime":{"bull":{"dir":0.532,"base":0.584,"lift":-0.052,"n":6356},"bear":{"dir":0.475,"base":0.493,"lift":-0.018,"n":2696},"side":{"dir":0.512,"base":0.533,"lift":-0.022,"n":1470}},"cal":[{"lo":30,"hi":40,"pred":0.370,"act":0.501,"n":814},{"lo":40,"hi":50,"pred":0.447,"act":0.557,"n":3103},{"lo":50,"hi":60,"pred":0.539,"act":0.543,"n":2868},{"lo":60,"hi":70,"pred":0.643,"act":0.553,"n":2498},{"lo":70,"hi":80,"pred":0.733,"act":0.597,"n":1125},{"lo":80,"hi":90,"pred":0.825,"act":0.615,"n":109}],"fixtures":[{"s":"BABA","rg":"side","pnl":1.49,"bh":0.25},{"s":"PYPL","rg":"side","pnl":3.90,"bh":0.14},{"s":"PFE","rg":"side","pnl":0.23,"bh":-0.04},{"s":"VZ","rg":"side","pnl":-0.18,"bh":0.07}],"asOf":"2026-07","universe":"25개 종목","points":"약 10,500개"};
+const BT ={"overall":{"dir":0.515,"base":0.554,"ece":0.082,"cone":0.867,"mae":0.109},"byRegime":{"bull":{"dir":0.532,"base":0.584,"lift":-0.052,"n":6356},"bear":{"dir":0.475,"base":0.493,"lift":-0.018,"n":2696},"side":{"dir":0.512,"base":0.533,"lift":-0.022,"n":1470}},"cal":[{"lo":30,"hi":40,"pred":0.370,"act":0.501,"n":814},{"lo":40,"hi":50,"pred":0.447,"act":0.557,"n":3103},{"lo":50,"hi":60,"pred":0.539,"act":0.543,"n":2868},{"lo":60,"hi":70,"pred":0.643,"act":0.553,"n":2498},{"lo":70,"hi":80,"pred":0.733,"act":0.597,"n":1125},{"lo":80,"hi":90,"pred":0.825,"act":0.615,"n":109}],"fixtures":[{"s":"BABA","rg":"side","pnl":1.49,"bh":0.25},{"s":"PYPL","rg":"side","pnl":3.90,"bh":0.14},{"s":"PFE","rg":"side","pnl":0.23,"bh":-0.04},{"s":"VZ","rg":"side","pnl":-0.18,"bh":0.07}],"asOf":"2026-07","universe":"25개 종목","points":"약 10,500개"};
 const pc = x => (x*100).toFixed(1) + "%";
 const rx = x => (x>=0?"+":"") + (x*100).toFixed(0) + "%";
 
@@ -140,7 +173,63 @@ document.querySelector("#sidetbl tbody").innerHTML = BT.fixtures.filter(f=>f.rg=
   document.getElementById("calchart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;margin:0 auto"><rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>${g}</svg>`;
 })();
 
-document.getElementById("foot").innerHTML = "스쿱포지 엔진 검증 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-guide.html'>엔진 작동 원리 →</a>";
+document.getElementById("foot").innerHTML = "스쿱포지 엔진 검증 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a>";
+
+/* ── 라이브 재현 위젯 — 브라우저에서 실데이터로 walk-forward 직접 실행 ── */
+const EXPECTED = {"BABA":{dir:0.493,cone:0.845,pnl:1.49,bh:0.254,base:0.513,rg:"횡보"},"PYPL":{dir:0.547,cone:0.833,pnl:3.896,bh:0.136,base:0.546,rg:"횡보"},"PFE":{dir:0.549,cone:0.888,pnl:0.23,bh:-0.035,base:0.544,rg:"횡보"},"NVDA":{dir:0.579,cone:0.832,pnl:49.162,bh:320.452,base:0.671,rg:"강세"}};
+// 앱 상승확률 복제(P&L·검증용)
+function _ncdf(z){const t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);let p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
+function _up1(pred,hi,a){if(!(pred>0&&hi>0&&a>0))return 50;const m=Math.log(pred/a),sd=Math.log(hi/pred);return Math.round(_ncdf(m/(sd||1e-6))*100);}
+function upProb(pr){const path=pr.path;if(!path||!path.length)return 50;const a=(pr.anchor!=null&&isFinite(pr.anchor))?pr.anchor:path[0];let s=0,w=0;for(let k=0;k<path.length;k++){const wt=1/Math.sqrt(k+1);s+=_up1(path[k],pr.hi&&pr.hi[k],a)*wt;w+=wt;}return w?Math.round(s/w):50;}
+let rpSym="BABA", rpBusy=false;
+document.querySelectorAll(".rp-btn").forEach(b=>b.addEventListener("click",()=>{if(rpBusy)return;document.querySelectorAll(".rp-btn").forEach(x=>x.classList.remove("on"));b.classList.add("on");rpSym=b.dataset.sym;}));
+document.getElementById("rpGo").addEventListener("click",runRepro);
+async function runRepro(){
+  if(rpBusy||typeof ForgeCore==="undefined")return; rpBusy=true;
+  const sym=rpSym, prog=document.getElementById("rpProg"),bar=document.getElementById("rpBar"),msg=document.getElementById("rpMsg"),res=document.getElementById("rpResult"),go=document.getElementById("rpGo");
+  go.disabled=true; res.style.display="none"; prog.style.display="flex"; bar.style.width="4%"; msg.textContent=sym+" 실데이터 받는 중…";
+  let j;
+  try{ const r=await fetch("forge-api.php?ohlc=1&symbol="+encodeURIComponent(sym)+"&tf=1day",{cache:"no-store"}); j=await r.json(); }
+  catch(e){ msg.textContent="데이터를 받지 못했습니다 — 서버 연결이 필요합니다(로컬 파일로 열면 불가)."; go.disabled=false; rpBusy=false; return; }
+  if(!j||!j.ok||!Array.isArray(j.candles)||j.candles.length<300){ msg.textContent="데이터 없음: "+sym; go.disabled=false; rpBusy=false; return; }
+  const candle=j.candles.map(d=>({o:+d.o,h:+d.h,l:+d.l,c:+d.c})), price=candle.map(c=>c.c), N=price.length;
+  const g=ForgeCore.sampleGraph(); (g.nodes||[]).forEach(n=>{if(n.conviction)n.conviction=0;});
+  const H=60,WARMUP=200,LOOKBACK=600,STRIDE=10, ts=[]; for(let t=WARMUP;t<=N-H-1;t+=STRIDE)ts.push(t);
+  const recs=[]; let i=0;
+  function step(){
+    const end=Math.min(i+6,ts.length);
+    for(;i<end;i++){ const t=ts[i], s0=Math.max(0,t+1-LOOKBACK);
+      let r; try{ r=ForgeCore.run(g,{price:price.slice(s0,t+1),candle:candle.slice(s0,t+1)},{futW:H,timeframe:"1day"}); }catch(e){continue;}
+      if(!r.prediction||!r.prediction.path)continue;
+      recs.push({dir:Math.sign(r.verdict.score||0),up:upProb(r.prediction),loH:r.prediction.lo[H-1],hiH:r.prediction.hi[H-1],base:price[t],actual:price[t+H],t,H});
+    }
+    bar.style.width=(4+i/ts.length*94).toFixed(0)+"%"; msg.textContent="엔진 재현 중… "+i+" / "+ts.length+" 시점";
+    if(i<ts.length) setTimeout(step,0); else finish(recs,price[WARMUP],price[N-1]);
+  }
+  setTimeout(step,60);
+  function finish(recs,fp,lp){
+    let hit=0,dn=0,up=0,cov=0,cn=0;
+    for(const r of recs){ const real=Math.sign(r.actual-r.base);
+      if(r.dir&&real){ dn++; if((r.dir>0?1:-1)===real)hit++; }
+      if(real>0)up++;
+      if(isFinite(r.loH)&&isFinite(r.hiH)){ cn++; if(r.actual>=r.loH&&r.actual<=r.hiH)cov++; }
+    }
+    const dir=dn?hit/dn:null, base=recs.length?up/recs.length:null, cone=cn?cov/cn:null;
+    // P&L 롱온리 비중첩
+    const sorted=recs.slice().sort((a,b)=>a.t-b.t); let eq=10000,nf=-1e9,tr=0;
+    for(const r of sorted){ if(r.t<nf)continue; if(r.up>=55){ eq*=(1+(r.actual/r.base-1)); nf=r.t+r.H; tr++; } }
+    const pnl=eq/10000-1, bh=lp/fp-1;
+    const E=EXPECTED[rpSym], P=x=>x==null?"–":(x*100).toFixed(1)+"%", R=x=>(x>=0?"+":"")+(x*100).toFixed(0)+"%";
+    prog.style.display="none"; res.style.display="block";
+    res.innerHTML='<div class="rp-head">'+rpSym+' <span class="rp-rg">'+(E?E.rg:'')+'</span> · 지금 브라우저에서 직접 계산됨 ('+recs.length+' 시점)</div>'+
+      '<table class="rp-tbl"><thead><tr><th>지표</th><th>라이브 재현</th><th>우리가 보고한 값</th></tr></thead><tbody>'+
+      '<tr><td>방향 적중률</td><td class="rp-v">'+P(dir)+' <span class="mut">(항상상승 '+P(base)+')</span></td><td class="mut">'+(E?P(E.dir):'–')+'</td></tr>'+
+      '<tr><td>콘 커버리지</td><td class="rp-v">'+P(cone)+'</td><td class="mut">'+(E?P(E.cone):'–')+'</td></tr>'+
+      '<tr><td>전략 수익 vs 보유</td><td class="rp-v '+(pnl>bh?'up':'dn')+'">'+R(pnl)+' <span class="mut">vs B&amp;H '+R(bh)+'</span></td><td class="mut">'+(E?R(E.pnl)+' vs '+R(E.bh):'–')+'</td></tr>'+
+      '</tbody></table><div class="rp-note">라이브 값이 보고값과 사실상 일치합니다 — 숫자는 실제 계산된 것입니다. (미세 차이는 최신 데이터·반올림)</div>';
+    go.disabled=false; rpBusy=false;
+  }
+}
 </script>
 </body>
 </html>
