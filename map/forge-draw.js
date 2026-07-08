@@ -1606,17 +1606,19 @@
       const stroke = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); };
       const pstroke = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); _skStroke(c, _polyLen(pts)); };   // 진행형(손그림)
       const rq = (w.r2Log != null ? w.r2Log : w.r2), weak = rq < 0.15;   // 저신뢰(노이즈성) 추세선 — 흐리게+방향 화살표 생략
+      const _pctS = (Math.exp(w.slopeLog) - 1) * 100;   // 이 창의 추세 방향(%/봉)
+      const dcol = _pctS > 0.05 ? FC_BULL : _pctS < -0.05 ? FC_BEAR : "#8a92b2";   // 상승=초록·하락=빨강·횡보=중립(기간 구분은 굵기·라벨로)
       c.setLineDash([]);
       if (!weak) { c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = W[key] + CW.halo; pstroke(hp); }
       c.globalAlpha = weak ? 0.3 : 1;
-      c.strokeStyle = COL[key]; c.lineWidth = weak ? Math.max(0.8, W[key] - 0.4) : W[key]; c.setLineDash(weak ? CDASH.fine : DASH[key]); pstroke(hp);
+      c.strokeStyle = dcol; c.lineWidth = weak ? Math.max(0.8, W[key] - 0.4) : W[key]; c.setLineDash(weak ? CDASH.fine : DASH[key]); pstroke(hp);
       c.globalAlpha = 1;
       // 투영(현재→미래): 신뢰도 낮으면 생략. 손그림 중엔 본선 다 그려진 뒤 등장.
       if (!weak && _skReady()) {
         const FS = 12, fp = [[xb, yb]];
         for (let s = 1; s <= FS; s++) { const fi = nowFi + futBars * s / FS, x = xb + (xRight - xb) * s / FS, y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) fp.push([x, y]); }
         if (fp.length >= 2) {
-          if (M.focused) { _drawProjLine(c, fp, COL[key]); if (key === "mid") _projMark(c, fp[fp.length - 1][0], fp[fp.length - 1][1], COL[key], _projMarkScale(valAt(nowFi + futBars), valAt(nowFi))); }
+          if (M.focused) { _drawProjLine(c, fp, dcol); if (key === "mid") _projMark(c, fp[fp.length - 1][0], fp[fp.length - 1][1], dcol, _projMarkScale(valAt(nowFi + futBars), valAt(nowFi))); }
           else { c.globalAlpha = .6; c.setLineDash(CDASH.std); stroke(fp); c.globalAlpha = 1; c.setLineDash([]); }
         }
       }
@@ -1627,23 +1629,25 @@
       // 기본=축약(단기 ▲ — 뭉침 방지), '전체 라벨 표시'(_labelMode==='all') 켜면 상세(%/봉·R²)
       const _full = (typeof _labelMode !== "undefined" && _labelMode === "all") && ((typeof window === "undefined") || window.innerWidth >= 560);
       const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (_full ? (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir : (weak ? "·약" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—"));
-      _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, weak ? "rgba(138,146,178,.92)" : COL[key], "left");
-      if (M.focused && !weak && key === "mid") { const endV = valAt(nowFi + futBars); if (isFinite(endV)) _evLabel(c, "\ucd94\uc138 \ub3c4\ub2ec \u2248 " + _hzFmt(endV), xRight, pToY(endV), COL[key], "right"); }   // 추세 도달 ≈
+      _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, weak ? "rgba(138,146,178,.92)" : dcol, "left");
+      if (M.focused && !weak && key === "mid") { const endV = valAt(nowFi + futBars); if (isFinite(endV)) _evLabel(c, "\ucd94\uc138 \ub3c4\ub2ec \u2248 " + _hzFmt(endV), xRight, pToY(endV), dcol, "right"); }   // 추세 도달 ≈
     }
     // 채널(장기 ±k·σ) — 로그차트면 로그공간(지수) 중심±σ, 다점 샘플로 곡선 정합
     if (ta.channel) {
       const ch = ta.channel, Wl = ta.windows.long, sL = (ta.blend && ta.blend.channelSigmaLog) || 0, k = ch.k;
+      const _pctCh = (Wl && isFinite(Wl.slopeLog)) ? (Math.exp(Wl.slopeLog) - 1) * 100 : 0;   // 장기 채널 방향
+      const chCol = _pctCh > 0.05 ? FC_BULL : _pctCh < -0.05 ? FC_BEAR : "#8a92b2";   // 상승채널=초록·하락채널=빨강·횡보=중립
       const logCh = _logChart && Wl && isFinite(Wl.bLog);
       const upAt = fi => logCh ? pToY(Math.exp(Wl.bLog + Wl.slopeLog * (fi - Wl.startIdx) + k * sL)) : pToY(ch.bRaw + ch.slopeRaw * fi + k * ch.sigma);
       const loAt = fi => logCh ? pToY(Math.exp(Wl.bLog + Wl.slopeLog * (fi - Wl.startIdx) - k * sL)) : pToY(ch.bRaw + ch.slopeRaw * fi - k * ch.sigma);
       const CS = 20, up = [], lo = [];
       for (let s = 0; s <= CS; s++) { const fi = fiMin + (nowFi - fiMin) * s / CS, x = fiToX(fi), yu = upAt(fi), yl = loAt(fi); if (isFinite(x) && isFinite(yu) && isFinite(yl)) { up.push([x, yu]); lo.push([x, yl]); } }
       if (up.length >= 2) {
-        c.globalAlpha = .055; c.fillStyle = COL.long; c.beginPath();
+        c.globalAlpha = .06; c.fillStyle = chCol; c.beginPath();
         up.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]));
         for (let i = lo.length - 1; i >= 0; i--) c.lineTo(lo[i][0], lo[i][1]);
         c.closePath(); c.fill(); c.globalAlpha = 1;
-        c.strokeStyle = COL.long; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine); c.globalAlpha = .45;
+        c.strokeStyle = chCol; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine); c.globalAlpha = .45;
         c.beginPath(); up.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
         c.beginPath(); lo.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
         c.globalAlpha = 1; c.setLineDash([]);
@@ -1714,10 +1718,11 @@
       const base = ls[nowFi], prev = ls[Math.max(0, nowFi - w)];
       if (isFinite(base) && isFinite(prev) && w > 0) {
         const slPer = (base - prev) / w, seam = M.xNow, xr = M.xRight, fb = M.futBars;
+        const _maCol = slPer > 0 ? FC_BULL : slPer < 0 ? FC_BEAR : "#8a92b2";   // MA 투영 방향색(상승=초록·하락=빨강)
         const pp = [[seam, pToY(base)]]; let endV = base;
         for (let k = 1; k <= fb; k++) { endV = base + slPer * k * Math.exp(-k / (fb * 1.5)); pp.push([seam + (xr - seam) * k / fb, pToY(endV)]); }
-        _drawProjLine(c, pp, COL.long); _projMark(c, pp[pp.length - 1][0], pp[pp.length - 1][1], COL.long, _projMarkScale(endV, base));
-        _evLabel(c, "이동평균 투영 \u2248 " + _hzFmt(endV), xr, pToY(endV), COL.long, "right");
+        _drawProjLine(c, pp, _maCol); _projMark(c, pp[pp.length - 1][0], pp[pp.length - 1][1], _maCol, _projMarkScale(endV, base));
+        _evLabel(c, "이동평균 투영 \u2248 " + _hzFmt(endV), xr, pToY(endV), _maCol, "right");
       }
     }
     c.restore();
