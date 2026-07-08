@@ -1207,6 +1207,14 @@
   /* 차트 표시 토글 */
   .risk-toggle{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:12px;color:var(--eth);cursor:pointer;user-select:none}
   .risk-toggle input{width:15px;height:15px;accent-color:var(--gold);cursor:pointer}
+  /* 섹션 헤더 · 수량 우선 레이아웃 */
+  .risk-sec{font-size:11px;font-weight:800;letter-spacing:.02em;color:var(--eth);margin:15px 0 9px;display:flex;align-items:baseline;gap:8px}
+  .risk-sec-x{font-size:10.5px;font-weight:500;color:var(--faint);letter-spacing:-.01em}
+  .risk-fld.ro input{background:#0d1219;color:var(--gold);border-color:rgba(232,180,99,.28);cursor:default;font-weight:700}
+  .fld-auto{font-size:9px;font-weight:800;color:#1a1206;background:var(--gold);border-radius:99px;padding:1px 5px;margin-left:4px;vertical-align:middle}
+  .risk-helper{align-items:end;margin-bottom:2px}
+  .rk-recalc{align-self:end;background:rgba(232,180,99,.14);border:1.5px solid rgba(232,180,99,.4);color:var(--gold);border-radius:var(--r-lg);padding:0 13px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;line-height:1.2;white-space:nowrap;height:40px}
+  .rk-recalc:hover{background:rgba(232,180,99,.24)}
   /* 파라미터 최적화 서피스 모달 */
   .opt-modal{position:fixed;inset:0;z-index:120;background:rgba(6,9,13,.62);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);animation:tuneIn .14s ease}
   .opt-box{width:min(560px,95vw);max-height:90vh;overflow:auto;background:#0f151c;border:1px solid rgba(138,146,178,.22);border-radius:var(--r-lg);box-shadow:0 20px 60px rgba(0,0,0,.5);padding:18px 20px}
