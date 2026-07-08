@@ -16,6 +16,9 @@ const UNIVERSE = [
   ["EUR/USD", "1day"], ["GBP/USD", "1day"], ["USD/JPY", "1day"], ["AUD/USD", "1day"], ["EUR/USD", "1week"],
   // 횡보/박스권 성향 주식(성숙·부진)
   ["IBM", "1day"], ["CSCO", "1day"], ["VZ", "1day"], ["PFE", "1day"], ["KO", "1day"], ["WBA", "1day"], ["GE", "1day"],
+  // 미국 대형주 확대(횡단면 모멘텀 유니버스 강화 · 동일 거래일)
+  ["JPM", "1day"], ["BAC", "1day"], ["WMT", "1day"], ["HD", "1day"], ["PG", "1day"], ["JNJ", "1day"], ["UNH", "1day"], ["XOM", "1day"],
+  ["CVX", "1day"], ["V", "1day"], ["MA", "1day"], ["ORCL", "1day"], ["CRM", "1day"], ["AMD", "1day"], ["QCOM", "1day"], ["CAT", "1day"],
   // 주요 종목 주봉·월봉 — 일/주/월 비교용
   ["NVDA", "1week"], ["AAPL", "1week"], ["MSFT", "1week"], ["BTC/USD", "1week"], ["005930", "1week"], ["INTC", "1week"], ["BABA", "1week"], ["DIS", "1week"],
   ["NVDA", "1month"], ["AAPL", "1month"], ["MSFT", "1month"], ["BTC/USD", "1month"], ["005930", "1month"], ["INTC", "1month"], ["BABA", "1month"], ["DIS", "1month"],
