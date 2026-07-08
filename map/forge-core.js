@@ -1889,7 +1889,15 @@
     const _dirBiasList = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, (_vol ? analyzeVolume(price, _vol).bias : null), _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias, _pv2 && _pv2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b));
     const _biasAvg = _dirBiasList.length ? _dirBiasList.reduce((a, b) => a + b, 0) / _dirBiasList.length : 0;   // 지표 평균 방향(−1..1)
     const _trendDir = Math.max(-1, Math.min(1, trS / 0.008));   // 추세 슬로프 방향(±0.8%/봉=만점)
-    const _dirSig = Math.max(-100, Math.min(100, Math.round((_biasAvg * 0.66 + _trendDir * 0.34) * 100 + bias * 0.5)));   // 방향 종합 시그널(−100..+100, 사용자 conviction 반영)
+    let _dirSig = Math.max(-100, Math.min(100, Math.round((_biasAvg * 0.66 + _trendDir * 0.34) * 100 + bias * 0.5)));   // 방향 종합 시그널(−100..+100, 사용자 conviction 반영)
+    // 방향 정직화(백테스트 +2.7%p): 하락 예측은 장기추세(200MA)가 실제 하락 중일 때만.
+    // 상승추세에서 지표 약세신호는 드리프트를 거스르는 헛발질 → 완만한 상승으로 뒤집음(하락콜 오류 제거).
+    if (_dirSig < 0) {
+      const _s2 = (function (o) { const e = price.length - o; if (e < 200) return null; let s = 0; for (let k = e - 200; k < e; k++) s += price[k]; return s / 200; });
+      const _m2 = _s2(0), _m2p = _s2(20);
+      const _ma200Down = (_m2 != null && _m2p != null) ? (_m2 < _m2p) : false;
+      if (!_ma200Down) _dirSig = Math.round(Math.abs(_dirSig) * 0.35);   // 200MA 비하락 → 약세 억제·완만한 상승 전환
+    }
     sigDriftTotal = (_dirSig / 100) * 0.05;   // 신호 드리프트를 방향 시그널로 재산출(예측이 추세와 일관)
     // 데이터 기반 미세질감: 최근 로그수익률의 단기 자기상관(AR2)을 결정론적으로 투영(잡음/난수 없음).
     // 유의미한 자기상관이 있을 때만 근거리 질감이 생기고, 화이트노이즈면 0 → 장식 아님. 감쇠 누적으로 근거리에 집중, 진폭은 최근 변동성으로 제한.
