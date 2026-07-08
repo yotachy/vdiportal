@@ -183,35 +183,42 @@
     const fb = path.length;
     if (metaEl) metaEl.textContent = "현재가 " + _hzFmt(anchor);
     const hs = _hzList(unit, fb);
-    const head = `<tr><th>시점</th><th>예측가</th><th>변화</th><th title="예측 변화가 일어날 확률(방향 달성확률)">달성확률</th><th>예상 범위</th></tr>`;
+    const head = `<div class="hz-item hz-hd"><span>시점</span><span>예측 변화</span><span>예상 범위 <i class="hz-nowk"></i>현재 <i class="hz-predk"></i>예측</span><span>달성확률</span></div>`;
     const rows = hs.map(h => {
       const vF = path[h - 1], loF = (p.lo && p.lo[h - 1]), hiF = (p.hi && p.hi[h - 1]);
       const v = anchor + (vF - anchor) * u;                                   // 예측가: 현재가→최종 단조 상승(왔다갔다 없음)
       const lo = isFinite(loF) ? anchor + (loF - anchor) * u : loF;
       const hi = isFinite(hiF) ? anchor + (hiF - anchor) * u : hiF;
       const chg = anchor ? (v - anchor) / anchor * 100 : 0;
-      const cls = chg > 0.5 ? "hz-up" : chg < -0.5 ? "hz-dn" : "hz-fl";
-      const band = (isFinite(lo) && isFinite(hi)) ? `${_hzFmt(lo)} ~ ${_hzFmt(hi)}` : "–";
+      const col = chg > 0.5 ? "var(--bull)" : chg < -0.5 ? "var(--bear)" : "var(--eth)";
       const upF = _upProb(vF, hiF, anchor);
       const _dir = chg > 0.3 ? 1 : chg < -0.3 ? -1 : 0;                       // 이 시점 예측 변화 방향
-      const dirProb = _dir >= 0 ? upF : (100 - upF);                          // '그 변화가 일어날' 확률(달성확률) — 하락 예측이면 하락확률
+      const dirProb = _dir >= 0 ? upF : (100 - upF);                          // '그 변화가 일어날' 확률(달성확률)
       const up = Math.round(dirProb * u);
-      const pc = _dir > 0 ? "hz-up" : _dir < 0 ? "hz-dn" : "hz-fl";
-      const probCol = _dir > 0 ? "var(--bull)" : _dir < 0 ? "var(--bear)" : "var(--eth)";
-      const _parw = _dir > 0 ? "▲ " : _dir < 0 ? "▼ " : "";
-      return `<tr>
-        <td>+${h}${unit}</td>
-        <td><span class="dash-cell"><b class="dval ${cls}">${_hzFmt(v)}</b></span></td>
-        <td><span class="dash-cell"><b class="dval ${cls}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</b></span></td>
-        <td><span class="dash-cell prob-cell"><b style="color:${probCol}">${up}%</b>${_hbarPct(up, probCol)}</span></td>
-        <td><span class="dash-cell"><span class="dash-sub">${band}</span></span></td>
-      </tr>`;
+      // 예상 범위 바: [lo, hi]에 현재가·예측가 위치 표시(불확실성을 눈으로)
+      let bar = "";
+      if (isFinite(lo) && isFinite(hi) && hi > lo) {
+        const rlo = Math.min(lo, anchor), rhi = Math.max(hi, anchor), span = (rhi - rlo) || 1;
+        const pN = Math.max(0, Math.min(100, (anchor - rlo) / span * 100));
+        const pV = Math.max(0, Math.min(100, (v - rlo) / span * 100));
+        const fL = Math.min(pN, pV), fW = Math.abs(pV - pN);
+        bar = `<div class="hzr" title="예상 범위 ${_hzFmt(lo)} ~ ${_hzFmt(hi)} · 현재 ${_hzFmt(anchor)} → 예측 ${_hzFmt(v)}">`
+          + `<span class="hzr-lo">${_hzFmt(lo)}</span><span class="hzr-hi">${_hzFmt(hi)}</span>`
+          + `<div class="hzr-track"><i class="hzr-fill" style="left:${fL}%;width:${fW}%;background:${col}"></i>`
+          + `<i class="hzr-now" style="left:${pN}%"></i><i class="hzr-dot" style="left:${pV}%;background:${col}"></i></div></div>`;
+      } else bar = `<div class="hzr"><div class="hzr-track"></div></div>`;
+      return `<div class="hz-item">
+        <span class="hz-when">+${h}<em>${unit}</em></span>
+        <span class="hz-pred"><b class="hz-chg" style="color:${col}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</b><span class="hz-px">${_hzFmt(v)}</span></span>
+        ${bar}
+        <span class="hz-prob"><b style="color:${col}">${up}<em>%</em></b><i class="hzp"><b style="width:${up}%;background:${col}"></b></i></span>
+      </div>`;
     }).join("");
     const projPath = path.map(v => anchor + (v - anchor) * u);
     const projLo = (p.lo || []).map(v => isFinite(v) ? anchor + (v - anchor) * u : v);
     const projHi = (p.hi || []).map(v => isFinite(v) ? anchor + (v - anchor) * u : v);
     const proj = projPath.length >= 2 ? `<div class="hz-spark">${_projSVG(anchor, projPath, projLo, projHi, { w: 150, h: 42 })}<span>예측 경로 · 지금 → +${hs[hs.length - 1]}${unit}<br>음영 = 예상 범위(밴드)</span></div>` : "";
-    host.innerHTML = proj + `<table class="dash-table hz-table"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+    host.innerHTML = proj + `<div class="hz-grid">${head}${rows}</div>`;
   }
   /* 시점 가중 종합 상승확률(%) — 가까운 시점일수록 신뢰↑. 헤더 국면/시그널 문구에 통합 표기 */
   function aggUpProb(pred) {
@@ -1299,7 +1306,8 @@
     [].forEach.call(wrap.children, c => { if (c !== panel) others += Math.ceil(c.getBoundingClientRect().height); });
     const nonHero = Math.ceil(panel.getBoundingClientRect().height - hero.getBoundingClientRect().height);   // 헤더+판정+패딩
     const avail = wrap.clientHeight - others - nonHero - 10;
-    const h = Math.max(320, Math.min(1600, Math.round(avail)));
+    const floor = Math.round(wrap.clientHeight * 0.56);   // 차트 최소 지분 — 기본 높이 확대(아래 지표신호·패널은 스크롤 허용)
+    const h = Math.max(320, floor, Math.min(1600, Math.round(avail)));
     const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hero-h")) || 0;
     if (Math.abs(cur - h) < 3) return;   // 변화 없으면 무시(리드로우 루프 방지)
     document.documentElement.style.setProperty("--hero-h", h + "px");

@@ -479,6 +479,32 @@
   /* 예측 시점별 = 매트릭스와 동일 표 포맷 */
   .hz-table td:first-child{color:var(--gold);font-weight:800;font-size:12px;white-space:nowrap}
   .hz-table .dash-sub{white-space:nowrap;font-size:10.5px}   /* 예상범위 한 줄 → 매트릭스와 행높이 통일 */
+  /* 예측 시점별 — 카드형 + 예상범위 바(전문적 값 배치) */
+  .hz-grid{display:flex;flex-direction:column}
+  .hz-item{display:grid;grid-template-columns:44px 62px 1fr 60px;align-items:center;gap:11px;padding:7px 3px;border-bottom:1px solid var(--line)}
+  .hz-item:last-child{border-bottom:0}
+  .hz-hd{font-size:9.5px;color:var(--faint);letter-spacing:.02em;padding:1px 3px 5px}
+  .hz-hd span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center}
+  .hz-hd span:nth-child(4){justify-content:flex-end}
+  .hz-nowk,.hz-predk{display:inline-block;width:7px;height:7px;border-radius:50%;margin:0 3px 0 6px}
+  .hz-nowk{background:var(--eth);opacity:.7} .hz-predk{background:var(--gold)}
+  .hz-when{font-family:var(--mono);font-size:13px;font-weight:800;color:var(--gold);white-space:nowrap}
+  .hz-when em{font-style:normal;font-size:10px;color:var(--eth);font-weight:600;margin-left:1px}
+  .hz-pred{display:flex;flex-direction:column;line-height:1.15}
+  .hz-chg{font-family:var(--mono);font-size:15px;font-weight:800;letter-spacing:-.01em}
+  .hz-px{font-family:var(--mono);font-size:10.5px;color:var(--eth)}
+  .hzr{position:relative;padding:12px 0 2px}
+  .hzr-lo,.hzr-hi{position:absolute;top:0;font-family:var(--mono);font-size:9px;color:var(--faint)}
+  .hzr-lo{left:0} .hzr-hi{right:0}
+  .hzr-track{position:relative;height:5px;border-radius:99px;background:var(--raised)}
+  .hzr-fill{position:absolute;top:0;height:100%;border-radius:99px;opacity:.55;min-width:1px}
+  .hzr-now{position:absolute;top:-2px;width:2px;height:9px;background:var(--eth);border-radius:1px;transform:translateX(-1px)}
+  .hzr-dot{position:absolute;top:50%;width:9px;height:9px;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--panel)}
+  .hz-prob{display:flex;flex-direction:column;gap:3px;align-items:flex-end}
+  .hz-prob b{font-family:var(--mono);font-size:13px;font-weight:800}
+  .hz-prob b em{font-style:normal;font-size:9.5px;font-weight:600;opacity:.7}
+  .hzp{width:100%;height:4px;border-radius:99px;background:var(--raised);overflow:hidden}
+  .hzp b{display:block;height:100%;border-radius:99px}
   .dash-cell .dval.hz-up{color:var(--bull)}
   .dash-cell .dval.hz-dn{color:var(--bear)}
   .dash-cell .dval.hz-fl{color:var(--eth)}
