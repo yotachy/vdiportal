@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Scoop Forge — 엔진 검증 성적</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --surface:#0e1622; --raised:#1b232d;
+    --line:#1e2733; --ink:#e8ecf2; --eth:#8a92b2; --faint:#5b6577;
+    --gold:#e8b463; --gold-dim:#e8b46340; --bull:#46c28e; --bear:#e06a6a;
+    --r-md:9px; --r-lg:13px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--bg)}
+  body{font-family:Pretendard,-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:820px;margin:0 auto;padding:40px 22px 80px}
+  a{color:var(--gold);text-decoration:none}
+  .back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--eth);margin-bottom:28px}
+  .back:hover{color:var(--gold)}
+  .eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;margin-bottom:10px}
+  h1{font-size:31px;font-weight:800;letter-spacing:-.03em;line-height:1.25;margin-bottom:14px}
+  .lede{font-size:15.5px;color:var(--eth);max-width:620px;line-height:1.7}
+  .lede b{color:var(--ink)}
+  h2{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:44px 0 4px;display:flex;align-items:center;gap:9px}
+  h2::before{content:"";width:4px;height:17px;background:var(--gold);border-radius:2px}
+  .sec-desc{font-size:13.5px;color:var(--faint);margin-bottom:18px}
+  .honest{background:linear-gradient(180deg,rgba(232,180,99,.09),rgba(232,180,99,.03));border:1px solid var(--gold-dim);border-radius:var(--r-lg);padding:18px 20px;margin-top:26px;font-size:14px;color:var(--ink);line-height:1.7}
+  .honest b{color:var(--gold)}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px}
+  .card .ck{font-size:12px;color:var(--eth);font-weight:600;margin-bottom:8px}
+  .card .cv{font-size:26px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .card .csub{font-size:11.5px;color:var(--faint);margin-top:4px}
+  .card .ctag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;margin-top:10px}
+  .tag-dn{color:var(--bear);background:rgba(224,106,106,.13)} .tag-fl{color:var(--gold);background:rgba(232,180,99,.14)} .tag-up{color:var(--bull);background:rgba(70,194,142,.14)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+  th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--eth);font-weight:700;font-size:11.5px;letter-spacing:.02em}
+  td b{font-weight:700}
+  .up{color:var(--bull)} .dn{color:var(--bear)} .mut{color:var(--faint)}
+  .rgbar{display:inline-block;height:8px;border-radius:99px;vertical-align:middle;margin-right:7px}
+  .strength{background:rgba(70,194,142,.07);border:1px solid rgba(70,194,142,.28);border-radius:var(--r-lg);padding:18px 20px;margin-top:8px}
+  .strength h3{font-size:15px;color:var(--bull);margin-bottom:12px;letter-spacing:-.01em}
+  .calwrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 12px 8px;margin-top:6px}
+  .cal-leg{display:flex;gap:16px;justify-content:center;font-size:11.5px;color:var(--eth);margin-top:6px}
+  .cal-leg i{display:inline-block;width:11px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+  .disc{margin-top:44px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 20px;font-size:12.5px;color:var(--faint);line-height:1.7}
+  .disc b{color:var(--eth)}
+  footer{margin-top:36px;font-size:12px;color:var(--faint);text-align:center}
+  @media(max-width:640px){ .cards{grid-template-columns:1fr} h1{font-size:25px} .wrap{padding:28px 16px 60px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="forge.html">← 스쿱포지로</a>
+  <div class="eyebrow">Backtest Scorecard</div>
+  <h1>이 엔진의 검증 성적 —<br>잘하는 것도, 못하는 것도 공개합니다.</h1>
+  <p class="lede">대부분의 분석 도구는 백테스트를 숨기거나 좋은 것만 보여줍니다. 스쿱포지는 <b>미래를 참조하지 않는 walk-forward 백테스트</b>로 엔진을 검증하고, 그 결과를 — <b>약점까지 — 그대로 공개</b>합니다. 이것이 우리가 생각하는 "믿을 만한 도구"의 출발점입니다.</p>
+
+  <h2>검증 방법</h2>
+  <p class="sec-desc" id="method"></p>
+
+  <h2>핵심 지표</h2>
+  <p class="sec-desc">각 시점에서 과거 데이터만으로 예측 → 실제 결과와 대조. "항상 상승" 같은 단순 기준과 나란히 봅니다.</p>
+  <div class="cards" id="cards"></div>
+
+  <h2>국면별 방향 예측</h2>
+  <p class="sec-desc">방향 예측은 어느 국면에서도 "항상 상승" 기준을 넘지 못했습니다(60봉 지평). 다만 <b>횡보장에서 상대적으로 신뢰</b>할 만합니다.</p>
+  <table id="regtbl"><thead><tr><th>국면</th><th>엔진 방향적중</th><th>항상상승</th><th>초과</th><th>표본</th></tr></thead><tbody></tbody></table>
+
+  <h2>진짜 강점 — 횡보/박스권 평균회귀</h2>
+  <p class="sec-desc">추세를 못 이기는 대신, <b>추세 없는 박스권</b>에서 엔진의 평균회귀 신호가 실제로 값을 더했습니다. 아래는 횡보 종목에서 "신호대로 매매" vs "단순 보유(Buy&amp;Hold)".</p>
+  <div class="strength">
+    <h3>횡보 종목: 트레이딩이 단순 보유를 상회</h3>
+    <table id="sidetbl"><thead><tr><th>종목</th><th>전략 수익</th><th>Buy&amp;Hold</th><th>결과</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <h2>확률 캘리브레이션</h2>
+  <p class="sec-desc">"상승확률 X%"라고 했을 때 실제로 X% 올랐는가. 대각선에 가까울수록 정직한 확률. <b>50~70% 구간은 신뢰</b>할 만하나, 저·고 극단은 편향이 있습니다.</p>
+  <div class="calwrap">
+    <div id="calchart"></div>
+    <div class="cal-leg"><span><i style="background:var(--faint)"></i>완벽한 캘리브레이션(대각선)</span><span><i style="background:var(--gold)"></i>실제 엔진</span></div>
+  </div>
+
+  <div class="honest">
+    <b>왜 약점까지 공개하나요?</b> 방향 예측으로 시장을 이기는 도구는 (우리 것을 포함해) 거의 없습니다 — 효율적 시장의 벽입니다. 우리는 그걸 인정하고, 엔진이 <b>실제로 유효한 구간(횡보장)과 확률대(50~70%)</b>를 정직하게 알려주는 데 집중합니다. 화면의 <b>국면 배지</b>가 "지금 이 신호를 믿어도 되는지"를 바로 보여줍니다.
+  </div>
+
+  <div class="disc">
+    <b>면책</b> — 위 수치는 과거 데이터에 대한 시뮬레이션 결과이며, <b>미래의 수익을 보장하지 않습니다</b>. 본 도구는 <b>교육·참고용</b>이며 투자자문·매매 권유가 아닙니다. 투자 판단과 그 결과의 책임은 이용자 본인에게 있습니다.
+  </div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const BT = {"overall":{"dir":0.537,"base":0.577,"ece":0.072,"cone":0.844,"mae":0.138},"byRegime":{"bull":{"dir":0.551,"base":0.591,"lift":-0.040,"n":3986},"bear":{"dir":0.462,"base":0.529,"lift":-0.067,"n":624},"side":{"dir":0.518,"base":0.529,"lift":-0.010,"n":522}},"cal":[{"lo":30,"hi":40,"pred":0.371,"act":0.582,"n":273},{"lo":40,"hi":50,"pred":0.448,"act":0.569,"n":1369},{"lo":50,"hi":60,"pred":0.540,"act":0.539,"n":1465},{"lo":60,"hi":70,"pred":0.643,"act":0.585,"n":1295},{"lo":70,"hi":80,"pred":0.735,"act":0.652,"n":652},{"lo":80,"hi":90,"pred":0.828,"act":0.627,"n":75}],"fixtures":[{"s":"BABA","rg":"side","pnl":1.49,"bh":0.25},{"s":"PYPL","rg":"side","pnl":3.90,"bh":0.14},{"s":"NVDA","rg":"bull","pnl":49.16,"bh":320.45},{"s":"BTC/USD","rg":"bull","pnl":65.72,"bh":244.19}],"asOf":"2026-07"};
+const pc = x => (x*100).toFixed(1) + "%";
+const rx = x => (x>=0?"+":"") + (x*100).toFixed(0) + "%";
+
+document.getElementById("method").innerHTML =
+  "<b style='color:var(--ink)'>14개 종목</b>(미국주식·크립토·환율·국내) × <b style='color:var(--ink)'>약 5,100개 과거 시점</b>. 각 시점에서 그때까지의 데이터만 엔진에 넣어 예측하고(미래 미참조 = lookahead 차단), 지평(약 3개월) 뒤 실제 결과와 대조했습니다. 기본 전략(30여 지표 자동 합성)으로 측정.";
+
+const O = BT.overall;
+document.getElementById("cards").innerHTML = [
+  {k:"방향 예측", v:pc(O.dir), sub:"'항상 상승' 기준 "+pc(O.base), tag:"시장 평균 미달", cls:"tag-dn"},
+  {k:"확률 신뢰", v:"50~70%", sub:"이 구간만 실제와 근접(극단 편향)", tag:"부분 신뢰", cls:"tag-fl"},
+  {k:"예측 밴드 커버", v:pc(O.cone), sub:"목표 68% — 다소 넓음(불확실성 과대)", tag:"보정 여지", cls:"tag-fl"},
+].map(c=>`<div class="card"><div class="ck">${c.k}</div><div class="cv">${c.v}</div><div class="csub">${c.sub}</div><span class="ctag ${c.cls}">${c.tag}</span></div>`).join("");
+
+const RG = {bull:["강세장","var(--bull)"], bear:["하락장","var(--bear)"], side:["횡보장","var(--gold)"]};
+document.querySelector("#regtbl tbody").innerHTML = ["side","bull","bear"].map(k=>{const g=BT.byRegime[k],c=RG[k];
+  return `<tr><td><span class="rgbar" style="width:10px;background:${c[1]}"></span>${c[0]}</td><td><b>${pc(g.dir)}</b></td><td class="mut">${pc(g.base)}</td><td class="${g.lift>=0?'up':'dn'}">${rx(g.lift)}p</td><td class="mut">${g.n.toLocaleString()}</td></tr>`;
+}).join("");
+
+document.querySelector("#sidetbl tbody").innerHTML = BT.fixtures.filter(f=>f.rg==="side").map(f=>
+  `<tr><td>${f.s}</td><td class="up"><b>${rx(f.pnl)}</b></td><td class="mut">${rx(f.bh)}</td><td class="up">B&amp;H 상회 ✓</td></tr>`
+).join("");
+
+// 캘리브레이션 SVG (예측확률 x, 실제상승률 y, 대각선=완벽)
+(function(){
+  const W=560,H=300,pad=42, x0=pad,y0=H-pad,x1=W-14,y1=14;
+  const sx=v=>x0+(v-0.3)/(0.9-0.3)*(x1-x0), sy=v=>y0-(v-0.3)/(0.9-0.3)*(y0-y1);
+  let g="";
+  // grid
+  for(let t=0.3;t<=0.9001;t+=0.1){ g+=`<line x1="${sx(t)}" y1="${y1}" x2="${sx(t)}" y2="${y0}" stroke="#1e2733" stroke-width="1"/><line x1="${x0}" y1="${sy(t)}" x2="${x1}" y2="${sy(t)}" stroke="#1e2733" stroke-width="1"/>`;
+    g+=`<text x="${sx(t)}" y="${y0+16}" fill="#5b6577" font-size="10" text-anchor="middle">${Math.round(t*100)}</text>`;
+    g+=`<text x="${x0-8}" y="${sy(t)+3}" fill="#5b6577" font-size="10" text-anchor="end">${Math.round(t*100)}</text>`;
+  }
+  g+=`<line x1="${sx(0.3)}" y1="${sy(0.3)}" x2="${sx(0.9)}" y2="${sy(0.9)}" stroke="#5b6577" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  const pts=BT.cal.map(c=>[sx(c.pred),sy(c.act)]);
+  g+=`<polyline points="${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="none" stroke="#e8b463" stroke-width="2.4"/>`;
+  BT.cal.forEach((c,i)=>{ g+=`<circle cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="4" fill="#e8b463"/>`; });
+  g+=`<text x="${(x0+x1)/2}" y="${H-4}" fill="#8a92b2" font-size="11" text-anchor="middle">예측 상승확률 (%)</text>`;
+  g+=`<text x="14" y="${(y0+y1)/2}" fill="#8a92b2" font-size="11" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">실제 상승률 (%)</text>`;
+  document.getElementById("calchart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;margin:0 auto"><rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>${g}</svg>`;
+})();
+
+document.getElementById("foot").innerHTML = "스쿱포지 엔진 검증 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-guide.html'>엔진 작동 원리 →</a>";
+</script>
+</body>
+</html>

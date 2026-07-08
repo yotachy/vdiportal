@@ -1383,6 +1383,7 @@
       '</div>' +
       '<div class="bt-strength"><b>진짜 강점 — 횡보/박스권 평균회귀</b><div class="bt-mut">' + S.strength + '</div><div class="bt-mut">국면 신뢰: 횡보 &gt; 추세장(방향 예측 신뢰 낮음, 추세 순응 권장)</div></div>' +
       '<div class="bt-disc">※ ' + S.disclaimer + '</div>' +
+      '<a class="bt-more" href="forge-scorecard.html" target="_blank" rel="noopener">전체 검증 성적 · 방법론 보기 →</a>' +
       '</div>';
     m.classList.add("open");
   }
