@@ -375,10 +375,14 @@
   .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   /* 국면/확률/시그널 강조 바 + 핵심 의견 */
   /* 국면/확률 — 박스·테두리 없이 순수 타이포로(가독성 우선) */
-  .fc-verdict-bar{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;padding:10px 2px 12px;margin:0;letter-spacing:-.02em}
-  .fcv-tkr{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-.03em;padding-right:9px}
-  .fcv-px{display:inline-flex;align-items:baseline;gap:8px;font-variant-numeric:tabular-nums;padding-right:13px;border-right:1px solid var(--line)}
-  .fcv-px b{font-size:20px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+  .fc-verdict-bar{display:flex;align-items:stretch;gap:2px 18px;flex-wrap:wrap;padding:11px 16px;margin:0 0 4px;letter-spacing:-.02em;background:var(--raised);border:1px solid var(--line);border-radius:10px}
+  .fcv-tkr{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-.03em;align-self:center;padding-right:6px}
+  .fcv-cell{display:inline-flex;flex-direction:column;justify-content:center;gap:3px}
+  .fcv-k{font-size:9.5px;font-weight:800;letter-spacing:.05em;color:var(--faint);white-space:nowrap}
+  .fcv-cellrow{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .fcv-opcell{flex:1;min-width:170px}
+  .fcv-px{display:inline-flex;align-items:baseline;gap:8px;font-variant-numeric:tabular-nums}
+  .fcv-px b{font-size:21px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
   .fcv-pxchg{font-size:12px;font-weight:700;letter-spacing:-.01em}
   .fcv-pxchg.up{color:var(--bull)}.fcv-pxchg.dn{color:var(--bear)}
   /* 국면 배지(현재가 옆) — 추세/횡보 + 신뢰도. 높음=녹(엔진 유효)·중간=앰버·낮음=뮤트(추세 순응) */
@@ -421,12 +425,12 @@
   .bt-disc{font-size:10.5px;color:var(--faint);line-height:1.55;letter-spacing:-.01em}
   .bt-more{display:inline-block;margin-top:12px;font-size:12px;font-weight:700;color:var(--gold);cursor:pointer}
   .bt-more:hover{text-decoration:underline}
-  .fcv-reg{font-size:15px;font-weight:800;letter-spacing:-.01em;padding:3px 13px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;line-height:1.35;align-self:center}
-  .fcv-prob{font-size:14.5px;font-weight:800;font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0}
+  .fcv-reg{font-size:16px;font-weight:800;letter-spacing:-.01em;padding:3px 14px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;line-height:1.4}
+  .fcv-prob{font-size:16px;font-weight:800;font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0}
   .fcv-prob .up{color:var(--bull)}.fcv-prob .dn{color:var(--bear);opacity:.82}
-  .fcv-sig{font-size:12.5px;font-weight:600;color:var(--muted);font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.005em}
-  .fcv-sig b{color:var(--ink);font-weight:800}
-  .fcv-op{flex:1;min-width:150px;font-size:13.5px;font-weight:700;color:var(--eth);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Pretendard,system-ui,sans-serif;animation:opulse 2.2s ease-in-out infinite}
+  .fcv-sig{font-size:15px;font-weight:600;color:var(--muted);font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.005em}
+  .fcv-sig b{color:var(--ink);font-weight:800;font-size:16px}
+  .fcv-op{font-size:14.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Pretendard,system-ui,sans-serif;animation:opulse 2.2s ease-in-out infinite}
   @keyframes opulse{0%,100%{opacity:.72}50%{opacity:1;text-shadow:0 0 7px currentColor}}
   /* 지표 방향 분포(도미넌스 스타일 누적 바) */
   .fcv-break{flex:1 1 100%;display:flex;align-items:center;gap:14px;margin-top:3px;flex-wrap:wrap}

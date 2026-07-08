@@ -1468,12 +1468,15 @@
         const oppTip = `박스권 하단(%B ${_opp.pctB}) + RSI 반등(+${_opp.rsiUp}) — 바닥 찍고 반등 시작. 백테스트 검증: 승률 56.1%·평균 +0.6%/회(20봉 보유)로 랜덤 초과(574건). 단타엔 edge 없어 20봉 이상 보유 관점. 엔진의 유일한 실증 edge.`;
         oppHtml = `<span class="fcv-opp opp-buy" title="${oppTip}"><span class="opp-ico">◎</span>지지 반등 기회<span class="opp-vf">검증됨</span></span>`;
       }
+      const _L = t => `<span class="fcv-k">${t}</span>`;
       bar.innerHTML =
-        (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") + pxHtml + ctxHtml + oppHtml +
-        `<span class="fcv-reg" title="국면 — 지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span>` +
-        (_up != null ? `<span class="fcv-prob" title="상승/하락 확률 — 예측 콘 기준, 가까운 시점에 가중한 종합 상승확률"><span class="up">▲ ${_up}%</span> <span class="dn">▼ ${100 - _up}%</span></span>` : "") +
-        (isFinite(_targetN) ? `<span class="fcv-sig" title="목표=예측 도달가(시그널·컨플루언스는 아래 도넛 참고)">목표 <b>${fmtNum(_targetN)}</b></span>` : "") +
-        `<span class="fcv-op" title="핵심 의견 — 국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span>` + _bd;
+        (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
+        (pxHtml ? `<span class="fcv-cell">${_L("현재가")}${pxHtml}</span>` : "") +
+        ((ctxHtml || oppHtml) ? `<span class="fcv-cell">${_L("국면 · 기회")}<span class="fcv-cellrow">${ctxHtml}${oppHtml}</span></span>` : "") +
+        `<span class="fcv-cell">${_L("방향 판정")}<span class="fcv-reg" title="지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span></span>` +
+        (_up != null ? `<span class="fcv-cell">${_L("상승 / 하락 확률")}<span class="fcv-prob" title="예측 콘 기준, 가까운 시점에 가중한 종합 상승확률"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span></span>` : "") +
+        (isFinite(_targetN) ? `<span class="fcv-cell">${_L("목표가")}<span class="fcv-sig" title="예측 도달가"><b>${fmtNum(_targetN)}</b></span></span>` : "") +
+        `<span class="fcv-cell fcv-opcell">${_L("핵심 의견")}<span class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span></span>` + _bd;
     }
     if (u >= 1 && bar) { bar.classList.remove("flash"); void bar.offsetWidth; bar.classList.add("flash"); }   // 최종 결과 등장 강조
     if (typeof scheduleDash === "function" && u >= 1) scheduleDash();   // 타임프레임 매트릭스 자동 갱신(시연 충전 중엔 생략)
