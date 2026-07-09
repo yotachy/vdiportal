@@ -1927,3 +1927,12 @@ test("verdict.context.opportunity: 하락추세(200MA 하락)에선 지지반등
   const op = r.verdict.context.opportunity;
   assert.ok(!op, "200MA 하락 중이면 buy 기회 없음(떨어지는 칼 방지) (context=" + JSON.stringify(r.verdict.context) + ")");
 });
+
+test("verdict.context.opportunity: 하락국면 + RSI반등 → 하락 후 반등(recovery) 기회 [v1.3]", () => {
+  const s = []; for (let i = 0; i < 240; i++) s.push(200 * Math.exp(-i * 0.006));   // 부드러운 하락추세(state=down)
+  let last = s[s.length - 1];
+  for (let i = 0; i < 4; i++) { last *= 1.006; s.push(last); }   // 마지막 3봉 RSI 위로 꺾임
+  const r = ForgeCore.run(ForgeCore.sampleGraph(), { price: s, candle: s.map(c => ({ o: c, h: c * 1.003, l: c * 0.997, c })) }, { timeframe: "일봉" });
+  const op = r.verdict.context.opportunity;
+  assert.ok(op && op.kind === "buy" && op.sub === "recovery", "하락국면+RSI반등 → recovery 기회 (context=" + JSON.stringify(r.verdict.context) + ")");
+});

@@ -1473,8 +1473,15 @@
       let oppHtml = "";
       const _opp = _ctx && _ctx.opportunity;
       if (_opp && _opp.kind === "buy") {
-        const oppTip = `박스권 하단(%B ${_opp.pctB}) + RSI 반등(+${_opp.rsiUp}) + 200MA 비하락 + 낙폭 ${_opp.dd != null ? _opp.dd + "%" : "5%↑"} — 진짜 눌림 반등 셋업. 백테스트 검증(v1.2): 승률 60.5%·평균 +1.3%/회(20봉 보유)로 랜덤 크게 초과(256건). 20봉 이상 보유 관점. 엔진의 유일한 실증 edge.`;
-        oppHtml = `<span class="fcv-opp opp-buy" title="${oppTip}"><span class="opp-ico">◎</span>지지 반등 기회<span class="opp-vf">검증됨</span></span>`;
+        let oppTip, oppLbl;
+        if (_opp.sub === "recovery") {
+          oppTip = `하락 국면에서 RSI가 위로 꺾임(+${_opp.rsiUp}) — 하락 후 평균회귀 반등. 백테스트 검증(v1.3, 39종): 랜덤(항상롱) 대비 20봉 +1.4%p·40봉 +2.5%p·손실종목 3/36. 20봉 이상 보유 관점.`;
+          oppLbl = "하락 후 반등 기회";
+        } else {
+          oppTip = `박스권 하단(%B ${_opp.pctB}) + RSI 반등(+${_opp.rsiUp}) + 200MA 비하락 + 낙폭 ${_opp.dd != null ? _opp.dd + "%" : "5%↑"} — 진짜 눌림 반등 셋업. 백테스트 검증(v1.2): 승률 60.5%·평균 +1.3%/회(20봉 보유)로 랜덤 크게 초과(256건). 20봉 이상 보유 관점.`;
+          oppLbl = "지지 반등 기회";
+        }
+        oppHtml = `<span class="fcv-opp opp-buy" title="${oppTip}"><span class="opp-ico">◎</span>${oppLbl}<span class="opp-vf">검증됨</span></span>`;
       }
       const _L = t => `<span class="fcv-k">${t}</span>`;
       bar.innerHTML =

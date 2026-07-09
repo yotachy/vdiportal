@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.2.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.3.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
 
   function mulberry32(seed) {
     let a = seed >>> 0;
@@ -2036,7 +2036,13 @@
       // 낙폭(genuine dip): 최근 60봉 고점 대비 ≥5% 하락일 때만. bounce-lab: 낙폭+과매도+반등이 목표먼저 59.2%(현행 57.6%↑).
       const _n = price.length, _hh = Math.max.apply(null, price.slice(Math.max(0, _n - 60)));
       const _dd = _hh > 0 ? price[_n - 1] / _hh - 1 : 0;
-      if (_pb <= 0.2 && _rUp > 0 && _trOk && _dd <= -0.05) _opp = { kind: "buy", pctB: Math.round(_pb * 100) / 100, rsi: Math.round(_rsi.last), rsiUp: Math.round(_rUp * 10) / 10, dd: Math.round(_dd * 1000) / 10 };
+      if (_pb <= 0.2 && _rUp > 0 && _trOk && _dd <= -0.05) _opp = { kind: "buy", sub: "support", pctB: Math.round(_pb * 100) / 100, rsi: Math.round(_rsi.last), rsiUp: Math.round(_rUp * 10) / 10, dd: Math.round(_dd * 1000) / 10 };
+    }
+    // 하락 후 반등(v1.3): 하락국면(down)에서 RSI가 위로 꺾일 때 = 평균회귀 반등.
+    // 백테스트(dipbounce-lab, 39종): 20봉 랜덤(항상롱) 대비 +1.4%p·40봉 +2.5%p·손실종목 3/36 — falling knife 아님(RSI반등 확인).
+    if (!_opp && context.state === "down" && _rsi && _rsi.series && _rsi.series.length >= 4) {
+      const _rs2 = _rsi.series, _rUp2 = _rs2[_rs2.length - 1] - _rs2[_rs2.length - 4];
+      if (_rUp2 > 0) _opp = { kind: "buy", sub: "recovery", rsi: Math.round(_rsi.last), rsiUp: Math.round(_rUp2 * 10) / 10 };
     }
     context.opportunity = _opp;
     return {
