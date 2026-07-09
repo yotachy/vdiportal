@@ -422,6 +422,7 @@
   .bt-tag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
   .bt-tag.dn{color:var(--bear);background:rgba(224,106,106,.13)}
   .bt-tag.fl{color:#e8b463;background:rgba(232,180,99,.13)}
+  .bt-tag.up{color:var(--bull);background:rgba(70,194,142,.14)}
   .bt-strength{background:rgba(70,194,142,.08);border:1px solid rgba(70,194,142,.25);border-radius:var(--r-md);padding:10px 12px;font-size:12px;color:var(--ink);margin-bottom:12px}
   .bt-strength b{color:var(--bull);font-size:12.5px}
   .bt-strength .bt-mut{display:block;margin-top:4px;line-height:1.5}

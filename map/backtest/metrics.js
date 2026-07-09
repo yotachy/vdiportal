@@ -9,7 +9,10 @@ function upProbFromPrediction(pred) {
   const anchor = (pred.anchor != null && isFinite(pred.anchor)) ? pred.anchor : path[0];
   let s = 0, w = 0;
   for (let k = 0; k < path.length; k++) { const h = k + 1, wt = 1 / Math.sqrt(h); s += _upProb(path[k], pred.hi && pred.hi[k], anchor) * wt; w += wt; }
-  return w ? Math.round(s / w) : null;
+  if (!w) return null;
+  const raw = Math.round(s / w);
+  try { const FC = require("../forge-core.js"); if (FC.calibrateUpProb) return FC.calibrateUpProb(raw); } catch (e) {}   // 캘리브레이션(v1.4) — 배포 엔진과 동일 맵
+  return raw;
 }
 
 function directionHitRate(records) {

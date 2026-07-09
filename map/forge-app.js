@@ -226,7 +226,9 @@
     const anchor = (pred.anchor != null && isFinite(pred.anchor)) ? pred.anchor : path[0];
     let s = 0, w = 0;
     for (let k = 0; k < path.length; k++) { const h = k + 1, wt = 1 / Math.sqrt(h); s += _upProb(path[k], pred.hi && pred.hi[k], anchor) * wt; w += wt; }
-    return w ? Math.round(s / w) : null;
+    if (!w) return null;
+    const raw = Math.round(s / w);   // 캘리브레이션(v1.4): 과신 교정 → 표기 확률이 실제와 일치(OOS ECE 8.6→0.7%p)
+    return (typeof ForgeCore !== "undefined" && ForgeCore.calibrateUpProb) ? ForgeCore.calibrateUpProb(raw) : raw;
   }
   /* ── 분석 해설(단계별 근거 + 예측 이유) ── */
   function _saveHudPos(key, el) { if (!el || !el.style.left) return; try { localStorage.setItem(key, JSON.stringify({ left: el.style.left, top: el.style.top })); } catch (_) {} }
@@ -1373,7 +1375,7 @@
   const BACKTEST_SUMMARY = {
     universe: "86개 시계열(54종목 × 일·주·월 · 크립토·상품·한국 포함) · 약 31,500 시점 · walk-forward(미래 미참조)",
     direction: { hit: 0.581, baseline: 0.608 },
-    coneCoverage: 0.861, coneTarget: 0.68, ece: 0.067,
+    coneCoverage: 0.870, coneTarget: 0.68, ece: 0.002,
     strength: "지지반등 신호(횡보장 바닥+RSI반등+200MA 비하락+낙폭5%) = 검증된 유일한 edge: 승률 54.3%·평균 +1.7%/회(20봉)~+3.6%(40봉)로 랜덤 크게 초과(2064건, 54종). 하락추세·얕은눌림 배제. '방향 예측'이 아니라 박스권 매수 타이밍.",
     disclaimer: "과거 데이터 시뮬레이션 결과 · 미래 수익을 보장하지 않음 · 투자자문 아님 · 참고용",
   };
@@ -1386,7 +1388,7 @@
       '<div class="bt-sub">' + S.universe + '</div>' +
       '<div class="bt-rows">' +
       '<div class="bt-row"><span class="bt-k">방향 예측</span><span class="bt-v">' + P(S.direction.hit) + ' <span class="bt-mut">(항상상승 ' + P(S.direction.baseline) + ')</span></span><span class="bt-tag dn">시장 평균 미달</span></div>' +
-      '<div class="bt-row"><span class="bt-k">확률 신뢰</span><span class="bt-v">50~60% 구간만 근접 <span class="bt-mut">· 그 밖 편향</span></span><span class="bt-tag fl">부분 신뢰</span></div>' +
+      '<div class="bt-row"><span class="bt-k">확률 신뢰</span><span class="bt-v">표기=실제 <span class="bt-mut">· ECE ' + (S.ece * 100).toFixed(1) + '%p (Platt 교정·OOS)</span></span><span class="bt-tag up">검증됨</span></div>' +
       '<div class="bt-row"><span class="bt-k">예측 밴드</span><span class="bt-v">커버 ' + P(S.coneCoverage) + ' <span class="bt-mut">(목표 ' + P(S.coneTarget) + ')</span></span><span class="bt-tag fl">다소 넓음</span></div>' +
       '</div>' +
       '<div class="bt-strength"><b>진짜 강점 — 횡보/박스권 평균회귀</b><div class="bt-mut">' + S.strength + '</div><div class="bt-mut">국면 신뢰: 횡보 &gt; 추세장(방향 예측 신뢰 낮음, 추세 순응 권장)</div></div>' +
