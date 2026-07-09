@@ -1947,3 +1947,16 @@ test("calibrateUpProb: 과신 교정 · 단조 · 방향 불변 [v1.4]", () => {
   assert.ok(c(10) > 10 && c(10) <= 55, "저확신 상향: " + c(10));
   assert.ok(c(50) >= 52 && c(50) <= 63, "중앙이 실제 베이스레이트로: " + c(50));
 });
+
+test("forecastVolatility: 변동성 예보 형식·범위 [v1.5]", () => {
+  const fv = ForgeCore.forecastVolatility;
+  assert.equal(fv([1,2,3], null), null, "데이터 부족/무캔들 → null");
+  // 합성 시계열(220봉+)
+  const price = [], candle = [];
+  for (let i = 0; i < 400; i++) { const c = 100 + Math.sin(i * 0.1) * 5 + i * 0.05; price.push(c); candle.push({ o: c, h: c * 1.01, l: c * 0.99, c }); }
+  const r = ForgeCore.forecastVolatility(price, candle);
+  assert.ok(r && typeof r.expand === "boolean", "객체+expand bool");
+  assert.ok(r.prob >= 50 && r.prob <= 100, "prob(확신도) 50~100: " + r.prob);
+  assert.ok(r.raw >= 0 && r.raw <= 100, "raw(P확대) 0~100: " + r.raw);
+  assert.ok((r.raw >= 50) === r.expand, "raw≥50 ⇔ expand");
+});

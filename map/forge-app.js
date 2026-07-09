@@ -1485,13 +1485,17 @@
         }
         oppHtml = `<span class="fcv-opp opp-buy" title="${oppTip}"><span class="opp-ico">◎</span>${oppLbl}<span class="opp-vf">검증됨</span></span>`;
       }
+      // 변동성 예보(v1.5) — 가격 방향 아님, '얼마나 움직일지'. OOS 68% 검증된 진짜 예측력.
+      const _vf = _ctx && _ctx.volForecast;
+      const vfHtml = _vf ? `<span class="fcv-vol ${_vf.expand ? "vol-exp" : "vol-con"}" title="다음 구간 변동성 ${_vf.expand ? "확대(더 크게 움직임)" : "축소(잔잔해짐)"} 예상 · 확신도 ${_vf.prob}% — ⚠️가격 방향 아님(오를지 내릴지 X, 얼마나 움직일지 O). 백테스트 OOS 정확도 ${_vf.acc}%. ${_vf.expand ? "→ 큰 움직임 대비·손절 넓게" : "→ 박스권 매매·타이트하게"}">${_vf.expand ? "⌇ 변동성 확대" : "≈ 변동성 축소"} <b>${_vf.prob}%</b><span class="vol-vf">${_vf.acc}%검증</span></span>` : "";
       const _L = t => `<span class="fcv-k">${t}</span>`;
       bar.innerHTML =
         (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
         (pxHtml ? `<span class="fcv-cell">${_L("현재가")}${pxHtml}</span>` : "") +
         ((ctxHtml || oppHtml) ? `<span class="fcv-cell">${_L("국면 · 기회")}<span class="fcv-cellrow">${ctxHtml}${oppHtml}</span></span>` : "") +
         `<span class="fcv-cell">${_L("방향 판정")}<span class="fcv-reg" title="지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span></span>` +
-        (_up != null ? `<span class="fcv-cell">${_L("상승 / 하락 확률")}<span class="fcv-prob" title="예측 콘 기준, 가까운 시점에 가중한 종합 상승확률"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span></span>` : "") +
+        (_up != null ? `<span class="fcv-cell">${_L("상승 / 하락 확률")}<span class="fcv-prob" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span></span>` : "") +
+        (vfHtml ? `<span class="fcv-cell">${_L("변동성 예보 · 검증됨")}${vfHtml}</span>` : "") +
         (isFinite(_targetN) ? `<span class="fcv-cell">${_L("목표가")}<span class="fcv-sig" title="예측 도달가"><b>${fmtNum(_targetN)}</b></span></span>` : "") +
         `<span class="fcv-cell fcv-opcell">${_L("핵심 의견")}<span class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span></span>` + _bd;
     }

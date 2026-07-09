@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.4.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.5.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
 
   function mulberry32(seed) {
     let a = seed >>> 0;
@@ -2045,6 +2045,7 @@
       if (_rUp2 > 0) _opp = { kind: "buy", sub: "recovery", rsi: Math.round(_rsi.last), rsiUp: Math.round(_rUp2 * 10) / 10 };
     }
     context.opportunity = _opp;
+    context.volForecast = forecastVolatility(price, data && data.candle);   // 변동성 예보(v1.5) — 가격방향 아님
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
       verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence, context }
@@ -2152,5 +2153,27 @@
     return Math.round((1 / (1 + Math.exp(-(A * Math.log(q / (1 - q)) + B)))) * 100);
   }
 
-  return { version, calibrateUpProb, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  // 변동성 예보(v1.5) — 다음 H봉 변동성 확대/축소 예측. 로지스틱(백테스트 54종·OOS 67.8% 검증).
+  // 가격 '방향' 아님 — '얼마나 움직일지'. 변동성 평균회귀(고변동→축소·저변동→확대) 포착. 계수는 train-volforecast.js 산출.
+  function forecastVolatility(price, candle) {
+    const t = (price && price.length ? price.length : 0) - 1;
+    if (t < 220 || !candle || candle.length <= t) return null;
+    const high = candle.map(c => c.h), low = candle.map(c => c.l);
+    const rv = (e, n) => { let s = 0; for (let i = e - n + 1; i <= e; i++) { const r = Math.log(price[i] / price[i - 1]); s += r * r; } return Math.sqrt(s / n); };
+    const v10 = rv(t, 10), v20 = rv(t, 20), v60 = rv(t, 60), v120 = rv(t, 120);
+    if (!(v20 > 0 && v60 > 0 && v120 > 0)) return null;
+    let atr = 0; for (let i = t - 13; i <= t; i++) { const tr = Math.max(high[i] - low[i], Math.abs(high[i] - price[i - 1]), Math.abs(low[i] - price[i - 1])); atr += tr; } atr = atr / 14 / price[t];
+    const vs = []; for (let k = t - 40; k <= t; k += 5) { const vv = rv(k, 20); if (vv) vs.push(vv); }
+    const vm = vs.reduce((a, b) => a + b, 0) / vs.length, vov = Math.sqrt(vs.reduce((a, b) => a + (b - vm) ** 2, 0) / vs.length) / (vm || 1);
+    let rng = 0; for (let i = t - 4; i <= t; i++) rng += (high[i] - low[i]) / price[i]; rng /= 5;
+    const x = [v10 / v60 - 1, v20 / v60 - 1, v20 / v120 - 1, v60 / v120 - 1, atr * 100, vov, rng * 100, v20 * 100, Math.log(v20 / v60)];
+    const MEAN = [-0.05011, -0.02757, -0.03842, -0.01436, 2.62943, 0.20932, 2.45552, 1.8253, -0.06087];
+    const STD = [0.33883, 0.24196, 0.31008, 0.16286, 2.05984, 0.11242, 2.09766, 1.5296, 0.26296];
+    const W = [0.19887, -0.34915, -0.28291, -0.16731, 0.01567, -0.01781, 0.30671, -0.55821, -0.35339], BB = -0.0966;
+    let s = BB; for (let j = 0; j < x.length; j++) { if (!isFinite(x[j])) return null; s += W[j] * (x[j] - MEAN[j]) / STD[j]; }
+    const p = 1 / (1 + Math.exp(-s));
+    return { expand: p >= 0.5, prob: Math.round((p >= 0.5 ? p : 1 - p) * 100), raw: Math.round(p * 100), acc: 68 };
+  }
+
+  return { version, calibrateUpProb, forecastVolatility, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });

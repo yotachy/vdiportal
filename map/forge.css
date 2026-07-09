@@ -403,6 +403,10 @@
   .opp-buy{color:var(--bull);background:rgba(70,194,142,.18);box-shadow:inset 0 0 0 1px rgba(70,194,142,.5)}
   .opp-sell{color:var(--bear);background:rgba(224,106,106,.18);box-shadow:inset 0 0 0 1px rgba(224,106,106,.5)}
   .fcv-opp .opp-vf{font-size:9px;font-weight:900;letter-spacing:0;padding:1px 5px;margin-left:1px;border-radius:99px;background:var(--bull);color:#0b0f14}
+  .fcv-vol{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:800;padding:4px 11px;border-radius:999px;letter-spacing:-.01em;white-space:nowrap}
+  .vol-exp{color:#e8b463;background:rgba(232,180,99,.16);box-shadow:inset 0 0 0 1px rgba(232,180,99,.45)}
+  .vol-con{color:#7aa6cc;background:rgba(122,166,204,.15);box-shadow:inset 0 0 0 1px rgba(122,166,204,.4)}
+  .fcv-vol .vol-vf{font-size:9px;font-weight:900;letter-spacing:0;padding:1px 5px;margin-left:1px;border-radius:99px;background:rgba(255,255,255,.12)}
   .fcv-ctx{cursor:pointer}
   .fcv-ctx .ctx-info{font-size:9px;opacity:.55;margin-left:1px}
   /* 검증 성적 모달(정직 공개) */
