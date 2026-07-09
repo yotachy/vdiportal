@@ -1125,12 +1125,16 @@ async function exportHTML(){
   let src;
   try{const r=await fetch(location.href,{cache:'force-cache'});if(!r.ok)throw 0;src=await r.text()}
   catch(e){toast('단일 HTML은 서버에서 실행 시 가능 (file://은 JSON 사용)');return}
-  src=src.replace(/<script id="embedDoc"[\s\S]*?<\/script>/,'');   // 이전 임베드 제거(재내보내기)
+  // ⚠️ 태그 문자열을 조각(SC)으로 조립한다. 소스 어디에도 여는/닫는 스크립트 태그 리터럴을
+  //    embedDoc id와 붙여 통째로 두지 말 것(주석 포함!). 두면 아래 제거 정규식이 이 함수 자신의
+  //    소스와 오매칭 → 스크립트 꼬리를 잘라먹어 내보낸 파일이 통째로 죽는다(가장 치명적 버그였음).
+  const SC='scr'+'ipt';
+  src=src.replace(new RegExp('<'+SC+' id="embedDoc"[\\s\\S]*?</'+SC+'>'),'');   // 이전 임베드만 제거(재내보내기)
   const BUILTIN=new Set(['vdi_login','vdi_dash','myportal','myaccess']);
   const imgs={};Object.keys(IMAGES).forEach(k=>{if(!BUILTIN.has(k))imgs[k]=IMAGES[k]});
   const payload={canvases,meta:metaObj(),images:imgs};
   const json=JSON.stringify(payload).replace(/</g,'\\u003c');
-  const tag='<script id="embedDoc" type="application/json">'+json+'<\/script>';
+  const tag='<'+SC+' id="embedDoc" type="application/json">'+json+'</'+SC+'>';
   src=src.replace('</head>',()=>tag+'</head>');   // head에 넣어야 boot() 실행 시점에 파싱돼 있음. 함수형 replacer=치환문자열 내 `$` 특수해석 방지(보드 텍스트에 $ 있어도 안전)
   _dl(new Blob([src],{type:'text/html;charset=utf-8'}),tsName('html'));
   toast('단일 HTML 저장됨 · '+tsName('html'))
