@@ -1129,6 +1129,19 @@ async function exportHTML(){
   //    embedDoc id와 붙여 통째로 두지 말 것(주석 포함!). 두면 아래 제거 정규식이 이 함수 자신의
   //    소스와 오매칭 → 스크립트 꼬리를 잘라먹어 내보낸 파일이 통째로 죽는다(가장 치명적 버그였음).
   const SC='scr'+'ipt';
+  // === 내부망 배포용 브랜딩 스크럽: 제품명(ScoopBoard/MoneyScoop)·스쿱보드·원본 페이지 링크를
+  //     파일에서 제거하고 타이틀을 고정한다(폐쇄망 반출 시 외부 식별정보 노출 방지). ===
+  const INTITLE='IT기획파트 - 다이어그램 빌더. v1.3 (내부망 전용)';
+  src=src.replace(/<title>[\s\S]*?<\/title>/,'<title>'+INTITLE+'</title>');
+  src=src.replace('<head>','<head><'+SC+'>window.__INTERNAL_TITLE='+JSON.stringify(INTITLE)+';document.title=window.__INTERNAL_TITLE;</'+SC+'>');
+  src=src.replace('<span class="brand-txt"><b>Scoop<span class="em">Board</span></b><small>by MoneyScoop · 다이어그램 빌더</small></span>',
+                  '<span class="brand-txt"><b>다이어그램 빌더</b><small>내부망 전용</small></span>');
+  src=src.replace('<a class="brand" href="map.html" title="스쿱보드 홈">',
+                  '<a class="brand" href="#" onclick="return false" title="다이어그램 빌더">');
+  src=src.split('Scoop Board').join('다이어그램 빌더').split('ScoopBoard').join('다이어그램빌더')
+         .split('MoneyScoop').join('내부도구').split('스쿱보드').join('다이어그램 빌더')
+         .split('scoopboard').join('diagboard')
+         .split('map.html').join('#').split('Scoop').join('');   // 잔여 bare 토큰(내보내기 함수 자체 코드 리터럴 포함) 정리
   src=src.replace(new RegExp('<'+SC+' id="embedDoc"[\\s\\S]*?</'+SC+'>'),'');   // 이전 임베드만 제거(재내보내기)
   const BUILTIN=new Set(['vdi_login','vdi_dash','myportal','myaccess']);
   const imgs={};Object.keys(IMAGES).forEach(k=>{if(!BUILTIN.has(k))imgs[k]=IMAGES[k]});
@@ -1221,7 +1234,7 @@ function adoptDoc(doc){
 /* 저장 모드 UI 반영 (body.local, 탭 제목, 세그, 저장 배지) */
 function applyStoreMode(){
   document.body.classList.toggle('local',storeMode==='local');
-  document.title=storeMode==='local'?'보드':ORIG_TITLE;
+  document.title=window.__INTERNAL_TITLE||(storeMode==='local'?'보드':ORIG_TITLE);   // 내보내기(내부망)본은 __INTERNAL_TITLE로 고정 — 모드 전환에도 불변
   const seg=document.getElementById('storeSeg');
   if(seg)[...seg.children].forEach(b=>b.classList.toggle('on',b.dataset.store===storeMode));
 }
