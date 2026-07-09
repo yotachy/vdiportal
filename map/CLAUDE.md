@@ -44,10 +44,10 @@
 
 # 🧩 스쿱보드 (Scoop Board)
 
-**스쿱보드 · Scoop Board by MoneyScoop** — 자유 캔버스 노드 다이어그램 빌더(GitMind 스타일). 단일 HTML 파일(`map.html`), 빌드 도구 없음, 바닐라 JS.
+**다이어그램 빌더 (IT기획파트)** — 자유 캔버스 노드 다이어그램 빌더(GitMind 스타일). 단일 HTML 파일(`map.html`), 빌드 도구 없음, 바닐라 JS. **2026-07-09 공식 리브랜드**: 구 "스쿱보드 · Scoop Board by MoneyScoop"에서 Scoop/MoneyScoop 브랜드를 전면 제거하고 사내 도구명 "다이어그램 빌더"로 확정. 소스에 Scoop/MoneyScoop/스쿱 문자열·외부 URL 없음(내보내기본 포함).
 
 - **정체성**: 머니스쿱(MoneyScoop)의 부가 유료 서비스로 독립. **KB손해보험과 무관**(과거 VDI 접속흐름 도구에서 리브랜드). [[scoopsignal-deploy]]·ScoopSignal과 같은 MoneyScoop 브랜드 패밀리.
-- **브랜드**: 워드마크 `Scoop`+**`Board`**(골드 em)+`by MoneyScoop`, 헤더 노드-다이어그램 글리프 마크. 홈 링크 → `map.html`(현재 페이지·스쿱보드 홈). **테스트 중 — 실제 머니스쿱 사이트/서비스는 건드리지 말 것**(외부 링크 X).
+- **브랜드**: 워드마크 `다이어그램 `+**`빌더`**(골드 em) + 하단 소제목 `IT기획파트`, 헤더 노드-다이어그램 글리프 마크. 홈 링크 → `map.html`(현재 페이지). `<title>`=`다이어그램 빌더` 고정(서버·로컬 모드 무관 불변 — 모드별 타이틀/워드마크 전환 없음). **외부 URL·구 브랜드어 금지.**
 - **테마**: ScoopSignal과 공통 팔레트 — 부드러운 골드 `--gold:#e8b463`, 네이비 잉크 `--bg:#0b0f14`, 보조 `--eth:#8a92b2`, bull/bear `#46c28e`/`#e06a6a`.
 - **기본 다이어그램**: 당분간 기존 노드(VDI 접속흐름) 유지 — 추후 중립 예시로 교체 예정.
 
@@ -96,7 +96,7 @@ TOOLBAR = { snap:bool, edgeStyle:"solid"|"dashed", edgeArrow:bool, selectMode:bo
 NODE_COLORS = [null,...6色]   // 노드 배경색 팔레트(첫 항목 null=기본)
 EWIDTHS = { 1:1.6, 2:2.4, 3:3.8 }  // 엣지 굵기 단계→stroke-width(px)
 undoStack/redoStack, histBase  // 되돌리기/다시실행 스택. snapState()=_접두 필드 제외 JSON 스냅샷
-storeMode = "server"|"local"   // 저장 대상. 'local'=localStorage(scoopboard_doc/_imgs/_mode) + 워드마크 숨김(body.local). 전환 시 docStamp 비교로 최신본 유지
+storeMode = "server"|"local"   // 저장 대상. 'local'=localStorage(diagboard_doc/_imgs/_mode; 구 scoopboard_* 키는 부팅 시 1회 이관). 브랜딩/타이틀은 모드 무관 동일. 전환 시 docStamp 비교로 최신본 유지
 ICONS   = { [id]: string }   // 아이콘 id → 인라인 SVG 내부 마크업(path/shape 문자열). 현재 20종
 ```
 
@@ -171,7 +171,7 @@ GET (파라미터 없음) — `map_data.json` 반환(없으면 `null`). GET `?im
 헤더 `서버 | 로컬` 세그(`#storeSeg`)로 전환. `storeMode` 전역(선택은 `scoopboard_mode`에 영속). **로컬 모드는 저장 대상이 localStorage**(`scoopboard_doc`=canvases+meta, `scoopboard_imgs`=사용자 이미지)로 바뀌며 **서버에 아무것도 쓰지 않음**. `markDirty`/`saveMeta`/`putImg`/`persistDoc`·캔버스 관리·`resetAll`·import가 모두 `storeMode` 분기.
 - **최신본 유지(핵심)**: `setStoreMode(m)`가 `writeBackActive()` 후 메모리 `docStamp` vs 대상 스토어 `docStamp`(`canvas.updated` 최댓값, ISO 문자열 비교) 비교 → 메모리가 같거나 최신이면 **메모리를 대상에 채택**, 대상이 더 최신일 때만 확인 후 `adoptDoc`. 이후 `persistDoc()`로 유지된 내용을 활성 스토어에 수렴.
 - **부팅 수렴**: `boot()`가 서버·로컬 두 스토어를 모두 읽어 **`docStamp`가 더 최신인 쪽을 채택**하고, 선택본이 활성 스토어와 다르면 활성 스토어에 기록 → 새로고침·재방문에도 최신본 유지.
-- **로컬 모드 = 브랜드 워드마크 숨김**: `applyStoreMode()`가 `body.local` 토글 → CSS `body.local .brand-txt{display:none}`(익명 글리프만), `document.title`→`보드`(폐쇄망 회의 시 이름 노출 방지). 서버 모드 복귀 시 `ORIG_TITLE` 원복.
+- **브랜딩은 모드 무관 고정(2026-07-09 리브랜드로 변경)**: 과거 로컬 모드에서 워드마크 숨김+타이틀 `보드`로 바꾸던 동작은 제거됨. `applyStoreMode()`는 이제 저장 세그·배지만 갱신하고 타이틀/워드마크는 서버·로컬 동일하게 `다이어그램 빌더` 고정.
 
 ### 인증
 
