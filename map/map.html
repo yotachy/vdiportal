@@ -286,7 +286,6 @@
     <button class="btn ghost edit-only" onclick="autoLayout('h')">가로정렬</button>
     <button class="btn ghost edit-only" onclick="autoLayout('v')">세로정렬</button>
     <button class="btn ghost edit-only" id="bgBtn" onclick="toggleBgPop(event)">배경</button>
-    <a class="btn ghost" href="chart.html" target="_blank" rel="noopener" title="파동 주기 탐색기 (새 탭)" style="text-decoration:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M3 12c2-5 4-5 6 0s4 5 6 0 4-5 6 0"/></svg>차트</a>
     <button class="btn ghost" id="exBtn" onclick="toggleExportPop(event)">내보내기 ▾</button>
     <button class="btn ghost" onclick="document.getElementById('impFile').click()">불러오기</button>
     <button class="btn ghost edit-only" onclick="resetAll()" style="color:var(--faint)">초기화</button>
@@ -1132,7 +1131,7 @@ async function exportHTML(){
   const payload={canvases,meta:metaObj(),images:imgs};
   const json=JSON.stringify(payload).replace(/</g,'\\u003c');
   const tag='<script id="embedDoc" type="application/json">'+json+'<\/script>';
-  src=src.replace('</head>',tag+'</head>');   // head에 넣어야 boot() 실행 시점에 파싱돼 있음
+  src=src.replace('</head>',()=>tag+'</head>');   // head에 넣어야 boot() 실행 시점에 파싱돼 있음. 함수형 replacer=치환문자열 내 `$` 특수해석 방지(보드 텍스트에 $ 있어도 안전)
   _dl(new Blob([src],{type:'text/html;charset=utf-8'}),tsName('html'));
   toast('단일 HTML 저장됨 · '+tsName('html'))
 }
@@ -1244,10 +1243,18 @@ async function setStoreMode(m){
 async function boot(){
   const emb=document.getElementById('embedDoc');
   if(emb){try{const d=JSON.parse(emb.textContent);if(d&&Array.isArray(d.canvases)&&d.canvases.length){
+    // 단일 HTML(폐쇄망 반입본): 서버 없음 → 로컬(localStorage) 저장으로 영속시켜 편집이 재방문에도 유지되게 한다.
+    SERVER_OK=false;storeMode='local';
     if(d.images&&typeof d.images==='object')Object.assign(IMAGES,d.images);
-    adoptDoc({canvases:d.canvases,meta:d.meta||{}});SERVER_OK=false;
-    applyStoreMode();renderSidebar();renderToolbar();renderPalette();setSaveState('offline');
-    return;   // 단일 HTML 스냅샷 = 메모리 모드(편집 보관은 재내보내기 또는 헤더 '로컬' 전환)
+    localLoadImgs();
+    const localDoc=localLoad();
+    const embStamp=docStamp(d.canvases),locStamp=(localDoc&&localDoc.canvases)?docStamp(localDoc.canvases):'';
+    const useLocal=localDoc&&Array.isArray(localDoc.canvases)&&localDoc.canvases.length&&locStamp>=embStamp;
+    adoptDoc(useLocal?localDoc:{canvases:d.canvases,meta:d.meta||{}});
+    if(!useLocal){localSaveImgs();localSaveDoc();}   // 최초 오픈: 임베드 스냅샷을 localStorage에 씨딩
+    applyStoreMode();renderSidebar();renderToolbar();renderPalette();
+    setSaveState(lsGet(LS_DOC)?'saved':'offline');   // localStorage 사용가능=저장됨 / 차단(file:// 샌드박스)=오프라인 폴백
+    return;
   }}catch(e){}}
   storeMode=lsGet(LS_MODE)||'server';
   let serverDoc=null;
