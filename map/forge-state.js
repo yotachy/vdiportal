@@ -544,11 +544,11 @@
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
     _needFit = true;   // 종목/문서 전환 → 자동 프레이밍
-    renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); runForge();
+    renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); if (!_bootIdle) runForge();
     // fetched 티커 자동 재fetch(비차단) — 캔들은 문서에 없으므로 메모리 복원
     // fetched 플래그 또는 레거시(구버전이 저장한 params.price 보유) 티커를 자동 재fetch. 샘플(price=null)은 제외.
     const _tks = boardState.nodes.filter(n => n.blockType === "ticker" && n.params && n.params.symbol && (n.params.fetched || isFinite(n.params.price)));
-    if (!_tks.length) setDocLoading(false);   // 티커 없으면 렌더 후 즉시 로딩 종료
+    if (_bootIdle || !_tks.length) setDocLoading(false);   // 초기 진입(idle) 또는 티커 없음 → 자동 재fetch 생략, 로딩 즉시 종료
     else {
       const _ldSafe = setTimeout(() => setDocLoading(false), 6000);   // 안전장치(fetch 지연/실패 대비)
       Promise.all(_tks.map(async n => {
@@ -586,7 +586,9 @@
     }
   }
   async function loadImages() { const m = await apiGet("?images=1"); if (m && typeof m === "object") Object.assign(IMAGES, m); }
+  let _bootIdle = false;
   async function boot() {
+    _bootIdle = true;   // 초기 진입: 자동 분석/재fetch 억제(종목 선택 전 idle 화면 — 로딩 없음)
     const doc = await apiGet("");
     await loadImages();
     if (doc && doc.documents && doc.documents.length) {
@@ -602,9 +604,10 @@
         vision: _visionData ? { series: _visionData.price, bias: ForgeCore.sampleGraph().vision.bias, note: _visionNote, waves: _visionWaves } : null,
         view: { tx: view.tx, ty: view.ty, scale: view.scale }, updated: new Date().toISOString() };
       DOCS = [dc]; activeId = dc.id; META = { library: [], activeId: dc.id };
-      if (window.renderSidebar) renderSidebar(); runForge();
+      if (window.renderSidebar) renderSidebar(); if (!_bootIdle) runForge();
       if (SERVER_OK) writeBackActive();
     }
+    _bootIdle = false;   // 부팅 완료 → 이후 종목 전환·불러오기는 정상 분석
     // poll restore는 loadDoc이 처리 (boot else 분기는 신규 문서 → 잡 없음)
     setSaveState(SERVER_OK ? "saved" : "offline");
   }
