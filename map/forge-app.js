@@ -1371,8 +1371,8 @@
 
   // 백테스트 검증 성적(정직 공개용 — backtest/backtest-report.json 스냅샷 요약. 재측정 시 갱신)
   const BACKTEST_SUMMARY = {
-    universe: "37개 시계열(23종목 × 일·주·월) · 약 14,600 시점 · walk-forward(미래 미참조)",
-    direction: { hit: 0.566, baseline: 0.590 },
+    universe: "86개 시계열(54종목 × 일·주·월 · 크립토·상품·한국 포함) · 약 31,500 시점 · walk-forward(미래 미참조)",
+    direction: { hit: 0.581, baseline: 0.608 },
     coneCoverage: 0.861, coneTarget: 0.68, ece: 0.067,
     strength: "지지반등 신호(횡보장 바닥+RSI반등+200MA 비하락+낙폭5%) = 검증된 유일한 edge: 승률 60.5%·평균 +1.3%/회(20봉)~+1.6%(40봉)로 랜덤 크게 초과(256건). 하락추세·얕은눌림 배제. '방향 예측'이 아니라 박스권 매수 타이밍.",
     disclaimer: "과거 데이터 시뮬레이션 결과 · 미래 수익을 보장하지 않음 · 투자자문 아님 · 참고용",
