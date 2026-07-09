@@ -1743,6 +1743,31 @@
     if (!r.ok) { let j = null; try { j = await r.json(); } catch (_) {} return j || { ok: false }; }
     return await r.json();
   }
+  // ── 상대강도(모멘텀) 순위 — 워치리스트를 12개월 모멘텀으로 순위·정렬(수동 버튼) ──
+  // 검증(momentum-robust, 28종·18년): 12개월 횡단면 모멘텀 = 학술 팩터. 비용후 롱숏 +0.59%·롱온리초과 +0.70%/월(온건). 참고용.
+  let _momActive = false, _momBusy = false, _momProg = { done: 0, total: 0 };
+  async function rankMomentum() {
+    if (_momBusy) return;
+    const docs = (typeof DOCS !== "undefined" ? DOCS : []).filter(d => _docTicker(d));
+    if (!docs.length) { if (typeof bToast === "function") bToast("워치리스트에 종목이 없습니다"); return; }
+    _momBusy = true; _momProg = { done: 0, total: docs.length }; renderSidebar();
+    for (const d of docs) {
+      const sym = _docTicker(d);
+      let series = null;
+      if (d.id === activeId && typeof priceSeries === "function") { const s = priceSeries(); if (s && s.length >= 60) series = s; }   // 활성 종목은 로드된 시리즈 재사용
+      if (!series) { try { const r = await fetchOHLC(sym, "1day"); if (r && r.ok && Array.isArray(r.candles)) series = r.candles.map(c => +c.c).filter(isFinite); } catch (e) {} }
+      if (series && series.length >= 120) { const lb = Math.min(250, series.length - 1); d._mom = series[series.length - 1] / series[series.length - 1 - lb] - 1; d._momLb = lb; }
+      else { d._mom = null; d._momLb = 0; }
+      _momProg.done++; renderSidebar();
+    }
+    const ranked = DOCS.filter(d => isFinite(d._mom)).sort((a, b) => b._mom - a._mom);
+    ranked.forEach((d, i) => { d._momRank = i + 1; });
+    DOCS.forEach(d => { if (!isFinite(d._mom)) d._momRank = null; });
+    _momActive = ranked.length > 0; _momBusy = false; renderSidebar();
+    if (typeof bToast === "function") bToast(ranked.length ? "상대강도 순위 완료 · 12개월 모멘텀(검증 팩터·온건, 참고용)" : "순위 계산 가능한 종목이 없습니다(데이터 부족)");
+  }
+  function clearMomRank() { _momActive = false; if (typeof DOCS !== "undefined") DOCS.forEach(d => { d._mom = null; d._momRank = null; }); renderSidebar(); }
+
   function applyTickerOHLC(n, r) {
     const cs = r.candles.map(d => ({          // 전체(캡 없음) — 인메모리라 128KB 무관
       o: +(+d.o).toFixed(4), h: +(+d.h).toFixed(4), l: +(+d.l).toFixed(4), c: +(+d.c).toFixed(4)

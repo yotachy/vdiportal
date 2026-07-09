@@ -181,17 +181,27 @@
       const _tfDot = r => `<span class="doc-tfdot ${r || "na"}"></span>`;
       const _tf = _tfr ? `<span class="doc-tf" title="일·주·월 예측 신호등 — 초록=상승·노랑=중립·빨강=하락">${_tfDot(_tfr.d)}${_tfDot(_tfr.w)}${_tfDot(_tfr.m)}</span>` : "";
       const _chgHtml = isFinite(_chg) ? `<span class="doc-chg ${_chg >= 0 ? "up" : "dn"}">${_chg >= 0 ? "▲" : "▼"}${Math.abs(_chg).toFixed(2)}%</span>` : "";
-      const sub = (isFinite(_px) || _tf) ? `<div class="doc-sub">${isFinite(_px) ? `<span class="doc-px">${_hzFmt(_px)}</span>` : ""}${_tf}</div>` : "";
+      const _rsB = (d._momRank && isFinite(d._mom)) ? `<span class="doc-rs" title="12개월 상대강도 순위 (모멘텀 ${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%) — 검증된 팩터·온건·참고용">#${d._momRank}</span>` : "";
+      const _momH = (d._momRank && isFinite(d._mom)) ? `<span class="doc-mom ${d._mom >= 0 ? "up" : "dn"}" title="12개월 모멘텀(상대강도)">${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%</span>` : "";
+      const sub = (isFinite(_px) || _tf || _momH) ? `<div class="doc-sub">${isFinite(_px) ? `<span class="doc-px">${_hzFmt(_px)}</span>` : ""}${_tf}${_momH}</div>` : "";
       return `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}" draggable="true">
-         <div class="doc-r1">${_assetHtml(d, "doc-ico")}<span class="doc-nm">${esc(nm)}</span>${_chgHtml}<button class="side-btn doc-del" data-docdel="${d.id}" title="목록에서 제거">✕</button></div>${sub}
+         <div class="doc-r1">${_assetHtml(d, "doc-ico")}${_rsB}<span class="doc-nm">${esc(nm)}</span>${_chgHtml}<button class="side-btn doc-del" data-docdel="${d.id}" title="목록에서 제거">✕</button></div>${sub}
        </div>`; };
     const groups = META.groups;
+    const _mBusy = (typeof _momBusy !== "undefined" && _momBusy), _mAct = (typeof _momActive !== "undefined" && _momActive);
+    const _byMom = (a, b) => ((a._momRank || 9999) - (b._momRank || 9999));   // 순위 활성 시 모멘텀 내림차순(=순위 오름차순)
     const ungrouped = DOCS.filter(d => !_grpOf(d.id));
-    let sec = `<div class="side-h"><span>종목</span><button class="side-btn wg-add" onclick="_addGroup()" title="새 그룹 만들기">＋ 그룹</button></div>`;
+    if (_mAct) ungrouped.sort(_byMom);
+    const _mLbl = _mBusy ? `순위 ${_momProg.done}/${_momProg.total}…` : "상대강도 순위";
+    let sec = `<div class="side-h"><span>종목</span><span class="side-h-btns">`
+      + `<button class="side-btn wg-rs${_mAct ? " on" : ""}" onclick="rankMomentum()"${_mBusy ? " disabled" : ""} title="워치리스트를 12개월 모멘텀(상대강도)으로 순위·정렬 — 백테스트 검증된 팩터(비용후 +0.6~0.7%/월, 온건). 강한 종목이 다음에도 상대적으로 강한 경향. 참고용.">${_mLbl}</button>`
+      + (_mAct ? `<button class="side-btn wg-rsx" onclick="clearMomRank()" title="순위 해제">✕</button>` : "")
+      + `<button class="side-btn wg-add" onclick="_addGroup()" title="새 그룹 만들기">＋ 그룹</button></span></div>`;
     sec += `<div class="side-actions" id="addTickerSlot"><button class="side-btn" onclick="_showAddTicker()">＋ 종목 추가</button></div>`;
     sec += `<div class="wg-zone" data-wgdrop="">${ungrouped.map(_docRow).join("")}</div>`;
     groups.forEach(g => {
       const gd = DOCS.filter(d => _grpOf(d.id) === g.id);
+      if (_mAct) gd.sort(_byMom);
       sec += `<div class="wg-head${g.collapsed ? " col" : ""}" data-wgdrop="${g.id}" onclick="_toggleGroup('${g.id}')"><span class="wg-caret"></span><span class="wg-name">${esc(g.name)}</span><span class="wg-count">${gd.length}</span><button class="wg-btn" onclick="event.stopPropagation();_renameGroup('${g.id}')" title="이름 수정">✎</button><button class="wg-btn" onclick="event.stopPropagation();_deleteGroup('${g.id}')" title="그룹 삭제">✕</button></div>`;
       if (!g.collapsed) sec += `<div class="wg-body" data-wgdrop="${g.id}">${gd.length ? gd.map(_docRow).join("") : `<div class="wg-empty">여기로 종목을 끌어다 놓기</div>`}</div>`;
     });
