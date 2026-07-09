@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>스쿱포지 — 요금제</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --surface:#0e1622; --raised:#1b232d;
+    --line:#1e2733; --ink:#e8ecf2; --eth:#8a92b2; --faint:#5b6577;
+    --gold:#e8b463; --gold-dim:#e8b46340; --bull:#46c28e; --bear:#e06a6a;
+    --r-md:9px; --r-lg:13px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--bg)}
+  body{font-family:Pretendard,-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px;margin:0 auto;padding:40px 22px 80px}
+  a{color:var(--gold);text-decoration:none}
+  .back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--eth);margin-bottom:28px}
+  .back:hover{color:var(--gold)}
+  .eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;margin-bottom:10px}
+  h1{font-size:31px;font-weight:800;letter-spacing:-.03em;line-height:1.25;margin-bottom:12px}
+  .lede{font-size:15px;color:var(--eth);max-width:620px;line-height:1.7}
+  .beta{display:inline-flex;align-items:center;gap:8px;margin-top:18px;background:linear-gradient(180deg,rgba(232,180,99,.10),rgba(232,180,99,.03));border:1px solid var(--gold-dim);border-radius:999px;padding:8px 16px;font-size:13px;color:var(--ink)}
+  .beta b{color:var(--gold)}
+  .plans{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:32px}
+  .plan{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:24px 22px;display:flex;flex-direction:column}
+  .plan.pro{border-color:var(--gold-dim);background:linear-gradient(180deg,rgba(232,180,99,.05),transparent 60%),var(--panel)}
+  .plan-name{font-size:14px;font-weight:800;letter-spacing:.02em}
+  .plan.free .plan-name{color:var(--eth)} .plan.pro .plan-name{color:var(--gold)}
+  .plan-price{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:10px 0 2px;font-variant-numeric:tabular-nums}
+  .plan-price small{font-size:14px;color:var(--faint);font-weight:600}
+  .plan-note{font-size:12px;color:var(--faint);margin-bottom:18px}
+  .plan ul{list-style:none;margin:0 0 20px;padding:0;flex:1}
+  .plan li{font-size:13.5px;color:var(--ink);line-height:1.5;padding:7px 0 7px 26px;position:relative;border-top:1px solid var(--line)}
+  .plan li:first-child{border-top:0}
+  .plan li::before{content:"✓";position:absolute;left:0;top:7px;color:var(--bull);font-weight:800}
+  .plan li.off{color:var(--faint)} .plan li.off::before{content:"–";color:var(--faint)}
+  .plan-cta{display:block;text-align:center;font-size:14px;font-weight:800;padding:12px;border-radius:var(--r-md);cursor:pointer;font-family:inherit;border:0;width:100%}
+  .cta-free{background:var(--raised);color:var(--ink)}
+  .cta-pro{background:var(--gold);color:#1a1206}
+  .cta-pro:hover{filter:brightness(1.06)}
+  .badge{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--gold);color:#1a1206;margin-left:8px;vertical-align:middle}
+  .foot-note{margin-top:34px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 20px;font-size:12.5px;color:var(--faint);line-height:1.7}
+  .foot-note b{color:var(--eth)}
+  footer{margin-top:36px;font-size:12px;color:var(--faint);text-align:center}
+  @media(max-width:560px){.plans{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="forge.html">← 스쿱포지로</a>
+  <div class="eyebrow">Pricing</div>
+  <h1>정직한 분석 도구, 정직한 요금제</h1>
+  <p class="lede">스쿱포지는 "수익을 보장하는 예언기"가 아니라, <b style="color:var(--ink)">검증된 것만 보여주는 분석·리스크 도구</b>입니다. 그래서 요금제도 과장 없이 공개합니다.</p>
+  <div class="beta"><b>현재 전체 베타 — 무료</b> · Pro는 준비 중입니다(얼리버드 관심 등록 가능)</div>
+
+  <div class="plans">
+    <div class="plan free">
+      <div class="plan-name">FREE</div>
+      <div class="plan-price">₩0<small> / 영구 무료</small></div>
+      <div class="plan-note">분석의 핵심을 그대로 체험</div>
+      <ul>
+        <li>노드 전략보드 + 라이브 차트</li>
+        <li>웹분석(방향 판정·상승확률·국면)</li>
+        <li>핵심 지표(Lv1~2)</li>
+        <li>검증 성적 스코어카드 열람</li>
+        <li>워치리스트(종목 제한)</li>
+        <li class="off">변동성 예보 · 반등 신호 알림</li>
+        <li class="off">상대강도 순위 · 전체 지표 30종</li>
+        <li class="off">라이브 실시간 성적 · 우선 지원</li>
+      </ul>
+      <button class="plan-cta cta-free" onclick="location.href='forge.html'">지금 무료로 쓰기</button>
+    </div>
+
+    <div class="plan pro">
+      <div class="plan-name">PRO <span class="badge">준비 중</span></div>
+      <div class="plan-price">₩<span id="proPrice">19,900</span><small> / 월 (예정)</small></div>
+      <div class="plan-note">진지한 트레이더를 위한 검증된 신호·자동화</div>
+      <ul>
+        <li>Free의 모든 기능</li>
+        <li><b>변동성 예보</b>(OOS 67.8% 검증)</li>
+        <li><b>지지반등 · 하락후반등 신호 + 알림</b></li>
+        <li>상대강도(모멘텀) 순위</li>
+        <li>전체 지표 30종 + 캘리브레이션 확률</li>
+        <li>워치리스트 무제한 + 자동 모니터링</li>
+        <li>라이브 실시간 성적 대시보드</li>
+        <li>우선 고객지원</li>
+      </ul>
+      <button class="plan-cta cta-pro" onclick="notify()">얼리버드 관심 등록</button>
+    </div>
+  </div>
+
+  <div class="foot-note">
+    <b>정직 고지</b> — ① 스쿱포지는 <b>가격 방향(오를지 내릴지)을 시장보다 잘 맞히지 못합니다</b>(효율적 시장의 벽 — <a href="forge-scorecard.html">검증 성적</a>에 그대로 공개). Pro의 가치는 "대박 예언"이 아니라 <b>검증된 진입 타이밍 · 변동성/리스크 판단 · 자동 알림</b>입니다. ② 과거 데이터 시뮬레이션은 미래 수익을 보장하지 않으며, 본 서비스는 <b>투자자문이 아닌 분석 참고 도구</b>입니다. ③ 가격·기능은 정식 출시 시 변경될 수 있습니다.
+  </div>
+  <footer>스쿱포지 by MoneyScoop · 요금제(예정) · <a href="forge-scorecard.html">엔진 검증 성적 →</a></footer>
+</div>
+<script>
+  function notify(){ alert("얼리버드 관심 등록 감사합니다! 정식 출시 준비되면 안내드리겠습니다.\n(현재 베타는 전체 무료로 이용 가능합니다.)"); }
+</script>
+</body>
+</html>
