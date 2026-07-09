@@ -19,6 +19,14 @@ const UNIVERSE = [
   // 미국 대형주 확대(횡단면 모멘텀 유니버스 강화 · 동일 거래일)
   ["JPM", "1day"], ["BAC", "1day"], ["WMT", "1day"], ["HD", "1day"], ["PG", "1day"], ["JNJ", "1day"], ["UNH", "1day"], ["XOM", "1day"],
   ["CVX", "1day"], ["V", "1day"], ["MA", "1day"], ["ORCL", "1day"], ["CRM", "1day"], ["AMD", "1day"], ["QCOM", "1day"], ["CAT", "1day"],
+  // 모수 확대(2026-07-09) — US 쏠림 완화: 크립토·상품·한국 다양화
+  ["SOL/USD", "1day"], ["XRP/USD", "1day"], ["ADA/USD", "1day"], ["DOGE/USD", "1day"], ["LTC/USD", "1day"], ["BCH/USD", "1day"],
+  ["XAU/USD", "1day"], ["XAG/USD", "1day"], ["WTI/USD", "1day"], ["BRENT/USD", "1day"],
+  ["035420", "1day"], ["005380", "1day"], ["051910", "1day"], ["068270", "1day"], ["035720", "1day"], ["105560", "1day"], ["012330", "1day"], ["055550", "1day"],
+  // 주/월봉 확대 — 일/주/월 비교 표본 강화(기존 US 대형주 + 다양자산)
+  ["JPM", "1week"], ["JPM", "1month"], ["V", "1week"], ["V", "1month"], ["WMT", "1week"], ["WMT", "1month"], ["JNJ", "1week"], ["JNJ", "1month"],
+  ["XOM", "1week"], ["XOM", "1month"], ["AMD", "1week"], ["AMD", "1month"], ["KO", "1week"], ["KO", "1month"], ["PG", "1week"], ["PG", "1month"],
+  ["ETH/USD", "1week"], ["ETH/USD", "1month"], ["EUR/USD", "1month"], ["USD/KRW", "1month"], ["000660", "1week"], ["000660", "1month"],
   // 주요 종목 주봉·월봉 — 일/주/월 비교용
   ["NVDA", "1week"], ["AAPL", "1week"], ["MSFT", "1week"], ["BTC/USD", "1week"], ["005930", "1week"], ["INTC", "1week"], ["BABA", "1week"], ["DIS", "1week"],
   ["NVDA", "1month"], ["AAPL", "1month"], ["MSFT", "1month"], ["BTC/USD", "1month"], ["005930", "1month"], ["INTC", "1month"], ["BABA", "1month"], ["DIS", "1month"],
