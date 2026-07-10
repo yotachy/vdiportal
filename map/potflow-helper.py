@@ -24,6 +24,28 @@ def find_exe(candidates):
             return w
     return None
 
+def scan_tree(path):
+    try:
+        ap = os.path.abspath(path)
+        if not os.path.isdir(ap):
+            return {"ok": False, "error": "not a directory"}
+        folders, files = [], []
+        for name in sorted(os.listdir(ap), key=str.lower):
+            fp = os.path.join(ap, name)
+            if os.path.isdir(fp):
+                folders.append({"name": name, "path": fp})
+            elif os.path.splitext(name)[1].lower() in VIDEO_EXTS:
+                try:
+                    size = os.path.getsize(fp)
+                except OSError:
+                    size = 0
+                files.append({"name": name, "path": fp, "size": size})
+        parent = os.path.dirname(ap)
+        return {"ok": True, "path": ap, "parent": parent if parent != ap else None,
+                "folders": folders, "files": files}
+    except OSError as e:
+        return {"ok": False, "error": str(e)}
+
 def ping_payload():
     return {
         "ok": True,
@@ -45,6 +67,9 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         if u.path == "/ping":
             return self._send(200, ping_payload())
+        if u.path == "/tree":
+            qs = parse_qs(u.query)
+            return self._send(200, scan_tree(qs.get("path", [ROOT])[0]))
         # 정적 서빙
         rel = u.path.lstrip("/") or "potflow.html"
         fp = os.path.join(ROOT, rel)
