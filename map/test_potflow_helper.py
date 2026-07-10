@@ -80,6 +80,21 @@ def test_tile_rects_covers_full_screen_odd_dims():
             assert max(x + w for (x, y, w, h) in rects) == W
             assert max(y + h for (x, y, w, h) in rects) == H
 
+def test_resolve_path_unique(tmp_path):
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "movie.mkv").write_bytes(b"12345")   # size 5
+    path, matches = helper.resolve_path("movie.mkv", 5, [str(tmp_path)])
+    assert matches == 1 and path.endswith("movie.mkv")
+
+def test_resolve_path_none_and_ambiguous(tmp_path):
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
+    (tmp_path / "a" / "dup.mp4").write_bytes(b"xxxxx")  # size 5
+    (tmp_path / "b" / "dup.mp4").write_bytes(b"xxxxx")  # size 5
+    assert helper.resolve_path("dup.mp4", 5, [str(tmp_path)]) == (None, 2)
+    assert helper.resolve_path("missing.mp4", 5, [str(tmp_path)]) == (None, 0)
+    # 크기 불일치는 매칭 아님
+    assert helper.resolve_path("dup.mp4", 999, [str(tmp_path)]) == (None, 0)
+
 def test_host_header_guard_blocks_dns_rebinding():
     import threading, http.client
     srv = helper.make_server(0)

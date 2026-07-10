@@ -12,6 +12,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 THUMB_DIR = os.path.join(ROOT, "potflow_thumbs")
 DATA_FILE = os.path.join(ROOT, "potflow_data.json")
 VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".flv", ".m4v", ".ts", ".mpg", ".mpeg"}
+SEARCH_ROOTS = []
 
 def find_exe(candidates):
     for c in candidates:
@@ -50,6 +51,32 @@ def scan_tree(path):
                 "folders": folders, "files": files}
     except OSError as e:
         return {"ok": False, "error": str(e)}
+
+def resolve_path(name, size, roots, cap=20000):
+    found = None
+    matches = 0
+    scanned = 0
+    for root in roots:
+        if not root or not os.path.isdir(root):
+            continue
+        for dp, dn, fns in os.walk(root):
+            for fn in fns:
+                scanned += 1
+                if scanned > cap:
+                    return (None, -1)
+                if fn == name:
+                    fp = os.path.join(dp, fn)
+                    try:
+                        if os.path.getsize(fp) != size:
+                            continue
+                    except OSError:
+                        continue
+                    matches += 1
+                    if matches == 1:
+                        found = fp
+                    else:
+                        return (None, matches)
+    return (found, matches) if matches <= 1 else (None, matches)
 
 def thumb_path_for(video_path):
     h = hashlib.md5(video_path.encode("utf-8")).hexdigest()
@@ -250,6 +277,18 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, launch_players(body.get("paths", [])))
         if u.path == "/doc":
             return self._send(200, {"ok": save_doc(body.get("doc", {}))})
+        if u.path == "/resolve":
+            name = body.get("name", "")
+            if not name:
+                return self._send(400, {"ok": False, "error": "name required"})
+            base = body.get("base", "")
+            roots = [base] if base else list(SEARCH_ROOTS)
+            path, matches = resolve_path(name, body.get("size", 0), roots)
+            if matches == -1:
+                return self._send(200, {"ok": False, "error": "too many files"})
+            if path:
+                return self._send(200, {"ok": True, "path": path})
+            return self._send(200, {"ok": False, "matches": matches})
         return self._send(404, {"ok": False, "error": "not found"})
 
     def log_message(self, *a):
