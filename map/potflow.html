@@ -832,13 +832,22 @@ function makeNode(x,y,title,type,iconId){const n={id:uid('n'),x,y,title:title||'
 /* ---------- 동영상 경로 · 썸네일 · 재생(PotFlow) ---------- */
 function bindVideoToNode(id,path,name){const n=N(id);if(!n)return;n.videoPath=path;if(name&&(!n.title||n.title==='새 단계'))n.title=name.replace(/\.[^.]+$/,'');requestThumb(id,path);markDirty();render();syncBookmarks(id);}
 function requestThumb(id,path){if(!HELPER_OK)return;const imgId='vthumb_'+id;fetch(HELPER+"/thumb?path="+encodeURIComponent(path)).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{const fr=new FileReader();fr.onload=()=>{putImg(imgId,fr.result);const n=N(id);if(n){n.thumb={imgId,label:n.title||''};render();markDirty()}};fr.readAsDataURL(b)}).catch(()=>{})}
-function playPaths(paths){const list=(paths||[]).filter(Boolean);if(!list.length){toast('재생할 동영상이 없습니다');return}if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:list})}).then(r=>r.json()).then(j=>{if(j.ok)toast(j.launched+'개 재생');else toast('재생 실패: '+(j.error||''))}).catch(()=>toast('재생 실패'))}
+function playPaths(paths,watchId){const list=(paths||[]).filter(Boolean);if(!list.length){toast('재생할 동영상이 없습니다');return}if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:list})}).then(r=>r.json()).then(j=>{if(j.ok){toast(j.launched+'개 재생');if(watchId&&j.token)watchClose(j.token,watchId);}else toast('재생 실패: '+(j.error||''))}).catch(()=>toast('재생 실패'))}
 function playSelected(){const paths=sel.map(id=>{const n=N(id);return n&&n.videoPath}).filter(Boolean);if(!paths.length){toast('선택한 노드에 동영상 경로가 없습니다');return}playPaths(paths)}
 function fmtClock(ms){ms=ms||0;const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60,p=x=>String(x).padStart(2,'0');return (h?h+':':'')+p(m)+':'+p(ss);}
 function bmChildren(pid){return state.nodes.filter(n=>n.bmParent===pid);}
-function playAt(path,ms){if(!path)return;if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}
+function playAt(path,ms,watchId){if(!path)return;if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}
   fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:[path],seek:(ms||0)/1000})})
-    .then(r=>r.json()).then(j=>{if(j&&j.ok)toast('재생 · '+fmtClock(ms));else toast('재생 실패: '+((j&&j.error)||''));}).catch(()=>toast('재생 실패'));}
+    .then(r=>r.json()).then(j=>{if(j&&j.ok){toast('재생 · '+fmtClock(ms));if(watchId&&j.token)watchClose(j.token,watchId);}else toast('재생 실패: '+((j&&j.error)||''));}).catch(()=>toast('재생 실패'));}
+function watchClose(token,nodeId){
+  if(!token||!nodeId)return;let tries=0;
+  const iv=setInterval(()=>{tries++;
+    fetch(HELPER+"/playdone?token="+encodeURIComponent(token)).then(r=>r.json()).then(j=>{
+      if(j&&j.done){clearInterval(iv);const n=N(nodeId);if(n&&n.videoPath)syncBookmarks(nodeId);}
+    }).catch(()=>{if(tries>=3)clearInterval(iv);});
+    if(tries>4800)clearInterval(iv);   // 안전상한(~4h)
+  },3000);
+}
 function syncBookmarks(nodeId){
   const n=N(nodeId);if(!n||!n.videoPath||n.bmParent!=null)return;
   if(!HELPER_OK){toast('헬퍼가 꺼져 있습니다');return}
@@ -1042,7 +1051,7 @@ world.addEventListener('mousedown',e=>{
 });
 world.addEventListener('dblclick',e=>{
   const nodeEl=e.target.closest('.node');
-  if(nodeEl){const n=N(nodeEl.dataset.id);if(n&&n.videoPath){e.preventDefault();if(n.seekMs!=null)playAt(n.videoPath,n.seekMs);else playPaths([n.videoPath]);return;}}
+  if(nodeEl){const n=N(nodeEl.dataset.id);if(n&&n.videoPath){e.preventDefault();if(n.seekMs!=null)playAt(n.videoPath,n.seekMs,n.bmParent);else playPaths([n.videoPath],n.id);return;}}
   if(mode!=='edit')return;
   const ed=e.target.closest('.n-title,.n-desc');if(!ed)return;
   e.stopPropagation();ed.focus();
