@@ -523,7 +523,7 @@ function setWin(mon,x,y,w,h){const n=N(winTarget);if(!n)return;n.win={mon:mon,x:
 function clearWin(){const n=N(winTarget);if(n){n.win=null;markDirty();renderWinPop();}}
 function metaObj(){return{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}}
 function docStamp(cs){let m='';(cs||[]).forEach(c=>{if(c.updated&&c.updated>m)m=c.updated});return m}
-function userImagesOnly(){const o={};LIBRARY.forEach(l=>{if(IMAGES[l.id])o[l.id]=IMAGES[l.id]});Object.keys(IMAGES).forEach(k=>{if(k.startsWith('vthumb_'))o[k]=IMAGES[k]});return o}
+function userImagesOnly(){const o={};LIBRARY.forEach(l=>{if(IMAGES[l.id])o[l.id]=IMAGES[l.id]});Object.keys(IMAGES).forEach(k=>{if(k.startsWith('vthumb_')||k.startsWith('bm_'))o[k]=IMAGES[k]});return o}
 function localLoad(){try{const s=localStorage.getItem(LS_DOC);return s?JSON.parse(s):null}catch(e){return null}}
 function localSaveDoc(){return lsSet(LS_DOC,JSON.stringify({canvases,meta:metaObj()}))}
 function localSaveImgs(){return lsSet(LS_IMG,JSON.stringify(userImagesOnly()))}
@@ -732,7 +732,7 @@ function nodeHTML(n){
       <div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div>${ports}</div>`;
   }
   let media;
-  if(n.thumb) media=`<div class="n-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span>
+  if(n.thumb && imgSrc(n.thumb.imgId)) media=`<div class="n-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span>
      <span class="rmth edit-only" data-act="rmthumb">✕</span>${n.thumb.label?`<span class="cap">${esc(n.thumb.label)}</span>`:''}</div>`;
   else media=`<div class="n-drop edit-only">썸네일 드래그</div>`;
   return `<div class="node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}">${head}
