@@ -1960,3 +1960,22 @@ test("forecastVolatility: 변동성 예보 형식·범위 [v1.5]", () => {
   assert.ok(r.raw >= 0 && r.raw <= 100, "raw(P확대) 0~100: " + r.raw);
   assert.ok((r.raw >= 50) === r.expand, "raw≥50 ⇔ expand");
 });
+
+test("forecastDrawdown: 낙폭리스크 예보 형식·범위 [v1.6]", () => {
+  const fd = ForgeCore.forecastDrawdown;
+  assert.equal(fd([1,2,3], null), null, "데이터 부족/무캔들 → null");
+  // 저변동 완만상승 → 낙폭리스크 낮음 / 고변동 → 높음(단조성 확인)
+  const calmP = [], calmC = [], wildP = [], wildC = [];
+  for (let i = 0; i < 400; i++) {
+    const cc = 100 + i * 0.05 + Math.sin(i * 0.1) * 1;      // 잔잔
+    calmP.push(cc); calmC.push({ o: cc, h: cc * 1.003, l: cc * 0.997, c: cc });
+    const wc = 100 + i * 0.05 + Math.sin(i * 0.3) * 12;     // 출렁
+    wildP.push(wc); wildC.push({ o: wc, h: wc * 1.03, l: wc * 0.97, c: wc });
+  }
+  const rc = ForgeCore.forecastDrawdown(calmP, calmC), rw = ForgeCore.forecastDrawdown(wildP, wildC);
+  assert.ok(rc && typeof rc.prob === "number", "객체+prob number");
+  assert.ok(rc.prob >= 0 && rc.prob <= 100, "prob 0~100: " + rc.prob);
+  assert.equal(rc.dd, 5, "낙폭 임계 5%");
+  assert.equal(typeof rc.elevated, "boolean", "elevated bool");
+  assert.ok(rw.prob > rc.prob, "고변동 낙폭리스크 > 저변동: " + rw.prob + " vs " + rc.prob);
+});

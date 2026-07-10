@@ -177,6 +177,15 @@
   </div>
   <p class="sec-desc" style="margin-top:14px"><b>정직 표기</b> — 이건 가격 <b>방향</b> 예측이 아닙니다(오를지 내릴지는 여전히 ~53%). "얼마나 출렁일지"의 이진 예측 정확도가 68.4%입니다(v1.5.1에서 변동성 국면 백분위 피처로 67.8→68.4% 개선). 그래도 리스크 관리·진입 타이밍엔 진짜로 유용합니다.</p>
 
+  <h2>✅ 검증된 강점 — 낙폭 리스크 예보 <span style="font-size:12px;color:var(--gold);font-weight:800">v1.6</span></h2>
+  <p class="sec-desc"><b>"앞으로 크게 빠질 위험이 얼마나 되나"를 확률로 알려줍니다.</b> 향후 약 한 달(20봉) 안에 현재가 대비 <b>5% 이상 하락</b>이 나올 확률을 예측합니다 — 변동성처럼 <b>리스크도 뭉쳐 다니기(clustering)</b> 때문에 예측 가능합니다. 손절 폭·비중 조절의 근거.</p>
+  <div class="cards">
+    <div class="card"><div class="ck">낙폭(≥5%) 예측</div><div class="cv">68.4%</div><div class="csub">OOS · 54종 · 93k시점</div><div class="ctag tag-up">진짜 예측력</div></div>
+    <div class="card"><div class="ck">단순 기준 대비</div><div class="cv">+7.0%p</div><div class="csub">지속성 61.4% · 다수결 66.1%</div><div class="ctag tag-up">둘 다 초과</div></div>
+    <div class="card"><div class="ck">활용</div><div class="cv" style="font-size:15px;line-height:1.5;font-weight:700">위험 높을 때<br>손절 넓게·비중↓</div><div class="csub">리스크·사이징</div><div class="ctag tag-fl">실용</div></div>
+  </div>
+  <p class="sec-desc" style="margin-top:14px"><b>정직 표기</b> — 이건 <b>하방 리스크의 크기</b>(얼마나 빠질 위험) 예측이지 <b>방향</b>(오를지 내릴지) 예측이 아닙니다. 평시 발생률 34%를 기준선으로, 그보다 높으면 경보합니다. 지속성(최근에 빠졌으니 또 빠진다)·다수결(항상 "안 빠진다") 두 기준을 모두 넘겨야 진짜로 인정했습니다. 함께 검증됐으나 보류한 후보: 이익목표 +5% 도달(64.6%)·박스권 유지(63.3%)는 방향/변동성과 겹쳐 우선 제외.</p>
+
   <h2>🧭 스쿱포지, 이렇게 쓰세요</h2>
   <p class="sec-desc">위 검증 결과를 실제 사용으로 옮기면 — 무엇을 믿고 무엇을 걸러야 하는지가 분명해집니다.</p>
   <div class="usage">
@@ -264,7 +273,9 @@ document.querySelector("#regtbl tbody").innerHTML = ["side","bull","bear"].map(k
 
 // 개선 이력 — 버전별 before→after(기간·국면). 롤백한 실패도 기록.
 const CHANGELOG = [
-  { v:"1.5.1", tag:"변동성 예보 정밀화 (국면 백분위)", cur:true, items:["변동성 예보에 <b>변동성 국면 백분위</b> 피처 추가 — 현재 변동성이 자기 1년 분포에서 얼마나 눌려있나(압축→확대 여지).","OOS 정확도 <b>67.8→68.4%</b>(과적합 아님·유일하게 견고). 레버리지 수익·거래량·비선형(GBT)은 대조 결과 무효라 <b>기각</b>(신기루 차단). 타임프레임 합의(일주월 일치)도 방향·변동성 양쪽 예측력 <b>0</b>으로 반증."],
+  { v:"1.6.0", tag:"낙폭 리스크 예보 (새 예측 축)", cur:true, items:["향후 ~1개월 내 <b>5% 이상 낙폭 확률</b>을 예측 — 방향(불가)이 아닌 <b>하방 리스크 크기</b>. 손절폭·비중 조절 근거.","OOS 정확도 <b>68.4%</b>가 지속성(61.4%)·다수결(66.1%) <b>둘 다 초과</b>(진짜 예측력). 리스크 타깃 발굴에서 낙폭≥10%·돌파는 다수결 동률(신기루)이라 <b>기각</b>, 5% 낙폭만 채택."],
+    ba:{ "낙폭 예보 OOS(vs 지속성)":[0.614,0.684] } },
+  { v:"1.5.1", tag:"변동성 예보 정밀화 (국면 백분위)", items:["변동성 예보에 <b>변동성 국면 백분위</b> 피처 추가 — 현재 변동성이 자기 1년 분포에서 얼마나 눌려있나(압축→확대 여지).","OOS 정확도 <b>67.8→68.4%</b>(과적합 아님·유일하게 견고). 레버리지 수익·거래량·비선형(GBT)은 대조 결과 무효라 <b>기각</b>(신기루 차단). 타임프레임 합의(일주월 일치)도 방향·변동성 양쪽 예측력 <b>0</b>으로 반증."],
     ba:{ "변동성 예보 OOS":[0.678,0.684] } },
   { v:"1.5.0", tag:"변동성 예보 (진짜 예측력)", items:["가격 방향(불가) 대신 <b>변동성 확대/축소를 예측</b> — 로지스틱 모델 엔진 내장. 변동성 평균회귀 포착.","OOS 정확도 <b>67.8%</b>(다수결 50.9·지속성 41.7 크게 초과). 차트 판정에 '변동성 확대/축소 XX%' 표시(가격방향 아님 정직 라벨)."] },
   { v:"1.4.0", tag:"확률 캘리브레이션 (정직한 확신도)", items:["표기 상승확률을 실제와 일치하도록 Platt 교정 — <b>'엔진이 60%라 하면 실제로 60% 맞음'</b>.","단조맵이라 방향·신호는 불변, 확률 표기만 정직화. <b>OOS 검증</b>(train 과거→test 미래): ECE 8.6→0.7%p."] },
@@ -333,7 +344,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   const LAYERS=[
     {title:"지표 입력", side:"left",  col:"var(--eth)",  nodes:["추세·이동평균","RSI·스토캐스틱","MACD","볼린저밴드","거래량·변동성"]},
     {title:"엔진 처리", side:"mid",   col:"var(--gold)", nodes:["신호 결합","국면 판정","드리프트 합성","확률 캘리브레이션"]},
-    {title:"예측 산출", side:"right", col:"var(--bull)", nodes:["방향 판정","상승 확률","변동성 예보","반등 신호"]},
+    {title:"예측 산출", side:"right", col:"var(--bull)", nodes:["방향 판정","상승 확률","변동성 예보","낙폭 리스크","반등 신호"]},
   ];
   const W=760,H=340,cols=[190,380,570],top=60,bot=312;
   const pos=LAYERS.map((L,li)=>L.nodes.map((n,ni)=>({x:cols[li], y: L.nodes.length===1?(top+bot)/2: top+ni*(bot-top)/(L.nodes.length-1), label:n, col:L.col})));
@@ -350,7 +361,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   host.innerHTML=s+`</svg>`;
 })();
 
-document.getElementById("foot").innerHTML = "스쿱포지 엔진 v1.5.1 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
+document.getElementById("foot").innerHTML = "스쿱포지 엔진 v1.6.0 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
 
 /* ── 라이브 재현 위젯 — 브라우저에서 실데이터로 walk-forward 직접 실행 ── */
 const EXPECTED = {"BABA":{dir:0.493,cone:0.845,pnl:1.49,bh:0.259,base:0.513,rg:"횡보"},"PYPL":{dir:0.547,cone:0.833,pnl:3.896,bh:0.139,base:0.546,rg:"횡보"},"PFE":{dir:0.549,cone:0.888,pnl:0.23,bh:-0.035,base:0.544,rg:"횡보"},"NVDA":{dir:0.579,cone:0.832,pnl:49.162,bh:326.235,base:0.671,rg:"강세"}};

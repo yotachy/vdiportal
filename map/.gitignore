@@ -7,3 +7,4 @@ backtest/confluence-records.json
 
 # SDD 세션 스크래치(렛저·브리프·리뷰 diff) — 저장소 미포함
 .superpowers/
+__pycache__/
