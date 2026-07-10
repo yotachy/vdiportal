@@ -15,3 +15,4 @@ potflow_thumbs/
 
 # 라이브 트랙레코드 원장(서버 생성) — 불가침
 forge_predlog.json
+backtest/cone-cal-recs.json

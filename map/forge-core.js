@@ -4,7 +4,10 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.7.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.7.1";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
+  // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
+  const _CONE_CAL = 0.75;
 
   function mulberry32(seed) {
     let a = seed >>> 0;
@@ -1951,7 +1954,7 @@
       const _ease = 1 - Math.exp(-k / 3.5);                                                // 이음매(k=0)에서 디테일 성분 완만 진입 → 시작 급변(꺾임) 방지
       const seas = (seasFn ? seasFn(k) : 0) * _ease;                                        // 계절성(주기) — seasFn(1)이 커도 부드럽게 시작
       const tex = (_texArr ? _texArr[k] : 0) * _ease;                                       // 데이터 기반 미세질감(AR)
-      const m = rev + mom + trend + sig + seas + tex + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * (_prof.bandScale || 1) * (_volFac ? _volFac[k] : 1);   // TF별 콘 폭(일봉 타이트)
+      const m = rev + mom + trend + sig + seas + tex + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * _CONE_CAL * (_prof.bandScale || 1) * (_volFac ? _volFac[k] : 1);   // TF별 콘 폭(일봉 타이트) · _CONE_CAL: 커버리지 68% 캘리브레이션(v1.7.1)
       // 종합 신호와 반대 방향으로 크게 드리프트하면 완화 — '지표 종합=하락인데 예측 급등/상승확률 86%' 같은 모순 억제
       let mC = m;
       if (_dirSig < -8 && mC > 0) mC *= 0.25;
@@ -1971,7 +1974,7 @@
     if (_bb && _bb.last) { _pushL(_bb.last.lower); _pushL(_bb.last.upper); }
     if (_ic) { _pushL(_ic.cloudHi); _pushL(_ic.cloudLo); }
     if (_vw && isFinite(_vw.last)) _pushL(_vw.last);
-    const _sd1 = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(futW) * 0.85 * (_prof.bandScale || 1);
+    const _sd1 = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(futW) * 0.85 * _CONE_CAL * (_prof.bandScale || 1);
     const _minMove = 0.35 * _sd1;   // 의미있는 최소 이동(변동성 기반) — 바로 옆 미세 레벨 제외
     let _cTarget = null, _cBasis = "구조 레벨";
     if (_mainUp) { const below = _lvls.filter(v => v < last * Math.exp(-_minMove)).sort((a, b) => b - a); _cTarget = below.length ? below[0] : null; }
@@ -2151,7 +2154,7 @@
   // 입력·출력 모두 0~100 정수. "엔진이 60%라 하면 실제 60% 맞음"이 성립하도록 과신을 교정.
   function calibrateUpProb(p) {
     if (p == null || !isFinite(p)) return p;
-    const q = Math.min(0.999, Math.max(0.001, p / 100)), A = 0.2667, B = 0.3556;
+    const q = Math.min(0.999, Math.max(0.001, p / 100)), A = 0.2117, B = 0.3501;   // v1.7.1 재적합(콘 ×0.75 축소 · 전체 TF · OOS ECE 8.78→1.91%p)
     return Math.round((1 / (1 + Math.exp(-(A * Math.log(q / (1 - q)) + B)))) * 100);
   }
 
