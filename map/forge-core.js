@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.9.3";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.9.4";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
   const _CONE_CAL = 0.75;
@@ -2054,7 +2054,7 @@
     context.ddRisk = forecastDrawdown(price, data && data.candle);          // 낙폭리스크 예보(v1.6.1) — 1/2/3개월 낙폭 위험곡선(하방 특화)
     context.upTarget = forecastUpside(price, data && data.candle);          // 이익목표 도달 예보(v1.7) — 1/2/3개월 +목표 도달 곡선(낙폭과 짝=확률 R:R)
     context.spikeRisk = forecastSpike(price, data && data.candle);          // 단일봉 급변 예보(v1.9.1) — 2주2σ/1달2.5σ/2달3σ 급변 위험곡선(갭·쇼크 경보)
-    context.gapRisk = forecastGapRisk(price, data && data.candle);          // 오버나잇 갭 예보(v1.9.3) — 향후 20봉 내 큰 시가갭 발생 확률(주식 한정·비주식 null)
+    context.gapRisk = forecastGapRisk(price, data && data.candle);          // 오버나잇 갭 예보(v1.9.4) — 1달2.2σ/1.5달2.7σ/2달3.2σ 갭 위험곡선(주식 한정·비주식 null)
     context.trendPersist = forecastTrendPersist(price, context.state, context.strength);   // 추세 지속/소진 예보(v1.9) — 추세 국면서 이어질지 힘 빠질지(비방향)
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
@@ -2277,13 +2277,15 @@
     const rep = curve[1];   // 대표=1달(2.5σ·20봉) — 하위호환
     return { prob: rep.prob, sigma: rep.sigma, base: rep.base, acc: rep.acc, elevated: rep.elevated, curve };
   }
-  // 오버나잇 갭 리스크 예보(v1.9.3) — 향후 20봉(약 1달) 내 큰 오버나잇 갭(|시가/전일종가−1| > 2.2×트레일링갭변동성) 발생 확률.
-  // 급변 경보(일중·종가 기준)와 다른 데이터 슬라이스(시가 vs 전일종가). gap-lab 검증(주식 40종): OOS 62.9%(다수결 51.3·지속성 50.5 초과),
-  // **급변축 대비 증분 종목내 +5.1·퍼지 +5.2·종목외 +4.0%p**(세 검증 안정 → 급변 재포장 아님·종목간 일반화). 방향 무관(갭업/갭다운 균형).
-  // 15피처 = 변동성구조 10(_riskFeatures) + 갭구조 5. **주식 한정** — 24h 시장(FX·크립토)은 시가≈전일종가라 갭≈0 → 데이터게이트로 null.
-  const _GAP_MEAN = [-0.05165, -0.0286, -0.03755, -0.01241, 2.46292, 0.21283, 2.25394, 1.73872, -0.06248, 0.5053, 1.05324, 0.70651, 1.8593, 0.70492, 0.64721];
-  const _GAP_STD = [0.34139, 0.24437, 0.31177, 0.16195, 1.51032, 0.11063, 1.44001, 1.15181, 0.26462, 0.30737, 0.67632, 1.04922, 1.5472, 0.66328, 0.25689];
-  const _GAP_W = [0.08904, -0.11486, -0.1067, 0.02417, 0.1164, 0.0081, 0.31754, -0.18607, -0.07289, -0.12471, -0.4386, 0.05256, 0.13114, -0.00266, -0.44916], _GAP_BB = -0.08204;
+  // 오버나잇 갭 리스크 멀티지평 곡선(v1.9.4) — 향후 H봉 내 큰 오버나잇 갭(|시가/전일종가−1| > Kσ×트레일링갭변동성) 발생 확률.
+  // 지평↑ 문턱↑ 대각선 곡선: 1달 2.2σ / 1.5달 2.7σ / 2달 3.2σ(양성률 47~49% 균형 유지). 급변 경보(일중·종가)와 다른 데이터 슬라이스(시가 vs 전일종가).
+  // gap-lab/gap-curve 검증(주식 40종): 3지평 OOS 63·62·62%(다수결·지속성 초과), **급변축 대비 종목외 갭증분 +4.0·+3.6·+3.0%p**(세 지평 안정 → 재포장 아님).
+  // 15피처 = 변동성구조 10(_riskFeatures) + 갭구조 5. 지평별 MEAN/STD/W/BB(K 다름). **주식 한정** — 24h 시장은 시가≈전일종가라 갭≈0 → 데이터게이트로 null.
+  const _GAP_HZ = [
+    { h: 20, lb: "1달", sigma: 2.2, base: 49, acc: 63, MEAN: [-0.05165, -0.0286, -0.03755, -0.01241, 2.46292, 0.21283, 2.25394, 1.73872, -0.06248, 0.5053, 1.05324, 0.70651, 1.8593, 0.70492, 0.64721], STD: [0.34139, 0.24437, 0.31177, 0.16195, 1.51032, 0.11063, 1.44001, 1.15181, 0.26462, 0.30737, 0.67632, 1.04922, 1.5472, 0.66328, 0.25689], W: [0.08904, -0.11486, -0.1067, 0.02417, 0.1164, 0.0081, 0.31754, -0.18607, -0.07289, -0.12471, -0.4386, 0.05256, 0.13114, -0.00266, -0.44916], BB: -0.08204 },
+    { h: 30, lb: "1.5달", sigma: 2.7, base: 47, acc: 62, MEAN: [-0.05187, -0.02884, -0.03785, -0.01245, 2.45822, 0.2129, 2.24921, 1.73533, -0.06276, 0.5047, 1.05094, 0.70417, 1.86069, 0.70294, 0.6471], STD: [0.34139, 0.24442, 0.31179, 0.16207, 1.5041, 0.11062, 1.43282, 1.14749, 0.26473, 0.3073, 0.67367, 1.04375, 1.5474, 0.65955, 0.25696], W: [0.08499, -0.12615, -0.1286, -0.0138, 0.14198, 0.06548, 0.34212, -0.18885, -0.05959, -0.14193, -0.47106, 0.04685, 0.05604, -0.07291, -0.40743], BB: -0.12592 },
+    { h: 40, lb: "2달", sigma: 3.2, base: 47, acc: 62, MEAN: [-0.05208, -0.02894, -0.03809, -0.0126, 2.45431, 0.21294, 2.24479, 1.73254, -0.06287, 0.50411, 1.04857, 0.70264, 1.86158, 0.70162, 0.6468], STD: [0.34144, 0.24442, 0.31184, 0.16216, 1.50035, 0.11059, 1.42606, 1.14432, 0.26474, 0.30724, 0.67081, 1.04118, 1.54782, 0.65774, 0.25652], W: [0.08108, -0.12207, -0.13634, -0.03112, 0.13064, 0.10317, 0.33323, -0.22725, -0.08544, -0.13574, -0.51498, 0.04151, 0.00669, -0.07053, -0.44368], BB: -0.15543 },
+  ];
   function _gapFeats(price, candle) {
     const t = price.length - 1;
     const gap = new Array(price.length).fill(0);
@@ -2303,9 +2305,13 @@
     const x0 = _riskFeatures(price, candle); if (!x0) return null;
     const gf = _gapFeats(price, candle); if (!gf) return null;   // 주식 게이트(비주식 → null)
     const x = x0.concat(gf);
-    let s = _GAP_BB; for (let j = 0; j < x.length; j++) s += _GAP_W[j] * (x[j] - _GAP_MEAN[j]) / _GAP_STD[j];
-    const p = 1 / (1 + Math.exp(-s));
-    return { prob: Math.round(p * 100), base: 49, acc: 63, elevated: p >= 0.5, h: 20, sigma: 2.2 };   // base=평시 발생률(양성률 48.7%), acc=종목외 보수치
+    const curve = _GAP_HZ.map(z => {
+      let s = z.BB; for (let j = 0; j < x.length; j++) s += z.W[j] * (x[j] - z.MEAN[j]) / z.STD[j];
+      const p = 1 / (1 + Math.exp(-s));
+      return { h: z.h, lb: z.lb, sigma: z.sigma, prob: Math.round(p * 100), base: z.base, acc: z.acc, elevated: p >= 0.5 };
+    });
+    const rep = curve[0];   // 대표=1달(H=20·2.2σ) — 하위호환
+    return { prob: rep.prob, base: rep.base, acc: rep.acc, elevated: rep.elevated, h: 20, sigma: 2.2, curve };
   }
   // 추세 지속/소진 예보(v1.9) — 추세 국면(up/down)에서 향후 20봉 뒤 추세가 지속되나 소진(→횡보)하나.
   // 비방향(방향 못맞혀도 '추세가 이어질지 힘 빠질지'는 예측). 종목외 확증: up OOS 75.9%·down 74.5%(다수결60·52 초과, strength만보다 +8~19pp).

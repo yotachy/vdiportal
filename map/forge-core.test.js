@@ -2073,8 +2073,14 @@ test("forecastGapRisk: 오버나잇 갭 예보 — 형식·주식게이트 [v1.9
   }
   const rg = ForgeCore.forecastGapRisk(gP, gC);
   assert.ok(rg && typeof rg.prob === "number" && rg.prob >= 0 && rg.prob <= 100, "갭 있는 시장 → prob 0~100");
-  assert.equal(rg.h, 20, "지평 20봉");
+  assert.equal(rg.h, 20, "대표 지평 20봉");
   assert.equal(typeof rg.elevated, "boolean", "elevated bool");
+  // 멀티지평 대각선 곡선(v1.9.4): 1달 2.2σ / 1.5달 2.7σ / 2달 3.2σ, 대표=1달(첫 항목)
+  assert.ok(Array.isArray(rg.curve) && rg.curve.length === 3, "curve 3지평");
+  assert.deepEqual(rg.curve.map(c => c.h), [20, 30, 40], "지평 20·30·40봉");
+  assert.deepEqual(rg.curve.map(c => c.sigma), [2.2, 2.7, 3.2], "문턱 2.2·2.7·3.2σ 대각선");
+  assert.equal(rg.prob, rg.curve[0].prob, "대표=1달(2.2σ·20봉)");
+  assert.ok(rg.curve.every(c => c.prob >= 0 && c.prob <= 100), "곡선 확률 0~100");
   // 갭 없는 시계열(시가=전일종가, 24h 시장형): 게이트로 null
   const nP = [], nC = [];
   for (let i = 0; i < 400; i++) { const c = 100 + i * 0.05 + Math.sin(i * 0.1) * 4; nP.push(c); nC.push({ o: i > 0 ? nP[i - 1] : c, h: c * 1.01, l: c * 0.99, c }); }
