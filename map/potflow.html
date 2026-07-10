@@ -900,6 +900,7 @@ function loadCanvas(id){
   const _rp=c.rsPath||'';const _pi=document.getElementById('rsPath');if(_pi)_pi.value=_rp;
   rsData=null;const _rb=document.getElementById('rsBody');if(_rb)_rb.innerHTML='';
   if(_rp&&HELPER_OK)openFolder(_rp);
+  if(HELPER_OK)setTimeout(()=>{state.nodes.filter(n=>n.videoPath&&n.bmParent==null).forEach(n=>syncBookmarks(n.id));},50);
 }
 /* ---------- 되돌리기/다시실행 (서버 유무 무관, 캔버스별로 초기화) ---------- */
 function snapState(){const clean=a=>(a||[]).map(o=>{const r={};for(const k in o)if(k[0]!=='_')r[k]=o[k];return r});return JSON.stringify({nodes:clean(state.nodes),edges:state.edges,groups:state.groups||[]})}
@@ -986,7 +987,8 @@ function syncBookmarks(nodeId){
     const existing={};bmChildren(nodeId).forEach(c=>{existing[c.seekMs]=c;});
     const seen={};const chainIds=[nodeId];let i=0;
     bms.forEach(b=>{seen[b.ms]=1;let c=existing[b.ms];
-      if(!c){c=makeNode(n.x+(i+1)*270,n.y,'',"full");c.bmParent=nodeId;c.seekMs=b.ms;c.videoPath=n.videoPath;}
+      if(!c){c=makeNode(0,0,'',"full");c.bmParent=nodeId;c.seekMs=b.ms;c.videoPath=n.videoPath;}
+      c.x=n.x+(i+1)*240;c.y=n.y;   // 항상 부모 오른쪽으로 균등 배치(자동 정렬)
       c.title=b.title||('책갈피 '+fmtClock(b.ms));c.desc=fmtClock(b.ms);
       if(b.thumb){const iid='bm_'+nodeId+'_'+b.ms;putImg(iid,b.thumb);c.thumb={imgId:iid,label:c.title};}
       else{captureThumbURL(HELPER+"/file?path="+encodeURIComponent(n.videoPath),c.id,b.ms/1000);}
