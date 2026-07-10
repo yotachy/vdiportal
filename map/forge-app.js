@@ -2036,13 +2036,16 @@
     const dedup = sym + "|" + tf + "|" + asOf;
     if (_loggedPreds.has(dedup)) return; _loggedPreds.add(dedup);
     const up = (typeof aggUpProb === "function") ? Math.round(aggUpProb(r.prediction) * 100) : 50;
-    const vf = ctx.volForecast, dd = ctx.ddRisk, ut = ctx.upTarget;
+    const vf = ctx.volForecast, dd = ctx.ddRisk, ut = ctx.upTarget, spk = ctx.spikeRisk, gap = ctx.gapRisk, tp = ctx.trendPersist;
     const ddP = dd ? ((dd.curve && dd.curve[0]) ? dd.curve[0].prob : dd.prob) : 0;
     const upP = ut ? ((ut.curve && ut.curve[0]) ? ut.curve[0].prob : ut.prob) : 0;
     apiPost({ op: "logpred", sym, tf, asOf, asOfPrice: +asOfPrice,
       futW: (r.prediction && r.prediction.futW) || 60,
       dir: (r.verdict.score || 0) > 0 ? 1 : ((r.verdict.score || 0) < 0 ? -1 : 0),
       up, volExp: (vf && vf.expand) ? 1 : 0, ddP, upP,
+      spkP: spk ? spk.prob : 0,                                  // 급변 예측 확률(대표 2.5σ·20봉)
+      gapP: gap ? gap.prob : 0, gapStock: gap ? 1 : 0,           // 갭 예측 확률(대표 2.2σ·20봉)·주식여부(게이트 통과=1)
+      tpState: tp ? tp.state : "", tpPersist: tp ? tp.persist : 50,   // 추세 지속: 국면·지속확률(대표 1달)
     }).then(() => { fetchPredLedger(); }).catch(() => {});
   }
   async function fetchPredLedger() {

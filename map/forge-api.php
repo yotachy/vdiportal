@@ -167,6 +167,12 @@ if ($method === "GET") {
     $cache = [];   // "sym|tf" → candles | false
     $resolvedNow = 0;
     $rvol = function($cds, $s, $e) { $n=0; $sum=0; for ($i=$s+1; $i<=$e; $i++){ $p0=(float)$cds[$i-1]["c"]; $p1=(float)$cds[$i]["c"]; if ($p0>0 && $p1>0){ $lr=log($p1/$p0); $sum+=$lr*$lr; $n++; } } return $n ? sqrt($sum/$n) : 0; };
+    // 추세 지속 채점용 근사 국면판정(MA20 기울기) — 엔진 state 분류기(_cTS·채널)를 OHLC만으로 완전 재현 불가라 투명한 근사. asOf/만기 동일 규칙.
+    $pstate = function($cds, $idx) { if ($idx < 30 || $idx >= count($cds)) return null;
+      $s=0; for($i=$idx-19;$i<=$idx;$i++)$s+=(float)$cds[$i]["c"]; $ma20=$s/20;
+      $sp=0; for($i=$idx-29;$i<=$idx-10;$i++)$sp+=(float)$cds[$i]["c"]; $ma20p=$sp/20;
+      if($ma20p<=0)return null; $slope=$ma20/$ma20p-1;
+      if(abs($slope)<0.004)return "range"; return $slope>=0?"up":"down"; };
     foreach ($pdoc["recs"] as &$r) {
       if (!empty($r["resolved"])) continue;
       if (!isset($r["resolveAfter"]) || $r["resolveAfter"] > $today) continue;
@@ -199,12 +205,25 @@ if ($method === "GET") {
       for ($i = $ai + 1; $i <= $ai + 20; $i++) { $c = (float)$cds[$i]["c"]; if ($c < $lo) $lo = $c; if ($c > $hi) $hi = $c; }
       $ddHit = ($lo / $a - 1) <= -0.05 ? 1 : 0;
       $upHit = ($hi / $a - 1) >= 0.05 ? 1 : 0;
+      // 급변(v1.8): 향후 20봉 내 하루 |수익|>2.5×현재20봉변동성 발생?
+      $spkEv = null;
+      if ($ai - 20 >= 0) { $sv = $rvol($cds, $ai - 20, $ai);
+        if ($sv > 0) { $spkEv = 0; for ($i=$ai+1;$i<=$ai+20;$i++){ $p0=(float)$cds[$i-1]["c"]; $p1=(float)$cds[$i]["c"]; if ($p0>0&&$p1>0&&abs($p1/$p0-1)>2.5*$sv){ $spkEv=1; break; } } } }
+      // 갭(v1.9.4): 주식만 · 향후 20봉 내 |시가/전일종가−1|>2.2×현재60봉갭변동성 발생?
+      $gapEv = null;
+      if (!empty($r["gapStock"])) { $gs=0;$gn=0; for($i=$ai-59;$i<=$ai;$i++){ if($i>=1){ $op=(float)$cds[$i]["o"]; $pc=(float)$cds[$i-1]["c"]; if($op>0&&$pc>0){ $g=$op/$pc-1; $gs+=$g*$g; $gn++; } } } $gv=$gn?sqrt($gs/$gn):0;
+        if ($gv > 0) { $gapEv = 0; for($i=$ai+1;$i<=$ai+20;$i++){ $op=(float)$cds[$i]["o"]; $pc=(float)$cds[$i-1]["c"]; if($op>0&&$pc>0&&abs($op/$pc-1)>2.2*$gv){ $gapEv=1; break; } } } }
+      // 추세 지속(v1.9.5): asOf 국면(up/down)이 20봉 뒤에도 유지되나(근사 국면판정) — 예측 지속≥50 vs 실제 유지 일치?
+      $tpOk = null;
+      if (isset($r["tpState"]) && ($r["tpState"]==="up"||$r["tpState"]==="down")) { $fs = $pstate($cds, $ai + 20);
+        if ($fs !== null) { $persistAct = ($fs === $r["tpState"]) ? 1 : 0; $tpPred = ((int)$r["tpPersist"] >= 50) ? 1 : 0; $tpOk = ($tpPred === $persistAct) ? 1 : 0; } }
       $r["resolved"] = true; $r["ret"] = round($mp / $a - 1, 4);
-      $r["out"] = ["dir"=>$dirOk, "vol"=>$volOk, "dd"=>$ddHit, "up"=>$upHit];
+      $r["out"] = ["dir"=>$dirOk, "vol"=>$volOk, "dd"=>$ddHit, "up"=>$upHit, "spk"=>$spkEv, "gap"=>$gapEv, "tp"=>$tpOk];
       $resolvedNow++;
     }
     unset($r);
-    $agg = ["dir"=>["n"=>0,"hit"=>0], "vol"=>["n"=>0,"hit"=>0], "dd"=>["n"=>0,"ev"=>0,"ps"=>0], "up"=>["n"=>0,"ev"=>0,"ps"=>0]];
+    $agg = ["dir"=>["n"=>0,"hit"=>0], "vol"=>["n"=>0,"hit"=>0], "dd"=>["n"=>0,"ev"=>0,"ps"=>0], "up"=>["n"=>0,"ev"=>0,"ps"=>0],
+            "spk"=>["n"=>0,"ev"=>0,"ps"=>0], "gap"=>["n"=>0,"ev"=>0,"ps"=>0], "tp"=>["n"=>0,"hit"=>0]];
     $pending = 0; $resolved = 0; $since = null;
     foreach ($pdoc["recs"] as $r) {
       if (empty($r["resolved"])) { $pending++; continue; }
@@ -215,12 +234,15 @@ if ($method === "GET") {
       if (isset($o["vol"]) && $o["vol"] !== null) { $agg["vol"]["n"]++; $agg["vol"]["hit"] += (int)$o["vol"]; }
       if (isset($o["dd"])) { $agg["dd"]["n"]++; $agg["dd"]["ev"] += (int)$o["dd"]; $agg["dd"]["ps"] += (float)$r["ddP"]; }
       if (isset($o["up"])) { $agg["up"]["n"]++; $agg["up"]["ev"] += (int)$o["up"]; $agg["up"]["ps"] += (float)$r["upP"]; }
+      if (isset($o["spk"]) && $o["spk"] !== null) { $agg["spk"]["n"]++; $agg["spk"]["ev"] += (int)$o["spk"]; $agg["spk"]["ps"] += (float)(isset($r["spkP"])?$r["spkP"]:0); }
+      if (isset($o["gap"]) && $o["gap"] !== null) { $agg["gap"]["n"]++; $agg["gap"]["ev"] += (int)$o["gap"]; $agg["gap"]["ps"] += (float)(isset($r["gapP"])?$r["gapP"]:0); }
+      if (isset($o["tp"]) && $o["tp"] !== null) { $agg["tp"]["n"]++; $agg["tp"]["hit"] += (int)$o["tp"]; }
     }
     if ($resolvedNow > 0) { $ptmp = $pf . ".tmp." . getmypid(); if (file_put_contents($ptmp, json_encode($pdoc, JSON_UNESCAPED_UNICODE)) !== false) @rename($ptmp, $pf); }
     if ($plock) { flock($plock, LOCK_UN); fclose($plock); }
     $mk = function($a) { return ["n"=>$a["n"], "rate"=>$a["n"] ? round($a["hit"]/$a["n"], 3) : null]; };
     $mkp = function($a) { return ["n"=>$a["n"], "actRate"=>$a["n"] ? round($a["ev"]/$a["n"], 3) : null, "predAvg"=>$a["n"] ? round($a["ps"]/$a["n"]/100, 3) : null]; };
-    echo json_encode(["ok"=>true, "resolved"=>$resolved, "pending"=>$pending, "since"=>$since, "dir"=>$mk($agg["dir"]), "vol"=>$mk($agg["vol"]), "dd"=>$mkp($agg["dd"]), "up"=>$mkp($agg["up"])], JSON_UNESCAPED_UNICODE);
+    echo json_encode(["ok"=>true, "resolved"=>$resolved, "pending"=>$pending, "since"=>$since, "dir"=>$mk($agg["dir"]), "vol"=>$mk($agg["vol"]), "dd"=>$mkp($agg["dd"]), "up"=>$mkp($agg["up"]), "spk"=>$mkp($agg["spk"]), "gap"=>$mkp($agg["gap"]), "tp"=>$mk($agg["tp"])], JSON_UNESCAPED_UNICODE);
     exit;
   }
   if (is_file($f)) { readfile($f); } else { echo "null"; }
@@ -275,6 +297,11 @@ if ($op === "logpred") {
       "volExp"=> !empty($d["volExp"]) ? 1 : 0,
       "ddP"=> $clip(isset($d["ddP"]) ? $d["ddP"] : 0),
       "upP"=> $clip(isset($d["upP"]) ? $d["upP"] : 0),
+      "spkP"=> $clip(isset($d["spkP"]) ? $d["spkP"] : 0),
+      "gapP"=> $clip(isset($d["gapP"]) ? $d["gapP"] : 0),
+      "gapStock"=> !empty($d["gapStock"]) ? 1 : 0,
+      "tpState"=> (isset($d["tpState"]) && in_array($d["tpState"], ["up","down","range"], true)) ? $d["tpState"] : "",
+      "tpPersist"=> $clip(isset($d["tpPersist"]) ? $d["tpPersist"] : 50),
       "resolved"=> false,
     ];
     if (count($pdoc["recs"]) > 4000) $pdoc["recs"] = array_slice($pdoc["recs"], -4000);
