@@ -1377,7 +1377,7 @@
     direction: { hit: 0.581, baseline: 0.608 },
     coneCoverage: 0.870, coneTarget: 0.68, ece: 0.002,
     strength: "지지반등 신호(횡보장 바닥+RSI반등+200MA 비하락+낙폭5%) = 검증된 유일한 edge: 승률 54.3%·평균 +1.7%/회(20봉)~+3.6%(40봉)로 랜덤 크게 초과(2064건, 54종). 하락추세·얕은눌림 배제. '방향 예측'이 아니라 박스권 매수 타이밍.",
-    disclaimer: "과거 데이터 시뮬레이션 결과 · 미래 수익을 보장하지 않음 · 투자자문 아님 · 참고용",
+    disclaimer: "과거 데이터 시뮬레이션 결과로 미래 수익·정확성을 보장하지 않음 · 투자 권유·자문 아님(투자자문업 미등록) · 원금 손실 위험 있음 · 모든 판단과 책임은 이용자 본인 · 참고용",
   };
   function openBacktestCard() {
     let m = document.getElementById("btModal");

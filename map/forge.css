@@ -355,6 +355,11 @@
   /* toast (positioned in left half) */
   .b-toast{position:fixed;bottom:18px;left:25%;transform:translateX(-50%);background:#1d2530;border:1px solid var(--gold-dim);color:#fff;padding:8px 16px;border-radius:99px;font-size:12px;z-index:99;box-shadow:0 10px 26px -8px #000;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap}
   .b-toast.on{opacity:1}
+  .forge-legal{max-width:1100px;margin:0 auto;padding:16px 22px 30px;font-size:11px;line-height:1.7;color:var(--faint);border-top:1px solid var(--line);text-align:center}
+  .forge-legal strong{color:var(--eth);font-weight:800;letter-spacing:.02em}
+  .forge-legal b{color:var(--muted);font-weight:700}
+  .forge-legal a{color:var(--gold);text-decoration:none}
+  .forge-legal a:hover{text-decoration:underline}
 
   /* save badge */
   .save-badge{font-size:11px;font-family:var(--mono);padding:3px 2px;font-weight:600;white-space:nowrap;background:transparent}
