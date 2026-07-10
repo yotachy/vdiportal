@@ -5,6 +5,7 @@ forge_ohlc_cache_*.json
 backtest/support-features.json
 backtest/confluence-records.json
 backtest/regime-hold-records.json
+backtest/cone-precision-recs.json
 
 # SDD 세션 스크래치(렛저·브리프·리뷰 diff) — 저장소 미포함
 .superpowers/

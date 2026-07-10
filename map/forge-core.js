@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.9.1";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.9.2";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
   const _CONE_CAL = 0.75;
@@ -1946,6 +1946,8 @@
         }
       }
     }
+    // 콘 폭 정밀화(v1.9.2·일봉 한정): 향후/직전 실현변동성 비율 예측으로 콘을 국면별 스케일(전체 커버 보존·조건부 평탄화). 다른 TF·데이터부족 시 1.
+    const _coneMult = (/일|day/.test((opts && opts.timeframe) || "")) ? _coneVolMult(price, data.candle) : 1;
     for (let k = 1; k <= futW; k++) {
       const rev = -dev * (1 - Math.exp(-theta * k)) * REV_W;                                // 평균회귀(약화)
       const mom = Math.max(-0.20, Math.min(0.20, muMom * tauM * (1 - Math.exp(-k / tauM)))); // 감쇠 모멘텀(상향)
@@ -1954,7 +1956,7 @@
       const _ease = 1 - Math.exp(-k / 3.5);                                                // 이음매(k=0)에서 디테일 성분 완만 진입 → 시작 급변(꺾임) 방지
       const seas = (seasFn ? seasFn(k) : 0) * _ease;                                        // 계절성(주기) — seasFn(1)이 커도 부드럽게 시작
       const tex = (_texArr ? _texArr[k] : 0) * _ease;                                       // 데이터 기반 미세질감(AR)
-      const m = rev + mom + trend + sig + seas + tex + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * _CONE_CAL * (_prof.bandScale || 1) * (_volFac ? _volFac[k] : 1);   // TF별 콘 폭(일봉 타이트) · _CONE_CAL: 커버리지 68% 캘리브레이션(v1.7.1)
+      const m = rev + mom + trend + sig + seas + tex + _auxCap * (k / futW), sd = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(k) * 0.85 * _CONE_CAL * (_prof.bandScale || 1) * (_volFac ? _volFac[k] : 1) * _coneMult;   // TF별 콘 폭(일봉 타이트) · _CONE_CAL: 커버리지 68% 캘리브(v1.7.1) · _coneMult: 국면별 정밀화(v1.9.2·일봉)
       // 종합 신호와 반대 방향으로 크게 드리프트하면 완화 — '지표 종합=하락인데 예측 급등/상승확률 86%' 같은 모순 억제
       let mC = m;
       if (_dirSig < -8 && mC > 0) mC *= 0.25;
@@ -1974,7 +1976,7 @@
     if (_bb && _bb.last) { _pushL(_bb.last.lower); _pushL(_bb.last.upper); }
     if (_ic) { _pushL(_ic.cloudHi); _pushL(_ic.cloudLo); }
     if (_vw && isFinite(_vw.last)) _pushL(_vw.last);
-    const _sd1 = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(futW) * 0.85 * _CONE_CAL * (_prof.bandScale || 1);
+    const _sd1 = Math.sqrt(sigBand * sigBand + 0.36 * trChSig * trChSig) * Math.sqrt(futW) * 0.85 * _CONE_CAL * (_prof.bandScale || 1) * _coneMult;
     const _minMove = 0.35 * _sd1;   // 의미있는 최소 이동(변동성 기반) — 바로 옆 미세 레벨 제외
     let _cTarget = null, _cBasis = "구조 레벨";
     if (_mainUp) { const below = _lvls.filter(v => v < last * Math.exp(-_minMove)).sort((a, b) => b - a); _cTarget = below.length ? below[0] : null; }
@@ -2187,6 +2189,25 @@
 
   // Garman-Klass 변동성(OHLC 전부 사용 — intrabar 레인지+갭). vol-deepen 검증: 비율(gk/종가vol)이 변동성예보 +0.6pp.
   function _gkVol(op, hi, lo, cl, e, n) { let s = 0; for (let i = e - n + 1; i <= e; i++) { const u = Math.log(hi[i] / lo[i]), d = Math.log(cl[i] / op[i]); s += 0.5 * u * u - (2 * Math.log(2) - 1) * d * d; } const v = s / n; return v > 0 ? Math.sqrt(v) : 0; }
+
+  // 콘 폭 정밀화(v1.9.2) — 향후/직전 실현변동성 "비율"을 릿지로 예측해 예측 콘 폭을 국면별로 스케일(압축→좁게·확대→넓게).
+  // 승수 = clamp(exp(Σ W·z), 0.75, 1.35), 기하평균≈1 → 전체 커버리지 보존하며 조건부(국면별) 커버리지만 평탄화.
+  // cone-precision-lab 검증(일봉 54종·실엔진 OOS·H=60): 전체 커버 67.7→67.3%(보존) · 조건부 편차 8.6→6.8%(평탄) · ECE 3.7→3.6%(불변).
+  // 로그비율 예측 OOS MAE −12.4%(승수1 대비, 상관 0.44). 11피처(_riskFeatures + gkRatio)로 forecastVolatility와 공유. 일봉 검증 도메인 한정.
+  const _CVM_MEAN = [-0.05727, -0.02991, -0.04254, -0.01617, 2.603, 0.20824, 2.43659, 1.81179, -0.0638, 0.49142, 0.95539];
+  const _CVM_STD = [0.3367, 0.24269, 0.30688, 0.15823, 2.19014, 0.10998, 2.22147, 1.65185, 0.26552, 0.31225, 0.23201];
+  const _CVM_W = [0.03021, 0.04254, 0.00637, -0.04747, -0.01823, -0.00921, 0.03391, -0.06069, 0.06224, -0.05363, 0.05191];
+  function _coneVolMult(price, candle) {
+    if (typeof process !== "undefined" && process.env && process.env.FORGE_NO_CONEMULT) return 1;   // 백테스트 A/B용 게이트(배포 무영향)
+    const x0 = _riskFeatures(price, candle); if (!x0) return 1;
+    const t = price.length - 1, op = candle.map(c => c.o), hi = candle.map(c => c.h), lo = candle.map(c => c.l);
+    let s20 = 0; for (let i = t - 19; i <= t; i++) s20 += Math.log(price[i] / price[i - 1]) ** 2; const v20 = Math.sqrt(s20 / 20);
+    const gk20 = _gkVol(op, hi, lo, price, t, 20), gkRatio = v20 ? gk20 / v20 : 1;
+    const x = x0.concat([gkRatio]);
+    let s = 0; for (let j = 0; j < x.length; j++) s += _CVM_W[j] * (x[j] - _CVM_MEAN[j]) / _CVM_STD[j];
+    const m = Math.exp(s);
+    return m < 0.75 ? 0.75 : m > 1.35 ? 1.35 : m;
+  }
   // 변동성 예보 멀티지평 곡선(v1.9.1) — 향후 H봉 실현변동성이 현재 H봉보다 확대/축소될지. H=10/20/40(약 2주/1달/2달).
   // ⑪ Garman-Klass 비율(v1.8.1): 종가만 보는 변동성이 놓친 intrabar 정보. 11피처 공유(MEAN/STD 지평 무관), W/BB 지평별.
   // curve-lab 검증: 3지평 전부 OOS 다수결·지속성 둘 다 크게 초과(H10 70%·H20 69%·H40 64%, 마진 +12~34pp). 가격 방향 아님.
@@ -2287,5 +2308,5 @@
     return { state, persist: Math.round(p * 100), exhaust: Math.round((1 - p) * 100), acc: M.acc };
   }
 
-  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastTrendPersist, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastTrendPersist, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });

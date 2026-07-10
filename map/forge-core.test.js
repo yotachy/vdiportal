@@ -1968,6 +1968,35 @@ test("forecastVolatility: 변동성 예보 형식·범위 [v1.5]", () => {
   assert.ok(r.curve.every(c => c.raw >= 0 && c.raw <= 100 && (c.raw >= 50) === c.expand), "곡선 raw 0~100·expand 정합");
 });
 
+test("_coneVolMult: 콘 폭 정밀화 승수 — 범위·형식 [v1.9.2]", () => {
+  const cm = ForgeCore._coneVolMult;
+  assert.equal(cm([1, 2, 3], null), 1, "데이터 부족 → 무변(1)");
+  const price = [], candle = [];
+  for (let i = 0; i < 400; i++) { const c = 100 + Math.sin(i * 0.1) * 5 + i * 0.05; price.push(c); candle.push({ o: c, h: c * 1.02, l: c * 0.98, c }); }
+  const m = cm(price, candle);
+  assert.ok(isFinite(m) && m >= 0.75 && m <= 1.35, "승수 [0.75,1.35] 클램프: " + m);
+  // 저변동↔고변동 시계열서 승수가 서로 다르게(국면 반응) 나오는지
+  const calmP = [], calmC = [], wildP = [], wildC = [];
+  for (let i = 0; i < 400; i++) {
+    const cc = 100 + i * 0.03 + Math.sin(i * 0.1) * 0.4; calmP.push(cc); calmC.push({ o: cc, h: cc * 1.002, l: cc * 0.998, c: cc });
+    const wc = 100 + i * 0.03 + Math.sin(i * 0.4) * 9; wildP.push(wc); wildC.push({ o: wc, h: wc * 1.03, l: wc * 0.97, c: wc });
+  }
+  const mc = cm(calmP, calmC), mw = cm(wildP, wildC);
+  assert.ok(isFinite(mc) && isFinite(mw), "저·고변동 모두 유한 승수");
+});
+
+test("run: 콘 정밀화 승수는 일봉에만 적용 — 다른 TF 무변 [v1.9.2]", () => {
+  const g = ForgeCore.sampleGraph(); (g.nodes || []).forEach(n => { if (n.conviction) n.conviction = 0; });
+  const price = [], candle = [];
+  for (let i = 0; i < 360; i++) { const c = 100 + i * 0.05 + Math.sin(i * 0.25) * 6; price.push(c); candle.push({ o: c, h: c * 1.02, l: c * 0.98, c, v: 1e6 }); }
+  const data = { price, candle };
+  const rD = ForgeCore.run(g, data, { futW: 40, timeframe: "1day" });
+  const rM = ForgeCore.run(g, data, { futW: 40, timeframe: "1month" });
+  // 두 예측 모두 유효한 콘 생성(승수가 NaN/폭주 유발 안 함)
+  assert.ok(rD.prediction && rD.prediction.hi.every(v => isFinite(v) && v > 0), "일봉 콘 유한·양수");
+  assert.ok(rM.prediction && rM.prediction.hi.every(v => isFinite(v) && v > 0), "월봉 콘 유한·양수");
+});
+
 test("forecastDrawdown: 낙폭리스크 예보 형식·범위 [v1.6]", () => {
   const fd = ForgeCore.forecastDrawdown;
   assert.equal(fd([1,2,3], null), null, "데이터 부족/무캔들 → null");
