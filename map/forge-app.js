@@ -1491,6 +1491,19 @@
       // 낙폭리스크 예보(v1.6) — 향후 ~1개월 5%↑ 하락 확률(하방 특화, 가격 방향 예측 아님). OOS 68% 검증.
       const _dd = _ctx && _ctx.ddRisk;
       const ddHtml = _dd ? `<span class="fcv-vol ${_dd.elevated ? "dd-hi" : "dd-lo"}" title="향후 약 한 달 내 현재가 대비 5% 이상 하락이 나올 확률 ${_dd.prob}% (평시 발생률 ${_dd.base}%). ${_dd.elevated ? "평시보다 높음 → 손절 넓게·비중 축소 검토" : "평시 수준"}. ⚠️가격 방향 예측 아님(하방 리스크 크기). 백테스트 OOS 정확도 ${_dd.acc}%(지속성 61%·다수결 66% 초과).">▽ 낙폭리스크 <b>${_dd.prob}%</b><span class="vol-vf">평시 ${_dd.base}%</span></span>` : "";
+      // 리스크 가이드(v1.6) — 검증된 콘(예측범위, 실현변동성과 0.79 상관)·낙폭리스크에 표준 리스크공식 적용.
+      // 예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님) — 정직 구분.
+      const _pR = lastResult && lastResult.prediction;
+      let rgHtml = "";
+      if (_pR && isFinite(_pR.anchor) && _pR.lo && _pR.hi && _pR.lo.length) {
+        const _k = _pR.lo.length - 1, _a = _pR.anchor;
+        const _dnB = Math.max(0, (_a - _pR.lo[_k]) / _a), _upB = Math.max(0, (_pR.hi[_k] - _a) / _a);
+        const _band = (_dnB + _upB) / 2;                                  // 예상 변동폭 ±%
+        const _elev = _dd && _dd.elevated;
+        const _stop = Math.max(0.005, _dnB * (_elev ? 1.2 : 1.0));        // 권장 손절폭 = 하방 콘(낙폭경보 시 1.2×)
+        const _size = Math.min(1, 0.02 / _stop);                          // 계좌 2% 고정리스크 기준 비중
+        rgHtml = `<span class="fcv-risk" title="검증된 예측범위(콘)·낙폭리스크에 표준 리스크 공식을 적용한 참고 가이드.&#10;⚠️예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님).&#10;· 예상 변동폭: 향후 ${_pR.futW || ""}봉 콘 ±${(_band * 100).toFixed(1)}%&#10;· 권장 손절폭: ${(_stop * 100).toFixed(1)}% (하방 콘${_elev ? " · 낙폭경보로 확대" : ""})&#10;· 권장 비중: 계좌 2% 리스크 기준 ${Math.round(_size * 100)}%">🛡 손절 ${(_stop * 100).toFixed(1)}% · 비중 ${Math.round(_size * 100)}%</span>`;
+      }
       const _L = t => `<span class="fcv-k">${t}</span>`;
       bar.innerHTML =
         (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
@@ -1500,6 +1513,7 @@
         (_up != null ? `<span class="fcv-cell">${_L("상승 / 하락 확률")}<span class="fcv-prob" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span></span>` : "") +
         (vfHtml ? `<span class="fcv-cell">${_L("변동성 예보 · 검증됨")}${vfHtml}</span>` : "") +
         (ddHtml ? `<span class="fcv-cell">${_L("낙폭 리스크 · 검증됨")}${ddHtml}</span>` : "") +
+        (rgHtml ? `<span class="fcv-cell">${_L("리스크 가이드 · 참고")}${rgHtml}</span>` : "") +
         (isFinite(_targetN) ? `<span class="fcv-cell">${_L("목표가")}<span class="fcv-sig" title="예측 도달가"><b>${fmtNum(_targetN)}</b></span></span>` : "") +
         `<span class="fcv-cell fcv-opcell">${_L("핵심 의견")}<span class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span></span>` + _bd;
     }
