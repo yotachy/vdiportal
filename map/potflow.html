@@ -459,6 +459,8 @@ function _licHash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeA
 function licenseValid(key){const m=/^PF-([A-Z0-9]{4})-([A-Z0-9]{4})$/.exec((key||'').trim().toUpperCase());return !!m&&_licHash(m[1]+LIC_SALT)===m[2];}
 function licenseKeyFor(a){a=(a||'').toUpperCase();return 'PF-'+a+'-'+_licHash(a+LIC_SALT);}
 function isPro(){return PRO;}
+function videoNodeCount(exclId){return state.nodes.filter(n=>n.videoPath&&n.bmParent==null&&n.id!==exclId).length;}
+function childCount(id){return state.edges.filter(e=>e.from===id).length;}
 function updateProBadge(){const b=document.getElementById('proBadge');if(b)b.style.display=PRO?'':'none';const s=document.getElementById('licStatus');if(s)s.textContent=PRO?'✔ PRO 활성화됨':'';}
 function unlockPro(key){if(licenseValid(key)){PRO=true;lsSet('potflow_pro','1');updateProBadge();toast('PRO 활성화');}else toast('잘못된 해제키');}
 function copySupport(){const t=SUPPORT_ACCOUNT;const ok=()=>toast('계좌 복사됨');const no=()=>toast('복사 실패 — 계좌를 길게 눌러 복사하세요');if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok).catch(no);else no();}
@@ -840,6 +842,7 @@ function switchCanvas(id){
   saveMeta();
 }
 function newCanvas(){
+  if(!isPro()&&canvases.length>=1){toast('무료는 캔버스 1개 · PRO에서 여러 개');openSupport();return;}
   writeBackActive();
   const n={id:uid('n'),x:80,y:80,title:'시작',desc:'',thumb:null};
   const c={id:uid('c'),title:'새 캔버스',nodes:[n],edges:[],groups:[],view:{tx:30,ty:20,scale:1},updated:stamp()};
@@ -868,7 +871,7 @@ function deleteCanvas(id){
 /* ---------- node ops ---------- */
 function makeNode(x,y,title,type,iconId){const n={id:uid('n'),x,y,title:title||'새 단계',desc:'',thumb:null,type:type||'full'};if(iconId)n.iconId=iconId;state.nodes.push(n);return n}
 /* ---------- 동영상 경로 · 썸네일 · 재생(PotFlow) ---------- */
-function bindVideoToNode(id,path,name){const n=N(id);if(!n)return;n.videoPath=path;if(name&&(!n.title||n.title==='새 단계'))n.title=name.replace(/\.[^.]+$/,'');requestThumb(id,path);markDirty();render();syncBookmarks(id);}
+function bindVideoToNode(id,path,name){const n=N(id);if(!n)return;if(!isPro()&&!n.videoPath&&videoNodeCount(id)>=1){toast('무료는 영상 1개 · PRO에서 여러 개');openSupport();return;}n.videoPath=path;if(name&&(!n.title||n.title==='새 단계'))n.title=name.replace(/\.[^.]+$/,'');requestThumb(id,path);markDirty();render();syncBookmarks(id);}
 function requestThumb(id,path){if(!HELPER_OK)return;const imgId='vthumb_'+id;fetch(HELPER+"/thumb?path="+encodeURIComponent(path)).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{const fr=new FileReader();fr.onload=()=>{putImg(imgId,fr.result);const n=N(id);if(n){n.thumb={imgId,label:n.title||''};render();markDirty()}};fr.readAsDataURL(b)}).catch(()=>{})}
 function playPaths(paths,watchId){const list=(paths||[]).filter(Boolean);if(!list.length){toast('재생할 동영상이 없습니다');return}if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:list})}).then(r=>r.json()).then(j=>{if(j.ok){toast(j.launched+'개 재생');if(watchId&&j.token)watchClose(j.token,watchId);}else toast('재생 실패: '+(j.error||''))}).catch(()=>toast('재생 실패'))}
 function playItems(items,watchId){const list=(items||[]).filter(it=>it&&it.path);if(!list.length){toast('재생할 동영상이 없습니다');return}if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}
@@ -893,7 +896,9 @@ function syncBookmarks(nodeId){
   if(!HELPER_OK){toast('헬퍼가 꺼져 있습니다');return}
   fetch(HELPER+"/bookmarks?path="+encodeURIComponent(n.videoPath)).then(r=>r.json()).then(d=>{
     if(!d||!d.ok){toast('책갈피를 불러올 수 없습니다');return}
-    const bms=d.bookmarks||[];const existing={};bmChildren(nodeId).forEach(c=>{existing[c.seekMs]=c;});
+    const allBms=d.bookmarks||[];const bms=isPro()?allBms:allBms.slice(0,2);
+    if(!isPro()&&allBms.length>2)toast('무료는 책갈피 2개 · PRO에서 전체');
+    const existing={};bmChildren(nodeId).forEach(c=>{existing[c.seekMs]=c;});
     const seen={};let i=0;
     bms.forEach(b=>{seen[b.ms]=1;let c=existing[b.ms];
       if(!c){c=makeNode(n.x+i*270,n.y+180,'',"full");c.bmParent=nodeId;c.seekMs=b.ms;c.videoPath=n.videoPath;addEdge(nodeId,'bottom',c.id,'top');}
@@ -934,9 +939,9 @@ function setThumb(id,t){const n=N(id);if(n)n.thumb=t;render();markDirty()}
 const parentsOf=id=>state.edges.filter(e=>e.to===id).map(e=>e.from);
 
 
-function addChild(id){const n=N(id);const nn=makeNode(n.x+300,n.y);addEdge(id,'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('하위 추가')}
+function addChild(id){if(!isPro()&&childCount(id)>=2){toast('무료는 1:2 · PRO에서 1:N');openSupport();return;}const n=N(id);const nn=makeNode(n.x+300,n.y);addEdge(id,'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('하위 추가')}
 function addParent(id){const n=N(id);const nn=makeNode(n.x-300,n.y);addEdge(nn.id,'right',id,'left');render();selectOnly(nn.id);markDirty();toast('상위 추가')}
-function addChildMini(id){const n=N(id);const nn=makeNode(n.x+260,n.y,'',"mini");addEdge(id,'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('하위 노드')}
+function addChildMini(id){if(!isPro()&&childCount(id)>=2){toast('무료는 1:2 · PRO에서 1:N');openSupport();return;}const n=N(id);const nn=makeNode(n.x+260,n.y,'',"mini");addEdge(id,'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('하위 노드')}
 function addSiblingMini(id){const n=N(id);const nn=makeNode(n.x,n.y+(n._h||90)+30,'',"mini");const ps=parentsOf(id);if(ps[0])addEdge(ps[0],'right',nn.id,'left');render();selectOnly(nn.id);markDirty();toast('형제 노드')}
 function addMiniCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const nn=makeNode(p.x-75,p.y-20,'',"mini");render();selectOnly(nn.id);markDirty()}
 function addTextCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const nn=makeNode(p.x-40,p.y-14,'텍스트',"text");render();selectOnly(nn.id);markDirty()}
