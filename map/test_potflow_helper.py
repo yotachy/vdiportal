@@ -121,6 +121,24 @@ def test_player_and_ffmpeg_cmds():
     c = helper.ffmpeg_thumb_at_cmd("ffmpeg", "v.mkv", 5.0, "o.jpg")
     assert c[0] == "ffmpeg" and "v.mkv" in c and c[-1] == "o.jpg" and "-frames:v" in c
 
+def test_bookmark_thumb_embedded():
+    # 내장 base64 있으면 그대로 data URL 로 감싼다 (ffmpeg 불필요)
+    assert helper.bookmark_thumb("v.mp4", 1000, "QUJD") == "data:image/jpeg;base64,QUJD"
+
+def test_list_bookmarks_no_pbf(tmp_path):
+    vid = tmp_path / "m.mp4"; vid.write_bytes(b"x")
+    r = helper.list_bookmarks(str(vid))
+    assert r["ok"] is True and r["video"] == str(vid) and r["bookmarks"] == []
+
+def test_list_bookmarks_with_pbf(tmp_path):
+    vid = tmp_path / "m.mp4"; vid.write_bytes(b"x")
+    (tmp_path / "m.mp4.pbf").write_text("[Bookmark]\n0=2000*씬*QUJD")
+    r = helper.list_bookmarks(str(vid))
+    assert r["ok"] is True and len(r["bookmarks"]) == 1
+    b = r["bookmarks"][0]
+    assert b["ms"] == 2000 and b["title"] == "씬"
+    assert b["thumb"] == "data:image/jpeg;base64,QUJD"   # 내장 썸네일 사용(ffmpeg 없이)
+
 def test_host_header_guard_blocks_dns_rebinding():
     import threading, http.client
     srv = helper.make_server(0)

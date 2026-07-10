@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PotFlow 로컬 헬퍼 — 정적 서빙 + 재생/탐색/썸네일/문서저장."""
-import os, sys, json, shutil, subprocess, hashlib, tempfile, math
+import os, sys, json, shutil, subprocess, hashlib, tempfile, math, base64
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -142,6 +142,48 @@ def player_cmd(exe, path, seek=None):
         cmd.append("/seek=" + str(seek))
     return cmd
 
+def bookmark_thumb(video, ms, embedded):
+    if embedded:
+        return "data:image/jpeg;base64," + embedded
+    ff = find_exe([FFMPEG_PATH])
+    if not ff or not os.path.isfile(video):
+        return None
+    os.makedirs(THUMB_DIR, exist_ok=True)
+    key = hashlib.md5((video + "@" + str(ms)).encode("utf-8")).hexdigest()
+    out = os.path.join(THUMB_DIR, key + ".jpg")
+    if not (os.path.isfile(out) and os.path.getsize(out) > 0):
+        try:
+            subprocess.run(ffmpeg_thumb_at_cmd(ff, video, ms / 1000.0, out),
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+        except Exception:
+            return None
+    if os.path.isfile(out) and os.path.getsize(out) > 0:
+        with open(out, "rb") as f:
+            return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+    return None
+
+def list_bookmarks(path):
+    if not path:
+        return {"ok": False, "error": "path required"}
+    if path.lower().endswith(".pbf"):
+        pbf = path if os.path.isfile(path) else None
+        video = video_for_pbf(path)
+    else:
+        video = path
+        pbf = pbf_for_video(path)
+    if not video or not os.path.isfile(video):
+        return {"ok": False, "error": "video not found"}
+    if not pbf:
+        return {"ok": True, "video": video, "bookmarks": []}
+    try:
+        with open(pbf, "r", encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return {"ok": True, "video": video, "bookmarks": []}
+    bms = [{"ms": b["ms"], "title": b["title"],
+            "thumb": bookmark_thumb(video, b["ms"], b["thumb"])} for b in parse_pbf(text)]
+    return {"ok": True, "video": video, "bookmarks": bms}
+
 def get_thumb(video_path):
     out = thumb_path_for(video_path)
     if os.path.isfile(out) and os.path.getsize(out) > 0:
@@ -227,7 +269,7 @@ def arrange_windows(pids, rects):
     except Exception:
         pass
 
-def launch_players(paths):
+def launch_players(paths, seek=None):
     exe = find_exe([POTPLAYER_PATH])
     if not exe:
         return {"ok": False, "error": "PotPlayer not found"}
@@ -239,7 +281,7 @@ def launch_players(paths):
     pids = []
     for p in valid:
         try:
-            proc = subprocess.Popen([exe, p])
+            proc = subprocess.Popen(player_cmd(exe, p, seek if len(valid) == 1 else None))
             pids.append(proc.pid)
         except Exception:
             pass
@@ -308,6 +350,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(404, {"ok": False, "error": err})
         if u.path == "/doc":
             return self._send(200, load_doc())
+        if u.path == "/bookmarks":
+            qs = parse_qs(u.query)
+            return self._send(200, list_bookmarks(qs.get("path", [""])[0]))
         # 정적 서빙
         rel = u.path.lstrip("/") or "potflow.html"
         fp = os.path.join(ROOT, rel)
@@ -330,7 +375,7 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(body, dict):
             return self._send(400, {"ok": False, "error": "invalid JSON body"})
         if u.path == "/play":
-            return self._send(200, launch_players(body.get("paths", [])))
+            return self._send(200, launch_players(body.get("paths", []), body.get("seek")))
         if u.path == "/doc":
             return self._send(200, {"ok": save_doc(body.get("doc", {}))})
         if u.path == "/resolve":
