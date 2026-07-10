@@ -121,6 +121,13 @@ def find_ffmpeg():
             return w
     return shutil.which("ffmpeg")
 
+def content_type_for(name):
+    ext = os.path.splitext(name)[1].lower()
+    return {".mp4": "video/mp4", ".webm": "video/webm", ".mkv": "video/x-matroska",
+            ".mov": "video/quicktime", ".m4v": "video/mp4", ".avi": "video/x-msvideo",
+            ".ts": "video/mp2t", ".ogv": "video/ogg", ".mpg": "video/mpeg",
+            ".mpeg": "video/mpeg", ".flv": "video/x-flv", ".wmv": "video/x-ms-wmv"}.get(ext, "application/octet-stream")
+
 def scan_tree(path):
     try:
         ap = os.path.abspath(path)
@@ -514,6 +521,54 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _serve_file(self, path):
+        if not path or not os.path.isfile(path):
+            return self._send(404, {"ok": False, "error": "not found"})
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            return self._send(404, {"ok": False, "error": "stat failed"})
+        start, end, status = 0, size - 1, 200
+        rng = self.headers.get("Range")
+        if rng and rng.startswith("bytes="):
+            try:
+                s, _, e = rng[6:].partition("-")
+                if s:
+                    start = int(s)
+                if e:
+                    end = int(e)
+                if start > end or start >= size:
+                    self.send_response(416)
+                    self.send_header("Content-Range", "bytes */%d" % size)
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    return
+                end = min(end, size - 1)
+                status = 206
+            except ValueError:
+                start, end, status = 0, size - 1, 200
+        length = end - start + 1
+        self.send_response(status)
+        self.send_header("Content-Type", content_type_for(path))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(length))
+        if status == 206:
+            self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, size))
+        self.end_headers()
+        try:
+            with open(path, "rb") as f:
+                f.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = f.read(min(65536, remaining))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+        except Exception:
+            pass
+
     def _host_ok(self):
         # DNS 리바인딩 방지: Host 헤더가 실제 바인딩된 127.0.0.1/localhost:PORT 가 아니면 거부
         try:
@@ -548,6 +603,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, {"done": play_done(qs.get("token", [""])[0])})
         if u.path == "/monitors":
             return self._send(200, {"monitors": _monitors()})
+        if u.path == "/file":
+            return self._serve_file(parse_qs(u.query).get("path", [""])[0])
         # 정적 서빙
         rel = u.path.lstrip("/") or "potflow.html"
         fp = os.path.join(ROOT, rel)
