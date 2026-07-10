@@ -1959,6 +1959,13 @@ test("forecastVolatility: 변동성 예보 형식·범위 [v1.5]", () => {
   assert.ok(r.prob >= 50 && r.prob <= 100, "prob(확신도) 50~100: " + r.prob);
   assert.ok(r.raw >= 0 && r.raw <= 100, "raw(P확대) 0~100: " + r.raw);
   assert.ok((r.raw >= 50) === r.expand, "raw≥50 ⇔ expand");
+  // 멀티지평 곡선(v1.9.1): 2주/1달/2달, 대표=1달(H=20)
+  assert.ok(Array.isArray(r.curve) && r.curve.length === 3, "curve 3지평");
+  assert.deepEqual(r.curve.map(c => c.h), [10, 20, 40], "지평 10·20·40봉");
+  assert.deepEqual(r.curve.map(c => c.lb), ["2주", "1달", "2달"], "라벨 2주·1달·2달");
+  assert.equal(r.prob, r.curve[1].prob, "대표=1달(H=20)");
+  assert.equal(r.raw, r.curve[1].raw, "대표 raw=1달");
+  assert.ok(r.curve.every(c => c.raw >= 0 && c.raw <= 100 && (c.raw >= 50) === c.expand), "곡선 raw 0~100·expand 정합");
 });
 
 test("forecastDrawdown: 낙폭리스크 예보 형식·범위 [v1.6]", () => {
@@ -2017,6 +2024,12 @@ test("forecastSpike: 단일봉 급변 예보 형식·범위·단조 [v1.8]", () 
   assert.equal(rc.sigma, 2.5, "2.5σ 문턱");
   assert.equal(typeof rc.elevated, "boolean", "elevated bool");
   assert.ok(rw.prob > rc.prob, "고변동 급변확률 > 저변동: " + rw.prob + " vs " + rc.prob);
+  // 멀티지평 대각선 곡선(v1.9.1): 2σ·10봉 / 2.5σ·20봉 / 3σ·40봉, 대표=1달(중간)
+  assert.ok(Array.isArray(rc.curve) && rc.curve.length === 3, "curve 3지평");
+  assert.deepEqual(rc.curve.map(c => c.sigma), [2, 2.5, 3], "문턱 2·2.5·3σ 대각선");
+  assert.deepEqual(rc.curve.map(c => c.h), [10, 20, 40], "지평 10·20·40봉");
+  assert.equal(rc.prob, rc.curve[1].prob, "대표=1달(2.5σ·20봉)");
+  assert.ok(rc.curve.every(c => c.prob >= 0 && c.prob <= 100), "곡선 확률 0~100");
 });
 
 test("forecastTrendPersist: 추세 지속/소진 — 국면 한정·형식 [v1.9]", () => {

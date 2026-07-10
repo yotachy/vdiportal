@@ -149,7 +149,9 @@ combo("+ALL후보", OHLC.concat(OTHER));
 
 // ── 튜닝 GBT(depth 2~3 재귀 히스토그램 트리, lr/tree/depth 스윕) ──
 // 히스토그램 부스팅: 피처를 고정 분위 bin으로 사전 이산화 → 노드마다 bin 히스토그램만 스캔(정렬 없음, 빠름).
+if (!process.env.SKIP_GBT)
 console.log("\n══ 튜닝 GBT(depth 2~3, 히스토그램) — base10 + OHLC후보 ══");
+if (!process.env.SKIP_GBT) {
 const GBT_KEYS = OHLC.concat(["jump", "ac1", "termSlope"]);
 function buildX(r) { return r.b.concat(GBT_KEYS.map(k => r.c[k])); }
 const Xtr = TR.map(buildX), Ytr = TR.map(r => r.y), Xte = TE.map(buildX);
@@ -198,5 +200,53 @@ for (const [nt, dp, lr, ml] of [[150, 2, 0.1, 50], [300, 2, 0.05, 50], [200, 3, 
   const d = (g.oos - B) * 100; const sign = d >= 0 ? "+" : "";
   console.log(("GBT t=" + nt + " d=" + dp + " lr=" + lr + " leaf=" + ml).padEnd(30) + " OOS " + (g.oos * 100).toFixed(1) + "%  (" + sign + d.toFixed(1) + "pp)  in-sample " + (g.ins * 100).toFixed(1) + "%");
 }
+}
 
-console.log("\n══ 판정 기준: OOS ≥ " + ((B + 0.01) * 100).toFixed(1) + "% (baseline +1.0pp) 여야 채택 ══");
+// ── 견고성 검증: 여러 train/test 분할에서 채택 후보가 유지되는가(단일 60/40 우연 배제) ──
+// 각 종목별로 분할 비율을 바꿔가며 재분류 → 후보 피처셋의 OOS를 baseline과 같은 분할에서 비교.
+console.log("\n══ 견고성: 분할 비율별 OOS(피처셋 vs baseline, 같은 분할) ══");
+const FRACS = [0.5, 0.55, 0.6, 0.65, 0.7];
+// 종목 경계 보존: all[]에 fixture 인덱스 태깅
+// (재적재 없이 all 재활용 불가 → per-fixture 리스트를 별도 보관)
+const perFix = [];
+{
+  for (const f of files) {
+    const fx = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+    const op = fx.candle.map(c => c.o), price = fx.candle.map(c => c.c), hi = fx.candle.map(c => c.h), lo = fx.candle.map(c => c.l), vol = fx.candle.map(c => c.v), N = price.length;
+    if (N < WARM + H + 40) continue;
+    const local = [];
+    for (let t = WARM; t <= N - H - 1; t += STRIDE) {
+      const b = baseFeats(price, hi, lo, t); if (!b || b.some(v => !isFinite(v))) continue;
+      const c = candFeats(op, price, hi, lo, vol, t);
+      if (Object.values(c).some(v => !isFinite(v))) continue;
+      const cv = rvol(price, t, H), fv = rvol(price, t + H, H);
+      local.push({ b, c, y: fv > cv ? 1 : 0 });
+    }
+    perFix.push(local);
+  }
+}
+function splitAt(frac) { const tr = [], te = []; for (const local of perFix) { const cut = Math.floor(local.length * frac); local.forEach((r, i) => (i < cut ? tr : te).push(r)); } return { tr, te }; }
+const SETS = { "baseline": r => r.b, "+gkRatio": r => r.b.concat([r.c.gkRatio]), "+OHLC비율3": r => r.b.concat([r.c.pkRatio, r.c.gkRatio, r.c.rsRatio]), "+ALL후보": r => r.b.concat(OHLC.concat(OTHER).map(k => r.c[k])) };
+const DIMS = { "baseline": 10, "+gkRatio": 11, "+OHLC비율3": 13, "+ALL후보": 10 + OHLC.length + OTHER.length };
+const header = "분할".padEnd(8) + Object.keys(SETS).map(k => k.padEnd(14)).join("") + "Δ(+ALL)";
+console.log(header);
+for (const frac of FRACS) {
+  const { tr, te } = splitAt(frac);
+  const accs = {}; for (const k in SETS) { const M = fit(tr, DIMS[k], SETS[k]); accs[k] = accL(M, te, SETS[k]); }
+  const row = (Math.round(frac * 100) + "/" + Math.round((1 - frac) * 100)).padEnd(8) + Object.keys(SETS).map(k => (accs[k] * 100).toFixed(1) + "%").map(s => s.padEnd(14)).join("") + ((accs["+ALL후보"] - accs["baseline"]) * 100).toFixed(1) + "pp";
+  console.log(row);
+}
+
+console.log("\n══ 판정 기준: OOS ≥ " + ((B + 0.01) * 100).toFixed(1) + "% (baseline +1.0pp)가 여러 분할에서 견고해야 채택 ══");
+
+// ── 채택 후보 배포 계수(전체 데이터 in-sample 학습 — train-volforecast.js와 동일 배포 절차) ──
+// 현행 10피처 + gkRatio(=garmanKlass(20)/rvol(20)) 11피처. forge-core에 gkRatio 계산 추가 후 계수 교체하면 됨.
+console.log("\n══ 채택 후보 배포 계수: +gkRatio(11피처, OOS +0.6pp 견고) ══");
+const getGK = r => r.b.concat([r.c.gkRatio]);
+const M11 = fit(all, 11, getGK);
+const R = a => a.map(x => +x.toFixed(5));
+console.log("피처순서 = [v10/v60-1, v20/v60-1, v20/v120-1, v60/v120-1, atr*100, vov, rng*100, v20*100, log(v20/v60), pct, gkRatio]");
+console.log("mean=" + JSON.stringify(R(M11.mean)));
+console.log("std =" + JSON.stringify(R(M11.std)));
+console.log("w   =" + JSON.stringify(R(M11.w)));
+console.log("b   =" + (+M11.b.toFixed(5)));

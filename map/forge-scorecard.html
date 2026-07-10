@@ -239,7 +239,7 @@
         <div class="ea-fl"></div>
         <div class="ea-st">
           <div class="ea-h"><span class="ea-n">B2</span><span class="ea-t">리스크 3축 · 로지스틱</span></div>
-          <div class="ea-d"><b>변동성 예보</b> 68% · <b>낙폭 위험곡선</b>(1 · 2 · 3개월) 68% · <b>이익목표 도달</b> 64%. 셋을 짝지어 <b>확률 R:R</b>.</div>
+          <div class="ea-d"><b>변동성 예보</b>(2주·1달·2달) 69% · <b>낙폭 위험곡선</b>(1·2·3개월) 68% · <b>이익목표 도달</b> 64% · <b>급변 경보</b>(2σ·2.5σ·3σ) 65%. 짝지어 <b>확률 R:R</b>.</div>
           <span class="ea-bdg ea-ok">✓ 검증됨 — 지속성 · 다수결 둘 다 초과</span>
         </div>
         <div class="ea-note">방향(오를지 내릴지)은 못 맞혀도 <b style="color:var(--eth)">"얼마나 움직일지 · 얼마나 빠질지"</b>는 예측 가능합니다 — 변동성·리스크가 뭉쳐 다니기(clustering) 때문. 이게 지표와 <b style="color:var(--eth)">별도 경로</b>인 이유입니다.</div>
@@ -296,14 +296,14 @@
     <p style="font-size:12.5px;color:var(--faint);line-height:1.7;margin:0"><b>솔직한 한계</b> — ① <b>일확천금이 아닙니다</b>(회당 평균 +0.5~1.4%). ② 강한 상승주의 <b>총수익</b>은 그냥 사서 들고 있는 게 낫습니다(21종 중 7~8종만 상회). 이 신호의 값어치는 "대박"이 아니라 <b>박스권 종목의, 하락추세가 아닐 때의 괜찮은 매수 타이밍</b>입니다.</p>
   </div>
 
-  <h2>✅ 검증된 강점 — 변동성 예보 <span style="font-size:12px;color:var(--gold);font-weight:800">v1.5.1</span></h2>
+  <h2>✅ 검증된 강점 — 변동성 예보 <span style="font-size:12px;color:var(--gold);font-weight:800">v1.9.1</span></h2>
   <p class="sec-desc"><b>가격 방향은 못 맞혀도, "얼마나 움직일지"는 맞힙니다.</b> 다음 구간 변동성이 <b>커질지(확대)·잔잔해질지(축소)</b>를 예측합니다 — 변동성은 <b>평균회귀</b>(크게 움직인 뒤 잦아들고, 눌려있던 뒤 터짐)라 예측 가능합니다.</p>
   <div class="cards">
     <div class="card"><div class="ck">변동성 방향 예측</div><div class="cv">69.0%</div><div class="csub">OOS · 54종 · 93k시점</div><div class="ctag tag-up">진짜 예측력</div></div>
     <div class="card"><div class="ck">단순 기준 대비</div><div class="cv">+17.5%p</div><div class="csub">다수결 50.9% · 지속성 41.7%</div><div class="ctag tag-up">크게 초과</div></div>
     <div class="card"><div class="ck">활용</div><div class="cv" style="font-size:15px;line-height:1.5;font-weight:700">확대→손절 넓게<br>축소→박스권 매매</div><div class="csub">리스크·타이밍</div><div class="ctag tag-fl">실용</div></div>
   </div>
-  <p class="sec-desc" style="margin-top:14px"><b>정직 표기</b> — 이건 가격 <b>방향</b> 예측이 아닙니다(오를지 내릴지는 여전히 ~53%). "얼마나 출렁일지"의 이진 예측 정확도가 69.0%입니다(v1.5.1 국면 백분위 67.8→68.4%, v1.8.1 Garman-Klass OHLC 추정량으로 68.4→69.0%). 그래도 리스크 관리·진입 타이밍엔 진짜로 유용합니다.</p>
+  <p class="sec-desc" style="margin-top:14px"><b>정직 표기</b> — 이건 가격 <b>방향</b> 예측이 아닙니다(오를지 내릴지는 여전히 ~53%). "얼마나 출렁일지"의 이진 예측 정확도가 69.0%입니다(v1.5.1 국면 백분위 67.8→68.4%, v1.8.1 Garman-Klass OHLC 추정량으로 68.4→69.0%). 그래도 리스크 관리·진입 타이밍엔 진짜로 유용합니다. <b>v1.9.1</b>: 단일(1달)에서 <b>2주·1달·2달 멀티지평 곡선</b>으로 확장 — 세 지평 OOS 70·69·64%로 전부 다수결·지속성을 크게 초과(정확도가 아니라 예측 <b>지평 폭</b> 확장).</p>
 
   <h2>✅ 검증된 강점 — 확률 손익(이익목표 도달 vs 낙폭 리스크) <span style="font-size:12px;color:var(--gold);font-weight:800">v1.7</span></h2>
   <p class="sec-desc"><b>같은 문턱(1개월 ±5%·2개월 ±7%·3개월 ±9%)에서 "위로 그만큼 도달할 확률"과 "아래로 그만큼 빠질 확률"을 각각 예측합니다.</b> 둘을 나란히 보면 <b>확률 기반 손익비(R:R)</b>가 됩니다 — 도달이 낙폭보다 크면 상방 우세. 변동성·리스크가 <b>뭉쳐 다니기(clustering)</b> 때문에 방향은 못 맞혀도 "닿을 확률"은 예측 가능합니다.</p>
@@ -314,8 +314,8 @@
   </div>
   <p class="sec-desc" style="margin-top:14px"><b>정직 표기</b> — 이건 <b>"위/아래로 그만큼 닿을 확률"</b>이지 <b>방향</b>(오를지 내릴지) 예측이 아닙니다. 두 모델(도달·낙폭) 모두 지속성·다수결 두 기준을 <b>세 지평 모두</b>에서 넘겨야 진짜로 인정했습니다(문턱은 √기간 스케일 — 고정 5%는 긴 지평서 흔해져 약화라 기각). 함께 검증됐으나 보류: 박스권 유지(63.3%)는 변동성과 겹쳐 우선 제외.</p>
 
-  <h2>✅ 검증된 강점 — 급변 경보 <span style="font-size:12px;color:var(--gold);font-weight:800">v1.8</span></h2>
-  <p class="sec-desc"><b>"곧 큰 하루가 올까"를 미리 알려줍니다.</b> 향후 약 한 달(20봉) 안에 <b>하루 만에 큰 폭(현재 변동성의 2.5배 이상, 급등·급락 무관) 움직임</b>이 나올 확률을 예측합니다 — 갭·실적·이벤트 대비의 근거. 여러 후보를 <b>병렬로 동시 검증</b>해 살아남은 새 축입니다.</p>
+  <h2>✅ 검증된 강점 — 급변 경보 <span style="font-size:12px;color:var(--gold);font-weight:800">v1.9.1</span></h2>
+  <p class="sec-desc"><b>"곧 큰 하루가 올까"를 미리 알려줍니다.</b> 향후 약 한 달(20봉) 안에 <b>하루 만에 큰 폭(현재 변동성의 2.5배 이상, 급등·급락 무관) 움직임</b>이 나올 확률을 예측합니다 — 갭·실적·이벤트 대비의 근거. 여러 후보를 <b>병렬로 동시 검증</b>해 살아남은 새 축입니다. <b>v1.9.1</b>: 지평이 길수록 문턱을 올리는 <b>대각선 곡선</b>(2주 2σ·1달 2.5σ·2달 3σ)으로 확장 — 양성률을 44~48%로 균형 유지, 세 지평 OOS 64·65·66%.</p>
   <div class="cards">
     <div class="card"><div class="ck">급변(2.5σ) 예측</div><div class="cv">65%</div><div class="csub">OOS · 54종 · 91k시점</div><div class="ctag tag-up">진짜 예측력</div></div>
     <div class="card"><div class="ck">단순 기준 대비</div><div class="cv">+9~20%p</div><div class="csub">다수결 55.8% · 지속성 44.7%</div><div class="ctag tag-up">둘 다 초과</div></div>
@@ -428,7 +428,9 @@ document.querySelector("#regtbl tbody").innerHTML = ["side","bull","bear"].map(k
 
 // 개선 이력 — 버전별 before→after(기간·국면). 롤백한 실패도 기록.
 const CHANGELOG = [
-  { v:"1.9.0", tag:"추세 지속/소진 예보 (변동성 아닌 첫 새 축)", cur:true, items:["추세 국면(상승·하락)에서 <b>추세가 이어질지(지속) vs 힘 빠져 횡보로 갈지(소진)</b>를 예측 — 가격구조(RSI기울기·MA이격/기울기·모멘텀) 16피처. 지금까지 축은 전부 '변동성 구조'였는데 이건 <b>추세 구조</b>라는 첫 다른 종류.","<b>종목외</b> walk-forward(train종목↔test종목 disjoint·비중첩): 상승 OOS <b>75.9%</b>·하락 74.5%가 다수결·strength 둘 다 +8~19%p 초과. <b>방향 아님</b> 확인(지속/소진 예측군의 상승률 무차별) — 순수 국면 신호."],
+  { v:"1.9.1", tag:"멀티지평 곡선 — 변동성 예보·급변 경보 확장", cur:true, items:["기존 단일 지평 두 축을 <b>멀티지평 곡선</b>으로 확장. <b>변동성 예보</b>: 2주·1달·2달(10·20·40봉) 각각 확대/축소 예측. <b>급변 경보</b>: 지평이 길수록 문턱을 올리는 <b>대각선 곡선</b>(2주 2σ·1달 2.5σ·2달 3σ)으로 양성률을 균형 유지.","병렬 리서치 4종 중 통과분만 통합(정직). 변동성 3지평 전부 OOS <b>70·69·64%</b>(다수결·지속성 둘 다 +12~34%p 초과), 급변 대각선 3점 <b>64·65·66%</b>(양성률 44~48% 균형). 함께 검증한 <b>횡보 돌파·낙폭 회복은 base-rate</b>(깊은 낙폭·돌파는 예측 불가)라 기각. 정확도 상승이 아니라 <b>예측 폭(지평) 확장</b> — 대표값(1달)은 불변."],
+    ba:{ "변동성 예보 2주 OOS(vs 다수결)":[0.507,0.698], "변동성 예보 2달 OOS(vs 다수결)":[0.521,0.639] } },
+  { v:"1.9.0", tag:"추세 지속/소진 예보 (변동성 아닌 첫 새 축)", items:["추세 국면(상승·하락)에서 <b>추세가 이어질지(지속) vs 힘 빠져 횡보로 갈지(소진)</b>를 예측 — 가격구조(RSI기울기·MA이격/기울기·모멘텀) 16피처. 지금까지 축은 전부 '변동성 구조'였는데 이건 <b>추세 구조</b>라는 첫 다른 종류.","<b>종목외</b> walk-forward(train종목↔test종목 disjoint·비중첩): 상승 OOS <b>75.9%</b>·하락 74.5%가 다수결·strength 둘 다 +8~19%p 초과. <b>방향 아님</b> 확인(지속/소진 예측군의 상승률 무차별) — 순수 국면 신호."],
     ba:{ "상승추세 지속(vs 다수결)":[0.603,0.759], "하락추세 지속(vs 다수결)":[0.516,0.745] } },
   { v:"1.8.1", tag:"변동성 예보 — OHLC 추정량(Garman-Klass)", items:["종가만 보던 변동성 예보에 <b>Garman-Klass 비율</b>(고·저·시·종가 전부 쓴 intrabar 변동성) 피처 추가 — 미활용 OHLC 정보.","OOS <b>68.4→69.0%</b>(과적합 아님). 병렬 리서치(vol-deepen)로 원시 추정량은 무효·<b>비율일 때만 통함</b>을 확인 후 채택."],
     ba:{ "변동성 예보 OOS":[0.684,0.690] } },
@@ -509,14 +511,14 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
 (function renderVerChart(){
   const host=document.getElementById("verChart"); if(!host) return;
   const gold="var(--gold)",eth="var(--eth)",bull="var(--bull)",amber="#e8955c",faint="var(--faint)";
-  const VER=["1.0","1.1","1.3","1.4","1.5","1.5.1","1.6","1.7","1.7.1","1.8","1.8.1","1.9"];
+  const VER=["1.0","1.1","1.3","1.4","1.5","1.5.1","1.6","1.7","1.7.1","1.8","1.8.1","1.9","1.9.1"];
   const SER=[
-    {n:"방향 적중",   c:eth,     v:[54.1,56.6,56.6,58.1,58.1,58.1,58.1,58.1,58.1,58.1,58.1,58.1]},
-    {n:"추세 지속/소진",c:"#7aa6cc",v:[null,null,null,null,null,null,null,null,null,null,null,75.0]},
-    {n:"변동성 예보", c:gold,    v:[null,null,null,null,67.8,68.4,68.4,68.4,68.4,68.4,69.0,69.0]},
-    {n:"낙폭 리스크", c:bull,    v:[null,null,null,null,null,null,68.4,68.0,68.0,68.0,68.0,68.0]},
-    {n:"이익목표 도달",c:amber,   v:[null,null,null,null,null,null,null,64.0,64.0,64.0,64.0,64.0]},
-    {n:"급변 경보",   c:"#e06a6a",v:[null,null,null,null,null,null,null,null,null,65.0,65.0,65.0]},
+    {n:"방향 적중",   c:eth,     v:[54.1,56.6,56.6,58.1,58.1,58.1,58.1,58.1,58.1,58.1,58.1,58.1,58.1]},
+    {n:"추세 지속/소진",c:"#7aa6cc",v:[null,null,null,null,null,null,null,null,null,null,null,75.0,75.0]},
+    {n:"변동성 예보", c:gold,    v:[null,null,null,null,67.8,68.4,68.4,68.4,68.4,68.4,69.0,69.0,69.0]},
+    {n:"낙폭 리스크", c:bull,    v:[null,null,null,null,null,null,68.4,68.0,68.0,68.0,68.0,68.0,68.0]},
+    {n:"이익목표 도달",c:amber,   v:[null,null,null,null,null,null,null,64.0,64.0,64.0,64.0,64.0,64.0]},
+    {n:"급변 경보",   c:"#e06a6a",v:[null,null,null,null,null,null,null,null,null,65.0,65.0,65.0,65.0]},
   ];
   const BASE=60.8, W=900,H=380, mL=42,mR=134,mT=22,mB=42, pw=W-mL-mR,ph=H-mT-mB, yMin=52,yMax=78;
   const X=i=>mL+i*pw/(VER.length-1), Y=v=>mT+ph-(v-yMin)/(yMax-yMin)*ph;
@@ -550,7 +552,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   const cone ={x:694,y:288,r:14,c:gold,lab:"예측 콘",sub:"×0.75 · 커버 78%",pl:"right"};
   const cal  ={x:880,y:230,r:13,c:bull,lab:"캘리브레이션",sub:"ECE 1.9%",pl:"right"};
   const out  ={x:928,y:474,r:19,c:gold,lab:"판정 출력",sub:"국면 · R:R · 목표",pl:"below"};
-  const risk =[{x:706,y:414,r:11,c:bull,lab:"변동성 예보",sub:"68%",pl:"right"},{x:706,y:480,r:11,c:bull,lab:"낙폭 위험곡선",sub:"68%",pl:"right"},{x:706,y:546,r:11,c:bull,lab:"이익목표 도달",sub:"64%",pl:"right"},{x:706,y:612,r:11,c:bull,lab:"급변 경보",sub:"65%",pl:"right"}];
+  const risk =[{x:706,y:414,r:11,c:bull,lab:"변동성 예보",sub:"69% · 3지평",pl:"right"},{x:706,y:480,r:11,c:bull,lab:"낙폭 위험곡선",sub:"68% · 3지평",pl:"right"},{x:706,y:546,r:11,c:bull,lab:"이익목표 도달",sub:"64%",pl:"right"},{x:706,y:612,r:11,c:bull,lab:"급변 경보",sub:"65% · 3지평",pl:"right"}];
   const named=[price,vol,drift,dir,cone,cal,out,...risk];
   // ── 30 지표 뉴런(6군) ──
   const CL=[{n:"추세",k:7,c:gold},{n:"모멘텀",k:8,c:"#e8955c"},{n:"변동성",k:4,c:"#7aa6cc"},{n:"거래량",k:4,c:eth,vol:1},{n:"구조",k:5,c:"#b58cf0"},{n:"주기",k:2,c:"#5ec8b6"}];
@@ -625,7 +627,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   });
 })();
 
-document.getElementById("foot").innerHTML = "스쿱포지 엔진 v1.9.0 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
+document.getElementById("foot").innerHTML = "스쿱포지 엔진 v1.9.1 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
 
 /* ── 라이브 트랙레코드 렌더 — forge-api.php 원장 조회 ── */
 (async function renderLive(){

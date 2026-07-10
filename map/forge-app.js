@@ -1485,9 +1485,14 @@
         }
         oppHtml = `<span class="fcv-opp opp-buy" title="${oppTip}"><span class="opp-ico">◎</span>${oppLbl}<span class="opp-vf">검증됨</span></span>`;
       }
-      // 변동성 예보(v1.5) — 가격 방향 아님, '얼마나 움직일지'. OOS 68% 검증된 진짜 예측력.
+      // 변동성 예보 멀티지평 곡선(v1.9.1) — 가격 방향 아님, '얼마나 움직일지'. 2주/1달/2달 OOS 70/69/64% 검증.
       const _vf = _ctx && _ctx.volForecast;
-      const vfHtml = _vf ? `<span class="fcv-vol ${_vf.expand ? "vol-exp" : "vol-con"}" title="다음 구간 변동성 ${_vf.expand ? "확대(더 크게 움직임)" : "축소(잔잔해짐)"} 예상 · 확신도 ${_vf.prob}% — ⚠️가격 방향 아님(오를지 내릴지 X, 얼마나 움직일지 O). 백테스트 OOS 정확도 ${_vf.acc}%. ${_vf.expand ? "→ 큰 움직임 대비·손절 넓게" : "→ 박스권 매매·타이트하게"}">${_vf.expand ? "⌇ 변동성 확대" : "≈ 변동성 축소"} <b>${_vf.prob}%</b><span class="vol-vf">${_vf.acc}%검증</span></span>` : "";
+      const _vfcv = _vf && _vf.curve;
+      const vfHtml = _vf ? (function () {
+        const rows = (_vfcv || []).map(c => `· ${c.lb}(${c.h}봉): ${c.expand ? "확대" : "축소"} ${c.prob}% (OOS ${c.acc}%)`).join("&#10;");
+        const tip = "다음 구간 변동성이 확대(더 크게 움직임)/축소(잔잔해짐)될지 — 지평별 곡선.&#10;⚠️가격 방향 아님(오를지 내릴지 X, 얼마나 움직일지 O). 대표=1달.&#10;" + rows + "&#10;" + (_vf.expand ? "→ 큰 움직임 대비·손절 넓게" : "→ 박스권 매매·타이트하게");
+        return `<span class="fcv-vol ${_vf.expand ? "vol-exp" : "vol-con"}" title="${tip}">${_vf.expand ? "⌇ 변동성 확대" : "≈ 변동성 축소"} <b>${_vf.prob}%</b><span class="vol-vf">2주·1달·2달</span></span>`;
+      })() : "";
       // 낙폭리스크 예보(v1.6) — 향후 ~1개월 5%↑ 하락 확률(하방 특화, 가격 방향 예측 아님). OOS 68% 검증.
       const _dd = _ctx && _ctx.ddRisk;
       // 확률 손익(v1.7) — 같은 문턱 ±X%(1M 5%·2M 7%·3M 9%)에서 이익목표 도달 vs 낙폭 확률(둘 다 검증). 방향 예측 아님.
@@ -1500,9 +1505,14 @@
         const tip = "확률 손익 — 같은 문턱 ±X%에서 '이익목표 도달 확률'과 '낙폭 확률'(둘 다 백테스트 OOS 63~69%, 지속성·다수결 초과).&#10;⚠️가격 방향 예측 아님 — 위/아래로 그만큼 '닿을' 확률. 도달>낙폭이면 상방 우세(참고).&#10;" + rows;
         return `<span class="fcv-vol ${cls}" title="${tip}">▲도달 <b>${u0}%</b> · ▽낙폭 <b>${d0}%</b><span class="vol-vf">1·2·3M</span></span>`;
       })() : "";
-      // 단일봉 급변(v1.8) — 향후 20봉 내 하루 큰 폭 움직임(2.5σ) 확률. 방향 아님(갭·쇼크 경보). OOS 65% 검증.
+      // 단일봉 급변 멀티지평 곡선(v1.9.1) — 지평별 문턱↑ 대각선(2주2σ/1달2.5σ/2달3σ). 방향 아님(갭·쇼크 경보). OOS 64~66%.
       const _spk = _ctx && _ctx.spikeRisk;
-      const spkHtml = _spk ? `<span class="fcv-vol ${_spk.elevated ? "dd-hi" : "dd-lo"}" title="향후 20봉(약 한 달) 내 하루 만에 큰 폭(현재 변동성의 ${_spk.sigma}배 이상, 급등·급락 무관) 움직임이 나올 확률 ${_spk.prob}% (평시 ${_spk.base}%). ${_spk.elevated ? "평시보다 높음 → 갭·실적·이벤트 대비" : "평시 수준"}. ⚠️가격 방향 예측 아님 — '큰 하루가 올까'. 백테스트 OOS ${_spk.acc}%(지속성·다수결 크게 초과).">⚡ 급변 경보 <b>${_spk.prob}%</b><span class="vol-vf">평시 ${_spk.base}%</span></span>` : "";
+      const _spkcv = _spk && _spk.curve;
+      const spkHtml = _spk ? (function () {
+        const rows = (_spkcv || []).map(c => `· ${c.lb}(${c.h}봉) ${c.sigma}σ↑: ${c.prob}% (평시 ${c.base}% · OOS ${c.acc}%)`).join("&#10;");
+        const tip = "하루 만에 큰 폭(현재 변동성의 Kσ 이상, 급등·급락 무관)이 나올 확률 — 지평이 길수록 문턱↑(대각선 곡선).&#10;⚠️가격 방향 예측 아님 — '큰 하루가 올까'. 대표=1달(2.5σ).&#10;" + rows + "&#10;" + (_spk.elevated ? "→ 평시보다 높음 · 갭·실적·이벤트 대비" : "→ 평시 수준");
+        return `<span class="fcv-vol ${_spk.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">⚡ 급변 경보 <b>${_spk.prob}%</b><span class="vol-vf">평시 ${_spk.base}%</span></span>`;
+      })() : "";
       // 추세 지속/소진(v1.9) — 추세 국면서 이어질지 힘 빠져 횡보로 갈지. 비방향. 종목외 OOS 74~76%.
       const _tp = _ctx && _ctx.trendPersist;
       const tpHtml = _tp ? `<span class="fcv-vol ${_tp.persist >= 60 ? "rr-up" : _tp.persist <= 40 ? "dd-lo" : "rr-fl"}" title="현재 ${_tp.state === "up" ? "상승" : "하락"}추세가 향후 20봉(약 한 달) 뒤에도 이어질 확률 ${_tp.persist}% (힘 빠져 횡보로 전환 ${_tp.exhaust}%). ⚠️가격 방향 예측 아님 — 추세가 '지속될지 소진될지'(비방향). 종목외 walk-forward ${_tp.acc}%(다수결·strength 크게 초과). 소진 예상이면 추격 자제·평균회귀 대비.">${_tp.state === "up" ? "▲" : "▼"} 추세 ${_tp.persist >= 55 ? "지속" : _tp.persist <= 45 ? "소진" : "중립"} <b>${_tp.persist}%</b><span class="vol-vf">지속</span></span>` : "";
