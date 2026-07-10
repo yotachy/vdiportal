@@ -1330,9 +1330,10 @@ function captureThumb(file,id){
   v.src=url;
 }
 function captureThumbURL(url,id,seekSec){
+  const sk=(seekSec!=null?seekSec:5);   // 0(맨 앞 책갈피)도 올바르게 처리
   const v=document.createElement('video');v.muted=true;v.preload='metadata';
-  let done=false;const to=setTimeout(()=>{done=true;},8000);
-  v.addEventListener('loadeddata',()=>{try{v.currentTime=Math.min(seekSec||5,(v.duration||((seekSec||5)*2)))}catch(e){}});
+  let done=false;const to=setTimeout(()=>{done=true;try{v.removeAttribute('src');v.load();}catch(e){}},8000);
+  v.addEventListener('loadeddata',()=>{try{v.currentTime=Math.min(sk,(v.duration||(sk*2||6)))}catch(e){}});
   v.addEventListener('seeked',()=>{if(done)return;done=true;clearTimeout(to);
     try{const vw=v.videoWidth||320,vh=v.videoHeight||180,w=320,h=Math.max(1,Math.round(w*vh/vw));
       const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(v,0,0,w,h);
