@@ -172,3 +172,11 @@ def test_host_header_guard_blocks_dns_rebinding():
         srv.shutdown()
         srv.server_close()
         t.join(timeout=5)
+
+def test_normalize_play_items():
+    assert helper.normalize_play_items({"items":[{"path":"a.mp4","seek":5},{"path":"b.mkv"}]}) == \
+        [{"path":"a.mp4","seek":5},{"path":"b.mkv","seek":None}]
+    assert helper.normalize_play_items({"paths":["a.mp4","b.mkv"],"seek":9}) == \
+        [{"path":"a.mp4","seek":9},{"path":"b.mkv","seek":9}]
+    assert helper.normalize_play_items({"paths":["a.mp4"]}) == [{"path":"a.mp4","seek":None}]
+    assert helper.normalize_play_items({}) == []

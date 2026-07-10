@@ -318,25 +318,36 @@ def arrange_windows(pids, rects):
     except Exception:
         pass
 
-def launch_players(paths, seek=None):
+def normalize_play_items(body):
+    items = body.get("items")
+    if isinstance(items, list) and items:
+        out = []
+        for it in items:
+            if isinstance(it, dict) and it.get("path"):
+                out.append({"path": it["path"], "seek": it.get("seek")})
+        return out
+    seek = body.get("seek")
+    return [{"path": p, "seek": seek} for p in body.get("paths", []) if p]
+
+def launch_players(items):
     exe = find_exe([POTPLAYER_PATH])
     if not exe:
         return {"ok": False, "error": "PotPlayer not found"}
-    valid = [p for p in paths if p and os.path.isfile(p)]
+    valid = [it for it in items if it.get("path") and os.path.isfile(it["path"])]
     if not valid:
         return {"ok": False, "error": "no valid videos"}
     sw, sh = _screen_size()
     rects = tile_rects(len(valid), sw, sh)
     procs = []
-    for p in valid:
+    for it in valid:
         try:
-            procs.append(subprocess.Popen(player_cmd(exe, p, seek if len(valid) == 1 else None)))
+            procs.append(subprocess.Popen(player_cmd(exe, it["path"], it.get("seek"))))
         except Exception:
             pass
     pids = [pr.pid for pr in procs]
     if os.name == "nt" and len(pids) > 1:
         threading.Thread(target=arrange_windows, args=(pids, rects), daemon=True).start()
-    token = _register_play(procs, valid[0] if len(valid) == 1 else None)
+    token = _register_play(procs, valid[0]["path"] if len(valid) == 1 else None)
     return {"ok": True, "launched": len(procs), "token": token}
 
 def load_doc():
@@ -427,7 +438,7 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(body, dict):
             return self._send(400, {"ok": False, "error": "invalid JSON body"})
         if u.path == "/play":
-            return self._send(200, launch_players(body.get("paths", []), body.get("seek")))
+            return self._send(200, launch_players(normalize_play_items(body)))
         if u.path == "/doc":
             return self._send(200, {"ok": save_doc(body.get("doc", {}))})
         if u.path == "/resolve":
