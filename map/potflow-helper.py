@@ -519,5 +519,20 @@ def make_server(port):
 if __name__ == "__main__":
     os.makedirs(THUMB_DIR, exist_ok=True)
     srv = make_server(PORT)
-    print(f"PotFlow helper: http://localhost:{PORT}/potflow.html")
-    srv.serve_forever()
+    url = f"http://localhost:{PORT}/potflow.html"
+    print(f"PotFlow helper 실행 중 → {url}")
+    print("이 창을 켜 두세요. 종료: Ctrl+C 또는 창 닫기")
+    # 브라우저를 올바른 주소로 자동 오픈(파일 더블클릭/공개주소 실수 방지). POTFLOW_NO_BROWSER=1 로 끔.
+    if not os.environ.get("POTFLOW_NO_BROWSER"):
+        def _open_browser():
+            try:
+                import time, webbrowser
+                time.sleep(0.8)
+                webbrowser.open(url)
+            except Exception:
+                pass
+        threading.Thread(target=_open_browser, daemon=True).start()
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("\nPotFlow helper 종료")
