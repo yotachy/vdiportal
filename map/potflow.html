@@ -262,6 +262,19 @@
   .sup-input:focus{border-color:var(--gold-dim)}
   .sup-btn{width:100%;justify-content:center}
   .sup-status{font-size:12px;color:var(--gold);min-height:14px}
+  .winpop{width:320px;padding:12px;flex-direction:column;gap:8px}
+  .wp-h{font-weight:800;color:var(--gold);font-size:13px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .wp-desk{position:relative;background:var(--bg);border:1px solid var(--line);border-radius:8px;height:150px;overflow:hidden;user-select:none;touch-action:none}
+  .wp-mon{position:absolute;border:1px solid var(--eth);box-sizing:border-box;background:var(--raised2);color:var(--faint)}
+  .wp-mon.active{border-color:var(--gold-dim)}
+  .wp-monlbl{position:absolute;top:2px;left:4px;font-size:10px}
+  .wp-cell{position:absolute;box-sizing:border-box;border:1px dashed var(--line);cursor:pointer}
+  .wp-cell:hover{background:var(--raised2)}
+  .wp-rect{position:absolute;box-sizing:border-box;border:2px solid var(--gold);background:rgba(232,180,99,.18);cursor:move}
+  .wp-rz{position:absolute;right:-5px;bottom:-5px;width:12px;height:12px;background:var(--gold);border-radius:2px;cursor:nwse-resize}
+  .wp-grids{display:flex;flex-wrap:wrap;gap:4px}
+  .wp-g{font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;cursor:pointer;color:var(--txt);background:var(--surface)}
+  .wp-g.on{border-color:var(--gold);color:var(--gold)}
 
   body.view .edit-only{display:none!important}
   body.view .node{cursor:default}body.view .n-title,body.view .n-desc{cursor:default}
@@ -342,6 +355,12 @@
     <button class="btn gold sup-btn" onclick="unlockPro(document.getElementById('licInput').value)">해제</button>
     <div class="sup-status" id="licStatus"></div>
     <div class="sup-note">모든 데이터는 이 브라우저/PC에만 저장됩니다.</div>
+  </div>
+  <div class="menupop winpop" id="winPop">
+    <div class="wp-h">화면 배치 <span class="sup-note" id="wpStatus"></span></div>
+    <div class="wp-desk" id="wpDesk"></div>
+    <div class="wp-grids" id="wpGrids"></div>
+    <button class="btn ghost sup-btn" onclick="clearWin()">배치 해제(자동)</button>
   </div>
 </header>
 
@@ -466,6 +485,29 @@ function unlockPro(key){if(licenseValid(key)){PRO=true;lsSet('potflow_pro','1');
 function copySupport(){const t=SUPPORT_ACCOUNT;const ok=()=>toast('계좌 복사됨');const no=()=>toast('복사 실패 — 계좌를 길게 눌러 복사하세요');if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok).catch(no);else no();}
 function openSupport(){const el=document.getElementById('supPop');if(!el)return;closeMenus('supPop');document.getElementById('supAcct').textContent=SUPPORT_ACCOUNT;updateProBadge();el.classList.add('open');const b=document.getElementById('supBtn');if(b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px';}}
 function toggleSupport(e){if(e)e.stopPropagation();const el=document.getElementById('supPop');if(el&&el.classList.contains('open')){el.classList.remove('open');return;}openSupport();}
+let MONITORS=null,winTarget=null,wpMon=0,wpGrid=[2,2];
+const WP_GRIDS=[[1,1],[2,1],[1,2],[3,1],[1,3],[2,2],[3,2],[2,3],[3,3],[4,2],[2,4],[4,4]];
+function loadMonitors(cb){if(MONITORS){cb&&cb();return;}fetch(HELPER+"/monitors").then(r=>r.json()).then(j=>{MONITORS=(j&&j.monitors&&j.monitors.length)?j.monitors:[{x:0,y:0,w:1920,h:1080,primary:true}];cb&&cb();}).catch(()=>{MONITORS=[{x:0,y:0,w:1920,h:1080,primary:true}];cb&&cb();});}
+function _wpBox(){let a=1e9,b=1e9,c=-1e9,d=-1e9;MONITORS.forEach(m=>{a=Math.min(a,m.x);b=Math.min(b,m.y);c=Math.max(c,m.x+m.w);d=Math.max(d,m.y+m.h);});return {x:a,y:b,w:Math.max(1,c-a),h:Math.max(1,d-b)};}
+function renderWinPop(){
+  const desk=document.getElementById('wpDesk');if(!desk||!MONITORS)return;
+  const box=_wpBox();const W=desk.clientWidth||296,H=desk.clientHeight||150;const s=Math.min(W/box.w,H/box.h)*0.94;
+  const ox=(W-box.w*s)/2,oy=(H-box.h*s)/2;desk._s=s;desk._ox=ox;desk._oy=oy;desk._box=box;
+  const n=N(winTarget);const win=n&&n.win;let html='';
+  MONITORS.forEach((m,i)=>{const L=ox+(m.x-box.x)*s,T=oy+(m.y-box.y)*s,MW=m.w*s,MH=m.h*s;
+    html+=`<div class="wp-mon ${i===wpMon?'active':''}" data-mon="${i}" style="left:${L}px;top:${T}px;width:${MW}px;height:${MH}px"><span class="wp-monlbl">${i+1}${m.primary?'★':''}</span></div>`;
+    if(i===wpMon){const c=wpGrid[0],r=wpGrid[1];for(let ci=0;ci<c;ci++)for(let ri=0;ri<r;ri++){html+=`<div class="wp-cell" data-mon="${i}" data-cx="${ci}" data-cy="${ri}" style="left:${L+ci/c*MW}px;top:${T+ri/r*MH}px;width:${MW/c}px;height:${MH/r}px"></div>`;}}});
+  if(win){const m=MONITORS[win.mon]||MONITORS[0];const L=ox+(m.x-box.x)*s+win.x*m.w*s,T=oy+(m.y-box.y)*s+win.y*m.h*s;
+    html+=`<div class="wp-rect" id="wpRect" style="left:${L}px;top:${T}px;width:${win.w*m.w*s}px;height:${win.h*m.h*s}px"><div class="wp-rz" id="wpRz"></div></div>`;}
+  desk.innerHTML=html;
+  document.querySelectorAll('#winPop .wp-g').forEach(b=>b.classList.toggle('on',b.dataset.grid===wpGrid.join('x')));
+  const st=document.getElementById('wpStatus');if(st)st.textContent=win?`모니터 ${win.mon+1} · ${Math.round(win.w*100)}%×${Math.round(win.h*100)}%`:'미지정(자동)';
+}
+function openWinPop(nodeId){winTarget=nodeId;const n=N(nodeId);wpMon=(n&&n.win&&n.win.mon)||0;closeMenus('winPop');
+  const gw=document.getElementById('wpGrids');if(gw&&!gw.children.length)gw.innerHTML=WP_GRIDS.map(g=>`<div class="wp-g" data-grid="${g[0]}x${g[1]}">${g[0]}×${g[1]}</div>`).join('');
+  loadMonitors(()=>{const el=document.getElementById('winPop');el.classList.add('open');const b=document.getElementById('winBtn');if(b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px';}else{el.style.top='96px';el.style.right='16px';}renderWinPop();});}
+function setWin(mon,x,y,w,h){const n=N(winTarget);if(!n)return;n.win={mon:mon,x:Math.max(0,Math.min(1,x)),y:Math.max(0,Math.min(1,y)),w:Math.max(.05,Math.min(1,w)),h:Math.max(.05,Math.min(1,h))};markDirty();renderWinPop();}
+function clearWin(){const n=N(winTarget);if(n){n.win=null;markDirty();renderWinPop();}}
 function metaObj(){return{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}}
 function docStamp(cs){let m='';(cs||[]).forEach(c=>{if(c.updated&&c.updated>m)m=c.updated});return m}
 function userImagesOnly(){const o={};LIBRARY.forEach(l=>{if(IMAGES[l.id])o[l.id]=IMAGES[l.id]});Object.keys(IMAGES).forEach(k=>{if(k.startsWith('vthumb_'))o[k]=IMAGES[k]});return o}
@@ -754,6 +796,7 @@ function drawNhud(){
       <button class="hbtn" data-nact="child" title="하위(자식) 노드 추가">${ICO.child}<span>하위</span></button>
       <button class="hbtn danger" data-nact="del" title="노드 삭제">${ICO.trash}<span>삭제</span></button>
       ${n.videoPath?`<button class="hbtn" data-nact="bmsync" title="책갈피(pbf) 동기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg><span>책갈피</span></button>`:''}
+      ${n.videoPath?`<button class="hbtn" data-nact="winset" title="화면 배치(모니터 영역)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="3" y="4" width="18" height="13" rx="1.5"/><path d="M8 20h8M12 17v3"/></svg><span>배치</span></button>`:''}
     </div>
     <div class="nbar-sw">${sw}</div>
   </div>`;
@@ -804,7 +847,12 @@ function applyCanvasBg(bg){const dots='radial-gradient(circle at 1px 1px,#ffffff
 function setCanvasBg(bg){canvasBg=bg||null;applyCanvasBg(canvasBg);renderBgPop();markDirty()}
 function renderBgPop(){const el=document.getElementById('bgPop');if(!el)return;el.innerHTML=CANVAS_BGS.map(c=>`<button class="bgsw ${c?'':'def'} ${(canvasBg||null)===c?'on':''}" style="${c?`background:${c}`:''}" title="${c||'기본'}" onclick="setCanvasBg('${c||''}')"></button>`).join('')}
 function toggleBgPop(e){if(e)e.stopPropagation();const el=document.getElementById('bgPop'),b=document.getElementById('bgBtn');renderBgPop();const open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open');const sp=document.getElementById('supPop');if(sp&&sp.classList.contains('open')&&!e.target.closest('#supPop,#supBtn'))sp.classList.remove('open')});
+document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open');const sp=document.getElementById('supPop');if(sp&&sp.classList.contains('open')&&!e.target.closest('#supPop,#supBtn'))sp.classList.remove('open');const wp=document.getElementById('winPop');if(wp&&wp.classList.contains('open')&&!e.target.closest('#winPop,[data-nact="winset"]'))wp.classList.remove('open')});
+document.getElementById('winPop').addEventListener('click',e=>{
+  const g=e.target.closest('.wp-g');if(g){wpGrid=g.dataset.grid.split('x').map(Number);renderWinPop();return;}
+  const cell=e.target.closest('.wp-cell');if(cell){const c=wpGrid[0],r=wpGrid[1];setWin(+cell.dataset.mon,(+cell.dataset.cx)/c,(+cell.dataset.cy)/r,1/c,1/r);return;}
+  const mon=e.target.closest('.wp-mon');if(mon){wpMon=+mon.dataset.mon;renderWinPop();return;}
+});
 function loadCanvas(id){
   const c=canvases.find(x=>x.id===id);if(!c)return;
   activeId=id;
@@ -1077,7 +1125,7 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-ewidth]')){if(selEdge){const ed=E(selEdge);ed.width=((ed.width||2)%3)+1;paint();markDirty()}return}
   if(e.target.closest('[data-eroute]')){if(selEdge){const ed=E(selEdge);ed.route=ed.route!=='curve'?'curve':'ortho';paint();markDirty()}return}
   if(e.target.closest('[data-elabeladd]')){if(selEdge){const ed=E(selEdge);if(ed.label==null)ed.label='';paint();const le=document.querySelector(`.elabel[data-elabel="${selEdge}"]`);if(le){le.focus();const r=document.createRange();r.selectNodeContents(le);const s=window.getSelection();s.removeAllRanges();s.addRange(r)}}return}
-  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='parent')addParent(id);else if(a==='child')addChild(id);else if(a==='del')delNodes([id]);else if(a==='bmsync')syncBookmarks(id)}return}
+  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='parent')addParent(id);else if(a==='child')addChild(id);else if(a==='del')delNodes([id]);else if(a==='bmsync')syncBookmarks(id);else if(a==='winset')openWinPop(id)}return}
   const al=e.target.closest('[data-align]');if(al){alignSel(al.dataset.align);return}
   const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='add')addChild(id);else if(a==='rmthumb')setThumb(id,null);return}
@@ -1420,7 +1468,7 @@ function exportPNG(){const{svg,w,h}=buildSVG();const url=URL.createObjectURL(new
   img.onload=()=>{const sc=2,cv=document.createElement('canvas');cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);const cx=cv.getContext('2d');cx.scale(sc,sc);cx.drawImage(img,0,0);URL.revokeObjectURL(url);try{cv.toBlob(b=>{b?(_dl(b,'diagram.png'),toast('PNG 내보냄')):toast('PNG 변환 실패')},'image/png')}catch(err){toast('PNG 변환 실패')}};
   img.onerror=()=>{URL.revokeObjectURL(url);toast('PNG 변환 실패')};img.src=url}
 function toggleExportPop(e){if(e)e.stopPropagation();closeMenus('exPop');const el=document.getElementById('exPop'),b=document.getElementById('exBtn'),open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-function closeMenus(except){['exPop','bgPop','supPop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
+function closeMenus(except){['exPop','bgPop','supPop','winPop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
 document.getElementById('impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
   if(d.images&&typeof d.images==='object')Object.assign(IMAGES,d.images);
   if(d.toolbar&&typeof d.toolbar==='object'){Object.assign(TOOLBAR,d.toolbar);renderToolbar()}
