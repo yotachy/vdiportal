@@ -134,9 +134,10 @@
   .ea-lv-lab{font-size:12.5px;font-weight:800;fill:var(--ink);letter-spacing:-.01em}
   .ea-lv-sub{font-size:10px;font-weight:700;fill:var(--eth)}
   .ea-lv-spine{font-size:11px;font-weight:800;letter-spacing:.08em}
+  .ea-lv-clab{font-size:10px;font-weight:800;letter-spacing:.01em}
   .ea-lv-tag{font-size:10px;font-weight:800}
   .ea-lv-cap{fill:var(--faint);font-size:10.5px}
-  @media(prefers-reduced-motion:reduce){ .ea-halo{animation:none} .ea-live [begin]{display:none} .ea-fl::after{animation:none;display:none} }
+  @media(prefers-reduced-motion:reduce){ .ea-halo{animation:none} .eapart{display:none} .ea-fl::after{animation:none;display:none} }
   @media(max-width:560px){.en-lbl{font-size:9.5px}.en-title{font-size:9px}}
   .chlog{display:flex;flex-direction:column;gap:10px}
   .cl-item{border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;background:#0b1016}
@@ -472,51 +473,83 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   document.getElementById("calchart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;margin:0 auto"><rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>${g}</svg>`;
 })();
 
-// 엔진 해부도 · 라이브 회로 — 실제 run() 파이프라인을 발광 노드 + 흐르는 신호 입자로.
+// 엔진 해부도 · 라이브 신경망 — 30 지표 뉴런 + 변동성 피처 10 뉴런, 밀집 팬아웃/팬인 + 흐르는 신호.
 (function renderEngineLive(){
   const host=document.getElementById("eaLive"); if(!host) return;
-  const W=900,H=640, C={eth:"var(--eth)",gold:"var(--gold)",bull:"var(--bull)",bear:"var(--bear)"};
-  const N={
-    data :{x:450,y:54, r:17,c:C.eth, lab:"데이터",       sub:"OHLCV · 600봉",    pl:"below"},
-    ind  :{x:236,y:172,r:16,c:C.gold, lab:"지표 배터리 30종", sub:"6개 기능군",       pl:"left"},
-    feat :{x:664,y:172,r:16,c:C.bull, lab:"변동성 피처",   sub:"10차원 · 독립경로", pl:"right"},
-    drift:{x:236,y:296,r:14,c:C.gold, lab:"드리프트 합성", sub:"±0.28 캡 · TF",    pl:"left"},
-    risk :{x:664,y:308,r:19,c:C.bull, lab:"리스크 3축",    sub:"68 · 68 · 64% ✓",  pl:"right"},
-    dir  :{x:236,y:420,r:15,c:C.bear, lab:"방향 · 예측 콘", sub:"58% · 못 이김",     pl:"left"},
-    cal  :{x:404,y:504,r:13,c:C.bull, lab:"캘리브레이션",  sub:"ECE 1.9% ✓",       pl:"left"},
-    out  :{x:512,y:566,r:19,c:C.gold, lab:"판정 출력",     sub:"국면 · R:R · 목표", pl:"right"},
-  };
-  const E=[["data","ind",C.eth,2],["data","feat",C.eth,2],["ind","drift",C.gold,2],["drift","dir",C.gold,2],["feat","risk",C.bull,3],["dir","cal",C.gold,2],["cal","out",C.gold,2],["risk","out",C.bull,3]];
-  const pathD=(a,b)=>{ const mx=(a.x+b.x)/2,my=(a.y+b.y)/2,dx=b.x-a.x,dy=b.y-a.y; return `M${a.x} ${a.y} Q${(mx-dy*0.14).toFixed(1)} ${(my+dx*0.14).toFixed(1)} ${b.x} ${b.y}`; };
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="분석 엔진 라이브 회로 — 데이터가 두 갈래(지표·리스크)를 거쳐 판정에 이르는 신호 흐름">`;
-  s+=`<defs><filter id="eaGlow" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="4.5"/></filter></defs>`;
-  s+=`<text x="236" y="128" text-anchor="middle" class="ea-lv-spine" fill="${C.eth}">경로 A · 지표 파이프라인</text>`;
-  s+=`<text x="664" y="128" text-anchor="middle" class="ea-lv-spine" fill="${C.bull}">경로 B · 변동성 리스크</text>`;
-  let paths="",wires="",dots="";
-  E.forEach((e,i)=>{ const a=N[e[0]],b=N[e[1]],id="eap"+i,d=pathD(a,b);
-    paths+=`<path id="${id}" d="${d}" fill="none"/>`;
-    wires+=`<path d="${d}" fill="none" stroke="${e[2]}" stroke-width="1.5" stroke-opacity=".26"/>`;
-    const dur=2.4+(i%3)*0.55;
-    for(let k=0;k<e[3];k++){ const bg=(k*dur/e[3]).toFixed(2);
-      dots+=`<circle r="3" fill="${e[2]}" filter="url(#eaGlow)"><animateMotion dur="${dur}s" begin="${bg}s" repeatCount="indefinite"><mpath href="#${id}"/></animateMotion></circle>`
-          +`<circle r="1.6" fill="#fff" fill-opacity=".92"><animateMotion dur="${dur}s" begin="${bg}s" repeatCount="indefinite"><mpath href="#${id}"/></animateMotion></circle>`;
-    }
-  });
-  s+=`<g>${paths}</g>`+wires+dots;
-  Object.keys(N).forEach((k,i)=>{ const n=N[k];
-    s+=`<circle cx="${n.x}" cy="${n.y}" r="${n.r+8}" fill="${n.c}" class="ea-halo" filter="url(#eaGlow)" style="animation-delay:${(i*0.28).toFixed(2)}s"/>`;
+  const W=1060,H=700, gold="var(--gold)",eth="var(--eth)",bull="var(--bull)",bear="var(--bear)";
+  const uid=(a,b)=>`M${a.x} ${a.y} L${b.x} ${b.y}`;
+  const qd=(a,b,f)=>{ const mx=(a.x+b.x)/2,my=(a.y+b.y)/2,dx=b.x-a.x,dy=b.y-a.y; return `M${a.x} ${a.y} Q${(mx-dy*(f||0.13)).toFixed(1)} ${(my+dx*(f||0.13)).toFixed(1)} ${b.x} ${b.y}`; };
+  // ── 노드 정의 ──
+  const price={x:60,y:296,r:16,c:gold,lab:"가격",sub:"OHLC",pl:"left"};
+  const vol  ={x:60,y:452,r:11,c:eth, lab:"거래량",sub:"",pl:"left"};
+  const drift={x:494,y:250,r:15,c:gold,lab:"드리프트 합성",sub:"±0.28 캡 · 일치도",pl:"above"};
+  const dir  ={x:694,y:168,r:15,c:bear,lab:"방향",sub:"58% · 못 이김",pl:"right"};
+  const cone ={x:694,y:288,r:14,c:gold,lab:"예측 콘",sub:"×0.75 · 커버 78%",pl:"right"};
+  const cal  ={x:880,y:230,r:13,c:bull,lab:"캘리브레이션",sub:"ECE 1.9%",pl:"right"};
+  const out  ={x:928,y:474,r:19,c:gold,lab:"판정 출력",sub:"국면 · R:R · 목표",pl:"below"};
+  const risk =[{x:706,y:432,r:12,c:bull,lab:"변동성 예보",sub:"68%",pl:"right"},{x:706,y:512,r:12,c:bull,lab:"낙폭 위험곡선",sub:"68%",pl:"right"},{x:706,y:592,r:12,c:bull,lab:"이익목표 도달",sub:"64%",pl:"right"}];
+  const named=[price,vol,drift,dir,cone,cal,out,...risk];
+  // ── 30 지표 뉴런(6군) ──
+  const CL=[{n:"추세",k:7,c:gold},{n:"모멘텀",k:8,c:"#e8955c"},{n:"변동성",k:4,c:"#7aa6cc"},{n:"거래량",k:4,c:eth,vol:1},{n:"구조",k:5,c:"#b58cf0"},{n:"주기",k:2,c:"#5ec8b6"}];
+  const IND=[]; let yy=54; const IX=250;
+  CL.forEach(cl=>{ cl.y0=yy; for(let j=0;j<cl.k;j++){ IND.push({x:IX,y:yy,c:cl.c,cl}); yy+=17.6; } cl.yc=(cl.y0+yy-17.6)/2; yy+=14; });
+  // ── 변동성 피처 10 뉴런 ──
+  const FEAT=[]; const FX=452; for(let i=0;i<10;i++) FEAT.push({x:FX,y:432+i*18,c:bull});
+  // ── SVG 조립 ──
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="분석 엔진 신경망 — 30개 지표 뉴런과 변동성 피처가 밀집 연결로 방향·리스크·판정을 산출">`;
+  s+=`<defs><filter id="eaGlow" x="-140%" y="-140%" width="380%" height="380%"><feGaussianBlur stdDeviation="3.4"/></filter>`
+   +`<filter id="eaG2" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="5"/></filter></defs>`;
+  let wires="",pdefs="",parts="",pi=0;
+  const wire=(d,c,op,w)=>{ wires+=`<path d="${d}" fill="none" stroke="${c}" stroke-width="${w||1}" stroke-opacity="${op}"/>`; };
+  const flow=(d,c,n)=>{ const id="fp"+(pi++); pdefs+=`<path id="${id}" d="${d}" fill="none"/>`; const dur=2.2+(pi%4)*0.5;
+    for(let k=0;k<n;k++){ const bg=(k*dur/n).toFixed(2);
+      parts+=`<circle class="eapart" r="2.7" fill="${c}" filter="url(#eaGlow)"><animateMotion dur="${dur}s" begin="${bg}s" repeatCount="indefinite"><mpath href="#${id}"/></animateMotion></circle>`
+           +`<circle class="eapart" r="1.4" fill="#fff" fill-opacity=".9"><animateMotion dur="${dur}s" begin="${bg}s" repeatCount="indefinite"><mpath href="#${id}"/></animateMotion></circle>`; } };
+  // 팬아웃: 가격 → 30 지표 / 거래량 → 거래량군
+  IND.forEach((n,i)=>{ wire(uid(price,n), n.c, .12, 1); if(n.cl.vol) wire(uid(vol,n), eth, .34, 1); });
+  // 팬인: 30 지표 → 드리프트
+  IND.forEach(n=>wire(uid(n,drift), n.c, .10, 1));
+  // 팬아웃: 가격 → 변동성 피처 10
+  FEAT.forEach(f=>wire(uid(price,f), bull, .16, 1));
+  // 팬: 피처 10 → 리스크 3
+  FEAT.forEach(f=>risk.forEach(rn=>wire(uid(f,rn), bull, .07, 1)));
+  // 주요 채널(굵게 + 흐름)
+  wire(qd(drift,dir), gold,.3,1.6);   flow(qd(drift,dir), gold,2);
+  wire(qd(drift,cone),gold,.3,1.6);   flow(qd(drift,cone),gold,2);
+  wire(qd(dir,cal),  gold,.28,1.5);   flow(qd(dir,cal), gold,2);
+  wire(qd(cone,cal), gold,.28,1.5);   flow(qd(cone,cal),gold,1);
+  wire(qd(cal,out),  gold,.32,1.7);   flow(qd(cal,out), gold,2);
+  risk.forEach(rn=>{ wire(qd(rn,out,.08), bull,.28,1.5); flow(qd(rn,out,.08), bull,2); });
+  // 대표 흐름(밀집 팬 위에 몇 줄기만 입자) — 살아있는 느낌
+  [0,7,15,22,28].forEach(i=>{ flow(uid(price,IND[i]), IND[i].c,1); flow(uid(IND[i],drift), IND[i].c,1); });
+  [0,4,9].forEach(i=>{ flow(uid(price,FEAT[i]), bull,1); });
+  [[0,0],[4,1],[9,2]].forEach(([f,r])=>flow(uid(FEAT[f],risk[r]), bull,1));
+  s+=wires+`<g>${pdefs}</g>`+parts;
+  // 지표 뉴런 + 군 라벨
+  CL.forEach(cl=>{ s+=`<text x="${IX-16}" y="${cl.yc+3}" text-anchor="end" class="ea-lv-clab" fill="${cl.c}">${cl.n} ${cl.k}</text>`; });
+  IND.forEach((n,i)=>{ s+=`<circle cx="${n.x}" cy="${n.y}" r="7" fill="${n.c}" opacity=".18" filter="url(#eaGlow)"/><circle cx="${n.x}" cy="${n.y}" r="4.3" fill="var(--surface)" stroke="${n.c}" stroke-width="1.8"/>`; });
+  FEAT.forEach(f=>{ s+=`<circle cx="${f.x}" cy="${f.y}" r="6" fill="${bull}" opacity=".16" filter="url(#eaGlow)"/><circle cx="${f.x}" cy="${f.y}" r="3.6" fill="var(--surface)" stroke="${bull}" stroke-width="1.6"/>`; });
+  // 그룹 헤더
+  s+=`<text x="${IX}" y="34" text-anchor="middle" class="ea-lv-spine" fill="${gold}">30개 지표 뉴런</text>`;
+  s+=`<text x="${FX}" y="418" text-anchor="middle" class="ea-lv-clab" fill="${bull}">변동성 피처 10</text>`;
+  s+=`<text x="700" y="126" text-anchor="middle" class="ea-lv-spine" fill="${bear}">경로 A · 방향(한계)</text>`;
+  s+=`<text x="706" y="400" text-anchor="middle" class="ea-lv-spine" fill="${bull}">경로 B · 리스크(검증)</text>`;
+  // 명명 노드
+  named.forEach((n,i)=>{
+    s+=`<circle cx="${n.x}" cy="${n.y}" r="${n.r+8}" fill="${n.c}" class="ea-halo" filter="url(#eaG2)" style="animation-delay:${(i*0.22).toFixed(2)}s"/>`;
     s+=`<circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="var(--surface)" stroke="${n.c}" stroke-width="2.6"/>`;
     let lx,ly1,ly2,anc;
     if(n.pl==="below"){ anc="middle"; lx=n.x; ly1=n.y+n.r+16; ly2=ly1+13; }
-    else if(n.pl==="left"){ anc="end"; lx=n.x-n.r-10; ly1=n.y-2; ly2=n.y+11; }
-    else { anc="start"; lx=n.x+n.r+10; ly1=n.y-2; ly2=n.y+11; }
+    else if(n.pl==="above"){ anc="middle"; lx=n.x; ly1=n.y-n.r-19; ly2=n.y-n.r-6; }
+    else if(n.pl==="left"){ anc="end"; lx=n.x-n.r-10; ly1=n.y-1; ly2=n.y+12; }
+    else { anc="start"; lx=n.x+n.r+10; ly1=n.y-1; ly2=n.y+12; }
     s+=`<text x="${lx}" y="${ly1}" text-anchor="${anc}" class="ea-lv-lab">${n.lab}</text>`;
-    s+=`<text x="${lx}" y="${ly2}" text-anchor="${anc}" class="ea-lv-sub">${n.sub}</text>`;
+    if(n.sub) s+=`<text x="${lx}" y="${ly2}" text-anchor="${anc}" class="ea-lv-sub">${n.sub}</text>`;
   });
   // 범례
-  s+=`<g transform="translate(${W/2-150},${H-14})"><circle cx="0" cy="-4" r="4" fill="${C.bull}"/><text x="9" y="0" class="ea-lv-cap">검증됨</text>`
-   +`<circle cx="86" cy="-4" r="4" fill="${C.bear}"/><text x="95" y="0" class="ea-lv-cap">정직한 한계</text>`
-   +`<text x="196" y="0" class="ea-lv-cap">흐르는 입자 = 신호 흐름</text></g>`;
+  s+=`<g transform="translate(${W/2-190},${H-12})"><circle cx="0" cy="-4" r="4" fill="${bull}"/><text x="9" y="0" class="ea-lv-cap">검증된 예측력</text>`
+   +`<circle cx="108" cy="-4" r="4" fill="${bear}"/><text x="117" y="0" class="ea-lv-cap">정직한 한계</text>`
+   +`<text x="232" y="0" class="ea-lv-cap">뉴런 색 = 지표군 · 흐르는 입자 = 신호</text></g>`;
   host.innerHTML=s+`</svg>`;
 })();
 // 시각화 토글(라이브 ↔ 도식)
