@@ -157,6 +157,72 @@ if ($method === "GET") {
     @file_put_contents($cf, $payload);
     echo $payload; exit;
   }
+  // 라이브 트랙레코드 원장: 만기 도래 예측을 OHLC 캐시로 자동 채점 + 집계 반환
+  if (isset($_GET["predledger"])) {
+    $pf = __DIR__ . "/forge_predlog.json";
+    $plock = fopen($pf . ".lock", "c"); if ($plock) { flock($plock, LOCK_EX); }
+    $pdoc = is_file($pf) ? json_decode(file_get_contents($pf), true) : null;
+    if (!is_array($pdoc) || !isset($pdoc["recs"]) || !is_array($pdoc["recs"])) $pdoc = ["recs"=>[]];
+    $today = date("Y-m-d");
+    $cache = [];   // "sym|tf" → candles | false
+    $resolvedNow = 0;
+    $rvol = function($cds, $s, $e) { $n=0; $sum=0; for ($i=$s+1; $i<=$e; $i++){ $p0=(float)$cds[$i-1]["c"]; $p1=(float)$cds[$i]["c"]; if ($p0>0 && $p1>0){ $lr=log($p1/$p0); $sum+=$lr*$lr; $n++; } } return $n ? sqrt($sum/$n) : 0; };
+    foreach ($pdoc["recs"] as &$r) {
+      if (!empty($r["resolved"])) continue;
+      if (!isset($r["resolveAfter"]) || $r["resolveAfter"] > $today) continue;
+      if ($resolvedNow >= 60) break;   // 호출당 채점 상한
+      $key = $r["sym"] . "|" . $r["tf"];
+      if (!isset($cache[$key])) {
+        $cf = __DIR__ . "/forge_ohlc_cache_" . md5($r["sym"] . "|" . $r["tf"]) . ".json";
+        $cj = is_readable($cf) ? json_decode(@file_get_contents($cf), true) : null;
+        $cache[$key] = (is_array($cj) && isset($cj["candles"]) && is_array($cj["candles"])) ? $cj["candles"] : false;
+      }
+      $cds = $cache[$key];
+      if ($cds === false || count($cds) < 3) continue;   // 캐시 없음 → 대기
+      $ai = -1;
+      for ($i = count($cds) - 1; $i >= 0; $i--) { $t = isset($cds[$i]["t"]) ? substr((string)$cds[$i]["t"], 0, 10) : ""; if ($t !== "" && $t <= $r["asOf"]) { $ai = $i; break; } }
+      if ($ai < 0) continue;
+      $fut = max(1, (int)$r["futW"]);
+      $need = max($fut, 20);
+      if ($ai + $need >= count($cds)) continue;   // 만기 봉 아직 없음 → 대기
+      $a = (float)$r["asOfPrice"]; if (!($a > 0)) $a = (float)$cds[$ai]["c"];
+      $mp = (float)$cds[$ai + $fut]["c"];
+      if (!($a > 0) || !($mp > 0)) continue;
+      // 방향(futW 지평)
+      $dirOk = null;
+      if (isset($r["dir"]) && (int)$r["dir"] != 0) { $ru = $mp > $a ? 1 : ($mp < $a ? -1 : 0); if ($ru != 0) $dirOk = (((int)$r["dir"] > 0 ? 1 : -1) === $ru) ? 1 : 0; }
+      // 변동성(futW 전/후 창)
+      $volOk = null;
+      if ($ai - $fut >= 0) { $vb = $rvol($cds, $ai - $fut, $ai); $va = $rvol($cds, $ai, $ai + $fut); if ($vb > 0 && $va > 0) $volOk = (((int)$r["volExp"]) === ($va > $vb ? 1 : 0)) ? 1 : 0; }
+      // 낙폭·이익목표(1개월=20봉, ±5%)
+      $lo = INF; $hi = -INF;
+      for ($i = $ai + 1; $i <= $ai + 20; $i++) { $c = (float)$cds[$i]["c"]; if ($c < $lo) $lo = $c; if ($c > $hi) $hi = $c; }
+      $ddHit = ($lo / $a - 1) <= -0.05 ? 1 : 0;
+      $upHit = ($hi / $a - 1) >= 0.05 ? 1 : 0;
+      $r["resolved"] = true; $r["ret"] = round($mp / $a - 1, 4);
+      $r["out"] = ["dir"=>$dirOk, "vol"=>$volOk, "dd"=>$ddHit, "up"=>$upHit];
+      $resolvedNow++;
+    }
+    unset($r);
+    $agg = ["dir"=>["n"=>0,"hit"=>0], "vol"=>["n"=>0,"hit"=>0], "dd"=>["n"=>0,"ev"=>0,"ps"=>0], "up"=>["n"=>0,"ev"=>0,"ps"=>0]];
+    $pending = 0; $resolved = 0; $since = null;
+    foreach ($pdoc["recs"] as $r) {
+      if (empty($r["resolved"])) { $pending++; continue; }
+      $resolved++;
+      if ($since === null || $r["asOf"] < $since) $since = $r["asOf"];
+      $o = isset($r["out"]) ? $r["out"] : [];
+      if (isset($o["dir"]) && $o["dir"] !== null) { $agg["dir"]["n"]++; $agg["dir"]["hit"] += (int)$o["dir"]; }
+      if (isset($o["vol"]) && $o["vol"] !== null) { $agg["vol"]["n"]++; $agg["vol"]["hit"] += (int)$o["vol"]; }
+      if (isset($o["dd"])) { $agg["dd"]["n"]++; $agg["dd"]["ev"] += (int)$o["dd"]; $agg["dd"]["ps"] += (float)$r["ddP"]; }
+      if (isset($o["up"])) { $agg["up"]["n"]++; $agg["up"]["ev"] += (int)$o["up"]; $agg["up"]["ps"] += (float)$r["upP"]; }
+    }
+    if ($resolvedNow > 0) { $ptmp = $pf . ".tmp." . getmypid(); if (file_put_contents($ptmp, json_encode($pdoc, JSON_UNESCAPED_UNICODE)) !== false) @rename($ptmp, $pf); }
+    if ($plock) { flock($plock, LOCK_UN); fclose($plock); }
+    $mk = function($a) { return ["n"=>$a["n"], "rate"=>$a["n"] ? round($a["hit"]/$a["n"], 3) : null]; };
+    $mkp = function($a) { return ["n"=>$a["n"], "actRate"=>$a["n"] ? round($a["ev"]/$a["n"], 3) : null, "predAvg"=>$a["n"] ? round($a["ps"]/$a["n"]/100, 3) : null]; };
+    echo json_encode(["ok"=>true, "resolved"=>$resolved, "pending"=>$pending, "since"=>$since, "dir"=>$mk($agg["dir"]), "vol"=>$mk($agg["vol"]), "dd"=>$mkp($agg["dd"]), "up"=>$mkp($agg["up"])], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
   if (is_file($f)) { readfile($f); } else { echo "null"; }
   exit;
 }
@@ -182,6 +248,41 @@ if ($op === "putimg") {
   if ($ilock) { flock($ilock, LOCK_UN); fclose($ilock); }
   if (!$okw) { http_response_code(500); jout(["ok"=>false,"error"=>"write"]); }
   jout(["ok"=>true]);
+}
+
+if ($op === "logpred") {
+  $sym = isset($d["sym"]) ? trim((string)$d["sym"]) : "";
+  if (!preg_match('/^[A-Za-z0-9.\-^=\/]{1,16}$/', $sym)) { jout(["ok"=>false,"error"=>"badsym"]); }
+  $tf = (isset($d["tf"]) && in_array($d["tf"], ["1day","1week","1month"], true)) ? $d["tf"] : "1day";
+  $asOf = (isset($d["asOf"]) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d["asOf"])) ? $d["asOf"] : date("Y-m-d");
+  $pf = __DIR__ . "/forge_predlog.json";
+  $plock = fopen($pf . ".lock", "c"); if ($plock) { flock($plock, LOCK_EX); }
+  $pdoc = is_file($pf) ? json_decode(file_get_contents($pf), true) : null;
+  if (!is_array($pdoc) || !isset($pdoc["recs"]) || !is_array($pdoc["recs"])) $pdoc = ["recs"=>[]];
+  $dup = false;
+  foreach ($pdoc["recs"] as $r) { if (isset($r["sym"],$r["tf"],$r["asOf"]) && $r["sym"]===$sym && $r["tf"]===$tf && $r["asOf"]===$asOf) { $dup = true; break; } }
+  if (!$dup) {
+    $clip = function($v){ return max(0, min(100, (int)round((float)$v))); };
+    $futW = isset($d["futW"]) ? max(1, min(400, (int)$d["futW"])) : 60;
+    $perBar = $tf === "1week" ? 7 : ($tf === "1month" ? 31 : 1.5);
+    $resolveAfter = date("Y-m-d", strtotime($asOf . " +" . (int)ceil(max($futW, 20) * $perBar + 3) . " days"));
+    $pdoc["recs"][] = [
+      "sym"=>$sym, "tf"=>$tf, "asOf"=>$asOf, "resolveAfter"=>$resolveAfter,
+      "asOfPrice"=> isset($d["asOfPrice"]) ? (float)$d["asOfPrice"] : 0,
+      "futW"=> $futW,
+      "dir"=> isset($d["dir"]) ? (int)$d["dir"] : 0,
+      "up"=> $clip(isset($d["up"]) ? $d["up"] : 50),
+      "volExp"=> !empty($d["volExp"]) ? 1 : 0,
+      "ddP"=> $clip(isset($d["ddP"]) ? $d["ddP"] : 0),
+      "upP"=> $clip(isset($d["upP"]) ? $d["upP"] : 0),
+      "resolved"=> false,
+    ];
+    if (count($pdoc["recs"]) > 4000) $pdoc["recs"] = array_slice($pdoc["recs"], -4000);
+    $ptmp = $pf . ".tmp." . getmypid();
+    if (file_put_contents($ptmp, json_encode($pdoc, JSON_UNESCAPED_UNICODE)) !== false) @rename($ptmp, $pf);
+  }
+  if ($plock) { flock($plock, LOCK_UN); fclose($plock); }
+  jout(["ok"=>true, "dup"=>$dup]);
 }
 
 if ($op === "enqueue" || $op === "claim" || $op === "result") {

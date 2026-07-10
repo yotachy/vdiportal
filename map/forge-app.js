@@ -1979,6 +1979,53 @@
     });
     ov.classList.remove("on"); _agBusy = false;
     bToast("웹분석 완료 · 포지결과 갱신");
+    try { logPrediction(); } catch (e) {}   // 라이브 트랙레코드: 실 티커 예측 자동 기록(서버 원장)
+  }
+
+  // ── 라이브 트랙레코드 ──────────────────────────────────────────
+  // 실 티커 웹분석 시 예측 스냅샷을 서버 원장(forge-api.php op=logpred)에 기록(중복 제거).
+  // 만기 도래분은 서버가 OHLC 캐시로 자동 채점 → 배지·스코어카드에 실측 적중 노출.
+  const _loggedPreds = new Set();
+  let _predAgg = null;
+  function logPrediction() {
+    if (typeof SERVER_OK === "undefined" || !SERVER_OK || typeof apiPost !== "function") return;
+    const r = _fcLastResult; if (!r || !r.verdict) return;
+    const ctx = r.verdict.context || {};
+    const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim() && (Array.isArray(n._ohlc) || n.params.fetched));
+    if (!tk) return;   // 실 데이터 티커만(데모/합성 제외)
+    const sym = (tk.params.symbol || "").trim().toUpperCase();
+    const tf = (tk.params.tf && ["1day", "1week", "1month"].includes(tk.params.tf)) ? tk.params.tf : "1day";
+    const times = Array.isArray(tk._times) ? tk._times : null;
+    const asOf = (times && times.length) ? String(times[times.length - 1]).slice(0, 10) : "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return;
+    const price = (_fcLastData && _fcLastData.price) || [];
+    const asOfPrice = price.length ? price[price.length - 1] : (r.prediction && r.prediction.anchor);
+    if (!(asOfPrice > 0)) return;
+    const dedup = sym + "|" + tf + "|" + asOf;
+    if (_loggedPreds.has(dedup)) return; _loggedPreds.add(dedup);
+    const up = (typeof aggUpProb === "function") ? Math.round(aggUpProb(r.prediction) * 100) : 50;
+    const vf = ctx.volForecast, dd = ctx.ddRisk, ut = ctx.upTarget;
+    const ddP = dd ? ((dd.curve && dd.curve[0]) ? dd.curve[0].prob : dd.prob) : 0;
+    const upP = ut ? ((ut.curve && ut.curve[0]) ? ut.curve[0].prob : ut.prob) : 0;
+    apiPost({ op: "logpred", sym, tf, asOf, asOfPrice: +asOfPrice,
+      futW: (r.prediction && r.prediction.futW) || 60,
+      dir: (r.verdict.score || 0) > 0 ? 1 : ((r.verdict.score || 0) < 0 ? -1 : 0),
+      up, volExp: (vf && vf.expand) ? 1 : 0, ddP, upP,
+    }).then(() => { fetchPredLedger(); }).catch(() => {});
+  }
+  async function fetchPredLedger() {
+    if (typeof SERVER_OK === "undefined" || !SERVER_OK || typeof apiGet !== "function") return;
+    try { const a = await apiGet("?predledger=1"); if (a && a.ok) { _predAgg = a; updateLiveBadge(); } } catch (e) {}
+  }
+  function updateLiveBadge() {
+    const el = document.getElementById("liveTrack"); if (!el) return;
+    const a = _predAgg;
+    if (!a || !a.resolved) { el.style.display = "none"; return; }
+    let lead = "";
+    if (a.dd && a.dd.n >= 3 && a.dd.actRate != null) lead = "낙폭 예측 " + Math.round(a.dd.predAvg * 100) + "%→실제 " + Math.round(a.dd.actRate * 100) + "%";
+    else if (a.dir && a.dir.n >= 3 && a.dir.rate != null) lead = "방향 " + Math.round(a.dir.rate * 100) + "%";
+    el.textContent = "라이브 " + a.resolved + "건" + (lead ? " · " + lead : "");
+    el.style.display = "inline-flex";
   }
   // 엔진분석 = 클로드 수동분석(예정 기능). 현재는 안내만.
   function authSoon() { if (typeof bToast === "function") bToast("로그인·회원가입은 준비 중입니다"); }
@@ -2919,6 +2966,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     boardInit();
     try { const _ev = document.getElementById("engVer"); if (_ev && typeof ForgeCore !== "undefined" && ForgeCore.version) _ev.textContent = "엔진 v" + ForgeCore.version; } catch (e) {}   // 엔진 버전 배지(단일 출처: ForgeCore.version)
+    setTimeout(() => { try { fetchPredLedger(); } catch (e) {} }, 2500);   // 라이브 트랙레코드 배지(서버 확정 후 조회)
     { const _pp = document.getElementById("paramPanel"); if (_pp && _pp.parentElement !== document.body) document.body.appendChild(_pp); }   // 편집기 서랍을 body 직속으로(전체화면서 숨는 boardPane 밖 → 어디서나 오버레이)
     // 서랍 외부 클릭 시 닫기(서랍·지표레일 내부는 유지 → 다른 지표 ✎로 전환 가능)
     document.addEventListener("pointerdown", e => {

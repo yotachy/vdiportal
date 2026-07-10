@@ -186,6 +186,13 @@
   </div>
   <p class="sec-desc" style="margin-top:14px"><b>정직 표기</b> — 이건 <b>"위/아래로 그만큼 닿을 확률"</b>이지 <b>방향</b>(오를지 내릴지) 예측이 아닙니다. 두 모델(도달·낙폭) 모두 지속성·다수결 두 기준을 <b>세 지평 모두</b>에서 넘겨야 진짜로 인정했습니다(문턱은 √기간 스케일 — 고정 5%는 긴 지평서 흔해져 약화라 기각). 함께 검증됐으나 보류: 박스권 유지(63.3%)는 변동성과 겹쳐 우선 제외.</p>
 
+  <h2 id="live">📡 라이브 트랙레코드 <span style="font-size:12px;color:var(--bull);font-weight:800">실시간 누적</span></h2>
+  <p class="sec-desc">위 백테스트는 <b>과거 데이터</b> 검증입니다. 여기는 <b>실제 사용 중 낸 예측</b>을 만기(수십 거래일)까지 기다렸다가 <b>실제 결과로 채점</b>한 성적입니다 — 백테스트 edge가 실전에서도 유지되는지 보는 정직한 지표. 예측이 만기에 도달하는 대로 자동으로 채워집니다.</p>
+  <div id="liveWrap" class="calwrap" style="padding:18px 20px">
+    <div id="liveBody" style="font-size:13.5px;color:var(--eth)">불러오는 중…</div>
+  </div>
+  <p class="sec-desc" style="margin-top:12px;font-size:12px">채점 방식 — 예측 시점의 종목·주기·예측값을 서버 원장에 기록하고, 만기 봉이 도래하면 그 사이 실제 가격으로 방향·변동성·낙폭(5%)·이익목표(+5%) 발생을 대조합니다. 낙폭·이익목표는 <b>예측 평균 확률 vs 실제 발생률</b>(캘리브레이션)로 표기. 표본이 쌓일수록 신뢰도가 올라갑니다.</p>
+
   <h2>🧭 스쿱포지, 이렇게 쓰세요</h2>
   <p class="sec-desc">위 검증 결과를 실제 사용으로 옮기면 — 무엇을 믿고 무엇을 걸러야 하는지가 분명해집니다.</p>
   <div class="usage">
@@ -368,6 +375,25 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
 })();
 
 document.getElementById("foot").innerHTML = "스쿱포지 엔진 v1.7.0 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
+
+/* ── 라이브 트랙레코드 렌더 — forge-api.php 원장 조회 ── */
+(async function renderLive(){
+  const body=document.getElementById("liveBody"); if(!body) return;
+  const pc=x=>(x==null?"—":(x*100).toFixed(1)+"%");
+  let a=null;
+  try{ const r=await fetch("forge-api.php?predledger=1",{cache:"no-store"}); if(r.ok) a=await r.json(); }catch(e){}
+  if(!a||!a.ok){ body.innerHTML="<span style='color:var(--faint)'>서버에 연결되지 않아 라이브 성적을 불러오지 못했습니다. (로컬/오프라인)</span>"; return; }
+  const resolved=a.resolved||0, pending=a.pending||0;
+  const head=`<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:baseline;margin-bottom:14px"><span style="font-size:22px;font-weight:800;color:var(--ink)">채점 ${resolved}건</span><span style="color:var(--faint)">대기 ${pending}건</span>${a.since?`<span style="color:var(--faint)">기록 시작 ${a.since}</span>`:""}</div>`;
+  if(resolved===0){ body.innerHTML=head+`<span style="color:var(--faint)">아직 만기에 도달한 예측이 없습니다. 사용자들이 실제 종목을 웹분석하면 예측이 기록되고, 수십 거래일 뒤 만기가 오면 실제 결과로 자동 채점되어 여기 채워집니다.</span>`; return; }
+  const row=(label,val,sub,tag)=>`<div style="display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line)"><span style="color:var(--eth);font-weight:600;font-size:12.5px">${label}</span><span><b style="font-size:15px;color:var(--ink)">${val}</b> <span style="color:var(--faint);font-size:12px">${sub||""}</span> ${tag?`<span style="color:var(--gold);font-size:11px;background:rgba(232,180,99,.13);border-radius:99px;padding:1px 7px;margin-left:4px">${tag}</span>`:""}</span></div>`;
+  let rows="";
+  if(a.dir&&a.dir.n) rows+=row("방향 적중", pc(a.dir.rate), `(${a.dir.n}건 · 백테스트 ~58%)`, "참고");
+  if(a.vol&&a.vol.n) rows+=row("변동성 예보 적중", pc(a.vol.rate), `(${a.vol.n}건 · 백테스트 68%)`, "검증축");
+  if(a.dd&&a.dd.n) rows+=row("낙폭(5%) 예측", `예측 ${pc(a.dd.predAvg)} · 실제 ${pc(a.dd.actRate)}`, `(${a.dd.n}건 · 근접할수록 정확)`, "캘리브레이션");
+  if(a.up&&a.up.n) rows+=row("이익목표(+5%) 도달", `예측 ${pc(a.up.predAvg)} · 실제 ${pc(a.up.actRate)}`, `(${a.up.n}건)`, "캘리브레이션");
+  body.innerHTML=head+(rows||"<span style='color:var(--faint)'>채점된 지표가 아직 없습니다.</span>");
+})();
 
 /* ── 라이브 재현 위젯 — 브라우저에서 실데이터로 walk-forward 직접 실행 ── */
 const EXPECTED = {"BABA":{dir:0.493,cone:0.845,pnl:1.49,bh:0.259,base:0.513,rg:"횡보"},"PYPL":{dir:0.547,cone:0.833,pnl:3.896,bh:0.139,base:0.546,rg:"횡보"},"PFE":{dir:0.549,cone:0.888,pnl:0.23,bh:-0.035,base:0.544,rg:"횡보"},"NVDA":{dir:0.579,cone:0.832,pnl:49.162,bh:326.235,base:0.671,rg:"강세"}};

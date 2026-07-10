@@ -33,6 +33,10 @@
   .eng-ver{font-size:10px;color:var(--gold);font-family:var(--mono);font-weight:800;letter-spacing:.03em;background:rgba(232,180,99,.12);border-radius:99px;padding:2px 8px;line-height:1;cursor:pointer;transition:background .12s;white-space:nowrap}
   .eng-ver:hover{background:rgba(232,180,99,.22)}
   .eng-ver:empty{display:none}
+  .live-track{font-size:10px;color:var(--bull);font-family:var(--mono);font-weight:800;letter-spacing:.03em;background:rgba(70,194,142,.13);border-radius:99px;padding:2px 8px;line-height:1;cursor:pointer;transition:background .12s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+  .live-track::before{content:"";width:6px;height:6px;border-radius:99px;background:var(--bull);box-shadow:0 0 0 0 rgba(70,194,142,.6);animation:livePulse 2.4s ease-out infinite}
+  @keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(70,194,142,.5)}70%{box-shadow:0 0 0 5px rgba(70,194,142,0)}100%{box-shadow:0 0 0 0 rgba(70,194,142,0)}}
+  .live-track:hover{background:rgba(70,194,142,.22)}
   .forge-top .brand-mark{filter:drop-shadow(0 1px 4px rgba(232,180,99,.3))}
   /* 주 액션 '웹분석' 격상 */
   .run-btn{padding:9px 18px!important;font-size:13.5px!important;border-radius:var(--r-lg)!important;letter-spacing:-.01em}
