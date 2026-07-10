@@ -41,6 +41,7 @@
   .seg button.on{background:var(--gold);color:#1a1206}
 
   .app{flex:1;display:grid;grid-template-columns:226px 1fr var(--rside-w,300px);min-height:0;transition:grid-template-columns .22s cubic-bezier(.4,0,.2,1)}
+  .app.resizing{transition:none}
   .app.collapsed{grid-template-columns:44px 1fr var(--rside-w,300px)}
   body.view .app{grid-template-columns:226px 1fr}
   body.view .app.collapsed{grid-template-columns:44px 1fr}
@@ -471,9 +472,9 @@ function lsSet(k,v){try{localStorage.setItem(k,v);return true}catch(e){return fa
 const RSIDE_MIN=220,RSIDE_MAX=640;
 function setRsideW(px){px=Math.max(RSIDE_MIN,Math.min(RSIDE_MAX,Math.round(px)));const a=document.getElementById('app');if(a)a.style.setProperty('--rside-w',px+'px');lsSet('potflow_rside_w',String(px));}
 (function(){const g=document.getElementById('rsideGutter');if(!g)return;let on=false;
-  g.addEventListener('pointerdown',e=>{e.preventDefault();on=true;try{g.setPointerCapture(e.pointerId)}catch(_){}});
+  g.addEventListener('pointerdown',e=>{e.preventDefault();on=true;document.getElementById('app').classList.add('resizing');try{g.setPointerCapture(e.pointerId)}catch(_){}});
   g.addEventListener('pointermove',e=>{if(on)setRsideW(window.innerWidth-e.clientX);});
-  g.addEventListener('pointerup',()=>{on=false;});g.addEventListener('pointercancel',()=>{on=false;});
+  g.addEventListener('pointerup',()=>{on=false;document.getElementById('app').classList.remove('resizing');});g.addEventListener('pointercancel',()=>{on=false;document.getElementById('app').classList.remove('resizing');});
 })();
 /* ---------- 후원 / PRO 라이센스(자체검증 키) ---------- */
 const SUPPORT_ACCOUNT="OO은행 000-000000-00 · 예금주 OOO";
