@@ -121,6 +121,22 @@
   .ea-outs{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
   .ea-outs span{font-size:11px;font-weight:700;color:var(--ink);background:var(--raised);border:1px solid var(--line);border-radius:var(--r-md);padding:4px 11px}
   @media(max-width:600px){ .ea-clus{grid-template-columns:repeat(2,1fr)} .ea-spines{grid-template-columns:1fr} }
+  /* 시각화 토글 */
+  .ea-seg{display:inline-flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:3px;margin:2px 0 14px}
+  .ea-segb{background:transparent;border:0;color:var(--eth);font-weight:800;font-size:12px;padding:6px 15px;border-radius:99px;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:.15s}
+  .ea-segb.on{background:var(--gold);color:#1a1206}
+  .ea-segb:not(.on):hover{color:var(--ink)}
+  /* 라이브 회로 */
+  .ea-live{background:radial-gradient(120% 80% at 50% 0%,rgba(232,180,99,.07),transparent 55%),radial-gradient(90% 60% at 22% 65%,rgba(224,106,106,.05),transparent 60%),radial-gradient(90% 60% at 78% 55%,rgba(70,194,142,.06),transparent 60%),var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:10px 6px 8px;overflow:hidden}
+  .ea-live svg{width:100%;height:auto;display:block}
+  .ea-halo{animation:eaBreath 3.4s ease-in-out infinite}
+  @keyframes eaBreath{0%,100%{opacity:.16}50%{opacity:.34}}
+  .ea-lv-lab{font-size:12.5px;font-weight:800;fill:var(--ink);letter-spacing:-.01em}
+  .ea-lv-sub{font-size:10px;font-weight:700;fill:var(--eth)}
+  .ea-lv-spine{font-size:11px;font-weight:800;letter-spacing:.08em}
+  .ea-lv-tag{font-size:10px;font-weight:800}
+  .ea-lv-cap{fill:var(--faint);font-size:10.5px}
+  @media(prefers-reduced-motion:reduce){ .ea-halo{animation:none} .ea-live [begin]{display:none} .ea-fl::after{animation:none;display:none} }
   @media(max-width:560px){.en-lbl{font-size:9.5px}.en-title{font-size:9px}}
   .chlog{display:flex;flex-direction:column;gap:10px}
   .cl-item{border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;background:#0b1016}
@@ -160,7 +176,12 @@
 
   <h2>🫀 분석 엔진 해부도</h2>
   <p class="sec-desc">개념 도식이 아니라 <b>실제 <span class="ea-run" style="background:none;padding:0">run()</span> 파이프라인</b> 그대로입니다. 눈여겨볼 점 — 정교한 <b>지표 파이프라인</b>과 <b>변동성 리스크 모델</b>은 <b>서로 다른 경로</b>입니다. 그래서 방향은 시장을 못 이겨도(왼쪽) 변동성·리스크는 검증된 예측력을 갖습니다(오른쪽).</p>
-  <div class="ea">
+  <div class="ea-seg" role="tablist" aria-label="시각화 방식">
+    <button class="ea-segb on" data-eaview="live" role="tab" aria-selected="true">⚡ 라이브 회로</button>
+    <button class="ea-segb" data-eaview="map" role="tab" aria-selected="false">▤ 상세 도식</button>
+  </div>
+  <div class="ea-live" id="eaLive"></div>
+  <div class="ea" id="eaMap" hidden>
     <div class="ea-cap">데이터 → 두 갈래 → 판정. <b>초록</b> = 백테스트 검증됨, <i>회색</i> = 정직한 한계.</div>
 
     <!-- 01 데이터 입력 -->
@@ -451,7 +472,62 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   document.getElementById("calchart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;margin:0 auto"><rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>${g}</svg>`;
 })();
 
-// 엔진 해부도는 정적 HTML(위 .ea 마크업)로 대체됨 — JS 렌더 불필요.
+// 엔진 해부도 · 라이브 회로 — 실제 run() 파이프라인을 발광 노드 + 흐르는 신호 입자로.
+(function renderEngineLive(){
+  const host=document.getElementById("eaLive"); if(!host) return;
+  const W=900,H=640, C={eth:"var(--eth)",gold:"var(--gold)",bull:"var(--bull)",bear:"var(--bear)"};
+  const N={
+    data :{x:450,y:54, r:17,c:C.eth, lab:"데이터",       sub:"OHLCV · 600봉",    pl:"below"},
+    ind  :{x:236,y:172,r:16,c:C.gold, lab:"지표 배터리 30종", sub:"6개 기능군",       pl:"left"},
+    feat :{x:664,y:172,r:16,c:C.bull, lab:"변동성 피처",   sub:"10차원 · 독립경로", pl:"right"},
+    drift:{x:236,y:296,r:14,c:C.gold, lab:"드리프트 합성", sub:"±0.28 캡 · TF",    pl:"left"},
+    risk :{x:664,y:308,r:19,c:C.bull, lab:"리스크 3축",    sub:"68 · 68 · 64% ✓",  pl:"right"},
+    dir  :{x:236,y:420,r:15,c:C.bear, lab:"방향 · 예측 콘", sub:"58% · 못 이김",     pl:"left"},
+    cal  :{x:404,y:504,r:13,c:C.bull, lab:"캘리브레이션",  sub:"ECE 1.9% ✓",       pl:"left"},
+    out  :{x:512,y:566,r:19,c:C.gold, lab:"판정 출력",     sub:"국면 · R:R · 목표", pl:"right"},
+  };
+  const E=[["data","ind",C.eth,2],["data","feat",C.eth,2],["ind","drift",C.gold,2],["drift","dir",C.gold,2],["feat","risk",C.bull,3],["dir","cal",C.gold,2],["cal","out",C.gold,2],["risk","out",C.bull,3]];
+  const pathD=(a,b)=>{ const mx=(a.x+b.x)/2,my=(a.y+b.y)/2,dx=b.x-a.x,dy=b.y-a.y; return `M${a.x} ${a.y} Q${(mx-dy*0.14).toFixed(1)} ${(my+dx*0.14).toFixed(1)} ${b.x} ${b.y}`; };
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="분석 엔진 라이브 회로 — 데이터가 두 갈래(지표·리스크)를 거쳐 판정에 이르는 신호 흐름">`;
+  s+=`<defs><filter id="eaGlow" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="4.5"/></filter></defs>`;
+  s+=`<text x="236" y="128" text-anchor="middle" class="ea-lv-spine" fill="${C.eth}">경로 A · 지표 파이프라인</text>`;
+  s+=`<text x="664" y="128" text-anchor="middle" class="ea-lv-spine" fill="${C.bull}">경로 B · 변동성 리스크</text>`;
+  let paths="",wires="",dots="";
+  E.forEach((e,i)=>{ const a=N[e[0]],b=N[e[1]],id="eap"+i,d=pathD(a,b);
+    paths+=`<path id="${id}" d="${d}" fill="none"/>`;
+    wires+=`<path d="${d}" fill="none" stroke="${e[2]}" stroke-width="1.5" stroke-opacity=".26"/>`;
+    const dur=2.4+(i%3)*0.55;
+    for(let k=0;k<e[3];k++){ const bg=(k*dur/e[3]).toFixed(2);
+      dots+=`<circle r="3" fill="${e[2]}" filter="url(#eaGlow)"><animateMotion dur="${dur}s" begin="${bg}s" repeatCount="indefinite"><mpath href="#${id}"/></animateMotion></circle>`
+          +`<circle r="1.6" fill="#fff" fill-opacity=".92"><animateMotion dur="${dur}s" begin="${bg}s" repeatCount="indefinite"><mpath href="#${id}"/></animateMotion></circle>`;
+    }
+  });
+  s+=`<g>${paths}</g>`+wires+dots;
+  Object.keys(N).forEach((k,i)=>{ const n=N[k];
+    s+=`<circle cx="${n.x}" cy="${n.y}" r="${n.r+8}" fill="${n.c}" class="ea-halo" filter="url(#eaGlow)" style="animation-delay:${(i*0.28).toFixed(2)}s"/>`;
+    s+=`<circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="var(--surface)" stroke="${n.c}" stroke-width="2.6"/>`;
+    let lx,ly1,ly2,anc;
+    if(n.pl==="below"){ anc="middle"; lx=n.x; ly1=n.y+n.r+16; ly2=ly1+13; }
+    else if(n.pl==="left"){ anc="end"; lx=n.x-n.r-10; ly1=n.y-2; ly2=n.y+11; }
+    else { anc="start"; lx=n.x+n.r+10; ly1=n.y-2; ly2=n.y+11; }
+    s+=`<text x="${lx}" y="${ly1}" text-anchor="${anc}" class="ea-lv-lab">${n.lab}</text>`;
+    s+=`<text x="${lx}" y="${ly2}" text-anchor="${anc}" class="ea-lv-sub">${n.sub}</text>`;
+  });
+  // 범례
+  s+=`<g transform="translate(${W/2-150},${H-14})"><circle cx="0" cy="-4" r="4" fill="${C.bull}"/><text x="9" y="0" class="ea-lv-cap">검증됨</text>`
+   +`<circle cx="86" cy="-4" r="4" fill="${C.bear}"/><text x="95" y="0" class="ea-lv-cap">정직한 한계</text>`
+   +`<text x="196" y="0" class="ea-lv-cap">흐르는 입자 = 신호 흐름</text></g>`;
+  host.innerHTML=s+`</svg>`;
+})();
+// 시각화 토글(라이브 ↔ 도식)
+(function(){ const seg=document.querySelector(".ea-seg"); if(!seg) return;
+  seg.addEventListener("click",e=>{ const b=e.target.closest("[data-eaview]"); if(!b) return;
+    const v=b.dataset.eaview;
+    seg.querySelectorAll(".ea-segb").forEach(x=>{ const on=x===b; x.classList.toggle("on",on); x.setAttribute("aria-selected",on); });
+    const live=document.getElementById("eaLive"), map=document.getElementById("eaMap");
+    if(live) live.hidden=(v!=="live"); if(map) map.hidden=(v!=="map");
+  });
+})();
 
 document.getElementById("foot").innerHTML = "스쿱포지 엔진 v1.7.1 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
 
