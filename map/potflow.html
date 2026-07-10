@@ -178,6 +178,9 @@
   .group-label{position:absolute;top:-11px;left:14px;font-size:11.5px;font-weight:700;color:var(--gold);background:#0e1116;padding:1px 8px;border-radius:6px;border:1px solid var(--gold-dim);pointer-events:auto;outline:none;font-family:var(--mono)}
   .group-del{position:absolute;top:-12px;right:10px;width:20px;height:20px;border-radius:6px;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);cursor:pointer;font-size:11px;display:grid;place-items:center;pointer-events:auto}
   .group-del:hover{color:var(--red);border-color:var(--red)}
+  .group-bar{position:absolute;top:-13px;right:38px;display:flex;gap:4px;pointer-events:auto}
+  .gbtn{font-size:10.5px;font-weight:700;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);border-radius:6px;padding:1px 7px;cursor:pointer;white-space:nowrap}
+  .gbtn:hover{background:var(--gold);color:#1a1206}
 
   .node{position:absolute;width:246px;background:var(--surface);border:1.5px solid var(--line);border-radius:13px;box-shadow:0 12px 30px -18px #000;cursor:grab;transition:border-color .12s,box-shadow .12s}
   .node.mini{width:150px}
@@ -736,8 +739,12 @@ function nodeHTML(n){
     <div class="n-body"><div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div>
       <div class="n-desc" contenteditable="${ce()}" data-field="desc">${esc(n.desc)}</div>${media}</div>${ports}</div>`;
 }
+function gridLabel(g){return g.grid?`${g.grid[0]}×${g.grid[1]}`:'자동';}
 function groupHTML(g){
-  return `<div class="group" data-gid="${g.id}"><div class="group-label" contenteditable="${ce()}" data-gfield="title">${esc(g.title)}</div><button class="group-del edit-only" data-gact="del">✕</button></div>`;
+  return `<div class="group" data-gid="${g.id}"><div class="group-label" contenteditable="${ce()}" data-gfield="title">${esc(g.title)}</div>`+
+    `<div class="group-bar edit-only"><button class="gbtn" data-gact="play" title="그룹 일괄 재생(그리드 배치)">▶ 일괄재생</button>`+
+    `<button class="gbtn" data-gact="grid" title="재생창 그리드">▦ ${gridLabel(g)}</button></div>`+
+    `<button class="group-del edit-only" data-gact="del">✕</button></div>`;
 }
 function render(){
   [...world.querySelectorAll('.node,.group')].forEach(e=>e.remove());
@@ -1018,10 +1025,22 @@ function addMiniCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r
 function addTextCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const nn=makeNode(p.x-40,p.y-14,'텍스트',"text");render();selectOnly(nn.id);markDirty()}
 function duplicateSelection(){if(!sel.length){toast('선택된 노드 없음');return}const ids=new Set(sel);const nodes=state.nodes.filter(n=>ids.has(n.id));const edges=state.edges.filter(e=>ids.has(e.from)&&ids.has(e.to));const off=26,map={};const nn=nodes.map(n=>{const c=JSON.parse(JSON.stringify(n));const id=uid('n');map[n.id]=id;c.id=id;c.x=(c.x||0)+off;c.y=(c.y||0)+off;return c});state.nodes.push(...nn);edges.forEach(e=>{const f=map[e.from],t=map[e.to];if(!f||!t)return;const c=JSON.parse(JSON.stringify(e));c.id=uid('e');c.from=f;c.to=t;state.edges.push(c)});render();sel=nn.map(n=>n.id);selEdge=null;applySel();paint();markDirty();toast('복제 · '+nn.length+'개')}
 function makeGroup(){if(sel.length<2)return;state.groups=state.groups||[];state.groups.push({id:uid('g'),nodes:[...sel],title:'그룹'});render();markDirty();toast('그룹 생성')}
+const GROUP_GRIDS=[null,[2,1],[2,2],[3,2],[3,3],[4,2],[4,3]];
+function cycleGroupGrid(gid){const g=G(gid);if(!g)return;const key=x=>x?`${x[0]}x${x[1]}`:'null';const cur=key(g.grid);let i=GROUP_GRIDS.findIndex(x=>key(x)===cur);g.grid=GROUP_GRIDS[(i+1)%GROUP_GRIDS.length];render();markDirty();toast('그리드: '+gridLabel(g));}
+function playGroup(gid){const g=G(gid);if(!g)return;
+  const vids=g.nodes.map(N).filter(n=>n&&n.videoPath);
+  if(!vids.length){toast('그룹에 동영상 노드가 없습니다');return}
+  let c,r;
+  if(g.grid&&vids.length<=g.grid[0]*g.grid[1]){c=g.grid[0];r=g.grid[1];}
+  else{c=Math.ceil(Math.sqrt(vids.length));r=Math.ceil(vids.length/c);}
+  const items=vids.map((n,i)=>{const col=i%c,row=Math.floor(i/c);
+    return {path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:{mon:0,x:col/c,y:row/r,w:1/c,h:1/r}};});
+  playItems(items);
+}
 
 /* ---------- stage pointer ---------- */
 stage.addEventListener('pointerdown',e=>{
-  if(e.target.closest('.group-label,.group-del,.hbar,.hbtn,.hbtn2,.nsw,.elabel'))return;
+  if(e.target.closest('.group-label,.group-del,.group-bar,.hbar,.hbtn,.hbtn2,.nsw,.elabel'))return;
   if(e.button===1||(spaceDown&&e.button===0)){if(spaceDown&&e.button===0)spacePanned=true;startPan(e);return}
   if(e.button!==0)return;
   if(mode==='edit'){
@@ -1152,7 +1171,12 @@ world.addEventListener('click',e=>{
   const al=e.target.closest('[data-align]');if(al){alignSel(al.dataset.align);return}
   const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='add')addChild(id);else if(a==='rmthumb')setThumb(id,null);return}
-  const gb=e.target.closest('[data-gact]');if(gb&&gb.dataset.gact==='del'){const id=gb.closest('.group').dataset.gid;state.groups=state.groups.filter(g=>g.id!==id);render();markDirty();toast('그룹 해제')}
+  const gb=e.target.closest('[data-gact]');
+  if(gb){const gid=gb.closest('.group').dataset.gid,a=gb.dataset.gact;
+    if(a==='del'){state.groups=state.groups.filter(g=>g.id!==gid);render();markDirty();toast('그룹 해제');}
+    else if(a==='play'){playGroup(gid);}
+    else if(a==='grid'){cycleGroupGrid(gid);}
+    return;}
 });
 world.addEventListener('focusout',e=>{
   const f=e.target.dataset?.field;if(f){const id=e.target.closest('.node').dataset.id,n=N(id);if(n)n[f]=e.target.innerText.replace(/\u00a0/g,' ').trim();markDirty();return}
