@@ -205,7 +205,7 @@ class Handler(BaseHTTPRequestHandler):
         raw = self.rfile.read(length) or b"{}"
         try:
             body = json.loads(raw)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
             return self._send(400, {"ok": False, "error": "invalid JSON body"})
         if not isinstance(body, dict):
             return self._send(400, {"ok": False, "error": "invalid JSON body"})
