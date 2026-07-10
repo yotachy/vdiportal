@@ -1191,11 +1191,13 @@ function fmtSize(b){if(!b)return'';const u=['B','KB','MB','GB'];let i=0,n=b;whil
 function fmtDate(ep){if(!ep)return'';const d=new Date(ep*1000);const p=x=>String(x).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 function openFolder(path){
   if(!HELPER_OK){toast('헬퍼가 꺼져 있습니다');return}
+  const reqId=activeId;   // 요청 시점 캔버스 — 전환 후 늦게 온 응답은 무시(레이스 방지)
   fetch(HELPER+"/tree?path="+encodeURIComponent(path||"")).then(r=>r.json()).then(d=>{
+    if(activeId!==reqId)return;
     if(!d.ok){toast('폴더를 열 수 없습니다: '+(d.error||''));return}
     rsPathEl.value=d.path;rsData=d;renderExplorer();
-    const _c=canvases.find(x=>x.id===activeId);if(_c&&_c.rsPath!==d.path){_c.rsPath=d.path;markDirty();}
-  }).catch(()=>toast('폴더를 열 수 없습니다'));
+    const _c=canvases.find(x=>x.id===reqId);if(_c&&_c.rsPath!==d.path){_c.rsPath=d.path;markDirty();}
+  }).catch(()=>{if(activeId===reqId)toast('폴더를 열 수 없습니다');});
 }
 function rsRow(cls,name,path,draggable){
   const row=document.createElement('div');
