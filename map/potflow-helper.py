@@ -58,6 +58,69 @@ def find_exe(candidates):
             return w
     return None
 
+CONFIG_FILE = os.path.join(ROOT, "potflow-config.txt")
+
+def _config_get(key):
+    # potflow-config.txt 의 `key=경로` 한 줄 읽기(자동탐지 실패 시 수동 지정용)
+    try:
+        if os.path.isfile(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    s = line.strip()
+                    if not s or s.startswith("#") or "=" not in s:
+                        continue
+                    k, _, v = s.partition("=")
+                    if k.strip().lower() == key:
+                        v = v.strip().strip('"').strip("'")
+                        return v or None
+    except OSError:
+        pass
+    return None
+
+def find_potplayer():
+    # 1) 환경변수/설정파일 우선  2) 흔한 설치경로+이름  3) PATH  4) 레지스트리 App Paths
+    cand = os.environ.get("POTPLAYER_PATH") or _config_get("potplayer")
+    if cand and os.path.isfile(cand):
+        return cand
+    names = ["PotPlayerMini64.exe", "PotPlayer64.exe", "PotPlayerMini.exe", "PotPlayer.exe"]
+    subdirs = [os.path.join("DAUM", "PotPlayer"), os.path.join("DAUM", "PotPlayer64"),
+               "PotPlayer", os.path.join("Kakao", "PotPlayer"), os.path.join("DAUM", "PotPlayerMini")]
+    roots = [os.environ.get(ev) for ev in ("ProgramW6432", "ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA")]
+    for root in filter(None, roots):
+        for sd in subdirs:
+            for n in names:
+                p = os.path.join(root, sd, n)
+                if os.path.isfile(p):
+                    return p
+    for n in names:
+        w = shutil.which(n)
+        if w:
+            return w
+    try:
+        import winreg
+        for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+            for n in names:
+                try:
+                    with winreg.OpenKey(hive, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths" + "\\" + n) as k:
+                        val = winreg.QueryValueEx(k, None)[0]
+                        if val and os.path.isfile(val):
+                            return val
+                except OSError:
+                    continue
+    except Exception:
+        pass
+    return None
+
+def find_ffmpeg():
+    cand = os.environ.get("FFMPEG_PATH") or _config_get("ffmpeg")
+    if cand:
+        if os.path.isfile(cand):
+            return cand
+        w = shutil.which(cand)
+        if w:
+            return w
+    return shutil.which("ffmpeg")
+
 def scan_tree(path):
     try:
         ap = os.path.abspath(path)
@@ -178,7 +241,7 @@ def player_cmd(exe, path, seek=None):
 def bookmark_thumb(video, ms, embedded):
     if embedded:
         return "data:image/jpeg;base64," + embedded
-    ff = find_exe([FFMPEG_PATH])
+    ff = find_ffmpeg()
     if not ff or not os.path.isfile(video):
         return None
     os.makedirs(THUMB_DIR, exist_ok=True)
@@ -238,7 +301,7 @@ def get_thumb(video_path):
     if os.path.isfile(out) and os.path.getsize(out) > 0:
         with open(out, "rb") as f:
             return f.read(), ""
-    ff = find_exe([FFMPEG_PATH])
+    ff = find_ffmpeg()
     if not ff or not os.path.isfile(video_path):
         return None, "ffmpeg or video missing"
     os.makedirs(THUMB_DIR, exist_ok=True)
@@ -392,9 +455,9 @@ def normalize_play_items(body):
     return [{"path": p, "seek": seek, "win": None} for p in body.get("paths", []) if p]
 
 def launch_players(items):
-    exe = find_exe([POTPLAYER_PATH])
+    exe = find_potplayer()
     if not exe:
-        return {"ok": False, "error": "PotPlayer not found"}
+        return {"ok": False, "error": "PotPlayer를 찾을 수 없습니다 — 헬퍼 폴더의 potflow-config.txt에 potplayer=경로 를 지정하세요"}
     valid = [it for it in items if it.get("path") and os.path.isfile(it["path"])]
     if not valid:
         return {"ok": False, "error": "no valid videos"}
@@ -433,8 +496,8 @@ def save_doc(doc):
 def ping_payload():
     return {
         "ok": True,
-        "potplayer": find_exe([POTPLAYER_PATH]) is not None,
-        "ffmpeg": find_exe([FFMPEG_PATH]) is not None,
+        "potplayer": find_potplayer() is not None,
+        "ffmpeg": find_ffmpeg() is not None,
     }
 
 class Handler(BaseHTTPRequestHandler):
@@ -532,7 +595,11 @@ if __name__ == "__main__":
     os.makedirs(THUMB_DIR, exist_ok=True)
     srv = make_server(PORT)
     url = f"http://localhost:{PORT}/potflow.html"
+    _pp = find_potplayer()
+    _ff = find_ffmpeg()
     print(f"PotFlow helper 실행 중 → {url}")
+    print("PotPlayer: " + (_pp or "못 찾음 — potflow-config.txt 에 potplayer=경로 를 넣으세요"))
+    print("ffmpeg   : " + (_ff or "못 찾음(썸네일 비활성, 선택사항)"))
     print("이 창을 켜 두세요. 종료: Ctrl+C 또는 창 닫기")
     # 브라우저를 올바른 주소로 자동 오픈(파일 더블클릭/공개주소 실수 방지). POTFLOW_NO_BROWSER=1 로 끔.
     if not os.environ.get("POTFLOW_NO_BROWSER"):

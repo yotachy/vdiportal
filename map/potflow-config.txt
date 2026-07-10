@@ -1,0 +1,14 @@
+# PotFlow 설정 파일
+# PotPlayer / ffmpeg 를 자동으로 못 찾을 때만 여기에 경로를 지정하세요.
+# 아래 줄의 맨 앞 '#' 을 지우고 = 뒤에 실제 경로를 넣은 뒤 저장하고,
+# 헬퍼(검은 창)를 닫았다가 start-potflow.bat 을 다시 실행하세요.
+#
+# ── PotPlayer 실행파일 경로 ──
+# 찾는 법: 바탕화면/시작메뉴의 PotPlayer 아이콘 우클릭 → 속성 → "대상(T)" 칸의 경로.
+# 예)
+# potplayer=C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe
+#
+# ── ffmpeg 경로 (썸네일용, 선택) ──
+# 없어도 재생은 됩니다. 있으면 모든 포맷 썸네일 생성.
+# 예)
+# ffmpeg=C:\ffmpeg\bin\ffmpeg.exe
