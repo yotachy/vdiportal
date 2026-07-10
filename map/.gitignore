@@ -18,3 +18,10 @@ potflow_thumbs/
 # 라이브 트랙레코드 원장(서버 생성) — 불가침
 forge_predlog.json
 backtest/cone-cal-recs.json
+
+# 실적일 캐시(서버 생성·Nasdaq) — 불가침
+forge_earn_cache_*.json
+
+# 실적 검증 데이터(yfinance 수집·대용량) — 재수집 가능
+backtest/earn-ohlc.json
+backtest/earnings-dates.json

@@ -2085,6 +2085,14 @@ test("forecastGapRisk: 오버나잇 갭 예보 — 형식·주식게이트 [v1.9
   const nP = [], nC = [];
   for (let i = 0; i < 400; i++) { const c = 100 + i * 0.05 + Math.sin(i * 0.1) * 4; nP.push(c); nC.push({ o: i > 0 ? nP[i - 1] : c, h: c * 1.01, l: c * 0.99, c }); }
   assert.equal(ForgeCore.forecastGapRisk(nP, nC), null, "갭 없는 시장(시가≈전일종가) → 주식게이트로 null");
+  // 실적 인지 증강(v1.9.6): 실적일 정보 있으면 earnAug, 임박 시 갭확률↑
+  const base = ForgeCore.forecastGapRisk(gP, gC);
+  assert.equal(base.earnAug, false, "실적정보 없으면 증강 안 함(곡선 폴백)");
+  const near = ForgeCore.forecastGapRisk(gP, gC, { earnBars: 3, earnSince: 60 });
+  const far = ForgeCore.forecastGapRisk(gP, gC, { earnBars: 50, earnSince: 30 });
+  assert.equal(near.earnAug, true, "실적 임박 → earnAug true");
+  assert.ok(near.prob >= 0 && near.prob <= 100, "증강 prob 0~100");
+  assert.ok(near.prob > far.prob, "실적 임박(3봉)이 멀음(50봉)보다 갭확률↑: " + near.prob + " vs " + far.prob);
 });
 
 test("forecastTrendPersist: 추세 지속/소진 — 국면 한정·형식 [v1.9]", () => {

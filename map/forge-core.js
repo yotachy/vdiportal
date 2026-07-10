@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.9.5";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.9.6";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
   const _CONE_CAL = 0.75;
@@ -2054,7 +2054,7 @@
     context.ddRisk = forecastDrawdown(price, data && data.candle);          // 낙폭리스크 예보(v1.6.1) — 1/2/3개월 낙폭 위험곡선(하방 특화)
     context.upTarget = forecastUpside(price, data && data.candle);          // 이익목표 도달 예보(v1.7) — 1/2/3개월 +목표 도달 곡선(낙폭과 짝=확률 R:R)
     context.spikeRisk = forecastSpike(price, data && data.candle);          // 단일봉 급변 예보(v1.9.1) — 2주2σ/1달2.5σ/2달3σ 급변 위험곡선(갭·쇼크 경보)
-    context.gapRisk = forecastGapRisk(price, data && data.candle);          // 오버나잇 갭 예보(v1.9.4) — 1달2.2σ/1.5달2.7σ/2달3.2σ 갭 위험곡선(주식 한정·비주식 null)
+    context.gapRisk = forecastGapRisk(price, data && data.candle, { earnBars: opts && opts.earnBars, earnSince: opts && opts.earnSince });   // 오버나잇 갭 예보(v1.9.6) — 곡선 + 실적일 있으면 증강(주식 한정)
     context.trendPersist = forecastTrendPersist(price, context.state, context.strength);   // 추세 지속/소진 예보(v1.9) — 추세 국면서 이어질지 힘 빠질지(비방향)
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
@@ -2301,7 +2301,18 @@
     let s20 = 0; for (let i = t - 19; i <= t; i++) s20 += Math.log(price[i] / price[i - 1]) ** 2; const v20 = Math.sqrt(s20 / 20) || 1e-9;
     return [gv * 100, lastAbs * 100, cl, r5 * 100, gv / v20];
   }
-  function forecastGapRisk(price, candle) {
+  // 실적 인지 갭 증강(v1.9.6) — 외부 데이터(실적일)를 갭 모델에 결합. 향후 실적일까지 봉수(earnBars)가 있으면 20피처(변동성10+갭5+실적5) 모델로 대표 확률 대체.
+  // earnings-lab 검증(US주식 30종): 배포 갭모델(변동성+갭) 대비 종목외 +6.3%p(63.1→69.4%). 실적은 오버나잇 갭의 #1 촉매·가격과 비공선. 근접(≤20봉)만 봐도 동일(look-ahead 아님).
+  const _EGAP_MEAN = [-0.04929, -0.02695, -0.03681, -0.01314, 2.41611, 0.21141, 2.21986, 1.69683, -0.0603, 0.50503, 1.01625, 0.68554, 1.85162, 0.67741, 0.63904, 0.17477, 0.33352, 0.83312, 0.83244, 0.09578];
+  const _EGAP_STD = [0.33946, 0.24267, 0.30853, 0.15986, 1.46256, 0.10999, 1.39492, 1.11687, 0.26287, 0.30704, 0.65244, 1.03262, 1.5459, 0.63485, 0.2566, 0.37977, 0.47147, 0.29368, 0.29403, 0.29429];
+  const _EGAP_W = [0.15481, -0.05543, -0.08099, -0.01815, 0.12136, 0.01878, 0.28536, -0.16677, -0.05326, -0.11936, -0.46738, 0.04939, 0.16921, 0.01436, -0.46261, -0.04434, 0.6501, -0.12485, 0.16547, -0.02314], _EGAP_BB = -0.0869;
+  function _earnFeats(earnBars, earnSince) {
+    const tn = (earnBars != null && earnBars >= 0 && isFinite(earnBars)) ? earnBars : 9999;
+    const sc = (earnSince != null && earnSince >= 0 && isFinite(earnSince)) ? earnSince : 9999;
+    const vis = tn <= 20 ? tn : 99;   // 20봉 밖 실적 미가시(보수·look-ahead 방지)
+    return [tn <= 10 ? 1 : 0, tn <= 20 ? 1 : 0, vis === 99 ? 1 : vis / 20, Math.min(sc, 20) / 20, sc <= 5 ? 1 : 0];
+  }
+  function forecastGapRisk(price, candle, opts) {
     const x0 = _riskFeatures(price, candle); if (!x0) return null;
     const gf = _gapFeats(price, candle); if (!gf) return null;   // 주식 게이트(비주식 → null)
     const x = x0.concat(gf);
@@ -2310,8 +2321,17 @@
       const p = 1 / (1 + Math.exp(-s));
       return { h: z.h, lb: z.lb, sigma: z.sigma, prob: Math.round(p * 100), base: z.base, acc: z.acc, elevated: p >= 0.5 };
     });
-    const rep = curve[0];   // 대표=1달(H=20·2.2σ) — 하위호환
-    return { prob: rep.prob, base: rep.base, acc: rep.acc, elevated: rep.elevated, h: 20, sigma: 2.2, curve };
+    const rep = curve[0];   // 대표=1달(H=20·2.2σ)
+    // 실적일 정보(earnBars=향후 실적까지 봉수)가 있으면 대표를 20피처 증강 모델로 대체
+    const eb = opts && opts.earnBars, es = opts && opts.earnSince;
+    let prob = rep.prob, elevated = rep.elevated, acc = rep.acc, earnAug = false;
+    if (eb != null || es != null) {
+      const xe = x.concat(_earnFeats(eb, es));
+      let s = _EGAP_BB; for (let j = 0; j < xe.length; j++) s += _EGAP_W[j] * (xe[j] - _EGAP_MEAN[j]) / _EGAP_STD[j];
+      const p = 1 / (1 + Math.exp(-s));
+      prob = Math.round(p * 100); elevated = p >= 0.5; acc = 69; earnAug = true;
+    }
+    return { prob, base: rep.base, acc, elevated, h: 20, sigma: 2.2, curve, earnAug, earnBars: (eb != null ? eb : null) };
   }
   // 추세 지속/소진 예보(v1.9) — 추세 국면(up/down)에서 향후 20봉 뒤 추세가 지속되나 소진(→횡보)하나.
   // 비방향(방향 못맞혀도 '추세가 이어질지 힘 빠질지'는 예측). 종목외 확증: up OOS 75.9%·down 74.5%(다수결60·52 초과, strength만보다 +8~19pp).

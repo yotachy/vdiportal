@@ -1518,8 +1518,10 @@
       const _gapcv = _gap && _gap.curve;
       const gpHtml = _gap ? (function () {
         const rows = (_gapcv || []).map(c => `· ${c.lb}(${c.h}봉) ${c.sigma}σ↑: ${c.prob}% (평시 ${c.base}% · OOS ${c.acc}%)`).join("&#10;");
-        const tip = "하루 만에 큰 오버나잇 갭(시가가 전일 종가 대비 크게 벌어짐, 갭업·갭다운 무관)이 나올 확률 — 지평이 길수록 문턱↑(대각선 곡선). 대표=1달(2.2σ).&#10;⚠️가격 방향 예측 아님 — '큰 갭이 뜰까'. 급변 경보(일중·종가)와 다른 데이터 슬라이스(시가 vs 전일종가). 급변축 대비 종목외 +3~4%p 증분.&#10;" + rows + "&#10;주식 한정 — 24h 시장(FX·크립토) 미표시. " + (_gap.elevated ? "→ 평시보다 높음 · 갭 대비" : "→ 평시 수준");
-        return `<span class="fcv-vol ${_gap.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">▮ <b>${_gap.prob}%</b><span class="vol-vf">평시 ${_gap.base}%</span></span>`;
+        const eaug = _gap.earnAug;   // 실적 인지 증강(v1.9.6)
+        const earnLine = eaug ? "&#10;📅 실적 인지 증강" + (_gap.earnBars != null ? "(다음 실적 ≈D-" + _gap.earnBars + ")" : "") + " — 실적일 근접이 갭을 유발(종목외 +6.3%p·외부데이터)." : "";
+        const tip = "하루 만에 큰 오버나잇 갭(시가가 전일 종가 대비 크게 벌어짐, 갭업·갭다운 무관)이 나올 확률 — 지평이 길수록 문턱↑(대각선 곡선). 대표=1달(2.2σ).&#10;⚠️가격 방향 예측 아님 — '큰 갭이 뜰까'. 급변 경보(일중·종가)와 다른 데이터 슬라이스(시가 vs 전일종가)." + earnLine + "&#10;" + rows + "&#10;주식 한정 — 24h 시장(FX·크립토) 미표시. " + (_gap.elevated ? "→ 평시보다 높음 · 갭 대비" : "→ 평시 수준");
+        return `<span class="fcv-vol ${_gap.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">▮ <b>${_gap.prob}%</b>${eaug ? "<span class=\"vol-vf\" style=\"background:var(--gold-dim);color:var(--gold)\">📅D-" + (_gap.earnBars != null ? _gap.earnBars : "?") + "</span>" : "<span class=\"vol-vf\">평시 " + _gap.base + "%</span>"}</span>`;
       })() : "";
       // 추세 지속/소진 멀티지평 곡선(v1.9.5) — 2주/1달/2달 뒤에도 추세 유지할지. 비방향. 종목외 OOS 79/76/73%(상승)·76/75/73%(하락).
       const _tp = _ctx && _ctx.trendPersist;
@@ -1906,6 +1908,7 @@
       const r = await fetchOHLC(sym, tf);
       if (r && r.ok && Array.isArray(r.candles) && r.candles.length >= 2) {
         applyTickerOHLC(t, r); autoLogForTicker(t); runForge(); renderTickerPanel();
+        _loadEarnDate(t).then(() => { if (t._earnDate) { try { runForge(); } catch (e) {} } });   // 실적일 도착 시 갭 예보 증강 재분석(빠른 첫 렌더 후 정제)
         if (r.candles.length >= 20) bToast(sym + " " + (t._ohlc ? t._ohlc.length : r.candles.length) + "봉 · " + (_TFKO[tf] || tf));   // <20봉은 runForge의 _showInsufficient가 안내
       } else bToast("데이터를 찾을 수 없어요: " + sym);
     } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
@@ -2280,7 +2283,7 @@
     if (typeof scheduleDash === "function") scheduleDash();   // 매트릭스 데이터 준비(있으면) — 데모 중 순차 공개
     { const _h = document.getElementById("playHud"); if (_h) { _h.classList.add("on"); if (!_playHudUserCollapsed) { _h.classList.remove("collapsed"); const _mb = document.getElementById("playHudMin"); if (_mb) _mb.textContent = "–"; } } }   // 시뮬레이션 = 진행로그 자동 펼침(사용자가 접어둔 경우 제외, 모션축소 모드 포함)
     let steps;
-    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF(), driftWeights: _driftW }); }
+    try { steps = ForgeCore.runSteps(boardToGraph(), currentData(), { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF(), driftWeights: _driftW, ..._earnOpts() }); }
     catch (e) { console.warn("steps", e); return; }
     if (!steps.length) return;
     const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
@@ -2443,13 +2446,39 @@
     const _ad = activeDoc(); if (_ad) { delete _ad._verdict; if (typeof renderSidebar === "function") renderSidebar(); }   // 워치리스트 미니판정 배지 숨김(가짜 판정 방지)
     if (typeof bToast === "function") bToast((sym ? sym + ": " : "") + "데이터 부족 — 상장 초기 등으로 분석 불가(최소 20봉 필요)");
   }
+  // 실적 인지 갭(v1.9.6) — 활성 티커의 다가오는 실적일까지 거래일(근사)을 계산해 run opts로 전달. 미국주식만.
+  async function _loadEarnDate(node) {
+    try {
+      const sym = ((node.params && node.params.symbol) || "").trim().toUpperCase();
+      if (!sym || typeof SERVER_OK === "undefined" || !SERVER_OK || typeof apiGet !== "function") return;
+      if (/^\d{6}/.test(sym) || /-USD$/.test(sym) || /\//.test(sym) || /^(EUR|GBP|AUD|USD|XAU)/.test(sym)) return;   // KR·크립토·FX·상품 제외(주식만)
+      const a = await apiGet("?earndate=1&symbol=" + encodeURIComponent(sym));
+      if (a && a.ok && a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)) node._earnDate = a.date;
+    } catch (e) {}
+  }
+  function _bizDays(d1, d2) {   // d1<d2 사이 평일 수(거래일 근사)
+    const a = new Date(d1 + "T00:00:00Z"), b = new Date(d2 + "T00:00:00Z");
+    if (!(b > a)) return null;
+    let n = 0, cur = new Date(a);
+    while (cur < b && n < 400) { cur.setUTCDate(cur.getUTCDate() + 1); const wd = cur.getUTCDay(); if (wd >= 1 && wd <= 5) n++; }
+    return n;
+  }
+  function _earnOpts() {
+    try {
+      if (typeof activeTF === "function" && !/1day|일|day/.test(activeTF() || "")) return {};   // 일봉 분석만(실적 모델 도메인·earnBars 단위=거래일)
+      const tk = boardState.nodes.find(n => n.blockType === "ticker" && n._earnDate && Array.isArray(n._times) && n._times.length);
+      if (!tk) return {};
+      const eb = _bizDays(String(tk._times[tk._times.length - 1]).slice(0, 10), tk._earnDate);
+      return (eb != null && eb >= 0) ? { earnBars: eb } : {};
+    } catch (e) { return {}; }
+  }
   function runForge() {
     if (_playing) stopPlay();
     try {
       const g = boardToGraph();
       const d = currentData();
       if (!d || !Array.isArray(d.price) || d.price.length < 20) { _showInsufficient(); return; }   // 데이터 부족 → 데모 사인 대신 안내
-      lastResult = ForgeCore.run(g, d, { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF(), driftWeights: _driftW });
+      lastResult = ForgeCore.run(g, d, { futW: visionFutW(), visionBias: visionBiasLive(), timeframe: activeTF(), driftWeights: _driftW, ..._earnOpts() });
       _lastAnalyzedAt = Date.now();          // 이 결과의 분석 시각(자동·수동 모든 실행 공통)
       renderChart(lastResult, d);
       if (_needFit) { _needFit = false; try { if (typeof fitPrediction === "function") fitPrediction(); } catch (e) {} }   // 첫 표시=캔들 꽉참+예측밴드 위아래 전체 프레이밍
