@@ -1,27 +1,28 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-if not exist "potflow-helper.py" goto :missing
-if not exist "potflow.html" goto :missing
-echo PotFlow 헬퍼 시작 중... 이 창을 켜 두세요. (종료: 이 창 닫기)
+set "BASE=https://parksvc.mycafe24.com/map"
+echo ============================================================
+echo   PotFlow 준비 중... 필요한 파일을 자동으로 내려받습니다.
+echo   (이 .bat 하나만 있으면 됩니다. 인터넷 필요)
+echo ============================================================
+echo.
+call :getfile potflow.html
+call :getfile potflow-helper.py
+if not exist "potflow-config.txt" call :getfile potflow-config.txt
+echo.
+echo PotFlow 헬퍼 시작... 브라우저가 자동으로 열립니다. 이 창은 켜 두세요.
+echo (종료: 이 창 닫기)
 echo.
 python potflow-helper.py
 echo.
-echo 헬퍼가 멈췄습니다. 시작이 안 되면 python.org 에서 Python 설치 후 다시 실행하세요.
+echo 헬퍼가 멈췄습니다. Python이 없으면 https://www.python.org 에서 설치 후 다시 실행하세요.
 pause
 goto :eof
 
-:missing
-echo [오류] 이 폴더에 potflow-helper.py / potflow.html 가 없습니다.
-echo.
-echo 세 파일을 반드시 같은 폴더에 두세요:
-echo   start-potflow.bat, potflow-helper.py, potflow.html
-echo 현재 폴더: %cd%
-echo.
-echo 이 폴더의 potflow 관련 파일:
-dir /b potflow* 2>nul
-echo.
-echo 참고: 브라우저가 potflow-helper.py.txt 처럼 .txt 를 붙여 저장했을 수 있습니다.
-echo       그 경우 확장자를 .py / .html 로 고치세요. (탐색기 보기 - 파일 확장명 체크)
-echo.
-pause
+:getfile
+echo   내려받는 중: %~1
+curl -f -s -L -o "%~1.tmp" "%BASE%/%~1" && move /y "%~1.tmp" "%~1" >nul
+if not exist "%~1" powershell -NoProfile -Command "try{Invoke-WebRequest -Uri '%BASE%/%~1' -OutFile '%~1'}catch{}"
+del "%~1.tmp" >nul 2>nul
+goto :eof
