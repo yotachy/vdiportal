@@ -436,7 +436,6 @@ def arrange_windows(pids, rects):
         u.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]; u.SetWindowPos.restype = ctypes.c_int
         WNDENUM = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
         u.EnumWindows.argtypes = [WNDENUM, ctypes.c_void_p]; u.EnumWindows.restype = ctypes.c_int
-        time.sleep(1.2)  # 창이 뜰 시간
         want = {pid: rects[i] for i, pid in enumerate(pids) if i < len(rects)}
         placed = {}
         def cb(hwnd, _):
@@ -450,7 +449,11 @@ def arrange_windows(pids, rects):
                 u.SetWindowPos(ctypes.c_void_p(hwnd), None, x, y, w, h, 0x0040)  # SWP_SHOWWINDOW
                 placed[pid.value] = True
             return 1
-        u.EnumWindows(WNDENUM(cb), None)
+        for _ in range(16):            # 최대 ~8초: 늦게 뜨는 PotPlayer 창까지 재시도
+            time.sleep(0.5)
+            u.EnumWindows(WNDENUM(cb), None)
+            if len(placed) >= len(want):
+                break
     except Exception:
         pass
 
