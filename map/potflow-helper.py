@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PotFlow 로컬 헬퍼 — 정적 서빙 + 재생/탐색/썸네일/문서저장."""
-import os, sys, json, shutil, subprocess, hashlib, tempfile, math, base64
+import os, sys, json, shutil, subprocess, hashlib, tempfile, math, base64, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -13,6 +13,39 @@ THUMB_DIR = os.path.join(ROOT, "potflow_thumbs")
 DATA_FILE = os.path.join(ROOT, "potflow_data.json")
 VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".flv", ".m4v", ".ts", ".mpg", ".mpeg"}
 SEARCH_ROOTS = []
+
+# ── 재생 세션 추적 ────────────────────────────────────────
+_PLAY_SEQ = 0
+PLAYS = {}
+_PLAYS_LOCK = threading.Lock()
+
+def _register_play(procs, video):
+    global _PLAY_SEQ
+    with _PLAYS_LOCK:
+        _PLAY_SEQ += 1
+        token = str(_PLAY_SEQ)
+        PLAYS[token] = {"procs": procs, "done": False, "video": video}
+    def waiter():
+        for p in procs:
+            try:
+                p.wait()
+            except Exception:
+                pass
+        with _PLAYS_LOCK:
+            if token in PLAYS:
+                PLAYS[token]["done"] = True
+    threading.Thread(target=waiter, daemon=True).start()
+    return token
+
+def play_done(token):
+    with _PLAYS_LOCK:
+        e = PLAYS.get(token)
+        if e is None:
+            return True
+        if e["done"]:
+            del PLAYS[token]
+            return True
+        return False
 
 def find_exe(candidates):
     for c in candidates:
@@ -294,17 +327,17 @@ def launch_players(paths, seek=None):
         return {"ok": False, "error": "no valid videos"}
     sw, sh = _screen_size()
     rects = tile_rects(len(valid), sw, sh)
-    pids = []
+    procs = []
     for p in valid:
         try:
-            proc = subprocess.Popen(player_cmd(exe, p, seek if len(valid) == 1 else None))
-            pids.append(proc.pid)
+            procs.append(subprocess.Popen(player_cmd(exe, p, seek if len(valid) == 1 else None)))
         except Exception:
             pass
+    pids = [pr.pid for pr in procs]
     if os.name == "nt" and len(pids) > 1:
-        import threading
         threading.Thread(target=arrange_windows, args=(pids, rects), daemon=True).start()
-    return {"ok": True, "launched": len(pids)}
+    token = _register_play(procs, valid[0] if len(valid) == 1 else None)
+    return {"ok": True, "launched": len(procs), "token": token}
 
 def load_doc():
     if not os.path.isfile(DATA_FILE):
@@ -369,6 +402,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/bookmarks":
             qs = parse_qs(u.query)
             return self._send(200, list_bookmarks(qs.get("path", [""])[0]))
+        if u.path == "/playdone":
+            qs = parse_qs(u.query)
+            return self._send(200, {"done": play_done(qs.get("token", [""])[0])})
         # 정적 서빙
         rel = u.path.lstrip("/") or "potflow.html"
         fp = os.path.join(ROOT, rel)

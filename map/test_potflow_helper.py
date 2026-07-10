@@ -139,6 +139,15 @@ def test_list_bookmarks_with_pbf(tmp_path):
     assert b["ms"] == 2000 and b["title"] == "씬"
     assert b["thumb"] == "data:image/jpeg;base64,QUJD"   # 내장 썸네일 사용(ffmpeg 없이)
 
+def test_play_done_lifecycle():
+    helper.PLAYS.clear()
+    helper.PLAYS["t1"] = {"procs": [], "done": False, "video": "v"}
+    assert helper.play_done("t1") is False          # 아직 진행 중
+    helper.PLAYS["t1"]["done"] = True
+    assert helper.play_done("t1") is True            # 완료 → True 반환 + 제거
+    assert "t1" not in helper.PLAYS
+    assert helper.play_done("t1") is True            # 미존재 → True(정리됨)
+
 def test_host_header_guard_blocks_dns_rebinding():
     import threading, http.client
     srv = helper.make_server(0)
