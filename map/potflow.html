@@ -489,23 +489,22 @@ function iconSvg(id){return ICONS[id]?`<svg viewBox="0 0 24 24" fill="none" stro
 function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
 
 function defaultState(){
-  const n=(id,x,y,t,d,tm)=>({id,x,y,title:t,desc:d,thumb:tm||null});
+  const n=(id,x,y,t,d,vp)=>({id,x,y,title:t,desc:d,thumb:null,videoPath:vp||null});
+  const V="C:\\Users\\사용자\\Videos\\예시\\";
   const nodes=[
-    n('thin',40,60,'씬클라이언트','업무망(폐쇄망) · 내부망 직접 접속'),
-    n('phys',40,230,'물리PC','업무망(폐쇄망) · 내부망 직접 접속'),
-    n('home',40,400,'재택근무','외부망 · 공동인증서/휴대폰 인증'),
-    n('myacc',330,400,'마이엑세스 접속','재택 웹 게이트웨이로 보안 채널 수립',th('myaccess')),
-    n('login',640,210,'사용자VDI포탈 로그인','통합 인증(SSO) — 마이포탈 ID 하나로 로그인',th('vdi_login')),
-    n('otp',950,210,'2차 보안 인증','앱알리미 OTP 6자리 · 내부 AD ↔ OneID&OnePass'),
-    n('vdi',1260,210,'내 가상PC 접속','[가상PC 접속] PC가상화 클라이언트로 세션 수립',th('vdi_dash')),
-    n('work',1570,210,'업무 수행 — 마이포탈','연결된 가상PC에서 마이포탈 등 업무 수행',th('myportal')),
-    n('apply',1880,60,'가상화 사용자 포탈','VDI 추가신청 · 연장/증설 · 결재'),
-    n('appr',1880,230,'부서장 결재','신청 → 승인'),
-    n('done',1880,380,'완료 · 즉시 이용','셀프 재기동 · 업무결재(포탈) 연계'),
+    n('intro',560,40,'＜ PotFlow 사용 예시 ＞','오른쪽 파일탐색기에서 폴더를 열어 동영상을 이 캔버스로 드래그하면 노드가 생깁니다. 노드 더블클릭 = 재생, 여러 노드 선택 + Space(또는 상단 ▶ 선택 재생) = 동시 재생. 아래 예시 노드의 경로를 실제 파일로 바꿔 쓰셔도 됩니다.'),
+    n('v1',40,250,'오프닝 영상',V+'01-오프닝.mp4',V+'01-오프닝.mp4'),
+    n('v2',340,250,'본편 1부',V+'02-본편1.mp4',V+'02-본편1.mp4'),
+    n('v3',640,250,'본편 2부',V+'03-본편2.mp4',V+'03-본편2.mp4'),
+    n('v4',940,250,'엔딩 영상',V+'04-엔딩.mp4',V+'04-엔딩.mp4'),
+    n('camA',340,470,'카메라 A',V+'멀티캠-A.mp4',V+'멀티캠-A.mp4'),
+    n('camB',640,470,'카메라 B',V+'멀티캠-B.mp4',V+'멀티캠-B.mp4'),
+    n('simul',940,470,'동시 재생 예시','카메라 A·B를 함께 선택하고 Space를 누르면 두 창이 나란히 타일 배치로 동시 재생됩니다.'),
   ];
   const E=(a,b)=>({id:uid('e'),from:a,fromSide:'right',to:b,toSide:'left'});
-  return {nodes,edges:[E('thin','login'),E('phys','login'),E('home','myacc'),E('myacc','login'),
-    E('login','otp'),E('otp','vdi'),E('vdi','work'),E('work','apply'),E('apply','appr'),E('appr','done')],groups:[]};
+  return {nodes,edges:[E('v1','v2'),E('v2','v3'),E('v3','v4'),E('camA','simul'),E('camB','simul')],
+    groups:[{id:uid('g'),nodes:['v1','v2','v3','v4'],title:'재생 목록 (순서대로)'},
+      {id:uid('g'),nodes:['camA','camB','simul'],title:'동시 재생'}]};
 }
 let state=defaultState();
 let view={tx:30,ty:20,scale:1};
@@ -1292,7 +1291,7 @@ let tt;function toast(m){const el=document.getElementById('toast');el.textConten
 
 function seedCanvas(title){
   const ds=defaultState();
-  return {id:uid('c'),title:title||'VDI 접속 흐름',nodes:ds.nodes,edges:ds.edges,groups:ds.groups,view:{tx:30,ty:20,scale:1},updated:stamp()};
+  return {id:uid('c'),title:title||'동영상 예시',nodes:ds.nodes,edges:ds.edges,groups:ds.groups,view:{tx:30,ty:20,scale:1},updated:stamp()};
 }
 /* 문서(canvases+meta) 채택 — 메모리에 반영 후 렌더 */
 function adoptDoc(doc){
