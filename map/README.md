@@ -8,6 +8,7 @@
 |---|---|---|
 | **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js` | 노드 전략 보드 + 라이브 차트를 합친 기술적 분석 도구. 지표 30종을 조립해 예측·시그널·국면을 산출. **현재 주력 제품** |
 | **스쿱보드 (Scoop Board)** | `map.html` | 자유 캔버스 노드 다이어그램 빌더(GitMind 스타일) |
+| **PotFlow** | `potflow.html` + `potflow-helper.py` | 로컬 동영상 노드 재생 관리(PotPlayer 연동, 로컬 헬퍼 전용) — [`POTFLOW.md`](POTFLOW.md) |
 
 ---
 
