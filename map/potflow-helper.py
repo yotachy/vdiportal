@@ -131,7 +131,11 @@ def scan_tree(path):
             fp = os.path.join(ap, name)
             if os.path.isdir(fp):
                 folders.append({"name": name, "path": fp})
-            elif os.path.splitext(name)[1].lower() in VIDEO_EXTS:
+            else:
+                ext_l = os.path.splitext(name)[1].lower()
+                kind = "video" if ext_l in VIDEO_EXTS else ("pbf" if ext_l == ".pbf" else None)
+                if not kind:
+                    continue
                 try:
                     size = os.path.getsize(fp)
                 except OSError:
@@ -140,8 +144,8 @@ def scan_tree(path):
                     mtime = os.path.getmtime(fp)
                 except OSError:
                     mtime = 0
-                ext = os.path.splitext(name)[1].lower().lstrip(".")
-                files.append({"name": name, "path": fp, "size": size, "mtime": mtime, "ext": ext})
+                files.append({"name": name, "path": fp, "size": size, "mtime": mtime,
+                              "ext": ext_l.lstrip("."), "kind": kind})
         parent = os.path.dirname(ap)
         return {"ok": True, "path": ap, "parent": parent if parent != ap else None,
                 "folders": folders, "files": files}

@@ -35,6 +35,14 @@ def test_scan_tree_includes_mtime_and_ext(tmp_path):
     assert fe["ext"] == "mp4"
     assert abs(fe["mtime"] - 1700000000) < 2
 
+def test_scan_tree_includes_pbf_and_kind(tmp_path):
+    (tmp_path / "a.mp4").write_bytes(b"x")
+    (tmp_path / "a.mp4.pbf").write_text("[Bookmark]\n0=1000*x*")
+    r = helper.scan_tree(str(tmp_path))
+    kinds = {f["name"]: f["kind"] for f in r["files"]}
+    assert kinds.get("a.mp4") == "video"
+    assert kinds.get("a.mp4.pbf") == "pbf"
+
 def test_scan_tree_missing_path():
     r = helper.scan_tree("/no/such/path/xyz-123")
     assert r["ok"] is False
