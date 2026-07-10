@@ -39,7 +39,12 @@ def scan_tree(path):
                     size = os.path.getsize(fp)
                 except OSError:
                     size = 0
-                files.append({"name": name, "path": fp, "size": size})
+                try:
+                    mtime = os.path.getmtime(fp)
+                except OSError:
+                    mtime = 0
+                ext = os.path.splitext(name)[1].lower().lstrip(".")
+                files.append({"name": name, "path": fp, "size": size, "mtime": mtime, "ext": ext})
         parent = os.path.dirname(ap)
         return {"ok": True, "path": ap, "parent": parent if parent != ap else None,
                 "folders": folders, "files": files}

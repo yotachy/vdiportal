@@ -25,6 +25,16 @@ def test_scan_tree_lists_videos_and_folders(tmp_path):
     assert [f["name"] for f in r["files"]] == ["a.mp4"]
     assert r["files"][0]["size"] == 1
 
+def test_scan_tree_includes_mtime_and_ext(tmp_path):
+    f = tmp_path / "clip.MP4"
+    f.write_bytes(b"xy")
+    import os
+    os.utime(str(f), (1000000000, 1700000000))  # atime, mtime
+    r = helper.scan_tree(str(tmp_path))
+    fe = r["files"][0]
+    assert fe["ext"] == "mp4"
+    assert abs(fe["mtime"] - 1700000000) < 2
+
 def test_scan_tree_missing_path():
     r = helper.scan_tree("/no/such/path/xyz-123")
     assert r["ok"] is False
