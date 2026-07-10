@@ -1486,7 +1486,7 @@
     const g = ForgeCore.sampleGraph();
     // 깊은 복사(공유 객체 변형 방지) + 렌더 캐시 필드 없음
     boardState.nodes = g.nodes.map(n => JSON.parse(JSON.stringify(n)));
-    boardState.edges = g.edges.map(e => ({ id: uid("e"), ...e }));
+    boardState.edges = [];   // 연결선 폐기(A안): 시각용 엣지 미사용, 분석은 지표 조합(synthEdges)
     themeState.imgId = g.themeImgId || null;
     const s = g.vision.series;
     _visionData = { price: s, n: s.length };

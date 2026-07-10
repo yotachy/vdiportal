@@ -523,7 +523,7 @@
     await new Promise(r => requestAnimationFrame(() => setTimeout(r, 45)));   // 로딩 UI 페인트+최소 노출
     _stopPoll(); _setReqStat("", "");  // 기존 폴 즉시 정리
     activeId = id; META.activeId = id;
-    boardState.nodes = dc.nodes || []; boardState.edges = dc.edges || [];
+    boardState.nodes = dc.nodes || []; boardState.edges = [];   // 연결선 폐기(A안): 분석은 지표 조합(synthEdges 자동)이라 엣지 무의미 — 잔존 엣지 미로드
     if (typeof _ensureAllInd === "function") _ensureAllInd();   // 1차(종합)=전체 지표 항상 포함
     themeState.imgId = dc.themeImgId || null; themeState.title = dc.title || "";
     _logChart = !!dc.logChart; updateAxisBtns();

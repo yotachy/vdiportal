@@ -1047,7 +1047,6 @@
   body.galaxy .b-node.b-tier-mix{box-shadow:0 0 0 2px rgba(196,122,224,.6),0 0 22px rgba(196,122,224,.28),0 6px 20px -8px #000}
   body.galaxy .b-node.b-center,body.galaxy .b-node.b-tier-pos{animation:none;box-shadow:0 0 0 2px var(--gold),0 0 50px rgba(232,180,99,.45),0 6px 22px -8px #000}
   body.galaxy .b-node:hover,body.galaxy .b-node.selected,body.galaxy .b-node.b-mini{animation:none}
-  body.galaxy #bEdges .b-ew{stroke-opacity:.4;stroke-dasharray:2 5}
 
   /* ── 포지 분석 재생 HUD (결과 영역 상단 오버레이) ── */
   /* 상단 진행 HUD = 차트 위 플로팅 칩(접기·이동·숨김) */
