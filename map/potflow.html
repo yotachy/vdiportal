@@ -1074,15 +1074,60 @@ rsBodyEl.addEventListener('dragstart',e=>{
   e.dataTransfer.setData('text/potflow-video',JSON.stringify({path:row.dataset.path,name:row.dataset.name}));
 });
 rsPathEl.addEventListener('keydown',e=>{if(e.key==='Enter')openFolder(rsPathEl.value)});
-stage.addEventListener('dragover',e=>{if(e.dataTransfer.types&&[...e.dataTransfer.types].includes('text/potflow-video'))e.preventDefault()});
+const VEXT=/\.(mp4|mkv|avi|mov|wmv|webm|flv|m4v|ts|mpg|mpeg)$/i;
+stage.addEventListener('dragover',e=>{const t=e.dataTransfer&&e.dataTransfer.types;if(t&&([...t].includes('text/potflow-video')||[...t].includes('Files')))e.preventDefault()});
 stage.addEventListener('drop',e=>{
-  const raw=e.dataTransfer.getData('text/potflow-video');if(!raw)return;
-  e.preventDefault();
-  let payload;try{payload=JSON.parse(raw)}catch(err){return}
-  const{path,name}=payload;const p=worldPt(e.clientX,e.clientY);const hit=nodeAt(p);
-  if(hit){bindVideoToNode(hit.id,path,name);selectOnly(hit.id);}
-  else{const n=makeNode(p.x-W_NODE/2,p.y-30);render();bindVideoToNode(n.id,path,name);selectOnly(n.id);}
+  const raw=e.dataTransfer.getData('text/potflow-video');
+  if(raw){
+    e.preventDefault();
+    let payload;try{payload=JSON.parse(raw)}catch(err){return}
+    const{path,name}=payload;const p=worldPt(e.clientX,e.clientY);const hit=nodeAt(p);
+    if(hit){bindVideoToNode(hit.id,path,name);selectOnly(hit.id);}
+    else{const n=makeNode(p.x-W_NODE/2,p.y-30);render();bindVideoToNode(n.id,path,name);selectOnly(n.id);}
+    return;
+  }
+  const files=e.dataTransfer.files;
+  if(files&&files.length){const vids=[...files].filter(f=>VEXT.test(f.name));if(vids.length){e.preventDefault();osDropFiles(vids,e.clientX,e.clientY);}}
 });
+function titleFromName(id,name){const n=N(id);if(n&&(!n.title||n.title==='새 단계'))n.title=name.replace(/\.[^.]+$/,'');markDirty();render();}
+function osDropFiles(vids,cx,cy){
+  const base=worldPt(cx,cy);const hit=nodeAt(base);
+  vids.forEach((f,i)=>{
+    let id;
+    if(hit&&i===0){id=hit.id;}
+    else{const off=i*26;const n=makeNode(base.x-W_NODE/2+off,base.y-30+off);render();id=n.id;}
+    osResolveFile(f,id);selectOnly(id);
+  });
+}
+function osResolveFile(file,id){
+  const name=file.name;
+  if(!HELPER_OK){titleFromName(id,name);captureThumb(file,id);toast('헬퍼가 꺼져 있어 경로 미지정 — 오른쪽 목록에서 지정하세요');return;}
+  fetch(HELPER+'/resolve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,size:file.size,base:(rsPathEl&&rsPathEl.value)||''})})
+    .then(r=>r.json()).then(j=>{
+      if(j&&j.ok&&j.path){bindVideoToNode(id,j.path,name);}
+      else{titleFromName(id,name);captureThumb(file,id);toast('경로 미확인 — 오른쪽 파일탐색기에서 드래그해 지정하세요');}
+    }).catch(()=>{titleFromName(id,name);captureThumb(file,id);});
+}
+function captureThumb(file,id){
+  let url;
+  try{url=URL.createObjectURL(file);}catch(e){return}
+  const v=document.createElement('video');v.muted=true;v.preload='metadata';
+  let done=false;const cleanup=()=>{try{URL.revokeObjectURL(url)}catch(e){}};
+  v.addEventListener('loadeddata',()=>{try{v.currentTime=Math.min(5,(v.duration||6)/3)}catch(e){cleanup()}});
+  v.addEventListener('seeked',()=>{
+    if(done)return;done=true;
+    try{
+      const vw=v.videoWidth||320,vh=v.videoHeight||180,w=320,h=Math.max(1,Math.round(w*vh/vw));
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(v,0,0,w,h);
+      const data=c.toDataURL('image/jpeg',0.8);
+      const iid='vthumb_'+id;putImg(iid,data);const n=N(id);if(n){n.thumb={imgId:iid,label:n.title||''};render();markDirty();}
+    }catch(e){}
+    cleanup();
+  });
+  v.addEventListener('error',()=>{cleanup();});
+  v.src=url;
+}
 
 /* library */
 const libEl=document.getElementById('lib');
