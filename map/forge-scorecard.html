@@ -135,6 +135,10 @@
   .ea-lv-sub{font-size:10px;font-weight:700;fill:var(--eth)}
   .ea-lv-spine{font-size:11px;font-weight:800;letter-spacing:.08em}
   .ea-lv-clab{font-size:10px;font-weight:800;letter-spacing:.01em}
+  .vc{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 12px 8px;margin-top:6px}
+  .vc svg{width:100%;height:auto;display:block}
+  .vc-grid{stroke:var(--line);stroke-width:1} .vc-base{stroke:var(--faint);stroke-width:1.3;stroke-dasharray:5 5;opacity:.7}
+  .vc-ax{fill:var(--faint);font-size:10.5px} .vc-sl{font-size:11px;font-weight:800} .vc-vn{fill:var(--eth);font-size:10px;font-weight:700}
   .ea-lv-tag{font-size:10px;font-weight:800}
   .ea-lv-cap{fill:var(--faint);font-size:10.5px}
   @media(prefers-reduced-motion:reduce){ .ea-halo{animation:none} .eapart{display:none} .ea-fl::after{animation:none;display:none} }
@@ -274,6 +278,10 @@
   <h2>국면별 방향 예측</h2>
   <p class="sec-desc">방향 예측은 강세·하락장에선 여전히 "항상 상승" 기준을 못 넘습니다(효율적 시장의 벽). 다만 <b>200MA 하락추세 게이트</b>를 넣어 상승장에서 헛발질하던 약세신호를 억제한 뒤, <b>횡보장은 유일하게 기준을 넘습니다(+0.1%p)</b>. 전체 방향 적중도 58.1%로 천장(항상상승 60.8%)에 근접합니다. <b>모수를 37→86 시계열(2.3배)로 키우고 US 쏠림을 줄여도 이 결론은 유지</b>됩니다(결론 유지 · 확률 정직도는 v1.4 캘리브레이션으로 ECE 0.2%p 달성).</p>
   <table id="regtbl"><thead><tr><th>국면</th><th>엔진 방향적중</th><th>항상상승</th><th>초과</th><th>표본</th></tr></thead><tbody></tbody></table>
+
+  <h2>📈 버전별 개선 추이</h2>
+  <p class="sec-desc"><b>방향 적중(회색)</b>은 효율적 시장의 벽에 막혀 '항상 상승' 기준선 아래에 평탄합니다. 대신 버전을 올리며 <b>검증된 새 축</b>(변동성·낙폭·이익목표)을 더 높은 예측력으로 하나씩 얹어 왔습니다 — 이게 엔진이 똑똑해진 실제 경로입니다.</p>
+  <div class="vc" id="verChart"></div>
 
   <h2>🛠 개선 이력 (Changelog)</h2>
   <p class="sec-desc">엔진은 백테스트로 검증하며 버전업합니다. 개선 전후 수치를 그대로 기록합니다 — 롤백한 실패 실험까지.</p>
@@ -471,6 +479,35 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   g+=`<text x="${(x0+x1)/2}" y="${H-4}" fill="#8a92b2" font-size="11" text-anchor="middle">예측 상승확률 (%)</text>`;
   g+=`<text x="14" y="${(y0+y1)/2}" fill="#8a92b2" font-size="11" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">실제 상승률 (%)</text>`;
   document.getElementById("calchart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;margin:0 auto"><rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>${g}</svg>`;
+})();
+
+// 버전별 개선 추이 라인차트 — 버전업 시 VER/SER 배열에 값만 추가(현행화).
+(function renderVerChart(){
+  const host=document.getElementById("verChart"); if(!host) return;
+  const gold="var(--gold)",eth="var(--eth)",bull="var(--bull)",amber="#e8955c",faint="var(--faint)";
+  const VER=["1.0","1.1","1.3","1.4","1.5","1.5.1","1.6","1.7","1.7.1"];
+  const SER=[
+    {n:"방향 적중",   c:eth,   v:[54.1,56.6,56.6,58.1,58.1,58.1,58.1,58.1,58.1]},
+    {n:"변동성 예보", c:gold,  v:[null,null,null,null,67.8,68.4,68.4,68.4,68.4]},
+    {n:"낙폭 리스크", c:bull,  v:[null,null,null,null,null,null,68.4,68.0,68.0]},
+    {n:"이익목표 도달",c:amber, v:[null,null,null,null,null,null,null,64.0,64.0]},
+  ];
+  const BASE=60.8, W=900,H=380, mL=42,mR=124,mT=22,mB=42, pw=W-mL-mR,ph=H-mT-mB, yMin=52,yMax=70;
+  const X=i=>mL+i*pw/(VER.length-1), Y=v=>mT+ph-(v-yMin)/(yMax-yMin)*ph;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="버전별 개선 추이 — 방향 적중은 평탄, 검증된 축들이 높은 예측력으로 추가됨">`;
+  for(let v=55;v<=70;v+=5){ s+=`<line class="vc-grid" x1="${mL}" y1="${Y(v)}" x2="${W-mR}" y2="${Y(v)}"/><text class="vc-ax" x="${mL-6}" y="${Y(v)+3}" text-anchor="end">${v}%</text>`; }
+  s+=`<line class="vc-base" x1="${mL}" y1="${Y(BASE)}" x2="${W-mR}" y2="${Y(BASE)}"/><text class="vc-ax" x="${W-mR+5}" y="${Y(BASE)-4}">항상상승 ${BASE}%</text>`;
+  VER.forEach((v,i)=>{ s+=`<text class="vc-vn" x="${X(i)}" y="${H-mB+18}" text-anchor="middle">v${v}</text>`; });
+  const ends=[];
+  SER.forEach(se=>{ let d="",li=-1;
+    se.v.forEach((val,i)=>{ if(val==null)return; d+=(d===""?"M":"L")+X(i).toFixed(1)+" "+Y(val).toFixed(1)+" "; li=i; });
+    s+=`<path d="${d}" fill="none" stroke="${se.c}" stroke-width="2.6" stroke-linejoin="round"/>`;
+    se.v.forEach((val,i)=>{ if(val==null)return; s+=`<circle cx="${X(i)}" cy="${Y(val)}" r="3.4" fill="var(--panel)" stroke="${se.c}" stroke-width="2"/>`; });
+    if(li>=0) ends.push({y:Y(se.v[li]), x:X(li)+9, t:se.n, c:se.c});
+  });
+  ends.sort((a,b)=>a.y-b.y); for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<14) ends[i].y=ends[i-1].y+14;
+  ends.forEach(e=> s+=`<text class="vc-sl" x="${e.x}" y="${e.y+3}" fill="${e.c}">${e.t}</text>`);
+  host.innerHTML=s+`</svg>`;
 })();
 
 // 엔진 해부도 · 라이브 신경망 — 30 지표 뉴런 + 변동성 피처 10 뉴런, 밀집 팬아웃/팬인 + 흐르는 신호.
