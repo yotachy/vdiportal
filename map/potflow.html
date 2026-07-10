@@ -174,7 +174,7 @@
   .edges path.tmp{fill:none;stroke:var(--gold);stroke-width:2;stroke-dasharray:5 4}
 
   /* group box */
-  .group{position:absolute;border:1.5px dashed var(--gold-dim);border-radius:14px;background:rgba(232,180,99,.04);pointer-events:auto;cursor:grab}
+  .group{position:absolute;border:1.5px dashed var(--gold-dim);border-radius:14px;background:rgba(232,180,99,.04);pointer-events:none}
   .group-label{position:absolute;top:-11px;left:14px;font-size:11.5px;font-weight:700;color:var(--gold);background:#0e1116;padding:1px 8px;border-radius:6px;border:1px solid var(--gold-dim);pointer-events:auto;outline:none;font-family:var(--mono)}
   .group-del{position:absolute;top:-12px;right:10px;width:20px;height:20px;border-radius:6px;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);cursor:pointer;font-size:11px;display:grid;place-items:center;pointer-events:auto}
   .group-del:hover{color:var(--red);border-color:var(--red)}
@@ -1061,8 +1061,8 @@ stage.addEventListener('pointerdown',e=>{
     const eh=e.target.closest('.ehandle');if(eh){startEndpoint(eh.dataset.end,e);return}
     const edge=e.target.closest('[data-edge]');if(edge){selectEdge(edge.dataset.edge);return}
     const nodeEl=e.target.closest('.node');if(nodeEl){nodePointerDown(nodeEl.dataset.id,e);return}
-    const grp=e.target.closest('.group');if(grp){startGroupDrag(grp.dataset.gid,e);return;}
     if(e.ctrlKey||e.metaKey||TOOLBAR.selectMode){startMarquee(e);return}
+    const gp=groupAt(worldPt(e.clientX,e.clientY));if(gp){startGroupDrag(gp.id,e);return;}
     startPan(e,true);return;
   }
   if(!e.target.closest('.node'))startPan(e);
@@ -1078,6 +1078,7 @@ function nodePointerDown(id,e){
   window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
 }
 function startPan(e,canClear){drag={type:'pan',sx:e.clientX,sy:e.clientY,otx:view.tx,oty:view.ty,canClear:!!canClear,moved:false};stage.classList.add('panning');window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
+function groupAt(pt){const gs=state.groups||[];for(let k=gs.length-1;k>=0;k--){const g=gs[k];const ns=g.nodes.map(N).filter(Boolean);if(!ns.length)continue;let a=1e9,b=1e9,c=-1e9,d=-1e9;ns.forEach(n=>{const w=n._w||W_NODE,h=n._h||90;a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+w);d=Math.max(d,n.y+h)});const p=18;if(pt.x>=a-p&&pt.x<=c+p&&pt.y>=b-p&&pt.y<=d+p)return g;}return null;}
 function startGroupDrag(gid,e){const g=G(gid);if(!g)return;drag={type:'group',gid,sx:e.clientX,sy:e.clientY,moved:false,origins:g.nodes.map(N).filter(Boolean).map(n=>({id:n.id,ox:n.x,oy:n.y}))};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);}
 function startLink(id,side,e){return;e.preventDefault();e.stopPropagation();selEdge=null;paint();drag={type:'link',from:id,fromSide:side,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
 function startEndpoint(end,e){return;e.preventDefault();e.stopPropagation();drag={type:'endpoint',end,edge:selEdge,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
