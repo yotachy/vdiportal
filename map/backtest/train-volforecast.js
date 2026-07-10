@@ -2,7 +2,7 @@
 // OOS(60/40) 정확도 재확인 + 전체학습 계수를 forge-core에 박을 형태로 출력.
 "use strict";
 const fs = require("fs"), path = require("path");
-const H = 20, STRIDE = 2, WARM = 220, TRAIN_FRAC = 0.6;
+const H = 20, STRIDE = 2, WARM = 260, TRAIN_FRAC = 0.6;   // WARM 260: vol-regime 백분위(252봉) 확보
 function rvol(a, e, n) { let s = 0; for (let i = e - n + 1; i <= e; i++) s += Math.log(a[i] / a[i - 1]) ** 2; return Math.sqrt(s / n); }
 function atrp(hi, lo, cl, e, n) { let s = 0; for (let i = e - n + 1; i <= e; i++) { const tr = Math.max(hi[i] - lo[i], Math.abs(hi[i] - cl[i - 1]), Math.abs(lo[i] - cl[i - 1])); s += tr; } return s / n / cl[e]; }
 function feats(price, hi, lo, t) {
@@ -12,7 +12,11 @@ function feats(price, hi, lo, t) {
   const vs = []; for (let k = t - 40; k <= t; k += 5) { const vv = rvol(price, k, 20); if (vv) vs.push(vv); }
   const vmean = vs.reduce((a, b) => a + b, 0) / vs.length, vov = Math.sqrt(vs.reduce((a, b) => a + (b - vmean) ** 2, 0) / vs.length) / (vmean || 1);
   let rng = 0; for (let i = t - 4; i <= t; i++) rng += (hi[i] - lo[i]) / price[i]; rng /= 5;
-  return [v10 / v60 - 1, v20 / v60 - 1, v20 / v120 - 1, v60 / v120 - 1, atr * 100, vov, rng * 100, v20 * 100, Math.log(v20 / v60)];
+  // ⑩ 변동성 국면 백분위: 현재 v20이 자기 252봉 v20 분포에서 차지하는 위치(낮을수록 압축→확대 여지).
+  //    vol-improve.js 검증: OOS 67.8→68.4%(+0.6pp, 과적합 아님·유일하게 견고한 개선 피처).
+  const hist = []; for (let k = t - 252; k <= t; k += 3) { if (k - 20 >= 0) { const vv = rvol(price, k, 20); if (vv) hist.push(vv); } }
+  let pct = 0.5; if (hist.length > 5) { let c = 0; for (const v of hist) if (v <= v20) c++; pct = c / hist.length; }
+  return [v10 / v60 - 1, v20 / v60 - 1, v20 / v120 - 1, v60 / v120 - 1, atr * 100, vov, rng * 100, v20 * 100, Math.log(v20 / v60), pct];
 }
 function fit(TR, D) {
   const mean = new Array(D).fill(0), std = new Array(D).fill(0);

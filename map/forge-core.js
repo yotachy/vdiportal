@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.5.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.5.1";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
 
   function mulberry32(seed) {
     let a = seed >>> 0;
@@ -2166,10 +2166,14 @@
     const vs = []; for (let k = t - 40; k <= t; k += 5) { const vv = rv(k, 20); if (vv) vs.push(vv); }
     const vm = vs.reduce((a, b) => a + b, 0) / vs.length, vov = Math.sqrt(vs.reduce((a, b) => a + (b - vm) ** 2, 0) / vs.length) / (vm || 1);
     let rng = 0; for (let i = t - 4; i <= t; i++) rng += (high[i] - low[i]) / price[i]; rng /= 5;
-    const x = [v10 / v60 - 1, v20 / v60 - 1, v20 / v120 - 1, v60 / v120 - 1, atr * 100, vov, rng * 100, v20 * 100, Math.log(v20 / v60)];
-    const MEAN = [-0.05011, -0.02757, -0.03842, -0.01436, 2.62943, 0.20932, 2.45552, 1.8253, -0.06087];
-    const STD = [0.33883, 0.24196, 0.31008, 0.16286, 2.05984, 0.11242, 2.09766, 1.5296, 0.26296];
-    const W = [0.19887, -0.34915, -0.28291, -0.16731, 0.01567, -0.01781, 0.30671, -0.55821, -0.35339], BB = -0.0966;
+    // ⑩ 변동성 국면 백분위: 현재 v20이 자기 252봉 v20 분포에서 차지하는 위치(낮을수록 압축→확대 여지).
+    //    vol-improve.js 검증: 이 피처만 OOS 67.8→68.4%(+0.6pp, 과적합 아님)로 견고히 개선. 레버리지/거래량/비선형(GBT)은 무효.
+    const hist = []; for (let k = t - 252; k <= t; k += 3) { if (k - 20 >= 0) { const vv = rv(k, 20); if (vv) hist.push(vv); } }
+    let vpct = 0.5; if (hist.length > 5) { let c = 0; for (const vv of hist) if (vv <= v20) c++; vpct = c / hist.length; }
+    const x = [v10 / v60 - 1, v20 / v60 - 1, v20 / v120 - 1, v60 / v120 - 1, atr * 100, vov, rng * 100, v20 * 100, Math.log(v20 / v60), vpct];
+    const MEAN = [-0.05217, -0.0292, -0.0403, -0.01451, 2.61744, 0.20949, 2.44283, 1.81915, -0.06262, 0.497];
+    const STD = [0.33843, 0.24193, 0.30963, 0.16301, 2.05053, 0.11273, 2.08302, 1.52799, 0.26317, 0.30889];
+    const W = [0.20923, -0.27098, -0.18419, -0.04829, 0.03147, 0.00722, 0.29504, -0.50147, -0.27957, -0.38346], BB = -0.0908;
     let s = BB; for (let j = 0; j < x.length; j++) { if (!isFinite(x[j])) return null; s += W[j] * (x[j] - MEAN[j]) / STD[j]; }
     const p = 1 / (1 + Math.exp(-s));
     return { expand: p >= 0.5, prob: Math.round((p >= 0.5 ? p : 1 - p) * 100), raw: Math.round(p * 100), acc: 68 };

@@ -168,14 +168,14 @@
     <p style="font-size:12.5px;color:var(--faint);line-height:1.7;margin:0"><b>솔직한 한계</b> — ① <b>일확천금이 아닙니다</b>(회당 평균 +0.5~1.4%). ② 강한 상승주의 <b>총수익</b>은 그냥 사서 들고 있는 게 낫습니다(21종 중 7~8종만 상회). 이 신호의 값어치는 "대박"이 아니라 <b>박스권 종목의, 하락추세가 아닐 때의 괜찮은 매수 타이밍</b>입니다.</p>
   </div>
 
-  <h2>✅ 검증된 강점 — 변동성 예보 <span style="font-size:12px;color:var(--gold);font-weight:800">v1.5</span></h2>
+  <h2>✅ 검증된 강점 — 변동성 예보 <span style="font-size:12px;color:var(--gold);font-weight:800">v1.5.1</span></h2>
   <p class="sec-desc"><b>가격 방향은 못 맞혀도, "얼마나 움직일지"는 맞힙니다.</b> 다음 구간 변동성이 <b>커질지(확대)·잔잔해질지(축소)</b>를 예측합니다 — 변동성은 <b>평균회귀</b>(크게 움직인 뒤 잦아들고, 눌려있던 뒤 터짐)라 예측 가능합니다.</p>
   <div class="cards">
-    <div class="card"><div class="ck">변동성 방향 예측</div><div class="cv">67.8%</div><div class="csub">OOS · 54종 · 94k시점</div><div class="ctag tag-up">진짜 예측력</div></div>
-    <div class="card"><div class="ck">단순 기준 대비</div><div class="cv">+16.9%p</div><div class="csub">다수결 50.9% · 지속성 41.7%</div><div class="ctag tag-up">크게 초과</div></div>
+    <div class="card"><div class="ck">변동성 방향 예측</div><div class="cv">68.4%</div><div class="csub">OOS · 54종 · 93k시점</div><div class="ctag tag-up">진짜 예측력</div></div>
+    <div class="card"><div class="ck">단순 기준 대비</div><div class="cv">+17.5%p</div><div class="csub">다수결 50.9% · 지속성 41.7%</div><div class="ctag tag-up">크게 초과</div></div>
     <div class="card"><div class="ck">활용</div><div class="cv" style="font-size:15px;line-height:1.5;font-weight:700">확대→손절 넓게<br>축소→박스권 매매</div><div class="csub">리스크·타이밍</div><div class="ctag tag-fl">실용</div></div>
   </div>
-  <p class="sec-desc" style="margin-top:14px"><b>정직 표기</b> — 이건 가격 <b>방향</b> 예측이 아닙니다(오를지 내릴지는 여전히 ~53%). "얼마나 출렁일지"의 이진 예측 정확도가 67.8%입니다. 그래도 리스크 관리·진입 타이밍엔 진짜로 유용합니다.</p>
+  <p class="sec-desc" style="margin-top:14px"><b>정직 표기</b> — 이건 가격 <b>방향</b> 예측이 아닙니다(오를지 내릴지는 여전히 ~53%). "얼마나 출렁일지"의 이진 예측 정확도가 68.4%입니다(v1.5.1에서 변동성 국면 백분위 피처로 67.8→68.4% 개선). 그래도 리스크 관리·진입 타이밍엔 진짜로 유용합니다.</p>
 
   <h2>🧭 스쿱포지, 이렇게 쓰세요</h2>
   <p class="sec-desc">위 검증 결과를 실제 사용으로 옮기면 — 무엇을 믿고 무엇을 걸러야 하는지가 분명해집니다.</p>
@@ -264,7 +264,9 @@ document.querySelector("#regtbl tbody").innerHTML = ["side","bull","bear"].map(k
 
 // 개선 이력 — 버전별 before→after(기간·국면). 롤백한 실패도 기록.
 const CHANGELOG = [
-  { v:"1.5.0", tag:"변동성 예보 (진짜 예측력)", cur:true, items:["가격 방향(불가) 대신 <b>변동성 확대/축소를 예측</b> — 로지스틱 모델 엔진 내장. 변동성 평균회귀 포착.","OOS 정확도 <b>67.8%</b>(다수결 50.9·지속성 41.7 크게 초과). 차트 판정에 '변동성 확대/축소 XX%' 표시(가격방향 아님 정직 라벨)."] },
+  { v:"1.5.1", tag:"변동성 예보 정밀화 (국면 백분위)", cur:true, items:["변동성 예보에 <b>변동성 국면 백분위</b> 피처 추가 — 현재 변동성이 자기 1년 분포에서 얼마나 눌려있나(압축→확대 여지).","OOS 정확도 <b>67.8→68.4%</b>(과적합 아님·유일하게 견고). 레버리지 수익·거래량·비선형(GBT)은 대조 결과 무효라 <b>기각</b>(신기루 차단). 타임프레임 합의(일주월 일치)도 방향·변동성 양쪽 예측력 <b>0</b>으로 반증."],
+    ba:{ "변동성 예보 OOS":[0.678,0.684] } },
+  { v:"1.5.0", tag:"변동성 예보 (진짜 예측력)", items:["가격 방향(불가) 대신 <b>변동성 확대/축소를 예측</b> — 로지스틱 모델 엔진 내장. 변동성 평균회귀 포착.","OOS 정확도 <b>67.8%</b>(다수결 50.9·지속성 41.7 크게 초과). 차트 판정에 '변동성 확대/축소 XX%' 표시(가격방향 아님 정직 라벨)."] },
   { v:"1.4.0", tag:"확률 캘리브레이션 (정직한 확신도)", items:["표기 상승확률을 실제와 일치하도록 Platt 교정 — <b>'엔진이 60%라 하면 실제로 60% 맞음'</b>.","단조맵이라 방향·신호는 불변, 확률 표기만 정직화. <b>OOS 검증</b>(train 과거→test 미래): ECE 8.6→0.7%p."] },
   { v:"검증↑", tag:"백테스트 모수 2.3배 확대", items:["표본 37→86 시계열(일54·주18·월14) — 크립토6·금·한국8종 추가로 US 쏠림 77→56% 완화.","확대·균형 후에도 결론 유지: 방향 58.1%(천장 60.8%)·횡보 초과(+0.1%p) 유지·<b>정직도 ECE 6.7→6.3% 개선</b>. 온건한 결론이 더 견고해짐."] },
   { v:"1.3.0", tag:"하락 후 반등 신호 추가", items:["하락 국면(down)에서 RSI가 위로 꺾일 때 = 평균회귀 반등 신호 추가 — 지지반등(횡보 한정)이 놓치던 하락장 바운스를 포착.","RSI 반등 확인으로 falling knife 배제. dipbounce-lab(39종): 랜덤(항상롱) 대비 20봉 +1.4%p·40봉 +2.5%p·승률 56~59%·손실종목 3/36."] },
@@ -348,7 +350,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   host.innerHTML=s+`</svg>`;
 })();
 
-document.getElementById("foot").innerHTML = "스쿱포지 엔진 v1.5.0 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
+document.getElementById("foot").innerHTML = "스쿱포지 엔진 v1.5.1 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
 
 /* ── 라이브 재현 위젯 — 브라우저에서 실데이터로 walk-forward 직접 실행 ── */
 const EXPECTED = {"BABA":{dir:0.493,cone:0.845,pnl:1.49,bh:0.259,base:0.513,rg:"횡보"},"PYPL":{dir:0.547,cone:0.833,pnl:3.896,bh:0.139,base:0.546,rg:"횡보"},"PFE":{dir:0.549,cone:0.888,pnl:0.23,bh:-0.035,base:0.544,rg:"횡보"},"NVDA":{dir:0.579,cone:0.832,pnl:49.162,bh:326.235,base:0.671,rg:"강세"}};

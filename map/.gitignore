@@ -1,5 +1,9 @@
 forge_td_key.txt
 forge_ohlc_cache_*.json
 
+# 백테스트 대용량 생성 캐시(피처/레코드) — 재생성 가능, 저장소 미포함
+backtest/support-features.json
+backtest/confluence-records.json
+
 # SDD 세션 스크래치(렛저·브리프·리뷰 diff) — 저장소 미포함
 .superpowers/
