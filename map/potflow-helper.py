@@ -194,7 +194,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _host_ok(self):
+        # DNS 리바인딩 방지: Host 헤더가 실제 바인딩된 127.0.0.1/localhost:PORT 가 아니면 거부
+        try:
+            port = self.server.server_address[1]
+        except Exception:
+            port = PORT
+        allowed = {f"127.0.0.1:{port}", f"localhost:{port}"}
+        return self.headers.get("Host") in allowed
+
     def do_GET(self):
+        if not self._host_ok():
+            return self._send(403, {"ok": False, "error": "forbidden host"})
         u = urlparse(self.path)
         if u.path == "/ping":
             return self._send(200, ping_payload())
@@ -219,6 +230,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(404, {"ok": False, "error": "not found"})
 
     def do_POST(self):
+        if not self._host_ok():
+            return self._send(403, {"ok": False, "error": "forbidden host"})
         u = urlparse(self.path)
         length = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(length) or b"{}"

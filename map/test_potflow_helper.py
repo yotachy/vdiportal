@@ -69,3 +69,28 @@ def test_tile_rects_covers_full_screen_odd_dims():
             # right edge of the widest-reaching tile == W, bottom edge == H
             assert max(x + w for (x, y, w, h) in rects) == W
             assert max(y + h for (x, y, w, h) in rects) == H
+
+def test_host_header_guard_blocks_dns_rebinding():
+    import threading, http.client
+    srv = helper.make_server(0)
+    port = srv.server_address[1]
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        conn.request("GET", "/ping", headers={"Host": "evil.com"})
+        r = conn.getresponse()
+        assert r.status == 403
+        r.read()
+        conn.close()
+
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        conn.request("GET", "/ping", headers={"Host": f"127.0.0.1:{port}"})
+        r = conn.getresponse()
+        assert r.status == 200
+        r.read()
+        conn.close()
+    finally:
+        srv.shutdown()
+        srv.server_close()
+        t.join(timeout=5)

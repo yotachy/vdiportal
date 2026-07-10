@@ -63,6 +63,6 @@ python3 potflow-helper.py
 
 | 증상 | 확인 |
 |---|---|
-| `● 헬퍼 오프라인` / `● 로컬 저장됨` 배지 | 헬퍼 미실행 또는 포트(8770) 문제 → `potflow-helper.py` 실행 확인 |
+| `● 오프라인` / `● 로컬 저장됨` 배지 | 헬퍼 미실행 또는 포트(8770) 문제 → `potflow-helper.py` 실행 확인 |
 | 재생이 안 됨 | `POTPLAYER_PATH` 경로 확인 |
 | 썸네일이 공백 | ffmpeg 설치·`FFMPEG_PATH` 확인 |
