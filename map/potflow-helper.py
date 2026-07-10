@@ -151,15 +151,31 @@ def bookmark_thumb(video, ms, embedded):
     os.makedirs(THUMB_DIR, exist_ok=True)
     key = hashlib.md5((video + "@" + str(ms)).encode("utf-8")).hexdigest()
     out = os.path.join(THUMB_DIR, key + ".jpg")
-    if not (os.path.isfile(out) and os.path.getsize(out) > 0):
-        try:
-            subprocess.run(ffmpeg_thumb_at_cmd(ff, video, ms / 1000.0, out),
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
-        except Exception:
-            return None
     if os.path.isfile(out) and os.path.getsize(out) > 0:
         with open(out, "rb") as f:
             return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+    # 동시 요청 레이스 방지: 고유 임시 파일에 쓰고 os.replace로 원자적 이동
+    fd, tmp = tempfile.mkstemp(suffix=".jpg", dir=THUMB_DIR)
+    os.close(fd)
+    try:
+        result = subprocess.run(ffmpeg_thumb_at_cmd(ff, video, ms / 1000.0, tmp),
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+    except Exception:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except OSError:
+            pass
+        return None
+    if result.returncode == 0 and os.path.isfile(tmp) and os.path.getsize(tmp) > 0:
+        os.replace(tmp, out)
+        with open(out, "rb") as f:
+            return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+    try:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+    except OSError:
+        pass
     return None
 
 def list_bookmarks(path):
