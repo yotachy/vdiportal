@@ -533,10 +533,13 @@ class Handler(BaseHTTPRequestHandler):
         if rng and rng.startswith("bytes="):
             try:
                 s, _, e = rng[6:].partition("-")
-                if s:
-                    start = int(s)
-                if e:
-                    end = int(e)
+                if s == "" and e != "":
+                    start = max(0, size - int(e)); end = size - 1
+                else:
+                    if s:
+                        start = int(s)
+                    if e:
+                        end = int(e)
                 if start > end or start >= size:
                     self.send_response(416)
                     self.send_header("Content-Range", "bytes */%d" % size)

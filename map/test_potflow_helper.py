@@ -221,6 +221,22 @@ def test_file_serving_range(tmp_path):
     finally:
         srv.shutdown()
 
+def test_file_serving_suffix_range(tmp_path):
+    import http.client, threading
+    from urllib.parse import quote
+    f = tmp_path / "v.mp4"; f.write_bytes(b"0123456789")
+    srv = helper.make_server(0); port = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        c.request("GET", "/file?path=" + quote(str(f)),
+                  headers={"Host": f"localhost:{port}", "Range": "bytes=-3"})
+        r = c.getresponse(); body = r.read()
+        assert r.status == 206 and body == b"789"
+        assert r.getheader("Content-Range") == "bytes 7-9/10"
+    finally:
+        srv.shutdown()
+
 def test_normalize_carries_win():
     out=helper.normalize_play_items({"items":[{"path":"a","seek":3,"win":{"mon":0,"x":0,"y":0,"w":1,"h":1}}]})
     assert out[0]["win"]=={"mon":0,"x":0,"y":0,"w":1,"h":1} and out[0]["seek"]==3
