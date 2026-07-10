@@ -108,7 +108,9 @@
   .rside{border-left:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;min-height:0;position:relative}
   .rside-gutter{position:absolute;left:0;top:0;width:7px;height:100%;cursor:ew-resize;z-index:6}
   .rside-gutter:hover{background:var(--gold-dim)}
-  .rside-head{display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--line);flex:none}
+  .rside-head{display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--line);flex:none;align-items:center;flex-wrap:wrap}
+  .rs-pbfonly{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--eth);white-space:nowrap;cursor:pointer;user-select:none}
+  .rs-pbfonly input{accent-color:var(--gold);cursor:pointer}
   .rs-path{flex:1;min-width:0;font-family:inherit;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--txt);padding:0 9px;outline:none}
   .rs-path:focus{border-color:var(--gold-dim)}
   .rs-body{flex:1;overflow-y:auto;padding:6px}
@@ -438,6 +440,7 @@
     <div class="rside-head">
       <input id="rsPath" class="rs-path" placeholder="폴더 경로 입력 후 Enter" autocomplete="off">
       <button class="btn ghost" onclick="openFolder(document.getElementById('rsPath').value)">열기</button>
+      <label class="rs-pbfonly" title="pbf(책갈피) 파일만 보기"><input type="checkbox" id="rsPbfOnly">pbf만</label>
     </div>
     <div class="rs-body" id="rsBody"></div>
   </aside>
@@ -874,6 +877,10 @@ function loadCanvas(id){
   sel=[];selEdge=null;
   resetHistory();
   renderLib();render();setTimeout(fitView,30);
+  // 오른쪽 탐색기: 캔버스별 열어둔 경로 복원(없으면 비움)
+  const _rp=c.rsPath||'';const _pi=document.getElementById('rsPath');if(_pi)_pi.value=_rp;
+  rsData=null;const _rb=document.getElementById('rsBody');if(_rb)_rb.innerHTML='';
+  if(_rp&&HELPER_OK)openFolder(_rp);
 }
 /* ---------- 되돌리기/다시실행 (서버 유무 무관, 캔버스별로 초기화) ---------- */
 function snapState(){const clean=a=>(a||[]).map(o=>{const r={};for(const k in o)if(k[0]!=='_')r[k]=o[k];return r});return JSON.stringify({nodes:clean(state.nodes),edges:state.edges,groups:state.groups||[]})}
@@ -1178,7 +1185,8 @@ stage.addEventListener('drop',e=>{const iid=e.dataTransfer.getData('iconid');
 
 /* 우측 파일탐색기(폴더트리·동영상 목록) */
 const rsBodyEl=document.getElementById('rsBody'),rsPathEl=document.getElementById('rsPath');
-let rsData=null,rsSort={key:'name',dir:1};
+let rsData=null,rsSort={key:'name',dir:1},rsPbfOnly=false;
+(function(){const cb=document.getElementById('rsPbfOnly');if(!cb)return;rsPbfOnly=lsGet('potflow_pbf_only')==='1';cb.checked=rsPbfOnly;cb.addEventListener('change',()=>{rsPbfOnly=cb.checked;lsSet('potflow_pbf_only',rsPbfOnly?'1':'0');renderExplorer();});})();
 function fmtSize(b){if(!b)return'';const u=['B','KB','MB','GB'];let i=0,n=b;while(n>=1024&&i<u.length-1){n/=1024;i++}return (i===0?n:(n<10?n.toFixed(1):Math.round(n)))+u[i];}
 function fmtDate(ep){if(!ep)return'';const d=new Date(ep*1000);const p=x=>String(x).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 function openFolder(path){
@@ -1186,6 +1194,7 @@ function openFolder(path){
   fetch(HELPER+"/tree?path="+encodeURIComponent(path||"")).then(r=>r.json()).then(d=>{
     if(!d.ok){toast('폴더를 열 수 없습니다: '+(d.error||''));return}
     rsPathEl.value=d.path;rsData=d;renderExplorer();
+    const _c=canvases.find(x=>x.id===activeId);if(_c&&_c.rsPath!==d.path){_c.rsPath=d.path;markDirty();}
   }).catch(()=>toast('폴더를 열 수 없습니다'));
 }
 function rsRow(cls,name,path,draggable){
@@ -1199,7 +1208,7 @@ function rsRow(cls,name,path,draggable){
   return row;
 }
 function sortedFiles(){
-  const files=[...((rsData&&rsData.files)||[])];const k=rsSort.key,dir=rsSort.dir;
+  const files=[...((rsData&&rsData.files)||[])].filter(f=>!rsPbfOnly||f.kind==='pbf');const k=rsSort.key,dir=rsSort.dir;
   files.sort((a,b)=>{let av,bv;
     if(k==='name'){av=a.name.toLowerCase();bv=b.name.toLowerCase();}
     else if(k==='size'){av=a.size||0;bv=b.size||0;}
