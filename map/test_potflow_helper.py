@@ -55,6 +55,13 @@ def test_tile_rects_two_side_by_side():
 def test_tile_rects_full_when_one():
     assert helper.tile_rects(1, 1000, 800)[0] == (0, 0, 1000, 800)
 
+def test_save_and_load_doc(tmp_path, monkeypatch):
+    f = tmp_path / "d.json"
+    monkeypatch.setattr(helper, "DATA_FILE", str(f))
+    assert helper.load_doc() is None
+    assert helper.save_doc({"canvases": [1, 2]}) is True
+    assert helper.load_doc() == {"canvases": [1, 2]}
+
 def test_tile_rects_covers_full_screen_odd_dims():
     for n in (3, 4, 5, 9, 16):
         for W, H in ((1366, 768), (1921, 1081)):

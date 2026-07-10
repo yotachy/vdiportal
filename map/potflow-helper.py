@@ -160,6 +160,23 @@ def launch_players(paths):
         threading.Thread(target=arrange_windows, args=(pids, rects), daemon=True).start()
     return {"ok": True, "launched": len(pids)}
 
+def load_doc():
+    if not os.path.isfile(DATA_FILE):
+        return None
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+def save_doc(doc):
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(doc, f, ensure_ascii=False)
+        return True
+    except OSError:
+        return False
+
 def ping_payload():
     return {
         "ok": True,
@@ -190,6 +207,8 @@ class Handler(BaseHTTPRequestHandler):
             if data:
                 return self._send(200, data, "image/jpeg", raw=True)
             return self._send(404, {"ok": False, "error": err})
+        if u.path == "/doc":
+            return self._send(200, load_doc())
         # 정적 서빙
         rel = u.path.lstrip("/") or "potflow.html"
         fp = os.path.join(ROOT, rel)
@@ -211,6 +230,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"ok": False, "error": "invalid JSON body"})
         if u.path == "/play":
             return self._send(200, launch_players(body.get("paths", [])))
+        if u.path == "/doc":
+            return self._send(200, {"ok": save_doc(body.get("doc", {}))})
         return self._send(404, {"ok": False, "error": "not found"})
 
     def log_message(self, *a):
