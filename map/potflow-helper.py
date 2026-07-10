@@ -295,6 +295,55 @@ def _screen_size():
     except Exception:
         return 1920, 1080
 
+def _monitors():
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u = ctypes.windll.user32
+        class RECT(ctypes.Structure):
+            _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+        class MONITORINFO(ctypes.Structure):
+            _fields_ = [("cbSize", ctypes.c_ulong), ("rcMonitor", RECT), ("rcWork", RECT), ("dwFlags", ctypes.c_ulong)]
+        mons = []
+        MONENUM = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(RECT), wintypes.LPARAM)
+        def cb(hMon, hdc, lprc, lparam):
+            info = MONITORINFO(); info.cbSize = ctypes.sizeof(MONITORINFO)
+            u.GetMonitorInfoW(hMon, ctypes.byref(info))
+            r = info.rcWork
+            mons.append({"x": r.left, "y": r.top, "w": r.right - r.left, "h": r.bottom - r.top, "primary": bool(info.dwFlags & 1)})
+            return 1
+        u.EnumDisplayMonitors(0, 0, MONENUM(cb), 0)
+        mons.sort(key=lambda m: (not m["primary"], m["x"], m["y"]))
+        return mons or [{"x": 0, "y": 0, "w": 1920, "h": 1080, "primary": True}]
+    except Exception:
+        return [{"x": 0, "y": 0, "w": 1920, "h": 1080, "primary": True}]
+
+def win_to_rect(win, monitors):
+    if not monitors:
+        return (0, 0, 100, 100)
+    mi = win.get("mon", 0)
+    if not isinstance(mi, int) or mi < 0 or mi >= len(monitors):
+        mi = 0
+    m = monitors[mi]
+    x = int(m["x"] + float(win.get("x", 0)) * m["w"])
+    y = int(m["y"] + float(win.get("y", 0)) * m["h"])
+    w = max(1, int(float(win.get("w", 1)) * m["w"]))
+    h = max(1, int(float(win.get("h", 1)) * m["h"]))
+    return (x, y, w, h)
+
+def build_play_rects(valid, monitors):
+    prim = monitors[0]
+    auto = tile_rects(len(valid), prim["w"], prim["h"])
+    rects = []
+    for i, it in enumerate(valid):
+        w = it.get("win")
+        if isinstance(w, dict):
+            rects.append(win_to_rect(w, monitors))
+        else:
+            a = auto[i]
+            rects.append((prim["x"] + a[0], prim["y"] + a[1], a[2], a[3]))
+    return rects
+
 def arrange_windows(pids, rects):
     try:
         import ctypes, time
@@ -310,6 +359,7 @@ def arrange_windows(pids, rects):
             pid = wintypes.DWORD()
             u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
             if pid.value in want and pid.value not in placed:
+                u.ShowWindow(hwnd, 9)  # SW_RESTORE
                 x, y, w, h = want[pid.value]
                 u.SetWindowPos(hwnd, 0, x, y, w, h, 0x0040)  # SWP_SHOWWINDOW
                 placed[pid.value] = True
@@ -324,10 +374,10 @@ def normalize_play_items(body):
         out = []
         for it in items:
             if isinstance(it, dict) and it.get("path"):
-                out.append({"path": it["path"], "seek": it.get("seek")})
+                out.append({"path": it["path"], "seek": it.get("seek"), "win": it.get("win")})
         return out
     seek = body.get("seek")
-    return [{"path": p, "seek": seek} for p in body.get("paths", []) if p]
+    return [{"path": p, "seek": seek, "win": None} for p in body.get("paths", []) if p]
 
 def launch_players(items):
     exe = find_exe([POTPLAYER_PATH])
@@ -336,8 +386,8 @@ def launch_players(items):
     valid = [it for it in items if it.get("path") and os.path.isfile(it["path"])]
     if not valid:
         return {"ok": False, "error": "no valid videos"}
-    sw, sh = _screen_size()
-    rects = tile_rects(len(valid), sw, sh)
+    monitors = _monitors()
+    rects = build_play_rects(valid, monitors)
     procs = []
     for it in valid:
         try:
@@ -345,7 +395,8 @@ def launch_players(items):
         except Exception:
             pass
     pids = [pr.pid for pr in procs]
-    if os.name == "nt" and len(pids) > 1:
+    need = (len(pids) > 1) or any(isinstance(it.get("win"), dict) for it in valid)
+    if os.name == "nt" and pids and need:
         threading.Thread(target=arrange_windows, args=(pids, rects), daemon=True).start()
     token = _register_play(procs, valid[0]["path"] if len(valid) == 1 else None)
     return {"ok": True, "launched": len(procs), "token": token}
@@ -416,6 +467,8 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/playdone":
             qs = parse_qs(u.query)
             return self._send(200, {"done": play_done(qs.get("token", [""])[0])})
+        if u.path == "/monitors":
+            return self._send(200, {"monitors": _monitors()})
         # 정적 서빙
         rel = u.path.lstrip("/") or "potflow.html"
         fp = os.path.join(ROOT, rel)

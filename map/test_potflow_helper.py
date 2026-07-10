@@ -175,8 +175,25 @@ def test_host_header_guard_blocks_dns_rebinding():
 
 def test_normalize_play_items():
     assert helper.normalize_play_items({"items":[{"path":"a.mp4","seek":5},{"path":"b.mkv"}]}) == \
-        [{"path":"a.mp4","seek":5},{"path":"b.mkv","seek":None}]
+        [{"path":"a.mp4","seek":5,"win":None},{"path":"b.mkv","seek":None,"win":None}]
     assert helper.normalize_play_items({"paths":["a.mp4","b.mkv"],"seek":9}) == \
-        [{"path":"a.mp4","seek":9},{"path":"b.mkv","seek":9}]
-    assert helper.normalize_play_items({"paths":["a.mp4"]}) == [{"path":"a.mp4","seek":None}]
+        [{"path":"a.mp4","seek":9,"win":None},{"path":"b.mkv","seek":9,"win":None}]
+    assert helper.normalize_play_items({"paths":["a.mp4"]}) == [{"path":"a.mp4","seek":None,"win":None}]
     assert helper.normalize_play_items({}) == []
+
+def test_win_to_rect_multimon():
+    mons=[{"x":0,"y":0,"w":1920,"h":1080,"primary":True},{"x":1920,"y":0,"w":1280,"h":720,"primary":False}]
+    assert helper.win_to_rect({"mon":1,"x":0.5,"y":0,"w":0.5,"h":1}, mons)==(2560,0,640,720)
+    assert helper.win_to_rect({"mon":9,"x":0,"y":0,"w":1,"h":1}, mons)==(0,0,1920,1080)
+
+def test_build_play_rects_mixed():
+    mons=[{"x":0,"y":0,"w":1000,"h":800,"primary":True}]
+    valid=[{"path":"a","win":{"mon":0,"x":0,"y":0,"w":.5,"h":1}},{"path":"b"}]
+    r=helper.build_play_rects(valid, mons)
+    assert r[0]==(0,0,500,800) and len(r)==2 and r[1][2]>0
+
+def test_normalize_carries_win():
+    out=helper.normalize_play_items({"items":[{"path":"a","seek":3,"win":{"mon":0,"x":0,"y":0,"w":1,"h":1}}]})
+    assert out[0]["win"]=={"mon":0,"x":0,"y":0,"w":1,"h":1} and out[0]["seek"]==3
+    out2=helper.normalize_play_items({"paths":["a"]})
+    assert out2[0]["win"] is None
