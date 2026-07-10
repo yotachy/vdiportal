@@ -40,3 +40,17 @@ def test_ffmpeg_thumb_cmd_shape():
     cmd = helper.ffmpeg_thumb_cmd("ffmpeg", "a.mkv", "out.jpg")
     assert cmd[0] == "ffmpeg" and "a.mkv" in cmd and cmd[-1] == "out.jpg"
     assert "-frames:v" in cmd and "1" in cmd
+
+def test_tile_rects_counts():
+    assert len(helper.tile_rects(1, 1920, 1080)) == 1
+    assert len(helper.tile_rects(4, 1920, 1080)) == 4
+    for r in helper.tile_rects(4, 1920, 1080):
+        assert len(r) == 4 and all(isinstance(v, int) for v in r)
+
+def test_tile_rects_two_side_by_side():
+    rects = helper.tile_rects(2, 1000, 800)
+    assert rects[0][0] == 0 and rects[1][0] == 500  # x 좌/우
+    assert rects[0][2] == 500 and rects[1][2] == 500  # 각 폭 절반
+
+def test_tile_rects_full_when_one():
+    assert helper.tile_rects(1, 1000, 800)[0] == (0, 0, 1000, 800)

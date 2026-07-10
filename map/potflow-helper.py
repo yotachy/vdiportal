@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PotFlow 로컬 헬퍼 — 정적 서빙 + 재생/탐색/썸네일/문서저장."""
-import os, sys, json, shutil, subprocess, hashlib, tempfile
+import os, sys, json, shutil, subprocess, hashlib, tempfile, math
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -87,6 +87,74 @@ def get_thumb(video_path):
         pass
     return None, "thumb failed"
 
+def tile_rects(n, screen_w, screen_h):
+    n = max(1, n)
+    if n == 1:
+        return [(0, 0, screen_w, screen_h)]
+    if n == 2:
+        w = screen_w // 2
+        return [(0, 0, w, screen_h), (w, 0, screen_w - w, screen_h)]
+    cols = math.ceil(math.sqrt(n))
+    rows = math.ceil(n / cols)
+    cw, ch = screen_w // cols, screen_h // rows
+    rects = []
+    for i in range(n):
+        r, c = divmod(i, cols)
+        rects.append((c * cw, r * ch, cw, ch))
+    return rects
+
+def _screen_size():
+    try:
+        import ctypes
+        u = ctypes.windll.user32
+        return u.GetSystemMetrics(0), u.GetSystemMetrics(1)
+    except Exception:
+        return 1920, 1080
+
+def arrange_windows(pids, rects):
+    try:
+        import ctypes, time
+        from ctypes import wintypes
+        u = ctypes.windll.user32
+        time.sleep(1.2)  # 창이 뜰 시간
+        want = {pid: rects[i] for i, pid in enumerate(pids) if i < len(rects)}
+        placed = {}
+        EnumProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def cb(hwnd, _):
+            if not u.IsWindowVisible(hwnd):
+                return True
+            pid = wintypes.DWORD()
+            u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            if pid.value in want and pid.value not in placed:
+                x, y, w, h = want[pid.value]
+                u.SetWindowPos(hwnd, 0, x, y, w, h, 0x0040)  # SWP_SHOWWINDOW
+                placed[pid.value] = True
+            return True
+        u.EnumWindows(EnumProc(cb), 0)
+    except Exception:
+        pass
+
+def launch_players(paths):
+    exe = find_exe([POTPLAYER_PATH])
+    if not exe:
+        return {"ok": False, "error": "PotPlayer not found"}
+    valid = [p for p in paths if p and os.path.isfile(p)]
+    if not valid:
+        return {"ok": False, "error": "no valid videos"}
+    sw, sh = _screen_size()
+    rects = tile_rects(len(valid), sw, sh)
+    pids = []
+    for p in valid:
+        try:
+            proc = subprocess.Popen([exe, p])
+            pids.append(proc.pid)
+        except Exception:
+            pass
+    if os.name == "nt" and len(pids) > 1:
+        import threading
+        threading.Thread(target=arrange_windows, args=(pids, rects), daemon=True).start()
+    return {"ok": True, "launched": len(pids)}
+
 def ping_payload():
     return {
         "ok": True,
@@ -124,6 +192,14 @@ class Handler(BaseHTTPRequestHandler):
             ctype = "text/html" if fp.endswith(".html") else "application/octet-stream"
             with open(fp, "rb") as f:
                 return self._send(200, f.read(), ctype, raw=True)
+        return self._send(404, {"ok": False, "error": "not found"})
+
+    def do_POST(self):
+        u = urlparse(self.path)
+        length = int(self.headers.get("Content-Length", 0))
+        body = json.loads(self.rfile.read(length) or b"{}")
+        if u.path == "/play":
+            return self._send(200, launch_players(body.get("paths", [])))
         return self._send(404, {"ok": False, "error": "not found"})
 
     def log_message(self, *a):
