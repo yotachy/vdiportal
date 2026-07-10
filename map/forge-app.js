@@ -1491,7 +1491,7 @@
       const vfHtml = _vf ? (function () {
         const rows = (_vfcv || []).map(c => `· ${c.lb}(${c.h}봉): ${c.expand ? "확대" : "축소"} ${c.prob}% (OOS ${c.acc}%)`).join("&#10;");
         const tip = "다음 구간 변동성이 확대(더 크게 움직임)/축소(잔잔해짐)될지 — 지평별 곡선.&#10;⚠️가격 방향 아님(오를지 내릴지 X, 얼마나 움직일지 O). 대표=1달.&#10;" + rows + "&#10;" + (_vf.expand ? "→ 큰 움직임 대비·손절 넓게" : "→ 박스권 매매·타이트하게");
-        return `<span class="fcv-vol ${_vf.expand ? "vol-exp" : "vol-con"}" title="${tip}">${_vf.expand ? "⌇ 변동성 확대" : "≈ 변동성 축소"} <b>${_vf.prob}%</b><span class="vol-vf">2주·1달·2달</span></span>`;
+        return `<span class="fcv-vol ${_vf.expand ? "vol-exp" : "vol-con"}" title="${tip}">${_vf.expand ? "⌇ 확대" : "≈ 축소"} <b>${_vf.prob}%</b><span class="vol-vf">2주·1달·2달</span></span>`;
       })() : "";
       // 낙폭리스크 예보(v1.6) — 향후 ~1개월 5%↑ 하락 확률(하방 특화, 가격 방향 예측 아님). OOS 68% 검증.
       const _dd = _ctx && _ctx.ddRisk;
@@ -1511,7 +1511,7 @@
       const spkHtml = _spk ? (function () {
         const rows = (_spkcv || []).map(c => `· ${c.lb}(${c.h}봉) ${c.sigma}σ↑: ${c.prob}% (평시 ${c.base}% · OOS ${c.acc}%)`).join("&#10;");
         const tip = "하루 만에 큰 폭(현재 변동성의 Kσ 이상, 급등·급락 무관)이 나올 확률 — 지평이 길수록 문턱↑(대각선 곡선).&#10;⚠️가격 방향 예측 아님 — '큰 하루가 올까'. 대표=1달(2.5σ).&#10;" + rows + "&#10;" + (_spk.elevated ? "→ 평시보다 높음 · 갭·실적·이벤트 대비" : "→ 평시 수준");
-        return `<span class="fcv-vol ${_spk.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">⚡ 급변 경보 <b>${_spk.prob}%</b><span class="vol-vf">평시 ${_spk.base}%</span></span>`;
+        return `<span class="fcv-vol ${_spk.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">⚡ <b>${_spk.prob}%</b><span class="vol-vf">평시 ${_spk.base}%</span></span>`;
       })() : "";
       // 오버나잇 갭 멀티지평 곡선(v1.9.4) — 지평↑ 문턱↑ 대각선(1달2.2σ/1.5달2.7σ/2달3.2σ). 주식 한정, 비주식 null. 급변(일중)과 다른 슬라이스. OOS 62~63%.
       const _gap = _ctx && _ctx.gapRisk;
@@ -1519,7 +1519,7 @@
       const gpHtml = _gap ? (function () {
         const rows = (_gapcv || []).map(c => `· ${c.lb}(${c.h}봉) ${c.sigma}σ↑: ${c.prob}% (평시 ${c.base}% · OOS ${c.acc}%)`).join("&#10;");
         const tip = "하루 만에 큰 오버나잇 갭(시가가 전일 종가 대비 크게 벌어짐, 갭업·갭다운 무관)이 나올 확률 — 지평이 길수록 문턱↑(대각선 곡선). 대표=1달(2.2σ).&#10;⚠️가격 방향 예측 아님 — '큰 갭이 뜰까'. 급변 경보(일중·종가)와 다른 데이터 슬라이스(시가 vs 전일종가). 급변축 대비 종목외 +3~4%p 증분.&#10;" + rows + "&#10;주식 한정 — 24h 시장(FX·크립토) 미표시. " + (_gap.elevated ? "→ 평시보다 높음 · 갭 대비" : "→ 평시 수준");
-        return `<span class="fcv-vol ${_gap.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">▮ 갭 경보 <b>${_gap.prob}%</b><span class="vol-vf">평시 ${_gap.base}%</span></span>`;
+        return `<span class="fcv-vol ${_gap.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">▮ <b>${_gap.prob}%</b><span class="vol-vf">평시 ${_gap.base}%</span></span>`;
       })() : "";
       // 추세 지속/소진 멀티지평 곡선(v1.9.5) — 2주/1달/2달 뒤에도 추세 유지할지. 비방향. 종목외 OOS 79/76/73%(상승)·76/75/73%(하락).
       const _tp = _ctx && _ctx.trendPersist;
@@ -1527,7 +1527,7 @@
       const tpHtml = _tp ? (function () {
         const rows = (_tpcv || []).map(c => `· ${c.lb}(${c.h}봉): 지속 ${c.persist}% / 소진 ${c.exhaust}% (종목외 ${c.acc}%)`).join("&#10;");
         const tip = "현재 " + (_tp.state === "up" ? "상승" : "하락") + "추세가 그 시점 뒤에도 이어질(지속) vs 힘 빠져 횡보 전환할(소진) 확률 — 지평별 곡선. 대표=1달.&#10;⚠️가격 방향 예측 아님 — '지속될지 소진될지'(비방향). 종목외 walk-forward(다수결·strength 크게 초과).&#10;" + rows + "&#10;소진 예상이면 추격 자제·평균회귀 대비.";
-        return `<span class="fcv-vol ${_tp.persist >= 60 ? "rr-up" : _tp.persist <= 40 ? "dd-lo" : "rr-fl"}" title="${tip}">${_tp.state === "up" ? "▲" : "▼"} 추세 ${_tp.persist >= 55 ? "지속" : _tp.persist <= 45 ? "소진" : "중립"} <b>${_tp.persist}%</b><span class="vol-vf">2주·1달·2달</span></span>`;
+        return `<span class="fcv-vol ${_tp.persist >= 60 ? "rr-up" : _tp.persist <= 40 ? "dd-lo" : "rr-fl"}" title="${tip}">${_tp.state === "up" ? "▲" : "▼"} ${_tp.persist >= 55 ? "지속" : _tp.persist <= 45 ? "소진" : "중립"} <b>${_tp.persist}%</b><span class="vol-vf">2주·1달·2달</span></span>`;
       })() : "";
       // 리스크 가이드(v1.6) — 검증된 콘(예측범위, 실현변동성과 0.79 상관)·낙폭리스크에 표준 리스크공식 적용.
       // 예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님) — 정직 구분.
@@ -1543,20 +1543,26 @@
         rgHtml = `<span class="fcv-risk" title="검증된 예측범위(콘)·낙폭리스크에 표준 리스크 공식을 적용한 참고 가이드.&#10;⚠️예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님).&#10;· 예상 변동폭: 향후 ${_pR.futW || ""}봉 콘 ±${(_band * 100).toFixed(1)}%&#10;· 권장 손절폭: ${(_stop * 100).toFixed(1)}% (하방 콘${_elev ? " · 낙폭경보로 확대" : ""})&#10;· 권장 비중: 계좌 2% 리스크 기준 ${Math.round(_size * 100)}%">🛡 손절 ${(_stop * 100).toFixed(1)}% · 비중 ${Math.round(_size * 100)}%</span>`;
       }
       const _L = t => `<span class="fcv-k">${t}</span>`;
+      // 검증된 예측 6축 클러스터(멀티지평 곡선) — 핵심 판정과 분리해 계층 부여. 각 축 라벨의 '· 검증됨'은 클러스터 헤더로 대체.
+      const _axCells =
+        (vfHtml ? `<span class="fcv-cell">${_L("변동성 예보")}${vfHtml}</span>` : "") +
+        (ddHtml ? `<span class="fcv-cell">${_L("확률 손익")}${ddHtml}</span>` : "") +
+        (spkHtml ? `<span class="fcv-cell">${_L("급변 경보")}${spkHtml}</span>` : "") +
+        (gpHtml ? `<span class="fcv-cell">${_L("갭 경보 · 주식")}${gpHtml}</span>` : "") +
+        (tpHtml ? `<span class="fcv-cell">${_L("추세 지속/소진")}${tpHtml}</span>` : "") +
+        (rgHtml ? `<span class="fcv-cell">${_L("리스크 가이드 · 참고")}${rgHtml}</span>` : "");
+      const _axGrp = _axCells ? `<div class="fcv-axgrp"><span class="fcv-axlb" title="백테스트 out-of-sample으로 검증된 예측 축(멀티지평 곡선). 가격 방향(효율시장 벽)이 아닌 변동성·리스크·추세 구조를 예측.">검증된 예측 곡선 · 6축</span>${_axCells}</div>` : "";
       bar.innerHTML =
+        // ── 1계층: 핵심 판정 ──
         (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
         (pxHtml ? `<span class="fcv-cell">${_L("현재가")}${pxHtml}</span>` : "") +
         ((ctxHtml || oppHtml) ? `<span class="fcv-cell">${_L("국면 · 기회")}<span class="fcv-cellrow">${ctxHtml}${oppHtml}</span></span>` : "") +
-        (tpHtml ? `<span class="fcv-cell">${_L("추세 지속/소진 · 검증됨")}${tpHtml}</span>` : "") +
         `<span class="fcv-cell">${_L("방향 판정")}<span class="fcv-reg" title="지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span></span>` +
         (_up != null ? `<span class="fcv-cell">${_L("상승 / 하락 확률")}<span class="fcv-prob" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span></span>` : "") +
-        (vfHtml ? `<span class="fcv-cell">${_L("변동성 예보 · 검증됨")}${vfHtml}</span>` : "") +
-        (ddHtml ? `<span class="fcv-cell">${_L("확률 손익 · 검증됨")}${ddHtml}</span>` : "") +
-        (spkHtml ? `<span class="fcv-cell">${_L("급변 경보 · 검증됨")}${spkHtml}</span>` : "") +
-        (gpHtml ? `<span class="fcv-cell">${_L("갭 경보 · 주식")}${gpHtml}</span>` : "") +
-        (rgHtml ? `<span class="fcv-cell">${_L("리스크 가이드 · 참고")}${rgHtml}</span>` : "") +
         (isFinite(_targetN) ? `<span class="fcv-cell">${_L("목표가")}<span class="fcv-sig" title="예측 도달가"><b>${fmtNum(_targetN)}</b></span></span>` : "") +
-        `<span class="fcv-cell fcv-opcell">${_L("핵심 의견")}<span class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span></span>` + _bd;
+        `<span class="fcv-cell fcv-opcell">${_L("핵심 의견")}<span class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span></span>` +
+        // ── 2계층: 검증된 예측 6축 + 지표 방향분포 ──
+        _axGrp + _bd;
     }
     if (u >= 1 && bar) { bar.classList.remove("flash"); void bar.offsetWidth; bar.classList.add("flash"); }   // 최종 결과 등장 강조
     if (typeof scheduleDash === "function" && u >= 1) scheduleDash();   // 타임프레임 매트릭스 자동 갱신(시연 충전 중엔 생략)
