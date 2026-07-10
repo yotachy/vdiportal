@@ -54,3 +54,11 @@ def test_tile_rects_two_side_by_side():
 
 def test_tile_rects_full_when_one():
     assert helper.tile_rects(1, 1000, 800)[0] == (0, 0, 1000, 800)
+
+def test_tile_rects_covers_full_screen_odd_dims():
+    for n in (3, 4, 5, 9, 16):
+        for W, H in ((1366, 768), (1921, 1081)):
+            rects = helper.tile_rects(n, W, H)
+            # right edge of the widest-reaching tile == W, bottom edge == H
+            assert max(x + w for (x, y, w, h) in rects) == W
+            assert max(y + h for (x, y, w, h) in rects) == H

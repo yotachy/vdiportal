@@ -100,7 +100,12 @@ def tile_rects(n, screen_w, screen_h):
     rects = []
     for i in range(n):
         r, c = divmod(i, cols)
-        rects.append((c * cw, r * ch, cw, ch))
+        x = c * cw
+        y = r * ch
+        # 마지막 열/행이 정수 나눗셈 나머지를 흡수 → 화면 전체 커버(우/하단 슬리버 없음)
+        w = (screen_w - c * cw) if c == cols - 1 else cw
+        h = (screen_h - r * ch) if r == rows - 1 else ch
+        rects.append((x, y, w, h))
     return rects
 
 def _screen_size():
@@ -197,7 +202,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         u = urlparse(self.path)
         length = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(length) or b"{}")
+        raw = self.rfile.read(length) or b"{}"
+        try:
+            body = json.loads(raw)
+        except json.JSONDecodeError:
+            return self._send(400, {"ok": False, "error": "invalid JSON body"})
+        if not isinstance(body, dict):
+            return self._send(400, {"ok": False, "error": "invalid JSON body"})
         if u.path == "/play":
             return self._send(200, launch_players(body.get("paths", [])))
         return self._send(404, {"ok": False, "error": "not found"})
