@@ -427,8 +427,7 @@
         <div class="hint-l"><kbd>Ctrl+S</kbd> 저장 · <kbd>Ctrl+F</kbd> 찾기 · <kbd>Ctrl+A</kbd> 전체</div>
         <div class="hint-l"><kbd>Ctrl+C</kbd>·<kbd>V</kbd> 복사·붙여넣기 · <kbd>Ctrl+D</kbd> 복제</div>
         <div class="hint-l"><kbd>Ctrl+Z</kbd> 되돌리기 · <kbd>Ctrl+Shift+Z</kbd> 다시실행</div>
-        <div class="hint-l"><kbd>Tab</kbd> 하위 · <kbd>Enter</kbd> 형제 · <kbd>G</kbd> 그룹</div>
-        <div class="hint-l"><kbd>Del</kbd> 삭제 · <kbd>Esc</kbd> 해제</div>
+        <div class="hint-l"><kbd>G</kbd> 그룹 · <kbd>Del</kbd> 삭제 · <kbd>Esc</kbd> 해제</div>
       </div>
     </div>
     <button class="hint-show edit-only" onclick="toggleHint()" title="도움말 보기">?</button>
@@ -796,8 +795,6 @@ function drawNhud(){
   const sw=NODE_COLORS.map(c=>`<button class="nsw ${c?'':'def'} ${(n.bg||null)===c?'on':''}" data-bg="${c||''}" style="${c?`background:${c}`:''}" title="${c||'기본'}"></button>`).join('');
   hud.innerHTML=`<div class="hbar nbar" style="left:${n.x}px;top:${n.y}px">
     <div class="nbar-row">
-      <button class="hbtn" data-nact="parent" title="상위(부모) 노드 추가">${ICO.parent}<span>상위</span></button>
-      <button class="hbtn" data-nact="child" title="하위(자식) 노드 추가">${ICO.child}<span>하위</span></button>
       <button class="hbtn danger" data-nact="del" title="노드 삭제">${ICO.trash}<span>삭제</span></button>
       ${n.videoPath?`<button class="hbtn" data-nact="bmsync" title="책갈피(pbf) 동기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg><span>책갈피</span></button>`:''}
       ${n.videoPath?`<button class="hbtn" data-nact="winset" title="화면 배치(모니터 영역)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="3" y="4" width="18" height="13" rx="1.5"/><path d="M8 20h8M12 17v3"/></svg><span>배치</span></button>`:''}
@@ -1142,7 +1139,7 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-ewidth]')){if(selEdge){const ed=E(selEdge);ed.width=((ed.width||2)%3)+1;paint();markDirty()}return}
   if(e.target.closest('[data-eroute]')){if(selEdge){const ed=E(selEdge);ed.route=ed.route!=='curve'?'curve':'ortho';paint();markDirty()}return}
   if(e.target.closest('[data-elabeladd]')){if(selEdge){const ed=E(selEdge);if(ed.label==null)ed.label='';paint();const le=document.querySelector(`.elabel[data-elabel="${selEdge}"]`);if(le){le.focus();const r=document.createRange();r.selectNodeContents(le);const s=window.getSelection();s.removeAllRanges();s.addRange(r)}}return}
-  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='parent')addParent(id);else if(a==='child')addChild(id);else if(a==='del')delNodes([id]);else if(a==='bmsync')syncBookmarks(id);else if(a==='winset')openWinPop(id)}return}
+  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='del')delNodes([id]);else if(a==='bmsync')syncBookmarks(id);else if(a==='winset')openWinPop(id)}return}
   const al=e.target.closest('[data-align]');if(al){alignSel(al.dataset.align);return}
   const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='add')addChild(id);else if(a==='rmthumb')setThumb(id,null);return}
@@ -1346,9 +1343,6 @@ window.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&(e.key==='c'||e.key==='C')){if(sel.length){e.preventDefault();copyNodes()}return}   // 노드 선택 시만 가로챔, 아니면 브라우저 기본
   if((e.ctrlKey||e.metaKey)&&(e.key==='v'||e.key==='V')){if(nodeClip&&nodeClip.nodes.length){e.preventDefault();pasteNodes()}return}
   if((e.ctrlKey||e.metaKey)&&(e.key==='d'||e.key==='D')){if(sel.length){e.preventDefault();duplicateSelection()}return}
-  const primary=sel[sel.length-1];
-  if(e.key==='-'||e.key==='_'){e.preventDefault();if(primary)addChild(primary);return}
-  if(e.key==='+'||e.key==='='){e.preventDefault();if(primary)addParent(primary);return}
   if(e.key==='g'||e.key==='G'){if(sel.length>=2)makeGroup();return}
   if(e.key==='Delete'){if(selEdge)delEdge(selEdge);else if(sel.length)delNodes([...sel]);return}
 });
