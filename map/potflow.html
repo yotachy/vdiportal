@@ -112,7 +112,14 @@
   .rs-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:12.5px;color:var(--txt);user-select:none}
   .rs-row:hover{background:var(--raised2)}
   .rs-row.folder{color:var(--gold)}
-  .rs-file{cursor:grab}
+  .rs-head2{display:grid;grid-template-columns:1fr 58px 42px 78px;gap:6px;padding:5px 8px;font-size:11px;color:var(--faint);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);flex:none}
+  .rs-head2 span{cursor:pointer;user-select:none;white-space:nowrap;overflow:hidden}
+  .rs-head2 span.on{color:var(--gold)}
+  .rs-head2 .num{text-align:right}
+  .rs-file{display:grid;grid-template-columns:1fr 58px 42px 78px;gap:6px;align-items:center;cursor:grab;padding:3px 8px;font-size:11.5px}
+  .rs-file .rs-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rs-file .col{color:var(--eth);font-size:11px;white-space:nowrap;overflow:hidden}
+  .rs-file .num{text-align:right}
   .rs-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .rs-empty{padding:14px;text-align:center;font-size:12px;color:var(--faint)}
   body.view .rside{display:none}
@@ -1030,11 +1037,14 @@ stage.addEventListener('drop',e=>{const iid=e.dataTransfer.getData('iconid');
 
 /* 우측 파일탐색기(폴더트리·동영상 목록) */
 const rsBodyEl=document.getElementById('rsBody'),rsPathEl=document.getElementById('rsPath');
+let rsData=null,rsSort={key:'name',dir:1};
+function fmtSize(b){if(!b)return'';const u=['B','KB','MB','GB'];let i=0,n=b;while(n>=1024&&i<u.length-1){n/=1024;i++}return (i===0?n:(n<10?n.toFixed(1):Math.round(n)))+u[i];}
+function fmtDate(ep){if(!ep)return'';const d=new Date(ep*1000);const p=x=>String(x).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 function openFolder(path){
   if(!HELPER_OK){toast('헬퍼가 꺼져 있습니다');return}
   fetch(HELPER+"/tree?path="+encodeURIComponent(path||"")).then(r=>r.json()).then(d=>{
     if(!d.ok){toast('폴더를 열 수 없습니다: '+(d.error||''));return}
-    rsPathEl.value=d.path;renderExplorer(d);
+    rsPathEl.value=d.path;rsData=d;renderExplorer();
   }).catch(()=>toast('폴더를 열 수 없습니다'));
 }
 function rsRow(cls,name,path,draggable){
@@ -1047,20 +1057,42 @@ function rsRow(cls,name,path,draggable){
   row.append(nm);
   return row;
 }
-function renderExplorer(d){
-  rsBodyEl.innerHTML='';
-  if(d.parent){const up=rsRow('folder up','⬆ 상위 폴더',d.parent,false);rsBodyEl.append(up);}
-  (d.folders||[]).forEach(f=>{rsBodyEl.append(rsRow('folder','📁 '+f.name,f.path,false));});
-  (d.files||[]).forEach(f=>{
-    const row=rsRow('rs-file','🎬 '+f.name,f.path,true);
-    row.dataset.name=f.name;
-    rsBodyEl.append(row);
+function sortedFiles(){
+  const files=[...((rsData&&rsData.files)||[])];const k=rsSort.key,dir=rsSort.dir;
+  files.sort((a,b)=>{let av,bv;
+    if(k==='name'){av=a.name.toLowerCase();bv=b.name.toLowerCase();}
+    else if(k==='size'){av=a.size||0;bv=b.size||0;}
+    else if(k==='ext'){av=a.ext||'';bv=b.ext||'';}
+    else{av=a.mtime||0;bv=b.mtime||0;}
+    return (av<bv?-1:av>bv?1:0)*dir;});
+  return files;
+}
+function renderExplorer(){
+  const d=rsData;rsBodyEl.innerHTML='';if(!d)return;
+  // 정렬 헤더
+  const head=document.createElement('div');head.className='rs-head2';
+  const cols=[['name','이름',''],['size','크기','num'],['ext','형식',''],['mtime','수정일','']];
+  cols.forEach(([key,label,cls])=>{const s=document.createElement('span');s.dataset.k=key;if(cls)s.className=cls;
+    s.textContent=label+(rsSort.key===key?(rsSort.dir>0?' ▲':' ▼'):'');if(rsSort.key===key)s.classList.add('on');head.append(s);});
+  rsBodyEl.append(head);
+  // 폴더(정렬 대상 아님)
+  if(d.parent){rsBodyEl.append(rsRow('folder up','⬆ 상위 폴더',d.parent,false));}
+  (d.folders||[]).forEach(f=>rsBodyEl.append(rsRow('folder','📁 '+f.name,f.path,false)));
+  // 파일(정렬 적용, 컴팩트 컬럼)
+  const files=sortedFiles();
+  files.forEach(f=>{
+    const row=document.createElement('div');row.className='rs-file';row.draggable=true;
+    row.dataset.path=f.path;row.dataset.name=f.name;
+    const nm=document.createElement('div');nm.className='rs-name';nm.title=f.name;nm.textContent=f.name;
+    const sz=document.createElement('div');sz.className='col num';sz.textContent=fmtSize(f.size);
+    const ex=document.createElement('div');ex.className='col';ex.textContent=f.ext||'';
+    const dt=document.createElement('div');dt.className='col';dt.textContent=fmtDate(f.mtime);
+    row.append(nm,sz,ex,dt);rsBodyEl.append(row);
   });
-  if(!(d.folders||[]).length&&!(d.files||[]).length){
-    const em=document.createElement('div');em.className='rs-empty';em.textContent='폴더가 비어 있습니다';rsBodyEl.append(em);
-  }
+  if(!(d.folders||[]).length&&!files.length){const em=document.createElement('div');em.className='rs-empty';em.textContent='동영상이 없습니다';rsBodyEl.append(em);}
 }
 rsBodyEl.addEventListener('click',e=>{
+  const h=e.target.closest('.rs-head2 span');if(h){const k=h.dataset.k;if(rsSort.key===k)rsSort.dir*=-1;else{rsSort.key=k;rsSort.dir=1;}renderExplorer();return;}
   const row=e.target.closest('.rs-row.folder');if(!row)return;
   openFolder(row.dataset.path);
 });
@@ -1113,9 +1145,10 @@ function captureThumb(file,id){
   try{url=URL.createObjectURL(file);}catch(e){return}
   const v=document.createElement('video');v.muted=true;v.preload='metadata';
   let done=false;const cleanup=()=>{try{URL.revokeObjectURL(url)}catch(e){}};
+  const to=setTimeout(()=>{if(!done){done=true;cleanup();}},8000);
   v.addEventListener('loadeddata',()=>{try{v.currentTime=Math.min(5,(v.duration||6)/3)}catch(e){cleanup()}});
   v.addEventListener('seeked',()=>{
-    if(done)return;done=true;
+    if(done)return;done=true;clearTimeout(to);
     try{
       const vw=v.videoWidth||320,vh=v.videoHeight||180,w=320,h=Math.max(1,Math.round(w*vh/vw));
       const c=document.createElement('canvas');c.width=w;c.height=h;
@@ -1125,7 +1158,7 @@ function captureThumb(file,id){
     }catch(e){}
     cleanup();
   });
-  v.addEventListener('error',()=>{cleanup();});
+  v.addEventListener('error',()=>{clearTimeout(to);cleanup();});
   v.src=url;
 }
 
