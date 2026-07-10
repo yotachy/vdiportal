@@ -86,6 +86,62 @@ def ffmpeg_thumb_cmd(ffmpeg, video_path, out):
     return [ffmpeg, "-y", "-ss", "5", "-i", video_path,
             "-frames:v", "1", "-vf", "scale=320:-1", out]
 
+def parse_pbf(text):
+    out = []
+    in_bm = False
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith("[") and s.endswith("]"):
+            in_bm = (s.lower() == "[bookmark]")
+            continue
+        if not in_bm or "=" not in s:
+            continue
+        _, _, val = s.partition("=")
+        parts = val.split("*", 2)
+        try:
+            ms = int(parts[0])
+        except (ValueError, IndexError):
+            continue
+        title = parts[1] if len(parts) > 1 else ""
+        thumb = parts[2] if len(parts) > 2 and parts[2] else None
+        out.append({"ms": ms, "title": title, "thumb": thumb})
+    out.sort(key=lambda b: b["ms"])
+    return out
+
+def pbf_for_video(video_path):
+    for c in (video_path + ".pbf", os.path.splitext(video_path)[0] + ".pbf"):
+        if os.path.isfile(c):
+            return c
+    return None
+
+def video_for_pbf(pbf_path):
+    if not pbf_path.lower().endswith(".pbf"):
+        return None
+    cand = pbf_path[:-4]
+    if os.path.isfile(cand) and os.path.splitext(cand)[1].lower() in VIDEO_EXTS:
+        return cand
+    base = os.path.splitext(os.path.basename(cand))[0].lower()
+    d = os.path.dirname(pbf_path)
+    try:
+        for fn in sorted(os.listdir(d), key=str.lower):
+            fp = os.path.join(d, fn)
+            if (os.path.isfile(fp) and os.path.splitext(fn)[1].lower() in VIDEO_EXTS
+                    and os.path.splitext(fn)[0].lower() == base):
+                return fp
+    except OSError:
+        pass
+    return None
+
+def ffmpeg_thumb_at_cmd(ffmpeg, video_path, sec, out):
+    return [ffmpeg, "-y", "-ss", str(sec), "-i", video_path,
+            "-frames:v", "1", "-vf", "scale=320:-1", out]
+
+def player_cmd(exe, path, seek=None):
+    cmd = [exe, path]
+    if seek is not None:
+        cmd.append("/seek=" + str(seek))
+    return cmd
+
 def get_thumb(video_path):
     out = thumb_path_for(video_path)
     if os.path.isfile(out) and os.path.getsize(out) > 0:

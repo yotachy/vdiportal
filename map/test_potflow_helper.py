@@ -95,6 +95,32 @@ def test_resolve_path_none_and_ambiguous(tmp_path):
     # 크기 불일치는 매칭 아님
     assert helper.resolve_path("dup.mp4", 999, [str(tmp_path)]) == (None, 0)
 
+def test_parse_pbf_basic():
+    text = "[Bookmark]\n0=305000*둘째*\n1=5000*첫째*QUJD\nbad line\n[Other]\n2=999*무시*"
+    r = helper.parse_pbf(text)
+    assert [b["ms"] for b in r] == [5000, 305000]           # ms 오름차순, [Other] 섹션 제외
+    assert r[0]["title"] == "첫째" and r[0]["thumb"] == "QUJD"
+    assert r[1]["title"] == "둘째" and r[1]["thumb"] is None
+
+def test_pbf_video_resolution(tmp_path):
+    vid = tmp_path / "movie.mkv"; vid.write_bytes(b"x")
+    # <video>.pbf 형태
+    p1 = tmp_path / "movie.mkv.pbf"; p1.write_text("[Bookmark]\n0=1000*a*")
+    assert helper.pbf_for_video(str(vid)) == str(p1)
+    assert helper.video_for_pbf(str(p1)) == str(vid)
+    # <basename>.pbf 형태
+    p1.unlink(); p2 = tmp_path / "movie.pbf"; p2.write_text("[Bookmark]\n0=1000*a*")
+    assert helper.pbf_for_video(str(vid)) == str(p2)
+    assert helper.video_for_pbf(str(p2)) == str(vid)
+    # pbf 없음
+    p2.unlink(); assert helper.pbf_for_video(str(vid)) is None
+
+def test_player_and_ffmpeg_cmds():
+    assert helper.player_cmd("pot.exe", "v.mp4") == ["pot.exe", "v.mp4"]
+    assert helper.player_cmd("pot.exe", "v.mp4", 90) == ["pot.exe", "v.mp4", "/seek=90"]
+    c = helper.ffmpeg_thumb_at_cmd("ffmpeg", "v.mkv", 5.0, "o.jpg")
+    assert c[0] == "ffmpeg" and "v.mkv" in c and c[-1] == "o.jpg" and "-frames:v" in c
+
 def test_host_header_guard_blocks_dns_rebinding():
     import threading, http.client
     srv = helper.make_server(0)
