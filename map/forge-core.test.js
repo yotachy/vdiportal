@@ -2061,6 +2061,26 @@ test("forecastSpike: 단일봉 급변 예보 형식·범위·단조 [v1.8]", () 
   assert.ok(rc.curve.every(c => c.prob >= 0 && c.prob <= 100), "곡선 확률 0~100");
 });
 
+test("forecastGapRisk: 오버나잇 갭 예보 — 형식·주식게이트 [v1.9.3]", () => {
+  const fg = ForgeCore.forecastGapRisk;
+  assert.equal(fg([1, 2, 3], null), null, "데이터 부족 → null");
+  // 갭 있는 시계열(종가 대비 시가가 벌어짐 = 주식형): 객체 반환
+  const gP = [], gC = [];
+  for (let i = 0; i < 400; i++) {
+    const c = 100 + i * 0.05 + Math.sin(i * 0.1) * 4;
+    const gap = (i % 3 === 0) ? c * 0.012 : c * 0.001;   // 주기적 큰 오버나잇 갭
+    gP.push(c); gC.push({ o: c + gap, h: (c + gap) * 1.01, l: c * 0.99, c });
+  }
+  const rg = ForgeCore.forecastGapRisk(gP, gC);
+  assert.ok(rg && typeof rg.prob === "number" && rg.prob >= 0 && rg.prob <= 100, "갭 있는 시장 → prob 0~100");
+  assert.equal(rg.h, 20, "지평 20봉");
+  assert.equal(typeof rg.elevated, "boolean", "elevated bool");
+  // 갭 없는 시계열(시가=전일종가, 24h 시장형): 게이트로 null
+  const nP = [], nC = [];
+  for (let i = 0; i < 400; i++) { const c = 100 + i * 0.05 + Math.sin(i * 0.1) * 4; nP.push(c); nC.push({ o: i > 0 ? nP[i - 1] : c, h: c * 1.01, l: c * 0.99, c }); }
+  assert.equal(ForgeCore.forecastGapRisk(nP, nC), null, "갭 없는 시장(시가≈전일종가) → 주식게이트로 null");
+});
+
 test("forecastTrendPersist: 추세 지속/소진 — 국면 한정·형식 [v1.9]", () => {
   const fp = ForgeCore.forecastTrendPersist;
   const p = []; for (let i = 0; i < 260; i++) p.push(100 + i * 0.4 + Math.sin(i * 0.1));   // 상승추세

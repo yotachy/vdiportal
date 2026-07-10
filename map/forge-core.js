@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.9.2";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.9.3";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
   const _CONE_CAL = 0.75;
@@ -2054,6 +2054,7 @@
     context.ddRisk = forecastDrawdown(price, data && data.candle);          // 낙폭리스크 예보(v1.6.1) — 1/2/3개월 낙폭 위험곡선(하방 특화)
     context.upTarget = forecastUpside(price, data && data.candle);          // 이익목표 도달 예보(v1.7) — 1/2/3개월 +목표 도달 곡선(낙폭과 짝=확률 R:R)
     context.spikeRisk = forecastSpike(price, data && data.candle);          // 단일봉 급변 예보(v1.9.1) — 2주2σ/1달2.5σ/2달3σ 급변 위험곡선(갭·쇼크 경보)
+    context.gapRisk = forecastGapRisk(price, data && data.candle);          // 오버나잇 갭 예보(v1.9.3) — 향후 20봉 내 큰 시가갭 발생 확률(주식 한정·비주식 null)
     context.trendPersist = forecastTrendPersist(price, context.state, context.strength);   // 추세 지속/소진 예보(v1.9) — 추세 국면서 이어질지 힘 빠질지(비방향)
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
@@ -2276,6 +2277,36 @@
     const rep = curve[1];   // 대표=1달(2.5σ·20봉) — 하위호환
     return { prob: rep.prob, sigma: rep.sigma, base: rep.base, acc: rep.acc, elevated: rep.elevated, curve };
   }
+  // 오버나잇 갭 리스크 예보(v1.9.3) — 향후 20봉(약 1달) 내 큰 오버나잇 갭(|시가/전일종가−1| > 2.2×트레일링갭변동성) 발생 확률.
+  // 급변 경보(일중·종가 기준)와 다른 데이터 슬라이스(시가 vs 전일종가). gap-lab 검증(주식 40종): OOS 62.9%(다수결 51.3·지속성 50.5 초과),
+  // **급변축 대비 증분 종목내 +5.1·퍼지 +5.2·종목외 +4.0%p**(세 검증 안정 → 급변 재포장 아님·종목간 일반화). 방향 무관(갭업/갭다운 균형).
+  // 15피처 = 변동성구조 10(_riskFeatures) + 갭구조 5. **주식 한정** — 24h 시장(FX·크립토)은 시가≈전일종가라 갭≈0 → 데이터게이트로 null.
+  const _GAP_MEAN = [-0.05165, -0.0286, -0.03755, -0.01241, 2.46292, 0.21283, 2.25394, 1.73872, -0.06248, 0.5053, 1.05324, 0.70651, 1.8593, 0.70492, 0.64721];
+  const _GAP_STD = [0.34139, 0.24437, 0.31177, 0.16195, 1.51032, 0.11063, 1.44001, 1.15181, 0.26462, 0.30737, 0.67632, 1.04922, 1.5472, 0.66328, 0.25689];
+  const _GAP_W = [0.08904, -0.11486, -0.1067, 0.02417, 0.1164, 0.0081, 0.31754, -0.18607, -0.07289, -0.12471, -0.4386, 0.05256, 0.13114, -0.00266, -0.44916], _GAP_BB = -0.08204;
+  function _gapFeats(price, candle) {
+    const t = price.length - 1;
+    const gap = new Array(price.length).fill(0);
+    for (let i = 1; i < price.length; i++) { const pc = price[i - 1], op = candle[i] && candle[i].o; gap[i] = (pc > 0 && op > 0) ? op / pc - 1 : 0; }
+    // 데이터 게이트: 최근 120봉 |갭| 중앙값이 미미(<0.15%)하면 24h 시장 → 갭 예보 없음(모델 학습 도메인 밖)
+    const win = []; for (let i = Math.max(1, t - 119); i <= t; i++) win.push(Math.abs(gap[i]));
+    win.sort((a, b) => a - b); const med = win.length ? win[Math.floor(win.length / 2)] : 0;
+    if (med < 0.0015) return null;   // 갭 없는 시장(FX·크립토·상품) → 주식 게이트
+    let s = 0, c = 0; for (let i = t - 59; i <= t; i++) { if (i >= 1) { s += gap[i] * gap[i]; c++; } } const gv = c ? Math.sqrt(s / c) : 0;
+    const lastAbs = Math.abs(gap[t]);
+    let cl = 0; for (let i = t - 19; i <= t; i++) if (i >= 1 && Math.abs(gap[i]) > 1.5 * gv) cl++;
+    let r5 = 0; for (let i = t - 4; i <= t; i++) if (i >= 1) r5 += Math.abs(gap[i]); r5 /= 5;
+    let s20 = 0; for (let i = t - 19; i <= t; i++) s20 += Math.log(price[i] / price[i - 1]) ** 2; const v20 = Math.sqrt(s20 / 20) || 1e-9;
+    return [gv * 100, lastAbs * 100, cl, r5 * 100, gv / v20];
+  }
+  function forecastGapRisk(price, candle) {
+    const x0 = _riskFeatures(price, candle); if (!x0) return null;
+    const gf = _gapFeats(price, candle); if (!gf) return null;   // 주식 게이트(비주식 → null)
+    const x = x0.concat(gf);
+    let s = _GAP_BB; for (let j = 0; j < x.length; j++) s += _GAP_W[j] * (x[j] - _GAP_MEAN[j]) / _GAP_STD[j];
+    const p = 1 / (1 + Math.exp(-s));
+    return { prob: Math.round(p * 100), base: 49, acc: 63, elevated: p >= 0.5, h: 20, sigma: 2.2 };   // base=평시 발생률(양성률 48.7%), acc=종목외 보수치
+  }
   // 추세 지속/소진 예보(v1.9) — 추세 국면(up/down)에서 향후 20봉 뒤 추세가 지속되나 소진(→횡보)하나.
   // 비방향(방향 못맞혀도 '추세가 이어질지 힘 빠질지'는 예측). 종목외 확증: up OOS 75.9%·down 74.5%(다수결60·52 초과, strength만보다 +8~19pp).
   // 16 price-structure 피처(featAt) + strength. exhaust-confirm/train-exhaust 검증.
@@ -2308,5 +2339,5 @@
     return { state, persist: Math.round(p * 100), exhaust: Math.round((1 - p) * 100), acc: M.acc };
   }
 
-  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastTrendPersist, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });

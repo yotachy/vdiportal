@@ -1513,6 +1513,9 @@
         const tip = "하루 만에 큰 폭(현재 변동성의 Kσ 이상, 급등·급락 무관)이 나올 확률 — 지평이 길수록 문턱↑(대각선 곡선).&#10;⚠️가격 방향 예측 아님 — '큰 하루가 올까'. 대표=1달(2.5σ).&#10;" + rows + "&#10;" + (_spk.elevated ? "→ 평시보다 높음 · 갭·실적·이벤트 대비" : "→ 평시 수준");
         return `<span class="fcv-vol ${_spk.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">⚡ 급변 경보 <b>${_spk.prob}%</b><span class="vol-vf">평시 ${_spk.base}%</span></span>`;
       })() : "";
+      // 오버나잇 갭 예보(v1.9.3) — 향후 20봉 내 큰 시가갭 확률(주식 한정, 비주식은 null). 급변(일중)과 다른 데이터 슬라이스. OOS 63%.
+      const _gap = _ctx && _ctx.gapRisk;
+      const gpHtml = _gap ? `<span class="fcv-vol ${_gap.elevated ? "dd-hi" : "dd-lo"}" title="향후 20봉(약 한 달) 내 하루 만에 큰 오버나잇 갭(시가가 전일 종가 대비 크게 벌어짐 · 현재 갭변동성의 ${_gap.sigma}배 이상, 갭업·갭다운 무관)이 나올 확률 ${_gap.prob}% (평시 ${_gap.base}%). ⚠️가격 방향 예측 아님 — '큰 갭이 뜰까'. 급변 경보(일중·종가)와 다른 데이터 슬라이스(시가 vs 전일종가). 백테스트 주식 OOS ${_gap.acc}%(급변축 대비 종목외 +4%p 증분). 주식 한정 — 24h 시장 미표시.">▮ 갭 경보 <b>${_gap.prob}%</b><span class="vol-vf">평시 ${_gap.base}%</span></span>` : "";
       // 추세 지속/소진(v1.9) — 추세 국면서 이어질지 힘 빠져 횡보로 갈지. 비방향. 종목외 OOS 74~76%.
       const _tp = _ctx && _ctx.trendPersist;
       const tpHtml = _tp ? `<span class="fcv-vol ${_tp.persist >= 60 ? "rr-up" : _tp.persist <= 40 ? "dd-lo" : "rr-fl"}" title="현재 ${_tp.state === "up" ? "상승" : "하락"}추세가 향후 20봉(약 한 달) 뒤에도 이어질 확률 ${_tp.persist}% (힘 빠져 횡보로 전환 ${_tp.exhaust}%). ⚠️가격 방향 예측 아님 — 추세가 '지속될지 소진될지'(비방향). 종목외 walk-forward ${_tp.acc}%(다수결·strength 크게 초과). 소진 예상이면 추격 자제·평균회귀 대비.">${_tp.state === "up" ? "▲" : "▼"} 추세 ${_tp.persist >= 55 ? "지속" : _tp.persist <= 45 ? "소진" : "중립"} <b>${_tp.persist}%</b><span class="vol-vf">지속</span></span>` : "";
@@ -1540,6 +1543,7 @@
         (vfHtml ? `<span class="fcv-cell">${_L("변동성 예보 · 검증됨")}${vfHtml}</span>` : "") +
         (ddHtml ? `<span class="fcv-cell">${_L("확률 손익 · 검증됨")}${ddHtml}</span>` : "") +
         (spkHtml ? `<span class="fcv-cell">${_L("급변 경보 · 검증됨")}${spkHtml}</span>` : "") +
+        (gpHtml ? `<span class="fcv-cell">${_L("갭 경보 · 주식")}${gpHtml}</span>` : "") +
         (rgHtml ? `<span class="fcv-cell">${_L("리스크 가이드 · 참고")}${rgHtml}</span>` : "") +
         (isFinite(_targetN) ? `<span class="fcv-cell">${_L("목표가")}<span class="fcv-sig" title="예측 도달가"><b>${fmtNum(_targetN)}</b></span></span>` : "") +
         `<span class="fcv-cell fcv-opcell">${_L("핵심 의견")}<span class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span></span>` + _bd;
