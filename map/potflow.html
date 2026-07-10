@@ -938,7 +938,7 @@ function deleteCanvas(id){
 function makeNode(x,y,title,type,iconId){const n={id:uid('n'),x,y,title:title||'새 단계',desc:'',thumb:null,type:type||'full'};if(iconId)n.iconId=iconId;state.nodes.push(n);return n}
 /* ---------- 동영상 경로 · 썸네일 · 재생(PotFlow) ---------- */
 function bindVideoToNode(id,path,name){const n=N(id);if(!n)return;if(!isPro()&&!n.videoPath&&videoNodeCount(id)>=1){toast('무료는 영상 1개 · PRO에서 여러 개');openSupport();return;}n.videoPath=path;if(name&&(!n.title||n.title==='새 단계'))n.title=name.replace(/\.[^.]+$/,'');requestThumb(id,path);markDirty();render();syncBookmarks(id);}
-function requestThumb(id,path){if(!HELPER_OK)return;const imgId='vthumb_'+id;fetch(HELPER+"/thumb?path="+encodeURIComponent(path)).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{const fr=new FileReader();fr.onload=()=>{putImg(imgId,fr.result);const n=N(id);if(n){n.thumb={imgId,label:n.title||''};render();markDirty()}};fr.readAsDataURL(b)}).catch(()=>{})}
+function requestThumb(id,path){if(!HELPER_OK)return;const imgId='vthumb_'+id;fetch(HELPER+"/thumb?path="+encodeURIComponent(path)).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{const fr=new FileReader();fr.onload=()=>{putImg(imgId,fr.result);const n=N(id);if(n){n.thumb={imgId,label:n.title||''};render();markDirty()}};fr.readAsDataURL(b)}).catch(()=>{captureThumbURL(HELPER+"/file?path="+encodeURIComponent(path),id,5);});}
 function playPaths(paths,watchId){const list=(paths||[]).filter(Boolean);if(!list.length){toast('재생할 동영상이 없습니다');return}if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:list})}).then(r=>r.json()).then(j=>{if(j.ok){toast(j.launched+'개 재생');if(watchId&&j.token)watchClose(j.token,watchId);}else toast('재생 실패: '+(j.error||''))}).catch(()=>toast('재생 실패'))}
 function playItems(items,watchId){const list=(items||[]).filter(it=>it&&it.path);if(!list.length){toast('재생할 동영상이 없습니다');return}if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}
   fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({items:list})}).then(r=>r.json()).then(j=>{if(j&&j.ok){toast(j.launched+'개 재생');if(watchId&&j.token)watchClose(j.token,watchId);}else toast('재생 실패: '+((j&&j.error)||''));}).catch(()=>toast('재생 실패'));}
@@ -970,6 +970,7 @@ function syncBookmarks(nodeId){
       if(!c){c=makeNode(n.x+(i+1)*270,n.y,'',"full");c.bmParent=nodeId;c.seekMs=b.ms;c.videoPath=n.videoPath;}
       c.title=b.title||('책갈피 '+fmtClock(b.ms));c.desc=fmtClock(b.ms);
       if(b.thumb){const iid='bm_'+nodeId+'_'+b.ms;putImg(iid,b.thumb);c.thumb={imgId:iid,label:c.title};}
+      else{captureThumbURL(HELPER+"/file?path="+encodeURIComponent(n.videoPath),c.id,b.ms/1000);}
       chainIds.push(c.id);i++;});
     const stale=bmChildren(nodeId).filter(c=>!seen[c.seekMs]).map(c=>c.id);
     if(stale.length)delNodes(stale);
@@ -1326,6 +1327,18 @@ function captureThumb(file,id){
     cleanup();
   });
   v.addEventListener('error',()=>{clearTimeout(to);cleanup();});
+  v.src=url;
+}
+function captureThumbURL(url,id,seekSec){
+  const v=document.createElement('video');v.muted=true;v.preload='metadata';
+  let done=false;const to=setTimeout(()=>{done=true;},8000);
+  v.addEventListener('loadeddata',()=>{try{v.currentTime=Math.min(seekSec||5,(v.duration||((seekSec||5)*2)))}catch(e){}});
+  v.addEventListener('seeked',()=>{if(done)return;done=true;clearTimeout(to);
+    try{const vw=v.videoWidth||320,vh=v.videoHeight||180,w=320,h=Math.max(1,Math.round(w*vh/vw));
+      const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(v,0,0,w,h);
+      const data=c.toDataURL('image/jpeg',0.8);const iid='vthumb_'+id;putImg(iid,data);
+      const n=N(id);if(n){n.thumb={imgId:iid,label:n.title||''};render();markDirty();}}catch(e){}});
+  v.addEventListener('error',()=>{clearTimeout(to);});
   v.src=url;
 }
 
