@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.8.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.8.1";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
   const _CONE_CAL = 0.75;
@@ -2184,13 +2184,20 @@
   }
   function _logit(x, MEAN, STD, W, BB) { let s = BB; for (let j = 0; j < x.length; j++) s += W[j] * (x[j] - MEAN[j]) / STD[j]; return 1 / (1 + Math.exp(-s)); }
 
+  // Garman-Klass 변동성(OHLC 전부 사용 — intrabar 레인지+갭). vol-deepen 검증: 비율(gk/종가vol)이 변동성예보 +0.6pp.
+  function _gkVol(op, hi, lo, cl, e, n) { let s = 0; for (let i = e - n + 1; i <= e; i++) { const u = Math.log(hi[i] / lo[i]), d = Math.log(cl[i] / op[i]); s += 0.5 * u * u - (2 * Math.log(2) - 1) * d * d; } const v = s / n; return v > 0 ? Math.sqrt(v) : 0; }
   function forecastVolatility(price, candle) {
-    const x = _riskFeatures(price, candle); if (!x) return null;
-    const MEAN = [-0.05217, -0.0292, -0.0403, -0.01451, 2.61744, 0.20949, 2.44283, 1.81915, -0.06262, 0.497];
-    const STD = [0.33843, 0.24193, 0.30963, 0.16301, 2.05053, 0.11273, 2.08302, 1.52799, 0.26317, 0.30889];
-    const W = [0.20923, -0.27098, -0.18419, -0.04829, 0.03147, 0.00722, 0.29504, -0.50147, -0.27957, -0.38346], BB = -0.0908;
+    const x0 = _riskFeatures(price, candle); if (!x0) return null;
+    // ⑪ Garman-Klass 비율(v1.8.1): 종가만 보는 변동성이 놓친 intrabar 정보 → OOS 68.4→69.0%.
+    const t = price.length - 1, op = candle.map(c => c.o), hi = candle.map(c => c.h), lo = candle.map(c => c.l);
+    let s20 = 0; for (let i = t - 19; i <= t; i++) s20 += Math.log(price[i] / price[i - 1]) ** 2; const v20 = Math.sqrt(s20 / 20);
+    const gk20 = _gkVol(op, hi, lo, price, t, 20), gkRatio = v20 ? gk20 / v20 : 1;
+    const x = x0.concat([gkRatio]);
+    const MEAN = [-0.05217, -0.0292, -0.0403, -0.01451, 2.61744, 0.20949, 2.44283, 1.81915, -0.06262, 0.497, 0.94953];
+    const STD = [0.33843, 0.24193, 0.30963, 0.16301, 2.05053, 0.11273, 2.08302, 1.52799, 0.26317, 0.30889, 0.30556];
+    const W = [0.2196, -0.24712, -0.18422, -0.04831, -0.03853, 0.02015, 0.21737, -0.35166, -0.24256, -0.31418, 0.44008], BB = -0.07822;
     const p = _logit(x, MEAN, STD, W, BB);
-    return { expand: p >= 0.5, prob: Math.round((p >= 0.5 ? p : 1 - p) * 100), raw: Math.round(p * 100), acc: 68 };
+    return { expand: p >= 0.5, prob: Math.round((p >= 0.5 ? p : 1 - p) * 100), raw: Math.round(p * 100), acc: 69 };
   }
   // 낙폭리스크 예보(v1.6.1) — 향후 H봉 내 현재가 대비 ≥문턱 낙폭 발생 확률. 하방 특화 리스크(가격방향 예측 아님).
   // 멀티지평 위험곡선: 1개월(20봉·5%)·2개월(40봉·7%)·3개월(60봉·9%). 문턱은 지평스케일(√H)로 양성률 ~35% 균형.

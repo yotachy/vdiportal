@@ -5,7 +5,8 @@ const fs = require("fs"), path = require("path");
 const H = 20, STRIDE = 2, WARM = 260, TRAIN_FRAC = 0.6;   // WARM 260: vol-regime 백분위(252봉) 확보
 function rvol(a, e, n) { let s = 0; for (let i = e - n + 1; i <= e; i++) s += Math.log(a[i] / a[i - 1]) ** 2; return Math.sqrt(s / n); }
 function atrp(hi, lo, cl, e, n) { let s = 0; for (let i = e - n + 1; i <= e; i++) { const tr = Math.max(hi[i] - lo[i], Math.abs(hi[i] - cl[i - 1]), Math.abs(lo[i] - cl[i - 1])); s += tr; } return s / n / cl[e]; }
-function feats(price, hi, lo, t) {
+function garmanKlass(op, hi, lo, cl, e, n) { let s = 0; for (let i = e - n + 1; i <= e; i++) { const u = Math.log(hi[i] / lo[i]), d = Math.log(cl[i] / op[i]); s += 0.5 * u * u - (2 * Math.log(2) - 1) * d * d; } const v = s / n; return v > 0 ? Math.sqrt(v) : 0; }
+function feats(price, op, hi, lo, t) {
   const v10 = rvol(price, t, 10), v20 = rvol(price, t, 20), v60 = rvol(price, t, 60), v120 = rvol(price, t, 120);
   if (!v20 || !v60 || !v120) return null;
   const atr = atrp(hi, lo, price, t, 14);
@@ -16,7 +17,10 @@ function feats(price, hi, lo, t) {
   //    vol-improve.js 검증: OOS 67.8→68.4%(+0.6pp, 과적합 아님·유일하게 견고한 개선 피처).
   const hist = []; for (let k = t - 252; k <= t; k += 3) { if (k - 20 >= 0) { const vv = rvol(price, k, 20); if (vv) hist.push(vv); } }
   let pct = 0.5; if (hist.length > 5) { let c = 0; for (const v of hist) if (v <= v20) c++; pct = c / hist.length; }
-  return [v10 / v60 - 1, v20 / v60 - 1, v20 / v120 - 1, v60 / v120 - 1, atr * 100, vov, rng * 100, v20 * 100, Math.log(v20 / v60), pct];
+  // ⑪ Garman-Klass 비율: OHLC 전부 쓴 intrabar 변동성 / 종가기반 변동성 — 종가만 보는 v20이 놓친 레인지 정보.
+  //    vol-deepen 검증: OOS 68.4→69.0%(+0.6pp, 과적합 아님). 원시 gk는 무효, 비율일 때 통함.
+  const gk20 = garmanKlass(op, hi, lo, price, t, 20), gkRatio = v20 ? gk20 / v20 : 1;
+  return [v10 / v60 - 1, v20 / v60 - 1, v20 / v120 - 1, v60 / v120 - 1, atr * 100, vov, rng * 100, v20 * 100, Math.log(v20 / v60), pct, gkRatio];
 }
 function fit(TR, D) {
   const mean = new Array(D).fill(0), std = new Array(D).fill(0);
@@ -36,10 +40,10 @@ const files = fs.readdirSync(dir).filter(f => f.endsWith("-1day.json"));
 const all = [];
 for (const f of files) {
   const fx = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
-  const price = fx.candle.map(c => c.c), hi = fx.candle.map(c => c.h), lo = fx.candle.map(c => c.l), N = price.length;
+  const price = fx.candle.map(c => c.c), op = fx.candle.map(c => c.o), hi = fx.candle.map(c => c.h), lo = fx.candle.map(c => c.l), N = price.length;
   if (N < WARM + H + 40) continue;
   const local = [];
-  for (let t = WARM; t <= N - H - 1; t += STRIDE) { const x = feats(price, hi, lo, t); if (!x || x.some(v => !isFinite(v))) continue; const cv = rvol(price, t, H), fv = rvol(price, t + H, H); local.push({ x, y: fv > cv ? 1 : 0 }); }
+  for (let t = WARM; t <= N - H - 1; t += STRIDE) { const x = feats(price, op, hi, lo, t); if (!x || x.some(v => !isFinite(v))) continue; const cv = rvol(price, t, H), fv = rvol(price, t + H, H); local.push({ x, y: fv > cv ? 1 : 0 }); }
   const cut = Math.floor(local.length * TRAIN_FRAC); local.forEach((r, i) => { r._tr = i < cut; all.push(r); });
 }
 const D = all[0].x.length;
