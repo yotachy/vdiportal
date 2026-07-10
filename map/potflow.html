@@ -126,6 +126,8 @@
   .rs-file.rs-pbf .rs-name{color:var(--gold)}
   .rs-file .col{color:var(--eth);font-size:11px;white-space:nowrap;overflow:hidden}
   .rs-file .num{text-align:right}
+  @keyframes rsblink{0%,100%{background:transparent}50%{background:var(--gold-dim)}}
+  .rs-file.rs-blink{animation:rsblink .5s ease 3}
   .rs-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .rs-empty{padding:14px;text-align:center;font-size:12px;color:var(--faint)}
   body.view .rside{display:none}
@@ -855,6 +857,7 @@ function applySel(){document.querySelectorAll('.node').forEach(el=>el.classList.
 
 /* ---------- selection ---------- */
 function selectOnly(id){sel=[id];applySel()}
+function highlightInList(id){const n=N(id);if(!n||!n.videoPath)return;const rb=document.getElementById('rsBody');if(!rb)return;const row=[...rb.querySelectorAll('.rs-file')].find(r=>r.dataset.path===n.videoPath);if(!row)return;document.querySelectorAll('.rs-blink').forEach(x=>x.classList.remove('rs-blink'));void row.offsetWidth;row.classList.add('rs-blink');try{row.scrollIntoView({block:'nearest'});}catch(_){}}
 function toggleSel(id){const i=sel.indexOf(id);if(i>=0)sel.splice(i,1);else sel.push(id);applySel()}
 function clearSel(){sel=[];applySel()}
 function setSel(ids){sel=ids;applySel()}
@@ -1147,7 +1150,7 @@ function onUp(e){
   document.getElementById('tmp').setAttribute('d','');clearLinkHi();
   if(!d)return;
   if(d.type==='pan'){if(d.canClear&&!d.moved)deselectAll();return}
-  if(d.type==='nodePending'){if(e.shiftKey)toggleSel(d.id);else selectOnly(d.id);selEdge=null;paint();return}
+  if(d.type==='nodePending'){if(e.shiftKey)toggleSel(d.id);else{selectOnly(d.id);highlightInList(d.id);}selEdge=null;paint();return}
   if(d.type==='node'){setTimeout(()=>justDragged=false,30);markDirty();return}
   if(d.type==='group'){if(d.moved)markDirty();return;}
   if(d.type==='link'){
