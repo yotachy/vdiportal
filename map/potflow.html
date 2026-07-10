@@ -483,7 +483,8 @@ let PRO=false;
 function _licHash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(36).toUpperCase().padStart(4,'0').slice(0,4);}
 function licenseValid(key){const m=/^PF-([A-Z0-9]{4})-([A-Z0-9]{4})$/.exec((key||'').trim().toUpperCase());return !!m&&_licHash(m[1]+LIC_SALT)===m[2];}
 function licenseKeyFor(a){a=(a||'').toUpperCase();return 'PF-'+a+'-'+_licHash(a+LIC_SALT);}
-function isPro(){return PRO;}
+const FREE_LIMITS_ON=false;   // 무료 제한 활성화 여부 — false=모든 제한 해제(추후 유료화 시 true로)
+function isPro(){return !FREE_LIMITS_ON||PRO;}
 function videoNodeCount(exclId){return state.nodes.filter(n=>n.videoPath&&n.bmParent==null&&n.id!==exclId).length;}
 function childCount(id){return state.edges.filter(e=>e.from===id).length;}
 function updateProBadge(){const b=document.getElementById('proBadge');if(b)b.style.display=PRO?'':'none';const s=document.getElementById('licStatus');if(s)s.textContent=PRO?'✔ PRO 활성화됨':'';}
