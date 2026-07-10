@@ -1,4 +1,4 @@
-import importlib.util, pathlib
+import importlib.util, os, pathlib
 spec = importlib.util.spec_from_file_location("helper", pathlib.Path(__file__).parent / "potflow-helper.py")
 helper = importlib.util.module_from_spec(spec); spec.loader.exec_module(helper)
 
@@ -28,3 +28,15 @@ def test_scan_tree_lists_videos_and_folders(tmp_path):
 def test_scan_tree_missing_path():
     r = helper.scan_tree("/no/such/path/xyz-123")
     assert r["ok"] is False
+
+def test_thumb_path_stable_and_in_dir():
+    p1 = helper.thumb_path_for(r"D:\v\a.mkv")
+    p2 = helper.thumb_path_for(r"D:\v\a.mkv")
+    assert p1 == p2 and p1.endswith(".jpg")
+    assert os.path.abspath(helper.THUMB_DIR) in os.path.abspath(p1)
+    assert helper.thumb_path_for(r"D:\v\b.mkv") != p1
+
+def test_ffmpeg_thumb_cmd_shape():
+    cmd = helper.ffmpeg_thumb_cmd("ffmpeg", "a.mkv", "out.jpg")
+    assert cmd[0] == "ffmpeg" and "a.mkv" in cmd and cmd[-1] == "out.jpg"
+    assert "-frames:v" in cmd and "1" in cmd

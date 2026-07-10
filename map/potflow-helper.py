@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PotFlow 로컬 헬퍼 — 정적 서빙 + 재생/탐색/썸네일/문서저장."""
-import os, sys, json, shutil, subprocess
+import os, sys, json, shutil, subprocess, hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -46,6 +46,33 @@ def scan_tree(path):
     except OSError as e:
         return {"ok": False, "error": str(e)}
 
+def thumb_path_for(video_path):
+    h = hashlib.md5(video_path.encode("utf-8")).hexdigest()
+    return os.path.join(THUMB_DIR, h + ".jpg")
+
+def ffmpeg_thumb_cmd(ffmpeg, video_path, out):
+    return [ffmpeg, "-y", "-ss", "5", "-i", video_path,
+            "-frames:v", "1", "-vf", "scale=320:-1", out]
+
+def get_thumb(video_path):
+    out = thumb_path_for(video_path)
+    if os.path.isfile(out) and os.path.getsize(out) > 0:
+        with open(out, "rb") as f:
+            return f.read(), ""
+    ff = find_exe([FFMPEG_PATH])
+    if not ff or not os.path.isfile(video_path):
+        return None, "ffmpeg or video missing"
+    os.makedirs(THUMB_DIR, exist_ok=True)
+    try:
+        subprocess.run(ffmpeg_thumb_cmd(ff, video_path, out),
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+    except Exception as e:
+        return None, str(e)
+    if os.path.isfile(out) and os.path.getsize(out) > 0:
+        with open(out, "rb") as f:
+            return f.read(), ""
+    return None, "thumb failed"
+
 def ping_payload():
     return {
         "ok": True,
@@ -70,6 +97,12 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/tree":
             qs = parse_qs(u.query)
             return self._send(200, scan_tree(qs.get("path", [ROOT])[0]))
+        if u.path == "/thumb":
+            qs = parse_qs(u.query)
+            data, err = get_thumb(qs.get("path", [""])[0])
+            if data:
+                return self._send(200, data, "image/jpeg", raw=True)
+            return self._send(404, {"ok": False, "error": err})
         # 정적 서빙
         rel = u.path.lstrip("/") or "potflow.html"
         fp = os.path.join(ROOT, rel)
