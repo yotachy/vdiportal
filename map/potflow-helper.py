@@ -298,21 +298,26 @@ def _screen_size():
 def _monitors():
     try:
         import ctypes
-        from ctypes import wintypes
         u = ctypes.windll.user32
         class RECT(ctypes.Structure):
             _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
         class MONITORINFO(ctypes.Structure):
             _fields_ = [("cbSize", ctypes.c_ulong), ("rcMonitor", RECT), ("rcWork", RECT), ("dwFlags", ctypes.c_ulong)]
+        # 핸들(HMONITOR)은 64비트 포인터 — argtypes를 c_void_p로 지정하고 c_void_p로 감싸야
+        # 기본 c_int 변환 시 나는 OverflowError(int too long)를 피할 수 있다.
+        u.GetMonitorInfoW.argtypes = [ctypes.c_void_p, ctypes.POINTER(MONITORINFO)]
+        u.GetMonitorInfoW.restype = ctypes.c_int
+        MONENUM = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)
+        u.EnumDisplayMonitors.argtypes = [ctypes.c_void_p, ctypes.c_void_p, MONENUM, ctypes.c_void_p]
+        u.EnumDisplayMonitors.restype = ctypes.c_int
         mons = []
-        MONENUM = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(RECT), wintypes.LPARAM)
         def cb(hMon, hdc, lprc, lparam):
             info = MONITORINFO(); info.cbSize = ctypes.sizeof(MONITORINFO)
-            u.GetMonitorInfoW(hMon, ctypes.byref(info))
-            r = info.rcWork
-            mons.append({"x": r.left, "y": r.top, "w": r.right - r.left, "h": r.bottom - r.top, "primary": bool(info.dwFlags & 1)})
+            if u.GetMonitorInfoW(ctypes.c_void_p(hMon), ctypes.byref(info)):
+                r = info.rcWork
+                mons.append({"x": r.left, "y": r.top, "w": r.right - r.left, "h": r.bottom - r.top, "primary": bool(info.dwFlags & 1)})
             return 1
-        u.EnumDisplayMonitors(0, 0, MONENUM(cb), 0)
+        u.EnumDisplayMonitors(None, None, MONENUM(cb), None)
         mons.sort(key=lambda m: (not m["primary"], m["x"], m["y"]))
         return mons or [{"x": 0, "y": 0, "w": 1920, "h": 1080, "primary": True}]
     except Exception:
@@ -349,22 +354,29 @@ def arrange_windows(pids, rects):
         import ctypes, time
         from ctypes import wintypes
         u = ctypes.windll.user32
+        # 핸들(HWND)은 64비트 포인터 — argtypes를 c_void_p로 지정하고 c_void_p로 감싸
+        # 기본 c_int 변환 시 나는 OverflowError를 피한다.
+        u.IsWindowVisible.argtypes = [ctypes.c_void_p]; u.IsWindowVisible.restype = ctypes.c_int
+        u.GetWindowThreadProcessId.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.DWORD)]; u.GetWindowThreadProcessId.restype = wintypes.DWORD
+        u.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]; u.ShowWindow.restype = ctypes.c_int
+        u.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]; u.SetWindowPos.restype = ctypes.c_int
+        WNDENUM = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
+        u.EnumWindows.argtypes = [WNDENUM, ctypes.c_void_p]; u.EnumWindows.restype = ctypes.c_int
         time.sleep(1.2)  # 창이 뜰 시간
         want = {pid: rects[i] for i, pid in enumerate(pids) if i < len(rects)}
         placed = {}
-        EnumProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
         def cb(hwnd, _):
-            if not u.IsWindowVisible(hwnd):
-                return True
+            if not u.IsWindowVisible(ctypes.c_void_p(hwnd)):
+                return 1
             pid = wintypes.DWORD()
-            u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            u.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(pid))
             if pid.value in want and pid.value not in placed:
-                u.ShowWindow(hwnd, 9)  # SW_RESTORE
                 x, y, w, h = want[pid.value]
-                u.SetWindowPos(hwnd, 0, x, y, w, h, 0x0040)  # SWP_SHOWWINDOW
+                u.ShowWindow(ctypes.c_void_p(hwnd), 9)  # SW_RESTORE
+                u.SetWindowPos(ctypes.c_void_p(hwnd), None, x, y, w, h, 0x0040)  # SWP_SHOWWINDOW
                 placed[pid.value] = True
-            return True
-        u.EnumWindows(EnumProc(cb), 0)
+            return 1
+        u.EnumWindows(WNDENUM(cb), None)
     except Exception:
         pass
 
