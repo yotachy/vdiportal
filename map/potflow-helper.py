@@ -285,6 +285,17 @@ def bookmark_thumb(video, ms, embedded):
         pass
     return None
 
+def _decode_pbf(raw):
+    # PotPlayer .pbf는 UTF-16(BOM)·UTF-8(BOM)·UTF-8·CP949 등으로 저장될 수 있어 자동 감지
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return raw.decode("utf-16", errors="replace")   # BOM으로 엔디안 자동판별·BOM 제거
+    if raw[:3] == b"\xef\xbb\xbf":
+        return raw.decode("utf-8-sig", errors="replace")
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("cp949", errors="replace")
+
 def list_bookmarks(path):
     if not path:
         return {"ok": False, "error": "path required"}
@@ -299,8 +310,8 @@ def list_bookmarks(path):
     if not pbf:
         return {"ok": True, "video": video, "bookmarks": []}
     try:
-        with open(pbf, "r", encoding="utf-8", errors="replace") as f:
-            text = f.read()
+        with open(pbf, "rb") as f:
+            text = _decode_pbf(f.read())
     except OSError:
         return {"ok": True, "video": video, "bookmarks": []}
     bms = [{"ms": b["ms"], "title": b["title"],
@@ -437,23 +448,20 @@ def arrange_windows(pids, rects):
         WNDENUM = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
         u.EnumWindows.argtypes = [WNDENUM, ctypes.c_void_p]; u.EnumWindows.restype = ctypes.c_int
         want = {pid: rects[i] for i, pid in enumerate(pids) if i < len(rects)}
-        placed = {}
         def cb(hwnd, _):
             if not u.IsWindowVisible(ctypes.c_void_p(hwnd)):
                 return 1
             pid = wintypes.DWORD()
             u.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(pid))
-            if pid.value in want and pid.value not in placed:
+            if pid.value in want:
                 x, y, w, h = want[pid.value]
-                u.ShowWindow(ctypes.c_void_p(hwnd), 9)  # SW_RESTORE
+                u.ShowWindow(ctypes.c_void_p(hwnd), 9)  # SW_RESTORE(최대화 해제)
                 u.SetWindowPos(ctypes.c_void_p(hwnd), None, x, y, w, h, 0x0040)  # SWP_SHOWWINDOW
-                placed[pid.value] = True
             return 1
-        for _ in range(16):            # 최대 ~8초: 늦게 뜨는 PotPlayer 창까지 재시도
+        # ~10초간 반복 적용 — PotPlayer가 영상 로드 시 창을 원본 해상도로 자동 리사이즈하는 것을 무력화
+        for _ in range(20):
             time.sleep(0.5)
             u.EnumWindows(WNDENUM(cb), None)
-            if len(placed) >= len(want):
-                break
     except Exception:
         pass
 

@@ -242,3 +242,17 @@ def test_normalize_carries_win():
     assert out[0]["win"]=={"mon":0,"x":0,"y":0,"w":1,"h":1} and out[0]["seek"]==3
     out2=helper.normalize_play_items({"paths":["a"]})
     assert out2[0]["win"] is None
+
+
+def test_list_bookmarks_utf16_pbf(tmp_path):
+    # PotPlayer가 .pbf를 UTF-16(BOM)으로 저장해도 파싱돼야 한다
+    vid = tmp_path / "m.mp4"; vid.write_bytes(b"x")
+    (tmp_path / "m.mp4.pbf").write_bytes("[Bookmark]\n0=2000*씬*".encode("utf-16"))
+    r = helper.list_bookmarks(str(vid))
+    assert r["ok"] is True and len(r["bookmarks"]) == 1
+    assert r["bookmarks"][0]["ms"] == 2000 and r["bookmarks"][0]["title"] == "씬"
+
+def test_decode_pbf_encodings():
+    assert helper._decode_pbf("[Bookmark]\n0=1*a*".encode("utf-16")).startswith("[Bookmark]")
+    assert helper._decode_pbf("[Bookmark]\n0=1*a*".encode("utf-8-sig")).startswith("[Bookmark]")
+    assert helper._decode_pbf(b"[Bookmark]\n0=1*a*").startswith("[Bookmark]")
