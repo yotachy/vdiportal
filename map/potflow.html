@@ -853,6 +853,15 @@ document.getElementById('winPop').addEventListener('click',e=>{
   const cell=e.target.closest('.wp-cell');if(cell){const c=wpGrid[0],r=wpGrid[1];setWin(+cell.dataset.mon,(+cell.dataset.cx)/c,(+cell.dataset.cy)/r,1/c,1/r);return;}
   const mon=e.target.closest('.wp-mon');if(mon){wpMon=+mon.dataset.mon;renderWinPop();return;}
 });
+(function(){let mode=null,start=null;const desk=document.getElementById('wpDesk');if(!desk)return;
+  desk.addEventListener('pointerdown',e=>{const rz=e.target.closest('#wpRz'),rect=e.target.closest('#wpRect');if(!rz&&!rect)return;e.preventDefault();e.stopPropagation();mode=rz?'rz':'mv';const n=N(winTarget);if(!n||!n.win){mode=null;return;}start={win:Object.assign({},n.win),cx:e.clientX,cy:e.clientY};try{desk.setPointerCapture(e.pointerId);}catch(_){}});
+  desk.addEventListener('pointermove',e=>{if(!mode||!start)return;const n=N(winTarget);if(!n||!n.win){mode=null;return;}const s=desk._s||1;const dx=(e.clientX-start.cx)/s,dy=(e.clientY-start.cy)/s;const m0=MONITORS[start.win.mon]||MONITORS[0];
+    if(mode==='mv'){const cw=start.win.w,ch=start.win.h;let vx=m0.x+start.win.x*m0.w+dx,vy=m0.y+start.win.y*m0.h+dy;const cX=vx+cw*m0.w/2,cY=vy+ch*m0.h/2;let tgt=MONITORS.findIndex(mm=>cX>=mm.x&&cX<mm.x+mm.w&&cY>=mm.y&&cY<mm.y+mm.h);if(tgt<0)tgt=start.win.mon;const tm=MONITORS[tgt];n.win={mon:tgt,x:Math.max(0,Math.min(1-cw,(vx-tm.x)/tm.w)),y:Math.max(0,Math.min(1-ch,(vy-tm.y)/tm.h)),w:cw,h:ch};}
+    else{const nw=Math.max(.05,Math.min(1-start.win.x,start.win.w+dx/m0.w)),nh=Math.max(.05,Math.min(1-start.win.y,start.win.h+dy/m0.h));n.win={mon:start.win.mon,x:start.win.x,y:start.win.y,w:nw,h:nh};}
+    markDirty();renderWinPop();});
+  desk.addEventListener('pointerup',()=>{mode=null;start=null;});
+  desk.addEventListener('pointercancel',()=>{mode=null;start=null;});
+})();
 function loadCanvas(id){
   const c=canvases.find(x=>x.id===id);if(!c)return;
   activeId=id;
