@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.9.4";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.9.5";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
   const _CONE_CAL = 0.75;
@@ -2336,13 +2336,24 @@
   }
   const _TP_UP = { M: [0.19015, -0.08444, 0.15022, -0.05604, 0.31561, 0.02738, 0.0888, 0.26605, 0.04284, 0.03216, 0.04327, 0.02428, -0.04017, 0.01079, 0.02963, 0.08164, 0.60926], S: [0.31388, 0.56183, 0.3031, 0.07786, 0.38869, 0.07646, 0.13639, 0.31415, 0.06779, 0.04402, 0.04638, 0.01886, 0.2506, 0.06413, 0.1042, 0.17679, 0.22445], W: [0.07209, 0.02843, 0.0058, -0.02644, -0.27829, 0.53319, -0.39084, 0.43052, -0.42917, -0.45421, 1.00531, -0.12201, 0.03067, 0.11411, 0.46994, 0.15688, 0.67402], B: 0.52195, acc: 76 };
   const _TP_DN = { M: [-0.12469, 0.13155, -0.101, -0.24804, 0.11689, -0.0274, -0.09555, -0.22243, -0.04986, -0.03395, -0.04169, 0.03584, 0.02816, -0.00264, -0.01824, -0.07042, 0.68125], S: [0.30969, 0.57417, 0.29739, 0.14036, 0.16228, 0.08628, 0.12223, 0.181, 0.06498, 0.04086, 0.03796, 0.02155, 0.2844, 0.07757, 0.117, 0.14781, 0.22898], W: [-0.26724, 0.03232, -0.07739, -0.01503, 0.22546, -0.38358, 0.35489, -0.33273, 0.36045, 0.18194, -0.91534, 0.07945, -0.43143, -0.28671, -0.2284, -0.44905, 0.32189], B: -0.03151, acc: 75 };
+  // 추세 지속 멀티지평 곡선(v1.9.5) — 2주/1달/2달 뒤에도 추세 유지할지. 종목외 OOS: up 79/76/73%·down 76/75/73%(전 지평 다수결·strength 둘 다 +1pp 초과·비방향). H=20은 _TP_UP/_TP_DN 재사용.
+  const _TP_UP10 = { M: [0.18936, -0.08392, 0.14942, -0.05628, 0.31579, 0.02718, 0.08861, 0.26645, 0.04274, 0.03222, 0.0434, 0.02432, -0.04003, 0.01074, 0.02932, 0.08127, 0.60958], S: [0.31395, 0.56209, 0.3035, 0.07796, 0.38827, 0.07642, 0.13621, 0.31408, 0.06769, 0.04399, 0.04644, 0.01889, 0.25068, 0.06403, 0.10429, 0.17656, 0.22458], W: [0.21378, 0.04131, 0.11943, -0.01444, -0.45088, 0.42272, -0.44176, 0.2742, 0.01575, -0.40206, 0.86188, -0.02063, 0.06303, 0.08466, 0.27888, 0.40668, 0.84408], B: 1.29914, acc: 79 };
+  const _TP_DN10 = { M: [-0.12408, 0.12907, -0.1006, -0.24724, 0.11671, -0.02723, -0.09504, -0.22242, -0.04948, -0.03377, -0.04185, 0.03576, 0.02728, -0.00268, -0.01816, -0.06994, 0.68111], S: [0.30966, 0.57389, 0.29783, 0.14049, 0.16195, 0.08612, 0.12219, 0.18055, 0.06502, 0.04085, 0.03805, 0.02152, 0.28386, 0.07738, 0.11676, 0.14763, 0.22871], W: [-0.49941, 0.02059, -0.09036, 0.06041, 0.23853, -0.31817, 0.41137, -0.29399, -0.0977, 0.34012, -0.82978, -0.07973, -0.28855, -0.11823, 0.04657, -0.66918, 0.55804], B: 0.98501, acc: 76 };
+  const _TP_UP40 = { M: [0.19012, -0.08354, 0.14973, -0.05603, 0.31474, 0.02724, 0.08827, 0.26431, 0.04264, 0.03195, 0.04297, 0.02421, -0.04209, 0.01056, 0.02956, 0.08143, 0.60757], S: [0.31377, 0.56154, 0.30333, 0.07797, 0.38909, 0.07647, 0.13642, 0.31323, 0.06791, 0.04402, 0.04627, 0.01887, 0.25019, 0.06397, 0.10431, 0.17727, 0.22383], W: [-0.11228, 0.20169, -0.26939, 0.0244, -0.22839, 0.30991, -0.50989, 0.35727, -0.21666, -0.14298, 0.998, -0.16824, 0.05673, 0.04352, 0.17399, 0.15804, 0.42873], B: 0.08112, acc: 73 };
+  const _TP_DN40 = { M: [-0.12682, 0.12899, -0.10452, -0.24949, 0.11734, -0.02794, -0.09638, -0.22172, -0.04995, -0.03418, -0.04142, 0.03596, 0.0292, -0.00318, -0.01866, -0.07084, 0.68], S: [0.30906, 0.57412, 0.29625, 0.14053, 0.16345, 0.08658, 0.12251, 0.18205, 0.06524, 0.04105, 0.03786, 0.02167, 0.28376, 0.07793, 0.11753, 0.1484, 0.22961], W: [0.13918, -0.09698, 0.2793, -0.19483, -0.00127, -0.22377, 0.24172, -0.49714, 0.32029, 0.3272, -0.58949, 0.14112, -0.21194, -0.01196, -0.17801, -0.1787, 0.21454], B: -0.52699, acc: 73 };
+  const _TP_HZ = [
+    { h: 10, lb: "2주", up: _TP_UP10, dn: _TP_DN10 },
+    { h: 20, lb: "1달", up: _TP_UP, dn: _TP_DN },
+    { h: 40, lb: "2달", up: _TP_UP40, dn: _TP_DN40 },
+  ];
   function forecastTrendPersist(price, state, strength) {
     if (state !== "up" && state !== "down") return null;   // 추세 국면 한정(횡보엔 미적용)
     const f = _exhaustFeats(price); if (!f) return null;
     const x = f.concat([strength]);
-    const M = state === "up" ? _TP_UP : _TP_DN;
-    const p = _logit(x, M.M, M.S, M.W, M.B);
-    return { state, persist: Math.round(p * 100), exhaust: Math.round((1 - p) * 100), acc: M.acc };
+    const curve = _TP_HZ.map(z => { const m = state === "up" ? z.up : z.dn; const p = _logit(x, m.M, m.S, m.W, m.B);
+      return { h: z.h, lb: z.lb, persist: Math.round(p * 100), exhaust: Math.round((1 - p) * 100), acc: m.acc }; });
+    const rep = curve[1];   // 대표=1달(H=20) — 하위호환
+    return { state, persist: rep.persist, exhaust: rep.exhaust, acc: rep.acc, curve };
   }
 
   return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };

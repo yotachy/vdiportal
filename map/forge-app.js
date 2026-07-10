@@ -1521,9 +1521,14 @@
         const tip = "하루 만에 큰 오버나잇 갭(시가가 전일 종가 대비 크게 벌어짐, 갭업·갭다운 무관)이 나올 확률 — 지평이 길수록 문턱↑(대각선 곡선). 대표=1달(2.2σ).&#10;⚠️가격 방향 예측 아님 — '큰 갭이 뜰까'. 급변 경보(일중·종가)와 다른 데이터 슬라이스(시가 vs 전일종가). 급변축 대비 종목외 +3~4%p 증분.&#10;" + rows + "&#10;주식 한정 — 24h 시장(FX·크립토) 미표시. " + (_gap.elevated ? "→ 평시보다 높음 · 갭 대비" : "→ 평시 수준");
         return `<span class="fcv-vol ${_gap.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">▮ 갭 경보 <b>${_gap.prob}%</b><span class="vol-vf">평시 ${_gap.base}%</span></span>`;
       })() : "";
-      // 추세 지속/소진(v1.9) — 추세 국면서 이어질지 힘 빠져 횡보로 갈지. 비방향. 종목외 OOS 74~76%.
+      // 추세 지속/소진 멀티지평 곡선(v1.9.5) — 2주/1달/2달 뒤에도 추세 유지할지. 비방향. 종목외 OOS 79/76/73%(상승)·76/75/73%(하락).
       const _tp = _ctx && _ctx.trendPersist;
-      const tpHtml = _tp ? `<span class="fcv-vol ${_tp.persist >= 60 ? "rr-up" : _tp.persist <= 40 ? "dd-lo" : "rr-fl"}" title="현재 ${_tp.state === "up" ? "상승" : "하락"}추세가 향후 20봉(약 한 달) 뒤에도 이어질 확률 ${_tp.persist}% (힘 빠져 횡보로 전환 ${_tp.exhaust}%). ⚠️가격 방향 예측 아님 — 추세가 '지속될지 소진될지'(비방향). 종목외 walk-forward ${_tp.acc}%(다수결·strength 크게 초과). 소진 예상이면 추격 자제·평균회귀 대비.">${_tp.state === "up" ? "▲" : "▼"} 추세 ${_tp.persist >= 55 ? "지속" : _tp.persist <= 45 ? "소진" : "중립"} <b>${_tp.persist}%</b><span class="vol-vf">지속</span></span>` : "";
+      const _tpcv = _tp && _tp.curve;
+      const tpHtml = _tp ? (function () {
+        const rows = (_tpcv || []).map(c => `· ${c.lb}(${c.h}봉): 지속 ${c.persist}% / 소진 ${c.exhaust}% (종목외 ${c.acc}%)`).join("&#10;");
+        const tip = "현재 " + (_tp.state === "up" ? "상승" : "하락") + "추세가 그 시점 뒤에도 이어질(지속) vs 힘 빠져 횡보 전환할(소진) 확률 — 지평별 곡선. 대표=1달.&#10;⚠️가격 방향 예측 아님 — '지속될지 소진될지'(비방향). 종목외 walk-forward(다수결·strength 크게 초과).&#10;" + rows + "&#10;소진 예상이면 추격 자제·평균회귀 대비.";
+        return `<span class="fcv-vol ${_tp.persist >= 60 ? "rr-up" : _tp.persist <= 40 ? "dd-lo" : "rr-fl"}" title="${tip}">${_tp.state === "up" ? "▲" : "▼"} 추세 ${_tp.persist >= 55 ? "지속" : _tp.persist <= 45 ? "소진" : "중립"} <b>${_tp.persist}%</b><span class="vol-vf">2주·1달·2달</span></span>`;
+      })() : "";
       // 리스크 가이드(v1.6) — 검증된 콘(예측범위, 실현변동성과 0.79 상관)·낙폭리스크에 표준 리스크공식 적용.
       // 예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님) — 정직 구분.
       const _pR = lastResult && lastResult.prediction;

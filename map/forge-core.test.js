@@ -2096,4 +2096,10 @@ test("forecastTrendPersist: 추세 지속/소진 — 국면 한정·형식 [v1.9
   assert.ok(r.persist >= 0 && r.persist <= 100, "persist 0~100: " + r.persist);
   assert.equal(r.persist + r.exhaust, 100, "지속+소진=100");
   assert.ok(fp(p, "down", 0.6), "down 국면도 산출");
+  // 멀티지평 곡선(v1.9.5): 2주/1달/2달, 대표=1달(H=20)
+  assert.ok(Array.isArray(r.curve) && r.curve.length === 3, "curve 3지평");
+  assert.deepEqual(r.curve.map(c => c.h), [10, 20, 40], "지평 10·20·40봉");
+  assert.deepEqual(r.curve.map(c => c.lb), ["2주", "1달", "2달"], "라벨 2주·1달·2달");
+  assert.equal(r.persist, r.curve[1].persist, "대표=1달(H=20)");
+  assert.ok(r.curve.every(c => c.persist + c.exhaust === 100 && c.persist >= 0 && c.persist <= 100), "곡선 지속+소진=100");
 });
