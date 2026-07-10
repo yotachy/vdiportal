@@ -121,6 +121,7 @@
   .rs-head2 .num{text-align:right}
   .rs-file{display:grid;grid-template-columns:1fr 58px 42px 78px;gap:6px;align-items:center;cursor:grab;padding:3px 8px;font-size:11.5px}
   .rs-file .rs-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rs-file.rs-pbf .rs-name{color:var(--gold)}
   .rs-file .col{color:var(--eth);font-size:11px;white-space:nowrap;overflow:hidden}
   .rs-file .num{text-align:right}
   .rs-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1223,9 +1224,9 @@ function renderExplorer(){
   // 파일(정렬 적용, 컴팩트 컬럼)
   const files=sortedFiles();
   files.forEach(f=>{
-    const row=document.createElement('div');row.className='rs-file';row.draggable=true;
-    row.dataset.path=f.path;row.dataset.name=f.name;
-    const nm=document.createElement('div');nm.className='rs-name';nm.title=f.name;nm.textContent=f.name;
+    const row=document.createElement('div');row.className='rs-file'+(f.kind==='pbf'?' rs-pbf':'');row.draggable=true;
+    row.dataset.path=f.path;row.dataset.name=f.name;row.dataset.kind=f.kind;
+    const nm=document.createElement('div');nm.className='rs-name';nm.title=f.name;nm.textContent=(f.kind==='pbf'?'🔖 ':'🎬 ')+f.name;
     const sz=document.createElement('div');sz.className='col num';sz.textContent=fmtSize(f.size);
     const ex=document.createElement('div');ex.className='col';ex.textContent=f.ext||'';
     const dt=document.createElement('div');dt.className='col';dt.textContent=fmtDate(f.mtime);
@@ -1240,12 +1241,19 @@ rsBodyEl.addEventListener('click',e=>{
 });
 rsBodyEl.addEventListener('dblclick',e=>{
   const row=e.target.closest('.rs-file');if(!row)return;
+  if(row.dataset.kind==='pbf'){
+    fetch(HELPER+"/bookmarks?path="+encodeURIComponent(row.dataset.path)).then(r=>r.json()).then(d=>{
+      if(d&&d.ok&&d.video)playItems([{path:d.video,seek:null,win:null}]);
+      else toast('영상을 찾을 수 없습니다');
+    }).catch(()=>toast('재생 실패'));
+    return;
+  }
   playPaths([row.dataset.path]);
 });
 rsBodyEl.addEventListener('dragstart',e=>{
   const row=e.target.closest('.rs-file');if(!row)return;
   e.dataTransfer.effectAllowed='copy';
-  e.dataTransfer.setData('text/potflow-video',JSON.stringify({path:row.dataset.path,name:row.dataset.name}));
+  e.dataTransfer.setData('text/potflow-video',JSON.stringify({path:row.dataset.path,name:row.dataset.name,kind:row.dataset.kind}));
 });
 rsPathEl.addEventListener('keydown',e=>{if(e.key==='Enter')openFolder(rsPathEl.value)});
 const VEXT=/\.(mp4|mkv|avi|mov|wmv|webm|flv|m4v|ts|mpg|mpeg)$/i;
@@ -1255,6 +1263,14 @@ stage.addEventListener('drop',e=>{
   if(raw){
     e.preventDefault();
     let payload;try{payload=JSON.parse(raw)}catch(err){return}
+    if(payload.kind==='pbf'){
+      const p=worldPt(e.clientX,e.clientY);
+      fetch(HELPER+"/bookmarks?path="+encodeURIComponent(payload.path)).then(r=>r.json()).then(d=>{
+        if(d&&d.ok&&d.video){const nn=makeNode(p.x-W_NODE/2,p.y-30);render();bindVideoToNode(nn.id,d.video,d.video.split(/[\\/]/).pop());}
+        else toast('영상을 찾을 수 없습니다');
+      }).catch(()=>toast('불러오기 실패'));
+      return;
+    }
     const{path,name}=payload;const p=worldPt(e.clientX,e.clientY);const hit=nodeAt(p);
     if(hit){bindVideoToNode(hit.id,path,name);selectOnly(hit.id);}
     else{const n=makeNode(p.x-W_NODE/2,p.y-30);render();bindVideoToNode(n.id,path,name);selectOnly(n.id);}
