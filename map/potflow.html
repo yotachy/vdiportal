@@ -856,8 +856,8 @@ function syncBookmarks(nodeId){
     const bms=d.bookmarks||[];const existing={};bmChildren(nodeId).forEach(c=>{existing[c.seekMs]=c;});
     const seen={};let i=0;
     bms.forEach(b=>{seen[b.ms]=1;let c=existing[b.ms];
-      if(!c){c=makeNode(n.x+i*60,n.y+150+i*8,'',"mini");c.bmParent=nodeId;c.seekMs=b.ms;c.videoPath=n.videoPath;addEdge(nodeId,'bottom',c.id,'top');}
-      c.title=b.title||('책갈피 '+fmtClock(b.ms));
+      if(!c){c=makeNode(n.x+i*270,n.y+180,'',"full");c.bmParent=nodeId;c.seekMs=b.ms;c.videoPath=n.videoPath;addEdge(nodeId,'bottom',c.id,'top');}
+      c.title=b.title||('책갈피 '+fmtClock(b.ms));c.desc=fmtClock(b.ms);
       if(b.thumb){const iid='bm_'+nodeId+'_'+b.ms;putImg(iid,b.thumb);c.thumb={imgId:iid,label:c.title};}
       i++;});
     const stale=bmChildren(nodeId).filter(c=>!seen[c.seekMs]).map(c=>c.id);
