@@ -713,6 +713,7 @@ function drawNhud(){
       <button class="hbtn" data-nact="parent" title="상위(부모) 노드 추가">${ICO.parent}<span>상위</span></button>
       <button class="hbtn" data-nact="child" title="하위(자식) 노드 추가">${ICO.child}<span>하위</span></button>
       <button class="hbtn danger" data-nact="del" title="노드 삭제">${ICO.trash}<span>삭제</span></button>
+      ${n.videoPath?`<button class="hbtn" data-nact="bmsync" title="책갈피(pbf) 동기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg><span>책갈피</span></button>`:''}
     </div>
     <div class="nbar-sw">${sw}</div>
   </div>`;
@@ -829,10 +830,33 @@ function deleteCanvas(id){
 /* ---------- node ops ---------- */
 function makeNode(x,y,title,type,iconId){const n={id:uid('n'),x,y,title:title||'새 단계',desc:'',thumb:null,type:type||'full'};if(iconId)n.iconId=iconId;state.nodes.push(n);return n}
 /* ---------- 동영상 경로 · 썸네일 · 재생(PotFlow) ---------- */
-function bindVideoToNode(id,path,name){const n=N(id);if(!n)return;n.videoPath=path;if(name&&(!n.title||n.title==='새 단계'))n.title=name.replace(/\.[^.]+$/,'');requestThumb(id,path);markDirty();render()}
+function bindVideoToNode(id,path,name){const n=N(id);if(!n)return;n.videoPath=path;if(name&&(!n.title||n.title==='새 단계'))n.title=name.replace(/\.[^.]+$/,'');requestThumb(id,path);markDirty();render();syncBookmarks(id);}
 function requestThumb(id,path){if(!HELPER_OK)return;const imgId='vthumb_'+id;fetch(HELPER+"/thumb?path="+encodeURIComponent(path)).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{const fr=new FileReader();fr.onload=()=>{putImg(imgId,fr.result);const n=N(id);if(n){n.thumb={imgId,label:n.title||''};render();markDirty()}};fr.readAsDataURL(b)}).catch(()=>{})}
 function playPaths(paths){const list=(paths||[]).filter(Boolean);if(!list.length){toast('재생할 동영상이 없습니다');return}if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:list})}).then(r=>r.json()).then(j=>{if(j.ok)toast(j.launched+'개 재생');else toast('재생 실패: '+(j.error||''))}).catch(()=>toast('재생 실패'))}
 function playSelected(){const paths=sel.map(id=>{const n=N(id);return n&&n.videoPath}).filter(Boolean);if(!paths.length){toast('선택한 노드에 동영상 경로가 없습니다');return}playPaths(paths)}
+function fmtClock(ms){ms=ms||0;const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60,p=x=>String(x).padStart(2,'0');return (h?h+':':'')+p(m)+':'+p(ss);}
+function bmChildren(pid){return state.nodes.filter(n=>n.bmParent===pid);}
+function playAt(path,ms){if(!path)return;if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}
+  fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:[path],seek:(ms||0)/1000})})
+    .then(r=>r.json()).then(j=>{if(j&&j.ok)toast('재생 · '+fmtClock(ms));else toast('재생 실패: '+((j&&j.error)||''));}).catch(()=>toast('재생 실패'));}
+function syncBookmarks(nodeId){
+  const n=N(nodeId);if(!n||!n.videoPath||n.bmParent!=null)return;
+  if(!HELPER_OK){toast('헬퍼가 꺼져 있습니다');return}
+  fetch(HELPER+"/bookmarks?path="+encodeURIComponent(n.videoPath)).then(r=>r.json()).then(d=>{
+    if(!d||!d.ok){toast('책갈피를 불러올 수 없습니다');return}
+    const bms=d.bookmarks||[];const existing={};bmChildren(nodeId).forEach(c=>{existing[c.seekMs]=c;});
+    const seen={};let i=0;
+    bms.forEach(b=>{seen[b.ms]=1;let c=existing[b.ms];
+      if(!c){c=makeNode(n.x+i*60,n.y+150+i*8,'',"mini");c.bmParent=nodeId;c.seekMs=b.ms;c.videoPath=n.videoPath;addEdge(nodeId,'bottom',c.id,'top');}
+      c.title=b.title||('책갈피 '+fmtClock(b.ms));
+      if(b.thumb){const iid='bm_'+nodeId+'_'+b.ms;putImg(iid,b.thumb);c.thumb={imgId:iid,label:c.title};}
+      i++;});
+    const stale=bmChildren(nodeId).filter(c=>!seen[c.seekMs]).map(c=>c.id);
+    if(stale.length)delNodes(stale);
+    render();markDirty();
+    toast(bms.length?('책갈피 '+bms.length+'개'):'책갈피 없음');
+  }).catch(()=>toast('책갈피 동기화 실패'));
+}
 function addNodeCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const n=makeNode(p.x-W_NODE/2,p.y-30);render();selectOnly(n.id);markDirty()}
 function addEdge(from,fromSide,to,toSide){if(from===to)return;if(state.edges.some(e=>e.from===from&&e.to===to))return;state.edges.push({id:uid('e'),from,fromSide:fromSide||'right',to,toSide:toSide||'left',style:TOOLBAR.edgeStyle,arrow:TOOLBAR.edgeArrow});markDirty()}
 function delEdge(id){state.edges=state.edges.filter(e=>e.id!==id);if(selEdge===id)selEdge=null;paint();markDirty()}
@@ -999,7 +1023,7 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-ewidth]')){if(selEdge){const ed=E(selEdge);ed.width=((ed.width||2)%3)+1;paint();markDirty()}return}
   if(e.target.closest('[data-eroute]')){if(selEdge){const ed=E(selEdge);ed.route=ed.route!=='curve'?'curve':'ortho';paint();markDirty()}return}
   if(e.target.closest('[data-elabeladd]')){if(selEdge){const ed=E(selEdge);if(ed.label==null)ed.label='';paint();const le=document.querySelector(`.elabel[data-elabel="${selEdge}"]`);if(le){le.focus();const r=document.createRange();r.selectNodeContents(le);const s=window.getSelection();s.removeAllRanges();s.addRange(r)}}return}
-  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='parent')addParent(id);else if(a==='child')addChild(id);else if(a==='del')delNodes([id])}return}
+  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='parent')addParent(id);else if(a==='child')addChild(id);else if(a==='del')delNodes([id]);else if(a==='bmsync')syncBookmarks(id)}return}
   const al=e.target.closest('[data-align]');if(al){alignSel(al.dataset.align);return}
   const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='add')addChild(id);else if(a==='rmthumb')setThumb(id,null);return}
@@ -1018,7 +1042,7 @@ world.addEventListener('mousedown',e=>{
 });
 world.addEventListener('dblclick',e=>{
   const nodeEl=e.target.closest('.node');
-  if(nodeEl){const n=N(nodeEl.dataset.id);if(n&&n.videoPath){e.preventDefault();playPaths([n.videoPath]);return}}
+  if(nodeEl){const n=N(nodeEl.dataset.id);if(n&&n.videoPath){e.preventDefault();if(n.seekMs!=null)playAt(n.videoPath,n.seekMs);else playPaths([n.videoPath]);return;}}
   if(mode!=='edit')return;
   const ed=e.target.closest('.n-title,.n-desc');if(!ed)return;
   e.stopPropagation();ed.focus();
