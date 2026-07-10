@@ -281,6 +281,7 @@
     <button class="btn ghost edit-only ico" id="undoBtn" onclick="undo()" title="되돌리기 (Ctrl+Z)" disabled>↶</button>
     <button class="btn ghost edit-only ico" id="redoBtn" onclick="redo()" title="다시 실행 (Ctrl+Shift+Z)" disabled>↷</button>
     <button class="btn gold edit-only" onclick="addNodeCenter()">＋ 노드</button>
+    <button class="btn gold edit-only" onclick="playSelected()" title="선택 노드 재생 (Space)">▶ 선택 재생</button>
     <button class="btn ghost" onclick="fitView()">화면맞춤</button>
     <button class="btn ghost edit-only" onclick="autoLayout('h')">가로정렬</button>
     <button class="btn ghost edit-only" onclick="autoLayout('v')">세로정렬</button>
@@ -487,7 +488,7 @@ function defaultState(){
 }
 let state=defaultState();
 let view={tx:30,ty:20,scale:1};
-let sel=[]; let selEdge=null; let drag=null; let spaceDown=false; let justDragged=false;
+let sel=[]; let selEdge=null; let drag=null; let spaceDown=false; let justDragged=false; let spacePanned=false;
 
 const N=id=>state.nodes.find(n=>n.id===id);
 const E=id=>state.edges.find(e=>e.id===id);
@@ -845,7 +846,7 @@ function makeGroup(){if(sel.length<2)return;state.groups=state.groups||[];state.
 /* ---------- stage pointer ---------- */
 stage.addEventListener('pointerdown',e=>{
   if(e.target.closest('.group-label,.group-del,.hbar,.hbtn,.hbtn2,.nsw,.elabel'))return;
-  if(e.button===1||(spaceDown&&e.button===0)){startPan(e);return}
+  if(e.button===1||(spaceDown&&e.button===0)){if(spaceDown&&e.button===0)spacePanned=true;startPan(e);return}
   if(e.button!==0)return;
   if(mode==='edit'){
     const eh=e.target.closest('.ehandle');if(eh){startEndpoint(eh.dataset.end,e);return}
@@ -989,6 +990,8 @@ world.addEventListener('mousedown',e=>{
   if(ed&&document.activeElement!==ed)e.preventDefault();   // \ucea1\uc158 \ud3ec\ucee4\uc2a4(\uce90\ub7ff)\ub97c \ub9c9\uc544 \ub4dc\ub798\uadf8/\uc120\ud0dd\uc774 \uc6b0\uc120
 });
 world.addEventListener('dblclick',e=>{
+  const nodeEl=e.target.closest('.node');
+  if(nodeEl){const n=N(nodeEl.dataset.id);if(n&&n.videoPath){e.preventDefault();playPaths([n.videoPath]);return}}
   if(mode!=='edit')return;
   const ed=e.target.closest('.n-title,.n-desc');if(!ed)return;
   e.stopPropagation();ed.focus();
@@ -1018,7 +1021,7 @@ document.getElementById('imgFile').addEventListener('change',e=>{const f=e.targe
 window.addEventListener('keydown',e=>{
   const ae=document.activeElement;
   const typing=!!(ae&&(ae.isContentEditable||ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'));
-  if(e.code==='Space'){spaceDown=true;if(!typing)e.preventDefault();return}
+  if(e.code==='Space'){if(!e.repeat)spacePanned=false;spaceDown=true;if(!typing)e.preventDefault();return}
   if(e.key==='Escape'){if(searchOpen){closeSearch();return}deselectAll();closeZoom();return}
   if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')){e.preventDefault();if(ae&&ae.blur)ae.blur();exportJSON();return}
   if((e.ctrlKey||e.metaKey)&&(e.key==='f'||e.key==='F')){e.preventDefault();openSearch();return}
@@ -1037,7 +1040,7 @@ window.addEventListener('keydown',e=>{
   if(e.key==='g'||e.key==='G'){if(sel.length>=2)makeGroup();return}
   if(e.key==='Delete'){if(selEdge)delEdge(selEdge);else if(sel.length)delNodes([...sel]);return}
 });
-window.addEventListener('keyup',e=>{if(e.code==='Space')spaceDown=false});
+window.addEventListener('keyup',e=>{if(e.code==='Space'){spaceDown=false;const ae=document.activeElement;const typing=!!(ae&&(ae.isContentEditable||ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'));if(!spacePanned&&!typing)playSelected();spacePanned=false}});
 function isEditing(){const a=document.activeElement;return a&&a.isContentEditable}
 
 /* ---------- canvas sidebar ---------- */
