@@ -876,7 +876,7 @@ function requestThumb(id,path){if(!HELPER_OK)return;const imgId='vthumb_'+id;fet
 function playPaths(paths,watchId){const list=(paths||[]).filter(Boolean);if(!list.length){toast('재생할 동영상이 없습니다');return}if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:list})}).then(r=>r.json()).then(j=>{if(j.ok){toast(j.launched+'개 재생');if(watchId&&j.token)watchClose(j.token,watchId);}else toast('재생 실패: '+(j.error||''))}).catch(()=>toast('재생 실패'))}
 function playItems(items,watchId){const list=(items||[]).filter(it=>it&&it.path);if(!list.length){toast('재생할 동영상이 없습니다');return}if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}
   fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({items:list})}).then(r=>r.json()).then(j=>{if(j&&j.ok){toast(j.launched+'개 재생');if(watchId&&j.token)watchClose(j.token,watchId);}else toast('재생 실패: '+((j&&j.error)||''));}).catch(()=>toast('재생 실패'));}
-function playSelected(){const items=sel.map(id=>{const n=N(id);if(!n||!n.videoPath)return null;return {path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null};}).filter(Boolean);if(!items.length){toast('선택한 노드에 동영상 경로가 없습니다');return}playItems(items);}
+function playSelected(){const items=sel.map(id=>{const n=N(id);if(!n||!n.videoPath)return null;return {path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:n.win||null};}).filter(Boolean);if(!items.length){toast('선택한 노드에 동영상 경로가 없습니다');return}playItems(items);}
 function fmtClock(ms){ms=ms||0;const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60,p=x=>String(x).padStart(2,'0');return (h?h+':':'')+p(m)+':'+p(ss);}
 function bmChildren(pid){return state.nodes.filter(n=>n.bmParent===pid);}
 function playAt(path,ms,watchId){if(!path)return;if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}
@@ -1096,7 +1096,7 @@ world.addEventListener('mousedown',e=>{
 });
 world.addEventListener('dblclick',e=>{
   const nodeEl=e.target.closest('.node');
-  if(nodeEl){const n=N(nodeEl.dataset.id);if(n&&n.videoPath){e.preventDefault();if(n.seekMs!=null)playAt(n.videoPath,n.seekMs,n.bmParent);else playPaths([n.videoPath],n.id);return;}}
+  if(nodeEl){const n=N(nodeEl.dataset.id);if(n&&n.videoPath){e.preventDefault();playItems([{path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:n.win||null}],n.bmParent||n.id);return;}}
   if(mode!=='edit')return;
   const ed=e.target.closest('.n-title,.n-desc');if(!ed)return;
   e.stopPropagation();ed.focus();
