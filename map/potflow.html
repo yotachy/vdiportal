@@ -174,7 +174,7 @@
   .edges path.tmp{fill:none;stroke:var(--gold);stroke-width:2;stroke-dasharray:5 4}
 
   /* group box */
-  .group{position:absolute;border:1.5px dashed var(--gold-dim);border-radius:14px;background:rgba(232,180,99,.04);pointer-events:none}
+  .group{position:absolute;border:1.5px dashed var(--gold-dim);border-radius:14px;background:rgba(232,180,99,.04);pointer-events:auto;cursor:grab}
   .group-label{position:absolute;top:-11px;left:14px;font-size:11.5px;font-weight:700;color:var(--gold);background:#0e1116;padding:1px 8px;border-radius:6px;border:1px solid var(--gold-dim);pointer-events:auto;outline:none;font-family:var(--mono)}
   .group-del{position:absolute;top:-12px;right:10px;width:20px;height:20px;border-radius:6px;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);cursor:pointer;font-size:11px;display:grid;place-items:center;pointer-events:auto}
   .group-del:hover{color:var(--red);border-color:var(--red)}
@@ -1061,6 +1061,7 @@ stage.addEventListener('pointerdown',e=>{
     const eh=e.target.closest('.ehandle');if(eh){startEndpoint(eh.dataset.end,e);return}
     const edge=e.target.closest('[data-edge]');if(edge){selectEdge(edge.dataset.edge);return}
     const nodeEl=e.target.closest('.node');if(nodeEl){nodePointerDown(nodeEl.dataset.id,e);return}
+    const grp=e.target.closest('.group');if(grp){startGroupDrag(grp.dataset.gid,e);return;}
     if(e.ctrlKey||e.metaKey||TOOLBAR.selectMode){startMarquee(e);return}
     startPan(e,true);return;
   }
@@ -1077,6 +1078,7 @@ function nodePointerDown(id,e){
   window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
 }
 function startPan(e,canClear){drag={type:'pan',sx:e.clientX,sy:e.clientY,otx:view.tx,oty:view.ty,canClear:!!canClear,moved:false};stage.classList.add('panning');window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
+function startGroupDrag(gid,e){const g=G(gid);if(!g)return;drag={type:'group',gid,sx:e.clientX,sy:e.clientY,moved:false,origins:g.nodes.map(N).filter(Boolean).map(n=>({id:n.id,ox:n.x,oy:n.y}))};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);}
 function startLink(id,side,e){return;e.preventDefault();e.stopPropagation();selEdge=null;paint();drag={type:'link',from:id,fromSide:side,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
 function startEndpoint(end,e){return;e.preventDefault();e.stopPropagation();drag={type:'endpoint',end,edge:selEdge,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
 function startMarquee(e){drag={type:'marquee',sx:e.clientX,sy:e.clientY,add:e.shiftKey,moved:false};const m=document.getElementById('marquee');m.style.display='block';posMarquee(e.clientX,e.clientY);window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
@@ -1085,6 +1087,7 @@ function posMarquee(cx,cy){const r=stage.getBoundingClientRect(),x=Math.min(drag
 function onMove(e){
   if(!drag)return;
   if(drag.type==='pan'){drag.moved=true;view.tx=drag.otx+(e.clientX-drag.sx);view.ty=drag.oty+(e.clientY-drag.sy);applyView();return}
+  if(drag.type==='group'){drag.moved=true;const dx=(e.clientX-drag.sx)/view.scale,dy=(e.clientY-drag.sy)/view.scale;drag.origins.forEach(o=>{const n=N(o.id);if(!n)return;n.x=o.ox+dx;n.y=o.oy+dy;const el=q(o.id);if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}});paint();return;}
   if(drag.type==='nodePending'){
     if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<4)return;
     drag.type='node';justDragged=true;document.body.style.userSelect='none';document.body.classList.add('ndrag');
@@ -1145,6 +1148,7 @@ function onUp(e){
   if(d.type==='pan'){if(d.canClear&&!d.moved)deselectAll();return}
   if(d.type==='nodePending'){if(e.shiftKey)toggleSel(d.id);else selectOnly(d.id);selEdge=null;paint();return}
   if(d.type==='node'){setTimeout(()=>justDragged=false,30);markDirty();return}
+  if(d.type==='group'){if(d.moved)markDirty();return;}
   if(d.type==='link'){
     if(!d.moved){return}                    // 포트 클릭만 — 아무 동작 안 함(노드 추가 방지)
     const p=worldPt(e.clientX,e.clientY),snap=snapAt(p,d.from);
