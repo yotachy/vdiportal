@@ -252,6 +252,16 @@
   .menupop button:hover{background:var(--raised2)}
   .menupop button svg{width:16px;height:16px;color:var(--muted);flex:none}
   .menupop small{color:var(--faint);font-weight:400;margin-left:auto}
+  .pro-badge{align-self:center;font-size:11px;font-weight:800;color:var(--gold);border:1px solid var(--gold-dim);border-radius:6px;padding:2px 7px;letter-spacing:.04em}
+  .suppop{width:264px;padding:12px;gap:7px}
+  .sup-h{font-weight:800;color:var(--gold);font-size:13px}
+  .sup-acct{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 9px;font-size:12.5px;color:var(--txt);user-select:all;word-break:break-all}
+  .sup-note{font-size:11px;color:var(--eth);line-height:1.5}
+  .sup-hr{height:1px;background:var(--line);margin:4px 0}
+  .sup-input{font-family:inherit;font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--txt);padding:7px 9px;outline:none;text-transform:uppercase}
+  .sup-input:focus{border-color:var(--gold-dim)}
+  .sup-btn{width:100%;justify-content:center}
+  .sup-status{font-size:12px;color:var(--gold);min-height:14px}
 
   body.view .edit-only{display:none!important}
   body.view .node{cursor:default}body.view .n-title,body.view .n-desc{cursor:default}
@@ -307,6 +317,8 @@
     <button class="btn ghost edit-only" onclick="autoLayout('h')">가로정렬</button>
     <button class="btn ghost edit-only" onclick="autoLayout('v')">세로정렬</button>
     <button class="btn ghost edit-only" id="bgBtn" onclick="toggleBgPop(event)">배경</button>
+    <button class="btn ghost" id="supBtn" onclick="toggleSupport(event)">♥ 후원</button>
+    <span class="pro-badge" id="proBadge" style="display:none">PRO</span>
     <button class="btn ghost" id="exBtn" onclick="toggleExportPop(event)">내보내기 ▾</button>
     <button class="btn ghost" onclick="document.getElementById('impFile').click()">불러오기</button>
     <button class="btn ghost edit-only" onclick="resetAll()" style="color:var(--faint)">초기화</button>
@@ -317,6 +329,19 @@
     <button onclick="exportPNG();closeMenus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-7 7"/></svg>PNG 이미지<small>발표용</small></button>
     <button onclick="exportSVG();closeMenus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M5 19h14"/></svg>SVG 벡터</button>
     <button onclick="exportJSON();closeMenus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M9 4h6v3H9z"/></svg>JSON 데이터<small>백업</small></button>
+  </div>
+  <div class="menupop suppop" id="supPop">
+    <div class="sup-h">♥ 후원하기</div>
+    <div class="sup-acct" id="supAcct"></div>
+    <button class="btn ghost sup-btn" onclick="copySupport()">계좌 복사</button>
+    <div class="sup-note">보내주신 후원은 큰 힘이 됩니다. 감사합니다.</div>
+    <div class="sup-hr"></div>
+    <div class="sup-h">PRO 해제</div>
+    <div class="sup-note">입금 후 발급받은 해제키를 입력하세요. (무료: 캔버스·영상 1개, 1:2 / PRO: 무제한 1:N)</div>
+    <input id="licInput" class="sup-input" placeholder="PF-XXXX-XXXX" autocomplete="off">
+    <button class="btn gold sup-btn" onclick="unlockPro(document.getElementById('licInput').value)">해제</button>
+    <div class="sup-status" id="licStatus"></div>
+    <div class="sup-note">모든 데이터는 이 브라우저/PC에만 저장됩니다.</div>
   </div>
 </header>
 
@@ -426,6 +451,19 @@ function stamp(){return new Date().toISOString()}
 const LS_MODE='potflow_mode',LS_DOC='potflow_doc',LS_IMG='potflow_imgs';
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
+/* ---------- 후원 / PRO 라이센스(자체검증 키) ---------- */
+const SUPPORT_ACCOUNT="OO은행 000-000000-00 · 예금주 OOO";
+const LIC_SALT="potflow-2026-lock";
+let PRO=false;
+function _licHash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(36).toUpperCase().padStart(4,'0').slice(0,4);}
+function licenseValid(key){const m=/^PF-([A-Z0-9]{4})-([A-Z0-9]{4})$/.exec((key||'').trim().toUpperCase());return !!m&&_licHash(m[1]+LIC_SALT)===m[2];}
+function licenseKeyFor(a){a=(a||'').toUpperCase();return 'PF-'+a+'-'+_licHash(a+LIC_SALT);}
+function isPro(){return PRO;}
+function updateProBadge(){const b=document.getElementById('proBadge');if(b)b.style.display=PRO?'':'none';const s=document.getElementById('licStatus');if(s)s.textContent=PRO?'✔ PRO 활성화됨':'';}
+function unlockPro(key){if(licenseValid(key)){PRO=true;lsSet('potflow_pro','1');updateProBadge();toast('PRO 활성화');}else toast('잘못된 해제키');}
+function copySupport(){const t=SUPPORT_ACCOUNT;const ok=()=>toast('계좌 복사됨');const no=()=>toast('복사 실패 — 계좌를 길게 눌러 복사하세요');if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok).catch(no);else no();}
+function openSupport(){const el=document.getElementById('supPop');if(!el)return;closeMenus('supPop');document.getElementById('supAcct').textContent=SUPPORT_ACCOUNT;updateProBadge();el.classList.add('open');const b=document.getElementById('supBtn');if(b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px';}}
+function toggleSupport(e){if(e)e.stopPropagation();const el=document.getElementById('supPop');if(el&&el.classList.contains('open')){el.classList.remove('open');return;}openSupport();}
 function metaObj(){return{library:LIBRARY.map(l=>({id:l.id,label:l.label})),activeId,toolbar:TOOLBAR}}
 function docStamp(cs){let m='';(cs||[]).forEach(c=>{if(c.updated&&c.updated>m)m=c.updated});return m}
 function userImagesOnly(){const o={};LIBRARY.forEach(l=>{if(IMAGES[l.id])o[l.id]=IMAGES[l.id]});Object.keys(IMAGES).forEach(k=>{if(k.startsWith('vthumb_'))o[k]=IMAGES[k]});return o}
@@ -764,7 +802,7 @@ function applyCanvasBg(bg){const dots='radial-gradient(circle at 1px 1px,#ffffff
 function setCanvasBg(bg){canvasBg=bg||null;applyCanvasBg(canvasBg);renderBgPop();markDirty()}
 function renderBgPop(){const el=document.getElementById('bgPop');if(!el)return;el.innerHTML=CANVAS_BGS.map(c=>`<button class="bgsw ${c?'':'def'} ${(canvasBg||null)===c?'on':''}" style="${c?`background:${c}`:''}" title="${c||'기본'}" onclick="setCanvasBg('${c||''}')"></button>`).join('')}
 function toggleBgPop(e){if(e)e.stopPropagation();const el=document.getElementById('bgPop'),b=document.getElementById('bgBtn');renderBgPop();const open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open')});
+document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open');const sp=document.getElementById('supPop');if(sp&&sp.classList.contains('open')&&!e.target.closest('#supPop,#supBtn'))sp.classList.remove('open')});
 function loadCanvas(id){
   const c=canvases.find(x=>x.id===id);if(!c)return;
   activeId=id;
@@ -1377,7 +1415,7 @@ function exportPNG(){const{svg,w,h}=buildSVG();const url=URL.createObjectURL(new
   img.onload=()=>{const sc=2,cv=document.createElement('canvas');cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);const cx=cv.getContext('2d');cx.scale(sc,sc);cx.drawImage(img,0,0);URL.revokeObjectURL(url);try{cv.toBlob(b=>{b?(_dl(b,'diagram.png'),toast('PNG 내보냄')):toast('PNG 변환 실패')},'image/png')}catch(err){toast('PNG 변환 실패')}};
   img.onerror=()=>{URL.revokeObjectURL(url);toast('PNG 변환 실패')};img.src=url}
 function toggleExportPop(e){if(e)e.stopPropagation();closeMenus('exPop');const el=document.getElementById('exPop'),b=document.getElementById('exBtn'),open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-function closeMenus(except){['exPop','bgPop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
+function closeMenus(except){['exPop','bgPop','supPop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
 document.getElementById('impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
   if(d.images&&typeof d.images==='object')Object.assign(IMAGES,d.images);
   if(d.toolbar&&typeof d.toolbar==='object'){Object.assign(TOOLBAR,d.toolbar);renderToolbar()}
@@ -1454,6 +1492,8 @@ async function boot(){
     if(!useLocal){localSaveImgs();localSaveDoc();}   // 최초 오픈: 임베드 스냅샷을 localStorage에 씨딩
     applyStoreMode();renderSidebar();renderToolbar();renderPalette();
     setSaveState(lsGet(LS_DOC)?'saved':'offline');   // localStorage 사용가능=저장됨 / 차단(file:// 샌드박스)=오프라인 폴백
+    PRO=lsGet('potflow_pro')==='1';updateProBadge();
+    const sa0=document.getElementById('supAcct');if(sa0)sa0.textContent=SUPPORT_ACCOUNT;
     return;
   }}catch(e){}}
   storeMode=HELPER_OK?(lsGet(LS_MODE)||'server'):'local';
@@ -1478,6 +1518,8 @@ async function boot(){
   if(typeof renderSidebar==='function')renderSidebar();
   renderToolbar();
   renderPalette();
+  PRO=lsGet('potflow_pro')==='1';updateProBadge();
+  const sa=document.getElementById('supAcct');if(sa)sa.textContent=SUPPORT_ACCOUNT;
 }
 boot();
 </script>
