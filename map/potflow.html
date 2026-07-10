@@ -404,14 +404,8 @@
         <div class="tr-gh">도구</div>
         <button class="trbtn" id="selBtn" title="드래그로 영역 다중선택 (Ctrl+드래그와 동일)" onclick="toggleSelectMode()"><span class="tr-ico">⬚</span><span class="tr-name">영역 선택</span></button>
         <button class="trbtn" id="snapBtn" title="노드 정렬을 격자에 맞춤" onclick="toggleSnap()"><span class="tr-ico">⊹</span><span class="tr-name">자석 정렬</span></button>
-        <button class="trbtn" title="기본 카드 노드 추가" onclick="addNodeCenter()"><span class="tr-ico">▭</span><span class="tr-name">기본 노드</span></button>
-        <button class="trbtn" title="작은 중간 노드 추가" onclick="addMiniCenter()"><span class="tr-ico">▬</span><span class="tr-name">중간 노드</span></button>
-        <button class="trbtn" title="텍스트 노드 추가 (테두리 없는 글자)" onclick="addTextCenter()"><span class="tr-ico" style="font-weight:800">T</span><span class="tr-name">텍스트</span></button>
+        <button class="trbtn" title="노드 추가" onclick="addNodeCenter()"><span class="tr-ico">▭</span><span class="tr-name">노드</span></button>
         <button class="trbtn" title="선택 노드 복제 (Ctrl+D)" onclick="duplicateSelection()"><span class="tr-ico"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span><span class="tr-name">선택 복제</span></button>
-      </div>
-      <div class="tr-group icons" id="iconGroup">
-        <button class="tr-gh tr-toggle" onclick="toggleIcons()" title="아이콘 펼치기/접기">아이콘<span class="tr-chev" id="iconChev">▾</span></button>
-        <div class="icon-pal" id="iconPal"></div>
       </div>
     </aside>
     <div class="zoomctl"><button onclick="zoomBy(1.2)">＋</button><div class="zlabel" id="zlabel">100%</div><button onclick="zoomBy(.83)">−</button></div>
@@ -702,10 +696,7 @@ function renderLib(){
 }
 function nodeHTML(n){
   const t=n.type||'full';
-  const ports=`<div class="port top edit-only" data-act="port" data-side="top"></div>
-    <div class="port right edit-only" data-act="port" data-side="right"></div>
-    <div class="port bottom edit-only" data-act="port" data-side="bottom"></div>
-    <div class="port left edit-only" data-act="port" data-side="left"></div>`;
+  const ports='';
   const head=`<div class="n-in"></div>`;
   const bg=n.bg?`;background:${n.bg}`:'';
   if(t==='mini'){
@@ -757,7 +748,7 @@ function drawLabels(){
     return `<div class="elabel ${selEdge===e.id?'sel':''}" data-elabel="${e.id}" contenteditable="${ce()}" style="left:${mx}px;top:${my}px">${esc(e.label)}</div>`}).join('');
 }
 function drawEhud(){
-  const hud=document.getElementById('ehud');
+  const hud=document.getElementById('ehud');if(hud)hud.innerHTML='';return;
   if(mode!=='edit'||!selEdge){hud.innerHTML='';return}
   const e=E(selEdge),g=e&&edgeGeo(e);if(!g){hud.innerHTML='';return}
   const mx=(g.A.x+g.B.x)/2,my=(g.A.y+g.B.y)/2;
@@ -1030,8 +1021,8 @@ function nodePointerDown(id,e){
   window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
 }
 function startPan(e,canClear){drag={type:'pan',sx:e.clientX,sy:e.clientY,otx:view.tx,oty:view.ty,canClear:!!canClear,moved:false};stage.classList.add('panning');window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
-function startLink(id,side,e){e.preventDefault();e.stopPropagation();selEdge=null;paint();drag={type:'link',from:id,fromSide:side,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
-function startEndpoint(end,e){e.preventDefault();e.stopPropagation();drag={type:'endpoint',end,edge:selEdge,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
+function startLink(id,side,e){return;e.preventDefault();e.stopPropagation();selEdge=null;paint();drag={type:'link',from:id,fromSide:side,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
+function startEndpoint(end,e){return;e.preventDefault();e.stopPropagation();drag={type:'endpoint',end,edge:selEdge,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
 function startMarquee(e){drag={type:'marquee',sx:e.clientX,sy:e.clientY,add:e.shiftKey,moved:false};const m=document.getElementById('marquee');m.style.display='block';posMarquee(e.clientX,e.clientY);window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
 function posMarquee(cx,cy){const r=stage.getBoundingClientRect(),x=Math.min(drag.sx,cx)-r.left,y=Math.min(drag.sy,cy)-r.top,w=Math.abs(cx-drag.sx),h=Math.abs(cy-drag.sy);const m=document.getElementById('marquee');m.style.left=x+'px';m.style.top=y+'px';m.style.width=w+'px';m.style.height=h+'px'}
 
@@ -1301,8 +1292,10 @@ function captureThumb(file,id){
 const libEl=document.getElementById('lib');
 libEl.addEventListener('dragstart',e=>{const li=e.target.closest('.lib-item');if(li)e.dataTransfer.setData('libid',li.dataset.lib)});
 const iconPalEl=document.getElementById('iconPal');
-iconPalEl.addEventListener('dragstart',e=>{const b=e.target.closest('[data-icon]');if(b)e.dataTransfer.setData('iconid',b.dataset.icon)});
-iconPalEl.addEventListener('click',e=>{const b=e.target.closest('[data-icon]');if(b)addIconCenter(b.dataset.icon)});
+if(iconPalEl){
+  iconPalEl.addEventListener('dragstart',e=>{const b=e.target.closest('[data-icon]');if(b)e.dataTransfer.setData('iconid',b.dataset.icon)});
+  iconPalEl.addEventListener('click',e=>{const b=e.target.closest('[data-icon]');if(b)addIconCenter(b.dataset.icon)});
+}
 libEl.addEventListener('click',e=>{const id=e.target.closest('[data-libdel]')?.dataset.libdel;if(!id)return;const i=LIBRARY.findIndex(x=>x.id===id);if(i>=0){LIBRARY.splice(i,1);renderLib();saveMeta();toast('삭제됨')}});
 document.getElementById('imgFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>downscaleImage(r.result,out=>{const iid=uid('img');putImg(iid,out);LIBRARY.push({id:iid,label:f.name.replace(/\.[^.]+$/,'')});renderLib();saveMeta();toast('썸네일 추가됨')});r.readAsDataURL(f);e.target.value=''});
 
@@ -1322,8 +1315,6 @@ window.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&(e.key==='v'||e.key==='V')){if(nodeClip&&nodeClip.nodes.length){e.preventDefault();pasteNodes()}return}
   if((e.ctrlKey||e.metaKey)&&(e.key==='d'||e.key==='D')){if(sel.length){e.preventDefault();duplicateSelection()}return}
   const primary=sel[sel.length-1];
-  if(e.key==='Tab'){e.preventDefault();if(primary)addChildMini(primary);return}
-  if(e.key==='Enter'){e.preventDefault();if(primary)addSiblingMini(primary);return}
   if(e.key==='-'||e.key==='_'){e.preventDefault();if(primary)addChild(primary);return}
   if(e.key==='+'||e.key==='='){e.preventDefault();if(primary)addParent(primary);return}
   if(e.key==='g'||e.key==='G'){if(sel.length>=2)makeGroup();return}
