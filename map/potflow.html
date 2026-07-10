@@ -800,6 +800,11 @@ function deleteCanvas(id){
 
 /* ---------- node ops ---------- */
 function makeNode(x,y,title,type,iconId){const n={id:uid('n'),x,y,title:title||'새 단계',desc:'',thumb:null,type:type||'full'};if(iconId)n.iconId=iconId;state.nodes.push(n);return n}
+/* ---------- 동영상 경로 · 썸네일 · 재생(PotFlow) ---------- */
+function bindVideoToNode(id,path,name){const n=N(id);if(!n)return;n.videoPath=path;if(name&&(!n.title||n.title==='새 단계'))n.title=name.replace(/\.[^.]+$/,'');requestThumb(id,path);markDirty();render()}
+function requestThumb(id,path){if(!HELPER_OK)return;const imgId='vthumb_'+id;fetch(HELPER+"/thumb?path="+encodeURIComponent(path)).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{const fr=new FileReader();fr.onload=()=>{putImg(imgId,fr.result);const n=N(id);if(n){n.thumb={imgId,label:n.title||''};render();markDirty()}};fr.readAsDataURL(b)}).catch(()=>{})}
+function playPaths(paths){const list=(paths||[]).filter(Boolean);if(!list.length){toast('재생할 동영상이 없습니다');return}if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:list})}).then(r=>r.json()).then(j=>{if(j.ok)toast(j.launched+'개 재생');else toast('재생 실패: '+(j.error||''))}).catch(()=>toast('재생 실패'))}
+function playSelected(){const paths=sel.map(id=>{const n=N(id);return n&&n.videoPath}).filter(Boolean);if(!paths.length){toast('선택한 노드에 동영상 경로가 없습니다');return}playPaths(paths)}
 function addNodeCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const n=makeNode(p.x-W_NODE/2,p.y-30);render();selectOnly(n.id);markDirty()}
 function addEdge(from,fromSide,to,toSide){if(from===to)return;if(state.edges.some(e=>e.from===from&&e.to===to))return;state.edges.push({id:uid('e'),from,fromSide:fromSide||'right',to,toSide:toSide||'left',style:TOOLBAR.edgeStyle,arrow:TOOLBAR.edgeArrow});markDirty()}
 function delEdge(id){state.edges=state.edges.filter(e=>e.id!==id);if(selEdge===id)selEdge=null;paint();markDirty()}
