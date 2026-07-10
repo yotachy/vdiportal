@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.6.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.6.1";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
 
   function mulberry32(seed) {
     let a = seed >>> 0;
@@ -2046,7 +2046,7 @@
     }
     context.opportunity = _opp;
     context.volForecast = forecastVolatility(price, data && data.candle);   // 변동성 예보(v1.5) — 가격방향 아님
-    context.ddRisk = forecastDrawdown(price, data && data.candle);          // 낙폭리스크 예보(v1.6) — 향후 5%↑ 하락 확률(하방 특화)
+    context.ddRisk = forecastDrawdown(price, data && data.candle);          // 낙폭리스크 예보(v1.6.1) — 1/2/3개월 낙폭 위험곡선(하방 특화)
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
       verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence, context }
@@ -2158,8 +2158,6 @@
   // 가격 '방향' 아님 — '얼마나 움직일지'. 변동성 평균회귀(고변동→축소·저변동→확대) 포착. 계수는 train-volforecast.js 산출.
   // 변동성/리스크 모델 공유 피처(10차원) — 변동성 구조 9 + vol-regime 백분위.
   // forecastVolatility·forecastDrawdown이 공유(train/live 피처 패리티 보장). train-volforecast·train-ddrisk와 동일 정의.
-  const _RISK_MEAN = [-0.05217, -0.0292, -0.0403, -0.01451, 2.61744, 0.20949, 2.44283, 1.81915, -0.06262, 0.497];
-  const _RISK_STD = [0.33843, 0.24193, 0.30963, 0.16301, 2.05053, 0.11273, 2.08302, 1.52799, 0.26317, 0.30889];
   function _riskFeatures(price, candle) {
     const t = (price && price.length ? price.length : 0) - 1;
     if (t < 220 || !candle || candle.length <= t) return null;
@@ -2179,21 +2177,31 @@
     for (let j = 0; j < x.length; j++) if (!isFinite(x[j])) return null;
     return x;
   }
-  function _logit(x, W, BB) { let s = BB; for (let j = 0; j < x.length; j++) s += W[j] * (x[j] - _RISK_MEAN[j]) / _RISK_STD[j]; return 1 / (1 + Math.exp(-s)); }
+  function _logit(x, MEAN, STD, W, BB) { let s = BB; for (let j = 0; j < x.length; j++) s += W[j] * (x[j] - MEAN[j]) / STD[j]; return 1 / (1 + Math.exp(-s)); }
 
   function forecastVolatility(price, candle) {
     const x = _riskFeatures(price, candle); if (!x) return null;
+    const MEAN = [-0.05217, -0.0292, -0.0403, -0.01451, 2.61744, 0.20949, 2.44283, 1.81915, -0.06262, 0.497];
+    const STD = [0.33843, 0.24193, 0.30963, 0.16301, 2.05053, 0.11273, 2.08302, 1.52799, 0.26317, 0.30889];
     const W = [0.20923, -0.27098, -0.18419, -0.04829, 0.03147, 0.00722, 0.29504, -0.50147, -0.27957, -0.38346], BB = -0.0908;
-    const p = _logit(x, W, BB);
+    const p = _logit(x, MEAN, STD, W, BB);
     return { expand: p >= 0.5, prob: Math.round((p >= 0.5 ? p : 1 - p) * 100), raw: Math.round(p * 100), acc: 68 };
   }
-  // 낙폭리스크 예보(v1.6) — 향후 ~H봉 내 현재가 대비 ≥5% 낙폭 발생 확률. 하방 특화 리스크 신호(가격방향 예측 아님).
-  // targets-lab2/train-ddrisk 검증: OOS 정확도 68.4%(다수결 66.1%·지속성 61.4% 둘 다 초과). 손절폭·포지션사이징·경보에 사용.
+  // 낙폭리스크 예보(v1.6.1) — 향후 H봉 내 현재가 대비 ≥문턱 낙폭 발생 확률. 하방 특화 리스크(가격방향 예측 아님).
+  // 멀티지평 위험곡선: 1개월(20봉·5%)·2개월(40봉·7%)·3개월(60봉·9%). 문턱은 지평스케일(√H)로 양성률 ~35% 균형.
+  // ddrisk-horizons/train-ddrisk 검증: 전 지평 OOS 67~69%(다수결·지속성 둘 다 초과). MEAN/STD 공유(피처 동일), W/BB 지평별.
+  const _DD_MEAN = [-0.05262, -0.0294, -0.04057, -0.01465, 2.60808, 0.20958, 2.43343, 1.8125, -0.06285, 0.49553];
+  const _DD_STD = [0.33838, 0.24202, 0.30996, 0.16301, 2.04907, 0.11275, 2.08013, 1.52676, 0.26328, 0.30888];
+  const _DD_HZ = [
+    { h: 20, mo: 1, dd: 5, base: 34, acc: 69, W: [-0.0491, -0.05929, -0.09394, -0.01346, 0.31478, -0.01904, 0.24401, 0.30707, -0.02005, 0.05503], BB: -0.78681 },
+    { h: 40, mo: 2, dd: 7, base: 35, acc: 68, W: [-0.04308, -0.06753, -0.10359, -0.02853, 0.35366, -0.00849, 0.2608, 0.28872, -0.03167, 0.06018], BB: -0.72909 },
+    { h: 60, mo: 3, dd: 9, base: 36, acc: 67, W: [-0.07228, -0.06915, -0.10294, -0.03661, 0.35781, -0.02552, 0.27485, 0.29234, -0.03987, 0.0673], BB: -0.71664 },
+  ];
   function forecastDrawdown(price, candle) {
     const x = _riskFeatures(price, candle); if (!x) return null;
-    const W = [-0.05276, -0.05592, -0.09572, -0.01967, 0.32093, -0.01845, 0.24893, 0.30076, -0.01806, 0.05445], BB = -0.77681;
-    const p = _logit(x, W, BB);   // p = P(향후 5%↑ 낙폭)
-    return { prob: Math.round(p * 100), dd: 5, elevated: p >= 0.45, base: 34, acc: 68 };   // base=평시 발생률(34%), elevated=평시 초과 경보
+    const curve = _DD_HZ.map(z => ({ h: z.h, mo: z.mo, dd: z.dd, base: z.base, acc: z.acc, prob: Math.round(_logit(x, _DD_MEAN, _DD_STD, z.W, z.BB) * 100) }));
+    const pr = curve[0];   // 대표=1개월(20봉·5%) — 하위호환
+    return { prob: pr.prob, dd: pr.dd, elevated: pr.prob >= 45, base: pr.base, acc: 68, curve };
   }
 
   return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };

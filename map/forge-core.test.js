@@ -1978,4 +1978,10 @@ test("forecastDrawdown: 낙폭리스크 예보 형식·범위 [v1.6]", () => {
   assert.equal(rc.dd, 5, "낙폭 임계 5%");
   assert.equal(typeof rc.elevated, "boolean", "elevated bool");
   assert.ok(rw.prob > rc.prob, "고변동 낙폭리스크 > 저변동: " + rw.prob + " vs " + rc.prob);
+  // 멀티지평 위험곡선(v1.6.1): 1/2/3개월, 문턱 5/7/9%
+  assert.ok(Array.isArray(rc.curve) && rc.curve.length === 3, "curve 3지평");
+  assert.deepEqual(rc.curve.map(c => c.mo), [1, 2, 3], "1·2·3개월");
+  assert.deepEqual(rc.curve.map(c => c.dd), [5, 7, 9], "문턱 5·7·9%");
+  assert.equal(rc.prob, rc.curve[0].prob, "대표=1개월");
+  assert.ok(rc.curve.every(c => c.prob >= 0 && c.prob <= 100), "곡선 확률 0~100");
 });
