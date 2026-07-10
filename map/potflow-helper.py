@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PotFlow 로컬 헬퍼 — 정적 서빙 + 재생/탐색/썸네일/문서저장."""
-import os, sys, json, shutil, subprocess, hashlib
+import os, sys, json, shutil, subprocess, hashlib, tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -63,14 +63,28 @@ def get_thumb(video_path):
     if not ff or not os.path.isfile(video_path):
         return None, "ffmpeg or video missing"
     os.makedirs(THUMB_DIR, exist_ok=True)
+    # 동시 요청 레이스 방지: 고유 임시 파일에 쓰고 os.replace로 원자적 이동
+    fd, tmp = tempfile.mkstemp(suffix=".jpg", dir=THUMB_DIR)
+    os.close(fd)
     try:
-        subprocess.run(ffmpeg_thumb_cmd(ff, video_path, out),
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+        result = subprocess.run(ffmpeg_thumb_cmd(ff, video_path, tmp),
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
     except Exception as e:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except OSError:
+            pass
         return None, str(e)
-    if os.path.isfile(out) and os.path.getsize(out) > 0:
+    if result.returncode == 0 and os.path.isfile(tmp) and os.path.getsize(tmp) > 0:
+        os.replace(tmp, out)
         with open(out, "rb") as f:
             return f.read(), ""
+    try:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+    except OSError:
+        pass
     return None, "thumb failed"
 
 def ping_payload():
