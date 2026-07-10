@@ -1500,6 +1500,9 @@
         const tip = "확률 손익 — 같은 문턱 ±X%에서 '이익목표 도달 확률'과 '낙폭 확률'(둘 다 백테스트 OOS 63~69%, 지속성·다수결 초과).&#10;⚠️가격 방향 예측 아님 — 위/아래로 그만큼 '닿을' 확률. 도달>낙폭이면 상방 우세(참고).&#10;" + rows;
         return `<span class="fcv-vol ${cls}" title="${tip}">▲도달 <b>${u0}%</b> · ▽낙폭 <b>${d0}%</b><span class="vol-vf">1·2·3M</span></span>`;
       })() : "";
+      // 단일봉 급변(v1.8) — 향후 20봉 내 하루 큰 폭 움직임(2.5σ) 확률. 방향 아님(갭·쇼크 경보). OOS 65% 검증.
+      const _spk = _ctx && _ctx.spikeRisk;
+      const spkHtml = _spk ? `<span class="fcv-vol ${_spk.elevated ? "dd-hi" : "dd-lo"}" title="향후 20봉(약 한 달) 내 하루 만에 큰 폭(현재 변동성의 ${_spk.sigma}배 이상, 급등·급락 무관) 움직임이 나올 확률 ${_spk.prob}% (평시 ${_spk.base}%). ${_spk.elevated ? "평시보다 높음 → 갭·실적·이벤트 대비" : "평시 수준"}. ⚠️가격 방향 예측 아님 — '큰 하루가 올까'. 백테스트 OOS ${_spk.acc}%(지속성·다수결 크게 초과).">⚡ 급변 경보 <b>${_spk.prob}%</b><span class="vol-vf">평시 ${_spk.base}%</span></span>` : "";
       // 리스크 가이드(v1.6) — 검증된 콘(예측범위, 실현변동성과 0.79 상관)·낙폭리스크에 표준 리스크공식 적용.
       // 예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님) — 정직 구분.
       const _pR = lastResult && lastResult.prediction;
@@ -1522,6 +1525,7 @@
         (_up != null ? `<span class="fcv-cell">${_L("상승 / 하락 확률")}<span class="fcv-prob" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span></span>` : "") +
         (vfHtml ? `<span class="fcv-cell">${_L("변동성 예보 · 검증됨")}${vfHtml}</span>` : "") +
         (ddHtml ? `<span class="fcv-cell">${_L("확률 손익 · 검증됨")}${ddHtml}</span>` : "") +
+        (spkHtml ? `<span class="fcv-cell">${_L("급변 경보 · 검증됨")}${spkHtml}</span>` : "") +
         (rgHtml ? `<span class="fcv-cell">${_L("리스크 가이드 · 참고")}${rgHtml}</span>` : "") +
         (isFinite(_targetN) ? `<span class="fcv-cell">${_L("목표가")}<span class="fcv-sig" title="예측 도달가"><b>${fmtNum(_targetN)}</b></span></span>` : "") +
         `<span class="fcv-cell fcv-opcell">${_L("핵심 의견")}<span class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span></span>` + _bd;

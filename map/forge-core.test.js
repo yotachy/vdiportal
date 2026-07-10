@@ -2002,3 +2002,19 @@ test("forecastUpside: 이익목표 도달 예보 형식·범위 [v1.7]", () => {
   assert.deepEqual(rc.curve.map(c => c.tg), [5, 7, 9], "문턱 5·7·9%(낙폭과 동일=R:R 대칭)");
   assert.ok(rw.prob > rc.prob, "고변동 도달확률 > 저변동: " + rw.prob + " vs " + rc.prob);
 });
+
+test("forecastSpike: 단일봉 급변 예보 형식·범위·단조 [v1.8]", () => {
+  assert.equal(ForgeCore.forecastSpike([1,2,3], null), null, "데이터 부족 → null");
+  const calmP = [], calmC = [], wildP = [], wildC = [];
+  for (let i = 0; i < 400; i++) {
+    const cc = 100 + i * 0.03 + Math.sin(i * 0.1) * 0.6;   // 잔잔
+    calmP.push(cc); calmC.push({ o: cc, h: cc * 1.003, l: cc * 0.997, c: cc });
+    const wc = 100 + i * 0.03 + Math.sin(i * 0.35) * 11;   // 출렁(급변 잦음)
+    wildP.push(wc); wildC.push({ o: wc, h: wc * 1.03, l: wc * 0.97, c: wc });
+  }
+  const rc = ForgeCore.forecastSpike(calmP, calmC), rw = ForgeCore.forecastSpike(wildP, wildC);
+  assert.ok(rc && typeof rc.prob === "number" && rc.prob >= 0 && rc.prob <= 100, "prob 0~100");
+  assert.equal(rc.sigma, 2.5, "2.5σ 문턱");
+  assert.equal(typeof rc.elevated, "boolean", "elevated bool");
+  assert.ok(rw.prob > rc.prob, "고변동 급변확률 > 저변동: " + rw.prob + " vs " + rc.prob);
+});

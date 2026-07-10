@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.7.1";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.8.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
   const _CONE_CAL = 0.75;
@@ -2051,6 +2051,7 @@
     context.volForecast = forecastVolatility(price, data && data.candle);   // 변동성 예보(v1.5) — 가격방향 아님
     context.ddRisk = forecastDrawdown(price, data && data.candle);          // 낙폭리스크 예보(v1.6.1) — 1/2/3개월 낙폭 위험곡선(하방 특화)
     context.upTarget = forecastUpside(price, data && data.candle);          // 이익목표 도달 예보(v1.7) — 1/2/3개월 +목표 도달 곡선(낙폭과 짝=확률 R:R)
+    context.spikeRisk = forecastSpike(price, data && data.candle);          // 단일봉 급변 예보(v1.8) — 향후 20봉 내 큰 하루(2.5σ) 발생 확률(갭·쇼크 경보)
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
       verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence, context }
@@ -2220,6 +2221,16 @@
     const pr = curve[0];   // 대표=1개월(20봉·+5%)
     return { prob: pr.prob, tg: pr.tg, base: pr.base, acc: 64, curve };
   }
+  // 단일봉 급변(shock) 예보(v1.8) — 향후 20봉 내 하루 |수익| > 2.5×현재변동성 급변 발생 확률(갭·쇼크 경보).
+  // 병렬 리서치(tail-lab)+독립 재검증(train-spike): OOS 65%(다수결 55.8·지속성 44.7 크게 초과, 양성률 44% 균형). 방향 아님 — '큰 하루가 올까'.
+  const _SPK_MEAN = [-0.05217, -0.0292, -0.0403, -0.01451, 2.61744, 0.20949, 2.44283, 1.81915, -0.06262, 0.497];
+  const _SPK_STD = [0.33843, 0.24193, 0.30963, 0.16301, 2.05053, 0.11273, 2.08302, 1.52799, 0.26317, 0.30889];
+  const _SPK_W = [0.16135, -0.20831, -0.16304, -0.05142, 0.03803, 0.03032, 0.23583, -0.37865, -0.22914, -0.30781], _SPK_BB = -0.30147;
+  function forecastSpike(price, candle) {
+    const x = _riskFeatures(price, candle); if (!x) return null;
+    const p = _logit(x, _SPK_MEAN, _SPK_STD, _SPK_W, _SPK_BB);
+    return { prob: Math.round(p * 100), sigma: 2.5, base: 44, acc: 65, elevated: p >= 0.5 };   // base=평시 발생률 44%
+  }
 
-  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });
