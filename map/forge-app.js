@@ -1490,8 +1490,9 @@
       const _vfcv = _vf && _vf.curve;
       const vfHtml = _vf ? (function () {
         const rows = (_vfcv || []).map(c => `· ${c.lb}(${c.h}봉): ${c.expand ? "확대" : "축소"} ${c.prob}% (OOS ${c.acc}%)`).join("&#10;");
-        const tip = "다음 구간 변동성이 확대(더 크게 움직임)/축소(잔잔해짐)될지 — 지평별 곡선.&#10;⚠️가격 방향 아님(오를지 내릴지 X, 얼마나 움직일지 O). 대표=1달.&#10;" + rows + "&#10;" + (_vf.expand ? "→ 큰 움직임 대비·손절 넓게" : "→ 박스권 매매·타이트하게");
-        return `<span class="fcv-vol ${_vf.expand ? "vol-exp" : "vol-con"}" title="${tip}">${_vf.expand ? "⌇ 확대" : "≈ 축소"} <b>${_vf.prob}%</b><span class="vol-vf">2주·1달·2달</span></span>`;
+        const ea = _vf.earnAug ? "&#10;📅 실적 인지 증강(종목외 +2.6%p·외부데이터)" : "";
+        const tip = "다음 구간 변동성이 확대(더 크게 움직임)/축소(잔잔해짐)될지 — 지평별 곡선.&#10;⚠️가격 방향 아님(오를지 내릴지 X, 얼마나 움직일지 O). 대표=1달." + ea + "&#10;" + rows + "&#10;" + (_vf.expand ? "→ 큰 움직임 대비·손절 넓게" : "→ 박스권 매매·타이트하게");
+        return `<span class="fcv-vol ${_vf.expand ? "vol-exp" : "vol-con"}" title="${tip}">${_vf.expand ? "⌇ 확대" : "≈ 축소"} <b>${_vf.prob}%</b><span class="vol-vf"${_vf.earnAug ? " style=\"background:var(--gold-dim);color:var(--gold)\"" : ""}>${_vf.earnAug ? "📅실적" : "2주·1달·2달"}</span></span>`;
       })() : "";
       // 낙폭리스크 예보(v1.6) — 향후 ~1개월 5%↑ 하락 확률(하방 특화, 가격 방향 예측 아님). OOS 68% 검증.
       const _dd = _ctx && _ctx.ddRisk;
@@ -1510,8 +1511,9 @@
       const _spkcv = _spk && _spk.curve;
       const spkHtml = _spk ? (function () {
         const rows = (_spkcv || []).map(c => `· ${c.lb}(${c.h}봉) ${c.sigma}σ↑: ${c.prob}% (평시 ${c.base}% · OOS ${c.acc}%)`).join("&#10;");
-        const tip = "하루 만에 큰 폭(현재 변동성의 Kσ 이상, 급등·급락 무관)이 나올 확률 — 지평이 길수록 문턱↑(대각선 곡선).&#10;⚠️가격 방향 예측 아님 — '큰 하루가 올까'. 대표=1달(2.5σ).&#10;" + rows + "&#10;" + (_spk.elevated ? "→ 평시보다 높음 · 갭·실적·이벤트 대비" : "→ 평시 수준");
-        return `<span class="fcv-vol ${_spk.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">⚡ <b>${_spk.prob}%</b><span class="vol-vf">평시 ${_spk.base}%</span></span>`;
+        const ea = _spk.earnAug ? "&#10;📅 실적 인지 증강(종목외 +3.4%p·외부데이터)" : "";
+        const tip = "하루 만에 큰 폭(현재 변동성의 Kσ 이상, 급등·급락 무관)이 나올 확률 — 지평이 길수록 문턱↑(대각선 곡선).&#10;⚠️가격 방향 예측 아님 — '큰 하루가 올까'. 대표=1달(2.5σ)." + ea + "&#10;" + rows + "&#10;" + (_spk.elevated ? "→ 평시보다 높음 · 갭·실적·이벤트 대비" : "→ 평시 수준");
+        return `<span class="fcv-vol ${_spk.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">⚡ <b>${_spk.prob}%</b><span class="vol-vf"${_spk.earnAug ? " style=\"background:var(--gold-dim);color:var(--gold)\"" : ""}>${_spk.earnAug ? "📅실적" : "평시 " + _spk.base + "%"}</span></span>`;
       })() : "";
       // 오버나잇 갭 멀티지평 곡선(v1.9.4) — 지평↑ 문턱↑ 대각선(1달2.2σ/1.5달2.7σ/2달3.2σ). 주식 한정, 비주식 null. 급변(일중)과 다른 슬라이스. OOS 62~63%.
       const _gap = _ctx && _ctx.gapRisk;
