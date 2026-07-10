@@ -1503,6 +1503,9 @@
       // 단일봉 급변(v1.8) — 향후 20봉 내 하루 큰 폭 움직임(2.5σ) 확률. 방향 아님(갭·쇼크 경보). OOS 65% 검증.
       const _spk = _ctx && _ctx.spikeRisk;
       const spkHtml = _spk ? `<span class="fcv-vol ${_spk.elevated ? "dd-hi" : "dd-lo"}" title="향후 20봉(약 한 달) 내 하루 만에 큰 폭(현재 변동성의 ${_spk.sigma}배 이상, 급등·급락 무관) 움직임이 나올 확률 ${_spk.prob}% (평시 ${_spk.base}%). ${_spk.elevated ? "평시보다 높음 → 갭·실적·이벤트 대비" : "평시 수준"}. ⚠️가격 방향 예측 아님 — '큰 하루가 올까'. 백테스트 OOS ${_spk.acc}%(지속성·다수결 크게 초과).">⚡ 급변 경보 <b>${_spk.prob}%</b><span class="vol-vf">평시 ${_spk.base}%</span></span>` : "";
+      // 추세 지속/소진(v1.9) — 추세 국면서 이어질지 힘 빠져 횡보로 갈지. 비방향. 종목외 OOS 74~76%.
+      const _tp = _ctx && _ctx.trendPersist;
+      const tpHtml = _tp ? `<span class="fcv-vol ${_tp.persist >= 60 ? "rr-up" : _tp.persist <= 40 ? "dd-lo" : "rr-fl"}" title="현재 ${_tp.state === "up" ? "상승" : "하락"}추세가 향후 20봉(약 한 달) 뒤에도 이어질 확률 ${_tp.persist}% (힘 빠져 횡보로 전환 ${_tp.exhaust}%). ⚠️가격 방향 예측 아님 — 추세가 '지속될지 소진될지'(비방향). 종목외 walk-forward ${_tp.acc}%(다수결·strength 크게 초과). 소진 예상이면 추격 자제·평균회귀 대비.">${_tp.state === "up" ? "▲" : "▼"} 추세 ${_tp.persist >= 55 ? "지속" : _tp.persist <= 45 ? "소진" : "중립"} <b>${_tp.persist}%</b><span class="vol-vf">지속</span></span>` : "";
       // 리스크 가이드(v1.6) — 검증된 콘(예측범위, 실현변동성과 0.79 상관)·낙폭리스크에 표준 리스크공식 적용.
       // 예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님) — 정직 구분.
       const _pR = lastResult && lastResult.prediction;
@@ -1521,6 +1524,7 @@
         (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
         (pxHtml ? `<span class="fcv-cell">${_L("현재가")}${pxHtml}</span>` : "") +
         ((ctxHtml || oppHtml) ? `<span class="fcv-cell">${_L("국면 · 기회")}<span class="fcv-cellrow">${ctxHtml}${oppHtml}</span></span>` : "") +
+        (tpHtml ? `<span class="fcv-cell">${_L("추세 지속/소진 · 검증됨")}${tpHtml}</span>` : "") +
         `<span class="fcv-cell">${_L("방향 판정")}<span class="fcv-reg" title="지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span></span>` +
         (_up != null ? `<span class="fcv-cell">${_L("상승 / 하락 확률")}<span class="fcv-prob" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span></span>` : "") +
         (vfHtml ? `<span class="fcv-cell">${_L("변동성 예보 · 검증됨")}${vfHtml}</span>` : "") +

@@ -2018,3 +2018,14 @@ test("forecastSpike: 단일봉 급변 예보 형식·범위·단조 [v1.8]", () 
   assert.equal(typeof rc.elevated, "boolean", "elevated bool");
   assert.ok(rw.prob > rc.prob, "고변동 급변확률 > 저변동: " + rw.prob + " vs " + rc.prob);
 });
+
+test("forecastTrendPersist: 추세 지속/소진 — 국면 한정·형식 [v1.9]", () => {
+  const fp = ForgeCore.forecastTrendPersist;
+  const p = []; for (let i = 0; i < 260; i++) p.push(100 + i * 0.4 + Math.sin(i * 0.1));   // 상승추세
+  assert.equal(fp(p, "range", 0.2), null, "횡보 국면엔 null(추세만)");
+  const r = fp(p, "up", 0.6);
+  assert.ok(r && r.state === "up", "up 국면 객체");
+  assert.ok(r.persist >= 0 && r.persist <= 100, "persist 0~100: " + r.persist);
+  assert.equal(r.persist + r.exhaust, 100, "지속+소진=100");
+  assert.ok(fp(p, "down", 0.6), "down 국면도 산출");
+});

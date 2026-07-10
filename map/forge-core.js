@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.8.1";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.9.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
   const _CONE_CAL = 0.75;
@@ -2052,6 +2052,7 @@
     context.ddRisk = forecastDrawdown(price, data && data.candle);          // 낙폭리스크 예보(v1.6.1) — 1/2/3개월 낙폭 위험곡선(하방 특화)
     context.upTarget = forecastUpside(price, data && data.candle);          // 이익목표 도달 예보(v1.7) — 1/2/3개월 +목표 도달 곡선(낙폭과 짝=확률 R:R)
     context.spikeRisk = forecastSpike(price, data && data.candle);          // 단일봉 급변 예보(v1.8) — 향후 20봉 내 큰 하루(2.5σ) 발생 확률(갭·쇼크 경보)
+    context.trendPersist = forecastTrendPersist(price, context.state, context.strength);   // 추세 지속/소진 예보(v1.9) — 추세 국면서 이어질지 힘 빠질지(비방향)
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
       verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence, context }
@@ -2238,6 +2239,37 @@
     const p = _logit(x, _SPK_MEAN, _SPK_STD, _SPK_W, _SPK_BB);
     return { prob: Math.round(p * 100), sigma: 2.5, base: 44, acc: 65, elevated: p >= 0.5 };   // base=평시 발생률 44%
   }
+  // 추세 지속/소진 예보(v1.9) — 추세 국면(up/down)에서 향후 20봉 뒤 추세가 지속되나 소진(→횡보)하나.
+  // 비방향(방향 못맞혀도 '추세가 이어질지 힘 빠질지'는 예측). 종목외 확증: up OOS 75.9%·down 74.5%(다수결60·52 초과, strength만보다 +8~19pp).
+  // 16 price-structure 피처(featAt) + strength. exhaust-confirm/train-exhaust 검증.
+  function _sma(a, e, n) { if (e < n - 1) return null; let s = 0; for (let i = e - n + 1; i <= e; i++) s += a[i]; return s / n; }
+  function _rsiAt(a, n, e) { if (e < n) return null; let g = 0, l = 0; for (let i = e - n + 1; i <= e; i++) { const d = a[i] - a[i - 1]; if (d >= 0) g += d; else l -= d; } const rs = l === 0 ? 100 : g / l; return 100 - 100 / (1 + rs); }
+  function _logvol2(a, e, n) { let s = 0; for (let i = e - n + 1; i <= e; i++) s += Math.log(a[i] / a[i - 1]) ** 2; return Math.sqrt(s / n); }
+  function _exhaustFeats(price) {
+    const t = price.length - 1, c = price[t];
+    const ma20 = _sma(price, t, 20), ma50 = _sma(price, t, 50), ma200 = _sma(price, t, 200);
+    const ma200p = _sma(price, t - 20, 200), ma50p = _sma(price, t - 10, 50), ma20p = _sma(price, t - 10, 20);
+    if (!ma20 || !ma50 || !ma200 || !ma200p || !ma50p || !ma20p) return null;
+    let sd = 0; for (let i = t - 19; i <= t; i++) sd += (price[i] - ma20) ** 2; sd = Math.sqrt(sd / 20); if (!sd) return null;
+    const rsi = _rsiAt(price, 14, t), rsi3 = _rsiAt(price, 14, t - 3); if (rsi == null || rsi3 == null) return null;
+    const hi60 = Math.max.apply(null, price.slice(t - 60, t + 1)), lo60 = Math.min.apply(null, price.slice(t - 60, t + 1));
+    const vol20 = _logvol2(price, t, 20), vol60 = _logvol2(price, t, 60);
+    const f = [(rsi - 50) / 50, (rsi - rsi3) / 20, (c - (ma20 - 2 * sd)) / (4 * sd) - 0.5, hi60 > 0 ? c / hi60 - 1 : 0, lo60 > 0 ? c / lo60 - 1 : 0,
+      c / ma20 - 1, c / ma50 - 1, c / ma200 - 1, ma20 / ma20p - 1, ma50 / ma50p - 1, ma200 / ma200p - 1,
+      vol20, vol60 ? vol20 / vol60 - 1 : 0, c / price[t - 5] - 1, c / price[t - 10] - 1, c / price[t - 20] - 1];
+    for (const v of f) if (!isFinite(v)) return null;
+    return f;
+  }
+  const _TP_UP = { M: [0.19015, -0.08444, 0.15022, -0.05604, 0.31561, 0.02738, 0.0888, 0.26605, 0.04284, 0.03216, 0.04327, 0.02428, -0.04017, 0.01079, 0.02963, 0.08164, 0.60926], S: [0.31388, 0.56183, 0.3031, 0.07786, 0.38869, 0.07646, 0.13639, 0.31415, 0.06779, 0.04402, 0.04638, 0.01886, 0.2506, 0.06413, 0.1042, 0.17679, 0.22445], W: [0.07209, 0.02843, 0.0058, -0.02644, -0.27829, 0.53319, -0.39084, 0.43052, -0.42917, -0.45421, 1.00531, -0.12201, 0.03067, 0.11411, 0.46994, 0.15688, 0.67402], B: 0.52195, acc: 76 };
+  const _TP_DN = { M: [-0.12469, 0.13155, -0.101, -0.24804, 0.11689, -0.0274, -0.09555, -0.22243, -0.04986, -0.03395, -0.04169, 0.03584, 0.02816, -0.00264, -0.01824, -0.07042, 0.68125], S: [0.30969, 0.57417, 0.29739, 0.14036, 0.16228, 0.08628, 0.12223, 0.181, 0.06498, 0.04086, 0.03796, 0.02155, 0.2844, 0.07757, 0.117, 0.14781, 0.22898], W: [-0.26724, 0.03232, -0.07739, -0.01503, 0.22546, -0.38358, 0.35489, -0.33273, 0.36045, 0.18194, -0.91534, 0.07945, -0.43143, -0.28671, -0.2284, -0.44905, 0.32189], B: -0.03151, acc: 75 };
+  function forecastTrendPersist(price, state, strength) {
+    if (state !== "up" && state !== "down") return null;   // 추세 국면 한정(횡보엔 미적용)
+    const f = _exhaustFeats(price); if (!f) return null;
+    const x = f.concat([strength]);
+    const M = state === "up" ? _TP_UP : _TP_DN;
+    const p = _logit(x, M.M, M.S, M.W, M.B);
+    return { state, persist: Math.round(p * 100), exhaust: Math.round((1 - p) * 100), acc: M.acc };
+  }
 
-  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastTrendPersist, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });
