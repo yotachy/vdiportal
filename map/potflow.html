@@ -1138,7 +1138,7 @@ function osResolveFile(file,id){
     .then(r=>r.json()).then(j=>{
       if(j&&j.ok&&j.path){bindVideoToNode(id,j.path,name);}
       else{titleFromName(id,name);captureThumb(file,id);toast('경로 미확인 — 오른쪽 파일탐색기에서 드래그해 지정하세요');}
-    }).catch(()=>{titleFromName(id,name);captureThumb(file,id);});
+    }).catch(()=>{titleFromName(id,name);captureThumb(file,id);toast('경로 미확인 — 오른쪽 파일탐색기에서 드래그해 지정하세요');});
 }
 function captureThumb(file,id){
   let url;

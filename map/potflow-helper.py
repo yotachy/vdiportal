@@ -282,6 +282,8 @@ class Handler(BaseHTTPRequestHandler):
             if not name:
                 return self._send(400, {"ok": False, "error": "name required"})
             base = body.get("base", "")
+            if not isinstance(base, str):
+                base = ""
             roots = [base] if base else list(SEARCH_ROOTS)
             path, matches = resolve_path(name, body.get("size", 0), roots)
             if matches == -1:
