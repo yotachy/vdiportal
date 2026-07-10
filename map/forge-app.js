@@ -1490,11 +1490,15 @@
       const vfHtml = _vf ? `<span class="fcv-vol ${_vf.expand ? "vol-exp" : "vol-con"}" title="다음 구간 변동성 ${_vf.expand ? "확대(더 크게 움직임)" : "축소(잔잔해짐)"} 예상 · 확신도 ${_vf.prob}% — ⚠️가격 방향 아님(오를지 내릴지 X, 얼마나 움직일지 O). 백테스트 OOS 정확도 ${_vf.acc}%. ${_vf.expand ? "→ 큰 움직임 대비·손절 넓게" : "→ 박스권 매매·타이트하게"}">${_vf.expand ? "⌇ 변동성 확대" : "≈ 변동성 축소"} <b>${_vf.prob}%</b><span class="vol-vf">${_vf.acc}%검증</span></span>` : "";
       // 낙폭리스크 예보(v1.6) — 향후 ~1개월 5%↑ 하락 확률(하방 특화, 가격 방향 예측 아님). OOS 68% 검증.
       const _dd = _ctx && _ctx.ddRisk;
-      const _ddcv = _dd && _dd.curve && _dd.curve.length ? _dd.curve : (_dd ? [{ mo: 1, h: 20, dd: _dd.dd, prob: _dd.prob, base: _dd.base }] : null);
-      const ddHtml = _ddcv ? (function () {
-        const probs = _ddcv.map(c => c.prob).join("·");
-        const tip = "보유기간별 낙폭 위험곡선 — 향후 각 기간 내 현재가 대비 해당 낙폭 이상 하락이 나올 확률.&#10;⚠️가격 방향 예측 아님(하방 리스크 크기). 백테스트 OOS 67~69%(지속성·다수결 둘 다 초과).&#10;" + _ddcv.map(c => `· ${c.mo}개월(${c.h}봉): ${c.dd}%↓ 확률 ${c.prob}% (평시 ${c.base}%)`).join("&#10;") + (_dd.elevated ? "&#10;→ 1개월 위험이 평시 초과: 손절 넓게·비중 축소 검토" : "");
-        return `<span class="fcv-vol ${_dd.elevated ? "dd-hi" : "dd-lo"}" title="${tip}">▽ 낙폭리스크 <b>${probs}%</b><span class="vol-vf">1·2·3M</span></span>`;
+      // 확률 손익(v1.7) — 같은 문턱 ±X%(1M 5%·2M 7%·3M 9%)에서 이익목표 도달 vs 낙폭 확률(둘 다 검증). 방향 예측 아님.
+      const _up = _ctx && _ctx.upTarget;
+      const _ddcv = _dd && _dd.curve, _upcv = _up && _up.curve;
+      const ddHtml = (_ddcv && _upcv) ? (function () {
+        const u0 = _upcv[0].prob, d0 = _ddcv[0].prob, fav = u0 - d0;   // 1개월 승산(도달−낙폭)
+        const cls = fav >= 8 ? "rr-up" : fav <= -8 ? "rr-dn" : "rr-fl";
+        const rows = _upcv.map((c, i) => `· ${c.mo}개월(±${c.tg}%): 도달 ${c.prob}% vs 낙폭 ${_ddcv[i].prob}% (평시 ${c.base}/${_ddcv[i].base}%)`).join("&#10;");
+        const tip = "확률 손익 — 같은 문턱 ±X%에서 '이익목표 도달 확률'과 '낙폭 확률'(둘 다 백테스트 OOS 63~69%, 지속성·다수결 초과).&#10;⚠️가격 방향 예측 아님 — 위/아래로 그만큼 '닿을' 확률. 도달>낙폭이면 상방 우세(참고).&#10;" + rows;
+        return `<span class="fcv-vol ${cls}" title="${tip}">▲도달 <b>${u0}%</b> · ▽낙폭 <b>${d0}%</b><span class="vol-vf">1·2·3M</span></span>`;
       })() : "";
       // 리스크 가이드(v1.6) — 검증된 콘(예측범위, 실현변동성과 0.79 상관)·낙폭리스크에 표준 리스크공식 적용.
       // 예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님) — 정직 구분.
@@ -1517,7 +1521,7 @@
         `<span class="fcv-cell">${_L("방향 판정")}<span class="fcv-reg" title="지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span></span>` +
         (_up != null ? `<span class="fcv-cell">${_L("상승 / 하락 확률")}<span class="fcv-prob" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span></span>` : "") +
         (vfHtml ? `<span class="fcv-cell">${_L("변동성 예보 · 검증됨")}${vfHtml}</span>` : "") +
-        (ddHtml ? `<span class="fcv-cell">${_L("낙폭 리스크 · 검증됨")}${ddHtml}</span>` : "") +
+        (ddHtml ? `<span class="fcv-cell">${_L("확률 손익 · 검증됨")}${ddHtml}</span>` : "") +
         (rgHtml ? `<span class="fcv-cell">${_L("리스크 가이드 · 참고")}${rgHtml}</span>` : "") +
         (isFinite(_targetN) ? `<span class="fcv-cell">${_L("목표가")}<span class="fcv-sig" title="예측 도달가"><b>${fmtNum(_targetN)}</b></span></span>` : "") +
         `<span class="fcv-cell fcv-opcell">${_L("핵심 의견")}<span class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span></span>` + _bd;

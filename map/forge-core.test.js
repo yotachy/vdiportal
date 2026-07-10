@@ -1985,3 +1985,20 @@ test("forecastDrawdown: 낙폭리스크 예보 형식·범위 [v1.6]", () => {
   assert.equal(rc.prob, rc.curve[0].prob, "대표=1개월");
   assert.ok(rc.curve.every(c => c.prob >= 0 && c.prob <= 100), "곡선 확률 0~100");
 });
+
+test("forecastUpside: 이익목표 도달 예보 형식·범위 [v1.7]", () => {
+  assert.equal(ForgeCore.forecastUpside([1,2,3], null), null, "데이터 부족/무캔들 → null");
+  const calmP = [], calmC = [], wildP = [], wildC = [];
+  for (let i = 0; i < 400; i++) {
+    const cc = 100 + i * 0.02 + Math.sin(i * 0.1) * 0.5;   // 잔잔(작은 변동)
+    calmP.push(cc); calmC.push({ o: cc, h: cc * 1.002, l: cc * 0.998, c: cc });
+    const wc = 100 + i * 0.02 + Math.sin(i * 0.3) * 10;    // 출렁(큰 변동)
+    wildP.push(wc); wildC.push({ o: wc, h: wc * 1.025, l: wc * 0.975, c: wc });
+  }
+  const rc = ForgeCore.forecastUpside(calmP, calmC), rw = ForgeCore.forecastUpside(wildP, wildC);
+  assert.ok(rc && typeof rc.prob === "number" && rc.prob >= 0 && rc.prob <= 100, "prob 0~100");
+  assert.equal(rc.tg, 5, "목표 +5%");
+  assert.ok(Array.isArray(rc.curve) && rc.curve.length === 3, "curve 3지평");
+  assert.deepEqual(rc.curve.map(c => c.tg), [5, 7, 9], "문턱 5·7·9%(낙폭과 동일=R:R 대칭)");
+  assert.ok(rw.prob > rc.prob, "고변동 도달확률 > 저변동: " + rw.prob + " vs " + rc.prob);
+});

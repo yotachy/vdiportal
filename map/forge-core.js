@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.6.1";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.7.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
 
   function mulberry32(seed) {
     let a = seed >>> 0;
@@ -2047,6 +2047,7 @@
     context.opportunity = _opp;
     context.volForecast = forecastVolatility(price, data && data.candle);   // 변동성 예보(v1.5) — 가격방향 아님
     context.ddRisk = forecastDrawdown(price, data && data.candle);          // 낙폭리스크 예보(v1.6.1) — 1/2/3개월 낙폭 위험곡선(하방 특화)
+    context.upTarget = forecastUpside(price, data && data.candle);          // 이익목표 도달 예보(v1.7) — 1/2/3개월 +목표 도달 곡선(낙폭과 짝=확률 R:R)
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
       verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence, context }
@@ -2203,6 +2204,19 @@
     const pr = curve[0];   // 대표=1개월(20봉·5%) — 하위호환
     return { prob: pr.prob, dd: pr.dd, elevated: pr.prob >= 45, base: pr.base, acc: 68, curve };
   }
+  // 이익목표 도달 예보(v1.7) — 향후 H봉 내 현재가 대비 +문턱 상승 도달 확률. 낙폭리스크와 동일 문턱(5/7/9%)이라 확률 R:R 대칭.
+  // upside-horizons/train-upside 검증: 전 지평 OOS 63~65%(다수결·지속성 둘 다 초과). MEAN/STD는 낙폭과 공유(피처 동일).
+  const _UP_HZ = [
+    { h: 20, mo: 1, tg: 5, base: 40, acc: 65, W: [-0.01658, -0.05798, -0.08918, -0.06927, 0.33165, 0.01843, 0.19731, 0.34737, -0.05169, 0.06], BB: -0.47465 },
+    { h: 40, mo: 2, tg: 7, base: 44, acc: 63, W: [-0.03563, -0.04931, -0.10506, -0.08457, 0.3203, 0.04447, 0.17659, 0.40358, -0.03646, 0.03016], BB: -0.29469 },
+    { h: 60, mo: 3, tg: 9, base: 47, acc: 63, W: [-0.043, -0.04091, -0.11898, -0.10779, 0.30279, 0.05213, 0.14955, 0.44602, -0.03058, 0.04111], BB: -0.18198 },
+  ];
+  function forecastUpside(price, candle) {
+    const x = _riskFeatures(price, candle); if (!x) return null;
+    const curve = _UP_HZ.map(z => ({ h: z.h, mo: z.mo, tg: z.tg, base: z.base, acc: z.acc, prob: Math.round(_logit(x, _DD_MEAN, _DD_STD, z.W, z.BB) * 100) }));
+    const pr = curve[0];   // 대표=1개월(20봉·+5%)
+    return { prob: pr.prob, tg: pr.tg, base: pr.base, acc: 64, curve };
+  }
 
-  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });
