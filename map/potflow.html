@@ -40,8 +40,8 @@
   .seg button{font-family:inherit;font-size:12.5px;font-weight:600;border:0;background:transparent;color:var(--muted);padding:7px 13px;cursor:pointer}
   .seg button.on{background:var(--gold);color:#1a1206}
 
-  .app{flex:1;display:grid;grid-template-columns:226px 1fr 300px;min-height:0;transition:grid-template-columns .22s cubic-bezier(.4,0,.2,1)}
-  .app.collapsed{grid-template-columns:44px 1fr 300px}
+  .app{flex:1;display:grid;grid-template-columns:226px 1fr var(--rside-w,300px);min-height:0;transition:grid-template-columns .22s cubic-bezier(.4,0,.2,1)}
+  .app.collapsed{grid-template-columns:44px 1fr var(--rside-w,300px)}
   body.view .app{grid-template-columns:226px 1fr}
   body.view .app.collapsed{grid-template-columns:44px 1fr}
   /* 캔버스 좌측 플로팅 도구 팔레트 */
@@ -104,7 +104,9 @@
   .app.collapsed .collapse-rail{display:flex;writing-mode:vertical-rl;align-items:center;gap:8px;margin:46px auto 0;color:var(--faint);font-family:var(--mono);font-size:11px;letter-spacing:.16em;cursor:pointer;text-transform:uppercase}
 
   /* 우측 파일탐색기 사이드바 */
-  .rside{border-left:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;min-height:0}
+  .rside{border-left:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;min-height:0;position:relative}
+  .rside-gutter{position:absolute;left:0;top:0;width:7px;height:100%;cursor:ew-resize;z-index:6}
+  .rside-gutter:hover{background:var(--gold-dim)}
   .rside-head{display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--line);flex:none}
   .rs-path{flex:1;min-width:0;font-family:inherit;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--txt);padding:0 9px;outline:none}
   .rs-path:focus{border-color:var(--gold-dim)}
@@ -431,6 +433,7 @@
   </div>
 
   <aside class="rside" id="rside">
+    <div class="rside-gutter" id="rsideGutter"></div>
     <div class="rside-head">
       <input id="rsPath" class="rs-path" placeholder="폴더 경로 입력 후 Enter" autocomplete="off">
       <button class="btn ghost" onclick="openFolder(document.getElementById('rsPath').value)">열기</button>
@@ -464,6 +467,14 @@ function stamp(){return new Date().toISOString()}
 const LS_MODE='potflow_mode',LS_DOC='potflow_doc',LS_IMG='potflow_imgs';
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
+/* ---------- 우측 사이드바 폭 드래그 조절(영속) ---------- */
+const RSIDE_MIN=220,RSIDE_MAX=640;
+function setRsideW(px){px=Math.max(RSIDE_MIN,Math.min(RSIDE_MAX,Math.round(px)));const a=document.getElementById('app');if(a)a.style.setProperty('--rside-w',px+'px');lsSet('potflow_rside_w',String(px));}
+(function(){const g=document.getElementById('rsideGutter');if(!g)return;let on=false;
+  g.addEventListener('pointerdown',e=>{e.preventDefault();on=true;try{g.setPointerCapture(e.pointerId)}catch(_){}});
+  g.addEventListener('pointermove',e=>{if(on)setRsideW(window.innerWidth-e.clientX);});
+  g.addEventListener('pointerup',()=>{on=false;});g.addEventListener('pointercancel',()=>{on=false;});
+})();
 /* ---------- 후원 / PRO 라이센스(자체검증 키) ---------- */
 const SUPPORT_ACCOUNT="OO은행 000-000000-00 · 예금주 OOO";
 const LIC_SALT="potflow-2026-lock";
@@ -1535,6 +1546,7 @@ async function setStoreMode(m){
   toast(m==='local'?'로컬 저장 모드':'서버 저장 모드');
 }
 async function boot(){
+  const _rw=parseInt(lsGet('potflow_rside_w'),10);if(_rw)setRsideW(_rw);
   await pingHelper();
   const emb=document.getElementById('embedDoc');
   if(emb){try{const d=JSON.parse(emb.textContent);if(d&&Array.isArray(d.canvases)&&d.canvases.length){
