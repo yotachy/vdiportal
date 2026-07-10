@@ -947,14 +947,18 @@ function syncBookmarks(nodeId){
     const allBms=d.bookmarks||[];const bms=isPro()?allBms:allBms.slice(0,2);
     if(!isPro()&&allBms.length>2)toast('무료는 책갈피 2개 · PRO에서 전체');
     const existing={};bmChildren(nodeId).forEach(c=>{existing[c.seekMs]=c;});
-    const seen={};let i=0;
+    const seen={};const chainIds=[nodeId];let i=0;
     bms.forEach(b=>{seen[b.ms]=1;let c=existing[b.ms];
-      if(!c){c=makeNode(n.x+i*270,n.y+180,'',"full");c.bmParent=nodeId;c.seekMs=b.ms;c.videoPath=n.videoPath;addEdge(nodeId,'bottom',c.id,'top');}
+      if(!c){c=makeNode(n.x+(i+1)*270,n.y,'',"full");c.bmParent=nodeId;c.seekMs=b.ms;c.videoPath=n.videoPath;}
       c.title=b.title||('책갈피 '+fmtClock(b.ms));c.desc=fmtClock(b.ms);
       if(b.thumb){const iid='bm_'+nodeId+'_'+b.ms;putImg(iid,b.thumb);c.thumb={imgId:iid,label:c.title};}
-      i++;});
+      chainIds.push(c.id);i++;});
     const stale=bmChildren(nodeId).filter(c=>!seen[c.seekMs]).map(c=>c.id);
     if(stale.length)delNodes(stale);
+    // 체인 재구성: 이 영상+책갈피들 사이 기존 엣지 제거 후 순서대로 연결
+    const cs=new Set(chainIds);
+    state.edges=state.edges.filter(e=>!(cs.has(e.from)&&cs.has(e.to)));
+    for(let k=0;k<chainIds.length-1;k++)addEdge(chainIds[k],'right',chainIds[k+1],'left');
     render();markDirty();
     toast(bms.length?('책갈피 '+bms.length+'개'):'책갈피 없음');
   }).catch(()=>toast('책갈피 동기화 실패'));
