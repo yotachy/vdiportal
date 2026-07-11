@@ -48,6 +48,11 @@
   body.rhidden .rside{display:none}
   body.rhidden .app{grid-template-columns:226px 1fr 0}
   body.rhidden .app.collapsed{grid-template-columns:44px 1fr 0}
+  .rs-collapse{flex:none;width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--raised);color:var(--eth);cursor:pointer;font-size:14px;line-height:1;display:grid;place-items:center;transition:.13s}
+  .rs-collapse:hover{color:var(--gold);border-color:var(--gold-dim)}
+  .rs-reopen{display:none;position:fixed;right:0;top:76px;z-index:50;width:22px;height:52px;border:1px solid var(--line);border-right:0;border-radius:9px 0 0 9px;background:var(--raised);color:var(--eth);cursor:pointer;font-size:15px;align-items:center;justify-content:center;box-shadow:-4px 0 14px -8px #000}
+  .rs-reopen:hover{color:var(--gold);border-color:var(--gold-dim)}
+  body.rhidden .rs-reopen{display:flex}
   .btn.rhide-on{border-color:var(--gold);color:var(--gold)}
   /* 캔버스 좌측 플로팅 도구 팔레트 */
   .toolrail{position:absolute;left:14px;top:14px;z-index:20;width:166px;border:1px solid var(--line);background:rgba(12,17,24,.92);backdrop-filter:blur(7px);border-radius:13px;box-shadow:0 10px 30px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:11px;padding:11px 10px}
@@ -363,42 +368,22 @@
   </a>
   <div class="tools">
     <span class="savestat" id="saveStat" title="저장 상태">●</span>
-    <div class="seg" id="storeSeg" title="저장 위치 — 로컬 모드는 이 PC에만 저장합니다"><button data-store="server" class="on">서버</button><button data-store="local">로컬</button></div>
-    <div class="seg" id="modeSeg"><button data-mode="edit" class="on">편집</button><button data-mode="view">보기</button></div>
     <button class="btn ghost edit-only ico" id="undoBtn" onclick="undo()" title="되돌리기 (Ctrl+Z)" disabled>↶</button>
     <button class="btn ghost edit-only ico" id="redoBtn" onclick="redo()" title="다시 실행 (Ctrl+Shift+Z)" disabled>↷</button>
     <button class="btn gold edit-only" onclick="addNodeCenter()">＋ 노드</button>
     <button class="btn gold edit-only" onclick="playSelected()" title="선택 노드 재생 (Space)">▶ 선택 재생</button>
     <button class="btn ghost" onclick="fitView()">화면맞춤</button>
-    <button class="btn ghost" id="rsideBtn" onclick="toggleRside()" title="오른쪽 파일 탐색기 숨기기/보이기 (사생활 보호)">탐색기 숨김</button>
     <button class="btn ghost edit-only" onclick="autoLayout('h')">가로정렬</button>
     <button class="btn ghost edit-only" onclick="autoLayout('v')">세로정렬</button>
-    <button class="btn ghost edit-only" id="bgBtn" onclick="toggleBgPop(event)">배경</button>
-    <button class="btn ghost" id="supBtn" onclick="toggleSupport(event)">♥ 후원</button>
-    <span class="pro-badge" id="proBadge" style="display:none">PRO</span>
     <button class="btn ghost" id="exBtn" onclick="toggleExportPop(event)">내보내기 ▾</button>
     <button class="btn ghost" onclick="document.getElementById('impFile').click()">불러오기</button>
     <button class="btn ghost edit-only" onclick="resetAll()" style="color:var(--faint)">초기화</button>
   </div>
-  <div class="bgpop" id="bgPop"></div>
   <div class="menupop" id="exPop">
     <button onclick="exportHTML();closeMenus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M9 9l-2 3 2 3M15 9l2 3-2 3"/></svg>단일 HTML<small>폐쇄망</small></button>
     <button onclick="exportPNG();closeMenus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-7 7"/></svg>PNG 이미지<small>발표용</small></button>
     <button onclick="exportSVG();closeMenus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M5 19h14"/></svg>SVG 벡터</button>
     <button onclick="exportJSON();closeMenus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M9 4h6v3H9z"/></svg>JSON 데이터<small>백업</small></button>
-  </div>
-  <div class="menupop suppop" id="supPop">
-    <div class="sup-h">♥ 후원하기</div>
-    <div class="sup-acct" id="supAcct"></div>
-    <button class="btn ghost sup-btn" onclick="copySupport()">계좌 복사</button>
-    <div class="sup-note">보내주신 후원은 큰 힘이 됩니다. 감사합니다.</div>
-    <div class="sup-hr"></div>
-    <div class="sup-h">PRO 해제</div>
-    <div class="sup-note">입금 후 발급받은 해제키를 입력하세요. (무료: 캔버스·영상 1개, 1:2 / PRO: 무제한 1:N)</div>
-    <input id="licInput" class="sup-input" placeholder="PF-XXXX-XXXX" autocomplete="off">
-    <button class="btn gold sup-btn" onclick="unlockPro(document.getElementById('licInput').value)">해제</button>
-    <div class="sup-status" id="licStatus"></div>
-    <div class="sup-note">모든 데이터는 이 브라우저/PC에만 저장됩니다.</div>
   </div>
   <div class="menupop winpop" id="winPop">
     <div class="wp-h">화면 배치 <span class="sup-note" id="wpStatus"></span></div>
@@ -476,12 +461,14 @@
   <aside class="rside" id="rside">
     <div class="rside-gutter" id="rsideGutter"></div>
     <div class="rside-head">
+      <button class="rs-collapse" onclick="toggleRside()" title="탐색기 접기 (사생활 보호)">»</button>
       <input id="rsPath" class="rs-path" placeholder="폴더 경로 입력 후 Enter" autocomplete="off">
       <button class="btn ghost" onclick="openFolder(document.getElementById('rsPath').value)">열기</button>
       <label class="rs-pbfonly" title="pbf(책갈피) 파일만 보기"><input type="checkbox" id="rsPbfOnly">pbf만</label>
     </div>
     <div class="rs-body" id="rsBody"></div>
   </aside>
+  <button class="rs-reopen" id="rsReopen" onclick="toggleRside()" title="탐색기 열기">‹</button>
 </div>
 
 <input type="file" id="impFile" accept="application/json" hidden>
@@ -1554,9 +1541,7 @@ function toggleSnap(){TOOLBAR.snap=!TOOLBAR.snap;renderToolbar();saveMeta()}
 function toggleEdgeStyle(){TOOLBAR.edgeStyle=TOOLBAR.edgeStyle==='dashed'?'solid':'dashed';renderToolbar();saveMeta()}
 function toggleEdgeArrow(){TOOLBAR.edgeArrow=!(TOOLBAR.edgeArrow!==false);renderToolbar();saveMeta()}
 function toggleSide(){const a=document.getElementById('app');a.classList.toggle('collapsed');document.getElementById('sideBtn').textContent=a.classList.contains('collapsed')?'»':'«';setTimeout(paint,230)}
-function toggleRside(){const h=document.body.classList.toggle('rhidden');lsSet('potflow_rside_hidden',h?'1':'0');const b=document.getElementById('rsideBtn');if(b){b.classList.toggle('rhide-on',h);b.textContent=h?'탐색기 보임':'탐색기 숨김';}setTimeout(paint,230)}
-document.getElementById('modeSeg').addEventListener('click',e=>{const m=e.target.dataset.mode;if(!m)return;mode=m;document.body.classList.toggle('view',m==='view');[...e.currentTarget.children].forEach(b=>b.classList.toggle('on',b.dataset.mode===m));render();renderSidebar()});
-document.getElementById('storeSeg').addEventListener('click',e=>{const s=e.target.dataset.store;if(s)setStoreMode(s)});
+function toggleRside(){const h=document.body.classList.toggle('rhidden');lsSet('potflow_rside_hidden',h?'1':'0');setTimeout(paint,230)}
 
 /* auto layout */
 function autoLayout(dir){
@@ -1708,7 +1693,7 @@ async function setStoreMode(m){
 }
 async function boot(){
   const _rw=parseInt(lsGet('potflow_rside_w'),10);if(_rw)setRsideW(_rw);
-  if(lsGet('potflow_rside_hidden')==='1'){document.body.classList.add('rhidden');const _rb=document.getElementById('rsideBtn');if(_rb){_rb.classList.add('rhide-on');_rb.textContent='탐색기 보임';}}
+  if(lsGet('potflow_rside_hidden')==='1')document.body.classList.add('rhidden');
   await pingHelper();
   const emb=document.getElementById('embedDoc');
   if(emb){try{const d=JSON.parse(emb.textContent);if(d&&Array.isArray(d.canvases)&&d.canvases.length){
