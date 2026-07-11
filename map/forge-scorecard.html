@@ -602,7 +602,9 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
    +`<filter id="eaG2" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="5"/></filter></defs>`;
   let wires="",pdefs="",parts="",pi=0;
   const wire=(d,c,op,w)=>{ wires+=`<path d="${d}" fill="none" stroke="${c}" stroke-width="${w||1}" stroke-opacity="${op}"/>`; };
-  const flow=(d,c,n)=>{ const id="fp"+(pi++); pdefs+=`<path id="${id}" d="${d}" fill="none"/>`; const dur=2.2+(pi%4)*0.5;
+  const DOT_MAX=5, DOT_K=0.6;
+  const dotN=streams=>Math.max(1,Math.min(DOT_MAX,Math.round(streams*DOT_K)));   // 도트 수 = 그 엣지가 나르는 데이터 스트림 수 비례
+  const flow=(d,c,streams)=>{ const n=dotN(streams); const id="fp"+(pi++); pdefs+=`<path id="${id}" d="${d}" fill="none"/>`; const dur=2.2+(pi%4)*0.5;
     for(let k=0;k<n;k++){ const bg=(k*dur/n).toFixed(2);
       parts+=`<circle class="eapart" r="2.7" fill="${c}" filter="url(#eaGlow)"><animateMotion dur="${dur}s" begin="${bg}s" repeatCount="indefinite"><mpath href="#${id}"/></animateMotion></circle>`
            +`<circle class="eapart" r="1.4" fill="#fff" fill-opacity=".9"><animateMotion dur="${dur}s" begin="${bg}s" repeatCount="indefinite"><mpath href="#${id}"/></animateMotion></circle>`; } };
@@ -614,21 +616,24 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   FEAT.forEach(f=>wire(uid(price,f), bull, .16, 1));
   // 팬: 피처 10 → 리스크 3
   FEAT.forEach(f=>risk.forEach(rn=>wire(uid(f,rn), bull, .07, 1)));
-  // 주요 채널(굵게 + 흐름)
-  wire(qd(drift,dir), gold,.3,1.6);   flow(qd(drift,dir), gold,2);
-  wire(qd(drift,cone),gold,.3,1.6);   flow(qd(drift,cone),gold,2);
-  wire(qd(dir,cal),  gold,.28,1.5);   flow(qd(dir,cal), gold,2);
-  wire(qd(cone,cal), gold,.28,1.5);   flow(qd(cone,cal),gold,1);
-  wire(qd(cal,out),  gold,.32,1.7);   flow(qd(cal,out), gold,2);
-  risk.forEach(rn=>{ wire(qd(rn,out,.08), bull,.28,1.5); flow(qd(rn,out,.08), bull,2); });
-  // 대표 흐름(밀집 팬 위에 몇 줄기만 입자) — 살아있는 느낌
-  [0,7,15,22,28].forEach(i=>{ flow(uid(price,IND[i]), IND[i].c,1); flow(uid(IND[i],drift), IND[i].c,1); });
-  [0,4,9].forEach(i=>{ flow(uid(price,FEAT[i]), bull,1); });
-  [[0,0],[4,1],[9,2]].forEach(([f,r])=>flow(uid(FEAT[f],risk[r]), bull,1));
+  // 주요 채널(굵게 + 흐름) — streams=데이터량(집약 채널일수록 도트 多)
+  wire(qd(drift,dir), gold,.3,1.6);   flow(qd(drift,dir), gold, IND_N);
+  wire(qd(drift,cone),gold,.3,1.6);   flow(qd(drift,cone),gold, IND_N);
+  wire(qd(dir,cal),  gold,.28,1.5);   flow(qd(dir,cal), gold, 6);
+  wire(qd(cone,cal), gold,.28,1.5);   flow(qd(cone,cal),gold, 6);
+  wire(qd(cal,out),  gold,.32,1.7);   flow(qd(cal,out), gold, IND_N);
+  risk.forEach(rn=>{ wire(qd(rn,out,.08), bull,.28,1.5); flow(qd(rn,out,.08), bull, 3); });
+  // 지표군 → 드리프트: 군 대표 1줄기, 도트=군 크기 비례(모멘텀8 多·주기2 少)
+  CL.forEach(cl=>{ flow(uid({x:IX,y:cl.yc},drift), cl.c, cl.k); });
+  // 대표 팬아웃(가격→지표·피처): 얇은 단일 스트림
+  [0,7,15,22,28].forEach(i=>{ flow(uid(price,IND[i]), IND[i].c, 1); });
+  [0,4,9].forEach(i=>{ flow(uid(price,FEAT[i]), bull, 1); });
+  [[0,0],[4,1],[9,2]].forEach(([f,r])=>flow(uid(FEAT[f],risk[r]), bull, 1));
   s+=wires+`<g>${pdefs}</g>`+parts;
   // 지표 뉴런 + 군 라벨
   CL.forEach(cl=>{ s+=`<text x="${IX-16}" y="${cl.yc+3}" text-anchor="end" class="ea-lv-clab" fill="${cl.c}">${cl.n} ${cl.k}</text>`; });
-  IND.forEach((n,i)=>{ s+=`<circle cx="${n.x}" cy="${n.y}" r="7" fill="${n.c}" opacity=".18" filter="url(#eaGlow)"/><circle cx="${n.x}" cy="${n.y}" r="4.3" fill="var(--surface)" stroke="${n.c}" stroke-width="1.8"/>`; });
+  // 뉴런 크기 = 지표군 크기 비례(비중 큰 군일수록 크게 — 균일 원 탈피)
+  IND.forEach((n,i)=>{ const nr=3.4+Math.min(6.4,n.cl.k*0.38); s+=`<circle cx="${n.x}" cy="${n.y}" r="${(nr+2.7).toFixed(1)}" fill="${n.c}" opacity=".18" filter="url(#eaGlow)"/><circle cx="${n.x}" cy="${n.y}" r="${nr.toFixed(1)}" fill="var(--surface)" stroke="${n.c}" stroke-width="1.8"/>`; });
   FEAT.forEach(f=>{ s+=`<circle cx="${f.x}" cy="${f.y}" r="6" fill="${bull}" opacity=".16" filter="url(#eaGlow)"/><circle cx="${f.x}" cy="${f.y}" r="3.6" fill="var(--surface)" stroke="${bull}" stroke-width="1.6"/>`; });
   // 그룹 헤더
   s+=`<text x="${IX}" y="34" text-anchor="middle" class="ea-lv-spine" fill="${gold}">${IND_N}개 지표 뉴런</text>`;
@@ -650,7 +655,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   // 범례
   s+=`<g transform="translate(${W/2-190},${H-12})"><circle cx="0" cy="-4" r="4" fill="${bull}"/><text x="9" y="0" class="ea-lv-cap">검증된 예측력</text>`
    +`<circle cx="108" cy="-4" r="4" fill="${bear}"/><text x="117" y="0" class="ea-lv-cap">정직한 한계</text>`
-   +`<text x="232" y="0" class="ea-lv-cap">뉴런 색 = 지표군 · 흐르는 입자 = 신호</text></g>`;
+   +`<text x="232" y="0" class="ea-lv-cap">뉴런 색 = 지표군 · 크기·도트 = 데이터 비중</text></g>`;
   host.innerHTML=s+`</svg>`;
 })();
 // 시각화 토글(라이브 ↔ 도식)
