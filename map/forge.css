@@ -1419,7 +1419,7 @@
       min-height:46px;box-shadow:0 5px 20px rgba(0,0,0,.6)}
     .fc-lock svg{width:19px;height:19px}
     .fc-lock.on{border-color:var(--gold);color:#1a1206;background:var(--gold);box-shadow:0 5px 22px rgba(232,180,99,.5)}
-    .fc-axis-btns{top:auto;bottom:84px;left:8px;right:auto;gap:6px}
+    .fc-axis-btns{right:6px;bottom:8px;left:auto;top:auto;gap:6px}   /* A/L=축 컨트롤 → 기존 우측 축 위치 유지(조작 버튼은 좌측이라 안 겹침). 크기만 모바일용 확대 */
     .fc-axis-btn{width:34px;height:34px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.5)}
     /* 범례: 조작 버튼이 좌하단으로 이동 → 좌상단 전폭 사용 가능 */
     .fc-legend{left:8px;top:8px;max-width:calc(100% - 16px);gap:3px 9px;padding:5px 8px;font-size:10.5px}
