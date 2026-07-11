@@ -1361,16 +1361,6 @@
     });
   })();
 
-  /* ── 헤더 중앙: 현재 분석 중인 종목 · 주기 ────────── */
-  function updateHdrContext() {
-    const el = document.getElementById("hdrContext"); if (!el) return;
-    let sym = "";
-    try { const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim()); sym = tk ? (tk.params.symbol || "").trim().toUpperCase() : ""; } catch (e) {}
-    if (!sym) { el.innerHTML = ""; return; }
-    const tf = (typeof activeTF === "function" ? activeTF() : "") || "일봉";
-    el.innerHTML = esc(sym) + (tf ? ` <span class="hc-tf">${esc(tf)}</span>` : "");
-  }
-
   // 백테스트 검증 성적(정직 공개용 — backtest/backtest-report.json 스냅샷 요약. 재측정 시 갱신)
   const BACKTEST_SUMMARY = {
     universe: "86개 시계열(54종목 × 일·주·월 · 크립토·상품·한국 포함) · 약 31,500 시점 · walk-forward(미래 미참조)",
@@ -1401,7 +1391,6 @@
 
   /* ── renderVerdict: inline signal in chart panel header ────────── */
   function renderVerdict(verdict, fillU) {
-    updateHdrContext();
     const el = document.getElementById("verdictInline");
     if (!el || !verdict) return;
     const REGIME_LABEL = { bull: "상승", bear: "하락", neutral: "중립" };
