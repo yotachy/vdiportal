@@ -1497,8 +1497,8 @@
       // 낙폭리스크 예보(v1.6) — 향후 ~1개월 5%↑ 하락 확률(하방 특화, 가격 방향 예측 아님). OOS 68% 검증.
       const _dd = _ctx && _ctx.ddRisk;
       // 확률 손익(v1.7) — 같은 문턱 ±X%(1M 5%·2M 7%·3M 9%)에서 이익목표 도달 vs 낙폭 확률(둘 다 검증). 방향 예측 아님.
-      const _up = _ctx && _ctx.upTarget;
-      const _ddcv = _dd && _dd.curve, _upcv = _up && _up.curve;
+      const _ut = _ctx && _ctx.upTarget;   // upTarget 객체 — 바깥 _up(방향확률)과 이름 충돌 방지(TDZ 버그 수정)
+      const _ddcv = _dd && _dd.curve, _upcv = _ut && _ut.curve;
       const ddHtml = (_ddcv && _upcv) ? (function () {
         const u0 = _upcv[0].prob, d0 = _ddcv[0].prob, fav = u0 - d0;   // 1개월 승산(도달−낙폭)
         const cls = fav >= 8 ? "rr-up" : fav <= -8 ? "rr-dn" : "rr-fl";
@@ -1842,6 +1842,7 @@
     if (typeof bToast === "function") bToast(ranked.length ? "상대강도 순위 완료 · 12개월 모멘텀(검증 팩터·온건, 참고용)" : "순위 계산 가능한 종목이 없습니다(데이터 부족)");
   }
   function clearMomRank() { _momActive = false; if (typeof DOCS !== "undefined") DOCS.forEach(d => { d._mom = null; d._momRank = null; }); renderSidebar(); }
+  function toggleMomRank() { if (_momBusy) return; if (_momActive) clearMomRank(); else rankMomentum(); }   // 메인 버튼 토글: 켜져 있으면 해제(표기 제거)
 
   function applyTickerOHLC(n, r) {
     const cs = r.candles.map(d => ({          // 전체(캡 없음) — 인메모리라 128KB 무관
@@ -1958,8 +1959,8 @@
   function currentData() {
     let s = priceSeries();
     if (!s) {
-      // 불러온(fetched) 티커인데 시계열 부족(상장 초기 등) → 데모 사인 폴백 금지. null → runForge가 '데이터 부족' 표시.
-      if (boardState.nodes.some(n => n.blockType === "ticker" && n.params && n.params.fetched)) return null;
+      // 불러온(fetched) 티커인데 시계열 부족(상장 초기 등) → 데모 사인 폴백 금지. 빈 데이터 객체(null 아님) → runForge가 '데이터 부족' 표시 + 모든 currentData().price 접근 안전(레이스 크래시 방지).
+      if (boardState.nodes.some(n => n.blockType === "ticker" && n.params && n.params.fetched)) return { price: [], candle: [] };
       return data;
     }
     const tp = tickerPrice();

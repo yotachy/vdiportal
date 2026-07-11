@@ -2845,7 +2845,7 @@
   }
   function fcRenderForecast(pred) {
     const mode = heroMode();
-    if (mode === "chart") { fcDrawMainChart(currentData().price, pred); return; }
+    if (mode === "chart") { const _cd = currentData(); if (_cd && _cd.price) fcDrawMainChart(_cd.price, pred); return; }   // null 가드(데이터 미도착 레이스)
     const cone = document.getElementById("fcCone");
     const heroImg = document.getElementById("fcHeroImg");
     const img = heroImg && heroImg.querySelector("img");

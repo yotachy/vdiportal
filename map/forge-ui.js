@@ -192,9 +192,9 @@
     const _byMom = (a, b) => ((a._momRank || 9999) - (b._momRank || 9999));   // 순위 활성 시 모멘텀 내림차순(=순위 오름차순)
     const ungrouped = DOCS.filter(d => !_grpOf(d.id));
     if (_mAct) ungrouped.sort(_byMom);
-    const _mLbl = _mBusy ? `순위 ${_momProg.done}/${_momProg.total}…` : "상대강도 순위";
+    const _mLbl = _mBusy ? `순위 ${_momProg.done}/${_momProg.total}…` : (_mAct ? "상대강도 해제" : "상대강도 순위");
     let sec = `<div class="side-h"><span>종목</span><span class="side-h-btns">`
-      + `<button class="side-btn wg-rs${_mAct ? " on" : ""}" onclick="rankMomentum()"${_mBusy ? " disabled" : ""} title="워치리스트를 12개월 모멘텀(상대강도)으로 순위·정렬 — 백테스트 검증된 팩터(비용후 +0.6~0.7%/월, 온건). 강한 종목이 다음에도 상대적으로 강한 경향. 참고용.">${_mLbl}</button>`
+      + `<button class="side-btn wg-rs${_mAct ? " on" : ""}" onclick="toggleMomRank()"${_mBusy ? " disabled" : ""} title="${_mAct ? "상대강도 표기 해제(순위·모멘텀 배지 제거)" : "워치리스트를 12개월 모멘텀(상대강도)으로 순위·정렬 — 백테스트 검증된 팩터(비용후 +0.6~0.7%/월, 온건). 강한 종목이 다음에도 상대적으로 강한 경향. 참고용."}">${_mLbl}</button>`
       + (_mAct ? `<button class="side-btn wg-rsx" onclick="clearMomRank()" title="순위 해제">✕</button>` : "")
       + `<button class="side-btn wg-add" onclick="_addGroup()" title="새 그룹 만들기">＋ 그룹</button></span></div>`;
     sec += `<div class="side-actions" id="addTickerSlot"><button class="side-btn" onclick="_showAddTicker()">＋ 종목 추가</button></div>`;
