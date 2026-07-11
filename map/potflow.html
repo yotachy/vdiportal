@@ -758,8 +758,11 @@ function routeOrtho(A,B,fs,ts){
   pts.reverse();
   return [[A.x,A.y],...pts,[B.x,B.y]];
 }
-function edgeGeo(e){const a=N(e.from),b=N(e.to);if(!a||!b)return null;const s=sidesOf(e),A=anchor(a,s.fs),B=anchor(b,s.ts);
-  const d=`M${A.x},${A.y} L${B.x},${B.y}`;   // 항상 직선(꼬불꼬불 직각 라우팅 제거)
+function edgeGeo(e){const a=N(e.from),b=N(e.to);if(!a||!b)return null;const s=sidesOf(e);let A=anchor(a,s.fs),B=anchor(b,s.ts);
+  const hz=x=>(x==='left'||x==='right'),vt=x=>(x==='top'||x==='bottom');
+  if(hz(s.fs)&&hz(s.ts)){const y=Math.round((A.y+B.y)/2);A={x:A.x,y};B={x:B.x,y};}       // 좌우 연결 = 완전 수평선
+  else if(vt(s.fs)&&vt(s.ts)){const x=Math.round((A.x+B.x)/2);A={x,y:A.y};B={x,y:B.y};} // 상하 연결 = 완전 수직선
+  const d=`M${A.x},${A.y} L${B.x},${B.y}`;
   return{A,B,fs:s.fs,ts:s.ts,d}}
 function nodeAt(pt){let r=null;state.nodes.forEach(n=>{const w=n._w||W_NODE,h=n._h||90;if(pt.x>=n.x&&pt.x<=n.x+w&&pt.y>=n.y&&pt.y<=n.y+h)r=n});return r}
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
