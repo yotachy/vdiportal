@@ -1547,26 +1547,35 @@
         rgHtml = `<span class="fcv-risk" title="검증된 예측범위(콘)·낙폭리스크에 표준 리스크 공식을 적용한 참고 가이드.&#10;⚠️예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님).&#10;· 예상 변동폭: 향후 ${_pR.futW || ""}봉 콘 ±${(_band * 100).toFixed(1)}%&#10;· 권장 손절폭: ${(_stop * 100).toFixed(1)}% (하방 콘${_elev ? " · 낙폭경보로 확대" : ""})&#10;· 권장 비중: 계좌 2% 리스크 기준 ${Math.round(_size * 100)}%">🛡 손절 ${(_stop * 100).toFixed(1)}% · 비중 ${Math.round(_size * 100)}%</span>`;
       }
       const _L = t => `<span class="fcv-k">${t}</span>`;
-      // 검증된 예측 6축 클러스터(멀티지평 곡선) — 핵심 판정과 분리해 계층 부여. 각 축 라벨의 '· 검증됨'은 클러스터 헤더로 대체.
+      // 검증된 예측 6축 (멀티지평 곡선) — 균일 그리드 셀. 라벨 간결화, 세부 배지는 CSS로 정리(툴팁 유지).
       const _axCells =
-        (vfHtml ? `<span class="fcv-cell">${_L("변동성 예보")}${vfHtml}</span>` : "") +
+        (vfHtml ? `<span class="fcv-cell">${_L("변동성")}${vfHtml}</span>` : "") +
         (ddHtml ? `<span class="fcv-cell">${_L("확률 손익")}${ddHtml}</span>` : "") +
-        (spkHtml ? `<span class="fcv-cell">${_L("급변 경보")}${spkHtml}</span>` : "") +
-        (gpHtml ? `<span class="fcv-cell">${_L("갭 경보 · 주식")}${gpHtml}</span>` : "") +
-        (tpHtml ? `<span class="fcv-cell">${_L("추세 지속/소진")}${tpHtml}</span>` : "") +
-        (rgHtml ? `<span class="fcv-cell">${_L("리스크 가이드 · 참고")}${rgHtml}</span>` : "");
-      const _axGrp = _axCells ? `<div class="fcv-axgrp"><span class="fcv-axlb" title="백테스트 out-of-sample으로 검증된 예측 축(멀티지평 곡선). 가격 방향(효율시장 벽)이 아닌 변동성·리스크·추세 구조를 예측.">검증된 예측 곡선 · 6축</span>${_axCells}</div>` : "";
+        (spkHtml ? `<span class="fcv-cell">${_L("급변")}${spkHtml}</span>` : "") +
+        (gpHtml ? `<span class="fcv-cell">${_L("갭 · 주식")}${gpHtml}</span>` : "") +
+        (tpHtml ? `<span class="fcv-cell">${_L("추세 지속")}${tpHtml}</span>` : "") +
+        (rgHtml ? `<span class="fcv-cell">${_L("리스크 · 참고")}${rgHtml}</span>` : "");
+      // 상승확률 게이지(계기판 중심) — ▼하락 | 트랙 | ▲상승
+      const gaugeHtml = (_up != null) ? `<div class="fcv-gauge" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="fcv-gside dn">▼${100 - _up}%</span><span class="fcv-gtrack"><i class="fcv-gdn" style="width:${100 - _up}%"></i><i class="fcv-gup" style="width:${_up}%"></i><i class="fcv-gmid"></i></span><span class="fcv-gside up">▲${_up}%</span></div>` : "";
       bar.innerHTML =
-        // ── 1계층: 핵심 판정 ──
-        (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
-        (pxHtml ? `<span class="fcv-cell">${_L("현재가")}${pxHtml}</span>` : "") +
-        ((ctxHtml || oppHtml) ? `<span class="fcv-cell">${_L("국면 · 기회")}<span class="fcv-cellrow">${ctxHtml}${oppHtml}</span></span>` : "") +
-        `<span class="fcv-cell">${_L("방향 판정")}<span class="fcv-reg" title="지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col};background:${col}30;box-shadow:inset 0 0 0 1px ${col}66">${arrow} ${label}</span></span>` +
-        (_up != null ? `<span class="fcv-cell">${_L("상승 / 하락 확률")}<span class="fcv-prob" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="up">▲${_up}%</span> <span class="dn">▼${100 - _up}%</span></span></span>` : "") +
-        (isFinite(_targetN) ? `<span class="fcv-cell">${_L("목표가")}<span class="fcv-sig" title="예측 도달가"><b>${fmtNum(_targetN)}</b></span></span>` : "") +
-        `<span class="fcv-cell fcv-opcell">${_L("핵심 의견")}<span class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span></span>` +
-        // ── 2계층: 검증된 예측 6축 + 지표 방향분포 ──
-        _axGrp + _bd;
+        // ── 1) 계기판(헤드라인): 종목·국면 · 현재가·방향·목표 · 확률 게이지 · 핵심 의견 ──
+        `<div class="fcv-sec fcv-head">` +
+          `<div class="fcv-hrow1">` +
+            (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
+            ((ctxHtml || oppHtml) ? `<span class="fcv-cellrow">${ctxHtml}${oppHtml}</span>` : "") +
+          `</div>` +
+          `<div class="fcv-hrow2">` +
+            (pxHtml || "") +
+            `<span class="fcv-hdir" title="지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col}">${arrow} ${label}</span>` +
+            (isFinite(_targetN) ? `<span class="fcv-htgt">${_L("목표가")}<b title="예측 도달가">${fmtNum(_targetN)}</b></span>` : "") +
+          `</div>` +
+          gaugeHtml +
+          `<div class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</div>` +
+        `</div>` +
+        // ── 2) 검증된 예측 곡선(6축 균일 그리드) ──
+        (_axCells ? `<div class="fcv-sec fcv-forecast"><span class="fcv-eyebrow" title="백테스트 out-of-sample으로 검증된 예측 축(멀티지평 곡선). 가격 방향(효율시장 벽)이 아닌 변동성·리스크·추세 구조를 예측.">검증된 예측 곡선</span><div class="fcv-grid">${_axCells}</div></div>` : "") +
+        // ── 3) 지표 합의(컨플루언스·방향·시그널) ──
+        (_bd ? `<div class="fcv-sec fcv-consensus"><span class="fcv-eyebrow">지표 합의</span>${_bd}</div>` : "");
     }
     if (u >= 1 && bar) { bar.classList.remove("flash"); void bar.offsetWidth; bar.classList.add("flash"); }   // 최종 결과 등장 강조
     // 타임프레임 매트릭스(주·월 추가 fetch 3회)는 무거워 종목 선택 시 자동 실행 안 함 → '웹분석' 버튼(_wantDeep)에서만 갱신(부하 역할 분산)

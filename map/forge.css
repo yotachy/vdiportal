@@ -386,17 +386,34 @@
   .fc-head-left .fc-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   /* 국면/확률/시그널 강조 바 + 핵심 의견 */
-  /* 국면/확률 — 박스·테두리 없이 순수 타이포로(가독성 우선) */
-  .fc-verdict-bar{display:flex;align-items:stretch;gap:8px 20px;flex-wrap:wrap;padding:9px 16px;margin:0 0 4px;letter-spacing:-.02em;background:var(--raised);border:1px solid var(--line);border-radius:10px}
-  .fcv-tkr{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-.03em;align-self:center;padding-right:6px}
-  .fcv-cell{display:inline-flex;flex-direction:column;justify-content:center;gap:3px}
-  .fcv-k{font-size:9.5px;font-weight:800;letter-spacing:.05em;color:var(--faint);white-space:nowrap}
+  /* ── 판정 대시보드: 3섹션(계기판 / 검증 예측 / 지표 합의)을 헤어라인으로 구분 ── */
+  .fc-verdict-bar{display:flex;flex-direction:column;margin:0 0 4px;letter-spacing:-.02em;background:var(--raised);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .fcv-sec{padding:9px 15px}
+  .fcv-sec + .fcv-sec{border-top:1px solid var(--line)}
+  .fcv-k{font-size:9px;font-weight:800;letter-spacing:.04em;color:var(--faint);white-space:nowrap;text-transform:uppercase}
+  .fcv-cell{display:flex;flex-direction:column;justify-content:flex-start;gap:3px;min-width:0}
   .fcv-cellrow{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
-  .fcv-opcell{flex:1;min-width:170px}
+  /* 1) 계기판(헤드라인) */
+  .fcv-head{gap:9px}
+  .fcv-hrow1{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .fcv-tkr{font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.03em}
+  .fcv-hrow2{display:flex;align-items:baseline;gap:7px 22px;flex-wrap:wrap;margin-top:2px}
+  .fcv-hdir{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1;white-space:nowrap}
+  .fcv-htgt{display:inline-flex;align-items:baseline;gap:7px}
+  .fcv-htgt b{font-size:16px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
   .fcv-px{display:inline-flex;align-items:baseline;gap:8px;font-variant-numeric:tabular-nums}
-  .fcv-px b{font-size:21px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+  .fcv-px b{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
   .fcv-pxchg{font-size:12px;font-weight:700;letter-spacing:-.01em}
   .fcv-pxchg.up{color:var(--bull)}.fcv-pxchg.dn{color:var(--bear)}
+  /* 상승확률 게이지(계기판 중심 시각요소) */
+  .fcv-gauge{display:flex;align-items:center;gap:10px;margin-top:1px}
+  .fcv-gside{font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:44px}
+  .fcv-gside.dn{color:var(--bear);opacity:.7}
+  .fcv-gside.up{color:var(--bull);text-align:right}
+  .fcv-gtrack{position:relative;flex:1;height:9px;border-radius:99px;background:var(--surface);display:flex;overflow:hidden;min-width:80px}
+  .fcv-gdn{height:100%;background:var(--bear);opacity:.4}
+  .fcv-gup{height:100%;background:var(--bull)}
+  .fcv-gmid{position:absolute;left:50%;top:0;bottom:0;width:1.5px;background:var(--raised);opacity:.9;transform:translateX(-50%)}
   /* 국면 배지(현재가 옆) — 추세/횡보 + 신뢰도. 높음=녹(엔진 유효)·중간=앰버·낮음=뮤트(추세 순응) */
   .fcv-ctx{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:-.01em;white-space:nowrap}
   .fcv-ctx .ctx-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
@@ -448,18 +465,16 @@
   .bt-disc{font-size:10.5px;color:var(--faint);line-height:1.55;letter-spacing:-.01em}
   .bt-more{display:inline-block;margin-top:12px;font-size:12px;font-weight:700;color:var(--gold);cursor:pointer}
   .bt-more:hover{text-decoration:underline}
-  .fcv-reg{font-size:16px;font-weight:800;letter-spacing:-.01em;padding:3px 14px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;line-height:1.4}
-  .fcv-prob{font-size:16px;font-weight:800;font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0}
-  .fcv-prob .up{color:var(--bull)}.fcv-prob .dn{color:var(--bear);opacity:.82}
-  .fcv-sig{font-size:15px;font-weight:600;color:var(--muted);font-family:Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.005em}
-  .fcv-sig b{color:var(--ink);font-weight:800;font-size:16px}
-  .fcv-op{font-size:14.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Pretendard,system-ui,sans-serif;animation:opulse 2.2s ease-in-out infinite}
-  @keyframes opulse{0%,100%{opacity:.78}50%{opacity:1}}   /* 발광 제거 — opacity만 */
-  @keyframes ctxBlink{0%,100%{opacity:1}50%{opacity:.58}}   /* 국면·기회 단조 깜빡임(발광 없음) */
-  .fcv-ctx,.fcv-opp{animation:ctxBlink 1.7s ease-in-out infinite}
-  /* 검증된 예측 6축 클러스터 — 핵심 판정과 상단 헤어라인으로 구분(좌측 컬러바 금지 규칙 준수) */
-  .fcv-axgrp{flex:1 1 100%;margin-top:6px;padding-top:7px;border-top:1px solid var(--line);display:flex;align-items:stretch;gap:7px 18px;flex-wrap:wrap}
-  .fcv-axlb{align-self:center;font-size:9.5px;font-weight:900;letter-spacing:.06em;color:var(--gold);background:var(--gold-dim);border-radius:99px;padding:3px 9px;white-space:nowrap;opacity:.9}
+  .fcv-op{font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Pretendard,system-ui,sans-serif}
+  @keyframes opulse{0%,100%{opacity:.78}50%{opacity:1}}
+  /* 섹션 헤더(골드 마커 + 라벨) — 좌측 컬러바 금지 규칙 준수(점 마커만) */
+  .fcv-eyebrow{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:900;letter-spacing:.07em;color:var(--gold);text-transform:uppercase;margin-bottom:8px}
+  .fcv-eyebrow::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--gold);flex:0 0 auto}
+  /* 2) 검증된 예측 — 6축 균일 그리드(플랫 셀, 알약 배경 제거로 정갈하게) */
+  .fcv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px 16px}   /* 넓으면 3열, 좁으면 2열 자동 — 셀 겹침 방지 */
+  .fcv-forecast .fcv-cell .fcv-vol,.fcv-forecast .fcv-cell .fcv-risk{background:none!important;box-shadow:none!important;padding:0;border-radius:0;font-size:13.5px;gap:4px}
+  .fcv-forecast .vol-vf:not([style]){display:none}   /* 일반 세부배지(2주·1달·2달 등)는 정리 — 실적 📅 배지(style 有)만 유지 */
+  .fcv-forecast .vol-vf{font-size:8.5px;padding:1px 4px;opacity:.9}
   /* 지표 방향 분포(도미넌스 스타일 누적 바) */
   .fcv-break{flex:1 1 100%;display:flex;align-items:center;gap:14px;margin-top:3px;flex-wrap:wrap}
   .fcv-bd-leg{font-size:11.5px;font-weight:600;color:var(--eth);display:flex;align-items:center;gap:5px}
@@ -467,11 +482,11 @@
   .fcv-bd-leg b{color:var(--ink);font-weight:800;font-family:var(--mono)}
   .fcv-bd-bar{flex:1;min-width:130px;height:9px;border-radius:var(--r-md);overflow:hidden;display:flex;background:rgba(138,146,178,.14)}
   .fcv-bd-bar b{display:block;height:100%;transition:width .35s cubic-bezier(.4,0,.2,1)}
-  .fc-verdict-bar.flash .fcv-prob,.fc-verdict-bar.flash .fcv-op{animation:verdflash 1.1s ease-out}
+  .fc-verdict-bar.flash .fcv-gauge,.fc-verdict-bar.flash .fcv-op{animation:verdflash 1.1s ease-out}
   @keyframes verdflash{0%{filter:brightness(1.5)}55%{filter:brightness(1.12)}100%{filter:none}}
   @media (prefers-reduced-motion: reduce) {
     .fcv-op{animation:none!important}
-    .fc-verdict-bar.flash .fcv-prob,.fc-verdict-bar.flash .fcv-op{animation:none!important}
+    .fc-verdict-bar.flash .fcv-gauge,.fc-verdict-bar.flash .fcv-op{animation:none!important}
     *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
   }
 /* 국면 라벨 발광 제거 — 깔끔한 알약 배지로 대체(fcv-reg) */
@@ -1458,7 +1473,7 @@
   .fcv-viz-lab{font-size:10.5px;color:var(--eth);line-height:1.25}
   .fcv-viz-lab b{color:var(--ink);font-size:12px}
   /* 판정 지표 = 가로 바(도넛/계기판 대체 — 값이 바로 읽힘) */
-  .fcv-bars{display:flex;flex-direction:row;flex-wrap:wrap;gap:5px 26px;width:100%;padding:6px 2px 0;margin-top:5px;border-top:1px solid var(--line)}
+  .fcv-bars{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px 26px;width:100%}
   .fbar-row{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:9px;flex:1 1 190px;min-width:170px;max-width:340px}
   .fbar-lab{font-size:11px;color:var(--eth);font-weight:600;letter-spacing:-.01em;white-space:nowrap}
   .fbar-track{position:relative;height:9px;border-radius:99px;background:var(--raised);overflow:hidden}
