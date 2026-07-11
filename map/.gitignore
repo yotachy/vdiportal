@@ -27,3 +27,6 @@ backtest/earn-ohlc.json
 backtest/earnings-dates.json
 backtest/earn-surprise.json
 backtest/earn-div.json
+
+# 8-K 이벤트 검증 데이터(SEC EDGAR 수집) — 재수집 가능(collect-8k.js)
+backtest/8k-events.json
