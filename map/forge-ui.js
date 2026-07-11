@@ -172,6 +172,7 @@
   function renderSidebar() {
     const el = document.getElementById("forgeSide"); if (!el) return;
     _ensureGroups();
+    const _actHl = _firstIdle ? null : activeId;   // 첫 진입 idle에선 어떤 종목도 선택 하이라이트 안 함
     const _docRow = d => {
       const nm = _docTicker(d) || d.title || "새 종목";
       const v = d._verdict;
@@ -184,7 +185,7 @@
       const _rsB = (d._momRank && isFinite(d._mom)) ? `<span class="doc-rs" title="12개월 상대강도 순위 (모멘텀 ${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%) — 검증된 팩터·온건·참고용">#${d._momRank}</span>` : "";
       const _momH = (d._momRank && isFinite(d._mom)) ? `<span class="doc-mom ${d._mom >= 0 ? "up" : "dn"}" title="12개월 모멘텀(상대강도)">${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%</span>` : "";
       const sub = (isFinite(_px) || _tf || _momH) ? `<div class="doc-sub">${isFinite(_px) ? `<span class="doc-px">${_hzFmt(_px)}</span>` : ""}${_tf}${_momH}</div>` : "";
-      return `<div class="doc-row${d.id === activeId ? " active" : ""}" data-doc="${d.id}" draggable="true">
+      return `<div class="doc-row${d.id === _actHl ? " active" : ""}" data-doc="${d.id}" draggable="true">
          <div class="doc-r1">${_assetHtml(d, "doc-ico")}${_rsB}<span class="doc-nm">${esc(nm)}</span>${_chgHtml}<button class="side-btn doc-del" data-docdel="${d.id}" title="목록에서 제거">✕</button></div>${sub}
        </div>`; };
     const groups = META.groups;
@@ -207,7 +208,7 @@
     });
     el.innerHTML =
       `<div class="side-sec">${sec}
-         <select class="doc-select" aria-label="종목 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === activeId ? " selected" : ""}>${esc(_docTicker(d) || d.title || "새 종목")}</option>`).join("")}</select></div>
+         <select class="doc-select" aria-label="종목 선택" onchange="switchDoc(this.value)">${DOCS.map(d => `<option value="${d.id}"${d.id === _actHl ? " selected" : ""}>${esc(_docTicker(d) || d.title || "새 종목")}</option>`).join("")}</select></div>
        <div class="side-sec" id="libSec"></div>`;
     _initDocDrag();   // 종목 드래그 정렬
     if (typeof renderIndRail === "function") { renderIndRail(); _initIndRail(); }
@@ -218,7 +219,8 @@
   // 모바일 포지 가로 칩(고정 서브바)
   function renderMobilePoji() {
     const el = document.getElementById("mPoji"); if (!el) return;
-    el.innerHTML = DOCS.map(d => `<button class="m-chip${d.id === activeId ? " on" : ""}" onclick="switchDoc('${d.id}')" title="${esc(d.title || "")}">${_assetHtml(d, "m-chip-ico")}${esc(_docTicker(d) || d.title || "새 종목")}</button>`).join("") +
+    const _actHl = _firstIdle ? null : activeId;
+    el.innerHTML = DOCS.map(d => `<button class="m-chip${d.id === _actHl ? " on" : ""}" onclick="switchDoc('${d.id}')" title="${esc(d.title || "")}">${_assetHtml(d, "m-chip-ico")}${esc(_docTicker(d) || d.title || "새 종목")}</button>`).join("") +
       `<button class="m-chip m-chip-add" onclick="newDoc()" title="새 포지">＋</button>`;
   }
   // 모바일: 고정 헤더 서브바 생성 + 티커를 그 안으로 이동(데스크톱 복귀 시 원위치). 본문 padding-top 보정.
@@ -260,7 +262,7 @@
     }
   }
   function toggleChartLock() { _chartLock = !_chartLock; applyChartLock(); if (typeof bToast === "function") bToast(_chartLock ? "스크롤 모드 — 페이지 이동" : "차트 조작 모드 — 드래그=팬·축, 두 손가락=줌"); }
-  function switchDoc(id) { if (id === activeId) return; writeBackActive(); loadDoc(id); saveMeta(); }
+  function switchDoc(id) { if (id === activeId && !_firstIdle) return; _firstIdle = false; writeBackActive(); loadDoc(id); saveMeta(); }   // 첫 진입 idle에선 활성 문서 재클릭도 로드(선택 해제 상태이므로)
   function _showAddTicker() {   // '종목 추가' → 인라인 티커 입력
     const el = document.getElementById("addTickerSlot"); if (!el) { newDoc(); return; }
     el.innerHTML = `<div class="add-tk-wrap"><input class="add-tk-in" id="addTkIn" placeholder="티커 입력 (예: TSLA · BTC/USD · 005930)" spellcheck="false" autocomplete="off"><div class="tk-sugg" id="addTkSugg" role="listbox"></div></div><button class="add-tk-go" id="addTkGo" title="추가(Enter)">추가</button>`;

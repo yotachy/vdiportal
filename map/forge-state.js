@@ -110,6 +110,7 @@
   const VISION_ENABLED = true;    // 비전 시계열(샘플 데모 데이터 소스). 이미지 분석 UI는 추후 고도화 — 실 티커 포지에선 저장된 vision 무시(loadDoc)
   console.log("[forge] ScoopBoard vb0.1");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
+  let _firstIdle = false;   // 첫 진입: 티커 자동 선택/분석 없음(워치리스트 하이라이트도 없음). 사용자가 종목 클릭 시 해제.
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
       if (!r.ok) throw 0; SERVER_OK = true; return await r.json(); }
@@ -544,7 +545,8 @@
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
     _needFit = true;   // 종목/문서 전환 → 자동 프레이밍
-    renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar(); if (!_bootIdle) runForge();
+    renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar();
+    if (!_bootIdle) { _firstIdle = false; runForge(); if (window._dashDefer) window._dashDefer(); if (typeof updateEngineBtn === "function") { _engineDirty = true; updateEngineBtn(); } }   // 종목 전환=경량 코어. 매트릭스·실적은 웹분석에서(부하 분산)
     // fetched 티커 자동 재fetch(비차단) — 캔들은 문서에 없으므로 메모리 복원
     // fetched 플래그 또는 레거시(구버전이 저장한 params.price 보유) 티커를 자동 재fetch. 샘플(price=null)은 제외.
     const _tks = boardState.nodes.filter(n => n.blockType === "ticker" && n.params && n.params.symbol && (n.params.fetched || isFinite(n.params.price)));
@@ -608,6 +610,10 @@
       if (SERVER_OK) writeBackActive();
     }
     _bootIdle = false;   // 부팅 완료 → 이후 종목 전환·불러오기는 정상 분석
+    // 첫 진입은 티커 미선택 idle — 워치리스트에서 종목을 클릭해야 로드(자동 선택/분석·하이라이트 없음)
+    _firstIdle = true;
+    if (window.renderSidebar) renderSidebar();   // 하이라이트 없이 재렌더
+    if (typeof _showIdle === "function") _showIdle();
     // poll restore는 loadDoc이 처리 (boot else 분기는 신규 문서 → 잡 없음)
     setSaveState(SERVER_OK ? "saved" : "offline");
   }

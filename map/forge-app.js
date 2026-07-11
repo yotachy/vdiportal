@@ -1569,8 +1569,10 @@
         _axGrp + _bd;
     }
     if (u >= 1 && bar) { bar.classList.remove("flash"); void bar.offsetWidth; bar.classList.add("flash"); }   // 최종 결과 등장 강조
-    if (typeof scheduleDash === "function" && u >= 1) scheduleDash();   // 타임프레임 매트릭스 자동 갱신(시연 충전 중엔 생략)
+    // 타임프레임 매트릭스(주·월 추가 fetch 3회)는 무거워 종목 선택 시 자동 실행 안 함 → '웹분석' 버튼(_wantDeep)에서만 갱신(부하 역할 분산)
+    if (typeof scheduleDash === "function" && u >= 1 && _wantDeep) { _wantDeep = false; scheduleDash(); }
   }
+  let _wantDeep = false;   // 심층 분석(멀티TF 매트릭스·실적) 요청 플래그 — 웹분석 버튼에서만 set
   /* 핵심 의견 한 줄(간결) — 국면·상승확률·시그널 강도 종합 */
   function verdictOpinion(v, up) {
     const s = Math.abs(v.score || 0), strong = s >= 60, u = (up == null) ? 50 : up;
@@ -1580,6 +1582,13 @@
   }
   /* ── 타임프레임 매트릭스(일·주·월 비교) ── */
   let _dashCache = { sym: null, cand: {} }, _dashTmr = null;
+  // 종목 선택 시엔 매트릭스(주·월 추가 fetch)를 자동 실행하지 않음 → 안내 플레이스홀더로 초기화(웹분석에서 채움)
+  function _dashDefer() {
+    const host = document.getElementById("fcDashBody"); if (!host) return;
+    host.innerHTML = `<div class="dash-guide"><svg class="dg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7" rx="1"/><rect x="12" y="7" width="3" height="11" rx="1"/><rect x="17" y="4" width="3" height="14" rx="1"/></svg><div class="dg-title">타임프레임 매트릭스</div><div class="dg-desc"><b>웹분석</b>을 누르면 일·주·월봉을 한눈에 비교합니다 —<br>국면·확률·시그널·목표가·RSI·지지/저항까지.</div></div>`;
+    const meta = document.getElementById("fcDashMeta"); if (meta) meta.textContent = "–";
+  }
+  window._dashDefer = _dashDefer;
   const _TFCOL = { "일봉": "#e8b463", "주봉": "#5b8def", "월봉": "#3fb6c0" };
   async function _computeTf(symbol, tf) {
     try {
@@ -1910,8 +1919,9 @@
     try {
       const r = await fetchOHLC(sym, tf);
       if (r && r.ok && Array.isArray(r.candles) && r.candles.length >= 2) {
-        applyTickerOHLC(t, r); autoLogForTicker(t); runForge(); renderTickerPanel();
-        _loadEarnDate(t).then(() => { if (t._earnDate) { try { runForge(); } catch (e) {} } });   // 실적일 도착 시 갭 예보 증강 재분석(빠른 첫 렌더 후 정제)
+        applyTickerOHLC(t, r); autoLogForTicker(t); runForge(); renderTickerPanel();   // 종목 선택=경량(단일TF 코어 분석·차트). 멀티TF 매트릭스·실적 증강은 '웹분석'에서(부하 분산)
+        _dashDefer();   // 매트릭스는 웹분석에서 채움(선택 시 이전 종목 데이터 잔존 방지)
+        if (typeof updateEngineBtn === "function") { _engineDirty = true; updateEngineBtn(); }   // 웹분석 버튼에 '심층 분석' 유도(펄스)
         if (r.candles.length >= 20) bToast(sym + " " + (t._ohlc ? t._ohlc.length : r.candles.length) + "봉 · " + (_TFKO[tf] || tf));   // <20봉은 runForge의 _showInsufficient가 안내
       } else bToast("데이터를 찾을 수 없어요: " + sym);
     } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
@@ -1939,6 +1949,7 @@
       const r = await fetchOHLC(sym, tf);
       if (r && r.ok && Array.isArray(r.candles) && r.candles.length >= 2) {
         applyTickerOHLC(tk, r); autoLogForTicker(tk); runForge(); renderTickerPanel();   // 월봉 등 광범위 → 로그 기본
+        _dashDefer(); if (typeof updateEngineBtn === "function") { _engineDirty = true; updateEngineBtn(); }   // 매트릭스·심층은 웹분석에서
         if (r.candles.length >= 20) bToast(sym + " " + (tk._ohlc ? tk._ohlc.length : r.candles.length) + "봉 · " + _TFKO[tf]);
       } else bToast("데이터를 찾을 수 없어요: " + sym);
     } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
@@ -2006,12 +2017,16 @@
   let _agBusy = false;
   async function runEngine() {
     if (_playing) stopPlay();
+    if (_firstIdle || !hasRealSeries()) { if (typeof bToast === "function") bToast("왼쪽 워치리스트에서 종목을 먼저 선택하세요"); return; }   // 첫 진입 idle·데이터 미로드 시 안내(데이터 부족 화면 대신)
     if (_agBusy) return; _agBusy = true;
     const ov = _ensureAnalyzeGauge(); ov.classList.add("on");
     const fill = document.getElementById("agFill"), pct = document.getElementById("agPct"), stg = document.getElementById("agStage");
     const stages = ["지표 계산 중…", "예측 시나리오 산출 중…", "종합 판정 중…"];
     await new Promise(r => requestAnimationFrame(() => setTimeout(r, 30)));   // 오버레이 페인트
-    runForge(); _engineDirty = false; updateEngineBtn();                       // 실제 계산(오버레이 뒤)
+    // 심층 분석(웹분석 버튼 전용): 실적일 로드(주식 갭 증강) + 멀티TF 매트릭스 — 종목 선택보다 무거운 작업을 여기로 분산
+    try { const _tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim() && (Array.isArray(n._ohlc) || n.params.fetched)); if (_tk && !_tk._earnDate && typeof _loadEarnDate === "function") await _loadEarnDate(_tk); } catch (e) {}
+    _wantDeep = true;   // 이 runForge의 renderVerdict가 매트릭스(scheduleDash)를 예약하도록
+    runForge(); _engineDirty = false; updateEngineBtn();                       // 실제 계산(오버레이 뒤) — 실적 증강 + 매트릭스 포함
     await new Promise(res => {
       const t0 = performance.now(), dur = 950;
       (function step(now) {
@@ -2281,6 +2296,7 @@
   }
   function playAnalysis() {
     if (_playing) { stopPlay(); return; }      // 토글: 재생 중 누르면 중단
+    if (_firstIdle || !hasRealSeries()) { if (typeof bToast === "function") bToast("왼쪽 워치리스트에서 종목을 먼저 선택하세요"); return; }
     deselectAll();                              // 편집기 닫고 차트가 보이게(예측 모핑 가시화)
     runForge(); _engineDirty = false; updateEngineBtn();   // 시연도 재계산 → 변경됨 해제
     if (typeof scheduleDash === "function") scheduleDash();   // 매트릭스 데이터 준비(있으면) — 데모 중 순차 공개
@@ -2449,6 +2465,29 @@
     const _ad = activeDoc(); if (_ad) { delete _ad._verdict; if (typeof renderSidebar === "function") renderSidebar(); }   // 워치리스트 미니판정 배지 숨김(가짜 판정 방지)
     if (typeof bToast === "function") bToast((sym ? sym + ": " : "") + "데이터 부족 — 상장 초기 등으로 분석 불가(최소 20봉 필요)");
   }
+  // 첫 진입 idle — 티커 자동 선택/분석 없이 "종목을 선택하세요" 안내(선택 전 부하 0). 워치리스트에서 종목 클릭 시 로드.
+  function _showIdle() {
+    _clearComets();
+    lastResult = null; _fcLastResult = null; _fcLastData = null;
+    _heroView = "chart"; if (typeof fcHeroMode === "function") fcHeroMode("chart");   // 이미지 드롭존 대신 차트 캔버스에 안내 표시
+    const cv = document.getElementById("fcMainChart");
+    if (cv) {
+      const c = cv.getContext("2d"), W = cv.clientWidth || 600, H = cv.clientHeight || 300, dpr = Math.min(devicePixelRatio || 1, 3);
+      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+      cv.style.width = W + "px"; cv.style.height = H + "px";
+      c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+      c.textAlign = "center"; c.fillStyle = "#c7cdda"; c.font = "800 15px Pretendard,'Malgun Gothic',sans-serif";
+      c.fillText("종목을 선택하세요", W / 2, H / 2 - 8);
+      c.fillStyle = "#7c8598"; c.font = "12.5px Pretendard,'Malgun Gothic',sans-serif";
+      c.fillText("왼쪽 워치리스트에서 종목을 고르면 차트가 표시됩니다 · 이어 웹분석으로 예측", W / 2, H / 2 + 15);
+      c.textAlign = "left";
+    }
+    if (fcRAF) { cancelAnimationFrame(fcRAF); fcRAF = null; }
+    ["fcEvidence", "fcEvidenceHi", "fcCone"].forEach(id => { const e = document.getElementById(id); if (e) { const ec = e.getContext("2d"); ec.setTransform(1, 0, 0, 1, 0, 0); ec.clearRect(0, 0, e.width, e.height); } });
+    const vb = document.getElementById("fcVerdictBar"); if (vb) { vb.innerHTML = '<span class="fcv-op" style="color:var(--eth);animation:none">종목을 선택하면 분석이 표시됩니다</span>'; vb.style.display = "flex"; }
+    if (typeof _dashDefer === "function") _dashDefer();
+  }
+  window._showIdle = _showIdle;
   // 실적 인지 갭(v1.9.6) — 활성 티커의 다가오는 실적일까지 거래일(근사)을 계산해 run opts로 전달. 미국주식만.
   async function _loadEarnDate(node) {
     try {
