@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """PotFlow 로컬 헬퍼 — 정적 서빙 + 재생/탐색/썸네일/문서저장."""
 import os, sys, json, shutil, subprocess, hashlib, tempfile, math, base64, threading
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -243,8 +244,9 @@ def thumb_path_for(video_path):
     return os.path.join(THUMB_DIR, h + ".jpg")
 
 def ffmpeg_thumb_cmd(ffmpeg, video_path, out):
-    return [ffmpeg, "-y", "-ss", "5", "-i", video_path,
-            "-frames:v", "1", "-vf", "scale=320:-1", out]
+    # -noaccurate_seek+선입력 -ss = 키프레임 빠른 시크(정밀도 조금 포기 → 속도↑), -q:v 6 = 중화질(작고 빠름)
+    return [ffmpeg, "-y", "-noaccurate_seek", "-ss", "5", "-i", video_path,
+            "-frames:v", "1", "-q:v", "6", "-vf", "scale=320:-1", out]
 
 def parse_pbf(text):
     out = []
@@ -293,8 +295,8 @@ def video_for_pbf(pbf_path):
     return None
 
 def ffmpeg_thumb_at_cmd(ffmpeg, video_path, sec, out):
-    return [ffmpeg, "-y", "-ss", str(sec), "-i", video_path,
-            "-frames:v", "1", "-vf", "scale=320:-1", out]
+    return [ffmpeg, "-y", "-noaccurate_seek", "-ss", str(sec), "-i", video_path,
+            "-frames:v", "1", "-q:v", "6", "-vf", "scale=320:-1", out]
 
 def player_cmd(exe, path, seek=None):
     cmd = [exe, path]
@@ -391,8 +393,14 @@ def list_bookmarks(path):
             text = _decode_pbf(f.read())
     except OSError:
         return {"ok": True, "video": video, "bookmarks": []}
-    bms = [{"ms": b["ms"], "title": b["title"],
-            "thumb": bookmark_thumb(video, b["ms"], b["thumb"])} for b in parse_pbf(text)]
+    parsed = parse_pbf(text)
+    def _mk(b):
+        return {"ms": b["ms"], "title": b["title"], "thumb": bookmark_thumb(video, b["ms"], b["thumb"])}
+    if len(parsed) > 1:
+        with ThreadPoolExecutor(max_workers=min(6, len(parsed))) as ex:
+            bms = list(ex.map(_mk, parsed))   # 썸네일 병렬 생성(순서 유지) — 직렬 대비 최대 ~6배
+    else:
+        bms = [_mk(b) for b in parsed]
     return {"ok": True, "video": video, "bookmarks": bms}
 
 def get_thumb(video_path):
