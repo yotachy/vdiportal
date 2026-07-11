@@ -194,12 +194,16 @@
 
   /* group box */
   .group{position:absolute;border:1.5px dashed var(--gold-dim);border-radius:14px;background:rgba(232,180,99,.04);pointer-events:none}
-  .group-label{position:absolute;top:-16px;left:16px;font-size:14px;font-weight:800;color:var(--gold);background:#0e1116;padding:4px 13px;border-radius:9px;border:1px solid var(--gold-dim);pointer-events:auto;outline:none;cursor:text;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
-  .group-label:hover,.group-label:focus{background:#171d25;border-color:var(--gold)}
-  .group-bar{position:absolute;top:-18px;right:16px;display:flex;gap:6px;pointer-events:auto;align-items:center}
-  .gbtn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);border-radius:9px;padding:6px 12px;cursor:pointer;white-space:nowrap;transition:.12s}
-  .gbtn:hover{background:var(--gold);color:#1a1206}
-  .gbtn-del{padding:6px 11px;font-size:13px}
+  .group-label{position:absolute;top:-18px;left:16px;font-size:15px;font-weight:800;color:var(--gold);background:linear-gradient(180deg,rgba(232,180,99,.18),rgba(232,180,99,.05)),#0e1116;padding:6px 15px;border-radius:11px;border:1.5px solid var(--gold-dim);pointer-events:auto;outline:none;cursor:text;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
+  .group-label::before{content:"≣";margin-right:7px;opacity:.85;font-weight:700}
+  .group-label:hover,.group-label:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.16)}
+  .group-bar{position:absolute;top:-20px;right:16px;display:flex;gap:7px;pointer-events:auto;align-items:center}
+  .gbtn{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;background:#0e1116;border:1.5px solid var(--gold-dim);color:var(--gold);border-radius:11px;padding:8px 15px;cursor:pointer;white-space:nowrap;transition:.12s;box-shadow:0 3px 9px -4px #000}
+  .gbtn:hover{background:var(--gold);color:#1a1206;border-color:var(--gold)}
+  .gbtn-play{background:var(--gold);color:#1a1206;border-color:var(--gold);box-shadow:0 4px 13px -4px rgba(232,180,99,.6)}
+  .gbtn-play:hover{background:#f3c983;box-shadow:0 6px 16px -4px rgba(232,180,99,.75)}
+  .gbtn-play svg{width:15px;height:15px}
+  .gbtn-del{padding:8px 13px;font-size:15px;color:var(--eth);border-color:var(--line);box-shadow:none}
   .gbtn-del:hover{background:var(--red);color:#fff;border-color:var(--red)}
   .gg-wrap{display:inline-flex;align-items:center;gap:2px}
   .gg-mon{display:inline-grid;gap:1.5px;width:26px;height:16px;background:#0b0f14;border:1px solid var(--gold-dim);border-radius:3px;padding:1.5px;vertical-align:middle;box-sizing:border-box}
@@ -821,7 +825,7 @@ function groupGridGlyph(g){
 function groupHTML(g){
   return `<div class="group" data-gid="${g.id}"><div class="group-label" contenteditable="${ce()}" data-gfield="title" title="클릭해서 그룹 이름 변경">${esc(g.title)}</div>`+
     `<div class="group-bar edit-only">`+
-      `<button class="gbtn" data-gact="play" title="그룹 전체를 화면배열대로 동시 재생">▶ 일괄재생</button>`+
+      `<button class="gbtn gbtn-play" data-gact="play" title="그룹 전체를 화면배열대로 동시 재생"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>일괄재생</button>`+
       `<button class="gbtn gbtn-grid" data-gact="grid" title="재생 화면배열 — 모니터·분할 지정">▦ 화면배열 <span class="gg-wrap">${groupGridGlyph(g)}</span></button>`+
       `<button class="gbtn gbtn-del" data-gact="del" title="그룹 해제">✕</button>`+
     `</div></div>`;
