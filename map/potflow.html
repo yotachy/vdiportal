@@ -193,7 +193,15 @@
   .edges path.tmp{fill:none;stroke:var(--gold);stroke-width:2;stroke-dasharray:5 4}
 
   /* group box */
-  .group{position:absolute;border:1.5px dashed var(--gold-dim);border-radius:14px;background:rgba(232,180,99,.04);pointer-events:none}
+  .group{position:absolute;border:2px dashed var(--gold-dim);border-radius:14px;background:rgba(232,180,99,.09);pointer-events:none}
+  .gclr-btn{width:26px;height:26px;border-radius:8px;border:2px solid #0e1116;box-shadow:0 0 0 1.5px var(--gold-dim),0 3px 9px -4px #000;cursor:pointer;padding:0;transition:.12s}
+  .gclr-btn:hover{box-shadow:0 0 0 2px var(--gold),0 3px 9px -4px #000;transform:scale(1.08)}
+  .gclrpop{min-width:172px;padding:11px;gap:9px}
+  .gclr-h{font-size:12.5px;font-weight:800;color:var(--txt)}
+  .gclr-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .gclr-sw{width:100%;aspect-ratio:1;border-radius:8px;border:2px solid var(--line);cursor:pointer;color:var(--faint);font-size:12px;display:grid;place-items:center;transition:.12s}
+  .gclr-sw:hover{transform:scale(1.1)}
+  .gclr-sw.on{outline:2px solid var(--gold);outline-offset:2px}
   .group-label{position:absolute;top:-18px;left:16px;font-size:15px;font-weight:800;color:var(--gold);background:linear-gradient(180deg,rgba(232,180,99,.18),rgba(232,180,99,.05)),#0e1116;padding:6px 15px;border-radius:11px;border:1.5px solid var(--gold-dim);pointer-events:auto;outline:none;cursor:text;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
   .group-label::before{content:"≣";margin-right:7px;opacity:.85;font-weight:700}
   .group-label:hover,.group-label:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.16)}
@@ -265,7 +273,7 @@
   .bm-thumb img{width:100%;object-fit:cover}
   .n-drop{margin-top:9px;border:1.5px dashed var(--line);border-radius:9px;padding:9px;min-height:var(--nh,auto);box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;color:var(--faint)}
   /* 그룹 롤오버 — 멤버 노드에 마우스 올리면 그룹 전체가 한 덩어리로 이동함을 표시 */
-  .group.group-hi{border-color:var(--gold);background:rgba(232,180,99,.09);box-shadow:0 0 0 1px var(--gold-dim)}
+  .group.group-hi{box-shadow:0 0 0 2px var(--gold),0 0 0 6px rgba(232,180,99,.18)}
   .node.gmove{cursor:move}
   .node.clip{width:212px;border-color:var(--gold-dim)}
   .clip-title{display:flex;align-items:center;gap:5px;min-width:0}
@@ -427,6 +435,7 @@
     <button class="btn ghost sup-btn" onclick="clearWin()">배치 해제(자동)</button>
   </div>
   <div class="menupop grppop" id="grpPop"></div>
+  <div class="menupop gclrpop" id="gclrPop"></div>
 </header>
 
 <div class="app" id="app">
@@ -523,6 +532,9 @@ const HELPER='';
 let canvases=[]; let activeId=null; let SERVER_OK=false; let HELPER_OK=false;
 let TOOLBAR={snap:true,edgeStyle:"solid",edgeArrow:true,selectMode:false,hint:false,iconsOpen:false};  // hint=도움말 표시(기본 닫힘), iconsOpen=아이콘 섹션 펼침(기본 접힘)
 const NODE_COLORS=[null,"#3a1d1d","#3b2c12","#16321f","#152a3a","#2a1f3a","#243040"]; // 기본+6색 배경 틴트
+const GROUP_COLORS=[null,"#e8b463","#46c28e","#5b9cf0","#b98cf0","#e06a6a","#e0a24a","#8a92b2"]; // 그룹 배경색(기본골드+7색)
+function _hexA(hex,a){const h=(hex||'').replace('#','');return `rgba(${parseInt(h.substr(0,2),16)},${parseInt(h.substr(2,2),16)},${parseInt(h.substr(4,2),16)},${a})`;}
+function groupColorStyle(g){const c=g&&g.color;if(!c)return '';return `border-color:${c};background:${_hexA(c,.14)}`;}
 const CANVAS_BGS=[null,"#0b0f14","#0e131a","#141a22","#10171c","#161320","#1a1410"];  // 캔버스 배경(기본+6종)
 let canvasBg=null;                                       // 활성 캔버스 배경(canvas.bg에 영속)
 const EWIDTHS={1:1.6,2:2.4,3:3.8};                      // 연결선 굵기 3단계
@@ -825,10 +837,11 @@ function groupGridGlyph(g){
   return keys.map(k=>{const c=mg[k][0],r=mg[k][1];let cells='';for(let i=0;i<c*r;i++)cells+='<i></i>';return `<span class="gg-mon" style="grid-template-columns:repeat(${c},1fr);grid-template-rows:repeat(${r},1fr)">${cells}</span>`;}).join('<span class="gg-plus">+</span>');
 }
 function groupHTML(g){
-  return `<div class="group" data-gid="${g.id}"><div class="group-label" contenteditable="${ce()}" data-gfield="title" title="클릭해서 그룹 이름 변경">${esc(g.title)}</div>`+
+  return `<div class="group" data-gid="${g.id}" style="${groupColorStyle(g)}"><div class="group-label" contenteditable="${ce()}" data-gfield="title" title="클릭해서 그룹 이름 변경">${esc(g.title)}</div>`+
     `<div class="group-bar edit-only">`+
       `<button class="gbtn gbtn-play" data-gact="play" title="그룹 전체를 화면배열대로 동시 재생"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>일괄재생</button>`+
       `<button class="gbtn gbtn-grid" data-gact="grid" title="재생 화면배열 — 모니터·분할 지정">▦ 화면배열 <span class="gg-wrap">${groupGridGlyph(g)}</span></button>`+
+      `<button class="gclr-btn" data-gact="color" title="그룹 배경색" style="background:${g.color||'var(--gold)'}"></button>`+
       `<button class="gbtn gbtn-del" data-gact="del" title="그룹 해제">✕</button>`+
     `</div></div>`;
 }
@@ -948,7 +961,7 @@ function applyCanvasBg(bg){const dots='radial-gradient(circle at 1px 1px,#ffffff
 function setCanvasBg(bg){canvasBg=bg||null;applyCanvasBg(canvasBg);renderBgPop();markDirty()}
 function renderBgPop(){const el=document.getElementById('bgPop');if(!el)return;el.innerHTML=CANVAS_BGS.map(c=>`<button class="bgsw ${c?'':'def'} ${(canvasBg||null)===c?'on':''}" style="${c?`background:${c}`:''}" title="${c||'기본'}" onclick="setCanvasBg('${c||''}')"></button>`).join('')}
 function toggleBgPop(e){if(e)e.stopPropagation();const el=document.getElementById('bgPop'),b=document.getElementById('bgBtn');renderBgPop();const open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open');const sp=document.getElementById('supPop');if(sp&&sp.classList.contains('open')&&!e.target.closest('#supPop,#supBtn'))sp.classList.remove('open');const wp=document.getElementById('winPop');if(wp&&wp.classList.contains('open')&&!e.target.closest('#winPop,[data-nact="winset"]'))wp.classList.remove('open');const gpp=document.getElementById('grpPop');if(gpp&&gpp.classList.contains('open')&&!e.target.closest('#grpPop,[data-gact="grid"]'))gpp.classList.remove('open')});
+document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open');const sp=document.getElementById('supPop');if(sp&&sp.classList.contains('open')&&!e.target.closest('#supPop,#supBtn'))sp.classList.remove('open');const wp=document.getElementById('winPop');if(wp&&wp.classList.contains('open')&&!e.target.closest('#winPop,[data-nact="winset"]'))wp.classList.remove('open');const gpp=document.getElementById('grpPop');if(gpp&&gpp.classList.contains('open')&&!e.target.closest('#grpPop,[data-gact="grid"]'))gpp.classList.remove('open');const gcp=document.getElementById('gclrPop');if(gcp&&gcp.classList.contains('open')&&!e.target.closest('#gclrPop,[data-gact="color"]'))gcp.classList.remove('open')});
 document.getElementById('winPop').addEventListener('click',e=>{
   const g=e.target.closest('.wp-g');if(g){wpGrid=g.dataset.grid.split('x').map(Number);renderWinPop();return;}
   const cell=e.target.closest('.wp-cell');if(cell){const c=wpGrid[0],r=wpGrid[1];setWin(+cell.dataset.mon,(+cell.dataset.cx)/c,(+cell.dataset.cy)/r,1/c,1/r);return;}
@@ -1215,6 +1228,19 @@ function setGroupGrid(key){const g=G(grpTarget);if(!g)return;if(!g.monGrids)g.mo
   else if(key==='off'){delete g.monGrids[grpActiveMon];}
   else{g.monGrids[grpActiveMon]=key.split('x').map(Number);}
   markDirty();render();renderGroupGrid();}
+// 그룹 배경색 선택
+let gclrTarget=null;
+function renderGroupColorPop(){const el=document.getElementById('gclrPop');if(!el)return;const g=G(gclrTarget);if(!g)return;
+  el.innerHTML=`<div class="gclr-h">그룹 배경색</div><div class="gclr-grid">`+GROUP_COLORS.map(c=>`<button class="gclr-sw${(g.color||null)===(c||null)?' on':''}" data-gc="${c||''}" title="${c||'기본'}" style="${c?`background:${_hexA(c,.9)};border-color:${c}`:'background:var(--surface);border-color:var(--line)'}">${c?'':'—'}</button>`).join('')+`</div>`;
+}
+function openGroupColor(gid,ev){const g=G(gid);if(!g)return;gclrTarget=gid;closeMenus('gclrPop');renderGroupColorPop();
+  const el=document.getElementById('gclrPop');if(!el)return;el.classList.add('open');
+  const b=ev&&ev.target?ev.target.closest('[data-gact]'):null;
+  if(b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.left=Math.max(8,Math.min(r.left-60,window.innerWidth-190))+'px';el.style.right='auto';}
+  else{el.style.top='96px';el.style.right='16px';el.style.left='auto';}
+}
+function setGroupColor(c){const g=G(gclrTarget);if(!g)return;g.color=c||null;render();markDirty();renderGroupColorPop();}
+(function(){const gp=document.getElementById('gclrPop');if(gp)gp.addEventListener('click',e=>{e.stopPropagation();const sw=e.target.closest('.gclr-sw');if(sw)setGroupColor(sw.dataset.gc);});})();
 function playGroup(gid){const g=G(gid);if(!g)return;
   // 책갈피 부모(원본)는 제외 — 원본을 처음부터 또 재생하지 않고 책갈피/리프 노드만 재생
   const hasChild=id=>g.nodes.some(nid=>{const c=N(nid);return c&&c.bmParent===id;});
@@ -1401,6 +1427,7 @@ world.addEventListener('click',e=>{
     if(a==='del'){state.groups=state.groups.filter(g=>g.id!==gid);render();markDirty();toast('그룹 해제');}
     else if(a==='play'){playGroup(gid);}
     else if(a==='grid'){openGroupGrid(gid,e);}
+    else if(a==='color'){openGroupColor(gid,e);}
     return;}
 });
 (function(){const gp=document.getElementById('grpPop');if(gp)gp.addEventListener('click',e=>{e.stopPropagation();const mp=e.target.closest('.gl-pmon');if(mp){setGroupMon(+mp.dataset.mon);return;}const c=e.target.closest('.gl-card');if(c)setGroupGrid(c.dataset.grid);});})();
@@ -1776,7 +1803,7 @@ function exportPNG(){const{svg,w,h}=buildSVG();const url=URL.createObjectURL(new
   img.onload=()=>{const sc=2,cv=document.createElement('canvas');cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);const cx=cv.getContext('2d');cx.scale(sc,sc);cx.drawImage(img,0,0);URL.revokeObjectURL(url);try{cv.toBlob(b=>{b?(_dl(b,'diagram.png'),toast('PNG 내보냄')):toast('PNG 변환 실패')},'image/png')}catch(err){toast('PNG 변환 실패')}};
   img.onerror=()=>{URL.revokeObjectURL(url);toast('PNG 변환 실패')};img.src=url}
 function toggleExportPop(e){if(e)e.stopPropagation();closeMenus('exPop');const el=document.getElementById('exPop'),b=document.getElementById('exBtn'),open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-function closeMenus(except){['exPop','bgPop','supPop','winPop','grpPop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
+function closeMenus(except){['exPop','bgPop','supPop','winPop','grpPop','gclrPop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
 document.getElementById('impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
   if(d.images&&typeof d.images==='object')Object.assign(IMAGES,d.images);
   if(d.toolbar&&typeof d.toolbar==='object'){Object.assign(TOOLBAR,d.toolbar);renderToolbar()}
