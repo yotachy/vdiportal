@@ -26,3 +26,4 @@ forge_earn_cache_*.json
 backtest/earn-ohlc.json
 backtest/earnings-dates.json
 backtest/earn-surprise.json
+backtest/earn-div.json
