@@ -2120,3 +2120,13 @@ test("forecastTrendPersist: 추세 지속/소진 — 국면 한정·형식 [v1.9
   assert.equal(r.persist, r.curve[1].persist, "대표=1달(H=20)");
   assert.ok(r.curve.every(c => c.persist + c.exhaust === 100 && c.persist >= 0 && c.persist <= 100), "곡선 지속+소진=100");
 });
+
+test("엔진 메타 export — version·indicatorCount·validatedAxes 계약", () => {
+  assert.equal(typeof ForgeCore.version, "string");
+  assert.equal(ForgeCore.indicatorCount, 30);
+  const ax = ForgeCore.validatedAxes;
+  assert.ok(Array.isArray(ax) && ax.length === 6, "검증 축 6개");
+  ax.forEach(a => { assert.equal(typeof a.key, "string"); assert.equal(typeof a.lab, "string"); assert.equal(typeof a.acc, "number"); });
+  assert.ok(ax.some(a => a.key === "trend"), "추세 지속 축 포함");
+  assert.ok(ax.some(a => a.key === "gap" && a.stock === true), "갭 축 주식 게이트 플래그");
+});

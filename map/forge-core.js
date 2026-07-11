@@ -5,6 +5,16 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
   const version = "1.9.7";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const indicatorCount = 30;   // 지표 배터리 종수 (forge-state IND_TIERS와 동기 — 지표 추가 시 함께 갱신)
+  // 검증된 예측 축(백테스트 OOS). acc=대표 지평 정확도(%), hz=지평 라벨, stock=주식 한정.
+  const validatedAxes = [
+    { key: "vol",   lab: "변동성 예보",   acc: 69, hz: "3지평" },
+    { key: "dd",    lab: "낙폭 위험곡선", acc: 68, hz: "3지평" },
+    { key: "up",    lab: "이익목표 도달", acc: 64, hz: "" },
+    { key: "spike", lab: "급변 경보",     acc: 65, hz: "3지평" },
+    { key: "gap",   lab: "갭 경보",       acc: 63, hz: "3지평", stock: true },
+    { key: "trend", lab: "추세 지속/소진", acc: 76, hz: "3지평·비방향" },
+  ];
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
   const _CONE_CAL = 0.75;
@@ -2396,5 +2406,5 @@
     return { state, persist: rep.persist, exhaust: rep.exhaust, acc: rep.acc, curve };
   }
 
-  return { version, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });
