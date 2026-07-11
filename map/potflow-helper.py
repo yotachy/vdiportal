@@ -128,11 +128,60 @@ def content_type_for(name):
             ".ts": "video/mp2t", ".ogv": "video/ogg", ".mpg": "video/mpeg",
             ".mpeg": "video/mpeg", ".flv": "video/x-flv", ".wmv": "video/x-ms-wmv"}.get(ext, "application/octet-stream")
 
-def scan_tree(path):
+SCANNED_DIRS = set()   # 사용자가 탐색기에서 연 폴더들 — /resolve가 OS 드롭 파일을 찾을 때 함께 뒤진다
+
+
+def _common_media_roots():
+    roots = []
+    home = os.path.expanduser("~")
+    for sub in ("Videos", "Movies", "Downloads", "Desktop", "Documents", "Pictures"):
+        p = os.path.join(home, sub)
+        if os.path.isdir(p):
+            roots.append(p)
+    return roots
+
+
+def _dedup_roots(roots):
+    """중복·상위폴더에 포함되는 하위폴더 제거(이중 탐색 방지)."""
+    uniq, norm = [], []
+    for r in roots:
+        if not r or not os.path.isdir(r):
+            continue
+        rn = os.path.normcase(os.path.abspath(r))
+        if any(rn == e or rn.startswith(e + os.sep) for e in norm):
+            continue
+        keep_u, keep_n = [], []
+        for u_, n_ in zip(uniq, norm):
+            if n_.startswith(rn + os.sep):
+                continue
+            keep_u.append(u_); keep_n.append(n_)
+        keep_u.append(r); keep_n.append(rn)
+        uniq, norm = keep_u, keep_n
+    return uniq
+
+
+def folder_pbf_count(folder, budget):
+    """폴더(하위 포함) 안의 .pbf 개수. budget=[남은탐색] 공유 예산, 소진 시 -1(다수)."""
+    cnt = 0
+    try:
+        for dp, dn, fns in os.walk(folder):
+            for fn in fns:
+                budget[0] -= 1
+                if budget[0] < 0:
+                    return -1
+                if fn.lower().endswith(".pbf"):
+                    cnt += 1
+    except OSError:
+        pass
+    return cnt
+
+
+def scan_tree(path, want_pbf=False):
     try:
         ap = os.path.abspath(path)
         if not os.path.isdir(ap):
             return {"ok": False, "error": "not a directory"}
+        SCANNED_DIRS.add(ap)
         folders, files = [], []
         for name in sorted(os.listdir(ap), key=str.lower):
             fp = os.path.join(ap, name)
@@ -153,6 +202,10 @@ def scan_tree(path):
                     mtime = 0
                 files.append({"name": name, "path": fp, "size": size, "mtime": mtime,
                               "ext": ext_l.lstrip("."), "kind": kind})
+        if want_pbf:
+            budget = [12000]
+            for f in folders:
+                f["pbf"] = folder_pbf_count(f["path"], budget)
         parent = os.path.dirname(ap)
         return {"ok": True, "path": ap, "parent": parent if parent != ap else None,
                 "folders": folders, "files": files}
@@ -600,7 +653,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, ping_payload())
         if u.path == "/tree":
             qs = parse_qs(u.query)
-            return self._send(200, scan_tree(qs.get("path", [ROOT])[0]))
+            want_pbf = qs.get("pbf", ["0"])[0] == "1"
+            return self._send(200, scan_tree(qs.get("path", [ROOT])[0], want_pbf))
         if u.path == "/thumb":
             qs = parse_qs(u.query)
             data, err = get_thumb(qs.get("path", [""])[0])
@@ -651,8 +705,9 @@ class Handler(BaseHTTPRequestHandler):
             base = body.get("base", "")
             if not isinstance(base, str):
                 base = ""
-            roots = [base] if base else list(SEARCH_ROOTS)
-            path, matches = resolve_path(name, body.get("size", 0), roots)
+            roots = _dedup_roots(([base] if base else []) + sorted(SCANNED_DIRS)
+                                 + list(SEARCH_ROOTS) + _common_media_roots())
+            path, matches = resolve_path(name, body.get("size", 0), roots, cap=60000)
             if matches == -1:
                 return self._send(200, {"ok": False, "error": "too many files"})
             if path:

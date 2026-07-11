@@ -120,15 +120,20 @@
   .rside{border-left:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;min-height:0;position:relative}
   .rside-gutter{position:absolute;left:0;top:0;width:7px;height:100%;cursor:ew-resize;z-index:6}
   .rside-gutter:hover{background:var(--gold-dim)}
-  .rside-head{display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--line);flex:none;align-items:center;flex-wrap:wrap}
-  .rs-pbfonly{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--eth);white-space:nowrap;cursor:pointer;user-select:none}
-  .rs-pbfonly input{accent-color:var(--gold);cursor:pointer}
-  .rs-path{flex:1;min-width:0;font-family:inherit;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--txt);padding:0 9px;outline:none}
+  .rside-head{display:flex;flex-direction:column;gap:8px;padding:11px;border-bottom:1px solid var(--line);flex:none}
+  .rs-hrow{display:flex;gap:7px;align-items:center}
+  .rs-hrow2{justify-content:space-between}
+  .rs-pbfonly{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--eth);white-space:nowrap;cursor:pointer;user-select:none}
+  .rs-pbfonly input{accent-color:var(--gold);cursor:pointer;width:14px;height:14px}
+  .rs-path{flex:1;min-width:0;font-family:inherit;font-size:13px;height:34px;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:0 12px;outline:none}
   .rs-path:focus{border-color:var(--gold-dim)}
+  .rs-open{height:34px;flex:none}
   .rs-body{flex:1;overflow-y:auto;padding:6px}
   .rs-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:12.5px;color:var(--txt);user-select:none}
   .rs-row:hover{background:var(--raised2)}
   .rs-row.folder{color:var(--gold)}
+  .rs-row.has-pbf{font-weight:700;background:rgba(232,180,99,.07)}
+  .rs-row.has-pbf:hover{background:rgba(232,180,99,.14)}
   .rs-head2{display:grid;grid-template-columns:1fr 58px 42px 78px;gap:6px;padding:5px 8px;font-size:11px;color:var(--faint);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);flex:none}
   .rs-head2 span{cursor:pointer;user-select:none;white-space:nowrap;overflow:hidden}
   .rs-head2 span.on{color:var(--gold)}
@@ -500,10 +505,14 @@
   <aside class="rside" id="rside">
     <div class="rside-gutter" id="rsideGutter"></div>
     <div class="rside-head">
-      <input id="rsPath" class="rs-path" placeholder="폴더 경로 입력 후 Enter" autocomplete="off">
-      <button class="btn ghost" onclick="openFolder(document.getElementById('rsPath').value)">열기</button>
-      <label class="rs-pbfonly" title="pbf(책갈피) 파일만 보기"><input type="checkbox" id="rsPbfOnly">pbf만</label>
-      <button class="rs-collapse" onclick="toggleRside()" title="탐색기 접기 (사생활 보호)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5l7 7-7 7M13 5l7 7-7 7"/></svg><span>접기</span></button>
+      <div class="rs-hrow">
+        <input id="rsPath" class="rs-path" placeholder="폴더 경로 입력 후 Enter (예: D:\영상)" autocomplete="off">
+        <button class="btn ghost rs-open" onclick="openFolder(document.getElementById('rsPath').value)">열기</button>
+      </div>
+      <div class="rs-hrow rs-hrow2">
+        <label class="rs-pbfonly" title="pbf(책갈피) 파일만 보기 — 하위 폴더의 pbf도 표기"><input type="checkbox" id="rsPbfOnly">pbf만</label>
+        <button class="rs-collapse" onclick="toggleRside()" title="탐색기 접기 (사생활 보호)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5l7 7-7 7M13 5l7 7-7 7"/></svg><span>접기</span></button>
+      </div>
     </div>
     <div class="rs-body" id="rsBody"></div>
   </aside>
@@ -1415,13 +1424,13 @@ stage.addEventListener('drop',e=>{const iid=e.dataTransfer.getData('iconid');
 /* 우측 파일탐색기(폴더트리·동영상 목록) */
 const rsBodyEl=document.getElementById('rsBody'),rsPathEl=document.getElementById('rsPath');
 let rsData=null,rsSort={key:'name',dir:1},rsPbfOnly=false;
-(function(){const cb=document.getElementById('rsPbfOnly');if(!cb)return;rsPbfOnly=lsGet('potflow_pbf_only')==='1';cb.checked=rsPbfOnly;cb.addEventListener('change',()=>{rsPbfOnly=cb.checked;lsSet('potflow_pbf_only',rsPbfOnly?'1':'0');renderExplorer();});})();
+(function(){const cb=document.getElementById('rsPbfOnly');if(!cb)return;rsPbfOnly=lsGet('potflow_pbf_only')==='1';cb.checked=rsPbfOnly;cb.addEventListener('change',()=>{rsPbfOnly=cb.checked;lsSet('potflow_pbf_only',rsPbfOnly?'1':'0');if(HELPER_OK&&rsData)openFolder(rsPathEl.value||rsData.path||'');else renderExplorer();});})();
 function fmtSize(b){if(!b)return'';const u=['B','KB','MB','GB'];let i=0,n=b;while(n>=1024&&i<u.length-1){n/=1024;i++}return (i===0?n:(n<10?n.toFixed(1):Math.round(n)))+u[i];}
 function fmtDate(ep){if(!ep)return'';const d=new Date(ep*1000);const p=x=>String(x).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 function openFolder(path){
   if(!HELPER_OK){toast('헬퍼가 꺼져 있습니다');return}
   const reqId=activeId;   // 요청 시점 캔버스 — 전환 후 늦게 온 응답은 무시(레이스 방지)
-  fetch(HELPER+"/tree?path="+encodeURIComponent(path||"")).then(r=>r.json()).then(d=>{
+  fetch(HELPER+"/tree?path="+encodeURIComponent(path||"")+(rsPbfOnly?"&pbf=1":"")).then(r=>r.json()).then(d=>{
     if(activeId!==reqId)return;
     if(!d.ok){toast('폴더를 열 수 없습니다: '+(d.error||''));return}
     rsPathEl.value=d.path;rsData=d;renderExplorer();
@@ -1458,7 +1467,13 @@ function renderExplorer(){
   rsBodyEl.append(head);
   // 폴더(정렬 대상 아님)
   if(d.parent){rsBodyEl.append(rsRow('folder up','⬆ 상위 폴더',d.parent,false));}
-  (d.folders||[]).forEach(f=>rsBodyEl.append(rsRow('folder','📁 '+f.name,f.path,false)));
+  (d.folders||[]).forEach(f=>{
+    const hasCount=(typeof f.pbf==='number');
+    if(rsPbfOnly&&hasCount&&f.pbf===0)return;   // pbf 없는 폴더는 숨김
+    let label='📁 '+f.name;
+    if(rsPbfOnly&&hasCount&&f.pbf!==0)label+=(f.pbf===-1?'  🔖 다수':'  🔖 '+f.pbf);
+    rsBodyEl.append(rsRow('folder'+(rsPbfOnly&&hasCount&&f.pbf!==0?' has-pbf':''),label,f.path,false));
+  });
   // 파일(정렬 적용, 컴팩트 컬럼)
   const files=sortedFiles();
   files.forEach(f=>{
