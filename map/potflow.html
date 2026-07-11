@@ -249,6 +249,13 @@
   .rsz.se::after{content:"";position:absolute;right:6px;bottom:6px;width:12px;height:12px;border-right:3px solid var(--gold);border-bottom:3px solid var(--gold);border-radius:0 0 5px 0}
   .rsz:hover.e::before,.rsz:hover.s::before{background:var(--gold)}
   .node.resizing{transition:none}
+  .node.clip{width:212px;border-color:var(--gold-dim)}
+  .clip-title{display:flex;align-items:center;gap:5px;min-width:0}
+  .clip-title .bm-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .clip-range{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--gold);margin-top:6px;padding:2px 5px;margin-left:-5px;border-radius:5px;outline:none;letter-spacing:.02em}
+  .clip-range:focus{background:#0d1117;color:#fff;cursor:text}
+  .clip-hint{font-size:10px;color:var(--faint);margin-top:8px;line-height:1.45}
+  .clip-hint b{color:var(--gold);font-size:12px}
   .port{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--raised);border:2px solid var(--gold-dim);cursor:crosshair;z-index:5;opacity:0;transition:opacity .12s}
   .node:hover .port,.node.selected .port,.node.linkhover .port{opacity:1}
   .node.linkhover .port{border-color:var(--gold);opacity:.85}
@@ -761,6 +768,15 @@ function nodeHTML(n){
       <div class="n-icon">${iconSvg(n.iconId)}</div>
       <div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div>${ports}</div>`;
   }
+  if(n.clip){
+    const has=n.thumb&&imgSrc(n.thumb.imgId);
+    const media=has?`<div class="n-thumb bm-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span></div>`:`<div class="n-drop edit-only">썸네일</div>`;
+    const range=`${fmtClock(n.seekMs||0)} ~ ${n.endMs!=null?fmtClock(n.endMs):'__:__'}`;
+    return `<div class="node clip" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}${dim}">${head}
+      <div class="n-body"><div class="n-title clip-title"><span class="bm-badge">🔁</span><span class="bm-name" contenteditable="${ce()}" data-field="title">${esc(n.title)}</span></div>
+      <div class="clip-range" contenteditable="${ce()}" data-clip="range" title="시작 ~ 끝 시각 (예: 0:30 ~ 2:15)">${range}</div>${media}
+      <div class="clip-hint edit-only">▶ 시작점에서 열림 · PotPlayer에서 <b>\\</b> 로 A-B 반복</div></div>${rsz}${ports}</div>`;
+  }
   if(n.bmParent!=null){
     const has=n.thumb&&imgSrc(n.thumb.imgId);
     const media=has?`<div class="n-thumb bm-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span></div>`:`<div class="n-drop edit-only">썸네일</div>`;
@@ -843,8 +859,9 @@ function drawNhud(){
   hud.innerHTML=`<div class="hbar nbar" style="left:${n.x}px;top:${n.y}px">
     <div class="nbar-row">
       <button class="hbtn danger" data-nact="del" title="노드 삭제">${ICO.trash}<span>삭제</span></button>
-      ${n.videoPath?`<button class="hbtn" data-nact="bmsync" title="책갈피(pbf) 동기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg><span>책갈피</span></button>`:''}
+      ${n.videoPath&&!n.clip?`<button class="hbtn" data-nact="bmsync" title="책갈피(pbf) 동기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg><span>책갈피</span></button>`:''}
       ${n.videoPath?`<button class="hbtn" data-nact="winset" title="화면 배치(모니터 영역)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="3" y="4" width="18" height="13" rx="1.5"/><path d="M8 20h8M12 17v3"/></svg><span>배치</span></button>`:''}
+      ${n.videoPath&&n.bmParent==null&&!n.clip?`<button class="hbtn" data-nact="clip" title="반복구간(구간 노드) 추가 — 시작점에서 열림"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span>구간</span></button>`:''}
     </div>
     <div class="nbar-sw">${sw}</div>
   </div>`;
@@ -990,6 +1007,17 @@ function playItems(items,watchId){const list=(items||[]).filter(it=>it&&it.path)
   fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({items:list})}).then(r=>r.json()).then(j=>{if(j&&j.ok){toast(j.launched+'개 재생');if(watchId&&j.token)watchClose(j.token,watchId);}else toast('재생 실패: '+((j&&j.error)||''));}).catch(()=>toast('재생 실패'));}
 function playSelected(){const items=sel.map(id=>{const n=N(id);if(!n||!n.videoPath)return null;return {path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:n.win||null};}).filter(Boolean);if(!items.length){toast('선택한 노드에 동영상 경로가 없습니다');return}playItems(items);}
 function fmtClock(ms){ms=ms||0;const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60,p=x=>String(x).padStart(2,'0');return (h?h+':':'')+p(m)+':'+p(ss);}
+function parseClock(str){str=(str||'').trim();if(!str||!/\d/.test(str))return null;let s=0;str.split(':').forEach(p=>{s=s*60+(parseFloat(p)||0);});return isNaN(s)?null:Math.round(s*1000);}
+function addClip(id){
+  const n=N(id);if(!n||!n.videoPath){toast('동영상 노드에서만 구간을 만들 수 있습니다');return}
+  const nclips=state.nodes.filter(x=>x.clipParent===id).length;
+  const c=makeNode(n.x,n.y+(n._h||120)+34+nclips*156,'구간',"full");
+  c.clip=true;c.clipParent=id;c.videoPath=n.videoPath;c.seekMs=n.seekMs||0;c.endMs=(n.seekMs||0)+30000;
+  addEdge(id,'bottom',c.id,'top');
+  if(HELPER_OK)captureThumbURL(HELPER+"/file?path="+encodeURIComponent(n.videoPath),c.id,(c.seekMs||0)/1000);
+  render();selectOnly(c.id);markDirty();
+  toast('구간 노드 추가 · 시작 ~ 끝 시각을 입력하세요');
+}
 function bmChildren(pid){return state.nodes.filter(n=>n.bmParent===pid);}
 function playAt(path,ms,watchId){if(!path)return;if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}
   fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:[path],seek:(ms||0)/1000})})
@@ -1004,7 +1032,7 @@ function watchClose(token,nodeId){
   },3000);
 }
 function syncBookmarks(nodeId){
-  const n=N(nodeId);if(!n||!n.videoPath||n.bmParent!=null)return;
+  const n=N(nodeId);if(!n||!n.videoPath||n.bmParent!=null||n.clip)return;
   if(!HELPER_OK){toast('헬퍼가 꺼져 있습니다');return}
   fetch(HELPER+"/bookmarks?path="+encodeURIComponent(n.videoPath)).then(r=>r.json()).then(d=>{
     if(!d||!d.ok){toast('책갈피를 불러올 수 없습니다');return}
@@ -1099,7 +1127,7 @@ function nodePointerDown(id,e){
   const port=t.closest('[data-act="port"]');
   if(port)return startLink(id,port.dataset.side||'right',e);
   if(t.closest('[data-act]'))return;
-  const ed=t.closest('.n-title,.n-desc');
+  const ed=t.closest('.n-title,.n-desc,.clip-range');
   if(ed&&document.activeElement===ed)return;
   drag={type:'nodePending',id,sx:e.clientX,sy:e.clientY,t};
   const _pe=q(id);if(_pe)_pe.classList.add('pressing');
@@ -1237,7 +1265,7 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-ewidth]')){if(selEdge){const ed=E(selEdge);ed.width=((ed.width||2)%3)+1;paint();markDirty()}return}
   if(e.target.closest('[data-eroute]')){if(selEdge){const ed=E(selEdge);ed.route=ed.route!=='curve'?'curve':'ortho';paint();markDirty()}return}
   if(e.target.closest('[data-elabeladd]')){if(selEdge){const ed=E(selEdge);if(ed.label==null)ed.label='';paint();const le=document.querySelector(`.elabel[data-elabel="${selEdge}"]`);if(le){le.focus();const r=document.createRange();r.selectNodeContents(le);const s=window.getSelection();s.removeAllRanges();s.addRange(r)}}return}
-  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='del')delNodes([id]);else if(a==='bmsync')syncBookmarks(id);else if(a==='winset')openWinPop(id)}return}
+  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='del')delNodes([id]);else if(a==='bmsync')syncBookmarks(id);else if(a==='winset')openWinPop(id);else if(a==='clip')addClip(id)}return}
   const al=e.target.closest('[data-align]');if(al){alignSel(al.dataset.align);return}
   const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='add')addChild(id);else if(a==='rmthumb')setThumb(id,null);return}
@@ -1250,20 +1278,21 @@ world.addEventListener('click',e=>{
 });
 world.addEventListener('focusout',e=>{
   const f=e.target.dataset?.field;if(f){const id=e.target.closest('.node').dataset.id,n=N(id);if(n)n[f]=e.target.innerText.replace(/\u00a0/g,' ').trim();markDirty();return}
+  const cr=e.target.dataset?.clip;if(cr==='range'){const id=e.target.closest('.node').dataset.id,n=N(id);if(n){const parts=e.target.innerText.split('~');const a=parseClock(parts[0]),b=parts.length>1?parseClock(parts[1]):null;const old=n.seekMs;if(a!=null)n.seekMs=a;n.endMs=b;markDirty();if(a!=null&&a!==old&&n.videoPath&&HELPER_OK)captureThumbURL(HELPER+"/file?path="+encodeURIComponent(n.videoPath),n.id,a/1000);render();}return}
   const lb=e.target.dataset?.elabel;if(lb){const ed=E(lb);if(ed){const t=e.target.innerText.replace(/\u00a0/g,' ').trim();ed.label=t||null}markDirty();paint();return}
   const gf=e.target.dataset?.gfield;if(gf){const id=e.target.closest('.group').dataset.gid,g=G(id);if(g)g[gf]=e.target.innerText.trim();markDirty()}
 });
 // \ub178\ub4dc \ud074\ub9ad/\uc774\ub3d9\uc744 \ud14d\uc2a4\ud2b8 \ud3b8\uc9d1\ubcf4\ub2e4 \uc6b0\uc120 \u2014 \ub2e8\uc77c \ud074\ub9ad=\uc120\ud0dd\u00b7\uc774\ub3d9, \ub354\ube14\ud074\ub9ad=\ud3b8\uc9d1 \uc9c4\uc785
 world.addEventListener('mousedown',e=>{
   if(mode!=='edit')return;
-  const ed=e.target.closest('.n-title,.n-desc');
+  const ed=e.target.closest('.n-title,.n-desc,.clip-range');
   if(ed&&document.activeElement!==ed)e.preventDefault();   // \ucea1\uc158 \ud3ec\ucee4\uc2a4(\uce90\ub7ff)\ub97c \ub9c9\uc544 \ub4dc\ub798\uadf8/\uc120\ud0dd\uc774 \uc6b0\uc120
 });
 world.addEventListener('dblclick',e=>{
   const nodeEl=e.target.closest('.node');
-  if(nodeEl){const n=N(nodeEl.dataset.id);if(n&&n.videoPath){e.preventDefault();playItems([{path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:n.win||null}],n.bmParent||n.id);return;}}
+  if(nodeEl){const n=N(nodeEl.dataset.id);if(n&&n.videoPath){e.preventDefault();playItems([{path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:n.win||null}],n.clipParent||n.bmParent||n.id);return;}}
   if(mode!=='edit')return;
-  const ed=e.target.closest('.n-title,.n-desc');if(!ed)return;
+  const ed=e.target.closest('.n-title,.n-desc,.clip-range');if(!ed)return;
   e.stopPropagation();ed.focus();
   const r=document.caretRangeFromPoint&&document.caretRangeFromPoint(e.clientX,e.clientY);
   if(r){const s=window.getSelection();s.removeAllRanges();s.addRange(r)}
