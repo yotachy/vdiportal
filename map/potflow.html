@@ -40,18 +40,21 @@
   .seg button{font-family:inherit;font-size:12.5px;font-weight:600;border:0;background:transparent;color:var(--muted);padding:7px 13px;cursor:pointer}
   .seg button.on{background:var(--gold);color:#1a1206}
 
-  .app{flex:1;display:grid;grid-template-columns:226px 1fr var(--rside-w,300px);min-height:0;transition:grid-template-columns .22s cubic-bezier(.4,0,.2,1)}
+  .app{flex:1;display:grid;grid-template-columns:226px 1fr var(--rside-w,360px);min-height:0;transition:grid-template-columns .22s cubic-bezier(.4,0,.2,1)}
   .app.resizing{transition:none}
-  .app.collapsed{grid-template-columns:44px 1fr var(--rside-w,300px)}
+  .app.collapsed{grid-template-columns:44px 1fr var(--rside-w,360px)}
   body.view .app{grid-template-columns:226px 1fr}
   body.view .app.collapsed{grid-template-columns:44px 1fr}
   body.rhidden .rside{display:none}
   body.rhidden .app{grid-template-columns:226px 1fr 0}
   body.rhidden .app.collapsed{grid-template-columns:44px 1fr 0}
-  .rs-collapse{flex:none;width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--raised);color:var(--eth);cursor:pointer;font-size:14px;line-height:1;display:grid;place-items:center;transition:.13s}
-  .rs-collapse:hover{color:var(--gold);border-color:var(--gold-dim)}
-  .rs-reopen{display:none;position:fixed;right:0;top:76px;z-index:50;width:22px;height:52px;border:1px solid var(--line);border-right:0;border-radius:9px 0 0 9px;background:var(--raised);color:var(--eth);cursor:pointer;font-size:15px;align-items:center;justify-content:center;box-shadow:-4px 0 14px -8px #000}
-  .rs-reopen:hover{color:var(--gold);border-color:var(--gold-dim)}
+  .rs-collapse{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:4px;height:27px;padding:0 10px 0 8px;border-radius:8px;border:1px solid var(--gold-dim);background:linear-gradient(180deg,rgba(232,180,99,.16),rgba(232,180,99,.05));color:var(--gold);font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;transition:.13s;white-space:nowrap}
+  .rs-collapse svg{width:14px;height:14px}
+  .rs-collapse:hover{background:var(--gold);color:#1a1205;border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.18)}
+  .rs-reopen{display:none;position:fixed;right:0;top:74px;z-index:50;flex-direction:column;align-items:center;gap:4px;width:26px;padding:10px 0;border:1px solid var(--gold-dim);border-right:0;border-radius:10px 0 0 10px;background:linear-gradient(180deg,rgba(232,180,99,.18),rgba(232,180,99,.06)),var(--raised);color:var(--gold);cursor:pointer;box-shadow:-5px 0 16px -8px #000;transition:.13s}
+  .rs-reopen .rs-reopen-ico{font-size:16px;line-height:1;font-weight:700}
+  .rs-reopen .rs-reopen-txt{writing-mode:vertical-rl;font-size:10px;font-weight:700;letter-spacing:.14em}
+  .rs-reopen:hover{background:var(--gold);color:#1a1205;border-color:var(--gold)}
   body.rhidden .rs-reopen{display:flex}
   .btn.rhide-on{border-color:var(--gold);color:var(--gold)}
   /* 캔버스 좌측 플로팅 도구 팔레트 */
@@ -323,6 +326,20 @@
   .wp-grids{display:flex;flex-wrap:wrap;gap:4px}
   .wp-g{font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;cursor:pointer;color:var(--txt);background:var(--surface)}
   .wp-g.on{border-color:var(--gold);color:var(--gold)}
+  .grppop{min-width:312px;max-width:344px;padding:12px;gap:10px}
+  .gl-h{font-size:13px;font-weight:800;color:var(--txt);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .gl-sub{font-size:10.5px;font-weight:600;color:var(--faint)}
+  .gl-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .gl-card{display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 5px 6px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--eth);cursor:pointer;font:inherit;transition:.12s}
+  .gl-card:hover{border-color:var(--gold-dim);color:var(--txt)}
+  .gl-card.on{border-color:var(--gold);background:rgba(232,180,99,.1);color:var(--gold)}
+  .gl-mon{width:100%;display:grid;gap:2px;background:#0b0f14;border:1.5px solid #2a323d;border-radius:4px;padding:2px;box-sizing:border-box}
+  .gl-card:hover .gl-mon,.gl-card.on .gl-mon{border-color:var(--gold-dim)}
+  .gl-cell{display:flex;align-items:center;justify-content:center;background:rgba(232,180,99,.22);border-radius:2px;font-size:9px;font-weight:800;color:var(--gold);min-width:0;min-height:8px}
+  .gl-cell.dim{background:#161d26;color:var(--faint)}
+  .gl-auto{display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:11px;font-weight:800;background:repeating-linear-gradient(-45deg,#0b0f14,#0b0f14 5px,#12181f 5px,#12181f 10px)}
+  .gl-name{font-size:10.5px;font-weight:700;text-align:center;line-height:1.2}
+  .gl-note{font-size:10px;color:var(--faint);line-height:1.5}
 
   body.view .edit-only{display:none!important}
   body.view .node{cursor:default}body.view .n-title,body.view .n-desc{cursor:default}
@@ -391,6 +408,7 @@
     <div class="wp-grids" id="wpGrids"></div>
     <button class="btn ghost sup-btn" onclick="clearWin()">배치 해제(자동)</button>
   </div>
+  <div class="menupop grppop" id="grpPop"></div>
 </header>
 
 <div class="app" id="app">
@@ -461,14 +479,14 @@
   <aside class="rside" id="rside">
     <div class="rside-gutter" id="rsideGutter"></div>
     <div class="rside-head">
-      <button class="rs-collapse" onclick="toggleRside()" title="탐색기 접기 (사생활 보호)">»</button>
       <input id="rsPath" class="rs-path" placeholder="폴더 경로 입력 후 Enter" autocomplete="off">
       <button class="btn ghost" onclick="openFolder(document.getElementById('rsPath').value)">열기</button>
       <label class="rs-pbfonly" title="pbf(책갈피) 파일만 보기"><input type="checkbox" id="rsPbfOnly">pbf만</label>
+      <button class="rs-collapse" onclick="toggleRside()" title="탐색기 접기 (사생활 보호)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5l7 7-7 7M13 5l7 7-7 7"/></svg><span>접기</span></button>
     </div>
     <div class="rs-body" id="rsBody"></div>
   </aside>
-  <button class="rs-reopen" id="rsReopen" onclick="toggleRside()" title="탐색기 열기">‹</button>
+  <button class="rs-reopen" id="rsReopen" onclick="toggleRside()" title="탐색기 열기"><span class="rs-reopen-ico">‹</span><span class="rs-reopen-txt">탐색기</span></button>
 </div>
 
 <input type="file" id="impFile" accept="application/json" hidden>
@@ -782,7 +800,7 @@ function gridLabel(g){return g.grid?`${g.grid[0]}×${g.grid[1]}`:'자동';}
 function groupHTML(g){
   return `<div class="group" data-gid="${g.id}"><div class="group-label" contenteditable="${ce()}" data-gfield="title">${esc(g.title)}</div>`+
     `<div class="group-bar edit-only"><button class="gbtn" data-gact="play" title="그룹 일괄 재생(그리드 배치)">▶ 일괄재생</button>`+
-    `<button class="gbtn" data-gact="grid" title="재생창 그리드">▦ ${gridLabel(g)}</button></div>`+
+    `<button class="gbtn" data-gact="grid" title="재생 화면배열 — 모니터 분할 위치 선택">▦ 화면배열 · ${gridName(g)}</button></div>`+
     `<button class="group-del edit-only" data-gact="del">✕</button></div>`;
 }
 function render(){
@@ -901,7 +919,7 @@ function applyCanvasBg(bg){const dots='radial-gradient(circle at 1px 1px,#ffffff
 function setCanvasBg(bg){canvasBg=bg||null;applyCanvasBg(canvasBg);renderBgPop();markDirty()}
 function renderBgPop(){const el=document.getElementById('bgPop');if(!el)return;el.innerHTML=CANVAS_BGS.map(c=>`<button class="bgsw ${c?'':'def'} ${(canvasBg||null)===c?'on':''}" style="${c?`background:${c}`:''}" title="${c||'기본'}" onclick="setCanvasBg('${c||''}')"></button>`).join('')}
 function toggleBgPop(e){if(e)e.stopPropagation();const el=document.getElementById('bgPop'),b=document.getElementById('bgBtn');renderBgPop();const open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open');const sp=document.getElementById('supPop');if(sp&&sp.classList.contains('open')&&!e.target.closest('#supPop,#supBtn'))sp.classList.remove('open');const wp=document.getElementById('winPop');if(wp&&wp.classList.contains('open')&&!e.target.closest('#winPop,[data-nact="winset"]'))wp.classList.remove('open')});
+document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open');const sp=document.getElementById('supPop');if(sp&&sp.classList.contains('open')&&!e.target.closest('#supPop,#supBtn'))sp.classList.remove('open');const wp=document.getElementById('winPop');if(wp&&wp.classList.contains('open')&&!e.target.closest('#winPop,[data-nact="winset"]'))wp.classList.remove('open');const gpp=document.getElementById('grpPop');if(gpp&&gpp.classList.contains('open')&&!e.target.closest('#grpPop,[data-gact="grid"]'))gpp.classList.remove('open')});
 document.getElementById('winPop').addEventListener('click',e=>{
   const g=e.target.closest('.wp-g');if(g){wpGrid=g.dataset.grid.split('x').map(Number);renderWinPop();return;}
   const cell=e.target.closest('.wp-cell');if(cell){const c=wpGrid[0],r=wpGrid[1];setWin(+cell.dataset.mon,(+cell.dataset.cx)/c,(+cell.dataset.cy)/r,1/c,1/r);return;}
@@ -1080,8 +1098,43 @@ function addMiniCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r
 function addTextCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const nn=makeNode(p.x-40,p.y-14,'텍스트',"text");render();selectOnly(nn.id);markDirty()}
 function duplicateSelection(){if(!sel.length){toast('선택된 노드 없음');return}const ids=new Set(sel);const nodes=state.nodes.filter(n=>ids.has(n.id));const edges=state.edges.filter(e=>ids.has(e.from)&&ids.has(e.to));const off=26,map={};const nn=nodes.map(n=>{const c=JSON.parse(JSON.stringify(n));const id=uid('n');map[n.id]=id;c.id=id;c.x=(c.x||0)+off;c.y=(c.y||0)+off;return c});state.nodes.push(...nn);edges.forEach(e=>{const f=map[e.from],t=map[e.to];if(!f||!t)return;const c=JSON.parse(JSON.stringify(e));c.id=uid('e');c.from=f;c.to=t;state.edges.push(c)});render();sel=nn.map(n=>n.id);selEdge=null;applySel();paint();markDirty();toast('복제 · '+nn.length+'개')}
 function makeGroup(){if(sel.length<2)return;state.groups=state.groups||[];state.groups.push({id:uid('g'),nodes:[...sel],title:'그룹'});render();markDirty();toast('그룹 생성')}
-const GROUP_GRIDS=[null,[2,1],[2,2],[3,2],[3,3],[4,2],[4,3]];
-function cycleGroupGrid(gid){const g=G(gid);if(!g)return;const key=x=>x?`${x[0]}x${x[1]}`:'null';const cur=key(g.grid);let i=GROUP_GRIDS.findIndex(x=>key(x)===cur);g.grid=GROUP_GRIDS[(i+1)%GROUP_GRIDS.length];render();markDirty();toast('그리드: '+gridLabel(g));}
+const GROUP_LAYOUTS=[
+  {grid:null,name:'자동'},
+  {grid:[2,1],name:'좌우 2분할'},
+  {grid:[1,2],name:'상하 2분할'},
+  {grid:[2,2],name:'4분할'},
+  {grid:[3,2],name:'6분할'},
+  {grid:[4,2],name:'8분할'},
+  {grid:[3,3],name:'9분할'},
+];
+function gridName(g){if(!g||!g.grid)return'자동';const l=GROUP_LAYOUTS.find(x=>x.grid&&x.grid[0]===g.grid[0]&&x.grid[1]===g.grid[1]);return l?l.name:`${g.grid[0]}×${g.grid[1]}`;}
+let grpTarget=null;
+function openGroupGrid(gid,ev){
+  const g=G(gid);if(!g)return;grpTarget=gid;closeMenus('grpPop');
+  loadMonitors(()=>{
+    renderGroupGrid();
+    const el=document.getElementById('grpPop');if(!el)return;el.classList.add('open');
+    const b=ev&&ev.target?ev.target.closest('[data-gact]'):null;
+    if(b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.left=Math.max(8,Math.min(r.left,window.innerWidth-352))+'px';el.style.right='auto';}
+    else{el.style.top='96px';el.style.right='16px';el.style.left='auto';}
+  });
+}
+function renderGroupGrid(){
+  const el=document.getElementById('grpPop');if(!el)return;const g=G(grpTarget);if(!g)return;
+  const vids=g.nodes.map(N).filter(n=>n&&n.videoPath).length;
+  const mon=(MONITORS&&MONITORS[0])||{w:16,h:9};const ar=(mon.w/mon.h)||1.777;
+  const curKey=g.grid?`${g.grid[0]}x${g.grid[1]}`:'auto';
+  const cards=GROUP_LAYOUTS.map(L=>{
+    const key=L.grid?`${L.grid[0]}x${L.grid[1]}`:'auto';let inner;
+    if(L.grid){const c=L.grid[0],r=L.grid[1];let cells='';
+      for(let ri=0;ri<r;ri++)for(let ci=0;ci<c;ci++){const num=ri*c+ci+1;const on=(vids===0||num<=vids);cells+=`<span class="gl-cell${on?'':' dim'}">${num}</span>`;}
+      inner=`<div class="gl-mon" style="aspect-ratio:${ar};grid-template-columns:repeat(${c},1fr);grid-template-rows:repeat(${r},1fr)">${cells}</div>`;
+    }else inner=`<div class="gl-mon gl-auto" style="aspect-ratio:${ar}"><span>자동</span></div>`;
+    return `<button class="gl-card${key===curKey?' on':''}" data-grid="${key}" title="${L.name}">${inner}<span class="gl-name">${L.name}</span></button>`;
+  }).join('');
+  el.innerHTML=`<div class="gl-h">재생 화면배열<span class="gl-sub">영상 ${vids}개 · 기본 모니터 기준</span></div><div class="gl-grid">${cards}</div><div class="gl-note">번호=재생창이 뜨는 위치. 영상이 칸보다 많으면 자동으로 더 잘게 나눕니다.</div>`;
+}
+function setGroupGrid(key){const g=G(grpTarget);if(!g)return;g.grid=key==='auto'?null:key.split('x').map(Number);render();markDirty();renderGroupGrid();toast('화면배열: '+gridName(g));}
 function playGroup(gid){const g=G(gid);if(!g)return;
   const vids=g.nodes.map(N).filter(n=>n&&n.videoPath);
   if(!vids.length){toast('그룹에 동영상 노드가 없습니다');return}
@@ -1260,9 +1313,10 @@ world.addEventListener('click',e=>{
   if(gb){const gid=gb.closest('.group').dataset.gid,a=gb.dataset.gact;
     if(a==='del'){state.groups=state.groups.filter(g=>g.id!==gid);render();markDirty();toast('그룹 해제');}
     else if(a==='play'){playGroup(gid);}
-    else if(a==='grid'){cycleGroupGrid(gid);}
+    else if(a==='grid'){openGroupGrid(gid,e);}
     return;}
 });
+(function(){const gp=document.getElementById('grpPop');if(gp)gp.addEventListener('click',e=>{const c=e.target.closest('.gl-card');if(c)setGroupGrid(c.dataset.grid);});})();
 world.addEventListener('focusout',e=>{
   const f=e.target.dataset?.field;if(f){const id=e.target.closest('.node').dataset.id,n=N(id);if(n)n[f]=e.target.innerText.replace(/\u00a0/g,' ').trim();markDirty();return}
   const cr=e.target.dataset?.clip;if(cr==='range'){const id=e.target.closest('.node').dataset.id,n=N(id);if(n){const parts=e.target.innerText.split('~');const a=parseClock(parts[0]),b=parts.length>1?parseClock(parts[1]):null;const old=n.seekMs;if(a!=null)n.seekMs=a;n.endMs=b;markDirty();if(a!=null&&a!==old&&n.videoPath&&HELPER_OK)captureThumbURL(HELPER+"/file?path="+encodeURIComponent(n.videoPath),n.id,a/1000);render();}return}
@@ -1629,7 +1683,7 @@ function exportPNG(){const{svg,w,h}=buildSVG();const url=URL.createObjectURL(new
   img.onload=()=>{const sc=2,cv=document.createElement('canvas');cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);const cx=cv.getContext('2d');cx.scale(sc,sc);cx.drawImage(img,0,0);URL.revokeObjectURL(url);try{cv.toBlob(b=>{b?(_dl(b,'diagram.png'),toast('PNG 내보냄')):toast('PNG 변환 실패')},'image/png')}catch(err){toast('PNG 변환 실패')}};
   img.onerror=()=>{URL.revokeObjectURL(url);toast('PNG 변환 실패')};img.src=url}
 function toggleExportPop(e){if(e)e.stopPropagation();closeMenus('exPop');const el=document.getElementById('exPop'),b=document.getElementById('exBtn'),open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-function closeMenus(except){['exPop','bgPop','supPop','winPop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
+function closeMenus(except){['exPop','bgPop','supPop','winPop','grpPop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
 document.getElementById('impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
   if(d.images&&typeof d.images==='object')Object.assign(IMAGES,d.images);
   if(d.toolbar&&typeof d.toolbar==='object'){Object.assign(TOOLBAR,d.toolbar);renderToolbar()}
