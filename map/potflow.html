@@ -1210,8 +1210,10 @@ function setGroupGrid(key){const g=G(grpTarget);if(!g)return;if(!g.monGrids)g.mo
   else{g.monGrids[grpActiveMon]=key.split('x').map(Number);}
   markDirty();render();renderGroupGrid();}
 function playGroup(gid){const g=G(gid);if(!g)return;
-  const vids=g.nodes.map(N).filter(n=>n&&n.videoPath);
-  if(!vids.length){toast('그룹에 동영상 노드가 없습니다');return}
+  // 책갈피 부모(원본)는 제외 — 원본을 처음부터 또 재생하지 않고 책갈피/리프 노드만 재생
+  const hasChild=id=>g.nodes.some(nid=>{const c=N(nid);return c&&c.bmParent===id;});
+  const vids=g.nodes.map(N).filter(n=>n&&n.videoPath&&!hasChild(n.id));
+  if(!vids.length){toast('그룹에 재생할 노드가 없습니다');return}
   const mg=g.monGrids||{};const usedKeys=Object.keys(mg).map(Number).filter(k=>mg[k]).sort((a,b)=>a-b);
   let items;
   if(usedKeys.length){

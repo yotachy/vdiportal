@@ -302,29 +302,34 @@ def player_cmd(exe, path, seek=None):
         cmd.append("/seek=" + str(seek))
     return cmd
 
+def _embedded_thumb(embedded):
+    """PotPlayer 내장 썸네일 base64 → 매직바이트로 포맷 판별한 data URL. 인식 불가/너무 작으면 None(→ffmpeg 대체)."""
+    try:
+        raw = base64.b64decode(embedded + "=" * (-len(embedded) % 4))
+    except Exception:
+        return None
+    if len(raw) < 500:   # 너무 작으면 깨진 데이터로 보고 ffmpeg로 재생성
+        return None
+    if raw[:2] == b"\xff\xd8":
+        mime = "jpeg"
+    elif raw[:8] == b"\x89PNG\r\n\x1a\n":
+        mime = "png"
+    elif raw[:2] == b"BM":
+        mime = "bmp"
+    elif raw[:6] in (b"GIF87a", b"GIF89a"):
+        mime = "gif"
+    elif raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+        mime = "webp"
+    else:
+        return None   # 알 수 없는 포맷 → ffmpeg로
+    return "data:image/" + mime + ";base64," + base64.b64encode(raw).decode()
+
 def bookmark_thumb(video, ms, embedded):
     if embedded:
-        # PotPlayer 내장 썸네일 base64 — 포맷을 매직바이트로 판별해 올바른 MIME로(무조건 jpeg 선언 시 PNG/BMP는 액박)
-        try:
-            raw = base64.b64decode(embedded + "=" * (-len(embedded) % 4))
-        except Exception:
-            return None
-        if len(raw) < 8:
-            return None
-        if raw[:2] == b"\xff\xd8":
-            mime = "jpeg"
-        elif raw[:8] == b"\x89PNG\r\n\x1a\n":
-            mime = "png"
-        elif raw[:2] == b"BM":
-            mime = "bmp"
-        elif raw[:6] in (b"GIF87a", b"GIF89a"):
-            mime = "gif"
-        elif raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
-            mime = "webp"
-        else:
-            mime = "jpeg"
-        return "data:image/" + mime + ";base64," + base64.b64encode(raw).decode()
-    ff = find_ffmpeg()
+        du = _embedded_thumb(embedded)
+        if du:
+            return du   # 유효한 내장 썸네일이면 사용(빠름)
+    ff = find_ffmpeg()   # 내장 없거나 깨짐 → 해당 지점을 ffmpeg로 생성
     if not ff or not os.path.isfile(video):
         return None
     os.makedirs(THUMB_DIR, exist_ok=True)
