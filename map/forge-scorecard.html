@@ -585,7 +585,10 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   const cone ={x:694,y:288,r:14,c:gold,lab:"예측 콘",sub:"×0.75 · 국면정밀",pl:"right"};
   const cal  ={x:880,y:230,r:13,c:bull,lab:"캘리브레이션",sub:"ECE 1.9%",pl:"right"};
   const out  ={x:928,y:474,r:19,c:gold,lab:"판정 출력",sub:"국면 · R:R · 목표",pl:"below"};
-  const risk =[{x:706,y:398,r:11,c:bull,lab:"변동성 예보",sub:"69% · 3지평",pl:"right"},{x:706,y:456,r:11,c:bull,lab:"낙폭 위험곡선",sub:"68% · 3지평",pl:"right"},{x:706,y:514,r:11,c:bull,lab:"이익목표 도달",sub:"64%",pl:"right"},{x:706,y:572,r:11,c:bull,lab:"급변 경보",sub:"65% · 3지평",pl:"right"},{x:706,y:630,r:11,c:"#c98a5a",lab:"갭 경보",sub:"63% · 3지평·주식",pl:"right"}];
+  // 리스크 노드 = 엔진 검증 축(validatedAxes)에서 생성 → 축 추가/추세지속 자동 반영. 개수에 맞춰 세로 분배.
+  const RTOP=398, RBOT=640, _rn=AXES.length, RSTEP=_rn>1?(RBOT-RTOP)/(_rn-1):0;
+  const risk = AXES.map((a,i)=>({ x:706, y:Math.round(RTOP+i*RSTEP), r:11,
+    c: a.stock ? "#c98a5a" : bull, lab: a.lab, sub: a.acc+"%"+(a.hz?" · "+a.hz:"")+(a.stock?"·주식":""), pl:"right", ax:a }));
   const named=[price,vol,drift,dir,cone,cal,out,...risk];
   // ── 30 지표 뉴런(6군) ──
   const CL=[{n:"추세",k:7,c:gold},{n:"모멘텀",k:8,c:"#e8955c"},{n:"변동성",k:4,c:"#7aa6cc"},{n:"거래량",k:4,c:eth,vol:1},{n:"구조",k:5,c:"#b58cf0"},{n:"주기",k:2,c:"#5ec8b6"}];
