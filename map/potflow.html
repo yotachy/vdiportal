@@ -242,11 +242,11 @@
   .rsz{position:absolute;z-index:6;opacity:0}
   .rsz.e{top:20px;bottom:16px;right:-6px;width:13px;cursor:ew-resize}
   .rsz.s{left:20px;right:16px;bottom:-6px;height:13px;cursor:ns-resize}
-  .rsz.se{right:-7px;bottom:-7px;width:22px;height:22px;cursor:nwse-resize}
+  .rsz.se{right:-9px;bottom:-9px;width:32px;height:32px;cursor:nwse-resize}
   .node:hover .rsz,.node.selected .rsz{opacity:1}
   .rsz.e::before{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:3px;height:26px;border-radius:2px;background:var(--gold-dim)}
   .rsz.s::before{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);height:3px;width:26px;border-radius:2px;background:var(--gold-dim)}
-  .rsz.se::after{content:"";position:absolute;right:5px;bottom:5px;width:9px;height:9px;border-right:2.5px solid var(--gold);border-bottom:2.5px solid var(--gold);border-radius:0 0 4px 0}
+  .rsz.se::after{content:"";position:absolute;right:6px;bottom:6px;width:12px;height:12px;border-right:3px solid var(--gold);border-bottom:3px solid var(--gold);border-radius:0 0 5px 0}
   .rsz:hover.e::before,.rsz:hover.s::before{background:var(--gold)}
   .node.resizing{transition:none}
   .port{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--raised);border:2px solid var(--gold-dim);cursor:crosshair;z-index:5;opacity:0;transition:opacity .12s}
