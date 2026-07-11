@@ -189,12 +189,22 @@
 
   /* group box */
   .group{position:absolute;border:1.5px dashed var(--gold-dim);border-radius:14px;background:rgba(232,180,99,.04);pointer-events:none}
-  .group-label{position:absolute;top:-11px;left:14px;font-size:11.5px;font-weight:700;color:var(--gold);background:#0e1116;padding:1px 8px;border-radius:6px;border:1px solid var(--gold-dim);pointer-events:auto;outline:none;font-family:var(--mono)}
-  .group-del{position:absolute;top:-12px;right:10px;width:20px;height:20px;border-radius:6px;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);cursor:pointer;font-size:11px;display:grid;place-items:center;pointer-events:auto}
-  .group-del:hover{color:var(--red);border-color:var(--red)}
-  .group-bar{position:absolute;top:-13px;right:38px;display:flex;gap:4px;pointer-events:auto}
-  .gbtn{font-size:10.5px;font-weight:700;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);border-radius:6px;padding:1px 7px;cursor:pointer;white-space:nowrap}
+  .group-label{position:absolute;top:-16px;left:16px;font-size:14px;font-weight:800;color:var(--gold);background:#0e1116;padding:4px 13px;border-radius:9px;border:1px solid var(--gold-dim);pointer-events:auto;outline:none;cursor:text;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
+  .group-label:hover,.group-label:focus{background:#171d25;border-color:var(--gold)}
+  .group-bar{position:absolute;top:-18px;right:16px;display:flex;gap:6px;pointer-events:auto;align-items:center}
+  .gbtn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;background:#0e1116;border:1px solid var(--gold-dim);color:var(--gold);border-radius:9px;padding:6px 12px;cursor:pointer;white-space:nowrap;transition:.12s}
   .gbtn:hover{background:var(--gold);color:#1a1206}
+  .gbtn-del{padding:6px 11px;font-size:13px}
+  .gbtn-del:hover{background:var(--red);color:#fff;border-color:var(--red)}
+  .gg-wrap{display:inline-flex;align-items:center;gap:2px}
+  .gg-mon{display:inline-grid;gap:1.5px;width:26px;height:16px;background:#0b0f14;border:1px solid var(--gold-dim);border-radius:3px;padding:1.5px;vertical-align:middle;box-sizing:border-box}
+  .gg-mon i{background:var(--gold);border-radius:1px}
+  .gg-auto{display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--gold)}
+  .gg-plus{color:var(--gold-dim);font-size:10px;font-weight:800}
+  .gbtn:hover .gg-mon{border-color:#1a1206}
+  .gbtn:hover .gg-mon i,.gbtn:hover .gg-auto{background:transparent;color:#1a1206}
+  .gbtn:hover .gg-mon i{background:#1a1206}
+  .gbtn:hover .gg-plus{color:#1a1206}
 
   .node{position:absolute;width:246px;background:var(--surface);border:1.5px solid var(--line);border-radius:13px;box-shadow:0 12px 30px -18px #000;cursor:grab;transition:border-color .12s,box-shadow .16s,transform .13s cubic-bezier(.34,1.35,.5,1)}
   .node.mini{width:150px}
@@ -326,19 +336,19 @@
   .wp-grids{display:flex;flex-wrap:wrap;gap:4px}
   .wp-g{font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;cursor:pointer;color:var(--txt);background:var(--surface)}
   .wp-g.on{border-color:var(--gold);color:var(--gold)}
-  .grppop{min-width:312px;max-width:344px;padding:12px;gap:10px}
-  .gl-h{font-size:13px;font-weight:800;color:var(--txt);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-  .gl-sub{font-size:10.5px;font-weight:600;color:var(--faint)}
-  .gl-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  .gl-card{display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 5px 6px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--eth);cursor:pointer;font:inherit;transition:.12s}
+  .grppop{min-width:404px;max-width:448px;padding:15px;gap:12px}
+  .gl-h{font-size:14.5px;font-weight:800;color:var(--txt);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .gl-sub{font-size:11px;font-weight:600;color:var(--faint)}
+  .gl-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .gl-card{display:flex;flex-direction:column;align-items:center;gap:6px;padding:9px 6px 7px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--eth);cursor:pointer;font:inherit;transition:.12s}
   .gl-card:hover{border-color:var(--gold-dim);color:var(--txt)}
   .gl-card.on{border-color:var(--gold);background:rgba(232,180,99,.1);color:var(--gold)}
   .gl-mon{width:100%;display:grid;gap:2px;background:#0b0f14;border:1.5px solid #2a323d;border-radius:4px;padding:2px;box-sizing:border-box}
   .gl-card:hover .gl-mon,.gl-card.on .gl-mon{border-color:var(--gold-dim)}
-  .gl-cell{display:flex;align-items:center;justify-content:center;background:rgba(232,180,99,.22);border-radius:2px;font-size:9px;font-weight:800;color:var(--gold);min-width:0;min-height:8px}
+  .gl-cell{display:flex;align-items:center;justify-content:center;background:rgba(232,180,99,.22);border-radius:2px;font-size:11px;font-weight:800;color:var(--gold);min-width:0;min-height:15px}
   .gl-cell.dim{background:#161d26;color:var(--faint)}
   .gl-auto{display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:11px;font-weight:800;background:repeating-linear-gradient(-45deg,#0b0f14,#0b0f14 5px,#12181f 5px,#12181f 10px)}
-  .gl-name{font-size:10.5px;font-weight:700;text-align:center;line-height:1.2}
+  .gl-name{font-size:11.5px;font-weight:700;text-align:center;line-height:1.2}
   .gl-note{font-size:10px;color:var(--faint);line-height:1.5}
   .gl-note2{font-size:10px;color:var(--gold);font-weight:600;margin-top:-3px}
   .gl-mons{position:relative;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
@@ -349,7 +359,7 @@
   .gl-pmlbl{position:absolute;top:1px;left:3px;font-size:9px;font-weight:800;z-index:2;color:var(--eth)}
   .gl-pmon.active .gl-pmlbl,.gl-pmon.used .gl-pmlbl{color:var(--gold)}
   .gl-offmon{display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:13px;font-weight:800;background:#12181f}
-  .gl-pcell{position:absolute;box-sizing:border-box;border:1px solid rgba(232,180,99,.55);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:var(--gold);background:rgba(232,180,99,.16)}
+  .gl-pcell{position:absolute;box-sizing:border-box;border:1px solid rgba(232,180,99,.55);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--gold);background:rgba(232,180,99,.16)}
   .gl-pcell.dim{border-color:#333b45;color:var(--faint);background:transparent}
 
   body.view .edit-only{display:none!important}
@@ -808,11 +818,18 @@ function nodeHTML(n){
       <div class="n-desc" contenteditable="${ce()}" data-field="desc">${esc(n.desc)}</div>${media}</div>${rsz}${ports}</div>`;
 }
 function gridLabel(g){return g.grid?`${g.grid[0]}×${g.grid[1]}`:'자동';}
+function groupGridGlyph(g){
+  const mg=(g&&g.monGrids)||{};const keys=Object.keys(mg).map(Number).filter(k=>mg[k]).sort((a,b)=>a-b);
+  if(!keys.length)return `<span class="gg-mon gg-auto" title="자동">A</span>`;
+  return keys.map(k=>{const c=mg[k][0],r=mg[k][1];let cells='';for(let i=0;i<c*r;i++)cells+='<i></i>';return `<span class="gg-mon" style="grid-template-columns:repeat(${c},1fr);grid-template-rows:repeat(${r},1fr)">${cells}</span>`;}).join('<span class="gg-plus">+</span>');
+}
 function groupHTML(g){
-  return `<div class="group" data-gid="${g.id}"><div class="group-label" contenteditable="${ce()}" data-gfield="title">${esc(g.title)}</div>`+
-    `<div class="group-bar edit-only"><button class="gbtn" data-gact="play" title="그룹 일괄 재생(그리드 배치)">▶ 일괄재생</button>`+
-    `<button class="gbtn" data-gact="grid" title="재생 화면배열 — 모니터 분할 위치 선택">▦ 화면배열 · ${gridName(g)}</button></div>`+
-    `<button class="group-del edit-only" data-gact="del">✕</button></div>`;
+  return `<div class="group" data-gid="${g.id}"><div class="group-label" contenteditable="${ce()}" data-gfield="title" title="클릭해서 그룹 이름 변경">${esc(g.title)}</div>`+
+    `<div class="group-bar edit-only">`+
+      `<button class="gbtn" data-gact="play" title="그룹 전체를 화면배열대로 동시 재생">▶ 일괄재생</button>`+
+      `<button class="gbtn gbtn-grid" data-gact="grid" title="재생 화면배열 — 모니터·분할 지정">▦ 화면배열 <span class="gg-wrap">${groupGridGlyph(g)}</span></button>`+
+      `<button class="gbtn gbtn-del" data-gact="del" title="그룹 해제">✕</button>`+
+    `</div></div>`;
 }
 function render(){
   [...world.querySelectorAll('.node,.group')].forEach(e=>e.remove());
@@ -1149,7 +1166,7 @@ function renderGroupGrid(){
   const ar=(mons[grpActiveMon].w/mons[grpActiveMon].h)||1.777;
   // 실제 모니터 배치 맵 — 클릭 선택 + 각 모니터의 분할·누적 번호 미리보기
   let a=1e9,b=1e9,c2=-1e9,d2=-1e9;mons.forEach(m=>{a=Math.min(a,m.x);b=Math.min(b,m.y);c2=Math.max(c2,m.x+m.w);d2=Math.max(d2,m.y+m.h);});
-  const box={x:a,y:b,w:Math.max(1,c2-a),h:Math.max(1,d2-b)};const MW=286,MH=70,s=Math.min(MW/box.w,MH/box.h)*0.9,ox=(MW-box.w*s)/2,oy=(MH-box.h*s)/2;
+  const box={x:a,y:b,w:Math.max(1,c2-a),h:Math.max(1,d2-b)};const MW=372,MH=100,s=Math.min(MW/box.w,MH/box.h)*0.92,ox=(MW-box.w*s)/2,oy=(MH-box.h*s)/2;
   let mapHtml='';
   mons.forEach((m,i)=>{const L=ox+(m.x-box.x)*s,T=oy+(m.y-box.y)*s,w=m.w*s,h=m.h*s;let cells='';
     if(mg[i]){const c=mg[i][0],r=mg[i][1];for(let ri=0;ri<r;ri++)for(let ci=0;ci<c;ci++){const num=startNum[i]+ri*c+ci+1;const on=(vids===0||num<=vids);cells+=`<span class="gl-pcell${on?'':' dim'}" style="left:${ci/c*100}%;top:${ri/r*100}%;width:${100/c}%;height:${100/r}%">${num}</span>`;}}
