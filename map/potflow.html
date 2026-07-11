@@ -340,6 +340,15 @@
   .gl-auto{display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:11px;font-weight:800;background:repeating-linear-gradient(-45deg,#0b0f14,#0b0f14 5px,#12181f 5px,#12181f 10px)}
   .gl-name{font-size:10.5px;font-weight:700;text-align:center;line-height:1.2}
   .gl-note{font-size:10px;color:var(--faint);line-height:1.5}
+  .gl-note2{font-size:10px;color:var(--gold);font-weight:600;margin-top:-3px}
+  .gl-mons{position:relative;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .gl-pmon{position:absolute;box-sizing:border-box;border:1.5px solid #2a323d;background:var(--raised2);color:var(--faint);cursor:pointer;transition:border-color .1s,background .1s}
+  .gl-pmon:hover{border-color:var(--gold-dim)}
+  .gl-pmon.on{border-color:var(--gold);background:rgba(232,180,99,.07)}
+  .gl-pmlbl{position:absolute;top:1px;left:3px;font-size:9px;font-weight:800;z-index:2;color:var(--eth)}
+  .gl-pmon.on .gl-pmlbl{color:var(--gold)}
+  .gl-pcell{position:absolute;box-sizing:border-box;border:1px solid rgba(232,180,99,.55);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:var(--gold);background:rgba(232,180,99,.16)}
+  .gl-pcell.dim{border-color:#333b45;color:var(--faint);background:transparent}
 
   body.view .edit-only{display:none!important}
   body.view .node{cursor:default}body.view .n-title,body.view .n-desc{cursor:default}
@@ -1122,8 +1131,17 @@ function openGroupGrid(gid,ev){
 function renderGroupGrid(){
   const el=document.getElementById('grpPop');if(!el)return;const g=G(grpTarget);if(!g)return;
   const vids=g.nodes.map(N).filter(n=>n&&n.videoPath).length;
-  const mon=(MONITORS&&MONITORS[0])||{w:16,h:9};const ar=(mon.w/mon.h)||1.777;
+  const mons=(MONITORS&&MONITORS.length)?MONITORS:[{x:0,y:0,w:1920,h:1080,primary:true}];
+  let selMon=g.gridMon||0;if(selMon>=mons.length)selMon=0;
+  const ar=(mons[selMon].w/mons[selMon].h)||1.777;
   const curKey=g.grid?`${g.grid[0]}x${g.grid[1]}`:'auto';
+  // 실제 모니터 배치 맵 — 선택 + 현재 분할 미리보기
+  let a=1e9,b=1e9,c2=-1e9,d2=-1e9;mons.forEach(m=>{a=Math.min(a,m.x);b=Math.min(b,m.y);c2=Math.max(c2,m.x+m.w);d2=Math.max(d2,m.y+m.h);});
+  const box={x:a,y:b,w:Math.max(1,c2-a),h:Math.max(1,d2-b)};const MW=286,MH=68,s=Math.min(MW/box.w,MH/box.h)*0.9,ox=(MW-box.w*s)/2,oy=(MH-box.h*s)/2;
+  let mapHtml='';
+  mons.forEach((m,i)=>{const L=ox+(m.x-box.x)*s,T=oy+(m.y-box.y)*s,w=m.w*s,h=m.h*s;let cells='';
+    if(i===selMon&&g.grid){const c=g.grid[0],r=g.grid[1];for(let ri=0;ri<r;ri++)for(let ci=0;ci<c;ci++){const num=ri*c+ci+1;const on=(vids===0||num<=vids);cells+=`<span class="gl-pcell${on?'':' dim'}" style="left:${ci/c*100}%;top:${ri/r*100}%;width:${100/c}%;height:${100/r}%">${num}</span>`;}}
+    mapHtml+=`<div class="gl-pmon${i===selMon?' on':''}" data-mon="${i}" title="모니터 ${i+1}${m.primary?' (주모니터)':''}" style="left:${L}px;top:${T}px;width:${w}px;height:${h}px"><span class="gl-pmlbl">${i+1}${m.primary?'★':''}</span>${cells}</div>`;});
   const cards=GROUP_LAYOUTS.map(L=>{
     const key=L.grid?`${L.grid[0]}x${L.grid[1]}`:'auto';let inner;
     if(L.grid){const c=L.grid[0],r=L.grid[1];let cells='';
@@ -1132,8 +1150,12 @@ function renderGroupGrid(){
     }else inner=`<div class="gl-mon gl-auto" style="aspect-ratio:${ar}"><span>자동</span></div>`;
     return `<button class="gl-card${key===curKey?' on':''}" data-grid="${key}" title="${L.name}">${inner}<span class="gl-name">${L.name}</span></button>`;
   }).join('');
-  el.innerHTML=`<div class="gl-h">재생 화면배열<span class="gl-sub">영상 ${vids}개 · 기본 모니터 기준</span></div><div class="gl-grid">${cards}</div><div class="gl-note">번호=재생창이 뜨는 위치. 영상이 칸보다 많으면 자동으로 더 잘게 나눕니다.</div>`;
+  el.innerHTML=`<div class="gl-h">재생 화면배열<span class="gl-sub">모니터 ${selMon+1}${mons.length>1?'/'+mons.length:''} · 영상 ${vids}개</span></div>`
+    +`<div class="gl-mons" style="height:${MH}px">${mapHtml}</div>`
+    +(mons.length>1?`<div class="gl-note2">▲ 모니터를 클릭해 선택</div>`:'')
+    +`<div class="gl-grid">${cards}</div><div class="gl-note">번호=재생창이 뜨는 위치. 영상이 칸보다 많으면 자동으로 더 잘게 나눕니다.</div>`;
 }
+function setGroupMon(i){const g=G(grpTarget);if(!g)return;g.gridMon=i;markDirty();renderGroupGrid();}
 function setGroupGrid(key){const g=G(grpTarget);if(!g)return;g.grid=key==='auto'?null:key.split('x').map(Number);render();markDirty();renderGroupGrid();toast('화면배열: '+gridName(g));}
 function playGroup(gid){const g=G(gid);if(!g)return;
   const vids=g.nodes.map(N).filter(n=>n&&n.videoPath);
@@ -1141,8 +1163,9 @@ function playGroup(gid){const g=G(gid);if(!g)return;
   let c,r;
   if(g.grid&&vids.length<=g.grid[0]*g.grid[1]){c=g.grid[0];r=g.grid[1];}
   else{c=Math.ceil(Math.sqrt(vids.length));r=Math.ceil(vids.length/c);}
+  const gm=g.gridMon||0;
   const items=vids.map((n,i)=>{const col=i%c,row=Math.floor(i/c);
-    return {path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:{mon:0,x:col/c,y:row/r,w:1/c,h:1/r}};});
+    return {path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:{mon:gm,x:col/c,y:row/r,w:1/c,h:1/r}};});
   playItems(items);
 }
 
@@ -1316,7 +1339,7 @@ world.addEventListener('click',e=>{
     else if(a==='grid'){openGroupGrid(gid,e);}
     return;}
 });
-(function(){const gp=document.getElementById('grpPop');if(gp)gp.addEventListener('click',e=>{const c=e.target.closest('.gl-card');if(c)setGroupGrid(c.dataset.grid);});})();
+(function(){const gp=document.getElementById('grpPop');if(gp)gp.addEventListener('click',e=>{const mp=e.target.closest('.gl-pmon');if(mp){setGroupMon(+mp.dataset.mon);return;}const c=e.target.closest('.gl-card');if(c)setGroupGrid(c.dataset.grid);});})();
 world.addEventListener('focusout',e=>{
   const f=e.target.dataset?.field;if(f){const id=e.target.closest('.node').dataset.id,n=N(id);if(n)n[f]=e.target.innerText.replace(/\u00a0/g,' ').trim();markDirty();return}
   const cr=e.target.dataset?.clip;if(cr==='range'){const id=e.target.closest('.node').dataset.id,n=N(id);if(n){const parts=e.target.innerText.split('~');const a=parseClock(parts[0]),b=parts.length>1?parseClock(parts[1]):null;const old=n.seekMs;if(a!=null)n.seekMs=a;n.endMs=b;markDirty();if(a!=null&&a!==old&&n.videoPath&&HELPER_OK)captureThumbURL(HELPER+"/file?path="+encodeURIComponent(n.videoPath),n.id,a/1000);render();}return}
