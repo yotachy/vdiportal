@@ -506,51 +506,78 @@ def build_play_rects(valid, monitors):
             rects.append((prim["x"] + a[0], prim["y"] + a[1], a[2], a[3]))
     return rects
 
-def arrange_windows(pids, rects):
+def _player_windows():
+    """현재 화면의 PotPlayer 본 재생창 hwnd 목록. 실행파일명(potplayer)으로 판별 —
+    PotPlayer가 창을 실행 프로세스와 다른 PID(런처→브로커)로 띄워도 확실히 잡는다."""
+    out = []
     try:
-        import ctypes, time
+        import ctypes
         from ctypes import wintypes
-        u = ctypes.windll.user32
-        # 핸들(HWND)은 64비트 포인터 — argtypes를 c_void_p로 지정하고 c_void_p로 감싸 OverflowError를 피한다.
+        u = ctypes.windll.user32; k = ctypes.windll.kernel32
         u.IsWindowVisible.argtypes = [ctypes.c_void_p]; u.IsWindowVisible.restype = ctypes.c_int
-        u.GetWindowThreadProcessId.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.DWORD)]; u.GetWindowThreadProcessId.restype = wintypes.DWORD
-        u.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]; u.ShowWindow.restype = ctypes.c_int
-        u.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]; u.SetWindowPos.restype = ctypes.c_int
-        u.GetWindowRect.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.RECT)]; u.GetWindowRect.restype = ctypes.c_int
-        u.GetWindowTextLengthW.argtypes = [ctypes.c_void_p]; u.GetWindowTextLengthW.restype = ctypes.c_int
         u.GetWindow.argtypes = [ctypes.c_void_p, ctypes.c_uint]; u.GetWindow.restype = ctypes.c_void_p
+        u.GetWindowThreadProcessId.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.DWORD)]; u.GetWindowThreadProcessId.restype = wintypes.DWORD
+        u.GetWindowTextLengthW.argtypes = [ctypes.c_void_p]; u.GetWindowTextLengthW.restype = ctypes.c_int
+        u.GetWindowRect.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.RECT)]; u.GetWindowRect.restype = ctypes.c_int
+        k.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]; k.OpenProcess.restype = wintypes.HANDLE
+        k.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]; k.QueryFullProcessImageNameW.restype = wintypes.BOOL
+        k.CloseHandle.argtypes = [wintypes.HANDLE]; k.CloseHandle.restype = wintypes.BOOL
         WNDENUM = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
         u.EnumWindows.argtypes = [WNDENUM, ctypes.c_void_p]; u.EnumWindows.restype = ctypes.c_int
-        our = set(pids)
-        assign = {}   # hwnd -> rect index (창마다 고유 rect — pid 공유해도 각각 다른 위치)
-        for _ in range(24):   # ~12초간 반복 — 늦게 뜨는 창 배정 + PotPlayer 자동 리사이즈 무력화
-            time.sleep(0.5)
-            found = []
-            def cb(hwnd, _):
-                if not u.IsWindowVisible(ctypes.c_void_p(hwnd)):
-                    return 1
-                if u.GetWindow(ctypes.c_void_p(hwnd), 4):   # GW_OWNER=4 — 소유창(대화상자/툴팁)은 제외
-                    return 1
-                pid = wintypes.DWORD()
-                u.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(pid))
-                if pid.value not in our:
-                    return 1
-                if u.GetWindowTextLengthW(ctypes.c_void_p(hwnd)) <= 0:
-                    return 1
-                r = wintypes.RECT()
-                u.GetWindowRect(ctypes.c_void_p(hwnd), ctypes.byref(r))
-                if (r.right - r.left) < 200 or (r.bottom - r.top) < 150:   # 본 재생창만(작은 보조창 제외)
-                    return 1
-                found.append(hwnd)
+        cache = {}
+        def exe_of(pid):
+            if pid in cache:
+                return cache[pid]
+            nm = ""
+            h = k.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+            if h:
+                try:
+                    buf = ctypes.create_unicode_buffer(1024); sz = wintypes.DWORD(1024)
+                    if k.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(sz)):
+                        nm = os.path.basename(buf.value).lower()
+                finally:
+                    k.CloseHandle(h)
+            cache[pid] = nm; return nm
+        def cb(hwnd, _):
+            if not u.IsWindowVisible(ctypes.c_void_p(hwnd)):
                 return 1
-            u.EnumWindows(WNDENUM(cb), None)
-            for hwnd in found:                       # 새 창에 남은 rect를 발견 순서대로 배정
+            if u.GetWindow(ctypes.c_void_p(hwnd), 4):   # GW_OWNER=4 — 소유창(대화상자/툴팁) 제외
+                return 1
+            if u.GetWindowTextLengthW(ctypes.c_void_p(hwnd)) <= 0:
+                return 1
+            r = wintypes.RECT(); u.GetWindowRect(ctypes.c_void_p(hwnd), ctypes.byref(r))
+            if (r.right - r.left) < 200 or (r.bottom - r.top) < 150:   # 본 재생창만
+                return 1
+            pid = wintypes.DWORD(); u.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(pid))
+            if "potplayer" in exe_of(pid.value):
+                out.append(int(hwnd))
+            return 1
+        u.EnumWindows(WNDENUM(cb), None)
+    except Exception:
+        pass
+    return out
+
+
+def arrange_windows(rects, pre):
+    """새로 뜬 PotPlayer 창들(pre 스냅샷 제외)에 rect를 발견순으로 고유 배정하고 ~12초간 재적용."""
+    try:
+        import ctypes, time
+        u = ctypes.windll.user32
+        u.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]; u.ShowWindow.restype = ctypes.c_int
+        u.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]; u.SetWindowPos.restype = ctypes.c_int
+        preset = set(pre or [])
+        assign = {}   # hwnd -> rect index (창마다 고유 rect)
+        for _ in range(24):
+            time.sleep(0.5)
+            for hwnd in _player_windows():
+                if hwnd in preset:
+                    continue                          # 재생 전부터 떠 있던 창은 건드리지 않음
                 if hwnd not in assign:
                     used = set(assign.values())
                     nxt = next((i for i in range(len(rects)) if i not in used), None)
                     if nxt is not None:
                         assign[hwnd] = nxt
-            for hwnd, idx in assign.items():         # 배정된 모든 창 위치 재적용
+            for hwnd, idx in assign.items():
                 x, y, w, h = rects[idx]
                 u.ShowWindow(ctypes.c_void_p(hwnd), 9)   # SW_RESTORE
                 u.SetWindowPos(ctypes.c_void_p(hwnd), None, x, y, w, h, 0x0040)   # SWP_SHOWWINDOW
@@ -577,16 +604,16 @@ def launch_players(items):
         return {"ok": False, "error": "no valid videos"}
     monitors = _monitors()
     rects = build_play_rects(valid, monitors)
+    pre = _player_windows() if os.name == "nt" else []   # 재생 전부터 떠 있던 PotPlayer 창(제외 대상)
     procs = []
     for it in valid:
         try:
             procs.append(subprocess.Popen(player_cmd(exe, it["path"], it.get("seek"))))
         except Exception:
             pass
-    pids = [pr.pid for pr in procs]
-    need = (len(pids) > 1) or any(isinstance(it.get("win"), dict) for it in valid)
-    if os.name == "nt" and pids and need:
-        threading.Thread(target=arrange_windows, args=(pids, rects), daemon=True).start()
+    need = (len(valid) > 1) or any(isinstance(it.get("win"), dict) for it in valid)
+    if os.name == "nt" and procs and need:
+        threading.Thread(target=arrange_windows, args=(rects, pre), daemon=True).start()
     token = _register_play(procs, valid[0]["path"] if len(valid) == 1 else None)
     return {"ok": True, "launched": len(procs), "token": token}
 
