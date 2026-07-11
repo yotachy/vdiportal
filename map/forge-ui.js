@@ -258,7 +258,8 @@
       b.style.display = mobile ? "inline-flex" : "none"; b.classList.toggle("on", !_chartLock);
       const icoMove = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3"/><path d="M2 12h20M12 2v20"/></svg>';
       const icoScroll = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8l4-4 4 4M8 16l4 4 4-4"/></svg>';
-      b.innerHTML = _chartLock ? (icoMove + "<span>조작</span>") : (icoScroll + "<span>스크롤</span>");
+      // 라벨=탭하면 일어나는 동작. 잠금(스크롤 우선)=탭 시 차트 조작 진입 / 조작 중=탭 시 페이지 스크롤 복귀
+      b.innerHTML = _chartLock ? (icoMove + "<span>차트 조작</span>") : (icoScroll + "<span>페이지 스크롤</span>");
     }
   }
   function toggleChartLock() { _chartLock = !_chartLock; applyChartLock(); if (typeof bToast === "function") bToast(_chartLock ? "스크롤 모드 — 페이지 이동" : "차트 조작 모드 — 드래그=팬·축, 두 손가락=줌"); }

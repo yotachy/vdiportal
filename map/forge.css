@@ -1413,9 +1413,14 @@
     .fcv-viz-lab b{font-size:11px}
     /* 차트 조작 버튼: 우측=가격축·하단=시간축을 가리지 않도록 좌측 하단에 모음(서로/축 겹침 해소).
        조작(스크롤 토글) 아래, A/L 그 위 — 좌측 정렬(가격 라벨은 우측이라 안 가림·시간 라벨 위). 터치 타깃 확대. */
-    .fc-lock{top:auto;bottom:30px;left:8px;right:auto;padding:7px 12px;font-size:12px;box-shadow:0 3px 14px rgba(0,0,0,.55)}
-    .fc-axis-btns{top:auto;bottom:68px;left:8px;right:auto;gap:6px}
-    .fc-axis-btn{width:32px;height:32px;font-size:13.5px;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+    /* 조작 버튼: 크고 뚜렷하게(잘 보이게). 기본=골드 아웃라인, 조작 중=골드 채움. 큰 터치 타깃 */
+    .fc-lock{top:auto;bottom:26px;left:8px;right:auto;padding:12px 18px;font-size:14.5px;font-weight:800;gap:9px;
+      border-radius:13px;border:1.5px solid var(--gold);color:var(--gold);background:rgba(9,12,17,.94);
+      min-height:46px;box-shadow:0 5px 20px rgba(0,0,0,.6)}
+    .fc-lock svg{width:19px;height:19px}
+    .fc-lock.on{border-color:var(--gold);color:#1a1206;background:var(--gold);box-shadow:0 5px 22px rgba(232,180,99,.5)}
+    .fc-axis-btns{top:auto;bottom:84px;left:8px;right:auto;gap:6px}
+    .fc-axis-btn{width:34px;height:34px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.5)}
     /* 범례: 조작 버튼이 좌하단으로 이동 → 좌상단 전폭 사용 가능 */
     .fc-legend{left:8px;top:8px;max-width:calc(100% - 16px);gap:3px 9px;padding:5px 8px;font-size:10.5px}
     .fc-leg-item{font-size:10.5px;gap:5px}
