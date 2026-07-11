@@ -25,3 +25,4 @@ forge_earn_cache_*.json
 # 실적 검증 데이터(yfinance 수집·대용량) — 재수집 가능
 backtest/earn-ohlc.json
 backtest/earnings-dates.json
+backtest/earn-surprise.json
