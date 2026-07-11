@@ -520,7 +520,7 @@
       <div class="field"><label for="fNote">메모 (선택)</label><input id="fNote" type="text" placeholder="예) 250주 / $9,000 / 분당" maxlength="60"></div>
       <div class="inc-row">
         <label class="chk"><input type="checkbox" id="fInclude" checked> 자산 합계에 포함</label>
-        <span class="sold-wrap" id="soldWrap">매도한 수량 <input id="fSoldQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"> 주</span>
+        <span class="sold-wrap" id="soldWrap">합계 포함 수량 <input id="fInclQty" type="number" min="0" step="1" inputmode="numeric" placeholder="전량"> 주</span>
       </div>
       <div class="sold-hint" id="soldHint"></div>
     </div>
@@ -572,9 +572,10 @@ const DEFAULT_DATA={
 let data;
 function normalizeItem(it){ if(!it.id) it.id=genId(); it.amount=Number(it.amount)||0; if(!catById(it.cat)) it.cat="etc"; it.include=it.include!==false; if(it.owner==null) it.owner=""; if(it.inst==null) it.inst=""; if(it.ticker==null) it.ticker=""; it.qty=Number(it.qty)||0; it.price=Number(it.price)||0; it.cur=it.cur==="USD"?"USD":"KRW";
   if(isStockCat(it.cat)){
-    if(it.soldQty!=null&&it.soldQty!==""&&isFinite(Number(it.soldQty))){ it.soldQty=Math.max(0,Math.min(Math.round(Number(it.soldQty)),it.qty)); if(it.soldQty<=0) delete it.soldQty; }
-    else if(it.incQty!=null&&it.incQty!==""&&isFinite(Number(it.incQty))){ const s=it.qty-Math.max(0,Math.min(Math.round(Number(it.incQty)),it.qty)); if(s>0) it.soldQty=s; }  // 구버전 incQty(포함수량)→soldQty(매도수량)
-    delete it.incQty;
+    // 정규 필드=incQty(합계에 포함할 주식수). 미설정=전량 포함. 구버전 soldQty(매도=제외분)는 남은 수량으로 변환(금액 보존)
+    if(it.incQty!=null&&it.incQty!==""&&isFinite(Number(it.incQty))){ it.incQty=Math.max(0,Math.min(Math.round(Number(it.incQty)),it.qty)); if(it.incQty>=it.qty) delete it.incQty; }
+    else if(it.soldQty!=null&&it.soldQty!==""&&isFinite(Number(it.soldQty))){ const inc=it.qty-Math.max(0,Math.min(Math.round(Number(it.soldQty)),it.qty)); if(inc<it.qty) it.incQty=Math.max(0,inc); }  // 구버전 soldQty(매도수량)→incQty(포함수량)
+    delete it.soldQty;
   } else { delete it.soldQty; delete it.incQty; }
 }
 function normalizeData(d){ if(!d||!Array.isArray(d.items)) return null; d.items.forEach(normalizeItem); if(!d.meta) d.meta={title:"정성인연 자산 현황"}; return d; }
@@ -731,10 +732,11 @@ function escHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&a
 
 /* ===================== 집계 ===================== */
 const isIncluded=it=>it.include!==false;  // 합계 포함 여부(미설정=포함)
-// 주식 일부 매도: soldQty(매도한 주식수)만큼 합계에서 제외 → 남은 (보유수-매도)만 가능자산에 반영
-function soldQty(it){ if(!isStockCat(it.cat)) return 0; const q=Number(it.qty)||0; let s=Number(it.soldQty)||0; if(!isFinite(s)||s<0) s=0; return Math.min(s,q); }
-function isPartial(it){ if(!isIncluded(it)||!isStockCat(it.cat)) return false; const s=soldQty(it),q=Number(it.qty)||0; return s>0&&s<q; }
-function incAmt(it){ if(!isIncluded(it)) return 0; const q=Number(it.qty)||0,s=soldQty(it); if(isStockCat(it.cat)&&q>0&&s>0) return Math.round((Number(it.amount)||0)*Math.max(0,q-s)/q); return Number(it.amount)||0; }  // 합계(가능자산)에 반영되는 금액
+// 주식 일부 반영: incQty(합계에 포함할 주식수)만큼만 가능자산에 반영. 미설정=전량 포함. 나머지(보유수-포함)는 제외
+function inclQty(it){ if(!isStockCat(it.cat)) return Number(it.qty)||0; const q=Number(it.qty)||0; if(it.incQty==null||it.incQty==="") return q; let n=Number(it.incQty); if(!isFinite(n)||n<0) n=0; return Math.min(n,q); }
+function exclQty(it){ return Math.max(0,(Number(it.qty)||0)-inclQty(it)); }  // 합계에서 제외되는 주식수
+function isPartial(it){ if(!isIncluded(it)||!isStockCat(it.cat)) return false; const q=Number(it.qty)||0; return q>0&&it.incQty!=null&&it.incQty!==""&&inclQty(it)<q; }
+function incAmt(it){ if(!isIncluded(it)) return 0; const q=Number(it.qty)||0; if(isStockCat(it.cat)&&q>0&&isPartial(it)) return Math.round((Number(it.amount)||0)*inclQty(it)/q); return Number(it.amount)||0; }  // 합계(가능자산)에 반영되는 금액
 function totalsByCat(){ const t={}; CATS.forEach(c=>t[c.id]=0); data.items.forEach(it=>{ t[it.cat]=(t[it.cat]||0)+incAmt(it); }); return t; }
 function grandTotal(){ return data.items.reduce((s,it)=>s+incAmt(it),0); }
 function allItemsTotal(){ return data.items.reduce((s,it)=>s+(Number(it.amount)||0),0); }  // 제외 항목·미포함분까지 보유 전량
@@ -1075,7 +1077,7 @@ function renderList(){
             <div class="acard-name">${escHtml(it.name)||"—"}</div>
             <div class="acard-sub">${sub}</div>
           </div>
-          <div class="acard-r"><div class="acard-amt">${fmtWon(it.amount)}</div>${isPartial(it)?`<div class="acard-part">매도 ${soldQty(it)}주 제외</div>`:""}</div>
+          <div class="acard-r"><div class="acard-amt">${fmtWon(it.amount)}</div>${isPartial(it)?`<div class="acard-part">제외 ${exclQty(it)}주 (합계 ${inclQty(it)}주)</div>`:""}</div>
         </div>
         <div class="acard-foot">
           <label class="acard-inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} ${editable?"":"disabled"}> 포함</label>
@@ -1096,7 +1098,7 @@ function renderList(){
         <td class="inst">${escHtml(it.inst)||""}</td>
         <td class="name">${escHtml(it.name)||"—"}</td>
         <td class="ticker">${escHtml(it.ticker)||""}</td>
-        <td class="num qty">${it.qty>0?Number(it.qty).toLocaleString("ko-KR"):""}${isPartial(it)?` <span class="part-badge">매도 ${soldQty(it)}</span>`:""}</td>
+        <td class="num qty">${it.qty>0?Number(it.qty).toLocaleString("ko-KR"):""}${isPartial(it)?` <span class="part-badge">합계 ${inclQty(it)}</span>`:""}</td>
         <td class="num price">${it.price>0?(it.cur==="USD"?"$"+Number(it.price).toLocaleString("ko-KR"):Number(it.price).toLocaleString("ko-KR")):""}</td>
         <td class="num">${fmtWon(it.amount)}</td>
         <td class="owner">${escHtml(it.owner)||""}</td>
@@ -1214,23 +1216,24 @@ function updateStockFields(){
   updateSoldUI();
   if(stock) recalcAmount(); else updateAmountKor();
 }
-function updateSoldUI(){  // 일부 매도 입력은 주식 + 합계 포함일 때만 노출
+function updateSoldUI(){  // 합계 포함 수량 입력은 주식 + 합계 포함일 때만 노출
   const stock=isStockCat(document.getElementById("fCat").value);
   const inc=document.getElementById("fInclude").checked;
   document.getElementById("soldWrap").classList.toggle("on", stock&&inc);
   updateSoldHint();
 }
-function updateSoldHint(){  // 입력 기준 안내: 매도 수량을 빼고 합계에 반영되는 수량·금액 실시간 표시
+function updateSoldHint(){  // 입력 기준 안내: 입력한 수량만큼 합계에 반영되는 금액·제외분 실시간 표시(미입력=전량)
   const el=document.getElementById("soldHint"); if(!el) return;
   const stock=isStockCat(document.getElementById("fCat").value);
   const inc=document.getElementById("fInclude").checked;
-  if(!(stock&&inc)){ el.textContent=""; return; }
   const qty=Math.max(0,Math.round(Number(document.getElementById("fQty").value)||0));
-  let sold=Math.max(0,Math.round(Number(document.getElementById("fSoldQty").value)||0)); sold=Math.min(sold,qty);
-  const remaining=Math.max(0,qty-sold);
+  const raw=String(document.getElementById("fInclQty").value).trim();
+  if(!(stock&&inc)||raw===""||qty<=0){ el.textContent=""; return; }  // 미입력=전량 반영(안내 생략)
+  let incl=Math.max(0,Math.round(Number(raw)||0)); incl=Math.min(incl,qty);
+  const excl=Math.max(0,qty-incl);
   const usd=document.getElementById("fCur").value==="USD";
-  const amt=Math.round(remaining*rawNum("fPrice")*(usd?usdRate:1));
-  el.textContent=`→ 합계 반영 ${remaining.toLocaleString("ko-KR")}주 · ${fmtWon(amt)}${sold>0?` (매도 ${sold.toLocaleString("ko-KR")}주 제외)`:""}`;
+  const amt=Math.round(incl*rawNum("fPrice")*(usd?usdRate:1));
+  el.textContent=`→ 합계 반영 ${incl.toLocaleString("ko-KR")}주 · ${fmtWon(amt)}${excl>0?` (제외 ${excl.toLocaleString("ko-KR")}주)`:""}`;
 }
 function updateTickerLockUI(){  // #티커면 현재가·통화는 시세 자동 → readonly+배지
   const isT=isStockCat(document.getElementById("fCat").value) && document.getElementById("fTicker").value.trim().charAt(0)==="#";
@@ -1282,7 +1285,7 @@ function openModal(id){
   document.getElementById("fName").value=it?it.name:"";
   document.getElementById("fTicker").value=it?(it.ticker||""):"";
   document.getElementById("fQty").value=it&&it.qty>0?it.qty:"";
-  document.getElementById("fSoldQty").value=it&&it.soldQty>0?it.soldQty:"";
+  document.getElementById("fInclQty").value=(it&&it.incQty!=null&&it.incQty!=="")?it.incQty:"";
   document.getElementById("fPrice").value=it&&it.price>0?Number(it.price).toLocaleString("ko-KR"):"";
   document.getElementById("fCur").value=it&&it.cur==="USD"?"USD":"KRW";
   document.getElementById("fOwner").value=it?(it.owner||""):(defOwner==="미지정"?"":defOwner);
@@ -1309,8 +1312,8 @@ function saveModal(){
   const stock=isStockCat(cat);
   const ticker=stock?document.getElementById("fTicker").value.trim():"";
   const qty=stock?Math.max(0,Math.round(Number(document.getElementById("fQty").value)||0)):0;
-  let soldQ=0;  // 일부 매도 수량(합계에서 제외). 0이면 전량 반영
-  if(stock){ const raw=String(document.getElementById("fSoldQty").value).trim(); if(raw!==""){ soldQ=Math.max(0,Math.min(Math.round(Number(raw)||0),qty)); } }
+  let inclQ=null;  // 합계에 포함할 수량. null(미입력)이면 전량 반영
+  if(stock){ const raw=String(document.getElementById("fInclQty").value).trim(); if(raw!==""){ inclQ=Math.max(0,Math.min(Math.round(Number(raw)||0),qty)); } }
   const price=stock?Math.max(0,rawNum("fPrice")):0;  // 달러는 소수 허용
   const cur=stock?document.getElementById("fCur").value:"KRW";
   const owner=document.getElementById("fOwner").value.trim();
@@ -1322,10 +1325,10 @@ function saveModal(){
   let saved;
   if(editingId){
     const it=data.items.find(x=>x.id===editingId);
-    if(it){ it.cat=cat; it.inst=inst; it.name=name; it.ticker=ticker; it.qty=qty; it.price=price; it.cur=cur; it.owner=owner; it.amount=amount; it.note=note; it.include=include; if(soldQ>0) it.soldQty=soldQ; else delete it.soldQty; delete it.incQty; it.updatedAt=Date.now(); }
+    if(it){ it.cat=cat; it.inst=inst; it.name=name; it.ticker=ticker; it.qty=qty; it.price=price; it.cur=cur; it.owner=owner; it.amount=amount; it.note=note; it.include=include; if(inclQ!=null&&inclQ<qty) it.incQty=inclQ; else delete it.incQty; delete it.soldQty; it.updatedAt=Date.now(); }
     saved=it; toast("수정되었습니다.");
   }else{
-    saved={id:genId(),cat,inst,name,ticker,qty,price,cur,owner,amount,note,include,updatedAt:Date.now()}; if(soldQ>0) saved.soldQty=soldQ;
+    saved={id:genId(),cat,inst,name,ticker,qty,price,cur,owner,amount,note,include,updatedAt:Date.now()}; if(inclQ!=null&&inclQ<qty) saved.incQty=inclQ;
     data.items.push(saved); toast("자산이 추가되었습니다.");
   }
   if(saved) opUpsert(saved);
@@ -1471,7 +1474,7 @@ document.getElementById("modalSave").addEventListener("click",saveModal);
 document.getElementById("fAmount").addEventListener("input",updateAmountKor);
 document.getElementById("fCat").addEventListener("change",updateStockFields);
 document.getElementById("fInclude").addEventListener("change",updateSoldUI);
-document.getElementById("fSoldQty").addEventListener("input",updateSoldHint);
+document.getElementById("fInclQty").addEventListener("input",updateSoldHint);
 document.getElementById("fQty").addEventListener("input",recalcAmount);
 document.getElementById("fPrice").addEventListener("input",recalcAmount);
 document.getElementById("fCur").addEventListener("change",recalcAmount);
