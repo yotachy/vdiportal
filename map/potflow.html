@@ -1055,7 +1055,7 @@ function addClip(id){
   const nclips=state.nodes.filter(x=>x.clipParent===id).length;
   const c=makeNode(n.x,n.y+(n._h||120)+34+nclips*156,'구간',"full");
   c.clip=true;c.clipParent=id;c.videoPath=n.videoPath;c.seekMs=n.seekMs||0;c.endMs=(n.seekMs||0)+30000;
-  addEdge(id,'bottom',c.id,'top');
+  addEdge(id,'bottom',c.id,'top',{arrow:true,clip:true});   // 반복구간=화살표로 파생
   if(HELPER_OK)captureThumbURL(HELPER+"/file?path="+encodeURIComponent(n.videoPath),c.id,(c.seekMs||0)/1000);
   render();selectOnly(c.id);markDirty();
   toast('구간 노드 추가 · 시작 ~ 끝 시각을 입력하세요');
@@ -1094,13 +1094,19 @@ function syncBookmarks(nodeId){
     // 체인 재구성: 이 영상+책갈피들 사이 기존 엣지 제거 후 순서대로 연결
     const cs=new Set(chainIds);
     state.edges=state.edges.filter(e=>!(cs.has(e.from)&&cs.has(e.to)));
-    for(let k=0;k<chainIds.length-1;k++)addEdge(chainIds[k],'right',chainIds[k+1],'left');
+    for(let k=0;k<chainIds.length-1;k++)addEdge(chainIds[k],'right',chainIds[k+1],'left',{arrow:false});  // 체인=일반 연결선
+    // 원본 + 책갈피 자동 그룹핑
+    if(chainIds.length>1){
+      let g=(state.groups||[]).find(x=>x.bmGroupFor===nodeId)||(state.groups||[]).find(x=>x.nodes&&x.nodes.includes(nodeId));
+      if(g){g.nodes=Array.from(new Set([...(g.nodes||[]),...chainIds]));if(g.bmGroupFor==null)g.bmGroupFor=nodeId;}
+      else{state.groups=state.groups||[];state.groups.push({id:uid('g'),nodes:chainIds.slice(),title:(n.title||'재생 목록'),bmGroupFor:nodeId});}
+    }else{state.groups=(state.groups||[]).filter(x=>x.bmGroupFor!==nodeId);}
     render();markDirty();
-    toast(bms.length?('책갈피 '+bms.length+'개'):'책갈피 없음');
+    toast(bms.length?('책갈피 '+bms.length+'개 · 자동 그룹'):'책갈피 없음');
   }).catch(()=>toast('책갈피 동기화 실패'));
 }
 function addNodeCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r.left+r.width/2,r.top+r.height/2);const n=makeNode(p.x-W_NODE/2,p.y-30);render();selectOnly(n.id);markDirty()}
-function addEdge(from,fromSide,to,toSide){if(from===to)return;if(state.edges.some(e=>e.from===from&&e.to===to))return;state.edges.push({id:uid('e'),from,fromSide:fromSide||'right',to,toSide:toSide||'left',style:TOOLBAR.edgeStyle,arrow:TOOLBAR.edgeArrow});markDirty()}
+function addEdge(from,fromSide,to,toSide,opts){if(from===to)return;if(state.edges.some(e=>e.from===from&&e.to===to))return;const ed={id:uid('e'),from,fromSide:fromSide||'right',to,toSide:toSide||'left',style:(opts&&opts.style)||TOOLBAR.edgeStyle,arrow:opts&&('arrow'in opts)?opts.arrow:TOOLBAR.edgeArrow};if(opts&&opts.clip)ed.clip=true;state.edges.push(ed);markDirty()}
 function delEdge(id){state.edges=state.edges.filter(e=>e.id!==id);if(selEdge===id)selEdge=null;paint();markDirty()}
 function selectEdge(id){selEdge=id;sel=[];applySel();paint()}
 function deselectAll(){if(!sel.length&&!selEdge)return;sel=[];selEdge=null;applySel();paint()}
