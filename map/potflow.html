@@ -249,8 +249,7 @@
   .n-title:focus,.n-desc:focus{cursor:text}
   body.ndrag,body.ndrag *{cursor:grabbing!important}
   .n-thumb{margin-top:10px;position:relative;border:1px solid var(--line);border-radius:9px;overflow:hidden;line-height:0;background:#0d1117}
-  .n-thumb img{width:100%;height:var(--nh,92px);object-fit:cover;object-position:top center;display:block;cursor:zoom-in}
-  .n-thumb .zh{position:absolute;right:6px;bottom:6px;width:21px;height:21px;border-radius:6px;background:#0d1117cc;border:1px solid var(--line);color:#cfd6df;display:grid;place-items:center;font-size:11px;pointer-events:none}
+  .n-thumb img{width:100%;height:var(--nh,92px);object-fit:cover;object-position:top center;display:block}
   .n-thumb .rmth{position:absolute;top:6px;right:6px;width:21px;height:21px;border-radius:6px;background:#0d1117cc;border:1px solid var(--line);color:var(--muted);display:grid;place-items:center;font-size:11px;cursor:pointer}
   .n-thumb .rmth:hover{color:var(--red);border-color:var(--red)}
   .n-thumb .cap{position:absolute;left:7px;bottom:7px;font-size:10px;font-family:var(--mono);color:#dfe4ea;background:#0d1117c0;padding:3px 6px;border-radius:5px;line-height:1}
@@ -393,9 +392,6 @@
   .hint-l b{color:#e7ecf3;font-weight:600}
   .hint kbd{font-family:var(--mono);font-size:10px;color:var(--gold);background:rgba(232,180,99,.1);border:1px solid var(--gold-dim);border-radius:4px;padding:0 4px;line-height:1.5}
 
-  .lb{position:fixed;inset:0;background:#070a0ee6;backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:90;padding:32px;cursor:zoom-out}
-  .lb.on{display:flex}.lb img{max-width:1150px;width:100%;border-radius:12px;border:1px solid var(--line);box-shadow:0 40px 90px -30px #000}
-  .lb .x{position:fixed;top:18px;right:22px;color:var(--muted);font-size:26px;cursor:pointer}
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1d2530;border:1px solid var(--gold-dim);color:#fff;padding:10px 19px;border-radius:99px;font-size:13px;z-index:99;box-shadow:0 12px 30px -10px #000;opacity:0;transition:.25s;pointer-events:none}
   .toast.on{opacity:1}
   .savestat{font-size:11px;color:var(--faint);margin-right:4px;font-family:var(--mono);transition:color .2s;white-space:nowrap}
@@ -521,7 +517,6 @@
 
 <input type="file" id="impFile" accept="application/json" hidden>
 <input type="file" id="imgFile" accept="image/*" hidden>
-<div class="lb" id="lb" onclick="closeZoom()"><span class="x">✕</span><img id="lbimg" src="" alt=""></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -805,7 +800,7 @@ function nodeHTML(n){
   }
   if(n.clip){
     const has=n.thumb&&imgSrc(n.thumb.imgId);
-    const media=has?`<div class="n-thumb bm-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span></div>`:`<div class="n-drop edit-only">썸네일</div>`;
+    const media=has?`<div class="n-thumb bm-thumb"><img src="${imgSrc(n.thumb.imgId)}" alt=""></div>`:`<div class="n-drop edit-only">썸네일</div>`;
     const range=`${fmtClock(n.seekMs||0)} ~ ${n.endMs!=null?fmtClock(n.endMs):'__:__'}`;
     return `<div class="node clip" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}${dim}">${head}
       <div class="n-body"><div class="n-title clip-title"><span class="bm-badge">🔁</span><span class="bm-name" contenteditable="${ce()}" data-field="title">${esc(n.title)}</span></div>
@@ -814,12 +809,12 @@ function nodeHTML(n){
   }
   if(n.bmParent!=null){
     const has=n.thumb&&imgSrc(n.thumb.imgId);
-    const media=has?`<div class="n-thumb bm-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span></div>`:`<div class="n-drop edit-only">썸네일</div>`;
+    const media=has?`<div class="n-thumb bm-thumb"><img src="${imgSrc(n.thumb.imgId)}" alt=""></div>`:`<div class="n-drop edit-only">썸네일</div>`;
     return `<div class="node bm" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}${dim}">${head}
       <div class="n-body"><div class="n-title bm-title"><span class="bm-badge">🔖</span><span class="bm-name" contenteditable="${ce()}" data-field="title">${esc(n.title)}</span></div>${media}</div>${rsz}${ports}</div>`;
   }
   let media;
-  if(n.thumb && imgSrc(n.thumb.imgId)) media=`<div class="n-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span>
+  if(n.thumb && imgSrc(n.thumb.imgId)) media=`<div class="n-thumb"><img src="${imgSrc(n.thumb.imgId)}" alt="">
      <span class="rmth edit-only" data-act="rmthumb">✕</span>${n.thumb.label?`<span class="cap">${esc(n.thumb.label)}</span>`:''}</div>`;
   else media=`<div class="n-drop edit-only">썸네일 드래그</div>`;
   return `<div class="node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}${dim}">${head}
@@ -1610,7 +1605,7 @@ window.addEventListener('keydown',e=>{
   const ae=document.activeElement;
   const typing=!!(ae&&(ae.isContentEditable||ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'));
   if(e.code==='Space'){if(!e.repeat)spacePanned=false;spaceDown=true;if(!typing)e.preventDefault();return}
-  if(e.key==='Escape'){if(searchOpen){closeSearch();return}deselectAll();closeZoom();return}
+  if(e.key==='Escape'){if(searchOpen){closeSearch();return}deselectAll();return}
   if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')){e.preventDefault();if(ae&&ae.blur)ae.blur();exportJSON();return}
   if((e.ctrlKey||e.metaKey)&&(e.key==='f'||e.key==='F')){e.preventDefault();openSearch();return}
   if(typing)return;                                       // 편집/입력 중엔 브라우저 기본 동작에 양보
@@ -1791,8 +1786,6 @@ function persistDoc(){
 function resetAll(){if(confirm('모든 캔버스를 기본 구성으로 초기화할까요?')){Object.keys(IMAGES).forEach(k=>delete IMAGES[k]);LIBRARY.forEach(l=>{if(l.src)IMAGES[l.id]=l.src});const c=seedCanvas();canvases=[c];activeId=c.id;loadCanvas(c.id);refreshSidebar();persistDoc();toast('초기화됨')}}
 
 /* lightbox / toast */
-function zoom(id){if(justDragged)return;const n=N(id);if(n&&n.thumb){document.getElementById('lbimg').src=imgSrc(n.thumb.imgId);document.getElementById('lb').classList.add('on')}}
-function closeZoom(){document.getElementById('lb').classList.remove('on')}
 let tt;function toast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),1500)}
 
 function seedCanvas(title){
