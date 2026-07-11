@@ -108,7 +108,7 @@
   /* ── Server layer globals ──────────────────────────────────────── */
   const FORGE_API = "forge-api.php";
   const VISION_ENABLED = true;    // 비전 시계열(샘플 데모 데이터 소스). 이미지 분석 UI는 추후 고도화 — 실 티커 포지에선 저장된 vision 무시(loadDoc)
-  console.log("[forge] ScoopBoard vb0.1");
+  console.log("[forge] Scoop Forge vb0.1");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
   let _firstIdle = false;   // 첫 진입: 티커 자동 선택/분석 없음(워치리스트 하이라이트도 없음). 사용자가 종목 클릭 시 해제.
   async function apiGet(qs) {
