@@ -344,9 +344,11 @@
   .gl-mons{position:relative;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
   .gl-pmon{position:absolute;box-sizing:border-box;border:1.5px solid #2a323d;background:var(--raised2);color:var(--faint);cursor:pointer;transition:border-color .1s,background .1s}
   .gl-pmon:hover{border-color:var(--gold-dim)}
-  .gl-pmon.on{border-color:var(--gold);background:rgba(232,180,99,.07)}
+  .gl-pmon.used{border-color:var(--gold-dim);background:rgba(232,180,99,.05)}
+  .gl-pmon.active{border-color:var(--gold);border-width:2px;background:rgba(232,180,99,.09);box-shadow:0 0 0 2px rgba(232,180,99,.18)}
   .gl-pmlbl{position:absolute;top:1px;left:3px;font-size:9px;font-weight:800;z-index:2;color:var(--eth)}
-  .gl-pmon.on .gl-pmlbl{color:var(--gold)}
+  .gl-pmon.active .gl-pmlbl,.gl-pmon.used .gl-pmlbl{color:var(--gold)}
+  .gl-offmon{display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:13px;font-weight:800;background:#12181f}
   .gl-pcell{position:absolute;box-sizing:border-box;border:1px solid rgba(232,180,99,.55);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:var(--gold);background:rgba(232,180,99,.16)}
   .gl-pcell.dim{border-color:#333b45;color:var(--faint);background:transparent}
 
@@ -1108,7 +1110,7 @@ function addTextCenter(){const r=stage.getBoundingClientRect();const p=worldPt(r
 function duplicateSelection(){if(!sel.length){toast('선택된 노드 없음');return}const ids=new Set(sel);const nodes=state.nodes.filter(n=>ids.has(n.id));const edges=state.edges.filter(e=>ids.has(e.from)&&ids.has(e.to));const off=26,map={};const nn=nodes.map(n=>{const c=JSON.parse(JSON.stringify(n));const id=uid('n');map[n.id]=id;c.id=id;c.x=(c.x||0)+off;c.y=(c.y||0)+off;return c});state.nodes.push(...nn);edges.forEach(e=>{const f=map[e.from],t=map[e.to];if(!f||!t)return;const c=JSON.parse(JSON.stringify(e));c.id=uid('e');c.from=f;c.to=t;state.edges.push(c)});render();sel=nn.map(n=>n.id);selEdge=null;applySel();paint();markDirty();toast('복제 · '+nn.length+'개')}
 function makeGroup(){if(sel.length<2)return;state.groups=state.groups||[];state.groups.push({id:uid('g'),nodes:[...sel],title:'그룹'});render();markDirty();toast('그룹 생성')}
 const GROUP_LAYOUTS=[
-  {grid:null,name:'자동'},
+  {grid:null,name:'자동(단일)'},
   {grid:[2,1],name:'좌우 2분할'},
   {grid:[1,2],name:'상하 2분할'},
   {grid:[2,2],name:'4분할'},
@@ -1116,10 +1118,16 @@ const GROUP_LAYOUTS=[
   {grid:[4,2],name:'8분할'},
   {grid:[3,3],name:'9분할'},
 ];
-function gridName(g){if(!g||!g.grid)return'자동';const l=GROUP_LAYOUTS.find(x=>x.grid&&x.grid[0]===g.grid[0]&&x.grid[1]===g.grid[1]);return l?l.name:`${g.grid[0]}×${g.grid[1]}`;}
-let grpTarget=null;
+function gridName(g){const mg=(g&&g.monGrids)||{};const keys=Object.keys(mg).filter(k=>mg[k]);
+  if(!keys.length)return'자동';
+  if(keys.length===1){const gr=mg[keys[0]];const l=GROUP_LAYOUTS.find(x=>x.grid&&x.grid[0]===gr[0]&&x.grid[1]===gr[1]);return(l?l.name:`${gr[0]}×${gr[1]}`)+`·M${+keys[0]+1}`;}
+  return`모니터 ${keys.length}개`;}
+let grpTarget=null,grpActiveMon=0;
 function openGroupGrid(gid,ev){
   const g=G(gid);if(!g)return;grpTarget=gid;closeMenus('grpPop');
+  if(!g.monGrids)g.monGrids=g.grid?{[String(g.gridMon||0)]:g.grid}:{};
+  const _used=Object.keys(g.monGrids).map(Number).filter(k=>g.monGrids[k]);
+  grpActiveMon=_used.length?Math.min(..._used):(g.gridMon||0);
   loadMonitors(()=>{
     renderGroupGrid();
     const el=document.getElementById('grpPop');if(!el)return;el.classList.add('open');
@@ -1132,40 +1140,56 @@ function renderGroupGrid(){
   const el=document.getElementById('grpPop');if(!el)return;const g=G(grpTarget);if(!g)return;
   const vids=g.nodes.map(N).filter(n=>n&&n.videoPath).length;
   const mons=(MONITORS&&MONITORS.length)?MONITORS:[{x:0,y:0,w:1920,h:1080,primary:true}];
-  let selMon=g.gridMon||0;if(selMon>=mons.length)selMon=0;
-  const ar=(mons[selMon].w/mons[selMon].h)||1.777;
-  const curKey=g.grid?`${g.grid[0]}x${g.grid[1]}`:'auto';
-  // 실제 모니터 배치 맵 — 선택 + 현재 분할 미리보기
+  if(grpActiveMon>=mons.length)grpActiveMon=0;
+  const mg=g.monGrids||{};
+  const usedKeys=Object.keys(mg).map(Number).filter(k=>mg[k]&&k<mons.length).sort((a,b)=>a-b);
+  const singleAuto=usedKeys.length===0;
+  const startNum={};let acc=0;usedKeys.forEach(k=>{startNum[k]=acc;acc+=mg[k][0]*mg[k][1];});
+  const totalCells=acc;
+  const ar=(mons[grpActiveMon].w/mons[grpActiveMon].h)||1.777;
+  // 실제 모니터 배치 맵 — 클릭 선택 + 각 모니터의 분할·누적 번호 미리보기
   let a=1e9,b=1e9,c2=-1e9,d2=-1e9;mons.forEach(m=>{a=Math.min(a,m.x);b=Math.min(b,m.y);c2=Math.max(c2,m.x+m.w);d2=Math.max(d2,m.y+m.h);});
-  const box={x:a,y:b,w:Math.max(1,c2-a),h:Math.max(1,d2-b)};const MW=286,MH=68,s=Math.min(MW/box.w,MH/box.h)*0.9,ox=(MW-box.w*s)/2,oy=(MH-box.h*s)/2;
+  const box={x:a,y:b,w:Math.max(1,c2-a),h:Math.max(1,d2-b)};const MW=286,MH=70,s=Math.min(MW/box.w,MH/box.h)*0.9,ox=(MW-box.w*s)/2,oy=(MH-box.h*s)/2;
   let mapHtml='';
   mons.forEach((m,i)=>{const L=ox+(m.x-box.x)*s,T=oy+(m.y-box.y)*s,w=m.w*s,h=m.h*s;let cells='';
-    if(i===selMon&&g.grid){const c=g.grid[0],r=g.grid[1];for(let ri=0;ri<r;ri++)for(let ci=0;ci<c;ci++){const num=ri*c+ci+1;const on=(vids===0||num<=vids);cells+=`<span class="gl-pcell${on?'':' dim'}" style="left:${ci/c*100}%;top:${ri/r*100}%;width:${100/c}%;height:${100/r}%">${num}</span>`;}}
-    mapHtml+=`<div class="gl-pmon${i===selMon?' on':''}" data-mon="${i}" title="모니터 ${i+1}${m.primary?' (주모니터)':''}" style="left:${L}px;top:${T}px;width:${w}px;height:${h}px"><span class="gl-pmlbl">${i+1}${m.primary?'★':''}</span>${cells}</div>`;});
-  const cards=GROUP_LAYOUTS.map(L=>{
+    if(mg[i]){const c=mg[i][0],r=mg[i][1];for(let ri=0;ri<r;ri++)for(let ci=0;ci<c;ci++){const num=startNum[i]+ri*c+ci+1;const on=(vids===0||num<=vids);cells+=`<span class="gl-pcell${on?'':' dim'}" style="left:${ci/c*100}%;top:${ri/r*100}%;width:${100/c}%;height:${100/r}%">${num}</span>`;}}
+    else if(singleAuto&&i===grpActiveMon){const c=Math.max(1,Math.ceil(Math.sqrt(vids||1))),r=Math.max(1,Math.ceil((vids||1)/c));for(let ri=0;ri<r;ri++)for(let ci=0;ci<c;ci++){const num=ri*c+ci+1;const on=(vids===0||num<=vids);cells+=`<span class="gl-pcell${on?'':' dim'}" style="left:${ci/c*100}%;top:${ri/r*100}%;width:${100/c}%;height:${100/r}%">${vids?num:''}</span>`;}}
+    const cls=(i===grpActiveMon?' active':'')+(mg[i]?' used':'');
+    mapHtml+=`<div class="gl-pmon${cls}" data-mon="${i}" title="모니터 ${i+1}${m.primary?' (주)':''}" style="left:${L}px;top:${T}px;width:${w}px;height:${h}px"><span class="gl-pmlbl">${i+1}${m.primary?'★':''}</span>${cells}</div>`;});
+  const activeKey=mg[grpActiveMon]?`${mg[grpActiveMon][0]}x${mg[grpActiveMon][1]}`:(singleAuto?'auto':'off');
+  let cards=GROUP_LAYOUTS.map(L=>{
     const key=L.grid?`${L.grid[0]}x${L.grid[1]}`:'auto';let inner;
-    if(L.grid){const c=L.grid[0],r=L.grid[1];let cells='';
-      for(let ri=0;ri<r;ri++)for(let ci=0;ci<c;ci++){const num=ri*c+ci+1;const on=(vids===0||num<=vids);cells+=`<span class="gl-cell${on?'':' dim'}">${num}</span>`;}
-      inner=`<div class="gl-mon" style="aspect-ratio:${ar};grid-template-columns:repeat(${c},1fr);grid-template-rows:repeat(${r},1fr)">${cells}</div>`;
+    if(L.grid){const c=L.grid[0],r=L.grid[1];let cc='';for(let ri=0;ri<r;ri++)for(let ci=0;ci<c;ci++)cc+=`<span class="gl-cell">${ri*c+ci+1}</span>`;
+      inner=`<div class="gl-mon" style="aspect-ratio:${ar};grid-template-columns:repeat(${c},1fr);grid-template-rows:repeat(${r},1fr)">${cc}</div>`;
     }else inner=`<div class="gl-mon gl-auto" style="aspect-ratio:${ar}"><span>자동</span></div>`;
-    return `<button class="gl-card${key===curKey?' on':''}" data-grid="${key}" title="${L.name}">${inner}<span class="gl-name">${L.name}</span></button>`;
+    return `<button class="gl-card${key===activeKey?' on':''}" data-grid="${key}" title="${L.name}">${inner}<span class="gl-name">${L.name}</span></button>`;
   }).join('');
-  el.innerHTML=`<div class="gl-h">재생 화면배열<span class="gl-sub">모니터 ${selMon+1}${mons.length>1?'/'+mons.length:''} · 영상 ${vids}개</span></div>`
+  cards+=`<button class="gl-card${activeKey==='off'?' on':''}" data-grid="off" title="이 모니터에 배치 안 함"><div class="gl-mon gl-offmon" style="aspect-ratio:${ar}"><span>✕</span></div><span class="gl-name">사용 안 함</span></button>`;
+  const summary=singleAuto?`자동 · 모니터 ${grpActiveMon+1}`:`${usedKeys.length}개 모니터 · 총 ${totalCells}칸`;
+  el.innerHTML=`<div class="gl-h">재생 화면배열<span class="gl-sub">${summary} · 영상 ${vids}개</span></div>`
     +`<div class="gl-mons" style="height:${MH}px">${mapHtml}</div>`
-    +(mons.length>1?`<div class="gl-note2">▲ 모니터를 클릭해 선택</div>`:'')
-    +`<div class="gl-grid">${cards}</div><div class="gl-note">번호=재생창이 뜨는 위치. 영상이 칸보다 많으면 자동으로 더 잘게 나눕니다.</div>`;
+    +`<div class="gl-note2">${mons.length>1?`모니터 <b>${grpActiveMon+1}</b> 선택됨 · 다른 모니터를 클릭해 각각 분할 지정`:'분할을 선택하세요'}</div>`
+    +`<div class="gl-grid">${cards}</div><div class="gl-note">여러 모니터에 각각 분할을 지정하면 영상이 번호 순서대로 나눠 배치됩니다.</div>`;
 }
-function setGroupMon(i){const g=G(grpTarget);if(!g)return;g.gridMon=i;markDirty();renderGroupGrid();}
-function setGroupGrid(key){const g=G(grpTarget);if(!g)return;g.grid=key==='auto'?null:key.split('x').map(Number);render();markDirty();renderGroupGrid();toast('화면배열: '+gridName(g));}
+function setGroupMon(i){grpActiveMon=i;renderGroupGrid();}
+function setGroupGrid(key){const g=G(grpTarget);if(!g)return;if(!g.monGrids)g.monGrids={};
+  if(key==='auto'){g.monGrids={};g.gridMon=grpActiveMon;}
+  else if(key==='off'){delete g.monGrids[grpActiveMon];}
+  else{g.monGrids[grpActiveMon]=key.split('x').map(Number);}
+  markDirty();render();renderGroupGrid();}
 function playGroup(gid){const g=G(gid);if(!g)return;
   const vids=g.nodes.map(N).filter(n=>n&&n.videoPath);
   if(!vids.length){toast('그룹에 동영상 노드가 없습니다');return}
-  let c,r;
-  if(g.grid&&vids.length<=g.grid[0]*g.grid[1]){c=g.grid[0];r=g.grid[1];}
-  else{c=Math.ceil(Math.sqrt(vids.length));r=Math.ceil(vids.length/c);}
-  const gm=g.gridMon||0;
-  const items=vids.map((n,i)=>{const col=i%c,row=Math.floor(i/c);
-    return {path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:{mon:gm,x:col/c,y:row/r,w:1/c,h:1/r}};});
+  const mg=g.monGrids||{};const usedKeys=Object.keys(mg).map(Number).filter(k=>mg[k]).sort((a,b)=>a-b);
+  let items;
+  if(usedKeys.length){
+    const slots=[];usedKeys.forEach(mi=>{const c=mg[mi][0],r=mg[mi][1];for(let ri=0;ri<r;ri++)for(let ci=0;ci<c;ci++)slots.push({mon:mi,x:ci/c,y:ri/r,w:1/c,h:1/r});});
+    items=[];vids.forEach((n,i)=>{if(i<slots.length){const s=slots[i];items.push({path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:{mon:s.mon,x:s.x,y:s.y,w:s.w,h:s.h}});}});
+    if(vids.length>slots.length)toast(`칸 ${slots.length}개 · 영상 ${vids.length}개 — ${vids.length-slots.length}개는 배치 생략`);
+  }else{
+    const gm=g.gridMon||0,c=Math.ceil(Math.sqrt(vids.length)),r=Math.ceil(vids.length/c);
+    items=vids.map((n,i)=>{const col=i%c,row=Math.floor(i/c);return {path:n.videoPath,seek:n.seekMs!=null?n.seekMs/1000:null,win:{mon:gm,x:col/c,y:row/r,w:1/c,h:1/r}};});
+  }
   playItems(items);
 }
 
@@ -1339,7 +1363,7 @@ world.addEventListener('click',e=>{
     else if(a==='grid'){openGroupGrid(gid,e);}
     return;}
 });
-(function(){const gp=document.getElementById('grpPop');if(gp)gp.addEventListener('click',e=>{const mp=e.target.closest('.gl-pmon');if(mp){setGroupMon(+mp.dataset.mon);return;}const c=e.target.closest('.gl-card');if(c)setGroupGrid(c.dataset.grid);});})();
+(function(){const gp=document.getElementById('grpPop');if(gp)gp.addEventListener('click',e=>{e.stopPropagation();const mp=e.target.closest('.gl-pmon');if(mp){setGroupMon(+mp.dataset.mon);return;}const c=e.target.closest('.gl-card');if(c)setGroupGrid(c.dataset.grid);});})();
 world.addEventListener('focusout',e=>{
   const f=e.target.dataset?.field;if(f){const id=e.target.closest('.node').dataset.id,n=N(id);if(n)n[f]=e.target.innerText.replace(/\u00a0/g,' ').trim();markDirty();return}
   const cr=e.target.dataset?.clip;if(cr==='range'){const id=e.target.closest('.node').dataset.id,n=N(id);if(n){const parts=e.target.innerText.split('~');const a=parseClock(parts[0]),b=parts.length>1?parseClock(parts[1]):null;const old=n.seekMs;if(a!=null)n.seekMs=a;n.endMs=b;markDirty();if(a!=null&&a!==old&&n.videoPath&&HELPER_OK)captureThumbURL(HELPER+"/file?path="+encodeURIComponent(n.videoPath),n.id,a/1000);render();}return}
