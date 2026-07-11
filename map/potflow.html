@@ -226,7 +226,7 @@
   .n-title:focus,.n-desc:focus{cursor:text}
   body.ndrag,body.ndrag *{cursor:grabbing!important}
   .n-thumb{margin-top:10px;position:relative;border:1px solid var(--line);border-radius:9px;overflow:hidden;line-height:0;background:#0d1117}
-  .n-thumb img{width:100%;height:92px;object-fit:cover;object-position:top center;display:block;cursor:zoom-in}
+  .n-thumb img{width:100%;height:var(--nh,92px);object-fit:cover;object-position:top center;display:block;cursor:zoom-in}
   .n-thumb .zh{position:absolute;right:6px;bottom:6px;width:21px;height:21px;border-radius:6px;background:#0d1117cc;border:1px solid var(--line);color:#cfd6df;display:grid;place-items:center;font-size:11px;pointer-events:none}
   .n-thumb .rmth{position:absolute;top:6px;right:6px;width:21px;height:21px;border-radius:6px;background:#0d1117cc;border:1px solid var(--line);color:var(--muted);display:grid;place-items:center;font-size:11px;cursor:pointer}
   .n-thumb .rmth:hover{color:var(--red);border-color:var(--red)}
@@ -235,9 +235,20 @@
   .bm-title{display:flex;align-items:center;gap:5px;min-width:0}
   .bm-title .bm-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .bm-badge{color:var(--gold);flex:none}
-  .bm-thumb,.bm-thumb img{height:150px}
+  .bm-thumb,.bm-thumb img{height:var(--nh,150px)}
   .bm-thumb img{width:100%;object-fit:cover}
-  .n-drop{margin-top:9px;border:1.5px dashed var(--line);border-radius:9px;padding:9px;text-align:center;font-size:11px;color:var(--faint)}
+  .n-drop{margin-top:9px;border:1.5px dashed var(--line);border-radius:9px;padding:9px;min-height:var(--nh,auto);box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;color:var(--faint)}
+  /* 노드 리사이즈 핸들 — 오른쪽(폭)·아래(썸네일 높이)·모서리(둘 다). 투명 넓은 잡이영역 + 모서리 그립 */
+  .rsz{position:absolute;z-index:6;opacity:0}
+  .rsz.e{top:20px;bottom:16px;right:-6px;width:13px;cursor:ew-resize}
+  .rsz.s{left:20px;right:16px;bottom:-6px;height:13px;cursor:ns-resize}
+  .rsz.se{right:-7px;bottom:-7px;width:22px;height:22px;cursor:nwse-resize}
+  .node:hover .rsz,.node.selected .rsz{opacity:1}
+  .rsz.e::before{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:3px;height:26px;border-radius:2px;background:var(--gold-dim)}
+  .rsz.s::before{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);height:3px;width:26px;border-radius:2px;background:var(--gold-dim)}
+  .rsz.se::after{content:"";position:absolute;right:5px;bottom:5px;width:9px;height:9px;border-right:2.5px solid var(--gold);border-bottom:2.5px solid var(--gold);border-radius:0 0 4px 0}
+  .rsz:hover.e::before,.rsz:hover.s::before{background:var(--gold)}
+  .node.resizing{transition:none}
   .port{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--raised);border:2px solid var(--gold-dim);cursor:crosshair;z-index:5;opacity:0;transition:opacity .12s}
   .node:hover .port,.node.selected .port,.node.linkhover .port{opacity:1}
   .node.linkhover .port{border-color:var(--gold);opacity:.85}
@@ -735,6 +746,8 @@ function nodeHTML(n){
   const ports='';
   const head=`<div class="n-in"></div>`;
   const bg=n.bg?`;background:${n.bg}`:'';
+  const dim=`${n.w?`;width:${n.w}px`:''}${n.h!=null?`;--nh:${n.h}px`:''}`;
+  const rsz=`<span class="rsz e edit-only" data-rsz="e"></span><span class="rsz s edit-only" data-rsz="s"></span><span class="rsz se edit-only" data-rsz="se"></span>`;
   if(t==='mini'){
     return `<div class="node mini" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}">${head}
       <div class="n-body"><div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div></div>${ports}</div>`;
@@ -751,16 +764,16 @@ function nodeHTML(n){
   if(n.bmParent!=null){
     const has=n.thumb&&imgSrc(n.thumb.imgId);
     const media=has?`<div class="n-thumb bm-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span></div>`:`<div class="n-drop edit-only">썸네일</div>`;
-    return `<div class="node bm" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}">${head}
-      <div class="n-body"><div class="n-title bm-title"><span class="bm-badge">🔖</span><span class="bm-name" contenteditable="${ce()}" data-field="title">${esc(n.title)}</span></div>${media}</div>${ports}</div>`;
+    return `<div class="node bm" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}${dim}">${head}
+      <div class="n-body"><div class="n-title bm-title"><span class="bm-badge">🔖</span><span class="bm-name" contenteditable="${ce()}" data-field="title">${esc(n.title)}</span></div>${media}</div>${rsz}${ports}</div>`;
   }
   let media;
   if(n.thumb && imgSrc(n.thumb.imgId)) media=`<div class="n-thumb"><img src="${imgSrc(n.thumb.imgId)}" onclick="zoom('${n.id}')" alt=""><span class="zh">⤢</span>
      <span class="rmth edit-only" data-act="rmthumb">✕</span>${n.thumb.label?`<span class="cap">${esc(n.thumb.label)}</span>`:''}</div>`;
   else media=`<div class="n-drop edit-only">썸네일 드래그</div>`;
-  return `<div class="node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}">${head}
+  return `<div class="node" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px${bg}${dim}">${head}
     <div class="n-body"><div class="n-title" contenteditable="${ce()}" data-field="title">${esc(n.title)}</div>
-      <div class="n-desc" contenteditable="${ce()}" data-field="desc">${esc(n.desc)}</div>${media}</div>${ports}</div>`;
+      <div class="n-desc" contenteditable="${ce()}" data-field="desc">${esc(n.desc)}</div>${media}</div>${rsz}${ports}</div>`;
 }
 function gridLabel(g){return g.grid?`${g.grid[0]}×${g.grid[1]}`:'자동';}
 function groupHTML(g){
@@ -1082,6 +1095,7 @@ stage.addEventListener('pointerdown',e=>{
 });
 function nodePointerDown(id,e){
   const t=e.target;
+  const rz=t.closest('[data-rsz]');if(rz)return startResize(id,rz.dataset.rsz,e);
   const port=t.closest('[data-act="port"]');
   if(port)return startLink(id,port.dataset.side||'right',e);
   if(t.closest('[data-act]'))return;
@@ -1092,6 +1106,18 @@ function nodePointerDown(id,e){
   window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
 }
 function startPan(e,canClear){drag={type:'pan',sx:e.clientX,sy:e.clientY,otx:view.tx,oty:view.ty,canClear:!!canClear,moved:false};stage.classList.add('panning');window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
+function startResize(id,dir,e){
+  e.preventDefault();e.stopPropagation();
+  const n=N(id),el=q(id);if(!n||!el)return;
+  if(!sel.includes(id))selectOnly(id);
+  el.classList.add('resizing');
+  const defH=n.bmParent!=null?150:92;
+  drag={type:'resize',id,dir,sx:e.clientX,sy:e.clientY,moved:false,
+    w0:n.w||el.offsetWidth||W_NODE,h0:(n.h!=null?n.h:defH)};
+  document.body.style.userSelect='none';
+  document.body.style.cursor=dir==='e'?'ew-resize':dir==='s'?'ns-resize':'nwse-resize';
+  window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
+}
 function groupAt(pt){const gs=state.groups||[];for(let k=gs.length-1;k>=0;k--){const g=gs[k];const ns=g.nodes.map(N).filter(Boolean);if(!ns.length)continue;let a=1e9,b=1e9,c=-1e9,d=-1e9;ns.forEach(n=>{const w=n._w||W_NODE,h=n._h||90;a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+w);d=Math.max(d,n.y+h)});const p=18;if(pt.x>=a-p&&pt.x<=c+p&&pt.y>=b-p&&pt.y<=d+p)return g;}return null;}
 function startGroupDrag(gid,e){const g=G(gid);if(!g)return;drag={type:'group',gid,sx:e.clientX,sy:e.clientY,moved:false,origins:g.nodes.map(N).filter(Boolean).map(n=>({id:n.id,ox:n.x,oy:n.y}))};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);}
 function startLink(id,side,e){return;e.preventDefault();e.stopPropagation();selEdge=null;paint();drag={type:'link',from:id,fromSide:side,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
@@ -1103,6 +1129,13 @@ function onMove(e){
   if(!drag)return;
   if(drag.type==='pan'){drag.moved=true;view.tx=drag.otx+(e.clientX-drag.sx);view.ty=drag.oty+(e.clientY-drag.sy);applyView();return}
   if(drag.type==='group'){drag.moved=true;const dx=(e.clientX-drag.sx)/view.scale,dy=(e.clientY-drag.sy)/view.scale;drag.origins.forEach(o=>{const n=N(o.id);if(!n)return;n.x=o.ox+dx;n.y=o.oy+dy;const el=q(o.id);if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}});paint();return;}
+  if(drag.type==='resize'){
+    drag.moved=true;const n=N(drag.id),el=q(drag.id);if(!n||!el)return;
+    const dx=(e.clientX-drag.sx)/view.scale,dy=(e.clientY-drag.sy)/view.scale;
+    if(drag.dir.includes('e')){n.w=Math.round(Math.max(150,Math.min(680,drag.w0+dx)));el.style.width=n.w+'px';}
+    if(drag.dir.includes('s')){n.h=Math.round(Math.max(48,Math.min(620,drag.h0+dy)));el.style.setProperty('--nh',n.h+'px');}
+    measure();paint();return;
+  }
   if(drag.type==='nodePending'){
     if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<4)return;
     drag.type='node';justDragged=true;document.body.style.userSelect='none';document.body.classList.add('ndrag');
@@ -1157,14 +1190,16 @@ function clearLinkHi(){document.querySelectorAll('.node.linktarget,.node.linkhov
 function hi(pt,exclude){clearLinkHi();const snap=snapAt(pt,exclude);if(snap){const el=q(snap.node);if(el){el.classList.add('linktarget','linkhover');if(snap.side!=='auto'){const pe=el.querySelector('.port.'+snap.side);if(pe)pe.classList.add('snaptarget')}}}return snap}
 function onUp(e){
   window.removeEventListener('pointermove',onMove);window.removeEventListener('pointerup',onUp);
-  const d=drag;drag=null;document.body.style.userSelect='';stage.classList.remove('panning');document.body.classList.remove('ndrag');
+  const d=drag;drag=null;document.body.style.userSelect='';document.body.style.cursor='';stage.classList.remove('panning');document.body.classList.remove('ndrag');
   document.querySelectorAll('.node.pressing').forEach(el=>el.classList.remove('pressing'));
+  document.querySelectorAll('.node.resizing').forEach(el=>el.classList.remove('resizing'));
   document.getElementById('snapV').style.display='none';document.getElementById('snapH').style.display='none';
   document.getElementById('tmp').setAttribute('d','');clearLinkHi();
   if(!d)return;
   if(d.type==='pan'){if(d.canClear&&!d.moved)deselectAll();return}
   if(d.type==='nodePending'){if(e.shiftKey)toggleSel(d.id);else{selectOnly(d.id);highlightInList(d.id);popNode(d.id);}selEdge=null;paint();return}
   if(d.type==='node'){setTimeout(()=>justDragged=false,30);markDirty();return}
+  if(d.type==='resize'){if(d.moved){justDragged=true;setTimeout(()=>justDragged=false,30);measure();markDirty();}return}
   if(d.type==='group'){if(d.moved)markDirty();return;}
   if(d.type==='link'){
     if(!d.moved){return}                    // 포트 클릭만 — 아무 동작 안 함(노드 추가 방지)
