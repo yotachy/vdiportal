@@ -563,7 +563,7 @@ def _player_windows():
                 return 1
             pid = wintypes.DWORD(); u.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(pid))
             if "potplayer" in exe_of(pid.value):
-                out.append(int(hwnd))
+                out.append((int(hwnd), int(pid.value)))
             return 1
         u.EnumWindows(WNDENUM(cb), None)
     except Exception:
@@ -571,31 +571,43 @@ def _player_windows():
     return out
 
 
-def arrange_windows(rects, pre):
-    """새로 뜬 PotPlayer 창들(pre 스냅샷 제외)에 rect를 발견순으로 고유 배정하고 ~12초간 재적용."""
+def arrange_windows(rects, pre, pids):
+    """새로 뜬 PotPlayer 창(pre 제외)에 rect 배정 후 ~14초간 재적용.
+    발사순(PID) 우선 매핑 → 핸드오프 등 매칭 실패분은 남은 rect를 발견순으로. 포커스는 뺏지 않음."""
     try:
         import ctypes, time
         u = ctypes.windll.user32
         u.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]; u.ShowWindow.restype = ctypes.c_int
         u.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]; u.SetWindowPos.restype = ctypes.c_int
         preset = set(pre or [])
-        assign = {}   # hwnd -> rect index (창마다 고유 rect)
-        for _ in range(24):
+        pid_rect = {}                                  # pid -> 선호 rect(발사 순서)
+        for i, p in enumerate(pids or []):
+            if i < len(rects):
+                pid_rect.setdefault(p, i)
+        assign = {}                                    # hwnd -> rect index (창마다 고유)
+        last_log = -1
+        for _ in range(28):
             time.sleep(0.5)
-            for hwnd in _player_windows():
-                if hwnd in preset:
-                    continue                          # 재생 전부터 떠 있던 창은 건드리지 않음
-                if hwnd not in assign:
-                    used = set(assign.values())
+            for hwnd, pid in _player_windows():
+                if hwnd in preset or hwnd in assign:
+                    continue
+                used = set(assign.values())
+                pref = pid_rect.get(pid)
+                if pref is not None and pref not in used:
+                    assign[hwnd] = pref               # 발사순 매핑(가능하면)
+                else:
                     nxt = next((i for i in range(len(rects)) if i not in used), None)
                     if nxt is not None:
-                        assign[hwnd] = nxt
+                        assign[hwnd] = nxt            # 남은 칸 발견순 배정
             for hwnd, idx in assign.items():
                 x, y, w, h = rects[idx]
-                u.ShowWindow(ctypes.c_void_p(hwnd), 9)   # SW_RESTORE
-                u.SetWindowPos(ctypes.c_void_p(hwnd), None, x, y, w, h, 0x0040)   # SWP_SHOWWINDOW
-    except Exception:
-        pass
+                u.ShowWindow(ctypes.c_void_p(hwnd), 9)                         # SW_RESTORE
+                u.SetWindowPos(ctypes.c_void_p(hwnd), None, x, y, w, h, 0x0040 | 0x0010)  # SHOWWINDOW|NOACTIVATE
+            if len(assign) != last_log:               # 진단: 배치 진행 상황을 콘솔에 표시
+                last_log = len(assign)
+                print("[PotFlow] 창 배치 %d/%d" % (len(assign), len(rects)), flush=True)
+    except Exception as e:
+        print("[PotFlow] 창 배치 오류:", e, flush=True)
 
 def normalize_play_items(body):
     items = body.get("items")
@@ -617,16 +629,17 @@ def launch_players(items):
         return {"ok": False, "error": "no valid videos"}
     monitors = _monitors()
     rects = build_play_rects(valid, monitors)
-    pre = _player_windows() if os.name == "nt" else []   # 재생 전부터 떠 있던 PotPlayer 창(제외 대상)
+    pre = {h for h, _ in _player_windows()} if os.name == "nt" else set()   # 재생 전 떠 있던 창(제외)
     procs = []
     for it in valid:
         try:
             procs.append(subprocess.Popen(player_cmd(exe, it["path"], it.get("seek"))))
         except Exception:
             pass
+    pids = [pr.pid for pr in procs]
     need = (len(valid) > 1) or any(isinstance(it.get("win"), dict) for it in valid)
     if os.name == "nt" and procs and need:
-        threading.Thread(target=arrange_windows, args=(rects, pre), daemon=True).start()
+        threading.Thread(target=arrange_windows, args=(rects, pre, pids), daemon=True).start()
     token = _register_play(procs, valid[0]["path"] if len(valid) == 1 else None)
     return {"ok": True, "launched": len(procs), "token": token}
 
