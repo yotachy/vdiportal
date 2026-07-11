@@ -970,7 +970,7 @@ function loadCanvas(id){
   canvasBg=c.bg||null;applyCanvasBg(canvasBg);
   sel=[];selEdge=null;
   resetHistory();
-  renderLib();render();setTimeout(fitView,30);
+  renderLib();render();relayoutChains();setTimeout(fitView,30);
   // 오른쪽 탐색기: 캔버스별 열어둔 경로 복원(없으면 비움)
   const _rp=c.rsPath||'';const _pi=document.getElementById('rsPath');if(_pi)_pi.value=_rp;
   rsData=null;const _rb=document.getElementById('rsBody');if(_rb)_rb.innerHTML='';
@@ -1051,6 +1051,19 @@ function addClip(id){
   toast('구간 노드 추가 · 시작 ~ 끝 시각을 입력하세요');
 }
 function bmChildren(pid){return state.nodes.filter(n=>n.bmParent===pid);}
+// 기존 노드도 새 간격으로 재배치(pbf 없이 순수 계산·멱등). 책갈피=가로 균등, 구간=세로 균등.
+function relayoutChains(){
+  measure();let changed=false;
+  state.nodes.filter(n=>n.videoPath&&n.bmParent==null&&!n.clip).forEach(n=>{
+    const kids=state.nodes.filter(c=>c.bmParent===n.id).sort((a,b)=>(a.seekMs||0)-(b.seekMs||0));
+    let cx=n.x+(n._w||W_NODE)+NODE_GAP;
+    kids.forEach(c=>{if(c.x!==cx||c.y!==n.y){c.x=cx;c.y=n.y;changed=true;}cx+=(c._w||196)+NODE_GAP;});
+    const clips=state.nodes.filter(c=>c.clipParent===n.id);
+    clips.forEach((c,i)=>{const ny=n.y+(n._h||120)+NODE_GAP+i*300;if(c.x!==n.x||c.y!==ny){c.x=n.x;c.y=ny;changed=true;}});
+  });
+  if(changed){render();markDirty();}
+  return changed;
+}
 function playAt(path,ms,watchId){if(!path)return;if(!HELPER_OK){toast('헬퍼가 꺼져 있어 재생할 수 없습니다');return}
   fetch(HELPER+"/play",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:[path],seek:(ms||0)/1000})})
     .then(r=>r.json()).then(j=>{if(j&&j.ok){toast('재생 · '+fmtClock(ms));if(watchId&&j.token)watchClose(j.token,watchId);}else toast('재생 실패: '+((j&&j.error)||''));}).catch(()=>toast('재생 실패'));}
