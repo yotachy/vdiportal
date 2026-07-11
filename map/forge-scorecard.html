@@ -413,6 +413,12 @@
 
 <script src="forge-core.js?v=20260711d"></script>
 <script>
+// 엔진 메타 단일 출처(forge-core.js) — 버전·지표수·검증축을 읽어 해부도/카운트 자동 현행화. 미로드 시 폴백.
+const EV = (typeof ForgeCore !== "undefined" && ForgeCore.version) ? ForgeCore.version : "1.9.7";
+const IND_N = (typeof ForgeCore !== "undefined" && ForgeCore.indicatorCount) || 30;
+const AXES = (typeof ForgeCore !== "undefined" && Array.isArray(ForgeCore.validatedAxes) && ForgeCore.validatedAxes.length) ? ForgeCore.validatedAxes
+  : [{key:"vol",lab:"변동성 예보",acc:69,hz:"3지평"},{key:"dd",lab:"낙폭 위험곡선",acc:68,hz:"3지평"},{key:"up",lab:"이익목표 도달",acc:64,hz:""},{key:"spike",lab:"급변 경보",acc:65,hz:"3지평"},{key:"gap",lab:"갭 경보",acc:63,hz:"3지평",stock:true},{key:"trend",lab:"추세 지속/소진",acc:76,hz:"3지평·비방향"}];
+const AXIS_N = AXES.length;
 const BT = {"overall":{"dir":0.581,"base":0.608,"ece":0.019,"cone":0.78},"byRegime":{"side":{"dir":0.538,"base":0.537,"lift":0.001,"n":2057},"bull":{"dir":0.6,"base":0.633,"lift":-0.033,"n":25615},"bear":{"dir":0.474,"base":0.48,"lift":-0.007,"n":3824}},"byTf":{"1day":{"dir":0.546,"base":0.573,"cone":0.780,"fx":54,"n":18691},"1week":{"dir":0.628,"base":0.658,"cone":0.779,"fx":18,"n":11082},"1month":{"dir":0.645,"base":0.658,"cone":0.744,"fx":14,"n":1723}},"cal":[{"pred":0.577,"act":0.579},{"pred":0.623,"act":0.622}],"day":[{"s":"000660","g":"국내","from":"2024","to":"2026"},{"s":"005380","g":"국내","from":"2024","to":"2026"},{"s":"005930","g":"국내","from":"2024","to":"2026"},{"s":"012330","g":"국내","from":"2024","to":"2026"},{"s":"035420","g":"국내","from":"2024","to":"2026"},{"s":"035720","g":"국내","from":"2024","to":"2026"},{"s":"051910","g":"국내","from":"2024","to":"2026"},{"s":"055550","g":"국내","from":"2024","to":"2026"},{"s":"068270","g":"국내","from":"2024","to":"2026"},{"s":"105560","g":"국내","from":"2024","to":"2026"},{"s":"AAPL","g":"미국주식","from":"2006","to":"2026"},{"s":"ADA/USD","g":"크립토","from":"2018","to":"2026"},{"s":"AMD","g":"미국주식","from":"2006","to":"2026"},{"s":"AUD/USD","g":"환율","from":"2007","to":"2026"},{"s":"BABA","g":"미국주식","from":"2014","to":"2026"},{"s":"BAC","g":"미국주식","from":"2006","to":"2026"},{"s":"BCH/USD","g":"크립토","from":"2018","to":"2026"},{"s":"BTC/USD","g":"크립토","from":"2014","to":"2026"},{"s":"CAT","g":"미국주식","from":"2006","to":"2026"},{"s":"CRM","g":"미국주식","from":"2006","to":"2026"},{"s":"CSCO","g":"미국주식","from":"2006","to":"2026"},{"s":"CVX","g":"미국주식","from":"2006","to":"2026"},{"s":"DIS","g":"미국주식","from":"2006","to":"2026"},{"s":"DOGE/USD","g":"크립토","from":"2021","to":"2026"},{"s":"ETH/USD","g":"크립토","from":"2021","to":"2026"},{"s":"EUR/USD","g":"환율","from":"2007","to":"2026"},{"s":"GBP/USD","g":"환율","from":"2007","to":"2026"},{"s":"GE","g":"미국주식","from":"2006","to":"2026"},{"s":"HD","g":"미국주식","from":"2006","to":"2026"},{"s":"IBM","g":"미국주식","from":"2006","to":"2026"},{"s":"INTC","g":"미국주식","from":"2006","to":"2026"},{"s":"JNJ","g":"미국주식","from":"2006","to":"2026"},{"s":"JPM","g":"미국주식","from":"2006","to":"2026"},{"s":"KO","g":"미국주식","from":"2006","to":"2026"},{"s":"LTC/USD","g":"크립토","from":"2017","to":"2026"},{"s":"MA","g":"미국주식","from":"2006","to":"2026"},{"s":"MSFT","g":"미국주식","from":"2006","to":"2026"},{"s":"NVDA","g":"미국주식","from":"2006","to":"2026"},{"s":"ORCL","g":"미국주식","from":"2006","to":"2026"},{"s":"PFE","g":"미국주식","from":"2006","to":"2026"},{"s":"PG","g":"미국주식","from":"2006","to":"2026"},{"s":"PYPL","g":"미국주식","from":"2015","to":"2026"},{"s":"QCOM","g":"미국주식","from":"2006","to":"2026"},{"s":"SOL/USD","g":"크립토","from":"2021","to":"2026"},{"s":"T","g":"미국주식","from":"2006","to":"2026"},{"s":"UNH","g":"미국주식","from":"2006","to":"2026"},{"s":"USD/JPY","g":"환율","from":"2007","to":"2026"},{"s":"USD/KRW","g":"환율","from":"2007","to":"2026"},{"s":"V","g":"미국주식","from":"2008","to":"2026"},{"s":"VZ","g":"미국주식","from":"2006","to":"2026"},{"s":"WMT","g":"미국주식","from":"2006","to":"2026"},{"s":"XAU/USD","g":"상품","from":"2007","to":"2026"},{"s":"XOM","g":"미국주식","from":"2006","to":"2026"},{"s":"XRP/USD","g":"크립토","from":"2018","to":"2026"}],"fixtures":[{"s":"068270","rg":"횡보","pnl":0.055,"bh":0.06},{"s":"BABA","rg":"횡보","pnl":0.231,"bh":0.259},{"s":"BAC","rg":"횡보","pnl":0.061,"bh":0.16},{"s":"PFE","rg":"횡보","pnl":0.079,"bh":-0.035},{"s":"PYPL","rg":"횡보","pnl":0.271,"bh":0.139}],"asOf":"2026-07","universe":"86개 시계열(54종목 × 일/주/월 · 크립토·상품·한국 포함)","points":"약 31,500개"};
 const pc = x => (x*100).toFixed(1) + "%";
 const rx = x => (x>=0?"+":"") + (x*100).toFixed(0) + "%";
@@ -588,7 +594,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   // ── 변동성 피처 10 뉴런 ──
   const FEAT=[]; const FX=452; for(let i=0;i<10;i++) FEAT.push({x:FX,y:432+i*18,c:bull});
   // ── SVG 조립 ──
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="분석 엔진 신경망 — 30개 지표 뉴런과 변동성 피처가 밀집 연결로 방향·리스크·판정을 산출">`;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="분석 엔진 신경망 — ${IND_N}개 지표 뉴런과 변동성 피처가 밀집 연결로 방향·리스크·판정을 산출">`;
   s+=`<defs><filter id="eaGlow" x="-140%" y="-140%" width="380%" height="380%"><feGaussianBlur stdDeviation="3.4"/></filter>`
    +`<filter id="eaG2" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="5"/></filter></defs>`;
   let wires="",pdefs="",parts="",pi=0;
@@ -622,7 +628,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   IND.forEach((n,i)=>{ s+=`<circle cx="${n.x}" cy="${n.y}" r="7" fill="${n.c}" opacity=".18" filter="url(#eaGlow)"/><circle cx="${n.x}" cy="${n.y}" r="4.3" fill="var(--surface)" stroke="${n.c}" stroke-width="1.8"/>`; });
   FEAT.forEach(f=>{ s+=`<circle cx="${f.x}" cy="${f.y}" r="6" fill="${bull}" opacity=".16" filter="url(#eaGlow)"/><circle cx="${f.x}" cy="${f.y}" r="3.6" fill="var(--surface)" stroke="${bull}" stroke-width="1.6"/>`; });
   // 그룹 헤더
-  s+=`<text x="${IX}" y="34" text-anchor="middle" class="ea-lv-spine" fill="${gold}">30개 지표 뉴런</text>`;
+  s+=`<text x="${IX}" y="34" text-anchor="middle" class="ea-lv-spine" fill="${gold}">${IND_N}개 지표 뉴런</text>`;
   s+=`<text x="${FX}" y="418" text-anchor="middle" class="ea-lv-clab" fill="${bull}">변동성 피처 10</text>`;
   s+=`<text x="700" y="126" text-anchor="middle" class="ea-lv-spine" fill="${bear}">경로 A · 방향(한계)</text>`;
   s+=`<text x="706" y="400" text-anchor="middle" class="ea-lv-spine" fill="${bull}">경로 B · 리스크(검증)</text>`;
@@ -654,7 +660,16 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   });
 })();
 
-document.getElementById("foot").innerHTML = "스쿱포지 엔진 v1.9.7 · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
+document.getElementById("foot").innerHTML = "스쿱포지 엔진 v"+EV+" · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
+// 정적 스키매틱 카운트·축 목록 현행화(엔진 메타 반영)
+(function syncStaticSchema(){
+  Array.from(document.querySelectorAll(".ea-t")).forEach(el => {
+    if (/지표 배터리/.test(el.textContent)) el.textContent = "지표 배터리 · "+IND_N+"종";
+    if (/리스크 .*축 · 로지스틱/.test(el.textContent)) el.textContent = "리스크 "+AXIS_N+"축 · 로지스틱";
+  });
+  const b2d = Array.from(document.querySelectorAll(".ea-d")).find(el => /변동성 예보/.test(el.innerHTML) && /낙폭 위험곡선/.test(el.innerHTML));
+  if (b2d) b2d.innerHTML = AXES.map(a => "<b>"+a.lab+"</b>"+(a.acc? " "+a.acc+"%":"")+(a.stock?"(주식)":"")).join(" · ") + ". 짝지어 <b>확률 R:R</b>.";
+})();
 
 /* ── 라이브 트랙레코드 렌더 — forge-api.php 원장 조회 ── */
 (async function renderLive(){
