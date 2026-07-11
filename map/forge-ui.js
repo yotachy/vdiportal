@@ -182,8 +182,9 @@
       const _tfDot = r => `<span class="doc-tfdot ${r || "na"}"></span>`;
       const _tf = _tfr ? `<span class="doc-tf" title="일·주·월 예측 신호등 — 초록=상승·노랑=중립·빨강=하락">${_tfDot(_tfr.d)}${_tfDot(_tfr.w)}${_tfDot(_tfr.m)}</span>` : "";
       const _chgHtml = isFinite(_chg) ? `<span class="doc-chg ${_chg >= 0 ? "up" : "dn"}">${_chg >= 0 ? "▲" : "▼"}${Math.abs(_chg).toFixed(2)}%</span>` : "";
-      const _rsB = (d._momRank && isFinite(d._mom)) ? `<span class="doc-rs" title="12개월 상대강도 순위 (모멘텀 ${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%) — 검증된 팩터·온건·참고용">#${d._momRank}</span>` : "";
-      const _momH = (d._momRank && isFinite(d._mom)) ? `<span class="doc-mom ${d._mom >= 0 ? "up" : "dn"}" title="12개월 모멘텀(상대강도)">${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%</span>` : "";
+      const _momOn = (typeof _momActive !== "undefined" && _momActive);   // 순위 활성 세션에서만 배지 노출(서버에 잔존한 stale 순위 방지)
+      const _rsB = (_momOn && d._momRank && isFinite(d._mom)) ? `<span class="doc-rs" title="12개월 상대강도 순위 (모멘텀 ${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%) — 검증된 팩터·온건·참고용">#${d._momRank}</span>` : "";
+      const _momH = (_momOn && d._momRank && isFinite(d._mom)) ? `<span class="doc-mom ${d._mom >= 0 ? "up" : "dn"}" title="12개월 모멘텀(상대강도)">${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%</span>` : "";
       const sub = (isFinite(_px) || _tf || _momH) ? `<div class="doc-sub">${isFinite(_px) ? `<span class="doc-px">${_hzFmt(_px)}</span>` : ""}${_tf}${_momH}</div>` : "";
       return `<div class="doc-row${d.id === _actHl ? " active" : ""}" data-doc="${d.id}" draggable="true">
          <div class="doc-r1">${_assetHtml(d, "doc-ico")}${_rsB}<span class="doc-nm">${esc(nm)}</span>${_chgHtml}<button class="side-btn doc-del" data-docdel="${d.id}" title="목록에서 제거">✕</button></div>${sub}

@@ -494,7 +494,10 @@
     dc.view = { tx: view.tx, ty: view.ty, scale: view.scale };
     dc.logChart = _logChart;
     dc.updated = new Date().toISOString();
-    return dc;
+    // 서버엔 문서 레벨 임시(_) 필드를 저장하지 않는다(_mom·_momRank·_verdict·_px·_chg·_tfReg·_earnDate 등).
+    // 저장 시 순위·판정 등 임시 분석상태가 새어 나가 새로고침 후 되살아나던 문제(상대강도 배지 잔존) 차단. 메모리의 dc는 그대로 유지.
+    const out = {}; for (const k in dc) { if (k[0] !== "_") out[k] = dc[k]; }
+    return out;
   }
   async function writeBackActive() {
     const dc = serializeActive(); if (!dc) return;
@@ -546,13 +549,23 @@
     sel = []; selEdge = null;
     _needFit = true;   // 종목/문서 전환 → 자동 프레이밍
     renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar();
-    if (!_bootIdle) { _firstIdle = false; runForge(); if (window._dashDefer) window._dashDefer(); if (typeof updateEngineBtn === "function") { _engineDirty = true; updateEngineBtn(); } }   // 종목 전환=경량 코어. 매트릭스·실적은 웹분석에서(부하 분산)
     // fetched 티커 자동 재fetch(비차단) — 캔들은 문서에 없으므로 메모리 복원
     // fetched 플래그 또는 레거시(구버전이 저장한 params.price 보유) 티커를 자동 재fetch. 샘플(price=null)은 제외.
     const _tks = boardState.nodes.filter(n => n.blockType === "ticker" && n.params && n.params.symbol && (n.params.fetched || isFinite(n.params.price)));
+    // 캔들 시계열이 아직 메모리에 없으면(서버 저장분엔 캔들 제외) 재fetch를 기다려야 한다.
+    // 이때 runForge를 즉시 부르면 priceSeries()=null이라 '데이터 부족(최소 20봉)'이 잘못 뜬다 → 재fetch 완료 후 첫 분석으로 미룸.
+    const _awaitFetch = _tks.length && !(typeof priceSeries === "function" && priceSeries());
+    if (!_bootIdle) {
+      _firstIdle = false;
+      _engineDirty = true; _autoFresh = true;   // 선택 시 자동(경량) 예측 — '웹분석'은 심층(멀티TF·실적) 갱신
+      if (!_awaitFetch) runForge();              // 시계열 이미 보유(샘플·붙여넣기·즉시복원) → 즉시 경량 분석
+      if (window._dashDefer) window._dashDefer();
+      if (typeof updateEngineBtn === "function") updateEngineBtn();
+    }
     if (_bootIdle || !_tks.length) setDocLoading(false);   // 초기 진입(idle) 또는 티커 없음 → 자동 재fetch 생략, 로딩 즉시 종료
     else {
       const _ldSafe = setTimeout(() => setDocLoading(false), 6000);   // 안전장치(fetch 지연/실패 대비)
+      let _anyLoaded = false;
       Promise.all(_tks.map(async n => {
         try {
           const rr = await fetchOHLC(n.params.symbol, (n.params.tf) || "1day");
@@ -567,10 +580,15 @@
             delete n.series; delete n.ohlc;                     // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
             if (typeof resetChartWin === "function") resetChartWin();
             if (typeof resetYScale === "function") resetYScale();
+            _anyLoaded = true;
             runForge();
           }
         } catch (e) { /* 오프라인/실패 무시 — 차트 없이 그레이스풀 */ }
-      })).finally(() => { clearTimeout(_ldSafe); setDocLoading(false); });   // 실 데이터 반영 후 로딩 종료
+      })).finally(() => {
+        clearTimeout(_ldSafe); setDocLoading(false);   // 실 데이터 반영 후 로딩 종료
+        // 재fetch로 아무 시계열도 못 얻었고 초기 runForge도 미뤘다면 → 지금 한 번 실행해 '데이터 부족/오프라인'을 정직히 표시
+        if (_awaitFetch && !_anyLoaded && !_bootIdle && typeof runForge === "function") runForge();
+      });
     }
     // 새 문서의 진행 중 잡 복원 (비전 분석 활성 시에만) — 실 티커 포지는 이미지분석 초기화이므로 잡 복원도 생략
     const _realTicker = boardState.nodes.some(n => n.blockType === "ticker" && n.params && (n.params.fetched || isFinite(n.params.price)));
