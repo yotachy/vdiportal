@@ -162,8 +162,14 @@
   .eng-stat{font-size:11px;font-weight:600;letter-spacing:-.01em;padding:3px 2px;white-space:nowrap;font-family:var(--mono);background:transparent}
   .eng-stat:empty{display:none}
   .eng-stat.ok{color:var(--eth)}
-  .eng-stat.stale{color:#e8b463}
+  .eng-stat.stale{color:var(--bear);font-weight:700}   /* 변경됨=빨강(결과 낡음) */
+  .eng-stat.auto{color:#e8b463}                        /* 자동 예측=골드(심층 대기) */
+  .eng-stat.deep{color:var(--bull)}                    /* 웹분석 완료=초록(최신) */
   @keyframes engPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,180,99,.55)}50%{box-shadow:0 0 0 5px rgba(232,180,99,0)}}
+  /* 웹분석 버튼: 변경됨(결과 낡음) = 빨강 펄스 — needs-run(골드=심층 유도)보다 강한 경고 */
+  .run-btn.stale-run{background:var(--bear)!important;border-color:var(--bear)!important;color:#fff!important;animation:stalePulse 1.05s ease-in-out infinite}
+  .run-btn.stale-run svg{fill:#fff}
+  @keyframes stalePulse{0%,100%{box-shadow:0 0 0 0 rgba(224,106,106,.55)}50%{box-shadow:0 0 0 6px rgba(224,106,106,0)}}
 
   /* ════════════════════════════════════════════════════
      BOARD ENGINE STYLES  (ported + scoped with b- prefix)
@@ -1029,6 +1035,11 @@
   .tk-panel .tk-seg button.on{background:var(--gold);color:#1a1206}
   .tk-panel .tk-load{background:var(--gold);border:1px solid var(--gold);color:#1a1206;border-radius:var(--r-md);padding:7px 15px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;flex:0 0 auto}
   .tk-panel .tk-load:hover{filter:brightness(1.07)}
+  /* 불러오기 상태(UX): need=빨강 펄스(이 심볼 데이터 미로드 — 눌러야 함) · ok=차분(로드 완료) · disabled=로딩 중 */
+  .tk-panel .tk-load.need{background:var(--bear);border-color:var(--bear);color:#fff;animation:tkNeedPulse 1.15s ease-in-out infinite}
+  @keyframes tkNeedPulse{0%,100%{box-shadow:0 0 0 0 rgba(224,106,106,.5)}50%{box-shadow:0 0 0 6px rgba(224,106,106,0)}}
+  .tk-panel .tk-load.ok{background:var(--surface);border-color:var(--line);color:var(--bull);font-weight:700}
+  .tk-panel .tk-load:disabled{opacity:.65;cursor:default;animation:none}
   .tk-panel .tk-stat{font-size:11px;color:var(--eth);white-space:nowrap;flex:0 0 auto;font-family:var(--mono)}
   .tk-dot{display:inline-flex;align-items:center;gap:5px}
   .tk-dot::before{content:"●";font-size:10px;line-height:1}
@@ -1532,6 +1543,7 @@
   :root.light .verdict-tag,
   :root.light .b-tier-tag,
   :root.light .ev-opt-chk.on::after{color:#fff!important}
+  :root.light .tk-panel .tk-load.ok{color:var(--bull)!important;background:var(--surface)!important;border-color:var(--line)!important}   /* 라이트: 로드완료는 차분 유지(흰글자 강제 예외) */
   :root.light .run-btn,
   :root.light .fc-tfseg button.on,
   :root.light .tk-panel .tk-seg button.on,

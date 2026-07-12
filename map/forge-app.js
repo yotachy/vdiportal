@@ -1895,6 +1895,8 @@
     n._series = cs.map(d => d.c);             // 인메모리(직렬화 제외)
     n._ohlc = cs;
     n._times = r.candles.map(d => d.t);       // 실제 날짜(시간축 눈금용, 인메모리)
+    n._loadedSym = ((n.params && n.params.symbol) || "").trim().toUpperCase();   // 로드 상태 추적 — 입력만 바꾼 뒤 '불러오기 필요' 판별(UX 상태)
+    n._loadedTf = (n.params && n.params.tf) || "1day";
     delete n.series; delete n.ohlc;           // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
     n.params = n.params || {};
     n.params.tf = r.tf || "1day";
@@ -1926,13 +1928,21 @@
     const cur = (t && t.params && t.params.tf) || "1day";
     const seg = document.getElementById("tkSeg");
     if (seg) seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.tf === cur));
+    const loaded = t && Array.isArray(t._series) && t._series.length >= 2;
+    // fresh = 지금 입력된 심볼·주기의 데이터가 실제로 로드됨(입력만 바꾼 stale 상태 구분 — _loadedSym/_loadedTf 추적)
+    const fresh = loaded && (t._loadedSym || "") === sym.trim().toUpperCase() && ((t._loadedTf || "1day") === cur);
     const stat = document.getElementById("tkStat");
     if (stat) {
-      const loaded = t && Array.isArray(t._series) && t._series.length >= 2;
-      const state = loaded ? "ok" : sym ? "need" : "empty";
+      const state = fresh ? "ok" : sym ? "need" : "empty";
       stat.className = "tk-stat tk-dot " + state;
-      stat.textContent = loaded ? (t._series.length + "봉") : "";
-      stat.title = loaded ? (t._series.length + "봉 · " + (_TFKO[cur] || cur) + " 로드됨") : sym ? "불러오기 필요 — [불러오기] 클릭" : "종목 심볼을 입력하세요";
+      stat.textContent = fresh ? (t._series.length + "봉") : sym ? "미로드" : "";
+      stat.title = fresh ? (t._series.length + "봉 · " + (_TFKO[cur] || cur) + " 로드됨") : sym ? "이 심볼 데이터를 아직 안 불러왔습니다 — [불러오기] 클릭" : "종목 심볼을 입력하세요";
+    }
+    const lb = document.getElementById("tkLoad");
+    if (lb && !lb.disabled) {
+      lb.className = "tk-load" + (fresh ? " ok" : sym ? " need" : "");
+      lb.textContent = fresh ? "✓ 불러옴" : "불러오기";
+      lb.title = fresh ? "최신 데이터 로드됨 — 다시 누르면 새로고침" : sym ? "이 종목 데이터를 아직 안 불러왔습니다 — 눌러서 불러오세요" : "종목 심볼 입력 후 불러오기";
     }
   }
   function autoLogForTicker(tk) {   // 광범위(월봉 등 max/min>5) → 로그 기본(세로 가독·제어 자연스럽게)
@@ -1950,16 +1960,18 @@
     if (!sym) { bToast("종목 심볼을 입력하세요 (예: BTC-USD)"); return; }
     if (!SERVER_OK) { bToast("오프라인 — 서버 연결이 필요해요"); return; }
     const tf = t.params.tf || "1day";
-    bToast(sym + " 불러오는 중…");
+    const lb = document.getElementById("tkLoad");
+    if (lb) { lb.disabled = true; lb.className = "tk-load"; lb.textContent = "불러오는 중…"; }
     try {
       const r = await fetchOHLC(sym, tf);
       if (r && r.ok && Array.isArray(r.candles) && r.candles.length >= 2) {
-        applyTickerOHLC(t, r); autoLogForTicker(t); runForge(); renderTickerPanel();   // 종목 선택=경량(단일TF 코어 분석·차트). 멀티TF 매트릭스·실적 증강은 '웹분석'에서(부하 분산)
+        applyTickerOHLC(t, r); autoLogForTicker(t); runForge();   // 종목 선택=경량(단일TF 코어 분석·차트). 멀티TF 매트릭스·실적 증강은 '웹분석'에서(부하 분산)
         _dashDefer();   // 매트릭스는 웹분석에서 채움(선택 시 이전 종목 데이터 잔존 방지)
         if (typeof updateEngineBtn === "function") { _engineDirty = true; _autoFresh = true; updateEngineBtn(); }   // 자동(경량) 예측 완료 · 웹분석 버튼에 '심층' 유도(펄스)
         if (r.candles.length >= 20) bToast(sym + " " + (t._ohlc ? t._ohlc.length : r.candles.length) + "봉 · " + (_TFKO[tf] || tf));   // <20봉은 runForge의 _showInsufficient가 안내
       } else bToast("데이터를 찾을 수 없어요: " + sym);
     } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
+    finally { if (lb) lb.disabled = false; renderTickerPanel(); }   // 성공/실패 무관 버튼 상태 복원(need/ok는 fresh 판정이 결정)
   }
   // 차트 헤더 일/주/월 세그먼트 — 티커 실데이터일 때만 노출, 현재 주기 하이라이트
   function renderTfSeg() {
@@ -2025,22 +2037,25 @@
   }
   function updateEngineBtn() {
     const b = document.getElementById("analyzeBtn");
-    if (b) b.classList.toggle("needs-run", _engineDirty);
+    if (b) {
+      b.classList.toggle("stale-run", _engineDirty && !_autoFresh);   // 변경됨 → 빨강 펄스(재분석 필요, 강)
+      b.classList.toggle("needs-run", _engineDirty && _autoFresh);    // 자동 예측 상태 → 골드 펄스(심층 유도)
+    }
     const st = document.getElementById("engStat"); if (!st) return;
     if (_engineDirty && !_autoFresh) {   // 노드/설정을 실제로 바꿔 코어 결과가 낡음 → 재분석 필요
       st.className = "eng-stat stale";
-      st.textContent = "● 변경됨 · 재분석 필요";
-      st.title = "노드/설정이 바뀌었습니다 — ▷ 웹분석을 눌러 결과를 갱신하세요";
+      st.textContent = "● 변경됨 — 지금 결과는 옛것 · 웹분석 필요";
+      st.title = "노드/설정이 바뀌어 화면의 분석 결과가 낡았습니다 — 빨간 [웹분석] 버튼을 눌러 갱신하세요";
     } else if (_autoFresh && _lastAnalyzedAt) {   // 선택 시 자동 계산된 실제 예측(심층은 대기) — 보여주기식 아님을 정직 표기
       const d = new Date(_lastAnalyzedAt), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
-      st.className = "eng-stat ok";
-      st.textContent = "✓ 자동 예측 " + hh + ":" + mm + " · 웹분석=심층";
+      st.className = "eng-stat auto";
+      st.textContent = "✓ 자동 예측 " + hh + ":" + mm + " · 심층은 웹분석";
       st.title = "종목 선택 시 실데이터로 자동 계산된 경량 예측입니다(보여주기식 아님). '웹분석'을 누르면 멀티TF 매트릭스·실적까지 심층 갱신합니다.";
     } else if (_lastAnalyzedAt) {
       const d = new Date(_lastAnalyzedAt), YY = d.getFullYear(), MM = ("0" + (d.getMonth() + 1)).slice(-2), DD = ("0" + d.getDate()).slice(-2), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
-      st.className = "eng-stat ok";
-      st.textContent = "✓ 웹분석 " + YY + "." + MM + "." + DD + " " + hh + ":" + mm;
-      st.title = "현재 결과는 " + YY + "." + MM + "." + DD + " " + hh + ":" + mm + " 웹분석(심층)본입니다 (" + _fmtAgo(_lastAnalyzedAt) + ")";
+      st.className = "eng-stat deep";
+      st.textContent = "✓ 웹분석 완료 " + YY + "." + MM + "." + DD + " " + hh + ":" + mm;
+      st.title = "현재 결과는 " + YY + "." + MM + "." + DD + " " + hh + ":" + mm + " 웹분석(심층)본입니다 (" + _fmtAgo(_lastAnalyzedAt) + ") — 초록=최신";
     } else {
       st.className = "eng-stat"; st.textContent = "";
     }
