@@ -110,6 +110,16 @@
   const VISION_ENABLED = true;    // 비전 시계열(샘플 데모 데이터 소스). 이미지 분석 UI는 추후 고도화 — 실 티커 포지에선 저장된 vision 무시(loadDoc)
   console.log("[forge] Scoop Forge vb0.1");
   let SERVER_OK = true, DOCS = [], META = { library: [], activeId: null }, activeId = null;
+  // 인증 상태(v1 auth) — 서버 forge-auth.php?me=1. enabled=false(OAuth 미설정)면 종전 동작(전역 문서, canSave=true).
+  let AUTH = { checked: false, enabled: false, on: false, email: null };
+  async function fetchAuth() {
+    try { const r = await fetch("forge-auth.php?me=1", { cache: "no-store" }); const j = await r.json();
+      AUTH = { checked: true, enabled: !!j.enabled, on: !!j.ok, email: j.email || null }; }
+    catch (e) { AUTH = { checked: true, enabled: false, on: false, email: null }; }
+  }
+  function canSave() { return !AUTH.enabled || AUTH.on; }   // 스위치 꺼짐=종전 · 켜짐=로그인만 저장
+  let _nudged = false;
+  function guestNudge() { if (_nudged) return; _nudged = true; if (typeof bToast === "function") bToast("체험 모드 — 로그인하면 포지가 저장됩니다"); }
   let _firstIdle = false;   // 첫 진입: 티커 자동 선택/분석 없음(워치리스트 하이라이트도 없음). 사용자가 종목 클릭 시 해제.
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -123,6 +133,7 @@
   }
   function setSaveState(s) {
     const el = document.getElementById("saveBadge"); if (!el) return;
+    if (AUTH.enabled && !AUTH.on) { el.textContent = "● 체험 모드 · 저장 안 됨"; el.className = "save-badge guest"; return; }   // 게스트 상시 배지
     el.textContent = s === "saving" ? "● 저장 중…" : s === "offline" ? "● 오프라인" : "";   // 저장됨 문구 제거(정상 시 비움)
     el.className = "save-badge " + (s === "saved" ? "" : s);
   }
@@ -422,7 +433,7 @@
   /* SAMPLE-IMAGES END */
   const LIBRARY = [];
   function imgSrc(id){ return IMAGES[id] || ""; }
-  function putImg(id, src) { IMAGES[id] = src; if (SERVER_OK) apiPost({ op: "putimg", id, src }); }
+  function putImg(id, src) { IMAGES[id] = src; if (!canSave()) { guestNudge(); return; } if (SERVER_OK) apiPost({ op: "putimg", id, src }); }   // 체험: 메모리만(서버 저장 없음)
 
   /* ── 주제 배너 ───────────────────────────────────────────────── */
   let themeState = { imgId: null, title: "" };
@@ -500,6 +511,7 @@
     return out;
   }
   async function writeBackActive() {
+    if (!canSave()) { guestNudge(); return; }   // 체험 모드: 서버 저장 없음(서버도 401로 이중 방어)
     const dc = serializeActive(); if (!dc) return;
     if (!SERVER_OK) return;
     setSaveState("saving");
@@ -507,8 +519,8 @@
     setSaveState(r && r.ok ? "saved" : "offline");
   }
   let _saveT = null;
-  function markDirty() { if (!SERVER_OK) return; clearTimeout(_saveT); _saveT = setTimeout(writeBackActive, 800); }
-  async function saveMeta() { if (!SERVER_OK) return; _ensureGroups(); await apiPost({ op: "meta", meta: { library: LIBRARY, activeId, groups: META.groups, docGroups: META.docGroups } }); }
+  function markDirty() { if (!canSave()) { guestNudge(); return; } if (!SERVER_OK) return; clearTimeout(_saveT); _saveT = setTimeout(writeBackActive, 800); }
+  async function saveMeta() { if (!canSave()) return; if (!SERVER_OK) return; _ensureGroups(); await apiPost({ op: "meta", meta: { library: LIBRARY, activeId, groups: META.groups, docGroups: META.docGroups } }); }
   function setDocLoading(on) {
     ["boardPane", "chartPane"].forEach(pid => {
       const pane = document.getElementById(pid); if (!pane) return;
@@ -609,6 +621,8 @@
   let _bootIdle = false;
   async function boot() {
     _bootIdle = true;   // 초기 진입: 자동 분석/재fetch 억제(종목 선택 전 idle 화면 — 로딩 없음)
+    await fetchAuth();   // 인증 상태 선확인 — 게스트면 서버 GET이 null → 아래 샘플 시드 = 체험 모드
+    if (typeof updateAuthUI === "function") updateAuthUI();
     const doc = await apiGet("");
     await loadImages();
     if (doc && doc.documents && doc.documents.length) {

@@ -12,6 +12,23 @@ $f  = __DIR__ . "/forge_data.json";
 $kf = __DIR__ . "/forge_key.txt";
 $WRITE_KEY = is_file($kf) ? trim(file_get_contents($kf)) : "";
 
+// ── 인증(v1 auth): forge_google_oauth.json 업로드 시에만 활성 — 미업로드=종전 전역 문서 동작(무중단 스위치) ──
+require __DIR__ . "/forge-auth-lib.php";
+$AUTH_ON = fauth_enabled();
+$AUTH_EMAIL = $AUTH_ON ? fauth_email() : null;
+$UID = $AUTH_EMAIL ? fauth_uid($AUTH_EMAIL) : null;
+$IMGF = __DIR__ . "/forge_images.json";   // 이미지 경로 변수화(putimg·?images 공용)
+if ($AUTH_ON && $UID) {
+  $uf = __DIR__ . "/forge_data_" . $UID . ".json";
+  $uimg = __DIR__ . "/forge_images_" . $UID . ".json";
+  // 레거시 1회 이관: admin 첫 로그인 시 기존 전역 문서·이미지를 계정 파일로 복사(원본 보존 — 불가침)
+  if ($AUTH_EMAIL === fauth_admin()) {
+    if (!is_file($uf) && is_file($f)) @copy($f, $uf);
+    if (!is_file($uimg) && is_file($IMGF)) @copy($IMGF, $uimg);
+  }
+  $f = $uf; $IMGF = $uimg;
+}
+
 function check_key($wk) {
   if ($wk === "") return true;
   $k = isset($_SERVER["HTTP_X_WRITE_KEY"]) ? $_SERVER["HTTP_X_WRITE_KEY"] : "";
@@ -24,8 +41,8 @@ if ($method === "GET") {
   header("Cache-Control: no-store");
   if (isset($_GET["check"])) { echo json_encode(["valid" => check_key($WRITE_KEY)]); exit; }
   if (isset($_GET["images"])) {
-    $imgf = __DIR__ . "/forge_images.json";
-    if (is_file($imgf)) { readfile($imgf); } else { echo "{}"; }
+    if ($AUTH_ON && !$UID) { echo "{}"; exit; }   // 게스트(체험): 사용자 이미지 없음
+    if (is_file($IMGF)) { readfile($IMGF); } else { echo "{}"; }
     exit;
   }
   if (isset($_GET["jobs"])) {
@@ -290,6 +307,7 @@ if ($method === "GET") {
     echo json_encode(["ok"=>true, "resolved"=>$resolved, "pending"=>$pending, "since"=>$since, "dir"=>$mk($agg["dir"]), "vol"=>$mk($agg["vol"]), "dd"=>$mkp($agg["dd"]), "up"=>$mkp($agg["up"]), "spk"=>$mkp($agg["spk"]), "gap"=>$mkp($agg["gap"]), "tp"=>$mk($agg["tp"]), "rel"=>$mk($agg["rel"]), "sec"=>$mk($agg["sec"])], JSON_UNESCAPED_UNICODE);
     exit;
   }
+  if ($AUTH_ON && !$UID) { echo "null"; exit; }   // 게스트(체험): 문서 없음 → 클라가 샘플 시드
   if (is_file($f)) { readfile($f); } else { echo "null"; }
   exit;
 }
@@ -300,18 +318,21 @@ if (!check_key($WRITE_KEY)) { http_response_code(403); jout(["ok"=>false,"error"
 $d = json_decode(file_get_contents("php://input"), true);
 if (!is_array($d) || !isset($d["op"])) { http_response_code(400); jout(["ok"=>false,"error"=>"noop"]); }
 $op = $d["op"];
+// 게스트(체험) 쓰기 차단 — 문서·이미지·원장 계열(fail-closed). jobs 계열은 비전 워커 경로라 종전 유지.
+if ($AUTH_ON && !$UID && in_array($op, ["replace","upsert","delete","reorder","meta","putimg","logpred"], true)) {
+  http_response_code(401); jout(["ok"=>false,"error"=>"login"]);
+}
 
 if ($op === "putimg") {
   $iid = isset($d["id"]) ? $d["id"] : null;
   $src = isset($d["src"]) ? $d["src"] : null;
   if ($iid === null || !is_string($src)) { http_response_code(400); jout(["ok"=>false,"error"=>"invalid"]); }
-  $imgf = __DIR__ . "/forge_images.json";
-  $ilock = fopen($imgf . ".lock", "c"); if ($ilock) { flock($ilock, LOCK_EX); }
-  $imgs = is_file($imgf) ? json_decode(file_get_contents($imgf), true) : [];
+  $ilock = fopen($IMGF . ".lock", "c"); if ($ilock) { flock($ilock, LOCK_EX); }
+  $imgs = is_file($IMGF) ? json_decode(file_get_contents($IMGF), true) : [];
   if (!is_array($imgs)) $imgs = [];
   $imgs[$iid] = $src;
-  $itmp = $imgf . ".tmp." . getmypid();
-  $okw = file_put_contents($itmp, json_encode($imgs, JSON_UNESCAPED_UNICODE)) !== false && rename($itmp, $imgf);
+  $itmp = $IMGF . ".tmp." . getmypid();
+  $okw = file_put_contents($itmp, json_encode($imgs, JSON_UNESCAPED_UNICODE)) !== false && rename($itmp, $IMGF);
   if ($ilock) { flock($ilock, LOCK_UN); fclose($ilock); }
   if (!$okw) { http_response_code(500); jout(["ok"=>false,"error"=>"write"]); }
   jout(["ok"=>true]);

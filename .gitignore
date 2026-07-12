@@ -41,3 +41,8 @@ build/
 .claude/commands/*
 !.claude/commands/*.md
 map/backtest/fixtures-intraday/
+map/forge_google_oauth.json
+map/forge_auth_secret.txt
+map/forge_admin.txt
+map/forge_data_*.json
+map/forge_images_*.json

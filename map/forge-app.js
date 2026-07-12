@@ -2104,6 +2104,7 @@
   let _predAgg = null;
   function logPrediction() {
     if (typeof SERVER_OK === "undefined" || !SERVER_OK || typeof apiPost !== "function") return;
+    if (typeof AUTH !== "undefined" && AUTH.enabled && !AUTH.on) return;   // 체험 모드: 공유 원장 오염 방지(서버도 401)
     const r = _fcLastResult; if (!r || !r.verdict) return;
     const ctx = r.verdict.context || {};
     const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim() && (Array.isArray(n._ohlc) || n.params.fetched));
@@ -2222,6 +2223,7 @@
   async function scanAlerts(manual) {
     if (_alertBusy) return;
     if (typeof SERVER_OK === "undefined" || !SERVER_OK) { if (manual && typeof bToast === "function") bToast("오프라인 — 신호 스캔은 서버 연결 필요"); return; }
+    if (typeof AUTH !== "undefined" && AUTH.enabled && !AUTH.on) { if (manual && typeof bToast === "function") bToast("체험 모드 — 로그인하면 내 워치리스트를 자동 스캔합니다"); return; }   // 게스트=샘플뿐이라 스캔 무의미
     const docs = (typeof DOCS !== "undefined" ? DOCS : []).filter(d => _docTicker(d)).slice(0, 30);
     if (!docs.length) { renderAlertUI(); if (manual && typeof bToast === "function") bToast("워치리스트에 종목이 없습니다"); return; }
     _alertBusy = true; renderAlertUI();
@@ -2308,8 +2310,30 @@
     const pop = document.getElementById("alertPop");
     if (pop && pop.classList.contains("open") && !pop.contains(e.target) && !(e.target.closest && e.target.closest("#alertBell"))) pop.classList.remove("open");
   });
-  // 엔진분석 = 클로드 수동분석(예정 기능). 현재는 안내만.
-  function authSoon() { if (typeof bToast === "function") bToast("로그인·회원가입은 준비 중입니다"); }
+  // 인증 UI(v1 auth) — AUTH 전역(forge-state)·forge-auth.php 연동. OAuth 미설정이면 안내만(무중단 스위치).
+  function authSoon() {
+    if (typeof AUTH === "undefined" || !AUTH.enabled) { if (typeof bToast === "function") bToast("로그인 준비 중 — 서버 OAuth 설정 대기"); return; }
+    if (AUTH.on) return;   // 로그인 상태에선 버튼이 로그아웃으로 대체됨
+    location.href = "forge-auth.php?login=1";
+  }
+  function updateAuthUI() {
+    const btn = document.querySelector(".auth-btn"); if (!btn || typeof AUTH === "undefined") return;
+    if (AUTH.on && AUTH.email) {
+      const short = AUTH.email.split("@")[0];
+      btn.innerHTML = '<span class="au-mail" title="' + AUTH.email + '">' + short + '</span><span class="au-sep"></span><span class="au-login">로그아웃</span>';
+      btn.title = AUTH.email + " — 로그아웃";
+      btn.onclick = () => { location.href = "forge-auth.php?logout=1"; };
+    }
+  }
+  (function _authReturnToast() {   // OAuth 복귀 처리: ?login=ok/fail 토스트 후 쿼리 제거
+    try {
+      const q = new URLSearchParams(location.search), st = q.get("login");
+      if (!st) return;
+      setTimeout(() => { if (typeof bToast === "function") bToast(st === "ok" ? "로그인됨 — 내 포지로 전환되었습니다" : "로그인 실패 — 다시 시도해주세요"); }, 600);
+      q.delete("login");
+      history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : ""));
+    } catch (e) {}
+  })();
   const THEMES = {
     navy:     { name: "네이비", group: "dark", c: "#0b0f14", g: "#e8b463", vars: { "--bg": "#0b0f14", "--panel": "#121822", "--surface": "#141a22", "--raised": "#1b232d", "--raised2": "#27313e", "--line": "#1e2633", "--edge": "#566472", "--ink": "#e7ecf5", "--eth": "#8a92b2", "--muted": "#8b98a6", "--faint": "#6a7688", "--gold": "#e8b463", "--gold-dim": "#5e4d2c", "--bull": "#46c28e", "--bear": "#e06a6a", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(11,15,20,.72)", "--grid": "#1b2334", "--chart-bg": "#0b0f14" } },
     midnight: { name: "미드나잇 (기본)", group: "dark", c: "#07080b", g: "#e8b463", vars: { "--bg": "#07080b", "--panel": "#0d0f13", "--surface": "#101318", "--raised": "#171a20", "--raised2": "#222631", "--line": "#181b23", "--edge": "#4a5560", "--ink": "#e7ecf5", "--eth": "#8a92b2", "--muted": "#8b98a6", "--faint": "#68748a", "--gold": "#e8b463", "--gold-dim": "#5e4d2c", "--bull": "#46c28e", "--bear": "#e06a6a", "--hover": "rgba(255,255,255,.05)", "--scrim": "rgba(7,8,11,.75)", "--grid": "#161b26", "--chart-bg": "#07080b" } },
