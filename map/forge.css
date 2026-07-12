@@ -166,6 +166,31 @@
   .eng-stat.auto{color:#e8b463}                        /* 자동 예측=골드(심층 대기) */
   .eng-stat.deep{color:var(--bull)}                    /* 웹분석 완료=초록(최신) */
   @keyframes engPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,180,99,.55)}50%{box-shadow:0 0 0 5px rgba(232,180,99,0)}}
+  /* 신호 알림 — 헤더 벨 + 배지 + 팝오버(워치리스트 자동 스캔, 검증 신호만) */
+  .alert-bell{position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);color:var(--eth);cursor:pointer;flex:0 0 auto}
+  .alert-bell:hover{background:var(--hover);color:var(--ink)}
+  .alert-bell svg{width:15px;height:15px}
+  .alert-bell.scanning svg{animation:bellScan 1.1s ease-in-out infinite}
+  @keyframes bellScan{0%,100%{transform:rotate(0)}25%{transform:rotate(13deg)}75%{transform:rotate(-13deg)}}
+  .alert-badge{position:absolute;top:-5px;right:-6px;min-width:15px;height:15px;padding:0 4px;background:var(--bear);color:#fff;border-radius:99px;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;line-height:1;font-variant-numeric:tabular-nums}
+  .alert-pop{display:none;position:fixed;top:60px;right:16px;z-index:80;width:min(430px,calc(100vw - 24px));max-height:min(520px,70vh);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 14px 40px rgba(0,0,0,.45);padding:10px}
+  .alert-pop.open{display:block}
+  .alert-pop .ap-head{display:flex;align-items:center;gap:8px;padding:2px 4px 9px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink)}
+  .alert-pop .ap-sub{color:var(--faint);font-size:10.5px;margin-right:auto}
+  .alert-pop .ap-btn{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);color:var(--eth);font:inherit;font-size:10.5px;font-weight:700;padding:4px 8px;cursor:pointer}
+  .alert-pop .ap-btn:hover{color:var(--ink);background:var(--hover)}
+  .alert-pop .ap-btn.on{color:var(--gold);border-color:var(--gold-dim);background:rgba(232,180,99,.1)}
+  .alert-pop .ap-btn:disabled{opacity:.55;cursor:default}
+  .alert-pop .ap-empty{padding:16px 6px;color:var(--faint);font-size:12px;line-height:1.55}
+  .alert-pop .ap-row{display:flex;align-items:baseline;gap:8px;padding:9px 6px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:var(--r-sm)}
+  .alert-pop .ap-row:hover{background:var(--hover)}
+  .alert-pop .ap-sev{flex:0 0 auto;font-size:9.5px;font-weight:800;border-radius:99px;padding:1.5px 7px}
+  .alert-pop .ap-sev.buy{color:var(--bull);background:rgba(70,194,142,.14)}
+  .alert-pop .ap-sev.warn{color:var(--bear);background:rgba(224,106,106,.13)}
+  .alert-pop .ap-sev.info{color:var(--eth);background:var(--surface)}
+  .alert-pop .ap-sym{flex:0 0 auto;font-size:12.5px;color:var(--ink)}
+  .alert-pop .ap-msg{font-size:11.5px;color:var(--eth);line-height:1.45}
+  .alert-pop .ap-foot{padding:8px 4px 2px;color:var(--faint);font-size:10px}
   /* 웹분석 버튼: 변경됨(결과 낡음) = 빨강 펄스 — needs-run(골드=심층 유도)보다 강한 경고 */
   .run-btn.stale-run{background:var(--bear)!important;border-color:var(--bear)!important;color:#fff!important;animation:stalePulse 1.05s ease-in-out infinite}
   .run-btn.stale-run svg{fill:#fff}

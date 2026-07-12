@@ -2180,6 +2180,116 @@
       + '</div>';
     m.classList.add("open");
   }
+  // ── 신호 알림 자동화 — 워치리스트를 검증된 신호로 자동 스캔(부팅 후 + 60분 주기 + 수동). ──
+  // 열린 엔진 원칙: 규칙은 레지스트리(ALERT_RULES) — 새 검증축의 신호는 규칙 한 줄 추가로 알림에 등장. 게이팅 없음(전체 공개).
+  // 정직 라벨: 각 메시지에 검증 수치 병기. 스캔은 서버 OHLC 캐시(1h)·실적캐시(6h) 재사용이라 저비용.
+  const ALERT_RULES = [
+    { key: "opp", sev: "buy", when: c => c.opportunity && c.opportunity.kind === "buy",
+      msg: c => c.opportunity.sub === "support" ? "지지반등 기회 — 횡보 바닥+RSI 반등 (검증: 승률 57%·+1.1%/20봉)" : "하락 후 반등 기회 — RSI 반등 확인 (검증: 랜덤 대비 +1.4~2.5%p)" },
+    { key: "spike", sev: "warn", when: c => c.spikeRisk && c.spikeRisk.elevated, msg: c => "급변 경보 " + c.spikeRisk.prob + "% — 1달 내 2.5σ 하루 (평시 44% · OOS 65%)" },
+    { key: "gap", sev: "warn", when: c => c.gapRisk && c.gapRisk.elevated, msg: c => "갭 경보 " + c.gapRisk.prob + "% — 큰 오버나이트 갭 (평시 49% · OOS 63%)" },
+    { key: "dd", sev: "warn", when: c => c.ddRisk && c.ddRisk.elevated, msg: c => "낙폭 경보 " + c.ddRisk.prob + "% — 1달 내 −5% (평시 34% · OOS 68%)" },
+    { key: "vol", sev: "info", when: c => c.volForecast && c.volForecast.expand && c.volForecast.prob >= 65, msg: c => "변동성 확대 예보 " + c.volForecast.prob + "% (OOS 69%)" },
+    { key: "earn", sev: "info", when: (c, x) => x.earnD != null && x.earnD >= 0 && x.earnD <= 5, msg: (c, x) => "실적 발표 D-" + x.earnD + " — 갭·급변 확률 상승 구간(실적 인지 증강)" },
+    { key: "relsec", sev: "info", when: c => c.relSector && c.relSector.prob >= 60, msg: c => "섹터 아웃퍼폼 우세 " + c.relSector.prob + "% vs " + (c.relSector.etf || "섹터") + " (OOS 57%)" },
+  ];
+  let _alerts = [], _alertBusy = false, _alertLastScan = null;
+  const _ALERT_SEV_KO = { buy: "기회", warn: "경보", info: "참고" };
+  function _alertSeen() { try { return JSON.parse(localStorage.getItem("forge_alert_seen") || "{}"); } catch (e) { return {}; } }
+  function _alertSaveSeen(o) { try { localStorage.setItem("forge_alert_seen", JSON.stringify(o)); } catch (e) {} }
+  function _alertNotifyOn() { try { return localStorage.getItem("forge_alert_notify") === "1"; } catch (e) { return false; } }
+  let _scanGraphC = null;
+  function _scanGraph() { if (!_scanGraphC) { _scanGraphC = ForgeCore.sampleGraph(); (_scanGraphC.nodes || []).forEach(n => { if (n.conviction) n.conviction = 0; }); } return _scanGraphC; }
+  const _alertSleep = ms => new Promise(r => setTimeout(r, ms));
+  async function scanAlerts(manual) {
+    if (_alertBusy) return;
+    if (typeof SERVER_OK === "undefined" || !SERVER_OK) { if (manual && typeof bToast === "function") bToast("오프라인 — 신호 스캔은 서버 연결 필요"); return; }
+    const docs = (typeof DOCS !== "undefined" ? DOCS : []).filter(d => _docTicker(d)).slice(0, 30);
+    if (!docs.length) { renderAlertUI(); if (manual && typeof bToast === "function") bToast("워치리스트에 종목이 없습니다"); return; }
+    _alertBusy = true; renderAlertUI();
+    const out = [];
+    for (const d of docs) {
+      const sym = (_docTicker(d) || "").trim().toUpperCase();
+      try {
+        const r = await fetchOHLC(sym, "1day");
+        if (!r || !r.ok || !Array.isArray(r.candles) || r.candles.length < 220) continue;
+        const candle = r.candles.map(c => ({ o: +c.o, h: +c.h, l: +c.l, c: +c.c, v: (c.v != null && isFinite(+c.v)) ? +c.v : undefined }));
+        const price = candle.map(c => c.c);
+        const asOf = String(r.candles[r.candles.length - 1].t || "").slice(0, 10);
+        let earnD = null;   // 실적 D-N(미국주식·서버 6h 캐시)
+        if (_isUSStockSym(sym) && typeof apiGet === "function" && asOf) {
+          try { const e = await apiGet("?earndate=1&symbol=" + encodeURIComponent(sym)); if (e && e.ok && e.date) earnD = _bizDays(asOf, e.date); } catch (e2) {}
+        }
+        let res; try { res = ForgeCore.run(_scanGraph(), { price, candle }, { futW: 60, timeframe: "1day" }); } catch (e3) { continue; }
+        const ctx = (res.verdict && res.verdict.context) || {};
+        for (const rule of ALERT_RULES) {
+          let hit = false; try { hit = !!rule.when(ctx, { earnD }); } catch (e4) {}
+          if (hit) out.push({ id: sym + "|" + rule.key + "|" + asOf, sym, docId: d.id, key: rule.key, sev: rule.sev, msg: rule.msg(ctx, { earnD }), asOf });
+        }
+      } catch (e) {}
+      await _alertSleep(350);   // 프록시 캐시 미스 버스트 완화(TD 레이트리밋 보호)
+    }
+    _alerts = out; _alertBusy = false; _alertLastScan = Date.now();
+    const seen = _alertSeen(), fresh = out.filter(a => !seen[a.id]);
+    renderAlertUI();
+    if (fresh.length && _alertNotifyOn() && typeof Notification !== "undefined" && Notification.permission === "granted") {
+      try { new Notification("스쿱포지 신호 " + fresh.length + "건", { body: fresh.slice(0, 3).map(a => a.sym + " · " + a.msg).join("\n"), tag: "forge-alerts" }); } catch (e) {}
+    }
+    if (manual && typeof bToast === "function") bToast("신호 스캔 완료 — " + out.length + "건 (" + docs.length + "종목)");
+  }
+  function _alertUnseen() { const seen = _alertSeen(); return _alerts.filter(a => !seen[a.id]).length; }
+  function renderAlertUI() {
+    const bell = document.getElementById("alertBell"), badge = document.getElementById("alertBadge");
+    if (!bell) return;
+    const hasDocs = (typeof DOCS !== "undefined" ? DOCS : []).some(d => _docTicker(d));
+    bell.style.display = hasDocs ? "inline-flex" : "none";
+    bell.classList.toggle("scanning", _alertBusy);
+    const n = _alertUnseen();
+    if (badge) { badge.style.display = n ? "inline-flex" : "none"; badge.textContent = n > 99 ? "99+" : String(n); }
+    const pop = document.getElementById("alertPop");
+    if (pop && pop.classList.contains("open")) pop.innerHTML = _alertPopHTML();
+  }
+  function _alertPopHTML() {
+    const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+    const notif = _alertNotifyOn();
+    let h = '<div class="ap-head"><b>신호 알림</b><span class="ap-sub">' + (_alertBusy ? "스캔 중…" : (_alertLastScan ? "마지막 스캔 " + _fmtAgo(_alertLastScan) : "")) + '</span>'
+      + '<button class="ap-btn" onclick="scanAlerts(true)"' + (_alertBusy ? " disabled" : "") + '>지금 스캔</button>'
+      + '<button class="ap-btn' + (notif ? " on" : "") + '" onclick="toggleAlertNotify()" title="새 신호 발생 시 브라우저 알림(탭이 열려 있는 동안)">' + (notif ? "🔔 브라우저 알림 켜짐" : "브라우저 알림") + '</button></div>';
+    if (!_alerts.length) h += '<div class="ap-empty">' + (_alertBusy ? "워치리스트 스캔 중…" : "활성 신호 없음 — 워치리스트 종목에서 검증 신호(반등 기회·급변/갭/낙폭 경보·실적 임박)가 잡히면 여기 표시됩니다.") + '</div>';
+    else {
+      const ord = { buy: 0, warn: 1, info: 2 };
+      h += _alerts.slice().sort((a, b) => (ord[a.sev] - ord[b.sev]) || a.sym.localeCompare(b.sym)).map(a =>
+        '<div class="ap-row" onclick="alertGo(\'' + esc(a.docId) + '\')"><span class="ap-sev ' + a.sev + '">' + _ALERT_SEV_KO[a.sev] + '</span><b class="ap-sym">' + esc(a.sym) + '</b><span class="ap-msg">' + esc(a.msg) + '</span></div>').join("");
+    }
+    h += '<div class="ap-foot">검증 신호만 표시(수치=백테스트 OOS) · 기회≠매수권유 · 참고용</div>';
+    return h;
+  }
+  function toggleAlertPop() {
+    const pop = document.getElementById("alertPop"); if (!pop) return;
+    const opening = !pop.classList.contains("open");
+    pop.classList.toggle("open", opening);
+    if (opening) {
+      pop.innerHTML = _alertPopHTML();
+      const seen = _alertSeen(); const now = Date.now();
+      _alerts.forEach(a => { seen[a.id] = now; });   // 열람 = 모두 확인 처리(배지 소거)
+      const cut = now - 14 * 864e5; for (const k of Object.keys(seen)) if (seen[k] < cut) delete seen[k];   // 2주 지난 seen 정리
+      _alertSaveSeen(seen); renderAlertUI();
+    }
+  }
+  function alertGo(docId) { const pop = document.getElementById("alertPop"); if (pop) pop.classList.remove("open"); if (typeof switchDoc === "function") switchDoc(docId); }
+  function toggleAlertNotify() {
+    const on = !_alertNotifyOn();
+    if (on && typeof Notification !== "undefined" && Notification.permission !== "granted") {
+      Notification.requestPermission().then(p => { try { localStorage.setItem("forge_alert_notify", p === "granted" ? "1" : "0"); } catch (e) {} const pop = document.getElementById("alertPop"); if (pop && pop.classList.contains("open")) pop.innerHTML = _alertPopHTML(); });
+      return;
+    }
+    try { localStorage.setItem("forge_alert_notify", on ? "1" : "0"); } catch (e) {}
+    const pop = document.getElementById("alertPop"); if (pop && pop.classList.contains("open")) pop.innerHTML = _alertPopHTML();
+  }
+  document.addEventListener("click", e => {   // 바깥 클릭 시 팝오버 닫기
+    const pop = document.getElementById("alertPop");
+    if (pop && pop.classList.contains("open") && !pop.contains(e.target) && !(e.target.closest && e.target.closest("#alertBell"))) pop.classList.remove("open");
+  });
   // 엔진분석 = 클로드 수동분석(예정 기능). 현재는 안내만.
   function authSoon() { if (typeof bToast === "function") bToast("로그인·회원가입은 준비 중입니다"); }
   const THEMES = {
@@ -3227,6 +3337,8 @@
     boardInit();
     try { const _ev = document.getElementById("engVer"); if (_ev && typeof ForgeCore !== "undefined" && ForgeCore.version) _ev.textContent = "엔진 v" + ForgeCore.version; } catch (e) {}   // 엔진 버전 배지(단일 출처: ForgeCore.version)
     setTimeout(() => { try { fetchPredLedger(); } catch (e) {} }, 2500);   // 라이브 트랙레코드 배지(서버 확정 후 조회)
+    setTimeout(() => { try { renderAlertUI(); scanAlerts(false); } catch (e) {} }, 45000);   // 신호 알림: 부팅 45s 후 첫 스캔(부팅 부하 회피)
+    setInterval(() => { try { scanAlerts(false); } catch (e) {} }, 60 * 60 * 1000);          // + 60분 주기(탭 열려 있는 동안)
     { const _pp = document.getElementById("paramPanel"); if (_pp && _pp.parentElement !== document.body) document.body.appendChild(_pp); }   // 편집기 서랍을 body 직속으로(전체화면서 숨는 boardPane 밖 → 어디서나 오버레이)
     // 서랍 외부 클릭 시 닫기(서랍·지표레일 내부는 유지 → 다른 지표 ✎로 전환 가능)
     document.addEventListener("pointerdown", e => {
