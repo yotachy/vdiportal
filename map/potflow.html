@@ -202,6 +202,24 @@
   .gclr-sw{width:100%;aspect-ratio:1;border-radius:8px;border:2px solid var(--line);cursor:pointer;color:var(--faint);font-size:12px;display:grid;place-items:center;transition:.12s}
   .gclr-sw:hover{transform:scale(1.1)}
   .gclr-sw.on{outline:2px solid var(--gold);outline-offset:2px}
+  /* 그룹 점수 배지 — 티어별(높을수록 대단한 느낌) */
+  .gs-badge,.gs-sw{font-weight:800;cursor:pointer;transition:.12s}
+  .gs-badge{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;border-radius:10px;padding:7px 11px;border:1.5px solid var(--gold-dim);background:#0e1116;color:var(--eth);white-space:nowrap;box-shadow:0 3px 9px -4px #000}
+  .gs-badge:hover{border-color:var(--gold)}
+  .gs-sw{aspect-ratio:1;border-radius:9px;border:1.5px solid var(--gold-dim);background:#0e1116;color:var(--eth);font-size:14px;display:grid;place-items:center}
+  .gs-sw:hover{transform:scale(1.08)}
+  .gs-sw.on{outline:2px solid #fff;outline-offset:1px}
+  .gs-t1{color:#e8c98f;border-color:#6a5326;background:rgba(232,180,99,.06)}
+  .gs-t2{color:var(--gold);border-color:var(--gold-dim);background:rgba(232,180,99,.1)}
+  .gs-t3{color:#1a1206;background:var(--gold);border-color:var(--gold);box-shadow:0 4px 14px -3px rgba(232,180,99,.6)}
+  .gs-t4{color:#1a1206;border-color:#ffe6ad;background:linear-gradient(100deg,#f7d38a,#e8b463,#fff2d6,#e8b463);background-size:220% 100%;box-shadow:0 0 18px 1px rgba(232,180,99,.7),0 4px 16px -3px rgba(232,180,99,.7);animation:gshimmer 2.6s linear infinite}
+  @keyframes gshimmer{to{background-position:220% 0}}
+  .gscorepop{min-width:216px;padding:12px;gap:9px}
+  .gs-h{font-size:13px;font-weight:800;color:var(--txt);display:flex;align-items:baseline;gap:7px}
+  .gs-sub{font-size:10.5px;font-weight:600;color:var(--faint)}
+  .gs-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+  .gs-clear{width:100%;padding:8px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;font:inherit;font-size:12px}
+  .gs-clear:hover{color:var(--txt);border-color:var(--gold-dim)}
   .group-label{position:absolute;top:-18px;left:16px;font-size:15px;font-weight:800;color:var(--gold);background:linear-gradient(180deg,rgba(232,180,99,.18),rgba(232,180,99,.05)),#0e1116;padding:6px 15px;border-radius:11px;border:1.5px solid var(--gold-dim);pointer-events:auto;outline:none;cursor:text;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
   .group-label::before{content:"≣";margin-right:7px;opacity:.85;font-weight:700}
   .group-label:hover,.group-label:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.16)}
@@ -273,7 +291,7 @@
   .bm-thumb img{width:100%;object-fit:cover}
   .n-drop{margin-top:9px;border:1.5px dashed var(--line);border-radius:9px;padding:9px;min-height:var(--nh,auto);box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;color:var(--faint)}
   /* 그룹 롤오버 — 멤버 노드에 마우스 올리면 그룹 전체가 한 덩어리로 이동함을 표시 */
-  .group.group-hi{box-shadow:0 0 0 2px var(--gold),0 0 0 6px rgba(232,180,99,.18)}
+  .group.group-hi{outline:2px solid var(--gold);outline-offset:3px}
   .node.gmove{cursor:move}
   .node.clip{width:212px;border-color:var(--gold-dim)}
   .clip-title{display:flex;align-items:center;gap:5px;min-width:0}
@@ -418,6 +436,7 @@
     <button class="btn ghost" onclick="fitView()">화면맞춤</button>
     <button class="btn ghost edit-only" onclick="autoLayout('h')">가로정렬</button>
     <button class="btn ghost edit-only" onclick="autoLayout('v')">세로정렬</button>
+    <button class="btn ghost edit-only" onclick="sortGroupsByScore()" title="그룹을 점수 높은 순으로 정렬">점수정렬</button>
     <button class="btn ghost" id="exBtn" onclick="toggleExportPop(event)">내보내기 ▾</button>
     <button class="btn ghost" onclick="document.getElementById('impFile').click()">불러오기</button>
     <button class="btn ghost edit-only" onclick="resetAll()" style="color:var(--faint)">초기화</button>
@@ -436,6 +455,7 @@
   </div>
   <div class="menupop grppop" id="grpPop"></div>
   <div class="menupop gclrpop" id="gclrPop"></div>
+  <div class="menupop gscorepop" id="gscorePop"></div>
 </header>
 
 <div class="app" id="app">
@@ -535,6 +555,17 @@ const NODE_COLORS=[null,"#3a1d1d","#3b2c12","#16321f","#152a3a","#2a1f3a","#2430
 const GROUP_COLORS=[null,"#e8b463","#46c28e","#5b9cf0","#b98cf0","#e06a6a","#e0a24a","#8a92b2"]; // 그룹 배경색(기본골드+7색)
 function _hexA(hex,a){const h=(hex||'').replace('#','');return `rgba(${parseInt(h.substr(0,2),16)},${parseInt(h.substr(2,2),16)},${parseInt(h.substr(4,2),16)},${a})`;}
 function groupColorStyle(g){const c=g&&g.color;if(!c)return '';return `border-color:${c};background:${_hexA(c,.14)}`;}
+// 그룹 점수(1~10) — 높을수록 강한 골드 글로우("대단한 느낌")
+function scoreTier(s){return !s?0:s>=10?4:s>=8?3:s>=6?2:s>=4?1:0;}
+function groupGlowStyle(g){const s=g&&g.score;if(!s)return '';
+  if(s>=10)return 'box-shadow:0 0 0 2px var(--gold),0 0 28px 3px rgba(232,180,99,.55),0 0 70px 10px rgba(232,180,99,.3)';
+  if(s>=8)return 'box-shadow:0 0 0 1.5px var(--gold),0 0 20px 1px rgba(232,180,99,.42)';
+  if(s>=6)return 'box-shadow:0 0 16px -2px rgba(232,180,99,.32)';
+  if(s>=4)return 'box-shadow:0 0 11px -3px rgba(232,180,99,.22)';
+  return '';}
+function groupStyle(g){return [groupColorStyle(g),groupGlowStyle(g)].filter(Boolean).join(';');}
+function scoreBadge(g){const s=g&&g.score,t=scoreTier(s);const icon=s>=10?'👑':s>=8?'🏆':s>=6?'★':s?'☆':'';
+  return `<button class="gs-badge gs-t${t}${s>=10?' gs-legend':''}" data-gact="score" title="그룹 점수 (1~10) — 클릭해서 설정">${s?`${icon} ${s}`:'＋점수'}</button>`;}
 const CANVAS_BGS=[null,"#0b0f14","#0e131a","#141a22","#10171c","#161320","#1a1410"];  // 캔버스 배경(기본+6종)
 let canvasBg=null;                                       // 활성 캔버스 배경(canvas.bg에 영속)
 const EWIDTHS={1:1.6,2:2.4,3:3.8};                      // 연결선 굵기 3단계
@@ -837,8 +868,9 @@ function groupGridGlyph(g){
   return keys.map(k=>{const c=mg[k][0],r=mg[k][1];let cells='';for(let i=0;i<c*r;i++)cells+='<i></i>';return `<span class="gg-mon" style="grid-template-columns:repeat(${c},1fr);grid-template-rows:repeat(${r},1fr)">${cells}</span>`;}).join('<span class="gg-plus">+</span>');
 }
 function groupHTML(g){
-  return `<div class="group" data-gid="${g.id}" style="${groupColorStyle(g)}"><div class="group-label" contenteditable="${ce()}" data-gfield="title" title="클릭해서 그룹 이름 변경">${esc(g.title)}</div>`+
+  return `<div class="group" data-gid="${g.id}" style="${groupStyle(g)}"><div class="group-label" contenteditable="${ce()}" data-gfield="title" title="클릭해서 그룹 이름 변경">${esc(g.title)}</div>`+
     `<div class="group-bar edit-only">`+
+      `${scoreBadge(g)}`+
       `<button class="gbtn gbtn-play" data-gact="play" title="그룹 전체를 화면배열대로 동시 재생"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>일괄재생</button>`+
       `<button class="gbtn gbtn-grid" data-gact="grid" title="재생 화면배열 — 모니터·분할 지정">▦ 화면배열 <span class="gg-wrap">${groupGridGlyph(g)}</span></button>`+
       `<button class="gclr-btn" data-gact="color" title="그룹 배경색" style="background:${g.color||'var(--gold)'}"></button>`+
@@ -961,7 +993,7 @@ function applyCanvasBg(bg){const dots='radial-gradient(circle at 1px 1px,#ffffff
 function setCanvasBg(bg){canvasBg=bg||null;applyCanvasBg(canvasBg);renderBgPop();markDirty()}
 function renderBgPop(){const el=document.getElementById('bgPop');if(!el)return;el.innerHTML=CANVAS_BGS.map(c=>`<button class="bgsw ${c?'':'def'} ${(canvasBg||null)===c?'on':''}" style="${c?`background:${c}`:''}" title="${c||'기본'}" onclick="setCanvasBg('${c||''}')"></button>`).join('')}
 function toggleBgPop(e){if(e)e.stopPropagation();const el=document.getElementById('bgPop'),b=document.getElementById('bgBtn');renderBgPop();const open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open');const sp=document.getElementById('supPop');if(sp&&sp.classList.contains('open')&&!e.target.closest('#supPop,#supBtn'))sp.classList.remove('open');const wp=document.getElementById('winPop');if(wp&&wp.classList.contains('open')&&!e.target.closest('#winPop,[data-nact="winset"]'))wp.classList.remove('open');const gpp=document.getElementById('grpPop');if(gpp&&gpp.classList.contains('open')&&!e.target.closest('#grpPop,[data-gact="grid"]'))gpp.classList.remove('open');const gcp=document.getElementById('gclrPop');if(gcp&&gcp.classList.contains('open')&&!e.target.closest('#gclrPop,[data-gact="color"]'))gcp.classList.remove('open')});
+document.addEventListener('click',e=>{const bp=document.getElementById('bgPop');if(bp&&bp.classList.contains('open')&&!e.target.closest('#bgPop,#bgBtn'))bp.classList.remove('open');const xp=document.getElementById('exPop');if(xp&&xp.classList.contains('open')&&!e.target.closest('#exPop,#exBtn'))xp.classList.remove('open');const sp=document.getElementById('supPop');if(sp&&sp.classList.contains('open')&&!e.target.closest('#supPop,#supBtn'))sp.classList.remove('open');const wp=document.getElementById('winPop');if(wp&&wp.classList.contains('open')&&!e.target.closest('#winPop,[data-nact="winset"]'))wp.classList.remove('open');const gpp=document.getElementById('grpPop');if(gpp&&gpp.classList.contains('open')&&!e.target.closest('#grpPop,[data-gact="grid"]'))gpp.classList.remove('open');const gcp=document.getElementById('gclrPop');if(gcp&&gcp.classList.contains('open')&&!e.target.closest('#gclrPop,[data-gact="color"]'))gcp.classList.remove('open');const gsp=document.getElementById('gscorePop');if(gsp&&gsp.classList.contains('open')&&!e.target.closest('#gscorePop,[data-gact="score"]'))gsp.classList.remove('open')});
 document.getElementById('winPop').addEventListener('click',e=>{
   const g=e.target.closest('.wp-g');if(g){wpGrid=g.dataset.grid.split('x').map(Number);renderWinPop();return;}
   const cell=e.target.closest('.wp-cell');if(cell){const c=wpGrid[0],r=wpGrid[1];setWin(+cell.dataset.mon,(+cell.dataset.cx)/c,(+cell.dataset.cy)/r,1/c,1/r);return;}
@@ -1241,6 +1273,32 @@ function openGroupColor(gid,ev){const g=G(gid);if(!g)return;gclrTarget=gid;close
 }
 function setGroupColor(c){const g=G(gclrTarget);if(!g)return;g.color=c||null;render();markDirty();renderGroupColorPop();}
 (function(){const gp=document.getElementById('gclrPop');if(gp)gp.addEventListener('click',e=>{e.stopPropagation();const sw=e.target.closest('.gclr-sw');if(sw)setGroupColor(sw.dataset.gc);});})();
+// 그룹 점수(1~10)
+let gscoreTarget=null;
+function renderGroupScorePop(){const el=document.getElementById('gscorePop');if(!el)return;const g=G(gscoreTarget);if(!g)return;
+  let btns='';for(let i=1;i<=10;i++)btns+=`<button class="gs-sw gs-t${scoreTier(i)}${g.score===i?' on':''}" data-gs="${i}">${i}</button>`;
+  el.innerHTML=`<div class="gs-h">그룹 점수 <span class="gs-sub">높을수록 강조</span></div><div class="gs-grid">${btns}</div><button class="gs-clear" data-gs="0">점수 없음</button>`;
+}
+function openGroupScore(gid,ev){const g=G(gid);if(!g)return;gscoreTarget=gid;closeMenus('gscorePop');renderGroupScorePop();
+  const el=document.getElementById('gscorePop');if(!el)return;el.classList.add('open');
+  const b=ev&&ev.target?ev.target.closest('[data-gact]'):null;
+  if(b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.left=Math.max(8,Math.min(r.left,window.innerWidth-232))+'px';el.style.right='auto';}
+  else{el.style.top='96px';el.style.right='16px';el.style.left='auto';}
+}
+function setGroupScore(v){const g=G(gscoreTarget);if(!g)return;v=+v;g.score=(v>=1&&v<=10)?v:null;render();markDirty();renderGroupScorePop();}
+(function(){const gp=document.getElementById('gscorePop');if(gp)gp.addEventListener('click',e=>{e.stopPropagation();const sw=e.target.closest('[data-gs]');if(sw)setGroupScore(sw.dataset.gs);});})();
+// 점수순 정렬 — 그룹을 점수 내림차순으로 세로 스택(내부 배치 유지, 무점수는 아래)
+function sortGroupsByScore(){
+  const gs=(state.groups||[]).filter(g=>g.nodes&&g.nodes.map(N).filter(Boolean).length);
+  if(gs.length<2){toast('그룹이 2개 이상이어야 정렬됩니다');return}
+  measure();
+  const info=gs.map(g=>{const ns=g.nodes.map(N).filter(Boolean);let a=1e9,b=1e9,c=-1e9,d=-1e9;ns.forEach(n=>{a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+(n._w||W_NODE));d=Math.max(d,n.y+(n._h||90))});return{g,ns,minx:a,miny:b,w:c-a,h:d-b};});
+  info.sort((p,q)=>(q.g.score||0)-(p.g.score||0)||p.g.title.localeCompare(q.g.title));
+  const baseX=Math.min(...info.map(i=>i.minx)),baseTop=Math.min(...info.map(i=>i.miny)),GAP=90;
+  let y=baseTop;
+  info.forEach(it=>{const dx=baseX-it.minx,dy=y-it.miny;it.ns.forEach(n=>{n.x+=dx;n.y+=dy;});y+=it.h+GAP;});
+  render();markDirty();toast('점수순 정렬 완료');
+}
 function playGroup(gid){const g=G(gid);if(!g)return;
   // 책갈피 부모(원본)는 제외 — 원본을 처음부터 또 재생하지 않고 책갈피/리프 노드만 재생
   const hasChild=id=>g.nodes.some(nid=>{const c=N(nid);return c&&c.bmParent===id;});
@@ -1428,6 +1486,7 @@ world.addEventListener('click',e=>{
     else if(a==='play'){playGroup(gid);}
     else if(a==='grid'){openGroupGrid(gid,e);}
     else if(a==='color'){openGroupColor(gid,e);}
+    else if(a==='score'){openGroupScore(gid,e);}
     return;}
 });
 (function(){const gp=document.getElementById('grpPop');if(gp)gp.addEventListener('click',e=>{e.stopPropagation();const mp=e.target.closest('.gl-pmon');if(mp){setGroupMon(+mp.dataset.mon);return;}const c=e.target.closest('.gl-card');if(c)setGroupGrid(c.dataset.grid);});})();
@@ -1803,7 +1862,7 @@ function exportPNG(){const{svg,w,h}=buildSVG();const url=URL.createObjectURL(new
   img.onload=()=>{const sc=2,cv=document.createElement('canvas');cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);const cx=cv.getContext('2d');cx.scale(sc,sc);cx.drawImage(img,0,0);URL.revokeObjectURL(url);try{cv.toBlob(b=>{b?(_dl(b,'diagram.png'),toast('PNG 내보냄')):toast('PNG 변환 실패')},'image/png')}catch(err){toast('PNG 변환 실패')}};
   img.onerror=()=>{URL.revokeObjectURL(url);toast('PNG 변환 실패')};img.src=url}
 function toggleExportPop(e){if(e)e.stopPropagation();closeMenus('exPop');const el=document.getElementById('exPop'),b=document.getElementById('exBtn'),open=el.classList.toggle('open');if(open&&b){const r=b.getBoundingClientRect();el.style.top=(r.bottom+6)+'px';el.style.right=(window.innerWidth-r.right)+'px'}}
-function closeMenus(except){['exPop','bgPop','supPop','winPop','grpPop','gclrPop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
+function closeMenus(except){['exPop','bgPop','supPop','winPop','grpPop','gclrPop','gscorePop'].forEach(id=>{if(id!==except){const el=document.getElementById(id);if(el)el.classList.remove('open')}})}
 document.getElementById('impFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
   if(d.images&&typeof d.images==='object')Object.assign(IMAGES,d.images);
   if(d.toolbar&&typeof d.toolbar==='object'){Object.assign(TOOLBAR,d.toolbar);renderToolbar()}
