@@ -219,9 +219,27 @@
     #listBody{overflow-x:auto; -webkit-overflow-scrolling:touch;}
     .atable{min-width:1140px;}
     .atable td.name,.atable th{white-space:nowrap;}
-    /* 총자산 카드 */
-    .total-card{padding:18px 18px;}
-    .total-card .tc-num{font-size:1.55rem;}
+    /* 대시보드 컴팩트: 카드 여백·도넛·바 행·글자 축소 */
+    #view-dash .vhd .sub{display:none;}
+    .dash{gap:10px;}
+    .dash-row,.dash-row2{gap:10px;}
+    #view-dash .card{padding:13px 14px;}
+    #view-dash .card-t{margin-bottom:8px;}
+    .total-card{padding:14px 16px;}
+    .total-card .tc-num{font-size:1.45rem; margin-top:3px;}
+    .total-card .tc-kor{font-size:.82rem; margin-top:2px;}
+    .total-card .tc-meta{margin-top:6px; font-size:.7rem;}
+    .tc-sub2{margin-top:4px; font-size:.72rem;}
+    .donut,.donut svg{width:150px; height:150px;}
+    .donut-wrap{gap:6px;}
+    .bar-row{padding:4px 0; gap:8px;}
+    .bar-name{width:64px; font-size:.76rem;}
+    .bar-name.owner-name{width:78px;}
+    .bar-val{width:102px; font-size:.75rem;}
+    .bar-pct{width:40px; font-size:.7rem;}
+    .goal-foot{margin-top:8px; font-size:.8rem;}
+    .goal-legend{margin-top:8px; padding-top:8px; gap:12px; font-size:.78rem;}
+    .goalscale{margin:26px 0 4px; padding-bottom:46px;}
     /* 모바일 모달: 콤팩트(높이 축소) + 화면 넘침 방지(본문 스크롤·저장버튼 항상 보임) */
     .modal-bg{padding:8px; align-items:flex-start;}
     .modal{max-height:calc(100vh - 16px);}
@@ -235,8 +253,8 @@
     .modal-bd .chk input,.modal-bd .field select#fCur{min-height:40px;}
     .modal-bd .chk input{width:20px; height:20px;}
     /* 목표 카드 모바일 정리 (.goal-card 접두로 우선순위 확보) */
-    .goal-card .goal-head{flex-direction:column; align-items:flex-start; gap:9px;}
-    .goal-card .goal-target{font-size:1.3rem;}
+    .goal-card .goal-head{flex-direction:column; align-items:flex-start; gap:6px; margin-bottom:4px;}
+    .goal-card .goal-target{font-size:1.15rem;}
     .goal-card .goal-head-act{width:100%; justify-content:space-between;}
     .goalscale .gs-goal-label{font-size:.72rem;}
     .goalscale .gs-ends span{font-size:.68rem;}
