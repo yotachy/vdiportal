@@ -2125,12 +2125,45 @@
   function updateLiveBadge() {
     const el = document.getElementById("liveTrack"); if (!el) return;
     const a = _predAgg;
-    if (!a || !a.resolved) { el.style.display = "none"; return; }
+    if (!a || (!a.resolved && !a.pending)) { el.style.display = "none"; return; }
     let lead = "";
-    if (a.dd && a.dd.n >= 3 && a.dd.actRate != null) lead = "낙폭 예측 " + Math.round(a.dd.predAvg * 100) + "%→실제 " + Math.round(a.dd.actRate * 100) + "%";
-    else if (a.dir && a.dir.n >= 3 && a.dir.rate != null) lead = "방향 " + Math.round(a.dir.rate * 100) + "%";
-    el.textContent = "라이브 " + a.resolved + "건" + (lead ? " · " + lead : "");
+    if (a.resolved) {
+      if (a.dd && a.dd.n >= 3 && a.dd.actRate != null) lead = "낙폭 예측 " + Math.round(a.dd.predAvg * 100) + "%→실제 " + Math.round(a.dd.actRate * 100) + "%";
+      else if (a.vol && a.vol.n >= 3 && a.vol.rate != null) lead = "변동성 " + Math.round(a.vol.rate * 100) + "%";
+      el.textContent = "라이브 " + a.resolved + "건" + (lead ? " · " + lead : "");
+    } else el.textContent = "라이브 검증 · 대기 " + a.pending + "건";   // 만기 전에도 노출 — 실전 채점이 진행 중임을 표면화
     el.style.display = "inline-flex";
+    el.style.cursor = "pointer";
+    el.title = "실전 예측 트랙레코드 — 클릭하면 축별 실측 성적";
+    el.onclick = openLiveCard;
+  }
+  // 라이브 트랙레코드 카드 — ForgeCore.validatedAxes 레지스트리 기반 자동확장(열린 엔진 원칙: 새 축 추가 시 하드코딩 없이 자동 등장)
+  function openLiveCard() {
+    let m = document.getElementById("liveModal");
+    if (!m) { m = document.createElement("div"); m.id = "liveModal"; m.className = "bt-modal"; m.addEventListener("pointerdown", e => { m._downBg = (e.target === m); }); m.addEventListener("click", e => { if (e.target === m && m._downBg) m.classList.remove("open"); }); document.body.appendChild(m); }
+    const a = _predAgg, pc = x => x == null ? "—" : (x * 100).toFixed(1) + "%";
+    let rows = "";
+    if (a && a.resolved) {
+      const axes = (typeof ForgeCore !== "undefined" && ForgeCore.validatedAxes) || [];
+      if (a.dir && a.dir.n) rows += '<div class="bt-row"><span class="bt-k">방향(참고)</span><span class="bt-v">' + pc(a.dir.rate) + ' <span class="bt-mut">(' + a.dir.n + '건 · 백테스트 58% — 시장 기준선 미달 공개)</span></span><span class="bt-tag dn">참고</span></div>';
+      for (const ax of axes) {
+        const L = ax.ledger, g = L && a[L.key]; if (!g || !g.n) continue;
+        const val = L.mode === "calib" ? ("예측 " + pc(g.predAvg) + " → 실제 " + pc(g.actRate)) : pc(g.rate);
+        const sub = "(" + g.n + "건 · 백테스트 " + ax.acc + "%" + (L.note ? " · " + L.note : "") + ")";
+        const few = g.n < 5;
+        rows += '<div class="bt-row"><span class="bt-k">' + ax.lab + '</span><span class="bt-v">' + val + ' <span class="bt-mut">' + sub + '</span></span><span class="bt-tag ' + (few ? "" : "up") + '">' + (few ? "수집 중" : (L.mode === "calib" ? "캘리브레이션" : "적중률")) + '</span></div>';
+      }
+    }
+    const head = a ? ("채점 " + (a.resolved || 0) + "건 · 대기 " + (a.pending || 0) + "건" + (a.since ? " · 기록 시작 " + a.since : "")) : "서버 연결 안 됨";
+    m.innerHTML = '<div class="bt-card">'
+      + '<div class="bt-head"><b>라이브 트랙레코드 — 실전 예측 실측</b><button class="bt-x" onclick="document.getElementById(\'liveModal\').classList.remove(\'open\')" aria-label="닫기">✕</button></div>'
+      + '<div class="bt-sub">실사용 중 낸 예측을 만기까지 보유한 뒤 실제 가격으로 채점 — 백테스트가 아닌 실전 성적. 표본이 쌓일수록 신뢰도↑.</div>'
+      + '<div class="bt-sub" style="margin-top:2px">' + head + '</div>'
+      + '<div class="bt-rows">' + (rows || '<div class="bt-row"><span class="bt-mut">아직 만기에 도달한 예측이 없습니다 — 실 종목 웹분석 시 자동 기록되고, 만기(수십 거래일) 뒤 여기서 채점됩니다.</span></div>') + '</div>'
+      + '<div class="bt-disc">※ 과거·실전 성적 모두 미래를 보장하지 않음 · 투자 권유 아님 · 참고용</div>'
+      + '<a class="bt-more" href="forge-scorecard.html#live" target="_blank" rel="noopener">스코어카드에서 전체 보기 →</a>'
+      + '</div>';
+    m.classList.add("open");
   }
   // 엔진분석 = 클로드 수동분석(예정 기능). 현재는 안내만.
   function authSoon() { if (typeof bToast === "function") bToast("로그인·회원가입은 준비 중입니다"); }

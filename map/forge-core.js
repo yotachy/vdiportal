@@ -7,15 +7,17 @@
   const version = "1.11.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   const indicatorCount = 30;   // 지표 배터리 종수 (forge-state IND_TIERS와 동기 — 지표 추가 시 함께 갱신)
   // 검증된 예측 축(백테스트 OOS). acc=대표 지평 정확도(%), hz=지평 라벨, stock=주식 한정.
+  // ledger = 라이브 트랙레코드 메타(단일 출처 — 라이브 UI는 이 레지스트리로 자동 확장, 새 축 추가 시 하드코딩 금지):
+  //   key=predledger 집계 필드 · mode="rate"(적중률) | "calib"(예측평균 vs 실제발생률) · note=채점 주석.
   const validatedAxes = [
-    { key: "vol",   lab: "변동성 예보",   acc: 69, hz: "3지평" },
-    { key: "dd",    lab: "낙폭 위험곡선", acc: 68, hz: "3지평" },
-    { key: "up",    lab: "이익목표 도달", acc: 64, hz: "" },
-    { key: "spike", lab: "급변 경보",     acc: 65, hz: "3지평" },
-    { key: "gap",   lab: "갭 경보",       acc: 63, hz: "3지평", stock: true },
-    { key: "trend", lab: "추세 지속/소진", acc: 76, hz: "3지평·비방향" },
-    { key: "rel",   lab: "시장 상대강도", acc: 54, hz: "3지평·상대방향", stock: true },
-    { key: "relsec", lab: "섹터 상대강도", acc: 57, hz: "3지평·상대방향", stock: true },
+    { key: "vol",   lab: "변동성 예보",   acc: 69, hz: "3지평", ledger: { key: "vol", mode: "rate" } },
+    { key: "dd",    lab: "낙폭 위험곡선", acc: 68, hz: "3지평", ledger: { key: "dd", mode: "calib", note: "1개월 −5% 낙폭" } },
+    { key: "up",    lab: "이익목표 도달", acc: 64, hz: "", ledger: { key: "up", mode: "calib", note: "1개월 +5% 도달" } },
+    { key: "spike", lab: "급변 경보",     acc: 65, hz: "3지평", ledger: { key: "spk", mode: "calib", note: "20봉 내 2.5σ 하루" } },
+    { key: "gap",   lab: "갭 경보",       acc: 63, hz: "3지평", stock: true, ledger: { key: "gap", mode: "calib", note: "20봉 내 2.2σ 갭" } },
+    { key: "trend", lab: "추세 지속/소진", acc: 76, hz: "3지평·비방향", ledger: { key: "tp", mode: "rate", note: "근사 국면판정" } },
+    { key: "rel",   lab: "시장 상대강도", acc: 54, hz: "3지평·상대방향", stock: true, ledger: { key: "rel", mode: "rate", note: "vs SPY 20봉" } },
+    { key: "relsec", lab: "섹터 상대강도", acc: 57, hz: "3지평·상대방향", stock: true, ledger: { key: "sec", mode: "rate", note: "vs 섹터 ETF 20봉" } },
   ];
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.

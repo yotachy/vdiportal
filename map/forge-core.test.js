@@ -2131,6 +2131,9 @@ test("엔진 메타 export — version·indicatorCount·validatedAxes 계약", (
   assert.ok(ax.some(a => a.key === "trend"), "추세 지속 축 포함");
   assert.ok(ax.some(a => a.key === "gap" && a.stock === true), "갭 축 주식 게이트 플래그");
   assert.ok(ax.some(a => a.key === "rel" && a.stock === true), "상대강도 축 포함(주식 게이트)");
+  // 라이브 원장 메타(v1.11.1) — 라이브 UI 자동확장의 단일 출처. 새 축은 ledger 메타 필수.
+  ax.forEach(a => { assert.ok(a.ledger && typeof a.ledger.key === "string" && ["rate", "calib"].includes(a.ledger.mode), a.key + " ledger 메타"); });
+  assert.equal(new Set(ax.map(a => a.ledger.key)).size, ax.length, "ledger key 유일성");
 });
 
 test("forecastRelStrength: 상대강도 — 게이트·형식·결정론 [v1.10]", () => {
