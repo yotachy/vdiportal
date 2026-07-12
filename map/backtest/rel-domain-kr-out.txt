@@ -1,0 +1,15 @@
+
+== 상대강도 도메인 확장: 한국주식 vs KOSPI — 종목 10 · 표본 6460 ==
+  [KR H=10] n=2590 base 44.9% · 모델 47.7% vs 최강규칙 maj 55.1% → lift -7.4pp · 전/후반 -2.2pp/-13.1pp · BSS -0.037
+      (규칙: maj 55.1% · pers 52.5% · antiPers 47.5% · mom 53.2% · antiMom 46.8%)
+  [KR H=20] n=2590 base 46.1% · 모델 49.3% vs 최강규칙 maj 53.9% → lift -4.5pp · 전/후반 +0.8pp/-11.4pp · BSS -0.017
+      (규칙: maj 53.9% · pers 52.5% · antiPers 47.5% · mom 51.9% · antiMom 48.1%)
+  [KR H=40] n=2590 base 45.3% · 모델 45.9% vs 최강규칙 pers 52.0% → lift -6.2pp · 전/후반 -3.2pp/-10.6pp · BSS -0.062
+      (규칙: maj 45.3% · pers 52.0% · antiPers 48.0% · mom 51.1% · antiMom 48.9%)
+  [LOSO H=10] 모델 48.3% vs 최강규칙 53.6% → -5.3pp (n=2590)
+  [LOSO H=20] 모델 49.1% vs 최강규칙 53.8% → -4.7pp (n=2590)
+  [LOSO H=40] 모델 46.6% vs 최강규칙 52.0% → -5.5pp (n=2590)
+관문: 최강 자명규칙 +1.5pp↑ & 전/후반 양수 & LOSO 유지
+  H=10: lift -7.4pp · 전/후반 -2.2pp/-13.1pp
+  H=20: lift -4.5pp · 전/후반 +0.8pp/-11.4pp
+  H=40: lift -6.2pp · 전/후반 -3.2pp/-10.6pp

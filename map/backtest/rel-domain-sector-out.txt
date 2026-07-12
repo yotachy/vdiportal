@@ -1,0 +1,15 @@
+
+== 상대강도 도메인 확장: 미국주식 vs 소속 섹터 ETF — 종목 30 · 표본 25243 ==
+  [SECTOR H=10] n=10104 base 49.5% · 모델 58.8% vs 최강규칙 antiPers 55.3% → lift +3.5pp · 전/후반 +3.2pp/+3.8pp · BSS 0.044
+      (규칙: maj 49.5% · pers 44.7% · antiPers 55.3% · mom 48.4% · antiMom 51.6%)
+  [SECTOR H=20] n=10104 base 49.5% · 모델 57.1% vs 최강규칙 antiPers 54.1% → lift +3.0pp · 전/후반 +2.9pp/+3.1pp · BSS 0.032
+      (규칙: maj 49.5% · pers 45.9% · antiPers 54.1% · mom 49.3% · antiMom 50.7%)
+  [SECTOR H=40] n=10104 base 49.5% · 모델 55.7% vs 최강규칙 antiPers 51.8% → lift +3.9pp · 전/후반 +5.2pp/+1.1pp · BSS 0.020
+      (규칙: maj 49.5% · pers 48.2% · antiPers 51.8% · mom 48.7% · antiMom 51.3%)
+  [LOSO H=10] 모델 58.8% vs 최강규칙 55.3% → +3.5pp (n=10104)
+  [LOSO H=20] 모델 57.2% vs 최강규칙 54.1% → +3.1pp (n=10104)
+  [LOSO H=40] 모델 55.8% vs 최강규칙 51.8% → +4.0pp (n=10104)
+관문: 최강 자명규칙 +1.5pp↑ & 전/후반 양수 & LOSO 유지
+  H=10: lift +3.5pp · 전/후반 +3.2pp/+3.8pp
+  H=20: lift +3.0pp · 전/후반 +2.9pp/+3.1pp
+  H=40: lift +3.9pp · 전/후반 +5.2pp/+1.1pp
