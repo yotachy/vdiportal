@@ -1,0 +1,9 @@
+== ① excess: 안티드리프트 자명 규칙(테스트 구간=후반 40%) ==
+  H=10: 안티드리프트 55.4% (n=14939) — excess-lab 모델과 대조
+  H=20: 안티드리프트 57.7% (n=14939) — excess-lab 모델과 대조
+  H=40: 안티드리프트 60.9% (n=14939) — excess-lab 모델과 대조
+
+== ② rel: 확장 베이스라인(±지속성·±모멘텀·다수결) 재판정 ==
+  H=10: 모델 56.2% vs 최강규칙 antiPers 54.1% → lift +2.2pp · 전/후반 +3.0pp/+1.3pp  (규칙들: maj 51.5% · pers 45.9% · antiPers 54.1% · mom 50.8% · antiMom 49.2%)
+  H=20: 모델 53.7% vs 최강규칙 mom 51.4% → lift +2.3pp · 전/후반 +2.7pp/+1.4pp  (규칙들: maj 48.2% · pers 48.8% · antiPers 51.2% · mom 51.4% · antiMom 48.6%)
+  H=40: 모델 54.1% vs 최강규칙 mom 51.6% → lift +2.4pp · 전/후반 +1.7pp/+3.1pp  (규칙들: maj 47.0% · pers 49.9% · antiPers 50.1% · mom 51.6% · antiMom 48.4%)
