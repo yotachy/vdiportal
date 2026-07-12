@@ -177,13 +177,14 @@
   .acard-acts .del:active{background:rgba(192,57,43,.14); color:#c0392b;}
   .acard-allbar{display:flex; align-items:center; gap:8px; padding:8px 13px; border-bottom:1px solid var(--line); background:var(--line-faint); font-size:.8rem; font-family:var(--font-bold); color:var(--ink-soft); cursor:pointer;}
   .acard-allbar input{width:18px; height:18px; accent-color:var(--gold-strong);}
-  /* 간단히 보기(모바일·폴드): 체크박스 맨 앞 + 항목명 + 금액 한 줄 */
+  /* 간단히 보기(모바일·폴드): 체크박스 맨 앞 + 항목명 + 금액 — 전 행 동일 높이(한 줄 고정) */
   #btnDense{display:none;}
-  .acard.dense{display:flex; align-items:center; gap:4px; padding:5px 13px 5px 9px;}
-  .acard.dense .acard-inc{padding:7px 6px; margin:0;}
-  .acard.dense .acard-main{flex:1; min-width:0; align-items:center; padding:6px 0;}
-  .acard.dense .acard-name{font-size:.85rem;}
-  .acard.dense .acard-amt{font-size:.88rem;}
+  .acard.dense{display:flex; align-items:center; gap:4px; padding:1px 13px 1px 9px;}
+  .acard.dense .acard-inc{padding:6px; margin:0;}
+  .acard.dense .acard-main{flex:1; min-width:0; align-items:center; gap:7px; padding:4px 0;}
+  .acard.dense .acard-name{flex:1; min-width:0; font-size:.82rem;}
+  .acard.dense .acard-amt{font-size:.84rem;}
+  .acard-pbdg{flex:none; font-size:.6rem; font-family:var(--font-bold); color:var(--gold-strong); border:1px solid var(--gold-strong); border-radius:4px; padding:0 3px; line-height:1.55;}
   #sideBackdrop{display:none;}
 
   /* ===================== 모바일 반응형 ===================== */
@@ -1084,8 +1085,9 @@ function renderList(){
       return `<div class="acard dense${on?"":" off"}" data-id="${it.id}">
         <label class="acard-inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} ${editable?"":"disabled"} title="자산 합계 포함"></label>
         <div class="acard-main" data-edit>
+          ${isPartial(it)?`<span class="acard-pbdg" title="합계에 ${inclQty(it)}주만 포함 (제외 ${exclQty(it)}주)">일부</span>`:""}
           <div class="acard-name">${escHtml(it.name)||"—"}</div>
-          <div class="acard-r"><div class="acard-amt">${fmtWon(it.amount)}</div>${isPartial(it)?`<div class="acard-part">합계 ${inclQty(it)}주</div>`:""}</div>
+          <div class="acard-amt">${fmtWon(it.amount)}</div>
         </div>
       </div>`;
     }).join("");
