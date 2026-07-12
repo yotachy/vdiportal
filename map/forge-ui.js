@@ -183,20 +183,22 @@
       const _tf = _tfr ? `<span class="doc-tf" title="일·주·월 예측 신호등 — 초록=상승·노랑=중립·빨강=하락">${_tfDot(_tfr.d)}${_tfDot(_tfr.w)}${_tfDot(_tfr.m)}</span>` : "";
       const _chgHtml = isFinite(_chg) ? `<span class="doc-chg ${_chg >= 0 ? "up" : "dn"}">${_chg >= 0 ? "▲" : "▼"}${Math.abs(_chg).toFixed(2)}%</span>` : "";
       const _momOn = (typeof _momActive !== "undefined" && _momActive);   // 순위 활성 세션에서만 배지 노출(서버에 잔존한 stale 순위 방지)
-      const _rsB = (_momOn && d._momRank && isFinite(d._mom)) ? `<span class="doc-rs" title="12개월 상대강도 순위 (모멘텀 ${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%) — 검증된 팩터·온건·참고용">#${d._momRank}</span>` : "";
-      const _momH = (_momOn && d._momRank && isFinite(d._mom)) ? `<span class="doc-mom ${d._mom >= 0 ? "up" : "dn"}" title="12개월 모멘텀(상대강도)">${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%</span>` : "";
+      const _hasP = isFinite(d._rsProb);   // 상대 방향 확률(v1.11 섹터 57%·v1.10 SPY 54% OOS) — 비적격은 모멘텀 폴백
+      const _rsB = (_momOn && d._momRank && (_hasP || isFinite(d._mom))) ? `<span class="doc-rs" title="${_hasP ? `상대강도 순위 — ${d._rsBench} 대비 1달 아웃퍼폼 확률 ${d._rsProb}% (백테스트 OOS ${d._rsBench === "SPY" ? "54" : "57"}%·온건·참고용)` : `상대강도 순위 (12개월 모멘텀 ${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%) — 검증된 팩터·온건·참고용`}">#${d._momRank}</span>` : "";
+      const _momH = (_momOn && d._momRank && _hasP) ? `<span class="doc-mom ${d._rsProb >= 50 ? "up" : "dn"}" title="소속 ${d._rsBench === "SPY" ? "시장(SPY)" : "섹터(" + d._rsBench + ")"} 대비 1달 아웃퍼폼 확률 — 검증된 상대 방향 축(절대 상승/하락 아님)">${d._rsProb}%<span class="doc-mom-b">${d._rsBench}</span></span>`
+        : (_momOn && d._momRank && isFinite(d._mom)) ? `<span class="doc-mom ${d._mom >= 0 ? "up" : "dn"}" title="12개월 모멘텀(상대강도) — 확률 미지원 종목(비미국주식) 폴백">${d._mom >= 0 ? "+" : ""}${(d._mom * 100).toFixed(0)}%</span>` : "";
       const sub = (isFinite(_px) || _tf || _momH) ? `<div class="doc-sub">${isFinite(_px) ? `<span class="doc-px">${_hzFmt(_px)}</span>` : ""}${_tf}${_momH}</div>` : "";
       return `<div class="doc-row${d.id === _actHl ? " active" : ""}" data-doc="${d.id}" draggable="true">
          <div class="doc-r1">${_assetHtml(d, "doc-ico")}${_rsB}<span class="doc-nm">${esc(nm)}</span>${_chgHtml}<button class="side-btn doc-del" data-docdel="${d.id}" title="목록에서 제거">✕</button></div>${sub}
        </div>`; };
     const groups = META.groups;
     const _mBusy = (typeof _momBusy !== "undefined" && _momBusy), _mAct = (typeof _momActive !== "undefined" && _momActive);
-    const _byMom = (a, b) => ((a._momRank || 9999) - (b._momRank || 9999));   // 순위 활성 시 모멘텀 내림차순(=순위 오름차순)
+    const _byMom = (a, b) => ((a._momRank || 9999) - (b._momRank || 9999));   // 순위 활성 시 상대강도 순위 오름차순(확률군→모멘텀군)
     const ungrouped = DOCS.filter(d => !_grpOf(d.id));
     if (_mAct) ungrouped.sort(_byMom);
     const _mLbl = _mBusy ? `순위 ${_momProg.done}/${_momProg.total}…` : (_mAct ? "상대강도 해제" : "상대강도 순위");
     let sec = `<div class="side-h"><span>종목</span><span class="side-h-btns">`
-      + `<button class="side-btn wg-rs${_mAct ? " on" : ""}" onclick="toggleMomRank()"${_mBusy ? " disabled" : ""} title="${_mAct ? "상대강도 표기 해제(순위·모멘텀 배지 제거)" : "워치리스트를 12개월 모멘텀(상대강도)으로 순위·정렬 — 백테스트 검증된 팩터(비용후 +0.6~0.7%/월, 온건). 강한 종목이 다음에도 상대적으로 강한 경향. 참고용."}">${_mLbl}</button>`
+      + `<button class="side-btn wg-rs${_mAct ? " on" : ""}" onclick="toggleMomRank()"${_mBusy ? " disabled" : ""} title="${_mAct ? "상대강도 표기 해제(순위·배지 제거)" : "워치리스트를 검증된 상대 방향 확률로 순위·정렬 — 소속 섹터 ETF 대비 아웃퍼폼(OOS 57%) 우선, 섹터맵 밖은 SPY 대비(54%). 비미국주식은 12개월 모멘텀 폴백으로 뒤에 배치. 온건한 edge·참고용."}">${_mLbl}</button>`
       + (_mAct ? `<button class="side-btn wg-rsx" onclick="clearMomRank()" title="순위 해제">✕</button>` : "")
       + `<button class="side-btn wg-add" onclick="_addGroup()" title="새 그룹 만들기">＋ 그룹</button></span></div>`;
     sec += `<div class="side-actions" id="addTickerSlot"><button class="side-btn" onclick="_showAddTicker()">＋ 종목 추가</button></div>`;

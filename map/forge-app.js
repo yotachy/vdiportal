@@ -1842,30 +1842,50 @@
     if (!r.ok) { let j = null; try { j = await r.json(); } catch (_) {} return j || { ok: false }; }
     return await r.json();
   }
-  // ── 상대강도(모멘텀) 순위 — 워치리스트를 12개월 모멘텀으로 순위·정렬(수동 버튼) ──
-  // 검증(momentum-robust, 28종·18년): 12개월 횡단면 모멘텀 = 학술 팩터. 비용후 롱숏 +0.59%·롱온리초과 +0.70%/월(온건). 참고용.
+  // ── 상대강도 순위(v1.11 고도화) — 워치리스트를 검증된 상대 방향 확률로 순위·정렬(수동 버튼) ──
+  // 1순위 지표: 섹터 ETF 대비 아웃퍼폼 확률(OOS 57%·자명규칙 +3.0~3.9pp) → 섹터맵 밖이면 SPY 대비(OOS 54%).
+  // 비적격(비미국주식·데이터부족)은 12개월 모멘텀(momentum-robust 검증 팩터·온건)으로 확률군 뒤에 배치. 참고용.
   let _momActive = false, _momBusy = false, _momProg = { done: 0, total: 0 };
   async function rankMomentum() {
     if (_momBusy) return;
     const docs = (typeof DOCS !== "undefined" ? DOCS : []).filter(d => _docTicker(d));
     if (!docs.length) { if (typeof bToast === "function") bToast("워치리스트에 종목이 없습니다"); return; }
     _momBusy = true; _momProg = { done: 0, total: docs.length }; renderSidebar();
+    // 벤치 선로드: SPY + 워치리스트가 쓰는 섹터 ETF(세션 캐시·서버 6h 캐시)
+    try {
+      await _loadBenchSym("SPY");
+      const etfs = new Set(); docs.forEach(d => { const e = SECTOR_ETF[(_docTicker(d) || "").trim().toUpperCase()]; if (e) etfs.add(e); });
+      for (const e of etfs) await _loadBenchSym(e);
+    } catch (e) {}
     for (const d of docs) {
-      const sym = _docTicker(d);
-      let series = null;
-      if (d.id === activeId && typeof priceSeries === "function") { const s = priceSeries(); if (s && s.length >= 60) series = s; }   // 활성 종목은 로드된 시리즈 재사용
-      if (!series) { try { const r = await fetchOHLC(sym, "1day"); if (r && r.ok && Array.isArray(r.candles)) series = r.candles.map(c => +c.c).filter(isFinite); } catch (e) {} }
-      if (series && series.length >= 120) { const lb = Math.min(250, series.length - 1); d._mom = series[series.length - 1] / series[series.length - 1 - lb] - 1; d._momLb = lb; }
-      else { d._mom = null; d._momLb = 0; }
+      const sym = (_docTicker(d) || "").trim().toUpperCase();
+      let cds = null;
+      try { const r = await fetchOHLC(sym, "1day"); if (r && r.ok && Array.isArray(r.candles)) cds = r.candles.map(c => ({ t: String(c.t || c.datetime || "").slice(0, 10), c: +c.c })).filter(c => isFinite(c.c) && c.c > 0); } catch (e) {}
+      d._rsProb = null; d._rsBench = null; d._mom = null; d._momLb = 0;
+      if (cds && cds.length >= 120) {
+        const series = cds.map(c => c.c);
+        const lb = Math.min(250, series.length - 1);
+        d._mom = series[series.length - 1] / series[series.length - 1 - lb] - 1; d._momLb = lb;
+        if (_isUSStockSym(sym) && series.length >= 281 && typeof ForgeCore !== "undefined") {   // 상대 방향 확률(검증 도메인: 미국주식·일봉)
+          const times = cds.map(c => c.t), etf = SECTOR_ETF[sym];
+          let res = null;
+          if (etf && Array.isArray(_benchCache[etf])) { const b = _alignBenchToDates(times, _benchCache[etf]); if (b) { const rr = ForgeCore.forecastRelSector(series, b, etf); if (rr) res = { prob: rr.prob, bench: etf }; } }
+          if (!res && Array.isArray(_benchCache.SPY)) { const b = _alignBenchToDates(times, _benchCache.SPY); if (b) { const rr = ForgeCore.forecastRelStrength(series, b); if (rr) res = { prob: rr.prob, bench: "SPY" }; } }
+          if (res) { d._rsProb = res.prob; d._rsBench = res.bench; }
+        }
+      }
       _momProg.done++; renderSidebar();
     }
-    const ranked = DOCS.filter(d => isFinite(d._mom)).sort((a, b) => b._mom - a._mom);
+    // 정렬: ① 상대 방향 확률(검증 축) 내림차순 → ② 비적격은 12개월 모멘텀 내림차순으로 뒤에
+    const withP = DOCS.filter(d => isFinite(d._rsProb)).sort((a, b) => b._rsProb - a._rsProb);
+    const momOnly = DOCS.filter(d => !isFinite(d._rsProb) && isFinite(d._mom)).sort((a, b) => b._mom - a._mom);
+    const ranked = withP.concat(momOnly);
     ranked.forEach((d, i) => { d._momRank = i + 1; });
-    DOCS.forEach(d => { if (!isFinite(d._mom)) d._momRank = null; });
+    DOCS.forEach(d => { if (!isFinite(d._rsProb) && !isFinite(d._mom)) d._momRank = null; });
     _momActive = ranked.length > 0; _momBusy = false; renderSidebar();
-    if (typeof bToast === "function") bToast(ranked.length ? "상대강도 순위 완료 · 12개월 모멘텀(검증 팩터·온건, 참고용)" : "순위 계산 가능한 종목이 없습니다(데이터 부족)");
+    if (typeof bToast === "function") bToast(ranked.length ? (withP.length ? "상대강도 순위 완료 · 섹터/SPY 아웃퍼폼 확률(검증 OOS 54~57%·참고용)" + (momOnly.length ? " · 비적격 " + momOnly.length + "종은 모멘텀" : "") : "상대강도 순위 완료 · 12개월 모멘텀(비미국주식은 확률 미지원)") : "순위 계산 가능한 종목이 없습니다(데이터 부족)");
   }
-  function clearMomRank() { _momActive = false; if (typeof DOCS !== "undefined") DOCS.forEach(d => { d._mom = null; d._momRank = null; }); renderSidebar(); }
+  function clearMomRank() { _momActive = false; if (typeof DOCS !== "undefined") DOCS.forEach(d => { d._mom = null; d._momRank = null; d._rsProb = null; d._rsBench = null; }); renderSidebar(); }
   function toggleMomRank() { if (_momBusy) return; if (_momActive) clearMomRank(); else rankMomentum(); }   // 메인 버튼 토글: 켜져 있으면 해제(표기 제거)
 
   function applyTickerOHLC(n, r) {
@@ -2571,15 +2591,16 @@
       if (etf) await _loadBenchSym(etf);
     } catch (e) {}
   }
-  function _alignBenchToTicker(tk, candles) {   // 벤치 종가를 티커 거래일에 정렬(휴일 carry·선행 backfill). 부족하면 null
+  function _alignBenchToDates(times, candles) {   // 벤치 종가를 거래일 배열에 정렬(휴일 carry·선행 backfill). 부족하면 null
     const map = new Map(candles.map(c => [c.t, c.c]));
-    const out = new Array(tk._times.length); let last = null;
-    for (let i = 0; i < tk._times.length; i++) { const v = map.get(String(tk._times[i]).slice(0, 10)); if (v != null) last = v; out[i] = last; }
+    const out = new Array(times.length); let last = null;
+    for (let i = 0; i < times.length; i++) { const v = map.get(String(times[i]).slice(0, 10)); if (v != null) last = v; out[i] = last; }
     let s0 = 0; while (s0 < out.length && out[s0] == null) s0++;   // 벤치 이력 이전 구간은 첫 값으로 backfill(엔진은 끝쪽 281봉만 사용)
     if (out.length - s0 < 281) return null;
     for (let i = 0; i < s0; i++) out[i] = out[s0];
     return out;
   }
+  function _alignBenchToTicker(tk, candles) { return _alignBenchToDates(tk._times, candles); }
   function _relOpts() {
     try {
       if (typeof activeTF === "function" && !/1day|일|day/.test(activeTF() || "")) return {};   // 일봉 한정(rel 모델 도메인)
