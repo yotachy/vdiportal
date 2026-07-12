@@ -71,3 +71,30 @@ test("aggregatePnL: 등가중 평균·B&H 이긴 종목수·풀드 승률", () =
   assert.strictEqual(a.nFixtures, 2);
   assert.ok(Math.abs(a.winRate - 11 / 20) < 1e-9, "풀드 승률 11/20");
 });
+
+test("brierDecomp: 완벽 예측 → BS 0 · BSS 1", () => {
+  const pairs = [...Array(100)].map((_, i) => ({ p: i % 2, y: i % 2 }));
+  const b = M.brierDecomp(pairs);
+  assert.ok(b.brier < 1e-12); assert.ok(Math.abs(b.bss - 1) < 1e-9);
+});
+
+test("brierDecomp: 베이스레이트 상수 예측 → resolution 0 · BSS 0", () => {
+  const pairs = [...Array(100)].map((_, i) => ({ p: 0.5, y: i % 2 }));
+  const b = M.brierDecomp(pairs);
+  assert.ok(b.resolution < 1e-12); assert.ok(Math.abs(b.bss) < 1e-9);
+  assert.ok(Math.abs(b.uncertainty - 0.25) < 1e-9);
+});
+
+test("brierDecomp: Murphy 항등식 BS = REL − RES + UNC (빈 내 상수 예측)", () => {
+  const pairs = [];
+  for (let i = 0; i < 50; i++) pairs.push({ p: 0.25, y: i < 15 ? 1 : 0 });   // 빈2: 예측25% 실제30%
+  for (let i = 0; i < 50; i++) pairs.push({ p: 0.75, y: i < 35 ? 1 : 0 });   // 빈7: 예측75% 실제70%
+  const b = M.brierDecomp(pairs);
+  assert.ok(Math.abs(b.brier - (b.reliability - b.resolution + b.uncertainty)) < 1e-9);
+});
+
+test("brier(records): up/actual/base 래핑 동작", () => {
+  const recs = [{ up: 80, actual: 110, base: 100 }, { up: 20, actual: 90, base: 100 }, { up: null, actual: 1, base: 1 }];
+  const b = M.brier(recs);
+  assert.equal(b.n, 2); assert.ok(b.brier < 0.05);
+});

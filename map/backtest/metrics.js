@@ -100,4 +100,31 @@ function baselines(records, firstPrice, lastPrice) {
   return { alwaysUpHitRate: n ? up / n : null, coinFlip: 0.5, buyHoldReturn: (firstPrice > 0 && lastPrice > 0) ? lastPrice / firstPrice - 1 : null };
 }
 
-module.exports = { upProbFromPrediction, directionHitRate, calibration, coneCoverage, priceMAE, simulatePnL, aggregatePnL, baselines };
+// Brier score + Murphy 분해(uncertainty/reliability/resolution) + BSS(베이스레이트 대비 스킬).
+// resolution↑ = 확률이 상황을 실제로 구별(정보성). BSS 0 = 베이스레이트 상수 예측과 동급.
+function brierDecomp(pairs, binW = 0.1) {
+  const N = pairs.length; if (!N) return null;
+  let bs = 0, ybar = 0;
+  for (const { p, y } of pairs) { bs += (p - y) ** 2; ybar += y; }
+  bs /= N; ybar /= N;
+  const bins = new Map();
+  for (const pr of pairs) { const k = Math.min(Math.ceil(1 / binW) - 1, Math.floor(pr.p / binW)); if (!bins.has(k)) bins.set(k, []); bins.get(k).push(pr); }
+  let rel = 0, res = 0;
+  for (const arr of bins.values()) {
+    const n = arr.length;
+    const pb = arr.reduce((s, r) => s + r.p, 0) / n, yb = arr.reduce((s, r) => s + r.y, 0) / n;
+    rel += n / N * (pb - yb) ** 2; res += n / N * (yb - ybar) ** 2;
+  }
+  const unc = ybar * (1 - ybar);
+  return { brier: bs, reliability: rel, resolution: res, uncertainty: unc, bss: unc ? 1 - bs / unc : null, n: N, baseRate: ybar };
+}
+function brier(records) {
+  const pairs = [];
+  for (const r of records) {
+    if (r.up == null || !(r.actual > 0) || !(r.base > 0) || r.actual === r.base) continue;
+    pairs.push({ p: r.up / 100, y: r.actual > r.base ? 1 : 0 });
+  }
+  return brierDecomp(pairs);
+}
+
+module.exports = { upProbFromPrediction, directionHitRate, calibration, coneCoverage, priceMAE, simulatePnL, aggregatePnL, baselines, brierDecomp, brier };
