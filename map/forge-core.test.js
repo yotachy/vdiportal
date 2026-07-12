@@ -2125,7 +2125,8 @@ test("엔진 메타 export — version·indicatorCount·validatedAxes 계약", (
   assert.equal(typeof ForgeCore.version, "string");
   assert.equal(ForgeCore.indicatorCount, 30);
   const ax = ForgeCore.validatedAxes;
-  assert.ok(Array.isArray(ax) && ax.length === 7, "검증 축 7개");
+  assert.ok(Array.isArray(ax) && ax.length === 8, "검증 축 8개");
+  assert.ok(ax.some(a => a.key === "relsec" && a.stock === true), "섹터 상대강도 축 포함(주식 게이트)");
   ax.forEach(a => { assert.equal(typeof a.key, "string"); assert.equal(typeof a.lab, "string"); assert.equal(typeof a.acc, "number"); });
   assert.ok(ax.some(a => a.key === "trend"), "추세 지속 축 포함");
   assert.ok(ax.some(a => a.key === "gap" && a.stock === true), "갭 축 주식 게이트 플래그");
@@ -2162,6 +2163,21 @@ test("_relFeats: backtest/feat-lib structFeats와 수치 패리티 [v1.10 train/
   for (let j = 0; j < 24; j++) assert.ok(Math.abs(x[j] - expect[j]) < 1e-12, "피처 " + j + " 패리티");
 });
 
+test("forecastRelSector: 섹터 상대강도 — 게이트·형식·etf 라벨 [v1.11]", () => {
+  const fr = ForgeCore.forecastRelSector;
+  const mk = (n, f) => { const p = [100]; for (let i = 1; i < n; i++) p.push(Math.max(1, p[i - 1] * (1 + f(i)))); return p; };
+  const etf = mk(600, i => 0.0003 + Math.sin(i * 0.4) * 0.007);
+  const strong = etf.map((v, i) => v * Math.exp(0.0005 * i));
+  assert.equal(fr(strong, null), null, "섹터 없으면 null");
+  assert.equal(fr(strong.slice(0, 200), etf.slice(0, 200)), null, "데이터 부족 null");
+  const r = fr(strong, etf, "XLK");
+  assert.ok(r && r.prob >= 0 && r.prob <= 100, "prob 0~100");
+  assert.equal(r.etf, "XLK", "etf 라벨 보존");
+  assert.deepEqual(r.curve.map(c => c.h), [10, 20, 40], "지평 10·20·40봉");
+  assert.equal(r.prob, r.curve[1].prob, "대표=1달(H=20)");
+  assert.deepEqual(fr(strong, etf, "XLK"), r, "결정론");
+});
+
 test("run(): opts.spyClose 스레딩 → context.relStrength, 없으면 null [v1.10]", () => {
   const g = ForgeCore.sampleGraph();
   const s = ForgeCore.sampleSeries();
@@ -2175,4 +2191,10 @@ test("run(): opts.spyClose 스레딩 → context.relStrength, 없으면 null [v1
   // 예측·시그널 불변(표시 전용 축)
   assert.deepEqual(withSpy.prediction.path, base.prediction.path, "예측 경로 불변");
   assert.equal(withSpy.verdict.score, base.verdict.score, "score 불변");
+  // 섹터 스레딩(v1.11)
+  assert.equal(base.verdict.context.relSector, null, "sectorClose 없으면 null(회귀0)");
+  const withSec = ForgeCore.run(g, { price }, { futW: 24, timeframe: "1day", sectorClose: spy, sectorEtf: "XLK" });
+  const sc = withSec.verdict.context.relSector;
+  assert.ok(sc && sc.prob >= 0 && sc.prob <= 100 && sc.etf === "XLK", "sectorClose 있으면 relSector 산출(etf 라벨)");
+  assert.deepEqual(withSec.prediction.path, base.prediction.path, "섹터 스레딩도 예측 불변");
 });

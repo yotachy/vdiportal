@@ -1366,6 +1366,7 @@
     universe: "86개 시계열(54종목 × 일·주·월 · 크립토·상품·한국 포함) · 약 31,500 시점 · walk-forward(미래 미참조)",
     direction: { hit: 0.581, baseline: 0.608 },
     rel: { hit: 0.54, note: "시장(SPY) 대비 아웃퍼폼 — base ~48%인 공정한 방향 질문. 자명규칙(±모멘텀·±지속성) 최강치 대비 +2.2~2.4pp·전/후반 양수·종목외 유지(미국주식 30종·11년, rel-lab)" },
+    relsec: { hit: 0.57, note: "소속 GICS 섹터 ETF 대비 아웃퍼폼 — base 49.5%. 자명규칙 최강치 대비 +3.0~3.9pp·LOSO +3.1~4.0pp(미국주식 30종 vs ETF 8종, rel-domain-lab). SPY판보다 강함(동료 비교가 노이즈 적음)" },
     coneCoverage: 0.78, coneTarget: 0.80, ece: 0.019,
     strength: "지지반등 신호(횡보장 바닥+RSI반등+200MA 비하락+낙폭5%) = 검증된 유일한 edge: 승률 54.3%·평균 +1.7%/회(20봉)~+3.6%(40봉)로 랜덤 크게 초과(2064건, 54종). 하락추세·얕은눌림 배제. '방향 예측'이 아니라 박스권 매수 타이밍.",
     disclaimer: "과거 데이터 시뮬레이션 결과로 미래 수익·정확성을 보장하지 않음 · 투자 권유·자문 아님(투자자문업 미등록) · 원금 손실 위험 있음 · 모든 판단과 책임은 이용자 본인 · 참고용",
@@ -1380,6 +1381,7 @@
       '<div class="bt-rows">' +
       '<div class="bt-row"><span class="bt-k">방향 예측</span><span class="bt-v">' + P(S.direction.hit) + ' <span class="bt-mut">(항상상승 ' + P(S.direction.baseline) + ')</span></span><span class="bt-tag dn">시장 평균 미달</span></div>' +
       '<div class="bt-row"><span class="bt-k">시장 대비 방향</span><span class="bt-v" title="' + S.rel.note + '">' + P(S.rel.hit) + ' <span class="bt-mut">(base ~48% · 자명규칙 +2.2~2.4pp)</span></span><span class="bt-tag up">검증됨 · v1.10</span></div>' +
+      '<div class="bt-row"><span class="bt-k">섹터 대비 방향</span><span class="bt-v" title="' + S.relsec.note + '">' + P(S.relsec.hit) + ' <span class="bt-mut">(base 49.5% · 자명규칙 +3.0~3.9pp)</span></span><span class="bt-tag up">검증됨 · v1.11</span></div>' +
       '<div class="bt-row"><span class="bt-k">확률 신뢰</span><span class="bt-v">표기=실제 <span class="bt-mut">· ECE ' + (S.ece * 100).toFixed(1) + '%p (Platt 교정·OOS)</span></span><span class="bt-tag up">검증됨</span></div>' +
       '<div class="bt-row"><span class="bt-k">예측 밴드</span><span class="bt-v">커버 ' + P(S.coneCoverage) + ' <span class="bt-mut">(약 ' + P(S.coneTarget) + ' 신뢰구간 · v1.7.1 보정)</span></span><span class="bt-tag up">보정됨</span></div>' +
       '</div>' +
@@ -1524,12 +1526,17 @@
         const tip = "현재 " + (_tp.state === "up" ? "상승" : "하락") + "추세가 그 시점 뒤에도 이어질(지속) vs 힘 빠져 횡보 전환할(소진) 확률 — 지평별 곡선. 대표=1달.&#10;⚠️가격 방향 예측 아님 — '지속될지 소진될지'(비방향). 종목외 walk-forward(다수결·strength 크게 초과).&#10;" + rows + "&#10;소진 예상이면 추격 자제·평균회귀 대비.";
         return `<span class="fcv-vol ${_tp.persist >= 60 ? "rr-up" : _tp.persist <= 40 ? "dd-lo" : "rr-fl"}" title="${tip}">${_tp.state === "up" ? "▲" : "▼"} ${_tp.persist >= 55 ? "지속" : _tp.persist <= 45 ? "소진" : "중립"} <b>${_tp.persist}%</b><span class="vol-vf">2주·1달·2달</span></span>`;
       })() : "";
-      // 시장 상대강도(v1.10) — SPY 대비 아웃퍼폼 확률(첫 상대 방향 축). 미국주식·일봉 한정.
-      const _rl = _ctx && _ctx.relStrength;
-      const relHtml = _rl ? (function () {
-        const rows = (_rl.curve || []).map(c => `· ${c.lb}(${c.h}봉): 아웃퍼폼 ${c.prob}% (OOS ${c.acc}%·base ${c.base}%)`).join("&#10;");
-        const tip = "이 종목이 시장(SPY)보다 나을 확률 — 절대 상승/하락이 아니라 '시장 대비'(base ~48%인 공정한 방향 질문). 대표=1달.&#10;검증: 자명규칙(±모멘텀·±지속성·다수결) 최강치 대비 +2.2~2.4pp·전/후반 양수·종목외 유지(rel-lab).&#10;" + rows + "&#10;활용: 홀드 vs 교체(인덱스 대비) 판단 참고. ⚠️절대 방향 예측 아님 — 시장이 빠지면 같이 빠질 수 있음.";
-        return `<span class="fcv-vol ${_rl.prob >= 55 ? "rr-up" : _rl.prob <= 45 ? "dd-lo" : "rr-fl"}" title="${tip}">${_rl.prob >= 50 ? "◆" : "◇"} ${_rl.prob >= 55 ? "아웃퍼폼" : _rl.prob <= 45 ? "언더퍼폼" : "시장 중립"} <b>${_rl.prob}%</b><span class="vol-vf">vs SPY</span></span>`;
+      // 상대강도(v1.10 SPY + v1.11 섹터) — 아웃퍼폼 확률(상대 방향 축). 미국주식·일봉 한정. 섹터판이 더 강해(OOS 57 vs 54%) 대표로 앞세움.
+      const _rl = _ctx && _ctx.relStrength, _rsec = _ctx && _ctx.relSector;
+      const relHtml = (_rl || _rsec) ? (function () {
+        const rep = _rsec || _rl;   // 대표 = 섹터(강한 축) 우선
+        const repLab = _rsec ? "vs " + (_rsec.etf || "섹터") : "vs SPY";
+        const rowsOf = (r, lab) => (r.curve || []).map(c => `· ${lab} ${c.lb}(${c.h}봉): 아웃퍼폼 ${c.prob}% (OOS ${c.acc}%·base ${c.base}%)`).join("&#10;");
+        const tip = "이 종목이 비교 대상(소속 섹터 ETF·시장 SPY)보다 나을 확률 — 절대 상승/하락이 아니라 '상대 방향'(base ~50%인 공정한 질문). 대표=" + repLab + " 1달.&#10;검증: 섹터판 자명규칙 최강치 +3.0~3.9pp(OOS 56~59%)·SPY판 +2.2~2.4pp(54~56%)·둘 다 전/후반 양수·종목외 유지.&#10;"
+          + (_rsec ? rowsOf(_rsec, "섹터") + "&#10;" : "") + (_rl ? rowsOf(_rl, "SPY") + "&#10;" : "")
+          + "활용: 홀드 vs 교체(동종·인덱스 대비) 판단 참고. ⚠️절대 방향 예측 아님 — 시장이 빠지면 같이 빠질 수 있음.";
+        const sub = (_rsec && _rl) ? `${repLab} · SPY ${_rl.prob}%` : repLab;
+        return `<span class="fcv-vol ${rep.prob >= 55 ? "rr-up" : rep.prob <= 45 ? "dd-lo" : "rr-fl"}" title="${tip}">${rep.prob >= 50 ? "◆" : "◇"} ${rep.prob >= 55 ? "아웃퍼폼" : rep.prob <= 45 ? "언더퍼폼" : "중립"} <b>${rep.prob}%</b><span class="vol-vf">${sub}</span></span>`;
       })() : "";
       // 리스크 가이드(v1.6) — 검증된 콘(예측범위, 실현변동성과 0.79 상관)·낙폭리스크에 표준 리스크공식 적용.
       // 예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님) — 정직 구분.
@@ -1552,7 +1559,7 @@
         (spkHtml ? `<span class="fcv-cell">${_L("급변")}${spkHtml}</span>` : "") +
         (gpHtml ? `<span class="fcv-cell">${_L("갭 · 주식")}${gpHtml}</span>` : "") +
         (tpHtml ? `<span class="fcv-cell">${_L("추세 지속")}${tpHtml}</span>` : "") +
-        (relHtml ? `<span class="fcv-cell">${_L("시장 대비")}${relHtml}</span>` : "") +
+        (relHtml ? `<span class="fcv-cell">${_L("상대강도")}${relHtml}</span>` : "") +
         (rgHtml ? `<span class="fcv-cell">${_L("리스크 · 참고")}${rgHtml}</span>` : "");
       // 상승확률 게이지(계기판 중심) — ▼하락 | 트랙 | ▲상승
       const gaugeHtml = (_up != null) ? `<div class="fcv-gauge" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="fcv-gside dn">▼${100 - _up}%</span><span class="fcv-gtrack"><i class="fcv-gdn" style="width:${100 - _up}%"></i><i class="fcv-gup" style="width:${_up}%"></i><i class="fcv-gmid"></i></span><span class="fcv-gside up">▲${_up}%</span></div>` : "";
@@ -2038,7 +2045,7 @@
     await new Promise(r => requestAnimationFrame(() => setTimeout(r, 30)));   // 오버레이 페인트
     // 심층 분석(웹분석 버튼 전용): 실적일 로드(주식 갭 증강) + 멀티TF 매트릭스 — 종목 선택보다 무거운 작업을 여기로 분산
     try { const _tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim() && (Array.isArray(n._ohlc) || n.params.fetched)); if (_tk && !_tk._earnDate && typeof _loadEarnDate === "function") await _loadEarnDate(_tk); } catch (e) {}
-    try { if (typeof _loadSpy === "function") await _loadSpy(); } catch (e) {}   // 상대강도(v1.10): SPY 기준 시계열(세션 1회 캐시)
+    try { if (typeof _loadSpy === "function") await _loadSpy(); if (typeof _loadSectorBench === "function") await _loadSectorBench(); } catch (e) {}   // 상대강도(v1.10 SPY + v1.11 섹터 ETF, 세션 캐시)
     _wantDeep = true;   // 이 runForge의 renderVerdict가 매트릭스(scheduleDash)를 예약하도록
     runForge(); _engineDirty = false; _autoFresh = false; updateEngineBtn();   // 실제 계산(오버레이 뒤) — 실적 증강 + 매트릭스 포함(심층 완료)
     await new Promise(res => {
@@ -2088,6 +2095,7 @@
       gapP: gap ? gap.prob : 0, gapStock: gap ? 1 : 0,           // 갭 예측 확률(대표 2.2σ·20봉)·주식여부(게이트 통과=1)
       tpState: tp ? tp.state : "", tpPersist: tp ? tp.persist : 50,   // 추세 지속: 국면·지속확률(대표 1달)
       relP: ctx.relStrength ? ctx.relStrength.prob : 0, relStock: ctx.relStrength ? 1 : 0,   // 상대강도(v1.10): SPY 아웃퍼폼 확률(대표 1달)·게이트 통과 여부
+      secP: ctx.relSector ? ctx.relSector.prob : 0, secEtf: ctx.relSector ? (ctx.relSector.etf || "") : "",   // 섹터 상대강도(v1.11): 소속 ETF 아웃퍼폼 확률·벤치 심볼
     }).then(() => { fetchPredLedger(); }).catch(() => {});
   }
   async function fetchPredLedger() {
@@ -2529,32 +2537,60 @@
       return (eb != null && eb >= 0) ? { earnBars: eb } : {};
     } catch (e) { return {}; }
   }
-  // 시장 상대강도(v1.10) — SPY 종가를 티커 거래일에 날짜 정렬해 run opts로 스레딩. 미국주식·일봉 한정(검증 도메인).
-  let _spyCandles = null, _spyLoading = false;   // SPY 종가 캐시(세션 1회, 서버 프록시 6h 캐시)
+  // 상대강도(v1.10 SPY + v1.11 섹터) — 벤치마크 종가를 티커 거래일에 날짜 정렬해 run opts로 스레딩. 미국주식·일봉 한정(검증 도메인).
+  // 종목→소속 GICS 섹터 ETF(현행 매핑, 2023 개편 반영 V/MA/PYPL→XLF). 검증 30종 + 동일 섹터 일반화(LOSO 검증이 근거)로 주요 대형주 보강.
+  const SECTOR_ETF = {
+    AAPL:"XLK", MSFT:"XLK", NVDA:"XLK", INTC:"XLK", ORCL:"XLK", CRM:"XLK", AMD:"XLK", QCOM:"XLK", IBM:"XLK", CSCO:"XLK", AVGO:"XLK", TXN:"XLK", ADBE:"XLK",
+    JPM:"XLF", BAC:"XLF", V:"XLF", MA:"XLF", PYPL:"XLF", GS:"XLF", WFC:"XLF", C:"XLF",
+    JNJ:"XLV", UNH:"XLV", PFE:"XLV", LLY:"XLV", ABBV:"XLV", MRK:"XLV",
+    KO:"XLP", PG:"XLP", WMT:"XLP", PEP:"XLP", COST:"XLP",
+    HD:"XLY", BABA:"XLY", AMZN:"XLY", TSLA:"XLY", NKE:"XLY", MCD:"XLY",
+    XOM:"XLE", CVX:"XLE", COP:"XLE",
+    CAT:"XLI", GE:"XLI", BA:"XLI", HON:"XLI",
+    T:"XLC", VZ:"XLC", DIS:"XLC", GOOGL:"XLC", GOOG:"XLC", META:"XLC", NFLX:"XLC",
+  };
+  const _benchCache = {};   // 벤치 심볼 → 종가 캔들(세션 캐시, 서버 프록시 6h 캐시). false=로딩 실패
+  const _benchLoading = {};
   function _isUSStockSym(sym) { return !!sym && !(/^\d{6}/.test(sym) || /-USD$/.test(sym) || /\//.test(sym) || /^(EUR|GBP|AUD|USD|XAU)/.test(sym)); }
-  async function _loadSpy() {
-    if (_spyCandles || _spyLoading) return;
-    _spyLoading = true;
+  async function _loadBenchSym(bsym) {
+    if (_benchCache[bsym] != null || _benchLoading[bsym]) return;
+    _benchLoading[bsym] = true;
     try {
       if (typeof SERVER_OK === "undefined" || !SERVER_OK || typeof apiGet !== "function") return;
-      const a = await apiGet("?ohlc=1&symbol=SPY&tf=1day");
+      const a = await apiGet("?ohlc=1&symbol=" + encodeURIComponent(bsym) + "&tf=1day");
       if (a && a.ok && Array.isArray(a.candles) && a.candles.length > 300)
-        _spyCandles = a.candles.map(c => ({ t: String(c.t || c.datetime || "").slice(0, 10), c: +c.c })).filter(c => isFinite(c.c) && c.c > 0);
-    } catch (e) {} finally { _spyLoading = false; }
+        _benchCache[bsym] = a.candles.map(c => ({ t: String(c.t || c.datetime || "").slice(0, 10), c: +c.c })).filter(c => isFinite(c.c) && c.c > 0);
+      else _benchCache[bsym] = false;
+    } catch (e) {} finally { _benchLoading[bsym] = false; }
+  }
+  async function _loadSpy() { await _loadBenchSym("SPY"); }   // 하위호환 명칭(runEngine서 호출)
+  async function _loadSectorBench() {   // 현 티커의 소속 섹터 ETF 로드(맵에 있으면)
+    try {
+      const tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim());
+      const etf = tk && SECTOR_ETF[((tk.params.symbol || "").trim().toUpperCase())];
+      if (etf) await _loadBenchSym(etf);
+    } catch (e) {}
+  }
+  function _alignBenchToTicker(tk, candles) {   // 벤치 종가를 티커 거래일에 정렬(휴일 carry·선행 backfill). 부족하면 null
+    const map = new Map(candles.map(c => [c.t, c.c]));
+    const out = new Array(tk._times.length); let last = null;
+    for (let i = 0; i < tk._times.length; i++) { const v = map.get(String(tk._times[i]).slice(0, 10)); if (v != null) last = v; out[i] = last; }
+    let s0 = 0; while (s0 < out.length && out[s0] == null) s0++;   // 벤치 이력 이전 구간은 첫 값으로 backfill(엔진은 끝쪽 281봉만 사용)
+    if (out.length - s0 < 281) return null;
+    for (let i = 0; i < s0; i++) out[i] = out[s0];
+    return out;
   }
   function _relOpts() {
     try {
-      if (!_spyCandles) return {};
       if (typeof activeTF === "function" && !/1day|일|day/.test(activeTF() || "")) return {};   // 일봉 한정(rel 모델 도메인)
       const tk = boardState.nodes.find(n => n.blockType === "ticker" && Array.isArray(n._times) && n._times.length && Array.isArray(n._series) && n._series.length === n._times.length);
-      if (!tk || !_isUSStockSym(((tk.params && tk.params.symbol) || "").trim().toUpperCase())) return {};
-      const map = new Map(_spyCandles.map(c => [c.t, c.c]));
-      const spy = new Array(tk._times.length); let last = null;
-      for (let i = 0; i < tk._times.length; i++) { const v = map.get(String(tk._times[i]).slice(0, 10)); if (v != null) last = v; spy[i] = last; }   // 휴일 미스매치는 직전값 carry
-      let s0 = 0; while (s0 < spy.length && spy[s0] == null) s0++;   // SPY 이력 이전 구간은 첫 값으로 backfill(엔진은 끝쪽 281봉만 사용)
-      if (spy.length - s0 < 281) return {};
-      for (let i = 0; i < s0; i++) spy[i] = spy[s0];
-      return { spyClose: spy };
+      const sym = tk && ((tk.params && tk.params.symbol) || "").trim().toUpperCase();
+      if (!tk || !_isUSStockSym(sym)) return {};
+      const o = {};
+      if (Array.isArray(_benchCache.SPY)) { const spy = _alignBenchToTicker(tk, _benchCache.SPY); if (spy) o.spyClose = spy; }
+      const etf = SECTOR_ETF[sym];
+      if (etf && Array.isArray(_benchCache[etf])) { const sec = _alignBenchToTicker(tk, _benchCache[etf]); if (sec) { o.sectorClose = sec; o.sectorEtf = etf; } }
+      return o;
     } catch (e) { return {}; }
   }
   function runForge() {

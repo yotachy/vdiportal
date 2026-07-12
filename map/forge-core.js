@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.10.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.11.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   const indicatorCount = 30;   // 지표 배터리 종수 (forge-state IND_TIERS와 동기 — 지표 추가 시 함께 갱신)
   // 검증된 예측 축(백테스트 OOS). acc=대표 지평 정확도(%), hz=지평 라벨, stock=주식 한정.
   const validatedAxes = [
@@ -15,6 +15,7 @@
     { key: "gap",   lab: "갭 경보",       acc: 63, hz: "3지평", stock: true },
     { key: "trend", lab: "추세 지속/소진", acc: 76, hz: "3지평·비방향" },
     { key: "rel",   lab: "시장 상대강도", acc: 54, hz: "3지평·상대방향", stock: true },
+    { key: "relsec", lab: "섹터 상대강도", acc: 57, hz: "3지평·상대방향", stock: true },
   ];
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
@@ -2068,6 +2069,7 @@
     context.gapRisk = forecastGapRisk(price, data && data.candle, { earnBars: opts && opts.earnBars, earnSince: opts && opts.earnSince });   // 오버나잇 갭 예보(v1.9.6) — 곡선 + 실적일 있으면 증강(주식 한정)
     context.trendPersist = forecastTrendPersist(price, context.state, context.strength);   // 추세 지속/소진 예보(v1.9) — 추세 국면서 이어질지 힘 빠질지(비방향)
     context.relStrength = (opts && opts.spyClose) ? forecastRelStrength(price, opts.spyClose) : null;   // 시장 상대강도(v1.10) — 클라가 SPY 종가 스레딩(미국주식·일봉 한정)
+    context.relSector = (opts && opts.sectorClose) ? forecastRelSector(price, opts.sectorClose, opts.sectorEtf) : null;   // 섹터 상대강도(v1.11) — 소속 섹터 ETF 종가 스레딩(SPY판보다 강함)
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
       verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence, context }
@@ -2456,6 +2458,23 @@
     const rep = curve[1];   // 대표=1달(H=20)
     return { prob: rep.prob, outperform: rep.prob >= 50, acc: rep.acc, base: rep.base, curve };
   }
+  // ── 섹터 상대강도(소속 GICS 섹터 ETF 대비) 예보(v1.11) — SPY판보다 강한 상대 방향 축(동료 비교가 노이즈 적음).
+  // rel-domain-lab sector 검증: 자명규칙 최강치 대비 +3.0~3.9pp·전/후반 양수·LOSO +3.1~4.0pp·base 49.5%(공정).
+  // 피처·정렬은 SPY판과 동일(_relFeats 25피처, 벤치만 섹터 ETF). train-rel-sector.js 산출(전체표본 25,243).
+  const _RELS_MEAN = [0.01111, 0.03335, 0.06878, 0.15011, 0.04322, 0.00783, 0.54255, 0.02696, 0.00016, -0.07349, -0.03995, 0.00369, 0.00267, 0.00745, 0.01548, 0.03558, 0.0048, 0.00046, 0.50428, 0.00248, 0.00002, -0.08164, -0.03714, 0.00427, -0.01852];
+  const _RELS_STD = [0.08804, 0.1533, 0.23179, 0.38441, 0.1594, 0.02716, 0.33366, 0.16916, 0.14702, 0.08276, 0.31418, 0.30625, 0.07365, 0.12317, 0.17937, 0.2898, 0.12812, 0.02176, 0.30686, 0.12199, 0.12427, 0.07108, 0.31015, 0.30616, 0.23238];
+  const _RELS_HZ = [
+    { h: 10, lb: "2주", acc: 59, base: 50, W: [0.09357, 0.04443, -0.03215, 0.04929, 0.07545, -0.10195, 0.24746, 0.01807, 0.12376, -0.02363, 0.00937, -0.02587, -0.06046, -0.01279, -0.02157, -0.00918, -0.07214, 0.13298, -0.62833, 0.21352, -0.18584, -0.00417, 0.04205, 0.03818, 0.02959], BB: -0.0047 },
+    { h: 20, lb: "1달", acc: 57, base: 50, W: [0.0529, 0.07349, 0.0045, 0.02146, 0.07523, -0.13049, 0.17739, 0.04569, 0.11479, -0.07582, 0.0421, -0.03866, -0.08494, -0.0205, -0.09454, 0.04154, -0.03225, 0.14772, -0.46695, 0.15564, -0.17506, 0.07538, 0.02193, 0.04062, 0.04557], BB: 0.01506 },
+    { h: 40, lb: "2달", acc: 56, base: 50, W: [0.06554, 0.14755, -0.08159, 0.05899, 0.09927, -0.18534, 0.08826, 0.02766, 0.13119, -0.12149, 0.02998, -0.01882, -0.11971, -0.10596, -0.04407, 0.05097, -0.02911, 0.14397, -0.33181, 0.18254, -0.20834, 0.1416, -0.01132, 0.05149, 0.03743], BB: 0.01696 },
+  ];
+  function forecastRelSector(price, sector, etf) {
+    const x = _relFeats(price, sector); if (!x) return null;
+    const curve = _RELS_HZ.map(z => { const p = _logit(x, _RELS_MEAN, _RELS_STD, z.W, z.BB);
+      return { h: z.h, lb: z.lb, prob: Math.round(p * 100), acc: z.acc, base: z.base }; });
+    const rep = curve[1];   // 대표=1달(H=20)
+    return { prob: rep.prob, outperform: rep.prob >= 50, acc: rep.acc, base: rep.base, etf: etf || null, curve };
+  }
   function forecastTrendPersist(price, state, strength) {
     if (state !== "up" && state !== "down") return null;   // 추세 국면 한정(횡보엔 미적용)
     const f = _exhaustFeats(price); if (!f) return null;
@@ -2466,5 +2485,5 @@
     return { state, persist: rep.persist, exhaust: rep.exhaust, acc: rep.acc, curve };
   }
 
-  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });
