@@ -695,22 +695,7 @@ function iconSvg(id){return ICONS[id]?`<svg viewBox="0 0 24 24" fill="none" stro
 function th(id){const l=LIBRARY.find(x=>x.id===id);return l?{imgId:id,label:l.label}:null}
 
 function defaultState(){
-  const n=(id,x,y,t,d,vp)=>({id,x,y,title:t,desc:d,thumb:null,videoPath:vp||null});
-  const G="↳ 오른쪽 파일탐색기에서 동영상을 이 노드로 드래그하세요";
-  const nodes=[
-    n('intro',560,40,'＜ PotFlow 사용 예시 ＞','오른쪽 파일탐색기에서 폴더를 열어 동영상을 이 캔버스로 드래그하면 노드가 생깁니다. 노드 더블클릭 = 재생, 여러 노드 선택 + Space(또는 상단 ▶ 선택 재생) = 동시 재생. 아래 예시 노드에 동영상을 지정하려면 파일을 노드 위로 드래그하세요.'),
-    n('v1',40,250,'오프닝 영상',G),
-    n('v2',340,250,'본편 1부',G),
-    n('v3',640,250,'본편 2부',G),
-    n('v4',940,250,'엔딩 영상',G),
-    n('camA',340,470,'카메라 A',G),
-    n('camB',640,470,'카메라 B',G),
-    n('simul',940,470,'동시 재생 예시','카메라 A·B를 함께 선택하고 Space를 누르면 두 창이 나란히 타일 배치로 동시 재생됩니다.'),
-  ];
-  const E=(a,b)=>({id:uid('e'),from:a,fromSide:'right',to:b,toSide:'left'});
-  return {nodes,edges:[E('v1','v2'),E('v2','v3'),E('v3','v4'),E('camA','simul'),E('camB','simul')],
-    groups:[{id:uid('g'),nodes:['v1','v2','v3','v4'],title:'재생 목록 (순서대로)'},
-      {id:uid('g'),nodes:['camA','camB','simul'],title:'동시 재생'}]};
+  return {nodes:[{id:uid('n'),x:480,y:260,title:'노드',desc:'↳ 오른쪽 파일탐색기에서 동영상을 이 노드로 드래그하세요',thumb:null,videoPath:null,type:'full'}],edges:[],groups:[]};
 }
 let state=defaultState();
 let view={tx:30,ty:20,scale:1};
