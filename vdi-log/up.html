@@ -1036,7 +1036,7 @@ const DUP_ICO=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const ownerOf=it=>(it.owner||"").trim()||"미지정";
 const instOf=it=>(it.inst||"").trim()||"미지정";
 let colSort=null;  // {key,dir} 컬럼 헤더 클릭 정렬(일시적)
-let denseList=false; try{ denseList=localStorage.getItem(DENSE_KEY)==="1"; }catch(e){}  // 모바일 간단히 보기
+let denseList=true; try{ const _dv=localStorage.getItem(DENSE_KEY); if(_dv!==null) denseList=_dv==="1"; }catch(e){}  // 모바일 간단히 보기(기본 켬 — 사용자가 바꾸면 그 값 유지)
 const DENSE_ICO=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>`;
 const FULL_ICO=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/></svg>`;
 function toggleDense(){ denseList=!denseList; try{ localStorage.setItem(DENSE_KEY,denseList?"1":"0"); }catch(e){} renderList(); toast(denseList?"간단히 보기 — 체크·항목명·금액만 표시":"자세히 보기로 전환했습니다."); }
