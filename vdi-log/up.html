@@ -177,6 +177,13 @@
   .acard-acts .del:active{background:rgba(192,57,43,.14); color:#c0392b;}
   .acard-allbar{display:flex; align-items:center; gap:8px; padding:8px 13px; border-bottom:1px solid var(--line); background:var(--line-faint); font-size:.8rem; font-family:var(--font-bold); color:var(--ink-soft); cursor:pointer;}
   .acard-allbar input{width:18px; height:18px; accent-color:var(--gold-strong);}
+  /* 간단히 보기(모바일·폴드): 체크박스 맨 앞 + 항목명 + 금액 한 줄 */
+  #btnDense{display:none;}
+  .acard.dense{display:flex; align-items:center; gap:4px; padding:5px 13px 5px 9px;}
+  .acard.dense .acard-inc{padding:7px 6px; margin:0;}
+  .acard.dense .acard-main{flex:1; min-width:0; align-items:center; padding:6px 0;}
+  .acard.dense .acard-name{font-size:.85rem;}
+  .acard.dense .acard-amt{font-size:.88rem;}
   #sideBackdrop{display:none;}
 
   /* ===================== 모바일 반응형 ===================== */
@@ -205,6 +212,7 @@
     .vhd{padding:4px 0 12px;}
     .vhd h1{font-size:1.2rem;}
     .vhd-actions{gap:6px;}
+    #btnDense{display:inline-flex;}
     /* 표 가로 스크롤 */
     #view-list .list-card{overflow:visible;}
     #listBody{overflow-x:auto; -webkit-overflow-scrolling:touch;}
@@ -477,6 +485,7 @@
             <div class="sub" id="listSub"></div>
           </div>
           <div class="vhd-actions">
+            <button class="btn" id="btnDense" title="목록 표시 전환 (간단히 ↔ 자세히)"></button>
             <button class="btn" id="btnSort" title="정렬 방식 전환 (금액순 ↔ 수동 드래그)"></button>
             <button class="btn gold" id="btnAdd">
               <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -539,6 +548,7 @@ const STORE_KEY="jsiy_assets_v1";
 const NAV_KEY="jsiy_nav";
 const THEME_KEY="jsiy_theme";
 const SIDE_KEY="jsiy_sidebar";
+const DENSE_KEY="jsiy_dense";   // 모바일 목록 간단히 보기(체크박스+항목명+금액만)
 
 const CATS=[
   {id:"kr",      name:"국내주식", color:"#3b6ea5"},
@@ -1025,6 +1035,10 @@ const DUP_ICO=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const ownerOf=it=>(it.owner||"").trim()||"미지정";
 const instOf=it=>(it.inst||"").trim()||"미지정";
 let colSort=null;  // {key,dir} 컬럼 헤더 클릭 정렬(일시적)
+let denseList=false; try{ denseList=localStorage.getItem(DENSE_KEY)==="1"; }catch(e){}  // 모바일 간단히 보기
+const DENSE_ICO=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>`;
+const FULL_ICO=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/></svg>`;
+function toggleDense(){ denseList=!denseList; try{ localStorage.setItem(DENSE_KEY,denseList?"1":"0"); }catch(e){} renderList(); toast(denseList?"간단히 보기 — 체크·항목명·금액만 표시":"자세히 보기로 전환했습니다."); }
 const COL_LABELS={cat:"분류",inst:"기관",name:"항목명",ticker:"보유종목",qty:"보유수",price:"현재가",amount:"평가금액",owner:"이름",note:"메모"};
 function colLabel(k){ return COL_LABELS[k]||k; }
 function cmpCol(a,b,k){
@@ -1062,7 +1076,22 @@ function renderList(){
   if(!items.length){ body.innerHTML=`<div class="empty">${q?`'${escHtml(q)}' 검색 결과가 없습니다.`:`등록된 자산이 없습니다. 우측 상단 <b>자산 추가</b>로 입력하세요.`}</div>`; return; }
   const allInc=incItems.length===items.length, someInc=incItems.length>0&&!allInc;
   const cardMode=isMobile();
-  if(cardMode){
+  const bd=document.getElementById("btnDense");
+  if(bd) bd.innerHTML=(denseList?FULL_ICO:DENSE_ICO)+`<span>${denseList?"자세히":"간단히"}</span>`;
+  if(cardMode&&denseList){
+    const cards=items.map(it=>{
+      const on=isIncluded(it);
+      return `<div class="acard dense${on?"":" off"}" data-id="${it.id}">
+        <label class="acard-inc"><input type="checkbox" class="inc-chk" ${on?"checked":""} ${editable?"":"disabled"} title="자산 합계 포함"></label>
+        <div class="acard-main" data-edit>
+          <div class="acard-name">${escHtml(it.name)||"—"}</div>
+          <div class="acard-r"><div class="acard-amt">${fmtWon(it.amount)}</div>${isPartial(it)?`<div class="acard-part">합계 ${inclQty(it)}주</div>`:""}</div>
+        </div>
+      </div>`;
+    }).join("");
+    const allbar=`<label class="acard-allbar"><input type="checkbox" id="incAll" ${allInc?"checked":""} ${editable?"":"disabled"}> 전체 합계 포함</label>`;
+    body.innerHTML=allbar+`<div class="acard-list">${cards}</div>`;
+  }else if(cardMode){
     const cards=items.map(it=>{
       const c=catById(it.cat), on=isIncluded(it);
       const meta=[];
@@ -1467,6 +1496,7 @@ document.getElementById("btnLock").addEventListener("click",toggleLock);
 document.getElementById("sideBackdrop").addEventListener("click",()=>document.body.classList.add("side-collapsed"));
 document.getElementById("btnAdd").addEventListener("click",()=>openModal());
 document.getElementById("btnSort").addEventListener("click",toggleSort);
+document.getElementById("btnDense").addEventListener("click",toggleDense);
 document.getElementById("listSearch").addEventListener("input",()=>{ if(scope!=="dash") renderList(); });
 document.getElementById("modalClose").addEventListener("click",closeModal);
 document.getElementById("modalCancel").addEventListener("click",closeModal);
