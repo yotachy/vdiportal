@@ -2193,6 +2193,24 @@
     { key: "earn", sev: "info", when: (c, x) => x.earnD != null && x.earnD >= 0 && x.earnD <= 5, msg: (c, x) => "실적 발표 D-" + x.earnD + " — 갭·급변 확률 상승 구간(실적 인지 증강)" },
     { key: "relsec", sev: "info", when: c => c.relSector && c.relSector.prob >= 60, msg: c => "섹터 아웃퍼폼 우세 " + c.relSector.prob + "% vs " + (c.relSector.etf || "섹터") + " (OOS 57%)" },
   ];
+  // 예정 매크로 이벤트 캘린더(정보 제공 전용 — 예측 아님. 매크로 예측축은 백테스트 기각·스코어카드 공개).
+  // 갱신: FOMC=연준 캘린더(결정일=회의 마지막 날) · CPI=FRED release_id=10 향후 공표일. 연 1회 손갱신(리스트 소진 시 조용히 중단).
+  const MACRO_CAL = {
+    fomc: ["2026-07-29", "2026-09-16", "2026-10-28", "2026-12-09", "2027-01-27", "2027-03-17", "2027-04-28", "2027-06-09", "2027-07-28", "2027-09-15", "2027-10-27", "2027-12-08"],
+    cpi: ["2026-07-14", "2026-08-12", "2026-09-11", "2026-10-14", "2026-11-10", "2026-12-10"],
+  };
+  function _macroAlerts() {
+    const out = [], now = new Date();
+    const today = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+    const dDiff = d => Math.round((new Date(d + "T00:00:00") - new Date(today + "T00:00:00")) / 864e5);
+    for (const [k, lab] of [["fomc", "FOMC 금리 결정"], ["cpi", "미국 CPI 발표"]]) {
+      for (const d of MACRO_CAL[k]) {
+        const dd = dDiff(d);
+        if (dd >= 0 && dd <= 1) out.push({ id: "MKT|" + k + "|" + d, sym: "시장 전체", docId: "", key: "cal-" + k, sev: "info", msg: lab + " " + (dd === 0 ? "오늘" : "D-1") + "(" + d.slice(5).replace("-", "/") + ") — 변동성 이벤트 예정 · 정보 제공(예측 아님)", asOf: today });
+      }
+    }
+    return out;
+  }
   let _alerts = [], _alertBusy = false, _alertLastScan = null;
   const _ALERT_SEV_KO = { buy: "기회", warn: "경보", info: "참고" };
   function _alertSeen() { try { return JSON.parse(localStorage.getItem("forge_alert_seen") || "{}"); } catch (e) { return {}; } }
@@ -2229,7 +2247,7 @@
       } catch (e) {}
       await _alertSleep(350);   // 프록시 캐시 미스 버스트 완화(TD 레이트리밋 보호)
     }
-    _alerts = out; _alertBusy = false; _alertLastScan = Date.now();
+    _alerts = out.concat(_macroAlerts()); _alertBusy = false; _alertLastScan = Date.now();   // 캘린더(정보성)는 스캔 결과에 병합
     const seen = _alertSeen(), fresh = out.filter(a => !seen[a.id]);
     renderAlertUI();
     if (fresh.length && _alertNotifyOn() && typeof Notification !== "undefined" && Notification.permission === "granted") {
@@ -2276,7 +2294,7 @@
       _alertSaveSeen(seen); renderAlertUI();
     }
   }
-  function alertGo(docId) { const pop = document.getElementById("alertPop"); if (pop) pop.classList.remove("open"); if (typeof switchDoc === "function") switchDoc(docId); }
+  function alertGo(docId) { const pop = document.getElementById("alertPop"); if (pop) pop.classList.remove("open"); if (docId && typeof switchDoc === "function") switchDoc(docId); }   // 시장 전체(캘린더) 행은 이동 없음
   function toggleAlertNotify() {
     const on = !_alertNotifyOn();
     if (on && typeof Notification !== "undefined" && Notification.permission !== "granted") {
