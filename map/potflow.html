@@ -17,6 +17,16 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
+  .pf-dlbanner{display:none;align-items:center;gap:14px;padding:9px 18px;flex:none;font-size:13px;background:linear-gradient(180deg,rgba(232,180,99,.16),rgba(232,180,99,.05)),var(--panel,#12181f);border-bottom:1px solid var(--gold-dim)}
+  body.nohelper .pf-dlbanner{display:flex}
+  body.pf-embed .pf-dlbanner,body.pf-dlbanner-off .pf-dlbanner{display:none!important}
+  .pf-dlb-txt{color:var(--txt)}
+  .pf-dlb-txt b{color:var(--gold)}
+  .pf-dlb-btn{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:var(--gold);color:#1a1206;font-weight:800;font-size:12.5px;padding:8px 15px;border-radius:9px;text-decoration:none;white-space:nowrap;box-shadow:0 4px 13px -4px rgba(232,180,99,.55);transition:.12s}
+  .pf-dlb-btn svg{width:15px;height:15px}
+  .pf-dlb-btn:hover{background:#f3c983}
+  .pf-dlb-x{flex:none;width:28px;height:28px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;font-size:13px}
+  .pf-dlb-x:hover{color:var(--txt);border-color:var(--gold-dim)}
   body{background:var(--bg);color:var(--txt);font-family:"Pretendard",system-ui,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em;display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
   header{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#141a22,#0e131a);flex:none;z-index:20}
@@ -457,6 +467,12 @@
   <div class="menupop gclrpop" id="gclrPop"></div>
   <div class="menupop gscorepop" id="gscorePop"></div>
 </header>
+
+<div class="pf-dlbanner" id="pfDlBanner">
+  <span class="pf-dlb-txt"><b>미리보기 페이지</b> — 재생·파일탐색기·창배치 등 실제 기능은 <b>로컬 실행</b>에서만 동작합니다. 아래 실행기를 받아 로컬에서 여세요.</span>
+  <a class="pf-dlb-btn" href="start-potflow.bat" download title="PotFlow 로컬 실행기 내려받기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M5 20h14"/></svg>start-potflow.bat 다운로드</a>
+  <button class="pf-dlb-x" onclick="document.body.classList.add('pf-dlbanner-off')" title="닫기">✕</button>
+</div>
 
 <div class="app" id="app">
   <aside class="side">
@@ -1914,7 +1930,7 @@ async function boot(){
   const emb=document.getElementById('embedDoc');
   if(emb){try{const d=JSON.parse(emb.textContent);if(d&&Array.isArray(d.canvases)&&d.canvases.length){
     // 단일 HTML(폐쇄망 반입본): 서버 없음 → 로컬(localStorage) 저장으로 영속시켜 편집이 재방문에도 유지되게 한다.
-    SERVER_OK=false;storeMode='local';
+    SERVER_OK=false;storeMode='local';document.body.classList.add('pf-embed');   // 반입본은 다운로드 배너 숨김
     if(d.images&&typeof d.images==='object')Object.assign(IMAGES,d.images);
     localLoadImgs();
     const localDoc=localLoad();
