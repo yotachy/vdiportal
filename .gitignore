@@ -40,3 +40,4 @@ build/
 !.claude/commands/
 .claude/commands/*
 !.claude/commands/*.md
+map/backtest/fixtures-intraday/
