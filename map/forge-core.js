@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.9.7";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.10.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   const indicatorCount = 30;   // 지표 배터리 종수 (forge-state IND_TIERS와 동기 — 지표 추가 시 함께 갱신)
   // 검증된 예측 축(백테스트 OOS). acc=대표 지평 정확도(%), hz=지평 라벨, stock=주식 한정.
   const validatedAxes = [
@@ -14,6 +14,7 @@
     { key: "spike", lab: "급변 경보",     acc: 65, hz: "3지평" },
     { key: "gap",   lab: "갭 경보",       acc: 63, hz: "3지평", stock: true },
     { key: "trend", lab: "추세 지속/소진", acc: 76, hz: "3지평·비방향" },
+    { key: "rel",   lab: "시장 상대강도", acc: 54, hz: "3지평·상대방향", stock: true },
   ];
   // 콘 캘리브레이션(v1.7.1): 예측 밴드가 과대(커버 79→목표 68%)라 폭을 ×0.75로 축소 → 커버 67%(1σ 근접).
   // cone-cal2 검증: 좁히면 raw ECE는 악화되나 Platt 재적합이 완전 흡수(OOS ECE 11.3→0.19%p) → calibrateUpProb A/B 동반 갱신 필수.
@@ -2066,6 +2067,7 @@
     context.spikeRisk = forecastSpike(price, data && data.candle, { earnBars: opts && opts.earnBars, earnSince: opts && opts.earnSince });   // 단일봉 급변 예보(v1.9.7) — 곡선 + 실적일 있으면 증강
     context.gapRisk = forecastGapRisk(price, data && data.candle, { earnBars: opts && opts.earnBars, earnSince: opts && opts.earnSince });   // 오버나잇 갭 예보(v1.9.6) — 곡선 + 실적일 있으면 증강(주식 한정)
     context.trendPersist = forecastTrendPersist(price, context.state, context.strength);   // 추세 지속/소진 예보(v1.9) — 추세 국면서 이어질지 힘 빠질지(비방향)
+    context.relStrength = (opts && opts.spyClose) ? forecastRelStrength(price, opts.spyClose) : null;   // 시장 상대강도(v1.10) — 클라가 SPY 종가 스레딩(미국주식·일봉 한정)
     return {
       values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
       verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence, context }
@@ -2396,6 +2398,64 @@
     { h: 20, lb: "1달", up: _TP_UP, dn: _TP_DN },
     { h: 40, lb: "2달", up: _TP_UP40, dn: _TP_DN40 },
   ];
+  // ── 시장 상대강도(SPY 대비 아웃퍼폼) 예보(v1.10) — 첫 "상대 방향" 축. rel-lab OOS 검증: 자명규칙(±지속성·±모멘텀·다수결)
+  // 최강치 대비 +2.2~2.4pp·전/후반 양수·LOSO 유지. 절대 방향(0% 대비)은 드리프트 오염(base 55~68%)으로 8실험 벽 —
+  // 상대 방향은 base ~48%라 스킬이 실측됨. 미국주식·일봉 한정(클라 게이트 — opts.spyClose 있을 때만).
+  // 피처 25 = 자기 구조12 + 상대(P/SPY) 구조12 + 베타60. backtest/feat-lib.js structFeats와 수치 동일(패리티 유닛테스트로 보증).
+  function _rsStructFeats(p, t) {
+    if (t < 280 || t >= p.length) return null;
+    const sma = (a, ti, n) => { let s = 0; for (let i = ti - n + 1; i <= ti; i++) s += a[i]; return s / n; };
+    const vol = (a, ti, n) => { let s = 0; for (let i = ti - n + 1; i <= ti; i++) { const r = Math.log(a[i] / a[i - 1]); s += r * r; } return Math.sqrt(s / n); };
+    const rsi = (a, ti, n) => { n = n || 14; let g = 0, l = 0; for (let i = ti - n + 1; i <= ti; i++) { const d = a[i] - a[i - 1]; if (d > 0) g += d; else l -= d; } return (g + l) ? 100 * g / (g + l) : 50; };
+    const mom = n => p[t] / p[t - n] - 1;
+    const ma200 = sma(p, t, 200), ma200p = sma(p, t - 20, 200), m20 = sma(p, t, 20);
+    let sd = 0; for (let i = t - 19; i <= t; i++) sd += (p[i] - m20) ** 2; sd = Math.sqrt(sd / 20);
+    const pctB = sd ? (p[t] - (m20 - 2 * sd)) / (4 * sd) : 0.5;
+    let hi60 = -Infinity; for (let i = t - 59; i <= t; i++) if (p[i] > hi60) hi60 = p[i];
+    const v20 = vol(p, t, 20), v120 = vol(p, t, 120);
+    let below = 0; const back = Math.min(252, t - 21);
+    for (let i = t - back; i <= t; i += 4) if (vol(p, i, 20) <= v20) below++;   // 4봉 서브샘플 백분위(feat-lib 동일)
+    const x = [mom(20), mom(60), mom(120), mom(250), p[t] / ma200 - 1, ma200 / ma200p - 1,
+      pctB, rsi(p, t) / 100 - 0.5, (rsi(p, t) - rsi(p, t - 5)) / 100, p[t] / hi60 - 1,
+      v120 ? v20 / v120 - 1 : 0, below / (Math.floor(back / 4) + 1) - 0.5];
+    return x.every(isFinite) ? x : null;
+  }
+  function _rsBeta(P, S, t, n) {
+    n = n || 60;
+    let sp = 0, ss = 0, sss = 0, sps = 0;
+    for (let i = t - n + 1; i <= t; i++) {
+      const rp = Math.log(P[i] / P[i - 1]), rs = Math.log(S[i] / S[i - 1]);
+      sp += rp; ss += rs; sss += rs * rs; sps += rp * rs;
+    }
+    const vs = sss / n - (ss / n) ** 2;
+    return vs > 0 ? (sps / n - sp * ss / n / n) / vs : 1;
+  }
+  function _relFeats(price, spy) {
+    if (!price || !spy || price.length < 281 || spy.length < 281) return null;
+    const L = Math.min(price.length, spy.length);
+    const P = price.slice(-L), S = spy.slice(-L);   // 끝 정렬(클라가 날짜 교집합 정렬 후 전달 권장)
+    const t = L - 1, R = new Array(L);
+    for (let i = 0; i < L; i++) R[i] = P[i] / S[i];
+    const xo = _rsStructFeats(P, t), xr = _rsStructFeats(R, t);
+    if (!xo || !xr) return null;
+    return xo.concat(xr, [_rsBeta(P, S, t)]);
+  }
+  // train-rel.js 산출(전체표본 14,580 최종학습·rel-model.json). MEAN/STD 공유(피처 동일), W/BB 지평별.
+  // acc=rel-lab 시간분할 OOS(56.2/53.7/54.1%) · base=동일 테스트셋 아웃퍼폼율(48.5/48.2/47.0%).
+  const _REL_MEAN = [0.01308, 0.03833, 0.08028, 0.18345, 0.05422, 0.01012, 0.55011, 0.02929, 0.00013, -0.07129, -0.03575, 0.00933, 0.00254, 0.00738, 0.01641, 0.04329, 0.00452, 0.00029, 0.50384, -0.00043, -0.00036, -0.08841, -0.03576, 0.00233, -0.04561];
+  const _REL_STD = [0.08767, 0.14964, 0.22838, 0.41164, 0.15827, 0.02648, 0.33338, 0.17173, 0.15144, 0.07595, 0.32147, 0.30273, 0.08012, 0.13362, 0.19919, 0.34205, 0.1433, 0.02441, 0.32013, 0.14513, 0.14458, 0.07381, 0.32451, 0.30753, 0.28478];
+  const _REL_HZ = [
+    { h: 10, lb: "2주", acc: 56, base: 48, W: [0.19037, 0.10417, -0.05613, -0.0026, 0.13427, -0.12284, 0.26767, -0.06909, 0.16791, -0.00067, -0.01698, 0.00408, -0.27893, -0.10611, -0.02695, 0.08936, -0.04869, 0.09889, -0.49019, 0.3305, -0.33469, -0.01326, 0.12472, -0.0259, 0.00525], BB: -0.03281 },
+    { h: 20, lb: "1달", acc: 54, base: 48, W: [0.18471, 0.15253, -0.07886, -0.03411, 0.10493, -0.10152, 0.15632, -0.00828, 0.16221, -0.11959, 0.10585, -0.04767, -0.27507, -0.13756, -0.01453, 0.10081, -0.03629, 0.13203, -0.30747, 0.18793, -0.27374, 0.1576, -0.02271, 0.02832, -0.01035], BB: -0.00972 },
+    { h: 40, lb: "2달", acc: 54, base: 47, W: [0.1672, 0.17175, -0.20028, 0.02682, 0.16934, -0.11764, 0.13252, 0.01724, 0.06446, -0.22268, 0.11366, -0.05083, -0.25803, -0.1906, 0.07319, 0.06665, -0.0129, 0.12391, -0.21413, 0.11108, -0.16971, 0.24802, -0.05821, 0.01966, 0.00342], BB: -0.0369 },
+  ];
+  function forecastRelStrength(price, spy) {
+    const x = _relFeats(price, spy); if (!x) return null;
+    const curve = _REL_HZ.map(z => { const p = _logit(x, _REL_MEAN, _REL_STD, z.W, z.BB);
+      return { h: z.h, lb: z.lb, prob: Math.round(p * 100), acc: z.acc, base: z.base }; });
+    const rep = curve[1];   // 대표=1달(H=20)
+    return { prob: rep.prob, outperform: rep.prob >= 50, acc: rep.acc, base: rep.base, curve };
+  }
   function forecastTrendPersist(price, state, strength) {
     if (state !== "up" && state !== "down") return null;   // 추세 국면 한정(횡보엔 미적용)
     const f = _exhaustFeats(price); if (!f) return null;
@@ -2406,5 +2466,5 @@
     return { state, persist: rep.persist, exhaust: rep.exhaust, acc: rep.acc, curve };
   }
 
-  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });

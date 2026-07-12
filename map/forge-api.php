@@ -189,6 +189,9 @@ if ($method === "GET") {
       $sp=0; for($i=$idx-29;$i<=$idx-10;$i++)$sp+=(float)$cds[$i]["c"]; $ma20p=$sp/20;
       if($ma20p<=0)return null; $slope=$ma20/$ma20p-1;
       if(abs($slope)<0.004)return "range"; return $slope>=0?"up":"down"; };
+    // 상대강도(v1.10) 채점용 SPY 캐시(필요 시 1회 로드)
+    $spyCds = null;
+    $spyLoad = function() { $cf = __DIR__ . "/forge_ohlc_cache_" . md5("SPY|1day") . ".json"; $cj = is_readable($cf) ? json_decode(@file_get_contents($cf), true) : null; return (is_array($cj) && isset($cj["candles"]) && is_array($cj["candles"])) ? $cj["candles"] : false; };
     foreach ($pdoc["recs"] as &$r) {
       if (!empty($r["resolved"])) continue;
       if (!isset($r["resolveAfter"]) || $r["resolveAfter"] > $today) continue;
@@ -233,13 +236,29 @@ if ($method === "GET") {
       $tpOk = null;
       if (isset($r["tpState"]) && ($r["tpState"]==="up"||$r["tpState"]==="down")) { $fs = $pstate($cds, $ai + 20);
         if ($fs !== null) { $persistAct = ($fs === $r["tpState"]) ? 1 : 0; $tpPred = ((int)$r["tpPersist"] >= 50) ? 1 : 0; $tpOk = ($tpPred === $persistAct) ? 1 : 0; } }
+      // 상대강도(v1.10): 주식·일봉만 — 20봉 뒤 종목수익 vs SPY수익, 예측 아웃퍼폼(relP>=50)과 실제 일치?
+      $relOk = null;
+      if (!empty($r["relStock"]) && $r["tf"] === "1day") {
+        if ($spyCds === null) $spyCds = $spyLoad();
+        if ($spyCds !== false && count($spyCds) > 25) {
+          $si = -1;
+          for ($i = count($spyCds) - 1; $i >= 0; $i--) { $t = isset($spyCds[$i]["t"]) ? substr((string)$spyCds[$i]["t"], 0, 10) : ""; if ($t !== "" && $t <= $r["asOf"]) { $si = $i; break; } }
+          if ($si >= 0 && $si + 20 < count($spyCds)) {
+            $sa = (float)$spyCds[$si]["c"]; $sm = (float)$spyCds[$si + 20]["c"]; $symM = (float)$cds[$ai + 20]["c"];
+            if ($sa > 0 && $sm > 0 && $symM > 0 && $a > 0) {
+              $relAct = ($symM / $a > $sm / $sa) ? 1 : 0;
+              $relOk = ((((int)(isset($r["relP"]) ? $r["relP"] : 50)) >= 50 ? 1 : 0) === $relAct) ? 1 : 0;
+            }
+          }
+        }
+      }
       $r["resolved"] = true; $r["ret"] = round($mp / $a - 1, 4);
-      $r["out"] = ["dir"=>$dirOk, "vol"=>$volOk, "dd"=>$ddHit, "up"=>$upHit, "spk"=>$spkEv, "gap"=>$gapEv, "tp"=>$tpOk];
+      $r["out"] = ["dir"=>$dirOk, "vol"=>$volOk, "dd"=>$ddHit, "up"=>$upHit, "spk"=>$spkEv, "gap"=>$gapEv, "tp"=>$tpOk, "rel"=>$relOk];
       $resolvedNow++;
     }
     unset($r);
     $agg = ["dir"=>["n"=>0,"hit"=>0], "vol"=>["n"=>0,"hit"=>0], "dd"=>["n"=>0,"ev"=>0,"ps"=>0], "up"=>["n"=>0,"ev"=>0,"ps"=>0],
-            "spk"=>["n"=>0,"ev"=>0,"ps"=>0], "gap"=>["n"=>0,"ev"=>0,"ps"=>0], "tp"=>["n"=>0,"hit"=>0]];
+            "spk"=>["n"=>0,"ev"=>0,"ps"=>0], "gap"=>["n"=>0,"ev"=>0,"ps"=>0], "tp"=>["n"=>0,"hit"=>0], "rel"=>["n"=>0,"hit"=>0]];
     $pending = 0; $resolved = 0; $since = null;
     foreach ($pdoc["recs"] as $r) {
       if (empty($r["resolved"])) { $pending++; continue; }
@@ -253,12 +272,13 @@ if ($method === "GET") {
       if (isset($o["spk"]) && $o["spk"] !== null) { $agg["spk"]["n"]++; $agg["spk"]["ev"] += (int)$o["spk"]; $agg["spk"]["ps"] += (float)(isset($r["spkP"])?$r["spkP"]:0); }
       if (isset($o["gap"]) && $o["gap"] !== null) { $agg["gap"]["n"]++; $agg["gap"]["ev"] += (int)$o["gap"]; $agg["gap"]["ps"] += (float)(isset($r["gapP"])?$r["gapP"]:0); }
       if (isset($o["tp"]) && $o["tp"] !== null) { $agg["tp"]["n"]++; $agg["tp"]["hit"] += (int)$o["tp"]; }
+      if (isset($o["rel"]) && $o["rel"] !== null) { $agg["rel"]["n"]++; $agg["rel"]["hit"] += (int)$o["rel"]; }
     }
     if ($resolvedNow > 0) { $ptmp = $pf . ".tmp." . getmypid(); if (file_put_contents($ptmp, json_encode($pdoc, JSON_UNESCAPED_UNICODE)) !== false) @rename($ptmp, $pf); }
     if ($plock) { flock($plock, LOCK_UN); fclose($plock); }
     $mk = function($a) { return ["n"=>$a["n"], "rate"=>$a["n"] ? round($a["hit"]/$a["n"], 3) : null]; };
     $mkp = function($a) { return ["n"=>$a["n"], "actRate"=>$a["n"] ? round($a["ev"]/$a["n"], 3) : null, "predAvg"=>$a["n"] ? round($a["ps"]/$a["n"]/100, 3) : null]; };
-    echo json_encode(["ok"=>true, "resolved"=>$resolved, "pending"=>$pending, "since"=>$since, "dir"=>$mk($agg["dir"]), "vol"=>$mk($agg["vol"]), "dd"=>$mkp($agg["dd"]), "up"=>$mkp($agg["up"]), "spk"=>$mkp($agg["spk"]), "gap"=>$mkp($agg["gap"]), "tp"=>$mk($agg["tp"])], JSON_UNESCAPED_UNICODE);
+    echo json_encode(["ok"=>true, "resolved"=>$resolved, "pending"=>$pending, "since"=>$since, "dir"=>$mk($agg["dir"]), "vol"=>$mk($agg["vol"]), "dd"=>$mkp($agg["dd"]), "up"=>$mkp($agg["up"]), "spk"=>$mkp($agg["spk"]), "gap"=>$mkp($agg["gap"]), "tp"=>$mk($agg["tp"]), "rel"=>$mk($agg["rel"])], JSON_UNESCAPED_UNICODE);
     exit;
   }
   if (is_file($f)) { readfile($f); } else { echo "null"; }
@@ -318,6 +338,8 @@ if ($op === "logpred") {
       "gapStock"=> !empty($d["gapStock"]) ? 1 : 0,
       "tpState"=> (isset($d["tpState"]) && in_array($d["tpState"], ["up","down","range"], true)) ? $d["tpState"] : "",
       "tpPersist"=> $clip(isset($d["tpPersist"]) ? $d["tpPersist"] : 50),
+      "relP"=> $clip(isset($d["relP"]) ? $d["relP"] : 0),
+      "relStock"=> !empty($d["relStock"]) ? 1 : 0,
       "resolved"=> false,
     ];
     if (count($pdoc["recs"]) > 4000) $pdoc["recs"] = array_slice($pdoc["recs"], -4000);
