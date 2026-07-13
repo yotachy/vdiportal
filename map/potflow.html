@@ -265,7 +265,8 @@
   .node.icon .n-icon{width:40px;height:40px;color:var(--gold)}
   .node.icon .n-icon svg{width:40px;height:40px}
   .node.icon .n-title{font-size:12.5px;font-weight:600;min-height:16px}
-  .node:hover{border-color:#3a4452;box-shadow:0 16px 36px -20px #000}
+  .node:hover{border-color:var(--gold-dim);box-shadow:0 0 0 2px rgba(232,180,99,.14),0 16px 36px -20px #000}
+  .node.snapback{transition:left .18s ease-out,top .18s ease-out}
   .node.selected{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.3),0 16px 34px -16px #000}
   .node.pressing{transform:scale(.972);transition:transform .07s ease}
   .node.pop{animation:nodepop .26s cubic-bezier(.34,1.35,.5,1)}
@@ -1408,6 +1409,16 @@ function onMove(e){
     drag.snapX=[];drag.snapY=[];
     state.nodes.forEach(n=>{if(movingSet.has(n.id))return;const w=n._w||W_NODE,h=n._h||90;drag.snapX.push(n.x,n.x+w,n.x+w/2);drag.snapY.push(n.y,n.y+h,n.y+h/2)});
     drag.bbox=(()=>{let a=1e9,b=1e9,c=-1e9,d=-1e9;sel.forEach(id=>{const n=N(id),w=n._w||W_NODE,h=n._h||90;a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+w);d=Math.max(d,n.y+h)});return{x:a,y:b,w:c-a,h:d-b}})();
+    // 끈적 분리(거품): 그룹 멤버 단일 드래그 — 드래그 시작 시점의 거품(그룹 bbox) 경계에서 저항하다 임계를 넘으면 쏙 빠져나오며 분리
+    drag.stick=null;
+    if(sel.length===1){
+      const g=groupOf(drag.id);
+      if(g&&g.nodes.length>1){
+        let a=1e9,b=1e9,c=-1e9,d2=-1e9;
+        g.nodes.map(N).filter(Boolean).forEach(n=>{const w=n._w||W_NODE,h=n._h||90;a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+w);d2=Math.max(d2,n.y+h)});
+        drag.stick={gid:g.id,a,b,c,d:d2};
+      }
+    }
   }
   if(drag.type==='node'){
     let dx=(e.clientX-drag.sx)/view.scale,dy=(e.clientY-drag.sy)/view.scale;
@@ -1422,6 +1433,35 @@ function onMove(e){
       const gv=document.getElementById('snapV'),gh=document.getElementById('snapH');
       if(bestX){dx+=bestX.off;gv.style.display='block';gv.style.left=bestX.line+'px';gv.style.top=(Math.min(by,drag.bbox.y)-400)+'px';gv.style.height='2000px'}else gv.style.display='none';
       if(bestY){dy+=bestY.off;gh.style.display='block';gh.style.top=bestY.line+'px';gh.style.left=(Math.min(bx,drag.bbox.x)-400)+'px';gh.style.width='2000px'}else gh.style.display='none';
+    }
+    if(drag.stick){
+      const s=drag.stick,o=drag.origins[0],n=N(o.id),w=n._w||W_NODE,h=n._h||90;
+      const P=18,REL=70,K=0.3; // P=경계 여유, REL=분리 임계(px), K=끈적 구간 이동 허용률
+      let tx=o.ox+dx,ty=o.oy+dy;
+      const cx=tx+w/2,cy=ty+h/2;
+      const ox=cx<s.a-P?(s.a-P-cx):(cx>s.c+P?cx-(s.c+P):0);
+      const oy=cy<s.b-P?(s.b-P-cy):(cy>s.d+P?cy-(s.d+P):0);
+      const over=Math.hypot(ox,oy);
+      if(over>0&&over<REL){ // 끈적 저항 — 경계 밖 초과분은 30%만 따라옴(거품이 늘어나는 느낌)
+        if(cx<s.a-P)tx+=ox*(1-K);else if(cx>s.c+P)tx-=ox*(1-K);
+        if(cy<s.b-P)ty+=oy*(1-K);else if(cy>s.d+P)ty-=oy*(1-K);
+        n.x=tx;n.y=ty;const el=q(o.id);if(el){el.style.left=tx+'px';el.style.top=ty+'px';}
+        paint();return;
+      }
+      if(over>=REL){ // 쏙 — 드래그 도중 즉시 분리(연결선 유지), 이후 자유 이동
+        const g=G(s.gid);drag.stick=null;
+        if(g){
+          g.nodes=g.nodes.filter(id=>id!==o.id);
+          const dissolved=g.nodes.length<2;
+          if(dissolved)state.groups=state.groups.filter(x=>x.id!==g.id);
+          n.x=tx;n.y=ty;
+          if(dissolved)render();else paint();
+          const el=q(o.id);if(el){el.style.left=tx+'px';el.style.top=ty+'px';}
+          popNode(o.id);setGroupHover(null);
+          toast('그룹에서 분리 — 연결선은 유지됩니다');markDirty();
+          return;
+        }
+      }
     }
     drag.origins.forEach(o=>{const n=N(o.id);n.x=o.ox+dx;n.y=o.oy+dy;const el=q(o.id);el.style.left=n.x+'px';el.style.top=n.y+'px'});
     paint();return;
@@ -1458,7 +1498,23 @@ function onUp(e){
   if(!d)return;
   if(d.type==='pan'){if(d.canClear&&!d.moved)deselectAll();return}
   if(d.type==='nodePending'){if(e.shiftKey)toggleSel(d.id);else{selectOnly(d.id);highlightInList(d.id);popNode(d.id);}selEdge=null;paint();return}
-  if(d.type==='node'){setTimeout(()=>justDragged=false,30);detachFromGroups(d.origins?d.origins.map(o=>o.id):[]);markDirty();return}
+  if(d.type==='node'){
+    setTimeout(()=>justDragged=false,30);
+    if(d.stick){ // 임계 전에 놓음 — 거품 안으로 되빨려 들어감(스냅백), 그룹 유지
+      const s=d.stick,o=d.origins[0],n=N(o.id);
+      if(n){
+        const w=n._w||W_NODE,h=n._h||90,P=18;
+        let cx=n.x+w/2,cy=n.y+h/2;
+        cx=Math.min(Math.max(cx,s.a-P),s.c+P);cy=Math.min(Math.max(cy,s.b-P),s.d+P);
+        const nx=cx-w/2,ny=cy-h/2,el=q(o.id);
+        if(el&&(nx!==n.x||ny!==n.y)){
+          el.classList.add('snapback');el.style.left=nx+'px';el.style.top=ny+'px';
+          setTimeout(()=>{el.classList.remove('snapback');paint();},200);
+        }
+        n.x=nx;n.y=ny;paint();
+      }
+    }else detachFromGroups(d.origins?d.origins.map(o=>o.id):[]);
+    markDirty();return}
   if(d.type==='group'){if(d.moved)markDirty();return;}
   if(d.type==='link'){
     if(!d.moved){return}                    // 포트 클릭만 — 아무 동작 안 함(노드 추가 방지)
