@@ -2316,13 +2316,20 @@
     if (AUTH.on) return;   // 로그인 상태에선 버튼이 로그아웃으로 대체됨
     location.href = "forge-auth.php?login=1";
   }
+  let _authBtnOrig = null;   // 로그인 전 버튼 마크업(만료 강등 시 원복용)
   function updateAuthUI() {
     const btn = document.querySelector(".auth-btn"); if (!btn || typeof AUTH === "undefined") return;
+    if (_authBtnOrig === null) _authBtnOrig = { html: btn.innerHTML, title: btn.title };
     if (AUTH.on && AUTH.email) {
       const short = AUTH.email.split("@")[0];
       btn.innerHTML = '<span class="au-mail" title="' + AUTH.email + '">' + short + '</span><span class="au-sep"></span><span class="au-login">로그아웃</span>';
       btn.title = AUTH.email + " — 로그아웃";
       btn.onclick = () => { location.href = "forge-auth.php?logout=1"; };
+      btn.classList.remove("nudge");
+    } else {
+      btn.innerHTML = _authBtnOrig.html; btn.title = _authBtnOrig.title;
+      btn.onclick = authSoon;
+      btn.classList.toggle("nudge", AUTH.enabled);   // 체험 모드: 로그인 유도(은은한 골드 펄스 — 상태신호 UX 일관)
     }
   }
   (function _authReturnToast() {   // OAuth 복귀 처리: ?login=ok/fail 토스트 후 쿼리 제거

@@ -119,7 +119,7 @@
   }
   function canSave() { return !AUTH.enabled || AUTH.on; }   // 스위치 꺼짐=종전 · 켜짐=로그인만 저장
   let _nudged = false;
-  function guestNudge() { if (_nudged) return; _nudged = true; if (typeof bToast === "function") bToast("체험 모드 — 로그인하면 포지가 저장됩니다"); }
+  function guestNudge() { if (_nudged || _bootIdle) return; _nudged = true; if (typeof bToast === "function") bToast("체험 모드 — 로그인하면 포지가 저장됩니다"); }   // 부팅 자동경로에선 억제(첫 사용자 액션에서만)
   let _firstIdle = false;   // 첫 진입: 티커 자동 선택/분석 없음(워치리스트 하이라이트도 없음). 사용자가 종목 클릭 시 해제.
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
@@ -128,8 +128,18 @@
   }
   async function apiPost(body) {
     try { const r = await fetch(FORGE_API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (r.status === 401) { authExpired(); return undefined; }   // 세션 만료/게스트 → 체험 모드 강등(오프라인 오표시 방지)
       if (!r.ok) throw 0; SERVER_OK = true; return await r.json(); }
     catch (e) { SERVER_OK = false; setSaveState("offline"); return undefined; }
+  }
+  // 사용 중 세션 만료(401) — 스펙 "쿠키 만료 → 체험 모드 자동 강등": 상태 강등 + 헤더 복원 + 1회 안내
+  let _authExpiredOnce = false;
+  function authExpired() {
+    const was = AUTH.on;
+    AUTH.on = false; AUTH.email = null;
+    if (typeof updateAuthUI === "function") updateAuthUI();
+    setSaveState("");
+    if (was && !_authExpiredOnce) { _authExpiredOnce = true; if (typeof bToast === "function") bToast("로그인이 만료되었습니다 — 다시 로그인하면 저장이 재개됩니다"); }
   }
   function setSaveState(s) {
     const el = document.getElementById("saveBadge"); if (!el) return;
