@@ -300,9 +300,9 @@
   .bm-thumb,.bm-thumb img{height:var(--nh,150px)}
   .bm-thumb img{width:100%;object-fit:cover}
   .n-drop{margin-top:9px;border:1.5px dashed var(--line);border-radius:9px;padding:9px;min-height:var(--nh,auto);box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;color:var(--faint)}
-  /* 그룹 롤오버 — 멤버 노드에 마우스 올리면 그룹 전체가 한 덩어리로 이동함을 표시 */
+  /* 그룹 롤오버 — 그룹 빈 영역에 마우스 올리면 그룹 전체가 한 덩어리로 이동함을 표시(노드 위=노드만 이동) */
   .group.group-hi{outline:2px solid var(--gold);outline-offset:3px}
-  .node.gmove{cursor:move}
+  .node.gmove{outline:1.5px solid var(--gold-dim);outline-offset:2px}
   .node.clip{width:212px;border-color:var(--gold-dim)}
   .clip-title{display:flex;align-items:center;gap:5px;min-width:0}
   .clip-title .bm-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1343,11 +1343,32 @@ function nodePointerDown(id,e){
   if(ed&&document.activeElement===ed)return;
   drag={type:'nodePending',id,sx:e.clientX,sy:e.clientY,t};
   const _pe=q(id);if(_pe)_pe.classList.add('pressing');
-  window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
+  window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);window.addEventListener('pointercancel',onUp);
 }
-function startPan(e,canClear){drag={type:'pan',sx:e.clientX,sy:e.clientY,otx:view.tx,oty:view.ty,canClear:!!canClear,moved:false};stage.classList.add('panning');window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
+function startPan(e,canClear){drag={type:'pan',sx:e.clientX,sy:e.clientY,otx:view.tx,oty:view.ty,canClear:!!canClear,moved:false};stage.classList.add('panning');window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);window.addEventListener('pointercancel',onUp)}
 function groupAt(pt){const gs=state.groups||[];for(let k=gs.length-1;k>=0;k--){const g=gs[k];const ns=g.nodes.map(N).filter(Boolean);if(!ns.length)continue;let a=1e9,b=1e9,c=-1e9,d=-1e9;ns.forEach(n=>{const w=n._w||W_NODE,h=n._h||90;a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+w);d=Math.max(d,n.y+h)});const p=18;if(pt.x>=a-p&&pt.x<=c+p&&pt.y>=b-p&&pt.y<=d+p)return g;}return null;}
-function startGroupDrag(gid,e){const g=G(gid);if(!g)return;drag={type:'group',gid,sx:e.clientX,sy:e.clientY,moved:false,origins:g.nodes.map(N).filter(Boolean).map(n=>({id:n.id,ox:n.x,oy:n.y}))};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);}
+// 드래그한 노드를 그룹 영역 밖에 놓으면 그룹에서 분리(연결선은 유지) — 개별로 빼내 별도 그룹 구성이 목적
+function detachFromGroups(ids){
+  if(!ids.length||!(state.groups||[]).length)return;
+  const dragged=new Set(ids);let out=0;
+  (state.groups||[]).forEach(g=>{
+    const stay=g.nodes.filter(id=>!dragged.has(id)).map(N).filter(Boolean);
+    if(!stay.length)return; // 그룹 전원이 함께 이동한 경우 — 그룹 유지
+    let a=1e9,b=1e9,c=-1e9,d=-1e9;
+    stay.forEach(n=>{const w=n._w||W_NODE,h=n._h||90;a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+w);d=Math.max(d,n.y+h)});
+    const p=30;
+    g.nodes=g.nodes.filter(id=>{
+      if(!dragged.has(id))return true;
+      const n=N(id);if(!n)return false;
+      const cx=n.x+(n._w||W_NODE)/2,cy=n.y+(n._h||90)/2;
+      const inside=cx>=a-p&&cx<=c+p&&cy>=b-p&&cy<=d+p;
+      if(!inside)out++;
+      return inside;
+    });
+  });
+  if(out){state.groups=(state.groups||[]).filter(g=>g.nodes.length>=2);render();toast('그룹에서 분리 — 연결선은 유지됩니다');}
+}
+function startGroupDrag(gid,e){const g=G(gid);if(!g)return;drag={type:'group',gid,sx:e.clientX,sy:e.clientY,moved:false,origins:g.nodes.map(N).filter(Boolean).map(n=>({id:n.id,ox:n.x,oy:n.y}))};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);window.addEventListener('pointercancel',onUp);}
 // 그룹 멤버 노드 롤오버 → 그룹 전체 강조 + move 커서(한 덩어리로 이동함을 인지)
 let _hiG=null;
 function setGroupHover(gid){
@@ -1356,30 +1377,28 @@ function setGroupHover(gid){
   _hiG=gid;
   if(gid){const g=G(gid),el=world.querySelector(`.group[data-gid="${gid}"]`);if(el)el.classList.add('group-hi');if(g)g.nodes.forEach(id=>{const ne=q(id);if(ne)ne.classList.add('gmove');});}
 }
-stage.addEventListener('mousemove',e=>{if(drag)return;const nd=e.target.closest?e.target.closest('.node'):null;const grp=nd?groupOf(nd.dataset.id):null;setGroupHover(grp?grp.id:null);});
-function startLink(id,side,e){return;e.preventDefault();e.stopPropagation();selEdge=null;paint();drag={type:'link',from:id,fromSide:side,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
-function startEndpoint(end,e){return;e.preventDefault();e.stopPropagation();drag={type:'endpoint',end,edge:selEdge,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
-function startMarquee(e){drag={type:'marquee',sx:e.clientX,sy:e.clientY,add:e.shiftKey,moved:false};const m=document.getElementById('marquee');m.style.display='block';posMarquee(e.clientX,e.clientY);window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp)}
+// hover 즉시 인지: 노드 위=노드만 이동(grab 커서) · 그룹 빈 영역=그룹 전체 이동(move 커서+골드 테두리)
+stage.addEventListener('mousemove',e=>{
+  if(drag)return;
+  const onUi=e.target.closest?e.target.closest('.node,.group-label,.group-bar,.hbar,.hbtn,.hbtn2,.elabel,.ehandle'):null;
+  if(mode!=='edit'||onUi){setGroupHover(null);stage.style.cursor='';return;}
+  const gp=groupAt(worldPt(e.clientX,e.clientY));
+  setGroupHover(gp?gp.id:null);
+  stage.style.cursor=gp?'move':'';
+});
+function startLink(id,side,e){return;e.preventDefault();e.stopPropagation();selEdge=null;paint();drag={type:'link',from:id,fromSide:side,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);window.addEventListener('pointercancel',onUp)}
+function startEndpoint(end,e){return;e.preventDefault();e.stopPropagation();drag={type:'endpoint',end,edge:selEdge,sx:e.clientX,sy:e.clientY,moved:false};window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);window.addEventListener('pointercancel',onUp)}
+function startMarquee(e){drag={type:'marquee',sx:e.clientX,sy:e.clientY,add:e.shiftKey,moved:false};const m=document.getElementById('marquee');m.style.display='block';posMarquee(e.clientX,e.clientY);window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);window.addEventListener('pointercancel',onUp)}
 function posMarquee(cx,cy){const r=stage.getBoundingClientRect(),x=Math.min(drag.sx,cx)-r.left,y=Math.min(drag.sy,cy)-r.top,w=Math.abs(cx-drag.sx),h=Math.abs(cy-drag.sy);const m=document.getElementById('marquee');m.style.left=x+'px';m.style.top=y+'px';m.style.width=w+'px';m.style.height=h+'px'}
 
 function onMove(e){
   if(!drag)return;
+  if(e.pointerType!=='touch'&&e.buttons===0){onUp(e);return} // pointerup 유실(창 밖 release·우클릭 등) — 드래그가 커서를 계속 따라다니는 고착 방지
   if(drag.type==='pan'){drag.moved=true;view.tx=drag.otx+(e.clientX-drag.sx);view.ty=drag.oty+(e.clientY-drag.sy);applyView();return}
   if(drag.type==='group'){drag.moved=true;const dx=(e.clientX-drag.sx)/view.scale,dy=(e.clientY-drag.sy)/view.scale;drag.origins.forEach(o=>{const n=N(o.id);if(!n)return;n.x=o.ox+dx;n.y=o.oy+dy;const el=q(o.id);if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}});paint();return;}
   if(drag.type==='nodePending'){
     if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<4)return;
-    // 그룹 멤버 노드를 끌면 그룹 전체를 함께 이동(기본)
-    const grp=groupOf(drag.id);
-    if(grp){
-      justDragged=true;document.body.style.userSelect='none';document.body.classList.add('ndrag');
-      document.querySelectorAll('.node.pressing').forEach(el=>el.classList.remove('pressing'));
-      if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
-      setSel(grp.nodes.slice());
-      drag={type:'group',gid:grp.id,sx:drag.sx,sy:drag.sy,moved:true,origins:grp.nodes.map(N).filter(Boolean).map(n=>({id:n.id,ox:n.x,oy:n.y}))};
-      const dx=(e.clientX-drag.sx)/view.scale,dy=(e.clientY-drag.sy)/view.scale;
-      drag.origins.forEach(o=>{const n=N(o.id);if(!n)return;n.x=o.ox+dx;n.y=o.oy+dy;const el=q(o.id);if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}});
-      paint();return;
-    }
+    // 노드 드래그=그 노드만 이동(그룹 전체 이동은 그룹 빈 영역 드래그로) — 그룹 밖에 놓으면 분리(연결선 유지)
     drag.type='node';justDragged=true;document.body.style.userSelect='none';document.body.classList.add('ndrag');
     document.querySelectorAll('.node.pressing').forEach(el=>el.classList.remove('pressing'));
     if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
@@ -1431,15 +1450,15 @@ function snapAt(pt,exclude){const over=nodeAt(pt);if(!over||over.id===exclude)re
 function clearLinkHi(){document.querySelectorAll('.node.linktarget,.node.linkhover').forEach(n=>n.classList.remove('linktarget','linkhover'));document.querySelectorAll('.port.snaptarget').forEach(p=>p.classList.remove('snaptarget'))}
 function hi(pt,exclude){clearLinkHi();const snap=snapAt(pt,exclude);if(snap){const el=q(snap.node);if(el){el.classList.add('linktarget','linkhover');if(snap.side!=='auto'){const pe=el.querySelector('.port.'+snap.side);if(pe)pe.classList.add('snaptarget')}}}return snap}
 function onUp(e){
-  window.removeEventListener('pointermove',onMove);window.removeEventListener('pointerup',onUp);
-  const d=drag;drag=null;document.body.style.userSelect='';document.body.style.cursor='';stage.classList.remove('panning');document.body.classList.remove('ndrag');
+  window.removeEventListener('pointermove',onMove);window.removeEventListener('pointerup',onUp);window.removeEventListener('pointercancel',onUp);
+  const d=drag;drag=null;document.body.style.userSelect='';document.body.style.cursor='';stage.style.cursor='';stage.classList.remove('panning');document.body.classList.remove('ndrag');
   document.querySelectorAll('.node.pressing').forEach(el=>el.classList.remove('pressing'));
   document.getElementById('snapV').style.display='none';document.getElementById('snapH').style.display='none';
   document.getElementById('tmp').setAttribute('d','');clearLinkHi();
   if(!d)return;
   if(d.type==='pan'){if(d.canClear&&!d.moved)deselectAll();return}
   if(d.type==='nodePending'){if(e.shiftKey)toggleSel(d.id);else{selectOnly(d.id);highlightInList(d.id);popNode(d.id);}selEdge=null;paint();return}
-  if(d.type==='node'){setTimeout(()=>justDragged=false,30);markDirty();return}
+  if(d.type==='node'){setTimeout(()=>justDragged=false,30);detachFromGroups(d.origins?d.origins.map(o=>o.id):[]);markDirty();return}
   if(d.type==='group'){if(d.moved)markDirty();return;}
   if(d.type==='link'){
     if(!d.moved){return}                    // 포트 클릭만 — 아무 동작 안 함(노드 추가 방지)
