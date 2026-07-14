@@ -444,7 +444,7 @@
 <header>
   <a class="brand" href="potflow.html" title="PotFlow">
     <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="3.5" width="7.5" height="6" rx="1.6"/><rect x="13.5" y="14.5" width="7.5" height="6" rx="1.6"/><path d="M6.75 9.5V13a1.5 1.5 0 0 0 1.5 1.5H17.25"/></svg></span>
-    <span class="brand-txt"><b>Pot<span class="em">Flow</span></b><small>동영상 재생 관리 <span class="build" title="빌드 버전 — 새 기능이 안 보이면 이 값이 옛 빌드인지 확인">b0715-2</span></small></span>
+    <span class="brand-txt"><b>Pot<span class="em">Flow</span></b><small>동영상 재생 관리 <span class="build" title="빌드 버전 — 새 기능이 안 보이면 이 값이 옛 빌드인지 확인">b0715-3</span></small></span>
   </a>
   <div class="tools">
     <span class="savestat" id="saveStat" title="저장 상태">●</span>
@@ -813,8 +813,15 @@ function routeOrtho(A,B,fs,ts){
 }
 function edgeGeo(e){const a=N(e.from),b=N(e.to);if(!a||!b)return null;const s=sidesOf(e);let A=anchor(a,s.fs),B=anchor(b,s.ts);
   const hz=x=>(x==='left'||x==='right'),vt=x=>(x==='top'||x==='bottom');
-  if(hz(s.fs)&&hz(s.ts)){const y=Math.round((A.y+B.y)/2);A={x:A.x,y};B={x:B.x,y};}       // 좌우 연결 = 완전 수평선
-  else if(vt(s.fs)&&vt(s.ts)){const x=Math.round((A.x+B.x)/2);A={x,y:A.y};B={x,y:B.y};} // 상하 연결 = 완전 수직선
+  // 거의 정렬돼 있으면 완전 수평/수직 직선, 어긋나 있으면(그룹에서 빼낸 노드 등) 둥근 ㄱ자 꺾은선으로 제대로 연결
+  if(hz(s.fs)&&hz(s.ts)){
+    if(Math.abs(A.y-B.y)<=14){const y=Math.round((A.y+B.y)/2);A={x:A.x,y};B={x:B.x,y};}   // 좌우 연결 = 완전 수평선
+    else return{A,B,fs:s.fs,ts:s.ts,d:polyPath(orthoPath(A,B,s.fs,s.ts))};
+  }
+  else if(vt(s.fs)&&vt(s.ts)){
+    if(Math.abs(A.x-B.x)<=14){const x=Math.round((A.x+B.x)/2);A={x,y:A.y};B={x,y:B.y};}   // 상하 연결 = 완전 수직선
+    else return{A,B,fs:s.fs,ts:s.ts,d:polyPath(orthoPath(A,B,s.fs,s.ts))};
+  }
   const d=`M${A.x},${A.y} L${B.x},${B.y}`;
   return{A,B,fs:s.fs,ts:s.ts,d}}
 function nodeAt(pt){let r=null;state.nodes.forEach(n=>{const w=n._w||W_NODE,h=n._h||90;if(pt.x>=n.x&&pt.x<=n.x+w&&pt.y>=n.y&&pt.y<=n.y+h)r=n});return r}
