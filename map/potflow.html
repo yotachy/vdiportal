@@ -444,7 +444,7 @@
 <header>
   <a class="brand" href="potflow.html" title="PotFlow">
     <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="3.5" width="7.5" height="6" rx="1.6"/><rect x="13.5" y="14.5" width="7.5" height="6" rx="1.6"/><path d="M6.75 9.5V13a1.5 1.5 0 0 0 1.5 1.5H17.25"/></svg></span>
-    <span class="brand-txt"><b>Pot<span class="em">Flow</span></b><small>동영상 재생 관리 <span class="build" title="빌드 버전 — 새 기능이 안 보이면 이 값이 옛 빌드인지 확인">b0715-5</span></small></span>
+    <span class="brand-txt"><b>Pot<span class="em">Flow</span></b><small>동영상 재생 관리 <span class="build" title="빌드 버전 — 새 기능이 안 보이면 이 값이 옛 빌드인지 확인">b0715-6</span></small></span>
   </a>
   <div class="tools">
     <span class="savestat" id="saveStat" title="저장 상태">●</span>
@@ -1248,7 +1248,7 @@ function openGroupGrid(gid,ev){
 }
 function renderGroupGrid(){
   const el=document.getElementById('grpPop');if(!el)return;const g=G(grpTarget);if(!g)return;
-  const vids=g.nodes.map(N).filter(n=>n&&n.videoPath).length;
+  const vids=groupPlayables(g).length; // 원본(기준 영상) 제외 — 격자 칸 배정·개수 표시와 실제 재생 대상 일치
   const mons=(MONITORS&&MONITORS.length)?MONITORS:[{x:0,y:0,w:1920,h:1080,primary:true}];
   if(grpActiveMon>=mons.length)grpActiveMon=0;
   const mg=g.monGrids||{};
@@ -1326,10 +1326,12 @@ function sortGroupsByScore(){
   info.forEach(it=>{const dx=baseX-it.minx,dy=y-it.miny;it.ns.forEach(n=>{n.x+=dx;n.y+=dy;});y+=it.h+GAP;});
   render();markDirty();toast('점수순 정렬 완료');
 }
+// 원본(책갈피를 가진 기준 영상)은 그룹 구성이 어떻게 바뀌어도 일괄재생·화면배열 대상이 아니다.
+// 자식이 같은 그룹에 있든, 다른 그룹으로 빠졌든, 독립했든 무관 — 어딘가에 책갈피 자식이 있거나 자동그룹(bmGroupFor)의 기준이면 원본.
+function isBaseVideo(n){return !!(n&&n.videoPath&&n.bmParent==null&&n.seekMs==null&&(bmChildren(n.id).length>0||(state.groups||[]).some(g=>g.bmGroupFor===n.id)));}
+function groupPlayables(g){return g.nodes.map(N).filter(n=>n&&n.videoPath&&!isBaseVideo(n));}
 function playGroup(gid){const g=G(gid);if(!g)return;
-  // 책갈피 부모(원본)는 제외 — 원본을 처음부터 또 재생하지 않고 책갈피/리프 노드만 재생
-  const hasChild=id=>g.nodes.some(nid=>{const c=N(nid);return c&&c.bmParent===id;});
-  const vids=g.nodes.map(N).filter(n=>n&&n.videoPath&&!hasChild(n.id));
+  const vids=groupPlayables(g);
   if(!vids.length){toast('그룹에 재생할 노드가 없습니다');return}
   const mg=g.monGrids||{};const usedKeys=Object.keys(mg).map(Number).filter(k=>mg[k]).sort((a,b)=>a-b);
   let items;
