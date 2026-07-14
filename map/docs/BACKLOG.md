@@ -16,7 +16,7 @@
 - 1h 자체 지평 변동성 예보(데이터 확보됨 — 단타 도구 제품 질문 정리 후).
 - CPI 캘린더 2027년분 갱신(MACRO_CAL — 2026-12 소진 전).
 - 사용자별 비전 큐 분리(인증 활성 후).
-- **회고 존 v2 실데이터 재수집(~3h)→종결 대장**(`miss-ledger.js --recollect`+`build-catalog.js`) → add도 ~0인지(예상) 확인=membership 종결 → 스코어카드 changelog 갱신.
+- ~~회고 존 v2 실데이터 재수집→종결 대장~~ ✅ 완료(2026-07-14): drop·add 전 국면 +0.00pp, **membership 종결 확정**. 스코어카드 탐구표 갱신. **다음 결정 대기: v3 combination(재가중) vs 상대방향 우회로 마무리.**
 - **회고 존 게이트 강화(승격 전 필수)**: 자명규칙 전체(지속성·±모멘텀·안티드리프트)+BSS+LOSO를 `gate.js`에 추가 — v1 축소본 마감. 채택 후보가 실측된 뒤 착수.
 - 회고 존 v2: downweight·누락지표(add) 재조합 + overconfident/missing 진단.
 
