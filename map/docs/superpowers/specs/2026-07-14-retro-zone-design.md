@@ -70,26 +70,32 @@
 
 회고 대장에서 **판정=채택 + 근거 충분**인 항목만 forge-core 반영 *후보*가 된다. 흐름은 단방향·명시적 — **엔진은 자동 변이하지 않는다**. 반영은 기존 축 채택처럼 의도적 한 걸음: forge-core에 **국면조건부 드리프트 조정**(해당 국면에서 지표 드리프트 계수 스케일)으로 들어가거나, 충분히 강하면 **새 검증축**으로 승격되어 `validatedAxes` 레지스트리에 등록(→ 스코어카드·UI 자동 확장, 열린 엔진 원칙 [[scoopforge-open-engine-principle]]).
 
+> **⚠️ 승격 전 필수 — v1 게이트는 사전등록 관문의 축소본이다.** v1 `gate.js`는 `oosDelta≥1.0pp · 전후반 부호 · symbolConsistency≥0.5 · modAccG≥다수결(alwaysUp)`만 검사한다. 설계 §"공통 원칙"이 사전등록한 **자명규칙 전체(지속성·±모멘텀·안티드리프트) 대비 우위 + BSS/brierDecomp + LOSO**는 **아직 미구현**이다(격리 상태라 무해 — 채택분이 forge-core에 자동 반영되지 않음). 따라서 **v1 "adopt" 판정만 믿고 승격하지 말 것.** 실제 승격 커밋 직전에 지속성/모멘텀 베이스라인 + BSS를 게이트에 추가(별도 태스크)하는 것이 사전등록 규율의 마감이다.
+
 ### D. 회고 대장 스키마 (R3가 바로 먹을 수 있게 1차에서 확정)
+
+> **실제 산출 `retro-catalog.json`이 권위 있는 계약이다(2026-07-14 구현 반영).** 아래는 v1 실측 스키마. 최초 설계가 상상했던 확장 필드(`missShare`·`baseBias`·`loso`·`bss`·`gate:"pass"|"fail"`)는 **v2/승격 시점에 추가**되는 목표이며 v1 대장엔 없다 — R3는 아래 실측 필드로 빌드한다.
 
 ```js
 retroCatalog = [{
-  id,                       // uid
-  diagnosis: {              // "큰 도출점"(사람이 읽는 진단)
-    regime,                 // 국면 태그(추세/변동성/이벤트근접 버킷)
-    indicator,              // 배신/누락 지표 id
-    kind: "betray"|"overconfident"|"missing",
-    stat: { missShare, baseBias, n }
+  id,                       // "retro-<regime>-drop-<indId>" (결정론)
+  diagnosis: {              // "큰 도출점"(사람이 읽는 진단) — attribution.js 산출
+    regime,                 // 국면 태그(trend-up/down/flat · vol-high/mid/low · all)
+    indicator,              // 배신 지표 id
+    kind: "betray",         // v1은 betray만(overconfident·missing은 v2)
+    stat: { trainGain, n }  // train 개선폭(기전 라벨용, 근거 아님)·국면 표본수
   },
   remix: {                  // 사용자가 토글할 재조합
-    change: { op:"drop"|"downweight"|"add", indId, factor? },
+    change: { op: "drop", indId },   // v1은 drop만(downweight·add는 v2)
     rationale             // 자연어 근거(기전 설명)
   },
-  verdict: "adopt"|"no-improvement"|"insufficient-sample",
-  evidence: {               // 정직 표기(in-sample 금지)
-    oosDelta, loso, halves:[h1,h2], baselineBeat, bss, n, gate:"pass"|"fail"
+  verdict: "adopt" | "no-improvement" | "insufficient-sample",
+  evidence: {               // 정직 표기 — 전부 OOS(test), in-sample 금지
+    oosDelta, halves:[h1,h2], symbolConsistency,
+    modAcc, curAcc, modAccG, alwaysUp, n
+    // insufficient-sample일 땐 { n }만 채워짐
   },
-  promoted: bool            // forge-core 반영 여부
+  promoted: false           // forge-core 반영 여부(v1은 항상 false — 승격 미실행)
 }]
 ```
 
