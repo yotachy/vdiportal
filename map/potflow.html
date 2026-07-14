@@ -444,7 +444,7 @@
 <header>
   <a class="brand" href="potflow.html" title="PotFlow">
     <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="3.5" width="7.5" height="6" rx="1.6"/><rect x="13.5" y="14.5" width="7.5" height="6" rx="1.6"/><path d="M6.75 9.5V13a1.5 1.5 0 0 0 1.5 1.5H17.25"/></svg></span>
-    <span class="brand-txt"><b>Pot<span class="em">Flow</span></b><small>동영상 재생 관리 <span class="build" title="빌드 버전 — 새 기능이 안 보이면 이 값이 옛 빌드인지 확인">b0715-3</span></small></span>
+    <span class="brand-txt"><b>Pot<span class="em">Flow</span></b><small>동영상 재생 관리 <span class="build" title="빌드 버전 — 새 기능이 안 보이면 이 값이 옛 빌드인지 확인">b0715-4</span></small></span>
   </a>
   <div class="tools">
     <span class="savestat" id="saveStat" title="저장 상태">●</span>
@@ -813,14 +813,13 @@ function routeOrtho(A,B,fs,ts){
 }
 function edgeGeo(e){const a=N(e.from),b=N(e.to);if(!a||!b)return null;const s=sidesOf(e);let A=anchor(a,s.fs),B=anchor(b,s.ts);
   const hz=x=>(x==='left'||x==='right'),vt=x=>(x==='top'||x==='bottom');
-  // 거의 정렬돼 있으면 완전 수평/수직 직선, 어긋나 있으면(그룹에서 빼낸 노드 등) 둥근 ㄱ자 꺾은선으로 제대로 연결
-  if(hz(s.fs)&&hz(s.ts)){
-    if(Math.abs(A.y-B.y)<=14){const y=Math.round((A.y+B.y)/2);A={x:A.x,y};B={x:B.x,y};}   // 좌우 연결 = 완전 수평선
-    else return{A,B,fs:s.fs,ts:s.ts,d:polyPath(orthoPath(A,B,s.fs,s.ts))};
-  }
-  else if(vt(s.fs)&&vt(s.ts)){
-    if(Math.abs(A.x-B.x)<=14){const x=Math.round((A.x+B.x)/2);A={x,y:A.y};B={x,y:B.y};}   // 상하 연결 = 완전 수직선
-    else return{A,B,fs:s.fs,ts:s.ts,d:polyPath(orthoPath(A,B,s.fs,s.ts))};
+  // 거의 정렬돼 있으면 완전 수평/수직 직선, 어긋나 있으면(그룹에서 빼낸 노드 등) 부드러운 곡선(베지어)으로 연결
+  if(hz(s.fs)&&hz(s.ts)&&Math.abs(A.y-B.y)<=14){const y=Math.round((A.y+B.y)/2);A={x:A.x,y};B={x:B.x,y};}      // 좌우 연결 = 완전 수평선
+  else if(vt(s.fs)&&vt(s.ts)&&Math.abs(A.x-B.x)<=14){const x=Math.round((A.x+B.x)/2);A={x,y:A.y};B={x,y:B.y};} // 상하 연결 = 완전 수직선
+  else if(Math.abs(A.x-B.x)>2||Math.abs(A.y-B.y)>2){
+    const k=Math.max(36,Math.min(150,Math.hypot(B.x-A.x,B.y-A.y)*0.42));
+    const c1={x:A.x+DIR[s.fs][0]*k,y:A.y+DIR[s.fs][1]*k},c2={x:B.x+DIR[s.ts][0]*k,y:B.y+DIR[s.ts][1]*k};
+    return{A,B,fs:s.fs,ts:s.ts,d:`M${A.x},${A.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${B.x},${B.y}`};
   }
   const d=`M${A.x},${A.y} L${B.x},${B.y}`;
   return{A,B,fs:s.fs,ts:s.ts,d}}

@@ -120,7 +120,31 @@ def find_ffmpeg():
         w = shutil.which(cand)
         if w:
             return w
-    return shutil.which("ffmpeg")
+    w = shutil.which("ffmpeg")
+    if w:
+        return w
+    # PATH 등록 없이 설치된 경우(winget/scoop/choco/수동)까지 탐색
+    home = os.path.expanduser("~")
+    guesses = [
+        os.path.join(home, "scoop", "shims", "ffmpeg.exe"),
+        r"C:\ProgramData\chocolatey\bin\ffmpeg.exe",
+        r"C:\ffmpeg\bin\ffmpeg.exe",
+        r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+    ]
+    lad = os.environ.get("LOCALAPPDATA")
+    if lad:
+        guesses.insert(0, os.path.join(lad, "Microsoft", "WinGet", "Links", "ffmpeg.exe"))
+        wg = os.path.join(lad, "Microsoft", "WinGet", "Packages")
+        if os.path.isdir(wg):
+            for d in os.listdir(wg):
+                if "ffmpeg" in d.lower():
+                    for root, _, files in os.walk(os.path.join(wg, d)):
+                        if "ffmpeg.exe" in files:
+                            guesses.append(os.path.join(root, "ffmpeg.exe"))
+    for g in guesses:
+        if os.path.isfile(g):
+            return g
+    return None
 
 def content_type_for(name):
     ext = os.path.splitext(name)[1].lower()
@@ -824,7 +848,7 @@ if __name__ == "__main__":
     _ff = find_ffmpeg()
     print(f"PotFlow helper 실행 중 → {url}")
     print("PotPlayer: " + (_pp or "못 찾음 — potflow-config.txt 에 potplayer=경로 를 넣으세요"))
-    print("ffmpeg   : " + (_ff or "못 찾음(썸네일 비활성, 선택사항)"))
+    print("ffmpeg   : " + (_ff or "없음 — 썸네일은 브라우저로 자동 대체(mp4·webm OK). mkv·avi 썸네일까지 원하면 `winget install ffmpeg` 후 재실행"))
     print("이 창을 켜 두세요. 종료: Ctrl+C 또는 창 닫기")
     # 브라우저를 올바른 주소로 자동 오픈(파일 더블클릭/공개주소 실수 방지). POTFLOW_NO_BROWSER=1 로 끔.
     if not os.environ.get("POTFLOW_NO_BROWSER"):
