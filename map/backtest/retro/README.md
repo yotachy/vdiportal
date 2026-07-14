@@ -22,10 +22,9 @@ node --test backtest/retro/*.test.js
 - **"개선 없음"이 기대 기본값**("가격 재조합=새 정보 0" 벽). null도 대장에 기록 — 그것도 정보.
 - 배포 제외. `retro-records.json`·`retro-catalog.json`은 서버·배포에 올리지 않는다.
 
-## v1 유보 범위
+## v2 범위 (2026-07-14)
 
-- **drop(지표 제외)만** 정확 지원. downweight(감가)·add(누락 지표 투입)는 v2.
-- 진단 kind는 `betray`(제외 시 개선)만. `overconfident`·`missing`은 v2.
-- ablation 대상 기본 = 핵심 Lv1+Lv2 지표(`CORE`). 전 지표는 `RETRO_ALL_INDS=1`.
-- 채택분의 forge-core 실제 반영(국면조건부 드리프트 조정)은 대장에 채택이 나온 뒤 별도 커밋.
-- R3 사용자 선택 심화 UI는 2차 스펙(대장 스키마가 데이터 계약).
+- 방향 판정 = `up`(예측 확률·드리프트 포함), score 아님.
+- drop(제거) + add(누락 지표 투입) 둘 다 측정 → membership 종결.
+- add 대상 = 표준 그래프에 없는 11종(add-defs.js). 예측을 한 번도 안 움직인 지표는 "미측정"으로 분리.
+- 유보(별도 스펙): downweight·overconfident 진단·combination(재가중=v3, 이 캐시 부트스트랩)·R3 UI·승격 게이트 강화(자명규칙+BSS).
