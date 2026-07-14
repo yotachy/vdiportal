@@ -38,3 +38,16 @@ test("no-improvement when drop does not help (indicator was neutral)", () => {
   const r = gateCandidate(CAND, recs, { minN: 50 });
   assert.strictEqual(r.verdict, "no-improvement");
 });
+
+test("gates an add candidate using the addAb map", () => {
+  const recs = [];
+  for (let i = 0; i < 300; i++) {
+    const isUp = i % 2 === 0, a20 = isUp ? 110 : 90;
+    recs.push({ sym: i % 3 === 0 ? "A" : i % 3 === 1 ? "B" : "C", t: i, base: 100, a20, a60: a20,
+      up: isUp ? 30 : 70, regime: ["vol-low"], addAb: { cci: { up: isUp ? 70 : 30 } } });
+  }
+  const cand = { id: "retro-vol-low-add-cci", regime: "vol-low", change: { op: "add", indId: "cci" } };
+  const r = gateCandidate(cand, recs, { minN: 50 });
+  assert.strictEqual(r.verdict, "adopt", JSON.stringify(r.evidence));
+  assert.ok(r.evidence.oosDelta > 0.4);
+});
