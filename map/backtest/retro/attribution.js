@@ -12,6 +12,8 @@ function attribute(train, opts = {}) {
   for (const g of REGIMES) {
     const gN = train.filter(r => realDir(r, hKey) !== 0 && inRegime(r, g)).length;
     if (gN < minN) continue;
+    // drop(betray)·add(missing) 후보를 한 랭킹에서 겨룬다("어떤 membership 변경이든 최상위 개선"). 의도된 공유 슬롯.
+    // 게이트가 실제 필터이며, 종결 진술의 정량 근거(build-catalog distByRegime)는 kind별 최댓값을 따로 보고하므로 이 공유 랭킹에 영향받지 않는다.
     const scored = [];
     for (const z of dropInds) scored.push({ kind: "betray", key: z, gain: accMod(train, g, z, hKey, "ab") - baseAcc });
     for (const bt of addInds) scored.push({ kind: "missing", key: bt, gain: accMod(train, g, bt, hKey, "addAb") - baseAcc });
