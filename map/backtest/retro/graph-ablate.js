@@ -17,4 +17,16 @@ function ablateGraph(graph, nodeId) {
   return g;
 }
 
-module.exports = { listIndicatorNodes, ablateGraph };
+// blockType 지표를 추가하고 combine 노드로 배선. 깊은 복제(원본 불변).
+function addIndicatorNode(graph, blockType, params) {
+  const g = JSON.parse(JSON.stringify(graph));
+  const id = "add_" + blockType;
+  g.nodes = g.nodes || [];
+  g.edges = g.edges || [];
+  g.nodes.push({ id, kind: "block", blockType, params: params || {}, conviction: 0, weight: 50 });
+  const comb = g.nodes.find(n => n.blockType === "combine");
+  if (comb) g.edges.push({ id: "e_" + id, from: id, fromSide: "right", to: comb.id, toSide: "left" });
+  return g;
+}
+
+module.exports = { listIndicatorNodes, ablateGraph, addIndicatorNode };
