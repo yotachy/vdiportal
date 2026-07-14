@@ -668,11 +668,13 @@ def ping_payload():
     }
 
 class Handler(BaseHTTPRequestHandler):
-    def _send(self, code, body, ctype="application/json", raw=False):
+    def _send(self, code, body, ctype="application/json", raw=False, cache=None):
         data = body if raw else json.dumps(body).encode()
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Access-Control-Allow-Origin", "*")
+        if cache:
+            self.send_header("Cache-Control", cache)
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
@@ -771,7 +773,8 @@ class Handler(BaseHTTPRequestHandler):
         if os.path.isfile(fp) and os.path.commonpath([ROOT, os.path.abspath(fp)]) == ROOT:
             ctype = "text/html" if fp.endswith(".html") else "application/octet-stream"
             with open(fp, "rb") as f:
-                return self._send(200, f.read(), ctype, raw=True)
+                # no-store: 브라우저가 옛 빌드를 캐시해 새 기능이 안 보이는 문제 차단
+                return self._send(200, f.read(), ctype, raw=True, cache="no-store")
         return self._send(404, {"ok": False, "error": "not found"})
 
     def do_POST(self):

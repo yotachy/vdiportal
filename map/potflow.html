@@ -39,6 +39,7 @@
   .brand-txt b{font-size:14.5px;font-weight:800;letter-spacing:-.02em}
   .brand-txt .em{color:var(--gold)}
   .brand-txt small{font-size:10.5px;color:var(--muted);font-weight:600}
+  .brand-txt .build{font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:.03em}
   .tools{margin-left:auto;display:flex;align-items:center;gap:7px}
   .btn{font-family:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:var(--raised);color:var(--txt);border-radius:8px;padding:7px 12px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
   .btn:hover{background:var(--raised2);border-color:#3a4452}
@@ -436,7 +437,7 @@
 <header>
   <a class="brand" href="potflow.html" title="PotFlow">
     <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="3.5" width="7.5" height="6" rx="1.6"/><rect x="13.5" y="14.5" width="7.5" height="6" rx="1.6"/><path d="M6.75 9.5V13a1.5 1.5 0 0 0 1.5 1.5H17.25"/></svg></span>
-    <span class="brand-txt"><b>Pot<span class="em">Flow</span></b><small>동영상 재생 관리</small></span>
+    <span class="brand-txt"><b>Pot<span class="em">Flow</span></b><small>동영상 재생 관리 <span class="build" title="빌드 버전 — 새 기능이 안 보이면 이 값이 옛 빌드인지 확인">b0715</span></small></span>
   </a>
   <div class="tools">
     <span class="savestat" id="saveStat" title="저장 상태">●</span>
@@ -1134,10 +1135,13 @@ function syncBookmarks(nodeId){
     if(!isPro()&&allBms.length>2)toast('무료는 책갈피 2개 · PRO에서 전체');
     const existing={};bmChildren(nodeId).forEach(c=>{existing[c.seekMs]=c;});
     const seen={};const chainIds=[nodeId];let i=0;
+    // 자동그룹 조회 + 그룹 안 노드의 free 해제(수동 재합류 포함)는 배치보다 먼저 — 재합류 즉시 재배치되도록
+    let g=(state.groups||[]).find(x=>x.bmGroupFor===nodeId)||(state.groups||[]).find(x=>x.nodes&&x.nodes.includes(nodeId));
+    if(g)(g.nodes||[]).forEach(id=>{const c=N(id);if(c&&c.bmFree)c.bmFree=false;});
     let cx=n.x+(n._w||W_NODE)+NODE_GAP;   // 부모 오른쪽 + 일정 간격부터
     bms.forEach(b=>{seen[b.ms]=1;let c=existing[b.ms];
       if(!c){c=makeNode(0,0,'',"full");c.bmParent=nodeId;c.seekMs=b.ms;c.videoPath=n.videoPath;}
-      c.x=cx;c.y=n.y;cx+=(c._w||196)+NODE_GAP;   // 현재 노드 폭 + 간격 → 겹침 없이 일정 간격
+      if(!c.bmFree){c.x=cx;c.y=n.y;cx+=(c._w||196)+NODE_GAP;}   // 겹침 없이 일정 간격 — 사용자가 빼낸(bmFree) 노드는 위치 유지
       c.title=b.title||('책갈피 '+fmtClock(b.ms));c.desc=fmtClock(b.ms);
       if(b.thumb){const iid='bm_'+nodeId+'_'+b.ms;putImg(iid,b.thumb);c.thumb={imgId:iid,label:c.title};}
       else{captureThumbURL(HELPER+"/file?path="+encodeURIComponent(n.videoPath),c.id,b.ms/1000);}
@@ -1148,11 +1152,11 @@ function syncBookmarks(nodeId){
     const cs=new Set(chainIds);
     state.edges=state.edges.filter(e=>!(cs.has(e.from)&&cs.has(e.to)));
     for(let k=0;k<chainIds.length-1;k++)addEdge(chainIds[k],'right',chainIds[k+1],'left',{arrow:false});  // 체인=일반 연결선
-    // 원본 + 책갈피 자동 그룹핑
-    if(chainIds.length>1){
-      let g=(state.groups||[]).find(x=>x.bmGroupFor===nodeId)||(state.groups||[]).find(x=>x.nodes&&x.nodes.includes(nodeId));
-      if(g){g.nodes=Array.from(new Set([...(g.nodes||[]),...chainIds]));if(g.bmGroupFor==null)g.bmGroupFor=nodeId;}
-      else{state.groups=state.groups||[];state.groups.push({id:uid('g'),nodes:chainIds.slice(),title:(n.title||'재생 목록'),bmGroupFor:nodeId});}
+    // 원본 + 책갈피 자동 그룹핑 — 사용자가 빼낸 노드(bmFree)는 다시 넣지도, 재배치하지도 않음
+    const memberIds=chainIds.filter(id=>{const c=N(id);return !(c&&c.bmFree)});
+    if(memberIds.length>1){
+      if(g){g.nodes=Array.from(new Set([...(g.nodes||[]),...memberIds]));if(g.bmGroupFor==null)g.bmGroupFor=nodeId;}
+      else{state.groups=state.groups||[];state.groups.push({id:uid('g'),nodes:memberIds.slice(),title:(n.title||'재생 목록'),bmGroupFor:nodeId});}
     }else{state.groups=(state.groups||[]).filter(x=>x.bmGroupFor!==nodeId);}
     render();markDirty();
     toast(bms.length?('책갈피 '+bms.length+'개 · 자동 그룹'):'책갈피 없음');
@@ -1363,7 +1367,7 @@ function detachFromGroups(ids){
       const n=N(id);if(!n)return false;
       const cx=n.x+(n._w||W_NODE)/2,cy=n.y+(n._h||90)/2;
       const inside=cx>=a-p&&cx<=c+p&&cy>=b-p&&cy<=d+p;
-      if(!inside)out++;
+      if(!inside){out++;n.bmFree=true;} // 책갈피 자동그룹이 다시 흡수·재배치하지 못하게
       return inside;
     });
   });
@@ -1452,6 +1456,7 @@ function onMove(e){
         const g=G(s.gid);drag.stick=null;
         if(g){
           g.nodes=g.nodes.filter(id=>id!==o.id);
+          n.bmFree=true; // 책갈피 자동그룹이 다시 흡수·재배치하지 못하게
           const dissolved=g.nodes.length<2;
           if(dissolved)state.groups=state.groups.filter(x=>x.id!==g.id);
           n.x=tx;n.y=ty;
