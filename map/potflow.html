@@ -444,7 +444,7 @@
 <header>
   <a class="brand" href="potflow.html" title="PotFlow">
     <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="3.5" width="7.5" height="6" rx="1.6"/><rect x="13.5" y="14.5" width="7.5" height="6" rx="1.6"/><path d="M6.75 9.5V13a1.5 1.5 0 0 0 1.5 1.5H17.25"/></svg></span>
-    <span class="brand-txt"><b>Pot<span class="em">Flow</span></b><small>동영상 재생 관리 <span class="build" title="빌드 버전 — 새 기능이 안 보이면 이 값이 옛 빌드인지 확인">b0715-4</span></small></span>
+    <span class="brand-txt"><b>Pot<span class="em">Flow</span></b><small>동영상 재생 관리 <span class="build" title="빌드 버전 — 새 기능이 안 보이면 이 값이 옛 빌드인지 확인">b0715-5</span></small></span>
   </a>
   <div class="tools">
     <span class="savestat" id="saveStat" title="저장 상태">●</span>
@@ -957,6 +957,7 @@ function drawNhud(){
       ${n.videoPath&&!n.clip?`<button class="hbtn" data-nact="bmsync" title="책갈피(pbf) 동기화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg><span>책갈피</span></button>`:''}
       ${n.videoPath?`<button class="hbtn" data-nact="winset" title="화면 배치(모니터 영역)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="3" y="4" width="18" height="13" rx="1.5"/><path d="M8 20h8M12 17v3"/></svg><span>배치</span></button>`:''}
       ${n.videoPath&&n.bmParent==null&&!n.clip?`<button class="hbtn" data-nact="clip" title="반복구간(구간 노드) 추가 — 시작점에서 열림"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span>구간</span></button>`:''}
+      ${n.videoPath&&n.bmParent==null&&!n.clip?`<button class="hbtn" data-nact="bmreset" title="처음 상태로 리셋 — 빼낸 책갈피는 독립 노드로 두고, 그룹은 원래 나열로 복구"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg><span>리셋</span></button>`:''}
     </div>
     <div class="nbar-sw">${sw}</div>
   </div>`;
@@ -1138,6 +1139,13 @@ function watchClose(token,nodeId){
     }).catch(()=>{if(tries>=3)clearInterval(iv);});
     if(tries>4800)clearInterval(iv);   // 안전상한(~4h)
   },3000);
+}
+// 리셋: 처음 캔버스에 들어올 때처럼 책갈피 일렬 나열·자동 그룹으로 복구. 빼낸(bmFree) 책갈피는 독립 노드로 전환해 그대로 둔다(새 사본이 그룹에 재생성됨)
+function resetBookmarks(nodeId){
+  const n=N(nodeId);if(!n||!n.videoPath||n.bmParent!=null)return;
+  if(!HELPER_OK){toast('헬퍼가 꺼져 있습니다');return}
+  bmChildren(nodeId).forEach(c=>{if(c.bmFree){c.bmParent=null;c.bmFree=false;}});
+  syncBookmarks(nodeId);
 }
 function syncBookmarks(nodeId){
   const n=N(nodeId);if(!n||!n.videoPath||n.bmParent!=null||n.clip)return;
@@ -1378,6 +1386,7 @@ function detachFromGroups(ids){
     const p=30;
     g.nodes=g.nodes.filter(id=>{
       if(!dragged.has(id))return true;
+      if(g.bmGroupFor===id)return true; // 기준 영상은 다중 드래그로도 그룹에서 못 나감
       const n=N(id);if(!n)return false;
       const cx=n.x+(n._w||W_NODE)/2,cy=n.y+(n._h||90)/2;
       const inside=cx>=a-p&&cx<=c+p&&cy>=b-p&&cy<=d+p;
@@ -1435,7 +1444,7 @@ function onMove(e){
       if(g&&g.nodes.length>1){
         let a=1e9,b=1e9,c=-1e9,d2=-1e9;
         g.nodes.map(N).filter(Boolean).forEach(n=>{const w=n._w||W_NODE,h=n._h||90;a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+w);d2=Math.max(d2,n.y+h)});
-        drag.stick={gid:g.id,a,b,c,d:d2};
+        drag.stick={gid:g.id,a,b,c,d:d2,lock:g.bmGroupFor===drag.id}; // lock=기준 영상: 그룹 밖으로 못 나감
       }
     }
   }
@@ -1462,11 +1471,12 @@ function onMove(e){
       const oy=cy<s.b-P?(s.b-P-cy):(cy>s.d+P?cy-(s.d+P):0);
       const over=Math.hypot(ox,oy);
       const el=q(o.id),ge=world.querySelector(`.group[data-gid="${s.gid}"]`);
-      if(over>0&&over<REL){ // 끈적 저항 — 경계 밖 초과분은 일부만 따라옴(거품이 늘어나는 느낌) + 기울기·글로우·거품 긴장
-        if(cx<s.a-P)tx+=ox*(1-K);else if(cx>s.c+P)tx-=ox*(1-K);
-        if(cy<s.b-P)ty+=oy*(1-K);else if(cy>s.d+P)ty-=oy*(1-K);
+      if(over>0&&(over<REL||s.lock)){ // 끈적 저항 — 경계 밖 초과분은 일부만 따라옴(거품이 늘어나는 느낌) + 기울기·글로우·거품 긴장. 기준 영상(lock)은 최대 34px 고무줄로 절대 못 나감
+        const cap=v=>s.lock?Math.min(v*K,34):v*K;
+        if(cx<s.a-P)tx+=ox-cap(ox);else if(cx>s.c+P)tx-=ox-cap(ox);
+        if(cy<s.b-P)ty+=oy-cap(oy);else if(cy>s.d+P)ty-=oy-cap(oy);
         n.x=tx;n.y=ty;
-        if(el){el.style.left=tx+'px';el.style.top=ty+'px';el.classList.add('tug');el.style.setProperty('--tug',(over/REL).toFixed(3));}
+        if(el){el.style.left=tx+'px';el.style.top=ty+'px';el.classList.add('tug');el.style.setProperty('--tug',Math.min(over/REL,1).toFixed(3));}
         if(ge)ge.classList.add('strain');
         paint();return;
       }
@@ -1541,6 +1551,7 @@ function onUp(e){
         if(el&&(nx!==n.x||ny!==n.y)){
           el.classList.add('snapback');el.style.left=nx+'px';el.style.top=ny+'px';
           setTimeout(()=>{el.classList.remove('snapback');paint();},200);
+          if(s.lock)toast('기준 영상은 그룹 밖으로 뺄 수 없습니다');
         }
         n.x=nx;n.y=ny;paint();
       }
@@ -1583,7 +1594,7 @@ world.addEventListener('click',e=>{
   if(e.target.closest('[data-ewidth]')){if(selEdge){const ed=E(selEdge);ed.width=((ed.width||2)%3)+1;paint();markDirty()}return}
   if(e.target.closest('[data-eroute]')){if(selEdge){const ed=E(selEdge);ed.route=ed.route!=='curve'?'curve':'ortho';paint();markDirty()}return}
   if(e.target.closest('[data-elabeladd]')){if(selEdge){const ed=E(selEdge);if(ed.label==null)ed.label='';paint();const le=document.querySelector(`.elabel[data-elabel="${selEdge}"]`);if(le){le.focus();const r=document.createRange();r.selectNodeContents(le);const s=window.getSelection();s.removeAllRanges();s.addRange(r)}}return}
-  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='del')delNodes([id]);else if(a==='bmsync')syncBookmarks(id);else if(a==='winset')openWinPop(id);else if(a==='clip')addClip(id)}return}
+  const na=e.target.closest('[data-nact]');if(na){if(sel.length===1){const id=sel[0],a=na.dataset.nact;if(a==='del')delNodes([id]);else if(a==='bmsync')syncBookmarks(id);else if(a==='bmreset')resetBookmarks(id);else if(a==='winset')openWinPop(id);else if(a==='clip')addClip(id)}return}
   const al=e.target.closest('[data-align]');if(al){alignSel(al.dataset.align);return}
   const sw=e.target.closest('[data-bg]');if(sw){if(sel.length===1){const n=N(sel[0]);n.bg=sw.dataset.bg||null;render();markDirty()}return}
   const b=e.target.closest('[data-act]');if(b){const a=b.dataset.act,id=b.closest('.node').dataset.id;if(a==='del')delNodes([id]);else if(a==='add')addChild(id);else if(a==='rmthumb')setThumb(id,null);return}
