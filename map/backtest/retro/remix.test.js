@@ -17,3 +17,11 @@ test("deduplicates identical (regime, indicator) diagnoses", () => {
   const d = { regime: "all", indicator: "z", kind: "betray", stat: { trainGain: 0.02, n: 900 } };
   assert.strictEqual(candidatesFrom([d, d]).length, 1);
 });
+
+test("missing diagnosis becomes an add candidate", () => {
+  const diags = [{ regime: "vol-low", indicator: "cci", kind: "missing", stat: { trainGain: 0.02, n: 400 } }];
+  const c = candidatesFrom(diags)[0];
+  assert.strictEqual(c.id, "retro-vol-low-add-cci");
+  assert.deepStrictEqual(c.change, { op: "add", indId: "cci" });
+  assert.ok(/추가/.test(c.rationale), "add 근거 문구");
+});
