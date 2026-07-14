@@ -6,6 +6,8 @@ backtest/support-features.json
 backtest/confluence-records.json
 backtest/regime-hold-records.json
 backtest/cone-precision-recs.json
+backtest/retro/retro-records.json
+backtest/retro/retro-catalog.json
 
 # SDD 세션 스크래치(렛저·브리프·리뷰 diff) — 저장소 미포함
 .superpowers/
