@@ -5,7 +5,8 @@ const FC = require("../../forge-core.js");
 const BT = require("../backtest.js");
 const M = require("../metrics.js");
 const { regimeTags } = require("./regime.js");
-const { listIndicatorNodes, ablateGraph } = require("./graph-ablate.js");
+const { listIndicatorNodes, ablateGraph, addIndicatorNode } = require("./graph-ablate.js");
+const { ABSENT, ABSENT_DEFAULTS } = require("./add-defs.js");
 
 const CACHE = path.join(__dirname, "retro-records.json");
 const WARMUP = 280, STRIDE = 20, LOOKBACK = 600, H = 60, H2 = 20;
@@ -23,9 +24,9 @@ function collectFixture(fixture, opts = {}) {
   const candle = fixture.candle, price = candle.map(c => c.c), N = price.length;
   if (N < WARMUP + H + 10) return [];
   const graph = BT.standardGraph();
-  const targets = ablationTargets(graph);
-  // ablation 그래프 사전 생성(노드당 1회) — t 루프에서 재사용
-  const abGraphs = targets.map(tg => ({ id: tg.id, blockType: tg.blockType, g: ablateGraph(graph, tg.id) }));
+  const dropGraphs = ablationTargets(graph).map(tg => ({ id: tg.id, g: ablateGraph(graph, tg.id) }));
+  const addGraphs = ABSENT.map(bt => ({ bt, g: addIndicatorNode(graph, bt, ABSENT_DEFAULTS[bt]) }));
+  const upOf = r => M.upProbFromPrediction(r.prediction);
   const out = [];
   for (let t = WARMUP; t <= N - H - 1; t += stride) {
     const s0 = Math.max(0, t + 1 - LOOKBACK);
@@ -33,17 +34,19 @@ function collectFixture(fixture, opts = {}) {
     let base; try { base = FC.run(graph, past, { futW: H, timeframe: "1day" }); } catch (e) { continue; }
     if (!base.prediction || !base.prediction.path) continue;
     const ab = {};
-    for (const ag of abGraphs) {
-      try { const r = FC.run(ag.g, past, { futW: H, timeframe: "1day" }); ab[ag.id] = { score: (r.verdict && r.verdict.score) || 0 }; }
-      catch (e) { /* 이 지표 ablation 스킵 */ }
+    for (const ag of dropGraphs) {
+      try { ab[ag.id] = { up: upOf(FC.run(ag.g, past, { futW: H, timeframe: "1day" })) }; } catch (e) {}
+    }
+    const addAb = {};
+    for (const ag of addGraphs) {
+      try { addAb[ag.bt] = { up: upOf(FC.run(ag.g, past, { futW: H, timeframe: "1day" })) }; } catch (e) {}
     }
     out.push({
       sym: fixture.symbol, t,
       base: price[t], a20: price[t + H2], a60: price[t + H],
-      score: (base.verdict && base.verdict.score) || 0,
-      up: M.upProbFromPrediction(base.prediction),
+      up: upOf(base),
       regime: regimeTags(price, t),
-      ab,
+      ab, addAb,
     });
   }
   return out;
@@ -69,7 +72,7 @@ if (require.main === module) {
   if (fs.existsSync(CACHE) && !process.argv.includes("--recollect")) {
     console.error("캐시 존재: retro-records.json (재수집: --recollect)");
   } else {
-    console.error("엔진 ablation 1패스 수집 시작 — 지표수×시점 (수십 분 소요 가능)…");
+    console.error("엔진 drop+add ablation 1패스 수집 시작 — 지표수×시점 (~3h 소요 가능)…");
     collectAll();
   }
 }
