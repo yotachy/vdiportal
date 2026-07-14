@@ -29,3 +29,22 @@ test("no diagnosis when regime sample below minN", () => {
   const diags = attribute(mk(60), { minN: 500 });
   assert.strictEqual(diags.length, 0);
 });
+
+// vol-low 국면에서 지표 z를 ADD하면 정답이 되는 합성 train
+function mkAdd(n) {
+  const recs = [];
+  for (let i = 0; i < n; i++) {
+    const up_ = i % 2 === 0, a20 = up_ ? 110 : 90;
+    // base 오답(up 반대), 지표 z를 ADD하면 정답 방향
+    recs.push({ sym: "A", t: i, base: 100, a20, a60: a20, up: up_ ? 30 : 70,
+      regime: ["vol-low"], ab: {}, addAb: { z: { up: up_ ? 70 : 30 } } });
+  }
+  return recs;
+}
+
+test("attribute surfaces a missing (add) indicator", () => {
+  const diags = attribute(mkAdd(600), { minN: 100, minGain: 0.01 });
+  const hit = diags.find(d => d.indicator === "z" && d.regime === "vol-low" && d.kind === "missing");
+  assert.ok(hit, "vol-low에서 z 누락 진단 기대: " + JSON.stringify(diags));
+  assert.ok(hit.stat.trainGain > 0.01);
+});
