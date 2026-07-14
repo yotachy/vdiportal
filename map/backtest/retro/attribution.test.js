@@ -6,13 +6,13 @@ const { attribute } = require("./attribution.js");
 function mk(n) {
   const recs = [];
   for (let i = 0; i < n; i++) {
-    const up = i % 2 === 0;                    // 절반 상승/하락
-    const a20 = up ? 110 : 90;
+    const up_ = i % 2 === 0;                   // 절반 상승/하락
+    const a20 = up_ ? 110 : 90;
     // base는 vol-high에서 항상 반대(오답), z drop 시 정답 방향
     const g = i < n * 0.7 ? "vol-high" : "trend-up";
-    const score = up ? -0.3 : +0.3;            // base 오답
-    const abZ = up ? +0.3 : -0.3;              // z 제거 시 정답
-    recs.push({ sym: "A", t: i, base: 100, a20, a60: a20, score, up: 50, regime: [g], ab: { z: { score: abZ }, w: { score } } });
+    const up = up_ ? 30 : 70;        // base 오답: 상승인데 up30(하락콜), 하락인데 up70(상승콜)
+    const abZ = up_ ? 70 : 30;       // z 제거 시 정답 방향
+    recs.push({ sym: "A", t: i, base: 100, a20, a60: a20, up, regime: [g], ab: { z: { up: abZ }, w: { up } } });
   }
   return recs;
 }

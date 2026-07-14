@@ -7,12 +7,12 @@ const { gateCandidate } = require("./gate.js");
 function mkTest(n) {
   const recs = [];
   for (let i = 0; i < n; i++) {
-    const up = i % 2 === 0, a20 = up ? 110 : 90;
+    const isUp = i % 2 === 0, a20 = isUp ? 110 : 90;
+    const up = isUp ? 30 : 70;                 // base 오답
     recs.push({
       sym: i % 3 === 0 ? "A" : i % 3 === 1 ? "B" : "C", t: i,
-      base: 100, a20, a60: a20,
-      score: up ? -0.3 : +0.3,               // base 오답
-      up: 50, regime: ["vol-high"], ab: { z: { score: up ? +0.3 : -0.3 } },
+      base: 100, a20, a60: a20, up,
+      regime: ["vol-high"], ab: { z: { up: isUp ? 70 : 30 } },
     });
   }
   return recs;
@@ -33,8 +33,8 @@ test("insufficient-sample when regime test set below minN", () => {
 });
 
 test("no-improvement when drop does not help (indicator was neutral)", () => {
-  // ab score == base score → 변화 없음
-  const recs = mkTest(300).map(x => ({ ...x, ab: { z: { score: x.score } } }));
+  // ab up == base up → 변화 없음
+  const recs = mkTest(300).map(x => ({ ...x, ab: { z: { up: x.up } } }));
   const r = gateCandidate(CAND, recs, { minN: 50 });
   assert.strictEqual(r.verdict, "no-improvement");
 });
