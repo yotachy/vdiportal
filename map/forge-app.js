@@ -1438,13 +1438,12 @@
           // (스택바 fcv-break 제거 — 아래 '지표 방향' 도넛과 중복이라 시각화 일원화)
           const dirCol = regime === "bull" ? "var(--bull)" : regime === "bear" ? "var(--bear)" : "var(--eth)";
           const cf = verdict.confluence;
-          // 게이지/도넛 → 가독성 높은 가로 바(진행·누적·발산). 값이 바로 읽힘.
-          const cfBar = (cf && cf.total) ? `<div class="fbar-row" title="컨플루언스 = 지표 합의도. 같은 방향 지표 수 ÷ 전체(${cf.agree}/${cf.total}=${cf.score}%). 높을수록 방향 신뢰가 큽니다."><span class="fbar-lab">컨플루언스</span><span class="fbar-track"><i class="fbar-fill" style="width:${cf.score}%;background:${dirCol}"></i></span><span class="fbar-val"><b>${cf.agree}/${cf.total}</b> ${cf.score}%</span></div>` : "";
-          const _tot = Math.max(1, bl + ne + be);
-          const dirBar = `<div class="fbar-row" title="지표 방향 분포 — 상승/중립/하락 지표 수(${bl}·${ne}·${be} / 총 ${bl + ne + be})"><span class="fbar-lab">지표 방향</span><span class="fbar-track fbar-stack"><i style="width:${(bl / _tot * 100).toFixed(1)}%;background:var(--bull)"></i><i style="width:${(ne / _tot * 100).toFixed(1)}%;background:#e8b463"></i><i style="width:${(be / _tot * 100).toFixed(1)}%;background:var(--bear)"></i></span><span class="fbar-val"><b style="color:var(--bull)">▲${bl}</b> <b style="color:var(--gold)">${ne}</b> <b style="color:var(--bear)">▼${be}</b></span></div>`;
-          let sigBar = "";
-          if (_scoreN != null) { const sv = Math.max(-100, Math.min(100, _scoreN)), half = Math.abs(sv) / 100 * 50, lft = sv >= 0 ? 50 : 50 - half; sigBar = `<div class="fbar-row" title="시그널 = 종합 신호 강도(−100 ~ +100). 지표·모멘텀·평균회귀 가중 합성. 양수=상승 우위, 절댓값 클수록 강함."><span class="fbar-lab">시그널</span><span class="fbar-track fbar-div"><i class="fbar-mid"></i><i class="fbar-dfill" style="left:${lft.toFixed(1)}%;width:${half.toFixed(1)}%;background:${dirCol}"></i></span><span class="fbar-val"><b style="color:${dirCol}">${sv > 0 ? "+" : ""}${score}</b></span></div>`; }
-          _bd += `<div class="fcv-bars">${cfBar}${dirBar}${sigBar}</div>`;
+          // 가로 바 3개(컨플루언스·방향·시그널) → 색상 인코딩 텍스트 통계로 정리(막대는 헤드라인 게이지 하나로 일원화).
+          const cfStat = (cf && cf.total) ? `<span class="fcv-stat" title="컨플루언스 = 지표 합의도. 같은 방향 지표 수 ÷ 전체(${cf.agree}/${cf.total}=${cf.score}%). 높을수록 방향 신뢰가 큽니다.">컨플루언스 <b style="color:${dirCol}">${cf.agree}/${cf.total}</b> <span class="fcv-statsub">${cf.score}%</span></span>` : "";
+          const dirStat = `<span class="fcv-stat" title="지표 방향 분포 — 상승/중립/하락 지표 수(${bl}·${ne}·${be} / 총 ${bl + ne + be})">방향 <b style="color:var(--bull)">▲${bl}</b> <b style="color:var(--gold)">${ne}</b> <b style="color:var(--bear)">▼${be}</b></span>`;
+          let sigStat = "";
+          if (_scoreN != null) { const sv = Math.max(-100, Math.min(100, _scoreN)); sigStat = `<span class="fcv-stat" title="시그널 = 종합 신호 강도(−100 ~ +100). 지표·모멘텀·평균회귀 가중 합성. 양수=상승 우위, 절댓값 클수록 강함.">시그널 <b style="color:${dirCol}">${sv > 0 ? "+" : ""}${score}</b></span>`; }
+          _bd += `<div class="fcv-stats">${cfStat}${dirStat}${sigStat}</div>`;
         }
       } catch (e) {}
       const _pxArr = (_fcLastData && _fcLastData.price) || (typeof currentData === "function" && currentData().price) || [];
@@ -1538,48 +1537,41 @@
         const sub = (_rsec && _rl) ? `${repLab} · SPY ${_rl.prob}%` : repLab;
         return `<span class="fcv-vol ${rep.prob >= 55 ? "rr-up" : rep.prob <= 45 ? "dd-lo" : "rr-fl"}" title="${tip}">${rep.prob >= 50 ? "◆" : "◇"} ${rep.prob >= 55 ? "아웃퍼폼" : rep.prob <= 45 ? "언더퍼폼" : "중립"} <b>${rep.prob}%</b><span class="vol-vf">${sub}</span></span>`;
       })() : "";
-      // 리스크 가이드(v1.6) — 검증된 콘(예측범위, 실현변동성과 0.79 상관)·낙폭리스크에 표준 리스크공식 적용.
-      // 예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님) — 정직 구분.
-      const _pR = lastResult && lastResult.prediction;
-      let rgHtml = "";
-      if (_pR && isFinite(_pR.anchor) && _pR.lo && _pR.hi && _pR.lo.length) {
-        const _k = _pR.lo.length - 1, _a = _pR.anchor;
-        const _dnB = Math.max(0, (_a - _pR.lo[_k]) / _a), _upB = Math.max(0, (_pR.hi[_k] - _a) / _a);
-        const _band = (_dnB + _upB) / 2;                                  // 예상 변동폭 ±%
-        const _elev = _dd && _dd.elevated;
-        const _stop = Math.max(0.005, _dnB * (_elev ? 1.2 : 1.0));        // 권장 손절폭 = 하방 콘(낙폭경보 시 1.2×)
-        const _size = Math.min(1, 0.02 / _stop);                          // 계좌 2% 고정리스크 기준 비중
-        rgHtml = `<span class="fcv-risk" title="검증된 예측범위(콘)·낙폭리스크에 표준 리스크 공식을 적용한 참고 가이드.&#10;⚠️예측(변동폭·낙폭)은 백테스트 검증, 손절폭·비중 공식은 업계 표준(백테스트 edge 아님).&#10;· 예상 변동폭: 향후 ${_pR.futW || ""}봉 콘 ±${(_band * 100).toFixed(1)}%&#10;· 권장 손절폭: ${(_stop * 100).toFixed(1)}% (하방 콘${_elev ? " · 낙폭경보로 확대" : ""})&#10;· 권장 비중: 계좌 2% 리스크 기준 ${Math.round(_size * 100)}%">🛡 손절 ${(_stop * 100).toFixed(1)}% · 비중 ${Math.round(_size * 100)}%</span>`;
-      }
       const _L = t => `<span class="fcv-k">${t}</span>`;
-      // 검증된 예측 6축 (멀티지평 곡선) — 균일 그리드 셀. 라벨 간결화, 세부 배지는 CSS로 정리(툴팁 유지).
+      // 검증된 예측 6축 (멀티지평 곡선) — 라벨 간결화, 세부 배지는 CSS로 정리(툴팁 유지).
+      // (리스크 사이징(손절·비중)은 높이만 차지 → 스트립에서 제거. 상세 리스크·포지션 계산은 헤더 '리스크' 도구로 이관.)
       const _axCells =
         (vfHtml ? `<span class="fcv-cell">${_L("변동성")}${vfHtml}</span>` : "") +
         (ddHtml ? `<span class="fcv-cell">${_L("확률손익")}${ddHtml}</span>` : "") +
         (spkHtml ? `<span class="fcv-cell">${_L("급변")}${spkHtml}</span>` : "") +
         (gpHtml ? `<span class="fcv-cell">${_L("갭")}${gpHtml}</span>` : "") +
         (tpHtml ? `<span class="fcv-cell">${_L("추세지속")}${tpHtml}</span>` : "") +
-        (relHtml ? `<span class="fcv-cell">${_L("상대강도")}${relHtml}</span>` : "") +
-        (rgHtml ? `<span class="fcv-cell">${_L("리스크")}${rgHtml}</span>` : "");
+        (relHtml ? `<span class="fcv-cell">${_L("상대강도")}${relHtml}</span>` : "");
       // 상승확률 게이지(계기판 중심) — ▼하락 | 트랙 | ▲상승
       const gaugeHtml = (_up != null) ? `<div class="fcv-gauge" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="fcv-gside dn">▼${100 - _up}%</span><span class="fcv-gtrack"><i class="fcv-gdn" style="width:${100 - _up}%"></i><i class="fcv-gup" style="width:${_up}%"></i><i class="fcv-gmid"></i></span><span class="fcv-gside up">▲${_up}%</span></div>` : "";
       bar.innerHTML =
         // ── 1) 계기판(헤드라인 단일 행): 종목·방향·현재가·목표·국면/기회·확률 게이지 → 핵심 의견 ──
         `<div class="fcv-sec fcv-head">` +
+          // 정량 행: 종목·방향·현재가·목표·확률 게이지(시그니처 시각요소)
           `<div class="fcv-hrow">` +
             (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
             `<span class="fcv-hdir" title="지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col}">${arrow} ${label}</span>` +
             (pxHtml || "") +
             (isFinite(_targetN) ? `<span class="fcv-htgt">${_L("목표")}<b title="예측 도달가">${fmtNum(_targetN)}</b></span>` : "") +
-            ((ctxHtml || oppHtml) ? `<span class="fcv-cellrow">${ctxHtml}${oppHtml}</span>` : "") +
             gaugeHtml +
           `</div>` +
-          `<div class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</div>` +
+          // 정성 행: 국면·기회 pill + 한 줄 의견(같은 줄에 흐름)
+          ((ctxHtml || oppHtml || op) ? `<div class="fcv-hsub">` +
+            ((ctxHtml || oppHtml) ? `<span class="fcv-cellrow">${ctxHtml}${oppHtml}</span>` : "") +
+            (op ? `<span class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</span>` : "") +
+          `</div>` : "") +
         `</div>` +
-        // ── 2) 검증된 예측 곡선(6축 균일 그리드) ──
-        (_axCells ? `<div class="fcv-sec fcv-forecast"><span class="fcv-eyebrow" title="백테스트 out-of-sample으로 검증된 예측 축(멀티지평 곡선). 가격 방향(효율시장 벽)이 아닌 변동성·리스크·추세 구조를 예측.">검증된 예측 곡선</span><div class="fcv-grid">${_axCells}</div></div>` : "") +
-        // ── 3) 지표 합의(컨플루언스·방향·시그널) ──
-        (_bd ? `<div class="fcv-sec fcv-consensus"><span class="fcv-eyebrow">지표 합의</span>${_bd}</div>` : "");
+        // ── 2) 분석: 검증된 예측(칩) + 지표 합의(통계) — 한 섹션으로 묶어 여백·구분선 절감 ──
+        ((_axCells || _bd) ?
+          `<div class="fcv-sec fcv-analysis">` +
+            (_axCells ? `<div class="fcv-forecast"><span class="fcv-eyebrow" title="백테스트 out-of-sample으로 검증된 예측 축(멀티지평 곡선). 가격 방향(효율시장 벽)이 아닌 변동성·리스크·추세 구조를 예측.">검증된 예측</span><div class="fcv-grid">${_axCells}</div></div>` : "") +
+            (_bd ? `<div class="fcv-consensus"><span class="fcv-cap">지표 합의</span>${_bd}</div>` : "") +
+          `</div>` : "");
     }
     if (u >= 1 && bar) { bar.classList.remove("flash"); void bar.offsetWidth; bar.classList.add("flash"); }   // 최종 결과 등장 강조
     // 타임프레임 매트릭스(주·월 추가 fetch 3회)는 무거워 종목 선택 시 자동 실행 안 함 → '웹분석' 버튼(_wantDeep)에서만 갱신(부하 역할 분산)
