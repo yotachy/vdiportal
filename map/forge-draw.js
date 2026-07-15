@@ -2470,10 +2470,11 @@
     if (!list.length) { c.restore(); return; }
     const rightFi = (nowFi != null ? nowFi : 0) + (futN || 0);
     // significance 낮은 것부터 그려 강조가 위에 오게
-    const ordered = list.map((an, i) => ({ an, i })).sort((a, b) => (a.an.significance || 0) - (b.an.significance || 0));
-    for (const { an } of ordered) {
+    const ordered = list.slice().sort((a, b) => (a.significance || 0) - (b.significance || 0));
+    for (const an of ordered) {
       const sig = an.significance != null ? an.significance : 0.5;
       const emph = sig >= 0.6;                                   // 고득점 강조
+      if (reveal !== Infinity && reveal < (emph ? 1 : 2)) continue;   // 시뮬레이션 재생 reveal 게이팅(강조 앵커 먼저, 형제 지표와 타이밍 정합)
       const alpha = emph ? 1 : Math.max(0.12, 0.15 + sig * 0.4);
       // 밀도: 강조=전체 7각, 흐림=1×1·2×1·1×2만
       const angs = emph ? an.angles : an.angles.filter(a => ["1x1", "2x1", "1x2"].includes(a.name));
