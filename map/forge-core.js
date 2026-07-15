@@ -477,17 +477,13 @@
     const s0 = Math.max(0, P - lookback);
     const sw = _domSwing(price, s0);
     if (!sw) return EMPTY;
-    // ATR 정규화 단위(1×1 = 1 ATR/봉). 캔들 없으면 봉당 절대변화 평균으로 폴백.
-    const per = Math.max(2, Math.min(opts.atrPeriod || 14, P - 1));
-    let unit = candle.length >= per + 1 ? _candATR(candle, per) : 0;
-    if (!(unit > 0)) {
-      let s = 0, k = 0;
-      for (let i = Math.max(1, P - per); i < P; i++) { s += Math.abs(price[i] - price[i - 1]); k++; }
-      unit = k ? s / k : Math.max(1e-9, Math.abs(price[P - 1]) * 0.01);
-    }
-    if (!(unit > 0)) unit = Math.max(1e-9, Math.abs(price[P - 1]) * 0.01);
     const up = sw.dir === "up", sign = up ? 1 : -1;
     const anchorIdx = sw.fromIdx, anchorPrice = sw.fromPrice;
+    // 1×1 = 지배 스윙의 실제 기울기(앵커→스윙 정점). ATR이 아니라 실추세를 관통시켜 부챗살이 가격을 감싸게 함.
+    const swBars = Math.max(1, sw.toIdx - sw.fromIdx);
+    const floor = Math.max(1e-9, Math.abs(price[P - 1]) * 0.0005);   // 횡보(기울기≈0) 퇴화 방지 최소 기울기
+    let unit = Math.abs(sw.toPrice - sw.fromPrice) / swBars;
+    if (!(unit > floor)) unit = floor;
     const RATIOS = [["1x1", 1], ["2x1", 2], ["3x1", 3], ["4x1", 4], ["1x2", 0.5], ["1x3", 1 / 3], ["1x4", 0.25]];
     const angles = RATIOS.map(([name, m]) => ({ name, slope: sign * m * unit }));
     const lastIdx = P - 1, last = price[lastIdx];
@@ -501,7 +497,7 @@
   function gannSteps() {
     return [
       { k: "앵커", v: "직전 지배 스윙(고/저)에 각도팬 고정" },
-      { k: "각도", v: "1×1(=1 ATR/봉) 기준 2×1~1×4 부채꼴 투영" },
+      { k: "각도", v: "1×1(=지배 추세 기울기) 기준 2×1~1×4 부채꼴 투영" },
       { k: "방향", v: "종가 vs 1×1 — 위=강세 / 아래=약세" },
     ];
   }

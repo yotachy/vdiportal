@@ -575,7 +575,7 @@
         const posTxt = gn.last > gn.oneOne ? "1×1 위(강세)" : gn.last < gn.oneOne ? "1×1 아래(약세)" : "1×1 근접(중립)";
         f.push("앵커 " + fmtNum(gn.anchor.price) + " · " + dirTxt);
         f.push("1×1 현재값 " + fmtNum(gn.oneOne) + " · 종가 " + fmtNum(gn.last) + " — " + posTxt);
-        f.push("각도 " + gn.angles.map(a => a.name).join(" · ") + " (ATR 정규화)");
+        f.push("각도 " + gn.angles.map(a => a.name).join(" · ") + " (지배 추세 기울기 기준)");
         return f;
       }
       case "psar": {

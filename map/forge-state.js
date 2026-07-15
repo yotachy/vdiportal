@@ -208,7 +208,7 @@
     { type: "elliott",   label: "엘리어트",    kind: "block", params: { swing: 3 } },
     { type: "volume",    label: "거래량",      kind: "block" },
     { type: "pivot",     label: "피벗 포인트",  kind: "block", params: {} },
-    { type: "gann",      label: "Gann 각도",    kind: "block", params: { lookback: 120, atrPeriod: 14 } },
+    { type: "gann",      label: "Gann 각도",    kind: "block", params: { lookback: 120 } },
     { type: "pattern",   label: "차트 패턴",    kind: "block", params: { swing: 3 } },
     { type: "psar",      label: "Parabolic SAR", kind: "block", params: { step: 0.02, max: 0.2 } },
     { type: "keltner",   label: "Keltner 채널", kind: "block", params: { len: 20, atrLen: 10, mult: 2 } },

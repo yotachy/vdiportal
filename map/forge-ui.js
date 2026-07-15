@@ -698,7 +698,6 @@
     if (n.blockType === "pivot") rows.push(`<div class="pp-row"><label></label><span class="ne-hint">파라미터 없음 · 직전 기간 고·저·종가로 자동 산출</span></div>`);
     if (n.blockType === "gann") {
       rows.push(numRow("lookback", "앵커 탐색 구간(봉)", (n.params && n.params.lookback) ?? 120));
-      rows.push(numRow("atrPeriod", "변동성 기준 기간", (n.params && n.params.atrPeriod) ?? 14));
     }
     if (n.blockType === "psar") {
       rows.push(numRow("step", "가속 단계(AF)", (n.params && n.params.step) ?? 0.02, 0.01));

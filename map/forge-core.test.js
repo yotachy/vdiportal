@@ -1399,6 +1399,15 @@ test("gannSteps: 3줄", () => {
   assert.strictEqual(ForgeCore.gannSteps().length, 3);
 });
 
+test("analyzeGann: 1×1이 실제 추세를 관통(가격에서 뜨지 않음)", () => {
+  // 느린 상승 드리프트(0.2/봉) + 큰 진동(ATR≫추세) — 실제 시장 형태
+  const price = []; for (let i = 0; i < 120; i++) price.push(100 + 0.2 * i + 5 * Math.sin(i / 2.5));
+  const r = ForgeCore.analyzeGann({ price }, {});
+  const last = price[price.length - 1], range = Math.max(...price) - Math.min(...price);
+  // 1×1 현재값(oneOne)이 현재가 근방이어야(팬이 가격을 감싼다) — 구 ATR 슬로프는 수백 뜸
+  assert.ok(Math.abs(r.oneOne - last) < range, `1×1가 가격 근방이어야: oneOne=${r.oneOne} last=${last} range=${range}`);
+});
+
 test("run: 피벗 포인트 노드가 예측 반영", () => {
   const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
   const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
