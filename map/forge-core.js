@@ -293,6 +293,8 @@
         values[id] = atrSeries(ins[0] || data.price, (n.params && n.params.period) || 14);
       } else if (n.blockType === "smc") {
         values[id] = smcSeries(data.candle);
+      } else if (n.blockType === "pattern") {
+        values[id] = (ins[0] || data.price).map(() => 0);
       } else if (n.blockType === "cycle") {
         values[id] = cycleSeries(ins[0] || data.price, (n.params && n.params.pmin) || 10, (n.params && n.params.pmax) || 0);
       } else if (n.blockType === "vwap") {
@@ -990,6 +992,30 @@
     if (!cands.length) return null;
     cands.sort((x, y) => (Number(y.confirmed) - Number(x.confirmed)) || (y.confidence - x.confidence));
     return cands[0];
+  }
+
+  function analyzePattern(data, opts) {
+    opts = opts || {};
+    const price = (data && data.price) || ((data && data.candle) || []).map(c => c.c);
+    const det = detectPatterns(price, opts);
+    if (!det) return { detected: null, pattern: "none", label: "", dir: 0, confidence: 0, confirmed: false, geom: null, bias: 0 };
+    const strength = det.confirmed ? 1 : 0.5;
+    const bias = Math.max(-1, Math.min(1, det.dir * det.confidence * strength));
+    return { detected: det, pattern: det.pattern, label: det.label, dir: det.dir, confidence: det.confidence, confirmed: det.confirmed, geom: det.geom, bias };
+  }
+  function patternSteps(res) {
+    res = res || {};
+    if (!res.detected) return [
+      { k: "스캔", v: "고전 차트 패턴(H&S·역H&S·깃발) 탐지" },
+      { k: "결과", v: "감지된 패턴 없음" },
+      { k: "방향", v: "중립 — 기여 없음" },
+    ];
+    const conf = Math.round((res.confidence || 0) * 100), dirTxt = res.dir > 0 ? "상승" : "하락";
+    return [
+      { k: "스캔", v: "고전 차트 패턴 탐지" },
+      { k: "감지", v: res.label + " · 신뢰도 " + conf + "%" + (res.confirmed ? " (돌파 확정)" : " (형성 중)") },
+      { k: "방향", v: dirTxt + " " + (res.confirmed ? "강" : "약") },
+    ];
   }
 
   // 시계열 [s0..끝] 구간의 지배 스윙(최저↔최고, 방향=나중에 온 극점 기준). null=자료부족
@@ -1950,6 +1976,9 @@
     const _smn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "smc");
     const _smc = _smn ? analyzeSMC(data.candle) : null;
     const smcDrift = _smc ? _smc.bias * _prof.trendScale * 0.07 * DW("smc") : 0;   // SMC 수요/공급 존 방향(±7%)
+    const _ptn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "pattern");
+    const _pt2 = _ptn ? analyzePattern(data, {}) : null;
+    const patternDrift = _pt2 ? _pt2.bias * _prof.trendScale * 0.06 * DW("pattern") : 0;   // 차트 패턴 방향(±6%·감지 시만)
     const _cyn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "cycle");
     const _cy = _cyn ? analyzeCycle(price, { pmin: (_cyn.params && _cyn.params.pmin) || 10, pmax: (_cyn.params && _cyn.params.pmax) || 0 }) : null;
     const cyDrift = _cy ? _cy.bias * _prof.trendScale * 0.06 * DW("cycle") : 0;   // 사이클 위상 방향(±6%)
@@ -2010,7 +2039,7 @@
     // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
     // Phase 6 융합: 지표를 종합방향(예상)·반대로 분리. 예상지표 합은 ±0.28 캡, 반대지표는 그 '절반 가중'으로 항상 되돌림
     // (기존 단순합은 예상지표가 캡을 포화시키면 반대지표 효과가 캡에 가려져 사라짐 → 반대지표를 캡 이후 별도 차감해 항상 체감되게).
-    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift, aroonDrift, mfiDrift, cmfDrift, gannDrift];
+    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift, aroonDrift, mfiDrift, cmfDrift, gannDrift, patternDrift];
     const _rawSum = _drifts.reduce((a, b) => a + b, 0);
     const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
     let _agSum = 0, _opSum = 0;
@@ -2018,7 +2047,7 @@
     const _auxCap = _cdir0 * Math.max(0, Math.min(0.05, _agSum) - 0.5 * _opSum);   // 반대지표 = 예상지표의 절반 효과(균등 되돌림, 방향 유지)
     // ── 종합 시그널을 '추세제거 잔차(detrend)' 대신 '지표 방향 합의 + 추세'로 재정의 ──
     // (기존 lastSig=detrendNorm 기반 → 추세 방향 소실, 폭락장서 +bull로 뒤집히던 결함. verdict.score·regime·신호드리프트·모순완화가 모두 이 방향 시그널을 사용)
-    const _dirBiasList = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, (_vol ? analyzeVolume(price, _vol).bias : null), _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias, _pv2 && _pv2.bias, _gn2 && _gn2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b));
+    const _dirBiasList = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, (_vol ? analyzeVolume(price, _vol).bias : null), _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _pt2 && _pt2.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias, _pv2 && _pv2.bias, _gn2 && _gn2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b));
     const _biasAvg = _dirBiasList.length ? _dirBiasList.reduce((a, b) => a + b, 0) / _dirBiasList.length : 0;   // 지표 평균 방향(−1..1)
     const _trendDir = Math.max(-1, Math.min(1, trS / 0.008));   // 추세 슬로프 방향(±0.8%/봉=만점)
     let _dirSig = Math.max(-100, Math.min(100, Math.round((_biasAvg * 0.66 + _trendDir * 0.34) * 100 + bias * 0.5)));   // 방향 종합 시그널(−100..+100, 사용자 conviction 반영)
@@ -2142,7 +2171,7 @@
     }
     const regime = _dirSig > 12 ? "bull" : _dirSig < -12 ? "bear" : "neutral";
     // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율
-    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias,
+    const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _pt2 && _pt2.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias,
       _pv2 && _pv2.bias, _gn2 && _gn2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);   // 일치도(confluence)에 신규 11지표 포함 — 예측 드리프트 반영 지표와 파리티
     const _cdir = _dirSig > 0 ? 1 : _dirSig < 0 ? -1 : (_allBias.reduce((a, b) => a + b, 0) >= 0 ? 1 : -1);
     const _agree = _allBias.filter(b => (b > 0 ? 1 : -1) === _cdir).length;
@@ -2602,5 +2631,5 @@
     return { state, persist: rep.persist, exhaust: rep.exhaust, acc: rep.acc, curve };
   }
 
-  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns };
+  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
 });

@@ -2317,3 +2317,23 @@ test("detectPatterns: 랜덤워크 다수 시드 오탐률 <10%", () => {
   for (let seed = 1; seed <= N; seed++) if (ForgeCore.detectPatterns(_randWalk(100, seed * 7 + 3), {})) fire++;
   assert.ok(fire / N < 0.10, `랜덤워크 오탐률 ${fire}/${N} (강화 후 <10% 기대)`);
 });
+test("analyzePattern: 헤드앤숄더 감지 시 bias<0, 미감지 시 0", () => {
+  const r = ForgeCore.analyzePattern({ price: _hnsUp() }, {});
+  assert.ok(r.detected && r.pattern === "headshoulder", "H&S 감지");
+  assert.ok(r.bias < 0, `bias<0, got ${r.bias}`);
+  const r2 = ForgeCore.analyzePattern({ price: _flatNoise() }, {});
+  assert.strictEqual(r2.detected, null);
+  assert.strictEqual(r2.bias, 0);
+});
+test("patternSteps: 3줄(감지·미감지 모두)", () => {
+  assert.strictEqual(ForgeCore.patternSteps(ForgeCore.analyzePattern({ price: _hnsUp() }, {})).length, 3);
+  assert.strictEqual(ForgeCore.patternSteps(ForgeCore.analyzePattern({ price: _flatNoise() }, {})).length, 3);
+});
+test("run: 차트 패턴 노드가 예측 반영(감지 데이터)", () => {
+  const price = _hnsUp(), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.005, l: c * 0.995, c }));
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "pt", kind: "block", blockType: "pattern" }]), edges: base.edges.concat([{ from: "pt", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "pattern 예측 반영");
+});
