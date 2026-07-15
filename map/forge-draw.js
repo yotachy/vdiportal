@@ -1040,7 +1040,7 @@
   let _focusInd = null;          // 포커스 지표 blockType | null(전체) — 클릭 잠금
   let _evHover = null;           // 범례 hover 임시 포커스(프리뷰) blockType | null
   let _legendCollapsed = (typeof window !== "undefined" && window.innerWidth <= 860);   // 범례 플로팅 접기(모바일 기본 접힘)
-  const EV_DEFAULT_VISIBLE = ["trend", "bollinger", "fib", "rsi", "macd", "adx", "structure", "smc", "cycle", "vwap", "supertrend", "pivot", "psar", "gann"];   // 기본 표시(나머지는 범례 클릭으로 켜기)
+  const EV_DEFAULT_VISIBLE = ["trend", "bollinger", "fib", "rsi", "macd", "adx", "structure", "smc", "cycle", "vwap", "supertrend", "pivot", "psar", "gann", "pattern"];   // 기본 표시(나머지는 범례 클릭으로 켜기)
   let _evVisible = new Set(EV_DEFAULT_VISIBLE);   // 차트에 그릴 지표 집합
   let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
   let _evLabelBoxes = [];        // 라벨 겹침 회피용 박스 레지스트리(_drawEvidence마다 리셋)
@@ -1052,7 +1052,7 @@
     if (e.target.closest("button,input,select,a,textarea")) return;   // 헤더 내 컨트롤은 제외
     const panel = ph.closest(".fc-panel"); if (panel) panel.classList.toggle("collapsed");
   });
-  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: FC_GOLD, elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#d0b25a", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#d87ab8", pivot: "#e0b0a0", psar: "#c0a8e0", keltner: "#7fc0d0", donchian: "#d0c080", cci: "#e6785a", williams: "#b56fd6", roc: "#8fb46a", ao: "#5a9ad0", aroon: "#8b7ee0", mfi: "#c8912f", cmf: "#5ac0a0", gann: "#c9a26b" };
+  const EV_COLORS = { ma: "#5b8def", trend: "#46c28e", fib: FC_GOLD, elliott: "#c47ae0", rsi: "#e06a6a", phasefold: "#3fb6c0", volume: "#8a92b2", bollinger: "#8fb4f0", macd: "#e0a86a", adx: "#7ecf9a", volumeprofile: "#d0b25a", ichimoku: "#8fd0c0", structure: "#f0a3c0", atr: "#9aa8c0", smc: "#5fd0ff", cycle: "#d07ab0", vwap: "#c9a86a", supertrend: "#66c8b0", stochastic: "#d87ab8", pivot: "#e0b0a0", psar: "#c0a8e0", keltner: "#7fc0d0", donchian: "#d0c080", cci: "#e6785a", williams: "#b56fd6", roc: "#8fb46a", ao: "#5a9ad0", aroon: "#8b7ee0", mfi: "#c8912f", cmf: "#5ac0a0", gann: "#c9a26b", pattern: "#e6a3c8" };
   /* 지표 도구 안내 — 편집창에 목적(p)·정의(d)·해석법(h) 표시 */
   const INDICATOR_INFO = {
     ma: { p: "추세의 방향·기울기를 매끄럽게 파악.", d: "최근 N봉 종가의 단순/지수 평균선.", h: "가격이 선 위=상승 우위, 아래=하락 우위. 단·장기선 정배열·골든/데드크로스로 전환 판단." },
@@ -1066,6 +1066,7 @@
     structure: { p: "고점·저점 구조로 추세 전환(BOS/CHoCH) 식별.", d: "스윙 고·저점의 갱신 패턴 분석.", h: "고점·저점 동반 상승=상승구조. 구조 붕괴(CHoCH)=추세 전환 경보." },
     atr: { p: "변동성 크기를 측정(손절·목표폭 기준).", d: "최근 N봉 트루레인지 평균.", h: "방향 신호는 없음. 값이 크면 변동성↑ → 손절·예측폭을 넓게. 배수로 트레일링 스톱." },
     smc: { p: "기관 수요·공급 흔적(FVG·오더블록) 추적.", d: "급격한 변위로 생긴 미체결 갭·오더블록 존(실 OHLC 필요).", h: "미채운 FVG·OB는 되돌림 목표·지지저항. 존 방향으로 반응 기대." },
+    pattern: { p: "고전 차트 패턴(H&S·깃발) 자동 감지.", d: "스윙 구조에서 헤드앤숄더·역H&S·불/베어 플래그를 탐지(신뢰도 스코어).", h: "감지 시 반전(H&S)·지속(플래그) 방향. 넥라인/채널 돌파=확정(강), 형성 중=약. 미감지 시 침묵." },
     cycle: { p: "가격의 주기적 리듬·위상 파악.", d: "지배 주기 탐지(PDM)와 현재 위상.", h: "위상 저점=반등 기대·고점=조정. 주기 길이로 다음 변곡 시점 추정." },
     vwap: { p: "거래량 가중 평균가 대비 위치 파악.", d: "기간 내 (가격×거래량) 누적 / 거래량 누적.", h: "가격이 VWAP 위=매수 우위(기관 평단 위). 이탈·회귀로 되돌림 판단." },
     supertrend: { p: "추세 방향과 추적 손절선 제공.", d: "ATR 기반 밴드로 추세 상태를 전환.", h: "가격>슈퍼트렌드=상승(선이 지지). 선 관통 시 추세 전환·손절." },
@@ -1087,9 +1088,9 @@
     mfi: { p: "거래량 가중 자금 유입·이탈 측정.", d: "전형가×거래량 기반 자금흐름지수(0~100).", h: "80+ 과열·20- 과매도. 50 위=자금 유입. 실거래량 있을 때 유효." },
     cmf: { p: "매집·분산(자금 흐름 방향) 판단.", d: "봉 내 종가 위치×거래량 누적 비율.", h: ">0=매집(자금 유입)·<0=분산. 가격과 다이버전스로 추세 신뢰도. 실거래량 필요." },
   };
-  const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱", pivot: "피벗 포인트(S/R)", gann: "Gann 각도", psar: "Parabolic SAR(추세전환)", keltner: "Keltner 채널(ATR 밴드)", donchian: "Donchian 채널(N봉 돌파)", cci: "CCI(상품채널지수)", williams: "Williams %R", roc: "ROC/모멘텀", ao: "Awesome Oscillator", aroon: "Aroon", mfi: "MFI(자금흐름지수)", cmf: "CMF(자금흐름·매집분산)" };
+  const EV_LABEL = { ma: "이동평균", trend: "추세선(다각도)", fib: "피보나치", elliott: "엘리어트", rsi: "RSI", phasefold: "주기", volume: "거래량", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX 추세강도", volumeprofile: "볼륨 프로파일(매물대)", ichimoku: "일목균형표", structure: "시장구조(BOS/CHoCH)", atr: "ATR 변동성", smc: "스마트머니(FVG·OB)", cycle: "사이클(주기 위상)", vwap: "VWAP(거래량가중)", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱", pivot: "피벗 포인트(S/R)", gann: "Gann 각도", psar: "Parabolic SAR(추세전환)", keltner: "Keltner 채널(ATR 밴드)", donchian: "Donchian 채널(N봉 돌파)", cci: "CCI(상품채널지수)", williams: "Williams %R", roc: "ROC/모멘텀", ao: "Awesome Oscillator", aroon: "Aroon", mfi: "MFI(자금흐름지수)", cmf: "CMF(자금흐름·매집분산)", pattern: "차트 패턴(H&S·깃발)" };
   function evIndicatorNodes() {
-    const order = ["ma", "trend", "fib", "elliott", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "gann", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "phasefold", "volume"];
+    const order = ["ma", "trend", "fib", "elliott", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "pattern", "cycle", "vwap", "supertrend", "stochastic", "pivot", "gann", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "phasefold", "volume"];
     return boardState.nodes.filter(n => n.kind === "block" && order.includes(n.blockType))
       .sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
   }
@@ -1102,7 +1103,7 @@
     const b = document.getElementById("evToggle"); if (b) b.classList.toggle("on", _evidenceShow);
   }
   /* ── 지표별 bias 기여 가중치 튜닝 모달 ── */
-  const TUNE_TYPES = [["trend", "추세선"], ["ma", "이동평균"], ["fib", "피보나치"], ["elliott", "엘리어트"], ["rsi", "RSI"], ["bollinger", "볼린저밴드"], ["macd", "MACD"], ["adx", "ADX"], ["volume", "거래량"], ["volumeprofile", "볼륨 프로파일"], ["ichimoku", "일목균형표"], ["structure", "시장구조"], ["atr", "ATR 변동성"], ["smc", "스마트머니"], ["cycle", "사이클"], ["vwap", "VWAP"], ["supertrend", "슈퍼트렌드"], ["stochastic", "스토캐스틱"], ["pivot", "피벗 포인트"], ["gann", "Gann 각도"], ["psar", "Parabolic SAR"], ["keltner", "Keltner 채널"], ["donchian", "Donchian 채널"], ["cci", "CCI"], ["williams", "Williams %R"], ["roc", "ROC/모멘텀"], ["ao", "Awesome Oscillator"], ["aroon", "Aroon"], ["mfi", "MFI"], ["cmf", "CMF"]];
+  const TUNE_TYPES = [["trend", "추세선"], ["ma", "이동평균"], ["fib", "피보나치"], ["elliott", "엘리어트"], ["rsi", "RSI"], ["bollinger", "볼린저밴드"], ["macd", "MACD"], ["adx", "ADX"], ["volume", "거래량"], ["volumeprofile", "볼륨 프로파일"], ["ichimoku", "일목균형표"], ["structure", "시장구조"], ["atr", "ATR 변동성"], ["smc", "스마트머니"], ["pattern", "차트 패턴"], ["cycle", "사이클"], ["vwap", "VWAP"], ["supertrend", "슈퍼트렌드"], ["stochastic", "스토캐스틱"], ["pivot", "피벗 포인트"], ["gann", "Gann 각도"], ["psar", "Parabolic SAR"], ["keltner", "Keltner 채널"], ["donchian", "Donchian 채널"], ["cci", "CCI"], ["williams", "Williams %R"], ["roc", "ROC/모멘텀"], ["ao", "Awesome Oscillator"], ["aroon", "Aroon"], ["mfi", "MFI"], ["cmf", "CMF"]];
   let _tuneRunT = null;
   function _tw(t) { return (typeof _driftW[t] === "number" && isFinite(_driftW[t])) ? _driftW[t] : 1; }
   function toggleTunePop() {
@@ -2375,6 +2376,31 @@
     }
     c.restore();
   }
+  // 차트 패턴(H&S·깃발) — 감지 시에만 넥라인/폴+채널 작도
+  function _drawPatternLayers(c, pt, M) {
+    c.save();
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
+    if (!pt || !pt.detected || !pt.geom) { c.restore(); return; }
+    const xR = (xRight != null ? xRight : fiToX(nowFi));
+    const g = pt.geom, up = pt.dir > 0, col = up ? "#46c28e" : "#e06a6a";
+    const X = p => fiToX(Math.max(fiMin, p.idx)), Y = p => pToY(p.price);
+    if (g.kind === "hns") {
+      if (reveal >= 1) [g.shoulders[0], g.head, g.shoulders[1]].forEach(p => { const x = X(p), y = Y(p); if (isFinite(x) && isFinite(y)) { c.fillStyle = col; c.beginPath(); c.arc(x, y, 3, 0, Math.PI * 2); c.fill(); } });
+      if (reveal >= 2) {
+        const b = g.neckline[0], d = g.neckline[1], x0 = X(b), y0 = Y(b), yR = pToY(b.price + (d.price - b.price) * ((nowFi - b.idx) / ((d.idx - b.idx) || 1)));
+        if ([x0, y0, xR, yR].every(isFinite)) { c.strokeStyle = col; c.setLineDash(CDASH.std); c.beginPath(); c.moveTo(x0, y0); c.lineTo(xR, yR); c.stroke(); c.setLineDash([]); }
+        if (_skReady()) _evLabel(c, pt.label + (pt.confirmed ? " ✓" : ""), xR - 4, Y(g.head), col, "right");
+      }
+    } else if (g.kind === "flag") {
+      if (reveal >= 1) { const f = g.pole[0], t = g.pole[1], xf = X(f), yf = Y(f), xt = X(t), yt = Y(t); if ([xf, yf, xt, yt].every(isFinite)) { c.strokeStyle = col; c.lineWidth = CW.bold; c.beginPath(); c.moveTo(xf, yf); c.lineTo(xt, yt); c.stroke(); c.lineWidth = CW.base; } }
+      if (reveal >= 2) {
+        const xt = X(g.pole[1]);
+        [g.hi, g.lo].forEach(v => { const y = pToY(v); if (isFinite(y) && isFinite(xt)) { c.strokeStyle = col; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(xt, y); c.lineTo(xR, y); c.stroke(); c.setLineDash([]); } });
+        if (_skReady()) _evLabel(c, pt.label + (pt.confirmed ? " ✓" : ""), xR - 4, pToY(g.hi), col, "right");
+      }
+    }
+    c.restore();
+  }
   // 사이클(주기 위상) — 적합 파동을 과거에 그리고 다음 전환까지 미래로 투영 + 전환 지점 마커
   function _drawCycleLayers(c, cy, M) {
     c.save();
@@ -2666,6 +2692,10 @@
           const smc = _anSMC(price);
           if (_drawThis) _drawSmcLayers(cc, smc, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.smc, _key: n.blockType });
+        } else if (n.blockType === "pattern") {
+          const pt = _anPattern(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+          if (_drawThis) _drawPatternLayers(cc, pt, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          legend.push({ col, t: EV_LABEL.pattern, _key: n.blockType });
         } else if (n.blockType === "cycle") {
           const cy = _an("Cycle", price, { pmin: (n.params && n.params.pmin) || 10, pmax: (n.params && n.params.pmax) || 0 });
           if (_drawThis) _drawCycleLayers(cc, cy, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xNow: g.seamX, xRight: g.padX + g.plotW, futBars: (g.path && g.path.length) || 24, col });
