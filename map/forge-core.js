@@ -920,6 +920,42 @@
     return piv;
   }
 
+  function collectAnchors(price, opts) {
+    opts = opts || {};
+    const P = Array.isArray(price) ? price.length : 0;
+    if (P < 24) return [];
+    const LADDER = opts.ladder || [0.18, 0.12, 0.08, 0.05, 0.035, 0.02];   // 굵게→가늘게(고정 창 아님)
+    const range = (Math.max(...price) - Math.min(...price)) || 1;
+    const raw = [];
+    for (let li = 0; li < LADDER.length; li++) {
+      const sw = detectSwings(price, LADDER[li]);
+      for (let i = 1; i < sw.length; i++) {
+        const a = sw[i - 1], b = sw[i];
+        raw.push({ fromIdx: a.idx, fromPrice: a.price, toIdx: b.idx, toPrice: b.price, dir: b.price >= a.price ? "up" : "down", degree: li });
+      }
+    }
+    // dedup: 같은 피벗쌍(±2봉)은 가장 굵은 degree(최소 li)로 1건
+    const merged = [];
+    for (const r of raw) {
+      const hit = merged.find(m => Math.abs(m.fromIdx - r.fromIdx) <= 2 && Math.abs(m.toIdx - r.toIdx) <= 2);
+      if (hit) { if (r.degree < hit.degree) hit.degree = r.degree; }
+      else merged.push(r);
+    }
+    const lastIdx = P - 1, last = price[lastIdx];
+    for (const m of merged) {
+      const mag = Math.abs(m.toPrice - m.fromPrice) / range;                       // 크기
+      const degW = 1 - m.degree / LADDER.length;                                   // 굵은 사다리↑
+      const recency = lastIdx ? m.toIdx / lastIdx : 0;                             // 최근성
+      const slope = (m.toPrice - m.fromPrice) / Math.max(1, m.toIdx - m.fromIdx);
+      const proj = m.fromPrice + slope * (lastIdx - m.fromIdx);                    // 1×1 투영 현재값
+      const prox = 1 - Math.min(1, Math.abs(proj - last) / range);                // 현재가 근접
+      m.significance = Math.max(0, Math.min(1, 0.4 * degW + 0.25 * mag + 0.2 * recency + 0.15 * prox));
+      m.reason = (degW > 0.6 ? "대형 스윙" : mag > 0.3 ? "큰 폭" : "스윙") + (prox > 0.7 ? " · 현재가 근접" : "") + (recency > 0.85 ? " · 최근" : "");
+    }
+    merged.sort((x, y) => y.significance - x.significance);
+    return merged;
+  }
+
   function _pClamp01(x) { return Math.max(0, Math.min(1, x)); }
   function _pLineAt(p1, p2, x) { const dx = (p2.idx - p1.idx) || 1; return p1.price + (p2.price - p1.price) * (x - p1.idx) / dx; }
   function _pUnit(price, per) {
@@ -2627,5 +2663,5 @@
     return { state, persist: rep.persist, exhaust: rep.exhaust, acc: rep.acc, curve };
   }
 
-  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
+  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
 });

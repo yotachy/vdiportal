@@ -1427,6 +1427,22 @@ test("run: Gann 각도 노드가 예측 반영", () => {
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "gann 예측 반영");
 });
 
+test("collectAnchors: 다중 스케일 앵커 수확 + significance 내림차순", () => {
+  const price = [];
+  for (let i = 0; i < 60; i++) price.push(100 + i);               // 대형 상승(굵은 스윙)
+  for (let i = 0; i < 60; i++) price.push(160 + 2 * Math.sin(i)); // 잔진동(가는 스윙, 진폭 소— 전체 range 대비 작아야 굵은 사다리에 안 걸림)
+  const A = ForgeCore.collectAnchors(price, {});
+  assert.ok(A.length >= 2, `앵커 다수여야: ${A.length}`);
+  for (let i = 1; i < A.length; i++) assert.ok(A[i - 1].significance >= A[i].significance, "significance 내림차순");
+  const degrees = new Set(A.map(a => a.degree));
+  assert.ok(degrees.size >= 2, `여러 degree(대형+소형)여야: ${[...degrees]}`);
+  const a0 = A[0];
+  assert.ok(a0.fromIdx != null && a0.toIdx != null && (a0.dir === "up" || a0.dir === "down") && typeof a0.significance === "number" && typeof a0.reason === "string", "앵커 필드");
+});
+test("collectAnchors: 데이터 부족 → 빈 배열", () => {
+  assert.deepStrictEqual(ForgeCore.collectAnchors([1, 2, 3], {}), []);
+});
+
 /* ── 신규 지표: Parabolic SAR ── */
 test("analyzePSAR: 상승 시계열이면 dir=+1·bias>0", () => {
   const price = Array.from({length:40},(_,i)=>100+i);   // 단조 상승
