@@ -242,7 +242,7 @@
     const priceNode = blocks.find(n => n.blockType === "price");
     const pv = priceNode && result.values && result.values[priceNode.id];
     const priceLast = (pv && pv.length) ? pv[pv.length - 1] : null;
-    const order = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "gann", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "fib", "elliott", "phasefold", "volume"];
+    const order = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "pattern", "cycle", "vwap", "supertrend", "stochastic", "pivot", "gann", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "fib", "elliott", "phasefold", "volume"];
     const inds = blocks.filter(n => order.includes(n.blockType)).sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
     if (metaEl) metaEl.textContent = (inds.length + 1) + "단계";
     const steps = [];
@@ -2577,7 +2577,7 @@
     if (!steps.length) return;
     const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
     const finPred = fin.prediction, finSig = _sigOf(fin);
-    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "gann", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf"].includes(n.blockType) && (!_evVisible || !_evVisible.size || _evVisible.has(n.blockType)));   // 시연=선택(표시)된 지표만 작도·진행
+    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "pattern", "cycle", "vwap", "supertrend", "stochastic", "pivot", "gann", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf"].includes(n.blockType) && (!_evVisible || !_evVisible.size || _evVisible.has(n.blockType)));   // 시연=선택(표시)된 지표만 작도·진행
     const center = boardState.nodes.find(n => n.blockType === "predict") || boardState.nodes.find(n => n.blockType === "combine");
     if (prefersReducedMotion()) {
       _evidenceSet = new Set(indNodes.map(n => n.id));
