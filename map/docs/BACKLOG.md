@@ -5,6 +5,7 @@
 
 ## 🔥 진행 중 / 대기
 
+0. **[진행 중] 데이터기반 다중스케일 작도 + 중요도 위계 (작도/시각 전용)** — 고정 창 금지·애널리스트처럼 넉넉히 작도→중요도 순위→강조/디밍. 공용 `collectAnchors`+`anchorScore` → Gann 작도 첫 적용(다중 앵커·윈도우 클램프로 창밖 버그 동시 해소). **엔진 미변경**(bias/run 불변→baseline 안전, 엔진 다중스케일화는 나중 분석엔진 개선 때 별도·검증동반). 설계 `specs/2026-07-15-multiscale-drawing-design.md` · 계획 `plans/2026-07-15-multiscale-drawing-gann.md` · SDD 원장에 진행 기록(끊겨도 재개). [[scoopforge-multiscale-drawing]]
 1. **[대기: 사용자] GCP OAuth "웹 애플리케이션" 클라이언트 재생성** — 리디렉션 URI `https://parksvc.mycafe24.com/map/forge-auth.php`. JSON 다운로드되면 자동 감지→검증→업로드→활성화.
 2. **[1 이후] 인증 실계정 E2E** — admin 첫 로그인 → 레거시 포지 이관 확인 → 라이브 검증.
 3. **결제 스펙**(토스페이먼츠/포트원 정기결제) — 유사투자자문업·통신판매업 신고 진행과 연동. 브레인스토밍부터.
