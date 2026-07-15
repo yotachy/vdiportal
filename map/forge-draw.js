@@ -2471,9 +2471,10 @@
     const rightFi = (nowFi != null ? nowFi : 0) + (futN || 0);
     // significance 낮은 것부터 그려 강조가 위에 오게
     const ordered = list.slice().sort((a, b) => (a.significance || 0) - (b.significance || 0));
+    const _topAn = ordered[ordered.length - 1];
     for (const an of ordered) {
       const sig = an.significance != null ? an.significance : 0.5;
-      const emph = sig >= 0.6;                                   // 고득점 강조
+      const emph = sig >= 0.6 || an === _topAn;   // 최상위 앵커는 항상 강조(굵은 참조선+라벨 보장)
       if (reveal !== Infinity && reveal < (emph ? 1 : 2)) continue;   // 시뮬레이션 재생 reveal 게이팅(강조 앵커 먼저, 형제 지표와 타이밍 정합)
       const alpha = emph ? 1 : Math.max(0.12, 0.15 + sig * 0.4);
       // 밀도: 강조=전체 7각, 흐림=1×1·2×1·1×2만

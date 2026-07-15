@@ -468,7 +468,7 @@
   function _anPivot(P) { return _anGet(P, "Pivot", () => ForgeCore.analyzePivot({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P })); }
   function _anGann(P, opts) {
     const o = opts || {};
-    return _anGet(P, "Gann" + JSON.stringify(o), () => ForgeCore.analyzeGann({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, o));
+    return _anGet(P, "Gann" + JSON.stringify(o), () => ForgeCore.analyzeGann({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, Object.assign({}, o, { draw: true })));
   }
   function _psarNodeOpts() { const n = boardState.nodes.find(x => x.blockType === "psar"); const p = (n && n.params) || {}; return { step: p.step || 0.02, max: p.max || 0.2 }; }
   function _anPsar(P, opts) { const o = opts || _psarNodeOpts(); return _anGet(P, "Psar|" + JSON.stringify(o), () => ForgeCore.analyzePSAR({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, o)); }
