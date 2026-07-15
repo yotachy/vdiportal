@@ -1,7 +1,7 @@
   let _railQuery = "";                 // 지표 검색어
   const _railCollapsed = new Set();    // 접힌 등급(lv 문자열)
   // 레일 표시용 간결명(전체명은 툴팁) — 이름 잘림 방지
-  const RAIL_SHORT = { adx: "ADX", atr: "ATR", psar: "PSAR", keltner: "켈트너", donchian: "돈치안", pivot: "피벗", williams: "윌리엄스", ao: "AO", roc: "ROC", smc: "스마트머니", volumeprofile: "볼륨프로파일", cycle: "사이클" };
+  const RAIL_SHORT = { adx: "ADX", atr: "ATR", psar: "PSAR", keltner: "켈트너", donchian: "돈치안", pivot: "피벗", williams: "윌리엄스", ao: "AO", roc: "ROC", smc: "스마트머니", volumeprofile: "볼륨프로파일", cycle: "사이클", gann: "Gann" };
   function renderIndRail() {
     const el = document.getElementById("indRail"); if (!el) return;
     const types = _indTypes();
@@ -361,7 +361,7 @@
       ? `box-shadow:0 0 ${Math.round((wt - 55) * 0.5)}px rgba(232,180,99,${((wt - 55) / 45 * 0.6).toFixed(2)});`
       : "";
     // 중요도+확신 통합 게이지: sig(-100~+100). 방향=확신, 세기=|sig|가 중요도(가중치)로. 지표 블록에만.
-    const GAUGE_TYPES = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "fib", "elliott", "phasefold", "volume", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf"];
+    const GAUGE_TYPES = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "fib", "elliott", "phasefold", "volume", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "gann"];
     const sig = Math.round(n.conviction || 0);
     const gCls = sig > 0 ? "g-up" : sig < 0 ? "g-dn" : "g-0";
     const gauge = (isBlock && GAUGE_TYPES.includes(n.blockType))
@@ -462,6 +462,10 @@
   function _anVP(P, opts) { return _anGet(P, "VP|" + JSON.stringify(opts), () => ForgeCore.analyzeVolumeProfile(P, _anVolSeries(P), opts)); }
   function _anSMC(P) { return _anGet(P, "SMC", () => ForgeCore.analyzeSMC((_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [])); }
   function _anPivot(P) { return _anGet(P, "Pivot", () => ForgeCore.analyzePivot({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P })); }
+  function _anGann(P, opts) {
+    const o = opts || {};
+    return _anGet(P, "Gann" + JSON.stringify(o), () => ForgeCore.analyzeGann({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, o));
+  }
   function _psarNodeOpts() { const n = boardState.nodes.find(x => x.blockType === "psar"); const p = (n && n.params) || {}; return { step: p.step || 0.02, max: p.max || 0.2 }; }
   function _anPsar(P, opts) { const o = opts || _psarNodeOpts(); return _anGet(P, "Psar|" + JSON.stringify(o), () => ForgeCore.analyzePSAR({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, o)); }
   function _keltnerNodeOpts() { const n = boardState.nodes.find(x => x.blockType === "keltner"); const p = (n && n.params) || {}; return { len: p.len || 20, atrLen: p.atrLen || 10, mult: p.mult || 2 }; }
@@ -494,6 +498,7 @@
         case "supertrend": return _an("Supertrend", P, { period: p.period || 10, mult: p.mult || 3 }).bias;
         case "stochastic": return _an("Stochastic", P, { kLen: p.kLen || 14, kSmooth: p.kSmooth || 3, dLen: p.dLen || 3 }).bias;
         case "pivot": return _anPivot(P).bias;
+        case "gann": return _anGann(P, n.params).bias;
         case "psar": return _anPsar(P, { step: p.step || 0.02, max: p.max || 0.2 }).bias;
         case "keltner": return _anKeltner(P, { len: p.len || 20, atrLen: p.atrLen || 10, mult: p.mult || 2 }).bias;
         case "donchian": return _anDonchian(P, { len: p.len || 20 }).bias;
@@ -685,6 +690,10 @@
     }
     if (n.blockType === "smc") rows.push(`<div class="pp-row"><label></label><span class="ne-hint">파라미터 없음 · 티커로 실 OHLC 불러오면 활성</span></div>`);
     if (n.blockType === "pivot") rows.push(`<div class="pp-row"><label></label><span class="ne-hint">파라미터 없음 · 직전 기간 고·저·종가로 자동 산출</span></div>`);
+    if (n.blockType === "gann") {
+      rows.push(numRow("lookback", "앵커 탐색 구간(봉)", (n.params && n.params.lookback) ?? 120));
+      rows.push(numRow("atrPeriod", "변동성 기준 기간", (n.params && n.params.atrPeriod) ?? 14));
+    }
     if (n.blockType === "psar") {
       rows.push(numRow("step", "가속 단계(AF)", (n.params && n.params.step) ?? 0.02, 0.01));
       rows.push(numRow("max", "AF 상한", (n.params && n.params.max) ?? 0.2, 0.01));
