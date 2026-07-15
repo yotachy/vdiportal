@@ -5,7 +5,10 @@
 
 ## 🔥 진행 중 / 대기
 
-0. **[진행 중] 데이터기반 다중스케일 작도 + 중요도 위계 (작도/시각 전용)** — 고정 창 금지·애널리스트처럼 넉넉히 작도→중요도 순위→강조/디밍. 공용 `collectAnchors`+`anchorScore` → Gann 작도 첫 적용(다중 앵커·윈도우 클램프로 창밖 버그 동시 해소). **엔진 미변경**(bias/run 불변→baseline 안전, 엔진 다중스케일화는 나중 분석엔진 개선 때 별도·검증동반). 설계 `specs/2026-07-15-multiscale-drawing-design.md` · 계획 `plans/2026-07-15-multiscale-drawing-gann.md` · SDD 원장에 진행 기록(끊겨도 재개). [[scoopforge-multiscale-drawing]]
+0. ~~데이터기반 다중스케일 작도 + 중요도 위계 (Gann 첫 적용)~~ ✅ 완료(2026-07-15, 0137d76..1999d9c): `collectAnchors`(민감도 사다리·고정창 없음)+중요도 스코어 → Gann 다중앵커 부챗살·강조/디밍·윈도우 클램프(창밖 무음 해소). **엔진 불변**(anchors opt-in→run 비용0·bias/baseline 불변). 배포·헤드리스 검증 완료. [[scoopforge-multiscale-drawing]]
+  - **[확장]** 같은 `collectAnchors` 위계를 추세선·fib·S/R·structure 작도에도 적용(현재 Gann만). 애널리스트 뷰 전면화.
+  - **[엔진 — 나중 분석엔진 개선 때 꼭]** bias/예측을 다중스케일 구조 반영으로(현재 단일 지배 스윙). 백테스트·자명규칙·OOS 검증 동반(큰 과제).
+  - **[폴리시]** emph 앵커 reason 라벨이 예측 콘 배지와 겹침(occlusion) — 라벨 위치 오프셋. · 그린 1×1(collectAnchors[0])이 엔진 bias 앵커와 다를 수 있음(설계상 의도, 인지).
 1. **[대기: 사용자] GCP OAuth "웹 애플리케이션" 클라이언트 재생성** — 리디렉션 URI `https://parksvc.mycafe24.com/map/forge-auth.php`. JSON 다운로드되면 자동 감지→검증→업로드→활성화.
 2. **[1 이후] 인증 실계정 E2E** — admin 첫 로그인 → 레거시 포지 이관 확인 → 라이브 검증.
 3. **결제 스펙**(토스페이먼츠/포트원 정기결제) — 유사투자자문업·통신판매업 신고 진행과 연동. 브레인스토밍부터.
