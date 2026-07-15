@@ -420,25 +420,25 @@
   /* 국면/확률/시그널 강조 바 + 핵심 의견 */
   /* ── 판정 대시보드: 3섹션(계기판 / 검증 예측 / 지표 합의)을 헤어라인으로 구분 ── */
   .fc-verdict-bar{display:flex;flex-direction:column;margin:0 0 4px;letter-spacing:-.02em;background:var(--raised);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .fcv-sec{padding:9px 15px}
+  .fcv-sec{padding:6px 14px}
   .fcv-sec + .fcv-sec{border-top:1px solid var(--line)}
   .fcv-k{font-size:9px;font-weight:800;letter-spacing:.04em;color:var(--faint);white-space:nowrap;text-transform:uppercase}
   .fcv-cell{display:flex;flex-direction:column;justify-content:flex-start;gap:3px;min-width:0}
   .fcv-cellrow{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
-  /* 1) 계기판(헤드라인) */
-  .fcv-head{gap:9px}
-  .fcv-hrow1{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  .fcv-tkr{font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.03em}
-  .fcv-hrow2{display:flex;align-items:baseline;gap:7px 22px;flex-wrap:wrap;margin-top:2px}
-  .fcv-hdir{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1;white-space:nowrap}
-  .fcv-htgt{display:inline-flex;align-items:baseline;gap:7px}
-  .fcv-htgt b{font-size:16px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-  .fcv-px{display:inline-flex;align-items:baseline;gap:8px;font-variant-numeric:tabular-nums}
-  .fcv-px b{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+  /* 1) 계기판 — 헤드라인 단일 행(종목·방향·현재가·목표·국면/기회·게이지) + 의견 서브라인 */
+  .fcv-head{gap:3px}
+  .fcv-hrow{display:flex;align-items:center;gap:4px 14px;flex-wrap:wrap}
+  .fcv-tkr{font-size:15px;font-weight:800;color:var(--ink);letter-spacing:-.03em}
+  .fcv-hdir{font-size:14px;font-weight:800;letter-spacing:-.01em;line-height:1;white-space:nowrap}
+  .fcv-htgt{display:inline-flex;align-items:baseline;gap:6px}
+  .fcv-htgt b{font-size:14px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .fcv-px{display:inline-flex;align-items:baseline;gap:7px;font-variant-numeric:tabular-nums}
+  .fcv-px b{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
   .fcv-pxchg{font-size:12px;font-weight:700;letter-spacing:-.01em}
   .fcv-pxchg.up{color:var(--bull)}.fcv-pxchg.dn{color:var(--bear)}
-  /* 상승확률 게이지(계기판 중심 시각요소) */
-  .fcv-gauge{display:flex;align-items:center;gap:10px;margin-top:1px}
+  /* 상승확률 게이지 — 헤드라인 행 끝에서 남는 폭을 채우는 인라인 미터 */
+  .fcv-gauge{display:flex;align-items:center;gap:9px;margin:0}
+  .fcv-head .fcv-gauge{flex:1 1 150px;min-width:130px;max-width:300px}
   .fcv-gside{font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:44px}
   .fcv-gside.dn{color:var(--bear);opacity:.7}
   .fcv-gside.up{color:var(--bull);text-align:right}
@@ -500,11 +500,15 @@
   .fcv-op{font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Pretendard,system-ui,sans-serif}
   @keyframes opulse{0%,100%{opacity:.78}50%{opacity:1}}
   /* 섹션 헤더(골드 마커 + 라벨) — 좌측 컬러바 금지 규칙 준수(점 마커만) */
-  .fcv-eyebrow{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:900;letter-spacing:.07em;color:var(--gold);text-transform:uppercase;margin-bottom:8px}
+  .fcv-eyebrow{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:900;letter-spacing:.07em;color:var(--gold);text-transform:uppercase;margin-bottom:0;flex:0 0 auto}
   .fcv-eyebrow::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--gold);flex:0 0 auto}
-  /* 2) 검증된 예측 — 6축 균일 그리드(플랫 셀, 알약 배경 제거로 정갈하게) */
-  .fcv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px 16px}   /* 넓으면 3열, 좁으면 2열 자동 — 셀 겹침 방지 */
-  .fcv-forecast .fcv-cell .fcv-vol,.fcv-forecast .fcv-cell .fcv-risk{background:none!important;box-shadow:none!important;padding:0;border-radius:0;font-size:13.5px;gap:4px}
+  /* 2·3) 검증된 예측·지표 합의 — eyebrow 인라인 프리픽스 + 가로 스트립(세로 적층 제거) */
+  .fcv-forecast,.fcv-consensus{display:flex;align-items:center;gap:3px 12px;flex-wrap:wrap}
+  .fcv-grid{flex:1 1 auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px 0;min-width:0}   /* 세로 그리드 → 가로 칩 스트립 */
+  .fcv-forecast .fcv-cell{flex-direction:row;align-items:center;gap:5px;padding:1px 12px;border-right:1px solid var(--line)}   /* 라벨 위/값 아래 → 한 줄, 셀 간 세로 헤어라인 */
+  .fcv-forecast .fcv-cell:first-child{padding-left:0}
+  .fcv-forecast .fcv-cell:last-child{border-right:0;padding-right:0}
+  .fcv-forecast .fcv-cell .fcv-vol,.fcv-forecast .fcv-cell .fcv-risk{background:none!important;box-shadow:none!important;padding:0;border-radius:0;font-size:12.5px;gap:4px}
   .fcv-forecast .vol-vf:not([style]){display:none}   /* 일반 세부배지(2주·1달·2달 등)는 정리 — 실적 📅 배지(style 有)만 유지 */
   .fcv-forecast .vol-vf{font-size:8.5px;padding:1px 4px;opacity:.9}
   /* 지표 방향 분포(도미넌스 스타일 누적 바) */
@@ -1511,10 +1515,10 @@
   .fcv-viz-lab{font-size:10.5px;color:var(--eth);line-height:1.25}
   .fcv-viz-lab b{color:var(--ink);font-size:12px}
   /* 판정 지표 = 가로 바(도넛/계기판 대체 — 값이 바로 읽힘) */
-  .fcv-bars{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px 26px;width:100%}
-  .fbar-row{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:9px;flex:1 1 190px;min-width:170px;max-width:340px}
+  .fcv-bars{flex:1 1 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:4px 20px;width:auto}   /* 3바 1행 정렬(넓으면 3열) */
+  .fbar-row{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:8px;min-width:0}
   .fbar-lab{font-size:11px;color:var(--eth);font-weight:600;letter-spacing:-.01em;white-space:nowrap}
-  .fbar-track{position:relative;height:9px;border-radius:99px;background:var(--raised);overflow:hidden}
+  .fbar-track{position:relative;height:7px;border-radius:99px;background:var(--raised);overflow:hidden}
   .fbar-fill{position:absolute;left:0;top:0;height:100%;border-radius:99px;transition:width .55s cubic-bezier(.4,0,.2,1)}
   .fbar-stack{display:flex}
   .fbar-stack i{height:100%;transition:width .55s cubic-bezier(.4,0,.2,1)}

@@ -1555,27 +1555,25 @@
       // 검증된 예측 6축 (멀티지평 곡선) — 균일 그리드 셀. 라벨 간결화, 세부 배지는 CSS로 정리(툴팁 유지).
       const _axCells =
         (vfHtml ? `<span class="fcv-cell">${_L("변동성")}${vfHtml}</span>` : "") +
-        (ddHtml ? `<span class="fcv-cell">${_L("확률 손익")}${ddHtml}</span>` : "") +
+        (ddHtml ? `<span class="fcv-cell">${_L("확률손익")}${ddHtml}</span>` : "") +
         (spkHtml ? `<span class="fcv-cell">${_L("급변")}${spkHtml}</span>` : "") +
-        (gpHtml ? `<span class="fcv-cell">${_L("갭 · 주식")}${gpHtml}</span>` : "") +
-        (tpHtml ? `<span class="fcv-cell">${_L("추세 지속")}${tpHtml}</span>` : "") +
+        (gpHtml ? `<span class="fcv-cell">${_L("갭")}${gpHtml}</span>` : "") +
+        (tpHtml ? `<span class="fcv-cell">${_L("추세지속")}${tpHtml}</span>` : "") +
         (relHtml ? `<span class="fcv-cell">${_L("상대강도")}${relHtml}</span>` : "") +
-        (rgHtml ? `<span class="fcv-cell">${_L("리스크 · 참고")}${rgHtml}</span>` : "");
+        (rgHtml ? `<span class="fcv-cell">${_L("리스크")}${rgHtml}</span>` : "");
       // 상승확률 게이지(계기판 중심) — ▼하락 | 트랙 | ▲상승
       const gaugeHtml = (_up != null) ? `<div class="fcv-gauge" title="예측 콘 기준 종합 상승확률 · v1.4 캘리브레이션(표기=실제)"><span class="fcv-gside dn">▼${100 - _up}%</span><span class="fcv-gtrack"><i class="fcv-gdn" style="width:${100 - _up}%"></i><i class="fcv-gup" style="width:${_up}%"></i><i class="fcv-gmid"></i></span><span class="fcv-gside up">▲${_up}%</span></div>` : "";
       bar.innerHTML =
-        // ── 1) 계기판(헤드라인): 종목·국면 · 현재가·방향·목표 · 확률 게이지 · 핵심 의견 ──
+        // ── 1) 계기판(헤드라인 단일 행): 종목·방향·현재가·목표·국면/기회·확률 게이지 → 핵심 의견 ──
         `<div class="fcv-sec fcv-head">` +
-          `<div class="fcv-hrow1">` +
+          `<div class="fcv-hrow">` +
             (tkLabel ? `<span class="fcv-tkr">${tkLabel}</span>` : "") +
-            ((ctxHtml || oppHtml) ? `<span class="fcv-cellrow">${ctxHtml}${oppHtml}</span>` : "") +
-          `</div>` +
-          `<div class="fcv-hrow2">` +
-            (pxHtml || "") +
             `<span class="fcv-hdir" title="지표·모멘텀·평균회귀를 종합한 방향 판정(상승/중립/하락)" style="color:${col}">${arrow} ${label}</span>` +
-            (isFinite(_targetN) ? `<span class="fcv-htgt">${_L("목표가")}<b title="예측 도달가">${fmtNum(_targetN)}</b></span>` : "") +
+            (pxHtml || "") +
+            (isFinite(_targetN) ? `<span class="fcv-htgt">${_L("목표")}<b title="예측 도달가">${fmtNum(_targetN)}</b></span>` : "") +
+            ((ctxHtml || oppHtml) ? `<span class="fcv-cellrow">${ctxHtml}${oppHtml}</span>` : "") +
+            gaugeHtml +
           `</div>` +
-          gaugeHtml +
           `<div class="fcv-op" title="국면·확률·강도 종합 한 줄 요약" style="color:${col}">${op}</div>` +
         `</div>` +
         // ── 2) 검증된 예측 곡선(6축 균일 그리드) ──
