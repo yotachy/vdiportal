@@ -272,7 +272,7 @@
   }
 
   /* ── 노드별 분석 패널 ──────────────────────────────────────────── */
-  const BTLABEL = { ticker: "티커", price: "가격", ma: "이동평균", phasefold: "파동스캔", combine: "가중결합", trend: "추세선", rsi: "RSI", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX", volumeprofile: "볼륨프로파일", ichimoku: "일목균형표", structure: "시장구조", atr: "ATR", smc: "스마트머니", cycle: "사이클", vwap: "VWAP", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱", fib: "피보나치", elliott: "엘리어트", volume: "거래량", predict: "예측" };
+  const BTLABEL = { ticker: "티커", price: "가격", ma: "이동평균", phasefold: "파동스캔", combine: "가중결합", trend: "추세선", rsi: "RSI", bollinger: "볼린저밴드", macd: "MACD", adx: "ADX", volumeprofile: "볼륨프로파일", ichimoku: "일목균형표", structure: "시장구조", atr: "ATR", smc: "스마트머니", pattern: "차트 패턴", cycle: "사이클", vwap: "VWAP", supertrend: "슈퍼트렌드", stochastic: "스토캐스틱", fib: "피보나치", elliott: "엘리어트", volume: "거래량", predict: "예측" };
   function regimeKo(r) { return r === "bull" ? "상승" : r === "bear" ? "하락" : "중립"; }
   function nodeReadText(n, result, priceLast) {
     const v = result && result.values && result.values[n.id];
@@ -377,6 +377,11 @@
       const smc = _anSMC(price);
       const texts = ForgeCore.smcSteps(smc), layers = [1, 1, 1, 2, 2];
       return texts.map((t, i) => ({ text: t, layer: layers[i] }));
+    }
+    if (n.blockType === "pattern" && Array.isArray(price) && price.length >= 30) {
+      const pt = _anPattern(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+      const texts = ForgeCore.patternSteps(pt).map(s => s.k + " — " + s.v);
+      return texts.map((text, i) => ({ text, layer: [1, 2, 2][i] }));
     }
     if (n.blockType === "cycle" && Array.isArray(price) && price.length >= 2) {
       const cy = _an("Cycle", price, { pmin: (n.params && n.params.pmin) || 10, pmax: (n.params && n.params.pmax) || 0 });
@@ -525,6 +530,16 @@
       }
       case "smc": {
         return ForgeCore.smcSteps(_anSMC(P)).slice(1, 4);
+      }
+      case "pattern": {
+        if (!Array.isArray(P) || P.length < 30) return ["데이터 없음"];
+        const pt = _anPattern(P, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+        if (!pt.detected) return ["감지된 패턴 없음"];
+        const conf = Math.round(pt.confidence * 100);
+        f.push("감지: " + pt.label + " (" + (pt.dir > 0 ? "상승" : "하락") + " · " + (pt.confirmed ? "돌파 확정" : "형성 중") + ")");
+        f.push("신뢰도 " + conf + "% · 방향 bias " + pt.bias.toFixed(2));
+        f.push(pt.confirmed ? "넥라인/채널 돌파 — 방향 유효" : "돌파 대기 — 약한 기여");
+        return f;
       }
       case "cycle": {
         if (!Array.isArray(P) || P.length < 2) return ["데이터 없음"];
