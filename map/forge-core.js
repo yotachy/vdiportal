@@ -1977,7 +1977,7 @@
     const _smc = _smn ? analyzeSMC(data.candle) : null;
     const smcDrift = _smc ? _smc.bias * _prof.trendScale * 0.07 * DW("smc") : 0;   // SMC 수요/공급 존 방향(±7%)
     const _ptn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "pattern");
-    const _pt2 = _ptn ? analyzePattern(data, {}) : null;
+    const _pt2 = _ptn ? analyzePattern(data, { swing: ((_ptn.params && _ptn.params.swing) != null ? _ptn.params.swing : 3) / 100 }) : null;
     const patternDrift = _pt2 ? _pt2.bias * _prof.trendScale * 0.06 * DW("pattern") : 0;   // 차트 패턴 방향(±6%·감지 시만)
     const _cyn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "cycle");
     const _cy = _cyn ? analyzeCycle(price, { pmin: (_cyn.params && _cyn.params.pmin) || 10, pmax: (_cyn.params && _cyn.params.pmax) || 0 }) : null;
