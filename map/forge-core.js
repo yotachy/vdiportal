@@ -462,6 +462,46 @@
     ];
   }
 
+  function analyzeGann(data, opts) {
+    opts = opts || {};
+    const candle = (data && data.candle) || [];
+    const price = (data && data.price) || candle.map(c => c.c);
+    const P = price.length;
+    const EMPTY = { anchor: null, dir: "none", unit: 0, angles: [], oneOne: 0, last: 0, bias: 0 };
+    if (P < 24) return EMPTY;
+    const lookback = Math.max(24, Math.min(P, opts.lookback || 120));
+    const s0 = Math.max(0, P - lookback);
+    const sw = _domSwing(price, s0);
+    if (!sw) return EMPTY;
+    // ATR 정규화 단위(1×1 = 1 ATR/봉). 캔들 없으면 봉당 절대변화 평균으로 폴백.
+    const per = Math.max(2, Math.min(opts.atrPeriod || 14, P - 1));
+    let unit = candle.length >= per + 1 ? _candATR(candle, per) : 0;
+    if (!(unit > 0)) {
+      let s = 0, k = 0;
+      for (let i = Math.max(1, P - per); i < P; i++) { s += Math.abs(price[i] - price[i - 1]); k++; }
+      unit = k ? s / k : Math.max(1e-9, Math.abs(price[P - 1]) * 0.01);
+    }
+    if (!(unit > 0)) unit = Math.max(1e-9, Math.abs(price[P - 1]) * 0.01);
+    const up = sw.dir === "up", sign = up ? 1 : -1;
+    const anchorIdx = sw.fromIdx, anchorPrice = sw.fromPrice;
+    const RATIOS = [["1x1", 1], ["2x1", 2], ["3x1", 3], ["4x1", 4], ["1x2", 0.5], ["1x3", 1 / 3], ["1x4", 0.25]];
+    const angles = RATIOS.map(([name, m]) => ({ name, slope: sign * m * unit }));
+    const lastIdx = P - 1, last = price[lastIdx];
+    const oneOne = anchorPrice + sign * unit * (lastIdx - anchorIdx);   // 1×1 각의 현재 봉 값
+    const v = (last - anchorPrice) / Math.max(1, lastIdx - anchorIdx);  // 앵커 이후 봉당 실제 속도
+    const ratio = (sign * v) / unit;                                    // 1×1(=1) 대비 배율
+    let bias = sign * (0.5 + 0.5 * Math.tanh(ratio - 1));               // 팬 방향이 부호, 각 밴드가 크기
+    bias = Math.max(-1, Math.min(1, bias));
+    return { anchor: { idx: anchorIdx, price: anchorPrice }, dir: sw.dir, unit, angles, oneOne, last, bias };
+  }
+  function gannSteps() {
+    return [
+      { k: "앵커", v: "직전 지배 스윙(고/저)에 각도팬 고정" },
+      { k: "각도", v: "1×1(=1 ATR/봉) 기준 2×1~1×4 부채꼴 투영" },
+      { k: "방향", v: "종가 vs 1×1 — 위=강세 / 아래=약세" },
+    ];
+  }
+
   function analyzePSAR(data, opts) {
     opts = opts || {};
     const step = opts.step || 0.02, maxAf = opts.max || 0.2;
@@ -2487,5 +2527,5 @@
     return { state, persist: rep.persist, exhaust: rep.exhaust, acc: rep.acc, curve };
   }
 
-  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
 });

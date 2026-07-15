@@ -1356,6 +1356,49 @@ test("analyzePivot: 종가가 피벗 위면 bias 양수, 아래면 음수", () =
 test("pivotSteps: 3줄", () => {
   assert.strictEqual(ForgeCore.pivotSteps().length, 3);
 });
+
+/* ── 신규 지표: Gann 각도 ── */
+// Gann 각도 테스트용 램프 캔들 생성 (선형 추세 + 얕은 범위)
+function _rampCandle(n, start, step) {
+  const c = []; let prev = start;
+  for (let i = 0; i < n; i++) {
+    const close = start + step * i;
+    const o = i ? prev : close;
+    const h = Math.max(o, close) + Math.abs(step) * 0.2;
+    const l = Math.min(o, close) - Math.abs(step) * 0.2;
+    c.push({ o, h, l, c: close }); prev = close;
+  }
+  return c;
+}
+
+test("analyzeGann: 상승 지배 스윙이면 bias>0, 하락이면 bias<0", () => {
+  const up = _rampCandle(40, 100, 1.5);
+  const r = ForgeCore.analyzeGann({ candle: up, price: up.map(c => c.c) });
+  assert.strictEqual(r.dir, "up");
+  assert.ok(r.bias > 0, `up bias>0, got ${r.bias}`);
+  const dn = _rampCandle(40, 160, -1.5);
+  const r2 = ForgeCore.analyzeGann({ candle: dn, price: dn.map(c => c.c) });
+  assert.strictEqual(r2.dir, "down");
+  assert.ok(r2.bias < 0, `down bias<0, got ${r2.bias}`);
+});
+
+test("analyzeGann: 데이터 부족 시 EMPTY(bias 0, anchor null)", () => {
+  const r = ForgeCore.analyzeGann({ candle: [], price: [1, 2, 3] });
+  assert.strictEqual(r.bias, 0);
+  assert.strictEqual(r.anchor, null);
+});
+
+test("analyzeGann: 각도 7종(1x1~1x4) 반환", () => {
+  const up = _rampCandle(40, 100, 1.5);
+  const r = ForgeCore.analyzeGann({ candle: up, price: up.map(c => c.c) });
+  assert.strictEqual(r.angles.length, 7);
+  assert.ok(r.angles.some(a => a.name === "1x1"), "1x1 포함");
+});
+
+test("gannSteps: 3줄", () => {
+  assert.strictEqual(ForgeCore.gannSteps().length, 3);
+});
+
 test("run: 피벗 포인트 노드가 예측 반영", () => {
   const price = _up(150, 0.005), candle = price.map((c, i) => ({ o: i ? price[i - 1] : c, h: c * 1.01, l: c * 0.99, c }));
   const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
