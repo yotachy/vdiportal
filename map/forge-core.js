@@ -922,6 +922,72 @@
     return piv;
   }
 
+  function _pClamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function _pLineAt(p1, p2, x) { const dx = (p2.idx - p1.idx) || 1; return p1.price + (p2.price - p1.price) * (x - p1.idx) / dx; }
+  function _pUnit(price, per) {
+    const P = price.length; let s = 0, k = 0;
+    for (let i = Math.max(1, P - per); i < P; i++) { s += Math.abs(price[i] - price[i - 1]); k++; }
+    return k ? s / k : Math.max(1e-9, Math.abs(price[P - 1]) * 0.01);
+  }
+  // 헤드앤숄더 / 역H&S — 최근 스윙에서 5-스윙 창(어깨-머리-어깨) 스캔
+  function _hnsDetect(sw, price, opts) {
+    const n = sw.length, P = price.length; if (n < 5) return null;
+    const minConf = opts.minConf != null ? opts.minConf : 0.5;
+    const lo = Math.max(0, n - 8);
+    for (let j = n - 1; j >= lo + 4; j--) {
+      const a = sw[j - 4], b = sw[j - 3], c = sw[j - 2], d = sw[j - 1], e = sw[j];
+      const span = Math.max(1e-9, Math.max(a.price, c.price, e.price) - Math.min(b.price, d.price));
+      // 하락 H&S: a·c·e 고점 / b·d 저점 / c(머리) 최고
+      if (a.price > b.price && c.price > b.price && c.price > d.price && e.price > d.price && c.price > a.price && c.price > e.price) {
+        const ls = a.price, rs = e.price, head = c.price;
+        const sym = 1 - Math.abs(ls - rs) / span, neck = 1 - Math.abs(b.price - d.price) / span, prom = Math.min((head - Math.max(ls, rs)) / span, 1);
+        if (prom >= 0.15 && sym >= 0.6 && neck >= 0.5) {
+          const conf = _pClamp01(0.4 * sym + 0.3 * neck + 0.3 * prom);
+          if (conf >= minConf) { const nline = _pLineAt(b, d, P - 1); return { pattern: "headshoulder", label: "헤드앤숄더", dir: -1, confidence: conf, confirmed: price[P - 1] < nline, geom: { kind: "hns", head: c, shoulders: [a, e], neckline: [b, d] } }; }
+        }
+      }
+      // 상승 역H&S: a·c·e 저점 / b·d 고점 / c(머리) 최저
+      if (a.price < b.price && c.price < b.price && c.price < d.price && e.price < d.price && c.price < a.price && c.price < e.price) {
+        const ls = a.price, rs = e.price, head = c.price;
+        const sym = 1 - Math.abs(ls - rs) / span, neck = 1 - Math.abs(b.price - d.price) / span, prom = Math.min((Math.min(ls, rs) - head) / span, 1);
+        if (prom >= 0.15 && sym >= 0.6 && neck >= 0.5) {
+          const conf = _pClamp01(0.4 * sym + 0.3 * neck + 0.3 * prom);
+          if (conf >= minConf) { const nline = _pLineAt(b, d, P - 1); return { pattern: "invhead", label: "역헤드앤숄더", dir: 1, confidence: conf, confirmed: price[P - 1] > nline, geom: { kind: "hns", head: c, shoulders: [a, e], neckline: [b, d] } }; }
+        }
+      }
+    }
+    return null;
+  }
+  // 불/베어 플래그 — 강한 폴 + 얕은 역방향 조정 채널
+  function _flagDetect(sw, price, opts) {
+    const n = sw.length, P = price.length; if (n < 4) return null;
+    const minConf = opts.minConf != null ? opts.minConf : 0.5;
+    const unit = _pUnit(price, opts.atrPeriod || 14), poleMin = (opts.poleMin || 3) * unit;
+    for (let k = n - 1; k >= Math.max(1, n - 6); k--) {
+      const from = sw[k - 1], to = sw[k], pole = to.price - from.price, poleAbs = Math.abs(pole);
+      if (poleAbs < poleMin) continue;
+      const dir = pole > 0 ? 1 : -1;
+      const consol = sw.slice(k, n - 1);   // 폴 정점 ... (마지막 레그=돌파 후보 제외)
+      if (consol.length < 2) continue;
+      const cp = consol.map(p => p.price), fHi = Math.max(...cp), fLo = Math.min(...cp), range = fHi - fLo;
+      const retrace = dir > 0 ? (to.price - fLo) : (fHi - to.price), retraceFrac = retrace / poleAbs;
+      if (range <= 0 || retraceFrac > 0.6 || range > poleAbs * 0.5) continue;
+      const tight = 1 - range / (poleAbs * 0.5), shallow = 1 - retraceFrac / 0.6, strength = Math.min(poleAbs / poleMin - 1, 1);
+      const conf = _pClamp01(0.4 * tight + 0.3 * shallow + 0.3 * Math.max(0, strength));
+      if (conf >= minConf) { const brk = dir > 0 ? price[P - 1] > fHi : price[P - 1] < fLo; return { pattern: dir > 0 ? "bullflag" : "bearflag", label: dir > 0 ? "불 플래그" : "베어 플래그", dir, confidence: conf, confirmed: brk, geom: { kind: "flag", pole: [from, to], hi: fHi, lo: fLo } }; }
+    }
+    return null;
+  }
+  function detectPatterns(price, opts) {
+    opts = opts || {};
+    const P = Array.isArray(price) ? price.length : 0; if (P < 30) return null;
+    const sw = detectSwings(price, opts.swing || 0.03); if (sw.length < 4) return null;
+    const cands = [_hnsDetect(sw, price, opts), _flagDetect(sw, price, opts)].filter(Boolean);
+    if (!cands.length) return null;
+    cands.sort((x, y) => (Number(y.confirmed) - Number(x.confirmed)) || (y.confidence - x.confidence));
+    return cands[0];
+  }
+
   // 시계열 [s0..끝] 구간의 지배 스윙(최저↔최고, 방향=나중에 온 극점 기준). null=자료부족
   function _domSwing(price, s0) {
     const seg = price.slice(s0);
@@ -2532,5 +2598,5 @@
     return { state, persist: rep.persist, exhaust: rep.exhaust, acc: rep.acc, curve };
   }
 
-  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps };
+  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns };
 });

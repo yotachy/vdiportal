@@ -2254,3 +2254,56 @@ test("run(): opts.spyClose 스레딩 → context.relStrength, 없으면 null [v1
   assert.ok(sc && sc.prob >= 0 && sc.prob <= 100 && sc.etf === "XLK", "sectorClose 있으면 relSector 산출(etf 라벨)");
   assert.deepEqual(withSec.prediction.path, base.prediction.path, "섹터 스레딩도 예측 불변");
 });
+
+// 차트 패턴 합성 데이터 헬퍼
+function _pseg(from, to, n) { const a = []; for (let i = 1; i <= n; i++) a.push(from + (to - from) * i / n); return a; }
+function _hnsUp() {   // bearish 헤드앤숄더 (좌어깨110·머리122·우어깨110·넥라인100 → 90 이탈)
+  let p = [100];
+  p = p.concat(_pseg(100, 110, 6), _pseg(110, 100, 6), _pseg(100, 122, 8), _pseg(122, 100, 8), _pseg(100, 110, 6), _pseg(110, 90, 8));
+  return p;
+}
+function _invHns() {  // bullish 역H&S (거울상)
+  let p = [100];
+  p = p.concat(_pseg(100, 90, 6), _pseg(90, 100, 6), _pseg(100, 78, 8), _pseg(78, 100, 8), _pseg(100, 90, 6), _pseg(90, 110, 8));
+  return p;
+}
+function _bullFlag() { // 강한 상승 폴(40) + 얕은 조정 채널 + 상향 돌파
+  let p = [100];
+  p = p.concat(_pseg(100, 140, 10), _pseg(140, 133, 5), _pseg(133, 137, 4), _pseg(137, 130, 5), _pseg(130, 148, 8));
+  return p;
+}
+function _bearFlag() { // 거울상
+  let p = [100];
+  p = p.concat(_pseg(100, 60, 10), _pseg(60, 67, 5), _pseg(67, 63, 4), _pseg(63, 70, 5), _pseg(70, 52, 8));
+  return p;
+}
+function _flatNoise() { // 규칙적 진동 — 패턴 없음
+  const p = []; for (let i = 0; i < 60; i++) p.push(100 + 5 * Math.sin(i / 3) + 2 * Math.sin(i / 1.7)); return p;
+}
+
+test("detectPatterns: 헤드앤숄더 → headshoulder(하락)", () => {
+  const r = ForgeCore.detectPatterns(_hnsUp(), {});
+  assert.ok(r && r.pattern === "headshoulder", `expected headshoulder, got ${r && r.pattern}`);
+  assert.strictEqual(r.dir, -1);
+});
+test("detectPatterns: 역헤드앤숄더 → invhead(상승)", () => {
+  const r = ForgeCore.detectPatterns(_invHns(), {});
+  assert.ok(r && r.pattern === "invhead", `expected invhead, got ${r && r.pattern}`);
+  assert.strictEqual(r.dir, 1);
+});
+test("detectPatterns: 불 플래그 → bullflag(상승)", () => {
+  const r = ForgeCore.detectPatterns(_bullFlag(), {});
+  assert.ok(r && r.pattern === "bullflag", `expected bullflag, got ${r && r.pattern}`);
+  assert.strictEqual(r.dir, 1);
+});
+test("detectPatterns: 베어 플래그 → bearflag(하락)", () => {
+  const r = ForgeCore.detectPatterns(_bearFlag(), {});
+  assert.ok(r && r.pattern === "bearflag", `expected bearflag, got ${r && r.pattern}`);
+  assert.strictEqual(r.dir, -1);
+});
+test("detectPatterns: 규칙 진동 노이즈 → null(오탐 없음)", () => {
+  assert.strictEqual(ForgeCore.detectPatterns(_flatNoise(), {}), null);
+});
+test("detectPatterns: 데이터 부족(<30) → null", () => {
+  assert.strictEqual(ForgeCore.detectPatterns([1, 2, 3, 4, 5], {}), null);
+});
