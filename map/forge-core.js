@@ -492,7 +492,15 @@
     const ratio = (sign * v) / unit;                                    // 1×1(=1) 대비 배율
     let bias = sign * (0.5 + 0.5 * Math.tanh(ratio - 1));               // 팬 방향이 부호, 각 밴드가 크기
     bias = Math.max(-1, Math.min(1, bias));
-    return { anchor: { idx: anchorIdx, price: anchorPrice }, dir: sw.dir, unit, angles, oneOne, last, bias };
+    const _K = opts.maxAnchors || 6;
+    const anchors = collectAnchors(price, {}).slice(0, _K).map(m => {
+      const asBars = Math.max(1, m.toIdx - m.fromIdx);
+      let aUnit = Math.abs(m.toPrice - m.fromPrice) / asBars;
+      if (!(aUnit > floor)) aUnit = floor;
+      const asign = m.dir === "up" ? 1 : -1;
+      return { idx: m.fromIdx, price: m.fromPrice, dir: m.dir, significance: m.significance, reason: m.reason, angles: RATIOS.map(([name, mm]) => ({ name, slope: asign * mm * aUnit })) };
+    });
+    return { anchor: { idx: anchorIdx, price: anchorPrice }, dir: sw.dir, unit, angles, oneOne, last, bias, anchors };
   }
   function gannSteps() {
     return [

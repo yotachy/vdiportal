@@ -1443,6 +1443,16 @@ test("collectAnchors: 데이터 부족 → 빈 배열", () => {
   assert.deepStrictEqual(ForgeCore.collectAnchors([1, 2, 3], {}), []);
 });
 
+test("analyzeGann: 작도용 anchors 배열(다중 앵커) 반환 + bias 부호 불변", () => {
+  const price = [];
+  for (let i = 0; i < 120; i++) price.push(100 + 0.2 * i + 5 * Math.sin(i / 2.5));
+  const r = ForgeCore.analyzeGann({ price }, {});
+  assert.ok(Array.isArray(r.anchors) && r.anchors.length >= 1, `anchors 배열: ${r.anchors && r.anchors.length}`);
+  const an = r.anchors[0];
+  assert.ok(an.idx != null && an.price != null && Array.isArray(an.angles) && an.angles.length === 7 && typeof an.significance === "number", "anchor 필드/각도7");
+  assert.ok(r.dir === "up" ? r.bias > 0 : r.bias < 0, "bias 부호 보존");   // 상승 데이터
+});
+
 /* ── 신규 지표: Parabolic SAR ── */
 test("analyzePSAR: 상승 시계열이면 dir=+1·bias>0", () => {
   const price = Array.from({length:40},(_,i)=>100+i);   // 단조 상승
