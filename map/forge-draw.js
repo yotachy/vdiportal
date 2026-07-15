@@ -2462,26 +2462,35 @@
   // Gann 각도팬 — 앵커점(직전 지배 스윙)에서 우측 끝까지 1×1(굵은 골드)+2×1~1×4(흐린 점선) 직선 투영
   function _drawGannLayers(c, gn, M) {
     c.save();
-    const { toY, fiToX, nowFi, futN, xRight, top, bot, reveal = Infinity } = M;
+    const { toY, fiToX, nowFi, futN, xRight, fiMin = 0, top, bot, reveal = Infinity } = M;
     if (top != null && bot != null) { c.beginPath(); c.rect(0, top, xRight + 44, bot - top); c.clip(); }
-    if (!gn || !gn.anchor || !gn.angles || !gn.angles.length) { c.restore(); return; }
-    const aIdx = gn.anchor.idx, aPrice = gn.anchor.price;
-    const ax = fiToX(aIdx), ay = toY(aPrice);
-    const totalBars = (nowFi - aIdx) + (futN || 0);   // 앵커→우측 끝(미래 포함) 봉 수
-    gn.angles.forEach((a, i) => {
-      if (reveal !== Infinity && reveal < i + 1) return;
-      const yv = aPrice + a.slope * totalBars;
-      const is11 = a.name === "1x1";
-      c.beginPath(); c.moveTo(ax, ay); c.lineTo(xRight, toY(yv));
-      c.strokeStyle = is11 ? FC_GOLD : "rgba(201,162,107,0.35)";
-      c.lineWidth = is11 ? CW.bold : CW.base;
-      c.setLineDash(is11 ? [] : CDASH.std);
-      c.stroke(); c.setLineDash([]);
-      c.fillStyle = is11 ? FC_GOLD : "rgba(201,162,107,0.6)";
-      c.font = "10px sans-serif";
-      c.fillText(a.name, xRight + 3, toY(yv));
-    });
-    c.beginPath(); c.arc(ax, ay, 3, 0, Math.PI * 2); c.fillStyle = FC_GOLD; c.fill();
+    // anchors(다중) 우선, 없으면 단일 anchor 폴백(하위호환)
+    const list = (gn && gn.anchors && gn.anchors.length) ? gn.anchors
+      : (gn && gn.anchor && gn.angles ? [{ idx: gn.anchor.idx, price: gn.anchor.price, angles: gn.angles, significance: 1, reason: "" }] : []);
+    if (!list.length) { c.restore(); return; }
+    const rightFi = (nowFi != null ? nowFi : 0) + (futN || 0);
+    // significance 낮은 것부터 그려 강조가 위에 오게
+    const ordered = list.map((an, i) => ({ an, i })).sort((a, b) => (a.an.significance || 0) - (b.an.significance || 0));
+    for (const { an } of ordered) {
+      const sig = an.significance != null ? an.significance : 0.5;
+      const emph = sig >= 0.6;                                   // 고득점 강조
+      const alpha = emph ? 1 : Math.max(0.12, 0.15 + sig * 0.4);
+      // 밀도: 강조=전체 7각, 흐림=1×1·2×1·1×2만
+      const angs = emph ? an.angles : an.angles.filter(a => ["1x1", "2x1", "1x2"].includes(a.name));
+      const startFi = Math.max(fiMin, an.idx);                   // 앵커 창밖이면 좌단 진입점
+      for (const a of angs) {
+        const is11 = a.name === "1x1";
+        const y1 = an.price + a.slope * (startFi - an.idx), y2 = an.price + a.slope * (rightFi - an.idx);
+        const x1 = fiToX(startFi); if (!isFinite(x1)) continue;
+        c.beginPath(); c.moveTo(x1, toY(y1)); c.lineTo(xRight, toY(y2));
+        c.strokeStyle = (is11 && emph) ? FC_GOLD : "rgba(201,162,107," + (is11 ? alpha : alpha * 0.5).toFixed(3) + ")";
+        c.lineWidth = (is11 && emph) ? CW.bold : CW.base;
+        c.setLineDash(is11 ? [] : CDASH.std); c.stroke(); c.setLineDash([]);
+      }
+      // 앵커 도트(창 안일 때) + 강조 앵커 라벨(reason)
+      if (an.idx >= fiMin) { const ax = fiToX(an.idx), ay = toY(an.price); if (isFinite(ax) && isFinite(ay)) { c.beginPath(); c.arc(ax, ay, emph ? 3 : 2, 0, Math.PI * 2); c.fillStyle = emph ? FC_GOLD : "rgba(201,162,107," + alpha.toFixed(3) + ")"; c.fill(); } }
+      if (emph) { const yR = an.price + (an.angles.find(a => a.name === "1x1") || { slope: 0 }).slope * (rightFi - an.idx); c.fillStyle = FC_GOLD; c.font = "10px sans-serif"; c.fillText(an.reason || "1×1", xRight + 3, toY(yR)); }
+    }
     c.restore();
   }
   // Parabolic SAR hero 작도 — 봉마다 SAR 점(가격 위/아래로 추세방향 표시) + 배지
@@ -2718,7 +2727,7 @@
           legend.push({ col, t: EV_LABEL.pivot, _key: n.blockType });
         } else if (n.blockType === "gann") {
           const gn = _anGann(price, n.params);
-          if (_drawThis) _drawGannLayers(cc, gn, { toY: v => toY(v), fiToX, nowFi: P - 1, futN: g.pathLen, xRight: g.padX + g.plotW, top: g.padTop, bot: g.ch - g.padBot, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          if (_drawThis) _drawGannLayers(cc, gn, { toY: v => toY(v), fiToX, nowFi: P - 1, futN: g.pathLen, xRight: g.padX + g.plotW, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, top: g.padTop, bot: g.ch - g.padBot });
           legend.push({ col, t: EV_LABEL.gann, _key: n.blockType });
         } else if (n.blockType === "psar") {
           const ps = _anPsar(price, { step: (n.params && n.params.step) || 0.02, max: (n.params && n.params.max) || 0.2 });
