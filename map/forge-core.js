@@ -303,6 +303,8 @@
         values[id] = stochSeries(ins[0] || data.price, (n.params && n.params.kLen) || 14, (n.params && n.params.kSmooth) || 3, (n.params && n.params.dLen) || 3);
       } else if (n.blockType === "pivot") {
         values[id] = (ins[0] || data.price).map(() => 0);
+      } else if (n.blockType === "gann") {
+        values[id] = (ins[0] || data.price).map(() => 0);
       } else if (n.blockType === "psar") {
         values[id] = (ins[0] || data.price).map(() => 0);
       } else if (n.blockType === "keltner") {
@@ -1894,6 +1896,9 @@
     const _pvn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "pivot");
     const _pv2 = _pvn ? analyzePivot(data, {}) : null;
     const pivotDrift = _pv2 ? _pv2.bias * _prof.trendScale * 0.04 * DW("pivot") : 0;   // 피벗 위/아래 방향(±4%·S/R라 약함)
+    const _gnn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "gann");
+    const _gn2 = _gnn ? analyzeGann(data, {}) : null;
+    const gannDrift = _gn2 ? _gn2.bias * _prof.trendScale * 0.05 * DW("gann") : 0;   // Gann 1×1 방향(±5%·S/R성)
     const _psn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "psar");
     const _ps = _psn ? analyzePSAR(data, { step: (_psn.params && _psn.params.step) || 0.02, max: (_psn.params && _psn.params.max) || 0.2 }) : null;
     const psarDrift = _ps ? _ps.bias * _prof.trendScale * 0.08 * DW("psar") : 0;   // SAR 추세방향(±8%)
@@ -1935,7 +1940,7 @@
     // 합을 ±0.28로 캡해 '지표 총의' 기여를 한정(개별 지표 아무리 많아도 예측 왜곡 방지). 지표 없는 그래프엔 영향 없음(합=0).
     // Phase 6 융합: 지표를 종합방향(예상)·반대로 분리. 예상지표 합은 ±0.28 캡, 반대지표는 그 '절반 가중'으로 항상 되돌림
     // (기존 단순합은 예상지표가 캡을 포화시키면 반대지표 효과가 캡에 가려져 사라짐 → 반대지표를 캡 이후 별도 차감해 항상 체감되게).
-    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift, aroonDrift, mfiDrift, cmfDrift];
+    const _drifts = [maDrift, fibDrift, ewDrift, rsiDrift, volDrift, bbDrift, macdDrift, adxDrift, vpDrift, icDrift, stDrift, smcDrift, cyDrift, vwDrift, stDrift2, stochDrift, pivotDrift, psarDrift, keltnerDrift, donchianDrift, cciDrift, williamsDrift, rocDrift, aoDrift, aroonDrift, mfiDrift, cmfDrift, gannDrift];
     const _rawSum = _drifts.reduce((a, b) => a + b, 0);
     const _cdir0 = _rawSum >= 0 ? 1 : -1;                        // 지표 총의(예상) 방향
     let _agSum = 0, _opSum = 0;
@@ -1943,7 +1948,7 @@
     const _auxCap = _cdir0 * Math.max(0, Math.min(0.05, _agSum) - 0.5 * _opSum);   // 반대지표 = 예상지표의 절반 효과(균등 되돌림, 방향 유지)
     // ── 종합 시그널을 '추세제거 잔차(detrend)' 대신 '지표 방향 합의 + 추세'로 재정의 ──
     // (기존 lastSig=detrendNorm 기반 → 추세 방향 소실, 폭락장서 +bull로 뒤집히던 결함. verdict.score·regime·신호드리프트·모순완화가 모두 이 방향 시그널을 사용)
-    const _dirBiasList = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, (_vol ? analyzeVolume(price, _vol).bias : null), _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias, _pv2 && _pv2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b));
+    const _dirBiasList = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, (_vol ? analyzeVolume(price, _vol).bias : null), _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias, _pv2 && _pv2.bias, _gn2 && _gn2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b));
     const _biasAvg = _dirBiasList.length ? _dirBiasList.reduce((a, b) => a + b, 0) / _dirBiasList.length : 0;   // 지표 평균 방향(−1..1)
     const _trendDir = Math.max(-1, Math.min(1, trS / 0.008));   // 추세 슬로프 방향(±0.8%/봉=만점)
     let _dirSig = Math.max(-100, Math.min(100, Math.round((_biasAvg * 0.66 + _trendDir * 0.34) * 100 + bias * 0.5)));   // 방향 종합 시그널(−100..+100, 사용자 conviction 반영)
@@ -2068,7 +2073,7 @@
     const regime = _dirSig > 12 ? "bull" : _dirSig < -12 ? "bear" : "neutral";
     // 컨플루언스: 존재하는 지표들의 방향(bias) 중 종합 방향과 일치하는 비율
     const _allBias = [_ma && _ma.bias, _fib && _fib.bias, _ew && _ew.bias, _rsi && _rsi.bias, _bb && _bb.bias, _macd && _macd.bias, _adx && _adx.bias, _vp && _vp.bias, _ic && _ic.bias, _struct && _struct.bias, _smc && _smc.bias, _cy && _cy.bias, _vw && _vw.bias, _stt && _stt.bias, _stoch && _stoch.bias,
-      _pv2 && _pv2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);   // 일치도(confluence)에 신규 11지표 포함 — 예측 드리프트 반영 지표와 파리티
+      _pv2 && _pv2.bias, _gn2 && _gn2.bias, _ps && _ps.bias, _kt && _kt.bias, _dc && _dc.bias, _cci && _cci.bias, _wl && _wl.bias, _roc && _roc.bias, _ao && _ao.bias, _arA && _arA.bias, _mfi && _mfi.bias, _cmf && _cmf.bias].filter(b => typeof b === "number" && isFinite(b) && b !== 0);   // 일치도(confluence)에 신규 11지표 포함 — 예측 드리프트 반영 지표와 파리티
     const _cdir = _dirSig > 0 ? 1 : _dirSig < 0 ? -1 : (_allBias.reduce((a, b) => a + b, 0) >= 0 ? 1 : -1);
     const _agree = _allBias.filter(b => (b > 0 ? 1 : -1) === _cdir).length;
     const confluence = { score: _allBias.length ? Math.round(_agree / _allBias.length * 100) : 0, agree: _agree, total: _allBias.length };

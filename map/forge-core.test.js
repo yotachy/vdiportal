@@ -1408,6 +1408,16 @@ test("run: 피벗 포인트 노드가 예측 반영", () => {
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "pivot 예측 반영");
 });
 
+test("run: Gann 각도 노드가 예측 반영", () => {
+  const up = _rampCandle(60, 100, 1.2);
+  const price = up.map(c => c.c), candle = up;
+  const base = { nodes: [{ id: "p", kind: "block", blockType: "price" }, { id: "pr", kind: "block", blockType: "predict" }], edges: [{ from: "p", to: "pr" }] };
+  const r0 = ForgeCore.run(base, { price, candle }, { futW: 24 });
+  const g = { nodes: base.nodes.concat([{ id: "gn", kind: "block", blockType: "gann" }]), edges: base.edges.concat([{ from: "gn", to: "pr" }]) };
+  const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
+  assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "gann 예측 반영");
+});
+
 /* ── 신규 지표: Parabolic SAR ── */
 test("analyzePSAR: 상승 시계열이면 dir=+1·bias>0", () => {
   const price = Array.from({length:40},(_,i)=>100+i);   // 단조 상승
