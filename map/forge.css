@@ -129,6 +129,7 @@
   .ind-rail .ir-tierhead.collapsed .ir-caret{transform:rotate(0deg)}
   .ind-rail .ir-tiercount{flex:0 0 auto;margin-left:auto;font-size:9px;font-weight:700;font-family:ui-monospace,monospace;color:var(--faint);background:color-mix(in srgb, var(--tc,#8a92b2) 13%, transparent);border-radius:99px;padding:0 5px;line-height:1.5}
   .ind-rail .ir-new{display:inline-block;font-size:6.5px;font-weight:800;line-height:1.35;letter-spacing:.01em;text-transform:uppercase;color:var(--gold);background:rgba(232,180,99,.16);border-radius:2px;padding:0 2px;margin-right:3px;vertical-align:middle;transform:translateY(-.5px)}
+  .ind-rail .ir-tag { display:inline-block; font-size:8px; font-weight:800; letter-spacing:-.02em; line-height:1; padding:2px 4px; margin-right:4px; border-radius:4px; color:var(--gold); background:color-mix(in srgb, var(--gold) 16%, transparent); vertical-align:middle; }
   .ind-rail .ir-resetw{flex:0 0 auto;width:32px;padding:0;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-md);background:transparent;cursor:pointer;display:grid;place-items:center;transition:color .12s,border-color .12s}
   .ind-rail .ir-resetw:hover{border-color:var(--gold);color:var(--gold)}
   .ind-rail .ir-resetw svg{width:14px;height:14px}

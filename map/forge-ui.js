@@ -1,14 +1,14 @@
   let _railQuery = "";                 // 지표 검색어
   const _railCollapsed = new Set();    // 접힌 등급(lv 문자열)
   // 레일 표시용 간결명(전체명은 툴팁) — 이름 잘림 방지
-  const RAIL_SHORT = { adx: "ADX", atr: "ATR", psar: "PSAR", keltner: "켈트너", donchian: "돈치안", pivot: "피벗", williams: "윌리엄스", ao: "AO", roc: "ROC", smc: "스마트머니", volumeprofile: "볼륨프로파일", cycle: "사이클", gann: "Gann" };
+  const RAIL_SHORT = { adx: "ADX", atr: "ATR", psar: "PSAR", keltner: "켈트너", donchian: "돈치안", pivot: "피벗", williams: "윌리엄스", ao: "AO", roc: "ROC", smc: "스마트머니", volumeprofile: "볼륨프로파일", cycle: "사이클", gann: "Gann", pattern: "차트패턴" };
   function renderIndRail() {
     const el = document.getElementById("indRail"); if (!el) return;
     const types = _indTypes();
     // 지표별 파스텔(산만) 대신 Lv(등급)별 색상으로 정돈 — 같은 등급끼리 같은 색(의미: 중요도 그룹)
     const TIER_COL = { 1: "#4f8fe0", 2: "#3aa5b0", 3: "#8a92b2", 4: "#9b7fd4" };
     const rowHTML = (t, ic, lv) => { const d = BLOCK_DEFS.find(b => b.type === t) || {}; const on = _evVisible.has(t); const sel = (t === _focusInd); const w = _tw(t); const wf = Math.max(0, Math.min(1, w / 3)); const nm = RAIL_SHORT[t] || d.label || t;
-      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" data-lv="${lv}" style="--ic:${ic || "#8a92b2"}"><div class="ir-bar" data-irbar title="${esc(d.label || t)} — 좌우 클릭·드래그 = 가중치(0~3배, 기본 ×1) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 ×1"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${esc(nm)}</span><span class="ir-wval${Math.abs(w - 1) < 0.05 ? " def" : ""}">${Math.abs(w - 1) < 0.05 ? "×1" : "×" + w.toFixed(1)}</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
+      return `<div class="ir-row${on ? " on" : ""}${sel ? " sel" : ""}" data-irt="${t}" data-lv="${lv}" style="--ic:${ic || "#8a92b2"}"><div class="ir-bar" data-irbar title="${esc(d.label || t)} — 좌우 클릭·드래그 = 가중치(0~3배, 기본 ×1) · 체크박스 = 표시/2차(더블클릭=단독)"><span class="ir-fill" style="width:${(wf * 100).toFixed(1)}%"></span><span class="ir-tick" title="기본 ×1"></span><span class="ir-chk" data-irchk title="표시/2차 토글"></span><span class="ir-lbl">${PATTERN_NATURE.has(t) ? '<span class="ir-tag" title="구조·패턴 감지 지표">구조·패턴</span>' : ''}${esc(nm)}</span><span class="ir-wval${Math.abs(w - 1) < 0.05 ? " def" : ""}">${Math.abs(w - 1) < 0.05 ? "×1" : "×" + w.toFixed(1)}</span></div><button class="ir-edit" onclick="event.stopPropagation();_railEdit('${t}')" title="파라미터 편집(다시 누르면 닫기)">✎</button></div>`; };
     const tierHead = (lv, name, ic, cnt) => `<div class="ir-tierhead${_railCollapsed.has(String(lv)) ? " collapsed" : ""}" data-lv="${lv}" style="--tc:${ic}" onclick="_railTierToggle('${lv}')" title="클릭 = 등급 접기/펼치기"><span class="ir-caret" aria-hidden="true"></span><span class="ir-tierlv">${lv === "etc" ? "·" : "Lv" + lv}</span><span class="ir-tiername">${name}</span><span class="ir-tiercount">${cnt}</span></div>`;
     let rows = "", seen = new Set();
     IND_TIERS.forEach(tier => { const grp = tier.types.filter(t => types.includes(t)); if (!grp.length) return;
@@ -361,7 +361,7 @@
       ? `box-shadow:0 0 ${Math.round((wt - 55) * 0.5)}px rgba(232,180,99,${((wt - 55) / 45 * 0.6).toFixed(2)});`
       : "";
     // 중요도+확신 통합 게이지: sig(-100~+100). 방향=확신, 세기=|sig|가 중요도(가중치)로. 지표 블록에만.
-    const GAUGE_TYPES = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "fib", "elliott", "phasefold", "volume", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "gann"];
+    const GAUGE_TYPES = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "fib", "elliott", "phasefold", "volume", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "gann", "pattern"];
     const sig = Math.round(n.conviction || 0);
     const gCls = sig > 0 ? "g-up" : sig < 0 ? "g-dn" : "g-0";
     const gauge = (isBlock && GAUGE_TYPES.includes(n.blockType))
@@ -461,6 +461,10 @@
   function _anVolume(P) { return _anGet(P, "Volume", () => ForgeCore.analyzeVolume(P, _anVolSeries(P))); }
   function _anVP(P, opts) { return _anGet(P, "VP|" + JSON.stringify(opts), () => ForgeCore.analyzeVolumeProfile(P, _anVolSeries(P), opts)); }
   function _anSMC(P) { return _anGet(P, "SMC", () => ForgeCore.analyzeSMC((_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [])); }
+  function _anPattern(P, opts) {
+    const o = opts || {};
+    return _anGet(P, "Pattern" + JSON.stringify(o), () => ForgeCore.analyzePattern({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, o));
+  }
   function _anPivot(P) { return _anGet(P, "Pivot", () => ForgeCore.analyzePivot({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P })); }
   function _anGann(P, opts) {
     const o = opts || {};
@@ -493,6 +497,7 @@
         case "ichimoku": return _an("Ichimoku", P, { tenkan: p.tenkan || 9, kijun: p.kijun || 26, senkouB: p.senkouB || 52, shift: p.shift || 26 }).bias;
         case "structure": return _an("Structure", P, { swing: ((p.swing != null ? p.swing : 3) / 100) }).bias;
         case "smc": return _anSMC(P).bias;
+        case "pattern": return _anPattern(P, { swing: ((p.swing != null ? p.swing : 3) / 100) }).bias;
         case "cycle": return _an("Cycle", P, { pmin: p.pmin || 10, pmax: p.pmax || 0 }).bias;
         case "vwap": return _anGet(P, "VWAPev|" + (p.len || 20), () => ForgeCore.analyzeVWAP(P, _anVolSeries(P), { len: p.len || 20 })).bias;
         case "supertrend": return _an("Supertrend", P, { period: p.period || 10, mult: p.mult || 3 }).bias;
@@ -684,6 +689,7 @@
       rows.push(numRow("shift", "선행 이동", (n.params && n.params.shift) ?? 26));
     }
     if (n.blockType === "structure") rows.push(numRow("swing", "스윙 민감도(%)", (n.params && n.params.swing) ?? 3));
+    if (n.blockType === "pattern") rows.push(numRow("swing", "스윙 민감도(%)", (n.params && n.params.swing) ?? 3));
     if (n.blockType === "atr") {
       rows.push(numRow("period", "ATR 기간", (n.params && n.params.period) ?? 14));
       rows.push(numRow("mult", "손절 배수", (n.params && n.params.mult) ?? 2, 0.1));
