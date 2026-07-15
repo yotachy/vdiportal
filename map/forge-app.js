@@ -242,7 +242,7 @@
     const priceNode = blocks.find(n => n.blockType === "price");
     const pv = priceNode && result.values && result.values[priceNode.id];
     const priceLast = (pv && pv.length) ? pv[pv.length - 1] : null;
-    const order = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "fib", "elliott", "phasefold", "volume"];
+    const order = ["ma", "trend", "rsi", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "gann", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "fib", "elliott", "phasefold", "volume"];
     const inds = blocks.filter(n => order.includes(n.blockType)).sort((a, b) => order.indexOf(a.blockType) - order.indexOf(b.blockType));
     if (metaEl) metaEl.textContent = (inds.length + 1) + "단계";
     const steps = [];
@@ -403,6 +403,10 @@
       const texts = ForgeCore.pivotSteps().map(s => s.k + " — " + s.v);
       return texts.map((text, i) => ({ text, layer: [1, 2, 2][i] }));
     }
+    if (n.blockType === "gann" && Array.isArray(price) && price.length >= 24) {
+      const texts = ForgeCore.gannSteps().map(s => s.k + " — " + s.v);
+      return texts.map((text, i) => ({ text, layer: [1, 2, 2][i] }));
+    }
     if (n.blockType === "psar" && Array.isArray(price) && price.length >= 2) {
       const texts = ForgeCore.psarSteps().map(s => s.k + " — " + s.v);
       return texts.map((text, i) => ({ text, layer: [1, 2, 2][i] }));
@@ -546,6 +550,17 @@
         f.push("피벗 P " + fmtNum(piv.P) + " · 종가 " + fmtNum(piv.last) + " — " + posTxt);
         f.push("저항 R1 " + fmtNum(piv.R[0]) + " · R2 " + fmtNum(piv.R[1]) + " · R3 " + fmtNum(piv.R[2]));
         f.push("지지 S1 " + fmtNum(piv.S[0]) + " · S2 " + fmtNum(piv.S[1]) + " · S3 " + fmtNum(piv.S[2]));
+        return f;
+      }
+      case "gann": {
+        if (!Array.isArray(P) || P.length < 24) return ["데이터 없음"];
+        const gn = _anGann(P, n.params);
+        if (!gn.anchor) return ["데이터 없음"];
+        const dirTxt = gn.dir === "up" ? "상방 팬(직전 지배 저점 기준)" : "하방 팬(직전 지배 고점 기준)";
+        const posTxt = gn.last > gn.oneOne ? "1×1 위(강세)" : gn.last < gn.oneOne ? "1×1 아래(약세)" : "1×1 근접(중립)";
+        f.push("앵커 " + fmtNum(gn.anchor.price) + " · " + dirTxt);
+        f.push("1×1 현재값 " + fmtNum(gn.oneOne) + " · 종가 " + fmtNum(gn.last) + " — " + posTxt);
+        f.push("각도 " + gn.angles.map(a => a.name).join(" · ") + " (ATR 정규화)");
         return f;
       }
       case "psar": {
@@ -2547,7 +2562,7 @@
     if (!steps.length) return;
     const fin = steps[steps.length - 1];                       // 최종(전체 결합) 결과
     const finPred = fin.prediction, finSig = _sigOf(fin);
-    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf"].includes(n.blockType) && (!_evVisible || !_evVisible.size || _evVisible.has(n.blockType)));   // 시연=선택(표시)된 지표만 작도·진행
+    const indNodes = boardState.nodes.filter(n => n.kind === "block" && ["ma", "trend", "fib", "elliott", "rsi", "phasefold", "volume", "bollinger", "macd", "adx", "volumeprofile", "ichimoku", "structure", "atr", "smc", "cycle", "vwap", "supertrend", "stochastic", "pivot", "gann", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf"].includes(n.blockType) && (!_evVisible || !_evVisible.size || _evVisible.has(n.blockType)));   // 시연=선택(표시)된 지표만 작도·진행
     const center = boardState.nodes.find(n => n.blockType === "predict") || boardState.nodes.find(n => n.blockType === "combine");
     if (prefersReducedMotion()) {
       _evidenceSet = new Set(indNodes.map(n => n.id));
