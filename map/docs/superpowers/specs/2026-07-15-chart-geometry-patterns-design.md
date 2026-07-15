@@ -58,9 +58,14 @@
 
 ---
 
-## 설계 B — 패턴 감지 (blockType: `pattern`, 범주 B, 단일 블록)
+## 설계 B — 차트 패턴 (blockType: `pattern`, 범주 B, 단일 블록)
 
-occurrence 기반 단일 블록. 내부 **패턴 라이브러리**를 스캔 → 감지 시에만 작도+bias, 미감지 시 침묵.
+> **분류 정합(2026-07-15 사용자 지적 반영)**: 기존 30종 중 `structure`(시장구조 BOS/CHoCH)·`elliott`(엘리어트 파동)·`smc`(FVG·오더블록)는 이미 **"구조·패턴 감지" 성격**이며, 셋 다 패턴을 탐지하되 **엔진엔 연속 bias로 노출 + 패턴 있을 때만 마커 작도**한다. 신규 블록도 **같은 인터페이스**(연속 bias·감지 시 작도)로 만들어 인터페이스·분류를 정합시킨다.
+> - **이름**: 포괄적 "패턴 감지"는 structure/elliott/smc까지 삼켜 과대 → **"차트 패턴"**(고전 가격 패턴)이라는 **구체적 방법론 이름**으로 확정. structure(구조론)·elliott(파동론)·smc(스마트머니)와 **동급 peer**.
+> - **기존 지표 미합병**: structure/elliott/smc는 확립된 개별 방법론이라 새 블록에 합치지 않는다(smc가 FVG+OB를 한 블록에 묶듯, 새 블록은 H&S/flag/… 고전 패턴을 한 블록에 묶어 동일 granularity 유지).
+> - **성격 태그**: 설계 C 참조.
+
+단일 블록. 내부 **패턴 라이브러리**를 스캔 → 감지 시에만 작도+bias, 미감지 시 침묵(structure가 이벤트 없을 때 마커 안 그리는 것과 동일).
 
 ### B-1. v1 패턴 라이브러리
 - **헤드앤숄더(H&S)** — 하락 반전.
@@ -89,6 +94,17 @@ occurrence 기반 단일 블록. 내부 **패턴 라이브러리**를 스캔 →
 
 ---
 
+## 설계 C — "구조·패턴" 성격 태그 (분류 정합 UI)
+
+기존 레일은 **중요도 등급**(IND_TIERS Lv1~4)으로 분류한다. 성격(추세/모멘텀/변동성/…)은 상당수 지표가 겹쳐 전체 태깅은 애매하므로(mfi=모멘텀+거래량, vwap=거래량+레벨…), **경계가 명확한 "구조·패턴" 성격만 명시**한다(사용자 결정 2026-07-15).
+
+- **대상 4종**: `structure`·`elliott`·`smc`·`pattern`(신규). (`cycle`·`phasefold`는 "주기·위상"이라 제외.)
+- **표기**: 이 4종 레일 칩에 작은 `구조·패턴` 성격 태그(기존 `new` 배지와 동형의 경량 라벨). 나머지 지표엔 태그 없음(중요도 등급 유지).
+- **tier 불변**: structure=Lv3, elliott·smc·pattern=Lv4 — 태그로 묶이므로 tier 이동 없음.
+- **구현**: `PATTERN_NATURE = new Set(["structure","elliott","smc","pattern"])`(forge-state.js) → 레일 렌더에서 해당 blockType이면 `구조·패턴` 태그 span 추가(NEW_INDICATORS `new` 배지와 같은 지점). 좌측 accent line 금지.
+
+---
+
 ## 엔진 통합 체크리스트 (지표당 통합 패턴 — 각 신규 지표 반복)
 
 `forge-core.js`:
@@ -101,7 +117,7 @@ occurrence 기반 단일 블록. 내부 **패턴 라이브러리**를 스캔 →
 
 `forge.html` + 분할 UI 파일(state/ui/draw/app) 16지점:
 - [ ] `BLOCK_DEFS`(정의·기본 파라미터) · `IND_TIERS`(등급 배치) · `NEW_INDICATORS`(레일 'new' 배지).
-- [ ] `GAUGE_TYPES` · `_an` 프레임캐시 래퍼 · `_nodeBias` · `EV_COLORS`/`LABEL` · `TUNE_TYPES` · `INDICATOR_INFO`(30→32종 도구 안내).
+- [ ] `GAUGE_TYPES` · `_an` 프레임캐시 래퍼 · `_nodeBias` · `EV_COLORS`/`LABEL` · `TUNE_TYPES` · `INDICATOR_INFO`(gann 후 31 → pattern 추가로 **32종** 도구 안내).
 - [ ] hero 작도 dispatch(`fcDrawGann`/패턴 작도) · `playAnalysis` indNodes · `renderParams`(파라미터 있으면).
 - [ ] `seedDefaultStrategy` = **편입 안 함**(원칙 3).
 
@@ -124,8 +140,8 @@ occurrence 기반 단일 블록. 내부 **패턴 라이브러리**를 스캔 →
 
 ## 순서 (스펙 → 구현)
 
-1. **Gann 각도** 먼저 구현 → 16지점 통합 패턴으로 "안전 추가 루프" 증명(테스트·헤드리스·백테스트 불변 확인).
-2. 이어서 **패턴 감지 블록**.
+1. ~~**Gann 각도**~~ ✅ 완료(2026-07-15, 4cea06c..515716e + 스코어카드 3d24279). "안전 추가 루프" 증명(222/222·백테스트 불변·헤드리스 부채꼴 렌더·배포 검증).
+2. **차트 패턴 블록 + "구조·패턴" 성격 태그**(설계 B·C) — 별도 계획서로 구현. Gann과 동일한 안전 루프.
 - 각 단계 완료 시 커밋 + cafe24 배포([[commit-deploy-as-one-set]], [[scoopforge-deploy]]). `forge-core.test.js` 배포 제외, 서버 데이터 파일 불가침.
 
 ## 열린 항목 / 향후
