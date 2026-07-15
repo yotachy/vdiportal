@@ -2267,14 +2267,14 @@ function _invHns() {  // bullish 역H&S (거울상)
   p = p.concat(_pseg(100, 90, 6), _pseg(90, 100, 6), _pseg(100, 78, 8), _pseg(78, 100, 8), _pseg(100, 90, 6), _pseg(90, 110, 8));
   return p;
 }
-function _bullFlag() { // 강한 상승 폴(40) + 얕은 조정 채널 + 상향 돌파
+function _bullFlag() { // 강한 상승 폴(40) + 얕은(타이트) 조정 채널 + 상향 돌파
   let p = [100];
-  p = p.concat(_pseg(100, 140, 10), _pseg(140, 133, 5), _pseg(133, 137, 4), _pseg(137, 130, 5), _pseg(130, 148, 8));
+  p = p.concat(_pseg(100, 140, 10), _pseg(140, 135, 5), _pseg(135, 138, 4), _pseg(138, 134, 5), _pseg(134, 148, 8));
   return p;
 }
 function _bearFlag() { // 거울상
   let p = [100];
-  p = p.concat(_pseg(100, 60, 10), _pseg(60, 67, 5), _pseg(67, 63, 4), _pseg(63, 70, 5), _pseg(70, 52, 8));
+  p = p.concat(_pseg(100, 60, 10), _pseg(60, 65, 5), _pseg(65, 62, 4), _pseg(62, 66, 5), _pseg(66, 52, 8));
   return p;
 }
 function _flatNoise() { // 규칙적 진동 — 패턴 없음
@@ -2306,4 +2306,14 @@ test("detectPatterns: 규칙 진동 노이즈 → null(오탐 없음)", () => {
 });
 test("detectPatterns: 데이터 부족(<30) → null", () => {
   assert.strictEqual(ForgeCore.detectPatterns([1, 2, 3, 4, 5], {}), null);
+});
+
+function _randWalk(n, seed) {
+  let s = seed >>> 0; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const p = [100]; for (let i = 1; i < n; i++) p.push(Math.max(1, p[i - 1] + (rnd() - 0.5) * 4)); return p;
+}
+test("detectPatterns: 랜덤워크 다수 시드 오탐률 <10%", () => {
+  let fire = 0; const N = 40;
+  for (let seed = 1; seed <= N; seed++) if (ForgeCore.detectPatterns(_randWalk(100, seed * 7 + 3), {})) fire++;
+  assert.ok(fire / N < 0.10, `랜덤워크 오탐률 ${fire}/${N} (강화 후 <10% 기대)`);
 });
