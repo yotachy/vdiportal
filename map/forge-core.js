@@ -5,7 +5,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
   const version = "1.11.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
-  const indicatorCount = 30;   // 지표 배터리 종수 (forge-state IND_TIERS와 동기 — 지표 추가 시 함께 갱신)
+  const indicatorCount = 31;   // 지표 배터리 종수 (forge-state IND_TIERS와 동기 — 지표 추가 시 함께 갱신)
   // 검증된 예측 축(백테스트 OOS). acc=대표 지평 정확도(%), hz=지평 라벨, stock=주식 한정.
   // ledger = 라이브 트랙레코드 메타(단일 출처 — 라이브 UI는 이 레지스트리로 자동 확장, 새 축 추가 시 하드코딩 금지):
   //   key=predledger 집계 필드 · mode="rate"(적중률) | "calib"(예측평균 vs 실제발생률) · note=채점 주석.
@@ -1897,7 +1897,7 @@
     const _pv2 = _pvn ? analyzePivot(data, {}) : null;
     const pivotDrift = _pv2 ? _pv2.bias * _prof.trendScale * 0.04 * DW("pivot") : 0;   // 피벗 위/아래 방향(±4%·S/R라 약함)
     const _gnn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "gann");
-    const _gn2 = _gnn ? analyzeGann(data, {}) : null;
+    const _gn2 = _gnn ? analyzeGann(data, { lookback: (_gnn.params && _gnn.params.lookback) || 120, atrPeriod: (_gnn.params && _gnn.params.atrPeriod) || 14 }) : null;
     const gannDrift = _gn2 ? _gn2.bias * _prof.trendScale * 0.05 * DW("gann") : 0;   // Gann 1×1 방향(±5%·S/R성)
     const _psn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "psar");
     const _ps = _psn ? analyzePSAR(data, { step: (_psn.params && _psn.params.step) || 0.02, max: (_psn.params && _psn.params.max) || 0.2 }) : null;

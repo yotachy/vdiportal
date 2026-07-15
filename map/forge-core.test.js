@@ -2176,7 +2176,7 @@ test("forecastTrendPersist: 추세 지속/소진 — 국면 한정·형식 [v1.9
 
 test("엔진 메타 export — version·indicatorCount·validatedAxes 계약", () => {
   assert.equal(typeof ForgeCore.version, "string");
-  assert.equal(ForgeCore.indicatorCount, 30);
+  assert.equal(ForgeCore.indicatorCount, 31);
   const ax = ForgeCore.validatedAxes;
   assert.ok(Array.isArray(ax) && ax.length === 8, "검증 축 8개");
   assert.ok(ax.some(a => a.key === "relsec" && a.stock === true), "섹터 상대강도 축 포함(주식 게이트)");

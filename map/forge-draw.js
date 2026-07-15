@@ -2436,7 +2436,8 @@
   // Gann 각도팬 — 앵커점(직전 지배 스윙)에서 우측 끝까지 1×1(굵은 골드)+2×1~1×4(흐린 점선) 직선 투영
   function _drawGannLayers(c, gn, M) {
     c.save();
-    const { toY, fiToX, nowFi, futN, xRight, reveal = Infinity } = M;
+    const { toY, fiToX, nowFi, futN, xRight, top, bot, reveal = Infinity } = M;
+    if (top != null && bot != null) { c.beginPath(); c.rect(0, top, xRight + 44, bot - top); c.clip(); }
     if (!gn || !gn.anchor || !gn.angles || !gn.angles.length) { c.restore(); return; }
     const aIdx = gn.anchor.idx, aPrice = gn.anchor.price;
     const ax = fiToX(aIdx), ay = toY(aPrice);
@@ -2687,7 +2688,7 @@
           legend.push({ col, t: EV_LABEL.pivot, _key: n.blockType });
         } else if (n.blockType === "gann") {
           const gn = _anGann(price, n.params);
-          if (_drawThis) _drawGannLayers(cc, gn, { toY: v => toY(v), fiToX, nowFi: P - 1, futN: g.pathLen, xRight: g.padX + g.plotW, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          if (_drawThis) _drawGannLayers(cc, gn, { toY: v => toY(v), fiToX, nowFi: P - 1, futN: g.pathLen, xRight: g.padX + g.plotW, top: g.padTop, bot: g.ch - g.padBot, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.gann, _key: n.blockType });
         } else if (n.blockType === "psar") {
           const ps = _anPsar(price, { step: (n.params && n.params.step) || 0.02, max: (n.params && n.params.max) || 0.2 });
