@@ -209,6 +209,7 @@
     { type: "volume",    label: "거래량",      kind: "block" },
     { type: "pivot",     label: "피벗 포인트",  kind: "block", params: {} },
     { type: "gann",      label: "Gann 각도",    kind: "block", params: { lookback: 120, atrPeriod: 14 } },
+    { type: "pattern",   label: "차트 패턴",    kind: "block", params: { swing: 3 } },
     { type: "psar",      label: "Parabolic SAR", kind: "block", params: { step: 0.02, max: 0.2 } },
     { type: "keltner",   label: "Keltner 채널", kind: "block", params: { len: 20, atrLen: 10, mult: 2 } },
     { type: "donchian",  label: "Donchian 채널", kind: "block", params: { len: 20 } },
@@ -228,9 +229,10 @@
     { lv: 1, name: "핵심 지표",  types: ["ma", "macd", "rsi", "bollinger", "volume"] },
     { lv: 2, name: "주요 지표",  types: ["trend", "adx", "stochastic", "fib", "ichimoku", "pivot", "psar", "gann"] },
     { lv: 3, name: "보조·전문",  types: ["vwap", "supertrend", "atr", "volumeprofile", "structure", "keltner", "donchian", "cci", "williams", "aroon", "mfi"] },
-    { lv: 4, name: "고급·심화",  types: ["elliott", "smc", "cycle", "phasefold", "roc", "ao", "cmf"] },
+    { lv: 4, name: "고급·심화",  types: ["elliott", "smc", "cycle", "phasefold", "roc", "ao", "cmf", "pattern"] },
   ];
   const NEW_INDICATORS = new Set(["pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "gann"]);   // 신규 추가 지표 — 레일에 'new' 표기
+  const PATTERN_NATURE = new Set(["structure", "elliott", "smc", "pattern"]);   // '구조·패턴' 성격 태그 대상(레일 표기)
 
   /* helpers */
   const bN = id => boardState.nodes.find(n => n.id === id);
