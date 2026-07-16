@@ -7,7 +7,7 @@
 
 0. ~~데이터기반 다중스케일 작도 + 중요도 위계 (Gann 첫 적용)~~ ✅ 완료(2026-07-15, 0137d76..1999d9c): `collectAnchors`(민감도 사다리·고정창 없음)+중요도 스코어 → Gann 다중앵커 부챗살·강조/디밍·윈도우 클램프(창밖 무음 해소). **엔진 불변**(anchors opt-in→run 비용0·bias/baseline 불변). 배포·헤드리스 검증 완료. [[scoopforge-multiscale-drawing]]
   - ~~**[확장]** 같은 위계를 S/R·structure 작도에 적용~~ ✅ 완료(2026-07-16, c9081e7..11a9009): `collectLevels`(스윙 수평 클러스터·터치수/유의도)+`collectStructure`(대/중/소 티어·HH/HL/LH/LL·BOS/CHoCH) 작도 전용 함수 추가(`opts.draw` 게이팅·엔진 bias 불변·비용격리). S/R 강조/디밍+피벗 P만 참고선, structure 3티어. 244/244·opus 최종리뷰 Ready·헤드리스 파이프라인 검증·배포 완료. spec `2026-07-16-multiscale-sr-structure-design.md`.
-    - **[남은 확장]** 추세선·fib는 이미 장/중/단 다중이나 `collectAnchors`류 위계로의 통일은 후속(별건).
+    - ~~**[남은 확장]** 추세선·fib 위계 통일~~ ✅ 완료(2026-07-16, ecfef88·84ae333): trend 지배창(ta.dominant/최고 R²)만 강조·나머지 디밍·라벨 지배창만·피봇선 디밍정렬 / fib 중·장 bespoke STY를 공통 규약 정렬 + **교차-degree 합류 강조**(단·중·장 겹침=최강 S/R·bold+✦). 작도 전용(엔진 불변)·244/244·sonnet 리뷰 Ready·헤드리스 검증(지배창 라벨·합류 5존)·배포 완료. **→ S/R·구조·추세선·fib 4지표 시각 언어 통일 완료.** spec `2026-07-16-trend-fib-hierarchy-unify-design.md`.
   - **[엔진 — 나중 분석엔진 개선 때 꼭]** bias/예측을 다중스케일 구조 반영으로(현재 단일 지배 스윙). 백테스트·자명규칙·OOS 검증 동반(큰 과제).
   - **[폴리시]** emph 앵커 reason 라벨이 예측 콘 배지와 겹침(occlusion) — 라벨 위치 오프셋. · 그린 1×1(collectAnchors[0])이 엔진 bias 앵커와 다를 수 있음(설계상 의도, 인지).
 1. **[대기: 사용자] GCP OAuth "웹 애플리케이션" 클라이언트 재생성** — 리디렉션 URI `https://parksvc.mycafe24.com/map/forge-auth.php`. JSON 다운로드되면 자동 감지→검증→업로드→활성화.
