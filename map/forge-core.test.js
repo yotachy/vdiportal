@@ -2381,3 +2381,29 @@ test("run: 차트 패턴 노드가 예측 반영(감지 데이터)", () => {
   const r1 = ForgeCore.run(g, { price, candle }, { futW: 24 });
   assert.ok(Math.abs(r1.prediction.target - r0.prediction.target) > 1e-9, "pattern 예측 반영");
 });
+
+test("collectLevels clusters recurring swing levels, scores, dedups by side", () => {
+  // 톱니: ~100(고점)·~90(저점)을 3회 왕복
+  const price = [];
+  const tops = [100, 100.3, 99.8], bots = [90, 90.2, 89.9];
+  for (let k = 0; k < 3; k++) {
+    for (let i = 0; i <= 6; i++) price.push(bots[k] + (tops[k] - bots[k]) * i / 6);
+    for (let i = 1; i <= 6; i++) price.push(tops[k] - (tops[k] - bots[k]) * i / 6);
+  }
+  const levels = ForgeCore.collectLevels(price);
+  assert.ok(levels.length >= 2, "레벨 2개 이상");
+  const nearTop = levels.find(L => Math.abs(L.price - 100) < 2);
+  const nearBot = levels.find(L => Math.abs(L.price - 90) < 2);
+  assert.ok(nearTop, "100 근처 레벨");
+  assert.ok(nearBot, "90 근처 레벨");
+  assert.ok(nearTop.touches >= 2, "고점 다회 터치");
+  // significance 내림차순 정렬
+  for (let i = 1; i < levels.length; i++) assert.ok(levels[i - 1].significance >= levels[i].significance);
+  // 결정성
+  assert.deepStrictEqual(ForgeCore.collectLevels(price), levels);
+});
+
+test("collectLevels returns [] for short input", () => {
+  assert.deepStrictEqual(ForgeCore.collectLevels([1, 2, 3]), []);
+  assert.deepStrictEqual(ForgeCore.collectLevels(new Array(20).fill(5)), []);
+});
