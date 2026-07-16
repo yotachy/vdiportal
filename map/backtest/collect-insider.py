@@ -3,9 +3,15 @@
 # 오픈마켓 매수 P / 매도 S만(재량 거래). look-ahead 안전 = FILING_DATE(공시일) 기준. rel-lab 31 US 유니버스.
 import urllib.request, zipfile, io, json, os, time, sys
 
-TICKERS = set("AAPL MSFT NVDA INTC BABA PYPL DIS T IBM CSCO VZ PFE KO WBA GE JPM BAC WMT HD PG JNJ UNH XOM CVX V MA ORCL CRM AMD QCOM CAT".split())
+_TF = os.environ.get("TICKERS_FILE")
+if _TF:
+    import json as _j
+    TICKERS = set(_j.load(open(_TF)))
+    OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.environ.get("OUT_NAME", "insider-events-smallcap.json"))
+else:
+    TICKERS = set("AAPL MSFT NVDA INTC BABA PYPL DIS T IBM CSCO VZ PFE KO WBA GE JPM BAC WMT HD PG JNJ UNH XOM CVX V MA ORCL CRM AMD QCOM CAT".split())
+    OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "insider-events.json")
 UA = "scoopforge-research moneyscdev@gmail.com"
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "insider-events.json")
 BASE = "https://www.sec.gov/files/structureddata/data/insider-transactions-data-sets/"
 SMOKE = os.environ.get("SMOKE") == "1"
 
