@@ -2459,3 +2459,13 @@ test("collectLevels/collectStructure are exported", () => {
   assert.strictEqual(typeof ForgeCore.collectLevels, "function");
   assert.strictEqual(typeof ForgeCore.collectStructure, "function");
 });
+
+test("run _msStruct flag: off identical to default, on finite", () => {
+  const d = ForgeCore.makeDemoSeries({ n: 300, seed: 2, period: 50 });
+  const g = ForgeCore.sampleGraph();
+  const base = ForgeCore.run(g, { price: d.price, candle: d.candle }, { timeframe: "1day" });
+  const off = ForgeCore.run(g, { price: d.price, candle: d.candle }, { timeframe: "1day", _msStruct: false });
+  assert.strictEqual(off.verdict.score, base.verdict.score, "off == default");
+  const on = ForgeCore.run(g, { price: d.price, candle: d.candle }, { timeframe: "1day", _msStruct: true });
+  assert.ok(Number.isFinite(on.verdict.score), "on produces finite score");
+});

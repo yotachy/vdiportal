@@ -2095,7 +2095,10 @@
     const icDrift = _ic ? _ic.bias * _prof.trendScale * 0.07 * DW("ichimoku") : 0;   // 일목 구름/전환기준 방향(±7%)
     const _stn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "structure");
     const _struct = _stn ? analyzeStructure(price, { swing: ((_stn.params && _stn.params.swing) != null ? _stn.params.swing : 3) / 100 * (_prof.swingScale || 1) }) : null;
-    const stDrift = _struct ? _struct.bias * _prof.trendScale * 0.08 * DW("structure") : 0;   // 시장구조 BOS/CHoCH 방향(±8%)
+    // 검증 전용(기본 off): structure 드리프트의 bias 원천을 다중스케일 티어(대/중/소) 유의도 합성으로 치환. off일 때 표준과 완전 동일·baseline 불변.
+    let _stBias = _struct ? _struct.bias : 0;
+    if (opts && opts._msStruct && _stn) { const _r = collectStructure(price, {}), _ts = (_r && _r.tiers) || []; if (_ts.length) { let _sw = 0, _sb = 0; for (const _t of _ts) { const _w = _t.significance || 0, _tb = _t.event === "BOS_up" ? 0.6 : _t.event === "BOS_down" ? -0.6 : _t.event === "CHoCH_up" ? 0.5 : _t.event === "CHoCH_down" ? -0.5 : _t.trend === "up" ? 0.3 : _t.trend === "down" ? -0.3 : 0; _sw += _w; _sb += _w * _tb; } if (_sw) _stBias = Math.max(-1, Math.min(1, _sb / _sw)); } }
+    const stDrift = _struct ? _stBias * _prof.trendScale * 0.08 * DW("structure") : 0;   // 시장구조 BOS/CHoCH 방향(±8%)
     const _atn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "atr");
     const _atr = _atn ? analyzeATR(data, { period: (_atn.params && _atn.params.period) || 14, mult: (_atn.params && _atn.params.mult) || 2 }) : null;
     if (_atr && _atr.pct) sigBand = Math.max(sigBand, Math.min(_sCap, (_atr.pct / 100) * 0.85));   // ATR 노드: 변동성을 예측 콘 폭에 반영(TF별 상한)
