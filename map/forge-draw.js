@@ -1729,7 +1729,6 @@
     c.save();
     const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0 } = M;
     const COL = { long: "#46c28e", mid: "#5b8def", short: FC_GOLD };
-    const W = { long: 1.7, mid: 1.4, short: 1.15 };
     const DASH = { long: [], mid: [], short: CDASH.std };
     function winLine(w, key) {
       if (!w) return;
@@ -1746,31 +1745,34 @@
       const stroke = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); };
       const pstroke = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); _skStroke(c, _polyLen(pts)); };   // 진행형(손그림)
       const rq = (w.r2Log != null ? w.r2Log : w.r2), weak = rq < 0.15;   // 저신뢰(노이즈성) 추세선 — 흐리게+방향 화살표 생략
+      const emph = key === _domKey;   // 지배창(ta.dominant/최고 R²)만 강조 — 공통 위계 규약
       const _pctS = (Math.exp(w.slopeLog) - 1) * 100;   // 이 창의 추세 방향(%/봉)
-      const dcol = _pctS > 0.05 ? FC_BULL : _pctS < -0.05 ? FC_BEAR : "#8a92b2";   // 상승=초록·하락=빨강·횡보=중립(기간 구분은 굵기·라벨로)
+      const dcol = _pctS > 0.05 ? FC_BULL : _pctS < -0.05 ? FC_BEAR : "#8a92b2";   // 상승=초록·하락=빨강·횡보=중립(위계는 굵기·alpha·라벨로)
+      const lw = weak ? CW.hair : emph ? CW.bold : CW.base;
       c.setLineDash([]);
-      if (!weak) { c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = W[key] + CW.halo; pstroke(hp); }
-      c.globalAlpha = weak ? 0.3 : 1;
-      c.strokeStyle = dcol; c.lineWidth = weak ? Math.max(0.8, W[key] - 0.4) : W[key]; c.setLineDash(weak ? CDASH.fine : DASH[key]); pstroke(hp);
+      if (!weak && emph) { c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = lw + CW.halo; pstroke(hp); }   // 지배창만 헤일로
+      c.globalAlpha = weak ? 0.28 : emph ? 1 : 0.5;   // 지배창 강조·나머지 디밍
+      c.strokeStyle = dcol; c.lineWidth = lw; c.setLineDash(weak ? CDASH.fine : DASH[key]); pstroke(hp);
       c.globalAlpha = 1;
       // 투영(현재→미래): 신뢰도 낮으면 생략. 손그림 중엔 본선 다 그려진 뒤 등장.
       if (!weak && _skReady()) {
         const FS = 12, fp = [[xb, yb]];
         for (let s = 1; s <= FS; s++) { const fi = nowFi + futBars * s / FS, x = xb + (xRight - xb) * s / FS, y = pToY(valAt(fi)); if (isFinite(x) && isFinite(y)) fp.push([x, y]); }
         if (fp.length >= 2) {
-          if (M.focused) { _drawProjLine(c, fp, dcol); if (key === "mid") _projMark(c, fp[fp.length - 1][0], fp[fp.length - 1][1], dcol, _projMarkScale(valAt(nowFi + futBars), valAt(nowFi))); }
+          if (M.focused) { _drawProjLine(c, fp, dcol); if (emph) _projMark(c, fp[fp.length - 1][0], fp[fp.length - 1][1], dcol, _projMarkScale(valAt(nowFi + futBars), valAt(nowFi))); }
           else { c.globalAlpha = .6; c.setLineDash(CDASH.std); stroke(fp); c.globalAlpha = 1; c.setLineDash([]); }
         }
       }
       c.setLineDash([]);
       if (!_skReady()) return;   // 라벨은 선이 거의 다 그려진 뒤
+      if (!emph && _labelMode !== "all") return;   // 클러터 방지: 지배창만 라벨(전체 라벨 모드는 예외)
       // 강도/각도 라벨 — 저신뢰는 화살표 대신 '약함' + 흐린 색
       const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = weak ? "· 약함" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
       // 기본=축약(단기 ▲ — 뭉침 방지), '전체 라벨 표시'(_labelMode==='all') 켜면 상세(%/봉·R²)
       const _full = (typeof _labelMode !== "undefined" && _labelMode === "all") && ((typeof window === "undefined") || window.innerWidth >= 560);
       const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (_full ? (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir : (weak ? "·약" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—"));
       _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, weak ? "rgba(138,146,178,.92)" : dcol, "left");
-      if (M.focused && !weak && key === "mid") { const endV = valAt(nowFi + futBars); if (isFinite(endV)) _evLabel(c, "\ucd94\uc138 \ub3c4\ub2ec \u2248 " + _hzFmt(endV), xRight, pToY(endV), dcol, "right"); }   // 추세 도달 ≈
+      if (M.focused && !weak && emph) { const endV = valAt(nowFi + futBars); if (isFinite(endV)) _evLabel(c, "\ucd94\uc138 \ub3c4\ub2ec \u2248 " + _hzFmt(endV), xRight, pToY(endV), dcol, "right"); }   // 추세 도달 ≈
     }
     // 채널(장기 ±k·σ) — 로그차트면 로그공간(지수) 중심±σ, 다점 샘플로 곡선 정합
     if (ta.channel) {
@@ -1793,7 +1795,8 @@
         c.globalAlpha = 1; c.setLineDash([]);
       }
     }
-    // 회귀 3중
+    // 회귀 3중 — 지배창(ta.dominant 또는 최고 R²)만 강조, 나머지 디밍(공통 위계 규약)
+    const _domKey = (ta.dominant && ta.windows[ta.dominant]) ? ta.dominant : (function () { let bk = null, bv = -1; for (const k of ["long", "mid", "short"]) { const w = ta.windows[k]; if (!w) continue; const rq = (w.r2Log != null ? w.r2Log : w.r2) || 0; if (rq > bv) { bv = rq; bk = k; } } return bk; })();
     winLine(ta.windows.long, "long"); winLine(ta.windows.mid, "mid"); winLine(ta.windows.short, "short");
     // 피봇 지지/저항
     function pivLine(L, col) {
@@ -1801,7 +1804,7 @@
       const fiL = Math.max(L.fromIdx, fiMin), PS = 16, pts = [];
       for (let s = 0; s <= PS; s++) { const fi = fiL + (nowFi - fiL) * s / PS, x = fiToX(fi), y = pToY(L.slope * fi + L.b); if (isFinite(x) && isFinite(y)) pts.push([x, y]); }   // 다점 샘플 → 로그차트 곡선 정합
       if (pts.length < 2) return;
-      c.strokeStyle = col; c.lineWidth = CW.thin; c.setLineDash(CDASH.std); c.globalAlpha = .8;
+      c.strokeStyle = col; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine); c.globalAlpha = .5;   // 피봇 S/R = 디밍 컨텍스트(공통 규약)
       c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
     }
     pivLine(ta.pivots.support, "#46c28e"); pivLine(ta.pivots.resistance, "#e06a6a");
@@ -1874,23 +1877,36 @@
     const xL = fiToX(Math.max(fiMin, 0)), xR = (xRight != null ? xRight : fiToX(nowFi)), GOLD = FC_GOLD, DIM = FC_GOLD;
     const _near = (a, arr) => arr.some(k => Math.abs(a - k) < 0.002);
     const KEYR = [0.382, 0.5, 0.618], KEYE = [1.618, 2.618];   // 되돌림·확장 핵심(골든 포켓)
+    // 교차-degree 합류: 전 degree(단/중/장)의 핵심 레벨 가격을 근접 클러스터 → 2+ degree 겹침 = 최강 S/R
+    const _conflPrices = (function () {
+      if (!fib.degrees || fib.degrees.length < 2) return [];
+      const KEYALL = KEYR.concat(KEYE), pts = [];
+      for (const dg of fib.degrees) for (const L of (dg.levels || [])) if (KEYALL.some(k => Math.abs(L.ratio - k) < 1e-6)) pts.push({ price: L.price, deg: dg.name });
+      if (pts.length < 2) return [];
+      let pmin = Infinity, pmax = -Infinity; for (const p of pts) { if (p.price < pmin) pmin = p.price; if (p.price > pmax) pmax = p.price; }
+      const tol = ((pmax > pmin) ? (pmax - pmin) : Math.abs(pmax) || 1) * 0.012, out = [];
+      for (let i = 0; i < pts.length; i++) { const degs = new Set([pts[i].deg]); let sum = pts[i].price, cnt = 1; for (let j = i + 1; j < pts.length; j++) if (Math.abs(pts[j].price - pts[i].price) <= tol) { degs.add(pts[j].deg); sum += pts[j].price; cnt++; } if (degs.size >= 2) out.push({ price: sum / cnt, tol }); }
+      return out;
+    })();
+    const _isConfl = price => _conflPrices.some(c => Math.abs(c.price - price) <= c.tol);
     function levelLine(L) {
       const y = pToY(L.price); if (![y, xL, xR].every(isFinite)) return;
       const ext = L.kind === "ext";
       const isKey = ext ? _near(L.ratio, KEYE) : _near(L.ratio, KEYR);   // 핵심 비율(항상 강조·라벨)
-      const emph = isKey || L.confluent;                                  // 강조 선(핵심 or 합류)
-      // 선: 강조=굵고 진하게, 그 외=아주 흐리게(강약 대비 뚜렷)
-      c.setLineDash(L.confluent ? [] : ext ? CDASH.std : CDASH.fine);
+      const xconf = L.confluent || _isConfl(L.price);                     // 합류(단기 내 or 교차-degree)
+      const emph = isKey || xconf;                                        // 강조 선(핵심 or 합류)
+      // 선: 합류=최강조, 핵심=강조, 그 외=아주 흐리게(강약 대비 뚜렷)
+      c.setLineDash(xconf ? [] : ext ? CDASH.std : CDASH.fine);
       c.strokeStyle = emph ? GOLD : _warmA(.38);
-      c.lineWidth = L.confluent ? CW.bold : isKey ? CW.base : CW.hair;
-      c.globalAlpha = emph ? 0.9 : 0.28;
+      c.lineWidth = xconf ? CW.bold : isKey ? CW.base : CW.hair;
+      c.globalAlpha = xconf ? 0.95 : emph ? 0.9 : 0.28;
       const xE = (_skFrac == null || _skFrac >= 1) ? xR : xL + (xR - xL) * Math.max(0, _skFrac);   // 좌→우로 그어짐(dash 스타일 보존)
       c.beginPath(); c.moveTo(xL, y); c.lineTo(xE, y); c.stroke();
       c.globalAlpha = 1; c.setLineDash([]);
       if (!_skReady()) return;   // 라벨은 선이 거의 다 그려진 뒤
       // 라벨은 핵심 비율만(0.382/0.5/0.618 · 1.618/2.618 목표) — 합류는 선만 강조·라벨 생략(수치 클러터 감소)
       if (!isKey) return;
-      const _txt = (L.confluent ? "✦ " : "") + L.ratio.toFixed(3) + (ext ? " 목표" : "") + " · " + fmtNum(L.price);
+      const _txt = (xconf ? "✦ " : "") + L.ratio.toFixed(3) + (ext ? " 목표" : "") + " · " + fmtNum(L.price);
       if (ext) _evLabel(c, _txt, xR - 3, y - 2, GOLD, "right");   // 확장 목표는 우측(가격축 근처에서 읽기)
       else _evLabel(c, _txt, xL + 3, y - 2, GOLD, "left");
     }
@@ -1913,35 +1929,39 @@
         });
       }
     }
-    // ── 중기·장기 degree: 핵심 레벨(0.382/0.5/0.618)+골든존+스윙 스팬만, 구분 스타일(단기와 혼동 방지) ──
+    // ── 중기·장기 degree: 핵심 레벨(0.382/0.5/0.618)+스윙 스팬. 공통 위계 규약(골드+CW.hair·alpha 위계, 합류=최강조) ──
     if (reveal >= 1 && fib.degrees && fib.degrees.length > 1) {
       const KEY = [0.382, 0.5, 0.618];
-      const STY = { "중기": { col: _warmA(.5), w: 1.2, dash: CDASH.long, dot: 2.8 }, "장기": { col: "rgba(201,146,46,.85)", w: 1.6, dash: [6, 4], dot: 3.4 } };
+      const REG = { "중기": { a: 0.5, dot: 2.6 }, "장기": { a: 0.32, dot: 3.0 } };   // degree 위계=alpha(단기>중기>장기), 색은 골드 단일
       for (const dg of fib.degrees) {
-        const st = STY[dg.name]; if (!st) continue;   // 단기는 위에서 이미 전체 그리드로 작도
+        const rg = REG[dg.name]; if (!rg) continue;   // 단기는 위에서 이미 전체 그리드로 작도
         // 스윙 스팬(얇은 연결선) — 이 degree가 어느 구간을 보는지
         if (dg.swing) {
           const x0 = fiToX(Math.max(fiMin, dg.swing.fromIdx)), y0 = pToY(dg.swing.fromPrice), x1 = fiToX(Math.max(fiMin, dg.swing.toIdx)), y1 = pToY(dg.swing.toPrice);
-          if ([x0, y0, x1, y1].every(isFinite)) { c.save(); c.globalAlpha = .4; c.strokeStyle = st.col; c.lineWidth = st.w; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); c.restore(); }
+          if ([x0, y0, x1, y1].every(isFinite)) { c.save(); c.globalAlpha = rg.a * 0.7; c.strokeStyle = GOLD; c.lineWidth = CW.hair; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); c.restore(); }
           [[dg.swing.fromIdx, dg.swing.fromPrice], [dg.swing.toIdx, dg.swing.toPrice]].forEach(pr => {
             const x = fiToX(Math.max(fiMin, pr[0])), y = pToY(pr[1]);
-            if (isFinite(x) && isFinite(y)) { c.fillStyle = st.col; c.beginPath(); c.arc(x, y, st.dot, 0, 7); c.fill(); }
+            if (isFinite(x) && isFinite(y)) { c.globalAlpha = rg.a; c.fillStyle = GOLD; c.beginPath(); c.arc(x, y, rg.dot, 0, 7); c.fill(); c.globalAlpha = 1; }
           });
         }
         // 핵심 되돌림 레벨
         for (const L of dg.levels) {
           if (L.kind !== "retr" || !KEY.some(k => Math.abs(L.ratio - k) < 1e-9)) continue;
           const y = pToY(L.price); if (![y, xL, xR].every(isFinite)) continue;
+          const xconf = _isConfl(L.price);   // 교차-degree 합류 = 최강조
           // 화면 밖(장기 레벨이 현재 y스케일 범위 밖) → 가장자리에 방향 마커+가격으로 표시(놓치지 않게)
           if (top != null && bot != null && (y < top || y > bot)) {
-            if (L.golden) { const cy = y < top ? top + 7 : bot - 3, arw = y < top ? "▲" : "▼"; _evLabel(c, arw + " " + dg.name.charAt(0) + " " + L.ratio.toFixed(3) + " " + fmtNum(L.price), xR - 3, cy, GOLD, "right"); }
+            if (L.golden || xconf) { const cy = y < top ? top + 7 : bot - 3, arw = y < top ? "▲" : "▼"; _evLabel(c, arw + " " + (xconf ? "✦ " : "") + dg.name.charAt(0) + " " + L.ratio.toFixed(3) + " " + fmtNum(L.price), xR - 3, cy, GOLD, "right"); }
             continue;
           }
-          c.setLineDash(st.dash); c.strokeStyle = L.golden ? GOLD : st.col; c.lineWidth = st.w; c.globalAlpha = L.golden ? .9 : .5;
+          // 합류=최강조(bold), 골든=중간, 나머지=디밍(공통 규약: 골드+globalAlpha 위계)
+          c.setLineDash(xconf ? [] : L.golden ? CDASH.std : CDASH.fine);
+          c.strokeStyle = GOLD; c.lineWidth = xconf ? CW.bold : CW.hair; c.globalAlpha = xconf ? 0.95 : L.golden ? 0.6 : rg.a;
           c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y); c.stroke();
           c.globalAlpha = 1; c.setLineDash([]);
-          // 라벨은 각 degree의 골든(0.618)만 — 나머지 핵심선은 선만(수치 클러터 감소)
-          if (L.golden) _evLabel(c, dg.name.charAt(0) + " " + L.ratio.toFixed(3) + " · " + fmtNum(L.price), xL + 3, y - 2, GOLD, "left");
+          // 라벨은 합류 or 각 degree의 골든(0.618)만(수치 클러터 감소)
+          if (xconf) _evLabel(c, "✦ " + dg.name.charAt(0) + " " + L.ratio.toFixed(3) + " · " + fmtNum(L.price), xL + 3, y - 2, GOLD, "left");
+          else if (L.golden) _evLabel(c, dg.name.charAt(0) + " " + L.ratio.toFixed(3) + " · " + fmtNum(L.price), xL + 3, y - 2, GOLD, "left");
         }
       }
     }
