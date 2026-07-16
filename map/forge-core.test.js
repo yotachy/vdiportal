@@ -2407,3 +2407,29 @@ test("collectLevels returns [] for short input", () => {
   assert.deepStrictEqual(ForgeCore.collectLevels([1, 2, 3]), []);
   assert.deepStrictEqual(ForgeCore.collectLevels(new Array(20).fill(5)), []);
 });
+
+test("collectStructure labels uptrend HH/HL and orders tiers coarse-first", () => {
+  // 상승 계단: 스윙마다 고점·저점 상승
+  const price = [];
+  let base = 100;
+  for (let k = 0; k < 5; k++) {
+    for (let i = 0; i <= 5; i++) price.push(base + i);
+    for (let i = 1; i <= 3; i++) price.push(base + 5 - i);
+    base += 2;
+  }
+  const st = ForgeCore.collectStructure(price);
+  assert.ok(st.tiers.length >= 1, "티어 존재");
+  const t = st.tiers[0];
+  assert.ok(t.swings.length >= 4, "스윙 다수");
+  assert.ok(t.swings.some(s => s.label === "HH"), "HH 라벨");
+  assert.ok(t.swings.some(s => s.label === "HL"), "HL 라벨");
+  assert.strictEqual(t.trend, "up");
+  // 대형(작은 degree) 먼저
+  for (let i = 1; i < st.tiers.length; i++) assert.ok(st.tiers[i - 1].significance >= st.tiers[i].significance);
+  // 결정성
+  assert.deepStrictEqual(ForgeCore.collectStructure(price), st);
+});
+
+test("collectStructure returns empty tiers for short input", () => {
+  assert.deepStrictEqual(ForgeCore.collectStructure([1, 2, 3]).tiers, []);
+});

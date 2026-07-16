@@ -1011,6 +1011,41 @@
     return out.slice(0, cap);
   }
 
+  // 작도 전용(다중스케일 구조): 티어별 스윙 시퀀스에 HH/HL/LH/LL 라벨 + BOS/CHoCH. 엔진 bias 무관.
+  function collectStructure(price, opts) {
+    opts = opts || {};
+    const P = Array.isArray(price) ? price.length : 0;
+    if (P < 24) return { tiers: [] };
+    const SENS = opts.sens || [0.12, 0.06, 0.03];   // 대→소
+    const lastIdx = P - 1, tiers = [];
+    for (let ti = 0; ti < SENS.length; ti++) {
+      const sw = detectSwings(price, SENS[ti]);
+      if (sw.length < 4) continue;
+      const pts = sw.map((s, i) => ({ idx: s.idx, price: s.price, type: (i > 0 ? (s.price > sw[i - 1].price ? "H" : "L") : (s.price > sw[1].price ? "H" : "L")) }));
+      let prevH = null, prevL = null;
+      for (const p of pts) {
+        if (p.type === "H") { p.label = prevH ? (p.price > prevH.price ? "HH" : "LH") : "H"; prevH = p; }
+        else { p.label = prevL ? (p.price > prevL.price ? "HL" : "LL") : "L"; prevL = p; }
+        const recency = lastIdx ? p.idx / lastIdx : 0;
+        p.significance = Math.max(0, Math.min(1, 0.6 * (1 - ti / SENS.length) + 0.4 * recency));
+      }
+      const highs = pts.filter(p => p.type === "H"), lows = pts.filter(p => p.type === "L");
+      const lastH = highs[highs.length - 1] || null, prevHt = highs[highs.length - 2] || null;
+      const lastL = lows[lows.length - 1] || null, prevLt = lows[lows.length - 2] || null;
+      const hUp = (lastH && prevHt) ? Math.sign(lastH.price - prevHt.price) : 0;
+      const lUp = (lastL && prevLt) ? Math.sign(lastL.price - prevLt.price) : 0;
+      const vote = hUp + lUp;
+      const trend = vote > 0 ? "up" : vote < 0 ? "down" : "none";
+      const last = price[lastIdx], refH = lastH ? lastH.price : Infinity, refL = lastL ? lastL.price : -Infinity;
+      let event = "none", eventPrice = null;
+      if (last > refH) { event = trend === "down" ? "CHoCH_up" : "BOS_up"; eventPrice = refH; }
+      else if (last < refL) { event = trend === "up" ? "CHoCH_down" : "BOS_down"; eventPrice = refL; }
+      tiers.push({ degree: ti, sens: SENS[ti], swings: pts, trend, event, eventPrice, significance: Math.max(0, Math.min(1, 1 - ti / SENS.length)) });
+    }
+    tiers.sort((a, b) => b.significance - a.significance);
+    return { tiers };
+  }
+
   function _pClamp01(x) { return Math.max(0, Math.min(1, x)); }
   function _pLineAt(p1, p2, x) { const dx = (p2.idx - p1.idx) || 1; return p1.price + (p2.price - p1.price) * (x - p1.idx) / dx; }
   function _pUnit(price, per) {
@@ -2718,5 +2753,5 @@
     return { state, persist: rep.persist, exhaust: rep.exhaust, acc: rep.acc, curve };
   }
 
-  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
+  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
 });
