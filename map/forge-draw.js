@@ -2436,27 +2436,48 @@
     }
     c.restore();
   }
-  // 피벗 포인트 — 직전 기간 P(골드 실선) + R1~R3(붉은 점선)·S1~S3(초록 점선) 수평 S/R 레벨. 화면 밖은 가장자리 ▲/▼ 마커.
+  // 피벗 노드 S/R — 다중스케일 스윙레벨 클러스터(강조/디밍·터치수 라벨) + 고전 피벗 P만 참고선.
   function _drawPivotLayers(c, piv, M) {
     c.save();
     const { pToY, xRight, padX, top, bot, reveal = Infinity } = M;
     if (!piv || !piv.P) { c.restore(); return; }
     const xL = (padX != null ? padX : 0), xR = (xRight != null ? xRight : 0), GOLD = FC_GOLD;
-    function levelLine(price, label, color, dash, lw) {
-      const y = pToY(price); if (!isFinite(y) || !isFinite(xL) || !isFinite(xR)) return;
+    // 화면 밖 레벨은 가장자리 마커
+    function offMark(price, label, color) {
+      const y = pToY(price); if (!isFinite(y)) return false;
       if (top != null && bot != null && (y < top || y > bot)) {
         const cy = y < top ? top + 7 : bot - 3, arw = y < top ? "▲" : "▼";
         _evLabel(c, arw + " " + label + " " + fmtNum(price), xR - 3, cy, color, "right");
-        return;
+        return true;
       }
-      c.setLineDash(dash); c.strokeStyle = color; c.lineWidth = lw; c.globalAlpha = label === "P" ? 0.9 : 0.55;
+      return false;
+    }
+    // 고전 피벗 P: 흐린 점선 참고선(R/S는 렌더 생략 — 데이터·bias엔 존속)
+    if (reveal >= 1 && !offMark(piv.P, "P", GOLD)) {
+      const yP = pToY(piv.P);
+      if (isFinite(yP)) {
+        c.setLineDash(CDASH.fine); c.strokeStyle = GOLD; c.lineWidth = CW.hair; c.globalAlpha = 0.35;
+        c.beginPath(); c.moveTo(xL, yP); c.lineTo(xR, yP); c.stroke();
+        c.globalAlpha = 1; c.setLineDash([]);
+        _evLabel(c, "P " + fmtNum(piv.P), xR - 3, yP - 2, GOLD, "right");
+      }
+    }
+    // 스윙레벨 클러스터
+    const levels = (piv.srLevels || []).slice();
+    const K = 3;   // 상위 강조 개수
+    levels.forEach((L, i) => {
+      const emph = i < K;   // 유의도 상위 K개 강조(정렬됨)
+      if (reveal < (emph ? 1 : 2)) return;   // 강조 먼저 노출
+      const col = L.side === "support" ? "#46c28e" : "#e06a6a";
+      if (offMark(L.price, L.side === "support" ? "지지" : "저항", col)) return;
+      const y = pToY(L.price); if (!isFinite(y)) return;
+      const alpha = emph ? 0.9 : Math.max(0.12, 0.15 + L.significance * 0.4);
+      c.setLineDash(emph ? [] : CDASH.fine);
+      c.strokeStyle = col; c.lineWidth = emph ? CW.bold : CW.hair; c.globalAlpha = alpha;
       c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y); c.stroke();
       c.globalAlpha = 1; c.setLineDash([]);
-      _evLabel(c, label + " " + fmtNum(price), xR - 3, y - 2, color, "right");
-    }
-    if (reveal >= 1) levelLine(piv.P, "P", GOLD, [], CW.bold);
-    if (reveal >= 2) piv.R.forEach((r, i) => levelLine(r, "R" + (i + 1), "#e06a6a", CDASH.std, CW.base));
-    if (reveal >= 2) piv.S.forEach((s, i) => levelLine(s, "S" + (i + 1), "#46c28e", CDASH.std, CW.base));
+      if (emph && _skReady()) _evLabel(c, (L.side === "support" ? "지지" : "저항") + " ×" + L.touches + " " + fmtNum(L.price), xR - 3, y - 2, col, "right");
+    });
     c.restore();
   }
   // Gann 각도팬 — 앵커점(직전 지배 스윙)에서 우측 끝까지 1×1(굵은 골드)+2×1~1×4(흐린 점선) 직선 투영
@@ -2724,7 +2745,7 @@
           if (_drawThis) _drawStochLayers(cc, stc, { xRight: g.padX + g.plotW, badgeY: _slotY(), reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.stochastic, _key: n.blockType });
         } else if (n.blockType === "pivot") {
-          const piv = _anPivot(price);
+          const piv = _anPivotDraw(price);
           if (_drawThis) _drawPivotLayers(cc, piv, { pToY: v => toY(v), xRight: g.padX + g.plotW, padX: g.padX, top: g.padTop, bot: g.ch - g.padBot, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
           legend.push({ col, t: EV_LABEL.pivot, _key: n.blockType });
         } else if (n.blockType === "gann") {
