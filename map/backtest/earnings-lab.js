@@ -106,10 +106,14 @@ function evalTarget(name, tgFn) {
   console.log("  관문: 종목내 +1%p " + (passIn ? "PASS" : "FAIL") + " · 종목외 +1%p " + (passXs ? "PASS" : "FAIL") + " → " + (passIn && passXs ? "★채택 후보" : "기각"));
 }
 
-console.log("=== 실적 근접성 축 검증 (US주식 " + syms.length + "종 · 외부 데이터=실적일) ===");
-console.log("베이스A=변동성구조 10피처 vs +실적근접 5피처. 종목외에서도 순증분 ≥+1%p여야 진짜.\n");
-evalTarget("갭 (2.2σ·20봉)", tgGap);
-console.log("");
-evalTarget("급변 (2.5σ·20봉)", tgSpike);
-console.log("");
-evalTarget("변동성 확대 (20봉)", tgVol);
+module.exports = { volFeats, earnFeats, earnIndices, toNextArr, sinceArr, fit, acc, tgGap, tgSpike, tgVol, evalTarget, build, data, syms, WARM, H, STRIDE, TRAIN_FRAC, DV, DE };
+
+if (require.main === module) {
+  console.log("=== 실적 근접성 축 검증 (US주식 " + syms.length + "종 · 외부 데이터=실적일) ===");
+  console.log("베이스A=변동성구조 10피처 vs +실적근접 5피처. 종목외에서도 순증분 ≥+1%p여야 진짜.\n");
+  evalTarget("갭 (2.2σ·20봉)", tgGap);
+  console.log("");
+  evalTarget("급변 (2.5σ·20봉)", tgSpike);
+  console.log("");
+  evalTarget("변동성 확대 (20봉)", tgVol);
+}
