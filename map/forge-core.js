@@ -2062,6 +2062,7 @@
     const _tn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "trend");
     const _tp = (_tn && _tn.params) || {};
     const _prof = trendProfileForTF(opts && opts.timeframe);
+    const _bs = (opts && opts._biasSet) || {};   // 검증 전용(기본 {}): 지표별 드리프트 bias 원천 덮어쓰기(off==표준)
     const _mn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "ma");
     const _ma = _mn ? analyzeMA(price, { len: (_mn.params && _mn.params.len) || 20, ema: !!(_mn.params && _mn.params.ema) }) : null;
     const maDrift = _ma ? _ma.bias * _prof.trendScale * 0.10 * DW("ma") : 0;   // MA 국면 방향 드리프트(±10% 상한·TF가중)
@@ -2076,7 +2077,7 @@
     const rsiDrift = _rsi ? _rsi.bias * _prof.trendScale * 0.06 * DW("rsi") : 0;   // RSI 다이버전스/구간 방향 드리프트(±6%·TF가중·보수적)
     const _vn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "volume");
     const _vol = _vn ? ((Array.isArray(values[_vn.id]) && values[_vn.id].length >= 2) ? values[_vn.id] : synthVolume(price)) : null;
-    const volDrift = _vol ? analyzeVolume(price, _vol).bias * _prof.trendScale * 0.05 * DW("volume") : 0;   // 거래량 확인 방향 드리프트(±5% 상한·TF가중·보수적)
+    const volDrift = _vol ? (_bs.volume != null ? _bs.volume : analyzeVolume(price, _vol).bias) * _prof.trendScale * 0.05 * DW("volume") : 0;   // 거래량 확인 방향 드리프트(±5% 상한·TF가중·보수적)
     const _bn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "bollinger");
     const _bb = _bn ? analyzeBollinger(price, { len: (_bn.params && _bn.params.len) || 20, k: (_bn.params && _bn.params.k) || 2 }) : null;
     const bbDrift = _bb ? _bb.bias * _prof.trendScale * 0.06 * DW("bollinger") : 0;   // 볼린저 위치/중심선 방향(±6%)
@@ -2098,6 +2099,7 @@
     // 검증 전용(기본 off): structure 드리프트의 bias 원천을 다중스케일 티어(대/중/소) 유의도 합성으로 치환. off일 때 표준과 완전 동일·baseline 불변.
     let _stBias = _struct ? _struct.bias : 0;
     if (opts && opts._msStruct && _stn) { const _r = collectStructure(price, {}), _ts = (_r && _r.tiers) || []; if (_ts.length) { let _sw = 0, _sb = 0; for (const _t of _ts) { const _w = _t.significance || 0, _tb = _t.event === "BOS_up" ? 0.6 : _t.event === "BOS_down" ? -0.6 : _t.event === "CHoCH_up" ? 0.5 : _t.event === "CHoCH_down" ? -0.5 : _t.trend === "up" ? 0.3 : _t.trend === "down" ? -0.3 : 0; _sw += _w; _sb += _w * _tb; } if (_sw) _stBias = Math.max(-1, Math.min(1, _sb / _sw)); } }
+    if (_bs.structure != null) _stBias = _bs.structure;
     const stDrift = _struct ? _stBias * _prof.trendScale * 0.08 * DW("structure") : 0;   // 시장구조 BOS/CHoCH 방향(±8%)
     const _atn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "atr");
     const _atr = _atn ? analyzeATR(data, { period: (_atn.params && _atn.params.period) || 14, mult: (_atn.params && _atn.params.mult) || 2 }) : null;
@@ -2123,10 +2125,10 @@
     const stochDrift = _stoch ? _stoch.bias * _prof.trendScale * 0.05 * DW("stochastic") : 0;   // 스토캐스틱 교차/구간(±5%)
     const _pvn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "pivot");
     const _pv2 = _pvn ? analyzePivot(data, {}) : null;
-    const pivotDrift = _pv2 ? _pv2.bias * _prof.trendScale * 0.04 * DW("pivot") : 0;   // 피벗 위/아래 방향(±4%·S/R라 약함)
+    const pivotDrift = _pv2 ? (_bs.pivot != null ? _bs.pivot : _pv2.bias) * _prof.trendScale * 0.04 * DW("pivot") : 0;   // 피벗 위/아래 방향(±4%·S/R라 약함)
     const _gnn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "gann");
     const _gn2 = _gnn ? analyzeGann(data, { lookback: (_gnn.params && _gnn.params.lookback) || 120, atrPeriod: (_gnn.params && _gnn.params.atrPeriod) || 14 }) : null;
-    const gannDrift = _gn2 ? _gn2.bias * _prof.trendScale * 0.05 * DW("gann") : 0;   // Gann 1×1 방향(±5%·S/R성)
+    const gannDrift = _gn2 ? (_bs.gann != null ? _bs.gann : _gn2.bias) * _prof.trendScale * 0.05 * DW("gann") : 0;   // Gann 1×1 방향(±5%·S/R성)
     const _psn = (graph.nodes || []).find(nd => nd.kind === "block" && nd.blockType === "psar");
     const _ps = _psn ? analyzePSAR(data, { step: (_psn.params && _psn.params.step) || 0.02, max: (_psn.params && _psn.params.max) || 0.2 }) : null;
     const psarDrift = _ps ? _ps.bias * _prof.trendScale * 0.08 * DW("psar") : 0;   // SAR 추세방향(±8%)

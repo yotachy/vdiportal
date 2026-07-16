@@ -2469,3 +2469,13 @@ test("run _msStruct flag: off identical to default, on finite", () => {
   const on = ForgeCore.run(g, { price: d.price, candle: d.candle }, { timeframe: "1day", _msStruct: true });
   assert.ok(Number.isFinite(on.verdict.score), "on produces finite score");
 });
+
+test("run _biasSet flag: empty identical to default; override finite", () => {
+  const d = ForgeCore.makeDemoSeries({ n: 300, seed: 6, period: 50 });
+  const g = ForgeCore.sampleGraph();
+  const base = ForgeCore.run(g, { price: d.price, candle: d.candle }, { timeframe: "1day" });
+  const off = ForgeCore.run(g, { price: d.price, candle: d.candle }, { timeframe: "1day", _biasSet: {} });
+  assert.strictEqual(off.verdict.score, base.verdict.score, "_biasSet {} == default");
+  const on = ForgeCore.run(g, { price: d.price, candle: d.candle }, { timeframe: "1day", _biasSet: { pivot: 1, gann: -1, volume: 1 } });
+  assert.ok(Number.isFinite(on.verdict.score));
+});
