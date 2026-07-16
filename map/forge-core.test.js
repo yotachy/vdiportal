@@ -2433,3 +2433,29 @@ test("collectStructure labels uptrend HH/HL and orders tiers coarse-first", () =
 test("collectStructure returns empty tiers for short input", () => {
   assert.deepStrictEqual(ForgeCore.collectStructure([1, 2, 3]).tiers, []);
 });
+
+test("analyzePivot: srLevels only with draw, bias/P unchanged", () => {
+  const price = ForgeCore.makeDemoSeries({ n: 150, seed: 7, period: 50 }).price;
+  const candle = ForgeCore.makeDemoSeries({ n: 150, seed: 7, period: 50 }).candle;
+  const plain = ForgeCore.analyzePivot({ price, candle });
+  assert.strictEqual(plain.srLevels, undefined);
+  const drawn = ForgeCore.analyzePivot({ price, candle }, { draw: true });
+  assert.ok(Array.isArray(drawn.srLevels), "draw 시 srLevels 배열");
+  assert.strictEqual(drawn.bias, plain.bias, "bias 불변");
+  assert.strictEqual(drawn.P, plain.P, "P 불변");
+});
+
+test("analyzeStructure: tiers only with draw, bias unchanged", () => {
+  const price = ForgeCore.makeDemoSeries({ n: 150, seed: 9, period: 48 }).price;
+  const plain = ForgeCore.analyzeStructure(price, { swing: 0.03 });
+  assert.strictEqual(plain.tiers, undefined);
+  const drawn = ForgeCore.analyzeStructure(price, { swing: 0.03, draw: true });
+  assert.ok(Array.isArray(drawn.tiers), "draw 시 tiers 배열");
+  assert.strictEqual(drawn.bias, plain.bias, "bias 불변");
+  assert.strictEqual(drawn.event, plain.event, "event 불변");
+});
+
+test("collectLevels/collectStructure are exported", () => {
+  assert.strictEqual(typeof ForgeCore.collectLevels, "function");
+  assert.strictEqual(typeof ForgeCore.collectStructure, "function");
+});

@@ -456,7 +456,9 @@
     const span = Math.max(1e-9, R1 - S1);
     let bias = Math.max(-1, Math.min(1, (last - P) / span));
     // 저항 바로 아래/지지 바로 위 근접 시 소폭 감쇠(돌파 전 저항)
-    return { P, R: [R1,R2,R3], S: [S1,S2,S3], last, bias };
+    const out = { P, R: [R1,R2,R3], S: [S1,S2,S3], last, bias };
+    if (opts.draw) out.srLevels = collectLevels(price, opts);
+    return out;
   }
   function pivotSteps() {
     return [
@@ -1741,7 +1743,9 @@
     else if (last < refL) event = trend === "up" ? "CHoCH_down" : "BOS_down";
     let bias = event === "BOS_up" ? 0.6 : event === "BOS_down" ? -0.6 : event === "CHoCH_up" ? 0.5 : event === "CHoCH_down" ? -0.5 : (trend === "up" ? 0.3 : trend === "down" ? -0.3 : 0);
     bias = Math.max(-1, Math.min(1, bias));
-    return { swings: pts, trend, event, swingHigh: lastH, swingLow: lastL, bias };
+    const out = { swings: pts, trend, event, swingHigh: lastH, swingLow: lastL, bias };
+    if (opts.draw) out.tiers = collectStructure(price, opts).tiers;
+    return out;
   }
   function structSeries(price, swing) { const st = analyzeStructure(price, { swing }); const h = st.swingHigh ? st.swingHigh.price : null, l = st.swingLow ? st.swingLow.price : null; if (h == null || l == null || h <= l) return price.map(() => 0); const mid = (h + l) / 2, rng = (h - l) || 1; return price.map(p => Math.max(-1, Math.min(1, Math.tanh((p - mid) / rng * 2)))); }
   function structureSteps(st) {
