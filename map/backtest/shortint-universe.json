@@ -1,0 +1,302 @@
+[
+{
+"sym": "HRTX",
+"medDTC": 24.59,
+"medVol": 1322354
+},
+{
+"sym": "ABR",
+"medDTC": 20.46,
+"medVol": 2782770
+},
+{
+"sym": "CCO",
+"medDTC": 18.35,
+"medVol": 1919459
+},
+{
+"sym": "CHRS",
+"medDTC": 17.7,
+"medVol": 1871352
+},
+{
+"sym": "DAWN",
+"medDTC": 15.64,
+"medVol": 1454384
+},
+{
+"sym": "ERAS",
+"medDTC": 14.89,
+"medVol": 1396930
+},
+{
+"sym": "CM",
+"medDTC": 14.67,
+"medVol": 1488520
+},
+{
+"sym": "IMVT",
+"medDTC": 13.91,
+"medVol": 1489137
+},
+{
+"sym": "EXPI",
+"medDTC": 13.78,
+"medVol": 1314521
+},
+{
+"sym": "BYND",
+"medDTC": 13.66,
+"medVol": 2137178
+},
+{
+"sym": "CRDF",
+"medDTC": 13.29,
+"medVol": 1515278
+},
+{
+"sym": "CNX",
+"medDTC": 12.57,
+"medVol": 2099681
+},
+{
+"sym": "INDI",
+"medDTC": 12.4,
+"medVol": 4020533
+},
+{
+"sym": "BNS",
+"medDTC": 12.05,
+"medVol": 2410785
+},
+{
+"sym": "BCE",
+"medDTC": 11.9,
+"medVol": 3779726
+},
+{
+"sym": "EWTX",
+"medDTC": 11.22,
+"medVol": 1444211
+},
+{
+"sym": "DEI",
+"medDTC": 10.72,
+"medVol": 1961597
+},
+{
+"sym": "GOGO",
+"medDTC": 10.67,
+"medVol": 2329754
+},
+{
+"sym": "CLM",
+"medDTC": 10.51,
+"medVol": 2008455
+},
+{
+"sym": "COGT",
+"medDTC": 10.48,
+"medVol": 1779473
+},
+{
+"sym": "APLS",
+"medDTC": 10.4,
+"medVol": 2263456
+},
+{
+"sym": "ALLO",
+"medDTC": 10.36,
+"medVol": 3167452
+},
+{
+"sym": "IMNM",
+"medDTC": 10.29,
+"medVol": 1222425
+},
+{
+"sym": "IBRX",
+"medDTC": 10.12,
+"medVol": 7176613
+},
+{
+"sym": "CRSP",
+"medDTC": 9.88,
+"medVol": 2131226
+},
+{
+"sym": "EOSE",
+"medDTC": 9.78,
+"medVol": 6809654
+},
+{
+"sym": "GEVO",
+"medDTC": 9.7,
+"medVol": 3156038
+},
+{
+"sym": "IAUX",
+"medDTC": 9.7,
+"medVol": 6149933
+},
+{
+"sym": "DNA",
+"medDTC": 9.69,
+"medVol": 1176059
+},
+{
+"sym": "ASPI",
+"medDTC": 9.59,
+"medVol": 1715810
+},
+{
+"sym": "BFB",
+"medDTC": 9.47,
+"medVol": 3044465
+},
+{
+"sym": "CHTR",
+"medDTC": 9.37,
+"medVol": 1307763
+},
+{
+"sym": "IONS",
+"medDTC": 9.36,
+"medVol": 1630549
+},
+{
+"sym": "BEAM",
+"medDTC": 9.09,
+"medVol": 2205336
+},
+{
+"sym": "IRT",
+"medDTC": 9.03,
+"medVol": 2085628
+},
+{
+"sym": "ALT",
+"medDTC": 9.02,
+"medVol": 2487162
+},
+{
+"sym": "IOVA",
+"medDTC": 8.96,
+"medVol": 10660458
+},
+{
+"sym": "CRBU",
+"medDTC": 8.86,
+"medVol": 1285699
+},
+{
+"sym": "CYDY",
+"medDTC": 8.77,
+"medVol": 3590215
+},
+{
+"sym": "INFY",
+"medDTC": 8.76,
+"medVol": 12574416
+},
+{
+"sym": "BXMT",
+"medDTC": 8.73,
+"medVol": 1625988
+},
+{
+"sym": "ENB",
+"medDTC": 8.7,
+"medVol": 3783197
+},
+{
+"sym": "BOX",
+"medDTC": 8.62,
+"medVol": 1657060
+},
+{
+"sym": "CNQ",
+"medDTC": 8.62,
+"medVol": 8028076
+},
+{
+"sym": "EVGO",
+"medDTC": 8.58,
+"medVol": 4083707
+},
+{
+"sym": "APO",
+"medDTC": 8.49,
+"medVol": 3317128
+},
+{
+"sym": "BLNK",
+"medDTC": 8.49,
+"medVol": 2948816
+},
+{
+"sym": "AUPH",
+"medDTC": 8.38,
+"medVol": 1298456
+},
+{
+"sym": "ENVX",
+"medDTC": 8.37,
+"medVol": 5423073
+},
+{
+"sym": "CRK",
+"medDTC": 8.33,
+"medVol": 2375123
+},
+{
+"sym": "FIP",
+"medDTC": 8.33,
+"medVol": 1459132
+},
+{
+"sym": "DNLI",
+"medDTC": 8.29,
+"medVol": 1416158
+},
+{
+"sym": "IDYA",
+"medDTC": 8.23,
+"medVol": 1453998
+},
+{
+"sym": "AIOT",
+"medDTC": 8.16,
+"medVol": 2504065
+},
+{
+"sym": "AESI",
+"medDTC": 8.1,
+"medVol": 2104944
+},
+{
+"sym": "CYTK",
+"medDTC": 8.03,
+"medVol": 1785906
+},
+{
+"sym": "CORT",
+"medDTC": 8.01,
+"medVol": 2044047
+},
+{
+"sym": "AMC",
+"medDTC": 7.98,
+"medVol": 7655672
+},
+{
+"sym": "ETNB",
+"medDTC": 7.95,
+"medVol": 1990408
+},
+{
+"sym": "CRNC",
+"medDTC": 7.84,
+"medVol": 1226406
+}
+]
