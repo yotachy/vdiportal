@@ -15,7 +15,10 @@ function slopeLog(price, end, n) {
   const d = n * sxx - sx * sx; return d ? (n * sxy - sx * sy) / d : 0;
 }
 
-function capture() {
+function capture(opts) {
+  opts = opts || {};
+  const engine = opts.engine !== false;        // false=A단계만(run 생략·고속)
+  const stride = opts.stride || STRIDE;
   const dir = path.join(__dirname, "fixtures");
   const files = fs.readdirSync(dir).filter(f => f.endsWith("-1day.json"));
   const recs = [];
@@ -25,31 +28,44 @@ function capture() {
     const fx = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
     const candle = fx.candle, price = candle.map(c => c.c), N = price.length;
     const g = FC.sampleGraph();
-    for (let t = WARMUP; t <= N - MAXH - 1; t += STRIDE) {
+    for (let t = WARMUP; t <= N - MAXH - 1; t += stride) {
       const s0 = Math.max(0, t + 1 - LOOKBACK);
       const w = { price: price.slice(s0, t + 1), candle: candle.slice(s0, t + 1) };
-      let single, ms, engBase, engMs;
+      let single, ms, engBase = null, engMs = null;
       try {
         single = FC.analyzeStructure(w.price, { swing: 0.03 }).bias;
         ms = multiScaleStructBias(w.price, {});
-        const rb = FC.run(g, w, { timeframe: "1day" });
-        const rbOff = FC.run(g, w, { timeframe: "1day", _msStruct: false });
-        const rm = FC.run(g, w, { timeframe: "1day", _msStruct: true });
-        engBase = rb.verdict.score; engMs = rm.verdict.score;
-        // sanity: 무플래그 == 플래그 off
-        if (sanityChecked < 50) { sanityChecked++; if (rbOff.verdict.score !== engBase) sanityFail++; }
+        if (engine) {
+          const rb = FC.run(g, w, { timeframe: "1day" });
+          const rm = FC.run(g, w, { timeframe: "1day", _msStruct: true });
+          engBase = rb.verdict.score; engMs = rm.verdict.score;
+          // sanity: 무플래그 == 플래그 off (첫 종목 소표본만)
+          if (sanityChecked < 30) { sanityChecked++; const rbOff = FC.run(g, w, { timeframe: "1day", _msStruct: false }); if (rbOff.verdict.score !== engBase) sanityFail++; }
+        }
       } catch (e) { continue; }
       const act = {}; for (const h of HORIZONS) act[h] = Math.sign(price[t + h] - price[t]);
-      recs.push({
-        sym, t,
-        single, ms, engBase, engMs,
-        sl200: slopeLog(price, t, 200),
-        ret20: t >= 20 ? price[t] / price[t - 20] - 1 : 0,
-        act,
-      });
+      recs.push({ sym, t, single, ms, engBase, engMs, sl200: slopeLog(price, t, 200), ret20: t >= 20 ? price[t] / price[t - 20] - 1 : 0, act });
     }
   }
   return { recs, sanityFail, sanityChecked };
+}
+
+// A단계만: single vs ms 신호 방향 적중률(run 없이 고속)
+function reportA(recs) {
+  console.log("=== A단계(신호 프리필터): single vs 다중스케일 ms ===");
+  console.log("표본 " + recs.length + " 시점 · " + new Set(recs.map(r => r.sym)).size + " 종목");
+  console.log("지평 | single  ms      Δ");
+  let posD = 0, totD = 0;
+  for (const h of HORIZONS) {
+    const s = hitRate(recs, r => r.single, h).acc, m = hitRate(recs, r => r.ms, h).acc;
+    const d = (s != null && m != null) ? m - s : null;
+    if (d != null) { totD++; if (d > 0) posD++; }
+    const pct = x => x == null ? "  -  " : (x * 100).toFixed(1);
+    console.log(String(h).padStart(3) + "  | " + pct(s) + "  " + pct(m) + "  " + (d == null ? "-" : (d >= 0 ? "+" : "") + (d * 100).toFixed(1)));
+  }
+  const pass = posD > totD / 2;
+  console.log("\nA단계 판정: ms가 single 초과 " + posD + "/" + totD + " 지평 → " + (pass ? "PASS(B단계 진행 가치 있음)" : "REJECT(신호부터 순증분 없음 — B 불필요)"));
+  return pass;
 }
 
 // 방향 적중률: 예측부호 vs 실제부호. 중립(예측0 or 실제0)은 제외. {hit, n}
@@ -124,9 +140,17 @@ function evalReport(recs, sanity) {
 
 if (require.main === module) {
   const t0 = Date.now();
-  const { recs, sanityFail, sanityChecked } = capture();
-  fs.writeFileSync(path.join(__dirname, "multiscale-struct-records.json"), JSON.stringify({ n: recs.length, generated: "walk-forward", horizons: HORIZONS }));
-  const res = evalReport(recs, { sanityFail, sanityChecked });
+  const aOnly = process.argv.includes("--a");
+  const stride = process.argv.includes("--stride40") ? 40 : STRIDE;
+  if (aOnly) {
+    const { recs } = capture({ engine: false, stride });
+    reportA(recs);
+  } else {
+    const { recs, sanityFail, sanityChecked } = capture({ stride });
+    reportA(recs);
+    console.log("");
+    evalReport(recs, { sanityFail, sanityChecked });
+  }
   console.log("\n(소요 " + ((Date.now() - t0) / 1000).toFixed(1) + "s)");
 }
 
