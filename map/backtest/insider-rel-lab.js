@@ -8,7 +8,8 @@ const { insiderFeats, NF } = require("./insider-feats.js");
 const INS = JSON.parse(fs.readFileSync(path.join(__dirname, "insider-events.json"), "utf8"));
 
 const US = ["AAPL", "MSFT", "NVDA", "INTC", "BABA", "PYPL", "DIS", "T", "IBM", "CSCO", "VZ", "PFE", "KO", "WBA", "GE",
-  "JPM", "BAC", "WMT", "HD", "PG", "JNJ", "UNH", "XOM", "CVX", "V", "MA", "ORCL", "CRM", "AMD", "QCOM", "CAT"];
+  "JPM", "BAC", "WMT", "HD", "PG", "JNJ", "UNH", "XOM", "CVX", "V", "MA", "ORCL", "CRM", "AMD", "QCOM", "CAT"]
+  .filter(s => fs.existsSync(path.join(__dirname, "fixtures", s + "-1day.json")));
 const HS = [10, 20, 40], STRIDE = 5, START = 300, BUFFER = 5 * 86400000;
 
 function meta(sym) {
