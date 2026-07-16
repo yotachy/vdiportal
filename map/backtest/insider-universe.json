@@ -1,0 +1,302 @@
+[
+{
+"sym": "HY",
+"buyCount": 29561,
+"buyDollars": 157580902
+},
+{
+"sym": "OPK",
+"buyCount": 12312,
+"buyDollars": 430198801
+},
+{
+"sym": "NONE",
+"buyCount": 12255,
+"buyDollars": 1020079302440505
+},
+{
+"sym": "RCG",
+"buyCount": 7018,
+"buyDollars": 2568888
+},
+{
+"sym": "TPL",
+"buyCount": 6021,
+"buyDollars": 44497305
+},
+{
+"sym": "IRDM",
+"buyCount": 5044,
+"buyDollars": 26291074
+},
+{
+"sym": "ENDV",
+"buyCount": 4996,
+"buyDollars": 2303370
+},
+{
+"sym": "HTV",
+"buyCount": 3612,
+"buyDollars": 241396904
+},
+{
+"sym": "CLMS",
+"buyCount": 3388,
+"buyDollars": 63019216
+},
+{
+"sym": "CCD",
+"buyCount": 3273,
+"buyDollars": 42024609
+},
+{
+"sym": "CPIX",
+"buyCount": 2753,
+"buyDollars": 1288991
+},
+{
+"sym": "CWEI",
+"buyCount": 2507,
+"buyDollars": 197298080
+},
+{
+"sym": "BRT",
+"buyCount": 2382,
+"buyDollars": 38968210
+},
+{
+"sym": "TIPT",
+"buyCount": 2370,
+"buyDollars": 19549333
+},
+{
+"sym": "FOMC",
+"buyCount": 2351,
+"buyDollars": 17163596
+},
+{
+"sym": "FRZ",
+"buyCount": 2337,
+"buyDollars": 25204807
+},
+{
+"sym": "HTZ",
+"buyCount": 2176,
+"buyDollars": 949866058
+},
+{
+"sym": "YORW",
+"buyCount": 2124,
+"buyDollars": 3521731
+},
+{
+"sym": "CNBKA",
+"buyCount": 2019,
+"buyDollars": 51369764
+},
+{
+"sym": "ED",
+"buyCount": 1970,
+"buyDollars": 5610053
+},
+{
+"sym": "MAIN",
+"buyCount": 1962,
+"buyDollars": 113055796
+},
+{
+"sym": "EQY",
+"buyCount": 1897,
+"buyDollars": 416293617
+},
+{
+"sym": "FOLD",
+"buyCount": 1894,
+"buyDollars": 173897166
+},
+{
+"sym": "KFS",
+"buyCount": 1784,
+"buyDollars": 41961468
+},
+{
+"sym": "SYBT",
+"buyCount": 1747,
+"buyDollars": 6726529
+},
+{
+"sym": "SOV",
+"buyCount": 1697,
+"buyDollars": 1157140932
+},
+{
+"sym": "TEX",
+"buyCount": 1646,
+"buyDollars": 19888683
+},
+{
+"sym": "GABC",
+"buyCount": 1497,
+"buyDollars": 15317116
+},
+{
+"sym": "GENC",
+"buyCount": 1464,
+"buyDollars": 11257595
+},
+{
+"sym": "LAMR",
+"buyCount": 1442,
+"buyDollars": 371563628
+},
+{
+"sym": "AN",
+"buyCount": 1304,
+"buyDollars": 734997722
+},
+{
+"sym": "FMNB",
+"buyCount": 1278,
+"buyDollars": 11636769
+},
+{
+"sym": "AMPL",
+"buyCount": 1200,
+"buyDollars": 107607422
+},
+{
+"sym": "NEU",
+"buyCount": 1184,
+"buyDollars": 53147620
+},
+{
+"sym": "NLP",
+"buyCount": 1148,
+"buyDollars": 2932176
+},
+{
+"sym": "FRAF",
+"buyCount": 1148,
+"buyDollars": 4852357
+},
+{
+"sym": "CBT",
+"buyCount": 1125,
+"buyDollars": 84043895
+},
+{
+"sym": "IMTL",
+"buyCount": 1088,
+"buyDollars": 18800662
+},
+{
+"sym": "BTN",
+"buyCount": 1085,
+"buyDollars": 14517611
+},
+{
+"sym": "NBBC",
+"buyCount": 1060,
+"buyDollars": 26004708
+},
+{
+"sym": "SUBK",
+"buyCount": 1020,
+"buyDollars": 4867506
+},
+{
+"sym": "SFD",
+"buyCount": 1015,
+"buyDollars": 174490158
+},
+{
+"sym": "VHI",
+"buyCount": 1013,
+"buyDollars": 57124340
+},
+{
+"sym": "ELOY",
+"buyCount": 997,
+"buyDollars": 51419241
+},
+{
+"sym": "GBE",
+"buyCount": 986,
+"buyDollars": 30753977
+},
+{
+"sym": "BKCC",
+"buyCount": 982,
+"buyDollars": 12256608
+},
+{
+"sym": "MMLP",
+"buyCount": 978,
+"buyDollars": 132251007
+},
+{
+"sym": "BIF",
+"buyCount": 971,
+"buyDollars": 297914615
+},
+{
+"sym": "KNOL",
+"buyCount": 938,
+"buyDollars": 74113013
+},
+{
+"sym": "CLMT",
+"buyCount": 937,
+"buyDollars": 31395250
+},
+{
+"sym": "AUBN",
+"buyCount": 920,
+"buyDollars": 2685586
+},
+{
+"sym": "LTS",
+"buyCount": 913,
+"buyDollars": 47186922
+},
+{
+"sym": "MIC",
+"buyCount": 902,
+"buyDollars": 329240478
+},
+{
+"sym": "MRGE",
+"buyCount": 892,
+"buyDollars": 16560125
+},
+{
+"sym": "CMCT",
+"buyCount": 890,
+"buyDollars": 143244567
+},
+{
+"sym": "CODI",
+"buyCount": 886,
+"buyDollars": 133345008
+},
+{
+"sym": "BRKR",
+"buyCount": 885,
+"buyDollars": 53564336
+},
+{
+"sym": "BLDR",
+"buyCount": 884,
+"buyDollars": 106521419
+},
+{
+"sym": "BKSC",
+"buyCount": 870,
+"buyDollars": 26568029
+},
+{
+"sym": "SGB",
+"buyCount": 868,
+"buyDollars": 665497
+}
+]

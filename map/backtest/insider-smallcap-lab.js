@@ -1,4 +1,4 @@
-// backtest/insider-smallcap-lab.js — 내부자 매수 → 중소형주 상대방향(vs IWM) 증분 검증
+// backtest/insider-smallcap-lab.js — 내부자 매수 → 중소형주 상대방향(vs IJR) 증분 검증
 // 유니버스=insider-universe(매수상위)·벤치=IWM. 날짜기반 정렬(정확). forge-core 미변경.
 "use strict";
 const fs = require("fs"), path = require("path");
@@ -20,11 +20,11 @@ function betaProxy(P, S, t, n = 60) {
   const vs = sss / n - (ss / n) ** 2; return vs > 0 ? (sps / n - sp * ss / n / n) / vs : 1;
 }
 
-const iwm = loadFix("IWM");
-if (!iwm) { console.error("IWM fixture 없음"); process.exit(1); }
+const iwm = loadFix("IJR");
+if (!iwm) { console.error("IJR fixture 없음"); process.exit(1); }
 const iwmMap = {}; for (const c of iwm) iwmMap[c.t] = c.c;
 
-const kept = JSON.parse(fs.readFileSync(path.join(FDIR, "_kept.json"), "utf8")).filter(s => s !== "IWM" && s !== "SPY");
+const kept = JSON.parse(fs.readFileSync(path.join(FDIR, "_kept.json"), "utf8")).filter(s => s !== "IJR" && s !== "SPY");
 const train = [], test = []; let used = 0, insTouched = 0;
 for (const sym of kept) {
   const cd = loadFix(sym); if (!cd) continue;
@@ -55,9 +55,9 @@ function fitAcc(tr, te, H, wi) {
 function uni(rows, fi, H) { let h = 0, n = 0; for (const r of rows) { const p = Math.sign(r.ins[fi]); if (!p) continue; n++; if ((p > 0 ? 1 : 0) === r.y[H]) h++; } return n ? h / n : null; }
 const P = x => x == null ? "-" : (x * 100).toFixed(1) + "%";
 
-console.log("=== 내부자 매수 → 중소형주 상대방향(vs IWM) 증분 검증 ===");
+console.log("=== 내부자 매수 → 중소형주 상대방향(vs IJR) 증분 검증 ===");
 console.log("종목 " + used + " · train " + train.length + " · test " + test.length + " row · 내부자피처 비영 " + insTouched + "행");
-console.log("\n(a) 단변량 OOS(신호부호 vs IWM대비 아웃퍼폼 y20):");
+console.log("\n(a) 단변량 OOS(신호부호 vs IJR대비 아웃퍼폼 y20):");
 ["netBuy", "buyRatio", "numBuyers", "sinceBuy", "roleNet", "oppNet"].forEach((nm, fi) => console.log("   " + nm.padEnd(10) + P(uni(test, fi, 20))));
 console.log("\n(b) 증분: rel25 vs 25+내부자6 (TEST 적중률)");
 console.log("지평 | base    +ins     Δ");
