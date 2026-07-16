@@ -2325,21 +2325,37 @@
     }
     c.restore();
   }
-  // 시장구조 — 직전 스윙 고/저 레벨 + 스윙 점 + BOS/CHoCH 마커
+  // 시장구조 노드 — 다중스케일 티어(대/중/소): 스윙점 + HH/HL/LH/LL 라벨(대형 강조) + BOS/CHoCH.
   function _drawStructureLayers(c, st, M) {
     c.save();
     const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight } = M;
     const xR = (xRight != null ? xRight : fiToX(nowFi));
-    if (reveal >= 1) {
-      [st.swingHigh, st.swingLow].forEach(sw => { if (!sw) return; const y = pToY(sw.price); if (!isFinite(y)) return; c.strokeStyle = "rgba(240,163,192,.5)"; c.lineWidth = 1; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(fiToX(Math.max(fiMin, sw.idx)), y); c.lineTo(xR, y); c.stroke(); c.setLineDash([]); });
-      if (_skReady()) for (const p of (st.swings || [])) { const x = fiToX(Math.max(fiMin, p.idx)), y = pToY(p.price); if (!isFinite(x) || !isFinite(y)) continue; c.fillStyle = p.type === "H" ? "rgba(224,106,106,.7)" : "rgba(70,194,142,.7)"; c.beginPath(); c.arc(x, y, 2, 0, 7); c.fill(); }
+    const tiers = (st.tiers && st.tiers.length) ? st.tiers : null;
+    if (!tiers) {   // 폴백(하위호환): 기존 단일 스윙
+      if (reveal >= 1) [st.swingHigh, st.swingLow].forEach(sw => { if (!sw) return; const y = pToY(sw.price); if (!isFinite(y)) return; c.strokeStyle = "rgba(240,163,192,.5)"; c.lineWidth = 1; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(fiToX(Math.max(fiMin, sw.idx)), y); c.lineTo(xR, y); c.stroke(); c.setLineDash([]); });
+      c.restore(); return;
     }
-    if (reveal >= 2 && _skReady() && st.event !== "none") {
-      const up = st.event.indexOf("up") >= 0, choch = st.event.indexOf("CHoCH") >= 0;
-      const yRef = up ? (st.swingHigh ? pToY(st.swingHigh.price) : NaN) : (st.swingLow ? pToY(st.swingLow.price) : NaN);
-      const col = up ? "#46c28e" : "#e06a6a";
-      if (isFinite(yRef)) _evLabel(c, (choch ? "CHoCH " : "BOS ") + (up ? "▲" : "▼"), xR - 6, yRef - 2, col, "right");
-    }
+    tiers.forEach((t, ti) => {
+      const emph = ti === 0;   // 대형(유의도 최상위) 강조
+      if (reveal < (emph ? 1 : 2)) return;
+      const rad = emph ? 3 : ti === 1 ? 2 : 1.4;
+      const baseAlpha = emph ? 0.85 : ti === 1 ? 0.45 : 0.22;
+      for (const p of (t.swings || [])) {
+        const x = fiToX(Math.max(fiMin, p.idx)), y = pToY(p.price);
+        if (!isFinite(x) || !isFinite(y)) continue;
+        const col = p.type === "H" ? "224,106,106" : "70,194,142";
+        c.fillStyle = "rgba(" + col + "," + baseAlpha.toFixed(2) + ")";
+        c.beginPath(); c.arc(x, y, rad, 0, 7); c.fill();
+        // 라벨은 대형 + 유의도 상위 스윙만(클러터 방지)
+        if (emph && _skReady() && p.significance >= 0.5) _evLabel(c, p.label, x, y - (p.type === "H" ? 6 : -12), p.type === "H" ? "#e06a6a" : "#46c28e", "center");
+      }
+      // BOS/CHoCH 이벤트 라벨
+      if (_skReady() && t.event !== "none" && isFinite(t.eventPrice)) {
+        const up = t.event.indexOf("up") >= 0, choch = t.event.indexOf("CHoCH") >= 0;
+        const y = pToY(t.eventPrice), col = up ? "#46c28e" : "#e06a6a";
+        if (isFinite(y)) { c.globalAlpha = emph ? 1 : 0.5; _evLabel(c, (choch ? "CHoCH " : "BOS ") + (up ? "▲" : "▼"), xR - 6, y - 2, col, "right"); c.globalAlpha = 1; }
+      }
+    });
     c.restore();
   }
   // ATR — ±ATR·배수 손절/목표 밴드 + 변동성 배지
@@ -2712,7 +2728,7 @@
           if (_drawThis) _drawIchimokuLayers(cc, ic, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xNow: g.seamX, xRight: g.padX + g.plotW, futBars: (g.path && g.path.length) || 24, focused: (_focus === "ichimoku") });
           legend.push({ col, t: EV_LABEL.ichimoku, _key: n.blockType });
         } else if (n.blockType === "structure") {
-          const st = _an("Structure", price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
+          const st = _anStruct(price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });
           if (_drawThis) _drawStructureLayers(cc, st, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
           legend.push({ col, t: EV_LABEL.structure, _key: n.blockType });
         } else if (n.blockType === "atr") {

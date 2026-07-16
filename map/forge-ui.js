@@ -467,6 +467,7 @@
   }
   function _anPivot(P) { return _anGet(P, "Pivot", () => ForgeCore.analyzePivot({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P })); }
   function _anPivotDraw(P) { return _anGet(P, "PivotDraw", () => ForgeCore.analyzePivot({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, { draw: true })); }
+  function _anStruct(P, opts) { const o = opts || {}; return _anGet(P, "StructDraw|" + JSON.stringify(o), () => ForgeCore.analyzeStructure(P, Object.assign({}, o, { draw: true }))); }
   function _anGann(P, opts) {
     const o = opts || {};
     return _anGet(P, "Gann" + JSON.stringify(o), () => ForgeCore.analyzeGann({ candle: (_fcLastData && _fcLastData.candle) || (typeof currentData === "function" && currentData().candle) || [], price: P }, Object.assign({}, o, { draw: true })));
