@@ -113,10 +113,9 @@
     c.setLineDash([3, 3]);
     c.beginPath(); c.moveTo(predStartX, 0); c.lineTo(predStartX, candleBase);
     c.stroke(); c.setLineDash([]);
-    const _prev = (typeof window !== "undefined" && window._fcPreview);   // 웹분석 전 = 예측 미확정(밴드만·회색·경로선 없음)
     c.fillStyle = "rgba(52,230,220,.85)"; c.font = "10px ui-monospace,monospace";
     c.fillText("지금", predStartX - 28, candleBase - 7);
-    c.fillText(_prev ? "예측(미확정) →" : "예측 →", predStartX + 6, 13);
+    c.fillText("예측 →", predStartX + 6, 13);
 
     /* prediction cone */
     if (predPath.length) {
@@ -129,30 +128,17 @@
       for (let k = predPath.length - 1; k >= 0; k--) c.lineTo(toX(n + k), toY(predLo[k]));
       c.lineTo(predStartX, anchorY);
       c.closePath();
-      c.fillStyle = _prev ? "rgba(90,100,120,.10)" : _warmA(.09);   // 미확정=중립 회색 음영
+      c.fillStyle = _warmA(.09);
       c.fill();
-      if (_prev) {
-        /* 미확정: 특정 예측 경로선·seam점 없이 밴드 외곽만 흐린 회색 점선(=가능 범위) → '확정 결과'로 안 읽히게 */
-        c.strokeStyle = "rgba(90,100,120,.55)"; c.lineWidth = 1; c.setLineDash(CDASH.fine);
-        c.beginPath();
-        c.moveTo(predStartX, anchorY);
-        for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predHi[k]));
-        c.stroke();
-        c.beginPath();
-        c.moveTo(predStartX, anchorY);
-        for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predLo[k]));
-        c.stroke(); c.setLineDash([]);
-      } else {
-        /* path line (seam에서 시작) */
-        c.strokeStyle = FC_GOLD; c.lineWidth = 1.3; c.setLineDash(CDASH.std);
-        c.beginPath();
-        c.moveTo(predStartX, anchorY);
-        for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predPath[k]));
-        c.stroke(); c.setLineDash([]);
-        /* seam dot at last real close */
-        c.fillStyle = FC_GOLD; c.beginPath();
-        c.arc(predStartX, anchorY, 3, 0, Math.PI * 2); c.fill();
-      }
+      /* path line (seam에서 시작) */
+      c.strokeStyle = FC_GOLD; c.lineWidth = 1.3; c.setLineDash(CDASH.std);
+      c.beginPath();
+      c.moveTo(predStartX, anchorY);
+      for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predPath[k]));
+      c.stroke(); c.setLineDash([]);
+      /* seam dot at last real close */
+      c.fillStyle = FC_GOLD; c.beginPath();
+      c.arc(predStartX, anchorY, 3, 0, Math.PI * 2); c.fill();
     }
 
     /* candles */
@@ -934,6 +920,9 @@
     }
     // seam ("지금") + forecast cone + path — 예측 path 있을 때만(없으면 과거가 전폭, y라벨 겹침 방지)
     if (path.length) {
+      // 웹분석 전(미확정): 예측영역(1/2/3차 라인·음영 밴드) 전체를 blur — 과거 캔들은 위에서 이미 선명하게 그려짐. 웹분석하면 선명.
+      const _blur = (typeof window !== "undefined" && window._fcPreview);
+      if (_blur) { c.save(); c.filter = "blur(3px)"; }
       c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
       c.beginPath(); c.moveTo(seamX, padTop - 6); c.lineTo(seamX, ch - padBot); c.stroke(); c.setLineDash([]);
       c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.fillText("지금", seamX + 3, padTop - 2);
@@ -1002,6 +991,7 @@
         c.shadowColor = "rgba(255,255,255,.9)"; c.shadowBlur = 10; c.strokeStyle = "rgba(255,255,255,.92)"; c.lineWidth = 1.7; c.beginPath(); c.arc(_mx, _my, 4.6, 0, 7); c.stroke();
         c.shadowBlur = 0; c.fillStyle = "#fff"; c.beginPath(); c.arc(_mx, _my, 2.3, 0, 7); c.fill(); c.restore(); }
       if (typeof _renderChartLegend === "function") _renderChartLegend(_pd);   // 예측선 범례 = DOM(호버 설명·큰 폰트)
+      if (_blur) { c.restore(); c.filter = "none"; }   // 예측영역 blur 종료 — 이하 y라벨 등은 선명
     }
     // y labels (right)
     c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
@@ -2747,6 +2737,7 @@
     _evLabelBoxes = _axisLabelBoxes.slice();   // 축 눈금·현재가 pill을 먼저 예약 → 근거 라벨이 이를 피함
     _skFrac = (_scanning && _scanU < 1) ? _scanU : null;   // 시연 중이면 진행형 작도(손그림)
     if (!_evidenceShow || !_evidenceSet.size || !lastResult) return;
+    if (typeof window !== "undefined" && window._fcPreview) return;   // 웹분석 전엔 분석근거 오버레이 미표시(버튼도 비활성 — CSS)
     // 예측을 계산한 바로 그 시계열을 사용(차트/콘과 동일) — 작도·예측 정합 보장
     const price = ((_fcLastData && _fcLastData.price) || currentData().price) || []; const P = price.length; if (P < 2) return;
     const mode = heroMode();
