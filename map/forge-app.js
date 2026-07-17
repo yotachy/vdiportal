@@ -1470,7 +1470,7 @@
           const cf = verdict.confluence;
           // 가로 바 3개(컨플루언스·방향·시그널) → 색상 인코딩 텍스트 통계로 정리(막대는 헤드라인 게이지 하나로 일원화).
           const cfStat = (cf && cf.total) ? `<span class="fcv-stat" title="컨플루언스 = 지표 합의도. 같은 방향 지표 수 ÷ 전체(${cf.agree}/${cf.total}=${cf.score}%). 높을수록 방향 신뢰가 큽니다.">컨플루언스 <b style="color:${dirCol}">${cf.agree}/${cf.total}</b> <span class="fcv-statsub">${cf.score}%</span></span>` : "";
-          const dirStat = `<span class="fcv-stat" title="지표 방향 분포 — 상승/중립/하락 지표 수(${bl}·${ne}·${be} / 총 ${bl + ne + be})">방향 <b style="color:var(--bull)">▲${bl}</b> <b style="color:var(--gold)">${ne}</b> <b style="color:var(--bear)">▼${be}</b></span>`;
+          const dirStat = `<span class="fcv-stat" title="지표 방향 분포 — 상승/중립/하락 지표 수(${bl}·${ne}·${be} / 총 ${bl + ne + be})">방향 <b style="color:var(--bull)">▲${bl}</b><span class="fcv-nsep">·</span><b style="color:var(--gold)">–${ne}</b><span class="fcv-nsep">·</span><b style="color:var(--bear)">▼${be}</b></span>`;
           let sigStat = "";
           if (_scoreN != null) { const sv = Math.max(-100, Math.min(100, _scoreN)); sigStat = `<span class="fcv-stat" title="시그널 = 종합 신호 강도(−100 ~ +100). 지표·모멘텀·평균회귀 가중 합성. 양수=상승 우위, 절댓값 클수록 강함.">시그널 <b style="color:${dirCol}">${sv > 0 ? "+" : ""}${score}</b></span>`; }
           _bd += `<div class="fcv-stats">${cfStat}${dirStat}${sigStat}</div>`;

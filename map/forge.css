@@ -509,9 +509,12 @@
   /* 지표 합의 캡션 — 검증된 예측(골드 eyebrow)보다 한 단계 낮은 위계(뮤트·마커 없음) */
   .fcv-cap{font-size:9px;font-weight:900;letter-spacing:.07em;color:var(--faint);text-transform:uppercase;flex:0 0 auto}
   /* 합의 통계 — 가로 막대 3개 제거, 색상 인코딩 텍스트로(막대는 헤드라인 게이지 하나로 일원화) */
-  .fcv-stats{flex:1 1 auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px 16px}
-  .fcv-stat{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--eth);white-space:nowrap;letter-spacing:-.01em}
+  .fcv-stats{flex:1 1 auto;display:flex;flex-wrap:wrap;align-items:center;gap:3px 0}
+  .fcv-stat{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--eth);white-space:nowrap;letter-spacing:-.01em;padding:0 13px;border-right:1px solid var(--line)}   /* 셀 간 세로 헤어라인 — 검증된예측 그리드와 동일 언어 */
+  .fcv-stats .fcv-stat:first-child{padding-left:0}
+  .fcv-stats .fcv-stat:last-child{border-right:0;padding-right:0}
   .fcv-stat b{font-weight:800;font-variant-numeric:tabular-nums}
+  .fcv-nsep{color:var(--faint);font-weight:400;margin:0 2px}   /* 방향 상승·중립·하락 카운트 구분점 */
   .fcv-statsub{color:var(--faint);font-variant-numeric:tabular-nums}
   .fcv-grid{flex:1 1 auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px 0;min-width:0}   /* 세로 그리드 → 가로 칩 스트립 */
   .fcv-forecast .fcv-cell{flex-direction:row;align-items:center;gap:5px;padding:1px 9px;border-right:1px solid var(--line)}   /* 라벨 위/값 아래 → 한 줄, 셀 간 세로 헤어라인 */
@@ -1468,8 +1471,16 @@
     .fc-head-right{flex-wrap:wrap;justify-content:flex-start}
     .chart-pane .fc-panel-hero>.fc-phead .fc-head-left{flex:1 1 100%;min-width:0;overflow:hidden}   /* 차트 헤더: 타이틀/메타 전용 줄(잘림 방지, TF·아이콘은 다음 줄) */
     .chart-pane .fc-panel-hero>.fc-phead .fc-head-left .fc-meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fc-phead .fc-head-left .fc-t{flex:0 0 auto;white-space:nowrap}   /* '가격 차트' 타이틀은 잘리지 않게(메타만 ellipsis) */
     .forge-palette{display:none}
     body{overflow-x:hidden}
+    /* 판정바 밀도: 좁은 폭서 6칩·통계가 뭉치지 않게 2열 그리드(라벨+값 한 줄 유지·행/열 경계 헤어라인만) */
+    .fcv-grid,.fcv-stats{display:grid;grid-template-columns:1fr 1fr;gap:0;width:100%}
+    .fcv-forecast .fcv-cell,.fcv-stats .fcv-stat{padding:3px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+    .fcv-forecast .fcv-cell:nth-child(2n),.fcv-stats .fcv-stat:nth-child(2n){border-right:0}
+    .fcv-forecast .fcv-cell:nth-last-child(-n+1):nth-child(odd),.fcv-forecast .fcv-cell:nth-last-child(-n+2):nth-child(even){border-bottom:0}
+    .fcv-forecast .fcv-cell:first-child,.fcv-stats .fcv-stat:first-child{padding-left:10px}
+    .fcv-forecast,.fcv-consensus{width:100%}
     /* 판정 시각 스트립: 겹침/틀어짐 방지 — 균등 배치·라벨 축소 */
     .fcv-viz{gap:8px 12px;justify-content:space-between;padding:6px 0 2px}
     .fcv-viz-item{gap:6px;min-width:0}
