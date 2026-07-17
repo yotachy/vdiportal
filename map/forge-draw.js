@@ -988,12 +988,19 @@
         const _cA = Math.max(0.34, Math.min(0.8, _cProb / 100 * 1.15));
         const _cYc = k => Math.max(padTop + 4, Math.min(ch - padBot - 4, toY(_counter[k])));
         c.save();
-        c.strokeStyle = "rgba(" + _cCol + "," + Math.max(0.5, _cA * 0.66) + ")"; c.lineWidth = 1.3; c.lineJoin = "round"; c.setLineDash([5, 4]); c.shadowBlur = 0;   // 반대선도 참고용으로 종속(글로우 제거·가늘게) — 밴드가 주역
-        c.beginPath(); c.moveTo(seamX, toY(anchor));
-        for (let k = 0; k < _counter.length; k++) c.lineTo(toXf(k), _cYc(k));
-        c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
-        _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _cCol + ")", "3차\u00b7" + _cProb + "%", (_cUp ? -12 : 14), true);
-        _comets.p3 = { pts: _counter.map((v, k) => [toXf(k), _cYc(k)]), col: "rgb(" + _cCol + ")", prob: _cProb };
+        // B: 반대(3차) 시나리오 = 작은 흐린 화살표(경로선/추적점/펄스 대신). 참고용 대안 방향.
+        const _cCore = "rgb(" + _cCol + ")";
+        const _cyM2 = y => Math.max(padTop + 9, Math.min(ch - padBot - 9, y));
+        const cx0 = seamX, cy0 = _cyM2(toY(anchor)), cx1 = toXf(_counter.length - 1), cy1 = _cyM2(toY(_counter[_counter.length - 1]));
+        const _cAng = Math.atan2(cy1 - cy0, cx1 - cx0), _chl = 9;
+        c.strokeStyle = _cCore; c.fillStyle = _cCore; c.globalAlpha = 0.42; c.lineWidth = 1.4; c.lineCap = "round"; c.lineJoin = "round"; c.setLineDash([5, 4]);
+        c.beginPath(); c.moveTo(cx0, cy0); c.lineTo(cx1 - Math.cos(_cAng) * _chl, cy1 - Math.sin(_cAng) * _chl); c.stroke(); c.setLineDash([]);
+        c.beginPath(); c.moveTo(cx1, cy1);
+        c.lineTo(cx1 - Math.cos(_cAng - 0.42) * _chl, cy1 - Math.sin(_cAng - 0.42) * _chl);
+        c.lineTo(cx1 - Math.cos(_cAng + 0.42) * _chl, cy1 - Math.sin(_cAng + 0.42) * _chl);
+        c.closePath(); c.fill();
+        c.globalAlpha = 0.72; c.font = "700 10px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
+        c.fillText("3차 " + _cProb + "%", cx1 + 8, cy1 + (_cUp ? -3 : 13));
         c.restore();
       }
       // 1차(종합) 끝단: 흘러가는 점 + 진앙지 + 명칭(+ 방향 달성확률)
