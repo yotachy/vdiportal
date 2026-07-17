@@ -182,6 +182,8 @@
     const unit = tfUnit();
     const fb = path.length;
     if (metaEl) metaEl.textContent = "현재가 " + _hzFmt(anchor);
+    // 웹분석 전(자동 예측 미리보기)엔 상승/하락 색을 그레이로 — 심층 웹분석하면 컬러. 세션 내 웹분석한 종목은 재방문해도 컬러 유지.
+    const _deepC = (typeof _deepSessionDocs !== "undefined" && typeof activeId !== "undefined" && activeId && _deepSessionDocs.has(activeId));
     const hs = _hzList(unit, fb);
     const head = `<div class="hz-item hz-hd"><span>시점</span><span>예측 변화</span><span>예상 범위 <i class="hz-nowk"></i>현재 <i class="hz-predk"></i>예측</span><span>달성확률</span></div>`;
     const rows = hs.map(h => {
@@ -190,7 +192,7 @@
       const lo = isFinite(loF) ? anchor + (loF - anchor) * u : loF;
       const hi = isFinite(hiF) ? anchor + (hiF - anchor) * u : hiF;
       const chg = anchor ? (v - anchor) / anchor * 100 : 0;
-      const col = chg > 0.5 ? "var(--bull)" : chg < -0.5 ? "var(--bear)" : "var(--eth)";
+      const col = !_deepC ? "var(--muted)" : (chg > 0.5 ? "var(--bull)" : chg < -0.5 ? "var(--bear)" : "var(--eth)");
       const upF = _upProb(vF, hiF, anchor);
       const _dir = chg > 0.3 ? 1 : chg < -0.3 ? -1 : 0;                       // 이 시점 예측 변화 방향
       const dirProb = _dir >= 0 ? upF : (100 - upF);                          // '그 변화가 일어날' 확률(달성확률)
@@ -2048,6 +2050,7 @@
      포지결과는 '웹분석' 버튼을 눌러야 계산된다. 노드/가중치 변경은 '변경됨'으로 표시만.
      ('엔진분석' 버튼=claudeEngine은 클로드 수동분석 예정 기능 스텁) */
   let _engineDirty = false, _lastAnalyzedAt = null, _autoFresh = false;   // _autoFresh=현재 표시본이 '선택 시 자동(경량) 예측'(실제 계산·심층 대기)인지
+  const _deepSessionDocs = new Set();   // 이번 세션에 '웹분석(심층)'을 실행한 문서 id — 재방문해도 컬러/심층 상태 유지(그레이로 안 되돌림)
   function _fmtAgo(ts) {
     const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
     if (s < 60) return "방금";
@@ -2068,23 +2071,25 @@
       st.className = "eng-stat stale";
       st.textContent = "● 변경됨 — 지금 결과는 옛것 · 웹분석 필요";
       st.title = "노드/설정이 바뀌어 화면의 분석 결과가 낡았습니다 — 빨간 [웹분석] 버튼을 눌러 갱신하세요";
-      _setHz("stale", "● 재분석 필요", "노드/설정이 바뀌어 결과가 낡았습니다 — [웹분석]으로 갱신");
     } else if (_autoFresh && _lastAnalyzedAt) {   // 선택 시 자동 계산된 실제 예측(심층은 대기) — 보여주기식 아님을 정직 표기
       const d = new Date(_lastAnalyzedAt), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
       st.className = "eng-stat auto";
       st.innerHTML = "✓ 자동 예측 <b>" + hh + ":" + mm + "</b><span class=\"es-hint\">심층은 웹분석</span>";
       st.title = "종목 선택 시 실데이터로 자동 계산된 경량 예측입니다(보여주기식 아님). '웹분석'을 누르면 멀티TF 매트릭스·실적까지 심층 갱신합니다.";
-      _setHz("auto", "⚡ 자동 예측(즉시)", "종목 선택 즉시 실데이터로 자동 계산된 경량 예측입니다. 일·주·월 TF매트릭스 등 심층은 [웹분석]에서 갱신됩니다(순서상 미리 뜬 게 아니라 즉시 결과).");
     } else if (_lastAnalyzedAt) {
       const d = new Date(_lastAnalyzedAt), YY = d.getFullYear(), MM = ("0" + (d.getMonth() + 1)).slice(-2), DD = ("0" + d.getDate()).slice(-2), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
       st.className = "eng-stat deep";
       st.innerHTML = "✓ 웹분석 완료 <b>" + YY + "." + MM + "." + DD + " " + hh + ":" + mm + "</b>";
       st.title = "현재 결과는 " + YY + "." + MM + "." + DD + " " + hh + ":" + mm + " 웹분석(심층)본입니다 (" + _fmtAgo(_lastAnalyzedAt) + ") — 초록=최신";
-      _setHz("deep", "✓ 웹분석 반영(심층)", "웹분석(멀티TF·심층)까지 반영된 최신 결과입니다.");
     } else {
       st.className = "eng-stat"; st.textContent = "";
-      _setHz("", "");
     }
+    // hz-mode 배지 = 이 종목을 세션 내 웹분석했는지 기준(재방문해도 컬러/심층 유지). eng-stat(현재 렌더 신선도)과 별개.
+    const _deepDoc = (typeof activeId !== "undefined" && activeId && _deepSessionDocs.has(activeId));
+    if (_engineDirty && !_autoFresh) _setHz("stale", "● 재분석 필요", "노드/설정이 바뀌어 결과가 낡았습니다 — [웹분석]으로 갱신");
+    else if (_deepDoc) _setHz("deep", "✓ 웹분석 반영(심층)", "이 종목은 이번 세션에 웹분석(심층)을 실행해 컬러/심층 상태를 유지합니다.");
+    else if (_lastAnalyzedAt) _setHz("auto", "⚡ 자동 예측(즉시)", "종목 선택 즉시 자동 계산된 경량 예측입니다(미리보기). 상승/하락 색은 그레이 — [웹분석] 시 컬러/심층.");
+    else _setHz("", "");
   }
   function markEngineDirty() { _engineDirty = true; _autoFresh = false; updateEngineBtn(); }   // 실제 변경 → 자동예측 표기 해제(재분석 필요로)
   function _ensureAnalyzeGauge() {
@@ -2107,6 +2112,7 @@
     // 심층 분석(웹분석 버튼 전용): 벤치마크 로드 — 종목 선택보다 무거운 작업을 여기로 분산
     try { if (typeof _loadSpy === "function") await _loadSpy(); if (typeof _loadSectorBench === "function") await _loadSectorBench(); } catch (e) {}   // 상대강도(v1.10 SPY + v1.11 섹터 ETF, 세션 캐시)
     _wantDeep = true;   // 이 runForge의 renderVerdict가 매트릭스(scheduleDash)를 예약하도록
+    if (typeof activeId !== "undefined" && activeId) _deepSessionDocs.add(activeId);   // 이 종목 = 세션 내 웹분석 완료 → 재방문해도 컬러/심층 유지
     runForge(); _engineDirty = false; _autoFresh = false; updateEngineBtn();   // 실제 계산(오버레이 뒤) — 실적 증강 + 매트릭스 포함(심층 완료)
     await new Promise(res => {
       const t0 = performance.now(), dur = 950;
