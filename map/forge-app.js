@@ -1940,7 +1940,10 @@
     const symEl = document.getElementById("tkSym"); if (!symEl) return;
     const t = boardState.nodes.find(n => n.blockType === "ticker");
     const sym = (t && t.params && t.params.symbol) || "";
-    if (document.activeElement !== symEl) symEl.value = sym;
+    // 첫 진입(미선택) idle → 임의 샘플 티커를 노출하지 않고 프롬프트 표시(선택/추가 유도)
+    const _idle = (typeof _firstIdle !== "undefined" && _firstIdle);
+    const _panel = document.getElementById("tkPanel"); if (_panel) _panel.classList.toggle("tk-idle", _idle);
+    if (document.activeElement !== symEl) symEl.value = _idle ? "" : sym;
     const cur = (t && t.params && t.params.tf) || "1day";
     const seg = document.getElementById("tkSeg");
     if (seg) seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.tf === cur));

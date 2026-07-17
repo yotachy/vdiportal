@@ -1248,6 +1248,7 @@
     <div class="tk-symwrap"><input class="tk-sym" id="tkSym" placeholder="현재 종목 심볼 — 바꾸면 [불러오기]로 갱신" title="선택된 종목의 심볼. 다른 종목으로 바꾸려면 심볼을 고쳐 [불러오기]를 누르세요. 새 종목 추가는 워치리스트 ‘＋ 종목 추가’." spellcheck="false" autocomplete="off"><div class="tk-sugg" id="tkSugg" role="listbox"></div></div>
     <button class="tk-load" id="tkLoad" title="현재 심볼의 시세(캔들)를 불러와 분석에 반영">불러오기</button>
     <span class="tk-stat tk-dot empty" id="tkStat" title="시세 로드 상태 — ‘미로드’면 [불러오기] 클릭"></span>
+    <span class="tk-idle-msg" id="tkIdleMsg">아직 선택된 종목이 없습니다 — 워치리스트에서 고르거나 <button class="tk-idle-add" onclick="_showAddTicker()">＋ 종목 추가</button></span>
   </div>
   <div class="wlist" id="wlist"></div>
   <div class="wboard" id="wboard"></div>

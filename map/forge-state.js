@@ -573,6 +573,7 @@
     if (dc.view) { view.tx = dc.view.tx; view.ty = dc.view.ty; view.scale = dc.view.scale; }
     sel = []; selEdge = null;
     _needFit = true;   // 종목/문서 전환 → 자동 프레이밍
+    if (!_bootIdle) _firstIdle = false;   // 사용자 선택 = idle 해제(renderBoard의 티커패널이 입력칸을 정상 표시하도록 먼저)
     renderBoard(); renderTheme(); if (window.renderSidebar) renderSidebar();
     // fetched 티커 자동 재fetch(비차단) — 캔들은 문서에 없으므로 메모리 복원
     // fetched 플래그 또는 레거시(구버전이 저장한 params.price 보유) 티커를 자동 재fetch. 샘플(price=null)은 제외.
@@ -659,6 +660,7 @@
     _firstIdle = true;
     if (window.renderSidebar) renderSidebar();   // 하이라이트 없이 재렌더
     if (typeof _showIdle === "function") _showIdle();
+    if (typeof renderTickerPanel === "function") renderTickerPanel();   // idle 상태 반영(티커 입력칸 대신 프롬프트)
     // poll restore는 loadDoc이 처리 (boot else 분기는 신규 문서 → 잡 없음)
     setSaveState(SERVER_OK ? "saved" : "offline");
   }
