@@ -942,9 +942,9 @@
       // 방향 색조(약한 적/녹) — 하락/상승 예측을 국면과 정합되게 한눈에
       const _pEnd = path[path.length - 1];
       const _pd = (_pEnd > anchor * 1.004) ? 1 : (_pEnd < anchor * 0.996) ? -1 : 0;
-      const CT = _pd > 0 ? { fa: "rgba(70,194,142,.30)", fb: "rgba(70,194,142,.05)", edge: "rgba(70,194,142,.48)", core: "#46c28e", glow: "rgba(70,194,142,.5)" }
-        : _pd < 0 ? { fa: "rgba(224,106,106,.30)", fb: "rgba(224,106,106,.05)", edge: "rgba(224,106,106,.48)", core: "#e06a6a", glow: "rgba(224,106,106,.5)" }
-          : { fa: _warmA(.30), fb: _warmA(.05), edge: _warmA(.44), core: FC_GOLD, glow: _warmA(.5) };
+      const CT = _pd > 0 ? { fa: "rgba(70,194,142,.22)", fb: "rgba(70,194,142,.03)", edge: "rgba(70,194,142,.34)", core: "#46c28e", glow: "rgba(70,194,142,.5)" }
+        : _pd < 0 ? { fa: "rgba(224,106,106,.22)", fb: "rgba(224,106,106,.03)", edge: "rgba(224,106,106,.34)", core: "#e06a6a", glow: "rgba(224,106,106,.5)" }
+          : { fa: _warmA(.22), fb: _warmA(.03), edge: _warmA(.3), core: FC_GOLD, glow: _warmA(.5) };
       // 밴드 채움: 현재(씨앗)에서 진하게 → 먼 미래로 갈수록 옅게(불확실성↑ 시각화)
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k]));
@@ -958,26 +958,18 @@
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k] + (hi[k] - path[k]) * 0.5));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(path[k] - (path[k] - lo[k]) * 0.5));
       c.closePath(); c.fillStyle = gcone; c.fill();
-      // 밴드 경계(범위가 주역 — 또렷한 경계선)
-      c.strokeStyle = CT.edge; c.lineWidth = 1.1; c.setLineDash(CDASH.fine);
+      // 밴드 경계(은은한 헤어라인 점선)
+      c.strokeStyle = CT.edge; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine);
       c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k])); c.stroke();
       c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(lo[k])); c.stroke();
       c.setLineDash([]);
-      // 방향 = 단일 화살표(경로 아님). 엔진 방향 실측 ≈ 자명규칙 → '대략 이 방향'만 정직하게. 확실한 건 '범위'라 밴드가 주역.
-      { const _cyM = y => Math.max(padTop + 9, Math.min(ch - padBot - 9, y));
-        const ax0 = seamX, ay0 = _cyM(toY(anchor));
-        const ax1 = toXf(path.length - 1), ay1 = _cyM(toY(path[path.length - 1]));
-        const _ang = Math.atan2(ay1 - ay0, ax1 - ax0), _hl = 12;
-        c.save();
-        c.strokeStyle = CT.core; c.fillStyle = CT.core; c.globalAlpha = 0.85; c.lineWidth = 2.2; c.lineCap = "round"; c.lineJoin = "round"; c.setLineDash([]);
-        // 화살대(끝에서 화살촉 길이만큼 짧게)
-        c.beginPath(); c.moveTo(ax0, ay0); c.lineTo(ax1 - Math.cos(_ang) * _hl, ay1 - Math.sin(_ang) * _hl); c.stroke();
-        // 화살촉
-        c.beginPath(); c.moveTo(ax1, ay1);
-        c.lineTo(ax1 - Math.cos(_ang - 0.42) * _hl, ay1 - Math.sin(_ang - 0.42) * _hl);
-        c.lineTo(ax1 - Math.cos(_ang + 0.42) * _hl, ay1 - Math.sin(_ang + 0.42) * _hl);
-        c.closePath(); c.fill();
-        c.restore(); }
+      // 중앙 예측선: 솔리드 + 소프트 글로우(방향 색조)
+      c.save();
+      c.strokeStyle = CT.core; c.lineWidth = 2.9; c.shadowColor = CT.glow; c.shadowBlur = 12;   // 예측 중앙선 = 핵심 산출물 → 굵게·강한 글로우로 강조
+      const _cyM = y => Math.max(padTop + 1, Math.min(ch - padBot - 1, y));   // 극단 예측도 플롯 안에 유지(축이 밴드를 넘는 경우 안전망)
+      c.beginPath(); c.moveTo(seamX, _cyM(toY(anchor)));
+      for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), _cyM(toY(path[k])));
+      c.stroke(); c.restore();
       // 반대 시나리오: '예상대로 가지 않았을 때'의 데이터 기반 대안 경로(엔진 pred.counter — 거울상 반사 아님)
       const _counter = pred && pred.counter;
       if (_pd !== 0 && Array.isArray(_counter) && _counter.length === path.length) {
@@ -988,29 +980,19 @@
         const _cA = Math.max(0.34, Math.min(0.8, _cProb / 100 * 1.15));
         const _cYc = k => Math.max(padTop + 4, Math.min(ch - padBot - 4, toY(_counter[k])));
         c.save();
-        // B: 반대(3차) 시나리오 = 작은 흐린 화살표(경로선/추적점/펄스 대신). 참고용 대안 방향.
-        const _cCore = "rgb(" + _cCol + ")";
-        const _cyM2 = y => Math.max(padTop + 9, Math.min(ch - padBot - 9, y));
-        const cx0 = seamX, cy0 = _cyM2(toY(anchor)), cx1 = toXf(_counter.length - 1), cy1 = _cyM2(toY(_counter[_counter.length - 1]));
-        const _cAng = Math.atan2(cy1 - cy0, cx1 - cx0), _chl = 9;
-        c.strokeStyle = _cCore; c.fillStyle = _cCore; c.globalAlpha = 0.42; c.lineWidth = 1.4; c.lineCap = "round"; c.lineJoin = "round"; c.setLineDash([5, 4]);
-        c.beginPath(); c.moveTo(cx0, cy0); c.lineTo(cx1 - Math.cos(_cAng) * _chl, cy1 - Math.sin(_cAng) * _chl); c.stroke(); c.setLineDash([]);
-        c.beginPath(); c.moveTo(cx1, cy1);
-        c.lineTo(cx1 - Math.cos(_cAng - 0.42) * _chl, cy1 - Math.sin(_cAng - 0.42) * _chl);
-        c.lineTo(cx1 - Math.cos(_cAng + 0.42) * _chl, cy1 - Math.sin(_cAng + 0.42) * _chl);
-        c.closePath(); c.fill();
-        c.globalAlpha = 0.72; c.font = "700 10px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
-        c.fillText("3차 " + _cProb + "%", cx1 + 8, cy1 + (_cUp ? -3 : 13));
+        c.strokeStyle = "rgba(" + _cCol + "," + Math.max(0.78, _cA) + ")"; c.lineWidth = 2.8; c.lineJoin = "round"; c.setLineDash([6, 4]); c.shadowColor = "rgba(" + _cCol + ",.5)"; c.shadowBlur = 7;
+        c.beginPath(); c.moveTo(seamX, toY(anchor));
+        for (let k = 0; k < _counter.length; k++) c.lineTo(toXf(k), _cYc(k));
+        c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
+        _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _cCol + ")", "3차\u00b7" + _cProb + "%", (_cUp ? -12 : 14), true);
+        _comets.p3 = { pts: _counter.map((v, k) => [toXf(k), _cYc(k)]), col: "rgb(" + _cCol + ")", prob: _cProb };
         c.restore();
       }
       // 1차(종합) 끝단: 흘러가는 점 + 진앙지 + 명칭(+ 방향 달성확률)
       let _p1s = 0, _p1w = 0; for (let k = 0; k < path.length; k++) { const wt = 1 / Math.sqrt(k + 1); _p1s += _upProb(path[k], hi[k], anchor) * wt; _p1w += wt; }
       const _p1up = _p1w ? _p1s / _p1w : 50, _p1disp = Math.round(_pd >= 0 ? _p1up : (100 - _p1up));
-      // 화살표 끝 라벨(방향 달성확률) — 경로를 따라 점 찍던 _predEndDeco 제거(화살표와 배치). 끝점에 간결 라벨만.
-      { const _tx = toXf(path.length - 1), _ty = Math.max(padTop + 9, Math.min(ch - padBot - 9, toY(path[path.length - 1])));
-        c.save(); c.fillStyle = CT.core; c.font = "800 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left"; c.setLineDash([]);
-        c.fillText((_pd >= 0 ? "▲ " : _pd < 0 ? "▼ " : "▸ ") + _p1disp + "%", _tx + 9, _ty + (_pd >= 0 ? -3 : 14)); c.restore(); }
-      // (p1 코멧 제거 — 방향선을 화살표로 바꿔 경로 위 흐르는 펄스 불필요)
+      _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차\u00b7" + _p1disp + "%", -12, true);
+      _comets.p1 = { pts: path.map((v, k) => [toXf(k), Math.max(padTop + 2, Math.min(ch - padBot - 2, toY(v)))]), col: CT.core, prob: _p1disp };
       _comets._start = { x: seamX, y: toY(anchor) };
       if (typeof _startComets === "function") _startComets();
       // 현재가 = 예측 시작점(1·2·3차가 갈라지는 원점) — 중립 흰색 마커
@@ -1018,9 +1000,6 @@
         c.strokeStyle = "rgba(255,255,255,.22)"; c.lineWidth = 1; c.beginPath(); c.arc(_mx, _my, 9.5, 0, 7); c.stroke();
         c.shadowColor = "rgba(255,255,255,.9)"; c.shadowBlur = 10; c.strokeStyle = "rgba(255,255,255,.92)"; c.lineWidth = 1.7; c.beginPath(); c.arc(_mx, _my, 4.6, 0, 7); c.stroke();
         c.shadowBlur = 0; c.fillStyle = "#fff"; c.beginPath(); c.arc(_mx, _my, 2.3, 0, 7); c.fill(); c.restore(); }
-      // 방향 정직성 표기: 엔진 방향 적중 ≈ 자명규칙(백테스트 실측) → 방향선은 참고, 검증된 건 비방향 축
-      { c.save(); c.fillStyle = FC_DIM; c.font = "9.5px ui-sans-serif,system-ui,sans-serif"; c.textAlign = "left"; c.setLineDash([]);
-        c.fillText("방향은 참고 · 검증된 축 = 변동성·낙폭·이익목표", seamX + 5, ch - padBot - 6); c.restore(); }
       if (typeof _renderChartLegend === "function") _renderChartLegend(_pd);   // 예측선 범례 = DOM(호버 설명·큰 폰트)
       }   // else(!_prev) 끝 — 웹분석 후에만 예측 작도
     }
