@@ -436,6 +436,8 @@
   .fcv-cellrow{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
   /* 웹분석 전 자동 예측 미리보기 = 판정 스트립/인라인 전체를 그레이스케일로(상승/하락 등 모든 방향색 일괄 중화). 웹분석하면 클래스 제거 → 컬러. */
   .fcv-preview{filter:grayscale(1)}
+  /* 웹분석 전엔 차트 아래 읽기 패널(지표신호·예측시점별·오실레이터·매트릭스=.fc-prow)도 흑백. 실제 캔들 차트(.fc-panel-hero)는 제외해 컬러 유지. */
+  .fc-wrap.fc-preview .fc-prow{filter:grayscale(1)}
   /* 1) 계기판 — 헤드라인 단일 행(종목·방향·현재가·목표·국면/기회·게이지) + 의견 서브라인 */
   .fcv-head{gap:3px}
   .fcv-hrow{display:flex;align-items:center;gap:4px 14px;flex-wrap:wrap}

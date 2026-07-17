@@ -113,9 +113,10 @@
     c.setLineDash([3, 3]);
     c.beginPath(); c.moveTo(predStartX, 0); c.lineTo(predStartX, candleBase);
     c.stroke(); c.setLineDash([]);
+    const _prev = (typeof window !== "undefined" && window._fcPreview);   // 웹분석 전 = 예측 미확정(밴드만·회색·경로선 없음)
     c.fillStyle = "rgba(52,230,220,.85)"; c.font = "10px ui-monospace,monospace";
     c.fillText("지금", predStartX - 28, candleBase - 7);
-    c.fillText("예측 →", predStartX + 6, 13);
+    c.fillText(_prev ? "예측(미확정) →" : "예측 →", predStartX + 6, 13);
 
     /* prediction cone */
     if (predPath.length) {
@@ -128,17 +129,30 @@
       for (let k = predPath.length - 1; k >= 0; k--) c.lineTo(toX(n + k), toY(predLo[k]));
       c.lineTo(predStartX, anchorY);
       c.closePath();
-      c.fillStyle = _warmA(.09);
+      c.fillStyle = _prev ? "rgba(90,100,120,.10)" : _warmA(.09);   // 미확정=중립 회색 음영
       c.fill();
-      /* path line (seam에서 시작) */
-      c.strokeStyle = FC_GOLD; c.lineWidth = 1.3; c.setLineDash(CDASH.std);
-      c.beginPath();
-      c.moveTo(predStartX, anchorY);
-      for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predPath[k]));
-      c.stroke(); c.setLineDash([]);
-      /* seam dot at last real close */
-      c.fillStyle = FC_GOLD; c.beginPath();
-      c.arc(predStartX, anchorY, 3, 0, Math.PI * 2); c.fill();
+      if (_prev) {
+        /* 미확정: 특정 예측 경로선·seam점 없이 밴드 외곽만 흐린 회색 점선(=가능 범위) → '확정 결과'로 안 읽히게 */
+        c.strokeStyle = "rgba(90,100,120,.55)"; c.lineWidth = 1; c.setLineDash(CDASH.fine);
+        c.beginPath();
+        c.moveTo(predStartX, anchorY);
+        for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predHi[k]));
+        c.stroke();
+        c.beginPath();
+        c.moveTo(predStartX, anchorY);
+        for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predLo[k]));
+        c.stroke(); c.setLineDash([]);
+      } else {
+        /* path line (seam에서 시작) */
+        c.strokeStyle = FC_GOLD; c.lineWidth = 1.3; c.setLineDash(CDASH.std);
+        c.beginPath();
+        c.moveTo(predStartX, anchorY);
+        for (let k = 0; k < predPath.length; k++) c.lineTo(toX(n + k), toY(predPath[k]));
+        c.stroke(); c.setLineDash([]);
+        /* seam dot at last real close */
+        c.fillStyle = FC_GOLD; c.beginPath();
+        c.arc(predStartX, anchorY, 3, 0, Math.PI * 2); c.fill();
+      }
     }
 
     /* candles */

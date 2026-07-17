@@ -82,6 +82,10 @@
     resetHeroView();
     if (typeof renderTfSeg === "function") renderTfSeg();   // 일/주/월 세그먼트 노출·현재 주기 동기화
     _fcLastResult = result; _fcLastData = data;
+    // 웹분석 전(자동 예측 미리보기): 읽기 패널(.fc-prow) 흑백 + 차트 콘 미확정(band-only). 세션 내 웹분석한 종목은 컬러 유지.
+    const _deepC = (typeof _deepSessionDocs !== "undefined" && typeof activeId !== "undefined" && activeId && _deepSessionDocs.has(activeId));
+    { const _fw = document.querySelector(".fc-wrap"); if (_fw) _fw.classList.toggle("fc-preview", !_deepC); }
+    window._fcPreview = !_deepC;   // forge-draw.js fcDrawMain 이 읽어 예측 콘을 미확정(밴드만·회색)으로 그림
     if (!_playing) _evidenceSet = new Set(evIndicatorNodes().map(n => n.id));   // 평상시: 모든 지표 근거 표시
 
     const candles  = data.candle  || [];
