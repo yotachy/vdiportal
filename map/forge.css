@@ -444,8 +444,6 @@
   body.forge-preview .fc-wrap .fc-prow,
   body.forge-preview .fc-wrap #fcNarrPanel,
   body.forge-preview .fc-wrap #fcFoldPanel{filter:grayscale(1)}
-  /* 차트 영역(웹분석 전): 예측선 코멧 펄스(별도 캔버스)도 blur — fcMainChart 예측블록 canvas blur와 짝. */
-  body.forge-preview #fcComet{filter:blur(3px)}
   /* 분석근거 토글은 웹분석 전 비활성(흐림·클릭 불가) — 근거 오버레이는 웹분석 후 표시. */
   body.forge-preview #evToggle,
   body.forge-preview #evCaret{opacity:.4;pointer-events:none}

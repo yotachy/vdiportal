@@ -920,14 +920,24 @@
     }
     // seam ("지금") + forecast cone + path — 예측 path 있을 때만(없으면 과거가 전폭, y라벨 겹침 방지)
     if (path.length) {
-      // 웹분석 전(미확정): 예측영역(1/2/3차 라인·음영 밴드) 전체를 blur — 과거 캔들은 위에서 이미 선명하게 그려짐. 웹분석하면 선명.
-      const _blur = (typeof window !== "undefined" && window._fcPreview);
-      if (_blur) { c.save(); c.filter = "blur(3px)"; }
+      const _prev = (typeof window !== "undefined" && window._fcPreview);   // 웹분석 전 = 예측 미표시(존만 비워 표시)
       c.strokeStyle = "#2b3647"; c.lineWidth = 1; c.setLineDash([3, 3]);
       c.beginPath(); c.moveTo(seamX, padTop - 6); c.lineTo(seamX, ch - padBot); c.stroke(); c.setLineDash([]);
       c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.fillText("지금", seamX + 3, padTop - 2);
       // 현재가 수평선 + 우측 골드 pill(항상 표시 — 어디서든 현재가 기준선)
       { const yA = toY(anchor); c.save(); c.strokeStyle = _warmA(.38); c.lineWidth = 1; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(padX, yA); c.lineTo(padX + plotW, yA); c.stroke(); c.setLineDash([]); c.restore(); }   // 현재가 기준선만(pill 제거)
+      if (_prev) {
+        // 웹분석 전: 예측을 아예 그리지 않음(존은 배경 그대로 비움) + 중앙 안내 — '확정 결과'로 안 보이게
+        if (typeof _clearComets === "function") _clearComets();   // 이전 분석 프레임 예측선 펄스 잔상 제거
+        c.save();
+        c.textAlign = "center"; c.textBaseline = "middle";
+        const _fx = seamX + (padX + plotW - seamX) / 2, _fy = padTop + (ch - padBot - padTop) / 2;
+        c.fillStyle = FC_DIM; c.font = "12px ui-sans-serif,system-ui,sans-serif";
+        c.fillText("웹분석하면 예측이 표시됩니다", _fx, _fy - 8);
+        c.fillStyle = "rgba(138,146,178,.55)"; c.font = "10px ui-sans-serif,system-ui,sans-serif";
+        c.fillText("종목 선택만으로는 미확정", _fx, _fy + 9);
+        c.textAlign = "left"; c.textBaseline = "alphabetic"; c.restore();
+      } else {
       const coneR = toXf(path.length - 1);
       // 방향 색조(약한 적/녹) — 하락/상승 예측을 국면과 정합되게 한눈에
       const _pEnd = path[path.length - 1];
@@ -991,7 +1001,7 @@
         c.shadowColor = "rgba(255,255,255,.9)"; c.shadowBlur = 10; c.strokeStyle = "rgba(255,255,255,.92)"; c.lineWidth = 1.7; c.beginPath(); c.arc(_mx, _my, 4.6, 0, 7); c.stroke();
         c.shadowBlur = 0; c.fillStyle = "#fff"; c.beginPath(); c.arc(_mx, _my, 2.3, 0, 7); c.fill(); c.restore(); }
       if (typeof _renderChartLegend === "function") _renderChartLegend(_pd);   // 예측선 범례 = DOM(호버 설명·큰 폰트)
-      if (_blur) { c.restore(); c.filter = "none"; }   // 예측영역 blur 종료 — 이하 y라벨 등은 선명
+      }   // else(!_prev) 끝 — 웹분석 후에만 예측 작도
     }
     // y labels (right)
     c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
