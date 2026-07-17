@@ -952,6 +952,20 @@
   .forge-side .side-actions .add-tk-wrap .add-tk-in{flex:1;min-width:0}
   .forge-side .side-actions .add-tk-go{flex:0 0 auto;background:var(--gold);color:#0b0f14;border:0;border-radius:var(--r-md);font-weight:800;font-size:11.5px;padding:0 12px;cursor:pointer;transition:filter .12s}
   .forge-side .side-actions .add-tk-go:hover{filter:brightness(1.08)}
+  /* 종목 추가 통합 모달 — PC·모바일 공통 중앙 오버레이(숨김 슬롯 인라인 대체) */
+  .tkadd-ov{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;background:var(--scrim);padding:16px}
+  .tkadd-ov.open{display:flex}
+  .tkadd-box{width:min(420px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 16px 44px rgba(0,0,0,.5);padding:16px}
+  .tkadd-head{display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:800;color:var(--ink);letter-spacing:-.02em;margin-bottom:12px}
+  .tkadd-x{background:none;border:0;color:var(--faint);font-size:15px;cursor:pointer;line-height:1;padding:2px 4px}
+  .tkadd-x:hover{color:var(--ink)}
+  .tkadd-box .add-tk-wrap{position:relative;display:flex;gap:8px}
+  .tkadd-box .add-tk-in{flex:1;min-width:0;background:var(--surface);border:1.5px solid var(--gold-dim);color:var(--ink);border-radius:var(--r-md);font-size:14px;padding:9px 11px;outline:none;font-family:inherit;letter-spacing:-.01em}
+  .tkadd-box .add-tk-in::placeholder{color:var(--faint)}
+  .tkadd-box .add-tk-in:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,180,99,.12)}
+  .tkadd-box .add-tk-go{flex:0 0 auto;background:var(--gold);color:#0b0f14;border:0;border-radius:var(--r-md);font-weight:800;font-size:13px;padding:0 18px;cursor:pointer;transition:filter .12s}
+  .tkadd-box .add-tk-go:hover{filter:brightness(1.08)}
+  .tkadd-hint{margin-top:10px;font-size:10.5px;color:var(--faint);letter-spacing:-.01em}
   .forge-side .doc-row{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:3px;padding:8px 10px 9px;border-radius:var(--r-md);cursor:grab;font-size:13.5px;color:var(--ink)}
   .forge-side .doc-r1{display:flex;align-items:center;gap:6px;width:100%}
   .forge-side .doc-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;letter-spacing:-.01em}

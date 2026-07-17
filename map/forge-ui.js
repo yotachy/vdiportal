@@ -267,18 +267,30 @@
   }
   function toggleChartLock() { _chartLock = !_chartLock; applyChartLock(); if (typeof bToast === "function") bToast(_chartLock ? "스크롤 모드 — 페이지 이동" : "차트 조작 모드 — 드래그=팬·축, 두 손가락=줌"); }
   function switchDoc(id) { if (id === activeId && !_firstIdle) return; _firstIdle = false; writeBackActive(); loadDoc(id); saveMeta(); }   // 첫 진입 idle에선 활성 문서 재클릭도 로드(선택 해제 상태이므로)
-  function _showAddTicker() {   // '종목 추가' → 인라인 티커 입력
-    const el = document.getElementById("addTickerSlot"); if (!el) { newDoc(); return; }
-    el.innerHTML = `<div class="add-tk-wrap"><input class="add-tk-in" id="addTkIn" placeholder="티커 입력 (예: TSLA · BTC/USD · 005930)" spellcheck="false" autocomplete="off"><div class="tk-sugg" id="addTkSugg" role="listbox"></div></div><button class="add-tk-go" id="addTkGo" title="추가(Enter)">추가</button>`;
-    const inp = document.getElementById("addTkIn"), go = document.getElementById("addTkGo"), sugg = document.getElementById("addTkSugg");
-    const submit = () => { const v = (inp.value || "").trim().toUpperCase(); _hideAddTicker(); if (v) _addTickerDoc(v); };
-    _wireSuggest(inp, sugg, sym => { _hideAddTicker(); _addTickerDoc(sym); });   // 자동완성 선택 = 즉시 추가
-    inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); submit(); } else if (e.key === "Escape") { e.preventDefault(); _hideAddTicker(); } });
-    go.addEventListener("mousedown", e => { e.preventDefault(); submit(); });   // mousedown → blur보다 먼저 처리
-    inp.addEventListener("blur", () => { setTimeout(() => { const c = document.getElementById("addTkIn"); if (c && document.activeElement !== c) _hideAddTicker(); }, 180); });
-    inp.focus();
+  function _closeAddModal() { const ov = document.getElementById("tkAddOv"); if (ov) ov.classList.remove("open"); }
+  function _showAddTicker() {   // '종목 추가' → 화면 중앙 통합 모달(PC·모바일 공통·숨김 슬롯 의존 제거)
+    let ov = document.getElementById("tkAddOv");
+    if (!ov) {
+      ov = document.createElement("div"); ov.id = "tkAddOv"; ov.className = "tkadd-ov";
+      document.body.appendChild(ov);
+      ov.addEventListener("mousedown", e => { if (e.target === ov) _closeAddModal(); });   // 백드롭 클릭 = 닫기
+    }
+    // innerHTML 매회 재생성 → 리스너 중복 없이 새 요소에 바인딩
+    ov.innerHTML = `<div class="tkadd-box" role="dialog" aria-label="종목 추가">`
+      + `<div class="tkadd-head"><span>종목 추가</span><button class="tkadd-x" id="addTkX" title="닫기(Esc)" aria-label="닫기">✕</button></div>`
+      + `<div class="add-tk-wrap"><input class="add-tk-in" id="addTkIn" placeholder="티커 입력 (예: TSLA · BTC/USD · 005930 국내)" spellcheck="false" autocomplete="off"><button class="add-tk-go" id="addTkGo" title="추가(Enter)">추가</button><div class="tk-sugg" id="addTkSugg" role="listbox"></div></div>`
+      + `<div class="tkadd-hint">Enter로 추가 · 목록에서 골라도 즉시 추가 · Esc로 닫기</div>`
+      + `</div>`;
+    const inp = ov.querySelector("#addTkIn"), go = ov.querySelector("#addTkGo"), sugg = ov.querySelector("#addTkSugg");
+    const submit = () => { const v = (inp.value || "").trim().toUpperCase(); _closeAddModal(); if (v) _addTickerDoc(v); };
+    _wireSuggest(inp, sugg, sym => { _closeAddModal(); _addTickerDoc(sym); });   // 자동완성 선택 = 즉시 추가
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); submit(); } else if (e.key === "Escape") { e.preventDefault(); _closeAddModal(); } });
+    go.addEventListener("click", e => { e.preventDefault(); submit(); });   // click = 터치(탭)도 정합
+    ov.querySelector("#addTkX").addEventListener("click", _closeAddModal);
+    ov.classList.add("open");
+    setTimeout(() => inp.focus(), 20);
   }
-  function _hideAddTicker() { const el = document.getElementById("addTickerSlot"); if (el) el.innerHTML = `<button class="side-btn" onclick="_showAddTicker()">＋ 종목 추가</button>`; }
+  function _hideAddTicker() { _closeAddModal(); }   // 하위호환 별칭
   async function _addTickerDoc(sym) {
     sym = _normSym(sym); if (!sym) return;   // 대문자 + 크립토 슬래시 정규화(BTC/USD)
     writeBackActive();
@@ -293,11 +305,7 @@
     writeBackActive(); saveMeta();
     if (typeof loadTicker === "function") loadTicker();
   }
-  function newDoc() {   // 하위호환(모바일 칩 등): 슬롯 있으면 인라인, 없으면 prompt
-    if (document.getElementById("addTickerSlot")) { _showAddTicker(); return; }
-    const sym = ((typeof prompt === "function" ? prompt("추가할 종목 티커 (예: TSLA · BTC/USD · 005930)") : "") || "").trim();
-    if (sym) _addTickerDoc(sym);
-  }
+  function newDoc() { _showAddTicker(); }   // 통합 모달(PC 사이드바·모바일 칩 공통)
   function newSampleDoc() {
     writeBackActive();
     const dc = { id: uid("doc"), title: "BTC/USD 분석 (샘플)", themeImgId: null, nodes: [], edges: [],
