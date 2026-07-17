@@ -965,7 +965,7 @@
       c.setLineDash([]);
       // 중앙 예측선: 솔리드 + 소프트 글로우(방향 색조)
       c.save();
-      c.strokeStyle = CT.core; c.lineWidth = 2.9; c.shadowColor = CT.glow; c.shadowBlur = 12;   // 예측 중앙선 = 핵심 산출물 → 굵게·강한 글로우로 강조
+      c.strokeStyle = CT.core; c.globalAlpha = 0.68; c.lineWidth = 1.4; c.setLineDash(CDASH.std);   // 방향 중앙선 = 참고용(엔진 방향 실측 ≈ 자명규칙) → 가늘게·글로우 없이·점선. 확실한 건 '범위'라 밴드가 주역.
       const _cyM = y => Math.max(padTop + 1, Math.min(ch - padBot - 1, y));   // 극단 예측도 플롯 안에 유지(축이 밴드를 넘는 경우 안전망)
       c.beginPath(); c.moveTo(seamX, _cyM(toY(anchor)));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), _cyM(toY(path[k])));
@@ -980,7 +980,7 @@
         const _cA = Math.max(0.34, Math.min(0.8, _cProb / 100 * 1.15));
         const _cYc = k => Math.max(padTop + 4, Math.min(ch - padBot - 4, toY(_counter[k])));
         c.save();
-        c.strokeStyle = "rgba(" + _cCol + "," + Math.max(0.78, _cA) + ")"; c.lineWidth = 2.8; c.lineJoin = "round"; c.setLineDash([6, 4]); c.shadowColor = "rgba(" + _cCol + ",.5)"; c.shadowBlur = 7;
+        c.strokeStyle = "rgba(" + _cCol + "," + Math.max(0.5, _cA * 0.66) + ")"; c.lineWidth = 1.3; c.lineJoin = "round"; c.setLineDash([5, 4]); c.shadowBlur = 0;   // 반대선도 참고용으로 종속(글로우 제거·가늘게) — 밴드가 주역
         c.beginPath(); c.moveTo(seamX, toY(anchor));
         for (let k = 0; k < _counter.length; k++) c.lineTo(toXf(k), _cYc(k));
         c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
@@ -1000,6 +1000,9 @@
         c.strokeStyle = "rgba(255,255,255,.22)"; c.lineWidth = 1; c.beginPath(); c.arc(_mx, _my, 9.5, 0, 7); c.stroke();
         c.shadowColor = "rgba(255,255,255,.9)"; c.shadowBlur = 10; c.strokeStyle = "rgba(255,255,255,.92)"; c.lineWidth = 1.7; c.beginPath(); c.arc(_mx, _my, 4.6, 0, 7); c.stroke();
         c.shadowBlur = 0; c.fillStyle = "#fff"; c.beginPath(); c.arc(_mx, _my, 2.3, 0, 7); c.fill(); c.restore(); }
+      // 방향 정직성 표기: 엔진 방향 적중 ≈ 자명규칙(백테스트 실측) → 방향선은 참고, 검증된 건 비방향 축
+      { c.save(); c.fillStyle = FC_DIM; c.font = "9.5px ui-sans-serif,system-ui,sans-serif"; c.textAlign = "left"; c.setLineDash([]);
+        c.fillText("방향은 참고 · 검증된 축 = 변동성·낙폭·이익목표", seamX + 5, ch - padBot - 6); c.restore(); }
       if (typeof _renderChartLegend === "function") _renderChartLegend(_pd);   // 예측선 범례 = DOM(호버 설명·큰 폰트)
       }   // else(!_prev) 끝 — 웹분석 후에만 예측 작도
     }
