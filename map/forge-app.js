@@ -48,7 +48,7 @@
     if (loA && hiA) { mn = Math.min(mn, Math.min.apply(0, loA)); mx = Math.max(mx, Math.max.apply(0, hiA)); }
     const sp = (mx - mn) || 1, n = ys.length;
     const x = i => pad + i / (n - 1) * (w - 2 * pad), y = v => h - pad - (v - mn) / sp * (h - 2 * pad);
-    const up = ys[n - 1] >= 0, col = up ? "var(--bull)" : "var(--bear)";
+    const up = ys[n - 1] >= 0, col = opts.col || (up ? "var(--bull)" : "var(--bear)");   // opts.col=그레이 등 강제색(웹분석 전 미리보기)
     let band = "";
     if (loA && hiA) {
       const top = hiA.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
@@ -219,7 +219,7 @@
     const projPath = path.map(v => anchor + (v - anchor) * u);
     const projLo = (p.lo || []).map(v => isFinite(v) ? anchor + (v - anchor) * u : v);
     const projHi = (p.hi || []).map(v => isFinite(v) ? anchor + (v - anchor) * u : v);
-    const proj = projPath.length >= 2 ? `<div class="hz-spark">${_projSVG(anchor, projPath, projLo, projHi, { w: 150, h: 42 })}<span>예측 경로 · 지금 → +${hs[hs.length - 1]}${unit}<br>음영 = 예상 범위(밴드)</span></div>` : "";
+    const proj = projPath.length >= 2 ? `<div class="hz-spark">${_projSVG(anchor, projPath, projLo, projHi, { w: 150, h: 42, col: _deepC ? null : "var(--muted)" })}<span>예측 경로 · 지금 → +${hs[hs.length - 1]}${unit}<br>음영 = 예상 범위(밴드)</span></div>` : "";
     host.innerHTML = proj + `<div class="hz-grid">${head}${rows}</div>`;
   }
   /* 시점 가중 종합 상승확률(%) — 가까운 시점일수록 신뢰↑. 헤더 국면/시그널 문구에 통합 표기 */
