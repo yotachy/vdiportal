@@ -5,6 +5,8 @@
 
 ## 🔥 진행 중 / 대기
 
+- ~~**[엔진 정리] 실적(종목 이벤트) 축 제거**~~ ✅ 완료(2026-07-17): v1.9.6~1.9.7 실적 인지 축(갭+6.3/급변+3.4/변동성+2.6%p, 유일 실증 외부데이터 승자)을 **엔진에서 완전 제거** — 이유는 정확도 아닌 **리스크**(종목별 라이브 실적일 fetch 의존=외부API·미국주식만·재현불가·불투명). forge-core 증강모델(`_EVF/_ESPK/_EGAP·_earnFeats·earnAug`)·클라 fetch/스레딩/📅배지/알림규칙·PHP `?earndate` 프록시 제거 → 세 예보 **순수 가격 곡선 복귀**. 트레이드오프 갭 −6.3%p. 246/246·잔존참조0·캐시버스터 bump. spec `2026-07-17-remove-earnings-axis-design.md`. **→ 방향-신호 데이터 슬라이스 탐색(내부자·VIX·공매도·PEAD 대형+소형 전부 기각) 종료. 엔진 개선은 작도·UI·검증 규율 축으로 전환.**
+
 0. ~~데이터기반 다중스케일 작도 + 중요도 위계 (Gann 첫 적용)~~ ✅ 완료(2026-07-15, 0137d76..1999d9c): `collectAnchors`(민감도 사다리·고정창 없음)+중요도 스코어 → Gann 다중앵커 부챗살·강조/디밍·윈도우 클램프(창밖 무음 해소). **엔진 불변**(anchors opt-in→run 비용0·bias/baseline 불변). 배포·헤드리스 검증 완료. [[scoopforge-multiscale-drawing]]
   - ~~**[확장]** 같은 위계를 S/R·structure 작도에 적용~~ ✅ 완료(2026-07-16, c9081e7..11a9009): `collectLevels`(스윙 수평 클러스터·터치수/유의도)+`collectStructure`(대/중/소 티어·HH/HL/LH/LL·BOS/CHoCH) 작도 전용 함수 추가(`opts.draw` 게이팅·엔진 bias 불변·비용격리). S/R 강조/디밍+피벗 P만 참고선, structure 3티어. 244/244·opus 최종리뷰 Ready·헤드리스 파이프라인 검증·배포 완료. spec `2026-07-16-multiscale-sr-structure-design.md`.
     - ~~**[남은 확장]** 추세선·fib 위계 통일~~ ✅ 완료(2026-07-16, ecfef88·84ae333): trend 지배창(ta.dominant/최고 R²)만 강조·나머지 디밍·라벨 지배창만·피봇선 디밍정렬 / fib 중·장 bespoke STY를 공통 규약 정렬 + **교차-degree 합류 강조**(단·중·장 겹침=최강 S/R·bold+✦). 작도 전용(엔진 불변)·244/244·sonnet 리뷰 Ready·헤드리스 검증(지배창 라벨·합류 5존)·배포 완료. **→ S/R·구조·추세선·fib 4지표 시각 언어 통일 완료.** spec `2026-07-16-trend-fib-hierarchy-unify-design.md`.
