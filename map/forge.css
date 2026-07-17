@@ -160,6 +160,8 @@
   .run-btn.needs-run{animation:engPulse 1.3s ease-in-out infinite}
   /* 분석 버전/신선도 칩 — "언제 분석된 결과인지" 인지용 */
   .eng-stat{font-size:11px;font-weight:600;letter-spacing:-.01em;padding:3px 2px;white-space:nowrap;font-family:var(--mono);background:transparent}
+  .eng-stat b{font-weight:800;font-variant-numeric:tabular-nums}   /* 시각=주정보 강조 */
+  .eng-stat .es-hint{color:var(--faint);font-weight:400;margin-left:7px;padding-left:7px;border-left:1px solid var(--line)}   /* 힌트=부차(흐림·헤어라인 분리) */
   .eng-stat:empty{display:none}
   .eng-stat.ok{color:var(--eth)}
   .eng-stat.stale{color:var(--bear);font-weight:700}   /* 변경됨=빨강(결과 낡음) */

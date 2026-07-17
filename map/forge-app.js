@@ -2065,12 +2065,12 @@
     } else if (_autoFresh && _lastAnalyzedAt) {   // 선택 시 자동 계산된 실제 예측(심층은 대기) — 보여주기식 아님을 정직 표기
       const d = new Date(_lastAnalyzedAt), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
       st.className = "eng-stat auto";
-      st.textContent = "✓ 자동 예측 " + hh + ":" + mm + " · 심층은 웹분석";
+      st.innerHTML = "✓ 자동 예측 <b>" + hh + ":" + mm + "</b><span class=\"es-hint\">심층은 웹분석</span>";
       st.title = "종목 선택 시 실데이터로 자동 계산된 경량 예측입니다(보여주기식 아님). '웹분석'을 누르면 멀티TF 매트릭스·실적까지 심층 갱신합니다.";
     } else if (_lastAnalyzedAt) {
       const d = new Date(_lastAnalyzedAt), YY = d.getFullYear(), MM = ("0" + (d.getMonth() + 1)).slice(-2), DD = ("0" + d.getDate()).slice(-2), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
       st.className = "eng-stat deep";
-      st.textContent = "✓ 웹분석 완료 " + YY + "." + MM + "." + DD + " " + hh + ":" + mm;
+      st.innerHTML = "✓ 웹분석 완료 <b>" + YY + "." + MM + "." + DD + " " + hh + ":" + mm + "</b>";
       st.title = "현재 결과는 " + YY + "." + MM + "." + DD + " " + hh + ":" + mm + " 웹분석(심층)본입니다 (" + _fmtAgo(_lastAnalyzedAt) + ") — 초록=최신";
     } else {
       st.className = "eng-stat"; st.textContent = "";
