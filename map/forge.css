@@ -89,7 +89,7 @@
   .ind-rail .ir-tick{position:absolute;left:33.33%;top:3px;bottom:3px;width:1px;background:rgba(232,180,99,.45);z-index:0;pointer-events:none}
   .ind-rail .ir-row.on .ir-fill{opacity:.44}
   .ind-rail .ir-chk,.ind-rail .ir-lbl,.ind-rail .ir-wval{position:relative;z-index:1}
-  .ind-rail .ir-wval{flex:0 0 auto;font-size:9.5px;font-weight:700;font-family:ui-monospace,monospace;color:var(--faint);letter-spacing:-.02em;min-width:27px;text-align:right}
+  .ind-rail .ir-wval{flex:0 0 auto;font-size:9.5px;font-weight:700;font-family:ui-monospace,monospace;color:var(--faint);letter-spacing:-.02em;min-width:24px;text-align:right}
   .ind-rail .ir-row.on .ir-wval{color:var(--ink)}
   .ind-rail .ir-wval.def{opacity:.4;font-weight:600}   /* 기본 ×1 = 흐리게(조정된 지표만 눈에 띄게) */
   .ind-rail .ir-bar{flex:1;min-width:0;position:relative;display:flex;align-items:center;gap:6px;overflow:hidden;padding:5px 6px 5px 4px;border-radius:var(--r-sm);cursor:ew-resize;touch-action:none}
@@ -128,7 +128,8 @@
   .ind-rail .ir-tierhead.collapsed .ir-caret{transform:rotate(0deg)}
   .ind-rail .ir-tiercount{flex:0 0 auto;margin-left:auto;font-size:9px;font-weight:700;font-family:ui-monospace,monospace;color:var(--faint);background:color-mix(in srgb, var(--tc,#8a92b2) 13%, transparent);border-radius:99px;padding:0 5px;line-height:1.5}
   .ind-rail .ir-new{display:inline-block;font-size:6.5px;font-weight:800;line-height:1.35;letter-spacing:.01em;text-transform:uppercase;color:var(--gold);background:rgba(232,180,99,.16);border-radius:2px;padding:0 2px;margin-right:3px;vertical-align:middle;transform:translateY(-.5px)}
-  .ind-rail .ir-tag { display:inline-block; font-size:8px; font-weight:800; letter-spacing:-.02em; line-height:1; padding:2px 4px; margin-right:4px; border-radius:4px; color:var(--gold); background:color-mix(in srgb, var(--gold) 16%, transparent); vertical-align:middle; }
+  .ind-rail .ir-tag { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:15px; height:15px; padding:0; margin-right:3px; border-radius:4px; color:var(--gold); background:color-mix(in srgb, var(--gold) 16%, transparent); vertical-align:middle; }
+  .ind-rail .ir-tag svg { width:10px; height:10px; }
   .ind-rail .ir-resetw{flex:0 0 auto;width:32px;padding:0;color:var(--eth);border:1px solid var(--line);border-radius:var(--r-md);background:transparent;cursor:pointer;display:grid;place-items:center;transition:color .12s,border-color .12s}
   .ind-rail .ir-resetw:hover{border-color:var(--gold);color:var(--gold)}
   .ind-rail .ir-resetw svg{width:14px;height:14px}
