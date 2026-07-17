@@ -942,9 +942,9 @@
       // 방향 색조(약한 적/녹) — 하락/상승 예측을 국면과 정합되게 한눈에
       const _pEnd = path[path.length - 1];
       const _pd = (_pEnd > anchor * 1.004) ? 1 : (_pEnd < anchor * 0.996) ? -1 : 0;
-      const CT = _pd > 0 ? { fa: "rgba(70,194,142,.22)", fb: "rgba(70,194,142,.03)", edge: "rgba(70,194,142,.34)", core: "#46c28e", glow: "rgba(70,194,142,.5)" }
-        : _pd < 0 ? { fa: "rgba(224,106,106,.22)", fb: "rgba(224,106,106,.03)", edge: "rgba(224,106,106,.34)", core: "#e06a6a", glow: "rgba(224,106,106,.5)" }
-          : { fa: _warmA(.22), fb: _warmA(.03), edge: _warmA(.3), core: FC_GOLD, glow: _warmA(.5) };
+      const CT = _pd > 0 ? { fa: "rgba(70,194,142,.30)", fb: "rgba(70,194,142,.05)", edge: "rgba(70,194,142,.48)", core: "#46c28e", glow: "rgba(70,194,142,.5)" }
+        : _pd < 0 ? { fa: "rgba(224,106,106,.30)", fb: "rgba(224,106,106,.05)", edge: "rgba(224,106,106,.48)", core: "#e06a6a", glow: "rgba(224,106,106,.5)" }
+          : { fa: _warmA(.30), fb: _warmA(.05), edge: _warmA(.44), core: FC_GOLD, glow: _warmA(.5) };
       // 밴드 채움: 현재(씨앗)에서 진하게 → 먼 미래로 갈수록 옅게(불확실성↑ 시각화)
       c.beginPath(); c.moveTo(seamX, toY(anchor));
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k]));
@@ -958,8 +958,8 @@
       for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k] + (hi[k] - path[k]) * 0.5));
       for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(path[k] - (path[k] - lo[k]) * 0.5));
       c.closePath(); c.fillStyle = gcone; c.fill();
-      // 밴드 경계(은은한 헤어라인 점선)
-      c.strokeStyle = CT.edge; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine);
+      // 밴드 경계(범위가 주역 — 또렷한 경계선)
+      c.strokeStyle = CT.edge; c.lineWidth = 1.1; c.setLineDash(CDASH.fine);
       c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k])); c.stroke();
       c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(lo[k])); c.stroke();
       c.setLineDash([]);
