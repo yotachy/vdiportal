@@ -1725,6 +1725,25 @@
     _drawProjLine(c, pts, col); _projMark(c, pts[pts.length - 1][0], pts[pts.length - 1][1], col, _projMarkScale(endV, base));
     _evLabel(c, label + " \u2248 " + _hzFmt(endV), xr, pToY(endV), col, "right");
   }
+  // 경량 투영선(라벨·마커 없음): 계열을 최근 봉당 기울기로 감쇠 연장한 흐린 점선 — 채널 밴드용
+  function _projFaintLine(c, series, nowFi, seam, xr, fb, pToY, col, alpha) {
+    if (!series || !isFinite(seam) || !isFinite(xr) || !fb) return;
+    const w = Math.min(24, Math.max(6, Math.round(fb / 2)));
+    const base = series[nowFi], prev = series[Math.max(0, nowFi - w)];
+    if (!isFinite(base) || !isFinite(prev)) return;
+    const slPer = (base - prev) / w, pts = [[seam, pToY(base)]];
+    for (let k = 1; k <= fb; k++) { const v = base + slPer * k * Math.exp(-k / (fb * 1.5)); pts.push([seam + (xr - seam) * k / fb, pToY(v)]); }
+    c.save(); c.setLineDash([5, 4]); c.strokeStyle = col; c.lineWidth = CW.hair; c.globalAlpha = alpha != null ? alpha : 0.45;
+    c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+    c.restore();
+  }
+  // 수평 유지 투영선(라벨 없음): 현재값을 미래로 평평하게 연장(롤링 max/min 등 후행 밴드용 — 가짜 기울기 금지)
+  function _projHeldLine(c, val, seam, xr, pToY, col, alpha) {
+    const y = pToY(val); if (!isFinite(y) || !isFinite(seam) || !isFinite(xr)) return;
+    c.save(); c.setLineDash([5, 4]); c.strokeStyle = col; c.lineWidth = CW.hair; c.globalAlpha = alpha != null ? alpha : 0.4;
+    c.beginPath(); c.moveTo(seam, y); c.lineTo(xr, y); c.stroke();
+    c.restore();
+  }
   function _drawTrendLayers(c, ta, M) {
     c.save();
     const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0 } = M;
@@ -2514,6 +2533,17 @@
       c.globalAlpha = 1; c.setLineDash([]);
       if (emph && _skReady()) _evLabel(c, (L.side === "support" ? "지지" : "저항") + " ×" + L.touches + " " + fmtNum(L.price), xR - 3, y - 2, col, "right");
     });
+    // 포커스 시: 정적 S/R이라 선은 이미 미래까지 수평 연장됨 → P 강조 + 도달 라벨(9지표 parity)
+    if (M.focused && reveal >= 1) {
+      const yP = pToY(piv.P);
+      if (isFinite(yP) && !(top != null && bot != null && (yP < top || yP > bot))) {
+        c.setLineDash(CDASH.fine); c.strokeStyle = GOLD; c.lineWidth = CW.base; c.globalAlpha = 0.8;
+        c.beginPath(); c.moveTo(xL, yP); c.lineTo(xR, yP); c.stroke();
+        c.globalAlpha = 1; c.setLineDash([]);
+        _projMark(c, xR, yP, GOLD, 1);
+        _evLabel(c, "피벗 P 투영 ≈ " + _hzFmt(piv.P), xR, yP, GOLD, "right");
+      }
+    }
     c.restore();
   }
   // Gann 각도팬 — 앵커점(직전 지배 스윙)에서 우측 끝까지 1×1(굵은 골드)+2×1~1×4(흐린 점선) 직선 투영
@@ -2572,6 +2602,24 @@
       const t = "SAR " + (up ? "상승 ▲" : "하락 ▼") + (a.flip ? " · 전환" : "");
       _evLabel(c, t, (xRight != null ? xRight : fiToX(nowFi)) - 6, _by, up ? "#46c28e" : "#e06a6a", "right");
     }
+    // 포커스 시 미래 투영: SAR 계열을 최근 봉당 기울기로 감쇠 연장한 점렬(방향색) + 도달 라벨. AF/EP 미보유라 계열 기울기 근사("투영" 명시).
+    if (M.focused && M.xNow != null && M.futBars && reveal >= 2) {
+      const fb = M.futBars, xr = (xRight != null ? xRight : fiToX(nowFi));
+      const w = Math.min(24, Math.max(6, Math.round(fb / 2)));
+      const base = a.series[nowFi], prev = a.series[Math.max(0, nowFi - w)];
+      if (isFinite(base) && isFinite(prev)) {
+        const slPer = (base - prev) / w, up = a.dir === 1, dcol = up ? "#46c28e" : "#e06a6a";
+        let endV = base;
+        c.save(); c.fillStyle = dcol; c.globalAlpha = 0.7;
+        for (let k = 1; k <= fb; k++) {
+          endV = base + slPer * k * Math.exp(-k / (fb * 1.5));
+          const px = M.xNow + (xr - M.xNow) * k / fb, py = pToY(endV);
+          if (isFinite(px) && isFinite(py)) { c.beginPath(); c.arc(px, py, 2, 0, Math.PI * 2); c.fill(); }
+        }
+        c.restore();
+        _evLabel(c, "SAR 투영 ≈ " + _hzFmt(endV), xr, pToY(endV), dcol, "right");
+      }
+    }
     c.restore();
   }
   // Keltner 채널 hero 작도 — 중심(EMA)·상/하단(±ATR×배수) 3선을 봉별 추종선으로(볼린저 미러). 볼린저와 구분: 채움 없음·긴 대시·teal·라벨 접두 "KC"
@@ -2593,6 +2641,13 @@
       const posTxt = kt.pctB > 1 ? "상단 돌파" : kt.pctB < 0 ? "하단 이탈" : kt.pctB > 0.8 ? "상단권" : kt.pctB < 0.2 ? "하단권" : "채널 중앙";
       const col = kt.bias > 0.15 ? "#46c28e" : kt.bias < -0.15 ? "#e06a6a" : COL;
       if (isFinite(x) && isFinite(y)) _evLabel(c, "KC " + posTxt + (kt.squeeze ? " · 스퀴즈" : "") + " · %B" + kt.pctB.toFixed(2), x - 6, y, col, "right");
+    }
+    // 포커스 시 미래 투영: 중심(감쇠 기울기)+도달 라벨, 상/하단은 흐린 밴드로 연장
+    if (M.focused && M.xNow != null && M.futBars && reveal >= 2) {
+      const xr = xRight != null ? xRight : fiToX(nowFi);
+      _projFaintLine(c, kt.upperArr, nowFi, M.xNow, xr, M.futBars, pToY, COL, 0.4);
+      _projFaintLine(c, kt.lowerArr, nowFi, M.xNow, xr, M.futBars, pToY, COL, 0.4);
+      _projFwd(c, kt.midArr, nowFi, M.xNow, xr, M.futBars, pToY, COL, "켈트너 중심 투영");
     }
     c.restore();
   }
@@ -2627,6 +2682,13 @@
       const posTxt = dc.pos > 0.98 ? "상단 돌파" : dc.pos < 0.02 ? "하단 이탈" : dc.pos > 0.8 ? "상단권" : dc.pos < 0.2 ? "하단권" : "채널 중앙";
       const col = dc.bias > 0.15 ? "#46c28e" : dc.bias < -0.15 ? "#e06a6a" : COL;
       if (isFinite(x) && isFinite(y)) _evLabel(c, "DC " + posTxt + " · pos" + dc.pos.toFixed(2), x - 6, y, col, "right");
+    }
+    // 포커스 시 미래 투영: 중심(감쇠)만 투영·상/하단은 현재값 수평 유지(롤링 max/min은 후행 → 돌파 전 평평이 정직)
+    if (M.focused && M.xNow != null && M.futBars && reveal >= 2) {
+      const xr = xRight != null ? xRight : fiToX(nowFi);
+      _projHeldLine(c, dc.upperArr[nowFi], M.xNow, xr, pToY, COL, 0.38);
+      _projHeldLine(c, dc.lowerArr[nowFi], M.xNow, xr, pToY, COL, 0.38);
+      _projFwd(c, dc.midArr, nowFi, M.xNow, xr, M.futBars, pToY, COL, "돈치안 중심 투영");
     }
     c.restore();
   }
@@ -2782,7 +2844,7 @@
           legend.push({ col, t: EV_LABEL.stochastic, _key: n.blockType });
         } else if (n.blockType === "pivot") {
           const piv = _anPivotDraw(price);
-          if (_drawThis) _drawPivotLayers(cc, piv, { pToY: v => toY(v), xRight: g.padX + g.plotW, padX: g.padX, top: g.padTop, bot: g.ch - g.padBot, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity });
+          if (_drawThis) _drawPivotLayers(cc, piv, { pToY: v => toY(v), xRight: g.padX + g.plotW, padX: g.padX, top: g.padTop, bot: g.ch - g.padBot, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, focused: (_focus === "pivot") });
           legend.push({ col, t: EV_LABEL.pivot, _key: n.blockType });
         } else if (n.blockType === "gann") {
           const gn = _anGann(price, n.params);
@@ -2790,15 +2852,15 @@
           legend.push({ col, t: EV_LABEL.gann, _key: n.blockType });
         } else if (n.blockType === "psar") {
           const ps = _anPsar(price, { step: (n.params && n.params.step) || 0.02, max: (n.params && n.params.max) || 0.2 });
-          if (_drawThis) _drawPsarLayers(cc, ps, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY(), price });
+          if (_drawThis) _drawPsarLayers(cc, ps, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, badgeY: _slotY(), price, xNow: g.seamX, futBars: (g.path && g.path.length) || 24, focused: (_focus === "psar") });
           legend.push({ col, t: EV_LABEL.psar, _key: n.blockType });
         } else if (n.blockType === "keltner") {
           const kt = _anKeltner(price, { len: (n.params && n.params.len) || 20, atrLen: (n.params && n.params.atrLen) || 10, mult: (n.params && n.params.mult) || 2 });
-          if (_drawThis) _drawKeltnerLayers(cc, kt, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          if (_drawThis) _drawKeltnerLayers(cc, kt, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, xNow: g.seamX, futBars: (g.path && g.path.length) || 24, focused: (_focus === "keltner") });
           legend.push({ col, t: EV_LABEL.keltner, _key: n.blockType });
         } else if (n.blockType === "donchian") {
           const dc = _anDonchian(price, { len: (n.params && n.params.len) || 20 });
-          if (_drawThis) _drawDonchianLayers(cc, dc, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW });
+          if (_drawThis) _drawDonchianLayers(cc, dc, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, xNow: g.seamX, futBars: (g.path && g.path.length) || 24, focused: (_focus === "donchian") });
           legend.push({ col, t: EV_LABEL.donchian, _key: n.blockType });
         } else if (n.blockType === "cci") {
           const cci = _an("CCI", price, { period: (n.params && n.params.period) || 20 });
