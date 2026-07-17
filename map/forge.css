@@ -434,6 +434,8 @@
   .fcv-k{font-size:9px;font-weight:800;letter-spacing:.04em;color:var(--faint);white-space:nowrap;text-transform:uppercase}
   .fcv-cell{display:flex;flex-direction:column;justify-content:flex-start;gap:3px;min-width:0}
   .fcv-cellrow{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+  /* 웹분석 전 자동 예측 미리보기 = 판정 스트립/인라인 전체를 그레이스케일로(상승/하락 등 모든 방향색 일괄 중화). 웹분석하면 클래스 제거 → 컬러. */
+  .fcv-preview{filter:grayscale(1)}
   /* 1) 계기판 — 헤드라인 단일 행(종목·방향·현재가·목표·국면/기회·게이지) + 의견 서브라인 */
   .fcv-head{gap:3px}
   .fcv-hrow{display:flex;align-items:center;gap:4px 14px;flex-wrap:wrap}

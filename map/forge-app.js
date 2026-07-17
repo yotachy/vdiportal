@@ -1433,6 +1433,9 @@
     const REGIME_COL = { bull: "var(--bull)", bear: "var(--bear)", neutral: "var(--eth)" };
     const regime = verdict.regime || "neutral";
     const col = REGIME_COL[regime] || "var(--eth)", label = REGIME_LABEL[regime] || "중립";
+    // 웹분석 전(자동 예측 미리보기)엔 판정 스트립 전체를 그레이스케일로(색 지점이 많아 컨테이너 레벨로 일괄 중화 — 누락 방지). 세션 내 웹분석한 종목은 재방문해도 컬러 유지.
+    const _deepC = (typeof _deepSessionDocs !== "undefined" && typeof activeId !== "undefined" && activeId && _deepSessionDocs.has(activeId));
+    el.classList.toggle("fcv-preview", !_deepC);
     // 시연: 국면·확률·시그널·목표가가 중립/현재가에서 최종으로 단조 충전(u)
     const u = (fillU == null || !isFinite(fillU)) ? 1 : Math.max(0, Math.min(1, fillU));
     const _anchor = (lastResult && lastResult.prediction && isFinite(lastResult.prediction.anchor)) ? lastResult.prediction.anchor : null;
@@ -1454,6 +1457,7 @@
     const bar = document.getElementById("fcVerdictBar");
     if (bar) {
       bar.style.display = "flex";
+      bar.classList.toggle("fcv-preview", !_deepC);   // 웹분석 전 = 그레이스케일 미리보기
       const op = verdictOpinion(verdict, _up);
       const arrow = regime === "bull" ? "▲" : regime === "bear" ? "▼" : "▸";
       const _tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim());
