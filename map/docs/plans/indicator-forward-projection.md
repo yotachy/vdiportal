@@ -18,7 +18,9 @@
 - [x] **1. 추세선(trend)** — 이미 미래 투영(_drawTrendLayers, futBars/xRight) + 중기/단기/장기 +%/봉·R² 라벨. (parity: 도달 예상가 end-label 추가 예정)
 - [x] **2. 이동평균(ma)** — 완료: 장기MA 봉당 기울기 damped 연장(exp decay), 포커스 시 점선 투영 + '이동평균 투영 ≈ {가격}' 라벨. drawEvidence서 xNow/xRight/futBars/focused 전달.
 - [x] **3. 일목균형표(ichimoku)** — 이미 미래 구름 투영(_drawIchimokuLayers, futBars/shift). (parity: 도달 라벨 추가 예정)
-- [ ] (후속) 볼린저·VWAP·슈퍼트렌드·피보 등 확장.
+- [x] **4. 볼린저·VWAP·슈퍼트렌드** — 완료(Phase 5b, `_projFwd` 제네릭).
+- [x] **5. 켈트너·돈치안·PSAR·피벗** — 완료(2026-07-17, 8277b64): dispatch에 xNow/futBars/focused 전달 + 켈트너(중심 `_projFwd`+상/하단 `_projFaintLine`)·PSAR(감쇠 점렬 투영)·돈치안(중심 투영+상/하단 수평유지=롤링 후행 정직)·피벗(정적이라 선 이미 미래연장→포커스 P 강조+도달라벨). `_projFaintLine`/`_projHeldLine` 헬퍼 신설. **→ 오버레이 투영 100%.** 작도 전용·엔진 불변(246/246). spec `2026-07-17-overlay-projection-design.md`.
+- [ ] (후속) 오실레이터는 서브패널이라 가격공간 투영 대상 아님 — 필요 시 별도.
 
 ## 진행 로그 (완료 시 체크 + 커밋 해시)
 - [x] Phase 0: 계획서 저장 + 메모리 등록
