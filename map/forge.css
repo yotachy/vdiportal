@@ -159,6 +159,12 @@
   .play-btn.playing{color:var(--bear)!important;border-color:rgba(224,106,106,.6)!important;background:rgba(224,106,106,.12)!important}   /* 재생 중 = 중지(빨강) */
   .play-btn:hover{background:rgba(143,208,192,.14)!important;border-color:#8fd0c0!important;color:#ade0d4!important}
   .run-btn.needs-run{animation:engPulse 1.3s ease-in-out infinite}
+  /* 예측 시점별 패널 모드 배지 — 즉시 자동 예측 vs 웹분석 심층(순서 혼란 해소) */
+  .hz-mode{font-size:9.5px;font-weight:800;letter-spacing:-.01em;padding:2px 7px;border-radius:99px;line-height:1.5;white-space:nowrap}
+  .hz-mode:empty{display:none}
+  .hz-mode.auto{color:var(--gold);background:color-mix(in srgb, var(--gold) 15%, transparent)}
+  .hz-mode.deep{color:var(--bull);background:color-mix(in srgb, var(--bull) 14%, transparent)}
+  .hz-mode.stale{color:var(--bear);background:color-mix(in srgb, var(--bear) 14%, transparent)}
   /* 분석 버전/신선도 칩 — "언제 분석된 결과인지" 인지용 */
   .eng-stat{font-size:11px;font-weight:600;letter-spacing:-.01em;padding:3px 2px;white-space:nowrap;font-family:var(--mono);background:transparent}
   .eng-stat b{font-weight:800;font-variant-numeric:tabular-nums}   /* 시각=주정보 강조 */

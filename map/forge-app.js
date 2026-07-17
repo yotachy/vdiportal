@@ -2061,22 +2061,29 @@
       b.classList.toggle("needs-run", _engineDirty && _autoFresh);    // 자동 예측 상태 → 골드 펄스(심층 유도)
     }
     const st = document.getElementById("engStat"); if (!st) return;
+    // 예측 시점별 패널 배지 — eng-stat과 동일 상태(선택 즉시 자동 예측 vs 웹분석 심층)를 패널에도 명시(순서 혼란 해소)
+    const _hzM = document.getElementById("fcHzMode");
+    const _setHz = (cls, txt, ti) => { if (_hzM) { _hzM.className = "hz-mode" + (cls ? " " + cls : ""); _hzM.textContent = txt; _hzM.title = ti || ""; } };
     if (_engineDirty && !_autoFresh) {   // 노드/설정을 실제로 바꿔 코어 결과가 낡음 → 재분석 필요
       st.className = "eng-stat stale";
       st.textContent = "● 변경됨 — 지금 결과는 옛것 · 웹분석 필요";
       st.title = "노드/설정이 바뀌어 화면의 분석 결과가 낡았습니다 — 빨간 [웹분석] 버튼을 눌러 갱신하세요";
+      _setHz("stale", "● 재분석 필요", "노드/설정이 바뀌어 결과가 낡았습니다 — [웹분석]으로 갱신");
     } else if (_autoFresh && _lastAnalyzedAt) {   // 선택 시 자동 계산된 실제 예측(심층은 대기) — 보여주기식 아님을 정직 표기
       const d = new Date(_lastAnalyzedAt), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
       st.className = "eng-stat auto";
       st.innerHTML = "✓ 자동 예측 <b>" + hh + ":" + mm + "</b><span class=\"es-hint\">심층은 웹분석</span>";
       st.title = "종목 선택 시 실데이터로 자동 계산된 경량 예측입니다(보여주기식 아님). '웹분석'을 누르면 멀티TF 매트릭스·실적까지 심층 갱신합니다.";
+      _setHz("auto", "⚡ 자동 예측(즉시)", "종목 선택 즉시 실데이터로 자동 계산된 경량 예측입니다. 일·주·월 TF매트릭스 등 심층은 [웹분석]에서 갱신됩니다(순서상 미리 뜬 게 아니라 즉시 결과).");
     } else if (_lastAnalyzedAt) {
       const d = new Date(_lastAnalyzedAt), YY = d.getFullYear(), MM = ("0" + (d.getMonth() + 1)).slice(-2), DD = ("0" + d.getDate()).slice(-2), hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
       st.className = "eng-stat deep";
       st.innerHTML = "✓ 웹분석 완료 <b>" + YY + "." + MM + "." + DD + " " + hh + ":" + mm + "</b>";
       st.title = "현재 결과는 " + YY + "." + MM + "." + DD + " " + hh + ":" + mm + " 웹분석(심층)본입니다 (" + _fmtAgo(_lastAnalyzedAt) + ") — 초록=최신";
+      _setHz("deep", "✓ 웹분석 반영(심층)", "웹분석(멀티TF·심층)까지 반영된 최신 결과입니다.");
     } else {
       st.className = "eng-stat"; st.textContent = "";
+      _setHz("", "");
     }
   }
   function markEngineDirty() { _engineDirty = true; _autoFresh = false; updateEngineBtn(); }   // 실제 변경 → 자동예측 표기 해제(재분석 필요로)
