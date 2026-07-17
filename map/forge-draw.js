@@ -963,13 +963,21 @@
       c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k])); c.stroke();
       c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(lo[k])); c.stroke();
       c.setLineDash([]);
-      // 중앙 예측선: 솔리드 + 소프트 글로우(방향 색조)
-      c.save();
-      c.strokeStyle = CT.core; c.globalAlpha = 0.68; c.lineWidth = 1.4; c.setLineDash(CDASH.std);   // 방향 중앙선 = 참고용(엔진 방향 실측 ≈ 자명규칙) → 가늘게·글로우 없이·점선. 확실한 건 '범위'라 밴드가 주역.
-      const _cyM = y => Math.max(padTop + 1, Math.min(ch - padBot - 1, y));   // 극단 예측도 플롯 안에 유지(축이 밴드를 넘는 경우 안전망)
-      c.beginPath(); c.moveTo(seamX, _cyM(toY(anchor)));
-      for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), _cyM(toY(path[k])));
-      c.stroke(); c.restore();
+      // 방향 = 단일 화살표(경로 아님). 엔진 방향 실측 ≈ 자명규칙 → '대략 이 방향'만 정직하게. 확실한 건 '범위'라 밴드가 주역.
+      { const _cyM = y => Math.max(padTop + 9, Math.min(ch - padBot - 9, y));
+        const ax0 = seamX, ay0 = _cyM(toY(anchor));
+        const ax1 = toXf(path.length - 1), ay1 = _cyM(toY(path[path.length - 1]));
+        const _ang = Math.atan2(ay1 - ay0, ax1 - ax0), _hl = 12;
+        c.save();
+        c.strokeStyle = CT.core; c.fillStyle = CT.core; c.globalAlpha = 0.85; c.lineWidth = 2.2; c.lineCap = "round"; c.lineJoin = "round"; c.setLineDash([]);
+        // 화살대(끝에서 화살촉 길이만큼 짧게)
+        c.beginPath(); c.moveTo(ax0, ay0); c.lineTo(ax1 - Math.cos(_ang) * _hl, ay1 - Math.sin(_ang) * _hl); c.stroke();
+        // 화살촉
+        c.beginPath(); c.moveTo(ax1, ay1);
+        c.lineTo(ax1 - Math.cos(_ang - 0.42) * _hl, ay1 - Math.sin(_ang - 0.42) * _hl);
+        c.lineTo(ax1 - Math.cos(_ang + 0.42) * _hl, ay1 - Math.sin(_ang + 0.42) * _hl);
+        c.closePath(); c.fill();
+        c.restore(); }
       // 반대 시나리오: '예상대로 가지 않았을 때'의 데이터 기반 대안 경로(엔진 pred.counter — 거울상 반사 아님)
       const _counter = pred && pred.counter;
       if (_pd !== 0 && Array.isArray(_counter) && _counter.length === path.length) {
@@ -991,8 +999,11 @@
       // 1차(종합) 끝단: 흘러가는 점 + 진앙지 + 명칭(+ 방향 달성확률)
       let _p1s = 0, _p1w = 0; for (let k = 0; k < path.length; k++) { const wt = 1 / Math.sqrt(k + 1); _p1s += _upProb(path[k], hi[k], anchor) * wt; _p1w += wt; }
       const _p1up = _p1w ? _p1s / _p1w : 50, _p1disp = Math.round(_pd >= 0 ? _p1up : (100 - _p1up));
-      _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차\u00b7" + _p1disp + "%", -12, true);
-      _comets.p1 = { pts: path.map((v, k) => [toXf(k), Math.max(padTop + 2, Math.min(ch - padBot - 2, toY(v)))]), col: CT.core, prob: _p1disp };
+      // 화살표 끝 라벨(방향 달성확률) — 경로를 따라 점 찍던 _predEndDeco 제거(화살표와 배치). 끝점에 간결 라벨만.
+      { const _tx = toXf(path.length - 1), _ty = Math.max(padTop + 9, Math.min(ch - padBot - 9, toY(path[path.length - 1])));
+        c.save(); c.fillStyle = CT.core; c.font = "800 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left"; c.setLineDash([]);
+        c.fillText((_pd >= 0 ? "▲ " : _pd < 0 ? "▼ " : "▸ ") + _p1disp + "%", _tx + 9, _ty + (_pd >= 0 ? -3 : 14)); c.restore(); }
+      // (p1 코멧 제거 — 방향선을 화살표로 바꿔 경로 위 흐르는 펄스 불필요)
       _comets._start = { x: seamX, y: toY(anchor) };
       if (typeof _startComets === "function") _startComets();
       // 현재가 = 예측 시작점(1·2·3차가 갈라지는 원점) — 중립 흰색 마커
