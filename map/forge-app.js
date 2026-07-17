@@ -84,7 +84,7 @@
     _fcLastResult = result; _fcLastData = data;
     // 웹분석 전(자동 예측 미리보기): 읽기 패널(.fc-prow) 흑백 + 차트 콘 미확정(band-only). 세션 내 웹분석한 종목은 컬러 유지.
     const _deepC = (typeof _deepSessionDocs !== "undefined" && typeof activeId !== "undefined" && activeId && _deepSessionDocs.has(activeId));
-    { const _fw = document.querySelector(".fc-wrap"); if (_fw) _fw.classList.toggle("fc-preview", !_deepC); }
+    document.body.classList.toggle("forge-preview", !_deepC);   // body 레벨 — 읽기 패널이 #wboard(2패널)로 이동돼도 CSS가 커버(캔들 hero는 제외)
     window._fcPreview = !_deepC;   // forge-draw.js fcDrawMain 이 읽어 예측 콘을 미확정(밴드만·회색)으로 그림
     if (!_playing) _evidenceSet = new Set(evIndicatorNodes().map(n => n.id));   // 평상시: 모든 지표 근거 표시
 
