@@ -2182,23 +2182,14 @@ test("forecastGapRisk: 오버나잇 갭 예보 — 형식·주식게이트 [v1.9
   const nP = [], nC = [];
   for (let i = 0; i < 400; i++) { const c = 100 + i * 0.05 + Math.sin(i * 0.1) * 4; nP.push(c); nC.push({ o: i > 0 ? nP[i - 1] : c, h: c * 1.01, l: c * 0.99, c }); }
   assert.equal(ForgeCore.forecastGapRisk(nP, nC), null, "갭 없는 시장(시가≈전일종가) → 주식게이트로 null");
-  // 실적 인지 증강(v1.9.6): 실적일 정보 있으면 earnAug, 임박 시 갭확률↑
+  // 가격 전용(실적 증강 제거): 세 예보 모두 opts 없이 곡선만
   const base = ForgeCore.forecastGapRisk(gP, gC);
-  assert.equal(base.earnAug, false, "실적정보 없으면 증강 안 함(곡선 폴백)");
-  const near = ForgeCore.forecastGapRisk(gP, gC, { earnBars: 3, earnSince: 60 });
-  const far = ForgeCore.forecastGapRisk(gP, gC, { earnBars: 50, earnSince: 30 });
-  assert.equal(near.earnAug, true, "실적 임박 → earnAug true");
-  assert.ok(near.prob >= 0 && near.prob <= 100, "증강 prob 0~100");
-  assert.ok(near.prob > far.prob, "실적 임박(3봉)이 멀음(50봉)보다 갭확률↑: " + near.prob + " vs " + far.prob);
-  // 실적 증강이 급변·변동성에도 적용(v1.9.7)
-  const vB = ForgeCore.forecastVolatility(gP, gC), vE = ForgeCore.forecastVolatility(gP, gC, { earnBars: 3, earnSince: 60 });
-  assert.equal(vB.earnAug, false, "변동성 실적정보 없으면 곡선");
-  assert.equal(vE.earnAug, true, "변동성 실적 임박 → earnAug");
-  assert.ok(vE.raw >= 0 && vE.raw <= 100, "변동성 증강 raw 0~100");
-  const sB = ForgeCore.forecastSpike(gP, gC), sE = ForgeCore.forecastSpike(gP, gC, { earnBars: 3, earnSince: 60 });
-  assert.equal(sB.earnAug, false, "급변 실적정보 없으면 곡선");
-  assert.equal(sE.earnAug, true, "급변 실적 임박 → earnAug");
-  assert.ok(sE.prob >= 0 && sE.prob <= 100, "급변 증강 prob 0~100");
+  assert.ok(base.prob >= 0 && base.prob <= 100, "갭 곡선 prob 0~100");
+  assert.equal(base.earnAug, undefined, "실적 증강 필드 없음(제거됨)");
+  const vB = ForgeCore.forecastVolatility(gP, gC);
+  assert.ok(vB.raw >= 0 && vB.raw <= 100, "변동성 곡선 raw 0~100");
+  const sB = ForgeCore.forecastSpike(gP, gC);
+  assert.ok(sB.prob >= 0 && sB.prob <= 100, "급변 곡선 prob 0~100");
 });
 
 test("forecastTrendPersist: 추세 지속/소진 — 국면 한정·형식 [v1.9]", () => {

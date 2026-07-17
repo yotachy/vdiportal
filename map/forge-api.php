@@ -174,22 +174,6 @@ if ($method === "GET") {
     @file_put_contents($cf, $payload);
     echo $payload; exit;
   }
-  // 다가오는 실적일 프록시(v1.9.6) — Nasdaq 무료(키불필요·브라우저 UA 필요). 6시간 캐시. 갭 예보 실적증강용.
-  if (isset($_GET["earndate"])) {
-    header("Content-Type: application/json; charset=utf-8");
-    $sym = strtoupper(preg_replace('/[^A-Za-z0-9.\-]/', '', isset($_GET["symbol"]) ? $_GET["symbol"] : ""));
-    if ($sym === "") { echo json_encode(["ok"=>false, "error"=>"no symbol"]); exit; }
-    $cf = __DIR__ . "/forge_earn_cache_" . md5($sym) . ".json";
-    if (is_readable($cf)) { $c = json_decode(@file_get_contents($cf), true); if (is_array($c) && isset($c["ts"]) && (time() - $c["ts"] < 21600)) { echo json_encode(["ok"=>true, "symbol"=>$sym, "date"=>$c["date"], "cached"=>true], JSON_UNESCAPED_UNICODE); exit; } }
-    $ch = curl_init("https://api.nasdaq.com/api/analyst/" . rawurlencode($sym) . "/earnings-date");
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>8, CURLOPT_FOLLOWLOCATION=>true, CURLOPT_HTTPHEADER=>["accept: application/json"], CURLOPT_USERAGENT=>"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"]);
-    $raw = curl_exec($ch); $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
-    $date = null;
-    if ($raw && $code >= 200 && $code < 300) { $j = json_decode($raw, true); $txt = isset($j["data"]["reportText"]) ? $j["data"]["reportText"] : ""; if (preg_match('#(\d{2})/(\d{2})/(\d{4})#', $txt, $m)) $date = $m[3] . "-" . $m[1] . "-" . $m[2]; }
-    @file_put_contents($cf, json_encode(["ts"=>time(), "date"=>$date]));
-    echo json_encode(["ok"=>true, "symbol"=>$sym, "date"=>$date], JSON_UNESCAPED_UNICODE);
-    exit;
-  }
   // 라이브 트랙레코드 원장: 만기 도래 예측을 OHLC 캐시로 자동 채점 + 집계 반환
   if (isset($_GET["predledger"])) {
     $pf = __DIR__ . "/forge_predlog.json";

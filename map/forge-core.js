@@ -2339,11 +2339,11 @@
       if (_rUp2 > 0) _opp = { kind: "buy", sub: "recovery", rsi: Math.round(_rsi.last), rsiUp: Math.round(_rUp2 * 10) / 10 };
     }
     context.opportunity = _opp;
-    context.volForecast = forecastVolatility(price, data && data.candle, { earnBars: opts && opts.earnBars, earnSince: opts && opts.earnSince });   // 변동성 예보(v1.9.7) — 곡선 + 실적일 있으면 증강
+    context.volForecast = forecastVolatility(price, data && data.candle);   // 변동성 예보 — 순수 가격 곡선(2주/1달/2달)
     context.ddRisk = forecastDrawdown(price, data && data.candle);          // 낙폭리스크 예보(v1.6.1) — 1/2/3개월 낙폭 위험곡선(하방 특화)
     context.upTarget = forecastUpside(price, data && data.candle);          // 이익목표 도달 예보(v1.7) — 1/2/3개월 +목표 도달 곡선(낙폭과 짝=확률 R:R)
-    context.spikeRisk = forecastSpike(price, data && data.candle, { earnBars: opts && opts.earnBars, earnSince: opts && opts.earnSince });   // 단일봉 급변 예보(v1.9.7) — 곡선 + 실적일 있으면 증강
-    context.gapRisk = forecastGapRisk(price, data && data.candle, { earnBars: opts && opts.earnBars, earnSince: opts && opts.earnSince });   // 오버나잇 갭 예보(v1.9.6) — 곡선 + 실적일 있으면 증강(주식 한정)
+    context.spikeRisk = forecastSpike(price, data && data.candle);   // 단일봉 급변 예보 — 순수 가격 곡선(2σ/2.5σ/3σ)
+    context.gapRisk = forecastGapRisk(price, data && data.candle);   // 오버나잇 갭 예보 — 순수 가격 곡선(주식 한정)
     context.trendPersist = forecastTrendPersist(price, context.state, context.strength);   // 추세 지속/소진 예보(v1.9) — 추세 국면서 이어질지 힘 빠질지(비방향)
     context.relStrength = (opts && opts.spyClose) ? forecastRelStrength(price, opts.spyClose) : null;   // 시장 상대강도(v1.10) — 클라가 SPY 종가 스레딩(미국주식·일봉 한정)
     context.relSector = (opts && opts.sectorClose) ? forecastRelSector(price, opts.sectorClose, opts.sectorEtf) : null;   // 섹터 상대강도(v1.11) — 소속 섹터 ETF 종가 스레딩(SPY판보다 강함)
@@ -2510,11 +2510,7 @@
     { h: 20, lb: "1달", acc: 69, W: [0.22226, -0.24407, -0.18178, -0.0482, -0.03907, 0.02583, 0.21496, -0.35353, -0.24191, -0.32175, 0.44161], BB: -0.08025 },
     { h: 40, lb: "2달", acc: 64, W: [0.20559, 0.04675, -0.10441, -0.25792, -0.05793, 0.04125, 0.21962, -0.37366, 0.16958, -0.2832, 0.37568], BB: -0.11457 },
   ];
-  // 실적 인지 변동성 증강(v1.9.7) — 16피처(변동성11 + 실적5). earnings-lab: 종목외 69.7→72.3%(+2.6%p). 실적 데이터 있을 때 대표(H20) 대체.
-  const _EVF_MEAN = [-0.04929, -0.02695, -0.03681, -0.01314, 2.41611, 0.21141, 2.21986, 1.69683, -0.0603, 0.50503, 0.91511, 0.17477, 0.33352, 0.83312, 0.83244, 0.09578];
-  const _EVF_STD = [0.33946, 0.24267, 0.30853, 0.15986, 1.46256, 0.10999, 1.39492, 1.11687, 0.26287, 0.30704, 0.21019, 0.37977, 0.47147, 0.29368, 0.29403, 0.29429];
-  const _EVF_W = [0.24792, -0.20861, -0.17691, -0.0314, 0.02538, 0.01238, 0.27088, -0.42011, -0.20056, -0.29013, 0.48927, -0.02244, 0.33289, -0.09331, 0.20181, -0.003], _EVF_BB = -0.07926;
-  function forecastVolatility(price, candle, opts) {
+  function forecastVolatility(price, candle) {
     const x0 = _riskFeatures(price, candle); if (!x0) return null;
     const t = price.length - 1, op = candle.map(c => c.o), hi = candle.map(c => c.h), lo = candle.map(c => c.l);
     let s20 = 0; for (let i = t - 19; i <= t; i++) s20 += Math.log(price[i] / price[i - 1]) ** 2; const v20 = Math.sqrt(s20 / 20);
@@ -2523,13 +2519,7 @@
     const curve = _VF_HZ.map(z => { const p = _logit(x, _VF_MEAN, _VF_STD, z.W, z.BB);
       return { h: z.h, lb: z.lb, expand: p >= 0.5, prob: Math.round((p >= 0.5 ? p : 1 - p) * 100), raw: Math.round(p * 100), acc: z.acc }; });
     const rep = curve[1];   // 대표=1달(H=20)
-    let expand = rep.expand, prob = rep.prob, raw = rep.raw, acc = rep.acc, earnAug = false;
-    const eb = opts && opts.earnBars, es = opts && opts.earnSince;
-    if (eb != null || es != null) {   // 실적일 있으면 16피처 증강 모델(주식만·실적 근접이 변동성↑)
-      const p = _logit(x.concat(_earnFeats(eb, es)), _EVF_MEAN, _EVF_STD, _EVF_W, _EVF_BB);
-      expand = p >= 0.5; prob = Math.round((p >= 0.5 ? p : 1 - p) * 100); raw = Math.round(p * 100); acc = 72; earnAug = true;
-    }
-    return { expand, prob, raw, acc, curve, earnAug };
+    return { expand: rep.expand, prob: rep.prob, raw: rep.raw, acc: rep.acc, curve };
   }
   // 낙폭리스크 예보(v1.6.1) — 향후 H봉 내 현재가 대비 ≥문턱 낙폭 발생 확률. 하방 특화 리스크(가격방향 예측 아님).
   // 멀티지평 위험곡선: 1개월(20봉·5%)·2개월(40봉·7%)·3개월(60봉·9%). 문턱은 지평스케일(√H)로 양성률 ~35% 균형.
@@ -2571,22 +2561,12 @@
     { sigma: 2.5, h: 20, lb: "1달", base: 44, acc: 65, W: [0.16376, -0.20536, -0.16055, -0.05029, 0.03827, 0.03443, 0.23533, -0.3782, -0.22833, -0.31402], BB: -0.30246 },
     { sigma: 3.0, h: 40, lb: "2달", base: 48, acc: 66, W: [0.12436, -0.21133, -0.19444, -0.11328, -0.01297, 0.10962, 0.212, -0.32661, -0.23592, -0.33736], BB: -0.16234 },
   ];
-  // 실적 인지 급변 증강(v1.9.7) — 15피처(변동성10 + 실적5). earnings-lab: 종목외 65.2→68.5%(+3.4%p). 실적 데이터 있을 때 대표(2.5σ·20봉) 대체.
-  const _ESPK_MEAN = [-0.04929, -0.02695, -0.03681, -0.01314, 2.41611, 0.21141, 2.21986, 1.69683, -0.0603, 0.50503, 0.17477, 0.33352, 0.83312, 0.83244, 0.09578];
-  const _ESPK_STD = [0.33946, 0.24267, 0.30853, 0.15986, 1.46256, 0.10999, 1.39492, 1.11687, 0.26287, 0.30704, 0.37977, 0.47147, 0.29368, 0.29403, 0.29429];
-  const _ESPK_W = [0.18505, -0.19181, -0.14724, -0.0196, 0.06426, 0.0068, 0.27825, -0.52352, -0.21788, -0.27841, -0.02891, 0.35716, -0.10261, 0.13285, -0.03017], _ESPK_BB = -0.30721;
-  function forecastSpike(price, candle, opts) {
+  function forecastSpike(price, candle) {
     const x = _riskFeatures(price, candle); if (!x) return null;
     const curve = _SPK_HZ.map(z => { const p = _logit(x, _SPK_MEAN, _SPK_STD, z.W, z.BB);
       return { sigma: z.sigma, h: z.h, lb: z.lb, prob: Math.round(p * 100), base: z.base, acc: z.acc, elevated: p >= 0.5 }; });
     const rep = curve[1];   // 대표=1달(2.5σ·20봉)
-    let prob = rep.prob, elevated = rep.elevated, acc = rep.acc, earnAug = false;
-    const eb = opts && opts.earnBars, es = opts && opts.earnSince;
-    if (eb != null || es != null) {   // 실적일 있으면 15피처 증강 모델
-      const p = _logit(x.concat(_earnFeats(eb, es)), _ESPK_MEAN, _ESPK_STD, _ESPK_W, _ESPK_BB);
-      prob = Math.round(p * 100); elevated = p >= 0.5; acc = 68; earnAug = true;
-    }
-    return { prob, sigma: rep.sigma, base: rep.base, acc, elevated, curve, earnAug };
+    return { prob: rep.prob, sigma: rep.sigma, base: rep.base, acc: rep.acc, elevated: rep.elevated, curve };
   }
   // 오버나잇 갭 리스크 멀티지평 곡선(v1.9.4) — 향후 H봉 내 큰 오버나잇 갭(|시가/전일종가−1| > Kσ×트레일링갭변동성) 발생 확률.
   // 지평↑ 문턱↑ 대각선 곡선: 1달 2.2σ / 1.5달 2.7σ / 2달 3.2σ(양성률 47~49% 균형 유지). 급변 경보(일중·종가)와 다른 데이터 슬라이스(시가 vs 전일종가).
@@ -2612,18 +2592,7 @@
     let s20 = 0; for (let i = t - 19; i <= t; i++) s20 += Math.log(price[i] / price[i - 1]) ** 2; const v20 = Math.sqrt(s20 / 20) || 1e-9;
     return [gv * 100, lastAbs * 100, cl, r5 * 100, gv / v20];
   }
-  // 실적 인지 갭 증강(v1.9.6) — 외부 데이터(실적일)를 갭 모델에 결합. 향후 실적일까지 봉수(earnBars)가 있으면 20피처(변동성10+갭5+실적5) 모델로 대표 확률 대체.
-  // earnings-lab 검증(US주식 30종): 배포 갭모델(변동성+갭) 대비 종목외 +6.3%p(63.1→69.4%). 실적은 오버나잇 갭의 #1 촉매·가격과 비공선. 근접(≤20봉)만 봐도 동일(look-ahead 아님).
-  const _EGAP_MEAN = [-0.04929, -0.02695, -0.03681, -0.01314, 2.41611, 0.21141, 2.21986, 1.69683, -0.0603, 0.50503, 1.01625, 0.68554, 1.85162, 0.67741, 0.63904, 0.17477, 0.33352, 0.83312, 0.83244, 0.09578];
-  const _EGAP_STD = [0.33946, 0.24267, 0.30853, 0.15986, 1.46256, 0.10999, 1.39492, 1.11687, 0.26287, 0.30704, 0.65244, 1.03262, 1.5459, 0.63485, 0.2566, 0.37977, 0.47147, 0.29368, 0.29403, 0.29429];
-  const _EGAP_W = [0.15481, -0.05543, -0.08099, -0.01815, 0.12136, 0.01878, 0.28536, -0.16677, -0.05326, -0.11936, -0.46738, 0.04939, 0.16921, 0.01436, -0.46261, -0.04434, 0.6501, -0.12485, 0.16547, -0.02314], _EGAP_BB = -0.0869;
-  function _earnFeats(earnBars, earnSince) {
-    const tn = (earnBars != null && earnBars >= 0 && isFinite(earnBars)) ? earnBars : 9999;
-    const sc = (earnSince != null && earnSince >= 0 && isFinite(earnSince)) ? earnSince : 9999;
-    const vis = tn <= 20 ? tn : 99;   // 20봉 밖 실적 미가시(보수·look-ahead 방지)
-    return [tn <= 10 ? 1 : 0, tn <= 20 ? 1 : 0, vis === 99 ? 1 : vis / 20, Math.min(sc, 20) / 20, sc <= 5 ? 1 : 0];
-  }
-  function forecastGapRisk(price, candle, opts) {
+  function forecastGapRisk(price, candle) {
     const x0 = _riskFeatures(price, candle); if (!x0) return null;
     const gf = _gapFeats(price, candle); if (!gf) return null;   // 주식 게이트(비주식 → null)
     const x = x0.concat(gf);
@@ -2633,16 +2602,7 @@
       return { h: z.h, lb: z.lb, sigma: z.sigma, prob: Math.round(p * 100), base: z.base, acc: z.acc, elevated: p >= 0.5 };
     });
     const rep = curve[0];   // 대표=1달(H=20·2.2σ)
-    // 실적일 정보(earnBars=향후 실적까지 봉수)가 있으면 대표를 20피처 증강 모델로 대체
-    const eb = opts && opts.earnBars, es = opts && opts.earnSince;
-    let prob = rep.prob, elevated = rep.elevated, acc = rep.acc, earnAug = false;
-    if (eb != null || es != null) {
-      const xe = x.concat(_earnFeats(eb, es));
-      let s = _EGAP_BB; for (let j = 0; j < xe.length; j++) s += _EGAP_W[j] * (xe[j] - _EGAP_MEAN[j]) / _EGAP_STD[j];
-      const p = 1 / (1 + Math.exp(-s));
-      prob = Math.round(p * 100); elevated = p >= 0.5; acc = 69; earnAug = true;
-    }
-    return { prob, base: rep.base, acc, elevated, h: 20, sigma: 2.2, curve, earnAug, earnBars: (eb != null ? eb : null) };
+    return { prob: rep.prob, base: rep.base, acc: rep.acc, elevated: rep.elevated, h: 20, sigma: 2.2, curve };
   }
   // 추세 지속/소진 예보(v1.9) — 추세 국면(up/down)에서 향후 20봉 뒤 추세가 지속되나 소진(→횡보)하나.
   // 비방향(방향 못맞혀도 '추세가 이어질지 힘 빠질지'는 예측). 종목외 확증: up OOS 75.9%·down 74.5%(다수결60·52 초과, strength만보다 +8~19pp).
