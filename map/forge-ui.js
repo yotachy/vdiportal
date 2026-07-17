@@ -1244,10 +1244,10 @@
   function boardInit() {
     const pane = document.getElementById("boardPane");
     pane.innerHTML = `<div class="tk-panel" id="tkPanel">
-    <span class="tk-lbl">티커</span>
-    <div class="tk-symwrap"><input class="tk-sym" id="tkSym" placeholder="종목 심볼 (예: BTC/USD · AAPL · 005930 국내)" spellcheck="false" autocomplete="off"><div class="tk-sugg" id="tkSugg" role="listbox"></div></div>
-    <button class="tk-load" id="tkLoad">불러오기</button>
-    <span class="tk-stat tk-dot empty" id="tkStat" title="종목 심볼 입력"></span>
+    <span class="tk-lbl" title="지금 워치리스트에서 선택된 종목의 심볼입니다. 새 종목은 왼쪽 ‘＋ 종목 추가’로 등록하세요.">현재 종목</span>
+    <div class="tk-symwrap"><input class="tk-sym" id="tkSym" placeholder="현재 종목 심볼 — 바꾸면 [불러오기]로 갱신" title="선택된 종목의 심볼. 다른 종목으로 바꾸려면 심볼을 고쳐 [불러오기]를 누르세요. 새 종목 추가는 워치리스트 ‘＋ 종목 추가’." spellcheck="false" autocomplete="off"><div class="tk-sugg" id="tkSugg" role="listbox"></div></div>
+    <button class="tk-load" id="tkLoad" title="현재 심볼의 시세(캔들)를 불러와 분석에 반영">불러오기</button>
+    <span class="tk-stat tk-dot empty" id="tkStat" title="시세 로드 상태 — ‘미로드’면 [불러오기] 클릭"></span>
   </div>
   <div class="wlist" id="wlist"></div>
   <div class="wboard" id="wboard"></div>
