@@ -2252,7 +2252,7 @@
     }
     return out;
   }
-  let _alerts = [], _alertBusy = false, _alertLastScan = null;
+  let _alerts = [], _alertBusy = false, _alertLastScan = null, _alertProg = null;
   const _ALERT_SEV_KO = { buy: "기회", warn: "경보", info: "참고" };
   function _alertSeen() { try { return JSON.parse(localStorage.getItem("forge_alert_seen") || "{}"); } catch (e) { return {}; } }
   function _alertSaveSeen(o) { try { localStorage.setItem("forge_alert_seen", JSON.stringify(o)); } catch (e) {} }
@@ -2266,7 +2266,7 @@
     if (typeof AUTH !== "undefined" && AUTH.enabled && !AUTH.on) { if (manual && typeof bToast === "function") bToast("체험 모드 — 로그인하면 내 워치리스트를 자동 스캔합니다"); return; }   // 게스트=샘플뿐이라 스캔 무의미
     const docs = (typeof DOCS !== "undefined" ? DOCS : []).filter(d => _docTicker(d)).slice(0, 30);
     if (!docs.length) { renderAlertUI(); if (manual && typeof bToast === "function") bToast("워치리스트에 종목이 없습니다"); return; }
-    _alertBusy = true; renderAlertUI();
+    _alertBusy = true; _alertProg = { done: 0, total: docs.length }; renderAlertUI();
     const out = [];
     for (const d of docs) {
       const sym = (_docTicker(d) || "").trim().toUpperCase();
@@ -2283,9 +2283,12 @@
           if (hit) out.push({ id: sym + "|" + rule.key + "|" + asOf, sym, docId: d.id, key: rule.key, sev: rule.sev, msg: rule.msg(ctx, {}), asOf });
         }
       } catch (e) {}
-      await _alertSleep(350);   // 프록시 캐시 미스 버스트 완화(TD 레이트리밋 보호)
+      _alertProg.done++;
+      _alerts = out.slice().concat(_macroAlerts());   // 부분 결과 실시간 반영(체감 속도↑ · idle 인라인/팝오버 즉시 갱신)
+      renderAlertUI();
+      await _alertSleep(140);   // 레이트리밋 보호(350→140 · 실시간 갱신으로 체감 개선)
     }
-    _alerts = out.concat(_macroAlerts()); _alertBusy = false; _alertLastScan = Date.now();   // 캘린더(정보성)는 스캔 결과에 병합
+    _alerts = out.concat(_macroAlerts()); _alertBusy = false; _alertProg = null; _alertLastScan = Date.now();   // 캘린더(정보성)는 스캔 결과에 병합
     const seen = _alertSeen(), fresh = out.filter(a => !seen[a.id]);
     renderAlertUI();
     if (fresh.length && _alertNotifyOn() && typeof Notification !== "undefined" && Notification.permission === "granted") {
@@ -2310,18 +2313,21 @@
   function _renderIdleSignals() {
     const host = document.getElementById("fcIdleSignals"); if (!host) return;
     const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
-    if (_alertBusy) { host.innerHTML = '<div class="fc-idle-sig-empty">⏳ 워치리스트 스캔 중…</div>'; host.style.display = "block"; return; }
-    if (!_alerts || !_alerts.length) {
+    const has = !!(_alerts && _alerts.length);
+    if (!_alertBusy && !has) {
       if (_alertLastScan) { host.innerHTML = '<div class="fc-idle-sig-empty">활성 신호 없음 — 검증 신호(반등·급변/갭/낙폭·실적 임박)가 잡히면 여기 표시됩니다.</div>'; host.style.display = "block"; }
       else host.style.display = "none";   // 스캔 전엔 숨김
       return;
     }
     const ord = { buy: 0, warn: 1, info: 2 }, CAP = 6;
-    const sorted = _alerts.slice().sort((a, b) => (ord[a.sev] - ord[b.sev]) || String(a.sym).localeCompare(String(b.sym)));
+    const sorted = (_alerts || []).slice().sort((a, b) => (ord[a.sev] - ord[b.sev]) || String(a.sym).localeCompare(String(b.sym)));
     const rows = sorted.slice(0, CAP).map(a =>
       '<button class="fc-idle-sig" ' + (a.docId ? 'onclick="alertGo(\'' + esc(a.docId) + '\')"' : 'disabled') + '><span class="ap-sev ' + a.sev + '">' + (_ALERT_SEV_KO[a.sev] || a.sev) + '</span>' + (a.sym ? '<b>' + esc(a.sym) + '</b>' : '') + '<span class="fc-idle-sig-msg">' + esc(a.msg) + '</span></button>').join("");
-    const more = _alerts.length > CAP ? '<div class="fc-idle-sig-more">외 ' + (_alerts.length - CAP) + '건 — 헤더 🔔에서 전체 보기</div>' : '';
-    host.innerHTML = '<div class="fc-idle-sig-h">워치리스트 신호 ' + _alerts.length + '건 · 클릭하면 해당 종목 분석</div>' + rows + more;
+    const more = (_alerts && _alerts.length > CAP) ? '<div class="fc-idle-sig-more">외 ' + (_alerts.length - CAP) + '건 — 헤더 🔔에서 전체 보기</div>' : '';
+    const head = _alertBusy
+      ? '<span class="fc-idle-sig-spin"></span>스캔 중… ' + (_alertProg ? _alertProg.done + '/' + _alertProg.total : '') + (has ? ' · ' + _alerts.length + '건 발견' : '')
+      : '워치리스트 신호 ' + _alerts.length + '건 · 클릭하면 해당 종목 분석';
+    host.innerHTML = '<div class="fc-idle-sig-h">' + head + '</div>' + rows + more;
     host.style.display = "block";
   }
   function _alertPopHTML() {
