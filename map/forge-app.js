@@ -79,6 +79,7 @@
   }
   function renderChart(result, data) {
     if (!result || !data) return;
+    { const idle = document.getElementById("fcIdle"); if (idle) idle.style.display = "none"; }   // 종목 로드 시 첫 진입 빈 상태 숨김
     resetHeroView();
     if (typeof renderTfSeg === "function") renderTfSeg();   // 일/주/월 세그먼트 노출·현재 주기 동기화
     _fcLastResult = result; _fcLastData = data;
@@ -2760,13 +2761,9 @@
       const c = cv.getContext("2d"), W = cv.clientWidth || 600, H = cv.clientHeight || 300, dpr = Math.min(devicePixelRatio || 1, 3);
       if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
       cv.style.width = W + "px"; cv.style.height = H + "px";
-      c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
-      c.textAlign = "center"; c.fillStyle = "#c7cdda"; c.font = "800 15px Pretendard,'Malgun Gothic',sans-serif";
-      c.fillText("종목을 선택하세요", W / 2, H / 2 - 8);
-      c.fillStyle = "#7c8598"; c.font = "12.5px Pretendard,'Malgun Gothic',sans-serif";
-      c.fillText("왼쪽 워치리스트에서 종목을 고르면 차트·자동 예측이 표시됩니다 · 웹분석은 멀티TF·실적까지 심층", W / 2, H / 2 + 15);
-      c.textAlign = "left";
+      c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);   // 캔버스 비움 — 시작 안내는 #fcIdle HTML 오버레이가 표시(브랜드·역량·CTA·신호 스캔)
     }
+    { const idle = document.getElementById("fcIdle"); if (idle) idle.style.display = "flex"; }
     if (fcRAF) { cancelAnimationFrame(fcRAF); fcRAF = null; }
     ["fcEvidence", "fcEvidenceHi", "fcCone"].forEach(id => { const e = document.getElementById(id); if (e) { const ec = e.getContext("2d"); ec.setTransform(1, 0, 0, 1, 0, 0); ec.clearRect(0, 0, e.width, e.height); } });
     const vb = document.getElementById("fcVerdictBar"); if (vb) { vb.innerHTML = '<span class="fcv-op" style="color:var(--eth);animation:none">종목을 선택하면 분석이 표시됩니다</span>'; vb.style.display = "flex"; }

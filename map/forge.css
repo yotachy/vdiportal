@@ -839,6 +839,25 @@
   .fc-cone-tip .ct-chg{font-weight:700;margin-right:7px}
   .fc-cone-tip .ct-band{color:var(--eth);font-size:11px}
   .fc-hero .fc-hero-ph{color:var(--eth);font-size:12px;text-align:center;padding:0 14px;line-height:1.5}
+  /* 첫 진입 빈 상태(종목 선택 전) — 브랜드 비주얼 + 역량 + CTA + 신호 스캔(부하 0·opt-in) */
+  .fc-idle{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;background:radial-gradient(120% 100% at 50% 38%, color-mix(in srgb, var(--gold) 6%, transparent) 0%, transparent 60%), var(--chart-bg)}
+  .fc-idle-mark{width:46px;height:46px;color:var(--gold);opacity:.9;filter:drop-shadow(0 3px 10px color-mix(in srgb, var(--gold) 30%, transparent))}
+  .fc-idle-h{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+  .fc-idle-sub{font-size:12.5px;line-height:1.6;color:var(--eth);max-width:440px}
+  .fc-idle-sub b{color:var(--ink);font-weight:700}
+  .fc-idle-caps{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:2px}
+  .fc-idle-cap{font-size:11px;font-weight:700;color:var(--eth);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 11px;letter-spacing:-.01em}
+  .fc-idle-cta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin-top:6px}
+  .fc-idle-point{font-size:12px;font-weight:700;color:var(--gold-dim)}
+  .fc-idle-btn{font-size:12.5px;font-weight:700;color:var(--ink);background:var(--surface);border:1px solid var(--edge);border-radius:var(--r-md);padding:8px 14px;cursor:pointer;transition:background .14s,border-color .14s}
+  .fc-idle-btn:hover{background:var(--hover);border-color:var(--gold-dim)}
+  .fc-idle-btn.primary{color:var(--bg);background:var(--gold);border-color:var(--gold)}
+  .fc-idle-btn.primary:hover{filter:brightness(1.06);background:var(--gold)}
+  .fc-idle-links{display:flex;gap:8px;align-items:center;font-size:11.5px;margin-top:2px}
+  .fc-idle-links a{color:var(--eth);text-decoration:none;border-bottom:1px solid transparent}
+  .fc-idle-links a:hover{color:var(--gold);border-bottom-color:var(--gold-dim)}
+  .fc-idle-sep{color:var(--faint)}
+  @media (max-width:640px){ .fc-idle-h{font-size:16px} .fc-idle-sub{font-size:11.5px} .fc-idle{gap:10px;padding:16px} }
   #fcFuture{flex:0 0 200px;height:100%;min-width:0;align-self:stretch}
   #fcMainChart{flex:1;height:100%;min-width:0;display:none}
 
