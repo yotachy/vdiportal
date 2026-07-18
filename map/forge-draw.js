@@ -719,6 +719,8 @@
     _cometRAF = null;
     const cm = document.getElementById("fcComet"), main = document.getElementById("fcMainChart");
     if (!cm || !main) return;
+    // 웹분석 전(미확정)엔 예측 코멧(진앙지 펄스·흐르는 점)을 절대 그리지 않음 — 캔버스 비우고 루프 정지(스포일러 차단·트리거 무관 방어)
+    if (typeof window !== "undefined" && window._fcPreview) { const cx0 = cm.getContext("2d"); if (cx0) { cx0.setTransform(1, 0, 0, 1, 0, 0); cx0.clearRect(0, 0, cm.width, cm.height); } return; }
     const keys = Object.keys(_comets).filter(k => _comets[k] && _comets[k].pts && _comets[k].pts.length > 1);
     const W = main.clientWidth || 1, H = main.clientHeight || 1;
     const dpr = Math.min(Math.max(devicePixelRatio || 1, 1.5), 2.5);

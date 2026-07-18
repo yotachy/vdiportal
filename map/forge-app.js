@@ -1814,6 +1814,7 @@
     cv.style.width = W + "px"; cv.style.height = H + "px";
     const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
     if (heroMode() !== "chart") return;
+    if (typeof window !== "undefined" && window._fcPreview) return;   // 웹분석 전(미확정)엔 예측 앰비언트 FX(중앙선 글로우·종점 브레딩 링) 미표시 — 캔버스는 위에서 이미 clear(스포일러 차단)
     const main = document.getElementById("fcMainChart"), g = main && main._mainGeo; if (!g || !g.path || !g.path.length) return;
     const t = now || 0;
     const _lo = tvLog(g.loV, g.log), _hi = tvLog(g.hiV, g.log);
