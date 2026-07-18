@@ -2304,6 +2304,25 @@
     if (badge) { badge.style.display = n ? "inline-flex" : "none"; badge.textContent = n > 99 ? "99+" : String(n); }
     const pop = document.getElementById("alertPop");
     if (pop && pop.classList.contains("open")) pop.innerHTML = _alertPopHTML();
+    _renderIdleSignals();   // 첫 진입 idle 패널 인라인 신호도 동기 갱신(스캔 중·결과)
+  }
+  // 첫 진입 idle 패널 안 인라인 신호 결과(헤더 팝오버 대신) — scanAlerts→renderAlertUI가 호출
+  function _renderIdleSignals() {
+    const host = document.getElementById("fcIdleSignals"); if (!host) return;
+    const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+    if (_alertBusy) { host.innerHTML = '<div class="fc-idle-sig-empty">⏳ 워치리스트 스캔 중…</div>'; host.style.display = "block"; return; }
+    if (!_alerts || !_alerts.length) {
+      if (_alertLastScan) { host.innerHTML = '<div class="fc-idle-sig-empty">활성 신호 없음 — 검증 신호(반등·급변/갭/낙폭·실적 임박)가 잡히면 여기 표시됩니다.</div>'; host.style.display = "block"; }
+      else host.style.display = "none";   // 스캔 전엔 숨김
+      return;
+    }
+    const ord = { buy: 0, warn: 1, info: 2 }, CAP = 6;
+    const sorted = _alerts.slice().sort((a, b) => (ord[a.sev] - ord[b.sev]) || String(a.sym).localeCompare(String(b.sym)));
+    const rows = sorted.slice(0, CAP).map(a =>
+      '<button class="fc-idle-sig" ' + (a.docId ? 'onclick="alertGo(\'' + esc(a.docId) + '\')"' : 'disabled') + '><span class="ap-sev ' + a.sev + '">' + (_ALERT_SEV_KO[a.sev] || a.sev) + '</span>' + (a.sym ? '<b>' + esc(a.sym) + '</b>' : '') + '<span class="fc-idle-sig-msg">' + esc(a.msg) + '</span></button>').join("");
+    const more = _alerts.length > CAP ? '<div class="fc-idle-sig-more">외 ' + (_alerts.length - CAP) + '건 — 헤더 🔔에서 전체 보기</div>' : '';
+    host.innerHTML = '<div class="fc-idle-sig-h">워치리스트 신호 ' + _alerts.length + '건 · 클릭하면 해당 종목 분석</div>' + rows + more;
+    host.style.display = "block";
   }
   function _alertPopHTML() {
     const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
@@ -2764,6 +2783,7 @@
       c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);   // 캔버스 비움 — 시작 안내는 #fcIdle HTML 오버레이가 표시(브랜드·역량·CTA·신호 스캔)
     }
     { const idle = document.getElementById("fcIdle"); if (idle) idle.style.display = "flex"; }
+    if (typeof _renderIdleSignals === "function") _renderIdleSignals();   // 캐시된 신호 있으면 인라인 표시(없으면 숨김)
     if (fcRAF) { cancelAnimationFrame(fcRAF); fcRAF = null; }
     ["fcEvidence", "fcEvidenceHi", "fcCone"].forEach(id => { const e = document.getElementById(id); if (e) { const ec = e.getContext("2d"); ec.setTransform(1, 0, 0, 1, 0, 0); ec.clearRect(0, 0, e.width, e.height); } });
     const vb = document.getElementById("fcVerdictBar"); if (vb) { vb.innerHTML = '<span class="fcv-op" style="color:var(--eth);animation:none">종목을 선택하면 분석이 표시됩니다</span>'; vb.style.display = "flex"; }
