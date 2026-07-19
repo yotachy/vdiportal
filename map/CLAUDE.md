@@ -6,7 +6,7 @@
 |---|---|---|
 | **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js`(+`forge-api.php`) | 노드 전략보드 + 라이브 차트 통합 분석 도구. **현재 주력·주 작업 대상** |
 | **스쿱보드 (Scoop Board)** | `map.html`(+`api.php`) | 자유 캔버스 노드 다이어그램 빌더 |
-| **PotFlow** | `potflow.html` + `potflow-helper.py` | 로컬 동영상 노드 재생 관리(PotPlayer). map.html 파생·로컬 헬퍼(Python) 전용. 상세는 [`POTFLOW.md`](POTFLOW.md) |
+| **PotFlow** | **`potflow/`** 폴더 일습(`potflow.html`·`potflow-helper.py`·config·bat·썸네일) | 로컬 동영상 노드 재생 관리(PotPlayer). map.html 파생·로컬 헬퍼(Python) 전용. **2026-07-19 `map/potflow/`로 폴더 격리** — forge·map과 파일/배포 경로 불간섭(배포=`www/map/potflow/`). 헬퍼가 자기 위치(`ROOT`) 기준이라 이동에 경로 수정 불필요. 상세는 [`POTFLOW.md`](POTFLOW.md) |
 
 > 스쿱포지의 상세 구현 이력·규약은 방대하여 **프로젝트 메모리 `scoopforge-deploy.md`가 단일 출처**. 아래는 현행 요약.
 

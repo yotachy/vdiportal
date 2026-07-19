@@ -12,9 +12,12 @@
 ## 실행법
 
 ```bash
-cd map
+cd map/potflow
 python3 potflow-helper.py
 ```
+
+> Windows는 `map/potflow/start-potflow.bat` 더블클릭(배치가 자기 폴더로 `cd` 후 헬퍼 실행).
+> 헬퍼는 **자기 파일 위치(`ROOT`) 기준**으로 정적 파일·데이터·썸네일을 다루므로, 폴더째 옮겨도 그대로 동작한다.
 
 브라우저에서 **`http://localhost:8770/potflow.html`** 접속.
 헬퍼가 정적 파일(HTML)도 함께 서빙하므로 **프로세스 하나**로 끝난다(별도 웹서버 불필요).
@@ -52,10 +55,12 @@ python3 potflow-helper.py
 
 | 파일 | 성격 |
 |---|---|
-| `potflow_data.json` | 문서·이미지 저장(헬퍼가 기록). **사용자 데이터 — 배포 불가침** |
-| `potflow_thumbs/` | 썸네일 캐시. 재생성 가능 — 배포 제외 |
+| `map/potflow/potflow_data.json` | 문서·이미지 저장(헬퍼가 기록). **사용자 데이터 — 배포 불가침** |
+| `map/potflow/potflow_thumbs/` | 썸네일 캐시. 재생성 가능 — 배포 제외 |
 
-둘 다 `map/.gitignore`에 등록되어 있다.
+둘 다 `map/.gitignore`에 `potflow/` 경로로 등록되어 있다.
+
+> **폴더 격리(2026-07-19)**: potflow 일습(html·헬퍼·config·bat·테스트·썸네일)은 `map/potflow/`로 분리됐다 — 스쿱포지(`forge-*`)·다이어그램 빌더(`map.html`)와 파일·배포 경로가 겹치지 않는다. 배포 대상은 `www/map/potflow/`(이미 park EXCLUDES·트립와이어 보호 범위인 `www/map/` 하위라 별도 등록 불필요).
 
 헬퍼 없이 `potflow.html`을 직접 열면(`file://`) **오프라인 배지** + localStorage 폴백으로 편집·저장은 되지만, 재생·파일탐색·썸네일은 비활성.
 
