@@ -1585,8 +1585,8 @@
   const _EWLAB = ["1", "2", "3", "4", "5", "A", "B", "C"];
   let _evW = 0, _evH = 0;   // 현재 작도 캔버스 논리 크기(라벨 클램프용)
   // 라벨: 반투명 pill 배경 + 경계 클램프. align "left"(기본)|"right"
-  function _evLabel(c, text, x, y, color, align) {
-    if (_labelMode === "key" && !_KEYLBL.test(text)) return;   // 중요 라벨만 모드: 목표·반대·지지/저항 외 생략
+  function _evLabel(c, text, x, y, color, align, force) {
+    if (_labelMode === "key" && !force && !_KEYLBL.test(text)) return;   // 중요 라벨만 모드: 목표·반대·지지/저항 외 생략(force=강조 앵커 등 항상 표시)
     c.font = "600 11px Pretendard, ui-monospace, monospace";
     try { c.letterSpacing = "-0.2px"; } catch (_) {}
     const w = c.measureText(text).width, h = 14, M = 3, pad = 5;
@@ -2594,7 +2594,8 @@
       }
       // 앵커 도트(창 안일 때) + 강조 앵커 라벨(reason)
       if (an.idx >= fiMin) { const ax = fiToX(an.idx), ay = toY(an.price); if (isFinite(ax) && isFinite(ay)) { c.beginPath(); c.arc(ax, ay, emph ? 3 : 2, 0, Math.PI * 2); c.fillStyle = emph ? FC_GOLD : "rgba(201,162,107," + alpha.toFixed(3) + ")"; c.fill(); } }
-      if (emph) { const yR = an.price + (an.angles.find(a => a.name === "1x1") || { slope: 0 }).slope * (rightFi - an.idx); c.fillStyle = FC_GOLD; c.font = "10px sans-serif"; c.fillText(an.reason || "1×1", xRight + 3, toY(yR)); }
+      // 강조 앵커 라벨(reason): 공용 _evLabel 위임 → 축 눈금·예측 콘 배지와 겹치면 빈 슬롯으로 자동 회피 + 박스 등록(다른 라벨도 이를 피함). force=key 모드에서도 표시(기존 동작 보존).
+      if (emph) { const yR = an.price + (an.angles.find(a => a.name === "1x1") || { slope: 0 }).slope * (rightFi - an.idx); _evLabel(c, an.reason || "1×1", xRight + 3, toY(yR), FC_GOLD, "left", true); }
     }
     c.restore();
   }
