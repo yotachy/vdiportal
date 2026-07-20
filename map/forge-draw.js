@@ -41,17 +41,22 @@
     let h = 2166136261 >>> 0; const mix = x => { h ^= (Math.round((x || 0) * 1000) >>> 0); h = Math.imul(h, 16777619) >>> 0; };
     mix(anchor); for (let i = 0; i < path.length; i++) mix(path[i]); return h >>> 0;
   }
-  function _predWave(k, seed) {   // 결정론 파형: 비정수배 3정현파 합(아페리오딕=차트스러움)·위상/주파수는 seed. |값|≲1.02
-    const s = seed >>> 0;
-    const w1 = 0.7 + (s % 5) * 0.11, p1 = ((s >>> 3) % 628) / 100;
-    const w2 = 1.3 + ((s >>> 7) % 7) * 0.09, p2 = ((s >>> 11) % 628) / 100;
-    const w3 = 2.1 + ((s >>> 13) % 9) * 0.07, p3 = ((s >>> 17) % 628) / 100;
-    return 0.5 * Math.sin(k * w1 + p1) + 0.32 * Math.sin(k * w2 + p2) + 0.20 * Math.sin(k * w3 + p3);
+  function _mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }   // 결정론 PRNG(시드→재현)
+  function _predWigSeq(n, seed) {   // 데이터 시드 랜덤워크(가격스러움): AR(1) 평균회귀 + 느린 변동성 클러스터링 → 비주기적·진폭 불균일(정현파 아님). [-1,1] 정규화
+    const rnd = _mulberry32(seed >>> 0), rndV = _mulberry32((seed ^ 0x9e3779b9) >>> 0);
+    const out = []; let x = 0, v = 1, maxA = 1e-9;
+    for (let k = 0; k < n; k++) {
+      v = Math.max(0.22, Math.min(2.6, v + (rndV() - 0.5) * 0.6));   // 변동성 envelope 서서히 변화(잔잔↔출렁 = 클러스터)
+      x = x * 0.80 + (rnd() * 2 - 1) * v;                            // AR(1)형 워크(계수 0.80 — 발산 방지·추세성 약간)
+      out.push(x); const a = Math.abs(x); if (a > maxA) maxA = a;
+    }
+    for (let k = 0; k < n; k++) out[k] /= maxA;   // [-1,1] 정규화(최대 진폭=밴드 상한에 대응)
+    return out;
   }
-  function _predWigVal(k, futW, center, loK, hiK, seed) {   // 꿈틀 적용 라인 y값(가격): center+진폭·파형·페이드, 밴드[lo,hi] 하드 클램프
-    const t = futW > 0 ? k / futW : 0, amp = 0.5 * ((hiK - loK) / 2);   // 진폭 = 밴드 반폭의 0.5배
-    const v = center + amp * _predWave(k, seed) * _predLineFade(t);
-    return Math.max(loK, Math.min(hiK, v));   // 밴드 절대 초과 금지
+  function _predWigVal(k, futW, center, loK, hiK, wv) {   // 꿈틀 y값(가격): center + 진폭·워크값(wv∈[-1,1])·페이드, 밴드[lo,hi] 하드 클램프
+    const t = futW > 0 ? k / futW : 0, amp = 0.5 * ((hiK - loK) / 2);
+    const v = center + amp * wv * _predLineFade(t);
+    return Math.max(loK, Math.min(hiK, v));
   }
   // 밀도 구름 1열: x에서 [loK,hiK] 세로 그라데이션 — 중앙(center) 진하고 가장자리 엷게(가우시안), 전체 알파 a
   function _predCloudCol(c, x, colW, loK, hiK, center, toY, rgb, a) {
@@ -1015,11 +1020,12 @@
       }
       // 꿈틀 라인 스트로크(가로 알파 페이드) — seamX..coneR
       const _wigStroke = (vals, rgb, dash, lw, sd) => {
+        const seq = _predWigSeq(vals.length, sd);
         c.save(); c.lineWidth = lw; c.lineJoin = "round"; c.lineCap = "round"; if (dash) c.setLineDash(dash);
         const grad = c.createLinearGradient(seamX, 0, coneR, 0);
         for (let i = 0; i <= 10; i++) { const t = i / 10; grad.addColorStop(t, "rgba(" + rgb + "," + _predLineFade(t).toFixed(3) + ")"); }
         c.strokeStyle = grad; c.beginPath(); c.moveTo(seamX, _cy(toY(anchor)));
-        for (let k = 0; k < vals.length; k++) c.lineTo(toXf(k), _cy(toY(_predWigVal(k, _fw, vals[k], lo[k], hi[k], sd))));
+        for (let k = 0; k < vals.length; k++) c.lineTo(toXf(k), _cy(toY(_predWigVal(k, _fw, vals[k], lo[k], hi[k], seq[k]))));
         c.stroke(); c.setLineDash([]); c.restore();
       };
       // ── 3차 반대선 (범례 토글: p3) ── 꿈틀·페이드 점선 + 끝점 라벨
@@ -2965,13 +2971,13 @@
           if (p2 && p2.path && p2.path.length && _2diff > 0.008) {   // 2차가 1차와 사실상 같으면 생략(중복 제거)
             const _sx = g.seamX, _cR = plotR, _pl = p2.path.length, _t2x = k => _sx + ((k + 1) / _pl) * (_cR - _sx);
             const _cy2 = y => Math.max(g.padTop + 1, Math.min(g.ch - g.padBot - 1, y));
-            const _sd2 = (_predSeed(p2.path, g.anchor) ^ 0x85ebca6b) >>> 0;   // 2차 독립 seed(1차와 다른 꿈틀)
+            const _sd2 = (_predSeed(p2.path, g.anchor) ^ 0x85ebca6b) >>> 0, _seq2 = _predWigSeq(_pl, _sd2);   // 2차 독립 seed·시퀀스
             const _2band = k => { let a = (p2.lo && isFinite(p2.lo[k])) ? p2.lo[k] : (g.lo && g.lo[k]), b = (p2.hi && isFinite(p2.hi[k])) ? p2.hi[k] : (g.hi && g.hi[k]); if (!isFinite(a) || !isFinite(b)) { const hw = Math.abs(p2.path[k]) * 0.02 || 1; a = p2.path[k] - hw; b = p2.path[k] + hw; } return [Math.min(a, p2.path[k]), Math.max(b, p2.path[k])]; };
             c.save(); c.lineWidth = 3.2; c.setLineDash([9, 4]); c.lineJoin = "round"; c.lineCap = "round";
             const grad2 = c.createLinearGradient(_sx, 0, _cR, 0);
             for (let i = 0; i <= 10; i++) { const t = i / 10; grad2.addColorStop(t, "rgba(77,208,255," + _predLineFade(t).toFixed(3) + ")"); }
             c.strokeStyle = grad2; c.beginPath(); c.moveTo(_sx, _cy2(toY(g.anchor)));
-            for (let k = 0; k < _pl; k++) { const bd = _2band(k), x = _t2x(k), y = _cy2(toY(_predWigVal(k, _pl, p2.path[k], bd[0], bd[1], _sd2))); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
+            for (let k = 0; k < _pl; k++) { const bd = _2band(k), x = _t2x(k), y = _cy2(toY(_predWigVal(k, _pl, p2.path[k], bd[0], bd[1], _seq2[k]))); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
             c.stroke(); c.setLineDash([]); c.restore();
             let _p2s = 0, _p2w = 0; for (let k = 0; k < p2.path.length; k++) { const wt = 1 / Math.sqrt(k + 1); const _hk = (g.hi && g.hi[k]) || p2.path[k]; _p2s += _upProb(p2.path[k], _hk, g.anchor) * wt; _p2w += wt; }
             const _p2up = _p2w ? _p2s / _p2w : 50, _p2dir = p2.path[p2.path.length - 1] >= g.anchor, _p2disp = Math.round(_p2dir ? _p2up : (100 - _p2up));
