@@ -33,6 +33,38 @@
   const CW = { hair: 0.85, thin: 1, base: 1.25, bold: 1.6, halo: 1.2 };
   const CDASH = { fine: [1, 3.5], std: [2, 4], long: [4.5, 4.5] };   // 정밀 점선(가늘고 여백 넉넉 · 라운드캡과 함께 고급감)
 
+  // ── 예측 작도: 근거리 디테일 → 원거리 확률분포 (spec 2026-07-21) ── 작도 전용·엔진 불변·결정론(난수 없음)
+  const _PRED_T0 = 0.15, _PRED_T1 = 0.75, _PRED_C0 = 0.10, _PRED_C1 = 0.70;   // 크로스페이드 상수(선 페이드아웃 / 구름 페이드인)
+  function _predLineFade(t) { return Math.max(0, Math.min(1, 1 - (t - _PRED_T0) / (_PRED_T1 - _PRED_T0))); }   // 선 불투명·꿈틀 진폭: 근거리1→원거리0
+  function _predCloudFade(t) { return Math.max(0, Math.min(1, (t - _PRED_C0) / (_PRED_C1 - _PRED_C0))); }       // 밀도 구름: 근거리0→원거리1
+  function _predSeed(path, anchor) {   // 결정론 시드: path/anchor 해시(FNV-1a 변형) → 같은 종목·기간 = 같은 그림
+    let h = 2166136261 >>> 0; const mix = x => { h ^= (Math.round((x || 0) * 1000) >>> 0); h = Math.imul(h, 16777619) >>> 0; };
+    mix(anchor); for (let i = 0; i < path.length; i++) mix(path[i]); return h >>> 0;
+  }
+  function _predWave(k, seed) {   // 결정론 파형: 비정수배 3정현파 합(아페리오딕=차트스러움)·위상/주파수는 seed. |값|≲1.02
+    const s = seed >>> 0;
+    const w1 = 0.7 + (s % 5) * 0.11, p1 = ((s >>> 3) % 628) / 100;
+    const w2 = 1.3 + ((s >>> 7) % 7) * 0.09, p2 = ((s >>> 11) % 628) / 100;
+    const w3 = 2.1 + ((s >>> 13) % 9) * 0.07, p3 = ((s >>> 17) % 628) / 100;
+    return 0.5 * Math.sin(k * w1 + p1) + 0.32 * Math.sin(k * w2 + p2) + 0.20 * Math.sin(k * w3 + p3);
+  }
+  function _predWigVal(k, futW, center, loK, hiK, seed) {   // 꿈틀 적용 라인 y값(가격): center+진폭·파형·페이드, 밴드[lo,hi] 하드 클램프
+    const t = futW > 0 ? k / futW : 0, amp = 0.5 * ((hiK - loK) / 2);   // 진폭 = 밴드 반폭의 0.5배
+    const v = center + amp * _predWave(k, seed) * _predLineFade(t);
+    return Math.max(loK, Math.min(hiK, v));   // 밴드 절대 초과 금지
+  }
+  // 밀도 구름 1열: x에서 [loK,hiK] 세로 그라데이션 — 중앙(center) 진하고 가장자리 엷게(가우시안), 전체 알파 a
+  function _predCloudCol(c, x, colW, loK, hiK, center, toY, rgb, a) {
+    if (!(a > 0.01) || !(hiK > loK)) return;
+    const yTop = toY(hiK), yBot = toY(loK), yC = toY(center);
+    const g = c.createLinearGradient(0, yTop, 0, yBot);
+    const span = (yBot - yTop) || 1, cc = Math.max(0, Math.min(1, (yC - yTop) / span));   // 중앙 위치(0..1)
+    const gau = d => Math.exp(-(d * d) / (2 * 0.22 * 0.22));   // σ=0.22 가우시안 감쇠
+    for (let i = 0; i <= 10; i++) { const p = i / 10; g.addColorStop(p, "rgba(" + rgb + "," + (a * gau(p - cc)).toFixed(3) + ")"); }
+    c.fillStyle = g; c.fillRect(x, yTop, colW, yBot - yTop);
+  }
+  let _predVis = { band: true, p1: true, p2: true, p3: true };   // 예측선 범례 토글 상태(세션·기본 전부 켜짐)
+
   /* ── fcFit: DPR-correct canvas sizing (port of chart.html fit()) ── */
   function fcFit(cv, h, cap) {
     // 시연 중엔 기기 DPR만(매 프레임 재작도 과부하 방지), 정지 시엔 약간 슈퍼샘플(선명)
@@ -762,14 +794,23 @@
     const core = pd > 0 ? "#46c28e" : pd < 0 ? "#e06a6a" : FC_GOLD;
     const c3 = pd > 0 ? "#e06a6a" : "#46c28e";
     const items = [
-      ["기술적 최대범위", band, "sq", "기술적으로 도달 가능한 최저~최고 경계입니다. 피보나치·구조 스윙·매물대·볼린저·일목·VWAP를 종합해 산출하며, 예측이 이 범위를 벗어나기는 어렵습니다."],
-      ["1차 종합지표", core, "", "전체 지표를 융합한 종합 예측선입니다. 가장 신뢰도 높은 기본 시나리오예요."],
-      ["2차 선택지표", "#4dd0ff", "", "범례에서 표시(체크)한 지표 조합만으로 다시 계산한 예측선입니다. 특정 관점으로 비교할 때 씁니다."],
-      ["3차 최대역치", c3, "", "예상과 반대로 움직였을 때 가격이 향할 가장 가까운 지지/저항 레벨(반대 시나리오)입니다."]
+      ["band", "밴드·구름", band, "sq", "기술적으로 도달 가능한 최저~최고 경계 + 원거리 밀도 구름(확률 퍼짐)입니다. 피보나치·구조 스윙·매물대·볼린저·일목·VWAP 종합. 클릭하면 숨김/표시."],
+      ["p1", "1차 종합지표", core, "", "전체 지표를 융합한 종합 예측선입니다. 근거리는 현실적 미세움직임, 원거리는 확률 구름으로 녹아듭니다. 클릭하면 숨김/표시."],
+      ["p2", "2차 선택지표", "#4dd0ff", "", "범례에서 표시(체크)한 지표 조합만으로 다시 계산한 예측선입니다. 특정 관점 비교용. 클릭하면 숨김/표시."],
+      ["p3", "3차 최대역치", c3, "", "예상과 반대로 움직였을 때 가격이 향할 반대 시나리오선 + 반대 구름입니다. 클릭하면 숨김/표시."]
     ];
     el.style.display = "flex";
-    el.innerHTML = '<span class="fc-leg-grip" title="드래그하여 범례 이동">⠿</span>' + items.map(it => `<span class="fc-leg-item"><span class="fc-leg-sw${it[2] === "sq" ? " sq" : ""}" style="background:${it[1]}"></span>${esc(it[0])}<span class="fc-leg-tip">${esc(it[3])}</span></span>`).join("");
+    el.innerHTML = '<span class="fc-leg-grip" title="드래그하여 범례 이동">⠿</span>' + items.map(it => `<span class="fc-leg-item${_predVis[it[0]] ? "" : " off"}" data-predkey="${it[0]}" title="클릭 = 숨김/표시"><span class="fc-leg-sw${it[3] === "sq" ? " sq" : ""}" style="background:${it[2]}"></span>${esc(it[1])}<span class="fc-leg-tip">${esc(it[4])}</span></span>`).join("");
     if (_legPos) { el.style.left = _legPos.x + "px"; el.style.top = _legPos.y + "px"; el.style.right = "auto"; }   // 드래그 위치 유지
+    if (!el._predWired) {   // 클릭 토글(위임·1회 바인딩): _predVis 갱신 후 차트 재작도
+      el._predWired = true;
+      el.addEventListener("click", ev => {
+        const it = ev.target.closest("[data-predkey]"); if (!it || el._legDragging) return;
+        const k = it.dataset.predkey; if (!(k in _predVis)) return;
+        _predVis[k] = !_predVis[k];
+        if (typeof renderChart === "function" && typeof _fcLastResult !== "undefined" && _fcLastResult && _fcLastData) renderChart(_fcLastResult, _fcLastData);
+      });
+    }
     _legDragInit();
   }
   let _legPos = null, _legDragBound = false;
@@ -941,63 +982,63 @@
         c.textAlign = "left"; c.textBaseline = "alphabetic"; c.restore();
       } else {
       const coneR = toXf(path.length - 1);
-      // 방향 색조(약한 적/녹) — 하락/상승 예측을 국면과 정합되게 한눈에
       const _pEnd = path[path.length - 1];
       const _pd = (_pEnd > anchor * 1.004) ? 1 : (_pEnd < anchor * 0.996) ? -1 : 0;
-      const CT = _pd > 0 ? { fa: "rgba(70,194,142,.22)", fb: "rgba(70,194,142,.03)", edge: "rgba(70,194,142,.34)", core: "#46c28e", glow: "rgba(70,194,142,.5)" }
-        : _pd < 0 ? { fa: "rgba(224,106,106,.22)", fb: "rgba(224,106,106,.03)", edge: "rgba(224,106,106,.34)", core: "#e06a6a", glow: "rgba(224,106,106,.5)" }
-          : { fa: _warmA(.22), fb: _warmA(.03), edge: _warmA(.3), core: FC_GOLD, glow: _warmA(.5) };
-      // 밴드 채움: 현재(씨앗)에서 진하게 → 먼 미래로 갈수록 옅게(불확실성↑ 시각화)
-      c.beginPath(); c.moveTo(seamX, toY(anchor));
-      for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k]));
-      for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(lo[k]));
-      c.closePath();
-      const gcone = c.createLinearGradient(seamX, 0, coneR, 0);
-      gcone.addColorStop(0, CT.fa); gcone.addColorStop(1, CT.fb);
-      c.fillStyle = gcone; c.fill();
-      // 내부 신뢰밴드(중앙값 ±절반) — 겹쳐 그려 코어가 더 진해짐(고확률 구간 강조, fan-chart 2단)
-      c.beginPath(); c.moveTo(seamX, toY(anchor));
-      for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(path[k] + (hi[k] - path[k]) * 0.5));
-      for (let k = path.length - 1; k >= 0; k--) c.lineTo(toXf(k), toY(path[k] - (path[k] - lo[k]) * 0.5));
-      c.closePath(); c.fillStyle = gcone; c.fill();
-      // 밴드 경계(은은한 헤어라인 점선)
-      c.strokeStyle = CT.edge; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine);
-      c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(hi[k])); c.stroke();
-      c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), toY(lo[k])); c.stroke();
-      c.setLineDash([]);
-      // 중앙 예측선: 솔리드 + 소프트 글로우(방향 색조)
-      c.save();
-      c.strokeStyle = CT.core; c.lineWidth = 2.9; c.shadowColor = CT.glow; c.shadowBlur = 12;   // 예측 중앙선 = 핵심 산출물 → 굵게·강한 글로우로 강조
-      const _cyM = y => Math.max(padTop + 1, Math.min(ch - padBot - 1, y));   // 극단 예측도 플롯 안에 유지(축이 밴드를 넘는 경우 안전망)
-      c.beginPath(); c.moveTo(seamX, _cyM(toY(anchor)));
-      for (let k = 0; k < path.length; k++) c.lineTo(toXf(k), _cyM(toY(path[k])));
-      c.stroke(); c.restore();
-      // 반대 시나리오: '예상대로 가지 않았을 때'의 데이터 기반 대안 경로(엔진 pred.counter — 거울상 반사 아님)
+      const CT = _pd > 0 ? { fa: "rgba(70,194,142,.22)", fb: "rgba(70,194,142,.03)", edge: "rgba(70,194,142,.34)", core: "#46c28e" }
+        : _pd < 0 ? { fa: "rgba(224,106,106,.22)", fb: "rgba(224,106,106,.03)", edge: "rgba(224,106,106,.34)", core: "#e06a6a" }
+          : { fa: _warmA(.22), fb: _warmA(.03), edge: _warmA(.3), core: FC_GOLD };
+      const _fw = path.length, _seed = _predSeed(path, anchor);
+      const _rgb1 = _pd > 0 ? "70,194,142" : _pd < 0 ? "224,106,106" : "201,162,107";
+      const _cy = y => Math.max(padTop + 1, Math.min(ch - padBot - 1, y));
       const _counter = pred && pred.counter;
-      if (_pd !== 0 && Array.isArray(_counter) && _counter.length === path.length) {
-        let _cs = 0, _cw = 0; for (let k = 0; k < path.length; k++) { const wt = 1 / Math.sqrt(k + 1); _cs += _upProb(path[k], hi[k], anchor) * wt; _cw += wt; }
-        const _upP = _cw ? _cs / _cw : 50, _cProb = Math.round(_pd > 0 ? (100 - _upP) : _upP);
-        const _cUp = _counter[_counter.length - 1] >= anchor;   // 반대 경로 방향(끝점 vs 현재가)
-        const _cCol = _cUp ? "70,194,142" : "224,106,106";      // 반대 상승=녹 / 반대 하락=적
-        const _cA = Math.max(0.34, Math.min(0.8, _cProb / 100 * 1.15));
-        const _cYc = k => Math.max(padTop + 4, Math.min(ch - padBot - 4, toY(_counter[k])));
-        c.save();
-        c.strokeStyle = "rgba(" + _cCol + "," + Math.max(0.78, _cA) + ")"; c.lineWidth = 2.8; c.lineJoin = "round"; c.setLineDash([6, 4]); c.shadowColor = "rgba(" + _cCol + ",.5)"; c.shadowBlur = 7;
+      const _hasCtr = (_pd !== 0 && Array.isArray(_counter) && _counter.length === _fw);
+      const _crgb = _hasCtr ? (_counter[_counter.length - 1] >= anchor ? "70,194,142" : "224,106,106") : _rgb1;
+      // ── 밴드·구름 (범례 토글: band) ── 근거리 밴드 음영 + 원거리 밀도 구름(1차·3차)
+      if (_predVis.band) {
         c.beginPath(); c.moveTo(seamX, toY(anchor));
-        for (let k = 0; k < _counter.length; k++) c.lineTo(toXf(k), _cYc(k));
-        c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
-        _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _cCol + ")", "3차\u00b7" + _cProb + "%", (_cUp ? -12 : 14), true);
-        _comets.p3 = { pts: _counter.map((v, k) => [toXf(k), _cYc(k)]), col: "rgb(" + _cCol + ")", prob: _cProb };
-        c.restore();
+        for (let k = 0; k < _fw; k++) c.lineTo(toXf(k), toY(hi[k]));
+        for (let k = _fw - 1; k >= 0; k--) c.lineTo(toXf(k), toY(lo[k]));
+        c.closePath();
+        const gcone = c.createLinearGradient(seamX, 0, coneR, 0);
+        gcone.addColorStop(0, CT.fa); gcone.addColorStop(1, CT.fb);
+        c.fillStyle = gcone; c.fill();
+        c.strokeStyle = CT.edge; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine);
+        c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < _fw; k++) c.lineTo(toXf(k), toY(hi[k])); c.stroke();
+        c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < _fw; k++) c.lineTo(toXf(k), toY(lo[k])); c.stroke();
+        c.setLineDash([]);
+        for (let k = 0; k < _fw; k++) {
+          const cf = _predCloudFade(_fw > 0 ? k / _fw : 0); if (cf <= 0.01) continue;
+          const x0 = toXf(k), x1 = (k + 1 < _fw) ? toXf(k + 1) : coneR, colW = Math.max(1.6, x1 - x0);
+          _predCloudCol(c, x0 - colW * 0.5, colW * 1.5, lo[k], hi[k], path[k], toY, _rgb1, 0.17 * cf);
+          if (_hasCtr) _predCloudCol(c, x0 - colW * 0.5, colW * 1.5, lo[k], hi[k], _counter[k], toY, _crgb, 0.10 * cf);
+        }
       }
-      // 1차(종합) 끝단: 흘러가는 점 + 진앙지 + 명칭(+ 방향 달성확률)
-      let _p1s = 0, _p1w = 0; for (let k = 0; k < path.length; k++) { const wt = 1 / Math.sqrt(k + 1); _p1s += _upProb(path[k], hi[k], anchor) * wt; _p1w += wt; }
+      // 꿈틀 라인 스트로크(가로 알파 페이드) — seamX..coneR
+      const _wigStroke = (vals, rgb, dash, lw, sd) => {
+        c.save(); c.lineWidth = lw; c.lineJoin = "round"; c.lineCap = "round"; if (dash) c.setLineDash(dash);
+        const grad = c.createLinearGradient(seamX, 0, coneR, 0);
+        for (let i = 0; i <= 10; i++) { const t = i / 10; grad.addColorStop(t, "rgba(" + rgb + "," + _predLineFade(t).toFixed(3) + ")"); }
+        c.strokeStyle = grad; c.beginPath(); c.moveTo(seamX, _cy(toY(anchor)));
+        for (let k = 0; k < vals.length; k++) c.lineTo(toXf(k), _cy(toY(_predWigVal(k, _fw, vals[k], lo[k], hi[k], sd))));
+        c.stroke(); c.setLineDash([]); c.restore();
+      };
+      // ── 3차 반대선 (범례 토글: p3) ── 꿈틀·페이드 점선 + 끝점 라벨
+      if (_hasCtr && _predVis.p3) {
+        let _cs = 0, _cw = 0; for (let k = 0; k < _fw; k++) { const wt = 1 / Math.sqrt(k + 1); _cs += _upProb(path[k], hi[k], anchor) * wt; _cw += wt; }
+        const _upP = _cw ? _cs / _cw : 50, _cProb = Math.round(_pd > 0 ? (100 - _upP) : _upP);
+        const _cUp = _counter[_counter.length - 1] >= anchor;
+        _wigStroke(_counter, _crgb, [6, 4], 2.2, (_seed ^ 0x9e3779b9) >>> 0);
+        _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _crgb + ")", "3차·" + _cProb + "%", (_cUp ? -12 : 14), true);
+      }
+      // ── 1차 종합선 (범례 토글: p1) ── 꿈틀·페이드 실선 + 끝점 라벨
+      let _p1s = 0, _p1w = 0; for (let k = 0; k < _fw; k++) { const wt = 1 / Math.sqrt(k + 1); _p1s += _upProb(path[k], hi[k], anchor) * wt; _p1w += wt; }
       const _p1up = _p1w ? _p1s / _p1w : 50, _p1disp = Math.round(_pd >= 0 ? _p1up : (100 - _p1up));
-      _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차\u00b7" + _p1disp + "%", -12, true);
-      _comets.p1 = { pts: path.map((v, k) => [toXf(k), Math.max(padTop + 2, Math.min(ch - padBot - 2, toY(v)))]), col: CT.core, prob: _p1disp };
-      _comets._start = { x: seamX, y: toY(anchor) };
-      if (typeof _startComets === "function") _startComets();
-      // 현재가 = 예측 시작점(1·2·3차가 갈라지는 원점) — 중립 흰색 마커
+      if (_predVis.p1) {
+        _wigStroke(path, _rgb1, null, 2.7, _seed);
+        _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차·" + _p1disp + "%", -12, true);
+      }
+      if (typeof _clearComets === "function") _clearComets();   // 예측선 코멧 미사용(새 디자인=꿈틀+구름)
+      // 현재가 = 예측 시작점(원점) — 중립 흰색 마커
       { const _mx = seamX, _my = toY(anchor); c.save();
         c.strokeStyle = "rgba(255,255,255,.22)"; c.lineWidth = 1; c.beginPath(); c.arc(_mx, _my, 9.5, 0, 7); c.stroke();
         c.shadowColor = "rgba(255,255,255,.9)"; c.shadowBlur = 10; c.strokeStyle = "rgba(255,255,255,.92)"; c.lineWidth = 1.7; c.beginPath(); c.arc(_mx, _my, 4.6, 0, 7); c.stroke();
@@ -2916,22 +2957,26 @@
           const m = lastResult && lastResult.meta && lastResult.meta[n.id]; if (m && m.best) legend.push({ col, t: "주기 " + Math.round(m.best) });
         }
       }
-      // 2차 예측선(표시중 지표 조합) — 메인(전체 지표)과 비교용. 보라 점선.
+      // 2차 예측선(표시중 지표 조합) — 근거리 꿈틀·원거리 페이드(보라 점선). 범례 토글: p2.
       try {
-        const _c2 = _get2ndPred(), p2 = _c2 && _c2.pred;
-        const _2diff = (p2 && p2.path && p2.path.length && g.path && g.path.length) ? Math.abs(Math.log((p2.path[p2.path.length - 1] || 1) / (g.path[g.path.length - 1] || 1))) : 0;
-        if (p2 && p2.path && p2.path.length && _2diff > 0.008) {   // 2차가 1차(종합)와 사실상 같으면 생략(중복 제거)
-          const _sx = g.seamX, _cR = plotR, _pl = p2.path.length, _t2x = k => _sx + ((k + 1) / _pl) * (_cR - _sx);
-          c.save(); c.strokeStyle = "#4dd0ff"; c.lineWidth = 3.8; c.setLineDash([9, 4]); c.lineJoin = "round"; c.shadowColor = "rgba(77,208,255,1)"; c.shadowBlur = 16;
-          const _cy2 = y => Math.max(g.padTop + 1, Math.min(g.ch - g.padBot - 1, y));   // 플롯 밖으로 튀지 않게 클램프(축이 밴드를 넘는 극단 대비 안전망)
-          c.beginPath(); c.moveTo(_sx, _cy2(toY(g.anchor)));
-          for (let k = 0; k < _pl; k++) { const x = _t2x(k), y = _cy2(toY(p2.path[k])); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
-          c.stroke(); c.setLineDash([]); c.shadowBlur = 0; c.restore();
-          let _p2s = 0, _p2w = 0; for (let k = 0; k < p2.path.length; k++) { const wt = 1 / Math.sqrt(k + 1); const _hk = (g.hi && g.hi[k]) || p2.path[k]; _p2s += _upProb(p2.path[k], _hk, g.anchor) * wt; _p2w += wt; }
-          const _p2up = _p2w ? _p2s / _p2w : 50, _p2dir = p2.path[p2.path.length - 1] >= g.anchor, _p2disp = Math.round(_p2dir ? _p2up : (100 - _p2up));
-          _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#4dd0ff", "2차\u00b7" + _p2disp + "%", 12, true);
-          _comets.p2 = { pts: p2.path.map((v, k) => [_t2x(k), _cy2(toY(v))]), col: "#4dd0ff", prob: _p2disp };
-          if (typeof _startComets === "function") _startComets();
+        if (_predVis.p2) {
+          const _c2 = _get2ndPred(), p2 = _c2 && _c2.pred;
+          const _2diff = (p2 && p2.path && p2.path.length && g.path && g.path.length) ? Math.abs(Math.log((p2.path[p2.path.length - 1] || 1) / (g.path[g.path.length - 1] || 1))) : 0;
+          if (p2 && p2.path && p2.path.length && _2diff > 0.008) {   // 2차가 1차와 사실상 같으면 생략(중복 제거)
+            const _sx = g.seamX, _cR = plotR, _pl = p2.path.length, _t2x = k => _sx + ((k + 1) / _pl) * (_cR - _sx);
+            const _cy2 = y => Math.max(g.padTop + 1, Math.min(g.ch - g.padBot - 1, y));
+            const _sd2 = (_predSeed(p2.path, g.anchor) ^ 0x85ebca6b) >>> 0;   // 2차 독립 seed(1차와 다른 꿈틀)
+            const _2band = k => { let a = (p2.lo && isFinite(p2.lo[k])) ? p2.lo[k] : (g.lo && g.lo[k]), b = (p2.hi && isFinite(p2.hi[k])) ? p2.hi[k] : (g.hi && g.hi[k]); if (!isFinite(a) || !isFinite(b)) { const hw = Math.abs(p2.path[k]) * 0.02 || 1; a = p2.path[k] - hw; b = p2.path[k] + hw; } return [Math.min(a, p2.path[k]), Math.max(b, p2.path[k])]; };
+            c.save(); c.lineWidth = 3.2; c.setLineDash([9, 4]); c.lineJoin = "round"; c.lineCap = "round";
+            const grad2 = c.createLinearGradient(_sx, 0, _cR, 0);
+            for (let i = 0; i <= 10; i++) { const t = i / 10; grad2.addColorStop(t, "rgba(77,208,255," + _predLineFade(t).toFixed(3) + ")"); }
+            c.strokeStyle = grad2; c.beginPath(); c.moveTo(_sx, _cy2(toY(g.anchor)));
+            for (let k = 0; k < _pl; k++) { const bd = _2band(k), x = _t2x(k), y = _cy2(toY(_predWigVal(k, _pl, p2.path[k], bd[0], bd[1], _sd2))); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
+            c.stroke(); c.setLineDash([]); c.restore();
+            let _p2s = 0, _p2w = 0; for (let k = 0; k < p2.path.length; k++) { const wt = 1 / Math.sqrt(k + 1); const _hk = (g.hi && g.hi[k]) || p2.path[k]; _p2s += _upProb(p2.path[k], _hk, g.anchor) * wt; _p2w += wt; }
+            const _p2up = _p2w ? _p2s / _p2w : 50, _p2dir = p2.path[p2.path.length - 1] >= g.anchor, _p2disp = Math.round(_p2dir ? _p2up : (100 - _p2up));
+            _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#4dd0ff", "2차·" + _p2disp + "%", 12, true);
+          }
         }
       } catch (e) {}
       _evLegend(cHi || c, g.padX, g.padTop, legendAll);   // 범례는 선명 캔버스에(모든 지표 나열, 표시/숨김 토글)

@@ -1832,22 +1832,9 @@
       c.save(); c.shadowColor = "rgba(" + col + ",.9)"; c.shadowBlur = 12; c.fillStyle = "rgba(" + col + ",1)"; c.beginPath(); c.arc(ex, ey, 3.6, 0, 7); c.fill(); c.restore();
     } else {
       const beat = 0.5 + 0.5 * Math.sin(t / 520);   // 코어 맥동
-      // 예측 중앙선 전체에 은은한 진행 글로우(지금→미래) + 밝은 러너
-      c.save(); c.strokeStyle = "rgba(" + col + ",.28)"; c.lineWidth = 3.2; c.shadowColor = "rgba(" + col + ",.6)"; c.shadowBlur = 8;
-      c.beginPath(); for (let k = 0; k < g.path.length; k++) { const p = xy(k); k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); } c.stroke(); c.restore();
-      // 종점 브레딩 링 3겹(예측 목표 강조 — 크게·밝게)
+      // 종점 브레딩 링 3겹(예측 목표 강조) — 중앙선 글로우/러너 제거(새 예측 디자인=꿈틀+구름과 충돌)
       for (let rr = 0; rr < 3; rr++) { const ph = ((t / 1300) + rr / 3) % 1, rad = 5 + ph * 22, a = (1 - ph) * 0.8; c.strokeStyle = "rgba(" + col + "," + a.toFixed(3) + ")"; c.lineWidth = 2.2; c.beginPath(); c.arc(ex, ey, rad, 0, 7); c.stroke(); }
       c.save(); c.shadowColor = "rgba(" + col + ",1)"; c.shadowBlur = 12 + beat * 8; c.fillStyle = "rgba(" + col + ",1)"; c.beginPath(); c.arc(ex, ey, 3.4 + beat * 1.2, 0, 7); c.fill(); c.restore();
-      // 중앙선 따라 흐르는 밝은 러너 + 짧은 꼬리(지금→미래 루프)
-      const fp = (t / 1500) % 1, fk = fp * (g.path.length - 1), k0 = Math.max(0, Math.floor(fk)), k1 = Math.min(g.path.length - 1, k0 + 1), fr = fk - k0;
-      const sx = toXf(k0) + (toXf(k1) - toXf(k0)) * fr, sy = toY(g.path[k0]) + (toY(g.path[k1]) - toY(g.path[k0])) * fr;
-      if (isFinite(sx) && isFinite(sy)) {
-        const tk = Math.max(0, k0 - 6), tp = xy(tk), grad = c.createLinearGradient(tp[0], tp[1], sx, sy);
-        grad.addColorStop(0, "rgba(" + col + ",0)"); grad.addColorStop(1, "rgba(" + col + ",.85)");
-        c.save(); c.strokeStyle = grad; c.lineWidth = 3; c.shadowColor = "rgba(" + col + ",.9)"; c.shadowBlur = 10;
-        c.beginPath(); for (let k = tk; k <= k0; k++) { const p = xy(k); k === tk ? c.moveTo(p[0], p[1]) : c.lineTo(p[0], p[1]); } c.lineTo(sx, sy); c.stroke();
-        c.shadowBlur = 16; c.fillStyle = "rgba(255,255,255,.98)"; c.beginPath(); c.arc(sx, sy, 3, 0, 7); c.fill(); c.restore();
-      }
     }
     c.restore();
   }
