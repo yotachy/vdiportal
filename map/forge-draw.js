@@ -42,15 +42,32 @@
     mix(anchor); for (let i = 0; i < path.length; i++) mix(path[i]); return h >>> 0;
   }
   function _mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }   // 결정론 PRNG(시드→재현)
-  function _predWigSeq(n, seed) {   // 데이터 시드 랜덤워크(가격스러움): AR(1) 평균회귀 + 느린 변동성 클러스터링 → 비주기적·진폭 불균일(정현파 아님). [-1,1] 정규화
-    const rnd = _mulberry32(seed >>> 0), rndV = _mulberry32((seed ^ 0x9e3779b9) >>> 0);
-    const out = []; let x = 0, v = 1, maxA = 1e-9;
+  // 계산된 꿈틀(spec v2): S/R 자석 반응(꺾임=실제 레벨) + AR 결(종목 실제 단기 자기상관). center=예측 중앙값 배열, levels=엔진 S/R가격, tex=엔진 AR2 질감(nullable). → [-1,1] 정규화 시퀀스.
+  const _SR_W = 1.0, _AR_W = 0.4;   // 조정 상수: S/R 반응(꺾임=레벨) 비중 · AR 결(레벨 사이 미세) 비중
+  function _predWigSeqSR(n, center, lo, hi, levels, tex, seed) {
+    // 예측선이 지나는 가격범위 안의 유의 레벨(정렬·근접중복 제거) — 이 레벨들이 반등/하락 지점이 됨
+    let cMin = Infinity, cMax = -Infinity; for (let k = 0; k < n; k++) { if (center[k] < cMin) cMin = center[k]; if (center[k] > cMax) cMax = center[k]; }
+    const pad = (cMax - cMin) * 0.15 || 1, tol = (cMax - cMin) * 0.01 || 1e-6;
+    const rel = (Array.isArray(levels) ? levels : []).filter(v => isFinite(v) && v > cMin - pad && v < cMax + pad).sort((a, b) => a - b);
+    const uniq = []; for (const L of rel) if (!uniq.length || L - uniq[uniq.length - 1] > tol) uniq.push(L);   // 근접 중복 제거
+    // AR 결: 엔진 tex(실데이터 자기상관) 우선, 없으면 최소 시드 결
+    const rnd = _mulberry32(seed >>> 0), ar = new Array(n); let x = 0, arMax = 1e-9;
+    for (let k = 0; k < n; k++) { if (tex && isFinite(tex[k])) ar[k] = tex[k]; else { x = x * 0.7 + (rnd() * 2 - 1) * 0.5; ar[k] = x; } const a = Math.abs(ar[k]); if (a > arMax) arMax = a; }
+    // S/R 반응: center가 지나는 레벨을 위상 경계로 → 각 레벨에서 위상이 π만큼 진행, cos로 레벨에 극값(반등/하락) 배치
+    const out = new Array(n); let mx = 1e-9;
     for (let k = 0; k < n; k++) {
-      v = Math.max(0.22, Math.min(2.6, v + (rndV() - 0.5) * 0.6));   // 변동성 envelope 서서히 변화(잔잔↔출렁 = 클러스터)
-      x = x * 0.80 + (rnd() * 2 - 1) * v;                            // AR(1)형 워크(계수 0.80 — 발산 방지·추세성 약간)
-      out.push(x); const a = Math.abs(x); if (a > maxA) maxA = a;
+      const c0 = center[k];
+      let pull = 0;
+      if (uniq.length) {
+        let iLo = -1; for (let j = 0; j < uniq.length; j++) { if (uniq[j] <= c0) iLo = j; else break; }
+        const La = iLo >= 0 ? uniq[iLo] : (cMin - pad), Lb = iLo + 1 < uniq.length ? uniq[iLo + 1] : (cMax + pad), idx = iLo + 1;   // 아래 레벨 인덱스(경계 포함)
+        const prog = (Lb > La) ? (c0 - La) / (Lb - La) : 0;                 // 아래 레벨→위 레벨 진행도
+        pull = Math.cos((idx + Math.max(0, Math.min(1, prog))) * Math.PI);  // 레벨(정수 위상)에서 |pull|=1(극값) · 사이에서 0통과
+      }
+      out[k] = _SR_W * pull + _AR_W * (ar[k] / arMax);
+      const a = Math.abs(out[k]); if (a > mx) mx = a;
     }
-    for (let k = 0; k < n; k++) out[k] /= maxA;   // [-1,1] 정규화(최대 진폭=밴드 상한에 대응)
+    for (let k = 0; k < n; k++) out[k] /= mx;   // [-1,1]
     return out;
   }
   function _predWigVal(k, futW, center, loK, hiK, wv) {   // 꿈틀 y값(가격): center + 진폭·워크값(wv∈[-1,1])·페이드, 밴드[lo,hi] 하드 클램프
@@ -1019,8 +1036,9 @@
         }
       }
       // 꿈틀 라인 스트로크(가로 알파 페이드) — seamX..coneR
+      const _levels = pred && pred.levels, _tex = pred && pred.tex;   // 엔진 노출 S/R 레벨·AR 질감
       const _wigStroke = (vals, rgb, dash, lw, sd) => {
-        const seq = _predWigSeq(vals.length, sd);
+        const seq = _predWigSeqSR(vals.length, vals, lo, hi, _levels, _tex, sd);   // 계산된 꿈틀(S/R 반응 + AR 결)
         c.save(); c.lineWidth = lw; c.lineJoin = "round"; c.lineCap = "round"; if (dash) c.setLineDash(dash);
         const grad = c.createLinearGradient(seamX, 0, coneR, 0);
         for (let i = 0; i <= 10; i++) { const t = i / 10; grad.addColorStop(t, "rgba(" + rgb + "," + _predLineFade(t).toFixed(3) + ")"); }
@@ -2971,8 +2989,11 @@
           if (p2 && p2.path && p2.path.length && _2diff > 0.008) {   // 2차가 1차와 사실상 같으면 생략(중복 제거)
             const _sx = g.seamX, _cR = plotR, _pl = p2.path.length, _t2x = k => _sx + ((k + 1) / _pl) * (_cR - _sx);
             const _cy2 = y => Math.max(g.padTop + 1, Math.min(g.ch - g.padBot - 1, y));
-            const _sd2 = (_predSeed(p2.path, g.anchor) ^ 0x85ebca6b) >>> 0, _seq2 = _predWigSeq(_pl, _sd2);   // 2차 독립 seed·시퀀스
+            const _sd2 = (_predSeed(p2.path, g.anchor) ^ 0x85ebca6b) >>> 0;   // 2차 독립 seed
             const _2band = k => { let a = (p2.lo && isFinite(p2.lo[k])) ? p2.lo[k] : (g.lo && g.lo[k]), b = (p2.hi && isFinite(p2.hi[k])) ? p2.hi[k] : (g.hi && g.hi[k]); if (!isFinite(a) || !isFinite(b)) { const hw = Math.abs(p2.path[k]) * 0.02 || 1; a = p2.path[k] - hw; b = p2.path[k] + hw; } return [Math.min(a, p2.path[k]), Math.max(b, p2.path[k])]; };
+            const _2lo = new Array(_pl), _2hi = new Array(_pl); for (let k = 0; k < _pl; k++) { const bd = _2band(k); _2lo[k] = bd[0]; _2hi[k] = bd[1]; }
+            const _lp = (typeof lastResult !== "undefined" && lastResult && lastResult.prediction) ? lastResult.prediction : null;   // 공유 S/R 레벨·AR 질감
+            const _seq2 = _predWigSeqSR(_pl, p2.path, _2lo, _2hi, _lp && _lp.levels, _lp && _lp.tex, _sd2);   // 계산된 꿈틀(S/R 반응 + AR 결)
             c.save(); c.lineWidth = 3.2; c.setLineDash([9, 4]); c.lineJoin = "round"; c.lineCap = "round";
             const grad2 = c.createLinearGradient(_sx, 0, _cR, 0);
             for (let i = 0; i <= 10; i++) { const t = i / 10; grad2.addColorStop(t, "rgba(77,208,255," + _predLineFade(t).toFixed(3) + ")"); }

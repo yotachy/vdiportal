@@ -2348,7 +2348,7 @@
     context.relStrength = (opts && opts.spyClose) ? forecastRelStrength(price, opts.spyClose) : null;   // 시장 상대강도(v1.10) — 클라가 SPY 종가 스레딩(미국주식·일봉 한정)
     context.relSector = (opts && opts.sectorClose) ? forecastRelSector(price, opts.sectorClose, opts.sectorEtf) : null;   // 섹터 상대강도(v1.11) — 소속 섹터 ETF 종가 스레딩(SPY판보다 강함)
     return {
-      values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo }, signal: sigB,
+      values, meta, prediction: { path, lo, hi, counter, counterTarget: _cTarget, counterBasis: _cBasis, futW, anchor: price[n - 1], target, seasonal: seasInfo, levels: _lvls.slice().sort((a, b) => a - b), tex: _texArr }, signal: sigB,
       verdict: { regime, score: Math.round(_dirSig), target, invalidation, confluence, context }
     };
   }
