@@ -1145,11 +1145,13 @@
           const _by = padTop + _RAIL_H + 16;
           c.font = "700 9.5px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
           const _bt = "신뢰 지평", _bw = c.measureText(_bt).width + 10;
+          // 배지가 우측 경계(padX+plotW)를 넘지 않도록 클램프 — 지평이 오른쪽 끝 봉에 생기는 경로 대응
+          const _bx = Math.min(_hx + 3, padX + plotW - _bw - 2);
           c.fillStyle = "rgba(11,15,20,.8)";
-          if (c.roundRect) { c.beginPath(); c.roundRect(_hx + 3, _by, _bw, 14, 3); c.fill(); } else c.fillRect(_hx + 3, _by, _bw, 14);
-          c.fillStyle = "rgba(180,188,210,.95)"; c.fillText(_bt, _hx + 8, _by + 10.5);
+          if (c.roundRect) { c.beginPath(); c.roundRect(_bx, _by, _bw, 14, 3); c.fill(); } else c.fillRect(_bx, _by, _bw, 14);
+          c.fillStyle = "rgba(180,188,210,.95)"; c.fillText(_bt, _bx + 5, _by + 10.5);
           c.font = "500 9px Pretendard,'Malgun Gothic',sans-serif"; c.fillStyle = "rgba(138,146,178,.7)";
-          c.fillText("이후는 참고", _hx + 8, _by + 24);
+          c.fillText("이후는 참고", _bx + 5, _by + 24);
           c.restore();
         }
       }
