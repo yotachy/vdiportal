@@ -23,12 +23,14 @@
     --tint:#efe9dd; --footer-bg:#ece4d3; --border:#e4dfd3; --border-2:#d8d1c1;
     --text:#2a2620; --muted:#5a5449; --muted-2:#7a7364; --muted-3:#9a9284;
     --accent:#1f6feb; --accent-strong:#1a5cc4; --on-accent:#fff;
+    --caveat:#7a4f14; --caveat-bg:#f6e8cf; --caveat-border:#dcb877;
   }
   [data-theme=dark]{
     --bg:#0f0d0a; --bg-hi:#151109; --surface:#16130e; --surface-2:#1c1913;
     --tint:#100e0a; --footer-bg:#0c0a07; --border:#26221b; --border-2:#332e24;
     --text:#f4f2ec; --muted:#b8b0a0; --muted-2:#a49c8c; --muted-3:#8f8878;
     --accent:#3b82f6; --accent-strong:#60a5fa; --on-accent:#fff;
+    --caveat:#e3b573; --caveat-bg:#2b2013; --caveat-border:#4d3c22;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   /* 레이아웃 상수는 테마 무관(불변)값이라 테마 블록 밖에 둔다 — :root/[data-theme=dark]가 항상 같은 키 집합을 갖도록 하기 위함 */
@@ -92,7 +94,7 @@
 
   .mock{padding:0 0 84px;background:var(--bg)}
   .mock-frame{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:26px 26px 22px;max-width:760px;margin:0 auto}
-  .mock-badge{position:absolute;top:-11px;left:22px;background:var(--surface-2);border:1px solid var(--border-2);color:var(--muted-2);font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px}
+  .mock-badge{position:absolute;top:-11px;left:22px;background:var(--caveat-bg);border:1px solid var(--caveat-border);color:var(--caveat);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px}
   .mock-head{display:flex;align-items:baseline;gap:10px;padding-bottom:16px;border-bottom:1px solid var(--border)}
   .mock-sym{font-size:19px;font-weight:800;letter-spacing:-.02em}
   .mock-tf{font-size:12px;color:var(--muted-3)}

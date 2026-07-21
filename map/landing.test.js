@@ -12,6 +12,7 @@ const TOKENS = [
   "--bg", "--bg-hi", "--surface", "--surface-2", "--tint", "--footer-bg",
   "--border", "--border-2", "--text", "--muted", "--muted-2", "--muted-3",
   "--accent", "--accent-strong", "--on-accent",
+  "--caveat", "--caveat-bg", "--caveat-border",
 ];
 
 function styleCss(html) {
@@ -138,6 +139,19 @@ test("제품 모형이 예시임을 명시한다", () => {
   assert.ok(sec.includes("예시 화면"), "예시 라벨 없음 — 실제 시세로 오인될 수 있음");
 });
 
+// 방향성 주장을 문구 하나가 아니라 "개념" 단위로 차단한다.
+// 히어로는 방향을 "맞히지 않는다"고 정직하게 역설하는 문장을 이미 담고 있으므로(예: "상승·하락 예측은
+// 시장 기준선을 넘지 못합니다"), 이 가드는 mock 섹션(예시 카드)에만 스코프해 히어로의 정당한 disclaim
+// 문구를 오탐하지 않는다 — mock 섹션은 예시 수치를 나열할 뿐 방향을 disclaim하는 문맥이 없어 무조건 차단해도 안전.
+const DIRECTIONAL_CLAIM_PATTERNS = [
+  /상승\s*확률/,
+  /하락\s*확률/,
+  /방향\s*확률/,
+  /방향\s*정확도/,
+  /적중률/,
+  /방향\s*예측/,
+];
+
 test("모형이 검증된 축만 보여준다", () => {
   const html = read();
   const i = html.indexOf('class="mock"');
@@ -145,7 +159,9 @@ test("모형이 검증된 축만 보여준다", () => {
   for (const k of ["변동성", "낙폭", "R:R"]) {
     assert.ok(sec.includes(k), `모형에 ${k} 없음`);
   }
-  assert.ok(!sec.includes("적중률"), "모형이 방향 적중률을 주장함");
+  for (const p of DIRECTIONAL_CLAIM_PATTERNS) {
+    assert.ok(!p.test(sec), `모형이 방향성 주장을 담음: ${p}`);
+  }
 });
 
 module.exports = { FILE, read, TOKENS, blockOf, styleCss };
