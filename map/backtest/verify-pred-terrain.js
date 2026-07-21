@@ -35,12 +35,14 @@ const setup = [
   grabFn("_predPCal"),
   grabFn("_predWigVal"),
   grabFn("_predConfSeq"),
+  grabConstLine("_Q50"),
+  grabFn("_predQ50"),
 ].join("\n");
 
 const harness = new Function("stub", `
   const _upProb = stub._upProb, ForgeCore = stub.ForgeCore;
   ${setup}
-  return { _predZ, _predConf, _predHorizonK, _predPCal, _predWigVal, _predConfSeq, _Z_LO, _Z_HI, _Z_HORIZON };
+  return { _predZ, _predConf, _predHorizonK, _predPCal, _predWigVal, _predConfSeq, _predQ50, _Z_LO, _Z_HI, _Z_HORIZON };
 `);
 
 /* 스텁: 실제 forge-app.js/_forge-core.js 구현과 동일 수식 */
@@ -182,6 +184,26 @@ ok("confSeq: 지평이 있으면 kEnd = 그 index", () => {
 ok("confSeq: 지평이 없으면 kEnd = 전체 길이(점묘 구간 없음)", () => {
   const center = [110, 120, 130], hi = [111, 121, 131];
   assert.strictEqual(K._predConfSeq(center, hi, 100).kEnd, 3);
+});
+
+/* ── 6. 분위수 층 ── */
+ok("q50: lo < q50lo < path < q50hi < hi 순서", () => {
+  const r = K._predQ50(100, 90, 115);
+  assert.ok(90 < r.lo && r.lo < 100 && 100 < r.hi && r.hi < 115,
+    JSON.stringify(r));
+});
+ok("q50: 밴드가 넓어지면 50% 층도 넓어진다", () => {
+  const narrow = K._predQ50(100, 98, 102), wide = K._predQ50(100, 80, 125);
+  assert.ok((wide.hi - wide.lo) > (narrow.hi - narrow.lo));
+});
+ok("q50: hi <= path 같은 퇴화 입력이면 path 로 붕괴(NaN 없음)", () => {
+  const r = K._predQ50(100, 90, 100);
+  assert.ok(isFinite(r.lo) && isFinite(r.hi));
+  assert.strictEqual(r.hi, 100);
+});
+ok("q50: 결과는 항상 [lo, hi] 안", () => {
+  const r = K._predQ50(100, 99, 101);
+  assert.ok(r.lo >= 99 && r.hi <= 101);
 });
 
 console.log("\n" + pass + "/" + pass + " 통과");

@@ -130,17 +130,36 @@
     }
     c.restore();
   }
-  // 밀도 구름 1열: x에서 [loK,hiK] 세로 그라데이션 — 중앙(center) 진하고 가장자리 엷게(가우시안), 전체 알파 a
-  function _predCloudCol(c, x, colW, loK, hiK, center, toY, rgb, a) {
-    if (!(a > 0.01) || !(hiK > loK)) return;
-    const yTop = toY(hiK), yBot = toY(loK), yC = toY(center);
-    const g = c.createLinearGradient(0, yTop, 0, yBot);
-    const span = (yBot - yTop) || 1, cc = Math.max(0, Math.min(1, (yC - yTop) / span));   // 중앙 위치(0..1)
-    const gau = d => Math.exp(-(d * d) / (2 * 0.22 * 0.22));   // σ=0.22 가우시안 감쇠
-    for (let i = 0; i <= 10; i++) { const p = i / 10; g.addColorStop(p, "rgba(" + rgb + "," + (a * gau(p - cc)).toFixed(3) + ")"); }
-    c.fillStyle = g; c.fillRect(x, yTop, colW, yBot - yTop);
+  // ── 분위수 팬 — 밀도 구름을 대체. 구름은 경계가 없어 '얼마나 넓은지'를 읽을 수 없었다. ──
+  const _Q50 = 0.6745;   // 정규분포 중앙 50% 구간의 z. sd = log(hi/path) 를 1σ로 취급(현행 밴드 ±1σ≈68%, 실측 콘 커버 ~78%와 근사 정합)
+  function _predQ50(centerK, loK, hiK) {
+    const sd = (centerK > 0 && hiK > centerK) ? Math.log(hiK / centerK) : 0;
+    return {
+      hi: Math.min(hiK, centerK * Math.exp(_Q50 * sd)),
+      lo: Math.max(loK, centerK * Math.exp(-_Q50 * sd))
+    };
   }
-  let _predVis = { band: true, p1: true, p2: true, p3: true };   // 예측선 범례 토글 상태(세션·기본 전부 켜짐)
+  function _drawPredFan(c, pathArr, loArr, hiArr, seamX, coneR, toXf, toY, anchor, rgb) {
+    const n = pathArr.length; if (!n || !(coneR > seamX)) return;
+    const qlo = new Array(n), qhi = new Array(n);
+    for (let k = 0; k < n; k++) { const q = _predQ50(pathArr[k], loArr[k], hiArr[k]); qlo[k] = q.lo; qhi[k] = q.hi; }
+    // 가로 알파는 그라데이션으로 — 근거리엔 거의 안 보이고, 선이 해체되는 자리에서 층이 올라온다.
+    const gfill = a => { const g = c.createLinearGradient(seamX, 0, coneR, 0); for (let i = 0; i <= 10; i++) { const t = i / 10; g.addColorStop(t, "rgba(" + rgb + "," + (a * _predCloudFade(t)).toFixed(3) + ")"); } return g; };
+    const poly = (lA, hA) => { c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < n; k++) c.lineTo(toXf(k), toY(hA[k])); for (let k = n - 1; k >= 0; k--) c.lineTo(toXf(k), toY(lA[k])); c.closePath(); };
+    c.save();
+    poly(loArr, hiArr); c.fillStyle = gfill(0.07); c.fill();     // 68% 층
+    poly(qlo, qhi); c.fillStyle = gfill(0.16); c.fill();          // 50% 층(덧칠되어 안쪽이 진해짐)
+    c.lineWidth = CW.hair; c.strokeStyle = gfill(0.35);           // 50% 경계 헤어라인 — 크기를 읽을 수 있게
+    c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < n; k++) c.lineTo(toXf(k), toY(qhi[k])); c.stroke();
+    c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < n; k++) c.lineTo(toXf(k), toY(qlo[k])); c.stroke();
+    // 층 라벨 — 우측 끝은 끝점 라벨·가격 pill로 붐비므로 콘 span 의 72% 지점에 얹는다
+    const kL = Math.max(0, Math.min(n - 1, Math.round((n - 1) * 0.72)));
+    c.font = "9px ui-monospace,monospace"; c.textAlign = "center";
+    c.fillStyle = "rgba(" + rgb + ",.62)"; c.fillText("50%", toXf(kL), toY(qhi[kL]) - 3);
+    c.fillStyle = "rgba(138,146,178,.55)"; c.fillText("68%", toXf(kL), toY(hiArr[kL]) - 3);
+    c.restore();
+  }
+  let _predVis = { band: true, fan: true, rail: true, p1: true, p2: true, p3: true };   // 예측선 범례 토글 상태(세션·기본 전부 켜짐)
 
   /* ── fcFit: DPR-correct canvas sizing (port of chart.html fit()) ── */
   function fcFit(cv, h, cap) {
@@ -1083,13 +1102,8 @@
         c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < _fw; k++) c.lineTo(toXf(k), toY(hi[k])); c.stroke();
         c.beginPath(); c.moveTo(seamX, toY(anchor)); for (let k = 0; k < _fw; k++) c.lineTo(toXf(k), toY(lo[k])); c.stroke();
         c.setLineDash([]);
-        for (let k = 0; k < _fw; k++) {
-          const cf = _predCloudFade(_fw > 0 ? k / _fw : 0); if (cf <= 0.01) continue;
-          const x0 = toXf(k), x1 = (k + 1 < _fw) ? toXf(k + 1) : coneR, colW = Math.max(1.6, x1 - x0);
-          _predCloudCol(c, x0 - colW * 0.5, colW * 1.5, lo[k], hi[k], path[k], toY, _rgb1, 0.17 * cf);
-          if (_hasCtr) _predCloudCol(c, x0 - colW * 0.5, colW * 1.5, lo[k], hi[k], _counter[k], toY, _crgb, 0.10 * cf);
-        }
       }
+      if (_predVis.fan) _drawPredFan(c, path, lo, hi, seamX, coneR, toXf, toY, anchor, _rgb1);
       // 꿈틀 라인 스트로크(가로 알파 페이드) — seamX..coneR
       const _levels = pred && pred.levels, _tex = pred && pred.tex;   // 엔진 노출 S/R 레벨·AR 질감
       const _wigStroke = (vals, rgb, dash, lw, sd) => {
