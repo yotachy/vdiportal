@@ -919,10 +919,12 @@
     const core = pd > 0 ? "#46c28e" : pd < 0 ? "#e06a6a" : FC_GOLD;
     const c3 = pd > 0 ? "#e06a6a" : "#46c28e";
     const items = [
-      ["band", "밴드·구름", band, "sq", "기술적으로 도달 가능한 최저~최고 경계 + 원거리 밀도 구름(확률 퍼짐)입니다. 피보나치·구조 스윙·매물대·볼린저·일목·VWAP 종합. 클릭하면 숨김/표시."],
-      ["p1", "1차 종합지표", core, "", "전체 지표를 융합한 종합 예측선입니다. 근거리는 현실적 미세움직임, 원거리는 확률 구름으로 녹아듭니다. 클릭하면 숨김/표시."],
+      ["band", "밴드 경계", band, "sq", "기술적으로 도달 가능한 최저~최고 경계입니다. 피보나치·구조 스윙·매물대·볼린저·일목·VWAP 종합. 클릭하면 숨김/표시."],
+      ["fan", "분위수 팬", band, "sq", "예측이 이 안에 들어올 확률입니다. 안쪽 진한 층 50%, 바깥 경계 68%. 뒤로 갈수록 벌어지는 폭 자체가 불확실성의 크기입니다. 클릭하면 숨김/표시."],
+      ["rail", "확률 레일", "rgba(138,146,178,.85)", "sq", "각 시점의 예측 신뢰도입니다. 막대가 낮아질수록 그 시점 예측은 근거가 약합니다. 숫자는 캘리브레이션된 방향 적중 확률. 클릭하면 숨김/표시."],
+      ["p1", "1차 종합지표", core, "", "전체 지표를 융합한 종합 예측선입니다. 신뢰 지평까지는 실선, 이후는 점묘로 해체됩니다. 끝점 확률이 50% 미만이면 반대 시나리오가 우세하다는 뜻입니다. 클릭하면 숨김/표시."],
       ["p2", "2차 선택지표", "#4dd0ff", "", "범례에서 표시(체크)한 지표 조합만으로 다시 계산한 예측선입니다. 특정 관점 비교용. 클릭하면 숨김/표시."],
-      ["p3", "3차 최대역치", c3, "", "예상과 반대로 움직였을 때 가격이 향할 반대 시나리오선 + 반대 구름입니다. 클릭하면 숨김/표시."]
+      ["p3", "3차 최대역치", c3, "", "예상과 반대로 움직였을 때 가격이 향할 반대 시나리오선입니다. 클릭하면 숨김/표시."]
     ];
     el.style.display = "flex";
     el.innerHTML = '<span class="fc-leg-grip" title="드래그하여 범례 이동">⠿</span>' + items.map(it => `<span class="fc-leg-item${_predVis[it[0]] ? "" : " off"}" data-predkey="${it[0]}" title="클릭 = 숨김/표시"><span class="fc-leg-sw${it[3] === "sq" ? " sq" : ""}" style="background:${it[2]}"></span>${esc(it[1])}<span class="fc-leg-tip">${esc(it[4])}</span></span>`).join("");
@@ -1118,7 +1120,7 @@
       const _counter = pred && pred.counter;
       const _hasCtr = (_pd !== 0 && Array.isArray(_counter) && _counter.length === _fw);
       const _crgb = _hasCtr ? (_counter[_counter.length - 1] >= anchor ? "70,194,142" : "224,106,106") : _rgb1;
-      // ── 밴드·구름 (범례 토글: band) ── 근거리 밴드 음영 + 원거리 밀도 구름(1차·3차)
+      // ── 밴드 경계 (범례 토글: band) ── 기술적 최대범위 lo/hi 헤어라인. 확률 층은 별도 토글(fan).
       if (_predVis.band) {
         c.beginPath(); c.moveTo(seamX, toY(anchor));
         for (let k = 0; k < _fw; k++) c.lineTo(toXf(k), toY(hi[k]));
