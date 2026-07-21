@@ -93,13 +93,6 @@
   .menu button.mi .mi-tail{margin-left:auto; font-size:.74rem; font-weight:700; color:var(--ink-faint);}
   .menu .mi-sep{height:1px; background:var(--line); margin:6px 4px;}
   .menu select{width:100%; border:1.5px solid var(--line-in); background:var(--card); color:var(--ink); border-radius:var(--r-xs); padding:8px 10px; font-size:.82rem; font-weight:600; cursor:pointer;}
-  body.can-edit #btnLock .mi-tail{color:var(--up);}
-
-  /* 읽기 전용(잠금) 시 편집 UI 숨김 */
-  body:not(.can-edit) #btnAdd,
-  body:not(.can-edit) #btnFab,
-  body:not(.can-edit) .arow-act,
-  body:not(.can-edit) .allbar{display:none;}
 
   /* ===================== 레이아웃 ===================== */
   .pad{max-width:1180px; margin:0 auto; padding:26px 26px 70px;}
@@ -367,7 +360,7 @@
     .arow.dense .arow-act{display:none;}
     .arow-act button{width:34px; height:34px;}
     /* 모바일: 우하단 골드 FAB */
-    body.can-edit .fab{display:flex; position:fixed; right:18px; bottom:20px; z-index:50; width:56px; height:56px; border-radius:50%; border:none; background:var(--gold); color:var(--gold-ink); align-items:center; justify-content:center; box-shadow:var(--sh-fab); cursor:pointer;}
+    .fab{display:flex; position:fixed; right:18px; bottom:20px; z-index:50; width:56px; height:56px; border-radius:50%; border:none; background:var(--gold); color:var(--gold-ink); align-items:center; justify-content:center; box-shadow:var(--sh-fab); cursor:pointer;}
     .fab svg{width:24px; height:24px;}
     /* 간단히 보기 */
     .arow.dense{padding:2px 12px 2px 8px; gap:5px;}
@@ -419,10 +412,6 @@
       <button class="mi" id="btnSync">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
         서버에서 새로고침
-      </button>
-      <button class="mi" id="btnLock">
-        <svg class="lk-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
-        편집 잠금 <span class="mi-tail lk-label"></span>
       </button>
       <div class="mi-sep"></div>
       <button class="mi" id="btnExport">
@@ -583,8 +572,6 @@ function saveData(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(data));
 
 /* ===================== 서버 동기화 (연산 기반, 동시 편집 안전) ===================== */
 const SERVER_URL="api.php";  // 같은 디렉터리의 PHP 엔드포인트
-const KEY_KEY="jsiy_key";    // 쓰기 키(이 기기에만 저장)
-let writeKey=""; try{ writeKey=localStorage.getItem(KEY_KEY)||""; }catch(e){}
 let syncState="";            // ""|"ok"|"saving"|"loading"|"offline"|"error"
 let lastRev=null;            // 서버 리비전(폴링 변경 감지)
 function setSync(s){ syncState=s; updateSyncUI(); }
@@ -597,12 +584,11 @@ function updateSyncUI(){
 // 연산을 서버에 전송(전체 문서 대신 변경분만 → 동시 편집 시 서로 덮어쓰지 않음)
 function sendOp(op){
   saveData();  // 로컬 즉시 반영
-  if(!isUnlocked()) return;  // 읽기 전용이면 서버 미전송
   setSync("saving");
-  fetch(SERVER_URL,{method:"POST",headers:{"Content-Type":"application/json","X-Write-Key":writeKey},body:JSON.stringify(op)})
-    .then(r=>{ if(r.status===403){ setSync("error"); toast("쓰기 권한이 없습니다 — 잠금 해제 키를 확인하세요."); throw "forbidden"; } return r.ok?r.json():Promise.reject(); })
+  fetch(SERVER_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(op)})
+    .then(r=>r.ok?r.json():Promise.reject())
     .then(j=>{ if(j&&j.ok){ lastRev=j.rev; setSync("ok"); } else setSync("error"); })
-    .catch(e=>{ if(e!=="forbidden") setSync("offline"); });
+    .catch(()=>setSync("offline"));
 }
 function opUpsert(it){ sendOp({op:"upsert",item:it}); }
 function opDelete(id){ sendOp({op:"delete",id:id}); }
@@ -665,7 +651,7 @@ function pullFromServer(opts){
       if(d&&Array.isArray(d.items)){
         if(d._rev!==lastRev){ applyServerData(d); lastRev=d._rev; }
         setSync("ok");
-      } else if(d===null){ if(opts.initial&&isUnlocked()) opReplace(); else setSync("ok"); }  // 빈 서버는 편집 권한 있을 때만 시드
+      } else if(d===null){ if(opts.initial) opReplace(); else setSync("ok"); }  // 서버가 비어 있으면 최초 접속 기기의 데이터로 시드
       else setSync("ok");
     })
     .catch(()=>setSync("offline"));
@@ -678,30 +664,6 @@ function startPolling(){
     pullFromServer({quiet:true});
   },6000);
 }
-
-/* ===================== 편집 잠금(쓰기 키) ===================== */
-const ICON_LOCK=`<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>`;
-const ICON_UNLOCK=`<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V6.5A4 4 0 0 1 15.5 5"/>`;
-function isUnlocked(){ return !!writeKey; }
-function requireEdit(){ if(!isUnlocked()){ toast("편집하려면 도구 › 편집 잠금을 해제하세요."); return false; } return true; }
-function applyLockUI(){
-  document.body.classList.toggle("can-edit", isUnlocked());
-  const b=document.getElementById("btnLock"); if(!b) return;
-  b.querySelector(".lk-ico").innerHTML=isUnlocked()?ICON_UNLOCK:ICON_LOCK;
-  b.querySelector(".lk-label").textContent=isUnlocked()?"편집 가능":"읽기 전용";
-}
-function lockEdit(){ writeKey=""; try{ localStorage.removeItem(KEY_KEY); }catch(e){} applyLockUI(); render(); toast("읽기 전용으로 잠갔습니다."); }
-function unlockEdit(){
-  const k=prompt("편집하려면 쓰기 키를 입력하세요"); if(k==null) return;
-  setSync("loading");
-  fetch(SERVER_URL+"?check=1",{headers:{"X-Write-Key":k}})
-    .then(r=>r.json()).then(j=>{
-      if(j&&j.valid){ writeKey=k; try{ localStorage.setItem(KEY_KEY,k); }catch(e){} applyLockUI(); render(); toast("편집 잠금을 해제했습니다."); pullFromServer({initial:true}); }
-      else { toast("쓰기 키가 올바르지 않습니다."); setSync("ok"); }
-    })
-    .catch(()=>{ toast("서버에 연결할 수 없습니다."); setSync("offline"); });
-}
-function toggleLock(){ isUnlocked()?lockEdit():unlockEdit(); }
 
 /* ===================== 포맷 ===================== */
 function fmtWon(n){ return "₩"+(Number(n)||0).toLocaleString("ko-KR"); }
@@ -777,15 +739,14 @@ function effectiveTarget(){ const b=goalTarget(); return taxOn()?Math.round(b*(1
 function renderGoal(){
   const inc=grandTotal(), all=allItemsTotal(), base=goalTarget(), target=effectiveTarget(), tax=taxOn();
   const hasExcl=all>inc+0.5;                                 // 합산 제외 항목이 있을 때만 '전체' 별도 표시
-  const editable=isUnlocked();
-  const taxChk=base?`<label class="gt-check"><input type="checkbox" id="taxChk" ${tax?"checked":""} ${editable?"":"disabled"}> 보유세 +${TAX_PCT}%</label>`:"";
+  const taxChk=base?`<label class="gt-check"><input type="checkbox" id="taxChk" ${tax?"checked":""}> 보유세 +${TAX_PCT}%</label>`:"";
   const done=base>0&&inc>=target;                            // 포함 자산 기준 목표 달성
   const head=`<div class="goal-head">
       <div class="goal-target"><span class="gt-label">목표 매수가 (부동산)</span>${base?`${fmtWon(target)} <span class="gt-kor">(${korUnit(target)})</span>${tax?` <span class="gt-tax-inline">보유세 +${TAX_PCT}% 포함</span>`:""}${done?` <span class="gt-done">달성 ${(inc/target*100).toFixed(0)}%</span>`:""}`:`<span style="color:var(--ink-faint)">미설정</span>`}</div>
       <div class="goal-head-act">${taxChk}</div>
     </div>`;
   let viz="";
-  if(target>0||editable){                                    // 편집 모드면 목표 미설정이라도 막대를 띄워 드래그로 설정
+  {                                                          // 목표 미설정이라도 막대를 띄워 드래그로 설정할 수 있게
     const STEP=5e8;
     const rawMax=Math.max(all,target);
     let scaleMax=(Math.floor(rawMax/STEP)+1)*STEP;           // 5억 격자 + 목표선 우측 여유(드래그로 더 높이 설정 가능)
@@ -818,20 +779,18 @@ function renderGoal(){
     const allAnchor=allW>84?" pin-r":" pin-l";
     const ends=(target>0&&hasExcl)?`<div class="gs-ends"><span class="gs-inc${pctInc>=100?" done":""}${incAnchor}" style="left:${incW.toFixed(2)}%">가능</span><span class="gs-all${pctAll>=100?" done":""}${allAnchor}" style="left:${allW.toFixed(2)}%">전체</span></div>`:"";
     viz=`
-      <div class="goalscale${editable?" editable":""}" data-smax="${scaleMax}"${editable?' data-editable="1"':""}>
-        <div class="gs-goal-label${labelCls}" style="left:${goalLeft.toFixed(2)}%"${editable?' title="드래그하거나 더블클릭해 직접 입력"':""}>${labelTxt}</div>
-        <div class="goal-track${editable?" grabbable":""}">
+      <div class="goalscale editable" data-smax="${scaleMax}" data-editable="1">
+        <div class="gs-goal-label${labelCls}" style="left:${goalLeft.toFixed(2)}%" title="드래그하거나 더블클릭해 직접 입력">${labelTxt}</div>
+        <div class="goal-track grabbable">
           ${hasExcl?`<div class="goal-fill all" style="width:${allW.toFixed(2)}%"></div>`:""}
           <div class="goal-fill inc" style="width:${incW.toFixed(2)}%"></div>
         </div>
-        <div class="gs-goalline${editable?" draggable":""}" style="left:${goalLeft.toFixed(2)}%">${editable?'<span class="gs-knob"></span>':""}</div>
-        ${editable?`<div class="gs-tooltip" hidden></div>`:""}
+        <div class="gs-goalline draggable" style="left:${goalLeft.toFixed(2)}%"><span class="gs-knob"></span></div>
+        <div class="gs-tooltip" hidden></div>
         ${ends}
         ${axis}
       </div>
-      ${target>0?`<div class="goal-foot">${hasExcl?footLine("가능자산",inc)+footLine("전체자산",all):footLine("보유자산",inc)}</div>`:(editable?`<div class="goal-hint-drag">막대의 <b>🎯 목표선</b>을 좌우로 드래그해 목표 매수가를 설정하세요 <span style="opacity:.8">(1억원 단위 · 더블클릭 시 직접 입력)</span></div>`:"")}`;
-  }else{
-    viz=`<div class="goal-empty">목표 매수가를 설정하면 달성률을 시각화합니다.</div>`;
+      ${target>0?`<div class="goal-foot">${hasExcl?footLine("가능자산",inc)+footLine("전체자산",all):footLine("보유자산",inc)}</div>`:`<div class="goal-hint-drag">막대의 <b>🎯 목표선</b>을 좌우로 드래그해 목표 매수가를 설정하세요 <span style="opacity:.8">(1억원 단위 · 더블클릭 시 직접 입력)</span></div>`}`;
   }
   return `<div class="card goal-card${done?" goal-done":""}">${head}${viz}</div>`;
 }
@@ -977,7 +936,6 @@ function setupGoalDrag(){
     }
   };
   const down=e=>{
-    if(!isUnlocked()) return;
     dragging=true; scaleEl.classList.add("dragging");
     if(tip){ clearTimeout(tip._t); tip.classList.remove("confirm"); tip.hidden=false; }
     try{ track.setPointerCapture(e.pointerId); }catch(_){}
@@ -1038,7 +996,7 @@ function sortItems(arr){
   else if(listSort==="recent") arr.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
   else arr.sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0));
 }
-function rowHtml(it,editable){
+function rowHtml(it){
   const c=catById(it.cat), on=isIncluded(it);
   const meta=[];
   if(it.inst) meta.push(escHtml(it.inst));
@@ -1063,10 +1021,10 @@ function rowHtml(it,editable){
     </div>
   </div>`;
 }
-function denseRowHtml(it,editable){
+function denseRowHtml(it){
   const on=isIncluded(it);
   return `<div class="arow dense${on?"":" off"}" data-id="${it.id}">
-    <label class="dchk"><input type="checkbox" class="inc-chk" ${on?"checked":""} ${editable?"":"disabled"} title="자산 합계 포함"></label>
+    <label class="dchk"><input type="checkbox" class="inc-chk" ${on?"checked":""} title="자산 합계 포함"></label>
     <div class="arow-l" data-edit>
       <div class="arow-name">${escHtml(it.name)||"—"}</div>
       <div class="arow-amt">${fmtNum(it.amount)}</div>
@@ -1080,7 +1038,6 @@ function renderList(){
   const instName=isInst?scope.slice(5):null;
   const isCat=!isOwner&&!isInst&&scope!=="all"&&scope!=="dash";
   const cat=isCat?catById(scope):null;
-  const editable=isUnlocked();
   document.getElementById("listTitle").textContent=isOwner?ownerName:isInst?instName:(isCat?cat.name:"보유 자산");
   const q=((document.getElementById("listSearch")||{}).value||"").trim().toLowerCase();
   let items=data.items.slice();
@@ -1102,15 +1059,15 @@ function renderList(){
   const cardMode=isMobile();
   const bd=document.getElementById("btnDense");
   if(bd) bd.innerHTML=(denseList?FULL_ICO:DENSE_ICO)+`<span>${denseList?"자세히":"간단히"}</span>`;
-  const allbar=`<label class="allbar"><input type="checkbox" id="incAll" ${allInc?"checked":""} ${editable?"":"disabled"}> 표시된 ${items.length}건 합계 포함</label>`;
+  const allbar=`<label class="allbar"><input type="checkbox" id="incAll" ${allInc?"checked":""}> 표시된 ${items.length}건 합계 포함</label>`;
 
   if(cardMode&&denseList){
-    body.innerHTML=allbar+`<div class="rows">${items.map(it=>denseRowHtml(it,editable)).join("")}</div>`;
+    body.innerHTML=allbar+`<div class="rows">${items.map(it=>denseRowHtml(it)).join("")}</div>`;
   }else{
     // 분류 그룹(소계·비중) — 단일 분류 스코프에서는 그룹 머리글 생략
     let inner="";
     if(isCat){
-      inner=`<div class="rows">${items.map(it=>rowHtml(it,editable)).join("")}</div>`;
+      inner=`<div class="rows">${items.map(it=>rowHtml(it)).join("")}</div>`;
     }else{
       const groups=[];
       CATS.forEach(c=>{
@@ -1127,7 +1084,7 @@ function renderList(){
           <span class="grp-sum">${fmtNum(g.sub)}</span>
           <span class="grp-pct">${sum>0?(g.sub/sum*100).toFixed(1):"0.0"}%</span>
         </div>
-        <div class="rows">${g.list.map(it=>rowHtml(it,editable)).join("")}</div>`).join("");
+        <div class="rows">${g.list.map(it=>rowHtml(it)).join("")}</div>`).join("");
     }
     body.innerHTML=allbar+inner;
   }
@@ -1144,14 +1101,12 @@ function renderList(){
   const ia=document.getElementById("incAll"); if(ia){ ia.indeterminate=someInc; ia.addEventListener("change",toggleAllInclude); }
 }
 function toggleInclude(id){
-  if(!requireEdit()){ render(); return; }
   const it=data.items.find(x=>x.id===id); if(!it) return;
   it.include=!isIncluded(it); it.updatedAt=Date.now();
   opUpsert(it); render();
   toast(it.include?"합계에 포함했습니다.":"합계에서 제외했습니다.");
 }
 function toggleAllInclude(){
-  if(!requireEdit()){ render(); return; }
   const ids=[...document.querySelectorAll("#listBody [data-id]")].map(el=>el.dataset.id);
   if(!ids.length) return;
   const want=document.getElementById("incAll").checked;  // 클릭 후 상태가 목표값
@@ -1259,7 +1214,6 @@ function recalcAmount(){
   updateSoldHint();
 }
 function openModal(id){
-  if(!requireEdit()) return;
   editingId=id||null;
   const m=document.getElementById("modalBg");
   document.getElementById("modalTitle").textContent=editingId?"자산 수정":"자산 추가";
@@ -1324,21 +1278,18 @@ function saveModal(){
   closeModal(); render();
 }
 function delItem(id){
-  if(!requireEdit()) return;
   const it=data.items.find(x=>x.id===id); if(!it) return;
   if(!confirm(`'${it.name}' 항목을 삭제할까요?`)) return;
   data.items=data.items.filter(x=>x.id!==id);
   opDelete(id); render(); toast("삭제되었습니다.");
 }
 function toggleTax(){
-  if(!requireEdit()){ render(); return; }
   if(!data.meta) data.meta={};
   data.meta.taxOn=!data.meta.taxOn;
   opMeta({taxOn:data.meta.taxOn}); render();
   toast(data.meta.taxOn?("보유세 +"+TAX_PCT+"% 적용"):"보유세 미적용");
 }
 function editGoal(){
-  if(!requireEdit()) return;
   const cur=goalTarget();
   const v=prompt("목표 매수가(원)를 입력하세요 (비우면 해제)", cur||"");
   if(v==null) return;
@@ -1349,7 +1300,6 @@ function editGoal(){
   toast(n?("목표 매수가: "+fmtWon(n)):"목표를 해제했습니다.");
 }
 function dupItem(id){
-  if(!requireEdit()) return;
   const i=data.items.findIndex(x=>x.id===id); if(i<0) return;
   const src=data.items[i];
   const clone={...src, id:genId(), name:(src.name||"")+" (복사)", updatedAt:Date.now()};
@@ -1369,7 +1319,6 @@ function exportData(){
   toast("데이터 파일을 내보냈습니다.");
 }
 function importData(file){
-  if(!requireEdit()) return;
   const rd=new FileReader();
   rd.onload=()=>{
     try{
@@ -1414,7 +1363,7 @@ function toolsMenu(open){
 }
 
 /* ===================== 초기화 / 이벤트 ===================== */
-loadData(); loadScope(); fillCatSelect(); initTheme(); applyLockUI(); render();
+loadData(); loadScope(); fillCatSelect(); initTheme(); render();
 
 // ===== 인앱 뒤로가기 (History API): 모달 닫기 → 이전 뷰 → (더 없으면) 종료 =====
 let _navReady=false, _suppressPop=false;
@@ -1455,7 +1404,6 @@ document.getElementById("quoteInterval").addEventListener("change",e=>{
   if(quoteIntervalMs>0){ refreshQuotes(true); toast("시세 자동 갱신: "+(quoteIntervalMs/60000)+"분마다"); }
   else toast("시세 자동 갱신 끔");
 });
-document.getElementById("btnLock").addEventListener("click",()=>{ toolsMenu(false); toggleLock(); });
 document.getElementById("btnAdd").addEventListener("click",()=>openModal());
 document.getElementById("btnFab").addEventListener("click",()=>openModal());
 document.getElementById("btnDense").addEventListener("click",toggleDense);
