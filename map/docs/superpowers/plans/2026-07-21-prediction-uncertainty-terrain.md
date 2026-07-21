@@ -245,7 +245,7 @@ Expected: FAIL — `Error: 상수 줄을 찾지 못함: _Z_HORIZON`
 - [ ] **Step 4: 실행해서 통과를 확인한다**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js`
-Expected: PASS — `16/16 통과`
+Expected: PASS — `15/15 통과`
 
 - [ ] **Step 5: 엔진 회귀를 확인한다**
 
@@ -500,7 +500,7 @@ Expected: `_predLineFade 0건 — 정상` / `옛 6인자 호출 0건 — 정상`
 - [ ] **Step 9: 검증·구문·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node -e 'new Function(require("fs").readFileSync("forge-draw.js","utf8"));console.log("구문 OK")' && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `구문 OK` / `24/24 통과` / `# pass 246` / `# fail 0`
+Expected: `구문 OK` / `23/23 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 10: 커밋**
 
@@ -636,7 +636,7 @@ Expected: `0건 — 정상`
 - [ ] **Step 7: 검증·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `28/28 통과` / `# pass 246` / `# fail 0`
+Expected: `27/27 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 8: 커밋**
 
@@ -726,7 +726,7 @@ Expected: `호출 배선 OK` / `구문 OK`
 - [ ] **Step 4: 검증·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `28/28 통과` / `# pass 246` / `# fail 0`
+Expected: `27/27 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 5: 커밋**
 
@@ -792,7 +792,7 @@ Expected: `구문 OK · 배지 OK`
 - [ ] **Step 3: 검증·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `28/28 통과` / `# pass 246` / `# fail 0`
+Expected: `27/27 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 4: 커밋**
 
@@ -894,7 +894,7 @@ Expected: `죽은 변수 0건 — 정상`
 - [ ] **Step 6: 검증·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node -e 'new Function(require("fs").readFileSync("forge-draw.js","utf8"));console.log("구문 OK")' && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `구문 OK` / `28/28 통과` / `# pass 246` / `# fail 0`
+Expected: `구문 OK` / `27/27 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 7: 커밋**
 
@@ -954,7 +954,7 @@ Expected: `범례 6항목 · _predVis 6키 OK`
 - [ ] **Step 3: 검증·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `28/28 통과` / `# pass 246` / `# fail 0`
+Expected: `27/27 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 4: 커밋**
 
@@ -1031,7 +1031,7 @@ pkill -f "http.server 8123" || true
 - [ ] **Step 7: 최종 회귀를 실행한다**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3 && git status --short`
-Expected: `28/28 통과` / `# pass 246` / `# fail 0` / 변경 파일은 `forge.html` `docs/BACKLOG.md` 만 남음
+Expected: `27/27 통과` / `# pass 246` / `# fail 0` / 변경 파일은 `forge.html` `docs/BACKLOG.md` 만 남음
 
 - [ ] **Step 8: 커밋 · push · 배포 (한 세트)**
 
@@ -1095,4 +1095,4 @@ Expected: `1` 이상 (0이면 업로드 실패)
 - `_predHorizonK(centerArr, hiArr, anchor)` — Task 1 정의, Task 2(`_predConfSeq`)·Task 6에서 동일 3인자. ✓
 - `_predVis` 6키 — Task 4에서 한 번에 선언, Task 5(`rail`)·Task 8(범례) 참조. ✓
 - `_strokePredLine(c, {n,x0,y0,xAt,yAt,conf,kEnd,rgb,dash,lw})` — Task 2 정의, 1·3차(`_wigStroke`)·2차 블록에서 동일 opts 형태로 호출. ✓
-- 검증 스크립트 누적 케이스 수: Task 1 = 16, Task 2 = +8 → 24, Task 4 = +4 → 28. 각 Task의 Expected 수치와 일치. ✓
+- 검증 스크립트 누적 케이스 수: Task 1 = 15, Task 2 = +8 → 23, Task 4 = +4 → 27. 각 Task의 Expected 수치와 일치. ✓
