@@ -212,4 +212,28 @@ test("못 하는 것을 숨기지 않는다 (라벨-수치 짝)", () => {
   }
 });
 
+test("작동 방식 3단계가 있고 방향 예측을 약속하지 않는다", () => {
+  const html = read();
+  const i = html.indexOf('id="how"');
+  assert.ok(i >= 0, "작동 방식 섹션 없음");
+  const sec = html.slice(i, html.indexOf("</section>", i));
+  for (const n of ["01", "02", "03"]) {
+    assert.ok(sec.includes(n), `단계 ${n} 없음`);
+  }
+  assert.ok(!/상승\s*확률/.test(sec), "작동 방식이 상승 확률을 약속함");
+});
+
+test("검증 방법론이 walk-forward와 기각 공개를 밝힌다", () => {
+  const html = read();
+  // 브리프 원안은 class="sec method"였으나, 앞 섹션(verdict)이 이미 sec-alt라
+  // 배경 교대를 유지하려면 method 섹션이 sec-alt를 받아야 한다(sec sec-alt method) —
+  // 실제 마크업에 맞춰 고유 클래스 문자열로 재앵커링.
+  const i = html.indexOf('class="sec sec-alt method"');
+  assert.ok(i >= 0, "방법론 섹션 없음");
+  const sec = html.slice(i, html.indexOf("</section>", i));
+  assert.ok(sec.includes("walk-forward"), "walk-forward 언급 없음");
+  assert.ok(sec.includes("기각"), "기각 이력 언급 없음");
+  assert.ok(sec.includes("forge-scorecard.html"), "스코어카드 링크 없음");
+});
+
 module.exports = { FILE, read, TOKENS, blockOf, styleCss };

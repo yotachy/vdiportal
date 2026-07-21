@@ -121,6 +121,16 @@
   .vcol.cant .vitem-k{color:var(--muted)}
   .vcol.cant .vitem-v{color:var(--muted-3)}
   .vnote{margin-top:26px;font-size:13px;color:var(--muted-2);line-height:1.8}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:44px}
+  .step-n{font-size:12px;font-weight:800;color:var(--accent);letter-spacing:.1em}
+  .step-t{margin-top:10px;font-size:17px;font-weight:800;letter-spacing:-.02em}
+  .step-d{margin-top:9px;font-size:13.5px;color:var(--muted);line-height:1.75}
+  .mcards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+  .mcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px 22px}
+  .mcard-t{font-size:15px;font-weight:800;letter-spacing:-.02em}
+  .mcard-d{margin-top:9px;font-size:13.5px;color:var(--muted);line-height:1.75}
+  .lnk{display:inline-flex;align-items:center;gap:6px;margin-top:30px;font-size:14px;font-weight:700;color:var(--accent)}
+  .lnk:hover{color:var(--accent-strong)}
 </style>
 </head>
 <body>
@@ -280,6 +290,53 @@
       큰 변동 뒤엔 큰 변동이, 수축 뒤엔 수축이 옵니다. 그래서 방향은 못 맞혀도 변동폭·낙폭 규모는 예측 가능합니다.
       엔진이 지표 경로와 변동성 리스크 경로를 <b>독립된 두 갈래</b>로 둔 근거입니다.
     </p>
+  </div>
+</section>
+
+<section class="sec how" id="how">
+  <div class="wrap">
+    <div class="sec-eyebrow">How it works</div>
+    <h2 class="sec-h2">3단계면 충분합니다.</h2>
+    <div class="steps">
+      <div>
+        <div class="step-n">01</div>
+        <div class="step-t">종목 검색</div>
+        <p class="step-d">국내외 주식·암호화폐·ETF 어느 것이든 티커나 이름으로 검색하면 즉시 분석이 시작됩니다.</p>
+      </div>
+      <div>
+        <div class="step-n">02</div>
+        <div class="step-t">국면 · 변동성 · 리스크 확인</div>
+        <p class="step-d">국면 배지와 변동성 예보, 낙폭·도달 확률과 손익비, 타임프레임 매트릭스, 노드별 해석을 한 화면에서 봅니다.</p>
+      </div>
+      <div>
+        <div class="step-n">03</div>
+        <div class="step-t">결과로 검증</div>
+        <p class="step-d">예측은 자동 기록되고 실제 결과와 대조됩니다. 검증 성적을 보며 엔진의 신뢰도를 직접 판단하세요.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt method">
+  <div class="wrap">
+    <div class="sec-eyebrow">Methodology</div>
+    <h2 class="sec-h2">성적표를 먼저 보여드립니다.</h2>
+    <p class="sec-lede">통한 것도, 안 통한 것도 전부 남깁니다. 안 통한 실험도 "여긴 길이 아니다"를 알려주는 자산입니다.</p>
+    <div class="mcards">
+      <div class="mcard">
+        <div class="mcard-t">미래를 참조하지 않습니다</div>
+        <p class="mcard-d">walk-forward 방식으로, 각 시점에서 그 이전 데이터만 써서 예측하고 실제 결과와 대조합니다. 미래 데이터가 새어 들어가면 성적은 부풀려집니다.</p>
+      </div>
+      <div class="mcard">
+        <div class="mcard-t">기준선과 나란히 적습니다</div>
+        <p class="mcard-d">"항상 상승" 같은 자명한 규칙을 함께 계산해 병기합니다. 기준선을 넘지 못한 항목은 넘지 못했다고 씁니다.</p>
+      </div>
+      <div class="mcard">
+        <div class="mcard-t">기각 이력을 공개합니다</div>
+        <p class="mcard-d">검증 관문을 통과하지 못해 버린 축들 — 인터마켓·내부자 거래·공매도 잔고·PEAD·VIX 기간구조 — 을 이유와 함께 기록합니다.</p>
+      </div>
+    </div>
+    <a class="lnk" href="forge-scorecard.html">전체 검증 리포트 보기 →</a>
   </div>
 </section>
 
