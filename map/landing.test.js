@@ -332,7 +332,10 @@ test("모바일 대응 브레이크포인트가 있다", () => {
 test("좌측 컬러 accent bar를 쓰지 않는다", () => {
   const html = read();
   // box-shadow: 오프셋 0의 "0"/"0px" 스펠링이 섞여도(예: inset 4px 0px 0px ...) 잡히도록 px를 옵셔널로.
-  assert.ok(!/box-shadow:\s*inset\s+\d+(?:\.\d+)?px\s+0(?:px)?\s+0(?:px)?/.test(html), "inset 좌측 라인 발견");
+  // inset 키워드는 값의 맨 앞(inset 4px 0 0 ...) 또는 맨 뒤(4px 0 0 var(--x) inset) 둘 다 유효하므로 양쪽 다 검사.
+  const leftBarShadowRe =
+    /box-shadow:\s*inset\s+\d+(?:\.\d+)?px\s+0(?:px)?\s+0(?:px)?|box-shadow:\s*\d+(?:\.\d+)?px\s+0(?:px)?\s+0(?:px)?\s+[^;{}]*\binset\b/;
+  assert.ok(!leftBarShadowRe.test(html), "inset 좌측 라인 발견");
   // border-left: 토큰(var(--accent...))뿐 아니라 하드코딩 색(#hex, rgb/rgba())도 금지 대상.
   assert.ok(
     !/border-left:\s*\d*\.?\d+px\s+solid\s+(var\(--accent[\w-]*\)|#[0-9a-fA-F]{3,8}\b|rgba?\([^)]+\))/.test(html),
@@ -341,8 +344,8 @@ test("좌측 컬러 accent bar를 쓰지 않는다", () => {
 
   // ::before/::after로 조립한 세로 마커(content:""+position:absolute+left:0+좁은폭+높은높이+background)는
   // 한 줄 정규식으로 못 잡으므로 규칙 단위로 파싱한다. 완전한 CSS 파서는 아니고, 이 다섯 속성이
-  // 한 규칙 안에 함께 있는 흔한 조합만 겨냥한 휴리스틱이다 — 속성이 여러 규칙에 쪼개지거나
-  // width/height가 px가 아닌 단위(%, em 등)로 지정된 변형은 놓칠 수 있다.
+  // 한 규칙 안에 함께 있는 흔한 조합(마지막 선언에 세미콜론이 없는 경우 포함)을 겨냥한 휴리스틱이다 —
+  // 속성이 여러 규칙에 쪼개지거나 width/height가 px가 아닌 단위(%, em 등)로 지정된 변형은 여전히 놓칠 수 있다.
   const css = styleCss(html);
   const pseudoRuleRe = /([^{}]*::(?:before|after)[^{]*)\{([^}]*)\}/g;
   let m;
@@ -351,7 +354,9 @@ test("좌측 컬러 accent bar를 쓰지 않는다", () => {
     const body = m[2];
     const hasContent = /content\s*:\s*(""|'')/.test(body);
     const hasAbsolute = /position\s*:\s*absolute/.test(body);
-    const hasLeftZero = /left\s*:\s*0(?:px)?\s*[;}]/.test(body);
+    // 캡처 그룹([^}]*)에는 규칙의 닫는 "}"가 포함되지 않으므로, 마지막 선언이 세미콜론 없이 끝나면
+    // [;}] 종결자가 body 안에 없다 — 문자열 끝($)도 종결자로 인정해야 그 경우를 놓치지 않는다.
+    const hasLeftZero = /left\s*:\s*0(?:px)?\s*(?:[;}]|$)/.test(body);
     const hasBackground = /background(?:-color)?\s*:/.test(body);
     const widthMatch = body.match(/(?:^|[;{])\s*width\s*:\s*(\d+(?:\.\d+)?)px/);
     const hasHeight = /(?:^|[;{])\s*height\s*:/.test(body);
