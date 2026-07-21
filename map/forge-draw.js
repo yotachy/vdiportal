@@ -37,6 +37,30 @@
   const _PRED_T0 = 0.15, _PRED_T1 = 0.75, _PRED_C0 = 0.10, _PRED_C1 = 0.70;   // 크로스페이드 상수(선 페이드아웃 / 구름 페이드인)
   function _predLineFade(t) { return Math.max(0, Math.min(1, 1 - (t - _PRED_T0) / (_PRED_T1 - _PRED_T0))); }   // 선 불투명·꿈틀 진폭: 근거리1→원거리0
   function _predCloudFade(t) { return Math.max(0, Math.min(1, (t - _PRED_C0) / (_PRED_C1 - _PRED_C0))); }       // 밀도 구름: 근거리0→원거리1
+  // ── 불확실성 지형(spec 2026-07-21 terrain): 표기용 확률 ≠ 시각 감쇠용 정보량 ──
+  // 캘리브레이션은 값을 55~65%로 압축해 감쇠 서사를 못 싣고, raw는 과신(OOS ECE 8.8%p). 그래서 두 축으로 분리한다.
+  const _Z_LO = 0.08, _Z_HI = 0.50, _Z_HORIZON = 0.25;   // conf 하한/상한 · 신뢰 지평 임계
+  // 정보량 z = 예측 변위 / 밴드 반폭. 압축 없이 지평 감쇠가 선명 → 시각(알파·굵기·해체)만 구동. 숫자로 노출 금지.
+  function _predZ(center, hi, anchor) {
+    if (!(center > 0 && hi > 0 && anchor > 0)) return 0;
+    const sd = Math.log(hi / center);
+    if (!(sd > 0) || !isFinite(sd)) return 0;
+    const z = Math.abs(Math.log(center / anchor)) / sd;
+    return isFinite(z) ? z : 0;
+  }
+  function _predConf(z) { return Math.max(0, Math.min(1, (z - _Z_LO) / (_Z_HI - _Z_LO))); }
+  // 신뢰 지평 = z가 임계 아래로 처음 떨어지는 봉. k=0은 반환하지 않음(seam 선과 겹치면 판독 불가).
+  function _predHorizonK(center, hi, anchor) {
+    if (!center || !hi) return null;
+    for (let k = 1; k < center.length; k++) if (_predZ(center[k], hi[k], anchor) < _Z_HORIZON) return k;
+    return null;
+  }
+  // 표기용 확률: 그 봉의 예측 '방향'이 실현될 캘리브레이션 확률(%). 50 미만이면 반대가 우세하다는 뜻 — 숨기지 않는다.
+  function _predPCal(center, hi, anchor, k) {
+    const raw = _upProb(center[k], hi[k], anchor);
+    const cal = (typeof ForgeCore !== "undefined" && ForgeCore && ForgeCore.calibrateUpProb) ? ForgeCore.calibrateUpProb(raw) : raw;
+    return (center[k] >= anchor) ? cal : (100 - cal);
+  }
   function _predSeed(path, anchor) {   // 결정론 시드: path/anchor 해시(FNV-1a 변형) → 같은 종목·기간 = 같은 그림
     let h = 2166136261 >>> 0; const mix = x => { h ^= (Math.round((x || 0) * 1000) >>> 0); h = Math.imul(h, 16777619) >>> 0; };
     mix(anchor); for (let i = 0; i < path.length; i++) mix(path[i]); return h >>> 0;
