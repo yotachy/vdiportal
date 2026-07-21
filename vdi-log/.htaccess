@@ -1,0 +1,18 @@
+# 정성인연 자산관리(up.html) — 데이터·PIN 파일 직접 접근 차단
+# api.php 만 이 파일들을 읽는다. 없으면 jsiy_data.json 을 URL 로 그냥 받아갈 수 있어 PIN 이 무의미해진다.
+<FilesMatch "^jsiy_">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# 이 디렉터리 전체 검색 비공개
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+</IfModule>
+
+Options -Indexes
