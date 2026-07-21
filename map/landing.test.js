@@ -69,4 +69,23 @@ test("브랜드명이 상수 1곳에서 주입된다", () => {
   assert.match(html, /\.textContent\s*=\s*BRAND\b/, "BRAND가 textContent로 채워지지 않음");
 });
 
+test("로그인 버튼은 노출하지 않는다 (인증 비활성)", () => {
+  assert.ok(!/>\s*로그인\s*</.test(read()), "로그인 버튼이 노출됨");
+});
+
+test("시장 스트립에 가짜 시세 숫자가 없다", () => {
+  const html = read();
+  const strip = html.slice(html.indexOf('class="markets"'), html.indexOf("</section>", html.indexOf('class="markets"')));
+  assert.ok(!/[+\-]\d+\.\d+%/.test(strip), "스트립에 등락률 숫자가 있음");
+  assert.ok(!/\d{2,3}\.\d{2}/.test(strip), "스트립에 가격 숫자가 있음");
+});
+
+test("마퀴가 reduced-motion을 존중한다", () => {
+  assert.match(read(), /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+});
+
+test("테마 토글은 aria-pressed를 쓴다", () => {
+  assert.match(read(), /id="themeToggle"[^>]*aria-pressed/);
+});
+
 module.exports = { FILE, read, TOKENS, blockOf, styleCss };
