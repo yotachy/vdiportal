@@ -159,6 +159,35 @@
     c.fillStyle = "rgba(138,146,178,.55)"; c.fillText("68%", toXf(kL), toY(hiArr[kL]) - 3);
     c.restore();
   }
+  // ── 확률 감쇠 레일 — 예측 구역 상단 스트립. 막대=정보량(시각), 숫자=캘리브레이션 방향확률(정직). ──
+  const _RAIL_H = 14;
+  function _drawPredRail(c, pathArr, hiArr, anchor, seamX, coneR, toXf, padTop, rgb) {
+    const n = pathArr.length; if (!n || !(coneR > seamX)) return;
+    const yB = padTop + 2 + _RAIL_H;
+    c.save();
+    c.fillStyle = "rgba(" + rgb + ",.5)";
+    for (let k = 0; k < n; k++) {
+      const cf = _predConf(_predZ(pathArr[k], hiArr[k], anchor));
+      const x0 = toXf(k), x1 = (k + 1 < n) ? toXf(k + 1) : coneR;
+      if (!isFinite(x0) || !isFinite(x1)) continue;
+      const w = Math.max(1, x1 - x0 - 0.6), h = Math.max(0.8, cf * _RAIL_H);
+      c.fillRect(x0, yB - h, w, h);
+    }
+    // 눈금 숫자는 _hzList 시점(+10/+20/+40/+60 등)에만. 겹치면 뒤엣것 생략.
+    c.font = "9px ui-monospace,monospace"; c.textAlign = "center"; c.fillStyle = "rgba(138,146,178,.75)";
+    let lastR = -1e9;
+    try {
+      const hs = _hzList(tfUnit(), n);
+      for (let i = 0; i < hs.length; i++) {
+        const k = hs[i] - 1; if (k < 0 || k >= n) continue;
+        const x = toXf(k); if (!isFinite(x)) continue;
+        const t = _predPCal(pathArr, hiArr, anchor, k) + "%", w = c.measureText(t).width;
+        if (x - w / 2 < lastR + 6) continue;
+        c.fillText(t, x, yB + 10); lastR = x + w / 2;
+      }
+    } catch (e) {}
+    c.restore();
+  }
   let _predVis = { band: true, fan: true, rail: true, p1: true, p2: true, p3: true };   // 예측선 범례 토글 상태(세션·기본 전부 켜짐)
 
   /* ── fcFit: DPR-correct canvas sizing (port of chart.html fit()) ── */
@@ -1104,6 +1133,7 @@
         c.setLineDash([]);
       }
       if (_predVis.fan) _drawPredFan(c, path, lo, hi, seamX, coneR, toXf, toY, anchor, _rgb1);
+      if (_predVis.rail) _drawPredRail(c, path, hi, anchor, seamX, coneR, toXf, padTop, _rgb1);
       // 꿈틀 라인 스트로크(가로 알파 페이드) — seamX..coneR
       const _levels = pred && pred.levels, _tex = pred && pred.tex;   // 엔진 노출 S/R 레벨·AR 질감
       const _wigStroke = (vals, rgb, dash, lw, sd) => {
