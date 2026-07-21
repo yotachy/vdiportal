@@ -104,6 +104,23 @@
   .mrow-v{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
   .mrow-v small{font-weight:500;color:var(--muted-3);font-size:12px;margin-left:6px}
   .mpill{display:inline-block;background:var(--tint);border:1px solid var(--border-2);border-radius:999px;padding:3px 11px;font-size:12.5px;font-weight:700}
+  .sec{padding:84px 0}
+  .sec-alt{background:var(--surface)}
+  .sec-eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+  .sec-h2{margin-top:11px;font-size:36px;font-weight:800;letter-spacing:-.03em;line-height:1.25;max-width:680px}
+  .sec-lede{margin-top:14px;font-size:15.5px;color:var(--muted);max-width:640px;line-height:1.75}
+  .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:44px}
+  .vcol{border:1px solid var(--border);border-radius:var(--r-lg);padding:24px 22px;background:var(--bg)}
+  .vcol-h{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:800;padding-bottom:14px;border-bottom:1px solid var(--border)}
+  .vcol.cant .vcol-h{color:var(--muted-2)}
+  .vitem{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
+  .vitem:last-child{border-bottom:0;padding-bottom:0}
+  .vitem-k{font-size:13.5px;color:var(--text)}
+  .vitem-k small{display:block;color:var(--muted-3);font-size:11.5px;margin-top:2px}
+  .vitem-v{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--accent)}
+  .vcol.cant .vitem-k{color:var(--muted)}
+  .vcol.cant .vitem-v{color:var(--muted-3)}
+  .vnote{margin-top:26px;font-size:13px;color:var(--muted-2);line-height:1.8}
 </style>
 </head>
 <body>
@@ -218,6 +235,51 @@
         <span class="mrow-v">있음<small>실적·이벤트 대비</small></span>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="sec sec-alt verdict" id="verified">
+  <div class="wrap">
+    <div class="sec-eyebrow">What it can · can't</div>
+    <h2 class="sec-h2">맞히는 것과<br>못 맞히는 것을 나눠 적습니다.</h2>
+    <p class="sec-lede">
+      기술적 분석 도구 대부분이 "맞힌다"고만 말합니다.
+      저희는 walk-forward 백테스트로 통과한 것과 떨어진 것을 같은 표에 둡니다.
+    </p>
+
+    <div class="vgrid">
+      <div class="vcol can">
+        <div class="vcol-h">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+          검증을 통과한 것
+        </div>
+        <div class="vitem"><span class="vitem-k">변동성 예보<small>2주 · 1달 · 2달 확대/축소</small></span><span class="vitem-v">69.0%</span></div>
+        <div class="vitem"><span class="vitem-k">낙폭 위험곡선<small>1 · 2 · 3개월</small></span><span class="vitem-v">67~69%</span></div>
+        <div class="vitem"><span class="vitem-k">이익목표 도달<small>같은 문턱 상방 확률</small></span><span class="vitem-v">63~65%</span></div>
+        <div class="vitem"><span class="vitem-k">급변 경보<small>20봉 내 2σ · 2.5σ · 3σ</small></span><span class="vitem-v">65%</span></div>
+        <div class="vitem"><span class="vitem-k">갭 경보<small>주식 · 2.2 / 2.7 / 3.2σ</small></span><span class="vitem-v">63%</span></div>
+        <div class="vitem"><span class="vitem-k">확률 캘리브레이션<small>OOS ECE — 표기 60% = 실제 60%</small></span><span class="vitem-v">1.9%p</span></div>
+        <div class="vitem"><span class="vitem-k">지지반등 진입 신호<small>횡보장 · 하락추세 배제</small></span><span class="vitem-v">53~56%</span></div>
+      </div>
+
+      <div class="vcol cant">
+        <div class="vcol-h">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          통과하지 못한 것
+        </div>
+        <div class="vitem"><span class="vitem-k">방향 예측 (상승 / 하락)<small>"항상 상승" 기준선 60.8% 미달</small></span><span class="vitem-v">58.1%</span></div>
+        <div class="vitem"><span class="vitem-k">인터마켓 상관<small>가격 재조합 — 새 정보 0</small></span><span class="vitem-v">기각</span></div>
+        <div class="vitem"><span class="vitem-k">내부자 거래 (Form 4)<small>대형 · 중소형 두 유니버스</small></span><span class="vitem-v">기각</span></div>
+        <div class="vitem"><span class="vitem-k">공매도 잔고<small>가격 · 모멘텀에 이미 흡수</small></span><span class="vitem-v">기각</span></div>
+        <div class="vitem"><span class="vitem-k">PEAD (실적후 드리프트)<small>차익거래로 소멸</small></span><span class="vitem-v">기각</span></div>
+      </div>
+    </div>
+
+    <p class="vnote">
+      방향은 왜 안 맞느냐 — 효율적 시장이기 때문입니다. 다만 <b>변동성은 군집(clustering)</b>합니다.
+      큰 변동 뒤엔 큰 변동이, 수축 뒤엔 수축이 옵니다. 그래서 방향은 못 맞혀도 변동폭·낙폭 규모는 예측 가능합니다.
+      엔진이 지표 경로와 변동성 리스크 경로를 <b>독립된 두 갈래</b>로 둔 근거입니다.
+    </p>
   </div>
 </section>
 

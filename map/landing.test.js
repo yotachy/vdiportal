@@ -164,4 +164,37 @@ test("모형이 검증된 축만 보여준다", () => {
   }
 });
 
+test("검증 통과 7축을 실측치와 함께 나열한다", () => {
+  const html = read();
+  // 섹션은 공유 .sec/.sec-alt 프리미티브와 함께 class="sec sec-alt verdict"로 다중 클래스를
+  // 가지므로 class="verdict" 부분일치로는 못 찾는다 — 고유 id로 앵커링한다.
+  const i = html.indexOf('id="verified"');
+  assert.ok(i >= 0, "검증 섹션 없음");
+  const sec = html.slice(i, html.indexOf("</section>", i));
+  const pairs = [
+    ["변동성 예보", "69.0%"],
+    ["낙폭 위험", "67~69%"],
+    ["이익목표 도달", "63~65%"],
+    ["급변 경보", "65%"],
+    ["갭 경보", "63%"],
+    ["확률 캘리브레이션", "1.9%p"],
+    ["지지반등", "53~56%"],
+  ];
+  for (const [k, v] of pairs) {
+    assert.ok(sec.includes(k), `항목 누락: ${k}`);
+    assert.ok(sec.includes(v), `수치 누락: ${v} (${k})`);
+  }
+});
+
+test("못 하는 것을 숨기지 않는다", () => {
+  const html = read();
+  const i = html.indexOf('id="verified"');
+  const sec = html.slice(i, html.indexOf("</section>", i));
+  assert.ok(sec.includes("58.1%"), "방향 실측치 없음");
+  assert.ok(sec.includes("60.8%"), "기준선 없음");
+  for (const k of ["인터마켓", "내부자", "공매도", "PEAD"]) {
+    assert.ok(sec.includes(k), `기각 항목 누락: ${k}`);
+  }
+});
+
 module.exports = { FILE, read, TOKENS, blockOf, styleCss };
