@@ -14,6 +14,15 @@ const TOKENS = [
   "--accent", "--accent-strong", "--on-accent",
 ];
 
+function styleCss(html) {
+  const start = html.indexOf("<style>");
+  const end = html.indexOf("</style>");
+  assert.ok(start >= 0 && end > start, "<style> 블록 없음");
+  return html.slice(start + "<style>".length, end);
+}
+
+// selector가 <style> 최상위에 정확히 한 번만 등장한다고 가정한 단순 매칭(진짜 CSS 파서 아님).
+// 이후 :root/[data-theme=dark]를 @media나 @supports 안에 중첩시키는 작업이 생기면 이 helper부터 다시 볼 것.
 function blockOf(css, selector) {
   const i = css.indexOf(selector + "{");
   assert.ok(i >= 0, `셀렉터 없음: ${selector}`);
@@ -25,7 +34,7 @@ test("검색 비공개 메타가 있다", () => {
 });
 
 test("양 테마가 같은 토큰 키를 전부 지정한다", () => {
-  const css = read().replace(/\s+/g, "");
+  const css = styleCss(read()).replace(/\s+/g, "");
   const light = blockOf(css, ":root");
   const dark = blockOf(css, "[data-theme=dark]");
   for (const t of TOKENS) {
@@ -39,11 +48,25 @@ test("테마 판정이 첫 페인트 전에 끝난다 (head 인라인)", () => {
   const head = html.slice(0, html.indexOf("</head>"));
   assert.ok(head.includes("site_theme"), "head에 테마 초기화 스크립트 없음");
   assert.ok(head.includes("prefers-color-scheme"), "OS 선호 테마 폴백 없음");
+  // 문자열이 등장하는 것만으로는(주석 등) 부족 — 실제로 documentElement에 data-theme를 세팅해야 통과
+  assert.match(
+    head,
+    /document\.documentElement\.setAttribute\(\s*["']data-theme["']/,
+    "head 스크립트가 documentElement에 data-theme를 설정하지 않음"
+  );
 });
 
 test("브랜드명이 상수 1곳에서 주입된다", () => {
   const html = read();
   assert.match(html, /const BRAND\s*=/, "BRAND 상수 없음");
+  // 상수 선언만으로는 부족 — title과 [data-brand] 요소 양쪽에 실제로 소비돼야 통과
+  assert.match(html, /document\.title\s*=\s*BRAND\b/, "BRAND가 document.title에 쓰이지 않음");
+  assert.match(
+    html,
+    /querySelectorAll\(\s*["']\[data-brand\]["']\s*\)/,
+    "BRAND가 [data-brand] 요소 조회에 쓰이지 않음"
+  );
+  assert.match(html, /\.textContent\s*=\s*BRAND\b/, "BRAND가 textContent로 채워지지 않음");
 });
 
-module.exports = { FILE, read, TOKENS, blockOf };
+module.exports = { FILE, read, TOKENS, blockOf, styleCss };

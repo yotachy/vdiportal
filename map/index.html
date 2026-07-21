@@ -23,7 +23,6 @@
     --tint:#efe9dd; --footer-bg:#ece4d3; --border:#e4dfd3; --border-2:#d8d1c1;
     --text:#2a2620; --muted:#5a5449; --muted-2:#7a7364; --muted-3:#9a9284;
     --accent:#1f6feb; --accent-strong:#1a5cc4; --on-accent:#fff;
-    --r-sm:6px; --r-md:10px; --r-lg:16px; --maxw:1120px;
   }
   [data-theme=dark]{
     --bg:#0f0d0a; --bg-hi:#151109; --surface:#16130e; --surface-2:#1c1913;
@@ -32,7 +31,11 @@
     --accent:#3b82f6; --accent-strong:#60a5fa; --on-accent:#fff;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html{background:var(--bg)}
+  /* 레이아웃 상수는 테마 무관(불변)값이라 테마 블록 밖에 둔다 — :root/[data-theme=dark]가 항상 같은 키 집합을 갖도록 하기 위함 */
+  html{
+    --r-sm:6px; --r-md:10px; --r-lg:16px; --maxw:1120px;
+    background:var(--bg);
+  }
   body{
     font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe UI",sans-serif;
     background:var(--bg);color:var(--text);line-height:1.6;letter-spacing:-.01em;
