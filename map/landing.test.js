@@ -268,4 +268,61 @@ test("투자 유의 안내를 고지한다", () => {
   assert.ok(html.includes("책임은 이용자 본인"), "책임 귀속 문구 없음");
 });
 
-module.exports = { FILE, read, TOKENS, blockOf, styleCss };
+// WCAG 2.x 상대 휘도/대비 — 외부 의존성 없이 인라인 구현 (color-contrast 류 패키지 금지).
+// 참고: https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+function hexToRgb(hex) {
+  let h = hex.replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+}
+function relLuminance(hex) {
+  const [r, g, b] = hexToRgb(hex).map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrastRatio(hexA, hexB) {
+  const [l1, l2] = [relLuminance(hexA), relLuminance(hexB)].sort((a, b) => b - a);
+  return (l1 + 0.05) / (l2 + 0.05);
+}
+
+// 토큰 블록에서 "--key:#hex" 쌍을 뽑아 {키:hex} 맵으로 — :root/[data-theme=dark] 양쪽에 재사용.
+function parseTokenColors(block) {
+  const map = {};
+  const re = /(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})/g;
+  let m;
+  while ((m = re.exec(block))) map[m[1]] = m[2];
+  return map;
+}
+
+// 특정 셀렉터 규칙에서 실제로 쓰는 color 토큰 이름을 뽑는다 — 값을 하드코딩하지 않고
+// 스타일시트가 지금 어떤 토큰을 참조하는지 그대로 따라가야, 이후 다시 --muted-3로 되돌리는
+// 회귀(법적 고지가 도로 안 보이게 되는 실수)를 이 테스트가 실제로 잡아낼 수 있다.
+function colorTokenOf(css, selector) {
+  const block = blockOf(css, selector);
+  const m = block.match(/color\s*:\s*var\((--[\w-]+)\)/);
+  assert.ok(m, `${selector}에 color:var(--token) 선언 없음`);
+  return m[1];
+}
+
+test("법적 고지(.ft-disc)가 양 테마 모두 WCAG AA(4.5:1)를 만족한다", () => {
+  const css = styleCss(read());
+  const fgVar = colorTokenOf(css, ".ft-disc");
+  const bgVar = "--footer-bg"; // .site-footer 배경 — .ft-disc가 실제로 얹히는 표면
+
+  for (const [theme, selector] of [["light", ":root"], ["dark", "[data-theme=dark]"]]) {
+    const tokens = parseTokenColors(blockOf(css, selector));
+    const fg = tokens[fgVar];
+    const bg = tokens[bgVar];
+    assert.ok(fg, `${theme} 테마에 ${fgVar} 색상값 파싱 실패`);
+    assert.ok(bg, `${theme} 테마에 ${bgVar} 색상값 파싱 실패`);
+    const ratio = contrastRatio(fg, bg);
+    assert.ok(
+      ratio >= 4.5,
+      `${theme} 테마: .ft-disc(${fgVar}=${fg}) vs ${bgVar}=${bg} 대비 ${ratio.toFixed(2)}:1 — AA(4.5:1) 미달`
+    );
+  }
+});
+
+module.exports = { FILE, read, TOKENS, blockOf, styleCss, contrastRatio, parseTokenColors, colorTokenOf };
