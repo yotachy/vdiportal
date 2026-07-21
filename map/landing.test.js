@@ -164,7 +164,21 @@ test("모형이 검증된 축만 보여준다", () => {
   }
 });
 
-test("검증 통과 7축을 실측치와 함께 나열한다", () => {
+// 라벨과 수치가 "같은 .vitem 안에" 있는지를 확인하는 헬퍼.
+// sec.includes(label) && sec.includes(value)를 각각 독립적으로 검사하면, 수치가 실수로
+// 다른 항목의 자리로 옮겨가도(같은 섹션 안이면) 두 assert가 모두 통과해버린다 — 짝을 검증해야 한다.
+// 구조: <div class="vitem"><span class="vitem-k">라벨<small>...</small></span><span class="vitem-v">수치</span></div>
+// span은 </span>로 닫히므로, 라벨 마커 뒤 첫 </div>가 정확히 그 .vitem의 끝이다.
+function vitemBlock(sec, label) {
+  const marker = `vitem-k">${label}`;
+  const i = sec.indexOf(marker);
+  assert.ok(i >= 0, `항목 없음: ${label}`);
+  const end = sec.indexOf("</div>", i);
+  assert.ok(end >= 0, `.vitem 닫는 태그 없음: ${label}`);
+  return sec.slice(i, end);
+}
+
+test("검증 통과 7축을 실측치와 함께 나열한다 (라벨-수치 짝)", () => {
   const html = read();
   // 섹션은 공유 .sec/.sec-alt 프리미티브와 함께 class="sec sec-alt verdict"로 다중 클래스를
   // 가지므로 class="verdict" 부분일치로는 못 찾는다 — 고유 id로 앵커링한다.
@@ -181,17 +195,18 @@ test("검증 통과 7축을 실측치와 함께 나열한다", () => {
     ["지지반등", "53~56%"],
   ];
   for (const [k, v] of pairs) {
-    assert.ok(sec.includes(k), `항목 누락: ${k}`);
-    assert.ok(sec.includes(v), `수치 누락: ${v} (${k})`);
+    const block = vitemBlock(sec, k);
+    assert.ok(block.includes(v), `짝 불일치: ${k} 옆에 ${v}가 없음(다른 항목과 수치가 뒤바뀌었을 수 있음)`);
   }
 });
 
-test("못 하는 것을 숨기지 않는다", () => {
+test("못 하는 것을 숨기지 않는다 (라벨-수치 짝)", () => {
   const html = read();
   const i = html.indexOf('id="verified"');
   const sec = html.slice(i, html.indexOf("</section>", i));
-  assert.ok(sec.includes("58.1%"), "방향 실측치 없음");
-  assert.ok(sec.includes("60.8%"), "기준선 없음");
+  const dirBlock = vitemBlock(sec, "방향 예측");
+  assert.ok(dirBlock.includes("58.1%"), "방향 실측치 없음");
+  assert.ok(dirBlock.includes("60.8%"), "기준선 없음");
   for (const k of ["인터마켓", "내부자", "공매도", "PEAD"]) {
     assert.ok(sec.includes(k), `기각 항목 누락: ${k}`);
   }
