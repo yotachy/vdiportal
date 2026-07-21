@@ -131,6 +131,26 @@
   .mcard-d{margin-top:9px;font-size:13.5px;color:var(--muted);line-height:1.75}
   .lnk{display:inline-flex;align-items:center;gap:6px;margin-top:30px;font-size:14px;font-weight:700;color:var(--accent)}
   .lnk:hover{color:var(--accent-strong)}
+
+  .cta{text-align:center;background:linear-gradient(180deg,var(--bg),var(--bg-hi))}
+  .cta .sec-h2{margin:11px auto 0}
+  .cta .sec-lede{margin:14px auto 0}
+  .cta-btns{display:flex;gap:11px;justify-content:center;margin-top:32px;flex-wrap:wrap}
+  .cta-btns .btn{padding:14px 24px;font-size:15px}
+  .cta-note{margin-top:20px;font-size:13px;color:var(--muted-2)}
+
+  .site-footer{background:var(--footer-bg);border-top:1px solid var(--border);padding:52px 0 40px}
+  .ft-top{display:flex;gap:56px;flex-wrap:wrap}
+  .ft-brand{font-size:17px;font-weight:800;letter-spacing:-.03em}
+  .ft-desc{margin-top:11px;font-size:13px;color:var(--muted-2);max-width:330px;line-height:1.75}
+  .ft-nav{display:flex;gap:52px;margin-left:auto;flex-wrap:wrap}
+  .ft-h{font-size:12px;font-weight:800;color:var(--muted-3);letter-spacing:.06em}
+  .ft-nav ul{list-style:none;margin-top:12px;display:grid;gap:9px}
+  .ft-nav a{font-size:13.5px;color:var(--muted)}
+  .ft-nav a:hover{color:var(--text)}
+  .ft-disc{margin-top:44px;padding-top:22px;border-top:1px solid var(--border-2);font-size:12px;color:var(--muted-3);line-height:1.85}
+  .ft-disc b{color:var(--muted-2)}
+  .ft-copy{margin-top:16px;font-size:12px;color:var(--muted-3)}
 </style>
 </head>
 <body>
@@ -340,7 +360,48 @@
   </div>
 </section>
 
+<section class="sec cta">
+  <div class="wrap">
+    <div class="sec-eyebrow">Get started</div>
+    <h2 class="sec-h2">지금, 데이터로 판단을 시작하세요.</h2>
+    <p class="sec-lede">현재 전체 베타 기간으로 모든 기능을 무료로 쓸 수 있습니다.</p>
+    <div class="cta-btns">
+      <a class="btn btn-primary" href="forge.html">무료로 시작하기 →</a>
+      <a class="btn btn-ghost" href="forge-scorecard.html">검증 성적 보기</a>
+    </div>
+    <p class="cta-note">가입 절차 없이 바로 분석할 수 있습니다.</p>
+  </div>
+</section>
+
 </main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="ft-top">
+      <div>
+        <div class="ft-brand" data-brand>나루</div>
+        <p class="ft-desc">머니스쿱 리서치팀이 만든 기술적 분석 엔진. 검증을 통과한 것만 수치로 보여줍니다.</p>
+      </div>
+      <div class="ft-nav">
+        <div>
+          <div class="ft-h">제품</div>
+          <ul>
+            <li><a href="forge.html">분석 시작</a></li>
+            <li><a href="forge-guide.html">작동 원리</a></li>
+            <li><a href="forge-scorecard.html">검증 성적</a></li>
+            <li><a href="forge-pricing.html">요금제</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p class="ft-disc">
+      <b>투자 유의 안내</b> — <span data-brand>나루</span>는 기술적 분석 정보를 제공하는 참고용 도구입니다.
+      모든 분석·확률·신호·목표가는 과거 데이터 기반 산출물로 미래 수익을 보장하지 않으며,
+      투자 판단과 그 결과의 책임은 이용자 본인에게 있습니다.
+    </p>
+    <p class="ft-copy">© 2026 머니스쿱</p>
+  </div>
+</footer>
 
 <script>
   const BRAND = "나루";

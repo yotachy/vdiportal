@@ -236,4 +236,36 @@ test("검증 방법론이 walk-forward와 기각 공개를 밝힌다", () => {
   assert.ok(sec.includes("forge-scorecard.html"), "스코어카드 링크 없음");
 });
 
+test("요금은 베타 무료만 말한다", () => {
+  const html = read();
+  assert.ok(html.includes("베타"), "베타 표기 없음");
+  assert.ok(!/₩\s*[\d,]+/.test(html), "가격 숫자가 있음");
+  assert.ok(!/\/\s*월/.test(html), "월 구독 표기가 있음");
+});
+
+test("모든 내부 링크가 실재하는 파일을 가리킨다", () => {
+  const html = read();
+  const hrefs = [...html.matchAll(/href="([^"#][^"]*)"/g)].map((m) => m[1]);
+  const local = hrefs.filter((h) => !/^(https?:|mailto:)/.test(h));
+  assert.ok(local.length > 0, "내부 링크가 하나도 없음");
+  for (const h of local) {
+    const p = path.join(__dirname, h.split("#")[0]);
+    assert.ok(fs.existsSync(p), `죽은 링크: ${h}`);
+  }
+});
+
+test("없는 페이지로 유도하지 않는다", () => {
+  const html = read();
+  for (const s of ["블로그", "이용약관", "개인정보처리방침"]) {
+    assert.ok(!html.includes(s), `없는 페이지 링크: ${s}`);
+  }
+});
+
+test("투자 유의 안내를 고지한다", () => {
+  const html = read();
+  assert.ok(html.includes("투자 유의"), "투자 유의 안내 없음");
+  assert.ok(html.includes("참고용"), "참고용 도구 명시 없음");
+  assert.ok(html.includes("책임은 이용자 본인"), "책임 귀속 문구 없음");
+});
+
 module.exports = { FILE, read, TOKENS, blockOf, styleCss };
