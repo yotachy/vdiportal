@@ -89,6 +89,19 @@
   .kpi-k{margin-top:5px;font-size:13px;color:var(--muted);font-weight:600}
   .kpi-n{margin-top:3px;font-size:11.5px;color:var(--muted-3)}
   .hero-scale{margin-top:20px;font-size:12.5px;color:var(--muted-3)}
+
+  .mock{padding:0 0 84px;background:var(--bg)}
+  .mock-frame{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:26px 26px 22px;max-width:760px;margin:0 auto}
+  .mock-badge{position:absolute;top:-11px;left:22px;background:var(--surface-2);border:1px solid var(--border-2);color:var(--muted-2);font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px}
+  .mock-head{display:flex;align-items:baseline;gap:10px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .mock-sym{font-size:19px;font-weight:800;letter-spacing:-.02em}
+  .mock-tf{font-size:12px;color:var(--muted-3)}
+  .mrow{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--border)}
+  .mrow:last-child{border-bottom:0}
+  .mrow-k{font-size:13.5px;color:var(--muted)}
+  .mrow-v{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+  .mrow-v small{font-weight:500;color:var(--muted-3);font-size:12px;margin-left:6px}
+  .mpill{display:inline-block;background:var(--tint);border:1px solid var(--border-2);border-radius:999px;padding:3px 11px;font-size:12.5px;font-weight:700}
 </style>
 </head>
 <body>
@@ -167,6 +180,42 @@
       </div>
     </div>
     <p class="hero-scale">20년(2006~2026) · 54종 · 93k시점 walk-forward 검증 — 각 시점에서 과거 데이터만 사용</p>
+  </div>
+</section>
+
+<section class="mock">
+  <div class="wrap">
+    <div class="mock-frame">
+      <span class="mock-badge">예시 화면 — 실제 시세가 아닙니다</span>
+      <div class="mock-head">
+        <span class="mock-sym">엔비디아 · NVDA</span>
+        <span class="mock-tf">일봉 · 최근 600봉 기준</span>
+      </div>
+      <div class="mrow">
+        <span class="mrow-k">국면</span>
+        <span class="mrow-v"><span class="mpill">변동성 확장 · 추세 지속</span></span>
+      </div>
+      <div class="mrow">
+        <span class="mrow-k">변동성 예보 (1개월)</span>
+        <span class="mrow-v">확대<small>축소 대비 우세</small></span>
+      </div>
+      <div class="mrow">
+        <span class="mrow-k">낙폭 위험 (1개월 −5%)</span>
+        <span class="mrow-v">31%<small>도달 확률</small></span>
+      </div>
+      <div class="mrow">
+        <span class="mrow-k">이익목표 도달 (1개월 +5%)</span>
+        <span class="mrow-v">44%<small>도달 확률</small></span>
+      </div>
+      <div class="mrow">
+        <span class="mrow-k">확률 R:R</span>
+        <span class="mrow-v">1.4<small>도달 ÷ 낙폭</small></span>
+      </div>
+      <div class="mrow">
+        <span class="mrow-k">급변 경보 (20봉 내 2.5σ)</span>
+        <span class="mrow-v">있음<small>실적·이벤트 대비</small></span>
+      </div>
+    </div>
   </div>
 </section>
 

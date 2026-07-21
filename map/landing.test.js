@@ -130,4 +130,22 @@ test("히어로 KPI가 스코어카드 실측치다", () => {
   assert.ok(heroText.includes("93k시점"), "검증 규모 표기 없음");
 });
 
+test("제품 모형이 예시임을 명시한다", () => {
+  const html = read();
+  const i = html.indexOf('class="mock"');
+  assert.ok(i >= 0, "모형 섹션 없음");
+  const sec = html.slice(i, html.indexOf("</section>", i));
+  assert.ok(sec.includes("예시 화면"), "예시 라벨 없음 — 실제 시세로 오인될 수 있음");
+});
+
+test("모형이 검증된 축만 보여준다", () => {
+  const html = read();
+  const i = html.indexOf('class="mock"');
+  const sec = html.slice(i, html.indexOf("</section>", i));
+  for (const k of ["변동성", "낙폭", "R:R"]) {
+    assert.ok(sec.includes(k), `모형에 ${k} 없음`);
+  }
+  assert.ok(!sec.includes("적중률"), "모형이 방향 적중률을 주장함");
+});
+
 module.exports = { FILE, read, TOKENS, blockOf, styleCss };
