@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>기술적 분석 엔진</title>
+<script>
+  // FOUC 방지 — 첫 페인트 전에 data-theme 확정
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("site_theme"); } catch (e) {}
+    if (t !== "light" && t !== "dark") {
+      t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root{
+    --bg:#f4f2ec; --bg-hi:#faf6ec; --surface:#fbfaf6; --surface-2:#efece3;
+    --tint:#efe9dd; --footer-bg:#ece4d3; --border:#e4dfd3; --border-2:#d8d1c1;
+    --text:#2a2620; --muted:#5a5449; --muted-2:#7a7364; --muted-3:#9a9284;
+    --accent:#1f6feb; --accent-strong:#1a5cc4; --on-accent:#fff;
+    --r-sm:6px; --r-md:10px; --r-lg:16px; --maxw:1120px;
+  }
+  [data-theme=dark]{
+    --bg:#0f0d0a; --bg-hi:#151109; --surface:#16130e; --surface-2:#1c1913;
+    --tint:#100e0a; --footer-bg:#0c0a07; --border:#26221b; --border-2:#332e24;
+    --text:#f4f2ec; --muted:#b8b0a0; --muted-2:#a49c8c; --muted-3:#8f8878;
+    --accent:#3b82f6; --accent-strong:#60a5fa; --on-accent:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--bg)}
+  body{
+    font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe UI",sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.6;letter-spacing:-.01em;
+    -webkit-font-smoothing:antialiased;
+    transition:background .3s ease,color .3s ease;
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+</style>
+</head>
+<body>
+
+<main></main>
+
+<script>
+  const BRAND = "나루";
+  document.title = BRAND + " — 기술적 분석 엔진";
+  Array.prototype.forEach.call(document.querySelectorAll("[data-brand]"), function (el) {
+    el.textContent = BRAND;
+  });
+</script>
+</body>
+</html>
