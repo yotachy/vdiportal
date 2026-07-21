@@ -19,14 +19,13 @@ function grabFn(name) {
   throw new Error("중괄호 불균형: " + name);
 }
 
-/* 상수 추출 — `const _Z_LO = 0.08, _Z_HI = 0.50, _Z_HORIZON = 0.25;` 형태 한 줄 */
+/* 상수 추출 — `const _CONF_HORIZON = ...;` / `const _Q50 = ...;` 형태 한 줄 */
 function grabConstLine(marker) {
   const line = SRC.split("\n").find(l => l.includes(marker) && l.trim().startsWith("const "));
   if (!line) throw new Error("상수 줄을 찾지 못함: " + marker);
   return line.trim();
 }
 
-const sandbox = {};
 const setup = [
   grabConstLine("_CONF_HORIZON"),
   grabFn("_predBandW"),
@@ -106,7 +105,7 @@ ok("conf: 퇴화 밴드는 0(NaN 없음)", () => {
   assert.ok(isFinite(K._predConfAt([99, 100], [101, 100], 1)));
 });
 
-/* ── 3. _predHorizonK ── */
+/* ── 2. _predHorizonK ── */
 ok("horizon: 임계 교차 index 반환", () => {
   const lo = [99, 97, 92, 85, 78], hi = [101, 103, 108, 115, 122];
   const k = K._predHorizonK(lo, hi);
@@ -118,16 +117,18 @@ ok("horizon: 밴드가 안 벌어지면 null", () => {
   const lo = [99, 99, 99], hi = [101, 101, 101];
   assert.strictEqual(K._predHorizonK(lo, hi), null);
 });
-ok("horizon: k=0 은 절대 반환하지 않음(seam 겹침 방지)", () => {
-  const lo = [99, 1], hi = [101, 999];
-  const k = K._predHorizonK(lo, hi);
-  assert.ok(k === null || k >= 1, "k=" + k);
+ok("horizon: 루프가 k=1 부터 시작한다(seam 겹침 방지 — 소스 직접 확인)", () => {
+  const src = grabFn("_predHorizonK");
+  assert.ok(/for\s*\(let k = 1;/.test(src), "루프 시작점이 k=1이 아님:\n" + src);
+});
+ok("horizon: conf(0)은 정의상 1이라 첫 봉은 구조적으로 지평이 될 수 없다", () => {
+  assert.strictEqual(K._predConfAt([99, 1], [101, 999], 0), 1);
 });
 ok("horizon: 빈 배열이면 null", () => {
   assert.strictEqual(K._predHorizonK([], []), null);
 });
 
-/* ── 4. _predPCal ── */
+/* ── 3. _predPCal ── */
 ok("pCal: 상승 예측이면 상승확률 그대로", () => {
   const center = [110], hi = [115], anchor = 100;
   const raw = stub._upProb(110, 115, 100), cal = stub.ForgeCore.calibrateUpProb(raw);
@@ -150,7 +151,7 @@ ok("pCal: 항상 0~100 정수", () => {
   }
 });
 
-/* ── 5. _predWigVal (conf 전환) ── */
+/* ── 4. _predWigVal (conf 전환) ── */
 ok("wigVal: conf=0 이면 꿈틀 없음(center 그대로)", () => {
   assert.strictEqual(K._predWigVal(100, 90, 110, 1, 0), 100);
   assert.strictEqual(K._predWigVal(100, 90, 110, -1, 0), 100);
@@ -172,7 +173,7 @@ ok("wigVal: 시그니처에서 k/futW가 제거됐다(옛 호출 잔존 방지)"
   assert.strictEqual(K._predWigVal.length, 5, "인자 수=" + K._predWigVal.length);
 });
 
-/* ── 6. _predConfSeq ── */
+/* ── 5. _predConfSeq ── */
 ok("confSeq: conf 길이 = 밴드 길이, 전부 0..1", () => {
   const r = K._predConfSeq([99, 97, 94], [101, 103, 106]);
   assert.strictEqual(r.conf.length, 3);

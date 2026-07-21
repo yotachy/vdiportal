@@ -35,7 +35,7 @@
 
   // ── 예측 작도: 근거리 디테일 → 원거리 확률분포 (spec 2026-07-21) ── 작도 전용·엔진 불변·결정론(난수 없음)
   const _PRED_C0 = 0.10, _PRED_C1 = 0.70;   // 분위수 팬 페이드인 구간(근거리 0 → 원거리 1)
-  function _predCloudFade(t) { return Math.max(0, Math.min(1, (t - _PRED_C0) / (_PRED_C1 - _PRED_C0))); }       // 밀도 구름: 근거리0→원거리1
+  function _predCloudFade(t) { return Math.max(0, Math.min(1, (t - _PRED_C0) / (_PRED_C1 - _PRED_C0))); }       // 밀도 구름: 근거리0→원거리1 (이름은 구름 시절 잔재 — 현재는 분위수 팬 페이드인)
   // ── 불확실성 지형(spec 2026-07-21 terrain): 표기용 확률 ≠ 시각 감쇠용 정보량 ──
   // 캘리브레이션은 값을 55~65%로 압축해 감쇠 서사를 못 싣고, raw는 과신(OOS ECE 8.8%p). 그래서 두 축으로 분리한다.
   // ── 시각 감쇠 구동값: 밴드 상대확장 ──
@@ -166,22 +166,24 @@
     // 층 라벨 — 우측 끝은 끝점 라벨·가격 pill로 붐비므로 콘 span 의 72% 지점에 얹는다
     const kL = Math.max(0, Math.min(n - 1, Math.round((n - 1) * 0.72)));
     c.font = "9px ui-monospace,monospace"; c.textAlign = "center";
-    c.fillStyle = "rgba(" + rgb + ",.62)"; c.fillText("50%", toXf(kL), toY(qhi[kL]) - 3);
-    c.fillStyle = "rgba(138,146,178,.55)"; c.fillText("68%", toXf(kL), toY(hiArr[kL]) - 3);
+    const yQ = toY(qhi[kL]), yH = toY(hiArr[kL]);
+    c.fillStyle = "rgba(" + rgb + ",.62)"; c.fillText("50%", toXf(kL), yQ - 3);
+    // 콘이 좁으면 두 층 간격이 폰트 높이보다 작아 글리프가 겹친다 — 안쪽 50%만 남긴다
+    if (yQ - yH >= 11) { c.fillStyle = "rgba(138,146,178,.55)"; c.fillText("68%", toXf(kL), yH - 3); }
     c.restore();
   }
   // ── 신뢰 감쇠 레일 — 예측 구역 하단(x축 바로 위) 스트립. 막대 높이 = 신뢰도.
   // 숫자는 싣지 않는다: 엔진 콘이 드리프트 대비 좁아 시점별 확률이 상한에 붙어버려
   // 같은 값이 반복 표기되며 오히려 과신을 키웠다. 확률 표기는 끝점 라벨 하나로 충분하다.
   const _RAIL_H = 14;
-  function _drawPredRail(c, pathArr, loArr, hiArr, anchor, seamX, coneR, toXf, padTop, padBot, ch, rgb) {
+  function _drawPredRail(c, pathArr, loArr, hiArr, seamX, coneR, toXf, padBot, ch, rgb) {
     const n = pathArr.length; if (!n || !(coneR > seamX)) return;
     const yB = ch - padBot - 2;   // x축 눈금 바로 위
     c.save();
     c.fillStyle = "rgba(" + rgb + ",.42)";
     for (let k = 0; k < n; k++) {
       const cf = _predConfAt(loArr, hiArr, k);
-      const x0 = toXf(k), x1 = (k + 1 < n) ? toXf(k + 1) : coneR;
+      const x0 = toXf(k), x1 = (k + 1 < n) ? toXf(k + 1) : (k > 0 ? x0 + (x0 - toXf(k - 1)) : coneR);
       if (!isFinite(x0) || !isFinite(x1)) continue;
       const w = Math.max(1, x1 - x0 - 0.6), h = Math.max(0.8, cf * _RAIL_H);
       c.fillRect(x0, yB - h, w, h);
@@ -1135,7 +1137,7 @@
         c.setLineDash([]);
       }
       if (_predVis.fan) _drawPredFan(c, path, lo, hi, seamX, coneR, toXf, toY, anchor, _rgb1);
-      if (_predVis.rail) _drawPredRail(c, path, lo, hi, anchor, seamX, coneR, toXf, padTop, padBot, ch, _rgb1);
+      if (_predVis.rail) _drawPredRail(c, path, lo, hi, seamX, coneR, toXf, padBot, ch, _rgb1);
       // 지평선은 '예측선이 여기서 해체된다'는 표시라, 선이 하나도 안 보이면 그릴 이유가 없다.
       const _kH1 = (_predVis.p1 || _predVis.p2 || _predVis.p3) ? _predHorizonK(lo, hi) : null;
       if (_kH1 != null) {
@@ -1183,7 +1185,7 @@
         _wigStroke(path, _rgb1, null, 2.7, _seed);
         _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, (_p1disp < 50 ? "#8a92b2" : CT.core), "1차·" + _p1disp + "%", -12, true);
       }
-      if (typeof _clearComets === "function") _clearComets();   // 예측선 코멧 미사용(새 디자인=꿈틀+구름)
+      if (typeof _clearComets === "function") _clearComets();   // 예측선 코멧 미사용(새 디자인=꿈틀+분위수 팬)
       // 현재가 = 예측 시작점(원점) — 중립 흰색 마커
       { const _mx = seamX, _my = toY(anchor); c.save();
         c.strokeStyle = "rgba(255,255,255,.22)"; c.lineWidth = 1; c.beginPath(); c.arc(_mx, _my, 9.5, 0, 7); c.stroke();

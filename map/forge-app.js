@@ -1832,7 +1832,7 @@
       c.save(); c.shadowColor = "rgba(" + col + ",.9)"; c.shadowBlur = 12; c.fillStyle = "rgba(" + col + ",1)"; c.beginPath(); c.arc(ex, ey, 3.6, 0, 7); c.fill(); c.restore();
     } else {
       const beat = 0.5 + 0.5 * Math.sin(t / 520);   // 코어 맥동
-      // 종점 브레딩 링 3겹(예측 목표 강조) — 중앙선 글로우/러너 제거(새 예측 디자인=꿈틀+구름과 충돌)
+      // 종점 브레딩 링 3겹(예측 목표 강조) — 중앙선 글로우/러너 제거(새 예측 디자인=꿈틀+분위수 팬과 충돌)
       for (let rr = 0; rr < 3; rr++) { const ph = ((t / 1300) + rr / 3) % 1, rad = 5 + ph * 22, a = (1 - ph) * 0.8; c.strokeStyle = "rgba(" + col + "," + a.toFixed(3) + ")"; c.lineWidth = 2.2; c.beginPath(); c.arc(ex, ey, rad, 0, 7); c.stroke(); }
       c.save(); c.shadowColor = "rgba(" + col + ",1)"; c.shadowBlur = 12 + beat * 8; c.fillStyle = "rgba(" + col + ",1)"; c.beginPath(); c.arc(ex, ey, 3.4 + beat * 1.2, 0, 7); c.fill(); c.restore();
     }
