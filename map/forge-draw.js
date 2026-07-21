@@ -38,20 +38,25 @@
   function _predCloudFade(t) { return Math.max(0, Math.min(1, (t - _PRED_C0) / (_PRED_C1 - _PRED_C0))); }       // 밀도 구름: 근거리0→원거리1
   // ── 불확실성 지형(spec 2026-07-21 terrain): 표기용 확률 ≠ 시각 감쇠용 정보량 ──
   // 캘리브레이션은 값을 55~65%로 압축해 감쇠 서사를 못 싣고, raw는 과신(OOS ECE 8.8%p). 그래서 두 축으로 분리한다.
-  const _Z_LO = 0.08, _Z_HI = 0.50, _Z_HORIZON = 0.25;   // conf 하한/상한 · 신뢰 지평 임계
-  // 정보량 z = 예측 변위 / 밴드 반폭. 압축 없이 지평 감쇠가 선명 → 시각(알파·굵기·해체)만 구동. 숫자로 노출 금지.
-  function _predZ(center, hi, anchor) {
-    if (!(center > 0 && hi > 0 && anchor > 0)) return 0;
-    const sd = Math.log(hi / center);
-    if (!(sd > 0) || !isFinite(sd)) return 0;
-    const z = Math.abs(Math.log(center / anchor)) / sd;
-    return isFinite(z) ? z : 0;
+  // ── 시각 감쇠 구동값: 밴드 상대확장 ──
+  // 처음 시도한 '정보량 z = 변위/밴드폭'은 실패했다 — 드리프트는 k에 선형, 밴드는 √k라
+  // 추세 예측일수록 z가 커져 과신이 가장 위험한 구간에서 선이 끝까지 굵게 남았다.
+  // 밴드 폭은 반드시 벌어지므로 이 지표는 단조 감소가 보장되고, 변동성이 클수록 빨리 흐려진다.
+  const _CONF_HORIZON = 0.5;   // 이 아래로 떨어지는 첫 봉부터 선을 잇지 않고 점묘로 해체
+  function _predBandW(loK, hiK) {
+    if (!(loK > 0) || !(hiK > loK)) return 0;
+    const w = Math.log(hiK / loK);
+    return isFinite(w) && w > 0 ? w : 0;
   }
-  function _predConf(z) { return Math.max(0, Math.min(1, (z - _Z_LO) / (_Z_HI - _Z_LO))); }
-  // 신뢰 지평 = z가 임계 아래로 처음 떨어지는 봉. k=0은 반환하지 않음(seam 선과 겹치면 판독 불가).
-  function _predHorizonK(center, hi, anchor) {
-    if (!center || !hi) return null;
-    for (let k = 1; k < center.length; k++) if (_predZ(center[k], hi[k], anchor) < _Z_HORIZON) return k;
+  function _predConfAt(lo, hi, k) {
+    const w0 = Math.max(_predBandW(lo[0], hi[0]), 1e-6), wk = _predBandW(lo[k], hi[k]);
+    if (!(wk > 0)) return 0;
+    return Math.max(0, Math.min(1, Math.sqrt(w0 / wk)));
+  }
+  // 신뢰 지평 = conf가 임계 아래로 처음 떨어지는 봉. k=0은 반환하지 않음(seam 선과 겹치면 판독 불가).
+  function _predHorizonK(lo, hi) {
+    if (!lo || !hi || !lo.length) return null;
+    for (let k = 1; k < lo.length; k++) if (_predConfAt(lo, hi, k) < _CONF_HORIZON) return k;
     return null;
   }
   // 표기용 확률: 그 봉의 예측 '방향'이 실현될 캘리브레이션 확률(%). 50 미만이면 반대가 우세하다는 뜻 — 숨기지 않는다.
@@ -101,10 +106,10 @@
     return Math.max(loK, Math.min(hiK, v));
   }
   // 봉별 신뢰도 배열 + 실선/점묘 경계. 1·2·3차가 같은 계산을 쓰도록 한 곳에 둔다.
-  function _predConfSeq(center, hi, anchor) {
-    const n = center.length, cf = new Array(n);
-    for (let k = 0; k < n; k++) cf[k] = _predConf(_predZ(center[k], hi[k], anchor));
-    const kh = _predHorizonK(center, hi, anchor);
+  function _predConfSeq(lo, hi) {
+    const n = lo.length, cf = new Array(n);
+    for (let k = 0; k < n; k++) cf[k] = _predConfAt(lo, hi, k);
+    const kh = _predHorizonK(lo, hi);
     return { conf: cf, kEnd: (kh == null) ? n : kh };
   }
   // 예측선 공통 스트로크: 신뢰 구간은 봉별 알파·굵기 세그먼트 실선, 신뢰 지평 이후는 점묘.
@@ -161,13 +166,13 @@
   }
   // ── 확률 감쇠 레일 — 예측 구역 상단 스트립. 막대=정보량(시각), 숫자=캘리브레이션 방향확률(정직). ──
   const _RAIL_H = 14;
-  function _drawPredRail(c, pathArr, hiArr, anchor, seamX, coneR, toXf, padTop, rgb) {
+  function _drawPredRail(c, pathArr, loArr, hiArr, anchor, seamX, coneR, toXf, padTop, rgb) {
     const n = pathArr.length; if (!n || !(coneR > seamX)) return;
     const yB = padTop + 2 + _RAIL_H;
     c.save();
     c.fillStyle = "rgba(" + rgb + ",.5)";
     for (let k = 0; k < n; k++) {
-      const cf = _predConf(_predZ(pathArr[k], hiArr[k], anchor));
+      const cf = _predConfAt(loArr, hiArr, k);
       const x0 = toXf(k), x1 = (k + 1 < n) ? toXf(k + 1) : coneR;
       if (!isFinite(x0) || !isFinite(x1)) continue;
       const w = Math.max(1, x1 - x0 - 0.6), h = Math.max(0.8, cf * _RAIL_H);
@@ -1135,9 +1140,9 @@
         c.setLineDash([]);
       }
       if (_predVis.fan) _drawPredFan(c, path, lo, hi, seamX, coneR, toXf, toY, anchor, _rgb1);
-      if (_predVis.rail) _drawPredRail(c, path, hi, anchor, seamX, coneR, toXf, padTop, _rgb1);
+      if (_predVis.rail) _drawPredRail(c, path, lo, hi, anchor, seamX, coneR, toXf, padTop, _rgb1);
       // 신뢰 지평 — 여기서부터 예측선은 점묘로 해체되며, 목표는 참고치일 뿐이다.
-      const _kH1 = _predHorizonK(path, hi, anchor);
+      const _kH1 = _predHorizonK(lo, hi);
       if (_kH1 != null) {
         const _hx = toXf(_kH1);
         if (isFinite(_hx)) {
@@ -1162,7 +1167,7 @@
       const _wigStroke = (vals, rgb, dash, lw, sd) => {
         const n = vals.length; if (!n) return;
         const seq = _predWigSeqSR(n, vals, lo, hi, _levels, _tex, sd);   // 계산된 꿈틀(S/R 반응 + AR 결)
-        const cs = _predConfSeq(vals, hi, anchor);
+        const cs = _predConfSeq(lo, hi);
         _strokePredLine(c, {
           n: n, x0: seamX, y0: _cy(toY(anchor)),
           xAt: k => toXf(k),
@@ -3116,7 +3121,7 @@
             const _2lo = new Array(_pl), _2hi = new Array(_pl); for (let k = 0; k < _pl; k++) { const bd = _2band(k); _2lo[k] = bd[0]; _2hi[k] = bd[1]; }
             const _lp = (typeof lastResult !== "undefined" && lastResult && lastResult.prediction) ? lastResult.prediction : null;   // 공유 S/R 레벨·AR 질감
             const _seq2 = _predWigSeqSR(_pl, p2.path, _2lo, _2hi, _lp && _lp.levels, _lp && _lp.tex, _sd2);   // 계산된 꿈틀(S/R 반응 + AR 결)
-            const _cs2 = _predConfSeq(p2.path, _2hi, g.anchor);
+            const _cs2 = _predConfSeq(_2lo, _2hi);
             _strokePredLine(c, {
               n: _pl, x0: _sx, y0: _cy2(toY(g.anchor)),
               xAt: k => _t2x(k),

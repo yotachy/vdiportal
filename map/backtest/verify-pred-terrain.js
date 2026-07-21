@@ -28,9 +28,9 @@ function grabConstLine(marker) {
 
 const sandbox = {};
 const setup = [
-  grabConstLine("_Z_HORIZON"),
-  grabFn("_predZ"),
-  grabFn("_predConf"),
+  grabConstLine("_CONF_HORIZON"),
+  grabFn("_predBandW"),
+  grabFn("_predConfAt"),
   grabFn("_predHorizonK"),
   grabFn("_predPCal"),
   grabFn("_predWigVal"),
@@ -42,7 +42,7 @@ const setup = [
 const harness = new Function("stub", `
   const _upProb = stub._upProb, ForgeCore = stub.ForgeCore;
   ${setup}
-  return { _predZ, _predConf, _predHorizonK, _predPCal, _predWigVal, _predConfSeq, _predQ50, _Z_LO, _Z_HI, _Z_HORIZON };
+  return { _predBandW, _predConfAt, _predHorizonK, _predPCal, _predWigVal, _predConfSeq, _predQ50, _CONF_HORIZON };
 `);
 
 /* 스텁: 실제 forge-app.js/_forge-core.js 구현과 동일 수식 */
@@ -66,62 +66,57 @@ const K = harness(stub);
 let pass = 0;
 function ok(name, fn) { fn(); pass++; console.log("  ok  " + name); }
 
-/* ── 1. _predZ ── */
-ok("z: 정상 입력에서 양수", () => {
-  const z = K._predZ(110, 120, 100);
-  assert.ok(z > 0 && isFinite(z), "z=" + z);
+/* ── 1. _predBandW / _predConfAt (밴드 상대확장) ── */
+ok("bandW: 정상 밴드는 양수, 퇴화 밴드는 0", () => {
+  assert.ok(K._predBandW(90, 110) > 0);
+  assert.strictEqual(K._predBandW(110, 110), 0);
+  assert.strictEqual(K._predBandW(110, 90), 0);
+  assert.strictEqual(K._predBandW(0, 110), 0);
+  assert.strictEqual(K._predBandW(NaN, 110), 0);
 });
-ok("z: 밴드가 넓어지면 감소(지평 감쇠의 근원)", () => {
-  const near = K._predZ(102, 104, 100);   // 변위 2%, 밴드 2%
-  const far = K._predZ(104, 120, 100);    // 변위 4%, 밴드 15%
-  assert.ok(near > far, "near=" + near + " far=" + far);
+ok("conf: 첫 봉은 항상 1", () => {
+  assert.strictEqual(K._predConfAt([98, 95, 90], [102, 105, 110], 0), 1);
 });
-ok("z: hi <= center 면 0", () => {
-  assert.strictEqual(K._predZ(110, 110, 100), 0);
-  assert.strictEqual(K._predZ(110, 90, 100), 0);
+ok("conf: 밴드가 벌어지면 단조 감소(전 국면 보장)", () => {
+  const lo = [99, 97, 94, 90, 85], hi = [101, 103, 106, 110, 115];
+  let prev = Infinity;
+  for (let k = 0; k < lo.length; k++) {
+    const c = K._predConfAt(lo, hi, k);
+    assert.ok(c <= prev + 1e-12, "k=" + k + " c=" + c + " prev=" + prev);
+    assert.ok(c >= 0 && c <= 1);
+    prev = c;
+  }
+  assert.ok(K._predConfAt(lo, hi, 4) < 0.7, "끝값=" + K._predConfAt(lo, hi, 4));
 });
-ok("z: 비유한/0/음수 입력이면 0", () => {
-  assert.strictEqual(K._predZ(NaN, 120, 100), 0);
-  assert.strictEqual(K._predZ(110, 120, 0), 0);
-  assert.strictEqual(K._predZ(-5, 120, 100), 0);
+ok("conf: 변동성이 클수록 더 빨리 감쇠", () => {
+  const lo1 = [99, 97], hi1 = [101, 103];      // 완만
+  const lo2 = [99, 90], hi2 = [101, 112];      // 급확장
+  assert.ok(K._predConfAt(lo2, hi2, 1) < K._predConfAt(lo1, hi1, 1));
 });
-ok("z: 하락 예측도 양수(절대값)", () => {
-  assert.ok(K._predZ(90, 95, 100) > 0);
-});
-
-/* ── 2. _predConf ── */
-ok("conf: Z_LO 이하면 0, Z_HI 이상이면 1", () => {
-  assert.strictEqual(K._predConf(0), 0);
-  assert.strictEqual(K._predConf(K._Z_LO), 0);
-  assert.strictEqual(K._predConf(K._Z_HI), 1);
-  assert.strictEqual(K._predConf(99), 1);
-});
-ok("conf: 중간은 선형", () => {
-  const mid = (K._Z_LO + K._Z_HI) / 2;
-  assert.ok(Math.abs(K._predConf(mid) - 0.5) < 1e-9);
+ok("conf: 퇴화 밴드는 0(NaN 없음)", () => {
+  assert.strictEqual(K._predConfAt([100, 100], [100, 100], 1), 0);
+  assert.ok(isFinite(K._predConfAt([99, 100], [101, 100], 1)));
 });
 
 /* ── 3. _predHorizonK ── */
 ok("horizon: 임계 교차 index 반환", () => {
-  const anchor = 100;
-  const center = [102, 104, 105, 106, 106];
-  const hi = [103, 108, 118, 130, 145];   // 뒤로 갈수록 밴드 폭발 → z 급감
-  const k = K._predHorizonK(center, hi, anchor);
-  assert.ok(k !== null && k >= 1 && k < center.length, "k=" + k);
-  assert.ok(K._predZ(center[k], hi[k], anchor) < K._Z_HORIZON);
-  assert.ok(K._predZ(center[k - 1], hi[k - 1], anchor) >= K._Z_HORIZON);
+  const lo = [99, 97, 92, 85, 78], hi = [101, 103, 108, 115, 122];
+  const k = K._predHorizonK(lo, hi);
+  assert.ok(k !== null && k >= 1 && k < lo.length, "k=" + k);
+  assert.ok(K._predConfAt(lo, hi, k) < K._CONF_HORIZON);
+  assert.ok(K._predConfAt(lo, hi, k - 1) >= K._CONF_HORIZON);
 });
-ok("horizon: 끝까지 신뢰 유지면 null", () => {
-  const center = [110, 120, 130], hi = [111, 121, 131];
-  assert.strictEqual(K._predHorizonK(center, hi, 100), null);
+ok("horizon: 밴드가 거의 안 벌어지면 null", () => {
+  const lo = [99, 98.99, 98.98], hi = [101, 101.01, 101.02];
+  assert.strictEqual(K._predHorizonK(lo, hi), null);
 });
 ok("horizon: k=0 은 절대 반환하지 않음(seam 겹침 방지)", () => {
-  const center = [100.0001, 100.0001, 100.0001], hi = [200, 200, 200];   // 첫 봉부터 무신뢰
-  const k = K._predHorizonK(center, hi, 100);
+  const lo = [99, 1], hi = [101, 999];
+  const k = K._predHorizonK(lo, hi);
   assert.ok(k === null || k >= 1, "k=" + k);
 });
 ok("horizon: 빈 배열이면 null", () => {
-  assert.strictEqual(K._predHorizonK([], [], 100), null);
+  assert.strictEqual(K._predHorizonK([], []), null);
 });
 
 /* ── 4. _predPCal ── */
@@ -170,20 +165,20 @@ ok("wigVal: 시그니처에서 k/futW가 제거됐다(옛 호출 잔존 방지)"
 });
 
 /* ── 6. _predConfSeq ── */
-ok("confSeq: conf 길이 = center 길이, 전부 0..1", () => {
-  const r = K._predConfSeq([102, 104, 105], [103, 108, 118], 100);
+ok("confSeq: conf 길이 = 밴드 길이, 전부 0..1", () => {
+  const r = K._predConfSeq([99, 97, 94], [101, 103, 106]);
   assert.strictEqual(r.conf.length, 3);
   for (const v of r.conf) assert.ok(v >= 0 && v <= 1, "v=" + v);
 });
 ok("confSeq: 지평이 있으면 kEnd = 그 index", () => {
-  const center = [102, 104, 105, 106, 106], hi = [103, 108, 118, 130, 145];
-  const r = K._predConfSeq(center, hi, 100);
-  assert.strictEqual(r.kEnd, K._predHorizonK(center, hi, 100));
-  assert.ok(r.kEnd < center.length, "kEnd=" + r.kEnd);
+  const lo = [99, 97, 92, 85, 78], hi = [101, 103, 108, 115, 122];
+  const r = K._predConfSeq(lo, hi);
+  assert.strictEqual(r.kEnd, K._predHorizonK(lo, hi));
+  assert.ok(r.kEnd < lo.length, "kEnd=" + r.kEnd);
 });
 ok("confSeq: 지평이 없으면 kEnd = 전체 길이(점묘 구간 없음)", () => {
-  const center = [110, 120, 130], hi = [111, 121, 131];
-  assert.strictEqual(K._predConfSeq(center, hi, 100).kEnd, 3);
+  const lo = [99, 98.99, 98.98], hi = [101, 101.01, 101.02];
+  assert.strictEqual(K._predConfSeq(lo, hi).kEnd, 3);
 });
 
 /* ── 6. 분위수 층 ── */
