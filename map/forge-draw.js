@@ -1136,8 +1136,8 @@
       }
       if (_predVis.fan) _drawPredFan(c, path, lo, hi, seamX, coneR, toXf, toY, anchor, _rgb1);
       if (_predVis.rail) _drawPredRail(c, path, lo, hi, anchor, seamX, coneR, toXf, padTop, padBot, ch, _rgb1);
-      // 신뢰 지평 — 여기서부터 예측선은 점묘로 해체되며, 목표는 참고치일 뿐이다.
-      const _kH1 = _predHorizonK(lo, hi);
+      // 지평선은 '예측선이 여기서 해체된다'는 표시라, 선이 하나도 안 보이면 그릴 이유가 없다.
+      const _kH1 = (_predVis.p1 || _predVis.p2 || _predVis.p3) ? _predHorizonK(lo, hi) : null;
       if (_kH1 != null) {
         const _hx = toXf(_kH1);
         if (isFinite(_hx)) {
