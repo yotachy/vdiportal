@@ -1144,7 +1144,7 @@
           c.save();
           c.strokeStyle = "rgba(138,146,178,.3)"; c.lineWidth = 1; c.setLineDash(CDASH.fine);
           c.beginPath(); c.moveTo(_hx, padTop); c.lineTo(_hx, ch - padBot); c.stroke(); c.setLineDash([]);
-          const _by = padTop + 14;   // 레일이 하단으로 내려가 상단 여백이 비었다
+          const _by = ch - padBot - _RAIL_H - 34;   // 하단 신뢰 레일 바로 위 — 좌상단 범례에 가리지 않는다
           c.font = "700 9.5px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
           const _bt = "신뢰 지평", _bw = c.measureText(_bt).width + 10;
           // 배지가 우측 경계(padX+plotW)를 넘지 않도록 클램프 — 지평이 오른쪽 끝 봉에 생기는 경로 대응
