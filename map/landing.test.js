@@ -90,12 +90,26 @@ test("테마 토글은 aria-pressed를 쓴다", () => {
 });
 
 // 시안 카피 회귀 방지 — 스코어카드와 충돌하는 문자열은 페이지 어디에도 등장 금지 (다른 태스크도 재사용)
-const BANNED = ["62%", "217", "19,000", "신용카드", "하루 5개", "상승 확률"];
+// 숫자로만 된 항목은 다른(정당한) 숫자열의 부분 문자열로 오탐할 수 있다
+// (예: "217"은 "1217"·"21,700"에도 포함됨) — 그런 항목만 정규식으로 경계를 고정한다.
+// 단어형 항목(신용카드 등)은 우연히 부분일치할 문맥이 없어 그대로 문자열로 둔다.
+const BANNED = [
+  /(?<![.\d])62%(?!p)/, // "62% 정확도" 가짜 수치 — 162%·0.62% 등과 우연히 겹치지 않게 숫자·소수점 경계 고정
+  /(?<!\d)217건(?!\d)/, // "217건 추적 중" 가짜 수치 — 21,700·1217 등과 겹치지 않게 단위(건)까지 포함해 고정
+  /(?<!\d)19,000(?!\d)/, // "19,000" 가짜 수치 — 119,000 등 더 큰 숫자의 일부로 오탐하지 않게 숫자 경계 고정
+  "신용카드",
+  "하루 5개",
+  "상승 확률",
+];
 
 test("금지 카피가 어디에도 없다", () => {
   const html = read();
   for (const s of BANNED) {
-    assert.ok(!html.includes(s), `금지 문자열 발견: ${s}`);
+    if (s instanceof RegExp) {
+      assert.ok(!s.test(html), `금지 문자열 발견: ${s}`);
+    } else {
+      assert.ok(!html.includes(s), `금지 문자열 발견: ${s}`);
+    }
   }
 });
 
@@ -108,10 +122,12 @@ test("히어로가 정직한 역제 서사를 편다", () => {
 test("히어로 KPI가 스코어카드 실측치다", () => {
   const html = read();
   const hero = html.slice(html.indexOf('class="hero"'), html.indexOf("</section>", html.indexOf('class="hero"')));
+  // 단위(%·%p)는 <span class="kpi-unit"> 태그로 감싸져 있어, 태그 경계를 제거한 뒤 부분 문자열로 검사한다
+  const heroText = hero.replace(/<[^>]+>/g, "");
   for (const v of ["69.0%", "67~69%", "1.9%p"]) {
-    assert.ok(hero.includes(v), `KPI 누락: ${v}`);
+    assert.ok(heroText.includes(v), `KPI 누락: ${v}`);
   }
-  assert.ok(hero.includes("93k시점"), "검증 규모 표기 없음");
+  assert.ok(heroText.includes("93k시점"), "검증 규모 표기 없음");
 });
 
 module.exports = { FILE, read, TOKENS, blockOf, styleCss };

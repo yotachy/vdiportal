@@ -76,7 +76,7 @@
   }
 
   .hero{padding:88px 0 76px;background:linear-gradient(180deg,var(--bg-hi),var(--bg))}
-  .hero-h1{font-size:52px;font-weight:800;letter-spacing:-.035em;line-height:1.16;max-width:720px}
+  .hero-h1{font-size:52px;font-weight:800;letter-spacing:-.03em;line-height:1.16;max-width:720px}
   .hero-lede{margin-top:22px;font-size:17px;color:var(--muted);max-width:600px;line-height:1.75}
   .hero-lede em{font-style:normal;color:var(--text);font-weight:700}
   .hero-cta{display:flex;gap:11px;margin-top:34px;flex-wrap:wrap}
@@ -84,6 +84,8 @@
   .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:56px;max-width:660px}
   .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px 20px}
   .kpi-v{font-size:34px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--accent)}
+  /* 단위(%·%p)는 수치보다 덜 중요한 정보라 상대적으로 작고 굵게 눌러 시각적 위계를 준다 */
+  .kpi-unit{font-size:.6em;font-weight:700;margin-left:1px}
   .kpi-k{margin-top:5px;font-size:13px;color:var(--muted);font-weight:600}
   .kpi-n{margin-top:3px;font-size:11.5px;color:var(--muted-3)}
   .hero-scale{margin-top:20px;font-size:12.5px;color:var(--muted-3)}
@@ -149,17 +151,17 @@
     </div>
     <div class="kpis">
       <div class="kpi">
-        <div class="kpi-v">69.0%</div>
+        <div class="kpi-v">69.0<span class="kpi-unit">%</span></div>
         <div class="kpi-k">변동성 예보</div>
         <div class="kpi-n">단순 기준 대비 +17.5%p</div>
       </div>
       <div class="kpi">
-        <div class="kpi-v">67~69%</div>
+        <div class="kpi-v">67~69<span class="kpi-unit">%</span></div>
         <div class="kpi-k">낙폭 위험</div>
         <div class="kpi-n">1 · 2 · 3개월 지평</div>
       </div>
       <div class="kpi">
-        <div class="kpi-v">1.9%p</div>
+        <div class="kpi-v">1.9<span class="kpi-unit">%p</span></div>
         <div class="kpi-k">확률 오차</div>
         <div class="kpi-n">표기 60% = 실제 60%</div>
       </div>
