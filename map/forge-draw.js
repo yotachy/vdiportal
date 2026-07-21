@@ -1170,18 +1170,16 @@
       };
       // ── 3차 반대선 (범례 토글: p3) ── 꿈틀·페이드 점선 + 끝점 라벨
       if (_hasCtr && _predVis.p3) {
-        let _cs = 0, _cw = 0; for (let k = 0; k < _fw; k++) { const wt = 1 / Math.sqrt(k + 1); _cs += _upProb(path[k], hi[k], anchor) * wt; _cw += wt; }
-        const _upP = _cw ? _cs / _cw : 50, _cProb = Math.round(_pd > 0 ? (100 - _upP) : _upP);
+        const _cProb = _predPCal(_counter, hi, anchor, _fw - 1);   // 끝점의 캘리브레이션 방향확률
         const _cUp = _counter[_counter.length - 1] >= anchor;
         _wigStroke(_counter, _crgb, [6, 4], 2.2, (_seed ^ 0x9e3779b9) >>> 0);
-        _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, "rgb(" + _crgb + ")", "3차·" + _cProb + "%", (_cUp ? -12 : 14), true);
+        _predEndDeco(c, _counter, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, (_cProb < 50 ? "#8a92b2" : "rgb(" + _crgb + ")"), "3차·" + _cProb + "%", (_cUp ? -12 : 14), true);
       }
       // ── 1차 종합선 (범례 토글: p1) ── 꿈틀·페이드 실선 + 끝점 라벨
-      let _p1s = 0, _p1w = 0; for (let k = 0; k < _fw; k++) { const wt = 1 / Math.sqrt(k + 1); _p1s += _upProb(path[k], hi[k], anchor) * wt; _p1w += wt; }
-      const _p1up = _p1w ? _p1s / _p1w : 50, _p1disp = Math.round(_pd >= 0 ? _p1up : (100 - _p1up));
+      const _p1disp = _predPCal(path, hi, anchor, _fw - 1);   // 끝점의 캘리브레이션 방향확률(50 미만 = 반대가 우세)
       if (_predVis.p1) {
         _wigStroke(path, _rgb1, null, 2.7, _seed);
-        _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, CT.core, "1차·" + _p1disp + "%", -12, true);
+        _predEndDeco(c, path, seamX, coneR, toY, { padX, plotW, padTop, padBot, ch }, (_p1disp < 50 ? "#8a92b2" : CT.core), "1차·" + _p1disp + "%", -12, true);
       }
       if (typeof _clearComets === "function") _clearComets();   // 예측선 코멧 미사용(새 디자인=꿈틀+구름)
       // 현재가 = 예측 시작점(원점) — 중립 흰색 마커
@@ -1901,7 +1899,7 @@
       for (const h of mhs) { if (h < 1 || h >= pl) continue; const mx = tX(h - 1), my = toY(pathArr[h - 1]); if (isFinite(mx) && isFinite(my)) { c.fillStyle = col; c.beginPath(); c.arc(mx, my, 2, 0, 7); c.fill(); c.strokeStyle = "#0b0f14"; c.lineWidth = 1; c.stroke(); } }
     } catch (e) {}
     const ex = Math.min(coneR, box.padX + box.plotW - 12), ey = Math.max(box.padTop + 14, Math.min(box.ch - box.padBot - 14, toY(pathArr[pl - 1])));
-    _epicenterMark(c, ex, ey, col, 1);
+    _epicenterMark(c, ex, ey, col, col === "#8a92b2" ? 0.6 : 1);   // 반대 우세(회색 강등)면 목표 마커도 약하게
     if (label) {
       c.save(); c.font = "800 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right";
       const _lw = c.measureText(label).width, _lx = ex - 10, _ly = ey + (labelDy != null ? labelDy : -13);
@@ -3123,9 +3121,8 @@
               yAt: k => _cy2(toY(_predWigVal(p2.path[k], _2lo[k], _2hi[k], _seq2[k], _cs2.conf[k]))),
               conf: _cs2.conf, kEnd: _cs2.kEnd, rgb: "77,208,255", dash: [9, 4], lw: 3.2
             });
-            let _p2s = 0, _p2w = 0; for (let k = 0; k < p2.path.length; k++) { const wt = 1 / Math.sqrt(k + 1); const _hk = (g.hi && g.hi[k]) || p2.path[k]; _p2s += _upProb(p2.path[k], _hk, g.anchor) * wt; _p2w += wt; }
-            const _p2up = _p2w ? _p2s / _p2w : 50, _p2dir = p2.path[p2.path.length - 1] >= g.anchor, _p2disp = Math.round(_p2dir ? _p2up : (100 - _p2up));
-            _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#4dd0ff", "2차·" + _p2disp + "%", 12, true);
+            const _p2disp = _predPCal(p2.path, _2hi, g.anchor, _pl - 1);   // 끝점의 캘리브레이션 방향확률
+            _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, (_p2disp < 50 ? "#8a92b2" : "#4dd0ff"), "2차·" + _p2disp + "%", 12, true);
           }
         }
       } catch (e) {}
