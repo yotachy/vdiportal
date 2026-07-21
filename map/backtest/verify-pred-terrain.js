@@ -33,13 +33,14 @@ const setup = [
   grabFn("_predConf"),
   grabFn("_predHorizonK"),
   grabFn("_predPCal"),
+  grabFn("_predWigVal"),
+  grabFn("_predConfSeq"),
 ].join("\n");
 
-/* _predPCal 의 외부 의존은 스텁으로 주입(엔진·앱 레이어를 끌어오지 않는다) */
 const harness = new Function("stub", `
   const _upProb = stub._upProb, ForgeCore = stub.ForgeCore;
   ${setup}
-  return { _predZ, _predConf, _predHorizonK, _predPCal, _Z_LO, _Z_HI, _Z_HORIZON };
+  return { _predZ, _predConf, _predHorizonK, _predPCal, _predWigVal, _predConfSeq, _Z_LO, _Z_HI, _Z_HORIZON };
 `);
 
 /* 스텁: 실제 forge-app.js/_forge-core.js 구현과 동일 수식 */
@@ -142,6 +143,45 @@ ok("pCal: 항상 0~100 정수", () => {
     const p = K._predPCal([cv], [hv], 100, 0);
     assert.ok(Number.isInteger(p) && p >= 0 && p <= 100, "p=" + p);
   }
+});
+
+/* ── 5. _predWigVal (conf 전환) ── */
+ok("wigVal: conf=0 이면 꿈틀 없음(center 그대로)", () => {
+  assert.strictEqual(K._predWigVal(100, 90, 110, 1, 0), 100);
+  assert.strictEqual(K._predWigVal(100, 90, 110, -1, 0), 100);
+});
+ok("wigVal: conf=1 이면 최대 진폭 = 국소 밴드 반폭의 0.5배", () => {
+  // amp = 0.5 * ((hi-lo)/2) = 0.5 * 10 = 5
+  assert.strictEqual(K._predWigVal(100, 90, 110, 1, 1), 105);
+  assert.strictEqual(K._predWigVal(100, 90, 110, -1, 1), 95);
+});
+ok("wigVal: conf 생략(null/undefined)이면 1로 취급", () => {
+  assert.strictEqual(K._predWigVal(100, 90, 110, 1, null), 105);
+  assert.strictEqual(K._predWigVal(100, 90, 110, 1), 105);
+});
+ok("wigVal: 밴드 밖으로 절대 나가지 않음(하드 클램프)", () => {
+  assert.strictEqual(K._predWigVal(109, 90, 110, 1, 1), 110);
+  assert.strictEqual(K._predWigVal(91, 90, 110, -1, 1), 90);
+});
+ok("wigVal: 시그니처에서 k/futW가 제거됐다(옛 호출 잔존 방지)", () => {
+  assert.strictEqual(K._predWigVal.length, 5, "인자 수=" + K._predWigVal.length);
+});
+
+/* ── 6. _predConfSeq ── */
+ok("confSeq: conf 길이 = center 길이, 전부 0..1", () => {
+  const r = K._predConfSeq([102, 104, 105], [103, 108, 118], 100);
+  assert.strictEqual(r.conf.length, 3);
+  for (const v of r.conf) assert.ok(v >= 0 && v <= 1, "v=" + v);
+});
+ok("confSeq: 지평이 있으면 kEnd = 그 index", () => {
+  const center = [102, 104, 105, 106, 106], hi = [103, 108, 118, 130, 145];
+  const r = K._predConfSeq(center, hi, 100);
+  assert.strictEqual(r.kEnd, K._predHorizonK(center, hi, 100));
+  assert.ok(r.kEnd < center.length, "kEnd=" + r.kEnd);
+});
+ok("confSeq: 지평이 없으면 kEnd = 전체 길이(점묘 구간 없음)", () => {
+  const center = [110, 120, 130], hi = [111, 121, 131];
+  assert.strictEqual(K._predConfSeq(center, hi, 100).kEnd, 3);
 });
 
 console.log("\n" + pass + "/" + pass + " 통과");

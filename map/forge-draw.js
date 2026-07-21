@@ -34,8 +34,7 @@
   const CDASH = { fine: [1, 3.5], std: [2, 4], long: [4.5, 4.5] };   // 정밀 점선(가늘고 여백 넉넉 · 라운드캡과 함께 고급감)
 
   // ── 예측 작도: 근거리 디테일 → 원거리 확률분포 (spec 2026-07-21) ── 작도 전용·엔진 불변·결정론(난수 없음)
-  const _PRED_T0 = 0.15, _PRED_T1 = 0.75, _PRED_C0 = 0.10, _PRED_C1 = 0.70;   // 크로스페이드 상수(선 페이드아웃 / 구름 페이드인)
-  function _predLineFade(t) { return Math.max(0, Math.min(1, 1 - (t - _PRED_T0) / (_PRED_T1 - _PRED_T0))); }   // 선 불투명·꿈틀 진폭: 근거리1→원거리0
+  const _PRED_C0 = 0.10, _PRED_C1 = 0.70;   // 분위수 팬 페이드인 구간(근거리 0 → 원거리 1)
   function _predCloudFade(t) { return Math.max(0, Math.min(1, (t - _PRED_C0) / (_PRED_C1 - _PRED_C0))); }       // 밀도 구름: 근거리0→원거리1
   // ── 불확실성 지형(spec 2026-07-21 terrain): 표기용 확률 ≠ 시각 감쇠용 정보량 ──
   // 캘리브레이션은 값을 55~65%로 압축해 감쇠 서사를 못 싣고, raw는 과신(OOS ECE 8.8%p). 그래서 두 축으로 분리한다.
@@ -94,10 +93,42 @@
     for (let k = 0; k < n; k++) out[k] /= mx;   // [-1,1]
     return out;
   }
-  function _predWigVal(k, futW, center, loK, hiK, wv) {   // 꿈틀 y값(가격): center + 진폭·워크값(wv∈[-1,1])·페이드, 밴드[lo,hi] 하드 클램프
-    const t = futW > 0 ? k / futW : 0, amp = 0.5 * ((hiK - loK) / 2);
-    const v = center + amp * wv * _predLineFade(t);
+  // 꿈틀 y값(가격): center + 진폭·워크값(wv∈[-1,1])·신뢰도(conf), 밴드[lo,hi] 하드 클램프.
+  // 페이드 근거를 지평 비율 t → 정보량 기반 conf 로 교체(종목·밴드폭에 반응).
+  function _predWigVal(center, loK, hiK, wv, conf) {
+    const amp = 0.5 * ((hiK - loK) / 2), cf = (conf == null || !isFinite(conf)) ? 1 : conf;
+    const v = center + amp * wv * cf;
     return Math.max(loK, Math.min(hiK, v));
+  }
+  // 봉별 신뢰도 배열 + 실선/점묘 경계. 1·2·3차가 같은 계산을 쓰도록 한 곳에 둔다.
+  function _predConfSeq(center, hi, anchor) {
+    const n = center.length, cf = new Array(n);
+    for (let k = 0; k < n; k++) cf[k] = _predConf(_predZ(center[k], hi[k], anchor));
+    const kh = _predHorizonK(center, hi, anchor);
+    return { conf: cf, kEnd: (kh == null) ? n : kh };
+  }
+  // 예측선 공통 스트로크: 신뢰 구간은 봉별 알파·굵기 세그먼트 실선, 신뢰 지평 이후는 점묘.
+  // 점묘는 '연결된 경로'라는 주장 자체를 철회하는 표현이므로 1·2·3차가 반드시 같은 규칙을 공유해야 한다.
+  // 좌표 변환·클램프는 호출부마다 다르므로 xAt/yAt 콜백으로 주입받는다.
+  function _strokePredLine(c, o) {
+    const n = o.n; if (!(n > 0)) return;
+    c.save(); c.lineJoin = "round"; c.lineCap = "round";
+    let x0 = o.x0, y0 = o.y0;
+    for (let k = 0; k < o.kEnd; k++) {
+      const x1 = o.xAt(k), y1 = o.yAt(k); if (!isFinite(x1) || !isFinite(y1)) continue;
+      c.strokeStyle = "rgba(" + o.rgb + "," + (0.25 + 0.75 * o.conf[k]).toFixed(3) + ")";
+      c.lineWidth = o.lw * (0.55 + 0.45 * o.conf[k]);
+      if (o.dash) c.setLineDash(o.dash); else c.setLineDash([]);
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+      x0 = x1; y0 = y1;
+    }
+    c.setLineDash([]);
+    for (let k = o.kEnd; k < n; k++) {   // 지평 이후: 점만 — 사이를 잇지 않는다
+      const x1 = o.xAt(k), y1 = o.yAt(k); if (!isFinite(x1) || !isFinite(y1)) continue;
+      c.fillStyle = "rgba(" + o.rgb + "," + (0.15 + 0.35 * o.conf[k]).toFixed(3) + ")";
+      c.beginPath(); c.arc(x1, y1, 1.3, 0, 7); c.fill();
+    }
+    c.restore();
   }
   // 밀도 구름 1열: x에서 [loK,hiK] 세로 그라데이션 — 중앙(center) 진하고 가장자리 엷게(가우시안), 전체 알파 a
   function _predCloudCol(c, x, colW, loK, hiK, center, toY, rgb, a) {
@@ -1062,13 +1093,15 @@
       // 꿈틀 라인 스트로크(가로 알파 페이드) — seamX..coneR
       const _levels = pred && pred.levels, _tex = pred && pred.tex;   // 엔진 노출 S/R 레벨·AR 질감
       const _wigStroke = (vals, rgb, dash, lw, sd) => {
-        const seq = _predWigSeqSR(vals.length, vals, lo, hi, _levels, _tex, sd);   // 계산된 꿈틀(S/R 반응 + AR 결)
-        c.save(); c.lineWidth = lw; c.lineJoin = "round"; c.lineCap = "round"; if (dash) c.setLineDash(dash);
-        const grad = c.createLinearGradient(seamX, 0, coneR, 0);
-        for (let i = 0; i <= 10; i++) { const t = i / 10; grad.addColorStop(t, "rgba(" + rgb + "," + _predLineFade(t).toFixed(3) + ")"); }
-        c.strokeStyle = grad; c.beginPath(); c.moveTo(seamX, _cy(toY(anchor)));
-        for (let k = 0; k < vals.length; k++) c.lineTo(toXf(k), _cy(toY(_predWigVal(k, _fw, vals[k], lo[k], hi[k], seq[k]))));
-        c.stroke(); c.setLineDash([]); c.restore();
+        const n = vals.length; if (!n) return;
+        const seq = _predWigSeqSR(n, vals, lo, hi, _levels, _tex, sd);   // 계산된 꿈틀(S/R 반응 + AR 결)
+        const cs = _predConfSeq(vals, hi, anchor);
+        _strokePredLine(c, {
+          n: n, x0: seamX, y0: _cy(toY(anchor)),
+          xAt: k => toXf(k),
+          yAt: k => _cy(toY(_predWigVal(vals[k], lo[k], hi[k], seq[k], cs.conf[k]))),
+          conf: cs.conf, kEnd: cs.kEnd, rgb: rgb, dash: dash, lw: lw
+        });
       };
       // ── 3차 반대선 (범례 토글: p3) ── 꿈틀·페이드 점선 + 끝점 라벨
       if (_hasCtr && _predVis.p3) {
@@ -3018,12 +3051,13 @@
             const _2lo = new Array(_pl), _2hi = new Array(_pl); for (let k = 0; k < _pl; k++) { const bd = _2band(k); _2lo[k] = bd[0]; _2hi[k] = bd[1]; }
             const _lp = (typeof lastResult !== "undefined" && lastResult && lastResult.prediction) ? lastResult.prediction : null;   // 공유 S/R 레벨·AR 질감
             const _seq2 = _predWigSeqSR(_pl, p2.path, _2lo, _2hi, _lp && _lp.levels, _lp && _lp.tex, _sd2);   // 계산된 꿈틀(S/R 반응 + AR 결)
-            c.save(); c.lineWidth = 3.2; c.setLineDash([9, 4]); c.lineJoin = "round"; c.lineCap = "round";
-            const grad2 = c.createLinearGradient(_sx, 0, _cR, 0);
-            for (let i = 0; i <= 10; i++) { const t = i / 10; grad2.addColorStop(t, "rgba(77,208,255," + _predLineFade(t).toFixed(3) + ")"); }
-            c.strokeStyle = grad2; c.beginPath(); c.moveTo(_sx, _cy2(toY(g.anchor)));
-            for (let k = 0; k < _pl; k++) { const bd = _2band(k), x = _t2x(k), y = _cy2(toY(_predWigVal(k, _pl, p2.path[k], bd[0], bd[1], _seq2[k]))); if (isFinite(x) && isFinite(y)) c.lineTo(x, y); }
-            c.stroke(); c.setLineDash([]); c.restore();
+            const _cs2 = _predConfSeq(p2.path, _2hi, g.anchor);
+            _strokePredLine(c, {
+              n: _pl, x0: _sx, y0: _cy2(toY(g.anchor)),
+              xAt: k => _t2x(k),
+              yAt: k => _cy2(toY(_predWigVal(p2.path[k], _2lo[k], _2hi[k], _seq2[k], _cs2.conf[k]))),
+              conf: _cs2.conf, kEnd: _cs2.kEnd, rgb: "77,208,255", dash: [9, 4], lw: 3.2
+            });
             let _p2s = 0, _p2w = 0; for (let k = 0; k < p2.path.length; k++) { const wt = 1 / Math.sqrt(k + 1); const _hk = (g.hi && g.hi[k]) || p2.path[k]; _p2s += _upProb(p2.path[k], _hk, g.anchor) * wt; _p2w += wt; }
             const _p2up = _p2w ? _p2s / _p2w : 50, _p2dir = p2.path[p2.path.length - 1] >= g.anchor, _p2disp = Math.round(_p2dir ? _p2up : (100 - _p2up));
             _predEndDeco(c, p2.path, _sx, _cR, toY, { padX: g.padX, plotW: g.plotW, padTop: g.padTop, padBot: g.padBot, ch: g.ch }, "#4dd0ff", "2차·" + _p2disp + "%", 12, true);
