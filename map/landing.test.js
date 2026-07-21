@@ -76,8 +76,9 @@ test("로그인 버튼은 노출하지 않는다 (인증 비활성)", () => {
 test("시장 스트립에 가짜 시세 숫자가 없다", () => {
   const html = read();
   const strip = html.slice(html.indexOf('class="markets"'), html.indexOf("</section>", html.indexOf('class="markets"')));
-  assert.ok(!/[+\-]\d+\.\d+%/.test(strip), "스트립에 등락률 숫자가 있음");
+  assert.ok(!/[+\-]?\d+(\.\d+)?%/.test(strip), "스트립에 등락률 숫자가 있음");
   assert.ok(!/\d{2,3}\.\d{2}/.test(strip), "스트립에 가격 숫자가 있음");
+  assert.ok(!/\d{1,3}(,\d{3})+/.test(strip), "스트립에 콤마 구분 정수 가격이 있음");
 });
 
 test("마퀴가 reduced-motion을 존중한다", () => {

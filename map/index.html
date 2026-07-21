@@ -45,7 +45,7 @@
   a{color:inherit;text-decoration:none}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
 
-  .site-header{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+  .site-header{position:sticky;top:0;z-index:50;background:var(--bg);background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
   .hd{display:flex;align-items:center;gap:28px;height:64px}
   .hd-brand{font-size:18px;font-weight:800;letter-spacing:-.03em}
   .hd-nav{display:flex;gap:22px;font-size:14px;color:var(--muted);margin-left:8px}
@@ -60,13 +60,20 @@
   .btn-ghost:hover{background:var(--surface-2)}
   [data-theme=dark] .icon-btn .sun,[data-theme=light] .icon-btn .moon{display:none}
 
-  .markets{border-bottom:1px solid var(--border);background:var(--tint);overflow:hidden}
+  .markets{position:relative;border-bottom:1px solid var(--border);background:var(--tint);overflow:hidden}
   .mq{display:flex;gap:0;width:max-content;animation:mqScroll 42s linear infinite}
   .mq-item{display:flex;align-items:center;gap:8px;padding:11px 22px;font-size:12.5px;color:var(--muted-2);white-space:nowrap}
   .mq-item b{color:var(--muted);font-weight:700}
   .mq-item::after{content:"";width:3px;height:3px;border-radius:50%;background:var(--border-2)}
   @keyframes mqScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-  @media (prefers-reduced-motion: reduce){.mq{animation:none}}
+  .mq-toggle{position:absolute;top:50%;right:10px;transform:translateY(-50%);width:26px;height:26px;background:var(--surface)}
+  .markets.mq-paused .mq,.markets:hover .mq,.markets:focus-within .mq{animation-play-state:paused}
+  .markets:not(.mq-paused) .mq-toggle .icon-play{display:none}
+  .markets.mq-paused .mq-toggle .icon-pause{display:none}
+  @media (prefers-reduced-motion: reduce){
+    .mq{animation:none}
+    .mq-toggle{display:none}
+  }
 </style>
 </head>
 <body>
@@ -92,6 +99,10 @@
 <main id="top">
 
 <section class="markets" aria-label="지원 시장">
+  <button class="icon-btn mq-toggle" id="mqToggle" type="button" aria-pressed="false" aria-label="시세 스트립 일시정지">
+    <svg class="icon-pause" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    <svg class="icon-play" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4l13 8-13 8V4z"/></svg>
+  </button>
   <div class="mq">
     <span class="mq-item"><b>코스피</b>삼성전자</span>
     <span class="mq-item"><b>코스닥</b>에코프로비엠</span>
@@ -131,6 +142,19 @@
     document.documentElement.setAttribute("data-theme", next);
     try { localStorage.setItem("site_theme", next); } catch (e) {}
     syncToggle();
+  });
+
+  var mqSection = document.querySelector(".markets");
+  var mqToggle = document.getElementById("mqToggle");
+  function syncMqToggle() {
+    var paused = mqSection.classList.contains("mq-paused");
+    mqToggle.setAttribute("aria-pressed", paused ? "true" : "false");
+    mqToggle.setAttribute("aria-label", paused ? "시세 스트립 재생" : "시세 스트립 일시정지");
+  }
+  syncMqToggle();
+  mqToggle.addEventListener("click", function () {
+    mqSection.classList.toggle("mq-paused");
+    syncMqToggle();
   });
 </script>
 </body>
