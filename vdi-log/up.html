@@ -320,6 +320,19 @@
   .sold-hint{color:var(--gold-txt); font-size:.78rem; font-weight:700; margin-top:-6px;}
   .sold-hint:empty{display:none;}
 
+  /* ===================== PIN 잠금 화면 ===================== */
+  .pin-gate{position:fixed; inset:0; z-index:100; background:var(--paper); display:none; align-items:center; justify-content:center; padding:20px;}
+  body.locked .pin-gate{display:flex;}
+  body.locked .apphd,body.locked .view{display:none;}
+  .pin-box{width:100%; max-width:330px; background:var(--card); border-radius:22px; box-shadow:var(--sh-card); padding:34px 28px 28px; text-align:center;}
+  .pin-mark{width:46px; height:46px; border-radius:14px; background:var(--navy); color:var(--gold); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.1rem; margin:0 auto 16px;}
+  .pin-t{font-size:1rem; font-weight:800; letter-spacing:-.01em;}
+  .pin-s{font-size:.8rem; color:var(--ink-faint); margin-top:5px;}
+  #pinInput{width:100%; margin-top:20px; height:54px; border:1.5px solid var(--line-in); border-radius:var(--r); background:var(--card); color:var(--ink); text-align:center; font-size:1.4rem; font-weight:800; letter-spacing:.4em; text-indent:.4em;}
+  #pinInput:focus{outline:none; border-color:var(--gold);}
+  .pin-err{min-height:19px; margin:9px 0 4px; font-size:.76rem; font-weight:700; color:var(--down);}
+  #pinGo{width:100%; justify-content:center; height:48px;}
+
   /* ===================== 토스트 ===================== */
   .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px); background:#1c2430; color:#fff; padding:12px 20px; border-radius:12px; font-size:.84rem; font-weight:700; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:90; box-shadow:0 10px 30px rgba(20,26,40,.3);}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
@@ -423,6 +436,15 @@
         데이터 불러오기
       </button>
       <div class="mi-sep"></div>
+      <button class="mi" id="btnPin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        PIN 변경
+      </button>
+      <button class="mi" id="btnDeviceLock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17-5-5 5-5"/><path d="M15 12H5"/></svg>
+        이 기기 잠그기
+      </button>
+      <div class="mi-sep"></div>
       <button class="mi" id="btnTheme" aria-label="화면 테마 전환">
         <svg class="ic-theme" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
         화면 테마 <span class="mi-tail" id="themeLabel"></span>
@@ -514,6 +536,18 @@
   </div>
 </div>
 
+<!-- PIN 잠금 화면 -->
+<div class="pin-gate" id="pinGate">
+  <div class="pin-box">
+    <div class="pin-mark">정</div>
+    <div class="pin-t">정성인연 자산관리</div>
+    <div class="pin-s">PIN을 입력하세요</div>
+    <input id="pinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8" aria-label="PIN">
+    <div class="pin-err" id="pinErr"></div>
+    <button class="btn gold" id="pinGo">확인</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -572,6 +606,9 @@ function saveData(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(data));
 
 /* ===================== 서버 동기화 (연산 기반, 동시 편집 안전) ===================== */
 const SERVER_URL="api.php";  // 같은 디렉터리의 PHP 엔드포인트
+const PIN_KEY="jsiy_pin";    // 이 기기에 기억해 둔 PIN (서버엔 sha256 만 보관)
+let pin=""; try{ pin=localStorage.getItem(PIN_KEY)||""; }catch(e){}
+const pinHdr=extra=>Object.assign({"X-Pin":pin}, extra||{});   // 모든 요청에 PIN 동봉
 let syncState="";            // ""|"ok"|"saving"|"loading"|"offline"|"error"
 let lastRev=null;            // 서버 리비전(폴링 변경 감지)
 function setSync(s){ syncState=s; updateSyncUI(); }
@@ -585,10 +622,10 @@ function updateSyncUI(){
 function sendOp(op){
   saveData();  // 로컬 즉시 반영
   setSync("saving");
-  fetch(SERVER_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(op)})
-    .then(r=>r.ok?r.json():Promise.reject())
+  fetch(SERVER_URL,{method:"POST",headers:pinHdr({"Content-Type":"application/json"}),body:JSON.stringify(op)})
+    .then(r=>{ if(r.status===401){ lockOut("PIN이 변경되었습니다. 다시 입력하세요."); throw "pin"; } return r.ok?r.json():Promise.reject(); })
     .then(j=>{ if(j&&j.ok){ lastRev=j.rev; setSync("ok"); } else setSync("error"); })
-    .catch(()=>setSync("offline"));
+    .catch(e=>{ if(e!=="pin") setSync("offline"); });
 }
 function opUpsert(it){ sendOp({op:"upsert",item:it}); }
 function opDelete(id){ sendOp({op:"delete",id:id}); }
@@ -607,7 +644,7 @@ function updateFxBadge(){ const el=document.getElementById("fxBadge"); if(el) el
 // 주식 항목 평가금액을 보유수×현재가(×환율) 로 재계산(메모리·표시용, 서버에 다시 쓰지 않음)
 function recomputeFx(){ if(!data||!data.items) return; data.items.forEach(it=>{ if(isStockCat(it.cat)) it.amount=Math.round((Number(it.qty)||0)*(Number(it.price)||0)*(it.cur==="USD"?usdRate:1)); }); }
 function fetchRate(){
-  fetch(SERVER_URL+"?rate=1",{cache:"no-store"})
+  fetch(SERVER_URL+"?rate=1",{cache:"no-store",headers:pinHdr()})
     .then(r=>r.ok?r.json():Promise.reject()).then(j=>{
       if(j&&j.rate){ usdRate=Number(j.rate)||usdRate; updateFxBadge(); recomputeFx(); saveData(); render(); }
     }).catch(()=>{});
@@ -623,7 +660,7 @@ function refreshQuotes(force){
   lastQuotes=Date.now();
   Promise.all(list.map(it=>{
     const mk=it.cat==="kr"?"kr":"us";
-    return fetch(SERVER_URL+"?quote="+encodeURIComponent(tickerSym(it))+"&market="+mk,{cache:"no-store"})
+    return fetch(SERVER_URL+"?quote="+encodeURIComponent(tickerSym(it))+"&market="+mk,{cache:"no-store",headers:pinHdr()})
       .then(r=>r.json()).then(j=>{ if(j&&j.ok){ it.price=Number(j.price)||it.price; it.cur=j.cur==="USD"?"USD":"KRW"; } }).catch(()=>{});
   })).then(()=>{ recomputeFx(); saveData(); render(); });
 }
@@ -645,8 +682,8 @@ function startQuoteTimer(){
 function pullFromServer(opts){
   opts=opts||{};
   if(!opts.quiet) setSync("loading");
-  fetch(SERVER_URL,{cache:"no-store"})
-    .then(r=>r.ok?r.text():Promise.reject()).then(txt=>{
+  fetch(SERVER_URL,{cache:"no-store",headers:pinHdr()})
+    .then(r=>{ if(r.status===401){ lockOut("PIN이 변경되었습니다. 다시 입력하세요."); throw "pin"; } return r.ok?r.text():Promise.reject(); }).then(txt=>{
       let d=null; try{ d=JSON.parse(txt); }catch(e){}
       if(d&&Array.isArray(d.items)){
         if(d._rev!==lastRev){ applyServerData(d); lastRev=d._rev; }
@@ -663,6 +700,52 @@ function startPolling(){
     if(document.getElementById("modalBg").classList.contains("open")) return;
     pullFromServer({quiet:true});
   },6000);
+}
+
+/* ===================== PIN 잠금 =====================
+   열람·편집 모두 PIN 필요. 서버는 sha256 만 갖고 있고 이 기기는 평문을 localStorage 에 기억한다.
+   (기기를 이미 장악한 상대는 막지 못한다 — 링크만 아는 제3자를 막는 수준의 보호) */
+function tryPin(v){
+  return fetch(SERVER_URL+"?check=1",{cache:"no-store",headers:{"X-Pin":v}})
+    .then(r=>r.json().then(j=>({st:r.status, valid:!!(j&&j.valid)})));
+}
+function pinErr(msg){ const el=document.getElementById("pinErr"); if(el) el.textContent=msg||""; }
+function showGate(msg){
+  document.body.classList.add("locked");
+  pinErr(msg);
+  const i=document.getElementById("pinInput"); if(i){ i.value=""; setTimeout(()=>i.focus(),50); }
+}
+function lockOut(msg){   // 서버가 401 → 저장된 PIN 폐기하고 다시 잠금
+  pin=""; try{ localStorage.removeItem(PIN_KEY); }catch(e){}
+  setSync(""); showGate(msg);
+}
+function submitPin(){
+  const v=String(document.getElementById("pinInput").value||"").trim();
+  if(!/^\d{4,8}$/.test(v)){ pinErr("숫자 4~8자리로 입력하세요."); return; }
+  pinErr("확인 중…");
+  tryPin(v).then(r=>{
+    if(r.valid){ pin=v; try{ localStorage.setItem(PIN_KEY,v); }catch(e){} document.body.classList.remove("locked"); pinErr(""); startApp(); }
+    else if(r.st===429) pinErr("시도가 너무 많습니다. 10분 뒤 다시 시도하세요.");
+    else pinErr("PIN이 올바르지 않습니다.");
+  }).catch(()=>pinErr("서버에 연결할 수 없습니다."));
+}
+function changePin(){
+  const a=prompt("새 PIN을 입력하세요 (숫자 4~8자리)"); if(a==null) return;
+  if(!/^\d{4,8}$/.test(String(a).trim())){ toast("숫자 4~8자리로 입력하세요."); return; }
+  const b=prompt("확인을 위해 새 PIN을 한 번 더 입력하세요"); if(b==null) return;
+  if(String(a).trim()!==String(b).trim()){ toast("두 번 입력한 PIN이 서로 다릅니다."); return; }
+  const np=String(a).trim();
+  fetch(SERVER_URL,{method:"POST",headers:pinHdr({"Content-Type":"application/json"}),body:JSON.stringify({op:"setpin",pin:np})})
+    .then(r=>r.ok?r.json():Promise.reject(r.status))
+    .then(j=>{
+      if(j&&j.ok){ pin=np; try{ localStorage.setItem(PIN_KEY,np); }catch(e){} toast("PIN을 변경했습니다. 다른 기기에서는 새 PIN으로 다시 들어가세요."); }
+      else toast("PIN 변경에 실패했습니다.");
+    })
+    .catch(()=>toast("PIN 변경에 실패했습니다 — 서버 연결을 확인하세요."));
+}
+function lockDevice(){   // 이 기기에서만 PIN 기억을 지운다(서버 PIN 은 그대로)
+  pin=""; try{ localStorage.removeItem(PIN_KEY); }catch(e){}
+  showGate("이 기기에서 잠갔습니다.");
 }
 
 /* ===================== 포맷 ===================== */
@@ -1194,7 +1277,7 @@ function fetchTickerPrice(){  // 보유종목이 #으로 시작하면 현재가 
   const sym=tk.slice(1).trim(); if(!sym) return;
   const mk=cat==="kr"?"kr":"us";
   document.getElementById("fAmountKor").textContent="시세 조회 중…";
-  fetch(SERVER_URL+"?quote="+encodeURIComponent(sym)+"&market="+mk,{cache:"no-store"})
+  fetch(SERVER_URL+"?quote="+encodeURIComponent(sym)+"&market="+mk,{cache:"no-store",headers:pinHdr()})
     .then(r=>r.json()).then(j=>{
       if(j&&j.ok){
         document.getElementById("fCur").value=j.cur==="USD"?"USD":"KRW";
@@ -1363,7 +1446,29 @@ function toolsMenu(open){
 }
 
 /* ===================== 초기화 / 이벤트 ===================== */
-loadData(); loadScope(); fillCatSelect(); initTheme(); render();
+loadData(); loadScope(); fillCatSelect(); initTheme();
+
+// PIN 통과 후에만 화면을 그리고 네트워크를 연다
+let _started=false;
+function startApp(){
+  if(_started) return; _started=true;
+  render();
+  updateFxBadge(); fetchRate();    // 환율 표시 + 실시간 조회
+  const qi=document.getElementById("quoteInterval"); if(qi) qi.value=String(quoteIntervalMs);
+  refreshQuotes(); startQuoteTimer();  // 티커(#) 종목 현재가 자동 조회 + 주기 갱신
+  pullFromServer({initial:true});   // 로드 시 서버(공유) 데이터로 동기화
+  startPolling();                   // 6초마다 다른 기기 변경 자동 반영
+  window.addEventListener("focus",focusPull);
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden) focusPull(); });
+}
+(function boot(){
+  if(!pin){ showGate(); return; }
+  tryPin(pin).then(r=>{
+    if(r.valid) startApp();
+    else if(r.st===429) showGate("시도가 너무 많습니다. 10분 뒤 다시 시도하세요.");
+    else lockOut("PIN이 변경되었습니다. 다시 입력하세요.");
+  }).catch(()=>startApp());   // 서버 연결 불가: 이 기기에 저장된 PIN 을 믿고 오프라인 사용
+})();
 
 // ===== 인앱 뒤로가기 (History API): 모달 닫기 → 이전 뷰 → (더 없으면) 종료 =====
 let _navReady=false, _suppressPop=false;
@@ -1378,16 +1483,13 @@ window.addEventListener("popstate",function(e){
   if(st && st.scope){ if(st.scope!==scope) navTo(st.scope,true); }  // 2) 이전 뷰 복원
   // st 없으면 더 돌아갈 인앱 상태 없음 → 기본 동작(이전 페이지/앱 종료)
 });
-updateFxBadge(); fetchRate();    // 환율 표시 + 실시간 조회
-(function(){ const qi=document.getElementById("quoteInterval"); if(qi) qi.value=String(quoteIntervalMs); })();
-refreshQuotes(); startQuoteTimer();  // 티커(#) 종목 현재가 자동 조회 + 주기 갱신
-pullFromServer({initial:true});  // 로드 시 서버(공유) 데이터로 동기화
-startPolling();                   // 6초마다 다른 기기 변경 자동 반영
 let focusPullTimer=null;
 function focusPull(){ clearTimeout(focusPullTimer); focusPullTimer=setTimeout(()=>{ if(!document.getElementById("modalBg").classList.contains("open")) pullFromServer(); },150); }
-window.addEventListener("focus",focusPull);
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden) focusPull(); });
 
+document.getElementById("pinGo").addEventListener("click",submitPin);
+document.getElementById("pinInput").addEventListener("keydown",e=>{ if(e.key==="Enter") submitPin(); });
+document.getElementById("btnPin").addEventListener("click",()=>{ toolsMenu(false); changePin(); });
+document.getElementById("btnDeviceLock").addEventListener("click",()=>{ toolsMenu(false); lockDevice(); });
 document.getElementById("btnTools").addEventListener("click",e=>{ e.stopPropagation(); toolsMenu(); });
 document.addEventListener("click",e=>{ if(!e.target.closest(".menu-wrap")) toolsMenu(false); });
 document.getElementById("btnTheme").addEventListener("click",()=>{

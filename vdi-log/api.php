@@ -1,24 +1,49 @@
 <?php
 // 정성인연 자산관리 — 공유 데이터 저장 API (연산 기반, 동시 편집 안전)
-// GET            : 저장된 문서 반환({items,meta,_rev}; 없으면 null) — 공개(읽기 자유)
-// GET ?check=1   : 헤더 X-Write-Key 가 쓰기 키와 일치하는지 → {"valid":bool}
-// POST {op,...}  : 연산을 서버의 최신 문서에 적용(락). 쓰기 제한 없음(누구나 편집)
+// 모든 엔드포인트는 헤더 X-Pin(PIN 평문) 필요 — 불일치/미제공 401. 예외는 ?check=1 뿐.
+// GET            : 저장된 문서 반환({items,meta,_rev}; 없으면 null)
+// GET ?check=1   : X-Pin 이 맞는지 → {"valid":bool} (틀리면 실패 카운트 누적)
+// POST {op,...}  : 연산을 서버의 최신 문서에 적용(락)
 //   op=replace {doc}        전체 교체(불러오기/초기 시드)
 //   op=upsert  {item}       id 기준 항목 추가/수정
 //   op=delete  {id}         id 항목 삭제
 //   op=reorder {order:[id]} 항목 순서 재배치
 //   op=meta    {meta:{...}} meta 일부 병합(sortMode 등)
+//   op=setpin  {pin}        PIN 변경(현재 PIN 으로 인증된 상태에서만)
 // 응답: {"ok":true,"rev":N}. 매 쓰기마다 _rev 증가 → 클라이언트 폴링이 변경 감지.
 //
-// 쓰기 키 제도는 폐지(2026-07-21) — 편집을 누구나 할 수 있게. ?check=1 은 구버전 클라이언트 호환용.
+// PIN 은 같은 폴더 jsiy_pin.txt 에 sha256 해시로 저장(서버 전용, 웹 노출 차단됨).
+// 없으면 전면 차단(fail-closed). 무차별 대입 방지: 10분 내 10회 실패 시 10분 잠금.
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, X-Write-Key");
+header("Access-Control-Allow-Headers: Content-Type, X-Pin");
+header("X-Robots-Tag: noindex, nofollow");
 
 $method = $_SERVER["REQUEST_METHOD"];
 if ($method === "OPTIONS") { http_response_code(204); exit; }
 
 $f  = __DIR__ . "/jsiy_data.json";
+$pf = __DIR__ . "/jsiy_pin.txt";        // sha256(PIN)
+$ff = __DIR__ . "/jsiy_pinfail.json";   // 실패 카운터(무차별 대입 방지)
+$PIN_HASH = is_file($pf) ? trim(file_get_contents($pf)) : "";
+
+function throttled($ff) {
+  $s = is_file($ff) ? json_decode(file_get_contents($ff), true) : null;
+  return is_array($s) && intval(isset($s["until"]) ? $s["until"] : 0) > time();
+}
+function note_fail($ff) {
+  $now = time();
+  $s = is_file($ff) ? json_decode(file_get_contents($ff), true) : null;
+  if (!is_array($s) || ($now - intval(isset($s["first"]) ? $s["first"] : 0)) > 600) $s = ["n"=>0, "first"=>$now, "until"=>0];
+  $s["n"] = intval($s["n"]) + 1;
+  if ($s["n"] >= 10) { $s["until"] = $now + 600; }   // 10분 잠금
+  @file_put_contents($ff, json_encode($s));
+}
+function pin_ok($hash) {
+  if ($hash === "") return false;   // PIN 미설정 = 전면 차단
+  $p = isset($_SERVER["HTTP_X_PIN"]) ? $_SERVER["HTTP_X_PIN"] : "";
+  return $p !== "" && hash_equals($hash, hash("sha256", $p));
+}
 function jout($a){ header("Content-Type: application/json; charset=utf-8"); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; }
 function yquote($sym){  // Yahoo Finance 현재가 조회
   $url="https://query1.finance.yahoo.com/v8/finance/chart/".rawurlencode($sym)."?range=1d&interval=1d";
@@ -31,10 +56,20 @@ function yquote($sym){  // Yahoo Finance 현재가 조회
   return ["price"=>$m["regularMarketPrice"],"cur"=>isset($m["currency"])?$m["currency"]:null];
 }
 
+// ---- PIN 인증(모든 엔드포인트 공통) ----
+if (throttled($ff)) { http_response_code(429); jout(["ok"=>false,"error"=>"throttle"]); }
+$AUTH = pin_ok($PIN_HASH);
+if ($method === "GET" && isset($_GET["check"])) {   // PIN 확인 전용 — 여기서만 미인증 접근 허용
+  if (!$AUTH) note_fail($ff); else @unlink($ff);    // 성공 시 실패 카운터 초기화
+  header("Content-Type: application/json; charset=utf-8");
+  header("Cache-Control: no-store");
+  echo json_encode(["valid" => $AUTH]); exit;
+}
+if (!$AUTH) { http_response_code(401); jout(["ok"=>false,"error"=>"pin"]); }
+
 if ($method === "GET") {
   header("Content-Type: application/json; charset=utf-8");
   header("Cache-Control: no-store");
-  if (isset($_GET["check"])) { echo json_encode(["valid" => true]); exit; }  // 구버전 클라이언트 호환
   if (isset($_GET["rate"])) {  // USD/KRW 실시간 환율(30분 캐시, 데이터와 무관한 캐시파일)
     $rf = __DIR__ . "/jsiy_rate.json"; $now = time();
     $cached = is_file($rf) ? json_decode(file_get_contents($rf), true) : null;
@@ -78,6 +113,13 @@ if ($method !== "POST") { http_response_code(405); jout(["ok"=>false,"error"=>"m
 $d = json_decode(file_get_contents("php://input"), true);
 if (!is_array($d) || !isset($d["op"])) { http_response_code(400); jout(["ok"=>false,"error"=>"noop"]); }
 $op = $d["op"];
+
+if ($op === "setpin") {   // PIN 변경 — 문서를 건드리지 않으므로 락 이전에 처리
+  $np = isset($d["pin"]) ? trim((string)$d["pin"]) : "";
+  if (!preg_match('/^\d{4,8}$/', $np)) { http_response_code(400); jout(["ok"=>false,"error"=>"badpin"]); }
+  if (@file_put_contents($pf, hash("sha256", $np)) === false) { http_response_code(500); jout(["ok"=>false,"error"=>"write"]); }
+  jout(["ok"=>true, "pinchanged"=>true]);
+}
 
 $lock = fopen($f . ".lock", "c");
 if ($lock) { flock($lock, LOCK_EX); }
