@@ -48,10 +48,16 @@
     const w = Math.log(hiK / loK);
     return isFinite(w) && w > 0 ? w : 0;
   }
+  // 총 밴드 확장분 중 어디까지 왔나(0=아직 안 벌어짐 → 1=끝까지 벌어짐)를 뒤집은 값.
+  // W(0) 나눗셈은 쓰지 않는다 — 엔진이 콘을 seam에서 인위적으로 좁게 시작시켜 W(0)이 왜곡돼 있고,
+  // 그걸 기준으로 삼으면 예측 대부분이 즉시 점묘로 무너진다. W는 단조 증가라 감쇠는 여전히 보장된다.
   function _predConfAt(lo, hi, k) {
-    const w0 = Math.max(_predBandW(lo[0], hi[0]), 1e-6), wk = _predBandW(lo[k], hi[k]);
+    const n = lo.length; if (!(n > 0)) return 0;
+    const w0 = _predBandW(lo[0], hi[0]), we = _predBandW(lo[n - 1], hi[n - 1]), wk = _predBandW(lo[k], hi[k]);
     if (!(wk > 0)) return 0;
-    return Math.max(0, Math.min(1, Math.sqrt(w0 / wk)));
+    const span = we - w0;
+    if (!(span > 0)) return 1;   // 밴드가 안 벌어지는 예측 = 감쇠 없음
+    return Math.max(0, Math.min(1, 1 - (wk - w0) / span));
   }
   // 신뢰 지평 = conf가 임계 아래로 처음 떨어지는 봉. k=0은 반환하지 않음(seam 선과 겹치면 판독 불가).
   function _predHorizonK(lo, hi) {

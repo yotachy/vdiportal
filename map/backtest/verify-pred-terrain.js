@@ -88,10 +88,18 @@ ok("conf: 밴드가 벌어지면 단조 감소(전 국면 보장)", () => {
   }
   assert.ok(K._predConfAt(lo, hi, 4) < 0.7, "끝값=" + K._predConfAt(lo, hi, 4));
 });
-ok("conf: 변동성이 클수록 더 빨리 감쇠", () => {
-  const lo1 = [99, 97], hi1 = [101, 103];      // 완만
-  const lo2 = [99, 90], hi2 = [101, 112];      // 급확장
-  assert.ok(K._predConfAt(lo2, hi2, 1) < K._predConfAt(lo1, hi1, 1));
+ok("conf: 마지막 봉은 항상 0(끝에서 완전 해체)", () => {
+  const lo = [99, 97, 94, 90, 85], hi = [101, 103, 106, 110, 115];
+  assert.strictEqual(K._predConfAt(lo, hi, 4), 0);
+});
+ok("conf: 초반에 급확장하면 그만큼 빨리 떨어진다(확장 곡선 모양 반영)", () => {
+  const loF = [99, 88, 87, 86, 85], hiF = [101, 113, 114, 114.5, 115];   // 앞에서 몰아 벌어짐
+  const loL = [99, 98, 96, 92, 85], hiL = [101, 102, 104, 108, 115];      // 뒤에서 벌어짐
+  assert.ok(K._predConfAt(loF, hiF, 1) < K._predConfAt(loL, hiL, 1));
+});
+ok("conf: 밴드가 전혀 안 벌어지면 감쇠 없음(전 구간 1)", () => {
+  const lo = [99, 99, 99], hi = [101, 101, 101];
+  for (let k = 0; k < 3; k++) assert.strictEqual(K._predConfAt(lo, hi, k), 1);
 });
 ok("conf: 퇴화 밴드는 0(NaN 없음)", () => {
   assert.strictEqual(K._predConfAt([100, 100], [100, 100], 1), 0);
@@ -106,8 +114,8 @@ ok("horizon: 임계 교차 index 반환", () => {
   assert.ok(K._predConfAt(lo, hi, k) < K._CONF_HORIZON);
   assert.ok(K._predConfAt(lo, hi, k - 1) >= K._CONF_HORIZON);
 });
-ok("horizon: 밴드가 거의 안 벌어지면 null", () => {
-  const lo = [99, 98.99, 98.98], hi = [101, 101.01, 101.02];
+ok("horizon: 밴드가 안 벌어지면 null", () => {
+  const lo = [99, 99, 99], hi = [101, 101, 101];
   assert.strictEqual(K._predHorizonK(lo, hi), null);
 });
 ok("horizon: k=0 은 절대 반환하지 않음(seam 겹침 방지)", () => {
@@ -177,7 +185,7 @@ ok("confSeq: 지평이 있으면 kEnd = 그 index", () => {
   assert.ok(r.kEnd < lo.length, "kEnd=" + r.kEnd);
 });
 ok("confSeq: 지평이 없으면 kEnd = 전체 길이(점묘 구간 없음)", () => {
-  const lo = [99, 98.99, 98.98], hi = [101, 101.01, 101.02];
+  const lo = [99, 99, 99], hi = [101, 101, 101];
   assert.strictEqual(K._predConfSeq(lo, hi).kEnd, 3);
 });
 
