@@ -170,13 +170,15 @@
     c.fillStyle = "rgba(138,146,178,.55)"; c.fillText("68%", toXf(kL), toY(hiArr[kL]) - 3);
     c.restore();
   }
-  // ── 확률 감쇠 레일 — 예측 구역 상단 스트립. 막대=정보량(시각), 숫자=캘리브레이션 방향확률(정직). ──
+  // ── 신뢰 감쇠 레일 — 예측 구역 하단(x축 바로 위) 스트립. 막대 높이 = 신뢰도.
+  // 숫자는 싣지 않는다: 엔진 콘이 드리프트 대비 좁아 시점별 확률이 상한에 붙어버려
+  // 같은 값이 반복 표기되며 오히려 과신을 키웠다. 확률 표기는 끝점 라벨 하나로 충분하다.
   const _RAIL_H = 14;
-  function _drawPredRail(c, pathArr, loArr, hiArr, anchor, seamX, coneR, toXf, padTop, rgb) {
+  function _drawPredRail(c, pathArr, loArr, hiArr, anchor, seamX, coneR, toXf, padTop, padBot, ch, rgb) {
     const n = pathArr.length; if (!n || !(coneR > seamX)) return;
-    const yB = padTop + 2 + _RAIL_H;
+    const yB = ch - padBot - 2;   // x축 눈금 바로 위
     c.save();
-    c.fillStyle = "rgba(" + rgb + ",.5)";
+    c.fillStyle = "rgba(" + rgb + ",.42)";
     for (let k = 0; k < n; k++) {
       const cf = _predConfAt(loArr, hiArr, k);
       const x0 = toXf(k), x1 = (k + 1 < n) ? toXf(k + 1) : coneR;
@@ -184,19 +186,6 @@
       const w = Math.max(1, x1 - x0 - 0.6), h = Math.max(0.8, cf * _RAIL_H);
       c.fillRect(x0, yB - h, w, h);
     }
-    // 눈금 숫자는 _hzList 시점(+10/+20/+40/+60 등)에만. 겹치면 뒤엣것 생략.
-    c.font = "9px ui-monospace,monospace"; c.textAlign = "center"; c.fillStyle = "rgba(138,146,178,.75)";
-    let lastR = -1e9;
-    try {
-      const hs = _hzList(tfUnit(), n);
-      for (let i = 0; i < hs.length; i++) {
-        const k = hs[i] - 1; if (k < 0 || k >= n) continue;
-        const x = toXf(k); if (!isFinite(x)) continue;
-        const t = _predPCal(pathArr, hiArr, anchor, k) + "%", w = c.measureText(t).width;
-        if (x - w / 2 < lastR + 6) continue;
-        c.fillText(t, x, yB + 10); lastR = x + w / 2;
-      }
-    } catch (e) {}
     c.restore();
   }
   let _predVis = { band: true, fan: true, rail: true, p1: true, p2: true, p3: true };   // 예측선 범례 토글 상태(세션·기본 전부 켜짐)
@@ -932,7 +921,7 @@
     const items = [
       ["band", "밴드 경계", band, "sq", "기술적으로 도달 가능한 최저~최고 경계입니다. 피보나치·구조 스윙·매물대·볼린저·일목·VWAP 종합. 클릭하면 숨김/표시."],
       ["fan", "분위수 팬", band, "sq", "예측이 이 안에 들어올 확률입니다. 안쪽 진한 층 50%, 바깥 경계 68%. 뒤로 갈수록 벌어지는 폭 자체가 불확실성의 크기입니다. 클릭하면 숨김/표시."],
-      ["rail", "확률 레일", "rgba(138,146,178,.85)", "sq", "각 시점의 예측 신뢰도입니다. 막대가 낮아질수록 그 시점 예측은 근거가 약합니다. 숫자는 캘리브레이션된 방향 적중 확률. 클릭하면 숨김/표시."],
+      ["rail", "신뢰 레일", "rgba(138,146,178,.85)", "sq", "차트 하단의 신뢰도 막대입니다. 예측 범위가 벌어질수록 낮아지며, 막대가 낮은 구간의 예측은 근거가 약합니다. 클릭하면 숨김/표시."],
       ["p1", "1차 종합지표", core, "", "전체 지표를 융합한 종합 예측선입니다. 신뢰 지평까지는 실선, 이후는 점묘로 해체됩니다. 끝점 확률이 50% 미만이면 반대 시나리오가 우세하다는 뜻입니다. 클릭하면 숨김/표시."],
       ["p2", "2차 선택지표", "#4dd0ff", "", "범례에서 표시(체크)한 지표 조합만으로 다시 계산한 예측선입니다. 특정 관점 비교용. 클릭하면 숨김/표시."],
       ["p3", "3차 최대역치", c3, "", "예상과 반대로 움직였을 때 가격이 향할 반대 시나리오선입니다. 클릭하면 숨김/표시."]
@@ -1146,7 +1135,7 @@
         c.setLineDash([]);
       }
       if (_predVis.fan) _drawPredFan(c, path, lo, hi, seamX, coneR, toXf, toY, anchor, _rgb1);
-      if (_predVis.rail) _drawPredRail(c, path, lo, hi, anchor, seamX, coneR, toXf, padTop, _rgb1);
+      if (_predVis.rail) _drawPredRail(c, path, lo, hi, anchor, seamX, coneR, toXf, padTop, padBot, ch, _rgb1);
       // 신뢰 지평 — 여기서부터 예측선은 점묘로 해체되며, 목표는 참고치일 뿐이다.
       const _kH1 = _predHorizonK(lo, hi);
       if (_kH1 != null) {
@@ -1155,7 +1144,7 @@
           c.save();
           c.strokeStyle = "rgba(138,146,178,.3)"; c.lineWidth = 1; c.setLineDash(CDASH.fine);
           c.beginPath(); c.moveTo(_hx, padTop); c.lineTo(_hx, ch - padBot); c.stroke(); c.setLineDash([]);
-          const _by = padTop + _RAIL_H + 16;
+          const _by = padTop + 14;   // 레일이 하단으로 내려가 상단 여백이 비었다
           c.font = "700 9.5px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
           const _bt = "신뢰 지평", _bw = c.measureText(_bt).width + 10;
           // 배지가 우측 경계(padX+plotW)를 넘지 않도록 클램프 — 지평이 오른쪽 끝 봉에 생기는 경로 대응
