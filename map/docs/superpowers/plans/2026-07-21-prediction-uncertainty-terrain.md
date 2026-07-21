@@ -264,21 +264,45 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 2: 선 해체 — `_predWigVal` conf 전환 + `_wigStroke` 세그먼트·점묘 (1차·3차)
+### Task 2: 선 해체 — 공용 스트로크 헬퍼 + conf 전환 (1·2·3차 동시)
 
 **Files:**
-- Modify: `forge-draw.js` — `_predWigVal`(현재 73~78행 부근), `fcDrawMainChart` 내 `_wigStroke`(현재 1043행 부근)
+- Modify: `forge-draw.js` — `_predWigVal`(현재 73~78행 부근), `_predLineFade`/`_PRED_T0`/`_PRED_T1` 삭제(38~39행 부근), `_strokePredLine`·`_predConfSeq` 신설, `fcDrawMainChart` 내 `_wigStroke`(현재 1043행 부근), `drawEvidence` 내 2차 예측선 블록(현재 2996~3001행 부근)
 - Test: `backtest/verify-pred-terrain.js` (케이스 추가)
 
 **Interfaces:**
 - Consumes: Task 1의 `_predZ` / `_predConf` / `_predHorizonK`
 - Produces:
-  - `_predWigVal(center, loK, hiK, wv, conf) -> number` — **시그니처 변경**(기존 `(k, futW, center, loK, hiK, wv)`). `k`/`futW` 제거, 마지막에 `conf` 추가. `conf` 가 `null`/`undefined` 면 1로 취급
-  - `_wigStroke(vals, rgb, dash, lw, sd)` — 시그니처 불변, 내부 동작만 교체(가로 그라데이션 1회 stroke → 봉별 세그먼트 stroke + 지평 이후 점묘)
+  - `_predWigVal(center, loK, hiK, wv, conf) -> number` — **시그니처 변경**(기존 `(k, futW, center, loK, hiK, wv)`). `k`/`futW` 제거, 마지막에 `conf` 추가. `conf` 가 `null`/`undefined`/비유한이면 1로 취급
+  - `_predConfSeq(centerArr, hiArr, anchor) -> { conf: number[], kEnd: number }` — 봉별 신뢰도 배열과 실선/점묘 경계 index(지평 없으면 `centerArr.length`)
+  - `_strokePredLine(c, opts)` — `opts = { n, x0, y0, xAt(k), yAt(k), conf, kEnd, rgb, dash, lw }`. 반환값 없음
+  - `_wigStroke(vals, rgb, dash, lw, sd)` — 시그니처 불변, 내부만 헬퍼 위임
+
+> **1·2·3차를 한 Task로 묶는 이유:** `_predWigVal` 시그니처를 바꾸면 세 호출부가 동시에 바뀌어야 한다. 나눠 커밋하면 중간 커밋에서 2차 예측선이 잘못된 인자로 그려진다.
 
 - [ ] **Step 1: 검증 케이스를 추가한다 (실패하는 테스트)**
 
-`backtest/verify-pred-terrain.js` 의 `console.log("\n" + pass ...)` 줄 **바로 위**에 삽입 (그리고 파일 상단 `setup` 배열의 `grabFn("_predPCal"),` 다음 줄에 `grabFn("_predWigVal"),` 를 추가하고, `harness` 의 `return {...}` 에 `_predWigVal` 를 추가한다):
+`backtest/verify-pred-terrain.js` 의 `setup` 배열과 `harness` return 을 다음으로 교체:
+
+```js
+const setup = [
+  grabConstLine("_Z_HORIZON"),
+  grabFn("_predZ"),
+  grabFn("_predConf"),
+  grabFn("_predHorizonK"),
+  grabFn("_predPCal"),
+  grabFn("_predWigVal"),
+  grabFn("_predConfSeq"),
+].join("\n");
+
+const harness = new Function("stub", `
+  const _upProb = stub._upProb, ForgeCore = stub.ForgeCore;
+  ${setup}
+  return { _predZ, _predConf, _predHorizonK, _predPCal, _predWigVal, _predConfSeq, _Z_LO, _Z_HI, _Z_HORIZON };
+`);
+```
+
+그리고 마지막 `console.log("\n" + pass ...)` 줄 **바로 위**에 삽입:
 
 ```js
 /* ── 5. _predWigVal (conf 전환) ── */
@@ -302,31 +326,29 @@ ok("wigVal: 밴드 밖으로 절대 나가지 않음(하드 클램프)", () => {
 ok("wigVal: 시그니처에서 k/futW가 제거됐다(옛 호출 잔존 방지)", () => {
   assert.strictEqual(K._predWigVal.length, 5, "인자 수=" + K._predWigVal.length);
 });
-```
 
-`grabFn`/`harness` 수정본:
-
-```js
-const setup = [
-  grabConstLine("_Z_HORIZON"),
-  grabFn("_predZ"),
-  grabFn("_predConf"),
-  grabFn("_predHorizonK"),
-  grabFn("_predPCal"),
-  grabFn("_predWigVal"),
-].join("\n");
-
-const harness = new Function("stub", `
-  const _upProb = stub._upProb, ForgeCore = stub.ForgeCore;
-  ${setup}
-  return { _predZ, _predConf, _predHorizonK, _predPCal, _predWigVal, _Z_LO, _Z_HI, _Z_HORIZON };
-`);
+/* ── 6. _predConfSeq ── */
+ok("confSeq: conf 길이 = center 길이, 전부 0..1", () => {
+  const r = K._predConfSeq([102, 104, 105], [103, 108, 118], 100);
+  assert.strictEqual(r.conf.length, 3);
+  for (const v of r.conf) assert.ok(v >= 0 && v <= 1, "v=" + v);
+});
+ok("confSeq: 지평이 있으면 kEnd = 그 index", () => {
+  const center = [102, 104, 105, 106, 106], hi = [103, 108, 118, 130, 145];
+  const r = K._predConfSeq(center, hi, 100);
+  assert.strictEqual(r.kEnd, K._predHorizonK(center, hi, 100));
+  assert.ok(r.kEnd < center.length, "kEnd=" + r.kEnd);
+});
+ok("confSeq: 지평이 없으면 kEnd = 전체 길이(점묘 구간 없음)", () => {
+  const center = [110, 120, 130], hi = [111, 121, 131];
+  assert.strictEqual(K._predConfSeq(center, hi, 100).kEnd, 3);
+});
 ```
 
 - [ ] **Step 2: 실행해서 실패를 확인한다**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js`
-Expected: FAIL — `wigVal: conf=0 이면 꿈틀 없음` 에서 `AssertionError` (현행 `_predWigVal`은 5번째 인자를 `wv`로 해석)
+Expected: FAIL — `Error: 함수를 찾지 못함: _predConfSeq`
 
 - [ ] **Step 3: `_predWigVal` 을 교체한다**
 
@@ -352,7 +374,44 @@ Expected: FAIL — `wigVal: conf=0 이면 꿈틀 없음` 에서 `AssertionError`
   }
 ```
 
-- [ ] **Step 4: `_wigStroke` 을 재작성한다**
+- [ ] **Step 4: 공용 스트로크 헬퍼를 신설한다**
+
+방금 교체한 `_predWigVal` **바로 아래**에 삽입:
+
+```js
+  // 봉별 신뢰도 배열 + 실선/점묘 경계. 1·2·3차가 같은 계산을 쓰도록 한 곳에 둔다.
+  function _predConfSeq(center, hi, anchor) {
+    const n = center.length, cf = new Array(n);
+    for (let k = 0; k < n; k++) cf[k] = _predConf(_predZ(center[k], hi[k], anchor));
+    const kh = _predHorizonK(center, hi, anchor);
+    return { conf: cf, kEnd: (kh == null) ? n : kh };
+  }
+  // 예측선 공통 스트로크: 신뢰 구간은 봉별 알파·굵기 세그먼트 실선, 신뢰 지평 이후는 점묘.
+  // 점묘는 '연결된 경로'라는 주장 자체를 철회하는 표현이므로 1·2·3차가 반드시 같은 규칙을 공유해야 한다.
+  // 좌표 변환·클램프는 호출부마다 다르므로 xAt/yAt 콜백으로 주입받는다.
+  function _strokePredLine(c, o) {
+    const n = o.n; if (!(n > 0)) return;
+    c.save(); c.lineJoin = "round"; c.lineCap = "round";
+    let x0 = o.x0, y0 = o.y0;
+    for (let k = 0; k < o.kEnd; k++) {
+      const x1 = o.xAt(k), y1 = o.yAt(k); if (!isFinite(x1) || !isFinite(y1)) continue;
+      c.strokeStyle = "rgba(" + o.rgb + "," + (0.25 + 0.75 * o.conf[k]).toFixed(3) + ")";
+      c.lineWidth = o.lw * (0.55 + 0.45 * o.conf[k]);
+      if (o.dash) c.setLineDash(o.dash); else c.setLineDash([]);
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+      x0 = x1; y0 = y1;
+    }
+    c.setLineDash([]);
+    for (let k = o.kEnd; k < n; k++) {   // 지평 이후: 점만 — 사이를 잇지 않는다
+      const x1 = o.xAt(k), y1 = o.yAt(k); if (!isFinite(x1) || !isFinite(y1)) continue;
+      c.fillStyle = "rgba(" + o.rgb + "," + (0.15 + 0.35 * o.conf[k]).toFixed(3) + ")";
+      c.beginPath(); c.arc(x1, y1, 1.3, 0, 7); c.fill();
+    }
+    c.restore();
+  }
+```
+
+- [ ] **Step 5: `_wigStroke`(1·3차)을 헬퍼 위임으로 재작성한다**
 
 `fcDrawMainChart` 안의 다음 블록을
 
@@ -371,68 +430,22 @@ Expected: FAIL — `wigVal: conf=0 이면 꿈틀 없음` 에서 `AssertionError`
 이것으로 교체:
 
 ```js
-      // 신뢰 구간은 봉별 알파·굵기 세그먼트 실선, 신뢰 지평 이후는 점묘 — '연결된 경로'라는 주장 자체를 철회한다.
       const _wigStroke = (vals, rgb, dash, lw, sd) => {
         const n = vals.length; if (!n) return;
         const seq = _predWigSeqSR(n, vals, lo, hi, _levels, _tex, sd);   // 계산된 꿈틀(S/R 반응 + AR 결)
-        const cf = new Array(n);
-        for (let k = 0; k < n; k++) cf[k] = _predConf(_predZ(vals[k], hi[k], anchor));
-        const kEnd = (() => { const kh = _predHorizonK(vals, hi, anchor); return kh == null ? n : kh; })();
-        const py = k => _cy(toY(_predWigVal(vals[k], lo[k], hi[k], seq[k], cf[k])));
-        c.save(); c.lineJoin = "round"; c.lineCap = "round";
-        let x0 = seamX, y0 = _cy(toY(anchor));
-        for (let k = 0; k < kEnd; k++) {
-          const x1 = toXf(k), y1 = py(k); if (!isFinite(x1) || !isFinite(y1)) continue;
-          c.strokeStyle = "rgba(" + rgb + "," + (0.25 + 0.75 * cf[k]).toFixed(3) + ")";
-          c.lineWidth = lw * (0.55 + 0.45 * cf[k]);
-          if (dash) c.setLineDash(dash); else c.setLineDash([]);
-          c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
-          x0 = x1; y0 = y1;
-        }
-        c.setLineDash([]);
-        for (let k = kEnd; k < n; k++) {   // 지평 이후: 점만 — 사이를 잇지 않는다
-          const x1 = toXf(k), y1 = py(k); if (!isFinite(x1) || !isFinite(y1)) continue;
-          c.fillStyle = "rgba(" + rgb + "," + (0.15 + 0.35 * cf[k]).toFixed(3) + ")";
-          c.beginPath(); c.arc(x1, y1, 1.3, 0, 7); c.fill();
-        }
-        c.restore();
+        const cs = _predConfSeq(vals, hi, anchor);
+        _strokePredLine(c, {
+          n: n, x0: seamX, y0: _cy(toY(anchor)),
+          xAt: k => toXf(k),
+          yAt: k => _cy(toY(_predWigVal(vals[k], lo[k], hi[k], seq[k], cs.conf[k]))),
+          conf: cs.conf, kEnd: cs.kEnd, rgb: rgb, dash: dash, lw: lw
+        });
       };
 ```
 
-- [ ] **Step 5: 검증과 엔진 회귀를 실행한다**
+- [ ] **Step 6: 2차 예측선을 같은 헬퍼로 교체한다**
 
-Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `21/21 통과` 그리고 `# pass 246` / `# fail 0`
-
-- [ ] **Step 6: 옛 호출 잔존이 없는지 확인한다**
-
-Run: `cd /home/jschoi0223/projects/vdiportal/map && grep -n "_predWigVal(" forge-draw.js`
-Expected: 3곳 — 정의 1곳, `_wigStroke` 내부 1곳, `drawEvidence` 2차 블록 1곳(**Task 3에서 고칠 예정이라 아직 옛 6인자 형태**)
-
-- [ ] **Step 7: 커밋**
-
-```bash
-cd /home/jschoi0223/projects/vdiportal/map
-git add forge-draw.js backtest/verify-pred-terrain.js
-git commit -m "feat(forge): 예측선 해체 — conf 기반 세그먼트 스트로크 + 신뢰지평 이후 점묘(1·3차)
-
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
-```
-
----
-
-### Task 3: 2차 예측선에 동일 규칙 적용 (drawEvidence)
-
-**Files:**
-- Modify: `forge-draw.js` — `drawEvidence` 내 "2차 예측선(표시중 지표 조합)" 블록(현재 2984~3007행 부근)
-
-**Interfaces:**
-- Consumes: Task 1 커널, Task 2의 `_predWigVal(center, loK, hiK, wv, conf)`
-- Produces: 없음(내부 렌더링만)
-
-- [ ] **Step 1: 2차 스트로크 블록을 교체한다**
-
-`forge-draw.js` 의 다음 3줄을
+`drawEvidence` 의 "2차 예측선(표시중 지표 조합)" 블록에서 다음 6줄을
 
 ```js
             c.save(); c.lineWidth = 3.2; c.setLineDash([9, 4]); c.lineJoin = "round"; c.lineCap = "round";
@@ -443,73 +456,67 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
             c.stroke(); c.setLineDash([]); c.restore();
 ```
 
-이것으로 교체 (1차·3차와 같은 세그먼트+점묘 규칙):
+이것으로 교체:
 
 ```js
-            const _cf2 = new Array(_pl);
-            for (let k = 0; k < _pl; k++) _cf2[k] = _predConf(_predZ(p2.path[k], _2hi[k], g.anchor));
-            const _kh2 = _predHorizonK(p2.path, _2hi, g.anchor), _kEnd2 = (_kh2 == null) ? _pl : _kh2;
-            const _py2 = k => _cy2(toY(_predWigVal(p2.path[k], _2lo[k], _2hi[k], _seq2[k], _cf2[k])));
-            c.save(); c.lineJoin = "round"; c.lineCap = "round";
-            let _x0 = _sx, _y0 = _cy2(toY(g.anchor));
-            for (let k = 0; k < _kEnd2; k++) {
-              const x = _t2x(k), y = _py2(k); if (!isFinite(x) || !isFinite(y)) continue;
-              c.strokeStyle = "rgba(77,208,255," + (0.25 + 0.75 * _cf2[k]).toFixed(3) + ")";
-              c.lineWidth = 3.2 * (0.55 + 0.45 * _cf2[k]); c.setLineDash([9, 4]);
-              c.beginPath(); c.moveTo(_x0, _y0); c.lineTo(x, y); c.stroke();
-              _x0 = x; _y0 = y;
-            }
-            c.setLineDash([]);
-            for (let k = _kEnd2; k < _pl; k++) {   // 지평 이후: 점묘
-              const x = _t2x(k), y = _py2(k); if (!isFinite(x) || !isFinite(y)) continue;
-              c.fillStyle = "rgba(77,208,255," + (0.15 + 0.35 * _cf2[k]).toFixed(3) + ")";
-              c.beginPath(); c.arc(x, y, 1.3, 0, 7); c.fill();
-            }
-            c.restore();
+            const _cs2 = _predConfSeq(p2.path, _2hi, g.anchor);
+            _strokePredLine(c, {
+              n: _pl, x0: _sx, y0: _cy2(toY(g.anchor)),
+              xAt: k => _t2x(k),
+              yAt: k => _cy2(toY(_predWigVal(p2.path[k], _2lo[k], _2hi[k], _seq2[k], _cs2.conf[k]))),
+              conf: _cs2.conf, kEnd: _cs2.kEnd, rgb: "77,208,255", dash: [9, 4], lw: 3.2
+            });
 ```
 
-- [ ] **Step 2: `_predLineFade` 잔존 참조를 확인하고 삭제한다**
+- [ ] **Step 7: `_predLineFade` 를 삭제한다**
 
-Run: `cd /home/jschoi0223/projects/vdiportal/map && grep -n "_predLineFade\|_PRED_T0\|_PRED_T1" forge-draw.js`
-Expected: 정의 줄 2개만 남음(호출 0)
+Run: `cd /home/jschoi0223/projects/vdiportal/map && grep -n "_predLineFade" forge-draw.js`
+Expected: 정의 줄 1개만 남음(호출 0)
 
-정의 줄에서 `_predLineFade` 함수 전체와 `_PRED_T0`/`_PRED_T1` 를 삭제한다. 즉
+`forge-draw.js` 의 다음 2줄을
 
 ```js
   const _PRED_T0 = 0.15, _PRED_T1 = 0.75, _PRED_C0 = 0.10, _PRED_C1 = 0.70;   // 크로스페이드 상수(선 페이드아웃 / 구름 페이드인)
   function _predLineFade(t) { return Math.max(0, Math.min(1, 1 - (t - _PRED_T0) / (_PRED_T1 - _PRED_T0))); }   // 선 불투명·꿈틀 진폭: 근거리1→원거리0
 ```
 
-를 이것으로 축약:
+이 1줄로 축약:
 
 ```js
   const _PRED_C0 = 0.10, _PRED_C1 = 0.70;   // 분위수 팬 페이드인 구간(근거리 0 → 원거리 1)
 ```
 
-- [ ] **Step 3: 잔존 참조 0을 재확인한다**
+- [ ] **Step 8: 잔존 참조·옛 호출이 0인지 확인한다**
 
-Run: `cd /home/jschoi0223/projects/vdiportal/map && grep -c "_predLineFade" forge-draw.js || echo "0건 — 정상"`
-Expected: `0건 — 정상`
+Run:
+```bash
+cd /home/jschoi0223/projects/vdiportal/map
+grep -c "_predLineFade" forge-draw.js || echo "_predLineFade 0건 — 정상"
+grep -n "_predWigVal(k, " forge-draw.js || echo "옛 6인자 호출 0건 — 정상"
+grep -c "_predWigVal(" forge-draw.js
+```
+Expected: `_predLineFade 0건 — 정상` / `옛 6인자 호출 0건 — 정상` / `_predWigVal(` 는 3건(정의 1 + 1·3차 1 + 2차 1)
 
-- [ ] **Step 4: 옛 6인자 호출이 모두 사라졌는지 확인한다**
+- [ ] **Step 9: 검증·구문·회귀 실행**
 
-Run: `cd /home/jschoi0223/projects/vdiportal/map && grep -n "_predWigVal(k, " forge-draw.js || echo "옛 호출 0건 — 정상"`
-Expected: `옛 호출 0건 — 정상`
+Run: `cd /home/jschoi0223/projects/vdiportal/map && node -e 'new Function(require("fs").readFileSync("forge-draw.js","utf8"));console.log("구문 OK")' && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
+Expected: `구문 OK` / `24/24 통과` / `# pass 246` / `# fail 0`
 
-- [ ] **Step 5: 검증·회귀 실행**
-
-Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `21/21 통과` / `# pass 246` / `# fail 0`
-
-- [ ] **Step 6: 커밋**
+- [ ] **Step 10: 커밋**
 
 ```bash
 cd /home/jschoi0223/projects/vdiportal/map
-git add forge-draw.js
-git commit -m "feat(forge): 2차 예측선도 conf 세그먼트+점묘로 통일, _predLineFade 제거
+git add forge-draw.js backtest/verify-pred-terrain.js
+git commit -m "feat(forge): 예측선 해체 — conf 세그먼트 스트로크 + 신뢰지평 이후 점묘(1·2·3차 공용 헬퍼)
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
+
+---
+
+### Task 3: (Task 2 에 병합됨 — 실행하지 않음)
+
+2차 예측선의 conf 전환·점묘 적용은 Task 2 Step 6 에서 공용 헬퍼 `_strokePredLine` 로 함께 처리한다. `_predWigVal` 시그니처를 바꾸는 순간 세 호출부가 동시에 바뀌어야 하므로 분리 커밋이 불가능하다.
 
 ---
 
@@ -629,7 +636,7 @@ Expected: `0건 — 정상`
 - [ ] **Step 7: 검증·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `25/25 통과` / `# pass 246` / `# fail 0`
+Expected: `28/28 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 8: 커밋**
 
@@ -719,7 +726,7 @@ Expected: `호출 배선 OK` / `구문 OK`
 - [ ] **Step 4: 검증·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `25/25 통과` / `# pass 246` / `# fail 0`
+Expected: `28/28 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 5: 커밋**
 
@@ -785,7 +792,7 @@ Expected: `구문 OK · 배지 OK`
 - [ ] **Step 3: 검증·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `25/25 통과` / `# pass 246` / `# fail 0`
+Expected: `28/28 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 4: 커밋**
 
@@ -887,7 +894,7 @@ Expected: `죽은 변수 0건 — 정상`
 - [ ] **Step 6: 검증·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node -e 'new Function(require("fs").readFileSync("forge-draw.js","utf8"));console.log("구문 OK")' && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `구문 OK` / `25/25 통과` / `# pass 246` / `# fail 0`
+Expected: `구문 OK` / `28/28 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 7: 커밋**
 
@@ -947,7 +954,7 @@ Expected: `범례 6항목 · _predVis 6키 OK`
 - [ ] **Step 3: 검증·회귀 실행**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3`
-Expected: `25/25 통과` / `# pass 246` / `# fail 0`
+Expected: `28/28 통과` / `# pass 246` / `# fail 0`
 
 - [ ] **Step 4: 커밋**
 
@@ -1024,7 +1031,7 @@ pkill -f "http.server 8123" || true
 - [ ] **Step 7: 최종 회귀를 실행한다**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && node backtest/verify-pred-terrain.js && node --test forge-core.test.js 2>&1 | tail -3 && git status --short`
-Expected: `25/25 통과` / `# pass 246` / `# fail 0` / 변경 파일은 `forge.html` `docs/BACKLOG.md` 만 남음
+Expected: `28/28 통과` / `# pass 246` / `# fail 0` / 변경 파일은 `forge.html` `docs/BACKLOG.md` 만 남음
 
 - [ ] **Step 8: 커밋 · push · 배포 (한 세트)**
 
@@ -1063,24 +1070,29 @@ Expected: `1` 이상 (0이면 업로드 실패)
 | §1 z / conf / Z 상수 | Task 1 (`_predZ`·`_predConf`·`_Z_*`) |
 | §2 A 분위수 팬 + 구름 삭제 | Task 4 |
 | §2 B 확률 감쇠 레일 | Task 5 |
-| §2 C 선 해체(conf·세그먼트·점묘) | Task 2(1·3차) · Task 3(2차) |
+| §2 C 선 해체(conf·세그먼트·점묘) | Task 2 (1·2·3차, 공용 헬퍼 `_strokePredLine`) |
 | §2 D 신뢰 지평선 + 배지 | Task 6 |
 | §2 E 끝점 라벨 개정 | Task 7 |
 | §2 F 범례 fan/rail + 툴팁 | Task 8 |
-| 테스트 1~6 | Task 1(1·3·4) · Task 2(2 conf) · Task 4(5 분위수) · Task 9 Step 3(6 전 항목 off 회귀) |
+| 테스트 1~6 | Task 1(1·3·4) · Task 2(2 conf·confSeq) · Task 4(5 분위수) · Task 9 Step 3(6 전 항목 off 회귀) |
 | 헤드리스 시각 검증 | Task 9 Step 2 |
 | 커밋+배포 한 세트 | Task 9 Step 8 |
 
 갭 없음.
 
-**2. 스펙과의 의도적 편차 2건**
+**2. 실행 전 사전점검 반영 2건(사용자 승인)**
+- Task 2/3 분리 시 중간 커밋에서 2차 예측선이 옛 시그니처로 호출돼 깨진다 → **Task 2·3 병합**(Task 3은 실행하지 않는 병합 표시로 남김).
+- 2차 스트로크가 `_wigStroke` 로직의 verbatim 복제였다 → **공용 헬퍼 `_strokePredLine` + `_predConfSeq` 추출**, 1·2·3차 공유.
+
+**3. 스펙과의 의도적 편차 3건**
 - 스펙 §2 E는 "`_epicenterMark` 알파를 낮춘다"이나, 실제 시그니처의 5번째 인자는 **scale**(알파 아님). → scale 0.6 으로 구현(Task 7 Step 3에 명시).
 - 스펙 §2 A는 팬 라벨에 `_evLabel` 회피 레지스트리 사용을 언급했으나, `_evLabelBoxes` 는 이후 `drawEvidence` 에서 리셋되어 무의미하다. → 붐비는 우측 끝을 피해 콘 span 72% 지점에 배치하는 방식으로 대체(Task 4 Step 3에 명시).
 - 스펙이 `forge.css` 를 대상 파일로 들었으나 기존 `.fc-leg-sw.sq` 클래스로 충분 → **CSS 변경 없음**(File Structure에 명시).
 
-**3. 타입·이름 일관성**
-- `_predWigVal(center, loK, hiK, wv, conf)` — Task 2 정의, Task 2 `_wigStroke`·Task 3 2차 블록에서 동일 5인자로 호출. ✓
+**4. 타입·이름 일관성**
+- `_predWigVal(center, loK, hiK, wv, conf)` — Task 2 정의, `_wigStroke`·2차 블록에서 동일 5인자로 호출. ✓
 - `_predPCal(centerArr, hiArr, anchor, k)` — Task 1 정의, Task 5·7에서 동일 4인자 호출. ✓
-- `_predHorizonK(centerArr, hiArr, anchor)` — Task 1 정의, Task 2·3·6에서 동일 3인자. ✓
+- `_predHorizonK(centerArr, hiArr, anchor)` — Task 1 정의, Task 2(`_predConfSeq`)·Task 6에서 동일 3인자. ✓
 - `_predVis` 6키 — Task 4에서 한 번에 선언, Task 5(`rail`)·Task 8(범례) 참조. ✓
-- 검증 스크립트 누적 케이스 수: Task 1 = 16, Task 2 = +5 → 21, Task 4 = +4 → 25. 각 Task의 Expected 수치와 일치. ✓
+- `_strokePredLine(c, {n,x0,y0,xAt,yAt,conf,kEnd,rgb,dash,lw})` — Task 2 정의, 1·3차(`_wigStroke`)·2차 블록에서 동일 opts 형태로 호출. ✓
+- 검증 스크립트 누적 케이스 수: Task 1 = 16, Task 2 = +8 → 24, Task 4 = +4 → 28. 각 Task의 Expected 수치와 일치. ✓
