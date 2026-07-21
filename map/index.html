@@ -23,14 +23,19 @@
     --tint:#efe9dd; --footer-bg:#ece4d3; --border:#e4dfd3; --border-2:#d8d1c1;
     /* muted-2/muted-3는 원래 값이 라이트 테마에서 AA(4.5:1) 미달이라 실측 후 어둡게 재조정함 — footerBg(가장 어두운 표면) 기준 각 5.33:1 / 4.56:1 확보. --muted는 원래도 통과(≥5.9:1)라 유지 */
     --text:#2a2620; --muted:#5a5449; --muted-2:#615b4f; --muted-3:#6b655c;
-    --accent:#1f6feb; --accent-strong:#1a5cc4; --on-accent:#fff;
+    /* accent/accent-strong 라이트값은 원래 각 4.14~4.44:1로 AA(4.5:1) 미달 실측 —
+       구 accent-strong(1a5cc4)을 accent로 승격하고 accent-strong을 한 단계 더 어둡게 재조정.
+       텍스트 색으로 쓰이는 4곳(kpi-v/sec-eyebrow/vitem-v/step-n/lnk) 전부 재실측 통과(≥4.5:1, kpi-v는 큰 텍스트라 3:1) */
+    --accent:#1a5cc4; --accent-strong:#1552b0; --on-accent:#fff;
     --caveat:#7a4f14; --caveat-bg:#f6e8cf; --caveat-border:#dcb877;
   }
   [data-theme=dark]{
     --bg:#0f0d0a; --bg-hi:#151109; --surface:#16130e; --surface-2:#1c1913;
     --tint:#100e0a; --footer-bg:#0c0a07; --border:#26221b; --border-2:#332e24;
     --text:#f4f2ec; --muted:#b8b0a0; --muted-2:#a49c8c; --muted-3:#8f8878;
-    --accent:#3b82f6; --accent-strong:#60a5fa; --on-accent:#fff;
+    /* accent(텍스트용, --bg 위 5.28:1)는 그대로 두고 on-accent만 어둡게 —
+       기존 흰 on-accent는 다크 accent/accent-strong 배경 위에서 3.68:1·2.54:1로 AA 미달이었음(실측) */
+    --accent:#3b82f6; --accent-strong:#60a5fa; --on-accent:#0b0f14;
     --caveat:#e3b573; --caveat-bg:#2b2013; --caveat-border:#4d3c22;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -46,6 +51,8 @@
     transition:background .3s ease,color .3s ease;
   }
   a{color:inherit;text-decoration:none}
+  /* UA 기본 포커스 링이 다크 테마 파란 배경 위에서 거의 안 보여 전역으로 재정의 */
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
 
   .site-header{position:sticky;top:0;z-index:50;background:var(--bg);background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
@@ -121,6 +128,8 @@
   .vcol{border:1px solid var(--border);border-radius:var(--r-lg);padding:24px 22px;background:var(--bg)}
   .vcol-h{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:800;padding-bottom:14px;border-bottom:1px solid var(--border)}
   .vcol.cant .vcol-h{color:var(--muted-2)}
+  /* "63~65%" 같은 수치가 방향성 확률로 오독되는 것을 막는 1회성 고지 — 히어로 KPI에도 동일 문구 있음 */
+  .vcol-note{margin-top:10px;font-size:12px;color:var(--muted-3);line-height:1.6}
   .vitem{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
   .vitem:last-child{border-bottom:0;padding-bottom:0}
   .vitem-k{font-size:13.5px;color:var(--text)}
@@ -184,12 +193,14 @@
     .hero-cta .btn,.cta-btns .btn{width:100%;justify-content:center}
   }
 </style>
+<!-- JS 꺼지면 data-theme가 확정되지 않아 아이콘 스왑 규칙이 둘 다 안 먹힘(해·달 중첩) + 버튼이 아무 동작도 안 함 -->
+<noscript><style>#themeToggle,#mqToggle{display:none}</style></noscript>
 </head>
 <body>
 
 <header class="site-header">
   <div class="wrap hd">
-    <a class="hd-brand" href="#top"><span data-brand>나루</span></a>
+    <a class="hd-brand" href="#top"><span data-brand></span></a>
     <nav class="hd-nav">
       <a href="#how">작동 방식</a>
       <a href="forge-scorecard.html">검증 성적</a>
@@ -236,7 +247,7 @@
   <div class="wrap">
     <h1 class="hero-h1">우리는 방향을 맞힌다고<br>말하지 않습니다.</h1>
     <p class="hero-lede">
-      상승·하락 예측은 시장 기준선을 넘지 못합니다 — 저희도, 다른 어느 기술적 분석도.
+      상승·하락 예측은 시장 기준선을 넘지 못합니다 — 저희도, 대부분의 기술적 분석과 마찬가지로.
       대신 <em>얼마나 움직일지</em>는 맞힙니다. 변동폭·낙폭·급변 확률은 검증을 통과했습니다.
     </p>
     <div class="hero-cta">
@@ -252,7 +263,7 @@
       <div class="kpi">
         <div class="kpi-v">67~69<span class="kpi-unit">%</span></div>
         <div class="kpi-k">낙폭 위험</div>
-        <div class="kpi-n">1 · 2 · 3개월 지평</div>
+        <div class="kpi-n">1 · 2 · 3개월 지평 · 예측 정확도</div>
       </div>
       <div class="kpi">
         <div class="kpi-v">1.9<span class="kpi-unit">%p</span></div>
@@ -260,7 +271,7 @@
         <div class="kpi-n">표기 60% = 실제 60%</div>
       </div>
     </div>
-    <p class="hero-scale">20년(2006~2026) · 54종 · 93k시점 walk-forward 검증 — 각 시점에서 과거 데이터만 사용</p>
+    <p class="hero-scale">대부분 20년(2006~2026, 암호화폐 2018~ · 국내 2024~ 포함) · 54종 · 93k시점 walk-forward 검증 — 각 시점에서 과거 데이터만 사용</p>
   </div>
 </section>
 
@@ -302,7 +313,7 @@
 
 <section class="sec sec-alt verdict" id="verified">
   <div class="wrap">
-    <div class="sec-eyebrow">What it can · can't</div>
+    <div class="sec-eyebrow">가능한 것 · 불가능한 것</div>
     <h2 class="sec-h2">맞히는 것과<br>못 맞히는 것을 나눠 적습니다.</h2>
     <p class="sec-lede">
       기술적 분석 도구 대부분이 "맞힌다"고만 말합니다.
@@ -310,18 +321,19 @@
     </p>
 
     <div class="vgrid">
-      <div class="vcol can">
+      <div class="vcol">
         <div class="vcol-h">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
           검증을 통과한 것
         </div>
-        <div class="vitem"><span class="vitem-k">변동성 예보<small>2주 · 1달 · 2달 확대/축소</small></span><span class="vitem-v">69.0%</span></div>
-        <div class="vitem"><span class="vitem-k">낙폭 위험곡선<small>1 · 2 · 3개월</small></span><span class="vitem-v">67~69%</span></div>
-        <div class="vitem"><span class="vitem-k">이익목표 도달<small>같은 문턱 상방 확률</small></span><span class="vitem-v">63~65%</span></div>
-        <div class="vitem"><span class="vitem-k">급변 경보<small>2주 2σ · 1달 2.5σ · 2달 3σ</small></span><span class="vitem-v">65%</span></div>
+        <p class="vcol-note">아래 수치는 방향성 확률이 아니라, 도달·확대 여부를 맞힌 이진 예측 정확도입니다.</p>
+        <div class="vitem"><span class="vitem-k">변동성 예보<small>2주 · 1달 · 2달 확대/축소 · 지속성 41.7% · 다수결 50.9%</small></span><span class="vitem-v">69.0%</span></div>
+        <div class="vitem"><span class="vitem-k">낙폭 위험곡선<small>1 · 2 · 3개월 · 지속성 61% · 다수결 65%</small></span><span class="vitem-v">67~69%</span></div>
+        <div class="vitem"><span class="vitem-k">이익목표 도달<small>같은 문턱 상방 확률 · 지속성 57% · 다수결 55%</small></span><span class="vitem-v">63~65%</span></div>
+        <div class="vitem"><span class="vitem-k">급변 경보<small>2주 2σ · 1달 2.5σ · 2달 3σ · 다수결 55.8%</small></span><span class="vitem-v">65%</span></div>
         <div class="vitem"><span class="vitem-k">갭 경보<small>주식 · 2.2 / 2.7 / 3.2σ</small></span><span class="vitem-v">63%</span></div>
         <div class="vitem"><span class="vitem-k">확률 캘리브레이션<small>OOS ECE — 표기 60% = 실제 60%</small></span><span class="vitem-v">1.9%p</span></div>
-        <div class="vitem"><span class="vitem-k">지지반등 진입 신호<small>횡보장 · 하락추세 배제</small></span><span class="vitem-v">53~56%</span></div>
+        <div class="vitem"><span class="vitem-k">지지반등 진입 신호<small>횡보장 · 하락추세 배제 · 무작위 진입 대비(반대 숏 신호는 기각)</small></span><span class="vitem-v">53~56%</span></div>
       </div>
 
       <div class="vcol cant">
@@ -347,7 +359,7 @@
 
 <section class="sec how" id="how">
   <div class="wrap">
-    <div class="sec-eyebrow">How it works</div>
+    <div class="sec-eyebrow">작동 방식</div>
     <h2 class="sec-h2">3단계면 충분합니다.</h2>
     <div class="steps">
       <div>
@@ -369,9 +381,9 @@
   </div>
 </section>
 
-<section class="sec sec-alt method">
+<section class="sec sec-alt method" id="methodology">
   <div class="wrap">
-    <div class="sec-eyebrow">Methodology</div>
+    <div class="sec-eyebrow">검증 방법론</div>
     <h2 class="sec-h2">성적표를 먼저 보여드립니다.</h2>
     <p class="sec-lede">통한 것도, 안 통한 것도 전부 남깁니다. 안 통한 실험도 "여긴 길이 아니다"를 알려주는 자산입니다.</p>
     <div class="mcards">
@@ -394,7 +406,7 @@
 
 <section class="sec cta">
   <div class="wrap">
-    <div class="sec-eyebrow">Get started</div>
+    <div class="sec-eyebrow">시작하기</div>
     <h2 class="sec-h2">지금, 데이터로 판단을 시작하세요.</h2>
     <p class="sec-lede">현재 전체 베타 기간으로 모든 기능을 무료로 쓸 수 있습니다.</p>
     <div class="cta-btns">
@@ -411,7 +423,7 @@
   <div class="wrap">
     <div class="ft-top">
       <div>
-        <div class="ft-brand" data-brand>나루</div>
+        <div class="ft-brand" data-brand></div>
         <p class="ft-desc">머니스쿱 리서치팀이 만든 기술적 분석 엔진. 검증을 통과한 것만 수치로 보여줍니다.</p>
       </div>
       <div class="ft-nav">
@@ -427,8 +439,10 @@
       </div>
     </div>
     <p class="ft-disc">
-      <b>투자 유의 안내</b> — <span data-brand>나루</span>는 기술적 분석 정보를 제공하는 참고용 도구입니다.
-      모든 분석·확률·신호·목표가는 과거 데이터 기반 산출물로 미래 수익을 보장하지 않으며,
+      <b>투자 유의 안내</b> — <span data-brand></span>는 기술적 분석 정보를 제공하는 <b>참고용 도구</b>입니다.
+      화면의 모든 분석·확률·신호·목표가는 과거 데이터 기반 산출물로 <b>미래 수익을 보장하지 않습니다</b>.
+      본 서비스는 특정 종목의 매수·매도를 권유하거나 투자를 자문하지 않으며, 자본시장법상 투자자문업·투자일임업으로
+      <b>등록된 서비스가 아닙니다</b>. 모든 투자에는 <b>원금 손실의 위험</b>이 있고,
       투자 판단과 그 결과의 책임은 이용자 본인에게 있습니다.
     </p>
     <p class="ft-copy">© 2026 머니스쿱</p>
