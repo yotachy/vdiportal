@@ -74,6 +74,19 @@
     .mq{animation:none}
     .mq-toggle{display:none}
   }
+
+  .hero{padding:88px 0 76px;background:linear-gradient(180deg,var(--bg-hi),var(--bg))}
+  .hero-h1{font-size:52px;font-weight:800;letter-spacing:-.035em;line-height:1.16;max-width:720px}
+  .hero-lede{margin-top:22px;font-size:17px;color:var(--muted);max-width:600px;line-height:1.75}
+  .hero-lede em{font-style:normal;color:var(--text);font-weight:700}
+  .hero-cta{display:flex;gap:11px;margin-top:34px;flex-wrap:wrap}
+  .hero-cta .btn{padding:14px 24px;font-size:15px}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:56px;max-width:660px}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px 20px}
+  .kpi-v{font-size:34px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--accent)}
+  .kpi-k{margin-top:5px;font-size:13px;color:var(--muted);font-weight:600}
+  .kpi-n{margin-top:3px;font-size:11.5px;color:var(--muted-3)}
+  .hero-scale{margin-top:20px;font-size:12.5px;color:var(--muted-3)}
 </style>
 </head>
 <body>
@@ -120,6 +133,38 @@
     <span class="mq-item" aria-hidden="true"><b>암호화폐</b>BTC · ETH</span>
     <span class="mq-item" aria-hidden="true"><b>ETF</b>SPY · QQQ</span>
     <span class="mq-item" aria-hidden="true"><b>선물 · FX</b>USD/KRW</span>
+  </div>
+</section>
+
+<section class="hero">
+  <div class="wrap">
+    <h1 class="hero-h1">우리는 방향을 맞힌다고<br>말하지 않습니다.</h1>
+    <p class="hero-lede">
+      상승·하락 예측은 시장 기준선을 넘지 못합니다 — 저희도, 다른 어느 기술적 분석도.
+      대신 <em>얼마나 움직일지</em>는 맞힙니다. 변동폭·낙폭·급변 확률은 검증을 통과했습니다.
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="forge.html">무료로 분석 시작 →</a>
+      <a class="btn btn-ghost" href="forge-scorecard.html">검증 성적 보기</a>
+    </div>
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-v">69.0%</div>
+        <div class="kpi-k">변동성 예보</div>
+        <div class="kpi-n">단순 기준 대비 +17.5%p</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-v">67~69%</div>
+        <div class="kpi-k">낙폭 위험</div>
+        <div class="kpi-n">1 · 2 · 3개월 지평</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-v">1.9%p</div>
+        <div class="kpi-k">확률 오차</div>
+        <div class="kpi-n">표기 60% = 실제 60%</div>
+      </div>
+    </div>
+    <p class="hero-scale">20년(2006~2026) · 54종 · 93k시점 walk-forward 검증 — 각 시점에서 과거 데이터만 사용</p>
   </div>
 </section>
 

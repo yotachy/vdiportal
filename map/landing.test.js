@@ -89,4 +89,29 @@ test("테마 토글은 aria-pressed를 쓴다", () => {
   assert.match(read(), /id="themeToggle"[^>]*aria-pressed/);
 });
 
+// 시안 카피 회귀 방지 — 스코어카드와 충돌하는 문자열은 페이지 어디에도 등장 금지 (다른 태스크도 재사용)
+const BANNED = ["62%", "217", "19,000", "신용카드", "하루 5개", "상승 확률"];
+
+test("금지 카피가 어디에도 없다", () => {
+  const html = read();
+  for (const s of BANNED) {
+    assert.ok(!html.includes(s), `금지 문자열 발견: ${s}`);
+  }
+});
+
+test("히어로가 정직한 역제 서사를 편다", () => {
+  const html = read();
+  assert.ok(html.includes("방향을 맞힌다고"), "역제 헤드라인 없음");
+  assert.ok(html.includes("얼마나 움직일지"), "대안 주장 없음");
+});
+
+test("히어로 KPI가 스코어카드 실측치다", () => {
+  const html = read();
+  const hero = html.slice(html.indexOf('class="hero"'), html.indexOf("</section>", html.indexOf('class="hero"')));
+  for (const v of ["69.0%", "67~69%", "1.9%p"]) {
+    assert.ok(hero.includes(v), `KPI 누락: ${v}`);
+  }
+  assert.ok(hero.includes("93k시점"), "검증 규모 표기 없음");
+});
+
 module.exports = { FILE, read, TOKENS, blockOf, styleCss };
