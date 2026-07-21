@@ -1134,6 +1134,25 @@
       }
       if (_predVis.fan) _drawPredFan(c, path, lo, hi, seamX, coneR, toXf, toY, anchor, _rgb1);
       if (_predVis.rail) _drawPredRail(c, path, hi, anchor, seamX, coneR, toXf, padTop, _rgb1);
+      // 신뢰 지평 — 여기서부터 예측선은 점묘로 해체되며, 목표는 참고치일 뿐이다.
+      const _kH1 = _predHorizonK(path, hi, anchor);
+      if (_kH1 != null) {
+        const _hx = toXf(_kH1);
+        if (isFinite(_hx)) {
+          c.save();
+          c.strokeStyle = "rgba(138,146,178,.3)"; c.lineWidth = 1; c.setLineDash(CDASH.fine);
+          c.beginPath(); c.moveTo(_hx, padTop); c.lineTo(_hx, ch - padBot); c.stroke(); c.setLineDash([]);
+          const _by = padTop + _RAIL_H + 16;
+          c.font = "700 9.5px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
+          const _bt = "신뢰 지평", _bw = c.measureText(_bt).width + 10;
+          c.fillStyle = "rgba(11,15,20,.8)";
+          if (c.roundRect) { c.beginPath(); c.roundRect(_hx + 3, _by, _bw, 14, 3); c.fill(); } else c.fillRect(_hx + 3, _by, _bw, 14);
+          c.fillStyle = "rgba(180,188,210,.95)"; c.fillText(_bt, _hx + 8, _by + 10.5);
+          c.font = "500 9px Pretendard,'Malgun Gothic',sans-serif"; c.fillStyle = "rgba(138,146,178,.7)";
+          c.fillText("이후는 참고", _hx + 8, _by + 24);
+          c.restore();
+        }
+      }
       // 꿈틀 라인 스트로크(가로 알파 페이드) — seamX..coneR
       const _levels = pred && pred.levels, _tex = pred && pred.tex;   // 엔진 노출 S/R 레벨·AR 질감
       const _wigStroke = (vals, rgb, dash, lw, sd) => {
