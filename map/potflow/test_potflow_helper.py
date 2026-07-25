@@ -129,9 +129,16 @@ def test_player_and_ffmpeg_cmds():
     c = helper.ffmpeg_thumb_at_cmd("ffmpeg", "v.mkv", 5.0, "o.jpg")
     assert c[0] == "ffmpeg" and "v.mkv" in c and c[-1] == "o.jpg" and "-frames:v" in c
 
+# 내장 썸네일 픽스처: JPEG 매직바이트 + 500B 이상이어야 _embedded_thumb 검증을 통과한다
+JPG_B64 = "/9j/4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+
 def test_bookmark_thumb_embedded():
     # 내장 base64 있으면 그대로 data URL 로 감싼다 (ffmpeg 불필요)
-    assert helper.bookmark_thumb("v.mp4", 1000, "QUJD") == "data:image/jpeg;base64,QUJD"
+    assert helper.bookmark_thumb("v.mp4", 1000, JPG_B64) == "data:image/jpeg;base64," + JPG_B64
+
+def test_bookmark_thumb_rejects_too_small_embedded():
+    # 깨진/너무 작은 내장 데이터는 버리고 ffmpeg 로 넘어간다(여기선 ffmpeg 없어 None)
+    assert helper.bookmark_thumb("v.mp4", 1000, "QUJD") is None
 
 def test_list_bookmarks_no_pbf(tmp_path):
     vid = tmp_path / "m.mp4"; vid.write_bytes(b"x")
@@ -140,12 +147,12 @@ def test_list_bookmarks_no_pbf(tmp_path):
 
 def test_list_bookmarks_with_pbf(tmp_path):
     vid = tmp_path / "m.mp4"; vid.write_bytes(b"x")
-    (tmp_path / "m.mp4.pbf").write_text("[Bookmark]\n0=2000*씬*QUJD")
+    (tmp_path / "m.mp4.pbf").write_text("[Bookmark]\n0=2000*씬*" + JPG_B64)
     r = helper.list_bookmarks(str(vid))
     assert r["ok"] is True and len(r["bookmarks"]) == 1
     b = r["bookmarks"][0]
     assert b["ms"] == 2000 and b["title"] == "씬"
-    assert b["thumb"] == "data:image/jpeg;base64,QUJD"   # 내장 썸네일 사용(ffmpeg 없이)
+    assert b["thumb"] == "data:image/jpeg;base64," + JPG_B64   # 내장 썸네일 사용(ffmpeg 없이)
 
 def test_play_done_lifecycle():
     helper.PLAYS.clear()
@@ -256,3 +263,49 @@ def test_decode_pbf_encodings():
     assert helper._decode_pbf("[Bookmark]\n0=1*a*".encode("utf-16")).startswith("[Bookmark]")
     assert helper._decode_pbf("[Bookmark]\n0=1*a*".encode("utf-8-sig")).startswith("[Bookmark]")
     assert helper._decode_pbf(b"[Bookmark]\n0=1*a*").startswith("[Bookmark]")
+
+
+# --- 런처(start-potflow.bat) 회귀 가드 ---------------------------------------
+# 2026-07-25: map/ → map/potflow/ 폴더 격리(471d935) 때 bat 안의 다운로드 BASE URL이
+# 옛 경로에 남아 potflow.html 을 못 받았고, 브라우저에 {"ok":false,"error":"not found"} 가 떴다.
+# 런처는 자기 갱신형이라 폴더가 움직이면 URL도 같이 움직여야 한다.
+import re
+from urllib.parse import urlparse
+
+BAT = pathlib.Path(__file__).parent / "start-potflow.bat"
+
+
+def _bat_text():
+    return BAT.read_text(encoding="utf-8")
+
+
+def _bat_base_url():
+    m = re.search(r'set\s+"BASE=([^"]+)"', _bat_text())
+    assert m, "start-potflow.bat 에 BASE 정의가 없다"
+    return m.group(1)
+
+
+def test_bat_base_url_last_segment_matches_containing_folder():
+    # BASE 의 마지막 경로 조각 == bat 이 놓인 폴더명. 폴더를 옮기면 여기서 걸린다.
+    last = urlparse(_bat_base_url()).path.rstrip("/").split("/")[-1]
+    assert last == BAT.parent.name
+
+
+def test_bat_only_downloads_files_that_ship_here():
+    # getfile 로 받는 파일은 전부 이 폴더에 실제로 있어야 한다(=배포본에도 있음).
+    names = re.findall(r"call :getfile (\S+)", _bat_text())
+    assert names, "getfile 호출이 사라졌다"
+    missing = [n for n in names if not (BAT.parent / n).is_file()]
+    assert missing == [], f"bat 이 없는 파일을 받으려 한다: {missing}"
+
+
+def test_bat_aborts_before_python_when_html_missing():
+    # 다운로드가 조용히 실패해도 python 을 띄우면 헬퍼가 뜬 채 404 JSON 만 나와 원인 추적이 어렵다.
+    lines = _bat_text().splitlines()
+    guard = next((i for i, l in enumerate(lines)
+                  if re.search(r'if\s+not\s+exist\s+"potflow\.html"', l, re.I)
+                  and "getfile" not in l), None)
+    run = next((i for i, l in enumerate(lines) if re.search(r"^\s*python\s+potflow-helper\.py", l)), None)
+    assert guard is not None, "potflow.html 존재 확인 가드가 없다"
+    assert run is not None, "헬퍼 실행 줄이 없다"
+    assert guard < run, "가드가 python 실행보다 뒤에 있다"
