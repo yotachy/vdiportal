@@ -6,7 +6,9 @@
 |---|---|---|
 | **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js`(+`forge-api.php`) | 노드 전략보드 + 라이브 차트 통합 분석 도구. **현재 주력·주 작업 대상** |
 | **스쿱보드 (Scoop Board)** | `map.html`(+`api.php`) | 자유 캔버스 노드 다이어그램 빌더 |
-| **PotFlow** | **`potflow/`** 폴더 일습(`potflow.html`·`potflow-helper.py`·config·bat·썸네일) | 로컬 동영상 노드 재생 관리(PotPlayer). map.html 파생·로컬 헬퍼(Python) 전용. **2026-07-19 `map/potflow/`로 폴더 격리** — forge·map과 파일/배포 경로 불간섭(배포=`www/map/potflow/`). 헬퍼가 자기 위치(`ROOT`) 기준이라 이동에 경로 수정 불필요. 상세는 [`POTFLOW.md`](POTFLOW.md) |
+| **PotFlow** | **`potflow/`** 폴더 일습(`potflow.html`·`potflow-helper.py`·config·bat·썸네일) | 로컬 동영상 노드 재생 관리(PotPlayer). map.html 파생·로컬 헬퍼(Python) 전용. **상위 개발프로젝트와 완전 독립 트랙**(아래 주의). **2026-07-19 `map/potflow/`로 폴더 격리** — forge·map과 파일/배포 경로 불간섭(배포=`www/map/potflow/`). 헬퍼가 자기 위치(`ROOT`) 기준이라 이동에 경로 수정 불필요. 상세는 [`POTFLOW.md`](POTFLOW.md) |
+
+> ⚠️ **PotFlow는 상위 개발프로젝트(스쿱포지·머니스쿱·vdiportal)와 무관한 별개 트랙이다.** 같은 저장소 `map/` 아래 있는 건 파일 위치일 뿐 — 목적·사용자·배포 대상이 전부 다른 개인용 로컬 도구. PotFlow 작업에 스쿱포지 백로그(`docs/BACKLOG.md`)·검증 관문·엔진 규율을 끌어오지 말 것. 상위 프로젝트 우선순위(랜딩·인증·결제)와 섞어 보고하지 말 것. 반대로 forge·map 작업 중 `potflow/`를 건드리지 말 것. 커밋 스코프는 `potflow`로 분리 유지. (2026-07-25 사용자 확인)
 
 > 스쿱포지의 상세 구현 이력·규약은 방대하여 **프로젝트 메모리 `scoopforge-deploy.md`가 단일 출처**. 아래는 현행 요약.
 
