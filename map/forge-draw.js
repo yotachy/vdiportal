@@ -8,6 +8,7 @@
   const FC_BEAR = "#e06a6a";   /* bear candle */
   const FC_DIM  = "#5A6478";   /* axis labels (중간 슬레이트 — 명/암 배경 모두 판독) */
   let   FC_GRID = "#1b2334";   /* grid lines — chart-bg 밝기 따라 명/암 전환 */
+  let   FC_CHART_BG = "#0b0f14";   /* 차트 캔버스 배경(--chart-bg) — 캔들 위 라벨을 불투명하게 덮을 때 */
   let   FC_OSC  = "#e8b463";   /* 오실레이터 서브패널 액센트 — UI(패널) 밝기 따라 골드/슬레이트 */
   let   _warmRGB = "232,180,99", _oscRGB = "232,180,99";   /* rgba 헬퍼용 (히어로/서브패널) */
   const _lumOf = v => { const m = (v || "").match(/#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})/); return m ? (0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16)) : 0; };
@@ -18,7 +19,8 @@
   function _syncChartColors() {
     try {
       const cs = getComputedStyle(document.documentElement);
-      const cbLum = _lumOf((cs.getPropertyValue("--chart-bg").trim()) || "#0b0f14");
+      FC_CHART_BG = (cs.getPropertyValue("--chart-bg").trim()) || "#0b0f14";
+      const cbLum = _lumOf(FC_CHART_BG);
       const pnLum = _lumOf((cs.getPropertyValue("--panel").trim()) || "#121822");
       const uiGold = (cs.getPropertyValue("--gold").trim()) || "#e8b463";   // 테마 액센트(다크=골드/청록/퍼플…, 라이트=슬레이트)
       const uiLight = pnLum > 140;
@@ -1195,8 +1197,7 @@
       }   // else(!_prev) 끝 — 웹분석 후에만 예측 작도
     }
     // ── 구간 고점 대비 낙폭(기본 표기) ── '보이는 범위'(_chartWin) 안의 최고가 대비 현재가가 얼마나 내려왔는지.
-    // 고가(OHLC) 있으면 고가, 종가 시계열뿐이면 종가 기준. 세로 스케일이 잘라낸 고점은 값만 표기(선·마커 생략).
-    let _ddBadgeBot = padTop;   // 낙폭 배지가 차지한 아래끝(예시 배지가 이 아래로 비켜서게)
+    // 고가(OHLC) 있으면 고가, 종가 시계열뿐이면 종가 기준. 표기는 실제 고점 봉 위(캡 마커 옆) — 구석 배지 아님.
     {
       let winHi = -Infinity, hiI = -1;
       for (let i = 0; i < hist.length; i++) {
@@ -1210,28 +1211,26 @@
         const col = atHi ? FC_BULL : FC_BEAR, crgb = atHi ? "70,194,142" : "224,106,106";
         cv._mainGeo.dd = { hi: winHi, hiIdx: wStart + hiI, cur: curV, pct: ddPct };
         const hiY = toY(winHi), yTop = padTop, yBot = ch - padBot;
+        const clipped = !(hiY > yTop + 1 && hiY < yBot - 1);   // 세로 스케일이 고점을 프레임 밖으로 잘라낸 경우
+        const mx = toXh(hiI);
         c.save();
-        if (hiY > yTop + 1 && hiY < yBot - 1) {
+        if (!clipped) {
           c.strokeStyle = "rgba(" + crgb + ",.34)"; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine);
           c.beginPath(); c.moveTo(padX, hiY); c.lineTo(padX + plotW, hiY); c.stroke(); c.setLineDash([]);
-          const mx = toXh(hiI);   // 고점 봉 위 캡 마커
-          c.fillStyle = "rgba(" + crgb + ",.85)";
+          c.fillStyle = "rgba(" + crgb + ",.85)";   // 고점 봉 위 캡 마커
           c.beginPath(); c.moveTo(mx, hiY - 3.4); c.lineTo(mx - 3.2, hiY - 8.4); c.lineTo(mx + 3.2, hiY - 8.4); c.closePath(); c.fill();
-          c.font = "9.5px ui-monospace,monospace"; c.fillStyle = FC_DIM; c.textAlign = "left";
-          const ht = "고점 " + _hzFmt(winHi), htw = c.measureText(ht).width;
-          c.fillText(ht, Math.min(padX + plotW - htw - 2, Math.max(padX + 2, mx + 6)), Math.max(yTop + 9, hiY - 11));
         }
-        const bt = atHi ? "구간 고점 갱신" : "고점 대비 −" + Math.abs(ddPct).toFixed(1) + "%";
+        // 고점 옆 라벨 = 고점가 + 그 대비 현재 낙폭(한 덩어리)
+        const bt = (clipped ? "▲ " : "") + (atHi ? "구간 고점 " + _hzFmt(winHi) : "고점 " + _hzFmt(winHi) + " · −" + Math.abs(ddPct).toFixed(1) + "%");
         c.font = "700 10.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
-        // 예측선 범례(DOM `.fc-legend`, 좌상단 절대배치)가 켜져 있으면 그 아래로 — 안 그러면 배지가 범례 뒤에 가려 안 보인다.
-        let byTop = padTop + 2;
-        { const lg = document.getElementById("fcLegend");
-          if (lg && lg.style.display !== "none" && lg.offsetHeight) byTop = Math.max(byTop, lg.offsetTop + lg.offsetHeight + 5); }
-        const bw2 = c.measureText(bt).width + 16, bx = padX + 4, by = byTop;
-        _ddBadgeBot = by + 18;
-        c.fillStyle = "rgba(" + crgb + ",.14)"; c.strokeStyle = "rgba(" + crgb + ",.34)"; c.lineWidth = 1;
-        if (c.roundRect) { c.beginPath(); c.roundRect(bx, by, bw2, 18, 5); c.fill(); c.stroke(); } else { c.fillRect(bx, by, bw2, 18); c.strokeRect(bx, by, bw2, 18); }
-        c.fillStyle = col; c.fillText(bt, bx + 8, by + 12.5);
+        const bw2 = c.measureText(bt).width + 15, bh2 = 17;
+        const bx = Math.max(padX + 2, Math.min(padX + plotW - bw2 - 2, mx - bw2 / 2));
+        const by = clipped ? yTop + 3 : (hiY - 10 - bh2 >= yTop + 2 ? hiY - 10 - bh2 : Math.min(yBot - bh2 - 2, hiY + 8));   // 위 공간 없으면 아래로
+        c.fillStyle = FC_CHART_BG;   // 캔들 위에 얹혀도 읽히게 차트 배경으로 한 번 덮고 색조를 올린다
+        if (c.roundRect) { c.beginPath(); c.roundRect(bx, by, bw2, bh2, 5); c.fill(); } else c.fillRect(bx, by, bw2, bh2);
+        c.fillStyle = "rgba(" + crgb + ",.17)"; c.strokeStyle = "rgba(" + crgb + ",.45)"; c.lineWidth = 1;
+        if (c.roundRect) { c.beginPath(); c.roundRect(bx, by, bw2, bh2, 5); c.fill(); c.stroke(); } else { c.fillRect(bx, by, bw2, bh2); c.strokeRect(bx, by, bw2, bh2); }
+        c.fillStyle = col; c.fillText(bt, bx + 7.5, by + 12);
         c.restore();
       }
     }
@@ -1260,9 +1259,8 @@
       c.font = "700 10.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
       const txt = "예시 차트입니다 — 위 티커에 종목을 입력해 ‘불러오기’ 하세요";
       const tw = c.measureText(txt).width + 18;
-      const dy = Math.max(padTop + 48, _ddBadgeBot + 6);   // 낙폭 배지 아래로 비켜서기
-      c.fillStyle = _warmA(.18); if (c.roundRect) { c.beginPath(); c.roundRect(padX + 4, dy, tw, 19, 5); c.fill(); } else c.fillRect(padX + 4, dy, tw, 19);
-      c.fillStyle = "rgba(240,200,120,.98)"; c.fillText(txt, padX + 13, dy + 12.5); c.textAlign = "left";
+      c.fillStyle = _warmA(.18); if (c.roundRect) { c.beginPath(); c.roundRect(padX + 4, padTop + 48, tw, 19, 5); c.fill(); } else c.fillRect(padX + 4, padTop + 48, tw, 19);
+      c.fillStyle = "rgba(240,200,120,.98)"; c.fillText(txt, padX + 13, padTop + 60.5); c.textAlign = "left";
     }
     drawEvidence();
     _drawRiskLevels(c, { toY, padX, plotW, padTop, padBot, ch });   // 리스크 진단 라인(진입/손절/목표)
