@@ -2470,3 +2470,49 @@ test("run _biasSet flag: empty identical to default; override finite", () => {
   const on = ForgeCore.run(g, { price: d.price, candle: d.candle }, { timeframe: "1day", _biasSet: { pivot: 1, gann: -1, volume: 1 } });
   assert.ok(Number.isFinite(on.verdict.score));
 });
+
+test("mergeCandles: 델타가 비면 prev를 그대로(복사본) 돌려준다", () => {
+  const prev = [{ t: "2026-08-01", o: 1, h: 2, l: 0.5, c: 1.5, v: 10 }];
+  const out = ForgeCore.mergeCandles(prev, []);
+  assert.deepStrictEqual(out, prev);
+  assert.notStrictEqual(out, prev, "새 배열이어야 한다(원본 공유 금지)");
+});
+
+test("mergeCandles: 같은 t는 델타로 교체(진행 중 봉 갱신)", () => {
+  const prev = [
+    { t: "2026-08-01", o: 1, h: 2, l: 0.5, c: 1.5, v: 10 },
+    { t: "2026-08-04", o: 2, h: 3, l: 1.5, c: 2.5, v: 20 },
+  ];
+  const delta = [{ t: "2026-08-04", o: 2, h: 9, l: 1.5, c: 8.8, v: 99 }];
+  const out = ForgeCore.mergeCandles(prev, delta);
+  assert.strictEqual(out.length, 2, "교체이지 추가가 아니다");
+  assert.strictEqual(out[1].c, 8.8);
+  assert.strictEqual(out[1].v, 99);
+  assert.strictEqual(prev[1].c, 2.5, "원본 prev는 불변");
+});
+
+test("mergeCandles: 새 t는 추가되고 t 오름차순으로 정렬된다", () => {
+  const prev = [{ t: "2026-08-04", o: 2, h: 3, l: 1.5, c: 2.5, v: 20 }];
+  const delta = [
+    { t: "2026-08-06", o: 3, h: 4, l: 2.5, c: 3.5, v: 30 },
+    { t: "2026-08-05", o: 2.5, h: 3.5, l: 2, c: 3, v: 25 },
+  ];
+  const out = ForgeCore.mergeCandles(prev, delta);
+  assert.deepStrictEqual(out.map(c => c.t), ["2026-08-04", "2026-08-05", "2026-08-06"]);
+});
+
+test("mergeCandles: prev가 비면 델타가 그대로(정렬되어) 나온다", () => {
+  const delta = [
+    { t: "2026-08-05", o: 1, h: 2, l: 0.5, c: 1.5, v: 10 },
+    { t: "2026-08-04", o: 1, h: 2, l: 0.5, c: 1.4, v: 11 },
+  ];
+  const out = ForgeCore.mergeCandles([], delta);
+  assert.deepStrictEqual(out.map(c => c.t), ["2026-08-04", "2026-08-05"]);
+});
+
+test("mergeCandles: t 없는 항목은 버리고, 인자가 배열이 아니면 빈 배열로 취급", () => {
+  const prev = [{ t: "2026-08-01", c: 1 }, { o: 1, c: 2 }];
+  const out = ForgeCore.mergeCandles(prev, null);
+  assert.deepStrictEqual(out.map(c => c.t), ["2026-08-01"]);
+  assert.deepStrictEqual(ForgeCore.mergeCandles(null, null), []);
+});
