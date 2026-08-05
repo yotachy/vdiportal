@@ -1332,6 +1332,35 @@
     gutter.addEventListener("dblclick", () => { if (board) board.style.flexBasis = DEFW + "px"; persist(); redrawCharts(); });
   })();
 
+  /* ── 2·3패널 접기: 차트 영역 확보(보드 560px + 지표 레일 178px ≈ 742px) ──
+     DOM 제거가 아니라 body 클래스 + display:none 으로 숨긴다 — renderTickerPanel·renderBoard·
+     renderDashboard가 getElementById로 요소를 찾으므로 떼어내면 조용히 깨진다. */
+  const _PANE_KEY = "scoopforge_panes";
+  let _paneHide = (function () { try { return JSON.parse(localStorage.getItem(_PANE_KEY) || "{}") || {}; } catch (e) { return {}; } })();
+  function _applyPanes() {
+    document.body.classList.toggle("hide-board", !!_paneHide.board);
+    document.body.classList.toggle("hide-rail", !!_paneHide.rail);
+    const map = { board: ["paneBoardBtn", "2패널 보드"], rail: ["paneRailBtn", "3패널 지표조합"] };
+    for (const k in map) {
+      const b = document.getElementById(map[k][0]); if (!b) continue;
+      const off = !!_paneHide[k];
+      b.classList.toggle("off", off);
+      b.setAttribute("aria-pressed", off ? "false" : "true");
+      b.title = off ? map[k][1] + " 펼치기" : map[k][1] + " 접기 — 차트를 넓게";
+    }
+  }
+  function togglePane(which) {
+    _paneHide[which] = !_paneHide[which];
+    try { localStorage.setItem(_PANE_KEY, JSON.stringify(_paneHide)); } catch (e) {}
+    _applyPanes();
+    // display 변경은 resize를 발생시키지 않아 차트가 이전 폭에 머문다 → 직접 리핏.
+    // 접혀 있던 보드의 서브패널 캔버스는 clientWidth=0이었으므로 펼 때 재작도가 필요하다.
+    requestAnimationFrame(() => {
+      if (typeof fitHeroHeight === "function") fitHeroHeight(false);
+      redrawCharts();
+    });
+  }
+
   /* ── 차트 높이 조절(세로 거터): 가격차트를 키우고 아래 패널을 내림 ── */
   let _heroManual = false;   // 사용자가 거터로 직접 조절했는지(true면 자동맞춤 중단)
   function fitHeroHeight(redraw) {   // 차트가 세로 여백을 채우도록 --hero-h 자동 산정(x축이 하단에 오게)
@@ -3739,4 +3768,5 @@
     boot();
     if (typeof syncMobileHead === "function") { syncMobileHead(); setTimeout(syncMobileHead, 400); }   // 모바일 고정 헤더 구성(부팅 후 재보정)
     if (typeof applyTheme === "function") applyTheme(_theme);   // 저장된 테마 적용
+    if (typeof _applyPanes === "function") _applyPanes();   // 저장된 2·3패널 접힘 복원
   });

@@ -425,6 +425,18 @@
     border-bottom:1px solid var(--line)}
   .fc-head-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow:hidden}
   .fc-head-left .fc-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* 2·3패널 접기 토글 — flex:0 0 auto 로 고정(제목이 길어져도 안 찌그러짐) */
+  .pane-seg{display:flex;gap:2px;flex:0 0 auto}
+  .pane-btn{display:inline-flex;align-items:center;gap:4px;background:transparent;color:var(--gold);
+    border:1px solid rgba(232,180,99,.42);border-radius:var(--r-sm);padding:3px 7px;cursor:pointer;
+    font-size:11px;font-weight:700;letter-spacing:-.01em;line-height:1.4;transition:color .12s,border-color .12s,background .12s}
+  .pane-btn svg{width:13px;height:13px;flex:0 0 auto}
+  .pane-btn:hover{background:var(--hover);border-color:var(--gold)}
+  .pane-btn.off{color:var(--faint);border-color:var(--line)}   /* off = 해당 패널 접힘 */
+  .pane-btn.off:hover{color:var(--eth)}
+  body.hide-board .board-pane,
+  body.hide-board .forge-gutter{display:none}
+  body.hide-rail .ind-rail{display:none}
   .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   /* 국면/확률/시그널 강조 바 + 핵심 의견 */
   /* ── 판정 대시보드: 3섹션(계기판 / 검증 예측 / 지표 합의)을 헤어라인으로 구분 ── */
@@ -1514,6 +1526,8 @@
     .forge-split{order:1}
     .forge-side{order:3;max-height:none}   /* 블록 도구는 맨 아래(접힘) */
     .chart-pane{order:-1}                   /* 차트 먼저(맨 위) */
+    .pane-seg{display:none}                 /* 세로 스택이라 가로 접기가 무의미 */
+    body.hide-board .board-pane{display:flex}   /* PC에서 접어둔 상태로 폰에서 열어도 보드가 보이도록 복원 */
     .analyze-log{top:calc(var(--mhead,130px) + 8px);right:8px;width:min(340px,calc(100vw - 16px))}   /* 진행 로그: 고정 헤더 아래(겹침 방지) */
     .board-pane{order:1}
     .forge-top{gap:6px;padding:7px 10px;flex-wrap:nowrap}   /* 한 줄 고정(개행 금지) — 로고만 축약, 알림·테마·로그인은 항상 온전히 우측 (overflow는 테마/알림 드롭다운 안 잘리게 visible 유지) */
