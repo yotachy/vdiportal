@@ -1784,7 +1784,11 @@
   function toggleLogChart() {
     _logChart = !_logChart;
     updateAxisBtns();
-    if (hasRealSeries() && lastResult) renderChart(lastResult, currentData());
+    // 재렌더 가드를 redrawCharts로 일원화(거터 드래그·리사이즈·패널 접기와 동일 경로).
+    // 종전 `lastResult` 가드는 runForge에서만 채워져, _showIdle/_showInsufficient 이후처럼
+    // lastResult만 null인 상태에서 축 상태·L 버튼만 뒤집히고 작도는 옛 스케일로 남았다.
+    // redrawCharts는 실제 분석에 쓰인 _fcLastData로 그려 작도·예측 정합도 더 낫다.
+    if (typeof redrawCharts === "function") redrawCharts();
     markDirty();
   }
   function _linreg(arr) {
