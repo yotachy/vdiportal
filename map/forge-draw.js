@@ -2798,7 +2798,7 @@
   // Gann 각도팬 — 앵커점(직전 지배 스윙)에서 우측 끝까지 1×1(굵은 골드)+2×1~1×4(흐린 점선) 직선 투영
   function _drawGannLayers(c, gn, M) {
     c.save();
-    const { toY, fiToX, nowFi, futN, xRight, fiMin = 0, top, bot, reveal = Infinity } = M;
+    const { toY, fiToX, nowFi, futN, xRight, fiMin = 0, top, bot, reveal = Infinity, log = false } = M;
     if (top != null && bot != null) { c.beginPath(); c.rect(0, top, xRight + 44, bot - top); c.clip(); }
     // anchors(다중) 우선, 없으면 단일 anchor 폴백(하위호환)
     const list = (gn && gn.anchors && gn.anchors.length) ? gn.anchors
@@ -2806,11 +2806,26 @@
     if (!list.length) { c.restore(); return; }
     const rightFi = (nowFi != null ? nowFi : 0) + (futN || 0);
     // significance 낮은 것부터 그려 강조가 위에 오게
-    const ordered = list.slice().sort((a, b) => (a.significance || 0) - (b.significance || 0));
-    const _topAn = ordered[ordered.length - 1];
+    let ordered = list.slice().sort((a, b) => (a.significance || 0) - (b.significance || 0));
+    // 밀도 제한 — 다중스케일 앵커가 100개를 넘어 화면을 덮던 문제(강조 8개 × 7각 + 흐림 98개 × 3각 ≈ 300선).
+    // 유의도 상위만 남기고, 강조는 최상위 2개로 한정한다(나머지는 흐린 참조선으로 유지).
+    const DRAW_MAX = 10, EMPH_MAX = 2;
+    if (ordered.length > DRAW_MAX) ordered = ordered.slice(-DRAW_MAX);
+    const emphSet = new Set(ordered.slice(-EMPH_MAX));
+    const _seenReason = {};   // 같은 문구 라벨 중복 방지(앵커마다 찍혀 우측에 쌓이던 문제)
+    /* 각도선 가격 — 축 의미에 맞춰 계산해야 직선으로 정합한다.
+       선형축: 봉당 일정 '가격'(종전) / 로그축: 봉당 일정 '비율'(로그 차트의 표준 해석).
+       종전엔 로그축에서도 선형 외삽을 써서, 멀리 외삽하면 가격이 0 이하로 내려가고
+       tvLog가 log(1e-9)로 클램프 → 선이 화면 아래로 수직 급락했다. */
+    const priceAt = (an, a, fi) => {
+      const d = fi - an.idx;
+      if (!log) return an.price + a.slope * d;
+      const r = 1 + a.slope / an.price;             // 앵커 지점에서의 봉당 비율
+      return r > 0 ? an.price * Math.pow(r, d) : NaN;   // r<=0(과도한 하락각)이면 로그축에 그릴 수 없음
+    };
     for (const an of ordered) {
       const sig = an.significance != null ? an.significance : 0.5;
-      const emph = sig >= 0.6 || an === _topAn;   // 최상위 앵커는 항상 강조(굵은 참조선+라벨 보장)
+      const emph = emphSet.has(an);
       if (reveal !== Infinity && reveal < (emph ? 1 : 2)) continue;   // 시뮬레이션 재생 reveal 게이팅(강조 앵커 먼저, 형제 지표와 타이밍 정합)
       const alpha = emph ? 1 : Math.max(0.12, 0.15 + sig * 0.4);
       // 밀도: 강조=전체 7각, 흐림=1×1·2×1·1×2만
@@ -2818,7 +2833,8 @@
       const startFi = Math.max(fiMin, an.idx);                   // 앵커 창밖이면 좌단 진입점
       for (const a of angs) {
         const is11 = a.name === "1x1";
-        const y1 = an.price + a.slope * (startFi - an.idx), y2 = an.price + a.slope * (rightFi - an.idx);
+        const y1 = priceAt(an, a, startFi), y2 = priceAt(an, a, rightFi);
+        if (!isFinite(y1) || !isFinite(y2) || y1 <= 0 || y2 <= 0) continue;   // 0 이하 = 그릴 수 없는 구간(클램프로 인한 수직 급락 방지)
         const x1 = fiToX(startFi); if (!isFinite(x1)) continue;
         c.beginPath(); c.moveTo(x1, toY(y1)); c.lineTo(xRight, toY(y2));
         c.strokeStyle = (is11 && emph) ? FC_GOLD : "rgba(201,162,107," + (is11 ? alpha : alpha * 0.5).toFixed(3) + ")";
@@ -2828,7 +2844,13 @@
       // 앵커 도트(창 안일 때) + 강조 앵커 라벨(reason)
       if (an.idx >= fiMin) { const ax = fiToX(an.idx), ay = toY(an.price); if (isFinite(ax) && isFinite(ay)) { c.beginPath(); c.arc(ax, ay, emph ? 3 : 2, 0, Math.PI * 2); c.fillStyle = emph ? FC_GOLD : "rgba(201,162,107," + alpha.toFixed(3) + ")"; c.fill(); } }
       // 강조 앵커 라벨(reason): 공용 _evLabel 위임 → 축 눈금·예측 콘 배지와 겹치면 빈 슬롯으로 자동 회피 + 박스 등록(다른 라벨도 이를 피함). force=key 모드에서도 표시(기존 동작 보존).
-      if (emph) { const yR = an.price + (an.angles.find(a => a.name === "1x1") || { slope: 0 }).slope * (rightFi - an.idx); _evLabel(c, an.reason || "1×1", xRight + 3, toY(yR), FC_GOLD, "left", true); }
+      if (emph) {
+        const lb = an.reason || "1×1";
+        if (!_seenReason[lb]) {   // 같은 문구는 한 번만 — 앵커마다 찍혀 우측에 세로로 쌓이던 문제
+          const yR = priceAt(an, an.angles.find(a => a.name === "1x1") || { slope: 0 }, rightFi);
+          if (isFinite(yR) && yR > 0) { _seenReason[lb] = 1; _evLabel(c, lb, xRight + 3, toY(yR), FC_GOLD, "left", true); }
+        }
+      }
     }
     c.restore();
   }
@@ -3099,7 +3121,7 @@
           legend.push({ col, t: EV_LABEL.pivot, _key: n.blockType });
         } else if (n.blockType === "gann") {
           const gn = _anGann(price, n.params);
-          if (_drawThis) _drawGannLayers(cc, gn, { toY: v => toY(v), fiToX, nowFi: P - 1, futN: g.pathLen, xRight: g.padX + g.plotW, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, top: g.padTop, bot: g.ch - g.padBot });
+          if (_drawThis) _drawGannLayers(cc, gn, { toY: v => toY(v), fiToX, nowFi: P - 1, futN: g.pathLen, xRight: g.padX + g.plotW, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, top: g.padTop, bot: g.ch - g.padBot, log: g.log });
           legend.push({ col, t: EV_LABEL.gann, _key: n.blockType });
         } else if (n.blockType === "psar") {
           const ps = _anPsar(price, { step: (n.params && n.params.step) || 0.02, max: (n.params && n.params.max) || 0.2 });
