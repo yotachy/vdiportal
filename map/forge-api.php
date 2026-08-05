@@ -8,6 +8,13 @@ header("Access-Control-Allow-Headers: Content-Type, X-Write-Key");
 $method = $_SERVER["REQUEST_METHOD"];
 if ($method === "OPTIONS") { http_response_code(204); exit; }
 
+// 응답 gzip — OHLC 누적본이 커서(AAPL 5014봉 ≈ 394KB) 압축 이득이 크다(실측 26.1%).
+// zlib.output_compression이 켜져 있으면 이중압축이 되므로 그때는 건너뛴다. 실패해도 무압축으로 정상 동작.
+if (!headers_sent() && !ini_get("zlib.output_compression") && function_exists("ob_gzhandler")
+    && strpos((string)($_SERVER["HTTP_ACCEPT_ENCODING"] ?? ""), "gzip") !== false) {
+  @ob_start("ob_gzhandler");
+}
+
 $f  = __DIR__ . "/forge_data.json";
 $kf = __DIR__ . "/forge_key.txt";
 $WRITE_KEY = is_file($kf) ? trim(file_get_contents($kf)) : "";
