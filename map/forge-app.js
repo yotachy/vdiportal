@@ -1910,14 +1910,16 @@
     n._series = cs.map(d => d.c);             // 인메모리(직렬화 제외)
     n._ohlc = cs;
     n._times = r.candles.map(d => d.t);       // 실제 날짜(시간축 눈금용, 인메모리)
-    n._loadedSym = ((n.params && n.params.symbol) || "").trim().toUpperCase();   // 로드 상태 추적 — 입력만 바꾼 뒤 '불러오기 필요' 판별(UX 상태)
-    n._loadedTf = (n.params && n.params.tf) || "1day";
     delete n.series; delete n.ohlc;           // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
     n.params = n.params || {};
     n.params.tf = r.tf || "1day";
     n.params.name = r.name || n.params.name || "";   // 종목명(신뢰 확인용, 국내주식 등)
     n.params.price = cs[cs.length - 1].c;     // 현재가=마지막 종가 → currentData 스케일 계수 1
     n.params.fetched = true;                  // 로드 시 자동 재fetch 대상
+    // 로드 상태 추적 — 입력만 바꾼 뒤 '불러오기 필요' 판별(UX 상태 + runEngine stale 가드).
+    // params 확정 '후'에 찍어야 서버가 다른 tf를 돌려줘도 tickerFresh가 영구 stale로 굳지 않는다.
+    n._loadedSym = (n.params.symbol || "").trim().toUpperCase();
+    n._loadedTf = n.params.tf || "1day";
     _heroView = "chart";
     /* 티커 실데이터 = 활성 가격원 → 이전 웹분석(비전) 오버라이드 해제.
        (안 그러면 activeTF/visionFutW가 stale _visionTF/_visionFut을 계속 써서
@@ -1935,6 +1937,16 @@
     if (!t) t = makeNode(20, 20, "티커", "block", "ticker", { symbol: "", tf: "1day", price: null });
     return t;
   }
+  /* 티커 신선도 — 지금 입력된 심볼·주기의 캔들이 실제로 로드돼 있는가.
+     심볼칸만 고쳐 쓰면 params.symbol은 즉시 바뀌지만 _series는 옛 종목 것이 남는다.
+     priceSeries()는 심볼을 안 보므로(캔들 존재만 확인) 이 판정이 없으면
+     옛 캔들로 분석한 결과가 새 심볼 이름으로 표시·기록된다. 배지·runEngine 가드 공용. */
+  function tickerFresh(t) {
+    if (!t || !Array.isArray(t._series) || t._series.length < 2) return false;
+    const sym = ((t.params && t.params.symbol) || "").trim().toUpperCase();
+    const tf = (t.params && t.params.tf) || "1day";
+    return (t._loadedSym || "") === sym && (t._loadedTf || "1day") === tf;
+  }
   function renderTickerPanel() {
     const symEl = document.getElementById("tkSym"); if (!symEl) return;
     const t = boardState.nodes.find(n => n.blockType === "ticker");
@@ -1946,9 +1958,7 @@
     const cur = (t && t.params && t.params.tf) || "1day";
     const seg = document.getElementById("tkSeg");
     if (seg) seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.tf === cur));
-    const loaded = t && Array.isArray(t._series) && t._series.length >= 2;
-    // fresh = 지금 입력된 심볼·주기의 데이터가 실제로 로드됨(입력만 바꾼 stale 상태 구분 — _loadedSym/_loadedTf 추적)
-    const fresh = loaded && (t._loadedSym || "") === sym.trim().toUpperCase() && ((t._loadedTf || "1day") === cur);
+    const fresh = tickerFresh(t);   // 입력만 바꾼 stale 상태 구분(_loadedSym/_loadedTf 추적)
     const stat = document.getElementById("tkStat");
     if (stat) {
       const state = fresh ? "ok" : sym ? "need" : "empty";
@@ -2102,6 +2112,19 @@
     if (_playing) stopPlay();
     if (_firstIdle || !hasRealSeries()) { if (typeof bToast === "function") bToast("왼쪽 워치리스트에서 종목을 먼저 선택하세요"); return; }   // 첫 진입 idle·데이터 미로드 시 안내(데이터 부족 화면 대신)
     if (_agBusy) return; _agBusy = true;
+    // 미로드(stale) 가드 — 심볼·주기를 고쳐 쓰고 불러오기를 안 누른 상태에서 웹분석하면
+    // hasRealSeries()가 옛 종목 캔들로 통과해버린다(차트 헤더·섹터 벤치마크·트랙레코드는 새 심볼 기준 → 어긋남).
+    // 한 번이라도 로드된 티커만 대상: 샘플/데모 포지(_loadedSym·fetched 없음)는 종전대로 통과.
+    const _tk = boardState.nodes.find(n => n.blockType === "ticker" && n.params && (n.params.symbol || "").trim());
+    if (_tk && (_tk._loadedSym || _tk.params.fetched) && !tickerFresh(_tk)) {
+      if (typeof bToast === "function") bToast(_tk.params.symbol.trim() + " 캔들을 먼저 불러옵니다…");
+      try { await loadTicker(); } catch (e) {}
+      if (!tickerFresh(_tk) || !hasRealSeries()) {   // 로드 실패 → 옛 데이터로 분석하지 않고 중단
+        _agBusy = false;
+        if (typeof bToast === "function") bToast("불러오기 실패 — [불러오기] 후 다시 웹분석하세요");
+        return;
+      }
+    }
     const ov = _ensureAnalyzeGauge(); ov.classList.add("on");
     const fill = document.getElementById("agFill"), pct = document.getElementById("agPct"), stg = document.getElementById("agStage");
     const stages = ["지표 계산 중…", "예측 시나리오 산출 중…", "종합 판정 중…"];

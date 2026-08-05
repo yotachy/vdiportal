@@ -602,6 +602,8 @@
             n.params.price = n._series[n._series.length - 1];   // 스케일 앵커 갱신 → currentData 계수 1(캔들·선 정합)
             n.params.name = rr.name || n.params.name || "";     // 종목명 복원
             n.params.fetched = true;                            // 레거시 노드 마이그레이션
+            n._loadedSym = (n.params.symbol || "").trim().toUpperCase();   // applyTickerOHLC와 동일한 로드 추적 —
+            n._loadedTf = n.params.tf || "1day";                 // 빠지면 종목 전환 후 배지가 항상 '미로드'로 남는다
             if (typeof autoLogForTicker === "function") autoLogForTicker(n);   // 광범위 → 로그축 자동
             delete n.series; delete n.ohlc;                     // 구버전 비언더스코어 필드 제거(직렬화 잔존 방지)
             if (typeof resetChartWin === "function") resetChartWin();
