@@ -1047,7 +1047,7 @@
     /* 호버 툴팁 + 근거작도용 기하 stash(CSS px 공간) */
     cv._mainGeo = { padX, histW, seamX, plotW, padTop, padBot, ch, loV, hiV, bandTop, bandBot, histLen: hist.length, pathLen: path.length, hist, path, lo, hi, anchor, unit: tfUnit(), log: _logChart, start: wStart, count: wCount, winN: N, plotRight: padX + plotW, anchorY: toY(anchor), atLatest };
     if (typeof updateFitBtn === "function") updateFitBtn();   // 예측 구간 프레이밍 버튼 표시/숨김 갱신
-    _axisLabelBoxes = [];   // 이번 프레임 축 라벨 박스 초기화
+    _axisLabelBoxes = []; _predLabelBoxes = [];   // 이번 프레임 축·예측배지 라벨 박스 초기화
     // grid + 세로축 가격 눈금(각 그리드선의 가격 — 우측, 어두운 pill로 가독)
     c.strokeStyle = FC_GRID; c.lineWidth = 1;
     { const _plotH = ch - padTop - padBot, _loL = tvLog(loV, _logChart), _hiL = tvLog(hiV, _logChart);
@@ -1290,6 +1290,19 @@
   let _legendHits = [];          // [{x,y,w,h,key}] 범례 칩 히트영역(로직좌표)
   let _evLabelBoxes = [];        // 라벨 겹침 회피용 박스 레지스트리(_drawEvidence마다 리셋)
   let _axisLabelBoxes = [];      // 세로축 눈금·현재가 pill 박스(라벨 회피용으로 미리 예약)
+  let _predLabelBoxes = [];      // 예측 차수 배지(1·2·3차)·끝점 예측가 박스 — 근거 라벨이 이를 피하도록 함께 예약
+  /* 라벨 박스 배치 — 충돌하면 위/아래 계단으로 밀어 빈 슬롯을 찾는다. 못 놓으면 null(겹쳐 찍지 않고 생략).
+     _evLabel 의 내부 회피와 같은 규칙을 예측 배지에서도 쓰기 위해 공용 헬퍼로 분리. */
+  function _fitBoxY(bx, by, bw, bh, boxes, minY, maxY) {
+    const ov = yy => boxes.some(r => bx < r.x + r.w && bx + bw > r.x && yy < r.y + r.h && yy + bh > r.y);
+    if (!ov(by)) return by;
+    for (let stp = 1; stp <= 14; stp++)
+      for (const dr of [-1, 1]) {
+        const ny = by + dr * stp * (bh + 2);
+        if (ny >= minY && ny <= maxY - bh && !ov(ny)) return ny;
+      }
+    return null;
+  }
   let _labelMode = "key";        // 기본 "key"=중요 라벨만(차트 정돈) / "all"=전체(토글)
   const _KEYLBL = /목표|반대|지지|저항|골든포켓|장기|중기|단기/;   // 중요 라벨 판별(목표·S/R·반대·주요 추세선)
   document.addEventListener("click", function (e) {   // 중앙 보드 패널 접기/펼치기(헤더 클릭)
@@ -1948,19 +1961,37 @@
     } catch (e) {}
     const ex = Math.min(coneR, box.padX + box.plotW - 12), ey = Math.max(box.padTop + 14, Math.min(box.ch - box.padBot - 14, toY(pathArr[pl - 1])));
     _epicenterMark(c, ex, ey, col, col === "#8a92b2" ? 0.6 : 1);   // 반대 우세(회색 강등)면 목표 마커도 약하게
+    // 1·2·3차 배지와 끝점 예측가는 끝점이 서로 가까우면 고정 오프셋만으로 겹쳤다(우측 라벨 더미).
+    // 축 눈금·앞서 놓인 배지를 피해 빈 슬롯에 배치하고, 자리를 예약해 근거 라벨(_evLabel)도 이를 피하게 한다.
+    const _reserve = b => { _predLabelBoxes.push(b); if (Array.isArray(_evLabelBoxes)) _evLabelBoxes.push(b); };
+    const _minY = box.padTop + 2, _maxY = box.ch - box.padBot - 2;
     if (label) {
       c.save(); c.font = "800 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right";
-      const _lw = c.measureText(label).width, _lx = ex - 10, _ly = ey + (labelDy != null ? labelDy : -13);
-      c.fillStyle = "rgba(11,15,20,.86)"; if (c.roundRect) { c.beginPath(); c.roundRect(_lx - _lw - 7, _ly - 10, _lw + 10, 15, 4); c.fill(); } else c.fillRect(_lx - _lw - 7, _ly - 10, _lw + 10, 15);
-      c.strokeStyle = col; c.globalAlpha = .5; c.lineWidth = 1; if (c.roundRect) { c.beginPath(); c.roundRect(_lx - _lw - 6.5, _ly - 9.5, _lw + 9, 14, 4); c.stroke(); } c.globalAlpha = 1;
-      c.fillStyle = col; c.fillText(label, _lx, _ly); c.restore();
+      const _lw = c.measureText(label).width, _lx = ex - 10;
+      const _bx = _lx - _lw - 7, _bw = _lw + 10, _bh = 15;
+      const _want = ey + (labelDy != null ? labelDy : -13) - 10;
+      const _by = _fitBoxY(_bx, _want, _bw, _bh, _axisLabelBoxes.concat(_predLabelBoxes), _minY, _maxY);
+      if (_by != null) {
+        const _ly = _by + 10;   // 박스 상단 → 텍스트 baseline
+        c.fillStyle = "rgba(11,15,20,.86)"; if (c.roundRect) { c.beginPath(); c.roundRect(_bx, _by, _bw, _bh, 4); c.fill(); } else c.fillRect(_bx, _by, _bw, _bh);
+        c.strokeStyle = col; c.globalAlpha = .5; c.lineWidth = 1; if (c.roundRect) { c.beginPath(); c.roundRect(_bx + .5, _by + .5, _bw - 1, _bh - 1, 4); c.stroke(); } c.globalAlpha = 1;
+        c.fillStyle = col; c.fillText(label, _lx, _ly);
+        _reserve({ x: _bx, y: _by, w: _bw, h: _bh });
+      }
+      c.restore();
     }
     if (showPx && isFinite(pathArr[pl - 1])) {   // 끝점 예측가 = 라인색 폰트(끝점 옆)
       c.save(); c.font = "800 10.5px ui-monospace,monospace"; c.textAlign = "right";
       const _pv = _hzFmt(pathArr[pl - 1]), _pw = c.measureText(_pv).width;
-      const _pxx = ex - 8, _pyy = Math.max(box.padTop + 9, Math.min(box.ch - box.padBot - 4, ey - (labelDy != null ? labelDy : -13)));
-      c.fillStyle = "rgba(11,15,20,.72)"; if (c.roundRect) { c.beginPath(); c.roundRect(_pxx - _pw - 6, _pyy - 10, _pw + 9, 14, 3); c.fill(); }
-      c.fillStyle = col; c.fillText(_pv, _pxx - 1, _pyy); c.restore();
+      const _pxx = ex - 8, _pbx = _pxx - _pw - 6, _pbw = _pw + 9, _pbh = 14;
+      const _pwant = Math.max(box.padTop + 9, Math.min(box.ch - box.padBot - 4, ey - (labelDy != null ? labelDy : -13))) - 10;
+      const _pby = _fitBoxY(_pbx, _pwant, _pbw, _pbh, _axisLabelBoxes.concat(_predLabelBoxes), _minY, _maxY);
+      if (_pby != null) {
+        c.fillStyle = "rgba(11,15,20,.72)"; if (c.roundRect) { c.beginPath(); c.roundRect(_pbx, _pby, _pbw, _pbh, 3); c.fill(); }
+        c.fillStyle = col; c.fillText(_pv, _pxx - 1, _pby + 10);
+        _reserve({ x: _pbx, y: _pby, w: _pbw, h: _pbh });
+      }
+      c.restore();
     }
   }
   // 시계열을 최근 봉당 기울기로 감쇠 연장 → 예측구간에 강조 투영 + 도달 라벨(포커스 지표 공용)
@@ -3002,7 +3033,7 @@
     // 결정적 지표 전용 캔버스(선명+글로우) — 중요도 높은 노드만 여기로 라우팅. _heroZoom은 차트모드서 항등이라 DPR 변환만.
     const cvHi = document.getElementById("fcEvidenceHi"); let cHi = null;
     if (cvHi) { if (cvHi.width !== ww || cvHi.height !== hh) { cvHi.width = ww; cvHi.height = hh; } cvHi.style.width = W + "px"; cvHi.style.height = H + "px"; cHi = cvHi.getContext("2d"); cHi.setTransform(dpr, 0, 0, dpr, 0, 0); cHi.clearRect(0, 0, W, H); cHi.lineJoin = "round"; cHi.lineCap = "round"; }
-    _evLabelBoxes = _axisLabelBoxes.slice();   // 축 눈금·현재가 pill을 먼저 예약 → 근거 라벨이 이를 피함
+    _evLabelBoxes = _axisLabelBoxes.concat(_predLabelBoxes);   // 축 눈금·현재가 pill + 예측 차수 배지를 먼저 예약 → 근거 라벨이 이를 피함
     _skFrac = (_scanning && _scanU < 1) ? _scanU : null;   // 시연 중이면 진행형 작도(손그림)
     if (!_evidenceShow || !_evidenceSet.size || !lastResult) return;
     if (typeof window !== "undefined" && window._fcPreview) return;   // 웹분석 전엔 분석근거 오버레이 미표시(버튼도 비활성 — CSS)
