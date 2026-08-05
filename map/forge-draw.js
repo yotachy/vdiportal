@@ -1194,6 +1194,41 @@
       if (typeof _renderChartLegend === "function") _renderChartLegend(_pd);   // 예측선 범례 = DOM(호버 설명·큰 폰트)
       }   // else(!_prev) 끝 — 웹분석 후에만 예측 작도
     }
+    // ── 구간 고점 대비 낙폭(기본 표기) ── '보이는 범위'(_chartWin) 안의 최고가 대비 현재가가 얼마나 내려왔는지.
+    // 고가(OHLC) 있으면 고가, 종가 시계열뿐이면 종가 기준. 세로 스케일이 잘라낸 고점은 값만 표기(선·마커 생략).
+    {
+      let winHi = -Infinity, hiI = -1;
+      for (let i = 0; i < hist.length; i++) {
+        const v = _ohW ? _ohW[i].h : hist[i];
+        if (isFinite(v) && v > winHi) { winHi = v; hiI = i; }
+      }
+      const curV = atLatest ? anchor : hist[hist.length - 1];   // 최신 구간이면 앵커(=현재가), 과거로 팬했으면 그 구간 끝 종가
+      if (hiI >= 0 && winHi > 0 && isFinite(curV)) {
+        const ddPct = (curV / winHi - 1) * 100;
+        const atHi = ddPct > -0.05;   // 사실상 고점(−0.0% 표기 방지)
+        const col = atHi ? FC_BULL : FC_BEAR, crgb = atHi ? "70,194,142" : "224,106,106";
+        cv._mainGeo.dd = { hi: winHi, hiIdx: wStart + hiI, cur: curV, pct: ddPct };
+        const hiY = toY(winHi), yTop = padTop, yBot = ch - padBot;
+        c.save();
+        if (hiY > yTop + 1 && hiY < yBot - 1) {
+          c.strokeStyle = "rgba(" + crgb + ",.34)"; c.lineWidth = CW.hair; c.setLineDash(CDASH.fine);
+          c.beginPath(); c.moveTo(padX, hiY); c.lineTo(padX + plotW, hiY); c.stroke(); c.setLineDash([]);
+          const mx = toXh(hiI);   // 고점 봉 위 캡 마커
+          c.fillStyle = "rgba(" + crgb + ",.85)";
+          c.beginPath(); c.moveTo(mx, hiY - 3.4); c.lineTo(mx - 3.2, hiY - 8.4); c.lineTo(mx + 3.2, hiY - 8.4); c.closePath(); c.fill();
+          c.font = "9.5px ui-monospace,monospace"; c.fillStyle = FC_DIM; c.textAlign = "left";
+          const ht = "고점 " + _hzFmt(winHi), htw = c.measureText(ht).width;
+          c.fillText(ht, Math.min(padX + plotW - htw - 2, Math.max(padX + 2, mx + 6)), Math.max(yTop + 9, hiY - 11));
+        }
+        const bt = atHi ? "구간 고점 갱신" : "고점 대비 −" + Math.abs(ddPct).toFixed(1) + "%";
+        c.font = "700 10.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
+        const bw2 = c.measureText(bt).width + 16, bx = padX + 4, by = padTop + 2;
+        c.fillStyle = "rgba(" + crgb + ",.14)"; c.strokeStyle = "rgba(" + crgb + ",.34)"; c.lineWidth = 1;
+        if (c.roundRect) { c.beginPath(); c.roundRect(bx, by, bw2, 18, 5); c.fill(); c.stroke(); } else { c.fillRect(bx, by, bw2, 18); c.strokeRect(bx, by, bw2, 18); }
+        c.fillStyle = col; c.fillText(bt, bx + 8, by + 12.5);
+        c.restore();
+      }
+    }
     // y labels (right)
     c.fillStyle = FC_DIM; c.font = "10px ui-monospace,monospace"; c.textAlign = "left";
     const lx = padX + plotW + 4;
