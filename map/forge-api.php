@@ -171,23 +171,36 @@ if ($method === "GET") {
       }
     }
 
-    // 2) Stooq 폴백 (무키 CSV) — 미국주식/지수/포렉스 일봉
+    // 2) Yahoo Finance 폴백 (무키 JSON) — 2026-08-06 Stooq 대체.
+    //    Stooq는 CSV 대신 JS 프루프-오브-워크 봇 차단 페이지를 반환해 사실상 사용 불가가 됐다.
+    //    이 폴백이 없으면 TD 무료 분당 한도(8회) 초과·TD 미지원 심볼에서 안전망이 아예 없다.
+    //    주의: Yahoo는 User-Agent 없으면 429 — $fetch가 UA를 붙이므로 그대로 사용한다.
     if ($candles === null) {
-      $isCrypto = (bool) preg_match('/^[A-Za-z]{2,6}[-\/](USD|USDT|EUR|KRW|JPY|GBP|BTC|ETH)$/i', $sym);
-      $ss = strtolower(str_replace(["-", "/"], "", $sym));   // BTC-USD · BTC/USD → btcusd
-      if ($isKR) { if (strpos($ss, ".") === false) $ss .= ".kr"; }   // 국내주식 → .kr (예: 005930 → 005930.kr)
-      elseif (!$isCrypto && strpos($ss, ".") === false && strpos($ss, "^") === false && strpos($ss, "=") === false) $ss .= ".us";  // 평이 미국주식만 .us
-      $raw = $fetch("https://stooq.com/q/d/l/?s=" . urlencode($ss) . "&i=d", false);
+      $yint = ($tf === "1week") ? "1wk" : (($tf === "1month") ? "1mo" : "1d");
+      $yrange = ($tf === "1month") ? "max" : "20y";
+      $ysym = str_replace("/", "-", $sym);   // BTC/USD → BTC-USD (야후 표기). ^GSPC·SAP.DE·7203.T는 그대로.
+      $u = "https://query1.finance.yahoo.com/v8/finance/chart/" . rawurlencode($ysym) . "?range=" . $yrange . "&interval=" . $yint;
+      $raw = $fetch($u, true);
       if ($raw !== null) {
-        $lines = preg_split('/\r?\n/', trim($raw));
-        $out = [];
-        for ($i = 1; $i < count($lines); $i++) {   // 0=헤더
-          $p = explode(",", $lines[$i]);
-          if (count($p) < 5 || $p[1] === "N/D" || $p[1] === "") continue;
-          $o=(float)$p[1]; $h=(float)$p[2]; $l=(float)$p[3]; $c=(float)$p[4]; $v=isset($p[5])?(float)$p[5]:0;
-          if (is_finite($o)&&is_finite($h)&&is_finite($l)&&is_finite($c)&&$c>0) $out[] = ["t"=>$p[0],"o"=>$o,"h"=>$h,"l"=>$l,"c"=>$c,"v"=>$v];
+        $j = json_decode($raw, true);
+        $res = isset($j["chart"]["result"][0]) ? $j["chart"]["result"][0] : null;
+        $ts  = ($res && isset($res["timestamp"]) && is_array($res["timestamp"])) ? $res["timestamp"] : null;
+        $q0  = ($res && isset($res["indicators"]["quote"][0])) ? $res["indicators"]["quote"][0] : null;
+        if ($ts && is_array($q0) && isset($q0["close"]) && is_array($q0["close"])) {
+          // 거래소 현지 날짜로 환산 — UTC 그대로 쓰면 개장시각에 따라 하루 밀리는 거래소가 생긴다
+          $off = isset($res["meta"]["gmtoffset"]) ? (int)$res["meta"]["gmtoffset"] : 0;
+          $out = [];
+          foreach ($ts as $i => $t0) {
+            // 야후는 결측 봉을 null로 채워 보낸다 → 건너뛴다
+            if (!isset($q0["open"][$i], $q0["high"][$i], $q0["low"][$i], $q0["close"][$i])) continue;
+            $o = (float)$q0["open"][$i]; $h = (float)$q0["high"][$i];
+            $l = (float)$q0["low"][$i];  $c = (float)$q0["close"][$i];
+            $v = isset($q0["volume"][$i]) ? (float)$q0["volume"][$i] : 0;
+            if (is_finite($o) && is_finite($h) && is_finite($l) && is_finite($c) && $c > 0)
+              $out[] = ["t"=>gmdate("Y-m-d", (int)$t0 + $off), "o"=>$o, "h"=>$h, "l"=>$l, "c"=>$c, "v"=>$v];
+          }
+          if (count($out) >= 2) { $candles = $out; $source = "yahoo"; }
         }
-        if (count($out) >= 2) { $candles = array_slice($out, -400); $source = "stooq"; }
       }
     }
 

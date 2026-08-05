@@ -41,7 +41,7 @@
 
 ## 실행 / 저장
 
-**웹분석**(`runEngine` 즉시계산) / **시뮬레이션**(`playAnalysis` 작도 애니메이션·reveal 게이트). 티커 노드로 실 OHLC fetch(`forge-api.php` 프록시 — TwelveData/Stooq/Naver). 서버(`forge-api.php`)·로컬·JSON 내보내기로 영속. 자동저장은 `markDirty`(디바운스).
+**웹분석**(`runEngine` 즉시계산) / **시뮬레이션**(`playAnalysis` 작도 애니메이션·reveal 게이트). 티커 노드로 실 OHLC fetch(`forge-api.php` 프록시 — TwelveData → Yahoo Finance(폴백) / Naver(국내)). **Stooq는 2026-08-06 봇 차단(JS 프루프-오브-워크)으로 사용 불가 확인 → Yahoo로 교체**(무키·UA 필수). 서버(`forge-api.php`)·로컬·JSON 내보내기로 영속. 자동저장은 `markDirty`(디바운스).
 
 ---
 
