@@ -1196,6 +1196,7 @@
     }
     // ── 구간 고점 대비 낙폭(기본 표기) ── '보이는 범위'(_chartWin) 안의 최고가 대비 현재가가 얼마나 내려왔는지.
     // 고가(OHLC) 있으면 고가, 종가 시계열뿐이면 종가 기준. 세로 스케일이 잘라낸 고점은 값만 표기(선·마커 생략).
+    let _ddBadgeBot = padTop;   // 낙폭 배지가 차지한 아래끝(예시 배지가 이 아래로 비켜서게)
     {
       let winHi = -Infinity, hiI = -1;
       for (let i = 0; i < hist.length; i++) {
@@ -1222,7 +1223,12 @@
         }
         const bt = atHi ? "구간 고점 갱신" : "고점 대비 −" + Math.abs(ddPct).toFixed(1) + "%";
         c.font = "700 10.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
-        const bw2 = c.measureText(bt).width + 16, bx = padX + 4, by = padTop + 2;
+        // 예측선 범례(DOM `.fc-legend`, 좌상단 절대배치)가 켜져 있으면 그 아래로 — 안 그러면 배지가 범례 뒤에 가려 안 보인다.
+        let byTop = padTop + 2;
+        { const lg = document.getElementById("fcLegend");
+          if (lg && lg.style.display !== "none" && lg.offsetHeight) byTop = Math.max(byTop, lg.offsetTop + lg.offsetHeight + 5); }
+        const bw2 = c.measureText(bt).width + 16, bx = padX + 4, by = byTop;
+        _ddBadgeBot = by + 18;
         c.fillStyle = "rgba(" + crgb + ",.14)"; c.strokeStyle = "rgba(" + crgb + ",.34)"; c.lineWidth = 1;
         if (c.roundRect) { c.beginPath(); c.roundRect(bx, by, bw2, 18, 5); c.fill(); c.stroke(); } else { c.fillRect(bx, by, bw2, 18); c.strokeRect(bx, by, bw2, 18); }
         c.fillStyle = col; c.fillText(bt, bx + 8, by + 12.5);
@@ -1254,8 +1260,9 @@
       c.font = "700 10.5px Pretendard,'Malgun Gothic',system-ui,sans-serif"; c.textAlign = "left";
       const txt = "예시 차트입니다 — 위 티커에 종목을 입력해 ‘불러오기’ 하세요";
       const tw = c.measureText(txt).width + 18;
-      c.fillStyle = _warmA(.18); if (c.roundRect) { c.beginPath(); c.roundRect(padX + 4, padTop + 48, tw, 19, 5); c.fill(); } else c.fillRect(padX + 4, padTop + 48, tw, 19);
-      c.fillStyle = "rgba(240,200,120,.98)"; c.fillText(txt, padX + 13, padTop + 60.5); c.textAlign = "left";
+      const dy = Math.max(padTop + 48, _ddBadgeBot + 6);   // 낙폭 배지 아래로 비켜서기
+      c.fillStyle = _warmA(.18); if (c.roundRect) { c.beginPath(); c.roundRect(padX + 4, dy, tw, 19, 5); c.fill(); } else c.fillRect(padX + 4, dy, tw, 19);
+      c.fillStyle = "rgba(240,200,120,.98)"; c.fillText(txt, padX + 13, dy + 12.5); c.textAlign = "left";
     }
     drawEvidence();
     _drawRiskLevels(c, { toY, padX, plotW, padTop, padBot, ch });   // 리스크 진단 라인(진입/손절/목표)
