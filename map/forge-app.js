@@ -1851,11 +1851,52 @@
     _fxLast = 0; _fxRaf = requestAnimationFrame(_fxLoop);
   }
   function stopFx() { if (_fxRaf) { cancelAnimationFrame(_fxRaf); _fxRaf = null; } }
-  async function fetchOHLC(symbol, tf) {
-    const r = await fetch(FORGE_API + "?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(tf || "1day"), { cache: "no-store" });
+  /* OHLC 세션 캐시 — 호출 지점 7곳(loadDoc 재fetch·loadTicker·chartSetTF·대시보드·
+     rankMomentum·벤치마크·노드 불러오기)이 모두 이 관문을 지나므로 여기 한 곳이면 충분하다.
+     캐시가 있으면 ?since=<마지막봉 t>로 델타만 받아 머지 → AAPL 394KB가 ~242B로 준다.
+     반환 shape은 불변(항상 누적 전량 candles) — 델타는 이 함수 밖으로 새지 않는다. */
+  const _ohlcCache = new Map();          // "SYM|tf" → {candles, at, name, source, symbol, tf}
+  const _OHLC_FRESH = { "1day": 5 * 60e3, "1week": 30 * 60e3, "1month": 30 * 60e3 };
+  const _OHLC_CAP = 12;                  // LRU — 5000봉 배열이 수 MB라 무한정 보관 불가
+  function _ohlcHit(key) {               // 조회 시 뒤로 재삽입 = 삽입순 Map을 LRU로 사용
+    const v = _ohlcCache.get(key); if (!v) return null;
+    _ohlcCache.delete(key); _ohlcCache.set(key, v); return v;
+  }
+  function _ohlcPut(key, v) {
+    _ohlcCache.delete(key); _ohlcCache.set(key, v);
+    while (_ohlcCache.size > _OHLC_CAP) _ohlcCache.delete(_ohlcCache.keys().next().value);
+  }
+  function _ohlcOut(v, extra) {          // 캐시 엔트리 → 호출자용 응답(현행 shape 유지)
+    return Object.assign({ ok: true, symbol: v.symbol, tf: v.tf, source: v.source,
+                           name: v.name, full: true, candles: v.candles }, extra || {});
+  }
+  async function fetchOHLC(symbol, tf, opts) {
+    tf = tf || "1day"; opts = opts || {};
+    const key = String(symbol || "").trim().toUpperCase() + "|" + tf;
+    const hit = _ohlcHit(key);
+    const fresh = _OHLC_FRESH[tf] || _OHLC_FRESH["1day"];
+    if (hit && !opts.force && (Date.now() - hit.at) < fresh) return _ohlcOut(hit, { cached: true });
+    // 캐시가 있으면 마지막 봉부터(>=) 델타만 요청 — 진행 중 봉의 종가 갱신을 받기 위함
+    const last = (hit && hit.candles.length) ? hit.candles[hit.candles.length - 1].t : "";
+    let url = FORGE_API + "?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(tf);
+    if (last) url += "&since=" + encodeURIComponent(String(last).slice(0, 10));
+    let r;
+    try { r = await fetch(url, { cache: "no-store" }); }
+    catch (e) { if (hit) return _ohlcOut(hit, { stale: true }); throw e; }
     SERVER_OK = true;
-    if (!r.ok) { let j = null; try { j = await r.json(); } catch (_) {} return j || { ok: false }; }
-    return await r.json();
+    if (!r.ok) {
+      if (hit) return _ohlcOut(hit, { stale: true });   // 갱신 실패해도 이전 캔들로 버틴다
+      let j = null; try { j = await r.json(); } catch (_) {}
+      return j || { ok: false };
+    }
+    const j = await r.json();
+    if (!j || !j.ok || !Array.isArray(j.candles)) return hit ? _ohlcOut(hit, { stale: true }) : (j || { ok: false });
+    // full !== false 로 판정 → 필드가 없는 구버전 서버 응답도 안전하게 '전량 교체'로 떨어진다
+    const candles = (j.full === false && hit) ? ForgeCore.mergeCandles(hit.candles, j.candles) : j.candles;
+    const v = { candles, at: Date.now(), symbol: j.symbol || symbol, tf: j.tf || tf,
+                source: j.source || (hit && hit.source) || "", name: j.name || (hit && hit.name) || "" };
+    _ohlcPut(key, v);
+    return _ohlcOut(v);
   }
   // ── 상대강도 순위(v1.11 고도화) — 워치리스트를 검증된 상대 방향 확률로 순위·정렬(수동 버튼) ──
   // 1순위 지표: 섹터 ETF 대비 아웃퍼폼 확률(OOS 57%·자명규칙 +3.0~3.9pp) → 섹터맵 밖이면 SPY 대비(OOS 54%).
