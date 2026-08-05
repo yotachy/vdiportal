@@ -1623,7 +1623,7 @@
     return "방향성 혼재 — 돌파 확인 전 관망";
   }
   /* ── 타임프레임 매트릭스(일·주·월 비교) ── */
-  let _dashCache = { sym: null, cand: {} }, _dashTmr = null;
+  let _dashSym = null, _dashTmr = null;   // _dashSym = 마지막으로 그린 심볼(플레이스홀더 깜빡임 억제용). 캔들 보관은 fetchOHLC 세션 캐시 소관
   // 종목 선택 시엔 매트릭스(주·월 추가 fetch)를 자동 실행하지 않음 → 안내 플레이스홀더로 초기화(웹분석에서 채움)
   function _dashDefer() {
     const host = document.getElementById("fcDashBody"); if (!host) return;
@@ -1634,9 +1634,7 @@
   const _TFCOL = { "일봉": "#e8b463", "주봉": "#5b8def", "월봉": "#3fb6c0" };
   async function _computeTf(symbol, tf) {
     try {
-      let r;
-      if (_dashCache.sym === symbol && _dashCache.cand[tf]) r = _dashCache.cand[tf];   // 재분석 시 재fetch 방지(캔들 캐시)
-      else { r = await fetchOHLC(symbol, tf); if (r && r.ok) { if (_dashCache.sym !== symbol) _dashCache = { sym: symbol, cand: {} }; _dashCache.cand[tf] = r; } }
+      const r = await fetchOHLC(symbol, tf);   // 재fetch 방지는 fetchOHLC 세션 캐시가 담당(대시보드 전용 캐시는 여기로 흡수됨)
       if (!r || !r.ok || !Array.isArray(r.candles) || r.candles.length < 24) return null;
       const series = r.candles.map(d => +d.c).filter(isFinite); if (series.length < 24) return null;
       const data = { price: series, candle: r.candles.map(d => ({ o: +d.o, h: +d.h, l: +d.l, c: +d.c })), orange: [], blue: [], n: series.length };
@@ -1679,9 +1677,10 @@
     if (!tk) { host.innerHTML = `<div class="dash-guide"><svg class="dg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7" rx="1"/><rect x="12" y="7" width="3" height="11" rx="1"/><rect x="17" y="4" width="3" height="14" rx="1"/></svg><div class="dg-title">타임프레임 매트릭스</div><div class="dg-desc">종목을 <b>불러오기</b> 하면 일·주·월봉을 한눈에 비교합니다 —<br>국면·확률·시그널·목표가·RSI·지지/저항까지.</div></div>`; if (meta) meta.textContent = "–"; return; }
     if (!SERVER_OK) { host.innerHTML = `<div class="dash-guide"><svg class="dg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7" rx="1"/><rect x="12" y="7" width="3" height="11" rx="1"/><rect x="17" y="4" width="3" height="14" rx="1"/></svg><div class="dg-title">타임프레임 매트릭스</div><div class="dg-desc">서버에 연결되면 일·주·월봉 비교가 표시됩니다.<br><span style="opacity:.7">로컬 파일 모드에선 미지원</span></div></div>`; return; }
     const sym = tk.params.symbol.trim();
-    if (_dashCache.sym !== sym) host.innerHTML = `<div class="na-empty">${esc(sym)} 일·주·월 분석 중…</div>`;   // 캐시 있으면 깜빡임 없이 갱신
+    if (_dashSym !== sym) host.innerHTML = `<div class="na-empty">${esc(sym)} 일·주·월 분석 중…</div>`;   // 같은 종목 재분석이면 깜빡임 없이 갱신
     const [d, w, m] = await Promise.all([_computeTf(sym, "1day"), _computeTf(sym, "1week"), _computeTf(sym, "1month")]);
     const cols = [["일봉", d], ["주봉", w], ["월봉", m]].filter(x => x[1]);
+    if (cols.length) _dashSym = sym;   // 한 열이라도 그려졌을 때만 기록(실패한 시도는 다음에 플레이스홀더를 다시 보여야)
     const _tfName = ((typeof activeTF === "function" ? activeTF() : null) || "일봉");   // activeTF()가 이미 "일봉/주봉/월봉" 반환(미설정 시 일봉)
     const _actIdx = cols.findIndex(c => c[0] === _tfName);
     if (!cols.length) { host.innerHTML = `<div class="na-empty">데이터를 불러올 수 없어요: ${esc(sym)}</div>`; return; }
@@ -2032,7 +2031,7 @@
     const lb = document.getElementById("tkLoad");
     if (lb) { lb.disabled = true; lb.className = "tk-load"; lb.textContent = "불러오는 중…"; }
     try {
-      const r = await fetchOHLC(sym, tf);
+      const r = await fetchOHLC(sym, tf, { force: true });   // 사용자가 명시적으로 누른 새로고침 = 신선도 무시(단 델타는 유지)
       if (r && r.ok && Array.isArray(r.candles) && r.candles.length >= 2) {
         applyTickerOHLC(t, r); autoLogForTicker(t); runForge();   // 종목 선택=경량(단일TF 코어 분석·차트). 멀티TF 매트릭스·실적 증강은 '웹분석'에서(부하 분산)
         _dashDefer();   // 매트릭스는 웹분석에서 채움(선택 시 이전 종목 데이터 잔존 방지)
