@@ -216,7 +216,26 @@ if ($method === "GET") {
     }
     // 새 데이터 못 받음 → 저장된 누적 캐시로 폴백(갱신 실패해도 차트 유지)
     if ($candles === null && $incremental) { touch($cf); $emit($prev, $sym, $tf, "cache-stale", ""); exit; }
-    if ($candles === null) { http_response_code(502); echo json_encode(["ok"=>false,"error"=>"notfound","symbol"=>$sym]); exit; }
+    if ($candles === null) {
+      // 근접 오타 구제 — 후보를 함께 내려 클라가 '혹시 이걸 찾으셨나요?'를 띄운다.
+      // 실패 경로에서만 1회 추가 요청이라 성공 경로 비용은 0. (예: APPL → AAPL·Apple Inc.)
+      $sugg = [];
+      $sr = $fetch("https://query2.finance.yahoo.com/v1/finance/search?q=" . rawurlencode($sym) . "&quotesCount=6&newsCount=0", true);
+      if ($sr !== null) {
+        $sj = json_decode($sr, true);
+        $qs = (isset($sj["quotes"]) && is_array($sj["quotes"])) ? $sj["quotes"] : [];
+        foreach ($qs as $qq) {
+          $s2 = isset($qq["symbol"]) ? trim($qq["symbol"]) : "";
+          if ($s2 === "" || strcasecmp($s2, $sym) === 0) continue;   // 입력과 같은 심볼(죽은 플레이스홀더)은 제외
+          if (!preg_match('/^[A-Za-z0-9.\-^=\/]{1,16}$/', $s2)) continue;   // 우리 프록시가 받아줄 수 있는 형태만
+          $nm = isset($qq["shortname"]) ? $qq["shortname"] : (isset($qq["longname"]) ? $qq["longname"] : "");
+          $sugg[] = ["s" => $s2, "n" => $nm];
+          if (count($sugg) >= 3) break;
+        }
+      }
+      http_response_code(502);
+      echo json_encode(["ok"=>false,"error"=>"notfound","symbol"=>$sym,"suggest"=>$sugg], JSON_UNESCAPED_UNICODE); exit;
+    }
     // 캐시 파일에는 항상 전량을 저장한다(since는 응답 필터일 뿐 — 자르면 누적본이 소실된다)
     $payload = json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>$source,"name"=>$name,
                             "full"=>true,"candles"=>$candles], JSON_UNESCAPED_UNICODE);

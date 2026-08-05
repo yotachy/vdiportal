@@ -2049,6 +2049,23 @@
     const wide = mx / mn > 4;   // 광범위(월봉·대급등 등) → 로그, 좁으면 선형(양방향 적응)
     if (wide !== _logChart) { _logChart = wide; if (typeof updateAxisBtns === "function") updateAxisBtns(); }
   }
+  /* 심볼을 못 찾았을 때 — 막다른 토스트 대신 근접 후보를 제안(서버가 실려 보낸 suggest).
+     기존 자동완성 드롭다운(#tkSugg)에 그대로 꽂아 클릭 한 번에 로드되게 한다
+     (드롭다운의 mousedown 핸들러가 _tkSuggPick → loadTicker 로 이어짐). */
+  function _notFoundSym(sym, r) {
+    const seen = {}, sg = [];
+    const add = x => { if (!x || !x.s) return; const k = String(x.s).toUpperCase(); if (seen[k] || k === String(sym).toUpperCase()) return; seen[k] = 1; sg.push(x); };
+    (r && Array.isArray(r.suggest) ? r.suggest : []).forEach(add);                    // 서버(야후 심볼검색) — 회사명 접두
+    if (typeof _suggNear === "function") _suggNear(sym).forEach(add);                 // 클라(편집거리) — 전치·중복 오타
+    sg.length = Math.min(sg.length, 3);
+    const box = document.getElementById("tkSugg");
+    if (box) { box.innerHTML = ""; box.classList.remove("open"); }   // 이전 실패의 후보가 남아 엉뚱한 종목을 추천하는 것 방지
+    if (!sg.length || !box) { bToast("데이터를 찾을 수 없어요: " + sym); return; }
+    const top = sg[0];
+    bToast(sym + " 없음 — " + top.s + (top.n ? " · " + top.n : "") + " 찾으셨나요?");
+    box.innerHTML = sg.map(x => `<div class="tk-sugg-item" data-sym="${esc(x.s)}"><span class="tk-sugg-s">${esc(x.s)}</span><span class="tk-sugg-n">${esc(x.n || "")}</span><span class="tk-sugg-t">추천</span></div>`).join("");
+    box.classList.add("open");
+  }
   async function loadTicker() {
     const t = ensureTickerNode(); let sym = (t.params.symbol || "").trim().toUpperCase();
     if (typeof _normSym === "function") sym = _normSym(sym);   // 대문자 + 크립토 슬래시 정규화(BTC/USD)
@@ -2066,7 +2083,7 @@
         _dashDefer();   // 매트릭스는 웹분석에서 채움(선택 시 이전 종목 데이터 잔존 방지)
         if (typeof updateEngineBtn === "function") { _engineDirty = true; _autoFresh = true; updateEngineBtn(); }   // 자동(경량) 예측 완료 · 웹분석 버튼에 '심층' 유도(펄스)
         if (r.candles.length >= 20) bToast(sym + " " + (t._ohlc ? t._ohlc.length : r.candles.length) + "봉 · " + (_TFKO[tf] || tf));   // <20봉은 runForge의 _showInsufficient가 안내
-      } else bToast("데이터를 찾을 수 없어요: " + sym);
+      } else _notFoundSym(sym, r);
     } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
     finally { if (lb) lb.disabled = false; renderTickerPanel(); }   // 성공/실패 무관 버튼 상태 복원(need/ok는 fresh 판정이 결정)
   }
@@ -2095,7 +2112,7 @@
         applyTickerOHLC(tk, r); autoLogForTicker(tk); runForge(); renderTickerPanel();   // 월봉 등 광범위 → 로그 기본
         _dashDefer(); if (typeof updateEngineBtn === "function") { _engineDirty = true; _autoFresh = true; updateEngineBtn(); }   // 자동(경량) 예측 완료 · 매트릭스·심층은 웹분석에서
         if (r.candles.length >= 20) bToast(sym + " " + (tk._ohlc ? tk._ohlc.length : r.candles.length) + "봉 · " + _TFKO[tf]);
-      } else bToast("데이터를 찾을 수 없어요: " + sym);
+      } else _notFoundSym(sym, r);
     } catch (e) { bToast("불러오기 실패 — 잠시 후 다시"); }
   }
   function buildData(series) {

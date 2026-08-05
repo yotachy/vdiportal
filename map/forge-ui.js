@@ -1225,6 +1225,29 @@
     return TICKER_SUGGEST.filter(x => { const sl = x.s.toLowerCase(); return sl.indexOf(q) >= 0 || _sepless(x.s).indexOf(qn) >= 0 || x.n.toLowerCase().indexOf(q) >= 0; }).slice(0, 8);
   }
   function _suggHTML(hits) { return hits.map(x => `<div class="tk-sugg-item" data-sym="${x.s}"><span class="tk-sugg-s">${esc(x.s)}</span><span class="tk-sugg-n">${esc(x.n)}</span><span class="tk-sugg-t">${esc(x.t)}</span></div>`).join(""); }
+  /* 근접 오타 매칭(편집거리) — 서버 심볼검색은 회사명 접두 매칭이라 APPL(→Apple)은 잡아도
+     TSLAA·MSFTT 같은 전치·중복 오타는 못 잡는다. 내장 목록에 한해 거리 1~2로 구제. */
+  function _lev(a, b) {
+    const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+    let prev = []; for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++)
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1));
+      prev = cur;
+    }
+    return prev[n];
+  }
+  function _suggNear(q) {
+    const qn = _sepless((q || "").trim()); if (qn.length < 2) return [];
+    const max = qn.length <= 4 ? 1 : 2;   // 짧은 심볼은 거리 1만(오탐 억제)
+    return TICKER_SUGGEST
+      .map(x => ({ x, d: _lev(qn, _sepless(x.s)) }))
+      .filter(r => r.d > 0 && r.d <= max)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 3)
+      .map(r => ({ s: r.x.s, n: r.x.n }));
+  }
   // 티커 입력 자동 대문자화(소문자 입력해도 대문자 표시·저장 — 한글/숫자는 불변, 캐럿 유지)
   function _upSym(el) { if (!el) return ""; const up = (el.value || "").toUpperCase(); if (el.value !== up) { const p = el.selectionStart; el.value = up; try { el.setSelectionRange(p, p); } catch (_) {} } return up; }
   // 제네릭: 임의 입력창+드롭다운에 자동완성 부착(선택 시 onPick(sym))
