@@ -61,10 +61,37 @@ if ($method === "GET") {
     if (!in_array($tf, ["1day","1week","1month"], true)) $tf = "1day";
     if (!preg_match('/^[A-Za-z0-9.\-^=\/]{1,16}$/', $sym)) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"badsymbol"]); exit; }
 
+    // 증분 전송: 클라가 가진 마지막 봉 날짜. 이 봉부터(>=) 돌려준다 —
+    // 진행 중인 봉의 종가 갱신을 받으려면 '>' 가 아니라 '>=' 여야 한다.
+    // 주의: 응답 필터일 뿐이며 캐시 파일에는 항상 전량을 저장한다.
+    $since = isset($_GET["since"]) ? trim($_GET["since"]) : "";
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $since)) $since = "";
+    $emit = function($cands, $sym, $tf, $source, $name) use ($since) {
+      $full = true;
+      if ($since !== "") {
+        $out = [];
+        foreach ($cands as $c) { if (isset($c["t"]) && strcmp((string)$c["t"], $since) >= 0) $out[] = $c; }
+        $cands = $out; $full = false;
+      }
+      echo json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>$source,"name"=>$name,
+                        "full"=>$full,"candles"=>array_values($cands)], JSON_UNESCAPED_UNICODE);
+    };
+
     // 캐시 (일봉 1h / 주·월 6h)
     $ttl = ($tf === "1day") ? 3600 : 21600;
     $cf = __DIR__ . "/forge_ohlc_cache_" . md5($sym . "|" . $tf) . ".json";
-    if (is_readable($cf) && (time() - filemtime($cf)) < $ttl) { readfile($cf); exit; }
+    if (is_readable($cf) && (time() - filemtime($cf)) < $ttl) {
+      // 전량 요청 = 파일 직행(가장 빠른 경로 — 5000봉 decode/encode 회피).
+      // 증분 도입 이전에 쓰인 캐시 파일엔 "full" 키가 없어 그대로 나가지만,
+      // 클라가 `full !== false`로 판정하므로 전량 교체로 안전하게 떨어진다(TTL 만료 시 자연 해소).
+      if ($since === "") { readfile($cf); exit; }
+      $hit = json_decode(@file_get_contents($cf), true);
+      if (is_array($hit) && isset($hit["candles"]) && is_array($hit["candles"])) {
+        $emit($hit["candles"], $sym, $tf, isset($hit["source"]) ? $hit["source"] : "cache",
+              isset($hit["name"]) ? $hit["name"] : "");
+        exit;
+      }
+    }
     // 증분 저장: 기존 캐시(누적 데이터) 로드 → 새 봉만 머지(TTL 만료해도 전량 재수집 안 함)
     $prev = [];
     if (is_readable($cf)) { $pj = json_decode(@file_get_contents($cf), true); if (is_array($pj) && isset($pj["candles"]) && is_array($pj["candles"])) $prev = $pj["candles"]; }
@@ -168,11 +195,13 @@ if ($method === "GET") {
       if ($source) $source .= "+inc";
     }
     // 새 데이터 못 받음 → 저장된 누적 캐시로 폴백(갱신 실패해도 차트 유지)
-    if ($candles === null && $incremental) { touch($cf); echo json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>"cache-stale","name"=>"","candles"=>$prev], JSON_UNESCAPED_UNICODE); exit; }
+    if ($candles === null && $incremental) { touch($cf); $emit($prev, $sym, $tf, "cache-stale", ""); exit; }
     if ($candles === null) { http_response_code(502); echo json_encode(["ok"=>false,"error"=>"notfound","symbol"=>$sym]); exit; }
-    $payload = json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>$source,"name"=>$name,"candles"=>$candles], JSON_UNESCAPED_UNICODE);
+    // 캐시 파일에는 항상 전량을 저장한다(since는 응답 필터일 뿐 — 자르면 누적본이 소실된다)
+    $payload = json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>$source,"name"=>$name,
+                            "full"=>true,"candles"=>$candles], JSON_UNESCAPED_UNICODE);
     @file_put_contents($cf, $payload);
-    echo $payload; exit;
+    $emit($candles, $sym, $tf, $source, $name); exit;
   }
   // 라이브 트랙레코드 원장: 만기 도래 예측을 OHLC 캐시로 자동 채점 + 집계 반환
   if (isset($_GET["predledger"])) {
