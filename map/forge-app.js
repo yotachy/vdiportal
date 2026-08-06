@@ -1171,8 +1171,10 @@
         if (g) { const r = cv.getBoundingClientRect(), cxh = e.clientX - r.left, cyh = e.clientY - r.top;
           // 드로잉 도구가 무장 중이면 플롯 위에선 십자선을 유지한다(안 그러면 이 호버 핸들러가 매번 grab 으로 덮어써
           // 도구가 켜졌다는 유일한 시각 단서가 사라진다 — 팝오버를 닫으면 알 길이 없었음).
-          const armed = (typeof drawsArmed === "function") && drawsArmed();
-          cv.style.cursor = (cxh > g.plotRight) ? "ns-resize" : (cyh > g.ch - g.padBot) ? "ew-resize" : (armed ? "crosshair" : "grab"); }
+          // 축 스트립은 종전 우선. 플롯 안에서는 드로잉이 커서를 정한다(무장=십자선 · 핸들/✕=포인터 · 본체=move),
+          // 없으면 grab. 이게 없으면 이 핸들러가 매 호버마다 grab 으로 덮어써 뭘 잡을 수 있는지 알 수 없다.
+          const dc = (typeof drawsCursor === "function") ? drawsCursor(cxh, cyh) : null;
+          cv.style.cursor = (cxh > g.plotRight) ? "ns-resize" : (cyh > g.ch - g.padBot) ? "ew-resize" : (dc || "grab"); }
         return;
       }
       if (hDrag.mode === "xscale") {   // 하단 시간축 드래그 = 가로 배율(오른쪽=확대·왼쪽=축소, 커서 봉 고정)

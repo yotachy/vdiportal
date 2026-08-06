@@ -69,6 +69,9 @@
   }
   function drawsAll() { return DRAWS; }
 
+  /* 히트 반경 — 6px 핸들은 마우스로 사실상 못 맞힌다(실측: 7px 벗어나면 아무것도 안 잡힘).
+     그래서 항상 본체가 먼저 잡혀 "이동만 된다"는 증상이 났다. 시각 5px / 판정 11px 로 키운다. */
+  const HR = 11, HR_VIS = 5, DEL_R = 9, BODY_R = 5;
   const COL = { trend:"#e8b463", channel:"#5b8def", range:"#46c28e", period:"#8a92b2" };
 
   /* 현재 차트 좌표계. _mainGeo(fcDrawMainChart 가 매 프레임 갱신)를 그대로 써야
@@ -98,6 +101,7 @@
   /* M3: forge-draw.js 가 매 프레임 갱신하는 전역 FC_CHART_BG(--chart-bg) 를 그대로 쓴다.
      daylight 같은 라이트 테마는 차트 배경이 밝은색이라 하드코딩 검정을 쓰면 라벨/핸들이
      또렷한 검은 박스로 붕 뜬다 — 두 파일이 classic script 로 전역을 공유하므로 typeof 로 방어. */
+  function FC_BEAR_SAFE() { return (typeof FC_BEAR === "string" && FC_BEAR) || "#e06a6a"; }
   function _chartBg() { return (typeof FC_CHART_BG === "string" && FC_CHART_BG) || "#0b0f14"; }
   function _labelBg() {
     const m = _chartBg().match(/#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})/);
@@ -129,6 +133,18 @@
     c.restore();
   }
 
+  /* 마우스로 지울 수단 — 선택된 그림의 우상단 바깥에 ✕ 배지. 키보드(Del)만으로는
+     지울 수 없다는 제보 반영. 판정은 핸들보다 먼저(작고 겹치기 쉬우므로). */
+  function _delBadge(G, d) {
+    const A = _pt(G, d.a), B = _pt(G, d.b);
+    if (![A.x, A.y, B.x, B.y].every(isFinite)) return null;
+    let y0 = Math.min(A.y, B.y);
+    if (d.type === "channel") y0 = Math.min(y0, G.pToY(d.a.p + (d.off || 0)), G.pToY(d.b.p + (d.off || 0)));
+    const x = Math.max(A.x, B.x) + DEL_R + 4;
+    const y = Math.max(G.g.padTop + DEL_R + 2, y0 - DEL_R - 4);
+    return { x: Math.min(x, G.g.plotRight - DEL_R - 2), y, r: DEL_R };
+  }
+
   function _renderOne(c, G, d, sel) {
     const A = _pt(G, d.a), B = _pt(G, d.b), col = COL[d.type] || COL.trend;
     if (![A.x, A.y, B.x, B.y].every(isFinite)) return;
@@ -154,9 +170,22 @@
         : Math.round(Math.abs(B.fi - A.fi)) + "봉 · " + Math.abs(Math.round((Date.parse(d.b.t) - Date.parse(d.a.t)) / 86400000)) + "일";
       _label(c, txt, x0 + 4, y0 - 4, col);
     }
-    if (sel) {   // 선택 시 끝점 핸들
-      c.fillStyle = col;
-      for (const P of [A, B]) { c.beginPath(); c.arc(P.x, P.y, 4, 0, 7); c.fill(); c.strokeStyle = _chartBg(); c.lineWidth = 1.5; c.stroke(); }
+    if (sel) {   // 선택 시 끝점 핸들 + 삭제 배지
+      for (const P of [A, B]) {
+        c.beginPath(); c.arc(P.x, P.y, HR_VIS, 0, 7);
+        c.fillStyle = col; c.fill();
+        c.strokeStyle = _chartBg(); c.lineWidth = 2; c.stroke();
+      }
+      const db = _delBadge(G, d);
+      if (db) {
+        c.beginPath(); c.arc(db.x, db.y, db.r, 0, 7);
+        c.fillStyle = _labelBg(); c.fill();
+        c.strokeStyle = FC_BEAR_SAFE(); c.lineWidth = 1.4; c.stroke();
+        c.beginPath();
+        c.moveTo(db.x - 3.2, db.y - 3.2); c.lineTo(db.x + 3.2, db.y + 3.2);
+        c.moveTo(db.x + 3.2, db.y - 3.2); c.lineTo(db.x - 3.2, db.y + 3.2);
+        c.strokeStyle = FC_BEAR_SAFE(); c.lineWidth = 1.8; c.lineCap = "round"; c.stroke();
+      }
     }
   }
 
@@ -165,6 +194,14 @@
   let _armed = null, _magnet = false, _drag = null, _newDraw = null;
 
   /* 호버 커서가 십자선을 덮어쓰지 않도록 forge-app 이 물어보는 조회창구(도구 무장·그리기 진행 중) */
+  /* 호버 커서 — 무엇을 잡을 수 있는지 마우스로 알려준다. 핸들/✕ 위에선 포인터,
+     본체 위에선 move. forge-app 의 호버 핸들러가 이 값을 우선 사용한다. */
+  function drawsCursor(cx, cy) {
+    if (_armed || (_drag && _drag.kind === "new")) return "crosshair";
+    const h = drawsHitTest(cx, cy);
+    if (!h) return null;
+    return h.kind === "del" ? "pointer" : h.kind === "handle" ? "pointer" : "move";
+  }
   function drawsArmed() { return !!_armed || !!(_drag && _drag.kind === "new"); }
   function _uid() { return "d_" + Math.random().toString(36).slice(2, 8); }
   function _persist() { const d = (typeof activeDoc === "function") ? activeDoc() : null; if (d) d.draws = DRAWS.slice(); if (typeof markDirty === "function") markDirty(); }
@@ -252,23 +289,25 @@
     if (_selId) {
       const d = _byId(_selId);
       if (d) {
+        const db = _delBadge(G, d);   // 삭제 배지가 핸들보다 우선(작고 끝점 근처라 밀리면 못 누른다)
+        if (db && Math.hypot(cx - db.x, cy - db.y) <= db.r + 2) return { kind: "del", id: d.id, which: null };
         const A = _pt(G, d.a), B = _pt(G, d.b);
-        if (isFinite(A.x) && isFinite(A.y) && Math.hypot(cx - A.x, cy - A.y) <= 6) return { kind: "handle", id: d.id, which: "a" };
-        if (isFinite(B.x) && isFinite(B.y) && Math.hypot(cx - B.x, cy - B.y) <= 6) return { kind: "handle", id: d.id, which: "b" };
+        if (isFinite(A.x) && isFinite(A.y) && Math.hypot(cx - A.x, cy - A.y) <= HR) return { kind: "handle", id: d.id, which: "a" };
+        if (isFinite(B.x) && isFinite(B.y) && Math.hypot(cx - B.x, cy - B.y) <= HR) return { kind: "handle", id: d.id, which: "b" };
       }
     }
     for (let i = DRAWS.length - 1; i >= 0; i--) {
       const d = DRAWS[i], A = _pt(G, d.a), B = _pt(G, d.b);
       if (!isFinite(A.x) || !isFinite(B.x)) continue;
       let hit = false;
-      if (d.type === "trend") hit = segDist(cx, cy, A.x, A.y, B.x, B.y) <= 5;
+      if (d.type === "trend") hit = segDist(cx, cy, A.x, A.y, B.x, B.y) <= BODY_R;
       else if (d.type === "channel") {
         const A2y = G.pToY(d.a.p + (d.off || 0)), B2y = G.pToY(d.b.p + (d.off || 0));
-        hit = segDist(cx, cy, A.x, A.y, B.x, B.y) <= 5 || segDist(cx, cy, A.x, A2y, B.x, B2y) <= 5;
+        hit = segDist(cx, cy, A.x, A.y, B.x, B.y) <= BODY_R || segDist(cx, cy, A.x, A2y, B.x, B2y) <= BODY_R;
       } else {   // range·period = 박스 테두리
         const x0 = Math.min(A.x, B.x), x1 = Math.max(A.x, B.x), y0 = Math.min(A.y, B.y), y1 = Math.max(A.y, B.y);
-        hit = segDist(cx, cy, x0, y0, x1, y0) <= 5 || segDist(cx, cy, x0, y1, x1, y1) <= 5 ||
-              segDist(cx, cy, x0, y0, x0, y1) <= 5 || segDist(cx, cy, x1, y0, x1, y1) <= 5;
+        hit = segDist(cx, cy, x0, y0, x1, y0) <= BODY_R || segDist(cx, cy, x0, y1, x1, y1) <= BODY_R ||
+              segDist(cx, cy, x0, y0, x0, y1) <= BODY_R || segDist(cx, cy, x1, y0, x1, y1) <= BODY_R;
       }
       if (hit) return { kind: "body", id: d.id, which: null };
     }
@@ -306,6 +345,10 @@
       return true;
     }
     const h = drawsHitTest(cx, cy);
+    if (h && h.kind === "del") {   // ✕ 배지 클릭 = 마우스로 삭제
+      DRAWS = DRAWS.filter(x => x.id !== h.id); _selId = null; _persist(); drawsRender();
+      return true;
+    }
     if (h) {
       _selId = h.id;
       const d = _byId(h.id);
@@ -411,7 +454,7 @@
     return false;
   }
 
-  return { tToFi, fiToT, segDist, chanOff, drawsArmed, drawsLoad, drawsAll, drawsGeo, drawsRender,
+  return { tToFi, fiToT, segDist, chanOff, drawsArmed, drawsCursor, drawsLoad, drawsAll, drawsGeo, drawsRender,
            drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop,
            drawsHitTest, drawsKey };
 });
