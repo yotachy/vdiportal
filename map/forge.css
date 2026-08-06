@@ -439,6 +439,10 @@
   body.hide-rail .ind-rail{display:none}
   /* M10: 드로잉 도구는 모바일 스코프 밖 — 좁은 화면에선 버튼 자체를 숨긴다 */
   @media (max-width:860px){ #drawToolBtn{display:none} }
+  /* 드로잉 팝오버는 .chart-pop 의 기본 좌표(left:12px·top:352px)를 쓰면 화면 왼쪽 끝에 열려
+     트리거 버튼(차트 헤더 우측)과 멀고 #chartPresetPop 과 정확히 겹친다 — 버튼 아래로 앵커. */
+  #drawPop{left:auto;right:16px;top:104px;width:250px}
+  @media (max-width:860px){ #drawPop{display:none!important} }
   .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   /* 국면/확률/시그널 강조 바 + 핵심 의견 */
   /* ── 판정 대시보드: 3섹션(계기판 / 검증 예측 / 지표 합의)을 헤어라인으로 구분 ── */

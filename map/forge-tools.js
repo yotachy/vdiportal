@@ -164,6 +164,8 @@
 
   let _armed = null, _magnet = false, _drag = null, _newDraw = null;
 
+  /* 호버 커서가 십자선을 덮어쓰지 않도록 forge-app 이 물어보는 조회창구(도구 무장·그리기 진행 중) */
+  function drawsArmed() { return !!_armed || !!(_drag && _drag.kind === "new"); }
   function _uid() { return "d_" + Math.random().toString(36).slice(2, 8); }
   function _persist() { const d = (typeof activeDoc === "function") ? activeDoc() : null; if (d) d.draws = DRAWS.slice(); if (typeof markDirty === "function") markDirty(); }
 
@@ -279,10 +281,17 @@
     if (_drag && _drag.kind === "new" && _newDraw) {
       // 채널 폭 지정 대기 중(stage 2) — 새 그리기를 또 시작하지 않고 이 클릭으로 폭을 확정한다.
       // 여기서 guard 없이 _armed 분기로 흘려보내면 반쪽짜리 채널이 DRAWS 에 계속 쌓인다(고아 도형).
-      if (_newDraw.type === "channel" && _drag.stage === 2) {
-        // 직전 move 없이 연속 클릭만으로도 폭이 잡히도록, 이 클릭 좌표로 직접 계산한다(미리보기 값에 기대지 않음).
-        _setChanOff(G, cx, cy);
-        _finishNew();
+      if (_drag.stage === 2) {
+        if (_newDraw.type === "channel") {
+          // 직전 move 없이 연속 클릭만으로도 폭이 잡히도록, 이 클릭 좌표로 직접 계산한다(미리보기 값에 기대지 않음).
+          _setChanOff(G, cx, cy);
+          _finishNew();
+        } else {
+          // 트레이딩뷰식 두 번째 클릭 = 끝점 확정. 같은 자리를 또 누르면 0길이라 취소한다.
+          const b = _anchorAt(G, cx, cy), A = _pt(G, _newDraw.a), B = _pt(G, { t: b.t, p: b.p });
+          if (isFinite(A.x) && isFinite(B.x) && Math.hypot(B.x - A.x, B.y - A.y) < 6) _cancelNew();
+          else { _newDraw.b = b; _finishNew(); }
+        }
       }
       return true;
     }
@@ -315,7 +324,9 @@
     const G = drawsGeo(); if (!G) return;
     if (_drag.kind === "new") {
       if (_drag.stage === 1) _newDraw.b = _anchorAt(G, cx, cy);
-      else if (_drag.stage === 2) _setChanOff(G, cx, cy);   // 채널 3번째 점 = 폭
+      // stage 2 = 첫 클릭 뒤 두 번째 클릭 대기 중. 채널이면 폭(3번째 점), 그 외는 끝점이
+      // 커서를 따라오는 고무줄 미리보기 — 버튼을 떼고 움직여도 선이 따라와야 클릭 방식이 성립한다.
+      else if (_drag.stage === 2) { if (_newDraw.type === "channel") _setChanOff(G, cx, cy); else _newDraw.b = _anchorAt(G, cx, cy); }
       drawsRender();
     } else if (_drag.kind === "handle") {
       const d = _byId(_selId); if (!d) return;
@@ -356,7 +367,10 @@
         // F1: 예전엔 조건이 맞으면 무조건 배열 끝을 pop 했다 — 드래그 도중 Delete 로 이미
         // _newDraw 가 지워졌다면(아래 drawsKey) 배열 끝엔 무관한 기존 저장 그림이 있고,
         // 그게 대신 삭제되는 데이터 유실이 났다. 배열 끝이 정말 _newDraw 본인일 때만 pop.
-        if (Math.hypot(B.x - A.x, B.y - A.y) < 6 && DRAWS[DRAWS.length - 1] === _newDraw) DRAWS.pop();   // 점만 찍고 끝난 것 = 취소
+        // 예전엔 여기서 '점만 찍었다'며 폐기하고 도구까지 풀었다 — 그래서 트레이딩뷰처럼
+        // 클릭으로 그리려던 사용자에겐 아무 반응도 없었다(무장까지 조용히 해제). 이제는
+        // 폐기하지 않고 stage 2 로 넘겨 두 번째 클릭을 기다린다(드래그 방식도 그대로 동작).
+        if (Math.hypot(B.x - A.x, B.y - A.y) < 6 && DRAWS[DRAWS.length - 1] === _newDraw) { _drag.stage = 2; return; }
       }
       _finishNew();
     } else { _drag = null; _persist(); drawsRender(); }
@@ -397,7 +411,7 @@
     return false;
   }
 
-  return { tToFi, fiToT, segDist, chanOff, drawsLoad, drawsAll, drawsGeo, drawsRender,
+  return { tToFi, fiToT, segDist, chanOff, drawsArmed, drawsLoad, drawsAll, drawsGeo, drawsRender,
            drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop,
            drawsHitTest, drawsKey };
 });

@@ -1168,7 +1168,11 @@
       if (typeof drawsPointerMove === "function") { const r0 = cv.getBoundingClientRect(); drawsPointerMove(e, e.clientX - r0.left, e.clientY - r0.top); }
       if (!hDrag) {   // 호버 커서 힌트: y축 스트립=세로 스케일(↕) · 하단 시간축=가로 배율(↔) · 플롯=이동(grab)
         const g = cv._mainGeo;
-        if (g) { const r = cv.getBoundingClientRect(), cxh = e.clientX - r.left, cyh = e.clientY - r.top; cv.style.cursor = (cxh > g.plotRight) ? "ns-resize" : (cyh > g.ch - g.padBot) ? "ew-resize" : "grab"; }
+        if (g) { const r = cv.getBoundingClientRect(), cxh = e.clientX - r.left, cyh = e.clientY - r.top;
+          // 드로잉 도구가 무장 중이면 플롯 위에선 십자선을 유지한다(안 그러면 이 호버 핸들러가 매번 grab 으로 덮어써
+          // 도구가 켜졌다는 유일한 시각 단서가 사라진다 — 팝오버를 닫으면 알 길이 없었음).
+          const armed = (typeof drawsArmed === "function") && drawsArmed();
+          cv.style.cursor = (cxh > g.plotRight) ? "ns-resize" : (cyh > g.ch - g.padBot) ? "ew-resize" : (armed ? "crosshair" : "grab"); }
         return;
       }
       if (hDrag.mode === "xscale") {   // 하단 시간축 드래그 = 가로 배율(오른쪽=확대·왼쪽=축소, 커서 봉 고정)
