@@ -786,6 +786,7 @@
   .fc-leg-tip{position:absolute;left:-6px;top:calc(100% + 8px);z-index:20;width:236px;background:var(--raised);border:1px solid var(--line);border-radius:var(--r-md);padding:9px 11px;font-size:11.5px;font-weight:500;line-height:1.55;color:var(--eth);letter-spacing:-.01em;box-shadow:0 10px 26px var(--scrim);opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity .13s,transform .13s}
   .fc-leg-item:hover .fc-leg-tip{opacity:1;transform:translateY(0)}
   body.evhide .fc-evidence,body.evhide .fc-evidence-hi{display:none}
+  .fc-draws{position:absolute;inset:0;z-index:3;pointer-events:none}   /* 그리기 레이어 — 이벤트는 #fcMainChart 가 전담 */
   .fc-fx{position:absolute;inset:0;pointer-events:none;z-index:4}
   .fc-zoom-reset{position:absolute;top:8px;right:8px;z-index:4;width:24px;height:24px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--panel);color:var(--eth);font-size:13px;cursor:pointer;display:none}
   .fc-zoom-reset.on{display:block}

@@ -1263,6 +1263,7 @@
       c.fillStyle = "rgba(240,200,120,.98)"; c.fillText(txt, padX + 13, padTop + 60.5); c.textAlign = "left";
     }
     drawEvidence();
+    if (typeof drawsRender === "function") drawsRender();   // 그리기 레이어 — 지표 작도와 같은 _mainGeo 좌표계
     _drawRiskLevels(c, { toY, padX, plotW, padTop, padBot, ch });   // 리스크 진단 라인(진입/손절/목표)
     c.restore();
     if (typeof updateAxisBtns === "function") updateAxisBtns();   // A/L 버튼 상태 초기 렌더에도 동기화

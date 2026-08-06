@@ -556,6 +556,7 @@
     if (typeof _ensureAllInd === "function") _ensureAllInd();   // 1차(종합)=전체 지표 항상 포함
     themeState.imgId = dc.themeImgId || null; themeState.title = dc.title || "";
     _logChart = !!dc.logChart; updateAxisBtns();
+    if (typeof drawsLoad === "function") drawsLoad(dc.draws);   // 그림 복원(없으면 빈 배열)
     const vz = dc.vision;
     if (vz && Array.isArray(vz.series) && vz.series.length >= 2) {
       _visionData = { price: vz.series, n: vz.series.length };
