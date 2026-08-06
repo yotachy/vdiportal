@@ -5,6 +5,8 @@
 
 ## 🔥 진행 중 / 대기
 
+- ~~**[차트] 드로잉 도구 4종 + 마그넷**~~ ✅ 완료(2026-08-06, c9e5dbf..33661c8): 추세선·평행채널·등락폭 재기·기간 재기 + 마그넷. **앵커=(날짜, 가격)**이라 일/주/월 전환·줌·로그축을 자동 추종(봉 번호 저장이면 일→주에서 1/5로 어긋남). 신규 `forge-tools.js`(UMD — 순수 헬퍼는 `node --test`, 렌더는 `#fcDraws` pointer-events:none). 포인터는 기존 `fcMainChart` 분기 앞에 위임 한 줄만 끼워 그림 0개·도구 꺼짐이면 종전 팬과 동일. `dc.draws`로 종목별 영구 저장. 툴바는 우측 팝오버(좌측 세로 레일은 시연 HUD 가림 사고 회피). spec/plan `2026-08-06-chart-drawing-tools*`.
+
 - ~~**[데이터] OHLC 폴백 소스 교체 — Stooq(봇차단) → Yahoo Finance**~~ ✅ 완료(2026-08-06): 사용자 "불러오기 실패" 제보(실제로는 `APPL` 오타 — 애플은 `AAPL`) 조사 중 **Stooq가 CSV 대신 JS 프루프-오브-워크 봇 차단 페이지를 반환**하는 것을 확인 → 미국주식 2차 안전망이 죽어 있었고 **TwelveData 단일 소스** 상태였다. TD 무료는 **분당 8회** 한도라 새 종목 연속 조회(워치리스트 신호 스캔 최대 30종목)에서 줄줄이 실패 가능(실제로 KO가 한 번 실패 후 잠시 뒤 정상 = 분당 한도 정황). → `forge-api.php` 폴백을 **Yahoo Finance chart v8**(무키 JSON)로 교체. 주기 매핑 `1day/1week/1month → 1d/1wk/1mo`, range `20y`(월봉 `max`), 결측 봉(null) 스킵, **거래소 `gmtoffset`로 현지 날짜 환산**(UTC 직접 사용 시 개장시각에 따라 하루 밀림), `BTC/USD → BTC-USD` 표기 변환. **주의: Yahoo는 User-Agent 없으면 429** — 기존 `$fetch` 헬퍼가 UA를 붙여 그대로 통과. 라이브 검증: TD가 404를 내는 심볼로 폴백 강제(`7203.T` 일 4915/주 1045/월 328봉, `SAP.DE` 5078봉, `src=yahoo`), `?since=` 계약 유지(6봉 full=false), 기존 경로 무회귀(AAPL·BTC-USD 5014/3265봉 twelvedata, 005930·KOSPI naver), 없는 심볼은 여전히 notfound.
   - **[후속 여지]** TD 429 감지 시 backoff 재시도 · 워치리스트 스캔 분당 한도(8회) 맞춘 간격 제어. 폴백이 생겨 급하진 않음.
 
