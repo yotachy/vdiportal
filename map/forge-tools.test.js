@@ -249,3 +249,100 @@ test("F2 회귀: 마지막 봉에 찍힌 vline 의 ✕ 배지 중심이 클립 �
     assert.ok(badge.y >= G.g.padTop + DEL_R + 2 - 1e-6 && badge.y <= G.g.ch - G.g.padBot - DEL_R - 2 + 1e-6, "배지 중심이 세로로도 클립 안쪽이어야 함: " + badge.y);
   });
 });
+
+/* ── 스와치(색·굵기) 회귀 테스트 (Task 4) ──────────────────────────── */
+
+test("스와치: 색 스와치 클릭 → d.color 저장 + drawStyle 이 새 색 반영", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(({ g }) => {
+    T2.drawsLoad([{ id: "h1", type: "hline", a: { t: "2026-01-10", p: 100 } }]);
+    T2._undoReset();
+    const G = T2.drawsGeo();
+    const y = G.pToY(100);
+    assert.strictEqual(T2.drawsPointerDown({}, 300, y), true, "본체 클릭으로 선택돼야 함");
+    const d = T2.drawsAll()[0];
+    const rects = T2._swatchRects(G, d);
+    const before = T2.drawStyle(d).color;
+    const target = rects.find(r => r.kind === "color" && r.val !== before);
+    assert.ok(target, "기본색과 다른 색 스와치가 있어야 함");
+    const cx = target.x + target.w / 2, cy = target.y + target.h / 2;
+    assert.strictEqual(T2.drawsPointerDown({}, cx, cy), true, "스와치 클릭이 소비되어야 함");
+    assert.strictEqual(T2.drawsAll()[0].color, target.val, "d.color 에 저장돼야 함");
+    assert.strictEqual(T2.drawStyle(T2.drawsAll()[0]).color, target.val, "drawStyle 이 새 색을 반영해야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("스와치: 굵기 스와치 클릭 → d.w 저장 + drawStyle 이 CW 숫자 반영", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(({ g }) => {
+    T2.drawsLoad([{ id: "h1", type: "hline", a: { t: "2026-01-10", p: 100 } }]);
+    T2._undoReset();
+    const G = T2.drawsGeo();
+    const y = G.pToY(100);
+    T2.drawsPointerDown({}, 300, y);   // 본체 클릭으로 선택
+    const d = T2.drawsAll()[0];
+    const rects = T2._swatchRects(G, d);
+    const target = rects.find(r => r.kind === "w" && r.val === "bold");
+    assert.ok(target, "bold 스와치가 있어야 함");
+    const cx = target.x + target.w / 2, cy = target.y + target.h / 2;
+    assert.strictEqual(T2.drawsPointerDown({}, cx, cy), true, "스와치 클릭이 소비되어야 함");
+    assert.strictEqual(T2.drawsAll()[0].w, "bold", "d.w 에 저장돼야 함(문자열 키)");
+    assert.ok(Math.abs(T2.drawStyle(T2.drawsAll()[0]).w - 1.6) < 1e-9, "drawStyle.w 가 CW.bold(1.6) 이어야 함: " + T2.drawStyle(T2.drawsAll()[0]).w);
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("스와치: undo 스냅샷은 뮤테이트 '전' 상태 — push-before-mutate 계약 가드", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(({ g }) => {
+    T2.drawsLoad([{ id: "h1", type: "hline", a: { t: "2026-01-10", p: 100 } }]);
+    T2._undoReset();
+    const G = T2.drawsGeo();
+    const y = G.pToY(100);
+    T2.drawsPointerDown({}, 300, y);   // 선택
+    const d = T2.drawsAll()[0];
+    const rects = T2._swatchRects(G, d);
+    const target = rects.find(r => r.kind === "color");
+    const cx = target.x + target.w / 2, cy = target.y + target.h / 2;
+    T2.drawsPointerDown({}, cx, cy);   // 스와치 클릭 = _undoPush() 후 뮤테이트(계약)
+    assert.strictEqual(T2.drawsAll()[0].color, target.val, "라이브 상태엔 새 색이 반영돼 있어야 함");
+    const popped = T2._undoPop();
+    assert.ok(Array.isArray(popped) && popped.length === 1, "스냅샷이 존재해야 함");
+    // F1 계약: push 는 뮤테이트 전 상태를 캡처해야 하므로, 스냅샷 속 color 는 아직
+    // 새 값이 아니어야 한다(과거엔 이 순서가 뒤집혀 undo 가 무효과였다).
+    assert.notStrictEqual(popped[0].color, target.val, "스냅샷엔 새 색이 아직 없어야 함(뮤테이트 전 캡처)");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("스와치: 상단 끝 hline 에서도 스와치 줄 8칸 전부가 클립 사각형 안에 있음", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(({ g }) => {
+    T2.drawsLoad([{ id: "h1", type: "hline", a: { t: "2026-01-10", p: 149 } }]);   // 가시범위 최상단 근처 가격
+    const G = T2.drawsGeo();
+    const rects = T2._swatchRects(G, T2.drawsAll()[0]);
+    assert.strictEqual(rects.length, 8, "색 5 + 굵기 3 = 8칸이어야 함");
+    for (const r of rects) {
+      assert.ok(r.x >= G.g.padX - 2 - 1e-6, "좌측 클립 안쪽이어야 함: " + r.x);
+      assert.ok(r.x + r.w <= G.g.plotRight + 2 + 1e-6, "우측 클립 안쪽이어야 함: " + (r.x + r.w));
+      assert.ok(r.y >= G.g.padTop - 1e-6, "상단 클립 안쪽이어야 함: " + r.y);
+      assert.ok(r.y + r.h <= G.g.ch - G.g.padBot + 1e-6, "하단 클립 안쪽이어야 함(회귀 전엔 아래로 튀어나감): " + (r.y + r.h));
+    }
+  });
+});
+
+test("스와치: 마지막 봉 vline(우측 가장자리)에서도 스와치 줄이 클립 사각형 안에 있음", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(({ g, times }) => {
+    T2.drawsLoad([{ id: "v1", type: "vline", a: { t: times[99], p: 100 } }]);
+    const G = T2.drawsGeo();
+    const rects = T2._swatchRects(G, T2.drawsAll()[0]);
+    for (const r of rects) {
+      assert.ok(r.x >= G.g.padX - 2 - 1e-6, "좌측 클립 안쪽이어야 함: " + r.x);
+      assert.ok(r.x + r.w <= G.g.plotRight + 2 + 1e-6, "우측 클립 안쪽이어야 함(회귀 전엔 오른쪽으로 튀어나감): " + (r.x + r.w));
+      assert.ok(r.y >= G.g.padTop - 1e-6, "상단 클립 안쪽이어야 함: " + r.y);
+      assert.ok(r.y + r.h <= G.g.ch - G.g.padBot + 1e-6, "하단 클립 안쪽이어야 함: " + (r.y + r.h));
+    }
+  });
+});

@@ -257,6 +257,46 @@
     return { x: Math.min(x, G.g.plotRight - DEL_R - 2), y, r: DEL_R };
   }
 
+  /* 선택된 도형 옆 스타일 줄 — ✕ 배지 아래에 색 5칸 + 굵기 3칸.
+     캔버스에 그리므로 DOM 추가 없이 차트와 같은 좌표계에 산다.
+     F1(리뷰): 브리프 원안은 db 좌표에서 바로 x0=db.x-db.r 로 놓고 클램프가 없었다 —
+     ✕ 배지 자체는 _delBadge 가 클립 사각형 안으로 클램프하지만, 이 줄은 배지보다
+     오른쪽·아래로 더 뻗어나가므로(전체 폭 ~120px, 배지 아래 여백 포함) 화면 가장자리
+     도형(상단 hline·마지막 봉 vline 등)에서 클립 밖으로 나가 안 보이고 안 눌린다 —
+     예전에 ✕ 배지 자체가 겪었던 것과 같은 버그다. 원점(0,0) 기준으로 먼저 배치해
+     실측 전체 폭을 구한 뒤, 시작점을 클립 사각형 안쪽으로 다시 클램프한다. */
+  function _swatchRects(G, d) {
+    const db = _delBadge(G, d); if (!db) return [];
+    const S = 12, GAP = 3;
+    const out = [];
+    let x = 0;
+    SW_COLORS.forEach(v => { out.push({ x, y: 0, w: S, h: S, kind: "color", val: v }); x += S + GAP; });
+    x += 5;
+    SW_W.forEach(v => { out.push({ x, y: 0, w: S, h: S, kind: "w", val: v }); x += S + GAP; });
+    const rowW = out[out.length - 1].x + S;   // 마지막 스와치 우측 끝 = 실측 전체 폭
+    let x0 = Math.max(G.g.padX - 2, Math.min(db.x - db.r, G.g.plotRight + 2 - rowW));
+    let y0 = Math.max(G.g.padTop, Math.min(db.y + db.r + 6, G.g.ch - G.g.padBot - S));
+    return out.map(r => ({ x: r.x + x0, y: y0, w: r.w, h: r.h, kind: r.kind, val: r.val }));
+  }
+
+  function _drawSwatches(c, G, d) {
+    const st = drawStyle(d), w = _cw();
+    for (const r of _swatchRects(G, d)) {
+      c.save();
+      if (r.kind === "color") {
+        c.fillStyle = r.val; c.beginPath();
+        if (c.roundRect) c.roundRect(r.x, r.y, r.w, r.h, 3); else c.rect(r.x, r.y, r.w, r.h);
+        c.fill();
+        if (st.color === r.val) { c.strokeStyle = _chartBg(); c.lineWidth = w.base; c.stroke(); }
+      } else {
+        c.strokeStyle = st.color; c.lineWidth = w[r.val]; c.lineCap = "round";
+        c.beginPath(); c.moveTo(r.x + 1, r.y + r.h / 2); c.lineTo(r.x + r.w - 1, r.y + r.h / 2); c.stroke();
+        if (Math.abs(st.w - w[r.val]) < 1e-9) { c.strokeStyle = "rgba(232,180,99,.5)"; c.lineWidth = w.hair; c.strokeRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2); }
+      }
+      c.restore();
+    }
+  }
+
   function _renderOne(c, G, d, sel) {
     const st = drawStyle(d);
     // 수평·수직선은 앵커가 하나뿐이라 b 가 없다 — 창 전체를 가로/세로로 가로지른다.
@@ -275,7 +315,7 @@
         if (sel) _handleRing(c, x, G.g.padTop + 14, st.color);
       }
       c.setLineDash([]);
-      if (sel) _drawDelBadge(c, G, d);
+      if (sel) { _drawDelBadge(c, G, d); _drawSwatches(c, G, d); }
       return;
     }
     const A = _pt(G, d.a), B = _pt(G, d.b), col = COL[d.type] || COL.trend;
@@ -309,6 +349,7 @@
         c.strokeStyle = _chartBg(); c.lineWidth = 2; c.stroke();
       }
       _drawDelBadge(c, G, d);
+      _drawSwatches(c, G, d);
     }
   }
 
@@ -319,7 +360,7 @@
     if (_armed || (_drag && _drag.kind === "new")) return "crosshair";
     const h = drawsHitTest(cx, cy);
     if (!h) return null;
-    return h.kind === "del" ? "pointer" : h.kind === "handle" ? "pointer" : "move";
+    return (h.kind === "del" || h.kind === "swatch" || h.kind === "handle") ? "pointer" : "move";
   }
   function drawsArmed() { return !!_armed || !!(_drag && _drag.kind === "new"); }
   function _uid() { return "d_" + Math.random().toString(36).slice(2, 8); }
@@ -407,6 +448,10 @@
       if (d) {
         const db = _delBadge(G, d);   // 삭제 배지가 핸들보다 우선(작고 끝점 근처라 밀리면 못 누른다)
         if (db && Math.hypot(cx - db.x, cy - db.y) <= db.r + 2) return { kind: "del", id: d.id, which: null };
+        for (const r of _swatchRects(G, d)) {   // 스와치도 작고 핸들 근처라 핸들보다 먼저 판정
+          if (cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h)
+            return { kind: "swatch", id: d.id, which: null, sw: r };
+        }
         const A = _pt(G, d.a), B = d.b ? _pt(G, d.b) : null;   // hline·vline 은 b 가 없다
         if (isFinite(A.x) && isFinite(A.y) && Math.hypot(cx - A.x, cy - A.y) <= HR) return { kind: "handle", id: d.id, which: "a" };
         if (B && isFinite(B.x) && isFinite(B.y) && Math.hypot(cx - B.x, cy - B.y) <= HR) return { kind: "handle", id: d.id, which: "b" };
@@ -485,6 +530,13 @@
       return true;
     }
     const h = drawsHitTest(cx, cy);
+    if (h && h.kind === "swatch") {   // 색·굵기 스와치 클릭 = 스타일 변경
+      const d = _byId(h.id);
+      // F1(리뷰): _undoPush 는 반드시 뮤테이트 '전'에 호출 — 순서를 뒤집으면 스냅샷에
+      // 이미 새 스타일이 들어있어 되돌리기가 무효과가 된다(과거 hline/vline 라운드와 동일 함정).
+      if (d) { _undoPush(); if (h.sw.kind === "color") d.color = h.sw.val; else d.w = h.sw.val; _persist(); drawsRender(); }
+      return true;
+    }
     if (h && h.kind === "del") {   // ✕ 배지 클릭 = 마우스로 삭제
       DRAWS = DRAWS.filter(x => x.id !== h.id); _selId = null; _persist(); drawsRender();
       return true;
@@ -599,7 +651,7 @@
   return { tToFi, fiToT, segDist, chanOff, drawsArmed, drawsCursor, drawsLoad, drawsAll, drawsGeo, drawsRender,
            drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop,
            drawsHitTest, drawsKey, _undoPush, _undoPop, _undoReset, drawStyle, SW_COLORS, SW_W, _progressText,
-           _delBadge };   // 언더스코어 접두 내부 헬퍼도 _undoPush 등과 같은 관례로 테스트용 노출
+           _delBadge, _swatchRects };   // 언더스코어 접두 내부 헬퍼도 _undoPush 등과 같은 관례로 테스트용 노출
 });
 
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", function () {
