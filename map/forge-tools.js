@@ -264,18 +264,39 @@
      오른쪽·아래로 더 뻗어나가므로(전체 폭 ~120px, 배지 아래 여백 포함) 화면 가장자리
      도형(상단 hline·마지막 봉 vline 등)에서 클립 밖으로 나가 안 보이고 안 눌린다 —
      예전에 ✕ 배지 자체가 겪었던 것과 같은 버그다. 원점(0,0) 기준으로 먼저 배치해
-     실측 전체 폭을 구한 뒤, 시작점을 클립 사각형 안쪽으로 다시 클램프한다. */
+     실측 전체 폭을 구한 뒤, 시작점을 클립 사각형 안쪽으로 다시 클램프한다.
+     F1-재검토(치명적): 위 클립 클램프를 y0 에 단순 적용(Math.min(...,ch-padBot-S))하면
+     배지가 이미 클립 하단 한계로 클램프돼 있는 도형(_delBadge 의 bottom clamp — 상단
+     hline/vline 클램프를 고치며 만든 바로 그 경계)에서 줄이 배지 쪽으로 다시 끌려
+     올라가 첫 색 칸이 ✕ 배지 히트원(반경 db.r+2) 안으로 들어가버렸다. 그 칸을 누르면
+     drawsHitTest 가 "del" 을 스와치보다 먼저 매칭해 도형이 조용히 삭제된다(파괴적).
+     불변식(항상 성립해야 함): **어떤 클램프 결과에서도 스와치 사각형은 ✕ 배지의
+     히트원과 절대 겹치지 않는다.** 이를 지키려면 클립 맞추기보다 배지와의 최소 간격
+     확보가 우선이어야 한다 — 아래에 자리가 없으면 위로 뒤집고(대칭 간격이라 아래와
+     동일하게 안전), 위조차 없는 극단적으로 좁은 플롯에서만 최후 수단으로 클립 안쪽에
+     클램프한다(실사용 차트 높이에서는 도달하지 않는 분기). */
   function _swatchRects(G, d) {
     const db = _delBadge(G, d); if (!db) return [];
     const S = 12, GAP = 3;
+    // 배지 중심에서 이만큼은 반드시 띄운다 — 히트원 반경(db.r+2)보다 확실히 커야 한다.
+    // 이 간격을 세로 방향으로만 확보하면(아래 또는 위, x 클램프와 무관하게) 스와치
+    // 사각형에서 배지 중심까지의 최단거리가 항상 SEP 이상이 된다(가로로 밀려도 거리는
+    // 늘어나기만 함 — 피타고라스). 그래서 x0 클램프는 그대로 둬도 안전하다.
+    const SEP = db.r + 6;
     const out = [];
     let x = 0;
     SW_COLORS.forEach(v => { out.push({ x, y: 0, w: S, h: S, kind: "color", val: v }); x += S + GAP; });
     x += 5;
     SW_W.forEach(v => { out.push({ x, y: 0, w: S, h: S, kind: "w", val: v }); x += S + GAP; });
     const rowW = out[out.length - 1].x + S;   // 마지막 스와치 우측 끝 = 실측 전체 폭
-    let x0 = Math.max(G.g.padX - 2, Math.min(db.x - db.r, G.g.plotRight + 2 - rowW));
-    let y0 = Math.max(G.g.padTop, Math.min(db.y + db.r + 6, G.g.ch - G.g.padBot - S));
+    const x0 = Math.max(G.g.padX - 2, Math.min(db.x - db.r, G.g.plotRight + 2 - rowW));
+
+    const below = db.y + SEP, above = db.y - SEP - S;
+    let y0;
+    if (below + S <= G.g.ch - G.g.padBot) y0 = below;          // 아래에 자리 있으면 아래(기존 기본 배치)
+    else if (above >= G.g.padTop) y0 = above;                   // 없으면 위로 뒤집기(같은 SEP 로 대칭 안전)
+    else y0 = Math.max(G.g.padTop, Math.min(below, G.g.ch - G.g.padBot - S));   // 최후: 클립 우선(실사용에선 도달 안 함)
+
     return out.map(r => ({ x: r.x + x0, y: y0, w: r.w, h: r.h, kind: r.kind, val: r.val }));
   }
 
@@ -291,7 +312,10 @@
       } else {
         c.strokeStyle = st.color; c.lineWidth = w[r.val]; c.lineCap = "round";
         c.beginPath(); c.moveTo(r.x + 1, r.y + r.h / 2); c.lineTo(r.x + r.w - 1, r.y + r.h / 2); c.stroke();
-        if (Math.abs(st.w - w[r.val]) < 1e-9) { c.strokeStyle = "rgba(232,180,99,.5)"; c.lineWidth = w.hair; c.strokeRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2); }
+        // F2(리뷰): 리터럴 골드는 daylight/paper 처럼 골드 토큰이 슬레이트로 바뀌는 라이트
+        // 테마에서 텍스트·색 스와치 선택 링(둘 다 이미 테마 추종)과 어긋난다 — drawsRender()
+        // 상단 진행 칩(F1/F2, 218행)과 같은 관례로 _warmA(alpha)를 typeof 가드로 쓴다.
+        if (Math.abs(st.w - w[r.val]) < 1e-9) { c.strokeStyle = (typeof _warmA === "function") ? _warmA(.5) : "rgba(232,180,99,.5)"; c.lineWidth = w.hair; c.strokeRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2); }
       }
       c.restore();
     }
@@ -532,9 +556,21 @@
     const h = drawsHitTest(cx, cy);
     if (h && h.kind === "swatch") {   // 색·굵기 스와치 클릭 = 스타일 변경
       const d = _byId(h.id);
-      // F1(리뷰): _undoPush 는 반드시 뮤테이트 '전'에 호출 — 순서를 뒤집으면 스냅샷에
-      // 이미 새 스타일이 들어있어 되돌리기가 무효과가 된다(과거 hline/vline 라운드와 동일 함정).
-      if (d) { _undoPush(); if (h.sw.kind === "color") d.color = h.sw.val; else d.w = h.sw.val; _persist(); drawsRender(); }
+      if (d) {
+        const st = drawStyle(d), w = _cw();
+        const noop = h.sw.kind === "color" ? st.color === h.sw.val : Math.abs(st.w - w[h.sw.val]) < 1e-9;
+        // Minor(리뷰): 이미 적용된(=활성 링이 표시 중인) 스와치를 다시 눌러도 매번
+        // undo 를 쌓으면, UNDO_MAX=30 이 문서 전체가 공유하는 스택이라 아무 변화 없는
+        // 재클릭이 진짜 되돌릴 이력을 밀어낸다 — 값이 그대로면 통째로 건너뛴다.
+        if (!noop) {
+          // F1(리뷰): _undoPush 는 반드시 뮤테이트 '전'에 호출 — 순서를 뒤집으면
+          // 스냅샷에 이미 새 스타일이 들어있어 되돌리기가 무효과가 된다(과거
+          // hline/vline 라운드와 동일 함정).
+          _undoPush();
+          if (h.sw.kind === "color") d.color = h.sw.val; else d.w = h.sw.val;
+          _persist(); drawsRender();
+        }
+      }
       return true;
     }
     if (h && h.kind === "del") {   // ✕ 배지 클릭 = 마우스로 삭제

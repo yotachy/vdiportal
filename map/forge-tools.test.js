@@ -303,7 +303,12 @@ test("스와치: undo 스냅샷은 뮤테이트 '전' 상태 — push-before-mut
     T2.drawsPointerDown({}, 300, y);   // 선택
     const d = T2.drawsAll()[0];
     const rects = T2._swatchRects(G, d);
-    const target = rects.find(r => r.kind === "color");
+    // Minor(리뷰) 반영: 이미 적용된 색과 같은 스와치를 누르면 이제 no-op(undo 도 안 쌓임) —
+    // 이 테스트는 "실제로 바뀌는" 클릭의 undo 계약을 보고 싶은 것이므로 현재 색과 다른
+    // 스와치를 골라야 한다(현재 색과 같은 걸 고르면 뮤테이트 자체가 안 일어나 오검출됨).
+    const before = T2.drawStyle(d).color;
+    const target = rects.find(r => r.kind === "color" && r.val !== before);
+    assert.ok(target, "기본색과 다른 색 스와치가 있어야 함");
     const cx = target.x + target.w / 2, cy = target.y + target.h / 2;
     T2.drawsPointerDown({}, cx, cy);   // 스와치 클릭 = _undoPush() 후 뮤테이트(계약)
     assert.strictEqual(T2.drawsAll()[0].color, target.val, "라이브 상태엔 새 색이 반영돼 있어야 함");
@@ -323,11 +328,15 @@ test("스와치: 상단 끝 hline 에서도 스와치 줄 8칸 전부가 클립 
     const G = T2.drawsGeo();
     const rects = T2._swatchRects(G, T2.drawsAll()[0]);
     assert.strictEqual(rects.length, 8, "색 5 + 굵기 3 = 8칸이어야 함");
+    // F3(재검토): 이 픽스처는 배지가 상단에 붙어 아래로 자리가 넉넉하므로 y0 는 "아래"
+    // 분기만 타고 클립 하단 클램프엔 애초에 안 닿는다(그 시나리오는 아래 "하단 pinned"
+    // 테스트가 전담) — 여기선 좌·상·우 3면 클립 포함만 확인한다(이전엔 "회귀 전엔 아래로
+    // 튀어나감"이라 잘못 서술돼 있었다 — 이 픽스처가 구조적으로 재현 못 하는 시나리오).
     for (const r of rects) {
       assert.ok(r.x >= G.g.padX - 2 - 1e-6, "좌측 클립 안쪽이어야 함: " + r.x);
       assert.ok(r.x + r.w <= G.g.plotRight + 2 + 1e-6, "우측 클립 안쪽이어야 함: " + (r.x + r.w));
       assert.ok(r.y >= G.g.padTop - 1e-6, "상단 클립 안쪽이어야 함: " + r.y);
-      assert.ok(r.y + r.h <= G.g.ch - G.g.padBot + 1e-6, "하단 클립 안쪽이어야 함(회귀 전엔 아래로 튀어나감): " + (r.y + r.h));
+      assert.ok(r.y + r.h <= G.g.ch - G.g.padBot + 1e-6, "하단 클립 안쪽이어야 함: " + (r.y + r.h));
     }
   });
 });
@@ -345,4 +354,49 @@ test("스와치: 마지막 봉 vline(우측 가장자리)에서도 스와치 줄
       assert.ok(r.y + r.h <= G.g.ch - G.g.padBot + 1e-6, "하단 클립 안쪽이어야 함: " + (r.y + r.h));
     }
   });
+});
+
+test("F1(치명적) 회귀: 하단 pinned 도형 — 스와치 줄이 ✕ 배지 히트원과 절대 겹치지 않음(파괴적 오클릭 가드)", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(({ g }) => {
+    // 리뷰어 재현 그대로: 가시범위 최하단(loV=50) 가격에 hline — _delBadge 가 배지를
+    // 자기 자신의 클립 하단 한계(ch-padBot-DEL_R-2)로 클램프하는 바로 그 시나리오.
+    T2.drawsLoad([{ id: "h1", type: "hline", a: { t: "2026-01-10", p: 50 } }]);
+    T2._undoReset();
+    const G = T2.drawsGeo();
+    T2.drawsPointerDown({}, 300, G.pToY(50));   // 본체 클릭으로 선택(스와치/핸들 판정엔 _selId 필요)
+    const d = T2.drawsAll()[0];
+    const db = T2._delBadge(G, d);
+    assert.ok(db, "배지 좌표가 계산돼야 함");
+
+    // (a) 이 픽스처가 실제로 "아래에 자리 없음" 분기를 강제하는지 먼저 확인한다 —
+    //     아니면 이 테스트가 문제의 그 경로를 안 타는 셈이라 가드로서 무의미하다.
+    const SEP = db.r + 6, S = 12;
+    const naiveBelow = db.y + SEP;
+    assert.ok(naiveBelow + S > G.g.ch - G.g.padBot,
+      "이 픽스처는 '아래에 자리 없음' 분기를 강제해야 함(안 그러면 재현이 아님): naiveBelow=" + naiveBelow);
+    const rects = T2._swatchRects(G, d);
+    // 모든 스와치가 y0 를 공유 — 순진한 아래 배치(db.y+SEP)가 아니라 위로 뒤집혔는지
+    // 직접 확인한다(클램프/뒤집기가 실제로 발동했다는 증거, 우연한 안전 거리가 아님).
+    assert.ok(rects[0].y < db.y,
+      "자리가 없으면 스와치 줄이 배지 위로 뒤집혀야 함: y0=" + rects[0].y + " db.y=" + db.y);
+
+    // (b) F1 가드 본체 — 어떤 스와치 칸도 ✕ 배지 히트원(반경 db.r+2)과 겹치면 안 된다는
+    //     불변식을 모든 칸에 대해 직접 검증한다(사각형→원 최근접점 거리).
+    for (const r of rects) {
+      const nx = Math.max(r.x, Math.min(db.x, r.x + r.w));
+      const ny = Math.max(r.y, Math.min(db.y, r.y + r.h));
+      const dist = Math.hypot(nx - db.x, ny - db.y);
+      assert.ok(dist > db.r + 2,
+        "스와치 칸이 ✕ 배지 히트원과 겹치면 안 됨(누르면 도형이 삭제됨): kind=" + r.kind + " val=" + r.val +
+        " 거리=" + dist.toFixed(2) + " 배지반경+2=" + (db.r + 2));
+    }
+
+    // 실사용 클릭 시나리오로 다시 확인: 첫 칸(leftmost color) 중앙을 누르면 "swatch" 여야지
+    // "del" 로 오판정되면(회귀 전 증상) 도형이 조용히 삭제된다.
+    const hit = T2.drawsHitTest(rects[0].x + rects[0].w / 2, rects[0].y + rects[0].h / 2);
+    assert.strictEqual(hit && hit.kind, "swatch",
+      "첫 스와치 칸 클릭은 'swatch' 여야 함(회귀 전엔 'del' 로 오판정돼 도형이 삭제됐다)");
+  });
+  T2.drawsLoad([]); T2._undoReset();
 });
