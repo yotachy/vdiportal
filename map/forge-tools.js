@@ -97,6 +97,9 @@
   function drawsLoad(arr) {
     _cancelNew();
     _selId = null; _armed = null; _drag = null; _newDraw = null;
+    // T5: 문서 전환 시 되돌리기 스택도 비운다 — 안 비우면 종목 A 에서 지운 그림을 종목 B 로
+    // 넘어와 Ctrl+Z 로 되살릴 수 있다(스택은 그림 배열 스냅샷일 뿐 어느 문서 것인지 모른다).
+    _undoReset();
     DRAWS = Array.isArray(arr) ? arr.slice() : [];
   }
   function drawsAll() { return DRAWS; }
@@ -404,7 +407,7 @@
     const cv = document.getElementById("fcMainChart"); if (cv) cv.style.cursor = _armed ? "crosshair" : "grab";
   }
   function drawsMagnet(on) { _magnet = !!on; }
-  function drawsClear() { _cancelNew(); DRAWS = []; _selId = null; _persist(); drawsRender(); }
+  function drawsClear() { _cancelNew(); _undoPush(); DRAWS = []; _selId = null; _persist(); drawsRender(); }
 
   /* 화면 좌표 → 앵커(날짜, 가격). 마그넷이 켜져 있으면 Task 5 에서 흡착을 적용한다.
      M8: xToFi 가 어떤 이유로든 NaN/Infinity 를 내면 fiToT(times,NaN) 이 undefined 를 돌려주고,
@@ -547,6 +550,10 @@
         _finishNew();
         return true;
       }
+      // T5: hline·vline 은 위 분기에서 이미 push 했다(Task 3) — 여기 else 경로(trend·channel·
+      // range·period, 다중 클릭 그리기)만 push 가 없었으므로 여기서 뮤테이트(DRAWS.push) 직전에 넣는다.
+      // 공통 상단의 `_newDraw = {...}` 대입 앞에 넣으면 hline·vline 경로가 두 번 push 된다(중복 스냅샷).
+      _undoPush();
       DRAWS.push(_newDraw);
       _selId = _newDraw.id;
       _drag = { kind: "new", stage: 1 };
@@ -574,12 +581,17 @@
       return true;
     }
     if (h && h.kind === "del") {   // ✕ 배지 클릭 = 마우스로 삭제
+      _undoPush();
       DRAWS = DRAWS.filter(x => x.id !== h.id); _selId = null; _persist(); drawsRender();
       return true;
     }
     if (h) {
       _selId = h.id;
       const d = _byId(h.id);
+      // T5: 드래그 시작 지점 단 한 번만 push — pointermove 마다 찍으면 드래그 한 번에 스택이
+      // 수십 칸씩 밀리고(30단계 상한 금방 소진), pointerup 에서 찍으면 이미 이동/조정된
+      // 결과가 스냅샷에 들어가 되돌리기가 무효화된다. handle·move 두 종류 모두 여기 한 곳에서 커버.
+      _undoPush();
       _drag = h.kind === "handle"
         ? { kind: "handle", which: h.which }
         : { kind: "move", fi0: G.xToFi(cx), p0: G.yToP(cy), a0: { ...d.a }, b0: { ...d.b }, off0: d.off };   // F3: 채널 폭도 같이 스냅샷
@@ -661,6 +673,15 @@
     if (ae && (ae.isContentEditable || ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return false;
     const boardHasSel = (typeof sel !== "undefined" && sel && sel.length) ||
                          (typeof selEdge !== "undefined" && selEdge);
+    // Ctrl+Z / Ctrl+Shift+Z(=Ctrl+Y). forge 에는 보드 undo 가 없어 충돌 대상이 없다(확인함).
+    // 입력 필드 포커스 중에는 위에서 이미 false 로 빠져나가므로 브라우저 기본 실행취소를 뺏지 않는다.
+    if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z" || e.key === "y" || e.key === "Y")) {
+      const snap = _undoPop();
+      if (!snap) return true;                  // 되돌릴 게 없어도 이벤트는 삼킨다(브라우저 기본 동작 방지)
+      DRAWS = snap; _selId = null; _cancelNew();
+      _persist(); drawsRender();
+      return true;
+    }
     if (e.key === "Escape") {
       // I2: 채널이 stage2(폭 지정 대기)에서 멈춰 있으면 _armed 분기보다 먼저 여기서 끝내야 한다.
       // stage2 에선 _newDraw 가 아직 DRAWS 에 반쪽짜리로 남아 있는데 _armed 도 여전히 세팅돼
@@ -678,6 +699,7 @@
       if (_cancelNew()) return true;
       if (boardHasSel) return false;
       if (_selId) {
+        _undoPush();
         DRAWS = DRAWS.filter(d => d.id !== _selId); _selId = null; _persist(); drawsRender(); return true;
       }
     }
