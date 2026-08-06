@@ -170,7 +170,21 @@
     const fi = G.xToFi(cx);
     return { t: fiToT(G.times, fi), p: _snapPrice(G, fi, cy) };
   }
-  function _snapPrice(G, fi, cy) { return G.yToP(cy); }   // Task 5 에서 마그넷 흡착으로 교체
+  /* 마그넷 — 커서가 가리키는 봉의 시·고·저·종 중 화면상 8px 이내로 가장 가까운 값에 흡착.
+     고점·저점을 정확히 집는 것이 목적. 캔들이 없으면(종가 전용) 종가만 후보. */
+  function _snapPrice(G, fi, cy) {
+    const raw = G.yToP(cy);
+    if (!_magnet) return raw;
+    const oh = (typeof priceOHLC === "function") ? priceOHLC() : null;
+    const i = Math.round(fi);
+    let cands = null;
+    if (oh && oh[i]) cands = [oh[i].o, oh[i].h, oh[i].l, oh[i].c];
+    else { const ps = (typeof priceSeries === "function") ? priceSeries() : null; if (ps && isFinite(ps[i])) cands = [ps[i]]; }
+    if (!cands) return raw;
+    let best = null, bestD = 8.0001;
+    for (const v of cands) { if (!isFinite(v)) continue; const d = Math.abs(G.pToY(v) - cy); if (d < bestD) { bestD = d; best = v; } }
+    return best == null ? raw : best;
+  }
 
   /* 그리기 완료 공통 뒷정리 — 도구 해제(drawsArm 은 토글이라 두 번 부르면 안 되므로 직접 해제) +
      영속화 + 재작도. pointerUp 정상 커밋 경로와 pointerDown 채널 2번째 클릭 커밋 경로가 공유한다. */
@@ -302,15 +316,17 @@
 
   /* 전역 keydown 앞단에서 먼저 호출된다. true 를 반환하면 기존 단축키로 흘리지 않는다.
      F2: sel/selEdge 는 forge-ui.js(전략보드) 전역이라 이 파일만 봐선 존재 여부를 모른다 —
-     보드가 뭔가 선택 중이면 Delete/Esc 는 보드 몫으로 양보한다(typeof 로 방어적 참조,
-     둘 다 비어있을 때만 그림 도구가 키를 가져간다). */
+     보드가 뭔가 선택 중이면 Delete 는 보드 몫으로 양보한다(typeof 로 방어적 참조).
+     단, Esc 는 양보하지 않는다(Task 4 재검토 F2 후속 수정) — Delete 는 파괴적이라
+     잘못 삭제하느니 아무 것도 안 하는 쪽이 안전하지만, Esc 는 그 반대다. 보드에 stale/
+     잊힌 선택이 남아있으면 그림 선택을 영영 키보드로 못 지우게 되는 함정이 생기므로,
+     Esc 는 항상 무장 해제/그림 선택 해제를 먼저 수행한다(없으면 false 로 보드에 넘김). */
   function drawsKey(e) {
     const ae = document.activeElement;
     if (ae && (ae.isContentEditable || ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return false;
     const boardHasSel = (typeof sel !== "undefined" && sel && sel.length) ||
                          (typeof selEdge !== "undefined" && selEdge);
     if (e.key === "Escape") {
-      if (boardHasSel) return false;
       if (_armed) { drawsArm(null); _armed = null; return true; }
       if (_selId) { _selId = null; drawsRender(); return true; }
       return false;
