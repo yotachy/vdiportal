@@ -67,10 +67,12 @@ test("undo 스택: push/pop 왕복 — 저장된 상태를 그대로 복원", ()
   T2._undoReset();
   T2._undoPush();
 
-  // 라이브 상태 변경
-  T2.drawsLoad([
-    { id: "d_002", type: "channel", a: { t: "2026-01-07", p: 120 }, b: { t: "2026-01-08", p: 130 } }
-  ]);
+  // 라이브 상태 변경 — T5 부터 drawsLoad 는 호출마다 되돌리기 스택도 비운다(문서 전환 가드,
+  // 아래 "drawsLoad 는 스택을 비운다" 테스트 참고). 여기선 순수히 push/pop 왕복만 보고 싶으므로
+  // drawsLoad 대신 drawsAll()이 돌려주는 라이브 배열을 직접 뮤테이트해 스택을 건드리지 않는다.
+  const live = T2.drawsAll();
+  live.length = 0;
+  live.push({ id: "d_002", type: "channel", a: { t: "2026-01-07", p: 120 }, b: { t: "2026-01-08", p: 130 } });
 
   // pop 하면 원래 상태가 나와야 함
   const restored = T2._undoPop();
@@ -98,11 +100,15 @@ test("undo 스택: 스냅샷 격리 — 복원된 상태가 라이브 상태와 
 
 test("undo 스택: 최대 30개 제한 — 31개 push 시 첫 번째가 삭제됨", () => {
   const T2 = require("./forge-tools.js");
+  T2.drawsLoad([]);
   T2._undoReset();
 
-  // 31개 push
+  // 31개 push — drawsLoad 는 호출마다 스택을 비우므로(T5) 여기서도 drawsAll() 로 얻은 라이브
+  // 배열을 직접 뮤테이트해 상태를 바꾼다(스택은 그대로 유지돼야 이 테스트가 성립함).
+  const live = T2.drawsAll();
   for (let i = 0; i < 31; i++) {
-    T2.drawsLoad([{ id: `d_${String(i).padStart(3, "0")}`, type: "trend", a: { t: "2026-01-05", p: 100 + i }, b: { t: "2026-01-06", p: 110 + i } }]);
+    live.length = 0;
+    live.push({ id: `d_${String(i).padStart(3, "0")}`, type: "trend", a: { t: "2026-01-05", p: 100 + i }, b: { t: "2026-01-06", p: 110 + i } });
     T2._undoPush();
   }
 
@@ -399,4 +405,161 @@ test("F1(치명적) 회귀: 하단 pinned 도형 — 스와치 줄이 ✕ 배지
       "첫 스와치 칸 클릭은 'swatch' 여야 함(회귀 전엔 'del' 로 오판정돼 도형이 삭제됐다)");
   });
   T2.drawsLoad([]); T2._undoReset();
+});
+
+/* ── Ctrl+Z 되돌리기 회귀 테스트 (Task 5) ──────────────────────────── */
+
+test("undo: 두 앵커 그리기(trend) 완성 후 Ctrl+Z 하면 그 그림이 사라짐", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]);
+    T2._undoReset();
+    T2.drawsArm("trend");
+    const G = T2.drawsGeo();
+    const y1 = G.pToY(90), y2 = G.pToY(110);
+    assert.strictEqual(T2.drawsPointerDown({}, 200, y1), true, "1번째 클릭(시작점)이 소비되어야 함");
+    T2.drawsPointerUp();   // 클릭식 그리기 — stage2(끝점 대기)로 전환
+    assert.strictEqual(T2.drawsPointerDown({}, 400, y2), true, "2번째 클릭(끝점)이 소비되어야 함");
+    T2.drawsPointerUp();
+    assert.strictEqual(T2.drawsAll().length, 1, "trend 그림 1개가 완성돼야 함");
+    const consumed = T2.drawsKey({ ctrlKey: true, key: "z" });
+    assert.strictEqual(consumed, true, "Ctrl+Z 는 이벤트를 삼켜야 함");
+    assert.strictEqual(T2.drawsAll().length, 0, "되돌리면 방금 그은 trend 가 사라져야 함(생성 전 상태로 복원)");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("undo: Delete 키로 지운 그림이 Ctrl+Z 로 복원됨", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([{ id: "h1", type: "hline", a: { t: "2026-01-10", p: 100 } }]);
+    T2._undoReset();
+    const G = T2.drawsGeo();
+    T2.drawsPointerDown({}, 300, G.pToY(100));   // 본체 클릭으로 선택
+    assert.strictEqual(T2.drawsAll().length, 1);
+    // 본체 클릭 자체도 드래그 시작 지점 push(핸들/이동 가드)를 남기므로, Delete 브랜치의
+    // push 만 단독으로 검증하려면 선택 직후의 그 스냅샷을 지워야 한다(안 지우면 Delete
+    // 브랜치 push 를 제거해도 이 스냅샷이 대신 복원해줘 mutation 이 안 걸린다).
+    T2._undoReset();
+    const consumedDel = T2.drawsKey({ key: "Delete" });
+    assert.strictEqual(consumedDel, true, "Delete 가 소비되어야 함");
+    assert.strictEqual(T2.drawsAll().length, 0, "Delete 로 지워져야 함");
+    const consumedUndo = T2.drawsKey({ ctrlKey: true, key: "z" });
+    assert.strictEqual(consumedUndo, true, "Ctrl+Z 는 이벤트를 삼켜야 함");
+    assert.strictEqual(T2.drawsAll().length, 1, "Ctrl+Z 로 복원돼야 함");
+    assert.strictEqual(T2.drawsAll()[0].id, "h1", "같은 그림이 복원돼야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("undo: 통째 이동(move) 드래그 — 원래 앵커로 복원 + 드래그 1회는 되돌리기 1단계만 남김", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([{ id: "t1", type: "trend", a: { t: "2026-01-10", p: 100 }, b: { t: "2026-01-20", p: 110 } }]);
+    T2._undoReset();
+    const G = T2.drawsGeo();
+    const fiA = T2.tToFi(G.times, "2026-01-10"), fiB = T2.tToFi(G.times, "2026-01-20");
+    const Ax = G.fiToX(fiA), Ay = G.pToY(100), Bx = G.fiToX(fiB), By = G.pToY(110);
+    const midx = (Ax + Bx) / 2, midy = (Ay + By) / 2;
+    assert.strictEqual(T2.drawsPointerDown({}, midx, midy), true, "본체 클릭으로 선택 + move 드래그 시작");
+    // 드래그 중 여러 번 이동 — push 는 pointerdown 시점 1회만 나야 한다(각 move 마다 나면 안 됨).
+    T2.drawsPointerMove({}, midx + 30, midy - 10);
+    T2.drawsPointerMove({}, midx + 55, midy - 22);
+    T2.drawsPointerMove({}, midx + 70, midy - 30);
+    T2.drawsPointerUp();
+    const moved = T2.drawsAll()[0];
+    assert.notStrictEqual(moved.a.p, 100, "드래그 후 앵커 가격이 바뀌어야 함(그래야 복원 검증에 의미가 있음): " + moved.a.p);
+
+    const consumed = T2.drawsKey({ ctrlKey: true, key: "z" });
+    assert.strictEqual(consumed, true, "Ctrl+Z 는 이벤트를 삼켜야 함");
+    const restored = T2.drawsAll()[0];
+    assert.strictEqual(restored.a.p, 100, "원래 시작 앵커 가격으로 복원돼야 함");
+    assert.strictEqual(restored.b.p, 110, "원래 끝 앵커 가격으로 복원돼야 함");
+    assert.strictEqual(restored.a.t, "2026-01-10");
+    assert.strictEqual(restored.b.t, "2026-01-20");
+
+    // 드래그 한 번(여러 pointermove 포함) = 되돌리기 스택엔 정확히 1단계만 쌓였어야 한다 —
+    // 방금 그 1단계를 이미 소비했으니 이제 스택은 비어 있어야 함.
+    assert.strictEqual(T2._undoPop(), null, "드래그 1회는 되돌리기 스택에 정확히 1단계만 남겨야 함(과도 push 없음)");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("undo: 끝점(handle) 드래그 — Ctrl+Z 로 그 끝점만 원래 자리로 복원", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([{ id: "t2", type: "trend", a: { t: "2026-01-10", p: 100 }, b: { t: "2026-01-20", p: 110 } }]);
+    T2._undoReset();
+    const G = T2.drawsGeo();
+    const fiA = T2.tToFi(G.times, "2026-01-10"), fiB = T2.tToFi(G.times, "2026-01-20");
+    const Ax = G.fiToX(fiA), Ay = G.pToY(100), Bx = G.fiToX(fiB), By = G.pToY(110);
+    const midx = (Ax + Bx) / 2, midy = (Ay + By) / 2;
+    // 핸들은 선택된 그림에만 판정되므로, 먼저 본체를 클릭해 선택한다(이 클릭 자체는 무의미한
+    // move-드래그 스냅샷을 하나 남기므로 undoReset 으로 지워 이번 테스트 대상에서 제외한다).
+    T2.drawsPointerDown({}, midx, midy);
+    T2.drawsPointerUp();
+    T2._undoReset();
+
+    const consumed = T2.drawsPointerDown({}, Ax, Ay);   // A 핸들 위 클릭
+    assert.strictEqual(consumed, true, "핸들 클릭이 소비되어야 함");
+    T2.drawsPointerMove({}, Ax + 25, Ay + 40);
+    T2.drawsPointerUp();
+    const moved = T2.drawsAll()[0];
+    assert.notStrictEqual(moved.a.p, 100, "핸들 드래그 후 a 가 바뀌어야 함: " + moved.a.p);
+    assert.strictEqual(moved.b.p, 110, "핸들 드래그는 반대쪽 b 에 영향이 없어야 함(대조군)");
+
+    const k = T2.drawsKey({ ctrlKey: true, key: "z" });
+    assert.strictEqual(k, true, "Ctrl+Z 는 이벤트를 삼켜야 함");
+    const restored = T2.drawsAll()[0];
+    assert.strictEqual(restored.a.p, 100, "a 가 원래 가격으로 복원돼야 함");
+    assert.strictEqual(restored.a.t, "2026-01-10", "a 가 원래 날짜로 복원돼야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("undo: 전체 지우기(drawsClear) 후 Ctrl+Z 로 모든 그림이 복원됨", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([
+      { id: "a1", type: "hline", a: { t: "2026-01-10", p: 100 } },
+      { id: "a2", type: "vline", a: { t: "2026-01-15", p: 0 } },
+    ]);
+    T2._undoReset();
+    T2.drawsClear();
+    assert.strictEqual(T2.drawsAll().length, 0, "전체 지우기 직후엔 비어 있어야 함");
+    const consumed = T2.drawsKey({ ctrlKey: true, key: "z" });
+    assert.strictEqual(consumed, true, "Ctrl+Z 는 이벤트를 삼켜야 함");
+    const restored = T2.drawsAll();
+    assert.strictEqual(restored.length, 2, "지운 그림 2개가 모두 복원돼야 함");
+    assert.deepStrictEqual(restored.map(d => d.id).sort(), ["a1", "a2"]);
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("undo: drawsLoad(문서 전환)는 되돌리기 스택을 비운다 — 다른 종목 그림을 되살릴 수 없음", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([{ id: "sym1_1", type: "hline", a: { t: "2026-01-10", p: 100 } }]);
+    T2._undoReset();
+    T2.drawsClear();   // sym1 상태 스냅샷 1개가 push 됨
+    T2.drawsLoad([{ id: "sym2_1", type: "hline", a: { t: "2026-02-01", p: 200 } }]);   // 다른 종목 문서로 전환
+    const consumed = T2.drawsKey({ ctrlKey: true, key: "z" });
+    assert.strictEqual(consumed, true, "스택이 비어도 이벤트는 삼켜야 함(브라우저 기본 동작 방지)");
+    const live = T2.drawsAll();
+    assert.strictEqual(live.length, 1, "sym2 문서 그대로여야 함(sym1 그림이 되살아나면 안 됨)");
+    assert.strictEqual(live[0].id, "sym2_1", "sym1 그림이 섞여 들어오면 안 됨");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("undo: 입력 필드에 포커스 중이면 drawsKey 가 Ctrl+Z 를 가로채지 않음(false)", () => {
+  const T2 = require("./forge-tools.js");
+  const prevDoc = global.document;
+  global.document = { activeElement: { tagName: "INPUT", isContentEditable: false } };
+  try {
+    const r = T2.drawsKey({ ctrlKey: true, key: "z" });
+    assert.strictEqual(r, false, "input 포커스 중엔 브라우저 기본 실행취소를 뺏으면 안 됨(브라우저 자체 undo 유지)");
+  } finally {
+    global.document = prevDoc;
+  }
 });
