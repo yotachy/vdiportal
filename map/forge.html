@@ -60,6 +60,19 @@
         <div class="ph-body" id="playHudBody"><span class="ph-empty">시뮬레이션(▶)을 실행하면 지표별 작도 진행이 표시됩니다</span></div>
         <div class="ph-logsec"><div class="ph-logsec-h">진행 로그</div><div class="al-body" id="analyzeLogBody"></div></div>
       </div>
+      <div id="drawPop" class="chart-pop" aria-hidden="true">
+        <div class="chart-pop-head"><span class="chart-pop-title">차트 드로잉</span><button class="ph-btn" onclick="toggleDrawPop()" aria-label="닫기">✕</button></div>
+        <div class="chart-pop-body">
+          <div class="dp-tools">
+            <button class="dp-btn" data-draw="trend">추세선</button>
+            <button class="dp-btn" data-draw="channel">평행채널</button>
+            <button class="dp-btn" data-draw="range">등락폭 재기</button>
+            <button class="dp-btn" data-draw="period">기간 재기</button>
+          </div>
+          <label class="dp-mag"><input type="checkbox" id="drawMagnet"> 마그넷 — 고·저·시·종에 흡착</label>
+          <button class="dp-clear" onclick="drawsClear()">전체 지우기</button>
+        </div>
+      </div>
       <div id="chartPresetPop" class="chart-pop" aria-hidden="true">
         <div class="chart-pop-head" id="chartPresetHead"><span class="ph-grip" aria-hidden="true">⠿</span><span class="chart-pop-title">자주 쓰는 프리셋</span><button class="ph-btn" onclick="_alignPanels()" title="열린 창 나란히 정렬 (누를 때마다 수직↔수평)" aria-label="정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="6.5" height="14" rx="1"/><rect x="13.5" y="5" width="6.5" height="14" rx="1"/></svg></button><button class="ph-btn" id="railPresetMin" title="접기/펼치기" aria-label="접기">–</button></div>
         <div class="chart-pop-body" id="railPresetPop"></div>
@@ -93,6 +106,7 @@
               <!-- 2·3패널 접기 — 전체화면(⛶)과 함께 '차트 영역 넓히기' 묶음.
                    왼쪽에 두면 뷰포트 고정 시연 HUD(.play-hud, z-index:95)가 둘 다 접었을 때 버튼을 덮어
                    되돌릴 수 없게 된다(헤드리스 검증서 확인). 오른쪽엔 떠 있는 오버레이가 없다. -->
+              <button class="pane-btn" id="drawToolBtn" onclick="toggleDrawPop()" title="차트 드로잉 도구"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l4-1 9.5-9.5a2.1 2.1 0 0 0-3-3L5 16z"/><path d="M13.5 6.5l3 3"/></svg><span class="hlbl">도구</span></button>
               <div class="pane-seg" role="group" aria-label="좌측 패널 접기">
                 <button class="pane-btn" id="paneBoardBtn" onclick="togglePane('board')" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M11 4v16"/></svg><span class="hlbl">보드</span></button>
                 <button class="pane-btn" id="paneRailBtn" onclick="togglePane('rail')" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16"/></svg><span class="hlbl">지표</span></button>

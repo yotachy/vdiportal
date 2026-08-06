@@ -749,6 +749,13 @@
   .fc-comet{position:absolute;inset:0;pointer-events:none;z-index:4}   /* 예측선 위 움직이는 밝은 점(1/2/3차) */
   .chart-pop{position:fixed;left:12px;top:352px;z-index:95;width:300px;max-width:calc(100vw - 24px);background:var(--panel);border:1px solid var(--gold-dim);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;transform:translateY(-6px);opacity:0;transition:transform .18s ease,opacity .18s ease}
   .chart-pop.on{display:block;transform:translateY(0);opacity:1}
+  .dp-tools{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+  .dp-btn{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:8px 6px;color:var(--ink);font-size:12px;font-weight:700;cursor:pointer}
+  .dp-btn:hover{border-color:var(--gold-dim)}
+  .dp-btn.on{background:rgba(232,180,99,.16);border-color:var(--gold);color:var(--gold)}
+  .dp-mag{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--eth);margin-bottom:10px;cursor:pointer}
+  .dp-clear{width:100%;background:transparent;border:1px solid var(--line);border-radius:var(--r-md);padding:7px;color:var(--muted);font-size:12px;cursor:pointer}
+  .dp-clear:hover{color:var(--bear);border-color:var(--bear)}
   .chart-pop-head{display:flex;align-items:center;gap:7px;padding:5px 6px 5px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none;touch-action:none}
   .chart-pop-head .ph-grip{color:var(--faint);font-size:11px;letter-spacing:-2px;flex:0 0 auto}
   .chart-pop-title{flex:1;font-size:11.5px;font-weight:700;color:var(--ink)}

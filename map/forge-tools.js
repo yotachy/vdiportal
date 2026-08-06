@@ -145,5 +145,84 @@
 
   let _selId = null;
 
-  return { tToFi, fiToT, segDist, chanOff, drawsLoad, drawsAll, drawsGeo, drawsRender };
+  let _armed = null, _magnet = false, _drag = null, _newDraw = null;
+
+  function _uid() { return "d_" + Math.random().toString(36).slice(2, 8); }
+  function _persist() { const d = (typeof activeDoc === "function") ? activeDoc() : null; if (d) d.draws = DRAWS.slice(); if (typeof markDirty === "function") markDirty(); }
+
+  function toggleDrawPop() {
+    const p = document.getElementById("drawPop"); if (!p) return;
+    const on = p.style.display === "block";
+    p.style.display = on ? "none" : "block";
+    p.setAttribute("aria-hidden", on ? "true" : "false");
+  }
+  function drawsArm(type) {
+    _armed = (_armed === type) ? null : type;
+    document.querySelectorAll(".dp-btn").forEach(b => b.classList.toggle("on", b.getAttribute("data-draw") === _armed));
+    const cv = document.getElementById("fcMainChart"); if (cv) cv.style.cursor = _armed ? "crosshair" : "grab";
+  }
+  function drawsMagnet(on) { _magnet = !!on; }
+  function drawsClear() { DRAWS = []; _selId = null; _persist(); drawsRender(); }
+
+  /* 화면 좌표 → 앵커(날짜, 가격). 마그넷이 켜져 있으면 Task 5 에서 흡착을 적용한다. */
+  function _anchorAt(G, cx, cy) {
+    const fi = G.xToFi(cx);
+    return { t: fiToT(G.times, fi), p: _snapPrice(G, fi, cy) };
+  }
+  function _snapPrice(G, fi, cy) { return G.yToP(cy); }   // Task 5 에서 마그넷 흡착으로 교체
+
+  function drawsPointerDown(e, cx, cy) {
+    const G = drawsGeo(); if (!G || !G.times.length) return false;
+    if (_armed) {
+      const a = _anchorAt(G, cx, cy);
+      _newDraw = { id: _uid(), type: _armed, a, b: { t: a.t, p: a.p } };
+      if (_armed === "channel") _newDraw.off = 0;
+      DRAWS.push(_newDraw);
+      _selId = _newDraw.id;
+      _drag = { kind: "new", stage: 1 };
+      drawsRender();
+      return true;
+    }
+    return false;   // Task 4 에서 선택·이동 분기를 앞에 추가
+  }
+
+  function drawsPointerMove(e, cx, cy) {
+    if (!_drag) return;
+    const G = drawsGeo(); if (!G) return;
+    if (_drag.kind === "new") {
+      if (_drag.stage === 1) _newDraw.b = _anchorAt(G, cx, cy);
+      else if (_drag.stage === 2) {   // 채널 3번째 점 = 폭
+        const A = _pt(G, _newDraw.a), B = _pt(G, _newDraw.b);
+        _newDraw.off = chanOff({ fi: A.fi, p: _newDraw.a.p }, { fi: B.fi, p: _newDraw.b.p }, { fi: G.xToFi(cx), p: G.yToP(cy) });
+      }
+      drawsRender();
+    }
+  }
+
+  function drawsPointerUp() {
+    if (!_drag) return;
+    if (_drag.kind === "new") {
+      if (_newDraw.type === "channel" && _drag.stage === 1) { _drag.stage = 2; return; }   // 채널은 한 번 더 클릭해 폭 지정
+      const A = _pt(drawsGeo(), _newDraw.a), B = _pt(drawsGeo(), _newDraw.b);
+      if (Math.hypot(B.x - A.x, B.y - A.y) < 6) DRAWS.pop();   // 점만 찍고 끝난 것 = 취소
+      // 도구 해제(연속 그리기 원하면 재클릭). drawsArm은 토글이라 두 번 부르면 안 되므로 직접 해제한다.
+      _newDraw = null; _drag = null;
+      _armed = null;
+      document.querySelectorAll(".dp-btn").forEach(b => b.classList.remove("on"));
+      const _cv = document.getElementById("fcMainChart"); if (_cv) _cv.style.cursor = "grab";
+      _persist(); drawsRender();
+    }
+  }
+
+  return { tToFi, fiToT, segDist, chanOff, drawsLoad, drawsAll, drawsGeo, drawsRender,
+           drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop };
+});
+
+if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", function () {
+  const pop = document.getElementById("drawPop");
+  if (pop) pop.addEventListener("click", e => {
+    const b = e.target.closest("[data-draw]"); if (b) { drawsArm(b.getAttribute("data-draw")); return; }
+  });
+  const mg = document.getElementById("drawMagnet");
+  if (mg) mg.addEventListener("change", () => drawsMagnet(mg.checked));
 });

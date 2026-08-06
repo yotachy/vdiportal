@@ -1153,6 +1153,11 @@
         const bi = g.start + Math.round(rel * (g.count - 1));
         hDrag = { mode: "xscale", x: e.clientX, count0: g.count, rel, bi, moved: false };
       } else {                  // 플롯 영역 → 2D 패닝(가로=시간 · 세로=가격)
+        // 그리기가 가져가면 팬을 시작하지 않는다. 그림 0개·도구 꺼짐이면 즉시 false → 종전과 동일.
+        if (typeof drawsPointerDown === "function" && drawsPointerDown(e, cx, e.clientY - r.top)) {
+          try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+          return;
+        }
         hDrag = { mode: "time", x: e.clientX, y: e.clientY, start: _chartWin.start, moved: false,
                   barW: (g.histW || 1) / Math.max(1, g.count),
                   loV: g.loV, hiV: g.hiV, plotH: Math.max(1, g.ch - g.padTop - g.padBot), log: g.log };
@@ -1160,6 +1165,7 @@
       try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     });
     cv.addEventListener("pointermove", e => {
+      if (typeof drawsPointerMove === "function") { const r0 = cv.getBoundingClientRect(); drawsPointerMove(e, e.clientX - r0.left, e.clientY - r0.top); }
       if (!hDrag) {   // 호버 커서 힌트: y축 스트립=세로 스케일(↕) · 하단 시간축=가로 배율(↔) · 플롯=이동(grab)
         const g = cv._mainGeo;
         if (g) { const r = cv.getBoundingClientRect(), cxh = e.clientX - r.left, cyh = e.clientY - r.top; cv.style.cursor = (cxh > g.plotRight) ? "ns-resize" : (cyh > g.ch - g.padBot) ? "ew-resize" : "grab"; }
@@ -1205,7 +1211,7 @@
       }
       renderHeroZoom();
     });
-    const endDrag = () => { hDrag = null; _heroZoomDragging = false; };
+    const endDrag = () => { if (typeof drawsPointerUp === "function") drawsPointerUp(); hDrag = null; _heroZoomDragging = false; };
     cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
     let _legendClickT = null;
     cv.addEventListener("dblclick", e => {
