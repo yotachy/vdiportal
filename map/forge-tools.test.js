@@ -51,3 +51,35 @@ test("chanOff: 기준선에서 점까지의 수직 가격 차(부호 유지)", (
   assert.ok(Math.abs(T.chanOff(a, b, { fi: 5, p: 170 }) - 20) < 1e-9);
   assert.ok(Math.abs(T.chanOff(a, b, { fi: 5, p: 130 }) + 20) < 1e-9);
 });
+
+test("undo 스택: push/pop 왕복, 빈 스택은 null", () => {
+  const T2 = require("./forge-tools.js");
+  assert.strictEqual(T2._undoPop(), null, "빈 스택은 null");
+  T2._undoReset();
+});
+
+test("drawStyle: color·w 가 없으면 도구 기본색과 CW.base", () => {
+  const T2 = require("./forge-tools.js");
+  const s = T2.drawStyle({ type: "trend" });
+  assert.strictEqual(typeof s.color, "string");
+  assert.ok(s.color.length >= 4, "기본색이 있어야: " + s.color);
+  assert.ok(Math.abs(s.w - 1.25) < 1e-9, "기본 굵기는 CW.base(1.25): " + s.w);
+});
+
+test("drawStyle: 저장된 color·w 를 그대로 쓴다", () => {
+  const T2 = require("./forge-tools.js");
+  const s = T2.drawStyle({ type: "trend", color: "#46c28e", w: "bold" });
+  assert.strictEqual(s.color, "#46c28e");
+  assert.ok(Math.abs(s.w - 1.6) < 1e-9, "bold 는 1.6: " + s.w);
+});
+
+test("drawStyle: 알 수 없는 w 는 base 로 떨어진다", () => {
+  const T2 = require("./forge-tools.js");
+  assert.ok(Math.abs(T2.drawStyle({ type: "trend", w: "zzz" }).w - 1.25) < 1e-9);
+});
+
+test("스와치 상수: 색 5종·굵기 3단", () => {
+  const T2 = require("./forge-tools.js");
+  assert.strictEqual(T2.SW_COLORS.length, 5);
+  assert.deepStrictEqual(T2.SW_W, ["thin", "base", "bold"]);
+});

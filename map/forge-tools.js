@@ -58,7 +58,39 @@
     return pt.p - onLine;
   }
 
-  let DRAWS = [];
+  /* ── 모듈 상태 (여기 한 곳에만 둔다) ──────────────────────────────
+     DRAWS      현재 문서의 그림들(저장 대상)
+     _selId     선택된 그림 id
+     _armed     무장한 도구 type (연속 그리기 — 완성해도 유지)
+     _magnet    마그넷 on/off
+     _drag      진행 중 상호작용 {kind:"new"|"handle"|"move", ...}
+     _newDraw   생성 중인 그림(=_drag.kind "new" 일 때만)
+     _hoverId   커서가 올라간 그림 id(예광용 — 바뀔 때만 재드로)
+     _undo      되돌리기 스냅샷 스택(메모리 전용·문서에 안 실림) */
+  let DRAWS = [], _selId = null, _armed = null, _magnet = false;
+  let _drag = null, _newDraw = null, _hoverId = null, _undo = [];
+
+  const UNDO_MAX = 30;
+  /* 스냅샷 방식 — 그림 수십 개 × 30단계라도 수십 KB 수준이고 메모리에만 산다.
+     연산 로그 방식보다 되돌림 정확도가 높고(모든 변경 종류를 한 경로로 처리) 코드가 짧다. */
+  function _undoPush() {
+    _undo.push(JSON.parse(JSON.stringify(DRAWS)));
+    if (_undo.length > UNDO_MAX) _undo.shift();
+  }
+  function _undoPop() { return _undo.length ? _undo.pop() : null; }
+  function _undoReset() { _undo = []; }
+
+  const SW_COLORS = ["#e8b463", "#46c28e", "#e06a6a", "#5b8def", "#8a92b2"];
+  const SW_W = ["thin", "base", "bold"];
+  /* forge-draw.js 의 CW 를 그대로 쓴다 — 드로잉만 다른 굵기를 쓰면 지표 작도 옆에서 혼자 튄다.
+     classic script 전역 공유라 typeof 로 방어(단독 require 시엔 없음). */
+  function _cw() { return (typeof CW === "object" && CW) || { hair: 0.85, thin: 1, base: 1.25, bold: 1.6, halo: 1.2 }; }
+  function drawStyle(d) {
+    const w = _cw();
+    const key = SW_W.indexOf(d && d.w) >= 0 ? d.w : "base";
+    return { color: (d && d.color) || COL[d && d.type] || COL.trend, w: w[key] };
+  }
+
   /* M1: 티커/문서 전환 시 진행 중이던 그리기(특히 채널 stage2)가 새 문서로 그대로 넘어오면
      _drag/_newDraw 가 이전 DRAWS 를 가리킨 채 남아 다음 클릭이 "그리기 중" 가드에 걸려
      삼켜진다 — 상호작용 상태 전체를 문서 전환 시점에 리셋한다. */
@@ -72,7 +104,7 @@
   /* 히트 반경 — 6px 핸들은 마우스로 사실상 못 맞힌다(실측: 7px 벗어나면 아무것도 안 잡힘).
      그래서 항상 본체가 먼저 잡혀 "이동만 된다"는 증상이 났다. 시각 5px / 판정 11px 로 키운다. */
   const HR = 11, HR_VIS = 5, DEL_R = 9, BODY_R = 5;
-  const COL = { trend:"#e8b463", channel:"#5b8def", range:"#46c28e", period:"#8a92b2" };
+  const COL = { trend:"#e8b463", channel:"#5b8def", range:"#46c28e", period:"#8a92b2", hline:"#e8b463", vline:"#8a92b2" };
 
   /* 현재 차트 좌표계. _mainGeo(fcDrawMainChart 가 매 프레임 갱신)를 그대로 써야
      지표 작도와 정합한다. 로그축이면 toY/yToP 가 log 공간을 경유한다. */
@@ -188,10 +220,6 @@
       }
     }
   }
-
-  let _selId = null;
-
-  let _armed = null, _magnet = false, _drag = null, _newDraw = null;
 
   /* 호버 커서가 십자선을 덮어쓰지 않도록 forge-app 이 물어보는 조회창구(도구 무장·그리기 진행 중) */
   /* 호버 커서 — 무엇을 잡을 수 있는지 마우스로 알려준다. 핸들/✕ 위에선 포인터,
@@ -456,7 +484,7 @@
 
   return { tToFi, fiToT, segDist, chanOff, drawsArmed, drawsCursor, drawsLoad, drawsAll, drawsGeo, drawsRender,
            drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop,
-           drawsHitTest, drawsKey };
+           drawsHitTest, drawsKey, _undoPush, _undoPop, _undoReset, drawStyle, SW_COLORS, SW_W };
 });
 
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", function () {
