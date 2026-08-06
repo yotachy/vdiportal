@@ -150,6 +150,21 @@
     c.restore();
   }
 
+  const _TOOL_KO = { trend:"추세선", channel:"평행채널", range:"등락폭 재기", period:"기간 재기", hline:"수평선", vline:"수직선" };
+  /* 진행 칩 — 지금 몇 번째 클릭인지·다음에 뭘 해야 하는지. 상태를 새로 만들지 않고
+     (_armed, _drag.stage, _newDraw.type) 에서 파생한다. */
+  function _progressText() {
+    if (!_armed) return null;
+    const ko = _TOOL_KO[_armed] || _armed;
+    if (!_newDraw || !_drag) {
+      if (_armed === "hline") return ko + " · 가격을 클릭하세요";
+      if (_armed === "vline") return ko + " · 날짜를 클릭하세요";
+      return ko + " · 시작점을 클릭하세요";
+    }
+    if (_newDraw.type === "channel") return ko + " · " + (_drag.stage === 1 ? "1/3 — 기준선 끝점을 클릭" : "2/3 — 폭을 정할 지점을 클릭");
+    return ko + " · 끝점을 클릭하세요";
+  }
+
   function drawsRender() {
     const cv = document.getElementById("fcDraws"); if (!cv) return;
     const host = cv.parentElement, W = host ? host.clientWidth : 0, H = host ? host.clientHeight : 0;
@@ -163,6 +178,22 @@
     c.save(); c.beginPath(); c.rect(G.g.padX - 2, G.g.padTop, G.g.plotRight - G.g.padX + 4, G.g.ch - G.g.padTop - G.g.padBot); c.clip();
     for (const d of DRAWS) _renderOne(c, G, d, d.id === _selId);
     c.restore();
+
+    const pt = _progressText();
+    if (pt) {
+      c.save();
+      c.font = "600 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
+      try { c.letterSpacing = "-0.2px"; } catch (_) {}
+      const hint = "Esc 취소", tw = c.measureText(pt).width, hw = c.measureText(hint).width;
+      const x = G.g.padX + 10, y = G.g.padTop + 10, bw = tw + hw + 26, bh = 22;
+      c.fillStyle = _labelBg();
+      if (c.roundRect) { c.beginPath(); c.roundRect(x, y, bw, bh, 5); c.fill(); } else c.fillRect(x, y, bw, bh);
+      c.strokeStyle = "rgba(232,180,99,.28)"; c.lineWidth = _cw().hair; c.stroke();
+      c.fillStyle = (typeof FC_GOLD === "string" ? FC_GOLD : "#e8b463"); c.fillText(pt, x + 9, y + 15);
+      c.fillStyle = "rgba(139,152,166,.85)"; c.fillText(hint, x + bw - hw - 9, y + 15);
+      try { c.letterSpacing = "0px"; } catch (_) {}
+      c.restore();
+    }
   }
 
   /* 마우스로 지울 수단 — 선택된 그림의 우상단 바깥에 ✕ 배지. 키보드(Del)만으로는
@@ -284,13 +315,10 @@
     _newDraw.off = chanOff({ fi: A.fi, p: _newDraw.a.p }, { fi: B.fi, p: _newDraw.b.p }, { fi, p });
   }
 
-  /* 그리기 완료 공통 뒷정리 — 도구 해제(drawsArm 은 토글이라 두 번 부르면 안 되므로 직접 해제) +
-     영속화 + 재작도. pointerUp 정상 커밋 경로와 pointerDown 채널 2번째 클릭 커밋 경로가 공유한다. */
+  /* 완성 처리 — _armed 는 일부러 남긴다(연속 그리기). 선 하나 그을 때마다 팝오버를
+     다시 열고 도구를 또 고르는 게 가장 큰 마찰이었다. 해제는 Esc 또는 도구 재클릭. */
   function _finishNew() {
     _newDraw = null; _drag = null;
-    _armed = null;
-    document.querySelectorAll(".dp-btn").forEach(b => b.classList.remove("on"));
-    const cv = document.getElementById("fcMainChart"); if (cv) cv.style.cursor = "grab";
     _persist(); drawsRender();
   }
 
@@ -484,7 +512,7 @@
 
   return { tToFi, fiToT, segDist, chanOff, drawsArmed, drawsCursor, drawsLoad, drawsAll, drawsGeo, drawsRender,
            drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop,
-           drawsHitTest, drawsKey, _undoPush, _undoPop, _undoReset, drawStyle, SW_COLORS, SW_W };
+           drawsHitTest, drawsKey, _undoPush, _undoPop, _undoReset, drawStyle, SW_COLORS, SW_W, _progressText };
 });
 
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", function () {
