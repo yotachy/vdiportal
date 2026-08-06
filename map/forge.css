@@ -437,6 +437,8 @@
   body.hide-board .board-pane,
   body.hide-board .forge-gutter{display:none}
   body.hide-rail .ind-rail{display:none}
+  /* M10: 드로잉 도구는 모바일 스코프 밖 — 좁은 화면에선 버튼 자체를 숨긴다 */
+  @media (max-width:860px){ #drawToolBtn{display:none} }
   .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   /* 국면/확률/시그널 강조 바 + 핵심 의견 */
   /* ── 판정 대시보드: 3섹션(계기판 / 검증 예측 / 지표 합의)을 헤어라인으로 구분 ── */

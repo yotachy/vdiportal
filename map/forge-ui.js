@@ -1463,7 +1463,8 @@
 
     /* keyboard */
     window.addEventListener("keydown", e => {
-      if (typeof drawsKey === "function" && drawsKey(e)) { e.preventDefault(); return; }   // 그리기 도구 우선(Esc·Del)
+      // I3: drawsKey 호출은 forge-tools.js 가 캡처 단계에서 전역으로 처리한다(이 리스너보다 항상 먼저 실행돼야
+      // forge-app.js 의 전체화면 Esc 핸들러에 뺏기지 않는다) — 여기서 중복 호출하지 않는다.
       const ae = document.activeElement;
       const typing = !!(ae && (ae.isContentEditable || ae.tagName === "INPUT" || ae.tagName === "TEXTAREA"));
       if (e.code === "Space") { spaceDown = true; if (!typing) e.preventDefault(); return; }

@@ -1263,7 +1263,10 @@
       c.fillStyle = "rgba(240,200,120,.98)"; c.fillText(txt, padX + 13, padTop + 60.5); c.textAlign = "left";
     }
     drawEvidence();
-    if (typeof drawsRender === "function") drawsRender();   // 그리기 레이어 — 지표 작도와 같은 _mainGeo 좌표계
+    // I4: drawEvidence 처럼 다른 파일(forge-tools.js)의 함수라 컨텍스트 손실(GPU/캔버스 컨텍스트
+    // 유실 등)로 던질 수 있다 — 감싸지 않으면 아래 c.restore() 가 스킵돼 fcMainChart 의
+    // save 스택이 프레임마다 쌓인다.
+    if (typeof drawsRender === "function") { try { drawsRender(); } catch (e) { console.warn("draws", e); } }   // 그리기 레이어 — 지표 작도와 같은 _mainGeo 좌표계
     _drawRiskLevels(c, { toY, padX, plotW, padTop, padBot, ch });   // 리스크 진단 라인(진입/손절/목표)
     c.restore();
     if (typeof updateAxisBtns === "function") updateAxisBtns();   // A/L 버튼 상태 초기 렌더에도 동기화

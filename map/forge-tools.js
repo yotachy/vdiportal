@@ -59,7 +59,14 @@
   }
 
   let DRAWS = [];
-  function drawsLoad(arr) { DRAWS = Array.isArray(arr) ? arr.slice() : []; }
+  /* M1: 티커/문서 전환 시 진행 중이던 그리기(특히 채널 stage2)가 새 문서로 그대로 넘어오면
+     _drag/_newDraw 가 이전 DRAWS 를 가리킨 채 남아 다음 클릭이 "그리기 중" 가드에 걸려
+     삼켜진다 — 상호작용 상태 전체를 문서 전환 시점에 리셋한다. */
+  function drawsLoad(arr) {
+    _cancelNew();
+    _selId = null; _armed = null; _drag = null; _newDraw = null;
+    DRAWS = Array.isArray(arr) ? arr.slice() : [];
+  }
   function drawsAll() { return DRAWS; }
 
   const COL = { trend:"#e8b463", channel:"#5b8def", range:"#46c28e", period:"#8a92b2" };
@@ -88,10 +95,20 @@
     return { fi, x: G.fiToX(fi), y: G.pToY(anc.p) };
   }
 
+  /* M3: forge-draw.js 가 매 프레임 갱신하는 전역 FC_CHART_BG(--chart-bg) 를 그대로 쓴다.
+     daylight 같은 라이트 테마는 차트 배경이 밝은색이라 하드코딩 검정을 쓰면 라벨/핸들이
+     또렷한 검은 박스로 붕 뜬다 — 두 파일이 classic script 로 전역을 공유하므로 typeof 로 방어. */
+  function _chartBg() { return (typeof FC_CHART_BG === "string" && FC_CHART_BG) || "#0b0f14"; }
+  function _labelBg() {
+    const m = _chartBg().match(/#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})/);
+    if (!m) return "rgba(11,15,20,.86)";
+    return "rgba(" + parseInt(m[1], 16) + "," + parseInt(m[2], 16) + "," + parseInt(m[3], 16) + ",.86)";
+  }
+
   function _label(c, text, x, y, col) {
     c.save(); c.font = "700 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
     const w = c.measureText(text).width;
-    c.fillStyle = "rgba(11,15,20,.86)";
+    c.fillStyle = _labelBg();
     if (c.roundRect) { c.beginPath(); c.roundRect(x, y - 11, w + 12, 16, 4); c.fill(); }
     c.fillStyle = col; c.fillText(text, x + 6, y);
     c.restore();
@@ -139,7 +156,7 @@
     }
     if (sel) {   // 선택 시 끝점 핸들
       c.fillStyle = col;
-      for (const P of [A, B]) { c.beginPath(); c.arc(P.x, P.y, 4, 0, 7); c.fill(); c.strokeStyle = "#0b0f14"; c.lineWidth = 1.5; c.stroke(); }
+      for (const P of [A, B]) { c.beginPath(); c.arc(P.x, P.y, 4, 0, 7); c.fill(); c.strokeStyle = _chartBg(); c.lineWidth = 1.5; c.stroke(); }
     }
   }
 
@@ -158,16 +175,21 @@
     p.setAttribute("aria-hidden", on ? "false" : "true");
   }
   function drawsArm(type) {
+    _cancelNew();   // I2: 다른 도구로 바꾸기 전에 그리다 만 도형(예: 채널 stage2)부터 정리
     _armed = (_armed === type) ? null : type;
     document.querySelectorAll(".dp-btn").forEach(b => b.classList.toggle("on", b.getAttribute("data-draw") === _armed));
     const cv = document.getElementById("fcMainChart"); if (cv) cv.style.cursor = _armed ? "crosshair" : "grab";
   }
   function drawsMagnet(on) { _magnet = !!on; }
-  function drawsClear() { DRAWS = []; _selId = null; _persist(); drawsRender(); }
+  function drawsClear() { _cancelNew(); DRAWS = []; _selId = null; _persist(); drawsRender(); }
 
-  /* 화면 좌표 → 앵커(날짜, 가격). 마그넷이 켜져 있으면 Task 5 에서 흡착을 적용한다. */
+  /* 화면 좌표 → 앵커(날짜, 가격). 마그넷이 켜져 있으면 Task 5 에서 흡착을 적용한다.
+     M8: xToFi 가 어떤 이유로든 NaN/Infinity 를 내면 fiToT(times,NaN) 이 undefined 를 돌려주고,
+     그 undefined 는 JSON.stringify 에서 통째로 사라져 저장할 때마다 고아 앵커가 남는다 —
+     비유한(non-finite) fi 는 항상 첫 봉(0)으로 클램프해 실재 날짜를 보장한다. */
   function _anchorAt(G, cx, cy) {
-    const fi = G.xToFi(cx);
+    let fi = G.xToFi(cx);
+    if (!isFinite(fi)) fi = 0;
     return { t: fiToT(G.times, fi), p: _snapPrice(G, fi, cy) };
   }
   /* 마그넷 — 커서가 가리키는 봉의 시·고·저·종 중 화면상 8px 이내로 가장 가까운 값에 흡착.
@@ -186,6 +208,15 @@
     return best == null ? raw : best;
   }
 
+  /* T5: 채널 3번째 클릭(폭 지정) — stage2 의 move 미리보기와 pointerDown 커밋이 같은 계산을
+     중복해서 갖고 있었고, 둘 다 G.yToP(cy) 를 직접 써서 마그넷(_snapPrice)을 우회했다.
+     평행선을 스윙 고점/저점에 딱 붙이는 게 마그넷의 대표 용례라 여기만 빠지면 안 된다. */
+  function _setChanOff(G, cx, cy) {
+    const A = _pt(G, _newDraw.a), B = _pt(G, _newDraw.b);
+    const fi = G.xToFi(cx), p = _snapPrice(G, fi, cy);
+    _newDraw.off = chanOff({ fi: A.fi, p: _newDraw.a.p }, { fi: B.fi, p: _newDraw.b.p }, { fi, p });
+  }
+
   /* 그리기 완료 공통 뒷정리 — 도구 해제(drawsArm 은 토글이라 두 번 부르면 안 되므로 직접 해제) +
      영속화 + 재작도. pointerUp 정상 커밋 경로와 pointerDown 채널 2번째 클릭 커밋 경로가 공유한다. */
   function _finishNew() {
@@ -194,6 +225,19 @@
     document.querySelectorAll(".dp-btn").forEach(b => b.classList.remove("on"));
     const cv = document.getElementById("fcMainChart"); if (cv) cv.style.cursor = "grab";
     _persist(); drawsRender();
+  }
+
+  /* I2: 그리다 만(특히 채널 stage2 — 폭 지정을 기다리는) 도형을 취소하는 공통 처리.
+     Delete·Esc·drawsArm(도구 재선택)·drawsClear·drawsLoad(문서 전환) 모두 여기부터 거쳐야
+     한다 — 그러지 않으면 DRAWS 에 반쪽짜리 채널이 고아로 남고, 그 상태에서 _drag 가 안
+     풀린 채라 다음 pointerMove 가 계속 그 고아를 끌고 다음 pointerDown 은 "그리기 중"
+     가드에 걸려 아무 반응 없이 삼켜진다(패닝조차 안 됨). */
+  function _cancelNew() {
+    if (!(_drag && _drag.kind === "new" && _newDraw)) return false;
+    const idx = DRAWS.indexOf(_newDraw);
+    if (idx !== -1) DRAWS.splice(idx, 1);
+    _finishNew();
+    return true;
   }
 
   /* 히트테스트 — 선택된 그림의 끝점 핸들(6px)이 본체(5px)보다 항상 우선.
@@ -237,8 +281,7 @@
       // 여기서 guard 없이 _armed 분기로 흘려보내면 반쪽짜리 채널이 DRAWS 에 계속 쌓인다(고아 도형).
       if (_newDraw.type === "channel" && _drag.stage === 2) {
         // 직전 move 없이 연속 클릭만으로도 폭이 잡히도록, 이 클릭 좌표로 직접 계산한다(미리보기 값에 기대지 않음).
-        const A = _pt(G, _newDraw.a), B = _pt(G, _newDraw.b);
-        _newDraw.off = chanOff({ fi: A.fi, p: _newDraw.a.p }, { fi: B.fi, p: _newDraw.b.p }, { fi: G.xToFi(cx), p: G.yToP(cy) });
+        _setChanOff(G, cx, cy);
         _finishNew();
       }
       return true;
@@ -272,10 +315,7 @@
     const G = drawsGeo(); if (!G) return;
     if (_drag.kind === "new") {
       if (_drag.stage === 1) _newDraw.b = _anchorAt(G, cx, cy);
-      else if (_drag.stage === 2) {   // 채널 3번째 점 = 폭
-        const A = _pt(G, _newDraw.a), B = _pt(G, _newDraw.b);
-        _newDraw.off = chanOff({ fi: A.fi, p: _newDraw.a.p }, { fi: B.fi, p: _newDraw.b.p }, { fi: G.xToFi(cx), p: G.yToP(cy) });
-      }
+      else if (_drag.stage === 2) _setChanOff(G, cx, cy);   // 채널 3번째 점 = 폭
       drawsRender();
     } else if (_drag.kind === "handle") {
       const d = _byId(_selId); if (!d) return;
@@ -283,14 +323,22 @@
       drawsRender();
     } else if (_drag.kind === "move") {
       const d = _byId(_selId); if (!d) return;
-      const dFi = G.xToFi(cx) - _drag.fi0, dP = G.yToP(cy) / (_drag.p0 || 1);   // 가격은 비율 이동(로그축 정합)
+      // I1: 비율 이동(dP = p/p0)은 로그축에서만 강체 이동이다. 기본값인 선형축에서 비율을
+      // 이동에 쓰면 100/110 박스를 105→115 로 끌 때 dP=1.0952 가 되어 앵커가 109.5/120.5 로
+      // 밀리며 높이(10→11)까지 늘어난다 — 선형은 log 를 거치지 않는 항등함수라 덧셈(Δ)이,
+      // 로그는 log 공간에서의 덧셈(=원래 공간에서의 비율)이 진짜 강체 이동이다.
+      const isLog = !!(G.g && G.g.log);
+      const _lg = v => isLog ? Math.log(Math.max(1e-9, v)) : v;
+      const _iv = v => isLog ? Math.exp(v) : v;
+      const dFi = G.xToFi(cx) - _drag.fi0;
+      const dS = _lg(G.yToP(cy)) - _lg(_drag.p0);
       for (const k of ["a", "b"]) {
         const src = _drag[k + "0"];
-        d[k] = { t: fiToT(G.times, tToFi(G.times, src.t) + dFi), p: src.p * dP };
+        d[k] = { t: fiToT(G.times, tToFi(G.times, src.t) + dFi), p: _iv(_lg(src.p) + dS) };
       }
-      // F3: 채널 폭(off)은 절대 가격차라 그대로 두면 base price 가 이동한 비율만큼
-      // 폭의 상대 비중이 달라져 채널이 눌리거나 벌어져 보인다 — 같은 비율로 스케일.
-      if (d.type === "channel" && _drag.off0 !== undefined) d.off = _drag.off0 * dP;
+      // F3(갱신): 채널 폭(off)은 절대 가격차. 로그축에서만 base price 이동 비율만큼 같이
+      // 스케일해야 채널이 눌리거나 벌어지지 않는다 — 선형축에서는 그대로 유지(덧셈 이동엔 불변).
+      if (d.type === "channel" && _drag.off0 !== undefined) d.off = isLog ? _drag.off0 * Math.exp(dS) : _drag.off0;
       drawsRender();
     }
   }
@@ -327,6 +375,10 @@
     const boardHasSel = (typeof sel !== "undefined" && sel && sel.length) ||
                          (typeof selEdge !== "undefined" && selEdge);
     if (e.key === "Escape") {
+      // I2: 채널이 stage2(폭 지정 대기)에서 멈춰 있으면 _armed 분기보다 먼저 여기서 끝내야 한다.
+      // stage2 에선 _newDraw 가 아직 DRAWS 에 반쪽짜리로 남아 있는데 _armed 도 여전히 세팅돼
+      // 있어 그냥 drawsArm(null) 만 부르면 고아 채널이 그대로 남고 _drag 도 안 풀린다.
+      if (_cancelNew()) return true;
       if (_armed) { drawsArm(null); _armed = null; return true; }
       if (_selId) { _selId = null; drawsRender(); return true; }
       return false;
@@ -336,12 +388,7 @@
       // 아니라 "지금 그리던 것 취소"로 다뤄야 한다 — _selId 필터로 처리하면 진행 중인 _newDraw 만
       // 지워지고 drawsPointerUp 의 취소판정이 뒤이어 배열 끝(=이제 무관한 이전 그림)을 또 pop 해
       // 엉뚱한 저장 그림까지 사라진다. 여기서 확실히 끝내(_finishNew) 그 경합 자체를 없앤다.
-      if (_drag && _drag.kind === "new" && _newDraw) {
-        const idx = DRAWS.indexOf(_newDraw);
-        if (idx !== -1) DRAWS.splice(idx, 1);
-        _finishNew();
-        return true;
-      }
+      if (_cancelNew()) return true;
       if (boardHasSel) return false;
       if (_selId) {
         DRAWS = DRAWS.filter(d => d.id !== _selId); _selId = null; _persist(); drawsRender(); return true;
@@ -362,4 +409,13 @@ if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded
   });
   const mg = document.getElementById("drawMagnet");
   if (mg) mg.addEventListener("change", () => drawsMagnet(mg.checked));
+
+  /* I3: forge-app.js 가 스크립트 평가 시점에 자기 Esc 핸들러(전체화면 해제)를 window 에
+     bubble 단계로 이미 등록해 놓기 때문에, forge-ui.js 의 boardInit() 이 나중에 등록하는
+     bubble 리스너 안에서 drawsKey 를 불러봐야 등록 순서상 항상 늦는다(같은 target·단계면
+     리스너는 등록 순서로 실행) — 그리기 도구의 Esc(선택 해제·그리기 취소)가 항상 먼저
+     소비되도록 캡처 단계에 등록한다. 캡처는 등록 순서와 무관하게 모든 버블 리스너보다 먼저 돈다. */
+  window.addEventListener("keydown", function (e) {
+    if (drawsKey(e)) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
 });
