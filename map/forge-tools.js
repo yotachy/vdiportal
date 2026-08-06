@@ -592,9 +592,14 @@
       // 수십 칸씩 밀리고(30단계 상한 금방 소진), pointerup 에서 찍으면 이미 이동/조정된
       // 결과가 스냅샷에 들어가 되돌리기가 무효화된다. handle·move 두 종류 모두 여기 한 곳에서 커버.
       _undoPush();
+      // F2(리뷰): pointerdown 시점엔 아직 이동량을 몰라 여기서 noop 판정을 할 수 없다 — 대신
+      // 시작 상태(a0/b0/off0)와 push 직후 스택 깊이(undoLen)를 같이 들고 있다가 drawsPointerUp
+      // 에서 "정말 바뀌었는지" 비교해, 안 바뀌었으면 방금 push 한 스냅샷을 그 자리에서 되돌린다
+      // (스와치의 noop 가드와 목적은 같고 판정 시점만 다르다 — 드래그는 끝나야 알 수 있으므로).
+      const a0 = { ...d.a }, b0 = d.b ? { ...d.b } : null, off0 = d.off;
       _drag = h.kind === "handle"
-        ? { kind: "handle", which: h.which }
-        : { kind: "move", fi0: G.xToFi(cx), p0: G.yToP(cy), a0: { ...d.a }, b0: { ...d.b }, off0: d.off };   // F3: 채널 폭도 같이 스냅샷
+        ? { kind: "handle", which: h.which, a0, b0, off0, undoLen: _undo.length }
+        : { kind: "move", fi0: G.xToFi(cx), p0: G.yToP(cy), a0, b0, off0, undoLen: _undo.length };   // F3: 채널 폭도 같이 스냅샷
       drawsRender();
       return true;
     }
@@ -658,7 +663,29 @@
         if (Math.hypot(B.x - A.x, B.y - A.y) < 6 && DRAWS[DRAWS.length - 1] === _newDraw) { _drag.stage = 2; return; }
       }
       _finishNew();
-    } else { _drag = null; _persist(); drawsRender(); }
+    } else {
+      // F2(리뷰): 클릭만 하고(핸들/이동 드래그를 "시작"만 하고) 실제로 아무 것도 안 바뀌었으면
+      // pointerdown 에서 미리 찍어둔 스냅샷은 낭비다 — UNDO_MAX=30 이 문서 전체가 공유하는
+      // 스택이라 "그냥 눌러서 선택만 해본" 클릭들이 진짜 되돌릴 이력을 밀어낸다.
+      // drawsPointerMove 는 push 하지 않으므로 이 드래그가 push 한 스냅샷은 아무 것도 끼어들지
+      // 않았다면 항상 스택 맨 위에 그대로 있다 — push 직후 기록해둔 undoLen 이 지금 스택
+      // 길이와 같을 때만(그 사이 다른 push/pop 이 없었을 때만) 안전하게 되돌린다. 잘못된
+      // 항목을 pop 하는 게 스냅샷 하나 남기는 것보다 훨씬 나쁘므로, 조금이라도 어긋나면
+      // 손대지 않는다(안전 우선 — noop 이 아니면 그대로 둔다).
+      const d = _byId(_selId);
+      if (d && _drag.undoLen === _undo.length && _dragUnchanged(d, _drag)) _undo.pop();
+      _drag = null; _persist(); drawsRender();
+    }
+  }
+
+  /* F2(리뷰): 핸들·이동 드래그가 실제로 아무 앵커도 안 바꿨는지 판정 — a/b(없으면 null)/off
+     세 값 모두 시작 시점과 정확히 같아야 true. 부동소수 오차를 흡수하려 epsilon 을 넣으면
+     아주 작은 실이동까지 "안 바뀜"으로 삼켜 스냅샷이 사라질 수 있어, 엄격한 등가만 인정한다
+     (실사용 시나리오는 pointermove 가 아예 안 불리는 "클릭만" 케이스라 부동소수 오차 자체가
+     발생하지 않는다). */
+  function _dragUnchanged(d, drag) {
+    const eqA = (x, y) => (!x && !y) || (!!x && !!y && x.t === y.t && x.p === y.p);
+    return eqA(d.a, drag.a0) && eqA(d.b, drag.b0) && d.off === drag.off0;
   }
 
   /* 전역 keydown 앞단에서 먼저 호출된다. true 를 반환하면 기존 단축키로 흘리지 않는다.
