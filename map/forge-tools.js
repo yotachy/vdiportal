@@ -188,9 +188,17 @@
       const x = G.g.padX + 10, y = G.g.padTop + 10, bw = tw + hw + 26, bh = 22;
       c.fillStyle = _labelBg();
       if (c.roundRect) { c.beginPath(); c.roundRect(x, y, bw, bh, 5); c.fill(); } else c.fillRect(x, y, bw, bh);
-      c.strokeStyle = "rgba(232,180,99,.28)"; c.lineWidth = _cw().hair; c.stroke();
+      // F1(리뷰): 리터럴 골드 보더는 daylight 테마에서 FC_GOLD 가 슬레이트로 바뀌어도 안 따라가
+      // 텍스트(슬레이트)와 보더(골드)가 어긋난다 — forge-draw.js 가 같은 재동기화로 관리하는
+      // _warmA(alpha) 를 쓰면 보더도 텍스트와 함께 테마를 따라간다(다크 기본값은 리터럴과 동일).
+      c.strokeStyle = (typeof _warmA === "function") ? _warmA(.28) : "rgba(232,180,99,.28)";
+      c.lineWidth = _cw().hair; c.stroke();
       c.fillStyle = (typeof FC_GOLD === "string" ? FC_GOLD : "#e8b463"); c.fillText(pt, x + 9, y + 15);
-      c.fillStyle = "rgba(139,152,166,.85)"; c.fillText(hint, x + bw - hw - 9, y + 15);
+      // F2(리뷰): 보조 텍스트도 새 리터럴 대신 forge-draw.js 의 FC_DIM(명/암 배경 모두 판독되는
+      // 중간 슬레이트, 축 라벨과 동일 용도)을 쓴다 — 이 파일의 _labelBg()/FC_BEAR_SAFE() typeof
+      // 가드 관례를 따름.
+      c.fillStyle = (typeof FC_DIM === "string" && FC_DIM) || "rgba(139,152,166,.85)";
+      c.fillText(hint, x + bw - hw - 9, y + 15);
       try { c.letterSpacing = "0px"; } catch (_) {}
       c.restore();
     }
