@@ -417,11 +417,11 @@
   <footer id="foot"></footer>
 </div>
 
-<script src="forge-core.js?v=20260713a"></script>
+<script src="forge-core.js?v=20260806f"></script>
 <script>
 // 엔진 메타 단일 출처(forge-core.js) — 버전·지표수·검증축을 읽어 해부도/카운트 자동 현행화. 미로드 시 폴백.
 const EV = (typeof ForgeCore !== "undefined" && ForgeCore.version) ? ForgeCore.version : "1.9.7";
-const IND_N = (typeof ForgeCore !== "undefined" && ForgeCore.indicatorCount) || 30;
+const IND_N = (typeof ForgeCore !== "undefined" && ForgeCore.indicatorCount) || 32;
 const AXES = (typeof ForgeCore !== "undefined" && Array.isArray(ForgeCore.validatedAxes) && ForgeCore.validatedAxes.length) ? ForgeCore.validatedAxes
   : [{key:"vol",lab:"변동성 예보",acc:69,hz:"3지평"},{key:"dd",lab:"낙폭 위험곡선",acc:68,hz:"3지평"},{key:"up",lab:"이익목표 도달",acc:64,hz:""},{key:"spike",lab:"급변 경보",acc:65,hz:"3지평"},{key:"gap",lab:"갭 경보",acc:63,hz:"3지평",stock:true},{key:"trend",lab:"추세 지속/소진",acc:76,hz:"3지평·비방향"}];
 const AXIS_N = AXES.length;

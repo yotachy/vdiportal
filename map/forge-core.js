@@ -5,7 +5,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
   const version = "1.11.0";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
-  const indicatorCount = 31;   // 지표 배터리 종수 (forge-state IND_TIERS와 동기 — 지표 추가 시 함께 갱신)
+  const indicatorCount = 32;   // 지표 배터리 종수 (forge-state IND_TIERS와 동기 — 지표 추가 시 함께 갱신)
   // 검증된 예측 축(백테스트 OOS). acc=대표 지평 정확도(%), hz=지평 라벨, stock=주식 한정.
   // ledger = 라이브 트랙레코드 메타(단일 출처 — 라이브 UI는 이 레지스트리로 자동 확장, 새 축 추가 시 하드코딩 금지):
   //   key=predledger 집계 필드 · mode="rate"(적중률) | "calib"(예측평균 vs 실제발생률) · note=채점 주석.

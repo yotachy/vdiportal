@@ -221,12 +221,13 @@
   <section id="pipeline">
     <div class="sec-num">01</div>
     <h2>전체 파이프라인</h2>
-    <p class="sec-desc">노드(분석 블록)와 엣지(배선)로 그린 그래프가 네 단계를 거쳐 예측이 됩니다.
-      각 블록은 입력을 받아 <b>시계열 하나</b>를 내놓고, 마지막 <code>predict</code> 노드에서 신호와 예측이 나옵니다.</p>
+    <p class="sec-desc">지표 조합 패널에서 <b>체크한 지표들</b>이 네 단계를 거쳐 예측이 됩니다.
+      각 지표는 가격을 읽어 <b>시계열 하나</b>와 방향(bias)을 내놓고, 마지막 <code>predict</code>에서 신호와 예측 경로가 나옵니다.
+      <b>배선은 직접 그리지 않습니다</b> — 체크한 지표에서 자동으로 만들어집니다.</p>
     <div class="flow">
       <div class="flow-step">
-        <svg class="fs-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 6h8M7 8.2 11 16M17 8.2 13 16" stroke-linecap="round"/></svg>
-        <b>그래프</b><span>nodes + edges</span>
+        <svg class="fs-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h4l2 2h10" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12h4l2 2h10M4 18h4l2 2h10" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/></svg>
+        <b>지표 조합</b><span>체크한 지표 → 자동 배선</span>
       </div>
       <div class="flow-arrow">→</div>
       <div class="flow-step">
@@ -244,8 +245,9 @@
         <b>run</b><span>결합→신호→예측</span>
       </div>
     </div>
-    <p class="muted" style="font-size:12.5px;margin-top:14px"><code>buildDAG</code>가 계산 순서를 정하고, <code>runSteps</code>는 같은 과정을
-      노드 1개→2개→…→전체로 누적 재생해 "포지 분석" 애니메이션을 만듭니다.</p>
+    <p class="muted" style="font-size:12.5px;margin-top:14px"><code>synthEdges</code>가 체크한 지표에서 배선을 자동 합성하고,
+      <code>buildDAG</code>가 계산 순서를 정합니다. <code>runSteps</code>는 같은 과정을 지표 1개→2개→…→전체로 누적 재생해
+      <b>시뮬레이션</b> 애니메이션을 만듭니다.</p>
   </section>
 
   <!-- 2. BLOCKS -->
@@ -254,6 +256,11 @@
     <h2>영역별 분석 블록</h2>
     <p class="sec-desc">각 블록이 실제로 무엇을 계산하는지. 가격에서 출발해 기술적 분석을 거쳐 결합·예측으로 모입니다.</p>
     <div class="grid" id="blockGrid"></div>
+
+    <h3 style="margin:26px 0 6px;font-size:15px">지표 배터리 — 전체 <span class="hl" id="indN">32</span>종</h3>
+    <p class="sec-desc" style="margin-bottom:12px">위 카드는 대표 블록입니다. 실제로는 네 등급의 지표를 필요한 만큼 켜고 끕니다.
+      등급은 <b>난이도·해석 부담</b> 기준이며 정확도 순위가 아닙니다 — Lv1만으로도 분석은 성립합니다.</p>
+    <div id="tierList"></div>
   </section>
 
   <!-- 3. TWO LAYER -->
@@ -352,10 +359,11 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
   <!-- 7. EDGES -->
   <section id="edges">
     <div class="sec-num">07</div>
-    <h2>연결선은 분석에 영향이 있을까?</h2>
-    <p class="sec-desc">직관적으로는 "선을 이었으니 분석에 반영된다"고 기대하지만 — 실측 결과는 다릅니다.
-      <b>지금 구조에서 연결선은 분석에 거의 영향을 주지 않습니다.</b> 진짜 영향을 주는 건
-      <b>노드의 존재 + 그 노드의 확신·중요도·타입</b>이지, 연결선이 아닙니다.</p>
+    <h2>연결선은 왜 없어졌나</h2>
+    <p class="sec-desc">예전에는 노드를 선으로 이어 배선을 직접 그렸습니다. 지금은 그리지 않습니다 —
+      <b>지표 조합에서 배선이 자동으로 만들어집니다</b>(<code>synthEdges</code>).
+      아래 실측이 그 이유입니다. 선을 아무리 이어도 결과가 바뀌지 않았고, 결과를 바꾸는 건
+      <b>어떤 지표를 켰는지와 그 지표의 확신·중요도</b>였습니다.</p>
 
     <div class="ev-wrap">
       <div class="ev-head"><span>실험 (내장 BTC 샘플)</span><span>시그널</span><span>예측 목표</span><span>판정</span></div>
@@ -387,17 +395,32 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
       </div>
     </div>
 
-    <div class="note warn">
-      <div class="nh">⚠ 진화 1순위 후보</div>
-      <p>지금 연결선은 <b>계산용이라기보다 의미·시각 표현에 가깝습니다.</b> "나만의 엔진"으로 키운다면 여기가 핵심 한 수예요 —
-        연결을 진짜 데이터 흐름으로 만들면(추세 드리프트도 wired input 기반, 확신도 predict까지 도달한 노드만 집계)
-        그래프가 <b>장식에서 진짜 알고리즘으로</b> 바뀝니다. 06의 "두 경로" 통합과 같은 뿌리의 작업입니다.</p>
+    <div class="note">
+      <div class="nh">지금은 이렇게 동작합니다</div>
+      <p>배선을 손으로 그리는 대신 <b>지표 조합 패널에서 켜고 끄기만</b> 하면 됩니다. 문서를 열 때 저장돼 있던 옛 연결선은 버리고,
+        체크된 지표에서 <code>synthEdges</code>가 매번 배선을 새로 합성합니다. 결과가 같은데 손이 더 가는 단계를 없앤 것이고,
+        조작할 것은 <b>어떤 지표를 켤지</b>와 <b>각 지표의 비중</b> 두 가지로 좁혔습니다.</p>
     </div>
   </section>
 
-  <!-- 8. LIVE DEMO -->
-  <section id="demo">
+  <!-- 8. VALIDATED AXES -->
+  <section id="axes">
     <div class="sec-num">08</div>
+    <h2>검증된 예보 축 — <span class="hl">방향 말고 무엇을</span> 맞히는가</h2>
+    <p class="sec-desc">스쿱포지는 "오를까 내릴까"를 맞힌다고 말하지 않습니다. 방향은 어렵습니다.
+      대신 <b>얼마나 움직일지·얼마나 빠질지·지금 국면이 이어질지</b>를 walk-forward로 검증해 확률로 내놓습니다.
+      아래 수치는 엔진에 등록된 값을 그대로 읽어온 것이며, 자세한 방법과 한계는
+      <a href="forge-scorecard.html" style="color:var(--gold)">검증 성적</a>에 있습니다.</p>
+    <div id="axList"></div>
+    <p class="muted" style="font-size:12.5px;margin-top:12px">
+      <b>읽는 법</b> — 적중률은 과거 데이터 기준이고 미래를 보장하지 않습니다.
+      <code>상대방향</code>은 시장(또는 섹터) 대비 초과 여부이지 절대 방향이 아니며,
+      <code>주식</code> 표시 축은 미국주식에서만 계산됩니다.</p>
+  </section>
+
+  <!-- 9. LIVE DEMO -->
+  <section id="demo">
+    <div class="sec-num">09</div>
     <h2>라이브 — 엔진을 직접 돌려보기</h2>
     <p class="sec-desc">이 페이지는 실제 <code>forge-core.js</code>를 불러와 내장 BTC 샘플 포지를 계산합니다.
       슬라이더로 <b>A층(확신)</b>과 <b>타임프레임</b>을 바꾸면 예측이 어떻게 기우는지 바로 보입니다.</p>
@@ -447,7 +470,7 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
   </footer>
 </div>
 
-<script src="forge-core.js"></script>
+<script src="forge-core.js?v=20260806f"></script>
 <script>
 /* ---------- block catalog ---------- */
 const BLOCKS = [
@@ -469,6 +492,30 @@ document.getElementById("blockGrid").innerHTML = BLOCKS.map(b=>`
       <div><div class="bn">${b.n}</div><div class="bt">${b.t}</div></div>
     </div>
     <p>${b.d}</p>
+  </div>`).join("");
+
+/* 지표 배터리 등급표 — forge-state.js 의 IND_TIERS 와 같은 구성.
+   지표를 추가하면 여기 한 줄만 늘리면 되고, 총 개수는 엔진(indicatorCount)에서 읽어 자동 표시된다. */
+const TIERS = [
+  { lv:1, name:"핵심 지표",   hint:"이것만으로도 분석이 성립하는 기본 5종",
+    items:[["이동평균","추세의 방향과 정·역배열"],["MACD","모멘텀 전환"],["RSI","과열·침체와 국면"],["볼린저밴드","변동성 대비 위치"],["거래량","가격 움직임의 뒷받침"]] },
+  { lv:2, name:"주요 지표",   hint:"방향 판단을 보강하는 8종",
+    items:[["추세선","회귀 기울기·채널"],["ADX","추세의 강도"],["스토캐스틱","단기 반전"],["피보나치","되돌림·확장 레벨"],["일목균형표","추세·지지저항 종합"],["피벗","당일 지지·저항"],["PSAR","추세 추종 전환점"],["Gann","각도 기반 지지·저항"]] },
+  { lv:3, name:"보조·전문",   hint:"특정 상황을 정밀하게 보는 11종",
+    items:[["VWAP","거래량 가중 평균가"],["슈퍼트렌드","ATR 기반 추세"],["ATR","변동폭"],["볼륨프로파일","매물대·POC"],["시장구조","고점·저점 구조와 돌파"],["켈트너","ATR 채널"],["돈치안","기간 고저 채널"],["CCI","평균 이탈"],["윌리엄스 %R","단기 과열"],["아룬","추세 신선도"],["MFI","자금 흐름"]] },
+  { lv:4, name:"고급·심화",   hint:"해석에 경험이 필요한 8종",
+    items:[["엘리어트","파동 카운트"],["SMC","기관 흔적(FVG·오더블록)"],["사이클","주기 성분"],["파동 스캔","지배 주기 검출"],["ROC","변화 속도"],["AO","모멘텀 히스토그램"],["CMF","자금 유출입"],["차트 패턴","헤드앤숄더·플래그"]] },
+];
+document.getElementById("tierList").innerHTML = TIERS.map(t=>`
+  <div style="border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:12px 14px;margin-bottom:10px">
+    <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:7px">
+      <span style="font-size:11px;font-weight:800;color:var(--gold);border:1px solid rgba(232,180,99,.4);border-radius:5px;padding:1px 6px">Lv${t.lv}</span>
+      <b style="font-size:13.5px">${t.name}</b>
+      <span style="font-size:11.5px;opacity:.6">${t.items.length}종 · ${t.hint}</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      ${t.items.map(([n,d])=>`<span title="${d}" style="font-size:12px;background:rgba(255,255,255,.05);border-radius:6px;padding:3px 8px"><b>${n}</b> <span style="opacity:.55">${d}</span></span>`).join("")}
+    </div>
   </div>`).join("");
 
 /* ---------- contribution bars ---------- */
@@ -511,6 +558,21 @@ document.getElementById("tfCards").innerHTML = TFS.map(t=>`
   if(!FC || !FC.sampleSeries || !FC.run){ fb.style.display="block"; cv.style.display="none";
     document.querySelector(".controls").style.display="none"; return; }
   document.getElementById("coreVer").textContent = FC.version || "?";
+  { const el = document.getElementById("indN"); if (el && FC.indicatorCount) el.textContent = FC.indicatorCount; }
+
+  /* 검증된 예보 축 — 엔진 레지스트리(validatedAxes)를 그대로 표시해 문서가 낡지 않게 한다 */
+  { const host = document.getElementById("axList"), ax = FC.validatedAxes;
+    if (host && Array.isArray(ax)) host.innerHTML = ax.map(a => {
+      const tags = [a.hz || "", a.stock ? "주식" : ""].filter(Boolean)
+        .map(t => `<span style="font-size:10.5px;opacity:.6;border:1px solid rgba(255,255,255,.14);border-radius:5px;padding:1px 6px">${t}</span>`).join("");
+      const note = a.ledger && a.ledger.note ? `<span style="font-size:11.5px;opacity:.55">${a.ledger.note}</span>` : "";
+      return `<div style="display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px 13px;margin-bottom:8px">
+        <div style="min-width:112px"><b style="font-size:13.5px">${a.lab}</b></div>
+        <div style="flex:0 0 62px;font-size:17px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums">${a.acc}%</div>
+        <div style="flex:1;display:flex;flex-wrap:wrap;align-items:center;gap:6px">${tags}${note}</div>
+      </div>`;
+    }).join("");
+  }
 
   const sg = FC.sampleGraph(), series = FC.sampleSeries();
   const graph = { nodes: sg.nodes, edges: sg.edges };

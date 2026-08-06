@@ -28,16 +28,16 @@
 
 1패널=**종목**(워치리스트 `.forge-side`) / 2패널=**티커**(중앙 보드 `.board-pane`·`.wboard` — 타임프레임 매트릭스·예측시점별·오실레이터 서브패널·지표신호 판정) / 3패널=**지표조합**(지표 레일 `.ind-rail`) / 4패널=**차트**(`.chart-pane` — 예측선 1/2/3차).
 
-## 지표 시스템 (30종)
+## 지표 시스템 (32종)
 
-- `BLOCK_DEFS`에 지표 정의 → 노드로 캔버스 배치. **`IND_TIERS` 4등급**: Lv1 핵심(ma·macd·rsi·bollinger·volume) / Lv2 주요(trend·adx·stochastic·fib·ichimoku·pivot·psar) / Lv3 보조·전문(vwap·supertrend·atr·volumeprofile·structure·keltner·donchian·cci·williams·aroon·mfi) / Lv4 고급·심화(elliott·smc·cycle·phasefold·roc·ao·cmf). 최근 추가 11종(`NEW_INDICATORS`)은 레일에 `new` 배지.
+- `BLOCK_DEFS`에 지표 정의 → 노드로 캔버스 배치. **`IND_TIERS` 4등급(합 32종 — `forge-core.indicatorCount`와 동기 필수)**: Lv1 핵심 5(ma·macd·rsi·bollinger·volume) / Lv2 주요 8(trend·adx·stochastic·fib·ichimoku·pivot·psar·gann) / Lv3 보조·전문 11(vwap·supertrend·atr·volumeprofile·structure·keltner·donchian·cci·williams·aroon·mfi) / Lv4 고급·심화 8(elliott·smc·cycle·phasefold·roc·ao·cmf·pattern). 최근 추가 12종(`NEW_INDICATORS`)은 레일에 `new` 배지.
 - **지표당 통합 패턴**: `forge-core.js`에 `analyzeX`(순수·방향 `bias∈[−1,1]`) + 필요시 `xSeries`(combine용 −1..1) + `xSteps`(시연 서술) → `evalBlocks` 케이스 → `run()` **단일 드리프트항**(`bias × trendProfileForTF(tf).trendScale × cap`, `_drifts` 배열 합산·±0.28 캡) → `forge.html` 작도 + `analysisSteps` + `nodeExpert`. **forge.html 16지점 등록**(BLOCK_DEFS·IND_TIERS·GAUGE_TYPES·`_an`프레임캐시래퍼·`_nodeBias`·EV_COLORS/LABEL·TUNE_TYPES·seedDefaultStrategy·hero작도 dispatch·playAnalysis indNodes 등).
 - **규약**: 드리프트 이중계상 금지·cap 보수적(≤.08)·반드시 `trendProfileForTF` 경유. 오버레이(pivot·psar·keltner·donchian)=combine `zeros`(방향은 드리프트), 오실레이터=실 `xSeries`. 파라미터 있는 지표는 `_an` 래퍼 캐시키에 `JSON.stringify(opts)` 포함(안 하면 stale). **mfi·cmf 드리프트는 그래프 volume 노드(`_vn`/`values[_vn.id]`) 실거래량 스레딩 필수**(raw data엔 volume 없음).
 - **작도**: 채널/밴드 오버레이(keltner·donchian)는 **per-bar 움직이는 밴드**로(pivot만 정적 S/R). 신규 오실레이터는 기본 hero 배지(`_drawXLayers` = 스토캐스틱 선례), **핵심 3종(cci·williams·mfi)만 2번 패널에 RSI 동형 서브패널 그래프**(`fcDrawCci/Williams/Mfi`·`_SUBPANEL`).
 
 ## 편집창 (`renderParams` → `#paramPanel`)
 
-파라미터 numRow + **도구 안내**(`INDICATOR_INFO` 30종 목적·정의·해석법) + **추천값 세팅**(BLOCK_DEFS 기본값 리셋) · **저장**(markDirty 영속, 재분석은 웹분석 별도) 버튼. 지표 노드에만 표시(구조/데이터 블록 제외).
+파라미터 numRow + **도구 안내**(`INDICATOR_INFO` 32종 목적·정의·해석법) + **추천값 세팅**(BLOCK_DEFS 기본값 리셋) · **저장**(markDirty 영속, 재분석은 웹분석 별도) 버튼. 지표 노드에만 표시(구조/데이터 블록 제외).
 
 ## 실행 / 저장
 
