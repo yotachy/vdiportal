@@ -150,6 +150,30 @@
     c.restore();
   }
 
+  /* forge-draw.js 의 전역(CDASH·_hzFmt) 을 classic script 공유로 그대로 쓴다 — 단독
+     require(node 단위테스트) 시엔 없으므로 typeof 로 방어하고 동등한 기본값을 둔다. */
+  function CDASH_SAFE() { return (typeof CDASH === "object" && CDASH) || { fine:[1,3.5], std:[2,4], long:[4.5,4.5] }; }
+  function _hzFmtSafe(v) { return (typeof _hzFmt === "function") ? _hzFmt(v) : (Math.round(v * 100) / 100).toString(); }
+
+  /* 수평·수직선 선택 시 표시하는 핸들 링 — 실제 끝점 핸들(HR_VIS)과 달리 드래그 지점을
+     가리키는 용도(선 전체가 이동 대상이라 특정 좌표에 끝점이 없다). */
+  function _handleRing(c, x, y, col) {
+    c.save(); c.beginPath(); c.arc(x, y, 4.5, 0, 7);
+    c.strokeStyle = col; c.lineWidth = _cw().thin; c.stroke(); c.restore();
+  }
+  /* ✕ 삭제 배지 — _renderOne 의 트레이드/채널/박스 계열과 hline/vline 이 동일 모양을
+     공유하도록 여기 한 곳에만 그린다(과거엔 _renderOne 안에 인라인 중복이 있었다). */
+  function _drawDelBadge(c, G, d) {
+    const db = _delBadge(G, d); if (!db) return;
+    c.save(); c.beginPath(); c.arc(db.x, db.y, db.r, 0, 7);
+    c.fillStyle = _labelBg(); c.fill();
+    c.strokeStyle = FC_BEAR_SAFE(); c.lineWidth = _cw().thin; c.stroke();
+    c.beginPath();
+    c.moveTo(db.x - 3.2, db.y - 3.2); c.lineTo(db.x + 3.2, db.y + 3.2);
+    c.moveTo(db.x + 3.2, db.y - 3.2); c.lineTo(db.x - 3.2, db.y + 3.2);
+    c.strokeStyle = FC_BEAR_SAFE(); c.lineWidth = _cw().base; c.lineCap = "round"; c.stroke(); c.restore();
+  }
+
   const _TOOL_KO = { trend:"추세선", channel:"평행채널", range:"등락폭 재기", period:"기간 재기", hline:"수평선", vline:"수직선" };
   /* 진행 칩 — 지금 몇 번째 클릭인지·다음에 뭘 해야 하는지. 상태를 새로 만들지 않고
      (_armed, _drag.stage, _newDraw.type) 에서 파생한다. */
@@ -207,7 +231,10 @@
   /* 마우스로 지울 수단 — 선택된 그림의 우상단 바깥에 ✕ 배지. 키보드(Del)만으로는
      지울 수 없다는 제보 반영. 판정은 핸들보다 먼저(작고 겹치기 쉬우므로). */
   function _delBadge(G, d) {
-    const A = _pt(G, d.a), B = _pt(G, d.b);
+    // hline·vline 은 창 전체를 가로지르는 선이라 끝점이 없다 — 배지를 선 위 고정 위치에 둔다.
+    if (d.type === "hline") { const y = G.pToY(d.a.p); return isFinite(y) ? { x: G.g.padX + 22, y: y - DEL_R - 4, r: DEL_R } : null; }
+    if (d.type === "vline") { const x = G.fiToX(tToFi(G.times, d.a.t)); return isFinite(x) ? { x: x + DEL_R + 4, y: G.g.padTop + DEL_R + 2, r: DEL_R } : null; }
+    const A = _pt(G, d.a), B = d.b ? _pt(G, d.b) : A;   // hline·vline 은 b 가 없다(방어적으로 유지 — 위에서 이미 처리)
     if (![A.x, A.y, B.x, B.y].every(isFinite)) return null;
     let y0 = Math.min(A.y, B.y);
     if (d.type === "channel") y0 = Math.min(y0, G.pToY(d.a.p + (d.off || 0)), G.pToY(d.b.p + (d.off || 0)));
@@ -217,6 +244,26 @@
   }
 
   function _renderOne(c, G, d, sel) {
+    const st = drawStyle(d);
+    // 수평·수직선은 앵커가 하나뿐이라 b 가 없다 — 창 전체를 가로/세로로 가로지른다.
+    if (d.type === "hline" || d.type === "vline") {
+      c.lineWidth = sel ? _cw().bold : st.w; c.strokeStyle = st.color; c.setLineDash(CDASH_SAFE().fine); c.lineCap = "round";
+      c.beginPath();
+      if (d.type === "hline") {
+        const y = G.pToY(d.a.p); if (!isFinite(y)) return;
+        c.moveTo(G.g.padX, y); c.lineTo(G.g.plotRight, y); c.stroke();
+        _label(c, _hzFmtSafe(d.a.p), G.g.plotRight - 62, y - 4, st.color);
+        if (sel) _handleRing(c, G.g.plotRight - 14, y, st.color);
+      } else {
+        const x = G.fiToX(tToFi(G.times, d.a.t)); if (!isFinite(x)) return;
+        c.moveTo(x, G.g.padTop); c.lineTo(x, G.g.ch - G.g.padBot); c.stroke();
+        _label(c, String(d.a.t).slice(2).replace(/-/g, "."), x + 5, G.g.ch - G.g.padBot - 6, st.color);
+        if (sel) _handleRing(c, x, G.g.padTop + 14, st.color);
+      }
+      c.setLineDash([]);
+      if (sel) _drawDelBadge(c, G, d);
+      return;
+    }
     const A = _pt(G, d.a), B = _pt(G, d.b), col = COL[d.type] || COL.trend;
     if (![A.x, A.y, B.x, B.y].every(isFinite)) return;
     c.lineWidth = sel ? 2.2 : 1.6; c.strokeStyle = col; c.setLineDash([]);
@@ -247,16 +294,7 @@
         c.fillStyle = col; c.fill();
         c.strokeStyle = _chartBg(); c.lineWidth = 2; c.stroke();
       }
-      const db = _delBadge(G, d);
-      if (db) {
-        c.beginPath(); c.arc(db.x, db.y, db.r, 0, 7);
-        c.fillStyle = _labelBg(); c.fill();
-        c.strokeStyle = FC_BEAR_SAFE(); c.lineWidth = 1.4; c.stroke();
-        c.beginPath();
-        c.moveTo(db.x - 3.2, db.y - 3.2); c.lineTo(db.x + 3.2, db.y + 3.2);
-        c.moveTo(db.x + 3.2, db.y - 3.2); c.lineTo(db.x - 3.2, db.y + 3.2);
-        c.strokeStyle = FC_BEAR_SAFE(); c.lineWidth = 1.8; c.lineCap = "round"; c.stroke();
-      }
+      _drawDelBadge(c, G, d);
     }
   }
 
@@ -355,13 +393,24 @@
       if (d) {
         const db = _delBadge(G, d);   // 삭제 배지가 핸들보다 우선(작고 끝점 근처라 밀리면 못 누른다)
         if (db && Math.hypot(cx - db.x, cy - db.y) <= db.r + 2) return { kind: "del", id: d.id, which: null };
-        const A = _pt(G, d.a), B = _pt(G, d.b);
+        const A = _pt(G, d.a), B = d.b ? _pt(G, d.b) : null;   // hline·vline 은 b 가 없다
         if (isFinite(A.x) && isFinite(A.y) && Math.hypot(cx - A.x, cy - A.y) <= HR) return { kind: "handle", id: d.id, which: "a" };
-        if (isFinite(B.x) && isFinite(B.y) && Math.hypot(cx - B.x, cy - B.y) <= HR) return { kind: "handle", id: d.id, which: "b" };
+        if (B && isFinite(B.x) && isFinite(B.y) && Math.hypot(cx - B.x, cy - B.y) <= HR) return { kind: "handle", id: d.id, which: "b" };
       }
     }
     for (let i = DRAWS.length - 1; i >= 0; i--) {
-      const d = DRAWS[i], A = _pt(G, d.a), B = _pt(G, d.b);
+      const d = DRAWS[i];
+      if (d.type === "hline") {
+        const y = G.pToY(d.a.p);
+        if (isFinite(y) && Math.abs(cy - y) <= BODY_R && cx >= G.g.padX && cx <= G.g.plotRight) return { kind: "body", id: d.id, which: null };
+        continue;
+      }
+      if (d.type === "vline") {
+        const x = G.fiToX(tToFi(G.times, d.a.t));
+        if (isFinite(x) && Math.abs(cx - x) <= BODY_R && cy >= G.g.padTop && cy <= G.g.ch - G.g.padBot) return { kind: "body", id: d.id, which: null };
+        continue;
+      }
+      const A = _pt(G, d.a), B = _pt(G, d.b);
       if (!isFinite(A.x) || !isFinite(B.x)) continue;
       let hit = false;
       if (d.type === "trend") hit = segDist(cx, cy, A.x, A.y, B.x, B.y) <= BODY_R;
@@ -404,6 +453,13 @@
       if (_armed === "channel") _newDraw.off = 0;
       DRAWS.push(_newDraw);
       _selId = _newDraw.id;
+      if (_armed === "hline" || _armed === "vline") {
+        // 앵커 하나로 끝나는 도구 — 클릭 한 번에 완성한다(끝점 대기 없음). _armed 는 그대로
+        // 둬서 연속 그리기(Task 2)가 유지된다 — 클릭할 때마다 다시 팝오버를 여는 마찰이 없다.
+        delete _newDraw.b;
+        _undoPush(); _finishNew();
+        return true;
+      }
       _drag = { kind: "new", stage: 1 };
       drawsRender();
       return true;
@@ -450,6 +506,8 @@
       const _iv = v => isLog ? Math.exp(v) : v;
       const dFi = G.xToFi(cx) - _drag.fi0;
       const dS = _lg(G.yToP(cy)) - _lg(_drag.p0);
+      if (d.type === "hline") { d.a = { t: d.a.t, p: _iv(_lg(_drag.a0.p) + dS) }; drawsRender(); return; }   // 세로로만
+      if (d.type === "vline") { d.a = { t: fiToT(G.times, tToFi(G.times, _drag.a0.t) + dFi), p: d.a.p }; drawsRender(); return; }   // 가로로만
       for (const k of ["a", "b"]) {
         const src = _drag[k + "0"];
         d[k] = { t: fiToT(G.times, tToFi(G.times, src.t) + dFi), p: _iv(_lg(src.p) + dS) };
@@ -469,7 +527,7 @@
       // (drawsPointerMove 와 동일 가드). 여기서 그냥 return 하면 _drag/_newDraw 가 영영 안 풀려
       // 팬(endDrag)까지 같이 멈추므로, 취소판정만 건너뛰고 상태 정리(_finishNew)는 항상 실행한다.
       const G = drawsGeo();
-      if (G) {
+      if (G && _newDraw.b) {   // hline·vline 은 b 가 없어 클릭취소 판정 자체가 성립하지 않는다(1클릭에서 이미 완성·해제됨)
         const A = _pt(G, _newDraw.a), B = _pt(G, _newDraw.b);
         // F1: 예전엔 조건이 맞으면 무조건 배열 끝을 pop 했다 — 드래그 도중 Delete 로 이미
         // _newDraw 가 지워졌다면(아래 drawsKey) 배열 끝엔 무관한 기존 저장 그림이 있고,
