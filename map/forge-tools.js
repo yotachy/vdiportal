@@ -182,17 +182,24 @@
     _persist(); drawsRender();
   }
 
-  /* 히트테스트 — 선택된 그림의 끝점 핸들(6px)이 본체(5px)보다 우선.
-     위에 그려진 것부터 잡도록 뒤에서부터 훑는다. */
+  /* 히트테스트 — 선택된 그림의 끝점 핸들(6px)이 본체(5px)보다 항상 우선.
+     F4 수정: 예전엔 핸들 검사가 z-order 루프 안에 있어 선택된 그림이 topmost 가
+     아니면 위에 덮인 다른 도형의 본체가 먼저 걸렸다(핸들을 영영 못 잡음).
+     그래서 1차로 선택된 그림의 핸들만 z-order 무관하게 전수 검사하고,
+     거기서 못 잡았을 때만 2차로 본체를 위에서부터(뒤에서부터) 훑는다. */
   function drawsHitTest(cx, cy) {
     const G = drawsGeo(); if (!G || !G.times.length) return null;
+    if (_selId) {
+      const d = _byId(_selId);
+      if (d) {
+        const A = _pt(G, d.a), B = _pt(G, d.b);
+        if (isFinite(A.x) && isFinite(A.y) && Math.hypot(cx - A.x, cy - A.y) <= 6) return { kind: "handle", id: d.id, which: "a" };
+        if (isFinite(B.x) && isFinite(B.y) && Math.hypot(cx - B.x, cy - B.y) <= 6) return { kind: "handle", id: d.id, which: "b" };
+      }
+    }
     for (let i = DRAWS.length - 1; i >= 0; i--) {
       const d = DRAWS[i], A = _pt(G, d.a), B = _pt(G, d.b);
       if (!isFinite(A.x) || !isFinite(B.x)) continue;
-      if (d.id === _selId) {
-        if (Math.hypot(cx - A.x, cy - A.y) <= 6) return { kind: "handle", id: d.id, which: "a" };
-        if (Math.hypot(cx - B.x, cy - B.y) <= 6) return { kind: "handle", id: d.id, which: "b" };
-      }
       let hit = false;
       if (d.type === "trend") hit = segDist(cx, cy, A.x, A.y, B.x, B.y) <= 5;
       else if (d.type === "channel") {
@@ -238,7 +245,7 @@
       const d = _byId(h.id);
       _drag = h.kind === "handle"
         ? { kind: "handle", which: h.which }
-        : { kind: "move", fi0: G.xToFi(cx), p0: G.yToP(cy), a0: { ...d.a }, b0: { ...d.b } };
+        : { kind: "move", fi0: G.xToFi(cx), p0: G.yToP(cy), a0: { ...d.a }, b0: { ...d.b }, off0: d.off };   // F3: 채널 폭도 같이 스냅샷
       drawsRender();
       return true;
     }
@@ -267,6 +274,9 @@
         const src = _drag[k + "0"];
         d[k] = { t: fiToT(G.times, tToFi(G.times, src.t) + dFi), p: src.p * dP };
       }
+      // F3: 채널 폭(off)은 절대 가격차라 그대로 두면 base price 가 이동한 비율만큼
+      // 폭의 상대 비중이 달라져 채널이 눌리거나 벌어져 보인다 — 같은 비율로 스케일.
+      if (d.type === "channel" && _drag.off0 !== undefined) d.off = _drag.off0 * dP;
       drawsRender();
     }
   }
@@ -281,23 +291,45 @@
       const G = drawsGeo();
       if (G) {
         const A = _pt(G, _newDraw.a), B = _pt(G, _newDraw.b);
-        if (Math.hypot(B.x - A.x, B.y - A.y) < 6) DRAWS.pop();   // 점만 찍고 끝난 것 = 취소
+        // F1: 예전엔 조건이 맞으면 무조건 배열 끝을 pop 했다 — 드래그 도중 Delete 로 이미
+        // _newDraw 가 지워졌다면(아래 drawsKey) 배열 끝엔 무관한 기존 저장 그림이 있고,
+        // 그게 대신 삭제되는 데이터 유실이 났다. 배열 끝이 정말 _newDraw 본인일 때만 pop.
+        if (Math.hypot(B.x - A.x, B.y - A.y) < 6 && DRAWS[DRAWS.length - 1] === _newDraw) DRAWS.pop();   // 점만 찍고 끝난 것 = 취소
       }
       _finishNew();
     } else { _drag = null; _persist(); drawsRender(); }
   }
 
-  /* 전역 keydown 앞단에서 먼저 호출된다. true 를 반환하면 기존 단축키로 흘리지 않는다. */
+  /* 전역 keydown 앞단에서 먼저 호출된다. true 를 반환하면 기존 단축키로 흘리지 않는다.
+     F2: sel/selEdge 는 forge-ui.js(전략보드) 전역이라 이 파일만 봐선 존재 여부를 모른다 —
+     보드가 뭔가 선택 중이면 Delete/Esc 는 보드 몫으로 양보한다(typeof 로 방어적 참조,
+     둘 다 비어있을 때만 그림 도구가 키를 가져간다). */
   function drawsKey(e) {
     const ae = document.activeElement;
     if (ae && (ae.isContentEditable || ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return false;
+    const boardHasSel = (typeof sel !== "undefined" && sel && sel.length) ||
+                         (typeof selEdge !== "undefined" && selEdge);
     if (e.key === "Escape") {
+      if (boardHasSel) return false;
       if (_armed) { drawsArm(null); _armed = null; return true; }
       if (_selId) { _selId = null; drawsRender(); return true; }
       return false;
     }
-    if ((e.key === "Delete" || e.key === "Backspace") && _selId) {
-      DRAWS = DRAWS.filter(d => d.id !== _selId); _selId = null; _persist(); drawsRender(); return true;
+    if (e.key === "Delete" || e.key === "Backspace") {
+      // F1: 그리기 중(마우스 버튼이 아직 안 떨어진 상태)에 Delete 를 누르면 "완성된 그림 삭제"가
+      // 아니라 "지금 그리던 것 취소"로 다뤄야 한다 — _selId 필터로 처리하면 진행 중인 _newDraw 만
+      // 지워지고 drawsPointerUp 의 취소판정이 뒤이어 배열 끝(=이제 무관한 이전 그림)을 또 pop 해
+      // 엉뚱한 저장 그림까지 사라진다. 여기서 확실히 끝내(_finishNew) 그 경합 자체를 없앤다.
+      if (_drag && _drag.kind === "new" && _newDraw) {
+        const idx = DRAWS.indexOf(_newDraw);
+        if (idx !== -1) DRAWS.splice(idx, 1);
+        _finishNew();
+        return true;
+      }
+      if (boardHasSel) return false;
+      if (_selId) {
+        DRAWS = DRAWS.filter(d => d.id !== _selId); _selId = null; _persist(); drawsRender(); return true;
+      }
     }
     return false;
   }
