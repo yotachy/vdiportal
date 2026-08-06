@@ -1463,6 +1463,7 @@
 
     /* keyboard */
     window.addEventListener("keydown", e => {
+      if (typeof drawsKey === "function" && drawsKey(e)) { e.preventDefault(); return; }   // 그리기 도구 우선(Esc·Del)
       const ae = document.activeElement;
       const typing = !!(ae && (ae.isContentEditable || ae.tagName === "INPUT" || ae.tagName === "TEXTAREA"));
       if (e.code === "Space") { spaceDown = true; if (!typing) e.preventDefault(); return; }

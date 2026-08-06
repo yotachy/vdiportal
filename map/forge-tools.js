@@ -182,6 +182,33 @@
     _persist(); drawsRender();
   }
 
+  /* 히트테스트 — 선택된 그림의 끝점 핸들(6px)이 본체(5px)보다 우선.
+     위에 그려진 것부터 잡도록 뒤에서부터 훑는다. */
+  function drawsHitTest(cx, cy) {
+    const G = drawsGeo(); if (!G || !G.times.length) return null;
+    for (let i = DRAWS.length - 1; i >= 0; i--) {
+      const d = DRAWS[i], A = _pt(G, d.a), B = _pt(G, d.b);
+      if (!isFinite(A.x) || !isFinite(B.x)) continue;
+      if (d.id === _selId) {
+        if (Math.hypot(cx - A.x, cy - A.y) <= 6) return { kind: "handle", id: d.id, which: "a" };
+        if (Math.hypot(cx - B.x, cy - B.y) <= 6) return { kind: "handle", id: d.id, which: "b" };
+      }
+      let hit = false;
+      if (d.type === "trend") hit = segDist(cx, cy, A.x, A.y, B.x, B.y) <= 5;
+      else if (d.type === "channel") {
+        const A2y = G.pToY(d.a.p + (d.off || 0)), B2y = G.pToY(d.b.p + (d.off || 0));
+        hit = segDist(cx, cy, A.x, A.y, B.x, B.y) <= 5 || segDist(cx, cy, A.x, A2y, B.x, B2y) <= 5;
+      } else {   // range·period = 박스 테두리
+        const x0 = Math.min(A.x, B.x), x1 = Math.max(A.x, B.x), y0 = Math.min(A.y, B.y), y1 = Math.max(A.y, B.y);
+        hit = segDist(cx, cy, x0, y0, x1, y0) <= 5 || segDist(cx, cy, x0, y1, x1, y1) <= 5 ||
+              segDist(cx, cy, x0, y0, x0, y1) <= 5 || segDist(cx, cy, x1, y0, x1, y1) <= 5;
+      }
+      if (hit) return { kind: "body", id: d.id, which: null };
+    }
+    return null;
+  }
+  function _byId(id) { return DRAWS.find(x => x.id === id) || null; }
+
   function drawsPointerDown(e, cx, cy) {
     const G = drawsGeo(); if (!G || !G.times.length) return false;
     if (_drag && _drag.kind === "new" && _newDraw) {
@@ -205,7 +232,18 @@
       drawsRender();
       return true;
     }
-    return false;   // Task 4 에서 선택·이동 분기를 앞에 추가
+    const h = drawsHitTest(cx, cy);
+    if (h) {
+      _selId = h.id;
+      const d = _byId(h.id);
+      _drag = h.kind === "handle"
+        ? { kind: "handle", which: h.which }
+        : { kind: "move", fi0: G.xToFi(cx), p0: G.yToP(cy), a0: { ...d.a }, b0: { ...d.b } };
+      drawsRender();
+      return true;
+    }
+    if (_selId) { _selId = null; drawsRender(); }   // 빈 곳 클릭 = 선택 해제(팬은 그대로 진행)
+    return false;
   }
 
   function drawsPointerMove(e, cx, cy) {
@@ -216,6 +254,18 @@
       else if (_drag.stage === 2) {   // 채널 3번째 점 = 폭
         const A = _pt(G, _newDraw.a), B = _pt(G, _newDraw.b);
         _newDraw.off = chanOff({ fi: A.fi, p: _newDraw.a.p }, { fi: B.fi, p: _newDraw.b.p }, { fi: G.xToFi(cx), p: G.yToP(cy) });
+      }
+      drawsRender();
+    } else if (_drag.kind === "handle") {
+      const d = _byId(_selId); if (!d) return;
+      d[_drag.which] = _anchorAt(G, cx, cy);
+      drawsRender();
+    } else if (_drag.kind === "move") {
+      const d = _byId(_selId); if (!d) return;
+      const dFi = G.xToFi(cx) - _drag.fi0, dP = G.yToP(cy) / (_drag.p0 || 1);   // 가격은 비율 이동(로그축 정합)
+      for (const k of ["a", "b"]) {
+        const src = _drag[k + "0"];
+        d[k] = { t: fiToT(G.times, tToFi(G.times, src.t) + dFi), p: src.p * dP };
       }
       drawsRender();
     }
@@ -234,11 +284,27 @@
         if (Math.hypot(B.x - A.x, B.y - A.y) < 6) DRAWS.pop();   // 점만 찍고 끝난 것 = 취소
       }
       _finishNew();
+    } else { _drag = null; _persist(); drawsRender(); }
+  }
+
+  /* 전역 keydown 앞단에서 먼저 호출된다. true 를 반환하면 기존 단축키로 흘리지 않는다. */
+  function drawsKey(e) {
+    const ae = document.activeElement;
+    if (ae && (ae.isContentEditable || ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return false;
+    if (e.key === "Escape") {
+      if (_armed) { drawsArm(null); _armed = null; return true; }
+      if (_selId) { _selId = null; drawsRender(); return true; }
+      return false;
     }
+    if ((e.key === "Delete" || e.key === "Backspace") && _selId) {
+      DRAWS = DRAWS.filter(d => d.id !== _selId); _selId = null; _persist(); drawsRender(); return true;
+    }
+    return false;
   }
 
   return { tToFi, fiToT, segDist, chanOff, drawsLoad, drawsAll, drawsGeo, drawsRender,
-           drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop };
+           drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop,
+           drawsHitTest, drawsKey };
 });
 
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", function () {
