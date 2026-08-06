@@ -563,3 +563,73 @@ test("undo: 입력 필드에 포커스 중이면 drawsKey 가 Ctrl+Z 를 가로�
     global.document = prevDoc;
   }
 });
+
+/* ── F1/F2 리뷰 대응 회귀 테스트 (Task 5 재검토) ─────────────────────── */
+
+test("undo: ✕ 배지 클릭 삭제 후 Ctrl+Z 로 복원됨", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([{ id: "h1", type: "hline", a: { t: "2026-01-10", p: 100 } }]);
+    T2._undoReset();
+    const G = T2.drawsGeo();
+    // ✕ 배지는 선택된 그림에만 뜬다 — 먼저 본체 클릭으로 선택한다. 이 선택 클릭 자체가
+    // 남기는 스냅샷은 이번 테스트 대상이 아니므로(F2 수정 후엔 이동 없는 클릭이라 pointerUp
+    // 에서 자동으로 버려지지만, 방어적으로 명시) undoReset 으로 한 번 더 지운다.
+    T2.drawsPointerDown({}, 300, G.pToY(100));
+    T2.drawsPointerUp();
+    T2._undoReset();
+    const d = T2.drawsAll()[0];
+    const badge = T2._delBadge(G, d);
+    assert.ok(badge, "배지 좌표가 계산돼야 함(off-target 이면 drawsHitTest 가 null 을 내 오검출됨)");
+    const consumedDel = T2.drawsPointerDown({}, badge.x, badge.y);
+    assert.strictEqual(consumedDel, true, "✕ 배지 클릭이 소비되어야 함");
+    assert.strictEqual(T2.drawsAll().length, 0, "✕ 배지 클릭으로 지워져야 함");
+    const consumedUndo = T2.drawsKey({ ctrlKey: true, key: "z" });
+    assert.strictEqual(consumedUndo, true, "Ctrl+Z 는 이벤트를 삼켜야 함");
+    assert.strictEqual(T2.drawsAll().length, 1, "Ctrl+Z 로 복원돼야 함");
+    assert.strictEqual(T2.drawsAll()[0].id, "h1", "같은 그림이 복원돼야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("undo: 선택만 하고(이동 없이) 놓으면 되돌리기 스택에 아무것도 안 남음(낭비 스냅샷 가드)", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([{ id: "t3", type: "trend", a: { t: "2026-01-10", p: 100 }, b: { t: "2026-01-20", p: 110 } }]);
+    T2._undoReset();
+    const G = T2.drawsGeo();
+    const fiA = T2.tToFi(G.times, "2026-01-10"), fiB = T2.tToFi(G.times, "2026-01-20");
+    const Ax = G.fiToX(fiA), Ay = G.pToY(100), Bx = G.fiToX(fiB), By = G.pToY(110);
+    const midx = (Ax + Bx) / 2, midy = (Ay + By) / 2;
+
+    assert.strictEqual(T2.drawsPointerDown({}, midx, midy), true, "본체 클릭으로 선택(=move 드래그 시작)");
+    T2.drawsPointerUp();   // 움직이지 않고 바로 뗀다 — 아무 것도 안 바뀌어야 함
+
+    assert.strictEqual(T2.drawsAll()[0].a.p, 100, "실제로 아무 것도 안 바뀌었어야 함(대조군)");
+    // pop 해서 뭔가 나오면 낭비 스냅샷이 남은 것 — 나오면 안 됨.
+    assert.strictEqual(T2._undoPop(), null, "이동 없는 선택 클릭은 되돌리기 스택에 아무것도 남기면 안 됨");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("undo: 핸들만 클릭하고(이동 없이) 놓아도 되돌리기 스택에 아무것도 안 남음", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([{ id: "t4", type: "trend", a: { t: "2026-01-10", p: 100 }, b: { t: "2026-01-20", p: 110 } }]);
+    T2._undoReset();
+    const G = T2.drawsGeo();
+    const fiA = T2.tToFi(G.times, "2026-01-10"), fiB = T2.tToFi(G.times, "2026-01-20");
+    const Ax = G.fiToX(fiA), Ay = G.pToY(100), Bx = G.fiToX(fiB), By = G.pToY(110);
+    const midx = (Ax + Bx) / 2, midy = (Ay + By) / 2;
+    T2.drawsPointerDown({}, midx, midy);   // 선택
+    T2.drawsPointerUp();
+    T2._undoReset();
+
+    assert.strictEqual(T2.drawsPointerDown({}, Ax, Ay), true, "A 핸들 클릭이 소비되어야 함");
+    T2.drawsPointerUp();   // 움직이지 않고 바로 뗀다
+
+    assert.strictEqual(T2.drawsAll()[0].a.p, 100, "실제로 아무 것도 안 바뀌었어야 함(대조군)");
+    assert.strictEqual(T2._undoPop(), null, "이동 없는 핸들 클릭도 되돌리기 스택에 아무것도 남기면 안 됨");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
