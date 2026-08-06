@@ -151,10 +151,11 @@
   function _persist() { const d = (typeof activeDoc === "function") ? activeDoc() : null; if (d) d.draws = DRAWS.slice(); if (typeof markDirty === "function") markDirty(); }
 
   function toggleDrawPop() {
+    // .chart-pop 은 CSS 가 display/opacity/transform 을 클래스(.on)로만 다룬다(형제 팝업 _toggleRailPreset 과 동일 패턴).
+    // 인라인 style.display 를 건드리면 opacity:0 인 채로 display:block 이 되어 영구히 안 보이게 된다.
     const p = document.getElementById("drawPop"); if (!p) return;
-    const on = p.style.display === "block";
-    p.style.display = on ? "none" : "block";
-    p.setAttribute("aria-hidden", on ? "true" : "false");
+    const on = p.classList.toggle("on");
+    p.setAttribute("aria-hidden", on ? "false" : "true");
   }
   function drawsArm(type) {
     _armed = (_armed === type) ? null : type;
@@ -171,8 +172,29 @@
   }
   function _snapPrice(G, fi, cy) { return G.yToP(cy); }   // Task 5 에서 마그넷 흡착으로 교체
 
+  /* 그리기 완료 공통 뒷정리 — 도구 해제(drawsArm 은 토글이라 두 번 부르면 안 되므로 직접 해제) +
+     영속화 + 재작도. pointerUp 정상 커밋 경로와 pointerDown 채널 2번째 클릭 커밋 경로가 공유한다. */
+  function _finishNew() {
+    _newDraw = null; _drag = null;
+    _armed = null;
+    document.querySelectorAll(".dp-btn").forEach(b => b.classList.remove("on"));
+    const cv = document.getElementById("fcMainChart"); if (cv) cv.style.cursor = "grab";
+    _persist(); drawsRender();
+  }
+
   function drawsPointerDown(e, cx, cy) {
     const G = drawsGeo(); if (!G || !G.times.length) return false;
+    if (_drag && _drag.kind === "new" && _newDraw) {
+      // 채널 폭 지정 대기 중(stage 2) — 새 그리기를 또 시작하지 않고 이 클릭으로 폭을 확정한다.
+      // 여기서 guard 없이 _armed 분기로 흘려보내면 반쪽짜리 채널이 DRAWS 에 계속 쌓인다(고아 도형).
+      if (_newDraw.type === "channel" && _drag.stage === 2) {
+        // 직전 move 없이 연속 클릭만으로도 폭이 잡히도록, 이 클릭 좌표로 직접 계산한다(미리보기 값에 기대지 않음).
+        const A = _pt(G, _newDraw.a), B = _pt(G, _newDraw.b);
+        _newDraw.off = chanOff({ fi: A.fi, p: _newDraw.a.p }, { fi: B.fi, p: _newDraw.b.p }, { fi: G.xToFi(cx), p: G.yToP(cy) });
+        _finishNew();
+      }
+      return true;
+    }
     if (_armed) {
       const a = _anchorAt(G, cx, cy);
       _newDraw = { id: _uid(), type: _armed, a, b: { t: a.t, p: a.p } };
@@ -203,14 +225,15 @@
     if (!_drag) return;
     if (_drag.kind === "new") {
       if (_newDraw.type === "channel" && _drag.stage === 1) { _drag.stage = 2; return; }   // 채널은 한 번 더 클릭해 폭 지정
-      const A = _pt(drawsGeo(), _newDraw.a), B = _pt(drawsGeo(), _newDraw.b);
-      if (Math.hypot(B.x - A.x, B.y - A.y) < 6) DRAWS.pop();   // 점만 찍고 끝난 것 = 취소
-      // 도구 해제(연속 그리기 원하면 재클릭). drawsArm은 토글이라 두 번 부르면 안 되므로 직접 해제한다.
-      _newDraw = null; _drag = null;
-      _armed = null;
-      document.querySelectorAll(".dp-btn").forEach(b => b.classList.remove("on"));
-      const _cv = document.getElementById("fcMainChart"); if (_cv) _cv.style.cursor = "grab";
-      _persist(); drawsRender();
+      // 리사이즈·티커 전환이 마우스업과 경합하면 _mainGeo 가 잠깐 비어 drawsGeo()가 null 일 수 있다
+      // (drawsPointerMove 와 동일 가드). 여기서 그냥 return 하면 _drag/_newDraw 가 영영 안 풀려
+      // 팬(endDrag)까지 같이 멈추므로, 취소판정만 건너뛰고 상태 정리(_finishNew)는 항상 실행한다.
+      const G = drawsGeo();
+      if (G) {
+        const A = _pt(G, _newDraw.a), B = _pt(G, _newDraw.b);
+        if (Math.hypot(B.x - A.x, B.y - A.y) < 6) DRAWS.pop();   // 점만 찍고 끝난 것 = 취소
+      }
+      _finishNew();
     }
   }
 
