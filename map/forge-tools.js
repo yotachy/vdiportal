@@ -232,8 +232,22 @@
      지울 수 없다는 제보 반영. 판정은 핸들보다 먼저(작고 겹치기 쉬우므로). */
   function _delBadge(G, d) {
     // hline·vline 은 창 전체를 가로지르는 선이라 끝점이 없다 — 배지를 선 위 고정 위치에 둔다.
-    if (d.type === "hline") { const y = G.pToY(d.a.p); return isFinite(y) ? { x: G.g.padX + 22, y: y - DEL_R - 4, r: DEL_R } : null; }
-    if (d.type === "vline") { const x = G.fiToX(tToFi(G.times, d.a.t)); return isFinite(x) ? { x: x + DEL_R + 4, y: G.g.padTop + DEL_R + 2, r: DEL_R } : null; }
+    // F2(리뷰): 아래 두 분기가 클램프 없이 원 위치(padX+22 / padTop+DEL_R+2)만 썼더니 가격이
+    // 상단 끝에 붙은 hline·마지막 봉에 찍힌 vline에서 배지 중심이 클립 경계 밖으로 나가
+    // drawsRender() 의 clip 사각형에 가려 보이지도 눌리지도 않았다 — 아래 제네릭 분기(y0
+    // clamp·x clamp)와 같은 방식으로 두 축 모두 clip 사각형 안쪽으로 강제한다.
+    if (d.type === "hline") {
+      const y = G.pToY(d.a.p); if (!isFinite(y)) return null;
+      const xc = Math.max(G.g.padX - 2, Math.min(G.g.padX + 22, G.g.plotRight - DEL_R - 2));
+      const yc = Math.max(G.g.padTop + DEL_R + 2, Math.min(y - DEL_R - 4, G.g.ch - G.g.padBot - DEL_R - 2));
+      return { x: xc, y: yc, r: DEL_R };
+    }
+    if (d.type === "vline") {
+      const x = G.fiToX(tToFi(G.times, d.a.t)); if (!isFinite(x)) return null;
+      const xc = Math.max(G.g.padX - 2, Math.min(x + DEL_R + 4, G.g.plotRight - DEL_R - 2));
+      const yc = Math.max(G.g.padTop + DEL_R + 2, Math.min(G.g.padTop + DEL_R + 2, G.g.ch - G.g.padBot - DEL_R - 2));
+      return { x: xc, y: yc, r: DEL_R };
+    }
     const A = _pt(G, d.a), B = d.b ? _pt(G, d.b) : A;   // hline·vline 은 b 가 없다(방어적으로 유지 — 위에서 이미 처리)
     if (![A.x, A.y, B.x, B.y].every(isFinite)) return null;
     let y0 = Math.min(A.y, B.y);
@@ -451,15 +465,21 @@
       const a = _anchorAt(G, cx, cy);
       _newDraw = { id: _uid(), type: _armed, a, b: { t: a.t, p: a.p } };
       if (_armed === "channel") _newDraw.off = 0;
-      DRAWS.push(_newDraw);
-      _selId = _newDraw.id;
       if (_armed === "hline" || _armed === "vline") {
         // 앵커 하나로 끝나는 도구 — 클릭 한 번에 완성한다(끝점 대기 없음). _armed 는 그대로
         // 둬서 연속 그리기(Task 2)가 유지된다 — 클릭할 때마다 다시 팝오버를 여는 마찰이 없다.
+        // F1(리뷰): undo 스택 계약은 "되돌아갈 상태를 변경 전에" push — DRAWS.push 로 이 선을
+        // 넣기 전에 스냅샷을 떠야 pop 했을 때 이 선이 없는 상태로 복원된다. 순서를 뒤집으면
+        // (push 후 undoPush) 스냅샷에 이미 이 선이 들어있어 되돌리기가 아무 효과가 없다.
         delete _newDraw.b;
-        _undoPush(); _finishNew();
+        _undoPush();
+        DRAWS.push(_newDraw);
+        _selId = _newDraw.id;
+        _finishNew();
         return true;
       }
+      DRAWS.push(_newDraw);
+      _selId = _newDraw.id;
       _drag = { kind: "new", stage: 1 };
       drawsRender();
       return true;
@@ -578,7 +598,8 @@
 
   return { tToFi, fiToT, segDist, chanOff, drawsArmed, drawsCursor, drawsLoad, drawsAll, drawsGeo, drawsRender,
            drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop,
-           drawsHitTest, drawsKey, _undoPush, _undoPop, _undoReset, drawStyle, SW_COLORS, SW_W, _progressText };
+           drawsHitTest, drawsKey, _undoPush, _undoPop, _undoReset, drawStyle, SW_COLORS, SW_W, _progressText,
+           _delBadge };   // 언더스코어 접두 내부 헬퍼도 _undoPush 등과 같은 관례로 테스트용 노출
 });
 
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", function () {

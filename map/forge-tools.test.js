@@ -143,3 +143,109 @@ test("스와치 상수: 색 5종·굵기 3단", () => {
   assert.strictEqual(T2.SW_COLORS.length, 5);
   assert.deepStrictEqual(T2.SW_W, ["thin", "base", "bold"]);
 });
+
+/* ── 수평선·수직선 회귀 테스트 (F1·F2 리뷰 대응) ──────────────────────
+   drawsPointerDown/_delBadge 는 document·priceTimes 를 참조하므로 최소 DOM/geo 셰임을
+   구성해 실제 좌표계를 통과시킨다("추측 좌표"가 아니라 drawsGeo() 와 같은 공식으로 계산). */
+function withChartShim(fn) {
+  const g = { padX: 50, padTop: 20, padBot: 30, ch: 400, histW: 600, plotRight: 650, start: 0, count: 100, log: false, loV: 50, hiV: 150 };
+  const times = [];
+  { const base = Date.parse("2026-01-01T00:00:00Z"); for (let i = 0; i < 150; i++) times.push(new Date(base + i * 86400000).toISOString().slice(0, 10)); }
+  function makeCtx() {
+    const t = {};
+    return new Proxy(t, {
+      get(o, p) { if (p in o) return o[p]; if (p === "measureText") return s => ({ width: String(s || "").length * 7 }); return function () {}; },
+      set(o, p, v) { o[p] = v; return true; }
+    });
+  }
+  function makeCanvas(extra) { return Object.assign({ style: {}, width: 0, height: 0, parentElement: { clientWidth: 800, clientHeight: 450 }, getContext: () => makeCtx() }, extra || {}); }
+  const mainCanvas = makeCanvas({ _mainGeo: g }), drawsCanvas = makeCanvas({});
+  const prevDoc = global.document, prevWin = global.window, prevPT = global.priceTimes;
+  global.window = { devicePixelRatio: 1 };
+  global.document = {
+    getElementById(id) { if (id === "fcMainChart") return mainCanvas; if (id === "fcDraws") return drawsCanvas; return null; },
+    querySelectorAll() { return []; }, addEventListener() {}, activeElement: null,
+  };
+  global.priceTimes = () => times;
+  try { fn({ g, times }); }
+  finally { global.document = prevDoc; global.window = prevWin; global.priceTimes = prevPT; }
+}
+
+test("F1 회귀: hline 1클릭 생성 — 그림 1개·b 없음·undo 스냅샷엔 안 들어있음", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(({ g }) => {
+    T2.drawsLoad([]);
+    T2._undoReset();
+    T2.drawsArm("hline");
+    const G = T2.drawsGeo();
+    const cy = G.pToY(90);   // 임의의 가격 위치
+    const r = T2.drawsPointerDown({}, 300, cy);
+    assert.strictEqual(r, true, "1클릭이 소비되어야 함");
+    const all = T2.drawsAll();
+    assert.strictEqual(all.length, 1, "그림이 정확히 1개 생성돼야 함");
+    assert.ok(!("b" in all[0]), "hline 은 b 프로퍼티가 없어야 함");
+    // F1: _undoPush() 는 이 선을 DRAWS 에 넣기 '전' 상태를 스냅샷해야 한다 — pop 했을 때
+    // 빈 배열이 나와야 정상(되돌리면 방금 그은 선이 사라짐). 순서가 뒤집히면 스냅샷 안에
+    // 이미 이 선이 들어있어 되돌리기가 무효과가 된다.
+    const popped = T2._undoPop();
+    assert.ok(Array.isArray(popped), "스냅샷이 존재해야 함");
+    assert.strictEqual(popped.length, 0, "스냅샷은 선을 긋기 전(빈 배열)이어야 함 — undo 가 유효해야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();   // 다음 테스트를 위한 상태 정리(모듈이 require 캐시로 공유됨)
+});
+
+test("F1 회귀: vline 1클릭 생성 — 그림 1개·b 없음·undo 스냅샷엔 안 들어있음", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(({ g }) => {
+    T2.drawsLoad([]);
+    T2._undoReset();
+    T2.drawsArm("vline");
+    const G = T2.drawsGeo();
+    const cx = G.fiToX(40);
+    const r = T2.drawsPointerDown({}, cx, 200);
+    assert.strictEqual(r, true, "1클릭이 소비되어야 함");
+    const all = T2.drawsAll();
+    assert.strictEqual(all.length, 1, "그림이 정확히 1개 생성돼야 함");
+    assert.ok(!("b" in all[0]), "vline 은 b 프로퍼티가 없어야 함");
+    const popped = T2._undoPop();
+    assert.ok(Array.isArray(popped), "스냅샷이 존재해야 함");
+    assert.strictEqual(popped.length, 0, "스냅샷은 선을 긋기 전(빈 배열)이어야 함 — undo 가 유효해야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("F2 회귀: 그림이 없고 도구도 무장 안 됐으면 drawsPointerDown 은 false (회귀 없음)", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]);
+    const r = T2.drawsPointerDown({}, 300, 200);
+    assert.strictEqual(r, false, "그림도 없고 무장도 안 됐으면 false 여야 팬/줌이 안 막힘");
+  });
+});
+
+test("F2 회귀: 상단 끝에 붙은 hline 의 ✕ 배지 중심이 클립 사각형 안에 클램프됨", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(({ g }) => {
+    const DEL_R = 9;   // forge-tools.js 내부 상수와 동일(비노출) — 경계 계산용으로 동일 값을 둔다
+    T2.drawsLoad([{ id: "h1", type: "hline", a: { t: "2026-01-10", p: 149 } }]);   // 가시범위 최상단 근처 가격
+    const G = T2.drawsGeo();
+    const badge = T2._delBadge(G, T2.drawsAll()[0]);
+    assert.ok(badge, "배지 좌표가 계산돼야 함");
+    assert.ok(badge.y >= G.g.padTop + DEL_R + 2 - 1e-6, "배지 중심이 클립 상단 안쪽이어야 함(회귀 전엔 위로 튀어나감): " + badge.y);
+    assert.ok(badge.y <= G.g.ch - G.g.padBot - DEL_R - 2 + 1e-6, "배지 중심이 클립 하단 안쪽이어야 함: " + badge.y);
+    assert.ok(badge.x >= G.g.padX - 2 - 1e-6 && badge.x <= G.g.plotRight - DEL_R - 2 + 1e-6, "배지 중심이 가로로도 클립 안쪽이어야 함: " + badge.x);
+  });
+});
+
+test("F2 회귀: 마지막 봉에 찍힌 vline 의 ✕ 배지 중심이 클립 사각형 안에 클램프됨", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(({ g, times }) => {
+    const DEL_R = 9;
+    T2.drawsLoad([{ id: "v1", type: "vline", a: { t: times[99], p: 100 } }]);   // 가시범위 마지막 봉("오늘 표시" 같은 자연스러운 사용)
+    const G = T2.drawsGeo();
+    const badge = T2._delBadge(G, T2.drawsAll()[0]);
+    assert.ok(badge, "배지 좌표가 계산돼야 함");
+    assert.ok(badge.x >= G.g.padX - 2 - 1e-6 && badge.x <= G.g.plotRight - DEL_R - 2 + 1e-6, "배지 중심이 클립 우측 안쪽이어야 함(회귀 전엔 오른쪽으로 튀어나감): " + badge.x);
+    assert.ok(badge.y >= G.g.padTop + DEL_R + 2 - 1e-6 && badge.y <= G.g.ch - G.g.padBot - DEL_R - 2 + 1e-6, "배지 중심이 세로로도 클립 안쪽이어야 함: " + badge.y);
+  });
+});
