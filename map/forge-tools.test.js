@@ -52,10 +52,70 @@ test("chanOff: 기준선에서 점까지의 수직 가격 차(부호 유지)", (
   assert.ok(Math.abs(T.chanOff(a, b, { fi: 5, p: 130 }) + 20) < 1e-9);
 });
 
-test("undo 스택: push/pop 왕복, 빈 스택은 null", () => {
+test("undo 스택: 빈 스택은 null", () => {
   const T2 = require("./forge-tools.js");
-  assert.strictEqual(T2._undoPop(), null, "빈 스택은 null");
   T2._undoReset();
+  assert.strictEqual(T2._undoPop(), null, "빈 스택은 null");
+});
+
+test("undo 스택: push/pop 왕복 — 저장된 상태를 그대로 복원", () => {
+  const T2 = require("./forge-tools.js");
+  const original = [
+    { id: "d_001", type: "trend", a: { t: "2026-01-05", p: 100 }, b: { t: "2026-01-06", p: 110 } }
+  ];
+  T2.drawsLoad(original);
+  T2._undoReset();
+  T2._undoPush();
+
+  // 라이브 상태 변경
+  T2.drawsLoad([
+    { id: "d_002", type: "channel", a: { t: "2026-01-07", p: 120 }, b: { t: "2026-01-08", p: 130 } }
+  ]);
+
+  // pop 하면 원래 상태가 나와야 함
+  const restored = T2._undoPop();
+  assert.strictEqual(restored.length, 1);
+  assert.strictEqual(restored[0].id, "d_001");
+  assert.strictEqual(restored[0].type, "trend");
+  assert.strictEqual(restored[0].a.p, 100);
+});
+
+test("undo 스택: 스냅샷 격리 — 복원된 상태가 라이브 상태와 독립", () => {
+  const T2 = require("./forge-tools.js");
+  const original = [{ id: "d_001", type: "trend", a: { t: "2026-01-05", p: 100 }, b: { t: "2026-01-06", p: 110 } }];
+  T2.drawsLoad(original);
+  T2._undoReset();
+  T2._undoPush();
+
+  // 복원된 상태를 뮤테이트
+  const restored = T2._undoPop();
+  restored[0].a.p = 999;
+
+  // 라이브 상태가 변하지 않았는지 확인
+  const live = T2.drawsAll();
+  assert.strictEqual(live[0].a.p, 100, "라이브 상태는 독립적이어야 함");
+});
+
+test("undo 스택: 최대 30개 제한 — 31개 push 시 첫 번째가 삭제됨", () => {
+  const T2 = require("./forge-tools.js");
+  T2._undoReset();
+
+  // 31개 push
+  for (let i = 0; i < 31; i++) {
+    T2.drawsLoad([{ id: `d_${String(i).padStart(3, "0")}`, type: "trend", a: { t: "2026-01-05", p: 100 + i }, b: { t: "2026-01-06", p: 110 + i } }]);
+    T2._undoPush();
+  }
+
+  // 정확히 30개만 pop 가능
+  let count = 0;
+  let oldestRemaining = null;
+  let popped;
+  while ((popped = T2._undoPop()) !== null) {
+    oldestRemaining = popped;  // 마지막 pop이 가장 오래된 남은 것
+    count++;
+  }
+  assert.strictEqual(count, 30, "정확히 30개만 pop 가능해야 함");
+  assert.strictEqual(oldestRemaining[0].id, "d_001", "가장 오래된 유지된 스냅샷은 d_001이어야 함 (d_000이 삭제됨)");
 });
 
 test("drawStyle: color·w 가 없으면 도구 기본색과 CW.base", () => {
