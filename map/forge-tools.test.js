@@ -633,3 +633,46 @@ test("undo: 핸들만 클릭하고(이동 없이) 놓아도 되돌리기 스택�
   });
   T2.drawsLoad([]); T2._undoReset();
 });
+
+/* ── F3 리뷰 대응 — redo 오동작 제거(Ctrl+Shift+Z·Ctrl+Y 는 두 번째 undo 였다) ── */
+
+test("undo: Ctrl+Shift+Z 는 false 를 반환하고 스택을 건드리지 않음(redo 로 오동작하던 문제 수정)", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([{ id: "a1", type: "hline", a: { t: "2026-01-10", p: 100 } }]);
+    T2._undoReset();
+    T2.drawsClear();   // 스택에 스냅샷 1개가 push 됨
+
+    const consumed = T2.drawsKey({ ctrlKey: true, shiftKey: true, key: "z" });
+    assert.strictEqual(consumed, false, "Ctrl+Shift+Z 는 false 를 반환해 브라우저로 흘려보내야 함(삼키면 안 됨)");
+
+    // 스택이 안 건드려졌는지 — pop 하면 여전히 스냅샷 1개가 나오고, 그게 유일한 항목이어야 한다
+    // (Ctrl+Shift+Z 가 몰래 두 번째 undo 를 수행했다면 여기서 null 이 나오거나 내용이 달라진다).
+    const popped = T2._undoPop();
+    assert.ok(popped, "Ctrl+Shift+Z 이후에도 스냅샷이 그대로 남아 있어야 함(안 건드림)");
+    assert.strictEqual(T2._undoPop(), null, "스택엔 원래 있던 것 딱 하나만 있어야 함(추가로 소비되지 않음)");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("undo: Ctrl+Y 는 false 를 반환하고 스택을 건드리지 않음(바인딩 완전 제거 확인)", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([{ id: "a1", type: "hline", a: { t: "2026-01-10", p: 100 } }]);
+    T2._undoReset();
+    T2.drawsClear();   // 스택에 스냅샷 1개가 push 됨
+
+    const consumed = T2.drawsKey({ ctrlKey: true, key: "y" });
+    assert.strictEqual(consumed, false, "Ctrl+Y 는 더 이상 바인딩되지 않으므로 false 를 반환해야 함");
+    const popped = T2._undoPop();
+    assert.ok(popped, "Ctrl+Y 이후에도 스냅샷이 그대로 남아 있어야 함(안 건드림)");
+    assert.strictEqual(T2._undoPop(), null, "스택엔 원래 있던 것 딱 하나만 있어야 함");
+  });
+
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+// "순수 Ctrl+Z(Shift 없이)는 여전히 되돌린다"는 새로 추가하지 않는다 — 이미 위쪽의 여러
+// undo 회귀 테스트(예: "두 앵커 그리기(trend) 완성 후 Ctrl+Z", "Delete 키로 지운 그림이
+// Ctrl+Z 로 복원됨" 등)가 { ctrlKey: true, key: "z" }(shiftKey 미지정 = falsy)로 이미
+// 매번 실제 되돌리기를 확인하고 있다 — 아래 재검증에서 전부 green 유지되는 것으로 충분.
