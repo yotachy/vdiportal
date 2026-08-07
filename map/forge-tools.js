@@ -96,7 +96,9 @@
      삼켜진다 — 상호작용 상태 전체를 문서 전환 시점에 리셋한다. */
   function drawsLoad(arr) {
     _cancelNew();
-    _selId = null; _armed = null; _drag = null; _newDraw = null; _hoverId = null;
+    // _armed 를 직접 비우면 상태만 풀리고 팝오버 버튼 활성링·커서는 그대로 남는다
+    // (문서 전환 후에도 도구가 켜진 것처럼 보임). _setArmed 를 거쳐 UI 까지 되돌린다.
+    _selId = null; _setArmed(null); _drag = null; _newDraw = null; _hoverId = null;
     // T5: 문서 전환 시 되돌리기 스택도 비운다 — 안 비우면 종목 A 에서 지운 그림을 종목 B 로
     // 넘어와 Ctrl+Z 로 되살릴 수 있다(스택은 그림 배열 스냅샷일 뿐 어느 문서 것인지 모른다).
     _undoReset();
@@ -620,8 +622,14 @@
      DOM 접근은 반드시 함수 안에만 — 이 파일은 node 에서 require 되어 단위테스트를 돈다. */
   function _setArmed(type) {
     _armed = type || null;
-    document.querySelectorAll(".dp-btn").forEach(b => b.classList.toggle("on", b.getAttribute("data-draw") === _armed));
-    const cv = document.getElementById("fcMainChart"); if (cv) cv.style.cursor = _armed ? "crosshair" : "grab";
+    // 상태 대입은 항상, UI 반영만 조건부다 — 이 파일은 node 단위테스트에서 DOM 없이
+    // require 되고, drawsLoad 처럼 shim 밖에서 불리는 경로가 있다. 여기서 막지 않으면
+    // 그 경로들이 document 부재로 throw 한다.
+    if (typeof document === "undefined" || !document) return;
+    const btns = document.querySelectorAll ? document.querySelectorAll(".dp-btn") : null;
+    if (btns) Array.prototype.forEach.call(btns, b => b.classList.toggle("on", b.getAttribute("data-draw") === _armed));
+    const cv = document.getElementById ? document.getElementById("fcMainChart") : null;
+    if (cv && cv.style) cv.style.cursor = _armed ? "crosshair" : "grab";
   }
   function drawsArm(type) {
     _cancelNew();   // I2: 다른 도구로 바꾸기 전에 그리다 만 도형(예: 채널 stage2)부터 정리

@@ -1838,3 +1838,39 @@ test("도구 버튼 토글: 활성 도구를 다시 누르면 해제된다(취�
   });
   T2.drawsLoad([]); T2._undoReset();
 });
+
+/* 문서(캔버스) 전환 시 팝오버 도구 버튼의 활성링·커서까지 되돌아가는가.
+   예전엔 drawsLoad 가 _armed 만 직접 비워, 상태는 풀렸는데 버튼은 켜진 채로 남았다. */
+test("drawsLoad: 문서 전환이 도구 버튼 활성링·커서까지 되돌린다", () => {
+  const prevDoc = global.document;
+  const btn = {
+    _on: false, _attr: "trend",
+    classList: { toggle(_c, v) { btn._on = !!v; } },
+    getAttribute() { return btn._attr; },
+  };
+  const cv = { style: { cursor: "grab" } };
+  global.document = {
+    querySelectorAll: () => [btn],
+    getElementById: () => cv,
+  };
+  try {
+    T.drawsArm("trend");
+    assert.equal(btn._on, true, "무장하면 버튼이 켜져야 한다");
+    assert.equal(cv.style.cursor, "crosshair");
+
+    T.drawsLoad([]);                       // 다른 종목으로 전환
+    assert.equal(T.drawsArmed(), false, "전환하면 무장이 풀린다");
+    assert.equal(btn._on, false, "전환하면 버튼 활성링도 꺼져야 한다");
+    assert.equal(cv.style.cursor, "grab", "전환하면 커서도 되돌아와야 한다");
+  } finally { global.document = prevDoc; }
+});
+
+/* _setArmed 는 DOM 이 아예 없는 환경(node 단위테스트·shim 밖 호출)에서도 throw 하지 않는다. */
+test("_setArmed: document 없이도 상태는 바뀌고 throw 하지 않는다", () => {
+  const prevDoc = global.document;
+  global.document = undefined;
+  try {
+    assert.doesNotThrow(() => T.drawsLoad([]));
+    assert.equal(T.drawsArmed(), false);
+  } finally { global.document = prevDoc; }
+});
