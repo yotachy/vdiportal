@@ -88,7 +88,7 @@
   function drawStyle(d) {
     const w = _cw();
     const key = SW_W.indexOf(d && d.w) >= 0 ? d.w : "base";
-    return { color: (d && d.color) || COL[d && d.type] || COL.trend, w: w[key] };
+    return { color: (d && d.color) || _defaultCol(d && d.type), w: w[key] };
   }
 
   /* M1: 티커/문서 전환 시 진행 중이던 그리기(특히 채널 stage2)가 새 문서로 그대로 넘어오면
@@ -108,7 +108,17 @@
      그래서 항상 본체가 먼저 잡혀 "이동만 된다"는 증상이 났다. 시각 4.5px / 판정 11px 로 키운다
      (HR_VIS = 끝점 핸들 링의 반지름 — _handleRing 한 곳에서만 쓴다). */
   const HR = 11, HR_VIS = 4.5, DEL_R = 9, BODY_R = 5;
-  const COL = { trend:"#e8b463", channel:"#5b8def", range:"#46c28e", period:"#8a92b2", hline:"#e8b463", vline:"#8a92b2" };
+
+  /* 도형별 기본색. **trend·hline 의 골드만 테마를 따른다** — 이 둘의 골드는 차트 히어로
+     액센트와 같은 자리이고, forge-draw.js 의 _syncChartColors() 가 라이트 테마(daylight·paper)
+     에서 FC_GOLD 를 슬레이트(#3a4656)로 재대입한다. 리터럴 웜골드로 남기면 흰 --chart-bg 위에서
+     차트 전체에서 가장 안 읽히는 요소가 된다(같은 레이어의 진행 칩·스와치 링은 이미 따라간다).
+     **반드시 그릴 때 읽는다 — 모듈 스코프 상수로 캐시하면 런타임 재대입을 놓친다.**
+     나머지(채널 블루·등락폭 그린·기간/vline 슬레이트)와 SW_COLORS 5색은 테마 무관 상수다 —
+     사용자가 스와치로 명시적으로 고르는 값이고, FC_BULL/FC_BEAR 와 같은 취급(§6.2). */
+  const COL_LIT = { channel:"#5b8def", range:"#46c28e", period:"#8a92b2", vline:"#8a92b2" };
+  function _gold() { return (typeof FC_GOLD === "string" && FC_GOLD) || "#e8b463"; }
+  function _defaultCol(type) { return COL_LIT[type] || _gold(); }   // trend·hline·미지정 → 테마 골드
 
   /* 현재 차트 좌표계. _mainGeo(fcDrawMainChart 가 매 프레임 갱신)를 그대로 써야
      지표 작도와 정합한다. 로그축이면 toY/yToP 가 log 공간을 경유한다. */
@@ -145,12 +155,20 @@
     return "rgba(" + parseInt(m[1], 16) + "," + parseInt(m[2], 16) + "," + parseInt(m[3], 16) + ",.86)";
   }
 
-  function _label(c, text, x, y, col) {
-    c.save(); c.font = "700 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
-    const w = c.measureText(text).width;
+  /* 값 라벨 — §6.1 규약: 600 11px · 자간 -0.2px · 라디우스 --r-sm(3). 예전엔 700 에 자간 없이
+     라디우스 4 라, 같은 캔버스의 지표 작도 라벨·진행 칩보다 굵고 자간이 벌어져 혼자 튀었다.
+     alignRight=true 면 박스의 **오른쪽 끝**을 x 에 맞춘다(기본은 왼쪽 끝을 x 에). 선택 상태에서
+     ✕ 배지·스와치 군집을 피하는 데 쓴다 — 자세한 불변식은 _renderOne 의 _labelX 참고. */
+  function _label(c, text, x, y, col, alignRight) {
+    c.save();
+    c.font = "600 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "left";
+    try { c.letterSpacing = "-0.2px"; } catch (_) {}
+    const w = c.measureText(text).width, bw = w + 12;
+    const bx = alignRight ? (x - bw) : x;
     c.fillStyle = _labelBg();
-    if (c.roundRect) { c.beginPath(); c.roundRect(x, y - 11, w + 12, 16, 4); c.fill(); }
-    c.fillStyle = col; c.fillText(text, x + 6, y);
+    if (c.roundRect) { c.beginPath(); c.roundRect(bx, y - 11, bw, 16, 3); c.fill(); }
+    c.fillStyle = col; c.fillText(text, bx + 6, y);
+    try { c.letterSpacing = "0px"; } catch (_) {}
     c.restore();
   }
 
@@ -214,12 +232,17 @@
     c.restore();
   }
 
-  /* 면 채움 — 균일 알파 판때기 대신 기준선에서 바깥으로 페이드(예측 콘과 같은 어법).
-     st.color 는 항상 6자리 hex(COL·SW_COLORS)라 알파 접미사를 그대로 붙일 수 있다.
-     좌표가 퇴화(y0===y1)하거나 비유한이면 그라디언트가 아무것도 안 칠하므로 단색으로 폴백. */
-  function _fadeFill(c, st, y0, y1) {
-    if (!isFinite(y0) || !isFinite(y1) || Math.abs(y1 - y0) < 1e-6) return st.color + "16";
-    const gd = c.createLinearGradient(0, y0, 0, y1);
+  /* 면 채움 — 균일 알파 판때기 대신 **위에서 아래로 옅어지는 세로 그라디언트**(예측 콘과 같은 어법).
+     기준선(기울어진 채널 중심선) 기준이 아니다 — 선형 그라디언트는 축 하나만 잡을 수 있고
+     기울기를 따라가려면 변환이 필요한데, 그 값어치가 없다. 그래서 **도형의 세로 bbox 전체**를
+     쓴다. **호출부 계약: yTop ≤ yBot(도형 전체의 세로 bbox)** — 두 변만 섞어 넘기면(옛 코드의
+     min(A,A2)/max(B,B2)) 급경사 채널에서 범위가 좁아지거나 뒤집힌다. 여기서 다시 min/max 로
+     정규화하지 않는 이유: 그러면 호출부가 틀려도 조용히 가려져 테스트로 잡을 수 없다.
+     st.color 는 항상 6자리 hex(COL_LIT·SW_COLORS·FC_GOLD)라 알파 접미사를 그대로 붙일 수 있다.
+     퇴화(yTop===yBot)·비유한이면 그라디언트가 아무것도 안 칠하므로 단색으로 폴백. */
+  function _fadeFill(c, st, yTop, yBot) {
+    if (!isFinite(yTop) || !isFinite(yBot) || Math.abs(yBot - yTop) < 1e-6) return st.color + "16";
+    const gd = c.createLinearGradient(0, yTop, 0, yBot);
     gd.addColorStop(0, st.color + "22"); gd.addColorStop(1, st.color + "05");
     return gd;
   }
@@ -250,8 +273,10 @@
     c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
     const G = drawsGeo(); if (!G || !G.times.length) return;
     c.save(); c.beginPath(); c.rect(G.g.padX - 2, G.g.padTop, G.g.plotRight - G.g.padX + 4, G.g.ch - G.g.padTop - G.g.padBot); c.clip();
-    for (const d of DRAWS) _renderOne(c, G, d, d.id === _selId);
-    c.restore();
+    // try/finally 필수 — 손상된 그림 하나가 throw 하면 forge-draw.js:1269 의 catch 가 조용히
+    // 삼키는데, 그때 이 클립 save 가 안 풀리면 프레임마다 영구 누적된다(3프레임 뒤 깊이 6, 실측).
+    try { for (const d of DRAWS) _renderOne(c, G, d, d.id === _selId); }
+    finally { c.restore(); }
 
     const pt = _progressText();
     if (pt) {
@@ -354,6 +379,7 @@
     const st = drawStyle(d), w = _cw();
     for (const r of _swatchRects(G, d)) {
       c.save();
+      c.setLineDash([]);   // 점선 도형(hline·박스) 위에서 불려도 스와치 획은 항상 실선(_handleRing·_drawDelBadge 와 같은 관례)
       if (r.kind === "color") {
         c.fillStyle = r.val; c.beginPath();
         if (c.roundRect) c.roundRect(r.x, r.y, r.w, r.h, 3); else c.rect(r.x, r.y, r.w, r.h);
@@ -371,65 +397,83 @@
     }
   }
 
+  /* 도형 하나 = 상태 격리 단위. save/restore 를 **try/finally 로** 감싸는 이유:
+     손상된 저장 데이터(예: b 없는 trend)면 _renderOnePaint 가 throw 하는데, forge-draw.js:1269
+     의 catch 가 그걸 삼켜버려 아무도 모른 채 save 가 프레임마다 영구 누적된다(실측: 3프레임 뒤 깊이 6).
+     또한 이 쌍이 **점선 격리의 유일한 수단**이다 — 안쪽에서 중간중간 setLineDash([]) 로 되돌리지
+     않으므로(그 방식은 "어디까지가 내 점선인지"를 매 줄 추적하게 만든다), hline 의 fine 점선은
+     이 restore 로만 다음 도형에서 풀린다. 쌍을 지우면 점선이 뒤 도형으로 샌다(회귀 테스트 있음). */
   function _renderOne(c, G, d, sel) {
+    c.save();
+    try { _renderOnePaint(c, G, d, sel); }
+    finally { c.restore(); }
+  }
+
+  function _renderOnePaint(c, G, d, sel) {
     const st = drawStyle(d), D = CDASH_SAFE();
     const hov = (d.id === _hoverId);
     // 지금 이 도형의 어느 끝점을 끌고 있는지 — 그 핸들만 채워서 "잡고 있다"를 보인다.
     const dragW = (_drag && _drag.kind === "handle" && _selId === d.id) ? _drag.which : null;
-    c.save();   // 도형 하나가 남긴 점선·알파가 다음 도형으로 새지 않도록 매 도형을 감싼다
+    const moving = !!(_drag && _drag.kind === "move" && _selId === d.id);
     // 수평·수직선은 앵커가 하나뿐이라 b 가 없다 — 창 전체를 가로/세로로 가로지른다.
     if (d.type === "hline" || d.type === "vline") {
       c.setLineDash(D.fine);
       if (d.type === "hline") {
-        const y = G.pToY(d.a.p); if (!isFinite(y)) { c.restore(); return; }
+        const y = G.pToY(d.a.p); if (!isFinite(y)) return;
         _strokeDraw(c, cc => { cc.moveTo(G.g.padX, y); cc.lineTo(G.g.plotRight, y); }, st, sel, hov);
-        c.setLineDash([]);
         _label(c, _hzFmtSafe(d.a.p), G.g.plotRight - 62, y - 4, st.color);
-        if (sel) _handleRing(c, G.g.plotRight - 14, y, st.color, hov || (_drag && _drag.kind === "move" && _selId === d.id));
+        if (sel) _handleRing(c, G.g.plotRight - 14, y, st.color, !!(hov || moving));
       } else {
-        const x = G.fiToX(tToFi(G.times, d.a.t)); if (!isFinite(x)) { c.restore(); return; }
+        const x = G.fiToX(tToFi(G.times, d.a.t)); if (!isFinite(x)) return;
         _strokeDraw(c, cc => { cc.moveTo(x, G.g.padTop); cc.lineTo(x, G.g.ch - G.g.padBot); }, st, sel, hov);
-        c.setLineDash([]);
         _label(c, String(d.a.t).slice(2).replace(/-/g, "."), x + 5, G.g.ch - G.g.padBot - 6, st.color);
-        if (sel) _handleRing(c, x, G.g.padTop + 14, st.color, hov || (_drag && _drag.kind === "move" && _selId === d.id));
+        if (sel) _handleRing(c, x, G.g.padTop + 14, st.color, !!(hov || moving));
       }
       if (sel) { _drawDelBadge(c, G, d, hov); _drawSwatches(c, G, d); }
-      c.restore();
       return;
     }
     const A = _pt(G, d.a), B = _pt(G, d.b);
-    if (![A.x, A.y, B.x, B.y].every(isFinite)) { c.restore(); return; }
-    c.setLineDash([]);
+    if (![A.x, A.y, B.x, B.y].every(isFinite)) return;
+    /* 선택 중 값 라벨을 어디에 둘지 — ✕ 배지·스와치 군집은 항상 도형의 **오른쪽 끝 바깥**에서
+       시작한다(_delBadge 는 x = max(A.x,B.x) + DEL_R + 4, _swatchRects 는 그 배지의 db.x - db.r
+       = max(A.x,B.x) + 4 부터). 그래서 **라벨 박스의 오른쪽 끝을 도형의 오른쪽 끝 이하로 두면
+       군집과는 가로로 절대 안 겹친다** — 이게 지켜야 할 불변식이고 테스트가 이걸 단언한다.
+       배지·스와치 쪽을 옮기지 않는 이유: 둘은 히트 영역이고 Task 4 가 "스와치는 배지 히트원과
+       절대 안 겹친다"는 불변식을 유도해 뒀다(_swatchRects 주석). 그쪽을 건드리면 파괴적
+       오클릭(삭제) 위험을 다시 떠안는다. 라벨은 히트 영역이 없으니 라벨이 비켜선다. */
+    const maxX = Math.max(A.x, B.x);
+    const _labelX = ax => sel ? Math.min(ax, maxX) : null;   // null = 평소 배치(왼쪽 정렬)
     if (d.type === "trend") {
       _strokeDraw(c, cc => { cc.moveTo(A.x, A.y); cc.lineTo(B.x, B.y); }, st, sel, hov);
       const bars = Math.max(1, Math.abs(B.fi - A.fi));
       const pct = ((d.b.p / d.a.p - 1) * 100) / bars;
-      _label(c, (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉", B.x + 6, B.y, st.color);
+      const txt = (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉", lx = _labelX(B.x);
+      _label(c, txt, lx === null ? B.x + 6 : lx, B.y, st.color, lx !== null);
     } else if (d.type === "channel") {
       const off = d.off || 0, A2 = { x: A.x, y: G.pToY(d.a.p + off) }, B2 = { x: B.x, y: G.pToY(d.b.p + off) };
-      c.fillStyle = _fadeFill(c, st, Math.min(A.y, A2.y), Math.max(B.y, B2.y));
+      // 세로 bbox 전체(네 점) — 두 변을 섞으면 급경사에서 방향이 뒤집힌다(_fadeFill 주석 참고).
+      c.fillStyle = _fadeFill(c, st, Math.min(A.y, B.y, A2.y, B2.y), Math.max(A.y, B.y, A2.y, B2.y));
       c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(B.x, B.y); c.lineTo(B2.x, B2.y); c.lineTo(A2.x, A2.y); c.closePath(); c.fill();
       _strokeDraw(c, cc => { cc.moveTo(A.x, A.y); cc.lineTo(B.x, B.y); }, st, sel, hov);
       _strokeDraw(c, cc => { cc.moveTo(A2.x, A2.y); cc.lineTo(B2.x, B2.y); }, st, sel, hov);
     } else {   // range · period — 박스 렌더 공유, 라벨만 다름
-      const x0 = Math.min(A.x, B.x), x1 = Math.max(A.x, B.x), y0 = Math.min(A.y, B.y), y1 = Math.max(A.y, B.y);
+      const x0 = Math.min(A.x, B.x), x1 = maxX, y0 = Math.min(A.y, B.y), y1 = Math.max(A.y, B.y);
       c.fillStyle = _fadeFill(c, st, y0, y1);
       c.fillRect(x0, y0, x1 - x0, y1 - y0);
       c.setLineDash(D.fine);
       _strokeDraw(c, cc => { cc.rect(x0, y0, x1 - x0, y1 - y0); }, st, sel, hov);
-      c.setLineDash([]);
       const txt = d.type === "range"
         ? (d.b.p - d.a.p >= 0 ? "+" : "") + (d.b.p - d.a.p).toFixed(2) + " · " + ((d.b.p / d.a.p - 1) * 100).toFixed(2) + "%"
         : Math.round(Math.abs(B.fi - A.fi)) + "봉 · " + Math.abs(Math.round((Date.parse(d.b.t) - Date.parse(d.a.t)) / 86400000)) + "일";
-      _label(c, txt, x0 + 4, y0 - 4, st.color);
+      const lx = _labelX(x1);   // 좁은 박스에선 왼쪽 정렬 라벨이 박스보다 길어져 군집을 침범한다
+      _label(c, txt, lx === null ? x0 + 4 : lx, y0 - 4, st.color, lx !== null);
     }
     if (sel) {   // 선택 시 끝점 핸들(속 빈 링) + 삭제 배지 + 스타일 줄
-      _handleRing(c, A.x, A.y, st.color, hov || dragW === "a");
-      _handleRing(c, B.x, B.y, st.color, hov || dragW === "b");
+      _handleRing(c, A.x, A.y, st.color, !!(hov || dragW === "a"));
+      _handleRing(c, B.x, B.y, st.color, !!(hov || dragW === "b"));
       _drawDelBadge(c, G, d, hov);
       _drawSwatches(c, G, d);
     }
-    c.restore();
   }
 
   /* 호버 대상 갱신 — **바뀔 때만** 재드로한다. 매 move 마다 그리면 팬 중에도 그리기
@@ -442,12 +486,14 @@
      이게 없으면 마지막으로 지나간 도형이 밝은 채(핸들도 채워진 채) 그대로 남는다. */
   function drawsHoverClear() { return _setHover(null); }
 
-  /* 호버 커서가 십자선을 덮어쓰지 않도록 forge-app 이 물어보는 조회창구(도구 무장·그리기 진행 중) */
   /* 호버 커서 — 무엇을 잡을 수 있는지 마우스로 알려준다. 핸들/✕ 위에선 포인터,
      본체 위에선 move. forge-app 의 호버 핸들러가 이 값을 우선 사용한다.
      호버 예광(_hoverId)도 여기서 함께 정한다 — forge-app 의 pointermove 핸들러는 매 move 마다
      drawsPointerMove → drawsCursor 를 연달아 부르므로, 두 곳에서 각각 히트테스트를 돌리면
-     move 한 번에 전수 판정이 두 번 돈다. 히트테스트는 이 한 곳에서만 돌린다. */
+     move 한 번에 전수 판정이 두 번 돈다. 히트테스트는 이 한 곳에서만 돌린다.
+     알려진 한계: forge-app 이 이 함수를 `if (!hDrag)` 안에서만 부르므로 **차트 팬 중에는 예광이
+     갱신되지 않는다**(도형이 커서 밑을 빠져나가도 팬이 끝난 뒤 첫 move 에서야 풀린다). 팬 중
+     갱신은 곧 팬 중 재드로이고, 그게 바로 §6.2 가 막으려던 것이라 의도적으로 이대로 둔다. */
   function drawsCursor(cx, cy) {
     if (_armed || (_drag && _drag.kind === "new")) { _setHover(null); return "crosshair"; }
     const h = drawsHitTest(cx, cy);
@@ -545,9 +591,21 @@
           if (cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h)
             return { kind: "swatch", id: d.id, which: null, sw: r };
         }
-        const A = _pt(G, d.a), B = d.b ? _pt(G, d.b) : null;   // hline·vline 은 b 가 없다
-        if (isFinite(A.x) && isFinite(A.y) && Math.hypot(cx - A.x, cy - A.y) <= HR) return { kind: "handle", id: d.id, which: "a" };
-        if (B && isFinite(B.x) && isFinite(B.y) && Math.hypot(cx - B.x, cy - B.y) <= HR) return { kind: "handle", id: d.id, which: "b" };
+        /* hline·vline 은 끝점이 **없다** — 선 전체가 이동 대상이고, 저장된 앵커는 "처음 클릭한
+           자리"라는 흔적일 뿐 화면 어디에도 핸들로 그려지지 않는다(_renderOnePaint 는 hline 이면
+           a.p 만, vline 이면 a.t 만 쓴다). 그런데 예전엔 이 검사가 타입을 안 가려, 그 보이지도
+           않는 앵커 11px 안을 누르면 kind:"handle" 이 잡혔다. 결과가 두 가지로 사용자에게 보인다:
+             ① handle 경로는 _anchorAt 으로 앵커를 **절대 설정**한다(move 는 시작점 대비 상대 이동)
+                → 선이 커서 위치로 툭 튄다(최대 11px). 클릭만 해도 선이 움직인다.
+             ② handle 경로엔 마그넷 흡착이 걸린다 — move 경로엔 없는 동작이라 같은 선을 어디서
+                잡느냐에 따라 반응이 달라진다.
+           "조작이 의도대로 느껴지게" 만드는 게 이 라운드의 목적이므로 타입으로 잘라낸다.
+           두 타입은 항상 body 로 잡혀 축 고정 move 경로를 탄다. */
+        if (d.type !== "hline" && d.type !== "vline") {
+          const A = _pt(G, d.a), B = d.b ? _pt(G, d.b) : null;
+          if (isFinite(A.x) && isFinite(A.y) && Math.hypot(cx - A.x, cy - A.y) <= HR) return { kind: "handle", id: d.id, which: "a" };
+          if (B && isFinite(B.x) && isFinite(B.y) && Math.hypot(cx - B.x, cy - B.y) <= HR) return { kind: "handle", id: d.id, which: "b" };
+        }
       }
     }
     for (let i = DRAWS.length - 1; i >= 0; i--) {
@@ -675,7 +733,8 @@
 
   function drawsPointerMove(e, cx, cy) {
     // 드래그 중이 아니면 여기서 할 일이 없다 — 호버 예광(_hoverId)은 forge-app 이 같은 move
-    // 에서 곧이어 부르는 drawsCursor() 가 자기 히트테스트 결과로 갱신한다(판정 1회/move).
+    // 에서 (팬 중이 아닐 때) 곧이어 부르는 drawsCursor() 가 자기 히트테스트 결과로 갱신한다
+    // (판정 1회/move). 팬 중 미갱신은 의도된 동작 — drawsCursor 주석 참고.
     if (!_drag) return;
     const G = drawsGeo(); if (!G) return;
     if (_drag.kind === "new") {

@@ -702,8 +702,12 @@ function makeRecCtx() {
     },
     setLineDash(d) { this._dash = (d || []).slice(); },
     getLineDash() { return this._dash.slice(); },
-    beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, rect() {}, arc() {}, roundRect() {}, clip() {},
-    setTransform() {}, clearRect() { ops.push({ op: "clear" }); }, fillText() {},
+    beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, rect() {}, arc() {}, clip() {},
+    setTransform() {}, clearRect() { ops.push({ op: "clear" }); },
+    // 라벨 박스 기하를 봐야 ✕ 배지·스와치와의 비겹침 불변식을 단언할 수 있다(roundRect 인자 기록).
+    roundRect(x, y, w, h, r) { ops.push({ op: "roundRect", x, y, w, h, r }); },
+    // 글꼴·자간은 그리는 시점 값이라야 의미가 있다(§6.1 라벨 규약 검사용).
+    fillText(t, x, y) { ops.push({ op: "text", text: t, x, y, font: this.font, ls: this.letterSpacing, color: this.fillStyle }); },
     stroke() { ops.push({ op: "stroke", lineWidth: this.lineWidth, alpha: this.globalAlpha, color: this.strokeStyle, dash: this._dash.slice() }); },
     fill() { ops.push({ op: "fill", alpha: this.globalAlpha, style: this.fillStyle }); },
     fillRect() { ops.push({ op: "fillRect", alpha: this.globalAlpha, style: this.fillStyle }); },
@@ -730,11 +734,13 @@ function withRecShim(fn) {
     querySelectorAll() { return []; }, addEventListener() {}, activeElement: null,
   };
   global.priceTimes = () => times;
-  try { fn({ g, times, ctx, counters }); }
+  try { fn({ times, ctx, counters }); }
   finally { global.document = prevDoc; global.window = prevWin; global.priceTimes = prevPT; }
 }
 
-/* 추세선 하나를 실좌표로 올려두고, 그 선 위의 한 점을 함께 돌려준다. */
+/* 추세선 하나를 실좌표로 올려두고, 선 위의 중점과 두 끝점을 돌려준다.
+   b(120) 가 a(90) 보다 위 = 우상단이라, ✕ 배지가 B 쪽으로 가는 "상승 추세선" 케이스다
+   (리뷰 I-2 가 지목한 결정적 겹침 조건). */
 function seedTrend(T2, times, color) {
   const d = { id: "t1", type: "trend", a: { t: times[10], p: 90 }, b: { t: times[40], p: 120 } };
   if (color) d.color = color;
@@ -742,8 +748,20 @@ function seedTrend(T2, times, color) {
   const G = T2.drawsGeo();
   const A = { x: G.fiToX(T2.tToFi(times, d.a.t)), y: G.pToY(d.a.p) };
   const B = { x: G.fiToX(T2.tToFi(times, d.b.t)), y: G.pToY(d.b.p) };
-  return { d, G, A, B, mid: { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 } };
+  return { d, A, B, mid: { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 } };
 }
+
+/* 두 사각형이 겹치는가(경계 접촉은 겹침 아님). I-2 불변식 단언용. */
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+/* 사각형과 원(✕ 배지 히트원)이 겹치는가. */
+function rectHitsCircle(r, cx, cy, rad) {
+  const nx = Math.max(r.x, Math.min(cx, r.x + r.w)), ny = Math.max(r.y, Math.min(cy, r.y + r.h));
+  return Math.hypot(cx - nx, cy - ny) < rad;
+}
+/* 라벨 박스만 골라낸다 — 라벨은 높이 16, 스와치는 12, 진행 칩은 22 라 높이로 갈린다. */
+function labelRects(ops) { return ops.filter(o => o.op === "roundRect" && o.h === 16); }
 
 test("T6 호버: 같은 도형 위에서 여러 번 움직여도 재드로는 늘지 않는다(팬 프레임 보호)", () => {
   const T2 = require("./forge-tools.js");
@@ -878,7 +896,9 @@ test("T6 ✕ 배지: 평시 알파 .45 로 물러나 있다가 호버 시 1", ()
   T2.drawsLoad([]); T2._undoReset();
 });
 
-test("T6 하위호환: color·w 없는 1차 포맷 그림도 기본 색·CW.base 로 정상 렌더(잉크 > 0)", () => {
+// 이름 정정(리뷰 M-10): 픽셀을 재는 게 아니라 "획이 몇 번, 어떤 굵기·색으로 나가는가"를 센다.
+// 실제 픽셀 잉크는 헤드리스 하네스(_t6verify.html 6번)가 getImageData 로 따로 확인한다.
+test("T6 하위호환: color·w 없는 1차 포맷 그림도 기본 색·CW.base 로 획이 나간다", () => {
   const T2 = require("./forge-tools.js");
   withRecShim(({ times, ctx }) => {
     T2.drawsLoad([
@@ -900,21 +920,274 @@ test("T6 하위호환: color·w 없는 1차 포맷 그림도 기본 색·CW.base
 test("T6 상태 누수: 한 프레임의 save/restore 가 균형 잡혀 있다(다음 프레임으로 안 샘)", () => {
   const T2 = require("./forge-tools.js");
   withRecShim(({ times, ctx }) => {
-    const { mid } = seedTrend(T2, times, "#123456");
-    T2.drawsAll().push(
+    // drawsAll() 이 라이브 배열을 돌려준다는 구현 세부에 기대지 않는다(리뷰 M-10) — 공개 API 로 싣는다.
+    T2.drawsLoad([
+      { id: "t1", type: "trend", color: "#123456", a: { t: times[10], p: 90 }, b: { t: times[40], p: 120 } },
       { id: "c1", type: "channel", off: 12, a: { t: times[50], p: 95 }, b: { t: times[80], p: 130 } },
       { id: "r1", type: "range", a: { t: times[90], p: 100 }, b: { t: times[110], p: 120 } },
       { id: "h1", type: "hline", a: { t: times[10], p: 110 } },
       { id: "v1", type: "vline", a: { t: times[60], p: 100 } },
-    );
+    ]);
+    const G = T2.drawsGeo();
+    const mid = { x: (G.fiToX(T2.tToFi(times, times[10])) + G.fiToX(T2.tToFi(times, times[40]))) / 2,
+                  y: (G.pToY(90) + G.pToY(120)) / 2 };
     T2.drawsPointerDown({}, mid.x, mid.y); T2.drawsPointerUp();   // 선택 상태까지 포함
-    ctx._stack.length = 0; ctx._unbalanced = 0;
+    ctx._stack.length = 0; ctx._unbalanced = 0; ctx.ops.length = 0;
     T2.drawsRender();
     assert.strictEqual(ctx._stack.length, 0, "save 가 남아 있으면 다음 프레임 전체에 알파·점선이 샌다");
     assert.strictEqual(ctx._unbalanced, 0, "restore 가 save 보다 많으면 안 됨");
     // 점선·알파가 초기 상태로 돌아왔는지도 확인
     assert.deepStrictEqual(ctx.getLineDash(), [], "프레임 끝에 점선이 남으면 안 됨");
     assert.strictEqual(ctx.globalAlpha, 1, "프레임 끝에 알파가 남으면 안 됨");
+    assert.strictEqual(ctx.ops.filter(o => o.op === "clear").length, 1, "한 프레임에 캔버스는 정확히 한 번만 지운다");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+/* ── 리뷰 대응 회귀 (I-1 · I-2 · M-1 · M-2 · M-5 · 헤일로 순서 · 핸들 타입가드) ── */
+
+test("T6-R I-1 테마: trend·hline 기본색은 FC_GOLD 를 그릴 때 읽는다(라이트 테마 추종)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    T2.drawsLoad([
+      { id: "t1", type: "trend", a: { t: times[10], p: 90 }, b: { t: times[40], p: 120 } },
+      { id: "h1", type: "hline", a: { t: times[10], p: 110 } },
+      { id: "c1", type: "channel", off: 8, a: { t: times[50], p: 95 }, b: { t: times[80], p: 130 } },
+    ]);
+    // 다크(FC_GOLD 미정의 = node 폴백)
+    ctx.ops.length = 0; T2.drawsRender();
+    let cols = ctx.ops.filter(o => o.op === "stroke").map(o => o.color);
+    assert.ok(cols.includes("#e8b463"), "폴백은 웜골드: " + JSON.stringify(cols));
+
+    // 라이트 테마 — _syncChartColors() 가 하는 일을 그대로 흉내낸다(전역 재대입)
+    const prev = global.FC_GOLD;
+    global.FC_GOLD = "#3a4656";
+    try {
+      ctx.ops.length = 0; T2.drawsRender();
+      cols = ctx.ops.filter(o => o.op === "stroke").map(o => o.color);
+      assert.ok(cols.includes("#3a4656"), "trend·hline 은 슬레이트로 따라가야 함: " + JSON.stringify(cols));
+      assert.ok(!cols.includes("#e8b463"), "웜골드가 남아 있으면 흰 배경에서 안 읽힌다: " + JSON.stringify(cols));
+      assert.ok(cols.includes("#5b8def"), "채널 블루는 테마 무관 상수라 그대로여야 함");
+      // 라벨 색도 같은 값을 따라가는지(획만 고치고 라벨을 빠뜨리는 게 흔한 실수)
+      const txt = ctx.ops.filter(o => o.op === "text").map(o => o.color);
+      assert.ok(txt.includes("#3a4656"), "라벨 글자색도 테마를 따라야 함: " + JSON.stringify(txt));
+    } finally { if (prev === undefined) delete global.FC_GOLD; else global.FC_GOLD = prev; }
+
+    // 사용자가 스와치로 고른 색은 테마와 무관하게 그대로(SW_COLORS 는 리터럴 유지)
+    T2.drawsLoad([{ id: "t2", type: "trend", color: T2.SW_COLORS[1], a: { t: times[10], p: 90 }, b: { t: times[40], p: 120 } }]);
+    global.FC_GOLD = "#3a4656";
+    try {
+      ctx.ops.length = 0; T2.drawsRender();
+      const c2 = ctx.ops.filter(o => o.op === "stroke").map(o => o.color);
+      assert.ok(c2.includes(T2.SW_COLORS[1]), "사용자 지정색은 테마가 덮어쓰면 안 됨");
+    } finally { delete global.FC_GOLD; }
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6-R I-2 겹침: 선택 시 값 라벨이 ✕ 배지 히트원·스와치 줄과 겹치지 않는다", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    // 상승 추세선(b 가 우상단) — 리뷰가 지목한 결정적 겹침 조건 + 폭보다 라벨이 긴 좁은 박스
+    const cases = [
+      { id: "t1", type: "trend", a: { t: times[10], p: 90 }, b: { t: times[40], p: 120 } },
+      { id: "r1", type: "range", a: { t: times[60], p: 100 }, b: { t: times[62], p: 104 } },
+    ];
+    for (const d of cases) {
+      T2.drawsLoad([d]);
+      const G = T2.drawsGeo();
+      const A = { x: G.fiToX(T2.tToFi(times, d.a.t)), y: G.pToY(d.a.p) };
+      const B = { x: G.fiToX(T2.tToFi(times, d.b.t)), y: G.pToY(d.b.p) };
+      // 추세선은 선 위 중점, 박스는 **테두리**(윗변 중점) — 박스 내부는 히트 대상이 아니다.
+      const pick = d.type === "trend"
+        ? { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 }
+        : { x: (A.x + B.x) / 2, y: Math.min(A.y, B.y) };
+      T2.drawsPointerDown({}, pick.x, pick.y); T2.drawsPointerUp();
+      ctx.ops.length = 0; T2.drawsRender();
+      // 선택이 실제로 됐는지 먼저 확인 — 선택이 안 된 채로도 "안 겹친다"가 통과해버리면
+      // 이 테스트는 아무것도 검증하지 않는다(실제로 처음에 이렇게 새어나갔다).
+      assert.ok(ctx.ops.some(o => o.op === "strokeRect"), d.type + ": 선택 상태여야 함(스와치 활성 링이 없다)");
+
+      const labels = labelRects(ctx.ops);
+      assert.strictEqual(labels.length, 1, d.type + ": 값 라벨 박스가 정확히 하나여야 함");
+      const L = labels[0];
+      const badge = T2._delBadge(G, d), sw = T2._swatchRects(G, d);
+      assert.ok(badge && sw.length, d.type + ": 배지·스와치가 그려지는 상태여야 유효한 검사");
+      assert.ok(!rectHitsCircle(L, badge.x, badge.y, badge.r + 2),
+        d.type + ": 라벨이 ✕ 배지 히트원과 겹침 — label=" + JSON.stringify(L) + " badge=" + JSON.stringify(badge));
+      for (const r of sw)
+        assert.ok(!rectsOverlap(L, r), d.type + ": 라벨이 스와치 칸과 겹침 — label=" + JSON.stringify(L) + " sw=" + JSON.stringify(r));
+      // 불변식 자체도 직접 확인: 라벨 오른쪽 끝 ≤ 도형 오른쪽 끝 < 군집 왼쪽 끝
+      assert.ok(L.x + L.w <= Math.max(A.x, B.x) + 1e-9,
+        d.type + ": 라벨 우측 끝이 도형 우측 끝을 넘으면 군집 침범 가능 — " + (L.x + L.w) + " vs " + Math.max(A.x, B.x));
+    }
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6-R I-2 비선택: 선택하지 않았으면 라벨은 종전 자리(앵커 오른쪽)에 그대로", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    const { B } = seedTrend(T2, times);
+    ctx.ops.length = 0; T2.drawsRender();
+    const L = labelRects(ctx.ops)[0];
+    assert.ok(L, "라벨이 있어야 함");
+    assert.ok(L.x >= B.x, "평소엔 끝점 오른쪽에서 시작(비켜서기는 선택 중에만): " + L.x + " vs " + B.x);
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6-R M-3 라벨 규약: 600 11px · 자간 -0.2px · 라디우스 3(--r-sm)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    seedTrend(T2, times);
+    ctx.ops.length = 0; T2.drawsRender();
+    const t = ctx.ops.filter(o => o.op === "text")[0];
+    assert.ok(t, "라벨 글자가 있어야 함");
+    assert.ok(/^600 11px/.test(t.font), "지표 작도 라벨과 같은 600 11px 이어야 함: " + t.font);
+    assert.strictEqual(t.ls, "-0.2px", "자간 -0.2px(진행 칩과 동일): " + t.ls);
+    assert.strictEqual(labelRects(ctx.ops)[0].r, 3, "라디우스는 3토큰 중 --r-sm");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6-R M-1 격리: 앞 도형의 점선이 뒤 도형으로 새지 않는다(도형별 save/restore)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    // hline 은 CDASH.fine 을 걸고 그리고, 그 뒤 trend 는 실선이어야 한다.
+    // _renderOne 안에서 중간에 setLineDash([]) 로 되돌리지 않으므로, 이 격리는
+    // 오직 도형별 save/restore 쌍만이 제공한다 — 쌍을 통째로 지우면 이 단언이 깨진다.
+    T2.drawsLoad([
+      { id: "h1", type: "hline", color: "#654321", a: { t: times[10], p: 110 } },
+      { id: "t1", type: "trend", color: "#123456", a: { t: times[20], p: 90 }, b: { t: times[40], p: 120 } },
+    ]);
+    ctx.ops.length = 0; T2.drawsRender();
+    const hl = ctx.ops.filter(o => o.op === "stroke" && o.color === "#654321");
+    const tr = ctx.ops.filter(o => o.op === "stroke" && o.color === "#123456");
+    assert.strictEqual(hl.length, 1); assert.strictEqual(tr.length, 1);
+    assert.deepStrictEqual(hl[0].dash, CDASH_.fine, "hline 은 점선");
+    assert.deepStrictEqual(tr[0].dash, [], "뒤따르는 추세선은 실선이어야 함 — 점선이 새면 여기서 잡힌다");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6-R M-2 예외 누수: 손상된 그림이 throw 해도 save 깊이가 원래대로 돌아온다", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    // b 없는 trend = 손편집된 forge_data.json 같은 손상 데이터. _pt(G, undefined) 에서 throw 한다.
+    T2.drawsLoad([{ id: "bad", type: "trend", a: { t: times[10], p: 90 } }]);
+    ctx._stack.length = 0; ctx._unbalanced = 0;
+    let threw = 0;
+    for (let i = 0; i < 3; i++) { try { T2.drawsRender(); } catch (e) { threw++; } }
+    assert.strictEqual(threw, 3, "이 픽스처는 실제로 던져야 검사가 성립한다(안 던지면 무의미 검증)");
+    assert.strictEqual(ctx._stack.length, 0,
+      "예외가 나도 save 가 남으면 안 된다 — forge-draw 의 catch 가 삼켜 프레임마다 영구 누적된다(깊이 " + ctx._stack.length + ")");
+    assert.strictEqual(ctx._unbalanced, 0, "restore 초과도 없어야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6-R 헤일로 순서: 헤일로는 본선보다 '먼저' 그려진다(아래에 깔려야 함)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    const { mid } = seedTrend(T2, times, "#123456");
+    T2.drawsPointerDown({}, mid.x, mid.y); T2.drawsPointerUp();   // 선택
+    ctx.ops.length = 0; T2.drawsRender();
+    const iHalo = ctx.ops.findIndex(o => o.op === "stroke" && o.color === "#123456" && Math.abs(o.alpha - .18) < 1e-9);
+    const iMain = ctx.ops.findIndex(o => o.op === "stroke" && o.color === "#123456" && Math.abs(o.alpha - .88) < 1e-9);
+    assert.ok(iHalo >= 0 && iMain >= 0, "헤일로와 본선이 둘 다 있어야 함");
+    assert.ok(iHalo < iMain,
+      "순서가 뒤집히면 옅은 후광이 본선 '위'를 덮어 선이 흐려진다 — halo=" + iHalo + " main=" + iMain);
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6-R M-5 채움 방향: 급경사 채널에서도 그라디언트가 뒤집히지 않는다(항상 위가 짙음)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    // a(90) → b(140) 급상승 + off 양수 → 예전 공식 min(A.y,A2.y) > max(B.y,B2.y) 로 방향 반전
+    T2.drawsLoad([{ id: "c1", type: "channel", color: "#123456", off: 5,
+                    a: { t: times[10], p: 90 }, b: { t: times[40], p: 140 } }]);
+    const G = T2.drawsGeo();
+    ctx.ops.length = 0; T2.drawsRender();
+    const gd = ctx.ops.filter(o => o.op === "fill" && o.style && o.style._grad)[0];
+    assert.ok(gd, "채널 채움은 그라디언트");
+    assert.ok(gd.style.y0 < gd.style.y1,
+      "짙은 끝(stop 0)이 위여야 한다 — y0=" + gd.style.y0 + " y1=" + gd.style.y1 + " (뒤집히면 아래가 짙어져 다른 도형과 어법이 어긋난다)");
+    // 방향뿐 아니라 **범위**도 도형의 세로 bbox 전체여야 한다. 네 점(a·b·a+off·b+off) 중
+    // 최상단은 b+off(145), 최하단은 a(90). 두 변을 섞는 옛 공식은 95~140 이라 범위가 좁아지고,
+    // 채움이 도형 위/아래 끝에서 끊긴 것처럼 보인다 — 방향만 보면 정규화에 가려 안 잡힌다.
+    assert.ok(Math.abs(gd.style.y0 - G.pToY(145)) < 1e-6,
+      "그라디언트 시작은 도형 최상단(=b+off) 이어야 함: " + gd.style.y0 + " vs " + G.pToY(145));
+    assert.ok(Math.abs(gd.style.y1 - G.pToY(90)) < 1e-6,
+      "그라디언트 끝은 도형 최하단(=a) 이어야 함: " + gd.style.y1 + " vs " + G.pToY(90));
+    assert.deepStrictEqual(gd.style.stops, [[0, "#12345622"], [1, "#12345605"]]);
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6-R 핸들 타입가드: hline·vline 은 앵커 위에서도 handle 이 아니라 body 로 잡힌다", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times }) => {
+    for (const [type, key] of [["hline", "p"], ["vline", "t"]]) {
+      const d = { id: "x1", type, a: { t: times[40], p: 110 } };
+      T2.drawsLoad([d]);
+      const G = T2.drawsGeo();
+      const ax = G.fiToX(T2.tToFi(times, d.a.t)), ay = G.pToY(d.a.p);   // 저장된 앵커의 화면 좌표
+      T2.drawsPointerDown({}, ax, ay); T2.drawsPointerUp();             // 선택
+      const h = T2.drawsHitTest(ax, ay);
+      assert.strictEqual(h.kind, "body", type + ": 끝점이 없는 도형은 handle 로 잡히면 안 됨");
+
+      // 그리고 클릭해도 선이 튀지 않는다 — 누른 자리에서 안 움직이면 값도 그대로여야 한다.
+      const before = { t: d.a.t, p: d.a.p };
+      T2.drawsPointerDown({}, ax, ay); T2.drawsPointerUp();
+      assert.strictEqual(d.a.t, before.t, type + ": 클릭만으로 t 가 바뀌면 안 됨");
+      assert.strictEqual(d.a.p, before.p, type + ": 클릭만으로 p 가 바뀌면 안 됨(선이 커서로 튀는 증상)");
+
+      // 이동은 축 고정 move 경로 — 고정축은 불변, 이동축만 변한다.
+      T2.drawsPointerDown({}, ax, ay);
+      T2.drawsPointerMove({}, ax + 40, ay + 30);
+      T2.drawsPointerUp();
+      if (key === "p") { assert.strictEqual(d.a.t, before.t, "hline 은 t 고정"); assert.ok(Math.abs(d.a.p - before.p) > 1e-6, "hline 은 p 가 변함"); }
+      else { assert.notStrictEqual(d.a.t, before.t, "vline 은 t 가 변함"); assert.strictEqual(d.a.p, before.p, "vline 은 p 고정"); }
+    }
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6-R 스와치 실선: 점선 도형(hline)을 선택해도 스와치 획은 점선이 되지 않는다", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    // 도형 내부의 중간 setLineDash([]) 되돌리기를 없애고 격리를 save/restore 로 옮겼으므로,
+    // 선택 UI(핸들·배지·스와치)는 각자 실선을 보장해야 한다 — 스와치가 그 짝이다.
+    const d = { id: "h1", type: "hline", color: "#123456", a: { t: times[40], p: 110 } };
+    T2.drawsLoad([d]);
+    const G = T2.drawsGeo();
+    T2.drawsPointerDown({}, 300, G.pToY(110)); T2.drawsPointerUp();   // 선택
+    ctx.ops.length = 0; T2.drawsRender();
+    const sw = T2._swatchRects(G, d);
+    assert.ok(sw.length, "스와치가 그려지는 상태여야 함");
+    // 본선(알파 < 1)만 점선이고, 선택 UI 의 획(알파 1)은 전부 실선이어야 한다.
+    const ui = ctx.ops.filter(o => o.op === "stroke" && o.alpha === 1);
+    assert.ok(ui.length >= 4, "핸들·배지·스와치 획이 있어야 함: " + ui.length);
+    for (const o of ui)
+      assert.deepStrictEqual(o.dash, [], "선택 UI 획이 점선으로 샜다 — " + JSON.stringify(o));
+    const body = ctx.ops.filter(o => o.op === "stroke" && o.alpha < 1);
+    assert.ok(body.length && body.every(o => o.dash.length === 0 || o.dash[0] === CDASH_.fine[0]),
+      "본선은 여전히 fine 점선(또는 실선 헤일로)이어야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6-R 스와치 링: 현재 굵기 칸에 활성 링(strokeRect)이 정확히 하나", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    const { mid } = seedTrend(T2, times, "#123456");
+    T2.drawsPointerDown({}, mid.x, mid.y); T2.drawsPointerUp();
+    ctx.ops.length = 0; T2.drawsRender();
+    const rings = ctx.ops.filter(o => o.op === "strokeRect");
+    assert.strictEqual(rings.length, 1, "굵기 3칸 중 현재 값 하나에만 링: " + rings.length);
+    assert.strictEqual(rings[0].lineWidth, CW_.hair, "링은 헤어라인 — 스와치 자체보다 굵으면 안 됨");
   });
   T2.drawsLoad([]); T2._undoReset();
 });
