@@ -676,3 +676,259 @@ test("undo: Ctrl+Y 는 false 를 반환하고 스택을 건드리지 않음(바�
 // undo 회귀 테스트(예: "두 앵커 그리기(trend) 완성 후 Ctrl+Z", "Delete 키로 지운 그림이
 // Ctrl+Z 로 복원됨" 등)가 { ctrlKey: true, key: "z" }(shiftKey 미지정 = falsy)로 이미
 // 매번 실제 되돌리기를 확인하고 있다 — 아래 재검증에서 전부 green 유지되는 것으로 충분.
+
+/* ══ Task 6: 시각 규약(정밀 복귀) 회귀 테스트 ═══════════════════════════
+   위쪽 withChartShim 의 ctx 는 모든 호출을 삼키는 Proxy 라 "무엇을 어떻게 그렸는지"를
+   볼 수 없다. 여기서는 stroke/fill 시점의 lineWidth·globalAlpha·strokeStyle·점선을
+   기록하는 ctx 로 바꿔, 선폭·알파·점선·헤일로·save/restore 균형을 실제 값으로 확인한다.
+   forge-draw.js 의 CW/CDASH 전역은 node 단독 require 에선 없으므로, forge-tools.js 의
+   폴백과 같은 값을 여기에도 둔다(두 곳이 어긋나면 아래 테스트가 먼저 깨진다). */
+const CW_ = { hair: 0.85, thin: 1, base: 1.25, bold: 1.6, halo: 1.2 };
+const CDASH_ = { fine: [1, 3.5], std: [2, 4], long: [4.5, 4.5] };
+const CHART_BG_ = "#0b0f14";   // forge-tools.js _chartBg() 의 node 폴백
+
+function makeRecCtx() {
+  const ops = [];
+  return {
+    ops, lineWidth: 1, globalAlpha: 1, strokeStyle: "#000", fillStyle: "#000",
+    lineCap: "butt", lineJoin: "miter", font: "", textAlign: "left", letterSpacing: "0px",
+    _dash: [], _stack: [], _unbalanced: 0,
+    save() { this._stack.push({ lw: this.lineWidth, ga: this.globalAlpha, ss: this.strokeStyle, fs: this.fillStyle, cap: this.lineCap, join: this.lineJoin, dash: this._dash.slice() }); },
+    restore() {
+      const s = this._stack.pop();
+      if (!s) { this._unbalanced++; return; }
+      this.lineWidth = s.lw; this.globalAlpha = s.ga; this.strokeStyle = s.ss; this.fillStyle = s.fs;
+      this.lineCap = s.cap; this.lineJoin = s.join; this._dash = s.dash;
+    },
+    setLineDash(d) { this._dash = (d || []).slice(); },
+    getLineDash() { return this._dash.slice(); },
+    beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, rect() {}, arc() {}, roundRect() {}, clip() {},
+    setTransform() {}, clearRect() { ops.push({ op: "clear" }); }, fillText() {},
+    stroke() { ops.push({ op: "stroke", lineWidth: this.lineWidth, alpha: this.globalAlpha, color: this.strokeStyle, dash: this._dash.slice() }); },
+    fill() { ops.push({ op: "fill", alpha: this.globalAlpha, style: this.fillStyle }); },
+    fillRect() { ops.push({ op: "fillRect", alpha: this.globalAlpha, style: this.fillStyle }); },
+    strokeRect() { ops.push({ op: "strokeRect", lineWidth: this.lineWidth, alpha: this.globalAlpha, color: this.strokeStyle }); },
+    measureText(s) { return { width: String(s || "").length * 7 }; },
+    createLinearGradient(x0, y0, x1, y1) { const stops = []; return { _grad: true, x0, y0, x1, y1, stops, addColorStop(o, col) { stops.push([o, col]); } }; },
+  };
+}
+
+/* 기록형 셰임 — ctx 는 한 개를 재사용하고, drawsRender 가 매 호출마다 부르는
+   getContext 횟수를 세서 "재드로 횟수"를 정확히 잰다(drawsRender 는 모듈 내부에서
+   이름으로 직접 호출되므로 export 를 감싸는 방식으로는 셀 수 없다). */
+function withRecShim(fn) {
+  const g = { padX: 50, padTop: 20, padBot: 30, ch: 400, histW: 600, plotRight: 650, start: 0, count: 100, log: false, loV: 50, hiV: 150 };
+  const times = [];
+  { const base = Date.parse("2026-01-01T00:00:00Z"); for (let i = 0; i < 150; i++) times.push(new Date(base + i * 86400000).toISOString().slice(0, 10)); }
+  const ctx = makeRecCtx(), counters = { renders: 0 };
+  const mainCanvas = { style: {}, width: 0, height: 0, _mainGeo: g, parentElement: { clientWidth: 800, clientHeight: 450 }, getContext: () => ctx };
+  const drawsCanvas = { style: {}, width: 0, height: 0, parentElement: { clientWidth: 800, clientHeight: 450 }, getContext() { counters.renders++; return ctx; } };
+  const prevDoc = global.document, prevWin = global.window, prevPT = global.priceTimes;
+  global.window = { devicePixelRatio: 1 };
+  global.document = {
+    getElementById(id) { if (id === "fcMainChart") return mainCanvas; if (id === "fcDraws") return drawsCanvas; return null; },
+    querySelectorAll() { return []; }, addEventListener() {}, activeElement: null,
+  };
+  global.priceTimes = () => times;
+  try { fn({ g, times, ctx, counters }); }
+  finally { global.document = prevDoc; global.window = prevWin; global.priceTimes = prevPT; }
+}
+
+/* 추세선 하나를 실좌표로 올려두고, 그 선 위의 한 점을 함께 돌려준다. */
+function seedTrend(T2, times, color) {
+  const d = { id: "t1", type: "trend", a: { t: times[10], p: 90 }, b: { t: times[40], p: 120 } };
+  if (color) d.color = color;
+  T2.drawsLoad([d]);
+  const G = T2.drawsGeo();
+  const A = { x: G.fiToX(T2.tToFi(times, d.a.t)), y: G.pToY(d.a.p) };
+  const B = { x: G.fiToX(T2.tToFi(times, d.b.t)), y: G.pToY(d.b.p) };
+  return { d, G, A, B, mid: { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 } };
+}
+
+test("T6 호버: 같은 도형 위에서 여러 번 움직여도 재드로는 늘지 않는다(팬 프레임 보호)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, counters }) => {
+    const { mid } = seedTrend(T2, times);
+    counters.renders = 0;
+    T2.drawsCursor(mid.x, mid.y);                       // 도형 위로 처음 진입 → 1회
+    assert.strictEqual(counters.renders, 1, "호버가 처음 잡힐 때 한 번은 그려야 함");
+    for (let i = 0; i < 20; i++) T2.drawsCursor(mid.x + (i % 5) * 0.3, mid.y);   // 같은 도형 위 미세 이동 20회
+    assert.strictEqual(counters.renders, 1, "호버 대상이 그대로면 재드로가 늘면 안 됨(매 move 재드로 금지)");
+    T2.drawsCursor(60, 30);                             // 도형 밖 → 해제로 1회만 더
+    assert.strictEqual(counters.renders, 2, "호버가 풀릴 때만 한 번 더");
+    for (let i = 0; i < 20; i++) T2.drawsCursor(60 + i * 0.2, 30);
+    assert.strictEqual(counters.renders, 2, "빈 곳에서 계속 움직여도 재드로 없음");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6 선택: 굵기는 그대로 두고 헤일로로 떠오른다(선택해도 본선이 굵어지지 않음)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    const { mid } = seedTrend(T2, times, "#123456");
+    // 비선택 렌더
+    ctx.ops.length = 0; T2.drawsRender();
+    const un = ctx.ops.filter(o => o.op === "stroke" && o.color === "#123456" && o.alpha < 1);
+    assert.strictEqual(un.length, 1, "비선택이면 본선 1개뿐(헤일로 없음)");
+    assert.strictEqual(un[0].lineWidth, CW_.base, "본선 굵기는 CW.base");
+    assert.ok(Math.abs(un[0].alpha - .88) < 1e-9, "비호버 알파는 .88: " + un[0].alpha);
+
+    // 선택(본체 클릭) 후 렌더
+    T2.drawsPointerDown({}, mid.x, mid.y); T2.drawsPointerUp();
+    ctx.ops.length = 0; T2.drawsRender();
+    const se = ctx.ops.filter(o => o.op === "stroke" && o.color === "#123456" && o.alpha < 1);
+    const halo = se.filter(o => Math.abs(o.alpha - .18) < 1e-9);
+    const main = se.filter(o => Math.abs(o.alpha - .88) < 1e-9);
+    assert.strictEqual(halo.length, 1, "선택 시 헤일로 1획이 본선 아래 깔려야 함");
+    assert.strictEqual(halo[0].lineWidth, CW_.base + CW_.halo * 3, "헤일로 굵기 = 본선 + halo*3");
+    assert.strictEqual(main.length, 1, "본선은 여전히 1획");
+    assert.strictEqual(main[0].lineWidth, CW_.base, "선택해도 본선 굵기 불변(굵히기 금지): " + main[0].lineWidth);
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6 호버 예광: 알파만 1로 오르고 굵기는 불변", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    const { mid } = seedTrend(T2, times, "#123456");
+    T2.drawsCursor(mid.x, mid.y);                       // 선택하지 않고 호버만(스와치·배지 없음)
+    ctx.ops.length = 0; T2.drawsRender();
+    const body = ctx.ops.filter(o => o.op === "stroke" && o.color === "#123456");
+    assert.strictEqual(body.length, 1, "선택 안 했으니 본선 1획뿐");
+    assert.strictEqual(body[0].alpha, 1, "호버 시 알파는 1");
+    assert.strictEqual(body[0].lineWidth, CW_.base, "호버해도 굵기는 불변: " + body[0].lineWidth);
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6 핸들: 평시엔 속 빈 링(차트 배경 채움), 호버 때만 색으로 채워진다", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    const { mid } = seedTrend(T2, times, "#123456");
+    T2.drawsPointerDown({}, mid.x, mid.y); T2.drawsPointerUp();   // 선택
+    T2.drawsCursor(60, 30);                                        // 호버는 확실히 해제
+    ctx.ops.length = 0; T2.drawsRender();
+    const hollow = ctx.ops.filter(o => o.op === "fill" && o.style === CHART_BG_);
+    const filled = ctx.ops.filter(o => o.op === "fill" && o.style === "#123456");
+    assert.strictEqual(hollow.length, 2, "끝점 2개가 속 빈 링(배경 채움)이어야 함: " + hollow.length);
+    assert.strictEqual(filled.length, 0, "비호버에선 핸들이 색으로 차면 안 됨");
+
+    T2.drawsCursor(mid.x, mid.y);                                  // 같은 도형에 호버
+    ctx.ops.length = 0; T2.drawsRender();
+    const filled2 = ctx.ops.filter(o => o.op === "fill" && o.style === "#123456");
+    assert.strictEqual(filled2.length, 2, "호버 시 끝점 2개가 채워져야 함: " + filled2.length);
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6 점선: 박스(range)·hline 은 차트 본체의 CDASH.fine 을 쓴다", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    T2.drawsLoad([
+      { id: "r1", type: "range", color: "#123456", a: { t: times[10], p: 90 }, b: { t: times[40], p: 120 } },
+      { id: "h1", type: "hline", color: "#654321", a: { t: times[10], p: 100 } },
+    ]);
+    ctx.ops.length = 0; T2.drawsRender();
+    const box = ctx.ops.filter(o => o.op === "stroke" && o.color === "#123456");
+    assert.strictEqual(box.length, 1);
+    assert.deepStrictEqual(box[0].dash, CDASH_.fine, "박스 점선은 CDASH.fine(정밀 규약) 이어야 함: " + JSON.stringify(box[0].dash));
+    const hl = ctx.ops.filter(o => o.op === "stroke" && o.color === "#654321");
+    assert.strictEqual(hl.length, 1);
+    assert.deepStrictEqual(hl[0].dash, CDASH_.fine, "hline 점선도 CDASH.fine");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6 채움: 채널·박스는 균일 알파 판때기가 아니라 기준선 → 바깥 페이드 그라디언트", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    T2.drawsLoad([
+      { id: "c1", type: "channel", color: "#123456", off: 12, a: { t: times[10], p: 90 }, b: { t: times[40], p: 120 } },
+      { id: "r1", type: "range", color: "#654321", a: { t: times[50], p: 95 }, b: { t: times[80], p: 130 } },
+    ]);
+    ctx.ops.length = 0; T2.drawsRender();
+    const chFill = ctx.ops.filter(o => o.op === "fill" && o.style && o.style._grad);
+    assert.strictEqual(chFill.length, 1, "채널 채움이 그라디언트여야 함");
+    assert.deepStrictEqual(chFill[0].style.stops, [[0, "#12345622"], [1, "#12345605"]], "기준선 쪽이 짙고 바깥이 옅어야 함");
+    assert.strictEqual(chFill[0].alpha, 1, "그라디언트를 쓰므로 globalAlpha 로 눌러 그리지 않는다");
+    const boxFill = ctx.ops.filter(o => o.op === "fillRect" && o.style && o.style._grad);
+    assert.strictEqual(boxFill.length, 1, "박스 채움도 같은 어법");
+    assert.deepStrictEqual(boxFill[0].style.stops, [[0, "#65432122"], [1, "#65432105"]]);
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6 ✕ 배지: 평시 알파 .45 로 물러나 있다가 호버 시 1", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    const { mid } = seedTrend(T2, times, "#123456");
+    T2.drawsPointerDown({}, mid.x, mid.y); T2.drawsPointerUp();
+    T2.drawsCursor(60, 30);
+    ctx.ops.length = 0; T2.drawsRender();
+    const bad = ctx.ops.filter(o => o.op === "stroke" && o.color === "#e06a6a");
+    assert.ok(bad.length >= 1, "선택하면 ✕ 배지가 그려져야 함");
+    assert.ok(bad.every(o => Math.abs(o.alpha - .45) < 1e-9), "비호버 배지는 알파 .45: " + JSON.stringify(bad.map(o => o.alpha)));
+
+    T2.drawsCursor(mid.x, mid.y);
+    ctx.ops.length = 0; T2.drawsRender();
+    const bad2 = ctx.ops.filter(o => o.op === "stroke" && o.color === "#e06a6a");
+    assert.ok(bad2.length >= 1);
+    assert.ok(bad2.every(o => o.alpha === 1), "호버 시 배지는 알파 1: " + JSON.stringify(bad2.map(o => o.alpha)));
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6 하위호환: color·w 없는 1차 포맷 그림도 기본 색·CW.base 로 정상 렌더(잉크 > 0)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    T2.drawsLoad([
+      { id: "o1", type: "trend", a: { t: times[10], p: 90 }, b: { t: times[40], p: 120 } },
+      { id: "o2", type: "channel", off: 8, a: { t: times[50], p: 95 }, b: { t: times[80], p: 130 } },
+      { id: "o3", type: "period", a: { t: times[90], p: 100 }, b: { t: times[110], p: 120 } },
+      { id: "o4", type: "hline", a: { t: times[10], p: 110 } },
+    ]);
+    ctx.ops.length = 0; T2.drawsRender();
+    const strokes = ctx.ops.filter(o => o.op === "stroke");
+    assert.ok(strokes.length >= 5, "네 도형이 모두 그려져야 함(추세1·채널2·박스1·hline1): " + strokes.length);
+    assert.ok(strokes.every(o => o.lineWidth === CW_.base), "w 미지정이면 전부 CW.base: " + JSON.stringify(strokes.map(o => o.lineWidth)));
+    assert.ok(strokes.some(o => o.color === "#e8b463"), "trend 기본색(골드)");
+    assert.ok(strokes.some(o => o.color === "#5b8def"), "channel 기본색(블루)");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6 상태 누수: 한 프레임의 save/restore 가 균형 잡혀 있다(다음 프레임으로 안 샘)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    const { mid } = seedTrend(T2, times, "#123456");
+    T2.drawsAll().push(
+      { id: "c1", type: "channel", off: 12, a: { t: times[50], p: 95 }, b: { t: times[80], p: 130 } },
+      { id: "r1", type: "range", a: { t: times[90], p: 100 }, b: { t: times[110], p: 120 } },
+      { id: "h1", type: "hline", a: { t: times[10], p: 110 } },
+      { id: "v1", type: "vline", a: { t: times[60], p: 100 } },
+    );
+    T2.drawsPointerDown({}, mid.x, mid.y); T2.drawsPointerUp();   // 선택 상태까지 포함
+    ctx._stack.length = 0; ctx._unbalanced = 0;
+    T2.drawsRender();
+    assert.strictEqual(ctx._stack.length, 0, "save 가 남아 있으면 다음 프레임 전체에 알파·점선이 샌다");
+    assert.strictEqual(ctx._unbalanced, 0, "restore 가 save 보다 많으면 안 됨");
+    // 점선·알파가 초기 상태로 돌아왔는지도 확인
+    assert.deepStrictEqual(ctx.getLineDash(), [], "프레임 끝에 점선이 남으면 안 됨");
+    assert.strictEqual(ctx.globalAlpha, 1, "프레임 끝에 알파가 남으면 안 됨");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("T6 이탈: drawsHoverClear 는 예광을 끄고, 이미 꺼져 있으면 재드로하지 않는다", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, counters }) => {
+    const { mid } = seedTrend(T2, times);
+    T2.drawsCursor(mid.x, mid.y);
+    counters.renders = 0;
+    assert.strictEqual(T2.drawsHoverClear(), true, "켜져 있던 예광은 꺼져야 함");
+    assert.strictEqual(counters.renders, 1, "해제는 한 번 그린다");
+    assert.strictEqual(T2.drawsHoverClear(), false, "이미 꺼져 있으면 아무 일도 없어야 함");
+    assert.strictEqual(counters.renders, 1, "불필요한 재드로 금지");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});

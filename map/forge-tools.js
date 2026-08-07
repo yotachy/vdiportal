@@ -96,7 +96,7 @@
      삼켜진다 — 상호작용 상태 전체를 문서 전환 시점에 리셋한다. */
   function drawsLoad(arr) {
     _cancelNew();
-    _selId = null; _armed = null; _drag = null; _newDraw = null;
+    _selId = null; _armed = null; _drag = null; _newDraw = null; _hoverId = null;
     // T5: 문서 전환 시 되돌리기 스택도 비운다 — 안 비우면 종목 A 에서 지운 그림을 종목 B 로
     // 넘어와 Ctrl+Z 로 되살릴 수 있다(스택은 그림 배열 스냅샷일 뿐 어느 문서 것인지 모른다).
     _undoReset();
@@ -105,8 +105,9 @@
   function drawsAll() { return DRAWS; }
 
   /* 히트 반경 — 6px 핸들은 마우스로 사실상 못 맞힌다(실측: 7px 벗어나면 아무것도 안 잡힘).
-     그래서 항상 본체가 먼저 잡혀 "이동만 된다"는 증상이 났다. 시각 5px / 판정 11px 로 키운다. */
-  const HR = 11, HR_VIS = 5, DEL_R = 9, BODY_R = 5;
+     그래서 항상 본체가 먼저 잡혀 "이동만 된다"는 증상이 났다. 시각 4.5px / 판정 11px 로 키운다
+     (HR_VIS = 끝점 핸들 링의 반지름 — _handleRing 한 곳에서만 쓴다). */
+  const HR = 11, HR_VIS = 4.5, DEL_R = 9, BODY_R = 5;
   const COL = { trend:"#e8b463", channel:"#5b8def", range:"#46c28e", period:"#8a92b2", hline:"#e8b463", vline:"#8a92b2" };
 
   /* 현재 차트 좌표계. _mainGeo(fcDrawMainChart 가 매 프레임 갱신)를 그대로 써야
@@ -158,23 +159,69 @@
   function CDASH_SAFE() { return (typeof CDASH === "object" && CDASH) || { fine:[1,3.5], std:[2,4], long:[4.5,4.5] }; }
   function _hzFmtSafe(v) { return (typeof _hzFmt === "function") ? _hzFmt(v) : (Math.round(v * 100) / 100).toString(); }
 
-  /* 수평·수직선 선택 시 표시하는 핸들 링 — 실제 끝점 핸들(HR_VIS)과 달리 드래그 지점을
-     가리키는 용도(선 전체가 이동 대상이라 특정 좌표에 끝점이 없다). */
-  function _handleRing(c, x, y, col) {
-    c.save(); c.beginPath(); c.arc(x, y, 4.5, 0, 7);
-    c.strokeStyle = col; c.lineWidth = _cw().thin; c.stroke(); c.restore();
+  /* 끝점·이동 핸들 — 평시엔 속 빈 링(hairline), 호버·드래그 중에만 채운다.
+     트레이딩뷰는 선택하면 핸들이 커지는데 그 반대로 간다: 크기는 그대로 두고 상태는 채움으로.
+     hline·vline 은 선 전체가 이동 대상이라 끝점이 없어 드래그 지점을 가리키는 용도로도 쓴다. */
+  function _handleRing(c, x, y, col, filled) {
+    const w = _cw();
+    c.save();
+    c.setLineDash([]);   // 점선 도형(hline·박스) 위에서 호출돼도 링은 항상 실선
+    c.beginPath(); c.arc(x, y, HR_VIS, 0, 7);
+    c.fillStyle = filled ? col : _chartBg();   // 속을 차트 배경으로 채워야 링 안쪽에 선이 비치지 않는다
+    c.fill();
+    c.strokeStyle = col; c.lineWidth = filled ? w.base : w.thin; c.stroke();
+    c.restore();
   }
   /* ✕ 삭제 배지 — _renderOne 의 트레이드/채널/박스 계열과 hline/vline 이 동일 모양을
-     공유하도록 여기 한 곳에만 그린다(과거엔 _renderOne 안에 인라인 중복이 있었다). */
-  function _drawDelBadge(c, G, d) {
+     공유하도록 여기 한 곳에만 그린다(과거엔 _renderOne 안에 인라인 중복이 있었다).
+     평시엔 알파 .45 로 물러나 있다가 커서가 그 도형에 오면(hov) 또렷해진다 — 선택만 해도
+     빨간 ✕ 가 늘 만재하면 차트가 시끄럽다. */
+  function _drawDelBadge(c, G, d, hov) {
     const db = _delBadge(G, d); if (!db) return;
-    c.save(); c.beginPath(); c.arc(db.x, db.y, db.r, 0, 7);
+    const w = _cw();
+    c.save();
+    c.setLineDash([]);
+    c.globalAlpha = hov ? 1 : .45;
+    c.beginPath(); c.arc(db.x, db.y, db.r, 0, 7);
     c.fillStyle = _labelBg(); c.fill();
-    c.strokeStyle = FC_BEAR_SAFE(); c.lineWidth = _cw().thin; c.stroke();
+    c.strokeStyle = FC_BEAR_SAFE(); c.lineWidth = w.thin; c.stroke();
     c.beginPath();
     c.moveTo(db.x - 3.2, db.y - 3.2); c.lineTo(db.x + 3.2, db.y + 3.2);
     c.moveTo(db.x + 3.2, db.y - 3.2); c.lineTo(db.x - 3.2, db.y + 3.2);
-    c.strokeStyle = FC_BEAR_SAFE(); c.lineWidth = _cw().base; c.lineCap = "round"; c.stroke(); c.restore();
+    c.strokeStyle = FC_BEAR_SAFE(); c.lineWidth = w.base; c.lineCap = "round"; c.stroke(); c.restore();
+  }
+
+  /* 정밀 규약 스트로크 — 차트 본체와 같은 굵기(CW)·점선(CDASH)으로 그린다.
+     선택 강조는 굵기가 아니라 헤일로(같은 경로를 아래에 옅게 한 번 더), 호버는 알파만 올린다.
+     두께는 데이터의 것이고 상태는 빛으로 말한다 — 선을 굵히는 트레이딩뷰와 의도적으로 반대.
+     path(c) 는 beginPath 이후의 경로만 그린다(stroke 는 이 함수가 최대 두 번 호출). */
+  function _strokeDraw(c, path, st, sel, hov) {
+    const w = _cw();
+    if (sel) {
+      c.save();
+      c.globalAlpha = .18; c.strokeStyle = st.color; c.lineWidth = st.w + w.halo * 3;
+      c.lineCap = "round"; c.lineJoin = "round";
+      c.setLineDash([]);   // 헤일로는 실선 — 점선 도형이라도 후광은 이어져야 "떠오른다"
+      c.beginPath(); path(c); c.stroke();
+      c.restore();
+    }
+    c.save();
+    c.globalAlpha = hov ? 1 : .88;   // 호버 예광 — 굵기 불변, 알파만
+    c.lineWidth = st.w;              // 선택해도 굵어지지 않는다
+    c.strokeStyle = st.color;
+    c.lineCap = "round"; c.lineJoin = "round";
+    c.beginPath(); path(c); c.stroke();
+    c.restore();
+  }
+
+  /* 면 채움 — 균일 알파 판때기 대신 기준선에서 바깥으로 페이드(예측 콘과 같은 어법).
+     st.color 는 항상 6자리 hex(COL·SW_COLORS)라 알파 접미사를 그대로 붙일 수 있다.
+     좌표가 퇴화(y0===y1)하거나 비유한이면 그라디언트가 아무것도 안 칠하므로 단색으로 폴백. */
+  function _fadeFill(c, st, y0, y1) {
+    if (!isFinite(y0) || !isFinite(y1) || Math.abs(y1 - y0) < 1e-6) return st.color + "16";
+    const gd = c.createLinearGradient(0, y0, 0, y1);
+    gd.addColorStop(0, st.color + "22"); gd.addColorStop(1, st.color + "05");
+    return gd;
   }
 
   const _TOOL_KO = { trend:"추세선", channel:"평행채널", range:"등락폭 재기", period:"기간 재기", hline:"수평선", vline:"수직선" };
@@ -325,67 +372,86 @@
   }
 
   function _renderOne(c, G, d, sel) {
-    const st = drawStyle(d);
+    const st = drawStyle(d), D = CDASH_SAFE();
+    const hov = (d.id === _hoverId);
+    // 지금 이 도형의 어느 끝점을 끌고 있는지 — 그 핸들만 채워서 "잡고 있다"를 보인다.
+    const dragW = (_drag && _drag.kind === "handle" && _selId === d.id) ? _drag.which : null;
+    c.save();   // 도형 하나가 남긴 점선·알파가 다음 도형으로 새지 않도록 매 도형을 감싼다
     // 수평·수직선은 앵커가 하나뿐이라 b 가 없다 — 창 전체를 가로/세로로 가로지른다.
     if (d.type === "hline" || d.type === "vline") {
-      c.lineWidth = sel ? _cw().bold : st.w; c.strokeStyle = st.color; c.setLineDash(CDASH_SAFE().fine); c.lineCap = "round";
-      c.beginPath();
+      c.setLineDash(D.fine);
       if (d.type === "hline") {
-        const y = G.pToY(d.a.p); if (!isFinite(y)) return;
-        c.moveTo(G.g.padX, y); c.lineTo(G.g.plotRight, y); c.stroke();
+        const y = G.pToY(d.a.p); if (!isFinite(y)) { c.restore(); return; }
+        _strokeDraw(c, cc => { cc.moveTo(G.g.padX, y); cc.lineTo(G.g.plotRight, y); }, st, sel, hov);
+        c.setLineDash([]);
         _label(c, _hzFmtSafe(d.a.p), G.g.plotRight - 62, y - 4, st.color);
-        if (sel) _handleRing(c, G.g.plotRight - 14, y, st.color);
+        if (sel) _handleRing(c, G.g.plotRight - 14, y, st.color, hov || (_drag && _drag.kind === "move" && _selId === d.id));
       } else {
-        const x = G.fiToX(tToFi(G.times, d.a.t)); if (!isFinite(x)) return;
-        c.moveTo(x, G.g.padTop); c.lineTo(x, G.g.ch - G.g.padBot); c.stroke();
+        const x = G.fiToX(tToFi(G.times, d.a.t)); if (!isFinite(x)) { c.restore(); return; }
+        _strokeDraw(c, cc => { cc.moveTo(x, G.g.padTop); cc.lineTo(x, G.g.ch - G.g.padBot); }, st, sel, hov);
+        c.setLineDash([]);
         _label(c, String(d.a.t).slice(2).replace(/-/g, "."), x + 5, G.g.ch - G.g.padBot - 6, st.color);
-        if (sel) _handleRing(c, x, G.g.padTop + 14, st.color);
+        if (sel) _handleRing(c, x, G.g.padTop + 14, st.color, hov || (_drag && _drag.kind === "move" && _selId === d.id));
       }
-      c.setLineDash([]);
-      if (sel) { _drawDelBadge(c, G, d); _drawSwatches(c, G, d); }
+      if (sel) { _drawDelBadge(c, G, d, hov); _drawSwatches(c, G, d); }
+      c.restore();
       return;
     }
-    const A = _pt(G, d.a), B = _pt(G, d.b), col = COL[d.type] || COL.trend;
-    if (![A.x, A.y, B.x, B.y].every(isFinite)) return;
-    c.lineWidth = sel ? 2.2 : 1.6; c.strokeStyle = col; c.setLineDash([]);
+    const A = _pt(G, d.a), B = _pt(G, d.b);
+    if (![A.x, A.y, B.x, B.y].every(isFinite)) { c.restore(); return; }
+    c.setLineDash([]);
     if (d.type === "trend") {
-      c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(B.x, B.y); c.stroke();
+      _strokeDraw(c, cc => { cc.moveTo(A.x, A.y); cc.lineTo(B.x, B.y); }, st, sel, hov);
       const bars = Math.max(1, Math.abs(B.fi - A.fi));
       const pct = ((d.b.p / d.a.p - 1) * 100) / bars;
-      _label(c, (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉", B.x + 6, B.y, col);
+      _label(c, (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉", B.x + 6, B.y, st.color);
     } else if (d.type === "channel") {
       const off = d.off || 0, A2 = { x: A.x, y: G.pToY(d.a.p + off) }, B2 = { x: B.x, y: G.pToY(d.b.p + off) };
-      c.globalAlpha = .10; c.fillStyle = col;
+      c.fillStyle = _fadeFill(c, st, Math.min(A.y, A2.y), Math.max(B.y, B2.y));
       c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(B.x, B.y); c.lineTo(B2.x, B2.y); c.lineTo(A2.x, A2.y); c.closePath(); c.fill();
-      c.globalAlpha = 1;
-      c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(B.x, B.y); c.stroke();
-      c.beginPath(); c.moveTo(A2.x, A2.y); c.lineTo(B2.x, B2.y); c.stroke();
+      _strokeDraw(c, cc => { cc.moveTo(A.x, A.y); cc.lineTo(B.x, B.y); }, st, sel, hov);
+      _strokeDraw(c, cc => { cc.moveTo(A2.x, A2.y); cc.lineTo(B2.x, B2.y); }, st, sel, hov);
     } else {   // range · period — 박스 렌더 공유, 라벨만 다름
       const x0 = Math.min(A.x, B.x), x1 = Math.max(A.x, B.x), y0 = Math.min(A.y, B.y), y1 = Math.max(A.y, B.y);
-      c.globalAlpha = .10; c.fillStyle = col; c.fillRect(x0, y0, x1 - x0, y1 - y0); c.globalAlpha = 1;
-      c.setLineDash([4, 3]); c.strokeRect(x0, y0, x1 - x0, y1 - y0); c.setLineDash([]);
+      c.fillStyle = _fadeFill(c, st, y0, y1);
+      c.fillRect(x0, y0, x1 - x0, y1 - y0);
+      c.setLineDash(D.fine);
+      _strokeDraw(c, cc => { cc.rect(x0, y0, x1 - x0, y1 - y0); }, st, sel, hov);
+      c.setLineDash([]);
       const txt = d.type === "range"
         ? (d.b.p - d.a.p >= 0 ? "+" : "") + (d.b.p - d.a.p).toFixed(2) + " · " + ((d.b.p / d.a.p - 1) * 100).toFixed(2) + "%"
         : Math.round(Math.abs(B.fi - A.fi)) + "봉 · " + Math.abs(Math.round((Date.parse(d.b.t) - Date.parse(d.a.t)) / 86400000)) + "일";
-      _label(c, txt, x0 + 4, y0 - 4, col);
+      _label(c, txt, x0 + 4, y0 - 4, st.color);
     }
-    if (sel) {   // 선택 시 끝점 핸들 + 삭제 배지
-      for (const P of [A, B]) {
-        c.beginPath(); c.arc(P.x, P.y, HR_VIS, 0, 7);
-        c.fillStyle = col; c.fill();
-        c.strokeStyle = _chartBg(); c.lineWidth = 2; c.stroke();
-      }
-      _drawDelBadge(c, G, d);
+    if (sel) {   // 선택 시 끝점 핸들(속 빈 링) + 삭제 배지 + 스타일 줄
+      _handleRing(c, A.x, A.y, st.color, hov || dragW === "a");
+      _handleRing(c, B.x, B.y, st.color, hov || dragW === "b");
+      _drawDelBadge(c, G, d, hov);
       _drawSwatches(c, G, d);
     }
+    c.restore();
   }
+
+  /* 호버 대상 갱신 — **바뀔 때만** 재드로한다. 매 move 마다 그리면 팬 중에도 그리기
+     레이어가 계속 다시 그려져 프레임을 그냥 갉아먹는다(예광은 id 가 바뀔 때만 달라진다). */
+  function _setHover(id) {
+    if (id === _hoverId) return false;
+    _hoverId = id; drawsRender(); return true;
+  }
+  /* 커서가 차트 밖으로 나가면 예광을 끈다 — forge-app 은 캔버스 밖 move 를 전달하지 않으므로
+     이게 없으면 마지막으로 지나간 도형이 밝은 채(핸들도 채워진 채) 그대로 남는다. */
+  function drawsHoverClear() { return _setHover(null); }
 
   /* 호버 커서가 십자선을 덮어쓰지 않도록 forge-app 이 물어보는 조회창구(도구 무장·그리기 진행 중) */
   /* 호버 커서 — 무엇을 잡을 수 있는지 마우스로 알려준다. 핸들/✕ 위에선 포인터,
-     본체 위에선 move. forge-app 의 호버 핸들러가 이 값을 우선 사용한다. */
+     본체 위에선 move. forge-app 의 호버 핸들러가 이 값을 우선 사용한다.
+     호버 예광(_hoverId)도 여기서 함께 정한다 — forge-app 의 pointermove 핸들러는 매 move 마다
+     drawsPointerMove → drawsCursor 를 연달아 부르므로, 두 곳에서 각각 히트테스트를 돌리면
+     move 한 번에 전수 판정이 두 번 돈다. 히트테스트는 이 한 곳에서만 돌린다. */
   function drawsCursor(cx, cy) {
-    if (_armed || (_drag && _drag.kind === "new")) return "crosshair";
+    if (_armed || (_drag && _drag.kind === "new")) { _setHover(null); return "crosshair"; }
     const h = drawsHitTest(cx, cy);
+    _setHover(h ? h.id : null);
     if (!h) return null;
     return (h.kind === "del" || h.kind === "swatch" || h.kind === "handle") ? "pointer" : "move";
   }
@@ -608,6 +674,8 @@
   }
 
   function drawsPointerMove(e, cx, cy) {
+    // 드래그 중이 아니면 여기서 할 일이 없다 — 호버 예광(_hoverId)은 forge-app 이 같은 move
+    // 에서 곧이어 부르는 drawsCursor() 가 자기 히트테스트 결과로 갱신한다(판정 1회/move).
     if (!_drag) return;
     const G = drawsGeo(); if (!G) return;
     if (_drag.kind === "new") {
@@ -742,7 +810,7 @@
 
   return { tToFi, fiToT, segDist, chanOff, drawsArmed, drawsCursor, drawsLoad, drawsAll, drawsGeo, drawsRender,
            drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop,
-           drawsHitTest, drawsKey, _undoPush, _undoPop, _undoReset, drawStyle, SW_COLORS, SW_W, _progressText,
+           drawsHitTest, drawsKey, drawsHoverClear, _undoPush, _undoPop, _undoReset, drawStyle, SW_COLORS, SW_W, _progressText,
            _delBadge, _swatchRects };   // 언더스코어 접두 내부 헬퍼도 _undoPush 등과 같은 관례로 테스트용 노출
 });
 
@@ -753,6 +821,11 @@ if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded
   });
   const mg = document.getElementById("drawMagnet");
   if (mg) mg.addEventListener("change", () => drawsMagnet(mg.checked));
+
+  // 차트를 벗어나면 호버 예광 해제(위 drawsHoverClear 주석 참고). forge-app 의 pointermove
+  // 핸들러는 캔버스 안에서만 도므로 이탈은 여기서만 알 수 있다.
+  const _mainCv = document.getElementById("fcMainChart");
+  if (_mainCv) _mainCv.addEventListener("pointerleave", function () { drawsHoverClear(); });
 
   /* I3: forge-app.js 가 스크립트 평가 시점에 자기 Esc 핸들러(전체화면 해제)를 window 에
      bubble 단계로 이미 등록해 놓기 때문에, forge-ui.js 의 boardInit() 이 나중에 등록하는
