@@ -700,9 +700,16 @@
     if (ae && (ae.isContentEditable || ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return false;
     const boardHasSel = (typeof sel !== "undefined" && sel && sel.length) ||
                          (typeof selEdge !== "undefined" && selEdge);
-    // Ctrl+Z / Ctrl+Shift+Z(=Ctrl+Y). forge 에는 보드 undo 가 없어 충돌 대상이 없다(확인함).
+    // F3(리뷰): 되돌리기(undo)만 지원한다 — 다시실행(redo) 스택은 일부러 안 만들었다.
+    // 예전엔 z/Z/y/Y 를 전부 같은 _undoPop() 에 묶어 Ctrl+Shift+Z·Ctrl+Y 를 "redo"로 오해하기
+    // 쉬웠지만, 실제로는 둘 다 두 번째 undo를 수행해 사용자가 되돌리려던 상태보다 더 지나쳐
+    // 버리고 되돌아올 방법이 없었다(리뷰 실측 재현). 그래서 순수 Ctrl(⌘)+Z(Shift 없이)만
+    // 인식한다 — Shift가 눌려 있으면(Ctrl+Shift+Z) 여기서 false 를 반환해 이벤트를 삼키지
+    // 않고 브라우저로 흘려보낸다(집어삼켜서 조용히 두 번째 undo를 하면 안 됨). y/Y 바인딩은
+    // 완전히 제거했다 — 다음에 이 코드를 보는 사람이 "빠뜨렸나?" 하고 되살리지 않도록 명시:
+    // redo 는 이 라운드에서 의도적으로 구현하지 않기로 결정됐다(스택 1개만 유지).
     // 입력 필드 포커스 중에는 위에서 이미 false 로 빠져나가므로 브라우저 기본 실행취소를 뺏지 않는다.
-    if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z" || e.key === "y" || e.key === "Y")) {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "z" || e.key === "Z")) {
       const snap = _undoPop();
       if (!snap) return true;                  // 되돌릴 게 없어도 이벤트는 삼킨다(브라우저 기본 동작 방지)
       DRAWS = snap; _selId = null; _cancelNew();
