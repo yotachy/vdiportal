@@ -160,7 +160,14 @@ function withChartShim(fn) {
   function makeCtx() {
     const t = {};
     return new Proxy(t, {
-      get(o, p) { if (p in o) return o[p]; if (p === "measureText") return s => ({ width: String(s || "").length * 7 }); return function () {}; },
+      get(o, p) {
+        if (p in o) return o[p];
+        if (p === "measureText") return s => ({ width: String(s || "").length * 7 });
+        // 채널·등락폭·기간의 면 채우기(_fadeFill)는 반환값의 addColorStop 을 부른다 —
+        // 프록시 기본 no-op 함수로는 못 받는다(withGeoShim 과 같은 처리).
+        if (p === "createLinearGradient") return () => ({ addColorStop() {} });
+        return function () {};
+      },
       set(o, p, v) { o[p] = v; return true; }
     });
   }
@@ -1596,4 +1603,238 @@ test("I-3 일반: 고른 y 는 항상 '기본 자리에서 가장 가까운 안�
   assert.ok(checked > 3000, "격자가 실제로 돌았는지 — 검사한 구성 수: " + checked);
   assert.strictEqual(fallback, 0, "최후 수단 분기 도달 " + fallback + "건 — 후보 목록이 비면 안 된다");
   assert.strictEqual(worst, 0, "구현이 오라클보다 먼 자리를 고른 최대 초과: " + worst);
+});
+
+/* ══ 완성하면 도구가 풀린다 (2026-08-07) ═════════════════════════════════════════
+   앞선 라운드의 "연속 그리기"(완성해도 _armed 유지)를 사용자가 써 보고 뒤집은 결정이다 —
+   무장이 안 풀리면 차트 위 모든 클릭이 drawsPointerDown 의 _armed 분기(히트테스트보다
+   앞선다)에 삼켜져 **이미 그린 도형을 마우스로 선택·수정할 수가 없었다**.
+   새 계약: ① 도형을 완성하면 무장 해제 + 그 도형이 선택 상태 ② 그리다 만 도형을
+   취소(Esc·같은 자리 재클릭)하면 도구는 그대로 남는다(바로 다시 시도).
+   아래 테스트가 그 두 계약을 도형 종류별로 고정한다 — 연속 그리기를 되살리면 전부 빨개진다. */
+
+/* 클릭식 두 앵커 도구(trend·range·period) 한 벌 그리기 — 트레이딩뷰식 클릭·클릭. */
+function drawTwoClick(T2, type, x1, y1, x2, y2) {
+  T2.drawsArm(type);
+  assert.strictEqual(T2.drawsPointerDown({}, x1, y1), true, type + " 1번째 클릭이 소비되어야 함");
+  T2.drawsPointerUp();          // 같은 자리 → stage2(끝점 대기)
+  assert.strictEqual(T2.drawsPointerDown({}, x2, y2), true, type + " 2번째 클릭이 소비되어야 함");
+  T2.drawsPointerUp();          // _drag 는 이미 풀렸으므로 no-op (계약 확인용으로 같이 호출)
+  return T2.drawsAll()[T2.drawsAll().length - 1];
+}
+
+/* 완성된 도형의 "본체"만 확실히 눌리는 좌표 — 선택 중에는 핸들·✕배지·스와치가 같이 떠 있어
+   끝점 근처를 누르면 body 가 아닌 다른 판정이 이긴다. 판정 결과를 단언해 좌표 선택 실수를
+   테스트 실패로 드러낸다(no-new-drawing 단언만 있으면 스와치를 눌러도 통과해버린다). */
+function assertBodyHit(T2, x, y, msg) {
+  const h = T2.drawsHitTest(x, y);
+  assert.ok(h && h.kind === "body", msg + " — 본체로 잡혀야 함(실제: " + JSON.stringify(h) + ")");
+}
+
+test("완성 해제: hline 1클릭 완성 → 무장 풀림 + 그 선이 선택됨", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]); T2._undoReset();
+    T2.drawsArm("hline");
+    const G = T2.drawsGeo();
+    T2.drawsPointerDown({}, 300, G.pToY(90));
+    assert.strictEqual(T2.drawsArmed(), false, "완성했으면 도구가 풀려야 함(연속 그리기 되살아남)");
+    assert.strictEqual(T2._selectedId(), T2.drawsAll()[0].id, "완성된 선이 선택 상태여야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("완성 해제: vline 1클릭 완성 → 무장 풀림 + 그 선이 선택됨", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]); T2._undoReset();
+    T2.drawsArm("vline");
+    const G = T2.drawsGeo();
+    T2.drawsPointerDown({}, G.fiToX(40), 200);
+    assert.strictEqual(T2.drawsArmed(), false, "완성했으면 도구가 풀려야 함");
+    assert.strictEqual(T2._selectedId(), T2.drawsAll()[0].id, "완성된 선이 선택 상태여야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("완성 해제: hline 완성 후 그 선을 다시 클릭 — 새 그림이 안 생기고 선택이 유지된다", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]); T2._undoReset();
+    T2.drawsArm("hline");
+    const G = T2.drawsGeo();
+    const y = G.pToY(90);
+    T2.drawsPointerDown({}, 300, y);
+    const id = T2.drawsAll()[0].id;
+    // 본체 클릭 — 무장이 남아 있으면 이 클릭이 _armed 분기에 삼켜져 hline 이 하나 더 생긴다(사용자가 겪은 증상).
+    assertBodyHit(T2, 500, y, "이미 그린 hline 위 클릭");
+    T2.drawsPointerDown({}, 500, y);
+    T2.drawsPointerUp();
+    assert.strictEqual(T2.drawsAll().length, 1, "기존 그림 위를 클릭했는데 새 그림이 생기면 안 됨");
+    assert.strictEqual(T2._selectedId(), id, "그 그림이 선택 상태로 남아야 함(마우스로 수정 가능)");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("완성 해제: vline 완성 후 그 선을 다시 클릭 — 새 그림이 안 생기고 선택이 유지된다", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]); T2._undoReset();
+    T2.drawsArm("vline");
+    const G = T2.drawsGeo();
+    const x = G.fiToX(40);
+    T2.drawsPointerDown({}, x, 200);
+    const id = T2.drawsAll()[0].id;
+    assertBodyHit(T2, x, 320, "이미 그린 vline 위 클릭");
+    T2.drawsPointerDown({}, x, 320);
+    T2.drawsPointerUp();
+    assert.strictEqual(T2.drawsAll().length, 1, "기존 그림 위를 클릭했는데 새 그림이 생기면 안 됨");
+    assert.strictEqual(T2._selectedId(), id, "그 그림이 선택 상태로 남아야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("완성 해제: 클릭식 2앵커 도구(trend·range·period) — 완성 시 해제·선택, 재클릭은 선택만", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    for (const type of ["trend", "range", "period"]) {
+      T2.drawsLoad([]); T2._undoReset();
+      const G = T2.drawsGeo();
+      const y1 = G.pToY(95), y2 = G.pToY(115);
+      const d = drawTwoClick(T2, type, 150, y1, 550, y2);
+      assert.strictEqual(T2.drawsAll().length, 1, type + " 그림 1개가 완성돼야 함");
+      assert.strictEqual(T2.drawsArmed(), false, type + ": 완성했으면 도구가 풀려야 함");
+      assert.strictEqual(T2._selectedId(), d.id, type + ": 완성된 도형이 선택 상태여야 함");
+
+      // 본체 위 재클릭 — trend 는 선의 중점, 박스형(range·period)은 아래쪽 변의 중점
+      // (위쪽 변은 ✕ 배지·스와치 줄이 뜨는 자리라 판정이 그쪽으로 갈 수 있다).
+      const px = 350, py = type === "trend" ? (y1 + y2) / 2 : Math.max(y1, y2);
+      assertBodyHit(T2, px, py, type + " 본체 재클릭");
+      T2.drawsPointerDown({}, px, py);
+      T2.drawsPointerUp();
+      assert.strictEqual(T2.drawsAll().length, 1, type + ": 기존 도형 위 클릭으로 새 도형이 생기면 안 됨");
+      assert.strictEqual(T2._selectedId(), d.id, type + ": 그 도형이 계속 선택 상태여야 함");
+    }
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("완성 해제: 채널 3클릭(시작→끝→폭) — 폭 확정 순간 해제·선택, 재클릭은 선택만", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]); T2._undoReset();
+    T2.drawsArm("channel");
+    const G = T2.drawsGeo();
+    const y1 = G.pToY(95), y2 = G.pToY(115);
+    T2.drawsPointerDown({}, 150, y1);
+    T2.drawsPointerMove({}, 550, y2);
+    T2.drawsPointerUp();                       // 채널은 여기서 stage2(폭 지정 대기)
+    assert.strictEqual(T2.drawsArmed(), true, "폭을 지정하기 전(stage2)에는 아직 그리는 중이어야 함");
+    T2.drawsPointerDown({}, 350, G.pToY(130)); // 3번째 클릭 = 폭 확정 → 완성
+    const d = T2.drawsAll()[0];
+    assert.strictEqual(T2.drawsAll().length, 1, "채널 1개가 완성돼야 함");
+    assert.strictEqual(T2.drawsArmed(), false, "폭 확정으로 완성했으면 도구가 풀려야 함");
+    assert.strictEqual(T2._selectedId(), d.id, "완성된 채널이 선택 상태여야 함");
+
+    const px = 350, py = (y1 + y2) / 2;        // 기준선 중점
+    assertBodyHit(T2, px, py, "채널 기준선 재클릭");
+    T2.drawsPointerDown({}, px, py);
+    T2.drawsPointerUp();
+    assert.strictEqual(T2.drawsAll().length, 1, "기존 채널 위 클릭으로 새 채널이 생기면 안 됨");
+    assert.strictEqual(T2._selectedId(), d.id, "그 채널이 계속 선택 상태여야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("완성 해제: 드래그로 그린 경우(pointerup 완성 경로)도 도구가 풀리고 선택된다", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]); T2._undoReset();
+    T2.drawsArm("trend");
+    const G = T2.drawsGeo();
+    T2.drawsPointerDown({}, 150, G.pToY(95));
+    T2.drawsPointerMove({}, 550, G.pToY(115));   // 6px 이상 이동 = 진짜 드래그
+    T2.drawsPointerUp();
+    assert.strictEqual(T2.drawsAll().length, 1, "드래그 한 번에 도형 1개");
+    assert.strictEqual(T2.drawsArmed(), false, "드래그 완성 경로에서도 도구가 풀려야 함");
+    assert.strictEqual(T2._selectedId(), T2.drawsAll()[0].id, "드래그로 그린 도형이 선택 상태여야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("완성 해제: 완성 뒤 빈 곳 클릭은 새 그림을 만들지 않고 선택만 해제(팬으로 흘러감)", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]); T2._undoReset();
+    T2.drawsArm("hline");
+    const G = T2.drawsGeo();
+    T2.drawsPointerDown({}, 300, G.pToY(90));
+    const r = T2.drawsPointerDown({}, 300, G.pToY(140));   // 선에서 먼 빈 자리
+    assert.strictEqual(T2.drawsAll().length, 1, "빈 곳 클릭으로 새 그림이 생기면 안 됨");
+    assert.strictEqual(r, false, "빈 곳 클릭은 소비하지 않아야 팬이 막히지 않음");
+    assert.strictEqual(T2._selectedId(), null, "빈 곳 클릭은 선택 해제");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("취소는 무장 유지: 같은 자리 재클릭(<6px)으로 접으면 도구가 남아 바로 다시 그릴 수 있다", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]); T2._undoReset();
+    T2.drawsArm("trend");
+    const G = T2.drawsGeo();
+    const y = G.pToY(95);
+    T2.drawsPointerDown({}, 300, y);
+    T2.drawsPointerUp();                 // stage2
+    // 같은 자리(<6px) → 0길이라 취소. x 는 그대로 둔다 — 봉 간격이 6px 라 한 봉만 어긋나도
+    // 판정 경계(6px)를 넘어 "완성"으로 흘러간다(앵커가 봉 단위로 반올림되기 때문).
+    T2.drawsPointerDown({}, 300, y + 2);
+    assert.strictEqual(T2.drawsAll().length, 0, "0길이 도형은 남지 않아야 함");
+    assert.strictEqual(T2.drawsArmed(), true, "취소는 완성이 아니다 — 도구가 그대로 남아야 함");
+    // 남은 무장으로 곧바로 다시 그릴 수 있어야 한다.
+    T2.drawsPointerDown({}, 150, y);
+    T2.drawsPointerUp();
+    T2.drawsPointerDown({}, 550, G.pToY(115));
+    assert.strictEqual(T2.drawsAll().length, 1, "취소 직후 재시도가 바로 그려져야 함");
+    assert.strictEqual(T2.drawsArmed(), false, "재시도가 완성됐으면 이번엔 풀려야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("취소는 무장 유지: 그리는 도중 Esc 는 도형만 접고 도구는 남긴다(두 번째 Esc 가 도구 해제)", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]); T2._undoReset();
+    T2.drawsArm("range");
+    const G = T2.drawsGeo();
+    T2.drawsPointerDown({}, 200, G.pToY(95));
+    T2.drawsPointerUp();                 // stage2 = 끝점 대기
+    assert.strictEqual(T2.drawsKey({ key: "Escape" }), true, "Esc 가 소비되어야 함");
+    assert.strictEqual(T2.drawsAll().length, 0, "그리다 만 도형은 사라져야 함");
+    assert.strictEqual(T2.drawsArmed(), true, "첫 Esc 는 도형만 접는다 — 도구는 유지");
+    assert.strictEqual(T2.drawsKey({ key: "Escape" }), true, "두 번째 Esc 도 소비");
+    assert.strictEqual(T2.drawsArmed(), false, "두 번째 Esc 가 도구를 푼다");
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("도구 버튼 토글: 활성 도구를 다시 누르면 해제된다(취소가 _armed 를 건드리면 재무장으로 뒤집힘)", () => {
+  const T2 = require("./forge-tools.js");
+  withChartShim(() => {
+    T2.drawsLoad([]); T2._undoReset();
+    T2.drawsArm("trend");
+    assert.strictEqual(T2.drawsArmed(), true);
+    T2.drawsArm("trend");
+    assert.strictEqual(T2.drawsArmed(), false, "같은 도구 재클릭 = 토글 해제");
+    // 그리다 만 상태(stage2)에서 같은 도구를 다시 눌러도 토글 해제여야 한다 —
+    // _cancelNew 가 _armed 까지 지우면 drawsArm 의 `_armed === type` 판정이 어긋나 재무장이 된다.
+    T2.drawsArm("trend");
+    const G = T2.drawsGeo();
+    T2.drawsPointerDown({}, 200, G.pToY(95));
+    T2.drawsPointerUp();
+    T2.drawsArm("trend");
+    assert.strictEqual(T2.drawsArmed(), false, "그리다 만 상태에서도 같은 도구 재클릭은 해제여야 함");
+    assert.strictEqual(T2.drawsAll().length, 0, "그리다 만 도형은 같이 정리돼야 함");
+  });
+  T2.drawsLoad([]); T2._undoReset();
 });

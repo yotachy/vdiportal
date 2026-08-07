@@ -61,7 +61,7 @@
   /* ── 모듈 상태 (여기 한 곳에만 둔다) ──────────────────────────────
      DRAWS      현재 문서의 그림들(저장 대상)
      _selId     선택된 그림 id
-     _armed     무장한 도구 type (연속 그리기 — 완성해도 유지)
+     _armed     무장한 도구 type (도형 하나를 완성하면 풀린다 — _completeNew 주석 참고)
      _magnet    마그넷 on/off
      _drag      진행 중 상호작용 {kind:"new"|"handle"|"move", ...}
      _newDraw   생성 중인 그림(=_drag.kind "new" 일 때만)
@@ -602,6 +602,8 @@
     return (h.kind === "del" || h.kind === "swatch" || h.kind === "handle") ? "pointer" : "move";
   }
   function drawsArmed() { return !!_armed || !!(_drag && _drag.kind === "new"); }
+  // 선택 id 읽기 전용 — "완성하면 그 도형이 선택돼 있다"는 계약을 테스트가 직접 볼 수 있게(쓰기는 없음).
+  function _selectedId() { return _selId; }
   function _uid() { return "d_" + Math.random().toString(36).slice(2, 8); }
   function _persist() { const d = (typeof activeDoc === "function") ? activeDoc() : null; if (d) d.draws = DRAWS.slice(); if (typeof markDirty === "function") markDirty(); }
 
@@ -612,11 +614,18 @@
     const on = p.classList.toggle("on");
     p.setAttribute("aria-hidden", on ? "false" : "true");
   }
-  function drawsArm(type) {
-    _cancelNew();   // I2: 다른 도구로 바꾸기 전에 그리다 만 도형(예: 채널 stage2)부터 정리
-    _armed = (_armed === type) ? null : type;
+  /* 무장 상태 + 그 UI(팝오버 버튼 활성링·캔버스 커서)를 한 곳에서 바꾼다 — 도구 해제 경로가
+     두 개(사용자가 버튼을 다시 누름 / 도형을 완성함)로 늘어나서, DOM 두 줄을 복사해 두면
+     한쪽만 고쳐져 "버튼은 켜져 있는데 무장은 풀린" 유령 상태가 난다.
+     DOM 접근은 반드시 함수 안에만 — 이 파일은 node 에서 require 되어 단위테스트를 돈다. */
+  function _setArmed(type) {
+    _armed = type || null;
     document.querySelectorAll(".dp-btn").forEach(b => b.classList.toggle("on", b.getAttribute("data-draw") === _armed));
     const cv = document.getElementById("fcMainChart"); if (cv) cv.style.cursor = _armed ? "crosshair" : "grab";
+  }
+  function drawsArm(type) {
+    _cancelNew();   // I2: 다른 도구로 바꾸기 전에 그리다 만 도형(예: 채널 stage2)부터 정리
+    _setArmed((_armed === type) ? null : type);   // 같은 도구 재클릭 = 토글 해제
   }
   function drawsMagnet(on) { _magnet = !!on; }
   function drawsClear() { _cancelNew(); _undoPush(); DRAWS = []; _selId = null; _persist(); drawsRender(); }
@@ -655,11 +664,27 @@
     _newDraw.off = chanOff({ fi: A.fi, p: _newDraw.a.p }, { fi: B.fi, p: _newDraw.b.p }, { fi, p });
   }
 
-  /* 완성 처리 — _armed 는 일부러 남긴다(연속 그리기). 선 하나 그을 때마다 팝오버를
-     다시 열고 도구를 또 고르는 게 가장 큰 마찰이었다. 해제는 Esc 또는 도구 재클릭. */
+  /* 그리기 상태 정리만 — 무장(_armed)은 건드리지 않는다. 취소(_cancelNew)도 이 함수를 거치는데,
+     여기서 도구까지 풀면 ① 그리다 만 도형을 접었을 때 곧바로 다시 그릴 수 없고
+     ② drawsArm 이 _cancelNew 를 부른 **뒤에** `_armed === type` 으로 토글을 판정하므로
+     활성 도구를 다시 눌러도 _armed 가 이미 null 이라 토글 해제가 아니라 재무장이 된다. */
   function _finishNew() {
     _newDraw = null; _drag = null;
     _persist(); drawsRender();
+  }
+
+  /* 도형 완성 — 도구를 풀고(_setArmed(null)) 방금 만든 도형을 선택 상태로 남긴다.
+     그래야 완성 직후 그대로 끌어 옮기거나 끝점을 잡거나 색·굵기를 바꿀 수 있다.
+     ⚠️ 2026-08-07 되돌림: 한때 여기서 _armed 를 일부러 유지했다(연속 그리기 — 선 하나 그을
+     때마다 팝오버를 다시 여는 마찰을 없애려고). 실사용 결과 대가가 훨씬 컸다 — 무장이 안
+     풀리니 차트 위 모든 클릭이 drawsPointerDown 의 _armed 분기(히트테스트보다 앞선다)에
+     삼켜져 **이미 그린 도형을 마우스로 선택·수정할 방법이 아예 없었다**. 사용자가 써 보고
+     내린 뒤집기 결정이므로 플래그·수정키로 되살리지 말 것.
+     _finishNew 가 _newDraw 를 null 로 만들므로 _selId 는 반드시 그 앞에서 잡는다. */
+  function _completeNew() {
+    if (_newDraw) _selId = _newDraw.id;
+    _setArmed(null);
+    _finishNew();
   }
 
   /* I2: 그리다 만(특히 채널 stage2 — 폭 지정을 기다리는) 도형을 취소하는 공통 처리.
@@ -763,12 +788,13 @@
         if (_newDraw.type === "channel") {
           // 직전 move 없이 연속 클릭만으로도 폭이 잡히도록, 이 클릭 좌표로 직접 계산한다(미리보기 값에 기대지 않음).
           _setChanOff(G, cx, cy);
-          _finishNew();
+          _completeNew();
         } else {
-          // 트레이딩뷰식 두 번째 클릭 = 끝점 확정. 같은 자리를 또 누르면 0길이라 취소한다.
+          // 트레이딩뷰식 두 번째 클릭 = 끝점 확정. 같은 자리를 또 누르면 0길이라 취소한다
+          // (취소는 _cancelNew — 도구를 남겨 곧바로 다시 시도할 수 있게 한다).
           const b = _anchorAt(G, cx, cy), A = _pt(G, _newDraw.a), B = _pt(G, { t: b.t, p: b.p });
           if (isFinite(A.x) && isFinite(B.x) && Math.hypot(B.x - A.x, B.y - A.y) < 6) _cancelNew();
-          else { _newDraw.b = b; _finishNew(); }
+          else { _newDraw.b = b; _completeNew(); }
         }
       }
       return true;
@@ -778,16 +804,15 @@
       _newDraw = { id: _uid(), type: _armed, a, b: { t: a.t, p: a.p } };
       if (_armed === "channel") _newDraw.off = 0;
       if (_armed === "hline" || _armed === "vline") {
-        // 앵커 하나로 끝나는 도구 — 클릭 한 번에 완성한다(끝점 대기 없음). _armed 는 그대로
-        // 둬서 연속 그리기(Task 2)가 유지된다 — 클릭할 때마다 다시 팝오버를 여는 마찰이 없다.
+        // 앵커 하나로 끝나는 도구 — 클릭 한 번에 완성한다(끝점 대기 없음). 완성이므로
+        // _completeNew 가 도구를 풀고 이 선을 선택 상태로 남긴다(_completeNew 주석 참고).
         // F1(리뷰): undo 스택 계약은 "되돌아갈 상태를 변경 전에" push — DRAWS.push 로 이 선을
         // 넣기 전에 스냅샷을 떠야 pop 했을 때 이 선이 없는 상태로 복원된다. 순서를 뒤집으면
         // (push 후 undoPush) 스냅샷에 이미 이 선이 들어있어 되돌리기가 아무 효과가 없다.
         delete _newDraw.b;
         _undoPush();
         DRAWS.push(_newDraw);
-        _selId = _newDraw.id;
-        _finishNew();
+        _completeNew();
         return true;
       }
       // T5: hline·vline 은 위 분기에서 이미 push 했다(Task 3) — 여기 else 경로(trend·channel·
@@ -905,7 +930,7 @@
         // 폐기하지 않고 stage 2 로 넘겨 두 번째 클릭을 기다린다(드래그 방식도 그대로 동작).
         if (Math.hypot(B.x - A.x, B.y - A.y) < 6 && DRAWS[DRAWS.length - 1] === _newDraw) { _drag.stage = 2; return; }
       }
-      _finishNew();
+      _completeNew();   // 드래그로 그린 경우의 완성 지점 — 클릭식(위 stage2)과 같은 계약
     } else {
       // F2(리뷰): 클릭만 하고(핸들/이동 드래그를 "시작"만 하고) 실제로 아무 것도 안 바뀌었으면
       // pointerdown 에서 미리 찍어둔 스냅샷은 낭비다 — UNDO_MAX=30 이 문서 전체가 공유하는
@@ -963,8 +988,8 @@
       // I2: 채널이 stage2(폭 지정 대기)에서 멈춰 있으면 _armed 분기보다 먼저 여기서 끝내야 한다.
       // stage2 에선 _newDraw 가 아직 DRAWS 에 반쪽짜리로 남아 있는데 _armed 도 여전히 세팅돼
       // 있어 그냥 drawsArm(null) 만 부르면 고아 채널이 그대로 남고 _drag 도 안 풀린다.
-      if (_cancelNew()) return true;
-      if (_armed) { drawsArm(null); _armed = null; return true; }
+      if (_cancelNew()) return true;   // 그리다 만 도형만 접는다 — 도구는 남겨 곧바로 다시 시도 가능
+      if (_armed) { _setArmed(null); return true; }   // 그 다음 Esc 가 도구를 푼다(버튼 활성링·커서까지)
       if (_selId) { _selId = null; drawsRender(); return true; }
       return false;
     }
@@ -986,7 +1011,7 @@
   return { tToFi, fiToT, segDist, chanOff, drawsArmed, drawsCursor, drawsLoad, drawsAll, drawsGeo, drawsRender,
            drawsArm, drawsMagnet, drawsClear, drawsPointerDown, drawsPointerMove, drawsPointerUp, toggleDrawPop,
            drawsHitTest, drawsKey, drawsHoverClear, _undoPush, _undoPop, _undoReset, drawStyle, SW_COLORS, SW_W, _progressText,
-           _delBadge, _swatchRects };   // 언더스코어 접두 내부 헬퍼도 _undoPush 등과 같은 관례로 테스트용 노출
+           _delBadge, _swatchRects, _selectedId };   // 언더스코어 접두 내부 헬퍼도 _undoPush 등과 같은 관례로 테스트용 노출
 });
 
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", function () {
