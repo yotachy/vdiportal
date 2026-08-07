@@ -1421,3 +1421,179 @@ test("FINAL 잔여: 진행 칩 글자색·라벨 배경도 테마 전역을 그�
   });
   T2.drawsLoad([]); T2._undoReset();
 });
+
+/* ══ I-3: 컨트롤 뭉치 근접 배치 ═══════════════════════════════════════════════════
+   I-1 라운드가 세운 "후보를 훑어 처음 깨끗한 곳"은 **안전하지만 가깝지는 않았다** —
+   후보가 넷뿐이라 겨우 2.3px 걸친 핸들 하나 때문에 줄이 205px 아래로 뛰었다.
+   아래 두 테스트는 그 근접성 계약을 지킨다(안전성은 위 I-1·M-9 테스트가 계속 지킨다).
+   _swatchRects 내부 상수와 같은 값(비노출) — 어긋나면 아래 후보 재현이 먼저 깨진다. */
+const SW_S_ = 12, SW_CLR_ = 6.5;
+
+/* geometry 를 인자로 받는 셰임 — I-3 재현 조건(낮은 차트 ch 340 · 150봉)은
+   withChartShim/withRecShim 의 고정 격자에서는 재현되지 않는다. */
+function withGeoShim(g, fn) {
+  const times = [];
+  { const base = Date.parse("2026-01-01T00:00:00Z"); for (let i = 0; i < 150; i++) times.push(new Date(base + i * 86400000).toISOString().slice(0, 10)); }
+  function makeCtx() {
+    const t = {};
+    return new Proxy(t, {
+      get(o, p) {
+        if (p in o) return o[p];
+        if (p === "measureText") return s => ({ width: String(s || "").length * 7 });
+        // 채널 면 채우기(_fadeFill)는 반환값의 addColorStop 을 부른다 — 프록시 기본 no-op 로는 못 받는다.
+        if (p === "createLinearGradient") return () => ({ addColorStop() {} });
+        return function () {};
+      },
+      set(o, p, v) { o[p] = v; return true; }
+    });
+  }
+  const mk = extra => Object.assign({ style: {}, width: 0, height: 0, parentElement: { clientWidth: 800, clientHeight: 450 }, getContext: () => makeCtx() }, extra || {});
+  const mainCanvas = mk({ _mainGeo: g }), drawsCanvas = mk({});
+  const prevDoc = global.document, prevWin = global.window, prevPT = global.priceTimes;
+  global.window = { devicePixelRatio: 1 };
+  global.document = {
+    getElementById(id) { if (id === "fcMainChart") return mainCanvas; if (id === "fcDraws") return drawsCanvas; return null; },
+    querySelectorAll() { return []; }, addEventListener() {}, activeElement: null,
+  };
+  global.priceTimes = () => times;
+  try { fn({ g, times }); }
+  finally { global.document = prevDoc; global.window = prevWin; global.priceTimes = prevPT; }
+}
+
+/* 선택 상태는 반드시 실제 본체 클릭으로 만든다 — 미선택 상태에선 스와치가 아예 안 나오고,
+   _selId 를 우회해 넣으면 판정 경로가 오염된다(스윕 스크립트와 같은 관례). */
+function selectByBody(T2, d, G, times) {
+  const A = { x: G.fiToX(T2.tToFi(times, d.a.t)), y: G.pToY(d.a.p) };
+  const B = d.b ? { x: G.fiToX(T2.tToFi(times, d.b.t)), y: G.pToY(d.b.p) } : null;
+  T2.drawsLoad([d]);
+  let pick;
+  if (d.type === "hline") pick = { x: (G.g.padX + G.g.plotRight) / 2, y: A.y };
+  else if (d.type === "vline") pick = { x: A.x, y: (G.g.padTop + G.g.ch - G.g.padBot) / 2 };
+  else if (d.type === "trend" || d.type === "channel") pick = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
+  else pick = { x: (A.x + B.x) / 2, y: Math.max(A.y, B.y) };
+  if (!isFinite(pick.x) || !isFinite(pick.y)) return null;
+  const h0 = T2.drawsHitTest(pick.x, pick.y);
+  if (!h0 || h0.kind !== "body") return null;
+  T2.drawsPointerDown({}, pick.x, pick.y); T2.drawsPointerUp();
+  return { A, B };
+}
+
+/* _swatchRects 의 후보 목록·회피 영역을 **테스트 쪽에서 독립적으로 다시 세운다**.
+   구현을 그대로 부르면 "고른 것이 고른 것과 같다"는 무의미검사가 된다 — 여기서 검증하려는
+   것은 목록 자체가 아니라 **거리순으로 골랐는가** 이므로, 목록은 사양대로 재현하고
+   순서만 오라클이 정한다. */
+function swatchCandidates(T2, G, d, db, rowW, times) {
+  const S = SW_S_, SEP = db.r + 6;
+  const pt = a => ({ x: G.fiToX(T2.tToFi(times, a.t)), y: G.pToY(a.p) });
+  const isLine = (d.type === "hline" || d.type === "vline");
+  let P = isLine ? [] : ["a", "b"].filter(k => d[k]).map(k => pt(d[k])).filter(p => isFinite(p.x) && isFinite(p.y));
+  if (!P.length) { const a = pt(d.a); if (isFinite(a.x) && isFinite(a.y)) P = [a]; }
+  if (!P.length) P = [{ x: db.x, y: db.y }];
+  const minX = Math.min(...P.map(p => p.x)), maxX = Math.max(...P.map(p => p.x));
+  const minY = Math.min(...P.map(p => p.y)), maxY = Math.max(...P.map(p => p.y));
+  const yDef = db.y + SEP;
+  const ys = [yDef, db.y - SEP - S, maxY + SW_CLR_, minY - SW_CLR_ - S];
+  for (const h of P) ys.push(h.y + SW_CLR_, h.y - SW_CLR_ - S);
+  const zones = [{ x: db.x, y: db.y, r: db.r + 2 }];
+  if (d.type === "hline") {
+    const y = G.pToY(d.a.p);
+    if (isFinite(y)) zones.push({ rx: G.g.padX, ry: y - BODY_R_, rw: G.g.plotRight - G.g.padX, rh: BODY_R_ * 2 });
+  } else if (d.type === "vline") {
+    const x = G.fiToX(T2.tToFi(times, d.a.t));
+    if (isFinite(x)) zones.push({ rx: x - BODY_R_, ry: G.g.padTop, rw: BODY_R_ * 2, rh: G.g.ch - G.g.padTop - G.g.padBot });
+  } else for (const h of P) zones.push({ x: h.x, y: h.y, r: SW_CLR_ });
+  return {
+    yDef, ys, zones, S,
+    near: [db.x - db.r, maxX + SW_CLR_ + 2, G.g.plotRight + 2 - rowW],
+    far: [minX - SW_CLR_ - 2 - rowW, G.g.padX - 2],
+  };
+}
+function rowClearOracle(x0, y0, w, h, zones, G) {
+  if (!isFinite(x0) || !isFinite(y0)) return false;
+  if (x0 < G.g.padX - 2 || x0 + w > G.g.plotRight + 2) return false;
+  if (y0 < G.g.padTop || y0 + h > G.g.ch - G.g.padBot) return false;
+  for (const z of zones) {
+    if (z.r !== undefined) {
+      const nx = Math.max(x0, Math.min(z.x, x0 + w)), ny = Math.max(y0, Math.min(z.y, y0 + h));
+      if (Math.hypot(z.x - nx, z.y - ny) < z.r) return false;
+    } else if (x0 < z.rx + z.rw && z.rx < x0 + w && y0 < z.ry + z.rh && z.ry < y0 + h) return false;
+  }
+  return true;
+}
+/* 근거리 x 묶음을 먼저 소진하는 구현의 계약을 그대로 반영한다 — 그 묶음 안에 통과 가능한
+   y 가 하나라도 있으면 원거리로 넘어가지 않는다. */
+function nearestClearY(c, rowW, G) {
+  for (const xs of [c.near, c.far]) {
+    const ok = c.ys.filter(y => xs.some(x => rowClearOracle(x, y, rowW, c.S, c.zones, G)));
+    if (ok.length) return ok.reduce((a, b) => (Math.abs(b - c.yDef) < Math.abs(a - c.yDef) ? b : a));
+  }
+  return null;
+}
+
+test("I-3 회귀: 스와치 줄이 ✕ 배지에 붙어 있다 — 2.3px 걸침 때문에 205px 아래로 뛰지 않는다", () => {
+  const T2 = require("./forge-tools.js");
+  /* 재현 조건: 차트가 낮고(ch 340) 오른쪽 위로 뻗은 추세선. 끝점 b 가 기본 자리(배지 아래)를
+     2.3px 만 물어서, 성긴 후보 넷만 있던 시절엔 "모든 핸들 아래"(y 251.46 — 반대쪽 핸들 옆)가
+     첫 통과 자리였다. 배지는 y 31 이므로 220.46px 아래, 즉 컨트롤 뭉치가 도형과 분리됐다. */
+  withGeoShim({ padX: 40, padTop: 20, padBot: 24, ch: 340, histW: 520, plotRight: 600, start: 0, count: 150, log: false, loV: 80, hiV: 130 }, ({ times }) => {
+    const d = { id: "i3", type: "trend", a: { t: times[95], p: 92 }, b: { t: times[146], p: 126 } };
+    const G = T2.drawsGeo();
+    const pts = selectByBody(T2, d, G, times);
+    assert.ok(pts, "본체 클릭으로 선택돼야 유효한 검사");
+    const db = T2._delBadge(G, d), sw = T2._swatchRects(G, d);
+    assert.ok(db && sw.length, "선택 상태여야 배지·스와치가 나온다");
+    const dy = Math.abs(sw[0].y - db.y);
+    /* 임계 40px 의 근거: 기본 자리는 배지 중심에서 SEP(=db.r+6=15) 아래이고 줄 높이는 12 —
+       뭉치 전체가 27px 안에 든다. 장애물 하나를 비켜가느라 한 칸 더 밀리는 것까지는 같은
+       뭉치로 읽히지만(≈40), 그 이상은 도형과 무관한 별개 UI 로 보인다. 회귀 전 220.46 은
+       이 임계의 5배가 넘는다. 지금 값은 19.18(핸들 b 링을 막 벗어난 자리). */
+    assert.ok(dy <= 40, "스와치 줄이 ✕ 배지에서 " + dy.toFixed(2) + "px 떨어졌다(임계 40) — 컨트롤 뭉치가 도형에서 분리됐다");
+    // 가까워졌다고 안전을 잃으면 안 된다 — I-1·Task 4 불변식을 이 자리에서도 직접 단언한다.
+    for (const r of sw) {
+      assert.ok(!rectHitsCircle(r, db.x, db.y, db.r + 2), "Task 4 불변식 위반(스와치 ∩ ✕ 배지 히트원) — " + JSON.stringify(r));
+      for (const [P, k] of [[pts.A, "a"], [pts.B, "b"]])
+        assert.ok(!rectHitsCircle(r, P.x, P.y, SW_CLR_), k + " 핸들 회피 반경(SW_CLR)을 침범했다 — " + JSON.stringify(r));
+    }
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("I-3 일반: 고른 y 는 항상 '기본 자리에서 가장 가까운 안전한 후보' 다(3 geometry × 6종 격자)", () => {
+  const T2 = require("./forge-tools.js");
+  const GEOS = [
+    { padX: 50, padTop: 20, padBot: 30, ch: 400, histW: 600, plotRight: 650, start: 0, count: 100, log: false, loV: 50,  hiV: 150 },
+    { padX: 40, padTop: 20, padBot: 24, ch: 340, histW: 520, plotRight: 600, start: 0, count: 150, log: false, loV: 80,  hiV: 130 },
+    { padX: 60, padTop: 16, padBot: 40, ch: 300, histW: 700, plotRight: 760, start: 0, count: 80,  log: false, loV: 900, hiV: 1100 },
+  ];
+  let checked = 0, fallback = 0, worst = 0;
+  for (const g of GEOS) withGeoShim(g, ({ times }) => {
+    const pr = v => g.loV + (g.hiV - g.loV) * v;
+    for (const type of ["trend", "channel", "range", "period", "hline", "vline"])
+      for (const ab of [0, 18, 47, 71, 88]) for (const ap of [0.05, 0.31, 0.56, 0.8, 0.96])
+        for (const bb of [9, 33, 60, 84, 96]) for (const bp of [0.1, 0.42, 0.68, 0.93]) {
+          const d = { id: "gx", type, a: { t: times[ab], p: pr(ap) } };
+          if (type !== "hline" && type !== "vline") d.b = { t: times[bb], p: pr(bp) };
+          if (type === "channel") d.off = (g.hiV - g.loV) * 0.06;
+          const G = T2.drawsGeo();
+          if (!selectByBody(T2, d, G, times)) continue;
+          const db = T2._delBadge(G, d), sw = T2._swatchRects(G, d);
+          if (!db || !sw.length) continue;
+          const last = sw[sw.length - 1];
+          const rowW = last.x + last.w - sw[0].x;
+          const c = swatchCandidates(T2, G, d, db, rowW, times);
+          const best = nearestClearY(c, rowW, G);
+          // 후보가 전부 막히면 최후 수단(옛 클램프) 분기 — 근접성 계약의 대상이 아니다.
+          if (best === null) { fallback++; continue; }
+          checked++;
+          const got = Math.abs(sw[0].y - c.yDef), want = Math.abs(best - c.yDef);
+          worst = Math.max(worst, got - want);
+          assert.ok(got <= want + 1e-9,
+            type + " a=" + ab + "/" + ap + " b=" + bb + "/" + bp + " ch=" + g.ch
+            + " : 기본 자리에서 " + got.toFixed(2) + "px 떨어진 자리를 골랐는데, "
+            + want.toFixed(2) + "px 짜리 안전한 후보가 있었다(y " + sw[0].y.toFixed(2) + " vs " + best.toFixed(2) + ")");
+        }
+  });
+  assert.ok(checked > 3000, "격자가 실제로 돌았는지 — 검사한 구성 수: " + checked);
+  assert.strictEqual(fallback, 0, "최후 수단 분기 도달 " + fallback + "건 — 후보 목록이 비면 안 된다");
+  assert.strictEqual(worst, 0, "구현이 오라클보다 먼 자리를 고른 최대 초과: " + worst);
+});

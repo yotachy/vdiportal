@@ -441,10 +441,24 @@
          · plotRight+2-rowW 우측 가장자리에 붙임
          · minX - …         모든 핸들의 왼쪽(같은 이유로 세로 무관 안전)
          · padX - 2         좌측 가장자리에 붙임
-       y 후보: 배지 아래(종전 기본) → 배지 위 → 모든 핸들 아래 → 모든 핸들 위. */
+       y 후보: 배지 아래(기본) · 배지 위 · 모든 핸들 아래 · 모든 핸들 위 **+ 핸들 하나하나의
+       바로 아래·바로 위**. 그리고 전체를 기본 자리에서 먼 순서로 정렬해 **가장 가까운 안전한
+       자리**를 쓴다.
+       I-3: 이 넷만 있던 시절엔 후보가 너무 성겨서, 겨우 2.3px 걸친 핸들 하나 때문에 줄이
+       205px 아래로 뛰었다(실측: 배지 y 31 → 줄 y 251.46. 상승 추세선의 위쪽 끝점이 기본
+       자리를 살짝 물면 "모든 핸들 아래"가 첫 통과 후보가 된다). 컨트롤 뭉치가 제 도형에서
+       떨어져 허공에 뜨면 "의도된 정밀함"이라는 이 기능의 요구와 정반대로 읽힌다.
+       장애물마다 "그 하나만 막 벗어나는" 자리를 후보에 넣으면(같은 예에서 y 50.18) 205px
+       대신 19px 로 끝난다. 정렬은 목록 순서가 아니라 **거리**가 자리를 고르게 하는 장치다 —
+       후보를 늘리기만 하고 순서를 그대로 두면 새 후보가 뒤에 붙어 아무것도 달라지지 않는다.
+       안전성은 여전히 _rowClear 가 전담한다(후보는 늘어도 관문은 그대로) — I-1·M-9 불변식 불변. */
     const near = [db.x - db.r, maxX + SW_CLR + 2, G.g.plotRight + 2 - rowW];
     const far  = [minX - SW_CLR - 2 - rowW, G.g.padX - 2];
-    const ys   = [db.y + SEP, db.y - SEP - S, maxY + SW_CLR, minY - SW_CLR - S];
+    const yDef = db.y + SEP;
+    const ys   = [yDef, db.y - SEP - S, maxY + SW_CLR, minY - SW_CLR - S];
+    for (const h of P) ys.push(h.y + SW_CLR, h.y - SW_CLR - S);
+    // 같은 거리면 원래 순서(기본 자리 우선)가 유지된다 — Array#sort 는 안정 정렬이다.
+    ys.sort((p, q) => Math.abs(p - yDef) - Math.abs(q - yDef));
     for (const xs of [near, far])
       for (const y0 of ys)
         for (const x0 of xs)
