@@ -1205,3 +1205,219 @@ test("T6 이탈: drawsHoverClear 는 예광을 끄고, 이미 꺼져 있으면 �
   });
   T2.drawsLoad([]); T2._undoReset();
 });
+
+/* ══ FINAL 리뷰 대응 (I-1 스와치↔핸들 · M-9 hline 오클릭 · I-2 굵기 페인트) ═══════════
+   forge-tools.js 내부 상수와 같은 값(비노출) — 어긋나면 아래 단언이 먼저 깨진다. */
+const HR_VIS_ = 4.5, DEL_R_ = 9, BODY_R_ = 5;
+/* 링 위 8방향 표본 — "그려진 핸들 위 어디를 눌러도" 를 재려면 중심 하나로는 부족하다. */
+function ringPts(cx, cy, r) {
+  const out = [{ x: cx, y: cy }];
+  for (let k = 0; k < 8; k++) out.push({ x: cx + r * Math.cos(k * Math.PI / 4), y: cy + r * Math.sin(k * Math.PI / 4) });
+  return out;
+}
+
+test("FINAL I-1 회귀: 그려진 끝점 핸들 위를 누르면 항상 handle — 스와치·배지가 삼키면 안 됨", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times }) => {
+    const cases = [
+      // ① 리뷰 재현 조건 — 오른쪽 끝이 플롯 우측에 가까워 스와치 줄(폭 122)이 왼쪽으로
+      //    클램프되며 핸들 b(x 534.8) 위에 얹혔다. 회귀 전 결과: {kind:"swatch"} → 선이 골드로.
+      { id: "t1", type: "trend", a: { t: times[20], p: 55 }, b: { t: times[80], p: 52 } },
+      // ② 스윕이 새로 찾아낸 **파괴적** 짝 — 도형 위끝이 플롯 상단에 붙으면 _delBadge 의 y 가
+      //    padTop+DEL_R+2 로 클램프돼 배지가 핸들 쪽으로 내려온다. 배지 판정원(db.r+2)은 그려진
+      //    원(db.r)보다 2px 넉넉해서, 그 여유분이 핸들 링을 덮으면 화면엔 핸들이 보이는데
+      //    클릭은 {kind:"del"} = 도형 삭제였다.
+      { id: "t2", type: "trend", a: { t: times[0], p: 52 }, b: { t: times[88], p: 148 } },
+    ];
+    for (const d of cases) {
+      T2.drawsLoad([d]);
+      const G = T2.drawsGeo();
+      const A = { x: G.fiToX(T2.tToFi(times, d.a.t)), y: G.pToY(d.a.p) };
+      const B = { x: G.fiToX(T2.tToFi(times, d.b.t)), y: G.pToY(d.b.p) };
+      T2.drawsPointerDown({}, (A.x + B.x) / 2, (A.y + B.y) / 2); T2.drawsPointerUp();   // 본체 클릭으로 선택
+      const sw = T2._swatchRects(G, d), badge = T2._delBadge(G, d);
+      assert.ok(sw.length && badge, d.id + ": 선택 상태(스와치·배지가 있는 상태)여야 유효한 검사");
+
+      for (const [P, which] of [[A, "a"], [B, "b"]])
+        for (const q of ringPts(P.x, P.y, HR_VIS_ * 0.98)) {
+          // ✕ 배지가 실제로 **그려진** 원 안은 배지 몫 — 거기서 보이는 건 배지다(그리기 순서와 일치).
+          if (Math.hypot(q.x - badge.x, q.y - badge.y) <= DEL_R_) continue;
+          const h = T2.drawsHitTest(q.x, q.y);
+          assert.ok(h && h.kind === "handle" && h.id === d.id,
+            d.id + " " + which + " 핸들 링 위 클릭이 " + (h ? h.kind : "null") + " 로 먹혔다 — " + JSON.stringify(q));
+        }
+      // 배치 불변식 자체도 확인 — 판정 순서에만 기대면 "보이는데 덮여 있다"는 미관 결함이 남는다.
+      for (const r of sw) {
+        for (const P of [A, B])
+          assert.ok(!rectHitsCircle(r, P.x, P.y, HR_VIS_), d.id + ": 스와치가 핸들 링을 덮었다 — " + JSON.stringify(r));
+        assert.ok(!rectHitsCircle(r, badge.x, badge.y, badge.r + 2), d.id + ": Task 4 불변식 위반(스와치 ∩ 배지 히트원)");
+      }
+    }
+    /* 링 바깥의 넉넉한 판정(HR=11)도 살아 있어야 한다 — 4.5px 링을 마우스로 정확히 맞히는 건
+       사실상 불가능해서(F4 라운드 실측) 항상 본체가 먼저 잡히던 증상의 해법이 이 여유다.
+       군집(배지·스와치)에서 먼 아래쪽 앵커로 확인한다. */
+    const { A: LA } = seedTrend(T2, times, "#123456");
+    T2.drawsPointerDown({}, LA.x, LA.y); T2.drawsPointerUp();
+    for (const dx of [-8, 8]) {
+      const h = T2.drawsHitTest(LA.x + dx, LA.y);
+      assert.ok(h && h.kind === "handle" && h.which === "a",
+        "링 밖 " + Math.abs(dx) + "px(HR 안)도 handle 이어야 함 — " + (h ? h.kind : "null"));
+    }
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("FINAL I-1 배치 스윕: 4종 × 앵커 격자 전부에서 스와치가 핸들 링·배지 히트원을 안 덮는다", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times }) => {
+    let checked = 0;
+    for (const type of ["trend", "channel", "range", "period"])
+      // 51/141/봉80 은 스윕 스크립트가 찾아낸 **파괴적** 조합 자리다 — 도형 위끝이 플롯 상단에
+      // 붙어 배지 y 가 클램프되고 오른쪽 끝이 우측 가장자리에 가까운 구간. 격자에서 빼면
+      // "스와치 ↔ 배지 히트원" 회피를 통째로 지워도 스위트가 초록으로 남는다(실측).
+      for (const ab of [0, 25, 50, 75, 95]) for (const ap of [51, 55, 90, 125, 148])
+        for (const bb of [5, 40, 70, 80, 85, 92, 99]) for (const bp of [52, 88, 120, 141, 145]) {
+          const d = { id: "s1", type, a: { t: times[ab], p: ap }, b: { t: times[bb], p: bp } };
+          if (type === "channel") d.off = 6;
+          T2.drawsLoad([d]);
+          const G = T2.drawsGeo();
+          const A = { x: G.fiToX(ab), y: G.pToY(ap) }, B = { x: G.fiToX(bb), y: G.pToY(bp) };
+          const mid = (type === "trend" || type === "channel")
+            ? { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 }
+            : { x: (A.x + B.x) / 2, y: Math.max(A.y, B.y) };
+          T2.drawsPointerDown({}, mid.x, mid.y); T2.drawsPointerUp();
+          const sw = T2._swatchRects(G, d), badge = T2._delBadge(G, d);
+          if (!sw.length || !badge) continue;
+          checked++;
+          for (const r of sw) {
+            for (const P of [A, B])
+              assert.ok(!rectHitsCircle(r, P.x, P.y, HR_VIS_),
+                type + " 스와치가 핸들 링을 덮었다 — a=" + ab + "/" + ap + " b=" + bb + "/" + bp + " " + JSON.stringify(r));
+            assert.ok(!rectHitsCircle(r, badge.x, badge.y, badge.r + 2),
+              type + " 스와치가 ✕ 배지 히트원과 겹쳤다(파괴적) — " + JSON.stringify(r));
+          }
+        }
+    assert.ok(checked > 2500, "격자가 실제로 돌았는지 — 검사한 구성 수: " + checked);
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("FINAL M-9 회귀: hline·vline 본체 밴드 위 클릭은 body — 스와치가 선 밑에 깔리면 안 됨", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times }) => {
+    for (const p of [149, 140, 128, 120, 100, 80, 60, 51]) {
+      const d = { id: "h1", type: "hline", a: { t: times[10], p } };
+      T2.drawsLoad([d]);
+      const G = T2.drawsGeo();
+      const y = G.pToY(p);
+      T2.drawsPointerDown({}, 300, y); T2.drawsPointerUp();   // 선택
+      const badge = T2._delBadge(G, d);
+      assert.ok(T2._swatchRects(G, d).length, "p=" + p + ": 선택 상태여야 유효한 검사");
+      for (let x = G.g.padX + 2; x <= G.g.plotRight - 2; x += 11)
+        for (const dy of [-BODY_R_ + 0.1, -2, 0, 2, BODY_R_ - 0.1]) {
+          const qy = y + dy;
+          if (qy < G.g.padTop || qy > G.g.ch - G.g.padBot) continue;
+          if (badge && Math.hypot(x - badge.x, qy - badge.y) <= badge.r + 2) continue;   // 배지는 선 위에 얹히는 게 의도
+          const h = T2.drawsHitTest(x, qy);
+          assert.ok(h && h.kind === "body",
+            "hline p=" + p + " 의 선 위(" + x.toFixed(0) + "," + qy.toFixed(1) + ") 클릭이 " + (h ? h.kind : "null") + " 로 먹혔다");
+        }
+    }
+    for (const bar of [0, 1, 20, 50, 80, 98, 99]) {
+      const d = { id: "v1", type: "vline", a: { t: times[bar], p: 100 } };
+      T2.drawsLoad([d]);
+      const G = T2.drawsGeo();
+      const x = G.fiToX(bar);
+      T2.drawsPointerDown({}, x, 200); T2.drawsPointerUp();
+      const badge = T2._delBadge(G, d);
+      for (let qy = G.g.padTop + 2; qy <= G.g.ch - G.g.padBot - 2; qy += 9)
+        for (const dx of [-BODY_R_ + 0.1, 0, BODY_R_ - 0.1]) {
+          const qx = x + dx;
+          if (qx < G.g.padX - 2 || qx > G.g.plotRight + 2) continue;
+          if (badge && Math.hypot(qx - badge.x, qy - badge.y) <= badge.r + 2) continue;
+          const h = T2.drawsHitTest(qx, qy);
+          assert.ok(h && h.kind === "body",
+            "vline bar=" + bar + " 의 선 위(" + qx.toFixed(0) + "," + qy + ") 클릭이 " + (h ? h.kind : "null") + " 로 먹혔다");
+        }
+    }
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("FINAL I-2 회귀: 사용자가 고른 굵기가 **페인트**까지 간다(6종 전부·CW 3단)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    // 이 계열의 함정: drawStyle() 반환값만 단언하면 페인트에서 굵기를 흘려도 통과한다
+    // (Task 4 가 그렇게 장식 스와치를 출하했다). 여기선 stroke() 시점의 lineWidth 만 본다.
+    for (const w of T2.SW_W) {
+      T2.drawsLoad([
+        { id: "t1", type: "trend",   color: "#123456", w, a: { t: times[10], p: 90 },  b: { t: times[40], p: 120 } },
+        { id: "c1", type: "channel", color: "#123456", w, off: 8, a: { t: times[50], p: 95 }, b: { t: times[80], p: 130 } },
+        { id: "r1", type: "range",   color: "#123456", w, a: { t: times[90], p: 100 }, b: { t: times[110], p: 120 } },
+        { id: "p1", type: "period",  color: "#123456", w, a: { t: times[112], p: 60 }, b: { t: times[130], p: 80 } },
+        { id: "h1", type: "hline",   color: "#123456", w, a: { t: times[10], p: 110 } },
+        { id: "v1", type: "vline",   color: "#123456", w, a: { t: times[60], p: 100 } },
+      ]);
+      ctx.ops.length = 0; T2.drawsRender();
+      const body = ctx.ops.filter(o => o.op === "stroke" && o.color === "#123456");
+      assert.strictEqual(body.length, 7,
+        w + ": 6종 7획(추세1·채널2·박스2·hline1·vline1)이 나와야 함: " + body.length);
+      assert.ok(body.every(o => o.lineWidth === CW_[w]),
+        w + " 를 골랐는데 페인트 굵기가 CW." + w + "(" + CW_[w] + ") 가 아니다: " + JSON.stringify(body.map(o => o.lineWidth)));
+    }
+    // 굵기 스와치 클릭 → 페인트까지 반영되는 왕복도 함께(저장값 단언만으로는 부족)
+    const d = { id: "h1", type: "hline", color: "#123456", a: { t: times[10], p: 100 } };
+    T2.drawsLoad([d]);
+    const G = T2.drawsGeo();
+    T2.drawsPointerDown({}, 300, G.pToY(100)); T2.drawsPointerUp();
+    const bold = T2._swatchRects(G, d).find(r => r.kind === "w" && r.val === "bold");
+    assert.ok(bold, "bold 스와치가 있어야 함");
+    T2.drawsPointerDown({}, bold.x + bold.w / 2, bold.y + bold.h / 2);
+    ctx.ops.length = 0; T2.drawsRender();
+    const line = ctx.ops.filter(o => o.op === "stroke" && o.color === "#123456" && o.alpha < 1 && o.dash.length);
+    assert.ok(line.length && line.every(o => o.lineWidth === CW_.bold),
+      "스와치로 고른 bold 가 실제 선 굵기로 안 갔다: " + JSON.stringify(line.map(o => o.lineWidth)));
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("FINAL 잔여: 굵기 스와치 칸의 획도 현재 도형 색으로 그린다(패널 색 페인트 단언)", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    const { mid } = seedTrend(T2, times, "#123456");
+    T2.drawsPointerDown({}, mid.x, mid.y); T2.drawsPointerUp();
+    T2.drawsCursor(60, 30);   // 호버 해제 — 핸들이 색으로 차면 획 수가 달라진다
+    ctx.ops.length = 0; T2.drawsRender();
+    const cw = ctx.ops.filter(o => o.op === "stroke" && o.alpha === 1 && o.color === "#123456").map(o => o.lineWidth);
+    for (const k of T2.SW_W)
+      assert.ok(cw.includes(CW_[k]),
+        "굵기 칸 " + k + "(" + CW_[k] + ") 획이 도형 색으로 안 그려졌다 — 타입 기본색으로 그리면 여기서 잡힌다: " + JSON.stringify(cw));
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});
+
+test("FINAL 잔여: 진행 칩 글자색·라벨 배경도 테마 전역을 그릴 때 읽는다", () => {
+  const T2 = require("./forge-tools.js");
+  withRecShim(({ times, ctx }) => {
+    const pg = global.FC_GOLD, pb = global.FC_CHART_BG;
+    global.FC_GOLD = "#3a4656";      // daylight — _syncChartColors() 가 하는 재대입
+    global.FC_CHART_BG = "#ffffff";
+    try {
+      T2.drawsLoad([{ id: "t1", type: "trend", color: "#123456", a: { t: times[10], p: 90 }, b: { t: times[40], p: 120 } }]);
+      T2.drawsArm("trend");          // 진행 칩은 무장 상태에서만 그려진다
+      ctx.ops.length = 0; T2.drawsRender();
+      const chip = ctx.ops.filter(o => o.op === "text" && /시작점/.test(o.text))[0];
+      assert.ok(chip, "무장 중에는 진행 칩이 그려져야 함");
+      assert.strictEqual(chip.color, "#3a4656",
+        "칩 글자색이 리터럴 골드면 흰 배경에서 안 읽힌다: " + chip.color);
+      assert.ok(ctx.ops.some(o => o.op === "fill" && o.style === "rgba(255,255,255,.86)"),
+        "라벨·칩 배경이 --chart-bg 를 따라야 함(리터럴 검정이면 흰 차트 위에 검은 박스): "
+        + JSON.stringify([...new Set(ctx.ops.filter(o => o.op === "fill").map(o => o.style))]));
+    } finally {
+      T2.drawsArm(null);
+      if (pg === undefined) delete global.FC_GOLD; else global.FC_GOLD = pg;
+      if (pb === undefined) delete global.FC_CHART_BG; else global.FC_CHART_BG = pb;
+    }
+  });
+  T2.drawsLoad([]); T2._undoReset();
+});

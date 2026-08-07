@@ -108,6 +108,10 @@
      그래서 항상 본체가 먼저 잡혀 "이동만 된다"는 증상이 났다. 시각 4.5px / 판정 11px 로 키운다
      (HR_VIS = 끝점 핸들 링의 반지름 — _handleRing 한 곳에서만 쓴다). */
   const HR = 11, HR_VIS = 4.5, DEL_R = 9, BODY_R = 5;
+  /* 그려진 핸들 링을 덮는 최소 반경(HR_VIS + 획 두께 여유). 판정에서는 "화면에 보이는 링"의
+     경계로, 배치에서는 스와치가 그 링을 절대 안 덮게 하는 최소 이격으로 쓴다.
+     SW_CLR > HR_NEAR 이어야 배치가 판정 경계에 닿지도 않는다(여유 0.5px). */
+  const HR_NEAR = HR_VIS + 1.5, SW_CLR = HR_VIS + 2;
 
   /* 도형별 기본색. **trend·hline 의 골드만 테마를 따른다** — 이 둘의 골드는 차트 히어로
      액센트와 같은 자리이고, forge-draw.js 의 _syncChartColors() 가 라이트 테마(daylight·paper)
@@ -332,6 +336,56 @@
     return { x: Math.min(x, G.g.plotRight - DEL_R - 2), y, r: DEL_R };
   }
 
+  /* 이 도형이 화면에 실제로 그리는 끝점 핸들들. hline·vline 은 끝점이 **없다**(선 전체가
+     이동 대상 — drawsHitTest 의 타입가드 주석 참고)라 빈 배열이다. 판정(drawsHitTest)과
+     배치(_swatchRects) 두 곳이 같은 목록을 봐야 "보이는 핸들은 항상 잡힌다"가 성립한다. */
+  function _handlePts(G, d) {
+    if (!d || d.type === "hline" || d.type === "vline") return [];
+    const out = [];
+    for (const k of ["a", "b"]) {
+      if (!d[k]) continue;
+      const P = _pt(G, d[k]);
+      if (isFinite(P.x) && isFinite(P.y)) out.push({ x: P.x, y: P.y, which: k });
+    }
+    return out;
+  }
+
+  /* 스와치 줄이 절대 덮으면 안 되는 히트 영역들.
+     FINAL 리뷰 I-1 의 교훈: 이 줄은 핸들·본체보다 **나중에** 그려지므로(_renderOnePaint 는
+     핸들 → 배지 → 스와치 순), 겹치는 자리에서는 아래 것이 보이지도 눌리지도 않는다.
+     즉 히트 우선순위는 이미 그리기 순서와 일치하고(위에 보이는 게 이긴다), 진짜 결함은
+     **줄이 남의 자리에 그려진다는 것**이다 — 그래서 해법은 판정 뒤집기가 아니라 배치다.
+       ① ✕ 배지 히트원(db.r+2) — 겹치면 색 누르려다 삭제(파괴적). Task 4 가 세운 불변식.
+       ② 끝점 핸들의 보이는 링(SW_CLR) — 겹치면 끝점 편집이 막힌다(I-1, 정상 구간 2.42%).
+       ③ hline·vline 의 본체 밴드(±BODY_R) — 끝점이 없는 두 타입은 선 자체가 잡는 자리다(M-9). */
+  function _swatchZones(G, d, db) {
+    const z = [{ x: db.x, y: db.y, r: db.r + 2 }];
+    if (d.type === "hline") {
+      const y = G.pToY(d.a.p);
+      if (isFinite(y)) z.push({ rx: G.g.padX, ry: y - BODY_R, rw: G.g.plotRight - G.g.padX, rh: BODY_R * 2 });
+    } else if (d.type === "vline") {
+      const x = G.fiToX(tToFi(G.times, d.a.t));
+      if (isFinite(x)) z.push({ rx: x - BODY_R, ry: G.g.padTop, rw: BODY_R * 2, rh: G.g.ch - G.g.padTop - G.g.padBot });
+    } else {
+      for (const h of _handlePts(G, d)) z.push({ x: h.x, y: h.y, r: SW_CLR });
+    }
+    return z;
+  }
+  /* 후보 자리가 쓸 만한가 — 클립 안에 통째로 들어오고(안 보이면 없는 것과 같다),
+     위 세 영역 어느 것과도 안 겹치는가. r 이 있으면 원, rx 가 있으면 사각형. */
+  function _rowClear(x0, y0, w, h, zones, G) {
+    if (!isFinite(x0) || !isFinite(y0)) return false;
+    if (x0 < G.g.padX - 2 || x0 + w > G.g.plotRight + 2) return false;
+    if (y0 < G.g.padTop || y0 + h > G.g.ch - G.g.padBot) return false;
+    for (const z of zones) {
+      if (z.r !== undefined) {
+        const nx = Math.max(x0, Math.min(z.x, x0 + w)), ny = Math.max(y0, Math.min(z.y, y0 + h));
+        if (Math.hypot(z.x - nx, z.y - ny) < z.r) return false;
+      } else if (x0 < z.rx + z.rw && z.rx < x0 + w && y0 < z.ry + z.rh && z.ry < y0 + h) return false;
+    }
+    return true;
+  }
+
   /* 선택된 도형 옆 스타일 줄 — ✕ 배지 아래에 색 5칸 + 굵기 3칸.
      캔버스에 그리므로 DOM 추가 없이 차트와 같은 좌표계에 산다.
      F1(리뷰): 브리프 원안은 db 좌표에서 바로 x0=db.x-db.r 로 놓고 클램프가 없었다 —
@@ -349,7 +403,13 @@
      히트원과 절대 겹치지 않는다.** 이를 지키려면 클립 맞추기보다 배지와의 최소 간격
      확보가 우선이어야 한다 — 아래에 자리가 없으면 위로 뒤집고(대칭 간격이라 아래와
      동일하게 안전), 위조차 없는 극단적으로 좁은 플롯에서만 최후 수단으로 클립 안쪽에
-     클램프한다(실사용 차트 높이에서는 도달하지 않는 분기). */
+     클램프한다(실사용 차트 높이에서는 도달하지 않는 분기).
+     I-1(FINAL 리뷰): 위 "x0 클램프는 그대로 둬도 안전하다"는 **배지에만** 참이었다. 배지의 y 는
+     db 에서 나오므로 세로 간격 하나로 증명되지만, 끝점 핸들은 임의의 y 에 있어 세로 간격이
+     보장해주지 못한다 — 도형의 오른쪽 끝이 플롯 우측에 가까우면 x0 클램프가 122px 줄을 통째로
+     왼쪽으로 끌어 핸들 위에 얹었다(실측: 정상 작도 구간 클릭의 2.42%가 드래그 대신 색변경).
+     그래서 "한 자리 + 클램프" 대신 **후보 자리를 순서대로 훑어 처음으로 깨끗한 곳**을 쓴다.
+     후보는 종전 자리(배지 아래·도형 오른쪽)를 맨 앞에 둬서 대부분의 도형에서 외형이 안 바뀐다. */
   function _swatchRects(G, d) {
     const db = _delBadge(G, d); if (!db) return [];
     const S = 12, GAP = 3;
@@ -364,15 +424,41 @@
     x += 5;
     SW_W.forEach(v => { out.push({ x, y: 0, w: S, h: S, kind: "w", val: v }); x += S + GAP; });
     const rowW = out[out.length - 1].x + S;   // 마지막 스와치 우측 끝 = 실측 전체 폭
-    const x0 = Math.max(G.g.padX - 2, Math.min(db.x - db.r, G.g.plotRight + 2 - rowW));
+    const place = (px, py) => out.map(r => ({ x: r.x + px, y: py, w: r.w, h: r.h, kind: r.kind, val: r.val }));
 
+    // 도형이 차지한 화면 범위 — 후보 좌표를 여기서 파생한다(판정은 아래 _rowClear 가 한다).
+    const Z = _swatchZones(G, d, db);
+    let P = _handlePts(G, d);
+    if (!P.length) { const a = _pt(G, d.a); if (isFinite(a.x) && isFinite(a.y)) P = [a]; }
+    if (!P.length) P = [{ x: db.x, y: db.y }];
+    const minX = Math.min(...P.map(p => p.x)), maxX = Math.max(...P.map(p => p.x));
+    const minY = Math.min(...P.map(p => p.y)), maxY = Math.max(...P.map(p => p.y));
+
+    /* x 후보: 앞의 셋은 도형 근처(외형 유지), 뒤의 둘은 왼쪽으로 크게 비키는 최후 수단이라
+       세로 후보를 전부 소진한 다음에야 쓴다 — 그래야 줄이 화면 반대편으로 튀는 일이 준다.
+         · db.x - db.r      종전 기본(도형 오른쪽 끝 + 4)
+         · maxX + SW_CLR+2  모든 핸들의 오른쪽 — 세로 위치와 무관하게 핸들과 안 겹친다
+         · plotRight+2-rowW 우측 가장자리에 붙임
+         · minX - …         모든 핸들의 왼쪽(같은 이유로 세로 무관 안전)
+         · padX - 2         좌측 가장자리에 붙임
+       y 후보: 배지 아래(종전 기본) → 배지 위 → 모든 핸들 아래 → 모든 핸들 위. */
+    const near = [db.x - db.r, maxX + SW_CLR + 2, G.g.plotRight + 2 - rowW];
+    const far  = [minX - SW_CLR - 2 - rowW, G.g.padX - 2];
+    const ys   = [db.y + SEP, db.y - SEP - S, maxY + SW_CLR, minY - SW_CLR - S];
+    for (const xs of [near, far])
+      for (const y0 of ys)
+        for (const x0 of xs)
+          if (_rowClear(x0, y0, rowW, S, Z, G)) return place(x0, y0);
+
+    /* 최후 수단 — 어떤 후보도 못 들어가는 극단 레이아웃(플롯이 아주 낮거나 아주 좁을 때).
+       종전 배치 그대로: 배지와의 세로 간격(SEP)만은 반드시 지켜 파괴적 오클릭(삭제)을 막는다. */
+    const x0 = Math.max(G.g.padX - 2, Math.min(db.x - db.r, G.g.plotRight + 2 - rowW));
     const below = db.y + SEP, above = db.y - SEP - S;
     let y0;
-    if (below + S <= G.g.ch - G.g.padBot) y0 = below;          // 아래에 자리 있으면 아래(기존 기본 배치)
-    else if (above >= G.g.padTop) y0 = above;                   // 없으면 위로 뒤집기(같은 SEP 로 대칭 안전)
-    else y0 = Math.max(G.g.padTop, Math.min(below, G.g.ch - G.g.padBot - S));   // 최후: 클립 우선(실사용에선 도달 안 함)
-
-    return out.map(r => ({ x: r.x + x0, y: y0, w: r.w, h: r.h, kind: r.kind, val: r.val }));
+    if (below + S <= G.g.ch - G.g.padBot) y0 = below;
+    else if (above >= G.g.padTop) y0 = above;
+    else y0 = Math.max(G.g.padTop, Math.min(below, G.g.ch - G.g.padBot - S));
+    return place(x0, y0);
   }
 
   function _drawSwatches(c, G, d) {
@@ -585,12 +671,20 @@
     if (_selId) {
       const d = _byId(_selId);
       if (d) {
-        const db = _delBadge(G, d);   // 삭제 배지가 핸들보다 우선(작고 끝점 근처라 밀리면 못 누른다)
-        if (db && Math.hypot(cx - db.x, cy - db.y) <= db.r + 2) return { kind: "del", id: d.id, which: null };
-        for (const r of _swatchRects(G, d)) {   // 스와치도 작고 핸들 근처라 핸들보다 먼저 판정
-          if (cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h)
-            return { kind: "swatch", id: d.id, which: null, sw: r };
-        }
+        /* 우선순위는 **그리는 순서와 같게** 둔다 — _renderOnePaint 가 핸들 → 배지 → 스와치 순으로
+           덧그리므로, 겹치는 자리에서는 위에 보이는 것이 이겨야 사용자가 본 대로 눌린다.
+           다만 배지 판정원은 그려진 원(db.r=9)보다 2px 넉넉한데(작아서 놓치기 쉬움),
+           그 **여유분이 그려진 핸들 링 위로 넘어오면** 화면엔 핸들이 보이는데 눌리는 건 삭제다
+           (스윕 실측: 배지 x 클램프가 도는 우측 도형에서 발생 — 파괴적). 그래서 세 칸으로 나눈다.
+             ① 배지가 실제로 그려진 원(db.r)        → del
+             ② 그려진 핸들 링(HR_NEAR)              → handle   ← 배지 여유분보다 우선
+             ③ 배지 여유분(db.r + 2)                → del
+             ④ 스와치 사각형                        → swatch
+             ⑤ 넉넉한 핸들 판정(HR — 6px 링은 마우스로 못 맞힌다)  → handle
+           ②가 ④보다 앞서지만 스와치가 잘려나가지는 않는다 — _swatchRects 가 SW_CLR(>HR_NEAR)
+           이격을 지키는 자리만 고르므로 둘은 애초에 안 겹친다(sweep-drawing-hit.js 로 0 확인). */
+        const db = _delBadge(G, d);
+        const dbD = db ? Math.hypot(cx - db.x, cy - db.y) : Infinity;
         /* hline·vline 은 끝점이 **없다** — 선 전체가 이동 대상이고, 저장된 앵커는 "처음 클릭한
            자리"라는 흔적일 뿐 화면 어디에도 핸들로 그려지지 않는다(_renderOnePaint 는 hline 이면
            a.p 만, vline 이면 a.t 만 쓴다). 그런데 예전엔 이 검사가 타입을 안 가려, 그 보이지도
@@ -599,13 +693,21 @@
                 → 선이 커서 위치로 툭 튄다(최대 11px). 클릭만 해도 선이 움직인다.
              ② handle 경로엔 마그넷 흡착이 걸린다 — move 경로엔 없는 동작이라 같은 선을 어디서
                 잡느냐에 따라 반응이 달라진다.
-           "조작이 의도대로 느껴지게" 만드는 게 이 라운드의 목적이므로 타입으로 잘라낸다.
+           "조작이 의도대로 느껴지게" 만드는 게 이 라운드의 목적이므로 타입으로 잘라낸다
+           (_handlePts 가 두 타입에 빈 배열을 돌려주는 것이 그 가드다).
            두 타입은 항상 body 로 잡혀 축 고정 move 경로를 탄다. */
-        if (d.type !== "hline" && d.type !== "vline") {
-          const A = _pt(G, d.a), B = d.b ? _pt(G, d.b) : null;
-          if (isFinite(A.x) && isFinite(A.y) && Math.hypot(cx - A.x, cy - A.y) <= HR) return { kind: "handle", id: d.id, which: "a" };
-          if (B && isFinite(B.x) && isFinite(B.y) && Math.hypot(cx - B.x, cy - B.y) <= HR) return { kind: "handle", id: d.id, which: "b" };
+        const hs = _handlePts(G, d);
+        const nearest = lim => { for (const h of hs) if (Math.hypot(cx - h.x, cy - h.y) <= lim) return h; return null; };
+        if (db && dbD <= db.r) return { kind: "del", id: d.id, which: null };
+        const hv = nearest(HR_NEAR);
+        if (hv) return { kind: "handle", id: d.id, which: hv.which };
+        if (db && dbD <= db.r + 2) return { kind: "del", id: d.id, which: null };
+        for (const r of _swatchRects(G, d)) {
+          if (cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h)
+            return { kind: "swatch", id: d.id, which: null, sw: r };
         }
+        const hf = nearest(HR);
+        if (hf) return { kind: "handle", id: d.id, which: hf.which };
       }
     }
     for (let i = DRAWS.length - 1; i >= 0; i--) {
