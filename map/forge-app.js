@@ -1318,6 +1318,62 @@
     }
   })();
 
+  /* ── 드로잉 도구 팝오버(#drawPop): 차트 안에 살고, 헤더를 잡아 옮긴다 ──
+     좌표계는 차트 팬(forge.css 에서 position:absolute). 이동 범위도 뷰포트가 아니라 팬 박스로 가둔다 —
+     뷰포트로 가두면(형제 창들의 방식) 2·3패널을 넓혀 차트가 좁아졌을 때 헤더가 팬 밖으로 나가고,
+     팬이 overflow:hidden 이라 잘려서 다시 잡을 수단이 없어진다. */
+  const _DRAW_POS_KEY = "scoopforge_hud_draw";
+  function _clampDrawPop() {
+    const p = document.getElementById("drawPop"), pane = document.getElementById("chartPane");
+    if (!p || !pane || !p.classList.contains("on")) return;   // 닫혀 있으면 offsetWidth=0 → 잘못된 값으로 고정된다. 열 때 다시 부른다
+    if (!p.style.left) return;   // 인라인 left 없음 = CSS right 앵커 = 항상 팬 안쪽. 굳이 left 로 바꾸지 않는다
+    const maxL = Math.max(0, pane.clientWidth - p.offsetWidth), maxT = Math.max(0, pane.clientHeight - p.offsetHeight);
+    p.style.left = Math.max(0, Math.min(maxL, parseFloat(p.style.left) || 0)) + "px";
+    p.style.top = Math.max(0, Math.min(maxT, parseFloat(p.style.top) || 0)) + "px";
+  }
+  (function initDrawPopDrag() {
+    const p = document.getElementById("drawPop"), h = document.getElementById("drawPopHead"), pane = document.getElementById("chartPane");
+    if (!p || !h || !pane) return;
+    let d = null;
+    h.addEventListener("pointerdown", e => {
+      if (e.target.closest("button")) return;   // 헤더의 ✕는 버튼으로 남긴다(드래그로 삼키면 닫을 수 없다)
+      const r = p.getBoundingClientRect();
+      d = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      try { h.setPointerCapture(e.pointerId); } catch (_) {}
+      // 헤더는 캔버스의 형제(자손 아님)라 이 드래그가 차트 팬/그리기 핸들러에 닿지 않는다.
+      // preventDefault 는 드래그 중 텍스트 선택·기본 제스처만 막는다.
+      e.preventDefault();
+    });
+    h.addEventListener("pointermove", e => {
+      if (!d) return;
+      const pr = pane.getBoundingClientRect();
+      const maxL = Math.max(0, pane.clientWidth - p.offsetWidth), maxT = Math.max(0, pane.clientHeight - p.offsetHeight);
+      p.style.left = Math.max(0, Math.min(maxL, e.clientX - d.dx - pr.left)) + "px";
+      p.style.top = Math.max(0, Math.min(maxT, e.clientY - d.dy - pr.top)) + "px";
+      p.style.right = "auto";
+    });
+    const up = e => { if (!d) return; d = null; try { h.releasePointerCapture(e.pointerId); } catch (_) {} if (typeof _saveHudPos === "function") _saveHudPos(_DRAW_POS_KEY, p); };
+    h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
+    /* 팬 크기가 바뀌면(창 리사이즈 · #forgeGutter 분할 드래그 · 전체화면 · 2·3패널 접기)
+       저장해 둔 좌표가 팬 밖에 남는다. 호출부마다 훅을 심으면 경로가 늘 때 빠뜨리므로
+       팬 자체를 관찰해 한 곳에서 되가둔다. */
+    if (typeof ResizeObserver !== "undefined") { try { new ResizeObserver(() => _clampDrawPop()).observe(pane); } catch (_) {} }
+    else window.addEventListener("resize", _clampDrawPop);
+  })();
+  /* toggleDrawPop 은 forge-tools.js(드로잉 엔진 · 단위테스트 대상) 소관이라 그 파일에 창 좌표 코드를
+     넣지 않는다. 여기서 감싸 '열릴 때 위치 복원'만 덧붙인다. 복원 직후 재클램프 필수 —
+     넓은 화면에서 저장한 좌표가 좁은 화면에선 팬 밖이다. */
+  (function wrapToggleDrawPop() {
+    const orig = window.toggleDrawPop;
+    if (typeof orig !== "function") return;
+    window.toggleDrawPop = function () {
+      const r = orig.apply(this, arguments);
+      const p = document.getElementById("drawPop");
+      if (p && p.classList.contains("on")) { if (typeof _restoreHudPos === "function") _restoreHudPos(_DRAW_POS_KEY, p); _clampDrawPop(); }
+      return r;
+    };
+  })();
+
   (function initGutter() {
     const split = document.querySelector(".forge-split");
     const gutter = document.getElementById("forgeGutter");

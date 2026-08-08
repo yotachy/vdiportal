@@ -439,9 +439,13 @@
   body.hide-rail .ind-rail{display:none}
   /* M10: 드로잉 도구는 모바일 스코프 밖 — 좁은 화면에선 버튼 자체를 숨긴다 */
   @media (max-width:860px){ #drawToolBtn{display:none} }
-  /* 드로잉 팝오버는 .chart-pop 의 기본 좌표(left:12px·top:352px)를 쓰면 화면 왼쪽 끝에 열려
-     트리거 버튼(차트 헤더 우측)과 멀고 #chartPresetPop 과 정확히 겹친다 — 버튼 아래로 앵커. */
-  #drawPop{left:auto;right:16px;top:104px;width:250px}
+  /* 드로잉 팝오버만 차트 안에 산다 — 공통 .chart-pop 의 뷰포트 고정(position:fixed) 대신
+     차트 팬 기준 absolute. .chart-pane 이 position:relative + overflow:hidden 이라 좌표계와
+     클리핑이 그대로 팬 박스가 되고, 팬을 좁히면 도구창이 차트 밖으로 떠다니던 문제가 사라진다.
+     .chart-pop 자체는 건드리지 않는다 — #playHud·#analyzeLog·#chartPresetPop 이 같은 클래스를
+     쓰고 그쪽은 뷰포트 고정이 의도(전체화면서도 화면 기준으로 남아야 함).
+     top 은 트리거 버튼이 있는 차트 헤더(.fc-phead ≈ 46px) 아래로 — 헤더를 가리지 않는 첫 자리. */
+  #drawPop{position:absolute;left:auto;right:16px;top:56px;width:250px;max-width:calc(100% - 24px)}
   @media (max-width:860px){ #drawPop{display:none!important} }
   .fc-head-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   /* 국면/확률/시그널 강조 바 + 핵심 의견 */

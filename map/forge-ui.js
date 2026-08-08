@@ -143,6 +143,9 @@
   }
   let _panelAlignMode = "h";
   function _alignPanels() {
+    /* #drawPop 은 일부러 뺐다 — 여기 세 창은 뷰포트 고정(position:fixed)이라 left/top 이 화면 좌표지만,
+       드로잉 도구창만 차트 팬 기준(absolute)이다. 같은 좌표를 함께 배분하면 그 창만 엉뚱한 곳으로 가고,
+       누적 x/y 배치가 두 좌표계를 섞어 나머지 간격까지 어긋난다. 도구창 이동은 자기 헤더 드래그로. */
     const open = ["playHud", "analyzeLog", "chartPresetPop"].map(id => document.getElementById(id)).filter(p => p && p.classList.contains("on"));
     if (!open.length) return;
     _panelAlignMode = _panelAlignMode === "v" ? "h" : "v";   // 누를 때마다 수직↔수평
