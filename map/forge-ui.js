@@ -143,26 +143,40 @@
   }
   let _panelAlignMode = "h";
   function _alignPanels() {
-    /* #drawPop 은 일부러 뺐다 — 여기 세 창은 뷰포트 고정(position:fixed)이라 left/top 이 화면 좌표지만,
-       드로잉 도구창만 차트 팬 기준(absolute)이다. 같은 좌표를 함께 배분하면 그 창만 엉뚱한 곳으로 가고,
-       누적 x/y 배치가 두 좌표계를 섞어 나머지 간격까지 어긋난다. 도구창 이동은 자기 헤더 드래그로. */
-    const open = ["playHud", "analyzeLog", "chartPresetPop"].map(id => document.getElementById(id)).filter(p => p && p.classList.contains("on"));
+    /* 세 창이 모두 차트 팬 기준(absolute)이 됐으므로 좌표계 혼선이 없다 → #drawPop 도 함께 배분한다.
+       계산은 전부 팬 로컬 좌표. 한 줄(열)이 팬을 넘치면 다음 줄(열)로 접는다 —
+       팬이 overflow:hidden 이라 넘친 창은 그냥 사라져 버려서, 넘칠 바엔 접는 편이 낫다. */
+    const pane = document.getElementById("chartPane"); if (!pane) return;
+    const open = ["playHud", "drawPop", "chartPresetPop"].map(id => document.getElementById(id)).filter(p => p && p.classList.contains("on"));
     if (!open.length) return;
     _panelAlignMode = _panelAlignMode === "v" ? "h" : "v";   // 누를 때마다 수직↔수평
-    let x = 14, y = 66; const gap = 10;
-    open.forEach(p => { p.style.right = "auto"; p.style.left = x + "px"; p.style.top = y + "px"; if (_panelAlignMode === "v") y += p.offsetHeight + gap; else x += p.offsetWidth + gap; });
-    open.forEach(p => { const k = p.id === "playHud" ? "scoopforge_hud_play" : p.id === "analyzeLog" ? "scoopforge_hud_log" : "scoopforge_hud_preset"; if (typeof _saveHudPos === "function") _saveHudPos(k, p); });
+    const M = 12, TOP = 56, gap = 10;                        // TOP = 차트 헤더(.fc-phead ≈46px) 아래
+    const W = pane.clientWidth, H = pane.clientHeight;
+    let x = M, y = TOP, run = 0;                             // run = 현재 줄(열)의 최대 두께
+    open.forEach(p => {
+      p.style.right = "auto"; p.style.bottom = "auto";
+      const w = p.offsetWidth, h = p.offsetHeight;
+      if (_panelAlignMode === "v") { if (y > TOP && y + h > H - M) { y = TOP; x += run + gap; run = 0; } }
+      else { if (x > M && x + w > W - M) { x = M; y += run + gap; run = 0; } }
+      p.style.left = x + "px"; p.style.top = y + "px";
+      if (typeof _clampPanel === "function") _clampPanel(p);   // 접어도 안 들어가는 크기면 마지막에 팬 안으로 끌어당긴다
+      if (_panelAlignMode === "v") { y += h + gap; run = Math.max(run, w); }
+      else { x += w + gap; run = Math.max(run, h); }
+    });
+    const K = window.HUD_POS_KEYS || {};
+    open.forEach(p => { if (K[p.id] && typeof _saveHudPos === "function") _saveHudPos(K[p.id], p); });
     if (typeof bToast === "function") bToast(_panelAlignMode === "v" ? "창 수직 정렬" : "창 수평 정렬");
   }
   window._alignPanels = _alignPanels;
-  function _toggleRailPreset(e) { if (e) e.stopPropagation(); const p = document.getElementById("chartPresetPop"); if (!p) return; const on = p.classList.toggle("on"); if (on) { if (typeof renderPresets === "function") renderPresets(); if (typeof _restoreHudPos === "function") _restoreHudPos("scoopforge_hud_preset", p); } }
+  function _toggleRailPreset(e) { if (e) e.stopPropagation(); const p = document.getElementById("chartPresetPop"); if (!p) return; const on = p.classList.toggle("on"); if (on) { if (typeof renderPresets === "function") renderPresets(); const K = window.HUD_POS_KEYS || {}; if (K.chartPresetPop && typeof _restoreHudPos === "function") _restoreHudPos(K.chartPresetPop, p); if (typeof _clampPanel === "function") _clampPanel(p); } }
   /* 프리셋 창은 계속 떠있게 — 바깥 클릭 자동닫힘 제거(닫기는 ✕) */
-  (function initPresetDrag() { const h = document.getElementById("chartPresetHead"), p = document.getElementById("chartPresetPop"); if (!h || !p) return; let d = null;
-    h.addEventListener("pointerdown", e => { if (e.target.closest("button")) return; d = { x: e.clientX, y: e.clientY, l: p.offsetLeft, t: p.offsetTop }; try { h.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
-    h.addEventListener("pointermove", e => { if (!d) return; p.style.left = Math.max(0, Math.min(window.innerWidth - 60, d.l + e.clientX - d.x)) + "px"; p.style.top = Math.max(0, Math.min(window.innerHeight - 28, d.t + e.clientY - d.y)) + "px"; p.style.right = "auto"; });
-    const _pu = () => { if (d && typeof _saveHudPos === "function") _saveHudPos("scoopforge_hud_preset", p); d = null; }; h.addEventListener("pointerup", _pu); h.addEventListener("pointercancel", _pu);
+  (function initPresetDrag() { const p = document.getElementById("chartPresetPop"); if (!p) return;
+    /* 이동·되가두기는 forge-app.js 의 공통 헬퍼(_initPanelDrag) — 이 파일이 먼저 로드되므로 DOM 준비 후 호출 */
+    const wire = () => { if (typeof _initPanelDrag === "function") _initPanelDrag("chartPresetPop", "chartPresetHead"); };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire); else wire();
     const pmin = document.getElementById("railPresetMin");   // ✕(닫기) → 최소화(접기) 버튼
-    if (pmin) pmin.addEventListener("click", () => { p.classList.toggle("collapsed"); pmin.textContent = p.classList.contains("collapsed") ? "+" : "–"; });
+    // 펼치면 본문만큼 키가 커진다 → 팬 아래쪽에 둔 채 펼쳤을 때 잘리지 않게 재클램프
+    if (pmin) pmin.addEventListener("click", () => { p.classList.toggle("collapsed"); pmin.textContent = p.classList.contains("collapsed") ? "+" : "–"; if (typeof _clampPanel === "function") _clampPanel(p); });
   })();
   function _ensureGroups() { if (!Array.isArray(META.groups)) META.groups = []; if (!META.docGroups || typeof META.docGroups !== "object") META.docGroups = {}; }
   function _grpOf(docId) { _ensureGroups(); const g = META.docGroups[docId]; return (g && META.groups.some(x => x.id === g)) ? g : null; }

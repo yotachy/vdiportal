@@ -1274,74 +1274,48 @@
     });
     const l = document.getElementById("logBtn"); if (l) l.addEventListener("click", () => { toggleLogChart(); });
   })();
-  /* ── 시연 오버레이 제어: 상단 HUD(접기·드래그이동·숨김) + 하단 로그(접기) ── */
-  let _playHudUserCollapsed = false;   // 사용자가 명시적으로 접어둔 경우 true → 시뮬레이션 자동 펼침 제외
-  (function initPlayOverlayCtl() {
-    const hud = document.getElementById("playHud");
-    if (hud) {
-      const min = document.getElementById("playHudMin"), cls = document.getElementById("playHudClose");
-      if (min) min.addEventListener("click", () => { hud.classList.toggle("collapsed"); const c = hud.classList.contains("collapsed"); min.textContent = c ? "+" : "–"; _playHudUserCollapsed = c; });
-      hud.classList.add("on", "collapsed"); if (min) min.textContent = "+";   // 기본: 표시 + 접힘(헤더만) — 시뮬레이션 시 진행로그 자동 펼침
-      if (typeof _restoreHudPos === "function") _restoreHudPos("scoopforge_hud_play", hud);
-    }
-    // 자주 쓰는 프리셋 = 기본 닫힘(숨김). 지표 레일 '프리셋' 버튼으로 열기(_toggleRailPreset가 렌더)
-    {
-      const bar = document.getElementById("playHudCtl"), pane = document.getElementById("chartPane");
-      let d = null;
-      if (bar && pane) {
-        bar.addEventListener("pointerdown", e => {
-          if (e.target.closest(".ph-btn")) return;   // 버튼 클릭은 드래그로 취급 안 함
-          const hr = hud.getBoundingClientRect();
-          d = { dx: e.clientX - hr.left, dy: e.clientY - hr.top };
-          try { bar.setPointerCapture(e.pointerId); } catch (_) {}
-          e.preventDefault();
-        });
-        bar.addEventListener("pointermove", e => {
-          if (!d) return;
-          const x = Math.max(0, Math.min(window.innerWidth - 60, e.clientX - d.dx));
-          const y = Math.max(0, Math.min(window.innerHeight - 28, e.clientY - d.dy));
-          hud.style.left = x + "px"; hud.style.top = y + "px"; hud.style.right = "auto";
-        });
-        const up = e => { if (!d) return; d = null; try { bar.releasePointerCapture(e.pointerId); } catch (_) {} _saveHudPos("scoopforge_hud_play", hud); };
-        bar.addEventListener("pointerup", up); bar.addEventListener("pointercancel", up);
-      }
-    }
-    const lmin = document.getElementById("analyzeLogMin"), log = document.getElementById("analyzeLog");
-    if (lmin && log) lmin.addEventListener("click", () => { log.classList.toggle("collapsed"); lmin.textContent = log.classList.contains("collapsed") ? "+" : "–"; });
-    const lctl = document.getElementById("analyzeLogCtl");
-    if (lctl && log) {
-      let ld = null;
-      lctl.addEventListener("pointerdown", e => { if (e.target.closest(".ph-btn")) return; const hr = log.getBoundingClientRect(); ld = { dx: e.clientX - hr.left, dy: e.clientY - hr.top }; try { lctl.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
-      lctl.addEventListener("pointermove", e => { if (!ld) return; const x = Math.max(4, Math.min(window.innerWidth - 80, e.clientX - ld.dx)); const y = Math.max(4, Math.min(window.innerHeight - 40, e.clientY - ld.dy)); log.style.left = x + "px"; log.style.top = y + "px"; log.style.right = "auto"; log.style.bottom = "auto"; });
-      const lup = e => { if (!ld) return; ld = null; try { lctl.releasePointerCapture(e.pointerId); } catch (_) {} _saveHudPos("scoopforge_hud_log", log); };
-      lctl.addEventListener("pointerup", lup); lctl.addEventListener("pointercancel", lup);
-    }
-  })();
-
-  /* ── 드로잉 도구 팝오버(#drawPop): 차트 안에 살고, 헤더를 잡아 옮긴다 ──
-     좌표계는 차트 팬(forge.css 에서 position:absolute). 이동 범위도 뷰포트가 아니라 팬 박스로 가둔다 —
-     뷰포트로 가두면(형제 창들의 방식) 2·3패널을 넓혀 차트가 좁아졌을 때 헤더가 팬 밖으로 나가고,
-     팬이 overflow:hidden 이라 잘려서 다시 잡을 수단이 없어진다. */
-  const _DRAW_POS_KEY = "scoopforge_hud_draw";
-  function _clampDrawPop() {
-    const p = document.getElementById("drawPop"), pane = document.getElementById("chartPane");
-    if (!p || !pane || !p.classList.contains("on")) return;   // 닫혀 있으면 offsetWidth=0 → 잘못된 값으로 고정된다. 열 때 다시 부른다
-    if (!p.style.left) return;   // 인라인 left 없음 = CSS right 앵커 = 항상 팬 안쪽. 굳이 left 로 바꾸지 않는다
-    const maxL = Math.max(0, pane.clientWidth - p.offsetWidth), maxT = Math.max(0, pane.clientHeight - p.offsetHeight);
-    p.style.left = Math.max(0, Math.min(maxL, parseFloat(p.style.left) || 0)) + "px";
-    p.style.top = Math.max(0, Math.min(maxT, parseFloat(p.style.top) || 0)) + "px";
+  /* ── 차트 위 플로팅 창 3종 공통: 좌표 저장키 · 팬 안으로 되가두기 ──
+     #playHud·#drawPop·#chartPresetPop 은 모두 .chart-pane 자식이자 팬 기준 absolute 다(forge.css).
+     저장키가 창마다 흩어지면 정렬·복원 쪽에서 어긋나므로 한 곳에 모은다.
+     ⚠ play/preset 키에 2 를 붙인 이유: 예전 두 창은 position:fixed 라 저장값이 '뷰포트' 좌표였다.
+     팬 기준으로 바뀐 지금 그 값을 그대로 읽으면(예: left 1318px) 폭 600여 px 짜리 팬 밖이라
+     클램프가 조용히 가장자리에 밀어붙인다. 키를 갈아 기본 자리로 딱 한 번 되돌리고 이후 정상 저장. */
+  const HUD_POS_KEYS = { playHud: "scoopforge_hud_play2", drawPop: "scoopforge_hud_draw", chartPresetPop: "scoopforge_hud_preset2" };
+  window.HUD_POS_KEYS = HUD_POS_KEYS;
+  const _PANEL_IDS = ["playHud", "drawPop", "chartPresetPop"];
+  /* 뷰포트 좌표 시절의 유물 + 사라진 진행로그 창(.analyze-log) 키 정리 — 안 지우면 계속 남는다 */
+  try { ["scoopforge_hud_play", "scoopforge_hud_preset", "scoopforge_hud_log"].forEach(k => localStorage.removeItem(k)); } catch (_) {}
+  function _clampPanel(el) {
+    const pane = document.getElementById("chartPane");
+    if (!el || !pane || !el.classList.contains("on")) return;   // 닫혀 있으면 offsetWidth=0 → 잘못된 값으로 고정된다. 열 때 다시 부른다
+    if (!el.style.left) return;   // 인라인 left 없음 = CSS 앵커(right/bottom) = 항상 팬 안쪽. 굳이 left 로 바꾸지 않는다
+    const maxL = Math.max(0, pane.clientWidth - el.offsetWidth), maxT = Math.max(0, pane.clientHeight - el.offsetHeight);
+    el.style.left = Math.max(0, Math.min(maxL, parseFloat(el.style.left) || 0)) + "px";
+    el.style.top = Math.max(0, Math.min(maxT, parseFloat(el.style.top) || 0)) + "px";
   }
-  (function initDrawPopDrag() {
-    const p = document.getElementById("drawPop"), h = document.getElementById("drawPopHead"), pane = document.getElementById("chartPane");
+  window._clampPanel = _clampPanel;
+  function _clampPanels() { _PANEL_IDS.forEach(id => _clampPanel(document.getElementById(id))); }
+  /* 팬 크기가 바뀌면(창 리사이즈 · #forgeGutter 분할 드래그 · 전체화면 · 2·3패널 접기)
+     저장해 둔 좌표가 팬 밖에 남는다. 호출부마다 훅을 심으면 경로가 늘 때 빠뜨리므로
+     팬 하나만 관찰해 세 창을 한 곳에서 되가둔다(창마다 관찰자를 두지 않는다). */
+  (function initPanelClamp() {
+    const pane = document.getElementById("chartPane"); if (!pane) return;
+    if (typeof ResizeObserver !== "undefined") { try { new ResizeObserver(() => _clampPanels()).observe(pane); return; } catch (_) {} }
+    window.addEventListener("resize", _clampPanels);
+  })();
+  /* 헤더 바를 잡아 창을 옮긴다. 이동 범위는 뷰포트가 아니라 팬 박스 — 뷰포트로 가두면
+     2·3패널을 넓혀 차트가 좁아졌을 때 헤더가 팬 밖으로 나가고, 팬이 overflow:hidden 이라
+     잘려서 다시 잡을 수단이 없어진다. 창 전체를 팬 안에 가두므로 헤더는 항상 잡힌다. */
+  function _initPanelDrag(panelId, headId) {
+    const p = document.getElementById(panelId), h = document.getElementById(headId), pane = document.getElementById("chartPane");
     if (!p || !h || !pane) return;
     let d = null;
     h.addEventListener("pointerdown", e => {
-      if (e.target.closest("button")) return;   // 헤더의 ✕는 버튼으로 남긴다(드래그로 삼키면 닫을 수 없다)
+      if (e.target.closest("button")) return;   // 헤더의 –/✕ 는 버튼으로 남긴다(드래그로 삼키면 못 누른다)
       const r = p.getBoundingClientRect();
       d = { dx: e.clientX - r.left, dy: e.clientY - r.top };
       try { h.setPointerCapture(e.pointerId); } catch (_) {}
       // 헤더는 캔버스의 형제(자손 아님)라 이 드래그가 차트 팬/그리기 핸들러에 닿지 않는다.
-      // preventDefault 는 드래그 중 텍스트 선택·기본 제스처만 막는다.
       e.preventDefault();
     });
     h.addEventListener("pointermove", e => {
@@ -1350,16 +1324,31 @@
       const maxL = Math.max(0, pane.clientWidth - p.offsetWidth), maxT = Math.max(0, pane.clientHeight - p.offsetHeight);
       p.style.left = Math.max(0, Math.min(maxL, e.clientX - d.dx - pr.left)) + "px";
       p.style.top = Math.max(0, Math.min(maxT, e.clientY - d.dy - pr.top)) + "px";
-      p.style.right = "auto";
+      p.style.right = "auto"; p.style.bottom = "auto";
     });
-    const up = e => { if (!d) return; d = null; try { h.releasePointerCapture(e.pointerId); } catch (_) {} if (typeof _saveHudPos === "function") _saveHudPos(_DRAW_POS_KEY, p); };
+    const up = e => { if (!d) return; d = null; try { h.releasePointerCapture(e.pointerId); } catch (_) {} if (typeof _saveHudPos === "function") _saveHudPos(HUD_POS_KEYS[panelId], p); };
     h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
-    /* 팬 크기가 바뀌면(창 리사이즈 · #forgeGutter 분할 드래그 · 전체화면 · 2·3패널 접기)
-       저장해 둔 좌표가 팬 밖에 남는다. 호출부마다 훅을 심으면 경로가 늘 때 빠뜨리므로
-       팬 자체를 관찰해 한 곳에서 되가둔다. */
-    if (typeof ResizeObserver !== "undefined") { try { new ResizeObserver(() => _clampDrawPop()).observe(pane); } catch (_) {} }
-    else window.addEventListener("resize", _clampDrawPop);
+  }
+  window._initPanelDrag = _initPanelDrag;
+
+  /* ── 시연 오버레이 제어: 상단 HUD(접기·드래그이동) ── */
+  let _playHudUserCollapsed = false;   // 사용자가 명시적으로 접어둔 경우 true → 시뮬레이션 자동 펼침 제외
+  (function initPlayOverlayCtl() {
+    const hud = document.getElementById("playHud");
+    if (hud) {
+      const min = document.getElementById("playHudMin");
+      // 펼치면 진행로그만큼 키가 커진다 → 팬 아래쪽에 둔 채 펼쳤을 때 잘리지 않게 재클램프
+      if (min) min.addEventListener("click", () => { hud.classList.toggle("collapsed"); const c = hud.classList.contains("collapsed"); min.textContent = c ? "+" : "–"; _playHudUserCollapsed = c; _clampPanel(hud); });
+      hud.classList.add("on", "collapsed"); if (min) min.textContent = "+";   // 기본: 표시 + 접힘(헤더만) — 시뮬레이션 시 진행로그 자동 펼침
+      if (typeof _restoreHudPos === "function") _restoreHudPos(HUD_POS_KEYS.playHud, hud);
+      _clampPanel(hud);
+    }
+    // 자주 쓰는 프리셋 = 기본 닫힘(숨김). 지표 레일 '프리셋' 버튼으로 열기(_toggleRailPreset가 렌더)
+    _initPanelDrag("playHud", "playHudCtl");
   })();
+
+  /* ── 드로잉 도구 팝오버(#drawPop): 이동·되가두기는 위 공통 헬퍼가 처리 ── */
+  (function initDrawPopDrag() { _initPanelDrag("drawPop", "drawPopHead"); })();
   /* toggleDrawPop 은 forge-tools.js(드로잉 엔진 · 단위테스트 대상) 소관이라 그 파일에 창 좌표 코드를
      넣지 않는다. 여기서 감싸 '열릴 때 위치 복원'만 덧붙인다. 복원 직후 재클램프 필수 —
      넓은 화면에서 저장한 좌표가 좁은 화면에선 팬 밖이다. */
@@ -1369,13 +1358,13 @@
     window.toggleDrawPop = function () {
       const r = orig.apply(this, arguments);
       const p = document.getElementById("drawPop");
-      if (p && p.classList.contains("on")) { if (typeof _restoreHudPos === "function") _restoreHudPos(_DRAW_POS_KEY, p); _clampDrawPop(); }
+      if (p && p.classList.contains("on")) { if (typeof _restoreHudPos === "function") _restoreHudPos(HUD_POS_KEYS.drawPop, p); _clampPanel(p); }
       return r;
     };
   })();
   /* 접기(–/+) — 헤더 바만 남긴다. 프리셋 창(railPresetMin)과 같은 관례이되 상태를 저장한다:
      도구창은 차트 위에 상주하는 창이라, 접어둔 사람은 새로 고칠 때마다 다시 접길 원치 않는다.
-     펼칠 때 _clampDrawPop 을 다시 부르는 게 핵심 — 접힌 채로 팬 아래쪽에 놔뒀다가 펼치면
+     펼칠 때 _clampPanel 을 다시 부르는 게 핵심 — 접힌 채로 팬 아래쪽에 놔뒀다가 펼치면
      본문 높이(약 240px)가 한꺼번에 늘어 팬 밖으로 나가고, .chart-pane 의 overflow:hidden 에
      잘려 버튼이 안 보이고 안 눌린다. */
   const _DRAW_MIN_KEY = "scoopforge_hud_draw_min";
@@ -1393,7 +1382,7 @@
       e.stopPropagation();
       const on = p.classList.toggle("collapsed");
       try { localStorage.setItem(_DRAW_MIN_KEY, on ? "1" : "0"); } catch (_) {}
-      paint(); _clampDrawPop();
+      paint(); _clampPanel(p);
     });
   })();
 
@@ -2825,7 +2814,7 @@
     renderNodeAnalysis(lastResult); renderSignalBoard();
     _redrawOscForPlay(0);   // 오실레이터 비우고 시작 → 데모 진행에 맞춰 좌→우로 그려짐
     { const _lb0 = document.getElementById("analyzeLogBody"); if (_lb0) _lb0.innerHTML = ""; }
-    const hud = document.getElementById("playHud"); if (hud) { hud.classList.add("on"); if (!_playHudUserCollapsed) { hud.classList.remove("collapsed"); const _mb = document.getElementById("playHudMin"); if (_mb) _mb.textContent = "–"; } _restoreHudPos("scoopforge_hud_play", hud); }   // 시뮬레이션 = 진행로그 자동 펼침(사용자가 접어둔 경우 제외)
+    const hud = document.getElementById("playHud"); if (hud) { hud.classList.add("on"); if (!_playHudUserCollapsed) { hud.classList.remove("collapsed"); const _mb = document.getElementById("playHudMin"); if (_mb) _mb.textContent = "–"; } _restoreHudPos(HUD_POS_KEYS.playHud, hud); _clampPanel(hud); }   // 시뮬레이션 = 진행로그 자동 펼침(사용자가 접어둔 경우 제외)
     const progEl = document.getElementById("analyzeProg");
     const _pnode = boardState.nodes.find(n => n.blockType === "price");
     const _pv = _pnode && lastResult.values && lastResult.values[_pnode.id];
