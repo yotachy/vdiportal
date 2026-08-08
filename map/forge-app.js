@@ -1402,7 +1402,11 @@
     gutter.addEventListener("pointermove", e => {
       if (!dragging || !board) return;
       const r = split.getBoundingClientRect();
-      const maxB = r.width - MINC - 7;
+      // 상한이 레일 폭을 안 빼고 있었다 — 레일(178px)이 켜져 있으면 차트가 MINC 가 아니라
+      // MINC-178 까지 눌렸다. 레일은 body.hide-rail·모바일에서 사라지므로 실측으로 뺀다.
+      const rail = document.getElementById("indRail");
+      const railW = (rail && rail.offsetParent !== null) ? rail.getBoundingClientRect().width : 0;
+      const maxB = r.width - MINC - railW - 7;
       const w = Math.max(MINB, Math.min(maxB, e.clientX - r.left));
       board.style.flexBasis = w + "px"; redrawCharts();
     });

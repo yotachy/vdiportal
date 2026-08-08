@@ -55,8 +55,12 @@
   .brand-mark{width:26px;height:26px;flex:0 0 auto;filter:drop-shadow(0 2px 6px rgba(232,180,99,.3))}
   .brand-txt{font-size:17px;color:var(--ink);letter-spacing:-.02em}
   .forge-split{display:flex;flex:1;min-width:0}
-  .board-pane{position:relative;flex:0 0 var(--board-w,560px);min-width:320px;overflow:hidden;display:flex;flex-direction:column}
-  .chart-pane{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
+  /* 좁은 창에서 차트가 0px 로 눌리던 문제 — 차트 팬에 실질 최소폭을 주고, 대신 보드가
+     먼저 양보하게 한다(flex-shrink 0→1, 자기 min-width 320px 까지). 셋 다 최소치일 때
+     보드320 + 거터7 + 레일178 + 차트340 = 845px 로, 세로 스택으로 넘어가는 860px 아래에서만
+     모자란다 — 그 구간은 모바일 미디어쿼리가 min-width 를 0 으로 되돌려 받는다. */
+  .board-pane{position:relative;flex:0 1 var(--board-w,560px);min-width:320px;overflow:hidden;display:flex;flex-direction:column}
+  .chart-pane{position:relative;flex:1 1 auto;min-width:340px;overflow:hidden;display:flex;flex-direction:column;container-type:inline-size}
   /* 포지 전환 로딩 오버레이(2·3번째 영역) */
   .pane-loading{position:absolute;inset:0;z-index:70;display:none;flex-direction:column;align-items:center;justify-content:center;gap:13px;background:rgba(9,12,17,.86);opacity:0;transition:opacity .18s}
   .pane-loading.on{opacity:1}
