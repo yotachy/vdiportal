@@ -1373,6 +1373,29 @@
       return r;
     };
   })();
+  /* 접기(–/+) — 헤더 바만 남긴다. 프리셋 창(railPresetMin)과 같은 관례이되 상태를 저장한다:
+     도구창은 차트 위에 상주하는 창이라, 접어둔 사람은 새로 고칠 때마다 다시 접길 원치 않는다.
+     펼칠 때 _clampDrawPop 을 다시 부르는 게 핵심 — 접힌 채로 팬 아래쪽에 놔뒀다가 펼치면
+     본문 높이(약 240px)가 한꺼번에 늘어 팬 밖으로 나가고, .chart-pane 의 overflow:hidden 에
+     잘려 버튼이 안 보이고 안 눌린다. */
+  const _DRAW_MIN_KEY = "scoopforge_hud_draw_min";
+  (function initDrawPopMin() {
+    const p = document.getElementById("drawPop"), b = document.getElementById("drawPopMin");
+    if (!p || !b) return;
+    const paint = () => {
+      const on = p.classList.contains("collapsed");
+      b.textContent = on ? "+" : "–";
+      b.setAttribute("aria-label", on ? "펼치기" : "접기");
+    };
+    try { if (localStorage.getItem(_DRAW_MIN_KEY) === "1") p.classList.add("collapsed"); } catch (_) {}
+    paint();
+    b.addEventListener("click", e => {
+      e.stopPropagation();
+      const on = p.classList.toggle("collapsed");
+      try { localStorage.setItem(_DRAW_MIN_KEY, on ? "1" : "0"); } catch (_) {}
+      paint(); _clampDrawPop();
+    });
+  })();
 
   (function initGutter() {
     const split = document.querySelector(".forge-split");
