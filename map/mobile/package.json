@@ -1,0 +1,11 @@
+{
+  "name": "moneyscoop-mobile",
+  "version": "0.0.1",
+  "private": true,
+  "description": "머니스쿱 모바일 — 스쿱포지 엔진 기반 하이브리드 앱",
+  "scripts": {
+    "sync": "node sync-engine.mjs",
+    "test": "node --test test/*.test.mjs",
+    "cap:sync": "npm run sync && npx cap sync android"
+  }
+}
