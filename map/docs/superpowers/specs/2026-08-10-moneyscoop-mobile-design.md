@@ -71,7 +71,7 @@ map/
 **Phase 0 — 폰에서 도는 APK (1~2일)**
 
 1. `map/mobile/` 스캐폴드 → `npm i @capacitor/core @capacitor/cli` → `cap init` → `cap add android`. `androidScheme: 'https'`
-2. `forge-api.php`에 **CORS 헤더 + OPTIONS 프리플라이트** 추가. 앱 오리진은 `https://localhost`. PC 무회귀 확인
+2. ~~`forge-api.php`에 CORS 헤더 + OPTIONS 프리플라이트 추가~~ — **불필요. 이미 열려 있다**(2026-08-10 확인). `forge-api.php:4-9`가 `Access-Control-Allow-Origin: *` + OPTIONS 204 를 내고, 라이브 서버에서 `Origin: https://localhost`로 실측 확인했다. 핸드오프가 경고한 세 가지 중 하나는 이미 해결된 상태
 3. `www/index.html`은 버튼 하나: `AAPL 분석` → OHLC fetch → `ForgeCore.run()` → 결과 + `performance.now()` → canvas에 캔들 + 예측 콘
 4. `npx cap run android` → 폴드7 설치. `chrome://inspect`로 WebView 디버깅
 5. 측정: 콜드 분석 / 재분석 / 메모리를 ① 폴드7 커버화면 ② 폴드7 펼친화면 ③ 데스크톱 Chrome 6x CPU 스로틀
@@ -100,13 +100,13 @@ map/
 
 ## 5. 백엔드
 
-**v1은 백엔드를 손대지 않는다.** 기존 `forge-api.php` + CORS 헤더가 전부다.
+**v1은 백엔드를 전혀 손대지 않는다.** 기존 `forge-api.php`를 그대로 쓴다 — CORS 까지 이미 열려 있어 PHP 에 한 줄도 추가하지 않는다.
 
 **v2 지갑 원장**: cafe24 PHP + **SQLite(PDO, WAL)**. 지금 저장소 PHP는 플랫 JSON만 쓰는데(`forge_data.json` 등), 원장은 동시 증분이 필요해 플랫 JSON으로 불가능하다. SQLite 확장이 없으면 MySQL로 간다. 스키마·멱등성·SSV 검증은 `SPEC-economy.md`를 그대로 따른다.
 
 핸드오프의 세 경고를 그대로 승계한다:
 
-1. **CORS** — 앱 오리진은 `capacitor://localhost` 또는 `https://localhost`. Phase 0에서 처리
+1. ~~**CORS**~~ — **이미 해결됨**(위 Phase 0 §2). 서버가 `Access-Control-Allow-Origin: *`를 내고 OPTIONS 를 204로 받는다. 앱 오리진(`https://localhost`)으로 라이브 실측 확인
 2. **cafe24 128KB POST 상한** — openresty가 131072바이트 초과 POST를 **404로** 거부한다. 분석 페이로드·프리셋·히스토리를 올릴 때 청크 또는 참조 저장
 3. **클라이언트 잔고 금지** — v1에 지갑을 아예 만들지 않는 것으로 회피한다. 잔고는 v2에서 처음부터 서버 권위로
 
