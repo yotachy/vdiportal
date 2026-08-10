@@ -189,8 +189,27 @@ test("basic 예측선에 끝점 장식이 붙고 라벨이 공유 레지스트�
   assert.ok(L.predBoxes().length >= 1, "끝점 라벨이 공유 레지스트리에 예약되지 않았다");
 });
 
+test("끝점 라벨은 자연 슬롯이 막혀도 가격 패널 밖으로 밀려나지 않는다", () => {
+  const c = recCtx(), lay = LAY(); L.resetLabels(372, 520);
+  // 이 고정 픽스처(372x520, pad10, tailBars120)의 라벨 자연 배치(by)와 스텝 단위(bh+2)를 실측해
+  // by 자체와 스텝 1·2 이웃(±unit, ±2*unit 중 3곳)을 선점한다 — _fitBoxY 가 즉시 반환하지 못하고
+  // 실제로 걸어서(step) 빈 슬롯을 찾게 만들되, 패널 안에 유효한 슬롯은 남겨 둔다(공허한 통과 방지).
+  const by = 221.52, unit = 17;
+  [by, by - unit, by + unit, by - 2 * unit].forEach(ty => L.reservePredBox({ x: 0, y: ty, w: 400, h: 15 }));
+  D.drawCone(c, lay, predWithCounter, COL, "basic", { sym: "AAPL", tf: "1day" });
+  const r = lay.panels.price.rect;
+  const placed = L.predBoxes().filter(b => b.x !== 0);   // x:0 인 것은 위에서 미리 깔아둔 차단용 — 실제로 그려진 라벨/가격배지만
+  assert.ok(placed.length >= 1, "차단 후 라벨이 아예 그려지지 않았다 — 이러면 아래 단언이 공허해진다");
+  placed.forEach(b => {
+    assert.ok(b.y >= r.y && b.y + b.h <= r.y + r.h,
+      "라벨이 가격 패널 밖으로 밀려났다: y=" + b.y + " h=" + b.h + " panel=[" + r.y + "," + (r.y + r.h) + "]");
+  });
+});
+
 test("같은 종목·주기면 같은 그림 — 두 번 그려도 좌표가 동일하다", () => {
   assert.equal(trace(predWithCounter), trace(predWithCounter));
+  const noTex = Object.assign({}, predWithCounter, { tex: null });   // 엔진이 tex 를 못 낼 때의 PRNG 결 경로
+  assert.equal(trace(noTex), trace(noTex));
 });
 
 test("밴드(lo/hi)가 없으면 꿈틀 없이 단순 폴리라인으로 폴백한다", () => {
