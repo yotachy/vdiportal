@@ -163,7 +163,7 @@
       }
     }
     // 배열 라벨
-    if (reveal >= 3 && ma.mas.short) {
+    if (reveal >= 3 && ma.mas.short && M.badges !== false) {
       const x = fiToX(nowFi), y = pToY(ma.mas.short.last);
       if (isFinite(x) && isFinite(y)) {
         const o = ma.align.order;
@@ -258,7 +258,7 @@
       c.strokeStyle = "rgba(143,180,240,.5)"; stroke(bb.upper, [3, 3], 1); stroke(bb.lower, [3, 3], 1);
       c.strokeStyle = COL; stroke(bb.mid, [], 1.4);
     }
-    if (reveal >= 2 && _skReady()) {
+    if (reveal >= 2 && _skReady() && M.badges !== false) {
       const x = (xRight != null ? xRight : fiToX(nowFi)), y = pToY(bb.last.mid);
       const st = bb.state, sTxt = st === "breakout_up" ? "상단 돌파" : st === "breakout_dn" ? "하단 이탈" : st === "upper" ? "밴드 상단" : st === "lower" ? "밴드 하단" : "밴드 중앙";
       const col = bb.bias > 0.15 ? "#46c28e" : bb.bias < -0.15 ? "#e06a6a" : COL;

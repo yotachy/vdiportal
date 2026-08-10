@@ -144,11 +144,10 @@
       // 캔들이 배지를 덮는다(PC 도 캔들 → 예측 순서다. forge-draw.js:~1081, 1115-1200).
       MSChartDraw.drawCandles(ctx, lay, data.candle, col);
       MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, TIER, { sym: sym, tf: TF });
-      MSLayers.bollinger(ctx, an.bb, lay.panels.price.M);
-      MSLayers.ma(ctx, an.ma, lay.panels.price.M);
-      MSLayers.rsiBadge(ctx, an.rsi, lay.panels.price.M);
-      MSLayers.macdBadge(ctx, an.macd, lay.panels.price.M);
-      MSLayers.volumeBadge(ctx, an.va, lay.panels.price.M);
+      var Mp = Object.assign({}, lay.panels.price.M, { badges: false });
+      MSLayers.bollinger(ctx, an.bb, Mp);
+      MSLayers.ma(ctx, an.ma, Mp);
+      // rsiBadge · macdBadge · volumeBadge 는 호출하지 않는다 — 값이 레전드로 갔다.
       ["volume", "rsi", "macd"].forEach(function (k) {
         var r = lay.panels[k].rect;
         ctx.save(); ctx.translate(r.x, r.y);

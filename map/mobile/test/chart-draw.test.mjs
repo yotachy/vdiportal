@@ -181,39 +181,16 @@ test("levels·tex 가 오면 꿈틀이 실제로 적용된다 — 매끈한 폴�
   assert.notEqual(trace(predWithCounter), smooth, "levels·tex 가 있는데 매끈한 선과 좌표가 같다");
 });
 
-test("basic 예측선에 끝점 장식이 붙고 라벨이 공유 레지스트리에 예약된다", () => {
+// Phase 3 이전엔 이 자리에서 끝점 차수 라벨의 공유 레지스트리 예약·충돌 회피(_fitBoxY)를
+// drawCone 을 통해 검증했다. label:null 로 바뀌며 그 경로가 죽어(endDeco 의 o.label 분기가
+// wigLine 에서 더는 호출되지 않음) 두 테스트를 아래 한 벌로 교체한다 — 회피 알고리즘 자체는
+// draw-layers.test.mjs 의 "fitBoxY 는 빈 자리면..." 테스트가 여전히 직접 커버한다.
+test("basic 예측선은 끝점 진앙만 남기고 라벨을 레지스트리에 예약하지 않는다", () => {
   const c = recCtx(); L.resetLabels(372, 520);
   D.drawCone(c, LAY(), predWithCounter, COL, "basic", { sym: "AAPL", tf: "1day" });
   assert.ok(c.calls.some(x => x.op === "arc"), "끝점 진앙이 없다");
-  assert.ok(c.calls.some(x => x.op === "fillText" && String(x.args[0]).indexOf("1차") === 0), "차수 라벨이 없다");
-  assert.ok(L.predBoxes().length >= 1, "끝점 라벨이 공유 레지스트리에 예약되지 않았다");
-});
-
-test("끝점 라벨은 자연 슬롯이 막혀도 가격 패널 밖으로 밀려나지 않는다", () => {
-  const c = recCtx(), lay = LAY(); L.resetLabels(372, 520);
-  // 이 고정 픽스처(372x520, pad10, tailBars120)의 라벨 자연 배치(by)와 스텝 단위(bh+2)를 실측해
-  // by 자체와 스텝 1·2 이웃(±unit, ±2*unit 중 3곳)을 선점한다 — _fitBoxY 가 즉시 반환하지 못하고
-  // 실제로 걸어서(step) 빈 슬롯을 찾게 만들되, 패널 안에 유효한 슬롯은 남겨 둔다(공허한 통과 방지).
-  const by = 221.52, unit = 17;
-  const blockers = [by, by - unit, by + unit, by - 2 * unit].map(ty => ({ x: 0, y: ty, w: 400, h: 15 }));
-  blockers.forEach(b => L.reservePredBox(b));
-  D.drawCone(c, lay, predWithCounter, COL, "basic", { sym: "AAPL", tf: "1day" });
-  const r = lay.panels.price.rect;
-  const placed = L.predBoxes().filter(b => b.x !== 0);   // x:0 인 것은 위에서 미리 깔아둔 차단용 — 실제로 그려진 라벨/가격배지만
-  assert.ok(placed.length >= 1, "차단 후 라벨이 아예 그려지지 않았다 — 이러면 아래 단언이 공허해진다");
-  placed.forEach(b => {
-    assert.ok(b.y >= r.y && b.y + b.h <= r.y + r.h,
-      "라벨이 가격 패널 밖으로 밀려났다: y=" + b.y + " h=" + b.h + " panel=[" + r.y + "," + (r.y + r.h) + "]");
-  });
-  // 자연 슬롯이 막히면 실제로 비켜서 놓이는지까지 확인 — 컨테인먼트만으론 죽은 회피기(예: _fitBoxY
-  // 상단에서 무조건 by 를 반환)가 눈에 안 띈다. 위 4개 차단 박스 중 어느 것과도 겹치면 안 된다.
-  placed.forEach(b => {
-    blockers.forEach(bl => {
-      const overlapY = b.y < bl.y + bl.h && b.y + b.h > bl.y;
-      assert.ok(!overlapY,
-        "라벨이 선점된 차단 박스와 겹친다(회피가 동작하지 않았다): label y=[" + b.y + "," + (b.y + b.h) + "] blocker y=[" + bl.y + "," + (bl.y + bl.h) + "]");
-    });
-  });
+  assert.ok(!c.calls.some(x => x.op === "fillText"), "차수 라벨이 남았다");
+  assert.equal(L.predBoxes().length, 0, "더는 그리지 않는 라벨이 레지스트리에 예약되어 있다");
 });
 
 test("같은 종목·주기면 같은 그림 — 두 번 그려도 좌표가 동일하다", () => {
@@ -234,4 +211,18 @@ test("크로스헤어는 모든 패널을 관통하고 값 라벨을 그린다",
   D.drawCrosshair(c, lay, lay.nowFi - 5, candles(150), COL);
   assert.ok(c.calls.filter(x => x.op === "stroke").length >= 1, "세로선이 없다");
   assert.ok(c.calls.some(x => x.op === "fillText"), "값 라벨이 없다");
+});
+
+test("끝점 차수 배지와 예측가는 더 이상 차트에 안 그려진다 — 레전드로 갔다", () => {
+  const c = recCtx(); L.resetLabels(372, 520);
+  D.drawCone(c, LAY(), predWithCounter, COL, "basic", { sym: "AAPL", tf: "1day" });
+  const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
+  assert.ok(!texts.some(t => /^1st|^1차/.test(t)), "차수 배지가 남았다: " + texts.join("|"));
+  assert.equal(texts.length, 0, "끝점 텍스트가 남았다: " + texts.join("|"));
+});
+
+test("진앙 마커는 여전히 그린다 — 끝점 '위치'는 정보다", () => {
+  const c = recCtx(); L.resetLabels(372, 520);
+  D.drawCone(c, LAY(), predWithCounter, COL, "basic", { sym: "AAPL", tf: "1day" });
+  assert.ok(c.calls.filter(x => x.op === "arc").length >= 2, "진앙이 사라졌다");
 });

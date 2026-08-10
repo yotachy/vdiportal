@@ -108,8 +108,10 @@
       var pc = MSPreds.pcal(mv, mhi, anchor, m - 1);
       MSPreds.endDeco(c, {
         path: mv, seamX: seamX, coneR: lx[m - 1], toY: M.pToY, box: box, tf: o.tf,
-        col: (pc < 50 ? "#8a92b2" : hex),          // 반대가 우세하면 회색으로 강등 — 숨기지 않는다
-        label: tag + "·" + pc + "%", labelDy: labelDy, showPx: true
+        col: (pc < 50 ? "#8a92b2" : hex),
+        // 차수 배지·끝점 예측가는 Phase 3 에서 레전드로 갔다. 진앙 마커만 남긴다 —
+        // 끝점의 '위치'는 정보지만 배지는 어디 있든 뜻이 같아서 차트에 있을 이유가 없다.
+        label: null, labelDy: labelDy, showPx: false
       });
     }
 
