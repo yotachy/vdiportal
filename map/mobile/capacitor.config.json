@@ -1,0 +1,11 @@
+{
+  "appId": "com.moneyscoop.mobile",
+  "appName": "MoneyScoop",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

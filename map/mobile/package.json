@@ -7,5 +7,10 @@
     "sync": "node sync-engine.mjs",
     "test": "node --test test/*.test.mjs",
     "cap:sync": "npm run sync && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
   }
 }
