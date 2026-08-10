@@ -17,16 +17,33 @@ Phase 1을 폴드7에서 확인한 사용자 판단: **차트는 나오지만 PC
 
 ## 2. 범위
 
-**넣는다 — A군, 순수 작도 85줄**
+**넣는다 — A군, 순수 작도**
 
-| PC 함수 | 줄 | 하는 일 | 입력 |
-|---|---:|---|---|
-| `_predWigSeqSR` | 26 | 예측선 꿈틀 — S/R 레벨 반응 + AR 결 | `pred.levels` · `pred.tex` (이미 수신 중) |
-| `_epicenterMark` | 9 | 끝점 동심원 파문 | 좌표뿐 |
-| `_predConfAt` | 8 | 구간별 신뢰도 → 밴드 폭 | `_predBandW` |
-| `_predEndDeco` | 42 | 끝점 장식 (위 둘을 사용) | `_evLabel` — Phase 1 `draw-layers.js`에 이미 있음 |
+> ⚠️ **초안의 "85줄 / 4함수"는 틀렸다(2026-08-10 폐포 실측으로 정정).** 호출부를 읽으니 꿈틀은 단독 함수가 아니라 파이프라인이었다 — 수열을 만드는 `_predWigSeqSR`, 그 수열을 밴드 안의 실제 y로 바꾸는 `_predWigVal`, 구간 신뢰도 수열 `_predConfSeq`, 그리고 가로 알파 페이드로 실제 스트로크를 수행하는 `_strokePredLine` 이 함께 있어야 한 줄이 그려진다.
 
-딸려오는 헬퍼는 `_AR_W` · `_SR_W` · `_mulberry32`(시드 난수) · `_predBandW` 넷.
+**전이 폐포 21심볼 / 185줄.** 그중 약 34줄은 **Phase 1 `draw-layers.js`에 이미 포팅돼 있어 다시 복사하지 않는다**(아래 §3.1). 순증 포팅은 약 151줄.
+
+| PC 심볼 | 줄 | 하는 일 |
+|---|---:|---|
+| `_predWigSeqSR` | 26 | 꿈틀 수열 — S/R 레벨 반응 + AR 결. `[-1,1]` 정규화된 길이 `n` 수열을 돌려준다(y값이 아니다) |
+| `_predWigVal` | 5 | 수열 한 점을 밴드(`lo`/`hi`)와 신뢰도로 실제 값에 적용 |
+| `_predConfSeq` | 6 | 구간 신뢰도 수열 `{conf[], kEnd}` |
+| `_predConfAt` | 8 | 한 구간의 신뢰도 |
+| `_predBandW` | 5 | 로그 공간 밴드 폭 |
+| `_predHorizonK` · `_CONF_HORIZON` | 11 | 신뢰도 지평 |
+| `_strokePredLine` | 20 | 가로 알파 페이드 스트로크 — 실제로 선을 긋는 곳 |
+| `_predPCal` | 5 | 끝점 캘리브레이션 방향확률(라벨 문구용) |
+| `_predEndDeco` | 42 | 끝점 장식 |
+| `_epicenterMark` | 9 | 끝점 동심원 파문 |
+| `_mulberry32` · `_SR_W` · `_AR_W` | 3 | 결정론 PRNG · 조정 상수 |
+
+### 3.1 라벨 레지스트리는 공유해야 한다 — 복사하면 깨진다
+
+폐포에 `_evLabel` · `_evLabelBoxes` · `_axisLabelBoxes` · `_predLabelBoxes` · `_fitBoxY` · `_labelMode` · `_KEYLBL` · `_evW` 가 들어 있는데, **이것들은 Phase 1 `draw-layers.js` 안에 모듈 사설 상태로 이미 존재한다.**
+
+`draw-preds.js`에 다시 복사하면 **레지스트리가 두 벌이 된다.** 그러면 `_predEndDeco`가 등록하는 끝점 라벨은 `draw-layers`가 등록해 둔 축 눈금·현재가 태그·지표 배지를 보지 못하고, 서로 겹친 채 그려진다. 충돌 회피의 전제가 "모든 라벨이 같은 박스 목록을 본다"는 것이기 때문이다.
+
+**따라서 `MSLayers`가 `_evLabel`과 등록 상태를 노출하고 `MSPreds`가 그것을 쓴다.** `draw-layers.js`의 export에 `evLabel`(그리고 필요한 최소 접근자)을 추가하는 것이 이 Phase의 유일한 Phase 1 파일 수정이다.
 
 **넣지 않는다 — 버리는 것이 아니라 순서를 뒤로 둔다**
 
