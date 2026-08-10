@@ -88,9 +88,11 @@
                   selling: "selling pressure", capitulation: "capitulation" };
   var BB_STATE = { breakout_up: "upper breakout", breakout_dn: "lower breakdown",
                    upper: "upper band", lower: "lower band", neutral: "mid band" };
+  var RSI_ZONE = { overbought: "overbought", oversold: "oversold", neutral: "neutral" };
 
   function ind(bt) { var k = bt || ""; return IND[k] || k; }
 
   return { t: t, IND: IND, ind: ind,
-           MA_ALIGN: MA_ALIGN, VOL_STATE: VOL_STATE, VOL_REL: VOL_REL, BB_STATE: BB_STATE };
+           MA_ALIGN: MA_ALIGN, VOL_STATE: VOL_STATE, VOL_REL: VOL_REL, BB_STATE: BB_STATE,
+           RSI_ZONE: RSI_ZONE };
 });

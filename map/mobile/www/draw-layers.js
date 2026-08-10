@@ -202,7 +202,7 @@
       }
     }
     if (reveal >= 2 && M.badges !== false) {
-      const zt = rsi.zone === "overbought" ? "overbought" : rsi.zone === "oversold" ? "oversold" : "neutral";
+      const zt = Str.RSI_ZONE[rsi.zone] || "neutral";
       const col = rsi.zone === "overbought" ? "#e06a6a" : rsi.zone === "oversold" ? "#46c28e" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));
       _evLabel(c, "RSI " + Math.round(rsi.last) + " \xb7 " + zt, xb, _by, col, "right");

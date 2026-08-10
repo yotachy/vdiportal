@@ -195,10 +195,12 @@ test("Fix round 1 — MA·거래량·볼린저·RSI 배지가 레전드와 같�
   assert.ok(bbTxt.indexOf(Str.BB_STATE[bb.state]) >= 0, "볼린저 상태 배지 표기 불일치: " + bbTxt);
   assert.ok(rows.bb.indexOf(Str.BB_STATE[bb.state]) >= 0, "레전드 볼린저 상태가 공유 표기를 안 쓴다: " + rows.bb);
 
-  const rsiZone = rsi.zone === "overbought" ? "overbought" : rsi.zone === "oversold" ? "oversold" : "neutral";
   const rsiTxt = paint(L.rsiBadge, rsi);
-  assert.ok(rsiTxt.indexOf(rsiZone) >= 0, "RSI 구간 배지가 레전드 표기(소문자)와 다르다: " + rsiTxt);
-  assert.ok(rows.rsi.indexOf(rsiZone) >= 0, "레전드 RSI 구간이 소문자 표기와 다르다: " + rows.rsi);
+  assert.ok(rsiTxt.indexOf(Str.RSI_ZONE[rsi.zone]) >= 0, "RSI 구간 배지 표기 불일치: " + rsiTxt);
+  // 레전드는 봉값(rv, fi 기준)으로 구간을 재계산하므로 rsi.zone(전체 판정)과 다를 수 있다 —
+  // 정확한 키 일치 대신 RSI_ZONE 세 값 중 하나를 쓰는지로 "공유 표기를 실제로 읽는가"만 확인한다.
+  const zoneWords = [Str.RSI_ZONE.overbought, Str.RSI_ZONE.oversold, Str.RSI_ZONE.neutral];
+  assert.ok(zoneWords.some(w => rows.rsi.indexOf(w) >= 0), "레전드 RSI 구간이 공유 표기를 안 쓴다: " + rows.rsi);
 
   // MA·MACD 골든/데드 크로스도 같은 값 비교 — 실측 크로스 유무와 무관하게 표기만 검증하려고 강제한다.
   const maCross = Object.assign({}, ma, { cross: { type: "golden", barsAgo: 12 } });

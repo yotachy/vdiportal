@@ -30,6 +30,7 @@
   var VOL_STATE = (Str && Str.VOL_STATE) || {};
   var VOL_REL = (Str && Str.VOL_REL) || {};
   var MA_ALIGN = (Str && Str.MA_ALIGN) || {};
+  var RSI_ZONE = (Str && Str.RSI_ZONE) || {};   // Fix round 2: RSI 만 빠져 있었다
 
   function rows(an, pred, fi) {
     var out = [];
@@ -53,9 +54,10 @@
 
     // RSI — 값은 봉별, 구간 문구는 그 값에서 바로 나오므로 함께 따라간다
     var r = an.rsi, rv = at(r.series, fi, r.last);
-    var rz = rv >= 70 ? "overbought" : rv <= 30 ? "oversold" : "neutral";
+    var rzKey = rv >= 70 ? "overbought" : rv <= 30 ? "oversold" : "neutral";
+    var rz = RSI_ZONE[rzKey] || rzKey;
     out.push({ key: "rsi", label: ind("rsi"), value: Math.round(rv) + " · " + rz,
-               tone: rz === "overbought" ? "bear" : rz === "oversold" ? "bull" : "muted" });
+               tone: rzKey === "overbought" ? "bear" : rzKey === "oversold" ? "bull" : "muted" });
 
     // 볼린저 — %B 는 봉별, 밴드 상태·스퀴즈는 전체 판정
     var b = an.bb, pb = at(b.pctB, fi, (b.last && b.last.pctB) || 0);
