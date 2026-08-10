@@ -7,6 +7,13 @@
   var TF = "1day";
   var CHART_H = 520, PAD = 10, TAIL_BARS = 120;
   var HOLD_MS = 350, MOVE_THRESH = 8;
+  var TIER = "basic";   // Phase 1 은 Basic 고정 — 이후 단계에서 사용자 티어로 교체(차트·범례 모두 이 값만 바뀌면 됨)
+
+  var LINE_LEGEND = [
+    { key: "p1", label: "1차 종합 예측" },
+    { key: "p2", label: "2차 선택 지표 예측" },
+    { key: "p3", label: "3차 반대 시나리오" }
+  ];
 
   var cache = new Map();          // sym -> data(candle/price/asOf/name/source), 모듈 스코프(세션 한정)
   var NOT_COUNTED_LABELS = null;  // 지연 계산 — basicGraph/full32Graph 구성에만 의존, 종목 데이터 무관
@@ -43,7 +50,8 @@
       cone: hexToRgba(gold, 0.09),                       // 콘 채움 9% 골드(design §4.3)
       hairline: readToken("--hairline", "rgba(238,241,247,.06)"),
       ink4: readToken("--ink-4", "#7c8598"),
-      ink5: readToken("--ink-5", "#78819a")
+      ink5: readToken("--ink-5", "#78819a"),
+      pred2: readToken("--pred2", "#b892f5")
     };
   }
 
@@ -128,7 +136,7 @@
     function frame(hoverFi) {
       ctx.clearRect(0, 0, cssW, CHART_H);
       MSChartDraw.drawAxes(ctx, lay, data.candle, col);
-      MSChartDraw.drawCone(ctx, lay, an.out.prediction, col);
+      MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, TIER);
       MSChartDraw.drawCandles(ctx, lay, data.candle, col);
       MSLayers.resetLabels(cssW, CHART_H);              // 매 프레임 필수 — 라벨 레지스트리 초기화
       MSLayers.bollinger(ctx, an.bb, lay.panels.price.M);
@@ -320,6 +328,26 @@
       return wrap;
     }
 
+    // 예측선 3종 범례 — 잠긴 선도 숨기지 않고 보여준다("빠진 것을 보여주는 것"이 핵심,
+    // Not counted 칩과 같은 취지). 활성 선만 실제 색, 잠긴 선은 --ink-5 로 죽인다.
+    function legendColorVar(key) {
+      return key === "p1" ? "--gold" : key === "p2" ? "--pred2" : "--bear";
+    }
+    function buildChartLegend() {
+      var allowed = MSChartDraw.linesFor(TIER);
+      var wrap = MSUi.el("div", "rp-legend");
+      LINE_LEGEND.forEach(function (item) {
+        var locked = allowed.indexOf(item.key) < 0;
+        var row = MSUi.el("span", "rp-legend-item" + (locked ? " rp-legend-locked" : ""));
+        var line = MSUi.el("span", "rp-legend-line" + (item.key === "p1" ? "" : " rp-legend-dashed"));
+        if (!locked) line.style.borderColor = "var(" + legendColorVar(item.key) + ")";
+        row.appendChild(line);
+        row.appendChild(document.createTextNode(item.label + (locked ? " · 잠김" : "")));
+        wrap.appendChild(row);
+      });
+      return wrap;
+    }
+
     function buildCounted() {
       var sec = MSUi.el("div", "rp-sec");
       var title = MSUi.el("div", "rp-sec-title");
@@ -412,6 +440,7 @@
       } else {
         scr.appendChild(buildVerdict());
         scr.appendChild(buildChartSection());
+        scr.appendChild(buildChartLegend());
         scr.appendChild(buildCounted());
       }
 

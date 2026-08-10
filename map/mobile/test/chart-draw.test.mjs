@@ -100,6 +100,65 @@ test("fiAtX 는 x 를 절대 봉 인덱스로 되돌린다", () => {
   assert.equal(D.fiAtX(lay, 1e6), lay.nowFi, "오른쪽 밖은 nowFi 로 클램프");
 });
 
+// ── 예측선 티어 게이팅(모바일 수익화) ──
+const predWithCounter = { path: [130, 131, 132], lo: [128, 129, 130], hi: [132, 133, 134],
+                           futW: 3, counter: [125, 124, 123] };
+
+test("linesFor 는 티어별 배열을 돌려주고, 모르는 티어는 basic 으로 대체한다", () => {
+  assert.deepEqual(D.linesFor("basic"), ["p1"]);
+  assert.deepEqual(D.linesFor("full"), ["p1", "p3"]);
+  assert.deepEqual(D.linesFor("custom"), ["p1", "p2", "p3"]);
+  assert.deepEqual(D.linesFor("nope"), ["p1"], "미지정 티어는 basic 폴백");
+  assert.deepEqual(D.linesFor(undefined), ["p1"]);
+  assert.deepEqual(D.PRED_TIERS.basic, ["p1"]);
+});
+
+test("tier:basic 은 1차만 긋는다 — counter 는 색조차 등장하지 않는다", () => {
+  const c = recCtx();
+  const col = Object.assign({}, COL, { pred3: "#e06a6a" });
+  D.drawCone(c, L(), predWithCounter, col, "basic");
+  const strokes = c.calls.filter(x => x.op === "stroke");
+  assert.equal(strokes.length, 1, "1차 외 다른 예측선 스트로크가 섞였다");
+  assert.equal(strokes[0].stroke, col.gold);
+  assert.ok(!c.calls.some(x => x.op === "stroke" && x.stroke === col.pred3), "3차(counter) 색이 등장하면 안 된다");
+});
+
+test("tier:full 은 1차·3차를 긋고, 3차는 점선이다", () => {
+  const c = recCtx();
+  const col = Object.assign({}, COL, { pred3: "#e06a6a" });
+  D.drawCone(c, L(), predWithCounter, col, "full");
+  const strokes = c.calls.filter(x => x.op === "stroke");
+  assert.equal(strokes.length, 2, "1차+3차 두 번만 스트로크");
+  assert.ok(strokes.some(x => x.stroke === col.gold), "1차(gold) 가 없다");
+  assert.ok(strokes.some(x => x.stroke === col.pred3), "3차(pred3) 가 없다");
+  const dashCalls = c.calls.filter(x => x.op === "setLineDash" && x.args[0].length);
+  assert.ok(dashCalls.length >= 1, "3차가 점선으로 그려지지 않았다");
+});
+
+test("tier:custom 이지만 pred.second 가 없으면 p1·p3 만 그리고 에러 없이 끝난다", () => {
+  const c = recCtx();
+  assert.doesNotThrow(() => D.drawCone(c, L(), predWithCounter, COL, "custom"));
+  const strokes = c.calls.filter(x => x.op === "stroke");
+  assert.equal(strokes.length, 2, "second 없이 p2 를 그리면 안 된다");
+  assert.ok(!strokes.some(x => x.stroke === COL.pred2), "pred2 색이 등장하면 안 된다(데이터 없음)");
+});
+
+test("콘 채움은 티어와 무관하게 항상 그려진다", () => {
+  ["basic", "full", "custom", undefined].forEach(tier => {
+    const c = recCtx();
+    D.drawCone(c, L(), predWithCounter, COL, tier);
+    assert.ok(c.calls.some(x => x.op === "fill" && x.fill === COL.cone), "tier=" + tier + " 콘 채움 누락");
+  });
+});
+
+test("tier 인자를 생략하면 기존 호출처럼 basic 으로 동작한다", () => {
+  const c = recCtx();
+  D.drawCone(c, L(), predWithCounter, COL);
+  const strokes = c.calls.filter(x => x.op === "stroke");
+  assert.equal(strokes.length, 1);
+  assert.equal(strokes[0].stroke, COL.gold);
+});
+
 test("크로스헤어는 모든 패널을 관통하고 값 라벨을 그린다", () => {
   const c = recCtx(), lay = L();
   D.drawCrosshair(c, lay, lay.nowFi - 5, candles(150), COL);

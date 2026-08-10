@@ -7,6 +7,7 @@
   --gold:#e8b463; --gold-dim:#c0a069; --gold-ink:#1a1408;
   --steel:#8892a6; --platinum:#b9c4dc;
   --bull:#4fb98a; --bear:#d96a6a; --bear-text:#e08a8a; --neutral:#4a5368;
+  --pred2:#b892f5;
 }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 body {
@@ -64,8 +65,14 @@ body {
 .rp-range { font-size:12px; color:var(--ink-4); margin-top:4px; }
 .rp-missing { font-size:11.5px; color:var(--ink-5); margin-top:10px; line-height:1.5; }
 
-.rp-chart { position:relative; width:100%; margin-bottom:24px; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--bg-raised); }
+.rp-chart { position:relative; width:100%; margin-bottom:14px; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--bg-raised); }
 .rp-chart canvas { display:block; width:100%; }
+
+.rp-legend { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:24px; }
+.rp-legend-item { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--ink-3); }
+.rp-legend-line { width:16px; height:0; border-top:2px solid var(--ink-5); }
+.rp-legend-dashed { border-top-style:dashed; }
+.rp-legend-item.rp-legend-locked { color:var(--ink-5); }
 
 .rp-sec { margin-bottom:24px; }
 .rp-sec-title { display:flex; align-items:baseline; gap:6px; font-size:12px; font-weight:700; letter-spacing:.02em; color:var(--ink-3); text-transform:uppercase; margin-bottom:10px; }

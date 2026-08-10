@@ -8,6 +8,17 @@
 
   var AXIS_FONT = "600 11px Pretendard, ui-monospace, monospace";   // 11px — 하한 10.5px 를 넘긴다
 
+  // 예측선 3종의 표시 개수는 티어로 게이팅한다(모바일 수익화 정책 — PC 는 항상 3종 전부 그림).
+  // 각 선은 "정의 가능해지는" 티어에서 열린다(임의 잠금이 아님):
+  //  - 1차(종합 예측)는 항상 정의됨 → basic 부터.
+  //  - 2차(선택 지표 재예측)는 "어떤 지표를 셀지" 사용자가 골라야 정의됨 → 그게 바로 custom.
+  //  - 3차(반대 시나리오)는 full 의 포지셔닝이 값을 지불하는 정직성 장치 → full 부터.
+  var PRED_TIERS = { basic: ["p1"], full: ["p1", "p3"], custom: ["p1", "p2", "p3"] };
+
+  function linesFor(tier) {
+    return PRED_TIERS[tier] || PRED_TIERS.basic;
+  }
+
   function drawCandles(c, lay, candle, col) {
     var p = lay.panels.price; if (!p) return;
     var M = p.M, bw = lay.bw;
@@ -25,12 +36,28 @@
     c.restore();
   }
 
-  function drawCone(c, lay, pred, col) {
-    if (!pred || !pred.path || !pred.path.length) return;
-    var p = lay.panels.price; if (!p) return;
-    var M = p.M, n = pred.path.length;
+  // xs 는 pred.path 기준(콘/1차)으로 만든 x 좌표 배열이지만, 세 선 모두 "지금 봉 + 1" 부터
+  // 같은 간격으로 이어지므로 길이만 다르면 그 선의 길이에 맞게 그 자리에서 새로 뽑는다.
+  function xsFor(M, lay, n) {
     var xs = [], i;
     for (i = 0; i < n; i++) xs.push(M.fiToX(lay.nowFi + 1 + i));
+    return xs;
+  }
+  function strokeLine(c, M, lay, arr, style, width, dash) {
+    if (!arr || !arr.length) return;
+    var xs = xsFor(M, lay, arr.length), i;
+    c.beginPath();
+    for (i = 0; i < arr.length; i++) { var y = M.pToY(arr[i]); i ? c.lineTo(xs[i], y) : c.moveTo(xs[i], y); }
+    c.setLineDash(dash || []);
+    c.strokeStyle = style; c.lineWidth = width; c.stroke();
+    c.setLineDash([]);
+  }
+
+  function drawCone(c, lay, pred, col, tier) {
+    if (!pred || !pred.path || !pred.path.length) return;
+    var p = lay.panels.price; if (!p) return;
+    var M = p.M, n = pred.path.length, i;
+    var xs = xsFor(M, lay, n);
     c.save();
     if (pred.hi && pred.lo && pred.hi.length && pred.lo.length) {
       c.beginPath();
@@ -38,9 +65,12 @@
       for (i = n - 1; i >= 0; i--) c.lineTo(xs[i], M.pToY(pred.lo[i]));
       c.closePath(); c.fillStyle = col.cone; c.fill();
     }
-    c.beginPath();
-    for (i = 0; i < n; i++) { var y = M.pToY(pred.path[i]); i ? c.lineTo(xs[i], y) : c.moveTo(xs[i], y); }
-    c.strokeStyle = col.gold; c.lineWidth = 1.25; c.stroke();
+    var lines = linesFor(tier);
+    for (i = 0; i < lines.length; i++) {
+      if (lines[i] === "p1") strokeLine(c, M, lay, pred.path, col.gold, 1.6);
+      else if (lines[i] === "p2") strokeLine(c, M, lay, pred.second, col.pred2, 1.3, [4, 3]);
+      else if (lines[i] === "p3") strokeLine(c, M, lay, pred.counter, col.pred3 || col.bear, 1.3, [3, 3]);
+    }
     c.restore();
   }
 
@@ -108,5 +138,6 @@
   }
 
   return { drawCandles: drawCandles, drawCone: drawCone, drawAxes: drawAxes,
-           drawCrosshair: drawCrosshair, fiAtX: fiAtX, AXIS_FONT: AXIS_FONT };
+           drawCrosshair: drawCrosshair, fiAtX: fiAtX, AXIS_FONT: AXIS_FONT,
+           PRED_TIERS: PRED_TIERS, linesFor: linesFor };
 });
