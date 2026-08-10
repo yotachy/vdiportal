@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const S = require("../www/strings.js");
@@ -32,4 +33,28 @@ test("시안에 문자 그대로 있는 5종 이름은 바꾸지 않는다", () 
   assert.equal(S.ind("rsi"), "RSI");
   assert.equal(S.ind("bollinger"), "Bollinger");
   assert.equal(S.ind("volume"), "Volume");
+});
+
+test("화면 소스에 UI 한글 문자열이 남아 있지 않다 — 주석은 제외", () => {
+  const files = ["../www/screens/report.js", "../www/screens/watchlist.js", "../www/draw-layers.js"];
+  const offenders = [];
+  // Step 5 carry-forward: 한글 부재만으로는 오타(MSStr.t.존재하지않는키 → undefined 렌더)를 못 잡는다.
+  // 같은 소스 스캔 김에 참조된 MSStr 키가 전부 strings.js 에 실존하는지도 확인한다(소스 스캔 방식 보강).
+  const badKeys = [];
+  const KEY_RE = /\b(?:MSStr\.t|Str\.t)\.([A-Za-z_][A-Za-z0-9_]*)/g;
+  for (const f of files) {
+    const src = readFileSync(new URL(f, import.meta.url), "utf8");
+    src.split("\n").forEach((line, i) => {
+      const code = line.replace(/\/\/.*$/, "").replace(/\/\*[\s\S]*?\*\//g, "");
+      const m = code.match(/(["'`])(?:(?!\1)[^\\]|\\.)*\1/g) || [];
+      m.filter(s => /[가-힣]/.test(s))
+       .forEach(s => offenders.push(f.replace("../", "") + ":" + (i + 1) + "  " + s));
+      let km;
+      while ((km = KEY_RE.exec(code))) {
+        if (!(km[1] in S.t)) badKeys.push(f.replace("../", "") + ":" + (i + 1) + "  " + km[1]);
+      }
+    });
+  }
+  assert.deepEqual(offenders, [], "한글 UI 문자열 " + offenders.length + "건:\n" + offenders.join("\n"));
+  assert.deepEqual(badKeys, [], "존재하지 않는 MSStr 키 참조 " + badKeys.length + "건:\n" + badKeys.join("\n"));
 });

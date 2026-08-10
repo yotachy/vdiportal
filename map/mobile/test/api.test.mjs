@@ -52,7 +52,7 @@ test("OHLC 에 비수치가 있으면 던진다 — NaN 은 조용히 번져 빈
     for (const k of ["o", "h", "l", "c"]) {
       const r = fakeResponse(250);
       r.candles[7][k] = bad;
-      assert.throws(() => MSApi.normalizeCandles(r), /OHLC 값 이상/,
+      assert.throws(() => MSApi.normalizeCandles(r), /OHLC value invalid/,
         "봉 7 의 " + k + "=" + String(bad) + " 를 통과시켰다");
     }
   }
@@ -74,14 +74,14 @@ test("ok:false 면 서버 error 를 담아 던진다", () => {
 });
 
 test("봉이 부족하면 던진다 — 주기별 하한이 다르다", () => {
-  assert.throws(() => MSApi.normalizeCandles(fakeResponse(219, { tf: "1day" })), /봉 부족/);
+  assert.throws(() => MSApi.normalizeCandles(fakeResponse(219, { tf: "1day" })), /not enough bars/);
   assert.doesNotThrow(() => MSApi.normalizeCandles(fakeResponse(220, { tf: "1day" })));
-  assert.throws(() => MSApi.normalizeCandles(fakeResponse(59, { tf: "1month" })), /봉 부족/);
+  assert.throws(() => MSApi.normalizeCandles(fakeResponse(59, { tf: "1month" })), /not enough bars/);
   assert.doesNotThrow(() => MSApi.normalizeCandles(fakeResponse(60, { tf: "1month" })));
 });
 
 test("candles 가 배열이 아니면 던진다", () => {
-  assert.throws(() => MSApi.normalizeCandles({ ok: true, tf: "1day", candles: null }), /봉 부족/);
+  assert.throws(() => MSApi.normalizeCandles({ ok: true, tf: "1day", candles: null }), /not enough bars/);
 });
 
 function fakeFetch(payload, status) {

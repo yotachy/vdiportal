@@ -11,22 +11,14 @@
   var TIER = "basic";   // Phase 1 은 Basic 고정 — 이후 단계에서 사용자 티어로 교체(차트·범례 모두 이 값만 바뀌면 됨)
 
   var LINE_LEGEND = [
-    { key: "p1", label: "1차 종합 예측" },
-    { key: "p2", label: "2차 선택 지표 예측" },
-    { key: "p3", label: "3차 반대 시나리오" }
+    { key: "p1", label: MSStr.t.lgP1 },
+    { key: "p2", label: MSStr.t.lgP2 },
+    { key: "p3", label: MSStr.t.lgP3 }
   ];
 
   var cache = new Map();          // sym -> data(candle/price/asOf/name/source), 모듈 스코프(세션 한정)
   var NOT_COUNTED_LABELS = null;  // 지연 계산 — basicGraph/full32Graph 구성에만 의존, 종목 데이터 무관
   var activeResizeCleanup = null; // 현재 붙어있는 resize 리스너 해제 함수(모듈 스코프, 화면당 리스너 최대 1개 보장)
-
-  // MSGraph.MISSING(13종)엔 sampleGraph 유래 한글 타이틀이 없다 — 이 13개만 심는다.
-  // 나머지 14종("full32 에만 있는 나머지")은 sampleGraph 노드의 title 을 그대로 쓴다(chipLabel).
-  var TITLE_KO = {
-    pivot: "피벗", psar: "PSAR", gann: "GANN", keltner: "켈트너 채널", donchian: "돈치안 채널",
-    cci: "CCI", williams: "윌리엄스 %R", aroon: "아룬", mfi: "MFI", roc: "ROC",
-    ao: "AO", cmf: "CMF", pattern: "차트 패턴"
-  };
 
   // ── 색 토큰(캔버스는 var() 를 못 읽으므로 style.css 를 단일 원본으로 런타임에 읽어온다) ──
   function readToken(name, fallback) {
@@ -57,8 +49,11 @@
     };
   }
 
-  function isBarsShort(err) { return !!(err && typeof err.message === "string" && err.message.indexOf("봉 부족") === 0); }
+  // api.js 가 봉 부족을 알릴 때 rpBarsShort 로 시작하는 영문 메시지를 던진다(api.js:28) — 그 접두를
+  // MSStr 단일 출처에서 그대로 재사용해 여기·표시 문구가 따로 놀지 않게 한다.
+  function isBarsShort(err) { return !!(err && typeof err.message === "string" && err.message.indexOf(MSStr.t.rpBarsShort) === 0); }
   function loadOne(sym) { return MSApi.loadTicker(sym, TF); }
+  function dirWord(regime) { return regime === "bull" ? MSStr.t.rpUp : regime === "bear" ? MSStr.t.rpDown : MSStr.t.rpFlat; }
 
   function paramOf(graph, blockType, defaults) {
     var n = null, i;
@@ -68,12 +63,8 @@
     return out;
   }
 
-  function chipLabel(full, bt) {
-    if (TITLE_KO[bt]) return TITLE_KO[bt];
-    var i;
-    for (i = 0; i < full.nodes.length; i++) { if (full.nodes[i].blockType === bt) return full.nodes[i].title || bt; }
-    return bt;
-  }
+  // 지표 표시명은 MSStr 단일 출처. forge-core 의 한글 title 로 폴백하면 칩 일부가 한글로 샌다.
+  function chipLabel(full, bt) { return MSStr.ind(bt); }
 
   function computeNotCounted() {
     var full = MSGraph.full32Graph(ForgeCore);
@@ -257,7 +248,7 @@
         finishData();
       }).catch(function (err) {
         state = "error";
-        errInfo = { message: (err && err.message) || "알 수 없는 오류로 불러오지 못했습니다.", retry: !isBarsShort(err) };
+        errInfo = { message: (err && err.message) || MSStr.t.rpUnknownErr, retry: !isBarsShort(err) };
         draw();
       });
     }
@@ -267,7 +258,7 @@
         state = "ready";
       } catch (e) {
         state = "error";
-        errInfo = { message: "분석 중 오류가 발생했습니다: " + ((e && e.message) || e), retry: true };
+        errInfo = { message: MSStr.t.rpAnalyzeErr + ((e && e.message) || e), retry: true };
       }
       draw();
     }
@@ -276,7 +267,7 @@
     function buildHead() {
       var head = MSUi.el("div", "rp-head");
       var back = MSUi.el("button", "rp-back");
-      back.setAttribute("aria-label", "뒤로");
+      back.setAttribute("aria-label", MSStr.t.rpBack);
       back.innerHTML = backSvg();
       back.addEventListener("click", function () { MSApp.go("watchlist"); });
       head.appendChild(back);
@@ -309,10 +300,10 @@
 
     function errorBlock(info) {
       var wrap = MSUi.el("div", "rp-err");
-      wrap.appendChild(MSUi.el("div", "rp-err-title", "리포트를 불러오지 못했습니다"));
+      wrap.appendChild(MSUi.el("div", "rp-err-title", MSStr.t.rpLoadFail));
       wrap.appendChild(MSUi.el("div", null, info.message));
       if (info.retry) {
-        var b = MSUi.el("button", "btn btn-ghost", "다시 시도");
+        var b = MSUi.el("button", "btn btn-ghost", MSStr.t.rpRetry);
         b.style.marginTop = "14px";
         b.addEventListener("click", retry);
         wrap.appendChild(b);
@@ -323,22 +314,21 @@
     function buildVerdict() {
       var v = an.out.verdict;
       var wrap = MSUi.el("div", "rp-verdict-wrap");
-      var dirWord = v.regime === "bull" ? "상승" : v.regime === "bear" ? "하락" : "중립";
       var dirCls = v.regime === "bull" ? "bull" : v.regime === "bear" ? "bear" : "neutral";
-      wrap.appendChild(MSUi.el("div", "rp-verdict " + dirCls, dirWord));
+      wrap.appendChild(MSUi.el("div", "rp-verdict " + dirCls, dirWord(v.regime)));
 
       var total = v.confluence.total, agree = v.confluence.agree;
-      var confText = total ? ("지표 " + total + "개 중 " + agree + "개가 이 방향에 동의") : "방향을 내는 지표가 없어 일치도를 낼 수 없습니다";
+      var confText = total ? (agree + MSStr.t.rpAgree + total + MSStr.t.rpAgreeTail) : MSStr.t.rpAgreeNone;
       wrap.appendChild(MSUi.el("div", "rp-conf", confText));
 
       var pr = an.out.prediction, last = pr.lo.length - 1;
       var rangeText = (last >= 0)
-        ? ("정직한 범위 · " + pr.futW + "봉 후 " + MSUi.fmtPrice(pr.lo[last]) + " ~ " + MSUi.fmtPrice(pr.hi[last]))
-        : "정직한 범위 산출 불가";
+        ? (MSStr.t.rpRange + MSUi.fmtPrice(pr.lo[last]) + "–" + MSUi.fmtPrice(pr.hi[last]) + " · " + pr.futW + MSStr.t.rpBarsAfter)
+        : MSStr.t.rpRangeNone;
       wrap.appendChild(MSUi.el("div", "rp-range", rangeText));
 
       wrap.appendChild(MSUi.el("div", "rp-missing",
-        "이 판정에 반영되지 않은 지표 " + notCountedLabels().length + "개 — 아래 Not counted 참고"));
+        MSStr.t.rpNotCountedLead + notCountedLabels().length + MSStr.t.rpNotCountedTail));
       return wrap;
     }
 
@@ -369,7 +359,7 @@
         var line = MSUi.el("span", "rp-legend-line" + (item.key === "p1" ? "" : " rp-legend-dashed"));
         if (!locked) line.style.borderColor = "var(" + legendColorVar(item.key) + ")";
         row.appendChild(line);
-        row.appendChild(document.createTextNode(item.label + (locked ? " · 잠김" : "")));
+        row.appendChild(document.createTextNode(item.label + (locked ? MSStr.t.rpLockedSuffix : "")));
         wrap.appendChild(row);
       });
       return wrap;
@@ -378,7 +368,7 @@
     function buildCounted() {
       var sec = MSUi.el("div", "rp-sec");
       var title = MSUi.el("div", "rp-sec-title");
-      title.appendChild(document.createTextNode("Counted "));
+      title.appendChild(document.createTextNode(MSStr.t.rpCounted + " "));
       title.appendChild(MSUi.el("span", "rp-sec-count", "5"));
       sec.appendChild(title);
 
@@ -388,7 +378,8 @@
       var macdLine = ForgeCore.macdSteps(an.macd, an.mcP.fast, an.mcP.slow, an.mcP.signal)[1];
       var volLine = ForgeCore.volumeSteps(an.va)[0];
 
-      [["이동평균(MA)", maLine], ["MACD", macdLine], ["RSI", rsiLine], ["볼린저", bbLine], ["거래량", volLine]]
+      // 지표 표시명은 MSStr.ind() 단일 출처 — chipLabel 과 동일 규칙(하드코딩 라벨 금지).
+      [[MSStr.ind("ma"), maLine], [MSStr.ind("macd"), macdLine], [MSStr.ind("rsi"), rsiLine], [MSStr.ind("bollinger"), bbLine], [MSStr.ind("volume"), volLine]]
         .forEach(function (pair) {
           var row = MSUi.el("div", "rp-count-row");
           row.appendChild(MSUi.el("span", "rp-count-name", pair[0]));
@@ -402,7 +393,7 @@
       var labels = notCountedLabels();
       var sec = MSUi.el("div", "rp-sec");
       var title = MSUi.el("div", "rp-sec-title");
-      title.appendChild(document.createTextNode("Not counted "));
+      title.appendChild(document.createTextNode(MSStr.t.rpNotCounted + " "));
       title.appendChild(MSUi.el("span", "rp-sec-count", String(labels.length)));
       sec.appendChild(title);
       var chips = MSUi.el("div", "rp-chips");
@@ -416,7 +407,7 @@
       row.appendChild(MSUi.el("span", "rp-tf-name", name));
       if (locked) {
         var lock = MSUi.el("span", "rp-lock");
-        lock.innerHTML = lockSvg() + "잠김";
+        lock.innerHTML = lockSvg() + MSStr.t.rpLocked;
         row.appendChild(lock);
       } else if (skeleton) {
         var sk = MSUi.el("span", "rp-sk");
@@ -430,23 +421,22 @@
 
     function buildTfSection() {
       var sec = MSUi.el("div", "rp-sec");
-      sec.appendChild(MSUi.el("div", "rp-sec-title", "주기"));
+      sec.appendChild(MSUi.el("div", "rp-sec-title", MSStr.t.rpTf));
       var dailyVal = "";
       if (state === "ready") {
         var v = an.out.verdict;
-        var dirWord = v.regime === "bull" ? "상승" : v.regime === "bear" ? "하락" : "중립";
-        dailyVal = v.confluence.total ? (dirWord + " · " + v.confluence.agree + "/" + v.confluence.total + " 동의") : dirWord;
+        dailyVal = v.confluence.total ? (dirWord(v.regime) + " · " + v.confluence.agree + "/" + v.confluence.total + " agree") : dirWord(v.regime);
       } else if (state === "error") {
         dailyVal = "—";
       }
-      sec.appendChild(tfRow("일간", dailyVal, false, state === "loading"));
-      sec.appendChild(tfRow("주간", "", true, false));
-      sec.appendChild(tfRow("월간", "", true, false));
+      sec.appendChild(tfRow(MSStr.t.rpDaily, dailyVal, false, state === "loading"));
+      sec.appendChild(tfRow(MSStr.t.rpWeekly, "", true, false));
+      sec.appendChild(tfRow(MSStr.t.rpMonthly, "", true, false));
       return sec;
     }
 
     function buildCta() {
-      var b = MSUi.el("button", "rp-cta", "곧 제공");
+      var b = MSUi.el("button", "rp-cta", MSStr.t.rpSoon);
       b.disabled = true;
       return b;
     }
