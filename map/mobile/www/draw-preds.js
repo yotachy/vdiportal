@@ -23,7 +23,7 @@
     return h >>> 0;
   }
 
-  /* ===== 여기부터 forge-draw.js 원문 복사 (47-52, 56-69, 80-122) ===== */
+  /* ===== 여기부터 forge-draw.js 원문 복사 (47-52, 56-69, 80-145) ===== */
   const _CONF_HORIZON = 0.5;   // 이 아래로 떨어지는 첫 봉부터 선을 잇지 않고 점묘로 해체
   function _predBandW(loK, hiK) {
     if (!(loK > 0) || !(hiK > loK)) return 0;
@@ -90,6 +90,29 @@
     const kh = _predHorizonK(lo, hi);
     return { conf: cf, kEnd: (kh == null) ? n : kh };
   }
+  // 예측선 공통 스트로크: 신뢰 구간은 봉별 알파·굵기 세그먼트 실선, 신뢰 지평 이후는 점묘.
+  // 점묘는 '연결된 경로'라는 주장 자체를 철회하는 표현이므로 1·2·3차가 반드시 같은 규칙을 공유해야 한다.
+  // 좌표 변환·클램프는 호출부마다 다르므로 xAt/yAt 콜백으로 주입받는다.
+  function _strokePredLine(c, o) {
+    const n = o.n; if (!(n > 0)) return;
+    c.save(); c.lineJoin = "round"; c.lineCap = "round";
+    let x0 = o.x0, y0 = o.y0;
+    for (let k = 0; k < o.kEnd; k++) {
+      const x1 = o.xAt(k), y1 = o.yAt(k); if (!isFinite(x1) || !isFinite(y1)) continue;
+      c.strokeStyle = "rgba(" + o.rgb + "," + (0.25 + 0.75 * o.conf[k]).toFixed(3) + ")";
+      c.lineWidth = o.lw * (0.55 + 0.45 * o.conf[k]);
+      if (o.dash) c.setLineDash(o.dash); else c.setLineDash([]);
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+      x0 = x1; y0 = y1;
+    }
+    c.setLineDash([]);
+    for (let k = o.kEnd; k < n; k++) {   // 지평 이후: 점만 — 사이를 잇지 않는다
+      const x1 = o.xAt(k), y1 = o.yAt(k); if (!isFinite(x1) || !isFinite(y1)) continue;
+      c.fillStyle = "rgba(" + o.rgb + "," + (0.15 + 0.35 * o.conf[k]).toFixed(3) + ")";
+      c.beginPath(); c.arc(x1, y1, 1.3, 0, 7); c.fill();
+    }
+    c.restore();
+  }
   /* ===== 원문 복사 끝 ===== */
 
   // 꿈틀 적용된 가격 수열. 호출부가 pToY 로 화면좌표로 옮긴다.
@@ -108,5 +131,6 @@
 
   return { seed: seed,
            confAt: _predConfAt, confSeq: _predConfSeq,
-           wigSeq: _predWigSeqSR, wiggle: wiggle };
+           wigSeq: _predWigSeqSR, wiggle: wiggle,
+           strokeLine: _strokePredLine };
 });

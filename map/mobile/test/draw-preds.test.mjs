@@ -103,3 +103,57 @@ test("wigSeq 는 레벨 위에서 반응이 최대, 레벨 사이에서 최소�
   assert.ok(Math.abs(seq[0]) > 0.99, "레벨 위에서 반응이 최대가 아니다: " + seq[0]);
   assert.ok(Math.abs(seq[5]) < 0.01, "레벨 사이에서 반응이 0 이 아니다: " + seq[5]);
 });
+
+// ── 페이드 스트로크 ──
+function recCtx() {
+  const calls = [], st = { fillStyle: null, strokeStyle: null, lineWidth: null, globalAlpha: 1, font: null, textAlign: null, letterSpacing: null, lineJoin: null, lineCap: null };
+  const rec = n => (...a) => calls.push({ op: n, args: a, fill: st.fillStyle, stroke: st.strokeStyle, lw: st.lineWidth, font: st.font });
+  const c = {};
+  for (const n of ["save","restore","beginPath","closePath","moveTo","lineTo","fill","stroke","fillRect","arc","setLineDash","fillText","rect","clip","translate","roundRect"]) c[n] = rec(n);
+  c.measureText = t => ({ width: String(t).length * 6 });
+  for (const k of Object.keys(st)) Object.defineProperty(c, k, { get: () => st[k], set: v => { st[k] = v; } });
+  c.calls = calls;
+  return c;
+}
+const strokeOpts = (over) => Object.assign({
+  n: 6, x0: 0, y0: 50,
+  xAt: k => 10 * (k + 1), yAt: k => 50 - k,
+  conf: [1, 0.9, 0.8, 0.4, 0.3, 0.2], kEnd: 3,
+  rgb: "232,180,99", dash: null, lw: 2
+}, over || {});
+
+test("신뢰 구간은 봉마다 실선 세그먼트, 지평 이후는 점묘다", () => {
+  const c = recCtx();
+  P.strokeLine(c, strokeOpts());
+  assert.equal(c.calls.filter(x => x.op === "stroke").length, 3, "실선 세그먼트가 kEnd 와 다르다");
+  assert.equal(c.calls.filter(x => x.op === "arc").length, 3, "지평 이후 점묘 수가 n-kEnd 와 다르다");
+});
+
+test("알파와 굵기가 신뢰도를 따라 줄어든다 — 감쇠가 보여야 한다", () => {
+  const c = recCtx();
+  P.strokeLine(c, strokeOpts());
+  const seg = c.calls.filter(x => x.op === "stroke");
+  const alphaOf = s => parseFloat(/rgba\(\d+,\d+,\d+,([\d.]+)\)/.exec(s)[1]);
+  assert.ok(alphaOf(seg[0].stroke) > alphaOf(seg[2].stroke), "먼 구간이 더 진하다");
+  assert.ok(seg[0].lw > seg[2].lw, "먼 구간이 더 굵다");
+});
+
+test("n=0 이면 아무것도 그리지 않는다", () => {
+  const c = recCtx();
+  P.strokeLine(c, strokeOpts({ n: 0, kEnd: 0, conf: [] }));
+  assert.equal(c.calls.filter(x => x.op === "stroke" || x.op === "arc").length, 0);
+});
+
+test("좌표가 유한하지 않은 봉은 건너뛴다", () => {
+  const c = recCtx();
+  P.strokeLine(c, strokeOpts({ yAt: k => (k === 1 ? NaN : 50 - k) }));
+  assert.equal(c.calls.filter(x => x.op === "stroke").length, 2, "NaN 봉을 그렸다");
+});
+
+test("dash 를 주면 점선으로, 안 주면 실선으로 긋는다", () => {
+  const dashed = recCtx(); P.strokeLine(dashed, strokeOpts({ dash: [6, 4] }));
+  assert.ok(dashed.calls.some(x => x.op === "setLineDash" && x.args[0] && x.args[0].length === 2));
+  const solid = recCtx(); P.strokeLine(solid, strokeOpts());
+  const set = solid.calls.filter(x => x.op === "setLineDash" && x.args[0] && x.args[0].length);
+  assert.equal(set.length, 0, "dash 없이 점선을 그렸다");
+});
