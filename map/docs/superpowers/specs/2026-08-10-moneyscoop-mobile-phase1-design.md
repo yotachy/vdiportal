@@ -152,7 +152,9 @@ ms_scan       { [sym]: {
                  spark: number[64],           // 최근 64봉 종가
                  dir: "bull"|"neutral"|"bear",// sign(verdict.score), |score|<8 이면 neutral
                  score,                       // verdict.score (−100..100)
-                 confluence,                  // verdict.confluence.score (행의 확신 배지)
+                 confluence,                  // verdict.confluence 통째 {score, agree, total}
+                                              // 행 배지는 .score 만 쓰지만 agree/total 을 버리지 않는다
+                                              // ("15/27 동의" 같은 표현을 리포트에서 쓸 수 있다)
                  asOf,                        // 마지막 봉 날짜 YYYY-MM-DD
                  scannedAt                    // 스캔 시각 ISO
                } }

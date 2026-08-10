@@ -76,7 +76,7 @@ map/mobile/test/
 
 **Interfaces:**
 - Consumes: 없음
-- Produces: 전역 `MSStore` = `{ KEYS, install(backend), getWatchlist() -> Item[], setWatchlist(list), addTicker(sym, name) -> boolean, removeTicker(sym) -> boolean, getScan(sym) -> Rec|null, setScan(sym, rec), allScans() -> {[sym]:Rec}, seedIfEmpty() -> boolean }`
+- Produces: 전역 `MSStore` = `{ KEYS, SEED, install(backend), getWatchlist() -> Item[], setWatchlist(list), addTicker(sym, name) -> boolean, removeTicker(sym) -> boolean, getScan(sym) -> Rec|null, setScan(sym, rec), allScans() -> {[sym]:Rec}, seedIfEmpty() -> boolean }`
   - `Item` = `{ sym, name, addedAt }`
   - `Rec` = `{ price, chg, spark:number[], dir:"bull"|"neutral"|"bear", score, confluence, asOf, scannedAt }`
   - `install(backend)` 는 테스트용 주입구. `backend` 는 `{getItem, setItem}` 을 가진 객체. 미호출 시 `globalThis.localStorage`, 없으면 메모리

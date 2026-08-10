@@ -105,3 +105,37 @@ test("setVolume 은 전 봉 유효할 때만 심고, 아니면 엔진 합성 폴
   assert.equal(MSGraph.setVolume(g, null), false);
   assert.equal(vn.series, undefined);
 });
+
+test("basicGraph 는 지표가 정확히 Basic 5종뿐이다", () => {
+  const g = MSGraph.basicGraph(ForgeCore);
+  const inds = MSGraph.indicatorTypes(g).sort();
+  assert.deepEqual(inds, [...MSGraph.BASIC].sort());
+});
+
+test("basicGraph 도 엔진이 실제로 돈다", () => {
+  const g = MSGraph.basicGraph(ForgeCore);
+  const d = ForgeCore.makeDemoSeries(400);
+  const res = ForgeCore.run(g, d, { futW: 60, timeframe: "1day" });
+  assert.ok(Number.isFinite(res.verdict.score));
+  assert.equal(res.prediction.path.length, 60);
+});
+
+test("basicGraph 와 full32Graph 의 판정이 다르다 — 같으면 가지치기가 안 먹은 것", () => {
+  const d = ForgeCore.makeDemoSeries(400);
+  const b = ForgeCore.run(MSGraph.basicGraph(ForgeCore), d, { futW: 60, timeframe: "1day" });
+  const f = ForgeCore.run(MSGraph.full32Graph(ForgeCore), d, { futW: 60, timeframe: "1day" });
+  assert.notEqual(b.verdict.confluence.total, f.verdict.confluence.total);
+});
+
+test("basicGraph 도 volume 노드의 baked 합성 시리즈를 지운다", () => {
+  const g = MSGraph.basicGraph(ForgeCore);
+  const vn = g.nodes.find(n => n.blockType === "volume");
+  assert.ok(vn, "volume 노드가 없다");
+  assert.equal(vn.series, undefined, "sampleGraph 의 합성 BTC 거래량이 남았다");
+});
+
+test("basicGraph 에도 setVolume 이 먹는다", () => {
+  const g = MSGraph.basicGraph(ForgeCore);
+  assert.equal(MSGraph.setVolume(g, [10, 20, 30]), true);
+  assert.deepEqual(g.nodes.find(n => n.blockType === "volume").series, [10, 20, 30]);
+});
