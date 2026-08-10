@@ -17,6 +17,7 @@
 
   var cache = new Map();          // sym -> data(candle/price/asOf/name/source), 모듈 스코프(세션 한정)
   var NOT_COUNTED_LABELS = null;  // 지연 계산 — basicGraph/full32Graph 구성에만 의존, 종목 데이터 무관
+  var activeResizeCleanup = null; // 현재 붙어있는 resize 리스너 해제 함수(모듈 스코프, 화면당 리스너 최대 1개 보장)
 
   // MSGraph.MISSING(13종)엔 sampleGraph 유래 한글 타이틀이 없다 — 이 13개만 심는다.
   // 나머지 14종("full32 에만 있는 나머지")은 sampleGraph 노드의 title 을 그대로 쓴다(chipLabel).
@@ -197,9 +198,11 @@
     cv.addEventListener("pointerup", endHold);
     cv.addEventListener("pointercancel", endHold);
 
-    // 회전 대응 — 캔버스가 화면에서 떨어지면(다른 화면으로 이동) 스스로 리스너를 정리한다.
+    // 회전 대응. 리스너는 화면당(모듈 전체 기준) 최대 1개만 살아있어야 한다 —
+    // draw()가 재실행되거나(재시도/재방문) 다른 종목으로 넘어갈 때마다 이전 리스너를 먼저 떼어낸다.
+    // window resize는 next resize event가 와야 감지되므로, 그때까지 기다리지 않고 여기서 즉시 정리한다.
+    if (activeResizeCleanup) { activeResizeCleanup(); activeResizeCleanup = null; }
     function onResize() {
-      if (!cv.isConnected) { window.removeEventListener("resize", onResize); return; }
       var w2 = wrap.clientWidth || cssW;
       if (w2 === cssW) return;
       cssW = w2;
@@ -207,6 +210,7 @@
       frame(null);
     }
     window.addEventListener("resize", onResize);
+    activeResizeCleanup = function () { window.removeEventListener("resize", onResize); };
   }
 
   function backSvg() {

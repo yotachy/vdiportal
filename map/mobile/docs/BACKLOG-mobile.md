@@ -5,6 +5,21 @@
 
 ## ✅ 완료
 
+- **Phase 1 — 수직 슬라이스(워치리스트 → Basic 리포트 → 차트)** (2026-08-10, `b5b5ece..7ecc843`)
+  실측 노트 `docs/phase1-notes.md`
+  - 신규 모듈 `store`·`scan`·`chart-layout`·`chart-draw`·`draw-layers`·`draw-panels`·`ui`·`app`·`screens/watchlist`·`screens/report`,
+    `basicGraph`·`loadTicker` 확장. Phase 0 `chart.js`·`spike.js` 폐기
+  - PC 작도 포팅: 가격 패널 오버레이(24개 심볼·229줄) + 서브패널(8개 심볼·99줄, DOM 캔버스 획득을
+    `(c, cw, ch, data, reveal)` 순수 시그니처로 교체하는 헤드 수술 동반). 페인트 콜 수 검증: MA 508·볼린저 621·RSI 990·MACD 1449(fillRect 480)·거래량 554
+  - Basic 티어 성능: 데스크톱 5031봉 약 20.2ms, Full 32지표 대비 약 128배 저렴 — **성능 우려 없음**
+  - 일치도 배지를 퍼센트에서 `agree/total`로 (Basic 4지표라 값이 0/25/50/75/100뿐이라 퍼센트가 확률처럼 오독됨)
+  - 예측선 3종 티어 게이팅 메커니즘(`PRED_TIERS: basic:["p1"] · full:["p1","p3"] · custom:["p1","p2","p3"]`) —
+    Phase 1은 `basic` 고정, 2차/3차는 범례에 잠김 표시. Scoops 가격 정책은 미확정
+  - 테스트 40 → 85(`map/mobile`), 통합 관문 `map/tests/run.sh` 445건 통과. `forge-core.js`·`forge-tools.js`·`forge-draw.js` 무수정 유지
+  - **리뷰 대응**: `screens/report.js` resize 리스너 누수 수정 — 재시도/재방문마다 새 리스너가 쌓이던 것을,
+    모듈 스코프 해제 함수로 `paintChart()` 진입 시 이전 리스너를 결정적으로 정리하도록 변경(런타임 중 최대 1개 보장)
+  - 실기기 검증은 폰 Chrome(Tailscale) 한정 — **WebView/APK 미검증**
+
 - **Phase 0 — 엔진이 폰에서 도는가 · 얼마나 걸리는가** (2026-08-10, `8a728ac..44285fc`)
   계획 `map/docs/superpowers/plans/2026-08-10-moneyscoop-mobile-phase0.md` · 실측 `docs/phase0-measurements.md`
   - `map/mobile/` 스캐폴드 + 엔진 단일원본 동기화(`sync-engine.mjs` → gitignored `www/vendor/`)
@@ -18,15 +33,28 @@
 
 ## 🔥 다음
 
-- **Phase 1 — 수직 슬라이스(워치리스트 → Basic 리포트 → 차트)**
-  1. ★ **봉 수 ↔ 정확도 실측** — 주기별 최적 히스토리 길이. Worker 회피의 전제. 백테스트로 답할 수 있는 질문.
-  2. 목업 `#1a`(워치리스트 · turn-2 타입 시스템으로 재작도 필요) · `#6a`/`#2a`(Basic 리포트) 를 실화면으로
-  3. 차트: 축·크로스헤어·핀치줌·로그축. `chart.js` 위에 얹는다. 페이지 스크롤 삼킴 방지(PC `#chartLockBtn` 선례)
-  4. `?since=` 증분 시세 (콜드 수신 942ms)
-  5. 폴드 2단 레이아웃(600–904dp) — 사용자 주력 기기
+- (미정 — 아래 📋 예정에서 우선순위 선정)
 
 ## 📋 예정
 
+- **PC 시각 요소 포팅 — 4종 미이식** — 종단점 진앙 마커(동심원 리플)·구간별 신뢰도 렌더링·
+  3계층 데이터 텍스처(계절성·AR·GARCH 밴드)·범례 클릭 토글. Phase 1 화면이 PC 대비 "낮은 품질"로
+  보이는 주된 이유. `docs/phase1-notes.md` §알려진 갭 참조.
+- **`_predDir`(`draw-layers.js`) PC 전용 전역 의존 — focus 모드 켜기 전 해결 필수** — `lastResult`/`currentData()`를
+  읽다 실패하면 try/catch로 `+1`을 반환한다. 지금은 `chart-layout.js`의 `M.focused`가 항상 `false`라 무해하지만,
+  이후 focus 모드를 켜서 `M.focused=true`가 되는 순간 에러 없이 조용히 틀린 값을 반환해 반대추세 투영 마커의
+  감쇠가 잘못 적용된다. **focus 모드 활성화 전에 반드시 고칠 것.**
+- **`pred.second`(2차 예측) 생산자 없음** — 값이 없으면 티어 사다리(`custom` 등급)가 해당 선을 건너뛰는
+  상태로만 남아있다. 2차 예측 로직을 붙이는 작업 필요.
+- **잠긴 범례 스와치 색 명시화** — `buildChartLegend`가 잠긴 항목엔 `line.style.borderColor`를 설정하지 않고
+  CSS 캐스케이드(`.rp-legend-line`/`.rp-legend-dashed`)에 맡기고 있다. 명시값으로 교체 검토.
+- **폴드 펼침/접힘 액티비티 유지 + Capacitor Gradle 빌드/APK** — 여전히 미검증(아래 "Capacitor 툴체인 검증"과 동일 항목).
+  Phase 1 실기기 확인은 폰 Chrome(Tailscale) 이었고 WebView 안에서는 하지 않았다.
+- **봉 수 ↔ 정확도 실측** — 주기별 최적 히스토리 길이(Phase 0/1에서 이월, 아직 미착수). 백테스트로 답할 질문.
+- **차트 핀치줌·로그축** — 축·크로스헤어는 Phase 1에서 포팅됐으나 핀치줌·로그축은 아직 없다.
+- **`?since=` 증분 시세 미사용** — `api.js`의 `ohlcUrl`이 `since` 파라미터를 받지만 `loadTicker`가 아직
+  넘기지 않아 항상 전량 조회한다(콜드 수신 942ms, Phase 0 실측).
+- **폴드 2단 레이아웃(600–904dp)** — 사용자 주력 기기의 펼침 화면 레이아웃 미착수.
 - **Capacitor 툴체인 검증** — `cap add android` 까지 완료, Gradle 빌드·APK 설치·WebView 실행은 미검증.
   GUI 있는 자리에서 Android Studio 로 `map/mobile/android` 열고 폴드7에 Run. 폴드 펼침 시 액티비티 유지도 이때 확인.
 - **`android:allowBackup="true"` 끄기** — 템플릿 기본값. v2 인증·지갑 상태 들어오기 전에.
