@@ -140,8 +140,10 @@
       MSLayers.resetLabels(cssW, CHART_H);              // 매 프레임 맨 앞 — 이 뒤에 등록되는 라벨만 서로를 본다.
                                                         // drawCone 뒤로 밀면 끝점 라벨 예약이 즉시 지워져 배지와 겹친다.
       MSChartDraw.drawAxes(ctx, lay, data.candle, col);
-      MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, TIER, { sym: sym, tf: TF });
+      // 캔들이 먼저, 예측이 나중. 끝점 배지가 seam 왼쪽까지 나오므로 순서를 뒤집으면
+      // 캔들이 배지를 덮는다(PC 도 캔들 → 예측 순서다. forge-draw.js:~1081, 1115-1200).
       MSChartDraw.drawCandles(ctx, lay, data.candle, col);
+      MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, TIER, { sym: sym, tf: TF });
       MSLayers.bollinger(ctx, an.bb, lay.panels.price.M);
       MSLayers.ma(ctx, an.ma, lay.panels.price.M);
       MSLayers.rsiBadge(ctx, an.rsi, lay.panels.price.M);

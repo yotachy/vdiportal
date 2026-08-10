@@ -14,6 +14,9 @@
   // ── 심: PC 가 전역/다른 파일에서 받던 것들 ──
   var FC_GOLD = "#e8b463";                    // 핸드오프 gold
   var _ov = null, _evLegend = null;           // PC 오버레이 상태 — 모바일 미사용
+  // _axisLabelBoxes 는 resetLabels 에서만 비워지고 push 되는 곳이 없다 — PC 는 눈금 라벨·현재가 필을
+  // 여기 채우지만, 모바일 축 라벨(drawAxes)은 플롯 우측 거터(xr+6, 플롯 오른쪽 밖)에만 찍혀서
+  // 예측 끝점 배지(≤ plot.x+plot.w-12 로 클램프)와 좌표상 절대 겹치지 않는다 — 의도적으로 빈 채로 둔다.
   var _axisLabelBoxes = [], _predLabelBoxes = [];
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }  // forge-app.js:161
 

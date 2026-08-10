@@ -116,6 +116,8 @@
     var lines = linesFor(tier);
     for (i = 0; i < lines.length; i++) {
       if (lines[i] === "p1") wigLine(pred.path, col.gold, null, 2.2, sd, "1차", -12);
+      // pred.second 는 ForgeCore.run() 의 예측 객체에 아직 생산자가 없다(B군 — custom 티어와 함께 착수, BACKLOG-mobile.md 참고).
+      // wigLine 이 !vals 로 조용히 반환하므로 지금은 영구 no-op — 지우지 않고 남겨둔다.
       else if (lines[i] === "p2") wigLine(pred.second, col.pred2, [4, 3], 1.8, (sd ^ 0x85ebca6b) >>> 0, "2차", 12);
       else if (lines[i] === "p3") wigLine(pred.counter, col.pred3 || col.bear, [6, 4], 1.8, (sd ^ 0x9e3779b9) >>> 0, "3차",
                                           (pred.counter && pred.counter[pred.counter.length - 1] >= anchor) ? -12 : 14);
