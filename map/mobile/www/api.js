@@ -21,11 +21,13 @@
   }
 
   function normalizeCandles(json) {
-    if (!json || !json.ok) throw new Error("OHLC 실패: " + ((json && json.error) || "unknown"));
+    if (!json || !json.ok) throw new Error("OHLC failed: " + ((json && json.error) || "unknown"));
     var raw = json.candles;
     var floor = MIN_BARS[json.tf] || MIN_BARS["1day"];
     if (!Array.isArray(raw) || raw.length < floor) {
-      throw new Error("봉 부족: " + (Array.isArray(raw) ? raw.length : 0) + " < " + floor + " (" + (json.tf || "1day") + ")");
+      // 메시지 접두는 report.js isBarsShort() 가 MSStr.t.rpBarsShort 로 문자열 매칭한다 —
+      // 여기가 err.message 로 화면에 그대로 노출되므로(Phase 5, English-first) 한글이면 안 된다.
+      throw new Error("not enough bars: " + (Array.isArray(raw) ? raw.length : 0) + " < " + floor + " (" + (json.tf || "1day") + ")");
     }
     // 거래정지 세션에 "-"·null 을 주는 제공자가 있다. "-" 는 NaN 이 되어 조용히 번지고
     // (chartGeometry 가 min=0/max=1 로 폴백 → 빈 차트, target.toFixed 는 "NaN"),
@@ -33,7 +35,7 @@
     function ok(v) { return v != null && v !== "" && isFinite(+v); }
     var candle = raw.map(function (c, i) {
       if (!ok(c.o) || !ok(c.h) || !ok(c.l) || !ok(c.c)) {
-        throw new Error("봉 " + i + " OHLC 값 이상: " + JSON.stringify([c.o, c.h, c.l, c.c]));
+        throw new Error("bar " + i + " OHLC value invalid: " + JSON.stringify([c.o, c.h, c.l, c.c]));
       }
       return {
         o: +c.o, h: +c.h, l: +c.l, c: +c.c,
@@ -55,10 +57,10 @@
   // 조회 + 오타 구제. 서버가 notfound 일 때 Yahoo 기반 제안을 최대 3건 준다(forge-api.php).
   function loadTicker(symbol, tf, fetchImpl) {
     var f = fetchImpl || (typeof fetch === "function" ? fetch : null);
-    if (!f) return Promise.reject(new Error("fetch 없음"));
+    if (!f) return Promise.reject(new Error("fetch unavailable"));
     return f(ohlcUrl(symbol, tf)).then(function (res) { return res.json(); }).then(function (json) {
       if (json && json.ok) return normalizeCandles(json);
-      var err = new Error("OHLC 실패: " + ((json && json.error) || "unknown"));
+      var err = new Error("OHLC failed: " + ((json && json.error) || "unknown"));
       if (json && json.error === "notfound") { err.notfound = true; err.suggest = json.suggest || []; }
       throw err;
     });

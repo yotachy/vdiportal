@@ -56,14 +56,14 @@
       var head = MSUi.el("div", "scr-head");
       var titleWrap = MSUi.el("div");
       titleWrap.appendChild(MSUi.el("div", "overline", "MONEYSCOOP"));
-      titleWrap.appendChild(MSUi.el("h1", "scr-title", "워치리스트"));
+      titleWrap.appendChild(MSUi.el("h1", "scr-title", MSStr.t.wlTitle));
       head.appendChild(titleWrap);
 
       var list = MSStore.getWatchlist();
 
       if (list.length) {
         var scanBtn = MSUi.el("button", "btn btn-primary",
-          scanning ? ("스캔 중 " + scanDone + "/" + scanTotal) : "스캔");
+          scanning ? (MSStr.t.wlScanning + scanDone + "/" + scanTotal) : MSStr.t.wlScan);
         scanBtn.disabled = scanning;
         scanBtn.addEventListener("click", startScan);
         head.appendChild(scanBtn);
@@ -71,7 +71,7 @@
       scr.appendChild(head);
 
       if (!list.length) {
-        scr.appendChild(MSUi.el("p", "empty", "워치리스트가 비어 있습니다.\n관심 종목을 추가해 보세요."));
+        scr.appendChild(MSUi.el("p", "empty", MSStr.t.wlEmpty));
         scr.appendChild(addBtn());
         root.appendChild(scr);
         return;
@@ -117,7 +117,7 @@
 
       btn.appendChild(MSUi.el("div", "wl-conf", (rec && rec.confluence && rec.confluence.total) ? (rec.confluence.agree + "/" + rec.confluence.total) : ""));
 
-      if (failedSyms[item.sym]) btn.appendChild(MSUi.el("span", "wl-asof", "갱신 실패"));
+      if (failedSyms[item.sym]) btn.appendChild(MSUi.el("span", "wl-asof", MSStr.t.wlScanFail));
 
       btn.addEventListener("click", function () {
         if (btn._suppressClick) { btn._suppressClick = false; return; }
@@ -135,7 +135,7 @@
         timer = setTimeout(function () {
           timer = null;
           btn._suppressClick = true;
-          if (confirm(sym + " 을(를) 워치리스트에서 삭제할까요?")) {
+          if (confirm(sym + MSStr.t.wlRemoveConfirm)) {
             MSStore.removeTicker(sym);
             draw();
           }
@@ -149,13 +149,13 @@
     }
 
     function addBtn() {
-      var b = MSUi.el("button", "btn btn-ghost", "＋ 티커 추가");
+      var b = MSUi.el("button", "btn btn-ghost", MSStr.t.wlAdd);
       b.addEventListener("click", startAddTicker);
       return b;
     }
 
     function startAddTicker() {
-      var raw = prompt("추가할 종목 심볼을 입력하세요 (예: AAPL)");
+      var raw = prompt(MSStr.t.wlAddPrompt);
       if (raw == null) return;
       var sym = raw.trim().toUpperCase();
       if (!sym) return;
@@ -169,7 +169,7 @@
           draw();
         } else {
           pendingSuggest = null;
-          alert(sym + " 을(를) 찾을 수 없습니다.");
+          alert(sym + MSStr.t.wlNotFound);
         }
       });
     }
@@ -177,7 +177,7 @@
     function suggestPanel() {
       var wrap = MSUi.el("div");
       wrap.style.marginTop = "16px";
-      wrap.appendChild(MSUi.el("p", "empty", "'" + pendingSuggest.query + "' 을(를) 찾을 수 없습니다. 혹시:"));
+      wrap.appendChild(MSUi.el("p", "empty", pendingSuggest.query + MSStr.t.wlDidYouMean));
       pendingSuggest.list.forEach(function (s) {
         var sb = MSUi.el("button", "btn btn-ghost", s.s + (s.n ? " · " + s.n : ""));
         sb.style.display = "block"; sb.style.width = "100%"; sb.style.marginTop = "8px";
@@ -188,7 +188,7 @@
         });
         wrap.appendChild(sb);
       });
-      var cancel = MSUi.el("button", "btn btn-ghost", "취소");
+      var cancel = MSUi.el("button", "btn btn-ghost", MSStr.t.wlCancel);
       cancel.style.display = "block"; cancel.style.width = "100%"; cancel.style.marginTop = "8px";
       cancel.addEventListener("click", function () { pendingSuggest = null; draw(); });
       wrap.appendChild(cancel);

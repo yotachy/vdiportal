@@ -6,9 +6,9 @@
 //           _projMarkScale _projMark _projFwd
 //           _drawMALayers _drawRsiLayers _drawVolumeLayers _drawBollingerLayers _drawMacdLayers
 (function (root, factory) {
-  if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSLayers = factory();
-})(typeof self !== "undefined" ? self : this, function () {
+  if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./strings.js"));
+  else root.MSLayers = factory(root.MSStr);
+})(typeof self !== "undefined" ? self : this, function (Str) {
   "use strict";
 
   // ── 심: PC 가 전역/다른 파일에서 받던 것들 ──
@@ -21,6 +21,8 @@
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }  // forge-app.js:161
 
   /* ===== 여기부터 forge-draw.js 원문 복사 (7-9, 35-36, 1278-1286, 1295-1311, 1300-1311, 1310-1311, 1836, 1838-1867, 1923-1947, 2002-2011, 2117-2175, 2361-2381, 2383-2413, 2545-2571, 2573-2580) ===== */
+  /* 예외: 이 블록 안의 한글 UI 문자열 리터럴만 영문(Str/MSStr)로 교체했다 — 포팅 규약은 동작 divergence 방지가
+     목적이고 카피는 동작이 아니다(Phase 5). 조건·계산·좌표는 한 글자도 안 건드렸다. */
   const FC_BULL = "#46c28e";   /* bull candle */
   const FC_BEAR = "#e06a6a";   /* bear candle */
   const FC_DIM  = "#5A6478";   /* axis labels (중간 슬레이트 — 명/암 배경 모두 판독) */
@@ -158,16 +160,16 @@
           const gold = ma.cross.type === "golden";
           c.fillStyle = gold ? "#46c28e" : "#e06a6a";
           c.beginPath(); c.arc(x, y, 4, 0, 7); c.fill();
-          _evLabel(c, (gold ? "골든 " : "데드 ") + ma.cross.barsAgo + "봉", x, y - 7, gold ? "#46c28e" : "#e06a6a", "left");
+          _evLabel(c, (gold ? Str.t.legGolden : Str.t.legDead) + ma.cross.barsAgo + Str.t.legBars, x, y - 7, gold ? "#46c28e" : "#e06a6a", "left");
         }
       }
     }
     // 배열 라벨
-    if (reveal >= 3 && ma.mas.short) {
+    if (reveal >= 3 && ma.mas.short && M.badges !== false) {
       const x = fiToX(nowFi), y = pToY(ma.mas.short.last);
       if (isFinite(x) && isFinite(y)) {
         const o = ma.align.order;
-        _evLabel(c, (o === "bull" ? "정배열 ▲" : o === "bear" ? "역배열 ▼" : "혼조 –") + (ma.sr.ma ? " · " + (ma.sr.side === "support" ? "지지" : "저항") : ""), x + 4, y - 6, o === "bull" ? "#46c28e" : o === "bear" ? "#e06a6a" : "#8a92b2", "left");
+        _evLabel(c, (o === "bull" ? Str.MA_ALIGN.bull + " ▲" : o === "bear" ? Str.MA_ALIGN.bear + " ▼" : Str.MA_ALIGN.mixed + " –") + (ma.sr.ma ? " · " + (ma.sr.side === "support" ? Str.SR.support : Str.SR.resistance) : ""), x + 4, y - 6, o === "bull" ? "#46c28e" : o === "bear" ? "#e06a6a" : "#8a92b2", "left");
       }
     }
     // 미래 투영(포커스 시): 장기 MA를 최근 봉당 기울기로 감쇠 연장 → "이 지표가 이렇게 이어져 예측에 기여"하는 독립 해석 시각화
@@ -180,7 +182,7 @@
         const pp = [[seam, pToY(base)]]; let endV = base;
         for (let k = 1; k <= fb; k++) { endV = base + slPer * k * Math.exp(-k / (fb * 1.5)); pp.push([seam + (xr - seam) * k / fb, pToY(endV)]); }
         _drawProjLine(c, pp, _maCol); _projMark(c, pp[pp.length - 1][0], pp[pp.length - 1][1], _maCol, _projMarkScale(endV, base));
-        _evLabel(c, "이동평균 투영 ≈ " + _hzFmt(endV), xr, pToY(endV), _maCol, "right");
+        _evLabel(c, "MA projection ≈ " + _hzFmt(endV), xr, pToY(endV), _maCol, "right");
       }
     }
     c.restore();
@@ -196,11 +198,11 @@
       if ([xa, ya, xb, yb].every(isFinite)) {
         const col = rsi.divergence.type === "bullish" ? "#46c28e" : "#e06a6a";
         c.strokeStyle = col; c.lineWidth = 1.8; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.setLineDash([]);
-        _evLabel(c, (rsi.divergence.type === "bullish" ? "강세" : "약세") + " 다이버전스", xb, yb, col, "left");
+        _evLabel(c, rsi.divergence.type === "bullish" ? Str.t.cxBullDiv : Str.t.cxBearDiv, xb, yb, col, "left");
       }
     }
-    if (reveal >= 2) {
-      const zt = rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립";
+    if (reveal >= 2 && M.badges !== false) {
+      const zt = Str.RSI_ZONE[rsi.zone] || "neutral";
       const col = rsi.zone === "overbought" ? "#e06a6a" : rsi.zone === "oversold" ? "#46c28e" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));
       _evLabel(c, "RSI " + Math.round(rsi.last) + " \xb7 " + zt, xb, _by, col, "right");
@@ -210,7 +212,7 @@
 
   function _drawVolumeLayers(c, va, M) {
     if (!va) return;
-    const { fiToX, pToY, fiMin, reveal, xRight } = M;
+    const { fiToX, pToY, fiMin, reveal = Infinity, xRight } = M;
     const _by = (M.badgeY != null) ? M.badgeY : 28;
     c.save();
     // 레이어1: 가격-OBV 다이버전스 선
@@ -222,20 +224,20 @@
       if ([xa, ya, xb, yb].every(isFinite)) {
         c.strokeStyle = col; c.lineWidth = 2; c.setLineDash([5, 4]);
         c.beginPath(); c.moveTo(xa, ya); c.lineTo(xb, yb); c.stroke(); c.setLineDash([]);
-        _evLabel(c, (va.divergence.type === "bullish" ? "강세" : "약세") + " 거래량 다이버전스", (xa + xb) / 2, Math.min(ya, yb) - 8, col, "center");
+        _evLabel(c, va.divergence.type === "bullish" ? Str.t.cxBullVolDiv : Str.t.cxBearVolDiv, (xa + xb) / 2, Math.min(ya, yb) - 8, col, "center");
       }
     }
     // 레이어2: 급증 마커 + 상태/관계 배지
     if (reveal >= 2) {
-      const relTxt = va.relationship === "confirm" ? "상승 확인" : va.relationship === "weakening" ? "추진력 약화" : va.relationship === "selling" ? "매도 압력" : "투매 진정";
+      const relTxt = Str.VOL_REL[va.relationship] || "weakening";
       const relCol = (va.relationship === "confirm" || va.relationship === "capitulation") ? "#46c28e" : "#e06a6a";
-      const stTxt = va.state === "spike" ? "거래량 급증" : va.state === "contract" ? "거래량 위축" : "거래량 평이";
+      const stTxt = Str.VOL_STATE[va.state] || "normal";
       // 급증 시 마지막 봉(현재) 가격 위에 짧은 골드 수직 틱
       if (va.state === "spike" && isFinite(M.lastPrice)) {
         const x = fiToX(Math.max(fiMin, M.nowFi)), y = pToY(M.lastPrice);
         if (isFinite(x) && isFinite(y)) { c.strokeStyle = FC_GOLD; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x, y - 14); c.lineTo(x, y - 4); c.stroke(); }
       }
-      _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, _by, relCol, "right");
+      if (M.badges !== false) _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, _by, relCol, "right");
     }
     c.restore();
   }
@@ -258,21 +260,22 @@
       c.strokeStyle = "rgba(143,180,240,.5)"; stroke(bb.upper, [3, 3], 1); stroke(bb.lower, [3, 3], 1);
       c.strokeStyle = COL; stroke(bb.mid, [], 1.4);
     }
-    if (reveal >= 2 && _skReady()) {
+    if (reveal >= 2 && _skReady() && M.badges !== false) {
       const x = (xRight != null ? xRight : fiToX(nowFi)), y = pToY(bb.last.mid);
-      const st = bb.state, sTxt = st === "breakout_up" ? "상단 돌파" : st === "breakout_dn" ? "하단 이탈" : st === "upper" ? "밴드 상단" : st === "lower" ? "밴드 하단" : "밴드 중앙";
+      const st = bb.state, sTxt = Str.BB_STATE[st] || "mid band";
       const col = bb.bias > 0.15 ? "#46c28e" : bb.bias < -0.15 ? "#e06a6a" : COL;
-      if (isFinite(x) && isFinite(y)) _evLabel(c, "BB " + sTxt + (bb.squeeze ? " · 스퀴즈" : "") + " · %B" + bb.last.pctB.toFixed(2), x - 6, y, col, "right");
+      if (isFinite(x) && isFinite(y)) _evLabel(c, "BB " + sTxt + (bb.squeeze ? Str.t.legSqueeze : "") + " · %B" + bb.last.pctB.toFixed(2), x - 6, y, col, "right");
     }
-    if (M.focused && M.xNow != null && M.futBars) _projFwd(c, bb.mid, nowFi, M.xNow, (xRight != null ? xRight : fiToX(nowFi)), M.futBars, pToY, COL, "볼린저 중심 투영");
+    if (M.focused && M.xNow != null && M.futBars) _projFwd(c, bb.mid, nowFi, M.xNow, (xRight != null ? xRight : fiToX(nowFi)), M.futBars, pToY, COL, "Bollinger midline projection");
     c.restore();
   }
 
   function _drawMacdLayers(c, m, M) {
     if (!_skReady()) return;
+    if (M.badges === false) return;   // Fix 3: 다른 4개 레이어는 이미 게이트한다 — MACD만 빠져 있었다
     const { xRight, nowFi, fiToX, badgeY } = M;
     const x = (xRight != null ? xRight : fiToX(nowFi)), y = (badgeY != null ? badgeY : 14);
-    const cross = m.cross && m.cross.type ? (m.cross.type === "bull" ? "골든" : "데드") + m.cross.barsAgo + "봉" : "교차없음";
+    const cross = m.cross && m.cross.type ? (m.cross.type === "bull" ? Str.t.legGolden : Str.t.legDead) + m.cross.barsAgo + Str.t.legBars : Str.t.legNoCross;
     const col = m.bias > 0.15 ? "#46c28e" : m.bias < -0.15 ? "#e06a6a" : "#e0a86a";
     if (isFinite(x) && isFinite(y)) _evLabel(c, "MACD " + (m.last.hist >= 0 ? "+" : "") + m.last.hist.toFixed(1) + " · " + cross, x, y, col, "right");
   }

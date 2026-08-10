@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const CL = require("../www/chart-layout.js");
@@ -94,4 +95,19 @@ test("lastPrice 는 마지막 종가다 — 거래량 레이어가 쓴다", () =
   const L = CL.chartLayout(base());
   const c = candles(300);
   assert.equal(L.panels.volume.M.lastPrice, c[299].c);
+});
+
+// Fix 4: spec §8이 요구한 "레이아웃의 미래 비중 25% 이상"을 검증하는 테스트가 없어서,
+// report.js의 TAIL_BARS를 120으로 되돌려도(헤드라인 변경 하나를 조용히 무효화해도) 관문이 그대로 초록이었다.
+test("tailBars:60·예측 24봉이면 미래 구간이 플롯 폭의 25% 이상을 차지한다 — spec §8", () => {
+  const L = CL.chartLayout(Object.assign(base(), { tailBars: 60 }));
+  const share = L.fut / (L.tail + L.fut);
+  assert.ok(share >= 0.25, "미래 비중 " + (share * 100).toFixed(1) + "% — 25% 미만");
+});
+
+test("report.js 의 TAIL_BARS 상수는 60이다 — 되돌리면 여기서 잡힌다", () => {
+  const src = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
+  const m = src.match(/\bTAIL_BARS\s*=\s*(\d+)/);
+  assert.ok(m, "report.js 에서 TAIL_BARS 선언을 못 찾았다");
+  assert.equal(Number(m[1]), 60, "TAIL_BARS 가 60이 아니다(되돌려졌을 가능성) — 미래 비중 25% 요건이 깨진다");
 });

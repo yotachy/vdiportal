@@ -2,10 +2,12 @@
 // 원본은 자기 캔버스를 DOM getElementById 로 직접 잡으므로 머리 3줄을 인자로 바꿨다.
 // 원본 심볼: FC_ACC FC_DIM _oscA fcFit _osReveal fcDrawRsi fcDrawMacd fcDrawVol
 (function (root, factory) {
-  if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSPanels = factory();
-})(typeof self !== "undefined" ? self : this, function () {
+  if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./strings.js"));
+  else root.MSPanels = factory(root.MSStr);
+})(typeof self !== "undefined" ? self : this, function (Str) {
   "use strict";
+
+  var T = (Str && Str.t) || {};   // Fix 7: 이 파일도 다른 draw-* 모듈처럼 MSStr 단일 출처를 쓴다
 
   // ── 심 ──
   var _oscRGB = "232,180,99";            // 핸드오프 gold #e8b463 의 rgb — 정확히 일치한다
@@ -30,7 +32,7 @@
   function fcDrawRsi(c, cw, ch, rsi, reveal) {
     c.clearRect(0, 0, cw, ch);
     const s = (rsi && rsi.series) || [];
-    if (s.length < 2) { c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center"; c.fillText("RSI 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return; }
+    if (s.length < 2) { c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center"; c.fillText(T.pnlRsiEmpty, cw / 2, ch / 2); c.textAlign = "left"; return; }
     const padL = 6, padR = 28, padV = 8, plotW = cw - padL - padR, plotH = ch - 2 * padV;
     const yOf = v => padV + (1 - v / 100) * plotH, xOf = i => padL + (i / (s.length - 1)) * plotW;
     c.fillStyle = "rgba(224,106,106,.06)"; c.fillRect(padL, yOf(100), plotW, yOf(70) - yOf(100));
@@ -57,7 +59,7 @@
   function fcDrawMacd(c, cw, ch, m, reveal) {
     c.clearRect(0, 0, cw, ch);
     const macd = (m && m.macd) || [], sig = (m && m.sig) || [], hist = (m && m.hist) || [];
-    if (macd.length < 2) { c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center"; c.fillText("MACD 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return; }
+    if (macd.length < 2) { c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center"; c.fillText(T.pnlMacdEmpty, cw / 2, ch / 2); c.textAlign = "left"; return; }
     const padL = 6, padR = 30, padV = 10, plotW = cw - padL - padR, plotH = ch - 2 * padV;
     let mx = 1e-9; for (let i = 0; i < macd.length; i++) mx = Math.max(mx, Math.abs(macd[i]), Math.abs(sig[i]), Math.abs(hist[i])); mx *= 1.1;
     const yOf = v => padV + (1 - (v + mx) / (2 * mx)) * plotH, xOf = i => padL + (i / (macd.length - 1)) * plotW;
@@ -71,7 +73,7 @@
   function fcDrawVol(c, cw, ch, va, reveal) {
     c.clearRect(0, 0, cw, ch);
     const s = (va && va.series) || [];
-    if (s.length < 2) { c.fillStyle = "#8a92b2"; c.font = "12px Pretendard,'Malgun Gothic',sans-serif"; c.fillText("거래량 데이터 없음", 10, ch / 2); return; }
+    if (s.length < 2) { c.fillStyle = "#8a92b2"; c.font = "12px Pretendard,'Malgun Gothic',sans-serif"; c.fillText(T.pnlVolumeEmpty, 10, ch / 2); return; }
     const pad = 6, w = cw - pad * 2, h = ch - pad * 2 - 14;
     const n = s.length, obv = va.obv || [];
     // 막대 다운샘플: 너무 많으면(성능·가독성) ~76개 버킷 평균으로 축약 → 눈에 유의미한 정도만

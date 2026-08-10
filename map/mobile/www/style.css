@@ -68,6 +68,19 @@ body {
 .rp-chart { position:relative; width:100%; margin-bottom:14px; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--bg-raised); }
 .rp-chart canvas { display:block; width:100%; }
 
+/* 차트 지표 레전드 — 값을 차트 밖으로 뺀 고정 행(캔버스 앞). 칩은 wrap 되어 폭에 맞춰 접힌다.
+   rp-ind-legend 로 이름을 분리한 이유는 아래 .rp-legend(예측선 색상 범례)와 충돌 회피. */
+.rp-ind-legend { display:flex; flex-wrap:wrap; gap:4px 10px; padding:6px 2px 8px; }
+.rp-lg-chip { display:flex; align-items:baseline; gap:5px; font-size:11.5px; line-height:1.5; }
+.rp-lg-k { color:var(--ink-4); letter-spacing:-0.01em; }
+/* Fix 8: MACD/RSI 값의 자릿수가 크로스헤어 드래그 중 매 프레임 바뀐다("0.0" ↔ "-12.3").
+   tabular-nums 는 자릿수 자체가 늘고 주는 것은 못 잡아준다 — min-width 로 칩 폭을 고정해
+   줄바꿈 경계를 넘나드는 레이아웃 점프(캔버스가 손가락 밑에서 움직이는 것처럼 보임)를 막는다. */
+.rp-lg-v { font-variant-numeric:tabular-nums; min-width:15ch; display:inline-block; }
+.rp-lg-bull  .rp-lg-v { color:var(--bull); }
+.rp-lg-bear  .rp-lg-v { color:var(--bear-text); }
+.rp-lg-muted .rp-lg-v { color:var(--ink-3); }
+
 .rp-legend { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:24px; }
 .rp-legend-item { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--ink-3); }
 .rp-legend-line { width:16px; height:0; border-top:2px solid var(--ink-5); }
