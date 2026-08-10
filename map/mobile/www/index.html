@@ -3,32 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>MoneyScoop — Phase 0 Spike</title>
+<title>MoneyScoop</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<h1>Phase 0 Spike</h1>
-<p class="sub">엔진이 WebView 에서 도는지 · 얼마나 걸리는지</p>
-
-<div class="row">
-  <input id="sym" value="AAPL" autocapitalize="characters" autocorrect="off" spellcheck="false">
-  <button id="go">분석</button>
-</div>
-
-<p id="status" class="status">대기</p>
-
-<canvas id="chart" width="372" height="240"></canvas>
-
-<div id="verdict" class="card"></div>
-<div id="timing" class="card"></div>
-<div id="env" class="card"></div>
-
+<div id="app"></div>
 <script src="vendor/forge-core.js"></script>
 <script src="api.js"></script>
 <script src="graph.js"></script>
+<script src="store.js"></script>
+<script src="scan.js"></script>
 <script src="chart-layout.js"></script>
+<script src="draw-layers.js"></script>
+<script src="draw-panels.js"></script>
 <script src="chart-draw.js"></script>
-<script src="bench.js"></script>
-<script src="spike.js"></script>
+<script src="ui.js"></script>
+<script src="screens/watchlist.js"></script>
+<script src="screens/report.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
