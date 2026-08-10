@@ -64,6 +64,20 @@
     return g;
   }
 
-  return { INFRA: INFRA, MISSING: MISSING, indicatorTypes: indicatorTypes,
-           full32Graph: full32Graph, setVolume: setVolume };
+  // Basic 티어 = 핵심 5지표(Lv1). Full 대비 5031봉에서 약 128배 싸다(20.2ms vs 2581.7ms).
+  var BASIC = ["ma", "macd", "rsi", "bollinger", "volume"];
+
+  function basicGraph(ForgeCore) {
+    var g = full32Graph(ForgeCore);   // 합성 거래량 제거·conviction 0 처리를 그대로 물려받는다
+    var drop = {};
+    (g.nodes || []).forEach(function (n) {
+      if (!n.blockType || INFRA.indexOf(n.blockType) >= 0) return;
+      if (BASIC.indexOf(n.blockType) < 0) drop[n.id] = true;
+    });
+    g.nodes = g.nodes.filter(function (n) { return !drop[n.id]; });
+    g.edges = g.edges.filter(function (e) { return !drop[e.from] && !drop[e.to]; });
+    return g;
+  }
+
+  return { INFRA: INFRA, MISSING: MISSING, BASIC: BASIC, indicatorTypes: indicatorTypes, full32Graph: full32Graph, basicGraph: basicGraph, setVolume: setVolume };
 });
