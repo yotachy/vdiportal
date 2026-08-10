@@ -11,7 +11,12 @@
 
   var T = (Str && Str.t) || {};
   function ind(bt) { return (Str && Str.ind) ? Str.ind(bt) : bt; }
-  function num(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
+  // 목표가는 시안이 두 자리(target 170.70)로 못박았다. Phase 3 에서 차트의 끝점 예측가 라벨이
+  // 사라지므로 이 값과 보조를 맞출 형제 라벨이 더는 없다 — 앱 공통 num() 규칙에서 의도적으로 갈라진다.
+  // 다만 큰 수(코인)에서 소수 두 자리는 소음이라 1000 이상은 종전대로 반올림한다.
+  function priceTxt(v) {
+    return Math.abs(v) < 1000 ? v.toFixed(2) : Math.round(v).toLocaleString();
+  }
   function at(arr, fi, fallback) {
     if (!arr || !arr.length) return fallback;
     var k = (fi == null) ? arr.length - 1 : Math.max(0, Math.min(arr.length - 1, fi));
@@ -37,10 +42,13 @@
     // MACD — 히스토그램은 봉별, 교차는 전체 판정
     var m = an.macd, h = at(m.hist, fi, 0);
     var cross = (m.cross && m.cross.type)
-      ? (m.cross.type === "bull" ? T.cxGolden : T.cxDead) + m.cross.barsAgo
-      : "no cross";
+      ? (m.cross.type === "bull" ? T.legGolden : T.legDead) + m.cross.barsAgo + T.legBars
+      : T.legNoCross;
+    // 반올림하면 0 이 되는 값에 부호를 달면, 크로스헤어를 끌 때 +0.0/-0.0 이 번갈아 나와
+    // 고장난 것처럼 보인다. 부호는 실제로 표시되는 크기가 있을 때만 붙인다.
+    var hTxt = (Math.abs(h) < 0.05) ? "0.0" : (h >= 0 ? "+" : "") + h.toFixed(1);
     out.push({ key: "macd", label: ind("macd"),
-               value: (h >= 0 ? "+" : "") + h.toFixed(1) + " · " + cross,
+               value: hTxt + " · " + cross,
                tone: biasTone(m.bias) });
 
     // RSI — 값은 봉별, 구간 문구는 그 값에서 바로 나오므로 함께 따라간다
@@ -70,7 +78,7 @@
       var up = pred.path[n - 1] >= anchor;
       out.push({ key: "pred", label: T.legPred, value: pc + "%",
                  tone: pc < 50 ? "muted" : (up ? "bull" : "bear") });
-      out.push({ key: "predpx", label: T.legTarget, value: num(pred.path[n - 1]),
+      out.push({ key: "predpx", label: T.legTarget, value: priceTxt(pred.path[n - 1]),
                  tone: pc < 50 ? "muted" : (up ? "bull" : "bear") });
     } else {
       out.push({ key: "pred", label: T.legPred, value: "—", tone: "muted" });

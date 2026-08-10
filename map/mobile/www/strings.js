@@ -72,6 +72,7 @@
     // 차트 레전드 (Phase 3 신규)
     legPred: "1st forecast",
     legTarget: "Target",
+    legGolden: "golden ", legDead: "dead ", legBars: " bars", legNoCross: "no cross",
 
     // 차트 안 잔존 라벨
     cxGolden: "Golden ·", cxDead: "Dead ·",

@@ -82,3 +82,43 @@ test("반대가 우세한 예측(pcal<50)은 muted 로 강등된다 — 차트 �
   const row = LG.rows(an, weak, null).find(x => x.key === "pred");
   assert.equal(row.tone, "muted", "pcal=" + row.value + " 인데 muted 가 아니다");
 });
+
+// Fix round 1 — 카피 정정 회귀 테스트
+
+test("MACD 교차 문구는 차트용 대문자·이중구분자를 물려받지 않는다", () => {
+  const bull = Object.assign({}, an.macd, { cross: { type: "bull", barsAgo: 5 } });
+  const bear = Object.assign({}, an.macd, { cross: { type: "bear", barsAgo: 3 } });
+  const none = Object.assign({}, an.macd, { cross: { type: null, barsAgo: null } });
+  const vBull = LG.rows(Object.assign({}, an, { macd: bull }), pred, null).find(x => x.key === "macd").value;
+  const vBear = LG.rows(Object.assign({}, an, { macd: bear }), pred, null).find(x => x.key === "macd").value;
+  const vNone = LG.rows(Object.assign({}, an, { macd: none }), pred, null).find(x => x.key === "macd").value;
+  assert.match(vBull, /^[+-]?\d+\.\d · golden \d+ bars$/, "bull cross: " + vBull);
+  assert.match(vBear, /^[+-]?\d+\.\d · dead \d+ bars$/, "bear cross: " + vBear);
+  assert.match(vNone, / · no cross$/, "no cross: " + vNone);
+  [vBull, vBear, vNone].forEach(v => {
+    assert.ok(!/·\s*·/.test(v), "이중 구분자: " + v);
+    assert.ok(!/Golden|Dead/.test(v), "대문자 잔존: " + v);
+  });
+});
+
+test("목표가는 1000 미만이면 소수 두 자리, 1000 이상이면 정수다", () => {
+  const small = { path: [100, 99.5], lo: [96, 96], hi: [104, 108], anchor: 100, futW: 2 };
+  const big = { path: [1000, 1234.5], lo: [900, 900], hi: [1000, 1300], anchor: 1000, futW: 2 };
+  const vSmall = LG.rows(an, small, null).find(x => x.key === "predpx").value;
+  const vBig = LG.rows(an, big, null).find(x => x.key === "predpx").value;
+  assert.equal(vSmall, "99.50", "1000 미만 목표가: " + vSmall);
+  assert.match(vBig, /^\d[\d,]*$/, "1000 이상 목표가에 소수점: " + vBig);
+  assert.ok(vBig.indexOf(".") === -1, "1000 이상 목표가에 소수점: " + vBig);
+});
+
+test("반올림하면 0 이 되는 MACD 히스토그램은 부호 없이 렌더된다 — 크로스헤어로 끌 때 +0.0/-0.0 이 번갈아 뜨면 고장으로 보인다", () => {
+  const histPos = an.macd.hist.slice(); histPos[histPos.length - 1] = 0.02;
+  const histNeg = an.macd.hist.slice(); histNeg[histNeg.length - 1] = -0.02;
+  const mPos = Object.assign({}, an.macd, { hist: histPos });
+  const mNeg = Object.assign({}, an.macd, { hist: histNeg, cross: mPos.cross });
+  const vPos = LG.rows(Object.assign({}, an, { macd: mPos }), pred, null).find(x => x.key === "macd").value;
+  const vNeg = LG.rows(Object.assign({}, an, { macd: mNeg }), pred, null).find(x => x.key === "macd").value;
+  assert.ok(vPos.indexOf("0.0") === 0, "양의 데드밴드 값에 부호가 남아있다: " + vPos);
+  assert.ok(vNeg.indexOf("0.0") === 0, "음의 데드밴드 값에 부호가 남아있다: " + vNeg);
+  assert.equal(vPos, vNeg, "같은 데드밴드인데 부호로 값이 갈렸다: " + vPos + " / " + vNeg);
+});
