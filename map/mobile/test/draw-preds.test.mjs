@@ -232,3 +232,27 @@ test("pcal 은 예측 방향 자체의 실현확률 — 확신이 약할수록 5
   assert.ok(weakDn < 50, "반대 우세(50 미만) 경로가 만들어지지 않는다: " + weakDn);
   assert.ok(strongUp > 50, "상승 예측이 50 이하다: " + strongUp);
 });
+
+test("_tfUnit 은 월/주/일 순으로 판별한다 — 순서가 뒤집히면 마일스톤 봉이 달라진다", () => {
+  const arcsFor = (tf) => {
+    const c = recCtx(); L.resetLabels(372, 520);
+    P.endDeco(c, deco({ tf: tf, label: null, showPx: false }));
+    return c.calls.filter(x => x.op === "arc").length;   // 진앙 2 + 마일스톤 n
+  };
+  assert.equal(arcsFor("1month"), 5, "월봉 마일스톤 수가 다르다");
+  assert.equal(arcsFor("1day"),   4, "일봉 마일스톤 수가 다르다");
+  assert.equal(arcsFor("1week"), 3, "주봉 마일스톤 수가 다르다");
+});
+
+test("끝점 라벨은 이미 예약된 박스를 피해 밀린다 — 회피가 죽으면 겹쳐 그린다", () => {
+  const c = recCtx(); L.resetLabels(372, 520);
+  P.endDeco(c, deco());                              // 1차 — 라벨 + 예측가 예약
+  const first = L.predBoxes().slice();
+  assert.ok(first.length >= 1, "첫 호출이 아무것도 예약하지 않았다");
+  P.endDeco(c, deco());                              // 같은 기하로 한 번 더 — 반드시 다른 자리로
+  const second = L.predBoxes().slice(first.length);
+  assert.ok(second.length >= 1, "두 번째 호출이 아무것도 예약하지 않았다");
+  const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  first.forEach(a => second.forEach(b =>
+    assert.ok(!hit(a, b), "두 번째 라벨이 첫 번째와 겹쳤다: " + JSON.stringify(a) + " vs " + JSON.stringify(b))));
+});
