@@ -19,8 +19,9 @@
 | `sampleGraph()` | 24노드 / **지표 19종**. 32종이 아니다 — 13종을 추가해야 Full 측정이 된다 |
 | 누락 13종 | `pivot psar gann keltner donchian cci williams aroon mfi roc ao cmf pattern` |
 | 노드 스키마 | `{id, kind:"block", blockType, params:{}, x, y, title, conviction, weight}` · 엣지 `{from, to}` |
-| **성능 기준선** | 봉 수와 **무관**하게 일정(엔진이 최근 구간만 본다). 5000봉 ≈ 600봉. 데스크톱 노드: 19지표 1TF 70.6ms · **32지표 1TF 86.5ms · 32지표×3TF 202.8ms** |
-| 6배 스로틀 환산 | **1.22초** — 판정 임계 2초 아래. Worker 불필요 쪽으로 기운다(기기 실측으로 확정) |
+| ~~**성능 기준선**~~ | ❌ **이 항목은 틀렸다(2026-08-10 정정).** "봉 수와 무관하게 일정, 32지표×3TF 202.8ms"는 `makeDemoSeries(n)` 이 **인자를 무시하고 항상 480봉을 반환**하는 것을 모른 채 같은 480봉을 네 번 잰 결과다. 실제로는 봉 수에 **강하게 의존**하며 초선형(약 O(n^1.5)) — 데스크톱 549봉 66.7ms / 2383봉 545.2ms / 5031봉 1990.4ms |
+| ~~6배 스로틀 환산~~ | ❌ **대리치로 부적합.** 실봉수 데스크톱 합계 2602ms × 6 = 15.6초인데 실기기는 0.78~1.07초 — 폴드7이 이 WSL 박스보다 **3.3배 빠르다**. 스로틀 배수는 기기 성능의 대용이 못 된다 |
+| **실측 결과(2026-08-10)** | 폴드7 커버화면 3주기 합계 **콜드 776.5ms / 반복 1074.4ms** → 임계 2000ms 통과. 상세·단서는 `map/mobile/docs/phase0-measurements.md` |
 | sudo | **불가**(비밀번호 필요). WSL에 JDK를 apt로 설치할 수 없다 → 빌드는 Windows Android Studio에서 |
 | Windows 자산 | Android Studio JBR · Android SDK · `adb.exe` 모두 존재 |
 | 배포 스크립트 | 저장소에 없음(수동 SFTP). `map/mobile/`이 자동으로 서버에 올라갈 위험 없음 |
@@ -1347,7 +1348,7 @@ grep -c "mousedown\|mousemove\|mouseup" forge-tools.js
 | C 폴드7 커버 화면 | | | | | |
 | D 폴드7 펼친 화면 | | | | | |
 
-사전 노드 기준선(참고): 32지표 1TF 86.5ms · 3TF 202.8ms · 6× 환산 1.22s
+사전 노드 기준선은 틀렸다(makeDemoSeries 가 n 을 무시하고 480봉 고정). 실측 기준선은 위 표를 쓸 것.
 
 ## 네트워크
 

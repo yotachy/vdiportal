@@ -32,3 +32,12 @@ backtest/earn-div.json
 
 # 8-K 이벤트 검증 데이터(SEC EDGAR 수집) — 재수집 가능(collect-8k.js)
 backtest/8k-events.json
+
+# 머니스쿱 모바일 — 생성물(엔진 사본은 sync-engine.mjs 가 만든다)
+mobile/node_modules/
+mobile/www/vendor/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/src/main/assets/public/

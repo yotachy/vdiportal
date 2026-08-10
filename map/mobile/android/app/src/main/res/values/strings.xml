@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MoneyScoop</string>
+    <string name="title_activity_main">MoneyScoop</string>
+    <string name="package_name">com.moneyscoop.mobile</string>
+    <string name="custom_url_scheme">com.moneyscoop.mobile</string>
+</resources>
