@@ -297,8 +297,8 @@
       var dirCls = v.regime === "bull" ? "bull" : v.regime === "bear" ? "bear" : "neutral";
       wrap.appendChild(MSUi.el("div", "rp-verdict " + dirCls, dirWord));
 
-      var total = v.confluence.total, agree = v.confluence.agree, score = v.confluence.score;
-      var confText = total ? ("확신 " + score + "% · " + agree + "/" + total + " 지표 동의") : "확신 산출 불가(방향 지표 부족)";
+      var total = v.confluence.total, agree = v.confluence.agree;
+      var confText = total ? ("지표 " + total + "개 중 " + agree + "개가 이 방향에 동의") : "방향을 내는 지표가 없어 일치도를 낼 수 없습니다";
       wrap.appendChild(MSUi.el("div", "rp-conf", confText));
 
       var pr = an.out.prediction, last = pr.lo.length - 1;
@@ -380,7 +380,7 @@
       if (state === "ready") {
         var v = an.out.verdict;
         var dirWord = v.regime === "bull" ? "상승" : v.regime === "bear" ? "하락" : "중립";
-        dailyVal = dirWord + " · 확신 " + v.confluence.score + "%";
+        dailyVal = v.confluence.total ? (dirWord + " · " + v.confluence.agree + "/" + v.confluence.total + " 동의") : dirWord;
       } else if (state === "error") {
         dailyVal = "—";
       }

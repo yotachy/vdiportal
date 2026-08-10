@@ -115,7 +115,7 @@
       }
       btn.appendChild(px);
 
-      btn.appendChild(MSUi.el("div", "wl-conf", (rec && rec.confluence) ? (rec.confluence.score + "%") : ""));
+      btn.appendChild(MSUi.el("div", "wl-conf", (rec && rec.confluence && rec.confluence.total) ? (rec.confluence.agree + "/" + rec.confluence.total) : ""));
 
       if (failedSyms[item.sym]) btn.appendChild(MSUi.el("span", "wl-asof", "갱신 실패"));
 
