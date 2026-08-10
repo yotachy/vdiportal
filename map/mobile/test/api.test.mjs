@@ -83,3 +83,38 @@ test("봉이 부족하면 던진다 — 주기별 하한이 다르다", () => {
 test("candles 가 배열이 아니면 던진다", () => {
   assert.throws(() => MSApi.normalizeCandles({ ok: true, tf: "1day", candles: null }), /봉 부족/);
 });
+
+function fakeFetch(payload, status) {
+  return async () => ({ ok: (status || 200) < 400, status: status || 200, json: async () => payload });
+}
+
+test("loadTicker 는 정상 응답을 정규화해서 돌려준다", async () => {
+  const r = fakeResponse(250);
+  const out = await MSApi.loadTicker("AAPL", "1day", fakeFetch(r));
+  assert.equal(out.candle.length, 250);
+  assert.equal(out.asOf, r.candles[249].t);
+});
+
+test("notfound 는 suggest 를 붙여서 던진다", async () => {
+  const payload = { ok: false, error: "notfound", symbol: "APPL", suggest: [{ s: "AAPL", n: "Apple Inc." }] };
+  await assert.rejects(
+    () => MSApi.loadTicker("APPL", "1day", fakeFetch(payload, 502)),
+    err => {
+      assert.equal(err.notfound, true);
+      assert.deepEqual(err.suggest, [{ s: "AAPL", n: "Apple Inc." }]);
+      return true;
+    }
+  );
+});
+
+test("suggest 가 없는 실패는 notfound 로 표시하지 않는다", async () => {
+  await assert.rejects(
+    () => MSApi.loadTicker("AAPL", "1day", fakeFetch({ ok: false, error: "badsymbol" }, 400)),
+    err => { assert.notEqual(err.notfound, true); return /badsymbol/.test(err.message); }
+  );
+});
+
+test("네트워크 예외는 그대로 전파된다", async () => {
+  const boom = async () => { throw new Error("network down"); };
+  await assert.rejects(() => MSApi.loadTicker("AAPL", "1day", boom), /network down/);
+});

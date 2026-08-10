@@ -52,5 +52,17 @@
     };
   }
 
-  return { API_BASE: API_BASE, MIN_BARS: MIN_BARS, ohlcUrl: ohlcUrl, normalizeCandles: normalizeCandles };
+  // 조회 + 오타 구제. 서버가 notfound 일 때 Yahoo 기반 제안을 최대 3건 준다(forge-api.php).
+  function loadTicker(symbol, tf, fetchImpl) {
+    var f = fetchImpl || (typeof fetch === "function" ? fetch : null);
+    if (!f) return Promise.reject(new Error("fetch 없음"));
+    return f(ohlcUrl(symbol, tf)).then(function (res) { return res.json(); }).then(function (json) {
+      if (json && json.ok) return normalizeCandles(json);
+      var err = new Error("OHLC 실패: " + ((json && json.error) || "unknown"));
+      if (json && json.error === "notfound") { err.notfound = true; err.suggest = json.suggest || []; }
+      throw err;
+    });
+  }
+
+  return { API_BASE: API_BASE, MIN_BARS: MIN_BARS, ohlcUrl: ohlcUrl, normalizeCandles: normalizeCandles, loadTicker: loadTicker };
 });
