@@ -157,3 +157,78 @@ test("dash 를 주면 점선으로, 안 주면 실선으로 긋는다", () => {
   const set = solid.calls.filter(x => x.op === "setLineDash" && x.args[0] && x.args[0].length);
   assert.equal(set.length, 0, "dash 없이 점선을 그렸다");
 });
+
+// ── 끝점 장식 ──
+const L = require("../www/draw-layers.js");
+const BOX = { padX: 10, plotW: 300, padTop: 10, padBot: 0, ch: 280 };
+const deco = (over) => Object.assign({
+  path: Array.from({ length: 24 }, (_, k) => 100 + k * 0.4),
+  seamX: 120, coneR: 300, toY: v => 280 - (v - 95) * 4,
+  box: BOX, tf: "1day", col: "#e8b463", label: "1차·62%", labelDy: -12, showPx: true
+}, over || {});
+
+test("epicenter 는 동심 코어를 arc 로 실제로 그린다", () => {
+  const c = recCtx();
+  P.epicenter(c, 100, 50, "#e8b463", 1);
+  const arcs = c.calls.filter(x => x.op === "arc");
+  assert.equal(arcs.length, 2, "코어+화이트닷 2개가 아니다");
+  assert.ok(arcs[0].args[2] > arcs[1].args[2],
+            "글로우 코어가 안쪽 흰 점보다 커야 한다: " + arcs[0].args[2] + " vs " + arcs[1].args[2]);
+});
+
+test("epicenter 는 좌표가 유한하지 않으면 아무것도 안 그린다", () => {
+  const c = recCtx();
+  P.epicenter(c, NaN, 50, "#e8b463", 1);
+  assert.equal(c.calls.length, 0);
+});
+
+test("endDeco 는 진앙과 라벨을 모두 페인트한다", () => {
+  const c = recCtx(); L.resetLabels(372, 520);
+  P.endDeco(c, deco());
+  assert.ok(c.calls.some(x => x.op === "arc"), "진앙이 없다");
+  const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
+  assert.ok(texts.some(t => t.indexOf("1차") === 0), "차수 라벨이 없다: " + texts.join("|"));
+  assert.equal(texts.length, 2, "차수 라벨 + 끝점 예측가 두 개여야 한다");
+});
+
+test("endDeco 가 그린 라벨은 공유 레지스트리에 예약된다 — 지표 배지가 이를 피해야 한다", () => {
+  const c = recCtx(); L.resetLabels(372, 520);
+  P.endDeco(c, deco());
+  assert.ok(L.predBoxes().length >= 1, "예측 라벨 박스가 예약되지 않았다");
+  assert.equal(L.evBoxes().length, L.predBoxes().length, "근거 라벨 레지스트리에 반영되지 않았다");
+});
+
+test("endDeco 는 resetLabels 없이 불러도 던지지 않는다", () => {
+  const c = recCtx();
+  assert.doesNotThrow(() => P.endDeco(c, deco()));
+});
+
+test("endDeco 는 빈 경로면 조용히 끝난다", () => {
+  const c = recCtx(); L.resetLabels(372, 520);
+  P.endDeco(c, deco({ path: [] }));
+  assert.equal(c.calls.length, 0);
+});
+
+test("endDeco 는 끝점 y 를 가격 패널 안으로 클램프한다", () => {
+  const c = recCtx(); L.resetLabels(372, 520);
+  // path 를 3봉으로 줄여 마일스톤 점을 없앤다(_hzList 가 h<=pl 만 남기므로 [] 가 된다) —
+  // 그래야 남는 arc 가 진앙뿐이라 클램프를 단독으로 단언할 수 있다.
+  P.endDeco(c, deco({ path: [100, 101, 102], toY: () => -9999, showPx: false, label: null }));
+  const arcs = c.calls.filter(x => x.op === "arc");
+  assert.equal(arcs.length, 2, "클램프 후에도 진앙(코어+화이트닷)은 그려야 한다");
+  arcs.forEach(a => assert.ok(a.args[1] >= BOX.padTop && a.args[1] <= BOX.ch, "진앙 y=" + a.args[1] + " 가 패널 밖"));
+});
+
+test("pcal 은 예측 방향 자체의 실현확률 — 확신이 약할수록 50 아래로 내려간다", () => {
+  // calibrateUpProb 는 [0,100]→[25,86] 으로 압축한다. 그래서 '깊은 하락'은 낮은 값이 아니라
+  // 높은 값이 된다(방향이 하락이고 그 하락이 실현될 확률이 높으므로).
+  // 50 미만 = 반대가 우세 = 예측 방향의 근거가 약하다는 뜻이다.
+  const strongUp = P.pcal([100, 110], [104, 118], 100, 1);   // 70
+  const strongDn = P.pcal([100, 90],  [104, 98],  100, 1);   // 52
+  const weakDn   = P.pcal([100, 99.5],[104, 108], 100, 1);   // 42 — 밴드 상단이 지배, 반대 우세
+  [strongUp, strongDn, weakDn].forEach(v =>
+    assert.ok(Number.isInteger(v) && v >= 0 && v <= 100, "pcal 이 0..100 정수가 아니다: " + v));
+  assert.ok(strongDn > weakDn, "확신이 깊은 하락이 얕은 하락보다 낮게 나왔다: " + strongDn + " vs " + weakDn);
+  assert.ok(weakDn < 50, "반대 우세(50 미만) 경로가 만들어지지 않는다: " + weakDn);
+  assert.ok(strongUp > 50, "상승 예측이 50 이하다: " + strongUp);
+});

@@ -23,7 +23,36 @@
     return h >>> 0;
   }
 
-  /* ===== 여기부터 forge-draw.js 원문 복사 (47-52, 56-69, 80-145) ===== */
+  function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }   // forge-app.js:161
+  function _normCdf(z) { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2); let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; }   // forge-app.js:162
+  /* 현재가 대비 상승확률(%) — 로그정규: m=log(예측/현재), sd=log(상단/예측) */
+  function _upProb(pred, hi, anchor) {                                                                 // forge-app.js:164
+    if (!(pred > 0 && hi > 0 && anchor > 0)) return 50;
+    const m = Math.log(pred / anchor), sd = Math.log(hi / pred);
+    return Math.round(_normCdf(m / (sd || 1e-6)) * 100);
+  }
+  function _hzList(unit, fb) {                                                                         // forge-app.js:169
+    let hs = unit === "개월" ? [3, 6, 12, 24]
+      : unit === "주" ? [13, 26, 39, 52]
+      : unit === "일" ? [10, 20, 40, 60]
+      : [Math.ceil(fb / 4), Math.ceil(fb / 2), Math.ceil(fb * 3 / 4), fb];
+    return hs.filter(h => h >= 1 && h <= fb).filter((h, i, a) => a.indexOf(h) === i);
+  }
+  // forge-draw.js:3363 원문은 한글 TF 표기("일봉")만 판별한다. 모바일 TF 는 API 표기("1day")라
+  // 영문 토큰을 함께 받도록 확장했다 — 이 심이 아니면 전부 "봉"으로 떨어져 마일스톤 점이 사라진다.
+  function _tfUnit(tf) { return /월|month/i.test(tf) ? "개월" : /주|week/i.test(tf) ? "주" : /일|day/i.test(tf) ? "일" : "봉"; }
+  // 표기용 확률: 그 봉의 예측 '방향'이 실현될 캘리브레이션 확률(%). 50 미만이면 반대가 우세 — 숨기지 않는다.
+  function _predPCal(center, hi, anchor, k) {                                                          // forge-draw.js:71
+    const raw = _upProb(center[k], hi[k], anchor);
+    const cal = (FCore && FCore.calibrateUpProb) ? FCore.calibrateUpProb(raw) : raw;
+    return (center[k] >= anchor) ? cal : (100 - cal);
+  }
+  // 라벨 충돌 레지스트리는 draw-layers.js 한 벌을 쓴다. Layers 가 없으면(단독 로드) 회피만 포기하고 그린다.
+  function _reserve(b) { if (Layers && Layers.reservePredBox) Layers.reservePredBox(b); }
+  function _obstacles() { return (Layers && Layers.axisBoxes) ? Layers.axisBoxes().concat(Layers.predBoxes()) : []; }
+  function _fit(bx, by, bw, bh, minY, maxY) { return (Layers && Layers.fitBoxY) ? Layers.fitBoxY(bx, by, bw, bh, _obstacles(), minY, maxY) : by; }
+
+  /* ===== 여기부터 forge-draw.js 원문 복사 (47-52, 56-69, 80-145, 1949-1957) ===== */
   const _CONF_HORIZON = 0.5;   // 이 아래로 떨어지는 첫 봉부터 선을 잇지 않고 점묘로 해체
   function _predBandW(loK, hiK) {
     if (!(loK > 0) || !(hiK > loK)) return 0;
@@ -113,6 +142,16 @@
     }
     c.restore();
   }
+  // 지진 진앙지형 마커 — 글로우 코어. scale<1 이면 축소·감광(반대 예상선 끝점=1/3)
+  function _epicenterMark(c, x, y, col, scale) {
+    if (!isFinite(x) || !isFinite(y)) return;
+    const sc = Math.max(0.46, scale || 1);   // 1/3이라도 최소 크기 확보(작지만 진앙지로 식별)
+    c.save(); c.lineCap = "round";
+    c.globalAlpha = 1; c.shadowColor = col; c.shadowBlur = 9 * sc; c.fillStyle = col;
+    c.beginPath(); c.arc(x, y, 3.2 * sc, 0, 7); c.fill();
+    c.shadowBlur = 0; c.globalAlpha = 1; c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, Math.max(1, 1.2 * sc), 0, 7); c.fill();
+    c.restore();
+  }
   /* ===== 원문 복사 끝 ===== */
 
   // 꿈틀 적용된 가격 수열. 호출부가 pToY 로 화면좌표로 옮긴다.
@@ -129,8 +168,65 @@
     return out;
   }
 
+  // forge-draw.js:1959-2000(_predEndDeco) — 인자만 객체로 묶고, _reserve/_fitBoxY 를 MSLayers 공유본으로 돌렸다.
+  // 흘러가는 마일스톤 점 + 끝점 진앙 + 차수 라벨 + 끝점 예측가.
+  function endDeco(c, o) {
+    var pathArr = o.path, pl = pathArr && pathArr.length; if (!pl) return;
+    var seamX = o.seamX, coneR = o.coneR, toY = o.toY, box = o.box, col = o.col;
+    var tX = function (k) { return seamX + ((k + 1) / pl) * (coneR - seamX); };
+    try {
+      var mhs = _hzList(_tfUnit(o.tf), pl), i;
+      for (i = 0; i < mhs.length; i++) {
+        var h = mhs[i]; if (h < 1 || h >= pl) continue;
+        var mx = tX(h - 1), my = toY(pathArr[h - 1]);
+        if (isFinite(mx) && isFinite(my)) {
+          c.fillStyle = col; c.beginPath(); c.arc(mx, my, 2, 0, 7); c.fill();
+          c.strokeStyle = "#0b0f14"; c.lineWidth = 1; c.stroke();
+        }
+      }
+    } catch (e) {}
+    var ex = Math.min(coneR, box.padX + box.plotW - 12);
+    var ey = Math.max(box.padTop + 14, Math.min(box.ch - box.padBot - 14, toY(pathArr[pl - 1])));
+    _epicenterMark(c, ex, ey, col, col === "#8a92b2" ? 0.6 : 1);   // 반대 우세(회색 강등)면 목표 마커도 약하게
+    // 배지와 끝점 예측가는 끝점이 서로 가까우면 고정 오프셋만으로 겹쳤다(우측 라벨 더미).
+    // 빈 슬롯에 배치하고 자리를 예약해 근거 라벨(_evLabel)도 이를 피하게 한다.
+    var _minY = box.padTop + 2, _maxY = box.ch - box.padBot - 2;
+    if (o.label) {
+      c.save(); c.font = "800 11px Pretendard,'Malgun Gothic',sans-serif"; c.textAlign = "right";
+      var _lw = c.measureText(o.label).width, _lx = ex - 10;
+      var _bx = _lx - _lw - 7, _bw = _lw + 10, _bh = 15;
+      var _want = ey + (o.labelDy != null ? o.labelDy : -13) - 10;
+      var _by = _fit(_bx, _want, _bw, _bh, _minY, _maxY);
+      if (_by != null) {
+        c.fillStyle = "rgba(11,15,20,.86)";
+        if (c.roundRect) { c.beginPath(); c.roundRect(_bx, _by, _bw, _bh, 4); c.fill(); } else c.fillRect(_bx, _by, _bw, _bh);
+        c.strokeStyle = col; c.globalAlpha = .5; c.lineWidth = 1;
+        if (c.roundRect) { c.beginPath(); c.roundRect(_bx + .5, _by + .5, _bw - 1, _bh - 1, 4); c.stroke(); }
+        c.globalAlpha = 1;
+        c.fillStyle = col; c.fillText(o.label, _lx, _by + 10);
+        _reserve({ x: _bx, y: _by, w: _bw, h: _bh });
+      }
+      c.restore();
+    }
+    if (o.showPx && isFinite(pathArr[pl - 1])) {   // 끝점 예측가 = 라인색 폰트(끝점 옆)
+      c.save(); c.font = "800 10.5px ui-monospace,monospace"; c.textAlign = "right";
+      var _pv = _hzFmt(pathArr[pl - 1]), _pw = c.measureText(_pv).width;
+      var _pxx = ex - 8, _pbx = _pxx - _pw - 6, _pbw = _pw + 9, _pbh = 14;
+      var _pwant = Math.max(box.padTop + 9, Math.min(box.ch - box.padBot - 4, ey - (o.labelDy != null ? o.labelDy : -13))) - 10;
+      var _pby = _fit(_pbx, _pwant, _pbw, _pbh, _minY, _maxY);
+      if (_pby != null) {
+        c.fillStyle = "rgba(11,15,20,.72)";
+        if (c.roundRect) { c.beginPath(); c.roundRect(_pbx, _pby, _pbw, _pbh, 3); c.fill(); }
+        c.fillStyle = col; c.fillText(_pv, _pxx - 1, _pby + 10);
+        _reserve({ x: _pbx, y: _pby, w: _pbw, h: _pbh });
+      }
+      c.restore();
+    }
+  }
+
   return { seed: seed,
            confAt: _predConfAt, confSeq: _predConfSeq,
            wigSeq: _predWigSeqSR, wiggle: wiggle,
-           strokeLine: _strokePredLine };
+           strokeLine: _strokePredLine,
+           epicenter: _epicenterMark, pcal: _predPCal, endDeco: endDeco };
 });
