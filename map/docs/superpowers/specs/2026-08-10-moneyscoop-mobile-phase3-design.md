@@ -35,6 +35,21 @@ Phase 2의 공유 레지스트리 자체는 정상 동작한다 — 실측 시�
 
 **이건 Phase 4로 분리한다.** 제스처 결정은 이미 내렸다(§7).
 
+### 1.4 언어 — 시안을 안 보고 설계한 오류 (2026-08-10 정정)
+
+초안은 레전드를 한국어로 설계했다. **틀렸다.** 핸드오프 번들(`design_handoff_moneyscoop_mobile/`)이 명시한다:
+
+> "a separate product, **English-first**"
+> "**High fidelity.** Final colours, typography, spacing, **copy** and tone are decided. Recreate the UI faithfully."
+
+Phase 0 설계서도 같은 말을 한다 — §7 "영어권 우선, 한국은 나중", §8 v1은 다국어 체계 없이 "**영어 하드코딩, 문자열만 한 파일에 모음**".
+
+더 결정적으로, 지표명은 **인터페이스 언어와 무관하게 영어**다. 설정에 `Keep indicator names in English`가 **기본 ON**으로 있고(`prefs.keepIndicatorNamesEnglish`), 비영어 로케일이면 "chart terminology is standard in English" 안내 시트가 뜬다. 목업이 그 이유를 직접 적어 두었다 — *"MACD를 '이동평균수렴확산지수'로 바꾸면 오히려 못 읽습니다."*
+
+레전드는 정확히 지표명·지표값 영역이다. **새로 만드는 문자열이므로 처음부터 시안 카피로 태어난다.**
+
+현재 앱은 섞여 있다 — `BASIC`·`5 indicators`는 영어인데 `뒤로`·`다시 시도`·`정배열 ▲`는 한국어다. 레전드만 영어로 만들면 섞임이 더 심해지므로, 이 Phase가 리포트·워치리스트 화면까지 함께 정리한다.
+
 ## 2. 범위
 
 **넣는다**
@@ -42,12 +57,29 @@ Phase 2의 공유 레지스트리 자체는 정상 동작한다 — 실측 시�
 - 차트 위 고정 레전드 행 — 지표 값 전부를 항상 표시. 크로스헤어를 끌면 그 봉의 값으로 갱신.
 - 차트에서 구석 배지 제거(5종) + 끝점 차수 배지·예측가 제거.
 - `TAIL_BARS` 120 → 60.
+- **`www/strings.js` 신규** — Phase 0 §8의 "문자열만 한 파일에 모음". UI 문자열 단일 출처.
+- **리포트·워치리스트 화면 카피를 시안 영문으로.** 차트 안에 남는 라벨(크로스·다이버전스)도 포함.
 
 **넣지 않는다**
 
 - 차트 창(줌·팬) — Phase 4.
 - 종목명·현재가를 레전드에 재표시 — 리포트 헤더에 이미 있다.
 - 레전드 항목 접기·선택 — 값이 7개뿐이라 아직 필요 없다.
+- 로케일 전환·언어 시트·`keepIndicatorNamesEnglish` 설정 UI — v1 밖(Phase 0 §8). 지금은 영어 하드코딩만.
+- 온보딩·지갑·증거 화면군 — 아직 존재하지 않는다.
+
+### 2.1 발견 — 시안과 구조가 다른 곳 (범위 밖, 기록만)
+
+목업의 Basic 리포트에서 `Not checked at this level`은 **능력 4줄**이다:
+
+```
+Historical hit rate of this setup
+Indicators that disagree
+Weekly and monthly agreement
+Why each reading came out that way
+```
+
+현재 구현은 여기에 **지표 칩 27개**를 깔고 있다. 카피가 아니라 구조 차이라 이 Phase에서 건드리지 않는다. 별도 판단이 필요하다 — 백로그에 올린다.
 
 ## 3. 분리 기준 — 위치가 의미를 갖는 것만 차트에 남긴다
 
@@ -70,13 +102,17 @@ Phase 2의 공유 레지스트리 자체는 정상 동작한다 — 실측 시�
 
 ```
 mobile/www/
+  strings.js        신규 — UI 문자열 단일 출처(영어 하드코딩)
   chart-legend.js   신규 — 순수 함수. an → 레전드 행 데이터
-  screens/report.js 수정 — 레전드 DOM 렌더·갱신, 배지 호출 중단, TAIL_BARS
-  draw-layers.js    수정 — BB·MA 배지에 M.badges 게이트 2곳
+  screens/report.js 수정 — 레전드 DOM 렌더·갱신, 배지 호출 중단, TAIL_BARS, 카피
+  screens/watchlist.js 수정 — 카피
+  draw-layers.js    수정 — BB·MA 배지에 M.badges 게이트 2곳 + 잔존 라벨 영문
   chart-draw.js     수정 — endDeco 에 label:null·showPx:false
   style.css         수정 — .rp-legend
-  index.html        수정 — chart-legend.js 스크립트 태그
+  index.html        수정 — strings.js · chart-legend.js 스크립트 태그
 ```
+
+`strings.js`는 `MSStr` 전역 하나에 평평한 키-값만 담는다. 보간·복수형·로케일 전환은 넣지 않는다 — v1은 영어 하나뿐이라 그 기계장치가 값을 못 한다(Phase 0 §8). 나중에 언어가 붙을 때 이 파일이 추출 지점이 된다.
 
 **레전드는 캔버스가 아니라 DOM이다.** 이유 셋: 폰에서 DOM 텍스트가 캔버스 텍스트보다 선명하고, `measureText`·충돌 회피 계산이 통째로 불필요해지며, 값만 바뀔 때 캔버스 리페인트가 필요 없다.
 
@@ -96,7 +132,21 @@ MSLegend = {
 - `pred` — `an.out.prediction`. 1차 방향확률·끝점 예측가 산출에 쓴다(`MSPreds.pcal`).
 - `fi` — 절대 봉 인덱스. `null`이면 최신 봉, 크로스헤어 중이면 그 봉.
 - `tone` — `"bull" | "bear" | "muted"`. 색은 `report.js`가 토큰으로 매핑한다.
-- `key` — `"bb" | "ma" | "rsi" | "macd" | "vol" | "pred" | "predpx"`. DOM 갱신 시 행 매칭용.
+- `key` — `"ma" | "macd" | "rsi" | "bb" | "vol" | "pred" | "predpx"`. DOM 갱신 시 행 매칭용.
+
+행 순서와 라벨은 **목업의 `What was read` 순서와 표기를 그대로** 쓴다:
+
+| key | label (시안 그대로) | value 예 |
+|---|---|---|
+| `ma` | `Moving average` | `up · aligned` |
+| `macd` | `MACD` | `+1.2 · golden 3` |
+| `rsi` | `RSI` | `62 · neutral` |
+| `bb` | `Bollinger` | `upper · %B 0.87` |
+| `vol` | `Volume` | `spike · confirming` |
+| `pred` | `1st forecast` | `62%` |
+| `predpx` | `Target` | `170.70` |
+
+지표명 5종은 시안에 문자 그대로 있는 값이라 **바꾸지 않는다**. `value` 문구는 시안에 개별 표기가 없으므로(목업은 `up`·`neutral`만 보여준다) 같은 톤의 소문자 단문으로 맞춘다.
 
 봉별 값은 전부 존재한다(실측): BB `pctB[]`, RSI `series[]`, MACD `hist[]`, 거래량 `series[]`/`obv[]`, MA `mas.{short,mid,long}.series`.
 
@@ -130,9 +180,11 @@ Phase 4에서 창이 들어오면 이 값은 **초기 창 크기**가 된다.
 | `fi=null` | 최신 봉 값과 일치 |
 | `tone` | 강세/약세/중립 매핑 · `pcal < 50` → `"muted"` |
 | 결측 내성 | `pred` 없음 · 배열 짧음 · `divergence.type` null 에서 안 던짐 |
-| 배지 제거 | 페인트 단언 — `fillText`에 `RSI`·`MACD`·`거래량`·`1차·` 가 더는 안 나옴 |
+| 배지 제거 | 페인트 단언 — `fillText`에 `RSI`·`MACD`·`Volume`·`1st` 가 더는 안 나옴 |
 | 마커 잔존 | 크로스 마커·다이버전스 선·진앙은 여전히 그려짐 |
 | `TAIL_BARS` | 레이아웃의 미래 비중이 25% 이상 |
+| 카피 | `report.js`·`watchlist.js`·`draw-layers.js` 소스에 UI 한글 문자열이 남아 있지 않음(주석 제외) |
+| `strings.js` | 모든 키가 실제로 쓰임(미사용 키 없음) · 참조된 키가 전부 존재(오타 시 `undefined` 렌더 방지) |
 
 **변이 검증 필수.** Phase 2에서 깨진 구현에 통과하는 테스트가 5건 나왔다. 각 테스트는 그것이 지킨다고 주장하는 것을 실제로 깨뜨려 확인한 뒤에만 통과로 친다.
 
