@@ -70,6 +70,15 @@ test("wiggle 은 길이를 보존하고 NaN 을 내지 않으며 밴드 안에 �
   });
 });
 
+test("wiggle 은 center 가 밴드 밖이어도 밴드 안으로 하드 클램프한다", () => {
+  // 기존 band() 픽스처는 진폭이 1/4 밴드폭이라 클램프가 절대 안 물린다 —
+  // center 를 밴드 위로 크게 띄워 클램프가 실제로 작동하는 입력을 만든다.
+  const n = 4, vals = [110, 110, 110, 110];
+  const lo = [100, 100, 100, 100], hi = [101, 102, 103, 104];
+  const w = P.wiggle(n, vals, lo, hi, [100.5, 103], null, 3);
+  w.forEach((v, k) => assert.ok(v >= lo[k] && v <= hi[k], "k=" + k + " 가 밴드 밖: " + v));
+});
+
 test("tex·levels 가 둘 다 없으면 원본 vals 를 그대로 돌려준다 — 결을 지어내지 않는다", () => {
   const { vals, lo, hi } = band(24);
   assert.deepEqual(P.wiggle(24, vals, lo, hi, null, null, 7), vals);
@@ -83,11 +92,14 @@ test("tex 만 없어도 levels 가 있으면 계산한다 — 꿈틀의 주항�
 });
 
 test("wigSeq 는 레벨 위에서 반응이 최대, 레벨 사이에서 최소다", () => {
-  // 100→110 등간격 램프 · 레벨 [100,110] → k=0 은 레벨 위(|pull|=1), k=5 는 정확히 중간(pull≈0)
+  // 100→110 등간격 램프 · 레벨 [100,110] → k=0 은 레벨 위(|pull|=1), k=5 는 정확히 중간(pull≈0).
+  // tex 를 0으로 채워 AR 항을 완전히 지운다 — 안 그러면 PRNG 결이 우연히 대소를 만들어
+  // S/R 위상항을 통째로 지워도 통과한다(실측).
   const n = 11, vals = Array.from({ length: n }, (_, k) => 100 + k);
   const lo = vals.map(v => v - 2), hi = vals.map(v => v + 2);
-  const seq = P.wigSeq(n, vals, lo, hi, [100, 110], null, 42);
+  const seq = P.wigSeq(n, vals, lo, hi, [100, 110], new Array(n).fill(0), 42);
   assert.equal(seq.length, n);
   assert.ok(seq.every(v => isFinite(v) && Math.abs(v) <= 1 + 1e-9), "[-1,1] 정규화가 깨졌다");
-  assert.ok(Math.abs(seq[0]) > Math.abs(seq[5]), "레벨 위 반응이 레벨 사이보다 작다");
+  assert.ok(Math.abs(seq[0]) > 0.99, "레벨 위에서 반응이 최대가 아니다: " + seq[0]);
+  assert.ok(Math.abs(seq[5]) < 0.01, "레벨 사이에서 반응이 0 이 아니다: " + seq[5]);
 });
