@@ -24,12 +24,12 @@
   }
   function biasTone(b) { return b > 0.15 ? "bull" : b < -0.15 ? "bear" : "muted"; }
 
-  var BB_STATE = { breakout_up: "upper breakout", breakout_dn: "lower breakdown",
-                   upper: "upper band", lower: "lower band", neutral: "mid band" };
-  var VOL_STATE = { spike: "spike", contract: "contracting", normal: "normal" };
-  var VOL_REL = { confirm: "confirming", weakening: "weakening",
-                  selling: "selling pressure", capitulation: "capitulation" };
-  var MA_ALIGN = { bull: "aligned up", bear: "aligned down", mixed: "mixed" };
+  // Fix round 1: 값 자체는 그대로(레전드가 정본) — 소스만 strings.js 공유 맵으로 옮겨서
+  // draw-layers.js(캔버스 배지)와 표기가 다시 갈라지지 않게 한다.
+  var BB_STATE = (Str && Str.BB_STATE) || {};
+  var VOL_STATE = (Str && Str.VOL_STATE) || {};
+  var VOL_REL = (Str && Str.VOL_REL) || {};
+  var MA_ALIGN = (Str && Str.MA_ALIGN) || {};
 
   function rows(an, pred, fi) {
     var out = [];

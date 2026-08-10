@@ -160,7 +160,7 @@
           const gold = ma.cross.type === "golden";
           c.fillStyle = gold ? "#46c28e" : "#e06a6a";
           c.beginPath(); c.arc(x, y, 4, 0, 7); c.fill();
-          _evLabel(c, (gold ? Str.t.cxGolden : Str.t.cxDead) + " " + ma.cross.barsAgo + Str.t.legBars, x, y - 7, gold ? "#46c28e" : "#e06a6a", "left");
+          _evLabel(c, (gold ? Str.t.legGolden : Str.t.legDead) + ma.cross.barsAgo + Str.t.legBars, x, y - 7, gold ? "#46c28e" : "#e06a6a", "left");
         }
       }
     }
@@ -169,7 +169,7 @@
       const x = fiToX(nowFi), y = pToY(ma.mas.short.last);
       if (isFinite(x) && isFinite(y)) {
         const o = ma.align.order;
-        _evLabel(c, (o === "bull" ? "Aligned up ▲" : o === "bear" ? "Aligned down ▼" : "Mixed –") + (ma.sr.ma ? " · " + (ma.sr.side === "support" ? "support" : "resistance") : ""), x + 4, y - 6, o === "bull" ? "#46c28e" : o === "bear" ? "#e06a6a" : "#8a92b2", "left");
+        _evLabel(c, (o === "bull" ? Str.MA_ALIGN.bull + " ▲" : o === "bear" ? Str.MA_ALIGN.bear + " ▼" : Str.MA_ALIGN.mixed + " –") + (ma.sr.ma ? " · " + (ma.sr.side === "support" ? "support" : "resistance") : ""), x + 4, y - 6, o === "bull" ? "#46c28e" : o === "bear" ? "#e06a6a" : "#8a92b2", "left");
       }
     }
     // 미래 투영(포커스 시): 장기 MA를 최근 봉당 기울기로 감쇠 연장 → "이 지표가 이렇게 이어져 예측에 기여"하는 독립 해석 시각화
@@ -202,7 +202,7 @@
       }
     }
     if (reveal >= 2 && M.badges !== false) {
-      const zt = rsi.zone === "overbought" ? "Overbought" : rsi.zone === "oversold" ? "Oversold" : "Neutral";
+      const zt = rsi.zone === "overbought" ? "overbought" : rsi.zone === "oversold" ? "oversold" : "neutral";
       const col = rsi.zone === "overbought" ? "#e06a6a" : rsi.zone === "oversold" ? "#46c28e" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));
       _evLabel(c, "RSI " + Math.round(rsi.last) + " \xb7 " + zt, xb, _by, col, "right");
@@ -229,9 +229,9 @@
     }
     // 레이어2: 급증 마커 + 상태/관계 배지
     if (reveal >= 2) {
-      const relTxt = va.relationship === "confirm" ? "confirming" : va.relationship === "weakening" ? "weakening" : va.relationship === "selling" ? "selling pressure" : "capitulation";
+      const relTxt = Str.VOL_REL[va.relationship] || "weakening";
       const relCol = (va.relationship === "confirm" || va.relationship === "capitulation") ? "#46c28e" : "#e06a6a";
-      const stTxt = va.state === "spike" ? "Spike" : va.state === "contract" ? "Contracting" : "Normal";
+      const stTxt = Str.VOL_STATE[va.state] || "normal";
       // 급증 시 마지막 봉(현재) 가격 위에 짧은 골드 수직 틱
       if (va.state === "spike" && isFinite(M.lastPrice)) {
         const x = fiToX(Math.max(fiMin, M.nowFi)), y = pToY(M.lastPrice);
@@ -262,7 +262,7 @@
     }
     if (reveal >= 2 && _skReady() && M.badges !== false) {
       const x = (xRight != null ? xRight : fiToX(nowFi)), y = pToY(bb.last.mid);
-      const st = bb.state, sTxt = st === "breakout_up" ? "Upper breakout" : st === "breakout_dn" ? "Lower breakdown" : st === "upper" ? "Upper band" : st === "lower" ? "Lower band" : "Mid band";
+      const st = bb.state, sTxt = Str.BB_STATE[st] || "mid band";
       const col = bb.bias > 0.15 ? "#46c28e" : bb.bias < -0.15 ? "#e06a6a" : COL;
       if (isFinite(x) && isFinite(y)) _evLabel(c, "BB " + sTxt + (bb.squeeze ? " · squeeze" : "") + " · %B" + bb.last.pctB.toFixed(2), x - 6, y, col, "right");
     }
@@ -274,7 +274,7 @@
     if (!_skReady()) return;
     const { xRight, nowFi, fiToX, badgeY } = M;
     const x = (xRight != null ? xRight : fiToX(nowFi)), y = (badgeY != null ? badgeY : 14);
-    const cross = m.cross && m.cross.type ? (m.cross.type === "bull" ? Str.t.cxGolden : Str.t.cxDead) + " " + m.cross.barsAgo + Str.t.legBars : Str.t.legNoCross;
+    const cross = m.cross && m.cross.type ? (m.cross.type === "bull" ? Str.t.legGolden : Str.t.legDead) + m.cross.barsAgo + Str.t.legBars : Str.t.legNoCross;
     const col = m.bias > 0.15 ? "#46c28e" : m.bias < -0.15 ? "#e06a6a" : "#e0a86a";
     if (isFinite(x) && isFinite(y)) _evLabel(c, "MACD " + (m.last.hist >= 0 ? "+" : "") + m.last.hist.toFixed(1) + " · " + cross, x, y, col, "right");
   }

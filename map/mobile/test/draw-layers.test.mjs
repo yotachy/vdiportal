@@ -5,6 +5,8 @@ const require = createRequire(import.meta.url);
 const L  = require("../www/draw-layers.js");
 const CL = require("../www/chart-layout.js");
 const FC = require("../../forge-core.js");
+const Str = require("../www/strings.js");
+const LG  = require("../www/chart-legend.js");
 
 // 캔버스는 반환값이 아니라 실제 페인트를 단언해야 한다(이 저장소의 스와치 사고 교훈).
 function recCtx() {
@@ -100,7 +102,7 @@ test("M.badges=false 면 구석 배지를 안 그린다 — 값은 레전드로 
   L.ma(c, FC.analyzeMA(price, { len: 20 }), M);
   const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
   assert.ok(!texts.some(t => /^BB /.test(t)), "볼린저 배지가 남았다: " + texts.join("|"));
-  assert.ok(!texts.some(t => /Aligned up|Aligned down|Mixed/.test(t)), "MA 정렬 배지가 남았다: " + texts.join("|"));
+  assert.ok(!texts.some(t => /aligned up|aligned down|mixed/.test(t)), "MA 정렬 배지가 남았다: " + texts.join("|"));
 });
 
 test("M.badges=false 라도 선과 크로스 마커는 그대로 그린다 — 위치가 의미인 것은 남는다", () => {
@@ -121,7 +123,7 @@ test("M.badges 미지정이면 종전대로 MA 정렬 배지도 그린다 — Bo
   const c = recCtx(); L.resetLabels(372, 520);
   L.ma(c, FC.analyzeMA(price, { len: 20 }), layout().panels.price.M);
   const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
-  assert.ok(texts.some(t => /Aligned up|Aligned down|Mixed/.test(t)), "MA 정렬 배지가 안 그려졌다: " + texts.join("|"));
+  assert.ok(texts.some(t => /aligned up|aligned down|mixed/.test(t)), "MA 정렬 배지가 안 그려졌다: " + texts.join("|"));
 });
 
 // ── Fix round 1: RSI·거래량 다이버전스 선은 위치가 정보라 남아야 한다. reveal>=1 블록은 배지가 아니다 ──
@@ -154,6 +156,60 @@ test("M.badges=false 면 RSI·거래량 배지는 안 그린다", () => {
   L.rsiBadge(c, { divergence: {}, zone: "overbought", last: 71 }, M);
   L.volumeBadge(c, { divergence: {}, state: "contract", relationship: "weakening" }, M);
   const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
-  assert.ok(!texts.some(t => /Overbought|Oversold|Neutral/.test(t)), "RSI 배지가 남았다: " + texts.join("|"));
-  assert.ok(!texts.some(t => /Spike|Contracting|Normal/.test(t)), "거래량 배지가 남았다: " + texts.join("|"));
+  assert.ok(!texts.some(t => /overbought|oversold|neutral/.test(t)), "RSI 배지가 남았다: " + texts.join("|"));
+  assert.ok(!texts.some(t => /\bspike\b|contracting|\bnormal\b/.test(t)), "거래량 배지가 남았다: " + texts.join("|"));
+});
+
+// ── Fix round 1: chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념에
+// 다른 표기를 쓰던 드리프트(MA 정렬·RSI 구간·거래량 상태·볼린저 상태·크로스 golden/dead)를
+// 값 수준에서 고정한다. 두 모듈이 strings.js 의 같은 맵/키를 읽는지까지 확인해야
+// "우연히 같다"가 아니라 "구조적으로 같다"를 증명한다. ──
+test("Fix round 1 — MA·거래량·볼린저·RSI 배지가 레전드와 같은 표기(값)를 쓴다", () => {
+  const ma = FC.analyzeMA(price, { len: 20 });
+  const rsi = FC.analyzeRSI(price, { period: 14 });
+  const bb = FC.analyzeBollinger(price, { len: 20, k: 2 });
+  const macd = FC.analyzeMACD(price, { fast: 12, slow: 26, signal: 9 });
+  const va = FC.analyzeVolume(price, vol, {});
+  const rows = {};
+  LG.rows({ ma, rsi, bb, macd, va }, null, null).forEach(r => { rows[r.key] = r.value; });
+
+  const M = layout().panels.price.M;
+  function paint(fn, data) {
+    const c = recCtx(); L.resetLabels(372, 520);
+    fn(c, data, M);
+    return c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0])).join(" | ");
+  }
+
+  const maTxt = paint(L.ma, ma);
+  assert.ok(maTxt.indexOf(Str.MA_ALIGN[ma.align.order]) >= 0,
+    "MA 배지가 공유 표기(" + Str.MA_ALIGN[ma.align.order] + ")를 안 쓴다: " + maTxt);
+  assert.ok(rows.ma.indexOf(Str.MA_ALIGN[ma.align.order]) === 0,
+    "레전드 자체가 공유 표기를 안 쓴다(테스트 전제 붕괴): " + rows.ma);
+
+  const volTxt = paint(L.volumeBadge, va);
+  assert.ok(volTxt.indexOf(Str.VOL_STATE[va.state]) >= 0, "거래량 상태 배지 표기 불일치: " + volTxt);
+  assert.ok(volTxt.indexOf(Str.VOL_REL[va.relationship]) >= 0, "거래량 관계 배지 표기 불일치: " + volTxt);
+  assert.ok(rows.vol.indexOf(Str.VOL_STATE[va.state]) >= 0, "레전드 거래량 상태가 공유 표기를 안 쓴다: " + rows.vol);
+
+  const bbTxt = paint(L.bollinger, bb);
+  assert.ok(bbTxt.indexOf(Str.BB_STATE[bb.state]) >= 0, "볼린저 상태 배지 표기 불일치: " + bbTxt);
+  assert.ok(rows.bb.indexOf(Str.BB_STATE[bb.state]) >= 0, "레전드 볼린저 상태가 공유 표기를 안 쓴다: " + rows.bb);
+
+  const rsiZone = rsi.zone === "overbought" ? "overbought" : rsi.zone === "oversold" ? "oversold" : "neutral";
+  const rsiTxt = paint(L.rsiBadge, rsi);
+  assert.ok(rsiTxt.indexOf(rsiZone) >= 0, "RSI 구간 배지가 레전드 표기(소문자)와 다르다: " + rsiTxt);
+  assert.ok(rows.rsi.indexOf(rsiZone) >= 0, "레전드 RSI 구간이 소문자 표기와 다르다: " + rows.rsi);
+
+  // MA·MACD 골든/데드 크로스도 같은 값 비교 — 실측 크로스 유무와 무관하게 표기만 검증하려고 강제한다.
+  const maCross = Object.assign({}, ma, { cross: { type: "golden", barsAgo: 12 } });
+  const maCrossTxt = paint(L.ma, maCross);
+  assert.ok(maCrossTxt.indexOf(Str.t.legGolden + "12" + Str.t.legBars) >= 0,
+    "MA 골든크로스 배지가 레전드 표기와 다르다: " + maCrossTxt);
+  assert.ok(!/Golden|Dead/.test(maCrossTxt), "MA 크로스 배지에 대문자 표기가 남았다: " + maCrossTxt);
+
+  const macdCross = Object.assign({}, macd, { cross: { type: "bull", barsAgo: 5 } });
+  const macdCrossTxt = paint(L.macdBadge, macdCross);
+  assert.ok(macdCrossTxt.indexOf(Str.t.legGolden + "5" + Str.t.legBars) >= 0,
+    "MACD 골든크로스 배지가 레전드 표기와 다르다: " + macdCrossTxt);
+  assert.ok(!/Golden|Dead/.test(macdCrossTxt), "MACD 크로스 배지에 대문자 표기가 남았다: " + macdCrossTxt);
 });

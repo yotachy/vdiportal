@@ -74,13 +74,23 @@
     legTarget: "Target",
     legGolden: "golden ", legDead: "dead ", legBars: " bars", legNoCross: "no cross",
 
-    // 차트 안 잔존 라벨
-    cxGolden: "Golden ·", cxDead: "Dead ·",
+    // 차트 안 잔존 라벨(크로스 표기는 legGolden/legDead/legBars 를 그대로 쓴다 — 레전드와
+    // 차트가 각자 표기를 갖고 있던 것이 드리프트 원인이었다. Fix round 1)
     cxBullDiv: "Bullish divergence", cxBearDiv: "Bearish divergence",
     cxBullVolDiv: "Bullish volume divergence", cxBearVolDiv: "Bearish volume divergence"
   };
 
+  // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을
+  // 각자 하드코딩하면서 대소문자가 갈렸다(Fix round 1). 두 모듈 다 여기서 읽어 구조적으로 드리프트를 막는다.
+  var MA_ALIGN = { bull: "aligned up", bear: "aligned down", mixed: "mixed" };
+  var VOL_STATE = { spike: "spike", contract: "contracting", normal: "normal" };
+  var VOL_REL = { confirm: "confirming", weakening: "weakening",
+                  selling: "selling pressure", capitulation: "capitulation" };
+  var BB_STATE = { breakout_up: "upper breakout", breakout_dn: "lower breakdown",
+                   upper: "upper band", lower: "lower band", neutral: "mid band" };
+
   function ind(bt) { var k = bt || ""; return IND[k] || k; }
 
-  return { t: t, IND: IND, ind: ind };
+  return { t: t, IND: IND, ind: ind,
+           MA_ALIGN: MA_ALIGN, VOL_STATE: VOL_STATE, VOL_REL: VOL_REL, BB_STATE: BB_STATE };
 });
