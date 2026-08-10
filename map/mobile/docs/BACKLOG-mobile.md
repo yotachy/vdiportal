@@ -40,12 +40,37 @@
   - **설계서 정정 3건**: `_fitBoxY` 는 미포팅 상태였다 / `confAt` 은 `(lo,hi,k)` 여야 한다(신뢰도는 밴드 폭 함수) /
     매끈한 폴백 조건은 `tex` 없음이 아니라 `tex`·`levels` 둘 다 없음이다(꿈틀의 주항은 S/R 반응).
 
+- **Phase 3 — 고정 레전드 행 + 시안 카피 정합**(2026-08-11): 지표 값을 차트 안 구석 배지에서 빼서
+  차트 위 고정 레전드 행 7개로 옮기고, 리포트·워치리스트 화면 카피를 영문 시안에 맞췄다.
+  - 신규 모듈 `strings.js`(UI 문자열 단일 출처, 시안 영문 + 지표명 32종) · `chart-legend.js`(`MSLegend.rows` 순수 함수 + 고정 DOM 레전드,
+    크로스헤어 드래그 시 RSI·%B·MACD 숫자만 갱신)
+  - 차트 안 구석 배지·끝점 라벨 제거 — 위치가 의미를 담는 요소(선·크로스 마커·다이버전스·진앙)만 차트에 남김
+  - 예측 구간 `TAIL_BARS` 60으로 확대(16% → 28%), 화면 카피 전반 한글 → 영문
+  - **리뷰 대응 1**: 계획서는 `rsiBadge`/`volumeBadge` 호출 자체를 없애라고 지시했는데, 그대로 따르면 배지뿐 아니라
+    포지션을 담고 있는 **RSI·거래량 다이버전스 선**까지 함께 죽었다. 배지만 게이트하고 호출은 유지하도록 수정.
+  - **리뷰 대응 2**: `chart-legend.js`와 `draw-layers.js`가 같은 상태 어휘(정배열/역배열, 과열/침체 등)를 각자
+    따로 들고 있어 대소문자 표기가 갈렸다 → 공유 `MSStr` 맵(`MA_ALIGN`/`VOL_STATE`/`VOL_REL`/`BB_STATE`/`RSI_ZONE`)으로
+    옮겨 양쪽이 같은 표를 읽게 통일
+  - 테스트 138 → 145(`map/mobile`), 통합 관문 `map/tests/run.sh` 505건 통과. `forge-draw.js`·`forge-app.js`·`forge-core.js` 무수정 유지
+  - 실기기(폰 Chrome, 레전드·배지 제거·크로스헤어·예측 구간·영문화) 육안 확인은 **미실시** — 아래 예정 항목 참조
+
 ## 🔥 다음
 
 - (미정 — 아래 📋 예정에서 우선순위 선정)
 
 ## 📋 예정
 
+- **Phase 3 실기기 육안 확인 미실시** — 브라우저·실기기가 없는 에이전트 환경이라 아래 체크리스트를 수행하지
+  못했다. 사람이 `cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0` 후 폰 Chrome(Tailscale)으로
+  직접 확인할 것: ①레전드 7개 값 전부 노출 ②차트 안 구석 배지 없음(선·크로스 마커·다이버전스·진앙만) ③크로스헤어
+  드래그 시 RSI·%B·MACD 숫자만 바뀌고 상태 문구는 고정 ④예측 구간이 16%→28%로 넓어짐 ⑤화면에 한글 없음.
+- **시안 구조 차이 — `Not checked at this level`** — 목업은 능력 4줄
+  (Historical hit rate of this setup · Indicators that disagree · Weekly and monthly agreement ·
+  Why each reading came out that way)인데 현 구현은 지표 칩 27개를 깐다. 카피가 아니라 구조 차이라
+  Phase 3 범위 밖으로 두었다. 어느 쪽이 맞는지 판단 필요.
+- **시안 카피 전면 대조** — Phase 3 은 리포트·워치리스트만 맞췄다. 목업 50장 전체 대조는 미실시.
+- **로케일·언어 시트** — `keepIndicatorNamesEnglish` 설정 UI·비영어 로케일 안내 시트는 v1 밖(Phase 0 §8).
+  지금은 영어 하드코딩만 있고 전환 수단이 없다.
 - **PC 시각 요소 포팅 — 범례 클릭 토글(B군)** — 표시 지표 집합(`_evVisible`) → 2차 예측(`_get2ndPred`).
   새 상태 + 토글마다 엔진 2회차 실행 + 캐시가 필요하고, 2차 선은 custom 티어 전용인데 custom 화면 자체가 v4다.
   **custom 티어 화면과 함께 착수한다.**
