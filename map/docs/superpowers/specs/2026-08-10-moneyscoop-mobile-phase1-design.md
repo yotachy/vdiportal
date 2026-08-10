@@ -86,19 +86,38 @@ chartLayout({ candle, prediction, width, height, panels, pad, tailBars }) -> {
 }
 ```
 
-각 패널이 **자기 `pToY`** 를 갖고 **`fiToX` 를 공유**한다. 이 `M` 이 PC `_drawXLayers(c, data, M)` 의 인자와 정확히 같아서 포팅한 함수가 **수정 없이** 꽂힌다. 패널 높이 비율은 기본 `price 0.52 / volume 0.12 / rsi 0.18 / macd 0.18`.
+각 패널이 **자기 `pToY`** 를 갖고 **`fiToX` 를 공유**한다. 패널 높이 비율은 기본 `price 0.52 / volume 0.12 / rsi 0.18 / macd 0.18`.
 
-### 4.2 포팅
+`M` 이 실제로 요구하는 키는 **11개**다(스파이크로 확정):
 
-| PC 함수 | 대략 | 용도 |
-|---|---:|---|
-| `_drawMALayers` | 60줄 | 가격 패널 MA 오버레이 |
-| `_drawBollingerLayers` | 28줄 | 가격 패널 밴드(채움 + 점선 상하단) |
-| `_drawVolumeLayers` | 32줄 | 거래량 패널 |
-| `_drawRsiLayers` | 22줄 | RSI 패널(70/30 가이드) |
-| `_drawMacdLayers` | 9줄 | MACD 패널 |
+```
+fiToX  pToY  nowFi  fiMin  reveal  xRight  xNow  futBars  focused  badgeY  lastPrice
+```
 
-공용 헬퍼 심: `_evLabel`(라벨 충돌 회피 — 축 눈금·현재가 pill·콘 배지와 겹치지 않게 빈 슬롯 탐색) · `_polyLen` · `_skStroke` · `_skReady` · `_projMark` 계열. **시연 리빌 애니메이션은 Phase 1 에 불필요** → `_skReady()` 는 `true`, `_skStroke(c)` 는 `c.stroke()` 로 심는다.
+`badgeY` 는 상태 배지의 y, `xNow` 는 현재 시점 seam x, `futBars` 는 예측 봉 수, `focused` 는 단독 강조 여부, `lastPrice` 는 거래량 레이어가 쓰는 마지막 종가다.
+
+### 4.2 포팅 — PC 는 두 계열이다
+
+**스파이크로 확인한 사실**: PC 의 작도는 한 계열이 아니라 둘이며, 역할이 다르다.
+
+| 계열 | 시그니처 | 역할 | 규모 |
+|---|---|---|---:|
+| `_drawXLayers` | `(c, data, M)` | **가격 패널 위 오버레이·배지** — MA 선, 볼린저 밴드, 다이버전스 선, 상태 배지 | 폐포 24심볼 **229줄** |
+| `fcDrawX` | `(data, reveal)` | **서브패널 렌더러** — 자기 캔버스를 `document.getElementById` 로 직접 잡고 내부에서 자체 기하 계산 | 폐포 8심볼 **99줄** |
+
+즉 `_drawRsiLayers` 는 RSI 서브패널을 그리지 않는다 — 가격 차트 위에 다이버전스 선과 "RSI 54 · 중립" 배지만 그린다. 실제 서브패널은 `fcDrawRsi` 다.
+
+**포팅 대상과 상태(전부 recording-ctx 로 실제 페인트 검증 완료)**
+
+| 대상 | 수술 | 검증된 페인트 콜 |
+|---|---|---|
+| `_drawMALayers` · `_drawBollingerLayers` | 없음 — 그대로 동작 | MA 508 · 볼린저 621 |
+| `_drawRsiLayers` · `_drawMacdLayers` · `_drawVolumeLayers` | 없음 (가격 패널 배지·다이버전스) | 4~6콜(배지) |
+| `fcDrawRsi` · `fcDrawMacd` · `fcDrawVol` | **머리 3줄 교체** — `document.getElementById`/`clientWidth` 획득을 `(c, cw, ch, data, reveal)` 인자로 | RSI 990 · MACD 1449(히스토그램 480 fill) · 거래량 554 |
+
+합계 약 **337줄**. 심으로 채워야 하는 것: `FC_GOLD`·`FC_OSC`·`_oscRGB`(= `"232,180,99"`, 핸드오프 gold `#e8b463` 의 rgb 와 정확히 일치) · `_hzFmt`(`forge-app.js:161`, 한 줄) · `_evLabel` 이 쓰는 모듈 레벨 라벨 레지스트리(`_evLabelBoxes`·`_axisLabelBoxes`·`_predLabelBoxes`·`_evW`·`_evH`·`_labelMode`) + 매 프레임 리셋 함수 · `_hbarRsi`(meta 텍스트용 — 모바일은 Counted 섹션이 대신하므로 빈 문자열 반환).
+
+**시연 리빌 애니메이션은 Phase 1 에 불필요** → `_skReady()` 는 `true`, `_skStroke(c)` 는 `c.stroke()` 로 심고 `reveal` 은 항상 `Infinity` 를 넘긴다.
 
 **작도는 엔진과 달리 단일 원본이 아니다.** `forge-draw.js` 는 PC 전용으로 남고 모바일은 `draw-layers.js` 사본을 갖는다. 256KB 중 5개를 쓰자고 UMD 로 리팩터하면 PC 쪽 회귀 위험이 이득보다 크다. **작도는 표현이고 폼팩터가 다르므로 갈라져도 된다 — 숫자는 여전히 `forge-core.js` 단일 원본이다.** 이 비대칭은 의도이며 `map/CLAUDE.md` §공통 규율의 엔진 프로토콜과 모순되지 않는다(그 프로토콜의 대상은 `forge-core.js`·`forge-tools.js`다).
 
@@ -162,7 +181,8 @@ mobile/www/
   graph.js            기존 + basicGraph             (확장)
   chart-layout.js     패널 레이아웃 · 매퍼          (신규)
   chart-draw.js       캔들 · 콘 · 축 · 크로스헤어   (기존 chart.js 흡수)
-  draw-layers.js      PC 포팅 5종 + 헬퍼 심         (신규)
+  draw-layers.js      PC 포팅 — 가격 패널 오버레이·배지 5종 + 헬퍼 심  (신규)
+  draw-panels.js      PC 포팅 — 서브패널 3종(머리 수술)                (신규)
   screens/watchlist.js
   screens/report.js
   ui.js               공통 조각(행 · 칩 · 배지)
@@ -183,7 +203,8 @@ Phase 0 의 `chart.js` 는 `chart-layout.js` + `chart-draw.js` 로 분화한다.
 | `basicGraph` | 지표가 정확히 5종 · 엔진이 실제로 돈다 · 32종 그래프와 판정이 다르다 |
 | `store` | 직렬화 왕복 · 쿼터 예외 시 메모리 폴백 · 구버전 키 무시 |
 | `scan` | 순서 보존 · 실패 시 지수 백오프(시계 주입) · 부분 결과 콜백 |
-| `draw-layers` | **recording-ctx 로 실제 페인트 단언** — 볼린저 밴드 채움·상하단 점선, MA 색, RSI 70/30 가이드, MACD 히스토그램이 각각 실제로 그려졌는가 |
+| `draw-layers` | **recording-ctx 로 실제 페인트 단언** — MA 다중선 3색, 볼린저 밴드 채움 + 상하단 점선. 스파이크 기준선 MA 508콜 · 볼린저 621콜 |
+| `draw-panels` | 같은 방식 — RSI 70/30 가이드와 라인, MACD 히스토그램 막대, 거래량 막대. 스파이크 기준선 RSI 990 · MACD 1449(fill 480) · 거래량 554 |
 
 `draw-layers` 를 페인트 단언으로 검증하는 이유는 Phase 0 의 교훈이다 — 색이 반환값에는 맞는데 페인트에는 닿지 않던 사고가 이 저장소에 있었고, Phase 0 리뷰에서도 색 대응을 뒤바꿔도 통과하던 테스트가 잡혔다.
 
