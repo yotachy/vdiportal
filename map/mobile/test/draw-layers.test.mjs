@@ -116,3 +116,44 @@ test("M.badges 미지정이면 종전대로 배지를 그린다 — 기존 호�
   L.bollinger(c, FC.analyzeBollinger(price, { len: 20, k: 2 }), layout().panels.price.M);
   assert.ok(c.calls.some(x => x.op === "fillText"), "배지가 안 그려졌다");
 });
+
+test("M.badges 미지정이면 종전대로 MA 정렬 배지도 그린다 — Bollinger 만이 아니라 MA 도 하위호환", () => {
+  const c = recCtx(); L.resetLabels(372, 520);
+  L.ma(c, FC.analyzeMA(price, { len: 20 }), layout().panels.price.M);
+  const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
+  assert.ok(texts.some(t => /정배열|역배열|혼조/.test(t)), "MA 정렬 배지가 안 그려졌다: " + texts.join("|"));
+});
+
+// ── Fix round 1: RSI·거래량 다이버전스 선은 위치가 정보라 남아야 한다. reveal>=1 블록은 배지가 아니다 ──
+test("M.badges=false 라도 RSI 다이버전스 선과 라벨은 그린다", () => {
+  const M = Object.assign({}, layout().panels.price.M, { badges: false });
+  const c = recCtx(); L.resetLabels(372, 520);
+  const rsi = { divergence: { type: "bullish", pricePts: [{ idx: 350, price: candle[350].c }, { idx: 370, price: candle[370].c }] }, zone: "neutral", last: 50 };
+  L.rsiBadge(c, rsi, M);
+  assert.ok(c.calls.some(x => x.op === "stroke"), "다이버전스 선이 사라졌다");
+  const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
+  assert.ok(texts.some(t => /다이버전스/.test(t)), "다이버전스 라벨이 사라졌다: " + texts.join("|"));
+});
+
+test("M.badges=false 라도 거래량 다이버전스 선과 급증 틱은 그린다", () => {
+  const M = Object.assign({}, layout().panels.price.M, { badges: false });
+  const c = recCtx(); L.resetLabels(372, 520);
+  const va = { divergence: { type: "bearish", pricePts: [{ idx: 350, price: candle[350].c }, { idx: 370, price: candle[370].c }] }, state: "spike", relationship: "confirm" };
+  L.volumeBadge(c, va, M);
+  // 다이버전스 선(bearish=#e06a6a)과 급증 틱(gold=#e8b463)은 서로 다른 stroke 색이라 — 하나만
+  // 남아도 "some stroke" 는 공허하게 통과한다. 틱이 사라져도 안 잡히는 함정을 피하려 색으로 각각 확인한다.
+  assert.ok(c.calls.some(x => x.op === "stroke" && x.stroke === "#e06a6a"), "다이버전스 선이 사라졌다");
+  assert.ok(c.calls.some(x => x.op === "stroke" && x.stroke === "#e8b463"), "급증 틱이 사라졌다");
+  const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
+  assert.ok(texts.some(t => /다이버전스/.test(t)), "거래량 다이버전스 라벨이 사라졌다: " + texts.join("|"));
+});
+
+test("M.badges=false 면 RSI·거래량 배지는 안 그린다", () => {
+  const M = Object.assign({}, layout().panels.price.M, { badges: false });
+  const c = recCtx(); L.resetLabels(372, 520);
+  L.rsiBadge(c, { divergence: {}, zone: "overbought", last: 71 }, M);
+  L.volumeBadge(c, { divergence: {}, state: "contract", relationship: "weakening" }, M);
+  const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
+  assert.ok(!texts.some(t => /과열|과매도|중립/.test(t)), "RSI 배지가 남았다: " + texts.join("|"));
+  assert.ok(!texts.some(t => /거래량 급증|거래량 위축|거래량 평이/.test(t)), "거래량 배지가 남았다: " + texts.join("|"));
+});

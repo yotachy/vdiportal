@@ -199,7 +199,7 @@
         _evLabel(c, (rsi.divergence.type === "bullish" ? "강세" : "약세") + " 다이버전스", xb, yb, col, "left");
       }
     }
-    if (reveal >= 2) {
+    if (reveal >= 2 && M.badges !== false) {
       const zt = rsi.zone === "overbought" ? "과열" : rsi.zone === "oversold" ? "과매도" : "중립";
       const col = rsi.zone === "overbought" ? "#e06a6a" : rsi.zone === "oversold" ? "#46c28e" : "#8a92b2";
       const xb = (xRight != null ? xRight : fiToX(nowFi));
@@ -235,7 +235,7 @@
         const x = fiToX(Math.max(fiMin, M.nowFi)), y = pToY(M.lastPrice);
         if (isFinite(x) && isFinite(y)) { c.strokeStyle = FC_GOLD; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x, y - 14); c.lineTo(x, y - 4); c.stroke(); }
       }
-      _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, _by, relCol, "right");
+      if (M.badges !== false) _evLabel(c, stTxt + " \xb7 " + relTxt, xRight - 6, _by, relCol, "right");
     }
     c.restore();
   }

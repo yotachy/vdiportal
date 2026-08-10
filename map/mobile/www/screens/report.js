@@ -147,7 +147,9 @@
       var Mp = Object.assign({}, lay.panels.price.M, { badges: false });
       MSLayers.bollinger(ctx, an.bb, Mp);
       MSLayers.ma(ctx, an.ma, Mp);
-      // rsiBadge · macdBadge · volumeBadge 는 호출하지 않는다 — 값이 레전드로 갔다.
+      MSLayers.rsiBadge(ctx, an.rsi, Mp);
+      MSLayers.volumeBadge(ctx, an.va, Mp);
+      // macdBadge 는 부르지 않는다 — _drawMacdLayers 는 배지뿐이라 남길 것이 없다.
       ["volume", "rsi", "macd"].forEach(function (k) {
         var r = lay.panels[k].rect;
         ctx.save(); ctx.translate(r.x, r.y);
