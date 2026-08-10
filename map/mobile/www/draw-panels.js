@@ -19,7 +19,7 @@
   // fcFit(원본: 자기 캔버스를 DOM 에서 잡아 DPR 로 재설정)은 포팅 대상 8심볼 중 하나이지만,
   // 머리 수술로 세 함수 모두 (c,cw,ch,...) 를 직접 받게 되어 호출부가 사라졌다.
   // 유일한 구현은 DOM 전용 캔버스 크기 API 뿐이라 그대로 옮기면 DOM 미참조 하드 게이트를 깨므로 이식하지 않는다.
-  // 캔버스 크기 조정은 모바일에서 chart.js(호출부)의 책임이다.
+  // 캔버스 크기 조정은 report 화면(DPR 트랜스폼 설정)과 chart-layout.js(rect 계산)의 책임이다.
 
   function _osReveal(c, cw, ch, reveal) {
     if (reveal == null || reveal >= 1) return;

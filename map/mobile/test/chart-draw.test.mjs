@@ -37,6 +37,17 @@ test("상승봉은 bull, 하락봉은 bear 로 실제로 칠해진다 — 봉마
   });
 });
 
+test("심지 색도 방향별로 매핑된다 — bull/bear 일관성 필수", () => {
+  const c = recCtx(), lay = L(), cd = candles(150);
+  D.drawCandles(c, lay, cd, COL);
+  const strokes = c.calls.filter(x => x.op === "stroke");
+  assert.ok(strokes.length > 0, "심지 스트로크가 없다");
+  const tail = cd.slice(lay.fiMin);
+  tail.forEach((b, i) => {
+    assert.equal(strokes[i].stroke, (b.c >= b.o) ? COL.bull : COL.bear, "심지 " + i + " up=" + (b.c >= b.o));
+  });
+});
+
 test("몸통 높이는 최소 1px — 도지가 사라지지 않는다", () => {
   const doji = Array.from({ length: 130 }, () => ({ o: 100, h: 101, l: 99, c: 100, v: 1, t: "2026-01-01" }));
   const c = recCtx();
