@@ -6,7 +6,7 @@
   "use strict";
 
   var TF = "1day";
-  var CHART_H = 520, PAD = 10, TAIL_BARS = 120;
+  var CHART_H = 520, PAD = 10, TAIL_BARS = 60;   // 60 = 예측구간 28%(120 이면 16%). Phase 4 에서 초기 창 크기가 된다
   var HOLD_MS = 350, MOVE_THRESH = 8;
   var TIER = "basic";   // Phase 1 은 Basic 고정 — 이후 단계에서 사용자 티어로 교체(차트·범례 모두 이 값만 바뀌면 됨)
 
@@ -115,7 +115,7 @@
   }
 
   // ── 차트 합성 + 크로스헤어. wrap 은 이미 라이브 DOM 에 붙어 있어야 한다(clientWidth 측정 위해) ──
-  function paintChart(cv, wrap, an, data, sym) {
+  function paintChart(cv, wrap, legend, an, data, sym) {
     var ctx = cv.getContext("2d");
     var col = colTokens();
     var cssW = wrap.clientWidth || 320;
@@ -134,6 +134,18 @@
     relayout();
 
     var dataOf = { volume: an.va, rsi: an.rsi, macd: an.macd };
+
+    // 레전드는 캔버스가 아니라 DOM 이다 — 폰에서 더 선명하고, 겹침 회피 계산이 통째로 필요 없다.
+    function paintLegend(fi) {
+      var rows = MSLegend.rows(an, an.out.prediction, fi);
+      legend.textContent = "";
+      rows.forEach(function (r) {
+        var chip = MSUi.el("div", "rp-lg-chip rp-lg-" + r.tone);
+        chip.appendChild(MSUi.el("span", "rp-lg-k", r.label));
+        chip.appendChild(MSUi.el("span", "rp-lg-v", r.value));
+        legend.appendChild(chip);
+      });
+    }
 
     function frame(hoverFi) {
       ctx.clearRect(0, 0, cssW, CHART_H);
@@ -157,6 +169,7 @@
         ctx.restore();
       });
       if (hoverFi != null) MSChartDraw.drawCrosshair(ctx, lay, hoverFi, data.candle, col);
+      paintLegend(hoverFi);   // 크로스헤어를 끌면 그 봉 값으로, 놓으면 frame(null) 이 최신 봉으로 되돌린다
     }
     frame(null);
 
@@ -331,9 +344,14 @@
 
     function buildChartSection() {
       var wrap = MSUi.el("div", "rp-chart");
+      // 지표 값 레전드 — 캔버스 앞(차트 위 고정 행). 클래스명은 rp-legend 가 아니라 rp-ind-legend:
+      // buildChartLegend() 의 예측선 색상 범례(p1/p2/p3)가 이미 .rp-legend 를 쓰고 있어
+      // 같은 이름을 쓰면 그쪽 스타일(gap 16px·margin-bottom 24px)과 이 레전드의 스타일이 섞인다.
+      var legend = MSUi.el("div", "rp-ind-legend");
+      wrap.appendChild(legend);
       var cv = document.createElement("canvas");
       wrap.appendChild(cv);
-      chartRefs = { wrap: wrap, cv: cv };
+      chartRefs = { wrap: wrap, cv: cv, legend: legend };
       return wrap;
     }
 
@@ -459,7 +477,7 @@
 
       root.appendChild(scr);   // 여기서부터 라이브 DOM — clientWidth 측정 가능
 
-      if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, an, data, sym);
+      if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, chartRefs.legend, an, data, sym);
     }
 
     startLoad();
