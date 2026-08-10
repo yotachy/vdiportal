@@ -5,12 +5,42 @@
 | 도구 | 파일 | 비고 |
 |---|---|---|
 | **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js`(+`forge-api.php`) | 노드 전략보드 + 라이브 차트 통합 분석 도구. **현재 주력·주 작업 대상** |
+| **머니스쿱 모바일 (MoneyScoop)** | **`mobile/`** 폴더 일습(`www/`·`test/`·`android/`·`sync-engine.mjs`) | 스쿱포지 **엔진을 공유하는** 하이브리드 안드로이드 앱(Capacitor). UI·사용자·배포 대상은 PC와 별개, **엔진만 공용**. 백로그 [`mobile/docs/BACKLOG-mobile.md`](mobile/docs/BACKLOG-mobile.md) · 실측 [`mobile/docs/phase0-measurements.md`](mobile/docs/phase0-measurements.md) |
 | **스쿱보드 (Scoop Board)** | `map.html`(+`api.php`) | 자유 캔버스 노드 다이어그램 빌더 |
 | **PotFlow** | **`potflow/`** 폴더 일습(`potflow.html`·`potflow-helper.py`·config·bat·썸네일) | 로컬 동영상 노드 재생 관리(PotPlayer). map.html 파생·로컬 헬퍼(Python) 전용. **상위 개발프로젝트와 완전 독립 트랙**(아래 주의). **2026-07-19 `map/potflow/`로 폴더 격리** — forge·map과 파일/배포 경로 불간섭(배포=`www/map/potflow/`). 헬퍼가 자기 위치(`ROOT`) 기준이라 이동에 경로 수정 불필요. 상세는 [`POTFLOW.md`](POTFLOW.md) |
 
 > ⚠️ **PotFlow는 상위 개발프로젝트(스쿱포지·머니스쿱·vdiportal)와 무관한 별개 트랙이다.** 같은 저장소 `map/` 아래 있는 건 파일 위치일 뿐 — 목적·사용자·배포 대상이 전부 다른 개인용 로컬 도구. PotFlow 작업에 스쿱포지 백로그(`docs/BACKLOG.md`)·검증 관문·엔진 규율을 끌어오지 말 것. 상위 프로젝트 우선순위(랜딩·인증·결제)와 섞어 보고하지 말 것. 반대로 forge·map 작업 중 `potflow/`를 건드리지 말 것. 커밋 스코프는 `potflow`로 분리 유지. **potflow 백로그·이력은 별도 문서 [`potflow/BACKLOG.md`](potflow/BACKLOG.md)** — 두 백로그를 섞지 말 것. (2026-07-25 사용자 확인)
 
 > 스쿱포지의 상세 구현 이력·규약은 방대하여 **프로젝트 메모리 `scoopforge-deploy.md`가 단일 출처**. 아래는 현행 요약.
+
+---
+
+# 🔗 공통 규율 — 엔진 공유 · 테스트 관문 · 브랜치
+
+스쿱포지(PC)와 머니스쿱 모바일은 **`forge-core.js`·`forge-tools.js` 를 공유한다.** 제품·사용자·배포는 갈라지지만 엔진은 하나다. 아래 셋은 두 제품 모두에 적용된다. (2026-08-10 확립)
+
+## ① 테스트는 항상 `./tests/run.sh`
+
+```bash
+./tests/run.sh            # 전부 400건 (forge-core 251 · forge-tools 81 · landing 28 · mobile 40)
+./tests/run.sh engine     # 엔진 + 모바일 372건 — 엔진만 고쳤을 때
+./tests/run.sh mobile     # 모바일 40건
+```
+
+**어느 한쪽만 돌리지 말 것.** 모바일 테스트는 `../../forge-core.js` 원본을 직접 `require` 하므로, 엔진 변경이 모바일을 깨뜨렸는지를 이 관문이 알려준다. `node --test forge-core.test.js` 만 돌리던 습관이 이 구멍을 만든다. 실패 시 종료코드 1.
+
+## ② 엔진 변경 프로토콜
+
+1. **원본에서만 수정한다** — `map/forge-core.js` · `map/forge-tools.js`. 모바일의 `mobile/www/vendor/` 는 **커밋하지 않는 생성물**이며 `sync-engine.mjs` 가 만든다(gitignore). 두 벌이 존재할 수 없는 구조다 — 절대 vendor 를 직접 고치지 말 것.
+2. **`./tests/run.sh engine` 통과** — 양쪽이 같이 초록이어야 한다.
+3. **모바일 쪽은 `cd mobile && npm run sync`** 로 vendor 갱신 후 빌드. `npm run cap:sync` 는 sync 를 앞에 물고 있다.
+4. 지표를 추가·제거하면 `forge-core.indicatorCount` 와 `mobile/www/graph.js` 의 `MISSING` 목록이 함께 움직인다 — 모바일 테스트가 개수 불일치와 **엔진이 모르는 blockType**(오타 시 raw price 가 combine 에 주입된다)을 잡는다.
+
+## ③ 브랜치 · 배포
+
+- **다중 태스크 작업(SDD 계획서로 실행하는 것)은 브랜치 → `merge:` 커밋.** 단발 수정은 `main` 직접. 이 저장소의 기존 관행을 규칙으로 명시한 것.
+- **배포는 공통일 수 없다.** PC(포지·보드·랜딩)는 `커밋+배포 한 세트` — cafe24 SFTP `www/map/`. **모바일은 스토어 릴리스라 이 규칙이 적용되지 않는다** → `커밋+푸시 한 세트, 배포는 별도 릴리스 트랙`.
+- **`mobile/` 은 cafe24 에 업로드하지 않는다.** 서버로 가는 건 PC 정적 파일 8종 + `forge-api.php` 뿐(하단 §스쿱포지 파일 참조).
 
 ---
 
