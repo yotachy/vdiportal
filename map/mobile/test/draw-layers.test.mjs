@@ -62,3 +62,33 @@ test("빈 데이터에도 던지지 않는다", () => {
   const c = recCtx(); L.resetLabels(372, 520);
   assert.doesNotThrow(() => L.bollinger(c, { mid: [], upper: [], lower: [] }, layout().panels.price.M));
 });
+
+// ── 라벨 레지스트리 공유 계약(Phase 2) — 두 벌이 되면 끝점 라벨이 지표 배지를 못 보고 겹친다 ──
+test("fitBoxY 는 빈 자리면 그대로, 충돌하면 밀고, 못 놓으면 null", () => {
+  assert.equal(L.fitBoxY(0, 50, 100, 14, [], 0, 500), 50, "충돌이 없으면 원하는 y 그대로");
+  const pushed = L.fitBoxY(0, 50, 100, 14, [{ x: 0, y: 45, w: 100, h: 14 }], 0, 500);
+  assert.ok(pushed != null && pushed !== 50, "충돌했는데 안 밀렸다");
+  assert.equal(L.fitBoxY(0, 10, 100, 14, [{ x: 0, y: 0, w: 100, h: 40 }], 0, 30), null, "공간이 없으면 null(겹쳐 찍지 않는다)");
+});
+
+test("reservePredBox 는 근거 라벨 레지스트리에도 등록된다 — 분리되면 겹쳐 그린다", () => {
+  const c = recCtx(); L.resetLabels(372, 520);
+  L.reservePredBox({ x: 200, y: 20, w: 160, h: 18 });
+  assert.equal(L.predBoxes().length, 1, "예측 배지 박스 미등록");
+  assert.equal(L.evBoxes().length, 1, "근거 라벨이 예측 배지를 못 본다 — 레지스트리가 두 벌이다");
+  L.evLabel(c, "목표 12,345", 360, 34, "#e8b463", "right", true);
+  const boxes = L.evBoxes();
+  assert.equal(boxes.length, 2, "근거 라벨이 등록되지 않았다");
+  const a = boxes[0], b = boxes[1];
+  assert.ok(!(a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y),
+            "예측 배지와 근거 라벨이 겹쳤다");
+});
+
+test("resetLabels 는 세 레지스트리를 모두 비운다", () => {
+  L.resetLabels(372, 520);
+  L.reservePredBox({ x: 0, y: 0, w: 10, h: 10 });
+  L.resetLabels(372, 520);
+  assert.equal(L.predBoxes().length, 0);
+  assert.equal(L.evBoxes().length, 0);
+  assert.equal(L.axisBoxes().length, 0);
+});
