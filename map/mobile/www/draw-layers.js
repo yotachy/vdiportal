@@ -14,10 +14,13 @@
   // ── 심: PC 가 전역/다른 파일에서 받던 것들 ──
   var FC_GOLD = "#e8b463";                    // 핸드오프 gold
   var _ov = null, _evLegend = null;           // PC 오버레이 상태 — 모바일 미사용
+  // _axisLabelBoxes 는 resetLabels 에서만 비워지고 push 되는 곳이 없다 — PC 는 눈금 라벨·현재가 필을
+  // 여기 채우지만, 모바일 축 라벨(drawAxes)은 플롯 우측 거터(xr+6, 플롯 오른쪽 밖)에만 찍혀서
+  // 예측 끝점 배지(≤ plot.x+plot.w-12 로 클램프)와 좌표상 절대 겹치지 않는다 — 의도적으로 빈 채로 둔다.
   var _axisLabelBoxes = [], _predLabelBoxes = [];
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }  // forge-app.js:161
 
-  /* ===== 여기부터 forge-draw.js 원문 복사 (7-9, 35-36, 1278-1286, 1295, 1310-1311, 1836, 1838-1867, 1923-1947, 2002-2011, 2117-2175, 2361-2381, 2383-2413, 2545-2571, 2573-2580) ===== */
+  /* ===== 여기부터 forge-draw.js 원문 복사 (7-9, 35-36, 1278-1286, 1295-1311, 1300-1311, 1310-1311, 1836, 1838-1867, 1923-1947, 2002-2011, 2117-2175, 2361-2381, 2383-2413, 2545-2571, 2573-2580) ===== */
   const FC_BULL = "#46c28e";   /* bull candle */
   const FC_BEAR = "#e06a6a";   /* bear candle */
   const FC_DIM  = "#5A6478";   /* axis labels (중간 슬레이트 — 명/암 배경 모두 판독) */
@@ -71,6 +74,19 @@
     c.fillStyle = color; c.textAlign = "left";
     c.fillText(text, bx + pad, by + h - 1);
     try { c.letterSpacing = "0px"; } catch (_) {}   // 공유 컨텍스트 오염 방지(다른 텍스트에 안 번지게)
+  }
+
+  /* 라벨 박스 배치 — 충돌하면 위/아래 계단으로 밀어 빈 슬롯을 찾는다. 못 놓으면 null(겹쳐 찍지 않고 생략).
+     _evLabel 의 내부 회피와 같은 규칙을 예측 배지에서도 쓰기 위해 공용 헬퍼로 분리. */
+  function _fitBoxY(bx, by, bw, bh, boxes, minY, maxY) {
+    const ov = yy => boxes.some(r => bx < r.x + r.w && bx + bw > r.x && yy < r.y + r.h && yy + bh > r.y);
+    if (!ov(by)) return by;
+    for (let stp = 1; stp <= 14; stp++)
+      for (const dr of [-1, 1]) {
+        const ny = by + dr * stp * (bh + 2);
+        if (ny >= minY && ny <= maxY - bh && !ov(ny)) return ny;
+      }
+    return null;
   }
 
   function _drawProjLine(c, pts, col) {
@@ -268,7 +284,14 @@
     _evW = w; _evH = h; _labelMode = "all";
   }
 
+  // MSPreds 가 쓸 최소 접근자. 배열은 resetLabels 가 매 프레임 새로 만들므로
+  // 참조를 캐싱하지 말고 호출 시점에 꺼낸다(그래서 값이 아니라 getter 함수로 낸다).
   return { resetLabels: resetLabels,
+           evLabel: _evLabel, fitBoxY: _fitBoxY,
+           evBoxes: function () { return _evLabelBoxes; },
+           axisBoxes: function () { return _axisLabelBoxes; },
+           predBoxes: function () { return _predLabelBoxes; },
+           reservePredBox: function (b) { _predLabelBoxes.push(b); _evLabelBoxes.push(b); },
            ma: _drawMALayers, bollinger: _drawBollingerLayers,
            rsiBadge: _drawRsiLayers, macdBadge: _drawMacdLayers, volumeBadge: _drawVolumeLayers };
 });

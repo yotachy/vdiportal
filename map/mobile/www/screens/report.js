@@ -1,6 +1,7 @@
 // Basic 리포트 화면. 판정(방향·확신·정직한 범위·빠진 것의 크기) + 4단 적층 차트 +
 // Counted(5지표 판독값)/Not counted(27개 칩) + 주기 행(일간만 값, 주간·월간 잠김) + 비활성 CTA.
-// 차트 합성은 축→콘→캔들→오버레이/배지→서브패널 순(z-order 그대로), 크로스헤어는 350ms 홀드 게이트.
+// 차트 합성은 라벨초기화→축→콘(꿈틀·끝점 장식)→캔들→오버레이/배지→서브패널 순(z-order 그대로),
+// 크로스헤어는 350ms 홀드 게이트.
 (function () {
   "use strict";
 
@@ -114,7 +115,7 @@
   }
 
   // ── 차트 합성 + 크로스헤어. wrap 은 이미 라이브 DOM 에 붙어 있어야 한다(clientWidth 측정 위해) ──
-  function paintChart(cv, wrap, an, data) {
+  function paintChart(cv, wrap, an, data, sym) {
     var ctx = cv.getContext("2d");
     var col = colTokens();
     var cssW = wrap.clientWidth || 320;
@@ -136,10 +137,13 @@
 
     function frame(hoverFi) {
       ctx.clearRect(0, 0, cssW, CHART_H);
+      MSLayers.resetLabels(cssW, CHART_H);              // 매 프레임 맨 앞 — 이 뒤에 등록되는 라벨만 서로를 본다.
+                                                        // drawCone 뒤로 밀면 끝점 라벨 예약이 즉시 지워져 배지와 겹친다.
       MSChartDraw.drawAxes(ctx, lay, data.candle, col);
-      MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, TIER);
+      // 캔들이 먼저, 예측이 나중. 끝점 배지가 seam 왼쪽까지 나오므로 순서를 뒤집으면
+      // 캔들이 배지를 덮는다(PC 도 캔들 → 예측 순서다. forge-draw.js:~1081, 1115-1200).
       MSChartDraw.drawCandles(ctx, lay, data.candle, col);
-      MSLayers.resetLabels(cssW, CHART_H);              // 매 프레임 필수 — 라벨 레지스트리 초기화
+      MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, TIER, { sym: sym, tf: TF });
       MSLayers.bollinger(ctx, an.bb, lay.panels.price.M);
       MSLayers.ma(ctx, an.ma, lay.panels.price.M);
       MSLayers.rsiBadge(ctx, an.rsi, lay.panels.price.M);
@@ -454,7 +458,7 @@
 
       root.appendChild(scr);   // 여기서부터 라이브 DOM — clientWidth 측정 가능
 
-      if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, an, data);
+      if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, an, data, sym);
     }
 
     startLoad();

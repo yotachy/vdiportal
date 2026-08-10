@@ -31,15 +31,26 @@
     거래량 지표 5종이 가짜 거래량 위에서 돌고 있었다 → `MSGraph.setVolume()` 으로 배선(엔진 무수정), 실기기 확인 완료.
   - **계획서 오류 정정**: `makeDemoSeries(n)` 이 n 을 무시하고 480봉 고정 → "봉 수 무관 ~50ms" 는 측정 아티팩트였다.
 
+- **Phase 2 — PC 예측선 작도 포팅**(2026-08-10): 꿈틀(S/R 반응 + AR 결)·구간 신뢰도 페이드·신뢰 지평 이후 점묘·
+  끝점 진앙/차수 라벨/예측가. `draw-preds.js`(`MSPreds`) 신규.
+  - **라벨 레지스트리는 공유해야 한다**: `_evLabel`·박스 목록을 복사하면 두 벌이 되어 끝점 라벨이 지표 배지를
+    못 보고 겹친다 → `MSLayers` 가 `evLabel`/`fitBoxY`/`reservePredBox` 를 노출하고 `MSPreds` 가 그것을 쓴다.
+  - **`report.js` 합성 순서 버그**: `resetLabels` 가 `drawCone` **뒤에** 있어, 끝점 라벨 예약이 등록 직후 지워지는
+    구조였다. 맨 앞으로 옮겨 고쳤다.
+  - **설계서 정정 3건**: `_fitBoxY` 는 미포팅 상태였다 / `confAt` 은 `(lo,hi,k)` 여야 한다(신뢰도는 밴드 폭 함수) /
+    매끈한 폴백 조건은 `tex` 없음이 아니라 `tex`·`levels` 둘 다 없음이다(꿈틀의 주항은 S/R 반응).
+
 ## 🔥 다음
 
 - (미정 — 아래 📋 예정에서 우선순위 선정)
 
 ## 📋 예정
 
-- **PC 시각 요소 포팅 — 4종 미이식** — 종단점 진앙 마커(동심원 리플)·구간별 신뢰도 렌더링·
-  3계층 데이터 텍스처(계절성·AR·GARCH 밴드)·범례 클릭 토글. Phase 1 화면이 PC 대비 "낮은 품질"로
-  보이는 주된 이유. `docs/phase1-notes.md` §알려진 갭 참조.
+- **PC 시각 요소 포팅 — 범례 클릭 토글(B군)** — 표시 지표 집합(`_evVisible`) → 2차 예측(`_get2ndPred`).
+  새 상태 + 토글마다 엔진 2회차 실행 + 캐시가 필요하고, 2차 선은 custom 티어 전용인데 custom 화면 자체가 v4다.
+  **custom 티어 화면과 함께 착수한다.**
+- **핀치줌 · 로그축** — 제스처를 다시 건드리므로 Phase 1 이 구조적으로 해결한 스크롤 충돌(350ms 홀드 계약)을
+  재설계해야 한다. 독립 Phase 로 다룬다.
 - **`_predDir`(`draw-layers.js`) PC 전용 전역 의존 — focus 모드 켜기 전 해결 필수** — `lastResult`/`currentData()`를
   읽다 실패하면 try/catch로 `+1`을 반환한다. 지금은 `chart-layout.js`의 `M.focused`가 항상 `false`라 무해하지만,
   이후 focus 모드를 켜서 `M.focused=true`가 되는 순간 에러 없이 조용히 틀린 값을 반환해 반대추세 투영 마커의
@@ -51,7 +62,6 @@
 - **폴드 펼침/접힘 액티비티 유지 + Capacitor Gradle 빌드/APK** — 여전히 미검증(아래 "Capacitor 툴체인 검증"과 동일 항목).
   Phase 1 실기기 확인은 폰 Chrome(Tailscale) 이었고 WebView 안에서는 하지 않았다.
 - **봉 수 ↔ 정확도 실측** — 주기별 최적 히스토리 길이(Phase 0/1에서 이월, 아직 미착수). 백테스트로 답할 질문.
-- **차트 핀치줌·로그축** — 축·크로스헤어는 Phase 1에서 포팅됐으나 핀치줌·로그축은 아직 없다.
 - **`?since=` 증분 시세 미사용** — `api.js`의 `ohlcUrl`이 `since` 파라미터를 받지만 `loadTicker`가 아직
   넘기지 않아 항상 전량 조회한다(콜드 수신 942ms, Phase 0 실측).
 - **폴드 2단 레이아웃(600–904dp)** — 사용자 주력 기기의 펼침 화면 레이아웃 미착수.
@@ -62,6 +72,16 @@
   해석 버전이 생성 `android/` 템플릿 내용을 좌우 → `!map/mobile/package-lock.json` 권고.
 - **드로잉 도구 터치** — `forge-tools.js` 는 Pointer Events 전용이라 재바인딩 불필요. 붙일 때 캔버스 `touch-action: none` 필요.
 - **cafe24 PHP SQLite(PDO) 확장 확인** — v2 지갑 계획 시점. 서버에 임시 프로브 업로드/삭제라 별도 승인 필요.
+- **마일스톤 점 x-매핑이 예측선과 따로 논다** — `draw-preds.js`의 `endDeco`는 PC 원문 `tX(k) = seamX + ((k+1)/pl)*(coneR-seamX)`를
+  그대로 쓰는데, PC에선 이게 예측선 자신의 `toXf`와 동일 함수였다. 모바일 예측선 x는 `xsFor`(`fiToX(nowFi+1+k)`)에서
+  오므로 두 매핑이 갈린다. 실측 편차 k=0에서 1.02px, 끝점에서 0.00px — 점 반지름보다 작아 육안 무해하지만,
+  PC엔 하나뿐인 매핑이 모바일엔 둘이다. `endDeco`에 `seamX`/`coneR` 대신 `xAt`을 넘기면 해소된다.
+- **`_fitBoxY`의 즉시반환 경로가 `[minY,maxY]`를 클램프하지 않는다** — `if (!ov(by)) return by;`가 계단 탐색 분기에만
+  있는 범위 검사를 건너뛴다. `labelDy=-12`이고 끝점이 패널 상단이면 `_want`가 `padTop` 위 ~8px, `labelDy=14`이고
+  하단이면 볼륨 패널로 ~5px 침범할 수 있다. PC도 같은 잠재 결함을 갖고 있으나 PC는 단일 패널이고 모바일은
+  4단 적층이라 영향이 다르다. 실기기에서 패널 침범이 보이면 그때 고친다.
+- **`frame()` 합성 순서를 지키는 테스트가 없다** — `screens/report.js`엔 테스트 파일이 없어 `resetLabels` 최선두·
+  캔들→예측 순서가 주석으로만 지켜진다. DOM 하네스가 생기면 회귀 테스트를 붙일 것.
 - v2 — 서버 지갑 원장 + 구글 로그인
 - v3 — AdMob + SSV + Full 티어 → 프로덕션 출시
 - v4 — Custom 티어 · 증거/신뢰 화면군
