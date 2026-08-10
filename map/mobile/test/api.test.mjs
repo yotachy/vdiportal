@@ -34,12 +34,33 @@ test("normalizeCandles 는 문자열 수치를 숫자로 바꾼다", () => {
   assert.equal(out.price.length, 250);
 });
 
-test("거래량이 null 이면 undefined 로 둔다 — 0 으로 바꾸면 mfi·cmf 가 오염된다", () => {
+// 0 으로 바꾸면 '거래 없음'이라는 거짓 사실이 되고, 무엇보다 소비 측이 빠진 봉을
+// 구분할 방법을 잃는다. spike.js 는 candle.every(v => 유효) 로 "전 봉에 거래량이
+// 있는가"를 판별해 부분 배열이면 통째로 넘기지 않는다(엔진 _mfiRaw 가 vol[j] || 0 으로
+// 읽어 빠진 봉을 거래량 0 으로 만들기 때문). 그 판별의 근거가 이 undefined 다.
+test("거래량이 null 이면 0 이 아니라 undefined — 부분 결측을 소비 측이 식별할 수 있어야 한다", () => {
   const r = fakeResponse(250);
   r.candles[5].v = null;
   const out = MSApi.normalizeCandles(r);
   assert.strictEqual(out.candle[5].v, undefined);
   assert.strictEqual(out.candle[6].v, 1006);
+  assert.equal(out.candle.every(c => typeof c.v === "number"), false, "부분 결측이 식별돼야 한다");
+});
+
+test("OHLC 에 비수치가 있으면 던진다 — NaN 은 조용히 번져 빈 차트·\"NaN\" 목표가가 된다", () => {
+  for (const bad of ["-", null, undefined, "N/A"]) {
+    for (const k of ["o", "h", "l", "c"]) {
+      const r = fakeResponse(250);
+      r.candles[7][k] = bad;
+      assert.throws(() => MSApi.normalizeCandles(r), /OHLC 값 이상/,
+        "봉 7 의 " + k + "=" + String(bad) + " 를 통과시켰다");
+    }
+  }
+});
+
+test("정상 응답은 전 봉 OHLC 가 유한하다", () => {
+  const out = MSApi.normalizeCandles(fakeResponse(250));
+  assert.ok(out.candle.every(c => [c.o, c.h, c.l, c.c].every(Number.isFinite)));
 });
 
 test("asOf 는 마지막 봉 날짜 10자리", () => {

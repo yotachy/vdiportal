@@ -22,11 +22,32 @@
     return seen;
   }
 
+  // 그래프의 volume 노드에 실거래량을 심는다. 엔진의 거래량 계열 드리프트
+  // (volume·volumeprofile·vwap·mfi·cmf)는 data.volume 이 아니라 이 노드의 values 를 읽는다
+  // (forge-core.js run() `_vol`/`_vpvol`/`_vwvol`/`_mfvol`/`_cmvol`) — 그래서 data.volume 만
+  // 넘기면 실거래량이 드리프트에 닿지 않고 synthVolume(price) 합성치가 쓰인다.
+  // volume=null 이면 series 를 지워 엔진 합성 폴백으로 되돌린다(주기마다 초기화 필요 —
+  // 안 지우면 앞 주기의 거래량이 뒤 주기에 남는다).
+  function setVolume(graph, volume) {
+    var vn = (graph.nodes || []).find(function (n) { return n.blockType === "volume"; });
+    if (!vn) return false;
+    var ok = Array.isArray(volume) && volume.length >= 2 &&
+             volume.every(function (v) { return typeof v === "number" && isFinite(v); });
+    if (ok) vn.series = volume.slice();
+    else delete vn.series;
+    return ok;
+  }
+
   function full32Graph(ForgeCore) {
     // 깊은 복사 — sampleGraph 는 호출마다 새 객체를 주지만, 캐시로 바뀌어도 안전하도록.
     var g = JSON.parse(JSON.stringify(ForgeCore.sampleGraph()));
     // 시연용 확신값이 판정에 섞이면 측정치가 그래프 구성이 아니라 하드코딩 값을 반영한다.
-    g.nodes.forEach(function (n) { n.conviction = 0; });
+    // volume 노드의 series 는 sampleGraph 가 구워 넣은 합성 BTC 표본(30k→68k)이라
+    // 그대로 두면 어떤 종목을 분석하든 거래량 지표가 그 표본을 읽는다 — 반드시 지운다.
+    g.nodes.forEach(function (n) {
+      n.conviction = 0;
+      if (n.blockType === "volume") delete n.series;
+    });
 
     var price = g.nodes.find(function (n) { return n.blockType === "price"; });
     var comb = g.nodes.find(function (n) { return n.blockType === "combine"; });
@@ -43,5 +64,6 @@
     return g;
   }
 
-  return { INFRA: INFRA, MISSING: MISSING, indicatorTypes: indicatorTypes, full32Graph: full32Graph };
+  return { INFRA: INFRA, MISSING: MISSING, indicatorTypes: indicatorTypes,
+           full32Graph: full32Graph, setVolume: setVolume };
 });

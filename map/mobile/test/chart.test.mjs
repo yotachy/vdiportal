@@ -6,11 +6,14 @@ const MSChart = require("../www/chart.js");
 
 const COL = { bull: "#4fb98a", bear: "#d96a6a", gold: "#e8b463", cone: "rgba(232,180,99,.09)" };
 
-function candles(n, flat) {
+// dir: 생략=교대(상승/하락 섞임), "up"=전부 상승, "down"=전부 하락.
+// 교대 픽스처만 쓰면 "두 색이 어딘가 나오긴 한다" 단언이 매핑 반전을 통과시킨다.
+function candles(n, flat, dir) {
   const out = [];
   for (let i = 0; i < n; i++) {
     const base = flat ? 100 : 100 + i;
-    out.push({ o: base, h: base + 2, l: base - 1, c: base + (i % 2 ? 1 : -1), v: 1000 });
+    const delta = dir === "up" ? 1 : dir === "down" ? -1 : (i % 2 ? 1 : -1);
+    out.push({ o: base, h: base + 2, l: base - 1, c: base + delta, v: 1000 });
   }
   return out;
 }
@@ -83,14 +86,46 @@ test("drawChart 가 콘을 cone 색으로 실제로 채운다", () => {
   assert.ok(ctx.calls.some(c => c.op === "fill" && c.fill === COL.cone), "콘 fill 이 cone 색으로 실행되지 않았다");
 });
 
-test("drawChart 가 상승봉을 bull, 하락봉을 bear 로 실제로 칠한다", () => {
-  const g = MSChart.chartGeometry({ candle: candles(50), prediction: null, width: 300, height: 200 });
+// geo.bars 와 fillRect 호출은 같은 순서로 나온다 — 봉마다 짝지어 색을 고정한다.
+// "두 색이 어딘가 나온다"로는 bull/bear 를 통째로 뒤바꿔도 통과한다(색 스와치가
+// 반환값엔 맞고 페인트엔 안 맞던 forge-tools 사고가 바로 이 형태였다).
+function assertBarColors(candle) {
+  const g = MSChart.chartGeometry({ candle, prediction: null, width: 300, height: 200 });
   const ctx = recCtx();
   MSChart.drawChart(ctx, g, COL);
   const rects = ctx.calls.filter(c => c.op === "fillRect");
   assert.equal(rects.length, g.bars.length, "몸통 개수 불일치");
-  assert.ok(rects.some(r => r.fill === COL.bull), "bull 색 몸통 없음");
-  assert.ok(rects.some(r => r.fill === COL.bear), "bear 색 몸통 없음");
+  g.bars.forEach((b, i) => {
+    assert.equal(rects[i].fill, b.up ? COL.bull : COL.bear, "봉 " + i + " up=" + b.up);
+  });
+  return g;
+}
+
+test("drawChart 가 봉마다 up→bull / down→bear 로 칠한다 (순서 대응)", () => {
+  const g = assertBarColors(candles(50));
+  assert.ok(g.bars.some(b => b.up) && g.bars.some(b => !b.up), "픽스처에 상승·하락이 모두 있어야 한다");
+});
+
+test("전부 상승인 봉은 전부 bull 로만 칠해진다", () => {
+  const g = assertBarColors(candles(30, false, "up"));
+  assert.ok(g.bars.every(b => b.up), "픽스처가 전부 상승이어야 한다");
+});
+
+test("전부 하락인 봉은 전부 bear 로만 칠해진다", () => {
+  const g = assertBarColors(candles(30, false, "down"));
+  assert.ok(g.bars.every(b => !b.up), "픽스처가 전부 하락이어야 한다");
+});
+
+// 심지(고가~저가) 스트로크도 같은 매핑을 따라야 한다 — 몸통만 고정하면 심지가 뒤집혀도 통과한다.
+test("심지 스트로크 색도 봉 방향을 따른다", () => {
+  const g = MSChart.chartGeometry({ candle: candles(20), prediction: null, width: 300, height: 200 });
+  const ctx = recCtx();
+  MSChart.drawChart(ctx, g, COL);
+  const wicks = ctx.calls.filter(c => c.op === "stroke" && c.stroke !== COL.gold);
+  assert.equal(wicks.length, g.bars.length, "심지 개수 불일치");
+  g.bars.forEach((b, i) => {
+    assert.equal(wicks[i].stroke, b.up ? COL.bull : COL.bear, "심지 " + i + " up=" + b.up);
+  });
 });
 
 test("drawChart 가 예측 경로를 gold 로 스트로크한다", () => {

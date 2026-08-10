@@ -27,10 +27,19 @@
     if (!Array.isArray(raw) || raw.length < floor) {
       throw new Error("봉 부족: " + (Array.isArray(raw) ? raw.length : 0) + " < " + floor + " (" + (json.tf || "1day") + ")");
     }
-    var candle = raw.map(function (c) {
+    // 거래정지 세션에 "-"·null 을 주는 제공자가 있다. "-" 는 NaN 이 되어 조용히 번지고
+    // (chartGeometry 가 min=0/max=1 로 폴백 → 빈 차트, target.toFixed 는 "NaN"),
+    // null·"" 은 +값이 0 이라 더 나쁘다 — 가격 0 인 봉으로 위장한다. 둘 다 막는다.
+    function ok(v) { return v != null && v !== "" && isFinite(+v); }
+    var candle = raw.map(function (c, i) {
+      if (!ok(c.o) || !ok(c.h) || !ok(c.l) || !ok(c.c)) {
+        throw new Error("봉 " + i + " OHLC 값 이상: " + JSON.stringify([c.o, c.h, c.l, c.c]));
+      }
       return {
         o: +c.o, h: +c.h, l: +c.l, c: +c.c,
-        // null 을 0 으로 바꾸면 거래량 기반 지표(mfi·cmf)가 오염된다. 없으면 없는 채로 넘긴다.
+        // 없는 거래량은 undefined 로 남긴다 — 0 은 '거래 없음'이라는 거짓 사실이 된다.
+        // 소비 측(spike.js)이 "전 봉에 거래량이 있는가"를 undefined 로 판별해
+        // 부분 배열이면 통째로 넘기지 않도록 하는 근거가 이 값이다.
         v: (c.v != null && isFinite(+c.v)) ? +c.v : undefined
       };
     });
