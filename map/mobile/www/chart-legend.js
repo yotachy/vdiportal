@@ -31,13 +31,14 @@
   var VOL_REL = (Str && Str.VOL_REL) || {};
   var MA_ALIGN = (Str && Str.MA_ALIGN) || {};
   var RSI_ZONE = (Str && Str.RSI_ZONE) || {};   // Fix round 2: RSI 만 빠져 있었다
+  var SR = (Str && Str.SR) || {};               // Fix 2: support/resistance 공유
 
   function rows(an, pred, fi) {
     var out = [];
 
     // MA — 정렬·지지/저항은 전체 판정이라 fi 무관
     var ma = an.ma, maTxt = MA_ALIGN[ma.align.order] || "mixed";
-    if (ma.sr && ma.sr.ma) maTxt += " · " + (ma.sr.side === "support" ? "support" : "resistance");
+    if (ma.sr && ma.sr.ma) maTxt += " · " + (ma.sr.side === "support" ? SR.support : SR.resistance);
     out.push({ key: "ma", label: ind("ma"), value: maTxt, tone: biasTone(ma.bias) });
 
     // MACD — 히스토그램은 봉별, 교차는 전체 판정
@@ -62,7 +63,7 @@
     // 볼린저 — %B 는 봉별, 밴드 상태·스퀴즈는 전체 판정
     var b = an.bb, pb = at(b.pctB, fi, (b.last && b.last.pctB) || 0);
     out.push({ key: "bb", label: ind("bollinger"),
-               value: (BB_STATE[b.state] || "mid band") + (b.squeeze ? " · squeeze" : "") + " · %B " + pb.toFixed(2),
+               value: (BB_STATE[b.state] || "mid band") + (b.squeeze ? T.legSqueeze : "") + " · %B " + pb.toFixed(2),
                tone: biasTone(b.bias) });
 
     // 거래량 — 상태·가격관계 모두 전체 판정이라 fi 무관

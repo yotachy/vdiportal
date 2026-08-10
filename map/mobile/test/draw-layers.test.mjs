@@ -150,14 +150,18 @@ test("M.badges=false 라도 거래량 다이버전스 선과 급증 틱은 그�
   assert.ok(texts.some(t => /divergence/i.test(t)), "거래량 다이버전스 라벨이 사라졌다: " + texts.join("|"));
 });
 
-test("M.badges=false 면 RSI·거래량 배지는 안 그린다", () => {
+test("M.badges=false 면 RSI·거래량·MACD 배지는 안 그린다", () => {
   const M = Object.assign({}, layout().panels.price.M, { badges: false });
   const c = recCtx(); L.resetLabels(372, 520);
   L.rsiBadge(c, { divergence: {}, zone: "overbought", last: 71 }, M);
   L.volumeBadge(c, { divergence: {}, state: "contract", relationship: "weakening" }, M);
+  // Fix 3: 다른 4개 레이어는 이미 게이트하고 있었는데 MACD 만 빠져 있었다 — report.js가 오늘
+  // macdBadge를 안 부르는 우연으로만 안전했다. 게이트 자체를 단언해야 그 우연에 기대지 않는다.
+  L.macdBadge(c, FC.analyzeMACD(price, { fast: 12, slow: 26, signal: 9 }), M);
   const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
   assert.ok(!texts.some(t => /overbought|oversold|neutral/.test(t)), "RSI 배지가 남았다: " + texts.join("|"));
   assert.ok(!texts.some(t => /\bspike\b|contracting|\bnormal\b/.test(t)), "거래량 배지가 남았다: " + texts.join("|"));
+  assert.ok(!texts.some(t => /^MACD /.test(t)), "MACD 배지가 남았다: " + texts.join("|"));
 });
 
 // ── Fix round 1: chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념에
@@ -194,6 +198,24 @@ test("Fix round 1 — MA·거래량·볼린저·RSI 배지가 레전드와 같�
   const bbTxt = paint(L.bollinger, bb);
   assert.ok(bbTxt.indexOf(Str.BB_STATE[bb.state]) >= 0, "볼린저 상태 배지 표기 불일치: " + bbTxt);
   assert.ok(rows.bb.indexOf(Str.BB_STATE[bb.state]) >= 0, "레전드 볼린저 상태가 공유 표기를 안 쓴다: " + rows.bb);
+
+  // Fix 2: support/resistance · " · squeeze" 도 두 모듈이 각자 하드코딩하고 있었다. 실제 데모
+  // 데이터엔 squeeze/sr 이 우연히 안 걸리므로 강제로 합성해 두 경로 모두 실행되게 한다.
+  // 기대값은 소스가 쓰는 식을 그대로 베끼면 뮤테이션에 안 걸리므로, Str.SR/Str.t.legSqueeze 를
+  // 직접 읽어 비교한다(소스와 같은 표현으로 "우연히 같다"를 만들지 않는다).
+  const bbSqueeze = Object.assign({}, bb, { squeeze: true });
+  const bbSqueezeTxt = paint(L.bollinger, bbSqueeze);
+  assert.ok(bbSqueezeTxt.indexOf(Str.t.legSqueeze) >= 0, "볼린저 배지에 squeeze 표기가 없다: " + bbSqueezeTxt);
+  const rowsSqueeze = {};
+  LG.rows({ ma, rsi, bb: bbSqueeze, macd, va }, null, null).forEach(r => { rowsSqueeze[r.key] = r.value; });
+  assert.ok(rowsSqueeze.bb.indexOf(Str.t.legSqueeze) >= 0, "레전드 볼린저에 squeeze 표기가 없다: " + rowsSqueeze.bb);
+
+  const maSr = Object.assign({}, ma, { sr: { ma: "short", side: "support" } });
+  const maSrTxt = paint(L.ma, maSr);
+  assert.ok(maSrTxt.indexOf(Str.SR.support) >= 0, "MA 배지가 공유 SR 표기를 안 쓴다: " + maSrTxt);
+  const rowsSr = {};
+  LG.rows({ ma: maSr, rsi, bb, macd, va }, null, null).forEach(r => { rowsSr[r.key] = r.value; });
+  assert.ok(rowsSr.ma.indexOf(Str.SR.support) >= 0, "레전드 MA 가 공유 SR 표기를 안 쓴다: " + rowsSr.ma);
 
   const rsiTxt = paint(L.rsiBadge, rsi);
   assert.ok(rsiTxt.indexOf(Str.RSI_ZONE[rsi.zone]) >= 0, "RSI 구간 배지 표기 불일치: " + rsiTxt);

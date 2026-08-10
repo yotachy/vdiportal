@@ -283,8 +283,8 @@
 
     function buildTierRow() {
       var row = MSUi.el("div", "rp-tier-row");
-      row.appendChild(MSUi.el("span", "rp-tier", "BASIC"));
-      row.appendChild(MSUi.el("span", "rp-tier-desc", "5 indicators"));
+      row.appendChild(MSUi.el("span", "rp-tier", MSStr.t.rpTierBasic));
+      row.appendChild(MSUi.el("span", "rp-tier-desc", MSStr.t.rpTierCount));
       var evi = MSUi.el("span", "rp-evi");
       for (var k = 0; k < 3; k++) evi.appendChild(MSUi.el("span", "rp-evi-seg" + (k === 0 ? " on" : "")));
       row.appendChild(evi);
@@ -323,7 +323,7 @@
 
       var pr = an.out.prediction, last = pr.lo.length - 1;
       var rangeText = (last >= 0)
-        ? (MSStr.t.rpRange + MSUi.fmtPrice(pr.lo[last]) + "–" + MSUi.fmtPrice(pr.hi[last]) + " · " + pr.futW + MSStr.t.rpBarsAfter)
+        ? (MSStr.t.rpRange + MSUi.fmtPrice(pr.lo[last]) + "–" + MSUi.fmtPrice(pr.hi[last]) + " · " + pr.futW + MSStr.t.rpBarsAfter + MSStr.t.rpRough)
         : MSStr.t.rpRangeNone;
       wrap.appendChild(MSUi.el("div", "rp-range", rangeText));
 
@@ -425,7 +425,7 @@
       var dailyVal = "";
       if (state === "ready") {
         var v = an.out.verdict;
-        dailyVal = v.confluence.total ? (dirWord(v.regime) + " · " + v.confluence.agree + "/" + v.confluence.total + " agree") : dirWord(v.regime);
+        dailyVal = v.confluence.total ? (dirWord(v.regime) + " · " + v.confluence.agree + "/" + v.confluence.total + MSStr.t.rpAgreeShort) : dirWord(v.regime);
       } else if (state === "error") {
         dailyVal = "—";
       }

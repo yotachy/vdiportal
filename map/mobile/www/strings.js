@@ -27,7 +27,6 @@
     wlEmpty: "No tickers yet.\nAdd one to get started.",
     wlAdd: "＋ Add ticker",
     wlAddPrompt: "Enter a ticker symbol (e.g. AAPL)",
-    wlAddBtn: "Add",
     wlCancel: "Cancel",
     wlScan: "Scan",
     wlScanning: "Scanning ",
@@ -49,20 +48,29 @@
     rpRough: " — this is a rough read",        // 시안 그대로
     rpAgree: " of ",
     rpAgreeTail: " agree with this direction",
+    rpAgreeShort: " agree",                    // Fix 6: rpAgreeTail 과 같은 어휘(agree)의 짧은 형태 — 주기 행 요약용
     rpAgreeNone: "No indicator gives a direction, so agreement cannot be scored",
     rpBarsAfter: " bars out",
+
+    // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)
+    rpTierBasic: "BASIC",
+    rpTierCount: "5 indicators",
 
     // 리포트 — 섹션
     rpCounted: "What was read",                // 시안 그대로
     rpNotCounted: "Not checked at this level", // 시안 그대로
     rpNotCountedLead: "Indicators not used in this verdict: ",
     rpNotCountedTail: " — see below",
-    rpMissingPoint: "Showing what is missing",
 
     // 리포트 — 주기
     rpTf: "Timeframe",
     rpDaily: "Daily", rpWeekly: "Weekly", rpMonthly: "Monthly",
     rpLocked: "Locked", rpLockedSuffix: " · locked", rpSoon: "Coming soon",
+
+    // 서브패널 빈 데이터 안내 (Fix 7: draw-panels.js 도 MSStr 단일 출처를 쓴다)
+    pnlRsiEmpty: "No RSI data",
+    pnlMacdEmpty: "No MACD data",
+    pnlVolumeEmpty: "No volume data",
 
     // 예측선 범례
     lgP1: "1st · blended forecast",
@@ -73,6 +81,7 @@
     legPred: "1st forecast",
     legTarget: "Target",
     legGolden: "golden ", legDead: "dead ", legBars: " bars", legNoCross: "no cross",
+    legSqueeze: " · squeeze",
 
     // 차트 안 잔존 라벨(크로스 표기는 legGolden/legDead/legBars 를 그대로 쓴다 — 레전드와
     // 차트가 각자 표기를 갖고 있던 것이 드리프트 원인이었다. Fix round 1)
@@ -89,10 +98,13 @@
   var BB_STATE = { breakout_up: "upper breakout", breakout_dn: "lower breakdown",
                    upper: "upper band", lower: "lower band", neutral: "mid band" };
   var RSI_ZONE = { overbought: "overbought", oversold: "oversold", neutral: "neutral" };
+  // Fix 2: support/resistance 는 MA 배지(draw-layers.js)와 레전드(chart-legend.js) 둘 다
+  // 각자 리터럴로 하드코딩하고 있었다 — 다른 어휘 맵들과 같은 이유로 공유한다.
+  var SR = { support: "support", resistance: "resistance" };
 
   function ind(bt) { var k = bt || ""; return IND[k] || k; }
 
   return { t: t, IND: IND, ind: ind,
            MA_ALIGN: MA_ALIGN, VOL_STATE: VOL_STATE, VOL_REL: VOL_REL, BB_STATE: BB_STATE,
-           RSI_ZONE: RSI_ZONE };
+           RSI_ZONE: RSI_ZONE, SR: SR };
 });

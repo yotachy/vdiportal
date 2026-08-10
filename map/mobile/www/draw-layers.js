@@ -169,7 +169,7 @@
       const x = fiToX(nowFi), y = pToY(ma.mas.short.last);
       if (isFinite(x) && isFinite(y)) {
         const o = ma.align.order;
-        _evLabel(c, (o === "bull" ? Str.MA_ALIGN.bull + " ▲" : o === "bear" ? Str.MA_ALIGN.bear + " ▼" : Str.MA_ALIGN.mixed + " –") + (ma.sr.ma ? " · " + (ma.sr.side === "support" ? "support" : "resistance") : ""), x + 4, y - 6, o === "bull" ? "#46c28e" : o === "bear" ? "#e06a6a" : "#8a92b2", "left");
+        _evLabel(c, (o === "bull" ? Str.MA_ALIGN.bull + " ▲" : o === "bear" ? Str.MA_ALIGN.bear + " ▼" : Str.MA_ALIGN.mixed + " –") + (ma.sr.ma ? " · " + (ma.sr.side === "support" ? Str.SR.support : Str.SR.resistance) : ""), x + 4, y - 6, o === "bull" ? "#46c28e" : o === "bear" ? "#e06a6a" : "#8a92b2", "left");
       }
     }
     // 미래 투영(포커스 시): 장기 MA를 최근 봉당 기울기로 감쇠 연장 → "이 지표가 이렇게 이어져 예측에 기여"하는 독립 해석 시각화
@@ -212,7 +212,7 @@
 
   function _drawVolumeLayers(c, va, M) {
     if (!va) return;
-    const { fiToX, pToY, fiMin, reveal, xRight } = M;
+    const { fiToX, pToY, fiMin, reveal = Infinity, xRight } = M;
     const _by = (M.badgeY != null) ? M.badgeY : 28;
     c.save();
     // 레이어1: 가격-OBV 다이버전스 선
@@ -264,7 +264,7 @@
       const x = (xRight != null ? xRight : fiToX(nowFi)), y = pToY(bb.last.mid);
       const st = bb.state, sTxt = Str.BB_STATE[st] || "mid band";
       const col = bb.bias > 0.15 ? "#46c28e" : bb.bias < -0.15 ? "#e06a6a" : COL;
-      if (isFinite(x) && isFinite(y)) _evLabel(c, "BB " + sTxt + (bb.squeeze ? " · squeeze" : "") + " · %B" + bb.last.pctB.toFixed(2), x - 6, y, col, "right");
+      if (isFinite(x) && isFinite(y)) _evLabel(c, "BB " + sTxt + (bb.squeeze ? Str.t.legSqueeze : "") + " · %B" + bb.last.pctB.toFixed(2), x - 6, y, col, "right");
     }
     if (M.focused && M.xNow != null && M.futBars) _projFwd(c, bb.mid, nowFi, M.xNow, (xRight != null ? xRight : fiToX(nowFi)), M.futBars, pToY, COL, "Bollinger midline projection");
     c.restore();
@@ -272,6 +272,7 @@
 
   function _drawMacdLayers(c, m, M) {
     if (!_skReady()) return;
+    if (M.badges === false) return;   // Fix 3: 다른 4개 레이어는 이미 게이트한다 — MACD만 빠져 있었다
     const { xRight, nowFi, fiToX, badgeY } = M;
     const x = (xRight != null ? xRight : fiToX(nowFi)), y = (badgeY != null ? badgeY : 14);
     const cross = m.cross && m.cross.type ? (m.cross.type === "bull" ? Str.t.legGolden : Str.t.legDead) + m.cross.barsAgo + Str.t.legBars : Str.t.legNoCross;
