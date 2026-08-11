@@ -126,3 +126,21 @@ test("plotWidth 는 pad 를 생략하면 10 을 쓴다 — chartLayout 의 기�
   const lay = CL.chartLayout({ candle: candles(150), prediction: null, width: 373, height: 520, tailBars: 60 });
   assert.equal(CL.plotWidth(373), lay.plot.w);
 });
+
+test("plotWidth 는 화면폭별 실측값과 일치한다 — 구현이 아니라 값을 고정한다", () => {
+  // 설계서 §4 실측표. plotW = W - 2*pad - AXIS_W(44)
+  const want = { 320: 256, 373: 309, 673: 609, 884: 820, 1000: 936 };
+  for (const W of Object.keys(want)) {
+    assert.equal(CL.plotWidth(+W, 10), want[W], "W=" + W);
+  }
+});
+
+test("우측 가격축 자리가 실제로 남는다 — plotWidth 가 AXIS_W 를 빼먹으면 축이 캔버스 밖에 그려진다", () => {
+  for (const W of [320, 373, 673, 884]) {
+    for (const pad of [0, 10, 16]) {
+      const lay = CL.chartLayout({ candle: candles(150), prediction: prediction(24), width: W, height: 520, pad: pad, tailBars: 60 });
+      assert.equal(lay.plot.x + lay.plot.w + CL.AXIS_W, W - pad,
+                   "W=" + W + " pad=" + pad + " — 축 거터가 안 맞는다");
+    }
+  }
+});
