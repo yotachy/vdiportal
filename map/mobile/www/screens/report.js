@@ -377,10 +377,14 @@
       if (conf != null) head.appendChild(MSUi.el("span", "rp-conf-pct", conf + "%"));
       wrap.appendChild(head);
 
-      var hit = (conf != null) ? MSReportModel.hitRate(window.MSBacktest) : null;
+      var hit = (conf != null) ? MSReportModel.hitRate(window.MSBacktest, v.regime) : null;
       if (hit) {
         wrap.appendChild(MSUi.el("div", "rp-hit", hit.right + MSStr.t.rpHitRight + hit.wrong + MSStr.t.rpHitWrong));
-        wrap.appendChild(MSUi.el("div", "rp-hit-note", MSStr.t.rpHitNote1 + conf + MSStr.t.rpHitNote2));
+        // 오답률(hit.wrong)이 방향별로 갈리므로(불 61.5/38.5 · 베어 42.6/57.4) 문장 속 숫자도
+        // 그 방향의 실측을 반영해야 한다 — "Four calls in ten" 처럼 고정 문구를 쓰면 베어 판정에서
+        // 거짓말이 된다(오답률 57.4%인데 41.9%라고 말하게 됨, 최종수정웨이브 §③).
+        wrap.appendChild(MSUi.el("div", "rp-hit-note",
+          Math.round(hit.wrong / 10) + MSStr.t.rpHitNoteA + conf + MSStr.t.rpHitNoteB));
       }
 
       var total = v.confluence.total, agree = v.confluence.agree;
@@ -410,7 +414,9 @@
         var row = MSUi.el("div", "rp-hz-row");
         row.appendChild(MSUi.el("span", "rp-hz-when", hzLabel(r.key)));
         row.appendChild(MSUi.el("span", "rp-hz-px", MSUi.fmtPrice(r.price)));
-        var cls = r.chgPct > 0.05 ? " up" : r.chgPct < -0.05 ? " dn" : "";
+        // 색은 r.dir 로만 정한다 — report-model.js 의 FLAT_EPS 데드존과 확률 뒤집기가 같은
+        // 임계를 쓰도록 여기서 리터럴 ±0.05 를 다시 판정하지 않는다(최종수정웨이브 §⑥).
+        var cls = r.dir === "up" ? " up" : r.dir === "down" ? " dn" : "";
         row.appendChild(MSUi.el("span", "rp-hz-chg" + cls, MSUi.fmtChg(r.chgPct)));
         row.appendChild(MSUi.el("span", "rp-hz-prob", r.prob == null ? "" : r.prob + "%"));
         sec.appendChild(row);

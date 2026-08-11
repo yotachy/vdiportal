@@ -33,6 +33,8 @@ export function syncBacktest(srcDir, destDir) {
   const o = r.overall || {}, p = o.pnl || {}, uni = r.universe || [];
   const summary = {
     directionHitRate: o.directionHitRate,
+    bullHitRate: o.bullHitRate,
+    bearHitRate: o.bearHitRate,
     calibrationECE: o.calibrationECE,
     coneCoverage: o.coneCoverage,
     avgWin: p.avgWin,

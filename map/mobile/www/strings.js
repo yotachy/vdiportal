@@ -57,8 +57,10 @@
     rpAgreeShort: " agree",                    // Fix 6: rpAgreeTail 과 같은 어휘(agree)의 짧은 형태 — 주기 행 요약용
     rpAgreeNone: "No indicator gives a direction, so agreement cannot be scored",
     rpHitRight: "% right · ", rpHitWrong: "% wrong",
-    rpHitNote1: "Four calls in ten that looked like this one did not work out. Size your position for that, not for the ",
-    rpHitNote2: "%.",                             // 사이에 확신 퍼센트가 들어간다(보간 장치 없음 — 연결만)
+    // 문장 자체가 방향별 오답률(41.9 또는 57.4)을 담아야 해서 앞뒤 두 조각으로 쪼갰다 — 가운데엔
+    // Math.round(hit.wrong/10), 사이엔 확신 퍼센트가 들어간다(보간 장치 없음 — 연결만, screens/report.js).
+    rpHitNoteA: " calls in ten that looked like this one did not work out. Size your position for that, not for the ",
+    rpHitNoteB: "%.",
     rpHzTomorrow: "Tomorrow", rpHzWeek: "In 1 week", rpHzMonth: "In 1 month",
 
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)

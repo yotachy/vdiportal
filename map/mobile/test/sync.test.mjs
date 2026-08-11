@@ -41,6 +41,8 @@ test("백테스트 요약이 원본 리포트의 값을 그대로 담는다", ()
   const s = syncBacktest(src, dst);
   const raw = JSON.parse(readFileSync(join(src, "forge-backtest-report.json"), "utf8"));
   assert.strictEqual(s.directionHitRate, raw.overall.directionHitRate);
+  assert.strictEqual(s.bullHitRate, raw.overall.bullHitRate);
+  assert.strictEqual(s.bearHitRate, raw.overall.bearHitRate);
   assert.strictEqual(s.calibrationECE, raw.overall.calibrationECE);
   assert.strictEqual(s.coneCoverage, raw.overall.coneCoverage);
   assert.strictEqual(s.avgWin, raw.overall.pnl.avgWin);
@@ -54,6 +56,8 @@ test("백테스트 요약의 실측값 — 2026-07 리포트", () => {
   const src = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
   const s = syncBacktest(src, tmp("ms-bt2-"));
   assert.strictEqual(Math.round(s.directionHitRate * 1000) / 1000, 0.581);
+  assert.strictEqual(Math.round(s.bullHitRate * 1000) / 1000, 0.615);
+  assert.strictEqual(Math.round(s.bearHitRate * 1000) / 1000, 0.426);
   assert.strictEqual(Math.round(s.coneCoverage * 1000) / 1000, 0.777);
   assert.strictEqual(s.nForecasts, 31496);
   assert.strictEqual(s.nSeries, 86);

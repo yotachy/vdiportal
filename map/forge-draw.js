@@ -68,9 +68,14 @@
     return null;
   }
   // 표기용 확률: 그 봉의 예측 '방향'이 실현될 캘리브레이션 확률(%). 50 미만이면 반대가 우세하다는 뜻 — 숨기지 않는다.
+  // ForgeCore.upProb 을 무가드로 부른다 — 예전엔 forge-app.js 의 전역 _upProb 에 이름만으로 암묵
+  // 의존했고(이 파일도 forge-app.js 도 classic script 로 전역을 공유), 그 지역 정의가 Phase 6 에서
+  // 지워지며 참조가 forge-core.js 의 upProb 으로 옮겨갔다. 로드 순서(core→state→ui→draw→tools→app)가
+  // 고정이라 이 시점엔 ForgeCore 가 항상 존재한다 — typeof 가드는 위 줄이 이미 던진 뒤에나 의미가
+  // 있었을 죽은 코드였다.
   function _predPCal(center, hi, anchor, k) {
     const raw = ForgeCore.upProb(center[k], hi[k], anchor);
-    const cal = (typeof ForgeCore !== "undefined" && ForgeCore && ForgeCore.calibrateUpProb) ? ForgeCore.calibrateUpProb(raw) : raw;
+    const cal = ForgeCore.calibrateUpProb(raw);
     return (center[k] >= anchor) ? cal : (100 - cal);
   }
   function _predSeed(path, anchor) {   // 결정론 시드: path/anchor 해시(FNV-1a 변형) → 같은 종목·기간 = 같은 그림

@@ -111,8 +111,8 @@
 ## 미검증 — 사용자 확인 필요 (Phase 6)
 
 **① PC 스쿱포지 — 엔진 이관의 유일한 회귀 지점.** `forge.html` 을 열고 종목 하나를 웹분석한 뒤
-2번 패널의 **예측 시점별 표**(달성확률 %)가 이전과 같은 값을 내는지 확인할 것. 관문 251건이 수학
-회귀는 잡지만 화면은 못 본다.
+2번 패널의 **예측 시점별 표**(달성확률 %)가 이전과 같은 값을 내는지 확인할 것. 관문 259건(`forge-core`)이
+수학 회귀는 잡지만 화면은 못 본다.
 
 **② 모바일** — `cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0` 후 폰 Chrome:
 
@@ -247,7 +247,15 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
 - **`forge-draw.js` 가 `forge-app.js` 의 전역에 암묵 의존하고 있었다** — `_predPCal` 이 `_upProb` 를 이름만으로
   불렀다. `forge-*.js` 6개가 classic script 로 전역을 공유하는 구조라 가능했던 것인데, Phase 6 에서 `forge-app.js`
   의 지역 정의를 지우자 참조가 끊겨 차트 예측 라벨이 `ReferenceError` 로 죽을 뻔했다(구현 중 발견·수정).
-  **같은 종류의 암묵 의존이 다른 파일 사이에도 있을 수 있다** — 파일 간 전역 참조를 한 번 전수 조사할 값어치가 있다.
+  최종수정웨이브에서 전수 조사한 결론: **파일 간 전역 참조 자체는 이 아키텍처의 정상 패턴이고(6개 파일
+  사이 수백 건) 없애는 게 목표가 아니다.** 문제는 `forge-app.js` 의 `_hzFmt`·`_normCdf`·`_upProb`·`_hzList`
+  4형제 블록 중 **셋**(`_hzFmt`·`_normCdf`·`_upProb`)이 `forge-draw.js` 에서 불리는데 Phase 6 이 `_upProb`
+  (+그 하위 `_normCdf`)만 엔진(`forge-core.js`)으로 옮기고 나머지를 그대로 뒀다는 것이다. 다음에 같은
+  정리를 할 때 마저 봐야 재발하지 않는다:
+  - **`_hzFmt`**(가격 포맷) — `forge-app.js` 안에서 11회, `forge-draw.js` 에서 그 전역을 그대로 호출.
+  - **`_hzList`**(마일스톤 지평 목록) — `forge-app.js` 안에서 2회, `forge-draw.js` 안에서 2회 각자 호출.
+  - `forge-tools.js` 는 이미 이 위험을 인지하고 `_hzFmtSafe`(`typeof _hzFmt === "function"` 가드 후 자체
+    폴백)를 두고 있다 — `forge-draw.js` 는 같은 가드가 없어 로드 순서가 흐트러지면 그대로 죽는다.
 - v2 — 서버 지갑 원장 + 구글 로그인
 - v3 — AdMob + SSV + Full 티어 → 프로덕션 출시
 - v4 — Custom 티어 · 증거/신뢰 화면군

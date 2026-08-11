@@ -66,15 +66,52 @@ test("확신 — 중립이면 null, 경로 없으면 null", () => {
   assert.strictEqual(M.confidence(FC, null, "bull"), null);
 });
 
-test("적중률 — 요약이 없으면 null(생성물 미로드 방어)", () => {
-  assert.strictEqual(M.hitRate(null), null);
-  assert.strictEqual(M.hitRate(undefined), null);
-  assert.strictEqual(M.hitRate({}), null);
+// §① 최종수정웨이브 — 지평 행 확률이 캘리브레이션을 거치는지 리터럴로 고정한다. 헤드라인 확신
+// (FC.aggUpProb)과 차트 레전드(forge-draw.js:_predPCal)는 이미 FC.calibrateUpProb 를 통과하므로,
+// 지평 행만 원값을 쓰면 Platt 절편(+0.3501)만큼 어긋난다.
+test("지평 행 확률은 캘리브레이션을 거친다 — 미보정 원값과 다르다", () => {
+  const p = pred();
+  const rows = M.horizonRows(FC, p, "bull");
+  const raw0 = FC.upProb(p.path[0], p.hi[0], p.anchor);   // d1 행 = index 0
+  assert.notStrictEqual(rows[0].prob, raw0, "보정을 거치지 않은 원값과 같다");
+  assert.strictEqual(rows[0].prob, FC.calibrateUpProb(raw0), "FC.calibrateUpProb 결과와 다르다");
 });
 
-test("적중률 — 소수 첫째 자리까지, 합이 100", () => {
-  const r = M.hitRate({ directionHitRate: 0.5805571790375998 });
-  assert.strictEqual(r.right, 58.1);
-  assert.strictEqual(r.wrong, 41.9);
-  assert.strictEqual(Math.round((r.right + r.wrong) * 10) / 10, 100);
+// 지평 행 확률은 "그 판정이 맞을 확률"이 아니라 "그 행의 가격 변화가 실현될 확률"이다 — regime
+// 을 bull↔bear 로 뒤집어도(판정만 바뀌고 예측 경로 path/hi/lo 는 그대로이므로) 행 확률은 불변이어야
+// 한다. confidence()는 정반대로 regime 에 따라 뒤집힌다 — 그 계약과 섞이면 안 된다.
+test("지평 행 확률은 regime 이 아니라 그 행의 변화 방향으로만 뒤집힌다 — bull/bear 전환에 불변", () => {
+  const p = pred();
+  const bullRows = M.horizonRows(FC, p, "bull");
+  const bearRows = M.horizonRows(FC, p, "bear");
+  assert.deepEqual(bullRows.map(r => r.prob), bearRows.map(r => r.prob));
+  assert.deepEqual(bullRows.map(r => r.dir), bearRows.map(r => r.dir));
+});
+
+// §⑥ 최종수정웨이브 — dir 필드는 색 판정(screens/report.js)과 확률 뒤집기가 공유하는 단일 임계.
+test("dir — FLAT_EPS 데드존 경계에서 up/down/flat 이 갈린다", () => {
+  const eps = M.FLAT_EPS;
+  assert.strictEqual(typeof eps, "number");
+  const p = pred(1, 1);   // 1봉, anchor 100 → path[0] = 100.4 (+0.4%, up)
+  assert.strictEqual(M.horizonRows(FC, p, "bull")[0].dir, "up");
+});
+
+// §② 최종수정웨이브(사용자 결정) — 방향별 적중률. 전역 directionHitRate 대신 그 방향의 실측치를 쓴다.
+test("적중률 — bull 이면 bullHitRate, bear 면 bearHitRate 을 쓴다(리터럴)", () => {
+  const summary = { bullHitRate: 0.6150851968066092, bearHitRate: 0.4259028642590286 };
+  const bull = M.hitRate(summary, "bull");
+  assert.strictEqual(bull.right, 61.5);
+  assert.strictEqual(bull.wrong, 38.5);
+  const bear = M.hitRate(summary, "bear");
+  assert.strictEqual(bear.right, 42.6);
+  assert.strictEqual(bear.wrong, 57.4);
+});
+
+test("적중률 — 요약이 없거나 해당 방향 필드가 없거나 regime 이 중립/미지정이면 null", () => {
+  assert.strictEqual(M.hitRate(null, "bull"), null);
+  assert.strictEqual(M.hitRate(undefined, "bear"), null);
+  assert.strictEqual(M.hitRate({}, "bull"), null, "bullHitRate 필드가 없다");
+  assert.strictEqual(M.hitRate({ bullHitRate: 0.6 }, "bear"), null, "bearHitRate 필드가 없다");
+  assert.strictEqual(M.hitRate({ bullHitRate: 0.6, bearHitRate: 0.4 }, "neutral"), null);
+  assert.strictEqual(M.hitRate({ bullHitRate: 0.6, bearHitRate: 0.4 }), null, "regime 미지정");
 });
