@@ -281,6 +281,13 @@
 
     var state = "loading", errInfo = null, data = null, an = null, chartRefs = null;
 
+    // paintChart() 진입부의 정리와는 별도로 여기서도 한 번 정리한다 — 종목을 바꿔 render()가
+    // 다시 불렸는데 새 렌더가 loading/error 로 끝나면(캐시 미스 로딩 중 이탈, 분석 실패 등)
+    // paintChart() 자체가 안 불려 그 정리가 도달하지 못한다. 그 사이 분리된 캔버스의 onResize 가
+    // 죽은 DOM·캔들 배열을 계속 붙잡는다(리스너는 최대 1개라 누수는 아니고 보유 문제). 두 정리는
+    // 서로 대체가 아니라 보완: 여기는 "화면 전환", paintChart() 안쪽은 "같은 화면 안 재시도"를 커버한다.
+    if (activeResizeCleanup) { activeResizeCleanup(); activeResizeCleanup = null; }
+
     function startLoad() {
       state = "loading"; errInfo = null;
       draw();

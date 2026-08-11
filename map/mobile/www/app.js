@@ -8,6 +8,8 @@
   var state = { selectedSym: null, showing: "watchlist" };
   var rootEl = null, dual = false;
   var listPane = null, reportPane = null;
+  var shellEl = null;             // 2단일 때 grid 컨테이너 — resize 시 gridTemplateColumns 만 갱신
+  var shellResizeBound = false;   // 리스너를 한 번만 등록(모드 전환마다 다시 붙이지 않는다)
 
   function inWatchlist(sym) {
     if (!sym) return false;
@@ -43,7 +45,7 @@
 
   function renderShell() {
     rootEl.innerHTML = "";
-    listPane = null; reportPane = null;
+    listPane = null; reportPane = null; shellEl = null;
     if (dual) document.body.classList.add("ms-dual");
     else document.body.classList.remove("ms-dual");
 
@@ -55,6 +57,7 @@
       shell.appendChild(listPane);
       shell.appendChild(reportPane);
       rootEl.appendChild(shell);
+      shellEl = shell;
       MSWatchlist.render(listPane);
       renderReportPane();
       return;
@@ -63,6 +66,16 @@
     if (state.showing === "report" && state.selectedSym) MSReport.render(rootEl, { sym: state.selectedSym });
     else MSWatchlist.render(rootEl);
     window.scrollTo(0, 0);
+  }
+
+  // MODE_QUERY 는 폭·높이 둘 다 걸려 있어 같은 모드 안에서의 회전(749×654 ↔ 654×749)은
+  // change 이벤트를 안 낸다. 셸엔 그래서 자체 resize 리스너가 필요하다 — 차트는 report.js 가
+  // 자기 resize 로 따라가는데 셸만 renderShell() 때 굳은 폭 그대로 남는 비대칭을 막는다.
+  // 재렌더는 하지 않는다 — 재렌더하면 §5.2 가 막던 스크롤 튐·스캔 UI 파괴가 되돌아온다.
+  // 그리드 폭 한 줄만 갱신한다. 리스너는 부팅 시 한 번만 등록(모드 전환마다 쌓이지 않는다).
+  function onShellResize() {
+    if (!dual || !shellEl) return;
+    shellEl.style.gridTemplateColumns = MSLayout.listWidth(window.innerWidth) + "px 1fr";
   }
 
   function go(route, params) {
@@ -105,6 +118,8 @@
     function onMode(e) { dual = e.matches; renderShell(); }
     if (mq.addEventListener) mq.addEventListener("change", onMode);
     else mq.addListener(onMode);   // 구형 WebView 폴백
+
+    if (!shellResizeBound) { window.addEventListener("resize", onShellResize); shellResizeBound = true; }
 
     renderShell();
   });

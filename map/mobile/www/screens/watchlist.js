@@ -92,6 +92,10 @@
     function row(item, rec) {
       var btn = MSUi.el("button", "row-tap wl-row");
       btn.setAttribute("data-sym", item.sym);   // app.js 가 하이라이트를 옮길 때 쓰는 앵커(목록 재렌더 회피)
+      // app.js 의 markSelected() 는 재렌더 없이 하이라이트만 옮기는 경로라 draw() 가 스스로 부르는
+      // 재생성(스캔 진행·추가·오타 제안·롱프레스 삭제)까지는 못 미친다. 이 줄이 그 빈틈을 메운다 —
+      // 두 경로는 서로 대체가 아니라 보완: markSelected 는 "선택만 바뀜"을, 이 줄은 "행 자체가 다시 생김"을 커버한다.
+      if (MSApp.current().params.sym === item.sym) btn.classList.add("is-sel");
 
       btn.appendChild(MSUi.el("span", MSUi.dotClass(rec && rec.dir)));
 

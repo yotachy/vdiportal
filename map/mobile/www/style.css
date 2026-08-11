@@ -4,7 +4,7 @@
   --border:rgba(238,241,247,.10); --border-strong:rgba(238,241,247,.16);
   --track:rgba(238,241,247,.07);
   --ink:#eef1f7; --ink-2:#c5ccdb; --ink-3:#9aa3b6; --ink-4:#7c8598; --ink-5:#78819a;
-  --gold:#e8b463; --gold-dim:#c0a069; --gold-ink:#1a1408;
+  --gold:#e8b463; --gold-dim:#c0a069; --gold-ink:#1a1408; --gold-soft:rgba(232,180,99,.10);
   --steel:#8892a6; --platinum:#b9c4dc;
   --bull:#4fb98a; --bear:#d96a6a; --bear-text:#e08a8a; --neutral:#4a5368;
   --pred2:#b892f5;
@@ -134,4 +134,4 @@ body.ms-dual .pane-list .wl-conf { display:none; }
 /* 2단엔 '뒤로'가 없다 — 목록이 옆에 그대로 있다 */
 body.ms-dual .pane-report .rp-back { display:none; }
 /* 선택 강조는 배경색만. 좌측 세로 컬러 라인 금지(프로젝트 규율) */
-body.ms-dual .wl-row.is-sel { background:rgba(232,180,99,.10); }
+body.ms-dual .wl-row.is-sel { background:var(--gold-soft); }

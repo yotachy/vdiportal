@@ -118,11 +118,21 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
   결함이고 모드 판정이 커버 가로를 단일로 떨어뜨려 동작도 안 바뀌었다. 회전을 실제로 쓰는지 확인 후 판단.
 - **모드 전환 시 리포트 재분석** — `report.js` 의 `cache` Map 이 OHLC 를 들고 있어 네트워크는 안 타지만
   `analyzeFull` 은 다시 돈다. 폴드는 전환이 잦은 기기라 체감되면 분석 결과까지 캐시할 것.
+- **종목을 빠르게 갈아탈 때 늦게 도착한 응답이 리포트 칸을 덮어쓴다** — `screens/report.js` 의 `startLoad()`
+  가 세대 토큰도 취소도 없이 클로저의 `root` 에 무조건 그린다. 캐시 미스 상태에서 AAPL 탭 → 200ms 뒤 NVDA 탭
+  → NVDA 가 먼저 그려진 뒤 AAPL 응답이 도착하면 AAPL 리포트가 덮어 그려지고 `selectedSym`·하이라이트·`lastSym`
+  은 NVDA 로 남는다. 단일 모드에도 있던 선행 결함이지만 Phase 5 가 "여러 종목을 빠르게 훑는 것"을 주 동선으로
+  승격시켜 노출이 커졌다. 도착 순서에 의존해 결정적이지 않고 헤더에 종목명이 찍혀 데이터 오인까지는 안 가므로
+  이월. **고칠 때는 `MSReport.render` 가 세대 카운터를 들고 `draw()` 진입에서 자기 세대를 확인하는 형태**가
+  맞고, 그러면 위 "모드 전환 시 리포트 재분석" 항목과 같은 자리에서 함께 정리된다.
 - **목록 255px 종목명 잘림** — `.wl-name` 이 ellipsis 라 깨지진 않으나 "NVIDIA Corporation" 같은 긴
   이름은 대부분 잘린다. 실기기 확인 후 판단.
 - **2단에서 선택 종목을 롱프레스 삭제하면 오른쪽 칸이 남는다** — `MSWatchlist` 가 자기 `draw()` 만
   부르고 app 에 알리지 않는다. `MSStore.removeTicker` 가 `lastSym` 은 지우므로 다음 부팅은 깨끗하다.
-  실사용에서 걸리면 삭제 콜백을 붙일 것.
+  파급은 기록보다 한 걸음 넓다: 삭제 후에도 `state.selectedSym` 이 계속 그 종목을 가리키고
+  `state.showing` 은 `"report"` 그대로이므로, **삭제 직후 접으면 단일 모드에서 삭제된 종목의
+  리포트가 그려진다**(캐시가 있어 정상 렌더되고 헤더 이름·`n/N` 위치만 빈다). 실사용에서 걸리면
+  삭제 콜백을 붙일 것.
 - **3단·확장(≥840px) 레이아웃** — 폴드7이 749라 실측 근거가 없다. 태블릿을 지원할 때.
 - **예측 구간 개선 — 실사용 축적 후 판단(보류)** — Phase 3에서 `TAIL_BARS` 60(비중 28%)으로 넓혔고 Phase 4
   줌에서도 함께 커진다. 실기기 확인 시점에서 당장 고칠 결함은 없으나 "더 써보고 개선하자"로 사용자가 보류
@@ -170,7 +180,7 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
 - **`?since=` 증분 시세 미사용** — `api.js`의 `ohlcUrl`이 `since` 파라미터를 받지만 `loadTicker`가 아직
   넘기지 않아 항상 전량 조회한다(콜드 수신 942ms, Phase 0 실측).
 - ~~**폴드 2단 레이아웃(600–904dp)**~~ ✅ Phase 5 에서 완료 — 폴드7 실측이 749×654 로 나와 600–904dp 가정 자체가
-  좁혀졌다(펼침은 medium 구간 아래쪽). 위 완료 기록 참조.
+  좁혀졌다(펼침은 600–840 medium 구간의 위쪽, 749 는 그 아래쪽이 아니다). 위 완료 기록 참조.
 - **Capacitor 툴체인 검증** — `cap add android` 까지 완료, Gradle 빌드·APK 설치·WebView 실행은 미검증.
   GUI 있는 자리에서 Android Studio 로 `map/mobile/android` 열고 폴드7에 Run. 폴드 펼침 시 액티비티 유지도 이때 확인.
 - **`android:allowBackup="true"` 끄기** — 템플릿 기본값. v2 인증·지갑 상태 들어오기 전에.
@@ -188,10 +198,12 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
   4단 적층이라 영향이 다르다. 실기기에서 패널 침범이 보이면 그때 고친다.
 - **`frame()` 합성 순서를 지키는 테스트가 없다** — `screens/report.js`엔 테스트 파일이 없어 `resetLabels` 최선두·
   캔들→예측 순서가 주석으로만 지켜진다. DOM 하네스가 생기면 회귀 테스트를 붙일 것.
-- **`MSApp.current()` 는 죽은 인터페이스** — 코드베이스 어디서도 호출되지 않는다. 2단에서 뒤로가기로
-  `go("watchlist")` 를 부르면 `renderReportPane` 이 곧바로 `showing` 을 `"report"` 로 되돌리는데,
-  표시는 `selectedSym` 만 보고 그려지므로 실제 동작엔 영향이 없다. 소비자가 생길 때 이 되돌림을
-  같이 정리하거나, 끝내 안 쓰면 지울 것.
+- **`MSApp.current()` 는 이제 소비자가 있다** — 최종 수정 웨이브에서 `watchlist.js` 의 `row()` 가 행을
+  새로 만들 때 `MSApp.current().params.sym` 으로 현재 선택을 읽어 `is-sel` 을 직접 붙이게 됐다(스캔
+  진행·추가·오타 제안·롱프레스 삭제로 `draw()` 가 행을 재생성할 때 `markSelected()` 가 못 미치는 빈틈을
+  메움). 여전히 남는 관찰: 2단에서 뒤로가기로 `go("watchlist")` 를 부르면 `renderReportPane` 이 곧바로
+  `showing` 을 `"report"` 로 되돌린다 — 표시는 `selectedSym` 만 보고 그려지므로 실제 동작엔 영향이 없지만,
+  `current()` 를 다른 곳에서 더 쓰게 되면 이 되돌림을 함께 정리할 것.
 - v2 — 서버 지갑 원장 + 구글 로그인
 - v3 — AdMob + SSV + Full 티어 → 프로덕션 출시
 - v4 — Custom 티어 · 증거/신뢰 화면군
