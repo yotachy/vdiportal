@@ -159,13 +159,6 @@
   }
   /* ── 예측 시점별 표(3·6·12·24 등) ── */
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
-  function _normCdf(z) { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2); let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; }
-  /* 현재가 대비 상승확률(%) — 로그정규: m=log(예측/현재), sd=log(상단/예측) */
-  function _upProb(pred, hi, anchor) {
-    if (!(pred > 0 && hi > 0 && anchor > 0)) return 50;
-    const m = Math.log(pred / anchor), sd = Math.log(hi / pred);
-    return Math.round(_normCdf(m / (sd || 1e-6)) * 100);
-  }
   function _hzList(unit, fb) {
     let hs = unit === "개월" ? [3, 6, 12, 24]
       : unit === "주" ? [13, 26, 39, 52]
@@ -198,7 +191,7 @@
       const hi = isFinite(hiF) ? anchor + (hiF - anchor) * u : hiF;
       const chg = anchor ? (v - anchor) / anchor * 100 : 0;
       const col = !_deepC ? "var(--muted)" : (chg > 0.5 ? "var(--bull)" : chg < -0.5 ? "var(--bear)" : "var(--eth)");
-      const upF = _upProb(vF, hiF, anchor);
+      const upF = ForgeCore.upProb(vF, hiF, anchor);
       const _dir = chg > 0.3 ? 1 : chg < -0.3 ? -1 : 0;                       // 이 시점 예측 변화 방향
       const dirProb = _dir >= 0 ? upF : (100 - upF);                          // '그 변화가 일어날' 확률(달성확률)
       const up = Math.round(dirProb * u);
@@ -226,16 +219,6 @@
     const projHi = (p.hi || []).map(v => isFinite(v) ? anchor + (v - anchor) * u : v);
     const proj = projPath.length >= 2 ? `<div class="hz-spark">${_projSVG(anchor, projPath, projLo, projHi, { w: 150, h: 42, col: _deepC ? null : "var(--muted)" })}<span>예측 경로 · 지금 → +${hs[hs.length - 1]}${unit}<br>음영 = 예상 범위(밴드)</span></div>` : "";
     host.innerHTML = proj + `<div class="hz-grid">${head}${rows}</div>`;
-  }
-  /* 시점 가중 종합 상승확률(%) — 가까운 시점일수록 신뢰↑. 헤더 국면/시그널 문구에 통합 표기 */
-  function aggUpProb(pred) {
-    const path = pred && pred.path; if (!path || !path.length) return null;
-    const anchor = (pred.anchor != null && isFinite(pred.anchor)) ? pred.anchor : path[0];
-    let s = 0, w = 0;
-    for (let k = 0; k < path.length; k++) { const h = k + 1, wt = 1 / Math.sqrt(h); s += _upProb(path[k], pred.hi && pred.hi[k], anchor) * wt; w += wt; }
-    if (!w) return null;
-    const raw = Math.round(s / w);   // 캘리브레이션(v1.4): 과신 교정 → 표기 확률이 실제와 일치(OOS ECE 8.6→0.7%p)
-    return (typeof ForgeCore !== "undefined" && ForgeCore.calibrateUpProb) ? ForgeCore.calibrateUpProb(raw) : raw;
   }
   /* ── 분석 해설(단계별 근거 + 예측 이유) ── */
   function _saveHudPos(key, el) { if (!el || !el.style.left) return; try { localStorage.setItem(key, JSON.stringify({ left: el.style.left, top: el.style.top })); } catch (_) {} }
@@ -1561,7 +1544,7 @@
     const score = (_scoreN != null) ? _scoreN.toFixed(1) : "—";
     const _targetN = (isFinite(verdict.target) && _anchor != null) ? _anchor + (verdict.target - _anchor) * u : verdict.target;
     const fmt = v => (typeof v === "number" && isFinite(v)) ? v.toFixed(2) : "—";
-    const _upF = (typeof aggUpProb === "function") ? aggUpProb(lastResult && lastResult.prediction) : null;
+    const _upF = ForgeCore.aggUpProb(lastResult && lastResult.prediction);
     const _up = (_upF != null) ? Math.round(_upF * u) : null;
     if (u >= 1 && _up != null) { const _ad = activeDoc(); if (_ad) { _ad._verdict = { regime, up: _up };
       try { const _px = (lastResult && lastResult.prediction && lastResult.prediction.anchor), _ps = ((_fcLastData && _fcLastData.price) || []); if (isFinite(_px)) _ad._px = _px; if (_ps.length >= 2 && _ps[_ps.length - 2]) _ad._chg = (_ps[_ps.length - 1] - _ps[_ps.length - 2]) / _ps[_ps.length - 2] * 100; } catch (e) {}
@@ -1760,7 +1743,7 @@
       const vser = r.candles.map(d => +d.v);
       const volSrc = (vser.length === series.length && vser.some(x => isFinite(x) && x > 0)) ? vser.map(x => isFinite(x) ? x : 0) : ForgeCore.synthVolume(series);
       const vol = ForgeCore.analyzeVolume(series, volSrc);
-      const v = res.verdict || {}, pr = res.prediction || {}, up = aggUpProb(pr);
+      const v = res.verdict || {}, pr = res.prediction || {}, up = ForgeCore.aggUpProb(pr);
       const pend = (pr.path && pr.path.length) ? pr.path[pr.path.length - 1] : null;
       const chg = (pend != null && pr.anchor) ? (pend - pr.anchor) / pr.anchor * 100 : null;
       const ni = series.length - 1;
@@ -2340,7 +2323,7 @@
     if (!(asOfPrice > 0)) return;
     const dedup = sym + "|" + tf + "|" + asOf;
     if (_loggedPreds.has(dedup)) return; _loggedPreds.add(dedup);
-    const up = (typeof aggUpProb === "function") ? Math.round(aggUpProb(r.prediction) * 100) : 50;
+    const up = Math.round(ForgeCore.aggUpProb(r.prediction) * 100);
     const vf = ctx.volForecast, dd = ctx.ddRisk, ut = ctx.upTarget, spk = ctx.spikeRisk, gap = ctx.gapRisk, tp = ctx.trendPersist;
     const ddP = dd ? ((dd.curve && dd.curve[0]) ? dd.curve[0].prob : dd.prob) : 0;
     const upP = ut ? ((ut.curve && ut.curve[0]) ? ut.curve[0].prob : ut.prob) : 0;
@@ -3396,7 +3379,7 @@
 
     /* 반대 시나리오: 예측 실패 시 데이터 기반 대안 경로(pred.counter — 거울상 반사 아님) */
     if (reg !== "neutral" && Array.isArray(pred.counter) && pred.counter.length === np) {
-      const upP = ((typeof aggUpProb === "function" ? aggUpProb(pred) : 50) || 50);
+      const upP = (ForgeCore.aggUpProb(pred) || 50);
       const cProb = Math.round(reg === "bull" ? (100 - upP) : upP);
       const _cUp = pred.counter[np - 1] >= (pred.anchor != null ? pred.anchor : pred.path[0]);
       const cCol = _cUp ? "70,194,142" : "224,106,106";

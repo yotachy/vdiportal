@@ -47,14 +47,21 @@
     rpAnalyzeErr: "Analysis failed: ",
     rpBarsShort: "not enough bars",
     rpUp: "Up", rpDown: "Down", rpFlat: "Flat",
-    rpRange: "Likely somewhere in ",          // 시안: "Likely somewhere in"
+    rpBullish: "Bullish", rpBearish: "Bearish",   // 판정 헤드라인 — 시안 2a·6a 표기.
+                                                  // rpUp/rpDown("Up"/"Down")은 주기 행·지표 판독용이라 그대로 둔다.
     rpRangeNone: "No honest range available",
-    rpRough: " — this is a rough read",        // 시안 그대로
+    rpRangeLabel: "Range ",                       // 시안 2a: "Range 142.8 – 187.4"
+    rpCone: " · 80% cone",                        // 시안 2a. 설계 목표치이며 실측 커버리지는 77.7%
     rpAgree: " of ",
     rpAgreeTail: " agree with this direction",
     rpAgreeShort: " agree",                    // Fix 6: rpAgreeTail 과 같은 어휘(agree)의 짧은 형태 — 주기 행 요약용
     rpAgreeNone: "No indicator gives a direction, so agreement cannot be scored",
-    rpBarsAfter: " bars out",
+    rpHitRight: "% right · ", rpHitWrong: "% wrong",
+    // 문장 자체가 방향별 오답률(41.9 또는 57.4)을 담아야 해서 앞뒤 두 조각으로 쪼갰다 — 가운데엔
+    // Math.round(hit.wrong/10), 사이엔 확신 퍼센트가 들어간다(보간 장치 없음 — 연결만, screens/report.js).
+    rpHitNoteA: " calls in ten that looked like this one did not work out. Size your position for that, not for the ",
+    rpHitNoteB: "%.",
+    rpHzTomorrow: "Tomorrow", rpHzWeek: "In 1 week", rpHzMonth: "In 1 month",
 
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)
     rpTierBasic: "BASIC",

@@ -2516,3 +2516,64 @@ test("mergeCandles: t 없는 항목은 버리고, 인자가 배열이 아니면 
   assert.deepStrictEqual(out.map(c => c.t), ["2026-08-01"]);
   assert.deepStrictEqual(ForgeCore.mergeCandles(null, null), []);
 });
+
+test("upProb — 예측이 현재가와 같으면 50", () => {
+  assert.strictEqual(ForgeCore.upProb(100, 110, 100), 50);
+});
+
+test("upProb — 예측이 현재가보다 높으면 50 초과, 낮으면 미만", () => {
+  assert.ok(ForgeCore.upProb(110, 120, 100) > 50);
+  assert.ok(ForgeCore.upProb(90, 95, 100) < 50);
+});
+
+test("upProb — 밴드가 좁을수록 확률이 극단으로 간다", () => {
+  const wide = ForgeCore.upProb(110, 140, 100);
+  const narrow = ForgeCore.upProb(110, 112, 100);
+  assert.ok(narrow > wide, "좁은 밴드 " + narrow + " 가 넓은 밴드 " + wide + " 보다 크지 않다");
+});
+
+test("upProb — 0·음수·NaN 에 죽지 않고 50 을 준다", () => {
+  for (const bad of [0, -5, NaN, undefined, null]) {
+    assert.strictEqual(ForgeCore.upProb(bad, 110, 100), 50, "pred=" + bad);
+    assert.strictEqual(ForgeCore.upProb(110, bad, 100), 50, "hi=" + bad);
+    assert.strictEqual(ForgeCore.upProb(110, 120, bad), 50, "anchor=" + bad);
+  }
+});
+
+test("aggUpProb — 경로가 없으면 null", () => {
+  assert.strictEqual(ForgeCore.aggUpProb(null), null);
+  assert.strictEqual(ForgeCore.aggUpProb({}), null);
+  assert.strictEqual(ForgeCore.aggUpProb({ path: [] }), null);
+});
+
+test("aggUpProb — 가까운 지평에 더 큰 가중(1/√h)이 걸린다", () => {
+  // 1봉째만 강한 상승, 나머지는 중립인 경로 vs 마지막 봉만 강한 상승인 경로.
+  // 가중이 1/√h 이면 앞쪽이 센 경로의 종합 확률이 더 높아야 한다.
+  // 밴드 상단은 반드시 예측가보다 위여야 한다 — hi < pred 면 sd 가 음수가 되어 확률이 뒤집힌다.
+  const anchor = 100;
+  const mk = vals => ({ anchor, path: vals, hi: vals.map((v, k) => v + 6 * Math.sqrt(k + 1)) });
+  const front = mk([112, 100, 100, 100]);
+  const back = mk([100, 100, 100, 112]);
+  assert.ok(ForgeCore.aggUpProb(front) > ForgeCore.aggUpProb(back),
+    "앞쪽 가중이 안 걸렸다: " + ForgeCore.aggUpProb(front) + " vs " + ForgeCore.aggUpProb(back));
+});
+
+test("aggUpProb — 보정을 실제로 통과한다(raw 와 다르다)", () => {
+  const p = { anchor: 100, path: [110, 112, 114], hi: [115, 120, 125] };
+  const agg = ForgeCore.aggUpProb(p);
+  // 같은 입력의 보정 전 가중평균을 손으로 재현
+  let s = 0, w = 0;
+  for (let k = 0; k < p.path.length; k++) {
+    const wt = 1 / Math.sqrt(k + 1);
+    s += ForgeCore.upProb(p.path[k], p.hi[k], p.anchor) * wt; w += wt;
+  }
+  const raw = Math.round(s / w);
+  assert.notStrictEqual(agg, raw, "보정이 적용되지 않았다(raw 와 동일)");
+  assert.strictEqual(agg, ForgeCore.calibrateUpProb(raw));
+});
+
+test("aggUpProb — anchor 가 없으면 경로 첫 값을 기준으로 삼는다", () => {
+  const withAnchor = ForgeCore.aggUpProb({ anchor: 100, path: [100, 105], hi: [110, 115] });
+  const noAnchor = ForgeCore.aggUpProb({ path: [100, 105], hi: [110, 115] });
+  assert.strictEqual(noAnchor, withAnchor);
+});

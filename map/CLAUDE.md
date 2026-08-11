@@ -22,9 +22,9 @@
 ## ① 테스트는 항상 `./tests/run.sh`
 
 ```bash
-./tests/run.sh            # 전부 400건 (forge-core 251 · forge-tools 81 · landing 28 · mobile 40)
-./tests/run.sh engine     # 엔진 + 모바일 372건 — 엔진만 고쳤을 때
-./tests/run.sh mobile     # 모바일 40건
+./tests/run.sh            # 전부 561건 (forge-core 259 · forge-tools 81 · landing 28 · mobile 193)
+./tests/run.sh engine     # 엔진 + 모바일 533건 — 엔진만 고쳤을 때
+./tests/run.sh mobile     # 모바일 193건
 ```
 
 **어느 한쪽만 돌리지 말 것.** 모바일 테스트는 `../../forge-core.js` 원본을 직접 `require` 하므로, 엔진 변경이 모바일을 깨뜨렸는지를 이 관문이 알려준다. `node --test forge-core.test.js` 만 돌리던 습관이 이 구멍을 만든다. 실패 시 종료코드 1.
@@ -50,7 +50,7 @@
 
 ## 파일
 
-- `forge.html` — 마크업 + `<link>`/`<script src>` 참조만(현 241줄). **UI는 소스순서 4분할**: `forge-state.js`(상태·`BLOCK_DEFS`·`IND_TIERS`·서버·`boot`·CRUD) → `forge-ui.js`(레일·보드·`renderParams`·HUD·`boardInit`·`seedDefaultStrategy`) → `forge-draw.js`(`FC_*`·`_syncChartColors`·`fcDraw*`·`EV_COLORS`/`INDICATOR_INFO`·엘리어트/피보 레이어) → `forge-tools.js`(차트 드로잉 — 추세선·평행채널·수평선·수직선·등락폭/기간 재기·마그넷, 앵커=(날짜,가격). **UMD·단위테스트** `node --test forge-tools.test.js`) → `forge-app.js`(`renderChart`·`analysisSteps`·`nodeExpert`·`THEMES`/`applyTheme`·`playAnalysis`·`runForge`·부팅 IIFE). 스타일은 `forge.css`. **여러 classic script가 전역 스코프 공유** — 로드 순서(core→state→ui→draw→tools→app) 고정, `defer`/`async` 금지, 중복 최상위 선언 금지. `forge-core.js` — 분석 엔진(**UMD**: 브라우저 `window.ForgeCore` + node `module.exports`. `node --test forge-core.test.js`, 현재 251케이스). `forge-api.php` — 서버 저장 + 티커 OHLC 프록시. `forge-guide.html` — 엔진 작동원리 설명서.
+- `forge.html` — 마크업 + `<link>`/`<script src>` 참조만(현 241줄). **UI는 소스순서 4분할**: `forge-state.js`(상태·`BLOCK_DEFS`·`IND_TIERS`·서버·`boot`·CRUD) → `forge-ui.js`(레일·보드·`renderParams`·HUD·`boardInit`·`seedDefaultStrategy`) → `forge-draw.js`(`FC_*`·`_syncChartColors`·`fcDraw*`·`EV_COLORS`/`INDICATOR_INFO`·엘리어트/피보 레이어) → `forge-tools.js`(차트 드로잉 — 추세선·평행채널·수평선·수직선·등락폭/기간 재기·마그넷, 앵커=(날짜,가격). **UMD·단위테스트** `node --test forge-tools.test.js`) → `forge-app.js`(`renderChart`·`analysisSteps`·`nodeExpert`·`THEMES`/`applyTheme`·`playAnalysis`·`runForge`·부팅 IIFE). 스타일은 `forge.css`. **여러 classic script가 전역 스코프 공유** — 로드 순서(core→state→ui→draw→tools→app) 고정, `defer`/`async` 금지, 중복 최상위 선언 금지. `forge-core.js` — 분석 엔진(**UMD**: 브라우저 `window.ForgeCore` + node `module.exports`. `node --test forge-core.test.js`, 현재 259케이스). `forge-api.php` — 서버 저장 + 티커 OHLC 프록시. `forge-guide.html` — 엔진 작동원리 설명서.
 - **동반 배포 필수**(상대 `<script src>`/`<link>` 동위치): `forge.html` + `forge.css` + `forge-core.js` + `forge-state.js` + `forge-ui.js` + `forge-draw.js` + `forge-tools.js` + `forge-app.js`. 하나라도 빠지면 동작 불가. `forge-core.test.js`·`forge-tools.test.js`·`forge-tools.sweep.js`는 배포 제외.
 - **배포 불가침**(서버 생성·사용자 데이터): `forge_data.json`·`forge_images.json`·`forge_jobs.json`·`forge_td_key.txt`·`forge_ohlc_cache_*.json`. 배포는 위 8개 정적 파일 + `forge-api.php`만.
 

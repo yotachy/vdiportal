@@ -361,25 +361,67 @@
       return wrap;
     }
 
+    // 시안 6a·2a 순서: 판정(방향+확신%) → 적중/오답 → 일치도 → 범위 → 안 센 것.
+    // 중립이면 확신과 적중/오답을 함께 감춘다 — 부른 방향이 없으면 둘 다 가리킬 대상이 없다.
+    function verdictWord(regime) {
+      return regime === "bull" ? MSStr.t.rpBullish : regime === "bear" ? MSStr.t.rpBearish : MSStr.t.rpFlat;
+    }
     function buildVerdict() {
-      var v = an.out.verdict;
+      var v = an.out.verdict, pr = an.out.prediction;
       var wrap = MSUi.el("div", "rp-verdict-wrap");
       var dirCls = v.regime === "bull" ? "bull" : v.regime === "bear" ? "bear" : "neutral";
-      wrap.appendChild(MSUi.el("div", "rp-verdict " + dirCls, dirWord(v.regime)));
+
+      var conf = MSReportModel.confidence(ForgeCore, pr, v.regime);
+      var head = MSUi.el("div", "rp-verdict " + dirCls);
+      head.appendChild(MSUi.el("span", null, verdictWord(v.regime)));
+      if (conf != null) head.appendChild(MSUi.el("span", "rp-conf-pct", conf + "%"));
+      wrap.appendChild(head);
+
+      var hit = (conf != null) ? MSReportModel.hitRate(window.MSBacktest, v.regime) : null;
+      if (hit) {
+        wrap.appendChild(MSUi.el("div", "rp-hit", hit.right + MSStr.t.rpHitRight + hit.wrong + MSStr.t.rpHitWrong));
+        // 오답률(hit.wrong)이 방향별로 갈리므로(불 61.5/38.5 · 베어 42.6/57.4) 문장 속 숫자도
+        // 그 방향의 실측을 반영해야 한다 — "Four calls in ten" 처럼 고정 문구를 쓰면 베어 판정에서
+        // 거짓말이 된다(오답률 57.4%인데 41.9%라고 말하게 됨, 최종수정웨이브 §③).
+        wrap.appendChild(MSUi.el("div", "rp-hit-note",
+          Math.round(hit.wrong / 10) + MSStr.t.rpHitNoteA + conf + MSStr.t.rpHitNoteB));
+      }
 
       var total = v.confluence.total, agree = v.confluence.agree;
       var confText = total ? (agree + MSStr.t.rpAgree + total + MSStr.t.rpAgreeTail) : MSStr.t.rpAgreeNone;
       wrap.appendChild(MSUi.el("div", "rp-conf", confText));
 
-      var pr = an.out.prediction, last = pr.lo.length - 1;
+      var last = pr.lo.length - 1;
       var rangeText = (last >= 0)
-        ? (MSStr.t.rpRange + MSUi.fmtPrice(pr.lo[last]) + "–" + MSUi.fmtPrice(pr.hi[last]) + " · " + pr.futW + MSStr.t.rpBarsAfter + MSStr.t.rpRough)
+        ? (MSStr.t.rpRangeLabel + MSUi.fmtPrice(pr.lo[last]) + " – " + MSUi.fmtPrice(pr.hi[last]) + MSStr.t.rpCone)
         : MSStr.t.rpRangeNone;
       wrap.appendChild(MSUi.el("div", "rp-range", rangeText));
 
       wrap.appendChild(MSUi.el("div", "rp-missing",
         MSStr.t.rpNotCountedLead + notCountedLabels().length + MSStr.t.rpNotCountedTail));
       return wrap;
+    }
+
+    // 시안 2a 의 지평 표 — 차트 앞에 온다(숫자 먼저, 그림 나중).
+    function hzLabel(key) {
+      return key === "d1" ? MSStr.t.rpHzTomorrow : key === "w1" ? MSStr.t.rpHzWeek : MSStr.t.rpHzMonth;
+    }
+    function buildHorizons() {
+      var rows = MSReportModel.horizonRows(ForgeCore, an.out.prediction, an.out.verdict.regime);
+      if (!rows.length) return null;
+      var sec = MSUi.el("div", "rp-hz");
+      rows.forEach(function (r) {
+        var row = MSUi.el("div", "rp-hz-row");
+        row.appendChild(MSUi.el("span", "rp-hz-when", hzLabel(r.key)));
+        row.appendChild(MSUi.el("span", "rp-hz-px", MSUi.fmtPrice(r.price)));
+        // 색은 r.dir 로만 정한다 — report-model.js 의 FLAT_EPS 데드존과 확률 뒤집기가 같은
+        // 임계를 쓰도록 여기서 리터럴 ±0.05 를 다시 판정하지 않는다(최종수정웨이브 §⑥).
+        var cls = r.dir === "up" ? " up" : r.dir === "down" ? " dn" : "";
+        row.appendChild(MSUi.el("span", "rp-hz-chg" + cls, MSUi.fmtChg(r.chgPct)));
+        row.appendChild(MSUi.el("span", "rp-hz-prob", r.prob == null ? "" : r.prob + "%"));
+        sec.appendChild(row);
+      });
+      return sec;
     }
 
     function buildChartSection() {
@@ -506,6 +548,8 @@
         scr.appendChild(skeletonBlock(180));   // Counted
       } else {
         scr.appendChild(buildVerdict());
+        var hz = buildHorizons();
+        if (hz) scr.appendChild(hz);
         scr.appendChild(buildChartSection());
         scr.appendChild(buildChartLegend());
         scr.appendChild(buildCounted());

@@ -64,6 +64,14 @@ body {
 .rp-verdict.bull { color:var(--bull); }
 .rp-verdict.bear { color:var(--bear-text); }
 .rp-verdict.neutral { color:var(--ink-2); }
+/* 판정 퍼센트 — 방향어와 같은 줄, 시안 2a "Bullish 68%" */
+.rp-verdict { display:flex; align-items:baseline; gap:10px; }
+.rp-conf-pct { font-size:22px; font-weight:600; letter-spacing:-.02em; }
+
+/* 적중/오답 — 막대를 그리지 않는다. 두 값이 합해서 100 이라 막대가 더해주는 정보가 없고,
+   이 화면에서 시선을 끌 것은 판정 퍼센트다(시안 2a "골드는 화면당 한 번만"). */
+.rp-hit { font-size:12.5px; color:var(--ink-3); margin-top:8px; font-variant-numeric:tabular-nums; }
+.rp-hit-note { font-size:11.5px; color:var(--ink-5); margin-top:4px; line-height:1.5; }
 .rp-conf { font-size:12.5px; color:var(--ink-3); margin-top:7px; }
 .rp-range { font-size:12px; color:var(--ink-4); margin-top:4px; }
 .rp-missing { font-size:11.5px; color:var(--ink-5); margin-top:10px; line-height:1.5; }
@@ -116,6 +124,16 @@ body {
 
 .rp-err { padding:16px 0 8px; color:var(--ink-4); font-size:12.5px; line-height:1.7; }
 .rp-err-title { color:var(--ink-2); font-weight:600; font-size:13.5px; margin-bottom:6px; }
+
+/* 지평 3행 — 차트 앞. 라벨 / 예측가 / 변화율 / 달성확률 */
+.rp-hz { margin-bottom:20px; }
+.rp-hz-row { display:flex; align-items:baseline; gap:10px; height:38px; border-bottom:1px solid var(--hairline); font-size:12.5px; font-variant-numeric:tabular-nums; }
+.rp-hz-when { flex:1 1 auto; color:var(--ink-2); font-weight:600; }
+.rp-hz-px { flex:0 0 auto; color:var(--ink); }
+.rp-hz-chg { flex:0 0 62px; text-align:right; color:var(--ink-3); }
+.rp-hz-chg.up { color:var(--bull); }
+.rp-hz-chg.dn { color:var(--bear-text); }
+.rp-hz-prob { flex:0 0 42px; text-align:right; color:var(--ink-4); }
 
 /* ===== 2단 (폴드 펼침) =====
    미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,

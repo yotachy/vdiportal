@@ -6,7 +6,9 @@
 // 원본 심볼: _CONF_HORIZON _predBandW _predConfAt _predHorizonK _predPCal _mulberry32
 //           _SR_W _AR_W _predWigSeqSR _predWigVal _predConfSeq _strokePredLine
 //           _epicenterMark _predEndDeco
-//           (+ forge-app.js: _hzFmt _normCdf _upProb _hzList · forge-draw.js:3363 _tfUnit)
+//           (+ forge-app.js: _hzFmt _hzList · forge-draw.js:3363 _tfUnit)
+  // 상승확률 수학(구 forge-app.js 지역 _normCdf·_upProb)은 이제 지역 사본이 아니라 forge-core.js
+  // 의 upProb 을 그대로 부른다 — PC·모바일 두 경로가 갈리지 않도록 Phase 6 에서 엔진으로 승격됐다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports)
     module.exports = factory(require("./draw-layers.js"), require("../../forge-core.js"));
@@ -24,13 +26,6 @@
   }
 
   function _hzFmt(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }   // forge-app.js:161
-  function _normCdf(z) { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2); let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; }   // forge-app.js:162
-  /* 현재가 대비 상승확률(%) — 로그정규: m=log(예측/현재), sd=log(상단/예측) */
-  function _upProb(pred, hi, anchor) {                                                                 // forge-app.js:164
-    if (!(pred > 0 && hi > 0 && anchor > 0)) return 50;
-    const m = Math.log(pred / anchor), sd = Math.log(hi / pred);
-    return Math.round(_normCdf(m / (sd || 1e-6)) * 100);
-  }
   function _hzList(unit, fb) {                                                                         // forge-app.js:169
     let hs = unit === "개월" ? [3, 6, 12, 24]
       : unit === "주" ? [13, 26, 39, 52]
@@ -42,8 +37,10 @@
   // 영문 토큰을 함께 받도록 확장했다 — 이 심이 아니면 전부 "봉"으로 떨어져 마일스톤 점이 사라진다.
   function _tfUnit(tf) { return /월|month/i.test(tf) ? "개월" : /주|week/i.test(tf) ? "주" : /일|day/i.test(tf) ? "일" : "봉"; }
   // 표기용 확률: 그 봉의 예측 '방향'이 실현될 캘리브레이션 확률(%). 50 미만이면 반대가 우세 — 숨기지 않는다.
+  // FCore.upProb 은 forge-core.js 단일 출처(구 forge-app.js 지역 _upProb·_normCdf 를 대체) — PC 도
+  // 같은 함수를 부르므로 두 제품이 서로 다른 확률을 표시할 수 없다.
   function _predPCal(center, hi, anchor, k) {                                                          // forge-draw.js:71
-    const raw = _upProb(center[k], hi[k], anchor);
+    const raw = FCore.upProb(center[k], hi[k], anchor);
     const cal = (FCore && FCore.calibrateUpProb) ? FCore.calibrateUpProb(raw) : raw;
     return (center[k] >= anchor) ? cal : (100 - cal);
   }
