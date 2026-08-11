@@ -64,3 +64,35 @@ test("seedIfEmpty 는 비었을 때만 3종목을 넣는다", () => {
   assert.equal(MSStore.seedIfEmpty(), false, "두 번째 호출이 또 시드했다");
   assert.equal(MSStore.getWatchlist().length, 3);
 });
+
+test("lastSym 왕복 — 대소문자 정규화", () => {
+  MSStore.install(memBackend());
+  assert.equal(MSStore.getLastSym(), null, "초기값은 null 이어야 한다");
+  MSStore.setLastSym("aapl");
+  assert.equal(MSStore.getLastSym(), "AAPL");
+});
+
+test("lastSym 은 빈 값으로 지워진다", () => {
+  MSStore.install(memBackend());
+  MSStore.setLastSym("AAPL");
+  MSStore.setLastSym("");
+  assert.equal(MSStore.getLastSym(), null);
+});
+
+test("종목을 지우면 lastSym 도 같이 지워진다 — 부팅 시 유령 선택 방지", () => {
+  MSStore.install(memBackend());
+  MSStore.addTicker("AAPL", "Apple Inc.");
+  MSStore.addTicker("NVDA", "NVIDIA Corporation");
+  MSStore.setLastSym("AAPL");
+  MSStore.removeTicker("AAPL");
+  assert.equal(MSStore.getLastSym(), null, "지운 종목이 lastSym 에 남았다");
+});
+
+test("다른 종목을 지워도 lastSym 은 유지된다", () => {
+  MSStore.install(memBackend());
+  MSStore.addTicker("AAPL", "Apple Inc.");
+  MSStore.addTicker("NVDA", "NVIDIA Corporation");
+  MSStore.setLastSym("AAPL");
+  MSStore.removeTicker("NVDA");
+  assert.equal(MSStore.getLastSym(), "AAPL");
+});

@@ -6,7 +6,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var KEYS = { watchlist: "ms_watchlist", scan: "ms_scan" };
+  var KEYS = { watchlist: "ms_watchlist", scan: "ms_scan", lastSym: "ms_last_sym" };
   var SEED = [{ sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" }, { sym: "MSFT", name: "Microsoft Corporation" }];
 
   var mem = {};                       // 백엔드 실패 시 폴백 저장소
@@ -51,12 +51,24 @@
     setWatchlist(out);
     var scans = allScans();           // 캐시를 남기면 다시 추가했을 때 옛 신호가 유령처럼 뜬다
     if (scans[s]) { delete scans[s]; write(KEYS.scan, scans); }
+    if (getLastSym() === s) write(KEYS.lastSym, null);   // 지운 종목이 다음 부팅에 유령으로 뜬다
     return true;
   }
 
   function allScans() { var v = read(KEYS.scan, {}); return (v && typeof v === "object" && !Array.isArray(v)) ? v : {}; }
   function getScan(sym) { var v = allScans()[String(sym || "").toUpperCase()]; return v || null; }
   function setScan(sym, rec) { var s = allScans(); s[String(sym || "").toUpperCase()] = rec; write(KEYS.scan, s); }
+
+  // 2단 레이아웃의 오른쪽 칸이 부팅 시 무엇을 보여줄지 — 커버로 보다 펴는 흐름에선
+  // selectedSym 이 이미 메모리에 있으므로, 이 값이 실제로 쓰이는 건 앱을 새로 켠 순간뿐이다.
+  function getLastSym() {
+    var v = read(KEYS.lastSym, null);
+    return (typeof v === "string" && v) ? v.toUpperCase() : null;
+  }
+  function setLastSym(sym) {
+    var s = String(sym == null ? "" : sym).trim().toUpperCase();
+    write(KEYS.lastSym, s || null);
+  }
 
   function seedIfEmpty() {
     if (getWatchlist().length) return false;
@@ -66,5 +78,6 @@
 
   return { KEYS: KEYS, SEED: SEED, install: install, getWatchlist: getWatchlist, setWatchlist: setWatchlist,
            addTicker: addTicker, removeTicker: removeTicker, getScan: getScan, setScan: setScan,
-           allScans: allScans, seedIfEmpty: seedIfEmpty };
+           allScans: allScans, seedIfEmpty: seedIfEmpty,
+           getLastSym: getLastSym, setLastSym: setLastSym };
 });
