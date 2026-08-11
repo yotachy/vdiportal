@@ -256,6 +256,12 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
   - **`_hzList`**(마일스톤 지평 목록) — `forge-app.js` 안에서 2회, `forge-draw.js` 안에서 2회 각자 호출.
   - `forge-tools.js` 는 이미 이 위험을 인지하고 `_hzFmtSafe`(`typeof _hzFmt === "function"` 가드 후 자체
     폴백)를 두고 있다 — `forge-draw.js` 는 같은 가드가 없어 로드 순서가 흐트러지면 그대로 죽는다.
+- **지평 행과 차트 레전드의 방향 임계가 데드존에서 갈린다** — Phase 6 최종수정에서 지평 행의 색과 확률
+  뒤집기를 공용 상수 `FLAT_EPS=0.05`(`report-model.js`)로 묶었으나, 차트 레전드(`draw-preds.js` 의
+  `_predPCal`)는 여전히 `v >= anchor` 맨 비교를 쓴다. 그래서 변화율이 −0.05%~0% 구간인 행 하나에서
+  두 표기가 반대로 나올 수 있다(예: 지평 행 59% ↔ 레전드 41%). **스윕 실측 241건 중 1건** 발생.
+  Phase 6 이 만든 게 아니라 원래 있던 임계 차이가 드러난 것이고, 좁은 구간이라 이월한다. 레전드 쪽에도
+  같은 데드존을 적용하면 해소된다.
 - v2 — 서버 지갑 원장 + 구글 로그인
 - v3 — AdMob + SSV + Full 티어 → 프로덕션 출시
 - v4 — Custom 티어 · 증거/신뢰 화면군
