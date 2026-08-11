@@ -6,7 +6,10 @@
   "use strict";
 
   var TF = "1day";
-  var CHART_H = 520, PAD = 10;
+  var PAD = 10;
+  // 차트 높이는 모드에 딸린다 — 커버 520(Phase 1~4 검증값)은 그대로, 펼침은 세로 654 라 414 로 줄인다.
+  // 520 을 그대로 두면 654 화면에서 차트만으로 80% 를 먹는다.
+  function chartH() { return MSLayout.chartHeight(document.body.classList.contains("ms-dual"), window.innerHeight); }
   // TAIL_BARS 는 이제 줌 레벨이다. 기본은 화면폭 무관 60봉(예측 비중 28% 유지, Phase 3 결론) — MSZoom.DEFAULT_TAIL.
   var HOLD_MS = 350, MOVE_THRESH = 8;
   var TIER = "basic";   // Phase 1 은 Basic 고정 — 이후 단계에서 사용자 티어로 교체(차트·범례 모두 이 값만 바뀌면 됨)
@@ -112,12 +115,14 @@
     var col = colTokens();
     var cssW = wrap.clientWidth || 320;
     var lay = null;
+    var chartHpx = chartH();          // relayout 마다 다시 읽는다 — 회전·폴드 전환을 따라간다
     var tail = MSZoom.DEFAULT_TAIL;   // 화면 유지 중에만 산다. 종목을 바꾸면 paintChart 가 다시 불려 기본값으로 돌아간다.
 
     function relayout() {
       var dpr = window.devicePixelRatio || 1;
-      cv.width = Math.round(cssW * dpr); cv.height = Math.round(CHART_H * dpr);
-      cv.style.height = CHART_H + "px";
+      chartHpx = chartH();
+      cv.width = Math.round(cssW * dpr); cv.height = Math.round(chartHpx * dpr);
+      cv.style.height = chartHpx + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // DPR 트랜스폼 — 리사이즈 시점에만 설정
       // 한계가 plotW 에 딸려 있다 — 폴드를 펴면 커버에서 쓰던 봉 수가 새 하한 밖일 수 있다.
       // (커버 20봉 → 펼침 하한 44봉). 폴드는 두 화면을 상시로 오가므로 예외가 아니라 일상 경로다.
@@ -125,7 +130,7 @@
       tail = MSZoom.clamp(MSChartLayout.plotWidth(cssW, PAD), fut, tail);
       lay = MSChartLayout.chartLayout({
         candle: data.candle, prediction: an.out.prediction,
-        width: cssW, height: CHART_H, pad: PAD, tailBars: tail
+        width: cssW, height: chartHpx, pad: PAD, tailBars: tail
       });
     }
     relayout();
@@ -145,8 +150,8 @@
     }
 
     function frame(hoverFi) {
-      ctx.clearRect(0, 0, cssW, CHART_H);
-      MSLayers.resetLabels(cssW, CHART_H);              // 매 프레임 맨 앞 — 이 뒤에 등록되는 라벨만 서로를 본다.
+      ctx.clearRect(0, 0, cssW, chartHpx);
+      MSLayers.resetLabels(cssW, chartHpx);             // 매 프레임 맨 앞 — 이 뒤에 등록되는 라벨만 서로를 본다.
                                                         // drawCone 뒤로 밀면 끝점 라벨 예약이 즉시 지워져 배지와 겹친다.
       MSChartDraw.drawAxes(ctx, lay, data.candle, col);
       // 캔들이 먼저, 예측이 나중. 끝점 배지가 seam 왼쪽까지 나오므로 순서를 뒤집으면
@@ -250,10 +255,10 @@
     // window resize는 next resize event가 와야 감지되므로, 그때까지 기다리지 않고 여기서 즉시 정리한다.
     if (activeResizeCleanup) { activeResizeCleanup(); activeResizeCleanup = null; }
     function onResize() {
-      var w2 = wrap.clientWidth || cssW;
-      if (w2 === cssW) return;
+      var w2 = wrap.clientWidth || cssW, h2 = chartH();
+      if (w2 === cssW && h2 === chartHpx) return;
       cssW = w2;
-      relayout();   // 재클램프는 relayout() 안에서 이미 일어난다 — 폴드 회전(예: 커버 20봉 → 펼침 하한 44봉)에도 여기서 별도 처리 불필요
+      relayout();   // 재클램프는 relayout() 안에서 이미 일어난다 — 폴드 회전(커버 20봉 → 펼침 하한 44봉)에도 별도 처리 불필요
       frame(null);
     }
     window.addEventListener("resize", onResize);
@@ -275,6 +280,13 @@
     var wlItem = idx >= 0 ? wl[idx] : null;
 
     var state = "loading", errInfo = null, data = null, an = null, chartRefs = null;
+
+    // paintChart() 진입부의 정리와는 별도로 여기서도 한 번 정리한다 — 종목을 바꿔 render()가
+    // 다시 불렸는데 새 렌더가 loading/error 로 끝나면(캐시 미스 로딩 중 이탈, 분석 실패 등)
+    // paintChart() 자체가 안 불려 그 정리가 도달하지 못한다. 그 사이 분리된 캔버스의 onResize 가
+    // 죽은 DOM·캔들 배열을 계속 붙잡는다(리스너는 최대 1개라 누수는 아니고 보유 문제). 두 정리는
+    // 서로 대체가 아니라 보완: 여기는 "화면 전환", paintChart() 안쪽은 "같은 화면 안 재시도"를 커버한다.
+    if (activeResizeCleanup) { activeResizeCleanup(); activeResizeCleanup = null; }
 
     function startLoad() {
       state = "loading"; errInfo = null;
@@ -490,7 +502,7 @@
         scr.appendChild(errorBlock(errInfo));
       } else if (state === "loading") {
         scr.appendChild(skeletonBlock(96));    // 판정
-        scr.appendChild(skeletonBlock(CHART_H)); // 차트
+        scr.appendChild(skeletonBlock(chartH())); // 차트
         scr.appendChild(skeletonBlock(180));   // Counted
       } else {
         scr.appendChild(buildVerdict());

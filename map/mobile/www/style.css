@@ -4,7 +4,7 @@
   --border:rgba(238,241,247,.10); --border-strong:rgba(238,241,247,.16);
   --track:rgba(238,241,247,.07);
   --ink:#eef1f7; --ink-2:#c5ccdb; --ink-3:#9aa3b6; --ink-4:#7c8598; --ink-5:#78819a;
-  --gold:#e8b463; --gold-dim:#c0a069; --gold-ink:#1a1408;
+  --gold:#e8b463; --gold-dim:#c0a069; --gold-ink:#1a1408; --gold-soft:rgba(232,180,99,.10);
   --steel:#8892a6; --platinum:#b9c4dc;
   --bull:#4fb98a; --bear:#d96a6a; --bear-text:#e08a8a; --neutral:#4a5368;
   --pred2:#b892f5;
@@ -113,3 +113,25 @@ body {
 
 .rp-err { padding:16px 0 8px; color:var(--ink-4); font-size:12.5px; line-height:1.7; }
 .rp-err-title { color:var(--ink-2); font-weight:600; font-size:13.5px; margin-bottom:6px; }
+
+/* ===== 2단 (폴드 펼침) =====
+   미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,
+   app.js 가 matchMedia 결과를 body.ms-dual 로 내려준다. 여기에 @media 를 또 적으면
+   한쪽만 고쳤을 때 JS 와 CSS 가 조용히 갈라진다(설계 §3.1). */
+body.ms-dual { padding-bottom:0; overflow:hidden; }
+body.ms-dual .shell { display:grid; height:100vh; height:100dvh; }
+body.ms-dual .pane {
+  min-width:0;                      /* 그리드 칸이 콘텐츠 폭에 밀려 넘치는 것을 막는다 */
+  overflow-y:auto; overscroll-behavior:contain;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+body.ms-dual .pane-list { border-right:1px solid var(--hairline-2); }
+/* 목록 칸은 255px 다 — 기본 20px 좌우 패딩이면 콘텐츠가 215px 로 남는다 */
+body.ms-dual .pane-list .scr { padding:0 14px 24px; }
+/* A′ 의 핵심: 스파크라인 64px + 확신 34px 를 덜어 차트에 돌린다 */
+body.ms-dual .pane-list .wl-spark,
+body.ms-dual .pane-list .wl-conf { display:none; }
+/* 2단엔 '뒤로'가 없다 — 목록이 옆에 그대로 있다 */
+body.ms-dual .pane-report .rp-back { display:none; }
+/* 선택 강조는 배경색만. 좌측 세로 컬러 라인 금지(프로젝트 규율) */
+body.ms-dual .wl-row.is-sel { background:var(--gold-soft); }

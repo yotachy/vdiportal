@@ -22,6 +22,9 @@
   };
 
   var t = {
+    // 부팅
+    bootVendorMissing: "Could not load vendor/forge-core.js.<br>Run npm run sync and reopen.",
+
     // 워치리스트
     wlTitle: "Watchlist",
     wlEmpty: "No tickers yet.\nAdd one to get started.",
@@ -37,6 +40,7 @@
 
     // 리포트 — 판정
     rpBack: "Back",
+    rpPickSym: "Pick a ticker on the left.",
     rpLoadFail: "Could not load this report",
     rpRetry: "Try again",
     rpUnknownErr: "Could not load — unknown error.",
