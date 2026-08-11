@@ -10,7 +10,7 @@ const G = require("../www/graph.js");
 // 키 존재 가드(아래)와 미사용 키 가드(파일 하단)가 같은 목록을 스캔한다 — 한쪽만 갱신하면
 // 새 소비 파일의 오타는 잡히는데 죽은 키는 못 잡는(또는 그 반대) 비대칭이 생긴다.
 const KEY_SCAN_FILES = ["../www/screens/report.js", "../www/screens/watchlist.js", "../www/draw-layers.js",
-                         "../www/chart-legend.js", "../www/draw-panels.js"];
+                         "../www/chart-legend.js", "../www/draw-panels.js", "../www/app.js"];
 // Fix 1: chart-legend.js 는 `var T = Str.t` 로 별칭한 뒤 `T.legPred` 형태로 쓴다 — MSStr.t/Str.t 직접
 // 참조만 잡던 정규식이 이 별칭 경로를 못 봐서, 존재하지 않는 T.키 오타가 조용히 undefined 를 렌더했다.
 const KEY_RE = /\b(?:MSStr\.t|Str\.t|T)\.([A-Za-z_][A-Za-z0-9_]*)/g;

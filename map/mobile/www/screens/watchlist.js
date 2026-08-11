@@ -91,6 +91,7 @@
 
     function row(item, rec) {
       var btn = MSUi.el("button", "row-tap wl-row");
+      btn.setAttribute("data-sym", item.sym);   // app.js 가 하이라이트를 옮길 때 쓰는 앵커(목록 재렌더 회피)
 
       btn.appendChild(MSUi.el("span", MSUi.dotClass(rec && rec.dir)));
 
