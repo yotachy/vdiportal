@@ -30,8 +30,14 @@
   function renderReportPane() {
     reportPane.innerHTML = "";
     reportPane.scrollTop = 0;
-    if (state.selectedSym) MSReport.render(reportPane, { sym: state.selectedSym });
-    else reportPane.appendChild(MSUi.el("p", "empty", MSStr.t.rpPickSym));
+    if (state.selectedSym) {
+      // 2단에서 오른쪽 칸이 리포트를 그린 순간부터 '리포트를 보고 있는 상태'다 —
+      // 이걸 안 세우면 아무것도 탭하지 않고 접었을 때 목록으로 떨어진다.
+      state.showing = "report";
+      MSReport.render(reportPane, { sym: state.selectedSym });
+    } else {
+      reportPane.appendChild(MSUi.el("p", "empty", MSStr.t.rpPickSym));
+    }
     markSelected();
   }
 
@@ -88,8 +94,11 @@
     MSStore.seedIfEmpty();
     var last = MSStore.getLastSym();
     if (inWatchlist(last)) state.selectedSym = last;
-    // showing 은 건드리지 않는다 — 단일 모드 부팅에서 목록 대신 리포트로 떨어지면 당황스럽다.
-    // 2단이면 selectedSym 만으로 오른쪽 칸이 채워진다.
+    // showing 은 여기서 직접 건드리지 않는다 — 절반만 맞는 얘기다. 단일 부팅에서는
+    // renderReportPane 이 아예 안 불리므로 showing="watchlist" 그대로 목록으로 시작한다
+    // (목록 대신 리포트로 떨어지면 당황스럽다). 2단 부팅에서는 아래 renderShell 이
+    // renderReportPane 을 부르고, 거기서 selectedSym 이 있으면 showing="report" 로
+    // 따라온다 — 그래야 곧바로 접었을 때(단일 전환) 방금 보던 리포트가 유지된다.
 
     var mq = window.matchMedia(MSLayout.MODE_QUERY);
     dual = mq.matches;
