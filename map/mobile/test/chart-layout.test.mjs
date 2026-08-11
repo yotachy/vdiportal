@@ -105,11 +105,15 @@ test("tailBars:60·예측 24봉이면 미래 구간이 플롯 폭의 25% 이상�
   assert.ok(share >= 0.25, "미래 비중 " + (share * 100).toFixed(1) + "% — 25% 미만");
 });
 
-test("report.js 의 TAIL_BARS 상수는 60이다 — 되돌리면 여기서 잡힌다", () => {
+// Phase 4: TAIL_BARS 상수는 사라지고 tail(줌 레벨) 변수가 됐다(report.js, paintChart 스코프).
+// 초기값의 단일 출처는 이제 MSZoom.DEFAULT_TAIL(chart-zoom.js) — 그 값과 report.js 가 실제로
+// 참조하는지를 함께 검증해야 "리터럴 되돌림" 회귀를 계속 잡을 수 있다.
+test("report.js 의 tail 초기값은 MSZoom.DEFAULT_TAIL(60)이다 — 되돌리면 여기서 잡힌다", () => {
+  const MSZoom = require("../www/chart-zoom.js");
+  assert.equal(MSZoom.DEFAULT_TAIL, 60, "MSZoom.DEFAULT_TAIL 이 60이 아니다(되돌려졌을 가능성) — 미래 비중 25% 요건이 깨진다");
   const src = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
-  const m = src.match(/\bTAIL_BARS\s*=\s*(\d+)/);
-  assert.ok(m, "report.js 에서 TAIL_BARS 선언을 못 찾았다");
-  assert.equal(Number(m[1]), 60, "TAIL_BARS 가 60이 아니다(되돌려졌을 가능성) — 미래 비중 25% 요건이 깨진다");
+  assert.ok(/var\s+tail\s*=\s*MSZoom\.DEFAULT_TAIL/.test(src),
+    "report.js 가 tail 초기값을 MSZoom.DEFAULT_TAIL 에서 가져오지 않는다");
 });
 
 test("plotWidth 는 chartLayout 이 실제로 쓰는 폭과 같다 — 두 곳에서 따로 계산하면 갈라진다", () => {
