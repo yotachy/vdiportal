@@ -69,7 +69,7 @@
   }
   // 표기용 확률: 그 봉의 예측 '방향'이 실현될 캘리브레이션 확률(%). 50 미만이면 반대가 우세하다는 뜻 — 숨기지 않는다.
   function _predPCal(center, hi, anchor, k) {
-    const raw = _upProb(center[k], hi[k], anchor);
+    const raw = ForgeCore.upProb(center[k], hi[k], anchor);
     const cal = (typeof ForgeCore !== "undefined" && ForgeCore && ForgeCore.calibrateUpProb) ? ForgeCore.calibrateUpProb(raw) : raw;
     return (center[k] >= anchor) ? cal : (100 - cal);
   }
