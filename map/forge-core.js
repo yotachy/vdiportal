@@ -2446,6 +2446,26 @@
     return { nodes, edges, vision, themeImgId: "smp_main" };
   }
 
+  // 로그정규 상승확률(%) — m=log(예측/현재), sd=log(상단/예측).
+  // PC(forge-app)와 모바일이 같은 확률을 말해야 하므로 여기가 단일 출처다.
+  // 한쪽만 보정 상수를 고치면 두 제품이 서로 다른 확률을 표시하고, 화면 비교로도 안 잡힌다.
+  function _normCdf(z) { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2); let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; }
+  function upProb(pred, hi, anchor) {
+    if (!(pred > 0 && hi > 0 && anchor > 0)) return 50;
+    const m = Math.log(pred / anchor), sd = Math.log(hi / pred);
+    return Math.round(_normCdf(m / (sd || 1e-6)) * 100);
+  }
+  // 시점 가중 종합 상승확률(%) — 가까운 시점일수록 신뢰가 높다(1/√h).
+  function aggUpProb(pred) {
+    const path = pred && pred.path; if (!path || !path.length) return null;
+    const anchor = (pred.anchor != null && isFinite(pred.anchor)) ? pred.anchor : path[0];
+    let s = 0, w = 0;
+    for (let k = 0; k < path.length; k++) { const h = k + 1, wt = 1 / Math.sqrt(h); s += upProb(path[k], pred.hi && pred.hi[k], anchor) * wt; w += wt; }
+    if (!w) return null;
+    const raw = Math.round(s / w);   // 캘리브레이션(v1.4): 과신 교정 → 표기 확률이 실제와 일치(OOS ECE 8.6→0.7%p)
+    return calibrateUpProb(raw);
+  }
+
   // 상승확률 캘리브레이션(Platt) — 백테스트 86종 적합, OOS 검증(ECE 8.6→0.7%p). 단조맵이라 방향/신호 불변, 확률만 정직화.
   // 입력·출력 모두 0~100 정수. "엔진이 60%라 하면 실제 60% 맞음"이 성립하도록 과신을 교정.
   function calibrateUpProb(p) {
@@ -2733,5 +2753,5 @@
     return Array.from(map.keys()).sort().map(k => map.get(k));
   }
 
-  return { version, indicatorCount, validatedAxes, calibrateUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, mergeCandles, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
+  return { version, indicatorCount, validatedAxes, calibrateUpProb, upProb, aggUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, mergeCandles, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
 });
