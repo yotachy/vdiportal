@@ -67,12 +67,15 @@ test("fromPinch 는 0·음수·NaN 에 죽지 않는다", () => {
 });
 
 test("클램프 범위 전 구간에서 실제 봉폭이 2~12px 안이다 — 반올림 여유 0.5px", () => {
+  // 경계값은 설계서 §4 에서 온 리터럴이다. Z.DX_MIN/DX_MAX 를 읽으면
+  // 그 상수를 바꿨을 때 한계와 기대값이 함께 움직여 테스트가 항등식이 된다.
+  var DX_LO = 2, DX_HI = 12, SLACK = 0.5;
   for (const W of [320, 373, 673, 884, 1000]) {
     const p = pw(W), L = Z.limits(p, FUT);
     for (const tail of [L.min, Math.round((L.min + L.max) / 2), L.max]) {
       const dx = p / (tail + FUT);
-      assert.ok(dx >= Z.DX_MIN - 0.5, "W=" + W + " tail=" + tail + " 봉폭 " + dx.toFixed(2) + "px 가 너무 좁다");
-      assert.ok(dx <= Z.DX_MAX + 0.5, "W=" + W + " tail=" + tail + " 봉폭 " + dx.toFixed(2) + "px 가 너무 넓다");
+      assert.ok(dx >= DX_LO - SLACK, "W=" + W + " tail=" + tail + " 봉폭 " + dx.toFixed(2) + "px 가 너무 좁다");
+      assert.ok(dx <= DX_HI + SLACK, "W=" + W + " tail=" + tail + " 봉폭 " + dx.toFixed(2) + "px 가 너무 넓다");
     }
   }
 });
