@@ -154,7 +154,7 @@
     }
 
     function addBtn() {
-      var b = MSUi.el("button", "btn btn-ghost", MSStr.t.wlAdd);
+      var b = MSUi.el("button", "btn btn-ghost wl-add", MSStr.t.wlAdd);
       b.addEventListener("click", startAddTicker);
       return b;
     }
