@@ -111,3 +111,18 @@ test("report.js 의 TAIL_BARS 상수는 60이다 — 되돌리면 여기서 잡�
   assert.ok(m, "report.js 에서 TAIL_BARS 선언을 못 찾았다");
   assert.equal(Number(m[1]), 60, "TAIL_BARS 가 60이 아니다(되돌려졌을 가능성) — 미래 비중 25% 요건이 깨진다");
 });
+
+test("plotWidth 는 chartLayout 이 실제로 쓰는 폭과 같다 — 두 곳에서 따로 계산하면 갈라진다", () => {
+  for (const W of [320, 373, 673, 884, 1000]) {
+    for (const pad of [0, 6, 10, 16]) {
+      const lay = CL.chartLayout({ candle: candles(150), prediction: null, width: W, height: 520, pad: pad, tailBars: 60 });
+      assert.equal(CL.plotWidth(W, pad), lay.plot.w, "W=" + W + " pad=" + pad);
+    }
+  }
+});
+
+test("plotWidth 는 pad 를 생략하면 10 을 쓴다 — chartLayout 의 기본값과 같아야 한다", () => {
+  assert.equal(CL.plotWidth(373), CL.plotWidth(373, 10));
+  const lay = CL.chartLayout({ candle: candles(150), prediction: null, width: 373, height: 520, tailBars: 60 });
+  assert.equal(CL.plotWidth(373), lay.plot.w);
+});
