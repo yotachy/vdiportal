@@ -11,6 +11,9 @@
   var GAP = 8;                      // 패널 사이 여백(px)
   var AXIS_W = 44;                  // 우측 가격축 폭
 
+  // plotW 는 chart-zoom 도 써야 한다. 두 곳에서 따로 계산하면 갈라지므로 여기가 단일 출처다.
+  function plotWidth(W, pad) { return W - (pad == null ? 10 : pad) * 2 - AXIS_W; }
+
   function chartLayout(o) {
     var candle = o.candle || [], pred = o.prediction || null;
     var W = o.width, H = o.height, pad = (o.pad == null ? 10 : o.pad);
@@ -21,7 +24,7 @@
     var fiMin = Math.max(0, n - tail), nowFi = n - 1;
     var fut = (pred && pred.path) ? pred.path.length : 0;
 
-    var plotW = W - pad * 2 - AXIS_W;
+    var plotW = plotWidth(W, pad);
     var slots = Math.max(1, tail + fut);
     var dx = plotW / slots;
     function fiToX(fi) { return pad + (fi - fiMin + 0.5) * dx; }
@@ -73,5 +76,5 @@
              plot: { x: pad, w: plotW }, axisW: AXIS_W, priceRange: [pLo, pHi] };
   }
 
-  return { RATIOS: RATIOS, GAP: GAP, AXIS_W: AXIS_W, chartLayout: chartLayout };
+  return { RATIOS: RATIOS, GAP: GAP, AXIS_W: AXIS_W, plotWidth: plotWidth, chartLayout: chartLayout };
 });

@@ -6,7 +6,8 @@
   "use strict";
 
   var TF = "1day";
-  var CHART_H = 520, PAD = 10, TAIL_BARS = 60;   // 60 = 예측구간 28%(120 이면 16%). Phase 4 에서 초기 창 크기가 된다
+  var CHART_H = 520, PAD = 10;
+  // TAIL_BARS 는 이제 줌 레벨이다. 기본은 화면폭 무관 60봉(예측 비중 28% 유지, Phase 3 결론) — MSZoom.DEFAULT_TAIL.
   var HOLD_MS = 350, MOVE_THRESH = 8;
   var TIER = "basic";   // Phase 1 은 Basic 고정 — 이후 단계에서 사용자 티어로 교체(차트·범례 모두 이 값만 바뀌면 됨)
 
@@ -111,15 +112,20 @@
     var col = colTokens();
     var cssW = wrap.clientWidth || 320;
     var lay = null;
+    var tail = MSZoom.DEFAULT_TAIL;   // 화면 유지 중에만 산다. 종목을 바꾸면 paintChart 가 다시 불려 기본값으로 돌아간다.
 
     function relayout() {
       var dpr = window.devicePixelRatio || 1;
       cv.width = Math.round(cssW * dpr); cv.height = Math.round(CHART_H * dpr);
       cv.style.height = CHART_H + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // DPR 트랜스폼 — 리사이즈 시점에만 설정
+      // 한계가 plotW 에 딸려 있다 — 폴드를 펴면 커버에서 쓰던 봉 수가 새 하한 밖일 수 있다.
+      // (커버 20봉 → 펼침 하한 44봉). 폴드는 두 화면을 상시로 오가므로 예외가 아니라 일상 경로다.
+      var fut = (an.out.prediction && an.out.prediction.path) ? an.out.prediction.path.length : 0;
+      tail = MSZoom.clamp(MSChartLayout.plotWidth(cssW, PAD), fut, tail);
       lay = MSChartLayout.chartLayout({
         candle: data.candle, prediction: an.out.prediction,
-        width: cssW, height: CHART_H, pad: PAD, tailBars: TAIL_BARS
+        width: cssW, height: CHART_H, pad: PAD, tailBars: tail
       });
     }
     relayout();
@@ -207,6 +213,38 @@
     cv.addEventListener("pointerup", endHold);
     cv.addEventListener("pointercancel", endHold);
 
+    // ── 두 손가락 핀치 = 줌. 한 손가락은 지금 그대로(페이지 스크롤 + 350ms 홀드 크로스헤어) ──
+    // 창이 오른쪽 끝 고정이라 핀치 중심 아래 봉을 붙잡는 계산(PC 의 rel·bi)이 필요 없다.
+    var pinch = null, zoomRaf = null;
+    function zoomFrame() {
+      if (zoomRaf) return;
+      zoomRaf = requestAnimationFrame(function () { zoomRaf = null; relayout(); frame(null); });
+    }
+    function touchDist(e) {
+      var a = e.touches[0], b = e.touches[1];
+      return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    }
+    cv.addEventListener("touchstart", function (e) {
+      if (!e.touches || e.touches.length !== 2) return;
+      // 두 번째 손가락이 닿는 순간 홀드를 취소한다 — 안 그러면 핀치 도중 크로스헤어가 켜진다.
+      if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+      startPt = null;
+      if (holding) { holding = false; frame(null); }
+      pinch = { d0: Math.max(1, touchDist(e)), t0: tail };
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    cv.addEventListener("touchmove", function (e) {
+      if (!pinch || !e.touches || e.touches.length !== 2) return;
+      var fut = (an.out.prediction && an.out.prediction.path) ? an.out.prediction.path.length : 0;
+      var next = MSZoom.clamp(MSChartLayout.plotWidth(cssW, PAD), fut,
+                              MSZoom.fromPinch(pinch.t0, pinch.d0, Math.max(1, touchDist(e))));
+      if (next !== tail) { tail = next; zoomFrame(); }
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    function endPinch(e) { if (!e.touches || e.touches.length < 2) pinch = null; }
+    cv.addEventListener("touchend", endPinch);
+    cv.addEventListener("touchcancel", endPinch);
+
     // 회전 대응. 리스너는 화면당(모듈 전체 기준) 최대 1개만 살아있어야 한다 —
     // draw()가 재실행되거나(재시도/재방문) 다른 종목으로 넘어갈 때마다 이전 리스너를 먼저 떼어낸다.
     // window resize는 next resize event가 와야 감지되므로, 그때까지 기다리지 않고 여기서 즉시 정리한다.
@@ -215,7 +253,7 @@
       var w2 = wrap.clientWidth || cssW;
       if (w2 === cssW) return;
       cssW = w2;
-      relayout();
+      relayout();   // 재클램프는 relayout() 안에서 이미 일어난다 — 폴드 회전(예: 커버 20봉 → 펼침 하한 44봉)에도 여기서 별도 처리 불필요
       frame(null);
     }
     window.addEventListener("resize", onResize);

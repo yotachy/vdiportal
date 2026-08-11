@@ -105,9 +105,46 @@ test("tailBars:60·예측 24봉이면 미래 구간이 플롯 폭의 25% 이상�
   assert.ok(share >= 0.25, "미래 비중 " + (share * 100).toFixed(1) + "% — 25% 미만");
 });
 
-test("report.js 의 TAIL_BARS 상수는 60이다 — 되돌리면 여기서 잡힌다", () => {
+// Phase 4: TAIL_BARS 상수는 사라지고 tail(줌 레벨) 변수가 됐다(report.js, paintChart 스코프).
+// 초기값의 단일 출처는 이제 MSZoom.DEFAULT_TAIL(chart-zoom.js) — 그 값과 report.js 가 실제로
+// 참조하는지를 함께 검증해야 "리터럴 되돌림" 회귀를 계속 잡을 수 있다.
+test("report.js 의 tail 초기값은 MSZoom.DEFAULT_TAIL(60)이다 — 되돌리면 여기서 잡힌다", () => {
+  const MSZoom = require("../www/chart-zoom.js");
+  assert.equal(MSZoom.DEFAULT_TAIL, 60, "MSZoom.DEFAULT_TAIL 이 60이 아니다(되돌려졌을 가능성) — 미래 비중 25% 요건이 깨진다");
   const src = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
-  const m = src.match(/\bTAIL_BARS\s*=\s*(\d+)/);
-  assert.ok(m, "report.js 에서 TAIL_BARS 선언을 못 찾았다");
-  assert.equal(Number(m[1]), 60, "TAIL_BARS 가 60이 아니다(되돌려졌을 가능성) — 미래 비중 25% 요건이 깨진다");
+  assert.ok(/var\s+tail\s*=\s*MSZoom\.DEFAULT_TAIL/.test(src),
+    "report.js 가 tail 초기값을 MSZoom.DEFAULT_TAIL 에서 가져오지 않는다");
+});
+
+test("plotWidth 는 chartLayout 이 실제로 쓰는 폭과 같다 — 두 곳에서 따로 계산하면 갈라진다", () => {
+  for (const W of [320, 373, 673, 884, 1000]) {
+    for (const pad of [0, 6, 10, 16]) {
+      const lay = CL.chartLayout({ candle: candles(150), prediction: null, width: W, height: 520, pad: pad, tailBars: 60 });
+      assert.equal(CL.plotWidth(W, pad), lay.plot.w, "W=" + W + " pad=" + pad);
+    }
+  }
+});
+
+test("plotWidth 는 pad 를 생략하면 10 을 쓴다 — chartLayout 의 기본값과 같아야 한다", () => {
+  assert.equal(CL.plotWidth(373), CL.plotWidth(373, 10));
+  const lay = CL.chartLayout({ candle: candles(150), prediction: null, width: 373, height: 520, tailBars: 60 });
+  assert.equal(CL.plotWidth(373), lay.plot.w);
+});
+
+test("plotWidth 는 화면폭별 실측값과 일치한다 — 구현이 아니라 값을 고정한다", () => {
+  // 설계서 §4 실측표. plotW = W - 2*pad - AXIS_W(44)
+  const want = { 320: 256, 373: 309, 673: 609, 884: 820, 1000: 936 };
+  for (const W of Object.keys(want)) {
+    assert.equal(CL.plotWidth(+W, 10), want[W], "W=" + W);
+  }
+});
+
+test("우측 가격축 자리가 실제로 남는다 — plotWidth 가 AXIS_W 를 빼먹으면 축이 캔버스 밖에 그려진다", () => {
+  for (const W of [320, 373, 673, 884]) {
+    for (const pad of [0, 10, 16]) {
+      const lay = CL.chartLayout({ candle: candles(150), prediction: prediction(24), width: W, height: 520, pad: pad, tailBars: 60 });
+      assert.equal(lay.plot.x + lay.plot.w + CL.AXIS_W, W - pad,
+                   "W=" + W + " pad=" + pad + " — 축 거터가 안 맞는다");
+    }
+  }
 });
