@@ -156,6 +156,18 @@ body {
 
 /* 섹션 머리 — 오버라인 왼쪽, 캡션 오른쪽(시안 2a 의 "80% cone" · "5 of 12 shown") */
 
+/* AGAINST THIS CALL(시안 6a) — 반대 근거는 붉은 테두리 안에 둔다. Full 이 주는 것 중
+   눈에 가장 먼저 들어와야 하는 블록이라 결핍 박스와 달리 색을 가진다. */
+.rp-against { border:1px solid var(--bear-soft); border-radius:11px; padding:14px 14px 6px; margin-bottom:22px; }
+.rp-against .overline { color:var(--bear-text); }
+.rp-against .rp-sec-head { margin-bottom:8px; }
+.rp-against-row { display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+                  padding:9px 0; border-bottom:1px solid var(--hairline); font-size:12.5px; }
+.rp-against-row:last-child { border-bottom:0; }
+.rp-against-name { color:var(--ink-2); }
+.rp-against-bias { color:var(--bear-text); font-weight:600; font-variant-numeric:tabular-nums; }
+.rp-against-none { margin:0 0 8px; font-size:12px; color:var(--ink-4); }
+
 /* Basic 결핍 박스(시안 6a) — 테두리 안에 "안 되는 것" 4행. 27개 칩 벽의 자리를 대신한다. */
 .rp-missing-box { border:1px solid var(--border); border-radius:11px; padding:14px 14px 6px; margin-bottom:22px; }
 .rp-missing-box .overline { margin-bottom:8px; }

@@ -82,6 +82,9 @@
     // Basic 의 결핍 — 시안 6a 가 안 되는 것을 이름으로 박아둔다. 지표 27개를 칩으로 까는 것보다
     // "무엇을 못 하는지"가 훨씬 정확한 설명이고, Full 을 살 이유도 이 네 줄이 만든다.
     rpNotCounted: "Not checked at this level",  // 시안 6a 그대로 — 결핍 박스의 머리
+    // 시안 6a 의 AGAINST THIS CALL — Full 이 주는 것 중 하나. 32종 중 판정과 반대인 지표들.
+    rpAgainst: "Against this call",
+    rpAgainstNone: "No indicator argues the other way.",
     rpMissingHitRate: "Historical hit rate of this setup",
     rpMissingDisagree: "Indicators that disagree",
     rpMissingTfAgree: "Weekly and monthly agreement",

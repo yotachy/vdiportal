@@ -112,7 +112,10 @@
     var macd = ForgeCore.analyzeMACD(data.price, { fast: mcP.fast, slow: mcP.slow, signal: mcP.signal });
     var va = ForgeCore.analyzeVolume(data.price, okVol ? vol : null, {});
 
-    return { out: out, ma: ma, rsi: rsi, bb: bb, macd: macd, va: va, maP: maP, rsiP: rsiP, bbP: bbP, mcP: mcP };
+    // graph·vol 을 함께 돌려준다 — AGAINST THIS CALL 이 판정과 **같은 그래프·같은 입력**을 봐야
+    // 한다. 여기서 다시 만들면 파라미터가 갈려 화면 두 곳이 다른 말을 하게 된다.
+    return { out: out, graph: graph, vol: okVol ? vol : null,
+             ma: ma, rsi: rsi, bb: bb, macd: macd, va: va, maP: maP, rsiP: rsiP, bbP: bbP, mcP: mcP };
   }
 
   // ── 차트 합성 + 크로스헤어. wrap 은 이미 라이브 DOM 에 붙어 있어야 한다(clientWidth 측정 위해) ──
@@ -477,7 +480,20 @@
       if (conf != null) head.appendChild(MSUi.el("span", "rp-conf-pct", conf + "%"));
       // 시안 2a 의 "17 up · 6 flat · 9 down" + 3구간 바. 방향 개수는 레전드 행의 tone 에서 센다 —
       // 판정에 실제로 쓰인 지표들이라 다른 출처를 새로 만들지 않는다.
-      var tally = MSLegend.tally(MSLegend.rows(an, pr, null));
+      // 집계는 그 티어가 실제로 읽은 지표를 센다. Full 인데 5지표만 세면 바로 아래 "4 of 32" 와
+      // 숫자가 어긋나 같은 화면이 두 말을 한다. 방향 경로는 반대 근거와 동일(MSIndicators).
+      var tally;
+      if (tier === "full" && an.graph) {
+        tally = { up: 0, flat: 0, down: 0 };
+        MSIndicators.biases(ForgeCore, an.graph, { price: data.price, candle: data.candle, volume: an.vol })
+          .forEach(function (r) {
+            if (r.bias > MSIndicators.EPS) tally.up++;
+            else if (r.bias < -MSIndicators.EPS) tally.down++;
+            else tally.flat++;
+          });
+      } else {
+        tally = MSLegend.tally(MSLegend.rows(an, pr, null));
+      }
       var tallyWrap = MSUi.el("div", "rp-tally");
       tallyWrap.appendChild(MSUi.el("div", "rp-tally-txt",
         tally.up + MSStr.t.rpUp2 + tally.flat + MSStr.t.rpFlat2 + tally.down + MSStr.t.rpDown2));
@@ -604,6 +620,37 @@
       });
       return sec;
     }
+    // 시안 6a 의 AGAINST THIS CALL — Full 이 3스쿱으로 주는 것 중 하나.
+    // 32종을 다 돌려놓고 "다 동의한다"고만 하면 근거가 아니라 응원이다. 반대편을 이름으로 보여준다.
+    // 방향은 웹과 같은 경로로 얻는다(지표마다 ForgeCore.analyzeX) — 백테스트도 새 데이터도 없다.
+    function buildAgainst() {
+      if (tier !== "full" || !an || !an.graph) return null;
+      var regime = an.out.verdict.regime;
+      if (regime !== "bull" && regime !== "bear") return null;   // 중립엔 반대가 정의되지 않는다
+      var input = { price: data.price, candle: data.candle, volume: an.vol };
+      var rows = MSIndicators.opposing(ForgeCore, an.graph, input, regime);
+      // 분모는 32가 아니라 **방향을 물을 수 있었던 수**다. trend·phasefold 는 bias 를 안 주므로
+      // 32라고 쓰면 세지 못한 둘을 센 것처럼 말하게 된다(MSIndicators.NO_BIAS).
+      var measured = MSIndicators.biases(ForgeCore, an.graph, input).length;
+      var sec = MSUi.el("div", "rp-against");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpAgainst));
+      head.appendChild(MSUi.el("span", "rp-sec-note", rows.length + MSStr.t.rpOf + measured));
+      sec.appendChild(head);
+      if (!rows.length) {
+        sec.appendChild(MSUi.el("p", "rp-against-none", MSStr.t.rpAgainstNone));
+        return sec;
+      }
+      rows.forEach(function (r) {
+        var row = MSUi.el("div", "rp-against-row");
+        row.appendChild(MSUi.el("span", "rp-against-name", MSStr.ind(r.type)));
+        // 기여도는 부호까지 보여준다 — 반대 목록이라 부호가 판정 반대편이라는 사실 자체가 정보다.
+        row.appendChild(MSUi.el("span", "rp-against-bias", (r.bias > 0 ? "+" : "") + r.bias.toFixed(2)));
+        sec.appendChild(row);
+      });
+      return sec;
+    }
+
     function buildMissingNote() {
       if (tier === "full") return null;
       return MSUi.el("p", "rp-missing-note", MSStr.t.rpMissingNote);
@@ -725,6 +772,8 @@
         scr.appendChild(buildSignals());
         var miss = buildMissing();
         if (miss) scr.appendChild(miss);
+        var ag = buildAgainst();
+        if (ag) scr.appendChild(ag);
       }
 
       scr.appendChild(buildTfSection());
