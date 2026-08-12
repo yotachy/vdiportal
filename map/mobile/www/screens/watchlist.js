@@ -128,7 +128,14 @@
       scr.appendChild(sb);
 
       var chipsEl = MSUi.el("div", "wl-chips");
-      MSWatchlistModel.chips(list).forEach(function (c) {
+      var chipList = MSWatchlistModel.chips(list);
+      // filter() 는 사라진 시장의 칩을 all 로 떨어뜨리지만 화면 상태(chip)는 그걸 모른다.
+      // 여기서 맞춰주지 않으면 ①어느 칩도 활성으로 안 보이고 ②그 시장 종목을 다시 추가했을 때
+      // 사용자가 누르지도 않은 필터가 되살아난다.
+      var present = false, ci;
+      for (ci = 0; ci < chipList.length; ci++) { if (chipList[ci].key === chip) { present = true; break; } }
+      if (!present) chip = "all";
+      chipList.forEach(function (c) {
         var b = MSUi.el("button", "wl-chip" + (c.key === chip ? " on" : ""),
                         c.key === "all" ? (chipLabel(c.key) + " " + c.count) : chipLabel(c.key));
         b.addEventListener("click", function () {
