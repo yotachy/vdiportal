@@ -9,9 +9,9 @@
 // run() 이 내부에서 계산하는 노드별 드리프트는 밖으로 나오지 않는다(evalBlocks 는 시계열만 준다).
 // 그래서 판정과 반대인 지표를 알려면 이 경로가 필요하다.
 (function (root, factory) {
-  if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSIndicators = factory();
-})(typeof self !== "undefined" ? self : this, function () {
+  if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./readings.js"));
+  else root.MSIndicators = factory(root.MSReadings);
+})(typeof self !== "undefined" ? self : this, function (Readings) {
   "use strict";
 
   // blockType → [analyzeX 이름, 인자 형태]
@@ -85,17 +85,48 @@
     return out;
   }
 
-  // 판정과 **반대** 방향인 지표들. 시안 6a 의 AGAINST THIS CALL.
-  // 중립 판정에는 반대가 없다 — 부른 방향이 없으면 무엇이 반대인지도 정의되지 않는다.
   // EPS 는 report-model 의 데드존과 같은 취지지만 대상이 다르다(여기는 지표 bias, 저기는 예측 변화율).
   var EPS = 0.02;
-  function opposing(FC, graph, data, regime) {
+
+  // 지표마다 analyzeX 를 **한 번** 부르고 방향과 문장을 함께 뽑는다.
+  // biases() 를 부른 뒤 say() 를 위해 또 부르면 Full 에서 analyzeX 가 60회가 된다.
+  function readings(FC, graph, data, ctx) {
+    var out = [];
+    var nodes = (graph && graph.nodes) || [];
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      if (!n.blockType || !SHAPES[n.blockType]) continue;
+      var r = callOne(FC, n.blockType, data, n.params);
+      if (!r || typeof r.bias !== "number" || !isFinite(r.bias)) continue;
+      out.push({ type: n.blockType, bias: r.bias,
+                 text: Readings ? Readings.say(n.blockType, r, ctx) : "" });
+    }
+    return out;
+  }
+
+  // 방향을 물을 수 없는 둘. bias 는 null 이다 — 0(중립)과 구분해야 화면이
+  // "중립"과 "못 읽음"을 다르게 그린다.
+  function noDirRows(FC, data, ctx) {
+    var trend = null;
+    try { trend = FC && FC.analyzeTrend ? FC.analyzeTrend(data.price, {}) : null; } catch (e) { trend = null; }
+    return [
+      { type: "trend", bias: null, text: Readings ? Readings.say("trend", trend, ctx) : "" },
+      { type: "phasefold", bias: null, text: Readings ? Readings.say("phasefold", null, ctx) : "" }
+    ];
+  }
+
+  // 판정과 **반대** 방향인 지표들. 시안 6a 의 AGAINST THIS CALL.
+  // 중립 판정에는 반대가 없다 — 부른 방향이 없으면 무엇이 반대인지도 정의되지 않는다.
+  // rows 를 받으면 그것을 쓴다(호출자가 이미 계산한 경우 재계산하지 않는다).
+  function opposing(FC, graph, data, regime, rows) {
     if (regime !== "bull" && regime !== "bear") return [];
     var want = regime === "bull" ? 1 : -1;
-    return biases(FC, graph, data)
+    var src = rows || readings(FC, graph, data, null);
+    return src
       .filter(function (r) { return Math.abs(r.bias) > EPS && (r.bias > 0 ? 1 : -1) !== want; })
       .sort(function (a, b) { return Math.abs(b.bias) - Math.abs(a.bias); });
   }
 
-  return { SHAPES: SHAPES, NO_BIAS: NO_BIAS, biasOf: biasOf, biases: biases, opposing: opposing, EPS: EPS };
+  return { SHAPES: SHAPES, NO_BIAS: NO_BIAS, biasOf: biasOf, biases: biases,
+           readings: readings, noDirRows: noDirRows, opposing: opposing, EPS: EPS };
 });

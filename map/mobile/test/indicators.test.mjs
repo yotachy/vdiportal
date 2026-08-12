@@ -98,3 +98,53 @@ test("biasOf — 분석 함수가 던져도 null 로 받는다", () => {
   const boom = { analyzeRSI: () => { throw new Error("boom"); } };
   assert.strictEqual(I.biasOf(boom, "rsi", fixture(), {}), null);
 });
+
+const R = require("../www/readings.js");
+const ctxOf = d => ({ price: d.price, candle: d.candle });
+
+test("readings() 의 bias 는 biases() 와 정확히 같다 — 방향 경로가 두 벌이 되지 않는다", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  const a = I.biases(FC, g, d).map(r => r.type + ":" + r.bias);
+  const b = I.readings(FC, g, d, ctxOf(d)).map(r => r.type + ":" + r.bias);
+  assert.deepEqual(b, a);
+});
+
+test("readings() 는 모든 항목에 비지 않은 문장을 붙인다", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  const rows = I.readings(FC, g, d, ctxOf(d));
+  assert.ok(rows.length >= 28, "Full 그래프에서 30종 가까이 나와야 한다: " + rows.length);
+  rows.forEach(r => assert.ok(r.text && r.text.trim().length > 0, r.type + " 에 문장이 없다"));
+});
+
+test("Basic 그래프에선 5종만 나온다", () => {
+  const d = fixture(), g = MSGraph.basicGraph(FC);
+  const types = I.readings(FC, g, d, ctxOf(d)).map(r => r.type).sort();
+  assert.deepEqual(types, ["bollinger", "ma", "macd", "rsi", "volume"]);
+});
+
+test("noDirRows() 는 bias null 인 2행 — 0(중립)과 구분한다", () => {
+  const d = fixture();
+  const rows = I.noDirRows(FC, d, ctxOf(d));
+  assert.deepEqual(rows.map(r => r.type), ["trend", "phasefold"]);
+  rows.forEach(r => {
+    assert.strictEqual(r.bias, null, r.type + " 의 bias 는 null 이어야 한다");
+    assert.ok(r.text && r.text.trim().length > 0);
+  });
+});
+
+test("opposing() 은 종전과 같은 목록을 내고 문장이 붙는다", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  ["bull", "bear"].forEach(regime => {
+    const rows = I.opposing(FC, g, d, regime);
+    const want = regime === "bull" ? -1 : 1;
+    rows.forEach(r => {
+      assert.ok(Math.abs(r.bias) > I.EPS, r.type + " 가 데드존 안에 있다");
+      assert.strictEqual(r.bias > 0 ? 1 : -1, want, r.type + " 의 방향이 틀렸다");
+      assert.ok(r.text && r.text.trim().length > 0, r.type + " 에 문장이 없다");
+    });
+    // |bias| 내림차순
+    for (let i = 1; i < rows.length; i++)
+      assert.ok(Math.abs(rows[i - 1].bias) >= Math.abs(rows[i].bias), "정렬이 깨졌다");
+  });
+  assert.deepEqual(I.opposing(FC, g, d, "flat"), [], "중립엔 반대가 정의되지 않는다");
+});
