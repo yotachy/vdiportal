@@ -135,3 +135,31 @@ test("ATR 판독문은 방향이 아니라는 것을 말한다", () => {
   const s = R.say("atr", callOne("atr", d), ctxOf(d));
   assert.match(s, /not the direction/);
 });
+
+const EXPECT_LV4 = {
+  elliott: "Wave count unclear, currently in wave B, no projection (67% of wave rules met)",
+  smc: "2 open gaps left behind",
+  cycle: "27-bar cycle, rising toward the next peak, turn in about 6 bars",
+  roc: "+4.2% over the lookback, momentum positive",
+  ao: "-0.6, below the zero line",
+  cmf: "+0.01, no clear accumulation",
+  pattern: "Head and shoulders, 73% fit, not yet confirmed"
+};
+
+test("Lv4 7종이 문장을 낸다", () => {
+  const d = fixture(), ctx = ctxOf(d);
+  const got = {};
+  Object.keys(EXPECT_LV4).forEach(bt => { got[bt] = R.say(bt, callOne(bt, d), ctx); });
+  assert.deepEqual(got, EXPECT_LV4);
+});
+
+// 반환 필드 안의 한국어를 실제로 우회했는지 — 전수 한글 테스트가 이미 잡지만,
+// 이 둘은 "왜 그 필드를 안 쓰는지"가 코드에서 안 보이므로 이름으로 못박는다.
+test("pattern·cycle 은 한국어 필드를 쓰지 않는다", () => {
+  const d = fixture();
+  const pat = callOne("pattern", d), cyc = callOne("cycle", d);
+  assert.ok(/[가-힣]/.test(pat.label), "엔진이 pattern.label 을 한국어로 주는 전제가 깨졌다");
+  assert.ok(/[가-힣]/.test(cyc.phaseLabel), "엔진이 cycle.phaseLabel 을 한국어로 주는 전제가 깨졌다");
+  assert.ok(!R.say("pattern", pat, ctxOf(d)).includes(pat.label));
+  assert.ok(!R.say("cycle", cyc, ctxOf(d)).includes(cyc.phaseLabel));
+});

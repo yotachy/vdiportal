@@ -52,6 +52,12 @@
   // analyzeCCI·analyzeMFI 의 regime 은 1 / 0 / −1 숫자다
   var REGIME = { "1": "bullish regime", "0": "no regime bias", "-1": "bearish regime" };
 
+  var ELLIOTT_STRUCT = { impulse_up: "Impulse count, upward", impulse_down: "Impulse count, downward",
+                         corrective: "Corrective count", uncertain: "Wave count unclear" };
+  // ⚠ analyzePattern 의 label 은 한국어다 — 영어 키(pattern)로만 매핑한다
+  var PATTERN_NAME = { headshoulder: "Head and shoulders", invhead: "Inverse head and shoulders",
+                       bullflag: "Bull flag", bearflag: "Bear flag" };
+
   var SAY = {
     ma: function (r) {
       if (!r.mas || !r.mas.long) return NONE;
@@ -267,16 +273,67 @@
       if (!has(r.series)) return NONE;
       var z = r.last >= 80 ? "overbought" : r.last <= 20 ? "oversold" : "neutral";
       return n0(r.last) + ", " + z + ", " + REGIME[r.regime] + " on money flow";
+    },
+
+    elliott: function (r) {
+      if (!has(r.waves)) return NONE;
+      var s = (ELLIOTT_STRUCT[r.structure] || "Wave count unclear")
+            + ", currently in wave " + ((r.current && r.current.label) || "—");
+      s += (r.next && r.next.target != null)
+        ? ", next target " + px(r.next.target)
+        : ", no projection";
+      return s + " (" + n0((r.rules && r.rules.score ? r.rules.score : 0) * 100) + "% of wave rules met)";
+    },
+
+    smc: function (r) {
+      if (!r.ok) return NONE;
+      var f = (r.fvgs || []).length, o = (r.obs || []).length;
+      if (!f && !o) return "No open fair-value gaps or order blocks";
+      // 0 인 쪽은 적지 않는다 — "and 0 order blocks" 는 말할 값이 없는 것을 말하는 것이다
+      var parts = [];
+      if (f) parts.push(f + (f === 1 ? " open gap" : " open gaps"));
+      if (o) parts.push(o + (o === 1 ? " order block" : " order blocks"));
+      return parts.join(" and ") + " left behind";
+    },
+
+    // ⚠ cycle.phaseLabel 은 한국어다("고점 부근(하락 전환 임박)"). dir 로 조립한다.
+    cycle: function (r) {
+      if (!r.period) return NONE;
+      var ph = r.dir === "rising" ? "rising toward the next peak"
+             : r.dir === "falling" ? "falling toward the next trough" : "flat";
+      var s = n0(r.period) + "-bar cycle, " + ph;
+      if (r.nextTurn && r.nextTurn.bars != null)
+        s += ", turn in about " + r.nextTurn.bars + (r.nextTurn.bars === 1 ? " bar" : " bars");
+      return s;
+    },
+
+    roc: function (r) {
+      if (!has(r.series)) return NONE;
+      return sgn1(r.last) + "% over the lookback, momentum "
+           + (r.last > 0 ? "positive" : r.last < 0 ? "negative" : "flat");
+    },
+
+    ao: function (r) {
+      if (!has(r.series)) return NONE;
+      var s = sgn1(r.last) + ", " + (r.last >= 0 ? "above" : "below") + " the zero line";
+      if (r.cross) s += ", crossed " + (r.cross > 0 ? "up" : "down") + " on this bar";
+      return s;
+    },
+
+    cmf: function (r) {
+      if (!has(r.series)) return NONE;
+      var d = r.last > 0.05 ? "accumulation" : r.last < -0.05 ? "distribution" : "no clear accumulation";
+      return (r.last >= 0 ? "+" : "") + (isFinite(r.last) ? r.last.toFixed(2) : "—") + ", " + d;
+    },
+
+    // ⚠ pattern.label 은 한국어다("헤드앤숄더"). 영어 키 pattern.pattern 으로 매핑한다.
+    pattern: function (r) {
+      if (!r.pattern || r.pattern === "none") return "No completed chart pattern in range";
+      return (PATTERN_NAME[r.pattern] || "Chart pattern")
+           + ", " + n0((r.confidence || 0) * 100) + "% fit, "
+           + (r.confirmed ? "confirmed by the break" : "not yet confirmed");
     }
   };
-
-  // Task 2~4 가 채운다. 스텁이 있어야 키 일치·한글·EMPTY 계약 테스트가 처음부터 돈다.
-  // **덮어쓰지 않는다** — 나중 태스크가 위 리터럴에 실제 구현을 넣고 이 배열에서 이름 빼는 것을
-  // 잊으면, 무조건 대입은 그 구현을 조용히 NONE 으로 되돌린다. 계약 테스트는 NONE 도 통과시키므로
-  // 아무도 못 잡는다.
-  ["elliott", "smc", "cycle", "roc", "ao", "cmf", "pattern"].forEach(function (bt) {
-    if (!SAY[bt]) SAY[bt] = function () { return NONE; };
-  });
 
   // 방향을 물을 수 없는 둘 — analyzeTrend 는 bias 를 안 주고, phasefold 는 analyzeX 자체가 없다
   // (엔진이 combine 안에서만 쓴다). 문장은 쓰되 기여도 칸은 비운다.
