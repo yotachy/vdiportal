@@ -145,6 +145,7 @@
 
     // 레전드는 캔버스가 아니라 DOM 이다 — 폰에서 더 선명하고, 겹침 회피 계산이 통째로 필요 없다.
     function paintLegend(fi) {
+      if (!legend) return;   // SIGNALS 섹션이 없는 화면(에러·로딩)에서도 프레임은 돈다
       var rows = MSLegend.rows(an, an.out.prediction, fi);
       legend.textContent = "";
       rows.forEach(function (r) {
@@ -399,14 +400,31 @@
       back.addEventListener("click", function () { MSApp.go("watchlist"); });
       head.appendChild(back);
 
-      var idWrap = MSUi.el("div", "rp-head-id");
-      idWrap.appendChild(MSUi.el("div", "rp-head-sym", sym));
-      idWrap.appendChild(MSUi.el("div", "rp-head-name", (wlItem && wlItem.name) || ""));
-      head.appendChild(idWrap);
-
+      // 시안 2a 의 헤더는 한 줄이다 — 심볼 + 위치 + 필. 회사명은 아래 가격 블록의 오버라인으로 간다.
+      head.appendChild(MSUi.el("div", "rp-head-sym", sym));
       if (idx >= 0) head.appendChild(MSUi.el("div", "rp-head-pos", (idx + 1) + " / " + wl.length));
       head.appendChild(MSWalletScreen.pill(function () { MSApp.go("wallet"); }));
       return head;
+    }
+
+    // 시안 2a 가 화면에서 제일 크게 두는 것 — 현재가. 주식 앱 리포트에 가격이 없던 것이 가장 큰 결손이었다.
+    function buildPrice() {
+      var wrap = MSUi.el("div", "rp-px-wrap");
+      var name = (wlItem && wlItem.name) || "";
+      if (name) wrap.appendChild(MSUi.el("div", "overline", name.toUpperCase()));
+
+      var p = data.price, n = p.length;
+      var last = p[n - 1], prev = p[n - 2];
+      var row = MSUi.el("div", "rp-px-row");
+      row.appendChild(MSUi.el("span", "rp-px", MSUi.fmtPrice(last)));
+      if (prev != null && isFinite(prev) && prev !== 0) {
+        var d = last - prev, pct = (d / prev) * 100;
+        var cls = pct > 0 ? " up" : pct < 0 ? " dn" : "";
+        row.appendChild(MSUi.el("span", "rp-px-chg" + cls,
+          (d > 0 ? "+" : "") + MSUi.fmtPrice(d) + "  " + MSUi.fmtChg(pct)));
+      }
+      wrap.appendChild(row);
+      return wrap;
     }
 
     function buildTierRow() {
@@ -451,10 +469,27 @@
       var wrap = MSUi.el("div", "rp-verdict-wrap");
       var dirCls = v.regime === "bull" ? "bull" : v.regime === "bear" ? "bear" : "neutral";
 
+      wrap.appendChild(MSUi.el("div", "overline", MSStr.t.rpComposite));
+
       var conf = MSReportModel.confidence(ForgeCore, pr, v.regime);
       var head = MSUi.el("div", "rp-verdict " + dirCls);
       head.appendChild(MSUi.el("span", null, verdictWord(v.regime)));
       if (conf != null) head.appendChild(MSUi.el("span", "rp-conf-pct", conf + "%"));
+      // 시안 2a 의 "17 up · 6 flat · 9 down" + 3구간 바. 방향 개수는 레전드 행의 tone 에서 센다 —
+      // 판정에 실제로 쓰인 지표들이라 다른 출처를 새로 만들지 않는다.
+      var tally = MSLegend.tally(MSLegend.rows(an, pr, null));
+      var tallyWrap = MSUi.el("div", "rp-tally");
+      tallyWrap.appendChild(MSUi.el("div", "rp-tally-txt",
+        tally.up + MSStr.t.rpUp2 + tally.flat + MSStr.t.rpFlat2 + tally.down + MSStr.t.rpDown2));
+      var bar = MSUi.el("div", "rp-tally-bar");
+      [["up", tally.up], ["flat", tally.flat], ["down", tally.down]].forEach(function (seg) {
+        if (!seg[1]) return;
+        var s = MSUi.el("div", "rp-tally-seg is-" + seg[0]);
+        s.style.flex = String(seg[1]);
+        bar.appendChild(s);
+      });
+      tallyWrap.appendChild(bar);
+      head.appendChild(tallyWrap);
       wrap.appendChild(head);
 
       var hit = (conf != null) ? MSReportModel.hitRate(window.MSBacktest, v.regime) : null;
@@ -470,19 +505,8 @@
       var total = v.confluence.total, agree = v.confluence.agree;
       var confText = total ? (agree + MSStr.t.rpAgree + total + MSStr.t.rpAgreeTail) : MSStr.t.rpAgreeNone;
       wrap.appendChild(MSUi.el("div", "rp-conf", confText));
-
-      var last = pr.lo.length - 1;
-      var rangeText = (last >= 0)
-        ? (MSStr.t.rpRangeLabel + MSUi.fmtPrice(pr.lo[last]) + " – " + MSUi.fmtPrice(pr.hi[last]) + MSStr.t.rpCone)
-        : MSStr.t.rpRangeNone;
-      wrap.appendChild(MSUi.el("div", "rp-range", rangeText));
-
-      // Full 은 32개를 다 셌다 — buildNotCountedSection() 이 섹션 자체를 내리므로 이 줄("… — see below")을
-      // 그대로 두면 3스쿱 낸 화면이 있지도 않은 섹션을 가리키며 거짓을 말한다.
-      if (tier !== "full") {
-        wrap.appendChild(MSUi.el("div", "rp-missing",
-          MSStr.t.rpNotCountedLead + notCountedLabels().length + MSStr.t.rpNotCountedTail));
-      }
+      // 예측 범위는 HORIZON 머리로 옮겼다 — 시안 2a 가 "80% cone" 을 지평 표의 캡션으로 둔다.
+      // 안 센 지표 27개 나열도 뺐다: 시안은 SIGNALS 머리의 "5 of 32" 한 줄로 같은 말을 한다.
       return wrap;
     }
 
@@ -494,6 +518,14 @@
       var rows = MSReportModel.horizonRows(ForgeCore, an.out.prediction, an.out.verdict.regime);
       if (!rows.length) return null;
       var sec = MSUi.el("div", "rp-hz");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpHorizon));
+      var pr = an.out.prediction, lastI = pr.lo.length - 1;
+      if (lastI >= 0) {
+        head.appendChild(MSUi.el("span", "rp-sec-note",
+          MSUi.fmtPrice(pr.lo[lastI]) + " – " + MSUi.fmtPrice(pr.hi[lastI]) + MSStr.t.rpCone));
+      }
+      sec.appendChild(head);
       rows.forEach(function (r) {
         var row = MSUi.el("div", "rp-hz-row");
         row.appendChild(MSUi.el("span", "rp-hz-when", hzLabel(r.key)));
@@ -510,15 +542,27 @@
 
     function buildChartSection() {
       var wrap = MSUi.el("div", "rp-chart");
-      // 지표 값 레전드 — 캔버스 앞(차트 위 고정 행). 클래스명은 rp-legend 가 아니라 rp-ind-legend:
-      // buildChartLegend() 의 예측선 색상 범례(p1/p2/p3)가 이미 .rp-legend 를 쓰고 있어
-      // 같은 이름을 쓰면 그쪽 스타일(gap 16px·margin-bottom 24px)과 이 레전드의 스타일이 섞인다.
-      var legend = MSUi.el("div", "rp-ind-legend");
-      wrap.appendChild(legend);
       var cv = document.createElement("canvas");
       wrap.appendChild(cv);
-      chartRefs = { wrap: wrap, cv: cv, legend: legend };
+      chartRefs = { wrap: wrap, cv: cv, legend: null };   // legend 는 buildSignals() 가 채운다
       return wrap;
+    }
+
+    // 시안 2a·1a 의 SIGNALS — 지표 판독을 이름/값 정렬 행으로. 예전엔 이 내용이 차트 바로 위에
+    // 여섯 줄짜리 다색 덩어리로 얹혀 차트를 짓눌렀다(시안엔 그런 요소가 없다).
+    // 크로스헤어를 끌면 여기 값이 따라 움직인다 — paintChart 가 이 요소를 계속 갱신한다.
+    function buildSignals() {
+      var sec = MSUi.el("div", "rp-sec");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpSignals));
+      // 시안 1a 의 "5 of 12 shown" 자리. 안 센 지표를 27개 칩으로 깔던 벽을 이 한 줄이 대신한다.
+      head.appendChild(MSUi.el("span", "rp-sec-note",
+        (tier === "full" ? 32 : 5) + MSStr.t.rpOf + "32" + MSStr.t.rpShown));
+      sec.appendChild(head);
+      var legend = MSUi.el("div", "rp-ind-legend");
+      sec.appendChild(legend);
+      if (chartRefs) chartRefs.legend = legend;
+      return sec;
     }
 
     // 예측선 3종 범례 — 잠긴 선도 숨기지 않고 보여준다("빠진 것을 보여주는 것"이 핵심,
@@ -541,43 +585,11 @@
       return wrap;
     }
 
-    function buildCounted() {
-      var sec = MSUi.el("div", "rp-sec");
-      var title = MSUi.el("div", "rp-sec-title");
-      title.appendChild(document.createTextNode(MSStr.t.rpCounted + " "));
-      title.appendChild(MSUi.el("span", "rp-sec-count", String(tier === "full" ? 32 : 5)));
-      sec.appendChild(title);
+    // buildCounted() 를 지웠다 — ForgeCore.*Steps() 는 PC 스쿱포지용이라 한국어 문자열을 뱉는데
+    // 영어 앱에 그대로 새고 있었다("혼조 (정렬도 0%)"). 같은 5종을 MSLegend 가 영어로 이미 낸다.
 
-      var maLine = ForgeCore.maSteps(an.ma, an.maP.len)[1];
-      var rsiLine = ForgeCore.rsiSteps(an.rsi)[0];
-      var bbLine = ForgeCore.bollingerSteps(an.bb, an.bbP.len, an.bbP.k)[1];
-      var macdLine = ForgeCore.macdSteps(an.macd, an.mcP.fast, an.mcP.slow, an.mcP.signal)[1];
-      var volLine = ForgeCore.volumeSteps(an.va)[0];
-
-      // 지표 표시명은 MSStr.ind() 단일 출처 — chipLabel 과 동일 규칙(하드코딩 라벨 금지).
-      [[MSStr.ind("ma"), maLine], [MSStr.ind("macd"), macdLine], [MSStr.ind("rsi"), rsiLine], [MSStr.ind("bollinger"), bbLine], [MSStr.ind("volume"), volLine]]
-        .forEach(function (pair) {
-          var row = MSUi.el("div", "rp-count-row");
-          row.appendChild(MSUi.el("span", "rp-count-name", pair[0]));
-          row.appendChild(MSUi.el("span", "rp-count-read", pair[1]));
-          sec.appendChild(row);
-        });
-      return sec;
-    }
-
-    function buildNotCountedSection() {
-      if (tier === "full") return null;   // Full 은 32개를 다 셌다 — 안 센 것이 없다
-      var labels = notCountedLabels();
-      var sec = MSUi.el("div", "rp-sec");
-      var title = MSUi.el("div", "rp-sec-title");
-      title.appendChild(document.createTextNode(MSStr.t.rpNotCounted + " "));
-      title.appendChild(MSUi.el("span", "rp-sec-count", String(labels.length)));
-      sec.appendChild(title);
-      var chips = MSUi.el("div", "rp-chips");
-      labels.forEach(function (label) { chips.appendChild(MSUi.el("span", "rp-chip", label)); });
-      sec.appendChild(chips);
-      return sec;
-    }
+    // buildNotCountedSection() 도 지웠다 — 27개 칩 벽이 화면 3분의 1을 먹었고 시안엔 없다.
+    // 같은 말("5 of 32")을 SIGNALS 머리 한 줄이 한다.
 
     function tfRow(name, val, locked, skeleton) {
       var row = MSUi.el("div", "rp-tf-row" + (locked ? " rp-locked" : ""));
@@ -598,7 +610,7 @@
 
     function buildTfSection() {
       var sec = MSUi.el("div", "rp-sec");
-      sec.appendChild(MSUi.el("div", "rp-sec-title", MSStr.t.rpTf));
+      sec.appendChild(MSUi.el("div", "overline", MSStr.t.rpTf));
       var names = { "1day": MSStr.t.rpDaily, "1week": MSStr.t.rpWeekly, "1month": MSStr.t.rpMonthly };
       if (!tfRuns) {   // Basic — 일봉만 값, 주·월은 잠김
         var dailyVal = "";
@@ -679,20 +691,22 @@
       if (state === "error") {
         scr.appendChild(errorBlock(errInfo));
       } else if (state === "loading") {
+        scr.appendChild(skeletonBlock(84));    // 가격
         scr.appendChild(skeletonBlock(96));    // 판정
         scr.appendChild(skeletonBlock(chartH())); // 차트
-        scr.appendChild(skeletonBlock(180));   // Counted
+        scr.appendChild(skeletonBlock(180));   // 신호
       } else {
+        // 시안 2a 의 순서: 가격 → 판정 → 차트 → 지평 → 신호 → 주기.
+        // 큰 것에서 작은 것으로 내려가고, 섹션마다 오버라인이 머리를 잡는다.
+        scr.appendChild(buildPrice());
         scr.appendChild(buildVerdict());
-        var hz = buildHorizons();
-        if (hz) scr.appendChild(hz);
         scr.appendChild(buildChartSection());
         scr.appendChild(buildChartLegend());
-        scr.appendChild(buildCounted());
+        var hz = buildHorizons();
+        if (hz) scr.appendChild(hz);
+        scr.appendChild(buildSignals());
       }
 
-      var nc = buildNotCountedSection();
-      if (nc) scr.appendChild(nc);
       scr.appendChild(buildTfSection());
       scr.appendChild(buildCta());
 

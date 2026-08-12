@@ -10,7 +10,10 @@
     if (text != null) e.textContent = String(text);
     return e;
   }
-  function fmtPrice(v) { return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
+  // 시안은 가격을 두 자리로 쓴다 — 1a 워치리스트 `162.20`·`231.55`, 2a 리포트 `162.20`.
+  // 정수로 반올림하면 변동폭(-3.35)과 자릿수가 어긋나 리포트 상단이 어긋나 보인다.
+  // 큰 수(원화·코인 `74,300`)는 소수 두 자리가 소음이라 시안대로 반올림 + 천단위 구분자.
+  function fmtPrice(v) { return (Math.abs(v) < 1000 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
   function fmtChg(v) { return (v > 0 ? "+" : "") + v.toFixed(2) + "%"; }
   function dotClass(dir) { return "wl-dot" + (dir === "bull" ? " bull" : dir === "bear" ? " bear" : ""); }
   // 스파크라인 SVG path — 값 배열을 w×h 박스에 정규화한다

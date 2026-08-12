@@ -55,8 +55,8 @@
     rpUp: "Up", rpDown: "Down", rpFlat: "Flat",
     rpBullish: "Bullish", rpBearish: "Bearish",   // 판정 헤드라인 — 시안 2a·6a 표기.
                                                   // rpUp/rpDown("Up"/"Down")은 주기 행·지표 판독용이라 그대로 둔다.
-    rpRangeNone: "No honest range available",
-    rpRangeLabel: "Range ",                       // 시안 2a: "Range 142.8 – 187.4"
+    // 예측 범위는 HORIZON 머리의 캡션이 됐다("288 – 346 · 80% cone") — "Range " 접두와
+    // 범위 없음 폴백은 소비자가 사라져 지웠다. 값이 없으면 캡션 자체를 안 낸다.
     rpCone: " · 80% cone",                        // 시안 2a. 설계 목표치이며 실측 커버리지는 77.7%
     rpAgree: " of ",
     rpAgreeTail: " agree with this direction",
@@ -74,11 +74,13 @@
     rpTierCount: "5 indicators",
     rpTierFull: "FULL", rpTierCountFull: "32 indicators · daily, weekly, monthly",
 
-    // 리포트 — 섹션
-    rpCounted: "What was read",                // 시안 그대로
-    rpNotCounted: "Not checked at this level", // 시안 그대로
-    rpNotCountedLead: "Indicators not used in this verdict: ",
-    rpNotCountedTail: " — see below",
+    // 리포트 — 섹션 오버라인 (시안 2a: COMPOSITE·DAILY / HORIZON / SIGNALS / TIMEFRAMES)
+    rpComposite: "Composite · Daily",
+    rpHorizon: "Horizon",
+    rpSignals: "Signals",
+    rpOf: " of ", rpShown: " shown",           // 시안 1a: "5 of 12 shown"
+    // 시안 2a 의 "17 up · 6 flat · 9 down". rpUp/rpDown 은 대문자 단어라 여기 쓸 수 없다.
+    rpUp2: " up · ", rpFlat2: " flat · ", rpDown2: " down",
 
     // 리포트 — 주기
     rpTf: "Timeframe",

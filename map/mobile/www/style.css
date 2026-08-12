@@ -92,10 +92,17 @@ body {
 .rp-head { display:flex; align-items:center; gap:12px; padding:14px 0 10px; }
 .rp-back { min-height:44px; min-width:44px; display:flex; align-items:center; justify-content:center; background:none; border:0; color:var(--ink-2); padding:0 4px; flex:0 0 auto; }
 .rp-back svg { width:20px; height:20px; }
-.rp-head-id { flex:1 1 auto; min-width:0; }
-.rp-head-sym { font-size:19px; font-weight:700; letter-spacing:-.02em; }
-.rp-head-name { font-size:11.5px; color:var(--ink-4); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.rp-head-pos { font-size:11.5px; color:var(--ink-5); flex:0 0 auto; font-variant-numeric:tabular-nums; }
+.rp-head-sym { flex:0 0 auto; font-size:16px; font-weight:700; letter-spacing:-.02em; }
+.rp-head-pos { flex:1 1 auto; font-size:11.5px; color:var(--ink-5); font-variant-numeric:tabular-nums; }
+
+/* 가격 블록 — 시안 2a 가 화면에서 제일 크게 두는 것. 회사명 오버라인이 머리를 잡는다. */
+.rp-px-wrap { padding:6px 0 18px; border-bottom:1px solid var(--hairline); margin-bottom:20px; }
+.rp-px-wrap .overline { margin-bottom:8px; }
+.rp-px-row { display:flex; align-items:baseline; gap:12px; }
+.rp-px { font-size:44px; font-weight:300; letter-spacing:-.04em; line-height:.95; }
+.rp-px-chg { font-size:13.5px; font-weight:600; color:var(--ink-3); white-space:pre; }
+.rp-px-chg.up { color:var(--bull); }
+.rp-px-chg.dn { color:var(--bear-text); }
 
 .rp-tier-row { display:flex; align-items:center; gap:10px; padding:4px 0 20px; }
 .rp-tier { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:6px; background:var(--steel-soft); color:var(--steel); font-size:11px; font-weight:700; letter-spacing:.04em; }
@@ -120,8 +127,20 @@ body {
 .rp-hit { font-size:12.5px; color:var(--ink-3); margin-top:8px; font-variant-numeric:tabular-nums; }
 .rp-hit-note { font-size:11.5px; color:var(--ink-5); margin-top:4px; line-height:1.5; }
 .rp-conf { font-size:12.5px; color:var(--ink-3); margin-top:7px; }
-.rp-range { font-size:12px; color:var(--ink-4); margin-top:4px; }
-.rp-missing { font-size:11.5px; color:var(--ink-5); margin-top:10px; line-height:1.5; }
+.rp-verdict-wrap .overline { margin-bottom:8px; }
+
+/* 방향 집계 + 3구간 바(시안 2a). 판정 오른쪽에 붙어 확신 수치의 근거를 한눈에 보여준다. */
+.rp-tally { margin-left:auto; text-align:right; flex:0 0 auto; }
+.rp-tally-txt { font-size:11px; color:var(--ink-4); white-space:nowrap; }
+.rp-tally-bar { display:flex; gap:2px; width:112px; margin-top:5px; }
+.rp-tally-seg { height:3px; border-radius:99px; }
+.rp-tally-seg.is-up { background:var(--bull); }
+.rp-tally-seg.is-flat { background:var(--neutral); }
+.rp-tally-seg.is-down { background:var(--bear); }
+
+/* 섹션 머리 — 오버라인 왼쪽, 캡션 오른쪽(시안 2a 의 "80% cone" · "5 of 12 shown") */
+.rp-sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.rp-sec-note { font-size:11px; color:var(--ink-5); font-variant-numeric:tabular-nums; white-space:nowrap; }
 
 .rp-chart { position:relative; width:100%; margin-bottom:14px; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--bg-raised); }
 /* pan-y: 세로 스크롤은 살리고(Phase 1 의 350ms 홀드 계약) 핀치만 우리 핸들러로 가져온다.
@@ -130,13 +149,19 @@ body {
 
 /* 차트 지표 레전드 — 값을 차트 밖으로 뺀 고정 행(캔버스 앞). 칩은 wrap 되어 폭에 맞춰 접힌다.
    rp-ind-legend 로 이름을 분리한 이유는 아래 .rp-legend(예측선 색상 범례)와 충돌 회피. */
-.rp-ind-legend { display:flex; flex-wrap:wrap; gap:4px 10px; padding:6px 2px 8px; }
-.rp-lg-chip { display:flex; align-items:baseline; gap:5px; font-size:11.5px; line-height:1.5; }
-.rp-lg-k { color:var(--ink-4); letter-spacing:-0.01em; }
+/* 판독은 행으로 정렬한다 — 예전엔 차트 바로 위에 칩이 wrap 되며 여섯 줄짜리 다색 덩어리가 됐다.
+   시안엔 그런 요소가 없고, 같은 정보를 SIGNALS 섹션에 이름/값 두 칸으로 세운다. */
+.rp-ind-legend { display:block; }
+.rp-lg-chip { display:flex; align-items:baseline; justify-content:space-between; gap:14px;
+              min-height:40px; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:12.5px; }
+.rp-lg-chip:last-child { border-bottom:0; }
+.rp-lg-k { color:var(--ink-2); font-weight:600; flex:0 0 auto; }
 /* Fix 8: MACD/RSI 값의 자릿수가 크로스헤어 드래그 중 매 프레임 바뀐다("0.0" ↔ "-12.3").
    tabular-nums 는 자릿수 자체가 늘고 주는 것은 못 잡아준다 — min-width 로 칩 폭을 고정해
    줄바꿈 경계를 넘나드는 레이아웃 점프(캔버스가 손가락 밑에서 움직이는 것처럼 보임)를 막는다. */
-.rp-lg-v { font-variant-numeric:tabular-nums; min-width:15ch; display:inline-block; }
+/* 행 정렬로 바뀌면서 min-width 고정을 뗐다 — 값이 오른쪽에 붙어 자릿수가 변해도 줄바꿈 경계를
+   넘나들지 않는다. 칩이 wrap 되던 시절의 레이아웃 점프 방어가 더는 필요 없다. */
+.rp-lg-v { font-variant-numeric:tabular-nums; text-align:right; color:var(--ink-3); }
 .rp-lg-bull  .rp-lg-v { color:var(--bull); }
 .rp-lg-bear  .rp-lg-v { color:var(--bear-text); }
 .rp-lg-muted .rp-lg-v { color:var(--ink-3); }

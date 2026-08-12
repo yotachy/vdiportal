@@ -90,5 +90,19 @@
     return out;
   }
 
-  return { rows: rows };
+  // 시안 2a 의 "17 up · 6 flat · 9 down" 3구간 바용 집계. 판정에 실제로 쓰인 지표 행만 센다 —
+  // 예측 2행(pred·predpx)은 지표가 아니라 결과라 제외하지 않으면 방향 개수가 부풀려진다.
+  var NOT_INDICATOR = { pred: 1, predpx: 1 };
+  function tally(rows) {
+    var t = { up: 0, flat: 0, down: 0 };
+    (rows || []).forEach(function (r) {
+      if (!r || NOT_INDICATOR[r.key]) return;
+      if (r.tone === "bull") t.up++;
+      else if (r.tone === "bear") t.down++;
+      else t.flat++;
+    });
+    return t;
+  }
+
+  return { rows: rows, tally: tally };
 });
