@@ -121,7 +121,10 @@
   function opposing(FC, graph, data, regime, rows) {
     if (regime !== "bull" && regime !== "bear") return [];
     var want = regime === "bull" ? 1 : -1;
-    var src = rows || readings(FC, graph, data, null);
+    // rows 를 안 받으면 스스로 계산한다. 이때 ctx 로 data 를 그대로 넘긴다 — ctx 가 요구하는 것은
+    // {price, candle} 뿐이고 data 가 그것을 이미 갖고 있다. null 을 넘기면 ctx 를 쓰는 판독
+    // (aroon·ao·roc·supertrend)이 이 경로에서만 "읽지 못했다"고 말한다 — 읽을 수 있었는데도.
+    var src = rows || readings(FC, graph, data, data);
     return src
       .filter(function (r) { return Math.abs(r.bias) > EPS && (r.bias > 0 ? 1 : -1) !== want; })
       .sort(function (a, b) { return Math.abs(b.bias) - Math.abs(a.bias); });

@@ -153,23 +153,18 @@ test("opposing() 은 종전과 같은 목록을 내고 문장이 붙는다", () 
 // 그런데 커밋된 스위트엔 5번째 인자로 opposing() 을 부르는 테스트가 하나도 없었다
 // (리뷰 라운드 1, Important). 아래 세 테스트가 그 경로를 덮는다.
 
-test("opposing(..., rows) 는 rows 없이 부른 것과 멤버·순서가 같다 — 재사용 경로의 동등성", () => {
+test("opposing(..., rows) 는 rows 없이 부른 것과 완전히 같다 — text 포함(재사용 경로의 동등성)", () => {
   const d = fixture(), g = MSGraph.full32Graph(FC);
   ["bull", "bear"].forEach(regime => {
     const rows = I.readings(FC, g, d, ctxOf(d));
     const withRows = I.opposing(FC, g, d, regime, rows);
     const withoutRows = I.opposing(FC, g, d, regime);
-    // type·bias 는 ctx 와 무관(둘 다 같은 callOne 결과)하므로 완전히 같아야 한다.
-    // text 는 다를 수 있다 — opposing() 은 ctx 인자를 받지 않으므로 rows 를 안 주면
-    // 내부에서 readings(FC, graph, data, null) 로 다시 계산하고, ctx.price 로 게이트하는
-    // 지표(aroon·ao 등)는 그때 NONE 이 된다. rows 를 넘기는 것 — 실제 ctx 로 만든 문장을
-    // 재사용하는 것 — 이 바로 이 rows 인자가 존재하는 이유이므로 여기서는 text 를
-    // 비교 대상에서 뺀다(멤버·순서만 못박는다).
-    assert.deepEqual(
-      withRows.map(r => r.type + ":" + r.bias),
-      withoutRows.map(r => r.type + ":" + r.bias),
-      regime + " 에서 rows 유무로 멤버·순서가 달라졌다"
-    );
+    // 두 경로는 type·bias·text 전부 구별 불가능해야 한다. opposing() 이 rows 없이 스스로
+    // 계산할 때 ctx 로 data 를 넘기기 전(리뷰 라운드 2, Critical)에는 null 을 넘겨서
+    // aroon·ao 같은 ctx 게이트 판독이 이 경로에서만 "읽지 못했다"고 거짓말했다 —
+    // 그래서 이 assert 가 한 번 narrowing 됐었다. data 가 {price, candle} 을 이미 갖고
+    // 있으므로 ctx 로 그대로 넘기면 두 경로가 진짜로 같아진다.
+    assert.deepEqual(withRows, withoutRows, regime + " 에서 rows 유무 결과가 다르다(text 포함)");
   });
 });
 
