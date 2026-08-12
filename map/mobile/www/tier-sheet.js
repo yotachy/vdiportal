@@ -74,44 +74,5 @@
     document.body.appendChild(scrim);
   }
 
-  // 값 하나짜리 확인 시트. 단계 선택(open)과 껍데기·busy 가드를 공유한다 — 차감 확인 UI 가
-  // 두 벌이 되면 "이중 과금을 막는 곳"도 두 곳이 된다.
-  // opts = { title, desc, cost, balance, runLabel, onRun() }
-  function confirm(opts) {
-    var o = opts || {};
-    var bal = (typeof o.balance === "number") ? o.balance : null;
-    busy = false;
-    close();
-
-    var scrim = MSUi.el("div", "sheet-scrim");
-    scrim.addEventListener("click", function (e) { if (e.target === scrim) close(); });
-    var sheet = MSUi.el("div", "sheet");
-
-    sheet.appendChild(MSUi.el("div", "rp-sec-title", o.title || ""));
-    var line = MSUi.el("div", "sheet-tier is-off");
-    var left = MSUi.el("div", "sheet-tier-id");
-    left.appendChild(MSUi.el("div", "sheet-tier-name", o.title || ""));
-    left.appendChild(MSUi.el("div", "sheet-tier-desc", o.desc || ""));
-    line.appendChild(left);
-    // 표시 전용 미리보기. 진짜 잔량은 백엔드가 돌려준다(SPEC §1). 살 수 없으면 내지 않는다.
-    var short = (bal != null && bal < o.cost);
-    line.appendChild(MSUi.el("span", "sheet-preview", (bal == null || short) ? "" : (bal + " → " + (bal - o.cost))));
-    sheet.appendChild(line);
-
-    var run = MSUi.el("button", "btn btn-primary sheet-run", (o.runLabel || "") + " · " + o.cost + MSStr.t.tsCost);
-    run.disabled = short;
-    if (short) sheet.appendChild(MSUi.el("p", "sheet-short", MSStr.t.tsShort));
-    run.addEventListener("click", function () {
-      if (busy) return;
-      busy = true;
-      run.disabled = true; run.textContent = MSStr.t.tsRunning;
-      if (o.onRun) o.onRun();
-    });
-    sheet.appendChild(run);
-
-    scrim.appendChild(sheet);
-    document.body.appendChild(scrim);
-  }
-
-  window.MSTierSheet = { open: open, close: close, confirm: confirm };
+  window.MSTierSheet = { open: open, close: close };
 })();

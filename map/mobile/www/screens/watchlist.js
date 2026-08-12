@@ -327,37 +327,26 @@
         MSWalletScreen.refreshPills();
         if (!sp.ok) {
           scanRun = null; scanTick();
-          MSTierSheet.close();
           alert(sp.reason === "insufficient" ? MSStr.t.tsShort : MSStr.t.tsSpendFailed);
           return;
         }
         rec.idem = idem;
-        MSTierSheet.close();
         return runScan(syms, rec);
       })["catch"](function () {
         // 결제 구간의 예외 — 차감됐는지조차 모르므로 단정하지 않는다.
         scanRun = null; scanTick();
-        MSTierSheet.close();
         alert(MSStr.t.tsFailedNoRefund);
       });
     }
 
+    // 확인 시트를 두지 않는다 — 스캔은 들어올 때마다 툭 누르는 동작이라 한 겹이 끼면 체감이 상한다
+    // (2026-08-12 사용자 결정). 잔량 판단도 클라이언트가 하지 않는다: 그냥 spend 를 보내고
+    // 백엔드가 거절하면 그때 안내한다(SPEC §1 — 잔량의 권위는 원장에 있다).
     function startScan() {
       if (scanRun) return;
       var syms = MSStore.getWatchlist().map(function (item) { return item.sym; });
       if (!syms.length) return;
-      var cost = MSWallet.costOf("scan");
-      if (!cost) { armScan(syms); return; }
-      MSWallet.get().then(function (r) {
-        MSTierSheet.confirm({
-          title: MSStr.t.wlScanSheet,
-          desc: syms.length + MSStr.t.wlScanSheetDesc,
-          cost: cost,
-          balance: (r.ok && r.state) ? r.state.balance : null,
-          runLabel: MSStr.t.wlScanConfirm,
-          onRun: function () { armScan(syms); }
-        });
-      });
+      armScan(syms);
     }
 
     // 레코드를 먼저 세우고 결제한다 — 시트 버튼을 두 번 눌러도 두 번째는 여기서 막힌다.
