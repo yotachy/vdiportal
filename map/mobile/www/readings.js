@@ -253,8 +253,12 @@
       return n0(r.last) + ", " + z + " in its lookback range";
     },
 
-    aroon: function (r) {
-      if (r.up === 0 && r.down === 0 && r.osc === 0) return NONE;
+    // 엔진의 빈 반환 조건은 P < 2 뿐이다(forge-core analyzeAroon). up·down 이 둘 다 0 인 것은
+    // 정상 데이터에서도 나온다 — 창의 첫 봉이 그 구간의 고점이자 저점일 때다. 값으로 판정하면
+    // 멀쩡히 읽은 판독을 "못 읽었다"고 말하게 된다.
+    aroon: function (r, ctx) {
+      var price = (ctx && ctx.price) || [];
+      if (price.length < 2) return NONE;
       return "Up " + n0(r.up) + " / down " + n0(r.down) + ", oscillator " + sgn1(r.osc)
            + " — the " + (r.osc >= 0 ? "high" : "low") + " is the more recent extreme";
     },

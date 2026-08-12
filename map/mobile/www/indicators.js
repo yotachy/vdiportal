@@ -24,12 +24,16 @@
     bollinger: ["analyzeBollinger", "price"], adx: ["analyzeADX", "price"],
     stochastic: ["analyzeStochastic", "price"], fib: ["analyzeFib", "price"],
     ichimoku: ["analyzeIchimoku", "price"], supertrend: ["analyzeSupertrend", "price"],
-    atr: ["analyzeATR", "price"], volumeprofile: ["analyzeVolumeProfile", "price"],
+    atr: ["analyzeATR", "price"],
     structure: ["analyzeStructure", "price"], cci: ["analyzeCCI", "price"],
     elliott: ["analyzeElliott", "price"], cycle: ["analyzeCycle", "price"],
     roc: ["analyzeROC", "price"],
 
+    // analyzeVolumeProfile 은 (price, volume, opts) 3인자다 — 예전에 "price" 로 잘못 표기되어
+    // opts 가 volume 자리에 들어갔고, Array.isArray(volume) 가 거짓이라 엔진이 모든 봉을
+    // 거래량 1로 취급했다(가격-시간 프로파일이지 거래량 프로파일이 아니었다). 여기 위치가 맞다.
     volume: ["analyzeVolume", "priceVol"], vwap: ["analyzeVWAP", "priceVol"],
+    volumeprofile: ["analyzeVolumeProfile", "priceVol"],
 
     pivot: ["analyzePivot", "data"], psar: ["analyzePSAR", "data"], gann: ["analyzeGann", "data"],
     keltner: ["analyzeKeltner", "data"], donchian: ["analyzeDonchian", "data"],

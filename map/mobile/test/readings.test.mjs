@@ -111,7 +111,7 @@ const EXPECT_LV3 = {
   vwap: "Price 2.2% above VWAP 141.89",
   supertrend: "Trend line below price at 140.94, 2.8% from a flip, flipped bullish 1 bar ago",
   atr: "0.9% of price per bar, volatility normal — this sizes the cone, not the direction",
-  volumeprofile: "Above the value area 129.25–144.91, heaviest trade at 132.90",
+  volumeprofile: "Above the value area 129.25–143.87, heaviest trade at 132.90",
   structure: "Higher highs and higher lows, no break of structure yet (swing 137.97–144.96)",
   keltner: "In the upper half of the channel 134.63–147.49",
   donchian: "73% up the 137.14–147.88 range, midline flat",
