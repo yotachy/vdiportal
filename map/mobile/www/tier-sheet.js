@@ -3,6 +3,9 @@
 (function () {
   "use strict";
 
+  var busy = false;   // 보조 가드 — 실제 이중 과금 차단은 report.js 의 runFull() buying 이 한다.
+                       // 여기는 같은 시트 안에서 Full 행 재탭·Run 재클릭으로 onRun 이 두 번 불리는 것만 막는다.
+
   function close() {
     var s = document.querySelector(".sheet-scrim");
     if (s && s.parentNode) s.parentNode.removeChild(s);
@@ -27,6 +30,7 @@
   function open(opts) {
     var o = opts || {}, picked = "full";
     var bal = (typeof o.balance === "number") ? o.balance : null;
+    busy = false;
     close();
 
     var scrim = MSUi.el("div", "sheet-scrim");
@@ -45,7 +49,7 @@
         { off: true, preview: MSStr.t.tsDone }));
       sheet.appendChild(tierRow("full", MSStr.t.tsFull, MSStr.t.tsFullDesc, MSWallet.COSTS.full,
         { on: picked === "full", popular: true, preview: preview(MSWallet.COSTS.full),
-          onPick: function () { picked = "full"; paint(); } }));
+          onPick: function () { if (busy) return; picked = "full"; paint(); } }));
       sheet.appendChild(tierRow("custom", MSStr.t.tsCustom, MSStr.t.tsCustomDesc, MSWallet.COSTS.custom,
         { off: true, preview: MSStr.t.tsSoon }));
 
@@ -55,6 +59,8 @@
       run.disabled = short;
       if (short) sheet.appendChild(MSUi.el("p", "sheet-short", MSStr.t.tsShort));
       run.addEventListener("click", function () {
+        if (busy) return;
+        busy = true;
         run.disabled = true; run.textContent = MSStr.t.tsRunning;
         if (o.onRun) o.onRun(picked);
       });

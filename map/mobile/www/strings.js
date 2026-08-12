@@ -69,6 +69,7 @@
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)
     rpTierBasic: "BASIC",
     rpTierCount: "5 indicators",
+    rpTierFull: "FULL", rpTierCountFull: "32 indicators · daily, weekly, monthly",
 
     // 리포트 — 섹션
     rpCounted: "What was read",                // 시안 그대로
@@ -120,7 +121,9 @@
     tsCustomDesc: "All 32 + your weights",
     tsDone: "Free · done", tsPopular: "POPULAR", tsSoon: "Coming soon",
     tsRun: "Run ", tsCost: " Scoops", tsShort: "Not enough Scoops. Come back tomorrow for +1.",
-    tsRunning: "Running…", tsFailed: "Analysis failed — your Scoops were returned."
+    tsRunning: "Running…", tsFailed: "Analysis failed — your Scoops were returned.",
+    tsFailedNoRefund: "Analysis failed. We could not confirm your Scoops were returned — please check your balance.",
+    tsSpendFailed: "Could not reach your wallet. Nothing was charged — please try again."
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을

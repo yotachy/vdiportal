@@ -85,14 +85,14 @@
   // Basic 5지표 판정(verdict/prediction) + 작도용 원시 지표 결과.
   // run() 내부 evalBlocks 는 노드값을 단순 시계열로만 남기므로(완전한 지표 객체가 아님),
   // 작도에 쓸 형태는 그래프와 동일한 파라미터로 analyzeX 를 직접 다시 호출해 얻는다.
-  function analyzeFull(data, useFull) {
+  function analyzeFull(data, useFull, tf) {
     var graph = useFull ? MSGraph.full32Graph(ForgeCore) : MSGraph.basicGraph(ForgeCore);
     var vol = data.candle.map(function (c) { return c.v; });
     var okVol = vol.length >= 2 && vol.every(function (v) { return typeof v === "number" && isFinite(v); });
     MSGraph.setVolume(graph, okVol ? vol : null);
     var d = { price: data.price, candle: data.candle };
     if (okVol) d.volume = vol;
-    var out = ForgeCore.run(graph, d, { timeframe: TF });
+    var out = ForgeCore.run(graph, d, { timeframe: MSReportModel.tfKo(tf || TF) });
 
     var maP = paramOf(graph, "ma", { len: 20, ema: false });
     var rsiP = paramOf(graph, "rsi", { period: 14 });
@@ -281,6 +281,7 @@
     var state = "loading", errInfo = null, data = null, an = null, chartRefs = null;
     var tier = "basic";        // 이 화면 수명 동안의 티어. Full 을 사면 "full" 로 올라간다
     var tfRuns = null;         // [{tf, out, error}] — Full 이 채운다
+    var buying = false;        // 재진입 가드 — 여기가 실제 차감을 막는 곳이다(시트 쪽은 보조)
 
     // paintChart() 진입부의 정리와는 별도로 여기서도 한 번 정리한다 — 종목을 바꿔 render()가
     // 다시 불렸는데 새 렌더가 loading/error 로 끝나면(캐시 미스 로딩 중 이탈, 분석 실패 등)
@@ -335,10 +336,12 @@
 
     function buildTierRow() {
       var row = MSUi.el("div", "rp-tier-row");
-      row.appendChild(MSUi.el("span", "rp-tier", MSStr.t.rpTierBasic));
-      row.appendChild(MSUi.el("span", "rp-tier-desc", MSStr.t.rpTierCount));
+      var isFull = (tier === "full");
+      row.appendChild(MSUi.el("span", "rp-tier" + (isFull ? " is-full" : ""), isFull ? MSStr.t.rpTierFull : MSStr.t.rpTierBasic));
+      row.appendChild(MSUi.el("span", "rp-tier-desc", isFull ? MSStr.t.rpTierCountFull : MSStr.t.rpTierCount));
       var evi = MSUi.el("span", "rp-evi");
-      for (var k = 0; k < 3; k++) evi.appendChild(MSUi.el("span", "rp-evi-seg" + (k === 0 ? " on" : "")));
+      var on = isFull ? 2 : 1;   // 시안 6a: Basic 1/3 · Full 2/3 · Custom 3/3
+      for (var k = 0; k < 3; k++) evi.appendChild(MSUi.el("span", "rp-evi-seg" + (k < on ? " on" : "")));
       row.appendChild(evi);
       return row;
     }
@@ -542,10 +545,20 @@
 
     // SPEC §1: 차감과 실행은 한 트랜잭션. 낙관적 차감을 하지 않는다 —
     // 일봉이 실패하면 환급한다. 주·월은 없어도 차감을 유지하고 그 행에 사유를 적는다(설계서 §5.5).
+    // 재진입 가드(buying): Full 행을 다시 탭하거나(시트가 다시 그려지며 새 Run 버튼이 생김) 시트를
+    // scrim 으로 닫은 뒤 아래 CTA 로 새 시트를 열어도, 진행 중인 spend Promise 는 살아있다 —
+    // idem 이 매번 새로 생성되어 서버 멱등 방어가 못 잡는 이중 과금 경로다(리뷰 지적).
     function runFull() {
+      if (buying) return;                       // 이중 과금 차단
+      buying = true;
       var idem = MSWallet.newIdem();
+      function done() { buying = false; }
       MSWallet.spend("full", idem).then(function (sp) {
-        if (!sp.ok) { MSTierSheet.close(); alert(MSStr.t.tsShort); return; }
+        if (!sp.ok) {
+          MSTierSheet.close();
+          alert(sp.reason === "insufficient" ? MSStr.t.tsShort : MSStr.t.tsSpendFailed);
+          return;
+        }
         var tfs = ["1day", "1week", "1month"];
         return Promise.all(tfs.map(function (tf) {
           return MSApi.loadTicker(sym, tf)
@@ -553,24 +566,35 @@
             .catch(function (e) { return { tf: tf, error: (e && e.message) || "unavailable" }; });
         })).then(function (loaded) {
           var day = loaded[0];
-          if (day.error) { return MSWallet.refund(idem).then(function () { MSTierSheet.close(); alert(MSStr.t.tsFailed); }); }
+          if (day.error) {
+            return MSWallet.refund(idem).then(function (rf) {
+              MSTierSheet.close();
+              alert(rf && rf.ok ? MSStr.t.tsFailed : MSStr.t.tsFailedNoRefund);
+            });
+          }
           var dayAn = null;
           tfRuns = loaded.map(function (L) {
             if (L.error) return { tf: L.tf, error: MSStr.t.rpNoHistory };
             try {
-              var a = analyzeFull(L.data, true);
+              var a = analyzeFull(L.data, true, L.tf);
               if (L.tf === "1day") dayAn = a;          // 일봉 분석을 두 번 돌리지 않는다
               return { tf: L.tf, out: a.out };
             } catch (e) { return { tf: L.tf, error: MSStr.t.rpNoHistory }; }
           });
-          if (!dayAn) { return MSWallet.refund(idem).then(function () { MSTierSheet.close(); alert(MSStr.t.tsFailed); }); }
+          if (!dayAn) {
+            return MSWallet.refund(idem).then(function (rf) {
+              MSTierSheet.close();
+              alert(rf && rf.ok ? MSStr.t.tsFailed : MSStr.t.tsFailedNoRefund);
+            });
+          }
           data = day.data;
           an = dayAn;
           tier = "full";
           MSTierSheet.close();
           draw();
         });
-      });
+      })["catch"](function () { MSTierSheet.close(); alert(MSStr.t.tsFailed); })
+       .then(done, done);                       // 성공·실패 어느 쪽이든 가드를 푼다
     }
 
     function buildCta() {

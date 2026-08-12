@@ -19,6 +19,20 @@
     return chg > FLAT_EPS ? "up" : chg < -FLAT_EPS ? "down" : "flat";
   }
 
+  // 엔진의 타임프레임 프로필은 한글로만 분기한다(forge-core.js trendProfileForTF).
+  // PC 는 tfKo() 로 변환해 넘기는데 모바일은 Phase 1 부터 "1day" 를 그대로 넘겨 계속 default
+  // 프로필을 썼다 — 일봉용 bandScale·sigmaCap·texScale 을 못 받고 있었다.
+  // API(loadTicker)는 계속 영문 "1day"/"1week"/"1month" 를 쓴다 — 엔진 인자만 여기서 바꾼다.
+  // 이 파일에 두는 이유: screens/report.js 는 strings.test.mjs 의 KEY_SCAN_FILES 대상이라
+  // UI 문자열 스캔이 한글 리터럴을 화면 문구로 오인한다 — 여기(비스캔 계산 전용 모듈)가
+  // draw-preds.js 의 _tfUnit() 과 같은 선례를 따르는 자리다.
+  function tfKo(tf) {
+    var s = String(tf || "");
+    if (/month|월/.test(s)) return "월봉";
+    if (/week|주/.test(s)) return "주봉";
+    return "일봉";
+  }
+
   function anchorOf(p) {
     if (!p || !p.path || !p.path.length) return null;
     return (p.anchor != null && isFinite(p.anchor)) ? p.anchor : p.path[0];
@@ -110,5 +124,5 @@
     return { agree: total ? agree : 0, total: total };
   }
 
-  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate, tfRows: tfRows, agreeCount: agreeCount };
+  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate, tfRows: tfRows, agreeCount: agreeCount, tfKo: tfKo };
 });
