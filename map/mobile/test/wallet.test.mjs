@@ -73,3 +73,40 @@ test("모르는 runType 은 백엔드에 닿기 전에 막힌다", async () => {
   assert.deepEqual(b.calls, [], "백엔드가 불렸다");
   W.install(null);
 });
+
+test("백엔드가 동기적으로 던져도 Promise 로 떨어진다 — 호출부가 안 깨진다", async () => {
+  W.install({
+    get() { throw new Error("boom"); },
+    spend() { throw new Error("boom"); },
+    refund() { throw new Error("boom"); },
+    checkin() { throw new Error("boom"); }
+  });
+  for (const p of [W.get(), W.spend("full", "i1"), W.refund("i1"), W.checkin()]) {
+    const r = await p;
+    assert.strictEqual(r.ok, false);
+    assert.strictEqual(r.reason, "backend-error");
+    assert.strictEqual(r.state, null);
+  }
+  W.install(null);
+});
+
+test("백엔드가 거부된 Promise 를 줘도 같은 봉투로 떨어진다", async () => {
+  W.install({
+    get() { return Promise.reject(new Error("net")); },
+    spend() { return Promise.reject(new Error("net")); },
+    refund() { return Promise.reject(new Error("net")); },
+    checkin() { return Promise.reject(new Error("net")); }
+  });
+  const r = await W.spend("full", "i2");
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.reason, "backend-error");
+  W.install(null);
+});
+
+test("백엔드가 Promise 가 아닌 것을 돌려줘도 죽지 않는다", async () => {
+  W.install({ get() { return 42; }, spend() { return 42; }, refund() { return 42; }, checkin() { return 42; } });
+  const r = await W.get();
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.reason, "backend-error");
+  W.install(null);
+});

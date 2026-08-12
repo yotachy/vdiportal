@@ -28,14 +28,26 @@
 
   function noBackend() { return Promise.resolve({ ok: false, reason: "no-backend", state: null }); }
 
-  function get() { return backend ? backend.get() : noBackend(); }
+  // 백엔드가 동기적으로 던져도 호출부는 늘 Promise 를 받아야 한다 —
+  // 그러지 않으면 await 하는 쪽이 try/catch 없이 깨진다.
+  function callBackend(fn) {
+    try {
+      var p = fn();
+      if (!p || typeof p.then !== "function") return Promise.resolve({ ok: false, reason: "backend-error", state: null });
+      return p["catch"](function () { return { ok: false, reason: "backend-error", state: null }; });
+    } catch (e) {
+      return Promise.resolve({ ok: false, reason: "backend-error", state: null });
+    }
+  }
+
+  function get() { return backend ? callBackend(function () { return backend.get(); }) : noBackend(); }
   function spend(runType, idem) {
     if (!backend) return noBackend();
     if (costOf(runType) == null) return Promise.resolve({ ok: false, reason: "unknown-runtype", state: null });
-    return backend.spend(runType, idem);
+    return callBackend(function () { return backend.spend(runType, idem); });
   }
-  function refund(idem) { return backend ? backend.refund(idem) : noBackend(); }
-  function checkin() { return backend ? backend.checkin() : noBackend(); }
+  function refund(idem) { return backend ? callBackend(function () { return backend.refund(idem); }) : noBackend(); }
+  function checkin() { return backend ? callBackend(function () { return backend.checkin(); }) : noBackend(); }
 
   return { COSTS: COSTS, install: install, isInstalled: isInstalled, costOf: costOf,
            newIdem: newIdem, get: get, spend: spend, refund: refund, checkin: checkin };
