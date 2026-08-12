@@ -510,12 +510,18 @@
 
       var hit = (conf != null) ? MSReportModel.hitRate(window.MSBacktest, v.regime) : null;
       if (hit) {
-        wrap.appendChild(MSUi.el("div", "rp-hit", hit.right + MSStr.t.rpHitRight + hit.wrong + MSStr.t.rpHitWrong));
-        // 오답률(hit.wrong)이 방향별로 갈리므로(불 61.5/38.5 · 베어 42.6/57.4) 문장 속 숫자도
-        // 그 방향의 실측을 반영해야 한다 — "Four calls in ten" 처럼 고정 문구를 쓰면 베어 판정에서
-        // 거짓말이 된다(오답률 57.4%인데 41.9%라고 말하게 됨, 최종수정웨이브 §③).
+        // 방향을 먼저 밝힌다 — 불 61.5/38.5 · 베어 42.6/57.4 로 갈리므로 어느 쪽 수치인지가
+        // 숫자 자체만큼 중요하다.
+        var lead = (v.regime === "bull") ? MSStr.t.rpHitLeadBull : MSStr.t.rpHitLeadBear;
+        wrap.appendChild(MSUi.el("div", "rp-hit",
+          lead + hit.right + MSStr.t.rpHitRight + hit.wrong + MSStr.t.rpHitWrong));
+        // 범위를 반드시 함께 적는다. 이 수치는 백테스트 하네스의 그래프로 잰 것이라 이 종목도,
+        // 이 티어의 지표 구성도 아니다 — "이 판정 같은 콜"이라고 말하면 거짓 귀속이 된다.
+        var scope = (hit.n != null && hit.series != null)
+          ? (MSStr.t.rpHitScopeA + hit.n.toLocaleString() + MSStr.t.rpHitScopeB + hit.series + MSStr.t.rpHitScopeC)
+          : MSStr.t.rpHitScopeShort;
         wrap.appendChild(MSUi.el("div", "rp-hit-note",
-          Math.round(hit.wrong / 10) + MSStr.t.rpHitNoteA + conf + MSStr.t.rpHitNoteB));
+          scope + MSStr.t.rpHitSize + hit.wrong + MSStr.t.rpHitSizeTail));
       }
 
       var total = v.confluence.total, agree = v.confluence.agree;

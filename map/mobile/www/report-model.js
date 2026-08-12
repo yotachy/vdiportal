@@ -85,7 +85,12 @@
     var v = summary[key];
     if (typeof v !== "number" || !isFinite(v)) return null;
     var right = Math.round(v * 1000) / 10;
-    return { right: right, wrong: Math.round((100 - right) * 10) / 10 };
+    // n·시리즈 수를 함께 돌려준다 — 화면이 "무엇에 대해 잰 수치인지"를 말하려면 범위가 필요하다.
+    // 이 수치는 백테스트 하네스의 그래프(19지표 sampleGraph)로 잰 것이지 Basic(5)도 Full(32)도
+    // 아니다. 그래서 화면은 "이 판정 같은 콜"이라고 말하면 안 되고 범위를 밝혀야 한다.
+    var n = (typeof summary.nForecasts === "number" && isFinite(summary.nForecasts)) ? summary.nForecasts : null;
+    var series = (typeof summary.nSeries === "number" && isFinite(summary.nSeries)) ? summary.nSeries : null;
+    return { right: right, wrong: Math.round((100 - right) * 10) / 10, n: n, series: series };
   }
 
   // 주기 행 — runs 는 [{tf, out, error}] 배열이고 순서가 곧 표시 순서다.

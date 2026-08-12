@@ -62,11 +62,15 @@
     rpAgreeTail: " agree with this direction",
     rpAgreeShort: " agree",                    // Fix 6: rpAgreeTail 과 같은 어휘(agree)의 짧은 형태 — 주기 행 요약용
     rpAgreeNone: "No indicator gives a direction, so agreement cannot be scored",
+    // 적중률은 **범위와 함께** 적는다 — 웹(forge-app)도 "(n건 · 백테스트 acc%)" 로 표기한다.
+    // 예전 문구는 "이 판정 같은 콜 열 번 중 넷"이라고 말했는데, 그 수치는 백테스트 하네스의
+    // 19지표 그래프로 잰 것이라 Basic(5)도 Full(32)도, 이 종목도 아니다. 거짓 귀속이었다.
+    rpHitLeadBull: "Bullish calls, measured: ",
+    rpHitLeadBear: "Bearish calls, measured: ",
     rpHitRight: "% right · ", rpHitWrong: "% wrong",
-    // 문장 자체가 방향별 오답률(41.9 또는 57.4)을 담아야 해서 앞뒤 두 조각으로 쪼갰다 — 가운데엔
-    // Math.round(hit.wrong/10), 사이엔 확신 퍼센트가 들어간다(보간 장치 없음 — 연결만, screens/report.js).
-    rpHitNoteA: " calls in ten that looked like this one did not work out. Size your position for that, not for the ",
-    rpHitNoteB: "%.",
+    rpHitScopeA: "Across ", rpHitScopeB: " forecasts on ", rpHitScopeC: " series — not this ticker, not this indicator set.",
+    rpHitScopeShort: "Engine-wide measurement — not this ticker or this indicator set.",
+    rpHitSize: " Size for the ", rpHitSizeTail: "% that miss.",
     rpHzTomorrow: "Tomorrow", rpHzWeek: "In 1 week", rpHzMonth: "In 1 month",
 
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)

@@ -198,3 +198,30 @@ test("agreeCount — 일봉이 없으면 첫 성공 주기로 떨어진다", () 
   ];
   assert.deepEqual(M.agreeCount(runs), { agree: 2, total: 2 });
 });
+
+// hitRate 는 숫자만이 아니라 **범위**를 함께 줘야 한다. 화면이 "무엇에 대해 잰 수치인지"를
+// 말할 수 없으면 그 숫자는 눈앞의 판정에 잘못 귀속된다(실제로 그렇게 표시되고 있었다).
+test("hitRate — n·시리즈 수를 함께 돌려준다", () => {
+  const s = { bullHitRate: 0.615, bearHitRate: 0.426, nForecasts: 31496, nSeries: 86 };
+  const bull = M.hitRate(s, "bull");
+  assert.strictEqual(bull.right, 61.5);
+  assert.strictEqual(bull.wrong, 38.5);
+  assert.strictEqual(bull.n, 31496);
+  assert.strictEqual(bull.series, 86);
+  const bear = M.hitRate(s, "bear");
+  assert.strictEqual(bear.right, 42.6);
+  assert.strictEqual(bear.wrong, 57.4);
+});
+
+test("hitRate — 범위가 없는 요약이면 n·시리즈는 null(0 이 아니다)", () => {
+  const bull = M.hitRate({ bullHitRate: 0.615 }, "bull");
+  assert.strictEqual(bull.right, 61.5);
+  assert.strictEqual(bull.n, null);
+  assert.strictEqual(bull.series, null);
+});
+
+test("hitRate — 중립·빈 요약은 null", () => {
+  assert.strictEqual(M.hitRate({ bullHitRate: 0.6 }, "neutral"), null);
+  assert.strictEqual(M.hitRate(null, "bull"), null);
+  assert.strictEqual(M.hitRate({}, "bull"), null);
+});
