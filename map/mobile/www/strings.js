@@ -26,7 +26,10 @@
     bootVendorMissing: "Could not load vendor/forge-core.js.<br>Run npm run sync and reopen.",
 
     // 워치리스트
-    wlTitle: "Watchlist",
+    wlBrandA: "Money", wlBrandB: "Scoop",         // 시안 1a 워드마크 — 15px/700, 뒷조각(Scoop)만 골드
+    wlSearch: "Search ticker or company",        // 시안 1a 검색 플레이스홀더
+    wlChipAll: "All", wlChipUS: "US", wlChipKR: "KR", wlChipETF: "ETF",
+    wlNoMatch: "No tickers match.",              // 검색·칩 결과가 비었을 때
     wlEmpty: "No tickers yet.\nAdd one to get started.",
     wlAdd: "＋ Add ticker",
     wlAddPrompt: "Enter a ticker symbol (e.g. AAPL)",

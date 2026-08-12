@@ -1,0 +1,68 @@
+// 워치리스트의 판별·필터·배지 규칙. DOM 도 엔진도 만지지 않는다.
+// screens/watchlist.js 는 스캔 큐·오타 제안·롱프레스 삭제가 얽힌 배선이라
+// 규칙을 그 안에 두면 테스트가 안 붙는다 — MSLegend·MSReportModel 과 같은 분리다.
+(function (root, factory) {
+  if (typeof module !== "undefined" && module.exports) module.exports = factory();
+  else root.MSWatchlistModel = factory();
+})(typeof self !== "undefined" ? self : this, function () {
+  "use strict";
+
+  // 시안 1a 의 그룹 칩은 US Tech·Semis 같은 섹터인데 이 앱엔 섹터 데이터가 없다
+  // (10a 의 포지션: "가격·거래량·시간만. 회사 리서치 없음"). 심볼만으로 갈리는 축으로 대체한다.
+  var ETFS = ["SPY", "QQQ", "VOO", "VTI", "IWM", "DIA", "VXUS", "IJR", "IJH"];
+  var ORDER = ["US", "KR", "ETF"];
+
+  function market(sym) {
+    var s = String(sym == null ? "" : sym).trim().toUpperCase();
+    if (!s) return "US";
+    if (/^\d{6}$/.test(s)) return "KR";
+    for (var i = 0; i < ETFS.length; i++) { if (ETFS[i] === s) return "ETF"; }
+    return "US";
+  }
+
+  function chips(list) {
+    var items = list || [], counts = {}, i, m;
+    for (i = 0; i < items.length; i++) {
+      m = market(items[i] && items[i].sym);
+      counts[m] = (counts[m] || 0) + 1;
+    }
+    var out = [{ key: "all", count: items.length }];
+    for (i = 0; i < ORDER.length; i++) {
+      if (counts[ORDER[i]]) out.push({ key: ORDER[i], count: counts[ORDER[i]] });
+    }
+    return out;
+  }
+
+  function filter(list, opts) {
+    var items = list || [], o = opts || {};
+    var chip = o.chip || "all";
+    var q = String(o.query == null ? "" : o.query).trim().toLowerCase();
+    // 활성 칩의 시장이 목록에서 사라졌으면(마지막 KR 종목 삭제 등) All 로 떨어뜨린다 —
+    // 빈 화면이 뜨는 것보다 낫고, 셸이 다시 그려지며 그 칩도 사라진다.
+    if (chip !== "all") {
+      var has = false, j;
+      for (j = 0; j < items.length; j++) { if (market(items[j].sym) === chip) { has = true; break; } }
+      if (!has) chip = "all";
+    }
+    return items.filter(function (it) {
+      if (chip !== "all" && market(it.sym) !== chip) return false;
+      if (!q) return true;
+      var sym = String(it.sym || "").toLowerCase(), name = String(it.name || "").toLowerCase();
+      return sym.indexOf(q) >= 0 || name.indexOf(q) >= 0;
+    });
+  }
+
+  // 확신이 없으면(옛 스캔 레코드·미스캔) 배지를 안 그린다 — 회색 자리표시자를 두지 않는다.
+  // 방향이 있으면 "부른 방향이 맞을 확률"(conf), 중립이면 "상승할 확률"(up) — 서로 다른 양이다.
+  // 중립에 방향 확신을 쓸 수 없어서인데(Phase 6 규칙), 색으로 구분한다: bull/bear 틴트 vs steel 틴트.
+  function badge(rec) {
+    if (!rec) return null;
+    var dir = rec.dir, v;
+    if (dir === "bull" || dir === "bear") v = rec.conf;
+    else v = rec.up;
+    if (typeof v !== "number" || !isFinite(v)) return null;
+    return { text: Math.round(v) + "%", tone: (dir === "bull" || dir === "bear") ? dir : "neutral" };
+  }
+
+  return { market: market, chips: chips, filter: filter, badge: badge, ETFS: ETFS };
+});
