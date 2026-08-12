@@ -35,6 +35,7 @@
     wlAddPrompt: "Enter a ticker symbol (e.g. AAPL)",
     wlCancel: "Cancel",
     wlScan: "Scan",
+    wlScanIco: "↻",                              // 평상시 스캔 버튼 — 헤더에 필이 들어와 아이콘만 남았다
     wlScanning: "Scanning ",
     wlScanFail: "Scan failed",
     wlRemoveConfirm: " — remove from watchlist?",

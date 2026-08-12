@@ -54,8 +54,10 @@
       earn.appendChild(row(MSStr.t.walQuick, "+1", { off: true, note: MSStr.t.walSoon }));
       earn.appendChild(row(MSStr.t.walFull, "+3", { off: true, note: MSStr.t.walSoon }));
       var can = !!(state && state.canCheckin);
+      // state 가 없으면 잔량을 못 읽은 것이다 — '오늘 받았다'가 아니라 '확인 불가'다.
+      // 행은 비활성으로 두되 아무 말도 하지 않는다(거짓 안내를 만들지 않는다).
       earn.appendChild(row(MSStr.t.walCheckin, "+1", {
-        off: !can, note: can ? "" : MSStr.t.walCheckedIn,
+        off: !can, note: (state && !can) ? MSStr.t.walCheckedIn : "",
         onTap: function () {
           MSWallet.checkin().then(function (r) {
             draw(r.state, r.ok ? (MSStr.t.walDay + r.state.streakDays + (r.capped ? MSStr.t.walCapped : "")) : "");

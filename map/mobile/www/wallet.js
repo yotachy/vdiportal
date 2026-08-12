@@ -41,12 +41,22 @@
   }
 
   function get() { return backend ? callBackend(function () { return backend.get(); }) : noBackend(); }
+
+  // 계약: spend(runType, idem) → { ok, state, reason? }
+  // idem 은 필수다. 비어 있으면 원장이 "키 없음"끼리 같은 항목으로 보고 두 번째부터 멱등 재생으로
+  // 답한다 — MSWallet.spend("full") 한 번이면 그 뒤 모든 Full 이 공짜가 된다. 돈 코드라 진입부에서 막는다.
   function spend(runType, idem) {
+    if (typeof idem !== "string" || idem === "") return Promise.resolve({ ok: false, reason: "bad-idem", state: null });
     if (!backend) return noBackend();
     if (costOf(runType) == null) return Promise.resolve({ ok: false, reason: "unknown-runtype", state: null });
     return callBackend(function () { return backend.spend(runType, idem); });
   }
   function refund(idem) { return backend ? callBackend(function () { return backend.refund(idem); }) : noBackend(); }
+
+  // 계약: checkin() → { ok, state, granted, capped, reason? }
+  // granted = 실제로 지급된 개수(출석 1 + 7일 상자 5). capped = 상한 때문에 지급하려던 것보다 적게
+  // 준 경우 true — 화면이 "cap reached, the rest was discarded" 를 띄우는 근거다(SPEC-economy §3).
+  // 8b 서버 원장도 이 필드를 반드시 돌려줘야 한다. 빠지면 그 안내가 조용히 사라진다.
   function checkin() { return backend ? callBackend(function () { return backend.checkin(); }) : noBackend(); }
 
   return { COSTS: COSTS, install: install, isInstalled: isInstalled, costOf: costOf,

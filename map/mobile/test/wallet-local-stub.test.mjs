@@ -51,6 +51,20 @@ test("spend — 잔량이 부족하면 실패하고 잔량이 그대로다", asy
   assert.strictEqual(r.state.balance, 2);
 });
 
+// 스텁을 직접 부르는 경로(테스트·개발 콘솔)가 있으므로 wallet.js 와 같은 방어를 여기도 둔다.
+// 이게 없으면 idem 없는 첫 spend 가 원장에 undefined 키로 남아 그 뒤 모든 Full 이 공짜가 된다.
+test("spend — idem 이 비면 거부하고 잔량이 그대로다", async () => {
+  const b = mk();
+  for (const bad of [undefined, null, "", 7]) {
+    const r = await b.spend("full", bad);
+    assert.strictEqual(r.ok, false, "허용된 idem: " + String(bad));
+    assert.strictEqual(r.reason, "bad-idem");
+    assert.strictEqual(r.state.balance, 5);
+  }
+  const good = await b.spend("full", "i1");
+  assert.strictEqual(good.state.balance, 2, "정상 idem 은 그대로 차감된다");
+});
+
 test("spend — 무료(scan)는 잔량을 건드리지 않는다", async () => {
   const b = mk();
   const r = await b.spend("scan", "i1");

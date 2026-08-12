@@ -81,7 +81,7 @@
     function updateScanBtn() {
       if (!scanBtnEl) return;
       // 평상시엔 아이콘만(헤더에 필이 들어와 자리가 없다), 스캔 중에는 진행이 보여야 하므로 텍스트로 늘어난다.
-      scanBtnEl.textContent = scanning ? (MSStr.t.wlScanning + scanDone + "/" + scanTotal) : "↻";
+      scanBtnEl.textContent = scanning ? (MSStr.t.wlScanning + scanDone + "/" + scanTotal) : MSStr.t.wlScanIco;
       scanBtnEl.setAttribute("aria-label", MSStr.t.wlScan);
       scanBtnEl.classList.toggle("is-ico", !scanning);
       scanBtnEl.disabled = scanning;

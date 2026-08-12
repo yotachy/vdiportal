@@ -74,6 +74,9 @@
 
       spend: function (runType, idem) {
         var w = load();
+        // 빈 idem 은 원장이 자기들끼리 같은 항목으로 보게 만든다 — 두 번째부터 멱등 재생으로 답해
+        // 영구 무료가 된다. wallet.js 도 같은 것을 막지만, 스텁을 직접 부르는 경로가 있어 여기도 막는다.
+        if (typeof idem !== "string" || idem === "") return fail(w, "bad-idem");
         var prev = findEntry(w, idem);
         if (prev) return ok(w, { replayed: true });     // 멱등 — 같은 결과를 재현한다
         var cost = costOf ? costOf(runType) : null;

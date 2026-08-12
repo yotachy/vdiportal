@@ -64,6 +64,29 @@ test("설치하면 그대로 위임한다 — 인자가 보존된다", async () 
   W.install(null);
 });
 
+// 빈 idem 이 새면 원장이 "키 없음"끼리 같은 항목으로 보고 두 번째부터 멱등 재생으로 답한다 —
+// 한 번의 실수로 그 뒤 모든 Full 이 공짜가 된다. 백엔드에 닿기 전에 막혀야 한다.
+test("idem 이 없거나 문자열이 아니면 백엔드에 닿기 전에 거부된다", async () => {
+  const b = spyBackend();
+  W.install(b);
+  for (const bad of [undefined, null, "", 0, 123, {}, []]) {
+    const r = await W.spend("full", bad);
+    assert.strictEqual(r.ok, false, "허용된 idem: " + String(bad));
+    assert.strictEqual(r.reason, "bad-idem");
+    assert.strictEqual(r.state, null);
+  }
+  assert.deepEqual(b.calls, [], "백엔드가 불렸다");
+  const good = await W.spend("full", "idem-ok");
+  assert.strictEqual(good.ok, true);
+  W.install(null);
+});
+
+test("백엔드가 없어도 idem 검증이 먼저다 — 잘못된 키가 조용히 지나가지 않는다", async () => {
+  W.install(null);
+  const r = await W.spend("full", "");
+  assert.strictEqual(r.reason, "bad-idem");
+});
+
 test("모르는 runType 은 백엔드에 닿기 전에 막힌다", async () => {
   const b = spyBackend();
   W.install(b);
