@@ -377,12 +377,21 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
 - **`sampleGraph` 의 `swing:3` 이 structure·elliott 을 죽인다** — 엔진은 `swing` 을 비율로 읽는데(기본 `0.03`)
   그래프가 `3`, 즉 300% 를 넘긴다. 그런 스윙은 없으니 `analyzeStructure` 는 스윙 0개로 빈 결과를 내고(실측:
   정상 파라미터면 41개·bias 0.30), `analyzeElliott` 은 4파 → 1파로 퇴화한다. **Full 이 "32지표"로 3스쿱을
-  받으면서 2종은 아무 말도 못 하고 있다** — REASONING 이 붙으면서 처음 눈에 보이게 됐다(`Market structure —
-  Not enough bars to read`). `sampleGraph` 는 엔진에 있으므로 **PC 스쿱포지도 같은 상태**다.
+  받으면서 structure 는 한 마디도 못 하고, elliott 은 퇴화한 채로 말한다**(`wave 1 · 0% wave-count
+  validity` — 침묵이 아니라 **질이 떨어진 판독**이다. 앞선 기록의 "2종은 아무 말도 못 하고"는 부정확했다).
+  REASONING 이 붙으면서 처음 눈에 보이게 됐다. 화면 문구는 2026-08-13 에 `Market structure — Not enough
+  bars to read`(300봉인데 봉이 모자라다는 **거짓 이유**)에서 `No swings large enough to read structure` 로
+  고쳤다 — 파라미터는 그대로다. `sampleGraph` 는 엔진에 있으므로 **PC 스쿱포지도 같은 상태**다.
   **지금 고치지 않는 이유**: structure 가 bias 0.30 을 내기 시작하면 합성 판정이 바뀌는데,
   `calibrateUpProb` 의 Platt 계수와 `coneCoverage` 는 structure 가 죽은 상태에서 적합된 값이다. 고치기만
   하면 확신%가 다른 엔진을 설명하게 된다. **백테스트 하네스 타임프레임 재적합 항목과 한 자리에서 함께
   다룰 것.** (2026-08-13 사용자 확인)
+- **거절문 옆에 0 이 아닌 기여도가 붙는다** — 거래량 없는 종목에서 `MFI — No volume data for this ticker`
+  행의 기여도 칸에는 여전히 엔진이 합성 거래량으로 낸 숫자(예: `-0.34`)가 찍힌다. 문장은 "못 읽었다",
+  숫자는 "이만큼 밀었다"라 한 행이 두 말을 한다. 판정 자체가 그 숫자로 만들어졌으므로 **숫자를 지우려면
+  합성 판정을 바꿔야 하고**, 그건 `calibrateUpProb`·`coneCoverage` 재적합과 같은 자리다(위 두 항목과 한 묶음).
+  선택지: ① 거절 행을 AGAINST 목록에서 빼기(표시만) ② 엔진에서 거래량 5종을 게이트(판정이 바뀜)
+  ③ 기여도 칸에 `—` 를 찍고 각주. **사용자 결정 대기.** (2026-08-13 리뷰 3라운드)
 - **구매 결과 UI 가 `alert()`** — 결제 실패의 유일한 피드백 경로다. 앱의 토스트/모달 관례와 맞지 않는다.
   **8b(실서버·실패가 일상 경로) 착수 전에 해소할 것.**
 - **`TRACK RECORD OF THIS SETUP`(시안 6a)** — `41 times in 3 years / 58% hit / +4.2% median`.
