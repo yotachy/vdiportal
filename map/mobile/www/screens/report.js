@@ -376,6 +376,10 @@
       });
     }
     function finishData() {
+      // Full 분석이 Basic 분석보다 우선한다 — 한 곳에서만 판정한다. 이 가드가 없으면 늦게 끝난
+      // 기본 로드(또는 에러 화면의 retry)가 방금 산 32지표 결과를 5지표로 덮어 배지만 FULL 인
+      // 화면이 된다. 구매 도중 재렌더돼 로드와 구매가 함께 도는 경로에서 실제로 겹친다.
+      if (tier === "full" && an) { state = "ready"; draw(); return; }
       try {
         an = analyzeFull(data);
         state = "ready";
@@ -636,6 +640,7 @@
         if (!isCurrent()) return;
         if (r.kind === "success") {
           data = r.data; an = r.an; tfRuns = r.runs; tier = "full";
+          state = "ready";   // 기본 로드가 아직 안 끝났거나 실패한 상태에서 샀을 수 있다
           MSTierSheet.close();
           draw();
         } else if (r.kind === "refunded") {
@@ -697,7 +702,13 @@
     // 산 것은 그대로 다시 보인다. startLoad() 를 태우면 finishData() 의 Basic 재분석이 Full 분석(an)을
     // 덮어써 배지는 FULL 인데 내용은 5지표인 화면이 된다 — 그래서 로드·재분석 없이 레코드로 바로 그린다.
     if (bought) { data = bought.data; an = bought.an; state = "ready"; draw(); }
-    else startLoad();
+    else if (purchases[sym] && purchases[sym].promise) {
+      // 구매가 아직 도는 중에 이 화면이 재렌더됐다(같은 종목 재탭·폴드 전환). 앞 렌더의 반영은
+      // 세대 가드에 막혀 버려지므로, 이 렌더가 그 promise 에 다시 붙어야 결과가 화면에 온다.
+      // purchaseFull() 이 레코드를 보고 붙으므로 spend 는 다시 일어나지 않는다.
+      startLoad();
+      runFull();
+    } else startLoad();
   }
 
   window.MSReport = { render: render };

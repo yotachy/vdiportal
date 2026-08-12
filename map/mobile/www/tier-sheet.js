@@ -3,8 +3,9 @@
 (function () {
   "use strict";
 
-  var busy = false;   // 보조 가드 — 실제 이중 과금 차단은 report.js 의 runFull() buying 이 한다.
-                       // 여기는 같은 시트 안에서 Full 행 재탭·Run 재클릭으로 onRun 이 두 번 불리는 것만 막는다.
+  var busy = false;   // 보조 가드 — 실제 이중 과금 차단은 report.js 의 모듈 스코프 purchases 레코드가 한다
+                       // (화면을 떠났다 와도 유지된다). 여기는 같은 시트 안에서 Full 행 재탭·Run 재클릭으로
+                       // onRun 이 두 번 불리는 것만 막는다.
 
   function close() {
     var s = document.querySelector(".sheet-scrim");
