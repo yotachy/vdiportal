@@ -163,3 +163,25 @@ test("pattern·cycle 은 한국어 필드를 쓰지 않는다", () => {
   assert.ok(!R.say("pattern", pat, ctxOf(d)).includes(pat.label));
   assert.ok(!R.say("cycle", cyc, ctxOf(d)).includes(cyc.phaseLabel));
 });
+
+// "비지 않은 문자열"만 보는 [20,5]-봉 테스트는 NONE 도 통과시킨다 — 그래서 ao·roc 가
+// 자리채움 배열을 진짜 판독처럼 내보내도 아무도 못 잡았다(리뷰 라운드 1, Critical 2건).
+// 이 테스트는 5봉에서 정확히 어느 지표가 NONE 이고 어느 지표가 실제 판독인지를
+// 이름 배열로 못박는다 — 감사(map/mobile/test 밖 스크래치 스크립트로 1·2·5·12·20·30봉
+// 전수 실측) 로 확정한 값이다. 가드가 느슨해지거나(허위 REAL 로 넘어감) 지표가 늘어도
+// (분류 누락) 이 테스트가 정확한 diff 로 잡는다.
+const NONE_AT_5 = ["adx", "ao", "atr", "bollinger", "cycle", "gann", "ichimoku", "macd",
+  "roc", "smc", "stochastic", "structure", "supertrend", "volumeprofile", "vwap"];
+const REAL_AT_5 = ["aroon", "cci", "cmf", "donchian", "elliott", "fib", "keltner", "ma",
+  "mfi", "pattern", "pivot", "psar", "rsi", "volume", "williams"];
+
+test("5봉에서 NONE·실제 판독을 내는 지표 집합이 고정돼 있다", () => {
+  const d = fixture(5), ctx = ctxOf(d);
+  const none = [], real = [];
+  Object.keys(R.SAY).forEach(bt => {
+    const s = R.say(bt, callOne(bt, d), ctx);
+    (s === R.NONE ? none : real).push(bt);
+  });
+  assert.deepEqual(none.sort(), NONE_AT_5);
+  assert.deepEqual(real.sort(), REAL_AT_5);
+});

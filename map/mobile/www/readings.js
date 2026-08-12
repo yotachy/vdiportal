@@ -307,14 +307,21 @@
       return s;
     },
 
-    roc: function (r) {
-      if (!has(r.series)) return NONE;
+    // ⚠ has(r.series) 는 안 된다 — _rocRaw 는 P ≤ period(엔진 기본 12) 구간을 전부 0 으로
+    // 채운 배열을 돌려준다(진짜 계산이 아니라 자리채움). 이 판독은 opts 없이 불리므로
+    // 엔진 기본값 12 로 직접 문턱을 잰다.
+    roc: function (r, ctx) {
+      var price = (ctx && ctx.price) || [];
+      if (!has(r.series) || price.length <= 12) return NONE;
       return sgn1(r.last) + "% over the lookback, momentum "
            + (r.last > 0 ? "positive" : r.last < 0 ? "negative" : "flat");
     },
 
+    // ⚠ has(r.series) 는 안 된다 — P < fast+2(하드 플로어) 구간엔 analyzeAO 가 series 를
+    // 전부 0 으로 채운 배열 + conf:0 을 돌려준다. conf 는 엔진이 스스로 매기는 신뢰도라
+    // fast/slow 옵션이 바뀌어도 정확하다(봉수 하드코딩이 아님).
     ao: function (r) {
-      if (!has(r.series)) return NONE;
+      if (!r.conf) return NONE;
       var s = sgn1(r.last) + ", " + (r.last >= 0 ? "above" : "below") + " the zero line";
       if (r.cross) s += ", crossed " + (r.cross > 0 ? "up" : "down") + " on this bar";
       return s;
