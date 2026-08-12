@@ -328,6 +328,7 @@
       head.appendChild(idWrap);
 
       if (idx >= 0) head.appendChild(MSUi.el("div", "rp-head-pos", (idx + 1) + " / " + wl.length));
+      head.appendChild(MSWalletScreen.pill(function () { MSApp.go("wallet"); }));
       return head;
     }
 

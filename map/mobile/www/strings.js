@@ -100,7 +100,16 @@
     // 차트 안 잔존 라벨(크로스 표기는 legGolden/legDead/legBars 를 그대로 쓴다 — 레전드와
     // 차트가 각자 표기를 갖고 있던 것이 드리프트 원인이었다. Fix round 1)
     cxBullDiv: "Bullish divergence", cxBearDiv: "Bearish divergence",
-    cxBullVolDiv: "Bullish volume divergence", cxBearVolDiv: "Bearish volume divergence"
+    cxBullVolDiv: "Bullish volume divergence", cxBearVolDiv: "Bearish volume divergence",
+
+    // 지갑 (Phase 8a)
+    walTitle: "Scoops", walCap: "Cap ", walEarn: "Earn", walSpend: "Spend",
+    walQuick: "Quick ad · 15s", walFull: "Full ad · 30s",
+    walCheckin: "Daily check-in", walChest: "Week 7 chest",
+    walSlot: "Add a ticker slot", walDeep: "Deep analysis", walOptimiser: "Parameter optimiser",
+    walSoon: "Coming soon", walDay: "Day ", walChestAway: " days to the chest",
+    walCheckedIn: "Claimed today", walCapped: " · cap reached, the rest was discarded",
+    walBack: "Back"
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을

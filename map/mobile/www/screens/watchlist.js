@@ -77,7 +77,10 @@
 
     function updateScanBtn() {
       if (!scanBtnEl) return;
-      scanBtnEl.textContent = scanning ? (MSStr.t.wlScanning + scanDone + "/" + scanTotal) : MSStr.t.wlScan;
+      // 평상시엔 아이콘만(헤더에 필이 들어와 자리가 없다), 스캔 중에는 진행이 보여야 하므로 텍스트로 늘어난다.
+      scanBtnEl.textContent = scanning ? (MSStr.t.wlScanning + scanDone + "/" + scanTotal) : "↻";
+      scanBtnEl.setAttribute("aria-label", MSStr.t.wlScan);
+      scanBtnEl.classList.toggle("is-ico", !scanning);
       scanBtnEl.disabled = scanning;
     }
 
@@ -107,6 +110,7 @@
       brand.appendChild(document.createTextNode(MSStr.t.wlBrandA));
       brand.appendChild(MSUi.el("span", "wl-brand-gold", MSStr.t.wlBrandB));
       head.appendChild(brand);
+      head.appendChild(MSWalletScreen.pill(function () { MSApp.go("wallet"); }));
       if (list.length) {
         scanBtnEl = MSUi.el("button", "wl-scan");
         scanBtnEl.addEventListener("click", startScan);
