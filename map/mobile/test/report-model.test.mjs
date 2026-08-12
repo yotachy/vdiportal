@@ -181,3 +181,20 @@ test("agreeCount — 기준(첫 성공 주기)이 없으면 0/0", () => {
   assert.deepEqual(M.agreeCount([{ tf: "1day", error: "x" }]), { agree: 0, total: 0 });
   assert.deepEqual(M.agreeCount([]), { agree: 0, total: 0 });
 });
+
+test("agreeCount — 배열 순서와 무관하게 일봉이 기준이다", () => {
+  const runs = [
+    { tf: "1week", out: fakeOut("bull", 1) },
+    { tf: "1day", out: fakeOut("bear", 1) },
+    { tf: "1month", out: fakeOut("bear", 1) }
+  ];
+  assert.deepEqual(M.agreeCount(runs), { agree: 2, total: 3 });
+});
+
+test("agreeCount — 일봉이 없으면 첫 성공 주기로 떨어진다", () => {
+  const runs = [
+    { tf: "1week", out: fakeOut("bull", 1) },
+    { tf: "1month", out: fakeOut("bull", 1) }
+  ];
+  assert.deepEqual(M.agreeCount(runs), { agree: 2, total: 2 });
+});

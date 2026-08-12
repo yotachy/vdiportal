@@ -91,13 +91,18 @@
     return out;
   }
 
-  // 첫 성공 주기(일봉)를 기준으로 같은 방향인 주기 수를 센다. 실패한 주기는 분모에서 빠진다 —
-  // 못 읽은 것을 "동의하지 않음"으로 세면 판정이 실제보다 약해 보인다.
+  // 일봉 판정을 기준으로 같은 방향인 주기 수를 센다. 일봉이 없으면(다른 호출부가 주·월만 넘기는 경우)
+  // 첫 성공 주기로 떨어진다 — 배열 순서에 조용히 기대지 않도록 기준을 명시한다.
+  // 실패한 주기는 분모에서 빠진다 — 못 읽은 것을 "동의하지 않음"으로 세면 판정이 실제보다 약해 보인다.
   function agreeCount(runs) {
-    var list = runs || [], base = null, agree = 0, total = 0, i;
+    var list = runs || [], base = null, agree = 0, total = 0, i, r;
     for (i = 0; i < list.length; i++) {
-      var r = list[i];
-      if (!r.out || !r.out.verdict) continue;
+      r = list[i];
+      if (r && r.out && r.out.verdict && r.tf === "1day") { base = r.out.verdict.regime; break; }
+    }
+    for (i = 0; i < list.length; i++) {
+      r = list[i];
+      if (!r || !r.out || !r.out.verdict) continue;
       total++;
       if (base === null) base = r.out.verdict.regime;
       if (r.out.verdict.regime === base) agree++;
