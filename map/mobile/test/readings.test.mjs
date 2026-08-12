@@ -196,6 +196,19 @@ test("5봉에서 NONE·실제 판독을 내는 지표 집합이 고정돼 있다
 // readings.js 가 indicators.js 보다 뒤에 로드되면 Readings 는 영원히 undefined 로 닫히고,
 // readings()/noDirRows() 안의 모든 "Readings ? Readings.say(...) : ''" 가 빈 문자열로
 // 조용히 죽는다 — 화면의 모든 판독문이 공백이 된다(리뷰 라운드 1, Critical).
+// REASONING 행 정렬 규칙 — |bias| 내림차순, 방향 없는 둘은 항상 최하단.
+// report.js 에 DOM 테스트 하네스가 없어 정렬 함수만 따로 검사한다.
+test("reasoningRows(): |bias| 내림차순, 방향 없는 둘은 최하단", () => {
+  const d = fixture(), g = require("../www/graph.js").full32Graph(FC);
+  const ctx = ctxOf(d);
+  const rows = R.reasoningRows(I.readings(FC, g, d, ctx), I.noDirRows(FC, d, ctx));
+  const dir = rows.filter(r => r.bias != null), nodir = rows.filter(r => r.bias == null);
+  assert.strictEqual(rows.length, dir.length + nodir.length);
+  assert.deepEqual(rows.slice(-2).map(r => r.type), ["trend", "phasefold"]);
+  for (let i = 1; i < dir.length; i++)
+    assert.ok(Math.abs(dir[i - 1].bias) >= Math.abs(dir[i].bias), "정렬이 깨졌다");
+});
+
 test("index.html — readings.js 는 indicators.js 보다 먼저 로드된다", () => {
   const html = readFileSync(join(__dirname, "../www/index.html"), "utf8");
   const readingsPos = html.indexOf('<script src="readings.js">');
@@ -204,4 +217,16 @@ test("index.html — readings.js 는 indicators.js 보다 먼저 로드된다", 
   assert.ok(indicatorsPos >= 0, "index.html 에 indicators.js 스크립트 태그가 없다");
   assert.ok(readingsPos < indicatorsPos,
     "indicators.js captures root.MSReadings at load time; loading it first makes every reading blank in the browser");
+});
+
+const REPORT = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
+
+test("Full 은 SIGNALS 를 내리고 REASONING 을 올린다", () => {
+  assert.match(REPORT, /function buildSignals\(\)\s*\{[\s\S]{0,400}?if \(tier === "full"\) return null;/);
+  assert.match(REPORT, /function buildReasoning\(indRows, noDir\)/);
+});
+
+test("지표 계산 경로가 draw() 한 곳뿐이다 — 90회 재계산 회귀 방지", () => {
+  const calls = REPORT.match(/MSIndicators\.(readings|biases)\(/g) || [];
+  assert.strictEqual(calls.length, 1, "MSIndicators 계산 호출: " + calls.join(", "));
 });

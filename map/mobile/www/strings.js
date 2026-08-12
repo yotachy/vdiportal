@@ -89,6 +89,11 @@
     // 시안 6a 의 AGAINST THIS CALL — Full 이 주는 것 중 하나. 32종 중 판정과 반대인 지표들.
     rpAgainst: "Against this call",
     rpAgainstNone: "No indicator argues the other way.",
+    rpReasoning: "Reasoning",                    // 시안 6a: "REASONING · 32 NODES" — .overline 이 대문자로 만든다
+    rpReasoningNodes: " nodes",                  // 머리 오른쪽 캡션 앞부분 — "32 nodes"
+    rpReasoningScope: "daily · ",                // 판독은 일봉 기준(헤드라인 판정과 같은 주기)
+    rpReasoningDir: " with a direction",         // "daily · 30 with a direction"
+    rpNoDirDash: "—",                            // 방향을 못 묻는 둘의 기여도 칸
     rpMissingHitRate: "Historical hit rate of this setup",
     rpMissingDisagree: "Indicators that disagree",
     rpMissingTfAgree: "Weekly and monthly agreement",

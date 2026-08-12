@@ -371,5 +371,13 @@
     catch (e) { return NONE; }   // 판독문 하나가 화면 전체를 죽이지 않는다
   }
 
-  return { SAY: SAY, NO_DIR: NO_DIR, NONE: NONE, say: say };
+  // 화면 순서. 방향 있는 것은 |bias| 내림차순, 방향을 못 묻는 둘은 정렬에서 빠져 항상 맨 아래.
+  function reasoningRows(withBias, noDir) {
+    var s = (withBias || []).slice().sort(function (a, b) {
+      return Math.abs(b.bias) - Math.abs(a.bias);
+    });
+    return s.concat(noDir || []);
+  }
+
+  return { SAY: SAY, NO_DIR: NO_DIR, NONE: NONE, say: say, reasoningRows: reasoningRows };
 });

@@ -467,7 +467,7 @@
     function verdictWord(regime) {
       return regime === "bull" ? MSStr.t.rpBullish : regime === "bear" ? MSStr.t.rpBearish : MSStr.t.rpFlat;
     }
-    function buildVerdict() {
+    function buildVerdict(indRows) {
       var v = an.out.verdict, pr = an.out.prediction;
       var wrap = MSUi.el("div", "rp-verdict-wrap");
       var dirCls = v.regime === "bull" ? "bull" : v.regime === "bear" ? "bear" : "neutral";
@@ -483,14 +483,13 @@
       // 집계는 그 티어가 실제로 읽은 지표를 센다. Full 인데 5지표만 세면 바로 아래 "4 of 32" 와
       // 숫자가 어긋나 같은 화면이 두 말을 한다. 방향 경로는 반대 근거와 동일(MSIndicators).
       var tally;
-      if (tier === "full" && an.graph) {
+      if (tier === "full" && indRows) {
         tally = { up: 0, flat: 0, down: 0 };
-        MSIndicators.biases(ForgeCore, an.graph, { price: data.price, candle: data.candle, volume: an.vol })
-          .forEach(function (r) {
-            if (r.bias > MSIndicators.EPS) tally.up++;
-            else if (r.bias < -MSIndicators.EPS) tally.down++;
-            else tally.flat++;
-          });
+        indRows.forEach(function (r) {
+          if (r.bias > MSIndicators.EPS) tally.up++;
+          else if (r.bias < -MSIndicators.EPS) tally.down++;
+          else tally.flat++;
+        });
       } else {
         tally = MSLegend.tally(MSLegend.rows(an, pr, null));
       }
@@ -566,7 +565,7 @@
       var wrap = MSUi.el("div", "rp-chart");
       var cv = document.createElement("canvas");
       wrap.appendChild(cv);
-      chartRefs = { wrap: wrap, cv: cv, legend: null };   // legend 는 buildSignals() 가 채운다
+      chartRefs = { wrap: wrap, cv: cv, legend: null };   // Basic 만 buildSignals() 가 채운다. Full 은 null(REASONING 이 대체)
       return wrap;
     }
 
@@ -574,12 +573,14 @@
     // 여섯 줄짜리 다색 덩어리로 얹혀 차트를 짓눌렀다(시안엔 그런 요소가 없다).
     // 크로스헤어를 끌면 여기 값이 따라 움직인다 — paintChart 가 이 요소를 계속 갱신한다.
     function buildSignals() {
+      // Full 은 REASONING 32행이 이 자리를 받는다 — 5종 판독이 그 안에 이미 들어가므로
+      // 두 섹션이면 같은 말을 두 번 한다. Basic 은 종전대로 7행 + 크로스헤어 연동.
+      if (tier === "full") return null;
       var sec = MSUi.el("div", "rp-sec");
       var head = MSUi.el("div", "rp-sec-head");
       head.appendChild(MSUi.el("span", "overline", MSStr.t.rpSignals));
       // 시안 1a 의 "5 of 12 shown" 자리. 안 센 지표를 27개 칩으로 깔던 벽을 이 한 줄이 대신한다.
-      head.appendChild(MSUi.el("span", "rp-sec-note",
-        (tier === "full" ? 32 : 5) + MSStr.t.rpOf + "32" + MSStr.t.rpShown));
+      head.appendChild(MSUi.el("span", "rp-sec-note", "5" + MSStr.t.rpOf + "32" + MSStr.t.rpShown));
       sec.appendChild(head);
       var legend = MSUi.el("div", "rp-ind-legend");
       sec.appendChild(legend);
@@ -610,6 +611,36 @@
     // buildCounted() 를 지웠다 — ForgeCore.*Steps() 는 PC 스쿱포지용이라 한국어 문자열을 뱉는데
     // 영어 앱에 그대로 새고 있었다("혼조 (정렬도 0%)"). 같은 5종을 MSLegend 가 영어로 이미 낸다.
 
+    // 시안 6a 의 REASONING · 32 NODES — Full 이 3스쿱으로 주는 것의 본체.
+    // 32종을 다 돌렸다는 말 대신 각 지표가 무엇을 보고 그 방향을 냈는지 문장으로 적는다.
+    // 판독은 **일봉 기준**이다(헤드라인 판정과 같은 주기). 주·월 정합은 TIMEFRAME 행이 말한다.
+    function buildReasoning(indRows, noDir) {
+      if (tier !== "full" || !indRows) return null;
+      var rows = MSReadings.reasoningRows(indRows, noDir);
+      if (!rows.length) return null;
+      var sec = MSUi.el("div", "rp-reason");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline",
+        MSStr.t.rpReasoning + " · " + rows.length + MSStr.t.rpReasoningNodes));
+      // 방향을 물을 수 있었던 수를 따로 적는다 — 32 라고만 쓰면 trend·phasefold 를
+      // 센 것처럼 말하게 된다(AGAINST 분모와 같은 규율).
+      head.appendChild(MSUi.el("span", "rp-sec-note",
+        MSStr.t.rpReasoningScope + indRows.length + MSStr.t.rpReasoningDir));
+      sec.appendChild(head);
+      rows.forEach(function (r) {
+        var row = MSUi.el("div", "rp-reason-row");
+        row.appendChild(MSUi.el("span", "rp-reason-name", MSStr.ind(r.type)));
+        row.appendChild(MSUi.el("span", "rp-reason-text", r.text));
+        var cls = (r.bias == null) ? "" : r.bias > MSIndicators.EPS ? " up"
+                : r.bias < -MSIndicators.EPS ? " dn" : "";
+        var val = (r.bias == null) ? MSStr.t.rpNoDirDash
+                : (r.bias > 0 ? "+" : "") + r.bias.toFixed(2);
+        row.appendChild(MSUi.el("span", "rp-reason-bias" + cls, val));
+        sec.appendChild(row);
+      });
+      return sec;
+    }
+
     // 시안 6a 의 Basic 결핍 박스. 27개 지표를 칩으로 깔던 자리에 원래 이게 들어간다 —
     // "어떤 지표를 안 봤나"보다 "무엇을 못 하나"가 정확한 설명이고, Full 을 살 이유도 여기서 나온다.
     // Full 은 넷 다 되므로 박스 자체를 내린다.
@@ -629,15 +660,13 @@
     // 시안 6a 의 AGAINST THIS CALL — Full 이 3스쿱으로 주는 것 중 하나.
     // 32종을 다 돌려놓고 "다 동의한다"고만 하면 근거가 아니라 응원이다. 반대편을 이름으로 보여준다.
     // 방향은 웹과 같은 경로로 얻는다(지표마다 ForgeCore.analyzeX) — 백테스트도 새 데이터도 없다.
-    function buildAgainst() {
-      if (tier !== "full" || !an || !an.graph) return null;
+    function buildAgainst(indRows) {
+      if (tier !== "full" || !an || !an.graph || !indRows) return null;
       var regime = an.out.verdict.regime;
       if (regime !== "bull" && regime !== "bear") return null;   // 중립엔 반대가 정의되지 않는다
-      var input = { price: data.price, candle: data.candle, volume: an.vol };
-      var rows = MSIndicators.opposing(ForgeCore, an.graph, input, regime);
-      // 분모는 32가 아니라 **방향을 물을 수 있었던 수**다. trend·phasefold 는 bias 를 안 주므로
-      // 32라고 쓰면 세지 못한 둘을 센 것처럼 말하게 된다(MSIndicators.NO_BIAS).
-      var measured = MSIndicators.biases(ForgeCore, an.graph, input).length;
+      var rows = MSIndicators.opposing(ForgeCore, an.graph, null, regime, indRows);
+      // 분모는 32가 아니라 **방향을 물을 수 있었던 수**다(MSIndicators.NO_BIAS).
+      var measured = indRows.length;
       var sec = MSUi.el("div", "rp-against");
       var head = MSUi.el("div", "rp-sec-head");
       head.appendChild(MSUi.el("span", "overline", MSStr.t.rpAgainst));
@@ -650,6 +679,7 @@
       rows.forEach(function (r) {
         var row = MSUi.el("div", "rp-against-row");
         row.appendChild(MSUi.el("span", "rp-against-name", MSStr.ind(r.type)));
+        row.appendChild(MSUi.el("span", "rp-against-text", r.text));
         // 기여도는 부호까지 보여준다 — 반대 목록이라 부호가 판정 반대편이라는 사실 자체가 정보다.
         row.appendChild(MSUi.el("span", "rp-against-bias", (r.bias > 0 ? "+" : "") + r.bias.toFixed(2)));
         sec.appendChild(row);
@@ -767,18 +797,30 @@
         scr.appendChild(skeletonBlock(chartH())); // 차트
         scr.appendChild(skeletonBlock(180));   // 신호
       } else {
+        // 지표 방향·판독문을 여기서 **한 번** 계산해 세 곳(판정 tally · REASONING · AGAINST)에
+        // 나눠 준다. 예전엔 셋이 각자 MSIndicators 를 불러 Full 에서 analyzeX 가 90회 돌았다.
+        var indRows = null, noDir = null;
+        if (tier === "full" && an && an.graph) {
+          var indInput = { price: data.price, candle: data.candle, volume: an.vol };
+          var indCtx = { price: data.price, candle: data.candle };
+          indRows = MSIndicators.readings(ForgeCore, an.graph, indInput, indCtx);
+          noDir = MSIndicators.noDirRows(ForgeCore, indInput, indCtx);
+        }
         // 시안 2a 의 순서: 가격 → 판정 → 차트 → 지평 → 신호 → 주기.
         // 큰 것에서 작은 것으로 내려가고, 섹션마다 오버라인이 머리를 잡는다.
         scr.appendChild(buildPrice());
-        scr.appendChild(buildVerdict());
+        scr.appendChild(buildVerdict(indRows));
         scr.appendChild(buildChartSection());
         scr.appendChild(buildChartLegend());
         var hz = buildHorizons();
         if (hz) scr.appendChild(hz);
-        scr.appendChild(buildSignals());
+        var sig = buildSignals();
+        if (sig) scr.appendChild(sig);
+        var reason = buildReasoning(indRows, noDir);
+        if (reason) scr.appendChild(reason);
         var miss = buildMissing();
         if (miss) scr.appendChild(miss);
-        var ag = buildAgainst();
+        var ag = buildAgainst(indRows);
         if (ag) scr.appendChild(ag);
       }
 
