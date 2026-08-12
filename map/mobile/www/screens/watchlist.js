@@ -10,6 +10,14 @@
   // 모듈 스코프는 스크립트 로드당 한 번만 생기므로 여러 render() 호출을 가로질러 살아남는다.
   var query = "", chip = "all";
 
+  // 스캔 상태도 같은 이유로 모듈 스코프다 — 게다가 이쪽은 돈이 걸려 있다. 스캔 도중 폴드를 접었다
+  // 펴면 render() 가 새로 불리는데, 지역 변수였다면 새 화면은 스캔이 없는 줄 알고 버튼을 다시 열어
+  // 두 번째 결제를 받는다(리포트의 purchases 레코드와 같은 교훈). 새 렌더는 진행 중 레코드에 붙는다.
+  var scanRun = null;        // { idem, promise, done, total } — 진행 중이면 non-null
+  var scanFailed = {};       // 마지막 스캔에서 실패한 종목. 값은 유지하고 "갱신 실패" 배지만 붙인다
+  var onScanTick = null;     // 현재 화면의 갱신 콜백. 새 render() 가 자기 것으로 덮는다
+  function scanTick() { if (onScanTick) onScanTick(); }
+
   // OHLC → Rec.
   function buildRec(data, verdict, prediction) {
     var price = data.price, n = price.length;
@@ -51,8 +59,6 @@
   function render(root) {
     MSStore.seedIfEmpty();
 
-    var scanning = false, scanDone = 0, scanTotal = 0;
-    var failedSyms = {};      // 이번 화면 세션 한정 — 마지막 값 유지 + "갱신 실패" 배지만 붙인다
     var pendingSuggest = null; // { query, list:[{s,n}] } — 추가 실패 시 오타 제안
     var rowsEl = null, scanBtnEl = null;   // drawRows/updateScanBtn 이 잡고 있는 노드
 
@@ -81,10 +87,11 @@
     function updateScanBtn() {
       if (!scanBtnEl) return;
       // 평상시엔 아이콘만(헤더에 필이 들어와 자리가 없다), 스캔 중에는 진행이 보여야 하므로 텍스트로 늘어난다.
-      scanBtnEl.textContent = scanning ? (MSStr.t.wlScanning + scanDone + "/" + scanTotal) : MSStr.t.wlScanIco;
+      var busy = !!scanRun;
+      scanBtnEl.textContent = busy ? (MSStr.t.wlScanning + scanRun.done + "/" + scanRun.total) : MSStr.t.wlScanIco;
       scanBtnEl.setAttribute("aria-label", MSStr.t.wlScan);
-      scanBtnEl.classList.toggle("is-ico", !scanning);
-      scanBtnEl.disabled = scanning;
+      scanBtnEl.classList.toggle("is-ico", !busy);
+      scanBtnEl.disabled = busy;
     }
 
     // 행만 다시 그린다 — 스캔 틱·검색 입력·칩 전환이 여기로 온다.
@@ -212,7 +219,7 @@
       var badgeEl = MSUi.el("div", "wl-badge" + (bg ? " " + bg.tone : ""), bg ? bg.text : "");
       btn.appendChild(badgeEl);
 
-      if (failedSyms[item.sym]) btn.appendChild(MSUi.el("span", "wl-asof", MSStr.t.wlScanFail));
+      if (scanFailed[item.sym]) btn.appendChild(MSUi.el("span", "wl-asof", MSStr.t.wlScanFail));
 
       btn.addEventListener("click", function () {
         if (btn._suppressClick) { btn._suppressClick = false; return; }
@@ -290,23 +297,80 @@
       return wrap;
     }
 
-    function startScan() {
-      if (scanning) return;
-      var syms = MSStore.getWatchlist().map(function (item) { return item.sym; });
-      if (!syms.length) return;
-      scanning = true; scanDone = 0; scanTotal = syms.length; failedSyms = {};
-      updateScanBtn(); drawRows();
-
+    // 결제까지 끝난 뒤의 실제 스캔. rec 은 이미 모듈 스코프에 등록돼 있다 —
+    // 여기서 등록하면 결제가 도는 동안 버튼이 다시 열려 두 번째 결제를 받는다.
+    function runScan(syms, rec) {
       var scanner = MSScan.createScanner({ loadOne: loadOne, analyze: analyzeAndPersist });
-      scanner.run(syms, function (sym, rec, err) {
-        scanDone++;
-        if (err) failedSyms[sym] = true;
-        updateScanBtn(); drawRows();
-      }).then(function () {
-        scanning = false;
-        updateScanBtn(); drawRows();
+      return scanner.run(syms, function (sym, r, err) {
+        rec.done++;
+        if (err) scanFailed[sym] = true;
+        scanTick();
+      }).then(function (res) {
+        scanRun = null;
+        scanTick();
+        // SPEC §5 — 한 종목도 못 읽었으면 답을 못 준 것이다. 일부라도 읽었으면 차감을 유지한다
+        // (리포트의 주·월봉 누락과 같은 규칙).
+        if (rec.idem && res && res.done === 0) {
+          return MSWallet.refund(rec.idem).then(function (rf) {
+            MSWalletScreen.refreshPills();
+            alert((rf && rf.ok) ? MSStr.t.wlScanNone : MSStr.t.wlScanNoneNoRefund);
+          });
+        }
+      })["catch"](function () { scanRun = null; scanTick(); });
+    }
+
+    function beginScan(syms, rec) {
+      var cost = MSWallet.costOf("scan");
+      if (!cost) { rec.promise = runScan(syms, rec); return; }   // 무료 설정으로 되돌려도 동작한다
+      var idem = MSWallet.newIdem();
+      rec.promise = MSWallet.spend("scan", idem).then(function (sp) {
+        MSWalletScreen.refreshPills();
+        if (!sp.ok) {
+          scanRun = null; scanTick();
+          MSTierSheet.close();
+          alert(sp.reason === "insufficient" ? MSStr.t.tsShort : MSStr.t.tsSpendFailed);
+          return;
+        }
+        rec.idem = idem;
+        MSTierSheet.close();
+        return runScan(syms, rec);
+      })["catch"](function () {
+        // 결제 구간의 예외 — 차감됐는지조차 모르므로 단정하지 않는다.
+        scanRun = null; scanTick();
+        MSTierSheet.close();
+        alert(MSStr.t.tsFailedNoRefund);
       });
     }
+
+    function startScan() {
+      if (scanRun) return;
+      var syms = MSStore.getWatchlist().map(function (item) { return item.sym; });
+      if (!syms.length) return;
+      var cost = MSWallet.costOf("scan");
+      if (!cost) { armScan(syms); return; }
+      MSWallet.get().then(function (r) {
+        MSTierSheet.confirm({
+          title: MSStr.t.wlScanSheet,
+          desc: syms.length + MSStr.t.wlScanSheetDesc,
+          cost: cost,
+          balance: (r.ok && r.state) ? r.state.balance : null,
+          runLabel: MSStr.t.wlScanConfirm,
+          onRun: function () { armScan(syms); }
+        });
+      });
+    }
+
+    // 레코드를 먼저 세우고 결제한다 — 시트 버튼을 두 번 눌러도 두 번째는 여기서 막힌다.
+    function armScan(syms) {
+      if (scanRun) return;
+      scanRun = { idem: null, promise: null, done: 0, total: syms.length };
+      scanFailed = {};
+      scanTick();
+      beginScan(syms, scanRun);
+    }
+
+    // 이 화면이 스캔 진행을 그리는 주체가 된다. 진행 중이던 스캔이 있으면 그대로 이어 그린다.
+    onScanTick = function () { updateScanBtn(); drawRows(); };
 
     drawShell();
   }

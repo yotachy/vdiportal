@@ -38,6 +38,11 @@
     wlScanIco: "↻",                              // 평상시 스캔 버튼 — 헤더에 필이 들어와 아이콘만 남았다
     wlScanning: "Scanning ",
     wlScanFail: "Scan failed",
+    // 스캔은 30px 아이콘 한 번이 2스쿱을 쓴다 — 오탭으로 돈이 나가지 않게 시트로 한 번 받는다.
+    wlScanSheet: "Scan the watchlist", wlScanSheetDesc: " tickers · re-scores every line",
+    wlScanConfirm: "Scan",
+    wlScanNone: "Nothing could be scanned — your Scoops were returned.",
+    wlScanNoneNoRefund: "Nothing could be scanned. We could not confirm your Scoops were returned — please check your balance.",
     wlRemoveConfirm: " — remove from watchlist?",
     wlNotFound: " not found.",
     wlDidYouMean: " not found. Did you mean:",

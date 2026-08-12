@@ -635,6 +635,8 @@
     // 판정 구간의 catch 가 이미 지나가 못 잡는다. 성공 렌더 오류가 "환급됨" 문구로 잘못 이어지지 않는 이유다.
     function runFull() {
       purchaseFull(sym).then(function (r) {
+        // 잔량이 움직였을 수 있다. 화면이 바뀌었어도 필은 문서에 그대로 떠 있으므로 세대 가드 밖이다.
+        MSWalletScreen.refreshPills();
         // 화면이 이미 다른 것을 보고 있으면 아무것도 건드리지 않는다 —
         // 결과는 purchases[sym] 에 남아 있어 이 종목으로 돌아오면 그대로 보인다.
         if (!isCurrent()) return;

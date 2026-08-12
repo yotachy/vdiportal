@@ -65,11 +65,22 @@ test("spend — idem 이 비면 거부하고 잔량이 그대로다", async () =
   assert.strictEqual(good.state.balance, 2, "정상 idem 은 그대로 차감된다");
 });
 
-test("spend — 무료(scan)는 잔량을 건드리지 않는다", async () => {
+// 0원 항목은 현재 가격표에 없다(scan 이 2로 올라갔다). 그래도 원장은 0원 차감을 원장 한 줄로
+// 남기고 잔량은 안 건드려야 한다 — 나중에 무료 항목이 다시 생기거나 프로모션으로 0이 될 때를 위해
+// costOf 를 주입해 그 분기를 계속 지킨다.
+test("spend — 0원 항목은 잔량을 건드리지 않는다", async () => {
+  MSStore.install(memBackend());
+  const b = Stub.create({ costOf: () => 0, now: at("2026-08-12T09:00:00Z") });
+  const r = await b.spend("promo", "i1");
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.state.balance, 5);
+});
+
+test("spend — scan 은 2를 차감한다", async () => {
   const b = mk();
   const r = await b.spend("scan", "i1");
   assert.strictEqual(r.ok, true);
-  assert.strictEqual(r.state.balance, 5);
+  assert.strictEqual(r.state.balance, 3);
 });
 
 test("refund — 잔량이 원복되고 원장에 두 줄이 남는다", async () => {

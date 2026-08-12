@@ -10,15 +10,30 @@
     var el = MSUi.el("button", "ms-pill is-empty");
     el.setAttribute("aria-label", MSStr.t.walTitle);
     el.appendChild(MSUi.el("span", "ms-pill-ico", "◆"));
-    var num = MSUi.el("span", "ms-pill-n", "");
-    el.appendChild(num);
+    el.appendChild(MSUi.el("span", "ms-pill-n", ""));
     if (onTap) el.addEventListener("click", onTap);
+    refreshPills();
+    return el;
+  }
+
+  // 차감이 일어난 화면에 필이 같이 떠 있으면(워치리스트의 스캔이 그렇다) 옛 잔량이 그대로 남는다.
+  // 필을 각자 갱신하게 두면 잔량의 권위가 필 개수만큼 생긴다 — 문서에 떠 있는 필 전부를 한 번에
+  // 칠한다. 2단에서 목록·리포트 두 칸에 필이 있어도 값이 갈리지 않는 이유다.
+  // 문서를 훑는 일은 반드시 응답이 온 **뒤에** 한다. pill() 은 아직 append 되지 않은 요소를 들고
+  // 이 함수를 부르는데, 호출 시점에 미리 세어보고 0이면 나가버리면 그 필은 영영 안 채워진다.
+  // 응답이 오는 시점엔 호출부의 동기 append 가 이미 끝나 있어 그냥 찾으면 된다.
+  function refreshPills() {
     MSWallet.get().then(function (r) {
       if (!r.ok || !r.state) return;
-      num.textContent = fmt(r.state.balance);
-      el.classList.remove("is-empty");
+      var txt = fmt(r.state.balance);
+      var live = document.querySelectorAll(".ms-pill");
+      for (var i = 0; i < live.length; i++) {
+        var n = live[i].querySelector(".ms-pill-n");
+        if (!n) continue;
+        n.textContent = txt;
+        live[i].classList.remove("is-empty");
+      }
     });
-    return el;
   }
 
   // Earn 행(시안 2c): 2줄(제목 + 부제) · 금액 · 우측 액세서리(광고=Watch 버튼, 출석=스트릭 도트).
@@ -121,6 +136,7 @@
         onTap: function () {
           MSWallet.checkin().then(function (r) {
             draw(r.state, (r.ok && r.capped) ? MSStr.t.walCapped : "");
+            refreshPills();   // 2단이면 옆 칸 헤더의 필이 옛 잔량을 들고 있다
           });
         }
       }));
@@ -145,5 +161,5 @@
     MSWallet.get().then(function (r) { draw(r.state, ""); });
   }
 
-  window.MSWalletScreen = { render: render, pill: pill };
+  window.MSWalletScreen = { render: render, pill: pill, refreshPills: refreshPills };
 })();

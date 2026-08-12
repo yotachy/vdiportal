@@ -7,10 +7,10 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  // full·custom 은 시안 5a·4a, slot 은 2b("Add TSLA — Costs 1 Scoop")에서 왔다.
-  // scan 은 SPEC 의 runType 목록과 2c 의 Spend 목록에 이름만 있고 가격이 어디에도 없다 —
-  // 워치리스트의 기본 동작이라 값을 임의로 정하지 않고 무료로 둔다.
-  var COSTS = { full: 3, custom: 5, slot: 1, scan: 0 };
+  // 전부 시안에서 온 값이다 — full·custom 은 5a·4a, slot 은 2b("Add TSLA — Costs 1 Scoop"),
+  // scan 은 2c 의 Spend 목록("Watchlist signal scan 2"). 8a 는 scan 을 "값이 없다"고 잘못 읽어
+  // 무료로 뒀다가 2026-08-12 사용자 결정으로 시안 값으로 돌렸다.
+  var COSTS = { full: 3, custom: 5, slot: 1, scan: 2 };
   var backend = null;
 
   function install(b) { backend = b || null; }

@@ -20,12 +20,12 @@ test("비용표 — 시안이 정한 값 그대로", () => {
   assert.strictEqual(W.COSTS.full, 3);
   assert.strictEqual(W.COSTS.custom, 5);
   assert.strictEqual(W.COSTS.slot, 1);
-  assert.strictEqual(W.COSTS.scan, 0, "스캔은 가격이 시안에 없어 무료다");
+  assert.strictEqual(W.COSTS.scan, 2, "시안 2c 의 Spend 목록: Watchlist signal scan 2");
 });
 
 test("costOf — 모르는 종류는 null(0 이 아니다)", () => {
   assert.strictEqual(W.costOf("full"), 3);
-  assert.strictEqual(W.costOf("scan"), 0);
+  assert.strictEqual(W.costOf("scan"), 2);
   assert.strictEqual(W.costOf("nope"), null);
   assert.strictEqual(W.costOf(undefined), null);
   assert.strictEqual(W.costOf("toString"), null, "프로토타입 체인이 새면 안 된다");
