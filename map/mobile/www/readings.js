@@ -7,8 +7,12 @@
 //   3. **반환 필드 안에 한국어가 있다** — pattern.label("헤드앤숄더") · cycle.phaseLabel ·
 //      fib.degrees[].name("단기"). 반드시 영어 키(pattern.pattern·cycle.dir)로 조립한다.
 //      buildCounted() 가 *Steps() 로 당한 것과 같은 자리인데 필드 안에 숨어 있다.
+//   4. **엔진의 폴백은 판독문의 사실이 아니다.** 거래량이 없으면 엔진은 synthVolume(가격에서
+//      만들어 낸 가짜 거래량)이나 "모든 봉 1"로 조용히 대체한다. 그 값으로 "1.13배 거래량"
+//      같은 문장을 쓰면 앱이 없는 데이터를 본 것처럼 말한다 — 거절문을 쓴다.
 //
-// 데이터가 모자라면 빈 문장이 아니라 이유를 적는다(NONE) — 결핍 박스와 같은 태도.
+// 못 읽었을 때는 빈 문장이 아니라 **이유를** 적는다. 이유는 셋이고 서로 다르다(NONE·NO_VOL·
+// NO_SWINGS) — 하나로 뭉치면 "봉 300개인데 봉이 모자라다"는 거짓 이유가 나온다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./strings.js"));
   else root.MSReadings = factory(root.MSStr);
@@ -23,8 +27,15 @@
   var BB_STATE = (Str && Str.BB_STATE) || {};
   var RSI_ZONE = (Str && Str.RSI_ZONE) || {};
   var SR = (Str && Str.SR) || {};
+  var T = (Str && Str.t) || {};
 
-  var NONE = "Not enough bars to read";
+  // 거절문 3종. strings.js 단일 출처(index.html 이 strings.js → readings.js 순서를 보장한다).
+  var NONE = T.rdNotEnoughBars;        // 봉이 모자라 엔진이 아예 계산을 안 했다
+  var NO_VOL = T.rdNoVolume;           // 거래량이 없어 엔진이 합성치로 대체했다 — 그 숫자는 사실이 아니다
+  var NO_SWINGS = T.rdNoSwings;        // 봉은 충분한데 파라미터 문턱을 넘는 스윙이 없다
+  var REFUSALS = [NONE, NO_VOL, NO_SWINGS];
+  // 화면이 "N with a direction" 을 셀 때 거절한 행을 빼려면 판별이 필요하다.
+  function isRefusal(t) { return REFUSALS.indexOf(t) >= 0; }
 
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   function n0(v) { return (v == null || !isFinite(v)) ? "—" : String(Math.round(v)); }
@@ -38,6 +49,9 @@
   function bars(k) { return k === 0 ? "on this bar" : k === 1 ? "1 bar ago" : k + " bars ago"; }
   function has(a) { return !!(a && a.length); }
   function lastOf(a) { return has(a) ? a[a.length - 1] : null; }
+  // 거래량이 실제로 있었는지. 화면(report.js)이 okVol 로 이미 판정해 놓은 것을 ctx 로 받는다 —
+  // 여기서 다시 재면 두 곳이 갈린다.
+  function hasVol(ctx) { return !!(ctx && ctx.hasVolume); }
 
   // ADX 강도 어휘. 숫자만으로는 "16 and rising" 이 강한 추세처럼 읽혀 오도한다.
   var ADX_STRENGTH = { very_strong: "trend very strong", strong: "trend strong",
@@ -51,6 +65,12 @@
   };
   // analyzeCCI·analyzeMFI 의 regime 은 1 / 0 / −1 숫자다
   var REGIME = { "1": "bullish regime", "0": "no regime bias", "-1": "bearish regime" };
+
+  // analyzeSMC 는 미충족 FVG 를 .slice(-5), 미완화 오더블록을 .slice(-4) 로 **잘라서** 돌려준다.
+  // 그 수를 그대로 "5 open gaps" 로 적으면 포화된 값이 실제 개수인 것처럼 읽힌다(220봉 300계열 중
+  // 61계열이 상한에 걸린다) — 상한에서는 "5 or more" 로 적는다.
+  var FVG_CAP = 5, OB_CAP = 4;
+  function cnt(n, cap0) { return n >= cap0 ? n + " or more" : String(n); }
 
   var ELLIOTT_STRUCT = { impulse_up: "Impulse count, upward", impulse_down: "Impulse count, downward",
                          corrective: "Corrective count", uncertain: "Wave count unclear" };
@@ -94,7 +114,11 @@
       return s;
     },
 
-    volume: function (r) {
+    // ⚠ 거래량 5종(volume·vwap·volumeprofile·mfi·cmf)은 거래량이 없으면 엔진이 조용히 대체한다
+    // (analyzeVolume→synthVolume · VWAP/VolumeProfile→모든 봉 1 · MFI/CMF→synthVolume).
+    // 그 값으로 문장을 쓰면 "1.13배 거래량"·"가장 많이 거래된 가격" 같은 **없는 사실**을 말한다.
+    volume: function (r, ctx) {
+      if (!hasVol(ctx)) return NO_VOL;
       if (!has(r.series)) return NONE;
       var s = cap(VOL_STATE[r.state] || "normal") + " volume at " + (isFinite(r.ratio) ? r.ratio.toFixed(2) : "—")
             + "x average, " + (VOL_REL[r.relationship] || "weakening");
@@ -189,7 +213,8 @@
       return s + (r.anchor ? ", anchored at " + px(r.anchor.price) : ", no anchor swing");
     },
 
-    vwap: function (r) {
+    vwap: function (r, ctx) {
+      if (!hasVol(ctx)) return NO_VOL;   // 거래량 없으면 엔진이 모든 봉 가중 1 — 그건 VWAP 이 아니다
       if (!has(r.vwap)) return NONE;
       var side = r.pct >= 0 ? "above" : "below";
       return "Price " + n1(Math.abs(r.pct)) + "% " + side + " VWAP " + px(r.last);
@@ -215,15 +240,23 @@
            + " — this sizes the cone, not the direction";
     },
 
-    volumeprofile: function (r) {
+    volumeprofile: function (r, ctx) {
+      // 거래량 없으면 모든 봉을 1로 세어 가격-시간 프로파일이 된다. 예전에 SHAPES 오표기로 한 번
+      // 나갔던 바로 그 조작값(129.25–144.91 · POC 132.90)이 이 경로로 다시 나왔다.
+      if (!hasVol(ctx)) return NO_VOL;
       if (!has(r.bins)) return NONE;
       var rel = r.priceRel === "above" ? "Above the value area"
               : r.priceRel === "below" ? "Below the value area" : "Inside the value area";
       return rel + " " + px(r.val) + "–" + px(r.vah) + ", heaviest trade at " + px(r.poc);
     },
 
-    structure: function (r) {
-      if (!has(r.swings)) return NONE;
+    structure: function (r, ctx) {
+      if (!has(r.swings)) {
+        // 이유가 둘이다. 엔진의 하드 플로어는 P < 12 이고, 그 위에서 비는 것은 **스윙 문턱을
+        // 넘는 파동이 없어서**다(그래프의 swing:3 = 300% 문턱이 지금 그 상태다). 둘을 같은
+        // 문장으로 말하면 300봉짜리 종목에 "봉이 모자라다"고 하게 된다.
+        return ((ctx && ctx.price) || []).length < 12 ? NONE : NO_SWINGS;
+      }
       var tr = r.trend === "up" ? "Higher highs and higher lows"
              : r.trend === "down" ? "Lower highs and lower lows" : "No clear swing structure";
       var lo = r.swingLow ? r.swingLow.price : null, hi = r.swingHigh ? r.swingHigh.price : null;
@@ -250,7 +283,9 @@
       // 마이너스는 ASCII 하이픈 — 기여도 칸(toFixed)과 표기를 맞춘다
       var z = r.last >= 100 ? "above +100, stretched up"
             : r.last <= -100 ? "below -100, stretched down" : "inside the ±100 band";
-      return n0(r.last) + ", " + z + ", " + REGIME[r.regime];
+      // 모르는 regime 값이면 절(clause) 자체를 뺀다. 폴백을 두면 그 폴백이 **주장**이 된다
+      // (예전엔 REGIME[알수없음] 이 문자열 "undefined" 로 화면에 나갔다).
+      return n0(r.last) + ", " + z + (REGIME[r.regime] ? ", " + REGIME[r.regime] : "");
     },
 
     williams: function (r) {
@@ -269,10 +304,11 @@
            + " — the " + (r.osc >= 0 ? "high" : "low") + " is the more recent extreme";
     },
 
-    mfi: function (r) {
+    mfi: function (r, ctx) {
+      if (!hasVol(ctx)) return NO_VOL;   // MFI 는 전형가×거래량이다 — 합성 거래량이면 자금흐름이 아니다
       if (!has(r.series)) return NONE;
       var z = r.last >= 80 ? "overbought" : r.last <= 20 ? "oversold" : "neutral";
-      return n0(r.last) + ", " + z + ", " + REGIME[r.regime] + " on money flow";
+      return n0(r.last) + ", " + z + (REGIME[r.regime] ? ", " + REGIME[r.regime] + " on money flow" : "");
     },
 
     elliott: function (r) {
@@ -282,7 +318,10 @@
       s += (r.next && r.next.target != null)
         ? ", next target " + px(r.next.target)
         : ", no projection";
-      return s + " (" + n0((r.rules && r.rules.score ? r.rules.score : 0) * 100) + "% of wave rules met)";
+      // ⚠ rules.score 는 "충족한 규칙 비율"이 아니라 (검사한 규칙 중 통과 비율) × (파동 완성도)다
+      // — 엔진이 둘을 곱해 하나로 만든 **유효도**다(엔진 자신도 "규칙 n/3 · 유효 x" 로 따로 적는다).
+      // "N% of wave rules met" 로 쓰면 카운트가 미완일 때 실제보다 낮게 말한다(규칙 2/2 통과인데 60%).
+      return s + " (" + n0((r.rules && r.rules.score ? r.rules.score : 0) * 100) + "% wave-count validity)";
     },
 
     smc: function (r) {
@@ -348,15 +387,19 @@
   // 방향을 물을 수 없는 둘 — analyzeTrend 는 bias 를 안 주고, phasefold 는 analyzeX 자체가 없다
   // (엔진이 combine 안에서만 쓴다). 문장은 쓰되 기여도 칸은 비운다.
   var NO_DIR = {
+    // ⚠ 방향·봉 수·기준선을 **한 창에서** 읽는다. 예전엔 방향을 r.channel(장기창 전용 적합)에서,
+    // 봉 수를 r.windows[r.dominant] 에서 가져왔다. 두 창은 독립적으로 정해지므로(220봉 300계열 중
+    // 220계열에서 dominant ≠ long) 기울기 부호가 78계열(26%)에서 서로 어긋났다 —
+    // "Falling channel over 40 bars" 가 오른 40봉을 가리키고 있었다.
     trend: function (r, ctx) {
-      if (!r || !r.channel || !r.windows) return NONE;
+      if (!r || !r.windows) return NONE;
       var w = r.windows[r.dominant] || r.windows.long;
-      if (!w) return NONE;
-      var price = (ctx && ctx.price) || [];
-      var p = lastOf(price);
+      if (!w || !isFinite(w.slopeRaw) || !isFinite(w.bRaw)) return NONE;
+      var p = lastOf((ctx && ctx.price) || []);
       if (p == null) return NONE;
-      var line = r.channel.bRaw + r.channel.slopeRaw * (price.length - 1);
-      var dir = r.channel.slopeRaw > 0 ? "Rising" : r.channel.slopeRaw < 0 ? "Falling" : "Flat";
+      // winFit 의 적합선은 창 내부 인덱스 0..m−1 기준이다 — 마지막 봉은 m−1.
+      var line = w.bRaw + w.slopeRaw * (w.m - 1);
+      var dir = w.slopeRaw > 0 ? "Rising" : w.slopeRaw < 0 ? "Falling" : "Flat";
       return dir + " channel over " + w.m + " bars, price in the " + (p >= line ? "upper" : "lower") + " half";
     },
     phasefold: function () {
@@ -364,10 +407,12 @@
     }
   };
 
-  function say(blockType, result, ctx) {
+  // opts = 그 노드가 들고 있는 params. 가드가 엔진 기본값이 아니라 **실제로 쓰인 파라미터**로
+  // 문턱을 재야 한다(adx.period · roc.period · ao.fast).
+  function say(blockType, result, ctx, opts) {
     var fn = SAY[blockType] || NO_DIR[blockType];
     if (!fn) return "";
-    try { return fn(result || {}, ctx || {}) || NONE; }
+    try { return fn(result || {}, ctx || {}, opts || {}) || NONE; }
     catch (e) { return NONE; }   // 판독문 하나가 화면 전체를 죽이지 않는다
   }
 
@@ -379,5 +424,6 @@
     return s.concat(noDir || []);
   }
 
-  return { SAY: SAY, NO_DIR: NO_DIR, NONE: NONE, say: say, reasoningRows: reasoningRows };
+  return { SAY: SAY, NO_DIR: NO_DIR, NONE: NONE, NO_VOL: NO_VOL, NO_SWINGS: NO_SWINGS,
+           REFUSALS: REFUSALS, isRefusal: isRefusal, say: say, reasoningRows: reasoningRows };
 });

@@ -88,6 +88,14 @@
   // EPS 는 report-model 의 데드존과 같은 취지지만 대상이 다르다(여기는 지표 bias, 저기는 예측 변화율).
   var EPS = 0.02;
 
+  // 판독문에 넘길 ctx. hasVolume 은 **거래량이 실제로 있었는지**다 — 없으면 엔진이 synthVolume 이나
+  // "모든 봉 1"로 조용히 대체하므로 거래량 5종이 없는 사실을 말하게 된다. 화면(report.js)이 okVol 로
+  // 이미 판정해 data.volume 에 null 을 넣어 두므로 여기서는 그것을 읽기만 한다(두 번 재지 않는다).
+  function ctxFrom(data) {
+    return { price: data && data.price, candle: data && data.candle,
+             hasVolume: !!(data && data.volume && data.volume.length) };
+  }
+
   // 지표마다 analyzeX 를 **한 번** 부르고 방향과 문장을 함께 뽑는다.
   // biases() 를 부른 뒤 say() 를 위해 또 부르면 Full 에서 analyzeX 가 60회가 된다.
   function readings(FC, graph, data, ctx) {
@@ -99,7 +107,7 @@
       var r = callOne(FC, n.blockType, data, n.params);
       if (!r || typeof r.bias !== "number" || !isFinite(r.bias)) continue;
       out.push({ type: n.blockType, bias: r.bias,
-                 text: Readings ? Readings.say(n.blockType, r, ctx) : "" });
+                 text: Readings ? Readings.say(n.blockType, r, ctx, n.params) : "" });
     }
     return out;
   }
@@ -121,15 +129,15 @@
   function opposing(FC, graph, data, regime, rows) {
     if (regime !== "bull" && regime !== "bear") return [];
     var want = regime === "bull" ? 1 : -1;
-    // rows 를 안 받으면 스스로 계산한다. 이때 ctx 로 data 를 그대로 넘긴다 — ctx 가 요구하는 것은
-    // {price, candle} 뿐이고 data 가 그것을 이미 갖고 있다. null 을 넘기면 ctx 를 쓰는 판독
-    // (aroon·ao·roc·supertrend)이 이 경로에서만 "읽지 못했다"고 말한다 — 읽을 수 있었는데도.
-    var src = rows || readings(FC, graph, data, data);
+    // rows 를 안 받으면 스스로 계산한다. 이때 ctx 는 ctxFrom(data) 로 만든다 — data 를 그대로
+    // 넘기면 hasVolume 이 빠져 거래량 5종이 이 경로에서만 다른 문장을 낸다. null 을 넘기던 시절엔
+    // ctx 를 쓰는 판독(aroon·ao·roc·supertrend)이 여기서만 "읽지 못했다"고 말했다.
+    var src = rows || readings(FC, graph, data, ctxFrom(data));
     return src
       .filter(function (r) { return Math.abs(r.bias) > EPS && (r.bias > 0 ? 1 : -1) !== want; })
       .sort(function (a, b) { return Math.abs(b.bias) - Math.abs(a.bias); });
   }
 
-  return { SHAPES: SHAPES, NO_BIAS: NO_BIAS, biasOf: biasOf, biases: biases,
+  return { SHAPES: SHAPES, NO_BIAS: NO_BIAS, biasOf: biasOf, biases: biases, ctxFrom: ctxFrom,
            readings: readings, noDirRows: noDirRows, opposing: opposing, EPS: EPS };
 });

@@ -621,11 +621,16 @@
       var sec = MSUi.el("div", "rp-reason");
       var head = MSUi.el("div", "rp-sec-head");
       head.appendChild(MSUi.el("span", "overline",
-        MSStr.t.rpReasoning + " · " + rows.length + MSStr.t.rpReasoningNodes));
+        MSStr.t.rpReasoning + MSStr.t.rpSep + rows.length + MSStr.t.rpReasoningNodes));
       // 방향을 물을 수 있었던 수를 따로 적는다 — 32 라고만 쓰면 trend·phasefold 를
-      // 센 것처럼 말하게 된다(AGAINST 분모와 같은 규율).
+      // 센 것처럼 말하게 된다.
+      // 거절한 행(거래량 없음·스윙 없음·봉 부족)은 빼고 센다. bias 숫자는 엔진이 대체 입력으로
+      // 만들어 낸 값이라 여전히 붙지만, 그 행은 **아무것도 읽지 못했다고 스스로 말하고 있다** —
+      // "N with a direction" 에 넣으면 읽지 않은 것에 방향을 귀속시키게 된다.
+      var spoke = 0;
+      indRows.forEach(function (r) { if (!MSReadings.isRefusal(r.text)) spoke++; });
       head.appendChild(MSUi.el("span", "rp-sec-note",
-        MSStr.t.rpReasoningScope + indRows.length + MSStr.t.rpReasoningDir));
+        MSStr.t.rpReasoningScope + spoke + MSStr.t.rpReasoningDir));
       sec.appendChild(head);
       rows.forEach(function (r) {
         var row = MSUi.el("div", "rp-reason-row");
@@ -717,7 +722,7 @@
         var dailyVal = "";
         if (state === "ready") {
           var v = an.out.verdict;
-          dailyVal = v.confluence.total ? (dirWord(v.regime) + " · " + v.confluence.agree + "/" + v.confluence.total + MSStr.t.rpAgreeShort) : dirWord(v.regime);
+          dailyVal = v.confluence.total ? (dirWord(v.regime) + MSStr.t.rpSep + v.confluence.agree + "/" + v.confluence.total + MSStr.t.rpAgreeShort) : dirWord(v.regime);
         } else if (state === "error") dailyVal = "—";
         sec.appendChild(tfRow(MSStr.t.rpDaily, dailyVal, false, state === "loading"));
         sec.appendChild(tfRow(MSStr.t.rpWeekly, "", true, false));
@@ -726,8 +731,8 @@
       }
       MSReportModel.tfRows(ForgeCore, tfRuns).forEach(function (r) {
         var val = r.reason ? r.reason
-          : (dirWord(r.regime) + (r.prob == null ? "" : " · " + Math.round(r.prob) + "%") +
-             (r.target == null ? "" : " · " + MSUi.fmtPrice(r.target)));
+          : (dirWord(r.regime) + (r.prob == null ? "" : MSStr.t.rpSep + Math.round(r.prob) + "%") +
+             (r.target == null ? "" : MSStr.t.rpSep + MSUi.fmtPrice(r.target)));
         sec.appendChild(tfRow(names[r.tf] || r.tf, val, false, false));
       });
       var ag = MSReportModel.agreeCount(tfRuns);
@@ -802,7 +807,9 @@
         var indRows = null, noDir = null;
         if (tier === "full" && an && an.graph) {
           var indInput = { price: data.price, candle: data.candle, volume: an.vol };
-          var indCtx = { price: data.price, candle: data.candle };
+          // an.vol 은 analyzeFull 의 okVol 판정 결과다(거래량이 한 봉이라도 비면 null). 판독문의
+          // hasVolume 은 그 하나에서만 나온다 — 여기서 다시 재면 화면과 문장이 갈린다.
+          var indCtx = MSIndicators.ctxFrom(indInput);
           indRows = MSIndicators.readings(ForgeCore, an.graph, indInput, indCtx);
           noDir = MSIndicators.noDirRows(ForgeCore, indInput, indCtx);
         }
