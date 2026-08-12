@@ -43,6 +43,15 @@
   var ADX_STRENGTH = { very_strong: "trend very strong", strong: "trend strong",
                        developing: "trend forming", weak: "trend still weak" };
 
+  var STRUCT_EVENT = {
+    BOS_up: "broke structure upward", BOS_down: "broke structure downward",
+    CHoCH_up: "character change up — possible reversal",
+    CHoCH_down: "character change down — possible reversal",
+    none: "no break of structure yet"
+  };
+  // analyzeCCI·analyzeMFI 의 regime 은 1 / 0 / −1 숫자다
+  var REGIME = { "1": "bullish regime", "0": "no regime bias", "-1": "bearish regime" };
+
   var SAY = {
     ma: function (r) {
       if (!r.mas || !r.mas.long) return NONE;
@@ -172,6 +181,88 @@
       var d = (r.last && isFinite(r.last)) ? Math.abs(r.last - r.oneOne) / r.last * 100 : 0;
       var s = (r.last >= r.oneOne ? "Above" : "Below") + " the 1×1 line at " + px(r.oneOne) + " by " + n1(d) + "%";
       return s + (r.anchor ? ", anchored at " + px(r.anchor.price) : ", no anchor swing");
+    },
+
+    vwap: function (r) {
+      if (!has(r.vwap)) return NONE;
+      var side = r.pct >= 0 ? "above" : "below";
+      return "Price " + n1(Math.abs(r.pct)) + "% " + side + " VWAP " + px(r.last);
+    },
+
+    supertrend: function (r, ctx) {
+      if (!has(r.line)) return NONE;
+      var s = (r.dir > 0 ? "Trend line below price" : "Trend line above price") + " at " + px(r.last);
+      var p = lastOf((ctx && ctx.price) || []);
+      // 플립까지의 거리 — 시안 6a 의 "Sitting 0.4% from a bearish flip" 이 이 값이다
+      if (p != null && isFinite(p) && p !== 0)
+        s += ", " + n1(Math.abs(p - r.last) / p * 100) + "% from a flip";
+      if (r.flip && r.flip.barsAgo != null)
+        s += ", flipped " + (r.flip.dir > 0 ? "bullish " : "bearish ") + bars(r.flip.barsAgo);
+      return s;
+    },
+
+    // bias 가 항상 0 인 유일한 지표다. 문장이 그 이유를 말하지 않으면
+    // 기여도 0.00 이 "못 읽었다"로 오독된다.
+    atr: function (r) {
+      if (!has(r.atr)) return NONE;
+      return n1(r.pct) + "% of price per bar, volatility " + (r.regime || "normal")
+           + " — this sizes the cone, not the direction";
+    },
+
+    volumeprofile: function (r) {
+      if (!has(r.bins)) return NONE;
+      var rel = r.priceRel === "above" ? "Above the value area"
+              : r.priceRel === "below" ? "Below the value area" : "Inside the value area";
+      return rel + " " + px(r.val) + "–" + px(r.vah) + ", heaviest trade at " + px(r.poc);
+    },
+
+    structure: function (r) {
+      if (!has(r.swings)) return NONE;
+      var tr = r.trend === "up" ? "Higher highs and higher lows"
+             : r.trend === "down" ? "Lower highs and lower lows" : "No clear swing structure";
+      var lo = r.swingLow ? r.swingLow.price : null, hi = r.swingHigh ? r.swingHigh.price : null;
+      return tr + ", " + (STRUCT_EVENT[r.event] || "no break of structure yet")
+           + " (swing " + px(lo) + "–" + px(hi) + ")";
+    },
+
+    keltner: function (r) {
+      if (!has(r.midArr)) return NONE;
+      var pos = r.pctB >= 1 ? "Above the upper channel"
+              : r.pctB <= 0 ? "Below the lower channel"
+              : r.pctB >= 0.5 ? "In the upper half of the channel" : "In the lower half of the channel";
+      return pos + " " + px(r.lower) + "–" + px(r.upper) + (r.squeeze ? ", channel squeezing" : "");
+    },
+
+    donchian: function (r) {
+      if (!has(r.midArr)) return NONE;
+      return n0(r.pos * 100) + "% up the " + px(r.lower) + "–" + px(r.upper) + " range, midline "
+           + (r.midSlope > 0 ? "rising" : r.midSlope < 0 ? "falling" : "flat");
+    },
+
+    cci: function (r) {
+      if (!has(r.series)) return NONE;
+      // 마이너스는 ASCII 하이픈 — 기여도 칸(toFixed)과 표기를 맞춘다
+      var z = r.last >= 100 ? "above +100, stretched up"
+            : r.last <= -100 ? "below -100, stretched down" : "inside the ±100 band";
+      return n0(r.last) + ", " + z + ", " + REGIME[r.regime];
+    },
+
+    williams: function (r) {
+      if (!has(r.series)) return NONE;
+      var z = r.last >= -20 ? "overbought" : r.last <= -80 ? "oversold" : "neutral";
+      return n0(r.last) + ", " + z + " in its lookback range";
+    },
+
+    aroon: function (r) {
+      if (r.up === 0 && r.down === 0 && r.osc === 0) return NONE;
+      return "Up " + n0(r.up) + " / down " + n0(r.down) + ", oscillator " + sgn1(r.osc)
+           + " — the " + (r.osc >= 0 ? "high" : "low") + " is the more recent extreme";
+    },
+
+    mfi: function (r) {
+      if (!has(r.series)) return NONE;
+      var z = r.last >= 80 ? "overbought" : r.last <= 20 ? "oversold" : "neutral";
+      return n0(r.last) + ", " + z + ", " + REGIME[r.regime] + " on money flow";
     }
   };
 
@@ -179,9 +270,7 @@
   // **덮어쓰지 않는다** — 나중 태스크가 위 리터럴에 실제 구현을 넣고 이 배열에서 이름 빼는 것을
   // 잊으면, 무조건 대입은 그 구현을 조용히 NONE 으로 되돌린다. 계약 테스트는 NONE 도 통과시키므로
   // 아무도 못 잡는다.
-  ["vwap", "supertrend", "atr", "volumeprofile", "structure", "keltner", "donchian",
-   "cci", "williams", "aroon", "mfi",
-   "elliott", "smc", "cycle", "roc", "ao", "cmf", "pattern"].forEach(function (bt) {
+  ["elliott", "smc", "cycle", "roc", "ao", "cmf", "pattern"].forEach(function (bt) {
     if (!SAY[bt]) SAY[bt] = function () { return NONE; };
   });
 

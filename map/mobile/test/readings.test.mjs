@@ -106,3 +106,32 @@ test("Lv2 7종이 시안 6a 어투의 문장을 낸다", () => {
   Object.keys(EXPECT_LV2).forEach(bt => { got[bt] = R.say(bt, callOne(bt, d), ctx); });
   assert.deepEqual(got, EXPECT_LV2);
 });
+
+const EXPECT_LV3 = {
+  vwap: "Price 2.2% above VWAP 141.89",
+  supertrend: "Trend line below price at 140.94, 2.8% from a flip, flipped bullish 1 bar ago",
+  atr: "0.9% of price per bar, volatility normal — this sizes the cone, not the direction",
+  volumeprofile: "Above the value area 129.25–144.91, heaviest trade at 132.90",
+  structure: "Higher highs and higher lows, no break of structure yet (swing 137.97–144.96)",
+  keltner: "In the upper half of the channel 134.63–147.49",
+  donchian: "73% up the 137.14–147.88 range, midline flat",
+  cci: "88, inside the ±100 band, no regime bias",
+  williams: "-10, overbought in its lookback range",
+  aroon: "Up 36 / down 88, oscillator -52 — the low is the more recent extreme",
+  mfi: "45, neutral, no regime bias on money flow"
+};
+
+test("Lv3 11종이 문장을 낸다", () => {
+  const d = fixture(), ctx = ctxOf(d);
+  const got = {};
+  Object.keys(EXPECT_LV3).forEach(bt => { got[bt] = R.say(bt, callOne(bt, d), ctx); });
+  assert.deepEqual(got, EXPECT_LV3);
+});
+
+// ATR 은 bias 가 항상 0 이다 — 변동성은 방향이 아니다. 문장이 그것을 말해야
+// "왜 기여도가 0이냐"가 결함으로 오독되지 않는다.
+test("ATR 판독문은 방향이 아니라는 것을 말한다", () => {
+  const d = fixture();
+  const s = R.say("atr", callOne("atr", d), ctxOf(d));
+  assert.match(s, /not the direction/);
+});
