@@ -4,7 +4,7 @@
   --border:rgba(238,241,247,.10); --border-strong:rgba(238,241,247,.16);
   --track:rgba(238,241,247,.07);
   --ink:#eef1f7; --ink-2:#c5ccdb; --ink-3:#9aa3b6; --ink-4:#7c8598; --ink-5:#78819a;
-  --gold:#e8b463; --gold-dim:#c0a069; --gold-ink:#1a1408; --gold-soft:rgba(232,180,99,.10);
+  --gold:#e8b463; --gold-dim:#c0a069; --gold-ink:#1a1408;
   --bull-soft:rgba(79,185,138,.14); --bear-soft:rgba(217,106,106,.14); --steel-soft:rgba(136,146,166,.16);
   --steel:#8892a6; --platinum:#b9c4dc;
   --bull:#4fb98a; --bear:#d96a6a; --bear-text:#e08a8a; --neutral:#4a5368;
@@ -18,20 +18,26 @@ body {
   padding-bottom:env(safe-area-inset-bottom);
 }
 .scr { padding:0 20px 40px; }
-.scr-head { display:flex; align-items:baseline; justify-content:space-between; padding:18px 0 12px; }
-.scr-title { font-size:25px; font-weight:600; letter-spacing:-.03em; margin:0; }
-.overline { font-size:10.5px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-5); }
 
 /* ===== 워치리스트 — 시안 1a 의 치수를 현 토큰으로(핸드오프 README §2 "redraw with the tokens") ===== */
 .wl-head { display:flex; align-items:center; gap:10px; padding:12px 0 10px; border-bottom:1px solid var(--border); }
 .wl-brand-mark { display:flex; color:var(--gold); flex:0 0 22px; }
 .wl-brand { flex:1 1 auto; font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.wl-brand-gold { color:var(--gold); }             /* 목업 1a — "Money" + 골드 "Scoop" */
 /* Scan 은 아웃라인 pill — 시안 1a 는 골드 버튼이 아니다.
-   ::before 는 6px 원형 점이지 '항목 좌측 세로 컬러 라인'이 아니다 — 금지 규칙과 무관. */
+   ::after 는 6px 원형 점이지 '항목 좌측 세로 컬러 라인'이 아니다 — 금지 규칙과 무관.
+   목업은 점이 "Scan" 텍스트 오른쪽이라 ::before 가 아니라 ::after 다. */
 .wl-scan { display:inline-flex; align-items:center; gap:6px; padding:5px 9px; border:1px solid var(--border-strong);
            border-radius:99px; background:transparent; color:var(--steel); font:inherit; font-size:11px; }
-.wl-scan::before { content:""; width:6px; height:6px; border-radius:99px; background:var(--bull); }
+.wl-scan::after { content:""; width:6px; height:6px; border-radius:99px; background:var(--bull); }
 .wl-scan[disabled] { opacity:.6; }
+
+/* 검색창 + 그룹 칩을 묶어 상단 고정한다(핸드오프 README §2 "Sticky search, group chips").
+   flex column 은 sticky 컨테이너를 새 블록 포맷 컨텍스트로 만들어 자식(.wl-search)의 margin-top 이
+   부모 밖으로 새는 마진 병합을 막는다 — 안 막으면 배경이 스크롤되는 행을 가리지 못하고 틈이 보인다.
+   배경(--bg)은 필수 — 없으면 뒤로 스크롤되는 행이 비쳐 보인다. 2단에서는 스크롤 컨테이너가 .pane 이라
+   그 안에서 고정된다(추가 배선 불필요, sticky 는 가장 가까운 스크롤 조상을 자동으로 찾는다). */
+.wl-toolbar { position:sticky; top:0; z-index:2; background:var(--bg); display:flex; flex-direction:column; }
 
 .wl-search { display:flex; align-items:center; gap:8px; height:38px; padding:0 12px; margin-top:10px;
              background:var(--sheet); border:1px solid var(--border); border-radius:9px; }
@@ -66,7 +72,9 @@ body {
 .wl-badge:not(:empty) { padding:3px 6px; border-radius:4px; font-size:10px; font-weight:700; text-align:center; }
 .wl-badge.bull { background:var(--bull-soft); color:var(--bull); }
 .wl-badge.bear { background:var(--bear-soft); color:var(--bear-text); }
-.wl-badge.neutral { background:var(--track); color:var(--ink-4); }
+/* steel 틴트 — 방향(bull/bear)과 다른 양(up, 방향 무관 상승확률)이라 색으로 구분한다.
+   삼색 체계의 "steel = Basic·미확정"과도 맞는다. */
+.wl-badge.neutral { background:var(--steel-soft); color:var(--steel); }
 .wl-asof { font-size:10.5px; color:var(--ink-5); }
 /* 목록 마지막 행의 하단 헤어라인과 이 버튼 테두리가 맞닿아 한 덩어리로 읽힌다.
    2단 목록 칸(255px)처럼 좁고 짧은 열에서 특히 두드러진다. */
@@ -88,7 +96,7 @@ body {
 .rp-head-pos { font-size:11.5px; color:var(--ink-5); flex:0 0 auto; font-variant-numeric:tabular-nums; }
 
 .rp-tier-row { display:flex; align-items:center; gap:10px; padding:4px 0 20px; }
-.rp-tier { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:6px; background:rgba(136,146,166,.16); color:var(--steel); font-size:11px; font-weight:700; letter-spacing:.04em; }
+.rp-tier { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:6px; background:var(--steel-soft); color:var(--steel); font-size:11px; font-weight:700; letter-spacing:.04em; }
 .rp-tier-desc { font-size:11.5px; color:var(--ink-4); }
 .rp-evi { display:flex; align-items:center; gap:3px; margin-left:auto; }
 .rp-evi-seg { width:14px; height:4px; border-radius:2px; background:var(--track); }

@@ -80,7 +80,7 @@ test("filter — 목록에 없는 시장의 칩이면 All 로 떨어진다", () 
   assert.strictEqual(M.filter(noKr, { chip: "KR" }).length, 2);
 });
 
-test("badge — conf 가 없으면 null(옛 스캔 레코드·미스캔)", () => {
+test("badge — 방향 있는 레코드는 conf 를 쓰고 없으면 null(옛 스캔 레코드·미스캔)", () => {
   assert.strictEqual(M.badge(null), null);
   assert.strictEqual(M.badge({}), null);
   assert.strictEqual(M.badge({ conf: null, dir: "bull" }), null);
@@ -90,5 +90,21 @@ test("badge — conf 가 없으면 null(옛 스캔 레코드·미스캔)", () =>
 test("badge — 퍼센트 문자열과 방향 tone", () => {
   assert.deepEqual(M.badge({ conf: 68, dir: "bull" }), { text: "68%", tone: "bull" });
   assert.deepEqual(M.badge({ conf: 46.4, dir: "bear" }), { text: "46%", tone: "bear" });
-  assert.deepEqual(M.badge({ conf: 50, dir: "neutral" }), { text: "50%", tone: "neutral" });
+});
+
+test("badge — 방향 있는 레코드는 conf 를 쓰고 up 은 무시한다", () => {
+  assert.deepEqual(M.badge({ conf: 68, up: 55, dir: "bull" }), { text: "68%", tone: "bull" });
+});
+
+test("badge — 중립 레코드는 up 을 쓴다", () => {
+  assert.deepEqual(M.badge({ conf: null, up: 51, dir: "neutral" }), { text: "51%", tone: "neutral" });
+});
+
+test("badge — 중립인데 up 도 없으면 null(옛 스캔 레코드)", () => {
+  assert.strictEqual(M.badge({ conf: null, up: null, dir: "neutral" }), null);
+  assert.strictEqual(M.badge({ dir: "neutral" }), null);
+});
+
+test("badge — 방향은 있는데 conf 가 없으면 null", () => {
+  assert.strictEqual(M.badge({ conf: null, up: 55, dir: "bull" }), null);
 });

@@ -53,10 +53,15 @@
   }
 
   // 확신이 없으면(옛 스캔 레코드·미스캔) 배지를 안 그린다 — 회색 자리표시자를 두지 않는다.
+  // 방향이 있으면 "부른 방향이 맞을 확률"(conf), 중립이면 "상승할 확률"(up) — 서로 다른 양이다.
+  // 중립에 방향 확신을 쓸 수 없어서인데(Phase 6 규칙), 색으로 구분한다: bull/bear 틴트 vs steel 틴트.
   function badge(rec) {
-    if (!rec || typeof rec.conf !== "number" || !isFinite(rec.conf)) return null;
-    var tone = rec.dir === "bull" ? "bull" : rec.dir === "bear" ? "bear" : "neutral";
-    return { text: Math.round(rec.conf) + "%", tone: tone };
+    if (!rec) return null;
+    var dir = rec.dir, v;
+    if (dir === "bull" || dir === "bear") v = rec.conf;
+    else v = rec.up;
+    if (typeof v !== "number" || !isFinite(v)) return null;
+    return { text: Math.round(v) + "%", tone: (dir === "bull" || dir === "bear") ? dir : "neutral" };
   }
 
   return { market: market, chips: chips, filter: filter, badge: badge, ETFS: ETFS };
