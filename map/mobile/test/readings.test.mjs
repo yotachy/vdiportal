@@ -81,6 +81,19 @@ test("거절문 3종의 문구가 고정돼 있다", () => {
   assert.ok(R.isRefusal(R.NO_VOL) && !R.isRefusal("Aligned up"));
 });
 
+// REASONING 의 "N with a direction" 과 AGAINST 의 목록·분모가 이 술어 하나를 공유한다.
+// 두 섹션이 각자 "읽었나"를 판정하면 갈린다 — 이 저장소가 어휘 맵에서 이미 당한 자리다.
+test("voiced() — 거절한 행만 걷어내고 순서는 그대로다", () => {
+  const rows = [{ type: "ma", text: "Aligned up" }, { type: "mfi", text: R.NO_VOL },
+                { type: "cci", text: "88, inside the ±100 band" },
+                { type: "structure", text: R.NO_SWINGS }, { type: "adx", text: R.NONE }];
+  assert.deepEqual(R.voiced(rows).map(r => r.type), ["ma", "cci"]);
+  assert.deepEqual(R.voiced([]), []);
+  assert.deepEqual(R.voiced(null), []);
+  // 전부 거절이면 빈 배열이다 — opposing 이 이것을 "안 줬다"로 오해하면 안 된다(재계산 폴백)
+  assert.deepEqual(R.voiced([{ type: "mfi", text: R.NO_VOL }]), []);
+});
+
 test("30종 전부 비지 않은 문장을 낸다", () => {
   const d = fixture(), ctx = ctxOf(d);
   const empty = Object.keys(R.SAY).filter(bt => {
@@ -483,8 +496,20 @@ test("report.js 소스 모양 — 지표 계산은 한 지점, opposing 은 그 
   const calls = REPORT.match(/MSIndicators\.(readings|biases)\(/g) || [];
   assert.strictEqual(calls.length, 1, "MSIndicators 계산 호출: " + calls.join(", "));
   // 5번째 인자를 null 로 되돌리면 opposing 이 스스로 다시 계산한다(= 지표당 analyzeX 2회).
-  assert.match(REPORT, /MSIndicators\.opposing\([^)]*,\s*indRows\s*\)/,
+  // 넘기는 것은 indRows 를 MSReadings.voiced 로 거른 배열이다(아래 테스트가 그 모양을 본다).
+  assert.match(REPORT, /MSIndicators\.opposing\([^)]*,\s*(indRows|voiced)\s*\)/,
     "opposing() 이 이미 계산한 rows 를 넘겨받지 않는다");
   // 판독 ctx 는 ctxFrom 한 곳에서 온다 — 화면이 hasVolume 을 따로 재면 문장과 판정이 갈린다
   assert.match(REPORT, /MSIndicators\.ctxFrom\(indInput\)/);
+});
+
+test("report.js 소스 모양 — '읽었나' 술어는 두 섹션이 MSReadings.voiced 하나를 쓴다", () => {
+  const uses = REPORT.match(/MSReadings\.voiced\(/g) || [];
+  assert.strictEqual(uses.length, 2, "REASONING 머리와 AGAINST 가 각각 한 번씩 써야 한다");
+  // AGAINST 는 목록과 분모를 **같은** 걸러낸 배열에서 뽑는다 — 한쪽만 걸러내면 분자 > 분모가 난다
+  assert.match(REPORT, /var voiced = MSReadings\.voiced\(indRows\);/);
+  assert.match(REPORT, /MSIndicators\.opposing\([^)]*,\s*voiced\s*\)/);
+  assert.match(REPORT, /var measured = voiced\.length;/);
+  // isRefusal 을 화면이 직접 부르면 술어가 두 벌이 된다(voiced 안에만 있어야 한다)
+  assert.doesNotMatch(REPORT, /MSReadings\.isRefusal\(/);
 });

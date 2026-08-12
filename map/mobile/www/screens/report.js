@@ -627,10 +627,9 @@
       // 거절한 행(거래량 없음·스윙 없음·봉 부족)은 빼고 센다. bias 숫자는 엔진이 대체 입력으로
       // 만들어 낸 값이라 여전히 붙지만, 그 행은 **아무것도 읽지 못했다고 스스로 말하고 있다** —
       // "N with a direction" 에 넣으면 읽지 않은 것에 방향을 귀속시키게 된다.
-      var spoke = 0;
-      indRows.forEach(function (r) { if (!MSReadings.isRefusal(r.text)) spoke++; });
+      // 술어는 MSReadings.voiced 하나다 — AGAINST 도 같은 것을 쓴다(각자 판정하면 갈린다).
       head.appendChild(MSUi.el("span", "rp-sec-note",
-        MSStr.t.rpReasoningScope + spoke + MSStr.t.rpReasoningDir));
+        MSStr.t.rpReasoningScope + MSReadings.voiced(indRows).length + MSStr.t.rpReasoningDir));
       sec.appendChild(head);
       rows.forEach(function (r) {
         var row = MSUi.el("div", "rp-reason-row");
@@ -669,9 +668,14 @@
       if (tier !== "full" || !an || !an.graph || !indRows) return null;
       var regime = an.out.verdict.regime;
       if (regime !== "bull" && regime !== "bear") return null;   // 중립엔 반대가 정의되지 않는다
-      var rows = MSIndicators.opposing(ForgeCore, an.graph, null, regime, indRows);
-      // 분모는 32가 아니라 **방향을 물을 수 있었던 수**다(MSIndicators.NO_BIAS).
-      var measured = indRows.length;
+      // 스스로 "못 읽었다"고 말한 행은 반대할 자격이 없다 — 거래량 없는 종목에서 MFI 가
+      // "No volume data for this ticker" 라고 적어 놓고 반대 목록에 이름을 올리면, 이 브랜치가
+      // 없애려던 거짓말이 자리만 옮긴 것이다. **목록과 분모 둘 다** 같은 술어로 걷어낸다
+      // (한쪽만 줄이면 분자 > 분모가 난다). REASONING 머리와 같은 MSReadings.voiced 다.
+      var voiced = MSReadings.voiced(indRows);
+      var rows = MSIndicators.opposing(ForgeCore, an.graph, null, regime, voiced);
+      // 분모는 32가 아니라 **방향을 실제로 말한 수**다(trend·phasefold 제외 + 거절 행 제외).
+      var measured = voiced.length;
       var sec = MSUi.el("div", "rp-against");
       var head = MSUi.el("div", "rp-sec-head");
       head.appendChild(MSUi.el("span", "overline", MSStr.t.rpAgainst));

@@ -209,6 +209,31 @@ test("opposing() 의 rows 인자 — 빈 배열은 그대로 빈 결과, null �
   assert.deepEqual(withNull, withoutArg, "rows=null 은 생략과 같아야 한다(재계산으로 폴백)");
 });
 
+// 거래량 없는 종목에서는 거래량 5종이 "못 읽었다"고 적으면서도 **0 이 아닌 bias** 를 들고 온다
+// (엔진이 synthVolume 으로 계산한 값). 그대로 opposing 에 넣으면 "이 지표가 반대한다"면서 문장은
+// "No volume data for this ticker" 인 행이 AGAINST 목록에 이름으로 오른다 — 판독문에서 없앤
+// 거짓말이 자리만 옮긴 것이다. 화면은 MSReadings.voiced() 로 거른 뒤 넘긴다.
+test("AGAINST — 거절한 행은 반대 목록에 오르지 않는다(목록·분모 같은 술어)", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  const noVol = { price: d.price, candle: d.candle };   // volume 없음 = 화면의 okVol=false
+  const rows = I.readings(FC, g, noVol, I.ctxFrom(noVol));
+  const refused = rows.filter(r => R.isRefusal(r.text));
+  assert.ok(refused.length >= 5, "거래량 5종이 거절해야 이 테스트가 의미 있다: " + refused.length);
+  // 거르지 않으면 실제로 반대 목록에 들어간다 — 이 테스트가 지키는 것이 가상의 위험이 아니라는 증거
+  const bothRegimes = ["bull", "bear"].map(rg => I.opposing(FC, g, noVol, rg, rows));
+  assert.ok(bothRegimes.some(list => list.some(r => R.isRefusal(r.text))),
+    "거르기 전에도 거절 행이 반대 목록에 없다면 표본이 이 결함을 못 재현한다");
+
+  const voiced = R.voiced(rows);
+  ["bull", "bear"].forEach(regime => {
+    const out = I.opposing(FC, g, noVol, regime, voiced);
+    out.forEach(r => assert.ok(!R.isRefusal(r.text),
+      r.type + " 가 아무것도 못 읽었다고 적어 놓고 반대 목록에 있다: " + r.text));
+    // 분모(화면의 measured)도 같은 배열에서 나온다 — 분자 > 분모가 날 수 없다
+    assert.ok(out.length <= voiced.length, "분자가 분모보다 크다");
+  });
+});
+
 // FC 의 analyzeX 함수를 SHAPES 값에서 이름을 뽑아 카운팅 shim 으로 감싼다 —
 // 지표가 늘어도(SHAPES 갱신) 이 래퍼는 하드코딩 없이 그대로 맞는다.
 function wrapCounting(fc) {

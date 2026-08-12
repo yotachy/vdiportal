@@ -36,6 +36,15 @@
   var REFUSALS = [NONE, NO_VOL, NO_SWINGS];
   // 화면이 "N with a direction" 을 셀 때 거절한 행을 빼려면 판별이 필요하다.
   function isRefusal(t) { return REFUSALS.indexOf(t) >= 0; }
+  // 스스로 "아무것도 못 읽었다"고 말한 행을 걷어낸 목록. REASONING 의 "N with a direction" 과
+  // AGAINST 의 목록·분모가 **이 술어 하나**를 공유해야 한다 — 두 섹션이 각자 "읽었나"를 판정하면
+  // 갈린다(chart-legend.js 와 draw-layers.js 가 같은 어휘를 각자 하드코딩해 갈렸던 자리).
+  function voiced(rows) {
+    var out = [], i;
+    rows = rows || [];
+    for (i = 0; i < rows.length; i++) if (!isRefusal(rows[i].text)) out.push(rows[i]);
+    return out;
+  }
 
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   function n0(v) { return (v == null || !isFinite(v)) ? "—" : String(Math.round(v)); }
@@ -446,5 +455,6 @@
   }
 
   return { SAY: SAY, NO_DIR: NO_DIR, NONE: NONE, NO_VOL: NO_VOL, NO_SWINGS: NO_SWINGS,
-           REFUSALS: REFUSALS, isRefusal: isRefusal, say: say, reasoningRows: reasoningRows };
+           REFUSALS: REFUSALS, isRefusal: isRefusal, voiced: voiced,
+           say: say, reasoningRows: reasoningRows };
 });
