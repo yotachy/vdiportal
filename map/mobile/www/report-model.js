@@ -74,5 +74,36 @@
     return { right: right, wrong: Math.round((100 - right) * 10) / 10 };
   }
 
-  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate };
+  // 주기 행 — runs 는 [{tf, out, error}] 배열이고 순서가 곧 표시 순서다.
+  // 이력이 모자란 주기(신규 상장주의 월봉 등)는 행을 지우지 않고 사유를 담는다 —
+  // 빈칸으로 두면 "돈 냈는데 안 준다"로 읽힌다(설계서 §5.5).
+  function tfRows(FC, runs) {
+    var list = runs || [], out = [], i;
+    for (i = 0; i < list.length; i++) {
+      var r = list[i];
+      if (!r.out) { out.push({ tf: r.tf, regime: null, prob: null, target: null, reason: r.error || "unavailable" }); continue; }
+      var v = r.out.verdict || {};
+      out.push({ tf: r.tf, regime: v.regime || null,
+                 prob: confidence(FC, r.out.prediction, v.regime),
+                 target: (typeof v.target === "number" && isFinite(v.target)) ? v.target : null,
+                 reason: null });
+    }
+    return out;
+  }
+
+  // 첫 성공 주기(일봉)를 기준으로 같은 방향인 주기 수를 센다. 실패한 주기는 분모에서 빠진다 —
+  // 못 읽은 것을 "동의하지 않음"으로 세면 판정이 실제보다 약해 보인다.
+  function agreeCount(runs) {
+    var list = runs || [], base = null, agree = 0, total = 0, i;
+    for (i = 0; i < list.length; i++) {
+      var r = list[i];
+      if (!r.out || !r.out.verdict) continue;
+      total++;
+      if (base === null) base = r.out.verdict.regime;
+      if (r.out.verdict.regime === base) agree++;
+    }
+    return { agree: total ? agree : 0, total: total };
+  }
+
+  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate, tfRows: tfRows, agreeCount: agreeCount };
 });
