@@ -64,5 +64,21 @@
     return { text: Math.round(v) + "%", tone: (dir === "bull" || dir === "bear") ? dir : "neutral" };
   }
 
-  return { market: market, chips: chips, filter: filter, badge: badge, ETFS: ETFS };
+  // 회사명은 74px 칸에 들어가야 한다. API 원문("NVIDIA Corporation")을 그대로 넣으면
+  // "NVIDIA Corpo…" 로 잘려 싸구려로 보인다 — 시안 1a 는 NVIDIA·Palantir·Adv. Micro 처럼
+  // 법인 접미사를 뗀 이름을 쓴다. 잘림은 그래도 남을 수 있지만(긴 한 단어), 대부분은 이걸로 사라진다.
+  // 접미사만 지운다 — 단어를 줄여 쓰는 것(Advanced → Adv.)은 사전이 필요해 하지 않는다.
+  var SUFFIX = /[\s,]+(corporation|corp\.?|incorporated|inc\.?|company|co\.?|limited|ltd\.?|plc|holdings?|group|s\.a\.?|n\.v\.?|ag|se)$/i;
+  function shortName(name) {
+    var s = String(name == null ? "" : name).trim();
+    // 반복 적용 — "Alphabet Inc. Class A" 류가 아니라 "… Holdings Inc." 처럼 겹쳐 붙는 경우가 있다.
+    for (var i = 0; i < 3; i++) {
+      var next = s.replace(SUFFIX, "").trim().replace(/[\s,]+$/, "");
+      if (next === s || !next) break;     // 이름 전체가 접미사면(예: "Inc") 원본을 지킨다
+      s = next;
+    }
+    return s;
+  }
+
+  return { market: market, chips: chips, filter: filter, badge: badge, shortName: shortName, ETFS: ETFS };
 });

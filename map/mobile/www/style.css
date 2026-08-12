@@ -56,11 +56,20 @@ body {
    목업을 따른다(설계서 §2.3). */
 .wl-chip.on { background:var(--gold); border-color:var(--gold); color:var(--gold-ink); font-weight:700; }
 
-.wl-row { display:flex; align-items:center; gap:11px; height:64px; border-bottom:1px solid var(--hairline); }
-.wl-dot { width:8px; height:8px; border-radius:99px; flex:0 0 8px; background:var(--neutral);
-          box-shadow:0 0 0 3px var(--track); }
-.wl-dot.bull { background:var(--bull); box-shadow:0 0 0 3px var(--bull-soft); }
-.wl-dot.bear { background:var(--bear); box-shadow:0 0 0 3px var(--bear-soft); }
+/* 목록은 화면 가장자리에 더 붙는다 — 시안 1a 는 좌우 14px(리포트·지갑은 20px 그대로).
+   .scr 의 20px 를 상쇄해 행과 구분선이 폭을 다 쓰게 한다. 6px×2 가 이름 칸의 잘림을 줄인다. */
+.wl-rows { margin:0 -6px; }
+.wl-rows .wl-row { padding:0 6px; }
+/* 구분선은 border-top 이다(시안 1a) — 마지막 행 아래로 선이 내려가 리스트가 닫혀 보이는 것을 막는다. */
+.wl-row { display:flex; align-items:center; gap:11px; height:64px; border-top:1px solid var(--hairline); }
+/* 신호등. 링(box-shadow)은 선택된 행에만 — 시안 1a 는 첫 행(선택)에만 링을 두고 나머지는 민짜다.
+   전 행에 링을 두면 목록 전체가 웅성거려 정작 선택이 안 보인다. */
+.wl-dot { width:8px; height:8px; border-radius:99px; flex:0 0 8px; background:var(--neutral); }
+.wl-dot.bull { background:var(--bull); }
+.wl-dot.bear { background:var(--bear); }
+.wl-row.is-sel .wl-dot { box-shadow:0 0 0 3px var(--track); }
+.wl-row.is-sel .wl-dot.bull { box-shadow:0 0 0 3px var(--bull-soft); }
+.wl-row.is-sel .wl-dot.bear { box-shadow:0 0 0 3px var(--bear-soft); }
 .wl-id { flex:0 0 74px; min-width:0; }
 .wl-sym { font-size:14px; font-weight:700; letter-spacing:-.01em; }
 .wl-name { font-size:10.5px; color:var(--ink-5); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -80,7 +89,14 @@ body {
 .wl-asof { font-size:10.5px; color:var(--ink-5); }
 /* 목록 마지막 행의 하단 헤어라인과 이 버튼 테두리가 맞닿아 한 덩어리로 읽힌다.
    2단 목록 칸(255px)처럼 좁고 짧은 열에서 특히 두드러진다. */
-.wl-add { margin-top:16px; }
+/* 시안 1a 의 Add 는 하단 바에 전폭 48px 골드 아웃라인이다 — 작은 좌측 정렬 고스트 버튼이 아니다.
+   목록 마지막 행의 헤어라인과 맞닿지 않도록 자기 위에 경계를 갖는다. */
+.wl-add { display:flex; align-items:center; justify-content:center; width:100%;
+          margin-top:0; padding-top:12px; height:auto; border:0; border-radius:0; background:none;
+          border-top:1px solid var(--border); }
+.wl-add-inner { display:flex; align-items:center; justify-content:center; width:100%; height:48px;
+                border:1px solid var(--border-strong); border-radius:11px;
+                color:var(--gold); font-size:14px; font-weight:700; }
 
 .btn { min-height:44px; border:0; border-radius:11px; font:inherit; font-weight:600; padding:0 18px; }
 .btn-primary { background:var(--gold); color:var(--gold-ink); }

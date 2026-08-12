@@ -108,3 +108,32 @@ test("badge — 중립인데 up 도 없으면 null(옛 스캔 레코드)", () =>
 test("badge — 방향은 있는데 conf 가 없으면 null", () => {
   assert.strictEqual(M.badge({ conf: null, up: 55, dir: "bull" }), null);
 });
+
+// shortName — 74px 이름 칸에 법인 접미사가 들어가면 "NVIDIA Corpo…" 로 잘린다.
+// 기대값은 구현 상수가 아니라 실제 API 가 주는 이름과 시안 1a 의 표기에서 가져온다.
+test("shortName — 법인 접미사를 뗀다", () => {
+  assert.strictEqual(M.shortName("NVIDIA Corporation"), "NVIDIA");
+  assert.strictEqual(M.shortName("Apple Inc."), "Apple");
+  assert.strictEqual(M.shortName("Microsoft Corporation"), "Microsoft");
+  assert.strictEqual(M.shortName("Palantir Technologies Inc."), "Palantir Technologies");
+  assert.strictEqual(M.shortName("Alibaba Group Holding Limited"), "Alibaba");
+  assert.strictEqual(M.shortName("Sony Group Corporation"), "Sony");
+});
+
+test("shortName — 접미사가 아닌 것은 건드리지 않는다", () => {
+  assert.strictEqual(M.shortName("SPDR S&P 500 ETF Trust"), "SPDR S&P 500 ETF Trust");
+  assert.strictEqual(M.shortName("Samsung Electronics"), "Samsung Electronics");
+  // "Global" 은 법인 접미사가 아니라 상호의 일부다 — "Coinbase Global, Inc." 에서 Inc. 만 뗀다.
+  assert.strictEqual(M.shortName("Coinbase Global, Inc."), "Coinbase Global");
+});
+
+test("shortName — 이름 전체가 접미사면 원본을 지킨다", () => {
+  assert.strictEqual(M.shortName("Inc"), "Inc");
+  assert.strictEqual(M.shortName("Group"), "Group");
+});
+
+test("shortName — 빈 값·비문자열도 문자열을 돌려준다", () => {
+  assert.strictEqual(M.shortName(""), "");
+  assert.strictEqual(M.shortName(null), "");
+  assert.strictEqual(M.shortName(undefined), "");
+});

@@ -196,7 +196,7 @@
 
       var idWrap = MSUi.el("div", "wl-id");
       idWrap.appendChild(MSUi.el("div", "wl-sym", item.sym));
-      idWrap.appendChild(MSUi.el("div", "wl-name", item.name));
+      idWrap.appendChild(MSUi.el("div", "wl-name", MSWatchlistModel.shortName(item.name)));
       btn.appendChild(idWrap);
 
       var sparkWrap = MSUi.el("div", "wl-spark");
@@ -250,8 +250,11 @@
       btn.addEventListener("pointercancel", cancel);
     }
 
+    // 시안 1a 의 하단 바 — 바깥이 경계선을 갖고 안쪽이 전폭 48px 골드 아웃라인이다.
+    // 버튼 하나로 두 역할(경계 + 테두리)을 시키면 목록 마지막 행과 테두리가 붙어 한 덩어리로 읽힌다.
     function addBtn() {
-      var b = MSUi.el("button", "btn btn-ghost wl-add", MSStr.t.wlAdd);
+      var b = MSUi.el("button", "wl-add");
+      b.appendChild(MSUi.el("span", "wl-add-inner", MSStr.t.wlAdd));
       b.addEventListener("click", startAddTicker);
       return b;
     }
