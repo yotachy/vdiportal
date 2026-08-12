@@ -107,13 +107,18 @@
     cxBullDiv: "Bullish divergence", cxBearDiv: "Bearish divergence",
     cxBullVolDiv: "Bullish volume divergence", cxBearVolDiv: "Bearish volume divergence",
 
-    // 지갑 (Phase 8a)
+    // 지갑 (Phase 8a) — 문구·행 구성은 시안 2c
     walTitle: "Scoops", walCap: "Cap ", walEarn: "Earn", walSpend: "Spend",
-    walQuick: "Quick ad · 15s", walFull: "Full ad · 30s",
-    walCheckin: "Daily check-in", walChest: "Week 7 chest",
-    walSlot: "Add a ticker slot", walDeep: "Deep analysis", walOptimiser: "Parameter optimiser",
-    walSoon: "Coming soon", walDay: "Day ", walChestAway: " days to the chest",
-    walCheckedIn: "Claimed today", walCapped: " · cap reached, the rest was discarded",
+    walInWallet: "in wallet",
+    walQuick: "Quick ad", walQuickSub: "15 seconds · no skip",
+    walFull: "Full ad", walFullSub: "30 seconds · skip after 5s",
+    walCheckin: "Daily check-in", walOnceADay: "one tap, once a day", walOnceADayCap: "One tap, once a day",
+    walChest: "Week 7 chest", walChestAway: " days away",
+    walSlot: "Add a ticker slot", walScan: "Watchlist signal scan",
+    walDeep: "Deep analysis", walOptimiser: "Parameter optimiser", walFree: "Free",
+    walSoon: "Soon",
+    walDay: "Day ", walClaimedSep: " · ", walCheckedIn: "claimed today",
+    walCapped: "Cap reached — the rest was discarded",
     walBack: "Back",
 
     // 단계 선택 시트 (Phase 8a)

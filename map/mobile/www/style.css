@@ -182,28 +182,79 @@ body {
 .rp-hz-chg.dn { color:var(--bear-text); }
 .rp-hz-prob { flex:0 0 42px; text-align:right; color:var(--ink-4); }
 
-/* ===== 스쿱 필 — 잔량은 엔진이 아니라 사용자 자산이라 steel 을 쓴다(골드 아님) ===== */
+/* ===== 스쿱 필 =====
+   Phase 8a 는 "잔량은 엔진 판단이 아니라 사용자 자산"이라며 글리프도 steel 로 뒀다. 지갑을 시안 2c 로
+   맞추면서 뒤집었다 — 시안은 스쿱을 일관되게 골드로 말한다(2c 잔량 도트·금액, 7a 실행 버튼).
+   필과 지갑은 같은 숫자를 보여주므로 색이 갈리면 다른 것으로 읽힌다. 배경은 steel-soft 유지 —
+   필 전체가 골드가 되면 헤더에서 워치리스트보다 먼저 눈에 든다. */
 .ms-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:99px;
            background:var(--steel-soft); border:1px solid var(--border); color:var(--ink-2);
            font:inherit; font-size:11.5px; font-weight:600; font-variant-numeric:tabular-nums; min-height:32px; flex:0 0 auto; }
-.ms-pill-ico { color:var(--steel); }
+.ms-pill-ico { color:var(--gold); }
 .ms-pill.is-empty .ms-pill-n { min-width:1ch; }
 
 /* Scan 이 아이콘으로 줄었다 — 헤더에 필이 들어와 자리가 없다. 스캔 중에는 텍스트로 늘어난다. */
 .wl-scan.is-ico { padding:5px 8px; min-width:30px; justify-content:center; }
 .wl-scan.is-ico::after { content:none; }
 
-/* ===== 지갑 ===== */
+/* 섹션 오버라인 — 시안이 Earn/Spend 같은 구획 머리에 쓰는 형태(10.5px · .14em · 대문자) */
+.overline { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-5); font-weight:600; }
+
+/* ===== 지갑 — 시안 2c 의 치수를 현 토큰으로 ===== */
 .wal-head { display:flex; align-items:center; gap:10px; padding:14px 0 6px; }
-.wal-cap { margin-left:auto; font-size:11px; color:var(--ink-5); font-variant-numeric:tabular-nums; }
-.wal-balance { font-size:48px; font-weight:300; letter-spacing:-.04em; line-height:1.1; padding:2px 0 6px; }
-.wal-msg { font-size:12px; color:var(--ink-4); padding-bottom:10px; }
-.wal-sec { margin-bottom:22px; }
-.wal-row { display:flex; align-items:center; gap:10px; min-height:44px; border-bottom:1px solid var(--hairline); font-size:12.5px; }
-.wal-row-name { color:var(--ink-2); font-weight:600; }
-.wal-row-note { color:var(--ink-5); font-size:11px; }
-.wal-row-amt { margin-left:auto; color:var(--ink-3); font-variant-numeric:tabular-nums; }
-.wal-row.is-off { opacity:.55; }
+.wal-title { flex:1; font-size:14px; font-weight:600; }
+.wal-cap { margin-left:auto; font-size:11.5px; color:var(--ink-5); font-variant-numeric:tabular-nums; }
+
+/* 잔량 블록. baseline 이 아니라 flex-end 로 맞춘다 — 도트·단위는 baseline 이 없어 정렬 기준이 못 된다. */
+.wal-bal { display:flex; align-items:flex-end; gap:12px; margin-top:22px; }
+/* 시안의 금색 링 도트. inset 그림자로 가운데를 배경색으로 뚫는다(도넛). 항목 좌측 세로 라인이 아니다. */
+.wal-dot { width:15px; height:15px; border-radius:99px; background:var(--gold);
+           box-shadow:inset 0 0 0 3.5px var(--bg); margin-bottom:9px; flex:0 0 auto; }
+.wal-balance { font-size:52px; font-weight:300; letter-spacing:-.04em; line-height:.9; }
+.wal-bal-unit { font-size:13px; color:var(--steel); padding-bottom:6px; }
+
+/* 한도 게이지 — 채운 쪽 flex=잔량, 남은 쪽 flex=한도−잔량. 백분율 계산 없음. */
+.wal-gauge { display:flex; gap:2px; margin-top:18px; }
+.wal-gauge-on { height:4px; border-radius:99px 0 0 99px; background:var(--gold); }
+.wal-gauge-off { height:4px; border-radius:0 99px 99px 0; background:var(--hairline-2); }
+
+.wal-msg { font-size:12px; color:var(--ink-4); padding-top:12px; }
+.wal-sec { margin-top:26px; }
+.wal-sec .overline { margin-bottom:2px; }
+
+/* Earn 행 — 2줄 + 금액 + 액세서리. min-height 는 44px 규범(시안의 14/13 패딩보다 크지 않다). */
+.wal-row { display:flex; align-items:center; gap:14px; min-height:56px; padding:12px 0;
+           border-bottom:1px solid var(--hairline); }
+.wal-row:last-child { border-bottom:0; }
+.wal-row.is-tappable { cursor:pointer; }
+.wal-row-main { flex:1; min-width:0; }
+.wal-row-name { font-size:13.5px; font-weight:600; }
+.wal-row-note { font-size:11.5px; color:var(--ink-4); margin-top:2px; }
+/* 지금 받을 수 있는 것만 골드다 — 시안 2c 가 보물상자(아직 못 받음) 금액만 muted 로 둔 규칙. */
+.wal-row-amt { font-size:14px; font-weight:600; color:var(--gold); font-variant-numeric:tabular-nums; }
+.wal-row-amt.is-dim { color:var(--ink-5); }
+.wal-act { min-height:34px; padding:0 15px; border-radius:9px; border:1px solid var(--border-strong);
+           background:transparent; color:var(--ink); font:inherit; font-size:12.5px; font-weight:600; flex:0 0 auto; }
+.wal-act.is-primary { border-color:var(--gold); background:var(--gold); color:var(--gold-ink); font-weight:700; }
+.wal-act[disabled] { opacity:.5; }
+/* 못 누르는 골드 CTA 는 화면에서 제일 시끄러운 것이 된다 — 비활성이면 채움을 버리고 아웃라인으로.
+   시안의 위계(Full ad 가 골드 채움)는 8d 로 광고가 실제로 붙을 때 돌아온다. */
+.wal-act.is-primary[disabled] { background:transparent; border-color:var(--border-strong); color:var(--ink); font-weight:600; }
+/* 비활성 행은 이름·부제만 죽인다 — 금액과 버튼까지 흐려지면 무엇을 얼마에 주는지 안 읽힌다. */
+.wal-row.is-off .wal-row-main { opacity:.55; }
+
+/* 7일 스트릭 도트 */
+.wal-dots { display:flex; gap:4px; flex:0 0 auto; }
+.wal-sdot { width:7px; height:7px; border-radius:99px; background:var(--neutral); }
+.wal-sdot.is-on { background:var(--gold); }
+
+/* Spend — 부제 없는 한 줄 가격표. Earn 보다 촘촘하고 골드를 쓰지 않는다(시안 2c). */
+/* 탭 타깃이 아니라 가격표라 44px 규범을 적용하지 않는다 — 늘리면 시안보다 성겨진다. */
+.wal-prow { display:flex; align-items:center; padding:11px 0 10px;
+            border-bottom:1px solid var(--hairline); }
+.wal-prow:last-child { border-bottom:0; }
+.wal-prow-name { flex:1; font-size:12.5px; color:var(--ink-2); }
+.wal-prow-cost { font-size:12.5px; color:var(--steel); font-variant-numeric:tabular-nums; }
 
 /* ===== 단계 선택 바텀시트(시안 7a) ===== */
 .sheet-scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; z-index:20; }
