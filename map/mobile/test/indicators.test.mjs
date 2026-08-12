@@ -100,7 +100,9 @@ test("biasOf — 분석 함수가 던져도 null 로 받는다", () => {
 });
 
 const R = require("../www/readings.js");
-const ctxOf = d => ({ price: d.price, candle: d.candle });
+// ctx 는 생산 경로와 같은 방식으로 만든다 — 손으로 {price, candle} 을 조립하면 hasVolume 이 빠져
+// 거래량 5종이 테스트에서만 다른 문장을 낸다(그리고 opposing 의 두 경로가 갈린다).
+const ctxOf = d => I.ctxFrom(d);
 
 test("readings() 의 bias 는 biases() 와 정확히 같다 — 방향 경로가 두 벌이 되지 않는다", () => {
   const d = fixture(), g = MSGraph.full32Graph(FC);
@@ -114,6 +116,34 @@ test("readings() 는 모든 항목에 비지 않은 문장을 붙인다", () => 
   const rows = I.readings(FC, g, d, ctxOf(d));
   assert.ok(rows.length >= 28, "Full 그래프에서 30종 가까이 나와야 한다: " + rows.length);
   rows.forEach(r => assert.ok(r.text && r.text.trim().length > 0, r.type + " 에 문장이 없다"));
+});
+
+// readings() 는 노드의 params 를 analyzeX 에만 넘기는 것이 아니라 **판독문 가드에도** 넘긴다.
+// roc·ao 의 가드는 엔진 기본값(12·7)을 리터럴로 들고 있으면서 "이 판독은 opts 없이 불린다"고
+// 주석까지 달아 뒀는데 사실이 아니었다 — graph.js 가 params:{} 를 밀어 넣어 우연히 맞았을 뿐이다.
+test("readings() 는 노드 params 를 판독문 가드까지 전달한다", () => {
+  const d = fixture(220);
+  const base = { nodes: [{ blockType: "roc", params: {} }, { blockType: "ao", params: {} }] };
+  const tuned = { nodes: [{ blockType: "roc", params: { period: 500 } },
+                          { blockType: "ao", params: { fast: 400 } }] };
+  I.readings(FC, base, d, ctxOf(d)).forEach(r =>
+    assert.ok(!R.isRefusal(r.text), r.type + " 가 기본 params 에서 거절했다: " + r.text));
+  I.readings(FC, tuned, d, ctxOf(d)).forEach(r =>
+    assert.strictEqual(r.text, R.NONE,
+      r.type + " 가 lookback(500·400봉)보다 짧은 220봉에서 판독을 냈다 — params 가 say() 에 안 닿는다"));
+});
+
+// ctxFrom 이 거래량 유무를 한 곳에서 정한다. 화면(report.js)은 okVol 로 이미 판정한 an.vol 을
+// 그대로 넘기고, opposing 의 자체계산 경로도 같은 함수를 쓴다 — 두 벌이 생기면 갈린다.
+test("ctxFrom — 거래량 유무가 판독 ctx 로 한 번에 전달된다", () => {
+  const d = fixture();
+  assert.strictEqual(I.ctxFrom(d).hasVolume, true);
+  assert.strictEqual(I.ctxFrom({ price: d.price, candle: d.candle }).hasVolume, false);
+  assert.strictEqual(I.ctxFrom({ price: d.price, candle: d.candle, volume: null }).hasVolume, false);
+  const g = { nodes: [{ blockType: "vwap", params: {} }] };
+  const noVol = { price: d.price, candle: d.candle };
+  assert.strictEqual(I.readings(FC, g, noVol, I.ctxFrom(noVol))[0].text, R.NO_VOL);
+  assert.notStrictEqual(I.readings(FC, g, d, I.ctxFrom(d))[0].text, R.NO_VOL);
 });
 
 test("Basic 그래프에선 5종만 나온다", () => {
