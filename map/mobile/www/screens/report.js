@@ -548,17 +548,19 @@
     // 재진입 가드(buying): Full 행을 다시 탭하거나(시트가 다시 그려지며 새 Run 버튼이 생김) 시트를
     // scrim 으로 닫은 뒤 아래 CTA 로 새 시트를 열어도, 진행 중인 spend Promise 는 살아있다 —
     // idem 이 매번 새로 생성되어 서버 멱등 방어가 못 잡는 이중 과금 경로다(리뷰 지적).
+    //
+    // 체인을 "판정"(spend→로드→분석→필요 시 환급, 실패해도 안전하게 끝까지 돈다)과 "결과 반영"
+    // (alert/draw, 던질 수 있다) 두 단계로 나눈다. 판정 구간의 catch 는 판정 구간의 예외만 잡아
+    // "환급 여부를 모른다"(tsFailedNoRefund)로만 답한다 — 성공 판정 뒤 draw() 가 던지는 예외까지
+    // 이 catch 가 삼키면 정상 결제·정상 분석인데 "환급됐다"(tsFailed)고 거짓말하게 된다(재리뷰 지적).
     function runFull() {
       if (buying) return;                       // 이중 과금 차단
       buying = true;
       var idem = MSWallet.newIdem();
       function done() { buying = false; }
+
       MSWallet.spend("full", idem).then(function (sp) {
-        if (!sp.ok) {
-          MSTierSheet.close();
-          alert(sp.reason === "insufficient" ? MSStr.t.tsShort : MSStr.t.tsSpendFailed);
-          return;
-        }
+        if (!sp.ok) return { kind: "spend-fail", reason: sp.reason };
         var tfs = ["1day", "1week", "1month"];
         return Promise.all(tfs.map(function (tf) {
           return MSApi.loadTicker(sym, tf)
@@ -567,13 +569,10 @@
         })).then(function (loaded) {
           var day = loaded[0];
           if (day.error) {
-            return MSWallet.refund(idem).then(function (rf) {
-              MSTierSheet.close();
-              alert(rf && rf.ok ? MSStr.t.tsFailed : MSStr.t.tsFailedNoRefund);
-            });
+            return MSWallet.refund(idem).then(function (rf) { return { kind: "refunded", ok: !!(rf && rf.ok) }; });
           }
           var dayAn = null;
-          tfRuns = loaded.map(function (L) {
+          var runs = loaded.map(function (L) {
             if (L.error) return { tf: L.tf, error: MSStr.t.rpNoHistory };
             try {
               var a = analyzeFull(L.data, true, L.tf);
@@ -582,19 +581,31 @@
             } catch (e) { return { tf: L.tf, error: MSStr.t.rpNoHistory }; }
           });
           if (!dayAn) {
-            return MSWallet.refund(idem).then(function (rf) {
-              MSTierSheet.close();
-              alert(rf && rf.ok ? MSStr.t.tsFailed : MSStr.t.tsFailedNoRefund);
-            });
+            return MSWallet.refund(idem).then(function (rf) { return { kind: "refunded", ok: !!(rf && rf.ok) }; });
           }
-          data = day.data;
-          an = dayAn;
-          tier = "full";
+          return { kind: "success", data: day.data, an: dayAn, runs: runs };
+        });
+      })["catch"](function () {
+        // 판정 구간(spend·로드·분석·환급 호출 자체)의 예외 — 환급이 됐는지조차 모르므로 단정하지 않는다.
+        return { kind: "unknown" };
+      }).then(function (r) {
+        // 여기부터는 판정이 안전하게 끝났다는 뜻 — 이 아래에서 던지는 예외(draw() 등)는 위 catch 가
+        // 이미 지나가 못 잡는다. 성공 렌더 오류가 "환급됨" 문구로 잘못 이어지지 않는 이유다.
+        if (r.kind === "success") {
+          data = r.data; an = r.an; tfRuns = r.runs; tier = "full";
           MSTierSheet.close();
           draw();
-        });
-      })["catch"](function () { MSTierSheet.close(); alert(MSStr.t.tsFailed); })
-       .then(done, done);                       // 성공·실패 어느 쪽이든 가드를 푼다
+        } else if (r.kind === "refunded") {
+          MSTierSheet.close();
+          alert(r.ok ? MSStr.t.tsFailed : MSStr.t.tsFailedNoRefund);
+        } else if (r.kind === "spend-fail") {
+          MSTierSheet.close();
+          alert(r.reason === "insufficient" ? MSStr.t.tsShort : MSStr.t.tsSpendFailed);
+        } else {
+          MSTierSheet.close();
+          alert(MSStr.t.tsFailedNoRefund);
+        }
+      }).then(done, done);                       // 판정·반영 어느 쪽에서 끝나든(성공/실패/예외) 가드를 푼다
     }
 
     function buildCta() {
