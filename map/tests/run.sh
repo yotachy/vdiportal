@@ -15,11 +15,15 @@ FAILED=()
 TOTAL=0
 
 # node --test 출력에서 'ℹ pass N' / 'ℹ fail N' 을 뽑아 집계한다.
+# ⚠ 색 코드를 반드시 먼저 걷어낸다 — node 가 요약줄을 '\e[34mℹ pass 259\e[39m' 으로 내보내면
+# 아래 grep 의 '^ℹ' 앵커가 안 맞아 **전부 통과인 스위트가 '실패 (pass 0)' 로 보고된다**.
+# 초록을 빨강으로 읽는 방향이라 조용히 넘어가진 않지만, 관문이 거짓말하는 것은 마찬가지다.
 run_suite() {
   local label="$1" dir="$2"; shift 2
   printf '── %-22s ' "$label"
   local out pass fail
   out=$(cd "$dir" && "$@" 2>&1)
+  out=$(printf '%s\n' "$out" | sed 's/\x1b\[[0-9;]*m//g')
   pass=$(printf '%s\n' "$out" | grep -oP '^ℹ pass \K\d+' | tail -1)
   fail=$(printf '%s\n' "$out" | grep -oP '^ℹ fail \K\d+' | tail -1)
   pass=${pass:-0}; fail=${fail:-0}
