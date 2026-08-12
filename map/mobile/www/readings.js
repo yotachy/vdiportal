@@ -39,6 +39,10 @@
   function has(a) { return !!(a && a.length); }
   function lastOf(a) { return has(a) ? a[a.length - 1] : null; }
 
+  // ADX 강도 어휘. 숫자만으로는 "16 and rising" 이 강한 추세처럼 읽혀 오도한다.
+  var ADX_STRENGTH = { very_strong: "trend very strong", strong: "trend strong",
+                       developing: "trend forming", weak: "trend still weak" };
+
   var SAY = {
     ma: function (r) {
       if (!r.mas || !r.mas.long) return NONE;
@@ -81,6 +85,93 @@
             + "x average, " + (VOL_REL[r.relationship] || "weakening");
       if (r.divergence && r.divergence.type) s += ", " + r.divergence.type + " divergence";
       return s;
+    },
+
+    adx: function (r) {
+      if (!has(r.adx)) return NONE;
+      var li = r.adx.length - 1;
+      var up = r.last.plusDI >= r.last.minusDI;
+      // 선행 봉 수 — 엔진이 이미 준 배열을 훑는다(새 계산 아님)
+      var lead = 0;
+      for (var i = li; i > 0; i--) {
+        if ((r.plusDI[i] >= r.minusDI[i]) !== up) break;
+        lead++;
+      }
+      var prev = r.adx[Math.max(0, li - 5)];
+      var rising = r.adx[li] >= prev;
+      return n0(r.last.adx) + " and " + (rising ? "rising" : "easing")
+           + ", " + (ADX_STRENGTH[r.strength] || "trend still weak")
+           // 마이너스는 ASCII 하이픈으로 통일한다 — 기여도 칸이 toFixed() 라 ASCII 다.
+           // 판독문만 유니코드 −(U+2212)를 쓰면 한 행 안에서 표기가 갈린다.
+           + ", " + (up ? "+DI" : "-DI") + " ahead for " + lead + (lead === 1 ? " bar" : " bars");
+    },
+
+    stochastic: function (r) {
+      if (!has(r.k)) return NONE;
+      var s = "%K " + n0(r.last.k) + " / %D " + n0(r.last.d) + ", " + (RSI_ZONE[r.state] || r.state);
+      if (r.cross && r.cross.type)
+        s += ", " + (r.cross.type === "bull" ? "bullish" : "bearish") + " cross " + bars(r.cross.barsAgo);
+      return s;
+    },
+
+    fib: function (r) {
+      if (!has(r.levels)) return NONE;
+      var z = r.zone || {}, near = z.nearest;
+      var s = cap(r.dir === "up" ? "up" : r.dir === "down" ? "down" : "flat") + " swing";
+      if (near) {
+        // ratio 0 은 되돌림이 아니라 스윙 극점 자체다 — "the 0 level" 로 적으면 뜻이 안 통한다
+        var at = (near.ratio === 0)
+          ? "the swing " + (r.dir === "up" ? "high" : "low")
+          : "the " + near.ratio + " retracement";
+        s += ", price at " + at + " as " + (SR[near.side] || near.side);
+      } else {
+        s += ", price mid-range";
+      }
+      if (z.inGolden) s += ", inside the golden pocket";
+      // degrees 는 "몇 개 척도로 쟀나"이지 "몇 개가 동의하나"가 아니다 — 동의로 적으면 거짓 귀속
+      if (r.degrees && r.degrees.length > 1) s += ", " + r.degrees.length + " swing degrees measured";
+      return s;
+    },
+
+    ichimoku: function (r) {
+      if (!has(r.spanA)) return NONE;
+      var pos = r.pricePos === "above" ? "Above the cloud"
+              : r.pricePos === "below" ? "Below the cloud" : "Inside the cloud";
+      var s = pos + ", cloud " + (r.cloud === "bull" ? "bullish" : r.cloud === "bear" ? "bearish" : "flat");
+      s += r.tkCross.type
+        ? ", tenkan crossed " + (r.tkCross.type === "bull" ? "up " : "down ") + bars(r.tkCross.barsAgo)
+        : ", no tenkan cross in range";
+      // 짧은 이력에선 엔진이 기간을 압축한다. 안 적으면 같은 문장이 다른 계산을 가리킨다.
+      if (r.scaled) s += " (periods scaled to short history)";
+      return s;
+    },
+
+    pivot: function (r) {
+      if (!r.P || !has(r.R) || !has(r.S)) return NONE;
+      var p = r.last, s;
+      if (p > r.R[2]) s = "Above R3 " + px(r.R[2]);
+      else if (p > r.R[1]) s = "Between R2 " + px(r.R[1]) + " and R3 " + px(r.R[2]);
+      else if (p > r.R[0]) s = "Between R1 " + px(r.R[0]) + " and R2 " + px(r.R[1]);
+      else if (p > r.P) s = "Between the pivot " + px(r.P) + " and R1 " + px(r.R[0]);
+      else if (p > r.S[0]) s = "Between S1 " + px(r.S[0]) + " and the pivot " + px(r.P);
+      else if (p > r.S[1]) s = "Between S2 " + px(r.S[1]) + " and S1 " + px(r.S[0]);
+      else if (p > r.S[2]) s = "Between S3 " + px(r.S[2]) + " and S2 " + px(r.S[1]);
+      else s = "Below S3 " + px(r.S[2]);
+      return s + ", levels from the previous bar";
+    },
+
+    psar: function (r) {
+      if (!has(r.series)) return NONE;
+      var gap = (r.last && isFinite(r.last)) ? Math.abs(r.last - r.sar) / r.last * 100 : 0;
+      return (r.dir > 0 ? "Dots below price" : "Dots above price") + " at " + px(r.sar)
+           + ", " + n1(gap) + "% away" + (r.flip ? ", flipped on this bar" : "");
+    },
+
+    gann: function (r) {
+      if (!has(r.angles)) return NONE;
+      var d = (r.last && isFinite(r.last)) ? Math.abs(r.last - r.oneOne) / r.last * 100 : 0;
+      var s = (r.last >= r.oneOne ? "Above" : "Below") + " the 1×1 line at " + px(r.oneOne) + " by " + n1(d) + "%";
+      return s + (r.anchor ? ", anchored at " + px(r.anchor.price) : ", no anchor swing");
     }
   };
 
@@ -88,8 +179,7 @@
   // **덮어쓰지 않는다** — 나중 태스크가 위 리터럴에 실제 구현을 넣고 이 배열에서 이름 빼는 것을
   // 잊으면, 무조건 대입은 그 구현을 조용히 NONE 으로 되돌린다. 계약 테스트는 NONE 도 통과시키므로
   // 아무도 못 잡는다.
-  ["adx", "stochastic", "fib", "ichimoku", "pivot", "psar", "gann",
-   "vwap", "supertrend", "atr", "volumeprofile", "structure", "keltner", "donchian",
+  ["vwap", "supertrend", "atr", "volumeprofile", "structure", "keltner", "donchian",
    "cci", "williams", "aroon", "mfi",
    "elliott", "smc", "cycle", "roc", "ao", "cmf", "pattern"].forEach(function (bt) {
     if (!SAY[bt]) SAY[bt] = function () { return NONE; };

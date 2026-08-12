@@ -29,6 +29,19 @@ function callOne(bt, d, opts) {
 }
 const ctxOf = d => ({ price: d.price, candle: d.candle });
 
+// fixture(300) 에서 실제로 나오는 문장. 계획 단계에서 스크래치 구현을 돌려 출력을 읽고
+// 확정한 값이다 — 포매터에서 유도하면 항등식이 되므로 리터럴로 박는다.
+// 값이 바뀌면 그것은 회귀이거나 의도한 변경이고, 둘 다 사람이 봐야 한다.
+const EXPECT_LV2 = {
+  adx: "16 and easing, trend still weak, +DI ahead for 2 bars",
+  stochastic: "%K 77 / %D 44, neutral, bullish cross 2 bars ago",
+  fib: "Up swing, price at the swing high as support, 3 swing degrees measured",
+  ichimoku: "Above the cloud, cloud bullish, tenkan crossed down 5 bars ago",
+  pivot: "Between R1 144.07 and R2 145.75, levels from the previous bar",
+  psar: "Dots below price at 137.26, 5.3% away",
+  gann: "Below the 1×1 line at 151.18 by 4.3%, anchored at 121.94"
+};
+
 test("SAY 의 키는 SHAPES 의 키와 정확히 같다", () => {
   assert.deepEqual(Object.keys(R.SAY).sort(), Object.keys(I.SHAPES).sort());
 });
@@ -85,4 +98,11 @@ test("화면에 나가는 문장에 한글이 없다 — 전수", () => {
 
 test("표에 없는 blockType 은 빈 문자열", () => {
   assert.strictEqual(R.say("nosuch", {}, ctxOf(fixture())), "");
+});
+
+test("Lv2 7종이 시안 6a 어투의 문장을 낸다", () => {
+  const d = fixture(), ctx = ctxOf(d);
+  const got = {};
+  Object.keys(EXPECT_LV2).forEach(bt => { got[bt] = R.say(bt, callOne(bt, d), ctx); });
+  assert.deepEqual(got, EXPECT_LV2);
 });
