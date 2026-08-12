@@ -156,14 +156,19 @@ body {
 
 /* 섹션 머리 — 오버라인 왼쪽, 캡션 오른쪽(시안 2a 의 "80% cone" · "5 of 12 shown") */
 
-/* REASONING · 32 NODES(시안 6a) — 이름 78px · 문장 flex · 기여도. AGAINST 가 같은 행 모양을
+/* REASONING · 32 NODES(시안 6a) — 이름 92px · 문장 flex · 기여도. AGAINST 가 같은 행 모양을
    쓰므로 여기가 정본이다. 문장은 muted 로 고정 — 32행을 방향색으로 물들이면 차트 위에서
-   걷어낸 다색 덩어리가 이 자리에 다시 선다. */
+   걷어낸 다색 덩어리가 이 자리에 다시 선다.
+   92px 는 실측값(2026-08-13) — 78px 에서 12.5px 행 폰트로 렌더하면 32개 이름 중 3개가
+   두 줄로 접힌다(Awesome oscillator 105px · Market structure 91px · Moving average 87px).
+   92px 는 그중 둘을 없애고(Awesome oscillator 만 남음) 문장 폭은 14px 만 내준다 — 전부
+   없애는 116px 은 412px 화면에서 문장 폭 38px 를 내줘야 해서 더 나쁜 거래다. 시안의 78px
+   로 되돌리지 말 것. */
 .rp-reason { margin-bottom:22px; }
 .rp-reason-row { display:flex; align-items:flex-start; gap:12px;
                  padding:11px 0 10px; border-bottom:1px solid var(--hairline); font-size:12.5px; }
 .rp-reason-row:last-child { border-bottom:0; }
-.rp-reason-name { flex:0 0 78px; color:var(--ink-2); }
+.rp-reason-name { flex:0 0 92px; color:var(--ink-2); }
 .rp-reason-text { flex:1; color:var(--ink-4); line-height:1.55; }
 .rp-reason-bias { flex:0 0 auto; color:var(--ink-5); font-variant-numeric:tabular-nums; }
 .rp-reason-bias.up { color:var(--bull); }
@@ -177,7 +182,7 @@ body {
 .rp-against-row { display:flex; align-items:flex-start; gap:12px;
                   padding:11px 0 10px; border-bottom:1px solid var(--hairline); font-size:12.5px; }
 .rp-against-row:last-child { border-bottom:0; }
-.rp-against-name { flex:0 0 78px; color:var(--ink-2); }
+.rp-against-name { flex:0 0 92px; color:var(--ink-2); }
 .rp-against-text { flex:1; color:var(--ink-4); line-height:1.55; }
 .rp-against-bias { flex:0 0 auto; color:var(--bear-text); font-weight:600; font-variant-numeric:tabular-nums; }
 .rp-against-none { margin:0 0 8px; font-size:12px; color:var(--ink-4); }
