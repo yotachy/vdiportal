@@ -98,3 +98,178 @@ test("biasOf — 분석 함수가 던져도 null 로 받는다", () => {
   const boom = { analyzeRSI: () => { throw new Error("boom"); } };
   assert.strictEqual(I.biasOf(boom, "rsi", fixture(), {}), null);
 });
+
+const R = require("../www/readings.js");
+// ctx 는 생산 경로와 같은 방식으로 만든다 — 손으로 {price, candle} 을 조립하면 hasVolume 이 빠져
+// 거래량 5종이 테스트에서만 다른 문장을 낸다(그리고 opposing 의 두 경로가 갈린다).
+const ctxOf = d => I.ctxFrom(d);
+
+test("readings() 의 bias 는 biases() 와 정확히 같다 — 방향 경로가 두 벌이 되지 않는다", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  const a = I.biases(FC, g, d).map(r => r.type + ":" + r.bias);
+  const b = I.readings(FC, g, d, ctxOf(d)).map(r => r.type + ":" + r.bias);
+  assert.deepEqual(b, a);
+});
+
+test("readings() 는 모든 항목에 비지 않은 문장을 붙인다", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  const rows = I.readings(FC, g, d, ctxOf(d));
+  assert.ok(rows.length >= 28, "Full 그래프에서 30종 가까이 나와야 한다: " + rows.length);
+  rows.forEach(r => assert.ok(r.text && r.text.trim().length > 0, r.type + " 에 문장이 없다"));
+});
+
+// readings() 는 노드의 params 를 analyzeX 에만 넘기는 것이 아니라 **판독문 가드에도** 넘긴다.
+// roc·ao 의 가드는 엔진 기본값(12·7)을 리터럴로 들고 있으면서 "이 판독은 opts 없이 불린다"고
+// 주석까지 달아 뒀는데 사실이 아니었다 — graph.js 가 params:{} 를 밀어 넣어 우연히 맞았을 뿐이다.
+test("readings() 는 노드 params 를 판독문 가드까지 전달한다", () => {
+  const d = fixture(220);
+  const base = { nodes: [{ blockType: "roc", params: {} }, { blockType: "ao", params: {} }] };
+  const tuned = { nodes: [{ blockType: "roc", params: { period: 500 } },
+                          { blockType: "ao", params: { fast: 400 } }] };
+  I.readings(FC, base, d, ctxOf(d)).forEach(r =>
+    assert.ok(!R.isRefusal(r.text), r.type + " 가 기본 params 에서 거절했다: " + r.text));
+  I.readings(FC, tuned, d, ctxOf(d)).forEach(r =>
+    assert.strictEqual(r.text, R.NONE,
+      r.type + " 가 lookback(500·400봉)보다 짧은 220봉에서 판독을 냈다 — params 가 say() 에 안 닿는다"));
+});
+
+// ctxFrom 이 거래량 유무를 한 곳에서 정한다. 화면(report.js)은 okVol 로 이미 판정한 an.vol 을
+// 그대로 넘기고, opposing 의 자체계산 경로도 같은 함수를 쓴다 — 두 벌이 생기면 갈린다.
+test("ctxFrom — 거래량 유무가 판독 ctx 로 한 번에 전달된다", () => {
+  const d = fixture();
+  assert.strictEqual(I.ctxFrom(d).hasVolume, true);
+  assert.strictEqual(I.ctxFrom({ price: d.price, candle: d.candle }).hasVolume, false);
+  assert.strictEqual(I.ctxFrom({ price: d.price, candle: d.candle, volume: null }).hasVolume, false);
+  const g = { nodes: [{ blockType: "vwap", params: {} }] };
+  const noVol = { price: d.price, candle: d.candle };
+  assert.strictEqual(I.readings(FC, g, noVol, I.ctxFrom(noVol))[0].text, R.NO_VOL);
+  assert.notStrictEqual(I.readings(FC, g, d, I.ctxFrom(d))[0].text, R.NO_VOL);
+});
+
+test("Basic 그래프에선 5종만 나온다", () => {
+  const d = fixture(), g = MSGraph.basicGraph(FC);
+  const types = I.readings(FC, g, d, ctxOf(d)).map(r => r.type).sort();
+  assert.deepEqual(types, ["bollinger", "ma", "macd", "rsi", "volume"]);
+});
+
+test("noDirRows() 는 bias null 인 2행 — 0(중립)과 구분한다", () => {
+  const d = fixture();
+  const rows = I.noDirRows(FC, d, ctxOf(d));
+  assert.deepEqual(rows.map(r => r.type), ["trend", "phasefold"]);
+  rows.forEach(r => {
+    assert.strictEqual(r.bias, null, r.type + " 의 bias 는 null 이어야 한다");
+    assert.ok(r.text && r.text.trim().length > 0);
+  });
+});
+
+test("opposing() 은 종전과 같은 목록을 내고 문장이 붙는다", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  ["bull", "bear"].forEach(regime => {
+    const rows = I.opposing(FC, g, d, regime);
+    const want = regime === "bull" ? -1 : 1;
+    rows.forEach(r => {
+      assert.ok(Math.abs(r.bias) > I.EPS, r.type + " 가 데드존 안에 있다");
+      assert.strictEqual(r.bias > 0 ? 1 : -1, want, r.type + " 의 방향이 틀렸다");
+      assert.ok(r.text && r.text.trim().length > 0, r.type + " 에 문장이 없다");
+    });
+    // |bias| 내림차순
+    for (let i = 1; i < rows.length; i++)
+      assert.ok(Math.abs(rows[i - 1].bias) >= Math.abs(rows[i].bias), "정렬이 깨졌다");
+  });
+  assert.deepEqual(I.opposing(FC, g, d, "flat"), [], "중립엔 반대가 정의되지 않는다");
+});
+
+// rows 재사용이 이 태스크의 핵심이다(Task 6 이 readings() 결과를 넘겨 재계산을 없앤다) —
+// 그런데 커밋된 스위트엔 5번째 인자로 opposing() 을 부르는 테스트가 하나도 없었다
+// (리뷰 라운드 1, Important). 아래 세 테스트가 그 경로를 덮는다.
+
+test("opposing(..., rows) 는 rows 없이 부른 것과 완전히 같다 — text 포함(재사용 경로의 동등성)", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  ["bull", "bear"].forEach(regime => {
+    const rows = I.readings(FC, g, d, ctxOf(d));
+    const withRows = I.opposing(FC, g, d, regime, rows);
+    const withoutRows = I.opposing(FC, g, d, regime);
+    // 두 경로는 type·bias·text 전부 구별 불가능해야 한다. opposing() 이 rows 없이 스스로
+    // 계산할 때 ctx 로 data 를 넘기기 전(리뷰 라운드 2, Critical)에는 null 을 넘겨서
+    // aroon·ao 같은 ctx 게이트 판독이 이 경로에서만 "읽지 못했다"고 거짓말했다 —
+    // 그래서 이 assert 가 한 번 narrowing 됐었다. data 가 {price, candle} 을 이미 갖고
+    // 있으므로 ctx 로 그대로 넘기면 두 경로가 진짜로 같아진다.
+    assert.deepEqual(withRows, withoutRows, regime + " 에서 rows 유무 결과가 다르다(text 포함)");
+  });
+});
+
+test("opposing() 의 rows 인자 — 빈 배열은 그대로 빈 결과, null 은 생략과 같다", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  // rows=[] 는 "명시적으로 반대 후보가 없다"는 뜻이지 "안 줬다"가 아니다 — src = rows || readings(...)
+  // 가 빈 배열([]는 truthy)에서 재계산으로 빠지지 않는다는 것을 못박는다. 나중에 누가
+  // `rows ? … : …` 나 `rows && rows.length` 로 리팩터링하면 이 테스트가 깨진다.
+  assert.deepEqual(I.opposing(FC, g, d, "bull", []), [], "rows=[] 가 재계산으로 폴백하면 안 된다");
+  const withoutArg = I.opposing(FC, g, d, "bull");
+  const withNull = I.opposing(FC, g, d, "bull", null);
+  assert.deepEqual(withNull, withoutArg, "rows=null 은 생략과 같아야 한다(재계산으로 폴백)");
+});
+
+// 거래량 없는 종목에서는 거래량 5종이 "못 읽었다"고 적으면서도 **0 이 아닌 bias** 를 들고 온다
+// (엔진이 synthVolume 으로 계산한 값). 그대로 opposing 에 넣으면 "이 지표가 반대한다"면서 문장은
+// "No volume data for this ticker" 인 행이 AGAINST 목록에 이름으로 오른다 — 판독문에서 없앤
+// 거짓말이 자리만 옮긴 것이다. 화면은 MSReadings.voiced() 로 거른 뒤 넘긴다.
+test("AGAINST — 거절한 행은 반대 목록에 오르지 않는다(목록·분모 같은 술어)", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  const noVol = { price: d.price, candle: d.candle };   // volume 없음 = 화면의 okVol=false
+  const rows = I.readings(FC, g, noVol, I.ctxFrom(noVol));
+  const refused = rows.filter(r => R.isRefusal(r.text));
+  assert.ok(refused.length >= 5, "거래량 5종이 거절해야 이 테스트가 의미 있다: " + refused.length);
+  // 거르지 않으면 실제로 반대 목록에 들어간다 — 이 테스트가 지키는 것이 가상의 위험이 아니라는 증거
+  const bothRegimes = ["bull", "bear"].map(rg => I.opposing(FC, g, noVol, rg, rows));
+  assert.ok(bothRegimes.some(list => list.some(r => R.isRefusal(r.text))),
+    "거르기 전에도 거절 행이 반대 목록에 없다면 표본이 이 결함을 못 재현한다");
+
+  const voiced = R.voiced(rows);
+  ["bull", "bear"].forEach(regime => {
+    const out = I.opposing(FC, g, noVol, regime, voiced);
+    out.forEach(r => assert.ok(!R.isRefusal(r.text),
+      r.type + " 가 아무것도 못 읽었다고 적어 놓고 반대 목록에 있다: " + r.text));
+    // 분모(화면의 measured)도 같은 배열에서 나온다 — 분자 > 분모가 날 수 없다
+    assert.ok(out.length <= voiced.length, "분자가 분모보다 크다");
+  });
+});
+
+// FC 의 analyzeX 함수를 SHAPES 값에서 이름을 뽑아 카운팅 shim 으로 감싼다 —
+// 지표가 늘어도(SHAPES 갱신) 이 래퍼는 하드코딩 없이 그대로 맞는다.
+function wrapCounting(fc) {
+  const counts = {};
+  const wrapped = Object.assign({}, fc);
+  const fnNames = Array.from(new Set(Object.values(I.SHAPES).map(s => s[0])));
+  fnNames.forEach(name => {
+    counts[name] = 0;
+    const orig = fc[name];
+    wrapped[name] = function () { counts[name]++; return orig.apply(fc, arguments); };
+  });
+  return { wrapped, counts };
+}
+
+test("readings() + opposing(rows) — 지표당 analyzeX 정확히 1회(rows 재사용 계약)", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  // 기대 횟수는 구현이 보고하는 숫자가 아니라 그래프의 노드 목록에서 직접 뽑는다.
+  const graphTypes = MSGraph.indicatorTypes(g).filter(t => I.SHAPES[t]);
+  assert.ok(graphTypes.length >= 28, "그래프에 지표가 30종 가까이 있어야 대조가 의미 있다");
+  const { wrapped, counts } = wrapCounting(FC);
+  const rows = I.readings(wrapped, g, d, ctxOf(d));
+  I.opposing(wrapped, g, d, "bull", rows);
+  graphTypes.forEach(bt => {
+    const fnName = I.SHAPES[bt][0];
+    assert.strictEqual(counts[fnName], 1, bt + "(" + fnName + ") 가 정확히 1회 불려야 한다 — 실제 " + counts[fnName] + "회");
+  });
+});
+
+test("readings() + opposing() (rows 없이) — 지표당 analyzeX 2회, rows 가 없앤 재계산의 크기", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  const graphTypes = MSGraph.indicatorTypes(g).filter(t => I.SHAPES[t]);
+  const { wrapped, counts } = wrapCounting(FC);
+  I.readings(wrapped, g, d, ctxOf(d));
+  I.opposing(wrapped, g, d, "bull");
+  graphTypes.forEach(bt => {
+    const fnName = I.SHAPES[bt][0];
+    assert.strictEqual(counts[fnName], 2, bt + "(" + fnName + ") 는 rows 없이 2회 불려야 한다 — 실제 " + counts[fnName] + "회");
+  });
+});

@@ -1051,7 +1051,9 @@ UMD 머리에서 `readings.js` 를 받는다:
            readings: readings, noDirRows: noDirRows, opposing: opposing, EPS: EPS };
 ```
 
-`biases()` 는 **지운다.** ⚠️ 소비자가 둘 있다 — `screens/report.js` 의 `buildVerdict()` tally 와 `buildAgainst()` 분모. Task 6 이 그 둘을 `readings()` 로 옮긴다. **이 태스크에서는 `biases()` 를 남겨 둔다**(테스트가 `readings()` 와 대조하는 오라클로 쓴다). 제거는 Task 6 이후 별도로 하지 않는다 — `biasOf`/`biases` 는 단위 테스트의 오라클로 계속 값을 한다.
+**`biases()` 와 `biasOf()` 는 그대로 남긴다.** 지우지 않는다 — `readings()` 의 bias 가 맞는지 대조하는 **테스트 오라클**이기 때문이다. 두 경로가 같은 값을 낸다는 것을 계속 검사할 수 있어야 한다.
+
+화면 쪽 소비자는 Task 6 이 옮긴다 — `screens/report.js` 의 `buildVerdict()` tally 와 `buildAgainst()` 분모 둘이 `MSIndicators.biases()` 를 부르고 있고, Task 6 이 그것을 `readings()` 결과를 받는 형태로 바꾼다. **이 태스크에서는 `report.js` 를 건드리지 않는다.**
 
 - [ ] **Step 4: 테스트 통과 확인**
 

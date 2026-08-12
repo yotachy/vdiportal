@@ -89,6 +89,17 @@
     // 시안 6a 의 AGAINST THIS CALL — Full 이 주는 것 중 하나. 32종 중 판정과 반대인 지표들.
     rpAgainst: "Against this call",
     rpAgainstNone: "No indicator argues the other way.",
+    rpReasoning: "Reasoning",                    // 시안 6a: "REASONING · 32 NODES" — .overline 이 대문자로 만든다
+    rpReasoningNodes: " nodes",                  // 머리 오른쪽 캡션 앞부분 — "32 nodes"
+    rpReasoningScope: "daily · ",                // 판독은 일봉 기준(헤드라인 판정과 같은 주기)
+    rpReasoningDir: " with a direction",         // "daily · 30 with a direction"
+    rpNoDirDash: "—",                            // 방향을 못 묻는 둘의 기여도 칸
+    rpSep: " · ",                                // 오버라인 안 구분자 — report.js 가 리터럴로 들고 있던 것
+    // 판독문 거절문 3종(readings.js). **이유가 서로 다르므로 하나로 뭉치면 화면이 거짓 이유를 말한다** —
+    // 봉이 300개인데 "봉이 모자라다"고 하던 것이 실제 결함이었다(swing:3 로 죽은 Market structure).
+    rdNotEnoughBars: "Not enough bars to read",
+    rdNoVolume: "No volume data for this ticker",
+    rdNoSwings: "No swings large enough to read structure",
     rpMissingHitRate: "Historical hit rate of this setup",
     rpMissingDisagree: "Indicators that disagree",
     rpMissingTfAgree: "Weekly and monthly agreement",
