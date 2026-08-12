@@ -244,7 +244,10 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
   **8b(실서버·실패가 일상 경로) 착수 전에 해소할 것.**
 - **`Counted` 가 Full 에서도 5행이다** — 제목 숫자만 32로 바뀐다. 32종 판독 문구는 지표별 `xSteps` 를
   32번 부르는 별도 작업이라 8a 범위 밖으로 뒀다. 시안 4a 의 *"What the 27 added"* 가 이 자리다.
-- **`scan` 가격 미정** — `SPEC §1` 의 `runType` 과 `2c` 의 Spend 목록에 이름만 있고 값이 없다. 무료로 뒀다.
+- **`scan` 가격은 시안이 2스쿱이라 말한다** — 8a 는 "값이 없다"고 적었으나 오독이었다. 시안 `2c` 의 Spend
+  목록에 `Watchlist signal scan 2` 가 그대로 있다. 코드는 아직 무료(`COSTS.scan = 0`)이고 지갑 가격표도
+  `Free` 로 적는다 — 가격표가 실제 차감과 어긋나는 쪽이 더 나쁘다. **과금할지는 제품 결정**이다:
+  스캔은 지금 워치리스트 진입 때마다 자유롭게 돌리는 동작이라, 2스쿱을 물리면 사용 패턴이 바뀐다.
 - **Custom 티어**(5스쿱) — 시트에 자리만 있고 비활성. 화면군 자체가 v4.
 - **빈 워치리스트에서 오타 제안이 안 뜬다** — `screens/watchlist.js` 의 `drawShell()` 이 `!list.length` 경로에서
   `addBtn()` 뒤에 early return 하는데 `pendingSuggest` 패널은 그 아래에 있다. 종목을 전부 지운 뒤 오타 티커를
