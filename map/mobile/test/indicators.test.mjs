@@ -148,3 +148,78 @@ test("opposing() 은 종전과 같은 목록을 내고 문장이 붙는다", () 
   });
   assert.deepEqual(I.opposing(FC, g, d, "flat"), [], "중립엔 반대가 정의되지 않는다");
 });
+
+// rows 재사용이 이 태스크의 핵심이다(Task 6 이 readings() 결과를 넘겨 재계산을 없앤다) —
+// 그런데 커밋된 스위트엔 5번째 인자로 opposing() 을 부르는 테스트가 하나도 없었다
+// (리뷰 라운드 1, Important). 아래 세 테스트가 그 경로를 덮는다.
+
+test("opposing(..., rows) 는 rows 없이 부른 것과 멤버·순서가 같다 — 재사용 경로의 동등성", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  ["bull", "bear"].forEach(regime => {
+    const rows = I.readings(FC, g, d, ctxOf(d));
+    const withRows = I.opposing(FC, g, d, regime, rows);
+    const withoutRows = I.opposing(FC, g, d, regime);
+    // type·bias 는 ctx 와 무관(둘 다 같은 callOne 결과)하므로 완전히 같아야 한다.
+    // text 는 다를 수 있다 — opposing() 은 ctx 인자를 받지 않으므로 rows 를 안 주면
+    // 내부에서 readings(FC, graph, data, null) 로 다시 계산하고, ctx.price 로 게이트하는
+    // 지표(aroon·ao 등)는 그때 NONE 이 된다. rows 를 넘기는 것 — 실제 ctx 로 만든 문장을
+    // 재사용하는 것 — 이 바로 이 rows 인자가 존재하는 이유이므로 여기서는 text 를
+    // 비교 대상에서 뺀다(멤버·순서만 못박는다).
+    assert.deepEqual(
+      withRows.map(r => r.type + ":" + r.bias),
+      withoutRows.map(r => r.type + ":" + r.bias),
+      regime + " 에서 rows 유무로 멤버·순서가 달라졌다"
+    );
+  });
+});
+
+test("opposing() 의 rows 인자 — 빈 배열은 그대로 빈 결과, null 은 생략과 같다", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  // rows=[] 는 "명시적으로 반대 후보가 없다"는 뜻이지 "안 줬다"가 아니다 — src = rows || readings(...)
+  // 가 빈 배열([]는 truthy)에서 재계산으로 빠지지 않는다는 것을 못박는다. 나중에 누가
+  // `rows ? … : …` 나 `rows && rows.length` 로 리팩터링하면 이 테스트가 깨진다.
+  assert.deepEqual(I.opposing(FC, g, d, "bull", []), [], "rows=[] 가 재계산으로 폴백하면 안 된다");
+  const withoutArg = I.opposing(FC, g, d, "bull");
+  const withNull = I.opposing(FC, g, d, "bull", null);
+  assert.deepEqual(withNull, withoutArg, "rows=null 은 생략과 같아야 한다(재계산으로 폴백)");
+});
+
+// FC 의 analyzeX 함수를 SHAPES 값에서 이름을 뽑아 카운팅 shim 으로 감싼다 —
+// 지표가 늘어도(SHAPES 갱신) 이 래퍼는 하드코딩 없이 그대로 맞는다.
+function wrapCounting(fc) {
+  const counts = {};
+  const wrapped = Object.assign({}, fc);
+  const fnNames = Array.from(new Set(Object.values(I.SHAPES).map(s => s[0])));
+  fnNames.forEach(name => {
+    counts[name] = 0;
+    const orig = fc[name];
+    wrapped[name] = function () { counts[name]++; return orig.apply(fc, arguments); };
+  });
+  return { wrapped, counts };
+}
+
+test("readings() + opposing(rows) — 지표당 analyzeX 정확히 1회(rows 재사용 계약)", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  // 기대 횟수는 구현이 보고하는 숫자가 아니라 그래프의 노드 목록에서 직접 뽑는다.
+  const graphTypes = MSGraph.indicatorTypes(g).filter(t => I.SHAPES[t]);
+  assert.ok(graphTypes.length >= 28, "그래프에 지표가 30종 가까이 있어야 대조가 의미 있다");
+  const { wrapped, counts } = wrapCounting(FC);
+  const rows = I.readings(wrapped, g, d, ctxOf(d));
+  I.opposing(wrapped, g, d, "bull", rows);
+  graphTypes.forEach(bt => {
+    const fnName = I.SHAPES[bt][0];
+    assert.strictEqual(counts[fnName], 1, bt + "(" + fnName + ") 가 정확히 1회 불려야 한다 — 실제 " + counts[fnName] + "회");
+  });
+});
+
+test("readings() + opposing() (rows 없이) — 지표당 analyzeX 2회, rows 가 없앤 재계산의 크기", () => {
+  const d = fixture(), g = MSGraph.full32Graph(FC);
+  const graphTypes = MSGraph.indicatorTypes(g).filter(t => I.SHAPES[t]);
+  const { wrapped, counts } = wrapCounting(FC);
+  I.readings(wrapped, g, d, ctxOf(d));
+  I.opposing(wrapped, g, d, "bull");
+  graphTypes.forEach(bt => {
+    const fnName = I.SHAPES[bt][0];
+    assert.strictEqual(counts[fnName], 2, bt + "(" + fnName + ") 는 rows 없이 2회 불려야 한다 — 실제 " + counts[fnName] + "회");
+  });
+});

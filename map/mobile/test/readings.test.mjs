@@ -1,10 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 const require = createRequire(import.meta.url);
 const R = require("../www/readings.js");
 const I = require("../www/indicators.js");
 const FC = require("../../forge-core.js");
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function fixture(n = 300, drift = 0.0012) {
   const price = [], candle = [];
@@ -184,4 +188,20 @@ test("5봉에서 NONE·실제 판독을 내는 지표 집합이 고정돼 있다
   });
   assert.deepEqual(none.sort(), NONE_AT_5);
   assert.deepEqual(real.sort(), REAL_AT_5);
+});
+
+// indicators.js 의 브라우저 UMD 분기는 root.MSReadings 를 **스크립트 실행 시점에** 캡처한다
+// (factory(root.MSReadings)). node 의 require() 는 태그 순서와 무관하게 동기 해석되므로
+// 이 버그는 위 어떤 테스트도 못 잡는다 — index.html 의 <script> 태그 순서 자체가 계약이다.
+// readings.js 가 indicators.js 보다 뒤에 로드되면 Readings 는 영원히 undefined 로 닫히고,
+// readings()/noDirRows() 안의 모든 "Readings ? Readings.say(...) : ''" 가 빈 문자열로
+// 조용히 죽는다 — 화면의 모든 판독문이 공백이 된다(리뷰 라운드 1, Critical).
+test("index.html — readings.js 는 indicators.js 보다 먼저 로드된다", () => {
+  const html = readFileSync(join(__dirname, "../www/index.html"), "utf8");
+  const readingsPos = html.indexOf('<script src="readings.js">');
+  const indicatorsPos = html.indexOf('<script src="indicators.js">');
+  assert.ok(readingsPos >= 0, "index.html 에 readings.js 스크립트 태그가 없다");
+  assert.ok(indicatorsPos >= 0, "index.html 에 indicators.js 스크립트 태그가 없다");
+  assert.ok(readingsPos < indicatorsPos,
+    "indicators.js captures root.MSReadings at load time; loading it first makes every reading blank in the browser");
 });
