@@ -79,6 +79,15 @@
     rpHorizon: "Horizon",
     rpSignals: "Signals",
     rpOf: " of ", rpShown: " shown",           // 시안 1a: "5 of 12 shown"
+    // Basic 의 결핍 — 시안 6a 가 안 되는 것을 이름으로 박아둔다. 지표 27개를 칩으로 까는 것보다
+    // "무엇을 못 하는지"가 훨씬 정확한 설명이고, Full 을 살 이유도 이 네 줄이 만든다.
+    rpNotCounted: "Not checked at this level",  // 시안 6a 그대로 — 결핍 박스의 머리
+    rpMissingHitRate: "Historical hit rate of this setup",
+    rpMissingDisagree: "Indicators that disagree",
+    rpMissingTfAgree: "Weekly and monthly agreement",
+    rpMissingWhy: "Why each reading came out that way",
+    rpMissingDash: "—",
+    rpMissingNote: "A Basic read tells you what five indicators say. It does not tell you whether that has ever worked.",
     // 시안 2a 의 "17 up · 6 flat · 9 down". rpUp/rpDown 은 대문자 단어라 여기 쓸 수 없다.
     rpUp2: " up · ", rpFlat2: " flat · ", rpDown2: " down",
 
@@ -130,6 +139,8 @@
     tsBasicDesc: "5 indicators · daily only", tsFullDesc: "All 32 indicators · daily, weekly, monthly",
     tsCustomDesc: "All 32 + your weights",
     tsDone: "Free · done", tsPopular: "POPULAR", tsSoon: "Coming soon",
+    tsFullPreview: "32 · D·W·M",                 // 단계 행 우측은 '무엇을 읽나'를 말한다(잔량 아님)
+    tsCostsLead: "Costs ",                       // 선택한 단계 아래 비용 한 줄 — "Costs 3 Scoops"
     tsRun: "Run ", tsCost: " Scoops", tsShort: "Not enough Scoops. Come back tomorrow for +1.",
     tsRunning: "Running…", tsFailed: "Analysis failed — your Scoops were returned.",
     tsFailedNoRefund: "Analysis failed. We could not confirm your Scoops were returned — please check your balance.",

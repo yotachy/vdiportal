@@ -46,12 +46,24 @@
     }
     function paint() {
       sheet.innerHTML = "";
-      sheet.appendChild(MSUi.el("div", "rp-sec-title", MSStr.t.tsTitle + (o.sym || "")));
+      // 시안 7a 의 시트 머리 — 제목 왼쪽, **잔량 필** 오른쪽. 잔량이 필로 서 있어야 "얼마 있고
+      // 얼마 쓰는지"가 읽힌다. 예전엔 행 우측의 작은 "5 → 2" 가 유일한 단서라 인지가 안 됐다.
+      var head = MSUi.el("div", "sheet-head");
+      head.appendChild(MSUi.el("span", "sheet-title", MSStr.t.tsTitle + (o.sym || "")));
+      head.appendChild(MSWalletScreen.pill(null));
+      sheet.appendChild(head);
       sheet.appendChild(tierRow("basic", MSStr.t.tsBasic, MSStr.t.tsBasicDesc, 0,
         { off: true, preview: MSStr.t.tsDone }));
       sheet.appendChild(tierRow("full", MSStr.t.tsFull, MSStr.t.tsFullDesc, MSWallet.COSTS.full,
-        { on: picked === "full", popular: true, preview: preview(MSWallet.COSTS.full),
+        { on: picked === "full", popular: true, preview: MSStr.t.tsFullPreview,
           onPick: function () { if (busy) return; picked = "full"; paint(); } }));
+      // 시안 7a 처럼 선택한 단계 바로 아래에 비용 한 줄 — "5 → 2" 는 여기서 부차 표기다.
+      var costLine = MSUi.el("div", "sheet-cost");
+      costLine.appendChild(MSUi.el("span", "sheet-cost-txt", MSStr.t.tsCostsLead + MSWallet.COSTS.full + MSStr.t.tsCost));
+      var pv = preview(MSWallet.COSTS.full);
+      if (pv) costLine.appendChild(MSUi.el("span", "sheet-cost-pv", pv));
+      sheet.appendChild(costLine);
+
       sheet.appendChild(tierRow("custom", MSStr.t.tsCustom, MSStr.t.tsCustomDesc, MSWallet.COSTS.custom,
         { off: true, preview: MSStr.t.tsSoon }));
 

@@ -588,8 +588,26 @@
     // buildCounted() 를 지웠다 — ForgeCore.*Steps() 는 PC 스쿱포지용이라 한국어 문자열을 뱉는데
     // 영어 앱에 그대로 새고 있었다("혼조 (정렬도 0%)"). 같은 5종을 MSLegend 가 영어로 이미 낸다.
 
-    // buildNotCountedSection() 도 지웠다 — 27개 칩 벽이 화면 3분의 1을 먹었고 시안엔 없다.
-    // 같은 말("5 of 32")을 SIGNALS 머리 한 줄이 한다.
+    // 시안 6a 의 Basic 결핍 박스. 27개 지표를 칩으로 깔던 자리에 원래 이게 들어간다 —
+    // "어떤 지표를 안 봤나"보다 "무엇을 못 하나"가 정확한 설명이고, Full 을 살 이유도 여기서 나온다.
+    // Full 은 넷 다 되므로 박스 자체를 내린다.
+    function buildMissing() {
+      if (tier === "full") return null;
+      var sec = MSUi.el("div", "rp-missing-box");
+      sec.appendChild(MSUi.el("div", "overline", MSStr.t.rpNotCounted));
+      [MSStr.t.rpMissingHitRate, MSStr.t.rpMissingDisagree,
+       MSStr.t.rpMissingTfAgree, MSStr.t.rpMissingWhy].forEach(function (label) {
+        var row = MSUi.el("div", "rp-missing-row");
+        row.appendChild(MSUi.el("span", "rp-missing-name", label));
+        row.appendChild(MSUi.el("span", "rp-missing-dash", MSStr.t.rpMissingDash));
+        sec.appendChild(row);
+      });
+      return sec;
+    }
+    function buildMissingNote() {
+      if (tier === "full") return null;
+      return MSUi.el("p", "rp-missing-note", MSStr.t.rpMissingNote);
+    }
 
     function tfRow(name, val, locked, skeleton) {
       var row = MSUi.el("div", "rp-tf-row" + (locked ? " rp-locked" : ""));
@@ -705,9 +723,13 @@
         var hz = buildHorizons();
         if (hz) scr.appendChild(hz);
         scr.appendChild(buildSignals());
+        var miss = buildMissing();
+        if (miss) scr.appendChild(miss);
       }
 
       scr.appendChild(buildTfSection());
+      var note = (state === "ready") ? buildMissingNote() : null;
+      if (note) scr.appendChild(note);
       scr.appendChild(buildCta());
 
       root.appendChild(scr);   // 여기서부터 라이브 DOM — clientWidth 측정 가능
