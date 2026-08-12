@@ -317,11 +317,14 @@
            + (r.last > 0 ? "positive" : r.last < 0 ? "negative" : "flat");
     },
 
-    // ⚠ has(r.series) 는 안 된다 — P < fast+2(하드 플로어) 구간엔 analyzeAO 가 series 를
-    // 전부 0 으로 채운 배열 + conf:0 을 돌려준다. conf 는 엔진이 스스로 매기는 신뢰도라
-    // fast/slow 옵션이 바뀌어도 정확하다(봉수 하드코딩이 아님).
-    ao: function (r) {
-      if (!r.conf) return NONE;
+    // 엔진의 하드 플로어는 fast+2(기본 5+2=7). 그 아래에서만 series 가 0 채움 자리표시자다.
+    // conf 로 판정하면 안 된다 — conf 는 P<=24 까지 0 이지만 그 구간의 last 는 실제 계산값이고
+    // (P=15 에서 0.455, P=20 에서 -2.196), conf 가 0 으로 만드는 것은 기여도뿐이다.
+    // conf 를 가드로 쓰면 멀쩡히 읽은 것을 "못 읽었다"고 말하게 된다. 이 판독은 opts 없이
+    // 불리므로 옵션에서 문턱을 읽을 수 없다 — 엔진 기본값 그대로 리터럴 7을 쓴다.
+    ao: function (r, ctx) {
+      var price = (ctx && ctx.price) || [];
+      if (price.length < 7) return NONE;
       var s = sgn1(r.last) + ", " + (r.last >= 0 ? "above" : "below") + " the zero line";
       if (r.cross) s += ", crossed " + (r.cross > 0 ? "up" : "down") + " on this bar";
       return s;
