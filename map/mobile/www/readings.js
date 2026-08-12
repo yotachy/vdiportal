@@ -85,11 +85,14 @@
   };
 
   // Task 2~4 가 채운다. 스텁이 있어야 키 일치·한글·EMPTY 계약 테스트가 처음부터 돈다.
+  // **덮어쓰지 않는다** — 나중 태스크가 위 리터럴에 실제 구현을 넣고 이 배열에서 이름 빼는 것을
+  // 잊으면, 무조건 대입은 그 구현을 조용히 NONE 으로 되돌린다. 계약 테스트는 NONE 도 통과시키므로
+  // 아무도 못 잡는다.
   ["adx", "stochastic", "fib", "ichimoku", "pivot", "psar", "gann",
    "vwap", "supertrend", "atr", "volumeprofile", "structure", "keltner", "donchian",
    "cci", "williams", "aroon", "mfi",
    "elliott", "smc", "cycle", "roc", "ao", "cmf", "pattern"].forEach(function (bt) {
-    SAY[bt] = function () { return NONE; };
+    if (!SAY[bt]) SAY[bt] = function () { return NONE; };
   });
 
   // 방향을 물을 수 없는 둘 — analyzeTrend 는 bias 를 안 주고, phasefold 는 analyzeX 자체가 없다
