@@ -23,6 +23,13 @@
   var NOT_COUNTED_LABELS = null;  // 지연 계산 — basicGraph/full32Graph 구성에만 의존, 종목 데이터 무관
   var activeResizeCleanup = null; // 현재 붙어있는 resize 리스너 해제 함수(모듈 스코프, 화면당 리스너 최대 1개 보장)
 
+  // 종목별 Full 구매 레코드. 이 세션(앱 실행) 동안만 산다 — 앱을 다시 켜면 소멸하고,
+  // 8b 의 서버 runs 테이블이 그 자리를 대체한다(BACKLOG-mobile.md Phase 8a).
+  // render() 지역에 두면 구매가 화면 수명만큼만 살아 재진입 때 다시 과금된다.
+  var purchases = {};             // sym -> { idem, promise, data, an, runs }
+  // render 세대 토큰 — 진행 중 구매의 결과가 그 사이 바뀐 화면을 덮어쓰지 않게 한다.
+  var gen = 0;
+
   // ── 색 토큰(캔버스는 var() 를 못 읽으므로 style.css 를 단일 원본으로 런타임에 읽어온다) ──
   function readToken(name, fallback) {
     try {
@@ -271,17 +278,81 @@
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="vertical-align:-1.5px;margin-right:4px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
   }
 
+  // ── Full 구매(판정 단계). SPEC §1: 차감과 실행은 한 트랜잭션 ──
+  // 낙관적 차감을 하지 않는다 — 일봉이 실패하면 환급한다. 주·월은 없어도 차감을 유지하고
+  // 그 행에 사유를 적는다(설계서 §5.5).
+  //
+  // 모듈 스코프인 이유: 구매 사실이 화면 수명보다 오래 산다. 뒤로 갔다 돌아오면 새 render() 가
+  // 새 클로저를 만드는데, purchases 가 없으면 ①산 Full 이 Basic 으로 되돌아가 CTA 가 다시 뜨고
+  // ②진행 중이던 구매를 못 알아봐 새 idem 으로 두 번째 차감이 난다(idem 이 다르니 서버 멱등도 못 잡는다).
+  //
+  // 체인은 "판정"(여기 — spend→로드→분석→필요 시 환급, 실패해도 안전하게 끝까지 돈다)과
+  // "결과 반영"(호출부의 alert/draw, 던질 수 있다) 두 단계로 나뉜다. 판정 구간의 catch 는 판정
+  // 구간의 예외만 잡아 "환급 여부를 모른다"(tsFailedNoRefund)로만 답한다 — 성공 판정 뒤 draw() 가
+  // 던지는 예외까지 이 catch 가 삼키면 정상 결제·정상 분석인데 "환급됐다"(tsFailed)고 거짓말하게 된다.
+  function purchaseFull(sym) {
+    var rec = purchases[sym];
+    if (rec && rec.an) {   // 이미 산 것 — 다시 차감하지 않고 그 결과를 그대로 돌려준다
+      return Promise.resolve({ kind: "success", data: rec.data, an: rec.an, runs: rec.runs });
+    }
+    if (rec && rec.promise) return rec.promise;   // 진행 중 — 같은 promise 에 다시 붙는다(idem 자연 재사용)
+
+    var idem = MSWallet.newIdem();
+    rec = { idem: idem, promise: null, data: null, an: null, runs: null };
+    purchases[sym] = rec;   // spend 를 부르기 전에 등록한다 — 그 사이 들어온 두 번째 호출이 붙을 자리다
+
+    rec.promise = MSWallet.spend("full", idem).then(function (sp) {
+      if (!sp.ok) return { kind: "spend-fail", reason: sp.reason };
+      var tfs = ["1day", "1week", "1month"];
+      return Promise.all(tfs.map(function (tf) {
+        return MSApi.loadTicker(sym, tf)
+          .then(function (d) { return { tf: tf, data: d }; })
+          .catch(function (e) { return { tf: tf, error: (e && e.message) || "unavailable" }; });
+      })).then(function (loaded) {
+        var day = loaded[0];
+        if (day.error) {
+          return MSWallet.refund(idem).then(function (rf) { return { kind: "refunded", ok: !!(rf && rf.ok) }; });
+        }
+        var dayAn = null;
+        var runs = loaded.map(function (L) {
+          if (L.error) return { tf: L.tf, error: MSStr.t.rpNoHistory };
+          try {
+            var a = analyzeFull(L.data, true, L.tf);
+            if (L.tf === "1day") dayAn = a;          // 일봉 분석을 두 번 돌리지 않는다
+            return { tf: L.tf, out: a.out };
+          } catch (e) { return { tf: L.tf, error: MSStr.t.rpNoHistory }; }
+        });
+        if (!dayAn) {
+          return MSWallet.refund(idem).then(function (rf) { return { kind: "refunded", ok: !!(rf && rf.ok) }; });
+        }
+        return { kind: "success", data: day.data, an: dayAn, runs: runs };
+      });
+    })["catch"](function () {
+      // 판정 구간(spend·로드·분석·환급 호출 자체)의 예외 — 환급이 됐는지조차 모르므로 단정하지 않는다.
+      return { kind: "unknown" };
+    }).then(function (r) {
+      rec.promise = null;
+      if (r.kind === "success") { rec.data = r.data; rec.an = r.an; rec.runs = r.runs; }
+      else if (purchases[sym] === rec) delete purchases[sym];   // 실패·환급으로 끝났다 — 다시 살 수 있어야 한다
+      return r;
+    });
+    return rec.promise;
+  }
+
   function render(root, params) {
+    var myGen = ++gen;   // 이 화면의 세대 — 결과 반영이 자기 화면인지 확인하는 토큰
     var sym = String((params && params.sym) || "").trim().toUpperCase();
     var wl = MSStore.getWatchlist();
     var idx = -1, i;
     for (i = 0; i < wl.length; i++) { if (wl[i].sym === sym) { idx = i; break; } }
     var wlItem = idx >= 0 ? wl[idx] : null;
 
+    // 이 세션에서 이미 산 Full 이 있으면 그 레코드가 화면의 출발점이다 — 재과금 없이 그대로 복원한다.
+    var bought = (purchases[sym] && purchases[sym].an) ? purchases[sym] : null;
     var state = "loading", errInfo = null, data = null, an = null, chartRefs = null;
-    var tier = "basic";        // 이 화면 수명 동안의 티어. Full 을 사면 "full" 로 올라간다
-    var tfRuns = null;         // [{tf, out, error}] — Full 이 채운다
-    var buying = false;        // 재진입 가드 — 여기가 실제 차감을 막는 곳이다(시트 쪽은 보조)
+    var tier = bought ? "full" : "basic";   // Full 을 사면 "full" 로 올라간다(재진입 시엔 복원)
+    var tfRuns = bought ? bought.runs : null;   // [{tf, out, error}] — Full 이 채운다
+    // 재진입·이중 과금 가드는 purchases 레코드가 한다(모듈 스코프) — 여기 지역 플래그를 또 두지 않는다.
 
     // paintChart() 진입부의 정리와는 별도로 여기서도 한 번 정리한다 — 종목을 바꿔 render()가
     // 다시 불렸는데 새 렌더가 loading/error 로 끝나면(캐시 미스 로딩 중 이탈, 분석 실패 등)
@@ -402,8 +473,12 @@
         : MSStr.t.rpRangeNone;
       wrap.appendChild(MSUi.el("div", "rp-range", rangeText));
 
-      wrap.appendChild(MSUi.el("div", "rp-missing",
-        MSStr.t.rpNotCountedLead + notCountedLabels().length + MSStr.t.rpNotCountedTail));
+      // Full 은 32개를 다 셌다 — buildNotCountedSection() 이 섹션 자체를 내리므로 이 줄("… — see below")을
+      // 그대로 두면 3스쿱 낸 화면이 있지도 않은 섹션을 가리키며 거짓을 말한다.
+      if (tier !== "full") {
+        wrap.appendChild(MSUi.el("div", "rp-missing",
+          MSStr.t.rpNotCountedLead + notCountedLabels().length + MSStr.t.rpNotCountedTail));
+      }
       return wrap;
     }
 
@@ -543,54 +618,22 @@
       return sec;
     }
 
-    // SPEC §1: 차감과 실행은 한 트랜잭션. 낙관적 차감을 하지 않는다 —
-    // 일봉이 실패하면 환급한다. 주·월은 없어도 차감을 유지하고 그 행에 사유를 적는다(설계서 §5.5).
-    // 재진입 가드(buying): Full 행을 다시 탭하거나(시트가 다시 그려지며 새 Run 버튼이 생김) 시트를
-    // scrim 으로 닫은 뒤 아래 CTA 로 새 시트를 열어도, 진행 중인 spend Promise 는 살아있다 —
-    // idem 이 매번 새로 생성되어 서버 멱등 방어가 못 잡는 이중 과금 경로다(리뷰 지적).
-    //
-    // 체인을 "판정"(spend→로드→분석→필요 시 환급, 실패해도 안전하게 끝까지 돈다)과 "결과 반영"
-    // (alert/draw, 던질 수 있다) 두 단계로 나눈다. 판정 구간의 catch 는 판정 구간의 예외만 잡아
-    // "환급 여부를 모른다"(tsFailedNoRefund)로만 답한다 — 성공 판정 뒤 draw() 가 던지는 예외까지
-    // 이 catch 가 삼키면 정상 결제·정상 분석인데 "환급됐다"(tsFailed)고 거짓말하게 된다(재리뷰 지적).
-    function runFull() {
-      if (buying) return;                       // 이중 과금 차단
-      buying = true;
-      var idem = MSWallet.newIdem();
-      function done() { buying = false; }
+    // 결과 반영이 아직 이 화면에 유효한가. root 는 단일 모드에서 rootEl, 2단에서 reportPane 이라
+    // 지갑·워치리스트와 공유하는 엘리먼트다 — 확인 없이 draw() 하면 지금 보고 있는 지갑이 리포트로
+    // 갈아치워지고 MSApp 의 showing 과도 어긋난다. 세대(같은 리포트의 재렌더)와 현재 라우트를 둘 다 본다.
+    function isCurrent() {
+      if (myGen !== gen) return false;
+      var cur = MSApp.current();
+      return !!(cur && cur.route === "report" && cur.params && cur.params.sym === sym);
+    }
 
-      MSWallet.spend("full", idem).then(function (sp) {
-        if (!sp.ok) return { kind: "spend-fail", reason: sp.reason };
-        var tfs = ["1day", "1week", "1month"];
-        return Promise.all(tfs.map(function (tf) {
-          return MSApi.loadTicker(sym, tf)
-            .then(function (d) { return { tf: tf, data: d }; })
-            .catch(function (e) { return { tf: tf, error: (e && e.message) || "unavailable" }; });
-        })).then(function (loaded) {
-          var day = loaded[0];
-          if (day.error) {
-            return MSWallet.refund(idem).then(function (rf) { return { kind: "refunded", ok: !!(rf && rf.ok) }; });
-          }
-          var dayAn = null;
-          var runs = loaded.map(function (L) {
-            if (L.error) return { tf: L.tf, error: MSStr.t.rpNoHistory };
-            try {
-              var a = analyzeFull(L.data, true, L.tf);
-              if (L.tf === "1day") dayAn = a;          // 일봉 분석을 두 번 돌리지 않는다
-              return { tf: L.tf, out: a.out };
-            } catch (e) { return { tf: L.tf, error: MSStr.t.rpNoHistory }; }
-          });
-          if (!dayAn) {
-            return MSWallet.refund(idem).then(function (rf) { return { kind: "refunded", ok: !!(rf && rf.ok) }; });
-          }
-          return { kind: "success", data: day.data, an: dayAn, runs: runs };
-        });
-      })["catch"](function () {
-        // 판정 구간(spend·로드·분석·환급 호출 자체)의 예외 — 환급이 됐는지조차 모르므로 단정하지 않는다.
-        return { kind: "unknown" };
-      }).then(function (r) {
-        // 여기부터는 판정이 안전하게 끝났다는 뜻 — 이 아래에서 던지는 예외(draw() 등)는 위 catch 가
-        // 이미 지나가 못 잡는다. 성공 렌더 오류가 "환급됨" 문구로 잘못 이어지지 않는 이유다.
+    // 결과 반영 단계 — 판정(purchaseFull)이 안전하게 끝난 뒤다. 여기서 던지는 예외(draw() 등)는
+    // 판정 구간의 catch 가 이미 지나가 못 잡는다. 성공 렌더 오류가 "환급됨" 문구로 잘못 이어지지 않는 이유다.
+    function runFull() {
+      purchaseFull(sym).then(function (r) {
+        // 화면이 이미 다른 것을 보고 있으면 아무것도 건드리지 않는다 —
+        // 결과는 purchases[sym] 에 남아 있어 이 종목으로 돌아오면 그대로 보인다.
+        if (!isCurrent()) return;
         if (r.kind === "success") {
           data = r.data; an = r.an; tfRuns = r.runs; tier = "full";
           MSTierSheet.close();
@@ -605,7 +648,7 @@
           MSTierSheet.close();
           alert(MSStr.t.tsFailedNoRefund);
         }
-      }).then(done, done);                       // 판정·반영 어느 쪽에서 끝나든(성공/실패/예외) 가드를 푼다
+      });
     }
 
     function buildCta() {
@@ -651,7 +694,10 @@
       if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, chartRefs.legend, an, data, sym, tier);
     }
 
-    startLoad();
+    // 산 것은 그대로 다시 보인다. startLoad() 를 태우면 finishData() 의 Basic 재분석이 Full 분석(an)을
+    // 덮어써 배지는 FULL 인데 내용은 5지표인 화면이 된다 — 그래서 로드·재분석 없이 레코드로 바로 그린다.
+    if (bought) { data = bought.data; an = bought.an; state = "ready"; draw(); }
+    else startLoad();
   }
 
   window.MSReport = { render: render };

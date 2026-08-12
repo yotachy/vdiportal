@@ -134,7 +134,10 @@
   - `scan` 은 무료 — `SPEC` 의 `runType` 목록과 `2c` 의 Spend 목록에 이름만 있고 가격이 시안에 없다
   - 주·월 이력이 없으면(신규 상장주는 월봉 5년치가 없다) 차감을 유지하고 그 행에 사유를 적는다.
     일봉이 실패하면 `refund`
-  - 테스트 579 → 608(`map/tests/run.sh`). **엔진 무수정** — `forge-core` 259 · `forge-tools` 81 · `landing` 28 무변동
+  - **구매 기록은 앱 실행 동안만 산다** — `screens/report.js` 의 모듈 스코프 `purchases` 가 종목별 Full 을
+    들고 있어 화면을 떠났다 돌아와도 재과금되지 않지만, **앱을 다시 켜면 소멸해 같은 Full 을 다시 사야 한다.**
+    8b 의 서버 `runs` 테이블이 이 자리를 대체한다
+  - 테스트 579 → 611(`map/tests/run.sh`). **엔진 무수정** — `forge-core` 259 · `forge-tools` 81 · `landing` 28 무변동
   - 실기기 육안 확인은 **미실시** — 아래 참조
   - **엔진 타임프레임 어휘가 Phase 1 부터 틀려 있었다** — `forge-core.js` 의 `trendProfileForTF` 는 한글로만
     분기하는데(`/월|분기|년|연/` · `/주/` · `/일/`) 모바일은 `"1day"` 를 넘겨 **계속 `default` 프로필**을 썼다.
