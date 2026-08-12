@@ -126,19 +126,26 @@
       return s;
     },
 
-    adx: function (r) {
+    adx: function (r, ctx, opts) {
       if (!has(r.adx)) return NONE;
+      // 엔진의 rma() 는 앞 period 봉을 **계산하지 않고 0 으로 남긴다**. 0 >= 0 이 참이라
+      // 상승 분기의 선행 카운트가 미계산 구간을 그대로 통과해 "+DI ahead for 219 bars"(실제 계산은
+      // 약 206봉)가 나왔다. adx 배열도 마찬가지로 2·period−1 부터가 첫 계산값이다.
+      var period = (opts && opts.period) || 14;
+      var firstDI = period, firstAdx = period * 2 - 1;
       var li = r.adx.length - 1;
       var up = r.last.plusDI >= r.last.minusDI;
-      // 선행 봉 수 — 엔진이 이미 준 배열을 훑는다(새 계산 아님)
+      // 선행 봉 수 — 엔진이 이미 준 배열을 훑는다(새 계산 아님). 미계산 봉에서 멈춘다.
       var lead = 0;
-      for (var i = li; i > 0; i--) {
+      for (var i = li; i > 0 && i >= firstDI; i--) {
         if ((r.plusDI[i] >= r.minusDI[i]) !== up) break;
         lead++;
       }
-      var prev = r.adx[Math.max(0, li - 5)];
-      var rising = r.adx[li] >= prev;
-      return n0(r.last.adx) + " and " + (rising ? "rising" : "easing")
+      var pi = li - 5;
+      var s = n0(r.last.adx);
+      // 5봉 전이 미계산 구간이면 방향을 말하지 않는다 — 0 과 비교하면 무조건 "rising" 이 된다.
+      if (pi >= firstAdx) s += " and " + (r.adx[li] >= r.adx[pi] ? "rising" : "easing");
+      return s
            + ", " + (ADX_STRENGTH[r.strength] || "trend still weak")
            // 마이너스는 ASCII 하이픈으로 통일한다 — 기여도 칸이 toFixed() 라 ASCII 다.
            // 판독문만 유니코드 −(U+2212)를 쓰면 한 행 안에서 표기가 갈린다.
@@ -330,14 +337,18 @@
       if (!f && !o) return "No open fair-value gaps or order blocks";
       // 0 인 쪽은 적지 않는다 — "and 0 order blocks" 는 말할 값이 없는 것을 말하는 것이다
       var parts = [];
-      if (f) parts.push(f + (f === 1 ? " open gap" : " open gaps"));
-      if (o) parts.push(o + (o === 1 ? " order block" : " order blocks"));
+      if (f) parts.push(cnt(f, FVG_CAP) + (f === 1 ? " open gap" : " open gaps"));
+      if (o) parts.push(cnt(o, OB_CAP) + (o === 1 ? " order block" : " order blocks"));
       return parts.join(" and ") + " left behind";
     },
 
     // ⚠ cycle.phaseLabel 은 한국어다("고점 부근(하락 전환 임박)"). dir 로 조립한다.
     cycle: function (r) {
-      if (!r.period) return NONE;
+      // ⚠ !r.period 로는 실패를 못 잡는다. scanPeriod 는 자료가 모자라면 method:"insufficient" 와
+      // strength:0 을 내면서 **opts.pmin 을 period 로 되돌려 준다**(기본 10). analyzeCycle 은
+      // per > 2 만 보고 통과시키므로 그 가짜 주기로 위상·전환시점까지 계산된다.
+      // strength 는 그 실패 경로에서만 정확히 0 이다(계산된 주기는 피크/평균 비라 0 보다 크다).
+      if (!r.period || !r.strength) return NONE;
       var ph = r.dir === "rising" ? "rising toward the next peak"
              : r.dir === "falling" ? "falling toward the next trough" : "flat";
       var s = n0(r.period) + "-bar cycle, " + ph;
@@ -346,12 +357,14 @@
       return s;
     },
 
-    // ⚠ has(r.series) 는 안 된다 — _rocRaw 는 P ≤ period(엔진 기본 12) 구간을 전부 0 으로
-    // 채운 배열을 돌려준다(진짜 계산이 아니라 자리채움). 이 판독은 opts 없이 불리므로
-    // 엔진 기본값 12 로 직접 문턱을 잰다.
-    roc: function (r, ctx) {
+    // ⚠ has(r.series) 는 안 된다 — _rocRaw 는 P ≤ period 구간을 전부 0 으로 채운 배열을 돌려준다
+    // (진짜 계산이 아니라 자리채움). 문턱은 **노드가 들고 있는 period** 로 잰다 — 예전 주석은
+    // "이 판독은 opts 없이 불린다"고 적혀 있었으나 사실이 아니었다(indicators.js 가 n.params 를
+    // 넘긴다). graph.js 가 params:{} 로 밀어 넣고 있어서 우연히 맞았을 뿐이다.
+    roc: function (r, ctx, opts) {
       var price = (ctx && ctx.price) || [];
-      if (!has(r.series) || price.length <= 12) return NONE;
+      var period = (opts && opts.period) || 12;
+      if (!has(r.series) || price.length <= period) return NONE;
       return sgn1(r.last) + "% over the lookback, momentum "
            + (r.last > 0 ? "positive" : r.last < 0 ? "negative" : "flat");
     },
@@ -359,24 +372,32 @@
     // 엔진의 하드 플로어는 fast+2(기본 5+2=7). 그 아래에서만 series 가 0 채움 자리표시자다.
     // conf 로 판정하면 안 된다 — conf 는 P<=24 까지 0 이지만 그 구간의 last 는 실제 계산값이고
     // (P=15 에서 0.455, P=20 에서 -2.196), conf 가 0 으로 만드는 것은 기여도뿐이다.
-    // conf 를 가드로 쓰면 멀쩡히 읽은 것을 "못 읽었다"고 말하게 된다. 이 판독은 opts 없이
-    // 불리므로 옵션에서 문턱을 읽을 수 없다 — 엔진 기본값 그대로 리터럴 7을 쓴다.
-    ao: function (r, ctx) {
+    // conf 를 가드로 쓰면 멀쩡히 읽은 것을 "못 읽었다"고 말하게 된다.
+    // 문턱은 **노드의 fast** 로 잰다(roc 와 같은 이유 — 옛 주석의 "opts 없이 불린다"는 거짓이었다).
+    ao: function (r, ctx, opts) {
       var price = (ctx && ctx.price) || [];
-      if (price.length < 7) return NONE;
+      var fast = (opts && opts.fast) || 5;
+      if (price.length < fast + 2) return NONE;
       var s = sgn1(r.last) + ", " + (r.last >= 0 ? "above" : "below") + " the zero line";
       if (r.cross) s += ", crossed " + (r.cross > 0 ? "up" : "down") + " on this bar";
       return s;
     },
 
-    cmf: function (r) {
+    // ⚠ has(r.series) 로는 실패를 못 잡는다 — _cmfRaw 는 캔들이 없어도 길이 P 짜리 **전부 0** 배열을
+    // 돌려준다(고·저가가 없으면 자금흐름량이 0). 거래량은 없으면 synthVolume 으로 대체된다.
+    cmf: function (r, ctx) {
+      if (!hasVol(ctx)) return NO_VOL;
+      if (!has((ctx && ctx.candle))) return NONE;   // 고·저가가 있어야 매집/분산이 정의된다
       if (!has(r.series)) return NONE;
       var d = r.last > 0.05 ? "accumulation" : r.last < -0.05 ? "distribution" : "no clear accumulation";
       return (r.last >= 0 ? "+" : "") + (isFinite(r.last) ? r.last.toFixed(2) : "—") + ", " + d;
     },
 
     // ⚠ pattern.label 은 한국어다("헤드앤숄더"). 영어 키 pattern.pattern 으로 매핑한다.
-    pattern: function (r) {
+    // detectPatterns 의 하드 플로어는 P < 30 — 그 아래에서는 엔진이 **탐지를 시작조차 안 한다**.
+    // 그 경우까지 "감지된 패턴 없음"으로 적으면 안 본 것을 봤다고 말하는 것이다.
+    pattern: function (r, ctx) {
+      if (((ctx && ctx.price) || []).length < 30) return NONE;
       if (!r.pattern || r.pattern === "none") return "No completed chart pattern in range";
       return (PATTERN_NAME[r.pattern] || "Chart pattern")
            + ", " + n0((r.confidence || 0) * 100) + "% fit, "
