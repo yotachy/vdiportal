@@ -31,6 +31,7 @@
 
   function renderReportPane() {
     reportPane.innerHTML = "";
+    if (state.showing === "wallet") { MSWalletScreen.render(reportPane); markSelected(); return; }
     reportPane.scrollTop = 0;
     if (state.selectedSym) {
       // 2단에서 오른쪽 칸이 리포트를 그린 순간부터 '리포트를 보고 있는 상태'다 —
@@ -63,7 +64,8 @@
       return;
     }
 
-    if (state.showing === "report" && state.selectedSym) MSReport.render(rootEl, { sym: state.selectedSym });
+    if (state.showing === "wallet") MSWalletScreen.render(rootEl);
+    else if (state.showing === "report" && state.selectedSym) MSReport.render(rootEl, { sym: state.selectedSym });
     else MSWatchlist.render(rootEl);
     window.scrollTo(0, 0);
   }
@@ -80,6 +82,11 @@
 
   function go(route, params) {
     var sym = (params && params.sym) ? String(params.sym).trim().toUpperCase() : null;
+    if (route === "wallet") {
+      state.showing = "wallet";
+      if (dual) { renderReportPane(); return; }
+      renderShell(); return;
+    }
     if (route === "report" && sym) {
       state.selectedSym = sym;
       state.showing = "report";
@@ -101,6 +108,13 @@
     if (typeof ForgeCore === "undefined") {
       rootEl.innerHTML = "<p class='empty'>" + MSStr.t.bootVendorMissing + "</p>";
       return;
+    }
+
+    // 개발용 백엔드. 8b 는 이 줄과 index.html 의 스크립트 태그를 서버 백엔드로 바꾼다.
+    // ⚠️ 8b 는 여기도 손봐야 한다 — 설계서 §3 은 "백엔드가 자기 자신을 설치"라고 적었지만
+    // 실제 설치 지점은 이 셸이다. index.html 의 스크립트 태그 한 줄 교체로 끝나지 않는다.
+    if (typeof MSWalletLocalStub !== "undefined" && !MSWallet.isInstalled()) {
+      MSWallet.install(MSWalletLocalStub.create({ costOf: MSWallet.costOf }));
     }
 
     // 시드를 먼저 심어야 inWatchlist 판정이 첫 부팅에서도 맞는다(워치리스트 화면도 다시 부르지만 무해).

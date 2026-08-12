@@ -6,6 +6,8 @@
   --ink:#eef1f7; --ink-2:#c5ccdb; --ink-3:#9aa3b6; --ink-4:#7c8598; --ink-5:#78819a;
   --gold:#e8b463; --gold-dim:#c0a069; --gold-ink:#1a1408;
   --bull-soft:rgba(79,185,138,.14); --bear-soft:rgba(217,106,106,.14); --steel-soft:rgba(136,146,166,.16);
+  /* --gold-soft 는 Phase 7 에서 소비자가 0 이 되어 지웠다가 Phase 8a 의 POPULAR·FULL 배지로 되살아났다. */
+  --gold-soft:rgba(232,180,99,.16);
   --steel:#8892a6; --platinum:#b9c4dc;
   --bull:#4fb98a; --bear:#d96a6a; --bear-text:#e08a8a; --neutral:#4a5368;
   --pred2:#b892f5;
@@ -98,6 +100,8 @@ body {
 .rp-tier-row { display:flex; align-items:center; gap:10px; padding:4px 0 20px; }
 .rp-tier { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:6px; background:var(--steel-soft); color:var(--steel); font-size:11px; font-weight:700; letter-spacing:.04em; }
 .rp-tier-desc { font-size:11.5px; color:var(--ink-4); }
+/* Full 등급 배지 — 삼색 체계상 "엔진이 말한 것"이라 골드다(Basic 은 steel). */
+.rp-tier.is-full { background:var(--gold-soft); color:var(--gold); }
 .rp-evi { display:flex; align-items:center; gap:3px; margin-left:auto; }
 .rp-evi-seg { width:14px; height:4px; border-radius:2px; background:var(--track); }
 .rp-evi-seg.on { background:var(--steel); }
@@ -177,6 +181,47 @@ body {
 .rp-hz-chg.up { color:var(--bull); }
 .rp-hz-chg.dn { color:var(--bear-text); }
 .rp-hz-prob { flex:0 0 42px; text-align:right; color:var(--ink-4); }
+
+/* ===== 스쿱 필 — 잔량은 엔진이 아니라 사용자 자산이라 steel 을 쓴다(골드 아님) ===== */
+.ms-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:99px;
+           background:var(--steel-soft); border:1px solid var(--border); color:var(--ink-2);
+           font:inherit; font-size:11.5px; font-weight:600; font-variant-numeric:tabular-nums; min-height:32px; flex:0 0 auto; }
+.ms-pill-ico { color:var(--steel); }
+.ms-pill.is-empty .ms-pill-n { min-width:1ch; }
+
+/* Scan 이 아이콘으로 줄었다 — 헤더에 필이 들어와 자리가 없다. 스캔 중에는 텍스트로 늘어난다. */
+.wl-scan.is-ico { padding:5px 8px; min-width:30px; justify-content:center; }
+.wl-scan.is-ico::after { content:none; }
+
+/* ===== 지갑 ===== */
+.wal-head { display:flex; align-items:center; gap:10px; padding:14px 0 6px; }
+.wal-cap { margin-left:auto; font-size:11px; color:var(--ink-5); font-variant-numeric:tabular-nums; }
+.wal-balance { font-size:48px; font-weight:300; letter-spacing:-.04em; line-height:1.1; padding:2px 0 6px; }
+.wal-msg { font-size:12px; color:var(--ink-4); padding-bottom:10px; }
+.wal-sec { margin-bottom:22px; }
+.wal-row { display:flex; align-items:center; gap:10px; min-height:44px; border-bottom:1px solid var(--hairline); font-size:12.5px; }
+.wal-row-name { color:var(--ink-2); font-weight:600; }
+.wal-row-note { color:var(--ink-5); font-size:11px; }
+.wal-row-amt { margin-left:auto; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.wal-row.is-off { opacity:.55; }
+
+/* ===== 단계 선택 바텀시트(시안 7a) ===== */
+.sheet-scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; z-index:20; }
+.sheet { width:100%; max-height:80vh; overflow-y:auto; background:var(--sheet);
+         border-top:1px solid var(--hairline-2); border-radius:16px 16px 0 0; padding:18px 20px calc(20px + env(safe-area-inset-bottom)); }
+.sheet-tier { display:flex; align-items:center; gap:12px; width:100%; min-height:64px; padding:10px 0;
+              border:0; border-bottom:1px solid var(--hairline); background:none; color:inherit; font:inherit; text-align:left; }
+.sheet-tier-id { flex:1 1 auto; min-width:0; }
+.sheet-tier-name { display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:700; }
+.sheet-tier-desc { font-size:11.5px; color:var(--ink-5); margin-top:3px; }
+/* 선택 표시는 배경으로만 — 좌측 세로 라인 금지 */
+.sheet-tier.on { background:var(--steel-soft); }
+.sheet-tier.is-off { opacity:.55; }
+.sheet-pop { padding:2px 6px; border-radius:4px; background:var(--gold-soft); color:var(--gold); font-size:9.5px; font-weight:700; letter-spacing:.06em; }
+.sheet-preview { flex:0 0 auto; font-size:12px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.sheet-short { font-size:11.5px; color:var(--ink-5); margin:12px 0 0; line-height:1.5; }
+.sheet-run { width:100%; margin-top:16px; }
+.sheet-run[disabled] { opacity:.5; }
 
 /* ===== 2단 (폴드 펼침) =====
    미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,

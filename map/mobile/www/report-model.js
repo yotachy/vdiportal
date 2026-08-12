@@ -19,6 +19,20 @@
     return chg > FLAT_EPS ? "up" : chg < -FLAT_EPS ? "down" : "flat";
   }
 
+  // 엔진의 타임프레임 프로필은 한글로만 분기한다(forge-core.js trendProfileForTF).
+  // PC 는 tfKo() 로 변환해 넘기는데 모바일은 Phase 1 부터 "1day" 를 그대로 넘겨 계속 default
+  // 프로필을 썼다 — 일봉용 bandScale·sigmaCap·texScale 을 못 받고 있었다.
+  // API(loadTicker)는 계속 영문 "1day"/"1week"/"1month" 를 쓴다 — 엔진 인자만 여기서 바꾼다.
+  // 이 파일에 두는 이유: screens/report.js 는 strings.test.mjs 의 KEY_SCAN_FILES 대상이라
+  // UI 문자열 스캔이 한글 리터럴을 화면 문구로 오인한다 — 여기(비스캔 계산 전용 모듈)가
+  // draw-preds.js 의 _tfUnit() 과 같은 선례를 따르는 자리다.
+  function tfKo(tf) {
+    var s = String(tf || "");
+    if (/month|월/.test(s)) return "월봉";
+    if (/week|주/.test(s)) return "주봉";
+    return "일봉";
+  }
+
   function anchorOf(p) {
     if (!p || !p.path || !p.path.length) return null;
     return (p.anchor != null && isFinite(p.anchor)) ? p.anchor : p.path[0];
@@ -74,5 +88,41 @@
     return { right: right, wrong: Math.round((100 - right) * 10) / 10 };
   }
 
-  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate };
+  // 주기 행 — runs 는 [{tf, out, error}] 배열이고 순서가 곧 표시 순서다.
+  // 이력이 모자란 주기(신규 상장주의 월봉 등)는 행을 지우지 않고 사유를 담는다 —
+  // 빈칸으로 두면 "돈 냈는데 안 준다"로 읽힌다(설계서 §5.5).
+  function tfRows(FC, runs) {
+    var list = runs || [], out = [], i;
+    for (i = 0; i < list.length; i++) {
+      var r = list[i];
+      if (!r.out) { out.push({ tf: r.tf, regime: null, prob: null, target: null, reason: r.error || "unavailable" }); continue; }
+      var v = r.out.verdict || {};
+      out.push({ tf: r.tf, regime: v.regime || null,
+                 prob: confidence(FC, r.out.prediction, v.regime),
+                 target: (typeof v.target === "number" && isFinite(v.target)) ? v.target : null,
+                 reason: null });
+    }
+    return out;
+  }
+
+  // 일봉 판정을 기준으로 같은 방향인 주기 수를 센다. 일봉이 없으면(다른 호출부가 주·월만 넘기는 경우)
+  // 첫 성공 주기로 떨어진다 — 배열 순서에 조용히 기대지 않도록 기준을 명시한다.
+  // 실패한 주기는 분모에서 빠진다 — 못 읽은 것을 "동의하지 않음"으로 세면 판정이 실제보다 약해 보인다.
+  function agreeCount(runs) {
+    var list = runs || [], base = null, agree = 0, total = 0, i, r;
+    for (i = 0; i < list.length; i++) {
+      r = list[i];
+      if (r && r.out && r.out.verdict && r.tf === "1day") { base = r.out.verdict.regime; break; }
+    }
+    for (i = 0; i < list.length; i++) {
+      r = list[i];
+      if (!r || !r.out || !r.out.verdict) continue;
+      total++;
+      if (base === null) base = r.out.verdict.regime;
+      if (r.out.verdict.regime === base) agree++;
+    }
+    return { agree: total ? agree : 0, total: total };
+  }
+
+  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate, tfRows: tfRows, agreeCount: agreeCount, tfKo: tfKo };
 });

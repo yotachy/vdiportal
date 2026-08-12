@@ -79,5 +79,6 @@
   return { KEYS: KEYS, SEED: SEED, install: install, getWatchlist: getWatchlist, setWatchlist: setWatchlist,
            addTicker: addTicker, removeTicker: removeTicker, getScan: getScan, setScan: setScan,
            allScans: allScans, seedIfEmpty: seedIfEmpty,
-           getLastSym: getLastSym, setLastSym: setLastSym };
+           getLastSym: getLastSym, setLastSym: setLastSym,
+           read0: read, write0: write };
 });

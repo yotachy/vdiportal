@@ -35,6 +35,7 @@
     wlAddPrompt: "Enter a ticker symbol (e.g. AAPL)",
     wlCancel: "Cancel",
     wlScan: "Scan",
+    wlScanIco: "↻",                              // 평상시 스캔 버튼 — 헤더에 필이 들어와 아이콘만 남았다
     wlScanning: "Scanning ",
     wlScanFail: "Scan failed",
     wlRemoveConfirm: " — remove from watchlist?",
@@ -69,6 +70,7 @@
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)
     rpTierBasic: "BASIC",
     rpTierCount: "5 indicators",
+    rpTierFull: "FULL", rpTierCountFull: "32 indicators · daily, weekly, monthly",
 
     // 리포트 — 섹션
     rpCounted: "What was read",                // 시안 그대로
@@ -79,7 +81,10 @@
     // 리포트 — 주기
     rpTf: "Timeframe",
     rpDaily: "Daily", rpWeekly: "Weekly", rpMonthly: "Monthly",
-    rpLocked: "Locked", rpLockedSuffix: " · locked", rpSoon: "Coming soon",
+    rpLocked: "Locked", rpLockedSuffix: " · locked",
+    rpUpgrade: "Go deeper",
+    rpAgreeTf: " of ", rpAgreeTfTail: " timeframes agree",
+    rpNoHistory: "Not enough history",
 
     // 서브패널 빈 데이터 안내 (Fix 7: draw-panels.js 도 MSStr 단일 출처를 쓴다)
     pnlRsiEmpty: "No RSI data",
@@ -100,7 +105,26 @@
     // 차트 안 잔존 라벨(크로스 표기는 legGolden/legDead/legBars 를 그대로 쓴다 — 레전드와
     // 차트가 각자 표기를 갖고 있던 것이 드리프트 원인이었다. Fix round 1)
     cxBullDiv: "Bullish divergence", cxBearDiv: "Bearish divergence",
-    cxBullVolDiv: "Bullish volume divergence", cxBearVolDiv: "Bearish volume divergence"
+    cxBullVolDiv: "Bullish volume divergence", cxBearVolDiv: "Bearish volume divergence",
+
+    // 지갑 (Phase 8a)
+    walTitle: "Scoops", walCap: "Cap ", walEarn: "Earn", walSpend: "Spend",
+    walQuick: "Quick ad · 15s", walFull: "Full ad · 30s",
+    walCheckin: "Daily check-in", walChest: "Week 7 chest",
+    walSlot: "Add a ticker slot", walDeep: "Deep analysis", walOptimiser: "Parameter optimiser",
+    walSoon: "Coming soon", walDay: "Day ", walChestAway: " days to the chest",
+    walCheckedIn: "Claimed today", walCapped: " · cap reached, the rest was discarded",
+    walBack: "Back",
+
+    // 단계 선택 시트 (Phase 8a)
+    tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Full", tsCustom: "Custom",
+    tsBasicDesc: "5 indicators · daily only", tsFullDesc: "All 32 indicators · daily, weekly, monthly",
+    tsCustomDesc: "All 32 + your weights",
+    tsDone: "Free · done", tsPopular: "POPULAR", tsSoon: "Coming soon",
+    tsRun: "Run ", tsCost: " Scoops", tsShort: "Not enough Scoops. Come back tomorrow for +1.",
+    tsRunning: "Running…", tsFailed: "Analysis failed — your Scoops were returned.",
+    tsFailedNoRefund: "Analysis failed. We could not confirm your Scoops were returned — please check your balance.",
+    tsSpendFailed: "Could not reach your wallet. Nothing was charged — please try again."
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을

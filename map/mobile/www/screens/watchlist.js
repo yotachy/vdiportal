@@ -39,7 +39,10 @@
     var d = { price: data.price, candle: data.candle };
     if (okVol) d.volume = vol;
     MSGraph.setVolume(graph, okVol ? vol : null);
-    var out = ForgeCore.run(graph, d, { timeframe: "1day" });
+    // 엔진의 타임프레임 프로필은 한글로만 분기한다(forge-core.js trendProfileForTF) — 영문 "1day"
+    // 는 어디에도 안 걸려 default 프로필로 떨어진다. report.js 의 리포트 화면과 같은 종목이
+    // 같은 값을 말해야 하므로(Phase 6·7) 같은 변환(MSReportModel.tfKo)을 거친다.
+    var out = ForgeCore.run(graph, d, { timeframe: MSReportModel.tfKo("1day") });
     return buildRec(data, out.verdict, out.prediction);
   }
 
@@ -77,7 +80,10 @@
 
     function updateScanBtn() {
       if (!scanBtnEl) return;
-      scanBtnEl.textContent = scanning ? (MSStr.t.wlScanning + scanDone + "/" + scanTotal) : MSStr.t.wlScan;
+      // 평상시엔 아이콘만(헤더에 필이 들어와 자리가 없다), 스캔 중에는 진행이 보여야 하므로 텍스트로 늘어난다.
+      scanBtnEl.textContent = scanning ? (MSStr.t.wlScanning + scanDone + "/" + scanTotal) : MSStr.t.wlScanIco;
+      scanBtnEl.setAttribute("aria-label", MSStr.t.wlScan);
+      scanBtnEl.classList.toggle("is-ico", !scanning);
       scanBtnEl.disabled = scanning;
     }
 
@@ -107,6 +113,7 @@
       brand.appendChild(document.createTextNode(MSStr.t.wlBrandA));
       brand.appendChild(MSUi.el("span", "wl-brand-gold", MSStr.t.wlBrandB));
       head.appendChild(brand);
+      head.appendChild(MSWalletScreen.pill(function () { MSApp.go("wallet"); }));
       if (list.length) {
         scanBtnEl = MSUi.el("button", "wl-scan");
         scanBtnEl.addEventListener("click", startScan);

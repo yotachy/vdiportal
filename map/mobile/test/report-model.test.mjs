@@ -115,3 +115,86 @@ test("적중률 — 요약이 없거나 해당 방향 필드가 없거나 regime
   assert.strictEqual(M.hitRate({ bullHitRate: 0.6, bearHitRate: 0.4 }, "neutral"), null);
   assert.strictEqual(M.hitRate({ bullHitRate: 0.6, bearHitRate: 0.4 }), null, "regime 미지정");
 });
+
+function fakeOut(regime, target) {
+  const anchor = 100, path = [], hi = [];
+  for (let k = 1; k <= 24; k++) { const v = anchor + (regime === "bear" ? -1 : 1) * k * 0.4; path.push(v); hi.push(v + 3 * Math.sqrt(k)); }
+  return { verdict: { regime, target }, prediction: { anchor, path, hi, lo: path.map(v => v - 5) } };
+}
+
+test("tfRows — 세 주기가 다 있으면 3행, 순서가 보존된다", () => {
+  const runs = [
+    { tf: "1day", out: fakeOut("bull", 170.7) },
+    { tf: "1week", out: fakeOut("bull", 178.4) },
+    { tf: "1month", out: fakeOut("neutral", 184.0) }
+  ];
+  const rows = M.tfRows(FC, runs);
+  assert.deepEqual(rows.map(r => r.tf), ["1day", "1week", "1month"]);
+  assert.deepEqual(rows.map(r => r.regime), ["bull", "bull", "neutral"]);
+  assert.strictEqual(rows[1].target, 178.4);
+  assert.ok(rows[0].prob > 0 && rows[0].prob <= 100);
+});
+
+test("tfRows — 이력이 모자란 주기는 사유가 담기고 값이 비어 있다", () => {
+  const runs = [
+    { tf: "1day", out: fakeOut("bull", 170.7) },
+    { tf: "1week", error: "not-enough-history" },
+    { tf: "1month", error: "not-enough-history" }
+  ];
+  const rows = M.tfRows(FC, runs);
+  assert.strictEqual(rows.length, 3, "행 자체는 남아야 한다 — 빈칸이 아니라 사유를 보여준다");
+  assert.strictEqual(rows[1].reason, "not-enough-history");
+  assert.strictEqual(rows[1].prob, null);
+  assert.strictEqual(rows[1].target, null);
+  assert.strictEqual(rows[1].regime, null);
+});
+
+test("tfRows — 중립 주기는 확신이 null 이다(방향이 없다)", () => {
+  const rows = M.tfRows(FC, [{ tf: "1day", out: fakeOut("neutral", 100) }]);
+  assert.strictEqual(rows[0].prob, null);
+});
+
+test("tfRows — 빈 입력이면 빈 배열", () => {
+  assert.deepEqual(M.tfRows(FC, []), []);
+  assert.deepEqual(M.tfRows(FC, null), []);
+});
+
+test("agreeCount — 일봉 방향과 같은 주기를 센다", () => {
+  const all = [
+    { tf: "1day", out: fakeOut("bull", 1) },
+    { tf: "1week", out: fakeOut("bull", 1) },
+    { tf: "1month", out: fakeOut("bear", 1) }
+  ];
+  assert.deepEqual(M.agreeCount(all), { agree: 2, total: 3 });
+});
+
+test("agreeCount — 실패한 주기는 분모에서 빠진다", () => {
+  const runs = [
+    { tf: "1day", out: fakeOut("bull", 1) },
+    { tf: "1week", error: "not-enough-history" },
+    { tf: "1month", out: fakeOut("bull", 1) }
+  ];
+  assert.deepEqual(M.agreeCount(runs), { agree: 2, total: 2 });
+});
+
+test("agreeCount — 기준(첫 성공 주기)이 없으면 0/0", () => {
+  assert.deepEqual(M.agreeCount([{ tf: "1day", error: "x" }]), { agree: 0, total: 0 });
+  assert.deepEqual(M.agreeCount([]), { agree: 0, total: 0 });
+});
+
+test("agreeCount — 배열 순서와 무관하게 일봉이 기준이다", () => {
+  const runs = [
+    { tf: "1week", out: fakeOut("bull", 1) },
+    { tf: "1day", out: fakeOut("bear", 1) },
+    { tf: "1month", out: fakeOut("bear", 1) }
+  ];
+  assert.deepEqual(M.agreeCount(runs), { agree: 2, total: 3 });
+});
+
+test("agreeCount — 일봉이 없으면 첫 성공 주기로 떨어진다", () => {
+  const runs = [
+    { tf: "1week", out: fakeOut("bull", 1) },
+    { tf: "1month", out: fakeOut("bull", 1) }
+  ];
+  assert.deepEqual(M.agreeCount(runs), { agree: 2, total: 2 });
+});

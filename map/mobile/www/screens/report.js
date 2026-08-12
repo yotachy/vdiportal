@@ -12,7 +12,6 @@
   function chartH() { return MSLayout.chartHeight(document.body.classList.contains("ms-dual"), window.innerHeight); }
   // TAIL_BARS 는 이제 줌 레벨이다. 기본은 화면폭 무관 60봉(예측 비중 28% 유지, Phase 3 결론) — MSZoom.DEFAULT_TAIL.
   var HOLD_MS = 350, MOVE_THRESH = 8;
-  var TIER = "basic";   // Phase 1 은 Basic 고정 — 이후 단계에서 사용자 티어로 교체(차트·범례 모두 이 값만 바뀌면 됨)
 
   var LINE_LEGEND = [
     { key: "p1", label: MSStr.t.lgP1 },
@@ -23,6 +22,13 @@
   var cache = new Map();          // sym -> data(candle/price/asOf/name/source), 모듈 스코프(세션 한정)
   var NOT_COUNTED_LABELS = null;  // 지연 계산 — basicGraph/full32Graph 구성에만 의존, 종목 데이터 무관
   var activeResizeCleanup = null; // 현재 붙어있는 resize 리스너 해제 함수(모듈 스코프, 화면당 리스너 최대 1개 보장)
+
+  // 종목별 Full 구매 레코드. 이 세션(앱 실행) 동안만 산다 — 앱을 다시 켜면 소멸하고,
+  // 8b 의 서버 runs 테이블이 그 자리를 대체한다(BACKLOG-mobile.md Phase 8a).
+  // render() 지역에 두면 구매가 화면 수명만큼만 살아 재진입 때 다시 과금된다.
+  var purchases = {};             // sym -> { idem, promise, data, an, runs }
+  // render 세대 토큰 — 진행 중 구매의 결과가 그 사이 바뀐 화면을 덮어쓰지 않게 한다.
+  var gen = 0;
 
   // ── 색 토큰(캔버스는 var() 를 못 읽으므로 style.css 를 단일 원본으로 런타임에 읽어온다) ──
   function readToken(name, fallback) {
@@ -86,14 +92,14 @@
   // Basic 5지표 판정(verdict/prediction) + 작도용 원시 지표 결과.
   // run() 내부 evalBlocks 는 노드값을 단순 시계열로만 남기므로(완전한 지표 객체가 아님),
   // 작도에 쓸 형태는 그래프와 동일한 파라미터로 analyzeX 를 직접 다시 호출해 얻는다.
-  function analyzeFull(data) {
-    var graph = MSGraph.basicGraph(ForgeCore);
+  function analyzeFull(data, useFull, tf) {
+    var graph = useFull ? MSGraph.full32Graph(ForgeCore) : MSGraph.basicGraph(ForgeCore);
     var vol = data.candle.map(function (c) { return c.v; });
     var okVol = vol.length >= 2 && vol.every(function (v) { return typeof v === "number" && isFinite(v); });
     MSGraph.setVolume(graph, okVol ? vol : null);
     var d = { price: data.price, candle: data.candle };
     if (okVol) d.volume = vol;
-    var out = ForgeCore.run(graph, d, { timeframe: TF });
+    var out = ForgeCore.run(graph, d, { timeframe: MSReportModel.tfKo(tf || TF) });
 
     var maP = paramOf(graph, "ma", { len: 20, ema: false });
     var rsiP = paramOf(graph, "rsi", { period: 14 });
@@ -110,7 +116,7 @@
   }
 
   // ── 차트 합성 + 크로스헤어. wrap 은 이미 라이브 DOM 에 붙어 있어야 한다(clientWidth 측정 위해) ──
-  function paintChart(cv, wrap, legend, an, data, sym) {
+  function paintChart(cv, wrap, legend, an, data, sym, tier) {
     var ctx = cv.getContext("2d");
     var col = colTokens();
     var cssW = wrap.clientWidth || 320;
@@ -157,7 +163,7 @@
       // 캔들이 먼저, 예측이 나중. 끝점 배지가 seam 왼쪽까지 나오므로 순서를 뒤집으면
       // 캔들이 배지를 덮는다(PC 도 캔들 → 예측 순서다. forge-draw.js:~1081, 1115-1200).
       MSChartDraw.drawCandles(ctx, lay, data.candle, col);
-      MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, TIER, { sym: sym, tf: TF });
+      MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, tier, { sym: sym, tf: TF });
       var Mp = Object.assign({}, lay.panels.price.M, { badges: false });
       MSLayers.bollinger(ctx, an.bb, Mp);
       MSLayers.ma(ctx, an.ma, Mp);
@@ -272,14 +278,81 @@
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="vertical-align:-1.5px;margin-right:4px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
   }
 
+  // ── Full 구매(판정 단계). SPEC §1: 차감과 실행은 한 트랜잭션 ──
+  // 낙관적 차감을 하지 않는다 — 일봉이 실패하면 환급한다. 주·월은 없어도 차감을 유지하고
+  // 그 행에 사유를 적는다(설계서 §5.5).
+  //
+  // 모듈 스코프인 이유: 구매 사실이 화면 수명보다 오래 산다. 뒤로 갔다 돌아오면 새 render() 가
+  // 새 클로저를 만드는데, purchases 가 없으면 ①산 Full 이 Basic 으로 되돌아가 CTA 가 다시 뜨고
+  // ②진행 중이던 구매를 못 알아봐 새 idem 으로 두 번째 차감이 난다(idem 이 다르니 서버 멱등도 못 잡는다).
+  //
+  // 체인은 "판정"(여기 — spend→로드→분석→필요 시 환급, 실패해도 안전하게 끝까지 돈다)과
+  // "결과 반영"(호출부의 alert/draw, 던질 수 있다) 두 단계로 나뉜다. 판정 구간의 catch 는 판정
+  // 구간의 예외만 잡아 "환급 여부를 모른다"(tsFailedNoRefund)로만 답한다 — 성공 판정 뒤 draw() 가
+  // 던지는 예외까지 이 catch 가 삼키면 정상 결제·정상 분석인데 "환급됐다"(tsFailed)고 거짓말하게 된다.
+  function purchaseFull(sym) {
+    var rec = purchases[sym];
+    if (rec && rec.an) {   // 이미 산 것 — 다시 차감하지 않고 그 결과를 그대로 돌려준다
+      return Promise.resolve({ kind: "success", data: rec.data, an: rec.an, runs: rec.runs });
+    }
+    if (rec && rec.promise) return rec.promise;   // 진행 중 — 같은 promise 에 다시 붙는다(idem 자연 재사용)
+
+    var idem = MSWallet.newIdem();
+    rec = { idem: idem, promise: null, data: null, an: null, runs: null };
+    purchases[sym] = rec;   // spend 를 부르기 전에 등록한다 — 그 사이 들어온 두 번째 호출이 붙을 자리다
+
+    rec.promise = MSWallet.spend("full", idem).then(function (sp) {
+      if (!sp.ok) return { kind: "spend-fail", reason: sp.reason };
+      var tfs = ["1day", "1week", "1month"];
+      return Promise.all(tfs.map(function (tf) {
+        return MSApi.loadTicker(sym, tf)
+          .then(function (d) { return { tf: tf, data: d }; })
+          .catch(function (e) { return { tf: tf, error: (e && e.message) || "unavailable" }; });
+      })).then(function (loaded) {
+        var day = loaded[0];
+        if (day.error) {
+          return MSWallet.refund(idem).then(function (rf) { return { kind: "refunded", ok: !!(rf && rf.ok) }; });
+        }
+        var dayAn = null;
+        var runs = loaded.map(function (L) {
+          if (L.error) return { tf: L.tf, error: MSStr.t.rpNoHistory };
+          try {
+            var a = analyzeFull(L.data, true, L.tf);
+            if (L.tf === "1day") dayAn = a;          // 일봉 분석을 두 번 돌리지 않는다
+            return { tf: L.tf, out: a.out };
+          } catch (e) { return { tf: L.tf, error: MSStr.t.rpNoHistory }; }
+        });
+        if (!dayAn) {
+          return MSWallet.refund(idem).then(function (rf) { return { kind: "refunded", ok: !!(rf && rf.ok) }; });
+        }
+        return { kind: "success", data: day.data, an: dayAn, runs: runs };
+      });
+    })["catch"](function () {
+      // 판정 구간(spend·로드·분석·환급 호출 자체)의 예외 — 환급이 됐는지조차 모르므로 단정하지 않는다.
+      return { kind: "unknown" };
+    }).then(function (r) {
+      rec.promise = null;
+      if (r.kind === "success") { rec.data = r.data; rec.an = r.an; rec.runs = r.runs; }
+      else if (purchases[sym] === rec) delete purchases[sym];   // 실패·환급으로 끝났다 — 다시 살 수 있어야 한다
+      return r;
+    });
+    return rec.promise;
+  }
+
   function render(root, params) {
+    var myGen = ++gen;   // 이 화면의 세대 — 결과 반영이 자기 화면인지 확인하는 토큰
     var sym = String((params && params.sym) || "").trim().toUpperCase();
     var wl = MSStore.getWatchlist();
     var idx = -1, i;
     for (i = 0; i < wl.length; i++) { if (wl[i].sym === sym) { idx = i; break; } }
     var wlItem = idx >= 0 ? wl[idx] : null;
 
+    // 이 세션에서 이미 산 Full 이 있으면 그 레코드가 화면의 출발점이다 — 재과금 없이 그대로 복원한다.
+    var bought = (purchases[sym] && purchases[sym].an) ? purchases[sym] : null;
     var state = "loading", errInfo = null, data = null, an = null, chartRefs = null;
+    var tier = bought ? "full" : "basic";   // Full 을 사면 "full" 로 올라간다(재진입 시엔 복원)
+    var tfRuns = bought ? bought.runs : null;   // [{tf, out, error}] — Full 이 채운다
+    // 재진입·이중 과금 가드는 purchases 레코드가 한다(모듈 스코프) — 여기 지역 플래그를 또 두지 않는다.
 
     // paintChart() 진입부의 정리와는 별도로 여기서도 한 번 정리한다 — 종목을 바꿔 render()가
     // 다시 불렸는데 새 렌더가 loading/error 로 끝나면(캐시 미스 로딩 중 이탈, 분석 실패 등)
@@ -303,6 +376,10 @@
       });
     }
     function finishData() {
+      // Full 분석이 Basic 분석보다 우선한다 — 한 곳에서만 판정한다. 이 가드가 없으면 늦게 끝난
+      // 기본 로드(또는 에러 화면의 retry)가 방금 산 32지표 결과를 5지표로 덮어 배지만 FULL 인
+      // 화면이 된다. 구매 도중 재렌더돼 로드와 구매가 함께 도는 경로에서 실제로 겹친다.
+      if (tier === "full" && an) { state = "ready"; draw(); return; }
       try {
         an = analyzeFull(data);
         state = "ready";
@@ -328,15 +405,18 @@
       head.appendChild(idWrap);
 
       if (idx >= 0) head.appendChild(MSUi.el("div", "rp-head-pos", (idx + 1) + " / " + wl.length));
+      head.appendChild(MSWalletScreen.pill(function () { MSApp.go("wallet"); }));
       return head;
     }
 
     function buildTierRow() {
       var row = MSUi.el("div", "rp-tier-row");
-      row.appendChild(MSUi.el("span", "rp-tier", MSStr.t.rpTierBasic));
-      row.appendChild(MSUi.el("span", "rp-tier-desc", MSStr.t.rpTierCount));
+      var isFull = (tier === "full");
+      row.appendChild(MSUi.el("span", "rp-tier" + (isFull ? " is-full" : ""), isFull ? MSStr.t.rpTierFull : MSStr.t.rpTierBasic));
+      row.appendChild(MSUi.el("span", "rp-tier-desc", isFull ? MSStr.t.rpTierCountFull : MSStr.t.rpTierCount));
       var evi = MSUi.el("span", "rp-evi");
-      for (var k = 0; k < 3; k++) evi.appendChild(MSUi.el("span", "rp-evi-seg" + (k === 0 ? " on" : "")));
+      var on = isFull ? 2 : 1;   // 시안 6a: Basic 1/3 · Full 2/3 · Custom 3/3
+      for (var k = 0; k < 3; k++) evi.appendChild(MSUi.el("span", "rp-evi-seg" + (k < on ? " on" : "")));
       row.appendChild(evi);
       return row;
     }
@@ -397,8 +477,12 @@
         : MSStr.t.rpRangeNone;
       wrap.appendChild(MSUi.el("div", "rp-range", rangeText));
 
-      wrap.appendChild(MSUi.el("div", "rp-missing",
-        MSStr.t.rpNotCountedLead + notCountedLabels().length + MSStr.t.rpNotCountedTail));
+      // Full 은 32개를 다 셌다 — buildNotCountedSection() 이 섹션 자체를 내리므로 이 줄("… — see below")을
+      // 그대로 두면 3스쿱 낸 화면이 있지도 않은 섹션을 가리키며 거짓을 말한다.
+      if (tier !== "full") {
+        wrap.appendChild(MSUi.el("div", "rp-missing",
+          MSStr.t.rpNotCountedLead + notCountedLabels().length + MSStr.t.rpNotCountedTail));
+      }
       return wrap;
     }
 
@@ -443,7 +527,7 @@
       return key === "p1" ? "--gold" : key === "p2" ? "--pred2" : "--bear";
     }
     function buildChartLegend() {
-      var allowed = MSChartDraw.linesFor(TIER);
+      var allowed = MSChartDraw.linesFor(tier);
       var wrap = MSUi.el("div", "rp-legend");
       LINE_LEGEND.forEach(function (item) {
         var locked = allowed.indexOf(item.key) < 0;
@@ -461,7 +545,7 @@
       var sec = MSUi.el("div", "rp-sec");
       var title = MSUi.el("div", "rp-sec-title");
       title.appendChild(document.createTextNode(MSStr.t.rpCounted + " "));
-      title.appendChild(MSUi.el("span", "rp-sec-count", "5"));
+      title.appendChild(MSUi.el("span", "rp-sec-count", String(tier === "full" ? 32 : 5)));
       sec.appendChild(title);
 
       var maLine = ForgeCore.maSteps(an.ma, an.maP.len)[1];
@@ -482,6 +566,7 @@
     }
 
     function buildNotCountedSection() {
+      if (tier === "full") return null;   // Full 은 32개를 다 셌다 — 안 센 것이 없다
       var labels = notCountedLabels();
       var sec = MSUi.el("div", "rp-sec");
       var title = MSUi.el("div", "rp-sec-title");
@@ -514,22 +599,71 @@
     function buildTfSection() {
       var sec = MSUi.el("div", "rp-sec");
       sec.appendChild(MSUi.el("div", "rp-sec-title", MSStr.t.rpTf));
-      var dailyVal = "";
-      if (state === "ready") {
-        var v = an.out.verdict;
-        dailyVal = v.confluence.total ? (dirWord(v.regime) + " · " + v.confluence.agree + "/" + v.confluence.total + MSStr.t.rpAgreeShort) : dirWord(v.regime);
-      } else if (state === "error") {
-        dailyVal = "—";
+      var names = { "1day": MSStr.t.rpDaily, "1week": MSStr.t.rpWeekly, "1month": MSStr.t.rpMonthly };
+      if (!tfRuns) {   // Basic — 일봉만 값, 주·월은 잠김
+        var dailyVal = "";
+        if (state === "ready") {
+          var v = an.out.verdict;
+          dailyVal = v.confluence.total ? (dirWord(v.regime) + " · " + v.confluence.agree + "/" + v.confluence.total + MSStr.t.rpAgreeShort) : dirWord(v.regime);
+        } else if (state === "error") dailyVal = "—";
+        sec.appendChild(tfRow(MSStr.t.rpDaily, dailyVal, false, state === "loading"));
+        sec.appendChild(tfRow(MSStr.t.rpWeekly, "", true, false));
+        sec.appendChild(tfRow(MSStr.t.rpMonthly, "", true, false));
+        return sec;
       }
-      sec.appendChild(tfRow(MSStr.t.rpDaily, dailyVal, false, state === "loading"));
-      sec.appendChild(tfRow(MSStr.t.rpWeekly, "", true, false));
-      sec.appendChild(tfRow(MSStr.t.rpMonthly, "", true, false));
+      MSReportModel.tfRows(ForgeCore, tfRuns).forEach(function (r) {
+        var val = r.reason ? r.reason
+          : (dirWord(r.regime) + (r.prob == null ? "" : " · " + Math.round(r.prob) + "%") +
+             (r.target == null ? "" : " · " + MSUi.fmtPrice(r.target)));
+        sec.appendChild(tfRow(names[r.tf] || r.tf, val, false, false));
+      });
+      var ag = MSReportModel.agreeCount(tfRuns);
+      sec.appendChild(MSUi.el("div", "rp-range", ag.agree + MSStr.t.rpAgreeTf + ag.total + MSStr.t.rpAgreeTfTail));
       return sec;
     }
 
+    // 결과 반영이 아직 이 화면에 유효한가. root 는 단일 모드에서 rootEl, 2단에서 reportPane 이라
+    // 지갑·워치리스트와 공유하는 엘리먼트다 — 확인 없이 draw() 하면 지금 보고 있는 지갑이 리포트로
+    // 갈아치워지고 MSApp 의 showing 과도 어긋난다. 세대(같은 리포트의 재렌더)와 현재 라우트를 둘 다 본다.
+    function isCurrent() {
+      if (myGen !== gen) return false;
+      var cur = MSApp.current();
+      return !!(cur && cur.route === "report" && cur.params && cur.params.sym === sym);
+    }
+
+    // 결과 반영 단계 — 판정(purchaseFull)이 안전하게 끝난 뒤다. 여기서 던지는 예외(draw() 등)는
+    // 판정 구간의 catch 가 이미 지나가 못 잡는다. 성공 렌더 오류가 "환급됨" 문구로 잘못 이어지지 않는 이유다.
+    function runFull() {
+      purchaseFull(sym).then(function (r) {
+        // 화면이 이미 다른 것을 보고 있으면 아무것도 건드리지 않는다 —
+        // 결과는 purchases[sym] 에 남아 있어 이 종목으로 돌아오면 그대로 보인다.
+        if (!isCurrent()) return;
+        if (r.kind === "success") {
+          data = r.data; an = r.an; tfRuns = r.runs; tier = "full";
+          state = "ready";   // 기본 로드가 아직 안 끝났거나 실패한 상태에서 샀을 수 있다
+          MSTierSheet.close();
+          draw();
+        } else if (r.kind === "refunded") {
+          MSTierSheet.close();
+          alert(r.ok ? MSStr.t.tsFailed : MSStr.t.tsFailedNoRefund);
+        } else if (r.kind === "spend-fail") {
+          MSTierSheet.close();
+          alert(r.reason === "insufficient" ? MSStr.t.tsShort : MSStr.t.tsSpendFailed);
+        } else {
+          MSTierSheet.close();
+          alert(MSStr.t.tsFailedNoRefund);
+        }
+      });
+    }
+
     function buildCta() {
-      var b = MSUi.el("button", "rp-cta", MSStr.t.rpSoon);
-      b.disabled = true;
+      if (tier !== "basic") return MSUi.el("div");
+      var b = MSUi.el("button", "rp-cta", MSStr.t.rpUpgrade);
+      b.addEventListener("click", function () {
+        MSWallet.get().then(function (r) {
+          MSTierSheet.open({ sym: sym, tier: tier, balance: r.state ? r.state.balance : null, onRun: runFull });
+        });
+      });
       return b;
     }
 
@@ -555,16 +689,26 @@
         scr.appendChild(buildCounted());
       }
 
-      scr.appendChild(buildNotCountedSection());   // 종목 데이터 무관 — 항상 렌더
+      var nc = buildNotCountedSection();
+      if (nc) scr.appendChild(nc);
       scr.appendChild(buildTfSection());
       scr.appendChild(buildCta());
 
       root.appendChild(scr);   // 여기서부터 라이브 DOM — clientWidth 측정 가능
 
-      if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, chartRefs.legend, an, data, sym);
+      if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, chartRefs.legend, an, data, sym, tier);
     }
 
-    startLoad();
+    // 산 것은 그대로 다시 보인다. startLoad() 를 태우면 finishData() 의 Basic 재분석이 Full 분석(an)을
+    // 덮어써 배지는 FULL 인데 내용은 5지표인 화면이 된다 — 그래서 로드·재분석 없이 레코드로 바로 그린다.
+    if (bought) { data = bought.data; an = bought.an; state = "ready"; draw(); }
+    else if (purchases[sym] && purchases[sym].promise) {
+      // 구매가 아직 도는 중에 이 화면이 재렌더됐다(같은 종목 재탭·폴드 전환). 앞 렌더의 반영은
+      // 세대 가드에 막혀 버려지므로, 이 렌더가 그 promise 에 다시 붙어야 결과가 화면에 온다.
+      // purchaseFull() 이 레코드를 보고 붙으므로 spend 는 다시 일어나지 않는다.
+      startLoad();
+      runFull();
+    } else startLoad();
   }
 
   window.MSReport = { render: render };
