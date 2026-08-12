@@ -12,7 +12,6 @@
   function chartH() { return MSLayout.chartHeight(document.body.classList.contains("ms-dual"), window.innerHeight); }
   // TAIL_BARS 는 이제 줌 레벨이다. 기본은 화면폭 무관 60봉(예측 비중 28% 유지, Phase 3 결론) — MSZoom.DEFAULT_TAIL.
   var HOLD_MS = 350, MOVE_THRESH = 8;
-  var TIER = "basic";   // Phase 1 은 Basic 고정 — 이후 단계에서 사용자 티어로 교체(차트·범례 모두 이 값만 바뀌면 됨)
 
   var LINE_LEGEND = [
     { key: "p1", label: MSStr.t.lgP1 },
@@ -86,8 +85,8 @@
   // Basic 5지표 판정(verdict/prediction) + 작도용 원시 지표 결과.
   // run() 내부 evalBlocks 는 노드값을 단순 시계열로만 남기므로(완전한 지표 객체가 아님),
   // 작도에 쓸 형태는 그래프와 동일한 파라미터로 analyzeX 를 직접 다시 호출해 얻는다.
-  function analyzeFull(data) {
-    var graph = MSGraph.basicGraph(ForgeCore);
+  function analyzeFull(data, useFull) {
+    var graph = useFull ? MSGraph.full32Graph(ForgeCore) : MSGraph.basicGraph(ForgeCore);
     var vol = data.candle.map(function (c) { return c.v; });
     var okVol = vol.length >= 2 && vol.every(function (v) { return typeof v === "number" && isFinite(v); });
     MSGraph.setVolume(graph, okVol ? vol : null);
@@ -110,7 +109,7 @@
   }
 
   // ── 차트 합성 + 크로스헤어. wrap 은 이미 라이브 DOM 에 붙어 있어야 한다(clientWidth 측정 위해) ──
-  function paintChart(cv, wrap, legend, an, data, sym) {
+  function paintChart(cv, wrap, legend, an, data, sym, tier) {
     var ctx = cv.getContext("2d");
     var col = colTokens();
     var cssW = wrap.clientWidth || 320;
@@ -157,7 +156,7 @@
       // 캔들이 먼저, 예측이 나중. 끝점 배지가 seam 왼쪽까지 나오므로 순서를 뒤집으면
       // 캔들이 배지를 덮는다(PC 도 캔들 → 예측 순서다. forge-draw.js:~1081, 1115-1200).
       MSChartDraw.drawCandles(ctx, lay, data.candle, col);
-      MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, TIER, { sym: sym, tf: TF });
+      MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, tier, { sym: sym, tf: TF });
       var Mp = Object.assign({}, lay.panels.price.M, { badges: false });
       MSLayers.bollinger(ctx, an.bb, Mp);
       MSLayers.ma(ctx, an.ma, Mp);
@@ -280,6 +279,8 @@
     var wlItem = idx >= 0 ? wl[idx] : null;
 
     var state = "loading", errInfo = null, data = null, an = null, chartRefs = null;
+    var tier = "basic";        // 이 화면 수명 동안의 티어. Full 을 사면 "full" 로 올라간다
+    var tfRuns = null;         // [{tf, out, error}] — Full 이 채운다
 
     // paintChart() 진입부의 정리와는 별도로 여기서도 한 번 정리한다 — 종목을 바꿔 render()가
     // 다시 불렸는데 새 렌더가 loading/error 로 끝나면(캐시 미스 로딩 중 이탈, 분석 실패 등)
@@ -444,7 +445,7 @@
       return key === "p1" ? "--gold" : key === "p2" ? "--pred2" : "--bear";
     }
     function buildChartLegend() {
-      var allowed = MSChartDraw.linesFor(TIER);
+      var allowed = MSChartDraw.linesFor(tier);
       var wrap = MSUi.el("div", "rp-legend");
       LINE_LEGEND.forEach(function (item) {
         var locked = allowed.indexOf(item.key) < 0;
@@ -462,7 +463,7 @@
       var sec = MSUi.el("div", "rp-sec");
       var title = MSUi.el("div", "rp-sec-title");
       title.appendChild(document.createTextNode(MSStr.t.rpCounted + " "));
-      title.appendChild(MSUi.el("span", "rp-sec-count", "5"));
+      title.appendChild(MSUi.el("span", "rp-sec-count", String(tier === "full" ? 32 : 5)));
       sec.appendChild(title);
 
       var maLine = ForgeCore.maSteps(an.ma, an.maP.len)[1];
@@ -483,6 +484,7 @@
     }
 
     function buildNotCountedSection() {
+      if (tier === "full") return null;   // Full 은 32개를 다 셌다 — 안 센 것이 없다
       var labels = notCountedLabels();
       var sec = MSUi.el("div", "rp-sec");
       var title = MSUi.el("div", "rp-sec-title");
@@ -515,22 +517,70 @@
     function buildTfSection() {
       var sec = MSUi.el("div", "rp-sec");
       sec.appendChild(MSUi.el("div", "rp-sec-title", MSStr.t.rpTf));
-      var dailyVal = "";
-      if (state === "ready") {
-        var v = an.out.verdict;
-        dailyVal = v.confluence.total ? (dirWord(v.regime) + " · " + v.confluence.agree + "/" + v.confluence.total + MSStr.t.rpAgreeShort) : dirWord(v.regime);
-      } else if (state === "error") {
-        dailyVal = "—";
+      var names = { "1day": MSStr.t.rpDaily, "1week": MSStr.t.rpWeekly, "1month": MSStr.t.rpMonthly };
+      if (!tfRuns) {   // Basic — 일봉만 값, 주·월은 잠김
+        var dailyVal = "";
+        if (state === "ready") {
+          var v = an.out.verdict;
+          dailyVal = v.confluence.total ? (dirWord(v.regime) + " · " + v.confluence.agree + "/" + v.confluence.total + MSStr.t.rpAgreeShort) : dirWord(v.regime);
+        } else if (state === "error") dailyVal = "—";
+        sec.appendChild(tfRow(MSStr.t.rpDaily, dailyVal, false, state === "loading"));
+        sec.appendChild(tfRow(MSStr.t.rpWeekly, "", true, false));
+        sec.appendChild(tfRow(MSStr.t.rpMonthly, "", true, false));
+        return sec;
       }
-      sec.appendChild(tfRow(MSStr.t.rpDaily, dailyVal, false, state === "loading"));
-      sec.appendChild(tfRow(MSStr.t.rpWeekly, "", true, false));
-      sec.appendChild(tfRow(MSStr.t.rpMonthly, "", true, false));
+      MSReportModel.tfRows(ForgeCore, tfRuns).forEach(function (r) {
+        var val = r.reason ? r.reason
+          : (dirWord(r.regime) + (r.prob == null ? "" : " · " + Math.round(r.prob) + "%") +
+             (r.target == null ? "" : " · " + MSUi.fmtPrice(r.target)));
+        sec.appendChild(tfRow(names[r.tf] || r.tf, val, false, false));
+      });
+      var ag = MSReportModel.agreeCount(tfRuns);
+      sec.appendChild(MSUi.el("div", "rp-range", ag.agree + MSStr.t.rpAgreeTf + ag.total + MSStr.t.rpAgreeTfTail));
       return sec;
     }
 
+    // SPEC §1: 차감과 실행은 한 트랜잭션. 낙관적 차감을 하지 않는다 —
+    // 일봉이 실패하면 환급한다. 주·월은 없어도 차감을 유지하고 그 행에 사유를 적는다(설계서 §5.5).
+    function runFull() {
+      var idem = MSWallet.newIdem();
+      MSWallet.spend("full", idem).then(function (sp) {
+        if (!sp.ok) { MSTierSheet.close(); alert(MSStr.t.tsShort); return; }
+        var tfs = ["1day", "1week", "1month"];
+        return Promise.all(tfs.map(function (tf) {
+          return MSApi.loadTicker(sym, tf)
+            .then(function (d) { return { tf: tf, data: d }; })
+            .catch(function (e) { return { tf: tf, error: (e && e.message) || "unavailable" }; });
+        })).then(function (loaded) {
+          var day = loaded[0];
+          if (day.error) { return MSWallet.refund(idem).then(function () { MSTierSheet.close(); alert(MSStr.t.tsFailed); }); }
+          var dayAn = null;
+          tfRuns = loaded.map(function (L) {
+            if (L.error) return { tf: L.tf, error: MSStr.t.rpNoHistory };
+            try {
+              var a = analyzeFull(L.data, true);
+              if (L.tf === "1day") dayAn = a;          // 일봉 분석을 두 번 돌리지 않는다
+              return { tf: L.tf, out: a.out };
+            } catch (e) { return { tf: L.tf, error: MSStr.t.rpNoHistory }; }
+          });
+          if (!dayAn) { return MSWallet.refund(idem).then(function () { MSTierSheet.close(); alert(MSStr.t.tsFailed); }); }
+          data = day.data;
+          an = dayAn;
+          tier = "full";
+          MSTierSheet.close();
+          draw();
+        });
+      });
+    }
+
     function buildCta() {
-      var b = MSUi.el("button", "rp-cta", MSStr.t.rpSoon);
-      b.disabled = true;
+      if (tier !== "basic") return MSUi.el("div");
+      var b = MSUi.el("button", "rp-cta", MSStr.t.rpUpgrade);
+      b.addEventListener("click", function () {
+        MSWallet.get().then(function (r) {
+          MSTierSheet.open({ sym: sym, tier: tier, balance: r.state ? r.state.balance : null, onRun: runFull });
+        });
+      });
       return b;
     }
 
@@ -556,13 +606,14 @@
         scr.appendChild(buildCounted());
       }
 
-      scr.appendChild(buildNotCountedSection());   // 종목 데이터 무관 — 항상 렌더
+      var nc = buildNotCountedSection();
+      if (nc) scr.appendChild(nc);
       scr.appendChild(buildTfSection());
       scr.appendChild(buildCta());
 
       root.appendChild(scr);   // 여기서부터 라이브 DOM — clientWidth 측정 가능
 
-      if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, chartRefs.legend, an, data, sym);
+      if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, chartRefs.legend, an, data, sym, tier);
     }
 
     startLoad();

@@ -79,7 +79,10 @@
     // 리포트 — 주기
     rpTf: "Timeframe",
     rpDaily: "Daily", rpWeekly: "Weekly", rpMonthly: "Monthly",
-    rpLocked: "Locked", rpLockedSuffix: " · locked", rpSoon: "Coming soon",
+    rpLocked: "Locked", rpLockedSuffix: " · locked",
+    rpUpgrade: "Go deeper",
+    rpAgreeTf: " of ", rpAgreeTfTail: " timeframes agree",
+    rpNoHistory: "Not enough history",
 
     // 서브패널 빈 데이터 안내 (Fix 7: draw-panels.js 도 MSStr 단일 출처를 쓴다)
     pnlRsiEmpty: "No RSI data",
@@ -109,7 +112,15 @@
     walSlot: "Add a ticker slot", walDeep: "Deep analysis", walOptimiser: "Parameter optimiser",
     walSoon: "Coming soon", walDay: "Day ", walChestAway: " days to the chest",
     walCheckedIn: "Claimed today", walCapped: " · cap reached, the rest was discarded",
-    walBack: "Back"
+    walBack: "Back",
+
+    // 단계 선택 시트 (Phase 8a)
+    tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Full", tsCustom: "Custom",
+    tsBasicDesc: "5 indicators · daily only", tsFullDesc: "All 32 indicators · daily, weekly, monthly",
+    tsCustomDesc: "All 32 + your weights",
+    tsDone: "Free · done", tsPopular: "POPULAR", tsSoon: "Coming soon",
+    tsRun: "Run ", tsCost: " Scoops", tsShort: "Not enough Scoops. Come back tomorrow for +1.",
+    tsRunning: "Running…", tsFailed: "Analysis failed — your Scoops were returned."
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을
