@@ -112,9 +112,17 @@ db_query() {
     "$WORK" "$1" "$2"
 }
 
-# ── Check 1: 진짜로 빈 디렉토리, 12-way hello, 10 회 ──────────────────────────────────
+# ── Check 1: 진짜로 빈 디렉토리, (cap+9)-way hello, 10 회 ─────────────────────────────
+# 레이서 수를 고정 12로 두면 cap 을 12 이상으로 올리는 순간 경합 자체가 사라진다 —
+# 12개 전부가 그냥 통과해 버려 "상한이 동시성 아래서 지켜지는가"를 더 이상 검사하지 않으면서도
+# 초록을 낸다(이 저장소가 실제로 겪은 함정). 이 검사가 증명해야 하는 성질은 "cap 이 3이다"가
+# 아니라 "cap 이 몇이든 동시 요청 아래서 정확히 그만큼만 통과한다"이므로, 레이서 수·기대 429
+# 개수를 전부 런타임에 읽은 $CAP 에서 유도한다 — +9 는 cap 값과 무관하게 늘 여유 있는 경합을
+# 만들기 위한 임의의 여유폭이다(정확히 얼마여야 하는 이유는 없다, 그냥 "cap 보다 확실히 많이").
 check1() {
-  echo "── Check 1: 빈 디렉토리 12-way hello × 10회 (기대: accounts==$CAP, distinct_ip_hash==1, 500==0)"
+  local racers=$((CAP + 9))
+  local want429=$((racers - CAP))
+  echo "── Check 1: 빈 디렉토리 ${racers}-way hello × 10회 (기대: accounts==$CAP, 429==$want429, distinct_ip_hash==1, 500==0)"
   local rep ok=1
   for rep in $(seq 1 10); do
     local d="$WORK/c1"
@@ -124,7 +132,7 @@ check1() {
     rm -rf "$d"; mkdir -p "$d"
     local args=()
     local i
-    for i in $(seq -w 1 12); do
+    for i in $(seq -w 1 "$racers"); do
       args+=("$WORK $d/data c1-run${rep}-dev-$i 203.0.113.5")
     done
     run_barrier "$WORK/hello-sim.php" "$d" "${args[@]}"
@@ -134,8 +142,8 @@ check1() {
     c500=$(grep -c '^500' "$d"/out_*.txt | awk -F: '{s+=$2} END{print s+0}')
     accounts=$(db_query "$d/data" "select count(*) from accounts")
     distinct=$(db_query "$d/data" "select count(distinct seed_ip_hash) from accounts")
-    if [ "$accounts" != "$CAP" ] || [ "$distinct" != "1" ] || [ "$c500" != "0" ]; then
-      echo "   rep $rep: FAIL — 200=$c200 429=$c429 500=$c500 accounts=$accounts(want $CAP) distinct_ip_hash=$distinct(want 1)"
+    if [ "$accounts" != "$CAP" ] || [ "$distinct" != "1" ] || [ "$c500" != "0" ] || [ "$c429" != "$want429" ]; then
+      echo "   rep $rep: FAIL — 200=$c200 429=$c429(want $want429) 500=$c500 accounts=$accounts(want $CAP) distinct_ip_hash=$distinct(want 1)"
       ok=0
     else
       echo "   rep $rep: ok — 200=$c200 429=$c429 500=$c500 accounts=$accounts distinct_ip_hash=$distinct"
@@ -168,9 +176,14 @@ check2() {
   [ "$ok" = "1" ]
 }
 
-# ── Check 3: 상한 경계, 2/3 채운 뒤 동일 deviceId 12-way, 3 회 ─────────────────────────
+# ── Check 3: 상한 경계, (cap-1)/cap 채운 뒤 동일 deviceId 12-way, 3 회 ─────────────────
+# 사전 채움 개수를 고정 2로 두면 그 값은 오직 cap==3(2 = cap-1) 일 때만 "경계"가 된다 —
+# cap 을 20으로 올리면 2/20 은 경계 근처도 아니라서(비교 대상이 accounts==$CAP 인데 실제로는
+# 2+1=3 밖에 안 쌓인다) 이 검사가 무조건 FAIL 하거나(운 나쁘면) 엉뚱한 이유로 죽는다. cap-1 을
+# 채워야 이 12-way 레이스의 첫 성공 계정이 정확히 cap 번째가 되는 "경계"가 유지된다.
 check3() {
-  echo "── Check 3: 상한 경계 동일 deviceId 12-way × 3회 (기대: 전부 200, accounts==$CAP)"
+  local prefill=$((CAP - 1))
+  echo "── Check 3: 상한 경계 (${prefill}/$CAP 채움) 동일 deviceId 12-way × 3회 (기대: 전부 200, accounts==$CAP)"
   local rep ok=1
   for rep in $(seq 1 3); do
     local d="$WORK/c3"
@@ -183,9 +196,11 @@ check3() {
       require $argv[1] . "/wallet-lib.php";
       $db = w_db($argv[2]);
       $iph = substr(hash_hmac("sha256", "c3-ip", w_secret($argv[2])), 0, 32);
-      w_create_account($db, "c3-prefill-1-" . $argv[3], $iph);
-      w_create_account($db, "c3-prefill-2-" . $argv[3], $iph);
-    ' "$WORK" "$d/data" "$rep"
+      $n = (int)$argv[4];
+      for ($i = 1; $i <= $n; $i++) {
+        w_create_account($db, "c3-prefill-" . $i . "-" . $argv[3], $iph);
+      }
+    ' "$WORK" "$d/data" "$rep" "$prefill"
     local args=()
     local i
     for i in $(seq -w 1 12); do

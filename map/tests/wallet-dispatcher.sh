@@ -121,12 +121,14 @@ dbexec() { php -r '
     $db->exec($argv[2]);
   ' "$DB" "$1"; }
 
-# ⚠ 검사를 추가하려는 사람에게: W_IP_DAILY 는 3 이고, 이 하네스는 같은 IP(127.0.0.1)에서
-# 계정을 만든다 — 손대지 않으면 네 번째 hello 가 429 rate-limited 로 떨어져 전혀 무관한
-# 이유로 스위트가 빨개진다(그 원인을 찾는 데 한 시간이 든다). 그래서 hello 앞에서 "오늘 만든
-# 계정" 카운트를 비운다: w_seed_count_today 가 created_at >= 오늘 로 세므로 기존 행의
-# created_at 만 과거로 민다. seed_ip_hash 는 건드리지 않는다 — 아래 HMAC 검사가 그 값을 쓴다.
-# 상한 로직 자체는 tests/wallet-concurrency.sh(진짜 동시 프로세스)가 따로 본다.
+# ⚠ 검사를 추가하려는 사람에게: W_IP_DAILY 값이 얼마든(개발용으로 3→20 처럼 바뀔 수 있다),
+# 이 하네스는 같은 IP(127.0.0.1)에서 여러 hello 를 만든다 — 손대지 않으면 상한을 넘는 순간의
+# hello 가 429 rate-limited 로 떨어져 전혀 무관한 이유로 스위트가 빨개진다(그 원인을 찾는 데
+# 한 시간이 든다). 그래서 hello 앞에서 "오늘 만든 계정" 카운트를 비운다: w_seed_count_today 가
+# created_at >= 오늘 로 세므로 기존 행의 created_at 만 과거로 민다. seed_ip_hash 는 건드리지
+# 않는다 — 아래 HMAC 검사가 그 값을 쓴다. 이 리셋 덕분에 이 파일의 어떤 검사도 W_IP_DAILY 의
+# 실제 값에 의존하지 않는다(hello 는 매번 리셋 직후 딱 1건씩만 온다). 상한 로직 자체가
+# 지켜지는지는 tests/wallet-concurrency.sh(진짜 동시 프로세스)가 따로 본다.
 ip_cap_reset() { dbexec "update accounts set created_at = '2000-01-01T00:00:00+00:00'"; }
 
 DEV_A="dev-a-0123456789abcdef0123456789abcdef0123456789"

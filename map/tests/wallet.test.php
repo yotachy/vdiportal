@@ -858,17 +858,20 @@ t("읽을 수 없는 비밀키 파일은 예외를 던진다", function () {
 // 계정 10개가 생겼다. w_create_account 안(쓰기 락 안)에서 다시 세도록 고쳤다.
 
 t("IP 상한은 계정 생성 쓰기 락 안에서 걸린다 — 락 밖에서 세면 병렬 요청이 상한을 넘는다", function () {
+  // 여기서 검증하는 성질은 "상한 밑에서는 통과하고 상한을 넘으면 막힌다"이지 "상한이
+  // 3이다"가 아니다 — 개발용으로 W_IP_DAILY 를 20으로 올려도(출시 전 3으로 복귀 예정) 이
+  // 테스트가 그대로 유효해야 하므로 계정 개수를 상수 W_IP_DAILY 에서 유도한다(하드코딩 금지).
   $d = tmpdir(); $db = w_db($d);
-  w_create_account($db, "dev-1", "iphash");
-  w_create_account($db, "dev-2", "iphash");
-  w_create_account($db, "dev-3", "iphash");
-  eq(w_seed_count_today($db, "iphash"), 3, "상한까지 세 개 준비 실패");
+  for ($i = 1; $i <= W_IP_DAILY; $i++) {
+    w_create_account($db, "dev-" . $i, "iphash");
+  }
+  eq(w_seed_count_today($db, "iphash"), W_IP_DAILY, "상한까지 계정 준비 실패");
   $threw = false;
-  try { w_create_account($db, "dev-4", "iphash"); }
+  try { w_create_account($db, "dev-over", "iphash"); }
   catch (WalletRateLimitException $e) { $threw = true; }
-  ok($threw, "4번째 계정이 IP 상한을 넘겨서도 생성됐다");
-  eq(w_seed_count_today($db, "iphash"), 3, "상한을 넘겨 계정이 생겼다");
-  ok(w_get_account($db, "dev-4") === null, "상한에 걸렸는데 계정이 남았다");
+  ok($threw, "상한을 넘겨서도 계정이 생성됐다");
+  eq(w_seed_count_today($db, "iphash"), W_IP_DAILY, "상한을 넘겨 계정이 생겼다");
+  ok(w_get_account($db, "dev-over") === null, "상한에 걸렸는데 계정이 남았다");
   $db = null; rmrf($d);
 });
 

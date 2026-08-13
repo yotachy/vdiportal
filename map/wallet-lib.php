@@ -10,7 +10,12 @@ define("W_CAP", 20);
 define("W_CHECKIN", 1);
 define("W_CHEST", 5);
 define("W_CHEST_EVERY", 7);
-define("W_IP_DAILY", 3);          // IP 해시당 하루 신규 계정 지급 상한(재설치 남용 완화)
+// ⚠️ 개발용 임시값(2026-08-13, 원래 3) — 배포 검증·E2E 테스트가 사무실 IP 의 하루 쿼터를
+// 다 써서 파트너 실기기가 429 로 막혔다. 실기기 확인이 끝나는 대로 반드시 3 으로 되돌릴 것 —
+// 20 에서는 재설치 남용 방어가 사실상 꺼진다(진짜 방어는 8c 구글 로그인). 되돌리기 전
+// tests/wallet-concurrency.sh check1 이 cap 값에서 레이서 수·기대 429 를 스스로 유도하므로
+// 그대로 다시 돌리면 된다(수정 불필요).
+define("W_IP_DAILY", 20);         // IP 해시당 하루 신규 계정 지급 상한(재설치 남용 완화)
 define("W_RUN_TTL_SEC", 86400);   // Full 권리 24시간
 
 // 서버가 정본이다. 클라이언트의 MSWallet.COSTS 는 미리보기 표시용일 뿐이다.
