@@ -115,11 +115,7 @@
       var wrap = cv.parentNode;
       var cssW = (wrap && wrap.clientWidth) || cv.clientWidth || 320;
       var col = MSUi.colTokens();
-      var dpr = window.devicePixelRatio || 1;
-      cv.width = Math.round(cssW * dpr);
-      cv.height = Math.round(CHART_H * dpr);
-      cv.style.height = CHART_H + "px";
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      MSUi.fitCanvas(cv, ctx, cssW, CHART_H);   // DPR — 리포트 차트와 한 벌(ui.js)
 
       var pred = a.out.prediction;
       var fut = (pred && pred.path) ? pred.path.length : 0;
@@ -148,9 +144,10 @@
       if (!a) return;
       // 시안은 32라고 적었지만 방향을 물을 수 있는 것은 30종이다 — trend·phasefold 는 bias 가 없다.
       // REASONING 의 "30 with a direction" 과 같은 규율.
-      // ctx 는 ctxFrom 으로 만든다 — data 를 그대로 넘기면 hasVolume 이 빠져 거래량 5종의
-      // 판독문이 이 경로에서만 달라진다(indicators.js opposing 이 같은 이유로 ctxFrom 을 쓴다).
-      var rows = MSIndicators.readings(ForgeCore, a.graph, a.input, MSIndicators.ctxFrom(a.input));
+      // readings 가 아니라 biases 다. 같은 노드 루프·같은 유한 bias 필터로 같은 30행을 주는데,
+      // readings 는 화면에 안 쓸 판독 문장 30개를 매 렌더 만들고 버린다(실측 15.6ms vs 9.2ms).
+      // 문장을 안 만들면 ctx 계약(hasVolume)도 따라오지 않는다 — Task 4·5 가 물려받을 표면이 하나 준다.
+      var rows = MSIndicators.biases(ForgeCore, a.graph, a.input);
       rows.forEach(function (r) {
         var bar = document.createElement("span");
         var dir = r.bias > 0.02 ? " up" : r.bias < -0.02 ? " dn" : "";

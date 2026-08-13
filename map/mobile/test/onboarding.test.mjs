@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const O = require("../www/screens/onboarding.js");
@@ -12,10 +12,10 @@ const G = require("../www/graph.js");
 const IND = require("../www/indicators.js");
 const RM = require("../www/report-model.js");
 const APP = readFileSync(new URL("../www/app.js", import.meta.url), "utf8");
-const WL = readFileSync(new URL("../www/screens/watchlist.js", import.meta.url), "utf8");
 const HTML = readFileSync(new URL("../www/index.html", import.meta.url), "utf8");
 const CSS = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
 const OB = readFileSync(new URL("../www/screens/onboarding.js", import.meta.url), "utf8");
+const REPORT = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
 
 test("5단계다", () => { assert.strictEqual(O.STEPS, 5); });
 
@@ -41,12 +41,28 @@ test("render 는 함수다 — 게이트가 부를 수 있어야 한다", () => 
 
 // 부팅에서 seedIfEmpty 가 남아 있으면 4단계가 무의미해지고, 사용자가 고르지 않은
 // 종목이 워치리스트에 생긴다.
-// app.js 만 보면 안 된다 — screens/watchlist.js 의 render() 도 같은 것을 불렀고, 그 화면은
-// 부팅 직후 항상 그려진다. app.js 한쪽만 걷어낸 상태에서 브라우저로 확인했더니 AAPL·NVDA·MSFT
-// 3행이 그대로 떴다(실측). 시드를 부르는 자리를 전부 본다.
-test("부팅 경로 어디에서도 시드를 심지 않는다", () => {
-  assert.doesNotMatch(APP, /MSStore\.seedIfEmpty\s*\(/, "app.js");
-  assert.doesNotMatch(WL, /MSStore\.seedIfEmpty\s*\(/, "screens/watchlist.js");
+// 파일 이름을 손으로 적지 않는다 — 이 태스크를 문 버그가 정확히 "두 번째 파일도 그걸 불렀다"였다
+// (app.js 만 걷어낸 상태로 브라우저를 열었더니 AAPL·NVDA·MSFT 3행이 그대로 떴다). 인스턴스가
+// 아니라 부류를 막는다: www/ 전체를 훑는다. vendor/ 는 생성물이라 제외.
+function wwwSources() {
+  const base = new URL("../www/", import.meta.url);
+  const out = [];
+  (function walk(rel) {
+    for (const e of readdirSync(new URL(rel, base), { withFileTypes: true })) {
+      if (e.name === "vendor") continue;
+      if (e.isDirectory()) walk(rel + e.name + "/");
+      else if (e.name.endsWith(".js")) out.push(rel + e.name);
+    }
+  })("");
+  return out;
+}
+
+test("www 어느 파일도 시드를 심지 않는다", () => {
+  const files = wwwSources();
+  assert.ok(files.length > 20, "훑은 파일이 " + files.length + "개뿐이다 — 스윕이 망가졌다");
+  const offenders = files.filter(f =>
+    /MSStore\.seedIfEmpty\s*\(/.test(readFileSync(new URL("../www/" + f, import.meta.url), "utf8")));
+  assert.deepStrictEqual(offenders, [], "시드를 부르는 파일: " + offenders.join(", "));
 });
 
 test("app.js 에 온보딩 게이트가 있다", () => {
@@ -77,9 +93,13 @@ test("스크립트 순서: sample → ticker-picker → onboarding → app", () 
 
 // onboarding 이 로드 시점이 아니라 render 시점에 읽는 전역들 — 그래도 태그가 아예 없으면
 // 브라우저에서 1·2단계가 빈 화면이 된다. node 테스트는 이 결손을 볼 수 없다.
+// paintChart 는 MSZoom·MSChartLayout·MSChartDraw 가 없으면 **조용히 early-return** 한다 —
+// 태그 하나가 빠지면 JS 에러 0 인 채로 캔버스만 비는, 알아채기 가장 어려운 실패다.
+// MSLayers(draw-layers)·MSPreds(draw-preds)는 drawCone 이 내부에서 부른다.
 test("1·2단계 작도가 쓰는 모듈이 index.html 에 전부 있다", () => {
   ["vendor/forge-core.js", "graph.js", "indicators.js", "report-model.js",
-   "chart-layout.js", "chart-draw.js", "draw-preds.js", "ui.js"].forEach(function (f) {
+   "chart-layout.js", "chart-zoom.js", "chart-draw.js", "draw-preds.js",
+   "draw-layers.js", "ui.js"].forEach(function (f) {
     assert.ok(HTML.indexOf('<script src="' + f + '">') > 0, f + " 태그가 없다");
   });
 });
@@ -152,10 +172,15 @@ test("2단계 빗은 30개다 — 방향을 물을 수 있는 지표만", () => 
   var vol = SAMPLE.candle.map(function (c) { return c.v; });
   G.setVolume(graph, vol);
   var input = { price: SAMPLE.price, candle: SAMPLE.candle, volume: vol };
-  var rows = IND.readings(FC, graph, input, IND.ctxFrom(input));
+  var rows = IND.biases(FC, graph, input);
   assert.strictEqual(rows.length, FC.indicatorCount - IND.NO_BIAS.length);
   assert.strictEqual(rows.length, 30);
   rows.forEach(function (r) { assert.ok(isFinite(r.bias), r.type + " 의 bias 가 숫자가 아니다"); });
+  // biases 로 바꾼 근거 — readings 와 같은 30행을 준다. 같지 않다면 바꾼 것이 열화다.
+  var viaReadings = IND.readings(FC, graph, input, IND.ctxFrom(input));
+  assert.deepStrictEqual(rows.map(function (r) { return [r.type, r.bias]; }),
+                         viaReadings.map(function (r) { return [r.type, r.bias]; }),
+                         "biases 와 readings 의 행이 다르다");
 });
 
 // 두 벌 작도가 갈리는 것을 막는다 — 온보딩은 report.js 와 같은 모듈을 부른다.
@@ -164,14 +189,16 @@ test("paintChart 는 기존 작도 모듈을 부른다", () => {
    "MSChartDraw.drawCone", "ForgeCore.run"].forEach(function (call) {
     assert.ok(OB.indexOf(call) > 0, call + " 를 부르지 않는다");
   });
-  // DPR 트랜스폼 — 없으면 폰에서 흐리다. node 테스트가 흐림을 볼 수 없으므로 소스로 못박는다.
-  assert.match(OB, /devicePixelRatio/);
-  assert.match(OB, /setTransform\s*\(\s*dpr/);
-  // 예측선은 1차만 — 온보딩에 티어가 없다
-  assert.match(OB, /"basic"/);
-  // 빗은 readings 만 쓴다. noDirRows(trend·phasefold)를 섞으면 32가 되고,
-  // bias 가 null 인 둘이 "중립 막대"로 위장한다 — 못 읽은 것과 중립은 다르다.
+  // DPR 블록은 MSUi.fitCanvas 한 벌이다 — 리포트와 온보딩이 각자 갖고 있다가 이미 갈렸다.
+  assert.match(OB, /MSUi\.fitCanvas\(/);
+  assert.doesNotMatch(OB, /devicePixelRatio/, "DPR 블록을 다시 손으로 폈다");
+  assert.match(REPORT, /MSUi\.fitCanvas\(/, "리포트가 자기 DPR 블록으로 되돌아갔다");
+  // 티어("basic")·패널·높이는 소스 문자열이 아니라 실제 인자로 본다(아래 스파이 테스트) —
+  // 정규식은 주석에도 걸려서 호출을 바꿔도 초록인 채로 통과한다.
+  // 빗은 방향만 쓴다. noDirRows(trend·phasefold)를 섞으면 32가 되고 bias 가 null 인 둘이
+  // "중립 막대"로 위장한다 — 못 읽은 것과 중립은 다르다. readings 는 안 쓴다(문장 30개를 버린다).
   assert.doesNotMatch(OB, /noDirRows/);
+  assert.doesNotMatch(OB, /MSIndicators\.readings/);
 });
 
 // ES5 전용(WebView). 화살표 함수·템플릿 리터럴·const/let 이 들어오면 구형 WebView 에서 죽는다.
@@ -253,14 +280,62 @@ function withDom(fn) {
   put("MSGraph", G);
   put("MSIndicators", IND);
   put("MSReportModel", RM);
-  put("MSChartLayout", require("../www/chart-layout.js"));
-  put("MSChartDraw", require("../www/chart-draw.js"));
+
+  // ── 인자 스파이. 메서드 **이름**만 기록하면 티어("basic"→"full")·패널 구성·캔버스 높이를
+  // 바꿔도 전부 초록이다(리뷰가 실제로 그렇게 통과시켰다). 호출된 인자를 붙잡는다.
+  // require 캐시를 오염시키지 않도록 얕은 복사본에만 래퍼를 씌운다 — 두 모듈 다 내부에서는
+  // 클로저로 서로를 부르므로 복사본 교체가 원본 동작을 바꾸지 않는다.
+  const spy = { cone: [], layout: [] };
+  const draw = require("../www/chart-draw.js");
+  const layout = require("../www/chart-layout.js");
+  put("MSChartDraw", Object.assign({}, draw, {
+    drawCone(c, lay, pred, col, tier, opts) {
+      spy.cone.push({ tier, opts });
+      return draw.drawCone(c, lay, pred, col, tier, opts);
+    }
+  }));
+  put("MSChartLayout", Object.assign({}, layout, {
+    chartLayout(o) { spy.layout.push(o); return layout.chartLayout(o); }
+  }));
   put("MSPreds", require("../www/draw-preds.js"));
   put("MSLayers", require("../www/draw-layers.js"));
   put("MSZoom", require("../www/chart-zoom.js"));
-  try { return fn(new El("div")); }
+  try { return fn(new El("div"), spy); }
   finally { Object.keys(saved).forEach(k => { if (saved[k] === undefined) delete g[k]; else g[k] = saved[k]; }); }
 }
+
+// PRED_TIERS.full = ["p1","p3"] — "full" 이 새면 온보딩이 3차 예측선을 조용히 덧그린다.
+// 소스 정규식 /"basic"/ 은 이 줄의 **주석**에도 걸려서 호출을 바꿔도 통과한다. 인자를 본다.
+test("예측선은 1차만 — drawCone 이 basic 티어로 불린다", () => {
+  withDom((root, spy) => {
+    O.render(root, { sample: SAMPLE });
+    assert.strictEqual(spy.cone.length, 1, "drawCone 이 한 번 불리지 않았다");
+    assert.strictEqual(spy.cone[0].tier, "basic",
+      "티어가 " + spy.cone[0].tier + " 다 — basic 이 아니면 예측선이 하나가 아니다");
+    // 꿈틀 씨앗은 실종목명이 아니어야 한다 — 예시 시계를 그 종목의 예측처럼 읽히게 만든다.
+    assert.strictEqual(spy.cone[0].opts.sym, "SAMPLE");
+  });
+});
+
+test("차트는 가격 패널 한 장이고, 날짜축 자리를 미리 뗀다", () => {
+  withDom((root, spy) => {
+    O.render(root, { sample: SAMPLE });
+    assert.strictEqual(spy.layout.length, 1, "chartLayout 이 한 번 불리지 않았다");
+    const o = spy.layout[0];
+    assert.deepStrictEqual(o.panels, ["price"],
+      "서브패널(volume·rsi·macd)이 딸려 온다 — 온보딩 1단계는 가격 한 장이다");
+
+    // drawAxes 는 하단 날짜축을 '마지막 패널 아래 14px' 에 찍는다(chart-draw.js drawAxes).
+    // 기대값을 온보딩의 상수(AXIS_LABEL_H)가 아니라 **그 제약**에서 뽑는다 — 구현 상수로
+    // 기대값을 만들면 항등식이 된다. 레이아웃 높이를 캔버스 높이로 그대로 주면 여기서 걸린다.
+    const cssH = parseFloat(root.querySelector(".ob-canvas").style.height);
+    const lastPanelBottom = o.height - o.pad;
+    const labelBaseline = lastPanelBottom + 14;
+    assert.ok(labelBaseline + 4 <= cssH,
+      "하단 날짜축이 캔버스 밖으로 나간다: 베이스라인 " + labelBaseline + " > 캔버스 " + cssH);
+    assert.ok(o.height > 0 && o.height < cssH, "레이아웃 높이가 캔버스 높이와 같다 — 뗀 자리가 없다");
+  });
+});
 
 test("1단계는 캔버스에 실제로 그린다 — 빈 캔버스가 아니다", () => {
   withDom(root => {

@@ -25,6 +25,19 @@
       return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
     }).join(" ");
   }
+  // 캔버스를 CSS 픽셀이 아니라 기기 픽셀로 맞춘다. 안 하면 폰에서 흐리다 —
+  // 그리고 그 흐림은 node 테스트가 볼 수 없는 종류의 결함이다.
+  // report.js relayout()·onboarding paintChart() 두 곳이 같은 블록을 갖고 있었고, 이미
+  // 갈라져 있었다(온보딩만 날짜축 자리를 뗀다). 계산은 여기 하나, 높이 정책은 호출자가 정한다.
+  function fitCanvas(cv, ctx, cssW, cssH) {
+    var dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+    cv.width = Math.round(cssW * dpr);
+    cv.height = Math.round(cssH * dpr);
+    cv.style.height = cssH + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // 리사이즈 시점에만 설정
+    return dpr;
+  }
+
   // ── 색 토큰(캔버스는 var() 를 못 읽으므로 style.css 를 단일 원본으로 런타임에 읽어온다) ──
   // report.js 지역 함수였다가 온보딩 차트가 두 번째 소비자가 되면서 올라왔다 — 두 벌이면
   // 폴백 색이 갈려 같은 캔들이 화면마다 다른 색이 된다.
@@ -57,5 +70,5 @@
   }
 
   return { el: el, fmtPrice: fmtPrice, fmtChg: fmtChg, dotClass: dotClass, sparkPath: sparkPath,
-           readToken: readToken, hexToRgba: hexToRgba, colTokens: colTokens };
+           fitCanvas: fitCanvas, readToken: readToken, hexToRgba: hexToRgba, colTokens: colTokens };
 });

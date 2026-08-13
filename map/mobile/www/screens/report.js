@@ -121,11 +121,8 @@
     var tail = MSZoom.DEFAULT_TAIL;   // 화면 유지 중에만 산다. 종목을 바꾸면 paintChart 가 다시 불려 기본값으로 돌아간다.
 
     function relayout() {
-      var dpr = window.devicePixelRatio || 1;
       chartHpx = chartH();
-      cv.width = Math.round(cssW * dpr); cv.height = Math.round(chartHpx * dpr);
-      cv.style.height = chartHpx + "px";
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // DPR 트랜스폼 — 리사이즈 시점에만 설정
+      MSUi.fitCanvas(cv, ctx, cssW, chartHpx);   // DPR 트랜스폼 — 온보딩 차트와 한 벌(ui.js)
       // 한계가 plotW 에 딸려 있다 — 폴드를 펴면 커버에서 쓰던 봉 수가 새 하한 밖일 수 있다.
       // (커버 20봉 → 펼침 하한 44봉). 폴드는 두 화면을 상시로 오가므로 예외가 아니라 일상 경로다.
       var fut = (an.out.prediction && an.out.prediction.path) ? an.out.prediction.path.length : 0;
