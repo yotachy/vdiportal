@@ -73,8 +73,9 @@
   function loadOne(sym) { return MSApi.loadTicker(sym, "1day"); }
 
   function render(root) {
-    MSStore.seedIfEmpty();
-
+    // 시드를 심지 않는다. 온보딩 4단계가 사용자가 고른 종목으로 워치리스트를 만든다 —
+    // 여기서 심으면 app.js 에서 걷어낸 것이 무의미해지고(이 화면이 부팅 직후 항상 그려진다)
+    // 고르지 않은 AAPL·NVDA·MSFT 가 그 위에 얹힌다. 빈 목록은 wlEmpty 가 이미 그린다.
     var pendingSuggest = null; // { query, list:[{s,n}] } — 추가 실패 시 오타 제안
     var rowsEl = null, scanBtnEl = null;   // drawRows/updateScanBtn 이 잡고 있는 노드
 

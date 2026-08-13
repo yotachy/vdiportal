@@ -179,7 +179,16 @@
     tpNotFound: "We could not find that symbol.",
     tpDidYouMean: "Did you mean: ",
     tpFull: "That is all the slots for now.",
-    tpUnavailable: "Search is unavailable right now."
+    tpUnavailable: "Search is unavailable right now.",
+
+    // 온보딩 (screens/onboarding.js)
+    obBack: "Back", obNext: "Continue",
+    obSampleNote: "Example series",
+    obH1: "Where does this chart go next?",
+    obSub1: "Every reading below comes from this chart — nothing is hand-written.",
+    obH2: "Thirty readings, one verdict.",
+    obSub2: "Each bar is one indicator. They collapse into a single call.",
+    obCombCap: " readings with a direction"
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을

@@ -120,8 +120,17 @@
       MSWallet.install(MSWalletHttp.create({ url: "https://parksvc.mycafe24.com/map/wallet-api.php" }));
     }
 
-    // 시드를 먼저 심어야 inWatchlist 판정이 첫 부팅에서도 맞는다(워치리스트 화면도 다시 부르지만 무해).
-    MSStore.seedIfEmpty();
+    // 온보딩이 4단계에서 워치리스트를 심는다. 여기서 시드를 심으면 사용자가 고르지 않은
+    // 종목이 생기고 4단계가 무의미해진다.
+    if (!MSStore.onboarded()) {
+      MSOnboarding.render(rootEl, { onDone: function () { boot(); } });
+      return;
+    }
+    boot();
+  });
+
+  // 온보딩을 통과한 뒤의 부팅. 게이트 뒤로 통째로 밀려 있어야 온보딩 위에 셸이 겹쳐 그려지지 않는다.
+  function boot() {
     var last = MSStore.getLastSym();
     if (inWatchlist(last)) state.selectedSym = last;
     // showing 은 여기서 직접 건드리지 않는다 — 절반만 맞는 얘기다. 단일 부팅에서는
@@ -139,5 +148,5 @@
     if (!shellResizeBound) { window.addEventListener("resize", onShellResize); shellResizeBound = true; }
 
     renderShell();
-  });
+  }
 })();

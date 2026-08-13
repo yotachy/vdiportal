@@ -25,5 +25,37 @@
       return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
     }).join(" ");
   }
-  return { el: el, fmtPrice: fmtPrice, fmtChg: fmtChg, dotClass: dotClass, sparkPath: sparkPath };
+  // ── 색 토큰(캔버스는 var() 를 못 읽으므로 style.css 를 단일 원본으로 런타임에 읽어온다) ──
+  // report.js 지역 함수였다가 온보딩 차트가 두 번째 소비자가 되면서 올라왔다 — 두 벌이면
+  // 폴백 색이 갈려 같은 캔들이 화면마다 다른 색이 된다.
+  function readToken(name, fallback) {
+    try {
+      var v = getComputedStyle(document.documentElement).getPropertyValue(name);
+      v = (v || "").trim();
+      return v || fallback;
+    } catch (e) { return fallback; }
+  }
+  function hexToRgba(hex, a) {
+    var h = String(hex || "").replace("#", "");
+    if (h.length === 3) h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+    var r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16);
+    if (!isFinite(r) || !isFinite(g) || !isFinite(b)) return "rgba(232,180,99," + a + ")";
+    return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+  }
+  function colTokens() {
+    var gold = readToken("--gold", "#e8b463");
+    return {
+      bull: readToken("--bull", "#4fb98a"),
+      bear: readToken("--bear", "#d96a6a"),
+      gold: gold,
+      cone: hexToRgba(gold, 0.09),                       // 콘 채움 9% 골드(design §4.3)
+      hairline: readToken("--hairline", "rgba(238,241,247,.06)"),
+      ink4: readToken("--ink-4", "#7c8598"),
+      ink5: readToken("--ink-5", "#78819a"),
+      pred2: readToken("--pred2", "#b892f5")
+    };
+  }
+
+  return { el: el, fmtPrice: fmtPrice, fmtChg: fmtChg, dotClass: dotClass, sparkPath: sparkPath,
+           readToken: readToken, hexToRgba: hexToRgba, colTokens: colTokens };
 });

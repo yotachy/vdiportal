@@ -386,3 +386,64 @@ body.ms-dual .pane-report .rp-back { display:none; }
 /* 선택 강조는 배경색만. 좌측 세로 컬러 라인 금지(프로젝트 규율). steel 로 내린다 — 활성 칩이 골드가 되어
    한 화면에 골드가 둘이 된다. 선택은 사용자 상태이지 엔진 출력이 아니다. */
 body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
+
+/* ===== 온보딩 (screens/onboarding.js) =====
+   셸 밖에서 도는 화면이라 .scr 의 여백을 쓰지 않고 자기 것을 갖는다.
+   선택·활성 표시는 배경·글자색·아웃라인으로만 한다 — 항목 좌측 세로 컬러 라인 금지(프로젝트 규율). */
+.ob { display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; padding:14px 20px 20px; }
+
+/* 진행 막대 — 5칸. 숫자를 쓰지 않는다(5단계는 세어보지 않아도 한눈에 들어온다). */
+.ob-prog { display:flex; gap:5px; flex:0 0 auto; }
+.ob-seg { flex:1 1 0; height:3px; border-radius:99px; background:var(--track); }
+.ob-seg.is-on { background:var(--gold); }
+
+/* 세로로 가운데 — 폰이 길면(915px) 차트가 위에 붙고 아래가 통째로 비어 보인다. */
+.ob-step { flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; padding:26px 0; }
+/* 오버라인 — "예시 시계"라고 먼저 말한다. 실종목으로 오해하면 첫 화면이 거짓말이 된다. */
+.ob-over { margin:0 0 8px; font-size:10.5px; font-weight:700; letter-spacing:.08em;
+           text-transform:uppercase; color:var(--ink-5); }
+.ob-h { margin:0; font-size:22px; font-weight:700; line-height:1.32; letter-spacing:-.02em; color:var(--ink); }
+.ob-sub { margin:16px 0 0; font-size:12.5px; line-height:1.65; color:var(--ink-3); }
+
+/* 캔버스 폭은 래퍼가 정한다 — paintChart 가 clientWidth 를 잰다(캔버스 자신은 부모 폭을 모른다). */
+.ob-canvas-wrap { margin-top:18px; }
+.ob-canvas { display:block; width:100%; }
+
+/* 지표 빗 — 30개 막대. 가운데 기준선 없이 아래 정렬이다(막대는 세기이고 색이 방향이다). */
+.ob-comb { display:flex; align-items:flex-end; gap:3px; height:30px; margin-top:22px; }
+.ob-bar { flex:1 1 0; min-width:2px; border-radius:1.5px; background:var(--neutral); }
+.ob-bar.up { background:var(--bull); }
+.ob-bar.dn { background:var(--bear); }
+.ob-cap { margin:10px 0 0; font-size:11px; font-variant-numeric:tabular-nums; color:var(--ink-5); }
+
+/* 버튼 줄은 화면 바닥에 붙는다 — 단계마다 같은 자리에 있어야 연타가 된다. */
+.ob-nav { display:flex; gap:10px; flex:0 0 auto; padding-top:24px; }
+.ob-nav .btn { flex:1 1 0; }
+.ob-back { flex:0 0 96px !important; }
+.ob-next[disabled] { opacity:.45; }
+
+/* ===== 종목 고르기 (ticker-picker.js) =====
+   온보딩 4단계(다중)와 워치리스트 ＋Add(단일)가 같은 마크업을 쓴다.
+   선택 표시는 배경 + 골드 테두리다 — 좌측 세로 라인 금지. */
+.tp { margin-top:18px; }
+.tp-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+.tp-cell { display:flex; flex-direction:column; align-items:flex-start; gap:3px; min-height:52px;
+           padding:9px 10px; border:1px solid var(--border); border-radius:10px;
+           background:var(--sheet); color:var(--ink); font:inherit; text-align:left; }
+.tp-cell.is-on { background:var(--gold-soft); border-color:var(--gold); }
+.tp-sym { font-size:13px; font-weight:700; letter-spacing:-.01em; }
+.tp-cell.is-on .tp-sym { color:var(--gold); }
+.tp-name { font-size:10px; color:var(--ink-5); max-width:100%; overflow:hidden;
+           white-space:nowrap; text-overflow:ellipsis; }
+
+/* 직접 입력 — 큐레이션에 없는 종목. 확인은 loadTicker 가 한다(검색 엔드포인트가 없다). */
+.tp-free { display:flex; gap:8px; margin-top:12px; }
+.tp-input { flex:1 1 auto; min-width:0; height:40px; padding:0 12px;
+            background:var(--sheet); border:1px solid var(--border); border-radius:9px;
+            color:var(--ink); font:inherit; font-size:12.5px; outline:none; }
+.tp-input::placeholder { color:var(--ink-5); }
+.tp-input:focus { border-color:var(--border-strong); }
+.tp-add { flex:0 0 auto; min-height:40px; padding:0 16px; border:1px solid var(--border-strong);
+          border-radius:9px; background:transparent; color:var(--ink-2); font-size:12.5px; }
+/* 안내 한 줄 — 확인 중·못 찾음·오타 제안·상한이 전부 이 자리를 쓴다. 비면 자리를 비운다. */
+.tp-msg { margin:8px 0 0; min-height:15px; font-size:11.5px; line-height:1.4; color:var(--ink-4); }
