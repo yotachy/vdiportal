@@ -294,9 +294,13 @@ function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
 
 // 환급 자체가 멱등이다 — 보상 행의 키를 "<원래 idem>:refund" 로 둔다.
 // 상한으로 깎지 않는다: 가져간 것을 돌려주는 것이라 깎으면 훔치는 셈이 된다.
-// reason ∈ not-found|already-refunded|nothing-to-refund
+// reason ∈ not-found|already-refunded|nothing-to-refund|busy
 function w_refund($db, $acctId, $idem) {
-  $db->exec("begin immediate");
+  try {
+    $db->exec("begin immediate");
+  } catch (Throwable $e) {
+    return array("ok" => false, "reason" => "busy");
+  }
   try {
     // 계정 범위 조회다 — w_spend 의 idem 재생 구멍과 같은 이유로, 다른 계정의
     // idem 을 넘기면 조회가 애초에 비어 not-found 로 떨어진다(리뷰에서 실측된 패턴).
@@ -305,7 +309,12 @@ function w_refund($db, $acctId, $idem) {
       $db->exec("rollback");
       return array("ok" => false, "reason" => "not-found");
     }
-    if ((int)$orig["delta"] === 0) {
+    // 환급은 '차감'(delta<0)만 되돌린다. >= 0 을 다 걸러야 한다 — 아니면 seed·checkin·
+    // chest 같은 지급 행이나, 심지어 직전 환급 자신의 보상 행(delta>0)까지 idem 만
+    // 맞으면 그대로 받아들여 -delta 를 또 넣는다. 그 키들은 전부 클라이언트가 계산할
+    // 수 있다(seed:<acctId>, checkin:<acctId>:<day>, <idem>:refund) — idem 자체가
+    // 클라이언트 입력이라 여기서 막지 않으면 잔량이 음수로 갈 수 있다(리뷰에서 실측).
+    if ((int)$orig["delta"] >= 0) {
       $db->exec("rollback");
       return array("ok" => false, "reason" => "nothing-to-refund");
     }
@@ -318,12 +327,14 @@ function w_refund($db, $acctId, $idem) {
     $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
                         values (?, ?, 'refund', ?, ?, ?)");
     $st->execute(array($acctId, $back, $orig["ref"], $rk, w_now()));
-    // 권리도 되돌린다 — 환급했는데 권리가 남으면 공짜로 계속 본다. created_at 은
-    // "=" 로 정확히 맞춘다(원래 spend 와 그때 생긴 runs 행이 같은 $now 문자열을
-    // 공유한다) — ">=" 면 같은 종목을 나중에 다시 정당하게 결제해 만든 최신 권리까지
-    // 같이 지워버린다.
-    $db->prepare("delete from runs where account_id = ? and symbol = ? and created_at = ?")
-       ->execute(array($acctId, $orig["ref"], $orig["created_at"]));
+    // 권리도 되돌린다 — 환급했는데 권리가 남으면 공짜로 계속 본다. symbol·tier·created_at
+    // 셋 다 "=" 로 정확히 맞춘다(원래 spend 와 그때 생긴 runs 행이 같은 $now 문자열을
+    // 공유하고, run_type 이 곧 runs.tier 다). tier 를 빼면 같은 계정·같은 종목·같은
+    // 순간에 다른 등급(예: custom)으로 결제한 별개 권리까지 같이 지워버린다(리뷰에서
+    // 실측 — full 환급이 custom 권리를 지웠다). created_at 을 ">=" 로 두면 같은 종목을
+    // 나중에 다시 정당하게 결제해 만든 최신 권리까지 같이 지워버린다.
+    $db->prepare("delete from runs where account_id = ? and symbol = ? and tier = ? and created_at = ?")
+       ->execute(array($acctId, $orig["ref"], $orig["run_type"], $orig["created_at"]));
     $db->prepare("update accounts set balance = ? where id = ?")
        ->execute(array(w_true_balance($db, $acctId), $acctId));
     $db->exec("commit");
@@ -336,11 +347,15 @@ function w_refund($db, $acctId, $idem) {
 
 // 서버 UTC 기준이다. $today 는 테스트에서만 넘긴다 — 프로덕션은 null 을 넘겨 서버 시간을 쓴다.
 // 기기 시계를 바꿔서 얻는 것이 없어야 한다(SPEC-economy §3).
-// reason ∈ already
+// reason ∈ already|busy
 function w_checkin($db, $acct, $today) {
   $day = ($today === null) ? w_today() : $today;
   $acctId = $acct["id"];
-  $db->exec("begin immediate");
+  try {
+    $db->exec("begin immediate");
+  } catch (Throwable $e) {
+    return array("ok" => false, "granted" => 0, "capped" => false, "reason" => "busy");
+  }
   try {
     $cur = $db->prepare("select * from accounts where id = ?");
     $cur->execute(array($acctId));

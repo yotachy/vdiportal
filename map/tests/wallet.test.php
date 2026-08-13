@@ -391,23 +391,45 @@ t("full·custom 은 ref 가 없으면 과금하지 않고 거절한다 — bad-r
 
 // I1: BEGIN IMMEDIATE 를 평범한 BEGIN 으로 되돌려도 25개짜리 스위트는 여전히 초록이다
 // (w_state 캐시 수리 때와 같은 모양의 구멍) — 그래서 행동이 아니라 소스 모양으로 지킨다.
-t("w_spend 은 begin immediate 로 열어야 한다 — 동시성 보장은 행동으로 관찰되지 않는다", function () {
+// 소스에서 함수 하나의 "본문"을 잘라내는 공용 헬퍼 — w_spend/w_refund/w_checkin 셋 다에 쓴다.
+// 어느 함수가 파일의 마지막인지는 상관없다: 다음 최상위 "function " 선언 앞까지를
+// 본문으로 본다(중첩 { } 가 많아 첫 "\n}" 로는 못 자르는 함수들이라 이 방식이 필요하다).
+function wtest_fn_body($src, $fnName) {
+  $i = strpos($src, "function " . $fnName);
+  if ($i === false) return false;
+  $body = substr($src, $i);
+  $end = strpos($body, "\nfunction ", 1);
+  return ($end !== false) ? substr($body, 0, $end) : $body;
+}
+function wtest_source_no_comments() {
   $src = file_get_contents(__DIR__ . "/../wallet-lib.php");
   $src = preg_replace('/\/\*.*?\*\//s', "", $src);
   $src = preg_replace('/^\s*\/\/.*$/m', "", $src);
-  $i = strpos($src, "function w_spend");
-  ok($i !== false, "w_spend 를 못 찾았다");
-  $body = substr($src, $i);
-  // w_spend 안에 중첩 { } 가 많아 첫 "\n}"(들여쓰기 없는 줄)로는 못 자른다 — 다음
-  // 최상위 함수 선언 앞까지를 본문으로 본다. w_spend 는 파일의 마지막 함수라 안전하다.
-  $end = strpos($body, "\nfunction ");
-  if ($end !== false) $body = substr($body, 0, $end);
-  ok(strpos($body, "begin immediate") !== false,
-     "w_spend 가 begin immediate 를 쓰지 않는다 — 두 요청이 같은 잔량을 읽고 각자 차감할 수 있다");
-  ok(preg_match('/exec\s*\(\s*["\']begin(?!\s*immediate)/i', $body) !== 1,
-     "w_spend 안에 immediate 없는 맨 begin 이 있다");
-  ok(strpos($body, "beginTransaction(") === false,
-     "w_spend 가 beginTransaction() 을 쓴다 — SQLite 기본 DEFERRED 트랜잭션은 쓰기 락을 먼저 안 잡는다");
+  return $src;
+}
+
+foreach (array("w_spend", "w_refund", "w_checkin") as $fn) {
+  t($fn . " 은 begin immediate 로 열어야 한다 — 동시성 보장은 행동으로 관찰되지 않는다", function () use ($fn) {
+    $body = wtest_fn_body(wtest_source_no_comments(), $fn);
+    ok($body !== false, $fn . " 를 못 찾았다");
+    ok(strpos($body, "begin immediate") !== false,
+       $fn . " 가 begin immediate 를 쓰지 않는다 — 두 요청이 같은 잔량/출석 상태를 읽고 각자 갱신할 수 있다");
+    ok(preg_match('/exec\s*\(\s*["\']begin(?!\s*immediate)/i', $body) !== 1,
+       $fn . " 안에 immediate 없는 맨 begin 이 있다");
+    ok(strpos($body, "beginTransaction(") === false,
+       $fn . " 가 beginTransaction() 을 쓴다 — SQLite 기본 DEFERRED 트랜잭션은 쓰기 락을 먼저 안 잡는다");
+  });
+}
+
+// I3: w_refund 의 권리 삭제에서 created_at(및 tier) 조건을 통째로 빼도 행동 검사만으로는
+// 안 잡힌다 — 삭제가 "더" 되는 실패라 기존 데이터 상태에 우연히 가려질 수 있다. symbol 만
+// 남기고 tier·created_at 을 뺀 버전으로 리뷰가 실측: 43개가 그대로 초록이었다. 소스 모양으로 고정한다.
+t("w_refund 의 권리 삭제는 symbol·tier·created_at 세 조건을 모두 써야 한다", function () {
+  $body = wtest_fn_body(wtest_source_no_comments(), "w_refund");
+  ok($body !== false, "w_refund 를 못 찾았다");
+  ok(preg_match('/delete\s+from\s+runs\s+where\s+account_id\s*=\s*\?\s+and\s+symbol\s*=\s*\?\s+and\s+tier\s*=\s*\?\s+and\s+created_at\s*=\s*\?/i', $body) === 1,
+     "w_refund 의 runs 삭제가 account_id·symbol·tier·created_at 네 조건을 모두 쓰지 않는다 — " .
+     "빠지면 같은 계정·같은 종목의 다른 등급/다른 시점 권리까지 같이 지워진다");
 });
 
 // ── Task 4: refund · checkin — 스트릭 · 상한 · capped ──────────────────────
@@ -426,13 +448,20 @@ t("refund 가 되돌리고 두 번 불러도 한 번만 돌려준다", function 
 });
 
 t("환급은 지갑 상한을 넘겨도 깎지 않는다 — 가져간 것을 돌려주는 것이다", function () {
+  // I4: 스펜드 직후(잔량이 상한보다 정확히 3 모자란 상태)에 곧장 환급하면, 상한을 무시하는
+  // 구현(min(back, W_CAP-bal))도 room 이 딱 3이라 우연히 3을 그대로 돌려줘 이 테스트를
+  // 통과시킨다(리뷰에서 실측: 캡을 심어도 0개 실패). 그래서 환급 "전에" 다시 상한까지
+  // 채운다 — room 이 0인 채로 3을 돌려받아야 하므로, 캡을 적용하면 반드시 실패한다.
   $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
-  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,?,'seed',NULL,'topup',?)")
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,?,'seed',NULL,'topup1',?)")
      ->execute(array($a["id"], W_CAP - W_SEED, w_now()));   // 상한까지 채운다
   eq(w_true_balance($db, $a["id"]), W_CAP, "상한 전제");
-  w_spend($db, $a["id"], "full", "k1", "AAPL", null);
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);       // W_CAP → W_CAP-3
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,3,'seed',NULL,'topup2',?)")
+     ->execute(array($a["id"], w_now()));                    // 다시 상한까지 채운다 — room=0
+  eq(w_true_balance($db, $a["id"]), W_CAP, "재충전 후 상한 전제");
   eq(w_refund($db, $a["id"], "k1")["ok"], true, "환급");
-  eq(w_true_balance($db, $a["id"]), W_CAP, "환급이 상한으로 깎였다 — 훔친 셈이다");
+  eq(w_true_balance($db, $a["id"]), W_CAP + 3, "환급이 상한으로 깎였다 — 훔친 셈이다");
   $db = null; rmrf($d);
 });
 
@@ -442,6 +471,31 @@ t("없는 idem 과 delta 0 행은 환급 대상이 아니다", function () {
   w_spend($db, $a["id"], "full", "k1", "AAPL", null);
   w_spend($db, $a["id"], "full", "k2", "AAPL", null);   // charged:false, delta 0
   eq(w_refund($db, $a["id"], "k2")["reason"], "nothing-to-refund", "delta 0 을 환급했다");
+  $db = null; rmrf($d);
+});
+
+// C1: 환급은 '차감'(delta<0)만 되돌려야 한다. 아니면 클라이언트가 계산할 수 있는 지급 키
+// (seed:<acctId>, checkin:<acctId>:<day>) 나, 심지어 직전 환급 자신의 보상 행(<idem>:refund)
+// 까지 idem 만 맞으면 그대로 받아들여 -delta 를 또 넣어 잔량이 음수로 간다(리뷰에서 실측).
+t("시드 지급 행을 환급할 수 없다 — 클라이언트가 계산 가능한 idem 이다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $seedIdem = "seed:" . $a["id"];
+  $r = w_refund($db, $a["id"], $seedIdem);
+  eq($r["ok"], false, "ok");
+  eq($r["reason"], "nothing-to-refund", "reason");
+  eq(w_true_balance($db, $a["id"]), 5, "시드 환급으로 잔량이 움직였다");
+  $db = null; rmrf($d);
+});
+
+t("환급의 보상 행 자체를 또 환급할 수 없다 — 잔량이 음수로 간다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);   // 5 → 2
+  w_refund($db, $a["id"], "k1");                         // 2 → 5, 보상 행 idem="k1:refund"
+  eq(w_true_balance($db, $a["id"]), 5, "환급 전제");
+  $r = w_refund($db, $a["id"], "k1:refund");
+  eq($r["ok"], false, "ok");
+  eq($r["reason"], "nothing-to-refund", "reason");
+  eq(w_true_balance($db, $a["id"]), 5, "환급의 환급으로 잔량이 움직였다 — 음수로 갔어야 했다면 더 심각하다");
   $db = null; rmrf($d);
 });
 
@@ -463,6 +517,33 @@ t("환급이 권리도 함께 지운다 — 환급받고 계속 공짜로 보면
   ok(w_active_run($db, $a["id"], "AAPL", "full") !== null, "권리가 안 생겼다");
   w_refund($db, $a["id"], "k1");
   ok(w_active_run($db, $a["id"], "AAPL", "full") === null, "환급했는데 권리가 남았다");
+  $db = null; rmrf($d);
+});
+
+// I2: 같은 계정·같은 종목·같은 순간에 등급이 다른 두 권리(full·custom)가 있으면,
+// tier 없이 symbol·created_at 만으로 지우는 삭제는 둘 다 지운다 — full 을 환급했는데
+// custom 권리(5를 내고 산 것)까지 사라진다(리뷰에서 실측).
+t("같은 종목·같은 순간이라도 다른 등급 권리는 건드리지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,20,'seed',NULL,'topup',?)")
+     ->execute(array($a["id"], w_now()));   // full(3)+custom(5) 를 같은 트랜잭션 순서로 넉넉히
+  $now = w_now();
+  // w_spend 가 같은 $now 를 ledger·runs 양쪽에 쓰므로, 두 spend 를 "같은 순간"으로
+  // 흉내내려면 원장에 직접 같은 created_at 으로 두 쌍(ledger+runs)을 심어야 한다 —
+  // w_spend 두 번 호출은 실제로도 $now 문자열이 초 단위로 같을 수 있는 정상 상황이다.
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,run_type,created_at) values (?,-3,'spend','AAPL','kf','full',?)")
+     ->execute(array($a["id"], $now));
+  $db->prepare("insert into runs (account_id,symbol,tier,engine_version,created_at,expiry) values (?,'AAPL','full',NULL,?,?)")
+     ->execute(array($a["id"], $now, gmdate("c", time() + 86400)));
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,run_type,created_at) values (?,-5,'spend','AAPL','kc','custom',?)")
+     ->execute(array($a["id"], $now));
+  $db->prepare("insert into runs (account_id,symbol,tier,engine_version,created_at,expiry) values (?,'AAPL','custom',NULL,?,?)")
+     ->execute(array($a["id"], $now, gmdate("c", time() + 86400)));
+  ok(w_active_run($db, $a["id"], "AAPL", "full") !== null, "full 권리 준비 실패");
+  ok(w_active_run($db, $a["id"], "AAPL", "custom") !== null, "custom 권리 준비 실패");
+  eq(w_refund($db, $a["id"], "kf")["ok"], true, "full 환급");
+  ok(w_active_run($db, $a["id"], "AAPL", "full") === null, "환급한 full 권리가 안 지워졌다");
+  ok(w_active_run($db, $a["id"], "AAPL", "custom") !== null, "환급 안 한 custom 권리까지 지워졌다");
   $db = null; rmrf($d);
 });
 
