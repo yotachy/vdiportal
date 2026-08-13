@@ -57,10 +57,18 @@ t("ledger.idem 은 UNIQUE 다 — DB 층에서 막아야 한다", function () {
   $db = null; rmrf($d);
 });
 
+// "무엇이든 던졌다"만 보면 가드를 지워도 초록이다 — PDO 가 알아서 던지기 때문이다(최종 리뷰
+// 실측: is_writable 가드를 지워도 이 검사가 통과했다). 그래서 "우리 가드가 던졌는가"를 못박는다:
+// 메시지로 분기를 특정하고, 그 예외가 PDOException(= 우리가 아니라 드라이버가 던진 것)이
+// 아님을 함께 확인한다. 웹루트 폴백을 막는 것은 PDO 가 아니라 이 가드다.
 t("쓸 수 없는 디렉토리면 예외를 던진다 — 조용히 폴백하지 않는다", function () {
-  $threw = false;
-  try { w_db("/proc/nonexistent-wallet-dir"); } catch (Throwable $e) { $threw = true; }
-  ok($threw, "못 쓰는 경로에서 조용히 성공했다");
+  $e = null;
+  try { w_db("/proc/nonexistent-wallet-dir"); } catch (Throwable $x) { $e = $x; }
+  ok($e !== null, "못 쓰는 경로에서 조용히 성공했다");
+  ok(!($e instanceof PDOException),
+     "PDO 가 던진 것이지 w_db 의 디렉토리 가드가 던진 게 아니다 — 가드를 지워도 이 검사는 통과한다");
+  ok(strpos($e->getMessage(), "만들 수 없다") !== false,
+     "디렉토리 생성 실패 메시지가 아니다: " . $e->getMessage());
 });
 
 // 리뷰 라운드 2 진행 중 자체 발견: mkdir 은 "이미 있어서 실패"와 "정말 못 만들어서
@@ -86,11 +94,17 @@ t("이미 있는 디렉토리가 쓰기 불가면 예외를 던진다 — 웹루
   if (function_exists("posix_geteuid") && posix_geteuid() === 0) return;   // root 는 is_writable 이 무의미하다
   $d = tmpdir();
   chmod($d, 0500);
-  $threw = false;
-  try { w_db($d); } catch (Throwable $e) { $threw = true; }
+  $e = null;
+  try { w_db($d); } catch (Throwable $x) { $e = $x; }
   chmod($d, 0700);
   rmrf($d);
-  ok($threw, "쓰기 불가 디렉토리에서 조용히 성공했다 — 원장이 웹루트로 갈 수 있다");
+  ok($e !== null, "쓰기 불가 디렉토리에서 조용히 성공했다 — 원장이 웹루트로 갈 수 있다");
+  // 여기서도 "무엇이든 던졌다"로는 부족하다 — is_writable 가드를 지우면 PDO 가 대신 던져
+  // 초록이 유지된다(최종 리뷰 실측). fail-closed 를 지키는 주체가 우리 가드임을 못박는다.
+  ok(!($e instanceof PDOException),
+     "PDO 가 던진 것이지 is_writable 가드가 던진 게 아니다 — 가드를 지워도 이 검사는 통과한다");
+  ok(strpos($e->getMessage(), "쓸 수 없다") !== false,
+     "쓰기 불가 분기의 메시지가 아니다: " . $e->getMessage());
 });
 
 t("시각은 UTC 다", function () {
@@ -294,6 +308,24 @@ t("종목이 다르면 별개 권리다", function () {
   $db = null; rmrf($d);
 });
 
+// w_active_run 의 `account_id = ?` 를 항진식으로 바꿔도 66건 스위트는 초록이었다(최종 리뷰
+// 실측) — 그 상태에선 누구든 한 명이 full/AAPL 을 사면 24시간 동안 전 계정이 같은 종목을
+// 공짜로 본다. 이 브랜치가 idem 재생에서 막은 것과 같은 종류의 구멍이 테이블 하나 옆에 있었다.
+t("권리는 계정 소유다 — 남이 산 Full 을 타고 공짜로 받지 못한다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $a = mkacct($db, "dev-a"); $b = mkacct($db, "dev-b");
+  $ra = w_spend($db, $a["id"], "full", "ka", "AAPL", null);
+  eq($ra["charged"], true, "A 가 과금되지 않았다");
+  $rb = w_spend($db, $b["id"], "full", "kb", "AAPL", null);   // 다른 계정·새 idem·같은 종목
+  eq($rb["ok"], true, "ok");
+  eq($rb["charged"], true, "B 가 A 의 권리를 타고 공짜로 받았다 — w_active_run 이 계정 범위가 아니다");
+  eq(w_true_balance($db, $b["id"]), 2, "B 잔량이 안 줄었다");
+  $row = $db->query("select delta, reason from ledger where idem='kb'")->fetch();
+  eq((int)$row["delta"], -3, "B 원장 델타");
+  eq($row["reason"], "spend", "B 원장 사유 — spend-cached 면 공짜로 받은 것이다");
+  $db = null; rmrf($d);
+});
+
 t("잔량이 모자라면 롤백하고 원장에 아무 것도 안 남는다", function () {
   $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
   w_spend($db, $a["id"], "full", "k1", "AAPL", null);   // 5 → 2
@@ -353,14 +385,20 @@ t("다른 계정의 idem 을 재생할 수 없다 — 계정 범위여야 한다
   $db = null; rmrf($d);
 });
 
+// ⚠ ref 는 반드시 고정한다(둘 다 AAPL). 예전엔 full/AAPL → custom/NVDA 로 등급과 대상을 함께
+// 바꿨는데, 그러면 ref 검사만으로도 거절돼서 등급 검사(`$prev["run_type"] === $runType`)를
+// 통째로 지워도 초록이었다(최종 리뷰 실측). 등급 하나만 바꿔야 이 가드가 대상이 된다.
 t("같은 idem 이라도 runType 이 다르면 재생이 아니라 거절이다 — 싼 등급 값으로 비싼 등급을 못 받는다", function () {
   $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
-  w_spend($db, $a["id"], "full", "k1", "AAPL", null);      // 5 → 2
-  $r = w_spend($db, $a["id"], "custom", "k1", "NVDA", null);
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);      // 5 → 2 (full=3)
+  $r = w_spend($db, $a["id"], "custom", "k1", "AAPL", null);   // 같은 대상, 비싼 등급(custom=5)
   eq($r["ok"], false, "ok");
   eq($r["reason"], "bad-idem", "reason");
   eq(w_true_balance($db, $a["id"]), 2, "잔량이 또 움직였다");
-  ok(w_active_run($db, $a["id"], "NVDA", "custom") === null, "거절됐는데 권리가 생겼다");
+  ok(w_active_run($db, $a["id"], "AAPL", "custom") === null,
+     "full 값(3)만 내고 custom 권리(5)를 받아갔다 — 등급 검사가 없다");
+  $n = $db->query("select count(*) c from ledger where idem='k1'")->fetch();
+  eq((int)$n["c"], 1, "거절인데 원장 행이 늘었다");
   $db = null; rmrf($d);
 });
 
