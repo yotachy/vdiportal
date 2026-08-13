@@ -133,15 +133,33 @@ t("account_id 는 device_id 에서 결정적으로 나온다", function () {
   eq(strlen(w_account_id("dev-1")), 16, "id 길이");
 });
 
-t("balance 캐시가 손상되면 get 이 원장 기준으로 고친다", function () {
+t("balance 캐시가 위로 어긋나면 원장 기준으로 고친다 — 캐시행이 원장 합계와 정확히 같아야 한다", function () {
   $d = tmpdir(); $db = w_db($d);
   $a = w_create_account($db, "dev-1", null);
   $db->exec("update accounts set balance = 999 where id = '" . $a["id"] . "'");
   $a2 = w_get_account($db, "dev-1");
   $st = w_state($db, $a2);
-  eq($st["balance"], 5, "원장 기준으로 안 고쳤다");
+  $truth = w_true_balance($db, $a["id"]);
+  eq($st["balance"], $truth, "원장 기준으로 안 고쳤다");
   $row = $db->query("select balance from accounts where id='" . $a["id"] . "'")->fetch();
-  eq((int)$row["balance"], 5, "캐시가 디스크에서도 안 고쳐졌다");
+  // 여기서 원장 합계(w_true_balance)와 직접 대조한다 — SELECT 로 읽은 값을 그대로
+  // 하드코딩해 비교하면, w_state 가 SELECT-then-UPDATE 두 문장으로 되돌아가
+  // 그 사이 원장이 바뀌어도 이 테스트는 못 잡는다. 한 문장 UPDATE(서브쿼리)만
+  // 이 시점의 원장과 캐시행을 정확히 일치시킨다.
+  eq((int)$row["balance"], $truth, "캐시가 디스크에서도 원장과 안 맞았다");
+  $db = null; rmrf($d);
+});
+
+t("balance 캐시가 아래로 어긋나도 원장 기준으로 고친다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $a = w_create_account($db, "dev-1", null);
+  $db->exec("update accounts set balance = 1 where id = '" . $a["id"] . "'");   // 원장(5)보다 낮게 손상
+  $a2 = w_get_account($db, "dev-1");
+  $st = w_state($db, $a2);
+  $truth = w_true_balance($db, $a["id"]);
+  eq($st["balance"], $truth, "아래로 어긋난 캐시를 원장 기준으로 안 고쳤다");
+  $row = $db->query("select balance from accounts where id='" . $a["id"] . "'")->fetch();
+  eq((int)$row["balance"], $truth, "캐시행이 디스크에서 원장과 안 맞았다");
   $db = null; rmrf($d);
 });
 

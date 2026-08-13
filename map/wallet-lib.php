@@ -94,6 +94,10 @@ function w_seed_count_today($db, $ipHash) {
 
 // 계정 생성과 시드 지급은 한 트랜잭션이다. 갈라지면 잔량 없는 계정이 남는다.
 // device_id UNIQUE 가 재지급을 DB 층에서 막는다 — 애플리케이션 검사에 기대지 않는다.
+// 실측(8-way 동시 생성, journal_mode=WAL, busy_timeout=5000, 3회 반복): 패자는 매번
+// 깨끗한 PDOException(SQLSTATE 23000, "UNIQUE constraint failed") 을 던졌다 — SQLITE_BUSY
+// 타임아웃은 한 번도 관찰되지 않았다. Task 5 의 hello 폴백(예외를 잡고 재조회)은 이
+// 구분(제약 위반 vs 바쁨-타임아웃)에 기대도 된다.
 function w_create_account($db, $deviceId, $ipHash) {
   $id = w_account_id($deviceId);
   $now = w_now();
@@ -126,7 +130,11 @@ function w_true_balance($db, $acctId) {
 function w_state($db, $acct) {
   $true = w_true_balance($db, $acct["id"]);
   if ((int)$acct["balance"] !== $true) {
-    $db->prepare("update accounts set balance = ? where id = ?")->execute(array($true, $acct["id"]));
+    // 한 문장으로 고친다 — SELECT 로 읽고 따로 UPDATE 하면 그 사이에 원장이 바뀌어
+    // 낡은 값을 캐시에 새겨 넣는다. 반환값은 늘 원장에서 바로 오므로 화면은 안 틀리지만,
+    // 캐시가 되레 나빠지는 순간이 생긴다. Task 4·5 가 동시 기록자를 데려온다.
+    $db->prepare("update accounts set balance = (select coalesce(sum(delta), 0) from ledger where account_id = ?) where id = ?")
+       ->execute(array($acct["id"], $acct["id"]));
   }
   return array(
     "balance"    => $true,
