@@ -26,13 +26,13 @@
 
 | 파일 | 책임 | 상태 |
 |---|---|---|
-| `map/mobile/www/onboarding-sample.json` | 번들 시계 240봉(캔들+날짜+거래량) | **신규(생성물, 커밋)** |
+| `map/mobile/www/onboarding-sample.js` | 번들 시계 240봉(캔들+날짜+거래량) | **신규(생성물, 커밋)** |
 | `map/mobile/tools/make-onboarding-sample.mjs` | 위 파일을 결정론적으로 만드는 생성기 | **신규** |
 | `map/mobile/www/ticker-picker.js` | `MSTickerPicker` — 큐레이션 그리드 + 직접 입력 | **신규** |
 | `map/mobile/www/screens/onboarding.js` | `MSOnboarding` — 5단계 | **신규** |
 | `map/mobile/www/store.js` | 온보딩 완료 플래그 · 동의 기록 | 수정 |
 | `map/mobile/www/app.js` | 게이트. `seedIfEmpty()` 제거 | 수정 |
-| `map/mobile/www/index.html` | 스크립트 태그 3개 | 수정 |
+| `map/mobile/www/index.html` | 스크립트 태그 4개 | 수정 |
 | `map/mobile/www/strings.js` | 온보딩 문자열 | 수정 |
 | `map/mobile/www/style.css` | 온보딩·피커 스타일 | 수정 |
 | `map/mobile/www/screens/watchlist.js` | `prompt()` → `MSTickerPicker` | 수정 |
@@ -45,13 +45,13 @@
 ## Task 1: 번들 시계 + 저장소 플래그
 
 **Files:**
-- Create: `map/mobile/tools/make-onboarding-sample.mjs` · `map/mobile/www/onboarding-sample.json`
+- Create: `map/mobile/tools/make-onboarding-sample.mjs` · `map/mobile/www/onboarding-sample.js`
 - Modify: `map/mobile/www/store.js`
 - Test: `map/mobile/test/store.test.mjs` · `map/mobile/test/onboarding-sample.test.mjs`(신규)
 
 **Interfaces:**
 - Produces:
-  - `onboarding-sample.json` — `{ price: number[], candle: [{o,h,l,c,v,t}], asOf: string }`. `MSApi.loadTicker` 의 반환과 같은 모양이라 기존 작도 경로가 그대로 먹는다
+  - `onboarding-sample.js` — `{ price: number[], candle: [{o,h,l,c,v,t}], asOf: string }`. `MSApi.loadTicker` 의 반환과 같은 모양이라 기존 작도 경로가 그대로 먹는다
   - `MSStore.onboarded() -> boolean` · `MSStore.setOnboarded(termsVersion: string) -> void`
   - `MSStore.consent() -> { termsVersion, at } | null`
 
@@ -63,7 +63,9 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
-const S = JSON.parse(readFileSync(new URL("../www/onboarding-sample.json", import.meta.url), "utf8"));
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const S = require("../www/onboarding-sample.js");
 
 test("번들 시계는 240봉이고 작도에 필요한 것을 다 갖췄다", () => {
   assert.strictEqual(S.candle.length, 240);
@@ -96,7 +98,7 @@ test("거래량은 가격과 독립이다 — 수익률과 상관이 낮다", ()
 });
 
 test("파일이 작다 — 첫 화면이 이걸 기다린다", () => {
-  const bytes = readFileSync(new URL("../www/onboarding-sample.json", import.meta.url)).length;
+  const bytes = readFileSync(new URL("../www/onboarding-sample.js", import.meta.url)).length;
   assert.ok(bytes < 120000, "번들 시계가 " + bytes + "바이트다");
 });
 ```
@@ -121,7 +123,7 @@ test("온보딩 완료 플래그와 동의 기록", () => {
 - [ ] **Step 2: 실패 확인**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map/mobile && node --test test/onboarding-sample.test.mjs test/store.test.mjs`
-Expected: FAIL — `Cannot find module '../www/onboarding-sample.json'`, `MSStore.onboarded is not a function`
+Expected: FAIL — `Cannot find module '../www/onboarding-sample.js'`, `MSStore.onboarded is not a function`
 
 - [ ] **Step 3: 생성기를 쓴다**
 
@@ -158,9 +160,18 @@ for (let i = 0; i < N; i++) {
 }
 out.asOf = out.candle[N - 1].t;
 
-writeFileSync(new URL("../www/onboarding-sample.json", import.meta.url),
-              JSON.stringify(out) + "\n");
-console.log("wrote onboarding-sample.json —", N, "bars,", out.candle[0].t, "→", out.asOf);
+// UMD 로 굽는다 — 이 저장소가 www/ 전체에서 쓰는 방식이고(forge-core·readings·indicators),
+// fetch 가 아니라 <script src> 로 들어오므로 1단계에 비동기 대기가 없다. 파일이 빠지면
+// 브라우저에서 즉시 죽지, 빈 차트로 조용히 넘어가지 않는다.
+const body = "// 생성물이다. 손으로 고치지 말 것 — tools/make-onboarding-sample.mjs 를 다시 돌린다.\n"
+  + "(function (root, f) {\n"
+  + '  if (typeof module === "object" && module.exports) module.exports = f();\n'
+  + "  else root.MSOnboardingSample = f();\n"
+  + '}(typeof self !== "undefined" ? self : this, function () {\n'
+  + "  return " + JSON.stringify(out) + ";\n"
+  + "}));\n";
+writeFileSync(new URL("../www/onboarding-sample.js", import.meta.url), body);
+console.log("wrote onboarding-sample.js —", N, "bars,", out.candle[0].t, "→", out.asOf);
 ```
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map/mobile && node tools/make-onboarding-sample.mjs`
@@ -203,7 +214,7 @@ Expected: 848 → 852 근처. forge-core 259 · forge-tools 81 · landing 28 · 
 
 ```bash
 cd /home/jschoi0223/projects/vdiportal
-git add map/mobile/tools/make-onboarding-sample.mjs map/mobile/www/onboarding-sample.json \
+git add map/mobile/tools/make-onboarding-sample.mjs map/mobile/www/onboarding-sample.js \
         map/mobile/www/store.js map/mobile/test/onboarding-sample.test.mjs map/mobile/test/store.test.mjs
 git commit -m "$(cat <<'EOF'
 온보딩: 번들 시계 + 완료 플래그·동의 기록
@@ -453,7 +464,7 @@ EOF
 - Modify: `map/mobile/www/app.js` · `index.html` · `strings.js` · `style.css`
 
 **Interfaces:**
-- Consumes: `MSStore.onboarded()` · `MSTickerPicker` · `onboarding-sample.json`
+- Consumes: `MSStore.onboarded()` · `MSTickerPicker` · `onboarding-sample.js`
 - Produces:
   - `MSOnboarding.STEPS` — `5`
   - `MSOnboarding.next(step, state) -> number` — 순수. 진행 가능하면 `step+1`, 아니면 같은 값
@@ -504,11 +515,13 @@ test("app.js 에 온보딩 게이트가 있다", () => {
 });
 
 // index.html 은 로드 시점에 전역을 캡처한다 — 순서가 틀리면 브라우저에서만 죽는다.
-test("스크립트 순서: ticker-picker → onboarding → app", () => {
+test("스크립트 순서: sample → ticker-picker → onboarding → app", () => {
+  var sm = HTML.indexOf('<script src="onboarding-sample.js">');
   var tp = HTML.indexOf('<script src="ticker-picker.js">');
   var ob = HTML.indexOf('<script src="screens/onboarding.js">');
   var ap = HTML.indexOf('<script src="app.js">');
-  assert.ok(tp > 0 && ob > 0 && ap > 0, "태그가 없다");
+  assert.ok(sm > 0 && tp > 0 && ob > 0 && ap > 0, "태그가 없다");
+  assert.ok(sm < ob, "번들 시계가 onboarding 보다 뒤에 있다");
   assert.ok(tp < ob, "ticker-picker 가 onboarding 보다 뒤에 있다");
   assert.ok(ob < ap, "onboarding 이 app 보다 뒤에 있다");
 });
@@ -523,7 +536,7 @@ Expected: FAIL — `Cannot find module '../www/screens/onboarding.js'`
 
 ```js
 // 온보딩 5단계. 셸 밖에서 돈다 — 완료 전까지 워치리스트/리포트/지갑은 그리지 않는다.
-// 1·2단계는 번들 시계(onboarding-sample.json)로 진짜 엔진을 돌린다. 네트워크를 타면
+// 1·2단계는 번들 시계(onboarding-sample.js)로 진짜 엔진을 돌린다. 네트워크를 타면
 // 첫 화면이 콜드 수신(실측 942ms)을 기다리게 되고, 그게 앱의 첫인상이 된다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
@@ -610,15 +623,12 @@ Expected: FAIL — `Cannot find module '../www/screens/onboarding.js'`
 `render` 안에 넣는다. **차트는 기존 작도 모듈을 그대로 쓴다** — 온보딩용 작도를 새로 쓰지 않는다(두 벌이 되면 갈린다):
 
 ```js
-    // 번들 시계는 앱 자산이라 같은 출처에서 온다 — 교차 출처도 프리플라이트도 없다.
-    // 주입(opts.sample)을 먼저 보는 이유는 테스트가 파일 없이 돌 수 있어야 하기 때문이다.
-    function loadSample(done) {
-      if (state.sample) { done(state.sample); return; }
-      fetch("onboarding-sample.json").then(function (r) { return r.json(); })
-        .then(function (j) { state.sample = j; done(j); })
-        ["catch"](function () { done(null); });
+    // 번들 시계는 <script src> 로 이미 들어와 있다 — 기다릴 것이 없다.
+    // 주입(opts.sample)을 먼저 보는 이유는 테스트가 전역 없이 돌 수 있어야 하기 때문이다.
+    function sample() {
+      if (state.sample) return state.sample;
+      return (typeof MSOnboardingSample !== "undefined") ? MSOnboardingSample : null;
     }
-    function sample() { return state.sample; }
 
     function step1() {
       var w = frag("ob-step");
@@ -643,11 +653,11 @@ Expected: FAIL — `Cannot find module '../www/screens/onboarding.js'`
 
 `el(tag, cls, text)` 는 `MSUi.el` 을 쓴다(이미 있다).
 
-`draw()` 끝의 `if (step === 1) paintChart(scr);` 를 `loadSample` 로 감싼다 — 파일이 오기 전에 그리면 빈 캔버스가 된다:
+`draw()` 끝에서 작도를 부른다. 캔버스가 DOM 에 붙은 뒤여야 크기를 잴 수 있다:
 
 ```js
-      if (step === 1) loadSample(function () { paintChart(scr); });
-      if (step === 2) loadSample(function () { paintComb(scr); });
+      if (step === 1) paintChart(scr);
+      if (step === 2) paintComb(scr);
 ```
 
 **`paintChart(scr)` 는 새 작도를 쓰지 않는다.** `screens/report.js` 의 `paintChart` 가 정본이므로 그 호출 순서를 그대로 따른다 — 그 함수를 읽고 아래만 덜어낸다:
@@ -701,9 +711,10 @@ Expected: FAIL — `Cannot find module '../www/screens/onboarding.js'`
 
 기존 부팅 본문(`getLastSym` 이하 셸 렌더까지)을 `function boot() { … }` 으로 감싼다.
 
-`index.html` — `ticker-picker.js` **뒤**, `app.js` **앞**:
+`index.html` — `ticker-picker.js` **뒤**, `app.js` **앞**. 번들 시계도 여기서 들어온다:
 
 ```html
+<script src="onboarding-sample.js"></script>
 <script src="screens/onboarding.js"></script>
 ```
 
