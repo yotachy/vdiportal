@@ -327,27 +327,38 @@ function w_refund($db, $acctId, $idem) {
     $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
                         values (?, ?, 'refund', ?, ?, ?)");
     $st->execute(array($acctId, $back, $orig["ref"], $rk, w_now()));
-    // 권리도 되돌린다 — 환급했는데 권리가 남으면 공짜로 계속 본다. symbol·tier·created_at
-    // 셋 다 "=" 로 정확히 맞춘다(원래 spend 와 그때 생긴 runs 행이 같은 $now 문자열을
-    // 공유하고, run_type 이 곧 runs.tier 다). tier 를 빼면 같은 계정·같은 종목·같은
-    // 순간에 다른 등급(예: custom)으로 결제한 별개 권리까지 같이 지워버린다(리뷰에서
-    // 실측 — full 환급이 custom 권리를 지웠다). created_at 을 ">=" 로 두면 같은 종목을
-    // 나중에 다시 정당하게 결제해 만든 최신 권리까지 같이 지워버린다.
+    // 권리도 되돌린다 — 환급했는데 권리가 남으면 공짜로 계속 본다. account_id·symbol·tier·
+    // created_at 넷 다 "=" 로 정확히 맞춘다(원래 spend 와 그때 생긴 runs 행이 같은 $now
+    // 문자열을 공유한다). tier 를 빼면 같은 계정·같은 종목·같은 순간에 다른 등급(예: custom)
+    // 으로 결제한 별개 권리까지 같이 지워버린다(리뷰에서 실측 — full 환급이 custom 권리를
+    // 지웠다). created_at 을 ">=" 로 두면 같은 종목을 나중에 다시 정당하게 결제해 만든 최신
+    // 권리까지 같이 지워버린다.
     //
-    // run_type 이 NULL 인 행이 있다 — v2 이전(schema v1)에 쓰인 차감이다. 마이그레이션은
-    // ledger 에 run_type 컬럼을 "추가"만 하고 기존 행을 소급 채우지 않으므로, v1 시절
-    // spend 행은 영원히 run_type=NULL 로 남는다. SQL 에서 "tier = NULL" 은 항상 거짓이라
-    // 그냥 tier = ? 로 두면 이 행들은 매칭 0건 — 환급은 되는데 권리는 그대로 남는다(리뷰에서
-    // 실측: v1 spend → v2 마이그레이션 → 환급 → 돈은 돌아오고 24시간 열람권은 유지됨).
-    // NULL 이면 tier 조건 없이 예전 방식(account_id+symbol+created_at)으로 지운다 — v1
-    // 데이터베이스는 등급 구분 코드 자체가 없었으므로 같은 계정·같은 종목·같은 초에 등급이
-    // 다른 두 권리가 공존할 수 없다(I2 가 막는 충돌이 애초에 존재하지 않는다).
-    if ($orig["run_type"] === null) {
+    // runs.tier 는 Task 3 부터 계속 있었다 — v2 에서 새로 생긴 건 ledger.run_type 뿐이다
+    // (이전 라운드에서 "v1 은 등급 구분이 없어 충돌이 안 난다"고 잘못 적었다 — 소스를 다시
+    // 보니 v1 도 등급별로 별도 runs 행을 만들었고, 그래서 같은 계정·같은 종목·같은 초에
+    // full+custom 두 권리가 v1 시절에도 공존할 수 있다). 그러니 ledger.run_type 이 NULL
+    // 이어도(v2 이전 spend — 마이그레이션이 컬럼만 추가하고 소급 채우지 않는다) tier 없이
+    // 지우면 과삭제다: 환급 안 한 등급의 권리까지 날아간다(리뷰에서 실측).
+    //
+    // 대신 등급은 금액에서 복구한다 — delta 가 곧 가격이고, w_costs() 의 네 가격(3·5·1·2)이
+    // 서로 달라 delta 하나가 등급 하나를 유일하게 가리킨다(아래 "가격이 서로 다르다" 테스트가
+    // 이 전제를 지킨다 — 가격이 겹치면 그 즉시 빨갛게 죽는다). 그 가격표에 없는 델타(가격이
+    // 바뀐 뒤 남은 옛 행, 손으로 만진 행 등)만 진짜로 등급을 복구할 수 없는 경우다 — 그때만
+    // tier 없이 지운다. 이 마지막 단계에서는 "너무 많이 지운다"가 "환급했는데 권리가 남는다"
+    // 보다 안전한 실패다.
+    $tier = $orig["run_type"];
+    if ($tier === null) {
+      foreach (w_costs() as $rt => $cost) {
+        if ($cost === $back) { $tier = $rt; break; }
+      }
+    }
+    if ($tier !== null) {
+      $db->prepare("delete from runs where account_id = ? and symbol = ? and tier = ? and created_at = ?")
+         ->execute(array($acctId, $orig["ref"], $tier, $orig["created_at"]));
+    } else {
       $db->prepare("delete from runs where account_id = ? and symbol = ? and created_at = ?")
          ->execute(array($acctId, $orig["ref"], $orig["created_at"]));
-    } else {
-      $db->prepare("delete from runs where account_id = ? and symbol = ? and tier = ? and created_at = ?")
-         ->execute(array($acctId, $orig["ref"], $orig["run_type"], $orig["created_at"]));
     }
     $db->prepare("update accounts set balance = ? where id = ?")
        ->execute(array(w_true_balance($db, $acctId), $acctId));

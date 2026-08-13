@@ -106,6 +106,15 @@ t("금액 상수가 시안 값과 같다", function () {
   eq(W_CHECKIN, 1, "CHECKIN"); eq(W_CHEST, 5, "CHEST"); eq(W_CHEST_EVERY, 7, "CHEST_EVERY");
 });
 
+// 리뷰 3라운드: w_refund 가 run_type=NULL 행의 등급을 delta(가격)로 복구한다 — 그게
+// 되려면 가격이 서로 달라야 한다. 언젠가 custom 을 3으로 내리면(full 과 겹치면) 그 복구가
+// 조용히 엉뚱한 등급을 골라 잘못된 권리를 지우거나 살릴 수 있다 — 여기서 미리 잡는다.
+t("가격은 서로 달라야 한다 — 환급이 delta 로 등급을 복구하는 전제다", function () {
+  $c = w_costs();
+  eq(count(array_unique(array_values($c))), count($c),
+     "두 등급의 가격이 같다 — w_refund 의 delta→tier 복구가 등급을 잘못 고를 수 있다");
+});
+
 t("새 기기는 계정이 생기고 5개를 받는다 — 원장에도 남는다", function () {
   $d = tmpdir(); $db = w_db($d);
   $a = w_create_account($db, "dev-1", null);
@@ -565,6 +574,37 @@ t("run_type 이 NULL 인 v1 시절 행도 환급이 권리를 지운다", functi
   eq($r["ok"], true, "환급");
   $n = $db->query("select count(*) c from runs")->fetch();
   eq((int)$n["c"], 0, "run_type NULL 행을 환급했는데 권리가 남았다 — 돈은 돌아오고 열람권은 유지된다");
+  $db = null; rmrf($d);
+});
+
+// 리뷰 3라운드: 2라운드가 "v1 은 등급 구분이 없어 같은 초·같은 종목에 두 등급이 공존할 수
+// 없다"고 주장했는데 틀렸다 — runs.tier 는 Task 3(즉 v1)부터 있었다. v2 에서 새로 생긴 건
+// ledger.run_type 뿐이다. 그러니 v1 시절에도 같은 계정·같은 종목·같은 초에 full+custom 두
+// 권리가 실제로 공존할 수 있고, 리뷰가 그 상태를 실제 v1 라이브러리로 재현해 실측했다:
+// full 을 환급했는데 tier 조건 없이 지우면 환급 안 한 custom 권리까지 같이 지워졌다(과삭제
+// — 환급하지 않았는데 5 스쿱짜리 권리를 잃는, 라운드 2보다 더 나쁜 실패).
+// run_type=NULL 이어도 delta(가격)로 등급을 복구할 수 있다(full=3, custom=5 — 서로 다르다) —
+// 여기선 그 상태를 원장에 직접 심어 표준 테스트로 고정한다.
+t("run_type 이 NULL 이고 같은 초·같은 종목에 등급이 둘이면 델타로 등급을 가려 환급한 것만 지운다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,20,'seed',NULL,'topup',?)")
+     ->execute(array($a["id"], w_now()));
+  $now = w_now();
+  // v1 라이브러리(run_type 컬럼 자체가 없던 시절)가 남겼을 모양 그대로: ledger 는
+  // run_type 이 없으니 NULL, runs.tier 는 그때도 채워졌다.
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,run_type,created_at) values (?,-3,'spend','AAPL','kf',NULL,?)")
+     ->execute(array($a["id"], $now));
+  $db->prepare("insert into runs (account_id,symbol,tier,engine_version,created_at,expiry) values (?,'AAPL','full',NULL,?,?)")
+     ->execute(array($a["id"], $now, gmdate("c", time() + 86400)));
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,run_type,created_at) values (?,-5,'spend','AAPL','kc',NULL,?)")
+     ->execute(array($a["id"], $now));
+  $db->prepare("insert into runs (account_id,symbol,tier,engine_version,created_at,expiry) values (?,'AAPL','custom',NULL,?,?)")
+     ->execute(array($a["id"], $now, gmdate("c", time() + 86400)));
+  ok(w_active_run($db, $a["id"], "AAPL", "full") !== null, "full 권리 준비 실패");
+  ok(w_active_run($db, $a["id"], "AAPL", "custom") !== null, "custom 권리 준비 실패");
+  eq(w_refund($db, $a["id"], "kf")["ok"], true, "full 환급");
+  ok(w_active_run($db, $a["id"], "AAPL", "full") === null, "환급한 full 권리가 안 지워졌다");
+  ok(w_active_run($db, $a["id"], "AAPL", "custom") !== null, "환급 안 한 custom 권리까지 지워졌다 — 과삭제");
   $db = null; rmrf($d);
 });
 
