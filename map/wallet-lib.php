@@ -143,3 +143,73 @@ function w_state($db, $acct) {
     "canCheckin" => ($acct["last_checkin"] !== w_today())
   );
 }
+
+function w_active_run($db, $acctId, $symbol, $tier) {
+  $st = $db->prepare("select * from runs where account_id = ? and symbol = ? and tier = ? and expiry > ?
+                      order by expiry desc limit 1");
+  $st->execute(array($acctId, $symbol, $tier, w_now()));
+  $r = $st->fetch();
+  return $r ? $r : null;
+}
+
+function w_ledger_by_idem($db, $idem) {
+  $st = $db->prepare("select * from ledger where idem = ?");
+  $st->execute(array($idem));
+  $r = $st->fetch();
+  return $r ? $r : null;
+}
+
+// 차감과 권리 부여는 한 트랜잭션이다. BEGIN IMMEDIATE 로 쓰기 락을 먼저 잡아야
+// 동시 요청 둘이 같은 잔량을 읽고 각자 차감하는 일이 없다.
+//
+// charged:false 인 경우에도 delta 0 행을 남긴다 — 안 남기면 무료 경로만 멱등키가 없어서
+// 같은 요청이 두 번 오면 두 번째가 유료 경로로 빠진다.
+function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
+  $costs = w_costs();
+  if (!isset($costs[$runType])) return array("ok" => false, "charged" => false, "reason" => "unknown-runtype");
+  if (!is_string($idem) || $idem === "") return array("ok" => false, "charged" => false, "reason" => "bad-idem");
+
+  $cost = $costs[$runType];
+  $entitled = in_array($runType, w_entitled_types(), true) && is_string($ref) && $ref !== "";
+
+  $db->exec("begin immediate");
+  try {
+    // 재시도 재생 — 이미 처리한 idem 이면 그때 결과를 그대로 돌려준다
+    $prev = w_ledger_by_idem($db, $idem);
+    if ($prev) {
+      $db->exec("commit");
+      return array("ok" => true, "charged" => ((int)$prev["delta"] !== 0), "reason" => null);
+    }
+
+    $now = w_now();
+    if ($entitled && w_active_run($db, $acctId, $ref, $runType) !== null) {
+      $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
+                          values (?, 0, 'spend-cached', ?, ?, ?)");
+      $st->execute(array($acctId, $ref, $idem, $now));
+      $db->exec("commit");
+      return array("ok" => true, "charged" => false, "reason" => null);
+    }
+
+    $bal = w_true_balance($db, $acctId);
+    if ($bal < $cost) {
+      $db->exec("rollback");
+      return array("ok" => false, "charged" => false, "reason" => "insufficient");
+    }
+
+    $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
+                        values (?, ?, 'spend', ?, ?, ?)");
+    $st->execute(array($acctId, -$cost, $ref, $idem, $now));
+    if ($entitled) {
+      $st = $db->prepare("insert into runs (account_id, symbol, tier, engine_version, created_at, expiry)
+                          values (?, ?, ?, ?, ?, ?)");
+      $st->execute(array($acctId, $ref, $runType, $engineVersion, $now,
+                         gmdate("c", time() + W_RUN_TTL_SEC)));
+    }
+    $db->prepare("update accounts set balance = ? where id = ?")->execute(array($bal - $cost, $acctId));
+    $db->exec("commit");
+    return array("ok" => true, "charged" => true, "reason" => null);
+  } catch (Throwable $e) {
+    try { $db->exec("rollback"); } catch (Throwable $e2) {}
+    throw $e;
+  }
+}

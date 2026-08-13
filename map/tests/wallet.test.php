@@ -203,6 +203,112 @@ t("IP 해시당 하루 신규 계정이 세어진다", function () {
   $db = null; rmrf($d);
 });
 
+function mkacct($db, $dev) { return w_create_account($db, $dev, null); }
+
+t("spend 가 차감하고 원장·권리를 남긴다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $r = w_spend($db, $a["id"], "full", "k1", "AAPL", "1.11.0");
+  eq($r["ok"], true, "ok");
+  eq($r["charged"], true, "charged");
+  eq(w_true_balance($db, $a["id"]), 2, "5 - 3");
+  ok(w_active_run($db, $a["id"], "AAPL", "full") !== null, "권리가 안 생겼다");
+  $db = null; rmrf($d);
+});
+
+t("같은 idem 두 번이면 한 번만 수금하고 같은 결과를 재생한다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $r1 = w_spend($db, $a["id"], "full", "k1", "AAPL", null);
+  $r2 = w_spend($db, $a["id"], "full", "k1", "AAPL", null);
+  eq($r2["ok"], true, "두 번째 ok");
+  eq($r2["charged"], $r1["charged"], "재생 결과가 다르다");
+  eq(w_true_balance($db, $a["id"]), 2, "두 번 수금됐다");
+  $n = $db->query("select count(*) c from ledger where idem='k1'")->fetch();
+  eq((int)$n["c"], 1, "원장 행이 둘이다");
+  $db = null; rmrf($d);
+});
+
+t("24h 안 같은 종목은 charged:false 이고 delta 0 행이 남는다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);
+  $r = w_spend($db, $a["id"], "full", "k2", "AAPL", null);
+  eq($r["ok"], true, "ok");
+  eq($r["charged"], false, "재과금됐다");
+  eq(w_true_balance($db, $a["id"]), 2, "잔량이 또 줄었다");
+  $row = $db->query("select delta, reason from ledger where idem='k2'")->fetch();
+  ok($row !== false, "무료 경로에 원장 행이 없다 — 멱등키가 기록되지 않는다");
+  eq((int)$row["delta"], 0, "delta");
+  eq($row["reason"], "spend-cached", "reason");
+  $db = null; rmrf($d);
+});
+
+t("권리가 만료되면 다시 과금한다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  // 5 로는 3 을 두 번 못 낸다 — 만료 재과금을 보려면 잔량을 먼저 채운다.
+  // 원장에 직접 넣는다: 이 검사의 대상은 spend 이지 지급 경로가 아니다.
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,5,'seed',NULL,'topup',?)")
+     ->execute(array($a["id"], w_now()));
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);      // 10 → 7
+  $db->exec("update runs set expiry = '2000-01-01T00:00:00+00:00'");
+  $r = w_spend($db, $a["id"], "full", "k2", "AAPL", null);  // 만료 → 재과금 7 → 4
+  eq($r["ok"], true, "ok");
+  eq($r["charged"], true, "만료 후에도 무료였다");
+  eq(w_true_balance($db, $a["id"]), 4, "재과금 후 잔량");
+  $db = null; rmrf($d);
+});
+
+t("종목이 다르면 별개 권리다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);   // 5 → 2
+  // 이 검사의 대상은 "다른 종목은 캐시 적중이 아니다" 이지 잔량 한도가 아니다 —
+  // 5 로는 3 을 두 번 못 내므로 두 번째 spend 를 위해 미리 채워 둔다.
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,5,'seed',NULL,'topup',?)")
+     ->execute(array($a["id"], w_now()));                 // 2 → 7
+  $r = w_spend($db, $a["id"], "full", "k2", "NVDA", null);
+  eq($r["charged"], true, "다른 종목이 무료였다");
+  $db = null; rmrf($d);
+});
+
+t("잔량이 모자라면 롤백하고 원장에 아무 것도 안 남는다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);   // 5 → 2
+  $r = w_spend($db, $a["id"], "full", "k2", "NVDA", null);   // 2 < 3
+  eq($r["ok"], false, "ok");
+  eq($r["reason"], "insufficient", "reason");
+  eq(w_true_balance($db, $a["id"]), 2, "잔량이 움직였다");
+  $n = $db->query("select count(*) c from ledger where idem='k2'")->fetch();
+  eq((int)$n["c"], 0, "실패한 spend 가 원장에 남았다");
+  $n = $db->query("select count(*) c from runs where symbol='NVDA'")->fetch();
+  eq((int)$n["c"], 0, "실패했는데 권리가 생겼다");
+  $db = null; rmrf($d);
+});
+
+t("scan·slot 은 권리를 만들지 않는다 — 단순 차감", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $r = w_spend($db, $a["id"], "scan", "k1", null, null);
+  eq($r["charged"], true, "charged");
+  eq(w_true_balance($db, $a["id"]), 3, "5 - 2");
+  $n = $db->query("select count(*) c from runs")->fetch();
+  eq((int)$n["c"], 0, "scan 이 권리를 만들었다");
+  $r2 = w_spend($db, $a["id"], "scan", "k2", null, null);
+  eq($r2["charged"], true, "두 번째 스캔이 무료였다 — scan 은 권리가 없다");
+  $db = null; rmrf($d);
+});
+
+t("모르는 runType 과 빈 idem 은 거절한다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  eq(w_spend($db, $a["id"], "nope", "k1", null, null)["reason"], "unknown-runtype", "runtype");
+  eq(w_spend($db, $a["id"], "full", "", "AAPL", null)["reason"], "bad-idem", "idem");
+  eq(w_true_balance($db, $a["id"]), 5, "거절인데 잔량이 움직였다");
+  $db = null; rmrf($d);
+});
+
+t("잔량은 음수가 되지 않는다 — 연속 spend", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  for ($i = 0; $i < 5; $i++) { w_spend($db, $a["id"], "scan", "k" . $i, null, null); }
+  ok(w_true_balance($db, $a["id"]) >= 0, "잔량이 음수다");
+  $db = null; rmrf($d);
+});
+
 foreach ($MSGS as $m) { echo $m, "\n"; }
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";
