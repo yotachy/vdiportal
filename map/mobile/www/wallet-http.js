@@ -7,7 +7,15 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var K_DEV = "ms_device_id", K_TOK = "ms_wallet_token";
+  var K_DEV = "ms_device_id", K_TOK = "ms_wallet_token", K_REFQ = "ms_pending_refunds";
+
+  // 미확인 환급 큐의 상한. 넘치면 오래된 것부터 버린다 — 무한히 자라면 저장소 쿼터를 먹는다.
+  var REFQ_MAX = 50;
+
+  // wallet.js 의 MSWallet.maybeCharged 와 같은 분류다 — "서버가 답을 안 했거나 흔들렸다"라
+  // 재시도가 의미 있는 사유들. 여기서 그 모듈을 참조하지 않는 이유는 이 어댑터가 wallet.js
+  // 없이 단독으로 단위 테스트되기 때문이다. 두 목록이 갈라지면 wallet-http.test.mjs 가 잡는다.
+  var RETRYABLE = { network: 1, "server-error": 1, busy: 1 };
 
   // deviceId 는 hello() 가 365일 베어러 토큰과 맞바꾸는 유일한 비밀이다 — 서버가 강제하는
   // 것은 길이(W_DEVICE_MIN=32)뿐이고 무작위성은 강제할 수 없다(wallet-api.php 주석 I4).
@@ -119,18 +127,80 @@
       return out;
     }
 
+    // ── 미확인 환급 큐 ──────────────────────────────────────────────────
+    // 환급을 부르는 계기는 "OHLC 로드가 전부 실패했다"이고, 폰에서 그건 대개 네트워크가
+    // 끊겼다는 뜻이다 — 즉 환급 호출 자체도 같은 이유로 실패한다. 실패를 그냥 버리면
+    // 프로덕션에서 가장 자주 필요한 환급이 가장 확실하게 유실되고, 사용자는 답을 못 받은
+    // 값을 낸 채 복구 수단이 없다(화면들은 rf.ok 를 문구에만 쓰고 레코드를 버렸다).
+    // w_refund 는 멱등이라 재시도가 공짜다 — 서버가 확정으로 답할 때까지 들고 있는다.
+    var draining = false;
+
+    function refQueue() {
+      var v = get0(K_REFQ, null);
+      return (Object.prototype.toString.call(v) === "[object Array]") ? v : [];
+    }
+    function refEnqueue(idem) {
+      if (typeof idem !== "string" || idem === "") return;
+      var q = refQueue();
+      for (var i = 0; i < q.length; i++) if (q[i] === idem) return;
+      q.push(idem);
+      if (q.length > REFQ_MAX) q = q.slice(q.length - REFQ_MAX);
+      set0(K_REFQ, q);
+    }
+    function refDequeue(idem) {
+      var q = refQueue(), out = [];
+      for (var i = 0; i < q.length; i++) if (q[i] !== idem) out.push(q[i]);
+      set0(K_REFQ, out);
+    }
+
+    function refundOnce(idem) {
+      return call({ op: "refund", idem: idem }).then(function (r) {
+        var out = shape(r);
+        // ok 이거나 서버가 확정으로 답한 사유(not-found·already-refunded·nothing-to-refund·
+        // unauthorized 등)면 이 키는 끝났다. 재시도해도 답이 달라지지 않는다.
+        if (out.ok || !Object.prototype.hasOwnProperty.call(RETRYABLE, out.reason || "")) refDequeue(idem);
+        return out;
+      });
+    }
+
+    // 다음 지갑 호출(또는 다음 실행)에 배수한다. 큐가 비면 네트워크를 타지 않는다.
+    // 비동기로 흘려보낸다 — 사용자의 호출을 환급 재시도가 기다리게 만들지 않는다.
+    function drainRefunds() {
+      if (draining) return;
+      var q = refQueue();
+      if (!q.length) return;
+      draining = true;
+      var p = Promise.resolve();
+      q.forEach(function (idem) {
+        p = p.then(function () { return refundOnce(idem); })["catch"](function () {});
+      });
+      p.then(function () { draining = false; }, function () { draining = false; });
+    }
+
+    drainRefunds();   // 실행 시점 — 지난 실행에서 못 보낸 환급이 여기서 나간다
+
     return {
-      get: function () { return call({ op: "get" }).then(function (r) { return shape(r); }); },
+      get: function () {
+        drainRefunds();
+        return call({ op: "get" }).then(function (r) { return shape(r); });
+      },
       spend: function (runType, idem, ref) {
+        drainRefunds();
         return call({ op: "spend", runType: runType, idem: idem, ref: ref || null })
           .then(function (r) { return shape(r, ["charged"]); });
       },
       refund: function (idem) {
-        return call({ op: "refund", idem: idem }).then(function (r) { return shape(r); });
+        // 보내기 전에 적는다 — 요청이 나간 뒤 앱이 죽으면(강제 종료·OOM) 그 사이의 환급이
+        // 통째로 사라진다. 확정 응답을 받은 뒤에만 지운다.
+        refEnqueue(idem);
+        return refundOnce(idem);
       },
       checkin: function () {
+        drainRefunds();
         return call({ op: "checkin" }).then(function (r) { return shape(r, ["granted", "capped"]); });
-      }
+      },
+      // 화면·테스트가 큐 상태를 볼 수 있게 열어 둔다(진단용 — 쓰기는 없다).
+      pendingRefunds: function () { return refQueue(); }
     };
   }
 

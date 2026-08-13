@@ -369,3 +369,92 @@ test("요청 모양 — POST · Content-Type:application/json · 지정한 url �
     "Content-Type 이 빠지면 서버가 400 bad-request 로 거절한다");
   assert.strictEqual(f.calls[0].url, "https://example.test/wallet-api.php", "url 이 무시됐다");
 });
+
+// ── 미확인 환급 큐 (최종 리뷰 LIVE B) ────────────────────────────────────────
+// refund 를 부르는 계기는 "OHLC 로드가 전부 실패했다"이고, 폰에서 그건 대개 네트워크가 끊겼다는
+// 뜻이다 — 즉 환급 호출 자체도 같은 이유로 실패한다. 화면들은 rf.ok 를 문구에만 쓰고 레코드를
+// 버렸으므로, 프로덕션에서 가장 자주 필요한 환급이 가장 확실하게 유실되는 구조였다.
+// w_refund 는 멱등이라 재시도가 공짜다.
+
+test("환급이 네트워크로 실패하면 큐에 남고, 다음 지갑 호출에서 다시 나간다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const f = fakeFetch([
+    { throw: true },                                              // refund — 그물에 걸린다
+    { throw: true },                                              // 그 뒤 재인증 hello 도 못 나간다
+    { status: 200, json: { ok: true, state: ST } },               // 다음 get 본체
+    { status: 200, json: { ok: true, reason: null, state: ST } }  // 배수된 refund 재시도
+  ]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  const r = await b.refund("idem-lost");
+  assert.strictEqual(r.ok, false, "네트워크 실패인데 성공으로 보고했다");
+  assert.deepStrictEqual(store.read0("ms_pending_refunds", null), ["idem-lost"],
+    "실패한 환급이 버려졌다 — 사용자는 답을 못 받은 값을 낸 채 복구 수단이 없다");
+
+  await b.get();
+  await new Promise(res => setTimeout(res, 0));   // 배수는 사용자 호출을 지연시키지 않는다(비동기)
+  const refunds = f.calls.filter(c => c.op === "refund");
+  assert.strictEqual(refunds.length, 2, "다음 호출이 큐를 배수하지 않았다: " + f.calls.map(c => c.op).join(","));
+  assert.strictEqual(refunds[1].body.idem, "idem-lost", "재시도가 다른 idem 을 보냈다");
+  assert.deepStrictEqual(b.pendingRefunds(), [], "확정 성공인데 큐가 안 비었다");
+});
+
+test("서버가 확정으로 답한 환급은 큐에 남지 않는다 — 영원히 재시도하지 않는다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const f = fakeFetch([{ status: 200, json: { ok: false, reason: "already-refunded", state: ST } }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  await b.refund("idem-done");
+  assert.deepStrictEqual(b.pendingRefunds(), [],
+    "재시도해도 답이 달라지지 않는 사유(already-refunded)인데 큐에 남겼다 — 매 호출마다 헛요청이 나간다");
+});
+
+test("서버 500 으로 끝난 환급은 큐에 남는다 — 응답을 못 받은 것과 같다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const f = fakeFetch([{ status: 500, json: null }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  await b.refund("idem-500");
+  assert.deepStrictEqual(b.pendingRefunds(), ["idem-500"], "server-error 인데 환급을 버렸다");
+});
+
+test("지난 실행이 남긴 환급은 다음 실행(create)에서 배수된다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  store.write0("ms_pending_refunds", ["idem-yesterday"]);   // 앱이 죽은 채로 남은 값
+  const f = fakeFetch([{ status: 200, json: { ok: true, reason: null, state: ST } }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  await new Promise(r => setTimeout(r, 0));
+  assert.strictEqual(f.calls.length, 1, "실행 시점에 큐를 배수하지 않았다");
+  assert.strictEqual(f.calls[0].op, "refund");
+  assert.strictEqual(f.calls[0].body.idem, "idem-yesterday");
+  assert.deepStrictEqual(b.pendingRefunds(), [], "배수 후에도 큐가 남았다");
+});
+
+test("큐가 비어 있으면 지갑 호출이 헛요청을 만들지 않는다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const f = fakeFetch([{ status: 200, json: { ok: true, state: ST } }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  await b.get();
+  assert.deepStrictEqual(f.calls.map(c => c.op), ["get"], "빈 큐인데 요청이 늘었다");
+});
+
+// 재시도 분류가 wallet.js 의 maybeCharged 와 갈라지면 두 곳이 서로 다른 판단을 하게 된다
+// (한쪽은 idem 을 보존하는데 다른 쪽은 환급을 버리는 식). 목록을 대조해 못박는다.
+test("환급 재시도 분류가 wallet.js 의 maybeCharged 와 같다", async () => {
+  const MSWallet = require("../www/wallet.js");
+  const SRC = readFileSync(join(__dirname, "..", "www", "wallet-http.js"), "utf8");
+  const m = SRC.match(/var RETRYABLE = \{([^}]*)\}/);
+  assert.ok(m, "wallet-http.js 에서 RETRYABLE 목록을 못 찾았다");
+  const keys = (m[1].match(/"?[a-z-]+"?\s*:/g) || []).map(s => s.replace(/["\s:]/g, ""));
+  assert.deepStrictEqual(keys.slice().sort(), ["busy", "network", "server-error"],
+    "재시도 사유 목록이 바뀌었다: " + keys.join(","));
+  keys.forEach(k => assert.strictEqual(MSWallet.maybeCharged(k), true,
+    "wallet-http 는 재시도하는데 wallet.js 는 definitely-not-charged 로 본다: " + k));
+});

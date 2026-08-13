@@ -17,9 +17,20 @@
   var scanFailed = {};       // 마지막 스캔에서 실패한 종목. 값은 유지하고 "갱신 실패" 배지만 붙인다
   // maybe-charged(network·server-error·busy)로 끝난 spend 의 idem — 다음 스캔이 재사용한다(I-H).
   // 새 idem 을 새로 뽑으면 원장(전역 UNIQUE)에서 별개 키가 되어 멱등이 못 잡고 이중 차감된다.
-  // report.js 의 purchases[sym].idem 과 같은 이유지만, 스캔은 종목별이 아니라 워치리스트
-  // 전체 단위라 종목 키가 없다 — 그래서 모듈 스코프 변수 하나로 둔다.
-  var pendingScanIdem = null;
+  //
+  // ⚠ 모듈 스코프 변수로 들고 있으면 프로세스와 함께 죽는다. 실제 실패 순서는 이렇다:
+  // spend 를 보냈는데 응답이 유실 → 앱이 멎은 것처럼 보임 → 사용자가 강제 종료(안드로이드에서
+  // 그게 정상 복구 동작이다) → 다시 켜면 변수는 null → 새 idem → 서버는 무관한 키를 보고
+  // 2 스쿱을 또 뺀다. 이중 과금을 막으려고 만든 장치가 정작 그 시나리오에서만 사라졌다.
+  // scan 은 w_entitled_types() 에 없어 서버 권리(spend-cached)라는 뒷받침도 없다 — full 과
+  // 달리 이쪽은 이 저장값이 유일한 방어선이다. 그래서 저장소에 적는다
+  // (MSStore 는 localStorage 가 막히면 메모리로 떨어지므로 최악이라도 지금과 같다).
+  var K_PEND_SCAN = "ms_pending_scan_idem";
+  function pendingScanIdem() {
+    var v = MSStore.read0(K_PEND_SCAN, null);
+    return (typeof v === "string" && v) ? v : null;
+  }
+  function setPendingScanIdem(idem) { MSStore.write0(K_PEND_SCAN, idem || null); }
   var onScanTick = null;     // 현재 화면의 갱신 콜백. 새 render() 가 자기 것으로 덮는다
   function scanTick() { if (onScanTick) onScanTick(); }
 
@@ -331,28 +342,33 @@
       var cost = MSWallet.costOf("scan");
       if (!cost) { rec.promise = runScan(syms, rec); return; }   // 무료 설정으로 되돌려도 동작한다
       // maybe-charged 로 끝난 이전 시도의 idem 이 있으면 재사용한다(I-H) — 새로 뽑으면 원장에서
-      // 별개 키가 되어 멱등이 못 잡는다.
-      var idem = pendingScanIdem || MSWallet.newIdem();
-      pendingScanIdem = null;   // 이번 시도가 쓴다 — 실패하면 아래서 다시 채운다
+      // 별개 키가 되어 멱등이 못 잡는다. 지난 실행이 남긴 값도 여기서 이어받는다.
+      var idem = pendingScanIdem() || MSWallet.newIdem();
+      // 보내기 전에 적는다. 여기가 핵심이다 — 요청이 나간 "뒤" 죽는 것이 바로 이중 과금이
+      // 나는 창이고, 응답을 받은 뒤에 적으면 그 창을 못 덮는다.
+      setPendingScanIdem(idem);
       rec.promise = MSWallet.spend("scan", idem).then(function (sp) {
         MSWalletScreen.refreshPills();
         if (!sp.ok) {
           scanRun = null; scanTick();
           // "Nothing charged" 는 definitely-not-charged 에서만 참이다. maybe-charged 는 idem 을
           // 보존해 다음 스캔이 재사용하게 한다 — 새 idem 이면 서버가 이중 차감을 못 잡는다.
-          if (MSWallet.maybeCharged(sp.reason)) pendingScanIdem = idem;
+          // 확정 실패(insufficient 등)는 서버가 시작조차 안 했으므로 지운다 — 안 지우면
+          // 무관한 다음 스캔이 그 키를 물려받아 재생(무과금)으로 흡수된다.
+          if (!MSWallet.maybeCharged(sp.reason)) setPendingScanIdem(null);
           alert(sp.reason === "insufficient" ? MSStr.t.tsShort
                 : MSWallet.maybeCharged(sp.reason) ? MSStr.t.tsSpendFailedUnknown
                 : MSStr.t.tsSpendFailed);
           return;
         }
+        setPendingScanIdem(null);   // 확정 성공 — 이 키는 끝났다
         rec.idem = idem;
         return runScan(syms, rec);
       })["catch"](function () {
         // 결제 구간의 예외 — 차감됐는지조차 모르므로 단정하지 않는다. HTTP 백엔드에선 이론상
         // 도달하지 않지만(callBackend 가 항상 흡수), 방어적으로 maybe-charged 와 같게 취급한다.
+        // 저장된 idem 은 그대로 둔다(보내기 전에 이미 적었다).
         scanRun = null; scanTick();
-        pendingScanIdem = idem;
         alert(MSStr.t.tsSpendFailedUnknown);
       });
     }

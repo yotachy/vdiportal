@@ -27,6 +27,24 @@
   // 8b 의 서버 runs 테이블이 그 자리를 대체한다(BACKLOG-mobile.md Phase 8a).
   // render() 지역에 두면 구매가 화면 수명만큼만 살아 재진입 때 다시 과금된다.
   var purchases = {};             // sym -> { idem, promise, data, an, runs }
+
+  // 그 중 idem 만은 실행보다 오래 살아야 한다. spend 를 보낸 뒤 응답이 유실되면 사용자는
+  // 강제 종료로 빠져나오고, 다시 켠 앱의 purchases 는 비어 있어 새 idem 을 뽑는다 — 서버에는
+  // 무관한 키라 멱등이 못 잡는다. full 은 서버 권리(24h runs) 덕에 재시도가 spend-cached 로
+  // 흡수되지만 그건 spend 가 실제로 커밋된 경우뿐이고, 커밋 직전에 끊긴 경우는 그냥 두 번
+  // 나간다. 종목별로 저장한다(스캔은 워치리스트 전체 단위라 watchlist.js 쪽은 키가 하나다).
+  var K_PEND_FULL = "ms_pending_full_idem";   // { sym: idem }
+  function pendingFullIdem(sym) {
+    var m = MSStore.read0(K_PEND_FULL, null);
+    var v = (m && typeof m === "object" && !(m instanceof Array)) ? m[sym] : null;
+    return (typeof v === "string" && v) ? v : null;
+  }
+  function setPendingFullIdem(sym, idem) {
+    var m = MSStore.read0(K_PEND_FULL, null);
+    if (!m || typeof m !== "object" || (m instanceof Array)) m = {};
+    if (idem) m[sym] = idem; else delete m[sym];
+    MSStore.write0(K_PEND_FULL, m);
+  }
   // render 세대 토큰 — 진행 중 구매의 결과가 그 사이 바뀐 화면을 덮어쓰지 않게 한다.
   var gen = 0;
 
@@ -305,9 +323,12 @@
     // 못 받았을 뿐 서버가 이미 처리했을 수 있어서다. 새 idem 을 새로 뽑으면 원장(전역 UNIQUE)에서
     // 완전히 다른 키가 되어 멱등이 못 잡고 이중 차감된다. rec.idem 이 없으면(첫 시도이거나
     // definitely-not-charged 로 지워진 뒤) 새로 뽑는다.
-    var idem = (rec && rec.idem) ? rec.idem : MSWallet.newIdem();
+    // 저장소에 남은 값(지난 실행에서 응답을 못 받은 시도)까지 이어받는다 — 메모리 레코드가
+    // 없다고 새 키를 뽑으면 강제 종료 뒤 재구매가 그대로 두 번째 차감이 된다.
+    var idem = (rec && rec.idem) ? rec.idem : (pendingFullIdem(sym) || MSWallet.newIdem());
     rec = { idem: idem, promise: null, data: null, an: null, runs: null };
     purchases[sym] = rec;   // spend 를 부르기 전에 등록한다 — 그 사이 들어온 두 번째 호출이 붙을 자리다
+    setPendingFullIdem(sym, idem);   // 보내기 전에 적는다 — 응답이 유실된 창을 덮는 건 이 순서뿐이다
 
     rec.promise = MSWallet.spend("full", idem, sym).then(function (sp) {
       if (!sp.ok) return { kind: "spend-fail", reason: sp.reason };
@@ -345,10 +366,15 @@
       rec.promise = null;
       if (r.kind === "success") {
         rec.data = r.data; rec.an = r.an; rec.runs = r.runs;
+        setPendingFullIdem(sym, null);   // 확정 성공 — 이 키는 끝났다
       } else if (r.kind === "unknown" || (r.kind === "spend-fail" && MSWallet.maybeCharged(r.reason))) {
-        // 정말로 차감됐는지 모른다 — idem 을 지우지 않는다(rec 를 purchases[sym] 에 그대로 둔다).
-        // 다음 purchaseFull(sym) 호출이 이 idem 을 재사용해 서버 멱등이 잡게 한다.
-      } else if (purchases[sym] === rec) delete purchases[sym];   // 확실히 실패·환급됐다 — 다시 살 수 있어야 한다
+        // 정말로 차감됐는지 모른다 — idem 을 지우지 않는다(rec 를 purchases[sym] 에 그대로 두고
+        // 저장소에도 남긴다). 다음 purchaseFull(sym) 이 — 이번 실행이든 다음 실행이든 —
+        // 이 idem 을 재사용해 서버 멱등이 잡게 한다.
+      } else if (purchases[sym] === rec) {
+        delete purchases[sym];           // 확실히 실패·환급됐다 — 다시 살 수 있어야 한다
+        setPendingFullIdem(sym, null);
+      }
       return r;
     });
     return rec.promise;
