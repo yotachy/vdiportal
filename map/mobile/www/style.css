@@ -430,6 +430,13 @@ body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
 .ob-cost-name { font-size:12.5px; color:var(--ink-3); }
 .ob-cost-num { font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink); }
 
+/* 5단계 — 위험 고지 + 약관 체크박스. 강조는 배경·아웃라인으로만(좌측 라인 금지). */
+.ob-risk { margin:16px 0 0; font-size:12.5px; line-height:1.65; color:var(--ink-3); }
+.ob-agree { display:flex; align-items:flex-start; gap:10px; margin-top:22px; padding:14px;
+            border:1px solid var(--border); border-radius:10px; background:var(--sheet); cursor:pointer; }
+.ob-agree input[type="checkbox"] { flex:0 0 auto; width:18px; height:18px; margin:1px 0 0; accent-color:var(--gold); }
+.ob-agree-txt { font-size:12.5px; line-height:1.5; color:var(--ink-2); }
+
 /* 버튼 줄은 화면 바닥에 붙는다 — 단계마다 같은 자리에 있어야 연타가 된다. */
 .ob-nav { display:flex; gap:10px; flex:0 0 auto; padding-top:24px; }
 .ob-nav .btn { flex:1 1 0; }

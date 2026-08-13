@@ -110,7 +110,8 @@ test("1·2단계 작도가 쓰는 모듈이 index.html 에 전부 있다", () =>
 test("온보딩 문구가 strings.js 에 있다", () => {
   ["obBack", "obNext", "obSampleNote", "obH1", "obSub1", "obH2", "obSub2", "obCombCap",
    "obH3", "obSub3", "obGranting", "obGranted", "obGrantOffline", "obRetry",
-   "obCostFull", "obCostScan", "obCostSlot"].forEach(function (k) {
+   "obCostFull", "obCostScan", "obCostSlot",
+   "obH4", "obSub4", "obH5", "obRisk", "obAgree", "obFree", "obFinish"].forEach(function (k) {
     assert.ok(typeof S.t[k] === "string" && S.t[k].length > 0, k + " 가 없다");
   });
 });
@@ -131,12 +132,49 @@ test("가격표는 MSWallet.COSTS 에서 읽는다 — 지갑 화면과 같은 �
   assert.match(OB, /MSWallet\.COSTS/);
 });
 
+// ── 4·5단계: 완료 ─────────────────────────────────────────────────────────────
+test("완료는 setOnboarded 로 약관 버전을 남긴다", () => {
+  assert.match(OB, /setOnboarded\(/);
+  assert.match(OB, /TERMS_VERSION/, "약관 버전 상수가 없다");
+});
+
+// seedTo 는 store 를 인자로 받는 순수 함수라 소스에 "MSStore.addTicker(" 라는 리터럴은
+// 없다(테스트가 가짜 store 를 넣을 수 있어야 하기 때문 — 아래 순수 함수 테스트 참고).
+// 그 대신 완료 핸들러가 실제 MSStore 로 seedTo 를 부르는지를 본다.
+test("4단계가 고른 것만 심는다 — seedIfEmpty 를 부르지 않는다", () => {
+  assert.doesNotMatch(OB, /seedIfEmpty/);
+  assert.match(OB, /seedTo\(\s*MSStore\s*,/, "완료 핸들러가 MSStore 로 seedTo 를 부르지 않는다");
+});
+
+// 미리 선택된 3종을 해제했는데도 남는 종류의 결함을 잡는다. 소스 검사로는 안 보인다 —
+// state.picked 를 순회하는지 SEED 를 순회하는지가 눈으로 구별되지 않기 때문이다.
+test("심기는 목록이 state.picked 와 정확히 같다", () => {
+  const added = [];
+  const store = {
+    SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
+    addTicker: (s) => { added.push(s); },
+    setOnboarded: () => {},
+    onboarded: () => false
+  };
+  // seedTo 는 완료 시 워치리스트를 심는 부분만 떼어낸 순수 함수다.
+  O.seedTo(store, ["TSLA", "AMD"]);
+  assert.deepEqual(added, ["TSLA", "AMD"], "고르지 않은 종목이 심겼다");
+  added.length = 0;
+  O.seedTo(store, []);
+  assert.deepEqual(added, [], "아무것도 안 골랐는데 심겼다");
+});
+
+test("약관 체크박스가 5단계의 진행을 막는다", () => {
+  assert.strictEqual(O.canAdvance(5, { agreed: false }), false);
+});
+
 // Task 2 가 ticker-picker.js 만 만들고 스타일을 안 붙였다 — 클래스가 CSS 에 없으면
 // 4단계가 스타일 없는 버튼 더미가 된다. 온보딩 클래스와 함께 여기서 못박는다.
 test("온보딩·종목 고르기 클래스가 style.css 에 있다", () => {
   [".ob", ".ob-prog", ".ob-seg", ".ob-step", ".ob-h", ".ob-sub", ".ob-canvas",
    ".ob-comb", ".ob-bar", ".ob-nav", ".ob-over", ".ob-cap",
    ".ob-grant", ".ob-retry", ".ob-costs", ".ob-cost-row", ".ob-cost-name", ".ob-cost-num",
+   ".ob-risk", ".ob-agree", ".ob-agree-txt",
    ".tp", ".tp-grid", ".tp-cell", ".tp-sym", ".tp-name", ".tp-free", ".tp-msg",
    ".tp-input", ".tp-add"].forEach(function (c) {
     assert.ok(new RegExp("\\" + c + "(?![-\\w])").test(CSS), c + " 규칙이 없다");
@@ -288,7 +326,17 @@ class El {
   }
 }
 
-function withDom(fn) {
+// 4·5단계용 기본 가짜 store — 실제 store.js(localStorage)는 쓰지 않는다. 여러 테스트가
+// 같은 모듈 인스턴스를 require 캐시로 공유하면 상태가 샌다 — spyWallet 과 같은 이유.
+function defaultFakeStore() {
+  return {
+    SEED: [{ sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
+            { sym: "MSFT", name: "Microsoft Corporation" }],
+    addTicker: function () {}, setOnboarded: function () {}, onboarded: function () { return false; }
+  };
+}
+
+function withDom(fn, storeOverride) {
   const g = globalThis;
   const saved = {};
   const put = (k, v) => { saved[k] = Object.prototype.hasOwnProperty.call(g, k) ? g[k] : undefined; g[k] = v; };
@@ -302,6 +350,8 @@ function withDom(fn) {
   put("MSGraph", G);
   put("MSIndicators", IND);
   put("MSReportModel", RM);
+  put("MSTickerPicker", require("../www/ticker-picker.js"));
+  put("MSStore", storeOverride || defaultFakeStore());
 
   // ── 인자 스파이. 메서드 **이름**만 기록하면 티어("basic"→"full")·패널 구성·캔버스 높이를
   // 바꿔도 전부 초록이다(리뷰가 실제로 그렇게 통과시켰다). 호출된 인자를 붙잡는다.
@@ -416,6 +466,108 @@ test("번들 시계가 없어도 던지지 않는다 — 첫 화면이 흰 화�
     assert.doesNotThrow(() => O.render(root, {}));
     assert.ok(root.querySelector(".ob-h"), "헤드라인조차 안 그렸다");
   });
+});
+
+// ── 4단계: 종목 고르기 ──────────────────────────────────────────────────────────
+// tp-grid 는 이벤트 위임(클릭이 grid 에서 잡힌다)이라, 이 DOM 스텁의 El.click() 은 부모로
+// 버블링하지 않는다 — grid 의 리스너를 target 을 지정해 직접 부른다.
+function pressCell(grid, sym) {
+  var cell = grid.children.filter(function (c) { return c.getAttribute("data-sym") === sym; })[0];
+  if (!cell) throw new Error("셀을 못 찾았다: " + sym);
+  grid.listeners.click[0]({ target: cell });
+}
+function onSyms(grid) {
+  return grid.children.filter(function (c) { return c.className.indexOf("is-on") >= 0; })
+    .map(function (c) { return c.getAttribute("data-sym"); });
+}
+function toStep4(root) {
+  O.render(root, { sample: SAMPLE });
+  root.querySelector(".ob-next").click();   // 1 -> 2
+  root.querySelector(".ob-next").click();   // 2 -> 3
+  root.querySelector(".ob-next").click();   // 3 -> 4 (지갑이 없어 실패해도 막지 않는다)
+}
+
+test("4단계는 SEED 3종이 프리셋으로 켜져 있고, 계속하기가 열려 있다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    assert.ok(grid, "종목 그리드가 없다");
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"],
+      "프리셋 3종이 처음부터 켜져 있어야 한다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false);
+  });
+});
+
+test("4단계: 전부 지우면 계속하기가 막힌다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    ["AAPL", "NVDA", "MSFT"].forEach(function (sym) { pressCell(grid, sym); });
+    assert.deepStrictEqual(onSyms(grid), [], "전부 껐는데 켜진 채로 남아 있다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true,
+      "아무것도 안 골랐는데 계속하기가 열려 있다");
+  });
+});
+
+// 뒤로/앞으로를 오가는 재진입 회귀 — 3단계 grantBox 와 같은 종류의 결함. 프리셋을 전부
+// 지운 뒤 3단계로 갔다 다시 오면, step4() 가 매번 새 픽커를 만들면서 프리셋(SEED)을 다시
+// preset 으로 주면 지운 선택이 되살아난다. 소스 검사로는 안 보인다 — state.picked 를
+// preset 으로 쓰는지 SEED 를 쓰는지가 코드 모양만으로 구별되지 않기 때문이다.
+test("4단계: 프리셋을 지운 뒤 뒤로/앞으로 가도 프리셋으로 되돌아가지 않는다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    ["AAPL", "NVDA", "MSFT"].forEach(function (sym) { pressCell(grid, sym); });
+    assert.deepStrictEqual(onSyms(grid), [], "전부 껐는데 켜진 채로 남아 있다");
+    root.querySelector(".ob-back").click();   // 4 -> 3
+    root.querySelector(".ob-next").click();   // 3 -> 4, 다시 그려짐
+    grid = root.querySelector(".tp-grid");
+    assert.deepStrictEqual(onSyms(grid), [],
+      "지운 선택이 프리셋으로 되돌아갔다 — 재진입 시 state.picked 로 다시 칠해야 한다");
+  });
+});
+
+// ── 5단계: 위험 고지 + 약관 + 완료 ────────────────────────────────────────────────
+test("5단계: 체크 전엔 완료가 막히고, 체크 후 완료가 고른 종목만 정확히 심는다", () => {
+  var added = [];
+  var onboardedArg = null;
+  var doneCalled = false;
+  var store = {
+    SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
+    addTicker: function (s) { added.push(s); },
+    setOnboarded: function (v) { onboardedArg = v; },
+    onboarded: function () { return false; }
+  };
+  withDom((root) => {
+    O.render(root, { sample: SAMPLE, onDone: function () { doneCalled = true; } });
+    root.querySelector(".ob-next").click();   // 1 -> 2
+    root.querySelector(".ob-next").click();   // 2 -> 3
+    root.querySelector(".ob-next").click();   // 3 -> 4
+    var grid = root.querySelector(".tp-grid");
+    // NVDA 하나만 남긴다 — 프리셋 그대로 두면 "고른 것과 SEED 를 심는 것"을 구별 못한다.
+    pressCell(grid, "AAPL"); pressCell(grid, "MSFT");
+    assert.deepStrictEqual(onSyms(grid), ["NVDA"]);
+    root.querySelector(".ob-next").click();   // 4 -> 5
+
+    var fwd = root.querySelector(".ob-next");
+    assert.strictEqual(fwd.textContent, S.t.obFinish, "마지막 버튼 문구가 완료 문구가 아니다");
+    assert.strictEqual(fwd.disabled, true, "체크 전인데 완료 버튼이 열려 있다");
+    fwd.click();   // canAdvance 가스로도 다시 막는다 — disabled 우회 클릭에 대한 방어
+    assert.strictEqual(doneCalled, false, "체크 전인데 완료 콜백이 불렸다");
+    assert.strictEqual(added.length, 0, "체크 전인데 워치리스트가 심겼다");
+    assert.strictEqual(onboardedArg, null, "체크 전인데 동의가 남았다");
+
+    var cb = root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
+    assert.ok(cb, "체크박스가 없다");
+    cb.checked = true;
+    cb.listeners.change[0]({});
+    assert.strictEqual(fwd.disabled, false, "체크 후에도 완료 버튼이 막혀 있다");
+
+    fwd.click();
+    assert.deepStrictEqual(added, ["NVDA"], "심긴 종목이 고른 것과 다르다: " + added.join(","));
+    assert.strictEqual(onboardedArg, "terms-2026-08", "약관 버전이 정확히 안 남았다: " + onboardedArg);
+    assert.strictEqual(doneCalled, true, "완료 콜백이 안 불렸다");
+  }, store);
 });
 
 // ── 3단계: 지갑 호출 ───────────────────────────────────────────────────────────

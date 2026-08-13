@@ -2,8 +2,9 @@
 // 1·2단계는 번들 시계(onboarding-sample.js)로 진짜 엔진을 돌린다. 네트워크를 타면
 // 첫 화면이 콜드 수신(실측 942ms)을 기다리게 되고, 그게 앱의 첫인상이 된다.
 //
-// Task 3 범위는 게이트 + 1·2단계다. 3·4·5 단계 본문은 Task 4·5 가 채운다 —
-// 그때까지 draw() 는 그 단계에서 진행 막대와 버튼만 그린다(미완성 상태).
+// 1: 예시 차트 → 2: 30지표 빗 → 3: 지갑 지급(첫 네트워크) → 4: 첫 종목 고르기 →
+// 5: 위험 고지 + 약관 동의. 5단계 완료 버튼이 seedTo 로 워치리스트를 심고
+// setOnboarded 로 동의를 남긴 뒤 opts.onDone() 을 부른다 — 그 전까지는 앱 셸을 그리지 않는다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
   else root.MSOnboarding = factory();
@@ -13,6 +14,9 @@
   var STEPS = 5;
   var TF = "1day";
   var PAD = 10;
+  // 동의 기록에 남는 값. 약관 본문을 고치면 이 값도 올린다 — 안 그러면 개정 후에
+  // 누가 무엇에 동의했는지 말할 수 없다.
+  var TERMS_VERSION = "terms-2026-08";
   // 온보딩 차트는 가격 패널 한 장이다 — 리포트의 4단 적층(커버 520px)이 필요 없다.
   // 지표 30종은 2단계의 빗이 대신 말한다.
   var CHART_H = 250;
@@ -34,6 +38,13 @@
     return canAdvance(step, state) ? step + 1 : step;
   }
 
+  // 완료 시 워치리스트를 심는 부분만 떼어낸 순수 함수 — DOM 없이 검사할 수 있어야
+  // "고른 것과 정확히 같은 목록"이 관문이 된다. store 를 인자로 받는 이유는 테스트가
+  // 가짜 store 로 부를 수 있어야 하기 때문이다.
+  function seedTo(store, picked) {
+    picked.forEach(function (s) { store.addTicker(s, ""); });
+  }
+
   function frag(cls) { var e = document.createElement("div"); e.className = cls; return e; }
   function el(tag, cls, text) { return MSUi.el(tag, cls, text); }
 
@@ -46,7 +57,10 @@
   function render(rootEl, opts) {
     var o = opts || {};
     var Str = (typeof MSStr !== "undefined") ? MSStr : null;
-    var state = { picked: [], agreed: false, granted: null, grantFailed: false,
+    // pickInited 는 4단계의 grantStarted 짝이다 — "종목 그리드를 한 번이라도 그렸다"를
+    // 기억해 뒀다가, 재진입 시 프리셋(SEED) 대신 사용자가 마지막으로 고른 state.picked(빈
+    // 배열 포함)로 다시 칠한다. 없으면 전부 해제하고 뒤로 갔다 와도 프리셋이 되살아난다.
+    var state = { picked: [], agreed: false, pickInited: false, granted: null, grantFailed: false,
                   grantStarted: false, sample: o.sample || null };
     var step = 1;
     var an = null;   // 엔진 결과 캐시 — 1↔2 단계를 오갈 때마다 32지표를 다시 돌리지 않는다
@@ -233,6 +247,50 @@
       return w;
     }
 
+    // 프리셋(SEED)은 처음 그릴 때만 쓴다. 뒤로/앞으로를 오가며 다시 그릴 때는 state.picked
+    // (빈 배열이어도)로 칠한다 — 안 그러면 사용자가 프리셋 3종을 전부 해제해도 재진입마다
+    // 되살아난다(3단계 grantBox 와 같은 리뷰 지적).
+    function step4() {
+      var w = frag("ob-step");
+      w.appendChild(el("h1", "ob-h", Str ? Str.t.obH4 : ""));
+      w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub4 : ""));
+      var presetSyms = state.pickInited ? state.picked :
+        MSStore.SEED.map(function (x) { return x.sym; });
+      var picker = MSTickerPicker.create({
+        multi: true, max: 3, preset: presetSyms,
+        onChange: function (sel) {
+          state.picked = sel;
+          state.pickInited = true;
+          var fwd = rootEl.querySelector(".ob-next");
+          if (fwd) fwd.disabled = !canAdvance(4, state);
+        }
+      });
+      state.picked = picker.selected();
+      state.pickInited = true;
+      w.appendChild(picker.el);
+      return w;
+    }
+
+    function step5() {
+      var w = frag("ob-step");
+      w.appendChild(el("h1", "ob-h", Str ? Str.t.obH5 : ""));
+      w.appendChild(el("p", "ob-risk", Str ? Str.t.obRisk : ""));
+      var lab = document.createElement("label");
+      lab.className = "ob-agree";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.addEventListener("change", function () {
+        state.agreed = cb.checked;
+        var fwd = rootEl.querySelector(".ob-next");
+        if (fwd) fwd.disabled = !canAdvance(5, state);
+      });
+      lab.appendChild(cb);
+      lab.appendChild(el("span", "ob-agree-txt", Str ? Str.t.obAgree : ""));
+      w.appendChild(lab);
+      w.appendChild(el("p", "ob-sub", Str ? Str.t.obFree : ""));
+      return w;
+    }
+
     function draw() {
       rootEl.innerHTML = "";
       var scr = frag("ob");
@@ -240,6 +298,8 @@
       if (step === 1) scr.appendChild(step1());
       else if (step === 2) scr.appendChild(step2());
       else if (step === 3) scr.appendChild(step3());
+      else if (step === 4) scr.appendChild(step4());
+      else if (step === 5) scr.appendChild(step5());
 
       var nav = frag("ob-nav");
       if (step > 1) {
@@ -251,9 +311,16 @@
       }
       var fwd = document.createElement("button");
       fwd.type = "button"; fwd.className = "btn btn-primary ob-next";
-      fwd.textContent = Str ? Str.t.obNext : "";
+      fwd.textContent = (step === STEPS) ? (Str ? Str.t.obFinish : "") : (Str ? Str.t.obNext : "");
       fwd.disabled = !canAdvance(step, state);
       fwd.addEventListener("click", function () {
+        if (step === STEPS) {
+          if (!canAdvance(STEPS, state)) return;
+          seedTo(MSStore, state.picked);
+          MSStore.setOnboarded(TERMS_VERSION);
+          if (o.onDone) o.onDone();
+          return;
+        }
         var n = next(step, state);
         if (n !== step) { step = n; draw(); }
       });
@@ -276,5 +343,5 @@
     draw();
   }
 
-  return { STEPS: STEPS, canAdvance: canAdvance, next: next, render: render };
+  return { STEPS: STEPS, canAdvance: canAdvance, next: next, seedTo: seedTo, render: render };
 });
