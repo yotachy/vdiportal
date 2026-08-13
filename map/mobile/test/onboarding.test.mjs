@@ -500,17 +500,47 @@ test("지급 실패해도 진행이 막히지 않는다 — 재시도 버튼이 
 });
 
 // 뮤테이션 (c): draw() 마다 재호출하면 여기서 잡힌다 — 3단계를 두 번 그려도 호출은 한 번이어야 한다.
-test("자동 지급 호출은 한 번뿐이다 — 3단계를 다시 그려도 재호출하지 않는다", async () => {
+//
+// 리뷰 지적: 호출 횟수만 세면 "빈 화면"이 통과한다 — step3() 는 매번 새 빈 .ob-grant div 를
+// 만들고, 그리기(paintGrant)는 state.grantStarted 가 가드하는 발신과는 별개로 매 진입마다
+// 다시 불려야 한다. 호출 수뿐 아니라 텍스트도 반드시 같이 본다.
+test("자동 지급 호출은 한 번뿐이다 — 3단계를 다시 그려도 재호출하지 않고, 결과는 다시 그려진다", async () => {
   const wallet = spyWallet({ ok: true, state: { balance: 5 } });
   await withDomWallet(wallet, async (root) => {
     toStep3(root);
     await flush();
     assert.strictEqual(wallet.calls.length, 1, "첫 진입에서 지갑을 한 번이 아니게 불렀다");
+    assert.strictEqual(root.querySelector(".ob-grant").textContent, "5" + S.t.obGranted,
+      "첫 진입에서 지급액이 안 그려졌다");
     root.querySelector(".ob-back").click();   // 3 -> 2
     root.querySelector(".ob-next").click();   // 2 -> 3, 다시 그려짐
     await flush();
     assert.strictEqual(wallet.calls.length, 1,
       "3단계를 다시 그리며 지갑을 또 불렀다 — 자동 호출은 render() 생애 동안 한 번이어야 한다");
+    // 핵심 회귀 지점 — 재호출은 안 해도 새로 만들어진 .ob-grant 는 비어 있다. 기억한 state
+    // (granted)로 다시 칠하지 않으면 여기서 빈 문자열이 나온다.
+    assert.strictEqual(root.querySelector(".ob-grant").textContent, "5" + S.t.obGranted,
+      "뒤로/앞으로 후 지급액 표시가 사라졌다(빈 화면) — 재진입 시 state 로 다시 그려야 한다");
+  });
+});
+
+// 같은 회귀를 실패 경로에서도 확인한다 — 실패 결과(오프라인 안내 + 재시도 버튼)도
+// 재진입 시 다시 그려져야 한다. 그리지 않으면 "실패도 성공도 아닌 빈 화면"이 되어
+// 사용자가 뭐가 잘못됐는지 알 방법이 없다.
+test("실패 결과도 뒤로/앞으로 후 다시 그려진다 — 빈 화면이 되면 안 된다", async () => {
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep3(root);
+    await flush();
+    assert.strictEqual(root.querySelector(".ob-grant").textContent, S.t.obGrantOffline);
+    assert.ok(root.querySelector(".ob-retry"), "첫 진입에서 재시도 버튼이 없다");
+    root.querySelector(".ob-back").click();   // 3 -> 2
+    root.querySelector(".ob-next").click();   // 2 -> 3, 다시 그려짐
+    await flush();
+    assert.strictEqual(wallet.calls.length, 1, "재진입에서 지갑을 또 불렀다 — 자동 호출은 한 번이어야 한다");
+    assert.strictEqual(root.querySelector(".ob-grant").textContent, S.t.obGrantOffline,
+      "뒤로/앞으로 후 실패 안내가 사라졌다(빈 화면)");
+    assert.ok(root.querySelector(".ob-retry"), "뒤로/앞으로 후 재시도 버튼이 사라졌다 — 복구 수단이 없다");
   });
 });
 

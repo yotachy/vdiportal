@@ -46,7 +46,8 @@
   function render(rootEl, opts) {
     var o = opts || {};
     var Str = (typeof MSStr !== "undefined") ? MSStr : null;
-    var state = { picked: [], agreed: false, granted: null, sample: o.sample || null };
+    var state = { picked: [], agreed: false, granted: null, grantFailed: false,
+                  grantStarted: false, sample: o.sample || null };
     var step = 1;
     var an = null;   // 엔진 결과 캐시 — 1↔2 단계를 오갈 때마다 32지표를 다시 돌리지 않는다
 
@@ -163,33 +164,53 @@
     // 실제로 준 값이다 — 클라이언트가 그려놓고 나중에 맞추지 않는다(state.granted 에 그대로 담는다).
     // isInstalled 를 따로 안 보는 이유: 지갑 조회 자체가 backend 미설치를 "no-backend" 실패로
     // 얌전히 돌려준다(wallet.js noBackend) — 화면 입장에선 오프라인과 같은 경로라 분기가 하나 준다.
-    function grant(scr) {
-      var box = scr.querySelector(".ob-grant");
+    //
+    // "쏘는 것"과 "그리는 것"을 분리한다. state.grantStarted 는 네트워크 호출을 한 번으로
+    // 막는 가드일 뿐, 화면까지 한 번만 그려도 된다는 뜻이 아니다 — 뒤로 갔다 다시 3단계로
+    // 오면 step3() 가 매번 새 빈 .ob-grant div 를 만들기 때문에, 기억해 둔 state 로 다시
+    // 칠하지 않으면 성공/실패 결과가 있었다는 사실 자체가 화면에서 사라진다(리뷰 지적).
+    function grantBox() { return rootEl.querySelector(".ob-grant"); }
+
+    function paintGrant() {
+      var box = grantBox();
       if (!box) return;
-      box.textContent = Str ? Str.t.obGranting : "";
+      if (state.granted !== null) {
+        box.textContent = String(state.granted) + (Str ? Str.t.obGranted : "");
+      } else if (state.grantFailed) {
+        box.textContent = Str ? Str.t.obGrantOffline : "";
+        box.appendChild(retryBtn());
+      } else {
+        box.textContent = Str ? Str.t.obGranting : "";
+      }
+    }
+    function retryBtn() {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "btn btn-ghost ob-retry";
+      b.textContent = Str ? Str.t.obRetry : "";
+      b.addEventListener("click", function () { fetchGrant(); });
+      return b;
+    }
+    // 실제 호출. 자동 발신(draw() 끝)과 재시도 버튼 둘 다 이걸 부른다 — 자동은 한 번,
+    // 재시도는 사용자가 누를 때마다.
+    function fetchGrant() {
+      state.grantFailed = false;
+      paintGrant();   // "Setting up…" — box 는 항상 grantBox() 로 다시 찾는다(rootEl 기준)
       if (typeof MSWallet === "undefined") {
         state.granted = null;
-        box.textContent = Str ? Str.t.obGrantOffline : "";
-        box.appendChild(retryBtn(scr));
+        state.grantFailed = true;
+        paintGrant();
         return;
       }
       MSWallet.get().then(function (r) {
         if (r && r.ok && r.state) {
           state.granted = r.state.balance;
-          box.textContent = String(r.state.balance) + (Str ? Str.t.obGranted : "");
+          state.grantFailed = false;
         } else {
           state.granted = null;
-          box.textContent = Str ? Str.t.obGrantOffline : "";
-          box.appendChild(retryBtn(scr));
+          state.grantFailed = true;
         }
+        paintGrant();
       });
-    }
-    function retryBtn(scr) {
-      var b = document.createElement("button");
-      b.type = "button"; b.className = "btn btn-ghost ob-retry";
-      b.textContent = Str ? Str.t.obRetry : "";
-      b.addEventListener("click", function () { grant(scr); });
-      return b;
     }
 
     function step3() {
@@ -243,9 +264,13 @@
       // 캔버스가 DOM 에 붙은 뒤여야 폭을 잴 수 있다 — 그래서 여기다.
       if (step === 1) paintChart(scr);
       if (step === 2) paintComb(scr);
-      // 자동 발신은 한 번뿐이다 — 뒤로/앞으로를 오가며 3단계를 다시 그릴 때마다 다시 부르면
-      // 실패해도 매번 재요청이 나간다(재시도는 버튼으로만). state 에 심어 render() 생애 동안 유지한다.
-      if (step === 3 && !state.grantStarted) { state.grantStarted = true; grant(scr); }
+      // 발신은 한 번뿐이다(재시도는 버튼으로만) — 그리기는 매번이다. 뒤로/앞으로 오가며
+      // 3단계를 다시 그릴 때 이미 결과가 있으면(성공/실패) 그 값으로 다시 칠한다 — 안 그러면
+      // 새로 만들어진 빈 .ob-grant 가 아무 말도 없이 비어 보인다(리뷰 지적).
+      if (step === 3) {
+        if (!state.grantStarted) { state.grantStarted = true; fetchGrant(); }
+        else paintGrant();
+      }
     }
 
     draw();
