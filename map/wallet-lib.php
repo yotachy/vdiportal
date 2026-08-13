@@ -127,10 +127,16 @@ function w_secret($dir) {
   $f = $dir . "/wallet_secret.txt";
   if (!is_file($f)) {
     if (!is_dir($dir)) @mkdir($dir, 0700, true);
-    @file_put_contents($f, bin2hex(random_bytes(32)), LOCK_EX);
+    $n = @file_put_contents($f, bin2hex(random_bytes(32)), LOCK_EX);
+    if ($n === false) throw new Exception("지갑 비밀키를 쓸 수 없다: " . $f);
     @chmod($f, 0600);
   }
-  return trim((string)@file_get_contents($f));
+  $s = trim((string)@file_get_contents($f));
+  // 빈 키로 물러서지 않는다. 빈 키로 서명하면 스킴을 아는 누구나 임의 기기의 토큰을
+  // 위조한다 — 스킴은 저장소와 APK 에 들어 있다. 0바이트 파일(중단된 첫 쓰기·디스크 가득)이나
+  // 읽기 불가(백업 복원·uid 불일치)는 실재하는 상태이고, w_db 가 같은 이유로 폴백을 거부한다.
+  if (strlen($s) < 64) throw new Exception("지갑 비밀키가 비었거나 짧다: " . $f);
+  return $s;
 }
 
 function w_token_make($dir, $deviceId) {
@@ -168,17 +174,30 @@ function w_seed_count_today($db, $ipHash) {
   return (int)$r["c"];
 }
 
+// hello 디스패처가 이 예외로 "IP 상한에 걸렸다"(429)를 "다른 요청이 먼저 만들었다"
+// (UNIQUE 충돌 — 재조회) 와 구분한다. 둘 다 catch(Throwable) 로는 안 갈린다.
+class WalletRateLimitException extends Exception {}
+
 // 계정 생성과 시드 지급은 한 트랜잭션이다. 갈라지면 잔량 없는 계정이 남는다.
 // device_id UNIQUE 가 재지급을 DB 층에서 막는다 — 애플리케이션 검사에 기대지 않는다.
 // 실측(8-way 동시 생성, journal_mode=WAL, busy_timeout=5000, 3회 반복): 패자는 매번
 // 깨끗한 PDOException(SQLSTATE 23000, "UNIQUE constraint failed") 을 던졌다 — SQLITE_BUSY
 // 타임아웃은 한 번도 관찰되지 않았다. Task 5 의 hello 폴백(예외를 잡고 재조회)은 이
 // 구분(제약 위반 vs 바쁨-타임아웃)에 기대도 된다.
+//
+// IP 상한도 이 쓰기 락 "안"에서 다시 센다. 락 밖에서 세고(check) 락 안에서 쓰면(act)
+// 그 사이 창으로 여러 요청이 동시에 "아직 상한 미만"을 보고 나란히 통과한다 — 실측: 같은
+// IP 에서 12건을 동시에 보내자 상한 3 인데 10개가 생겼다(12건 중 2건만 429). begin immediate
+// 는 한 번에 한 트랜잭션만 쓰기 락을 쥐므로, 상한 검사와 계정 삽입을 같은 트랜잭션에
+// 두면 그 창이 사라진다.
 function w_create_account($db, $deviceId, $ipHash) {
   $id = w_account_id($deviceId);
   $now = w_now();
-  $db->beginTransaction();
+  $db->exec("begin immediate");
   try {
+    if ($ipHash !== null && $ipHash !== "" && w_seed_count_today($db, $ipHash) >= W_IP_DAILY) {
+      throw new WalletRateLimitException("ip-daily-cap");
+    }
     $st = $db->prepare("insert into accounts (id, device_id, balance, streak_days, last_checkin, seed_ip_hash, created_at)
                         values (?, ?, 0, 0, NULL, ?, ?)");
     $st->execute(array($id, $deviceId, $ipHash, $now));
@@ -186,9 +205,9 @@ function w_create_account($db, $deviceId, $ipHash) {
                         values (?, ?, 'seed', NULL, ?, ?)");
     $st->execute(array($id, W_SEED, "seed:" . $id, $now));
     $db->prepare("update accounts set balance = ? where id = ?")->execute(array(W_SEED, $id));
-    $db->commit();
+    $db->exec("commit");
   } catch (Throwable $e) {
-    $db->rollBack();
+    try { $db->exec("rollback"); } catch (Throwable $e2) {}
     throw $e;
   }
   return w_get_account($db, $deviceId);

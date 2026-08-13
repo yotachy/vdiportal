@@ -417,7 +417,7 @@ function wtest_source_no_comments() {
   return $src;
 }
 
-foreach (array("w_spend", "w_refund", "w_checkin") as $fn) {
+foreach (array("w_spend", "w_refund", "w_checkin", "w_create_account") as $fn) {
   t($fn . " 은 begin immediate 로 열어야 한다 — 동시성 보장은 행동으로 관찰되지 않는다", function () use ($fn) {
     $body = wtest_fn_body(wtest_source_no_comments(), $fn);
     ok($body !== false, $fn . " 를 못 찾았다");
@@ -672,16 +672,57 @@ t("상한에 걸려도 출석일은 소비된다 — 하루가 지나가야 다�
 
 // ── Task 5: 베어러 토큰 ──────────────────────────────────────────────
 
-t("토큰은 왕복하고 변조·만료는 거부된다", function () {
+t("토큰은 왕복하고 변조·쓰레기·세그먼트 이상은 거부된다", function () {
   $d = tmpdir();
   $tok = w_token_make($d, "dev-1");
   eq(w_token_read($d, $tok), "dev-1", "왕복");
   eq(w_token_read($d, $tok . "x"), null, "변조된 토큰이 통과했다");
   eq(w_token_read($d, "garbage"), null, "쓰레기 토큰이 통과했다");
-  $parts = explode("|", $tok);
-  $expired = $parts[0] . "|" . (time() - 10) . "|" . $parts[2];
-  eq(w_token_read($d, $expired), null, "만료 토큰이 통과했다");
   rmrf($d);
+});
+
+// 리뷰 라운드 1(I8): 앞선 버전은 exp 필드만 문자열로 바꿔치기하고 서명은 원래 것을
+// 그대로 뒀다 — 그래서 검증이 서명 불일치로 거부했을 뿐, exp<time() 분기 자체는 한 번도
+// 실행되지 않고도 스위트가 초록이었다(실측: `|| $exp < time()` 를 통째로 지워도 전부
+// 통과). 진짜 만료를 증명하려면 새 exp 로 "다시" 서명한, 서명은 유효한 토큰이 필요하다.
+t("서명은 유효하지만 만료된 토큰은 거부된다", function () {
+  $d = tmpdir();
+  $exp = time() - 10;
+  $sig = _wb64e(hash_hmac("sha256", "dev-1|" . $exp, w_secret($d), true));
+  $tok = _wb64e("dev-1") . "|" . $exp . "|" . $sig;
+  eq(w_token_read($d, $tok), null, "만료 토큰이 통과했다");
+  rmrf($d);
+});
+
+// "a|b" 나 "a|b|c|d" 같은 손으로 지어낸 쓰레기 토큰으로는 이 검사가 증명되지 않는다 —
+// (int)"b" 가 0 이 되어 exp<time() 분기가 먼저 걸러버려서, count 검사를 통째로 지워도
+// 그 가짜 토큰들은 여전히 거부된다(뮤테이션으로 실측: 제거해도 그 두 케이스는 안 들킨다).
+// 진짜 유효한(서명까지 맞는) 토큰에 세그먼트를 더하거나 뺀 형태여야 count 검사 자체를
+// 시험한다.
+t("세그먼트 수가 3이 아닌 토큰은 거부된다 — 서명은 유효해도 형식이 어긋나면 거부한다", function () {
+  $d = tmpdir();
+  $tok = w_token_make($d, "dev-1");
+  // 여분 세그먼트: 앞 세 필드(기기·만료·서명)는 전부 유효하게 서명된 채로 남아 있다 —
+  // count 검사가 없으면 explode 뒤 $p[0..2] 만 보고 서명 비교까지 통과해버린다.
+  eq(w_token_read($d, $tok . "|extra"), null, "여분 세그먼트가 붙은 토큰이 통과했다");
+  // 세그먼트 부족(서명 필드 자체가 없음)도 함께 확인해 둔다.
+  $parts = explode("|", $tok);
+  eq(w_token_read($d, $parts[0] . "|" . $parts[1]), null, "서명 필드가 없는 토큰이 통과했다");
+  rmrf($d);
+});
+
+// I8: hash_equals 를 !== 로 바꿔도(비상수시간 비교) 위 행동 테스트들은 여전히 초록이다 —
+// 타이밍 안전성은 행동으로 관찰되지 않는다. 소스 모양으로 고정한다(이 파일의 다른 세 소스
+// 가드와 같은 패턴).
+t("w_token_read 는 hash_equals 로 비교해야 한다 — 문자열 비교는 타이밍 공격에 열린다", function () {
+  $src = wtest_source_no_comments();
+  $i = strpos($src, "function w_token_read");
+  ok($i !== false, "w_token_read 를 못 찾았다");
+  $body = substr($src, $i);
+  $end = strpos($body, "\nfunction ", 1);
+  if ($end !== false) $body = substr($body, 0, $end);
+  ok(strpos($body, "hash_equals") !== false,
+     "w_token_read 가 hash_equals 를 쓰지 않는다 — 서명 비교가 상수시간이 아니다");
 });
 
 t("비밀키는 자동 생성되고 파일 권한이 좁다", function () {
@@ -698,6 +739,57 @@ t("다른 비밀키로 만든 토큰은 거부된다", function () {
   $tok = w_token_make($d1, "dev-1");
   eq(w_token_read($d2, $tok), null, "남의 키로 만든 토큰이 통과했다");
   rmrf($d1); rmrf($d2);
+});
+
+// ── 리뷰 라운드 1(C1): w_secret 이 빈/읽기불가 키로 물러서면 스킴을 아는 누구나
+// 임의 기기의 토큰을 위조한다. 실측: 0바이트 비밀키 파일 하나로 "any-victim" 토큰이
+// 그대로 통과했다. w_db() 가 웹루트 폴백을 거부하는 것과 같은 이유로 여기서도 거부해야 한다.
+
+t("빈 비밀키 파일은 예외를 던진다 — 빈 키로 서명하면 누구나 토큰을 위조한다", function () {
+  $d = tmpdir();
+  file_put_contents($d . "/wallet_secret.txt", "");
+  $threw = false;
+  try { w_secret($d); } catch (Throwable $e) { $threw = true; }
+  ok($threw, "빈 비밀키로 조용히 성공했다 — 위조 가능한 상태다");
+  rmrf($d);
+});
+
+t("읽을 수 없는 비밀키 파일은 예외를 던진다", function () {
+  if (function_exists("posix_geteuid") && posix_geteuid() === 0) return;   // root 는 is_readable 이 무의미
+  $d = tmpdir();
+  file_put_contents($d . "/wallet_secret.txt", bin2hex(random_bytes(32)));
+  chmod($d . "/wallet_secret.txt", 0000);
+  $threw = false;
+  try { w_secret($d); } catch (Throwable $e) { $threw = true; }
+  chmod($d . "/wallet_secret.txt", 0600);
+  rmrf($d);
+  ok($threw, "읽기 불가 비밀키로 조용히 성공했다 — 백업 복원·uid 불일치에서 실재하는 상태다");
+});
+
+// ── 리뷰 라운드 1(C2): IP 상한은 "세고 나서 쓰는" 체크-액트였다. 락 밖에서 세면 동시
+// 요청 수만큼 낡은 값을 보고 나란히 통과한다 — 실측: 같은 IP 12건 동시 hello 로 상한 3인데
+// 계정 10개가 생겼다. w_create_account 안(쓰기 락 안)에서 다시 세도록 고쳤다.
+
+t("IP 상한은 계정 생성 쓰기 락 안에서 걸린다 — 락 밖에서 세면 병렬 요청이 상한을 넘는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-1", "iphash");
+  w_create_account($db, "dev-2", "iphash");
+  w_create_account($db, "dev-3", "iphash");
+  eq(w_seed_count_today($db, "iphash"), 3, "상한까지 세 개 준비 실패");
+  $threw = false;
+  try { w_create_account($db, "dev-4", "iphash"); }
+  catch (WalletRateLimitException $e) { $threw = true; }
+  ok($threw, "4번째 계정이 IP 상한을 넘겨서도 생성됐다");
+  eq(w_seed_count_today($db, "iphash"), 3, "상한을 넘겨 계정이 생겼다");
+  ok(w_get_account($db, "dev-4") === null, "상한에 걸렸는데 계정이 남았다");
+  $db = null; rmrf($d);
+});
+
+t("IP 해시가 null 이면 상한을 적용하지 않는다 — 헤드리스 호출·CLI 대비", function () {
+  $d = tmpdir(); $db = w_db($d);
+  for ($i = 0; $i < 5; $i++) { w_create_account($db, "dev-nullip-" . $i, null); }
+  eq($db->query("select count(*) c from accounts")->fetch()["c"], 5, "null IP 인데 상한에 걸렸다");
+  $db = null; rmrf($d);
 });
 
 foreach ($MSGS as $m) { echo $m, "\n"; }
