@@ -12,7 +12,10 @@
 
 ## Global Constraints
 
-- **선행 준비물**: 로컬에 `php-cli` + `php-sqlite3`. 없으면 Task 1~5 의 테스트를 쓸 수 없다. `php -m | grep -i sqlite` 로 확인하고, 없으면 **BLOCKED 로 보고할 것** — 돈 로직을 코드 리뷰로만 검증하지 않는다.
+- **선행 준비물**: 로컬에 `php-cli` + `php-sqlite3`(2026-08-13 확인: PHP 8.3.6 · `pdo_sqlite` · SQLite **3.45.1**).
+- ⚠️ **로컬 SQLite 3.45.1 ≠ 서버 3.26.0.** 로컬에서 도는 것이 서버에서 도는 것을 뜻하지 않는다.
+  **`RETURNING`(3.35+) · `STRICT` 테이블(3.37+) · `ALTER TABLE DROP COLUMN`(3.35+) 을 쓰지 말 것.**
+  로컬 테스트는 통과하고 서버에서만 깨진다 — 지난 브랜치를 지배한 실패 모양이다. Task 1 이 이것을 소스 검사로 못박는다.
 - **`map/forge-api.php` · `map/forge-core.js` · `map/forge-tools.js` 를 건드리지 않는다.** `map/mobile/www/vendor/` 도 마찬가지(생성물).
 - **테스트 관문**: `cd /home/jschoi0223/projects/vdiportal/map && ./tests/run.sh`. 현재 **676건**(forge-core 259 · forge-tools 81 · landing 28 · moneyscoop-mobile 308). 앞의 셋은 **불변**이어야 한다.
 - ES5 in `map/mobile/www/**`: `var`/`function` 만. 화살표함수·템플릿리터럴·optional chaining·`const`/`let` 금지. `map/mobile/test/**` 는 ESM 이라 최신 문법 허용.
@@ -152,6 +155,17 @@ t("시각은 UTC 다", function () {
   ok(strpos(w_now(), gmdate("Y-m-d")) === 0, "w_now 가 UTC 날짜로 시작하지 않는다");
 });
 
+// 로컬은 SQLite 3.45.1 이고 서버는 3.26.0 이다. 아래 셋은 로컬에서 멀쩡히 돌고
+// 서버에서만 깨진다 — 그 격차를 테스트가 대신 지킨다. 이 검사는 소스를 읽는다.
+t("서버 SQLite 3.26.0 에 없는 기능을 쓰지 않는다", function () {
+  $src = file_get_contents(__DIR__ . "/../wallet-lib.php");
+  $src = preg_replace('/^\s*\/\/.*$/m', "", $src);   // 주석은 제외 — 설명에 이름이 나온다
+  foreach (array("returning", "strict", "drop column") as $bad) {
+    ok(stripos($src, $bad) === false,
+       "서버 SQLite 3.26.0 이 모르는 구문: " . $bad . " — 로컬(3.45.1)에서만 돈다");
+  }
+});
+
 t("금액 상수가 시안 값과 같다", function () {
   $c = w_costs();
   eq($c["full"], 3, "full");
@@ -257,7 +271,7 @@ function w_migrate($db) {
 - [ ] **Step 5: 테스트 통과 확인**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && php tests/wallet.test.php`
-Expected: `ℹ pass 6` / `ℹ fail 0`, 종료코드 0
+Expected: `ℹ pass 7` / `ℹ fail 0`, 종료코드 0
 
 - [ ] **Step 6: `run.sh` 에 wallet 스위트를 붙인다**
 
