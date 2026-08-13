@@ -364,6 +364,10 @@ body {
 .sheet-run { width:100%; margin-top:16px; }
 .sheet-run[disabled] { opacity:.5; }
 
+/* 워치리스트 ＋Add 시트(screens/watchlist.js openAddSheet) — 같은 .sheet-scrim/.sheet/.sheet-head/
+   .sheet-title 를 재사용하고, 명시적 닫기 버튼만 새로 얹는다(스크림 탭으로도 닫힌다). */
+.sheet-x { background:none; border:0; color:var(--ink-5); font-size:22px; line-height:1; padding:2px 6px; }
+
 /* ===== 2단 (폴드 펼침) =====
    미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,
    app.js 가 matchMedia 결과를 body.ms-dual 로 내려준다. 여기에 @media 를 또 적으면

@@ -32,8 +32,7 @@
     wlNoMatch: "No tickers match.",              // 검색·칩 결과가 비었을 때
     wlEmpty: "No tickers yet.\nAdd one to get started.",
     wlAdd: "＋ Add ticker",
-    wlAddPrompt: "Enter a ticker symbol (e.g. AAPL)",
-    wlCancel: "Cancel",
+    addTitle: "Add a ticker",                    // ＋Add 시트 머리 — 온보딩 4단계와 같은 피커를 연다
     wlScan: "Scan",
     wlScanIco: "↻",                              // 평상시 스캔 버튼 — 헤더에 필이 들어와 아이콘만 남았다
     wlScanning: "Scanning ",
@@ -41,8 +40,6 @@
     wlScanNone: "Nothing could be scanned — your Scoops were returned.",
     wlScanNoneNoRefund: "Nothing could be scanned. We could not confirm your Scoops were returned — please check your balance.",
     wlRemoveConfirm: " — remove from watchlist?",
-    wlNotFound: " not found.",
-    wlDidYouMean: " not found. Did you mean:",
 
     // 리포트 — 판정
     rpBack: "Back",

@@ -1,11 +1,11 @@
 // 종목 고르기. 온보딩 4단계(다중)와 워치리스트 ＋Add(단일)가 같은 화면을 쓴다 —
-// 온보딩 안에 묻어두면 둘이 갈리고, 예쁜 온보딩 옆에 prompt() 가 남는다(watchlist.js
-// startAddTicker 가 지금 그 prompt() 다 — 이 컴포넌트는 그걸 몰라야 한다. 둘을 잇는 일은
-// 이 화면들 쪽 배선의 몫).
+// 온보딩 안에 묻어두면 둘이 갈리고, 예쁜 온보딩 옆에 브라우저 prompt 대화상자가 남는다(watchlist.js
+// 의 옛 startAddTicker 가 그것이었다 — Task 6 에서 이 컴포넌트로 교체됐다). 이 컴포넌트는 그
+// 화면들이 무엇으로 추가를 시작했는지 몰라야 한다 — 잇는 일은 이 화면들 쪽 배선의 몫).
 //
 // 검색 전용 엔드포인트는 없다. forge-api.php 는 심볼을 못 찾을 때만 Yahoo 후보를 주므로
-// (api.js 의 err.suggest — watchlist.js pendingSuggest 와 같은 경로) 큐레이션 그리드 +
-// 직접 입력 + 오타 제안으로 간다.
+// (api.js 의 err.suggest — watchlist.js 의 옛 오타 제안과 같은 경로, 지금은 이 컴포넌트 안으로
+// 들어왔다) 큐레이션 그리드 + 직접 입력 + 오타 제안으로 간다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
   else root.MSTickerPicker = factory();
