@@ -6,7 +6,8 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var KEYS = { watchlist: "ms_watchlist", scan: "ms_scan", lastSym: "ms_last_sym" };
+  var KEYS = { watchlist: "ms_watchlist", scan: "ms_scan", lastSym: "ms_last_sym",
+               onboarded: "ms_onboarded", consent: "ms_consent" };
   var SEED = [{ sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" }, { sym: "MSFT", name: "Microsoft Corporation" }];
 
   var mem = {};                       // 백엔드 실패 시 폴백 저장소
@@ -76,9 +77,23 @@
     return true;
   }
 
+  function onboarded() { return read(KEYS.onboarded, false) === true; }
+
+  // 약관 버전과 시각을 함께 남긴다 — 불리언만 남기면 약관이 개정됐을 때
+  // 누가 무엇에 동의했는지 말할 수 없다. 서버로는 보내지 않는다(8c 에서 계정에 붙일 자리).
+  function setOnboarded(termsVersion) {
+    write(KEYS.consent, { termsVersion: String(termsVersion || ""), at: new Date().toISOString() });
+    write(KEYS.onboarded, true);
+  }
+  function consent() {
+    var c = read(KEYS.consent, null);
+    return (c && typeof c === "object" && c.termsVersion) ? c : null;
+  }
+
   return { KEYS: KEYS, SEED: SEED, install: install, getWatchlist: getWatchlist, setWatchlist: setWatchlist,
            addTicker: addTicker, removeTicker: removeTicker, getScan: getScan, setScan: setScan,
            allScans: allScans, seedIfEmpty: seedIfEmpty,
            getLastSym: getLastSym, setLastSym: setLastSym,
+           onboarded: onboarded, setOnboarded: setOnboarded, consent: consent,
            read0: read, write0: write };
 });
