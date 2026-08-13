@@ -23,6 +23,9 @@ test("4단계는 최소 1종목, 5단계는 약관 동의를 요구한다", () =
   assert.strictEqual(O.canAdvance(1, {}), true);
   assert.strictEqual(O.canAdvance(2, {}), true);
   assert.strictEqual(O.canAdvance(3, {}), true, "지급 실패해도 막지 않는다");
+  // {} 만으로는 "아직 안 물어봤다"와 "물어봤는데 실패했다"를 구분 못한다 — grant() 가
+  // 실패 시 실제로 심는 값(granted:null)으로도 같은 결과를 확인한다.
+  assert.strictEqual(O.canAdvance(3, { granted: null }), true, "지급 실패 상태에서도 막지 않는다");
   assert.strictEqual(O.canAdvance(4, { picked: [] }), false);
   assert.strictEqual(O.canAdvance(4, { picked: ["AAPL"] }), true);
   assert.strictEqual(O.canAdvance(5, { agreed: false }), false);
@@ -105,9 +108,27 @@ test("1·2단계 작도가 쓰는 모듈이 index.html 에 전부 있다", () =>
 });
 
 test("온보딩 문구가 strings.js 에 있다", () => {
-  ["obBack", "obNext", "obSampleNote", "obH1", "obSub1", "obH2", "obSub2", "obCombCap"].forEach(function (k) {
+  ["obBack", "obNext", "obSampleNote", "obH1", "obSub1", "obH2", "obSub2", "obCombCap",
+   "obH3", "obSub3", "obGranting", "obGranted", "obGrantOffline", "obRetry",
+   "obCostFull", "obCostScan", "obCostSlot"].forEach(function (k) {
     assert.ok(typeof S.t[k] === "string" && S.t[k].length > 0, k + " 가 없다");
   });
+});
+
+// 온보딩 전체에서 네트워크 호출이 3단계의 지갑 호출 하나뿐임을 세는 것이 핵심이다.
+// 1·2단계가 시세 API 를 타기 시작하면 첫 화면이 콜드 수신(942ms 실측)을 기다리게 되는데,
+// 눈으로는 "좀 느리네"로만 보이므로 소스에서 막는다.
+test("1·2단계는 번들 시계를 쓴다 — 시세 API 를 부르지 않는다", () => {
+  assert.doesNotMatch(OB, /MSApi\.loadTicker/);
+});
+
+test("지갑은 3단계에서만 부른다", () => {
+  const calls = OB.match(/MSWallet\.\w+\(/g) || [];
+  assert.deepEqual(calls, ["MSWallet.get("], "지갑 호출: " + calls.join(", "));
+});
+
+test("가격표는 MSWallet.COSTS 에서 읽는다 — 지갑 화면과 같은 출처", () => {
+  assert.match(OB, /MSWallet\.COSTS/);
 });
 
 // Task 2 가 ticker-picker.js 만 만들고 스타일을 안 붙였다 — 클래스가 CSS 에 없으면
@@ -115,6 +136,7 @@ test("온보딩 문구가 strings.js 에 있다", () => {
 test("온보딩·종목 고르기 클래스가 style.css 에 있다", () => {
   [".ob", ".ob-prog", ".ob-seg", ".ob-step", ".ob-h", ".ob-sub", ".ob-canvas",
    ".ob-comb", ".ob-bar", ".ob-nav", ".ob-over", ".ob-cap",
+   ".ob-grant", ".ob-retry", ".ob-costs", ".ob-cost-row", ".ob-cost-name", ".ob-cost-num",
    ".tp", ".tp-grid", ".tp-cell", ".tp-sym", ".tp-name", ".tp-free", ".tp-msg",
    ".tp-input", ".tp-add"].forEach(function (c) {
     assert.ok(new RegExp("\\" + c + "(?![-\\w])").test(CSS), c + " 규칙이 없다");
@@ -393,5 +415,114 @@ test("번들 시계가 없어도 던지지 않는다 — 첫 화면이 흰 화�
     delete globalThis.MSOnboardingSample;
     assert.doesNotThrow(() => O.render(root, {}));
     assert.ok(root.querySelector(".ob-h"), "헤드라인조차 안 그렸다");
+  });
+});
+
+// ── 3단계: 지갑 호출 ───────────────────────────────────────────────────────────
+// 위 withDom 은 동기 콜백 전제다 — try { return fn(...) } finally { 복구 } 라서, fn 이 비동기면
+// fn 의 await 가 끝나기 전에 finally 가 먼저 돌아 document/MSWallet 이 사라진다(재시도 버튼이
+// document.createElement 를 다시 부르는 순간 터진다). 3단계는 Promise 를 기다려야 하므로
+// 별도의 비동기 헬퍼를 쓴다 — 기존 withDom 은 건드리지 않는다(다른 30여 개 동기 테스트가 문다).
+async function withDomWallet(wallet, fn) {
+  const g = globalThis;
+  const saved = {};
+  const put = (k, v) => { saved[k] = Object.prototype.hasOwnProperty.call(g, k) ? g[k] : undefined; g[k] = v; };
+  put("document", { createElement: t => new El(t), documentElement: new El("html") });
+  put("window", { devicePixelRatio: 3 });
+  put("getComputedStyle", () => ({ getPropertyValue: () => "" }));
+  put("MSUi", require("../www/ui.js"));
+  put("MSStr", S);
+  put("MSWallet", wallet);
+  try {
+    return await fn(new El("div"));
+  } finally {
+    Object.keys(saved).forEach(k => { if (saved[k] === undefined) delete g[k]; else g[k] = saved[k]; });
+  }
+}
+
+function flush() { return new Promise(r => setTimeout(r, 0)); }
+
+// isInstalled() 를 흉내내지 않는다 — 실 MSWallet.get() 은 backend 미설치를 그냥 { ok:false } 로
+// 돌려준다(wallet.js noBackend), onboarding.js 도 그 경로 하나만 탄다.
+function spyWallet(result, costs) {
+  const calls = [];
+  return {
+    calls,
+    COSTS: costs || { full: 3, scan: 2, slot: 1 },
+    get() { calls.push(1); return Promise.resolve(result); }
+  };
+}
+
+function toStep3(root) {
+  O.render(root, { sample: SAMPLE });
+  root.querySelector(".ob-next").click();   // 1 -> 2
+  root.querySelector(".ob-next").click();   // 2 -> 3
+}
+
+// 뮤테이션 (a): 지급액을 리터럴로 박아 넣으면 여기서 잡힌다 — 스파이가 5 가 아닌 11 을 돌려준다.
+test("지급액은 서버가 돌려준 값이다 — 클라이언트가 지어내지 않는다", async () => {
+  const wallet = spyWallet({ ok: true, state: { balance: 11 } });
+  await withDomWallet(wallet, async (root) => {
+    toStep3(root);
+    await flush();
+    const box = root.querySelector(".ob-grant");
+    assert.ok(box, "지급 영역이 없다");
+    assert.strictEqual(box.textContent, "11" + S.t.obGranted,
+      "표시된 문구가 서버 값(11)을 쓰지 않는다: " + box.textContent);
+  });
+});
+
+// 가격표 값도 스파이의 COSTS 를 그대로 반영해야 한다(실제 COSTS 와 다른 값을 줘서 리터럴화를 잡는다).
+test("가격표 숫자는 MSWallet.COSTS 값 그대로다 — 다시 적지 않는다", async () => {
+  const wallet = spyWallet({ ok: true, state: { balance: 5 } }, { full: 30, scan: 20, slot: 10 });
+  await withDomWallet(wallet, async (root) => {
+    toStep3(root);
+    await flush();
+    const rows = root.querySelector(".ob-costs").children;
+    assert.strictEqual(rows.length, 3);
+    const nums = rows.map(r => r.querySelector(".ob-cost-num").textContent);
+    assert.deepStrictEqual(nums, ["30", "20", "10"], "가격표가 COSTS(30/20/10)를 안 따라간다: " + nums.join(","));
+  });
+});
+
+// 뮤테이션 (b): 실패 시 진행을 막으면 여기서 잡힌다 — 재시도 버튼은 뜨되 Continue 는 살아 있어야 한다.
+test("지급 실패해도 진행이 막히지 않는다 — 재시도 버튼이 뜨고 계속하기는 눌린다", async () => {
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep3(root);
+    await flush();
+    const box = root.querySelector(".ob-grant");
+    assert.strictEqual(box.textContent, S.t.obGrantOffline);
+    assert.ok(root.querySelector(".ob-retry"), "재시도 버튼이 없다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false,
+      "지갑 실패가 계속하기 버튼을 막았다");
+  });
+});
+
+// 뮤테이션 (c): draw() 마다 재호출하면 여기서 잡힌다 — 3단계를 두 번 그려도 호출은 한 번이어야 한다.
+test("자동 지급 호출은 한 번뿐이다 — 3단계를 다시 그려도 재호출하지 않는다", async () => {
+  const wallet = spyWallet({ ok: true, state: { balance: 5 } });
+  await withDomWallet(wallet, async (root) => {
+    toStep3(root);
+    await flush();
+    assert.strictEqual(wallet.calls.length, 1, "첫 진입에서 지갑을 한 번이 아니게 불렀다");
+    root.querySelector(".ob-back").click();   // 3 -> 2
+    root.querySelector(".ob-next").click();   // 2 -> 3, 다시 그려짐
+    await flush();
+    assert.strictEqual(wallet.calls.length, 1,
+      "3단계를 다시 그리며 지갑을 또 불렀다 — 자동 호출은 render() 생애 동안 한 번이어야 한다");
+  });
+});
+
+// 재시도 버튼은 수동으로는 다시 부를 수 있어야 한다(위 가드는 자동 발신만 막는다).
+test("재시도 버튼을 누르면 지갑을 다시 부른다", async () => {
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep3(root);
+    await flush();
+    assert.strictEqual(wallet.calls.length, 1);
+    root.querySelector(".ob-retry").click();
+    await flush();
+    assert.strictEqual(wallet.calls.length, 2, "재시도 버튼이 지갑을 다시 안 불렀다");
   });
 });

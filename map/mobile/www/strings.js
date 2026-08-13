@@ -188,7 +188,14 @@
     obSub1: "Every reading below comes from this chart — nothing is hand-written.",
     obH2: "Thirty readings, one verdict.",
     obSub2: "Each bar is one indicator. They collapse into a single call.",
-    obCombCap: " readings with a direction"
+    obCombCap: " readings with a direction",
+    obH3: "Why it is free",
+    obSub3: "Deep analysis costs Scoops. You earn them by checking in — and later by watching a short ad.",
+    obGranting: "Setting up your wallet…",
+    obGranted: " Scoops to start",
+    obGrantOffline: "We could not reach the wallet. You can continue — Basic reports are always free.",
+    obRetry: "Try again",
+    obCostFull: "Deep analysis", obCostScan: "Watchlist scan", obCostSlot: "Extra ticker slot"
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을

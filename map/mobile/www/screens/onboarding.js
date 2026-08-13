@@ -158,12 +158,67 @@
       if (cap) cap.textContent = rows.length + (Str ? Str.t.obCombCap : "");
     }
 
+    // 3단계에 도달했을 때 처음 hello 가 나간다. 1~2단계에서 이탈하면 계정이 안 생겨
+    // IP당 신규계정 상한도 안 쓴다. 화면이 "N개를 드렸습니다"라고 말할 때 그 N 은 서버가
+    // 실제로 준 값이다 — 클라이언트가 그려놓고 나중에 맞추지 않는다(state.granted 에 그대로 담는다).
+    // isInstalled 를 따로 안 보는 이유: 지갑 조회 자체가 backend 미설치를 "no-backend" 실패로
+    // 얌전히 돌려준다(wallet.js noBackend) — 화면 입장에선 오프라인과 같은 경로라 분기가 하나 준다.
+    function grant(scr) {
+      var box = scr.querySelector(".ob-grant");
+      if (!box) return;
+      box.textContent = Str ? Str.t.obGranting : "";
+      if (typeof MSWallet === "undefined") {
+        state.granted = null;
+        box.textContent = Str ? Str.t.obGrantOffline : "";
+        box.appendChild(retryBtn(scr));
+        return;
+      }
+      MSWallet.get().then(function (r) {
+        if (r && r.ok && r.state) {
+          state.granted = r.state.balance;
+          box.textContent = String(r.state.balance) + (Str ? Str.t.obGranted : "");
+        } else {
+          state.granted = null;
+          box.textContent = Str ? Str.t.obGrantOffline : "";
+          box.appendChild(retryBtn(scr));
+        }
+      });
+    }
+    function retryBtn(scr) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "btn btn-ghost ob-retry";
+      b.textContent = Str ? Str.t.obRetry : "";
+      b.addEventListener("click", function () { grant(scr); });
+      return b;
+    }
+
+    function step3() {
+      var w = frag("ob-step");
+      w.appendChild(el("h1", "ob-h", Str ? Str.t.obH3 : ""));
+      w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub3 : ""));
+      w.appendChild(el("div", "ob-grant", ""));
+      // 가격표는 지갑 화면과 같은 출처(MSWallet.COSTS)에서 읽는다 — 여기서 다시 적으면
+      // 두 화면이 갈린다(지갑 화면이 정본, screens/wallet.js).
+      var C = (typeof MSWallet !== "undefined") ? MSWallet.COSTS : {};
+      var tbl = frag("ob-costs");
+      [["full", Str ? Str.t.obCostFull : ""], ["scan", Str ? Str.t.obCostScan : ""],
+       ["slot", Str ? Str.t.obCostSlot : ""]].forEach(function (p) {
+        var row = frag("ob-cost-row");
+        row.appendChild(el("span", "ob-cost-name", p[1]));
+        row.appendChild(el("span", "ob-cost-num", String(C[p[0]])));
+        tbl.appendChild(row);
+      });
+      w.appendChild(tbl);
+      return w;
+    }
+
     function draw() {
       rootEl.innerHTML = "";
       var scr = frag("ob");
       scr.appendChild(progress(step));
       if (step === 1) scr.appendChild(step1());
       else if (step === 2) scr.appendChild(step2());
+      else if (step === 3) scr.appendChild(step3());
 
       var nav = frag("ob-nav");
       if (step > 1) {
@@ -188,6 +243,9 @@
       // 캔버스가 DOM 에 붙은 뒤여야 폭을 잴 수 있다 — 그래서 여기다.
       if (step === 1) paintChart(scr);
       if (step === 2) paintComb(scr);
+      // 자동 발신은 한 번뿐이다 — 뒤로/앞으로를 오가며 3단계를 다시 그릴 때마다 다시 부르면
+      // 실패해도 매번 재요청이 나간다(재시도는 버튼으로만). state 에 심어 render() 생애 동안 유지한다.
+      if (step === 3 && !state.grantStarted) { state.grantStarted = true; grant(scr); }
     }
 
     draw();
