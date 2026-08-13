@@ -10,6 +10,7 @@
   // 전부 시안에서 온 값이다 — full·custom 은 5a·4a, slot 은 2b("Add TSLA — Costs 1 Scoop"),
   // scan 은 2c 의 Spend 목록("Watchlist signal scan 2"). 8a 는 scan 을 "값이 없다"고 잘못 읽어
   // 무료로 뒀다가 2026-08-12 사용자 결정으로 시안 값으로 돌렸다.
+  // 금액은 서버가 정본이고 이 표는 시트의 미리보기 표시용이다.
   var COSTS = { full: 3, custom: 5, slot: 1, scan: 2 };
   var backend = null;
 
@@ -21,9 +22,32 @@
   }
 
   // 멱등 키 — 모바일망은 재시도한다. 이게 없으면 한 분석에 두 번 과금된다(SPEC §1).
+  // ledger.idem 은 전역 UNIQUE(모든 계정을 통틀어)라, 두 클라이언트가 우연히 같은 키를 뽑으면
+  // 나중 쪽이 "이미 있음" 으로 튕긴다 — wallet-http.js 의 uuid()(deviceId)에서 이미 거부한
+  // Date.now()+Math.random() 패턴을 여기서도 쓰고 있었다(리뷰 지적). 같은 이유로 같은 처방:
+  // crypto.getRandomValues 로 진짜 엔트로피를 뽑는다.
   function newIdem() {
-    try { if (typeof crypto !== "undefined" && crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
-    return "i-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
+    try {
+      if (typeof crypto !== "undefined" && crypto && crypto.getRandomValues) {
+        var bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        var hex = "";
+        for (var i = 0; i < bytes.length; i++) hex += ("0" + bytes[i].toString(16)).slice(-2);
+        return "i-" + hex;
+      }
+    } catch (e) {}
+    // crypto 가 없는 극단적 구형 런타임 전용 최후 폴백 — 실배포 대상엔 crypto.getRandomValues 가 있다.
+    return "i-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10)
+                + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+  }
+
+  // 재시도 안전성 분류. "definitely-not-charged" 사유는 idem 을 버리고 새로 사도 안전하다 —
+  // 서버가 spend 자체를 시작하지 않았다고 확신할 수 있다. "maybe-charged" 사유(응답을 못 받았을
+  // 뿐 서버는 이미 처리했을 수 있다)는 idem 을 반드시 재사용해야 한다: 새 idem 은 원장(전역
+  // UNIQUE)에서 완전히 다른 키라 멱등이 못 잡고 이중 차감된다(I-H, 리뷰 지적).
+  var MAYBE_CHARGED = { network: 1, "server-error": 1, busy: 1 };
+  function maybeCharged(reason) {
+    return Object.prototype.hasOwnProperty.call(MAYBE_CHARGED, reason || "");
   }
 
   function noBackend() { return Promise.resolve({ ok: false, reason: "no-backend", state: null }); }
@@ -42,14 +66,16 @@
 
   function get() { return backend ? callBackend(function () { return backend.get(); }) : noBackend(); }
 
-  // 계약: spend(runType, idem) → { ok, state, reason? }
+  // 계약: spend(runType, idem, ref?) → { ok, state, reason? }
   // idem 은 필수다. 비어 있으면 원장이 "키 없음"끼리 같은 항목으로 보고 두 번째부터 멱등 재생으로
   // 답한다 — MSWallet.spend("full") 한 번이면 그 뒤 모든 Full 이 공짜가 된다. 돈 코드라 진입부에서 막는다.
-  function spend(runType, idem) {
+  // ref 는 옵션(종목 심볼 등) — 8b 는 24시간 종목 권리 판정을 서버에서 한다. 안 주면 null 로
+  // 넘긴다: undefined 를 그대로 보내면 JSON.stringify 가 그 키 자체를 지워 백엔드마다 다르게 해석한다.
+  function spend(runType, idem, ref) {
     if (typeof idem !== "string" || idem === "") return Promise.resolve({ ok: false, reason: "bad-idem", state: null });
     if (!backend) return noBackend();
     if (costOf(runType) == null) return Promise.resolve({ ok: false, reason: "unknown-runtype", state: null });
-    return callBackend(function () { return backend.spend(runType, idem); });
+    return callBackend(function () { return backend.spend(runType, idem, ref || null); });
   }
   function refund(idem) { return backend ? callBackend(function () { return backend.refund(idem); }) : noBackend(); }
 
@@ -60,5 +86,5 @@
   function checkin() { return backend ? callBackend(function () { return backend.checkin(); }) : noBackend(); }
 
   return { COSTS: COSTS, install: install, isInstalled: isInstalled, costOf: costOf,
-           newIdem: newIdem, get: get, spend: spend, refund: refund, checkin: checkin };
+           newIdem: newIdem, maybeCharged: maybeCharged, get: get, spend: spend, refund: refund, checkin: checkin };
 });

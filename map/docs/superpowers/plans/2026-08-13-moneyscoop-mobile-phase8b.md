@@ -1633,20 +1633,12 @@ curl -s -o /dev/null -w "wallet.db 직접접근 %{http_code}\n" https://parksvc.
 Expected: `ping` 이 `{"ok":true,"schema":1,...}`. `reason:"storage"` 가 나오면 **`/parksvc/data/` 에 PHP 가 못 쓰는 것이므로 멈추고 보고할 것** — 웹루트 안으로 옮기지 말 것.
 `wallet.db` 직접 접근은 404(웹루트에 없음)여야 한다.
 
-- [ ] **Step 4: 클라이언트 정적 파일을 올린다**
+> ⚠️ **클라이언트는 서버에 올리지 않는다.** `map/CLAUDE.md` 가 *"mobile/ 은 cafe24 에 업로드하지 않는다"* 로
+> 못박았다 — 모바일은 스토어 릴리스 트랙이고 서버로 가는 것은 PC 정적 파일 8종 + `forge-api.php` 뿐이다.
+> 이번 배포에서 서버로 가는 것은 **`wallet-lib.php` · `wallet-api.php` 둘뿐**이다. `map/mobile/**` 를
+> 올리는 명령을 쓰지 말 것.
 
-```bash
-cd /home/jschoi0223/projects/vdiportal/map/mobile/www
-lftp -c "
-set sftp:auto-confirm yes; set net:timeout 20;
-open -u parksvc,'wjdtjd2@' sftp://parksvc.mycafe24.com;
-cd www/map;
-"
-```
-
-⚠️ **모바일 정적 파일은 cafe24 에 올리지 않는다**(`map/CLAUDE.md`: *"mobile/ 은 cafe24 에 업로드하지 않는다"*). 모바일은 스토어 릴리스 트랙이다. **이 스텝은 실행하지 않고 지운다** — 위 블록은 실수 방지용 표식이다.
-
-- [ ] **Step 5: 백로그를 갱신한다**
+- [ ] **Step 4: 백로그를 갱신한다**
 
 `✅ 완료` 에 항목을 추가한다. 구현 중 겪은 것을 쓴다 — 계획대로 안 된 것이 있으면 그것이 가장 중요하다.
 
@@ -1677,7 +1669,7 @@ cd www/map;
 
 `NNN` 은 실제 `./tests/run.sh` 출력으로 채운다.
 
-- [ ] **Step 6: 커밋**
+- [ ] **Step 5: 커밋**
 
 ```bash
 cd /home/jschoi0223/projects/vdiportal

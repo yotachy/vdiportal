@@ -27,6 +27,24 @@
   // 8b 의 서버 runs 테이블이 그 자리를 대체한다(BACKLOG-mobile.md Phase 8a).
   // render() 지역에 두면 구매가 화면 수명만큼만 살아 재진입 때 다시 과금된다.
   var purchases = {};             // sym -> { idem, promise, data, an, runs }
+
+  // 그 중 idem 만은 실행보다 오래 살아야 한다. spend 를 보낸 뒤 응답이 유실되면 사용자는
+  // 강제 종료로 빠져나오고, 다시 켠 앱의 purchases 는 비어 있어 새 idem 을 뽑는다 — 서버에는
+  // 무관한 키라 멱등이 못 잡는다. full 은 서버 권리(24h runs) 덕에 재시도가 spend-cached 로
+  // 흡수되지만 그건 spend 가 실제로 커밋된 경우뿐이고, 커밋 직전에 끊긴 경우는 그냥 두 번
+  // 나간다. 종목별로 저장한다(스캔은 워치리스트 전체 단위라 watchlist.js 쪽은 키가 하나다).
+  var K_PEND_FULL = "ms_pending_full_idem";   // { sym: idem }
+  function pendingFullIdem(sym) {
+    var m = MSStore.read0(K_PEND_FULL, null);
+    var v = (m && typeof m === "object" && !(m instanceof Array)) ? m[sym] : null;
+    return (typeof v === "string" && v) ? v : null;
+  }
+  function setPendingFullIdem(sym, idem) {
+    var m = MSStore.read0(K_PEND_FULL, null);
+    if (!m || typeof m !== "object" || (m instanceof Array)) m = {};
+    if (idem) m[sym] = idem; else delete m[sym];
+    MSStore.write0(K_PEND_FULL, m);
+  }
   // render 세대 토큰 — 진행 중 구매의 결과가 그 사이 바뀐 화면을 덮어쓰지 않게 한다.
   var gen = 0;
 
@@ -301,11 +319,18 @@
     }
     if (rec && rec.promise) return rec.promise;   // 진행 중 — 같은 promise 에 다시 붙는다(idem 자연 재사용)
 
-    var idem = MSWallet.newIdem();
+    // maybe-charged 로 끝난 이전 시도의 idem 이 남아 있으면 그대로 재사용한다(I-H) — 응답을
+    // 못 받았을 뿐 서버가 이미 처리했을 수 있어서다. 새 idem 을 새로 뽑으면 원장(전역 UNIQUE)에서
+    // 완전히 다른 키가 되어 멱등이 못 잡고 이중 차감된다. rec.idem 이 없으면(첫 시도이거나
+    // definitely-not-charged 로 지워진 뒤) 새로 뽑는다.
+    // 저장소에 남은 값(지난 실행에서 응답을 못 받은 시도)까지 이어받는다 — 메모리 레코드가
+    // 없다고 새 키를 뽑으면 강제 종료 뒤 재구매가 그대로 두 번째 차감이 된다.
+    var idem = (rec && rec.idem) ? rec.idem : (pendingFullIdem(sym) || MSWallet.newIdem());
     rec = { idem: idem, promise: null, data: null, an: null, runs: null };
     purchases[sym] = rec;   // spend 를 부르기 전에 등록한다 — 그 사이 들어온 두 번째 호출이 붙을 자리다
+    setPendingFullIdem(sym, idem);   // 보내기 전에 적는다 — 응답이 유실된 창을 덮는 건 이 순서뿐이다
 
-    rec.promise = MSWallet.spend("full", idem).then(function (sp) {
+    rec.promise = MSWallet.spend("full", idem, sym).then(function (sp) {
       if (!sp.ok) return { kind: "spend-fail", reason: sp.reason };
       var tfs = ["1day", "1week", "1month"];
       return Promise.all(tfs.map(function (tf) {
@@ -333,11 +358,23 @@
       });
     })["catch"](function () {
       // 판정 구간(spend·로드·분석·환급 호출 자체)의 예외 — 환급이 됐는지조차 모르므로 단정하지 않는다.
+      // MSWallet.spend 는 HTTP 백엔드에서 절대 reject 하지 않으므로(callBackend 가 항상 흡수)
+      // 지금은 도달할 일이 없는 방어용 코드다 — 그래도 여기 떨어지면 charged 여부를 정말 모르므로
+      // maybeCharged 취급과 같게(idem 보존) 답한다.
       return { kind: "unknown" };
     }).then(function (r) {
       rec.promise = null;
-      if (r.kind === "success") { rec.data = r.data; rec.an = r.an; rec.runs = r.runs; }
-      else if (purchases[sym] === rec) delete purchases[sym];   // 실패·환급으로 끝났다 — 다시 살 수 있어야 한다
+      if (r.kind === "success") {
+        rec.data = r.data; rec.an = r.an; rec.runs = r.runs;
+        setPendingFullIdem(sym, null);   // 확정 성공 — 이 키는 끝났다
+      } else if (r.kind === "unknown" || (r.kind === "spend-fail" && MSWallet.maybeCharged(r.reason))) {
+        // 정말로 차감됐는지 모른다 — idem 을 지우지 않는다(rec 를 purchases[sym] 에 그대로 두고
+        // 저장소에도 남긴다). 다음 purchaseFull(sym) 이 — 이번 실행이든 다음 실행이든 —
+        // 이 idem 을 재사용해 서버 멱등이 잡게 한다.
+      } else if (purchases[sym] === rec) {
+        delete purchases[sym];           // 확실히 실패·환급됐다 — 다시 살 수 있어야 한다
+        setPendingFullIdem(sym, null);
+      }
       return r;
     });
     return rec.promise;
@@ -772,7 +809,12 @@
           alert(r.ok ? MSStr.t.tsFailed : MSStr.t.tsFailedNoRefund);
         } else if (r.kind === "spend-fail") {
           MSTierSheet.close();
-          alert(r.reason === "insufficient" ? MSStr.t.tsShort : MSStr.t.tsSpendFailed);
+          // "Nothing was charged" 는 definitely-not-charged 사유에서만 참이다. maybe-charged
+          // (network·server-error·busy)는 실제로 서버가 처리했을 수 있으니 그렇게 단정하지 않는다
+          // — purchases[sym] 에 idem 이 남아 다음 시도가 재사용한다(위 .then 참고).
+          alert(r.reason === "insufficient" ? MSStr.t.tsShort
+                : MSWallet.maybeCharged(r.reason) ? MSStr.t.tsSpendFailedUnknown
+                : MSStr.t.tsSpendFailed);
         } else {
           MSTierSheet.close();
           alert(MSStr.t.tsFailedNoRefund);

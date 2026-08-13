@@ -41,6 +41,28 @@ test("newIdem — 매번 다르고 비어 있지 않다", () => {
   }
 });
 
+// wallet-http.js 의 uuid()(deviceId)와 같은 이유로 같은 처방(리뷰 지적) — 길이만 재면
+// Date.now()+Math.random() 폴백도(길이만 늘려두면) 통과한다. crypto.getRandomValues 가 준
+// 바이트에서 실제로 나오는지 증명한다.
+test("newIdem — crypto.getRandomValues 가 준 바이트를 그대로 인코딩한다(카운터/타임스탬프 아님)", () => {
+  const orig = globalThis.crypto.getRandomValues;
+  let capturedLen = null;
+  globalThis.crypto.getRandomValues = (arr) => {
+    for (let i = 0; i < arr.length; i++) arr[i] = i;
+    capturedLen = arr.length;
+    return arr;
+  };
+  try {
+    const v = W.newIdem();
+    let expectedHex = "";
+    for (let i = 0; i < capturedLen; i++) expectedHex += i.toString(16).padStart(2, "0");
+    assert.strictEqual(v, "i-" + expectedHex,
+      "newIdem 이 crypto.getRandomValues 의 실제 바이트에서 나오지 않았다");
+  } finally {
+    globalThis.crypto.getRandomValues = orig;
+  }
+});
+
 test("백엔드가 없으면 넷 다 no-backend 로 떨어지고 던지지 않는다", async () => {
   W.install(null);
   assert.strictEqual(W.isInstalled(), false);
@@ -131,5 +153,36 @@ test("백엔드가 Promise 가 아닌 것을 돌려줘도 죽지 않는다", asy
   const r = await W.get();
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.reason, "backend-error");
+  W.install(null);
+});
+
+// 8b — spend 가 3인자(runType, idem, ref)로 넓어졌다. ref 는 24시간 종목 권리 판정을
+// 서버에서 하기 위한 값(예: 종목 심볼)이라 spend 를 부를 때마다 그대로 백엔드까지 실려가야 한다.
+test("spend 가 ref 를 백엔드로 넘긴다", async () => {
+  const seen = [];
+  W.install({
+    get: async () => ({ ok: true, state: null }),
+    spend: async (t, i, ref) => { seen.push([t, i, ref]); return { ok: true, state: null }; },
+    refund: async () => ({ ok: true, state: null }),
+    checkin: async () => ({ ok: true, state: null })
+  });
+  await W.spend("full", "k1", "AAPL");
+  assert.deepEqual(seen[0], ["full", "k1", "AAPL"]);
+  W.install(null);
+});
+
+// ref 를 안 주면 undefined 가 아니라 null 로 넘겨야 한다 — undefined 는 JSON.stringify 에서
+// 키째로 사라져 서버·가짜 백엔드마다 다르게 해석될 수 있다(w_field_str 은 없으면 기본값,
+// null 이면 명시적으로 "없음"으로 처리).
+test("ref 를 안 주면 null 로 넘긴다 — undefined 가 JSON 에서 사라지면 안 된다", async () => {
+  const seen = [];
+  W.install({
+    get: async () => ({ ok: true, state: null }),
+    spend: async (t, i, ref) => { seen.push(ref); return { ok: true, state: null }; },
+    refund: async () => ({ ok: true, state: null }),
+    checkin: async () => ({ ok: true, state: null })
+  });
+  await W.spend("scan", "k1");
+  assert.strictEqual(seen[0], null);
   W.install(null);
 });

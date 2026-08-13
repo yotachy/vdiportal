@@ -110,11 +110,14 @@
       return;
     }
 
-    // 개발용 백엔드. 8b 는 이 줄과 index.html 의 스크립트 태그를 서버 백엔드로 바꾼다.
-    // ⚠️ 8b 는 여기도 손봐야 한다 — 설계서 §3 은 "백엔드가 자기 자신을 설치"라고 적었지만
-    // 실제 설치 지점은 이 셸이다. index.html 의 스크립트 태그 한 줄 교체로 끝나지 않는다.
-    if (typeof MSWalletLocalStub !== "undefined" && !MSWallet.isInstalled()) {
-      MSWallet.install(MSWalletLocalStub.create({ costOf: MSWallet.costOf }));
+    // 서버 지갑. 잔량의 진실은 서버에 있고 클라이언트는 그린다(SPEC-economy §1).
+    // 절대 URL 이어야 한다 — capacitor.config.json 의 androidScheme:"https" 때문에 앱은
+    // https://localhost/ 에서 서빙되고, 상대경로 "wallet-api.php" 는 번들에 없는 파일을
+    // 가리켜 전부 404 로 죽는다(api.js 의 API_BASE 와 같은 이유로 절대 URL — forge-api.php
+    // 는 CORS 를 이미 열어 뒀지만 wallet-api.php 는 Authorization 헤더까지 얹는 요청이라
+    // 별도로 Access-Control-Allow-Headers 에 Authorization 을 더해야 한다, wallet-api.php 참고).
+    if (typeof MSWalletHttp !== "undefined" && !MSWallet.isInstalled()) {
+      MSWallet.install(MSWalletHttp.create({ url: "https://parksvc.mycafe24.com/map/wallet-api.php" }));
     }
 
     // 시드를 먼저 심어야 inWatchlist 판정이 첫 부팅에서도 맞는다(워치리스트 화면도 다시 부르지만 무해).

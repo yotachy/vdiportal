@@ -2,9 +2,15 @@
 # map/ 통합 테스트 관문 — 스쿱포지(PC)와 머니스쿱(모바일)이 forge-core.js 를 공유하므로
 # 어느 한쪽만 돌리면 공유 엔진 변경이 반대편을 깨뜨린 것을 놓친다. 항상 이 스크립트로 돌린다.
 #
-#   ./tests/run.sh            전부
-#   ./tests/run.sh engine     forge-core + forge-tools 만 (엔진만 고쳤을 때 빠른 확인)
-#   ./tests/run.sh mobile     모바일만
+#   ./tests/run.sh              전부
+#   ./tests/run.sh engine       forge-core + forge-tools 만 (엔진만 고쳤을 때 빠른 확인)
+#   ./tests/run.sh mobile       모바일만
+#   ./tests/run.sh wallet       지갑 원장(PHP)만
+#   ./tests/run.sh dispatcher   지갑 HTTP 디스패처(wallet-api.php) — php -S + curl. 'all'에 낀다
+#                                (1~2초). 이 파일은 여기 말고는 저장소 어디에서도 실행되지 않는다.
+#   ./tests/run.sh concurrency  지갑 동시성 회귀(비밀키 생성·IP 상한·mkdir) — 'all'엔 안 낌,
+#                                느려서(수 초~수십 초) 배리어 동기화 OS 프로세스 12-way 를 씀.
+#                                wallet-lib.php · wallet-api.php 를 고친 뒤엔 배포 전 필수.
 #
 # 종료코드: 하나라도 실패하면 1.
 set -uo pipefail
@@ -12,6 +18,7 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 SCOPE="${1:-all}"
 FAILED=()
+SKIPPED=()
 TOTAL=0
 
 # node --test 출력에서 'ℹ pass N' / 'ℹ fail N' 을 뽑아 집계한다.
@@ -37,6 +44,14 @@ run_suite() {
   fi
 }
 
+# 'all' 에는 절대 안 낀다 — 느리고(배리어당 12 PHP 프로세스 × 16 회) 사람이 명시적으로
+# 부를 때만 뜻이 있다. 'ℹ pass N'/'ℹ fail N' 형식이 아니라 run_suite 의 집계 대상이 아니고,
+# 자체 종료코드로 바로 끝낸다.
+if [ "$SCOPE" = "concurrency" ]; then
+  bash tests/wallet-concurrency.sh
+  exit $?
+fi
+
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "engine" ]; then
   run_suite "forge-core"  "$ROOT" node --test forge-core.test.js
   run_suite "forge-tools" "$ROOT" node --test forge-tools.test.js
@@ -44,6 +59,28 @@ fi
 
 if [ "$SCOPE" = "all" ]; then
   run_suite "landing"     "$ROOT" node --test landing.test.js
+fi
+
+if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "wallet" ]; then
+  if command -v php >/dev/null 2>&1; then
+    run_suite "wallet" "$ROOT" php tests/wallet.test.php
+  else
+    # 조용히 통과시키지 않는다 — 돈 로직을 검사하지 않았다는 사실이 보여야 한다.
+    printf '── %-22s 건너뜀 (php 없음 — 돈 로직 미검사)\n' "wallet"
+    SKIPPED+=("wallet")
+  fi
+fi
+
+# 디스패처(wallet-api.php)는 원장 스위트가 보지 않는다 — 인증·입력검증·op 분기는 전부 그 파일에
+# 있고, 그 파일은 이 하네스 말고는 저장소 어디에서도 로드되지 않는다. 빠르니 'all' 에 넣는다 —
+# 사람이 기억해야만 도는 관문은 관문이 아니다(concurrency 는 느려서 예외로 남는다).
+if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "dispatcher" ] || [ "$SCOPE" = "wallet" ]; then
+  if command -v php >/dev/null 2>&1 && command -v curl >/dev/null 2>&1; then
+    run_suite "wallet-dispatcher" "$ROOT" bash tests/wallet-dispatcher.sh
+  else
+    printf '── %-22s 건너뜀 (php/curl 없음 — 디스패처 미검사)\n' "wallet-dispatcher"
+    SKIPPED+=("wallet-dispatcher")
+  fi
 fi
 
 # 모바일은 엔진 원본(../../forge-core.js)을 직접 require 하므로 vendor 동기화 없이도 돌아간다.
@@ -57,6 +94,9 @@ if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "mobile" ] || [ "$SCOPE" = "engine" ]; t
 fi
 
 echo
+if [ ${#SKIPPED[@]} -ne 0 ]; then
+  echo "건너뜀: ${SKIPPED[*]} — 이 스위트는 검사되지 않았다"
+fi
 if [ ${#FAILED[@]} -eq 0 ]; then
   echo "전체 통과 — ${TOTAL}건"
   exit 0

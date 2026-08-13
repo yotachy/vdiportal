@@ -162,7 +162,15 @@
     tsRun: "Run ", tsCost: " Scoops", tsShort: "Not enough Scoops. Come back tomorrow for +1.",
     tsRunning: "Running…", tsFailed: "Analysis failed — your Scoops were returned.",
     tsFailedNoRefund: "Analysis failed. We could not confirm your Scoops were returned — please check your balance.",
-    tsSpendFailed: "Could not reach your wallet. Nothing was charged — please try again."
+    tsSpendFailed: "Could not reach your wallet. Nothing was charged — please try again.",
+    // network·server-error·busy — 응답을 못 받았을 뿐 서버는 처리했을 수 있다(I-H). "Nothing was
+    // charged" 라고 말하면 거짓일 수 있어 tsSpendFailed 와 문구를 가른다. 재시도는 안전하다 —
+    // 클라이언트가 같은 idem 을 재사용해 서버 멱등이 잡는다.
+    tsSpendFailedUnknown: "Could not confirm your wallet. If you were charged, retrying is safe — please try again.",
+
+    // 지갑을 읽을 수 없을 때(오프라인 등) — 잔량을 0 으로 그리면 거짓 정보다(SPEC §1).
+    walUnavailable: "Wallet unavailable — check your connection.",
+    tsUnavailable: "Wallet unavailable. Check your connection and try again."
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을
