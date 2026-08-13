@@ -493,7 +493,7 @@ function w_state($db, $acct) {
 - [ ] **Step 4: 테스트 통과 확인**
 
 Run: `cd /home/jschoi0223/projects/vdiportal/map && php tests/wallet.test.php`
-Expected: `ℹ pass 12` / `ℹ fail 0`
+Expected: `ℹ pass 13` / `ℹ fail 0`
 
 - [ ] **Step 5: 전량 관문 + 커밋**
 
