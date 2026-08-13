@@ -55,6 +55,18 @@ function w_field_str($d, $key, $default, $maxLen) {
   return $d[$key];
 }
 
+// 호출자가 보낸 idem 은 서버 자신의 키와 이름공간을 나눠 쓴다 — ledger.idem 이 전역 UNIQUE
+// 이고, 서버는 seed:<계정id> · checkin:<계정id>:<날짜> 를 자기 키로 쓴다. 둘 다 클라이언트가
+// device_id 만으로 오프라인 계산할 수 있는 값이다(w_account_id = sha1(deviceId) 앞 16자).
+// w_spend 는 그 충돌을 미리 걸러 bad-idem 으로 거절하지만 그건 spend 경로만이다 — 클라이언트가
+// idem="checkin:<계정id>:<오늘>" 로 spend 를 성공시키면 그 키가 원장에 박혀, 그날 checkin 은
+// UNIQUE 충돌로 영원히 500 을 낸다(state.canCheckin 은 계속 true 라 화면은 계속 시도한다).
+// 최종 리뷰에서 실측된 자해 경로다 — 자기 계정만 망가뜨리지만 돈 엔드포인트의 영구 500 이다.
+// 접두 하나로 이름공간을 갈라 클라이언트 입력이 서버 키에 닿지 않게 한다.
+// ⚠ 저장되는 키 형식이 바뀐다("c:" 접두) — 접두 이전에 기록된 idem 은 재시도해도 재생되지 않는다.
+define("W_IDEM_PREFIX", "c:");
+function w_caller_idem($idem) { return W_IDEM_PREFIX . $idem; }
+
 function w_ip_hash($dir) {
   $ip = isset($_SERVER["REMOTE_ADDR"]) ? $_SERVER["REMOTE_ADDR"] : "";
   if ($ip === "") return null;
@@ -92,11 +104,13 @@ $op = w_field_str($d, "op", null, 32);
 if ($op === null || $op === false) w_out(array("ok" => false, "reason" => "bad-request"), 400);
 
 // ping 은 사용자 데이터를 일절 노출하지 않는다 — 그래야 열어둬도 안전하다.
+// 런타임 패치 버전(PHP_VERSION · sqlite_version)도 내보내지 않는다 — 인증 없이 열려 있는
+// 엔드포인트라 "이 호스트는 PHP 8.x.y / SQLite 3.26.0" 을 아무나 수집해 간다. 배포 확인에
+// 필요한 건 스키마 버전 하나뿐이고(마이그레이션이 돌았는가), 나머지는 정찰용 정보일 뿐이다.
 if ($op === "ping") {
   try {
     $db = w_db($W_DIR);
-    w_out(array("ok" => true, "schema" => w_schema_version($db),
-                "php" => PHP_VERSION, "sqlite" => $db->query("select sqlite_version()")->fetchColumn()));
+    w_out(array("ok" => true, "schema" => w_schema_version($db)));
   } catch (Throwable $e) {
     w_out(array("ok" => false, "reason" => "storage"), 500);
   }
@@ -152,13 +166,17 @@ if ($op === "get") {
   if ($runType === false || $idem === false || $ref === false || $engineVersion === false) {
     w_out(array("ok" => false, "reason" => "bad-request"), 400);
   }
-  $r = w_spend($db, $acct["id"], $runType, $idem, $ref, $engineVersion);
+  // 빈 idem 은 여기서 막는다 — 접두를 붙이면 ""가 "c:" 라는 멀쩡한 키가 되어 w_spend 의
+  // 빈 문자열 가드를 그대로 통과한다(그러면 첫 호출자가 모두를 위해 "c:" 를 태운다).
+  if ($idem === "") w_out(array("ok" => false, "reason" => "bad-request"), 400);
+  $r = w_spend($db, $acct["id"], $runType, w_caller_idem($idem), $ref, $engineVersion);
   w_out(array("ok" => $r["ok"], "charged" => $r["charged"], "reason" => $r["reason"],
               "state" => w_state($db, w_get_account($db, $dev))));
 } elseif ($op === "refund") {
   $idem = w_field_str($d, "idem", "", W_STR_MAX);
-  if ($idem === false) w_out(array("ok" => false, "reason" => "bad-request"), 400);
-  $r = w_refund($db, $acct["id"], $idem);
+  if ($idem === false || $idem === "") w_out(array("ok" => false, "reason" => "bad-request"), 400);
+  // spend 와 같은 접두를 붙인다 — 안 붙이면 접두된 원본을 못 찾아 모든 환급이 not-found 다.
+  $r = w_refund($db, $acct["id"], w_caller_idem($idem));
   w_out(array("ok" => $r["ok"], "reason" => $r["reason"],
               "state" => w_state($db, w_get_account($db, $dev))));
 } elseif ($op === "checkin") {
