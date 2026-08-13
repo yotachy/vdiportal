@@ -305,7 +305,7 @@
     rec = { idem: idem, promise: null, data: null, an: null, runs: null };
     purchases[sym] = rec;   // spend 를 부르기 전에 등록한다 — 그 사이 들어온 두 번째 호출이 붙을 자리다
 
-    rec.promise = MSWallet.spend("full", idem).then(function (sp) {
+    rec.promise = MSWallet.spend("full", idem, sym).then(function (sp) {
       if (!sp.ok) return { kind: "spend-fail", reason: sp.reason };
       var tfs = ["1day", "1week", "1month"];
       return Promise.all(tfs.map(function (tf) {

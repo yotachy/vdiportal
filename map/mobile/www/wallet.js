@@ -10,6 +10,7 @@
   // 전부 시안에서 온 값이다 — full·custom 은 5a·4a, slot 은 2b("Add TSLA — Costs 1 Scoop"),
   // scan 은 2c 의 Spend 목록("Watchlist signal scan 2"). 8a 는 scan 을 "값이 없다"고 잘못 읽어
   // 무료로 뒀다가 2026-08-12 사용자 결정으로 시안 값으로 돌렸다.
+  // 금액은 서버가 정본이고 이 표는 시트의 미리보기 표시용이다.
   var COSTS = { full: 3, custom: 5, slot: 1, scan: 2 };
   var backend = null;
 
@@ -42,14 +43,16 @@
 
   function get() { return backend ? callBackend(function () { return backend.get(); }) : noBackend(); }
 
-  // 계약: spend(runType, idem) → { ok, state, reason? }
+  // 계약: spend(runType, idem, ref?) → { ok, state, reason? }
   // idem 은 필수다. 비어 있으면 원장이 "키 없음"끼리 같은 항목으로 보고 두 번째부터 멱등 재생으로
   // 답한다 — MSWallet.spend("full") 한 번이면 그 뒤 모든 Full 이 공짜가 된다. 돈 코드라 진입부에서 막는다.
-  function spend(runType, idem) {
+  // ref 는 옵션(종목 심볼 등) — 8b 는 24시간 종목 권리 판정을 서버에서 한다. 안 주면 null 로
+  // 넘긴다: undefined 를 그대로 보내면 JSON.stringify 가 그 키 자체를 지워 백엔드마다 다르게 해석한다.
+  function spend(runType, idem, ref) {
     if (typeof idem !== "string" || idem === "") return Promise.resolve({ ok: false, reason: "bad-idem", state: null });
     if (!backend) return noBackend();
     if (costOf(runType) == null) return Promise.resolve({ ok: false, reason: "unknown-runtype", state: null });
-    return callBackend(function () { return backend.spend(runType, idem); });
+    return callBackend(function () { return backend.spend(runType, idem, ref || null); });
   }
   function refund(idem) { return backend ? callBackend(function () { return backend.refund(idem); }) : noBackend(); }
 
