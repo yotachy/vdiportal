@@ -49,6 +49,33 @@ test("index.html — wallet.js → wallet-http.js → app.js 순서", () => {
     "app.js 부팅 시 typeof MSWalletHttp 를 확인한다 — 먼저 로드되지 않으면 undefined 라 설치가 조용히 스킵된다");
 });
 
+// C1: app.js 가 상대경로 "wallet-api.php" 로 설치하면 capacitor.config.json 의
+// androidScheme:"https" 때문에 앱은 https://localhost/ 에서 서빙되고, 그 상대경로는 번들에
+// 없는 파일을 가리켜 get/spend/refund/checkin 전부가 조용히 404 로 죽는다 — 리뷰 라운드 1의
+// Critical 이었는데, 어댑터 자체는 opts.url 을 그대로 받아 쓸 뿐이라 wallet-http.test.mjs 의
+// 다른 테스트는 이 값을 전혀 안 본다(759건 전부 통과한 채로 이 버그가 살아 있었다). 설치
+// 지점(app.js)을 직접 읽어 절대 URL 인지, api.js 와 같은 오리진/디렉터리인지 확인한다 —
+// 기대값을 리터럴로 두 번 쓰지 않고 api.js 의 API_BASE 에서 유도한다: 둘이 갈리면(예: 한쪽만
+// 도메인을 옮기는 배포 실수) 이 테스트가 그 사실 자체를 말해야 한다.
+test("app.js — 지갑 설치 URL이 절대경로이고 api.js 와 같은 오리진·디렉터리다", () => {
+  const APP = readFileSync(join(__dirname, "../www/app.js"), "utf8");
+  const API = readFileSync(join(__dirname, "../www/api.js"), "utf8");
+
+  const appMatch = APP.match(/MSWalletHttp\.create\(\{\s*url:\s*"([^"]+)"/);
+  assert.ok(appMatch, "app.js 에서 MSWalletHttp.create({ url: \"...\" }) 를 못 찾았다");
+  const walletUrl = appMatch[1];
+  assert.match(walletUrl, /^https:\/\//,
+    "상대경로다 — androidScheme:\"https\" 앱에서 https://localhost/... 로 풀려 번들에 없는 파일을 가리킨다(C1)");
+
+  const apiMatch = API.match(/API_BASE\s*=\s*"([^"]+)"/);
+  assert.ok(apiMatch, "api.js 에서 API_BASE 를 못 찾았다 — 기대값을 유도할 기준이 없다");
+  const apiDir = apiMatch[1].replace(/[^/]+$/, "");   // ".../map/forge-api.php" → ".../map/"
+  assert.strictEqual(walletUrl.indexOf(apiDir), 0,
+    "지갑 URL 의 오리진·디렉터리가 api.js 와 다르다: " + walletUrl + " vs " + apiDir);
+  assert.strictEqual(walletUrl, apiDir + "wallet-api.php",
+    "같은 디렉터리의 wallet-api.php 를 가리켜야 한다");
+});
+
 test("첫 호출에서 hello 로 토큰을 받아 저장한다", async () => {
   const store = fakeStore();
   const f = fakeFetch([{ status: 200, json: { ok: true, token: "T1", state: ST } },
@@ -253,6 +280,40 @@ test("bad-device 자가치유도 재발급 재시도는 한 번뿐이다 — 무
   const r = await b.get();
   assert.strictEqual(r.ok, false);
   assert.strictEqual(f.calls.length, 2, "bad-device 재시도가 한 번을 넘었다");
+});
+
+// I-E ③: deviceId() 는 hello() 안에서만 불린다 — "짧으면 새로 만든다"는 이미 확인했지만,
+// "저장된 값이 이미 유효한데도 매번 새로 만들면 안 된다"는 별도 성질이다(M12, 리뷰 지적).
+// hello() 는 재발급마다 다시 불리므로(401 재인증·토큰 만료 후 재조회 등), deviceId() 가
+// 호출마다 무조건 새 id 를 만들어 저장해 버리면 재발급 때마다 서버에 새 계정이 생기고
+// 이전 계정의 잔량은 조용히 버려진다. 두 번째 hello 왕복을 실제로 일으켜(토큰을 비워 매
+// get() 이 hello 를 타게 함) 두 번 다 같은 deviceId 가 나가는지 바이트 단위로 확인한다.
+test("deviceId 는 두 번째 hello 왕복에서도 저장된 값을 그대로 재사용한다 — 매번 새로 안 만든다", async () => {
+  const store = fakeStore();   // 첫 부팅 — deviceId·token 둘 다 없음
+  const f = fakeFetch([
+    { status: 200, json: { ok: true, token: "T1", state: ST } },   // 1차 hello
+    { status: 200, json: { ok: true, state: ST } },                // 1차 get
+    { status: 200, json: { ok: true, token: "T2", state: ST } },   // 2차 hello(토큰을 비워 강제)
+    { status: 200, json: { ok: true, state: ST } }                 // 2차 get
+  ]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+
+  const r1 = await b.get();
+  assert.strictEqual(r1.ok, true);
+  const helloCallsAfter1 = f.calls.filter(c => c.op === "hello");
+  assert.strictEqual(helloCallsAfter1.length, 1);
+  const dev1 = helloCallsAfter1[0].body.deviceId;
+
+  store.write0("ms_wallet_token", null);   // 토큰 만료 시뮬레이션 — 다음 get() 이 hello 를 다시 탄다
+  const r2 = await b.get();
+  assert.strictEqual(r2.ok, true);
+  const helloCallsAfter2 = f.calls.filter(c => c.op === "hello");
+  assert.strictEqual(helloCallsAfter2.length, 2, "두 번째 hello 왕복이 실제로 안 일어났다 — 테스트 전제가 깨졌다");
+  const dev2 = helloCallsAfter2[1].body.deviceId;
+
+  assert.strictEqual(dev2, dev1,
+    "두 번째 hello 가 다른 deviceId 를 보냈다 — 재발급마다 서버에 새 계정이 생기고 이전 잔량이 버려진다(M12)");
+  assert.strictEqual(store.read0("ms_device_id", null), dev1, "저장된 deviceId 도 바뀌었다");
 });
 
 test("spend 가 ref 와 idem 을 실어 보낸다", async () => {
