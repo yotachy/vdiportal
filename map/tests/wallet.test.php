@@ -142,10 +142,11 @@ t("balance 캐시가 위로 어긋나면 원장 기준으로 고친다 — 캐�
   $truth = w_true_balance($db, $a["id"]);
   eq($st["balance"], $truth, "원장 기준으로 안 고쳤다");
   $row = $db->query("select balance from accounts where id='" . $a["id"] . "'")->fetch();
-  // 여기서 원장 합계(w_true_balance)와 직접 대조한다 — SELECT 로 읽은 값을 그대로
-  // 하드코딩해 비교하면, w_state 가 SELECT-then-UPDATE 두 문장으로 되돌아가
-  // 그 사이 원장이 바뀌어도 이 테스트는 못 잡는다. 한 문장 UPDATE(서브쿼리)만
-  // 이 시점의 원장과 캐시행을 정확히 일치시킨다.
+  // 이 케이스가 잡는 것: 위로 어긋난 캐시가 w_state 호출 한 번으로 원장 합계까지
+  // 고쳐지고, 그 값이 디스크(캐시행)에도 남는다는 것. 단일 프로세스라 SELECT 와
+  // UPDATE 사이에 원장이 바뀌는 상황을 만들 수 없으므로, 두 문장(SELECT 후 UPDATE)
+  // 형태와 한 문장(서브쿼리) 형태를 이 어서션은 구분하지 못한다 — 그 원자성은
+  // 아래 "한 문장이어야 한다" 소스 검사가 별도로 지킨다.
   eq((int)$row["balance"], $truth, "캐시가 디스크에서도 원장과 안 맞았다");
   $db = null; rmrf($d);
 });
@@ -161,6 +162,24 @@ t("balance 캐시가 아래로 어긋나도 원장 기준으로 고친다", func
   $row = $db->query("select balance from accounts where id='" . $a["id"] . "'")->fetch();
   eq((int)$row["balance"], $truth, "캐시행이 디스크에서 원장과 안 맞았다");
   $db = null; rmrf($d);
+});
+
+t("w_state 의 캐시 수리는 한 문장이어야 한다 — 행동으로는 관찰할 수 없다", function () {
+  // 두 문장(SELECT 후 UPDATE)과 한 문장(서브쿼리)은 그 사이에 다른 트랜잭션이 끼어들 때만
+  // 갈린다. 단일 프로세스 하네스에는 끼어들 지점이 없어 어떤 어서션으로도 구분되지 않는다
+  // — 실제로 두 문장으로 되돌려도 전 테스트가 통과한다. 그래서 소스 모양으로 지킨다.
+  $src = file_get_contents(__DIR__ . "/../wallet-lib.php");
+  $src = preg_replace('/\/\*.*?\*\//s', "", $src);
+  $src = preg_replace('/^\s*\/\/.*$/m', "", $src);
+  $i = strpos($src, "function w_state");
+  ok($i !== false, "w_state 를 못 찾았다");
+  $body = substr($src, $i);
+  $end = strpos($body, "\n}");
+  if ($end !== false) $body = substr($body, 0, $end);
+  ok(preg_match('/update\s+accounts\s+set\s+balance\s*=\s*\(\s*select/i', $body) === 1,
+     "w_state 의 캐시 수리가 서브쿼리 한 문장이 아니다 — 읽기와 쓰기가 갈라지면 그 사이 원장 변경이 캐시에 낡은 값을 새긴다");
+  ok(preg_match('/set\s+balance\s*=\s*\?/i', $body) !== 1,
+     "w_state 가 미리 읽은 값을 그대로 쓰고 있다(set balance = ?) — 두 문장 형태로 되돌아갔다");
 });
 
 t("state 는 클라이언트 계약대로 네 칸을 준다", function () {
