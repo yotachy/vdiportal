@@ -10,6 +10,7 @@
   var listPane = null, reportPane = null;
   var shellEl = null;             // 2단일 때 grid 컨테이너 — resize 시 gridTemplateColumns 만 갱신
   var shellResizeBound = false;   // 리스너를 한 번만 등록(모드 전환마다 다시 붙이지 않는다)
+  var modeBound = false;          // matchMedia 도 같은 이유 — boot() 가 두 번 불려도 한 번만 붙는다
 
   function inWatchlist(sym) {
     if (!sym) return false;
@@ -116,7 +117,18 @@
     // 가리켜 전부 404 로 죽는다(api.js 의 API_BASE 와 같은 이유로 절대 URL — forge-api.php
     // 는 CORS 를 이미 열어 뒀지만 wallet-api.php 는 Authorization 헤더까지 얹는 요청이라
     // 별도로 Access-Control-Allow-Headers 에 Authorization 을 더해야 한다, wallet-api.php 참고).
-    if (typeof MSWalletHttp !== "undefined" && !MSWallet.isInstalled()) {
+    //
+    // 개발 스킴에서는 설치하지 않는다. 이 줄은 어느 페이지 로드에서든 무조건 돌았고, www/ 에서
+    // python3 -m http.server 를 띄워 화면을 한 번 열어본 것만으로 운영 서버에 진짜 계정이
+    // 만들어졌다(온보딩 3단계가 지갑을 부르므로 첫 로드가 곧 계정 생성이다).
+    // 판정을 **개발 스킴 거부 목록**으로 쓴다 — "https 일 때만 설치"라는 허용 목록이 아니다.
+    // 안드로이드는 capacitor.config.json 의 androidScheme:"https" 로 https://localhost/ 에서
+    // 서빙되지만 iOS 타깃을 더하면 capacitor:// 가 된다. 허용 목록은 그날 지갑을 조용히 꺼뜨리고
+    // (증상은 "지급이 안 된다"뿐이라 원인까지 가기 멀다), 거부 목록은 새 스킴을 그냥 통과시킨다.
+    // 걸려도 죽지 않는다 — 백엔드 없는 MSWallet.get() 은 {ok:false, reason:"no-backend"} 를
+    // 돌려주고(wallet.js), 온보딩 3단계는 그것을 오프라인 안내 + 재시도로 이미 그린다.
+    var devHost = (location.protocol === "http:" || location.protocol === "file:");
+    if (!devHost && typeof MSWalletHttp !== "undefined" && !MSWallet.isInstalled()) {
       MSWallet.install(MSWalletHttp.create({ url: "https://parksvc.mycafe24.com/map/wallet-api.php" }));
     }
 
@@ -140,10 +152,16 @@
     // 따라온다 — 그래야 곧바로 접었을 때(단일 전환) 방금 보던 리포트가 유지된다.
 
     var mq = window.matchMedia(MSLayout.MODE_QUERY);
-    dual = mq.matches;
+    dual = mq.matches;              // 폭 판정 자체는 매 부팅마다 다시 읽는다
     function onMode(e) { dual = e.matches; renderShell(); }
-    if (mq.addEventListener) mq.addEventListener("change", onMode);
-    else mq.addListener(onMode);   // 구형 WebView 폴백
+    // 리스너는 한 번만. 지금 boot() 를 두 번 부르는 경로는 온보딩의 finished 래치가 막고
+    // 있을 뿐인데, 그 래치는 다른 이유로 존재한다 — 여기가 스스로 막지 않으면 남의 가드에
+    // 목숨을 맡기는 셈이다(바로 아래 shellResizeBound 와 같은 값싼 보험).
+    if (!modeBound) {
+      if (mq.addEventListener) mq.addEventListener("change", onMode);
+      else mq.addListener(onMode);   // 구형 WebView 폴백
+      modeBound = true;
+    }
 
     if (!shellResizeBound) { window.addEventListener("resize", onShellResize); shellResizeBound = true; }
 
