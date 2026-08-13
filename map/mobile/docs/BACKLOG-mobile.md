@@ -370,6 +370,9 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
     무작위성은 강제할 수 없다 — `crypto.getRandomValues` 등으로 뽑은 32바이트 이상을 hex/base64 인코딩해서
     쓸 것. 카운터·타임스탬프·기기모델명 조합처럼 문자 수만 32를 채우고 실제 추측공간이 좁은 값은 서버
     하한을 통과해도 그대로 뚫린다. (2026-08-13, wallet-api.php 리뷰 라운드 1 I4)
+  - **`wallet-lib.php` 나 `wallet-api.php` 를 고친 뒤에는 배포 전에 `./tests/run.sh concurrency`
+    를 돌릴 것** — 세 경합(비밀키 생성·IP 상한·mkdir)은 단일 프로세스 테스트에 안 잡히고,
+    실제로 세 라운드에 걸쳐 그렇게 새어나왔다.
 - **8c 구글 로그인 + 익명 계정 병합** — `device_id` 계정을 구글 계정에 합칠 때 높은 잔량·긴 스트릭을 취하고
   병합 원장 줄을 남긴다(`SPEC §4`). 재설치로 5개를 다시 받는 구멍도 여기서 막힌다.
 - **8d AdMob SSV** — 광고 유닛 2종(Quick 15초 +1 · Full 30초 +3) · 서명 검증 · `transaction_id` 중복 제거.
