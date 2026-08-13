@@ -410,6 +410,124 @@ t("w_spend 은 begin immediate 로 열어야 한다 — 동시성 보장은 행�
      "w_spend 가 beginTransaction() 을 쓴다 — SQLite 기본 DEFERRED 트랜잭션은 쓰기 락을 먼저 안 잡는다");
 });
 
+// ── Task 4: refund · checkin — 스트릭 · 상한 · capped ──────────────────────
+
+t("refund 가 되돌리고 두 번 불러도 한 번만 돌려준다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);
+  eq(w_true_balance($db, $a["id"]), 2, "차감 전제");
+  eq(w_refund($db, $a["id"], "k1")["ok"], true, "첫 환급");
+  eq(w_true_balance($db, $a["id"]), 5, "환급 후 잔량");
+  $r2 = w_refund($db, $a["id"], "k1");
+  eq($r2["ok"], false, "두 번째가 성공했다");
+  eq($r2["reason"], "already-refunded", "reason");
+  eq(w_true_balance($db, $a["id"]), 5, "두 번 환급됐다");
+  $db = null; rmrf($d);
+});
+
+t("환급은 지갑 상한을 넘겨도 깎지 않는다 — 가져간 것을 돌려주는 것이다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,?,'seed',NULL,'topup',?)")
+     ->execute(array($a["id"], W_CAP - W_SEED, w_now()));   // 상한까지 채운다
+  eq(w_true_balance($db, $a["id"]), W_CAP, "상한 전제");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);
+  eq(w_refund($db, $a["id"], "k1")["ok"], true, "환급");
+  eq(w_true_balance($db, $a["id"]), W_CAP, "환급이 상한으로 깎였다 — 훔친 셈이다");
+  $db = null; rmrf($d);
+});
+
+t("없는 idem 과 delta 0 행은 환급 대상이 아니다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  eq(w_refund($db, $a["id"], "nope")["reason"], "not-found", "없는 키");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);
+  w_spend($db, $a["id"], "full", "k2", "AAPL", null);   // charged:false, delta 0
+  eq(w_refund($db, $a["id"], "k2")["reason"], "nothing-to-refund", "delta 0 을 환급했다");
+  $db = null; rmrf($d);
+});
+
+t("환급은 계정 범위다 — 다른 계정 idem 을 환급할 수 없다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $a = mkacct($db, "dev-a"); $b = mkacct($db, "dev-b");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);   // a: 5 → 2
+  $r = w_refund($db, $b["id"], "k1");
+  eq($r["ok"], false, "ok");
+  eq($r["reason"], "not-found", "reason");
+  eq(w_true_balance($db, $b["id"]), 5, "b 잔량이 움직였다");
+  eq(w_true_balance($db, $a["id"]), 2, "a 잔량이 환급 없이 움직였다");
+  $db = null; rmrf($d);
+});
+
+t("환급이 권리도 함께 지운다 — 환급받고 계속 공짜로 보면 안 된다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);
+  ok(w_active_run($db, $a["id"], "AAPL", "full") !== null, "권리가 안 생겼다");
+  w_refund($db, $a["id"], "k1");
+  ok(w_active_run($db, $a["id"], "AAPL", "full") === null, "환급했는데 권리가 남았다");
+  $db = null; rmrf($d);
+});
+
+t("출석은 하루 한 번이고 스트릭이 오른다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $r = w_checkin($db, $a, null);
+  eq($r["ok"], true, "첫 출석");
+  eq($r["granted"], 1, "지급");
+  eq(w_true_balance($db, $a["id"]), 6, "잔량");
+  $a2 = w_get_account($db, "dev-1");
+  eq((int)$a2["streak_days"], 1, "스트릭");
+  eq(w_state($db, $a2)["canCheckin"], false, "같은 날 또 가능하다고 나온다");
+  $r2 = w_checkin($db, $a2, null);
+  eq($r2["ok"], false, "같은 날 두 번 됐다");
+  eq($r2["reason"], "already", "reason");
+  eq(w_true_balance($db, $a["id"]), 6, "두 번 지급됐다");
+  $db = null; rmrf($d);
+});
+
+t("7일 연속이면 상자 +5 가 함께 나온다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $day = "2026-03-01";
+  $last = null;
+  for ($i = 0; $i < 7; $i++) {
+    $acct = w_get_account($db, "dev-1");
+    $last = w_checkin($db, $acct, w_day_add($day, $i));
+  }
+  eq($last["granted"], W_CHECKIN + W_CHEST, "7일차 지급이 상자를 안 포함한다");
+  eq((int)w_get_account($db, "dev-1")["streak_days"], 7, "스트릭");
+  $db = null; rmrf($d);
+});
+
+t("하루 끊기면 스트릭이 1로 돌아간다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  w_checkin($db, w_get_account($db, "dev-1"), "2026-03-01");
+  w_checkin($db, w_get_account($db, "dev-1"), "2026-03-02");
+  eq((int)w_get_account($db, "dev-1")["streak_days"], 2, "이틀차");
+  w_checkin($db, w_get_account($db, "dev-1"), "2026-03-04");   // 03-03 을 건너뜀
+  eq((int)w_get_account($db, "dev-1")["streak_days"], 1, "끊겼는데 이어졌다");
+  $db = null; rmrf($d);
+});
+
+t("상한 초과분은 버려지고 capped 가 뜬다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,?,'seed',NULL,'topup',?)")
+     ->execute(array($a["id"], W_CAP - W_SEED, w_now()));
+  $r = w_checkin($db, w_get_account($db, "dev-1"), null);
+  eq($r["ok"], true, "ok");
+  eq($r["granted"], 0, "상한인데 지급됐다");
+  eq($r["capped"], true, "capped 가 안 떴다 — 화면 안내가 조용히 사라진다");
+  eq(w_true_balance($db, $a["id"]), W_CAP, "상한을 넘었다");
+  $db = null; rmrf($d);
+});
+
+t("상한에 걸려도 출석일은 소비된다 — 하루가 지나가야 다시 가능하다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,?,'seed',NULL,'topup',?)")
+     ->execute(array($a["id"], W_CAP - W_SEED, w_now()));
+  w_checkin($db, w_get_account($db, "dev-1"), null);
+  eq(w_get_account($db, "dev-1")["last_checkin"], w_today(), "capped 인데 출석일이 안 남았다");
+  $r2 = w_checkin($db, w_get_account($db, "dev-1"), null);
+  eq($r2["reason"], "already", "capped 였는데 같은 날 또 됐다");
+  $db = null; rmrf($d);
+});
+
 foreach ($MSGS as $m) { echo $m, "\n"; }
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";

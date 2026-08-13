@@ -291,3 +291,88 @@ function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
     throw $e;
   }
 }
+
+// 환급 자체가 멱등이다 — 보상 행의 키를 "<원래 idem>:refund" 로 둔다.
+// 상한으로 깎지 않는다: 가져간 것을 돌려주는 것이라 깎으면 훔치는 셈이 된다.
+// reason ∈ not-found|already-refunded|nothing-to-refund
+function w_refund($db, $acctId, $idem) {
+  $db->exec("begin immediate");
+  try {
+    // 계정 범위 조회다 — w_spend 의 idem 재생 구멍과 같은 이유로, 다른 계정의
+    // idem 을 넘기면 조회가 애초에 비어 not-found 로 떨어진다(리뷰에서 실측된 패턴).
+    $orig = w_ledger_by_idem($db, $idem, $acctId);
+    if (!$orig) {
+      $db->exec("rollback");
+      return array("ok" => false, "reason" => "not-found");
+    }
+    if ((int)$orig["delta"] === 0) {
+      $db->exec("rollback");
+      return array("ok" => false, "reason" => "nothing-to-refund");
+    }
+    $rk = $idem . ":refund";
+    if (w_ledger_by_idem($db, $rk, $acctId)) {
+      $db->exec("rollback");
+      return array("ok" => false, "reason" => "already-refunded");
+    }
+    $back = -((int)$orig["delta"]);
+    $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
+                        values (?, ?, 'refund', ?, ?, ?)");
+    $st->execute(array($acctId, $back, $orig["ref"], $rk, w_now()));
+    // 권리도 되돌린다 — 환급했는데 권리가 남으면 공짜로 계속 본다. created_at 은
+    // "=" 로 정확히 맞춘다(원래 spend 와 그때 생긴 runs 행이 같은 $now 문자열을
+    // 공유한다) — ">=" 면 같은 종목을 나중에 다시 정당하게 결제해 만든 최신 권리까지
+    // 같이 지워버린다.
+    $db->prepare("delete from runs where account_id = ? and symbol = ? and created_at = ?")
+       ->execute(array($acctId, $orig["ref"], $orig["created_at"]));
+    $db->prepare("update accounts set balance = ? where id = ?")
+       ->execute(array(w_true_balance($db, $acctId), $acctId));
+    $db->exec("commit");
+    return array("ok" => true, "reason" => null);
+  } catch (Throwable $e) {
+    try { $db->exec("rollback"); } catch (Throwable $e2) {}
+    throw $e;
+  }
+}
+
+// 서버 UTC 기준이다. $today 는 테스트에서만 넘긴다 — 프로덕션은 null 을 넘겨 서버 시간을 쓴다.
+// 기기 시계를 바꿔서 얻는 것이 없어야 한다(SPEC-economy §3).
+// reason ∈ already
+function w_checkin($db, $acct, $today) {
+  $day = ($today === null) ? w_today() : $today;
+  $acctId = $acct["id"];
+  $db->exec("begin immediate");
+  try {
+    $cur = $db->prepare("select * from accounts where id = ?");
+    $cur->execute(array($acctId));
+    $a = $cur->fetch();
+    if ($a["last_checkin"] === $day) {
+      $db->exec("rollback");
+      return array("ok" => false, "granted" => 0, "capped" => false, "reason" => "already");
+    }
+    $streak = ($a["last_checkin"] !== null && $a["last_checkin"] === w_day_add($day, -1))
+      ? ((int)$a["streak_days"] + 1) : 1;
+    $want = W_CHECKIN + (($streak % W_CHEST_EVERY === 0) ? W_CHEST : 0);
+
+    $bal = w_true_balance($db, $acctId);
+    $room = W_CAP - $bal;
+    if ($room < 0) $room = 0;
+    $give = ($want > $room) ? $room : $want;
+    $capped = ($give < $want);
+
+    if ($give > 0) {
+      $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
+                          values (?, ?, ?, NULL, ?, ?)");
+      $st->execute(array($acctId, $give, ($want > W_CHECKIN ? "chest" : "checkin"),
+                         "checkin:" . $acctId . ":" . $day, w_now()));
+    }
+    // capped 여도 출석일은 소비한다 — 지갑이 찼을 뿐 출석은 했다. 소비 안 하면
+    // 기기 시계를 안 바꿔도 같은 날 재시도로 상한 해소를 노려볼 여지가 생긴다.
+    $db->prepare("update accounts set balance = ?, streak_days = ?, last_checkin = ? where id = ?")
+       ->execute(array($bal + $give, $streak, $day, $acctId));
+    $db->exec("commit");
+    return array("ok" => true, "granted" => $give, "capped" => $capped, "reason" => null);
+  } catch (Throwable $e) {
+    try { $db->exec("rollback"); } catch (Throwable $e2) {}
+    throw $e;
+  }
+}
