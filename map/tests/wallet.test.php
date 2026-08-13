@@ -309,6 +309,107 @@ t("잔량은 음수가 되지 않는다 — 연속 spend", function () {
   $db = null; rmrf($d);
 });
 
+// ── 리뷰 1라운드: C1+C2(멱등 재생이 계정·등급·대상을 안 봤다) + I1·I4·I5 ──────────
+
+t("다른 계정의 idem 을 재생할 수 없다 — 계정 범위여야 한다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $a = mkacct($db, "dev-a"); $b = mkacct($db, "dev-b");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);
+  $r = w_spend($db, $b["id"], "full", "k1", "AAPL", null);
+  eq($r["ok"], false, "ok");
+  eq($r["reason"], "bad-idem", "reason");
+  eq(w_true_balance($db, $b["id"]), 5, "다른 계정 잔량이 움직였다");
+  // account_id='b' 전체가 아니라 idem='k1' 로 좁힌다 — 계정 생성 자체가 seed 원장 행을
+  // 남기므로 전체 카운트는 항상 1 이상이다. 이 검사가 잡으려는 건 k1 재사용이 b 에
+  // 새 행을 만들었는가이다.
+  $n = $db->query("select count(*) c from ledger where account_id='" . $b["id"] . "' and idem='k1'")->fetch();
+  eq((int)$n["c"], 0, "다른 계정에 k1 원장 행이 생겼다");
+  $db = null; rmrf($d);
+});
+
+t("같은 idem 이라도 runType 이 다르면 재생이 아니라 거절이다 — 싼 등급 값으로 비싼 등급을 못 받는다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);      // 5 → 2
+  $r = w_spend($db, $a["id"], "custom", "k1", "NVDA", null);
+  eq($r["ok"], false, "ok");
+  eq($r["reason"], "bad-idem", "reason");
+  eq(w_true_balance($db, $a["id"]), 2, "잔량이 또 움직였다");
+  ok(w_active_run($db, $a["id"], "NVDA", "custom") === null, "거절됐는데 권리가 생겼다");
+  $db = null; rmrf($d);
+});
+
+t("같은 idem 이라도 ref 가 다르면 재생이 아니라 거절이다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  w_spend($db, $a["id"], "full", "k1", "AAPL", null);      // 5 → 2
+  $r = w_spend($db, $a["id"], "full", "k1", "NVDA", null);
+  eq($r["ok"], false, "ok");
+  eq($r["reason"], "bad-idem", "reason");
+  eq(w_true_balance($db, $a["id"]), 2, "잔량이 또 움직였다");
+  $db = null; rmrf($d);
+});
+
+t("시드 idem(seed:<계정id>) 재사용으로 무한 결제를 받을 수 없다 — 실제 익스플로잇", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $seedIdem = "seed:" . $a["id"];   // 클라이언트가 스스로 고른 device_id 에서 오프라인으로 계산 가능
+  $r = w_spend($db, $a["id"], "custom", $seedIdem, "AAPL", null);
+  eq($r["ok"], false, "ok");
+  eq($r["reason"], "bad-idem", "reason");
+  eq(w_true_balance($db, $a["id"]), 5, "시드 idem 재생으로 잔량이 움직였다");
+  ok(w_active_run($db, $a["id"], "AAPL", "custom") === null, "시드 idem 재생으로 권리가 생겼다");
+  $db = null; rmrf($d);
+});
+
+t("scan 은 ref 가 있어도 권리를 만들지 않는다 — 등급 자체가 권리가 없다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $r = w_spend($db, $a["id"], "scan", "k1", "AAPL", null);
+  eq($r["charged"], true, "charged");
+  $n = $db->query("select count(*) c from runs")->fetch();
+  eq((int)$n["c"], 0, "scan 이 ref 를 받았다고 권리를 만들었다");
+  $db = null; rmrf($d);
+});
+
+t("slot 은 ref 가 있어도 권리를 만들지 않는다 — 등급 자체가 권리가 없다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $r = w_spend($db, $a["id"], "slot", "k1", "AAPL", null);
+  eq($r["charged"], true, "charged");
+  $n = $db->query("select count(*) c from runs")->fetch();
+  eq((int)$n["c"], 0, "slot 이 ref 를 받았다고 권리를 만들었다");
+  $db = null; rmrf($d);
+});
+
+t("full·custom 은 ref 가 없으면 과금하지 않고 거절한다 — bad-ref", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $r1 = w_spend($db, $a["id"], "full", "k1", null, null);
+  eq($r1["ok"], false, "ok(null ref)");
+  eq($r1["reason"], "bad-ref", "reason(null ref)");
+  $r2 = w_spend($db, $a["id"], "custom", "k2", "", null);
+  eq($r2["ok"], false, "ok(빈 ref)");
+  eq($r2["reason"], "bad-ref", "reason(빈 ref)");
+  eq(w_true_balance($db, $a["id"]), 5, "거절인데 잔량이 움직였다");
+  $db = null; rmrf($d);
+});
+
+// I1: BEGIN IMMEDIATE 를 평범한 BEGIN 으로 되돌려도 25개짜리 스위트는 여전히 초록이다
+// (w_state 캐시 수리 때와 같은 모양의 구멍) — 그래서 행동이 아니라 소스 모양으로 지킨다.
+t("w_spend 은 begin immediate 로 열어야 한다 — 동시성 보장은 행동으로 관찰되지 않는다", function () {
+  $src = file_get_contents(__DIR__ . "/../wallet-lib.php");
+  $src = preg_replace('/\/\*.*?\*\//s', "", $src);
+  $src = preg_replace('/^\s*\/\/.*$/m', "", $src);
+  $i = strpos($src, "function w_spend");
+  ok($i !== false, "w_spend 를 못 찾았다");
+  $body = substr($src, $i);
+  // w_spend 안에 중첩 { } 가 많아 첫 "\n}"(들여쓰기 없는 줄)로는 못 자른다 — 다음
+  // 최상위 함수 선언 앞까지를 본문으로 본다. w_spend 는 파일의 마지막 함수라 안전하다.
+  $end = strpos($body, "\nfunction ");
+  if ($end !== false) $body = substr($body, 0, $end);
+  ok(strpos($body, "begin immediate") !== false,
+     "w_spend 가 begin immediate 를 쓰지 않는다 — 두 요청이 같은 잔량을 읽고 각자 차감할 수 있다");
+  ok(preg_match('/exec\s*\(\s*["\']begin(?!\s*immediate)/i', $body) !== 1,
+     "w_spend 안에 immediate 없는 맨 begin 이 있다");
+  ok(strpos($body, "beginTransaction(") === false,
+     "w_spend 가 beginTransaction() 을 쓴다 — SQLite 기본 DEFERRED 트랜잭션은 쓰기 락을 먼저 안 잡는다");
+});
+
 foreach ($MSGS as $m) { echo $m, "\n"; }
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";

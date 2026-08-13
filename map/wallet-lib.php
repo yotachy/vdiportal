@@ -73,6 +73,14 @@ function w_migrate($db) {
     $db->exec("delete from schema_version");
     $db->exec("insert into schema_version (v) values (1)");
   }
+  if ($v < 2) {
+    // 멱등 재생이 계정·등급·대상까지 맞는지 보려면 등급을 남겨야 한다.
+    // reason 에 끼워 넣지 않는 이유: reason 은 사람이 읽는 사유이고, 재생 판정의 키가 되면
+    // 문구를 못 고친다. ADD COLUMN 은 3.26 에서도 된다(DROP COLUMN 만 3.35+).
+    $db->exec("alter table ledger add column run_type TEXT");
+    $db->exec("delete from schema_version");
+    $db->exec("insert into schema_version (v) values (2)");
+  }
 }
 
 function w_account_id($deviceId) { return substr(sha1($deviceId), 0, 16); }
@@ -152,7 +160,19 @@ function w_active_run($db, $acctId, $symbol, $tier) {
   return $r ? $r : null;
 }
 
-function w_ledger_by_idem($db, $idem) {
+// idem 재생은 계정 소유다 — account_id 없이 idem 만으로 찾으면 계정 B 가 계정 A 의
+// 원장 행을 읽고 "이미 냈다"는 재생 결과를 그대로 받아 간다(리뷰에서 실측된 구멍).
+function w_ledger_by_idem($db, $idem, $acctId) {
+  $st = $db->prepare("select * from ledger where idem = ? and account_id = ?");
+  $st->execute(array($idem, $acctId));
+  $r = $st->fetch();
+  return $r ? $r : null;
+}
+
+// 계정 범위 조회가 비어도 다른 계정이 같은 idem 을 이미 썼을 수 있다(idem 은 전역 UNIQUE).
+// 그 상태로 유료 경로 insert 를 밀어붙이면 UNIQUE 제약이 예외를 던진다 — 여기서 먼저 걸러
+// bad-idem 으로 조용히 거절한다.
+function w_ledger_by_idem_any($db, $idem) {
   $st = $db->prepare("select * from ledger where idem = ?");
   $st->execute(array($idem));
   $r = $st->fetch();
@@ -160,32 +180,56 @@ function w_ledger_by_idem($db, $idem) {
 }
 
 // 차감과 권리 부여는 한 트랜잭션이다. BEGIN IMMEDIATE 로 쓰기 락을 먼저 잡아야
-// 동시 요청 둘이 같은 잔량을 읽고 각자 차감하는 일이 없다.
+// 동시 요청 둘이 같은 잔량을 읽고 각자 차감하는 일이 없다. begin 자체를 try 안에 둔다 —
+// busy_timeout(5000ms) 을 다 채우고도 락을 못 잡으면 여기서 던지는데, 열린 트랜잭션이
+// 없으니 롤백할 것도 없이 reason=>"busy" 로 답한다. 클라이언트는 같은 idem 으로
+// 재시도하면 된다(멱등이라 안전).
 //
 // charged:false 인 경우에도 delta 0 행을 남긴다 — 안 남기면 무료 경로만 멱등키가 없어서
 // 같은 요청이 두 번 오면 두 번째가 유료 경로로 빠진다.
+//
+// reason ∈ insufficient|unknown-runtype|bad-idem|bad-ref|busy
 function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
   $costs = w_costs();
   if (!isset($costs[$runType])) return array("ok" => false, "charged" => false, "reason" => "unknown-runtype");
   if (!is_string($idem) || $idem === "") return array("ok" => false, "charged" => false, "reason" => "bad-idem");
 
   $cost = $costs[$runType];
-  $entitled = in_array($runType, w_entitled_types(), true) && is_string($ref) && $ref !== "";
+  $entitled = in_array($runType, w_entitled_types(), true);
+  // full·custom 인데 대상(symbol)이 없으면 과금만 되고 권리는 못 남긴다 — 재시도마다
+  // 스쿱이 새 나간다. idem 규격 위반과 같은 무게로 미리 거절한다.
+  if ($entitled && (!is_string($ref) || $ref === "")) {
+    return array("ok" => false, "charged" => false, "reason" => "bad-ref");
+  }
 
-  $db->exec("begin immediate");
   try {
-    // 재시도 재생 — 이미 처리한 idem 이면 그때 결과를 그대로 돌려준다
-    $prev = w_ledger_by_idem($db, $idem);
+    $db->exec("begin immediate");
+  } catch (Throwable $e) {
+    return array("ok" => false, "charged" => false, "reason" => "busy");
+  }
+  try {
+    // 재시도 재생 — 내 계정에 이미 처리한 idem 이면 그때 결과를 그대로 돌려준다.
+    // 단, runType·ref 까지 같을 때만이다 — 같은 idem 을 다른 등급/대상에 재사용하는 건
+    // 재시도가 아니라 값싼 등급 값을 내고 비싼 등급을 받아가려는 시도다(리뷰에서 실측).
+    $prev = w_ledger_by_idem($db, $idem, $acctId);
     if ($prev) {
+      if ($prev["run_type"] === $runType && (string)$prev["ref"] === (string)$ref) {
+        $db->exec("commit");
+        return array("ok" => true, "charged" => ((int)$prev["delta"] !== 0), "reason" => null);
+      }
+      $db->exec("commit");   // 읽기만 했다 — 되돌릴 쓰기가 없다
+      return array("ok" => false, "charged" => false, "reason" => "bad-idem");
+    }
+    if (w_ledger_by_idem_any($db, $idem) !== null) {
       $db->exec("commit");
-      return array("ok" => true, "charged" => ((int)$prev["delta"] !== 0), "reason" => null);
+      return array("ok" => false, "charged" => false, "reason" => "bad-idem");
     }
 
     $now = w_now();
     if ($entitled && w_active_run($db, $acctId, $ref, $runType) !== null) {
-      $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
-                          values (?, 0, 'spend-cached', ?, ?, ?)");
-      $st->execute(array($acctId, $ref, $idem, $now));
+      $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, run_type, created_at)
+                          values (?, 0, 'spend-cached', ?, ?, ?, ?)");
+      $st->execute(array($acctId, $ref, $idem, $runType, $now));
       $db->exec("commit");
       return array("ok" => true, "charged" => false, "reason" => null);
     }
@@ -196,9 +240,9 @@ function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
       return array("ok" => false, "charged" => false, "reason" => "insufficient");
     }
 
-    $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
-                        values (?, ?, 'spend', ?, ?, ?)");
-    $st->execute(array($acctId, -$cost, $ref, $idem, $now));
+    $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, run_type, created_at)
+                        values (?, ?, 'spend', ?, ?, ?, ?)");
+    $st->execute(array($acctId, -$cost, $ref, $idem, $runType, $now));
     if ($entitled) {
       $st = $db->prepare("insert into runs (account_id, symbol, tier, engine_version, created_at, expiry)
                           values (?, ?, ?, ?, ?, ?)");
