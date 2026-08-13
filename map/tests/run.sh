@@ -5,6 +5,7 @@
 #   ./tests/run.sh            전부
 #   ./tests/run.sh engine     forge-core + forge-tools 만 (엔진만 고쳤을 때 빠른 확인)
 #   ./tests/run.sh mobile     모바일만
+#   ./tests/run.sh wallet     지갑 원장(PHP)만
 #
 # 종료코드: 하나라도 실패하면 1.
 set -uo pipefail
@@ -12,6 +13,7 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 SCOPE="${1:-all}"
 FAILED=()
+SKIPPED=()
 TOTAL=0
 
 # node --test 출력에서 'ℹ pass N' / 'ℹ fail N' 을 뽑아 집계한다.
@@ -46,6 +48,16 @@ if [ "$SCOPE" = "all" ]; then
   run_suite "landing"     "$ROOT" node --test landing.test.js
 fi
 
+if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "wallet" ]; then
+  if command -v php >/dev/null 2>&1; then
+    run_suite "wallet" "$ROOT" php tests/wallet.test.php
+  else
+    # 조용히 통과시키지 않는다 — 돈 로직을 검사하지 않았다는 사실이 보여야 한다.
+    printf '── %-22s 건너뜀 (php 없음 — 돈 로직 미검사)\n' "wallet"
+    SKIPPED+=("wallet")
+  fi
+fi
+
 # 모바일은 엔진 원본(../../forge-core.js)을 직접 require 하므로 vendor 동기화 없이도 돌아간다.
 # 엔진을 고쳤다면 이 스위트가 그 사실을 여기서 알려준다.
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "mobile" ] || [ "$SCOPE" = "engine" ]; then
@@ -57,6 +69,9 @@ if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "mobile" ] || [ "$SCOPE" = "engine" ]; t
 fi
 
 echo
+if [ ${#SKIPPED[@]} -ne 0 ]; then
+  echo "건너뜀: ${SKIPPED[*]} — 이 스위트는 검사되지 않았다"
+fi
 if [ ${#FAILED[@]} -eq 0 ]; then
   echo "전체 통과 — ${TOTAL}건"
   exit 0
