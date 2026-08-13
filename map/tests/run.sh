@@ -6,6 +6,8 @@
 #   ./tests/run.sh engine       forge-core + forge-tools 만 (엔진만 고쳤을 때 빠른 확인)
 #   ./tests/run.sh mobile       모바일만
 #   ./tests/run.sh wallet       지갑 원장(PHP)만
+#   ./tests/run.sh dispatcher   지갑 HTTP 디스패처(wallet-api.php) — php -S + curl. 'all'에 낀다
+#                                (1~2초). 이 파일은 여기 말고는 저장소 어디에서도 실행되지 않는다.
 #   ./tests/run.sh concurrency  지갑 동시성 회귀(비밀키 생성·IP 상한·mkdir) — 'all'엔 안 낌,
 #                                느려서(수 초~수십 초) 배리어 동기화 OS 프로세스 12-way 를 씀.
 #                                wallet-lib.php · wallet-api.php 를 고친 뒤엔 배포 전 필수.
@@ -66,6 +68,18 @@ if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "wallet" ]; then
     # 조용히 통과시키지 않는다 — 돈 로직을 검사하지 않았다는 사실이 보여야 한다.
     printf '── %-22s 건너뜀 (php 없음 — 돈 로직 미검사)\n' "wallet"
     SKIPPED+=("wallet")
+  fi
+fi
+
+# 디스패처(wallet-api.php)는 원장 스위트가 보지 않는다 — 인증·입력검증·op 분기는 전부 그 파일에
+# 있고, 그 파일은 이 하네스 말고는 저장소 어디에서도 로드되지 않는다. 빠르니 'all' 에 넣는다 —
+# 사람이 기억해야만 도는 관문은 관문이 아니다(concurrency 는 느려서 예외로 남는다).
+if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "dispatcher" ] || [ "$SCOPE" = "wallet" ]; then
+  if command -v php >/dev/null 2>&1 && command -v curl >/dev/null 2>&1; then
+    run_suite "wallet-dispatcher" "$ROOT" bash tests/wallet-dispatcher.sh
+  else
+    printf '── %-22s 건너뜀 (php/curl 없음 — 디스패처 미검사)\n' "wallet-dispatcher"
+    SKIPPED+=("wallet-dispatcher")
   fi
 fi
 
