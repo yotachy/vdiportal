@@ -253,13 +253,49 @@
     ⚠️ 조회 응답이 **온 뒤에** 문서를 훑어야 한다. 호출 시점에 필 개수를 세면 `pill()` 이 아직
     append 전인 요소를 들고 부르기 때문에 그 필이 영영 안 채워진다(실제로 겪었다).
 
+- **Phase 8b — 서버 지갑 원장**(2026-08-13): 잔량의 진실이 서버로 갔다. `wallet-local-stub.js` 삭제.
+  - 선행 프로브로 cafe24 확인: PHP 8.4 · PDO sqlite · **SQLite 3.26.0**. `RETURNING`(3.35+)·`STRICT`(3.37+)를
+    못 쓰므로 삽입 후 값을 돌려받는 패턴 대신 트랜잭션 안에서 `insert` → `select` 로 간다
+  - **원장은 웹루트 밖 `/parksvc/data/wallet.db`.** 같은 점검에서 `www/map/` 의 데이터 파일이 전부 URL 로
+    200 인 것을 발견했다 — `forge_td_key.txt`(**TwelveData API 키**) 포함. `.htaccess` 로 차단했고
+    **노출됐던 키 교체는 사용자 몫으로 남아 있다**. 이번 배포 검증에서 실측: 차단은 확장자 단위 **blanket
+    403**으로 동작한다 — 존재하지 않는 `.db`/`.txt` 를 쳐도 403(같은 위치의 `.html` 은 정상 404)이 나오는 걸로
+    확인했다. `wallet.db` 도 그래서 404 가 아니라 403 이 나온다 — "웹루트에 없어서 404" 를 기대했는데 실제로는
+    "확장자 자체가 항상 막혀서 403", 결과(다운로드 불가)는 같지만 경로가 다르다
+  - `forge-api.php` 무수정 — 587줄에 PC 제품 전부를 지고 있어 배포 사고 반경을 지갑으로 제한했다.
+    배포 후 `forge.html`(200)·`forge-api.php?ohlc=1&symbol=AAPL&tf=1day`(200, 5034봉)로 재확인
+  - **`charged:false` 에도 `delta 0` 원장 행을 남긴다** — 안 남기면 무료 경로만 멱등키가 없어 같은
+    요청이 두 번 오면 두 번째가 유료로 빠진다
+  - **환급은 상한으로 깎지 않는다**(가져간 것을 돌려주는 것) + 권리도 함께 지운다(안 지우면 환급받고 계속 공짜)
+  - PHP 테스트 러너를 새로 만들었다 — 프레임워크 없이 `ℹ pass N` 형식을 내서 `run.sh` 파서에 그대로 붙는다.
+    **php 가 없는 환경에서는 "건너뜀 (돈 로직 미검사)" 로 표시하고 요약줄에도 남긴다**
+  - 테스트 676 → 761(forge-core 259·forge-tools 81·landing 28·wallet 66·moneyscoop-mobile 327)
+  - **배포 직전 `./tests/run.sh concurrency` 를 돌렸다**(비밀키 생성·IP 상한·`mkdir` 3종 전부 통과) — 이 스위트는
+    `all` 에 안 낀다. `wallet-lib.php`/`wallet-api.php` 를 고칠 때마다 배포 전 필수로 잊지 말 것 — 세 경합은
+    단일 프로세스 테스트엔 안 보이고, 실제로 세 라운드에 걸쳐 그렇게 새어나갔다
+  - **서버 실측(2026-08-13, cafe24)**: `ping` → `{"ok":true,"schema":2,"php":"8.4.21p1","sqlite":"3.26.0"}` ·
+    `Authorization` 없이 `get` → 401 `unauthorized` · `OPTIONS` 프리플라이트 204 +
+    `Access-Control-Allow-Headers: Content-Type, Authorization` · 실 `hello`→`spend`(runType=full, ref=AAPL,
+    cost 3)→`get` 사이클로 잔량 5→2 확인. **이 검증이 실제 계정 행 1개를 만들었다**(임의 `deviceId`, 미출시
+    엔드포인트라 허용 범위지만 숨기지 않는다)
+  - 실기기 확인 **미실시**
+
+**남은 한계(정직하게)**
+  - **재설치하면 5개를 다시 받는다.** `device_id` 가 클라이언트 생성인 한 못 막는다. IP 해시당 하루 상한으로
+    완화만 했고 진짜 해결은 8c(구글 로그인)다
+  - **SPEC §5 "비답변에 과금 금지"는 아직 없다.** `refund` op 는 있지만 *언제 부를 것인가*("판정 없음"의
+    판별 기준)를 정하지 않았다
+  - **`deviceId` 는 최소 32자 이상의 실제 엔트로피가 있어야 한다.** `hello` 는 맞힌 `deviceId` 하나를 365일짜리
+    베어러 토큰과 맞바꾼다 — 서버는 길이 하한(32자)만 강제할 뿐 실제 무작위성은 강제할 수 없다
+
 ## 🔥 다음
 
-우선순위 순. 둘 다 사용자 선행 작업이 있다.
+우선순위 순.
 
 1. **실기기 확인** — Phase 5·6·7·8a + 디자인 정합 패스 + REASONING 이 전부 미검증이다.
    이 저장소의 검증은 전부 헤드리스(playwright)라 손맛·성능·터치 타깃은 못 본다.
-2. **8b 서버 원장** — `probe-a7f3c2.php` 결과가 유일한 블로커.
+2. **8c 구글 로그인 + 익명 계정 병합** — `device_id` 계정을 구글 계정에 합칠 때 높은 잔량·긴 스트릭을 취하고
+   병합 원장 줄을 남긴다(`SPEC §4`). 재설치로 5개를 다시 받는 구멍(현재 IP 상한으로만 완화)도 여기서 막힌다.
 
 ## 미검증 — 사용자 확인 필요 (REASONING, 2026-08-13)
 
@@ -362,17 +398,6 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
 
 ## 📋 예정
 
-- **8b 서버 원장** — SQLite `accounts`/`ledger`/`ad_grants`/`runs` + `forge-api.php` 의 `wallet.get`/`wallet.spend`/
-  `wallet.checkin` + 멱등. **cafe24 SQLite(PDO) 가용 여부 확인이 선행.** 이때 `wallet-local-stub.js` 를 **삭제**한다.
-  - **`deviceId` 는 최소 32자 이상의 실제 엔트로피를 담아야 한다** — 8b(`wallet-api.php`)의 `hello` 는
-    `deviceId` 를 그대로 계정 키·베어러 토큰 발급 조건으로 쓴다: `deviceId` 를 맞히면 그 즉시 365일짜리
-    베어러 토큰을 내준다("추측한 device id 하나 = 남의 지갑"). 서버는 길이 하한(32자)만 강제할 뿐 실제
-    무작위성은 강제할 수 없다 — `crypto.getRandomValues` 등으로 뽑은 32바이트 이상을 hex/base64 인코딩해서
-    쓸 것. 카운터·타임스탬프·기기모델명 조합처럼 문자 수만 32를 채우고 실제 추측공간이 좁은 값은 서버
-    하한을 통과해도 그대로 뚫린다. (2026-08-13, wallet-api.php 리뷰 라운드 1 I4)
-  - **`wallet-lib.php` 나 `wallet-api.php` 를 고친 뒤에는 배포 전에 `./tests/run.sh concurrency`
-    를 돌릴 것** — 세 경합(비밀키 생성·IP 상한·mkdir)은 단일 프로세스 테스트에 안 잡히고,
-    실제로 세 라운드에 걸쳐 그렇게 새어나왔다.
 - **8c 구글 로그인 + 익명 계정 병합** — `device_id` 계정을 구글 계정에 합칠 때 높은 잔량·긴 스트릭을 취하고
   병합 원장 줄을 남긴다(`SPEC §4`). 재설치로 5개를 다시 받는 구멍도 여기서 막힌다.
 - **8d AdMob SSV** — 광고 유닛 2종(Quick 15초 +1 · Full 30초 +3) · 서명 검증 · `transaction_id` 중복 제거.
