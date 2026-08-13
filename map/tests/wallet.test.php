@@ -106,6 +106,66 @@ t("금액 상수가 시안 값과 같다", function () {
   eq(W_CHECKIN, 1, "CHECKIN"); eq(W_CHEST, 5, "CHEST"); eq(W_CHEST_EVERY, 7, "CHEST_EVERY");
 });
 
+t("새 기기는 계정이 생기고 5개를 받는다 — 원장에도 남는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $a = w_create_account($db, "dev-1", null);
+  eq($a["balance"], 5, "시드 잔량");
+  eq(w_true_balance($db, $a["id"]), 5, "원장 합계");
+  $r = $db->query("select reason, delta from ledger where account_id='" . $a["id"] . "'")->fetch();
+  eq($r["reason"], "seed", "원장 사유");
+  eq((int)$r["delta"], 5, "원장 델타");
+  $db = null; rmrf($d);
+});
+
+t("같은 device_id 로 두 번 만들면 두 번째는 실패한다 — 시드 재지급 금지", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-1", null);
+  $threw = false;
+  try { w_create_account($db, "dev-1", null); } catch (Throwable $e) { $threw = true; }
+  ok($threw, "같은 기기에 두 번 지급됐다");
+  eq(w_true_balance($db, w_account_id("dev-1")), 5, "잔량이 늘었다");
+  $db = null; rmrf($d);
+});
+
+t("account_id 는 device_id 에서 결정적으로 나온다", function () {
+  eq(w_account_id("dev-1"), w_account_id("dev-1"), "같은 입력에 다른 id");
+  ok(w_account_id("dev-1") !== w_account_id("dev-2"), "다른 입력에 같은 id");
+  eq(strlen(w_account_id("dev-1")), 16, "id 길이");
+});
+
+t("balance 캐시가 손상되면 get 이 원장 기준으로 고친다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $a = w_create_account($db, "dev-1", null);
+  $db->exec("update accounts set balance = 999 where id = '" . $a["id"] . "'");
+  $a2 = w_get_account($db, "dev-1");
+  $st = w_state($db, $a2);
+  eq($st["balance"], 5, "원장 기준으로 안 고쳤다");
+  $row = $db->query("select balance from accounts where id='" . $a["id"] . "'")->fetch();
+  eq((int)$row["balance"], 5, "캐시가 디스크에서도 안 고쳐졌다");
+  $db = null; rmrf($d);
+});
+
+t("state 는 클라이언트 계약대로 네 칸을 준다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $a = w_create_account($db, "dev-1", null);
+  $st = w_state($db, $a);
+  foreach (["balance", "cap", "streakDays", "canCheckin"] as $k) {
+    ok(array_key_exists($k, $st), "state 에 " . $k . " 가 없다");
+  }
+  eq($st["cap"], W_CAP, "cap");
+  eq($st["canCheckin"], true, "새 계정은 출석 가능해야 한다");
+  $db = null; rmrf($d);
+});
+
+t("IP 해시당 하루 신규 계정이 세어진다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-1", "iphash");
+  w_create_account($db, "dev-2", "iphash");
+  eq(w_seed_count_today($db, "iphash"), 2, "카운트");
+  eq(w_seed_count_today($db, "other"), 0, "다른 IP 는 안 세야 한다");
+  $db = null; rmrf($d);
+});
+
 foreach ($MSGS as $m) { echo $m, "\n"; }
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";

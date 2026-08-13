@@ -74,3 +74,64 @@ function w_migrate($db) {
     $db->exec("insert into schema_version (v) values (1)");
   }
 }
+
+function w_account_id($deviceId) { return substr(sha1($deviceId), 0, 16); }
+
+function w_get_account($db, $deviceId) {
+  $st = $db->prepare("select * from accounts where device_id = ?");
+  $st->execute(array($deviceId));
+  $r = $st->fetch();
+  return $r ? $r : null;
+}
+
+function w_seed_count_today($db, $ipHash) {
+  if ($ipHash === null || $ipHash === "") return 0;
+  $st = $db->prepare("select count(*) c from accounts where seed_ip_hash = ? and created_at >= ?");
+  $st->execute(array($ipHash, w_today()));
+  $r = $st->fetch();
+  return (int)$r["c"];
+}
+
+// 계정 생성과 시드 지급은 한 트랜잭션이다. 갈라지면 잔량 없는 계정이 남는다.
+// device_id UNIQUE 가 재지급을 DB 층에서 막는다 — 애플리케이션 검사에 기대지 않는다.
+function w_create_account($db, $deviceId, $ipHash) {
+  $id = w_account_id($deviceId);
+  $now = w_now();
+  $db->beginTransaction();
+  try {
+    $st = $db->prepare("insert into accounts (id, device_id, balance, streak_days, last_checkin, seed_ip_hash, created_at)
+                        values (?, ?, 0, 0, NULL, ?, ?)");
+    $st->execute(array($id, $deviceId, $ipHash, $now));
+    $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
+                        values (?, ?, 'seed', NULL, ?, ?)");
+    $st->execute(array($id, W_SEED, "seed:" . $id, $now));
+    $db->prepare("update accounts set balance = ? where id = ?")->execute(array(W_SEED, $id));
+    $db->commit();
+  } catch (Throwable $e) {
+    $db->rollBack();
+    throw $e;
+  }
+  return w_get_account($db, $deviceId);
+}
+
+function w_true_balance($db, $acctId) {
+  $st = $db->prepare("select coalesce(sum(delta), 0) s from ledger where account_id = ?");
+  $st->execute(array($acctId));
+  $r = $st->fetch();
+  return (int)$r["s"];
+}
+
+// 캐시(accounts.balance)와 진실(SUM(ledger.delta))이 어긋나면 원장을 믿고 캐시를 고친다.
+// 캐시가 진실이 되면 "내 스쿱 어디 갔나"에 답할 수 없다.
+function w_state($db, $acct) {
+  $true = w_true_balance($db, $acct["id"]);
+  if ((int)$acct["balance"] !== $true) {
+    $db->prepare("update accounts set balance = ? where id = ?")->execute(array($true, $acct["id"]));
+  }
+  return array(
+    "balance"    => $true,
+    "cap"        => W_CAP,
+    "streakDays" => (int)$acct["streak_days"],
+    "canCheckin" => ($acct["last_checkin"] !== w_today())
+  );
+}
