@@ -35,7 +35,15 @@ function w_db($dir) {
   $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
   $db->exec("pragma busy_timeout = 5000");   // 동시 요청이 즉시 실패하지 않게
-  $db->exec("pragma journal_mode = WAL");
+  // WAL 전환은 짧은 배타 락을 요구하고 SQLite 는 이 전환에 busy 핸들러를 부르지 않는다 —
+  // busy_timeout 을 먼저 걸어도 소용없다. 여러 프로세스가 DB 를 동시에 처음 만들면
+  // 진 쪽이 "database is locked" 로 죽는다(배포 직후 첫 요청 묶음이 그 모양이다).
+  // 몇 번 다시 시도하고, 끝내 안 되면 그냥 넘어간다 — WAL 은 동시성 최적화일 뿐이고
+  // 정확성은 BEGIN IMMEDIATE + busy_timeout 이 지킨다. 다음 접속이 다시 시도한다.
+  for ($i = 0; $i < 5; $i++) {
+    try { $db->exec("pragma journal_mode = WAL"); break; }
+    catch (Throwable $e) { usleep(20000 * ($i + 1)); }
+  }
   $db->exec("pragma foreign_keys = on");
   @chmod($dir . "/wallet.db", 0600);
   w_migrate($db);
