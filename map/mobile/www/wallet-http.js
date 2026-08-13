@@ -12,10 +12,19 @@
   // 미확인 환급 큐의 상한. 넘치면 오래된 것부터 버린다 — 무한히 자라면 저장소 쿼터를 먹는다.
   var REFQ_MAX = 50;
 
-  // wallet.js 의 MSWallet.maybeCharged 와 같은 분류다 — "서버가 답을 안 했거나 흔들렸다"라
-  // 재시도가 의미 있는 사유들. 여기서 그 모듈을 참조하지 않는 이유는 이 어댑터가 wallet.js
-  // 없이 단독으로 단위 테스트되기 때문이다. 두 목록이 갈라지면 wallet-http.test.mjs 가 잡는다.
-  var RETRYABLE = { network: 1, "server-error": 1, busy: 1 };
+  // 환급 재시도 분류. **기본값이 재시도**다 — 여기 없는 사유는 전부 다시 시도한다.
+  // 처음엔 반대로(재시도할 사유만 열거) 뒀는데, 그건 돈에서 위험한 방향이었다: 목록에 없는
+  // 사유 하나가 곧 "환급을 조용히 버린다"가 된다. 실제로 `storage`(w_db 가 원장을 못 열 때
+  // wallet-api.php 가 내는 500)가 그 구멍으로 빠져나갔다 — 정확히 이 큐가 막으려던 실패가,
+  // 분류가 모르는 이름을 달고 되돌아온 것이다. 그래서 "재시도해도 답이 달라지지 않는" 확정
+  // 사유만 열거하고 나머지는 안전한 쪽(재시도)으로 떨어뜨린다. 새 사유가 서버에 생겨도
+  // 최악이 "헛요청 몇 번"이지 "돈이 사라진다"가 아니게 된다.
+  var DEFINITIVE = {
+    "not-found": 1, "already-refunded": 1, "nothing-to-refund": 1,   // w_refund 의 확정 답
+    insufficient: 1, "bad-idem": 1, "bad-ref": 1, "unknown-runtype": 1,   // 원장이 시작조차 안 한 경우
+    unauthorized: 1,        // 계정이 없다 — 재시도해도 같다(토큰 재발급은 call() 이 이미 한 번 한다)
+    "bad-request": 1        // 디스패처의 400(빈/과길이 idem) — 같은 본문을 다시 보내면 같은 답이다
+  };
 
   // deviceId 는 hello() 가 365일 베어러 토큰과 맞바꾸는 유일한 비밀이다 — 서버가 강제하는
   // 것은 길이(W_DEVICE_MIN=32)뿐이고 무작위성은 강제할 수 없다(wallet-api.php 주석 I4).
@@ -133,7 +142,7 @@
     // 프로덕션에서 가장 자주 필요한 환급이 가장 확실하게 유실되고, 사용자는 답을 못 받은
     // 값을 낸 채 복구 수단이 없다(화면들은 rf.ok 를 문구에만 쓰고 레코드를 버렸다).
     // w_refund 는 멱등이라 재시도가 공짜다 — 서버가 확정으로 답할 때까지 들고 있는다.
-    var draining = false;
+    var draining = null;   // 진행 중 배수 프로미스(없으면 null) — spend 가 이걸 기다린다
 
     function refQueue() {
       var v = get0(K_REFQ, null);
@@ -156,38 +165,46 @@
     function refundOnce(idem) {
       return call({ op: "refund", idem: idem }).then(function (r) {
         var out = shape(r);
-        // ok 이거나 서버가 확정으로 답한 사유(not-found·already-refunded·nothing-to-refund·
-        // unauthorized 등)면 이 키는 끝났다. 재시도해도 답이 달라지지 않는다.
-        if (out.ok || !Object.prototype.hasOwnProperty.call(RETRYABLE, out.reason || "")) refDequeue(idem);
+        // ok 이거나 확정 사유일 때만 큐에서 뺀다. 모르는 사유는 남긴다(위 DEFINITIVE 주석).
+        if (out.ok || Object.prototype.hasOwnProperty.call(DEFINITIVE, out.reason || "")) refDequeue(idem);
         return out;
       });
     }
 
     // 다음 지갑 호출(또는 다음 실행)에 배수한다. 큐가 비면 네트워크를 타지 않는다.
-    // 비동기로 흘려보낸다 — 사용자의 호출을 환급 재시도가 기다리게 만들지 않는다.
+    // 진행 중이면 그 프로미스를 그대로 돌려준다 — 호출부가 "정착했다"를 기다릴 수 있어야 한다.
     function drainRefunds() {
-      if (draining) return;
+      if (draining) return draining;
       var q = refQueue();
-      if (!q.length) return;
-      draining = true;
+      if (!q.length) return Promise.resolve();
       var p = Promise.resolve();
       q.forEach(function (idem) {
         p = p.then(function () { return refundOnce(idem); })["catch"](function () {});
       });
-      p.then(function () { draining = false; }, function () { draining = false; });
+      draining = p.then(function () { draining = null; }, function () { draining = null; });
+      return draining;
     }
 
     drainRefunds();   // 실행 시점 — 지난 실행에서 못 보낸 환급이 여기서 나간다
 
     return {
+      // 읽기는 배수를 기다리지 않는다 — 잠깐 옛 잔량을 그리는 것뿐이고, 배수가 끝나면 화면이
+      // 다시 읽는다. 기다리게 하면 오프라인 재시도 때마다 잔량 표시가 통째로 멎는다.
       get: function () {
         drainRefunds();
         return call({ op: "get" }).then(function (r) { return shape(r); });
       },
+      // 결제는 다르다 — 배수가 "끝난 뒤에" 보낸다. 겹치면 Full 을 공짜로 내준다(실측):
+      //   spend k1 full/AAPL → charged, 잔량 5→2, 24h 권리 생성
+      //   spend k2 full/AAPL → 그 권리에 흡수돼 charged:false (무과금 리포트)
+      //   그제서야 큐의 refund k1 이 도착 → 잔량 2→5, 권리 삭제
+      //   = 리포트 둘을 받고 잔량은 처음 그대로.
+      // 환급이 먼저 정착하면 권리가 지워진 상태라 k2 가 정상 과금된다. 이 순서가 유일한 차이다.
       spend: function (runType, idem, ref) {
-        drainRefunds();
-        return call({ op: "spend", runType: runType, idem: idem, ref: ref || null })
-          .then(function (r) { return shape(r, ["charged"]); });
+        return drainRefunds().then(function () {
+          return call({ op: "spend", runType: runType, idem: idem, ref: ref || null })
+            .then(function (r) { return shape(r, ["charged"]); });
+        });
       },
       refund: function (idem) {
         // 보내기 전에 적는다 — 요청이 나간 뒤 앱이 죽으면(강제 종료·OOM) 그 사이의 환급이

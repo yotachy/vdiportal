@@ -115,11 +115,26 @@ dbq() { php -r '
     $r = $db->query($argv[2])->fetch(PDO::FETCH_NUM);
     echo ($r === false || $r[0] === null) ? "<none>" : $r[0];
   ' "$DB" "$1" 2>/dev/null; }
+dbexec() { php -r '
+    $db = new PDO("sqlite:" . $argv[1]);
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db->exec($argv[2]);
+  ' "$DB" "$1"; }
+
+# ⚠ 검사를 추가하려는 사람에게: W_IP_DAILY 는 3 이고, 이 하네스는 같은 IP(127.0.0.1)에서
+# 계정을 만든다 — 손대지 않으면 네 번째 hello 가 429 rate-limited 로 떨어져 전혀 무관한
+# 이유로 스위트가 빨개진다(그 원인을 찾는 데 한 시간이 든다). 그래서 hello 앞에서 "오늘 만든
+# 계정" 카운트를 비운다: w_seed_count_today 가 created_at >= 오늘 로 세므로 기존 행의
+# created_at 만 과거로 민다. seed_ip_hash 는 건드리지 않는다 — 아래 HMAC 검사가 그 값을 쓴다.
+# 상한 로직 자체는 tests/wallet-concurrency.sh(진짜 동시 프로세스)가 따로 본다.
+ip_cap_reset() { dbexec "update accounts set created_at = '2000-01-01T00:00:00+00:00'"; }
 
 DEV_A="dev-a-0123456789abcdef0123456789abcdef0123456789"
 DEV_B="dev-b-0123456789abcdef0123456789abcdef0123456789"
+DEV_C="dev-c-0123456789abcdef0123456789abcdef0123456789"
 ACCT_A=$(php -r 'echo substr(sha1($argv[1]), 0, 16);' "$DEV_A")
 ACCT_B=$(php -r 'echo substr(sha1($argv[1]), 0, 16);' "$DEV_B")
+ACCT_C=$(php -r 'echo substr(sha1($argv[1]), 0, 16);' "$DEV_C")
 TODAY=$(php -r 'echo gmdate("Y-m-d");')
 
 # ── ping — 인증 없이 열려 있으므로 스키마 버전 외에는 아무 것도 말하지 않는다 ──────────
@@ -142,6 +157,7 @@ post "{\"op\":\"hello\",\"deviceId\":\"$(php -r 'echo str_repeat("z", 31);')\"}"
 chk "31자 deviceId 는 400 이다 (하한을 1 로 낮추면 빨개진다)" "$CODE" "400"
 chk "31자 deviceId 사유" "$(jget "$BODY" reason)" "bad-device"
 
+ip_cap_reset
 post "{\"op\":\"hello\",\"deviceId\":\"$(php -r 'echo str_repeat("z", 32);')\"}"
 chk "32자 deviceId 는 통과한다 — 하한이 정확히 32 다" "$CODE" "200"
 
@@ -162,7 +178,22 @@ post '{"op":"get"}' "$TOK_A"
 chk "유효 토큰 get 은 200 이다" "$CODE" "200"
 chk "유효 토큰 get 잔량" "$(jget2 "$BODY" state balance)" "5"
 
+# 토큰은 유효한데 계정 행이 없는 경우 — 토큰 수명이 365일이라 원장 복구·초기화보다 오래 산다
+# (이 저장소는 2026-07-17 에 서버 데이터가 통째로 날아간 일을 실제로 겪었다). 평소에는 토큰
+# 판독 401 과 계정 조회 401 이 서로 중복이지만 여기서는 갈린다: 계정 조회 쪽을 지우면
+# "잔량 0 짜리 유령 계정"이 200 ok 로 나간다(재리뷰 실측).
+ip_cap_reset
+post "{\"op\":\"hello\",\"deviceId\":\"$DEV_C\"}"
+TOK_C=$(jget "$BODY" token)
+chk "C 계정이 만들어졌다" "$CODE" "200"
+dbexec "delete from accounts where id='$ACCT_C'"
+post '{"op":"get"}' "$TOK_C"
+chk "계정 행이 사라진 유효 토큰은 401 이다" "$CODE" "401"
+chk "그 401 의 사유" "$(jget "$BODY" reason)" "unauthorized"
+chk_no "유령 계정의 잔량을 그리지 않는다" "$BODY" "balance"
+
 # ── 계정 귀속 — 과금 대상은 토큰이 정한다. 본문의 acctId·deviceId 는 무시된다 ──────────
+ip_cap_reset
 post "{\"op\":\"hello\",\"deviceId\":\"$DEV_B\"}"
 TOK_B=$(jget "$BODY" token)
 chk "B 계정 시드" "$(jget2 "$BODY" state balance)" "5"

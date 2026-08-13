@@ -447,14 +447,99 @@ test("큐가 비어 있으면 지갑 호출이 헛요청을 만들지 않는다"
 
 // 재시도 분류가 wallet.js 의 maybeCharged 와 갈라지면 두 곳이 서로 다른 판단을 하게 된다
 // (한쪽은 idem 을 보존하는데 다른 쪽은 환급을 버리는 식). 목록을 대조해 못박는다.
-test("환급 재시도 분류가 wallet.js 의 maybeCharged 와 같다", async () => {
+// 분류의 기본값이 어느 쪽이냐가 이 큐의 안전성을 정한다. 처음엔 "재시도할 사유만 열거"였는데,
+// 그러면 목록에 없는 사유 하나가 곧 환급 유실이다 — 실제로 storage(w_db 가 원장을 못 열 때의
+// 500)가 그 구멍으로 빠져나갔다. 이 테스트는 행동으로 그 방향을 못박는다: 모르는 사유는 남는다.
+async function refundWithReason(reason, status = 200) {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const f = fakeFetch([{ status, json: { ok: false, reason, state: ST } }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  await b.refund("k-" + reason);
+  return b.pendingRefunds();
+}
+
+test("서버가 storage 500 으로 답한 환급은 큐에 남는다 — 원장을 못 연 것은 확정이 아니다", async () => {
+  assert.deepStrictEqual(await refundWithReason("storage", 500), ["k-storage"],
+    "storage 를 확정으로 보고 환급을 버렸다 — 이 큐가 막으려던 바로 그 실패다");
+});
+
+test("분류가 모르는 새 사유는 재시도 쪽으로 떨어진다 — 기본값이 안전한 방향이다", async () => {
+  assert.deepStrictEqual(await refundWithReason("some-future-reason"), ["k-some-future-reason"],
+    "모르는 사유를 확정으로 보고 버렸다 — 서버가 사유 하나를 추가하는 것만으로 돈이 사라진다");
+});
+
+test("확정 사유 목록은 전부 큐에서 빠진다 — 헛요청을 영원히 돌리지 않는다", async () => {
+  for (const r of ["not-found", "already-refunded", "nothing-to-refund", "insufficient",
+                   "bad-idem", "bad-ref", "unknown-runtype", "unauthorized", "bad-request"]) {
+    assert.deepStrictEqual(await refundWithReason(r), [],
+      "확정 사유인데 큐에 남겼다(매 지갑 호출마다 헛요청이 나간다): " + r);
+  }
+});
+
+test("wallet.js 가 maybe-charged 로 보는 사유는 환급도 반드시 재시도한다", async () => {
   const MSWallet = require("../www/wallet.js");
-  const SRC = readFileSync(join(__dirname, "..", "www", "wallet-http.js"), "utf8");
-  const m = SRC.match(/var RETRYABLE = \{([^}]*)\}/);
-  assert.ok(m, "wallet-http.js 에서 RETRYABLE 목록을 못 찾았다");
-  const keys = (m[1].match(/"?[a-z-]+"?\s*:/g) || []).map(s => s.replace(/["\s:]/g, ""));
-  assert.deepStrictEqual(keys.slice().sort(), ["busy", "network", "server-error"],
-    "재시도 사유 목록이 바뀌었다: " + keys.join(","));
-  keys.forEach(k => assert.strictEqual(MSWallet.maybeCharged(k), true,
-    "wallet-http 는 재시도하는데 wallet.js 는 definitely-not-charged 로 본다: " + k));
+  for (const r of ["network", "server-error", "busy"]) {
+    assert.strictEqual(MSWallet.maybeCharged(r), true, "wallet.js 분류가 바뀌었다: " + r);
+    assert.deepStrictEqual(await refundWithReason(r), ["k-" + r],
+      "wallet.js 는 '차감됐을 수 있다'로 보는데 환급은 포기했다: " + r);
+  }
+});
+
+// ── 배수와 결제의 순서 (재리뷰 지적 1) ────────────────────────────────────────
+// 배수를 흘려보내면(fire-and-forget) 환급과 결제가 겹친다. 서버에서 실측된 결과:
+//   spend k1 full/AAPL → charged, 5→2, 24h 권리
+//   spend k2 full/AAPL → 그 권리에 흡수돼 charged:false (공짜 리포트)
+//   그제서야 refund k1 도착 → 2→5, 권리 삭제  ⇒ 리포트 둘, 잔량 그대로.
+// 환급을 먼저 정착시키면 권리가 없어 k2 가 정상 과금된다. 순서가 유일한 차이다.
+
+// 응답 시점을 손으로 여는 fetch — "아직 안 끝난 환급"을 만들 수 있어야 이 순서를 검사할 수 있다.
+function gatedFetch(gateOp) {
+  const calls = [];
+  let release;
+  const gate = new Promise(r => { release = r; });
+  const fn = async (url, init) => {
+    const body = JSON.parse(init.body);
+    calls.push(body.op);
+    if (body.op === gateOp) await gate;
+    return { ok: true, status: 200,
+             json: async () => ({ ok: true, charged: true, reason: null, state: ST }) };
+  };
+  fn.calls = calls;
+  fn.release = () => release();
+  return fn;
+}
+
+test("spend 는 큐에 남은 환급이 정착한 뒤에 나간다 — 겹치면 Full 이 공짜가 된다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  store.write0("ms_pending_refunds", ["k1"]);   // 지난 실행이 남긴 미확인 환급
+  const f = gatedFetch("refund");
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+
+  const p = b.spend("full", "k2", "AAPL");
+  await new Promise(r => setTimeout(r, 0));
+  assert.deepStrictEqual(f.calls, ["refund"],
+    "환급이 아직 정착하지 않았는데 결제를 보냈다 — 서버 권리에 흡수돼 Full 이 공짜로 나간다: " + f.calls.join(","));
+
+  f.release();
+  await p;
+  assert.deepStrictEqual(f.calls, ["refund", "spend"], "순서가 뒤집혔다: " + f.calls.join(","));
+  assert.deepStrictEqual(b.pendingRefunds(), [], "결제 전에 큐가 비워지지 않았다");
+});
+
+test("읽기(get)는 배수를 기다리지 않는다 — 재시도 중에 잔량 표시가 멎으면 안 된다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  store.write0("ms_pending_refunds", ["k1"]);
+  const f = gatedFetch("refund");
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+
+  const r = await b.get();          // 환급은 아직 열리지 않았다
+  assert.strictEqual(r.ok, true, "읽기가 환급 재시도에 묶였다");
+  assert.ok(f.calls.indexOf("get") >= 0, "get 이 나가지 않았다: " + f.calls.join(","));
+  f.release();
 });
