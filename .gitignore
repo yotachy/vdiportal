@@ -46,3 +46,9 @@ map/forge_auth_secret.txt
 map/forge_admin.txt
 map/forge_data_*.json
 map/forge_images_*.json
+
+# wallet-api.php 로컬 점검(map/wallet-api.php 를 php -S 로 직접 띄운 경우)이
+# dirname(dirname(__DIR__))/data 에 SQLite 지갑 원장을 만든다. 로컬 저장소 깊이가
+# 프로덕션(/parksvc/www/map)과 달라 실제로는 이 저장소 밖(~/projects/data)에 생기지만,
+# 혹시 다른 중첩 구조에서 저장소 안쪽에 떨어지는 경우를 대비해 방어적으로 무시한다.
+/data/

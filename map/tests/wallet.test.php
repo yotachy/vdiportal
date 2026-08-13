@@ -670,6 +670,36 @@ t("상한에 걸려도 출석일은 소비된다 — 하루가 지나가야 다�
   $db = null; rmrf($d);
 });
 
+// ── Task 5: 베어러 토큰 ──────────────────────────────────────────────
+
+t("토큰은 왕복하고 변조·만료는 거부된다", function () {
+  $d = tmpdir();
+  $tok = w_token_make($d, "dev-1");
+  eq(w_token_read($d, $tok), "dev-1", "왕복");
+  eq(w_token_read($d, $tok . "x"), null, "변조된 토큰이 통과했다");
+  eq(w_token_read($d, "garbage"), null, "쓰레기 토큰이 통과했다");
+  $parts = explode("|", $tok);
+  $expired = $parts[0] . "|" . (time() - 10) . "|" . $parts[2];
+  eq(w_token_read($d, $expired), null, "만료 토큰이 통과했다");
+  rmrf($d);
+});
+
+t("비밀키는 자동 생성되고 파일 권한이 좁다", function () {
+  $d = tmpdir();
+  $s1 = w_secret($d);
+  ok(strlen($s1) >= 32, "비밀키가 짧다");
+  eq(w_secret($d), $s1, "호출마다 달라진다 — 토큰이 매번 무효가 된다");
+  eq(substr(sprintf("%o", fileperms($d . "/wallet_secret.txt")), -3), "600", "권한");
+  rmrf($d);
+});
+
+t("다른 비밀키로 만든 토큰은 거부된다", function () {
+  $d1 = tmpdir(); $d2 = tmpdir();
+  $tok = w_token_make($d1, "dev-1");
+  eq(w_token_read($d2, $tok), null, "남의 키로 만든 토큰이 통과했다");
+  rmrf($d1); rmrf($d2);
+});
+
 foreach ($MSGS as $m) { echo $m, "\n"; }
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";

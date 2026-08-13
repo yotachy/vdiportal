@@ -119,6 +119,40 @@ function w_migrate($db) {
 
 function w_account_id($deviceId) { return substr(sha1($deviceId), 0, 16); }
 
+// forge-auth-lib.php 와 같은 패턴이되 쿠키가 아니라 베어러 토큰이다.
+function _wb64e($s) { return rtrim(strtr(base64_encode($s), "+/", "-_"), "="); }
+function _wb64d($s) { return base64_decode(strtr($s, "-_", "+/")); }
+
+function w_secret($dir) {
+  $f = $dir . "/wallet_secret.txt";
+  if (!is_file($f)) {
+    if (!is_dir($dir)) @mkdir($dir, 0700, true);
+    @file_put_contents($f, bin2hex(random_bytes(32)), LOCK_EX);
+    @chmod($f, 0600);
+  }
+  return trim((string)@file_get_contents($f));
+}
+
+function w_token_make($dir, $deviceId) {
+  $exp = time() + 365 * 86400;
+  $sig = _wb64e(hash_hmac("sha256", $deviceId . "|" . $exp, w_secret($dir), true));
+  return _wb64e($deviceId) . "|" . $exp . "|" . $sig;
+}
+
+// fail-closed — 변조·만료·형식 이상은 전부 null 이다.
+// hash_equals 로 상수시간 비교한다(타이밍으로 서명을 맞춰가는 것을 막는다).
+function w_token_read($dir, $token) {
+  if (!is_string($token) || $token === "") return null;
+  $p = explode("|", $token);
+  if (count($p) !== 3) return null;
+  $deviceId = _wb64d($p[0]);
+  $exp = (int)$p[1];
+  if ($deviceId === "" || $exp < time()) return null;
+  $want = _wb64e(hash_hmac("sha256", $deviceId . "|" . $exp, w_secret($dir), true));
+  if (!hash_equals($want, $p[2])) return null;
+  return $deviceId;
+}
+
 function w_get_account($db, $deviceId) {
   $st = $db->prepare("select * from accounts where device_id = ?");
   $st->execute(array($deviceId));
