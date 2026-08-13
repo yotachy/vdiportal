@@ -54,32 +54,58 @@ function w_schema_version($db) {
 function w_migrate($db) {
   $v = w_schema_version($db);
   if ($v < 1) {
-    $db->exec("create table if not exists accounts (
-      id TEXT PRIMARY KEY, device_id TEXT UNIQUE NOT NULL, google_sub TEXT,
-      balance INTEGER NOT NULL DEFAULT 0, streak_days INTEGER NOT NULL DEFAULT 0,
-      last_checkin TEXT, seed_ip_hash TEXT, created_at TEXT NOT NULL)");
-    $db->exec("create table if not exists ledger (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL,
-      delta INTEGER NOT NULL, reason TEXT NOT NULL, ref TEXT,
-      idem TEXT UNIQUE NOT NULL, created_at TEXT NOT NULL)");
-    $db->exec("create table if not exists runs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL,
-      symbol TEXT NOT NULL, tier TEXT NOT NULL, engine_version TEXT,
-      created_at TEXT NOT NULL, expiry TEXT NOT NULL)");
-    $db->exec("create index if not exists ix_ledger_acct on ledger (account_id)");
-    $db->exec("create index if not exists ix_runs_lookup on runs (account_id, symbol, tier, expiry)");
-    $db->exec("create index if not exists ix_accounts_ip on accounts (seed_ip_hash, created_at)");
-    $db->exec("create table if not exists schema_version (v INTEGER NOT NULL)");
-    $db->exec("delete from schema_version");
-    $db->exec("insert into schema_version (v) values (1)");
+    // create ... if not exists 는 경합에 스스로 견디지만, 그 뒤의 schema_version
+    // delete+insert 쌍은 아니다 — 두 프로세스가 동시에 이 블록에 들어오면 델리트/인서트가
+    // 끼어들어 1행짜리 테이블에 2행이 남을 수 있다(v3 를 쓸 사람을 놀라게 할 종류의 버그).
+    // 전부 한 트랜잭션에 넣어 직렬화한다. DDL 은 SQLite 트랜잭션 안에서 동작한다.
+    $db->exec("begin immediate");
+    try {
+      $db->exec("create table if not exists accounts (
+        id TEXT PRIMARY KEY, device_id TEXT UNIQUE NOT NULL, google_sub TEXT,
+        balance INTEGER NOT NULL DEFAULT 0, streak_days INTEGER NOT NULL DEFAULT 0,
+        last_checkin TEXT, seed_ip_hash TEXT, created_at TEXT NOT NULL)");
+      $db->exec("create table if not exists ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL,
+        delta INTEGER NOT NULL, reason TEXT NOT NULL, ref TEXT,
+        idem TEXT UNIQUE NOT NULL, created_at TEXT NOT NULL)");
+      $db->exec("create table if not exists runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL,
+        symbol TEXT NOT NULL, tier TEXT NOT NULL, engine_version TEXT,
+        created_at TEXT NOT NULL, expiry TEXT NOT NULL)");
+      $db->exec("create index if not exists ix_ledger_acct on ledger (account_id)");
+      $db->exec("create index if not exists ix_runs_lookup on runs (account_id, symbol, tier, expiry)");
+      $db->exec("create index if not exists ix_accounts_ip on accounts (seed_ip_hash, created_at)");
+      $db->exec("create table if not exists schema_version (v INTEGER NOT NULL)");
+      $db->exec("delete from schema_version");
+      $db->exec("insert into schema_version (v) values (1)");
+      $db->exec("commit");
+    } catch (Throwable $e) {
+      try { $db->exec("rollback"); } catch (Throwable $e2) {}
+      throw $e;
+    }
   }
   if ($v < 2) {
-    // 멱등 재생이 계정·등급·대상까지 맞는지 보려면 등급을 남겨야 한다.
-    // reason 에 끼워 넣지 않는 이유: reason 은 사람이 읽는 사유이고, 재생 판정의 키가 되면
-    // 문구를 못 고친다. ADD COLUMN 은 3.26 에서도 된다(DROP COLUMN 만 3.35+).
-    $db->exec("alter table ledger add column run_type TEXT");
-    $db->exec("delete from schema_version");
-    $db->exec("insert into schema_version (v) values (2)");
+    // v1 블록은 이제 트랜잭션으로 경합에 견딘다. ALTER 는 그 자체로는 아니다 —
+    // 두 프로세스가 동시에 열면 진 쪽이 duplicate column 으로 죽고, ALTER 후 버전 기록 전에
+    // 죽으면 컬럼은 있는데 버전은 1 이라 그 뒤 모든 접속이 영원히 실패한다.
+    // 그래서 ① 이미 있는지는 쓰기 락을 잡은 "뒤"에 확인한다 — 락 밖에서 보면 두 프로세스가
+    //   동시에 "없다"를 보고 나란히 ALTER 를 시도할 수 있다(먼저 커밋한 쪽이 이미 만든 컬럼을
+    //   나중 것이 또 만들려다 죽는다). ② 버전 기록을 같은 트랜잭션에 넣어 컬럼 추가와
+    //   버전 갱신 사이에 한쪽만 반영되는 창을 없앤다.
+    $db->exec("begin immediate");
+    try {
+      $have = false;
+      foreach ($db->query("pragma table_info(ledger)") as $col) {
+        if ($col["name"] === "run_type") { $have = true; break; }
+      }
+      if (!$have) $db->exec("alter table ledger add column run_type TEXT");
+      $db->exec("delete from schema_version");
+      $db->exec("insert into schema_version (v) values (2)");
+      $db->exec("commit");
+    } catch (Throwable $e) {
+      try { $db->exec("rollback"); } catch (Throwable $e2) {}
+      throw $e;
+    }
   }
 }
 
