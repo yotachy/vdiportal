@@ -148,20 +148,59 @@ test("4단계가 고른 것만 심는다 — seedIfEmpty 를 부르지 않는다
 
 // 미리 선택된 3종을 해제했는데도 남는 종류의 결함을 잡는다. 소스 검사로는 안 보인다 —
 // state.picked 를 순회하는지 SEED 를 순회하는지가 눈으로 구별되지 않기 때문이다.
-test("심기는 목록이 state.picked 와 정확히 같다", () => {
+test("심기는 목록이 state.picked 와 정확히 같고, 이름도 함께 간다", () => {
   const added = [];
   const store = {
     SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
-    addTicker: (s) => { added.push(s); },
+    addTicker: (s, n) => { added.push([s, n]); },
     setOnboarded: () => {},
-    onboarded: () => false
+    onboarded: () => false,
+    getWatchlist: () => []
   };
-  // seedTo 는 완료 시 워치리스트를 심는 부분만 떼어낸 순수 함수다.
-  O.seedTo(store, ["TSLA", "AMD"]);
-  assert.deepEqual(added, ["TSLA", "AMD"], "고르지 않은 종목이 심겼다");
+  // seedTo 는 완료 시 워치리스트를 심는 부분만 떼어낸 순수 함수다. picked 는 {sym,name} 목록이다 —
+  // 이름을 버리면 store.js 가 name = 심볼로 폴백해 행이 심볼을 두 번 찍고 회사명 검색이 죽는다.
+  O.seedTo(store, [{ sym: "TSLA", name: "Tesla" }, { sym: "AMD", name: "AMD" }]);
+  assert.deepEqual(added, [["TSLA", "Tesla"], ["AMD", "AMD"]], "고르지 않은 종목이 심겼거나 이름이 버려졌다");
   added.length = 0;
   O.seedTo(store, []);
   assert.deepEqual(added, [], "아무것도 안 골랐는데 심겼다");
+});
+
+// 부류를 막는다(위 seedIfEmpty 스윕과 같은 방식) — 어느 화면에서 추가하든 이름이 함께 가야 한다.
+// 인스턴스 하나를 고치고 다른 호출지점을 빈 이름으로 남기는 것이 정확히 이 결함의 모양이었다.
+test("www 어느 파일도 빈 이름으로 종목을 심지 않는다", () => {
+  // 주석을 먼저 걷어낸다 — 이 결함을 설명하는 주석("addTicker(sym, \"\") 로 이름을 버렸다")이
+  // 그대로 걸려서, 고쳐 놓고도 빨간불이 뜬다(실제로 그랬다).
+  const strip = s => s.split("\n").map(l => l.replace(/\/\/.*$/, "")).join("\n");
+  const offenders = wwwSources().filter(f =>
+    /addTicker\(\s*[^,)]+,\s*""\s*\)/.test(strip(readFileSync(new URL("../www/" + f, import.meta.url), "utf8"))));
+  assert.deepStrictEqual(offenders, [], "빈 이름으로 심는 파일: " + offenders.join(", "));
+});
+
+// 끝에서 끝까지, 가짜 store 가 아니라 진짜 store.js 로. 이 결함의 증상 두 개는 전부 store.js 의
+// 폴백(name || sym)에서 나왔으므로, 그 폴백을 실제로 지나가야 잡힌다.
+test("고른 종목이 회사명을 달고 심기고, 회사명으로 검색된다", () => {
+  const RealStore = require("../www/store.js");
+  const P = require("../www/ticker-picker.js");
+  const WM = require("../www/watchlist-model.js");
+  const m = new Map();
+  RealStore.install({ getItem: k => (m.has(k) ? m.get(k) : null),
+                      setItem: (k, v) => m.set(k, String(v)) });
+
+  // 4단계가 완료 때 넘기는 것과 같은 모양 — 피커가 이름을 만들고 seedTo 가 심는다.
+  O.seedTo(RealStore, [{ sym: "TSLA", name: P.nameOf("TSLA") }]);
+  const row = RealStore.getWatchlist()[0];
+  assert.strictEqual(row.sym, "TSLA");
+  assert.strictEqual(row.name, "Tesla", "이름이 심볼로 폴백했다 — 행이 심볼을 두 번 찍는다");
+  assert.notStrictEqual(row.name, row.sym, "wl-sym 과 wl-name 이 같은 글자가 된다");
+
+  // 회사명 검색(watchlist-model.filter 는 it.name 을 본다). 이름을 버리면 여기서 0건이 된다.
+  assert.deepStrictEqual(
+    WM.filter(RealStore.getWatchlist(), { query: "tesla", chip: "all" }).map(x => x.sym),
+    ["TSLA"], "회사명으로 검색이 안 된다");
+  assert.deepStrictEqual(
+    WM.filter(RealStore.getWatchlist(), { query: "tsla", chip: "all" }).map(x => x.sym),
+    ["TSLA"], "심볼 검색까지 깨졌다");
 });
 
 test("약관 체크박스가 5단계의 진행을 막는다", () => {
@@ -328,11 +367,12 @@ class El {
 
 // 4·5단계용 기본 가짜 store — 실제 store.js(localStorage)는 쓰지 않는다. 여러 테스트가
 // 같은 모듈 인스턴스를 require 캐시로 공유하면 상태가 샌다 — spyWallet 과 같은 이유.
-function defaultFakeStore() {
+function defaultFakeStore(watchlist) {
   return {
     SEED: [{ sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
             { sym: "MSFT", name: "Microsoft Corporation" }],
-    addTicker: function () {}, setOnboarded: function () {}, onboarded: function () { return false; }
+    addTicker: function () {}, setOnboarded: function () {}, onboarded: function () { return false; },
+    getWatchlist: function () { return watchlist || []; }
   };
 }
 
@@ -527,6 +567,85 @@ test("4단계: 프리셋을 지운 뒤 뒤로/앞으로 가도 프리셋으로 �
   });
 });
 
+// 위 4단계 재진입의 정확한 쌍둥이. 이쪽이 더 나쁘다: 4단계는 선택이 되살아나는 것으로 눈에
+// 보이지만, 5단계는 **화면상 체크가 꺼진 채로 완료 버튼만 열려 있다**. 그 상태로 누르면
+// 사용자가 보기엔 동의하지 않았는데 동의 기록(setOnboarded)이 남는다 — 시안이 "법적 효력이
+// 있는 자리"라고 부른 유일한 컨트롤이다. canAdvance(5,{agreed:false}) 만 보는 순수 함수
+// 테스트로는 절대 안 보인다(state 는 살아 있고 DOM 만 새것이기 때문).
+test("5단계: 체크한 뒤 뒤로/앞으로 가도 체크박스가 켜진 채로 다시 그려진다", () => {
+  var onboardedCalls = 0;
+  var store = defaultFakeStore([]);
+  store.setOnboarded = function () { onboardedCalls++; };
+  withDom((root) => {
+    toStep4(root);
+    root.querySelector(".ob-next").click();   // 4 -> 5
+    var cb = function () {
+      return root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
+    };
+    assert.strictEqual(!!cb().checked, false, "처음부터 체크돼 있다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true);
+
+    cb().checked = true;
+    cb().listeners.change[0]({});
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false);
+
+    root.querySelector(".ob-back").click();   // 5 -> 4
+    root.querySelector(".ob-next").click();   // 4 -> 5, 새 DOM
+
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false,
+      "state.agreed 가 살아 있으니 완료는 열려 있어야 한다");
+    assert.strictEqual(cb().checked, true,
+      "완료 버튼은 열려 있는데 체크박스는 꺼져 있다 — 화면상 동의하지 않은 채로 동의가 기록된다");
+    // 그리고 그 상태에서 누르면 실제로 기록이 남는다는 것까지 확인한다.
+    root.querySelector(".ob-next").click();
+    assert.strictEqual(onboardedCalls, 1);
+  }, store);
+});
+
+// 이미 워치리스트가 있는 사람(지금까지 쓰던 테스터)이 온보딩을 처음 만나는 경우. SEED 를
+// 프리셋으로 주면 자기가 고르지 않은 3종이 자기 목록에 얹힌다 — 이 단계가 없애려던 그 상태다.
+// 워치리스트가 있다고 온보딩을 건너뛰지는 않는다(동의 기록은 법적 효력이 있는 자리라 한 번은
+// 받아야 한다) — 그래서 '건너뛰었는가'가 아니라 '무엇이 켜져 있는가'로 확인한다.
+test("4단계: 기존 워치리스트가 있으면 그것이 프리셋이다 — SEED 3종이 얹히지 않는다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    // PLTR 은 CURATED 밖이라 격자에 칸이 없다 — 켜진 칸은 TSLA 뿐이어야 하고,
+    // 무엇보다 SEED 3종이 하나도 켜져 있으면 안 된다.
+    assert.deepStrictEqual(onSyms(grid), ["TSLA"],
+      "기존 목록 대신 SEED 가 프리셋으로 들어왔다: " + onSyms(grid).join(","));
+  }, defaultFakeStore([{ sym: "TSLA", name: "Tesla, Inc." }, { sym: "PLTR", name: "Palantir" }]));
+});
+
+test("4단계: 워치리스트가 비어 있을 때만 SEED 로 떨어진다", () => {
+  withDom((root) => {
+    toStep4(root);
+    assert.deepStrictEqual(onSyms(root.querySelector(".tp-grid")).slice().sort(),
+      ["AAPL", "MSFT", "NVDA"], "빈 목록인데 SEED 프리셋이 안 켜졌다");
+  }, defaultFakeStore([]));
+});
+
+// 기존 목록은 격자 밖(CURATED 에 없는 심볼)에 있어도 완료 시 그대로 살아남아야 한다 —
+// 프리셋에서 슬그머니 빠지면 테스터의 종목이 사라진다.
+test("4단계: 기존 목록은 격자에 칸이 없어도 완료까지 살아남는다", () => {
+  var added = [];
+  var store = defaultFakeStore([{ sym: "TSLA", name: "Tesla, Inc." }, { sym: "PLTR", name: "Palantir" }]);
+  store.addTicker = function (s, n) { added.push([s, n]); };
+  withDom((root) => {
+    toStep4(root);
+    root.querySelector(".ob-next").click();   // 4 -> 5
+    var cb = root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
+    cb.checked = true;
+    cb.listeners.change[0]({});
+    root.querySelector(".ob-next").click();
+    // PLTR 의 이름은 아무도 모른다(CURATED 밖) — 빈 이름으로 가고 실 store 의 중복 거부가
+    // 기존 이름을 지킨다. 심볼이 빠지는 것만은 안 된다.
+    assert.deepStrictEqual(added.map(function (x) { return x[0]; }), ["TSLA", "PLTR"],
+      "기존 종목이 완료에서 빠졌다: " + JSON.stringify(added));
+    assert.strictEqual(added[0][1], "Tesla", "CURATED 이름이 안 실렸다");
+  }, store);
+});
+
 // ── 5단계: 위험 고지 + 약관 + 완료 ────────────────────────────────────────────────
 test("5단계: 체크 전엔 완료가 막히고, 체크 후 완료가 고른 종목만 정확히 심는다", () => {
   var added = [];
@@ -534,9 +653,10 @@ test("5단계: 체크 전엔 완료가 막히고, 체크 후 완료가 고른 �
   var doneCalled = false;
   var store = {
     SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
-    addTicker: function (s) { added.push(s); },
+    addTicker: function (s, n) { added.push([s, n]); },
     setOnboarded: function (v) { onboardedArg = v; },
-    onboarded: function () { return false; }
+    onboarded: function () { return false; },
+    getWatchlist: function () { return []; }
   };
   withDom((root) => {
     O.render(root, { sample: SAMPLE, onDone: function () { doneCalled = true; } });
@@ -564,7 +684,9 @@ test("5단계: 체크 전엔 완료가 막히고, 체크 후 완료가 고른 �
     assert.strictEqual(fwd.disabled, false, "체크 후에도 완료 버튼이 막혀 있다");
 
     fwd.click();
-    assert.deepStrictEqual(added, ["NVDA"], "심긴 종목이 고른 것과 다르다: " + added.join(","));
+    // 심볼뿐 아니라 이름까지 본다 — 이름이 빈 채로 가면 store.js 가 심볼로 폴백해
+    // 워치리스트 행이 심볼을 두 번 찍고 회사명 검색에서 빠진다(picker 의 CURATED 이름).
+    assert.deepStrictEqual(added, [["NVDA", "NVIDIA"]], "심긴 종목/이름이 고른 것과 다르다: " + JSON.stringify(added));
     assert.strictEqual(onboardedArg, "terms-2026-08", "약관 버전이 정확히 안 남았다: " + onboardedArg);
     assert.strictEqual(doneCalled, true, "완료 콜백이 안 불렸다");
   }, store);
@@ -583,7 +705,8 @@ test("5단계: 완료 버튼 연타(더블탭)에도 한 번만 심고 한 번�
     SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
     addTicker: function (s) { added.push(s); },              // 의도적으로 중복 제거 안 함
     setOnboarded: function () { onboardedCalls++; },
-    onboarded: function () { return false; }
+    onboarded: function () { return false; },
+    getWatchlist: function () { return []; }
   };
   withDom((root) => {
     O.render(root, { sample: SAMPLE, onDone: function () { doneCalls++; } });

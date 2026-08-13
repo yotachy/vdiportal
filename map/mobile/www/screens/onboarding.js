@@ -41,8 +41,10 @@
   // 완료 시 워치리스트를 심는 부분만 떼어낸 순수 함수 — DOM 없이 검사할 수 있어야
   // "고른 것과 정확히 같은 목록"이 관문이 된다. store 를 인자로 받는 이유는 테스트가
   // 가짜 store 로 부를 수 있어야 하기 때문이다.
+  // picked 는 심볼이 아니라 {sym, name} 목록이다 — 이름을 버리고 심으면 store.js 가
+  // name = 심볼로 폴백해 행이 심볼을 두 번 찍고 회사명 검색이 죽는다(ticker-picker.js nameOf).
   function seedTo(store, picked) {
-    picked.forEach(function (s) { store.addTicker(s, ""); });
+    picked.forEach(function (p) { store.addTicker(p.sym, p.name); });
   }
 
   function frag(cls) { var e = document.createElement("div"); e.className = cls; return e; }
@@ -57,14 +59,21 @@
   function render(rootEl, opts) {
     var o = opts || {};
     var Str = (typeof MSStr !== "undefined") ? MSStr : null;
-    // pickInited 는 4단계의 grantStarted 짝이다 — "종목 그리드를 한 번이라도 그렸다"를
-    // 기억해 뒀다가, 재진입 시 프리셋(SEED) 대신 사용자가 마지막으로 고른 state.picked(빈
-    // 배열 포함)로 다시 칠한다. 없으면 전부 해제하고 뒤로 갔다 와도 프리셋이 되살아난다.
-    // finished 는 완료 버튼의 더블탭 가드다 — MSStore.addTicker 는 실 스토어에서 심볼로
-    // 중복 제거하지만, opts.onDone() 은 그런 안전장치가 없다(app.js 가 boot() 에 그대로
-    // 연결한다). fwd.disabled 만 믿을 수 없다 — 클릭 이벤트 자체는 disabled 여부와 무관하게
-    // 발생할 수 있으므로(예: 두 번의 연속 탭이 disabled 반영 전에 둘 다 들어오는 경우) 핸들러
-    // 안에서 이 플래그로 한 번만 실행되게 막는다.
+
+    // ── 이 화면의 지배 규칙: draw() 는 매 이동마다 DOM 을 통째로 부수고 다시 만드는데,
+    // state 는 그걸 넘어 살아남는다. 그래서 여기서 다루는 모든 것은 둘 중 하나여야 한다:
+    //   (a) 반복되면 안 되는 것 → 래치(아래 셋)로 한 번만 실행한다.
+    //   (b) 그 밖의 모든 것 → 매 그리기마다 state 로부터 다시 칠한다.
+    // 이 둘을 섞으면 "state 는 참인데 화면은 초기값"인 화면이 나온다. 실제로 세 번 나왔다:
+    // 3단계 지급 결과가 재진입 시 빈 칸이 됐고, 4단계 프리셋이 되살아났고, 5단계 동의
+    // 체크박스가 꺼진 채로 완료 버튼만 열려 있었다(눈에 안 보이는 동의 — 법적 효력이 있는 자리).
+    // 래치는 셋뿐이며, 하나라도 늘리려면 (b) 로 해결되지 않는지 먼저 볼 것:
+    //   grantStarted — 부수효과(네트워크 발신)를 한 번만. 그리기는 매번(paintGrant).
+    //   pickInited   — 첫 그리기가 끝났다는 표시. 이후엔 프리셋 대신 state.picked 로 칠한다.
+    //   finished     — 종결 동작(심기·동의·onDone)이 커밋됐다. 완료 버튼 더블탭 가드.
+    // fwd.disabled 만 믿을 수 없다 — 클릭 이벤트 자체는 disabled 여부와 무관하게 발생할 수
+    // 있으므로(연속 두 탭이 disabled 반영 전에 둘 다 들어오는 경우) 핸들러 안에서 막는다.
+    // (opts.onDone 은 중복 방어가 없다 — app.js 가 boot() 에 그대로 연결한다.)
     var state = { picked: [], agreed: false, pickInited: false, granted: null, grantFailed: false,
                   grantStarted: false, finished: false, sample: o.sample || null };
     var step = 1;
@@ -252,25 +261,37 @@
       return w;
     }
 
-    // 프리셋(SEED)은 처음 그릴 때만 쓴다. 뒤로/앞으로를 오가며 다시 그릴 때는 state.picked
-    // (빈 배열이어도)로 칠한다 — 안 그러면 사용자가 프리셋 3종을 전부 해제해도 재진입마다
+    // 첫 그리기의 프리셋. 이미 워치리스트가 있는 사람(지금까지 쓰던 테스터)이 온보딩을
+    // 처음 만나는 순간 SEED 3종을 프리셋으로 주면, 완료와 함께 자기가 고르지 않은 3종이
+    // 자기 목록에 얹힌다 — 이 단계가 없애려던 바로 그 상태가 되돌아온다. 그래서 목록이
+    // 비어 있지 않으면 그 목록이 프리셋이다. 목록이 있다고 온보딩을 건너뛰지는 않는다 —
+    // 동의 기록은 법적 효력이 있는 자리라 한 번은 받아야 한다.
+    function defaultPreset() {
+      var wl = MSStore.getWatchlist();
+      var src = (wl && wl.length) ? wl : MSStore.SEED;
+      return src.map(function (x) { return x.sym; });
+    }
+
+    // 프리셋은 처음 그릴 때만 쓴다. 뒤로/앞으로를 오가며 다시 그릴 때는 state.picked
+    // (빈 배열이어도)로 칠한다 — 안 그러면 사용자가 프리셋을 전부 해제해도 재진입마다
     // 되살아난다(3단계 grantBox 와 같은 리뷰 지적).
     function step4() {
       var w = frag("ob-step");
       w.appendChild(el("h1", "ob-h", Str ? Str.t.obH4 : ""));
       w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub4 : ""));
-      var presetSyms = state.pickInited ? state.picked :
-        MSStore.SEED.map(function (x) { return x.sym; });
+      var presetSyms = state.pickInited ?
+        state.picked.map(function (p) { return p.sym; }) : defaultPreset();
       var picker = MSTickerPicker.create({
         multi: true, max: 3, preset: presetSyms,
-        onChange: function (sel) {
-          state.picked = sel;
+        // 심볼이 아니라 {sym,name} 을 담는다 — 이름을 여기서 흘리면 seedTo 가 이름 없이 심는다.
+        onChange: function (sel, items) {
+          state.picked = items;
           state.pickInited = true;
           var fwd = rootEl.querySelector(".ob-next");
           if (fwd) fwd.disabled = !canAdvance(4, state);
         }
       });
-      state.picked = picker.selected();
+      state.picked = picker.selectedItems();
       state.pickInited = true;
       w.appendChild(picker.el);
       return w;
@@ -284,6 +305,10 @@
       lab.className = "ob-agree";
       var cb = document.createElement("input");
       cb.type = "checkbox";
+      // 재진입 시 state 에서 다시 칠한다(위 §래치 규칙 (b)). 이 한 줄이 없으면 체크 후
+      // 4단계로 갔다 오면 새 체크박스는 꺼진 채인데 state.agreed 는 살아 있어 완료 버튼만
+      // 열려 있다 — 화면상 동의하지 않은 상태로 동의 기록이 남는다.
+      cb.checked = !!state.agreed;
       cb.addEventListener("change", function () {
         state.agreed = cb.checked;
         var fwd = rootEl.querySelector(".ob-next");

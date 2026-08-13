@@ -23,6 +23,17 @@
 
   function norm(s) { return String(s == null ? "" : s).trim().toUpperCase(); }
 
+  // 심볼 → 회사명. 고른 것을 심을 때 이름이 함께 가야 한다 — 빈 이름으로 심으면 store.js 가
+  // name = 심볼로 폴백하고(store.js addTicker), 그 순간 두 가지가 조용히 죽는다:
+  // 행이 심볼을 두 번 찍고(wl-sym·wl-name), 회사명 검색이 그 종목만 안 먹는다
+  // (watchlist-model.filter 가 it.name 을 본다). 이 컴포넌트가 이름을 아는 유일한 지점이라
+  // 여기서 함께 내보낸다 — 부르는 쪽이 CURATED 를 다시 뒤지게 두면 두 벌이 되어 갈린다.
+  function nameOf(sym) {
+    var s = norm(sym), i;
+    for (i = 0; i < CURATED.length; i++) { if (CURATED[i].sym === s) return CURATED[i].name; }
+    return "";
+  }
+
   // 상한에 걸려 있어도 '빼는 것'은 언제나 된다 — 안 그러면 상한까지 고른 뒤
   // 마음을 바꿀 방법이 없다.
   function toggle(sel, sym, max) {
@@ -46,7 +57,16 @@
     var grid = MSUi.el("div", "tp-grid");
     var msg = MSUi.el("p", "tp-msg");
 
-    function fire() { if (o.onChange) o.onChange(sel.slice()); }
+    // 직접 입력으로 서버가 확인해 준 이름. CURATED 밖 심볼의 이름은 여기밖에 없다 —
+    // loadTicker 응답을 여기서 안 붙잡으면 그 종목은 영영 이름 없이 심긴다.
+    var resolved = {};
+    function nameFor(s) { return resolved[s] || nameOf(s); }
+    function items() {
+      return sel.map(function (s) { return { sym: s, name: nameFor(s) }; });
+    }
+    // 심볼 목록과 {sym,name} 목록을 함께 넘긴다 — 심볼만 넘기던 시절엔 부르는 쪽 두 곳이
+    // 모두 addTicker(sym, "") 로 이름을 버렸다.
+    function fire() { if (o.onChange) o.onChange(sel.slice(), items()); }
 
     function paint() {
       grid.innerHTML = "";
@@ -100,8 +120,11 @@
       if (!sym) return;
       if (!api) { msg.textContent = Str ? Str.t.tpUnavailable : ""; return; }
       msg.textContent = Str ? Str.t.tpChecking : "";
-      api.loadTicker(sym, "1day").then(function () {
+      api.loadTicker(sym, "1day").then(function (data) {
         input.value = "";
+        // 서버가 준 이름을 붙잡아 둔다(api.js normalizeCandles 의 name) — 옛 대화상자 경로가
+        // 이름을 함께 심을 때 쓰던 값이다. 여기서 안 붙잡으면 이 심볼은 영영 이름이 없다.
+        if (data && data.name) resolved[sym] = data.name;
         if (!applySelection(sym)) return;
         paint(); fire();
       })["catch"](function (err) {
@@ -121,8 +144,8 @@
     el.appendChild(grid);
     el.appendChild(row);
     el.appendChild(msg);
-    return { el: el, selected: function () { return sel.slice(); } };
+    return { el: el, selected: function () { return sel.slice(); }, selectedItems: items };
   }
 
-  return { CURATED: CURATED, toggle: toggle, create: create };
+  return { CURATED: CURATED, toggle: toggle, create: create, nameOf: nameOf };
 });

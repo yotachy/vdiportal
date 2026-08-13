@@ -328,6 +328,38 @@ test("watchlist.js 실행 — 종목을 고르면 시트가 닫히고, 새 심�
   });
 });
 
+// 회사명을 버리고 심으면(addTicker(sym, "")) store.js 가 name = 심볼로 폴백해 두 가지가 조용히
+// 죽는다: 행이 심볼을 두 번 찍고(wl-sym·wl-name), 회사명 검색이 이 종목만 빠진다
+// (watchlist-model.filter 는 it.name 을 본다). 화면에 그려진 두 칸을 직접 비교한다 —
+// 소스 검사로는 인자 하나가 ""인지 실제 이름인지 구별이 안 된다.
+test("watchlist.js 실행 — 추가한 종목이 회사명을 달고 그려지고, 회사명으로 검색된다", () => {
+  var list = [{ sym: "AAPL", name: "Apple Inc." }];
+  withWatchlistDom({ store: fakeStore(list) }, function (root, doc) {
+    MSWatchlist.render(root);
+    root.querySelector(".wl-add").dispatch("click");
+    var grid = doc.body.querySelector(".tp-grid");
+    grid.dispatch("click", { target: grid.children.filter(function (c) {
+      return c.getAttribute("data-sym") === "NVDA"; })[0] });
+
+    var added = list.filter(function (x) { return x.sym === "NVDA"; })[0];
+    assert.ok(added, "NVDA 가 스토어에 안 들어갔다");
+    assert.strictEqual(added.name, "NVIDIA",
+      "이름이 심볼로 폴백했다 — 피커가 회사명을 안 넘겼다: " + added.name);
+
+    var syms = root.querySelectorAll(".wl-sym").map(function (n) { return n.textContent; });
+    var names = root.querySelectorAll(".wl-name").map(function (n) { return n.textContent; });
+    var i = syms.indexOf("NVDA");
+    assert.ok(i >= 0, "새 심볼이 목록에 없다");
+    assert.strictEqual(names[i], "NVIDIA", "행에 그려진 회사명이 틀렸다: " + names[i]);
+    assert.notStrictEqual(names[i], syms[i], "행이 심볼을 두 번 찍는다: " + syms[i] + " / " + names[i]);
+
+    // 회사명 검색. 사용자가 "nvidia" 를 치면 이 종목이 나와야 한다.
+    var WM = require("../www/watchlist-model.js");
+    assert.deepStrictEqual(WM.filter(list, { query: "nvidia", chip: "all" }).map(function (x) { return x.sym; }),
+      ["NVDA"], "회사명으로 검색이 안 된다");
+  });
+});
+
 // 스크림 바깥 클릭(자기 자신)과 닫기 버튼 둘 다 오버레이를 완전히 지워야 한다 — 하나만 지우고
 // document.body 에 빈 스크림이 남으면 화면 전체가 클릭을 못 받는 유령 오버레이가 된다.
 test("watchlist.js 실행 — 스크림 클릭·닫기 버튼 모두 시트를 지우고 오버레이를 안 남긴다", () => {

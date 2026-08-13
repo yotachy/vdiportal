@@ -138,6 +138,52 @@ test("create() — max 도달 후 클릭은 무시되고, selected()는 실시�
   assert.deepEqual(p.selected(), [], "뺀 뒤에도 selected()가 프리셋을 돌려주고 있다");
 });
 
+// ── 이름을 함께 내보내는가 ────────────────────────────────────────────────────
+// 심볼만 내보내던 시절, 부르는 쪽 두 곳(온보딩 seedTo · 워치리스트 ＋Add)이 모두
+// addTicker(sym, "") 로 이름을 버렸다. store.js 가 name = 심볼로 폴백하면서 행이 심볼을
+// 두 번 찍고(wl-sym·wl-name), 회사명 검색이 그 뒤로 추가한 종목에서만 조용히 멈췄다.
+test("nameOf — CURATED 의 회사명을 돌려주고, 모르는 심볼은 빈 문자열이다", () => {
+  assert.strictEqual(P.nameOf("aapl"), "Apple", "정규화 후 조회하지 않는다");
+  assert.strictEqual(P.nameOf("TSLA"), "Tesla");
+  assert.strictEqual(P.nameOf("PLTR"), "", "모르는 심볼에 이름을 지어냈다");
+  // 기대값을 리터럴로 두 번 적지 않는다 — CURATED 12종 전부가 자기 이름을 돌려줘야 한다.
+  P.CURATED.forEach(x => assert.strictEqual(P.nameOf(x.sym), x.name, x.sym));
+});
+
+test("create() — onChange 는 심볼 목록과 {sym,name} 목록을 함께 준다", () => {
+  const seen = [];
+  const p = P.create({ multi: true, max: null, preset: [],
+                       onChange: (s, items) => seen.push(items), strings: MSStr });
+  const grid = findByClass(p.el, "tp-grid");
+  grid.dispatch("click", { target: cellFor(grid, "NVDA") });
+  assert.deepEqual(seen[seen.length - 1], [{ sym: "NVDA", name: "NVIDIA" }],
+    "onChange 가 이름을 안 준다 — 부르는 쪽이 이름 없이 심게 된다");
+  assert.deepEqual(p.selectedItems(), [{ sym: "NVDA", name: "NVIDIA" }]);
+});
+
+test("create() — 프리셋도 이름을 달고 나온다", () => {
+  const p = P.create({ multi: true, max: null, preset: ["aapl", "PLTR"], strings: MSStr });
+  assert.deepEqual(p.selectedItems(),
+    [{ sym: "AAPL", name: "Apple" }, { sym: "PLTR", name: "" }],
+    "프리셋이 이름 없이 나온다 — CURATED 밖 심볼은 빈 이름이 맞다(store 가 심볼로 폴백)");
+});
+
+test("create() — 직접 입력: 서버가 준 이름을 붙잡아 selectedItems 에 싣는다", async () => {
+  const seen = [];
+  // 옛 prompt() 경로가 addTicker(sym, data.name || sym) 로 쓰던 바로 그 값이다.
+  const fakeApi = { loadTicker: () => Promise.resolve({ name: "Palantir Technologies" }) };
+  const p = P.create({ multi: true, max: null, preset: [],
+                       onChange: (s, items) => seen.push(items), api: fakeApi, strings: MSStr });
+  const input = findByClass(p.el, "tp-input");
+  input.value = "pltr";
+  findByClass(p.el, "tp-add").dispatch("click");
+  await flush();
+
+  assert.deepEqual(p.selectedItems(), [{ sym: "PLTR", name: "Palantir Technologies" }],
+    "직접 입력 종목의 이름이 버려졌다 — 이 심볼의 이름을 아는 지점은 여기뿐이다");
+  assert.deepEqual(seen[seen.length - 1], [{ sym: "PLTR", name: "Palantir Technologies" }]);
+});
+
 test("create() — 직접 입력: 찾으면 추가되고 입력창이 비워진다", async () => {
   const seen = [];
   const fakeApi = { loadTicker: sym => Promise.resolve({ name: sym }) };

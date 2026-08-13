@@ -293,10 +293,14 @@
 
       var picker = MSTickerPicker.create({
         multi: false, max: null, preset: [],
-        onChange: function (sel) {
+        onChange: function (sel, items) {
           if (!sel.length) return;
           close();
-          MSStore.addTicker(sel[0], "");
+          // 이름을 함께 심는다. 빈 이름이면 store.js 가 name = 심볼로 폴백해 이 행만
+          // 심볼을 두 번 찍고(wl-sym·wl-name), 회사명 검색에서도 이 종목만 빠진다
+          // (watchlist-model.filter 는 it.name 을 본다). 옛 대화상자 경로가 하던 일이다.
+          var it = items[0];
+          MSStore.addTicker(it.sym, it.name);
           onAdded();
         }
       });
