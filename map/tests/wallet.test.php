@@ -547,6 +547,27 @@ t("같은 종목·같은 순간이라도 다른 등급 권리는 건드리지 �
   $db = null; rmrf($d);
 });
 
+// 리뷰 2라운드: tier=? 가 run_type IS NULL 인 행(v2 마이그레이션 이전, 즉 schema v1 시절에
+// 쓰인 spend)에서 아무것도 지우지 못한다 — SQL 에서 "tier = NULL" 은 절대 참이 될 수 없다.
+// v1 데이터베이스를 실제로 재현해 실측(리포트 참고): 마이그레이션 후 환급하면 ok=true 인데
+// 권리가 그대로 남았다. 여기선 같은 상태를 원장에 직접 심어 표준 테스트로 고정한다.
+t("run_type 이 NULL 인 v1 시절 행도 환급이 권리를 지운다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $now = w_now();
+  // v2 마이그레이션은 run_type 컬럼만 추가하고 기존 행을 소급 채우지 않는다 — 여기선
+  // 그 상태(컬럼은 있지만 이 행만 NULL)를 그대로 흉내낸다.
+  $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,run_type,created_at) values (?,-3,'spend','AAPL','k1',NULL,?)")
+     ->execute(array($a["id"], $now));
+  $db->prepare("insert into runs (account_id,symbol,tier,engine_version,created_at,expiry) values (?,'AAPL','full',NULL,?,?)")
+     ->execute(array($a["id"], $now, gmdate("c", time() + 86400)));
+  ok(w_active_run($db, $a["id"], "AAPL", "full") !== null, "권리 준비 실패");
+  $r = w_refund($db, $a["id"], "k1");
+  eq($r["ok"], true, "환급");
+  $n = $db->query("select count(*) c from runs")->fetch();
+  eq((int)$n["c"], 0, "run_type NULL 행을 환급했는데 권리가 남았다 — 돈은 돌아오고 열람권은 유지된다");
+  $db = null; rmrf($d);
+});
+
 t("출석은 하루 한 번이고 스트릭이 오른다", function () {
   $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
   $r = w_checkin($db, $a, null);

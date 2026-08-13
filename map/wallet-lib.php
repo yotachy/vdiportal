@@ -333,8 +333,22 @@ function w_refund($db, $acctId, $idem) {
     // 순간에 다른 등급(예: custom)으로 결제한 별개 권리까지 같이 지워버린다(리뷰에서
     // 실측 — full 환급이 custom 권리를 지웠다). created_at 을 ">=" 로 두면 같은 종목을
     // 나중에 다시 정당하게 결제해 만든 최신 권리까지 같이 지워버린다.
-    $db->prepare("delete from runs where account_id = ? and symbol = ? and tier = ? and created_at = ?")
-       ->execute(array($acctId, $orig["ref"], $orig["run_type"], $orig["created_at"]));
+    //
+    // run_type 이 NULL 인 행이 있다 — v2 이전(schema v1)에 쓰인 차감이다. 마이그레이션은
+    // ledger 에 run_type 컬럼을 "추가"만 하고 기존 행을 소급 채우지 않으므로, v1 시절
+    // spend 행은 영원히 run_type=NULL 로 남는다. SQL 에서 "tier = NULL" 은 항상 거짓이라
+    // 그냥 tier = ? 로 두면 이 행들은 매칭 0건 — 환급은 되는데 권리는 그대로 남는다(리뷰에서
+    // 실측: v1 spend → v2 마이그레이션 → 환급 → 돈은 돌아오고 24시간 열람권은 유지됨).
+    // NULL 이면 tier 조건 없이 예전 방식(account_id+symbol+created_at)으로 지운다 — v1
+    // 데이터베이스는 등급 구분 코드 자체가 없었으므로 같은 계정·같은 종목·같은 초에 등급이
+    // 다른 두 권리가 공존할 수 없다(I2 가 막는 충돌이 애초에 존재하지 않는다).
+    if ($orig["run_type"] === null) {
+      $db->prepare("delete from runs where account_id = ? and symbol = ? and created_at = ?")
+         ->execute(array($acctId, $orig["ref"], $orig["created_at"]));
+    } else {
+      $db->prepare("delete from runs where account_id = ? and symbol = ? and tier = ? and created_at = ?")
+         ->execute(array($acctId, $orig["ref"], $orig["run_type"], $orig["created_at"]));
+    }
     $db->prepare("update accounts set balance = ? where id = ?")
        ->execute(array(w_true_balance($db, $acctId), $acctId));
     $db->exec("commit");
