@@ -63,6 +63,19 @@ t("쓸 수 없는 디렉토리면 예외를 던진다 — 조용히 폴백하지
   ok($threw, "못 쓰는 경로에서 조용히 성공했다");
 });
 
+t("이미 있는 디렉토리가 쓰기 불가면 예외를 던진다 — 웹루트로 폴백하지 않는다", function () {
+  // 노출 사고가 난 모양은 "만들 수 없는 경로"가 아니라 "있는데 권한이 틀린 경로"다.
+  // w_db 의 두 번째 분기(is_writable)가 그 자리이고, /proc 케이스는 거기까지 못 간다.
+  if (function_exists("posix_geteuid") && posix_geteuid() === 0) return;   // root 는 is_writable 이 무의미하다
+  $d = tmpdir();
+  chmod($d, 0500);
+  $threw = false;
+  try { w_db($d); } catch (Throwable $e) { $threw = true; }
+  chmod($d, 0700);
+  rmrf($d);
+  ok($threw, "쓰기 불가 디렉토리에서 조용히 성공했다 — 원장이 웹루트로 갈 수 있다");
+});
+
 t("시각은 UTC 다", function () {
   eq(strlen(w_today()), 10, "w_today 형식이 YYYY-MM-DD 가 아니다");
   eq(w_today(), gmdate("Y-m-d"), "w_today 가 UTC 가 아니다");
@@ -73,7 +86,10 @@ t("시각은 UTC 다", function () {
 // 서버에서만 깨진다 — 그 격차를 테스트가 대신 지킨다. 이 검사는 소스를 읽는다.
 t("서버 SQLite 3.26.0 에 없는 기능을 쓰지 않는다", function () {
   $src = file_get_contents(__DIR__ . "/../wallet-lib.php");
-  $src = preg_replace('/^\s*\/\/.*$/m', "", $src);   // 주석은 제외 — 설명에 이름이 나온다
+  $src = preg_replace('/\/\*.*?\*\//s', "", $src);   // 블록 주석 — 이 파일 머리가 그 키워드를 설명한다
+  $src = preg_replace('/^\s*\/\/.*$/m', "", $src);   // 줄 주석
+  // 문자열 이어붙이기로 키워드를 쪼개는 회피는 방어하지 않는다 — 고의가 아니고서야 못 한다.
+  // 이 가드의 목적은 실수를 잡는 것이지 의도적 우회를 막는 것이 아니다.
   foreach (array("returning", "strict", "drop column") as $bad) {
     ok(stripos($src, $bad) === false,
        "서버 SQLite 3.26.0 이 모르는 구문: " . $bad . " — 로컬(3.45.1)에서만 돈다");
