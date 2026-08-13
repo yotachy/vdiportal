@@ -135,7 +135,9 @@
         dots: state ? streakDots(state) : null,
         onTap: function () {
           MSWallet.checkin().then(function (r) {
-            draw(r.state, (r.ok && r.capped) ? MSStr.t.walCapped : "");
+            // 잔량을 못 읽었을 땐(오프라인 등) "cap reached" 처럼 아무것도 안 되는 이유를 지어내지
+            // 않는다 — "연결이 안 된다"고 사실대로 말한다(I-I).
+            draw(r.state, !r.ok ? MSStr.t.walUnavailable : (r.capped ? MSStr.t.walCapped : ""));
             refreshPills();   // 2단이면 옆 칸 헤더의 필이 옛 잔량을 들고 있다
           });
         }
@@ -157,8 +159,12 @@
       root.appendChild(scr);
     }
 
+    // 첫 draw(null, "") 는 "아직 로딩 중"이다 — 응답이 온 뒤에도 잔량이 없으면(!r.ok) 그건
+    // "확인 불가"다. 게이지가 빈 잔량을 그려 "0개 보유"처럼 읽히지 않도록 메시지로 사실을 말한다
+    // (I-I — wallet-http.js 는 오프라인에서 state:null 을 낼 뿐 0을 지어내지 않는데, 화면이
+    // 그걸 다시 0처럼 그리면 클라이언트가 잔량을 지어낸 것과 같은 결과가 난다).
     draw(null, "");
-    MSWallet.get().then(function (r) { draw(r.state, ""); });
+    MSWallet.get().then(function (r) { draw(r.state, (!r.ok || !r.state) ? MSStr.t.walUnavailable : ""); });
   }
 
   window.MSWalletScreen = { render: render, pill: pill, refreshPills: refreshPills };

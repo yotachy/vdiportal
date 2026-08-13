@@ -15,6 +15,11 @@
   // 두 번째 결제를 받는다(리포트의 purchases 레코드와 같은 교훈). 새 렌더는 진행 중 레코드에 붙는다.
   var scanRun = null;        // { idem, promise, done, total } — 진행 중이면 non-null
   var scanFailed = {};       // 마지막 스캔에서 실패한 종목. 값은 유지하고 "갱신 실패" 배지만 붙인다
+  // maybe-charged(network·server-error·busy)로 끝난 spend 의 idem — 다음 스캔이 재사용한다(I-H).
+  // 새 idem 을 새로 뽑으면 원장(전역 UNIQUE)에서 별개 키가 되어 멱등이 못 잡고 이중 차감된다.
+  // report.js 의 purchases[sym].idem 과 같은 이유지만, 스캔은 종목별이 아니라 워치리스트
+  // 전체 단위라 종목 키가 없다 — 그래서 모듈 스코프 변수 하나로 둔다.
+  var pendingScanIdem = null;
   var onScanTick = null;     // 현재 화면의 갱신 콜백. 새 render() 가 자기 것으로 덮는다
   function scanTick() { if (onScanTick) onScanTick(); }
 
@@ -325,20 +330,30 @@
     function beginScan(syms, rec) {
       var cost = MSWallet.costOf("scan");
       if (!cost) { rec.promise = runScan(syms, rec); return; }   // 무료 설정으로 되돌려도 동작한다
-      var idem = MSWallet.newIdem();
+      // maybe-charged 로 끝난 이전 시도의 idem 이 있으면 재사용한다(I-H) — 새로 뽑으면 원장에서
+      // 별개 키가 되어 멱등이 못 잡는다.
+      var idem = pendingScanIdem || MSWallet.newIdem();
+      pendingScanIdem = null;   // 이번 시도가 쓴다 — 실패하면 아래서 다시 채운다
       rec.promise = MSWallet.spend("scan", idem).then(function (sp) {
         MSWalletScreen.refreshPills();
         if (!sp.ok) {
           scanRun = null; scanTick();
-          alert(sp.reason === "insufficient" ? MSStr.t.tsShort : MSStr.t.tsSpendFailed);
+          // "Nothing charged" 는 definitely-not-charged 에서만 참이다. maybe-charged 는 idem 을
+          // 보존해 다음 스캔이 재사용하게 한다 — 새 idem 이면 서버가 이중 차감을 못 잡는다.
+          if (MSWallet.maybeCharged(sp.reason)) pendingScanIdem = idem;
+          alert(sp.reason === "insufficient" ? MSStr.t.tsShort
+                : MSWallet.maybeCharged(sp.reason) ? MSStr.t.tsSpendFailedUnknown
+                : MSStr.t.tsSpendFailed);
           return;
         }
         rec.idem = idem;
         return runScan(syms, rec);
       })["catch"](function () {
-        // 결제 구간의 예외 — 차감됐는지조차 모르므로 단정하지 않는다.
+        // 결제 구간의 예외 — 차감됐는지조차 모르므로 단정하지 않는다. HTTP 백엔드에선 이론상
+        // 도달하지 않지만(callBackend 가 항상 흡수), 방어적으로 maybe-charged 와 같게 취급한다.
         scanRun = null; scanTick();
-        alert(MSStr.t.tsFailedNoRefund);
+        pendingScanIdem = idem;
+        alert(MSStr.t.tsSpendFailedUnknown);
       });
     }
 

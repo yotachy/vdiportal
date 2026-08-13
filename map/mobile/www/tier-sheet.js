@@ -69,9 +69,14 @@
 
       var cost = MSWallet.COSTS[picked];
       var run = MSUi.el("button", "btn btn-primary sheet-run", MSStr.t.tsRun + MSStr.t.tsFull + " · " + cost + MSStr.t.tsCost);
-      var short = (bal != null && bal < cost);
-      run.disabled = short;
-      if (short) sheet.appendChild(MSUi.el("p", "sheet-short", MSStr.t.tsShort));
+      // bal == null 은 "0개 보유"가 아니라 "잔량을 모른다"(오프라인 등)다 — 그 상태로는 살 수
+      // 있는지 없는지도 판단이 안 되므로 Run 을 켜 두면 안 된다(I-I, 리뷰 실측: 예전엔 bal==null
+      // 이면 short 가 항상 false 라 버튼이 활성으로 남았다).
+      var unavailable = (bal == null);
+      var short = !unavailable && bal < cost;
+      run.disabled = short || unavailable;
+      if (unavailable) sheet.appendChild(MSUi.el("p", "sheet-short", MSStr.t.tsUnavailable));
+      else if (short) sheet.appendChild(MSUi.el("p", "sheet-short", MSStr.t.tsShort));
       run.addEventListener("click", function () {
         if (busy) return;
         busy = true;

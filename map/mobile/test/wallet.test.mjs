@@ -41,6 +41,28 @@ test("newIdem — 매번 다르고 비어 있지 않다", () => {
   }
 });
 
+// wallet-http.js 의 uuid()(deviceId)와 같은 이유로 같은 처방(리뷰 지적) — 길이만 재면
+// Date.now()+Math.random() 폴백도(길이만 늘려두면) 통과한다. crypto.getRandomValues 가 준
+// 바이트에서 실제로 나오는지 증명한다.
+test("newIdem — crypto.getRandomValues 가 준 바이트를 그대로 인코딩한다(카운터/타임스탬프 아님)", () => {
+  const orig = globalThis.crypto.getRandomValues;
+  let capturedLen = null;
+  globalThis.crypto.getRandomValues = (arr) => {
+    for (let i = 0; i < arr.length; i++) arr[i] = i;
+    capturedLen = arr.length;
+    return arr;
+  };
+  try {
+    const v = W.newIdem();
+    let expectedHex = "";
+    for (let i = 0; i < capturedLen; i++) expectedHex += i.toString(16).padStart(2, "0");
+    assert.strictEqual(v, "i-" + expectedHex,
+      "newIdem 이 crypto.getRandomValues 의 실제 바이트에서 나오지 않았다");
+  } finally {
+    globalThis.crypto.getRandomValues = orig;
+  }
+});
+
 test("백엔드가 없으면 넷 다 no-backend 로 떨어지고 던지지 않는다", async () => {
   W.install(null);
   assert.strictEqual(W.isInstalled(), false);

@@ -12,6 +12,16 @@ ini_set("display_errors", "0");
 header("Content-Type: application/json; charset=utf-8");
 header("Cache-Control: no-store");
 
+// Capacitor 앱은 androidScheme:"https" 라 https://localhost/ 에서 서빙되고, 이 파일은
+// 다른 오리진(cafe24)에 있다 — 진짜 cross-origin 이라 Authorization+application/json 조합이
+// preflight 를 태운다(map/mobile/www/wallet-http.js). forge-api.php 를 그대로 베끼면 안 된다 —
+// 거긴 X-Write-Key 만 허용하고 Authorization 이 빠져 있어서, 그대로 쓰면 이 API 의 인증 헤더가
+// preflight 에서 거부된다. Origin 은 "*" 로 연다(요청에 쿠키를 안 실으므로 자격증명 모드가
+// 아니다 — Authorization 은 헤더고 쿠키가 아니라 "*" 와 함께 써도 안전하다).
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+
 // 웹루트 밖. __DIR__ 이 /parksvc/www/map 이므로 두 단계 위가 /parksvc 다.
 // 하드코딩하지 않는 이유는 로컬 점검에서도 같은 코드가 돌아야 하기 때문이다.
 $W_DIR = dirname(dirname(__DIR__)) . "/data";
