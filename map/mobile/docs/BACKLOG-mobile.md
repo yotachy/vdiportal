@@ -364,6 +364,12 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
 
 - **8b 서버 원장** — SQLite `accounts`/`ledger`/`ad_grants`/`runs` + `forge-api.php` 의 `wallet.get`/`wallet.spend`/
   `wallet.checkin` + 멱등. **cafe24 SQLite(PDO) 가용 여부 확인이 선행.** 이때 `wallet-local-stub.js` 를 **삭제**한다.
+  - **`deviceId` 는 최소 32자 이상의 실제 엔트로피를 담아야 한다** — 8b(`wallet-api.php`)의 `hello` 는
+    `deviceId` 를 그대로 계정 키·베어러 토큰 발급 조건으로 쓴다: `deviceId` 를 맞히면 그 즉시 365일짜리
+    베어러 토큰을 내준다("추측한 device id 하나 = 남의 지갑"). 서버는 길이 하한(32자)만 강제할 뿐 실제
+    무작위성은 강제할 수 없다 — `crypto.getRandomValues` 등으로 뽑은 32바이트 이상을 hex/base64 인코딩해서
+    쓸 것. 카운터·타임스탬프·기기모델명 조합처럼 문자 수만 32를 채우고 실제 추측공간이 좁은 값은 서버
+    하한을 통과해도 그대로 뚫린다. (2026-08-13, wallet-api.php 리뷰 라운드 1 I4)
 - **8c 구글 로그인 + 익명 계정 병합** — `device_id` 계정을 구글 계정에 합칠 때 높은 잔량·긴 스트릭을 취하고
   병합 원장 줄을 남긴다(`SPEC §4`). 재설치로 5개를 다시 받는 구멍도 여기서 막힌다.
 - **8d AdMob SSV** — 광고 유닛 2종(Quick 15초 +1 · Full 30초 +3) · 서명 검증 · `transaction_id` 중복 제거.

@@ -111,7 +111,14 @@ if ($op === "hello") {
     try {
       $acct = w_create_account($db, $dev, $iph);
     } catch (WalletRateLimitException $e) {
-      w_out(array("ok" => false, "reason" => "rate-limited"), 429);
+      // 상한 검사가 이 device_id 의 존재 여부보다 먼저 온다(w_create_account) — 그래서
+      // 같은 device_id 로 동시에 들어온 다른 요청이 나보다 먼저 커밋해 상한 카운트를
+      // 채웠을 뿐인 경우에도 여기로 떨어진다. 그건 "상한 초과"가 아니라 "내 계정이
+      // 이미 생겼다"이다(리뷰 라운드 2 실측: 상한 경계에서 동일 device_id 12건 동시 요청
+      // 중 5~6건이 방금 자기 몫으로 생긴 계정인데도 429 를 받았다). UNIQUE 충돌 폴백과
+      // 같은 모양으로, 재조회해서 진짜로 없을 때만 429 를 낸다.
+      $acct = w_get_account($db, $dev);
+      if (!$acct) w_out(array("ok" => false, "reason" => "rate-limited"), 429);
     } catch (Throwable $e) {
       $acct = w_get_account($db, $dev);   // 동시 hello 경합
     }

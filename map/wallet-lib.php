@@ -23,7 +23,13 @@ function w_today() { return gmdate("Y-m-d"); }
 function w_day_add($ymd, $n) { return gmdate("Y-m-d", strtotime($ymd . " UTC") + $n * 86400); }
 
 function w_db($dir) {
-  if (!is_dir($dir) && !@mkdir($dir, 0700, true)) {
+  // mkdir 은 "이미 있어서 실패"와 "정말 못 만들어서 실패"를 구분하지 않는다 — 첫 부팅에
+  // 여러 프로세스가 동시에 !is_dir 을 통과하면 하나만 mkdir 에 성공하고 나머지는 EEXIST 로
+  // 실패한다. 그 실패만 보고 던지면, 디렉토리는 이미 있는데(승자가 막 만들었다) 나머지
+  // 전부가 "못 만든다"며 죽는다(리뷰 라운드 2 에서 이 클래스의 첫 부팅 폭주를 잡다가
+  // 실측 — 12-way 에서 6~10개가 이 경로로 죽었다). mkdir 실패 뒤에 is_dir 을 한 번 더 봐서,
+  // 그 사이 누가 이미 만들어 놨으면(진짜 실패가 아니면) 그냥 넘어간다.
+  if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
     throw new Exception("지갑 데이터 디렉토리를 만들 수 없다: " . $dir);
   }
   if (!is_writable($dir)) {
@@ -127,16 +133,40 @@ function w_secret($dir) {
   $f = $dir . "/wallet_secret.txt";
   if (!is_file($f)) {
     if (!is_dir($dir)) @mkdir($dir, 0700, true);
-    $n = @file_put_contents($f, bin2hex(random_bytes(32)), LOCK_EX);
-    if ($n === false) throw new Exception("지갑 비밀키를 쓸 수 없다: " . $f);
-    @chmod($f, 0600);
+    // 원자적으로 만든다. 그냥 file_put_contents 하면 첫 부팅에 여러 프로세스가 각자 제
+    // random_bytes 를 써서 마지막 승자만 남고, 그 사이 읽는 쪽은 잘린 파일을 본다(실측:
+    // 12-way, 3회 반복 — 서로 다른 비밀키 4·4·6개 관찰). w_ip_hash 가 이 키로 IP 해시를
+    // 만들므로(I5) 키가 프로세스마다 갈리면 같은 IP 의 상한 버킷도 그만큼 갈려 상한이
+    // 그 수만큼 늘어난다(리뷰 라운드 2 — 이 회귀가 그 원인이었다).
+    //
+    // rename() 은 "덮어써도 원자적"(읽는 쪽이 잘린 내용을 보지 않는다)이지 "한 번만 쓰기"가
+    // 아니다 — 목적지가 이미 있어도 rename 은 실패하지 않고 그냥 덮어쓴다. 그래서 rename
+    // 만으로는 마지막 승자가 계속 바뀔 뿐 문제가 그대로 남는다(실측: 12-way 로 다시
+    // 재현 — 12개 중 11개가 서로 다른 비밀키를 읽었다. rename 자체는 각자에게 "성공"으로
+    // 보였을 뿐이다). link() 는 목적지가 이미 있으면 실패한다(EEXIST) — 그래서 "가장 먼저
+    // 만든 사람만 남는다"를 원자적으로 보장한다. 성공하든 실패하든 내 임시 이름은 지운다 —
+    // 남이 이겼으면 내 임시파일만 버리고, 다음의 읽기가 그 사람이 쓴 내용을 그대로 본다.
+    $tmp = $f . "." . getmypid() . "." . bin2hex(random_bytes(4));
+    $n = @file_put_contents($tmp, bin2hex(random_bytes(32)));
+    if ($n === false) { @unlink($tmp); throw new Exception("지갑 비밀키를 쓸 수 없다: " . $f); }
+    @chmod($tmp, 0600);
+    @link($tmp, $f);
+    @unlink($tmp);
   }
-  $s = trim((string)@file_get_contents($f));
+  // 짧은 읽기는 곧장 실패가 아니라 재시도할 일이다. rename 이 원자적이어도, 파일이 막
+  // 생긴 순간 디렉토리 엔트리가 아직 안 보이는 파일시스템(네트워크 마운트 등)에서는
+  // 읽는 쪽이 잠깐 헛읽을 수 있다 — 첫 읽기에서 곧장 던지면 바로 그 창에서 정상 요청이
+  // 500 을 맞는다(w_db() 가 몇 줄 위에서 이미 문서화한 "배포 직후 첫 요청 묶음" 과 같은
+  // 창). C1 의 fail-closed 보장은 그대로 유지한다 — 재시도를 다 쓰고도 짧으면 그때 던진다.
+  for ($i = 0; $i < 5; $i++) {
+    $s = trim((string)@file_get_contents($f));
+    if (strlen($s) >= 64) return $s;
+    usleep(20000 * ($i + 1));
+  }
   // 빈 키로 물러서지 않는다. 빈 키로 서명하면 스킴을 아는 누구나 임의 기기의 토큰을
-  // 위조한다 — 스킴은 저장소와 APK 에 들어 있다. 0바이트 파일(중단된 첫 쓰기·디스크 가득)이나
-  // 읽기 불가(백업 복원·uid 불일치)는 실재하는 상태이고, w_db 가 같은 이유로 폴백을 거부한다.
-  if (strlen($s) < 64) throw new Exception("지갑 비밀키가 비었거나 짧다: " . $f);
-  return $s;
+  // 위조한다 — 스킴은 저장소와 APK 에 들어 있다. 재시도를 다 쓰고도 짧다면 0바이트
+  // 파일(디스크 가득)이나 읽기 불가(백업 복원·uid 불일치)처럼 실재하는 상태다.
+  throw new Exception("지갑 비밀키가 비었거나 짧다: " . $f);
 }
 
 function w_token_make($dir, $deviceId) {
