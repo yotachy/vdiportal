@@ -60,8 +60,13 @@
     // pickInited 는 4단계의 grantStarted 짝이다 — "종목 그리드를 한 번이라도 그렸다"를
     // 기억해 뒀다가, 재진입 시 프리셋(SEED) 대신 사용자가 마지막으로 고른 state.picked(빈
     // 배열 포함)로 다시 칠한다. 없으면 전부 해제하고 뒤로 갔다 와도 프리셋이 되살아난다.
+    // finished 는 완료 버튼의 더블탭 가드다 — MSStore.addTicker 는 실 스토어에서 심볼로
+    // 중복 제거하지만, opts.onDone() 은 그런 안전장치가 없다(app.js 가 boot() 에 그대로
+    // 연결한다). fwd.disabled 만 믿을 수 없다 — 클릭 이벤트 자체는 disabled 여부와 무관하게
+    // 발생할 수 있으므로(예: 두 번의 연속 탭이 disabled 반영 전에 둘 다 들어오는 경우) 핸들러
+    // 안에서 이 플래그로 한 번만 실행되게 막는다.
     var state = { picked: [], agreed: false, pickInited: false, granted: null, grantFailed: false,
-                  grantStarted: false, sample: o.sample || null };
+                  grantStarted: false, finished: false, sample: o.sample || null };
     var step = 1;
     var an = null;   // 엔진 결과 캐시 — 1↔2 단계를 오갈 때마다 32지표를 다시 돌리지 않는다
 
@@ -315,7 +320,9 @@
       fwd.disabled = !canAdvance(step, state);
       fwd.addEventListener("click", function () {
         if (step === STEPS) {
-          if (!canAdvance(STEPS, state)) return;
+          if (state.finished || !canAdvance(STEPS, state)) return;
+          state.finished = true;
+          fwd.disabled = true;
           seedTo(MSStore, state.picked);
           MSStore.setOnboarded(TERMS_VERSION);
           if (o.onDone) o.onDone();

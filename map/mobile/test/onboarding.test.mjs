@@ -570,6 +570,39 @@ test("5단계: 체크 전엔 완료가 막히고, 체크 후 완료가 고른 �
   }, store);
 });
 
+// 리뷰 지적(실행으로 확인됨): 완료 버튼을 연타하면 seedTo·setOnboarded·onDone 이 전부 두 번
+// 발화했다. 실 MSStore.addTicker(store.js)는 심볼로 중복을 걸러 "워치리스트 중복 행"으로는
+// 안 드러나지만, opts.onDone() 은 그런 안전장치가 없다 — app.js 가 boot() 에 그대로 연결하므로
+// 연타 한 번이 부팅 시퀀스를 두 번 돌린다. 여기서는 **중복 제거 없는** 가짜 store 를 쓴다 —
+// 실 addTicker 의 dedup 을 빌리면 심는 횟수 자체가 두 번인 증상이 가려진다(리뷰가 지적한 함정).
+test("5단계: 완료 버튼 연타(더블탭)에도 한 번만 심고 한 번만 완료한다", () => {
+  var added = [];
+  var onboardedCalls = 0;
+  var doneCalls = 0;
+  var store = {
+    SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
+    addTicker: function (s) { added.push(s); },              // 의도적으로 중복 제거 안 함
+    setOnboarded: function () { onboardedCalls++; },
+    onboarded: function () { return false; }
+  };
+  withDom((root) => {
+    O.render(root, { sample: SAMPLE, onDone: function () { doneCalls++; } });
+    root.querySelector(".ob-next").click();   // 1 -> 2
+    root.querySelector(".ob-next").click();   // 2 -> 3
+    root.querySelector(".ob-next").click();   // 3 -> 4
+    root.querySelector(".ob-next").click();   // 4 -> 5 (프리셋 3종 그대로)
+    var cb = root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
+    cb.checked = true;
+    cb.listeners.change[0]({});
+    var fwd = root.querySelector(".ob-next");
+    fwd.click();
+    fwd.click();   // 더블탭 — 같은 버튼 인스턴스에 연속 두 번(disabled 반영과 무관하게 둘 다 발화)
+    assert.strictEqual(onboardedCalls, 1, "setOnboarded 가 두 번 불렸다: " + onboardedCalls);
+    assert.strictEqual(doneCalls, 1, "onDone 이 두 번 불렸다 — app.js 가 boot() 를 두 번 돌린다: " + doneCalls);
+    assert.strictEqual(added.length, 3, "심기가 두 번 실행됐다(연타로 워치리스트가 중복 심겼다): " + added.length);
+  }, store);
+});
+
 // ── 3단계: 지갑 호출 ───────────────────────────────────────────────────────────
 // 위 withDom 은 동기 콜백 전제다 — try { return fn(...) } finally { 복구 } 라서, fn 이 비동기면
 // fn 의 await 가 끝나기 전에 finally 가 먼저 돌아 document/MSWallet 이 사라진다(재시도 버튼이
