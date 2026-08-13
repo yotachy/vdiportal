@@ -170,7 +170,16 @@
 
     // 지갑을 읽을 수 없을 때(오프라인 등) — 잔량을 0 으로 그리면 거짓 정보다(SPEC §1).
     walUnavailable: "Wallet unavailable — check your connection.",
-    tsUnavailable: "Wallet unavailable. Check your connection and try again."
+    tsUnavailable: "Wallet unavailable. Check your connection and try again.",
+
+    // 종목 고르기 (ticker-picker.js) — 온보딩 4단계와 워치리스트 ＋Add 가 공유하는 컴포넌트
+    tpPlaceholder: "Symbol (e.g. TSLA)",
+    tpAdd: "Add",
+    tpChecking: "Checking…",
+    tpNotFound: "We could not find that symbol.",
+    tpDidYouMean: "Did you mean: ",
+    tpFull: "That is all the slots for now.",
+    tpUnavailable: "Search is unavailable right now."
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을
