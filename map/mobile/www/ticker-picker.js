@@ -134,7 +134,7 @@
     });
 
     var row = MSUi.el("div", "tp-free");
-    var input = MSUi.el("input", "fi tp-input");
+    var input = MSUi.el("input", "tp-input");
     input.type = "text";
     input.setAttribute("placeholder", Str ? Str.t.tpPlaceholder : "");
     var addBtn = MSUi.el("button", "btn tp-add", Str ? Str.t.tpAdd : "");
