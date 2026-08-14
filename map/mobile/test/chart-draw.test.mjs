@@ -5,6 +5,7 @@ const require = createRequire(import.meta.url);
 const D  = require("../www/chart-draw.js");
 const CL = require("../www/chart-layout.js");
 const L  = require("../www/draw-layers.js");
+const API = require("../www/api.js");
 
 const COL = { bull: "#4fb98a", bear: "#d96a6a", gold: "#e8b463", cone: "rgba(232,180,99,.09)",
               ink4: "#7c8598", ink5: "#78819a", hairline: "rgba(238,241,247,.06)" };
@@ -26,6 +27,20 @@ function candles(n) {
 }
 const pred = { path: [130, 131, 132], lo: [128, 129, 130], hi: [132, 133, 134], futW: 3 };
 const LAY = () => CL.chartLayout({ candle: candles(150), prediction: pred, width: 372, height: 520, pad: 10, tailBars: 120 });
+
+// candles() 위 헬퍼는 t 를 손으로 박아 넣는다 — 그래서 api.js normalizeCandles 가 t 를
+// 떨어뜨리는 버그를 이 파일의 다른 테스트들은 하나도 못 잡았다(실제로 그랬다). 아래 두 테스트만은
+// 진짜 서버 응답 모양(raw candles, t 포함)을 api.js 를 직접 거쳐 만든다 — normalizeCandles 가
+// 깨지면 여기가 즉시 빨간불이 되도록.
+function apiCandles(n) {
+  const raw = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(Date.UTC(2026, 0, 1 + i));
+    raw.push({ t: d.toISOString().slice(0, 10), o: 100 + i, h: 102 + i, l: 99 + i, c: 101 + i, v: 1000 + i });
+  }
+  return API.normalizeCandles({ ok: true, tf: "1day", candles: raw }).candle;
+}
+const apiLay = (cd) => CL.chartLayout({ candle: cd, prediction: pred, width: 372, height: 520, pad: 10, tailBars: 120 });
 
 // 예측선은 이제 봉별 세그먼트로 쪼개져 그려진다(신뢰 감쇠). 그래서 "스트로크 몇 번"이 아니라
 // "어떤 예측선 색이 등장했나" 로 티어 계약을 고정한다 — 세그먼트 수는 밴드 모양에 딸린 값이다.
@@ -211,6 +226,35 @@ test("크로스헤어는 모든 패널을 관통하고 값 라벨을 그린다",
   D.drawCrosshair(c, lay, lay.nowFi - 5, candles(150), COL);
   assert.ok(c.calls.filter(x => x.op === "stroke").length >= 1, "세로선이 없다");
   assert.ok(c.calls.some(x => x.op === "fillText"), "값 라벨이 없다");
+});
+
+// api.js normalizeCandles 가 봉의 t 를 떨어뜨리면 candle[lay.nowFi].t 가 undefined 가 되어
+// 하단 날짜축이 아예 안 그려진다(2026-08-13 실제 리포트 화면 결함) — chart-layout.js 의
+// AXIS_LABEL_H 여백은 예약돼 있지만 채울 글자가 없었다. 여기가 "실제로 그려지는가"를 잡는다.
+test("하단 날짜축 라벨이 실제로 그려진다 — normalizeCandles 를 거친 봉도 t 가 살아 있어야 한다", () => {
+  const c = recCtx();
+  const cd = apiCandles(250), lay = apiLay(cd);
+  D.drawAxes(c, lay, cd, COL);
+  const lastT = cd[lay.nowFi].t;
+  assert.ok(lastT, "테스트 전제가 깨졌다 — normalizeCandles 출력에 t 가 없다");
+  const expected = String(lastT).slice(5).replace("-", ".");
+  const dateCall = c.calls.find(x => x.op === "fillText" && x.args[0] === expected);
+  assert.ok(dateCall, "하단 날짜 라벨(\"" + expected + "\")이 그려지지 않았다: " +
+    c.calls.filter(x => x.op === "fillText").map(x => x.args[0]).join("|"));
+  // chart-layout.js 의 AXIS_LABEL_H 예약이 실제로 이 라벨을 담는지 — 베이스라인이
+  // 캔버스 높이(520) 안쪽이어야 한다(9efebda 가 판 자리를 이 라벨이 채운다).
+  assert.ok(dateCall.args[2] < 520, "날짜 라벨 베이스라인(" + dateCall.args[2] + ")이 캔버스 밖이다");
+});
+
+test("크로스헤어 라벨에 날짜 프리픽스가 붙는다 — t 가 죽으면 가격만 남는다", () => {
+  const c = recCtx();
+  const cd = apiCandles(250), lay = apiLay(cd);
+  const fi = lay.nowFi - 5;
+  D.drawCrosshair(c, lay, fi, cd, COL);
+  const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
+  const expectedPrefix = String(cd[fi].t).slice(5) + "  ";
+  assert.ok(texts.some(t => t.indexOf(expectedPrefix) === 0),
+    "크로스헤어 라벨에 날짜 프리픽스(\"" + expectedPrefix + "\")가 없다: " + texts.join("|"));
 });
 
 test("끝점 차수 배지와 예측가는 더 이상 차트에 안 그려진다 — 레전드로 갔다", () => {

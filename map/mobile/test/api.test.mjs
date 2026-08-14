@@ -63,6 +63,26 @@ test("정상 응답은 전 봉 OHLC 가 유한하다", () => {
   assert.ok(out.candle.every(c => [c.o, c.h, c.l, c.c].every(Number.isFinite)));
 });
 
+// t 는 chart-draw.js 가 하단 날짜축·크로스헤어에 쓰는 유일한 소스다(nowFi 봉의 t).
+// normalizeCandles 의 매퍼가 이걸 안 옮기면 asOf 는 멀쩡한데(마지막 원소를 직접 읽으니까)
+// candle[].t 는 전부 undefined 로 떨어져 두 화면 모두 날짜가 사라진다 — 실제로 있었던 버그.
+test("normalizeCandles 는 각 봉의 날짜(t)를 그대로 옮긴다", () => {
+  const out = MSApi.normalizeCandles(fakeResponse(250));
+  assert.strictEqual(out.candle[0].t, "2020-01-01");
+  assert.strictEqual(out.candle[249].t, "2020-09-06");
+});
+
+// c.v 와 같은 원칙: 없는 값을 지어내지 않는다. 특히 String(c.t) 로 강제하면 c.t 가
+// undefined 일 때 "undefined" 라는 truthy 문자열이 생겨, chart-draw.js 의 `b.t ?` 가드를
+// 뚫고 크로스헤어에 그 글자가 그대로 찍힌다 — 이 케이스가 바로 그 함정을 잡는다.
+test("t 가 없는 봉은 undefined 로 남는다 — 문자열 \"undefined\" 를 지어내지 않는다", () => {
+  const r = fakeResponse(250);
+  delete r.candles[10].t;
+  const out = MSApi.normalizeCandles(r);
+  assert.strictEqual(out.candle[10].t, undefined);
+  assert.notEqual(out.candle[10].t, "undefined", "t 가 문자열 \"undefined\" 로 지어내지면 안 된다");
+});
+
 test("asOf 는 마지막 봉 날짜 10자리", () => {
   const r = fakeResponse(250);
   r.candles[249].t = "2026-08-07T00:00:00Z";

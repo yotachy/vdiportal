@@ -42,7 +42,11 @@
         // 없는 거래량은 undefined 로 남긴다 — 0 은 '거래 없음'이라는 거짓 사실이 된다.
         // 소비 측(spike.js)이 "전 봉에 거래량이 있는가"를 undefined 로 판별해
         // 부분 배열이면 통째로 넘기지 않도록 하는 근거가 이 값이다.
-        v: (c.v != null && isFinite(+c.v)) ? +c.v : undefined
+        v: (c.v != null && isFinite(+c.v)) ? +c.v : undefined,
+        // 그대로 통과시킨다 — String(c.t) 로 강제하면 c.t 가 없을 때 "undefined" 라는
+        // 진짜 문자열이 생겨 truthy 가 된다. chart-draw.js 의 `b.t ?` 가드는 "값이 없다"를
+        // falsy(undefined)로 식별하는데, 그 값을 지어내면 가드가 뚫려 날짜 대신 쓰레기가 찍힌다.
+        t: c.t
       };
     });
     return {
