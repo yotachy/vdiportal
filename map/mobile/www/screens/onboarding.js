@@ -266,10 +266,12 @@
     // 자기 목록에 얹힌다 — 이 단계가 없애려던 바로 그 상태가 되돌아온다. 그래서 목록이
     // 비어 있지 않으면 그 목록이 프리셋이다. 목록이 있다고 온보딩을 건너뛰지는 않는다 —
     // 동의 기록은 법적 효력이 있는 자리라 한 번은 받아야 한다.
+    // {sym,name} 으로 돌려준다 — 심볼만 주면 CURATED 밖 종목(예: PLTR 하나뿐인 워치리스트)이
+    // 피커에서 이름 없이 그려진다(ticker-picker.js 의 resolved 시딩이 이 이름을 쓴다).
     function defaultPreset() {
       var wl = MSStore.getWatchlist();
       var src = (wl && wl.length) ? wl : MSStore.SEED;
-      return src.map(function (x) { return x.sym; });
+      return src.map(function (x) { return { sym: x.sym, name: x.name }; });
     }
 
     // 프리셋은 처음 그릴 때만 쓴다. 뒤로/앞으로를 오가며 다시 그릴 때는 state.picked
@@ -279,10 +281,9 @@
       var w = frag("ob-step");
       w.appendChild(el("h1", "ob-h", Str ? Str.t.obH4 : ""));
       w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub4 : ""));
-      var presetSyms = state.pickInited ?
-        state.picked.map(function (p) { return p.sym; }) : defaultPreset();
+      var presetItems = state.pickInited ? state.picked : defaultPreset();
       var picker = MSTickerPicker.create({
-        multi: true, max: 3, preset: presetSyms,
+        multi: true, max: 3, preset: presetItems,
         // 심볼이 아니라 {sym,name} 을 담는다 — 이름을 여기서 흘리면 seedTo 가 이름 없이 심는다.
         onChange: function (sel, items) {
           state.picked = items;

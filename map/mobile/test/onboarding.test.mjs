@@ -610,11 +610,25 @@ test("4단계: 기존 워치리스트가 있으면 그것이 프리셋이다 —
   withDom((root) => {
     toStep4(root);
     var grid = root.querySelector(".tp-grid");
-    // PLTR 은 CURATED 밖이라 격자에 칸이 없다 — 켜진 칸은 TSLA 뿐이어야 하고,
-    // 무엇보다 SEED 3종이 하나도 켜져 있으면 안 된다.
-    assert.deepStrictEqual(onSyms(grid), ["TSLA"],
-      "기존 목록 대신 SEED 가 프리셋으로 들어왔다: " + onSyms(grid).join(","));
+    // PLTR 은 CURATED 밖이지만 이제 격자에 셀이 생겨 켜진다(paint()가 CURATED 밖 선택
+    // 항목도 그린다) — 켜진 칸은 TSLA·PLTR 둘이어야 하고, 무엇보다 SEED 3종이 하나도
+    // 켜져 있으면 안 된다.
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["PLTR", "TSLA"],
+      "기존 목록 대신 SEED 가 프리셋으로 들어왔거나 CURATED 밖 종목이 안 켜졌다: " + onSyms(grid).join(","));
   }, defaultFakeStore([{ sym: "TSLA", name: "Tesla, Inc." }, { sym: "PLTR", name: "Palantir" }]));
+});
+
+// 이 태스크가 정확히 문 버그: 워치리스트 전체가 CURATED 밖이면(예: PLTR 하나뿐) 예전엔
+// selected()가 참인데 격자엔 켜진 셀이 하나도 없어 "아무것도 안 고른 것처럼" 보였다.
+test("4단계: 워치리스트 전체가 CURATED 밖이어도 그 종목이 켜진 채로 보인다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    assert.deepStrictEqual(onSyms(grid), ["PLTR"],
+      "CURATED 밖 유일한 프리셋이 셀로 안 그려졌다 — 화면엔 아무것도 안 고른 것처럼 보인다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false,
+      "선택은 있는데(selected()===['PLTR']) 계속하기가 막혀 있다");
+  }, defaultFakeStore([{ sym: "PLTR", name: "Palantir" }]));
 });
 
 test("4단계: 워치리스트가 비어 있을 때만 SEED 로 떨어진다", () => {
@@ -638,11 +652,12 @@ test("4단계: 기존 목록은 격자에 칸이 없어도 완료까지 살아�
     cb.checked = true;
     cb.listeners.change[0]({});
     root.querySelector(".ob-next").click();
-    // PLTR 의 이름은 아무도 모른다(CURATED 밖) — 빈 이름으로 가고 실 store 의 중복 거부가
-    // 기존 이름을 지킨다. 심볼이 빠지는 것만은 안 된다.
-    assert.deepStrictEqual(added.map(function (x) { return x[0]; }), ["TSLA", "PLTR"],
-      "기존 종목이 완료에서 빠졌다: " + JSON.stringify(added));
-    assert.strictEqual(added[0][1], "Tesla", "CURATED 이름이 안 실렸다");
+    // TSLA 는 CURATED 심볼이라 표준 이름("Tesla")을 심는다 — 워치리스트에 저장된 다른
+    // 표기("Tesla, Inc.")로 덮이지 않는다. PLTR 은 CURATED 밖이라 프리셋이 준 워치리스트
+    // 이름("Palantir")을 그대로 싣는다(ticker-picker.js 의 resolved 시딩). 심볼이 빠지는
+    // 것만은 안 된다.
+    assert.deepStrictEqual(added, [["TSLA", "Tesla"], ["PLTR", "Palantir"]],
+      "기존 종목/이름이 완료에서 달라졌다: " + JSON.stringify(added));
   }, store);
 });
 

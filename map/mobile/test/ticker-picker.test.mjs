@@ -268,6 +268,61 @@ test("create() — 단일 모드: 같은 심볼 재입력도 fetch 를 타고 �
   assert.deepEqual(p.selectedItems(), [{ sym: "AAPL", name: "Apple Inc." }]);
 });
 
+// ── Fix B: CURATED 밖 선택 항목도 셀로 그려진다 ─────────────────────────────────────────
+test("create() — 프리셋이 CURATED 밖 심볼뿐이면 그 심볼이 셀로 켜져서 그려진다", () => {
+  const p = P.create({ multi: true, max: null, preset: [{ sym: "PLTR", name: "Palantir" }], strings: MSStr });
+  const grid = findByClass(p.el, "tp-grid");
+  const cell = cellFor(grid, "PLTR");
+  assert.ok(cell, "PLTR 셀이 안 그려졌다 — selected()는 참인데 격자엔 아무것도 없다");
+  assert.ok(cell.className.split(" ").indexOf("is-on") >= 0, "PLTR 셀이 켜진 채로 그려지지 않았다");
+  assert.strictEqual(findByClass(cell, "tp-name").textContent, "Palantir",
+    "프리셋이 준 이름이 안 실렸다");
+  assert.deepEqual(p.selected(), ["PLTR"]);
+});
+
+// CURATED 12종 순서는 그대로, 밖 종목은 뒤에 붙는다 — 순서를 흔들면 기존 12종 레이아웃이 튄다.
+test("create() — CURATED 12종 순서는 그대로고, 밖 항목은 뒤에 이어붙는다", () => {
+  const p = P.create({ multi: true, max: null,
+                       preset: [{ sym: "PLTR", name: "Palantir" }, "AAPL"], strings: MSStr });
+  const grid = findByClass(p.el, "tp-grid");
+  const syms = grid.children.map(c => c.getAttribute("data-sym"));
+  assert.deepEqual(syms.slice(0, P.CURATED.length), P.CURATED.map(x => x.sym),
+    "CURATED 12종 순서가 바뀌었다");
+  assert.deepEqual(syms.slice(P.CURATED.length), ["PLTR"], "밖 항목이 12종 뒤에 붙지 않았다");
+});
+
+// CURATED 밖 심볼을 이름 없이(문자열 프리셋) 주면 심볼로라도 그려져야 한다 — 빈 칸보다 낫다.
+test("create() — 이름 없는 CURATED 밖 프리셋도 심볼로 셀이 그려진다", () => {
+  const p = P.create({ multi: true, max: null, preset: ["ZZZZ"], strings: MSStr });
+  const grid = findByClass(p.el, "tp-grid");
+  const cell = cellFor(grid, "ZZZZ");
+  assert.ok(cell, "이름 없는 프리셋도 셀이 있어야 한다");
+  assert.strictEqual(findByClass(cell, "tp-name").textContent, "ZZZZ", "이름이 없으면 심볼로 폴백해야 한다");
+});
+
+test("create() — 직접 입력으로 CURATED 밖 심볼을 추가해도 셀이 켜진다", async () => {
+  const fakeApi = { loadTicker: () => Promise.resolve({ name: "Palantir Technologies" }) };
+  const p = P.create({ multi: true, max: null, preset: [], api: fakeApi, strings: MSStr });
+  const input = findByClass(p.el, "tp-input");
+  input.value = "pltr";
+  findByClass(p.el, "tp-add").dispatch("click");
+  await flush();
+
+  const grid = findByClass(p.el, "tp-grid");
+  const cell = cellFor(grid, "PLTR");
+  assert.ok(cell, "직접 입력으로 추가한 CURATED 밖 종목이 셀로 안 그려졌다");
+  assert.ok(cell.className.split(" ").indexOf("is-on") >= 0);
+  assert.strictEqual(findByClass(cell, "tp-name").textContent, "Palantir Technologies");
+});
+
+// CURATED 심볼은 프리셋에 이름을 다르게 줘도 표준 이름을 지킨다 — 정식 표시명이 이미 있다.
+test("create() — CURATED 심볼은 프리셋이 다른 이름을 줘도 CURATED 이름을 쓴다", () => {
+  const p = P.create({ multi: true, max: null,
+                       preset: [{ sym: "TSLA", name: "Tesla, Inc." }], strings: MSStr });
+  assert.deepEqual(p.selectedItems(), [{ sym: "TSLA", name: "Tesla" }],
+    "CURATED 표준 이름이 프리셋 이름으로 덮였다");
+});
+
 test("create() — 직접 입력: 상한에 걸리면 추가되지 않고 안내가 뜬다", async () => {
   const fakeApi = { loadTicker: () => Promise.resolve({}) };
   const p = P.create({ multi: true, max: 1, preset: ["AAPL"], api: fakeApi, strings: MSStr });

@@ -51,7 +51,11 @@
     var api = o.api || (typeof MSApi !== "undefined" ? MSApi : null);
     var multi = !!o.multi;
     var max = (o.max == null) ? null : o.max;
-    var sel = (o.preset || []).map(norm);
+    // preset 항목은 심볼 문자열이거나(옛 호출부), {sym,name} 객체(온보딩 4단계 — CURATED 밖
+    // 프리셋에 이름을 함께 실어 보낸다)다. 둘 다 받는다 — norm() 에 객체를 그대로 넣으면
+    // "[object Object]" 가 심볼이 된다.
+    var presetList = o.preset || [];
+    var sel = presetList.map(function (p) { return norm(typeof p === "string" ? p : p.sym); });
 
     var el = MSUi.el("div", "tp");
     var grid = MSUi.el("div", "tp-grid");
@@ -60,6 +64,16 @@
     // 직접 입력으로 서버가 확인해 준 이름. CURATED 밖 심볼의 이름은 여기밖에 없다 —
     // loadTicker 응답을 여기서 안 붙잡으면 그 종목은 영영 이름 없이 심긴다.
     var resolved = {};
+    // 프리셋이 {sym,name} 객체로 이름을 함께 실어 왔으면 그 이름을 미리 붙잡아 둔다 —
+    // 이 이름이 없으면 CURATED 밖 프리셋 심볼(예: 워치리스트가 PLTR 하나뿐인 사용자)은
+    // 그려질 때 이름 없이 심볼만 나온다. CURATED 심볼은 건드리지 않는다 — 정식 표시명이
+    // 이미 있고, 온보딩 완료 시(seedTo) 그 표준 이름을 심어야 한다(워치리스트에 저장된
+    // 다른 표기로 덮이면 안 된다).
+    presetList.forEach(function (p) {
+      if (!p || typeof p !== "object" || !p.name) return;
+      var s = norm(p.sym);
+      if (s && !nameOf(s)) resolved[s] = p.name;
+    });
     function nameFor(s) { return resolved[s] || nameOf(s); }
     function items() {
       return sel.map(function (s) { return { sym: s, name: nameFor(s) }; });
@@ -76,6 +90,19 @@
         b.setAttribute("data-sym", x.sym);
         b.appendChild(MSUi.el("span", "tp-sym", x.sym));
         b.appendChild(MSUi.el("span", "tp-name", x.name));
+        grid.appendChild(b);
+      });
+      // CURATED 밖 선택 항목도 셀로 그린다 — 안 그러면 selected()는 참인데 격자엔 아무 셀도
+      // 없어 "고른 게 하나도 없어 보이는" 화면이 된다(온보딩 4단계 프리셋이 워치리스트 전체가
+      // CURATED 밖일 때 실측). 이 항목들은 정의상 전부 선택된 상태이니 is-on 고정, curated 12종
+      // 순서는 그대로 두고 뒤에 이어붙인다(sel 순서 = 프리셋/추가 순서).
+      sel.forEach(function (s) {
+        if (nameOf(s)) return;   // CURATED 안 심볼은 위에서 이미 그렸다
+        var b = MSUi.el("button", "tp-cell is-on");
+        b.type = "button";
+        b.setAttribute("data-sym", s);
+        b.appendChild(MSUi.el("span", "tp-sym", s));
+        b.appendChild(MSUi.el("span", "tp-name", nameFor(s) || s));
         grid.appendChild(b);
       });
     }
