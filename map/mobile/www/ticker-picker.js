@@ -118,6 +118,15 @@
     function tryAdd() {
       var sym = norm(input.value);
       if (!sym) return;
+      // 이미 골라둔 심볼을 다시 치면 fetch 부터 걷어낸다 — applySelection(sym) 까지 가면
+      // multi 모드에서 toggle() 이 있는 걸 빼버려서, 다시 담으려던 사용자가 그 종목이
+      // 꺼지는 걸 본다(방향이 반대인 결함이지 오프바이원이 아니다). 단일 모드는 원래
+      // 매번 [sym] 으로 교체라 같은 심볼 재입력도 정상 동작이어야 해서 이 가드 밖이다.
+      if (multi && sel.indexOf(sym) >= 0) {
+        input.value = "";
+        msg.textContent = Str ? Str.t.tpAlreadyPicked : "";
+        return;
+      }
       if (!api) { msg.textContent = Str ? Str.t.tpUnavailable : ""; return; }
       msg.textContent = Str ? Str.t.tpChecking : "";
       api.loadTicker(sym, "1day").then(function (data) {

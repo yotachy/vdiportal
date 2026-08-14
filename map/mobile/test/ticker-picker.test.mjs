@@ -212,6 +212,62 @@ test("create() — Enter 키로도 직접 입력이 동작한다(단일 모드�
   assert.deepEqual(p.selected(), ["QQQ"]);
 });
 
+// ── Fix A: 이미 선택된 심볼을 직접 입력으로 다시 치면 꺼지는 게 아니라 안내만 뜬다 ──────────
+// applySelection(sym) 이 toggle() 을 타면 이미 있는 걸 빼버린다 — 다시 담으려던 사용자가
+// 그 종목이 꺼지는 걸 본다. 멤버십 체크가 fetch **전에** 있어야 한다 — loadTicker 콜 카운트로
+// 그것까지 함께 확인한다(체크가 fetch 뒤에 있으면 통과할 수 있는 뮤테이션을 잡기 위해).
+test("create() — 멀티 모드: 이미 고른 심볼을 직접 입력하면 fetch 없이 안내만 뜨고 꺼지지 않는다", async () => {
+  const calls = [];
+  const fakeApi = { loadTicker: sym => { calls.push(sym); return Promise.resolve({ name: sym }); } };
+  const p = P.create({ multi: true, max: null, preset: ["AAPL"], api: fakeApi, strings: MSStr });
+  const input = findByClass(p.el, "tp-input");
+  const addBtn = findByClass(p.el, "tp-add");
+
+  input.value = "aapl";
+  addBtn.dispatch("click");
+  await flush();
+
+  assert.deepEqual(calls, [], "이미 고른 심볼인데 loadTicker 를 불렀다 — 멤버십 체크가 fetch 뒤에 있다");
+  assert.deepEqual(p.selected(), ["AAPL"], "다시 입력했더니 꺼졌다 — toggle() 을 탄 결함");
+  const msg = findByClass(p.el, "tp-msg");
+  assert.strictEqual(msg.textContent, MSStr.t.tpAlreadyPicked);
+});
+
+// 같은 심볼을 대소문자/공백만 다르게 입력해도 정규화 후 멤버십을 봐야 한다.
+test("create() — 멀티 모드: 대소문자·공백만 다른 재입력도 이미 고른 것으로 본다", async () => {
+  const calls = [];
+  const fakeApi = { loadTicker: sym => { calls.push(sym); return Promise.resolve({ name: sym }); } };
+  const p = P.create({ multi: true, max: null, preset: ["NVDA"], api: fakeApi, strings: MSStr });
+  const input = findByClass(p.el, "tp-input");
+  findByClass(p.el, "tp-add");
+
+  input.value = " nvda ";
+  findByClass(p.el, "tp-add").dispatch("click");
+  await flush();
+
+  assert.deepEqual(calls, []);
+  assert.deepEqual(p.selected(), ["NVDA"]);
+});
+
+// 단일 모드(워치리스트 ＋Add)는 이 가드 밖이다 — 같은 심볼 재입력이 정상 동작(교체)이어야
+// 한다. 가드를 multi 로 한정하지 않으면 ＋Add 시트에서 같은 종목을 다시 치는 것 자체가
+// 막혀버린다(과제 지시: "single-select case ... 재입력해도 동작해야 한다").
+test("create() — 단일 모드: 같은 심볼 재입력도 fetch 를 타고 정상 동작한다", async () => {
+  const calls = [];
+  const fakeApi = { loadTicker: sym => { calls.push(sym); return Promise.resolve({ name: "Apple Inc." }); } };
+  const p = P.create({ multi: false, max: null, preset: ["AAPL"], api: fakeApi, strings: MSStr });
+  const input = findByClass(p.el, "tp-input");
+  const addBtn = findByClass(p.el, "tp-add");
+
+  input.value = "aapl";
+  addBtn.dispatch("click");
+  await flush();
+
+  assert.deepEqual(calls, ["AAPL"], "단일 모드는 재입력에서도 fetch 를 타야 한다");
+  assert.deepEqual(p.selected(), ["AAPL"]);
+  assert.deepEqual(p.selectedItems(), [{ sym: "AAPL", name: "Apple Inc." }]);
+});
+
 test("create() — 직접 입력: 상한에 걸리면 추가되지 않고 안내가 뜬다", async () => {
   const fakeApi = { loadTicker: () => Promise.resolve({}) };
   const p = P.create({ multi: true, max: 1, preset: ["AAPL"], api: fakeApi, strings: MSStr });

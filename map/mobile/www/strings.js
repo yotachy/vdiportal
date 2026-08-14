@@ -177,6 +177,7 @@
     tpDidYouMean: "Did you mean: ",
     tpFull: "That is all the slots for now.",
     tpUnavailable: "Search is unavailable right now.",
+    tpAlreadyPicked: "You already picked that one.",
 
     // 온보딩 (screens/onboarding.js)
     obBack: "Back", obNext: "Continue",
