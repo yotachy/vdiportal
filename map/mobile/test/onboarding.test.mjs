@@ -784,6 +784,44 @@ test("5단계: 완료 버튼 연타(더블탭)에도 한 번만 심고 한 번�
   }, store);
 });
 
+// 리뷰 지적: state.finished 는 seedTo/setOnboarded/onDone 이 돌기 **전에** 켜진다(연타 방지를
+// 위해서다) — 그런데 그중 하나가 던지면 래치가 켜진 채 멈춘다. 그러면 버튼은 disabled=true 로
+// 굳고, onDone 도 못 불려 앱이 영영 부팅하지 않는다. store.js write() 가 오늘은 모든 localStorage
+// 예외를 삼켜 이 경로가 실제로 던질 일이 없지만, 그건 이 가드가 아니라 다른 파일의 방어력에
+// 기대는 것이다 — 가짜 store 로 강제로 던져서 이 핸들러 스스로 복구하는지 검사한다.
+test("5단계: 완료 처리 중 예외가 나면 래치를 풀고 버튼을 다시 열어 재시도할 수 있다", () => {
+  var doneCalls = 0;
+  var shouldThrow = true;
+  var store = {
+    SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
+    addTicker: function () {},
+    setOnboarded: function () { if (shouldThrow) throw new Error("quota exceeded"); },
+    onboarded: function () { return false; },
+    getWatchlist: function () { return []; }
+  };
+  withDom((root) => {
+    O.render(root, { sample: SAMPLE, onDone: function () { doneCalls++; } });
+    root.querySelector(".ob-next").click();   // 1 -> 2
+    root.querySelector(".ob-next").click();   // 2 -> 3
+    root.querySelector(".ob-next").click();   // 3 -> 4
+    root.querySelector(".ob-next").click();   // 4 -> 5 (프리셋 3종 그대로)
+    var cb = root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
+    cb.checked = true;
+    cb.listeners.change[0]({});
+    var fwd = root.querySelector(".ob-next");
+
+    assert.throws(function () { fwd.click(); }, /quota exceeded/,
+      "예외가 조용히 삼켜졌다 — 원인이 안 보이면 디버깅할 수 없다");
+    assert.strictEqual(fwd.disabled, false,
+      "예외 후에도 완료 버튼이 비활성인 채 남았다 — 사용자가 5단계에 갇힌다");
+    assert.strictEqual(doneCalls, 0, "예외가 났는데 완료 콜백이 불렸다");
+
+    shouldThrow = false;   // 다음 시도는 성공한다 — 사용자가 다시 눌러 복구되는지 확인
+    fwd.click();
+    assert.strictEqual(doneCalls, 1, "래치를 풀어도 재시도가 끝까지 완료되지 않는다");
+  }, store);
+});
+
 // ── 3단계: 지갑 호출 ───────────────────────────────────────────────────────────
 // 위 withDom 은 동기 콜백 전제다 — try { return fn(...) } finally { 복구 } 라서, fn 이 비동기면
 // fn 의 await 가 끝나기 전에 finally 가 먼저 돌아 document/MSWallet 이 사라진다(재시도 버튼이

@@ -356,9 +356,19 @@
           if (state.finished || !canAdvance(STEPS, state)) return;
           state.finished = true;
           fwd.disabled = true;
-          seedTo(MSStore, state.picked);
-          MSStore.setOnboarded(TERMS_VERSION);
-          if (o.onDone) o.onDone();
+          // seedTo/setOnboarded/onDone 중 하나라도 던지면 래치가 켜진 채 멈춘다 — 그러면 버튼은
+          // 영원히 비활성이고 onDone 도 못 불려 앱이 5단계에 갇힌다. 오늘은 store.js write() 가
+          // localStorage 예외를 전부 삼켜 이 경로가 실제로 던질 일이 없지만, 그건 이 가드가 아니라
+          // 다른 파일의 방어력에 기대는 것이다 — 여기 스스로 복구할 수 있어야 한다.
+          var ok = false;
+          try {
+            seedTo(MSStore, state.picked);
+            MSStore.setOnboarded(TERMS_VERSION);
+            if (o.onDone) o.onDone();
+            ok = true;
+          } finally {
+            if (!ok) { state.finished = false; fwd.disabled = false; }
+          }
           return;
         }
         var n = next(step, state);
