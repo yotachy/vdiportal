@@ -274,6 +274,16 @@
       return src.map(function (x) { return { sym: x.sym, name: x.name }; });
     }
 
+    // 상한 3은 "처음 시작하는" 사람 기준(obSub4: "Three slots to start")이다. 기존
+    // 워치리스트를 프리셋으로 받은 사람이 3종보다 많이 갖고 있으면(온보딩을 다시 보는
+    // 경우 등) 3에 못 미치게 강제로 깎지 않는다 — 지우는 것만 되고 그 안에서 다시 넣는
+    // 것은 막히는 비대칭을 만들기 때문이다(뺀 건 항상 되는데, 상한에 걸려 있으면 같은
+    // 자리에 다른 걸 못 넣는다 — "이제 자리가 없다" 안내만 남고 되돌릴 길이 없다).
+    // 프리셋이 3 이하면 평소처럼 3.
+    function maxFor(presetItems) {
+      return Math.max(3, presetItems.length);
+    }
+
     // 프리셋은 처음 그릴 때만 쓴다. 뒤로/앞으로를 오가며 다시 그릴 때는 state.picked
     // (빈 배열이어도)로 칠한다 — 안 그러면 사용자가 프리셋을 전부 해제해도 재진입마다
     // 되살아난다(3단계 grantBox 와 같은 리뷰 지적).
@@ -283,7 +293,7 @@
       w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub4 : ""));
       var presetItems = state.pickInited ? state.picked : defaultPreset();
       var picker = MSTickerPicker.create({
-        multi: true, max: 3, preset: presetItems,
+        multi: true, max: maxFor(presetItems), preset: presetItems,
         // 심볼이 아니라 {sym,name} 을 담는다 — 이름을 여기서 흘리면 seedTo 가 이름 없이 심는다.
         onChange: function (sel, items) {
           state.picked = items;

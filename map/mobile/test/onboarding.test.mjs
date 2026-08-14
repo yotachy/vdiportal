@@ -567,6 +567,42 @@ test("4단계: 프리셋을 지운 뒤 뒤로/앞으로 가도 프리셋으로 �
   });
 });
 
+// 상한 판단(리뷰 지적): 프리셋이 3보다 크면(기존 워치리스트가 4종 이상) max 를
+// Math.max(3, preset.length) 로 올린다 — 안 그러면 하나를 뺀 뒤 상한이 3 에 걸려 있어
+// 같은 자리에 다른 걸 못 넣는다(뺀 건 되는데 넣는 건 막히는 비대칭). 4종 프리셋에서
+// 하나를 뺐다 다시 넣어도(같은 종목이든 다른 종목이든) 이 단계 안에서는 항상 되어야 한다.
+test("4단계: 프리셋이 3종보다 많으면 그 안에서 자유롭게 빼고 다시 넣을 수 있다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
+      "4종 프리셋이 전부 켜진 채로 시작하지 않았다");
+    pressCell(grid, "AMZN");   // 하나를 뺀다 — 상한이 여전히 3이면 다음 줄에서 다른 걸 못 넣는다
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"]);
+    pressCell(grid, "META");   // 새 종목을 그 자리에 다시 넣는다
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "META", "MSFT", "NVDA"],
+      "상한이 3에 걸려 다시 못 넣었다 — max 가 preset.length 를 반영하지 않는다");
+    var msg = grid.parentNode.querySelector(".tp-msg");
+    assert.notStrictEqual(msg.textContent, S.t.tpFull, "상한 안내가 잘못 떴다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false);
+  }, defaultFakeStore([
+    { sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
+    { sym: "MSFT", name: "Microsoft Corporation" }, { sym: "AMZN", name: "Amazon.com" }
+  ]));
+});
+
+test("4단계: 프리셋이 3종 이하면 상한은 그대로 3이다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    pressCell(grid, "GOOGL");   // AAPL·NVDA·MSFT 3종이 이미 켜져 있으니 4번째는 상한 초과다
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"],
+      "3종 프리셋인데 상한이 3보다 커졌다");
+    var msg = grid.parentNode.querySelector(".tp-msg");
+    assert.strictEqual(msg.textContent, S.t.tpFull, "상한 안내가 안 떴다");
+  }, defaultFakeStore([]));   // 빈 목록 → SEED(AAPL/NVDA/MSFT) 3종 프리셋
+});
+
 // 위 4단계 재진입의 정확한 쌍둥이. 이쪽이 더 나쁘다: 4단계는 선택이 되살아나는 것으로 눈에
 // 보이지만, 5단계는 **화면상 체크가 꺼진 채로 완료 버튼만 열려 있다**. 그 상태로 누르면
 // 사용자가 보기엔 동의하지 않았는데 동의 기록(setOnboarded)이 남는다 — 시안이 "법적 효력이
