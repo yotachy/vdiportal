@@ -58,8 +58,14 @@ for try in 1 2 3 4 5; do
   SRV_PID=$!
   for i in $(seq 1 40); do
     sleep 0.05
-    if curl -s -o /dev/null "http://127.0.0.1:$P/wallet-api.php" 2>/dev/null; then PORT=$P; break; fi
+    # 순서가 중요하다. curl 성공을 먼저 보면, 우리 php 가 바인딩에 실패했을 때 그 포트를
+    # 이미 점유한 **남의 리스너**가 준 응답을 "내 서버가 떴다"로 오인한다. 그러면 71건짜리
+    # 돈 관련 관문이 통째로 엉뚱한 서버(남의 wallet.db)를 검사하고, 실패는 무작위 포트
+    # 충돌에 따라 나타났다 사라져 "플레이크"로 읽힌다. 2026-08-15 실제로 그렇게 됐다 —
+    # /tmp 에 방치된 하네스의 php -S 가 이 범위 포트를 물고 있었다.
     kill -0 "$SRV_PID" 2>/dev/null || break
+    grep -q "Address already in use" "$SRV_LOG" 2>/dev/null && break
+    if curl -s -o /dev/null "http://127.0.0.1:$P/wallet-api.php" 2>/dev/null; then PORT=$P; break; fi
   done
   [ "$PORT" != "0" ] && break
   kill "$SRV_PID" 2>/dev/null; SRV_PID=""
