@@ -12,8 +12,10 @@
 
   var mem = {};                       // 백엔드 실패 시 폴백 저장소
   var backend = null;
+  var nowFn = function () { return new Date(); };   // 테스트가 시계를 주입할 수 있게 한 겹 둔다
 
-  function install(b) { backend = b || null; mem = {}; }
+  // now 는 테스트 전용 — 실제 시각을 흉내 내는 아무 객체(Date 아니어도 getFullYear 등만 있으면 됨).
+  function install(b, now) { backend = b || null; mem = {}; nowFn = now || function () { return new Date(); }; }
   function be() {
     if (backend) return backend;
     try { if (typeof localStorage !== "undefined" && localStorage) return localStorage; } catch (e) {}
@@ -35,12 +37,20 @@
   function getWatchlist() { var v = read(KEYS.watchlist, []); return Array.isArray(v) ? v : []; }
   function setWatchlist(list) { write(KEYS.watchlist, Array.isArray(list) ? list : []); }
 
+  // 로컬 달력일 — getFullYear/getMonth/getDate 는 기기의 로컬 시간대를 읽는다. 사용자는 KST(UTC+9)라
+  // toISOString()(UTC)을 쓰면 00:00~08:59 KST 사이엔 날짜가 하루 이르게 찍힌다. +9시간을 더해
+  // toISOString 을 다시 쓰는 식으로 "고치면" 그 경계가 다른 시간대로 옮겨갈 뿐 같은 부류의 버그다.
+  function localDate(d) {
+    var y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+    return y + "-" + (m < 10 ? "0" + m : m) + "-" + (day < 10 ? "0" + day : day);
+  }
+
   function addTicker(sym, name) {
     var s = String(sym || "").trim().toUpperCase();
     if (!s) return false;
     var list = getWatchlist();
     for (var i = 0; i < list.length; i++) if (list[i].sym === s) return false;
-    list.push({ sym: s, name: name || s, addedAt: new Date().toISOString().slice(0, 10) });
+    list.push({ sym: s, name: name || s, addedAt: localDate(nowFn()) });
     setWatchlist(list);
     return true;
   }
