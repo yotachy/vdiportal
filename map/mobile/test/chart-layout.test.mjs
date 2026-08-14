@@ -17,11 +17,11 @@ function prediction(n) {
 }
 const base = () => ({ candle: candles(300), prediction: prediction(24), width: 372, height: 520, pad: 10, tailBars: 120 });
 
-test("패널 높이 합이 전체 높이에서 패딩을 뺀 값과 같다", () => {
+test("패널 높이 합이 전체 높이에서 패딩·하단 날짜축 여백을 뺀 값과 같다", () => {
   const L = CL.chartLayout(base());
   const hs = L.order.map(k => L.panels[k].rect.h);
   const gaps = (L.order.length - 1) * CL.GAP;
-  assert.ok(Math.abs(hs.reduce((a, b) => a + b, 0) + gaps - (520 - 20)) < 0.01);
+  assert.ok(Math.abs(hs.reduce((a, b) => a + b, 0) + gaps - (520 - 20 - CL.AXIS_LABEL_H)) < 0.01);
 });
 
 test("패널은 위에서 아래로 겹치지 않게 쌓인다", () => {
@@ -88,7 +88,7 @@ test("패널을 빼면 남은 패널이 높이를 나눠 갖는다", () => {
   assert.deepEqual(L.order, ["price", "volume"]);
   assert.equal(L.panels.rsi, undefined);
   const hs = L.order.map(k => L.panels[k].rect.h);
-  assert.ok(Math.abs(hs.reduce((a, b) => a + b, 0) + CL.GAP - (520 - 20)) < 0.01);
+  assert.ok(Math.abs(hs.reduce((a, b) => a + b, 0) + CL.GAP - (520 - 20 - CL.AXIS_LABEL_H)) < 0.01);
 });
 
 test("lastPrice 는 마지막 종가다 — 거래량 레이어가 쓴다", () => {

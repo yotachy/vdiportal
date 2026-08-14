@@ -11,6 +11,7 @@ const FC = require("../../forge-core.js");
 const G = require("../www/graph.js");
 const IND = require("../www/indicators.js");
 const RM = require("../www/report-model.js");
+const CL = require("../www/chart-layout.js");
 const APP = readFileSync(new URL("../www/app.js", import.meta.url), "utf8");
 const HTML = readFileSync(new URL("../www/index.html", import.meta.url), "utf8");
 const CSS = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
@@ -437,15 +438,21 @@ test("차트는 가격 패널 한 장이고, 날짜축 자리를 미리 뗀다",
     assert.deepStrictEqual(o.panels, ["price"],
       "서브패널(volume·rsi·macd)이 딸려 온다 — 온보딩 1단계는 가격 한 장이다");
 
-    // drawAxes 는 하단 날짜축을 '마지막 패널 아래 14px' 에 찍는다(chart-draw.js drawAxes).
-    // 기대값을 온보딩의 상수(AXIS_LABEL_H)가 아니라 **그 제약**에서 뽑는다 — 구현 상수로
-    // 기대값을 만들면 항등식이 된다. 레이아웃 높이를 캔버스 높이로 그대로 주면 여기서 걸린다.
+    // 날짜축 여백은 이제 chart-layout.js 안에서 뗀다(report.js 도 같은 계약을 쓰게 하려고
+    // 공용화했다) — 그래서 호출자는 더 이상 스스로 빼지 않고 캔버스 전체 높이를 그대로 넘긴다.
     const cssH = parseFloat(root.querySelector(".ob-canvas").style.height);
-    const lastPanelBottom = o.height - o.pad;
-    const labelBaseline = lastPanelBottom + 14;
-    assert.ok(labelBaseline + 4 <= cssH,
+    assert.strictEqual(o.height, cssH,
+      "온보딩이 여전히 스스로 축 여백을 빼고 있다 — chart-layout 의 공용 예약과 이중으로 뗀다");
+
+    // 기대값을 온보딩의 상수가 아니라 실제 레이아웃 결과(마지막 패널의 실제 y+h)에서 뽑는다 —
+    // 구현 상수로 기대값을 만들면 항등식이 된다. drawAxes 는 하단 날짜축을
+    // '마지막 패널 아래 14px' 에 찍는다(chart-draw.js drawAxes). chart-layout 이 축 여백을
+    // 예약하지 않게 되면(회귀) 이 라벨이 캔버스 밖으로 나가 여기서 걸린다.
+    const lay = CL.chartLayout(o);
+    const last = lay.panels[lay.order[lay.order.length - 1]].rect;
+    const labelBaseline = last.y + last.h + 14;
+    assert.ok(labelBaseline <= cssH,
       "하단 날짜축이 캔버스 밖으로 나간다: 베이스라인 " + labelBaseline + " > 캔버스 " + cssH);
-    assert.ok(o.height > 0 && o.height < cssH, "레이아웃 높이가 캔버스 높이와 같다 — 뗀 자리가 없다");
   });
 });
 

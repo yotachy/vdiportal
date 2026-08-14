@@ -10,6 +10,11 @@
   var RATIOS = { price: 0.52, volume: 0.12, rsi: 0.18, macd: 0.18 };
   var GAP = 8;                      // 패널 사이 여백(px)
   var AXIS_W = 44;                  // 우측 가격축 폭
+  // 하단 날짜축은 마지막 패널 **아래** 14px 에 찍힌다(chart-draw.js drawAxes) — 패널이
+  // 캔버스 바닥까지 꽉 차면 그 글자가 캔버스 밖으로 잘린다. 여기서 미리 떼어 두면 모든
+  // 호출자가 매번 이 여백을 스스로 빼는 걸 잊지 않아도 된다(예전엔 onboarding.js만 뺐고
+  // report.js는 빼지 않아 리포트 화면에서 날짜축이 잘렸다).
+  var AXIS_LABEL_H = 18;
 
   // plotW 는 chart-zoom 도 써야 한다. 두 곳에서 따로 계산하면 갈라지므로 여기가 단일 출처다.
   function plotWidth(W, pad) { return W - (pad == null ? 10 : pad) * 2 - AXIS_W; }
@@ -32,7 +37,7 @@
 
     // 높이 배분 — 요청된 패널의 비율만 정규화한다
     var sum = order.reduce(function (s, k) { return s + (RATIOS[k] || 0); }, 0) || 1;
-    var avail = H - pad * 2 - GAP * Math.max(0, order.length - 1);
+    var avail = H - pad * 2 - GAP * Math.max(0, order.length - 1) - AXIS_LABEL_H;
 
     function mapper(rect, lo, hi) {
       if (!isFinite(lo) || !isFinite(hi)) { lo = 0; hi = 1; }
@@ -76,5 +81,6 @@
              plot: { x: pad, w: plotW }, axisW: AXIS_W, priceRange: [pLo, pHi] };
   }
 
-  return { RATIOS: RATIOS, GAP: GAP, AXIS_W: AXIS_W, plotWidth: plotWidth, chartLayout: chartLayout };
+  return { RATIOS: RATIOS, GAP: GAP, AXIS_W: AXIS_W, AXIS_LABEL_H: AXIS_LABEL_H,
+           plotWidth: plotWidth, chartLayout: chartLayout };
 });

@@ -20,9 +20,6 @@
   // 온보딩 차트는 가격 패널 한 장이다 — 리포트의 4단 적층(커버 520px)이 필요 없다.
   // 지표 30종은 2단계의 빗이 대신 말한다.
   var CHART_H = 250;
-  // 하단 날짜축은 마지막 패널 **아래** 14px 에 찍힌다(chart-draw.js drawAxes) — 레이아웃 높이를
-  // 캔버스 높이로 그대로 주면 그 글자가 캔버스 밖으로 나가 잘린다. 그만큼을 미리 뗀다.
-  var AXIS_LABEL_H = 18;
   // MSPreds.seed 가 꿈틀의 난수 씨앗으로 쓴다. 종목명이 아니라 "이 시계"의 이름이다 —
   // 실제 종목을 넣으면 그 종목의 예측처럼 읽힌다.
   var SAMPLE_SEED = "SAMPLE";
@@ -151,7 +148,7 @@
       var tail = MSZoom.clamp(MSChartLayout.plotWidth(cssW, PAD), fut, MSZoom.DEFAULT_TAIL);
       var lay = MSChartLayout.chartLayout({
         candle: s.candle, prediction: pred,
-        width: cssW, height: CHART_H - AXIS_LABEL_H, pad: PAD, tailBars: tail,
+        width: cssW, height: CHART_H, pad: PAD, tailBars: tail,
         panels: ["price"]                 // 서브패널 3단은 온보딩에 할 말이 없다
       });
 
