@@ -73,9 +73,9 @@
   function loadOne(sym) { return MSApi.loadTicker(sym, "1day"); }
 
   function render(root) {
-    MSStore.seedIfEmpty();
-
-    var pendingSuggest = null; // { query, list:[{s,n}] } — 추가 실패 시 오타 제안
+    // 시드를 심지 않는다. 온보딩 4단계가 사용자가 고른 종목으로 워치리스트를 만든다 —
+    // 여기서 심으면 app.js 에서 걷어낸 것이 무의미해지고(이 화면이 부팅 직후 항상 그려진다)
+    // 고르지 않은 AAPL·NVDA·MSFT 가 그 위에 얹힌다. 빈 목록은 wlEmpty 가 이미 그린다.
     var rowsEl = null, scanBtnEl = null;   // drawRows/updateScanBtn 이 잡고 있는 노드
 
     // 스캔 콜백에서 즉시 저장한다 — 중간에 앱을 닫아도 이미 처리된 종목은 남는다.
@@ -194,7 +194,6 @@
       scr.appendChild(rowsEl);
 
       scr.appendChild(addBtn());
-      if (pendingSuggest) scr.appendChild(suggestPanel());
 
       root.appendChild(scr);
       drawRows();
@@ -271,49 +270,43 @@
     function addBtn() {
       var b = MSUi.el("button", "wl-add");
       b.appendChild(MSUi.el("span", "wl-add-inner", MSStr.t.wlAdd));
-      b.addEventListener("click", startAddTicker);
+      b.addEventListener("click", function () { openAddSheet(drawShell); });
       return b;
     }
 
-    function startAddTicker() {
-      var raw = prompt(MSStr.t.wlAddPrompt);
-      if (raw == null) return;
-      var sym = raw.trim().toUpperCase();
-      if (!sym) return;
-      loadOne(sym).then(function (data) {
-        MSStore.addTicker(sym, data.name || sym);
-        pendingSuggest = null;
-        drawShell();
-      }).catch(function (err) {
-        if (err && err.notfound && err.suggest && err.suggest.length) {
-          pendingSuggest = { query: sym, list: err.suggest };
-          drawShell();
-        } else {
-          pendingSuggest = null;
-          alert(sym + MSStr.t.wlNotFound);
+    // 시트는 워치리스트 DOM 밖(document.body)에 붙인다. drawShell() 이 root.innerHTML 을
+    // 통째로 비우고 다시 그리므로, 시트가 그 안에 있었다면 스캔 틱 하나·검색 입력 하나로도
+    // 열려 있는 시트가 통째로 날아간다. 오타 제안은 이제 피커(ticker-picker.js) 안에 있다 —
+    // watchlist.js 는 더 이상 그 경로를 몰라도 된다.
+    function openAddSheet(onAdded) {
+      var scrim = MSUi.el("div", "sheet-scrim");
+      var sheet = MSUi.el("div", "sheet");
+      function close() { if (scrim.parentNode) document.body.removeChild(scrim); }
+      scrim.addEventListener("click", function (e) { if (e.target === scrim) close(); });
+
+      var head = MSUi.el("div", "sheet-head");
+      head.appendChild(MSUi.el("span", "sheet-title", MSStr.t.addTitle));
+      var x = MSUi.el("button", "sheet-x", "×");
+      x.addEventListener("click", close);
+      head.appendChild(x);
+      sheet.appendChild(head);
+
+      var picker = MSTickerPicker.create({
+        multi: false, max: null, preset: [],
+        onChange: function (sel, items) {
+          if (!sel.length) return;
+          close();
+          // 이름을 함께 심는다. 빈 이름이면 store.js 가 name = 심볼로 폴백해 이 행만
+          // 심볼을 두 번 찍고(wl-sym·wl-name), 회사명 검색에서도 이 종목만 빠진다
+          // (watchlist-model.filter 는 it.name 을 본다). 옛 대화상자 경로가 하던 일이다.
+          var it = items[0];
+          MSStore.addTicker(it.sym, it.name);
+          onAdded();
         }
       });
-    }
-
-    function suggestPanel() {
-      var wrap = MSUi.el("div");
-      wrap.style.marginTop = "16px";
-      wrap.appendChild(MSUi.el("p", "empty", pendingSuggest.query + MSStr.t.wlDidYouMean));
-      pendingSuggest.list.forEach(function (s) {
-        var sb = MSUi.el("button", "btn btn-ghost", s.s + (s.n ? " · " + s.n : ""));
-        sb.style.display = "block"; sb.style.width = "100%"; sb.style.marginTop = "8px";
-        sb.addEventListener("click", function () {
-          MSStore.addTicker(s.s, s.n || s.s);
-          pendingSuggest = null;
-          drawShell();
-        });
-        wrap.appendChild(sb);
-      });
-      var cancel = MSUi.el("button", "btn btn-ghost", MSStr.t.wlCancel);
-      cancel.style.display = "block"; cancel.style.width = "100%"; cancel.style.marginTop = "8px";
-      cancel.addEventListener("click", function () { pendingSuggest = null; drawShell(); });
-      wrap.appendChild(cancel);
-      return wrap;
+      sheet.appendChild(picker.el);
+      scrim.appendChild(sheet);
+      document.body.appendChild(scrim);
     }
 
     // 결제까지 끝난 뒤의 실제 스캔. rec 은 이미 모듈 스코프에 등록돼 있다 —

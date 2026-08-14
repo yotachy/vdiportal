@@ -32,8 +32,7 @@
     wlNoMatch: "No tickers match.",              // 검색·칩 결과가 비었을 때
     wlEmpty: "No tickers yet.\nAdd one to get started.",
     wlAdd: "＋ Add ticker",
-    wlAddPrompt: "Enter a ticker symbol (e.g. AAPL)",
-    wlCancel: "Cancel",
+    addTitle: "Add a ticker",                    // ＋Add 시트 머리 — 온보딩 4단계와 같은 피커를 연다
     wlScan: "Scan",
     wlScanIco: "↻",                              // 평상시 스캔 버튼 — 헤더에 필이 들어와 아이콘만 남았다
     wlScanning: "Scanning ",
@@ -41,8 +40,6 @@
     wlScanNone: "Nothing could be scanned — your Scoops were returned.",
     wlScanNoneNoRefund: "Nothing could be scanned. We could not confirm your Scoops were returned — please check your balance.",
     wlRemoveConfirm: " — remove from watchlist?",
-    wlNotFound: " not found.",
-    wlDidYouMean: " not found. Did you mean:",
 
     // 리포트 — 판정
     rpBack: "Back",
@@ -170,7 +167,39 @@
 
     // 지갑을 읽을 수 없을 때(오프라인 등) — 잔량을 0 으로 그리면 거짓 정보다(SPEC §1).
     walUnavailable: "Wallet unavailable — check your connection.",
-    tsUnavailable: "Wallet unavailable. Check your connection and try again."
+    tsUnavailable: "Wallet unavailable. Check your connection and try again.",
+
+    // 종목 고르기 (ticker-picker.js) — 온보딩 4단계와 워치리스트 ＋Add 가 공유하는 컴포넌트
+    tpPlaceholder: "Symbol (e.g. TSLA)",
+    tpAdd: "Add",
+    tpChecking: "Checking…",
+    tpNotFound: "We could not find that symbol.",
+    tpDidYouMean: "Did you mean: ",
+    tpFull: "That is all the slots for now.",
+    tpUnavailable: "Search is unavailable right now.",
+
+    // 온보딩 (screens/onboarding.js)
+    obBack: "Back", obNext: "Continue",
+    obSampleNote: "Example series",
+    obH1: "Where does this chart go next?",
+    obSub1: "Every reading below comes from this chart — nothing is hand-written.",
+    obH2: "Thirty readings, one verdict.",
+    obSub2: "Each bar is one indicator. They collapse into a single call.",
+    obCombCap: " readings with a direction",
+    obH3: "Why it is free",
+    obSub3: "Deep analysis costs Scoops. You earn them by checking in — and later by watching a short ad.",
+    obGranting: "Setting up your wallet…",
+    obGranted: " Scoops to start",
+    obGrantOffline: "We could not reach the wallet. You can continue — Basic reports are always free.",
+    obRetry: "Try again",
+    obCostFull: "Deep analysis", obCostScan: "Watchlist scan", obCostSlot: "Extra ticker slot",
+    obH4: "Pick your first tickers",
+    obSub4: "Three slots to start. You can change them any time.",
+    obH5: "Before you start",
+    obRisk: "MoneyScoop reads price, volume and time. It does not know company news, earnings or anything a person told you. Nothing here is investment advice, and a forecast is not a promise.",
+    obAgree: "I understand and accept the terms.",
+    obFree: "Your first deep analysis is free.",
+    obFinish: "Start"
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을

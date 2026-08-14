@@ -96,3 +96,16 @@ test("다른 종목을 지워도 lastSym 은 유지된다", () => {
   MSStore.removeTicker("NVDA");
   assert.equal(MSStore.getLastSym(), "AAPL");
 });
+
+test("온보딩 완료 플래그와 동의 기록", () => {
+  const mem = {};
+  MSStore.install({ getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; } });
+  assert.strictEqual(MSStore.onboarded(), false);
+  assert.strictEqual(MSStore.consent(), null);
+  MSStore.setOnboarded("terms-2026-08");
+  assert.strictEqual(MSStore.onboarded(), true);
+  const c = MSStore.consent();
+  assert.strictEqual(c.termsVersion, "terms-2026-08");
+  // 불리언만 남기면 약관이 개정됐을 때 누가 무엇에 동의했는지 말할 수 없다
+  assert.match(c.at, /^\d{4}-\d{2}-\d{2}T/);
+});

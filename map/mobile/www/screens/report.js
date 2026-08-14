@@ -48,34 +48,9 @@
   // render 세대 토큰 — 진행 중 구매의 결과가 그 사이 바뀐 화면을 덮어쓰지 않게 한다.
   var gen = 0;
 
-  // ── 색 토큰(캔버스는 var() 를 못 읽으므로 style.css 를 단일 원본으로 런타임에 읽어온다) ──
-  function readToken(name, fallback) {
-    try {
-      var v = getComputedStyle(document.documentElement).getPropertyValue(name);
-      v = (v || "").trim();
-      return v || fallback;
-    } catch (e) { return fallback; }
-  }
-  function hexToRgba(hex, a) {
-    var h = String(hex || "").replace("#", "");
-    if (h.length === 3) h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
-    var r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16);
-    if (!isFinite(r) || !isFinite(g) || !isFinite(b)) return "rgba(232,180,99," + a + ")";
-    return "rgba(" + r + "," + g + "," + b + "," + a + ")";
-  }
-  function colTokens() {
-    var gold = readToken("--gold", "#e8b463");
-    return {
-      bull: readToken("--bull", "#4fb98a"),
-      bear: readToken("--bear", "#d96a6a"),
-      gold: gold,
-      cone: hexToRgba(gold, 0.09),                       // 콘 채움 9% 골드(design §4.3)
-      hairline: readToken("--hairline", "rgba(238,241,247,.06)"),
-      ink4: readToken("--ink-4", "#7c8598"),
-      ink5: readToken("--ink-5", "#78819a"),
-      pred2: readToken("--pred2", "#b892f5")
-    };
-  }
+  // 색 토큰은 MSUi.colTokens() 로 올라갔다 — 온보딩 차트가 두 번째 소비자가 되면서
+  // 폴백 색이 두 벌이 되는 것을 막았다(ui.js).
+  function colTokens() { return MSUi.colTokens(); }
 
   // api.js 가 봉 부족을 알릴 때 rpBarsShort 로 시작하는 영문 메시지를 던진다(api.js:28) — 그 접두를
   // MSStr 단일 출처에서 그대로 재사용해 여기·표시 문구가 따로 놀지 않게 한다.
@@ -146,11 +121,8 @@
     var tail = MSZoom.DEFAULT_TAIL;   // 화면 유지 중에만 산다. 종목을 바꾸면 paintChart 가 다시 불려 기본값으로 돌아간다.
 
     function relayout() {
-      var dpr = window.devicePixelRatio || 1;
       chartHpx = chartH();
-      cv.width = Math.round(cssW * dpr); cv.height = Math.round(chartHpx * dpr);
-      cv.style.height = chartHpx + "px";
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // DPR 트랜스폼 — 리사이즈 시점에만 설정
+      MSUi.fitCanvas(cv, ctx, cssW, chartHpx);   // DPR 트랜스폼 — 온보딩 차트와 한 벌(ui.js)
       // 한계가 plotW 에 딸려 있다 — 폴드를 펴면 커버에서 쓰던 봉 수가 새 하한 밖일 수 있다.
       // (커버 20봉 → 펼침 하한 44봉). 폴드는 두 화면을 상시로 오가므로 예외가 아니라 일상 경로다.
       var fut = (an.out.prediction && an.out.prediction.path) ? an.out.prediction.path.length : 0;

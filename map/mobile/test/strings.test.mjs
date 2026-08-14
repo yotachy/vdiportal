@@ -13,7 +13,13 @@ const KEY_SCAN_FILES = ["../www/screens/report.js", "../www/screens/watchlist.js
                          "../www/draw-layers.js", "../www/chart-legend.js", "../www/draw-panels.js", "../www/app.js",
                          // readings.js 도 화면에 나가는 문장을 만든다 — 거절문 3종이 여기서만 소비되므로
                          // 목록에서 빠져 있으면 "죽은 키"로 오판되고, 한글 문자열 스캔도 이 파일을 못 본다.
-                         "../www/tier-sheet.js", "../www/readings.js"];
+                         "../www/tier-sheet.js", "../www/readings.js",
+                         // ticker-picker.js — 온보딩 4단계·워치리스트 ＋Add 가 공유할 종목 고르기.
+                         // tp* 키는 이 파일에서만 소비된다(둘 다 아직 안 붙었다).
+                         "../www/ticker-picker.js",
+                         // screens/onboarding.js — ob* 키는 여기서만 소비된다.
+                         // 빠뜨리면 새 문구가 전부 '죽은 키'로 오판된다.
+                         "../www/screens/onboarding.js"];
 // Fix 1: chart-legend.js 는 `var T = Str.t` 로 별칭한 뒤 `T.legPred` 형태로 쓴다 — MSStr.t/Str.t 직접
 // 참조만 잡던 정규식이 이 별칭 경로를 못 봐서, 존재하지 않는 T.키 오타가 조용히 undefined 를 렌더했다.
 const KEY_RE = /\b(?:MSStr\.t|Str\.t|T)\.([A-Za-z_][A-Za-z0-9_]*)/g;
