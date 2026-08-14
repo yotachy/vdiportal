@@ -78,14 +78,6 @@ test("깨진 JSON 은 예외 대신 기본값으로 떨어진다", () => {
   assert.deepEqual(MSStore.getWatchlist(), []);
 });
 
-test("seedIfEmpty 는 비었을 때만 3종목을 넣는다", () => {
-  MSStore.install(memBackend());
-  assert.equal(MSStore.seedIfEmpty(), true);
-  assert.deepEqual(MSStore.getWatchlist().map(x => x.sym), ["AAPL", "NVDA", "MSFT"]);
-  assert.equal(MSStore.seedIfEmpty(), false, "두 번째 호출이 또 시드했다");
-  assert.equal(MSStore.getWatchlist().length, 3);
-});
-
 test("lastSym 왕복 — 대소문자 정규화", () => {
   MSStore.install(memBackend());
   assert.equal(MSStore.getLastSym(), null, "초기값은 null 이어야 한다");

@@ -61,12 +61,16 @@ function wwwSources() {
   return out;
 }
 
-test("www 어느 파일도 시드를 심지 않는다", () => {
+// seedIfEmpty 는 죽은 프로덕션 코드였다(호출자가 없었고, 자기 테스트만 살아 있었다) — 삭제됐다.
+// 예전 정규식(/MSStore\.seedIfEmpty\s*\(/)은 "호출"만 봤으므로 함수 정의 자체가 store.js 에
+// 되살아나도(아무도 안 부르는 채로) 통과했을 것이다 — 재도입을 막는 관문이 아니라 절반짜리였다.
+// 이제 이름 자체를 훑는다: 정의든 호출이든 export 든 www/ 어디에도 있으면 걸린다.
+test("www 어느 파일도 seedIfEmpty 를 갖고 있지 않다 — 죽은 코드 재도입 방지", () => {
   const files = wwwSources();
   assert.ok(files.length > 20, "훑은 파일이 " + files.length + "개뿐이다 — 스윕이 망가졌다");
   const offenders = files.filter(f =>
-    /MSStore\.seedIfEmpty\s*\(/.test(readFileSync(new URL("../www/" + f, import.meta.url), "utf8")));
-  assert.deepStrictEqual(offenders, [], "시드를 부르는 파일: " + offenders.join(", "));
+    /seedIfEmpty/.test(readFileSync(new URL("../www/" + f, import.meta.url), "utf8")));
+  assert.deepStrictEqual(offenders, [], "seedIfEmpty 가 남아 있는 파일: " + offenders.join(", "));
 });
 
 test("app.js 에 온보딩 게이트가 있다", () => {

@@ -81,12 +81,6 @@
     write(KEYS.lastSym, s || null);
   }
 
-  function seedIfEmpty() {
-    if (getWatchlist().length) return false;
-    SEED.forEach(function (x) { addTicker(x.sym, x.name); });
-    return true;
-  }
-
   function onboarded() { return read(KEYS.onboarded, false) === true; }
 
   // 약관 버전과 시각을 함께 남긴다 — 불리언만 남기면 약관이 개정됐을 때
@@ -102,7 +96,7 @@
 
   return { KEYS: KEYS, SEED: SEED, install: install, getWatchlist: getWatchlist, setWatchlist: setWatchlist,
            addTicker: addTicker, removeTicker: removeTicker, getScan: getScan, setScan: setScan,
-           allScans: allScans, seedIfEmpty: seedIfEmpty,
+           allScans: allScans,
            getLastSym: getLastSym, setLastSym: setLastSym,
            onboarded: onboarded, setOnboarded: setOnboarded, consent: consent,
            read0: read, write0: write };
