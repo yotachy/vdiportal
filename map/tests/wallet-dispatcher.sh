@@ -555,6 +555,15 @@ dbexec "insert into ad_grants (transaction_id, account_id, unit, amount, granted
 post '{"op":"adState"}' "$TOK_E"
 chk "상한을 넘겨도 remaining 이 음수가 아니라 0 이다" "$(jget "$BODY" remaining)" "0"
 
+# 클라이언트가 본문에 remaining 을 실어 보내도 무시된다 — 상한은 서버가 ad_grants 를
+# 직접 세어서 정하는 것이지 요청 필드가 아니다. 이 검사가 없으면 "서버 카운트 대신
+# 클라이언트 값을 그대로 돌려준다"는 개조가 위 경계 검사들과 똑같은 초록을 낸다
+# (본문에 remaining 을 안 실었으니 그 개조도 fallback 으로 서버 값을 쓰기 때문이다).
+post "{\"op\":\"adState\",\"remaining\":999}" "$TOK_E"
+chk "본문의 remaining 값은 무시된다 — 서버가 직접 센다" "$(jget "$BODY" remaining)" "0"
+post "{\"op\":\"adState\",\"remaining\":0}" "$TOK_A"
+chk "본문에 remaining:0 을 실어도 실제로 안 본 계정은 상한 전체를 본다" "$(jget "$BODY" remaining)" "$AD_DAILY"
+
 # ── adConfig — 설정 파일이 있을 때(정상 · 각종 고장 모양) ───────────────────────
 : > "$AD_UNITS"
 post '{"op":"adConfig"}' "$TOK_A"
