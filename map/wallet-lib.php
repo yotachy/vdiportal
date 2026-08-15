@@ -801,11 +801,19 @@ function w_is_merged_away($db, $acctId) {
 // 유일한 방어선이고, 검증이 없거나 범위가 틀리면 누구나 URL 에 reward_amount 를 붙여
 // 잔량을 원하는 만큼 만들 수 있다. 아래의 모든 갈래는 '거절'로 닫힌다.
 
-// 키 서버 URL. 테스트가 먼저 정의하면 그 값을 쓴다 — 단위 테스트가 구글에 접속하지 않고도
-// 키 교체·재요청 경로를 실제로 밟아 보려면 이 한 점이 열려 있어야 한다. 이걸 바꾸려면 이미
-// 우리 PHP 를 먼저 실행할 수 있어야 하므로 공격자에게 새 권한이 생기지는 않는다.
+// 키 서버 URL. 테스트가 먼저 정의하면 그 값을, 아니면 환경변수를 쓴다.
+//
+// ⚠ define() 만으로는 부족하다 — 부모 PHP 프로세스의 상수는 `php -S` 서브프로세스로 넘어가지
+// 않는다. 디스패처 하네스(tests/wallet-dispatcher.sh)는 이 파일을 docroot 에 복사해 별도
+// 서버로 띄우므로, 상수만 두면 SSV 라우트가 붙는 순간 관문이 **진짜 구글로 요청을 낸다**
+// (요청당 최대 10초 정지 + 구글이 떠 있어야 테스트가 도는 은밀한 의존). 환경변수는 자식
+// 프로세스까지 따라간다. 이 저장소는 검증 중 실수로 구글에 실제 POST 를 보낸 적이 이미 있다.
 if (!defined("W_SSV_KEYS_URL")) {
-  define("W_SSV_KEYS_URL", "https://www.gstatic.com/admob/reward/verifier-keys.json");
+  $_wSsvUrl = getenv("W_SSV_KEYS_URL");
+  define("W_SSV_KEYS_URL",
+    ($_wSsvUrl !== false && $_wSsvUrl !== "") ? $_wSsvUrl
+      : "https://www.gstatic.com/admob/reward/verifier-keys.json");
+  unset($_wSsvUrl);
 }
 // 타임스탬프 허용 오차. 서명 검증은 바이트만 보므로 여기서는 쓰지 않는다 — 재생 방지는
 // 엔드포인트의 몫이다(ad_grants.transaction_id PK + 이 오차).
@@ -818,8 +826,12 @@ define("W_SSV_REFETCH_MIN_SEC", 300);
 // curl 이 없는 PHP 빌드가 있다(실측: 이 저장소의 로컬 테스트 PHP 8.3 에 curl 확장이 없다).
 // 없다고 치명적 오류로 죽으면 검증이 예외로 터져 엔드포인트가 500 을 내는데, 그건 구글이
 // 재시도하는 실패다 — 못 받아오면 조용히 null 로 닫는다.
+//
+// curl 은 http(s) 에만 쓴다. 그 밖의 스킴은 스트림 계층으로 보낸다 — 테스트가 끼우는 스트림
+// 래퍼가 curl 유무와 무관하게 같은 경로를 타야 한다(curl 있는 머신에서만 관문이 깨지는 함정).
 function w_ssv_http_get($url) {
-  if (function_exists("curl_init")) {
+  $isHttp = (stripos($url, "http://") === 0 || stripos($url, "https://") === 0);
+  if ($isHttp && function_exists("curl_init")) {
     $ch = curl_init($url);
     curl_setopt_array($ch, array(CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10));
     $body = curl_exec($ch);
@@ -831,19 +843,58 @@ function w_ssv_http_get($url) {
   return is_string($body) ? $body : null;
 }
 
+// 캐시에 든 키만 읽는다 — 네트워크를 절대 타지 않는다. 이 갈래가 따로 있어야 호출부가
+// '네트워크가 필요한가'를 알고 그 순간에만 간격 제한을 물을 수 있다.
+function w_ssv_cached_keys($dir) {
+  $f = $dir . "/ssv_keys_cache.json";
+  if (!is_file($f)) return null;
+  $j = json_decode((string)file_get_contents($f), true);
+  return (is_array($j) && !empty($j["keys"]) && is_array($j["keys"])) ? $j : null;
+}
+
+// 시도 표식의 자리. 지갑 디렉토리가 1순위, 임시 디렉토리가 폴백이다.
+//
+// ⚠ 폴백이 있어야 하는 이유: 배포 후 웹 유저가 데이터 디렉토리에 못 쓰게 되면 표식도 캐시도
+// 남길 데가 없어져 간격 제한이 통째로 꺼진다 — 그게 증폭이 가장 심한 바로 그 상황이다.
+function w_ssv_attempt_paths($dir) {
+  return array($dir . "/ssv_keys_attempt",
+               sys_get_temp_dir() . "/w_ssv_attempt_" . sha1($dir));
+}
+
+// 키 서버로 나가기 '직전에' 호출한다. 결과가 아니라 시도를 기록하는 것이 핵심이다 — 아래
+// w_ssv_refetch_allowed 주석 참조.
+function w_ssv_mark_attempt($dir) {
+  $p = w_ssv_attempt_paths($dir);
+  if (@touch($p[0])) { clearstatcache(true, $p[0]); return; }
+  @touch($p[1]);
+  clearstatcache(true, $p[1]);
+}
+
+function w_ssv_fresh($path) {
+  clearstatcache(true, $path);
+  return is_file($path) && (time() - (int)filemtime($path)) < W_SSV_REFETCH_MIN_SEC;
+}
+
 // 공개키는 파일로 캐시한다. $force 면 다시 받는다 — 구글이 키를 교체하기 때문이다.
 // 캐시 파일이 곧 테스트의 주입 지점이다(테스트는 네트워크를 타지 않는다).
+// 간격 제한은 여기서 묻지 않는다 — $force 는 '무조건 받아라'라는 뜻이어야 한다. 제한을 거는
+// 것은 호출부(w_ssv_verify)의 몫이다.
 function w_ssv_keys($dir, $force) {
-  $f = $dir . "/ssv_keys_cache.json";
-  if (!$force && is_file($f)) {
-    $j = json_decode((string)file_get_contents($f), true);
-    if (is_array($j) && !empty($j["keys"]) && is_array($j["keys"])) return $j;
+  if (!$force) {
+    $j = w_ssv_cached_keys($dir);
+    if ($j !== null) return $j;
   }
+  w_ssv_mark_attempt($dir);   // ⚠ 나가기 전에 기록한다. 실패해도 기록은 남아야 한다.
   $body = w_ssv_http_get(W_SSV_KEYS_URL);
   if ($body === null) return null;
   $j = json_decode($body, true);
   if (!is_array($j) || empty($j["keys"]) || !is_array($j["keys"])) return null;
-  @file_put_contents($f, $body);
+  $f = $dir . "/ssv_keys_cache.json";
+  if (@file_put_contents($f, $body) === false) {
+    // 조용히 넘기면 캐시가 영원히 안 생겨 매 요청이 키 서버로 나간다(간격 제한이 시도
+    // 표식으로 버티긴 하지만, 원인이 로그에 안 남으면 아무도 못 고친다).
+    error_log("SSV 키 캐시를 쓸 수 없다 — 매 요청이 키 서버로 나간다: " . $f);
+  }
   clearstatcache(true, $f);   // 방금 쓴 mtime 을 아래 재요청 간격 검사가 봐야 한다
   return $j;
 }
@@ -859,13 +910,24 @@ function w_ssv_signed_part($query) {
   return ($i === false) ? null : substr((string)$query, 0, $i);
 }
 
-// 재요청을 낼 자격이 있는가. 캐시가 아직 신선하면 지금 실패한 서명은 키가 낡아서가 아니라
-// 그냥 가짜다 — 다시 받아 봐야 결과는 같고 구글 키 서버만 두들기게 된다.
+// 키 서버로 나갈 자격이 있는가. '아니오'가 되는 이유가 둘이고, 둘 다 필요하다.
+//
+// ⚠ 캐시 파일 mtime 하나만 보면 안 된다(리뷰 실측으로 잡힌 구멍). 캐시 mtime 은 받아오기에
+// 성공하고 문서까지 유효해야만 움직인다 — 즉 키 서버가 죽었거나, 응답이 JSON 이 아니거나,
+// 캐시 디렉토리에 쓸 수 없는 바로 그때(이 문이 존재하는 유일한 이유) 문이 활짝 열린다.
+// 게다가 정상 운영의 기본 상태가 '낡은 캐시'다 — 검증이 잘 되는 동안은 아무도 캐시를 새로
+// 쓰지 않기 때문이다. 그래서 gstatic 이 한 번만 깜빡여도 초당 1000건의 위조 콜백이 초당
+// 1000~2000회의 외부 요청이 되고, 요청당 최대 10초씩 PHP 워커를 물어 SSV 엔드포인트
+// 자체가 자기 자신을 DoS 한다. 그래서 '결과'가 아니라 '시도'를 따로 기록해 그것으로 막는다.
 function w_ssv_refetch_allowed($dir) {
-  $f = $dir . "/ssv_keys_cache.json";
-  clearstatcache(true, $f);
-  if (!is_file($f)) return true;
-  return (time() - (int)filemtime($f)) >= W_SSV_REFETCH_MIN_SEC;
+  // ① 최근에 나가 봤다 — 성공이든 실패든. 실패까지 세는 것이 이 갈래의 전부다.
+  foreach (w_ssv_attempt_paths($dir) as $m) {
+    if (w_ssv_fresh($m)) return false;
+  }
+  // ② 캐시를 최근에 성공적으로 새로 받았다 — 그러면 지금 실패한 서명은 키가 낡아서가
+  //    아니라 그냥 가짜다. 다시 받아 봐야 결과는 같고 키 서버만 두들기게 된다.
+  if (w_ssv_fresh($dir . "/ssv_keys_cache.json") && w_ssv_cached_keys($dir) !== null) return false;
+  return true;
 }
 
 // 서명이 지키는 값과 우리가 읽을 값이 같은가.
@@ -885,7 +947,18 @@ function w_ssv_params_faithful($signed, $params) {
   return true;
 }
 
-function w_ssv_verify($dir, $query, $params) {
+// $reason 은 왜 거절했는지를 돌려준다. 불리언 하나로는 '위조'와 '지금 확인할 수가 없다'가
+// 구분되지 않는데, 그 둘의 처리는 정반대다 — 키 서버 장애 중에는 **진짜** 콜백도 false 가
+// 되고, 엔드포인트가 그걸 위조로 보고 영구 거절하면 광고를 본 사용자가 보상을 조용히
+// 잃는다(구글에게 다시 보내라고 말할 방법도 없어진다). 엔드포인트는 이 값으로 갈라야 한다:
+//
+//   "ok"               통과
+//   "malformed"        서명·key_id 가 없거나 모양이 틀림 · 서명 범위와 $params 불일치 → 400
+//   "bad_signature"    키로 확인했고 서명이 틀림 → 400 (재시도 무의미)
+//   "unknown_key"      키 문서는 있는데 key_id 가 없음 → 키 교체 지연일 수 있다 → 503
+//   "keys_unavailable" 키를 아예 못 얻음(장애·간격 제한) → 503, 구글이 재시도하게 둔다
+function w_ssv_verify($dir, $query, $params, &$reason = null) {
+  $reason = "malformed";
   $signed = w_ssv_signed_part($query);
   if ($signed === null) return false;
   if (!is_array($params)) return false;
@@ -901,19 +974,39 @@ function w_ssv_verify($dir, $query, $params) {
 
   // 실패하면 키를 새로 받아 한 번만 재시도한다. 무한 재시도로 만들면 서명 위조 시도가
   // 그대로 구글 키 서버에 대한 요청 증폭이 된다.
+  //
+  // ⚠ 네트워크를 탈 수 있는 갈래는 **전부** 간격 제한을 통과해야 한다 — 0회차도 마찬가지다.
+  // 캐시가 없거나 깨져 있으면 0회차부터 밖으로 나가므로, 여기를 안 막으면 캐시가 못 만들어지는
+  // 상황에서 요청당 최대 2회가 그대로 나간다(리뷰 실측: 100요청 → 100~200회).
+  $sawKeys = false;    // 키 문서를 한 번이라도 손에 넣었나
+  $sawKeyId = false;   // key_id 에 맞는 항목을 한 번이라도 봤나
   for ($attempt = 0; $attempt < 2; $attempt++) {
-    if ($attempt === 1 && !w_ssv_refetch_allowed($dir)) break;
-    $j = w_ssv_keys($dir, $attempt === 1);
-    if (!is_array($j) || empty($j["keys"]) || !is_array($j["keys"])) return false;
+    $j = ($attempt === 0) ? w_ssv_cached_keys($dir) : null;
+    if ($j === null) {
+      if (!w_ssv_refetch_allowed($dir)) break;
+      $j = w_ssv_keys($dir, true);
+    }
+    if ($j === null) break;
+    $sawKeys = true;
     foreach ($j["keys"] as $k) {
       if (!is_array($k) || !isset($k["keyId"]) || !isset($k["pem"])) continue;
+      // 배열이 든 항목을 (string) 으로 캐스팅하면 Warning 이 뜬다. 엔드포인트는 이 출력
+      // 스트림을 응답과 공유하므로, 진단 문구가 콜백 응답 본문으로 샐 자리를 아예 없앤다.
+      if (!is_scalar($k["keyId"]) || !is_string($k["pem"])) continue;
       // key_id 대조를 빼면 등록된 아무 키로나 서명해도 통과한다 — 대조가 '어느 키가
       // 이 콜백을 보증하는가'를 하나로 못박는 자리다.
       if ((string)$k["keyId"] !== $params["key_id"]) continue;
-      $pk = openssl_pkey_get_public((string)$k["pem"]);
+      $sawKeyId = true;
+      $pk = openssl_pkey_get_public($k["pem"]);
       if (!$pk) continue;
-      if (openssl_verify($signed, $sig, $pk, OPENSSL_ALGO_SHA256) === 1) return true;
+      if (openssl_verify($signed, $sig, $pk, OPENSSL_ALGO_SHA256) === 1) {
+        $reason = "ok";
+        return true;
+      }
     }
   }
+  if (!$sawKeys) $reason = "keys_unavailable";
+  elseif (!$sawKeyId) $reason = "unknown_key";
+  else $reason = "bad_signature";
   return false;
 }

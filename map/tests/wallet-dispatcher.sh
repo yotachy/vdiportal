@@ -54,6 +54,11 @@ cp "$MAP_ROOT/wallet-api.php" "$MAP_ROOT/wallet-lib.php" "$MAP_ROOT/wallet-auth.
 PORT=0
 for try in 1 2 3 4 5; do
   P=$(( 8790 + RANDOM % 900 ))
+  # ⚠ 이 관문은 절대 구글에 접속하지 않는다. wallet-lib.php 의 SSV 키 서버 URL 을 닿을 수
+  # 없는 주소로 못박아 둔다 — 부모의 define() 은 이 서브프로세스로 넘어가지 않으므로
+  # 환경변수여야 한다. 8d 의 SSV 라우트가 붙는 순간, 이 줄이 없으면 관문이 진짜
+  # gstatic.com 으로 요청을 내기 시작한다(요청당 최대 10초 정지 + 구글 가동에 대한 은밀한 의존).
+  W_SSV_KEYS_URL="http://127.0.0.1:9/ssv-keys-must-not-be-fetched" \
   php -S "127.0.0.1:$P" -t "$DOCROOT" -d display_errors=1 -d error_reporting=-1 >"$SRV_LOG" 2>&1 &
   SRV_PID=$!
   for i in $(seq 1 40); do
