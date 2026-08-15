@@ -441,6 +441,22 @@ auth_get "code=fake-code&state=no-such-nonce"
 chk "콜백도 모르는 state 는 400 이다 — 토큰 교환(진짜 구글 요청) 전에 걸러야 한다" "$CODE" "400"
 chk_no "모르는 state 400 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
 
+# 이미 완료된(google_sub 있음) 논스로 콜백을 다시 연다 — 태우기는 authPoll 이 병합
+# 뒤에만 하므로 w_nonce_read 는 이 행을 여전히 "산" 것으로 돌려준다. 여기서 다시
+# 걸러 두지 않으면(가드가 curl_init 전에 있어야) 같은 state 를 반복 재생(뒤로가기·
+# URL 재사용)할 때마다 진짜 토큰 교환 요청을 또 만든다 — 인증 없는 공개 파일의
+# 남용 표면. 응답이 400 으로 즉시 끝나는 것 자체가 curl_init 에 닿지 않았다는
+# 증거다(닿았다면 구글이 실재하는 호스트라 12초 타임아웃 안에서 다른 모양의
+# 실패거나 훨씬 느리게 끝난다).
+NOW_ISO4=$(php -r 'echo gmdate("c");')
+DONE_NONCE="dispatcher-authpage-done-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$DONE_NONCE', '$DEV_A', 'gsub-already-done', '$NOW_ISO4', 0)"
+auth_get "code=fake-code&state=$DONE_NONCE"
+chk "이미 완료된 논스로 콜백을 다시 열면 400 이다 — 토큰 교환을 또 만들지 않는다" "$CODE" "400"
+chk_no "완료된 논스 재생 400 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
+chk "완료된 논스를 재생해도 기록된 sub 은 그대로다 — 재생이 값을 바꾸지 않는다" \
+    "$(dbq "select google_sub from auth_nonce where nonce='$DONE_NONCE'")" "gsub-already-done"
+
 rm -f "$DOCROOT/forge_google_oauth.json"
 
 # ini_set(display_errors,0) 이 첫 출력보다 먼저 와야 한다 — wallet-api.php 와 같은 이유.

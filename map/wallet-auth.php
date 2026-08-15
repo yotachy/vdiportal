@@ -48,6 +48,13 @@ if ($hasNonce) {
 $row = w_nonce_read($db, (string)$_GET["state"]);
 if (!$row) a_fail(400, "This sign-in link has expired. Please try again from the app.");
 
+// w_nonce_read 는 burned(used=1)·만료만 걸러낸다 — 태우기는 authPoll 이 병합 뒤에
+// 하므로, 이미 완료된(google_sub 있음) 논스는 폴링되기 전까지(최대 TTL 10분, 앱이
+// 아예 안 부르면 그보다 길게) 여전히 "살아" 있다. 여기서 다시 걸러 두지 않으면
+// 같은 state 를 반복 재생(뒤로가기·URL 재사용)할 때마다 이 자리를 통과해 구글에
+// 진짜 토큰 교환 요청을 또 보낸다 — 인증 없는 공개 파일에 열린 남용 표면이다.
+if ($row["google_sub"] !== null) a_fail(400, "This sign-in link has expired. Please try again from the app.");
+
 $ch = curl_init("https://oauth2.googleapis.com/token");
 curl_setopt_array($ch, array(
   CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 12, CURLOPT_POST => true,
@@ -70,5 +77,8 @@ if (is_array($tok) && !empty($tok["id_token"])) {
 }
 if (!$sub) a_fail(400, "Sign-in failed. Please try again from the app.");
 
-w_nonce_complete($db, $row["nonce"], $sub);
+// 반환값을 본다 — 두 탭이 동시에 이 자리에 들어오면 where google_sub is null 이
+// 한쪽만 통과시킨다. 패자가 반환값을 무시하면 "로그인됨"을 보여주지만 실제로
+// 기록된 sub 은 승자의 것이라 화면이 거짓말을 한다.
+if (!w_nonce_complete($db, $row["nonce"], $sub)) a_fail(400, "Sign-in failed. Please try again from the app.");
 a_html("You are signed in. Return to the MoneyScoop app.");
