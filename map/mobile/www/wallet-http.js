@@ -137,7 +137,12 @@
       var at = acctTok();
       if (at) {
         return post(body, at).then(function (r) {
-          if (r && r.status !== 401) return r;
+          // r===null 은 서버에 닿지도 못했다는 뜻(post() 의 catch — 오프라인)이다. hello()/
+          // callWithDevice 와 같은 원칙: 서버가 내린 판단이 아니므로 계정 토큰을 버릴 근거가
+          // 없다 — 그대로 돌려준다(shape() 가 "network"로 답한다). 진짜 401(서버가 거절)일
+          // 때만 버리고 기기 토큰 경로로 내려앉는다.
+          if (!r) return r;
+          if (r.status !== 401) return r;
           signOut();
           return callWithDevice(body);
         });
@@ -145,7 +150,11 @@
       return callWithDevice(body);
     }
 
-    // 기기 토큰이 없으면 hello() 로 먼저 받는다(call 의 앞부분과 같은 이유).
+    // 기기 토큰이 없으면 hello() 로 먼저 받는다(call 의 앞부분과 같은 이유). 저장된 기기
+    // 토큰이 401 로 거절되는 경우는 여기서 재시도하지 않는다(callWithDevice 와의 의도적
+    // 비대칭) — 로그인 도중 기기 토큰이 만료되는 건 극히 드문 경계 사례이고, 브리프도 이
+    // 재시도를 요구하지 않았다. authStart/authPoll 은 실패하면 그대로 reason 을 돌려주고
+    // 화면이 다시 시도하게 두는 편이 hello() 재귀를 여기 또 얹는 것보다 단순하다.
     function withDeviceTok(fn) {
       var t = get0(K_TOK, null);
       if (t) return fn(t);

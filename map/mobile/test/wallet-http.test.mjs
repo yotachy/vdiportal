@@ -608,3 +608,43 @@ test("계정 토큰이 401 이면 기기 토큰으로 내려앉는다", async ()
   assert.strictEqual(f.calls[1].auth, "Bearer DEVTOK");
   assert.strictEqual(b.signedIn(), false, "죽은 계정 토큰이 남아 있다");
 });
+
+// 리뷰 Important 1: post() 는 fetch 가 reject 하면 null 을 준다(오프라인 — 서버에 닿지도
+// 못했다). 이건 서버의 판단이 아니므로 401 과 같은 취급을 하면 안 된다 — 지하철 터널에
+// 들어갔다고 계정 토큰을 버리면 안 된다. hello()/callWithDevice 가 이미 지키는 원칙과 같다.
+test("계정 토큰이 있을 때 네트워크 실패는 계정 토큰을 버리지 않는다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "DEVTOK");
+  store.write0("ms_account_token", "ACCTTOK");
+  const f = fakeFetch([{ throw: true }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  const r = await b.get();
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.reason, "network", "네트워크 실패인데 다른 사유로 보고했다");
+  assert.strictEqual(f.calls.length, 1, "네트워크 실패 후 기기 토큰 경로로 불필요하게 더 나갔다");
+  assert.strictEqual(b.signedIn(), true, "네트워크 실패인데 계정 토큰을 버렸다 — 지하철에서 로그아웃된다");
+  assert.strictEqual(store.read0("ms_account_token", null), "ACCTTOK", "계정 토큰이 지워졌다");
+});
+
+// 리뷰 Important 2: wallet.js 의 get/spend/refund/checkin 은 전부 callBackend 를 거쳐
+// "백엔드가 동기적으로 던져도 호출부는 늘 Promise 를 받는다"는 불변식을 지킨다. authStart/
+// authPoll/signOut 도 예외가 아니어야 한다 — Task 6 가 화면에서 이걸 그대로 await 한다.
+test("wallet.js — authStart/authPoll/signOut 은 백엔드가 동기적으로 던져도 삼킨다", async () => {
+  const MSWallet = require("../www/wallet.js");
+  const throwing = {
+    authStart: () => { throw new Error("boom"); },
+    authPoll: () => { throw new Error("boom"); },
+    signOut: () => { throw new Error("boom"); }
+  };
+  MSWallet.install(throwing);
+  try {
+    const rs = await MSWallet.authStart();
+    assert.strictEqual(rs.ok, false, "authStart 가 백엔드 예외를 삼키지 않았다 — 호출부가 그대로 깨진다");
+    const rp = await MSWallet.authPoll("n");
+    assert.strictEqual(rp.ok, false, "authPoll 이 백엔드 예외를 삼키지 않았다 — 호출부가 그대로 깨진다");
+    assert.doesNotThrow(() => MSWallet.signOut(), "signOut 이 백엔드 예외를 그대로 던졌다");
+  } finally {
+    MSWallet.install(null);
+  }
+});
