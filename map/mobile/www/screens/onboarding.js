@@ -65,20 +65,23 @@
     // 3단계 지급 결과가 재진입 시 빈 칸이 됐고, 4단계 프리셋이 되살아났고, 5단계 동의
     // 체크박스가 꺼진 채로 완료 버튼만 열려 있었고(눈에 안 보이는 동의 — 법적 효력이 있는 자리),
     // 4단계 상한이 재진입마다 "지금" 선택 개수로 다시 계산돼 방금 뺀 자리를 다시 못 넣는
-    // 비대칭으로 되살아났다(리뷰 지적, maxFor/state.maxPick 참고).
+    // 비대칭으로 되살아났다(리뷰 지적).
     // 래치는 셋뿐이며, 하나라도 늘리려면 (b) 로 해결되지 않는지 먼저 볼 것:
     //   grantStarted — 부수효과(네트워크 발신)를 한 번만. 그리기는 매번(paintGrant).
     //   pickInited   — 첫 그리기가 끝났다는 표시. 이후엔 프리셋 대신 state.picked 로 칠한다.
     //   finished     — 종결 동작(심기·동의·onDone)이 커밋됐다. 완료 버튼 더블탭 가드.
     // 래치와 결이 같은 네 번째 함정: "처음 진입했을 때 참이었던 값"도 매번 다시 재면 안 된다.
-    // maxPick(4단계 상한)은 최초 진입 시 defaultPreset() 길이로 딱 한 번 고정해 state 에 둔다
-    // (아래 maxFor 참고) — 재진입마다 state.picked.length 로 다시 재면, 하나 빼고 뒤로/앞으로만
-    // 갔다 와도 상한이 줄어 방금 뺀 자리에 같은 걸 다시 못 넣는다.
+    //   lockedSyms — 온보딩 시작 시점의 워치리스트. 상한도 여기서 파생된다(maxFor).
+    //   핵심은 래치가 아니라 **출처**다: 반드시 MSStore.getWatchlist() 에서 재고, presetItems
+    //   에서 재면 안 된다. 재진입 시 presetItems 는 state.picked(지금 고른 것)이므로, 그걸로
+    //   재면 4단계에서 새로 더한 종목까지 "원래 갖고 있던 것"으로 둔갑해 잠겨버린다.
+    //   (워치리스트는 완료 전까지 안 바뀌므로 래치 자체는 값을 바꾸지 않는다 — 한 번만 읽는
+    //   비용 절약이자, 출처를 한 곳으로 못박아 두는 표시다.)
     // fwd.disabled 만 믿을 수 없다 — 클릭 이벤트 자체는 disabled 여부와 무관하게 발생할 수
     // 있으므로(연속 두 탭이 disabled 반영 전에 둘 다 들어오는 경우) 핸들러 안에서 막는다.
     // (opts.onDone 은 중복 방어가 없다 — app.js 가 boot() 에 그대로 연결한다.)
     var state = { picked: [], agreed: false, pickInited: false, granted: null, grantFailed: false,
-                  grantStarted: false, finished: false, maxPick: null, sample: o.sample || null };
+                  grantStarted: false, finished: false, lockedSyms: null, sample: o.sample || null };
     var step = 1;
     var an = null;   // 엔진 결과 캐시 — 1↔2 단계를 오갈 때마다 32지표를 다시 돌리지 않는다
 
@@ -277,15 +280,11 @@
       return src.map(function (x) { return { sym: x.sym, name: x.name }; });
     }
 
-    // 상한 3은 "처음 시작하는" 사람 기준(obSub4: "Three slots to start")이다. 기존
-    // 워치리스트를 프리셋으로 받은 사람이 3종보다 많이 갖고 있으면(온보딩을 다시 보는
-    // 경우 등) 3에 못 미치게 강제로 깎지 않는다 — 지우는 것만 되고 그 안에서 다시 넣는
-    // 것은 막히는 비대칭을 만들기 때문이다(뺀 건 항상 되는데, 상한에 걸려 있으면 같은
-    // 자리에 다른 걸 못 넣는다 — "이제 자리가 없다" 안내만 남고 되돌릴 길이 없다).
-    // 프리셋이 3 이하면 평소처럼 3.
-    function maxFor(presetItems) {
-      return Math.max(3, presetItems.length);
-    }
+    // 상한은 "처음 시작하는" 사람에게만 건다(obSub4: "Three slots to start"). 기존 워치리스트를
+    // 가진 사람은 그 목록이 잠긴 채 보존되므로(locked) 상한을 걸 자리가 없다 — 걸면 뺄 수도
+    // 없고(잠김) 넣을 수도 없어(상한 도달) 아무것도 못 하는 읽기 전용 화면이 된다. 앱의
+    // 워치리스트 자체에 상한이 없기도 하다(slot 과금은 미구현·범위 밖).
+    function maxFor(lockedSyms) { return (lockedSyms && lockedSyms.length) ? null : 3; }
 
     // 프리셋은 처음 그릴 때만 쓴다. 뒤로/앞으로를 오가며 다시 그릴 때는 state.picked
     // (빈 배열이어도)로 칠한다 — 안 그러면 사용자가 프리셋을 전부 해제해도 재진입마다
@@ -295,12 +294,18 @@
       w.appendChild(el("h1", "ob-h", Str ? Str.t.obH4 : ""));
       w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub4 : ""));
       var presetItems = state.pickInited ? state.picked : defaultPreset();
-      // 상한은 "처음 진입했을 때" 워치리스트 크기로 딱 한 번 고정한다(state.maxPick) — 재진입마다
-      // presetItems(=state.picked, 지금 고른 개수)로 다시 재면 하나 뺀 뒤 뒤로/앞으로만 갔다 와도
-      // 상한이 줄어 방금 뺀 자리에 다시 못 넣는다(리뷰 지적: 3b1c817 이 없애려던 바로 그 비대칭).
-      if (state.maxPick == null) state.maxPick = maxFor(defaultPreset());
+      // 이미 워치리스트에 있는 종목은 해제할 수 없다. seedTo 는 추가만 하므로 여기서 꺼도
+      // 실제로는 안 빠졌다 — 화면이 뺐다고 말하는데 목록엔 남는 거짓말이었다. 온보딩에서
+      // 목록을 지우는 경로를 여는 대신(실수 한 번에 자기 목록이 날아간다) 해제를 막는다.
+      // 신규 사용자의 SEED 3종은 잠그지 않는다 — 설계서 4단계가 "미리 선택되되 바꿀 수
+      // 있는" 것으로 정의한 자리다. presetItems 가 아니라 워치리스트에서 잰다 — 재진입 시
+      // presetItems 는 state.picked 라, 그걸로 재면 방금 더한 종목까지 잠긴다(위 래치 주석).
+      if (state.lockedSyms == null) {
+        var wl = MSStore.getWatchlist();
+        state.lockedSyms = (wl && wl.length) ? wl.map(function (x) { return x.sym; }) : [];
+      }
       var picker = MSTickerPicker.create({
-        multi: true, max: state.maxPick, preset: presetItems,
+        multi: true, max: maxFor(state.lockedSyms), preset: presetItems, locked: state.lockedSyms,
         // 심볼이 아니라 {sym,name} 을 담는다 — 이름을 여기서 흘리면 seedTo 가 이름 없이 심는다.
         onChange: function (sel, items) {
           state.picked = items;

@@ -578,23 +578,26 @@ test("4단계: 프리셋을 지운 뒤 뒤로/앞으로 가도 프리셋으로 �
   });
 });
 
-// 상한 판단(리뷰 지적): 프리셋이 3보다 크면(기존 워치리스트가 4종 이상) max 를
-// Math.max(3, preset.length) 로 올린다 — 안 그러면 하나를 뺀 뒤 상한이 3 에 걸려 있어
-// 같은 자리에 다른 걸 못 넣는다(뺀 건 되는데 넣는 건 막히는 비대칭). 4종 프리셋에서
-// 하나를 뺐다 다시 넣어도(같은 종목이든 다른 종목이든) 이 단계 안에서는 항상 되어야 한다.
-test("4단계: 프리셋이 3종보다 많으면 그 안에서 자유롭게 빼고 다시 넣을 수 있다", () => {
+// 기존 워치리스트를 가진 사람의 4단계 규칙(사용자 결정, 2026-08-15): 이미 갖고 있는 종목은
+// 잠긴 채 보존되고(해제 불가) 상한은 걸지 않는다. 상한까지 걸면 뺄 수도 없고(잠김) 넣을 수도
+// 없어(상한 도달) 아무것도 못 하는 읽기 전용 화면이 된다.
+test("4단계: 기존 워치리스트 종목은 잠기고, 그 위에 자유롭게 더할 수 있다", () => {
   withDom((root) => {
     toStep4(root);
     var grid = root.querySelector(".tp-grid");
     assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
       "4종 프리셋이 전부 켜진 채로 시작하지 않았다");
-    pressCell(grid, "AMZN");   // 하나를 뺀다 — 상한이 여전히 3이면 다음 줄에서 다른 걸 못 넣는다
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"]);
-    pressCell(grid, "META");   // 새 종목을 그 자리에 다시 넣는다
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "META", "MSFT", "NVDA"],
-      "상한이 3에 걸려 다시 못 넣었다 — max 가 preset.length 를 반영하지 않는다");
+
+    pressCell(grid, "AMZN");   // 잠긴 종목 — 꺼지면 안 된다(seedTo 가 추가만 하므로 거짓말이 된다)
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
+      "워치리스트에 있는 종목이 해제됐다 — 화면은 뺐다는데 목록엔 남는다");
     var msg = grid.parentNode.querySelector(".tp-msg");
-    assert.notStrictEqual(msg.textContent, S.t.tpFull, "상한 안내가 잘못 떴다");
+    assert.strictEqual(msg.textContent, S.t.tpKept, "왜 안 빠지는지 말하지 않았다");
+
+    pressCell(grid, "META");   // 상한이 없어야 4종 위에 더 얹을 수 있다
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "META", "MSFT", "NVDA"],
+      "상한에 걸려 더 넣지 못했다 — 기존 목록이 있으면 상한을 걸지 않는다");
+    assert.notStrictEqual(grid.parentNode.querySelector(".tp-msg").textContent, S.t.tpFull);
     assert.strictEqual(root.querySelector(".ob-next").disabled, false);
   }, defaultFakeStore([
     { sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
@@ -602,38 +605,27 @@ test("4단계: 프리셋이 3종보다 많으면 그 안에서 자유롭게 빼�
   ]));
 });
 
-// 리뷰 지적(Important 1): 위 테스트는 상한이 처음부터 4로 잡히는 것만 본다. 진짜 함정은
-// 재진입이다 — step4() 가 매 그리기마다 max: maxFor(presetItems) 로 다시 계산하는데, 재진입
-// 시의 presetItems 는 defaultPreset()(워치리스트 4종)이 아니라 state.picked(방금 하나 뺀
-// 3종)다. 그러면 상한이 3으로 줄어, 뺀 자리에 같은 종목을 다시 넣을 수 없다 — 3b1c817 이
-// 없애려던 바로 그 비대칭이 뒤로→앞으로 한 번으로 되살아난다. state.maxPick 이 최초 진입
-// 시점에 고정되는지를 이 왕복으로 확인한다.
-test("4단계: 뒤로/앞으로 재진입해도 4종 프리셋의 상한이 줄어들지 않는다 — 뺀 자리에 다시 넣을 수 있다", () => {
+// 재진입 함정(리뷰 Important 1 의 새 규칙판): lockedSyms 를 매번 다시 재면 "지금 고른 것"이
+// "원래 갖고 있던 것"으로 둔갑한다 — 4단계에서 새로 더한 META 까지 잠겨버려 다시 뺄 수 없게 된다.
+test("4단계: 재진입해도 잠금은 원래 워치리스트에만 걸린다 — 새로 더한 것은 뺄 수 있다", () => {
   withDom((root) => {
     toStep4(root);
     var grid = root.querySelector(".tp-grid");
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
-      "4종 프리셋이 전부 켜진 채로 시작하지 않았다");
-    pressCell(grid, "AMZN");   // 하나를 뺀다 — 3개 남는다
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"]);
-
+    pressCell(grid, "META");                  // 새로 더한다(잠기면 안 된다)
     root.querySelector(".ob-back").click();   // 4 -> 3
-    root.querySelector(".ob-next").click();   // 3 -> 4, 다시 그려짐(presetItems = state.picked, 3개)
+    root.querySelector(".ob-next").click();   // 3 -> 4, 다시 그려짐
     grid = root.querySelector(".tp-grid");
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"],
-      "재진입 후 선택이 달라졌다 — 이건 별개의(이미 통과하는) 재진입 계약이다");
-
-    pressCell(grid, "AMZN");   // 뺐던 자리에 같은 종목을 다시 넣는다 — 상한이 3으로 줄었으면 막힌다
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
-      "재진입 후 상한이 줄어 다시 못 넣었다 — state.maxPick 이 최초 진입 시점에 고정되지 않았다");
-    var msg = grid.parentNode.querySelector(".tp-msg");
-    assert.notStrictEqual(msg.textContent, S.t.tpFull, "상한 안내가 잘못 떴다 — 상한이 줄어든 증거");
+    assert.ok(onSyms(grid).indexOf("META") >= 0, "새로 더한 종목이 재진입에서 사라졌다");
+    pressCell(grid, "META");
+    assert.ok(onSyms(grid).indexOf("META") < 0,
+      "새로 더한 종목까지 잠겼다 — lockedSyms 를 재진입마다 다시 재고 있다");
+    pressCell(grid, "AAPL");
+    assert.ok(onSyms(grid).indexOf("AAPL") >= 0, "원래 워치리스트 종목의 잠금이 풀렸다");
   }, defaultFakeStore([
     { sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
     { sym: "MSFT", name: "Microsoft Corporation" }, { sym: "AMZN", name: "Amazon.com" }
   ]));
 });
-
 test("4단계: 프리셋이 3종 이하면 상한은 그대로 3이다", () => {
   withDom((root) => {
     toStep4(root);

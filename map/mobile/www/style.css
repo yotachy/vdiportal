@@ -458,6 +458,10 @@ body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
 .tp-cell.is-on { background:var(--gold-soft); border-color:var(--gold); }
 .tp-sym { font-size:13px; font-weight:700; letter-spacing:-.01em; }
 .tp-cell.is-on .tp-sym { color:var(--gold); }
+/* 잠긴 셀 = 이미 워치리스트에 있는 종목. 켜진 상태를 유지하되 누를 수 없음을 커서와 채도로
+   알린다. 좌측 세로 라인 금지 규칙에 따라 배경·색만 쓴다(테두리·마커 추가 없음). */
+.tp-cell.is-locked { cursor:default; }
+.tp-cell.is-locked .tp-name { opacity:.66; }
 .tp-name { font-size:10px; color:var(--ink-5); max-width:100%; overflow:hidden;
            white-space:nowrap; text-overflow:ellipsis; }
 

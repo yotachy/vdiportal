@@ -420,3 +420,35 @@ test("index.html — api.js → ticker-picker.js → app.js 순서", () => {
   assert.ok(at("ticker-picker.js") < at("app.js"),
     "app.js 부팅 시 MSTickerPicker 를 참조한다 — 먼저 로드되지 않으면 undefined 다");
 });
+
+// 잠금 — 이미 워치리스트에 있는 종목. seedTo 는 추가만 하므로 4단계에서 꺼도 실제로는
+// 안 빠졌다(화면이 뺐다고 말하는데 목록엔 남음). 해제를 막고 이유를 말하는 쪽으로 정리했다.
+test("create() — 잠긴 심볼은 해제되지 않고, 이유를 말한다", () => {
+  const seen = [];
+  const p = P.create({ multi: true, max: null, preset: ["AAPL", "NVDA"],
+                       locked: ["AAPL"], onChange: s => seen.push(s), strings: MSStr });
+  const grid = () => findByClass(p.el, "tp-grid");
+  assert.ok(cellFor(grid(), "AAPL").className.indexOf("is-locked") >= 0, "잠금 표시가 없다");
+  assert.ok(cellFor(grid(), "NVDA").className.indexOf("is-locked") < 0, "안 잠긴 셀이 잠겼다");
+
+  grid().dispatch("click", { target: cellFor(grid(), "AAPL") });
+  assert.deepEqual(p.selected(), ["AAPL", "NVDA"], "잠긴 심볼이 해제됐다");
+  assert.strictEqual(seen.length, 0, "변화가 없는데 onChange 가 불렸다");
+  assert.strictEqual(findByClass(p.el, "tp-msg").textContent, MSStr.t.tpKept,
+                     "왜 안 빠지는지 말하지 않았다");
+
+  // 잠금은 그 심볼에만 걸린다 — 나머지는 평소대로 토글돼야 한다
+  grid().dispatch("click", { target: cellFor(grid(), "NVDA") });
+  assert.deepEqual(p.selected(), ["AAPL"], "안 잠긴 심볼이 안 빠졌다");
+});
+
+test("create() — locked 를 안 주면 아무것도 잠기지 않는다", () => {
+  // 신규 사용자의 SEED 3종이 이 경로다. 설계서 4단계는 "미리 선택되되 바꿀 수 있는" 자리다.
+  const p = P.create({ multi: true, max: null, preset: ["AAPL", "NVDA", "MSFT"], strings: MSStr });
+  const grid = () => findByClass(p.el, "tp-grid");
+  ["AAPL", "NVDA", "MSFT"].forEach(s => {
+    assert.ok(cellFor(grid(), s).className.indexOf("is-locked") < 0, s + " 가 잠겼다");
+    grid().dispatch("click", { target: cellFor(grid(), s) });
+  });
+  assert.deepEqual(p.selected(), [], "프리셋을 전부 지울 수 없다");
+});

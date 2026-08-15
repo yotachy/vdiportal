@@ -56,6 +56,9 @@
     // "[object Object]" 가 심볼이 된다.
     var presetList = o.preset || [];
     var sel = presetList.map(function (p) { return norm(typeof p === "string" ? p : p.sym); });
+    // 해제 불가 심볼. 호출부가 명시적으로 넘긴 것만 잠근다 — 신규 사용자의 SEED 3종은
+    // 잠기면 안 된다(설계서 4단계: 미리 선택돼 있되 지울 수 있어야 한다).
+    var locked = (o.locked || []).map(norm).filter(function (s) { return !!s; });
 
     var el = MSUi.el("div", "tp");
     var grid = MSUi.el("div", "tp-grid");
@@ -93,7 +96,7 @@
     function paint() {
       grid.innerHTML = "";
       CURATED.forEach(function (x) {
-        var b = MSUi.el("button", "tp-cell" + (sel.indexOf(x.sym) >= 0 ? " is-on" : ""));
+        var b = MSUi.el("button", "tp-cell" + (sel.indexOf(x.sym) >= 0 ? " is-on" : "") + (isLocked(x.sym) ? " is-locked" : ""));
         b.type = "button";
         b.setAttribute("data-sym", x.sym);
         b.appendChild(MSUi.el("span", "tp-sym", x.sym));
@@ -107,7 +110,7 @@
       // 되돌리려면 loadTicker 재왕복이 필요했고 오프라인이면 그마저 안 됐다). curated 12종
       // 순서는 그대로 두고 뒤에 이어붙인다(offSeen 순서 = 프리셋/추가로 처음 본 순서).
       offSeen.forEach(function (s) {
-        var b = MSUi.el("button", "tp-cell" + (sel.indexOf(s) >= 0 ? " is-on" : ""));
+        var b = MSUi.el("button", "tp-cell" + (sel.indexOf(s) >= 0 ? " is-on" : "") + (isLocked(s) ? " is-locked" : ""));
         b.type = "button";
         b.setAttribute("data-sym", s);
         b.appendChild(MSUi.el("span", "tp-sym", s));
@@ -121,7 +124,17 @@
     // next.length !== sel.length(줄어듦)이라 이 조건에 안 걸려 정상적으로 반영된다.
     // (주의: hadIt && !multi 로 단일 모드 교체를 상한 로직과 섞지 않는다 — 단일 모드는
     // 애초에 toggle 을 거치지 않고 항상 [sym] 으로 교체한다.)
+    // 잠긴 심볼 = 이미 사용자의 워치리스트에 있는 것. 온보딩 4단계가 기존 목록을 프리셋으로
+    // 받으면서 그 화면이 "내 목록 편집"처럼 보이게 됐는데, seedTo 는 추가만 하므로 여기서
+    // 꺼도 실제로는 안 빠졌다 — 화면이 거짓말을 했다. 온보딩에서 목록이 지워지는 경로를
+    // 만드는 대신(실수로 자기 목록을 날릴 수 있다) 해제 자체를 막고 이유를 말한다.
+    function isLocked(s) { return locked.indexOf(s) >= 0; }
+
     function applySelection(sym) {
+      if (multi && isLocked(sym) && sel.indexOf(sym) >= 0) {
+        msg.textContent = Str ? Str.t.tpKept : "";
+        return false;
+      }
       var hadIt = sel.indexOf(sym) >= 0;
       var next = multi ? toggle(sel, sym, max) : [sym];
       if (multi && !hadIt && next.length === sel.length) {
