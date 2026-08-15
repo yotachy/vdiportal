@@ -150,11 +150,16 @@
     // 광고를 다 본 뒤의 잔량 폴링. authPoll 과 같은 규율 — 세대 가드(myGen !== GEN)로 재렌더
     // 시 고아 루프를 죽이고, adBusy 로 진행 중 연타를 막는다. 절대 여기서 잔량을 계산해 그리지
     // 않는다 — 서버가 준 state.balance 가 before 보다 커진 것을 **확인한 뒤에만** draw() 한다.
-    function afterAd(before, n) {
+    function afterAd(before, cap, n) {
       if (myGen !== GEN) return;
       if (n >= AD_POLL_LIMIT) {
         adBusy = false;
-        if (adMsgEl) adMsgEl.textContent = MSStr.t.adPending;
+        // 리뷰 I2(실행으로 확인됨): 시청을 시작한 시점에 이미 상한이었으면(before>=cap) 서버는
+        // w_ad_grant 에서 granted=0 으로 조용히 버리고 일일 슬롯만 소모한다 — 잔량은 절대
+        // before 를 못 넘으므로 이 폴링은 영원히 실패로만 보인다. adPending("아직 안 왔다.
+        // 곧 올 것이다")은 거짓이다 — 이미 도착해서 버려진 보상을 "아직" 이라고 말한다.
+        // walCapped 는 체크인이 상한 도달에 이미 쓰는 문구라 사용자에게 새 어휘가 아니다.
+        if (adMsgEl) adMsgEl.textContent = (cap != null && before >= cap) ? MSStr.t.walCapped : MSStr.t.adPending;
         return;
       }
       MSWallet.get().then(function (r) {
@@ -175,7 +180,7 @@
           });
           return;
         }
-        setTimeout(function () { afterAd(before, n + 1); }, AD_POLL_MS);
+        setTimeout(function () { afterAd(before, cap, n + 1); }, AD_POLL_MS);
       });
     }
 
@@ -187,6 +192,8 @@
       adBusy = true;
       adMsgEl.textContent = "";
       var before = lastState ? lastState.balance : 0;
+      var cap = lastState ? lastState.cap : null;   // I2: 시청 시작 시점의 상한 — 폴링 타임아웃에서
+      // "아직 안 왔다"와 "이미 왔지만 상한이라 버려졌다"를 가른다(afterAd 주석 참고).
       MSAds.show(unit).then(function (r) {
         if (myGen !== GEN) return;
         if (!r || !r.shown) {
@@ -197,7 +204,7 @@
           return;
         }
         if (adMsgEl) adMsgEl.textContent = MSStr.t.adWaiting;
-        afterAd(before, 0);
+        afterAd(before, cap, 0);
       });
     }
 
@@ -284,7 +291,16 @@
       // 에선 줄 자체가 없다("Soon" 자리표시자를 남기지 않는다. 죽은 버튼보다 없는 편이 낫다).
       // adCfg/adSt 로딩 중엔 아직 아무 말도 하지 않는다 — 다음 draw() 가 채운다.
       adMsgEl = null;
-      if (adCfg && adCfg.ok && adSt) {
+      // state 도 함께 봐야 한다(리뷰 I1, 실행으로 확인됨): 최초 MSWallet.get() 이 실패해도
+      // adConfig/adState 는 독립된 별개 요청이라 성공할 수 있다 — 그러면 lastState 는 null 인
+      // 채로 광고 줄만 그려지고, watchAd() 의 before(= lastState ? balance : 0)가 0으로
+      // 지어내진다. 첫 폴링이 아무 실 잔량(예: 5)이나 만나면 "5 > 0" 이 참이 되어 실제로는
+      // 아무것도 확인되지 않은 시청이 성공으로 처리된다 — 화면이 확정적 거짓을 말한다.
+      // 다른 행(체크인)도 같은 원칙을 쓴다: state 가 없으면 "확인 불가"이지 0이 아니다.
+      // watchAd() 안에서 막는 대안도 있었지만, 여기서 행 자체를 안 그리면 "기준점 없는 시청"이
+      // 애초에 시작될 수 없다 — 버튼이 죽어 있는 대신 없는 편을 이 파일이 이미 일관되게 택한다
+      // (auth-disabled·device-claimed 와 같은 판단).
+      if (adCfg && adCfg.ok && adSt && state) {
         if (!adSt.ok) {
           // 리뷰 Critical(실행으로 확인됨): wallet-http.js 의 adState() 는 네트워크·백엔드 실패 시
           // {ok:false, remaining:0, nextAt:null} 을 낸다 — 이건 "병합돼 얼어붙었다"(remaining:0 +
@@ -305,8 +321,10 @@
           // 낱개 시청 사이 쿨다운(표시용 힌트일 뿐 — 서버가 강제하지 않는다).
           earn.appendChild(MSUi.el("div", "w-sub", MSStr.t.adCooldown.replace("{m}", String(cooldownMinutes(adSt.nextAt)))));
         } else {
-          earn.appendChild(earnRow(MSStr.t.adQuick, "", { note: MSStr.t.walQuickSub, onTap: function () { watchAd("quick"); } }));
-          earn.appendChild(earnRow(MSStr.t.adFull, "", { note: MSStr.t.walFullSub, onTap: function () { watchAd("full"); } }));
+          // 표시 금액은 adCfg[unit].reward 에서 읽는다(리뷰 I3) — 리터럴로 박으면 ad_units.json/
+          // AdMob 콘솔의 reward_amount 와 갈라져도 화면은 옛 숫자를 계속 약속한다.
+          earn.appendChild(earnRow(MSStr.t.adQuick.replace("{n}", String(adCfg.quick.reward)), "", { note: MSStr.t.walQuickSub, onTap: function () { watchAd("quick"); } }));
+          earn.appendChild(earnRow(MSStr.t.adFull.replace("{n}", String(adCfg.full.reward)), "", { note: MSStr.t.walFullSub, onTap: function () { watchAd("full"); } }));
           adMsgEl = MSUi.el("div", "w-sub");
           earn.appendChild(adMsgEl);
         }

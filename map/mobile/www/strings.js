@@ -176,10 +176,13 @@
     // 지운 자리에 안정적으로 남기는 문구(재조립될 때마다 되살아나지 않는다).
     wSignInUnavailable: "Sign-in is not available right now.",
 
-    // 지갑 — 광고(Phase 8d, AdMob 리워드). "+1"/"+3" 은 표시값이지 클라이언트가 계산해
-    // 더하는 값이 아니다 — 실제 지급은 서버의 SSV 콜백만 한다(SPEC-economy §1 그대로).
-    adQuick: "Watch a short ad  +1",
-    adFull: "Watch a full ad  +3",
+    // 지갑 — 광고(Phase 8d, AdMob 리워드). "+{n}" 은 표시값이지 클라이언트가 계산해 더하는
+    // 값이 아니다 — 실제 지급은 서버의 SSV 콜백만 한다(SPEC-economy §1 그대로). {n} 은
+    // wallet.js 가 adConfig() 가 준 adCfg[unit].reward 로 채운다(wMergeDiscarded 와 같은
+    // 치환 관례) — 문자열 리터럴로 박아두면 ad_units.json/AdMob 콘솔 reward_amount 와 별개의
+    // 세 번째 진실원이 생겨, 값이 어긋나도 화면은 계속 옛 숫자를 약속한다(리뷰 I3).
+    adQuick: "Watch a short ad  +{n}",
+    adFull: "Watch a full ad  +{n}",
     adDailyDone: "That is all the ads for today.",
     adCooldown: "Next ad in {m}",
     adWaiting: "Crediting your Scoops…",

@@ -872,13 +872,20 @@ function adRow(root, label) {
   return n ? n.parentNode.parentNode : null;
 }
 
+// adQuick/adFull 은 Phase 8d 리뷰 I3 수정 이후 "{n}" 치환 템플릿이다(wMergeDiscarded 와 같은
+// 관례) — wallet.js 는 adCfg[unit].reward 로 채운다. 이 파일의 광고 테스트는 전부
+// quick:{reward:1}/full:{reward:3} 을 쓰므로 그 값으로 치환해 실제 렌더 텍스트를 찾는다.
+function adLabel(unit, n) {
+  return (unit === "quick" ? S.t.adQuick : S.t.adFull).replace("{n}", String(n));
+}
+
 test("ads-disabled(ad_units.json 없음) 면 광고 줄이 아예 없다", async () => {
   await withWalletDom(async (root, W, A) => {
     W.adConfig = () => Promise.resolve({ ok: false, reason: "ads-disabled" });
     MSWalletScreen.render(root);
     await flush();
-    assert.ok(!findText(root, S.t.adQuick), "눌러도 아무 일 없는 광고 줄이 남아 있다");
-    assert.ok(!findText(root, S.t.adFull), "눌러도 아무 일 없는 광고 줄이 남아 있다");
+    assert.ok(!findText(root, adLabel("quick", 1)), "눌러도 아무 일 없는 광고 줄이 남아 있다");
+    assert.ok(!findText(root, adLabel("full", 3)), "눌러도 아무 일 없는 광고 줄이 남아 있다");
   });
 });
 
@@ -919,7 +926,7 @@ test("낱개 시청 쿨다운 중(remaining>0, nextAt 이 가까운 미래)이�
     MSWalletScreen.render(root);
     await flush();
     assert.ok(findText(root, S.t.adCooldown.replace("{m}", "2")), "쿨다운 분 안내가 없다(90초→2분 올림)");
-    assert.ok(!findText(root, S.t.adQuick), "쿨다운 중인데 광고 줄이 그대로 남아 있다");
+    assert.ok(!findText(root, adLabel("quick", 1)), "쿨다운 중인데 광고 줄이 그대로 남아 있다");
   });
 });
 
@@ -940,7 +947,87 @@ test("adState() 가 network 실패해도(merged 와 같은 모양) 병합됐다�
       "adState() 가 실패했을 뿐인데(ok:false) 병합됐다고 말했다 — 실패 모양이 merged 와 같아서 생긴 결함");
     assert.ok(findText(root, S.t.walUnavailable), "실패했으면 확인 불가를 사실대로 말해야 한다");
     assert.ok(!findText(root, S.t.adDailyDone), "실패했을 뿐인데 '오늘은 다 썼다'고도 말했다");
-    assert.ok(!findText(root, S.t.adQuick), "잔량 상태를 모르는데 광고 줄을 그대로 그렸다");
+    assert.ok(!findText(root, adLabel("quick", 1)), "잔량 상태를 모르는데 광고 줄을 그대로 그렸다");
+  });
+});
+
+// 최종 리뷰(I1, 실행으로 확인됨): 최초 MSWallet.get() 이 실패해도 adConfig/adState 는 독립된
+// 별개 요청이라 성공할 수 있다 — 그러면 lastState 는 null 인 채로 광고 줄만 그려지고,
+// watchAd() 의 before(= lastState ? balance : 0)가 0으로 지어내진다. 첫 폴링이 아무 실
+// 잔량(예: 5)이나 만나면 "5 > 0" 이 참이 되어, 아무것도 확인되지 않은 시청이 성공으로
+// 처리된다 — 15초를 본 사용자에게 아무 말도 없이 화면이 조용히 넘어간다. 수정은 state 가
+// 없으면 광고 줄 자체를 그리지 않는 것이다(watchAd() 안에서 막는 대안도 있었지만, 기준점 없는
+// 시청을 애초에 시작 못 하게 하는 편이 이 파일의 기존 관례 — 죽은 버튼 대신 없는 행 — 와 맞다).
+test("최초 잔량 로드가 실패하면 adConfig/adState 가 성공해도 광고 줄을 그리지 않는다(before 기준점이 없다)", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.get = () => Promise.resolve({ ok: false });
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(!adRow(root, adLabel("quick", 1)),
+      "잔량을 못 읽었는데(state==null) 광고 줄을 그렸다 — before 기준점 없이 시청이 시작될 수 있다");
+    assert.ok(!adRow(root, adLabel("full", 3)), "잔량을 못 읽었는데 Full 광고 줄을 그렸다");
+    // walUnavailable 메시지 자체의 지속 여부는 여기서 안 본다 — get() 실패 draw()와 adConfig
+    // 초기화 체인의 마지막 draw(lastState, "")가 어느 쪽이 나중에 도는지에 따라 메시지 칸이
+    // 비워질 수 있는 별개의(더 오래된, 이 태스크 범위 밖의) 경합이다. I1 이 고치는 것은
+    // "광고 줄이 기준점 없이 그려지는가"뿐이다.
+  });
+});
+
+// 최종 리뷰(I2, 실행으로 확인됨): 잔량이 이미 상한(before>=cap)일 때 시청하면 서버 w_ad_grant
+// 는 granted:0 으로 조용히 버리고 일일 슬롯만 소모한다 — 잔량은 절대 before 를 못 넘으므로
+// 폴링은 timeout 까지 실패로만 보인다. 옛 코드는 이 경우도 adPending("아직 안 왔다. 곧 올
+// 것이다")을 그대로 냈다 — 이미 도착해서 버려진 보상을 "아직" 이라고 말하는 거짓이었고, 상한에
+// 걸린 사용자는 8개 일일 슬롯을 전부 "곧 온다"는 말을 들으며 태울 수 있었다. 아래 두 테스트를
+// 함께 둔다 — 하나만 보면 "항상 walCapped 로 바꿨다"는 뮤테이션도 초록일 수 있다.
+test("잔량이 이미 상한이면 폴링 시간 초과 시 '상한 도달'을 말한다(대기 중이라 하지 않는다)", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    W.get = () => Promise.resolve({ ok: true, state: { balance: 20, cap: 20, streakDays: 1, canCheckin: true } });
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+    MSWalletScreen.render(root);
+    await flush();
+    adRow(root, adLabel("quick", 1)).dispatch("click");
+    await flushPolling();
+    assert.ok(findText(root, S.t.walCapped),
+      "상한에서 시청했는데(before>=cap) 시간 초과 뒤에도 상한 도달을 말하지 않았다");
+    assert.ok(!findText(root, S.t.adPending),
+      "상한에서 시청한 보상은 이미 버려졌는데 '아직 안 왔다'는 거짓 대기 안내를 냈다");
+  });
+});
+
+test("잔량이 상한 아래면 폴링 시간 초과 시 여전히 대기 안내(adPending)를 말한다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    W.get = () => Promise.resolve({ ok: true, state: { balance: 5, cap: 20, streakDays: 1, canCheckin: true } });
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+    MSWalletScreen.render(root);
+    await flush();
+    adRow(root, adLabel("quick", 1)).dispatch("click");
+    await flushPolling();
+    assert.ok(findText(root, S.t.adPending), "상한 아래(before<cap)인데 시간 초과 대기 안내가 없다");
+    assert.ok(!findText(root, S.t.walCapped), "상한이 아닌데 '상한 도달'을 말했다 — 두 경로가 뒤섞였다");
+  });
+});
+
+// 최종 리뷰(I3, 실행으로 확인됨): adQuick/adFull 이 "+1"/"+3" 문자열 리터럴이면, 표시 금액·
+// ad_units.json·AdMob 콘솔 reward_amount 세 곳이 독립된 진실원이 된다 — 운영이 콘솔 기본값
+// 1로 두 유닛을 다 만들면 화면은 영원히 +3 을 약속하고 원장은 1만 지급한다. adCfg[unit].reward
+// 를 렌더에 반영해 리터럴을 없앤다.
+test("광고 표시 금액은 adConfig() 의 reward 값을 그대로 반영한다(문자열 리터럴이 아니다)", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 7 }, full: { unitId: "f", reward: 42 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(findText(root, adLabel("quick", 7)), "quick 표시 금액이 adConfig().quick.reward(7)를 반영하지 않았다");
+    assert.ok(findText(root, adLabel("full", 42)), "full 표시 금액이 adConfig().full.reward(42)를 반영하지 않았다");
+    assert.ok(!findText(root, S.t.adQuick), "치환 안 된 원본 템플릿('+{n}')이 그대로 남아 있다");
+    assert.ok(!findText(root, adLabel("quick", 1)), "reward 를 무시하고 옛 하드코딩 값(+1)을 그렸다");
   });
 });
 
@@ -966,7 +1053,7 @@ test("광고로 크레딧된 직후 adState() 재조회가 실패해도 병합�
     A.show = () => Promise.resolve({ shown: true, reason: "" });
     MSWalletScreen.render(root);
     await flush();
-    adRow(root, S.t.adQuick).dispatch("click");
+    adRow(root, adLabel("quick", 1)).dispatch("click");
     await flush();
     assert.ok(!findText(root, S.t.wMerged),
       "광고로 잔량이 오른 직후 adState() 재조회가 실패했는데(merged 와 같은 모양) 병합됐다고 말했다");
@@ -976,7 +1063,7 @@ test("광고로 크레딧된 직후 adState() 재조회가 실패해도 병합�
     // 를 지키는 것" — 그래서 광고 줄이 여전히(재조회 실패에도 불구하고) 정상 표시돼야 한다.
     // 여기서 s.ok 가드를 빼면(if (s) adSt = s;) adSt 가 실패 모양으로 덮여 walUnavailable 로
     // 떨어지고 이 단언이 빨간불이 된다 — 실행해서 확인했다.
-    assert.ok(adRow(root, S.t.adQuick), "재조회 실패로 직전의 유효한 광고 상태(remaining:8)가 사라졌다");
+    assert.ok(adRow(root, adLabel("quick", 1)), "재조회 실패로 직전의 유효한 광고 상태(remaining:8)가 사라졌다");
     assert.ok(!findText(root, S.t.walUnavailable),
       "광고 시청은 이미 성공했는데 부가 재조회 hiccup 하나로 '확인 불가'로 떨어졌다");
   });
@@ -992,7 +1079,7 @@ test("광고를 본 뒤 잔량이 오를 때까지 기다린다 — 줄어드는
     A.show = () => Promise.resolve({ shown: true, reason: "" });
     MSWalletScreen.render(root);
     await flush();
-    adRow(root, S.t.adQuick).dispatch("click");
+    adRow(root, adLabel("quick", 1)).dispatch("click");
     await flush();
     assert.ok(seen.length >= 2, "광고를 본 뒤 서버에 다시 묻지 않았다(초기 로드 1회 + 폴링 1회 이상)");
     // "7" 이 어디에도 없어야 한다 — 서버가 준 적 없는 값을 클라이언트가 계산해 그린 것이다.
@@ -1008,7 +1095,7 @@ test("SSV 가 안 오면(10초 안에 잔량이 그대로) 조용히 실패하�
     A.show = () => Promise.resolve({ shown: true, reason: "" });
     MSWalletScreen.render(root);
     await flush();
-    adRow(root, S.t.adQuick).dispatch("click");
+    adRow(root, adLabel("quick", 1)).dispatch("click");
     await flushPolling();
     assert.ok(findText(root, S.t.adPending), "잔량이 안 올랐는데 아무 말도 안 한다");
   });
@@ -1024,7 +1111,7 @@ test("광고가 아예 안 뜨면(show shown:false) 조용히 넘어가지 않�
     A.show = () => { calls++; return Promise.resolve({ shown: false, reason: "consent-required" }); };
     MSWalletScreen.render(root);
     await flush();
-    var row = adRow(root, S.t.adQuick);
+    var row = adRow(root, adLabel("quick", 1));
     row.dispatch("click");
     await flush();
     assert.ok(findText(root, S.t.adFailed), "광고가 안 떴는데 아무 안내도 없다");
@@ -1044,7 +1131,7 @@ test("광고 요청은 unit 문자열만 넘긴다 — customData 를 이 화면
     A.show = function (u) { seenArgs.push(u); return Promise.resolve({ shown: false, reason: "unavailable" }); };
     MSWalletScreen.render(root);
     await flush();
-    adRow(root, S.t.adFull).dispatch("click");
+    adRow(root, adLabel("full", 3)).dispatch("click");
     await flush();
     assert.deepStrictEqual(seenArgs, ["full"], "show() 인자가 가공됐다: " + JSON.stringify(seenArgs));
   });
@@ -1060,7 +1147,7 @@ test("응답 오기 전에 광고 줄을 두 번 눌러도 show() 는 한 번만
     A.show = function () { calls++; return new Promise(function (resolve) { resolveShow = resolve; }); };
     MSWalletScreen.render(root);
     await flush();
-    var row = adRow(root, S.t.adQuick);
+    var row = adRow(root, adLabel("quick", 1));
     row.dispatch("click");
     row.dispatch("click");   // 첫 응답이 오기 전에 동기적으로 또 누른다
     assert.strictEqual(calls, 1, "show() 가 두 번 나갔다 — 광고 시청이 동시에 두 개 돈다: " + calls);
@@ -1087,7 +1174,7 @@ test("재렌더(네비게이션) 후에는 이전 광고 폴링 루프가 get() 
       MSWalletScreen.render(root);
       await flush();
       var before = getCalls;   // 최초 로드가 이미 get() 을 한 번 이상 불렀을 수 있다
-      adRow(root, S.t.adQuick).dispatch("click");
+      adRow(root, adLabel("quick", 1)).dispatch("click");
       await flush();   // show() → afterAd(get 1회, balance 그대로) → 다음 폴링을 setTimeout 으로 예약
       var afterFirstPoll = getCalls;
       assert.ok(afterFirstPoll > before, "첫 afterAd 의 get() 이 안 나갔다 — 테스트 전제가 틀렸다");
