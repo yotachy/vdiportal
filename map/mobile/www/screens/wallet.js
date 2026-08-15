@@ -163,9 +163,14 @@
           adBusy = false;
           refreshPills();   // 2단이면 옆 칸 헤더의 필이 옛 잔량을 들고 있다
           // remaining/nextAt 도 이 시청으로 바뀌었을 수 있다(쿨다운 시작) — 다시 읽어 함께 그린다.
+          // 리뷰 Critical(실행으로 확인됨): s.ok 를 안 보고 그대로 덮어쓰면, 광고로 방금 크레딧된
+          // 사용자가 이 재조회 하나가 hiccup 났다는 이유로 "지갑이 병합됐다"는 말을 들을 수 있다
+          // (실패 모양이 merged 와 같다 — 위 draw() 게이트와 같은 결함). 실패했을 땐 새로 알아낸
+          // 게 없다는 뜻이라 직전까지 알던 adSt(있었다면 ok:true)를 그대로 지킨다 — 방금 성공한
+          // 시청 자체는 이미 r.state.balance 로 확정됐으니 이 재조회는 부가 정보일 뿐이다.
           MSWallet.adState().then(function (s) {
             if (myGen !== GEN) return;
-            if (s) adSt = s;
+            if (s && s.ok) adSt = s;
             draw(r.state, "");
           });
           return;
@@ -280,7 +285,15 @@
       // adCfg/adSt 로딩 중엔 아직 아무 말도 하지 않는다 — 다음 draw() 가 채운다.
       adMsgEl = null;
       if (adCfg && adCfg.ok && adSt) {
-        if (adSt.remaining === 0 && adSt.nextAt == null) {
+        if (!adSt.ok) {
+          // 리뷰 Critical(실행으로 확인됨): wallet-http.js 의 adState() 는 네트워크·백엔드 실패 시
+          // {ok:false, remaining:0, nextAt:null} 을 낸다 — 이건 "병합돼 얼어붙었다"(remaining:0 +
+          // nextAt:null)와 **모양이 완전히 같다**. adSt 진위(.ok)를 안 보고 remaining/nextAt 만
+          // 보면 흔한 일시적 실패가 "구글 계정으로 넘어갔다"는 확정적 거짓말이 된다 — 계약 ②가
+          // 막으려던 바로 그 결함의 거울상이다. "물어봤는데 답을 못 들었다"는 병합·상한·쿨다운
+          // 그 무엇도 아니다 — walUnavailable(다른 실패에도 이미 쓰는 문구)로 사실대로만 말한다.
+          earn.appendChild(MSUi.el("div", "w-sub", MSStr.t.walUnavailable));
+        } else if (adSt.remaining === 0 && adSt.nextAt == null) {
           // remaining:0 + nextAt:null = 이 기기의 지갑이 구글 계정으로 넘어가 얼어붙었다 —
           // "오늘 8개를 다 썼다"가 아니다. 그 문구를 쓰면 병합된 사용자에게 "내일 다시 오라"고
           // 말하는 셈이라 거짓이다(계약 ②). wMerged 는 checkin() merged 사유와 같은 문구다.
@@ -418,6 +431,12 @@
       return initP.then(function () { return MSWallet.adState(); });
     }).then(function (r) {
       if (myGen !== GEN) return null;
+      // 여기는 afterAd() 의 재조회(위)와 달리 실패 응답(ok:false)도 그대로 adSt 에 담는다 —
+      // 의도적인 비대칭이다. 이 시점엔 지킬 "직전의 좋은 adSt"가 아직 없으므로(최초 로드),
+      // 실패를 버리면 adSt 가 계속 null 로 남아 draw() 의 !adSt.ok 분기가 아예 안 열리고
+      // 화면은 조용히 아무 것도 안 그린다 — "확인 불가"를 말할 기회 자체가 사라진다. draw() 의
+      // 게이트가 adSt.ok 를 직접 보고 병합/상한과 실패를 가르므로, 실패 모양을 그대로 넘겨도
+      // wMerged 로 오독되지 않는다(리뷰 Critical 수정).
       if (r) adSt = r;
       draw(lastState, "");
       return (typeof MSAds !== "undefined" && MSAds && MSAds.privacyOptionsRequired)

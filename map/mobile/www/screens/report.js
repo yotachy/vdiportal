@@ -13,6 +13,12 @@
   // TAIL_BARS 는 이제 줌 레벨이다. 기본은 화면폭 무관 60봉(예측 비중 28% 유지, Phase 3 결론) — MSZoom.DEFAULT_TAIL.
   var HOLD_MS = 350, MOVE_THRESH = 8;
 
+  // 잔량 부족 광고 권유 뒤의 폴링(Phase 8d) — screens/wallet.js 의 AD_POLL_MS/AD_POLL_LIMIT 와
+  // 같은 값·같은 이름을 그대로 옮겼다. SSV 왕복 예산(왜 2초·왜 5회)의 근거는 그쪽에 있다 —
+  // 여기서 다시 적지 않는다. 값을 조정할 땐 두 파일을 함께 바꿀 것(리뷰 Important 지적:
+  // 이름 없는 매그넘버로 각자 들고 있으면 한쪽만 재조정되고 조용히 어긋난다).
+  var AD_POLL_MS = 2000, AD_POLL_LIMIT = 5;   // 2초 × 5 = 10초
+
   var LINE_LEGEND = [
     { key: "p1", label: MSStr.t.lgP1 },
     { key: "p2", label: MSStr.t.lgP2 },
@@ -804,7 +810,7 @@
     // 커진 것을 **확인한 뒤에만** 다음 단계로 넘어간다 — 낙관적으로 올려 그리지 않는다(8b 원칙).
     function afterCtaAd(before, n, msg) {
       if (!isCurrent()) return;
-      if (n >= 5) { adBusy = false; msg.textContent = MSStr.t.adPending; return; }
+      if (n >= AD_POLL_LIMIT) { adBusy = false; msg.textContent = MSStr.t.adPending; return; }
       MSWallet.get().then(function (r) {
         if (!isCurrent()) return;
         if (r.ok && r.state && r.state.balance > before) {
@@ -820,7 +826,7 @@
           });
           return;
         }
-        setTimeout(function () { afterCtaAd(before, n + 1, msg); }, 2000);
+        setTimeout(function () { afterCtaAd(before, n + 1, msg); }, AD_POLL_MS);
       });
     }
 

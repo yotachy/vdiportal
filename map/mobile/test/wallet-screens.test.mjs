@@ -923,6 +923,65 @@ test("낱개 시청 쿨다운 중(remaining>0, nextAt 이 가까운 미래)이�
   });
 });
 
+// ── 리뷰 Critical(실행으로 확인됨, 2026-08-16): adState() 의 network/backend 실패 모양이
+// {ok:false, remaining:0, nextAt:null} 이고(wallet-http.js), 이건 "병합돼 얼어붙었다"
+// (remaining:0 + nextAt:null, ok:true)와 **필드만 보면 완전히 같다.** adSt.ok 를 안 보고
+// remaining/nextAt 만 보면 흔한 일시적 실패가 "지갑이 구글 계정으로 넘어갔다"는 확정적
+// 거짓말이 된다 — 계약 ②가 막으려던 결함의 거울상이다.
+test("adState() 가 network 실패해도(merged 와 같은 모양) 병합됐다고 말하지 않는다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    // wallet-http.js 의 adState() 가 실패 시 그대로 내는 모양 — ok 만 다르고 나머지 필드는
+    // 병합 상태와 동일하다.
+    W.adState = () => Promise.resolve({ ok: false, remaining: 0, nextAt: null });
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(!findText(root, S.t.wMerged),
+      "adState() 가 실패했을 뿐인데(ok:false) 병합됐다고 말했다 — 실패 모양이 merged 와 같아서 생긴 결함");
+    assert.ok(findText(root, S.t.walUnavailable), "실패했으면 확인 불가를 사실대로 말해야 한다");
+    assert.ok(!findText(root, S.t.adDailyDone), "실패했을 뿐인데 '오늘은 다 썼다'고도 말했다");
+    assert.ok(!findText(root, S.t.adQuick), "잔량 상태를 모르는데 광고 줄을 그대로 그렸다");
+  });
+});
+
+// 같은 결함의 두 번째 발현 지점 — afterAd() 의 사후 adState() 재조회. 광고를 보고 실제로
+// 크레딧된 직후, 그 부가 재조회 하나가 hiccup 나면 이전(정상)의 adSt 를 지켜야 한다 —
+// 방금 상을 받은 사용자에게 "지갑이 얼어붙었다"고 말하는 것이 가장 나쁘다.
+test("광고로 크레딧된 직후 adState() 재조회가 실패해도 병합됐다고 말하지 않는다(이전 상태를 지킨다)", async () => {
+  await withWalletDom(async (root, W, A) => {
+    var adStateCalls = 0;
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => {
+      adStateCalls++;
+      // 1회차 = 최초 로드(정상). 2회차 = 광고 시청 뒤 afterAd() 의 재조회 — 여기서 hiccup 난다.
+      if (adStateCalls === 1) return Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+      return Promise.resolve({ ok: false, remaining: 0, nextAt: null });
+    };
+    var getCalls = 0;
+    W.get = () => {
+      getCalls++;
+      var bal = getCalls === 1 ? 5 : 6;   // 최초 로드=5, 광고 후 폴링부터는 6(올랐다)
+      return Promise.resolve({ ok: true, state: { balance: bal, cap: 20, streakDays: 1, canCheckin: true } });
+    };
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+    MSWalletScreen.render(root);
+    await flush();
+    adRow(root, S.t.adQuick).dispatch("click");
+    await flush();
+    assert.ok(!findText(root, S.t.wMerged),
+      "광고로 잔량이 오른 직후 adState() 재조회가 실패했는데(merged 와 같은 모양) 병합됐다고 말했다");
+    // wMerged 부재만으로는 이 자리(afterAd 의 s.ok 가드)를 못 잡는다 — draw() 게이트의
+    // !adSt.ok 분기 하나만으로도 wMerged 는 이미 안 뜬다(walUnavailable 로 대신 떨어질 뿐).
+    // 이 자리가 실제로 하는 일은 "실패한 재조회로 덮어쓰지 않고 직전의 유효한 adSt(remaining:8)
+    // 를 지키는 것" — 그래서 광고 줄이 여전히(재조회 실패에도 불구하고) 정상 표시돼야 한다.
+    // 여기서 s.ok 가드를 빼면(if (s) adSt = s;) adSt 가 실패 모양으로 덮여 walUnavailable 로
+    // 떨어지고 이 단언이 빨간불이 된다 — 실행해서 확인했다.
+    assert.ok(adRow(root, S.t.adQuick), "재조회 실패로 직전의 유효한 광고 상태(remaining:8)가 사라졌다");
+    assert.ok(!findText(root, S.t.walUnavailable),
+      "광고 시청은 이미 성공했는데 부가 재조회 hiccup 하나로 '확인 불가'로 떨어졌다");
+  });
+});
+
 test("광고를 본 뒤 잔량이 오를 때까지 기다린다 — 줄어드는 순간도, 낙관적으로 오른 순간도 만들지 않는다", async () => {
   await withWalletDom(async (root, W, A) => {
     var seen = [];
