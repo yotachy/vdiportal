@@ -729,8 +729,8 @@ t("상한에 걸려도 출석일은 소비된다 — 하루가 지나가야 다�
 
 t("토큰은 왕복하고 변조·쓰레기·세그먼트 이상은 거부된다", function () {
   $d = tmpdir();
-  $tok = w_token_make($d, "dev-1");
-  eq(w_token_read($d, $tok), "dev-1", "왕복");
+  $tok = w_token_make($d, "dev-1");   // 접두 없음 — 8c 이전 옛 토큰 모양
+  eq(w_token_read($d, $tok), array("type" => "device", "id" => "dev-1"), "왕복");
   eq(w_token_read($d, $tok . "x"), null, "변조된 토큰이 통과했다");
   eq(w_token_read($d, "garbage"), null, "쓰레기 토큰이 통과했다");
   rmrf($d);
@@ -879,6 +879,61 @@ t("IP 해시가 null 이면 상한을 적용하지 않는다 — 헤드리스 �
   $d = tmpdir(); $db = w_db($d);
   for ($i = 0; $i < 5; $i++) { w_create_account($db, "dev-nullip-" . $i, null); }
   eq($db->query("select count(*) c from accounts")->fetch()["c"], 5, "null IP 인데 상한에 걸렸다");
+  $db = null; rmrf($d);
+});
+
+// ── Task 1 (8c): 토큰 주체 접두 + 스키마 v3 ─────────────────────────────
+
+t("토큰 주체 — 기기와 계정을 구별하고, 접두 없는 옛 토큰은 기기로 읽는다", function () {
+  $d = tmpdir();
+  $t1 = w_token_make($d, "d:dev-aaa");
+  $t2 = w_token_make($d, "a:acct-bbb");
+  // 접두 없는 옛 토큰을 그대로 만든다 — 배포 순간 살아 있는 토큰이 깨지면 안 된다.
+  $exp = time() + 3600;
+  $sig = _wb64e(hash_hmac("sha256", "dev-legacy|" . $exp, w_secret($d), true));
+  $old = _wb64e("dev-legacy") . "|" . $exp . "|" . $sig;
+  eq(w_token_read($d, $t1), array("type" => "device", "id" => "dev-aaa"), "기기 토큰");
+  eq(w_token_read($d, $t2), array("type" => "acct", "id" => "acct-bbb"), "계정 토큰");
+  eq(w_token_read($d, $old), array("type" => "device", "id" => "dev-legacy"),
+     "접두 없는 옛 토큰이 안 읽힌다 — 배포 순간 로그인된 사용자가 전부 튕긴다");
+  eq(w_token_read($d, substr($t1, 0, -1) . "X"), null, "변조된 토큰이 통과했다");
+  rmrf($d);
+});
+
+// 핵심 방어: 접두가 서명 대상 "밖"에 있으면 d: 를 a: 로 바꿔치기해 임의 계정을 가리킬 수
+// 있다. 실제로 있었던 기기 토큰의 인코딩된 주체만 접두를 바꿔치기하고 서명은 그대로 재사용해
+// 위조를 흉내 낸다 — 접두가 서명 대상 안에 있어야만 이 위조가 거부된다.
+t("토큰 위조 방지 — 서명된 주체의 접두를 d: 에서 a: 로 바꿔치기하면 거부된다", function () {
+  $d = tmpdir();
+  $tok = w_token_make($d, "d:dev-aaa");
+  $p = explode("|", $tok);
+  $forgedSubject = "a:" . substr(_wb64d($p[0]), 2);
+  $forged = _wb64e($forgedSubject) . "|" . $p[1] . "|" . $p[2];
+  eq(w_token_read($d, $forged), null,
+     "d: 를 a: 로 바꿔치기한 위조 토큰이 통과했다 — 남의 계정을 가리킬 수 있다");
+  rmrf($d);
+});
+
+t("스키마 v3 — auth_nonce 와 google_sub 유니크 인덱스가 생긴다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $names = [];
+  foreach ($db->query("select name from sqlite_master where type in ('table','index')") as $r) {
+    $names[] = $r["name"];
+  }
+  ok(in_array("auth_nonce", $names, true), "auth_nonce 테이블이 없다");
+  ok(in_array("ix_accounts_gsub", $names, true), "google_sub 유니크 인덱스가 없다");
+  eq(w_schema_version($db), 3, "스키마 버전이 3 이 아니다");
+  $db = null; rmrf($d);
+});
+
+// SQLite 의 유니크 인덱스는 NULL 을 서로 다른 값으로 본다. 이게 성립하지 않으면
+// 미연결 계정이 둘째부터 생성 실패한다 — 온보딩이 통째로 죽는다.
+t("google_sub 유니크 인덱스가 미연결 계정 여럿을 막지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-1", "iphash");
+  w_create_account($db, "dev-2", "iphash");
+  eq((int)$db->query("select count(*) c from accounts")->fetch()["c"], 2,
+     "google_sub 이 NULL 인 계정을 둘 이상 못 만든다");
   $db = null; rmrf($d);
 });
 

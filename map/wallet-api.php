@@ -148,11 +148,13 @@ if ($op === "hello") {
     }
     if (!$acct) w_out(array("ok" => false, "reason" => "server-error"), 500);
   }
-  w_out(array("ok" => true, "token" => w_token_make($W_DIR, $dev), "state" => w_state($db, $acct)));
+  w_out(array("ok" => true, "token" => w_token_make($W_DIR, "d:" . $dev), "state" => w_state($db, $acct)));
 }
 
-$dev = w_token_read($W_DIR, w_bearer());
-if ($dev === null) w_out(array("ok" => false, "reason" => "unauthorized"), 401);
+// 이 태스크는 기기 토큰만 인식한다 — 계정 토큰 해석은 Task 3.
+$sub = w_token_read($W_DIR, w_bearer());
+if ($sub === null || $sub["type"] !== "device") w_out(array("ok" => false, "reason" => "unauthorized"), 401);
+$dev = $sub["id"];
 $acct = w_get_account($db, $dev);
 if (!$acct) w_out(array("ok" => false, "reason" => "unauthorized"), 401);
 

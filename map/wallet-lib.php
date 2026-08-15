@@ -126,6 +126,25 @@ function w_migrate($db) {
       throw $e;
     }
   }
+  if (w_schema_version($db) < 3) {
+    // v2 와 같은 규율: begin immediate 로 동시 부팅을 직렬화하고, 버전 기록을
+    // 같은 트랜잭션에 넣어 스키마와 버전이 갈리는 창을 없앤다.
+    $db->exec("begin immediate");
+    try {
+      $db->exec("create table if not exists auth_nonce (
+        nonce TEXT PRIMARY KEY, device_id TEXT NOT NULL, google_sub TEXT,
+        created_at TEXT NOT NULL, used INTEGER NOT NULL DEFAULT 0)");
+      // NULL 을 서로 다른 값으로 보는 SQLite 의 성질에 기댄다 — 미연결 계정은 여럿이어도
+      // 걸리지 않고, 같은 google_sub 두 개만 막힌다. 동시 병합의 최종 방어선이다.
+      $db->exec("create unique index if not exists ix_accounts_gsub on accounts (google_sub)");
+      $db->exec("delete from schema_version");
+      $db->exec("insert into schema_version (v) values (3)");
+      $db->exec("commit");
+    } catch (Throwable $e) {
+      try { $db->exec("rollback"); } catch (Throwable $e2) {}
+      throw $e;
+    }
+  }
 }
 
 function w_account_id($deviceId) { return substr(sha1($deviceId), 0, 16); }
@@ -174,24 +193,30 @@ function w_secret($dir) {
   throw new Exception("지갑 비밀키가 비었거나 짧다: " . $f);
 }
 
-function w_token_make($dir, $deviceId) {
+// 주체는 "d:<deviceId>" 또는 "a:<accountId>". 접두를 서명 대상에 포함한다 —
+// 밖에 두면 d: 를 a: 로 바꿔치기해 임의 계정을 가리킬 수 있다.
+function w_token_make($dir, $subject) {
   $exp = time() + 365 * 86400;
-  $sig = _wb64e(hash_hmac("sha256", $deviceId . "|" . $exp, w_secret($dir), true));
-  return _wb64e($deviceId) . "|" . $exp . "|" . $sig;
+  $sig = _wb64e(hash_hmac("sha256", $subject . "|" . $exp, w_secret($dir), true));
+  return _wb64e($subject) . "|" . $exp . "|" . $sig;
 }
 
 // fail-closed — 변조·만료·형식 이상은 전부 null 이다.
 // hash_equals 로 상수시간 비교한다(타이밍으로 서명을 맞춰가는 것을 막는다).
+// 접두가 없는 토큰은 8c 이전에 발급된 기기 토큰이다. 배포 순간 살아 있는 토큰을
+// 깨뜨리지 않으려고 기기로 읽는다(만료 1년이라 한동안 남아 있다).
 function w_token_read($dir, $token) {
   if (!is_string($token) || $token === "") return null;
   $p = explode("|", $token);
   if (count($p) !== 3) return null;
-  $deviceId = _wb64d($p[0]);
+  $subject = _wb64d($p[0]);
   $exp = (int)$p[1];
-  if ($deviceId === "" || $exp < time()) return null;
-  $want = _wb64e(hash_hmac("sha256", $deviceId . "|" . $exp, w_secret($dir), true));
+  if ($subject === "" || $exp < time()) return null;
+  $want = _wb64e(hash_hmac("sha256", $subject . "|" . $exp, w_secret($dir), true));
   if (!hash_equals($want, $p[2])) return null;
-  return $deviceId;
+  if (strpos($subject, "d:") === 0) return array("type" => "device", "id" => substr($subject, 2));
+  if (strpos($subject, "a:") === 0) return array("type" => "acct", "id" => substr($subject, 2));
+  return array("type" => "device", "id" => $subject);   // 8c 이전 토큰
 }
 
 function w_get_account($db, $deviceId) {
