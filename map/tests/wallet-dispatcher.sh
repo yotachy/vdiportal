@@ -45,7 +45,8 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$DOCROOT"
-cp "$MAP_ROOT/wallet-api.php" "$MAP_ROOT/wallet-lib.php" "$MAP_ROOT/wallet-auth.php" "$DOCROOT/"
+cp "$MAP_ROOT/wallet-api.php" "$MAP_ROOT/wallet-lib.php" "$MAP_ROOT/wallet-auth.php" \
+   "$MAP_ROOT/wallet-ssv.php" "$DOCROOT/"
 : > "$BODIES"
 
 # 서버 자체는 display_errors 를 켜 둔다 — wallet-api.php 첫 줄의 ini_set 이 유일한 방어막이
@@ -469,6 +470,181 @@ AUTH_INI_LINE=$(grep -n 'ini_set("display_errors", *"0")' "$DOCROOT/wallet-auth.
 AUTH_HDR_LINE=$(grep -n '^\s*header(' "$DOCROOT/wallet-auth.php" | head -1 | cut -d: -f1)
 if [ -n "$AUTH_INI_LINE" ] && [ -n "$AUTH_HDR_LINE" ] && [ "$AUTH_INI_LINE" -lt "$AUTH_HDR_LINE" ]; then ok_
 else bad_ "wallet-auth.php 가 첫 출력 전에 display_errors 를 끄지 않는다"; fi
+
+# ── wallet-ssv.php — AdMob 리워드 콜백(공개·무인증 GET) ────────────────────────
+# 구글이 부르는 공개 엔드포인트다. 인증이 없는 것이 정상이고 서명만이 유일한 방어선이라,
+# 여기 검사들은 전부 "이 문으로 잔량을 만들 수 있는가"를 실제 HTTP 로 두드린다.
+# 절대 구글에 접속하지 않는다 — 위 php -S 줄이 W_SSV_KEYS_URL 을 닿을 수 없는 주소로
+# 못박아 뒀고(지우지 말 것), 키는 아래에서 우리가 만든 테스트 키쌍을 캐시 파일에 꽂는다.
+SSV_KEY="$WORK/ssv-priv.pem"
+SSV_CACHE="$DATA/ssv_keys_cache.json"
+php -r '
+  $k = openssl_pkey_new(array("private_key_type" => OPENSSL_KEYTYPE_EC, "curve_name" => "prime256v1"));
+  openssl_pkey_export($k, $pem);
+  file_put_contents($argv[1], $pem);
+  $d = openssl_pkey_get_details($k);
+  file_put_contents($argv[2], json_encode(array("keys" => array(array("keyId" => "77", "pem" => $d["key"])))));
+' "$SSV_KEY" "$SSV_CACHE"
+
+# ssv_sign <서명대상> [key_id] → 전체 쿼리스트링(서명·key_id 를 뒤에 붙인다)
+ssv_sign() { php -r '
+    openssl_sign($argv[2], $sig, file_get_contents($argv[1]), OPENSSL_ALGO_SHA256);
+    echo $argv[2] . "&signature=" . rtrim(strtr(base64_encode($sig), "+/", "-_"), "=") . "&key_id=" . $argv[3];
+  ' "$SSV_KEY" "$1" "${2:-77}"; }
+# ⚠ 쿼리스트링을 그대로 보낸다 — 서명은 바이트에 걸려 있어서 재조립하면 안 된다.
+# -g(globoff) 는 curl 이 reward_amount[]=1 의 대괄호를 범위 글로브로 읽지 않게 한다.
+ssv_get() {
+  CODE=$(curl -sg -o "$WORK/out" -w '%{http_code}' "$BASE/wallet-ssv.php?$1")
+  BODY=$(cat "$WORK/out")
+  printf '%s\n' "$BODY" >> "$BODIES"
+}
+ssv_bal() { dbq "select coalesce(sum(delta),0) from ledger where account_id='$1'"; }
+TS=$(php -r 'echo time() * 1000;')
+
+# 서명 없는 콜백 — 이 문이 열려 있으면 잔량이 무한이 된다
+BAL_BEFORE=$(ssv_bal "$ACCT_A")
+ssv_get "custom_data=$ACCT_A&reward_amount=999&transaction_id=forged-1"
+chk "서명 없는 SSV 는 200 이다(구글 재시도 방지)" "$CODE" "200"
+chk "서명 없는 SSV 가 잔량을 올리지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_BEFORE"
+chk "SSV 응답 본문이 비어 있다" "$BODY" ""
+
+# 공개 엔드포인트다 — 경로도 계정 존재 여부도 흘리면 안 된다
+ssv_get "custom_data=nobody&transaction_id=x"
+chk "모르는 계정도 200 이다" "$CODE" "200"
+chk "모르는 계정의 본문도 비어 있다 — 존재 여부가 구별되면 계정 열거 도구가 된다" "$BODY" ""
+chk_no "본문에 경로가 없다" "$BODY" "$DOCROOT"
+
+# 정상 콜백 — 이게 통하지 않으면 기능이 통째로 죽는다
+Q=$(ssv_sign "ad_network=5450213213286189855&ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&reward_item=Scoops&timestamp=$TS&transaction_id=ssv-ok-1&user_id=$ACCT_A")
+ssv_get "$Q"
+chk "정상 서명 콜백은 200 이다" "$CODE" "200"
+chk "정상 콜백 본문도 비어 있다" "$BODY" ""
+chk "정상 콜백이 1개를 적립했다" "$(ssv_bal "$ACCT_A")" "$((BAL_BEFORE + 1))"
+chk "ad_grants 에 실제로 넣은 값이 남았다" "$(dbq "select granted from ad_grants where transaction_id='ssv-ok-1'")" "1"
+chk "원장 이유가 ad 다" "$(dbq "select count(*) from ledger where idem='ad:ssv-ok-1' and reason='ad'")" "1"
+chk "캐시와 원장이 같다" "$(dbq "select balance from accounts where id='$ACCT_A'")" "$(ssv_bal "$ACCT_A")"
+
+# 재생 — 구글은 재시도한다. 같은 transaction_id 는 두 번 적립되면 안 된다.
+BAL_NOW=$(ssv_bal "$ACCT_A")
+ssv_get "$Q"
+chk "재생도 200 이다" "$CODE" "200"
+chk "재생이 두 번 적립하지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+chk "ad_grants 행도 하나뿐이다" "$(dbq "select count(*) from ad_grants where transaction_id='ssv-ok-1'")" "1"
+
+# ── 서명 범위 밖의 값 — w_ssv_verify 는 "그 필드가 서명돼 있었다"를 보증하지 않는다 ──────
+# 서명 범위에 없는 필드를 $_GET 에서 읽으면, 공격자가 custom_data(=지급 대상 계정)와
+# reward_amount(=금액)를 서명 없이 자기 마음대로 붙일 수 있다. 리뷰어가 실제로 verify=true 를
+# 받아낸 경로다 — 서명 범위를 따로 파싱해 필수 필드가 그 "안"에 있는지 봐야 막힌다.
+BAL_NOW=$(ssv_bal "$ACCT_A")
+Q=$(ssv_sign "ad_unit=quick&reward_amount=1&timestamp=$TS&transaction_id=ssv-nocd-1")
+ssv_get "$Q&custom_data=$ACCT_A"
+chk "custom_data 가 서명 밖에만 있으면 200 이다" "$CODE" "200"
+chk "custom_data 가 서명 밖에만 있으면 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+chk "그 콜백은 기록도 남기지 않는다" "$(dbq "select count(*) from ad_grants where transaction_id='ssv-nocd-1'")" "0"
+
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&timestamp=$TS&transaction_id=ssv-noamt-1")
+ssv_get "$Q&reward_amount=999"
+chk "reward_amount 가 서명 밖에만 있으면 200 이다" "$CODE" "200"
+chk "reward_amount 가 서명 밖에만 있으면 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+
+# 정품 콜백 뒤에 같은 키를 덧붙여 값을 덮는 수법(parse_str 은 마지막이 이긴다)
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-dup-1")
+ssv_get "$Q&reward_amount=999"
+chk "덧붙여 덮어쓴 콜백은 200 이다" "$CODE" "200"
+chk "덧붙여 덮어쓴 콜백이 적립하지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+
+# ── 타임스탬프 — 서명이 유효해도 창 밖이면 재생 공격이다 ─────────────────────────
+OLD_TS=$(php -r 'echo (time() - 7200) * 1000;')
+FUT_TS=$(php -r 'echo (time() + 7200) * 1000;')
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$OLD_TS&transaction_id=ssv-old-1")
+ssv_get "$Q"
+chk "2시간 전 콜백은 200 이다" "$CODE" "200"
+chk "2시간 전 콜백은 적립하지 않는다 — 서명은 영원히 유효하다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$FUT_TS&transaction_id=ssv-fut-1")
+ssv_get "$Q"
+chk "2시간 뒤 콜백도 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&transaction_id=ssv-nots-1")
+ssv_get "$Q"
+chk "timestamp 자체가 없으면 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+
+# ── 금액이 쓰레기여도 죽지 않고 조용히 거절한다 ──────────────────────────────────
+i=0
+for AMT in "-5" "abc" "99999999999999999999" "1.5" ""; do
+  i=$((i + 1))
+  Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=$AMT&timestamp=$TS&transaction_id=ssv-amt-$i")
+  ssv_get "$Q"
+  chk "쓰레기 금액($AMT) 응답은 200 이다" "$CODE" "200"
+  chk "쓰레기 금액($AMT) 응답 본문이 비어 있다" "$BODY" ""
+  chk "쓰레기 금액($AMT)이 잔량을 흔들지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+done
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount[]=1&timestamp=$TS&transaction_id=ssv-amt-arr")
+ssv_get "$Q"
+chk "배열 금액도 200 이다 — 캐스트 경고가 본문으로 새면 안 된다" "$CODE" "200"
+chk "배열 금액 응답 본문이 비어 있다" "$BODY" ""
+chk "배열 금액이 잔량을 흔들지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+
+# ── 병합돼 얼어붙은 지갑은 광고로도 되살아나지 않는다 ────────────────────────────
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_B&reward_amount=1&timestamp=$TS&transaction_id=ssv-merged-1")
+ssv_get "$Q"
+chk "병합된 계정 콜백도 200 이다 — 존재 여부를 구별해 주지 않는다" "$CODE" "200"
+chk "병합된 계정의 원장 합은 그대로 0 이다" "$(ssv_bal "$ACCT_B")" "0"
+chk "병합된 계정 앞으로 시청 기록도 안 남는다" "$(dbq "select count(*) from ad_grants where transaction_id='ssv-merged-1'")" "0"
+
+# ── 일 상한 — 엔드포인트가 실제로 상한에 연결돼 있는가 ───────────────────────────
+DEV_D="dev-d-0123456789abcdef0123456789abcdef0123456789"
+ACCT_D=$(php -r 'echo substr(sha1($argv[1]), 0, 16);' "$DEV_D")
+ip_cap_reset
+post "{\"op\":\"hello\",\"deviceId\":\"$DEV_D\"}"
+chk "D 계정이 만들어졌다" "$(jget2 "$BODY" state balance)" "5"
+CAP_N=$(php -r 'require $argv[1]; echo W_AD_DAILY;' "$DOCROOT/wallet-lib.php")
+i=0
+while [ "$i" -lt "$CAP_N" ]; do
+  i=$((i + 1))
+  Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_D&reward_amount=1&timestamp=$TS&transaction_id=ssv-cap-$i")
+  ssv_get "$Q"
+done
+chk "일 상한만큼은 적립된다" "$(ssv_bal "$ACCT_D")" "$((5 + CAP_N))"
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_D&reward_amount=1&timestamp=$TS&transaction_id=ssv-cap-over")
+ssv_get "$Q"
+chk "상한 초과 콜백도 200 이다" "$CODE" "200"
+chk "상한을 넘겨 적립되지 않았다" "$(ssv_bal "$ACCT_D")" "$((5 + CAP_N))"
+chk "상한을 넘긴 콜백은 시청 기록도 남지 않는다 — 남기면 상한 계산이 스스로 부풀어 오른다" \
+    "$(dbq "select count(*) from ad_grants where transaction_id='ssv-cap-over'")" "0"
+
+# ── 재시도 가능한 두 이유만 503 이다. 그리고 503 은 절대 지급하지 않는다 ──────────
+# 키 회전 지연과 엉터리 key_id 는 이 층에서 구별할 수 없다. 구글은 자기 콜백만 재시도하므로
+# 공격자가 아무 key_id 나 뿌려도 얻는 것은 503 뿐이다 — 대신 진짜 콜백이 키 교체 창에서
+# 영구히 버려지지 않는다(광고를 본 사용자가 조용히 보상을 잃는 쪽이 훨씬 나쁘다).
+BAL_D=$(ssv_bal "$ACCT_D")
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_D&reward_amount=1&timestamp=$TS&transaction_id=ssv-unknownkey" "9999")
+ssv_get "$Q"
+chk "모르는 key_id 는 503 이다(재시도 가능)" "$CODE" "503"
+chk "그 503 의 본문도 비어 있다" "$BODY" ""
+chk "503 은 지급하지 않는다" "$(ssv_bal "$ACCT_D")" "$BAL_D"
+chk "503 은 시청 기록도 남기지 않는다 — 큐잉·선지급 금지" "$(dbq "select count(*) from ad_grants where transaction_id='ssv-unknownkey'")" "0"
+
+mv "$SSV_CACHE" "$SSV_CACHE.bak"
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_D&reward_amount=1&timestamp=$TS&transaction_id=ssv-nokeys")
+ssv_get "$Q"
+chk "키를 못 얻으면 503 이다 — 진짜 콜백을 위조로 버리지 않는다" "$CODE" "503"
+chk "그 503 의 본문도 비어 있다" "$BODY" ""
+chk "키를 못 얻은 503 도 지급하지 않는다" "$(ssv_bal "$ACCT_D")" "$BAL_D"
+mv "$SSV_CACHE.bak" "$SSV_CACHE"
+
+# 서명이 틀린 것은 재시도해도 소용없다 — 200 으로 끝낸다(구글은 자기 콜백만 재시도한다).
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_D&reward_amount=1&timestamp=$TS&transaction_id=ssv-badsig")
+ssv_get "$(printf '%s' "$Q" | sed 's/reward_amount=1/reward_amount=7/')"
+chk "서명이 틀린 콜백은 200 이다 — 재시도시켜도 결과가 같다" "$CODE" "200"
+chk "서명이 틀린 콜백은 적립하지 않는다" "$(ssv_bal "$ACCT_D")" "$BAL_D"
+
+# 메서드 — 구글은 GET 으로 부른다. POST 로 와도 쿼리스트링 서명 규율은 같아야 한다.
+PC=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/wallet-ssv.php?custom_data=$ACCT_D&reward_amount=9&transaction_id=ssv-post")
+chk "서명 없는 POST 도 200 이다" "$PC" "200"
+chk "서명 없는 POST 가 적립하지 않았다" "$(ssv_bal "$ACCT_D")" "$BAL_D"
+
+# 키 캐시·시도 표식은 웹루트 밖에 있어야 한다(원장과 같은 규율)
+SSV_LEAK=$(find "$WORK/www" -name "ssv_keys_*" | head -3)
+chk "웹루트 안에 SSV 키 캐시가 없다" "$SSV_LEAK" ""
 
 # ── IP 해시는 비밀키가 들어간 HMAC 이다 ────────────────────────────────────
 # 기대값을 구현이 아니라 바깥(비밀키 파일 + 알려진 REMOTE_ADDR)에서 계산한다.

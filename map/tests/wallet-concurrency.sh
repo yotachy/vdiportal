@@ -102,6 +102,52 @@ try {
 }
 PHPEOF
 
+# 인자: libDir dataDir dev gsub mode tag barrier
+# mode ∈ merge | grant | checkin | spend — 병합과 '버는 경로'를 같은 순간에 부딪친다.
+# 계정 준비는 전부 배리어 "전"에 끝낸다(여기서 겨루는 것은 가드지 계정 생성이 아니다).
+cat > "$WORK/frozen-race.php" <<'PHPEOF'
+<?php
+$libDir = $argv[1]; $dataDir = $argv[2]; $dev = $argv[3]; $gsub = $argv[4];
+$mode = $argv[5]; $tag = $argv[6]; $barrier = $argv[7];
+require $libDir . "/wallet-lib.php";
+$db = w_db($dataDir);
+$a = w_get_account($db, $dev);
+while (!file_exists($barrier)) { usleep(200); }
+try {
+  if ($mode === "merge") {
+    $m = w_merge($db, $dev, $gsub);
+    echo ($m["ok"] ? "ok" : "no ") . $mode . "\n";
+  } else if ($mode === "grant") {
+    $r = w_ad_grant($db, $a["id"], "quick", "tx-" . $tag, 1);
+    echo "ok grant " . $r["granted"] . " " . ($r["reason"] === null ? "-" : $r["reason"]) . "\n";
+  } else if ($mode === "checkin") {
+    $r = w_checkin($db, $a, null);
+    echo "ok checkin " . $r["granted"] . " " . ($r["reason"] === null ? "-" : $r["reason"]) . "\n";
+  } else {
+    $r = w_spend($db, $a["id"], "full", "idem-" . $tag, "AAPL", null);
+    echo "ok spend " . ($r["ok"] ? "1" : "0") . " " . ($r["reason"] === null ? "-" : $r["reason"]) . "\n";
+  }
+} catch (Throwable $e) {
+  echo "throw " . get_class($e) . ": " . $e->getMessage() . "\n";
+}
+PHPEOF
+
+# 인자: libDir dataDir dev txId barrier
+cat > "$WORK/ad-race.php" <<'PHPEOF'
+<?php
+$libDir = $argv[1]; $dataDir = $argv[2]; $dev = $argv[3]; $txId = $argv[4]; $barrier = $argv[5];
+require $libDir . "/wallet-lib.php";
+$db = w_db($dataDir);
+$a = w_get_account($db, $dev);
+while (!file_exists($barrier)) { usleep(200); }
+try {
+  $r = w_ad_grant($db, $a["id"], "quick", $txId, 1);
+  echo ($r["ok"] ? "ok " : "no ") . $r["granted"] . " " . ($r["reason"] === null ? "-" : $r["reason"]) . "\n";
+} catch (Throwable $e) {
+  echo "throw " . get_class($e) . ": " . $e->getMessage() . "\n";
+}
+PHPEOF
+
 # 배리어 동기화 N-way 실행. $1 = php 스크립트, $2 = 결과·배리어를 둘 출력 디렉토리,
 # 나머지는 각 프로세스에 그대로 전달할 인자 문자열(공백 구분, 배리어 경로는 자동으로
 # 맨 뒤에 붙는다). 결과는 $2/out_NN.txt.
@@ -297,14 +343,140 @@ check4() {
   [ "$ok" = "1" ]
 }
 
+# ── Check 5: 병합 vs 버는 경로(광고·출석·소비) 8-way 동시, 3 회 ─────────────────────
+# Task 1 이 남긴 구멍이다. 그때까지 이 파일은 병합끼리만 겨루게 해서, w_is_merged_away 가드를
+# BEGIN IMMEDIATE "밖"으로 옮기는 개조가 관문 전체를 초록으로 통과했다(리뷰어가 2프로세스로
+# 재현). 가드가 락 밖이면 셋 다 락을 잡기 "전"에 "아직 안 병합됐다"를 읽고 대기하다가, 병합이
+# 커밋된 "뒤"에 자기 차례로 쓴다 — 얼어붙어야 할 지갑에 광고·출석이 적립되고(잔량 부활),
+# w_spend 는 잔량을 안 보는 캐시 분기라 거절돼야 할 소비가 ok:true 를 받는다.
+#
+# 그래서 판정은 반환값이 아니라 원장 순서로 한다: merge_discard 행 "뒤에" 그 계정의 원장 행이
+# 하나라도 있으면 실패다. 지급이든 delta 0 캐시 행이든 전부 이 하나에 걸린다.
+# 같은 가드가 w_checkin·w_spend·w_ad_grant 세 곳을 지키므로 이 검사 하나가 셋을 보호한다.
+check5() {
+  echo "── Check 5: 병합 vs 광고·출석·소비 8-way × 3회 (기대: merge_discard 뒤 원장 행 0, 잔량 0, throw 0)"
+  local rep ok=1
+  for rep in $(seq 1 3); do
+    local d="$WORK/c5"
+    rm -rf "$d"; mkdir -p "$d/data"
+    # 준비: ① 같은 구글에 이미 붙은 계정을 만들어 둔다(그래야 dev 의 병합이 '버림' 갈래를 탄다)
+    #      ② dev 계정에 full/AAPL 권리를 미리 사 둔다(w_spend 의 캐시 분기를 실제로 태운다)
+    php -r '
+      require $argv[1] . "/wallet-lib.php";
+      $db = w_db($argv[2]);
+      w_create_account($db, "c5-owner", null);
+      w_merge($db, "c5-owner", "c5-gsub");
+      w_create_account($db, "c5-dev", null);
+      $a = w_get_account($db, "c5-dev");
+      w_spend($db, $a["id"], "full", "c5-arm", "AAPL", null);
+    ' "$WORK" "$d/data"
+    local args=()
+    args+=("$WORK $d/data c5-dev c5-gsub merge m0")
+    local i
+    for i in 1 2 3; do args+=("$WORK $d/data c5-dev c5-gsub grant g$i"); done
+    for i in 1 2; do args+=("$WORK $d/data c5-dev c5-gsub checkin k$i"); done
+    for i in 1 2; do args+=("$WORK $d/data c5-dev c5-gsub spend s$i"); done
+    run_barrier "$WORK/frozen-race.php" "$d" "${args[@]}"
+    local after bal merged throws cache
+    # merge_discard 뒤에 남은 행 수(병합이 안 됐으면 -1 로 표시해 실패로 만든다)
+    after=$(php -r '
+      require $argv[1] . "/wallet-lib.php";
+      $db = w_db($argv[2]);
+      $a = w_get_account($db, "c5-dev");
+      $st = $db->prepare("select max(id) m from ledger where account_id = ? and reason = \"merge_discard\"");
+      $st->execute(array($a["id"]));
+      $r = $st->fetch();
+      if ($r["m"] === null) { echo "-1"; exit; }
+      $st = $db->prepare("select count(*) c from ledger where account_id = ? and id > ?");
+      $st->execute(array($a["id"], (int)$r["m"]));
+      $x = $st->fetch();
+      echo (int)$x["c"];
+    ' "$WORK" "$d/data")
+    bal=$(php -r '
+      require $argv[1] . "/wallet-lib.php";
+      $db = w_db($argv[2]); $a = w_get_account($db, "c5-dev");
+      echo w_true_balance($db, $a["id"]);
+    ' "$WORK" "$d/data")
+    cache=$(db_query "$d/data" "select balance from accounts where device_id = 'c5-dev'")
+    throws=$(grep -c '^throw' "$d"/out_*.txt | awk -F: '{s+=$2} END{print s+0}')
+    if [ "$after" != "0" ] || [ "$bal" != "0" ] || [ "$cache" != "0" ] || [ "$throws" != "0" ]; then
+      echo "   rep $rep: FAIL — merge_discard 뒤 원장행=$after(want 0) 잔량=$bal(want 0) 캐시=$cache(want 0) throw=$throws(want 0)"
+      grep -h '^throw' "$d"/out_*.txt | sort | uniq -c | head -3
+      ok=0
+    else
+      echo "   rep $rep: ok — merge_discard 뒤 원장행=$after 잔량=$bal 캐시=$cache throw=$throws"
+    fi
+  done
+  [ "$ok" = "1" ]
+}
+
+# ── Check 6: 같은 transaction_id 8-way 동시 지급 + 일 상한 경합, 3 회 ────────────────
+# ① 구글은 콜백을 재시도한다 — 재시도가 겹치면 같은 transaction_id 가 동시에 온다. 앱 층
+#    "이미 있나" 조회만으로는 여덟이 모두 "없다"를 보고 각자 적립한다(PK 가 DB 층에서 막는다).
+# ② 일 상한도 쓰기 락 안에서 세는지 본다 — 밖에서 세면 동시 콜백이 상한을 나란히 통과한다.
+check6() {
+  local cap
+  cap=$(php -r 'require $argv[1]; echo W_AD_DAILY;' "$WORK/wallet-lib.php")
+  echo "── Check 6: 같은 tx 8-way + 서로 다른 tx $((cap + 4))-way × 3회 (기대: 잔량 6, 상한 정확히 $cap)"
+  local rep ok=1
+  for rep in $(seq 1 3); do
+    local d="$WORK/c6"
+    rm -rf "$d"; mkdir -p "$d/data"
+    php -r '
+      require $argv[1] . "/wallet-lib.php";
+      $db = w_db($argv[2]);
+      w_create_account($db, "c6-dev", null);
+      w_create_account($db, "c6-dev2", null);
+    ' "$WORK" "$d/data"
+    local args=()
+    local i
+    for i in $(seq 1 8); do args+=("$WORK $d/data c6-dev same-tx"); done
+    run_barrier "$WORK/ad-race.php" "$d" "${args[@]}"
+    local bal rows throws
+    bal=$(php -r '
+      require $argv[1] . "/wallet-lib.php";
+      $db = w_db($argv[2]); $a = w_get_account($db, "c6-dev");
+      echo w_true_balance($db, $a["id"]);
+    ' "$WORK" "$d/data")
+    rows=$(db_query "$d/data" "select count(*) from ad_grants where transaction_id = 'same-tx'")
+    throws=$(grep -c '^throw' "$d"/out_*.txt | awk -F: '{s+=$2} END{print s+0}')
+
+    # 서로 다른 transaction_id 를 상한보다 많이 동시에 — 정확히 상한만큼만 적립돼야 한다
+    local args2=()
+    for i in $(seq 1 $((cap + 4))); do args2+=("$WORK $d/data c6-dev2 tx-$i"); done
+    run_barrier "$WORK/ad-race.php" "$d" "${args2[@]}"
+    local granted bal2
+    granted=$(db_query "$d/data" "select coalesce(sum(granted), 0) from ad_grants
+                                  where account_id = (select id from accounts where device_id = 'c6-dev2')")
+    bal2=$(php -r '
+      require $argv[1] . "/wallet-lib.php";
+      $db = w_db($argv[2]); $a = w_get_account($db, "c6-dev2");
+      echo w_true_balance($db, $a["id"]);
+    ' "$WORK" "$d/data")
+    throws=$((throws + $(grep -c '^throw' "$d"/out_*.txt | awk -F: '{s+=$2} END{print s+0}')))
+
+    if [ "$bal" != "6" ] || [ "$rows" != "1" ] || [ "$throws" != "0" ] \
+       || [ "$granted" != "$cap" ] || [ "$bal2" != "$((5 + cap))" ]; then
+      echo "   rep $rep: FAIL — 같은tx 잔량=$bal(want 6) 행=$rows(want 1) throw=$throws(want 0) / 상한 지급합=$granted(want $cap) 잔량=$bal2(want $((5 + cap)))"
+      grep -h '^throw\|^no' "$d"/out_*.txt | sort | uniq -c | head -3
+      ok=0
+    else
+      echo "   rep $rep: ok — 같은tx 잔량=$bal 행=$rows / 상한 지급합=$granted 잔량=$bal2 throw=$throws"
+    fi
+  done
+  [ "$ok" = "1" ]
+}
+
 check1 || FAIL=1
 check2 || FAIL=1
 check3 || FAIL=1
 check4 || FAIL=1
+check5 || FAIL=1
+check6 || FAIL=1
 
 echo
 if [ "$FAIL" = "0" ]; then
-  echo "전체 통과 — 지갑 동시성 회귀 4종"
+  echo "전체 통과 — 지갑 동시성 회귀 6종"
   exit 0
 else
   echo "실패 — 위 로그의 FAIL 행 참고"

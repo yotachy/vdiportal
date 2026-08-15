@@ -796,6 +796,92 @@ function w_is_merged_away($db, $acctId) {
   return ($r && $r["reason"] === "merge_discard");
 }
 
+// ── 광고 지급 ─────────────────────────────────────────────────────────────────
+define("W_AD_DAILY", 8);          // 계정당 하루 시청 상한
+
+// 상한은 전부 서버 시각·계정 단위다. 기기 단위로 재면 8c 이후 기기를 늘려 상한을 곱할 수 있고,
+// 클라이언트 시각으로 재면 시계를 돌려 초기화한다.
+// created_at 이 gmdate("c") 로 통일돼 있어(오프셋이 늘 +00:00) 문자열 비교가 곧 시각 비교다.
+function w_ad_count_today($db, $acctId) {
+  $st = $db->prepare("select count(*) c from ad_grants where account_id = ? and created_at >= ?");
+  $st->execute(array($acctId, w_today() . "T00:00:00+00:00"));
+  $r = $st->fetch();
+  return (int)$r["c"];
+}
+
+// AdMob SSV 콜백이 검증을 통과한 뒤의 적립. 서명 검증은 호출부(wallet-ssv.php)의 몫이다 —
+// 이 함수는 HTTP 도 서명도 모른다(그래야 웹서버 없이 tests/wallet.test.php 로 돌릴 수 있다).
+//
+// 거의 모든 거절이 ok:true 인 것이 이 함수의 특이점이다. 구글은 실패 응답을 재시도하므로,
+// "적립하지 않기로 한 결정"에 실패를 돌려주면 그 콜백이 영원히 돌아온다. 실패(ok:false)는
+// 오직 "지금은 못 했지만 다시 오면 될 일"(락 경합·내부 오류)에만 쓴다.
+//
+// reason ∈ null|bad-request|no-account|duplicate|merged|daily-cap|busy|error
+function w_ad_grant($db, $acctId, $unit, $txId, $amount) {
+  $fail = function ($reason) { return array("ok" => true, "granted" => 0, "capped" => false, "reason" => $reason); };
+  if (!is_string($txId) || $txId === "") return $fail("bad-request");
+  if (!is_string($unit)) $unit = "";
+
+  try { $db->exec("begin immediate"); }
+  catch (Throwable $e) { return array("ok" => false, "granted" => 0, "capped" => false, "reason" => "busy"); }
+
+  try {
+    $st = $db->prepare("select * from accounts where id = ?");
+    $st->execute(array($acctId));
+    $a = $st->fetch();
+    // 모르는 계정도 ok 로 답한다 — 구글에 실패를 주면 영원히 재시도하고,
+    // 응답으로 존재 여부를 구별해 주면 공개 엔드포인트가 계정 열거 도구가 된다.
+    if (!$a) { $db->exec("commit"); return $fail("no-account"); }
+
+    // 이미 처리한 콜백인가. 구글은 재시도하므로 중복이 정상이다.
+    $st = $db->prepare("select granted from ad_grants where transaction_id = ?");
+    $st->execute(array($txId));
+    $prev = $st->fetch();
+    if ($prev) { $db->exec("commit"); return array("ok" => true, "granted" => (int)$prev["granted"], "capped" => false, "reason" => "duplicate"); }
+
+    // 병합돼 얼어붙은 지갑은 광고로도 되살아나지 않는다(w_spend·w_checkin 과 같은 규율).
+    // 쓰기 락 "안"에서 본다 — 병합과 지급이 동시에 들어오면 락 밖 검사는 그 사이로 샌다
+    // (tests/wallet-concurrency.sh check5 가 이 한 줄의 위치를 실제 경합으로 지킨다).
+    if (w_is_merged_away($db, $acctId)) { $db->exec("commit"); return $fail("merged"); }
+
+    // 상한 검사도 같은 락 안이다 — 밖에서 세면 동시 콜백이 나란히 통과한다(w_create_account
+    // 의 IP 상한에서 이미 겪은 check-then-act 다).
+    if (w_ad_count_today($db, $acctId) >= W_AD_DAILY) { $db->exec("commit"); return $fail("daily-cap"); }
+
+    // 금액은 구글이 주는 값이지만, 이 함수는 엔드포인트를 우회하는 호출자(관리자 도구·배치)도
+    // 상대한다. 숫자가 아니면 0 으로 본다 — 음수는 지급이 아니라 차감이 되고, 배열을 (int) 로
+    // 캐스팅하면 1 이 된다(둘 다 조용히 원장에 박힌다).
+    $want = (is_scalar($amount) && is_numeric($amount)) ? (int)$amount : 0;
+    if ($want < 0) $want = 0;
+
+    $bal = w_true_balance($db, $acctId);
+    $room = W_CAP - $bal;
+    if ($room < 0) $room = 0;
+    $give = ($want > $room) ? $room : $want;
+
+    if ($give > 0) {
+      w_ledger_insert($db, $acctId, $give, "ad", $unit, "ad:" . $txId);
+      $db->prepare("update accounts set balance = ? where id = ?")->execute(array($bal + $give, $acctId));
+    }
+    // 지갑 상한에 걸려 0 을 넣었어도 기록한다 — 안 그러면 상한에 걸린 사용자가 광고를
+    // 무한히 본다(w_checkin 의 "capped 여도 출석일은 소비한다"와 같은 판단).
+    $st = $db->prepare("insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+                        values (?, ?, ?, ?, ?, ?)");
+    $st->execute(array($txId, $acctId, $unit, $want, $give, w_now()));
+
+    $db->exec("commit");
+    return array("ok" => true, "granted" => $give, "capped" => ($give < $want), "reason" => null);
+  } catch (Throwable $e) {
+    try { $db->exec("rollback"); } catch (Throwable $e2) {}
+    // PK 충돌(동시 같은 transaction_id)의 패자 — 이긴 쪽이 이미 적립했다.
+    $st = $db->prepare("select granted from ad_grants where transaction_id = ?");
+    $st->execute(array($txId));
+    $prev = $st->fetch();
+    if ($prev) return array("ok" => true, "granted" => (int)$prev["granted"], "capped" => false, "reason" => "duplicate");
+    return array("ok" => false, "granted" => 0, "capped" => false, "reason" => "error");
+  }
+}
+
 // ── AdMob SSV(서버 사이드 검증) ────────────────────────────────────────────────
 // SSV 콜백은 인증이 없는 것이 정상인 공개 GET 엔드포인트다 — 구글이 부른다. 그래서 서명이
 // 유일한 방어선이고, 검증이 없거나 범위가 틀리면 누구나 URL 에 reward_amount 를 붙여

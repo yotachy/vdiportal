@@ -1436,6 +1436,163 @@ t("transaction_id 가 PK 라 중복 삽입이 DB 층에서 막힌다", function 
   $db = null; rmrf($d);
 });
 
+// ── 광고 지급(w_ad_grant) ─────────────────────────────────────────────────────
+// 구글은 콜백을 재시도한다 — 그래서 실패를 돌려주는 것이 곧 무한 재시도다. 여기 대부분의
+// 거절이 ok:true + granted:0 인 이유가 그것이고, 실제 방어는 반환값이 아니라 원장이 한다.
+
+t("정상 지급 — 원장과 캐시가 함께 오른다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  $r = w_ad_grant($db, $a["id"], "quick", "tx-1", 1);
+  eq($r["ok"], true, "정상 지급이 실패했다");
+  eq($r["granted"], 1, "1개가 안 들어갔다");
+  eq(w_true_balance($db, $a["id"]), 6, "5 + 1 = 6 이어야 한다");
+  $after = w_get_account($db, "dev-A");
+  eq((int)$after["balance"], 6, "원장 합과 캐시가 갈렸다");
+  $db = null; rmrf($d);
+});
+
+t("같은 transaction_id 두 번 — 한 번만 적립하고 둘 다 ok", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  w_ad_grant($db, $a["id"], "quick", "tx-1", 1);
+  $r2 = w_ad_grant($db, $a["id"], "quick", "tx-1", 1);
+  eq($r2["ok"], true, "재시도에 실패를 주면 구글이 영원히 재시도한다");
+  eq(w_true_balance($db, $a["id"]), 6, "두 번 적립됐다");
+  $n = $db->query("select count(*) c from ledger where reason = 'ad'")->fetch();
+  eq((int)$n["c"], 1, "원장 줄이 두 개 생겼다");
+  $db = null; rmrf($d);
+});
+
+t("일 8회를 넘으면 적립하지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  // 잔량 상한과 섞이지 않게 상한을 넉넉히 비워둔다
+  w_spend($db, $a["id"], "scan", "t:1", null, null);
+  for ($i = 1; $i <= 8; $i++) w_ad_grant($db, $a["id"], "quick", "tx-" . $i, 1);
+  $r = w_ad_grant($db, $a["id"], "quick", "tx-9", 1);
+  eq($r["ok"], true, "상한 초과도 ok 다 — 구글에 실패를 주면 재시도한다");
+  eq($r["granted"], 0, "9회째가 적립됐다");
+  eq($r["reason"], "daily-cap", "사유가 daily-cap 이 아니다");
+  eq(w_true_balance($db, $a["id"]), 11, "3 + 8 = 11 이어야 한다");
+  $db = null; rmrf($d);
+});
+
+// 상한은 계정 단위·서버 시각이다. 기기 단위로 재면 8c 이후 기기를 늘려 상한을 곱할 수 있고,
+// 클라이언트 시각으로 재면 시계를 돌려 초기화한다.
+t("일 상한은 어제 시청을 세지 않는다 — 날이 바뀌면 다시 볼 수 있다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  $y = gmdate("c", time() - 86400);
+  for ($i = 1; $i <= 8; $i++) {
+    $st = $db->prepare("insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+                        values (?, ?, 'quick', 1, 1, ?)");
+    $st->execute(array("old-" . $i, $a["id"], $y));
+  }
+  $r = w_ad_grant($db, $a["id"], "quick", "tx-today", 1);
+  eq($r["granted"], 1, "어제 본 8회가 오늘 상한을 먹었다");
+  $db = null; rmrf($d);
+});
+
+// w_checkin 의 "capped 여도 출석일은 소비한다"와 같은 판단이다.
+t("지갑 상한에 걸리면 잘라서 넣되 일 상한은 소모한다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  // 잔량을 19 로 만든다(상한 20)
+  w_ledger_insert($db, $a["id"], 14, "test_credit", null, "t:c");
+  $db->prepare("update accounts set balance = 19 where id = ?")->execute(array($a["id"]));
+  $r = w_ad_grant($db, $a["id"], "full", "tx-1", 3);
+  eq($r["granted"], 1, "상한까지만 넣어야 한다");
+  eq($r["capped"], true, "capped 가 안 떴다");
+  eq(w_true_balance($db, $a["id"]), 20, "지갑 상한을 넘겼다");
+  $g = $db->query("select amount, granted from ad_grants where transaction_id = 'tx-1'")->fetch();
+  eq((int)$g["amount"], 3, "구글이 말한 값이 기록되지 않았다");
+  eq((int)$g["granted"], 1, "실제로 넣은 값이 기록되지 않았다");
+  // 소모 안 하면 상한에 걸린 사용자가 광고를 무한히 본다
+  $n = $db->query("select count(*) c from ad_grants")->fetch();
+  eq((int)$n["c"], 1, "일 상한 계산에 안 잡히면 무한 시청이 가능해진다");
+  $db = null; rmrf($d);
+});
+
+t("병합된 계정에는 적립하지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  w_create_account($db, "dev-B", "ip2");
+  $b = w_get_account($db, "dev-B");
+  w_merge($db, "dev-B", "gsub-1");
+  $r = w_ad_grant($db, $b["id"], "quick", "tx-1", 1);
+  eq($r["granted"], 0, "죽은 지갑이 광고로 되살아났다");
+  eq($r["reason"], "merged", "사유가 merged 가 아니다");
+  eq(w_true_balance($db, $b["id"]), 0, "원장이 움직였다");
+  $n = $db->query("select count(*) c from ad_grants")->fetch();
+  eq((int)$n["c"], 0, "얼어붙은 지갑의 시청이 기록됐다 — 지급도 안 했으면서 상한만 먹는다");
+  $db = null; rmrf($d);
+});
+
+t("1시간 밖 타임스탬프는 거절한다 — 서명이 유효해도 오래된 콜백은 재생 공격이다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $db = w_db($d); $k = _ssv_fixture($d, "77");
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  $old = (time() - 7200) * 1000;   // 2시간 전
+  $q = "custom_data=" . $a["id"] . "&reward_amount=1&transaction_id=tx-old"
+     . "&timestamp=" . $old . "&ad_unit=quick";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  // wallet-ssv.php 의 판정과 같은 식을 여기서도 본다 — 엔드포인트 검사는 디스패처가 따로 한다.
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "서명 자체는 유효해야 이 검사가 의미를 갖는다");
+  ok(abs(time() - intdiv((int)$p["timestamp"], 1000)) > W_SSV_SKEW_SEC, "2시간 전이 허용 범위 안이다");
+  $db = null; _ssv_cleanup($d);
+});
+
+t("모르는 계정은 조용히 넘어간다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $r = w_ad_grant($db, "no-such-account", "quick", "tx-1", 1);
+  eq($r["ok"], true, "구글에 실패를 주면 재시도한다");
+  eq($r["granted"], 0, "없는 계정에 적립했다");
+  $n = $db->query("select count(*) c from ad_grants")->fetch();
+  eq((int)$n["c"], 0, "없는 계정 앞으로 시청 기록이 남았다");
+  $db = null; rmrf($d);
+});
+
+// 엔드포인트가 먼저 거르지만, 원장 함수 자신도 쓰레기 금액에 잔량을 잃거나 폭발하면 안 된다.
+// (엔드포인트를 우회하는 미래의 호출자 — 관리자 도구·배치 — 가 이 함수를 직접 부른다.)
+t("쓰레기 reward_amount 에 잔량이 줄거나 폭발하지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  $cases = array("음수" => -5, "문자열" => "abc", "배열" => array(9), "거대" => "99999999999999999999", "널" => null);
+  $i = 0;
+  foreach ($cases as $name => $amt) {
+    $i++;
+    $r = w_ad_grant($db, $a["id"], "quick", "tx-junk-" . $i, $amt);
+    eq($r["ok"], true, "쓰레기 금액에 실패를 돌려줬다: " . $name);
+    ok($r["granted"] >= 0, "음수 지급이 나왔다: " . $name);
+    ok(w_true_balance($db, $a["id"]) >= 5, "잔량이 시드 아래로 내려갔다: " . $name);
+    ok(w_true_balance($db, $a["id"]) <= W_CAP, "지갑 상한을 넘겼다: " . $name);
+  }
+  $db = null; rmrf($d);
+});
+
+t("빈 transaction_id 는 거절한다 — 멱등키가 없으면 재시도마다 적립된다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  foreach (array("", null, array("x"), 7) as $bad) {
+    $r = w_ad_grant($db, $a["id"], "quick", $bad, 1);
+    eq($r["granted"], 0, "빈/이상한 transaction_id 로 적립됐다: " . var_export($bad, true));
+    eq($r["reason"], "bad-request", "사유가 bad-request 가 아니다: " . var_export($bad, true));
+  }
+  eq(w_true_balance($db, $a["id"]), 5, "잔량이 움직였다");
+  $db = null; rmrf($d);
+});
+
 // ── AdMob SSV 서명 검증 ───────────────────────────────────────────────────────
 // 이 스위트는 구글에 접속하지 않는다. 테스트 키쌍을 만들어 우리가 직접 서명하고, 그 공개키를
 // 캐시 파일(= 주입 지점)에 꽂는다. '키 서버'는 위에서 file:// 로 바꿔친 로컬 파일이다.
