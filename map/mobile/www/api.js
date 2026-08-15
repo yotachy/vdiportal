@@ -43,10 +43,14 @@
         // 소비 측(spike.js)이 "전 봉에 거래량이 있는가"를 undefined 로 판별해
         // 부분 배열이면 통째로 넘기지 않도록 하는 근거가 이 값이다.
         v: (c.v != null && isFinite(+c.v)) ? +c.v : undefined,
-        // 그대로 통과시킨다 — String(c.t) 로 강제하면 c.t 가 없을 때 "undefined" 라는
-        // 진짜 문자열이 생겨 truthy 가 된다. chart-draw.js 의 `b.t ?` 가드는 "값이 없다"를
-        // falsy(undefined)로 식별하는데, 그 값을 지어내면 가드가 뚫려 날짜 대신 쓰레기가 찍힌다.
-        t: c.t
+        // 날짜 10자리로 자른다 — asOf(아래)는 이미 .slice(0,10) 하는데 candle[].t 는 그대로
+        // 통과시키고 있었다. TwelveData 의 1day/1week/1month datetime 은 오늘은 날짜뿐이라
+        // 안전하지만, 시:분:초가 붙어 오는 제공자를 만나면 chart-draw.js 의
+        // String(lt).slice(5).replace("-",".") 가 "08.07T00:00:00Z" 를 축·크로스헤어에 그대로
+        // 찍는다(forge-api.php 도 substr(...,0,10) 로 같은 경계를 막아 둔다). c.t 가 없을 때는
+        // String(c.t) 로 강제하지 않는다 — "undefined" 라는 진짜 문자열이 생겨 truthy 가 되고,
+        // chart-draw.js 의 `b.t ?` 가드(값이 없다 = falsy)를 뚫고 쓰레기가 찍힌다.
+        t: (c.t == null ? undefined : String(c.t).slice(0, 10))
       };
     });
     return {

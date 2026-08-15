@@ -75,6 +75,14 @@
       if (s && !nameOf(s)) resolved[s] = p.name;
     });
     function nameFor(s) { return resolved[s] || nameOf(s); }
+    // CURATED 밖 심볼을 한 번 본 뒤엔(프리셋으로 왔든, 직접 입력해 서버가 확인해 줬든) 화면에서
+    // 지우지 않는다 — paint() 가 sel 만 보고 그 심볼의 셀을 그리면, 꺼서 sel 을 벗어나는 순간
+    // 셀 자체가 사라진다(오프-큐레이티드는 정의상 sel 안에 있을 때만 그려졌으므로). 되돌리려면
+    // loadTicker 왕복이 다시 필요했고, 오프라인·요청제한이면 되돌릴 방법이 아예 없었다(리뷰 지적).
+    // seeOff 는 "본 적 있다"만 기록한다 — 지금 선택 여부(is-on)는 paint() 가 매번 sel 로 따로 본다.
+    var offSeen = [];
+    function seeOff(s) { if (s && !nameOf(s) && offSeen.indexOf(s) < 0) offSeen.push(s); }
+    sel.forEach(seeOff);   // 프리셋으로 들어온 CURATED 밖 심볼을 최초 진입 시점에 붙잡아 둔다
     function items() {
       return sel.map(function (s) { return { sym: s, name: nameFor(s) }; });
     }
@@ -92,13 +100,14 @@
         b.appendChild(MSUi.el("span", "tp-name", x.name));
         grid.appendChild(b);
       });
-      // CURATED 밖 선택 항목도 셀로 그린다 — 안 그러면 selected()는 참인데 격자엔 아무 셀도
-      // 없어 "고른 게 하나도 없어 보이는" 화면이 된다(온보딩 4단계 프리셋이 워치리스트 전체가
-      // CURATED 밖일 때 실측). 이 항목들은 정의상 전부 선택된 상태이니 is-on 고정, curated 12종
-      // 순서는 그대로 두고 뒤에 이어붙인다(sel 순서 = 프리셋/추가 순서).
-      sel.forEach(function (s) {
-        if (nameOf(s)) return;   // CURATED 안 심볼은 위에서 이미 그렸다
-        var b = MSUi.el("button", "tp-cell is-on");
+      // CURATED 밖에서 본 적 있는 심볼도 전부 셀로 그린다(offSeen — 지금 선택 여부와 무관하게) —
+      // sel 만 보고 그리면 selected()는 참인데 격자엔 아무 셀도 없어 "고른 게 하나도 없어 보이는"
+      // 화면이 되고(온보딩 4단계 프리셋이 워치리스트 전체가 CURATED 밖일 때 실측), sel 만 보고
+      // "선택된 것만" 그리면 끄는 순간 셀이 통째로 사라져 다시 켤 방법이 없어진다(리뷰 지적 —
+      // 되돌리려면 loadTicker 재왕복이 필요했고 오프라인이면 그마저 안 됐다). curated 12종
+      // 순서는 그대로 두고 뒤에 이어붙인다(offSeen 순서 = 프리셋/추가로 처음 본 순서).
+      offSeen.forEach(function (s) {
+        var b = MSUi.el("button", "tp-cell" + (sel.indexOf(s) >= 0 ? " is-on" : ""));
         b.type = "button";
         b.setAttribute("data-sym", s);
         b.appendChild(MSUi.el("span", "tp-sym", s));
@@ -161,6 +170,7 @@
         // 서버가 준 이름을 붙잡아 둔다(api.js normalizeCandles 의 name) — 옛 대화상자 경로가
         // 이름을 함께 심을 때 쓰던 값이다. 여기서 안 붙잡으면 이 심볼은 영영 이름이 없다.
         if (data && data.name) resolved[sym] = data.name;
+        seeOff(sym);   // 새로 확인된 CURATED 밖 심볼도 앞으로는 셀로 남는다(꺼도 안 사라진다)
         if (!applySelection(sym)) return;
         paint(); fire();
       })["catch"](function (err) {

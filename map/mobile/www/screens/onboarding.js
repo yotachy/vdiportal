@@ -61,18 +61,24 @@
     // state 는 그걸 넘어 살아남는다. 그래서 여기서 다루는 모든 것은 둘 중 하나여야 한다:
     //   (a) 반복되면 안 되는 것 → 래치(아래 셋)로 한 번만 실행한다.
     //   (b) 그 밖의 모든 것 → 매 그리기마다 state 로부터 다시 칠한다.
-    // 이 둘을 섞으면 "state 는 참인데 화면은 초기값"인 화면이 나온다. 실제로 세 번 나왔다:
+    // 이 둘을 섞으면 "state 는 참인데 화면은 초기값"인 화면이 나온다. 실제로 네 번 나왔다:
     // 3단계 지급 결과가 재진입 시 빈 칸이 됐고, 4단계 프리셋이 되살아났고, 5단계 동의
-    // 체크박스가 꺼진 채로 완료 버튼만 열려 있었다(눈에 안 보이는 동의 — 법적 효력이 있는 자리).
+    // 체크박스가 꺼진 채로 완료 버튼만 열려 있었고(눈에 안 보이는 동의 — 법적 효력이 있는 자리),
+    // 4단계 상한이 재진입마다 "지금" 선택 개수로 다시 계산돼 방금 뺀 자리를 다시 못 넣는
+    // 비대칭으로 되살아났다(리뷰 지적, maxFor/state.maxPick 참고).
     // 래치는 셋뿐이며, 하나라도 늘리려면 (b) 로 해결되지 않는지 먼저 볼 것:
     //   grantStarted — 부수효과(네트워크 발신)를 한 번만. 그리기는 매번(paintGrant).
     //   pickInited   — 첫 그리기가 끝났다는 표시. 이후엔 프리셋 대신 state.picked 로 칠한다.
     //   finished     — 종결 동작(심기·동의·onDone)이 커밋됐다. 완료 버튼 더블탭 가드.
+    // 래치와 결이 같은 네 번째 함정: "처음 진입했을 때 참이었던 값"도 매번 다시 재면 안 된다.
+    // maxPick(4단계 상한)은 최초 진입 시 defaultPreset() 길이로 딱 한 번 고정해 state 에 둔다
+    // (아래 maxFor 참고) — 재진입마다 state.picked.length 로 다시 재면, 하나 빼고 뒤로/앞으로만
+    // 갔다 와도 상한이 줄어 방금 뺀 자리에 같은 걸 다시 못 넣는다.
     // fwd.disabled 만 믿을 수 없다 — 클릭 이벤트 자체는 disabled 여부와 무관하게 발생할 수
     // 있으므로(연속 두 탭이 disabled 반영 전에 둘 다 들어오는 경우) 핸들러 안에서 막는다.
     // (opts.onDone 은 중복 방어가 없다 — app.js 가 boot() 에 그대로 연결한다.)
     var state = { picked: [], agreed: false, pickInited: false, granted: null, grantFailed: false,
-                  grantStarted: false, finished: false, sample: o.sample || null };
+                  grantStarted: false, finished: false, maxPick: null, sample: o.sample || null };
     var step = 1;
     var an = null;   // 엔진 결과 캐시 — 1↔2 단계를 오갈 때마다 32지표를 다시 돌리지 않는다
 
@@ -289,8 +295,12 @@
       w.appendChild(el("h1", "ob-h", Str ? Str.t.obH4 : ""));
       w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub4 : ""));
       var presetItems = state.pickInited ? state.picked : defaultPreset();
+      // 상한은 "처음 진입했을 때" 워치리스트 크기로 딱 한 번 고정한다(state.maxPick) — 재진입마다
+      // presetItems(=state.picked, 지금 고른 개수)로 다시 재면 하나 뺀 뒤 뒤로/앞으로만 갔다 와도
+      // 상한이 줄어 방금 뺀 자리에 다시 못 넣는다(리뷰 지적: 3b1c817 이 없애려던 바로 그 비대칭).
+      if (state.maxPick == null) state.maxPick = maxFor(defaultPreset());
       var picker = MSTickerPicker.create({
-        multi: true, max: maxFor(presetItems), preset: presetItems,
+        multi: true, max: state.maxPick, preset: presetItems,
         // 심볼이 아니라 {sym,name} 을 담는다 — 이름을 여기서 흘리면 seedTo 가 이름 없이 심는다.
         onChange: function (sel, items) {
           state.picked = items;

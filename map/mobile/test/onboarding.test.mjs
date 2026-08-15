@@ -602,6 +602,38 @@ test("4단계: 프리셋이 3종보다 많으면 그 안에서 자유롭게 빼�
   ]));
 });
 
+// 리뷰 지적(Important 1): 위 테스트는 상한이 처음부터 4로 잡히는 것만 본다. 진짜 함정은
+// 재진입이다 — step4() 가 매 그리기마다 max: maxFor(presetItems) 로 다시 계산하는데, 재진입
+// 시의 presetItems 는 defaultPreset()(워치리스트 4종)이 아니라 state.picked(방금 하나 뺀
+// 3종)다. 그러면 상한이 3으로 줄어, 뺀 자리에 같은 종목을 다시 넣을 수 없다 — 3b1c817 이
+// 없애려던 바로 그 비대칭이 뒤로→앞으로 한 번으로 되살아난다. state.maxPick 이 최초 진입
+// 시점에 고정되는지를 이 왕복으로 확인한다.
+test("4단계: 뒤로/앞으로 재진입해도 4종 프리셋의 상한이 줄어들지 않는다 — 뺀 자리에 다시 넣을 수 있다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
+      "4종 프리셋이 전부 켜진 채로 시작하지 않았다");
+    pressCell(grid, "AMZN");   // 하나를 뺀다 — 3개 남는다
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"]);
+
+    root.querySelector(".ob-back").click();   // 4 -> 3
+    root.querySelector(".ob-next").click();   // 3 -> 4, 다시 그려짐(presetItems = state.picked, 3개)
+    grid = root.querySelector(".tp-grid");
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"],
+      "재진입 후 선택이 달라졌다 — 이건 별개의(이미 통과하는) 재진입 계약이다");
+
+    pressCell(grid, "AMZN");   // 뺐던 자리에 같은 종목을 다시 넣는다 — 상한이 3으로 줄었으면 막힌다
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
+      "재진입 후 상한이 줄어 다시 못 넣었다 — state.maxPick 이 최초 진입 시점에 고정되지 않았다");
+    var msg = grid.parentNode.querySelector(".tp-msg");
+    assert.notStrictEqual(msg.textContent, S.t.tpFull, "상한 안내가 잘못 떴다 — 상한이 줄어든 증거");
+  }, defaultFakeStore([
+    { sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
+    { sym: "MSFT", name: "Microsoft Corporation" }, { sym: "AMZN", name: "Amazon.com" }
+  ]));
+});
+
 test("4단계: 프리셋이 3종 이하면 상한은 그대로 3이다", () => {
   withDom((root) => {
     toStep4(root);

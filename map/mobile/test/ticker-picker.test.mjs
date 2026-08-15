@@ -168,6 +168,27 @@ test("create() — 프리셋도 이름을 달고 나온다", () => {
     "프리셋이 이름 없이 나온다 — CURATED 밖 심볼은 빈 이름이 맞다(store 가 심볼로 폴백)");
 });
 
+// 리뷰 지적(Important 2): paint() 가 CURATED 밖 항목을 sel 에 있을 때만 그리면, 끄는 순간
+// 셀 자체가 격자에서 사라진다 — 되돌리려면 직접 입력으로 다시 loadTicker 왕복을 타야 하는데
+// 오프라인·요청제한이면 그 길도 막힌다. api 를 아예 안 준다 — 네트워크 경로 자체가 없는
+// 상태에서 그리드 클릭만으로 껐다 켤 수 있어야 한다.
+test("create() — 오프-큐레이티드 프리셋은 꺼도 셀이 남아 네트워크 없이 다시 켤 수 있다", () => {
+  const p = P.create({ multi: true, max: null, preset: ["PLTR", "SOFI"], strings: MSStr });
+  const grid = () => findByClass(p.el, "tp-grid");
+
+  assert.ok(cellFor(grid(), "PLTR"), "PLTR 셀이 처음부터 없다");
+  grid().dispatch("click", { target: cellFor(grid(), "PLTR") });   // 끈다
+  assert.deepEqual(p.selected(), ["SOFI"]);
+
+  const cellAfterOff = cellFor(grid(), "PLTR");
+  assert.ok(cellAfterOff, "꺼진 뒤 PLTR 셀이 격자에서 사라졌다 — 네트워크 없이 되돌릴 방법이 없다");
+  assert.ok(cellAfterOff.className.split(" ").indexOf("is-on") < 0, "꺼졌는데 is-on 이 남았다");
+
+  grid().dispatch("click", { target: cellAfterOff });   // 같은 셀을 다시 클릭 — fetch 없이 켠다
+  assert.deepEqual(p.selected(), ["SOFI", "PLTR"], "네트워크 없이 다시 켜지지 않았다");
+  assert.ok(cellFor(grid(), "PLTR").className.split(" ").indexOf("is-on") >= 0);
+});
+
 test("create() — 직접 입력: 서버가 준 이름을 붙잡아 selectedItems 에 싣는다", async () => {
   const seen = [];
   // 옛 prompt() 경로가 addTicker(sym, data.name || sym) 로 쓰던 바로 그 값이다.
