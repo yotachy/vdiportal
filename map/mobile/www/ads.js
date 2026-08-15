@@ -76,8 +76,12 @@
   function show(unit) {
     var p = detect();
     if (!p || !cfg || !cfg[unit] || !cfg[unit].unitId) return Promise.resolve(res(false, "unavailable"));
-    // init() 을 거치지 않았으면 동의가 해소된 적이 없다. 광고를 띄우지 않는다 —
-    // 이 줄이 "동의 먼저" 를 구조로 못 박는다(호출 순서에 기대지 않는다).
+    // init() 을 거치지 않았으면 동의가 해소된 적이 없다. 광고를 띄우지 않는다.
+    // **지금은 닿을 수 없는 줄이다** — cfg 는 init() 만 설정하고 init() 은 언제나 consentReady 를
+    // 같이 건다. 뮤테이션 시험에서 이 줄을 지워도 빨개지는 테스트가 없다는 사실을 확인했고,
+    // 그래도 남긴다: 지우면 consentReady 가 null 인 순간 아래 .then 이 **동기적으로** 던지고
+    // (catch 가 붙기 전이다) show() 가 "약속을 돌려준다"는 계약이 깨진다. 나중에 cfg 를
+    // init() 밖에서 넣는 리팩터가 오면 이 줄이 광고를 막는다. 테스트가 없다고 죽은 코드가 아니다.
     if (!consentReady) return Promise.resolve(res(false, "unavailable"));
     // customData 가 없으면 이 광고는 보상이 될 수 없다. SSV 콜백이 계정을 못 찾아 조용히
     // 버려지므로, 띄우는 것이 안 띄우는 것보다 나쁘다 — 사용자는 다 보고 아무것도 못 받는다.

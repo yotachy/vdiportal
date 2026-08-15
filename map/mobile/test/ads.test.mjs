@@ -11,22 +11,29 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // 가짜 AdMob 플러그인. 호출 순서를 기록한다 — 이 스위트가 보는 것의 절반은 "무엇을 불렀나"가
 // 아니라 "어떤 순서로 불렀나"다. 동의가 광고보다 늦으면 그 자체로 정책 위반이라, 둘 다
 // 불렸다는 사실만 확인하는 테스트는 위반을 통과시킨다.
+// 가짜의 응답은 **타이머 한 틱 뒤에** 온다. Promise.resolve() 로 즉시 답하면 마이크로태스크
+// 순서만으로 우연히 앞뒤가 맞아, 관문을 기다리지 않는 구현도 이 스위트를 통과한다(실제로
+// 뮤테이션 시험에서 그렇게 통과했다 — 그때는 이 헬퍼가 동기였다). 네이티브 호출은 밀리초가
+// 걸리므로 지연이 있는 쪽이 진짜에 가깝고, 그래야 경주가 드러난다.
+const later = v => new Promise(r => setTimeout(() => r(v), 1));
+const laterFail = m => new Promise((_, j) => setTimeout(() => j(new Error(m)), 1));
+
 function fakePlugin(opts) {
   const o = opts || {};
   const seen = [];
   const p = {
     seen,
     prepared: [],
-    initialize: () => { seen.push("init"); return o.initFail ? Promise.reject(new Error("init")) : Promise.resolve(); },
+    initialize: () => { seen.push("init"); return o.initFail ? laterFail("init") : later(); },
     requestConsentInfo: () => {
       seen.push("consent");
-      if (o.consentFail) return Promise.reject(new Error("no network"));
-      return Promise.resolve(o.info === undefined ? INFO_NOT_REQUIRED : o.info);
+      if (o.consentFail) return laterFail("no network");
+      return later(o.info === undefined ? INFO_NOT_REQUIRED : o.info);
     },
-    showConsentForm: () => { seen.push("form"); return o.formFail ? Promise.reject(new Error("form")) : Promise.resolve(o.formInfo || null); },
-    showPrivacyOptionsForm: () => { seen.push("privacy"); return Promise.resolve(); },
-    prepareRewardVideoAd: (a) => { seen.push("prepare"); p.prepared.push(a); return o.prepareFail ? Promise.reject(new Error("no fill")) : Promise.resolve({}); },
-    showRewardVideoAd: () => { seen.push("show"); return Promise.resolve({ type: "coins", amount: 1 }); }
+    showConsentForm: () => { seen.push("form"); return o.formFail ? laterFail("form") : later(o.formInfo || null); },
+    showPrivacyOptionsForm: () => { seen.push("privacy"); return later(); },
+    prepareRewardVideoAd: (a) => { seen.push("prepare"); p.prepared.push(a); return o.prepareFail ? laterFail("no fill") : later({}); },
+    showRewardVideoAd: () => { seen.push("show"); return later({ type: "coins", amount: 1 }); }
   };
   return p;
 }
@@ -143,15 +150,26 @@ test("status=REQUIRED 라도 폼이 없으면 띄우지 않는다", async () => 
 
 // ── 광고 설정 재진입 줄 ───────────────────────────────────────────────────────
 
-test("privacyOptionsRequirementStatus=REQUIRED 일 때만 광고 설정 줄을 노출한다", async () => {
-  MSAds.install(fakePlugin({ info: INFO_OBTAINED }));
+// 두 필드를 **일부러 어긋나게** 둔 픽스처로 본다. 처음엔 OBTAINED(폼 있음·설정 필요)와
+// NOT_REQUIRED(폼 없음·설정 불필요)로만 봤는데, 그 둘은 두 필드가 나란히 움직여서
+// isConsentFormAvailable 로 판단하는 구현도 그대로 통과했다(뮤테이션 시험에서 살아남았다).
+// 상관된 픽스처는 무엇도 증명하지 못한다.
+test("광고 설정 줄은 privacyOptionsRequirementStatus 로만 가른다 — 폼 존재 여부가 아니다", async () => {
+  // 폼은 없지만 설정 재진입은 필요한 사용자. 폼으로 판단하면 줄이 사라져 동의를 철회할 길이 없다.
+  MSAds.install(fakePlugin({ info: { status: "OBTAINED", isConsentFormAvailable: false, canRequestAds: true, privacyOptionsRequirementStatus: "REQUIRED" } }));
   await MSAds.init(CFG);
-  assert.strictEqual(await MSAds.privacyOptionsRequired(), true);
+  assert.strictEqual(await MSAds.privacyOptionsRequired(), true,
+    "설정 재진입이 필요한 사용자인데 줄이 없다 — 폼 존재 여부로 판단한 결과다");
+
+  // 폼은 있지만 설정 재진입은 필요 없는 사용자. 폼으로 판단하면 필요 없는 줄이 생긴다.
+  MSAds.install(fakePlugin({ info: { status: "REQUIRED", isConsentFormAvailable: true, canRequestAds: false, privacyOptionsRequirementStatus: "NOT_REQUIRED" } }));
+  await MSAds.init(CFG);
+  assert.strictEqual(await MSAds.privacyOptionsRequired(), false,
+    "설정 재진입이 필요 없는데 줄이 생긴다 — 폼 존재 여부로 판단한 결과다");
 
   MSAds.install(fakePlugin({ info: INFO_NOT_REQUIRED }));
   await MSAds.init(CFG);
-  assert.strictEqual(await MSAds.privacyOptionsRequired(), false,
-    "대상 지역이 아닌데 광고 설정 줄이 생긴다 — 폼 존재 여부로 대신 판단한 결과다");
+  assert.strictEqual(await MSAds.privacyOptionsRequired(), false, "대상 지역이 아닌데 광고 설정 줄이 생긴다");
 });
 
 test("광고 설정 폼을 닫으면 동의 정보를 다시 읽는다", async () => {
