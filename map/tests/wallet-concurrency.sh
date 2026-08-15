@@ -85,6 +85,23 @@ try {
 }
 PHPEOF
 
+# 인자: libDir dataDir dev gsub barrier
+# 계정 생성은 배리어 "전"에 끝낸다 — 여기서 겨루는 것은 병합이지 계정 생성이 아니다
+# (그건 Check 1·3 이 본다). ipHash 를 null 로 넘겨 IP 상한도 이 검사에 끼어들지 않게 한다.
+cat > "$WORK/merge-race.php" <<'PHPEOF'
+<?php
+$libDir = $argv[1]; $dataDir = $argv[2]; $dev = $argv[3]; $gsub = $argv[4]; $barrier = $argv[5];
+require $libDir . "/wallet-lib.php";
+$db = w_db($dataDir);
+while (!file_exists($barrier)) { usleep(200); }
+try {
+  $m = w_merge($db, $dev, $gsub);
+  echo ($m["ok"] ? "ok" : ("no " . $m["reason"])) . " " . $dev . "\n";
+} catch (Throwable $e) {
+  echo "throw " . get_class($e) . ": " . $e->getMessage() . "\n";
+}
+PHPEOF
+
 # 배리어 동기화 N-way 실행. $1 = php 스크립트, $2 = 결과·배리어를 둘 출력 디렉토리,
 # 나머지는 각 프로세스에 그대로 전달할 인자 문자열(공백 구분, 배리어 경로는 자동으로
 # 맨 뒤에 붙는다). 결과는 $2/out_NN.txt.
@@ -221,13 +238,73 @@ check3() {
   [ "$ok" = "1" ]
 }
 
+# ── Check 4: 같은 구글 계정으로 8-way 동시 첫 병합, 3 회 ────────────────────────────
+# 이 검사가 실제로 지키는 것은 두 가지다.
+#
+#  ① w_merge 의 BEGIN IMMEDIATE 직렬화. 여덟 기기가 같은 구글 계정으로 동시에 첫 병합을
+#     시도해도 계정은 하나여야 한다. begin immediate 를 지연 begin 으로 바꾸면 여덟 중
+#     일곱이 "database is locked" 로 튕겨 총원장이 40 이 된다(실측 — 3/3 FAIL).
+#  ② "버린다, 합치지 않는다"가 동시성 아래서도 성립하는가. 8계정이 시드 5씩 받아 40으로
+#     출발하니, 첫 병합 하나만 잔량을 이어받고 나머지 일곱이 버리면 정확히 5가 남는다.
+#     "높은 쪽" 래칫이 되살아나면 이 수가 커진다.
+#
+# ⚠ 이 검사는 ix_accounts_gsub 의 UNIQUE 를 지키지 "못한다" — 처음엔 그게 목적이라고 적었으나
+# 실측이 뒤집었다: UNIQUE 를 떼고 8-way 를 돌려도 계정은 3/3 모두 1개였다. BEGIN IMMEDIATE 가
+# 쓰기를 직렬화해서, 둘째 병합은 인덱스에 닿기 전에 이미 "그 구글 계정이 있다"를 보기 때문이다.
+# 인덱스의 유일성 자체는 tests/wallet.test.php 의 "같은 google_sub 을 가진 계정은 둘일 수 없다"
+# 가 직접 못박는다 — 둘 중 그쪽을 믿을 것.
+check4() {
+  local racers=8
+  echo "── Check 4: 같은 구글 8-way 동시 첫 병합 × 3회 (기대: gsub 계정==1, 총원장==5, throw==0, no==0, 캐시어긋남==0)"
+  local rep ok=1
+  for rep in $(seq 1 3); do
+    local d="$WORK/c4"
+    rm -rf "$d"; mkdir -p "$d/data"
+    php -r '
+      require $argv[1] . "/wallet-lib.php";
+      $db = w_db($argv[2]);
+      for ($i = 1; $i <= (int)$argv[3]; $i++) { w_create_account($db, "c4-dev-" . $i, null); }
+    ' "$WORK" "$d/data" "$racers"
+    local args=()
+    local i
+    for i in $(seq 1 "$racers"); do
+      args+=("$WORK $d/data c4-dev-$i same-gsub")
+    done
+    run_barrier "$WORK/merge-race.php" "$d" "${args[@]}"
+    local accts total oks nos throws bad
+    accts=$(db_query "$d/data" "select count(*) from accounts where google_sub = 'same-gsub'")
+    total=$(db_query "$d/data" "select coalesce(sum(delta), 0) from ledger")
+    oks=$(grep -c '^ok' "$d"/out_*.txt | awk -F: '{s+=$2} END{print s+0}')
+    nos=$(grep -c '^no' "$d"/out_*.txt | awk -F: '{s+=$2} END{print s+0}')
+    throws=$(grep -c '^throw' "$d"/out_*.txt | awk -F: '{s+=$2} END{print s+0}')
+    # 캐시(accounts.balance)와 진실(SUM(ledger.delta))이 갈린 계정 수 — 어느 병합이 이기든 0이어야 한다
+    bad=$(php -r '
+      require $argv[1] . "/wallet-lib.php";
+      $db = w_db($argv[2]); $n = 0;
+      foreach ($db->query("select id, balance from accounts") as $a) {
+        if ((int)$a["balance"] !== w_true_balance($db, $a["id"])) $n++;
+      }
+      echo $n;
+    ' "$WORK" "$d/data")
+    if [ "$accts" != "1" ] || [ "$total" != "5" ] || [ "$throws" != "0" ] || [ "$nos" != "0" ] || [ "$bad" != "0" ]; then
+      echo "   rep $rep: FAIL — gsub_accounts=$accts(want 1) 총원장=$total(want 5) ok=$oks no=$nos(want 0) throw=$throws(want 0) 캐시어긋남=$bad(want 0)"
+      grep -h '^no\|^throw' "$d"/out_*.txt | sort | uniq -c | head -5
+      ok=0
+    else
+      echo "   rep $rep: ok — gsub_accounts=$accts 총원장=$total ok=$oks no=$nos throw=$throws 캐시어긋남=$bad"
+    fi
+  done
+  [ "$ok" = "1" ]
+}
+
 check1 || FAIL=1
 check2 || FAIL=1
 check3 || FAIL=1
+check4 || FAIL=1
 
 echo
 if [ "$FAIL" = "0" ]; then
-  echo "전체 통과 — 지갑 동시성 회귀 3종"
+  echo "전체 통과 — 지갑 동시성 회귀 4종"
   exit 0
 else
   echo "실패 — 위 로그의 FAIL 행 참고"

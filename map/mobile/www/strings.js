@@ -149,6 +149,32 @@
     walCapped: "Cap reached — the rest was discarded",
     walBack: "Back",
 
+    // 지갑 화면 — 구글 로그인 행 (Phase 8c)
+    wSignIn: "Sign in with Google",
+    wSignInHint: "Keeps your Scoops if you reinstall or change phones.",
+    wSignOut: "Sign out",
+    wSignInWaiting: "Waiting for the browser…",
+    wSignInFailed: "Sign-in did not finish. Try again.",
+    // device-claimed: 이 기기가 이미 다른 구글 계정에 묶여 있다 — 재시도해도 답이 바뀌지
+    // 않는 종결 상태다. "다시 시도"라고 말하면 거짓 희망을 준다(wSignInFailed 와 다른 문구).
+    wDeviceClaimed: "This device is already linked to a different Google account. Reinstalling the app gives it a new device id you can sign in with.",
+    // 검토(2026-08-15 리뷰 요청): 이 문구는 이미 정직하다 — "이 기기엔 {n}개 있었다"고 과거형으로
+    // 적고 "계정 잔량이 이제부터 유효하다"로 넘길 뿐, {n}이 옮겨졌다거나 더해졌다고 말하지 않는다.
+    // (wMerged 와 달리 여기서는 화면에 새 잔량이 함께 보이는 상태라 "그 잔량이 유효하다"는 말 자체가
+    // 참이다.) 그래서 바꾸지 않았다.
+    wMergeDiscarded: "This device had {n} Scoops. Your account balance is the one that counts.",
+    wWatchlistLocal: "Your ticker list stays on this device.",
+    // merged: 이 기기의 익명 지갑은 구글 계정으로 넘어갔다 — 연결 문제가 아니다.
+    // walUnavailable("확인이 안 된다")과 섞으면 "로그아웃했더니 스쿱이 사라졌다"로 읽힌다.
+    // w_merge 는 이 기기의 잔량을 **버린다**(원장엔 남기지만 구글 계정으로 옮기지 않는다) —
+    // 구글 계정 쪽 잔량은 그 계정 자신의 기존 총량이지 이 기기가 버린 수량과 무관하다.
+    // "now live on your Google account"(2026-08-15 리뷰 지적)는 이 기기의 스쿱이 그대로
+    // 옮겨간 것처럼 읽혀 사실과 다르다 — 어느 계정으로 넘어갔는지만 말하고 액수는 암시하지 않는다.
+    wMerged: "This device's wallet was merged into a Google account — sign in again to reach that account's balance.",
+    // auth-disabled: 서버에 자격증명이 없다 — 오늘은 전 사용자의 기본 경험이다. 버튼을
+    // 지운 자리에 안정적으로 남기는 문구(재조립될 때마다 되살아나지 않는다).
+    wSignInUnavailable: "Sign-in is not available right now.",
+
     // 단계 선택 시트 (Phase 8a)
     tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Full", tsCustom: "Custom",
     tsBasicDesc: "5 indicators · daily only", tsFullDesc: "All 32 indicators · daily, weekly, monthly",

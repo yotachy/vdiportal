@@ -410,3 +410,377 @@ test("watchlist.js 실행 — 시트 안 직접 입력에서 오타면 후보가
     assert.ok(doc.body.querySelector(".sheet-scrim"), "실패했는데 시트가 닫혔다");
   });
 });
+
+// ── 지갑 화면 DOM 실행 테스트 (Phase 8c: 구글 로그인 행) ──────────────────────────
+// 위 소스-모양 테스트들과 이유가 다르다: "로그인 전엔 로그인 행, 후엔 로그아웃 행" 같은
+// 요구사항은 실제로 무엇이 그려졌는가의 문제라 소스 검사로는 빈 화면과 정상 화면을 구분
+// 못한다(onboarding.test.mjs 1·2단계와 같은 이유). screens/wallet.js 도 watchlist.js 처럼
+// UMD 가 아니라 require 시점에 곧바로 window.MSWalletScreen 을 실행한다 — 위 MSWatchlist 캡처와
+// 같은 요령을 쓴다.
+const MSWalletScreen = (function () {
+  var hadWindow = Object.prototype.hasOwnProperty.call(global, "window");
+  var prevWindow = global.window;
+  global.window = global;
+  require("../www/screens/wallet.js");
+  var got = global.MSWalletScreen;
+  delete global.MSWalletScreen;
+  if (hadWindow) global.window = prevWindow; else delete global.window;
+  return got;
+})();
+
+const S = require("../www/strings.js");
+
+// w_merge(wallet-lib.php)는 이 기기의 잔량을 버릴 뿐 구글 계정으로 옮기지 않는다 — 구글
+// 계정 쪽 잔량은 그 계정 자신의 기존 총량이다. 옛 문구("This device's Scoops now live on
+// your Google account")는 버린 수량이 그대로 넘어간 것처럼 읽혔다(2026-08-15 리뷰 지적).
+// DOM 을 안 세워도 되는 순수 문자열 검사라 여기서 바로 한다.
+test("wMerged — 버린 잔량이 그대로 넘어간 것처럼 말하지 않는다", () => {
+  var v = S.t.wMerged;
+  assert.doesNotMatch(v, /Scoops now live/i,
+    "예전 과장 문구('Scoops now live on your Google account')로 되돌아갔다 — 버린 잔량이 그대로 넘어간 것처럼 읽힌다");
+  assert.match(v, /merged into/i,
+    "계정이 바뀌었다는 사실만 말해야 하는데('merged into') 그 표현이 없다");
+});
+
+// 텍스트로 노드를 찾는다 — MSUi.el() 이 leaf 노드에 라벨을 textContent 로 직접 심으므로
+// (자식 없이) 자기 자신의 텍스트만 비교하면 된다. WlNode(위)는 watchlist DOM 테스트가 이미
+// 쓰는 스텁(createElement/appendChild/classList/textContent)이라 새로 만들지 않는다.
+function findText(root, text) {
+  return root.find(function (n) { return n !== root && n.textContent === text; });
+}
+
+function fakeMSWallet() {
+  return {
+    COSTS: { full: 3, custom: 5, slot: 1, scan: 2 },
+    get: function () {
+      return Promise.resolve({ ok: true, state: { balance: 5, cap: 20, streakDays: 2, canCheckin: true } });
+    },
+    checkin: function () {
+      return Promise.resolve({ ok: true, state: { balance: 6, cap: 20, streakDays: 3, canCheckin: false },
+                               granted: 1, capped: false });
+    },
+    authStart: function () { return Promise.resolve({ ok: false, reason: "auth-disabled" }); },
+    authPoll: function () { return Promise.resolve({ ok: false, pending: false, reason: "network" }); },
+    signOut: function () {},
+    signedIn: function () { return false; }
+  };
+}
+
+function setupWalletGlobals() {
+  const g = globalThis;
+  const saved = {};
+  const put = (k, v) => { saved[k] = Object.prototype.hasOwnProperty.call(g, k) ? g[k] : undefined; g[k] = v; };
+  // querySelectorAll(".ms-pill") — refreshPills() 는 checkin() 성공 뒤 항상 불린다(2단 화면의
+  // 옆 칸 필 갱신용). 이 하네스엔 필이 없으니 빈 배열이면 충분하다 — 없으면 merged/체크인
+  // 흐름을 도는 테스트마다 TypeError 로 죽는다(실제로 처음엔 그렇게 죽었다).
+  put("document", {
+    createElement: function (t) { return new WlNode(t); },
+    querySelectorAll: function () { return []; }
+  });
+  put("window", { open: function () {} });
+  put("MSUi", require("../www/ui.js"));
+  put("MSStr", S);
+  put("MSApp", { go: function () {}, current: function () { return { params: {} }; } });
+  const W = fakeMSWallet();
+  put("MSWallet", W);
+  return { saved: saved, W: W };
+}
+function restoreWalletGlobals(saved) {
+  const g = globalThis;
+  Object.keys(saved).forEach(function (k) { if (saved[k] === undefined) delete g[k]; else g[k] = saved[k]; });
+}
+// render() 는 즉시 MSWallet.get().then(draw) 를 걸어 둔다(잔량 비동기 로드) — finally 의 전역
+// 복구가 그 마이크로태스크보다 먼저 돌면, 나중에 그 콜백이 이미 지워진 MSUi/document 를 참조해
+// 엉뚱한(나중) 테스트 실행 중에 처리되지 않은 reject 로 터진다(watchlist.js 의
+// withWatchlistDomAsync 머리말과 같은 함정). 그래서 항상 async 로 열고, 안에서 최소 한 번
+// flush() 로 그 체인을 다 비운 뒤에만 복구한다 — 동기 버전은 따로 두지 않는다.
+async function withWalletDom(fn) {
+  const { saved, W } = setupWalletGlobals();
+  try { return await fn(new WlNode("div"), W); }
+  finally { restoreWalletGlobals(saved); }
+}
+
+test("지갑 화면 — 로그인 전엔 로그인 행, 후엔 로그아웃 행", async () => {
+  await withWalletDom(async (root, W) => {
+    W.signedIn = function () { return false; };
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(findText(root, S.t.wSignIn), "로그인 행이 없다");
+
+    W.signedIn = function () { return true; };
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(findText(root, S.t.wSignOut), "로그아웃 행이 없다");
+    assert.ok(!findText(root, S.t.wSignIn), "로그인·로그아웃 행이 동시에 떴다");
+  });
+});
+
+// 전체 브랜치 리뷰(실행으로 확인됨): 로그아웃 클릭 핸들러가 클로저의 옛 state 를 그대로
+// draw(state,"") 에 넘겨 재사용했다 — 잔량 12로 로그인해 있다가 로그아웃해도 화면은 계속
+// 12를 보여줬고 get() 은 0번 불렸다. 소스가 아니라 get() 호출 횟수를 직접 스파이해서 본다.
+test("로그아웃하면 옛 잔량을 재사용하지 않고 다시 조회한다", async () => {
+  await withWalletDom(async (root, W) => {
+    var getCalls = 0;
+    var signedIn = true;
+    W.signedIn = function () { return signedIn; };
+    W.signOut = function () { signedIn = false; };
+    W.get = function () {
+      getCalls++;
+      return signedIn
+        ? Promise.resolve({ ok: true, state: { balance: 12, cap: 20, streakDays: 5, canCheckin: false } })
+        : Promise.resolve({ ok: true, state: { balance: 0, cap: 20, streakDays: 0, canCheckin: true } });
+    };
+    MSWalletScreen.render(root);
+    await flush();
+    assert.strictEqual(getCalls, 1, "최초 렌더가 get() 을 정확히 한 번 불러야 한다 — 테스트 전제가 틀렸다");
+    assert.ok(findText(root, "12"), "로그인 상태의 잔량(12)이 화면에 없다");
+
+    findText(root, S.t.wSignOut).dispatch("click");
+    await flush();
+
+    assert.ok(getCalls >= 2,
+      "로그아웃 후 get() 을 다시 안 불렀다 — 옛 잔량을 재사용한 화면을 그대로 보여준다: " + getCalls);
+    assert.ok(!findText(root, "12"), "로그아웃 후에도 옛 잔량(12)이 그대로 남아 있다");
+    assert.ok(findText(root, "0"), "로그아웃 후 새로 받아온 잔량(0)이 화면에 없다");
+
+    // 출석 행도 새로 받아온 canCheckin 을 따라야 한다 — 옛 값(비활성) 그대로면 눌러도 항상 실패한다.
+    var checkinRow = findText(root, S.t.walCheckin).parentNode.parentNode;
+    assert.ok(!checkinRow.classList.contains("is-off"),
+      "로그아웃 후 canCheckin 이 갱신됐는데 출석 행이 여전히 비활성이다 — 옛 state 를 그리고 있다");
+  });
+});
+
+// 전체 브랜치 리뷰(실행으로 확인됨): 체크인이 merged 로 거절돼도 화면은 모든 !r.ok 를
+// walUnavailable("연결을 확인하라")로 뭉뚱그렸다 — 연결 문제가 아니라 지갑이 구글 계정으로
+// 넘어간 것이라, 사용자에게는 "로그아웃했더니 스쿱이 사라졌다"로 읽힌다.
+test("체크인이 merged 로 거절되면 연결 문제가 아니라 계정 이전을 사실대로 말한다", async () => {
+  await withWalletDom(async (root, W) => {
+    W.get = function () {
+      return Promise.resolve({ ok: true, state: { balance: 0, cap: 20, streakDays: 0, canCheckin: true } });
+    };
+    W.checkin = function () {
+      return Promise.resolve({ ok: false, reason: "merged", granted: 0, capped: false,
+        state: { balance: 0, cap: 20, streakDays: 0, canCheckin: false } });
+    };
+    MSWalletScreen.render(root);
+    await flush();
+    var checkinRow = findText(root, S.t.walCheckin).parentNode.parentNode;
+    checkinRow.dispatch("click");
+    await flush();
+
+    assert.ok(findText(root, S.t.wMerged), "merged 사유를 사실대로 안내하지 않았다");
+    assert.ok(!findText(root, S.t.walUnavailable),
+      "merged 인데 '연결을 확인하라'는 문구를 보였다 — 옮겨졌을 뿐인 잔량을 잃어버린 것처럼 읽힌다");
+  });
+});
+
+// 무중단 스위치. 서버에 자격증명이 없으면 눌러도 아무 일 없는 죽은 버튼이 된다.
+// 리뷰 Critical 1차(실행으로 확인됨): 행은 지우면서 "Waiting for the browser…" 는 안 지워서, 서버에
+// 자격증명이 없는(=오늘 모든 사용자가 겪는) 경로에서 대기 문구가 버튼도 없이 영원히 남아 있었다.
+// 리뷰 2차(전체 브랜치 리뷰, 실행으로 확인됨): 1차 수정(msg.textContent="") 은 "지금 이 draw() 만"
+// 고쳤을 뿐이다 — 체크인·로그아웃처럼 draw() 를 다시 부르는 아무 동작 뒤에는 authDisabled 판정을
+// 기억하지 않는 조립 로직이 죽은 버튼을 또 그려 넣었다(눌러서 사라졌다가 다음 재조립에 되살아나고
+// 또 눌러서 사라지는 반복). 지금은 행 대신 안정된 안내 하나로 통째로 바뀌고, 그 판정이
+// render() 생애주기 동안 유지되는지까지 본다.
+test("authStart 가 auth-disabled 면 로그인 섹션이 안정된 안내로 바뀌고, 이후 draw() 에도 버튼이 되살아나지 않는다", async () => {
+  await withWalletDom(async (root, W) => {
+    W.signedIn = function () { return false; };
+    W.authStart = function () { return Promise.resolve({ ok: false, reason: "auth-disabled" }); };
+    W.get = function () {
+      return Promise.resolve({ ok: true, state: { balance: 5, cap: 20, streakDays: 2, canCheckin: true } });
+    };
+    W.checkin = function () {
+      return Promise.resolve({ ok: true, capped: false,
+        state: { balance: 6, cap: 20, streakDays: 3, canCheckin: false } });
+    };
+    MSWalletScreen.render(root);
+    await flush();
+    findText(root, S.t.wSignIn).dispatch("click");
+    await flush();
+
+    assert.ok(findText(root, S.t.wSignInUnavailable), "안정된 안내('지금은 로그인을 쓸 수 없다')가 안 떴다");
+    assert.ok(!findText(root, S.t.wSignIn), "죽은 로그인 버튼이 남아 있다");
+    assert.ok(!findText(root, S.t.wSignInWaiting), "'Waiting for the browser…' 가 버튼 없이 남아 있다");
+    assert.ok(!findText(root, S.t.wSignInHint),
+      "탭할 게 없는데 'Keeps your Scoops...' 힌트가 허공에 매달려 있다");
+
+    // 체크인처럼 draw() 를 다시 부르는 아무 동작 이후에도 로그인 행이 되살아나면 안 된다.
+    var checkinRow = findText(root, S.t.walCheckin).parentNode.parentNode;
+    checkinRow.dispatch("click");
+    await flush();
+
+    assert.ok(findText(root, S.t.wSignInUnavailable), "재조립(체크인) 이후 안정된 안내가 사라졌다");
+    assert.ok(!findText(root, S.t.wSignIn), "재조립(체크인) 이후 죽은 로그인 버튼이 되살아났다");
+  });
+});
+
+// 리뷰 Important 1(실행으로 확인됨): 응답 오기 전에 두 번 누르면 authStart 가 두 번 나가 각자
+// 다른 nonce 로 브라우저를 두 번 열고, 각자의 poll() 이 같은 authMsg 를 두고 경합했다.
+test("응답 오기 전에 로그인 버튼을 두 번 눌러도 authStart 는 한 번만 나간다", async () => {
+  await withWalletDom(async (root, W) => {
+    var calls = 0, resolveAuthStart;
+    W.signedIn = function () { return false; };
+    W.authStart = function () {
+      calls++;
+      return new Promise(function (resolve) { resolveAuthStart = resolve; });
+    };
+    MSWalletScreen.render(root);
+    await flush();
+    var btn = findText(root, S.t.wSignIn);
+    btn.dispatch("click");
+    btn.dispatch("click");   // 첫 응답이 오기 전에 동기적으로 또 누른다
+    assert.strictEqual(calls, 1, "authStart 가 두 번 나갔다 — 로그인 시도가 동시에 두 개 돈다: " + calls);
+    resolveAuthStart({ ok: false, reason: "auth-disabled" });
+    await flush();
+  });
+});
+
+test("두 번째 기기 병합이면 버려진 수량을 사용자에게 말한다", async () => {
+  await withWalletDom(async (root, W) => {
+    W.signedIn = function () { return false; };
+    W.authStart = function () { return Promise.resolve({ ok: true, authUrl: "https://x/a", nonce: "n1" }); };
+    W.authPoll = function () {
+      return Promise.resolve({ ok: true, pending: false, discarded: 5, state: { balance: 3 } });
+    };
+    MSWalletScreen.render(root);
+    await flush();
+    findText(root, S.t.wSignIn).dispatch("click");
+    await flush();
+    // "조용히 사라진 5개"가 없어야 한다 — 문의로 돌아온다.
+    assert.ok(findText(root, S.t.wMergeDiscarded.replace("{n}", "5")),
+      "버려진 잔량을 사용자에게 말하지 않았다");
+  });
+});
+
+// device-claimed: 이 기기가 이미 다른 구글 계정에 묶여 있다 — 재시도해도 답이 바뀌지 않는
+// 종결 상태다. 계속 폴링하거나 일반 실패 문구("다시 시도")를 보이면 거짓 희망을 준다 —
+// 사실대로 말하고(다른 계정에 묶여 있다), 유일한 복구(재설치)를 안내해야 한다.
+// 리뷰 Minor(채택, 1차): auth-disabled 와 같은 방식으로 다룬다 — 행을 지운다.
+// 리뷰(2차, 2026-08-15): 1차 수정은 행만 지웠을 뿐 판정을 기억하지 않아서, auth-disabled 에서
+// 이미 잡혔던 것과 같은 결함이 그대로 남아 있었다 — 체크인처럼 draw() 를 다시 부르는 아무
+// 동작 뒤에 죽은 "Sign in" 버튼이 되살아났고, wSignInHint 는 그 전부터 허공에 매달려 있었다.
+// 이제 auth-disabled 와 완전히 같은 방식(render 생애주기 동안 기억, 섹션 전체 교체)으로 본다.
+test("authPoll 이 device-claimed 면 폴링을 멈추고 재설치를 안내하며 섹션 전체가 바뀌고, 이후 draw() 에도 버튼이 되살아나지 않는다", async () => {
+  await withWalletDom(async (root, W) => {
+    W.signedIn = function () { return false; };
+    W.authStart = function () { return Promise.resolve({ ok: true, authUrl: "https://x/a", nonce: "n1" }); };
+    W.authPoll = function () {
+      return Promise.resolve({ ok: false, pending: false, reason: "device-claimed" });
+    };
+    MSWalletScreen.render(root);
+    await flush();
+
+    // setTimeout 스파이 — 지연시간이 아니라 "재시도를 예약했는가" 자체를 본다. POLL_MS(2000ms)를
+    // 기다렸다 안 불렸는지 확인하는 방식은 "언젠가 2초 뒤에 재시도"하는 회귀를 못 잡는다
+    // (관문이 그렇게 오래 기다려주지 않는다) — 예약 자체가 없어야 한다.
+    var realSetTimeout = global.setTimeout;
+    var scheduled = [];
+    global.setTimeout = function (fn, ms) { scheduled.push(ms); return realSetTimeout(fn, ms); };
+    try {
+      findText(root, S.t.wSignIn).dispatch("click");
+      await flush();
+    } finally {
+      global.setTimeout = realSetTimeout;
+    }
+
+    assert.ok(findText(root, S.t.wDeviceClaimed), "기기 잠김 안내가 없다");
+    assert.ok(!findText(root, S.t.wSignInFailed),
+      "일반 실패 문구('다시 시도')를 보였다 — device-claimed 는 재시도해도 소용없다");
+    assert.ok(!findText(root, S.t.wSignIn),
+      "device-claimed 인데 로그인 행이 그대로 남아 있다 — 다시 눌러도 같은 벽에 부딪힌다");
+    assert.ok(!findText(root, S.t.wSignInHint),
+      "device-claimed 인데 탭할 게 없는 'Keeps your Scoops...' 힌트가 허공에 매달려 있다");
+    // flush() 자신도 setTimeout(fn,0) 을 쓰므로 0 은 허용하고, 그보다 큰(=POLL_MS 재시도) 예약만 본다.
+    assert.ok(scheduled.every(function (ms) { return !ms; }),
+      "device-claimed 인데 다음 폴링 setTimeout 을 예약했다: " + scheduled.join(","));
+
+    // 체크인처럼 draw() 를 다시 부르는 아무 동작 이후에도 로그인 행이 되살아나면 안 된다 —
+    // auth-disabled 에서 먼저 잡힌 것과 같은 결함(리뷰 2차 실측)이라 여기서도 반드시 본다.
+    var checkinRow = findText(root, S.t.walCheckin).parentNode.parentNode;
+    checkinRow.dispatch("click");
+    await flush();
+
+    assert.ok(findText(root, S.t.wDeviceClaimed), "재조립(체크인) 이후 기기 잠김 안내가 사라졌다");
+    assert.ok(!findText(root, S.t.wSignIn), "재조립(체크인) 이후 죽은 로그인 버튼이 되살아났다");
+  });
+});
+
+// 리뷰 Important 2(실행으로 확인됨): app.js 는 지갑 화면을 나갈 때 render() 클로저에게 알릴
+// 방법이 없다(pane.innerHTML="" 로 DOM 만 지운다). 세대 카운터가 없으면, 로그인 도중 화면을
+// 나갔다 돌아와도 옛 폴링 루프가 detached 노드를 향해 계속 authPoll() 을 부른다.
+test("재렌더(네비게이션) 후에는 이전 폴링 루프가 authPoll 을 다시 부르지 않는다", async () => {
+  await withWalletDom(async (root, W) => {
+    var pollCalls = 0;
+    W.signedIn = function () { return false; };
+    W.authStart = function () { return Promise.resolve({ ok: true, authUrl: "https://x/a", nonce: "n1" }); };
+    W.authPoll = function () {
+      pollCalls++;
+      return Promise.resolve({ ok: true, pending: true });   // 계속 대기 중 — 다음 폴링을 예약한다
+    };
+
+    var realSetTimeout = global.setTimeout;
+    var scheduledFns = [];
+    global.setTimeout = function (fn, ms) { scheduledFns.push(fn); return realSetTimeout(fn, ms); };
+    try {
+      MSWalletScreen.render(root);
+      await flush();
+      findText(root, S.t.wSignIn).dispatch("click");
+      await flush();   // authStart → authPoll(1회) → pending → 다음 poll() 을 setTimeout 으로 예약
+      assert.strictEqual(pollCalls, 1, "첫 authPoll 이 안 나갔다 — 테스트 전제가 틀렸다");
+
+      // 사용자가 지갑 화면을 나갔다 돌아온다 — app.js 는 매번 MSWalletScreen.render() 를 새로
+      // 부른다. 같은 root 에 다시 render() 만 불러 그 재진입을 흉내낸다.
+      MSWalletScreen.render(root);
+      await flush();
+
+      // 예약돼 있던 옛 poll() 재시도를 지금 손으로 발화시킨다(2초를 실제로 기다리지 않는다).
+      var stalePoll = scheduledFns[0];
+      assert.ok(stalePoll, "poll 재시도가 애초에 예약되지 않았다 — 테스트 전제가 틀렸다");
+      stalePoll();
+      await flush();
+
+      assert.strictEqual(pollCalls, 1,
+        "재렌더 이후에도 옛 폴링 루프가 authPoll 을 또 불렀다 — 고아 루프가 안 죽었다: " + pollCalls);
+    } finally {
+      global.setTimeout = realSetTimeout;
+    }
+  });
+});
+
+// backend-error 는 authUrl/nonce 가 아예 없는 응답이다(façade 가 예외를 삼키고 이 사유만
+// 채운다) — ok 를 먼저 안 보고 authUrl/nonce 를 읽으면 window.open(undefined) 을 부르거나
+// 존재하지 않는 nonce 로 폴링을 시작할 수 있다.
+test("authStart 가 backend-error 면 authUrl 없이도 안전하게 실패 처리한다(폴링·브라우저 오픈 없음)", async () => {
+  await withWalletDom(async (root, W) => {
+    var openedUrl = null, polled = false;
+    global.window.open = function (u) { openedUrl = u; };
+    W.signedIn = function () { return false; };
+    W.authStart = function () { return Promise.resolve({ ok: false, reason: "backend-error" }); };
+    W.authPoll = function () { polled = true; return Promise.resolve({ ok: false, pending: false, reason: "network" }); };
+    MSWalletScreen.render(root);
+    await flush();
+    findText(root, S.t.wSignIn).dispatch("click");
+    await flush();
+    assert.strictEqual(openedUrl, null, "authUrl 없이 window.open 을 불렀다: " + openedUrl);
+    assert.strictEqual(polled, false, "authUrl/nonce 없이 폴링을 시작했다");
+    assert.ok(findText(root, S.t.wSignInFailed), "실패 안내가 없다");
+  });
+});
+
+// 병합된(익명) 지갑은 서버가 canCheckin:false 로 이미 말해준다(wallet-lib.php w_state) — 화면이
+// 그걸 무시하고 출석 행을 활성으로 그리면 눌러도 항상 실패하는(reason:"merged") 죽은 버튼이
+// 된다. off 인 행엔 애초에 클릭 리스너를 안 붙이는지까지 본다 — "리스너는 있는데 안 눌러봤다"
+// 와 "애초에 탭할 수 없다"는 다르다.
+test("병합된 지갑(canCheckin:false)의 출석 행은 비활성이고 탭 리스너가 없다", async () => {
+  await withWalletDom(async (root, W) => {
+    W.get = function () {
+      return Promise.resolve({ ok: true, state: { balance: 3, cap: 20, streakDays: 4, canCheckin: false } });
+    };
+    MSWalletScreen.render(root);
+    await flush();
+    var row = findText(root, S.t.walCheckin).parentNode.parentNode;
+    assert.ok(row.classList.contains("is-off"), "병합된 지갑인데 출석 행이 활성으로 그려졌다");
+    assert.strictEqual(row.listeners.click, undefined,
+      "비활성 행인데 클릭 리스너가 붙어 있다 — 탭하면 항상 실패하는 checkin 을 제공한다");
+  });
+});

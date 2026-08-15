@@ -729,8 +729,8 @@ t("상한에 걸려도 출석일은 소비된다 — 하루가 지나가야 다�
 
 t("토큰은 왕복하고 변조·쓰레기·세그먼트 이상은 거부된다", function () {
   $d = tmpdir();
-  $tok = w_token_make($d, "dev-1");
-  eq(w_token_read($d, $tok), "dev-1", "왕복");
+  $tok = w_token_make($d, "dev-1");   // 접두 없음 — 8c 이전 옛 토큰 모양
+  eq(w_token_read($d, $tok), array("type" => "device", "id" => "dev-1"), "왕복");
   eq(w_token_read($d, $tok . "x"), null, "변조된 토큰이 통과했다");
   eq(w_token_read($d, "garbage"), null, "쓰레기 토큰이 통과했다");
   rmrf($d);
@@ -879,6 +879,471 @@ t("IP 해시가 null 이면 상한을 적용하지 않는다 — 헤드리스 �
   $d = tmpdir(); $db = w_db($d);
   for ($i = 0; $i < 5; $i++) { w_create_account($db, "dev-nullip-" . $i, null); }
   eq($db->query("select count(*) c from accounts")->fetch()["c"], 5, "null IP 인데 상한에 걸렸다");
+  $db = null; rmrf($d);
+});
+
+// ── Task 1 (8c): 토큰 주체 접두 + 스키마 v3 ─────────────────────────────
+
+t("토큰 주체 — 기기와 계정을 구별하고, 접두 없는 옛 토큰은 기기로 읽는다", function () {
+  $d = tmpdir();
+  $t1 = w_token_make($d, "d:dev-aaa");
+  $t2 = w_token_make($d, "a:acct-bbb");
+  // 접두 없는 옛 토큰을 그대로 만든다 — 배포 순간 살아 있는 토큰이 깨지면 안 된다.
+  $exp = time() + 3600;
+  $sig = _wb64e(hash_hmac("sha256", "dev-legacy|" . $exp, w_secret($d), true));
+  $old = _wb64e("dev-legacy") . "|" . $exp . "|" . $sig;
+  eq(w_token_read($d, $t1), array("type" => "device", "id" => "dev-aaa"), "기기 토큰");
+  eq(w_token_read($d, $t2), array("type" => "acct", "id" => "acct-bbb"), "계정 토큰");
+  eq(w_token_read($d, $old), array("type" => "device", "id" => "dev-legacy"),
+     "접두 없는 옛 토큰이 안 읽힌다 — 배포 순간 로그인된 사용자가 전부 튕긴다");
+  eq(w_token_read($d, substr($t1, 0, -1) . "X"), null, "변조된 토큰이 통과했다");
+  rmrf($d);
+});
+
+// 핵심 방어: 접두가 서명 대상 "밖"에 있으면 d: 를 a: 로 바꿔치기해 임의 계정을 가리킬 수
+// 있다. 실제로 있었던 기기 토큰의 인코딩된 주체만 접두를 바꿔치기하고 서명은 그대로 재사용해
+// 위조를 흉내 낸다 — 접두가 서명 대상 안에 있어야만 이 위조가 거부된다.
+t("토큰 위조 방지 — 서명된 주체의 접두를 d: 에서 a: 로 바꿔치기하면 거부된다", function () {
+  $d = tmpdir();
+  $tok = w_token_make($d, "d:dev-aaa");
+  $p = explode("|", $tok);
+  $forgedSubject = "a:" . substr(_wb64d($p[0]), 2);
+  $forged = _wb64e($forgedSubject) . "|" . $p[1] . "|" . $p[2];
+  eq(w_token_read($d, $forged), null,
+     "d: 를 a: 로 바꿔치기한 위조 토큰이 통과했다 — 남의 계정을 가리킬 수 있다");
+  rmrf($d);
+});
+
+t("스키마 v3 — auth_nonce 와 google_sub 유니크 인덱스가 생긴다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $names = [];
+  foreach ($db->query("select name from sqlite_master where type in ('table','index')") as $r) {
+    $names[] = $r["name"];
+  }
+  ok(in_array("auth_nonce", $names, true), "auth_nonce 테이블이 없다");
+  ok(in_array("ix_accounts_gsub", $names, true), "google_sub 유니크 인덱스가 없다");
+  eq(w_schema_version($db), 3, "스키마 버전이 3 이 아니다");
+  $db = null; rmrf($d);
+});
+
+// SQLite 의 유니크 인덱스는 NULL 을 서로 다른 값으로 본다. 이게 성립하지 않으면
+// 미연결 계정이 둘째부터 생성 실패한다 — 온보딩이 통째로 죽는다.
+t("google_sub 유니크 인덱스가 미연결 계정 여럿을 막지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-1", "iphash");
+  w_create_account($db, "dev-2", "iphash");
+  eq((int)$db->query("select count(*) c from accounts")->fetch()["c"], 2,
+     "google_sub 이 NULL 인 계정을 둘 이상 못 만든다");
+  $db = null; rmrf($d);
+});
+
+// 인덱스가 "있다"만 보면 UNIQUE 를 떼도 초록이다(Task 2 의 존재 검사가 그렇다 — 실측).
+// 동시 병합 하네스도 이걸 못 잡는다: BEGIN IMMEDIATE 가 쓰기를 직렬화해서 두 번째 병합이
+// 인덱스에 닿기 전에 이미 "그 구글 계정이 있다"를 보기 때문이다(실측 — UNIQUE 를 떼고
+// 8-way 를 돌려도 계정은 1개였다). 인덱스의 유일성 자체는 여기서 못박는다.
+t("같은 google_sub 을 가진 계정은 둘일 수 없다 — DB 층이 막는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-1", null);
+  w_create_account($db, "dev-2", null);
+  $a1 = w_get_account($db, "dev-1"); $a2 = w_get_account($db, "dev-2");
+  $db->prepare("update accounts set google_sub = 'gsub-x' where id = ?")->execute(array($a1["id"]));
+  $threw = false;
+  try { $db->prepare("update accounts set google_sub = 'gsub-x' where id = ?")->execute(array($a2["id"])); }
+  catch (Throwable $e) { $threw = true; }
+  ok($threw, "같은 google_sub 이 계정 둘에 박혔다 — 동시 병합의 최종 방어선이 없다");
+  $db = null; rmrf($d);
+});
+
+// ── Task 2 (8c): 논스 수명주기 ─────────────────────────────────────────
+
+t("논스 — 단회용이고 10분 만료이며 기기에 묶인다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $n = w_nonce_make($db, "dev-aaa");
+  $a = w_nonce_read($db, $n);
+  // 남의 논스를 주워도 못 쓴다는 것은 device_id 로 확인한다(호출부가 대조).
+  eq($a["device_id"], "dev-aaa", "논스가 기기에 안 묶였다");
+  ok(strlen($n) >= 32, "논스가 너무 짧다: " . strlen($n));
+  eq(w_nonce_complete($db, $n, "gsub-1"), true, "첫 완료가 실패했다");
+  $b = w_nonce_read($db, $n);
+  ok($b !== null, "완료된 논스를 폴링에서 읽을 수 없다");
+  eq($b["google_sub"], "gsub-1", "완료된 논스의 google_sub");
+  $again = w_nonce_complete($db, $n, "gsub-2");
+  eq($again, false, "완료된 논스를 두 번 완료할 수 있다 — 병합이 두 번 돈다");
+  // 만료: created_at 을 11분 전으로 밀어 넣는다
+  $n2 = w_nonce_make($db, "dev-bbb");
+  $old = gmdate("c", time() - 11 * 60);
+  $db->prepare("update auth_nonce set created_at = ? where nonce = ?")->execute(array($old, $n2));
+  eq(w_nonce_read($db, $n2), null, "만료된 논스가 살아 있다");
+  $db = null; rmrf($d);
+});
+
+t("w_nonce_burn 뒤에는 논스를 읽을 수 없다 — 단회용", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $n = w_nonce_make($db, "dev-aaa");
+  w_nonce_burn($db, $n);
+  eq(w_nonce_read($db, $n), null, "태운 논스가 살아 있다");
+  $db = null; rmrf($d);
+});
+
+t("w_oauth_conf — 설정 파일이 없으면 null 이다(무중단 스위치)", function () {
+  $d = tmpdir();
+  ok(!is_file($d . "/forge_google_oauth.json"), "테스트 전제가 깨졌다");
+  // 실제 함수는 __DIR__(map/) 의 forge_google_oauth.json 을 본다 — 여기서는
+  // 저장소에 그 파일이 없다는 것 자체가 authStart 의 auth-disabled 를 보증한다.
+  ok(!is_file(__DIR__ . "/../forge_google_oauth.json"), "map/forge_google_oauth.json 이 커밋됐다 — 자격증명 유출");
+  eq(w_oauth_conf(), null, "설정 파일이 없는데 conf 가 null 이 아니다");
+});
+
+// authStart 는 상한도 청소도 없다 — 새로 삽입하면 로그인 버튼을 누르는 만큼 표가 불어난다.
+t("논스는 살아 있는 동안 재사용된다 — authStart 반복이 표를 불리지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $n1 = w_nonce_make($db, "dev-aaa");
+  $n2 = w_nonce_make($db, "dev-aaa");
+  eq($n2, $n1, "authStart 를 두 번 부르면 논스 행이 두 개 생긴다 — 상한 없는 증식 경로다");
+  eq((int)$db->query("select count(*) c from auth_nonce")->fetch()["c"], 1, "논스 행이 하나가 아니다");
+
+  // 다른 기기 것은 절대 재사용하지 않는다 — 남의 논스를 받게 된다.
+  $nb = w_nonce_make($db, "dev-bbb");
+  ok($nb !== $n1, "다른 기기가 남의 논스를 받았다");
+
+  // 이미 구글이 채운 논스는 재사용하지 않는다 — 같은 논스로 병합이 두 번 돌 수 있다.
+  w_nonce_complete($db, $n1, "gsub-1");
+  $n3 = w_nonce_make($db, "dev-aaa");
+  ok($n3 !== $n1, "완료된 논스를 다시 내줬다 — 병합이 두 번 돈다");
+
+  // 만료된 것도 재사용하지 않는다.
+  $db->prepare("update auth_nonce set created_at = ? where nonce = ?")
+     ->execute(array(gmdate("c", time() - 11 * 60), $n3));
+  $n4 = w_nonce_make($db, "dev-aaa");
+  ok($n4 !== $n3, "만료된 논스를 다시 내줬다");
+  eq(w_nonce_read($db, $n4)["device_id"], "dev-aaa", "새 논스가 기기에 안 묶였다");
+  $db = null; rmrf($d);
+});
+
+// 재사용 조회는 auth_nonce 를 device_id 로 뒤진다. auth_nonce 에는 청소 주기가 없어
+// 만료 행이 계속 쌓이므로, 인덱스가 없으면 O(1) 삽입이던 authStart 가 표 크기에 비례해
+// 느려진다(리뷰 실측: 20만 행에서 호출당 25ms, 전체 스캔 + 정렬용 임시 B-트리).
+// "인덱스가 있다"가 아니라 "그 조회가 인덱스를 탄다"를 본다 — 컬럼 순서가 틀리면
+// 인덱스는 있는데 계획은 그대로 SCAN 이다.
+t("논스 재사용 조회가 전체 스캔이 아니다 — auth_nonce 는 청소되지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $plan = "";
+  $q = "explain query plan select nonce from auth_nonce
+        where device_id = 'x' and used = 0 and google_sub is null and created_at >= 'y'
+        order by created_at desc limit 1";
+  foreach ($db->query($q) as $row) { $plan .= $row["detail"] . " "; }
+  // ⚠ 계획 문구는 SQLite 판마다 다르다. 3.26(cafe24 바닥)은 "SEARCH TABLE auth_nonce
+  // USING INDEX …", 3.36+ (로컬 3.45.1)는 TABLE 을 뺀 "SEARCH auth_nonce USING INDEX …"
+  // 를 낸다. 전체 스캔도 마찬가지로 "SCAN TABLE x" / "SCAN x" 로 갈린다. 문자열을 그대로
+  // 맞추면 이 검사가 프로덕션 모양에서만 빨개진다 — TABLE·COVERING 을 선택적으로 둔
+  // 정규식으로 본다. (이 저장소에 3.26 바이너리가 없어 3.45.1 에서만 실측했다.)
+  ok(preg_match('/SEARCH\s+(TABLE\s+)?auth_nonce\s+USING\s+(COVERING\s+)?INDEX\s+ix_nonce_dev/i', $plan) === 1,
+     "논스 재사용 조회가 인덱스를 안 탄다: " . $plan);
+  ok(!preg_match('/\bSCAN\b/i', $plan), "논스 재사용 조회가 전체 스캔이다: " . $plan);
+  // 정렬용 임시 B-트리도 없어야 한다 — (device_id, created_at) 순서라야 정렬이 공짜다.
+  ok(stripos($plan, "temp b-tree") === false, "정렬용 임시 B-트리가 생긴다: " . $plan);
+  // 인덱스를 "탄다"만으로는 부족하다. 컬럼 순서를 (created_at, device_id) 로 뒤집으면
+  // 계획은 여전히 SEARCH … USING INDEX 지만 실제로는 created_at 범위만 좁힐 뿐이라
+  // 모든 기기의 최근 행을 훑는다(실측: "SEARCH … (created_at>?)"). 그러면 표가 커질수록
+  // 다시 느려져 이 인덱스를 넣은 이유가 사라진다 — device_id 로 점 조회하는지를 못박는다.
+  ok(preg_match('/\bdevice_id\s*=/i', $plan) === 1,
+     "device_id 로 좁히지 않는다 — 인덱스 컬럼 순서가 뒤집혔다: " . $plan);
+  $db = null; rmrf($d);
+});
+
+// ── Task 3 (8c): 병합 ────────────────────────────────────────────────
+
+t("첫 병합 — 익명 계정이 곧 구글 계정이 된다(잔량 그대로)", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  eq((int)$a["balance"], 5, "시드 전제가 깨졌다");
+  $m = w_merge($db, "dev-A", "gsub-1");
+  $after = w_get_account($db, "dev-A");
+  eq($m["ok"], true, "첫 병합이 실패했다");
+  eq($m["moved"], false, "첫 병합은 옮기는 게 아니라 그 계정이 구글 계정이 되는 것이다");
+  eq((int)$after["balance"], 5, "첫 병합에서 잔량이 변했다");
+  eq($after["google_sub"], "gsub-1", "google_sub 이 안 박혔다");
+  eq($m["acct"]["id"], $a["id"], "첫 병합인데 새 계정이 생겼다");
+  eq(w_true_balance($db, $after["id"]), 5, "원장 합과 캐시가 갈렸다");
+  eq((int)$db->query("select count(*) c from accounts")->fetch()["c"], 1, "첫 병합이 계정을 하나 더 만들었다");
+  $db = null; rmrf($d);
+});
+
+// 래칫 방지의 핵심. 이 검사가 없으면 "높은 쪽" 로직이 조용히 되살아난다.
+t("두 번째 기기 — 익명 잔량은 버려지고 구글 잔량은 오르지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  $g = w_get_account($db, "dev-A");
+  // 구글 계정 잔량을 3으로 낮춘다 — "높은 쪽"이면 5로 올라갈 상황을 만든다
+  $sp = w_spend($db, $g["id"], "scan", "t:setup", null, null);
+  eq($sp["ok"], true, "준비용 차감이 실패했다");
+  $gBefore = w_true_balance($db, $g["id"]);
+  eq($gBefore, 3, "준비 전제가 깨졌다 — 구글 잔량이 3 이어야 한다");
+
+  w_create_account($db, "dev-B", "ip2");
+  $b = w_get_account($db, "dev-B");
+  $m = w_merge($db, "dev-B", "gsub-1");
+  eq(w_true_balance($db, $g["id"]), 3, "두 번째 기기 병합으로 구글 잔량이 올랐다 — 래칫이 살아 있다");
+  eq($m["moved"], true, "두 번째 기기 병합이 moved 가 아니다");
+  eq($m["discarded"], 5, "버린 수량이 기록되지 않았다");
+  eq(w_true_balance($db, $b["id"]), 0, "익명 잔량이 안 버려졌다 — 원장 합이 진실이 아니게 된다");
+  eq($m["acct"]["id"], $g["id"], "기존 구글 계정이 아니라 다른 계정을 가리킨다");
+  // 버린 수량은 캐시가 아니라 원장에 남아야 한다 — 캐시만 0으로 내리면 w_state 가
+  // 다음 호출에서 원장을 보고 5로 되돌려 놓는다(= 버린 잔량이 부활한다).
+  eq((int)$db->query("select coalesce(sum(delta), 0) s from ledger
+                      where account_id = '" . $b["id"] . "' and delta < 0 and reason = 'merge_discard'")->fetch()["s"],
+     -5, "버린 수량이 음수 원장 행으로 안 남았다");
+  foreach ($db->query("select id, balance from accounts") as $row) {
+    eq((int)$row["balance"], w_true_balance($db, $row["id"]),
+       "병합 뒤 원장 합과 캐시가 갈렸다: " . $row["id"]);
+  }
+  $db = null; rmrf($d);
+});
+
+t("스트릭은 두 번째 기기에서도 긴 쪽을 취한다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  $g = w_get_account($db, "dev-A");
+  $db->prepare("update accounts set streak_days = 2 where id = ?")->execute(array($g["id"]));
+  w_create_account($db, "dev-B", "ip2");
+  $b = w_get_account($db, "dev-B");
+  $db->prepare("update accounts set streak_days = 9 where id = ?")->execute(array($b["id"]));
+  $m = w_merge($db, "dev-B", "gsub-1");
+  eq((int)$m["acct"]["streak_days"], 9, "긴 스트릭이 안 넘어왔다");
+
+  // 반대 방향 — 짧은 쪽이 긴 쪽을 덮어쓰면 로그인할 때마다 스트릭이 깎인다.
+  w_create_account($db, "dev-C", "ip3");
+  $c = w_get_account($db, "dev-C");
+  $db->prepare("update accounts set streak_days = 1 where id = ?")->execute(array($c["id"]));
+  $m2 = w_merge($db, "dev-C", "gsub-1");
+  eq((int)$m2["acct"]["streak_days"], 9, "짧은 스트릭이 긴 쪽을 덮어썼다");
+  $db = null; rmrf($d);
+});
+
+t("병합은 멱등이다 — 같은 기기·같은 구글로 두 번 불러도 원장이 두 벌 안 생긴다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  w_create_account($db, "dev-B", "ip2");
+  w_merge($db, "dev-B", "gsub-1");
+  $n1 = (int)$db->query("select count(*) c from ledger")->fetch()["c"];
+  $m2 = w_merge($db, "dev-B", "gsub-1");
+  $n2 = (int)$db->query("select count(*) c from ledger")->fetch()["c"];
+  $g = w_get_account($db, "dev-A");
+  eq($n2, $n1, "두 번째 병합이 원장 줄을 더 만들었다");
+  eq(w_true_balance($db, $g["id"]), 5, "재병합으로 잔량이 움직였다");
+  eq($m2["ok"], true, "재병합이 실패로 떨어졌다 — 앱이 로그인을 못 끝낸다");
+  eq($m2["acct"]["id"], $g["id"], "재병합이 다른 계정을 가리킨다");
+  eq($m2["discarded"], 5, "재병합이 버린 수량을 잊었다");
+  // 첫 병합(claim)도 다시 불러본다 — 이쪽은 "이미 내가 그 계정" 갈래로 떨어져야 한다.
+  $m3 = w_merge($db, "dev-A", "gsub-1");
+  eq($m3["ok"], true, "claim 재호출이 실패했다");
+  eq($m3["moved"], false, "claim 재호출이 옮김으로 바뀌었다");
+  eq((int)$db->query("select count(*) c from ledger")->fetch()["c"], $n1, "claim 재호출이 원장 줄을 더 만들었다");
+  $db = null; rmrf($d);
+});
+
+// 브리프에 없던 갈래. device_id 가 UNIQUE 라 기기당 계정이 하나뿐이므로, 이미 구글 A 에
+// 묶인 기기에서 구글 B 로 로그인하면 B 가 A 의 계정을 통째로 가져가게 된다.
+t("이미 다른 구글에 묶인 기기 계정을 두 번째 구글이 가져가지 못한다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  $m = w_merge($db, "dev-A", "gsub-2");
+  eq($m["ok"], false, "다른 구글 계정이 기기 계정을 가져갔다");
+  eq($m["reason"], "device-claimed", "거절 사유가 다르다");
+  $a = w_get_account($db, "dev-A");
+  eq($a["google_sub"], "gsub-1", "google_sub 이 두 번째 구글로 덮였다 — 첫 사용자의 계정을 빼앗는다");
+  eq(w_true_balance($db, $a["id"]), 5, "거절된 병합이 잔량을 움직였다");
+  $db = null; rmrf($d);
+});
+
+// 리뷰 실측(Critical): streak_days 가 크다고 last_checkin 이 더 최근이라는 보장이 없다.
+// 시계가 뒤로 가면 오늘 이미 출석한 계정이 canCheckin=true 로 되살아나고, 그 출석은
+// checkin:<계정id>:<날짜> 멱등키 충돌로 예외를 던진다 → wallet-api 가 500 으로 바꾸는데
+// 화면은 계속 버튼을 그린다(그날 내내 눌러도 500). W_IDEM_PREFIX 가 없앤 영구 500 의 재발이다.
+t("병합은 출석 시계를 뒤로 돌리지 않는다 — 오래된 긴 스트릭이 오늘 출석을 되살리면 안 된다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $today = w_today();
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  $g = w_get_account($db, "dev-A");
+  // 구글 계정: 스트릭 2, 오늘 이미 출석함
+  $db->prepare("update accounts set streak_days = 2, last_checkin = ? where id = ?")
+     ->execute(array($today, $g["id"]));
+  $g = w_get_account($db, "dev-A");
+  eq(w_state($db, $g)["canCheckin"], false, "전제가 깨졌다 — 오늘 이미 출석한 상태여야 한다");
+
+  // 기기 B: 스트릭은 더 길지만(4) 시계는 사흘 전이다
+  w_create_account($db, "dev-B", "ip2");
+  $b = w_get_account($db, "dev-B");
+  $db->prepare("update accounts set streak_days = 4, last_checkin = ? where id = ?")
+     ->execute(array(w_day_add($today, -3), $b["id"]));
+  w_merge($db, "dev-B", "gsub-1");
+
+  $after = w_get_account($db, "dev-A");
+  ok($after["last_checkin"] >= $today, "병합이 출석 시계를 과거로 끌고 갔다: " . var_export($after["last_checkin"], true));
+  eq(w_state($db, $after)["canCheckin"], false,
+     "병합으로 canCheckin 이 false→true 로 뒤집혔다 — 오늘 출석은 멱등키 충돌로 영구 500 이 된다");
+  // 그 500 을 직접 확인한다: 되살아난 출석은 예외를 던진다.
+  $r = w_checkin($db, $after, null);
+  eq($r["ok"], false, "오늘 이미 출석했는데 또 출석이 됐다");
+  eq($r["reason"], "already", "거절 사유가 already 가 아니다");
+  $db = null; rmrf($d);
+});
+
+// 같은 결함의 반대 방향 — 죽은 스트릭이 산 시계를 덮으면 스트릭이 오히려 깎이고
+// 7일 상자 주기가 어긋난다.
+t("병합이 스트릭을 깎지 않는다 — 죽은 스트릭이 산 시계를 덮지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $today = w_today();
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  $g = w_get_account($db, "dev-A");
+  // 구글 계정: 스트릭 1, 어제 출석 → 오늘 출석하면 2가 되어야 한다
+  $db->prepare("update accounts set streak_days = 1, last_checkin = ? where id = ?")
+     ->execute(array(w_day_add($today, -1), $g["id"]));
+  // 기기 B: 스트릭 4 지만 엿새 전에 멈췄다
+  w_create_account($db, "dev-B", "ip2");
+  $b = w_get_account($db, "dev-B");
+  $db->prepare("update accounts set streak_days = 4, last_checkin = ? where id = ?")
+     ->execute(array(w_day_add($today, -6), $b["id"]));
+  w_merge($db, "dev-B", "gsub-1");
+
+  $after = w_get_account($db, "dev-A");
+  $r = w_checkin($db, $after, null);
+  eq($r["ok"], true, "병합 뒤 출석이 실패했다");
+  eq((int)w_get_account($db, "dev-A")["streak_days"], 2,
+     "이어지던 스트릭이 죽은 스트릭에 덮여 깎였다 — 7일 상자 주기까지 어긋난다");
+  $db = null; rmrf($d);
+});
+
+// 리뷰 실측(Important 1): 병합은 잔량을 0으로 만들 뿐 계정 행을 지우지 않는다.
+// 기기 토큰이 365일 살아 있으므로, 막지 않으면 구글 지갑과 나란히 도는 익명 지갑이
+// 매일 1개씩 쌓인다 — 기기를 늘릴수록 수입원이 늘어난다.
+t("병합으로 넘어간 기기 계정은 더 벌 수 없다 — 두 번째 지갑이 남지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  $g = w_get_account($db, "dev-A");
+  w_create_account($db, "dev-B", "ip2");
+  // 스트릭을 심어 둔다 — 0 인 채로 병합하면 "넘긴 쪽 스트릭을 지우는가"가 공허한 검사가 된다.
+  $db->prepare("update accounts set streak_days = 3, last_checkin = ? where id = ?")
+     ->execute(array(w_day_add(w_today(), -1), w_account_id("dev-B")));
+  w_merge($db, "dev-B", "gsub-1");
+  $b = w_get_account($db, "dev-B");
+
+  eq(w_true_balance($db, $b["id"]), 0, "전제가 깨졌다 — 병합 뒤 잔량은 0이다");
+  eq(w_state($db, $b)["canCheckin"], false, "넘긴 계정이 출석 버튼을 그린다");
+  $r = w_checkin($db, $b, null);
+  eq($r["ok"], false, "넘긴 계정이 출석에 성공했다 — 익명 지갑이 매일 1개씩 쌓인다");
+  eq($r["reason"], "merged", "거절 사유가 merged 가 아니다");
+  eq($r["granted"], 0, "넘긴 계정에 스쿱이 지급됐다");
+  eq(w_true_balance($db, $b["id"]), 0, "넘긴 계정의 잔량이 올랐다");
+  eq(w_true_balance($db, $g["id"]), 5, "구글 계정 잔량이 움직였다");
+  // 스트릭도 복제가 아니라 이동이다 — 넘긴 쪽엔 남지 않는다.
+  eq((int)$b["streak_days"], 0, "넘긴 계정에 스트릭이 남아 있다");
+
+  // 환급도 같은 문이다 — 병합 전에 쓴 idem 을 병합 후에 환급하면 버린 잔량이 되살아난다.
+  w_create_account($db, "dev-C", "ip3");
+  $c = w_get_account($db, "dev-C");
+  eq(w_spend($db, $c["id"], "scan", "c:pre", "AAPL", null)["ok"], true, "준비용 차감이 실패했다");
+  w_merge($db, "dev-C", "gsub-1");
+  $rf = w_refund($db, $c["id"], "c:pre");
+  eq($rf["ok"], false, "넘긴 계정에서 환급이 성공했다 — 버린 잔량이 되살아난다");
+  eq($rf["reason"], "merged", "환급 거절 사유가 merged 가 아니다");
+  eq(w_true_balance($db, $c["id"]), 0, "환급으로 넘긴 계정의 잔량이 올랐다");
+  $db = null; rmrf($d);
+});
+
+// 리뷰 실측(Critical, 2라운드): 버림은 google_sub 을 NULL 로 남기므로(그게 표식이 필요한
+// 이유다) 같은 기기가 나중에 다른 구글로 로그인하면 claim 갈래를 탄다. 표식을 "merge_discard
+// 행이 하나라도 있는가"로 물으면 그 계정은 영원히 못 번다. 기기 토큰이 365일 유효하고
+// authStart/authPoll 이 기기 토큰만 받으므로 재로그인은 반드시 같은 기기를 지난다 — 정상 경로다.
+t("버렸다가 다시 claim 한 계정은 다시 산다 — 표식은 마지막 사건만 센다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  w_create_account($db, "dev-B", "ip2");
+  w_merge($db, "dev-B", "gsub-1");           // 버림 — merge_discard 표식이 남는다
+  $b = w_get_account($db, "dev-B");
+  ok(w_is_merged_away($db, $b["id"]), "전제가 깨졌다 — 버린 직후엔 표식이 있어야 한다");
+  eq($b["google_sub"], null, "전제가 깨졌다 — 버림은 google_sub 을 NULL 로 남긴다");
+
+  // 같은 기기가 나중에 다른 구글로 로그인한다 → claim 갈래
+  $m = w_merge($db, "dev-B", "gsub-2");
+  eq($m["ok"], true, "두 번째 구글 claim 이 실패했다");
+  eq($m["moved"], false, "claim 이 아니라 옮김으로 처리됐다");
+  $b = w_get_account($db, "dev-B");
+  eq($b["google_sub"], "gsub-2", "claim 이 google_sub 을 안 박았다");
+  ok(!w_is_merged_away($db, $b["id"]),
+     "다시 claim 한 계정이 낡은 표식 때문에 영구 동결됐다 — 아무것도 넘긴 적 없는 구글 계정이다");
+  eq(w_state($db, $b)["canCheckin"], true, "다시 claim 한 계정이 출석 버튼을 못 그린다");
+  $r = w_checkin($db, $b, null);
+  eq($r["ok"], true, "다시 claim 한 계정이 출석을 못 한다 — 영구 동결이다");
+  eq($r["granted"], 1, "출석 지급이 없다");
+  // 버려서 0, 출석으로 1 — slot(1스쿱)이 이 잔량으로 쓸 수 있는 유일한 등급이다.
+  $b = w_get_account($db, "dev-B");
+  eq(w_true_balance($db, $b["id"]), 1, "전제가 깨졌다 — 버림 0 + 출석 1 이어야 한다");
+  eq(w_spend($db, $b["id"], "slot", "c:rc", null, null)["ok"], true, "준비용 차감이 실패했다");
+  eq(w_refund($db, $b["id"], "c:rc")["ok"], true, "다시 claim 한 계정이 환급을 못 한다");
+  eq(w_true_balance($db, $b["id"]), 1, "환급이 잔량을 안 돌려놨다");
+  $db = null; rmrf($d);
+});
+
+// 같은 결함의 전염 경로 — 죽은 행이 구글 계정의 대표가 되면, 그 뒤 합류하는 기기마다
+// 시드를 버리고 죽은 계정에 붙는다(버리기는 하는데 아무도 못 번다).
+t("다시 claim 한 계정에 합류하는 기기도 정상이다 — 죽은 계정으로 빨려들지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  w_create_account($db, "dev-B", "ip2");
+  w_merge($db, "dev-B", "gsub-1");           // B 버림
+  w_merge($db, "dev-B", "gsub-2");           // B 가 gsub-2 로 되살아난다
+  $b = w_get_account($db, "dev-B");
+
+  w_create_account($db, "dev-C", "ip3");
+  $c = w_get_account($db, "dev-C");
+  $m = w_merge($db, "dev-C", "gsub-2");
+  eq($m["acct"]["id"], $b["id"], "합류 대상이 gsub-2 계정이 아니다");
+  eq($m["discarded"], 5, "합류 기기의 익명 잔량이 안 버려졌다");
+  eq(w_true_balance($db, $c["id"]), 0, "합류 기기 잔량이 안 버려졌다");
+  // 핵심: 버리는 것은 맞지만, 받는 쪽은 살아 있어야 한다.
+  $b = w_get_account($db, "dev-B");
+  ok(!w_is_merged_away($db, $b["id"]), "합류를 받은 계정이 동결됐다");
+  eq(w_state($db, $b)["canCheckin"], true, "합류를 받은 계정이 출석 버튼을 못 그린다");
+  eq(w_checkin($db, $b, null)["ok"], true,
+     "합류를 받은 계정이 못 번다 — 합류하는 기기마다 시드만 사라지는 죽은 계정이다");
+  $db = null; rmrf($d);
+});
+
+// 표식이 조건부면 마침 잔량 0으로 로그인한 기기만 표식 없이 계속 벌 수 있다.
+t("잔량 0으로 병합해도 표식은 남는다 — 그 기기도 더 못 번다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  w_create_account($db, "dev-B", "ip2");
+  $b = w_get_account($db, "dev-B");
+  // 시드 5를 전부 써서 잔량 0으로 만든 뒤 병합한다
+  w_spend($db, $b["id"], "custom", "c:z", "AAPL", null);
+  eq(w_true_balance($db, $b["id"]), 0, "전제가 깨졌다 — 잔량이 0이어야 한다");
+  $m = w_merge($db, "dev-B", "gsub-1");
+  eq($m["discarded"], 0, "버릴 것이 없는데 버렸다");
+  ok(w_is_merged_away($db, $b["id"]), "잔량 0으로 병합한 기기에 표식이 안 남았다");
+  eq(w_checkin($db, w_get_account($db, "dev-B"), null)["reason"], "merged",
+     "잔량 0으로 병합한 기기가 계속 벌 수 있다");
+  $db = null; rmrf($d);
+});
+
+t("계정 없는 기기의 병합은 조용히 성공하지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $m = w_merge($db, "dev-none", "gsub-1");
+  eq($m["ok"], false, "없는 계정으로 병합이 성공했다");
+  eq($m["reason"], "no-account", "거절 사유가 다르다");
+  eq((int)$db->query("select count(*) c from accounts")->fetch()["c"], 0, "병합이 계정을 만들었다");
   $db = null; rmrf($d);
 });
 

@@ -85,6 +85,16 @@
   // 8b 서버 원장도 이 필드를 반드시 돌려줘야 한다. 빠지면 그 안내가 조용히 사라진다.
   function checkin() { return backend ? callBackend(function () { return backend.checkin(); }) : noBackend(); }
 
+  // get/spend/refund/checkin 과 같은 이유로 callBackend 를 거친다(위 55행 주석) — 백엔드가
+  // 동기적으로 던지거나 프로미스를 reject 해도 호출부는 늘 Promise 를 받아야 한다.
+  function authStart() { return backend ? callBackend(function () { return backend.authStart(); }) : noBackend(); }
+  function authPoll(n) { return backend ? callBackend(function () { return backend.authPoll(n); }) : noBackend(); }
+  // signOut 은 원래 동기다(서버 op 없음) — 그래도 백엔드가 던지면 호출부까지 그대로 새어나가면
+  // 안 되므로 try/catch 로 삼킨다.
+  function signOut() { try { if (backend && backend.signOut) backend.signOut(); } catch (e) {} }
+  function signedIn() { return !!(backend && backend.signedIn && backend.signedIn()); }
+
   return { COSTS: COSTS, install: install, isInstalled: isInstalled, costOf: costOf,
-           newIdem: newIdem, maybeCharged: maybeCharged, get: get, spend: spend, refund: refund, checkin: checkin };
+           newIdem: newIdem, maybeCharged: maybeCharged, get: get, spend: spend, refund: refund, checkin: checkin,
+           authStart: authStart, authPoll: authPoll, signOut: signOut, signedIn: signedIn };
 });

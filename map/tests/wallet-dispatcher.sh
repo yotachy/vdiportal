@@ -45,7 +45,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$DOCROOT"
-cp "$MAP_ROOT/wallet-api.php" "$MAP_ROOT/wallet-lib.php" "$DOCROOT/"
+cp "$MAP_ROOT/wallet-api.php" "$MAP_ROOT/wallet-lib.php" "$MAP_ROOT/wallet-auth.php" "$DOCROOT/"
 : > "$BODIES"
 
 # 서버 자체는 display_errors 를 켜 둔다 — wallet-api.php 첫 줄의 ini_set 이 유일한 방어막이
@@ -280,6 +280,190 @@ chk "GET 은 405 다" "$MC" "405"
 post '{"op":"nope"}' "$TOK_A"
 chk "모르는 op 는 400 이다" "$CODE" "400"
 chk "모르는 op 사유" "$(jget "$BODY" reason)" "unknown-op"
+
+# ── authStart / authPoll(미완 경로) ────────────────────────────────────────
+# authStart — OAuth 설정 파일이 없으면 무중단 스위치가 켜진다(이 하네스의 DOCROOT 에는
+# forge_google_oauth.json 을 복사하지 않는다).
+post '{"op":"authStart"}' "$TOK_A"
+chk "설정 없으면 authStart 가 auth-disabled 다" "$(jget "$BODY" reason)" "auth-disabled"
+chk "그래도 200 이다 — 로그인은 부가 기능이지 오류가 아니다" "$CODE" "200"
+
+# 토큰 없이는 못 부른다
+CODE=$(curl -s -o "$WORK/out" -w '%{http_code}' -X POST -H "Content-Type: application/json" \
+            --data '{"op":"authStart"}' "$BASE/wallet-api.php")
+chk "토큰 없는 authStart 는 401 이다" "$CODE" "401"
+
+# 모르는 논스로 폴링 — 논스만 알면 남의 계정을 탈취하는 구멍이다
+post '{"op":"authPoll","nonce":"someone-elses-nonce"}' "$TOK_A"
+chk "모르는 논스는 401 이다" "$CODE" "401"
+chk "모르는 논스 401 의 사유" "$(jget "$BODY" reason)" "unauthorized"
+
+# authStart 가 auth-disabled 라 실제 논스를 API 로 못 만든다 — DB 에 직접 심어
+# "존재하지만 남의 기기" 케이스를 재현한다. 이게 없으면 authPoll 의 device_id 비교를
+# 지워도(항상 unauthorized 를 내는 "모르는 논스" 검사만으로는) 안 걸린다 — row 가
+# null 이라 어차피 401 이기 때문이다. 여기서는 row 가 있어야 device_id 비교 자체를 시험한다.
+NOW_ISO=$(php -r 'echo gmdate("c");')
+NONCE_B="dispatcher-nonce-for-b-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_B', '$DEV_B', null, '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_B\"}" "$TOK_A"
+chk "남의 기기 논스로 폴링하면 401 이다 — device_id 대조가 살아 있어야 한다" "$CODE" "401"
+chk "남의 기기 논스 401 의 사유도 같다 — 존재 여부를 알려주면 안 된다" "$(jget "$BODY" reason)" "unauthorized"
+
+# 자기 기기의 미완 논스는 pending:true 다
+NONCE_A="dispatcher-nonce-for-a-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_A', '$DEV_A', null, '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A\"}" "$TOK_A"
+chk "자기 기기 논스 폴링은 200 이다" "$CODE" "200"
+chk "미완 논스는 pending:true 다" "$(jget "$BODY" pending)" "true"
+
+# ── authPoll 완료 경로 — 병합 + 계정 토큰 발급 ────────────────────────────
+# authStart 가 auth-disabled 라 브라우저 왕복을 못 만든다. 구글이 채운 논스를 DB 에
+# 직접 심어 "완료된 논스로 폴링" 상태를 재현한다.
+BAL_A_BEFORE=$(post '{"op":"get"}' "$TOK_A"; jget2 "$BODY" state balance)
+NONCE_A2="dispatcher-nonce-done-a-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_A2', '$DEV_A', 'gsub-dispatch-1', '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A2\"}" "$TOK_A"
+chk "완료된 논스 폴링은 200 이다" "$CODE" "200"
+chk "완료된 논스는 pending:false 다" "$(jget "$BODY" pending)" "false"
+chk "첫 병합은 버린 것이 없다" "$(jget "$BODY" discarded)" "0"
+chk "첫 병합에서 잔량이 그대로다" "$(jget2 "$BODY" state balance)" "$BAL_A_BEFORE"
+chk "계정에 google_sub 이 박혔다" "$(dbq "select google_sub from accounts where id='$ACCT_A'")" "gsub-dispatch-1"
+ACCT_TOK=$(jget "$BODY" token)
+[ "$ACCT_TOK" != "<none>" ] && [ -n "$ACCT_TOK" ] && ok_ || bad_ "authPoll 이 계정 토큰을 안 줬다"
+# 발급된 것이 계정 토큰(a:)인지 — 기기 토큰을 그대로 돌려주면 로그인이 기기에 계속 묶인다.
+chk "발급된 토큰의 주체는 a:<계정id> 다" \
+    "$(php -r 'require $argv[1]; $s = w_token_read($argv[2], $argv[3]); echo $s ? $s["type"] . ":" . $s["id"] : "<bad>";' \
+        "$DOCROOT/wallet-lib.php" "$DATA" "$ACCT_TOK")" "acct:$ACCT_A"
+
+# 논스는 단회용이다 — 안 태우면 같은 논스로 병합을 계속 다시 돌릴 수 있다.
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A2\"}" "$TOK_A"
+chk "쓴 논스로 다시 폴링하면 401 이다" "$CODE" "401"
+
+# 계정 토큰이 공용 인증 게이트를 통과한다(이 태스크가 문을 넓힌 지점)
+post '{"op":"get"}' "$ACCT_TOK"
+chk "계정 토큰으로 get 이 200 이다" "$CODE" "200"
+chk "계정 토큰 get 잔량이 같은 계정을 본다" "$(jget2 "$BODY" state balance)" "$BAL_A_BEFORE"
+
+# …그러나 authStart·authPoll 은 여전히 기기 토큰 전용이다. 게이트가 넓어진 순간
+# 이 두 op 가 조용히 계정 토큰을 받기 시작한다(그러면 논스가 남의 기기 이름으로 발급된다).
+# 가드를 지우면 authStart 는 200 auth-disabled, authPoll 은 200 pending 이 되어 아래가 빨개진다.
+post '{"op":"authStart"}' "$ACCT_TOK"
+chk "계정 토큰 authStart 는 401 이다 — 논스는 기기의 것이다" "$CODE" "401"
+chk "계정 토큰 authStart 401 의 사유" "$(jget "$BODY" reason)" "unauthorized"
+NONCE_A3="dispatcher-nonce-guard-a-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_A3', '$DEV_A', null, '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A3\"}" "$ACCT_TOK"
+chk "계정 토큰 authPoll 은 401 이다" "$CODE" "401"
+chk "계정 토큰 authPoll 401 의 사유" "$(jget "$BODY" reason)" "unauthorized"
+
+# 두 번째 기기(B)가 같은 구글로 들어온다 — 익명 잔량은 버려지고 A 의 잔량은 그대로다.
+BAL_B_BEFORE=$(post '{"op":"get"}' "$TOK_B"; jget2 "$BODY" state balance)
+NONCE_B2="dispatcher-nonce-done-b-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_B2', '$DEV_B', 'gsub-dispatch-1', '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_B2\"}" "$TOK_B"
+chk "두 번째 기기 폴링도 200 이다" "$CODE" "200"
+chk "두 번째 기기의 익명 잔량은 버려진다" "$(jget "$BODY" discarded)" "$BAL_B_BEFORE"
+chk "두 번째 기기가 받은 상태는 구글 계정의 잔량이다 — 합치지 않는다" "$(jget2 "$BODY" state balance)" "$BAL_A_BEFORE"
+chk "B 계정의 원장 합이 0 이다 — 캐시만 내리지 않았다" \
+    "$(dbq "select coalesce(sum(delta),0) from ledger where account_id='$ACCT_B'")" "0"
+chk "구글 계정으로 된 행은 하나뿐이다" "$(dbq "select count(*) from accounts where google_sub='gsub-dispatch-1'")" "1"
+
+# 넘긴 기기 계정은 더 못 번다 — 기기 토큰이 365일 살아 있으므로, 안 막으면 구글 지갑과
+# 나란히 도는 익명 지갑이 매일 1개씩 쌓인다(기기를 늘릴수록 수입원이 늘어난다).
+# 어제 출석한 것으로 되돌려 "오늘 출석 가능" 상태를 만든 뒤에도 거절되어야 한다.
+YESTERDAY=$(php -r 'echo gmdate("Y-m-d", time() - 86400);')
+dbexec "update accounts set last_checkin = '$YESTERDAY' where id='$ACCT_B'"
+post '{"op":"get"}' "$TOK_B"
+chk "넘긴 기기 계정은 출석 버튼을 그리지 않는다" "$(jget2 "$BODY" state canCheckin)" "false"
+post '{"op":"checkin"}' "$TOK_B"
+chk "넘긴 기기 계정의 출석은 200 이되 지급이 없다" "$CODE" "200"
+chk "넘긴 기기 계정의 출석 사유" "$(jget "$BODY" reason)" "merged"
+chk "넘긴 기기 계정에 스쿱이 지급되지 않았다" "$(jget "$BODY" granted)" "0"
+chk "넘긴 기기 계정의 원장 합은 여전히 0 이다" \
+    "$(dbq "select coalesce(sum(delta),0) from ledger where account_id='$ACCT_B'")" "0"
+chk "구글 계정 잔량도 그대로다" "$(dbq "select coalesce(sum(delta),0) from ledger where account_id='$ACCT_A'")" "$BAL_A_BEFORE"
+
+# 이미 구글 A 에 묶인 기기에서 다른 구글로 로그인 — 계정을 빼앗기지 않는다.
+NONCE_A4="dispatcher-nonce-other-a-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_A4', '$DEV_A', 'gsub-dispatch-2', '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A4\"}" "$TOK_A"
+chk "다른 구글로는 기기 계정을 못 가져간다 — 409" "$CODE" "409"
+chk "그 409 의 사유" "$(jget "$BODY" reason)" "device-claimed"
+chk "google_sub 이 덮이지 않았다" "$(dbq "select google_sub from accounts where id='$ACCT_A'")" "gsub-dispatch-1"
+
+# ── wallet-auth.php — 로그인의 브라우저 구간(리다이렉트 + 콜백) ──────────────────────
+# 구글에는 요청하지 않는다. 302 는 브라우저더러 구글로 가라는 헤더일 뿐 서버가 구글을
+# 부르지 않고, 토큰 교환(진짜 구글 요청)은 state 검증을 통과해야만 실행되므로 아래
+# "모르는 state" 검사들도 그 앞에서 400 으로 끊긴다 — 실제 네트워크 호출은 없다.
+auth_get() {
+  # $1=쿼리스트링(없으면 빈 문자열). CODE/BODY 를 채우고 본문을 경로유출 검사망($BODIES)에 넣는다.
+  local qs="$1"
+  CODE=$(curl -s -o "$WORK/out" -w '%{http_code}' "$BASE/wallet-auth.php${qs:+?$qs}")
+  BODY=$(cat "$WORK/out")
+  printf '%s\n' "$BODY" >> "$BODIES"
+}
+
+# 설정 파일이 없는 상태(이 하네스의 DOCROOT 에는 아직 forge_google_oauth.json 이 없다 —
+# 지금 프로덕션과 같은 상태)의 동작만 먼저 본다.
+auth_get "nonce=whatever"
+chk "설정 없으면 wallet-auth 는 503 이다" "$CODE" "503"
+chk_no "설정 없음 503 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
+
+auth_get ""
+chk "논스도 code&state 도 없이 열면 400 이다(설정 여부와 무관 — 요청 모양부터 본다)" "$CODE" "400"
+chk_no "논스 없음 400 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
+
+auth_get "code=x&state=y"
+chk "설정 없으면 콜백(code&state)도 503 이다" "$CODE" "503"
+
+# ── 설정이 있는 상태 — 가짜 client_id/secret 을 심는다. ①(nonce) 경로는 구글에
+# 아무 것도 안 보내고 Location 헤더만 만들므로 안전하다. ②(콜백) 경로는 state 검증을
+# 통과해야 curl 이 실행되므로, 아래에서는 항상 모르는 state 를 줘서 그 앞에서 끊는다.
+cat > "$DOCROOT/forge_google_oauth.json" <<'EOF'
+{"client_id":"dispatcher-fake-client-id","client_secret":"dispatcher-fake-secret"}
+EOF
+
+auth_get "nonce=no-such-nonce"
+chk "설정이 있어도 모르는 논스는 400 이다 — w_nonce_read 가 state 를 맹신하지 않고 먼저 걸러야 한다" "$CODE" "400"
+chk_no "모르는 논스 400 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
+
+NOW_ISO3=$(php -r 'echo gmdate("c");')
+AUTH_NONCE="dispatcher-authpage-nonce-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$AUTH_NONCE', '$DEV_A', null, '$NOW_ISO3', 0)"
+HDRS=$(curl -s -D - -o "$WORK/out" "$BASE/wallet-auth.php?nonce=$AUTH_NONCE")
+LOC=$(printf '%s' "$HDRS" | grep -i '^location:' | tr -d '\r')
+case "$LOC" in
+  *"https://accounts.google.com/o/oauth2/v2/auth?"*"state=$AUTH_NONCE"*) ok_ ;;
+  *) bad_ "유효한 논스가 구글 로그인 화면으로 리다이렉트되지 않는다 — got '$LOC'" ;;
+esac
+
+auth_get "code=fake-code&state=no-such-nonce"
+chk "콜백도 모르는 state 는 400 이다 — 토큰 교환(진짜 구글 요청) 전에 걸러야 한다" "$CODE" "400"
+chk_no "모르는 state 400 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
+
+# 이미 완료된(google_sub 있음) 논스로 콜백을 다시 연다 — 태우기는 authPoll 이 병합
+# 뒤에만 하므로 w_nonce_read 는 이 행을 여전히 "산" 것으로 돌려준다. 여기서 다시
+# 걸러 두지 않으면(가드가 curl_init 전에 있어야) 같은 state 를 반복 재생(뒤로가기·
+# URL 재사용)할 때마다 진짜 토큰 교환 요청을 또 만든다 — 인증 없는 공개 파일의
+# 남용 표면. 응답이 400 으로 즉시 끝나는 것 자체가 curl_init 에 닿지 않았다는
+# 증거다(닿았다면 구글이 실재하는 호스트라 12초 타임아웃 안에서 다른 모양의
+# 실패거나 훨씬 느리게 끝난다).
+NOW_ISO4=$(php -r 'echo gmdate("c");')
+DONE_NONCE="dispatcher-authpage-done-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$DONE_NONCE', '$DEV_A', 'gsub-already-done', '$NOW_ISO4', 0)"
+auth_get "code=fake-code&state=$DONE_NONCE"
+chk "이미 완료된 논스로 콜백을 다시 열면 400 이다 — 토큰 교환을 또 만들지 않는다" "$CODE" "400"
+chk_no "완료된 논스 재생 400 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
+chk "완료된 논스를 재생해도 기록된 sub 은 그대로다 — 재생이 값을 바꾸지 않는다" \
+    "$(dbq "select google_sub from auth_nonce where nonce='$DONE_NONCE'")" "gsub-already-done"
+
+rm -f "$DOCROOT/forge_google_oauth.json"
+
+# ini_set(display_errors,0) 이 첫 출력보다 먼저 와야 한다 — wallet-api.php 와 같은 이유.
+AUTH_INI_LINE=$(grep -n 'ini_set("display_errors", *"0")' "$DOCROOT/wallet-auth.php" | head -1 | cut -d: -f1)
+AUTH_HDR_LINE=$(grep -n '^\s*header(' "$DOCROOT/wallet-auth.php" | head -1 | cut -d: -f1)
+if [ -n "$AUTH_INI_LINE" ] && [ -n "$AUTH_HDR_LINE" ] && [ "$AUTH_INI_LINE" -lt "$AUTH_HDR_LINE" ]; then ok_
+else bad_ "wallet-auth.php 가 첫 출력 전에 display_errors 를 끄지 않는다"; fi
 
 # ── IP 해시는 비밀키가 들어간 HMAC 이다 ────────────────────────────────────
 # 기대값을 구현이 아니라 바깥(비밀키 파일 + 알려진 REMOTE_ADDR)에서 계산한다.
