@@ -114,6 +114,13 @@
     // authStart 가 두 번 나가고, 각자 다른 nonce 로 브라우저를 두 번 열고, 각자의 poll() 이
     // 같은 authMsg 를 두고 경합한다(리뷰 실측).
     var signingIn = false;
+    // auth-disabled 판정은 render() 생애주기 동안 기억한다 — 매 draw() 마다 signedIn() 만
+    // 보고 로그인 행을 새로 조립하면, 판정 이전에 짜인 그 조립 로직이 죽은 버튼을 매번
+    // 되살린다(리뷰 실측: 체크인·로그아웃처럼 draw() 를 다시 부르는 아무 동작 후에나 재발).
+    var authDisabled = false;
+    // draw() 가 마지막으로 그린 state — auth-disabled 판정처럼 draw() 밖(startSignIn)에서
+    // 화면을 다시 그려야 할 때, 그 사이 값을 몰라 잔량을 지어내거나 지우지 않기 위해서다.
+    var lastState = null;
 
     // startSignIn/poll 은 draw() 를 부를 수 있어야 해서(로그인 완료 시 화면을 새로 그린다)
     // draw() 와 같은 render() 클로저 안에 둔다.
@@ -125,10 +132,14 @@
         if (myGen !== GEN) return;   // 이 화면은 이미 떠났다 — 고아 콜백이 손댈 DOM 이 없다
         if (!r.ok) {
           signingIn = false;
-          // auth-disabled = 서버에 자격증명이 없다. 눌러도 아무 일 없는 버튼을 남기지 않는다.
-          // "Waiting for the browser…" 도 함께 지운다 — 안 지우면 버튼 없이 그 문구만 영원히
-          // 남는다(이 경로가 사실상 모든 사용자의 기본 경험이다 — 서버에 구글 자격증명이 없다).
-          if (r.reason === "auth-disabled") { row.parentNode.removeChild(row); msg.textContent = ""; return; }
+          if (r.reason === "auth-disabled") {
+            // 서버에 자격증명이 없다 — 오늘은 전 사용자의 기본 경험이다(forge_google_oauth.json
+            // 미배포). 죽은 버튼 대신 안정된 안내로 통째로 다시 그린다 — authDisabled 를 세워
+            // 두지 않으면 다음 draw()(체크인·로그아웃)가 이 버튼을 다시 그려 넣는다.
+            authDisabled = true;
+            draw(lastState, "");
+            return;
+          }
           msg.textContent = MSStr.t.wSignInFailed;
           return;
         }
@@ -163,6 +174,7 @@
     }
 
     function draw(state, msg) {
+      lastState = state;
       root.innerHTML = "";
       var scr = MSUi.el("div", "scr");
 
@@ -203,8 +215,13 @@
         onTap: function () {
           MSWallet.checkin().then(function (r) {
             // 잔량을 못 읽었을 땐(오프라인 등) "cap reached" 처럼 아무것도 안 되는 이유를 지어내지
-            // 않는다 — "연결이 안 된다"고 사실대로 말한다(I-I).
-            draw(r.state, !r.ok ? MSStr.t.walUnavailable : (r.capped ? MSStr.t.walCapped : ""));
+            // 않는다 — "연결이 안 된다"고 사실대로 말한다(I-I). 단 merged 는 연결 문제가 아니다 —
+            // 지갑이 구글 계정으로 넘어갔을 뿐이다. 둘을 같은 문구로 묶으면 "로그아웃했더니
+            // 스쿱이 사라졌다"로 읽힌다(리뷰 실측: walUnavailable 을 쓰면 잔량이 0으로 보이는
+            // 동시에 "연결을 확인하라"고 해서, 실제로는 옮겨졌을 뿐인 잔량을 잃어버린 것처럼 읽힌다).
+            var note = r.ok ? (r.capped ? MSStr.t.walCapped : "")
+              : (r.reason === "merged" ? MSStr.t.wMerged : MSStr.t.walUnavailable);
+            draw(r.state, note);
             refreshPills();   // 2단이면 옆 칸 헤더의 필이 옛 잔량을 들고 있다
           });
         }
@@ -225,21 +242,37 @@
 
       // 구글 로그인 행(Phase 8c) — signedIn() 에 따라 로그인/로그아웃 하나만 뜬다.
       var authSec = MSUi.el("div", "wal-sec");
-      var authRow = MSUi.el("button", "w-auth");
-      authRow.type = "button";
-      var authMsg = MSUi.el("div", "w-sub");
-      if (MSWallet.signedIn()) {
-        authRow.textContent = MSStr.t.wSignOut;
-        authRow.addEventListener("click", function () { MSWallet.signOut(); draw(state, ""); });
+      if (authDisabled) {
+        // 죽은 버튼 대신 안정된 안내 하나 — wSignInHint("재설치해도 스쿱을 지킨다")는 지금
+        // 탭할 것이 없는데 남으면 허공에 뜬 약속이 된다(리뷰 실측: 힌트만 매달려 있었다).
+        authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wSignInUnavailable));
       } else {
-        authRow.textContent = MSStr.t.wSignIn;
-        authRow.addEventListener("click", function () { startSignIn(authRow, authMsg); });
+        var authRow = MSUi.el("button", "w-auth");
+        authRow.type = "button";
+        var authMsg = MSUi.el("div", "w-sub");
+        if (MSWallet.signedIn()) {
+          authRow.textContent = MSStr.t.wSignOut;
+          authRow.addEventListener("click", function () {
+            MSWallet.signOut();
+            // state 를 재사용하지 않는다 — 로그아웃 직후엔 이 기기의 잔량이 무엇인지 다시
+            // 물어야 한다(render() 맨 아래의 최초 로드와 같은 두 줄). 재사용하면 로그아웃
+            // 후에도 옛 계정 잔량이 화면에 남고, canCheckin 도 옛 값 그대로라 눌러도 항상
+            // 실패하는 출석 행이 남는다(리뷰 실측: get() 호출 0회, 잔량 12 고정, is-off=false).
+            // 이 재조회가 K_TOK 갱신 부작용도 겸한다 — wallet-http.js 를 안 고쳐도 되는 이유는
+            // 태스크 6 보고서 참고.
+            draw(null, "");
+            MSWallet.get().then(function (r) { draw(r.state, (!r.ok || !r.state) ? MSStr.t.walUnavailable : ""); });
+          });
+        } else {
+          authRow.textContent = MSStr.t.wSignIn;
+          authRow.addEventListener("click", function () { startSignIn(authRow, authMsg); });
+        }
+        authSec.appendChild(authRow);
+        // 워치리스트가 로그인해도 안 따라온다는 것을 숨기지 않는다(설계서 "동기화 범위" 결정).
+        authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wSignInHint));
+        authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wWatchlistLocal));
+        authSec.appendChild(authMsg);
       }
-      authSec.appendChild(authRow);
-      // 워치리스트가 로그인해도 안 따라온다는 것을 숨기지 않는다(설계서 "동기화 범위" 결정).
-      authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wSignInHint));
-      authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wWatchlistLocal));
-      authSec.appendChild(authMsg);
       scr.appendChild(authSec);
 
       root.appendChild(scr);

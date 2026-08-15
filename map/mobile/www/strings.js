@@ -160,6 +160,12 @@
     wDeviceClaimed: "This device is already linked to a different Google account. Reinstalling the app gives it a new device id you can sign in with.",
     wMergeDiscarded: "This device had {n} Scoops. Your account balance is the one that counts.",
     wWatchlistLocal: "Your ticker list stays on this device.",
+    // merged: 이 기기의 익명 지갑은 구글 계정으로 넘어갔다 — 연결 문제가 아니다.
+    // walUnavailable("확인이 안 된다")과 섞으면 "로그아웃했더니 스쿱이 사라졌다"로 읽힌다.
+    wMerged: "This device's Scoops now live on your Google account — sign in again to see them.",
+    // auth-disabled: 서버에 자격증명이 없다 — 오늘은 전 사용자의 기본 경험이다. 버튼을
+    // 지운 자리에 안정적으로 남기는 문구(재조립될 때마다 되살아나지 않는다).
+    wSignInUnavailable: "Sign-in is not available right now.",
 
     // 단계 선택 시트 (Phase 8a)
     tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Full", tsCustom: "Custom",
