@@ -553,17 +553,36 @@ ssv_get "$Q&reward_amount=999"
 chk "덧붙여 덮어쓴 콜백은 200 이다" "$CODE" "200"
 chk "덧붙여 덮어쓴 콜백이 적립하지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
 
-# 서명 범위 안에 있어도 배열이면 값이 아니다. (string) 캐스트·strlen 에 배열이 닿으면
+# 서명 범위 안에 있어도 배열이면 값이 아니다. preg_match·strlen·ctype_digit 에 배열이 닿으면
 # TypeError 로 500 이 나는데, 500 은 구글이 재시도하는 실패라 위조 폭주가 그대로 재시도
 # 폭주가 된다 — 필수 필드는 "있는가"만이 아니라 "문자열인가"까지 봐야 한다.
+#
+# ⚠ 배열을 **스칼라와 나란히** 두면(custom_data=A&custom_data[]=x) 페어 6·키 5 가 되어 아래
+# 중복 개수 게이트가 먼저 거절한다 — is_string 가드에는 닿지도 못한다. 즉 그 모양으로 쓰면
+# 이 검사는 자기 주석이 말하는 것을 더 이상 검사하지 않는다(리뷰 실측: is_string 을 지워도
+# 이 셋이 전부 초록이었다). 그래서 **스칼라 없는 단독 배열**로 만든다 — 페어 5·키 5 라
+# 개수 게이트를 통과해 실제로 is_string 앞에 선다.
 # (ad_unit 은 라벨일 뿐이라 배열이면 빈 값으로 떨어뜨리고 지급은 계속한다 — 여기 넣지 않는다.)
 for FLD in custom_data transaction_id reward_amount timestamp; do
-  Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-arr-$FLD&$FLD[]=x")
+  CD="custom_data=$ACCT_A"; AMT="reward_amount=1"; TSF="timestamp=$TS"; TX="transaction_id=ssv-arrsolo-$FLD"
+  case "$FLD" in
+    custom_data)    CD="custom_data[]=x" ;;
+    reward_amount)  AMT="reward_amount[]=x" ;;
+    timestamp)      TSF="timestamp[]=x" ;;
+    transaction_id) TX="transaction_id[]=x" ;;
+  esac
+  Q=$(ssv_sign "ad_unit=quick&$CD&$AMT&$TSF&$TX")
   ssv_get "$Q"
-  chk "서명 안의 $FLD 가 배열이어도 200 이다(500 이면 재시도 폭주다)" "$CODE" "200"
-  chk "서명 안의 $FLD 가 배열일 때 본문이 비어 있다" "$BODY" ""
-  chk "서명 안의 $FLD 가 배열이면 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+  chk "단독 배열 $FLD 는 200 이다(500 이면 재시도 폭주다)" "$CODE" "200"
+  chk "단독 배열 $FLD 일 때 본문이 비어 있다" "$BODY" ""
+  chk "단독 배열 $FLD 는 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
 done
+# 스칼라와 배열을 나란히 둔 모양도 물론 막혀야 한다 — 다만 그건 개수 게이트가 잡는다
+# (페어 6·키 5). 위 단독 배열과 여기가 서로 다른 문을 지킨다는 사실 자체를 남겨 둔다.
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-arrdup&custom_data[]=x")
+ssv_get "$Q"
+chk "스칼라 옆의 배열은 개수 게이트가 잡는다 — 200 이고 적립 없음" "$CODE" "200"
+chk "스칼라 옆의 배열이 적립하지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
 
 # 서명 범위 "안"의 중복 키. parse_str 은 마지막 값을 취하고, w_ssv_params_faithful 은 똑같이
 # 접힌 두 파싱본을 비교하므로 중복은 양쪽 모두에게 보이지 않는다 — 서명된 문장 안에서 값이
@@ -601,18 +620,28 @@ done
 
 # 반대 방향 — 정상 콜백을 잘못 막으면 기능이 조용히 죽는다(구글은 200 을 받고 재시도하지 않는다).
 # parse_str 이 무시하는 빈 페어와, 값 없는 키는 중복이 아니다.
-Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&&reward_amount=1&timestamp=$TS&transaction_id=ssv-empty-1")
-ssv_get "$Q"
-chk "빈 페어가 하나 있어도 정상 지급된다" "$(ssv_bal "$ACCT_A")" "$((BAL_NOW + 1))"
-BAL_NOW=$((BAL_NOW + 1))
-Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&&reward_amount=1&&timestamp=$TS&transaction_id=ssv-empty-2")
-ssv_get "$Q"
-chk "빈 페어가 둘이어도 정상 지급된다 — 빈 문자열끼리 부딪혀 막으면 안 된다" "$(ssv_bal "$ACCT_A")" "$((BAL_NOW + 1))"
-BAL_NOW=$((BAL_NOW + 1))
-Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&extra&reward_amount=1&timestamp=$TS&transaction_id=ssv-valueless-1")
-ssv_get "$Q"
-chk "값 없는 키가 있어도 정상 지급된다 — 구글이 파라미터를 늘릴 수 있다" "$(ssv_bal "$ACCT_A")" "$((BAL_NOW + 1))"
-BAL_NOW=$((BAL_NOW + 1))
+#
+# ⚠ 지급되는 검사는 **케이스마다 새 계정**을 쓴다. 한 계정에 쌓으면 일 상한(8)이 다가오면서
+# "지급됐는가"가 게이트 때문인지 상한 때문인지 갈리지 않게 된다 — 이 파일에서 이미 두 번
+# 당한 함정이다(쓰레기 금액 9종, 상한을 다 쓴 계정으로 잰 503). 시드 5 를 먼저 확인해
+# 계정이 실제로 만들어졌음을 못박고, 지급 후 6 을 본다.
+ssv_new_acct() {   # $1 = 이름표 → 계정 id
+  local dev="dev-$1-0123456789abcdef0123456789abcdef"
+  ip_cap_reset
+  post "{\"op\":\"hello\",\"deviceId\":\"$dev\"}"
+  php -r 'echo substr(sha1($argv[1]), 0, 16);' "$dev"
+}
+for CASE in "empty1:&&reward_amount=1&timestamp=$TS" \
+            "empty2:&&reward_amount=1&&timestamp=$TS" \
+            "valueless:&extra&reward_amount=1&timestamp=$TS"; do
+  NAME="${CASE%%:*}"; TAIL="${CASE#*:}"
+  A=$(ssv_new_acct "$NAME")
+  chk "$NAME 용 새 계정이 시드 5 를 받았다" "$(ssv_bal "$A")" "5"
+  Q=$(ssv_sign "ad_unit=quick&custom_data=$A$TAIL&transaction_id=ssv-$NAME")
+  ssv_get "$Q"
+  chk "$NAME 모양은 정상 지급된다 — 과잉 차단은 보상을 조용히 없앤다" "$(ssv_bal "$A")" "6"
+  chk "$NAME 지급이 실제로 기록됐다" "$(dbq "select granted from ad_grants where transaction_id='ssv-$NAME'")" "1"
+done
 
 # custom_data 는 계정 id 다 — 모양이 정확히 정해져 있다(sha1 앞 16자, 소문자 16진).
 # ⚠ 이 검사들이 "모양 가드가 살아 있다"를 증명하지는 못한다. 계정 id 는 정의상 전부 hex16 이라
@@ -753,6 +782,20 @@ chk "재시도가 보상을 실제로 지급했다 — 503 은 '나중에 다시
 # 엔드포인트가 받아들이는 계정 id 의 집합을 '정확히' 고정한다.
 if grep -qE 'preg_match\([^)]*\^\[0-9a-f\]\{16\}\$' "$DOCROOT/wallet-ssv.php"; then ok_
 else bad_ "wallet-ssv.php 가 custom_data 를 계정 id 모양(^[0-9a-f]{16}$)으로 못박지 않는다"; fi
+
+# ── 이 관문이 스스로 눈멀지 않았는가 ────────────────────────────────────────────
+# 위 검사 대부분이 ACCT_A 한 계정을 쓴다. "적립되지 않았다"류 검사는 계정이 일 상한이나
+# 지갑 상한에 닿는 순간부터 **가드가 없어도 통과한다** — 검사는 초록인데 아무것도 안 지키는
+# 상태가 된다. 이 파일에서 이미 두 번 겪었다(쓰레기 금액 9종을 한 계정에 몰아 9번째가 상한에
+# 걸린 일 · 상한을 다 쓴 계정으로 잰 503 검사가 "몰래 지급" 뮤테이션을 통과시킨 일).
+# 그래서 여유를 검사 자체로 못박는다 — 검사를 더 붙이다 여유가 마르면 여기서 먼저 빨개진다.
+A_GRANTS=$(dbq "select count(*) from ad_grants where account_id='$ACCT_A'")
+A_BAL=$(ssv_bal "$ACCT_A")
+W_CAP_N=$(php -r 'require $argv[1]; echo W_CAP;' "$DOCROOT/wallet-lib.php")
+if [ "$((CAP_N - A_GRANTS))" -ge 3 ]; then ok_
+else bad_ "ACCT_A 의 일 상한 여유가 $((CAP_N - A_GRANTS))회뿐이다($A_GRANTS/$CAP_N) — 이 계정을 쓰는 '적립 안 됨' 검사들이 상한 때문에 통과하기 시작한다. 지급되는 검사는 새 계정(ssv_new_acct)으로 옮길 것"; fi
+if [ "$((W_CAP_N - A_BAL))" -ge 3 ]; then ok_
+else bad_ "ACCT_A 의 지갑 여유가 $((W_CAP_N - A_BAL))개뿐이다($A_BAL/$W_CAP_N) — 지갑 상한이 '적립 안 됨' 검사를 대신 통과시킨다"; fi
 
 # 키 캐시·시도 표식은 웹루트 밖에 있어야 한다(원장과 같은 규율)
 SSV_LEAK=$(find "$WORK/www" -name "ssv_keys_*" | head -3)
