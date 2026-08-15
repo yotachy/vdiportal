@@ -94,7 +94,13 @@
   function signOut() { try { if (backend && backend.signOut) backend.signOut(); } catch (e) {} }
   function signedIn() { return !!(backend && backend.signedIn && backend.signedIn()); }
 
+  // get/spend/refund/checkin/authStart/authPoll 과 같은 이유로 callBackend 를 거친다(위 55행
+  // 주석) — 백엔드가 동기적으로 던지거나 프로미스를 reject 해도 호출부는 늘 Promise 를 받는다.
+  function adConfig() { return backend ? callBackend(function () { return backend.adConfig(); }) : noBackend(); }
+  function adState() { return backend ? callBackend(function () { return backend.adState(); }) : noBackend(); }
+
   return { COSTS: COSTS, install: install, isInstalled: isInstalled, costOf: costOf,
            newIdem: newIdem, maybeCharged: maybeCharged, get: get, spend: spend, refund: refund, checkin: checkin,
-           authStart: authStart, authPoll: authPoll, signOut: signOut, signedIn: signedIn };
+           authStart: authStart, authPoll: authPoll, signOut: signOut, signedIn: signedIn,
+           adConfig: adConfig, adState: adState };
 });

@@ -234,6 +234,18 @@ if ($op === "get") {
   $r = w_checkin($db, $acct, null);
   w_out(array("ok" => $r["ok"], "granted" => $r["granted"], "capped" => $r["capped"], "reason" => $r["reason"],
               "state" => w_state($db, w_get_account($db, $dev))));
+} elseif ($op === "adConfig") {
+  $u = w_ad_units($W_DIR);
+  if (!$u) w_out(array("ok" => false, "reason" => "ads-disabled"));
+  // customData 는 SSV 콜백의 custom_data 로 그대로 되돌아올 값이다(AdMob
+  // setServerSideVerificationOptions 가 그 이름을 쓴다) — wallet-ssv.php 가 계정 id 모양
+  // (^[0-9a-f]{16}$) 이 아니면 콜백 전체를 조용히 버리므로(빈 200, 로그 없음, 구글 재시도 없음),
+  // $acct["id"] 를 다른 값으로 감싸거나 조합하면 그 계정의 모든 광고 보상이 말 없이 사라진다.
+  // 그래서 여기서 가공하지 않고 그대로 내보낸다 — 이 값이 바로 w_account_id() 의 결과다.
+  w_out(array("ok" => true, "quick" => $u["quick"], "full" => $u["full"], "customData" => $acct["id"]));
+} elseif ($op === "adState") {
+  $s = w_ad_state($db, $acct["id"]);
+  w_out(array("ok" => true, "remaining" => $s["remaining"], "nextAt" => $s["nextAt"]));
 }
 w_out(array("ok" => false, "reason" => "unknown-op"), 400);
 

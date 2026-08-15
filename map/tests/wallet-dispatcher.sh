@@ -471,6 +471,148 @@ AUTH_HDR_LINE=$(grep -n '^\s*header(' "$DOCROOT/wallet-auth.php" | head -1 | cut
 if [ -n "$AUTH_INI_LINE" ] && [ -n "$AUTH_HDR_LINE" ] && [ "$AUTH_INI_LINE" -lt "$AUTH_HDR_LINE" ]; then ok_
 else bad_ "wallet-auth.php 가 첫 출력 전에 display_errors 를 끄지 않는다"; fi
 
+# ── wallet-api.php — adConfig / adState (8d 광고 무중단 스위치) ────────────────────
+# ad_units.json 이 없는 상태 — 지금 프로덕션과 같다. 유닛 ID 는 저장소에 없다(넣으면 남이
+# 우리 계정으로 광고를 띄운다). 광고 없음은 오류가 아니다 — 200 으로 화면이 광고 줄을 숨긴다.
+AD_UNITS="$DATA/ad_units.json"
+post '{"op":"adConfig"}' "$TOK_A"
+chk "설정 없으면 adConfig 는 ads-disabled 다" "$(jget "$BODY" reason)" "ads-disabled"
+chk "그래도 200 이다 — 광고 없음은 오류가 아니다" "$CODE" "200"
+
+CODE=$(curl -s -o "$WORK/out" -w '%{http_code}' -X POST -H "Content-Type: application/json" \
+            --data '{"op":"adConfig"}' "$BASE/wallet-api.php")
+chk "토큰 없는 adConfig 는 401 이다" "$CODE" "401"
+CODE=$(curl -s -o "$WORK/out" -w '%{http_code}' -X POST -H "Content-Type: application/json" \
+            --data '{"op":"adState"}' "$BASE/wallet-api.php")
+chk "토큰 없는 adState 도 401 이다" "$CODE" "401"
+
+post '{"op":"adConfig"}' "garbage.token.here"
+chk "위조 토큰의 adConfig 는 401 이다" "$CODE" "401"
+post '{"op":"adState"}' "garbage.token.here"
+chk "위조 토큰의 adState 도 401 이다" "$CODE" "401"
+
+# 서명은 유효하지만 exp 가 지난 토큰 — "garbage" 류와 달리 서명 검증 자체를 통과한 뒤
+# exp<time() 분기를 실제로 태운다(wallet.test.php 의 같은 이름 검사와 같은 이유).
+TOK_EXP=$(php -r '
+  require $argv[1];
+  $d = $argv[2];
+  $exp = time() - 10;
+  $subject = "d:" . $argv[3];
+  $sig = _wb64e(hash_hmac("sha256", $subject . "|" . $exp, w_secret($d), true));
+  echo _wb64e($subject) . "|" . $exp . "|" . $sig;
+' "$DOCROOT/wallet-lib.php" "$DATA" "$DEV_A")
+post '{"op":"adConfig"}' "$TOK_EXP"
+chk "만료된(서명은 유효한) 토큰의 adConfig 는 401 이다" "$CODE" "401"
+post '{"op":"adState"}' "$TOK_EXP"
+chk "만료된(서명은 유효한) 토큰의 adState 도 401 이다" "$CODE" "401"
+
+# 설정이 없어도 adState 는 동작한다 — "남은 횟수"는 유닛 설정과 무관하다.
+AD_DAILY=$(php -r 'require $argv[1]; echo W_AD_DAILY;' "$DOCROOT/wallet-lib.php")
+post '{"op":"adState"}' "$TOK_A"
+chk "설정 없어도 adState 는 200 이다" "$CODE" "200"
+chk "아직 광고를 안 본 계정의 남은 횟수는 상한과 같다" "$(jget "$BODY" remaining)" "$AD_DAILY"
+chk "아직 광고를 안 본 계정의 nextAt 은 null 이다" "$(jget "$BODY" nextAt)" "null"
+
+# ── adState — 병합돼 얼어붙은 계정 ──────────────────────────────────────────
+# ACCT_B 는 위 authPoll 절에서 이미 구글 계정(A)에 병합돼 버려졌다(merge_discard). w_ad_grant
+# 는 이미 그런 계정의 SSV 콜백을 거절하고 ad_grants 에 기록도 남기지 않으므로, "오늘 지급된
+# 횟수"만 세는 셈법은 병합 직후엔 여전히 상한 전체를 "남았다"고 보고한다 — 화면이 그걸 믿고
+# 광고 버튼을 켜 두면 사용자는 광고를 끝까지 보고도 매번 보상을 못 받는다. 그래서 이 계정은
+# remaining:0·nextAt:null 을 못박는다(w_ad_state 의 설계 결정).
+post '{"op":"adState"}' "$TOK_B"
+chk "병합돼 버려진 계정의 adState 는 200 이다 — 존재 자체를 숨기지 않는다" "$CODE" "200"
+chk "병합돼 버려진 계정은 남은 횟수를 0 으로 본다 — 8을 보이면 광고를 봐도 보상이 안 온다" \
+    "$(jget "$BODY" remaining)" "0"
+chk "병합돼 버려진 계정의 nextAt 도 null 이다 — 다시 열릴 시점이 없다" "$(jget "$BODY" nextAt)" "null"
+
+# ── adState — 일 상한 경계(하나 남았을 때 · 정확히 닿았을 때 · 넘겼을 때) ─────────────
+# 실제 SSV 서명 왕복 없이 ad_grants 를 직접 채운다 — 이 검사가 보는 것은 w_ad_count_today
+# 의 today 경계 계산이지 서명 검증이 아니다(그건 아래 SSV 절이 따로 두드린다).
+ip_cap_reset
+DEV_E="dev-adstate-e-0123456789abcdef0123456789abcdef"
+post "{\"op\":\"hello\",\"deviceId\":\"$DEV_E\"}"
+TOK_E=$(jget "$BODY" token)
+ACCT_E=$(php -r 'echo substr(sha1($argv[1]), 0, 16);' "$DEV_E")
+chk "adState 상한 경계용 새 계정이 만들어졌다" "$(jget2 "$BODY" state balance)" "5"
+
+NOW_ISO_AD=$(php -r 'echo gmdate("c");')
+i=0
+while [ "$i" -lt "$((AD_DAILY - 1))" ]; do
+  i=$((i + 1))
+  dbexec "insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+          values ('adstate-fill-$i', '$ACCT_E', 'quick', 1, 1, '$NOW_ISO_AD')"
+done
+post '{"op":"adState"}' "$TOK_E"
+chk "상한보다 하나 남았을 때 remaining 이 1 이다" "$(jget "$BODY" remaining)" "1"
+
+dbexec "insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+        values ('adstate-fill-cap', '$ACCT_E', 'quick', 1, 1, '$NOW_ISO_AD')"
+post '{"op":"adState"}' "$TOK_E"
+chk "상한에 정확히 닿으면 remaining 이 0 이다" "$(jget "$BODY" remaining)" "0"
+
+dbexec "insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+        values ('adstate-fill-over', '$ACCT_E', 'quick', 1, 1, '$NOW_ISO_AD')"
+post '{"op":"adState"}' "$TOK_E"
+chk "상한을 넘겨도 remaining 이 음수가 아니라 0 이다" "$(jget "$BODY" remaining)" "0"
+
+# ── adConfig — 설정 파일이 있을 때(정상 · 각종 고장 모양) ───────────────────────
+: > "$AD_UNITS"
+post '{"op":"adConfig"}' "$TOK_A"
+chk "빈 파일도 ads-disabled 다" "$(jget "$BODY" reason)" "ads-disabled"
+
+printf '{"quick":' > "$AD_UNITS"
+post '{"op":"adConfig"}' "$TOK_A"
+chk "깨진 JSON 도 ads-disabled 다" "$(jget "$BODY" reason)" "ads-disabled"
+
+cat > "$AD_UNITS" <<'JSON'
+{"quick":{"unitId":"ca-app-pub-3940256099942544/5354046379","reward":1}}
+JSON
+post '{"op":"adConfig"}' "$TOK_A"
+chk "full 유닛이 없으면 ads-disabled 다" "$(jget "$BODY" reason)" "ads-disabled"
+
+cat > "$AD_UNITS" <<'JSON'
+{"quick":{"unitId":12345,"reward":1},
+ "full":{"unitId":"ca-app-pub-3940256099942544/5224354917","reward":3}}
+JSON
+post '{"op":"adConfig"}' "$TOK_A"
+chk "유닛 ID 가 문자열이 아니면 ads-disabled 다" "$(jget "$BODY" reason)" "ads-disabled"
+
+cat > "$AD_UNITS" <<'JSON'
+{"quick":{"unitId":"","reward":1},
+ "full":{"unitId":"ca-app-pub-3940256099942544/5224354917","reward":3}}
+JSON
+post '{"op":"adConfig"}' "$TOK_A"
+chk "유닛 ID 가 빈 문자열이면 ads-disabled 다" "$(jget "$BODY" reason)" "ads-disabled"
+
+cat > "$AD_UNITS" <<'JSON'
+{"quick":{"unitId":"ca-app-pub-3940256099942544/5354046379","reward":1},
+ "full":{"unitId":"ca-app-pub-3940256099942544/5224354917","reward":3}}
+JSON
+post '{"op":"adConfig"}' "$TOK_A"
+chk "정상 설정은 ok 다" "$(jget "$BODY" ok)" "true"
+chk_has "quick 유닛 ID 가 나온다" "$BODY" "5354046379"
+chk_has "full 유닛 ID 가 나온다" "$BODY" "5224354917"
+
+# custom_data 계약 — wallet-ssv.php 는 계정 id 모양(^[0-9a-f]{16}$)이 아닌 custom_data 를
+# 조용히 버린다(로그도 재시도도 없다). adConfig 가 다른 모양(서명 블롭·복합키·acct:nonce·
+# 대문자 hex·32자 id 등)을 내보내면 그 계정의 광고 보상이 전부 말없이 사라진다 — 그래서
+# 이 값은 반드시 계정 id 그대로, 가공 없이 나가야 한다.
+CD_A=$(jget "$BODY" customData)
+chk "adConfig 의 customData 가 이 토큰의 계정 id 와 정확히 같다" "$CD_A" "$ACCT_A"
+case "$CD_A" in
+  [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ok_ ;;
+  *) bad_ "customData($CD_A) 가 w_account_id 모양(소문자 16진 16자)이 아니다 — wallet-ssv.php 가 조용히 버린다" ;;
+esac
+[ "$CD_A" != "$ACCT_B" ] && ok_ || bad_ "adConfig 의 customData 가 다른 계정(B)의 id 를 새어 보냈다"
+
+# 다른 계정 토큰으로 부르면 그 계정 자신의 id 가 나온다 — 남의 것을 보내지 않는다.
+post '{"op":"adConfig"}' "$TOK_B"
+chk "B 토큰의 adConfig customData 는 B 자신의 계정 id 다" "$(jget "$BODY" customData)" "$ACCT_B"
+
+rm -f "$AD_UNITS"
+post '{"op":"adConfig"}' "$TOK_A"
+chk "설정을 지우면 다시 ads-disabled 다 — 무중단 스위치가 양방향이다" "$(jget "$BODY" reason)" "ads-disabled"
+
 # ── wallet-ssv.php — AdMob 리워드 콜백(공개·무인증 GET) ────────────────────────
 # 구글이 부르는 공개 엔드포인트다. 인증이 없는 것이 정상이고 서명만이 유일한 방어선이라,
 # 여기 검사들은 전부 "이 문으로 잔량을 만들 수 있는가"를 실제 HTTP 로 두드린다.

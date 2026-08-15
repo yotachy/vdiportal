@@ -887,6 +887,54 @@ function w_ad_grant($db, $acctId, $unit, $txId, $amount) {
   }
 }
 
+// 실 광고 유닛 ID 는 저장소에 없다 — 넣으면 남이 우리 계정으로 광고를 띄운다.
+// 파일이 없으면 광고 기능 전체가 조용히 꺼진다(8c 의 forge_google_oauth.json 과 같은
+// 무중단 스위치). 개발은 구글 공개 테스트 유닛 ID 로 한다.
+function w_ad_units($dir) {
+  $f = $dir . "/ad_units.json";
+  if (!is_file($f)) return null;
+  $j = json_decode((string)file_get_contents($f), true);
+  if (!is_array($j) || !isset($j["quick"]) || !isset($j["full"])
+      || !is_array($j["quick"]) || !is_array($j["full"])
+      || !isset($j["quick"]["unitId"]) || !isset($j["full"]["unitId"])
+      || !is_string($j["quick"]["unitId"]) || $j["quick"]["unitId"] === ""
+      || !is_string($j["full"]["unitId"]) || $j["full"]["unitId"] === "") return null;
+  return $j;
+}
+
+// 표시용 쿨다운일 뿐이다 — 서버는 이 값을 아무 데도 강제하지 않는다. w_ad_grant 는 쓰기 락
+// 안에서 daily-cap 만 본다(위 함수). 이 상수가 없던 채로 Task 3 이 끝났던 건 실수가 아니라
+// "정의는 됐는데 아무도 안 지키는 상수"가 만드는 거짓 안전감을 피하려던 결정이었다 — nextAt
+// 은 화면이 "다음 광고는 언제쯤" 을 보여주는 힌트일 뿐, 변조된 클라이언트는 이 값을 무시하고
+// 바로 다시 SSV 콜백을 보낼 수 있다. 그래도 지금 이 함수를 다시 쓰려면(adState) 상수가
+// 있어야 하므로 여기서 정의한다 — 여전히 클라이언트 표시용이라는 성격은 그대로다.
+define("W_AD_COOLDOWN_SEC", 120);   // 2분. 표시 힌트일 뿐, 강제하지 않는다(위 주석 참고)
+
+// 다음 시청 가능 시각(쿨다운 힌트). 마지막 지급 시각 + W_AD_COOLDOWN_SEC.
+function w_ad_next_at($db, $acctId) {
+  $st = $db->prepare("select created_at from ad_grants where account_id = ? order by created_at desc limit 1");
+  $st->execute(array($acctId));
+  $r = $st->fetch();
+  if (!$r) return null;
+  return gmdate("c", strtotime($r["created_at"]) + W_AD_COOLDOWN_SEC);
+}
+
+// adState 가 보여줄 요약. remaining 은 표시용이다 — 실제 지급 여부는 w_ad_grant 의 쓰기 락
+// 안에서 다시 결정된다(그래서 이 함수는 클라이언트가 어떻게 부풀려도 지급에 영향을 못 준다).
+//
+// 병합돼 얼어붙은 계정은 remaining 을 0 으로 report 한다. w_ad_grant 는 이미 merged 계정의
+// 콜백을 거절하고 ad_grants 에 기록도 남기지 않는다 — 그러니 "오늘 지급된 횟수"만 세는
+// 계산식(W_AD_DAILY - count)은 병합 직후엔 count 가 0이라 여전히 8을 보고한다. 화면이 그 값을
+// 믿고 광고 버튼을 켜 두면, 사용자는 광고를 끝까지 보고도 보상을 못 받는 일을 반복한다 —
+// checkin·spend 가 이미 지키는 "얼어붙은 지갑은 광고로도 되살아나지 않는다" 규율을 adState
+// 표시만 비켜가는 셈이다. nextAt 도 null 이다 — 다시 열릴 시점 자체가 없다.
+function w_ad_state($db, $acctId) {
+  if (w_is_merged_away($db, $acctId)) return array("remaining" => 0, "nextAt" => null);
+  $left = W_AD_DAILY - w_ad_count_today($db, $acctId);
+  if ($left < 0) $left = 0;
+  return array("remaining" => $left, "nextAt" => w_ad_next_at($db, $acctId));
+}
+
 // ── AdMob SSV(서버 사이드 검증) ────────────────────────────────────────────────
 // SSV 콜백은 인증이 없는 것이 정상인 공개 GET 엔드포인트다 — 구글이 부른다. 그래서 서명이
 // 유일한 방어선이고, 검증이 없거나 범위가 틀리면 누구나 URL 에 reward_amount 를 붙여

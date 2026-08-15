@@ -271,6 +271,24 @@
         drainRefunds();
         return call({ op: "checkin" }).then(function (r) { return shape(r, ["granted", "capped"]); });
       },
+      // 광고 설정 — 유닛 ID 가 없으면(ads-disabled) 화면이 광고 줄을 숨긴다. customData 는
+      // AdMob RewardedAd.setServerSideVerificationOptions 에 그대로 넘길 값이다(가공 금지 —
+      // wallet-api.php 주석 참고. 다른 모양으로 바꾸면 그 계정의 SSV 콜백이 전부 조용히 버려진다).
+      adConfig: function () {
+        return call({ op: "adConfig" }).then(function (r) {
+          if (!r || !r.json) return { ok: false, reason: "network" };
+          return r.json.ok
+            ? { ok: true, quick: r.json.quick, full: r.json.full, customData: r.json.customData }
+            : { ok: false, reason: r.json.reason || "ads-disabled" };
+        });
+      },
+      // 광고 상태 — 오늘 남은 시청 가능 횟수와 다음 시청 가능 시각(표시용 힌트, 강제 아님).
+      adState: function () {
+        return call({ op: "adState" }).then(function (r) {
+          if (!r || !r.json || !r.json.ok) return { ok: false, remaining: 0, nextAt: null };
+          return { ok: true, remaining: r.json.remaining, nextAt: r.json.nextAt };
+        });
+      },
       // 화면·테스트가 큐 상태를 볼 수 있게 열어 둔다(진단용 — 쓰기는 없다).
       pendingRefunds: function () { return refQueue(); },
       authStart: authStart,
