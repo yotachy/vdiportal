@@ -45,7 +45,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$DOCROOT"
-cp "$MAP_ROOT/wallet-api.php" "$MAP_ROOT/wallet-lib.php" "$DOCROOT/"
+cp "$MAP_ROOT/wallet-api.php" "$MAP_ROOT/wallet-lib.php" "$MAP_ROOT/wallet-auth.php" "$DOCROOT/"
 : > "$BODIES"
 
 # 서버 자체는 display_errors 를 켜 둔다 — wallet-api.php 첫 줄의 ini_set 이 유일한 방어막이
@@ -390,6 +390,64 @@ post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A4\"}" "$TOK_A"
 chk "다른 구글로는 기기 계정을 못 가져간다 — 409" "$CODE" "409"
 chk "그 409 의 사유" "$(jget "$BODY" reason)" "device-claimed"
 chk "google_sub 이 덮이지 않았다" "$(dbq "select google_sub from accounts where id='$ACCT_A'")" "gsub-dispatch-1"
+
+# ── wallet-auth.php — 로그인의 브라우저 구간(리다이렉트 + 콜백) ──────────────────────
+# 구글에는 요청하지 않는다. 302 는 브라우저더러 구글로 가라는 헤더일 뿐 서버가 구글을
+# 부르지 않고, 토큰 교환(진짜 구글 요청)은 state 검증을 통과해야만 실행되므로 아래
+# "모르는 state" 검사들도 그 앞에서 400 으로 끊긴다 — 실제 네트워크 호출은 없다.
+auth_get() {
+  # $1=쿼리스트링(없으면 빈 문자열). CODE/BODY 를 채우고 본문을 경로유출 검사망($BODIES)에 넣는다.
+  local qs="$1"
+  CODE=$(curl -s -o "$WORK/out" -w '%{http_code}' "$BASE/wallet-auth.php${qs:+?$qs}")
+  BODY=$(cat "$WORK/out")
+  printf '%s\n' "$BODY" >> "$BODIES"
+}
+
+# 설정 파일이 없는 상태(이 하네스의 DOCROOT 에는 아직 forge_google_oauth.json 이 없다 —
+# 지금 프로덕션과 같은 상태)의 동작만 먼저 본다.
+auth_get "nonce=whatever"
+chk "설정 없으면 wallet-auth 는 503 이다" "$CODE" "503"
+chk_no "설정 없음 503 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
+
+auth_get ""
+chk "논스도 code&state 도 없이 열면 400 이다(설정 여부와 무관 — 요청 모양부터 본다)" "$CODE" "400"
+chk_no "논스 없음 400 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
+
+auth_get "code=x&state=y"
+chk "설정 없으면 콜백(code&state)도 503 이다" "$CODE" "503"
+
+# ── 설정이 있는 상태 — 가짜 client_id/secret 을 심는다. ①(nonce) 경로는 구글에
+# 아무 것도 안 보내고 Location 헤더만 만들므로 안전하다. ②(콜백) 경로는 state 검증을
+# 통과해야 curl 이 실행되므로, 아래에서는 항상 모르는 state 를 줘서 그 앞에서 끊는다.
+cat > "$DOCROOT/forge_google_oauth.json" <<'EOF'
+{"client_id":"dispatcher-fake-client-id","client_secret":"dispatcher-fake-secret"}
+EOF
+
+auth_get "nonce=no-such-nonce"
+chk "설정이 있어도 모르는 논스는 400 이다 — w_nonce_read 가 state 를 맹신하지 않고 먼저 걸러야 한다" "$CODE" "400"
+chk_no "모르는 논스 400 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
+
+NOW_ISO3=$(php -r 'echo gmdate("c");')
+AUTH_NONCE="dispatcher-authpage-nonce-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$AUTH_NONCE', '$DEV_A', null, '$NOW_ISO3', 0)"
+HDRS=$(curl -s -D - -o "$WORK/out" "$BASE/wallet-auth.php?nonce=$AUTH_NONCE")
+LOC=$(printf '%s' "$HDRS" | grep -i '^location:' | tr -d '\r')
+case "$LOC" in
+  *"https://accounts.google.com/o/oauth2/v2/auth?"*"state=$AUTH_NONCE"*) ok_ ;;
+  *) bad_ "유효한 논스가 구글 로그인 화면으로 리다이렉트되지 않는다 — got '$LOC'" ;;
+esac
+
+auth_get "code=fake-code&state=no-such-nonce"
+chk "콜백도 모르는 state 는 400 이다 — 토큰 교환(진짜 구글 요청) 전에 걸러야 한다" "$CODE" "400"
+chk_no "모르는 state 400 본문에 경로가 안 샌다" "$BODY" "$DOCROOT"
+
+rm -f "$DOCROOT/forge_google_oauth.json"
+
+# ini_set(display_errors,0) 이 첫 출력보다 먼저 와야 한다 — wallet-api.php 와 같은 이유.
+AUTH_INI_LINE=$(grep -n 'ini_set("display_errors", *"0")' "$DOCROOT/wallet-auth.php" | head -1 | cut -d: -f1)
+AUTH_HDR_LINE=$(grep -n '^\s*header(' "$DOCROOT/wallet-auth.php" | head -1 | cut -d: -f1)
+if [ -n "$AUTH_INI_LINE" ] && [ -n "$AUTH_HDR_LINE" ] && [ "$AUTH_INI_LINE" -lt "$AUTH_HDR_LINE" ]; then ok_
+else bad_ "wallet-auth.php 가 첫 출력 전에 display_errors 를 끄지 않는다"; fi
 
 # ── IP 해시는 비밀키가 들어간 HMAC 이다 ────────────────────────────────────
 # 기대값을 구현이 아니라 바깥(비밀키 파일 + 알려진 REMOTE_ADDR)에서 계산한다.
