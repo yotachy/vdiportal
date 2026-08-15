@@ -417,17 +417,83 @@
     `git diff main -- forge-core.js forge-tools.js forge-api.php forge-auth.php
     forge-auth-lib.php` 는 비어 있다(PC 제품 무영향).
 
+- **Phase 8d — 지갑 화면에 광고 두 줄 + 잔량 부족 권유 + 현금가치 고지**(2026-08-16, 8d 의
+  마지막 태스크): 서버(SSV 검증·원장)와 파사드(`ads.js`)는 이전 태스크에서 이미 끝나 있었다 —
+  이 태스크는 화면에 올리는 것만 남아 있었다.
+  - **낙관적 반영을 쓰지 않았다 — 이 태스크가 존재하는 이유 그 자체다.** 광고를 본 뒤 잔량에
+    +1/+3 을 먼저 그려 놓고 SSV 가 늦으면 도로 내리는 설계를 검토했지만 기각했다: 사용자
+    입장에선 "광고를 다 봤는데 스쿱이 줄었다"로 읽히고, 그건 8b 가 처음부터 세운 "클라이언트는
+    잔량을 계산하지 않는다" 원칙과 정면으로 부딪힌다. 대신 `MSAds.show()` 가 `shown:true` 를
+    낸 뒤 `MSWallet.get()` 을 2초 간격 최대 5회(10초) 폴링해 **서버 잔량이 실제로 before 보다
+    커진 것을 확인한 뒤에만** 그린다. 10초 안에 안 오면 `adPending`("아직 안 왔다, 곧 반영된다")
+    으로 사실대로 말하고 잔량은 건드리지 않는다 — 8c `authPoll` 의 세대 가드(`GEN`)·연타 방지
+    (`adBusy`) 규율을 그대로 물려받았다.
+  - **`remaining:0` 이 둘로 갈린다** — `nextAt:null` 은 이 기기의 지갑이 구글 계정으로 병합돼
+    얼어붙었다는 뜻이지 "오늘 8개를 다 썼다"가 아니다. 이 둘을 `adDailyDone`("오늘은 여기까지,
+    내일 다시") 하나로 뭉치면 병합된 사용자에게 거짓 희망을 준다 — `nextAt:null` 이면 대신
+    `wMerged`(8c 에서 이미 만든 문구)를 쓴다. 실행 테스트로 두 상태를 분리해 뮤테이션(둘을
+    합치는 방향)이 빨간불로 바뀌는 것을 확인했다.
+  - **UMP "광고 설정" 재열람 행은 `MSAds.privacyOptionsRequired()` 로만 켠다.** 설계 브리프의
+    예시 테스트는 `consentNeeded()`(최초 동의 흐름용)를 게이팅에 썼지만 그대로 옮기지 않았다 —
+    `consentNeeded()` 는 이미 동의를 마친 사용자에겐 계속 `false` 라, 그걸로 게이팅하면 동의를
+    마친 EEA·영국·캐나다 사용자에게서 재열람 경로가 통째로 사라진다(정책 위반). 클릭은
+    `MSAds.showConsent()` 가 아니라 `MSAds.showPrivacyOptions()` — 구글 UMP 문서가 명시하는
+    재열람 경로 짝이다. `consentNeeded:true / privacyOptionsRequired:false` 조합으로 뮤테이션
+    가드 테스트를 추가해 잘못된 게이팅으로 되돌아가면 빨간불이 되는 것을 확인했다.
+  - `MSAds.init(cfg)` 는 화면(지갑·리포트 CTA)이 `adConfig()` 를 `ok` 로 받을 때마다 부른다 —
+    부팅 단계에 별도 배선이 없다(그런 자리가 아직 없다). init() 이 만드는 동의 약속을
+    `MSAds.show()` 가 반드시 기다리는 것은 `ads.js` 자신의 규율이라, 화면은 "언제 그 약속을
+    만드느냐"만 책임진다.
+  - `MSAds.consentInfo()` 는 이번에도 소비자가 안 생겼다 — 지갑 화면은
+    `privacyOptionsRequired()`/`showPrivacyOptions()` 만으로 재열람 UI 를 완성하고, 마지막으로
+    읽은 동의 정보를 굳이 다시 꺼내 쓸 자리가 없었다. `ads.js` 는 "이미 끝난 파일" 로 지정돼
+    이번 태스크 범위에서 지우지 않았다 — **여전히 죽은 export 라는 점만 여기 기록한다.**
+  - **리포트 화면(`report.js`) — 잔량 부족은 CTA 버튼 자리를 그대로 광고 권유로 바꾼다.**
+    시트를 열지도 않는다: `MSWallet.get()` 으로 잔량을 이미 확인한 시점에 부족한 게 뻔하면
+    단계 선택 시트를 열었다 `tsShort` 문구만 보여주는 우회를 하지 않는다. 광고 뒤 잔량이 차면
+    지갑 화면으로 튕기지 않고 **그대로 단계 선택 시트를 연다**(Run 은 대신 눌러주지 않는다 —
+    광고 시청이 자동 결제로 이어지면 원치 않는 구매로 읽힐 수 있다). 세대 가드는 새로 만들지
+    않고 `report.js` 가 이미 갖고 있던 `isCurrent()`(구매 폴링용)를 재사용했다 — 화면 하나에
+    가드 장치가 둘이면 언젠가 하나만 고쳐진다.
+  - `tier-sheet.js` 는 건드리지 않았다 — 잔량 부족 판정과 권유 UI 를 CTA 자리(`report.js`)에서
+    끝내면서 시트 쪽 `tsShort` 경로는 "잔량을 아예 모른다"(`bal==null`, 오프라인 등)일 때만
+    지금처럼 그대로 남는다.
+  - `wallet.js` 에서 8a 의 자리표시자(`off:true, action:"Soon"`) 두 줄을 걷어내고 실제 동작하는
+    행으로 바꿨다 — 죽은 "Soon" 버튼을 남기면 광고가 실제로 붙었는지 아무도 알 수 없다.
+    `walQuick`/`walFull`/`walSoon`(이름만 있던 옛 문구)는 지웠고, `walQuickSub`/`walFullSub`
+    (소요시간·스킵 정책)는 새 행의 부제로 재사용했다 — `strings.test.mjs` 의 죽은 문구 검사가
+    안 쓰는 키를 그대로 두면 잡아낸다(실제로 한 번 걸려 지웠다).
+  - `style.css` 에는 지갑 화면 하단 리워드 화폐 고지(`walNoCashValue`, 스토어 심사 대상)를 위한
+    `.wal-legal` 하나만 새로 얹었다 — 나머지는 기존 `.wal-row`·`.w-sub`·`.rp-cta`·
+    `.rp-missing-note` 를 그대로 재사용했다(디자인 시안 교체가 예정돼 있어 새 레이아웃에
+    공들이지 않았다).
+  - `wallet-screens.test.mjs` 에 지갑 화면 광고 테스트 18종 + `report.js` 소스 모양 테스트
+    4종 추가. DOM 실행 테스트는 ads-disabled 은닉·일반 상한/병합 분기·쿨다운 표시·폴링 대기·
+    SSV 미도착 안내·show() 실패 재시도·customData 비가공·연타 방지·재렌더 고아 루프 종료·
+    현금가치 고지·UMP 설정 행 게이팅(정상 + 뮤테이션 가드) 을 다룬다. `report.js` 는 DOM
+    하네스가 없어(📋 예정 항목, 아래) 소스 모양만 본다.
+  - 테스트 1300 → 1318(`moneyscoop-mobile` 500→518, 다른 다섯 스위트 무변동).
+    `./tests/run.sh concurrency`·`dispatcher` 통과. `git diff main -- forge-core.js
+    forge-tools.js forge-api.php forge-auth.php` 는 비어 있다(PC 제품 무영향).
+    실 AdMob 유닛 ID·앱 ID 는 저장소 어디에도 없다(`AndroidManifest.xml` 은 구글 공개 테스트
+    앱 ID `ca-app-pub-3940256099942544~3347511713` 그대로).
+
 ## 🔥 다음
 
 우선순위 순.
 
-1. **실기기 확인** — Phase 5·6·7·8a·8c + 디자인 정합 패스 + REASONING + 온보딩 5단계가 전부
+1. **실기기 확인** — Phase 5·6·7·8a·8c·8d + 디자인 정합 패스 + REASONING + 온보딩 5단계가 전부
    미검증이다. 이 저장소의 검증은 전부 헤드리스(playwright)라 손맛·성능·터치 타깃은 못 본다.
    온보딩을 다시 보려면 `ms_onboarded`·`ms_consent` 를 지운다. `ms_watchlist` 를 남겨두면
    4단계 잠금 동작을, 함께 지우면 신규 사용자 경로(SEED 3종 해제 가능)를 본다.
    **`http://` 로 열면 3단계 지갑은 "연결되지 않았습니다"가 정상이다** — 개발 스킴에서 운영
    지갑을 설치하지 않는 가드(`app.js`) 때문이고, 실제 지급은 Capacitor(`https://localhost/`)
-   에서만 돈다.
+   에서만 돈다. **8d 의 UMP 재열람 행·동의 게이트도 실기기 전용 확인 대상이다** — EEA 지리를
+   흉내낸 디버그 지오그래피(`RequestConfiguration.testDeviceIds` + UMP `DebugGeography`)로
+   `requestConsentInfo()` 를 강제 EEA 취급시키고, **그 원시 응답(status·
+   privacyOptionsRequirementStatus·isConsentFormAvailable)을 실기기 로그로 그대로 남길 것** —
+   이 저장소엔 실제 AdMob/UMP SDK 가 없어(`Capacitor.Plugins.AdMob` 미탑재) `MSAds.init()` 이
+   무엇을 실제로 돌려주는지 지금까지 아무도 본 적이 없다.
 2. ~~**Android 빌드**~~ ✅ **2026-08-15 해소 — 첫 APK 가 나왔다.** 절차는
    [`ANDROID-BUILD.md`](ANDROID-BUILD.md) 에 전부 적었다. sudo 는 필요 없었다 — JDK 도 SDK 도
    압축파일이라 `~/tools/` 에 풀면 그만이고, 시스템 설치가 아니라 비밀번호를 물을 일이 없다.
@@ -438,9 +504,9 @@
    ⚠️ **APK 로 여는 순간 지갑이 실서버에 붙는다.** `app.js` 가드는 개발 스킴(`http:`·`file:`)만
    막는데 Capacitor 는 `https://localhost/` 로 서빙한다 — 진짜 계정이 생기고 진짜 개설 지급이
    실행되며, 반복하면 `W_IP_DAILY` 상한을 소진한다.
-3. **8d AdMob SSV** — 광고 유닛 2종(Quick 15초 +1 · Full 30초 +3) · 서명 검증 · `transaction_id`
-   중복 제거. 온보딩 5단계(위험 고지 + 약관 동의)가 이제 있으니 UMP 개인화 광고 동의를 여기서
-   함께 다룰 것 — EEA·영국·캐나다는 UMP 없이는 이 항목 자체를 출시할 수 없다.
+3. ~~**8d AdMob SSV**~~ ✅ **2026-08-16 해소 — 서버·파사드·화면 전부 끝났다.** 위 ✅ 완료 항목
+   참고. 남은 것은 실기기 확인(위 1번)과 아래 📋 예정의 운영 항목(`ad_grants` 유입 경보 ·
+   실 AdMob 계정 연결 · 릴리스 서명)뿐이다.
 
 ## 미검증 — 사용자 확인 필요 (REASONING, 2026-08-13)
 
@@ -555,8 +621,29 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
 - **온보딩 재실행 경로 없음** — 완료(`setOnboarded`) 뒤에는 5단계로 되돌아갈 방법이 없다.
   설정 화면 자체가 없어서다(v1 은 설정 없음). 설정에서 "다시 보기"로 노출할 자리는 설정
   화면이 생길 때 함께 판단.
-- **8d AdMob SSV** — 광고 유닛 2종(Quick 15초 +1 · Full 30초 +3) · 서명 검증 · `transaction_id` 중복 제거.
-  **Android 빌드가 한 번도 안 돌았다.** 지갑 화면의 광고 두 줄은 그때까지 비활성이다.
+- **8d 가 남긴 것 — 실 AdMob 계정 연결** — 지금 저장소·빌드는 전부 구글 공개 테스트 유닛/앱 ID다
+  (`AndroidManifest.xml` 의 `ca-app-pub-3940256099942544~3347511713`, 서버는 `ad_units.json`
+  자체가 없으면 `ads-disabled`). 실 계정으로 전환은 ①AdMob 콘솔에서 앱·리워드 유닛 2종(Quick·
+  Full) 생성 ②`ad_units.json` 을 실 unitId 로 배포(서버, 이 파일은 배포 불가침 목록에 없다 —
+  운영이 직접 올린다) ③매니페스트의 앱 ID 교체 ④UMP 는 콘솔의 "개인정보·메시지" 폼을 최소
+  1개 만들어야 `requestConsentInfo()` 가 실제 상태를 낸다(지금은 폼이 없어 항상 `UNKNOWN`).
+- **8d 가 남긴 것 — 릴리스 서명** — `assembleDebug` 만 확인했다(위 ✅ 완료 참고). 스토어 업로드는
+  릴리스 키스토어 생성·`assembleRelease`·(선택) Play App Signing 등록이 필요하고, 서명 키는
+  이 저장소에 절대 커밋하지 않는다(`.gitignore` 확인 대상).
+- **8d 가 남긴 것 — `ad_grants` 유입 경보 없음** — SSV 콜백이 완전히 끊겨도(구글 쪽 URL 오설정·
+  타임아웃 등) `w_ad_grant()` 는 그냥 호출이 안 될 뿐 어디에도 실패로 안 남는다. 지금은 사용자가
+  "광고를 봤는데 안 들어온다"고 알려줘야 처음 안다. `ad_grants` 테이블에 최근 N시간 유입이
+  0인지 보는 배치/알람이 필요하다(운영 스크립트, `map/mobile/` 밖 배포 인프라 영역).
+- **`W_IP_DAILY` 를 3으로 되돌리는 것을 잊지 말 것** — 위 "남은 한계(정직하게)"에 이미 적혀 있던
+  항목이지만, 8d 로 진짜 결제(광고 보상)가 화면에 올라온 지금은 더 급해졌다 — 20인 채로 배포되면
+  재설치 남용 방어가 사실상 꺼진 채로 실 계정을 상대하게 된다.
+- **`map/mobile/www/**` 는 문서상 ES5 규율(STYLE_GUIDE 원칙 — `var`/`function`, 화살표·`const`/
+  `let` 금지)이지만 실제로는 아니다** — `draw-preds.js`·`draw-panels.js`·`draw-layers.js` 셋이
+  이미 `const`/`let`/화살표 함수를 쓰고 있다(2026-08-16 확인, `grep -lE '\b(const|let)\s|=>'`).
+  이번 태스크(8d)에서 건드린 `screens/wallet.js`·`screens/report.js`·`strings.js` 는 규율대로
+  ES5 만 썼다 — 위 세 파일은 이번 범위 밖이라 손대지 않았지만, "규칙은 있는데 지켜지지 않는
+  파일이 존재한다"는 사실 자체를 여기 기록해 둔다. 정리하려면 트랜스파일 없이 손으로
+  var/function 으로 되돌려야 한다(빌드 도구 없음 원칙과 ES5 요구가 함께 걸려 있다).
 - **8c 가 남긴 것 — 워치리스트 동기화** — 로그인해도 종목 목록은 기기별로 남는다(현재 화면이
   `wWatchlistLocal` 로 숨기지 않고 말한다). 여러 기기에서 같은 구글 계정을 쓰는 사용자는 기기마다
   다른 목록을 본다. 붙이려면 `watchlist-model.js`/`store.js` 가 서버 원장을 갖게 해야 하고, 지갑처럼

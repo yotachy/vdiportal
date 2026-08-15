@@ -367,6 +367,10 @@
     var tfRuns = bought ? bought.runs : null;   // [{tf, out, error}] — Full 이 채운다
     // 재진입·이중 과금 가드는 purchases 레코드가 한다(모듈 스코프) — 여기 지역 플래그를 또 두지 않는다.
 
+    // 잔량 부족 광고 권유(Phase 8d). adBusy 는 연타 방지 — CTA 를 눌러 잔량이 부족한 것을
+    // 이미 확인한 render() 안에서 광고는 한 번에 하나만 돈다(wallet.js 의 adBusy 와 같은 역할).
+    var adBusy = false;
+
     // paintChart() 진입부의 정리와는 별도로 여기서도 한 번 정리한다 — 종목을 바꿔 render()가
     // 다시 불렸는데 새 렌더가 loading/error 로 끝나면(캐시 미스 로딩 중 이탈, 분석 실패 등)
     // paintChart() 자체가 안 불려 그 정리가 도달하지 못한다. 그 사이 분리된 캔버스의 onResize 가
@@ -794,15 +798,91 @@
       });
     }
 
+    // 광고를 본 뒤의 잔량 폴링(Phase 8d) — wallet.js 의 afterAd 와 같은 규율이다: 세대 가드
+    // (isCurrent, 이 화면이 이미 이 render() 세대·이 종목이 아니면 멈춘다)로 재렌더·종목전환
+    // 시 고아 루프를 죽이고, adBusy 로 진행 중 연타를 막는다. 잔량은 서버가 준 값이 before 보다
+    // 커진 것을 **확인한 뒤에만** 다음 단계로 넘어간다 — 낙관적으로 올려 그리지 않는다(8b 원칙).
+    function afterCtaAd(before, n, msg) {
+      if (!isCurrent()) return;
+      if (n >= 5) { adBusy = false; msg.textContent = MSStr.t.adPending; return; }
+      MSWallet.get().then(function (r) {
+        if (!isCurrent()) return;
+        if (r.ok && r.state && r.state.balance > before) {
+          adBusy = false;
+          MSWalletScreen.refreshPills();
+          // 잔량이 찼다 — 지갑 화면으로 튕기지 않고 원래 하려던 분석(Full 구매) 흐름으로
+          // 그대로 이어간다. Run 버튼은 여기서 대신 눌러주지 않는다 — 사용자가 원래 밟으려던
+          // "단계 선택 → Run" 순서를 그대로 준다(광고가 자동으로 구매까지 이어버리면 원치
+          // 않는 결제로 읽힐 수 있다).
+          MSWallet.get().then(function (r2) {
+            if (!isCurrent()) return;
+            MSTierSheet.open({ sym: sym, tier: tier, balance: r2.state ? r2.state.balance : null, onRun: runFull });
+          });
+          return;
+        }
+        setTimeout(function () { afterCtaAd(before, n + 1, msg); }, 2000);
+      });
+    }
+
+    // customData 는 여기서 만들거나 손대지 않는다 — MSAds.show(unit) 는 "quick"/"full" 키만
+    // 받는다(wallet.js 의 watchAd 와 같은 계약 ①).
+    function watchCtaAd(unit, msg, before) {
+      if (adBusy) return;
+      adBusy = true;
+      msg.textContent = "";
+      MSAds.show(unit).then(function (r) {
+        if (!isCurrent()) return;
+        if (!r || !r.shown) {
+          adBusy = false;
+          msg.textContent = MSStr.t.adFailed;
+          return;
+        }
+        msg.textContent = MSStr.t.adWaiting;
+        afterCtaAd(before, 0, msg);
+      });
+    }
+
+    // Full 을 누르려는데 잔량이 부족할 때 — CTA 버튼 자리를 그대로 광고 권유로 바꾼다.
+    // 단계 선택 시트를 열지 않는다: 아직 살 수 없다는 것을 이미 알고 있어 시트가 보여줄
+    // 새 정보가 없고, 시트를 열었다 잔량 부족 문구만 보여주는 우회를 하지 않는다.
+    function showLowBalanceAd(wrap, bal) {
+      wrap.innerHTML = "";
+      wrap.appendChild(MSUi.el("p", "rp-missing-note", MSStr.t.adLowBalance));
+      var msg = MSUi.el("p", "rp-missing-note");
+      MSWallet.adConfig().then(function (r) {
+        if (!isCurrent()) return;
+        if (!r.ok) {
+          // ads-disabled — 광고로 채울 길이 없다. 옛 tsShort 문구로 사실대로 되돌아간다.
+          msg.textContent = MSStr.t.tsShort;
+          wrap.appendChild(msg);
+          return;
+        }
+        if (typeof MSAds !== "undefined" && MSAds && MSAds.init) MSAds.init(r);
+        [["quick", MSStr.t.adQuick], ["full", MSStr.t.adFull]].forEach(function (pair) {
+          var b = MSUi.el("button", "rp-cta", pair[1]);
+          b.addEventListener("click", function () { watchCtaAd(pair[0], msg, bal); });
+          wrap.appendChild(b);
+        });
+        wrap.appendChild(msg);
+      });
+    }
+
     function buildCta() {
       if (tier !== "basic") return MSUi.el("div");
+      var wrap = MSUi.el("div");
       var b = MSUi.el("button", "rp-cta", MSStr.t.rpUpgrade);
       b.addEventListener("click", function () {
         MSWallet.get().then(function (r) {
-          MSTierSheet.open({ sym: sym, tier: tier, balance: r.state ? r.state.balance : null, onRun: runFull });
+          if (!isCurrent()) return;
+          var bal = r.state ? r.state.balance : null;
+          // bal == null 은 "잔량을 모른다"(오프라인 등)다 — 광고 권유로 바꾸지 않는다. 뭘
+          // 권유할 근거(정말 부족한지)가 없다. 시트를 그대로 열어 tsUnavailable 이 말하게 둔다.
+          if (bal != null && bal < MSWallet.COSTS.full) { showLowBalanceAd(wrap, bal); return; }
+          MSTierSheet.open({ sym: sym, tier: tier, balance: bal, onRun: runFull });
         });
       });
-      return b;
+      wrap.appendChild(b);
+      return wrap;
     }
 
     function draw() {

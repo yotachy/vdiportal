@@ -357,6 +357,11 @@ body {
 .w-auth:active { background:var(--bg-raised); }
 .w-sub { font-size:11.5px; color:var(--ink-4); margin-top:8px; line-height:1.5; }
 
+/* 리워드 화폐 고지(Phase 8d, SPEC §6) — 지갑 화면 맨 아래 상시 표기. 세로 라인 없이 상단
+   헤어라인 하나로만 앞 섹션과 구분한다(프로젝트 전역: 좌측 accent bar 금지). */
+.wal-legal { margin-top:28px; padding-top:16px; border-top:1px solid var(--hairline);
+             font-size:10.5px; color:var(--ink-5); line-height:1.6; }
+
 /* ===== 단계 선택 바텀시트(시안 7a) ===== */
 .sheet-scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; z-index:20; }
 .sheet { width:100%; max-height:80vh; overflow-y:auto; background:var(--sheet);
