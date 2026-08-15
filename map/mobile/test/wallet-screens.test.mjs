@@ -498,15 +498,43 @@ test("지갑 화면 — 로그인 전엔 로그인 행, 후엔 로그아웃 행"
 });
 
 // 무중단 스위치. 서버에 자격증명이 없으면 눌러도 아무 일 없는 죽은 버튼이 된다.
-test("authStart 가 auth-disabled 면 로그인 행이 사라진다", async () => {
+// 리뷰 Critical(실행으로 확인됨): 행은 지우면서 "Waiting for the browser…" 는 안 지워서, 서버에
+// 자격증명이 없는(=오늘 모든 사용자가 겪는) 경로에서 대기 문구가 버튼도 없이 영원히 남아 있었다.
+// 같은 msg 노드를 클릭 시점에 붙잡아 뒀다가 resolve 뒤 내용이 비었는지 직접 본다.
+test("authStart 가 auth-disabled 면 로그인 행이 사라지고 대기 문구도 함께 지워진다", async () => {
   await withWalletDom(async (root, W) => {
     W.signedIn = function () { return false; };
     W.authStart = function () { return Promise.resolve({ ok: false, reason: "auth-disabled" }); };
     MSWalletScreen.render(root);
     await flush();
     findText(root, S.t.wSignIn).dispatch("click");
+    var waitingMsg = findText(root, S.t.wSignInWaiting);
+    assert.ok(waitingMsg, "클릭 직후 대기 문구가 안 떴다");
     await flush();
     assert.ok(!findText(root, S.t.wSignIn), "죽은 로그인 버튼이 남아 있다");
+    assert.strictEqual(waitingMsg.textContent, "",
+      "행은 지웠는데 'Waiting for the browser…' 문구가 그대로 남아 있다 — 버튼 없이 문구만 영원히 남는다");
+  });
+});
+
+// 리뷰 Important 1(실행으로 확인됨): 응답 오기 전에 두 번 누르면 authStart 가 두 번 나가 각자
+// 다른 nonce 로 브라우저를 두 번 열고, 각자의 poll() 이 같은 authMsg 를 두고 경합했다.
+test("응답 오기 전에 로그인 버튼을 두 번 눌러도 authStart 는 한 번만 나간다", async () => {
+  await withWalletDom(async (root, W) => {
+    var calls = 0, resolveAuthStart;
+    W.signedIn = function () { return false; };
+    W.authStart = function () {
+      calls++;
+      return new Promise(function (resolve) { resolveAuthStart = resolve; });
+    };
+    MSWalletScreen.render(root);
+    await flush();
+    var btn = findText(root, S.t.wSignIn);
+    btn.dispatch("click");
+    btn.dispatch("click");   // 첫 응답이 오기 전에 동기적으로 또 누른다
+    assert.strictEqual(calls, 1, "authStart 가 두 번 나갔다 — 로그인 시도가 동시에 두 개 돈다: " + calls);
+    resolveAuthStart({ ok: false, reason: "auth-disabled" });
+    await flush();
   });
 });
 
@@ -530,7 +558,10 @@ test("두 번째 기기 병합이면 버려진 수량을 사용자에게 말한�
 // device-claimed: 이 기기가 이미 다른 구글 계정에 묶여 있다 — 재시도해도 답이 바뀌지 않는
 // 종결 상태다. 계속 폴링하거나 일반 실패 문구("다시 시도")를 보이면 거짓 희망을 준다 —
 // 사실대로 말하고(다른 계정에 묶여 있다), 유일한 복구(재설치)를 안내해야 한다.
-test("authPoll 이 device-claimed 면 폴링을 멈추고 재설치를 안내한다", async () => {
+// 리뷰 Minor(채택): auth-disabled 와 같은 방식으로 다룬다 — 행을 지운다. 안 지우면
+// authStart 는 기기 상태와 무관하게 항상 성공하므로, 사용자가 재탭 → 구글 로그인 왕복을
+// 통째로 다시 거치고도 같은 벽에 부딪히는 것을 반복할 수 있다.
+test("authPoll 이 device-claimed 면 폴링을 멈추고 재설치를 안내하며 행을 지운다", async () => {
   await withWalletDom(async (root, W) => {
     W.signedIn = function () { return false; };
     W.authStart = function () { return Promise.resolve({ ok: true, authUrl: "https://x/a", nonce: "n1" }); };
@@ -556,9 +587,53 @@ test("authPoll 이 device-claimed 면 폴링을 멈추고 재설치를 안내한
     assert.ok(findText(root, S.t.wDeviceClaimed), "기기 잠김 안내가 없다");
     assert.ok(!findText(root, S.t.wSignInFailed),
       "일반 실패 문구('다시 시도')를 보였다 — device-claimed 는 재시도해도 소용없다");
+    assert.ok(!findText(root, S.t.wSignIn),
+      "device-claimed 인데 로그인 행이 그대로 남아 있다 — 다시 눌러도 같은 벽에 부딪힌다");
     // flush() 자신도 setTimeout(fn,0) 을 쓰므로 0 은 허용하고, 그보다 큰(=POLL_MS 재시도) 예약만 본다.
     assert.ok(scheduled.every(function (ms) { return !ms; }),
       "device-claimed 인데 다음 폴링 setTimeout 을 예약했다: " + scheduled.join(","));
+  });
+});
+
+// 리뷰 Important 2(실행으로 확인됨): app.js 는 지갑 화면을 나갈 때 render() 클로저에게 알릴
+// 방법이 없다(pane.innerHTML="" 로 DOM 만 지운다). 세대 카운터가 없으면, 로그인 도중 화면을
+// 나갔다 돌아와도 옛 폴링 루프가 detached 노드를 향해 계속 authPoll() 을 부른다.
+test("재렌더(네비게이션) 후에는 이전 폴링 루프가 authPoll 을 다시 부르지 않는다", async () => {
+  await withWalletDom(async (root, W) => {
+    var pollCalls = 0;
+    W.signedIn = function () { return false; };
+    W.authStart = function () { return Promise.resolve({ ok: true, authUrl: "https://x/a", nonce: "n1" }); };
+    W.authPoll = function () {
+      pollCalls++;
+      return Promise.resolve({ ok: true, pending: true });   // 계속 대기 중 — 다음 폴링을 예약한다
+    };
+
+    var realSetTimeout = global.setTimeout;
+    var scheduledFns = [];
+    global.setTimeout = function (fn, ms) { scheduledFns.push(fn); return realSetTimeout(fn, ms); };
+    try {
+      MSWalletScreen.render(root);
+      await flush();
+      findText(root, S.t.wSignIn).dispatch("click");
+      await flush();   // authStart → authPoll(1회) → pending → 다음 poll() 을 setTimeout 으로 예약
+      assert.strictEqual(pollCalls, 1, "첫 authPoll 이 안 나갔다 — 테스트 전제가 틀렸다");
+
+      // 사용자가 지갑 화면을 나갔다 돌아온다 — app.js 는 매번 MSWalletScreen.render() 를 새로
+      // 부른다. 같은 root 에 다시 render() 만 불러 그 재진입을 흉내낸다.
+      MSWalletScreen.render(root);
+      await flush();
+
+      // 예약돼 있던 옛 poll() 재시도를 지금 손으로 발화시킨다(2초를 실제로 기다리지 않는다).
+      var stalePoll = scheduledFns[0];
+      assert.ok(stalePoll, "poll 재시도가 애초에 예약되지 않았다 — 테스트 전제가 틀렸다");
+      stalePoll();
+      await flush();
+
+      assert.strictEqual(pollCalls, 1,
+        "재렌더 이후에도 옛 폴링 루프가 authPoll 을 또 불렀다 — 고아 루프가 안 죽었다: " + pollCalls);
+    } finally {
+      global.setTimeout = realSetTimeout;
+    }
   });
 });
 

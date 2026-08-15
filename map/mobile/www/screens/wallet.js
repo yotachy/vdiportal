@@ -99,31 +99,61 @@
   // 아직 안 돌았다.
   var POLL_MS = 2000, POLL_LIMIT = 300;   // 2초 × 300 = 10분(서버 논스 만료와 같다)
 
+  // 세대 카운터 — render() 가 다시 불릴 때마다(재진입 네비게이션) 하나 늘린다. 이전 render() 의
+  // startSignIn/poll 클로저는 자기 시작 시점의 세대를 들고 있다가, 매 콜백에서 지금 세대와
+  // 비교해 다르면 곧바로 멈춘다. app.js 는 지갑 화면을 나갈 때 이 클로저에게 알릴 방법이
+  // 없다(pane.innerHTML="" 로 DOM 만 지운다) — 세대가 유일한 신호다. 없으면 옛 폴링 루프가
+  // detached 노드를 향해 10분까지 계속 authPoll() 을 부르고, 새 render() 는 그와 무관하게
+  // 두 번째 로그인 플로우를 새로 시작해 둘이 같은 authMsg 자리를 두고 경합한다.
+  var GEN = 0;
+
   function render(root) {
+    GEN += 1;
+    var myGen = GEN;
+    // 한 render() 안에서 로그인 시도는 한 번에 하나뿐이다 — 응답 오기 전에 또 누르면
+    // authStart 가 두 번 나가고, 각자 다른 nonce 로 브라우저를 두 번 열고, 각자의 poll() 이
+    // 같은 authMsg 를 두고 경합한다(리뷰 실측).
+    var signingIn = false;
+
     // startSignIn/poll 은 draw() 를 부를 수 있어야 해서(로그인 완료 시 화면을 새로 그린다)
     // draw() 와 같은 render() 클로저 안에 둔다.
     function startSignIn(row, msg) {
+      if (signingIn) return;
+      signingIn = true;
       msg.textContent = MSStr.t.wSignInWaiting;
       MSWallet.authStart().then(function (r) {
+        if (myGen !== GEN) return;   // 이 화면은 이미 떠났다 — 고아 콜백이 손댈 DOM 이 없다
         if (!r.ok) {
+          signingIn = false;
           // auth-disabled = 서버에 자격증명이 없다. 눌러도 아무 일 없는 버튼을 남기지 않는다.
-          if (r.reason === "auth-disabled") { row.parentNode.removeChild(row); return; }
+          // "Waiting for the browser…" 도 함께 지운다 — 안 지우면 버튼 없이 그 문구만 영원히
+          // 남는다(이 경로가 사실상 모든 사용자의 기본 경험이다 — 서버에 구글 자격증명이 없다).
+          if (r.reason === "auth-disabled") { row.parentNode.removeChild(row); msg.textContent = ""; return; }
           msg.textContent = MSStr.t.wSignInFailed;
           return;
         }
         if (typeof window !== "undefined" && window.open) window.open(r.authUrl, "_blank");
-        poll(r.nonce, 0, msg);
+        poll(row, r.nonce, 0, msg);
       });
     }
 
-    function poll(nonce, n, msg) {
-      if (n >= POLL_LIMIT) { msg.textContent = MSStr.t.wSignInFailed; return; }
+    function poll(row, nonce, n, msg) {
+      if (myGen !== GEN) return;   // 재렌더로 고아가 된 루프 — 더 이상 부르지 않는다
+      if (n >= POLL_LIMIT) { signingIn = false; msg.textContent = MSStr.t.wSignInFailed; return; }
       MSWallet.authPoll(nonce).then(function (r) {
-        if (r.ok && r.pending) { setTimeout(function () { poll(nonce, n + 1, msg); }, POLL_MS); return; }
+        if (myGen !== GEN) return;
+        if (r.ok && r.pending) { setTimeout(function () { poll(row, nonce, n + 1, msg); }, POLL_MS); return; }
+        signingIn = false;
         if (!r.ok) {
-          // device-claimed: 이 기기가 이미 다른 구글 계정에 묶여 있다 — 재시도해도 답이
-          // 바뀌지 않는 종결 상태다. 계속 폴링하지도, "다시 시도"라고 말하지도 않는다.
-          msg.textContent = (r.reason === "device-claimed") ? MSStr.t.wDeviceClaimed : MSStr.t.wSignInFailed;
+          if (r.reason === "device-claimed") {
+            // device-claimed 도 재시도해도 답이 안 바뀌는 종결 상태다 — auth-disabled 와 같은
+            // 방식으로 다룬다(행 제거). 다만 이유는 안내로 남긴다 — "왜 안 되는지"가 사라지면
+            // 사용자는 그냥 죽은 화면만 본다.
+            if (row && row.parentNode) row.parentNode.removeChild(row);
+            msg.textContent = MSStr.t.wDeviceClaimed;
+            return;
+          }
+          msg.textContent = MSStr.t.wSignInFailed;
           return;
         }
         // 버린 잔량이 있으면 반드시 말한다 — 안 말하면 "5개가 어디 갔냐"로 돌아온다.
