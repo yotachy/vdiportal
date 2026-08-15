@@ -795,3 +795,125 @@ function w_is_merged_away($db, $acctId) {
   $r = $st->fetch();
   return ($r && $r["reason"] === "merge_discard");
 }
+
+// ── AdMob SSV(서버 사이드 검증) ────────────────────────────────────────────────
+// SSV 콜백은 인증이 없는 것이 정상인 공개 GET 엔드포인트다 — 구글이 부른다. 그래서 서명이
+// 유일한 방어선이고, 검증이 없거나 범위가 틀리면 누구나 URL 에 reward_amount 를 붙여
+// 잔량을 원하는 만큼 만들 수 있다. 아래의 모든 갈래는 '거절'로 닫힌다.
+
+// 키 서버 URL. 테스트가 먼저 정의하면 그 값을 쓴다 — 단위 테스트가 구글에 접속하지 않고도
+// 키 교체·재요청 경로를 실제로 밟아 보려면 이 한 점이 열려 있어야 한다. 이걸 바꾸려면 이미
+// 우리 PHP 를 먼저 실행할 수 있어야 하므로 공격자에게 새 권한이 생기지는 않는다.
+if (!defined("W_SSV_KEYS_URL")) {
+  define("W_SSV_KEYS_URL", "https://www.gstatic.com/admob/reward/verifier-keys.json");
+}
+// 타임스탬프 허용 오차. 서명 검증은 바이트만 보므로 여기서는 쓰지 않는다 — 재생 방지는
+// 엔드포인트의 몫이다(ad_grants.transaction_id PK + 이 오차).
+define("W_SSV_SKEW_SEC", 3600);
+// 키 재요청 최소 간격. 증폭 방어의 본체가 이 값이다 — '호출당 1회' 만으로는 초당 1000건의
+// 위조 서명이 초당 1000회의 구글 키 서버 요청이 된다. 서명 위조는 공짜라서 공격자가 원하는
+// 만큼 낼 수 있고, 그 비용을 우리가 구글에 대한 트래픽으로 대신 내 줄 이유가 없다.
+define("W_SSV_REFETCH_MIN_SEC", 300);
+
+// curl 이 없는 PHP 빌드가 있다(실측: 이 저장소의 로컬 테스트 PHP 8.3 에 curl 확장이 없다).
+// 없다고 치명적 오류로 죽으면 검증이 예외로 터져 엔드포인트가 500 을 내는데, 그건 구글이
+// 재시도하는 실패다 — 못 받아오면 조용히 null 로 닫는다.
+function w_ssv_http_get($url) {
+  if (function_exists("curl_init")) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, array(CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10));
+    $body = curl_exec($ch);
+    curl_close($ch);
+    return is_string($body) ? $body : null;
+  }
+  $ctx = stream_context_create(array("http" => array("timeout" => 10)));
+  $body = @file_get_contents($url, false, $ctx);
+  return is_string($body) ? $body : null;
+}
+
+// 공개키는 파일로 캐시한다. $force 면 다시 받는다 — 구글이 키를 교체하기 때문이다.
+// 캐시 파일이 곧 테스트의 주입 지점이다(테스트는 네트워크를 타지 않는다).
+function w_ssv_keys($dir, $force) {
+  $f = $dir . "/ssv_keys_cache.json";
+  if (!$force && is_file($f)) {
+    $j = json_decode((string)file_get_contents($f), true);
+    if (is_array($j) && !empty($j["keys"]) && is_array($j["keys"])) return $j;
+  }
+  $body = w_ssv_http_get(W_SSV_KEYS_URL);
+  if ($body === null) return null;
+  $j = json_decode($body, true);
+  if (!is_array($j) || empty($j["keys"]) || !is_array($j["keys"])) return null;
+  @file_put_contents($f, $body);
+  clearstatcache(true, $f);   // 방금 쓴 mtime 을 아래 재요청 간격 검사가 봐야 한다
+  return $j;
+}
+
+// 서명 대상은 쿼리 문자열에서 "&signature=" 앞까지다. 그 뒤(signature·key_id, 그리고
+// 구글이 나중에 더 붙일 수 있는 것들)는 제외한다.
+//
+// ⚠ 원본 쿼리 문자열을 그대로 잘라야 한다. $_GET 을 파싱해 다시 조립하면 바이트 순서와
+// 인코딩이 사라지는데, 서명이 걸려 있는 것이 정확히 그 둘이다 — 재조립하는 순간 공격자가
+// 순서를 바꾸거나 %2D 로 다시 인코딩해도 같은 서명이 통과하게 된다.
+function w_ssv_signed_part($query) {
+  $i = strpos((string)$query, "&signature=");
+  return ($i === false) ? null : substr((string)$query, 0, $i);
+}
+
+// 재요청을 낼 자격이 있는가. 캐시가 아직 신선하면 지금 실패한 서명은 키가 낡아서가 아니라
+// 그냥 가짜다 — 다시 받아 봐야 결과는 같고 구글 키 서버만 두들기게 된다.
+function w_ssv_refetch_allowed($dir) {
+  $f = $dir . "/ssv_keys_cache.json";
+  clearstatcache(true, $f);
+  if (!is_file($f)) return true;
+  return (time() - (int)filemtime($f)) >= W_SSV_REFETCH_MIN_SEC;
+}
+
+// 서명이 지키는 값과 우리가 읽을 값이 같은가.
+//
+// parse_str 은 중복 키에서 '마지막이 이긴다'. 그래서 서명 범위 뒤에 같은 키를 한 번 더 붙이면
+// 서명은 원본 그대로 유효한데 $params 의 값만 공격자 것이 된다(reward_amount=1 … &reward_amount=999).
+// 바이트 검증만 하고 여기서 멈추면 그 문이 그대로 열린다 — 서명된 키는 전부 $params 안에서도
+// 같은 값이어야 한다. 서명 뒤에 붙은 '새로운' 키는 막지 않는다(구글이 파라미터를 늘릴 수 있다).
+function w_ssv_params_faithful($signed, $params) {
+  if (!is_array($params)) return false;
+  $sp = array();
+  parse_str($signed, $sp);
+  foreach ($sp as $k => $v) {
+    if (!array_key_exists($k, $params)) return false;
+    if ($params[$k] !== $v) return false;
+  }
+  return true;
+}
+
+function w_ssv_verify($dir, $query, $params) {
+  $signed = w_ssv_signed_part($query);
+  if ($signed === null) return false;
+  if (!is_array($params)) return false;
+  // 배열로 넘어올 수 있다(signature[]=x). 문자열이 아닌 걸 strtr 에 넣으면 TypeError 로
+  // 터지고, 그건 엔드포인트에서 500 이 된다 — 예외가 아니라 거절로 닫는다.
+  if (!isset($params["signature"]) || !is_string($params["signature"]) || $params["signature"] === "") return false;
+  if (!isset($params["key_id"]) || !is_string($params["key_id"]) || $params["key_id"] === "") return false;
+  if (!w_ssv_params_faithful($signed, $params)) return false;
+
+  // strict 로 푼다 — base64 가 아닌 문자를 조용히 버리지 않게 한다.
+  $sig = base64_decode(strtr($params["signature"], "-_", "+/"), true);
+  if ($sig === false || $sig === "") return false;
+
+  // 실패하면 키를 새로 받아 한 번만 재시도한다. 무한 재시도로 만들면 서명 위조 시도가
+  // 그대로 구글 키 서버에 대한 요청 증폭이 된다.
+  for ($attempt = 0; $attempt < 2; $attempt++) {
+    if ($attempt === 1 && !w_ssv_refetch_allowed($dir)) break;
+    $j = w_ssv_keys($dir, $attempt === 1);
+    if (!is_array($j) || empty($j["keys"]) || !is_array($j["keys"])) return false;
+    foreach ($j["keys"] as $k) {
+      if (!is_array($k) || !isset($k["keyId"]) || !isset($k["pem"])) continue;
+      // key_id 대조를 빼면 등록된 아무 키로나 서명해도 통과한다 — 대조가 '어느 키가
+      // 이 콜백을 보증하는가'를 하나로 못박는 자리다.
+      if ((string)$k["keyId"] !== $params["key_id"]) continue;
+      $pk = openssl_pkey_get_public((string)$k["pem"]);
+      if (!$pk) continue;
+      if (openssl_verify($signed, $sig, $pk, OPENSSL_ALGO_SHA256) === 1) return true;
+    }
+  }
+  return false;
+}

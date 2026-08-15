@@ -1,6 +1,13 @@
 <?php
 // 지갑 원장 단위 테스트. 프레임워크 없이 돌린다 — 이 저장소엔 컴포저가 없다.
 // 출력은 node --test 와 같은 'ℹ pass N' / 'ℹ fail N' 형식이다. run.sh 가 그 형식만 읽는다.
+
+// ⚠ SSV 키 서버 URL 을 require 보다 먼저 못박는다 — 이 스위트는 구글에 절대 접속하지 않는다.
+// 로컬 파일을 키 서버 자리에 놓으면 '키가 교체돼 다시 받아온다' 경로를 네트워크 없이 실제로
+// 밟아볼 수 있고, 캐시 파일 내용이 그 왕복이 일어났는지를 눈에 보이게 해 준다.
+$SSV_REMOTE = sys_get_temp_dir() . "/wtest-ssv-remote-" . getmypid() . ".json";
+define("W_SSV_KEYS_URL", "file://" . $SSV_REMOTE);
+
 require_once __DIR__ . "/../wallet-lib.php";
 
 $PASS = 0; $FAIL = 0; $MSGS = [];
@@ -1405,6 +1412,293 @@ t("transaction_id 가 PK 라 중복 삽입이 DB 층에서 막힌다", function 
   ok($threw, "같은 transaction_id 가 두 번 들어갔다 — 앱 층 검사만으로는 경합에서 둘 다 통과한다");
   $db = null; rmrf($d);
 });
+
+// ── AdMob SSV 서명 검증 ───────────────────────────────────────────────────────
+// 이 스위트는 구글에 접속하지 않는다. 테스트 키쌍을 만들어 우리가 직접 서명하고, 그 공개키를
+// 캐시 파일(= 주입 지점)에 꽂는다. '키 서버'는 위에서 file:// 로 바꿔친 로컬 파일이다.
+
+function _ssv_key() {
+  return openssl_pkey_new(array("private_key_type" => OPENSSL_KEYTYPE_EC, "curve_name" => "prime256v1"));
+}
+function _ssv_pub($k) { $d = openssl_pkey_get_details($k); return $d["key"]; }
+// $pairs = [[keyId, privKey], ...]
+function _ssv_json($pairs) {
+  $keys = array();
+  foreach ($pairs as $p) { $keys[] = array("keyId" => $p[0], "pem" => _ssv_pub($p[1])); }
+  return json_encode(array("keys" => $keys));
+}
+function _ssv_fixture($dir, $keyId) {
+  $k = _ssv_key();
+  file_put_contents($dir . "/ssv_keys_cache.json", _ssv_json(array(array($keyId, $k))));
+  return $k;
+}
+// 구글이 하는 것과 같은 방식: ECDSA-SHA256 + base64url(패딩 없음).
+function _ssv_sign($priv, $msg) {
+  openssl_sign($msg, $sig, $priv, OPENSSL_ALGO_SHA256);
+  return rtrim(strtr(base64_encode($sig), "+/", "-_"), "=");
+}
+// 캐시를 낡게 만든다. 재요청 간격을 넘겼다는 사실만 표현한다 — 구현 상수를 끌어오지 않는다.
+function _ssv_age_cache($dir) {
+  touch($dir . "/ssv_keys_cache.json", time() - 100000);
+  clearstatcache();
+}
+function _ssv_cache_raw($dir) { return (string)file_get_contents($dir . "/ssv_keys_cache.json"); }
+function _ssv_remote($pairs) {
+  global $SSV_REMOTE;
+  file_put_contents($SSV_REMOTE, _ssv_json($pairs));
+}
+function _ssv_remote_clear() { global $SSV_REMOTE; @unlink($SSV_REMOTE); }
+
+t("올바르게 서명된 콜백은 검증을 통과한다", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "ad_network=5450213213286189855&ad_unit=123&custom_data=acct-1&reward_amount=1"
+     . "&reward_item=Scoops&timestamp=" . (time() * 1000) . "&transaction_id=tx-1&user_id=acct-1";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "정상 서명이 거절됐다 — 기능이 통째로 멈춘다");
+  rmrf($d);
+});
+
+t("서명이 틀리면 거절한다 — 이 문이 열리면 잔량이 무한이 된다", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&timestamp=" . (time() * 1000) . "&transaction_id=tx-2";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  // 서명은 그대로 두고 금액만 올린다 — 공격자가 실제로 할 일이다.
+  $tampered = str_replace("reward_amount=1", "reward_amount=999", $full);
+  parse_str($tampered, $p);
+  ok(!w_ssv_verify($d, $tampered, $p), "금액을 바꿨는데 통과했다 — 공개 수도꼭지다");
+  rmrf($d);
+});
+
+t("서명 없는 콜백은 거절한다", function () {
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=5&transaction_id=tx-3&key_id=77";
+  parse_str($q, $p);
+  ok(!w_ssv_verify($d, $q, $p), "서명 없이 통과했다");
+  rmrf($d);
+});
+
+t("모르는 key_id 는 거절한다", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-4";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=99";
+  parse_str($full, $p);
+  ok(!w_ssv_verify($d, $full, $p), "등록되지 않은 키로 서명한 것이 통과했다");
+  rmrf($d);
+});
+
+// 서명 범위가 틀리면 두 방향으로 망가진다: 좁으면 전부 거절(기능 정지),
+// 넓으면 signature 자신을 서명 대상에 넣게 되어 논리가 무너진다.
+t("서명 대상은 signature 앞까지다 — 뒤 파라미터를 넣으면 깨진다", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-5";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "정상 케이스");
+  // 뒤에 파라미터가 더 붙어도(구글이 늘릴 수 있다) 서명 대상은 그대로여야 한다
+  $more = $full . "&foo=bar";
+  parse_str($more, $p2);
+  ok(w_ssv_verify($d, $more, $p2), "signature 뒤에 파라미터가 붙자 검증이 깨졌다");
+  rmrf($d);
+});
+
+// ── 공격 ───────────────────────────────────────────────────────────────────────
+
+t("파라미터 순서를 바꾸면 거절한다 — 서명은 바이트 순서에 걸려 있다", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-6";
+  $sig = _ssv_sign($k, $q);
+  $re = "reward_amount=1&custom_data=acct-1&transaction_id=tx-6&signature=" . $sig . "&key_id=77";
+  parse_str($re, $p);
+  ok(!w_ssv_verify($d, $re, $p), "순서를 바꿨는데 통과했다 — 서명 대상을 파싱 후 재조립하고 있다");
+  rmrf($d);
+});
+
+t("재인코딩(%2D)만 해도 거절한다 — parse_str 이 같다고 해도 바이트가 다르다", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-7";
+  $sig = _ssv_sign($k, $q);
+  // "acct-1" 의 '-' 를 %2D 로. parse_str 결과는 완전히 동일하다.
+  $enc = "custom_data=acct%2D1&reward_amount=1&transaction_id=tx-7&signature=" . $sig . "&key_id=77";
+  parse_str($enc, $a); parse_str($q, $b);
+  eq($a["custom_data"], $b["custom_data"], "전제가 깨졌다 — %2D 가 '-' 로 안 풀렸다");
+  ok(!w_ssv_verify($d, $enc, $a), "바이트가 다른데 통과했다 — 서명 대상을 재직렬화하고 있다");
+  rmrf($d);
+});
+
+// parse_str 은 중복 키에서 '마지막이 이긴다'. 서명 범위 뒤에 같은 키를 한 번 더 붙이면
+// 서명은 원본 그대로 유효한데 $params 의 값만 공격자 것으로 바뀐다 — 서명 검증을
+// '바이트가 맞나'로만 구현하면 이 문이 활짝 열린다.
+t("서명 뒤에 같은 파라미터를 또 붙여 값을 덮어쓰면 거절한다", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-8";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  $dup = $full . "&reward_amount=999";
+  parse_str($dup, $p);
+  eq($p["reward_amount"], "999", "전제가 깨졌다 — parse_str 이 마지막 값을 안 골랐다");
+  ok(!w_ssv_verify($d, $dup, $p),
+     "서명된 금액 1 이 999 로 덮인 채 통과했다 — 서명이 지키는 값과 코드가 읽는 값이 갈렸다");
+  rmrf($d);
+});
+
+t("서명 범위 안의 중복도 거절한다 — 앞쪽에 signature 를 심는 수법", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-9";
+  $sig = _ssv_sign($k, $q);
+  // 서명 필드를 앞에도 심어 자르는 위치를 흔든다.
+  $evil = "signature=" . $sig . "&reward_amount=999&signature=" . $sig . "&key_id=77";
+  parse_str($evil, $p);
+  ok(!w_ssv_verify($d, $evil, $p), "signature 를 앞에 심어 서명 대상을 흔들었는데 통과했다");
+  rmrf($d);
+});
+
+t("빈 서명·base64 가 아닌 서명은 거절한다", function () {
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-10";
+  foreach (array("", "!!!!!!", "not base64 at all", "@@@@") as $bad) {
+    $full = $q . "&signature=" . $bad . "&key_id=77";
+    parse_str($full, $p);
+    ok(!w_ssv_verify($d, $full, $p), "쓰레기 서명이 통과했다: " . var_export($bad, true));
+  }
+  rmrf($d);
+});
+
+t("다른 메시지에 대한 유효 서명은 거절한다", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-11";
+  // 서명 자체는 이 키로 만든 진짜다 — 다만 다른 문장에 대한 것이다.
+  $sig = _ssv_sign($k, "custom_data=acct-1&reward_amount=1&transaction_id=tx-OTHER");
+  $full = $q . "&signature=" . $sig . "&key_id=77";
+  parse_str($full, $p);
+  ok(!w_ssv_verify($d, $full, $p), "다른 문장의 서명이 통과했다");
+  rmrf($d);
+});
+
+t("key_id 는 등록돼 있지만 그 키로 서명한 게 아니면 거절한다", function () {
+  $d = tmpdir();
+  $a = _ssv_key(); $b = _ssv_key();
+  file_put_contents($d . "/ssv_keys_cache.json", _ssv_json(array(array("77", $a), array("88", $b))));
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-12";
+  // 88 번 키로 서명해 놓고 key_id 는 77 이라고 말한다. key_id 대조를 빼면 88 도 시도돼 통과한다.
+  $full = $q . "&signature=" . _ssv_sign($b, $q) . "&key_id=77";
+  parse_str($full, $p);
+  ok(!w_ssv_verify($d, $full, $p), "key_id 가 가리키지 않는 키로 통과했다 — 키 대조가 빠졌다");
+  // 반대로 제대로 말하면 통과해야 한다(대조가 전부를 막으면 안 된다)
+  $good = $q . "&signature=" . _ssv_sign($b, $q) . "&key_id=88";
+  parse_str($good, $p2);
+  ok(w_ssv_verify($d, $good, $p2), "정직한 key_id 가 거절됐다");
+  rmrf($d);
+});
+
+t("base64url 문자(-, _)가 든 서명도 통과한다 — 변환을 빼면 여기서 깨진다", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $hit = false;
+  for ($i = 0; $i < 200 && !$hit; $i++) {
+    $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-b64-" . $i;
+    $sig = _ssv_sign($k, $q);
+    if (strpos($sig, "-") === false && strpos($sig, "_") === false) continue;
+    $hit = true;
+    $full = $q . "&signature=" . $sig . "&key_id=77";
+    parse_str($full, $p);
+    ok(w_ssv_verify($d, $full, $p), "base64url 문자가 든 서명이 거절됐다 — -_ → +/ 변환이 빠졌다");
+  }
+  ok($hit, "200회 서명에서 base64url 문자가 한 번도 안 나왔다 — 이 검사가 헛돌았다");
+  rmrf($d);
+});
+
+t("배열로 넘어온 signature·key_id 에 죽지 않고 거절한다", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-13";
+  foreach (array("signature[]=x&key_id=77", "signature[]=x&signature[]=y&key_id[]=77") as $tail) {
+    $full = $q . "&" . $tail;
+    parse_str($full, $p);
+    ok(!w_ssv_verify($d, $full, $p), "배열 파라미터가 통과했다: " . $tail);
+  }
+  rmrf($d);
+});
+
+// empty() 는 "0" 도 비었다고 한다. 구글 키 ID 는 숫자라 언젠가 0 이 나오면
+// 그 순간부터 모든 정상 콜백이 조용히 거절된다 — 기능이 통째로 죽는다.
+t("key_id 가 '0' 이어도 정상 동작한다 — empty() 함정", function () {
+  $d = tmpdir(); $k = _ssv_fixture($d, "0");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-14";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=0";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "key_id=0 인 정상 콜백이 거절됐다");
+  rmrf($d);
+});
+
+// ── 키 캐시 · 재요청 증폭 ──────────────────────────────────────────────────────
+
+t("w_ssv_keys 는 캐시가 있으면 그걸 쓰고, force 면 키 서버를 다시 읽는다", function () {
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $remote = _ssv_key(); _ssv_remote(array(array("88", $remote)));
+  $j = w_ssv_keys($d, false);
+  eq((string)$j["keys"][0]["keyId"], "77", "캐시가 있는데 원격을 읽었다");
+  $j2 = w_ssv_keys($d, true);
+  eq((string)$j2["keys"][0]["keyId"], "88", "force 인데 원격을 안 읽었다");
+  ok(strpos(_ssv_cache_raw($d), "88") !== false, "다시 받은 키가 캐시에 안 남았다");
+  _ssv_remote_clear(); rmrf($d);
+});
+
+t("키 서버가 응답하지 않으면 null 이다 — 닫히는 쪽으로 실패한다", function () {
+  $d = tmpdir(); _ssv_remote_clear();
+  eq(w_ssv_keys($d, false), null, "캐시도 원격도 없는데 뭔가를 돌려줬다");
+  rmrf($d);
+});
+
+// 증폭 방어의 본체. 호출당 1회 제한만으로는 초당 1000건의 위조 서명이 초당 1000회의
+// 구글 키 서버 요청이 된다. 아래 두 검사는 입력이 완전히 같고 캐시 나이만 다르다.
+t("캐시가 신선하면 검증 실패해도 키를 다시 받지 않는다 — 위조 폭주 = 키 서버 증폭 방지", function () {
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $rot = _ssv_key(); _ssv_remote(array(array("88", $rot)));
+  $before = _ssv_cache_raw($d);
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-15";
+  $full = $q . "&signature=" . _ssv_sign($rot, $q) . "&key_id=88";
+  parse_str($full, $p);
+  for ($i = 0; $i < 20; $i++) { ok(!w_ssv_verify($d, $full, $p), "신선한 캐시인데 원격을 읽어 통과했다"); }
+  eq(_ssv_cache_raw($d), $before, "캐시가 바뀌었다 — 재요청이 나갔다");
+  _ssv_remote_clear(); rmrf($d);
+});
+
+t("캐시가 낡았고 키가 교체됐으면 한 번 다시 받아 통과한다 — 기능이 멈추면 안 된다", function () {
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $rot = _ssv_key(); _ssv_remote(array(array("88", $rot)));
+  _ssv_age_cache($d);
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-16";
+  $full = $q . "&signature=" . _ssv_sign($rot, $q) . "&key_id=88";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "키가 교체됐는데 다시 받지 않았다 — 검증이 영구히 막힌다");
+  ok(strpos(_ssv_cache_raw($d), "88") !== false, "다시 받은 키가 캐시에 안 남았다");
+  _ssv_remote_clear(); rmrf($d);
+});
+
+t("다시 받은 직후에는 또 받지 않는다 — 재요청은 호출당 1회이자 간격당 1회다", function () {
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $rot = _ssv_key(); _ssv_remote(array(array("88", $rot)));
+  _ssv_age_cache($d);
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-17";
+  $full = $q . "&signature=" . _ssv_sign($rot, $q) . "&key_id=88";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "전제가 깨졌다 — 낡은 캐시에서 재요청이 안 나갔다");
+  // 이제 캐시는 방금 받아 신선하다. 키 서버를 또 갈아끼워도 읽지 않아야 한다.
+  $rot2 = _ssv_key(); _ssv_remote(array(array("99", $rot2)));
+  $q2 = "custom_data=acct-1&reward_amount=1&transaction_id=tx-18";
+  $full2 = $q2 . "&signature=" . _ssv_sign($rot2, $q2) . "&key_id=99";
+  parse_str($full2, $p2);
+  ok(!w_ssv_verify($d, $full2, $p2), "연달아 또 다시 받았다 — 간격 제한이 없다");
+  ok(strpos(_ssv_cache_raw($d), "99") === false, "캐시가 또 갱신됐다 — 재요청이 연달아 나갔다");
+  _ssv_remote_clear(); rmrf($d);
+});
+
+t("w_ssv_signed_part 는 signature 앞까지만 돌려주고, 없으면 null 이다", function () {
+  eq(w_ssv_signed_part("a=1&b=2&signature=X&key_id=7"), "a=1&b=2", "서명 앞 범위가 틀리다");
+  eq(w_ssv_signed_part("a=1&b=2"), null, "signature 가 없는데 범위를 돌려줬다");
+  // 뒤에 뭐가 더 붙어도 범위는 그대로다
+  eq(w_ssv_signed_part("a=1&signature=X&key_id=7&foo=bar"), "a=1", "뒤 파라미터가 범위를 늘렸다");
+});
+
+_ssv_remote_clear();
 
 foreach ($MSGS as $m) { echo $m, "\n"; }
 echo "ℹ pass ", $PASS, "\n";
