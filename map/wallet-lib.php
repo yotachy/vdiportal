@@ -852,27 +852,37 @@ function w_ssv_cached_keys($dir) {
   return (is_array($j) && !empty($j["keys"]) && is_array($j["keys"])) ? $j : null;
 }
 
-// 시도 표식의 자리. 지갑 디렉토리가 1순위, 임시 디렉토리가 폴백이다.
+// 시도 표식의 자리. 지갑 디렉토리에 쓸 수 있으면 거기, 아니면 임시 디렉토리로 물러선다.
 //
 // ⚠ 폴백이 있어야 하는 이유: 배포 후 웹 유저가 데이터 디렉토리에 못 쓰게 되면 표식도 캐시도
 // 남길 데가 없어져 간격 제한이 통째로 꺼진다 — 그게 증폭이 가장 심한 바로 그 상황이다.
-function w_ssv_attempt_paths($dir) {
-  return array($dir . "/ssv_keys_attempt",
-               sys_get_temp_dir() . "/w_ssv_attempt_" . sha1($dir));
+//
+// ⚠ 그런데 '둘 다 본다'로 만들면 안 된다. 임시 디렉토리는 아무나 쓸 수 있으므로,
+// /tmp/w_ssv_attempt_<sha1(데이터디렉토리)> 를 만들 수 있는 로컬 프로세스 아무나가 남의
+// 키 재요청을 얼릴 수 있게 된다. 기록하는 자리와 읽는 자리가 같은 하나여야 한다.
+function w_ssv_attempt_path($dir) {
+  if (is_writable($dir)) return $dir . "/ssv_keys_attempt";
+  return sys_get_temp_dir() . "/w_ssv_attempt_" . sha1($dir);
 }
 
 // 키 서버로 나가기 '직전에' 호출한다. 결과가 아니라 시도를 기록하는 것이 핵심이다 — 아래
 // w_ssv_refetch_allowed 주석 참조.
 function w_ssv_mark_attempt($dir) {
-  $p = w_ssv_attempt_paths($dir);
-  if (@touch($p[0])) { clearstatcache(true, $p[0]); return; }
-  @touch($p[1]);
-  clearstatcache(true, $p[1]);
+  $m = w_ssv_attempt_path($dir);
+  @touch($m);
+  clearstatcache(true, $m);
 }
 
 function w_ssv_fresh($path) {
   clearstatcache(true, $path);
-  return is_file($path) && (time() - (int)filemtime($path)) < W_SSV_REFETCH_MIN_SEC;
+  if (!is_file($path)) return false;
+  $age = time() - (int)filemtime($path);
+  // ⚠ 하한이 반드시 있어야 한다. '간격보다 어리다'만 보면 **미래 날짜** 표식이 영원히
+  // 신선해진다 — 시계 되감김, NFS mtime 어긋남, 혹은 파일 하나 만들 수 있는 아무 프로세스가
+  // +10년짜리 mtime 을 남기면 키 재요청이 영구히 얼어붙는다. 그러면 구글이 키를 교체하는
+  // 순간부터 모든 **진짜** 콜백이 unknown_key → 503 이 되고, 광고를 본 사용자 전원이 보상을
+  // 잃는데 원인은 아무 로그에도 안 남는다. 조용하고 전면적인 고장이다.
+  return $age >= 0 && $age < W_SSV_REFETCH_MIN_SEC;
 }
 
 // 공개키는 파일로 캐시한다. $force 면 다시 받는다 — 구글이 키를 교체하기 때문이다.
@@ -921,9 +931,7 @@ function w_ssv_signed_part($query) {
 // 자체가 자기 자신을 DoS 한다. 그래서 '결과'가 아니라 '시도'를 따로 기록해 그것으로 막는다.
 function w_ssv_refetch_allowed($dir) {
   // ① 최근에 나가 봤다 — 성공이든 실패든. 실패까지 세는 것이 이 갈래의 전부다.
-  foreach (w_ssv_attempt_paths($dir) as $m) {
-    if (w_ssv_fresh($m)) return false;
-  }
+  if (w_ssv_fresh(w_ssv_attempt_path($dir))) return false;
   // ② 캐시를 최근에 성공적으로 새로 받았다 — 그러면 지금 실패한 서명은 키가 낡아서가
   //    아니라 그냥 가짜다. 다시 받아 봐야 결과는 같고 키 서버만 두들기게 된다.
   if (w_ssv_fresh($dir . "/ssv_keys_cache.json") && w_ssv_cached_keys($dir) !== null) return false;

@@ -1802,17 +1802,28 @@ t("캐시 디렉토리에 쓸 수 없어도 — 위조 50회에 키 서버 조�
   $rot = _ssv_key(); _ssv_net_serve(array(array("88", $rot)));
   $log = $d . "-errlog.txt"; @unlink($log);
   $oldLog = ini_get("error_log"); $oldOn = ini_get("log_errors");
-  ini_set("error_log", $log); ini_set("log_errors", "1");
-  chmod($d, 0500);
-  ok(!is_writable($d), "전제가 깨졌다 — 디렉토리가 아직 쓰기 가능하다(root 로 도는 중?)");
   $stray = _ssv_key();
   $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-ro";
   $full = $q . "&signature=" . _ssv_sign($stray, $q) . "&key_id=88";
   parse_str($full, $p);
-  for ($i = 0; $i < 50; $i++) { ok(!w_ssv_verify($d, $full, $p), "못 쓰는 디렉토리에서 통과했다"); }
-  $n = _ssv_net_count();
-  chmod($d, 0700);
-  ini_set("error_log", $oldLog === false ? "" : $oldLog); ini_set("log_errors", $oldOn);
+  // ⚠ 되돌리기는 finally 에 둔다. 단언 뒤에 두면 ok() 하나가 실패하는 순간 디렉토리가 0500
+  // 인 채로, error_log 가 곧 지워질 경로를 가리킨 채로 남는다 — 실패 하나가 뒤 테스트까지
+  // 오염시키고 /tmp 에 지울 수 없는 디렉토리를 남긴다(이번 라운드가 만든 새 누수였다).
+  $n = null; $passed = true;
+  try {
+    ini_set("error_log", $log); ini_set("log_errors", "1");
+    chmod($d, 0500);
+    ok(!is_writable($d), "전제가 깨졌다 — 디렉토리가 아직 쓰기 가능하다(root 로 도는 중?)");
+    for ($i = 0; $i < 50; $i++) {
+      if (w_ssv_verify($d, $full, $p) !== false) { $passed = false; break; }
+    }
+    $n = _ssv_net_count();
+  } finally {
+    chmod($d, 0700);
+    ini_set("error_log", $oldLog === false ? "" : $oldLog);
+    ini_set("log_errors", $oldOn === false ? "" : $oldOn);
+  }
+  ok($passed, "못 쓰는 디렉토리에서 통과했다");
   ok($n <= 1, "키 서버 조회가 " . $n . "회 — 디렉토리를 못 쓰면 제한이 통째로 꺼진다");
   // 캐시 쓰기 실패는 조용히 넘어가면 안 된다 — 이 로그가 유일한 단서다
   ok(is_file($log) && strpos((string)file_get_contents($log), "SSV 키 캐시를 쓸 수 없다") !== false,
@@ -1838,6 +1849,47 @@ t("키 항목에 배열이 들어 있어도 경고 한 줄 없이 거절한다",
   restore_error_handler();
   ok(!$got, "배열이 든 키 항목으로 통과했다");
   eq(count($warns), 0, "PHP 진단이 났다: " . implode(" | ", $warns));
+  _ssv_cleanup($d);
+});
+
+// 간격 판정에 하한이 없으면 **미래 날짜** 표식이 영원히 신선해져 키 재요청이 얼어붙는다.
+// 시계 되감김·NFS mtime 어긋남·아무 프로세스가 남긴 +10년 mtime 하나면 된다. 그러면 구글이
+// 키를 교체하는 순간부터 모든 진짜 콜백이 503 이 되고 아무 로그도 남지 않는다.
+t("미래 날짜 시도 표식은 재요청을 막지 못한다 — 하한이 없으면 영구 동결이다", function () {
+  _ssv_net_reset();
+  foreach (array(86400, 10 * 365 * 86400) as $ahead) {
+    $d = tmpdir(); _ssv_fixture($d, "77");
+    _ssv_age_cache($d);
+    $rot = _ssv_key(); _ssv_net_serve(array(array("88", $rot)));
+    touch($d . "/ssv_keys_attempt", time() + $ahead);   // 미래에서 온 표식
+    clearstatcache();
+    $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-future";
+    $full = $q . "&signature=" . _ssv_sign($rot, $q) . "&key_id=88";
+    parse_str($full, $p);
+    ok(w_ssv_verify($d, $full, $p),
+       "미래 표식(+" . $ahead . "초)에 재요청이 얼어붙었다 — 키 교체 후 모든 진짜 보상이 사라진다");
+    _ssv_cleanup($d);
+  }
+});
+
+// 임시 디렉토리는 아무나 쓸 수 있다. 지갑 디렉토리가 멀쩡한데도 거기를 본다면, /tmp 에 파일
+// 하나 만들 수 있는 로컬 프로세스 아무나가 남의 키 재요청을 얼릴 수 있다.
+t("지갑 디렉토리가 멀쩡하면 /tmp 표식은 쳐다보지 않는다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  _ssv_age_cache($d);
+  $rot = _ssv_key(); _ssv_net_serve(array(array("88", $rot)));
+  ok(is_writable($d), "전제가 깨졌다 — 지갑 디렉토리가 쓰기 불가다");
+  // 남이 심어 놓은 폴백 표식
+  $stray = sys_get_temp_dir() . "/w_ssv_attempt_" . sha1($d);
+  touch($stray);
+  clearstatcache();
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-stray";
+  $full = $q . "&signature=" . _ssv_sign($rot, $q) . "&key_id=88";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p),
+     "남이 /tmp 에 심은 표식이 재요청을 막았다 — 아무나 남의 키 갱신을 얼릴 수 있다");
+  @unlink($stray);
   _ssv_cleanup($d);
 });
 
@@ -1926,11 +1978,13 @@ t("W_SSV_KEYS_URL 은 환경변수로도 주입된다 — define 은 자식 프�
   $lib = realpath(__DIR__ . "/../wallet-lib.php");
   ok($lib !== false, "wallet-lib.php 를 못 찾았다");
   $code = "require " . var_export($lib, true) . "; echo W_SSV_KEYS_URL;";
-  $cmd = "W_SSV_KEYS_URL=ssvtest://from-env php -r " . escapeshellarg($code) . " 2>/dev/null";
+  $cmd = "env W_SSV_KEYS_URL=ssvtest://from-env php -r " . escapeshellarg($code) . " 2>/dev/null";
   eq(trim((string)shell_exec($cmd)), "ssvtest://from-env",
      "환경변수가 자식 PHP 프로세스에 안 닿았다 — 디스패처가 진짜 구글로 나간다");
-  // 환경변수가 없으면 기본값(구글)이어야 한다 — 이음매가 기본 동작을 바꾸면 안 된다
-  $cmd2 = "php -r " . escapeshellarg($code) . " 2>/dev/null";
+  // 환경변수가 없으면 기본값(구글)이어야 한다 — 이음매가 기본 동작을 바꾸면 안 된다.
+  // ⚠ env -u 로 주변 환경을 걷어낸다. 안 그러면 이 스위트를 W_SSV_KEYS_URL 이 설정된
+  // 셸에서 돌릴 때(= 이 이음매가 존재하는 바로 그 용도) 검사가 스스로 깨진다.
+  $cmd2 = "env -u W_SSV_KEYS_URL php -r " . escapeshellarg($code) . " 2>/dev/null";
   eq(trim((string)shell_exec($cmd2)), "https://www.gstatic.com/admob/reward/verifier-keys.json",
      "환경변수 없을 때의 기본 URL 이 바뀌었다");
 });
