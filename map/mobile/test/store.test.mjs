@@ -28,6 +28,27 @@ test("addTicker 는 중복을 거부하고 대소문자를 정규화한다", () 
   assert.equal(MSStore.getWatchlist().length, 1);
 });
 
+// UTC 자정 근처(00:00~08:59 KST)에서 toISOString() 을 쓰면 하루가 이르게 찍힌다.
+// 호스트 시간대에 기대는 대신 가짜 시계(now)를 주입해 그 경계를 항상 재현한다 —
+// "테스트가 도는 시각 밖에서만 통과하는 테스트는 없느니만 못하다".
+test("addedAt 은 UTC 가 아니라 로컬 달력일이다 — 자정 경계에서 하루 밀리면 안 된다", () => {
+  // 연도를 2099로 잡는 이유: 실제 시스템 시각과 절대 우연히 일치하지 않게 하기 위해서다.
+  // (실제로 2026-08-13T17:58Z를 썼더니 이 테스트를 만든 바로 그 시각 근처에 실행돼
+  // "진짜 Date()를 계속 부르는" 회귀도 우연히 통과했다 — 값만 비교하면 벽시계에 기댄다.)
+  var calls = 0;
+  MSStore.install(memBackend(), function () {
+    calls++;
+    return {
+      getFullYear: () => 2099, getMonth: () => 0, getDate: () => 5,   // 로컬: 2099-01-05
+      toISOString: () => "2098-12-31T17:58:00.000Z"                   // UTC(=toISOString): 2098-12-31
+    };
+  });
+  MSStore.addTicker("AAPL", "Apple Inc.");
+  assert.ok(calls > 0, "addTicker 가 주입된 시계를 쓰지 않는다 — 진짜 Date() 를 부른다");
+  assert.equal(MSStore.getWatchlist()[0].addedAt, "2099-01-05",
+    "로컬 달력일이 아니다 — UTC(toISOString) 로 찍혔거나 오프셋으로 흉내 냈을 가능성이 있다");
+});
+
 test("removeTicker 는 스캔 캐시도 함께 지운다 — 남으면 유령 신호가 뜬다", () => {
   MSStore.install(memBackend());
   MSStore.addTicker("AAPL", "Apple Inc.");
@@ -55,14 +76,6 @@ test("깨진 JSON 은 예외 대신 기본값으로 떨어진다", () => {
   const b = memBackend(); b._map.set(MSStore.KEYS.watchlist, "{{깨짐");
   MSStore.install(b);
   assert.deepEqual(MSStore.getWatchlist(), []);
-});
-
-test("seedIfEmpty 는 비었을 때만 3종목을 넣는다", () => {
-  MSStore.install(memBackend());
-  assert.equal(MSStore.seedIfEmpty(), true);
-  assert.deepEqual(MSStore.getWatchlist().map(x => x.sym), ["AAPL", "NVDA", "MSFT"]);
-  assert.equal(MSStore.seedIfEmpty(), false, "두 번째 호출이 또 시드했다");
-  assert.equal(MSStore.getWatchlist().length, 3);
 });
 
 test("lastSym 왕복 — 대소문자 정규화", () => {

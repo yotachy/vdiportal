@@ -20,9 +20,6 @@
   // 온보딩 차트는 가격 패널 한 장이다 — 리포트의 4단 적층(커버 520px)이 필요 없다.
   // 지표 30종은 2단계의 빗이 대신 말한다.
   var CHART_H = 250;
-  // 하단 날짜축은 마지막 패널 **아래** 14px 에 찍힌다(chart-draw.js drawAxes) — 레이아웃 높이를
-  // 캔버스 높이로 그대로 주면 그 글자가 캔버스 밖으로 나가 잘린다. 그만큼을 미리 뗀다.
-  var AXIS_LABEL_H = 18;
   // MSPreds.seed 가 꿈틀의 난수 씨앗으로 쓴다. 종목명이 아니라 "이 시계"의 이름이다 —
   // 실제 종목을 넣으면 그 종목의 예측처럼 읽힌다.
   var SAMPLE_SEED = "SAMPLE";
@@ -64,18 +61,27 @@
     // state 는 그걸 넘어 살아남는다. 그래서 여기서 다루는 모든 것은 둘 중 하나여야 한다:
     //   (a) 반복되면 안 되는 것 → 래치(아래 셋)로 한 번만 실행한다.
     //   (b) 그 밖의 모든 것 → 매 그리기마다 state 로부터 다시 칠한다.
-    // 이 둘을 섞으면 "state 는 참인데 화면은 초기값"인 화면이 나온다. 실제로 세 번 나왔다:
+    // 이 둘을 섞으면 "state 는 참인데 화면은 초기값"인 화면이 나온다. 실제로 네 번 나왔다:
     // 3단계 지급 결과가 재진입 시 빈 칸이 됐고, 4단계 프리셋이 되살아났고, 5단계 동의
-    // 체크박스가 꺼진 채로 완료 버튼만 열려 있었다(눈에 안 보이는 동의 — 법적 효력이 있는 자리).
+    // 체크박스가 꺼진 채로 완료 버튼만 열려 있었고(눈에 안 보이는 동의 — 법적 효력이 있는 자리),
+    // 4단계 상한이 재진입마다 "지금" 선택 개수로 다시 계산돼 방금 뺀 자리를 다시 못 넣는
+    // 비대칭으로 되살아났다(리뷰 지적).
     // 래치는 셋뿐이며, 하나라도 늘리려면 (b) 로 해결되지 않는지 먼저 볼 것:
     //   grantStarted — 부수효과(네트워크 발신)를 한 번만. 그리기는 매번(paintGrant).
     //   pickInited   — 첫 그리기가 끝났다는 표시. 이후엔 프리셋 대신 state.picked 로 칠한다.
     //   finished     — 종결 동작(심기·동의·onDone)이 커밋됐다. 완료 버튼 더블탭 가드.
+    // 래치와 결이 같은 네 번째 함정: "처음 진입했을 때 참이었던 값"도 매번 다시 재면 안 된다.
+    //   lockedSyms — 온보딩 시작 시점의 워치리스트. 상한도 여기서 파생된다(maxFor).
+    //   핵심은 래치가 아니라 **출처**다: 반드시 MSStore.getWatchlist() 에서 재고, presetItems
+    //   에서 재면 안 된다. 재진입 시 presetItems 는 state.picked(지금 고른 것)이므로, 그걸로
+    //   재면 4단계에서 새로 더한 종목까지 "원래 갖고 있던 것"으로 둔갑해 잠겨버린다.
+    //   (워치리스트는 완료 전까지 안 바뀌므로 래치 자체는 값을 바꾸지 않는다 — 한 번만 읽는
+    //   비용 절약이자, 출처를 한 곳으로 못박아 두는 표시다.)
     // fwd.disabled 만 믿을 수 없다 — 클릭 이벤트 자체는 disabled 여부와 무관하게 발생할 수
     // 있으므로(연속 두 탭이 disabled 반영 전에 둘 다 들어오는 경우) 핸들러 안에서 막는다.
     // (opts.onDone 은 중복 방어가 없다 — app.js 가 boot() 에 그대로 연결한다.)
     var state = { picked: [], agreed: false, pickInited: false, granted: null, grantFailed: false,
-                  grantStarted: false, finished: false, sample: o.sample || null };
+                  grantStarted: false, finished: false, lockedSyms: null, sample: o.sample || null };
     var step = 1;
     var an = null;   // 엔진 결과 캐시 — 1↔2 단계를 오갈 때마다 32지표를 다시 돌리지 않는다
 
@@ -151,7 +157,7 @@
       var tail = MSZoom.clamp(MSChartLayout.plotWidth(cssW, PAD), fut, MSZoom.DEFAULT_TAIL);
       var lay = MSChartLayout.chartLayout({
         candle: s.candle, prediction: pred,
-        width: cssW, height: CHART_H - AXIS_LABEL_H, pad: PAD, tailBars: tail,
+        width: cssW, height: CHART_H, pad: PAD, tailBars: tail,
         panels: ["price"]                 // 서브패널 3단은 온보딩에 할 말이 없다
       });
 
@@ -266,11 +272,19 @@
     // 자기 목록에 얹힌다 — 이 단계가 없애려던 바로 그 상태가 되돌아온다. 그래서 목록이
     // 비어 있지 않으면 그 목록이 프리셋이다. 목록이 있다고 온보딩을 건너뛰지는 않는다 —
     // 동의 기록은 법적 효력이 있는 자리라 한 번은 받아야 한다.
+    // {sym,name} 으로 돌려준다 — 심볼만 주면 CURATED 밖 종목(예: PLTR 하나뿐인 워치리스트)이
+    // 피커에서 이름 없이 그려진다(ticker-picker.js 의 resolved 시딩이 이 이름을 쓴다).
     function defaultPreset() {
       var wl = MSStore.getWatchlist();
       var src = (wl && wl.length) ? wl : MSStore.SEED;
-      return src.map(function (x) { return x.sym; });
+      return src.map(function (x) { return { sym: x.sym, name: x.name }; });
     }
+
+    // 상한은 "처음 시작하는" 사람에게만 건다(obSub4: "Three slots to start"). 기존 워치리스트를
+    // 가진 사람은 그 목록이 잠긴 채 보존되므로(locked) 상한을 걸 자리가 없다 — 걸면 뺄 수도
+    // 없고(잠김) 넣을 수도 없어(상한 도달) 아무것도 못 하는 읽기 전용 화면이 된다. 앱의
+    // 워치리스트 자체에 상한이 없기도 하다(slot 과금은 미구현·범위 밖).
+    function maxFor(lockedSyms) { return (lockedSyms && lockedSyms.length) ? null : 3; }
 
     // 프리셋은 처음 그릴 때만 쓴다. 뒤로/앞으로를 오가며 다시 그릴 때는 state.picked
     // (빈 배열이어도)로 칠한다 — 안 그러면 사용자가 프리셋을 전부 해제해도 재진입마다
@@ -279,10 +293,19 @@
       var w = frag("ob-step");
       w.appendChild(el("h1", "ob-h", Str ? Str.t.obH4 : ""));
       w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub4 : ""));
-      var presetSyms = state.pickInited ?
-        state.picked.map(function (p) { return p.sym; }) : defaultPreset();
+      var presetItems = state.pickInited ? state.picked : defaultPreset();
+      // 이미 워치리스트에 있는 종목은 해제할 수 없다. seedTo 는 추가만 하므로 여기서 꺼도
+      // 실제로는 안 빠졌다 — 화면이 뺐다고 말하는데 목록엔 남는 거짓말이었다. 온보딩에서
+      // 목록을 지우는 경로를 여는 대신(실수 한 번에 자기 목록이 날아간다) 해제를 막는다.
+      // 신규 사용자의 SEED 3종은 잠그지 않는다 — 설계서 4단계가 "미리 선택되되 바꿀 수
+      // 있는" 것으로 정의한 자리다. presetItems 가 아니라 워치리스트에서 잰다 — 재진입 시
+      // presetItems 는 state.picked 라, 그걸로 재면 방금 더한 종목까지 잠긴다(위 래치 주석).
+      if (state.lockedSyms == null) {
+        var wl = MSStore.getWatchlist();
+        state.lockedSyms = (wl && wl.length) ? wl.map(function (x) { return x.sym; }) : [];
+      }
       var picker = MSTickerPicker.create({
-        multi: true, max: 3, preset: presetSyms,
+        multi: true, max: maxFor(state.lockedSyms), preset: presetItems, locked: state.lockedSyms,
         // 심볼이 아니라 {sym,name} 을 담는다 — 이름을 여기서 흘리면 seedTo 가 이름 없이 심는다.
         onChange: function (sel, items) {
           state.picked = items;
@@ -348,9 +371,19 @@
           if (state.finished || !canAdvance(STEPS, state)) return;
           state.finished = true;
           fwd.disabled = true;
-          seedTo(MSStore, state.picked);
-          MSStore.setOnboarded(TERMS_VERSION);
-          if (o.onDone) o.onDone();
+          // seedTo/setOnboarded/onDone 중 하나라도 던지면 래치가 켜진 채 멈춘다 — 그러면 버튼은
+          // 영원히 비활성이고 onDone 도 못 불려 앱이 5단계에 갇힌다. 오늘은 store.js write() 가
+          // localStorage 예외를 전부 삼켜 이 경로가 실제로 던질 일이 없지만, 그건 이 가드가 아니라
+          // 다른 파일의 방어력에 기대는 것이다 — 여기 스스로 복구할 수 있어야 한다.
+          var ok = false;
+          try {
+            seedTo(MSStore, state.picked);
+            MSStore.setOnboarded(TERMS_VERSION);
+            if (o.onDone) o.onDone();
+            ok = true;
+          } finally {
+            if (!ok) { state.finished = false; fwd.disabled = false; }
+          }
           return;
         }
         var n = next(step, state);

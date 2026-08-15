@@ -168,6 +168,27 @@ test("create() — 프리셋도 이름을 달고 나온다", () => {
     "프리셋이 이름 없이 나온다 — CURATED 밖 심볼은 빈 이름이 맞다(store 가 심볼로 폴백)");
 });
 
+// 리뷰 지적(Important 2): paint() 가 CURATED 밖 항목을 sel 에 있을 때만 그리면, 끄는 순간
+// 셀 자체가 격자에서 사라진다 — 되돌리려면 직접 입력으로 다시 loadTicker 왕복을 타야 하는데
+// 오프라인·요청제한이면 그 길도 막힌다. api 를 아예 안 준다 — 네트워크 경로 자체가 없는
+// 상태에서 그리드 클릭만으로 껐다 켤 수 있어야 한다.
+test("create() — 오프-큐레이티드 프리셋은 꺼도 셀이 남아 네트워크 없이 다시 켤 수 있다", () => {
+  const p = P.create({ multi: true, max: null, preset: ["PLTR", "SOFI"], strings: MSStr });
+  const grid = () => findByClass(p.el, "tp-grid");
+
+  assert.ok(cellFor(grid(), "PLTR"), "PLTR 셀이 처음부터 없다");
+  grid().dispatch("click", { target: cellFor(grid(), "PLTR") });   // 끈다
+  assert.deepEqual(p.selected(), ["SOFI"]);
+
+  const cellAfterOff = cellFor(grid(), "PLTR");
+  assert.ok(cellAfterOff, "꺼진 뒤 PLTR 셀이 격자에서 사라졌다 — 네트워크 없이 되돌릴 방법이 없다");
+  assert.ok(cellAfterOff.className.split(" ").indexOf("is-on") < 0, "꺼졌는데 is-on 이 남았다");
+
+  grid().dispatch("click", { target: cellAfterOff });   // 같은 셀을 다시 클릭 — fetch 없이 켠다
+  assert.deepEqual(p.selected(), ["SOFI", "PLTR"], "네트워크 없이 다시 켜지지 않았다");
+  assert.ok(cellFor(grid(), "PLTR").className.split(" ").indexOf("is-on") >= 0);
+});
+
 test("create() — 직접 입력: 서버가 준 이름을 붙잡아 selectedItems 에 싣는다", async () => {
   const seen = [];
   // 옛 prompt() 경로가 addTicker(sym, data.name || sym) 로 쓰던 바로 그 값이다.
@@ -210,6 +231,117 @@ test("create() — Enter 키로도 직접 입력이 동작한다(단일 모드�
   await flush();
 
   assert.deepEqual(p.selected(), ["QQQ"]);
+});
+
+// ── Fix A: 이미 선택된 심볼을 직접 입력으로 다시 치면 꺼지는 게 아니라 안내만 뜬다 ──────────
+// applySelection(sym) 이 toggle() 을 타면 이미 있는 걸 빼버린다 — 다시 담으려던 사용자가
+// 그 종목이 꺼지는 걸 본다. 멤버십 체크가 fetch **전에** 있어야 한다 — loadTicker 콜 카운트로
+// 그것까지 함께 확인한다(체크가 fetch 뒤에 있으면 통과할 수 있는 뮤테이션을 잡기 위해).
+test("create() — 멀티 모드: 이미 고른 심볼을 직접 입력하면 fetch 없이 안내만 뜨고 꺼지지 않는다", async () => {
+  const calls = [];
+  const fakeApi = { loadTicker: sym => { calls.push(sym); return Promise.resolve({ name: sym }); } };
+  const p = P.create({ multi: true, max: null, preset: ["AAPL"], api: fakeApi, strings: MSStr });
+  const input = findByClass(p.el, "tp-input");
+  const addBtn = findByClass(p.el, "tp-add");
+
+  input.value = "aapl";
+  addBtn.dispatch("click");
+  await flush();
+
+  assert.deepEqual(calls, [], "이미 고른 심볼인데 loadTicker 를 불렀다 — 멤버십 체크가 fetch 뒤에 있다");
+  assert.deepEqual(p.selected(), ["AAPL"], "다시 입력했더니 꺼졌다 — toggle() 을 탄 결함");
+  const msg = findByClass(p.el, "tp-msg");
+  assert.strictEqual(msg.textContent, MSStr.t.tpAlreadyPicked);
+});
+
+// 같은 심볼을 대소문자/공백만 다르게 입력해도 정규화 후 멤버십을 봐야 한다.
+test("create() — 멀티 모드: 대소문자·공백만 다른 재입력도 이미 고른 것으로 본다", async () => {
+  const calls = [];
+  const fakeApi = { loadTicker: sym => { calls.push(sym); return Promise.resolve({ name: sym }); } };
+  const p = P.create({ multi: true, max: null, preset: ["NVDA"], api: fakeApi, strings: MSStr });
+  const input = findByClass(p.el, "tp-input");
+  findByClass(p.el, "tp-add");
+
+  input.value = " nvda ";
+  findByClass(p.el, "tp-add").dispatch("click");
+  await flush();
+
+  assert.deepEqual(calls, []);
+  assert.deepEqual(p.selected(), ["NVDA"]);
+});
+
+// 단일 모드(워치리스트 ＋Add)는 이 가드 밖이다 — 같은 심볼 재입력이 정상 동작(교체)이어야
+// 한다. 가드를 multi 로 한정하지 않으면 ＋Add 시트에서 같은 종목을 다시 치는 것 자체가
+// 막혀버린다(과제 지시: "single-select case ... 재입력해도 동작해야 한다").
+test("create() — 단일 모드: 같은 심볼 재입력도 fetch 를 타고 정상 동작한다", async () => {
+  const calls = [];
+  const fakeApi = { loadTicker: sym => { calls.push(sym); return Promise.resolve({ name: "Apple Inc." }); } };
+  const p = P.create({ multi: false, max: null, preset: ["AAPL"], api: fakeApi, strings: MSStr });
+  const input = findByClass(p.el, "tp-input");
+  const addBtn = findByClass(p.el, "tp-add");
+
+  input.value = "aapl";
+  addBtn.dispatch("click");
+  await flush();
+
+  assert.deepEqual(calls, ["AAPL"], "단일 모드는 재입력에서도 fetch 를 타야 한다");
+  assert.deepEqual(p.selected(), ["AAPL"]);
+  assert.deepEqual(p.selectedItems(), [{ sym: "AAPL", name: "Apple Inc." }]);
+});
+
+// ── Fix B: CURATED 밖 선택 항목도 셀로 그려진다 ─────────────────────────────────────────
+test("create() — 프리셋이 CURATED 밖 심볼뿐이면 그 심볼이 셀로 켜져서 그려진다", () => {
+  const p = P.create({ multi: true, max: null, preset: [{ sym: "PLTR", name: "Palantir" }], strings: MSStr });
+  const grid = findByClass(p.el, "tp-grid");
+  const cell = cellFor(grid, "PLTR");
+  assert.ok(cell, "PLTR 셀이 안 그려졌다 — selected()는 참인데 격자엔 아무것도 없다");
+  assert.ok(cell.className.split(" ").indexOf("is-on") >= 0, "PLTR 셀이 켜진 채로 그려지지 않았다");
+  assert.strictEqual(findByClass(cell, "tp-name").textContent, "Palantir",
+    "프리셋이 준 이름이 안 실렸다");
+  assert.deepEqual(p.selected(), ["PLTR"]);
+});
+
+// CURATED 12종 순서는 그대로, 밖 종목은 뒤에 붙는다 — 순서를 흔들면 기존 12종 레이아웃이 튄다.
+test("create() — CURATED 12종 순서는 그대로고, 밖 항목은 뒤에 이어붙는다", () => {
+  const p = P.create({ multi: true, max: null,
+                       preset: [{ sym: "PLTR", name: "Palantir" }, "AAPL"], strings: MSStr });
+  const grid = findByClass(p.el, "tp-grid");
+  const syms = grid.children.map(c => c.getAttribute("data-sym"));
+  assert.deepEqual(syms.slice(0, P.CURATED.length), P.CURATED.map(x => x.sym),
+    "CURATED 12종 순서가 바뀌었다");
+  assert.deepEqual(syms.slice(P.CURATED.length), ["PLTR"], "밖 항목이 12종 뒤에 붙지 않았다");
+});
+
+// CURATED 밖 심볼을 이름 없이(문자열 프리셋) 주면 심볼로라도 그려져야 한다 — 빈 칸보다 낫다.
+test("create() — 이름 없는 CURATED 밖 프리셋도 심볼로 셀이 그려진다", () => {
+  const p = P.create({ multi: true, max: null, preset: ["ZZZZ"], strings: MSStr });
+  const grid = findByClass(p.el, "tp-grid");
+  const cell = cellFor(grid, "ZZZZ");
+  assert.ok(cell, "이름 없는 프리셋도 셀이 있어야 한다");
+  assert.strictEqual(findByClass(cell, "tp-name").textContent, "ZZZZ", "이름이 없으면 심볼로 폴백해야 한다");
+});
+
+test("create() — 직접 입력으로 CURATED 밖 심볼을 추가해도 셀이 켜진다", async () => {
+  const fakeApi = { loadTicker: () => Promise.resolve({ name: "Palantir Technologies" }) };
+  const p = P.create({ multi: true, max: null, preset: [], api: fakeApi, strings: MSStr });
+  const input = findByClass(p.el, "tp-input");
+  input.value = "pltr";
+  findByClass(p.el, "tp-add").dispatch("click");
+  await flush();
+
+  const grid = findByClass(p.el, "tp-grid");
+  const cell = cellFor(grid, "PLTR");
+  assert.ok(cell, "직접 입력으로 추가한 CURATED 밖 종목이 셀로 안 그려졌다");
+  assert.ok(cell.className.split(" ").indexOf("is-on") >= 0);
+  assert.strictEqual(findByClass(cell, "tp-name").textContent, "Palantir Technologies");
+});
+
+// CURATED 심볼은 프리셋에 이름을 다르게 줘도 표준 이름을 지킨다 — 정식 표시명이 이미 있다.
+test("create() — CURATED 심볼은 프리셋이 다른 이름을 줘도 CURATED 이름을 쓴다", () => {
+  const p = P.create({ multi: true, max: null,
+                       preset: [{ sym: "TSLA", name: "Tesla, Inc." }], strings: MSStr });
+  assert.deepEqual(p.selectedItems(), [{ sym: "TSLA", name: "Tesla" }],
+    "CURATED 표준 이름이 프리셋 이름으로 덮였다");
 });
 
 test("create() — 직접 입력: 상한에 걸리면 추가되지 않고 안내가 뜬다", async () => {
@@ -287,4 +419,36 @@ test("index.html — api.js → ticker-picker.js → app.js 순서", () => {
     "ticker-picker.js 는 api.js 뒤에 온다는 배선 전제로 쓰인다");
   assert.ok(at("ticker-picker.js") < at("app.js"),
     "app.js 부팅 시 MSTickerPicker 를 참조한다 — 먼저 로드되지 않으면 undefined 다");
+});
+
+// 잠금 — 이미 워치리스트에 있는 종목. seedTo 는 추가만 하므로 4단계에서 꺼도 실제로는
+// 안 빠졌다(화면이 뺐다고 말하는데 목록엔 남음). 해제를 막고 이유를 말하는 쪽으로 정리했다.
+test("create() — 잠긴 심볼은 해제되지 않고, 이유를 말한다", () => {
+  const seen = [];
+  const p = P.create({ multi: true, max: null, preset: ["AAPL", "NVDA"],
+                       locked: ["AAPL"], onChange: s => seen.push(s), strings: MSStr });
+  const grid = () => findByClass(p.el, "tp-grid");
+  assert.ok(cellFor(grid(), "AAPL").className.indexOf("is-locked") >= 0, "잠금 표시가 없다");
+  assert.ok(cellFor(grid(), "NVDA").className.indexOf("is-locked") < 0, "안 잠긴 셀이 잠겼다");
+
+  grid().dispatch("click", { target: cellFor(grid(), "AAPL") });
+  assert.deepEqual(p.selected(), ["AAPL", "NVDA"], "잠긴 심볼이 해제됐다");
+  assert.strictEqual(seen.length, 0, "변화가 없는데 onChange 가 불렸다");
+  assert.strictEqual(findByClass(p.el, "tp-msg").textContent, MSStr.t.tpKept,
+                     "왜 안 빠지는지 말하지 않았다");
+
+  // 잠금은 그 심볼에만 걸린다 — 나머지는 평소대로 토글돼야 한다
+  grid().dispatch("click", { target: cellFor(grid(), "NVDA") });
+  assert.deepEqual(p.selected(), ["AAPL"], "안 잠긴 심볼이 안 빠졌다");
+});
+
+test("create() — locked 를 안 주면 아무것도 잠기지 않는다", () => {
+  // 신규 사용자의 SEED 3종이 이 경로다. 설계서 4단계는 "미리 선택되되 바꿀 수 있는" 자리다.
+  const p = P.create({ multi: true, max: null, preset: ["AAPL", "NVDA", "MSFT"], strings: MSStr });
+  const grid = () => findByClass(p.el, "tp-grid");
+  ["AAPL", "NVDA", "MSFT"].forEach(s => {
+    assert.ok(cellFor(grid(), s).className.indexOf("is-locked") < 0, s + " 가 잠겼다");
+    grid().dispatch("click", { target: cellFor(grid(), s) });
+  });
+  assert.deepEqual(p.selected(), [], "프리셋을 전부 지울 수 없다");
 });

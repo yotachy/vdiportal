@@ -51,7 +51,14 @@
     var api = o.api || (typeof MSApi !== "undefined" ? MSApi : null);
     var multi = !!o.multi;
     var max = (o.max == null) ? null : o.max;
-    var sel = (o.preset || []).map(norm);
+    // preset 항목은 심볼 문자열이거나(옛 호출부), {sym,name} 객체(온보딩 4단계 — CURATED 밖
+    // 프리셋에 이름을 함께 실어 보낸다)다. 둘 다 받는다 — norm() 에 객체를 그대로 넣으면
+    // "[object Object]" 가 심볼이 된다.
+    var presetList = o.preset || [];
+    var sel = presetList.map(function (p) { return norm(typeof p === "string" ? p : p.sym); });
+    // 해제 불가 심볼. 호출부가 명시적으로 넘긴 것만 잠근다 — 신규 사용자의 SEED 3종은
+    // 잠기면 안 된다(설계서 4단계: 미리 선택돼 있되 지울 수 있어야 한다).
+    var locked = (o.locked || []).map(norm).filter(function (s) { return !!s; });
 
     var el = MSUi.el("div", "tp");
     var grid = MSUi.el("div", "tp-grid");
@@ -60,7 +67,25 @@
     // 직접 입력으로 서버가 확인해 준 이름. CURATED 밖 심볼의 이름은 여기밖에 없다 —
     // loadTicker 응답을 여기서 안 붙잡으면 그 종목은 영영 이름 없이 심긴다.
     var resolved = {};
+    // 프리셋이 {sym,name} 객체로 이름을 함께 실어 왔으면 그 이름을 미리 붙잡아 둔다 —
+    // 이 이름이 없으면 CURATED 밖 프리셋 심볼(예: 워치리스트가 PLTR 하나뿐인 사용자)은
+    // 그려질 때 이름 없이 심볼만 나온다. CURATED 심볼은 건드리지 않는다 — 정식 표시명이
+    // 이미 있고, 온보딩 완료 시(seedTo) 그 표준 이름을 심어야 한다(워치리스트에 저장된
+    // 다른 표기로 덮이면 안 된다).
+    presetList.forEach(function (p) {
+      if (!p || typeof p !== "object" || !p.name) return;
+      var s = norm(p.sym);
+      if (s && !nameOf(s)) resolved[s] = p.name;
+    });
     function nameFor(s) { return resolved[s] || nameOf(s); }
+    // CURATED 밖 심볼을 한 번 본 뒤엔(프리셋으로 왔든, 직접 입력해 서버가 확인해 줬든) 화면에서
+    // 지우지 않는다 — paint() 가 sel 만 보고 그 심볼의 셀을 그리면, 꺼서 sel 을 벗어나는 순간
+    // 셀 자체가 사라진다(오프-큐레이티드는 정의상 sel 안에 있을 때만 그려졌으므로). 되돌리려면
+    // loadTicker 왕복이 다시 필요했고, 오프라인·요청제한이면 되돌릴 방법이 아예 없었다(리뷰 지적).
+    // seeOff 는 "본 적 있다"만 기록한다 — 지금 선택 여부(is-on)는 paint() 가 매번 sel 로 따로 본다.
+    var offSeen = [];
+    function seeOff(s) { if (s && !nameOf(s) && offSeen.indexOf(s) < 0) offSeen.push(s); }
+    sel.forEach(seeOff);   // 프리셋으로 들어온 CURATED 밖 심볼을 최초 진입 시점에 붙잡아 둔다
     function items() {
       return sel.map(function (s) { return { sym: s, name: nameFor(s) }; });
     }
@@ -71,11 +96,25 @@
     function paint() {
       grid.innerHTML = "";
       CURATED.forEach(function (x) {
-        var b = MSUi.el("button", "tp-cell" + (sel.indexOf(x.sym) >= 0 ? " is-on" : ""));
+        var b = MSUi.el("button", "tp-cell" + (sel.indexOf(x.sym) >= 0 ? " is-on" : "") + (isLocked(x.sym) ? " is-locked" : ""));
         b.type = "button";
         b.setAttribute("data-sym", x.sym);
         b.appendChild(MSUi.el("span", "tp-sym", x.sym));
         b.appendChild(MSUi.el("span", "tp-name", x.name));
+        grid.appendChild(b);
+      });
+      // CURATED 밖에서 본 적 있는 심볼도 전부 셀로 그린다(offSeen — 지금 선택 여부와 무관하게) —
+      // sel 만 보고 그리면 selected()는 참인데 격자엔 아무 셀도 없어 "고른 게 하나도 없어 보이는"
+      // 화면이 되고(온보딩 4단계 프리셋이 워치리스트 전체가 CURATED 밖일 때 실측), sel 만 보고
+      // "선택된 것만" 그리면 끄는 순간 셀이 통째로 사라져 다시 켤 방법이 없어진다(리뷰 지적 —
+      // 되돌리려면 loadTicker 재왕복이 필요했고 오프라인이면 그마저 안 됐다). curated 12종
+      // 순서는 그대로 두고 뒤에 이어붙인다(offSeen 순서 = 프리셋/추가로 처음 본 순서).
+      offSeen.forEach(function (s) {
+        var b = MSUi.el("button", "tp-cell" + (sel.indexOf(s) >= 0 ? " is-on" : "") + (isLocked(s) ? " is-locked" : ""));
+        b.type = "button";
+        b.setAttribute("data-sym", s);
+        b.appendChild(MSUi.el("span", "tp-sym", s));
+        b.appendChild(MSUi.el("span", "tp-name", nameFor(s) || s));
         grid.appendChild(b);
       });
     }
@@ -85,7 +124,17 @@
     // next.length !== sel.length(줄어듦)이라 이 조건에 안 걸려 정상적으로 반영된다.
     // (주의: hadIt && !multi 로 단일 모드 교체를 상한 로직과 섞지 않는다 — 단일 모드는
     // 애초에 toggle 을 거치지 않고 항상 [sym] 으로 교체한다.)
+    // 잠긴 심볼 = 이미 사용자의 워치리스트에 있는 것. 온보딩 4단계가 기존 목록을 프리셋으로
+    // 받으면서 그 화면이 "내 목록 편집"처럼 보이게 됐는데, seedTo 는 추가만 하므로 여기서
+    // 꺼도 실제로는 안 빠졌다 — 화면이 거짓말을 했다. 온보딩에서 목록이 지워지는 경로를
+    // 만드는 대신(실수로 자기 목록을 날릴 수 있다) 해제 자체를 막고 이유를 말한다.
+    function isLocked(s) { return locked.indexOf(s) >= 0; }
+
     function applySelection(sym) {
+      if (multi && isLocked(sym) && sel.indexOf(sym) >= 0) {
+        msg.textContent = Str ? Str.t.tpKept : "";
+        return false;
+      }
       var hadIt = sel.indexOf(sym) >= 0;
       var next = multi ? toggle(sel, sym, max) : [sym];
       if (multi && !hadIt && next.length === sel.length) {
@@ -107,7 +156,7 @@
     });
 
     var row = MSUi.el("div", "tp-free");
-    var input = MSUi.el("input", "fi tp-input");
+    var input = MSUi.el("input", "tp-input");
     input.type = "text";
     input.setAttribute("placeholder", Str ? Str.t.tpPlaceholder : "");
     var addBtn = MSUi.el("button", "btn tp-add", Str ? Str.t.tpAdd : "");
@@ -118,6 +167,15 @@
     function tryAdd() {
       var sym = norm(input.value);
       if (!sym) return;
+      // 이미 골라둔 심볼을 다시 치면 fetch 부터 걷어낸다 — applySelection(sym) 까지 가면
+      // multi 모드에서 toggle() 이 있는 걸 빼버려서, 다시 담으려던 사용자가 그 종목이
+      // 꺼지는 걸 본다(방향이 반대인 결함이지 오프바이원이 아니다). 단일 모드는 원래
+      // 매번 [sym] 으로 교체라 같은 심볼 재입력도 정상 동작이어야 해서 이 가드 밖이다.
+      if (multi && sel.indexOf(sym) >= 0) {
+        input.value = "";
+        msg.textContent = Str ? Str.t.tpAlreadyPicked : "";
+        return;
+      }
       if (!api) { msg.textContent = Str ? Str.t.tpUnavailable : ""; return; }
       msg.textContent = Str ? Str.t.tpChecking : "";
       api.loadTicker(sym, "1day").then(function (data) {
@@ -125,6 +183,7 @@
         // 서버가 준 이름을 붙잡아 둔다(api.js normalizeCandles 의 name) — 옛 대화상자 경로가
         // 이름을 함께 심을 때 쓰던 값이다. 여기서 안 붙잡으면 이 심볼은 영영 이름이 없다.
         if (data && data.name) resolved[sym] = data.name;
+        seeOff(sym);   // 새로 확인된 CURATED 밖 심볼도 앞으로는 셀로 남는다(꺼도 안 사라진다)
         if (!applySelection(sym)) return;
         paint(); fire();
       })["catch"](function (err) {

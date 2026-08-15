@@ -11,6 +11,7 @@ const FC = require("../../forge-core.js");
 const G = require("../www/graph.js");
 const IND = require("../www/indicators.js");
 const RM = require("../www/report-model.js");
+const CL = require("../www/chart-layout.js");
 const APP = readFileSync(new URL("../www/app.js", import.meta.url), "utf8");
 const HTML = readFileSync(new URL("../www/index.html", import.meta.url), "utf8");
 const CSS = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
@@ -60,12 +61,16 @@ function wwwSources() {
   return out;
 }
 
-test("www 어느 파일도 시드를 심지 않는다", () => {
+// seedIfEmpty 는 죽은 프로덕션 코드였다(호출자가 없었고, 자기 테스트만 살아 있었다) — 삭제됐다.
+// 예전 정규식(/MSStore\.seedIfEmpty\s*\(/)은 "호출"만 봤으므로 함수 정의 자체가 store.js 에
+// 되살아나도(아무도 안 부르는 채로) 통과했을 것이다 — 재도입을 막는 관문이 아니라 절반짜리였다.
+// 이제 이름 자체를 훑는다: 정의든 호출이든 export 든 www/ 어디에도 있으면 걸린다.
+test("www 어느 파일도 seedIfEmpty 를 갖고 있지 않다 — 죽은 코드 재도입 방지", () => {
   const files = wwwSources();
   assert.ok(files.length > 20, "훑은 파일이 " + files.length + "개뿐이다 — 스윕이 망가졌다");
   const offenders = files.filter(f =>
-    /MSStore\.seedIfEmpty\s*\(/.test(readFileSync(new URL("../www/" + f, import.meta.url), "utf8")));
-  assert.deepStrictEqual(offenders, [], "시드를 부르는 파일: " + offenders.join(", "));
+    /seedIfEmpty/.test(readFileSync(new URL("../www/" + f, import.meta.url), "utf8")));
+  assert.deepStrictEqual(offenders, [], "seedIfEmpty 가 남아 있는 파일: " + offenders.join(", "));
 });
 
 test("app.js 에 온보딩 게이트가 있다", () => {
@@ -437,15 +442,21 @@ test("차트는 가격 패널 한 장이고, 날짜축 자리를 미리 뗀다",
     assert.deepStrictEqual(o.panels, ["price"],
       "서브패널(volume·rsi·macd)이 딸려 온다 — 온보딩 1단계는 가격 한 장이다");
 
-    // drawAxes 는 하단 날짜축을 '마지막 패널 아래 14px' 에 찍는다(chart-draw.js drawAxes).
-    // 기대값을 온보딩의 상수(AXIS_LABEL_H)가 아니라 **그 제약**에서 뽑는다 — 구현 상수로
-    // 기대값을 만들면 항등식이 된다. 레이아웃 높이를 캔버스 높이로 그대로 주면 여기서 걸린다.
+    // 날짜축 여백은 이제 chart-layout.js 안에서 뗀다(report.js 도 같은 계약을 쓰게 하려고
+    // 공용화했다) — 그래서 호출자는 더 이상 스스로 빼지 않고 캔버스 전체 높이를 그대로 넘긴다.
     const cssH = parseFloat(root.querySelector(".ob-canvas").style.height);
-    const lastPanelBottom = o.height - o.pad;
-    const labelBaseline = lastPanelBottom + 14;
-    assert.ok(labelBaseline + 4 <= cssH,
+    assert.strictEqual(o.height, cssH,
+      "온보딩이 여전히 스스로 축 여백을 빼고 있다 — chart-layout 의 공용 예약과 이중으로 뗀다");
+
+    // 기대값을 온보딩의 상수가 아니라 실제 레이아웃 결과(마지막 패널의 실제 y+h)에서 뽑는다 —
+    // 구현 상수로 기대값을 만들면 항등식이 된다. drawAxes 는 하단 날짜축을
+    // '마지막 패널 아래 14px' 에 찍는다(chart-draw.js drawAxes). chart-layout 이 축 여백을
+    // 예약하지 않게 되면(회귀) 이 라벨이 캔버스 밖으로 나가 여기서 걸린다.
+    const lay = CL.chartLayout(o);
+    const last = lay.panels[lay.order[lay.order.length - 1]].rect;
+    const labelBaseline = last.y + last.h + 14;
+    assert.ok(labelBaseline <= cssH,
       "하단 날짜축이 캔버스 밖으로 나간다: 베이스라인 " + labelBaseline + " > 캔버스 " + cssH);
-    assert.ok(o.height > 0 && o.height < cssH, "레이아웃 높이가 캔버스 높이와 같다 — 뗀 자리가 없다");
   });
 });
 
@@ -567,6 +578,66 @@ test("4단계: 프리셋을 지운 뒤 뒤로/앞으로 가도 프리셋으로 �
   });
 });
 
+// 기존 워치리스트를 가진 사람의 4단계 규칙(사용자 결정, 2026-08-15): 이미 갖고 있는 종목은
+// 잠긴 채 보존되고(해제 불가) 상한은 걸지 않는다. 상한까지 걸면 뺄 수도 없고(잠김) 넣을 수도
+// 없어(상한 도달) 아무것도 못 하는 읽기 전용 화면이 된다.
+test("4단계: 기존 워치리스트 종목은 잠기고, 그 위에 자유롭게 더할 수 있다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
+      "4종 프리셋이 전부 켜진 채로 시작하지 않았다");
+
+    pressCell(grid, "AMZN");   // 잠긴 종목 — 꺼지면 안 된다(seedTo 가 추가만 하므로 거짓말이 된다)
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
+      "워치리스트에 있는 종목이 해제됐다 — 화면은 뺐다는데 목록엔 남는다");
+    var msg = grid.parentNode.querySelector(".tp-msg");
+    assert.strictEqual(msg.textContent, S.t.tpKept, "왜 안 빠지는지 말하지 않았다");
+
+    pressCell(grid, "META");   // 상한이 없어야 4종 위에 더 얹을 수 있다
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "META", "MSFT", "NVDA"],
+      "상한에 걸려 더 넣지 못했다 — 기존 목록이 있으면 상한을 걸지 않는다");
+    assert.notStrictEqual(grid.parentNode.querySelector(".tp-msg").textContent, S.t.tpFull);
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false);
+  }, defaultFakeStore([
+    { sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
+    { sym: "MSFT", name: "Microsoft Corporation" }, { sym: "AMZN", name: "Amazon.com" }
+  ]));
+});
+
+// 재진입 함정(리뷰 Important 1 의 새 규칙판): lockedSyms 를 매번 다시 재면 "지금 고른 것"이
+// "원래 갖고 있던 것"으로 둔갑한다 — 4단계에서 새로 더한 META 까지 잠겨버려 다시 뺄 수 없게 된다.
+test("4단계: 재진입해도 잠금은 원래 워치리스트에만 걸린다 — 새로 더한 것은 뺄 수 있다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    pressCell(grid, "META");                  // 새로 더한다(잠기면 안 된다)
+    root.querySelector(".ob-back").click();   // 4 -> 3
+    root.querySelector(".ob-next").click();   // 3 -> 4, 다시 그려짐
+    grid = root.querySelector(".tp-grid");
+    assert.ok(onSyms(grid).indexOf("META") >= 0, "새로 더한 종목이 재진입에서 사라졌다");
+    pressCell(grid, "META");
+    assert.ok(onSyms(grid).indexOf("META") < 0,
+      "새로 더한 종목까지 잠겼다 — lockedSyms 를 재진입마다 다시 재고 있다");
+    pressCell(grid, "AAPL");
+    assert.ok(onSyms(grid).indexOf("AAPL") >= 0, "원래 워치리스트 종목의 잠금이 풀렸다");
+  }, defaultFakeStore([
+    { sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
+    { sym: "MSFT", name: "Microsoft Corporation" }, { sym: "AMZN", name: "Amazon.com" }
+  ]));
+});
+test("4단계: 프리셋이 3종 이하면 상한은 그대로 3이다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    pressCell(grid, "GOOGL");   // AAPL·NVDA·MSFT 3종이 이미 켜져 있으니 4번째는 상한 초과다
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"],
+      "3종 프리셋인데 상한이 3보다 커졌다");
+    var msg = grid.parentNode.querySelector(".tp-msg");
+    assert.strictEqual(msg.textContent, S.t.tpFull, "상한 안내가 안 떴다");
+  }, defaultFakeStore([]));   // 빈 목록 → SEED(AAPL/NVDA/MSFT) 3종 프리셋
+});
+
 // 위 4단계 재진입의 정확한 쌍둥이. 이쪽이 더 나쁘다: 4단계는 선택이 되살아나는 것으로 눈에
 // 보이지만, 5단계는 **화면상 체크가 꺼진 채로 완료 버튼만 열려 있다**. 그 상태로 누르면
 // 사용자가 보기엔 동의하지 않았는데 동의 기록(setOnboarded)이 남는다 — 시안이 "법적 효력이
@@ -610,11 +681,25 @@ test("4단계: 기존 워치리스트가 있으면 그것이 프리셋이다 —
   withDom((root) => {
     toStep4(root);
     var grid = root.querySelector(".tp-grid");
-    // PLTR 은 CURATED 밖이라 격자에 칸이 없다 — 켜진 칸은 TSLA 뿐이어야 하고,
-    // 무엇보다 SEED 3종이 하나도 켜져 있으면 안 된다.
-    assert.deepStrictEqual(onSyms(grid), ["TSLA"],
-      "기존 목록 대신 SEED 가 프리셋으로 들어왔다: " + onSyms(grid).join(","));
+    // PLTR 은 CURATED 밖이지만 이제 격자에 셀이 생겨 켜진다(paint()가 CURATED 밖 선택
+    // 항목도 그린다) — 켜진 칸은 TSLA·PLTR 둘이어야 하고, 무엇보다 SEED 3종이 하나도
+    // 켜져 있으면 안 된다.
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["PLTR", "TSLA"],
+      "기존 목록 대신 SEED 가 프리셋으로 들어왔거나 CURATED 밖 종목이 안 켜졌다: " + onSyms(grid).join(","));
   }, defaultFakeStore([{ sym: "TSLA", name: "Tesla, Inc." }, { sym: "PLTR", name: "Palantir" }]));
+});
+
+// 이 태스크가 정확히 문 버그: 워치리스트 전체가 CURATED 밖이면(예: PLTR 하나뿐) 예전엔
+// selected()가 참인데 격자엔 켜진 셀이 하나도 없어 "아무것도 안 고른 것처럼" 보였다.
+test("4단계: 워치리스트 전체가 CURATED 밖이어도 그 종목이 켜진 채로 보인다", () => {
+  withDom((root) => {
+    toStep4(root);
+    var grid = root.querySelector(".tp-grid");
+    assert.deepStrictEqual(onSyms(grid), ["PLTR"],
+      "CURATED 밖 유일한 프리셋이 셀로 안 그려졌다 — 화면엔 아무것도 안 고른 것처럼 보인다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false,
+      "선택은 있는데(selected()===['PLTR']) 계속하기가 막혀 있다");
+  }, defaultFakeStore([{ sym: "PLTR", name: "Palantir" }]));
 });
 
 test("4단계: 워치리스트가 비어 있을 때만 SEED 로 떨어진다", () => {
@@ -638,11 +723,12 @@ test("4단계: 기존 목록은 격자에 칸이 없어도 완료까지 살아�
     cb.checked = true;
     cb.listeners.change[0]({});
     root.querySelector(".ob-next").click();
-    // PLTR 의 이름은 아무도 모른다(CURATED 밖) — 빈 이름으로 가고 실 store 의 중복 거부가
-    // 기존 이름을 지킨다. 심볼이 빠지는 것만은 안 된다.
-    assert.deepStrictEqual(added.map(function (x) { return x[0]; }), ["TSLA", "PLTR"],
-      "기존 종목이 완료에서 빠졌다: " + JSON.stringify(added));
-    assert.strictEqual(added[0][1], "Tesla", "CURATED 이름이 안 실렸다");
+    // TSLA 는 CURATED 심볼이라 표준 이름("Tesla")을 심는다 — 워치리스트에 저장된 다른
+    // 표기("Tesla, Inc.")로 덮이지 않는다. PLTR 은 CURATED 밖이라 프리셋이 준 워치리스트
+    // 이름("Palantir")을 그대로 싣는다(ticker-picker.js 의 resolved 시딩). 심볼이 빠지는
+    // 것만은 안 된다.
+    assert.deepStrictEqual(added, [["TSLA", "Tesla"], ["PLTR", "Palantir"]],
+      "기존 종목/이름이 완료에서 달라졌다: " + JSON.stringify(added));
   }, store);
 });
 
@@ -723,6 +809,44 @@ test("5단계: 완료 버튼 연타(더블탭)에도 한 번만 심고 한 번�
     assert.strictEqual(onboardedCalls, 1, "setOnboarded 가 두 번 불렸다: " + onboardedCalls);
     assert.strictEqual(doneCalls, 1, "onDone 이 두 번 불렸다 — app.js 가 boot() 를 두 번 돌린다: " + doneCalls);
     assert.strictEqual(added.length, 3, "심기가 두 번 실행됐다(연타로 워치리스트가 중복 심겼다): " + added.length);
+  }, store);
+});
+
+// 리뷰 지적: state.finished 는 seedTo/setOnboarded/onDone 이 돌기 **전에** 켜진다(연타 방지를
+// 위해서다) — 그런데 그중 하나가 던지면 래치가 켜진 채 멈춘다. 그러면 버튼은 disabled=true 로
+// 굳고, onDone 도 못 불려 앱이 영영 부팅하지 않는다. store.js write() 가 오늘은 모든 localStorage
+// 예외를 삼켜 이 경로가 실제로 던질 일이 없지만, 그건 이 가드가 아니라 다른 파일의 방어력에
+// 기대는 것이다 — 가짜 store 로 강제로 던져서 이 핸들러 스스로 복구하는지 검사한다.
+test("5단계: 완료 처리 중 예외가 나면 래치를 풀고 버튼을 다시 열어 재시도할 수 있다", () => {
+  var doneCalls = 0;
+  var shouldThrow = true;
+  var store = {
+    SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
+    addTicker: function () {},
+    setOnboarded: function () { if (shouldThrow) throw new Error("quota exceeded"); },
+    onboarded: function () { return false; },
+    getWatchlist: function () { return []; }
+  };
+  withDom((root) => {
+    O.render(root, { sample: SAMPLE, onDone: function () { doneCalls++; } });
+    root.querySelector(".ob-next").click();   // 1 -> 2
+    root.querySelector(".ob-next").click();   // 2 -> 3
+    root.querySelector(".ob-next").click();   // 3 -> 4
+    root.querySelector(".ob-next").click();   // 4 -> 5 (프리셋 3종 그대로)
+    var cb = root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
+    cb.checked = true;
+    cb.listeners.change[0]({});
+    var fwd = root.querySelector(".ob-next");
+
+    assert.throws(function () { fwd.click(); }, /quota exceeded/,
+      "예외가 조용히 삼켜졌다 — 원인이 안 보이면 디버깅할 수 없다");
+    assert.strictEqual(fwd.disabled, false,
+      "예외 후에도 완료 버튼이 비활성인 채 남았다 — 사용자가 5단계에 갇힌다");
+    assert.strictEqual(doneCalls, 0, "예외가 났는데 완료 콜백이 불렸다");
+
+    shouldThrow = false;   // 다음 시도는 성공한다 — 사용자가 다시 눌러 복구되는지 확인
+    fwd.click();
+    assert.strictEqual(doneCalls, 1, "래치를 풀어도 재시도가 끝까지 완료되지 않는다");
   }, store);
 });
 
