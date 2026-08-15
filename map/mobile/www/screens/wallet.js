@@ -94,7 +94,44 @@
     return g;
   }
 
+  // 로그인 완료를 기다리는 동안 브라우저를 열어두고 폴링한다. 딥링크(moneyscoop://)를 쓰면
+  // AndroidManifest 인텐트 필터가 필요해 이 페이즈가 안드로이드 빌드에 묶인다 — 그 빌드는
+  // 아직 안 돌았다.
+  var POLL_MS = 2000, POLL_LIMIT = 300;   // 2초 × 300 = 10분(서버 논스 만료와 같다)
+
   function render(root) {
+    // startSignIn/poll 은 draw() 를 부를 수 있어야 해서(로그인 완료 시 화면을 새로 그린다)
+    // draw() 와 같은 render() 클로저 안에 둔다.
+    function startSignIn(row, msg) {
+      msg.textContent = MSStr.t.wSignInWaiting;
+      MSWallet.authStart().then(function (r) {
+        if (!r.ok) {
+          // auth-disabled = 서버에 자격증명이 없다. 눌러도 아무 일 없는 버튼을 남기지 않는다.
+          if (r.reason === "auth-disabled") { row.parentNode.removeChild(row); return; }
+          msg.textContent = MSStr.t.wSignInFailed;
+          return;
+        }
+        if (typeof window !== "undefined" && window.open) window.open(r.authUrl, "_blank");
+        poll(r.nonce, 0, msg);
+      });
+    }
+
+    function poll(nonce, n, msg) {
+      if (n >= POLL_LIMIT) { msg.textContent = MSStr.t.wSignInFailed; return; }
+      MSWallet.authPoll(nonce).then(function (r) {
+        if (r.ok && r.pending) { setTimeout(function () { poll(nonce, n + 1, msg); }, POLL_MS); return; }
+        if (!r.ok) {
+          // device-claimed: 이 기기가 이미 다른 구글 계정에 묶여 있다 — 재시도해도 답이
+          // 바뀌지 않는 종결 상태다. 계속 폴링하지도, "다시 시도"라고 말하지도 않는다.
+          msg.textContent = (r.reason === "device-claimed") ? MSStr.t.wDeviceClaimed : MSStr.t.wSignInFailed;
+          return;
+        }
+        // 버린 잔량이 있으면 반드시 말한다 — 안 말하면 "5개가 어디 갔냐"로 돌아온다.
+        // r.state 는 서버가 이미 준 최신 잔량이라 여기서 다시 get() 을 부르지 않는다.
+        draw(r.state, r.discarded > 0 ? MSStr.t.wMergeDiscarded.replace("{n}", String(r.discarded)) : "");
+      });
+    }
+
     function draw(state, msg) {
       root.innerHTML = "";
       var scr = MSUi.el("div", "scr");
@@ -155,6 +192,25 @@
       spend.appendChild(spendRow(MSStr.t.walDeep, String(MSWallet.COSTS.full)));
       spend.appendChild(spendRow(MSStr.t.walOptimiser, String(MSWallet.COSTS.custom)));
       scr.appendChild(spend);
+
+      // 구글 로그인 행(Phase 8c) — signedIn() 에 따라 로그인/로그아웃 하나만 뜬다.
+      var authSec = MSUi.el("div", "wal-sec");
+      var authRow = MSUi.el("button", "w-auth");
+      authRow.type = "button";
+      var authMsg = MSUi.el("div", "w-sub");
+      if (MSWallet.signedIn()) {
+        authRow.textContent = MSStr.t.wSignOut;
+        authRow.addEventListener("click", function () { MSWallet.signOut(); draw(state, ""); });
+      } else {
+        authRow.textContent = MSStr.t.wSignIn;
+        authRow.addEventListener("click", function () { startSignIn(authRow, authMsg); });
+      }
+      authSec.appendChild(authRow);
+      // 워치리스트가 로그인해도 안 따라온다는 것을 숨기지 않는다(설계서 "동기화 범위" 결정).
+      authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wSignInHint));
+      authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wWatchlistLocal));
+      authSec.appendChild(authMsg);
+      scr.appendChild(authSec);
 
       root.appendChild(scr);
     }

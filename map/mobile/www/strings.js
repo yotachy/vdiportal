@@ -149,6 +149,18 @@
     walCapped: "Cap reached — the rest was discarded",
     walBack: "Back",
 
+    // 지갑 화면 — 구글 로그인 행 (Phase 8c)
+    wSignIn: "Sign in with Google",
+    wSignInHint: "Keeps your Scoops if you reinstall or change phones.",
+    wSignOut: "Sign out",
+    wSignInWaiting: "Waiting for the browser…",
+    wSignInFailed: "Sign-in did not finish. Try again.",
+    // device-claimed: 이 기기가 이미 다른 구글 계정에 묶여 있다 — 재시도해도 답이 바뀌지
+    // 않는 종결 상태다. "다시 시도"라고 말하면 거짓 희망을 준다(wSignInFailed 와 다른 문구).
+    wDeviceClaimed: "This device is already linked to a different Google account. Reinstalling the app gives it a new device id you can sign in with.",
+    wMergeDiscarded: "This device had {n} Scoops. Your account balance is the one that counts.",
+    wWatchlistLocal: "Your ticker list stays on this device.",
+
     // 단계 선택 시트 (Phase 8a)
     tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Full", tsCustom: "Custom",
     tsBasicDesc: "5 indicators · daily only", tsFullDesc: "All 32 indicators · daily, weekly, monthly",
