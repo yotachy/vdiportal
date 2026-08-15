@@ -578,6 +578,42 @@ Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_B&reward_amount=1&timestamp=$TS&tr
 ssv_get "$Q"
 chk "서명 안에서 custom_data 를 바꿔치기해도 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
 
+# ⚠ 바이트가 같은 중복만 막으면 절반이다. parse_str 은 여러 "철자"를 같은 키로 접는다 —
+# %5F→_ · .→_ · +→_(공백을 거쳐) · %72→r. 바이트 비교는 그 접힘을 보지 못하므로, 공격자가
+# 철자만 바꾸면 금액 부풀리기도 지급 대상 바꿔치기도 그대로 살아난다(리뷰 실측: 전부 9 지급).
+# 이 검사들이 "우리 게이트가 parse_str 과 같은 눈을 갖고 있는가"를 묻는다.
+i=0
+for SPELL in "reward%5Famount=9" "reward.amount=9" "reward+amount=9" "%72eward_amount=9"; do
+  i=$((i + 1))
+  Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-spell-$i&$SPELL")
+  ssv_get "$Q"
+  chk "철자만 바꾼 중복($SPELL)은 200 이다" "$CODE" "200"
+  chk "철자만 바꾼 중복($SPELL)으로 금액이 부풀지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+  chk "철자만 바꾼 중복($SPELL)의 기록도 없다" "$(dbq "select count(*) from ad_grants where transaction_id='ssv-spell-$i'")" "0"
+done
+i=0
+for SPELL in "custom%5Fdata=$ACCT_A" "custom.data=$ACCT_A" "custom+data=$ACCT_A"; do
+  i=$((i + 1))
+  Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_B&reward_amount=1&timestamp=$TS&transaction_id=ssv-spellcd-$i&$SPELL")
+  ssv_get "$Q"
+  chk "철자만 바꿔 지급 대상을 갈아치워도($SPELL) 적립되지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+done
+
+# 반대 방향 — 정상 콜백을 잘못 막으면 기능이 조용히 죽는다(구글은 200 을 받고 재시도하지 않는다).
+# parse_str 이 무시하는 빈 페어와, 값 없는 키는 중복이 아니다.
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&&reward_amount=1&timestamp=$TS&transaction_id=ssv-empty-1")
+ssv_get "$Q"
+chk "빈 페어가 하나 있어도 정상 지급된다" "$(ssv_bal "$ACCT_A")" "$((BAL_NOW + 1))"
+BAL_NOW=$((BAL_NOW + 1))
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&&reward_amount=1&&timestamp=$TS&transaction_id=ssv-empty-2")
+ssv_get "$Q"
+chk "빈 페어가 둘이어도 정상 지급된다 — 빈 문자열끼리 부딪혀 막으면 안 된다" "$(ssv_bal "$ACCT_A")" "$((BAL_NOW + 1))"
+BAL_NOW=$((BAL_NOW + 1))
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&extra&reward_amount=1&timestamp=$TS&transaction_id=ssv-valueless-1")
+ssv_get "$Q"
+chk "값 없는 키가 있어도 정상 지급된다 — 구글이 파라미터를 늘릴 수 있다" "$(ssv_bal "$ACCT_A")" "$((BAL_NOW + 1))"
+BAL_NOW=$((BAL_NOW + 1))
+
 # custom_data 는 계정 id 다 — 모양이 정확히 정해져 있다(sha1 앞 16자, 소문자 16진).
 # ⚠ 이 검사들이 "모양 가드가 살아 있다"를 증명하지는 못한다. 계정 id 는 정의상 전부 hex16 이라
 # 모양이 틀린 값은 가드가 없어도 어차피 "그런 계정 없음"으로 떨어진다 — 행동으로 관찰할 수

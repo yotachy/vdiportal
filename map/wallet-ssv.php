@@ -44,21 +44,25 @@ if (!w_ssv_verify($W_DIR, $query, $_GET, $why)) {
 // 하고, 값도 이 파싱본에서 가져와야 그 부류가 검사 대상이 아니라 아예 도달 불가가 된다.
 $signedPart = (string)w_ssv_signed_part($query);
 
-// ⚠ 서명 "안"의 중복 키를 먼저 거른다. parse_str 은 마지막 값을 취하고, 서명 검증의
-// 충실성 비교(w_ssv_params_faithful)는 똑같이 접힌 두 파싱본을 견주므로 중복은 양쪽 모두에게
-// 보이지 않는다 — 서명된 문장 안에서 값이 조용히 바뀐다(reward_amount=1&…&reward_amount=9
-// 가 9 를 지급했다, 리뷰 실측). 지금의 AdMob 파라미터 순서에서는 밀반입한 값이 진짜 값보다
-// 앞에 놓여 지지만, 그것은 구글의 정렬과 인코딩에 기댄 우연이고 우리는 구글에 물어볼 수 없다.
-// 한 번 쓰인 키가 한 번만 쓰이는지는 우리가 직접 볼 수 있다 — 그래서 그걸 본다.
-$seen = array();
-foreach (explode("&", $signedPart) as $pair) {
-  $kv = explode("=", $pair, 2);
-  if (isset($seen[$kv[0]])) ssv_done();
-  $seen[$kv[0]] = true;
-}
-
+// ⚠ 서명 "안"에서 두 페어가 같은 키로 접히면 거절한다. parse_str 은 마지막 값을 취하고,
+// 서명 검증의 충실성 비교(w_ssv_params_faithful)는 똑같이 접힌 두 파싱본을 견주므로 중복은
+// 양쪽 모두에게 보이지 않는다 — 서명된 문장 안에서 값이 조용히 바뀐다(reward_amount=1&…&
+// reward_amount=9 가 9 를 지급했다, 리뷰 실측). 지금의 AdMob 파라미터 순서에서는 밀반입한
+// 값이 뒤로 밀려 지지만, 그건 구글의 정렬과 인코딩에 기댄 우연이고 우리는 구글에 물어볼 수 없다.
+//
+// 판정은 **키 바이트 비교가 아니라 개수 비교**다. parse_str 은 여러 철자를 같은 키로 접는다:
+// `%5F`→`_` · `.`→`_` · `+`→(공백)→`_` · `%72`→`r`. 바이트로 견주면 그 접힘이 전부 보이지
+// 않아 철자만 바꾼 중복이 그대로 통과한다(리뷰 실측: 네 철자 전부 9 를 지급했고 지급 대상도
+// 갈아치워졌다). 접힘 규칙을 우리가 다시 구현해 구글·PHP 버전과 동기화할 이유는 없다 —
+// **접은 결과의 개수**를 원본 페어 수와 견주면 규칙을 몰라도 접힘 자체가 드러난다.
+// 빈 페어(`a=1&&b=2`)는 parse_str 이 무시하므로 세지 않는다 — 세면 정상 콜백을 잘못 막는다.
 $signed = array();
 parse_str($signedPart, $signed);
+$pairs = 0;
+foreach (explode("&", $signedPart) as $pair) {
+  if ($pair !== "") $pairs++;
+}
+if (count($signed) !== $pairs) ssv_done();
 foreach (array("transaction_id", "reward_amount", "custom_data", "timestamp") as $need) {
   if (!isset($signed[$need]) || !is_string($signed[$need]) || $signed[$need] === "") ssv_done();
 }
