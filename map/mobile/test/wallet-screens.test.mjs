@@ -77,6 +77,47 @@ test("report.js 소스 모양 — spend 실패 안내 문구도 maybeCharged 로
     "'Nothing was charged' 문구를 maybe-charged 에도 그대로 쓰면 거짓말이 될 수 있다");
 });
 
+// ── report.js 소스 모양 — 잔량 부족 광고 권유(Phase 8d) ──────────────────────────
+// report.js 는 canvas·ForgeCore·MSApi 등에 깊이 얽혀 있어 wallet.js 같은 DOM 실행 하네스가
+// 없다(이 파일 머리말 참고). 위 idem 재사용 테스트들과 같은 이유로 소스 모양만 본다 — 초록이
+// 화면이 옳다는 뜻은 아니고 "호출 모양"을 못박는다.
+
+test("report.js 소스 모양 — Go deeper 는 잔량이 실제로 부족할 때만(bal!=null && bal<cost) 광고 권유로 바꾼다", () => {
+  assert.match(REPORT, /bal != null && bal < MSWallet\.COSTS\.full/,
+    "잔량 부족 판정이 없다 — bal==null(오프라인 등)까지 광고 권유로 잘못 분류할 수 있다");
+  assert.match(REPORT, /showLowBalanceAd\(wrap, bal\)/,
+    "잔량 부족인데 단계 선택 시트를 그대로 연다 — 광고 권유 자리가 없다");
+});
+
+// 계약 ①(태스크 지시): customData 는 화면이 가공하지 않는다. show(unit) 은 "quick"/"full"
+// 문자열 키만 받는다 — 객체로 감싸거나 customData 를 직접 조립해 넘기면 SSV 콜백이 버려진다.
+test("report.js 소스 모양 — 광고 요청은 unit 문자열만 넘긴다(customData 를 가공하지 않는다)", () => {
+  assert.match(REPORT, /MSAds\.show\(pair\[0\]\)|MSAds\.show\(unit\)/,
+    "MSAds.show() 호출 모양이 없다");
+  assert.doesNotMatch(REPORT, /MSAds\.show\(\s*\{/,
+    "MSAds.show() 에 객체를 넘긴다 — unit 문자열만 넘겨야 한다(customData 가공 금지)");
+});
+
+// 이 태스크의 핵심 규율 — 낙관적으로 잔량을 올려 그리지 않는다. bal(before)+reward 같은
+// 클라이언트 계산이 있으면 SSV 가 안 왔을 때 뺏는 상황이 생긴다.
+test("report.js 소스 모양 — 광고 완료를 클라이언트가 계산해 잔량에 더하지 않는다", () => {
+  assert.doesNotMatch(REPORT, /bal\s*\+\s*(reward|1|3)\b/,
+    "광고 보상을 클라이언트가 계산해 더한다 — SSV 가 정본이어야 한다(8b 원칙)");
+  assert.match(REPORT, /r\.state\.balance > before/,
+    "afterCtaAd 가 서버 잔량이 실제로 올랐는지 확인하지 않는다");
+});
+
+// 세대 가드 — report.js 는 이미 gen/isCurrent() 를 자기 방식으로 갖고 있다(구매 폴링과 같은
+// 장치). 광고 폴링도 새 가드를 따로 만들지 않고 그걸 재사용해야 한다 — 재사용하지 않으면
+// 종목을 바꾸거나 화면을 나간 뒤에도 옛 광고 폴링이 살아 다른 종목 화면을 덮어쓸 수 있다.
+test("report.js 소스 모양 — 광고 폴링(afterCtaAd)이 report.js 자신의 세대 가드(isCurrent)를 쓴다", () => {
+  const start = REPORT.indexOf("function afterCtaAd");
+  const end = REPORT.indexOf("function watchCtaAd");
+  assert.ok(start > 0 && end > start, "afterCtaAd 를 찾을 수 없다");
+  const body = REPORT.slice(start, end);
+  assert.match(body, /isCurrent\(\)/, "afterCtaAd 가 isCurrent() 세대 가드를 안 쓴다");
+});
+
 test("watchlist.js 소스 모양 — beginScan 이 pendingScanIdem 을 재사용하고, 확정 실패에만 비운다", () => {
   assert.match(WATCHLIST, /var idem = pendingScanIdem\(\) \|\| MSWallet\.newIdem\(\);/,
     "beginScan 이 이전 실패의 idem 을 재사용하지 않는다");
@@ -462,7 +503,29 @@ function fakeMSWallet() {
     authStart: function () { return Promise.resolve({ ok: false, reason: "auth-disabled" }); },
     authPoll: function () { return Promise.resolve({ ok: false, pending: false, reason: "network" }); },
     signOut: function () {},
-    signedIn: function () { return false; }
+    signedIn: function () { return false; },
+    // 광고(Phase 8d) — 기본값은 "서버에 ad_units.json 이 없다"다. 광고를 실제로 쓰는 테스트만
+    // adConfig/adState 를 덮어쓴다 — 그 외 기존(로그인·체크인) 테스트는 광고 줄이 안 보이는
+    // 채로 그대로 통과해야 한다(무관한 회귀가 안 생기게).
+    adConfig: function () { return Promise.resolve({ ok: false, reason: "ads-disabled" }); },
+    adState: function () { return Promise.resolve({ ok: false, remaining: 0, nextAt: null }); }
+  };
+}
+
+// MSAds 파사드의 가짜. available()=true(플러그인이 있다고 가정) 지만 privacyOptionsRequired 는
+// 기본 false — 재열람 지역이 아닌 것이 기본이라, 이 필드를 안 건드리는 테스트에선 설정 행이
+// 안 뜨는 게 맞다. show() 의 기본값은 "안 떴다"다 — 실제로 광고를 보는 테스트만 shown:true 로
+// 덮어쓴다.
+function fakeMSAds() {
+  return {
+    available: function () { return true; },
+    install: function () { return null; },
+    init: function () { return Promise.resolve(null); },
+    show: function () { return Promise.resolve({ shown: false, reason: "unavailable" }); },
+    consentNeeded: function () { return Promise.resolve(false); },
+    showConsent: function () { return Promise.resolve(true); },
+    privacyOptionsRequired: function () { return Promise.resolve(false); },
+    showPrivacyOptions: function () { return Promise.resolve(true); }
   };
 }
 
@@ -483,7 +546,9 @@ function setupWalletGlobals() {
   put("MSApp", { go: function () {}, current: function () { return { params: {} }; } });
   const W = fakeMSWallet();
   put("MSWallet", W);
-  return { saved: saved, W: W };
+  const A = fakeMSAds();
+  put("MSAds", A);
+  return { saved: saved, W: W, A: A };
 }
 function restoreWalletGlobals(saved) {
   const g = globalThis;
@@ -495,9 +560,22 @@ function restoreWalletGlobals(saved) {
 // withWatchlistDomAsync 머리말과 같은 함정). 그래서 항상 async 로 열고, 안에서 최소 한 번
 // flush() 로 그 체인을 다 비운 뒤에만 복구한다 — 동기 버전은 따로 두지 않는다.
 async function withWalletDom(fn) {
-  const { saved, W } = setupWalletGlobals();
-  try { return await fn(new WlNode("div"), W); }
+  const { saved, W, A } = setupWalletGlobals();
+  try { return await fn(new WlNode("div"), W, A); }
   finally { restoreWalletGlobals(saved); }
+}
+// 광고 시청 후 잔량 폴링(AD_POLL_MS=2000 × AD_POLL_LIMIT=5)을 실제로 10초 기다리지 않고
+// 끝까지 돌린다. setTimeout 지연을 이 구간에서만 0 으로 접어 실행하고, 매 회 예약되는 다음
+// setTimeout 을 흘려보내기 위해 flush() 를 여러 차례 반복한다(재렌더 고아 루프 테스트가
+// 이미 쓰던 "예약된 콜백을 손으로 발화" 요령의 자동화 버전).
+async function flushPolling() {
+  const real = global.setTimeout;
+  global.setTimeout = function (fn) { return real(fn, 0); };
+  try {
+    for (let i = 0; i < 12; i++) await flush();
+  } finally {
+    global.setTimeout = real;
+  }
 }
 
 test("지갑 화면 — 로그인 전엔 로그인 행, 후엔 로그아웃 행", async () => {
@@ -782,5 +860,398 @@ test("병합된 지갑(canCheckin:false)의 출석 행은 비활성이고 탭 �
     assert.ok(row.classList.contains("is-off"), "병합된 지갑인데 출석 행이 활성으로 그려졌다");
     assert.strictEqual(row.listeners.click, undefined,
       "비활성 행인데 클릭 리스너가 붙어 있다 — 탭하면 항상 실패하는 checkin 을 제공한다");
+  });
+});
+
+// ── 지갑 화면 — 광고(Phase 8d, AdMob SSV) ──────────────────────────────────────
+// adQuick/adFull 은 earnRow() 가 "이름 + 부제" 레이아웃으로 나눠 그린다 — checkin 행과 같은
+// "행 전체가 탭 타깃"(one-tap) 패턴이라 findText() 로 잡히는 건 안쪽 라벨 leaf 다. 실제
+// 클릭 리스너는 그 조부모(.wal-row)에 붙는다 — walCheckin 테스트가 이미 쓰는 요령 그대로다.
+function adRow(root, label) {
+  var n = findText(root, label);
+  return n ? n.parentNode.parentNode : null;
+}
+
+// adQuick/adFull 은 Phase 8d 리뷰 I3 수정 이후 "{n}" 치환 템플릿이다(wMergeDiscarded 와 같은
+// 관례) — wallet.js 는 adCfg[unit].reward 로 채운다. 이 파일의 광고 테스트는 전부
+// quick:{reward:1}/full:{reward:3} 을 쓰므로 그 값으로 치환해 실제 렌더 텍스트를 찾는다.
+function adLabel(unit, n) {
+  return (unit === "quick" ? S.t.adQuick : S.t.adFull).replace("{n}", String(n));
+}
+
+test("ads-disabled(ad_units.json 없음) 면 광고 줄이 아예 없다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: false, reason: "ads-disabled" });
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(!findText(root, adLabel("quick", 1)), "눌러도 아무 일 없는 광고 줄이 남아 있다");
+    assert.ok(!findText(root, adLabel("full", 3)), "눌러도 아무 일 없는 광고 줄이 남아 있다");
+  });
+});
+
+// 뮤테이션 (a): 이 분기를 "remaining===0" 하나로 뭉치면(nextAt 을 안 보면) 이 테스트가 깨진다 —
+// 실행해서 확인했다: nextAt 분기를 지우고 돌리니 이 테스트에서 adDailyDone 이 떴다(병합인데
+// "내일 다시 오라"고 말한 것과 같다, 되돌림).
+test("일 상한을 다 쓰면(remaining:0, nextAt 있음) 줄을 숨기지 않고 문구를 바꾼다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 0, nextAt: "2099-01-01T00:00:00Z" });
+    MSWalletScreen.render(root);
+    await flush();
+    // 사라지면 사용자는 앱이 고장난 줄 안다(온보딩 auth-disabled 와 같은 판단)
+    assert.ok(findText(root, S.t.adDailyDone), "상한 안내가 없다");
+    assert.ok(!findText(root, S.t.wMerged), "일반 상한인데 병합 문구를 보였다");
+  });
+});
+
+// 계약 ②(태스크 지시): remaining:0 + nextAt:null = 이 기기의 지갑이 구글 계정으로 넘어가
+// 얼어붙었다는 뜻이지 "오늘 8개를 다 썼다"가 아니다. adDailyDone("오늘은 여기까지")을 보이면
+// 병합된 사용자에게 "내일 다시 오라"고 거짓 희망을 준다.
+test("병합된 지갑(remaining:0, nextAt:null)은 '오늘 다 썼다'가 아니라 계정 이전을 말한다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 0, nextAt: null });
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(findText(root, S.t.wMerged), "병합 사유를 사실대로 안내하지 않았다");
+    assert.ok(!findText(root, S.t.adDailyDone),
+      "병합된 지갑에게 '오늘은 여기까지'(내일 다시 오라)라고 말했다 — 지갑은 다시 안 열린다");
+  });
+});
+
+test("낱개 시청 쿨다운 중(remaining>0, nextAt 이 가까운 미래)이면 분 단위 안내로 바뀐다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 5, nextAt: new Date(Date.now() + 90000).toISOString() });
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(findText(root, S.t.adCooldown.replace("{m}", "2")), "쿨다운 분 안내가 없다(90초→2분 올림)");
+    assert.ok(!findText(root, adLabel("quick", 1)), "쿨다운 중인데 광고 줄이 그대로 남아 있다");
+  });
+});
+
+// ── 리뷰 Critical(실행으로 확인됨, 2026-08-16): adState() 의 network/backend 실패 모양이
+// {ok:false, remaining:0, nextAt:null} 이고(wallet-http.js), 이건 "병합돼 얼어붙었다"
+// (remaining:0 + nextAt:null, ok:true)와 **필드만 보면 완전히 같다.** adSt.ok 를 안 보고
+// remaining/nextAt 만 보면 흔한 일시적 실패가 "지갑이 구글 계정으로 넘어갔다"는 확정적
+// 거짓말이 된다 — 계약 ②가 막으려던 결함의 거울상이다.
+test("adState() 가 network 실패해도(merged 와 같은 모양) 병합됐다고 말하지 않는다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    // wallet-http.js 의 adState() 가 실패 시 그대로 내는 모양 — ok 만 다르고 나머지 필드는
+    // 병합 상태와 동일하다.
+    W.adState = () => Promise.resolve({ ok: false, remaining: 0, nextAt: null });
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(!findText(root, S.t.wMerged),
+      "adState() 가 실패했을 뿐인데(ok:false) 병합됐다고 말했다 — 실패 모양이 merged 와 같아서 생긴 결함");
+    assert.ok(findText(root, S.t.walUnavailable), "실패했으면 확인 불가를 사실대로 말해야 한다");
+    assert.ok(!findText(root, S.t.adDailyDone), "실패했을 뿐인데 '오늘은 다 썼다'고도 말했다");
+    assert.ok(!findText(root, adLabel("quick", 1)), "잔량 상태를 모르는데 광고 줄을 그대로 그렸다");
+  });
+});
+
+// 최종 리뷰(I1, 실행으로 확인됨): 최초 MSWallet.get() 이 실패해도 adConfig/adState 는 독립된
+// 별개 요청이라 성공할 수 있다 — 그러면 lastState 는 null 인 채로 광고 줄만 그려지고,
+// watchAd() 의 before(= lastState ? balance : 0)가 0으로 지어내진다. 첫 폴링이 아무 실
+// 잔량(예: 5)이나 만나면 "5 > 0" 이 참이 되어, 아무것도 확인되지 않은 시청이 성공으로
+// 처리된다 — 15초를 본 사용자에게 아무 말도 없이 화면이 조용히 넘어간다. 수정은 state 가
+// 없으면 광고 줄 자체를 그리지 않는 것이다(watchAd() 안에서 막는 대안도 있었지만, 기준점 없는
+// 시청을 애초에 시작 못 하게 하는 편이 이 파일의 기존 관례 — 죽은 버튼 대신 없는 행 — 와 맞다).
+test("최초 잔량 로드가 실패하면 adConfig/adState 가 성공해도 광고 줄을 그리지 않는다(before 기준점이 없다)", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.get = () => Promise.resolve({ ok: false });
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(!adRow(root, adLabel("quick", 1)),
+      "잔량을 못 읽었는데(state==null) 광고 줄을 그렸다 — before 기준점 없이 시청이 시작될 수 있다");
+    assert.ok(!adRow(root, adLabel("full", 3)), "잔량을 못 읽었는데 Full 광고 줄을 그렸다");
+    // walUnavailable 메시지 자체의 지속 여부는 여기서 안 본다 — get() 실패 draw()와 adConfig
+    // 초기화 체인의 마지막 draw(lastState, "")가 어느 쪽이 나중에 도는지에 따라 메시지 칸이
+    // 비워질 수 있는 별개의(더 오래된, 이 태스크 범위 밖의) 경합이다. I1 이 고치는 것은
+    // "광고 줄이 기준점 없이 그려지는가"뿐이다.
+  });
+});
+
+// 최종 리뷰(I2, 실행으로 확인됨): 잔량이 이미 상한(before>=cap)일 때 시청하면 서버 w_ad_grant
+// 는 granted:0 으로 조용히 버리고 일일 슬롯만 소모한다 — 잔량은 절대 before 를 못 넘으므로
+// 폴링은 timeout 까지 실패로만 보인다. 옛 코드는 이 경우도 adPending("아직 안 왔다. 곧 올
+// 것이다")을 그대로 냈다 — 이미 도착해서 버려진 보상을 "아직" 이라고 말하는 거짓이었고, 상한에
+// 걸린 사용자는 8개 일일 슬롯을 전부 "곧 온다"는 말을 들으며 태울 수 있었다. 아래 두 테스트를
+// 함께 둔다 — 하나만 보면 "항상 walCapped 로 바꿨다"는 뮤테이션도 초록일 수 있다.
+test("잔량이 이미 상한이면 폴링 시간 초과 시 '상한 도달'을 말한다(대기 중이라 하지 않는다)", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    W.get = () => Promise.resolve({ ok: true, state: { balance: 20, cap: 20, streakDays: 1, canCheckin: true } });
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+    MSWalletScreen.render(root);
+    await flush();
+    adRow(root, adLabel("quick", 1)).dispatch("click");
+    await flushPolling();
+    assert.ok(findText(root, S.t.walCapped),
+      "상한에서 시청했는데(before>=cap) 시간 초과 뒤에도 상한 도달을 말하지 않았다");
+    assert.ok(!findText(root, S.t.adPending),
+      "상한에서 시청한 보상은 이미 버려졌는데 '아직 안 왔다'는 거짓 대기 안내를 냈다");
+  });
+});
+
+test("잔량이 상한 아래면 폴링 시간 초과 시 여전히 대기 안내(adPending)를 말한다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    W.get = () => Promise.resolve({ ok: true, state: { balance: 5, cap: 20, streakDays: 1, canCheckin: true } });
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+    MSWalletScreen.render(root);
+    await flush();
+    adRow(root, adLabel("quick", 1)).dispatch("click");
+    await flushPolling();
+    assert.ok(findText(root, S.t.adPending), "상한 아래(before<cap)인데 시간 초과 대기 안내가 없다");
+    assert.ok(!findText(root, S.t.walCapped), "상한이 아닌데 '상한 도달'을 말했다 — 두 경로가 뒤섞였다");
+  });
+});
+
+// 최종 리뷰(I3, 실행으로 확인됨): adQuick/adFull 이 "+1"/"+3" 문자열 리터럴이면, 표시 금액·
+// ad_units.json·AdMob 콘솔 reward_amount 세 곳이 독립된 진실원이 된다 — 운영이 콘솔 기본값
+// 1로 두 유닛을 다 만들면 화면은 영원히 +3 을 약속하고 원장은 1만 지급한다. adCfg[unit].reward
+// 를 렌더에 반영해 리터럴을 없앤다.
+test("광고 표시 금액은 adConfig() 의 reward 값을 그대로 반영한다(문자열 리터럴이 아니다)", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 7 }, full: { unitId: "f", reward: 42 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(findText(root, adLabel("quick", 7)), "quick 표시 금액이 adConfig().quick.reward(7)를 반영하지 않았다");
+    assert.ok(findText(root, adLabel("full", 42)), "full 표시 금액이 adConfig().full.reward(42)를 반영하지 않았다");
+    assert.ok(!findText(root, S.t.adQuick), "치환 안 된 원본 템플릿('+{n}')이 그대로 남아 있다");
+    assert.ok(!findText(root, adLabel("quick", 1)), "reward 를 무시하고 옛 하드코딩 값(+1)을 그렸다");
+  });
+});
+
+// 같은 결함의 두 번째 발현 지점 — afterAd() 의 사후 adState() 재조회. 광고를 보고 실제로
+// 크레딧된 직후, 그 부가 재조회 하나가 hiccup 나면 이전(정상)의 adSt 를 지켜야 한다 —
+// 방금 상을 받은 사용자에게 "지갑이 얼어붙었다"고 말하는 것이 가장 나쁘다.
+test("광고로 크레딧된 직후 adState() 재조회가 실패해도 병합됐다고 말하지 않는다(이전 상태를 지킨다)", async () => {
+  await withWalletDom(async (root, W, A) => {
+    var adStateCalls = 0;
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => {
+      adStateCalls++;
+      // 1회차 = 최초 로드(정상). 2회차 = 광고 시청 뒤 afterAd() 의 재조회 — 여기서 hiccup 난다.
+      if (adStateCalls === 1) return Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+      return Promise.resolve({ ok: false, remaining: 0, nextAt: null });
+    };
+    var getCalls = 0;
+    W.get = () => {
+      getCalls++;
+      var bal = getCalls === 1 ? 5 : 6;   // 최초 로드=5, 광고 후 폴링부터는 6(올랐다)
+      return Promise.resolve({ ok: true, state: { balance: bal, cap: 20, streakDays: 1, canCheckin: true } });
+    };
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+    MSWalletScreen.render(root);
+    await flush();
+    adRow(root, adLabel("quick", 1)).dispatch("click");
+    await flush();
+    assert.ok(!findText(root, S.t.wMerged),
+      "광고로 잔량이 오른 직후 adState() 재조회가 실패했는데(merged 와 같은 모양) 병합됐다고 말했다");
+    // wMerged 부재만으로는 이 자리(afterAd 의 s.ok 가드)를 못 잡는다 — draw() 게이트의
+    // !adSt.ok 분기 하나만으로도 wMerged 는 이미 안 뜬다(walUnavailable 로 대신 떨어질 뿐).
+    // 이 자리가 실제로 하는 일은 "실패한 재조회로 덮어쓰지 않고 직전의 유효한 adSt(remaining:8)
+    // 를 지키는 것" — 그래서 광고 줄이 여전히(재조회 실패에도 불구하고) 정상 표시돼야 한다.
+    // 여기서 s.ok 가드를 빼면(if (s) adSt = s;) adSt 가 실패 모양으로 덮여 walUnavailable 로
+    // 떨어지고 이 단언이 빨간불이 된다 — 실행해서 확인했다.
+    assert.ok(adRow(root, adLabel("quick", 1)), "재조회 실패로 직전의 유효한 광고 상태(remaining:8)가 사라졌다");
+    assert.ok(!findText(root, S.t.walUnavailable),
+      "광고 시청은 이미 성공했는데 부가 재조회 hiccup 하나로 '확인 불가'로 떨어졌다");
+  });
+});
+
+test("광고를 본 뒤 잔량이 오를 때까지 기다린다 — 줄어드는 순간도, 낙관적으로 오른 순간도 만들지 않는다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    var seen = [];
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    // before(초기 로드) 도 이후 폴링도 항상 6 — 서버가 아직 지급하지 않은 상황을 흉내낸다.
+    W.get = () => { seen.push("get"); return Promise.resolve({ ok: true, state: { balance: 6, cap: 20, streakDays: 1, canCheckin: true } }); };
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+    MSWalletScreen.render(root);
+    await flush();
+    adRow(root, adLabel("quick", 1)).dispatch("click");
+    await flush();
+    assert.ok(seen.length >= 2, "광고를 본 뒤 서버에 다시 묻지 않았다(초기 로드 1회 + 폴링 1회 이상)");
+    // "7" 이 어디에도 없어야 한다 — 서버가 준 적 없는 값을 클라이언트가 계산해 그린 것이다.
+    assert.ok(!findText(root, "7"), "서버가 주지도 않은 값(6+1)을 그렸다 — 낙관적 반영이다");
+  });
+});
+
+test("SSV 가 안 오면(10초 안에 잔량이 그대로) 조용히 실패하지 않고 말한다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    W.get = () => Promise.resolve({ ok: true, state: { balance: 5, cap: 20, streakDays: 1, canCheckin: true } });   // 안 오른다
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+    MSWalletScreen.render(root);
+    await flush();
+    adRow(root, adLabel("quick", 1)).dispatch("click");
+    await flushPolling();
+    assert.ok(findText(root, S.t.adPending), "잔량이 안 올랐는데 아무 말도 안 한다");
+  });
+});
+
+// show() 가 shown:false 로 답할 때(동의 차단·유닛 없음·플러그인 없음 등) — 조용히 아무 일도
+// 안 하는 버튼을 남기지 않는다(태스크 계약 ④). adBusy 도 풀려 다시 탭할 수 있어야 한다.
+test("광고가 아예 안 뜨면(show shown:false) 조용히 넘어가지 않고 말하며, 재시도할 수 있다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    var calls = 0;
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    A.show = () => { calls++; return Promise.resolve({ shown: false, reason: "consent-required" }); };
+    MSWalletScreen.render(root);
+    await flush();
+    var row = adRow(root, adLabel("quick", 1));
+    row.dispatch("click");
+    await flush();
+    assert.ok(findText(root, S.t.adFailed), "광고가 안 떴는데 아무 안내도 없다");
+    row.dispatch("click");
+    await flush();
+    assert.strictEqual(calls, 2, "실패 뒤 재시도가 막혀 있다(adBusy 가 안 풀렸다)");
+  });
+});
+
+// 계약 ①: customData 는 화면이 가공하지 않는다 — MSAds.show(unit) 은 "quick"/"full" 문자열
+// 키만 받는다. 감싸거나 조합한 인자를 넘기면(예: {unit, customData}) SSV 콜백이 조용히 버려진다.
+test("광고 요청은 unit 문자열만 넘긴다 — customData 를 이 화면이 가공하지 않는다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    var seenArgs = [];
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 }, customData: "0123456789abcdef" });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    A.show = function (u) { seenArgs.push(u); return Promise.resolve({ shown: false, reason: "unavailable" }); };
+    MSWalletScreen.render(root);
+    await flush();
+    adRow(root, adLabel("full", 3)).dispatch("click");
+    await flush();
+    assert.deepStrictEqual(seenArgs, ["full"], "show() 인자가 가공됐다: " + JSON.stringify(seenArgs));
+  });
+});
+
+// 리뷰가 실측한 함정과 같은 모양(로그인 버튼 연타) — 응답 오기 전에 두 번 눌러도 show() 는
+// 한 번만 나가야 한다. 안 그러면 두 광고가 동시에 돌고 같은 메시지 자리를 두고 경합한다.
+test("응답 오기 전에 광고 줄을 두 번 눌러도 show() 는 한 번만 나간다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    var calls = 0, resolveShow;
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    A.show = function () { calls++; return new Promise(function (resolve) { resolveShow = resolve; }); };
+    MSWalletScreen.render(root);
+    await flush();
+    var row = adRow(root, adLabel("quick", 1));
+    row.dispatch("click");
+    row.dispatch("click");   // 첫 응답이 오기 전에 동기적으로 또 누른다
+    assert.strictEqual(calls, 1, "show() 가 두 번 나갔다 — 광고 시청이 동시에 두 개 돈다: " + calls);
+    resolveShow({ shown: false, reason: "failed" });
+    await flush();
+  });
+});
+
+// app.js 는 화면을 나갈 때 render() 클로저에게 알릴 방법이 없다(pane.innerHTML="" 로 DOM 만
+// 지운다) — 세대 가드가 없으면 재렌더 뒤에도 옛 폴링 루프가 detached 노드를 향해 계속 get() 을
+// 부른다(로그인 폴링에서 먼저 잡힌 것과 같은 결함, 여기서도 반드시 본다).
+test("재렌더(네비게이션) 후에는 이전 광고 폴링 루프가 get() 을 다시 부르지 않는다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    var getCalls = 0;
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    W.get = function () { getCalls++; return Promise.resolve({ ok: true, state: { balance: 5, cap: 20, streakDays: 1, canCheckin: true } }); };
+    A.show = () => Promise.resolve({ shown: true, reason: "" });
+
+    var realSetTimeout = global.setTimeout;
+    var scheduledFns = [];
+    global.setTimeout = function (fn, ms) { scheduledFns.push(fn); return realSetTimeout(fn, ms); };
+    try {
+      MSWalletScreen.render(root);
+      await flush();
+      var before = getCalls;   // 최초 로드가 이미 get() 을 한 번 이상 불렀을 수 있다
+      adRow(root, adLabel("quick", 1)).dispatch("click");
+      await flush();   // show() → afterAd(get 1회, balance 그대로) → 다음 폴링을 setTimeout 으로 예약
+      var afterFirstPoll = getCalls;
+      assert.ok(afterFirstPoll > before, "첫 afterAd 의 get() 이 안 나갔다 — 테스트 전제가 틀렸다");
+
+      // 사용자가 지갑 화면을 나갔다 돌아온다 — app.js 는 매번 MSWalletScreen.render() 를 새로
+      // 부른다. 같은 root 에 다시 render() 만 불러 그 재진입을 흉내낸다.
+      MSWalletScreen.render(root);
+      await flush();
+
+      var stalePoll = scheduledFns[scheduledFns.length - 1];   // 옛 render() 가 예약해 둔 재시도
+      assert.ok(stalePoll, "폴링 재시도가 애초에 예약되지 않았다 — 테스트 전제가 틀렸다");
+      var beforeStale = getCalls;
+      stalePoll();
+      await flush();
+
+      assert.strictEqual(getCalls, beforeStale,
+        "재렌더 이후에도 옛 광고 폴링 루프가 get() 을 또 불렀다 — 고아 루프가 안 죽었다");
+    } finally {
+      global.setTimeout = realSetTimeout;
+    }
+  });
+});
+
+test("현금 가치 없음 고지가 지갑 화면에 상시 있다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    MSWalletScreen.render(root);
+    await flush();
+    // 리워드 화폐에 요구되는 문구다 — 스토어 심사가 본다(SPEC §6). 광고가 꺼져 있어도(기본
+    // fakeMSWallet 은 ads-disabled) 스쿱 자체는 체크인으로 쌓이므로 조건 없이 떠야 한다.
+    assert.ok(findText(root, S.t.walNoCashValue), "고지가 없다");
+  });
+});
+
+// ── UMP 재열람("광고 설정") 행 — privacyOptionsRequired() 로만 켠다 ─────────────────
+// 태스크 지시(계약 ③): consentNeeded() 나 폼 존재 여부가 아니라 반드시 privacyOptionsRequired()
+// 다. consentNeeded 는 최초 동의 흐름용이라 이미 동의를 마친 사용자에겐 계속 false 라, 그걸로
+// 게이팅하면 이미 동의한 EEA 사용자에게서 재열람 경로가 사라진다.
+test("동의가 필요 없는 지역(privacyOptionsRequired:false)에선 광고 설정 행이 없다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    A.privacyOptionsRequired = () => Promise.resolve(false);
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(!findText(root, S.t.adSettings), "누를 것이 없는 행이 남아 있다");
+  });
+});
+
+test("동의가 필요한 지역(privacyOptionsRequired:true)에선 광고 설정 행이 뜨고 재열람 폼을 연다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    let opened = 0;
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    A.privacyOptionsRequired = () => Promise.resolve(true);
+    A.showPrivacyOptions = () => { opened++; return Promise.resolve(true); };
+    MSWalletScreen.render(root);
+    await flush();
+    const row = findText(root, S.t.adSettings);
+    assert.ok(row, "동의 재열람 경로가 없다 — EEA·영국·캐나다 정책 위반이다");
+    row.dispatch("click");
+    await flush();
+    assert.strictEqual(opened, 1, "행을 눌러도 showPrivacyOptions() 가 안 불렸다");
+  });
+});
+
+// 뮤테이션 가드 — consentNeeded() 로 게이팅했다면 여기서 잡힌다: consentNeeded 는 true(=최초
+// 동의가 필요)인데 privacyOptionsRequired 는 false(=재열람 대상 지역이 아니다)인 조합이다.
+// 올바른 구현은 후자만 보므로 행이 없어야 한다.
+test("뮤테이션 가드 — consentNeeded 가 true 여도 privacyOptionsRequired 가 false 면 설정 행이 없다", async () => {
+  await withWalletDom(async (root, W, A) => {
+    W.adConfig = () => Promise.resolve({ ok: true, quick: { unitId: "q", reward: 1 }, full: { unitId: "f", reward: 3 } });
+    W.adState = () => Promise.resolve({ ok: true, remaining: 8, nextAt: null });
+    A.consentNeeded = () => Promise.resolve(true);
+    A.privacyOptionsRequired = () => Promise.resolve(false);
+    MSWalletScreen.render(root);
+    await flush();
+    assert.ok(!findText(root, S.t.adSettings),
+      "consentNeeded() 로 게이팅했다 — privacyOptionsRequired() 만 봐야 한다(태스크 계약 ③)");
   });
 });

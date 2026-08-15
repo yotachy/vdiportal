@@ -138,13 +138,14 @@
     // 지갑 (Phase 8a) — 문구·행 구성은 시안 2c
     walTitle: "Scoops", walCap: "Cap ", walEarn: "Earn", walSpend: "Spend",
     walInWallet: "in wallet",
-    walQuick: "Quick ad", walQuickSub: "15 seconds · no skip",
-    walFull: "Full ad", walFullSub: "30 seconds · skip after 5s",
+    // walQuick/walFull("Quick ad"/"Full ad", 이름만)은 Phase 8d 에서 adQuick/adFull(이름+금액
+    // 통합 문구)로 대체돼 지웠다 — 부제(소요시간·스킵 정책)만 여기 남아 광고 행의 note 로 산다.
+    walQuickSub: "15 seconds · no skip",
+    walFullSub: "30 seconds · skip after 5s",
     walCheckin: "Daily check-in", walOnceADay: "one tap, once a day", walOnceADayCap: "One tap, once a day",
     walChest: "Week 7 chest", walChestAway: " days away",
     walSlot: "Add a ticker slot", walScan: "Watchlist signal scan",
     walDeep: "Deep analysis", walOptimiser: "Parameter optimiser", walFree: "Free",
-    walSoon: "Soon",
     walDay: "Day ", walClaimedSep: " · ", walCheckedIn: "claimed today",
     walCapped: "Cap reached — the rest was discarded",
     walBack: "Back",
@@ -174,6 +175,28 @@
     // auth-disabled: 서버에 자격증명이 없다 — 오늘은 전 사용자의 기본 경험이다. 버튼을
     // 지운 자리에 안정적으로 남기는 문구(재조립될 때마다 되살아나지 않는다).
     wSignInUnavailable: "Sign-in is not available right now.",
+
+    // 지갑 — 광고(Phase 8d, AdMob 리워드). "+{n}" 은 표시값이지 클라이언트가 계산해 더하는
+    // 값이 아니다 — 실제 지급은 서버의 SSV 콜백만 한다(SPEC-economy §1 그대로). {n} 은
+    // wallet.js 가 adConfig() 가 준 adCfg[unit].reward 로 채운다(wMergeDiscarded 와 같은
+    // 치환 관례) — 문자열 리터럴로 박아두면 ad_units.json/AdMob 콘솔 reward_amount 와 별개의
+    // 세 번째 진실원이 생겨, 값이 어긋나도 화면은 계속 옛 숫자를 약속한다(리뷰 I3).
+    adQuick: "Watch a short ad  +{n}",
+    adFull: "Watch a full ad  +{n}",
+    adDailyDone: "That is all the ads for today.",
+    adCooldown: "Next ad in {m}",
+    adWaiting: "Crediting your Scoops…",
+    // 폴링(2초 × 5 = 10초) 안에 SSV 콜백이 안 왔을 때. 잔량은 올리지도 내리지도 않는다 —
+    // 낙관적으로 올린 적이 없으니 뺏을 것도 없다(이 태스크의 핵심 규율).
+    adPending: "It did not arrive yet. It will show up shortly.",
+    // 광고 자체가 안 떴을 때(동의 차단·유닛 없음·플러그인 없음 등 show() 의 모든 reason).
+    // 내부 사유를 그대로 노출하지 않는다 — 버튼이 조용히 아무 일도 안 하는 대신 사실대로 말한다.
+    adFailed: "That ad could not be shown right now.",
+    // UMP 재열람 행 — MSAds.privacyOptionsRequired() 가 참인 지역(EEA·영국·캐나다)에만 뜬다.
+    adSettings: "Ad settings",
+    adLowBalance: "Not enough Scoops. Watch an ad to keep going.",
+    // 리워드 화폐 고지 — 스토어 심사가 본다. 지갑 화면 하단에 상시 표기(SPEC §6).
+    walNoCashValue: "Scoops have no cash value and cannot be transferred or refunded.",
 
     // 단계 선택 시트 (Phase 8a)
     tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Full", tsCustom: "Custom",

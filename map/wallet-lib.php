@@ -10,12 +10,11 @@ define("W_CAP", 20);
 define("W_CHECKIN", 1);
 define("W_CHEST", 5);
 define("W_CHEST_EVERY", 7);
-// ⚠️ 개발용 임시값(2026-08-13, 원래 3) — 배포 검증·E2E 테스트가 사무실 IP 의 하루 쿼터를
-// 다 써서 파트너 실기기가 429 로 막혔다. 실기기 확인이 끝나는 대로 반드시 3 으로 되돌릴 것 —
-// 20 에서는 재설치 남용 방어가 사실상 꺼진다(진짜 방어는 8c 구글 로그인). 되돌리기 전
-// tests/wallet-concurrency.sh check1 이 cap 값에서 레이서 수·기대 429 를 스스로 유도하므로
-// 그대로 다시 돌리면 된다(수정 불필요).
-define("W_IP_DAILY", 20);         // IP 해시당 하루 신규 계정 지급 상한(재설치 남용 완화)
+// 2026-08-13~16 사이 개발용으로 20 이었다(사무실 IP 의 하루 쿼터가 배포 검증·E2E 로 소진돼
+// 파트너 실기기가 429 로 막혔던 문제 회피). 실기기 확인이 끝나 3 으로 되돌린다 — 재설치 남용
+// 방어의 실제 값이며(진짜 방어는 8c 구글 로그인), tests/wallet-concurrency.sh check1/check3 은
+// cap 값에서 레이서 수·기대 429·사전 채움을 스스로 유도하므로 수정 없이 그대로 유효하다.
+define("W_IP_DAILY", 3);          // IP 해시당 하루 신규 계정 지급 상한(재설치 남용 완화)
 define("W_RUN_TTL_SEC", 86400);   // Full 권리 24시간
 define("W_NONCE_TTL_SEC", 600);   // 10분. 사용자가 브라우저에서 로그인을 마칠 시간
 
@@ -150,6 +149,25 @@ function w_migrate($db) {
       $db->exec("create index if not exists ix_nonce_dev on auth_nonce (device_id, created_at)");
       $db->exec("delete from schema_version");
       $db->exec("insert into schema_version (v) values (3)");
+      $db->exec("commit");
+    } catch (Throwable $e) {
+      try { $db->exec("rollback"); } catch (Throwable $e2) {}
+      throw $e;
+    }
+  }
+  if (w_schema_version($db) < 4) {
+    $db->exec("begin immediate");
+    try {
+      // transaction_id 를 PK 로 둔다 — 구글은 콜백을 재시도하므로 중복이 정상이고,
+      // 앱 층 검사만으로는 동시 재시도에서 둘 다 통과한다(8c 에서 같은 교훈을 얻었다).
+      // amount 는 구글이 말한 값, granted 는 지갑 상한을 적용해 실제로 넣은 값 —
+      // 둘이 다를 수 있고, 다른 이유를 나중에 설명할 수 있어야 한다.
+      $db->exec("create table if not exists ad_grants (
+        transaction_id TEXT PRIMARY KEY, account_id TEXT NOT NULL, unit TEXT NOT NULL,
+        amount INTEGER NOT NULL, granted INTEGER NOT NULL, created_at TEXT NOT NULL)");
+      $db->exec("create index if not exists ix_ad_acct on ad_grants (account_id, created_at)");
+      $db->exec("delete from schema_version");
+      $db->exec("insert into schema_version (v) values (4)");
       $db->exec("commit");
     } catch (Throwable $e) {
       try { $db->exec("rollback"); } catch (Throwable $e2) {}
@@ -408,7 +426,7 @@ function w_ledger_by_idem_any($db, $idem) {
 // charged:false 인 경우에도 delta 0 행을 남긴다 — 안 남기면 무료 경로만 멱등키가 없어서
 // 같은 요청이 두 번 오면 두 번째가 유료 경로로 빠진다.
 //
-// reason ∈ insufficient|unknown-runtype|bad-idem|bad-ref|busy
+// reason ∈ insufficient|unknown-runtype|bad-idem|bad-ref|merged|busy
 function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
   $costs = w_costs();
   if (!isset($costs[$runType])) return array("ok" => false, "charged" => false, "reason" => "unknown-runtype");
@@ -428,6 +446,14 @@ function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
     return array("ok" => false, "charged" => false, "reason" => "busy");
   }
   try {
+    // 지갑을 구글 계정에 넘긴 기기 계정은 쓸 수도 없다. checkin·refund 와 같은 규율이며,
+    // 8d 부터는 우연이 아니라 필수다 — 광고 지급이 checkin 을 거치지 않고 적립하는 첫 경로라
+    // 이 가드가 없으면 잔량 0 으로 얼어붙은 지갑이 광고 한 번에 되살아난다.
+    // 쓰기 락 "안"에서 본다 — 병합과 소비가 동시에 들어오면 락 밖 검사는 그 사이로 샌다.
+    if (w_is_merged_away($db, $acctId)) {
+      $db->exec("rollback");
+      return array("ok" => false, "charged" => false, "reason" => "merged");
+    }
     // 재시도 재생 — 내 계정에 이미 처리한 idem 이면 그때 결과를 그대로 돌려준다.
     // 단, runType·ref 까지 같을 때만이다 — 같은 idem 을 다른 등급/대상에 재사용하는 건
     // 재시도가 아니라 값싼 등급 값을 내고 비싼 등급을 받아가려는 시도다(리뷰에서 실측).
@@ -767,4 +793,372 @@ function w_is_merged_away($db, $acctId) {
   $st->execute(array($acctId));
   $r = $st->fetch();
   return ($r && $r["reason"] === "merge_discard");
+}
+
+// ── 광고 지급 ─────────────────────────────────────────────────────────────────
+define("W_AD_DAILY", 8);          // 계정당 하루 시청 상한
+
+// 상한은 전부 서버 시각·계정 단위다. 기기 단위로 재면 8c 이후 기기를 늘려 상한을 곱할 수 있고,
+// 클라이언트 시각으로 재면 시계를 돌려 초기화한다.
+// created_at 이 gmdate("c") 로 통일돼 있어(오프셋이 늘 +00:00) 문자열 비교가 곧 시각 비교다.
+function w_ad_count_today($db, $acctId) {
+  $st = $db->prepare("select count(*) c from ad_grants where account_id = ? and created_at >= ?");
+  $st->execute(array($acctId, w_today() . "T00:00:00+00:00"));
+  $r = $st->fetch();
+  return (int)$r["c"];
+}
+
+// AdMob SSV 콜백이 검증을 통과한 뒤의 적립. 서명 검증은 호출부(wallet-ssv.php)의 몫이다 —
+// 이 함수는 HTTP 도 서명도 모른다(그래야 웹서버 없이 tests/wallet.test.php 로 돌릴 수 있다).
+//
+// 거의 모든 거절이 ok:true 인 것이 이 함수의 특이점이다. 구글은 실패 응답을 재시도하므로,
+// "적립하지 않기로 한 결정"에 실패를 돌려주면 그 콜백이 영원히 돌아온다. 실패(ok:false)는
+// 오직 "지금은 못 했지만 다시 오면 될 일"(락 경합·내부 오류)에만 쓴다.
+//
+// reason ∈ null|bad-request|no-account|duplicate|merged|daily-cap|busy|error
+function w_ad_grant($db, $acctId, $unit, $txId, $amount) {
+  $fail = function ($reason) { return array("ok" => true, "granted" => 0, "capped" => false, "reason" => $reason); };
+  if (!is_string($txId) || $txId === "") return $fail("bad-request");
+  if (!is_string($unit)) $unit = "";
+
+  try { $db->exec("begin immediate"); }
+  catch (Throwable $e) { return array("ok" => false, "granted" => 0, "capped" => false, "reason" => "busy"); }
+
+  try {
+    $st = $db->prepare("select * from accounts where id = ?");
+    $st->execute(array($acctId));
+    $a = $st->fetch();
+    // 모르는 계정도 ok 로 답한다 — 구글에 실패를 주면 영원히 재시도하고,
+    // 응답으로 존재 여부를 구별해 주면 공개 엔드포인트가 계정 열거 도구가 된다.
+    if (!$a) { $db->exec("commit"); return $fail("no-account"); }
+
+    // 이미 처리한 콜백인가. 구글은 재시도하므로 중복이 정상이다.
+    $st = $db->prepare("select granted from ad_grants where transaction_id = ?");
+    $st->execute(array($txId));
+    $prev = $st->fetch();
+    if ($prev) { $db->exec("commit"); return array("ok" => true, "granted" => (int)$prev["granted"], "capped" => false, "reason" => "duplicate"); }
+
+    // 병합돼 얼어붙은 지갑은 광고로도 되살아나지 않는다(w_spend·w_checkin 과 같은 규율).
+    // 쓰기 락 "안"에서 본다 — 병합과 지급이 동시에 들어오면 락 밖 검사는 그 사이로 샌다
+    // (tests/wallet-concurrency.sh check5 가 이 한 줄의 위치를 실제 경합으로 지킨다).
+    if (w_is_merged_away($db, $acctId)) { $db->exec("commit"); return $fail("merged"); }
+
+    // 상한 검사도 같은 락 안이다 — 밖에서 세면 동시 콜백이 나란히 통과한다(w_create_account
+    // 의 IP 상한에서 이미 겪은 check-then-act 다).
+    if (w_ad_count_today($db, $acctId) >= W_AD_DAILY) { $db->exec("commit"); return $fail("daily-cap"); }
+
+    // 금액은 구글이 주는 값이지만, 이 함수는 엔드포인트를 우회하는 호출자(관리자 도구·배치)도
+    // 상대한다. 받아들이는 모양을 엔드포인트와 똑같이 못박는다: 부호 없는 10진수 정수,
+    // 9자리 이하. 그 밖은 전부 0 이다.
+    //  - 배열·null·불리언·실수를 (int) 로 캐스팅하면 각각 1·0·1·1.9→1 이 된다(배열이 코인을 만든다)
+    //  - 음수는 지급이 아니라 차감이 된다
+    //  - 20자리 문자열은 PHP_INT_MAX 로 포화한 뒤 room 에 깎여 '상한까지 충전'이 된다
+    // ⚠ is_numeric 만으로는 뒤 두 줄이 막히지 않는다 — 그 형태는 잔량 범위 검사만 하는
+    // 테스트를 통과했다(리뷰 실측: 타입 가드를 지워도 관문 340건이 초록이었다).
+    $digits = is_int($amount) ? (string)$amount : (is_string($amount) ? $amount : "");
+    $want = (ctype_digit($digits) && strlen($digits) <= 9) ? (int)$digits : 0;
+
+    $bal = w_true_balance($db, $acctId);
+    $room = W_CAP - $bal;
+    if ($room < 0) $room = 0;
+    $give = ($want > $room) ? $room : $want;
+
+    if ($give > 0) {
+      w_ledger_insert($db, $acctId, $give, "ad", $unit, "ad:" . $txId);
+      $db->prepare("update accounts set balance = ? where id = ?")->execute(array($bal + $give, $acctId));
+    }
+    // 지갑 상한에 걸려 0 을 넣었어도 기록한다 — 안 그러면 상한에 걸린 사용자가 광고를
+    // 무한히 본다(w_checkin 의 "capped 여도 출석일은 소비한다"와 같은 판단).
+    $st = $db->prepare("insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+                        values (?, ?, ?, ?, ?, ?)");
+    $st->execute(array($txId, $acctId, $unit, $want, $give, w_now()));
+
+    $db->exec("commit");
+    return array("ok" => true, "granted" => $give, "capped" => ($give < $want), "reason" => null);
+  } catch (Throwable $e) {
+    try { $db->exec("rollback"); } catch (Throwable $e2) {}
+    // PK 충돌(동시 같은 transaction_id)의 패자 — 이긴 쪽이 이미 적립했다.
+    $st = $db->prepare("select granted from ad_grants where transaction_id = ?");
+    $st->execute(array($txId));
+    $prev = $st->fetch();
+    if ($prev) return array("ok" => true, "granted" => (int)$prev["granted"], "capped" => false, "reason" => "duplicate");
+    return array("ok" => false, "granted" => 0, "capped" => false, "reason" => "error");
+  }
+}
+
+// 실 광고 유닛 ID 는 저장소에 없다 — 넣으면 남이 우리 계정으로 광고를 띄운다.
+// 파일이 없으면 광고 기능 전체가 조용히 꺼진다(8c 의 forge_google_oauth.json 과 같은
+// 무중단 스위치). 개발은 구글 공개 테스트 유닛 ID 로 한다.
+function w_ad_units($dir) {
+  $f = $dir . "/ad_units.json";
+  if (!is_file($f)) return null;
+  $j = json_decode((string)file_get_contents($f), true);
+  if (!is_array($j) || !isset($j["quick"]) || !isset($j["full"])) return null;
+  foreach (array("quick", "full") as $k) {
+    $u = $j[$k];
+    if (!is_array($u)) return null;
+    if (!isset($u["unitId"]) || !is_string($u["unitId"]) || $u["unitId"] === "") return null;
+    // reward 는 지급액이 아니라 표시값이다(실 지급은 SSV 콜백 → w_ad_grant 의 몫이고 이 파일과
+    // 무관하다) — 그래도 화면에 그대로 나가는 값이라 모양은 못박는다. 없거나·문자열이거나·
+    // 0 이하면 이 파일 전체를 무효로 본다(ads-disabled) — 잘못된 숫자가 화면에 나가는 것보다
+    // 광고 줄을 통째로 숨기는 쪽이 안전하다.
+    if (!isset($u["reward"]) || !is_int($u["reward"]) || $u["reward"] <= 0) return null;
+  }
+  return $j;
+}
+
+// 표시용 쿨다운일 뿐이다 — 서버는 이 값을 아무 데도 강제하지 않는다. w_ad_grant 는 쓰기 락
+// 안에서 daily-cap 만 본다(위 함수). 이 상수가 없던 채로 Task 3 이 끝났던 건 실수가 아니라
+// "정의는 됐는데 아무도 안 지키는 상수"가 만드는 거짓 안전감을 피하려던 결정이었다 — nextAt
+// 은 화면이 "다음 광고는 언제쯤" 을 보여주는 힌트일 뿐, 변조된 클라이언트는 이 값을 무시하고
+// 바로 다시 SSV 콜백을 보낼 수 있다. 그래도 지금 이 함수를 다시 쓰려면(adState) 상수가
+// 있어야 하므로 여기서 정의한다 — 여전히 클라이언트 표시용이라는 성격은 그대로다.
+define("W_AD_COOLDOWN_SEC", 120);   // 2분. 표시 힌트일 뿐, 강제하지 않는다(위 주석 참고)
+
+// 다음 시청 가능 시각(쿨다운 힌트). 마지막 지급 시각 + W_AD_COOLDOWN_SEC.
+function w_ad_next_at($db, $acctId) {
+  $st = $db->prepare("select created_at from ad_grants where account_id = ? order by created_at desc limit 1");
+  $st->execute(array($acctId));
+  $r = $st->fetch();
+  if (!$r) return null;
+  return gmdate("c", strtotime($r["created_at"]) + W_AD_COOLDOWN_SEC);
+}
+
+// adState 가 보여줄 요약. remaining 은 표시용이다 — 실제 지급 여부는 w_ad_grant 의 쓰기 락
+// 안에서 다시 결정된다(그래서 이 함수는 클라이언트가 어떻게 부풀려도 지급에 영향을 못 준다).
+//
+// 병합돼 얼어붙은 계정은 remaining 을 0 으로 report 한다. w_ad_grant 는 이미 merged 계정의
+// 콜백을 거절하고 ad_grants 에 기록도 남기지 않는다 — 그러니 "오늘 지급된 횟수"만 세는
+// 계산식(W_AD_DAILY - count)은 병합 직후엔 count 가 0이라 여전히 8을 보고한다. 화면이 그 값을
+// 믿고 광고 버튼을 켜 두면, 사용자는 광고를 끝까지 보고도 보상을 못 받는 일을 반복한다 —
+// checkin·spend 가 이미 지키는 "얼어붙은 지갑은 광고로도 되살아나지 않는다" 규율을 adState
+// 표시만 비켜가는 셈이다. nextAt 도 null 이다 — 다시 열릴 시점 자체가 없다.
+function w_ad_state($db, $acctId) {
+  if (w_is_merged_away($db, $acctId)) return array("remaining" => 0, "nextAt" => null);
+  $left = W_AD_DAILY - w_ad_count_today($db, $acctId);
+  if ($left < 0) $left = 0;
+  return array("remaining" => $left, "nextAt" => w_ad_next_at($db, $acctId));
+}
+
+// ── AdMob SSV(서버 사이드 검증) ────────────────────────────────────────────────
+// SSV 콜백은 인증이 없는 것이 정상인 공개 GET 엔드포인트다 — 구글이 부른다. 그래서 서명이
+// 유일한 방어선이고, 검증이 없거나 범위가 틀리면 누구나 URL 에 reward_amount 를 붙여
+// 잔량을 원하는 만큼 만들 수 있다. 아래의 모든 갈래는 '거절'로 닫힌다.
+
+// 키 서버 URL. 테스트가 먼저 정의하면 그 값을, 아니면 환경변수를 쓴다.
+//
+// ⚠ define() 만으로는 부족하다 — 부모 PHP 프로세스의 상수는 `php -S` 서브프로세스로 넘어가지
+// 않는다. 디스패처 하네스(tests/wallet-dispatcher.sh)는 이 파일을 docroot 에 복사해 별도
+// 서버로 띄우므로, 상수만 두면 SSV 라우트가 붙는 순간 관문이 **진짜 구글로 요청을 낸다**
+// (요청당 최대 10초 정지 + 구글이 떠 있어야 테스트가 도는 은밀한 의존). 환경변수는 자식
+// 프로세스까지 따라간다. 이 저장소는 검증 중 실수로 구글에 실제 POST 를 보낸 적이 이미 있다.
+if (!defined("W_SSV_KEYS_URL")) {
+  $_wSsvUrl = getenv("W_SSV_KEYS_URL");
+  define("W_SSV_KEYS_URL",
+    ($_wSsvUrl !== false && $_wSsvUrl !== "") ? $_wSsvUrl
+      : "https://www.gstatic.com/admob/reward/verifier-keys.json");
+  unset($_wSsvUrl);
+}
+// 타임스탬프 허용 오차. 서명 검증은 바이트만 보므로 여기서는 쓰지 않는다 — 재생 방지는
+// 엔드포인트의 몫이다(ad_grants.transaction_id PK + 이 오차).
+define("W_SSV_SKEW_SEC", 3600);
+// 키 재요청 최소 간격. 증폭 방어의 본체가 이 값이다 — '호출당 1회' 만으로는 초당 1000건의
+// 위조 서명이 초당 1000회의 구글 키 서버 요청이 된다. 서명 위조는 공짜라서 공격자가 원하는
+// 만큼 낼 수 있고, 그 비용을 우리가 구글에 대한 트래픽으로 대신 내 줄 이유가 없다.
+define("W_SSV_REFETCH_MIN_SEC", 300);
+
+// curl 이 없는 PHP 빌드가 있다(실측: 이 저장소의 로컬 테스트 PHP 8.3 에 curl 확장이 없다).
+// 없다고 치명적 오류로 죽으면 검증이 예외로 터져 엔드포인트가 500 을 내는데, 그건 구글이
+// 재시도하는 실패다 — 못 받아오면 조용히 null 로 닫는다.
+//
+// curl 은 http(s) 에만 쓴다. 그 밖의 스킴은 스트림 계층으로 보낸다 — 테스트가 끼우는 스트림
+// 래퍼가 curl 유무와 무관하게 같은 경로를 타야 한다(curl 있는 머신에서만 관문이 깨지는 함정).
+function w_ssv_http_get($url) {
+  $isHttp = (stripos($url, "http://") === 0 || stripos($url, "https://") === 0);
+  if ($isHttp && function_exists("curl_init")) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, array(CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10));
+    $body = curl_exec($ch);
+    curl_close($ch);
+    return is_string($body) ? $body : null;
+  }
+  $ctx = stream_context_create(array("http" => array("timeout" => 10)));
+  $body = @file_get_contents($url, false, $ctx);
+  return is_string($body) ? $body : null;
+}
+
+// 캐시에 든 키만 읽는다 — 네트워크를 절대 타지 않는다. 이 갈래가 따로 있어야 호출부가
+// '네트워크가 필요한가'를 알고 그 순간에만 간격 제한을 물을 수 있다.
+function w_ssv_cached_keys($dir) {
+  $f = $dir . "/ssv_keys_cache.json";
+  if (!is_file($f)) return null;
+  $j = json_decode((string)file_get_contents($f), true);
+  return (is_array($j) && !empty($j["keys"]) && is_array($j["keys"])) ? $j : null;
+}
+
+// 시도 표식의 자리. 지갑 디렉토리에 쓸 수 있으면 거기, 아니면 임시 디렉토리로 물러선다.
+//
+// ⚠ 폴백이 있어야 하는 이유: 배포 후 웹 유저가 데이터 디렉토리에 못 쓰게 되면 표식도 캐시도
+// 남길 데가 없어져 간격 제한이 통째로 꺼진다 — 그게 증폭이 가장 심한 바로 그 상황이다.
+//
+// ⚠ 그런데 '둘 다 본다'로 만들면 안 된다. 임시 디렉토리는 아무나 쓸 수 있으므로,
+// /tmp/w_ssv_attempt_<sha1(데이터디렉토리)> 를 만들 수 있는 로컬 프로세스 아무나가 남의
+// 키 재요청을 얼릴 수 있게 된다. 기록하는 자리와 읽는 자리가 같은 하나여야 한다.
+function w_ssv_attempt_path($dir) {
+  if (is_writable($dir)) return $dir . "/ssv_keys_attempt";
+  return sys_get_temp_dir() . "/w_ssv_attempt_" . sha1($dir);
+}
+
+// 키 서버로 나가기 '직전에' 호출한다. 결과가 아니라 시도를 기록하는 것이 핵심이다 — 아래
+// w_ssv_refetch_allowed 주석 참조.
+function w_ssv_mark_attempt($dir) {
+  $m = w_ssv_attempt_path($dir);
+  @touch($m);
+  clearstatcache(true, $m);
+}
+
+function w_ssv_fresh($path) {
+  clearstatcache(true, $path);
+  if (!is_file($path)) return false;
+  $age = time() - (int)filemtime($path);
+  // ⚠ 하한이 반드시 있어야 한다. '간격보다 어리다'만 보면 **미래 날짜** 표식이 영원히
+  // 신선해진다 — 시계 되감김, NFS mtime 어긋남, 혹은 파일 하나 만들 수 있는 아무 프로세스가
+  // +10년짜리 mtime 을 남기면 키 재요청이 영구히 얼어붙는다. 그러면 구글이 키를 교체하는
+  // 순간부터 모든 **진짜** 콜백이 unknown_key → 503 이 되고, 광고를 본 사용자 전원이 보상을
+  // 잃는데 원인은 아무 로그에도 안 남는다. 조용하고 전면적인 고장이다.
+  return $age >= 0 && $age < W_SSV_REFETCH_MIN_SEC;
+}
+
+// 공개키는 파일로 캐시한다. $force 면 다시 받는다 — 구글이 키를 교체하기 때문이다.
+// 캐시 파일이 곧 테스트의 주입 지점이다(테스트는 네트워크를 타지 않는다).
+// 간격 제한은 여기서 묻지 않는다 — $force 는 '무조건 받아라'라는 뜻이어야 한다. 제한을 거는
+// 것은 호출부(w_ssv_verify)의 몫이다.
+function w_ssv_keys($dir, $force) {
+  if (!$force) {
+    $j = w_ssv_cached_keys($dir);
+    if ($j !== null) return $j;
+  }
+  w_ssv_mark_attempt($dir);   // ⚠ 나가기 전에 기록한다. 실패해도 기록은 남아야 한다.
+  $body = w_ssv_http_get(W_SSV_KEYS_URL);
+  if ($body === null) return null;
+  $j = json_decode($body, true);
+  if (!is_array($j) || empty($j["keys"]) || !is_array($j["keys"])) return null;
+  $f = $dir . "/ssv_keys_cache.json";
+  if (@file_put_contents($f, $body) === false) {
+    // 조용히 넘기면 캐시가 영원히 안 생겨 매 요청이 키 서버로 나간다(간격 제한이 시도
+    // 표식으로 버티긴 하지만, 원인이 로그에 안 남으면 아무도 못 고친다).
+    error_log("SSV 키 캐시를 쓸 수 없다 — 매 요청이 키 서버로 나간다: " . $f);
+  }
+  clearstatcache(true, $f);   // 방금 쓴 mtime 을 아래 재요청 간격 검사가 봐야 한다
+  return $j;
+}
+
+// 서명 대상은 쿼리 문자열에서 "&signature=" 앞까지다. 그 뒤(signature·key_id, 그리고
+// 구글이 나중에 더 붙일 수 있는 것들)는 제외한다.
+//
+// ⚠ 원본 쿼리 문자열을 그대로 잘라야 한다. $_GET 을 파싱해 다시 조립하면 바이트 순서와
+// 인코딩이 사라지는데, 서명이 걸려 있는 것이 정확히 그 둘이다 — 재조립하는 순간 공격자가
+// 순서를 바꾸거나 %2D 로 다시 인코딩해도 같은 서명이 통과하게 된다.
+function w_ssv_signed_part($query) {
+  $i = strpos((string)$query, "&signature=");
+  return ($i === false) ? null : substr((string)$query, 0, $i);
+}
+
+// 키 서버로 나갈 자격이 있는가. '아니오'가 되는 이유가 둘이고, 둘 다 필요하다.
+//
+// ⚠ 캐시 파일 mtime 하나만 보면 안 된다(리뷰 실측으로 잡힌 구멍). 캐시 mtime 은 받아오기에
+// 성공하고 문서까지 유효해야만 움직인다 — 즉 키 서버가 죽었거나, 응답이 JSON 이 아니거나,
+// 캐시 디렉토리에 쓸 수 없는 바로 그때(이 문이 존재하는 유일한 이유) 문이 활짝 열린다.
+// 게다가 정상 운영의 기본 상태가 '낡은 캐시'다 — 검증이 잘 되는 동안은 아무도 캐시를 새로
+// 쓰지 않기 때문이다. 그래서 gstatic 이 한 번만 깜빡여도 초당 1000건의 위조 콜백이 초당
+// 1000~2000회의 외부 요청이 되고, 요청당 최대 10초씩 PHP 워커를 물어 SSV 엔드포인트
+// 자체가 자기 자신을 DoS 한다. 그래서 '결과'가 아니라 '시도'를 따로 기록해 그것으로 막는다.
+function w_ssv_refetch_allowed($dir) {
+  // ① 최근에 나가 봤다 — 성공이든 실패든. 실패까지 세는 것이 이 갈래의 전부다.
+  if (w_ssv_fresh(w_ssv_attempt_path($dir))) return false;
+  // ② 캐시를 최근에 성공적으로 새로 받았다 — 그러면 지금 실패한 서명은 키가 낡아서가
+  //    아니라 그냥 가짜다. 다시 받아 봐야 결과는 같고 키 서버만 두들기게 된다.
+  if (w_ssv_fresh($dir . "/ssv_keys_cache.json") && w_ssv_cached_keys($dir) !== null) return false;
+  return true;
+}
+
+// 서명이 지키는 값과 우리가 읽을 값이 같은가.
+//
+// parse_str 은 중복 키에서 '마지막이 이긴다'. 그래서 서명 범위 뒤에 같은 키를 한 번 더 붙이면
+// 서명은 원본 그대로 유효한데 $params 의 값만 공격자 것이 된다(reward_amount=1 … &reward_amount=999).
+// 바이트 검증만 하고 여기서 멈추면 그 문이 그대로 열린다 — 서명된 키는 전부 $params 안에서도
+// 같은 값이어야 한다. 서명 뒤에 붙은 '새로운' 키는 막지 않는다(구글이 파라미터를 늘릴 수 있다).
+function w_ssv_params_faithful($signed, $params) {
+  if (!is_array($params)) return false;
+  $sp = array();
+  parse_str($signed, $sp);
+  foreach ($sp as $k => $v) {
+    if (!array_key_exists($k, $params)) return false;
+    if ($params[$k] !== $v) return false;
+  }
+  return true;
+}
+
+// $reason 은 왜 거절했는지를 돌려준다. 불리언 하나로는 '위조'와 '지금 확인할 수가 없다'가
+// 구분되지 않는데, 그 둘의 처리는 정반대다 — 키 서버 장애 중에는 **진짜** 콜백도 false 가
+// 되고, 엔드포인트가 그걸 위조로 보고 영구 거절하면 광고를 본 사용자가 보상을 조용히
+// 잃는다(구글에게 다시 보내라고 말할 방법도 없어진다). 엔드포인트는 이 값으로 갈라야 한다:
+//
+//   "ok"               통과
+//   "malformed"        서명·key_id 가 없거나 모양이 틀림 · 서명 범위와 $params 불일치 → 400
+//   "bad_signature"    키로 확인했고 서명이 틀림 → 400 (재시도 무의미)
+//   "unknown_key"      키 문서는 있는데 key_id 가 없음 → 키 교체 지연일 수 있다 → 503
+//   "keys_unavailable" 키를 아예 못 얻음(장애·간격 제한) → 503, 구글이 재시도하게 둔다
+function w_ssv_verify($dir, $query, $params, &$reason = null) {
+  $reason = "malformed";
+  $signed = w_ssv_signed_part($query);
+  if ($signed === null) return false;
+  if (!is_array($params)) return false;
+  // 배열로 넘어올 수 있다(signature[]=x). 문자열이 아닌 걸 strtr 에 넣으면 TypeError 로
+  // 터지고, 그건 엔드포인트에서 500 이 된다 — 예외가 아니라 거절로 닫는다.
+  if (!isset($params["signature"]) || !is_string($params["signature"]) || $params["signature"] === "") return false;
+  if (!isset($params["key_id"]) || !is_string($params["key_id"]) || $params["key_id"] === "") return false;
+  if (!w_ssv_params_faithful($signed, $params)) return false;
+
+  // strict 로 푼다 — base64 가 아닌 문자를 조용히 버리지 않게 한다.
+  $sig = base64_decode(strtr($params["signature"], "-_", "+/"), true);
+  if ($sig === false || $sig === "") return false;
+
+  // 실패하면 키를 새로 받아 한 번만 재시도한다. 무한 재시도로 만들면 서명 위조 시도가
+  // 그대로 구글 키 서버에 대한 요청 증폭이 된다.
+  //
+  // ⚠ 네트워크를 탈 수 있는 갈래는 **전부** 간격 제한을 통과해야 한다 — 0회차도 마찬가지다.
+  // 캐시가 없거나 깨져 있으면 0회차부터 밖으로 나가므로, 여기를 안 막으면 캐시가 못 만들어지는
+  // 상황에서 요청당 최대 2회가 그대로 나간다(리뷰 실측: 100요청 → 100~200회).
+  $sawKeys = false;    // 키 문서를 한 번이라도 손에 넣었나
+  $sawKeyId = false;   // key_id 에 맞는 항목을 한 번이라도 봤나
+  for ($attempt = 0; $attempt < 2; $attempt++) {
+    $j = ($attempt === 0) ? w_ssv_cached_keys($dir) : null;
+    if ($j === null) {
+      if (!w_ssv_refetch_allowed($dir)) break;
+      $j = w_ssv_keys($dir, true);
+    }
+    if ($j === null) break;
+    $sawKeys = true;
+    foreach ($j["keys"] as $k) {
+      if (!is_array($k) || !isset($k["keyId"]) || !isset($k["pem"])) continue;
+      // 배열이 든 항목을 (string) 으로 캐스팅하면 Warning 이 뜬다. 엔드포인트는 이 출력
+      // 스트림을 응답과 공유하므로, 진단 문구가 콜백 응답 본문으로 샐 자리를 아예 없앤다.
+      if (!is_scalar($k["keyId"]) || !is_string($k["pem"])) continue;
+      // key_id 대조를 빼면 등록된 아무 키로나 서명해도 통과한다 — 대조가 '어느 키가
+      // 이 콜백을 보증하는가'를 하나로 못박는 자리다.
+      if ((string)$k["keyId"] !== $params["key_id"]) continue;
+      $sawKeyId = true;
+      $pk = openssl_pkey_get_public($k["pem"]);
+      if (!$pk) continue;
+      if (openssl_verify($signed, $sig, $pk, OPENSSL_ALGO_SHA256) === 1) {
+        $reason = "ok";
+        return true;
+      }
+    }
+  }
+  if (!$sawKeys) $reason = "keys_unavailable";
+  elseif (!$sawKeyId) $reason = "unknown_key";
+  else $reason = "bad_signature";
+  return false;
 }

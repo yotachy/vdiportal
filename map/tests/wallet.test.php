@@ -1,6 +1,36 @@
 <?php
 // 지갑 원장 단위 테스트. 프레임워크 없이 돌린다 — 이 저장소엔 컴포저가 없다.
 // 출력은 node --test 와 같은 'ℹ pass N' / 'ℹ fail N' 형식이다. run.sh 가 그 형식만 읽는다.
+
+// ⚠ SSV 키 서버 URL 을 require 보다 먼저 못박는다 — 이 스위트는 구글에 절대 접속하지 않는다.
+//
+// 가짜 키 서버를 '세는' 스트림 래퍼로 만든다. 파일(file://)로도 키 교체 경로는 밟을 수 있지만
+// **몇 번 나갔는지**는 알 수 없고, 증폭 방어에서 실제로 물어야 할 질문이 정확히 그것이다
+// (리뷰 실측: 키 서버가 죽은 상태에서 100요청 → 100회 재요청이 나가고 있었는데, 살아 있는
+// 원격만 가지고 테스트해서 초록이었다). 여기서는 연결 시도 자체를 센다 — 성공이든 실패든.
+class SsvNet {
+  public static $count = 0;
+  public static $body = null;   // null = 키 서버가 죽어 있다(연결 실패)
+  public $context;
+  private $pos = 0;
+  public function stream_open($path, $mode, $opts, &$opened) {
+    self::$count++;
+    if (self::$body === null) return false;
+    $this->pos = 0;
+    return true;
+  }
+  public function stream_read($n) {
+    $r = substr(self::$body, $this->pos, $n);
+    $this->pos += strlen($r);
+    return $r;
+  }
+  public function stream_eof() { return $this->pos >= strlen(self::$body); }
+  public function stream_stat() { return array(); }
+  public function url_stat($path, $flags) { return array(); }
+}
+stream_wrapper_register("ssvtest", "SsvNet");
+define("W_SSV_KEYS_URL", "ssvtest://keys");
+
 require_once __DIR__ . "/../wallet-lib.php";
 
 $PASS = 0; $FAIL = 0; $MSGS = [];
@@ -32,10 +62,11 @@ t("스키마가 생성되고 버전이 기록된다", function () {
   ok(w_schema_version($db) >= 1, "schema_version 이 0 이다");
   $names = [];
   foreach ($db->query("select name from sqlite_master where type='table'") as $r) { $names[] = $r["name"]; }
-  foreach (["accounts", "ledger", "runs", "schema_version"] as $want) {
+  // ad_grants 는 8d(스키마 v4)에서 들어왔다 — 새 db 는 마이그레이션이 끝까지 굴러가므로
+  // 처음부터 존재한다. 8d 전에는 이 목록에 없어야 한다는 반대 방향 가드였다.
+  foreach (["accounts", "ledger", "runs", "schema_version", "ad_grants"] as $want) {
     ok(in_array($want, $names, true), "테이블 없음: " . $want);
   }
-  ok(!in_array("ad_grants", $names, true), "ad_grants 는 8d 것이다 — 만들지 않는다");
   $db = null; rmrf($d);
 });
 
@@ -859,8 +890,8 @@ t("읽을 수 없는 비밀키 파일은 예외를 던진다", function () {
 
 t("IP 상한은 계정 생성 쓰기 락 안에서 걸린다 — 락 밖에서 세면 병렬 요청이 상한을 넘는다", function () {
   // 여기서 검증하는 성질은 "상한 밑에서는 통과하고 상한을 넘으면 막힌다"이지 "상한이
-  // 3이다"가 아니다 — 개발용으로 W_IP_DAILY 를 20으로 올려도(출시 전 3으로 복귀 예정) 이
-  // 테스트가 그대로 유효해야 하므로 계정 개수를 상수 W_IP_DAILY 에서 유도한다(하드코딩 금지).
+  // 3이다"가 아니다 — W_IP_DAILY 가 나중에 다시 바뀌어도(예: 2026-08-13~16 개발용 20)
+  // 이 테스트가 그대로 유효해야 하므로 계정 개수를 상수 W_IP_DAILY 에서 유도한다(하드코딩 금지).
   $d = tmpdir(); $db = w_db($d);
   for ($i = 1; $i <= W_IP_DAILY; $i++) {
     w_create_account($db, "dev-" . $i, "iphash");
@@ -922,7 +953,9 @@ t("스키마 v3 — auth_nonce 와 google_sub 유니크 인덱스가 생긴다",
   }
   ok(in_array("auth_nonce", $names, true), "auth_nonce 테이블이 없다");
   ok(in_array("ix_accounts_gsub", $names, true), "google_sub 유니크 인덱스가 없다");
-  eq(w_schema_version($db), 3, "스키마 버전이 3 이 아니다");
+  // 정확히 3이 아니라 3 이상이다 — 새 db 는 마이그레이션이 끝까지(현재 4까지) 굴러간다.
+  // 이 테스트는 v3 블록이 돌았는지를 보는 것이지 "그 뒤로 아무것도 안 늘었다"가 아니다.
+  ok(w_schema_version($db) >= 3, "스키마 버전이 3 미만이다");
   $db = null; rmrf($d);
 });
 
@@ -1345,6 +1378,806 @@ t("계정 없는 기기의 병합은 조용히 성공하지 않는다", function
   eq($m["reason"], "no-account", "거절 사유가 다르다");
   eq((int)$db->query("select count(*) c from accounts")->fetch()["c"], 0, "병합이 계정을 만들었다");
   $db = null; rmrf($d);
+});
+
+// 8d: 광고 지급은 checkin 을 거치지 않고 원장에 적립하는 첫 경로다. 병합된 계정 잔량이
+// 지금까지 0이라 우연히 안전했던 w_spend 가, 광고 한 번으로 되살아나지 않는지 확인한다.
+t("병합된 계정은 쓸 수도 없다 — checkin·refund 와 같은 규율", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  w_create_account($db, "dev-B", "ip2");
+  $b = w_get_account($db, "dev-B");
+  w_merge($db, "dev-B", "gsub-1");            // dev-B 는 잔량을 버리고 얼어붙는다
+
+  // 얼어붙은 계정에 원장으로 직접 5를 넣어 본다 — 광고 지급이 하려는 바로 그 일이다.
+  w_ledger_insert($db, $b["id"], 5, "test_credit", null, "t:credit");
+  $db->prepare("update accounts set balance = 5 where id = ?")->execute(array($b["id"]));
+
+  $r = w_spend($db, $b["id"], "scan", "t:spend", null, null);
+  eq($r["ok"], false, "병합된 계정이 스쿱을 썼다");
+  eq($r["reason"], "merged", "사유가 merged 가 아니다");
+  eq($r["charged"], false, "차감이 일어났다");   // charged 는 불리언이다(숫자가 아니다)
+  eq(w_true_balance($db, $b["id"]), 5, "원장이 움직였다");
+  $db = null; rmrf($d);
+});
+
+t("정상 계정의 spend 는 그대로 된다 — 가드가 전부를 막으면 안 된다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  $r = w_spend($db, $a["id"], "scan", "t:ok", null, null);
+  eq($r["ok"], true, "정상 계정이 막혔다");
+  eq(w_true_balance($db, $a["id"]), 3, "5 - scan 2 = 3 이어야 한다");
+  $db = null; rmrf($d);
+});
+
+t("스키마 v4 — ad_grants 와 그 인덱스가 생긴다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $names = array();
+  foreach ($db->query("select name from sqlite_master where type in ('table','index')") as $x) { $names[] = $x["name"]; }
+  ok(in_array("ad_grants", $names), "ad_grants 테이블이 없다");
+  ok(in_array("ix_ad_acct", $names), "ix_ad_acct 인덱스가 없다");
+  $v = $db->query("select v from schema_version")->fetch();
+  eq((int)$v["v"], 4, "스키마 버전이 4 가 아니다");
+  $db = null; rmrf($d);
+});
+
+t("transaction_id 가 PK 라 중복 삽입이 DB 층에서 막힌다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $db->exec("insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+             values ('tx-1', 'a1', 'quick', 1, 1, '2026-08-15T00:00:00+00:00')");
+  $threw = false;
+  try {
+    $db->exec("insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+               values ('tx-1', 'a1', 'quick', 1, 1, '2026-08-15T00:00:01+00:00')");
+  } catch (Throwable $e) { $threw = true; }
+  ok($threw, "같은 transaction_id 가 두 번 들어갔다 — 앱 층 검사만으로는 경합에서 둘 다 통과한다");
+  $db = null; rmrf($d);
+});
+
+// ── 광고 지급(w_ad_grant) ─────────────────────────────────────────────────────
+// 구글은 콜백을 재시도한다 — 그래서 실패를 돌려주는 것이 곧 무한 재시도다. 여기 대부분의
+// 거절이 ok:true + granted:0 인 이유가 그것이고, 실제 방어는 반환값이 아니라 원장이 한다.
+
+t("정상 지급 — 원장과 캐시가 함께 오른다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  $r = w_ad_grant($db, $a["id"], "quick", "tx-1", 1);
+  eq($r["ok"], true, "정상 지급이 실패했다");
+  eq($r["granted"], 1, "1개가 안 들어갔다");
+  eq(w_true_balance($db, $a["id"]), 6, "5 + 1 = 6 이어야 한다");
+  $after = w_get_account($db, "dev-A");
+  eq((int)$after["balance"], 6, "원장 합과 캐시가 갈렸다");
+  $db = null; rmrf($d);
+});
+
+t("같은 transaction_id 두 번 — 한 번만 적립하고 둘 다 ok", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  w_ad_grant($db, $a["id"], "quick", "tx-1", 1);
+  $r2 = w_ad_grant($db, $a["id"], "quick", "tx-1", 1);
+  eq($r2["ok"], true, "재시도에 실패를 주면 구글이 영원히 재시도한다");
+  eq(w_true_balance($db, $a["id"]), 6, "두 번 적립됐다");
+  $n = $db->query("select count(*) c from ledger where reason = 'ad'")->fetch();
+  eq((int)$n["c"], 1, "원장 줄이 두 개 생겼다");
+  $db = null; rmrf($d);
+});
+
+t("일 8회를 넘으면 적립하지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  // 잔량 상한과 섞이지 않게 상한을 넉넉히 비워둔다
+  w_spend($db, $a["id"], "scan", "t:1", null, null);
+  for ($i = 1; $i <= 8; $i++) w_ad_grant($db, $a["id"], "quick", "tx-" . $i, 1);
+  $r = w_ad_grant($db, $a["id"], "quick", "tx-9", 1);
+  eq($r["ok"], true, "상한 초과도 ok 다 — 구글에 실패를 주면 재시도한다");
+  eq($r["granted"], 0, "9회째가 적립됐다");
+  eq($r["reason"], "daily-cap", "사유가 daily-cap 이 아니다");
+  eq(w_true_balance($db, $a["id"]), 11, "3 + 8 = 11 이어야 한다");
+  $db = null; rmrf($d);
+});
+
+// 상한은 계정 단위·서버 시각이다. 기기 단위로 재면 8c 이후 기기를 늘려 상한을 곱할 수 있고,
+// 클라이언트 시각으로 재면 시계를 돌려 초기화한다.
+t("일 상한은 어제 시청을 세지 않는다 — 날이 바뀌면 다시 볼 수 있다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  $y = gmdate("c", time() - 86400);
+  for ($i = 1; $i <= 8; $i++) {
+    $st = $db->prepare("insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+                        values (?, ?, 'quick', 1, 1, ?)");
+    $st->execute(array("old-" . $i, $a["id"], $y));
+  }
+  $r = w_ad_grant($db, $a["id"], "quick", "tx-today", 1);
+  eq($r["granted"], 1, "어제 본 8회가 오늘 상한을 먹었다");
+  $db = null; rmrf($d);
+});
+
+// w_checkin 의 "capped 여도 출석일은 소비한다"와 같은 판단이다.
+t("지갑 상한에 걸리면 잘라서 넣되 일 상한은 소모한다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  // 잔량을 19 로 만든다(상한 20)
+  w_ledger_insert($db, $a["id"], 14, "test_credit", null, "t:c");
+  $db->prepare("update accounts set balance = 19 where id = ?")->execute(array($a["id"]));
+  $r = w_ad_grant($db, $a["id"], "full", "tx-1", 3);
+  eq($r["granted"], 1, "상한까지만 넣어야 한다");
+  eq($r["capped"], true, "capped 가 안 떴다");
+  eq(w_true_balance($db, $a["id"]), 20, "지갑 상한을 넘겼다");
+  $g = $db->query("select amount, granted from ad_grants where transaction_id = 'tx-1'")->fetch();
+  eq((int)$g["amount"], 3, "구글이 말한 값이 기록되지 않았다");
+  eq((int)$g["granted"], 1, "실제로 넣은 값이 기록되지 않았다");
+  // 소모 안 하면 상한에 걸린 사용자가 광고를 무한히 본다
+  $n = $db->query("select count(*) c from ad_grants")->fetch();
+  eq((int)$n["c"], 1, "일 상한 계산에 안 잡히면 무한 시청이 가능해진다");
+  $db = null; rmrf($d);
+});
+
+t("병합된 계정에는 적립하지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  w_create_account($db, "dev-B", "ip2");
+  $b = w_get_account($db, "dev-B");
+  w_merge($db, "dev-B", "gsub-1");
+  $r = w_ad_grant($db, $b["id"], "quick", "tx-1", 1);
+  eq($r["granted"], 0, "죽은 지갑이 광고로 되살아났다");
+  eq($r["reason"], "merged", "사유가 merged 가 아니다");
+  eq(w_true_balance($db, $b["id"]), 0, "원장이 움직였다");
+  $n = $db->query("select count(*) c from ad_grants")->fetch();
+  eq((int)$n["c"], 0, "얼어붙은 지갑의 시청이 기록됐다 — 지급도 안 했으면서 상한만 먹는다");
+  $db = null; rmrf($d);
+});
+
+// ⚠ 여기 있던 "1시간 밖 타임스탬프" 검사는 삭제했다(리뷰 지적, 계획서가 그렇게 적었던 것).
+// 그것은 엔드포인트의 판정식을 테스트 자신의 픽스처에 대고 다시 계산할 뿐이라 7200 <= 3600 이
+// 되지 않는 한 실패할 수 없는 항등식이었다 — 이 저장소의 "기대값은 밖에서" 규율 위반이다.
+// 진짜 커버리지는 디스패처에 있다: 스큐 검사를 지우면 2시간 전·2시간 뒤·timestamp 없음
+// 세 콜백이 실제로 적립돼 9건이 빨개진다(뮤테이션 M3 실측).
+
+t("모르는 계정은 조용히 넘어간다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $r = w_ad_grant($db, "no-such-account", "quick", "tx-1", 1);
+  eq($r["ok"], true, "구글에 실패를 주면 재시도한다");
+  eq($r["granted"], 0, "없는 계정에 적립했다");
+  $n = $db->query("select count(*) c from ad_grants")->fetch();
+  eq((int)$n["c"], 0, "없는 계정 앞으로 시청 기록이 남았다");
+  $db = null; rmrf($d);
+});
+
+// 엔드포인트가 먼저 거르지만, 원장 함수 자신도 쓰레기 금액에 잔량을 잃거나 폭발하면 안 된다.
+// (엔드포인트를 우회하는 미래의 호출자 — 관리자 도구·배치 — 가 이 함수를 직접 부른다.)
+t("쓰레기 reward_amount 에 잔량이 줄거나 폭발하지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  // ⚠ "granted >= 0 이고 잔량이 범위 안"만 보면 안 된다 — 그 셋은 배열이 1 로 캐스팅돼
+  // 코인이 나가도, 20자리 문자열이 PHP_INT_MAX 로 포화한 뒤 room 에 깎여도 전부 참이다
+  // (리뷰 실측: 타입 가드를 통째로 지워도 관문 340건이 초록이었다). 그래서 "얼마가
+  // 나갔는가"를 못박는다 — 지급 0, 그리고 ad_grants 에 남는 '구글이 말한 값'도 0.
+  $cases = array("음수" => -5, "문자열" => "abc", "배열" => array(9), "거대" => "99999999999999999999",
+                 "널" => null, "실수" => 1.9, "불리언" => true, "지수표기" => "1e3", "앞공백" => " 1");
+  $i = 0;
+  foreach ($cases as $name => $amt) {
+    $i++;
+    // 케이스마다 새 계정을 쓴다 — 한 계정에 몰면 일 상한(8)에 걸려 9번째부터는 "지급 0" 이
+    // 타입 가드 덕분인지 상한 덕분인지 갈리지 않는다(그 순간 이 검사는 스스로 눈이 먼다).
+    w_create_account($db, "dev-junk-" . $i, null);
+    $a = w_get_account($db, "dev-junk-" . $i);
+    $tx = "tx-junk-" . $i;
+    $r = w_ad_grant($db, $a["id"], "quick", $tx, $amt);
+    eq($r["ok"], true, "쓰레기 금액에 실패를 돌려줬다: " . $name);
+    eq($r["granted"], 0, "쓰레기 금액으로 코인이 나갔다: " . $name);
+    eq($r["capped"], false, "지급도 안 했는데 capped 가 떴다: " . $name);
+    $g = $db->query("select amount, granted from ad_grants where transaction_id = '" . $tx . "'")->fetch();
+    ok($g !== false, "시청 기록이 없다 — 상한 계산에서 빠진다: " . $name);
+    eq((int)$g["amount"], 0, "쓰레기 값이 그대로 기록됐다: " . $name);
+    eq((int)$g["granted"], 0, "지급 기록이 0 이 아니다: " . $name);
+    eq(w_true_balance($db, $a["id"]), 5, "잔량이 움직였다: " . $name);
+  }
+  $db = null; rmrf($d);
+});
+
+// 지갑이 이미 꽉 찬 사용자의 콜백은 지급이 0 이다 — 그런데도 기록해야 한다. 안 하면 일
+// 상한 카운터가 영원히 안 올라가고, 상한에 걸린 사용자의 광고 시청이 무제한이 된다.
+// (기존 "상한에 걸리면 잘라서 넣되" 검사는 잔량 19/상한 20 이라 give==1 이다 — give==0 인
+//  바로 그 경우가 검사되지 않아, 기록을 if (give > 0) 로 감싸도 관문이 초록이었다.)
+t("지갑이 꽉 차 지급이 0 이어도 시청은 기록된다 — 상한 소모의 핵심 사례", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  w_ledger_insert($db, $a["id"], W_CAP - 5, "test_credit", null, "t:c");
+  $db->prepare("update accounts set balance = ? where id = ?")->execute(array(W_CAP, $a["id"]));
+  eq(w_true_balance($db, $a["id"]), W_CAP, "전제가 깨졌다 — 잔량이 상한이 아니다");
+  $r = w_ad_grant($db, $a["id"], "quick", "tx-full", 1);
+  eq($r["granted"], 0, "꽉 찬 지갑에 들어갔다");
+  eq($r["capped"], true, "capped 가 안 떴다");
+  $g = $db->query("select amount, granted from ad_grants where transaction_id = 'tx-full'")->fetch();
+  ok($g !== false, "지급 0 인 시청이 기록되지 않았다 — 상한에 걸린 사용자가 광고를 무한히 본다");
+  eq((int)$g["granted"], 0, "지급 기록이 0 이 아니다");
+  eq((int)$g["amount"], 1, "구글이 말한 값이 기록되지 않았다");
+  // 그 기록이 실제로 일 상한을 소모하는가 — 기록만 남고 안 세면 의미가 없다
+  eq(w_ad_count_today($db, $a["id"]), 1, "기록이 일 상한 계산에 안 잡힌다");
+  $db = null; rmrf($d);
+});
+
+t("빈 transaction_id 는 거절한다 — 멱등키가 없으면 재시도마다 적립된다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  foreach (array("", null, array("x"), 7) as $bad) {
+    $r = w_ad_grant($db, $a["id"], "quick", $bad, 1);
+    eq($r["granted"], 0, "빈/이상한 transaction_id 로 적립됐다: " . var_export($bad, true));
+    eq($r["reason"], "bad-request", "사유가 bad-request 가 아니다: " . var_export($bad, true));
+  }
+  eq(w_true_balance($db, $a["id"]), 5, "잔량이 움직였다");
+  $db = null; rmrf($d);
+});
+
+// ── AdMob SSV 서명 검증 ───────────────────────────────────────────────────────
+// 이 스위트는 구글에 접속하지 않는다. 테스트 키쌍을 만들어 우리가 직접 서명하고, 그 공개키를
+// 캐시 파일(= 주입 지점)에 꽂는다. '키 서버'는 위에서 file:// 로 바꿔친 로컬 파일이다.
+
+function _ssv_key() {
+  return openssl_pkey_new(array("private_key_type" => OPENSSL_KEYTYPE_EC, "curve_name" => "prime256v1"));
+}
+function _ssv_pub($k) { $d = openssl_pkey_get_details($k); return $d["key"]; }
+// $pairs = [[keyId, privKey], ...]
+function _ssv_json($pairs) {
+  $keys = array();
+  foreach ($pairs as $p) { $keys[] = array("keyId" => $p[0], "pem" => _ssv_pub($p[1])); }
+  return json_encode(array("keys" => $keys));
+}
+function _ssv_fixture($dir, $keyId) {
+  $k = _ssv_key();
+  file_put_contents($dir . "/ssv_keys_cache.json", _ssv_json(array(array($keyId, $k))));
+  return $k;
+}
+// 구글이 하는 것과 같은 방식: ECDSA-SHA256 + base64url(패딩 없음).
+function _ssv_sign($priv, $msg) {
+  openssl_sign($msg, $sig, $priv, OPENSSL_ALGO_SHA256);
+  return rtrim(strtr(base64_encode($sig), "+/", "-_"), "=");
+}
+// 캐시를 낡게 만든다. 재요청 간격을 넘겼다는 사실만 표현한다 — 구현 상수를 끌어오지 않는다.
+function _ssv_age_cache($dir) {
+  touch($dir . "/ssv_keys_cache.json", time() - 100000);
+  clearstatcache();
+}
+function _ssv_cache_raw($dir) {
+  $f = $dir . "/ssv_keys_cache.json";
+  return is_file($f) ? (string)file_get_contents($f) : "";
+}
+
+// ⚠ 가짜 키 서버 상태는 각 테스트 '시작'에서 리셋한다. 끝에서만 치우면 ok() 하나가 실패한
+// 순간 그 뒤 테스트 전부가 남은 상태를 물려받아, 실패 하나가 무더기 실패로 번져 원인을 가린다.
+function _ssv_net_reset() { SsvNet::$count = 0; SsvNet::$body = null; }
+function _ssv_net_serve($pairs) { SsvNet::$body = _ssv_json($pairs); }
+function _ssv_net_raw($body) { SsvNet::$body = $body; }
+function _ssv_net_down() { SsvNet::$body = null; }
+function _ssv_net_count() { return SsvNet::$count; }
+// 시도 표식은 지갑 디렉토리 밖(임시 디렉토리)에도 떨어질 수 있다 — 남기지 않는다.
+function _ssv_cleanup($dir) {
+  foreach (array($dir . "/ssv_keys_attempt",
+                 sys_get_temp_dir() . "/w_ssv_attempt_" . sha1($dir)) as $m) { @unlink($m); }
+  rmrf($dir);
+}
+
+t("올바르게 서명된 콜백은 검증을 통과한다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "ad_network=5450213213286189855&ad_unit=123&custom_data=acct-1&reward_amount=1"
+     . "&reward_item=Scoops&timestamp=" . (time() * 1000) . "&transaction_id=tx-1&user_id=acct-1";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "정상 서명이 거절됐다 — 기능이 통째로 멈춘다");
+  _ssv_cleanup($d);
+});
+
+t("서명이 틀리면 거절한다 — 이 문이 열리면 잔량이 무한이 된다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&timestamp=" . (time() * 1000) . "&transaction_id=tx-2";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  // 서명은 그대로 두고 금액만 올린다 — 공격자가 실제로 할 일이다.
+  $tampered = str_replace("reward_amount=1", "reward_amount=999", $full);
+  parse_str($tampered, $p);
+  ok(!w_ssv_verify($d, $tampered, $p), "금액을 바꿨는데 통과했다 — 공개 수도꼭지다");
+  _ssv_cleanup($d);
+});
+
+t("서명 없는 콜백은 거절한다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=5&transaction_id=tx-3&key_id=77";
+  parse_str($q, $p);
+  ok(!w_ssv_verify($d, $q, $p), "서명 없이 통과했다");
+  _ssv_cleanup($d);
+});
+
+t("모르는 key_id 는 거절한다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-4";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=99";
+  parse_str($full, $p);
+  ok(!w_ssv_verify($d, $full, $p), "등록되지 않은 키로 서명한 것이 통과했다");
+  _ssv_cleanup($d);
+});
+
+// 서명 범위가 틀리면 두 방향으로 망가진다: 좁으면 전부 거절(기능 정지),
+// 넓으면 signature 자신을 서명 대상에 넣게 되어 논리가 무너진다.
+t("서명 대상은 signature 앞까지다 — 뒤 파라미터를 넣으면 깨진다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-5";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "정상 케이스");
+  // 뒤에 파라미터가 더 붙어도(구글이 늘릴 수 있다) 서명 대상은 그대로여야 한다
+  $more = $full . "&foo=bar";
+  parse_str($more, $p2);
+  ok(w_ssv_verify($d, $more, $p2), "signature 뒤에 파라미터가 붙자 검증이 깨졌다");
+  _ssv_cleanup($d);
+});
+
+// ── 공격 ───────────────────────────────────────────────────────────────────────
+
+t("파라미터 순서를 바꾸면 거절한다 — 서명은 바이트 순서에 걸려 있다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-6";
+  $sig = _ssv_sign($k, $q);
+  $re = "reward_amount=1&custom_data=acct-1&transaction_id=tx-6&signature=" . $sig . "&key_id=77";
+  parse_str($re, $p);
+  ok(!w_ssv_verify($d, $re, $p), "순서를 바꿨는데 통과했다 — 서명 대상을 파싱 후 재조립하고 있다");
+  _ssv_cleanup($d);
+});
+
+t("재인코딩(%2D)만 해도 거절한다 — parse_str 이 같다고 해도 바이트가 다르다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-7";
+  $sig = _ssv_sign($k, $q);
+  // "acct-1" 의 '-' 를 %2D 로. parse_str 결과는 완전히 동일하다.
+  $enc = "custom_data=acct%2D1&reward_amount=1&transaction_id=tx-7&signature=" . $sig . "&key_id=77";
+  parse_str($enc, $a); parse_str($q, $b);
+  eq($a["custom_data"], $b["custom_data"], "전제가 깨졌다 — %2D 가 '-' 로 안 풀렸다");
+  ok(!w_ssv_verify($d, $enc, $a), "바이트가 다른데 통과했다 — 서명 대상을 재직렬화하고 있다");
+  _ssv_cleanup($d);
+});
+
+// parse_str 은 중복 키에서 '마지막이 이긴다'. 서명 범위 뒤에 같은 키를 한 번 더 붙이면
+// 서명은 원본 그대로 유효한데 $params 의 값만 공격자 것으로 바뀐다 — 서명 검증을
+// '바이트가 맞나'로만 구현하면 이 문이 활짝 열린다.
+t("서명 뒤에 같은 파라미터를 또 붙여 값을 덮어쓰면 거절한다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-8";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  $dup = $full . "&reward_amount=999";
+  parse_str($dup, $p);
+  eq($p["reward_amount"], "999", "전제가 깨졌다 — parse_str 이 마지막 값을 안 골랐다");
+  ok(!w_ssv_verify($d, $dup, $p),
+     "서명된 금액 1 이 999 로 덮인 채 통과했다 — 서명이 지키는 값과 코드가 읽는 값이 갈렸다");
+  _ssv_cleanup($d);
+});
+
+t("서명 범위 안의 중복도 거절한다 — 앞쪽에 signature 를 심는 수법", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-9";
+  $sig = _ssv_sign($k, $q);
+  // 서명 필드를 앞에도 심어 자르는 위치를 흔든다.
+  $evil = "signature=" . $sig . "&reward_amount=999&signature=" . $sig . "&key_id=77";
+  parse_str($evil, $p);
+  ok(!w_ssv_verify($d, $evil, $p), "signature 를 앞에 심어 서명 대상을 흔들었는데 통과했다");
+  _ssv_cleanup($d);
+});
+
+t("빈 서명·base64 가 아닌 서명은 거절한다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-10";
+  foreach (array("", "!!!!!!", "not base64 at all", "@@@@") as $bad) {
+    $full = $q . "&signature=" . $bad . "&key_id=77";
+    parse_str($full, $p);
+    ok(!w_ssv_verify($d, $full, $p), "쓰레기 서명이 통과했다: " . var_export($bad, true));
+  }
+  _ssv_cleanup($d);
+});
+
+t("다른 메시지에 대한 유효 서명은 거절한다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-11";
+  // 서명 자체는 이 키로 만든 진짜다 — 다만 다른 문장에 대한 것이다.
+  $sig = _ssv_sign($k, "custom_data=acct-1&reward_amount=1&transaction_id=tx-OTHER");
+  $full = $q . "&signature=" . $sig . "&key_id=77";
+  parse_str($full, $p);
+  ok(!w_ssv_verify($d, $full, $p), "다른 문장의 서명이 통과했다");
+  _ssv_cleanup($d);
+});
+
+t("key_id 는 등록돼 있지만 그 키로 서명한 게 아니면 거절한다", function () {
+  _ssv_net_reset();
+  $d = tmpdir();
+  $a = _ssv_key(); $b = _ssv_key();
+  file_put_contents($d . "/ssv_keys_cache.json", _ssv_json(array(array("77", $a), array("88", $b))));
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-12";
+  // 88 번 키로 서명해 놓고 key_id 는 77 이라고 말한다. key_id 대조를 빼면 88 도 시도돼 통과한다.
+  $full = $q . "&signature=" . _ssv_sign($b, $q) . "&key_id=77";
+  parse_str($full, $p);
+  ok(!w_ssv_verify($d, $full, $p), "key_id 가 가리키지 않는 키로 통과했다 — 키 대조가 빠졌다");
+  // 반대로 제대로 말하면 통과해야 한다(대조가 전부를 막으면 안 된다)
+  $good = $q . "&signature=" . _ssv_sign($b, $q) . "&key_id=88";
+  parse_str($good, $p2);
+  ok(w_ssv_verify($d, $good, $p2), "정직한 key_id 가 거절됐다");
+  _ssv_cleanup($d);
+});
+
+t("base64url 문자(-, _)가 든 서명도 통과한다 — 변환을 빼면 여기서 깨진다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $hit = false;
+  for ($i = 0; $i < 200 && !$hit; $i++) {
+    $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-b64-" . $i;
+    $sig = _ssv_sign($k, $q);
+    if (strpos($sig, "-") === false && strpos($sig, "_") === false) continue;
+    $hit = true;
+    $full = $q . "&signature=" . $sig . "&key_id=77";
+    parse_str($full, $p);
+    ok(w_ssv_verify($d, $full, $p), "base64url 문자가 든 서명이 거절됐다 — -_ → +/ 변환이 빠졌다");
+  }
+  ok($hit, "200회 서명에서 base64url 문자가 한 번도 안 나왔다 — 이 검사가 헛돌았다");
+  _ssv_cleanup($d);
+});
+
+t("배열로 넘어온 signature·key_id 에 죽지 않고 거절한다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-13";
+  foreach (array("signature[]=x&key_id=77", "signature[]=x&signature[]=y&key_id[]=77") as $tail) {
+    $full = $q . "&" . $tail;
+    parse_str($full, $p);
+    ok(!w_ssv_verify($d, $full, $p), "배열 파라미터가 통과했다: " . $tail);
+  }
+  _ssv_cleanup($d);
+});
+
+// empty() 는 "0" 도 비었다고 한다. 구글 키 ID 는 숫자라 언젠가 0 이 나오면
+// 그 순간부터 모든 정상 콜백이 조용히 거절된다 — 기능이 통째로 죽는다.
+t("key_id 가 '0' 이어도 정상 동작한다 — empty() 함정", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "0");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-14";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=0";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "key_id=0 인 정상 콜백이 거절됐다");
+  _ssv_cleanup($d);
+});
+
+// ── 키 캐시 · 재요청 증폭 ──────────────────────────────────────────────────────
+
+t("w_ssv_keys 는 캐시가 있으면 그걸 쓰고, force 면 키 서버를 다시 읽는다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $remote = _ssv_key(); _ssv_net_serve(array(array("88", $remote)));
+  $j = w_ssv_keys($d, false);
+  eq((string)$j["keys"][0]["keyId"], "77", "캐시가 있는데 원격을 읽었다");
+  eq(_ssv_net_count(), 0, "캐시가 있는데 키 서버로 나갔다");
+  $j2 = w_ssv_keys($d, true);
+  eq((string)$j2["keys"][0]["keyId"], "88", "force 인데 원격을 안 읽었다");
+  eq(_ssv_net_count(), 1, "force 가 정확히 1회를 안 냈다");
+  ok(strpos(_ssv_cache_raw($d), "88") !== false, "다시 받은 키가 캐시에 안 남았다");
+  _ssv_cleanup($d);
+});
+
+t("키 서버가 응답하지 않으면 null 이다 — 닫히는 쪽으로 실패한다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); _ssv_net_down();
+  eq(w_ssv_keys($d, false), null, "캐시도 원격도 없는데 뭔가를 돌려줬다");
+  _ssv_cleanup($d);
+});
+
+// 증폭 방어의 본체. '호출당 1회' 제한만으로는 초당 1000건의 위조 서명이 초당 1000회의
+// 구글 키 서버 요청이 된다. 아래 검사들은 입력이 같고 **캐시·키 서버의 상태만** 다르다.
+t("캐시가 신선하면 검증 실패해도 키를 다시 받지 않는다 — 위조 폭주 = 키 서버 증폭 방지", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $rot = _ssv_key(); _ssv_net_serve(array(array("88", $rot)));
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-15";
+  $full = $q . "&signature=" . _ssv_sign($rot, $q) . "&key_id=88";
+  parse_str($full, $p);
+  for ($i = 0; $i < 100; $i++) { ok(!w_ssv_verify($d, $full, $p), "신선한 캐시인데 원격을 읽어 통과했다"); }
+  eq(_ssv_net_count(), 0, "신선한 캐시인데 키 서버로 나갔다");
+  _ssv_cleanup($d);
+});
+
+t("캐시가 낡았고 키가 교체됐으면 한 번 다시 받아 통과한다 — 기능이 멈추면 안 된다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $rot = _ssv_key(); _ssv_net_serve(array(array("88", $rot)));
+  _ssv_age_cache($d);
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-16";
+  $full = $q . "&signature=" . _ssv_sign($rot, $q) . "&key_id=88";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "키가 교체됐는데 다시 받지 않았다 — 검증이 영구히 막힌다");
+  eq(_ssv_net_count(), 1, "재요청이 1회가 아니다");
+  ok(strpos(_ssv_cache_raw($d), "88") !== false, "다시 받은 키가 캐시에 안 남았다");
+  _ssv_cleanup($d);
+});
+
+t("다시 받은 직후에는 또 받지 않는다 — 재요청은 호출당 1회이자 간격당 1회다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $rot = _ssv_key(); _ssv_net_serve(array(array("88", $rot)));
+  _ssv_age_cache($d);
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-17";
+  $full = $q . "&signature=" . _ssv_sign($rot, $q) . "&key_id=88";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p), "전제가 깨졌다 — 낡은 캐시에서 재요청이 안 나갔다");
+  // 이제 캐시는 방금 받아 신선하다. 키 서버를 또 갈아끼워도 읽지 않아야 한다.
+  $rot2 = _ssv_key(); _ssv_net_serve(array(array("99", $rot2)));
+  $q2 = "custom_data=acct-1&reward_amount=1&transaction_id=tx-18";
+  $full2 = $q2 . "&signature=" . _ssv_sign($rot2, $q2) . "&key_id=99";
+  parse_str($full2, $p2);
+  ok(!w_ssv_verify($d, $full2, $p2), "연달아 또 다시 받았다 — 간격 제한이 없다");
+  eq(_ssv_net_count(), 1, "재요청이 1회를 넘었다");
+  _ssv_cleanup($d);
+});
+
+// ── 증폭: 키 서버·캐시가 정상이 아닐 때 ───────────────────────────────────────
+// 여기가 리뷰에서 뚫린 자리다. 이전 구현은 **캐시 파일의 mtime** 으로 간격을 쟀는데, 그
+// mtime 은 받아오기에 성공하고 문서까지 유효해야만 움직인다 — 즉 아래 네 상황(= 이 문이
+// 존재해야 할 유일한 이유들)에서 전부 열려 있었다. 살아 있는 원격만으로 테스트해서 초록이었다.
+// 정상 운영의 기본 상태가 '낡은 캐시'라는 점이 이걸 이론이 아니라 상시 위험으로 만든다.
+
+t("낡은 캐시 + 키 서버 다운 — 위조 100회에도 키 서버 조회는 1회뿐", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  _ssv_age_cache($d);
+  _ssv_net_down();
+  $stray = _ssv_key();
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-down1";
+  $full = $q . "&signature=" . _ssv_sign($stray, $q) . "&key_id=88";
+  parse_str($full, $p);
+  for ($i = 0; $i < 100; $i++) { ok(!w_ssv_verify($d, $full, $p), "다운된 키 서버로 통과했다"); }
+  ok(_ssv_net_count() <= 1, "키 서버 조회가 " . _ssv_net_count() . "회 — 위조 폭주가 그대로 증폭됐다");
+  _ssv_cleanup($d);
+});
+
+t("캐시 없음 + 키 서버 다운 — 위조 100회에도 키 서버 조회는 1회뿐", function () {
+  _ssv_net_reset();
+  $d = tmpdir();   // 캐시 파일 자체가 없다
+  _ssv_net_down();
+  $stray = _ssv_key();
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-down2";
+  $full = $q . "&signature=" . _ssv_sign($stray, $q) . "&key_id=88";
+  parse_str($full, $p);
+  for ($i = 0; $i < 100; $i++) { ok(!w_ssv_verify($d, $full, $p), "키가 없는데 통과했다"); }
+  ok(_ssv_net_count() <= 1, "키 서버 조회가 " . _ssv_net_count() . "회 — 캐시가 없으면 0회차부터 새어나간다");
+  _ssv_cleanup($d);
+});
+
+t("키 서버가 JSON 이 아닌 응답(503 페이지)을 줘도 — 위조 100회에 조회는 1회뿐", function () {
+  _ssv_net_reset();
+  $d = tmpdir();
+  _ssv_net_raw("<html><body>503 Service Unavailable</body></html>");
+  $stray = _ssv_key();
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-503";
+  $full = $q . "&signature=" . _ssv_sign($stray, $q) . "&key_id=88";
+  parse_str($full, $p);
+  for ($i = 0; $i < 100; $i++) { ok(!w_ssv_verify($d, $full, $p), "503 페이지로 통과했다"); }
+  ok(_ssv_net_count() <= 1, "키 서버 조회가 " . _ssv_net_count() . "회 — 캐시가 안 써지면 새어나간다");
+  _ssv_cleanup($d);
+});
+
+// 배포 후 웹 유저가 데이터 디렉토리에 못 쓰게 되는 사고. 캐시를 영원히 못 만들므로 캐시
+// mtime 기반 제한은 통째로 꺼진다 — 표식을 임시 디렉토리로 물러서서라도 남겨야 하는 이유다.
+t("캐시 디렉토리에 쓸 수 없어도 — 위조 50회에 키 서버 조회는 1회뿐", function () {
+  _ssv_net_reset();
+  $d = tmpdir();
+  $rot = _ssv_key(); _ssv_net_serve(array(array("88", $rot)));
+  $log = $d . "-errlog.txt"; @unlink($log);
+  $oldLog = ini_get("error_log"); $oldOn = ini_get("log_errors");
+  $stray = _ssv_key();
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-ro";
+  $full = $q . "&signature=" . _ssv_sign($stray, $q) . "&key_id=88";
+  parse_str($full, $p);
+  // ⚠ 되돌리기는 finally 에 둔다. 단언 뒤에 두면 ok() 하나가 실패하는 순간 디렉토리가 0500
+  // 인 채로, error_log 가 곧 지워질 경로를 가리킨 채로 남는다 — 실패 하나가 뒤 테스트까지
+  // 오염시키고 /tmp 에 지울 수 없는 디렉토리를 남긴다(이번 라운드가 만든 새 누수였다).
+  $n = null; $passed = true;
+  try {
+    ini_set("error_log", $log); ini_set("log_errors", "1");
+    chmod($d, 0500);
+    ok(!is_writable($d), "전제가 깨졌다 — 디렉토리가 아직 쓰기 가능하다(root 로 도는 중?)");
+    for ($i = 0; $i < 50; $i++) {
+      if (w_ssv_verify($d, $full, $p) !== false) { $passed = false; break; }
+    }
+    $n = _ssv_net_count();
+  } finally {
+    chmod($d, 0700);
+    ini_set("error_log", $oldLog === false ? "" : $oldLog);
+    ini_set("log_errors", $oldOn === false ? "" : $oldOn);
+  }
+  ok($passed, "못 쓰는 디렉토리에서 통과했다");
+  ok($n <= 1, "키 서버 조회가 " . $n . "회 — 디렉토리를 못 쓰면 제한이 통째로 꺼진다");
+  // 캐시 쓰기 실패는 조용히 넘어가면 안 된다 — 이 로그가 유일한 단서다
+  ok(is_file($log) && strpos((string)file_get_contents($log), "SSV 키 캐시를 쓸 수 없다") !== false,
+     "캐시 쓰기 실패가 로그에 안 남았다");
+  @unlink($log);
+  _ssv_cleanup($d);
+});
+
+// 엔드포인트는 이 출력 스트림을 응답 본문과 공유한다 — 진단 문구가 새면 콜백 응답이 오염된다.
+t("키 항목에 배열이 들어 있어도 경고 한 줄 없이 거절한다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_key();
+  file_put_contents($d . "/ssv_keys_cache.json", json_encode(array("keys" => array(
+    array("keyId" => array("77"), "pem" => _ssv_pub($k)),        // keyId 가 배열
+    array("keyId" => "77", "pem" => array(_ssv_pub($k))),        // pem 이 배열
+  ))));
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-warn";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  parse_str($full, $p);
+  $warns = array();
+  set_error_handler(function ($no, $str) use (&$warns) { $warns[] = $str; return true; });
+  $got = w_ssv_verify($d, $full, $p);
+  restore_error_handler();
+  ok(!$got, "배열이 든 키 항목으로 통과했다");
+  eq(count($warns), 0, "PHP 진단이 났다: " . implode(" | ", $warns));
+  _ssv_cleanup($d);
+});
+
+// 간격 판정에 하한이 없으면 **미래 날짜** 표식이 영원히 신선해져 키 재요청이 얼어붙는다.
+// 시계 되감김·NFS mtime 어긋남·아무 프로세스가 남긴 +10년 mtime 하나면 된다. 그러면 구글이
+// 키를 교체하는 순간부터 모든 진짜 콜백이 503 이 되고 아무 로그도 남지 않는다.
+t("미래 날짜 시도 표식은 재요청을 막지 못한다 — 하한이 없으면 영구 동결이다", function () {
+  _ssv_net_reset();
+  foreach (array(86400, 10 * 365 * 86400) as $ahead) {
+    $d = tmpdir(); _ssv_fixture($d, "77");
+    _ssv_age_cache($d);
+    $rot = _ssv_key(); _ssv_net_serve(array(array("88", $rot)));
+    touch($d . "/ssv_keys_attempt", time() + $ahead);   // 미래에서 온 표식
+    clearstatcache();
+    $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-future";
+    $full = $q . "&signature=" . _ssv_sign($rot, $q) . "&key_id=88";
+    parse_str($full, $p);
+    ok(w_ssv_verify($d, $full, $p),
+       "미래 표식(+" . $ahead . "초)에 재요청이 얼어붙었다 — 키 교체 후 모든 진짜 보상이 사라진다");
+    _ssv_cleanup($d);
+  }
+});
+
+// 임시 디렉토리는 아무나 쓸 수 있다. 지갑 디렉토리가 멀쩡한데도 거기를 본다면, /tmp 에 파일
+// 하나 만들 수 있는 로컬 프로세스 아무나가 남의 키 재요청을 얼릴 수 있다.
+t("지갑 디렉토리가 멀쩡하면 /tmp 표식은 쳐다보지 않는다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  _ssv_age_cache($d);
+  $rot = _ssv_key(); _ssv_net_serve(array(array("88", $rot)));
+  ok(is_writable($d), "전제가 깨졌다 — 지갑 디렉토리가 쓰기 불가다");
+  // 남이 심어 놓은 폴백 표식
+  $stray = sys_get_temp_dir() . "/w_ssv_attempt_" . sha1($d);
+  touch($stray);
+  clearstatcache();
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-stray";
+  $full = $q . "&signature=" . _ssv_sign($rot, $q) . "&key_id=88";
+  parse_str($full, $p);
+  ok(w_ssv_verify($d, $full, $p),
+     "남이 /tmp 에 심은 표식이 재요청을 막았다 — 아무나 남의 키 갱신을 얼릴 수 있다");
+  @unlink($stray);
+  _ssv_cleanup($d);
+});
+
+// ── 거절 이유 — '위조'와 '지금 확인할 수 없음'은 처리가 정반대다 ──────────────────
+// 불리언 하나로 뭉치면 키 서버 장애 중에 **진짜** 콜백이 영구 거절된다. 광고를 본 사용자는
+// 보상을 조용히 잃고, 구글에게 다시 보내라고 말할 방법도 없다(재시도는 5xx 에만 붙는다).
+
+t("정상 콜백의 이유는 ok 다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-r1";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  parse_str($full, $p);
+  $why = null;
+  ok(w_ssv_verify($d, $full, $p, $why), "정상 콜백이 거절됐다");
+  eq($why, "ok", "이유가 ok 가 아니다");
+  _ssv_cleanup($d);
+});
+
+t("서명이 틀린 것과 키를 못 얻은 것을 구분한다 — 장애 중 진짜 콜백을 영구 거절하면 안 된다", function () {
+  _ssv_net_reset();
+  $k = _ssv_key();
+  // ① 키는 손에 있는데 서명이 틀림 → 재시도해도 소용없다
+  $d = tmpdir(); _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-r2";
+  $bad = $q . "&signature=" . _ssv_sign($k, "다른 문장") . "&key_id=77";
+  parse_str($bad, $p);
+  $why = null;
+  ok(!w_ssv_verify($d, $bad, $p, $why), "틀린 서명이 통과했다");
+  eq($why, "bad_signature", "키를 들고 확인했는데 이유가 bad_signature 가 아니다");
+  _ssv_cleanup($d);
+
+  // ② 키 서버가 죽었고 캐시도 없음 — 콜백 자체는 진짜다 → 재시도해야 한다
+  _ssv_net_reset(); _ssv_net_down();
+  $d2 = tmpdir();
+  $real = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  parse_str($real, $p2);
+  $why2 = null;
+  ok(!w_ssv_verify($d2, $real, $p2, $why2), "키도 없는데 통과했다");
+  eq($why2, "keys_unavailable",
+     "장애 중 진짜 콜백이 위조로 분류됐다 — 엔드포인트가 400 을 내면 보상이 영영 사라진다");
+  _ssv_cleanup($d2);
+});
+
+t("키 문서는 있는데 key_id 를 모르면 unknown_key 다 — 키 교체 지연일 수 있다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-r3";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=12345";
+  parse_str($full, $p);
+  $why = null;
+  ok(!w_ssv_verify($d, $full, $p, $why), "모르는 key_id 가 통과했다");
+  eq($why, "unknown_key", "이유가 unknown_key 가 아니다");
+  _ssv_cleanup($d);
+});
+
+t("모양이 틀린 콜백은 malformed 다 — 키를 보러 갈 필요조차 없다", function () {
+  _ssv_net_reset();
+  $d = tmpdir(); $k = _ssv_fixture($d, "77");
+  $q = "custom_data=acct-1&reward_amount=1&transaction_id=tx-r4";
+  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
+  $cases = array(
+    "서명 없음"        => $q . "&key_id=77",
+    "빈 서명"          => $q . "&signature=&key_id=77",
+    "base64 아님"      => $q . "&signature=!!!!&key_id=77",
+    "배열 서명"        => $q . "&signature[]=x&key_id=77",
+    "중복 파라미터"    => $full . "&reward_amount=999",
+  );
+  foreach ($cases as $name => $qs) {
+    parse_str($qs, $p);
+    $why = null;
+    ok(!w_ssv_verify($d, $qs, $p, $why), "통과했다: " . $name);
+    eq($why, "malformed", "이유가 malformed 가 아니다: " . $name);
+  }
+  // 이유를 안 받아도(3인자 호출) 예전처럼 동작해야 한다
+  parse_str($full, $pf);
+  ok(w_ssv_verify($d, $full, $pf), "3인자 호출이 깨졌다");
+  _ssv_cleanup($d);
+});
+
+// ── 키 서버 URL 주입 이음매 ────────────────────────────────────────────────────
+// 상수는 자식 프로세스로 넘어가지 않는다. 디스패처 하네스는 wallet-lib.php 를 docroot 에
+// 복사해 `php -S` 로 따로 띄우므로, 환경변수가 없으면 SSV 라우트가 붙는 순간 관문이 진짜
+// 구글로 요청을 낸다. 이 검사는 그 이음매가 실제로 프로세스 경계를 넘는지를 본다.
+t("W_SSV_KEYS_URL 은 환경변수로도 주입된다 — define 은 자식 프로세스에 안 넘어간다", function () {
+  $lib = realpath(__DIR__ . "/../wallet-lib.php");
+  ok($lib !== false, "wallet-lib.php 를 못 찾았다");
+  $code = "require " . var_export($lib, true) . "; echo W_SSV_KEYS_URL;";
+  $cmd = "env W_SSV_KEYS_URL=ssvtest://from-env php -r " . escapeshellarg($code) . " 2>/dev/null";
+  eq(trim((string)shell_exec($cmd)), "ssvtest://from-env",
+     "환경변수가 자식 PHP 프로세스에 안 닿았다 — 디스패처가 진짜 구글로 나간다");
+  // 환경변수가 없으면 기본값(구글)이어야 한다 — 이음매가 기본 동작을 바꾸면 안 된다.
+  // ⚠ env -u 로 주변 환경을 걷어낸다. 안 그러면 이 스위트를 W_SSV_KEYS_URL 이 설정된
+  // 셸에서 돌릴 때(= 이 이음매가 존재하는 바로 그 용도) 검사가 스스로 깨진다.
+  $cmd2 = "env -u W_SSV_KEYS_URL php -r " . escapeshellarg($code) . " 2>/dev/null";
+  eq(trim((string)shell_exec($cmd2)), "https://www.gstatic.com/admob/reward/verifier-keys.json",
+     "환경변수 없을 때의 기본 URL 이 바뀌었다");
+});
+
+t("w_ssv_signed_part 는 signature 앞까지만 돌려주고, 없으면 null 이다", function () {
+  eq(w_ssv_signed_part("a=1&b=2&signature=X&key_id=7"), "a=1&b=2", "서명 앞 범위가 틀리다");
+  eq(w_ssv_signed_part("a=1&b=2"), null, "signature 가 없는데 범위를 돌려줬다");
+  // 뒤에 뭐가 더 붙어도 범위는 그대로다
+  eq(w_ssv_signed_part("a=1&signature=X&key_id=7&foo=bar"), "a=1", "뒤 파라미터가 범위를 늘렸다");
 });
 
 foreach ($MSGS as $m) { echo $m, "\n"; }

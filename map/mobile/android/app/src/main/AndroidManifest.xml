@@ -24,6 +24,12 @@
 
         </activity>
 
+        <!-- 구글 공개 테스트 앱 ID. 실 ID 는 배포 시 교체한다 —
+             저장소에 실 ID 를 넣으면 남이 우리 계정으로 광고를 띄운다. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

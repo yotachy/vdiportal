@@ -99,6 +99,11 @@
   // 아직 안 돌았다.
   var POLL_MS = 2000, POLL_LIMIT = 300;   // 2초 × 300 = 10분(서버 논스 만료와 같다)
 
+  // 광고 시청 뒤 잔량 폴링(Phase 8d). 로그인 폴링(위)과 달리 짧다 — SSV 콜백은 몇 초 안에 온다.
+  // 낙관적으로 +1 을 그리지 않는다: SSV 가 안 오면 그린 값을 도로 내려야 하고, 그건 "준 걸
+  // 뺏겼다"로 읽힌다(8b 원칙 — 클라이언트는 잔량을 계산하지 않는다. 이 태스크의 핵심).
+  var AD_POLL_MS = 2000, AD_POLL_LIMIT = 5;   // 2초 × 5 = 10초
+
   // 세대 카운터 — render() 가 다시 불릴 때마다(재진입 네비게이션) 하나 늘린다. 이전 render() 의
   // startSignIn/poll 클로저는 자기 시작 시점의 세대를 들고 있다가, 매 콜백에서 지금 세대와
   // 비교해 다르면 곧바로 멈춘다. app.js 는 지갑 화면을 나갈 때 이 클로저에게 알릴 방법이
@@ -125,6 +130,83 @@
     // draw() 가 마지막으로 그린 state — auth-disabled 판정처럼 draw() 밖(startSignIn)에서
     // 화면을 다시 그려야 할 때, 그 사이 값을 몰라 잔량을 지어내거나 지우지 않기 위해서다.
     var lastState = null;
+
+    // 광고(Phase 8d) — render() 생애주기 동안 기억한다. adCfg/adSt 는 draw() 밖(비동기 응답)에서
+    // 채워지므로 lastState 와 같은 이유로 여기 둔다. adBusy 는 signingIn 과 같은 역할(연타 방지) —
+    // 광고는 한 render() 안에서 한 번에 하나만 돈다. adMsgEl 은 draw() 가 마지막으로 그린 상태
+    // 메시지 자리를 가리킨다 — afterAd() 가 화면 전체를 다시 그리지 않고 이 자리만 갱신한다
+    // (로그인 폴링의 authMsg 와 같은 요령).
+    var adCfg = null, adSt = null, adBusy = false, showAdSettings = false, adMsgEl = null;
+
+    // 표시용 쿨다운 힌트(서버는 이 값을 강제하지 않는다 — wallet-lib.php w_ad_next_at 주석).
+    // nextAt 이 지났거나 파싱이 안 되면 0(쿨다운 없음)으로 본다.
+    function cooldownMinutes(iso) {
+      var t = Date.parse(iso);
+      if (!isFinite(t)) return 0;
+      var ms = t - Date.now();
+      return ms > 0 ? Math.ceil(ms / 60000) : 0;
+    }
+
+    // 광고를 다 본 뒤의 잔량 폴링. authPoll 과 같은 규율 — 세대 가드(myGen !== GEN)로 재렌더
+    // 시 고아 루프를 죽이고, adBusy 로 진행 중 연타를 막는다. 절대 여기서 잔량을 계산해 그리지
+    // 않는다 — 서버가 준 state.balance 가 before 보다 커진 것을 **확인한 뒤에만** draw() 한다.
+    function afterAd(before, cap, n) {
+      if (myGen !== GEN) return;
+      if (n >= AD_POLL_LIMIT) {
+        adBusy = false;
+        // 리뷰 I2(실행으로 확인됨): 시청을 시작한 시점에 이미 상한이었으면(before>=cap) 서버는
+        // w_ad_grant 에서 granted=0 으로 조용히 버리고 일일 슬롯만 소모한다 — 잔량은 절대
+        // before 를 못 넘으므로 이 폴링은 영원히 실패로만 보인다. adPending("아직 안 왔다.
+        // 곧 올 것이다")은 거짓이다 — 이미 도착해서 버려진 보상을 "아직" 이라고 말한다.
+        // walCapped 는 체크인이 상한 도달에 이미 쓰는 문구라 사용자에게 새 어휘가 아니다.
+        if (adMsgEl) adMsgEl.textContent = (cap != null && before >= cap) ? MSStr.t.walCapped : MSStr.t.adPending;
+        return;
+      }
+      MSWallet.get().then(function (r) {
+        if (myGen !== GEN) return;
+        if (r.ok && r.state && r.state.balance > before) {
+          adBusy = false;
+          refreshPills();   // 2단이면 옆 칸 헤더의 필이 옛 잔량을 들고 있다
+          // remaining/nextAt 도 이 시청으로 바뀌었을 수 있다(쿨다운 시작) — 다시 읽어 함께 그린다.
+          // 리뷰 Critical(실행으로 확인됨): s.ok 를 안 보고 그대로 덮어쓰면, 광고로 방금 크레딧된
+          // 사용자가 이 재조회 하나가 hiccup 났다는 이유로 "지갑이 병합됐다"는 말을 들을 수 있다
+          // (실패 모양이 merged 와 같다 — 위 draw() 게이트와 같은 결함). 실패했을 땐 새로 알아낸
+          // 게 없다는 뜻이라 직전까지 알던 adSt(있었다면 ok:true)를 그대로 지킨다 — 방금 성공한
+          // 시청 자체는 이미 r.state.balance 로 확정됐으니 이 재조회는 부가 정보일 뿐이다.
+          MSWallet.adState().then(function (s) {
+            if (myGen !== GEN) return;
+            if (s && s.ok) adSt = s;
+            draw(r.state, "");
+          });
+          return;
+        }
+        setTimeout(function () { afterAd(before, cap, n + 1); }, AD_POLL_MS);
+      });
+    }
+
+    // customData 를 여기서 만들거나 손대지 않는다 — MSAds.show(unit) 는 unit 키("quick"/"full")
+    // 만 받고, 서버가 준 customData 는 MSAds.init() 이 기억해 뒀다가 그대로 SSV 요청에 싣는다
+    // (계약 ①). 가공하는 순간 그 계정의 광고 보상이 전부 조용히 사라진다(wallet-ssv.php 정규식).
+    function watchAd(unit) {
+      if (adBusy || !adMsgEl) return;
+      adBusy = true;
+      adMsgEl.textContent = "";
+      var before = lastState ? lastState.balance : 0;
+      var cap = lastState ? lastState.cap : null;   // I2: 시청 시작 시점의 상한 — 폴링 타임아웃에서
+      // "아직 안 왔다"와 "이미 왔지만 상한이라 버려졌다"를 가른다(afterAd 주석 참고).
+      MSAds.show(unit).then(function (r) {
+        if (myGen !== GEN) return;
+        if (!r || !r.shown) {
+          // consent-required·no-ssv·unavailable·failed — 이유를 그대로 노출하지 않되(내부
+          // 사유라 무의미하다), 조용히 아무 일도 안 하는 버튼으로 남기지는 않는다(계약 ④).
+          adBusy = false;
+          if (adMsgEl) adMsgEl.textContent = MSStr.t.adFailed;
+          return;
+        }
+        if (adMsgEl) adMsgEl.textContent = MSStr.t.adWaiting;
+        afterAd(before, cap, 0);
+      });
+    }
 
     // startSignIn/poll 은 draw() 를 부를 수 있어야 해서(로그인 완료 시 화면을 새로 그린다)
     // draw() 와 같은 render() 클로저 안에 둔다.
@@ -205,9 +287,48 @@
 
       var earn = MSUi.el("div", "wal-sec");
       earn.appendChild(MSUi.el("div", "overline", MSStr.t.walEarn));
-      // 광고는 8d(AdMob SSV) 전까지 못 준다 — 시안의 Watch 버튼 자리를 지키되 라벨로 사실을 말한다.
-      earn.appendChild(earnRow(MSStr.t.walQuick, "+1", { off: true, note: MSStr.t.walQuickSub, action: MSStr.t.walSoon }));
-      earn.appendChild(earnRow(MSStr.t.walFull, "+3", { off: true, note: MSStr.t.walFullSub, action: MSStr.t.walSoon, primary: true }));
+      // 광고 두 줄(Phase 8d). adCfg 가 ok 일 때만 그린다 — ad_units.json 이 없는 서버(ads-disabled)
+      // 에선 줄 자체가 없다("Soon" 자리표시자를 남기지 않는다. 죽은 버튼보다 없는 편이 낫다).
+      // adCfg/adSt 로딩 중엔 아직 아무 말도 하지 않는다 — 다음 draw() 가 채운다.
+      adMsgEl = null;
+      // state 도 함께 봐야 한다(리뷰 I1, 실행으로 확인됨): 최초 MSWallet.get() 이 실패해도
+      // adConfig/adState 는 독립된 별개 요청이라 성공할 수 있다 — 그러면 lastState 는 null 인
+      // 채로 광고 줄만 그려지고, watchAd() 의 before(= lastState ? balance : 0)가 0으로
+      // 지어내진다. 첫 폴링이 아무 실 잔량(예: 5)이나 만나면 "5 > 0" 이 참이 되어 실제로는
+      // 아무것도 확인되지 않은 시청이 성공으로 처리된다 — 화면이 확정적 거짓을 말한다.
+      // 다른 행(체크인)도 같은 원칙을 쓴다: state 가 없으면 "확인 불가"이지 0이 아니다.
+      // watchAd() 안에서 막는 대안도 있었지만, 여기서 행 자체를 안 그리면 "기준점 없는 시청"이
+      // 애초에 시작될 수 없다 — 버튼이 죽어 있는 대신 없는 편을 이 파일이 이미 일관되게 택한다
+      // (auth-disabled·device-claimed 와 같은 판단).
+      if (adCfg && adCfg.ok && adSt && state) {
+        if (!adSt.ok) {
+          // 리뷰 Critical(실행으로 확인됨): wallet-http.js 의 adState() 는 네트워크·백엔드 실패 시
+          // {ok:false, remaining:0, nextAt:null} 을 낸다 — 이건 "병합돼 얼어붙었다"(remaining:0 +
+          // nextAt:null)와 **모양이 완전히 같다**. adSt 진위(.ok)를 안 보고 remaining/nextAt 만
+          // 보면 흔한 일시적 실패가 "구글 계정으로 넘어갔다"는 확정적 거짓말이 된다 — 계약 ②가
+          // 막으려던 바로 그 결함의 거울상이다. "물어봤는데 답을 못 들었다"는 병합·상한·쿨다운
+          // 그 무엇도 아니다 — walUnavailable(다른 실패에도 이미 쓰는 문구)로 사실대로만 말한다.
+          earn.appendChild(MSUi.el("div", "w-sub", MSStr.t.walUnavailable));
+        } else if (adSt.remaining === 0 && adSt.nextAt == null) {
+          // remaining:0 + nextAt:null = 이 기기의 지갑이 구글 계정으로 넘어가 얼어붙었다 —
+          // "오늘 8개를 다 썼다"가 아니다. 그 문구를 쓰면 병합된 사용자에게 "내일 다시 오라"고
+          // 말하는 셈이라 거짓이다(계약 ②). wMerged 는 checkin() merged 사유와 같은 문구다.
+          earn.appendChild(MSUi.el("div", "w-sub", MSStr.t.wMerged));
+        } else if (adSt.remaining === 0) {
+          // 일 상한을 다 썼다 — 줄을 숨기지 않고 문구로 바꾼다. 사라지면 앱이 고장난 줄 안다.
+          earn.appendChild(MSUi.el("div", "w-sub", MSStr.t.adDailyDone));
+        } else if (cooldownMinutes(adSt.nextAt) > 0) {
+          // 낱개 시청 사이 쿨다운(표시용 힌트일 뿐 — 서버가 강제하지 않는다).
+          earn.appendChild(MSUi.el("div", "w-sub", MSStr.t.adCooldown.replace("{m}", String(cooldownMinutes(adSt.nextAt)))));
+        } else {
+          // 표시 금액은 adCfg[unit].reward 에서 읽는다(리뷰 I3) — 리터럴로 박으면 ad_units.json/
+          // AdMob 콘솔의 reward_amount 와 갈라져도 화면은 옛 숫자를 계속 약속한다.
+          earn.appendChild(earnRow(MSStr.t.adQuick.replace("{n}", String(adCfg.quick.reward)), "", { note: MSStr.t.walQuickSub, onTap: function () { watchAd("quick"); } }));
+          earn.appendChild(earnRow(MSStr.t.adFull.replace("{n}", String(adCfg.full.reward)), "", { note: MSStr.t.walFullSub, onTap: function () { watchAd("full"); } }));
+          adMsgEl = MSUi.el("div", "w-sub");
+          earn.appendChild(adMsgEl);
+        }
+      }
       var can = !!(state && state.canCheckin);
       // state 가 없으면 잔량을 못 읽은 것이다 — '오늘 받았다'가 아니라 '확인 불가'다.
       // 행은 비활성으로 두되 아무 말도 하지 않는다(거짓 안내를 만들지 않는다).
@@ -284,6 +405,23 @@
       }
       scr.appendChild(authSec);
 
+      // UMP 재열람 행(Phase 8d) — 설정 화면이 없어 지갑 화면에 둔다(SPEC §6). MSAds.consentNeeded()
+      // 나 폼 존재 여부가 아니라 **privacyOptionsRequired() 로만** 켠다 — 그 필드가 정확히
+      // "재열람 줄이 필요한 지역인가"를 말한다(EEA·영국·캐나다). consentNeeded 는 최초 동의
+      // 흐름용이라 이미 동의를 마친 사용자에겐 계속 false 라 재열람 경로가 사라진다. 대상이
+      // 아니면(한국 포함) 행 자체를 안 만든다 — 눌러도 아무 일 없는 행을 남기지 않는다(8c 의
+      // auth-disabled 와 같은 판단).
+      if (showAdSettings) {
+        var settingsRow = MSUi.el("button", "w-auth", MSStr.t.adSettings);
+        settingsRow.type = "button";
+        settingsRow.addEventListener("click", function () { MSAds.showPrivacyOptions(); });
+        scr.appendChild(settingsRow);
+      }
+
+      // 리워드 화폐 고지 — 스토어 심사가 보는 문구라 상시 표기한다(SPEC §6). 광고가 꺼져 있어도
+      // (ads-disabled) 스쿱 자체는 체크인으로도 쌓이므로 이 고지는 조건 없이 항상 그린다.
+      scr.appendChild(MSUi.el("div", "wal-legal", MSStr.t.walNoCashValue));
+
       root.appendChild(scr);
     }
 
@@ -293,6 +431,39 @@
     // 그걸 다시 0처럼 그리면 클라이언트가 잔량을 지어낸 것과 같은 결과가 난다).
     draw(null, "");
     MSWallet.get().then(function (r) { draw(r.state, (!r.ok || !r.state) ? MSStr.t.walUnavailable : ""); });
+
+    // 광고 설정(Phase 8d). adConfig 가 ok 일 때만 MSAds.init() 을 부르고, init() 이 만든 동의
+    // 약속(consentReady)이 끝난 **뒤에** adState 와 privacyOptionsRequired() 를 잇따라 묻는다 —
+    // privacyOptionsRequired() 를 init() 과 경합하는 별도 체인으로 두면, init() 이 아직 안
+    // 끝난 순간(consentReady==null)에 먼저 풀려 항상 false 로 굳어버리고 이후 init() 이 진짜
+    // 동의 상태를 알아내도 다시 묻지 않는 버그가 된다(실제로 이 태스크에서 한 번 그렇게 짰다가
+    // 고쳤다) — 그래서 반드시 init() 뒤에 이어 붙인다.
+    // 동의(UMP)가 첫 광고 요청보다 먼저 끝나는 것(계약 ①)은 ads.js 자체가 지킨다(watchAd() 의
+    // MSAds.show() 가 consentReady 를 반드시 기다린다) — 여기서 init() 을 부르는 시점은
+    // "언제 그 약속을 만드느냐"일 뿐이다.
+    MSWallet.adConfig().then(function (r) {
+      if (myGen !== GEN) return null;
+      adCfg = r;
+      if (!r.ok) { draw(lastState, ""); return null; }
+      var initP = (typeof MSAds !== "undefined" && MSAds && MSAds.init) ? MSAds.init(r) : Promise.resolve(null);
+      return initP.then(function () { return MSWallet.adState(); });
+    }).then(function (r) {
+      if (myGen !== GEN) return null;
+      // 여기는 afterAd() 의 재조회(위)와 달리 실패 응답(ok:false)도 그대로 adSt 에 담는다 —
+      // 의도적인 비대칭이다. 이 시점엔 지킬 "직전의 좋은 adSt"가 아직 없으므로(최초 로드),
+      // 실패를 버리면 adSt 가 계속 null 로 남아 draw() 의 !adSt.ok 분기가 아예 안 열리고
+      // 화면은 조용히 아무 것도 안 그린다 — "확인 불가"를 말할 기회 자체가 사라진다. draw() 의
+      // 게이트가 adSt.ok 를 직접 보고 병합/상한과 실패를 가르므로, 실패 모양을 그대로 넘겨도
+      // wMerged 로 오독되지 않는다(리뷰 Critical 수정).
+      if (r) adSt = r;
+      draw(lastState, "");
+      return (typeof MSAds !== "undefined" && MSAds && MSAds.privacyOptionsRequired)
+        ? MSAds.privacyOptionsRequired() : null;
+    }).then(function (v) {
+      if (myGen !== GEN || v == null) return;
+      showAdSettings = !!v;
+      draw(lastState, "");
+    });
   }
 
   window.MSWalletScreen = { render: render, pill: pill, refreshPills: refreshPills };

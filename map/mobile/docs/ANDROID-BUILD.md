@@ -58,7 +58,8 @@ Gradle 이 빌드 중에 알아서 더 받는다**(어떤 의존성이 그 버�
 
 ```bash
 cd map/mobile
-npm run cap:sync          # 엔진 동기화 + www → android assets 복사
+npm install               # 네이티브 플러그인이 생긴 뒤로 선행 필수 (아래 참고)
+npm run cap:sync          # 엔진 동기화 + www → android assets 복사 + 플러그인 Gradle 배선 갱신
 
 cd android
 echo "sdk.dir=$ANDROID_HOME" > local.properties   # gitignore 대상(머신별 경로)
@@ -67,16 +68,43 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties   # gitignore 대상(머신별 �
 
 `gradlew` 가 Gradle 8.14.3 을 자동으로 받는다(약 200MB, 최초 1회).
 
+**`npm install` 이 선행이다.** `package-lock.json` 은 저장소 루트 `.gitignore` 에 걸려 커밋되지
+않으므로 새로 받은 작업본에는 `node_modules/` 가 아예 없다. Capacitor 플러그인의 안드로이드
+소스는 **`node_modules/@capacitor-community/admob/android` 를 Gradle 서브프로젝트로 직접 참조**
+하므로(아래 `capacitor.settings.gradle`), 설치를 건너뛰면 빌드가 "프로젝트를 찾을 수 없다"로 죽는다.
+저장소에 든 것은 참조뿐이고 실물은 npm 이 가져온다.
+
 **`npm run cap:sync` 를 건너뛰지 말 것.** `www/` 를 고쳐도 `android/app/src/main/assets/public/` 은
 자동으로 안 바뀐다 — 웹 코드를 고친 뒤 sync 없이 빌드하면 **옛 화면이 담긴 APK** 가 나오고, 그걸
-"고쳤는데 왜 그대로지"로 한참 헤매게 된다.
+"고쳤는데 왜 그대로지"로 한참 헤매게 된다. 플러그인이 생긴 뒤로는 하는 일이 하나 더 있다:
+`cap sync` 가 `android/capacitor.settings.gradle`(서브프로젝트 include)과
+`android/app/capacitor.build.gradle`(implementation 의존)을 **다시 써낸다.** 둘 다 "DO NOT EDIT"
+생성물이지만 커밋 대상이다 — 플러그인을 넣고 빼는 일은 이 두 파일의 diff 로 드러난다.
+
+## 4-1. 네이티브 의존성 — AdMob (2026-08-16 추가)
+
+이 저장소의 **첫 네이티브 의존성**이다. 그 전까지 안드로이드 쪽은 Capacitor 껍데기뿐이었다.
+
+- **버전은 두 곳에서 못 박는다.** npm 은 `package.json` 에 `--save-exact`(캐럿 없음),
+  네이티브는 `android/variables.gradle` 의 `playServicesAdsVersion` · `userMessagingPlatformVersion`.
+  **후자를 빼먹으면 반쪽이다** — 플러그인 기본값이 `25.4.+` 라는 동적 버전이라, 같은 소스가 날짜에
+  따라 다른 APK 가 되고 구글이 나쁜 릴리스를 올린 날 우리 변경이 하나도 없는데 빌드가 깨진다.
+  올릴 때는 사람이 그 줄을 고치고 빌드를 다시 통과시킨다.
+- **코틀린이 처음 들어왔다.** 플러그인이 `kotlin-android` + `kotlin-gradle-plugin:2.2.20` 을 쓴다.
+  첫 빌드는 코틀린 툴체인을 받고 코틀린 데몬을 새로 띄우느라 오래 걸린다 — **5분 20초**(캐시가
+  더워진 뒤 재빌드는 훨씬 짧다). 오래 걸리는 것은 고장이 아니다. 플러그인 컴파일 중
+  `SMART_BANNER is deprecated` 경고가 뜨는데 플러그인 자체 코드라 우리가 할 일은 없다.
+- **APK 가 4.4MB → 12.0MB 로 커진다.** 광고 SDK 부피다. 리소스 축소·R8 은 릴리스 빌드 과제다.
+- **매니페스트의 앱 ID 는 구글 공개 테스트 ID** (`ca-app-pub-3940256099942544~3347511713`).
+  실 ID 를 저장소에 넣으면 남이 우리 계정으로 광고를 띄운다 — 배포 시점에 교체한다.
+  이 meta-data 가 없으면 앱은 빌드는 되고 **실행 즉시 죽는다**(광고 SDK 가 시작 시 확인한다).
 
 ## 확인
 
 ```bash
 export PATH="$ANDROID_HOME/build-tools/36.0.0:$PATH"
 aapt2 dump badging android/app/build/outputs/apk/debug/app-debug.apk | head -4
-unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -c "assets/public/"   # 37
+unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -c "assets/public/"   # 38
 ```
 
 번들 자산 개수가 `www/` 파일 수와 맞는지 본다. 안 맞으면 sync 가 안 돌았거나 `webDir` 이 틀린 것이다.

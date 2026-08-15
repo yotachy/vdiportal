@@ -355,6 +355,103 @@ test("checkin 이 op:checkin 으로 보내고 granted·capped 를 그대로 전�
   assert.strictEqual(r.capped, true, "capped 가 유실되면 화면 안내가 사라진다");
 });
 
+// ── adConfig / adState (8d 광고 무중단 스위치) ────────────────────────────────
+// customData 는 wallet-api.php 가 계정 id 그대로 내보낸다 — 클라이언트는 그 값을 가공하지
+// 않고 AdMob RewardedAd.setServerSideVerificationOptions 에 그대로 넘긴다. 여기서 값을
+// 바꾸거나 다른 필드로 감싸면 wallet-ssv.php 의 모양 가드(^[0-9a-f]{16}$)에 조용히 걸려
+// 그 계정의 모든 광고 보상이 말없이 사라진다(로그도 재시도도 없다) — 그래서 통과시키는
+// 값 자체(가공 없이)를 검사한다.
+test("adConfig 가 op:adConfig 로 보내고 quick·full·customData 를 가공 없이 전달한다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const quick = { unitId: "ca-app-pub-3940256099942544/5354046379", reward: 1 };
+  const full = { unitId: "ca-app-pub-3940256099942544/5224354917", reward: 3 };
+  const f = fakeFetch([{ status: 200, json: { ok: true, quick, full, customData: "0123456789abcdef" } }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  const r = await b.adConfig();
+  assert.strictEqual(f.calls[0].op, "adConfig", "adConfig 의 op 이름이 틀렸다");
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.quick, quick);
+  assert.deepStrictEqual(r.full, full);
+  assert.strictEqual(r.customData, "0123456789abcdef", "customData 가 가공됐다 — SSV 콜백이 조용히 버려진다");
+});
+
+test("adConfig 가 ads-disabled 면 화면이 광고 줄을 숨길 근거(ok:false)를 준다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const f = fakeFetch([{ status: 200, json: { ok: false, reason: "ads-disabled" } }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  const r = await b.adConfig();
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.reason, "ads-disabled");
+});
+
+test("adConfig 가 네트워크로 실패하면 광고를 지어내지 않고 network 를 보고한다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const f = fakeFetch([{ throw: true }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  const r = await b.adConfig();
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.reason, "network");
+});
+
+test("adState 가 op:adState 로 보내고 remaining·nextAt 을 그대로 전달한다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const f = fakeFetch([{ status: 200, json: { ok: true, remaining: 3, nextAt: "2026-08-15T00:00:00+00:00" } }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  const r = await b.adState();
+  assert.strictEqual(f.calls[0].op, "adState", "adState 의 op 이름이 틀렸다");
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.remaining, 3);
+  assert.strictEqual(r.nextAt, "2026-08-15T00:00:00+00:00");
+});
+
+test("adState 가 ok:false 로 오면 남은 횟수를 지어내지 않고 0 으로 떨어진다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const f = fakeFetch([{ status: 401, json: { ok: false, reason: "unauthorized" } }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  const r = await b.adState();
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.remaining, 0, "실패인데 남은 횟수를 지어냈다 — 화면이 광고 버튼을 켜 둔다");
+  assert.strictEqual(r.nextAt, null);
+});
+
+test("adState 가 네트워크로 실패해도 남은 횟수를 지어내지 않는다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "T1");
+  const f = fakeFetch([{ throw: true }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  const r = await b.adState();
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.remaining, 0);
+  assert.strictEqual(r.nextAt, null);
+});
+
+test("adConfig/adState — 계정 토큰이 있으면 먼저 그것으로 나간다(get/spend/checkin 과 같은 call() 경로)", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "DEVTOK");
+  store.write0("ms_account_token", "ACCTTOK");
+  const f = fakeFetch([
+    { status: 200, json: { ok: true, quick: {}, full: {}, customData: "a" } },
+    { status: 200, json: { ok: true, remaining: 5, nextAt: null } }
+  ]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  await b.adConfig();
+  await b.adState();
+  assert.strictEqual(f.calls[0].auth, "Bearer ACCTTOK", "adConfig 가 계정 토큰을 안 썼다");
+  assert.strictEqual(f.calls[1].auth, "Bearer ACCTTOK", "adState 가 계정 토큰을 안 썼다");
+});
+
 // I-G: 대본이 뭘 답하든 요청 자체의 모양(메서드·헤더·URL)이 틀리면 실제 서버는 405/400 으로
 // 거절한다. fakeFetch 는 이미 method·Content-Type·url 을 다 잡고 있었는데 아무도 검사하지 않았다.
 test("요청 모양 — POST · Content-Type:application/json · 지정한 url 로 보낸다", async () => {
@@ -630,12 +727,17 @@ test("계정 토큰이 있을 때 네트워크 실패는 계정 토큰을 버리
 // 리뷰 Important 2: wallet.js 의 get/spend/refund/checkin 은 전부 callBackend 를 거쳐
 // "백엔드가 동기적으로 던져도 호출부는 늘 Promise 를 받는다"는 불변식을 지킨다. authStart/
 // authPoll/signOut 도 예외가 아니어야 한다 — Task 6 가 화면에서 이걸 그대로 await 한다.
-test("wallet.js — authStart/authPoll/signOut 은 백엔드가 동기적으로 던져도 삼킨다", async () => {
+// adConfig/adState 도 8d 가 이 목록에 더한 façade 메서드라 같은 불변식을 져야 한다 —
+// 8c 리뷰가 지적한 바로 그 구멍(브리프가 callBackend 를 우회해도 아무 검사도 안 빨개지는 것)
+// 을 8d 가 반복하지 않게, 브리프의 예시(get/spend/checkin)와 같은 모양으로 시험한다.
+test("wallet.js — authStart/authPoll/signOut/adConfig/adState 는 백엔드가 동기적으로 던져도 삼킨다", async () => {
   const MSWallet = require("../www/wallet.js");
   const throwing = {
     authStart: () => { throw new Error("boom"); },
     authPoll: () => { throw new Error("boom"); },
-    signOut: () => { throw new Error("boom"); }
+    signOut: () => { throw new Error("boom"); },
+    adConfig: () => { throw new Error("boom"); },
+    adState: () => { throw new Error("boom"); }
   };
   MSWallet.install(throwing);
   try {
@@ -644,7 +746,24 @@ test("wallet.js — authStart/authPoll/signOut 은 백엔드가 동기적으로 
     const rp = await MSWallet.authPoll("n");
     assert.strictEqual(rp.ok, false, "authPoll 이 백엔드 예외를 삼키지 않았다 — 호출부가 그대로 깨진다");
     assert.doesNotThrow(() => MSWallet.signOut(), "signOut 이 백엔드 예외를 그대로 던졌다");
+    const rc = await MSWallet.adConfig();
+    assert.strictEqual(rc.ok, false, "adConfig 가 백엔드 예외를 삼키지 않았다 — callBackend 를 안 거친 것 같다");
+    const rt = await MSWallet.adState();
+    assert.strictEqual(rt.ok, false, "adState 가 백엔드 예외를 삼키지 않았다 — callBackend 를 안 거친 것 같다");
   } finally {
     MSWallet.install(null);
   }
+});
+
+// noBackend() 경로 — 로그인 전(backend 설치 전)에 화면이 adConfig/adState 를 불러도
+// 죽지 않아야 한다(get/spend/checkin 과 같은 계약).
+test("wallet.js — 백엔드 미설치 상태에서 adConfig/adState 는 no-backend 로 떨어진다", async () => {
+  const MSWallet = require("../www/wallet.js");
+  MSWallet.install(null);
+  const rc = await MSWallet.adConfig();
+  assert.strictEqual(rc.ok, false);
+  assert.strictEqual(rc.reason, "no-backend");
+  const rt = await MSWallet.adState();
+  assert.strictEqual(rt.ok, false);
+  assert.strictEqual(rt.reason, "no-backend");
 });

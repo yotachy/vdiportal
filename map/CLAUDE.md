@@ -40,7 +40,17 @@
 
 - **다중 태스크 작업(SDD 계획서로 실행하는 것)은 브랜치 → `merge:` 커밋.** 단발 수정은 `main` 직접. 이 저장소의 기존 관행을 규칙으로 명시한 것.
 - **배포는 공통일 수 없다.** PC(포지·보드·랜딩)는 `커밋+배포 한 세트` — cafe24 SFTP `www/map/`. **모바일은 스토어 릴리스라 이 규칙이 적용되지 않는다** → `커밋+푸시 한 세트, 배포는 별도 릴리스 트랙`.
-- **`mobile/` 은 cafe24 에 업로드하지 않는다.** 서버로 가는 건 PC 정적 파일 8종 + `forge-api.php` 뿐(하단 §스쿱포지 파일 참조).
+- **`mobile/` 은 cafe24 에 업로드하지 않는다.** 서버로 가는 건 PC 정적 파일 8종 + `forge-api.php`(하단 §스쿱포지 파일 참조) — 그리고 아래 §④ 의 지갑 서버 파일 3종.
+
+## ④ 지갑(Wallet) 배포 세트 — Scoop 원장·AdMob SSV (Phase 8 계열)
+
+모바일 UI(`mobile/www/`)는 cafe24 에 안 올라가지만, 그 UI가 말을 거는 **지갑 서버 파일 3종은 `map/` 루트에 있고 cafe24 에 올라간다.** 이 문서 어디에도 그 세트가 안 적혀 있던 탓에, 이 라운드에서 새 파일(`wallet-ssv.php`)이 추가됐는데도 배포 절차가 없었다 — 부분 배포는 조용히 죽지 않고 시끄럽게 죽는다: `wallet-ssv.php` 만 빠지면 AdMob 콘솔에 등록한 SSV URL 이 404 로 막혀 아무도 보상을 못 받고, `wallet-lib.php` 가 옛 버전이면 새 API 가 `Call to undefined function w_ad_grant()` 로 500 을 내고 Google 은 그 콜백을 계속 재시도한다.
+
+- **동반 배포 필수**(같이 올리고 같이 검증한다): `wallet-ssv.php`(AdMob SSV 콜백 수신, Phase 8d 신규) · `wallet-lib.php`(원장 — 계정·spend·checkin·광고 지급 로직) · `wallet-api.php`(HTTP 디스패처). `wallet-auth.php`(구글 로그인)는 이번 라운드엔 안 바뀌었지만 세트 밖으로 빼지 말 것 — 다음에 손대면 이 셋에 합류한다.
+- **배포 불가침**(서버 생성·사용자 데이터 — 절대 덮어쓰지 않는다): `<data>/wallet.db`(SQLite 원장) · `wallet_secret.txt`(HMAC 비밀키) · `ssv_keys_cache.json` · `ssv_keys_attempt`(AdMob 검증 키 캐시) · `ad_units.json`(광고 유닛 설정). forge 쪽 불가침 목록(`forge_*`)과 같은 원칙 — 정적 파일 8종 + wallet 3종 외엔 절대 손대지 않는다.
+- `map/mobile/**` 는 위 ③에 이미 적힌 대로 cafe24 에 절대 안 올라간다 — 지갑 서버 파일 3종만 별개로 올라간다는 뜻이지, mobile 전체가 서버 배포 대상이 됐다는 뜻이 아니다.
+- **지갑 배포 전엔 반드시 `./tests/run.sh concurrency` 를 먼저 돌린다** — IP 상한·비밀키 생성·계정 mkdir 동시성 회귀라 `all`에 안 낀다(느려서), 그래서 사람이 기억해서 불러야 하는 유일한 관문이다. wallet-lib.php·wallet-api.php·wallet-ssv.php 를 고친 뒤 이 스위트를 건너뛰고 배포하지 말 것.
+- **`ad_units.json` 부재 = 광고 기능 전체 꺼짐(fail-open 이 아니라 fail-closed)** — 이게 이 세트의 킬 스위치다. 코드(위 3종)를 먼저 올려 서버가 살아있는지 확인한 뒤, 마지막에 `ad_units.json` 을 올린다(또는 문제가 생기면 그 파일부터 내린다). 코드와 설정을 동시에 올리면 500 을 낸 원인이 코드인지 설정인지 구분이 안 된다.
 
 ---
 
