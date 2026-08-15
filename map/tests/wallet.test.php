@@ -1032,15 +1032,21 @@ t("논스 재사용 조회가 전체 스캔이 아니다 — auth_nonce 는 청�
         where device_id = 'x' and used = 0 and google_sub is null and created_at >= 'y'
         order by created_at desc limit 1";
   foreach ($db->query($q) as $row) { $plan .= $row["detail"] . " "; }
-  ok(strpos($plan, "ix_nonce_dev") !== false, "논스 재사용 조회가 인덱스를 안 탄다: " . $plan);
-  ok(stripos($plan, "scan") === false, "논스 재사용 조회가 전체 스캔이다: " . $plan);
+  // ⚠ 계획 문구는 SQLite 판마다 다르다. 3.26(cafe24 바닥)은 "SEARCH TABLE auth_nonce
+  // USING INDEX …", 3.36+ (로컬 3.45.1)는 TABLE 을 뺀 "SEARCH auth_nonce USING INDEX …"
+  // 를 낸다. 전체 스캔도 마찬가지로 "SCAN TABLE x" / "SCAN x" 로 갈린다. 문자열을 그대로
+  // 맞추면 이 검사가 프로덕션 모양에서만 빨개진다 — TABLE·COVERING 을 선택적으로 둔
+  // 정규식으로 본다. (이 저장소에 3.26 바이너리가 없어 3.45.1 에서만 실측했다.)
+  ok(preg_match('/SEARCH\s+(TABLE\s+)?auth_nonce\s+USING\s+(COVERING\s+)?INDEX\s+ix_nonce_dev/i', $plan) === 1,
+     "논스 재사용 조회가 인덱스를 안 탄다: " . $plan);
+  ok(!preg_match('/\bSCAN\b/i', $plan), "논스 재사용 조회가 전체 스캔이다: " . $plan);
   // 정렬용 임시 B-트리도 없어야 한다 — (device_id, created_at) 순서라야 정렬이 공짜다.
   ok(stripos($plan, "temp b-tree") === false, "정렬용 임시 B-트리가 생긴다: " . $plan);
   // 인덱스를 "탄다"만으로는 부족하다. 컬럼 순서를 (created_at, device_id) 로 뒤집으면
   // 계획은 여전히 SEARCH … USING INDEX 지만 실제로는 created_at 범위만 좁힐 뿐이라
   // 모든 기기의 최근 행을 훑는다(실측: "SEARCH … (created_at>?)"). 그러면 표가 커질수록
   // 다시 느려져 이 인덱스를 넣은 이유가 사라진다 — device_id 로 점 조회하는지를 못박는다.
-  ok(strpos($plan, "device_id=?") !== false,
+  ok(preg_match('/\bdevice_id\s*=/i', $plan) === 1,
      "device_id 로 좁히지 않는다 — 인덱스 컬럼 순서가 뒤집혔다: " . $plan);
   $db = null; rmrf($d);
 });
@@ -1250,6 +1256,67 @@ t("병합으로 넘어간 기기 계정은 더 벌 수 없다 — 두 번째 지
   eq($rf["ok"], false, "넘긴 계정에서 환급이 성공했다 — 버린 잔량이 되살아난다");
   eq($rf["reason"], "merged", "환급 거절 사유가 merged 가 아니다");
   eq(w_true_balance($db, $c["id"]), 0, "환급으로 넘긴 계정의 잔량이 올랐다");
+  $db = null; rmrf($d);
+});
+
+// 리뷰 실측(Critical, 2라운드): 버림은 google_sub 을 NULL 로 남기므로(그게 표식이 필요한
+// 이유다) 같은 기기가 나중에 다른 구글로 로그인하면 claim 갈래를 탄다. 표식을 "merge_discard
+// 행이 하나라도 있는가"로 물으면 그 계정은 영원히 못 번다. 기기 토큰이 365일 유효하고
+// authStart/authPoll 이 기기 토큰만 받으므로 재로그인은 반드시 같은 기기를 지난다 — 정상 경로다.
+t("버렸다가 다시 claim 한 계정은 다시 산다 — 표식은 마지막 사건만 센다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  w_create_account($db, "dev-B", "ip2");
+  w_merge($db, "dev-B", "gsub-1");           // 버림 — merge_discard 표식이 남는다
+  $b = w_get_account($db, "dev-B");
+  ok(w_is_merged_away($db, $b["id"]), "전제가 깨졌다 — 버린 직후엔 표식이 있어야 한다");
+  eq($b["google_sub"], null, "전제가 깨졌다 — 버림은 google_sub 을 NULL 로 남긴다");
+
+  // 같은 기기가 나중에 다른 구글로 로그인한다 → claim 갈래
+  $m = w_merge($db, "dev-B", "gsub-2");
+  eq($m["ok"], true, "두 번째 구글 claim 이 실패했다");
+  eq($m["moved"], false, "claim 이 아니라 옮김으로 처리됐다");
+  $b = w_get_account($db, "dev-B");
+  eq($b["google_sub"], "gsub-2", "claim 이 google_sub 을 안 박았다");
+  ok(!w_is_merged_away($db, $b["id"]),
+     "다시 claim 한 계정이 낡은 표식 때문에 영구 동결됐다 — 아무것도 넘긴 적 없는 구글 계정이다");
+  eq(w_state($db, $b)["canCheckin"], true, "다시 claim 한 계정이 출석 버튼을 못 그린다");
+  $r = w_checkin($db, $b, null);
+  eq($r["ok"], true, "다시 claim 한 계정이 출석을 못 한다 — 영구 동결이다");
+  eq($r["granted"], 1, "출석 지급이 없다");
+  // 버려서 0, 출석으로 1 — slot(1스쿱)이 이 잔량으로 쓸 수 있는 유일한 등급이다.
+  $b = w_get_account($db, "dev-B");
+  eq(w_true_balance($db, $b["id"]), 1, "전제가 깨졌다 — 버림 0 + 출석 1 이어야 한다");
+  eq(w_spend($db, $b["id"], "slot", "c:rc", null, null)["ok"], true, "준비용 차감이 실패했다");
+  eq(w_refund($db, $b["id"], "c:rc")["ok"], true, "다시 claim 한 계정이 환급을 못 한다");
+  eq(w_true_balance($db, $b["id"]), 1, "환급이 잔량을 안 돌려놨다");
+  $db = null; rmrf($d);
+});
+
+// 같은 결함의 전염 경로 — 죽은 행이 구글 계정의 대표가 되면, 그 뒤 합류하는 기기마다
+// 시드를 버리고 죽은 계정에 붙는다(버리기는 하는데 아무도 못 번다).
+t("다시 claim 한 계정에 합류하는 기기도 정상이다 — 죽은 계정으로 빨려들지 않는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  w_create_account($db, "dev-B", "ip2");
+  w_merge($db, "dev-B", "gsub-1");           // B 버림
+  w_merge($db, "dev-B", "gsub-2");           // B 가 gsub-2 로 되살아난다
+  $b = w_get_account($db, "dev-B");
+
+  w_create_account($db, "dev-C", "ip3");
+  $c = w_get_account($db, "dev-C");
+  $m = w_merge($db, "dev-C", "gsub-2");
+  eq($m["acct"]["id"], $b["id"], "합류 대상이 gsub-2 계정이 아니다");
+  eq($m["discarded"], 5, "합류 기기의 익명 잔량이 안 버려졌다");
+  eq(w_true_balance($db, $c["id"]), 0, "합류 기기 잔량이 안 버려졌다");
+  // 핵심: 버리는 것은 맞지만, 받는 쪽은 살아 있어야 한다.
+  $b = w_get_account($db, "dev-B");
+  ok(!w_is_merged_away($db, $b["id"]), "합류를 받은 계정이 동결됐다");
+  eq(w_state($db, $b)["canCheckin"], true, "합류를 받은 계정이 출석 버튼을 못 그린다");
+  eq(w_checkin($db, $b, null)["ok"], true,
+     "합류를 받은 계정이 못 번다 — 합류하는 기기마다 시드만 사라지는 죽은 계정이다");
   $db = null; rmrf($d);
 });
 

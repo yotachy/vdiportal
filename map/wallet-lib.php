@@ -751,8 +751,20 @@ function w_merge($db, $deviceId, $googleSub) {
 // 기기 토큰은 365일 유효하다). 이 계정이 계속 출석할 수 있으면, 기기 토큰을 쥔 클라이언트가
 // 구글 지갑과 별개로 매일 1개씩 버는 익명 지갑을 하나 더 굴리게 된다 — 기기를 늘릴수록
 // 수입원이 늘어난다. 병합이 없애려던 바로 그 구멍이다(리뷰 실측).
+// ⚠ "merge_discard 행이 하나라도 있는가"로 물으면 안 된다. 버림은 그 시점의 사실이지
+// 영구한 성질이 아니다 — 버림은 google_sub 을 NULL 로 남기므로(그게 이 표식이 필요한
+// 이유다) 같은 기기가 나중에 다른 구글로 로그인하면 claim 갈래를 타고 그 행이 다시
+// 살아 있는 지갑이 된다. 낡은 표식만 보면 그 계정은 영원히 못 벌고, 더 나쁘게는 전염된다:
+// 그 뒤 그 구글 계정으로 합류하는 기기마다 시드를 버리고 죽은 계정에 붙는다(리뷰 실측).
+// 그래서 마지막 사건만 센다 — merge_discard 뒤에 merge_claim 이 왔으면 다시 산 지갑이다.
+//
+// 정렬은 ledger.id 로 한다(INTEGER PRIMARY KEY AUTOINCREMENT — 단조 증가). created_at 은
+// 안 된다: 한 병합이 쓰는 여러 행이 같은 w_now() 문자열을 공유해 순서가 갈리지 않는다.
 function w_is_merged_away($db, $acctId) {
-  $st = $db->prepare("select 1 from ledger where account_id = ? and reason = 'merge_discard' limit 1");
+  $st = $db->prepare("select reason from ledger
+                      where account_id = ? and reason in ('merge_discard', 'merge_claim')
+                      order by id desc limit 1");
   $st->execute(array($acctId));
-  return $st->fetch() ? true : false;
+  $r = $st->fetch();
+  return ($r && $r["reason"] === "merge_discard");
 }
