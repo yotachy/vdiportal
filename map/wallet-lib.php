@@ -894,11 +894,17 @@ function w_ad_units($dir) {
   $f = $dir . "/ad_units.json";
   if (!is_file($f)) return null;
   $j = json_decode((string)file_get_contents($f), true);
-  if (!is_array($j) || !isset($j["quick"]) || !isset($j["full"])
-      || !is_array($j["quick"]) || !is_array($j["full"])
-      || !isset($j["quick"]["unitId"]) || !isset($j["full"]["unitId"])
-      || !is_string($j["quick"]["unitId"]) || $j["quick"]["unitId"] === ""
-      || !is_string($j["full"]["unitId"]) || $j["full"]["unitId"] === "") return null;
+  if (!is_array($j) || !isset($j["quick"]) || !isset($j["full"])) return null;
+  foreach (array("quick", "full") as $k) {
+    $u = $j[$k];
+    if (!is_array($u)) return null;
+    if (!isset($u["unitId"]) || !is_string($u["unitId"]) || $u["unitId"] === "") return null;
+    // reward 는 지급액이 아니라 표시값이다(실 지급은 SSV 콜백 → w_ad_grant 의 몫이고 이 파일과
+    // 무관하다) — 그래도 화면에 그대로 나가는 값이라 모양은 못박는다. 없거나·문자열이거나·
+    // 0 이하면 이 파일 전체를 무효로 본다(ads-disabled) — 잘못된 숫자가 화면에 나가는 것보다
+    // 광고 줄을 통째로 숨기는 쪽이 안전하다.
+    if (!isset($u["reward"]) || !is_int($u["reward"]) || $u["reward"] <= 0) return null;
+  }
   return $j;
 }
 

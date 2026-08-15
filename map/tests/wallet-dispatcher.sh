@@ -513,6 +513,15 @@ chk "설정 없어도 adState 는 200 이다" "$CODE" "200"
 chk "아직 광고를 안 본 계정의 남은 횟수는 상한과 같다" "$(jget "$BODY" remaining)" "$AD_DAILY"
 chk "아직 광고를 안 본 계정의 nextAt 은 null 이다" "$(jget "$BODY" nextAt)" "null"
 
+# 계정 토큰(a:) 경로 — 토큰 해석 자체는 다른 op 들이 이미 덮지만(w_token_read 공용 코드),
+# adConfig/adState 가 실제로 그 경로를 타는지는 여기서 직접 두드려야 한다. $ACCT_TOK 는
+# 위 authPoll 절에서 발급된 계정 A 의 계정 토큰이다.
+post '{"op":"adConfig"}' "$ACCT_TOK"
+chk "계정 토큰 adConfig 도 401 이 아니라 정상 흐른다(설정 없음)" "$(jget "$BODY" reason)" "ads-disabled"
+post '{"op":"adState"}' "$ACCT_TOK"
+chk "계정 토큰 adState 는 200 이다" "$CODE" "200"
+chk "계정 토큰 adState 도 같은 계정(A)의 남은 횟수를 본다" "$(jget "$BODY" remaining)" "$AD_DAILY"
+
 # ── adState — 병합돼 얼어붙은 계정 ──────────────────────────────────────────
 # ACCT_B 는 위 authPoll 절에서 이미 구글 계정(A)에 병합돼 버려졌다(merge_discard). w_ad_grant
 # 는 이미 그런 계정의 SSV 콜백을 거절하고 ad_grants 에 기록도 남기지 않으므로, "오늘 지급된
@@ -549,6 +558,15 @@ dbexec "insert into ad_grants (transaction_id, account_id, unit, amount, granted
         values ('adstate-fill-cap', '$ACCT_E', 'quick', 1, 1, '$NOW_ISO_AD')"
 post '{"op":"adState"}' "$TOK_E"
 chk "상한에 정확히 닿으면 remaining 이 0 이다" "$(jget "$BODY" remaining)" "0"
+
+# remaining:0 하나만으로는 "오늘 다 봤다"와 "병합돼 얼어붙었다"를 구분 못 한다 — 둘 다
+# remaining:0 이다. 화면(Task 6)이 이 둘을 가르는 유일한 신호가 nextAt(null 이냐 아니냐)
+# 이므로, 여기서 "상한에 닿았지만 병합은 안 된" 계정의 nextAt 이 null 이 아님을 못박는다.
+# w_ad_next_at 이 "오늘"로 범위를 좁히는 무해해 보이는 리팩터가 이 쌍을 조용히 무너뜨릴 수
+# 있다 — 위 remaining 검사만으로는 그 리팩터가 빨개지지 않는다(remaining 은 그대로 0이다).
+NEXTAT_E=$(jget "$BODY" nextAt)
+if [ "$NEXTAT_E" != "null" ] && [ "$NEXTAT_E" != "<none>" ] && [ -n "$NEXTAT_E" ]; then ok_
+else bad_ "상한에 닿았지만 병합은 안 된 계정의 nextAt 이 null 이다 — 병합돼 얼어붙은 계정과 구분이 안 된다: got '$NEXTAT_E'"; fi
 
 dbexec "insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
         values ('adstate-fill-over', '$ACCT_E', 'quick', 1, 1, '$NOW_ISO_AD')"
@@ -593,6 +611,18 @@ JSON
 post '{"op":"adConfig"}' "$TOK_A"
 chk "유닛 ID 가 빈 문자열이면 ads-disabled 다" "$(jget "$BODY" reason)" "ads-disabled"
 
+# reward 는 지급액이 아니라 표시값이지만(실 지급은 SSV 콜백이 정한다), 화면에 그대로
+# 나가는 값이라 모양은 못박는다 — 없거나·문자열이거나·0 이하면 파일 전체를 무효로 본다.
+for BADREWARD in \
+  '{"quick":{"unitId":"u1"},"full":{"unitId":"u2","reward":3}}' \
+  '{"quick":{"unitId":"u1","reward":"1"},"full":{"unitId":"u2","reward":3}}' \
+  '{"quick":{"unitId":"u1","reward":0},"full":{"unitId":"u2","reward":3}}' \
+  '{"quick":{"unitId":"u1","reward":-1},"full":{"unitId":"u2","reward":3}}'; do
+  printf '%s' "$BADREWARD" > "$AD_UNITS"
+  post '{"op":"adConfig"}' "$TOK_A"
+  chk "잘못된 reward($BADREWARD) 는 ads-disabled 다" "$(jget "$BODY" reason)" "ads-disabled"
+done
+
 cat > "$AD_UNITS" <<'JSON'
 {"quick":{"unitId":"ca-app-pub-3940256099942544/5354046379","reward":1},
  "full":{"unitId":"ca-app-pub-3940256099942544/5224354917","reward":3}}
@@ -617,6 +647,12 @@ esac
 # 다른 계정 토큰으로 부르면 그 계정 자신의 id 가 나온다 — 남의 것을 보내지 않는다.
 post '{"op":"adConfig"}' "$TOK_B"
 chk "B 토큰의 adConfig customData 는 B 자신의 계정 id 다" "$(jget "$BODY" customData)" "$ACCT_B"
+
+# 계정 토큰(a:)으로도 같은 계정의 customData 가 나온다 — 기기 토큰과 계정 토큰이 같은
+# 계정을 가리키면 값도 같아야 한다(두 토큰 타입 다 이 op 를 실제로 타는지 확인).
+post '{"op":"adConfig"}' "$ACCT_TOK"
+chk "계정 토큰 adConfig 도 ok 다" "$(jget "$BODY" ok)" "true"
+chk "계정 토큰 adConfig 의 customData 도 계정 A 의 id 다" "$(jget "$BODY" customData)" "$ACCT_A"
 
 rm -f "$AD_UNITS"
 post '{"op":"adConfig"}' "$TOK_A"
