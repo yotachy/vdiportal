@@ -937,6 +937,46 @@ t("google_sub 유니크 인덱스가 미연결 계정 여럿을 막지 않는다
   $db = null; rmrf($d);
 });
 
+// ── Task 2 (8c): 논스 수명주기 ─────────────────────────────────────────
+
+t("논스 — 단회용이고 10분 만료이며 기기에 묶인다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $n = w_nonce_make($db, "dev-aaa");
+  $a = w_nonce_read($db, $n);
+  // 남의 논스를 주워도 못 쓴다는 것은 device_id 로 확인한다(호출부가 대조).
+  eq($a["device_id"], "dev-aaa", "논스가 기기에 안 묶였다");
+  ok(strlen($n) >= 32, "논스가 너무 짧다: " . strlen($n));
+  eq(w_nonce_complete($db, $n, "gsub-1"), true, "첫 완료가 실패했다");
+  $b = w_nonce_read($db, $n);
+  ok($b !== null, "완료된 논스를 폴링에서 읽을 수 없다");
+  eq($b["google_sub"], "gsub-1", "완료된 논스의 google_sub");
+  $again = w_nonce_complete($db, $n, "gsub-2");
+  eq($again, false, "완료된 논스를 두 번 완료할 수 있다 — 병합이 두 번 돈다");
+  // 만료: created_at 을 11분 전으로 밀어 넣는다
+  $n2 = w_nonce_make($db, "dev-bbb");
+  $old = gmdate("c", time() - 11 * 60);
+  $db->prepare("update auth_nonce set created_at = ? where nonce = ?")->execute(array($old, $n2));
+  eq(w_nonce_read($db, $n2), null, "만료된 논스가 살아 있다");
+  $db = null; rmrf($d);
+});
+
+t("w_nonce_burn 뒤에는 논스를 읽을 수 없다 — 단회용", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $n = w_nonce_make($db, "dev-aaa");
+  w_nonce_burn($db, $n);
+  eq(w_nonce_read($db, $n), null, "태운 논스가 살아 있다");
+  $db = null; rmrf($d);
+});
+
+t("w_oauth_conf — 설정 파일이 없으면 null 이다(무중단 스위치)", function () {
+  $d = tmpdir();
+  ok(!is_file($d . "/forge_google_oauth.json"), "테스트 전제가 깨졌다");
+  // 실제 함수는 __DIR__(map/) 의 forge_google_oauth.json 을 본다 — 여기서는
+  // 저장소에 그 파일이 없다는 것 자체가 authStart 의 auth-disabled 를 보증한다.
+  ok(!is_file(__DIR__ . "/../forge_google_oauth.json"), "map/forge_google_oauth.json 이 커밋됐다 — 자격증명 유출");
+  eq(w_oauth_conf(), null, "설정 파일이 없는데 conf 가 null 이 아니다");
+});
+
 foreach ($MSGS as $m) { echo $m, "\n"; }
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";

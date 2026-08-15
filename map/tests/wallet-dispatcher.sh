@@ -281,6 +281,41 @@ post '{"op":"nope"}' "$TOK_A"
 chk "모르는 op 는 400 이다" "$CODE" "400"
 chk "모르는 op 사유" "$(jget "$BODY" reason)" "unknown-op"
 
+# ── authStart / authPoll(미완 경로) ────────────────────────────────────────
+# authStart — OAuth 설정 파일이 없으면 무중단 스위치가 켜진다(이 하네스의 DOCROOT 에는
+# forge_google_oauth.json 을 복사하지 않는다).
+post '{"op":"authStart"}' "$TOK_A"
+chk "설정 없으면 authStart 가 auth-disabled 다" "$(jget "$BODY" reason)" "auth-disabled"
+chk "그래도 200 이다 — 로그인은 부가 기능이지 오류가 아니다" "$CODE" "200"
+
+# 토큰 없이는 못 부른다
+CODE=$(curl -s -o "$WORK/out" -w '%{http_code}' -X POST -H "Content-Type: application/json" \
+            --data '{"op":"authStart"}' "$BASE/wallet-api.php")
+chk "토큰 없는 authStart 는 401 이다" "$CODE" "401"
+
+# 모르는 논스로 폴링 — 논스만 알면 남의 계정을 탈취하는 구멍이다
+post '{"op":"authPoll","nonce":"someone-elses-nonce"}' "$TOK_A"
+chk "모르는 논스는 401 이다" "$CODE" "401"
+chk "모르는 논스 401 의 사유" "$(jget "$BODY" reason)" "unauthorized"
+
+# authStart 가 auth-disabled 라 실제 논스를 API 로 못 만든다 — DB 에 직접 심어
+# "존재하지만 남의 기기" 케이스를 재현한다. 이게 없으면 authPoll 의 device_id 비교를
+# 지워도(항상 unauthorized 를 내는 "모르는 논스" 검사만으로는) 안 걸린다 — row 가
+# null 이라 어차피 401 이기 때문이다. 여기서는 row 가 있어야 device_id 비교 자체를 시험한다.
+NOW_ISO=$(php -r 'echo gmdate("c");')
+NONCE_B="dispatcher-nonce-for-b-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_B', '$DEV_B', null, '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_B\"}" "$TOK_A"
+chk "남의 기기 논스로 폴링하면 401 이다 — device_id 대조가 살아 있어야 한다" "$CODE" "401"
+chk "남의 기기 논스 401 의 사유도 같다 — 존재 여부를 알려주면 안 된다" "$(jget "$BODY" reason)" "unauthorized"
+
+# 자기 기기의 미완 논스는 pending:true 다
+NONCE_A="dispatcher-nonce-for-a-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_A', '$DEV_A', null, '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A\"}" "$TOK_A"
+chk "자기 기기 논스 폴링은 200 이다" "$CODE" "200"
+chk "미완 논스는 pending:true 다" "$(jget "$BODY" pending)" "true"
+
 # ── IP 해시는 비밀키가 들어간 HMAC 이다 ────────────────────────────────────
 # 기대값을 구현이 아니라 바깥(비밀키 파일 + 알려진 REMOTE_ADDR)에서 계산한다.
 STORED=$(dbq "select seed_ip_hash from accounts where id='$ACCT_A'")

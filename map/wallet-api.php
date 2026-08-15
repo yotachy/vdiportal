@@ -160,6 +160,20 @@ if (!$acct) w_out(array("ok" => false, "reason" => "unauthorized"), 401);
 
 if ($op === "get") {
   w_out(array("ok" => true, "state" => w_state($db, $acct)));
+} elseif ($op === "authStart") {
+  if (!w_oauth_conf()) w_out(array("ok" => false, "reason" => "auth-disabled"));
+  $n = w_nonce_make($db, $dev);
+  $base = "https://" . $_SERVER["HTTP_HOST"] . dirname($_SERVER["SCRIPT_NAME"]);
+  w_out(array("ok" => true, "nonce" => $n, "authUrl" => $base . "/wallet-auth.php?nonce=" . urlencode($n)));
+} elseif ($op === "authPoll") {
+  $nonce = w_field_str($d, "nonce", "", W_STR_MAX);
+  if ($nonce === false || $nonce === "") w_out(array("ok" => false, "reason" => "bad-request"), 400);
+  $row = w_nonce_read($db, $nonce);
+  // 모르는·만료된·태워진 논스와 "남의 논스"를 같은 401 로 답한다 — 어느 쪽인지
+  // 알려주면 논스의 존재 여부를 캐낼 수 있다.
+  if (!$row || $row["device_id"] !== $dev) w_out(array("ok" => false, "reason" => "unauthorized"), 401);
+  if ($row["google_sub"] === null) w_out(array("ok" => true, "pending" => true));
+  w_out(array("ok" => false, "reason" => "not-implemented"), 500);   // Task 3 이 채운다
 } elseif ($op === "spend") {
   $runType = w_field_str($d, "runType", "", W_STR_MAX);
   $idem = w_field_str($d, "idem", "", W_STR_MAX);

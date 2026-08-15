@@ -17,6 +17,7 @@ define("W_CHEST_EVERY", 7);
 // 그대로 다시 돌리면 된다(수정 불필요).
 define("W_IP_DAILY", 20);         // IP 해시당 하루 신규 계정 지급 상한(재설치 남용 완화)
 define("W_RUN_TTL_SEC", 86400);   // Full 권리 24시간
+define("W_NONCE_TTL_SEC", 600);   // 10분. 사용자가 브라우저에서 로그인을 마칠 시간
 
 // 서버가 정본이다. 클라이언트의 MSWallet.COSTS 는 미리보기 표시용일 뿐이다.
 function w_costs() { return array("full" => 3, "custom" => 5, "slot" => 1, "scan" => 2); }
@@ -217,6 +218,52 @@ function w_token_read($dir, $token) {
   if (strpos($subject, "d:") === 0) return array("type" => "device", "id" => substr($subject, 2));
   if (strpos($subject, "a:") === 0) return array("type" => "acct", "id" => substr($subject, 2));
   return array("type" => "device", "id" => $subject);   // 8c 이전 토큰
+}
+
+// 논스는 브라우저(구글 왕복)와 앱(폴링)을 잇는 유일한 끈이다. 추측 가능하면
+// 남의 로그인 결과를 가로챌 수 있으므로 난수 32바이트를 쓴다.
+function w_nonce_make($db, $deviceId) {
+  $n = bin2hex(random_bytes(16));
+  $st = $db->prepare("insert into auth_nonce (nonce, device_id, google_sub, created_at, used)
+                      values (?, ?, null, ?, 0)");
+  $st->execute(array($n, $deviceId, w_now()));
+  return $n;
+}
+
+// 만료·사용됨은 없는 것과 같다(fail-closed). 호출부는 반환된 device_id 를
+// 자기 토큰의 기기와 반드시 대조해야 한다 — 그게 "남의 논스" 방어다.
+function w_nonce_read($db, $nonce) {
+  if (!is_string($nonce) || $nonce === "") return null;
+  $st = $db->prepare("select * from auth_nonce where nonce = ?");
+  $st->execute(array($nonce));
+  $r = $st->fetch();
+  if (!$r) return null;
+  if ((int)$r["used"] === 1) return null;
+  if (strtotime($r["created_at"]) + W_NONCE_TTL_SEC < time()) return null;
+  return $r;
+}
+
+// 브라우저 콜백이 부른다. 이미 채워진 논스는 다시 채우지 않는다 —
+// where google_sub is null 이 그 방어이며, 경합에서도 한 번만 성립한다.
+function w_nonce_complete($db, $nonce, $googleSub) {
+  $st = $db->prepare("update auth_nonce set google_sub = ? where nonce = ? and google_sub is null");
+  $st->execute(array($googleSub, $nonce));
+  return $st->rowCount() === 1;
+}
+
+// 병합까지 끝난 논스는 태운다. 단회용의 실체가 이 줄이다.
+function w_nonce_burn($db, $nonce) {
+  $st = $db->prepare("update auth_nonce set used = 1 where nonce = ?");
+  $st->execute(array($nonce));
+}
+
+// PC(forge-auth-lib.php)와 같은 파일을 읽는다. 자격증명이 두 벌이 되면 갈린다.
+// 파일이 없으면 로그인 기능 전체가 조용히 꺼진다(무중단 스위치).
+function w_oauth_conf() {
+  $f = __DIR__ . "/forge_google_oauth.json";
+  if (!is_file($f)) return null;
+  $j = json_decode((string)file_get_contents($f), true);
+  return (is_array($j) && !empty($j["client_id"]) && !empty($j["client_secret"])) ? $j : null;
 }
 
 function w_get_account($db, $deviceId) {
