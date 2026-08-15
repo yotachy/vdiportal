@@ -428,11 +428,16 @@
    **`http://` 로 열면 3단계 지갑은 "연결되지 않았습니다"가 정상이다** — 개발 스킴에서 운영
    지갑을 설치하지 않는 가드(`app.js`) 때문이고, 실제 지급은 Capacitor(`https://localhost/`)
    에서만 돈다.
-2. **Android 빌드** — 아래 📋 예정의 "Capacitor 툴체인 검증"과 동일 항목(`cap add android` 까지만
-   됐고 Gradle 빌드·APK 설치·WebView 실행은 미검증). 8c 의 로그인은 `window.open(authUrl)` 로
-   외부 브라우저를 띄우고 앱으로 돌아오길 기다리는 방식이라, 실제 WebView 에서 그 포커스
-   전환이 매끄러운지는 이 빌드가 나와야 확인된다. 8d 도 AdMob SDK 가 네이티브 전용이라 이
-   빌드 없이는 시작도 못 한다 — 지금 우선순위 1위인 이유.
+2. ~~**Android 빌드**~~ ✅ **2026-08-15 해소 — 첫 APK 가 나왔다.** 절차는
+   [`ANDROID-BUILD.md`](ANDROID-BUILD.md) 에 전부 적었다. sudo 는 필요 없었다 — JDK 도 SDK 도
+   압축파일이라 `~/tools/` 에 풀면 그만이고, 시스템 설치가 아니라 비밀번호를 물을 일이 없다.
+   결과: 4.2MB · `com.moneyscoop.mobile` v1.0 · minSdk 24 · targetSdk 36 · 권한 `INTERNET` 하나 ·
+   웹 자산 37개 번들. **남은 것은 실기기 설치·구동**(아래 1번과 함께) — 8c 의 로그인은
+   `window.open(authUrl)` 로 외부 브라우저를 띄우고 돌아오길 기다리는 방식이라, 그 포커스 전환이
+   매끄러운지는 실기기에서만 보인다.
+   ⚠️ **APK 로 여는 순간 지갑이 실서버에 붙는다.** `app.js` 가드는 개발 스킴(`http:`·`file:`)만
+   막는데 Capacitor 는 `https://localhost/` 로 서빙한다 — 진짜 계정이 생기고 진짜 개설 지급이
+   실행되며, 반복하면 `W_IP_DAILY` 상한을 소진한다.
 3. **8d AdMob SSV** — 광고 유닛 2종(Quick 15초 +1 · Full 30초 +3) · 서명 검증 · `transaction_id`
    중복 제거. 온보딩 5단계(위험 고지 + 약관 동의)가 이제 있으니 UMP 개인화 광고 동의를 여기서
    함께 다룰 것 — EEA·영국·캐나다는 UMP 없이는 이 항목 자체를 출시할 수 없다.
@@ -714,15 +719,15 @@ cd map/mobile/www && python3 -m http.server 8000 --bind 0.0.0.0
   상태로만 남아있다. 2차 예측 로직을 붙이는 작업 필요.
 - **잠긴 범례 스와치 색 명시화** — `buildChartLegend`가 잠긴 항목엔 `line.style.borderColor`를 설정하지 않고
   CSS 캐스케이드(`.rp-legend-line`/`.rp-legend-dashed`)에 맡기고 있다. 명시값으로 교체 검토.
-- **폴드 펼침/접힘 액티비티 유지 + Capacitor Gradle 빌드/APK** — 여전히 미검증(아래 "Capacitor 툴체인 검증"과 동일 항목).
+- **폴드 펼침/접힘 액티비티 유지** — 여전히 미검증. Gradle 빌드/APK 자체는 2026-08-15 해소([`ANDROID-BUILD.md`](ANDROID-BUILD.md)).
   Phase 1 실기기 확인은 폰 Chrome(Tailscale) 이었고 WebView 안에서는 하지 않았다.
 - **봉 수 ↔ 정확도 실측** — 주기별 최적 히스토리 길이(Phase 0/1에서 이월, 아직 미착수). 백테스트로 답할 질문.
 - **`?since=` 증분 시세 미사용** — `api.js`의 `ohlcUrl`이 `since` 파라미터를 받지만 `loadTicker`가 아직
   넘기지 않아 항상 전량 조회한다(콜드 수신 942ms, Phase 0 실측).
 - ~~**폴드 2단 레이아웃(600–904dp)**~~ ✅ Phase 5 에서 완료 — 폴드7 실측이 749×654 로 나와 600–904dp 가정 자체가
   좁혀졌다(펼침은 600–840 medium 구간의 위쪽, 749 는 그 아래쪽이 아니다). 위 완료 기록 참조.
-- **Capacitor 툴체인 검증** — `cap add android` 까지 완료, Gradle 빌드·APK 설치·WebView 실행은 미검증.
-  GUI 있는 자리에서 Android Studio 로 `map/mobile/android` 열고 폴드7에 Run. 폴드 펼침 시 액티비티 유지도 이때 확인.
+- ~~**Capacitor 툴체인 검증**~~ ✅ 2026-08-15 — Gradle 빌드·APK 생성까지 완료([`ANDROID-BUILD.md`](ANDROID-BUILD.md)).
+  Android Studio 없이 명령줄 도구만으로 됐다. **APK 설치·WebView 실행·폴드 펼침 시 액티비티 유지는 여전히 미검증** — 실기기 몫.
 - **`android:allowBackup="true"` 끄기** — 템플릿 기본값. v2 인증·지갑 상태 들어오기 전에.
 - **`package-lock.json` 카브아웃** — 저장소 루트가 전역 제외. `map/mobile` 은 첫 실 npm 의존성 트리이고
   해석 버전이 생성 `android/` 템플릿 내용을 좌우 → `!map/mobile/package-lock.json` 권고.

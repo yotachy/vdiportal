@@ -1,0 +1,107 @@
+# 안드로이드 빌드 — 처음부터 APK 까지
+
+2026-08-15 이 저장소에서 **처음으로** APK 가 나온 절차를 그대로 적는다. 이 문서가 없으면 다음 사람이
+같은 하루를 다시 쓴다.
+
+결과: `android/app/build/outputs/apk/debug/app-debug.apk` · 4.2MB ·
+`com.moneyscoop.mobile` v1.0 · minSdk 24 · targetSdk 36 · 권한은 `INTERNET` 하나.
+
+## sudo 는 필요 없다
+
+처음엔 `sudo apt install openjdk-21-jdk` 로 갔다가 막혔다 — 이 저장소의 작업 셸에는 비밀번호를 받을
+터미널이 없다. **JDK 도 Android SDK 도 결국 압축파일이라 홈 디렉터리에 풀면 그만이다.** 시스템에
+설치하지 않으므로 권한을 물을 일이 없고, 다른 프로젝트의 자바 버전과도 충돌하지 않는다.
+
+## 1. JDK 21
+
+Android Gradle Plugin 8.x 가 JDK 17+ 를 요구한다. 21 LTS 를 쓴다.
+
+```bash
+mkdir -p ~/tools && cd ~/tools
+curl -L -o jdk.tar.gz "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse"
+tar xzf jdk.tar.gz && rm jdk.tar.gz
+~/tools/jdk-21*/bin/java -version   # Temurin-21.0.12+8 확인
+```
+
+## 2. Android SDK — 명령줄 도구만
+
+Android Studio(약 3GB)는 필요 없다. 헤드리스에서는 GUI 가 오히려 방해다.
+
+```bash
+cd ~/tools
+curl -L -o cmdtools.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+mkdir -p android-sdk/cmdline-tools && cd android-sdk/cmdline-tools
+unzip -q ~/tools/cmdtools.zip && mv cmdline-tools latest
+```
+
+**`latest` 로 이름을 바꾸는 것이 핵심이다.** 압축을 풀면 `cmdline-tools/cmdline-tools/` 가 되는데,
+`sdkmanager` 는 자기 위치가 `cmdline-tools/<버전>/bin` 이길 기대하므로 그대로 두면
+"Could not determine SDK root" 로 죽는다.
+
+## 3. 라이선스 + 패키지
+
+```bash
+export JAVA_HOME=$(echo ~/tools/jdk-21*)
+export ANDROID_HOME=~/tools/android-sdk
+export ANDROID_SDK_ROOT=~/tools/android-sdk
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+
+yes | sdkmanager --licenses > /dev/null
+sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+```
+
+`variables.gradle` 이 `compileSdkVersion = 36` 이라 platform-36 이 필요하다. **build-tools 35 는
+Gradle 이 빌드 중에 알아서 더 받는다**(어떤 의존성이 그 버전을 고정해 요구한다) — 미리 받을 필요 없고,
+라이선스에 이미 동의했으므로 멈추지 않는다.
+
+## 4. 빌드
+
+```bash
+cd map/mobile
+npm run cap:sync          # 엔진 동기화 + www → android assets 복사
+
+cd android
+echo "sdk.dir=$ANDROID_HOME" > local.properties   # gitignore 대상(머신별 경로)
+./gradlew assembleDebug --no-daemon
+```
+
+`gradlew` 가 Gradle 8.14.3 을 자동으로 받는다(약 200MB, 최초 1회).
+
+**`npm run cap:sync` 를 건너뛰지 말 것.** `www/` 를 고쳐도 `android/app/src/main/assets/public/` 은
+자동으로 안 바뀐다 — 웹 코드를 고친 뒤 sync 없이 빌드하면 **옛 화면이 담긴 APK** 가 나오고, 그걸
+"고쳤는데 왜 그대로지"로 한참 헤매게 된다.
+
+## 확인
+
+```bash
+export PATH="$ANDROID_HOME/build-tools/36.0.0:$PATH"
+aapt2 dump badging android/app/build/outputs/apk/debug/app-debug.apk | head -4
+unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -c "assets/public/"   # 37
+```
+
+번들 자산 개수가 `www/` 파일 수와 맞는지 본다. 안 맞으면 sync 가 안 돌았거나 `webDir` 이 틀린 것이다.
+
+## 실기기에 넣기
+
+```bash
+export PATH="$ANDROID_HOME/platform-tools:$PATH"
+adb devices                                          # USB 디버깅 켠 폰이 보여야 한다
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+WSL 에서는 USB 가 바로 안 보인다. `usbipd-win` 으로 넘기거나, APK 를 윈도우 쪽으로 복사해
+`adb.exe` 로 설치하는 편이 빠르다.
+
+## 실기기에서 처음 달라지는 것 — 지갑이 실서버에 붙는다
+
+Capacitor 는 `androidScheme: "https"` 로 `https://localhost/` 에서 서빙한다. `app.js` 의 가드는
+**개발 스킴(`http:` · `file:`)에서만** 운영 지갑 설치를 막으므로, APK 에서는 처음으로 지갑이
+`https://parksvc.mycafe24.com/map/wallet-api.php` 에 실제로 붙는다.
+
+즉 **APK 로 앱을 여는 순간 진짜 계정이 생기고 진짜 개설 지급이 실행된다.** 브라우저 확인과 다르다.
+테스트를 반복할 때 `W_IP_DAILY` 상한(현재 개발용 20, 출시 전 3 으로 되돌릴 것)을 소진한다는 뜻이기도 하다.
+
+## 릴리스 빌드는 아직
+
+`assembleRelease` 는 서명 키(keystore)가 있어야 한다. 스토어 등록·`versionCode` 정책·난독화와 함께
+다룰 일이라 여기서는 다루지 않는다. 8d(AdMob)도 릴리스 서명이 필요한 시점이 온다.
