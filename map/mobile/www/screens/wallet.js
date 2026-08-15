@@ -114,10 +114,14 @@
     // authStart 가 두 번 나가고, 각자 다른 nonce 로 브라우저를 두 번 열고, 각자의 poll() 이
     // 같은 authMsg 를 두고 경합한다(리뷰 실측).
     var signingIn = false;
-    // auth-disabled 판정은 render() 생애주기 동안 기억한다 — 매 draw() 마다 signedIn() 만
-    // 보고 로그인 행을 새로 조립하면, 판정 이전에 짜인 그 조립 로직이 죽은 버튼을 매번
-    // 되살린다(리뷰 실측: 체크인·로그아웃처럼 draw() 를 다시 부르는 아무 동작 후에나 재발).
+    // auth-disabled·device-claimed 판정은 둘 다 render() 생애주기 동안 기억한다 — 매 draw()
+    // 마다 signedIn() 만 보고 로그인 행을 새로 조립하면, 판정 이전에 짜인 그 조립 로직이 죽은
+    // 버튼을 매번 되살린다. auth-disabled 에서 먼저 실측됐고(체크인·로그아웃처럼 draw() 를
+    // 다시 부르는 아무 동작 후에나 재발해 그 라운드의 실행 테스트가 놓쳤다), device-claimed 는
+    // 같은 결함을 그대로 물려받은 채 다음 리뷰까지 남아 있었다(2026-08-15) — 행만 지우고
+    // 플래그를 안 세워서, 체크인 한 번이면 죽은 "Sign in" 버튼이 되살아났다.
     var authDisabled = false;
+    var deviceClaimed = false;
     // draw() 가 마지막으로 그린 state — auth-disabled 판정처럼 draw() 밖(startSignIn)에서
     // 화면을 다시 그려야 할 때, 그 사이 값을 몰라 잔량을 지어내거나 지우지 않기 위해서다.
     var lastState = null;
@@ -144,24 +148,26 @@
           return;
         }
         if (typeof window !== "undefined" && window.open) window.open(r.authUrl, "_blank");
-        poll(row, r.nonce, 0, msg);
+        poll(r.nonce, 0, msg);
       });
     }
 
-    function poll(row, nonce, n, msg) {
+    function poll(nonce, n, msg) {
       if (myGen !== GEN) return;   // 재렌더로 고아가 된 루프 — 더 이상 부르지 않는다
       if (n >= POLL_LIMIT) { signingIn = false; msg.textContent = MSStr.t.wSignInFailed; return; }
       MSWallet.authPoll(nonce).then(function (r) {
         if (myGen !== GEN) return;
-        if (r.ok && r.pending) { setTimeout(function () { poll(row, nonce, n + 1, msg); }, POLL_MS); return; }
+        if (r.ok && r.pending) { setTimeout(function () { poll(nonce, n + 1, msg); }, POLL_MS); return; }
         signingIn = false;
         if (!r.ok) {
           if (r.reason === "device-claimed") {
-            // device-claimed 도 재시도해도 답이 안 바뀌는 종결 상태다 — auth-disabled 와 같은
-            // 방식으로 다룬다(행 제거). 다만 이유는 안내로 남긴다 — "왜 안 되는지"가 사라지면
-            // 사용자는 그냥 죽은 화면만 본다.
-            if (row && row.parentNode) row.parentNode.removeChild(row);
-            msg.textContent = MSStr.t.wDeviceClaimed;
+            // device-claimed 도 재시도해도 답이 안 바뀌는 종결 상태다 — auth-disabled 와 완전히
+            // 같은 방식으로 다룬다: 판정을 기억하고 로그인 섹션 전체를 안정된 안내로 통째로
+            // 다시 그린다. 행만 지우고 msg.textContent 만 채우면(이전 버전) 체크인처럼 draw() 를
+            // 다시 부르는 아무 동작 뒤에 버튼이 되살아나고, wSignInHint/wWatchlistLocal 은 그
+            // 죽은 버튼 없이도 처음부터 허공에 매달린다(2026-08-15 리뷰 실측).
+            deviceClaimed = true;
+            draw(lastState, "");
             return;
           }
           msg.textContent = MSStr.t.wSignInFailed;
@@ -246,6 +252,9 @@
         // 죽은 버튼 대신 안정된 안내 하나 — wSignInHint("재설치해도 스쿱을 지킨다")는 지금
         // 탭할 것이 없는데 남으면 허공에 뜬 약속이 된다(리뷰 실측: 힌트만 매달려 있었다).
         authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wSignInUnavailable));
+      } else if (deviceClaimed) {
+        // auth-disabled 와 같은 이유로 행·힌트를 전부 걷어내고 안내 하나만 남긴다.
+        authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wDeviceClaimed));
       } else {
         var authRow = MSUi.el("button", "w-auth");
         authRow.type = "button";

@@ -430,6 +430,18 @@ const MSWalletScreen = (function () {
 
 const S = require("../www/strings.js");
 
+// w_merge(wallet-lib.php)는 이 기기의 잔량을 버릴 뿐 구글 계정으로 옮기지 않는다 — 구글
+// 계정 쪽 잔량은 그 계정 자신의 기존 총량이다. 옛 문구("This device's Scoops now live on
+// your Google account")는 버린 수량이 그대로 넘어간 것처럼 읽혔다(2026-08-15 리뷰 지적).
+// DOM 을 안 세워도 되는 순수 문자열 검사라 여기서 바로 한다.
+test("wMerged — 버린 잔량이 그대로 넘어간 것처럼 말하지 않는다", () => {
+  var v = S.t.wMerged;
+  assert.doesNotMatch(v, /Scoops now live/i,
+    "예전 과장 문구('Scoops now live on your Google account')로 되돌아갔다 — 버린 잔량이 그대로 넘어간 것처럼 읽힌다");
+  assert.match(v, /merged into/i,
+    "계정이 바뀌었다는 사실만 말해야 하는데('merged into') 그 표현이 없다");
+});
+
 // 텍스트로 노드를 찾는다 — MSUi.el() 이 leaf 노드에 라벨을 textContent 로 직접 심으므로
 // (자식 없이) 자기 자신의 텍스트만 비교하면 된다. WlNode(위)는 watchlist DOM 테스트가 이미
 // 쓰는 스텁(createElement/appendChild/classList/textContent)이라 새로 만들지 않는다.
@@ -643,10 +655,12 @@ test("두 번째 기기 병합이면 버려진 수량을 사용자에게 말한�
 // device-claimed: 이 기기가 이미 다른 구글 계정에 묶여 있다 — 재시도해도 답이 바뀌지 않는
 // 종결 상태다. 계속 폴링하거나 일반 실패 문구("다시 시도")를 보이면 거짓 희망을 준다 —
 // 사실대로 말하고(다른 계정에 묶여 있다), 유일한 복구(재설치)를 안내해야 한다.
-// 리뷰 Minor(채택): auth-disabled 와 같은 방식으로 다룬다 — 행을 지운다. 안 지우면
-// authStart 는 기기 상태와 무관하게 항상 성공하므로, 사용자가 재탭 → 구글 로그인 왕복을
-// 통째로 다시 거치고도 같은 벽에 부딪히는 것을 반복할 수 있다.
-test("authPoll 이 device-claimed 면 폴링을 멈추고 재설치를 안내하며 행을 지운다", async () => {
+// 리뷰 Minor(채택, 1차): auth-disabled 와 같은 방식으로 다룬다 — 행을 지운다.
+// 리뷰(2차, 2026-08-15): 1차 수정은 행만 지웠을 뿐 판정을 기억하지 않아서, auth-disabled 에서
+// 이미 잡혔던 것과 같은 결함이 그대로 남아 있었다 — 체크인처럼 draw() 를 다시 부르는 아무
+// 동작 뒤에 죽은 "Sign in" 버튼이 되살아났고, wSignInHint 는 그 전부터 허공에 매달려 있었다.
+// 이제 auth-disabled 와 완전히 같은 방식(render 생애주기 동안 기억, 섹션 전체 교체)으로 본다.
+test("authPoll 이 device-claimed 면 폴링을 멈추고 재설치를 안내하며 섹션 전체가 바뀌고, 이후 draw() 에도 버튼이 되살아나지 않는다", async () => {
   await withWalletDom(async (root, W) => {
     W.signedIn = function () { return false; };
     W.authStart = function () { return Promise.resolve({ ok: true, authUrl: "https://x/a", nonce: "n1" }); };
@@ -674,9 +688,20 @@ test("authPoll 이 device-claimed 면 폴링을 멈추고 재설치를 안내하
       "일반 실패 문구('다시 시도')를 보였다 — device-claimed 는 재시도해도 소용없다");
     assert.ok(!findText(root, S.t.wSignIn),
       "device-claimed 인데 로그인 행이 그대로 남아 있다 — 다시 눌러도 같은 벽에 부딪힌다");
+    assert.ok(!findText(root, S.t.wSignInHint),
+      "device-claimed 인데 탭할 게 없는 'Keeps your Scoops...' 힌트가 허공에 매달려 있다");
     // flush() 자신도 setTimeout(fn,0) 을 쓰므로 0 은 허용하고, 그보다 큰(=POLL_MS 재시도) 예약만 본다.
     assert.ok(scheduled.every(function (ms) { return !ms; }),
       "device-claimed 인데 다음 폴링 setTimeout 을 예약했다: " + scheduled.join(","));
+
+    // 체크인처럼 draw() 를 다시 부르는 아무 동작 이후에도 로그인 행이 되살아나면 안 된다 —
+    // auth-disabled 에서 먼저 잡힌 것과 같은 결함(리뷰 2차 실측)이라 여기서도 반드시 본다.
+    var checkinRow = findText(root, S.t.walCheckin).parentNode.parentNode;
+    checkinRow.dispatch("click");
+    await flush();
+
+    assert.ok(findText(root, S.t.wDeviceClaimed), "재조립(체크인) 이후 기기 잠김 안내가 사라졌다");
+    assert.ok(!findText(root, S.t.wSignIn), "재조립(체크인) 이후 죽은 로그인 버튼이 되살아났다");
   });
 });
 
