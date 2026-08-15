@@ -565,6 +565,31 @@ for FLD in custom_data transaction_id reward_amount timestamp; do
   chk "서명 안의 $FLD 가 배열이면 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
 done
 
+# 서명 범위 "안"의 중복 키. parse_str 은 마지막 값을 취하고, w_ssv_params_faithful 은 똑같이
+# 접힌 두 파싱본을 비교하므로 중복은 양쪽 모두에게 보이지 않는다 — 서명된 문장 안에서 값이
+# 조용히 바뀐다(리뷰 실측: reward_amount=1&…&reward_amount=9 가 9 를 지급했다).
+# AdMob 이 값을 퍼센트 인코딩하는지는 구글에 물어볼 수 없으므로(접속 금지), 답과 무관하게 닫는다.
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-dupsigned&reward_amount=9")
+ssv_get "$Q"
+chk "서명 안에 중복 키가 있으면 200 이다" "$CODE" "200"
+chk "서명 안 중복 키는 적립하지 않는다 — 서명된 문장 안에서 값이 밀반입된다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+chk "서명 안 중복 키의 기록도 없다" "$(dbq "select count(*) from ad_grants where transaction_id='ssv-dupsigned'")" "0"
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_B&reward_amount=1&timestamp=$TS&transaction_id=ssv-dupcd&custom_data=$ACCT_A")
+ssv_get "$Q"
+chk "서명 안에서 custom_data 를 바꿔치기해도 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+
+# custom_data 는 계정 id 다 — 모양이 정확히 정해져 있다(sha1 앞 16자, 소문자 16진).
+# ⚠ 이 검사들이 "모양 가드가 살아 있다"를 증명하지는 못한다. 계정 id 는 정의상 전부 hex16 이라
+# 모양이 틀린 값은 가드가 없어도 어차피 "그런 계정 없음"으로 떨어진다 — 행동으로 관찰할 수
+# 없는 가드다. 그래서 여기서는 "어떤 모양이든 적립되지 않는다"만 보고, 가드의 존재 자체는
+# 아래 소스 모양 검사로 못박는다(w_db 의 mkdir 가드와 같은 취급).
+for CD in "ZZZZZZZZZZZZZZZZ" "ABCDEF0123456789" "0123456789abcde" "0123456789abcdef0" "../../etc/passwd"; do
+  Q=$(ssv_sign "ad_unit=quick&custom_data=$CD&reward_amount=1&timestamp=$TS&transaction_id=ssv-cd-$(printf '%s' "$CD" | cksum | cut -d' ' -f1)")
+  ssv_get "$Q"
+  chk "계정 id 모양이 아닌 custom_data($CD)는 200 이다" "$CODE" "200"
+  chk "계정 id 모양이 아닌 custom_data($CD)로 적립되지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+done
+
 # 재인코딩(%2D) — parse_str 결과는 똑같지만 바이트가 다르다. 원본 쿼리스트링 대신
 # http_build_query($_GET) 로 재조립하면 이 콜백이 통과한다(서명은 바이트에 걸려 있다).
 Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-enc-1")
@@ -666,6 +691,32 @@ chk "서명이 틀린 콜백은 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "
 PC=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/wallet-ssv.php?custom_data=$ACCT_A&reward_amount=9&transaction_id=ssv-post")
 chk "서명 없는 POST 도 200 이다" "$PC" "200"
 chk "서명 없는 POST 가 적립하지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_A"
+
+# ── 지급이 "지금 못 한 것"이면 503 이다 — 이것이 재시도 분류의 나머지 절반이다 ──────────
+# "503 은 지급하지 않는다"는 잘 덮여 있지만 그 반대 방향("지급 못 했으면 503 이어야 한다")은
+# 검사가 없었다(리뷰 지적). 실패 시나리오: SQLite 경합으로 w_ad_grant 가 ok:false/busy 를
+# 내는데 엔드포인트가 200 으로 답하면 → 구글은 재시도하지 않는다 → 광고를 본 사용자가
+# 조용히 보상을 잃는다. 락 경합을 기다리는 대신(그쪽은 busy_timeout 만큼 느리다) 원장 표를
+# 잠깐 치워 같은 부류(ok:false)를 즉시 만든다.
+BAL_A2=$(ssv_bal "$ACCT_A")
+dbexec "alter table ledger rename to ledger_hidden"
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-busy")
+ssv_get "$Q"
+dbexec "alter table ledger_hidden rename to ledger"
+chk "지급하지 못한 콜백은 503 이다 — 200 이면 구글이 재시도하지 않아 보상이 사라진다" "$CODE" "503"
+chk "그 503 의 본문도 비어 있다" "$BODY" ""
+chk "그 503 도 아무 것도 적립하지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_A2"
+chk "그 503 은 시청 기록도 남기지 않았다" "$(dbq "select count(*) from ad_grants where transaction_id='ssv-busy'")" "0"
+# 원장이 돌아온 뒤 같은 콜백이 다시 오면 이제는 지급돼야 한다(멱등키가 PK 라 재시도가 안전하다)
+ssv_get "$Q"
+chk "원장이 돌아온 뒤의 재시도는 200 이다" "$CODE" "200"
+chk "재시도가 보상을 실제로 지급했다 — 503 은 '나중에 다시 오라'였다" "$(ssv_bal "$ACCT_A")" "$((BAL_A2 + 1))"
+
+# custom_data 모양 가드는 행동으로 관찰할 수 없다(계정 id 는 전부 hex16 이라 모양이 틀리면
+# 가드가 없어도 "계정 없음"으로 떨어진다). 그래서 소스 모양으로 못박는다 — 이 한 줄이 공개
+# 엔드포인트가 받아들이는 계정 id 의 집합을 '정확히' 고정한다.
+if grep -qE 'preg_match\([^)]*\^\[0-9a-f\]\{16\}\$' "$DOCROOT/wallet-ssv.php"; then ok_
+else bad_ "wallet-ssv.php 가 custom_data 를 계정 id 모양(^[0-9a-f]{16}$)으로 못박지 않는다"; fi
 
 # 키 캐시·시도 표식은 웹루트 밖에 있어야 한다(원장과 같은 규율)
 SSV_LEAK=$(find "$WORK/www" -name "ssv_keys_*" | head -3)

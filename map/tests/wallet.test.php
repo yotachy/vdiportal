@@ -1535,21 +1535,11 @@ t("병합된 계정에는 적립하지 않는다", function () {
   $db = null; rmrf($d);
 });
 
-t("1시간 밖 타임스탬프는 거절한다 — 서명이 유효해도 오래된 콜백은 재생 공격이다", function () {
-  _ssv_net_reset();
-  $d = tmpdir(); $db = w_db($d); $k = _ssv_fixture($d, "77");
-  w_create_account($db, "dev-A", "ip");
-  $a = w_get_account($db, "dev-A");
-  $old = (time() - 7200) * 1000;   // 2시간 전
-  $q = "custom_data=" . $a["id"] . "&reward_amount=1&transaction_id=tx-old"
-     . "&timestamp=" . $old . "&ad_unit=quick";
-  $full = $q . "&signature=" . _ssv_sign($k, $q) . "&key_id=77";
-  // wallet-ssv.php 의 판정과 같은 식을 여기서도 본다 — 엔드포인트 검사는 디스패처가 따로 한다.
-  parse_str($full, $p);
-  ok(w_ssv_verify($d, $full, $p), "서명 자체는 유효해야 이 검사가 의미를 갖는다");
-  ok(abs(time() - intdiv((int)$p["timestamp"], 1000)) > W_SSV_SKEW_SEC, "2시간 전이 허용 범위 안이다");
-  $db = null; _ssv_cleanup($d);
-});
+// ⚠ 여기 있던 "1시간 밖 타임스탬프" 검사는 삭제했다(리뷰 지적, 계획서가 그렇게 적었던 것).
+// 그것은 엔드포인트의 판정식을 테스트 자신의 픽스처에 대고 다시 계산할 뿐이라 7200 <= 3600 이
+// 되지 않는 한 실패할 수 없는 항등식이었다 — 이 저장소의 "기대값은 밖에서" 규율 위반이다.
+// 진짜 커버리지는 디스패처에 있다: 스큐 검사를 지우면 2시간 전·2시간 뒤·timestamp 없음
+// 세 콜백이 실제로 적립돼 9건이 빨개진다(뮤테이션 M3 실측).
 
 t("모르는 계정은 조용히 넘어간다", function () {
   $d = tmpdir(); $db = w_db($d);
@@ -1567,16 +1557,53 @@ t("쓰레기 reward_amount 에 잔량이 줄거나 폭발하지 않는다", func
   $d = tmpdir(); $db = w_db($d);
   w_create_account($db, "dev-A", "ip");
   $a = w_get_account($db, "dev-A");
-  $cases = array("음수" => -5, "문자열" => "abc", "배열" => array(9), "거대" => "99999999999999999999", "널" => null);
+  // ⚠ "granted >= 0 이고 잔량이 범위 안"만 보면 안 된다 — 그 셋은 배열이 1 로 캐스팅돼
+  // 코인이 나가도, 20자리 문자열이 PHP_INT_MAX 로 포화한 뒤 room 에 깎여도 전부 참이다
+  // (리뷰 실측: 타입 가드를 통째로 지워도 관문 340건이 초록이었다). 그래서 "얼마가
+  // 나갔는가"를 못박는다 — 지급 0, 그리고 ad_grants 에 남는 '구글이 말한 값'도 0.
+  $cases = array("음수" => -5, "문자열" => "abc", "배열" => array(9), "거대" => "99999999999999999999",
+                 "널" => null, "실수" => 1.9, "불리언" => true, "지수표기" => "1e3", "앞공백" => " 1");
   $i = 0;
   foreach ($cases as $name => $amt) {
     $i++;
-    $r = w_ad_grant($db, $a["id"], "quick", "tx-junk-" . $i, $amt);
+    // 케이스마다 새 계정을 쓴다 — 한 계정에 몰면 일 상한(8)에 걸려 9번째부터는 "지급 0" 이
+    // 타입 가드 덕분인지 상한 덕분인지 갈리지 않는다(그 순간 이 검사는 스스로 눈이 먼다).
+    w_create_account($db, "dev-junk-" . $i, null);
+    $a = w_get_account($db, "dev-junk-" . $i);
+    $tx = "tx-junk-" . $i;
+    $r = w_ad_grant($db, $a["id"], "quick", $tx, $amt);
     eq($r["ok"], true, "쓰레기 금액에 실패를 돌려줬다: " . $name);
-    ok($r["granted"] >= 0, "음수 지급이 나왔다: " . $name);
-    ok(w_true_balance($db, $a["id"]) >= 5, "잔량이 시드 아래로 내려갔다: " . $name);
-    ok(w_true_balance($db, $a["id"]) <= W_CAP, "지갑 상한을 넘겼다: " . $name);
+    eq($r["granted"], 0, "쓰레기 금액으로 코인이 나갔다: " . $name);
+    eq($r["capped"], false, "지급도 안 했는데 capped 가 떴다: " . $name);
+    $g = $db->query("select amount, granted from ad_grants where transaction_id = '" . $tx . "'")->fetch();
+    ok($g !== false, "시청 기록이 없다 — 상한 계산에서 빠진다: " . $name);
+    eq((int)$g["amount"], 0, "쓰레기 값이 그대로 기록됐다: " . $name);
+    eq((int)$g["granted"], 0, "지급 기록이 0 이 아니다: " . $name);
+    eq(w_true_balance($db, $a["id"]), 5, "잔량이 움직였다: " . $name);
   }
+  $db = null; rmrf($d);
+});
+
+// 지갑이 이미 꽉 찬 사용자의 콜백은 지급이 0 이다 — 그런데도 기록해야 한다. 안 하면 일
+// 상한 카운터가 영원히 안 올라가고, 상한에 걸린 사용자의 광고 시청이 무제한이 된다.
+// (기존 "상한에 걸리면 잘라서 넣되" 검사는 잔량 19/상한 20 이라 give==1 이다 — give==0 인
+//  바로 그 경우가 검사되지 않아, 기록을 if (give > 0) 로 감싸도 관문이 초록이었다.)
+t("지갑이 꽉 차 지급이 0 이어도 시청은 기록된다 — 상한 소모의 핵심 사례", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  w_ledger_insert($db, $a["id"], W_CAP - 5, "test_credit", null, "t:c");
+  $db->prepare("update accounts set balance = ? where id = ?")->execute(array(W_CAP, $a["id"]));
+  eq(w_true_balance($db, $a["id"]), W_CAP, "전제가 깨졌다 — 잔량이 상한이 아니다");
+  $r = w_ad_grant($db, $a["id"], "quick", "tx-full", 1);
+  eq($r["granted"], 0, "꽉 찬 지갑에 들어갔다");
+  eq($r["capped"], true, "capped 가 안 떴다");
+  $g = $db->query("select amount, granted from ad_grants where transaction_id = 'tx-full'")->fetch();
+  ok($g !== false, "지급 0 인 시청이 기록되지 않았다 — 상한에 걸린 사용자가 광고를 무한히 본다");
+  eq((int)$g["granted"], 0, "지급 기록이 0 이 아니다");
+  eq((int)$g["amount"], 1, "구글이 말한 값이 기록되지 않았다");
+  // 그 기록이 실제로 일 상한을 소모하는가 — 기록만 남고 안 세면 의미가 없다
+  eq(w_ad_count_today($db, $a["id"]), 1, "기록이 일 상한 계산에 안 잡힌다");
   $db = null; rmrf($d);
 });
 

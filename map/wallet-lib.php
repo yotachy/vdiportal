@@ -849,10 +849,15 @@ function w_ad_grant($db, $acctId, $unit, $txId, $amount) {
     if (w_ad_count_today($db, $acctId) >= W_AD_DAILY) { $db->exec("commit"); return $fail("daily-cap"); }
 
     // 금액은 구글이 주는 값이지만, 이 함수는 엔드포인트를 우회하는 호출자(관리자 도구·배치)도
-    // 상대한다. 숫자가 아니면 0 으로 본다 — 음수는 지급이 아니라 차감이 되고, 배열을 (int) 로
-    // 캐스팅하면 1 이 된다(둘 다 조용히 원장에 박힌다).
-    $want = (is_scalar($amount) && is_numeric($amount)) ? (int)$amount : 0;
-    if ($want < 0) $want = 0;
+    // 상대한다. 받아들이는 모양을 엔드포인트와 똑같이 못박는다: 부호 없는 10진수 정수,
+    // 9자리 이하. 그 밖은 전부 0 이다.
+    //  - 배열·null·불리언·실수를 (int) 로 캐스팅하면 각각 1·0·1·1.9→1 이 된다(배열이 코인을 만든다)
+    //  - 음수는 지급이 아니라 차감이 된다
+    //  - 20자리 문자열은 PHP_INT_MAX 로 포화한 뒤 room 에 깎여 '상한까지 충전'이 된다
+    // ⚠ is_numeric 만으로는 뒤 두 줄이 막히지 않는다 — 그 형태는 잔량 범위 검사만 하는
+    // 테스트를 통과했다(리뷰 실측: 타입 가드를 지워도 관문 340건이 초록이었다).
+    $digits = is_int($amount) ? (string)$amount : (is_string($amount) ? $amount : "");
+    $want = (ctype_digit($digits) && strlen($digits) <= 9) ? (int)$digits : 0;
 
     $bal = w_true_balance($db, $acctId);
     $room = W_CAP - $bal;

@@ -42,8 +42,23 @@ if (!w_ssv_verify($W_DIR, $query, $_GET, $why)) {
 // 서명 뒤에만 붙인 콜백이 실제로 verify=true 를 받았다(Task 2 리뷰 실측). $_GET 에서 읽으면
 // 공격자가 지급 대상 계정과 금액을 서명 없이 고를 수 있다. 필수 필드가 범위 "안"에 있어야
 // 하고, 값도 이 파싱본에서 가져와야 그 부류가 검사 대상이 아니라 아예 도달 불가가 된다.
+$signedPart = (string)w_ssv_signed_part($query);
+
+// ⚠ 서명 "안"의 중복 키를 먼저 거른다. parse_str 은 마지막 값을 취하고, 서명 검증의
+// 충실성 비교(w_ssv_params_faithful)는 똑같이 접힌 두 파싱본을 견주므로 중복은 양쪽 모두에게
+// 보이지 않는다 — 서명된 문장 안에서 값이 조용히 바뀐다(reward_amount=1&…&reward_amount=9
+// 가 9 를 지급했다, 리뷰 실측). 지금의 AdMob 파라미터 순서에서는 밀반입한 값이 진짜 값보다
+// 앞에 놓여 지지만, 그것은 구글의 정렬과 인코딩에 기댄 우연이고 우리는 구글에 물어볼 수 없다.
+// 한 번 쓰인 키가 한 번만 쓰이는지는 우리가 직접 볼 수 있다 — 그래서 그걸 본다.
+$seen = array();
+foreach (explode("&", $signedPart) as $pair) {
+  $kv = explode("=", $pair, 2);
+  if (isset($seen[$kv[0]])) ssv_done();
+  $seen[$kv[0]] = true;
+}
+
 $signed = array();
-parse_str((string)w_ssv_signed_part($query), $signed);
+parse_str($signedPart, $signed);
 foreach (array("transaction_id", "reward_amount", "custom_data", "timestamp") as $need) {
   if (!isset($signed[$need]) || !is_string($signed[$need]) || $signed[$need] === "") ssv_done();
 }
@@ -61,9 +76,15 @@ if (abs(time() - intdiv((int)$signed["timestamp"], 1000)) > W_SSV_SKEW_SEC) ssv_
 // "구글이 뭐라고 했는가"라서 쓰레기가 들어가면 나중에 아무 것도 설명할 수 없다.
 if (!ctype_digit($signed["reward_amount"]) || strlen($signed["reward_amount"]) > 9) ssv_done();
 
+// custom_data 는 지급 대상 계정 id 이고 모양이 정확히 정해져 있다(w_account_id =
+// sha1(deviceId) 앞 16자, 소문자 16진). 길이 상한만 두면 16자짜리 아무 문자열이나 통과해
+// 그대로 조회에 쓰인다 — 공개 엔드포인트가 받아들이는 집합은 넓을 이유가 없다.
+// ⚠ 이 가드는 행동으로 관찰되지 않는다(모양이 틀린 값은 어차피 "계정 없음"으로 떨어진다).
+// 그래서 tests/wallet-dispatcher.sh 가 이 줄의 모양 자체를 검사한다 — 지우면 빨개진다.
 $acctId = $signed["custom_data"];
 $txId   = $signed["transaction_id"];
-if (strlen($acctId) > 128 || strlen($txId) > 128) ssv_done();
+if (!preg_match('/^[0-9a-f]{16}$/', $acctId)) ssv_done();
+if (strlen($txId) > 128) ssv_done();
 // 광고 단위는 라벨일 뿐이라 없어도 진행한다. 다만 값은 역시 서명 범위에서만 읽는다.
 $unit = (isset($signed["ad_unit"]) && is_string($signed["ad_unit"]) && strlen($signed["ad_unit"]) <= 128)
   ? $signed["ad_unit"] : "";
