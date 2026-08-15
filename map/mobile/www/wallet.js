@@ -85,6 +85,12 @@
   // 8b 서버 원장도 이 필드를 반드시 돌려줘야 한다. 빠지면 그 안내가 조용히 사라진다.
   function checkin() { return backend ? callBackend(function () { return backend.checkin(); }) : noBackend(); }
 
+  function authStart() { return backend ? backend.authStart() : Promise.resolve({ ok: false, reason: "no-backend" }); }
+  function authPoll(n) { return backend ? backend.authPoll(n) : Promise.resolve({ ok: false, reason: "no-backend" }); }
+  function signOut() { if (backend && backend.signOut) backend.signOut(); }
+  function signedIn() { return !!(backend && backend.signedIn && backend.signedIn()); }
+
   return { COSTS: COSTS, install: install, isInstalled: isInstalled, costOf: costOf,
-           newIdem: newIdem, maybeCharged: maybeCharged, get: get, spend: spend, refund: refund, checkin: checkin };
+           newIdem: newIdem, maybeCharged: maybeCharged, get: get, spend: spend, refund: refund, checkin: checkin,
+           authStart: authStart, authPoll: authPoll, signOut: signOut, signedIn: signedIn };
 });

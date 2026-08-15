@@ -8,6 +8,7 @@
   "use strict";
 
   var K_DEV = "ms_device_id", K_TOK = "ms_wallet_token", K_REFQ = "ms_pending_refunds";
+  var K_ATOK = "ms_account_token";   // 계정 토큰. 있으면 이걸 쓰고, 없으면 기기 토큰(K_TOK).
 
   // 미확인 환급 큐의 상한. 넘치면 오래된 것부터 버린다 — 무한히 자라면 저장소 쿼터를 먹는다.
   var REFQ_MAX = 50;
@@ -106,7 +107,7 @@
     // 지어내면, hello() 마저 그물에 걸릴 때(오프라인) 그 지어낸 401 이 그대로 살아남아
     // "unauthorized" 로 보고된다. 실제로는 서버에 닿지도 못했으니 "network" 여야 옳다(I-D).
     // 그래서 토큰이 없을 땐 애초에 지어내지 않고 곧장 hello() 결과(성공/네트워크실패)를 쓴다.
-    function call(body) {
+    function callWithDevice(body) {
       var tok = get0(K_TOK, null);
       if (!tok) {
         return hello().then(function (nt) {
@@ -121,6 +122,51 @@
           if (!nt) return r;   // r 은 실제 서버 401 이거나(재인증 실패) null(네트워크) — 둘 다 그대로 보존
           return post(body, nt);
         });
+      });
+    }
+
+    function acctTok() { return get0(K_ATOK, null); }
+    function signedIn() { return !!acctTok(); }
+    // 기기 토큰(K_TOK)은 지우지 않는다 — 로그아웃이 그리로 돌아가는 경로다.
+    function signOut() { set0(K_ATOK, null); }
+
+    function call(body) {
+      // 계정 토큰이 있으면 먼저 그것으로 시도한다. 죽었으면(401) 조용히 버리고
+      // 기기 토큰 경로로 내려앉는다 — 로그인은 부가 기능이라, 그것 때문에 앱 전체가
+      // 잠기면 안 된다. hello() 재인증은 아래 기존 경로가 그대로 처리한다.
+      var at = acctTok();
+      if (at) {
+        return post(body, at).then(function (r) {
+          if (r && r.status !== 401) return r;
+          signOut();
+          return callWithDevice(body);
+        });
+      }
+      return callWithDevice(body);
+    }
+
+    // 기기 토큰이 없으면 hello() 로 먼저 받는다(call 의 앞부분과 같은 이유).
+    function withDeviceTok(fn) {
+      var t = get0(K_TOK, null);
+      if (t) return fn(t);
+      return hello().then(function (nt) { return nt ? fn(nt) : null; });
+    }
+
+    function authStart() {
+      // post() 는 { status, json } 을 준다(성공 여부는 json.ok 에 있다 — r 자체엔 "ok" 필드가 없다).
+      return withDeviceTok(function (t) { return post({ op: "authStart" }, t); }).then(function (r) {
+        if (!r || !r.json) return { ok: false, authUrl: "", nonce: "", reason: "network" };
+        return r.json.ok ? { ok: true, authUrl: r.json.authUrl, nonce: r.json.nonce, reason: "" }
+                    : { ok: false, authUrl: "", nonce: "", reason: r.json.reason || "network" };
+      });
+    }
+    function authPoll(nonce) {
+      return withDeviceTok(function (t) { return post({ op: "authPoll", nonce: nonce }, t); }).then(function (r) {
+        if (!r || !r.json || !r.json.ok) return { ok: false, pending: false, reason: (r && r.json && r.json.reason) || "network" };
+        if (r.json.pending) return { ok: true, pending: true, reason: "" };
+        // 서버가 계정 토큰을 줬다 — 이 순간부터 이 기기는 구글 계정을 본다.
+        set0(K_ATOK, r.json.token);
+        return { ok: true, pending: false, discarded: r.json.discarded || 0, state: r.json.state, reason: "" };
       });
     }
 
@@ -217,7 +263,11 @@
         return call({ op: "checkin" }).then(function (r) { return shape(r, ["granted", "capped"]); });
       },
       // 화면·테스트가 큐 상태를 볼 수 있게 열어 둔다(진단용 — 쓰기는 없다).
-      pendingRefunds: function () { return refQueue(); }
+      pendingRefunds: function () { return refQueue(); },
+      authStart: authStart,
+      authPoll: authPoll,
+      signOut: signOut,
+      signedIn: signedIn
     };
   }
 

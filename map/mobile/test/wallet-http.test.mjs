@@ -543,3 +543,68 @@ test("읽기(get)는 배수를 기다리지 않는다 — 재시도 중에 잔�
   assert.ok(f.calls.indexOf("get") >= 0, "get 이 나가지 않았다: " + f.calls.join(","));
   f.release();
 });
+
+// ── 계정 토큰 (Task 5) ────────────────────────────────────────────────────
+// 로그인은 기기 토큰 위에 얹는 부가 기능이다. authStart/authPoll 은 항상 기기 토큰으로
+// 나가야 한다(서버가 그것만 받는다 — 논스가 어느 기기 것인지는 기기 토큰으로만 정해진다).
+// 로그인에 성공하면 이후 get/spend/... 은 계정 토큰을 먼저 쓰지만, 기기 토큰은 절대
+// 지우지 않는다 — 로그아웃이 그리로 돌아가는 유일한 경로다.
+
+test("로그인 후에는 계정 토큰을 쓰고, 기기 토큰은 버리지 않는다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "DEVTOK");
+  const f = fakeFetch([
+    { status: 200, json: { ok: true, pending: false, token: "ACCTTOK", discarded: 5, state: { balance: 3 } } },  // authPoll
+    { status: 200, json: { ok: true, state: { balance: 3 } } },   // get — 계정 토큰
+    { status: 200, json: { ok: true, state: { balance: 3 } } }    // get — 로그아웃 후 기기 토큰
+  ]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+
+  const p = await b.authPoll("nonce-1");
+  assert.strictEqual(p.discarded, 5);
+  await b.get();
+  assert.strictEqual(f.calls[0].op, "authPoll");
+  assert.strictEqual(f.calls[0].auth, "Bearer DEVTOK", "폴링은 기기 토큰으로 해야 한다");
+  assert.strictEqual(f.calls[1].auth, "Bearer ACCTTOK", "로그인 후에도 기기 토큰을 쓰고 있다");
+  assert.strictEqual(b.signedIn(), true);
+
+  b.signOut();
+  await b.get();
+  assert.strictEqual(f.calls[2].auth, "Bearer DEVTOK", "로그아웃 후 기기 토큰으로 안 돌아갔다");
+  assert.strictEqual(b.signedIn(), false);
+});
+
+test("authStart 가 auth-disabled 면 로그인 UI 를 숨길 근거를 준다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "DEVTOK");
+  store.write0("ms_account_token", "ACCTTOK");   // 계정 토큰이 있어도 authStart 는 기기 토큰으로 가야 한다
+  const f = fakeFetch([{ status: 200, json: { ok: false, reason: "auth-disabled" } }]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  const r = await b.authStart();
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.reason, "auth-disabled");
+  assert.strictEqual(f.calls[0].op, "authStart");
+  assert.strictEqual(f.calls[0].auth, "Bearer DEVTOK", "authStart 가 계정 토큰으로 나갔다 — 서버는 기기 토큰만 받는다");
+});
+
+// 계정 토큰이 만료·폐기되면 401 이 온다. 그때 기기 토큰으로 조용히 내려앉아야
+// 앱이 잠기지 않는다 — 로그인은 부가 기능이지 관문이 아니다.
+test("계정 토큰이 401 이면 기기 토큰으로 내려앉는다", async () => {
+  const store = fakeStore();
+  store.write0("ms_device_id", DEV32);
+  store.write0("ms_wallet_token", "DEVTOK");
+  store.write0("ms_account_token", "STALE");
+  const f = fakeFetch([
+    { status: 401, json: { ok: false, reason: "unauthorized" } },   // get — 계정 토큰(STALE)
+    { status: 200, json: { ok: true, state: { balance: 7 } } }      // get — 기기 토큰으로 재시도
+  ]);
+  const b = MSWalletHttp.create({ url: "/w", fetch: f, store });
+  const r = await b.get();
+  assert.strictEqual(r.ok, true, "계정 토큰이 죽자 앱도 같이 죽었다");
+  assert.strictEqual(r.state.balance, 7);
+  assert.strictEqual(f.calls[0].auth, "Bearer STALE");
+  assert.strictEqual(f.calls[1].auth, "Bearer DEVTOK");
+  assert.strictEqual(b.signedIn(), false, "죽은 계정 토큰이 남아 있다");
+});
