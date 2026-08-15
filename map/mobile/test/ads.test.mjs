@@ -15,8 +15,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // 순서만으로 우연히 앞뒤가 맞아, 관문을 기다리지 않는 구현도 이 스위트를 통과한다(실제로
 // 뮤테이션 시험에서 그렇게 통과했다 — 그때는 이 헬퍼가 동기였다). 네이티브 호출은 밀리초가
 // 걸리므로 지연이 있는 쪽이 진짜에 가깝고, 그래야 경주가 드러난다.
-const later = v => new Promise(r => setTimeout(() => r(v), 1));
-const laterFail = m => new Promise((_, j) => setTimeout(() => j(new Error(m)), 1));
+const later = (v, ms) => new Promise(r => setTimeout(() => r(v), ms === undefined ? 1 : ms));
+const laterFail = (m, ms) => new Promise((_, j) => setTimeout(() => j(new Error(m)), ms === undefined ? 1 : ms));
+const wait = ms => new Promise(r => setTimeout(r, ms));
 
 function fakePlugin(opts) {
   const o = opts || {};
@@ -24,14 +25,21 @@ function fakePlugin(opts) {
   const p = {
     seen,
     prepared: [],
-    initialize: () => { seen.push("init"); return o.initFail ? laterFail("init") : later(); },
+    // 호출 시점("init")과 **끝난 시점**("init-done")을 따로 적는다. 호출 시점만 적으면
+    // initialize 와 requestConsentInfo 를 병렬로 부르는 구현도 순서 검사를 통과한다 —
+    // 둘 다 동기적으로 불리므로 기록 순서가 같기 때문이다.
+    initialize: () => {
+      seen.push("init");
+      if (o.initFail) return laterFail("init", o.initDelay);
+      return later(undefined, o.initDelay).then(() => { seen.push("init-done"); });
+    },
     requestConsentInfo: () => {
       seen.push("consent");
-      if (o.consentFail) return laterFail("no network");
-      return later(o.info === undefined ? INFO_NOT_REQUIRED : o.info);
+      if (o.consentFail) return laterFail("no network", o.consentDelay);
+      return later(o.info === undefined ? INFO_NOT_REQUIRED : o.info, o.consentDelay);
     },
-    showConsentForm: () => { seen.push("form"); return o.formFail ? laterFail("form") : later(o.formInfo || null); },
-    showPrivacyOptionsForm: () => { seen.push("privacy"); return later(); },
+    showConsentForm: () => { seen.push("form"); return o.formFail ? laterFail("form", o.formDelay) : later(o.formInfo || null, o.formDelay); },
+    showPrivacyOptionsForm: () => { seen.push("privacy"); return o.privacyFail ? laterFail("privacy", o.privacyDelay) : later(undefined, o.privacyDelay); },
     prepareRewardVideoAd: (a) => { seen.push("prepare"); p.prepared.push(a); return o.prepareFail ? laterFail("no fill") : later({}); },
     showRewardVideoAd: () => { seen.push("show"); return later({ type: "coins", amount: 1 }); }
   };
@@ -111,6 +119,26 @@ test("canRequestAds=true 면 광고를 요청한다", async () => {
   assert.strictEqual(r.shown, true, "동의를 마친 사용자인데 광고가 막혔다");
 });
 
+test("init 은 initialize 가 **끝난 뒤에** 동의를 조회한다(병렬이 아니다)", async () => {
+  // 병렬로 부르면 SDK 초기화가 끝나기 전에 UMP 를 부르게 되고, initialize 의 거절도
+  // 아무도 안 받는다. 호출 시점만 보면 병렬 구현도 통과하므로 **끝난 시점**을 본다.
+  const p = fakePlugin({ initDelay: 20, consentDelay: 1 });
+  MSAds.install(p);
+  await MSAds.init(CFG);
+  assert.ok(p.seen.indexOf("init-done") >= 0, "initialize 가 끝나지 않았다");
+  assert.ok(p.seen.indexOf("init-done") < p.seen.indexOf("consent"),
+    "initialize 가 끝나기 전에 동의를 조회했다(병렬이다): " + p.seen.join(","));
+});
+
+test("initialize 가 실패해도 init 이 거절하지 않고 광고를 막지도 않는다", async () => {
+  // 병렬 구현이면 이 거절을 아무도 받지 않아 unhandled rejection 이 된다.
+  const p = fakePlugin({ initFail: true });
+  MSAds.install(p);
+  await assert.doesNotReject(() => MSAds.init(CFG), "init 이 화면으로 예외를 던졌다");
+  const r = await MSAds.show("quick");
+  assert.strictEqual(r.shown, true, "초기화 실패가 광고를 영구히 막았다 — 실패는 '동의 불필요'로 다룬다");
+});
+
 test("동의 폼을 닫은 뒤 canRequestAds 를 다시 읽는다", async () => {
   // showConsentForm 은 void 가 아니라 갱신된 정보를 돌려준다. 다시 읽지 않으면
   // 방금 동의한 사용자가 예전 false 에 계속 막혀 광고를 영영 못 본다.
@@ -122,6 +150,37 @@ test("동의 폼을 닫은 뒤 canRequestAds 를 다시 읽는다", async () => 
   assert.strictEqual(okNow, true, "폼을 닫았는데도 광고 요청 불가로 남았다");
   const r = await MSAds.show("quick");
   assert.strictEqual(r.shown, true, "동의를 마쳤는데 광고가 여전히 막혔다");
+});
+
+// ── 늦게 도착한 init 조회가 폼 결과를 덮어쓰지 않는다 ─────────────────────────
+
+test("느린 동의 조회가 폼에서 방금 받은 동의를 덮어쓰지 않는다", async () => {
+  // 콜드 스타트 + 느린 기기: init 의 조회가 20ms 걸리는 동안 화면이 폼을 열고(5ms)
+  // 사용자가 동의한다. 관문을 안 기다리면 폼이 닫힌 **뒤에** 도착한 동의 이전 정보가
+  // (init 의 .then 은 무조건 대입한다) 방금 받은 동의를 덮어쓴다 — 그러면 사용자는
+  // 동의를 마쳤는데 이 프로세스가 사는 내내 모든 광고가 consent-required 로 막힌다.
+  const p = fakePlugin({ initDelay: 20, consentDelay: 20, info: INFO_REQUIRED, formInfo: INFO_OBTAINED, formDelay: 5 });
+  MSAds.install(p);
+  MSAds.init(CFG);                       // 일부러 await 하지 않는다 — 화면이 흔히 그렇다
+  assert.strictEqual(await MSAds.showConsent(), true, "폼을 닫았는데 광고 요청 불가로 남았다");
+  await wait(60);                        // 늦은 조회가 도착하고도 남을 시간
+  assert.strictEqual(MSAds.canRequestAds(), true,
+    "늦게 도착한 동의 이전 정보가 방금 받은 동의를 덮어썼다 — 이 프로세스가 사는 내내 광고가 막힌다");
+  assert.strictEqual((await MSAds.show("quick")).shown, true, "동의를 마친 사용자인데 광고가 막혔다");
+});
+
+test("느린 동의 조회가 광고 설정 폼의 철회를 덮어쓰지 않는다", async () => {
+  const p = fakePlugin({ initDelay: 20, consentDelay: 20, info: INFO_OBTAINED, privacyDelay: 5 });
+  MSAds.install(p);
+  MSAds.init(CFG);                       // await 하지 않는다
+  // 폼 이후의 재조회는 '철회'를 돌려준다.
+  const withdrawn = { status: "REQUIRED", canRequestAds: false, privacyOptionsRequirementStatus: "REQUIRED" };
+  let n = 0;
+  p.requestConsentInfo = () => { p.seen.push("consent"); n += 1; return later(n === 1 ? INFO_OBTAINED : withdrawn, n === 1 ? 20 : 1); };
+  assert.strictEqual(await MSAds.showPrivacyOptions(), false, "철회했는데 여전히 광고 요청 가능으로 본다");
+  await wait(60);
+  assert.strictEqual(MSAds.canRequestAds(), false,
+    "늦게 도착한 철회 이전 정보가 철회를 덮어썼다 — 사용자가 끈 광고가 계속 나간다");
 });
 
 // ── 폼 게이트: 이미 동의한 사용자에게 다시 묻지 않는다 ────────────────────────
@@ -196,6 +255,27 @@ test("동의 조회가 실패해도 광고를 막지 않는다", async () => {
   assert.strictEqual(r.shown, true, "동의 조회 실패가 광고를 막았다 — 대상 지역이 아닌 사용자까지 막힌다");
   assert.ok(p.seen.indexOf("consent") < p.seen.indexOf("prepare"),
     "실패했더라도 시도는 광고보다 먼저여야 한다: " + p.seen.join(","));
+});
+
+test("동의 폼이 던져도 화면으로 예외가 새지 않는다", async () => {
+  // 폼은 사용자가 뒤로 가기만 눌러도 실패한다. 그때 화면이 예외로 죽으면
+  // 지갑 화면 전체가 멎는다 — 광고 하나 때문에.
+  const p = fakePlugin({ info: INFO_OBTAINED, formFail: true });
+  MSAds.install(p);
+  await MSAds.init(CFG);
+  let can;
+  await assert.doesNotReject(async () => { can = await MSAds.showConsent(); }, "동의 폼 실패가 화면으로 던져졌다");
+  assert.strictEqual(can, true, "폼이 실패했다고 이미 동의한 사용자의 광고까지 막았다");
+  assert.strictEqual((await MSAds.show("quick")).shown, true);
+});
+
+test("광고 설정 폼이 던져도 화면으로 예외가 새지 않는다", async () => {
+  const p = fakePlugin({ info: INFO_OBTAINED, privacyFail: true });
+  MSAds.install(p);
+  await MSAds.init(CFG);
+  let can;
+  await assert.doesNotReject(async () => { can = await MSAds.showPrivacyOptions(); }, "광고 설정 폼 실패가 화면으로 던져졌다");
+  assert.strictEqual(can, true, "폼이 실패했다고 광고를 막았다 — 실패는 상태를 바꾸지 않는다");
 });
 
 test("광고 로드가 실패하면 shown=false 로 돌려준다(던지지 않는다)", async () => {

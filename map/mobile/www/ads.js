@@ -76,18 +76,16 @@
   function show(unit) {
     var p = detect();
     if (!p || !cfg || !cfg[unit] || !cfg[unit].unitId) return Promise.resolve(res(false, "unavailable"));
-    // init() 을 거치지 않았으면 동의가 해소된 적이 없다. 광고를 띄우지 않는다.
-    // **지금은 닿을 수 없는 줄이다** — cfg 는 init() 만 설정하고 init() 은 언제나 consentReady 를
-    // 같이 건다. 뮤테이션 시험에서 이 줄을 지워도 빨개지는 테스트가 없다는 사실을 확인했고,
-    // 그래도 남긴다: 지우면 consentReady 가 null 인 순간 아래 .then 이 **동기적으로** 던지고
-    // (catch 가 붙기 전이다) show() 가 "약속을 돌려준다"는 계약이 깨진다. 나중에 cfg 를
-    // init() 밖에서 넣는 리팩터가 오면 이 줄이 광고를 막는다. 테스트가 없다고 죽은 코드가 아니다.
-    if (!consentReady) return Promise.resolve(res(false, "unavailable"));
     // customData 가 없으면 이 광고는 보상이 될 수 없다. SSV 콜백이 계정을 못 찾아 조용히
     // 버려지므로, 띄우는 것이 안 띄우는 것보다 나쁘다 — 사용자는 다 보고 아무것도 못 받는다.
     if (!cfg.customData) return Promise.resolve(res(false, "no-ssv"));
 
-    return consentReady.then(function () {
+    // cfg 가 있으면 consentReady 도 있다 — 둘 다 init() 이 같이 설정하기 때문이다. 그래도
+    // `|| Promise.resolve(null)` 로 받는다: 널 가드를 따로 두면 어떤 테스트도 닿지 못하는
+    // 분기가 생기고(뮤테이션 시험에서 확인), 아무 가드도 없으면 consentReady 가 null 인 순간
+    // .then 이 **동기적으로** 던져(catch 가 붙기 전이다) "show() 는 약속을 돌려준다"는 계약이
+    // 깨진다. 이 관용구가 둘 다 피한다 — 파일 안 다른 두 곳도 같은 이유로 같은 모양이다.
+    return (consentReady || Promise.resolve(null)).then(function () {
       if (!canRequestAds()) return res(false, "consent-required");
       // ssv.customData 는 서버가 준 계정 id 그대로다. 접두·접미·JSON 포장 전부 금지.
       return p.prepareRewardVideoAd({ adId: cfg[unit].unitId, ssv: { customData: cfg.customData } })
@@ -110,9 +108,16 @@
   function showConsent() {
     var p = detect();
     if (!p) return Promise.resolve(canRequestAds());
-    // showConsentForm 은 void 가 아니라 **갱신된 AdmobConsentInfo** 를 돌려준다.
-    // 다시 읽지 않으면 방금 동의를 마친 사용자가 예전 canRequestAds=false 에 계속 막힌다.
-    return p.showConsentForm().then(function (info) {
+    // **관문을 여기서도 기다린다.** init() 이 건 조회가 아직 날아다니는 중에 폼을 열면,
+    // 폼이 닫힌 뒤에 늦게 도착한 **동의 이전** 정보가 방금 받은 동의를 덮어쓴다
+    // (init 의 .then 은 무조건 consent 에 대입한다). 증상은 조용하고 치명적이다 —
+    // 사용자는 동의를 마쳤는데 그 프로세스가 사는 내내 모든 광고가 consent-required 다.
+    // show() 만 막아 두고 여기를 열어 두면, 순서를 호출자 규율에 맡긴 것과 같아진다.
+    return (consentReady || Promise.resolve(null)).then(function () {
+      // showConsentForm 은 void 가 아니라 **갱신된 AdmobConsentInfo** 를 돌려준다.
+      // 다시 읽지 않으면 방금 동의를 마친 사용자가 예전 canRequestAds=false 에 계속 막힌다.
+      return p.showConsentForm();
+    }).then(function (info) {
       if (info) consent = info;
       return canRequestAds();
     })["catch"](function () { return canRequestAds(); });
@@ -130,9 +135,13 @@
   function showPrivacyOptions() {
     var p = detect();
     if (!p || !p.showPrivacyOptionsForm) return Promise.resolve(canRequestAds());
-    // 이 폼은 갱신된 정보를 돌려주지 않는다(void). 닫힌 뒤 직접 다시 읽어야
-    // 사용자가 방금 동의를 철회한 것을 우리가 안다.
-    return p.showPrivacyOptionsForm()
+    // showConsent 와 같은 이유로 관문을 먼저 기다린다 — init 의 늦은 조회가
+    // 폼 이후의 결과를 덮어쓰면 철회/동의가 통째로 없던 일이 된다.
+    return (consentReady || Promise.resolve(null)).then(function () {
+      // 이 폼은 갱신된 정보를 돌려주지 않는다(void). 닫힌 뒤 직접 다시 읽어야
+      // 사용자가 방금 동의를 철회한 것을 우리가 안다.
+      return p.showPrivacyOptionsForm();
+    })
       .then(function () { return p.requestConsentInfo(); })
       .then(function (info) { if (info) consent = info; return canRequestAds(); })
       ["catch"](function () { return canRequestAds(); });
