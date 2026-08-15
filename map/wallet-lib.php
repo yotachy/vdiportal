@@ -221,8 +221,22 @@ function w_token_read($dir, $token) {
 }
 
 // 논스는 브라우저(구글 왕복)와 앱(폴링)을 잇는 유일한 끈이다. 추측 가능하면
-// 남의 로그인 결과를 가로챌 수 있으므로 난수 32바이트를 쓴다.
+// 남의 로그인 결과를 가로챌 수 있으므로 난수 16바이트(128비트)를 쓴다.
+//
+// 아직 살아 있는 논스가 있으면 그것을 다시 준다. authStart 에는 호출 상한도 청소 주기도
+// 없어서, 새로 삽입하면 앱이 로그인 버튼을 누르는 만큼 auth_nonce 가 무한정 불어난다
+// (기기 하나가 계정 없이도 표를 채울 수 있는 유일한 경로다 — Task 2 리뷰 지적).
+// 재사용 대상은 "아직 안 채워진"(google_sub is null) 논스뿐이다 — 이미 구글이 채운 논스를
+// 다시 내주면 같은 논스로 병합이 두 번 돌 여지가 생긴다.
 function w_nonce_make($db, $deviceId) {
+  $st = $db->prepare("select nonce from auth_nonce
+                      where device_id = ? and used = 0 and google_sub is null and created_at >= ?
+                      order by created_at desc limit 1");
+  // 저장 형식이 gmdate("c") 로 통일돼 있어(오프셋이 늘 +00:00) 문자열 비교가 곧 시각 비교다.
+  $st->execute(array($deviceId, gmdate("c", time() - W_NONCE_TTL_SEC)));
+  $r = $st->fetch();
+  if ($r) return $r["nonce"];
+
   $n = bin2hex(random_bytes(16));
   $st = $db->prepare("insert into auth_nonce (nonce, device_id, google_sub, created_at, used)
                       values (?, ?, null, ?, 0)");
@@ -574,5 +588,111 @@ function w_checkin($db, $acct, $today) {
   } catch (Throwable $e) {
     try { $db->exec("rollback"); } catch (Throwable $e2) {}
     throw $e;
+  }
+}
+
+// 병합이 한 트랜잭션에서 최대 세 줄을 쓴다. 기존 세 곳(w_create_account·w_spend·w_checkin)의
+// 인라인 삽입은 그대로 둔다 — 돈 경로를 이유 없이 흔들지 않는다.
+function w_ledger_insert($db, $acctId, $delta, $reason, $ref, $idem) {
+  $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
+                      values (?, ?, ?, ?, ?, ?)");
+  $st->execute(array($acctId, $delta, $reason, $ref, $idem, w_now()));
+}
+
+// 익명 기기 계정을 구글 계정에 붙인다. 갈래는 둘뿐이다.
+//  (a) 이 구글 계정으로 된 행이 없다 → 지금 기기 계정에 google_sub 을 박는다.
+//      옮기는 게 아니라 그 계정이 곧 구글 계정이 된다. 잔량·스트릭·원장이 그대로 남는다.
+//  (b) 있다 → 익명 잔량은 버린다. SPEC §4 의 "항상 높은 쪽"은 채택하지 않았다 —
+//      기기를 바꿔가며 익명 5개를 받고 로그인하면 잔량이 계속 오르는 래칫이 된다(SPEC 자신이
+//      "가장 유력한 남용 경로"라고 지목한 재설치 구멍이 병합 규칙으로 되살아난다).
+//      버린 수량은 원장에 남긴다("5개가 어디 갔냐"에 답할 근거).
+// 잔량을 캐시(accounts.balance)에서만 0으로 내리지 않는다 — 진실은 SUM(ledger.delta) 이고,
+// 캐시만 건드리면 w_state 가 다음 호출에서 원장을 보고 5로 되돌려 놓는다(= 잔량이 부활한다).
+//
+// reason ∈ null|no-account|device-claimed|busy|error
+function w_merge($db, $deviceId, $googleSub, $retry = 0) {
+  $fail = function ($reason) {
+    return array("ok" => false, "acct" => null, "moved" => false, "discarded" => 0, "reason" => $reason);
+  };
+  try {
+    $db->exec("begin immediate");
+  } catch (Throwable $e) {
+    // 논스는 아직 안 태웠으니 앱이 다음 폴링에서 그대로 다시 시도한다.
+    return $fail("busy");
+  }
+  try {
+    $dev = w_get_account($db, $deviceId);
+    if (!$dev) { $db->exec("rollback"); return $fail("no-account"); }
+
+    // 이미 다른 구글 계정에 묶인 기기다. 여기서 막지 않으면 같은 기기에서 두 번째 구글
+    // 계정으로 로그인하는 것만으로 첫 번째 사람의 계정(잔량·원장 전부)을 통째로 가져간다 —
+    // device_id 가 UNIQUE 라 기기당 계정이 하나뿐이어서 "새 계정을 하나 더"로도 못 피한다.
+    // 거절이 유일하게 안전한 답이다(브리프에 없던 갈래 — 리뷰에 보고).
+    if ($dev["google_sub"] !== null && $dev["google_sub"] !== $googleSub) {
+      $db->exec("rollback");
+      return $fail("device-claimed");
+    }
+
+    $st = $db->prepare("select * from accounts where google_sub = ?");
+    $st->execute(array($googleSub));
+    $g = $st->fetch();
+
+    $key = "merge:" . $googleSub . ":" . $dev["id"];
+
+    if (!$g) {
+      $db->prepare("update accounts set google_sub = ? where id = ?")->execute(array($googleSub, $dev["id"]));
+      w_ledger_insert($db, $dev["id"], 0, "merge_claim", $googleSub, $key . ":claim");
+      $db->exec("commit");
+      return array("ok" => true, "acct" => w_get_account($db, $deviceId),
+                   "moved" => false, "discarded" => 0, "reason" => null);
+    }
+
+    if ($g["id"] === $dev["id"]) {   // 이미 이 계정이 그 구글 계정이다 — 할 일 없음
+      $db->exec("commit");
+      return array("ok" => true, "acct" => $g, "moved" => false, "discarded" => 0, "reason" => null);
+    }
+
+    // 같은 기기·같은 구글로 두 번 불렀는가. 멱등키가 idem UNIQUE 에 걸려 예외로 튀게 두면
+    // 아래 catch 의 재시도가 같은 실패를 되풀이할 뿐이므로(무한 재귀), 쓰기 전에 먼저 본다.
+    $prev = w_ledger_by_idem_any($db, $key . ":from");
+    if ($prev) {
+      $db->exec("commit");   // 읽기만 했다
+      $parts = explode(":", (string)$prev["ref"]);
+      $st = $db->prepare("select * from accounts where id = ?");
+      $st->execute(array($g["id"]));
+      return array("ok" => true, "acct" => $st->fetch(), "moved" => true,
+                   "discarded" => (count($parts) > 1 ? (int)$parts[1] : 0), "reason" => null);
+    }
+
+    $bal = w_true_balance($db, $dev["id"]);
+    if ($bal > 0) {
+      // 음수로 적어 잔량을 0으로 내린다. 캐시만 0으로 바꾸면 SUM(delta) 와 갈린다.
+      w_ledger_insert($db, $dev["id"], -$bal, "merge_discard", $googleSub, $key . ":discard");
+      $db->prepare("update accounts set balance = 0 where id = ?")->execute(array($dev["id"]));
+    }
+    // 구글 계정 쪽엔 delta 0 기록만 — 버린 수량과 출처 기기를 ref 에 담는다.
+    w_ledger_insert($db, $g["id"], 0, "merge_from", $dev["id"] . ":" . $bal, $key . ":from");
+
+    // 스트릭만 긴 쪽을 취한다. 잔량과 달리 스트릭은 발행량이 아니라 습관의 기록이라
+    // 래칫이 되지 않는다(하루에 한 번만 오르고, 기기를 늘려도 총량이 늘지 않는다).
+    if ((int)$dev["streak_days"] > (int)$g["streak_days"]) {
+      $db->prepare("update accounts set streak_days = ?, last_checkin = ? where id = ?")
+         ->execute(array((int)$dev["streak_days"], $dev["last_checkin"], $g["id"]));
+    }
+    $db->exec("commit");
+    $st = $db->prepare("select * from accounts where id = ?");
+    $st->execute(array($g["id"]));
+    return array("ok" => true, "acct" => $st->fetch(), "moved" => true, "discarded" => $bal, "reason" => null);
+  } catch (Throwable $e) {
+    try { $db->exec("rollback"); } catch (Throwable $e2) {}
+    // 유니크 인덱스 충돌(동시 첫 병합의 패자) — 이긴 쪽이 만든 계정으로 다시 간다.
+    // 딱 한 번만이다: 실패가 경합이 아니라 지속적인 것(락 타임아웃 등)이면 같은 자리에서
+    // 영원히 다시 부르게 되고, 그건 500 이 아니라 스택 오버플로로 죽는다.
+    if ($retry < 1) {
+      $st = $db->prepare("select * from accounts where google_sub = ?");
+      $st->execute(array($googleSub));
+      if ($st->fetch()) return w_merge($db, $deviceId, $googleSub, $retry + 1);
+    }
+    return $fail("error");
   }
 }

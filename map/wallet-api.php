@@ -151,21 +151,39 @@ if ($op === "hello") {
   w_out(array("ok" => true, "token" => w_token_make($W_DIR, "d:" . $dev), "state" => w_state($db, $acct)));
 }
 
-// 이 태스크는 기기 토큰만 인식한다 — 계정 토큰 해석은 Task 3.
+// 로그인 뒤에는 계정 토큰이 온다. 계정 토큰은 계정 id 를 직접 가리키고(기기가 바뀌어도
+// 같은 계정), 기기 토큰은 기기 id 로 계정을 찾는다. 어느 쪽이든 신원은 토큰만이 정한다.
 $sub = w_token_read($W_DIR, w_bearer());
-if ($sub === null || $sub["type"] !== "device") w_out(array("ok" => false, "reason" => "unauthorized"), 401);
-$dev = $sub["id"];
-$acct = w_get_account($db, $dev);
+if ($sub === null) w_out(array("ok" => false, "reason" => "unauthorized"), 401);
+if ($sub["type"] === "acct") {
+  $st = $db->prepare("select * from accounts where id = ?");
+  $st->execute(array($sub["id"]));
+  $acct = $st->fetch();
+  // 기기 id 는 이 계정을 처음 만든 기기다. 두 번째 기기가 병합해 들어와도 계정 행은
+  // 하나뿐이라(device_id UNIQUE) 여기 남는 값은 최초 기기의 것이다 — 그래서 아래
+  // authStart·authPoll 은 계정 토큰을 아예 받지 않는다.
+  $dev = $acct ? $acct["device_id"] : null;
+} else {
+  $dev = $sub["id"];
+  $acct = w_get_account($db, $dev);
+}
 if (!$acct) w_out(array("ok" => false, "reason" => "unauthorized"), 401);
 
 if ($op === "get") {
   w_out(array("ok" => true, "state" => w_state($db, $acct)));
 } elseif ($op === "authStart") {
+  // 기기 토큰만 받는다. 계정 토큰의 $dev 는 그 계정을 "처음 만든" 기기라, 두 번째 기기가
+  // 계정 토큰으로 여기 들어오면 논스가 남의 기기 이름으로 발급된다(위 인증 블록이 계정
+  // 토큰을 받아들이게 된 순간부터 열리는 문이다).
+  if ($sub["type"] !== "device") w_out(array("ok" => false, "reason" => "unauthorized"), 401);
   if (!w_oauth_conf()) w_out(array("ok" => false, "reason" => "auth-disabled"));
   $n = w_nonce_make($db, $dev);
   $base = "https://" . $_SERVER["HTTP_HOST"] . dirname($_SERVER["SCRIPT_NAME"]);
   w_out(array("ok" => true, "nonce" => $n, "authUrl" => $base . "/wallet-auth.php?nonce=" . urlencode($n)));
 } elseif ($op === "authPoll") {
+  // authStart 와 같은 이유로 기기 토큰만 받는다 — 아래 device_id 대조가 "내 논스인가"를
+  // 판별하는데, 계정 토큰이면 그 기준이 최초 기기로 미끄러진다.
+  if ($sub["type"] !== "device") w_out(array("ok" => false, "reason" => "unauthorized"), 401);
   $nonce = w_field_str($d, "nonce", "", W_STR_MAX);
   if ($nonce === false || $nonce === "") w_out(array("ok" => false, "reason" => "bad-request"), 400);
   $row = w_nonce_read($db, $nonce);
@@ -173,7 +191,20 @@ if ($op === "get") {
   // 알려주면 논스의 존재 여부를 캐낼 수 있다.
   if (!$row || $row["device_id"] !== $dev) w_out(array("ok" => false, "reason" => "unauthorized"), 401);
   if ($row["google_sub"] === null) w_out(array("ok" => true, "pending" => true));
-  w_out(array("ok" => false, "reason" => "not-implemented"), 500);   // Task 3 이 채운다
+  $m = w_merge($db, $dev, $row["google_sub"]);
+  if (!$m["ok"]) {
+    // 이미 다른 구글 계정에 묶인 기기다. 재시도로 풀리지 않으므로 논스를 태우고 분명히
+    // 답한다 — 500 으로 두면 앱이 영원히 다시 폴링한다.
+    if ($m["reason"] === "device-claimed") {
+      w_nonce_burn($db, $nonce);
+      w_out(array("ok" => false, "reason" => "device-claimed"), 409);
+    }
+    w_out(array("ok" => false, "reason" => "server-error"), 500);
+  }
+  w_nonce_burn($db, $nonce);
+  w_out(array("ok" => true, "pending" => false,
+              "token" => w_token_make($W_DIR, "a:" . $m["acct"]["id"]),
+              "discarded" => $m["discarded"], "state" => w_state($db, $m["acct"])));
 } elseif ($op === "spend") {
   $runType = w_field_str($d, "runType", "", W_STR_MAX);
   $idem = w_field_str($d, "idem", "", W_STR_MAX);

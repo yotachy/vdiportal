@@ -316,6 +316,66 @@ post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A\"}" "$TOK_A"
 chk "자기 기기 논스 폴링은 200 이다" "$CODE" "200"
 chk "미완 논스는 pending:true 다" "$(jget "$BODY" pending)" "true"
 
+# ── authPoll 완료 경로 — 병합 + 계정 토큰 발급 ────────────────────────────
+# authStart 가 auth-disabled 라 브라우저 왕복을 못 만든다. 구글이 채운 논스를 DB 에
+# 직접 심어 "완료된 논스로 폴링" 상태를 재현한다.
+BAL_A_BEFORE=$(post '{"op":"get"}' "$TOK_A"; jget2 "$BODY" state balance)
+NONCE_A2="dispatcher-nonce-done-a-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_A2', '$DEV_A', 'gsub-dispatch-1', '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A2\"}" "$TOK_A"
+chk "완료된 논스 폴링은 200 이다" "$CODE" "200"
+chk "완료된 논스는 pending:false 다" "$(jget "$BODY" pending)" "false"
+chk "첫 병합은 버린 것이 없다" "$(jget "$BODY" discarded)" "0"
+chk "첫 병합에서 잔량이 그대로다" "$(jget2 "$BODY" state balance)" "$BAL_A_BEFORE"
+chk "계정에 google_sub 이 박혔다" "$(dbq "select google_sub from accounts where id='$ACCT_A'")" "gsub-dispatch-1"
+ACCT_TOK=$(jget "$BODY" token)
+[ "$ACCT_TOK" != "<none>" ] && [ -n "$ACCT_TOK" ] && ok_ || bad_ "authPoll 이 계정 토큰을 안 줬다"
+# 발급된 것이 계정 토큰(a:)인지 — 기기 토큰을 그대로 돌려주면 로그인이 기기에 계속 묶인다.
+chk "발급된 토큰의 주체는 a:<계정id> 다" \
+    "$(php -r 'require $argv[1]; $s = w_token_read($argv[2], $argv[3]); echo $s ? $s["type"] . ":" . $s["id"] : "<bad>";' \
+        "$DOCROOT/wallet-lib.php" "$DATA" "$ACCT_TOK")" "acct:$ACCT_A"
+
+# 논스는 단회용이다 — 안 태우면 같은 논스로 병합을 계속 다시 돌릴 수 있다.
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A2\"}" "$TOK_A"
+chk "쓴 논스로 다시 폴링하면 401 이다" "$CODE" "401"
+
+# 계정 토큰이 공용 인증 게이트를 통과한다(이 태스크가 문을 넓힌 지점)
+post '{"op":"get"}' "$ACCT_TOK"
+chk "계정 토큰으로 get 이 200 이다" "$CODE" "200"
+chk "계정 토큰 get 잔량이 같은 계정을 본다" "$(jget2 "$BODY" state balance)" "$BAL_A_BEFORE"
+
+# …그러나 authStart·authPoll 은 여전히 기기 토큰 전용이다. 게이트가 넓어진 순간
+# 이 두 op 가 조용히 계정 토큰을 받기 시작한다(그러면 논스가 남의 기기 이름으로 발급된다).
+# 가드를 지우면 authStart 는 200 auth-disabled, authPoll 은 200 pending 이 되어 아래가 빨개진다.
+post '{"op":"authStart"}' "$ACCT_TOK"
+chk "계정 토큰 authStart 는 401 이다 — 논스는 기기의 것이다" "$CODE" "401"
+chk "계정 토큰 authStart 401 의 사유" "$(jget "$BODY" reason)" "unauthorized"
+NONCE_A3="dispatcher-nonce-guard-a-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_A3', '$DEV_A', null, '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A3\"}" "$ACCT_TOK"
+chk "계정 토큰 authPoll 은 401 이다" "$CODE" "401"
+chk "계정 토큰 authPoll 401 의 사유" "$(jget "$BODY" reason)" "unauthorized"
+
+# 두 번째 기기(B)가 같은 구글로 들어온다 — 익명 잔량은 버려지고 A 의 잔량은 그대로다.
+BAL_B_BEFORE=$(post '{"op":"get"}' "$TOK_B"; jget2 "$BODY" state balance)
+NONCE_B2="dispatcher-nonce-done-b-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_B2', '$DEV_B', 'gsub-dispatch-1', '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_B2\"}" "$TOK_B"
+chk "두 번째 기기 폴링도 200 이다" "$CODE" "200"
+chk "두 번째 기기의 익명 잔량은 버려진다" "$(jget "$BODY" discarded)" "$BAL_B_BEFORE"
+chk "두 번째 기기가 받은 상태는 구글 계정의 잔량이다 — 합치지 않는다" "$(jget2 "$BODY" state balance)" "$BAL_A_BEFORE"
+chk "B 계정의 원장 합이 0 이다 — 캐시만 내리지 않았다" \
+    "$(dbq "select coalesce(sum(delta),0) from ledger where account_id='$ACCT_B'")" "0"
+chk "구글 계정으로 된 행은 하나뿐이다" "$(dbq "select count(*) from accounts where google_sub='gsub-dispatch-1'")" "1"
+
+# 이미 구글 A 에 묶인 기기에서 다른 구글로 로그인 — 계정을 빼앗기지 않는다.
+NONCE_A4="dispatcher-nonce-other-a-$RANDOM"
+dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_A4', '$DEV_A', 'gsub-dispatch-2', '$NOW_ISO', 0)"
+post "{\"op\":\"authPoll\",\"nonce\":\"$NONCE_A4\"}" "$TOK_A"
+chk "다른 구글로는 기기 계정을 못 가져간다 — 409" "$CODE" "409"
+chk "그 409 의 사유" "$(jget "$BODY" reason)" "device-claimed"
+chk "google_sub 이 덮이지 않았다" "$(dbq "select google_sub from accounts where id='$ACCT_A'")" "gsub-dispatch-1"
+
 # ── IP 해시는 비밀키가 들어간 HMAC 이다 ────────────────────────────────────
 # 기대값을 구현이 아니라 바깥(비밀키 파일 + 알려진 REMOTE_ADDR)에서 계산한다.
 STORED=$(dbq "select seed_ip_hash from accounts where id='$ACCT_A'")
