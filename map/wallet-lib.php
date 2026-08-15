@@ -156,6 +156,25 @@ function w_migrate($db) {
       throw $e;
     }
   }
+  if (w_schema_version($db) < 4) {
+    $db->exec("begin immediate");
+    try {
+      // transaction_id 를 PK 로 둔다 — 구글은 콜백을 재시도하므로 중복이 정상이고,
+      // 앱 층 검사만으로는 동시 재시도에서 둘 다 통과한다(8c 에서 같은 교훈을 얻었다).
+      // amount 는 구글이 말한 값, granted 는 지갑 상한을 적용해 실제로 넣은 값 —
+      // 둘이 다를 수 있고, 다른 이유를 나중에 설명할 수 있어야 한다.
+      $db->exec("create table if not exists ad_grants (
+        transaction_id TEXT PRIMARY KEY, account_id TEXT NOT NULL, unit TEXT NOT NULL,
+        amount INTEGER NOT NULL, granted INTEGER NOT NULL, created_at TEXT NOT NULL)");
+      $db->exec("create index if not exists ix_ad_acct on ad_grants (account_id, created_at)");
+      $db->exec("delete from schema_version");
+      $db->exec("insert into schema_version (v) values (4)");
+      $db->exec("commit");
+    } catch (Throwable $e) {
+      try { $db->exec("rollback"); } catch (Throwable $e2) {}
+      throw $e;
+    }
+  }
 }
 
 function w_account_id($deviceId) { return substr(sha1($deviceId), 0, 16); }
@@ -408,7 +427,7 @@ function w_ledger_by_idem_any($db, $idem) {
 // charged:false 인 경우에도 delta 0 행을 남긴다 — 안 남기면 무료 경로만 멱등키가 없어서
 // 같은 요청이 두 번 오면 두 번째가 유료 경로로 빠진다.
 //
-// reason ∈ insufficient|unknown-runtype|bad-idem|bad-ref|busy
+// reason ∈ insufficient|unknown-runtype|bad-idem|bad-ref|merged|busy
 function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
   $costs = w_costs();
   if (!isset($costs[$runType])) return array("ok" => false, "charged" => false, "reason" => "unknown-runtype");
@@ -428,6 +447,14 @@ function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
     return array("ok" => false, "charged" => false, "reason" => "busy");
   }
   try {
+    // 지갑을 구글 계정에 넘긴 기기 계정은 쓸 수도 없다. checkin·refund 와 같은 규율이며,
+    // 8d 부터는 우연이 아니라 필수다 — 광고 지급이 checkin 을 거치지 않고 적립하는 첫 경로라
+    // 이 가드가 없으면 잔량 0 으로 얼어붙은 지갑이 광고 한 번에 되살아난다.
+    // 쓰기 락 "안"에서 본다 — 병합과 소비가 동시에 들어오면 락 밖 검사는 그 사이로 샌다.
+    if (w_is_merged_away($db, $acctId)) {
+      $db->exec("rollback");
+      return array("ok" => false, "charged" => false, "reason" => "merged");
+    }
     // 재시도 재생 — 내 계정에 이미 처리한 idem 이면 그때 결과를 그대로 돌려준다.
     // 단, runType·ref 까지 같을 때만이다 — 같은 idem 을 다른 등급/대상에 재사용하는 건
     // 재시도가 아니라 값싼 등급 값을 내고 비싼 등급을 받아가려는 시도다(리뷰에서 실측).

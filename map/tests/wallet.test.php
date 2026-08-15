@@ -32,10 +32,11 @@ t("스키마가 생성되고 버전이 기록된다", function () {
   ok(w_schema_version($db) >= 1, "schema_version 이 0 이다");
   $names = [];
   foreach ($db->query("select name from sqlite_master where type='table'") as $r) { $names[] = $r["name"]; }
-  foreach (["accounts", "ledger", "runs", "schema_version"] as $want) {
+  // ad_grants 는 8d(스키마 v4)에서 들어왔다 — 새 db 는 마이그레이션이 끝까지 굴러가므로
+  // 처음부터 존재한다. 8d 전에는 이 목록에 없어야 한다는 반대 방향 가드였다.
+  foreach (["accounts", "ledger", "runs", "schema_version", "ad_grants"] as $want) {
     ok(in_array($want, $names, true), "테이블 없음: " . $want);
   }
-  ok(!in_array("ad_grants", $names, true), "ad_grants 는 8d 것이다 — 만들지 않는다");
   $db = null; rmrf($d);
 });
 
@@ -922,7 +923,9 @@ t("스키마 v3 — auth_nonce 와 google_sub 유니크 인덱스가 생긴다",
   }
   ok(in_array("auth_nonce", $names, true), "auth_nonce 테이블이 없다");
   ok(in_array("ix_accounts_gsub", $names, true), "google_sub 유니크 인덱스가 없다");
-  eq(w_schema_version($db), 3, "스키마 버전이 3 이 아니다");
+  // 정확히 3이 아니라 3 이상이다 — 새 db 는 마이그레이션이 끝까지(현재 4까지) 굴러간다.
+  // 이 테스트는 v3 블록이 돌았는지를 보는 것이지 "그 뒤로 아무것도 안 늘었다"가 아니다.
+  ok(w_schema_version($db) >= 3, "스키마 버전이 3 미만이다");
   $db = null; rmrf($d);
 });
 
@@ -1344,6 +1347,62 @@ t("계정 없는 기기의 병합은 조용히 성공하지 않는다", function
   eq($m["ok"], false, "없는 계정으로 병합이 성공했다");
   eq($m["reason"], "no-account", "거절 사유가 다르다");
   eq((int)$db->query("select count(*) c from accounts")->fetch()["c"], 0, "병합이 계정을 만들었다");
+  $db = null; rmrf($d);
+});
+
+// 8d: 광고 지급은 checkin 을 거치지 않고 원장에 적립하는 첫 경로다. 병합된 계정 잔량이
+// 지금까지 0이라 우연히 안전했던 w_spend 가, 광고 한 번으로 되살아나지 않는지 확인한다.
+t("병합된 계정은 쓸 수도 없다 — checkin·refund 와 같은 규율", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  w_merge($db, "dev-A", "gsub-1");
+  w_create_account($db, "dev-B", "ip2");
+  $b = w_get_account($db, "dev-B");
+  w_merge($db, "dev-B", "gsub-1");            // dev-B 는 잔량을 버리고 얼어붙는다
+
+  // 얼어붙은 계정에 원장으로 직접 5를 넣어 본다 — 광고 지급이 하려는 바로 그 일이다.
+  w_ledger_insert($db, $b["id"], 5, "test_credit", null, "t:credit");
+  $db->prepare("update accounts set balance = 5 where id = ?")->execute(array($b["id"]));
+
+  $r = w_spend($db, $b["id"], "scan", "t:spend", null, null);
+  eq($r["ok"], false, "병합된 계정이 스쿱을 썼다");
+  eq($r["reason"], "merged", "사유가 merged 가 아니다");
+  eq($r["charged"], false, "차감이 일어났다");   // charged 는 불리언이다(숫자가 아니다)
+  eq(w_true_balance($db, $b["id"]), 5, "원장이 움직였다");
+  $db = null; rmrf($d);
+});
+
+t("정상 계정의 spend 는 그대로 된다 — 가드가 전부를 막으면 안 된다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $a = w_get_account($db, "dev-A");
+  $r = w_spend($db, $a["id"], "scan", "t:ok", null, null);
+  eq($r["ok"], true, "정상 계정이 막혔다");
+  eq(w_true_balance($db, $a["id"]), 3, "5 - scan 2 = 3 이어야 한다");
+  $db = null; rmrf($d);
+});
+
+t("스키마 v4 — ad_grants 와 그 인덱스가 생긴다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $names = array();
+  foreach ($db->query("select name from sqlite_master where type in ('table','index')") as $x) { $names[] = $x["name"]; }
+  ok(in_array("ad_grants", $names), "ad_grants 테이블이 없다");
+  ok(in_array("ix_ad_acct", $names), "ix_ad_acct 인덱스가 없다");
+  $v = $db->query("select v from schema_version")->fetch();
+  eq((int)$v["v"], 4, "스키마 버전이 4 가 아니다");
+  $db = null; rmrf($d);
+});
+
+t("transaction_id 가 PK 라 중복 삽입이 DB 층에서 막힌다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  $db->exec("insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+             values ('tx-1', 'a1', 'quick', 1, 1, '2026-08-15T00:00:00+00:00')");
+  $threw = false;
+  try {
+    $db->exec("insert into ad_grants (transaction_id, account_id, unit, amount, granted, created_at)
+               values ('tx-1', 'a1', 'quick', 1, 1, '2026-08-15T00:00:01+00:00')");
+  } catch (Throwable $e) { $threw = true; }
+  ok($threw, "같은 transaction_id 가 두 번 들어갔다 — 앱 층 검사만으로는 경합에서 둘 다 통과한다");
   $db = null; rmrf($d);
 });
 
