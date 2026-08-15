@@ -553,6 +553,26 @@ ssv_get "$Q&reward_amount=999"
 chk "덧붙여 덮어쓴 콜백은 200 이다" "$CODE" "200"
 chk "덧붙여 덮어쓴 콜백이 적립하지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
 
+# 서명 범위 안에 있어도 배열이면 값이 아니다. (string) 캐스트·strlen 에 배열이 닿으면
+# TypeError 로 500 이 나는데, 500 은 구글이 재시도하는 실패라 위조 폭주가 그대로 재시도
+# 폭주가 된다 — 필수 필드는 "있는가"만이 아니라 "문자열인가"까지 봐야 한다.
+# (ad_unit 은 라벨일 뿐이라 배열이면 빈 값으로 떨어뜨리고 지급은 계속한다 — 여기 넣지 않는다.)
+for FLD in custom_data transaction_id reward_amount timestamp; do
+  Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-arr-$FLD&$FLD[]=x")
+  ssv_get "$Q"
+  chk "서명 안의 $FLD 가 배열이어도 200 이다(500 이면 재시도 폭주다)" "$CODE" "200"
+  chk "서명 안의 $FLD 가 배열일 때 본문이 비어 있다" "$BODY" ""
+  chk "서명 안의 $FLD 가 배열이면 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+done
+
+# 재인코딩(%2D) — parse_str 결과는 똑같지만 바이트가 다르다. 원본 쿼리스트링 대신
+# http_build_query($_GET) 로 재조립하면 이 콜백이 통과한다(서명은 바이트에 걸려 있다).
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-enc-1")
+ssv_get "$(printf '%s' "$Q" | sed 's/transaction_id=ssv-enc-1/transaction_id=ssv%2Denc%2D1/')"
+chk "재인코딩된 콜백은 200 이다" "$CODE" "200"
+chk "재인코딩된 콜백은 적립하지 않는다 — 재조립하면 이 문이 열린다" "$(ssv_bal "$ACCT_A")" "$BAL_NOW"
+chk "재인코딩된 콜백의 기록도 없다" "$(dbq "select count(*) from ad_grants where transaction_id='ssv-enc-1'")" "0"
+
 # ── 타임스탬프 — 서명이 유효해도 창 밖이면 재생 공격이다 ─────────────────────────
 OLD_TS=$(php -r 'echo (time() - 7200) * 1000;')
 FUT_TS=$(php -r 'echo (time() + 7200) * 1000;')
@@ -645,6 +665,13 @@ chk "서명 없는 POST 가 적립하지 않았다" "$(ssv_bal "$ACCT_D")" "$BAL
 # 키 캐시·시도 표식은 웹루트 밖에 있어야 한다(원장과 같은 규율)
 SSV_LEAK=$(find "$WORK/www" -name "ssv_keys_*" | head -3)
 chk "웹루트 안에 SSV 키 캐시가 없다" "$SSV_LEAK" ""
+
+# 위 공격 전부에서 PHP 진단이 한 줄도 나면 안 된다. 본문 검사만으로는 못 잡는다 —
+# 엔드포인트가 display_errors 를 꺼 두므로 진단은 본문이 아니라 서버 로그로 간다.
+# 이 검사가 없으면 "필수 필드가 서명 범위 안에 있는가" 같은 가드를 지워도(값은 null 이 되어
+# 우연히 거절로 떨어진다) 아무 검사도 빨개지지 않는다 — 조용한 undefined 접근이 남는다.
+DIAG=$(grep -ciE 'PHP (Warning|Notice|Deprecated|Fatal)|Undefined (array key|variable)|TypeError' "$SRV_LOG")
+chk "SSV 요청이 PHP 진단을 한 줄도 만들지 않는다" "$DIAG" "0"
 
 # ── IP 해시는 비밀키가 들어간 HMAC 이다 ────────────────────────────────────
 # 기대값을 구현이 아니라 바깥(비밀키 파일 + 알려진 REMOTE_ADDR)에서 계산한다.
