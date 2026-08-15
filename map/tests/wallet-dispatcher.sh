@@ -368,6 +368,21 @@ chk "B 계정의 원장 합이 0 이다 — 캐시만 내리지 않았다" \
     "$(dbq "select coalesce(sum(delta),0) from ledger where account_id='$ACCT_B'")" "0"
 chk "구글 계정으로 된 행은 하나뿐이다" "$(dbq "select count(*) from accounts where google_sub='gsub-dispatch-1'")" "1"
 
+# 넘긴 기기 계정은 더 못 번다 — 기기 토큰이 365일 살아 있으므로, 안 막으면 구글 지갑과
+# 나란히 도는 익명 지갑이 매일 1개씩 쌓인다(기기를 늘릴수록 수입원이 늘어난다).
+# 어제 출석한 것으로 되돌려 "오늘 출석 가능" 상태를 만든 뒤에도 거절되어야 한다.
+YESTERDAY=$(php -r 'echo gmdate("Y-m-d", time() - 86400);')
+dbexec "update accounts set last_checkin = '$YESTERDAY' where id='$ACCT_B'"
+post '{"op":"get"}' "$TOK_B"
+chk "넘긴 기기 계정은 출석 버튼을 그리지 않는다" "$(jget2 "$BODY" state canCheckin)" "false"
+post '{"op":"checkin"}' "$TOK_B"
+chk "넘긴 기기 계정의 출석은 200 이되 지급이 없다" "$CODE" "200"
+chk "넘긴 기기 계정의 출석 사유" "$(jget "$BODY" reason)" "merged"
+chk "넘긴 기기 계정에 스쿱이 지급되지 않았다" "$(jget "$BODY" granted)" "0"
+chk "넘긴 기기 계정의 원장 합은 여전히 0 이다" \
+    "$(dbq "select coalesce(sum(delta),0) from ledger where account_id='$ACCT_B'")" "0"
+chk "구글 계정 잔량도 그대로다" "$(dbq "select coalesce(sum(delta),0) from ledger where account_id='$ACCT_A'")" "$BAL_A_BEFORE"
+
 # 이미 구글 A 에 묶인 기기에서 다른 구글로 로그인 — 계정을 빼앗기지 않는다.
 NONCE_A4="dispatcher-nonce-other-a-$RANDOM"
 dbexec "insert into auth_nonce (nonce, device_id, google_sub, created_at, used) values ('$NONCE_A4', '$DEV_A', 'gsub-dispatch-2', '$NOW_ISO', 0)"

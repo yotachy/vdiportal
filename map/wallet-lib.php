@@ -137,7 +137,17 @@ function w_migrate($db) {
         created_at TEXT NOT NULL, used INTEGER NOT NULL DEFAULT 0)");
       // NULL 을 서로 다른 값으로 보는 SQLite 의 성질에 기댄다 — 미연결 계정은 여럿이어도
       // 걸리지 않고, 같은 google_sub 두 개만 막힌다. 동시 병합의 최종 방어선이다.
+      // (실측상 그 경합을 실제로 결정하는 것은 BEGIN IMMEDIATE 지만 — tests/wallet.test.php
+      //  의 "같은 google_sub …" 주석 참고 — 이 인덱스가 있어야 그 불변식이 모든 미래
+      //  작성자의 규율이 아니라 데이터의 성질이 된다. where google_sub = ? 조회도 함께 탄다.)
       $db->exec("create unique index if not exists ix_accounts_gsub on accounts (google_sub)");
+      // w_nonce_make 가 "이 기기의 살아 있는 논스"를 찾는다. 인덱스가 없으면 그 조회가
+      // auth_nonce 전체 스캔 + 정렬용 임시 B-트리가 된다(실측: SCAN + USE TEMP B-TREE).
+      // auth_nonce 는 청소 주기가 없어 만료 행이 계속 쌓이므로, O(1) 삽입이던 authStart 가
+      // 표 크기에 비례해 느려진다(20만 행에서 호출당 25ms — cafe24 공유 호스팅은 더 느리다).
+      // ⚠ 이 한 줄은 v3 를 "나중에 고친" 것이 아니다: 프로덕션은 아직 v2 이고 v3 는 이
+      // 브랜치에서 아직 배포된 적이 없다. 그래서 v4 를 새로 파지 않고 v3 안에 넣었다.
+      $db->exec("create index if not exists ix_nonce_dev on auth_nonce (device_id, created_at)");
       $db->exec("delete from schema_version");
       $db->exec("insert into schema_version (v) values (3)");
       $db->exec("commit");
@@ -356,7 +366,9 @@ function w_state($db, $acct) {
     "balance"    => $true,
     "cap"        => W_CAP,
     "streakDays" => (int)$acct["streak_days"],
-    "canCheckin" => ($acct["last_checkin"] !== w_today())
+    // 병합으로 넘어간 기기 계정은 출석 버튼 자체를 못 본다. 여기서 true 를 주면 화면은
+    // 버튼을 그리는데 w_checkin 은 거절하는 상태가 되어, 사용자가 눌러도 아무 일도 안 난다.
+    "canCheckin" => ($acct["last_checkin"] !== w_today() && !w_is_merged_away($db, $acct["id"]))
   );
 }
 
@@ -468,7 +480,7 @@ function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
 
 // 환급 자체가 멱등이다 — 보상 행의 키를 "<원래 idem>:refund" 로 둔다.
 // 상한으로 깎지 않는다: 가져간 것을 돌려주는 것이라 깎으면 훔치는 셈이 된다.
-// reason ∈ not-found|already-refunded|nothing-to-refund|busy
+// reason ∈ not-found|already-refunded|nothing-to-refund|merged|busy
 function w_refund($db, $acctId, $idem) {
   try {
     $db->exec("begin immediate");
@@ -476,6 +488,13 @@ function w_refund($db, $acctId, $idem) {
     return array("ok" => false, "reason" => "busy");
   }
   try {
+    // 출석과 같은 이유로 막는다(w_is_merged_away). 환급도 잔량을 "올리는" 경로라, 병합
+    // 직전에 쓴 idem 을 병합 "후"에 환급하면 버린 잔량이 그만큼 되살아난다 — 넘긴 지갑에
+    // 되살아나므로 사용자에게 쓸모도 없다. 리뷰가 지적한 것은 checkin 이지만 같은 문이다.
+    if (w_is_merged_away($db, $acctId)) {
+      $db->exec("rollback");
+      return array("ok" => false, "reason" => "merged");
+    }
     // 계정 범위 조회다 — w_spend 의 idem 재생 구멍과 같은 이유로, 다른 계정의
     // idem 을 넘기면 조회가 애초에 비어 not-found 로 떨어진다(리뷰에서 실측된 패턴).
     $orig = w_ledger_by_idem($db, $idem, $acctId);
@@ -546,7 +565,7 @@ function w_refund($db, $acctId, $idem) {
 
 // 서버 UTC 기준이다. $today 는 테스트에서만 넘긴다 — 프로덕션은 null 을 넘겨 서버 시간을 쓴다.
 // 기기 시계를 바꿔서 얻는 것이 없어야 한다(SPEC-economy §3).
-// reason ∈ already|busy
+// reason ∈ already|merged|busy
 function w_checkin($db, $acct, $today) {
   $day = ($today === null) ? w_today() : $today;
   $acctId = $acct["id"];
@@ -559,6 +578,13 @@ function w_checkin($db, $acct, $today) {
     $cur = $db->prepare("select * from accounts where id = ?");
     $cur->execute(array($acctId));
     $a = $cur->fetch();
+    // 지갑을 구글 계정에 넘긴 기기 계정은 더 못 번다. 안 막으면 기기 토큰 하나로 구글
+    // 지갑과 나란히 도는 익명 지갑이 매일 1개씩 쌓인다(w_is_merged_away 주석 참고).
+    // 쓰기 락 "안"에서 본다 — 병합과 출석이 동시에 들어오면 락 밖 검사는 그 사이로 샌다.
+    if (w_is_merged_away($db, $acctId)) {
+      $db->exec("rollback");
+      return array("ok" => false, "granted" => 0, "capped" => false, "reason" => "merged");
+    }
     if ($a["last_checkin"] === $day) {
       $db->exec("rollback");
       return array("ok" => false, "granted" => 0, "capped" => false, "reason" => "already");
@@ -610,89 +636,123 @@ function w_ledger_insert($db, $acctId, $delta, $reason, $ref, $idem) {
 // 캐시만 건드리면 w_state 가 다음 호출에서 원장을 보고 5로 되돌려 놓는다(= 잔량이 부활한다).
 //
 // reason ∈ null|no-account|device-claimed|busy|error
-function w_merge($db, $deviceId, $googleSub, $retry = 0) {
+//
+// 시도는 최대 두 번이다(재귀 아님). 첫 시도가 유니크 인덱스 충돌로 깨지면 — 동시 첫 병합의
+// 패자다 — 이긴 쪽이 만든 계정을 보고 한 번 더 간다. 시도 횟수를 인자로 노출하지 않는다:
+// 4번째 파라미터로 두면 호출자가 w_merge($db, $d, $g, 5) 로 재시도를 조용히 꺼버릴 수 있고,
+// 그건 내부 사정이지 호출 계약이 아니다.
+function w_merge($db, $deviceId, $googleSub) {
   $fail = function ($reason) {
     return array("ok" => false, "acct" => null, "moved" => false, "discarded" => 0, "reason" => $reason);
   };
-  try {
-    $db->exec("begin immediate");
-  } catch (Throwable $e) {
-    // 논스는 아직 안 태웠으니 앱이 다음 폴링에서 그대로 다시 시도한다.
-    return $fail("busy");
-  }
-  try {
-    $dev = w_get_account($db, $deviceId);
-    if (!$dev) { $db->exec("rollback"); return $fail("no-account"); }
-
-    // 이미 다른 구글 계정에 묶인 기기다. 여기서 막지 않으면 같은 기기에서 두 번째 구글
-    // 계정으로 로그인하는 것만으로 첫 번째 사람의 계정(잔량·원장 전부)을 통째로 가져간다 —
-    // device_id 가 UNIQUE 라 기기당 계정이 하나뿐이어서 "새 계정을 하나 더"로도 못 피한다.
-    // 거절이 유일하게 안전한 답이다(브리프에 없던 갈래 — 리뷰에 보고).
-    if ($dev["google_sub"] !== null && $dev["google_sub"] !== $googleSub) {
-      $db->exec("rollback");
-      return $fail("device-claimed");
+  for ($attempt = 0; $attempt < 2; $attempt++) {
+    try {
+      $db->exec("begin immediate");
+    } catch (Throwable $e) {
+      // 논스는 아직 안 태웠으니 앱이 다음 폴링에서 그대로 다시 시도한다.
+      return $fail("busy");
     }
+    try {
+      $dev = w_get_account($db, $deviceId);
+      if (!$dev) { $db->exec("rollback"); return $fail("no-account"); }
 
-    $st = $db->prepare("select * from accounts where google_sub = ?");
-    $st->execute(array($googleSub));
-    $g = $st->fetch();
+      // 이미 다른 구글 계정에 묶인 기기다. 여기서 막지 않으면 같은 기기에서 두 번째 구글
+      // 계정으로 로그인하는 것만으로 첫 번째 사람의 계정(잔량·원장 전부)을 통째로 가져간다 —
+      // device_id 가 UNIQUE 라 기기당 계정이 하나뿐이어서 "새 계정을 하나 더"로도 못 피한다.
+      // 거절이 유일하게 안전한 답이다(브리프에 없던 갈래).
+      if ($dev["google_sub"] !== null && $dev["google_sub"] !== $googleSub) {
+        $db->exec("rollback");
+        return $fail("device-claimed");
+      }
 
-    $key = "merge:" . $googleSub . ":" . $dev["id"];
-
-    if (!$g) {
-      $db->prepare("update accounts set google_sub = ? where id = ?")->execute(array($googleSub, $dev["id"]));
-      w_ledger_insert($db, $dev["id"], 0, "merge_claim", $googleSub, $key . ":claim");
-      $db->exec("commit");
-      return array("ok" => true, "acct" => w_get_account($db, $deviceId),
-                   "moved" => false, "discarded" => 0, "reason" => null);
-    }
-
-    if ($g["id"] === $dev["id"]) {   // 이미 이 계정이 그 구글 계정이다 — 할 일 없음
-      $db->exec("commit");
-      return array("ok" => true, "acct" => $g, "moved" => false, "discarded" => 0, "reason" => null);
-    }
-
-    // 같은 기기·같은 구글로 두 번 불렀는가. 멱등키가 idem UNIQUE 에 걸려 예외로 튀게 두면
-    // 아래 catch 의 재시도가 같은 실패를 되풀이할 뿐이므로(무한 재귀), 쓰기 전에 먼저 본다.
-    $prev = w_ledger_by_idem_any($db, $key . ":from");
-    if ($prev) {
-      $db->exec("commit");   // 읽기만 했다
-      $parts = explode(":", (string)$prev["ref"]);
-      $st = $db->prepare("select * from accounts where id = ?");
-      $st->execute(array($g["id"]));
-      return array("ok" => true, "acct" => $st->fetch(), "moved" => true,
-                   "discarded" => (count($parts) > 1 ? (int)$parts[1] : 0), "reason" => null);
-    }
-
-    $bal = w_true_balance($db, $dev["id"]);
-    if ($bal > 0) {
-      // 음수로 적어 잔량을 0으로 내린다. 캐시만 0으로 바꾸면 SUM(delta) 와 갈린다.
-      w_ledger_insert($db, $dev["id"], -$bal, "merge_discard", $googleSub, $key . ":discard");
-      $db->prepare("update accounts set balance = 0 where id = ?")->execute(array($dev["id"]));
-    }
-    // 구글 계정 쪽엔 delta 0 기록만 — 버린 수량과 출처 기기를 ref 에 담는다.
-    w_ledger_insert($db, $g["id"], 0, "merge_from", $dev["id"] . ":" . $bal, $key . ":from");
-
-    // 스트릭만 긴 쪽을 취한다. 잔량과 달리 스트릭은 발행량이 아니라 습관의 기록이라
-    // 래칫이 되지 않는다(하루에 한 번만 오르고, 기기를 늘려도 총량이 늘지 않는다).
-    if ((int)$dev["streak_days"] > (int)$g["streak_days"]) {
-      $db->prepare("update accounts set streak_days = ?, last_checkin = ? where id = ?")
-         ->execute(array((int)$dev["streak_days"], $dev["last_checkin"], $g["id"]));
-    }
-    $db->exec("commit");
-    $st = $db->prepare("select * from accounts where id = ?");
-    $st->execute(array($g["id"]));
-    return array("ok" => true, "acct" => $st->fetch(), "moved" => true, "discarded" => $bal, "reason" => null);
-  } catch (Throwable $e) {
-    try { $db->exec("rollback"); } catch (Throwable $e2) {}
-    // 유니크 인덱스 충돌(동시 첫 병합의 패자) — 이긴 쪽이 만든 계정으로 다시 간다.
-    // 딱 한 번만이다: 실패가 경합이 아니라 지속적인 것(락 타임아웃 등)이면 같은 자리에서
-    // 영원히 다시 부르게 되고, 그건 500 이 아니라 스택 오버플로로 죽는다.
-    if ($retry < 1) {
       $st = $db->prepare("select * from accounts where google_sub = ?");
       $st->execute(array($googleSub));
-      if ($st->fetch()) return w_merge($db, $deviceId, $googleSub, $retry + 1);
+      $g = $st->fetch();
+
+      $key = "merge:" . $googleSub . ":" . $dev["id"];
+
+      if (!$g) {
+        $db->prepare("update accounts set google_sub = ? where id = ?")->execute(array($googleSub, $dev["id"]));
+        w_ledger_insert($db, $dev["id"], 0, "merge_claim", $googleSub, $key . ":claim");
+        $db->exec("commit");
+        return array("ok" => true, "acct" => w_get_account($db, $deviceId),
+                     "moved" => false, "discarded" => 0, "reason" => null);
+      }
+
+      if ($g["id"] === $dev["id"]) {   // 이미 이 계정이 그 구글 계정이다 — 할 일 없음
+        $db->exec("commit");
+        return array("ok" => true, "acct" => $g, "moved" => false, "discarded" => 0, "reason" => null);
+      }
+
+      // 같은 기기·같은 구글로 두 번 불렀는가. 멱등키가 idem UNIQUE 에 걸려 예외로 튀게 두면
+      // 아래 catch 의 재시도가 같은 실패를 되풀이할 뿐이므로, 쓰기 전에 먼저 본다.
+      $prev = w_ledger_by_idem_any($db, $key . ":from");
+      if ($prev) {
+        $db->exec("commit");   // 읽기만 했다
+        $parts = explode(":", (string)$prev["ref"]);
+        $st = $db->prepare("select * from accounts where id = ?");
+        $st->execute(array($g["id"]));
+        return array("ok" => true, "acct" => $st->fetch(), "moved" => true,
+                     "discarded" => (count($parts) > 1 ? (int)$parts[1] : 0), "reason" => null);
+      }
+
+      $bal = w_true_balance($db, $dev["id"]);
+      // 음수로 적어 잔량을 0으로 내린다. 캐시만 0으로 바꾸면 SUM(delta) 와 갈린다.
+      //
+      // 잔량이 0이어도 이 행을 남긴다. 이 행이 "이 기기 계정은 구글 계정으로 넘어갔다"는
+      // 유일한 표식이기 때문이다(w_is_merged_away) — 컬럼을 새로 만들지 않는다. 조건부로
+      // 남기면 마침 잔량이 0인 채로 로그인한 기기만 표식 없이 계속 벌 수 있다.
+      w_ledger_insert($db, $dev["id"], -$bal, "merge_discard", $googleSub, $key . ":discard");
+      // 스트릭도 0으로 내린다. 지갑이 구글 계정으로 옮겨간 뒤에도 여기 스트릭이 남아 있으면
+      // "이 기기에서 계속 이어갈 수 있다"로 읽히는데, 이 계정은 이제 출석을 못 한다.
+      // 스트릭은 복제가 아니라 이동이다.
+      $db->prepare("update accounts set balance = 0, streak_days = 0 where id = ?")->execute(array($dev["id"]));
+      // 구글 계정 쪽엔 delta 0 기록만 — 버린 수량과 출처 기기를 ref 에 담는다.
+      w_ledger_insert($db, $g["id"], 0, "merge_from", $dev["id"] . ":" . $bal, $key . ":from");
+
+      // 스트릭은 긴 쪽을 취한다. 잔량과 달리 스트릭은 발행량이 아니라 습관의 기록이라
+      // 래칫이 되지 않는다(하루에 한 번만 오르고, 기기를 늘려도 총량이 늘지 않는다).
+      //
+      // 단 streak_days 와 last_checkin 은 한 쌍으로만 움직인다. streak_days 가 크다고
+      // last_checkin 이 더 최근이라는 보장이 없기 때문이다 — 오래 전에 길게 쌓고 멈춘 기기가
+      // 그 예다. 쌍을 깨고 시계를 뒤로 돌리면 오늘 이미 출석한 계정이 canCheckin=true 로
+      // 되살아나고, 그 출석은 checkin:<계정id>:<날짜> 멱등키 충돌로 예외를 던져 그날 내내
+      // 500 이 된다(W_IDEM_PREFIX 가 없애려던 바로 그 영구 500 이 다른 문으로 돌아온다).
+      // 반대로 streak_days 만 옮기면 죽은 스트릭이 산 시계에 얹혀 7일 상자 주기가 어긋난다.
+      // 그래서 "더 길고, 그 스트릭의 시계도 뒤지지 않을 때"만 통째로 옮긴다.
+      // NULL(한 번도 출석 안 함)은 ""로 본다 — 어떤 날짜보다도 이르다. 저장 형식이 "Y-m-d"
+      // 고정이라 문자열 비교가 곧 날짜 비교다.
+      $devLast = ($dev["last_checkin"] === null) ? "" : $dev["last_checkin"];
+      $gLast   = ($g["last_checkin"] === null) ? "" : $g["last_checkin"];
+      if ((int)$dev["streak_days"] > (int)$g["streak_days"] && $devLast >= $gLast) {
+        $db->prepare("update accounts set streak_days = ?, last_checkin = ? where id = ?")
+           ->execute(array((int)$dev["streak_days"], $dev["last_checkin"], $g["id"]));
+      }
+      $db->exec("commit");
+      $st = $db->prepare("select * from accounts where id = ?");
+      $st->execute(array($g["id"]));
+      return array("ok" => true, "acct" => $st->fetch(), "moved" => true, "discarded" => $bal, "reason" => null);
+    } catch (Throwable $e) {
+      try { $db->exec("rollback"); } catch (Throwable $e2) {}
+      // 유니크 인덱스 충돌(동시 첫 병합의 패자) — 이긴 쪽이 만든 계정을 보고 한 번 더 간다.
+      // 마지막 시도였으면 루프가 그대로 끝나 아래 error 로 떨어진다.
+      $st = $db->prepare("select * from accounts where google_sub = ?");
+      $st->execute(array($googleSub));
+      if (!$st->fetch()) return $fail("error");
     }
-    return $fail("error");
   }
+  return $fail("error");
+}
+
+// 병합으로 지갑을 구글 계정에 넘긴 기기 계정인가. merge_discard 원장 행이 그 표식이다 —
+// 컬럼을 새로 만들지 않는다(원장이 이미 그 사실을 갖고 있다).
+//
+// 왜 필요한가: 병합은 잔량을 0으로 만들 뿐 계정 행을 지우지 않는다(device_id 가 살아 있고
+// 기기 토큰은 365일 유효하다). 이 계정이 계속 출석할 수 있으면, 기기 토큰을 쥔 클라이언트가
+// 구글 지갑과 별개로 매일 1개씩 버는 익명 지갑을 하나 더 굴리게 된다 — 기기를 늘릴수록
+// 수입원이 늘어난다. 병합이 없애려던 바로 그 구멍이다(리뷰 실측).
+function w_is_merged_away($db, $acctId) {
+  $st = $db->prepare("select 1 from ledger where account_id = ? and reason = 'merge_discard' limit 1");
+  $st->execute(array($acctId));
+  return $st->fetch() ? true : false;
 }
