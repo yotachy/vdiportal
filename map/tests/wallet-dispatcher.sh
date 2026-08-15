@@ -635,32 +635,37 @@ chk "상한을 넘긴 콜백은 시청 기록도 남지 않는다 — 남기면 
 # 키 회전 지연과 엉터리 key_id 는 이 층에서 구별할 수 없다. 구글은 자기 콜백만 재시도하므로
 # 공격자가 아무 key_id 나 뿌려도 얻는 것은 503 뿐이다 — 대신 진짜 콜백이 키 교체 창에서
 # 영구히 버려지지 않는다(광고를 본 사용자가 조용히 보상을 잃는 쪽이 훨씬 나쁘다).
-BAL_D=$(ssv_bal "$ACCT_D")
-Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_D&reward_amount=1&timestamp=$TS&transaction_id=ssv-unknownkey" "9999")
+# ⚠ 대상은 일 상한에 걸리지 않은 계정(A)이어야 한다. 상한을 다 쓴 계정(D)으로 재면
+# "503 이 지급하지 않았다"가 503 때문인지 상한 때문인지 갈리지 않는다 — 실제로 D 로 쟀을 때
+# "503 경로에서 몰래 지급한다"는 개조가 이 검사를 통과했다(뮤테이션 실측).
+BAL_A=$(ssv_bal "$ACCT_A")
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-unknownkey" "9999")
 ssv_get "$Q"
 chk "모르는 key_id 는 503 이다(재시도 가능)" "$CODE" "503"
 chk "그 503 의 본문도 비어 있다" "$BODY" ""
-chk "503 은 지급하지 않는다" "$(ssv_bal "$ACCT_D")" "$BAL_D"
+chk "503 은 지급하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_A"
 chk "503 은 시청 기록도 남기지 않는다 — 큐잉·선지급 금지" "$(dbq "select count(*) from ad_grants where transaction_id='ssv-unknownkey'")" "0"
+chk "503 은 원장에도 손대지 않는다" "$(dbq "select count(*) from ledger where idem='ad:ssv-unknownkey'")" "0"
 
 mv "$SSV_CACHE" "$SSV_CACHE.bak"
-Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_D&reward_amount=1&timestamp=$TS&transaction_id=ssv-nokeys")
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-nokeys")
 ssv_get "$Q"
 chk "키를 못 얻으면 503 이다 — 진짜 콜백을 위조로 버리지 않는다" "$CODE" "503"
 chk "그 503 의 본문도 비어 있다" "$BODY" ""
-chk "키를 못 얻은 503 도 지급하지 않는다" "$(ssv_bal "$ACCT_D")" "$BAL_D"
+chk "키를 못 얻은 503 도 지급하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_A"
+chk "키를 못 얻은 503 도 시청 기록을 남기지 않는다" "$(dbq "select count(*) from ad_grants where transaction_id='ssv-nokeys'")" "0"
 mv "$SSV_CACHE.bak" "$SSV_CACHE"
 
 # 서명이 틀린 것은 재시도해도 소용없다 — 200 으로 끝낸다(구글은 자기 콜백만 재시도한다).
-Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_D&reward_amount=1&timestamp=$TS&transaction_id=ssv-badsig")
+Q=$(ssv_sign "ad_unit=quick&custom_data=$ACCT_A&reward_amount=1&timestamp=$TS&transaction_id=ssv-badsig")
 ssv_get "$(printf '%s' "$Q" | sed 's/reward_amount=1/reward_amount=7/')"
 chk "서명이 틀린 콜백은 200 이다 — 재시도시켜도 결과가 같다" "$CODE" "200"
-chk "서명이 틀린 콜백은 적립하지 않는다" "$(ssv_bal "$ACCT_D")" "$BAL_D"
+chk "서명이 틀린 콜백은 적립하지 않는다" "$(ssv_bal "$ACCT_A")" "$BAL_A"
 
 # 메서드 — 구글은 GET 으로 부른다. POST 로 와도 쿼리스트링 서명 규율은 같아야 한다.
-PC=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/wallet-ssv.php?custom_data=$ACCT_D&reward_amount=9&transaction_id=ssv-post")
+PC=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/wallet-ssv.php?custom_data=$ACCT_A&reward_amount=9&transaction_id=ssv-post")
 chk "서명 없는 POST 도 200 이다" "$PC" "200"
-chk "서명 없는 POST 가 적립하지 않았다" "$(ssv_bal "$ACCT_D")" "$BAL_D"
+chk "서명 없는 POST 가 적립하지 않았다" "$(ssv_bal "$ACCT_A")" "$BAL_A"
 
 # 키 캐시·시도 표식은 웹루트 밖에 있어야 한다(원장과 같은 규율)
 SSV_LEAK=$(find "$WORK/www" -name "ssv_keys_*" | head -3)
