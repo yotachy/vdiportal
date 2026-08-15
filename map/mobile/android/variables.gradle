@@ -13,4 +13,17 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+
+    // AdMob 네이티브 버전 — @capacitor-community/admob 이 rootProject.ext 에서 읽어 간다.
+    // 플러그인 기본값은 playServicesAdsVersion = '25.4.+' 인 **동적 버전**이다. 그대로 두면
+    // 같은 소스가 날짜에 따라 다른 APK 가 되고, 구글이 나쁜 릴리스를 올린 날 우리 쪽 변경이
+    // 하나도 없는데 빌드가 깨진다. npm 쪽 플러그인은 --save-exact 로 박아 놨는데 정작 APK
+    // 부피의 대부분인 광고 SDK 가 떠 있으면 그 고정이 반쪽이다 — 2026-08-16 실제로 해석된
+    // 값으로 못 박는다. 올릴 때는 사람이 이 줄을 고치고 빌드를 다시 통과시킨다.
+    playServicesAdsVersion = '25.4.0'
+    // UMP 는 플러그인 기본값이 이미 정확한 '4.0.0' 이라 오늘 당장 흔들리지는 않는다. 그래도
+    // 여기 적는다 — 동의(UMP)와 광고(ads)는 한 쌍이고(canRequestAds 가 광고 요청 게이트다),
+    // 우리가 실제로 빌드해서 확인한 네이티브 버전 둘이 한 자리에 보여야 한다. 플러그인을
+    // 올리는 날 기본값이 조용히 바뀌어도 이 줄이 이기므로, 버전 변경은 항상 의도적인 커밋이 된다.
+    userMessagingPlatformVersion = '4.0.0'
 }
