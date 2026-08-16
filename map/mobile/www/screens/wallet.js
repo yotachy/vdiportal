@@ -398,15 +398,18 @@
       earn.appendChild(earnRow(MSStr.t.walChest, "+5", { off: true, note: state ? (away + MSStr.t.walChestAway) : "" }));
       scr.appendChild(earn);
 
-      // 시안 10b 의 Spend 목록 5행. 기본분석은 값을 매길 데가 없어(무료) walFree 로 고정하고,
+      // 시안 10b 의 Spend 목록 4행. 기본분석은 값을 매길 데가 없어(무료) walFree 로 고정하고,
       // scan 은 시안이 무료라 적었지만 현재 코드(COSTS.scan)는 값이 있을 수 있어 코드가 하는
       // 대로 적는다 — 가격표가 실제 차감과 어긋나는 쪽이 더 나쁘다(가격 결정은 별건).
+      // 종목 슬롯 추가 행은 뺐다 — spend("slot") 호출이 어디에도 없고 store.js addTicker 는
+      // 무료·무제한이다. 없는 과금을 가격표에 적으면 실제로 안 하는 일을 하는 것처럼 보인다
+      // (코디네이터 판정 — 티커 피커에서 이미 같은 이유로 "추가는 1스쿱" 문구를 뺀 바 있다).
+      // 슬롯 과금이 실제로 구현되면 그때 이 행이 돌아온다.
       var spend = MSUi.el("div", "wal-sec");
       spend.appendChild(MSUi.el("div", "overline", MSStr.t.walSpend));
       spend.appendChild(spendRow(MSStr.t.walBasic, MSStr.t.walFree));
       spend.appendChild(spendRow(MSStr.t.walDeep, String(MSWallet.COSTS.full)));
       spend.appendChild(spendRow(MSStr.t.walOptimiser, String(MSWallet.COSTS.custom)));
-      spend.appendChild(spendRow(MSStr.t.walSlot, String(MSWallet.COSTS.slot)));
       spend.appendChild(spendRow(MSStr.t.walScan, MSWallet.COSTS.scan ? String(MSWallet.COSTS.scan) : MSStr.t.walFree));
       scr.appendChild(spend);
 

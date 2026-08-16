@@ -171,7 +171,7 @@
     // 별개로 이 자리에도 같은 리마인드가 필요하다(시안이 두 곳 모두에 적었다).
     walStreakNote: "{n}일 연속 · 7일 되면 +5",
     walChest: "7일 연속 상자", walChestAway: "일 남음",
-    walSlot: "종목 슬롯 추가", walScan: "워치리스트 스캔",
+    walScan: "워치리스트 스캔",
     // walDeep·rpTierFull·tsFull·obCostFull 은 한 단계를 가리킨다 — 넷을 한 번에 옮기는 결정을
     // 태스크 8 로 미뤄뒀던 것을 여기서 처리한다(strings.test.mjs "한 단계는 한 이름으로 불린다").
     walDeep: "심화분석",
@@ -308,8 +308,9 @@
     obGranted: "개 스쿱으로 시작합니다",
     obGrantOffline: "지갑에 연결하지 못했습니다. 계속 진행할 수 있습니다 — 기본분석은 항상 무료입니다.",
     obRetry: "다시 시도",
-    // obCostFull 은 walDeep·rpTierFull·tsFull 과 같은 단계다(위 walDeep 주석). obCostScan·
-    // obCostSlot 은 walScan·walSlot 과 같은 문구를 그대로 재사용한다(두 화면이 갈리지 않게).
+    // obCostFull 은 walDeep·rpTierFull·tsFull 과 같은 단계다(위 walDeep 주석). obCostScan 은
+    // walScan 과 같은 문구를 그대로 재사용한다(두 화면이 갈리지 않게). obCostSlot 은 지갑
+    // Spend 목록에서 빠졌지만(과금 미구현) 온보딩 안내 문구로는 계속 쓰인다.
     obCostFull: "심화분석", obCostScan: "워치리스트 스캔", obCostSlot: "종목 슬롯 추가",
     obH4: "처음 볼 종목을 골라보세요",
     obSub4: "시작은 슬롯 3개입니다. 언제든 바꿀 수 있습니다.",
