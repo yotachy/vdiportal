@@ -73,7 +73,7 @@
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)
     rpTierBasic: "BASIC",
     rpTierCount: "5 indicators",
-    rpTierFull: "FULL", rpTierCountFull: "32 indicators · daily, weekly, monthly",
+    rpTierFull: "DEEP", rpTierCountFull: "32 indicators · daily, weekly, monthly",
 
     // 리포트 — 섹션 오버라인 (시안 2a: COMPOSITE·DAILY / HORIZON / SIGNALS / TIMEFRAMES)
     rpComposite: "Composite · Daily",
@@ -200,7 +200,7 @@
     walEngine: "Analysis engine v",
 
     // 단계 선택 시트 (Phase 8a)
-    tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Full", tsCustom: "Custom",
+    tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Deep", tsCustom: "Pro",
     tsBasicDesc: "5 indicators · daily only", tsFullDesc: "All 32 indicators · daily, weekly, monthly",
     tsCustomDesc: "All 32 + your weights",
     tsDone: "Free · done", tsPopular: "POPULAR", tsSoon: "Coming soon",

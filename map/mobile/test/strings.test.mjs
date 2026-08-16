@@ -37,11 +37,28 @@ test("모르는 blockType 은 그대로 돌려준다 — 던지지 않는다", (
   assert.equal(S.ind(undefined), "");
 });
 
-test("UI 문자열에 한글이 남아 있지 않다 — 시안은 영어다", () => {
-  const bad = Object.keys(S.t).filter(k => /[가-힣]/.test(String(S.t[k])));
-  assert.deepEqual(bad, [], "한글이 남은 키: " + bad.join(", "));
-  const badInd = Object.keys(S.IND).filter(k => /[가-힣]/.test(String(S.IND[k])));
-  assert.deepEqual(badInd, [], "한글이 남은 지표명: " + badInd.join(", "));
+// P1 에서 방향이 뒤집혔다 — 앱은 한국어가 된다(시안 2026-08-16 번들, README "UI 는 한글 단독").
+// 204개를 한 커밋에 번역하면 리뷰가 불가능하므로, 아직 영어인 키를 여기 적어두고 화면별로 지운다.
+// 이 목록은 **줄어들기만 한다.** 새 키를 여기 넣는 것은 번역을 미루는 것이라 실패로 본다.
+const PENDING_EN = ["bootVendorMissing","wlBrandA","wlBrandB","wlSearch","wlChipAll","wlChipUS","wlChipKR","wlChipETF","wlNoMatch","wlEmpty","wlAdd","addTitle","wlScan","wlScanning","wlScanFail","wlScanNone","wlScanNoneNoRefund","wlRemoveConfirm","rpBack","rpPickSym","rpLoadFail","rpRetry","rpUnknownErr","rpAnalyzeErr","rpBarsShort","rpUp","rpDown","rpFlat","rpBullish","rpBearish","rpCone","rpAgree","rpAgreeTail","rpAgreeShort","rpAgreeNone","rpHitLeadBull","rpHitLeadBear","rpHitRight","rpHitWrong","rpHitScopeA","rpHitScopeB","rpHitScopeC","rpHitScopeShort","rpHitSize","rpHitSizeTail","rpHzTomorrow","rpHzWeek","rpHzMonth","rpTierBasic","rpTierCount","rpTierFull","rpTierCountFull","rpComposite","rpHorizon","rpSignals","rpOf","rpShown","rpNotCounted","rpAgainst","rpAgainstNone","rpReasoning","rpReasoningNodes","rpReasoningScope","rpReasoningDir","rdNotEnoughBars","rdNoVolume","rdNoSwings","rpMissingHitRate","rpMissingDisagree","rpMissingTfAgree","rpMissingWhy","rpMissingNote","rpUp2","rpFlat2","rpDown2","rpTf","rpDaily","rpWeekly","rpMonthly","rpLocked","rpLockedSuffix","rpUpgrade","rpAgreeTf","rpAgreeTfTail","rpNoHistory","pnlRsiEmpty","pnlMacdEmpty","pnlVolumeEmpty","lgP1","lgP2","lgP3","legPred","legTarget","legGolden","legDead","legBars","legNoCross","legSqueeze","cxBullDiv","cxBearDiv","cxBullVolDiv","cxBearVolDiv","walTitle","walCap","walEarn","walSpend","walInWallet","walQuickSub","walFullSub","walCheckin","walOnceADay","walOnceADayCap","walChest","walChestAway","walSlot","walScan","walDeep","walOptimiser","walFree","walDay","walCheckedIn","walCapped","walBack","wSignIn","wSignInHint","wSignOut","wSignInWaiting","wSignInFailed","wDeviceClaimed","wMergeDiscarded","wWatchlistLocal","wMerged","wSignInUnavailable","adQuick","adFull","adDailyDone","adCooldown","adWaiting","adPending","adFailed","adSettings","adLowBalance","walNoCashValue","walEngine","tsTitle","tsBasic","tsFull","tsCustom","tsBasicDesc","tsFullDesc","tsCustomDesc","tsDone","tsPopular","tsSoon","tsFullPreview","tsCostsLead","tsRun","tsCost","tsShort","tsRunning","tsFailed","tsFailedNoRefund","tsSpendFailed","tsSpendFailedUnknown","walUnavailable","tsUnavailable","tpPlaceholder","tpAdd","tpChecking","tpNotFound","tpDidYouMean","tpFull","tpUnavailable","tpAlreadyPicked","tpKept","obBack","obNext","obSampleNote","obH1","obSub1","obH2","obSub2","obCombCap","obH3","obSub3","obGranting","obGranted","obGrantOffline","obRetry","obCostFull","obCostScan","obCostSlot","obH4","obSub4","obH5","obRisk","obAgree","obFree","obFinish"];
+
+// 값에 라틴문자가 없으면 번역할 단어가 없다 — "↻" · "—" · " · " 같은 기호·구분자다.
+// 이것들을 미번역으로 세면 잔여 목록이 절대 비지 않고 태스크 8 의 완료 조건이 도달 불가능해진다.
+function needsKo(v) { return /[A-Za-z]/.test(String(v)); }
+
+test("UI 문자열은 한국어다 — 잔여 목록에 적힌 것만 예외", () => {
+  const en = Object.keys(S.t).filter(k => needsKo(S.t[k]) && !/[가-힣]/.test(String(S.t[k])));
+  const unlisted = en.filter(k => PENDING_EN.indexOf(k) < 0);
+  assert.deepEqual(unlisted, [],
+    "번역 안 됐는데 잔여 목록에도 없는 키 " + unlisted.length + "건: " + unlisted.join(", "));
+  const stale = PENDING_EN.filter(k => en.indexOf(k) < 0);
+  assert.deepEqual(stale, [],
+    "이미 번역됐는데 잔여 목록에 남은 키(목록을 지울 것) " + stale.length + "건: " + stale.join(", "));
+});
+
+test("지표명은 계속 영어다 — 인터페이스 언어와 무관하다는 명시 규칙", () => {
+  const bad = Object.keys(S.IND).filter(k => /[가-힣]/.test(String(S.IND[k])));
+  assert.deepEqual(bad, [], "한글이 섞인 지표명: " + bad.join(", "));
 });
 
 test("시안에 문자 그대로 있는 5종 이름은 바꾸지 않는다", () => {
@@ -52,7 +69,7 @@ test("시안에 문자 그대로 있는 5종 이름은 바꾸지 않는다", () 
   assert.equal(S.ind("volume"), "Volume");
 });
 
-test("화면 소스에 UI 한글 문자열이 남아 있지 않다 — 주석은 제외", () => {
+test("화면 소스에 문자열 리터럴이 박혀 있지 않다 — 한글이든 영문 문장이든", () => {
   const offenders = [];
   // Step 5 carry-forward: 한글 부재만으로는 오타(MSStr.t.존재하지않는키 → undefined 렌더)를 못 잡는다.
   // 같은 소스 스캔 김에 참조된 MSStr 키가 전부 strings.js 에 실존하는지도 확인한다(소스 스캔 방식 보강).
@@ -89,4 +106,13 @@ test("MSStr.t 의 모든 키는 화면 소스에서 최소 한 번 참조된다 
   }
   const unused = Object.keys(S.t).filter(k => !referenced.has(k));
   assert.deepEqual(unused, [], "참조되지 않는 MSStr.t 키 " + unused.length + "건: " + unused.join(", "));
+});
+
+// 같은 단계를 시트·리포트에서는 "Full", 지갑·온보딩에서는 "Deep analysis" 로 부르고 있었다.
+// 이 테스트가 없었기 때문에 두 이름이 갈렸고, 3단계 체계에서 "Full" 위에 전문분석이 오면
+// 말 자체가 성립하지 않는다.
+test("한 단계는 한 이름으로 불린다", () => {
+  const deep = [S.t.tsFull, S.t.rpTierFull, S.t.walDeep, S.t.obCostFull].map(s => String(s).toLowerCase());
+  const uniq = Array.from(new Set(deep.map(s => s.replace(/\s*(분석|analysis)\s*$/, "").trim())));
+  assert.equal(uniq.length, 1, "심화분석이 여러 이름으로 불린다: " + JSON.stringify(deep));
 });
