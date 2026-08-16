@@ -86,9 +86,13 @@ test("report.js 소스 모양 — maybe-charged 실패는 idem 을 지우지 않
     "spend-fail 의 maybeCharged 분기가 없다 — 모든 실패가 무조건 idem 을 지우는 옛 동작으로 보인다");
 });
 
-test("report.js 소스 모양 — spend 실패 안내 문구도 maybeCharged 로 갈린다", () => {
-  assert.match(REPORT, /MSWallet\.maybeCharged\(r\.reason\) \? MSStr\.t\.tsSpendFailedUnknown/,
-    "'Nothing was charged' 문구를 maybe-charged 에도 그대로 쓰면 거짓말이 될 수 있다");
+// P2 T12 가 alert 문구를 시안 12c 의 카드로 바꿨다. 갈림 자체는 그대로여야 한다 —
+// definitely-not-charged 만 "안 받았다"고 말하고, maybe-charged 는 환불 미확인 카드(⑦)로 간다.
+test("report.js 소스 모양 — spend 실패 처리도 maybeCharged 로 갈린다", () => {
+  assert.match(REPORT, /else if \(MSWallet\.maybeCharged\(r\.reason\)\) \{[\s\S]{0,120}kind: "failedUnknown"/,
+    "maybe-charged 인데 '안 받았다'로 처리한다 — 실제로 서버가 받았을 수 있다");
+  assert.match(REPORT, /if \(r\.reason === "insufficient"\)[\s\S]{0,200}kind: "short"/,
+    "잔량 부족이 카드 ①로 안 간다 — 시트 안에서 전환하는 자리다");
 });
 
 // ── report.js 소스 모양 — 잔량 부족 광고 권유(Phase 8d) ──────────────────────────

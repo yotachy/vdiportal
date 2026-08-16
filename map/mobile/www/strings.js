@@ -68,6 +68,29 @@
     rpTunedA: "조정 ", rpTunedB: " / ",
     rpDeepWidth: "심화 ± ", rpToMine: " → 내 설정 ± ",
     rpEditWeights: "가중치 다시 조절",
+    // 막히는 상태 7종(시안 12c). 공통 규칙 셋이 문구에도 그대로 있다 — 막다른 골목 없음 ·
+    // 불리한 사실 먼저 · 확인 못 한 건 확인했다고 하지 않음.
+    blMin: "분 ", blSec: "초",
+    blShortBadge: "잔량 부족 · 시트 안에서 전환", blShortHead: "개가 모자랍니다",
+    blShortBodyA: "심화분석에 ", blShortBodyB: "개 필요 · 지금 ",
+    blWatchAd: "광고 1편 보기", blLater: "나중에",
+    blCooldownBadge: "쿨다운 · 서버 시간 기준", blCooldownHead: " 뒤에 또 볼 수 있어요",
+    blCooldownBody: "광고는 2분에 한 번까지입니다.", blBasicFirst: "기본분석 먼저 보기",
+    blDailyBadge: "일 상한 · 하루 8회", blDailyHead: "오늘 광고는 여기까지",
+    blDailyBody: "내일 오전 9시에 8회가 다시 열립니다. 출석은 아직 남아 있습니다.",
+    blCheckin: "출석 받기",
+    blCapBadge: "상한 도달 · 광고 전에 고지", blCapHead: "지갑이 거의 찼습니다",
+    blCapBodyA: "지금 ", blCapBodyB: "개 · 최대 ", blCapBodyC: "개. 지금 광고를 보면 ",
+    blCapBodyD: "개는 버려집니다.", blSpendFirst: "먼저 분석에 쓰기",
+    blNoVerdictBadge: "판정 없음 · 차감하지 않음", blNoVerdictHead: "방향을 말할 수 없습니다",
+    blNoVerdictBodyA: "개가 ", blNoVerdictBodyB: " 대 ",
+    blNoVerdictBodyC: "로 갈렸습니다. 억지로 한쪽을 고르지 않겠습니다 — 스쿱은 쓰지 않았습니다.",
+    blWhySplit: "갈린 이유 보기",
+    blFailBadge: "계산 실패 · 환불 확인됨", blFailHead: "계산을 마치지 못했습니다",
+    blFailBodyA: "스쿱 ", blFailBodyB: "개를 돌려드렸습니다 · 지금 ", blRetry: "다시 시도",
+    blFailUnknownBadge: "계산 실패 · 환불 확인 불가", blFailUnknownHead: "환불을 확인하지 못했습니다",
+    blFailUnknownBody: "돌려드렸다고 말하지 않겠습니다 — 응답을 못 받았을 뿐입니다. 잔량을 확인해 주세요. 다시 시도해도 중복 차감되지 않습니다.",
+    blOpenWallet: "지갑 확인",
     rdEmpty: "이 조건에 해당하는 지표가 없습니다.",
     // 시안 18b 의 "지표 32개 판독문" 링크 행. 개수는 리터럴이 아니라 엔진에서 나온다.
     rdLinkA: "지표 ", rdLinkB: "개 판독문",
@@ -293,8 +316,7 @@
     tsSpendLead: "쓰면 ",                         // 비용 한 줄 왼쪽 — "쓰면 " + "12 → 9"
     tsRun: " 실행",                               // 버튼 — tsFull(위 주석) + 이 값
     tsShort: "스쿱이 부족합니다. 내일 출석하면 +1개를 더 받을 수 있습니다.",
-    tsRunning: "실행 중…", tsFailed: "분석에 실패했습니다 — 스쿱은 환불됐습니다.",
-    tsFailedNoRefund: "분석에 실패했습니다. 환불 여부를 확인하지 못했습니다 — 잔량을 확인해 주세요.",
+    tsRunning: "실행 중…",
     tsSpendFailed: "지갑에 연결할 수 없습니다. 차감되지 않았습니다 — 다시 시도해 주세요.",
     // network·server-error·busy — 응답을 못 받았을 뿐 서버는 처리했을 수 있다(I-H). "차감되지
     // 않았다"고 말하면 거짓일 수 있어 tsSpendFailed 와 문구를 가른다. 재시도는 안전하다 —

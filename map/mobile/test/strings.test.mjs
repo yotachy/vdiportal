@@ -25,7 +25,9 @@ const KEY_SCAN_FILES = ["../www/screens/report.js", "../www/screens/watchlist.js
                          // screens/readings-list.js — rd* 키(판독문 전체, 시안 20a)는 여기서만 소비된다.
                          "../www/screens/readings-list.js",
                          // screens/expert.js — xp* 키(전문분석 편집기, 시안 10a)는 여기서만 소비된다.
-                         "../www/screens/expert.js"];
+                         "../www/screens/expert.js",
+                         // blocked.js — bl* 키(막히는 상태 7종, 시안 12c)는 여기서만 소비된다.
+                         "../www/blocked.js"];
 // Fix 1: chart-legend.js 는 `var T = Str.t` 로 별칭한 뒤 `T.legPred` 형태로 쓴다 — MSStr.t/Str.t 직접
 // 참조만 잡던 정규식이 이 별칭 경로를 못 봐서, 존재하지 않는 T.키 오타가 조용히 undefined 를 렌더했다.
 const KEY_RE = /\b(?:MSStr\.t|Str\.t|T)\.([A-Za-z_][A-Za-z0-9_]*)/g;
@@ -257,6 +259,26 @@ const CODE_TOKEN_RE = /^[ .\-_]*[a-z0-9][a-z0-9_./:;%()-]*$/;
 // 이미 쓰는 판단을 그대로 가져온다. key === "US" 는 내부 키 대조일 뿐 화면에 안 나간다.
 function isComparisonOperand(before) { return /(===|!==|==|!=)\s*$/.test(before); }
 
+// 내부 식별자 자리 — 비교 피연산자와 **같은 종류**다(화면에 안 나가는 조회 키). 값이 아니라
+// **위치**로 증명된다: `kind: "failedUnknown"` 은 MSBlocked 의 카드 이름이고, 그 이름으로
+// 화면에 그려지는 것은 MSStr 을 거친 문구다. 열거가 아니라 모양이라, 새 카드가 생겨도
+// 목록을 늘릴 필요가 없다(P1 판정 P·L 의 원칙 — 이름을 세지 말고 구조를 단정한다).
+const KEY_PROPS = ["kind", "blockType", "runType", "op", "reason"];
+// 이 목록은 **면제 통로**다. 늘리는 것은 "이 자리 문자열은 화면에 안 나간다"는 주장이고,
+// 그 주장이 틀리면 미번역 문구가 조용히 샌다. 변이 검증에서 text·label·title 을 넣어도
+// 오늘은 피해자가 없어 초록이 나오는 걸 봤다 — 오늘 안 걸린다는 것이 안전하다는 뜻은 아니다.
+// 그래서 목록 자체에 래칫을 건다(MAX_PENDING_EN 과 같은 장치).
+test("내부 키 면제 목록은 늘어나지 않는다 — 늘리는 건 리뷰가 볼 결정이다", () => {
+  assert.deepEqual(KEY_PROPS.slice().sort(), ["blockType", "kind", "op", "reason", "runType"],
+    "면제 목록이 바뀌었다: " + KEY_PROPS.join(", ") + " — 정말 필요하면 이 단정도 함께 고치고 사유를 적을 것");
+  // 화면 문구를 담는 이름은 절대 들어오면 안 된다 — 그 자리가 곧 렌더되는 값이다.
+  ["text", "label", "title", "head", "body", "name", "desc", "msg"].forEach(n =>
+    assert.ok(KEY_PROPS.indexOf(n) < 0, "화면 문구 자리(" + n + ")를 면제 목록에 넣었다"));
+});
+function isInternalKeyProp(before) {
+  return new RegExp("(?:^|[^\\w])(?:" + KEY_PROPS.join("|") + ")\\s*:\\s*$").test(before);
+}
+
 // 어느 모양 규칙에도 안 걸리는 극소수 개별 예외. 근거 없이 추가하는 것은 금지 — 항목마다
 // 왜 화면에 안 나가는지 적는다.
 const SCREENS_LITERAL_EXCEPTIONS = new Set([
@@ -292,7 +314,9 @@ function scanSrcForEnglish(src, label) {
       const inner = m[0].slice(1, -1);
       if (inner === "use strict") continue;                          // 모듈 보일러플레이트
       if (shapeExcluded.has(inner)) continue;                        // el() 태그/클래스·className 대입
-      if (isComparisonOperand(code.slice(0, m.index))) continue;     // 내부 키 대조
+      var before = code.slice(0, m.index);
+      if (isComparisonOperand(before)) continue;                       // 내부 키 대조
+      if (isInternalKeyProp(before)) continue;                         // kind:/runType: 등 조회 키
       if (CODE_TOKEN_RE.test(inner)) continue;                       // CSS 조각/선택자/커스텀 프로퍼티
       if (SCREENS_LITERAL_EXCEPTIONS.has(inner)) continue;           // 개별 예외
       const words = untranslatedWords(inner);

@@ -330,6 +330,24 @@ body:not(.ms-dual) .rp-scr { display:flex; flex-direction:column; min-height:cal
 /* 해제 카드 — 버튼 하나가 아니라 "무엇이 빠져 있는지"를 먼저 말하는 카드다. */
 .rp-unlock { margin-top:8px; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--sheet); }
 .rp-unlock-line { margin:0 0 12px; white-space:pre-line; font-size:var(--fs-body); color:var(--ink-2); line-height:1.5; }
+/* ===== 막히는 상태 7종(시안 12c) ===== */
+.bl-scrim { position:fixed; inset:0; z-index:45; background:var(--scrim, rgba(0,0,0,.55));
+            display:flex; align-items:flex-end; }
+.bl-sheet { width:100%; background:var(--sheet); border-radius:28px 28px 0 0;
+            border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom); }
+.bl-card { padding:22px 20px 20px; }
+.bl-badge { font-size:var(--fs-overline); font-weight:var(--fw-overline); letter-spacing:var(--ls-overline);
+            color:var(--ink-5); }
+.bl-head { margin:10px 0 0; font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+.bl-body { margin:8px 0 0; font-size:var(--fs-body); color:var(--ink-3); line-height:1.55; }
+.bl-track { height:6px; margin-top:14px; border-radius:99px; background:var(--track); overflow:hidden; }
+.bl-fill { height:100%; background:var(--steel); }
+.bl-actions { display:flex; flex-direction:column; gap:8px; margin-top:18px; }
+.bl-btn { min-height:48px; border-radius:11px; border:1px solid var(--border); background:transparent;
+          color:var(--ink-2); font:inherit; font-size:var(--fs-body); }
+.bl-btn.bl-primary { background:var(--gold); border-color:var(--gold); color:var(--gold-ink);
+                     font-weight:var(--fw-semibold); }
+
 /* 전문분석 조절판(시안 18c) — 심화 블록 위에 얹힌다. */
 .rp-weights { padding:12px 14px; margin-bottom:14px; border:1px solid var(--border); border-radius:12px;
               background:var(--bg-raised); }

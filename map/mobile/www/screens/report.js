@@ -840,18 +840,46 @@
           draw();
         } else if (r.kind === "refunded") {
           MSTierSheet.close();
-          alert(r.ok ? MSStr.t.tsFailed : MSStr.t.tsFailedNoRefund);
+          // 시안 12c 의 카드 ⑥·⑦. 환급을 **확인했을 때만** 돌려줬다고 말한다 — 확인 못 한
+          // 것을 확인했다고 말하지 않는 것이 카드가 두 장인 유일한 이유다.
+          if (r.ok) {
+            MSWallet.get().then(function (w) {
+              MSBlocked.open({ kind: "failedRefunded",
+                data: { refunded: MSWallet.COSTS[runType], balance: w.state ? w.state.balance : null },
+                onAction: function (k) { if (k === "retry") runTier(runType, weights); } });
+            });
+          } else {
+            MSBlocked.open({ kind: "failedUnknown", data: {},
+              onAction: function (k) {
+                if (k === "open-wallet") MSApp.go("wallet");
+                else if (k === "retry") runTier(runType, weights);
+              } });
+          }
         } else if (r.kind === "spend-fail") {
           MSTierSheet.close();
           // "Nothing was charged" 는 definitely-not-charged 사유에서만 참이다. maybe-charged
           // (network·server-error·busy)는 실제로 서버가 처리했을 수 있으니 그렇게 단정하지 않는다
-          // — purchases[sym] 에 idem 이 남아 다음 시도가 재사용한다(위 .then 참고).
-          alert(r.reason === "insufficient" ? MSStr.t.tsShort
-                : MSWallet.maybeCharged(r.reason) ? MSStr.t.tsSpendFailedUnknown
-                : MSStr.t.tsSpendFailed);
+          // — purchases[pk] 에 idem 이 남아 다음 시도가 재사용한다(위 .then 참고).
+          if (r.reason === "insufficient") {
+            MSWallet.get().then(function (w) {
+              MSBlocked.open({ kind: "short",
+                data: { need: MSWallet.COSTS[runType], have: (w.state ? w.state.balance : 0) || 0 },
+                onAction: function (k) { if (k === "watch-ad") runTier(runType, weights); } });
+            });
+          } else if (MSWallet.maybeCharged(r.reason)) {
+            MSBlocked.open({ kind: "failedUnknown", data: {},
+              onAction: function (k) {
+                if (k === "open-wallet") MSApp.go("wallet");
+                else if (k === "retry") runTier(runType, weights);
+              } });
+          } else alert(MSStr.t.tsSpendFailed);
         } else {
           MSTierSheet.close();
-          alert(MSStr.t.tsFailedNoRefund);
+          MSBlocked.open({ kind: "failedUnknown", data: {},
+            onAction: function (k) {
+              if (k === "open-wallet") MSApp.go("wallet");
+              else if (k === "retry") runTier(runType, weights);
+            } });
         }
       });
     }
