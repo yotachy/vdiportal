@@ -48,6 +48,15 @@
 
     // 리포트 — 판정
     rpBack: "뒤로",
+    // 판독문 전체(시안 20a). 부제는 "무엇을 기준으로 읽은 판독인가" — 종목·주기·성향.
+    // 안 적으면 같은 문장이 다른 설정에서 나온 것처럼 읽힌다.
+    rdTitle: "판독문 전체",
+    rdScopeSep: " · ", rdScopeTf: "일봉", rdScopeBasis: " 기준",
+    rdF_all: "전체", rdF_up: "상승", rdF_down: "하락", rdF_none: "무판정",
+    rdLv: "Lv", rdLvSep: " ", rdArrow: "\u203A",
+    rdEmpty: "이 조건에 해당하는 지표가 없습니다.",
+    // 시안 18b 의 "지표 32개 판독문" 링크 행. 개수는 리터럴이 아니라 엔진에서 나온다.
+    rdLinkA: "지표 ", rdLinkB: "개 판독문",
     rpPickSym: "왼쪽에서 티커를 골라주세요.",
     rpLoadFail: "리포트를 불러오지 못했습니다",
     rpRetry: "다시 시도",

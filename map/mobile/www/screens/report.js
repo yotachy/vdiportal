@@ -287,10 +287,6 @@
     activeResizeCleanup = function () { window.removeEventListener("resize", onResize); };
   }
 
-  function backSvg() {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>';
-  }
-
   // ── Full 구매(판정 단계). SPEC §1: 차감과 실행은 한 트랜잭션 ──
   // 낙관적 차감을 하지 않는다 — 일봉이 실패하면 환급한다. 주·월은 없어도 차감을 유지하고
   // 그 행에 사유를 적는다(설계서 §5.5).
@@ -431,7 +427,7 @@
       var head = MSUi.el("div", "rp-head");
       var back = MSUi.el("button", "rp-back");
       back.setAttribute("aria-label", MSStr.t.rpBack);
-      back.innerHTML = backSvg();
+      back.innerHTML = MSUi.backIcon();
       back.addEventListener("click", function () { MSApp.go("watchlist"); });
       head.appendChild(back);
 
@@ -907,6 +903,26 @@
       });
     }
 
+    // 시안 18b 의 "지표 32개 판독문" 행. 개수는 리터럴이 아니라 실제로 읽은 행 수다 —
+    // 32 를 박아두면 그래프 구성이 바뀌어도 화면은 계속 32 라고 말한다.
+    // 판독문 화면은 **여기서 계산한 행을 그대로 받는다.** 다시 계산하면 같은 종목의 두 화면이
+    // 다른 숫자를 낼 수 있다(P2 §6).
+    function buildReadingsLink(rows, noDir) {
+      if (tier === "basic") return null;          // 기본은 판독문을 팔지 않는다(블록 3개)
+      var all = (rows || []).concat(noDir || []);
+      if (!all.length) return null;
+      var b = MSUi.el("button", "rp-rdlink");
+      b.appendChild(MSUi.el("span", null, MSStr.t.rdLinkA + all.length + MSStr.t.rdLinkB));
+      b.appendChild(MSUi.el("span", "rp-rdlink-arw", MSStr.t.rdArrow));
+      b.addEventListener("click", function () {
+        MSReadingsList.render(root, {
+          sym: sym, name: wlItem && wlItem.name, rows: rows, noDir: noDir, tier: tier,
+          onBack: function () { draw(); }
+        });
+      });
+      return b;
+    }
+
     function buildCta() {
       if (tier !== "basic") return MSUi.el("div");
       var wrap = MSUi.el("div", "rp-unlock");
@@ -974,6 +990,7 @@
           tf:        function () { return buildTfSection(); },
           note:      function () { return buildMissingNote(); },
           cta:       function () { return buildCta(); },
+          readings:  function () { return buildReadingsLink(indRows, noDir); },
           // 18a 의 의도된 빈 공간 — "여기까지가 무료"를 스크롤 부재로 전달한다. 버그가 아니다.
           spacer:    function () { return MSUi.el("div", "rp-spacer"); },
           unlock:    function () { return buildCta(); },

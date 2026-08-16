@@ -25,7 +25,7 @@
   // 심화분석(시안 18b) — 판정 먼저. 8a 의 직전 상태 대조는 horizons 블록 **안에** 얹힌다
   // (별도 블록이 아니다 — 골격을 바꾸지 않고 얹는다는 것이 사용자 결정의 요지다).
   var FULL = ["price", "verdict", "chart", "legend", "horizons", "signals",
-              "reasoning", "missing", "against", "tf", "note", "cta"];
+              "reasoning", "missing", "against", "tf", "note", "readings", "cta"];
 
   // 전문분석(시안 18c) — 심화의 블록을 **하나도 빼지 않고** 위에 조절판을 얹는다.
   // 한 겹이라도 빠지면 5스쿱 낸 사람이 손해다(인벤토리 §3). 그래서 FULL 을 복사해 쓴다:

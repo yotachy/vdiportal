@@ -77,6 +77,13 @@
       '<path d="M4.75 6V4.4a2.25 2.25 0 0 1 4.5 0V6"/></svg>';
   }
 
+  // 뒤로가기 글리프 — 리포트 머리와 판독문 머리가 같은 것을 쓴다. 화면마다 다시 그리면
+  // 자물쇠가 그랬듯 조용히 갈린다(rx 가 다른 자물쇠 두 개가 실재했다).
+  function backIcon() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
+      '<path d="M15 18l-6-6 6-6"/></svg>';
+  }
+
   var scoopMarkSeq = 0;
   function scoopMark(fillPct) {
     var raw = (typeof fillPct === "number" && isFinite(fillPct)) ? fillPct : 42;
@@ -91,5 +98,5 @@
 
   return { el: el, fmtPrice: fmtPrice, fmtChg: fmtChg,
            fitCanvas: fitCanvas, readToken: readToken, hexToRgba: hexToRgba, colTokens: colTokens,
-           scoopMark: scoopMark, lockIcon: lockIcon };
+           scoopMark: scoopMark, lockIcon: lockIcon, backIcon: backIcon };
 });

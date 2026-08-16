@@ -319,6 +319,34 @@ body:not(.ms-dual) .rp-scr { display:flex; flex-direction:column; min-height:cal
 /* 해제 카드 — 버튼 하나가 아니라 "무엇이 빠져 있는지"를 먼저 말하는 카드다. */
 .rp-unlock { margin-top:8px; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--sheet); }
 .rp-unlock-line { margin:0 0 12px; white-space:pre-line; font-size:var(--fs-body); color:var(--ink-2); line-height:1.5; }
+/* ===== 판독문 전체(시안 20a) ===== */
+.rd-head { display:flex; align-items:flex-start; gap:10px; padding:12px 0 14px; }
+.rd-back { flex:0 0 28px; height:28px; display:flex; align-items:center; justify-content:center;
+           border:0; background:none; color:var(--ink-3); padding:0; }
+.rd-titles { flex:1 1 auto; min-width:0; }
+.rd-title { margin:0; font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+.rd-scope { margin:4px 0 0; font-size:var(--fs-sub); color:var(--ink-5); }
+.rd-filters { display:flex; flex-wrap:wrap; gap:6px; padding-bottom:14px; }
+.rd-filter { padding:7px 12px; border-radius:99px; background:var(--sheet); border:1px solid var(--border);
+             color:var(--ink-3); font:inherit; font-size:var(--fs-sub); }
+.rd-filter.on { background:var(--track); border-color:var(--border-strong); color:var(--ink); font-weight:var(--fw-semibold); }
+.rd-list > .overline { margin-top:18px; margin-bottom:8px; }
+/* 지표 카드 — 좌측 세로 컬러 라인 금지(프로젝트 전역 규칙). 방향은 점과 기여도 색으로만 말한다. */
+.rd-item { padding:12px 0; border-top:1px solid var(--hairline); }
+.rd-line1 { display:flex; align-items:center; gap:8px; }
+.rd-dot { width:7px; height:7px; border-radius:99px; flex:0 0 7px; background:var(--neutral); }
+.rd-dot.rd-up { background:var(--bull); }
+.rd-dot.rd-down { background:var(--bear); }
+.rd-name { flex:1 1 auto; min-width:0; font-size:var(--fs-body); font-weight:var(--fw-semibold); }
+.rd-contrib { font-size:var(--fs-body); font-weight:var(--fw-semibold); font-variant-numeric:tabular-nums; color:var(--ink-4); }
+.rd-contrib.rd-up { color:var(--bull); }
+.rd-contrib.rd-down { color:var(--bear-text); }
+.rd-say { margin:6px 0 0 15px; font-size:var(--fs-sub); color:var(--ink-3); line-height:1.55; }
+/* 판독문 링크 행(시안 18b) */
+.rp-rdlink { display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px;
+             min-height:48px; margin-top:8px; padding:0 14px; border-radius:11px;
+             border:1px solid var(--border); background:transparent; color:var(--ink-2);
+             font:inherit; font-size:var(--fs-body); }
 .rp-cta { display:block; width:100%; min-height:48px; margin-top:4px; border-radius:11px; border:1px solid var(--border); background:transparent; color:var(--ink-4); font:inherit; font-weight:var(--fw-semibold); font-size:var(--fs-body); }
 .rp-cta[disabled] { opacity:.6; }
 

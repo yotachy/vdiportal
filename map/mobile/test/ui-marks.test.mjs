@@ -91,10 +91,11 @@ function mentionsLock(src) { return /lock/i.test(src) || /잠금|잠긴/.test(sr
 // ④의 이유 있는 예외 — "이 파일의 이 함수/변수는 잠금과 무관한 자기 SVG 를 그려도 된다".
 // EXCLUDED_LOCK_FILES 와 같은 원칙(근거 없이 빼지 않는다)이되, 파일 전체가 아니라 이름 하나만
 // 정확히 도려낸다 — 그래야 같은 파일에 나중에 진짜 자물쇠 SVG 가 몰래 추가돼도 여전히 잡힌다.
-const ALLOWED_UNRELATED_SVG = {
-  // 뒤로가기 화살표(‹) — 자물쇠와 무관, 상세 화면 상단 back 버튼 아이콘
-  "screens/report.js": ["backSvg"]
-};
+// 이제 비어 있다 — 유일하던 항목(report.js 의 backSvg)이 ui.js 의 MSUi.backIcon() 으로
+// 올라갔다. 뒤로가기 글리프를 쓰는 화면이 둘이 되면서(리포트·판독문) 자물쇠와 같은 이유로
+// 단일 출처가 필요해졌다: 화면마다 그리면 조용히 갈린다(rx 가 다른 자물쇠 두 개가 실재했다).
+// 목록 자체는 남긴다 — 다음에 정말 무관한 SVG 가 생기면 사유와 함께 여기 적는다.
+const ALLOWED_UNRELATED_SVG = {};
 
 // function NAME(...) {...} 또는 NAME = function(...) {...} 하나의 전체 범위([시작,끝))를
 // 중괄호 짝을 맞춰 찾는다. 정확한 이름으로만 매칭하므로(정규식에 이름을 그대로 박는다),
