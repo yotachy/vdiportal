@@ -357,6 +357,10 @@ test("watchlist.js 실행 — ＋Add 시트는 document.body 에 붙고, 워치�
 // 시안 14a 재스킨으로 심볼은 .wl-sym 이 아니라 .wl-meta 에 그려진다(위 = 회사명 .wl-title,
 // 아래 = "심볼[· 상태]" .wl-meta). 이 fakeStore 는 allScans() 가 항상 {} 라 rec 이 없고,
 // 상태 접미사도 안 붙어 .wl-meta 텍스트는 심볼 그대로다.
+// 시안 12a — 칩 클릭은 선택만 한다(시트가 안 닫힌다). 확인 버튼(.tp-confirm)을 눌러야
+// onChange 가 불려 실제로 담긴다(코디네이터 판정 2026-08-16, 티어 시트의 Run 버튼과 같은
+// 확인-후-실행 패턴). 마지막 단언("재렌더된 목록에 실제로 나타난다")은 그대로 강하게 둔다 —
+// 스토어에 값이 들어간 것과 화면에 보이는 것은 별개라는, 이 테스트가 원래 잡던 함정이다.
 test("watchlist.js 실행 — 종목을 고르면 시트가 닫히고, 새 심볼이 재렌더된 목록에 실제로 나타난다", () => {
   withWatchlistDom({ store: fakeStore([{ sym: "AAPL", name: "Apple" }]) }, function (root, doc) {
     MSWatchlist.render(root);
@@ -368,7 +372,13 @@ test("watchlist.js 실행 — 종목을 고르면 시트가 닫히고, 새 심�
     assert.ok(cell, "NVDA 셀이 없다");
     grid.dispatch("click", { target: cell });   // ticker-picker.js 는 grid 자신에 위임 리스너를 둔다
 
-    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "종목을 고른 뒤에도 시트가 안 닫혔다");
+    assert.ok(doc.body.querySelector(".sheet-scrim"), "칩 클릭만으로 시트가 닫혔다 — 확인 버튼을 건너뛴다");
+    var confirmBtn = doc.body.querySelector(".tp-confirm");
+    assert.ok(confirmBtn, "확인 버튼이 없다");
+    assert.strictEqual(confirmBtn.disabled, false, "고른 뒤인데 확인 버튼이 비활성이다");
+    confirmBtn.dispatch("click");
+
+    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "확인 버튼을 눌렀는데도 시트가 안 닫혔다");
     var syms = root.querySelectorAll(".wl-meta").map(function (n) { return n.textContent; });
     assert.ok(syms.indexOf("NVDA") >= 0, "새로 추가한 심볼이 재렌더된 목록에 없다: " + syms.join(","));
     assert.ok(syms.indexOf("AAPL") >= 0, "기존 종목이 재렌더 후 사라졌다: " + syms.join(","));
@@ -387,29 +397,33 @@ test("watchlist.js 실행 — 추가한 종목이 회사명을 달고 그려지�
     var grid = doc.body.querySelector(".tp-grid");
     grid.dispatch("click", { target: grid.children.filter(function (c) {
       return c.getAttribute("data-sym") === "NVDA"; })[0] });
+    // 시안 12a — 칩 클릭은 선택만 한다. 확인 버튼을 눌러야 실제로 담긴다.
+    doc.body.querySelector(".tp-confirm").dispatch("click");
 
     var added = list.filter(function (x) { return x.sym === "NVDA"; })[0];
     assert.ok(added, "NVDA 가 스토어에 안 들어갔다");
-    assert.strictEqual(added.name, "NVIDIA",
+    assert.strictEqual(added.name, "엔비디아",
       "이름이 심볼로 폴백했다 — 피커가 회사명을 안 넘겼다: " + added.name);
 
     var syms = root.querySelectorAll(".wl-meta").map(function (n) { return n.textContent; });
     var names = root.querySelectorAll(".wl-title").map(function (n) { return n.textContent; });
     var i = syms.indexOf("NVDA");
     assert.ok(i >= 0, "새 심볼이 목록에 없다");
-    assert.strictEqual(names[i], "NVIDIA", "행에 그려진 회사명이 틀렸다: " + names[i]);
+    assert.strictEqual(names[i], "엔비디아", "행에 그려진 회사명이 틀렸다: " + names[i]);
     assert.notStrictEqual(names[i], syms[i], "행이 심볼을 두 번 찍는다: " + syms[i] + " / " + names[i]);
 
-    // 회사명 검색. 사용자가 "nvidia" 를 치면 이 종목이 나와야 한다.
+    // 회사명 검색. 사용자가 "엔비디아"를 치면 이 종목이 나와야 한다.
     var WM = require("../www/watchlist-model.js");
-    assert.deepStrictEqual(WM.filter(list, { query: "nvidia", chip: "all" }).map(function (x) { return x.sym; }),
+    assert.deepStrictEqual(WM.filter(list, { query: "엔비디아", chip: "all" }).map(function (x) { return x.sym; }),
       ["NVDA"], "회사명으로 검색이 안 된다");
   });
 });
 
-// 스크림 바깥 클릭(자기 자신)과 닫기 버튼 둘 다 오버레이를 완전히 지워야 한다 — 하나만 지우고
-// document.body 에 빈 스크림이 남으면 화면 전체가 클릭을 못 받는 유령 오버레이가 된다.
-test("watchlist.js 실행 — 스크림 클릭·닫기 버튼 모두 시트를 지우고 오버레이를 안 남긴다", () => {
+// 스크림 바깥 클릭(자기 자신)과 확인 버튼 제출 둘 다 오버레이를 완전히 지워야 한다 — 하나만
+// 지우고 document.body 에 빈 스크림이 남으면 화면 전체가 클릭을 못 받는 유령 오버레이가 된다.
+// (시안 12a 는 명시적 닫기 ×버튼이 없다 — 드래그 손잡이 + 스크림 탭으로 닫는다. 그래서 이
+// 테스트의 "둘째 닫는 길"은 이제 확인 버튼 제출이다: 고르고 확인 → 시트가 닫힌다.)
+test("watchlist.js 실행 — 스크림 클릭·확인 제출 모두 시트를 지우고 오버레이를 안 남긴다", () => {
   withWatchlistDom({ store: fakeStore([{ sym: "AAPL", name: "Apple" }]) }, function (root, doc) {
     MSWatchlist.render(root);
 
@@ -421,11 +435,11 @@ test("watchlist.js 실행 — 스크림 클릭·닫기 버튼 모두 시트를 �
     assert.strictEqual(doc.body.children.length, 0, "닫은 뒤에도 document.body 에 남은 노드가 있다");
 
     root.querySelector(".wl-add").dispatch("click");
-    scrim = doc.body.querySelector(".sheet-scrim");
-    var x = scrim.querySelector(".sheet-x");
-    assert.ok(x, "닫기 버튼(×)이 없다");
-    x.dispatch("click");
-    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "닫기 버튼으로 안 닫혔다");
+    var grid = doc.body.querySelector(".tp-grid");
+    grid.dispatch("click", { target: grid.children.filter(function (c) {
+      return c.getAttribute("data-sym") === "NVDA"; })[0] });
+    doc.body.querySelector(".tp-confirm").dispatch("click");
+    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "확인 제출로 안 닫혔다");
     assert.strictEqual(doc.body.children.length, 0, "닫은 뒤에도 document.body 에 남은 노드가 있다");
   });
 });

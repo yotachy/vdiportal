@@ -196,12 +196,12 @@ test("고른 종목이 회사명을 달고 심기고, 회사명으로 검색된�
   O.seedTo(RealStore, [{ sym: "TSLA", name: P.nameOf("TSLA") }]);
   const row = RealStore.getWatchlist()[0];
   assert.strictEqual(row.sym, "TSLA");
-  assert.strictEqual(row.name, "Tesla", "이름이 심볼로 폴백했다 — 행이 심볼을 두 번 찍는다");
+  assert.strictEqual(row.name, "테슬라", "이름이 심볼로 폴백했다 — 행이 심볼을 두 번 찍는다");
   assert.notStrictEqual(row.name, row.sym, "wl-sym 과 wl-name 이 같은 글자가 된다");
 
   // 회사명 검색(watchlist-model.filter 는 it.name 을 본다). 이름을 버리면 여기서 0건이 된다.
   assert.deepStrictEqual(
-    WM.filter(RealStore.getWatchlist(), { query: "tesla", chip: "all" }).map(x => x.sym),
+    WM.filter(RealStore.getWatchlist(), { query: "테슬라", chip: "all" }).map(x => x.sym),
     ["TSLA"], "회사명으로 검색이 안 된다");
   assert.deepStrictEqual(
     WM.filter(RealStore.getWatchlist(), { query: "tsla", chip: "all" }).map(x => x.sym),
@@ -219,7 +219,7 @@ test("온보딩·종목 고르기 클래스가 style.css 에 있다", () => {
    ".ob-comb", ".ob-bar", ".ob-nav", ".ob-over", ".ob-cap",
    ".ob-grant", ".ob-retry", ".ob-costs", ".ob-cost-row", ".ob-cost-name", ".ob-cost-num",
    ".ob-risk", ".ob-agree", ".ob-agree-txt",
-   ".tp", ".tp-grid", ".tp-cell", ".tp-sym", ".tp-name", ".tp-free", ".tp-msg",
+   ".tp", ".tp-grid", ".tp-chip", ".tp-chip-label", ".tp-free", ".tp-msg",
    ".tp-input", ".tp-add"].forEach(function (c) {
     assert.ok(new RegExp("\\" + c + "(?![-\\w])").test(CSS), c + " 규칙이 없다");
   });
@@ -594,8 +594,10 @@ test("4단계: 기존 워치리스트 종목은 잠기고, 그 위에 자유롭�
     var msg = grid.parentNode.querySelector(".tp-msg");
     assert.strictEqual(msg.textContent, S.t.tpKept, "왜 안 빠지는지 말하지 않았다");
 
-    pressCell(grid, "META");   // 상한이 없어야 4종 위에 더 얹을 수 있다
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "META", "MSFT", "NVDA"],
+    // TSLA — CURATED 8종(시안 12a) 중 이 4종 프리셋 밖에 있는 심볼. 상한이 없어야 그
+    // 위에 더 얹을 수 있다(예전엔 CURATED 12종 중 하나였던 META 로 같은 것을 확인했다).
+    pressCell(grid, "TSLA");
+    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA", "TSLA"],
       "상한에 걸려 더 넣지 못했다 — 기존 목록이 있으면 상한을 걸지 않는다");
     assert.notStrictEqual(grid.parentNode.querySelector(".tp-msg").textContent, S.t.tpFull);
     assert.strictEqual(root.querySelector(".ob-next").disabled, false);
@@ -606,18 +608,19 @@ test("4단계: 기존 워치리스트 종목은 잠기고, 그 위에 자유롭�
 });
 
 // 재진입 함정(리뷰 Important 1 의 새 규칙판): lockedSyms 를 매번 다시 재면 "지금 고른 것"이
-// "원래 갖고 있던 것"으로 둔갑한다 — 4단계에서 새로 더한 META 까지 잠겨버려 다시 뺄 수 없게 된다.
+// "원래 갖고 있던 것"으로 둔갑한다 — 4단계에서 새로 더한 TSLA 까지 잠겨버려 다시 뺄 수 없게 된다.
+// (예전엔 CURATED 12종 중 하나였던 META 로 같은 것을 확인했다 — 시안 12a 의 8종엔 없다.)
 test("4단계: 재진입해도 잠금은 원래 워치리스트에만 걸린다 — 새로 더한 것은 뺄 수 있다", () => {
   withDom((root) => {
     toStep4(root);
     var grid = root.querySelector(".tp-grid");
-    pressCell(grid, "META");                  // 새로 더한다(잠기면 안 된다)
+    pressCell(grid, "TSLA");                  // 새로 더한다(잠기면 안 된다)
     root.querySelector(".ob-back").click();   // 4 -> 3
     root.querySelector(".ob-next").click();   // 3 -> 4, 다시 그려짐
     grid = root.querySelector(".tp-grid");
-    assert.ok(onSyms(grid).indexOf("META") >= 0, "새로 더한 종목이 재진입에서 사라졌다");
-    pressCell(grid, "META");
-    assert.ok(onSyms(grid).indexOf("META") < 0,
+    assert.ok(onSyms(grid).indexOf("TSLA") >= 0, "새로 더한 종목이 재진입에서 사라졌다");
+    pressCell(grid, "TSLA");
+    assert.ok(onSyms(grid).indexOf("TSLA") < 0,
       "새로 더한 종목까지 잠겼다 — lockedSyms 를 재진입마다 다시 재고 있다");
     pressCell(grid, "AAPL");
     assert.ok(onSyms(grid).indexOf("AAPL") >= 0, "원래 워치리스트 종목의 잠금이 풀렸다");
@@ -630,7 +633,7 @@ test("4단계: 프리셋이 3종 이하면 상한은 그대로 3이다", () => {
   withDom((root) => {
     toStep4(root);
     var grid = root.querySelector(".tp-grid");
-    pressCell(grid, "GOOGL");   // AAPL·NVDA·MSFT 3종이 이미 켜져 있으니 4번째는 상한 초과다
+    pressCell(grid, "005930");   // AAPL·NVDA·MSFT 3종이 이미 켜져 있으니 4번째는 상한 초과다(삼성전자, CURATED 8종 중 하나)
     assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"],
       "3종 프리셋인데 상한이 3보다 커졌다");
     var msg = grid.parentNode.querySelector(".tp-msg");
@@ -723,11 +726,11 @@ test("4단계: 기존 목록은 격자에 칸이 없어도 완료까지 살아�
     cb.checked = true;
     cb.listeners.change[0]({});
     root.querySelector(".ob-next").click();
-    // TSLA 는 CURATED 심볼이라 표준 이름("Tesla")을 심는다 — 워치리스트에 저장된 다른
+    // TSLA 는 CURATED 심볼이라 표준 이름("테슬라")을 심는다 — 워치리스트에 저장된 다른
     // 표기("Tesla, Inc.")로 덮이지 않는다. PLTR 은 CURATED 밖이라 프리셋이 준 워치리스트
     // 이름("Palantir")을 그대로 싣는다(ticker-picker.js 의 resolved 시딩). 심볼이 빠지는
     // 것만은 안 된다.
-    assert.deepStrictEqual(added, [["TSLA", "Tesla"], ["PLTR", "Palantir"]],
+    assert.deepStrictEqual(added, [["TSLA", "테슬라"], ["PLTR", "Palantir"]],
       "기존 종목/이름이 완료에서 달라졌다: " + JSON.stringify(added));
   }, store);
 });
@@ -772,7 +775,7 @@ test("5단계: 체크 전엔 완료가 막히고, 체크 후 완료가 고른 �
     fwd.click();
     // 심볼뿐 아니라 이름까지 본다 — 이름이 빈 채로 가면 store.js 가 심볼로 폴백해
     // 워치리스트 행이 심볼을 두 번 찍고 회사명 검색에서 빠진다(picker 의 CURATED 이름).
-    assert.deepStrictEqual(added, [["NVDA", "NVIDIA"]], "심긴 종목/이름이 고른 것과 다르다: " + JSON.stringify(added));
+    assert.deepStrictEqual(added, [["NVDA", "엔비디아"]], "심긴 종목/이름이 고른 것과 다르다: " + JSON.stringify(added));
     assert.strictEqual(onboardedArg, "terms-2026-08", "약관 버전이 정확히 안 남았다: " + onboardedArg);
     assert.strictEqual(doneCalled, true, "완료 콜백이 안 불렸다");
   }, store);

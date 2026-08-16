@@ -12,13 +12,15 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
+  // 시안 12a 그대로 — 국내 2종을 맨 앞에 둔다(한국 사용자가 먼저 보는 자리). 예전 목록(미국
+  // 기술주 12종)은 "한국 우선" 이라는 시안의 의도와 반대 방향이었다 — 코디네이터 판정(2026-08-16)
+  // 으로 이 여덟 개로 교체했다. 이 목록은 온보딩 4단계도 함께 쓴다(같은 컴포넌트) — 그 화면의
+  // 칩도 이 여덟 개로 바뀌는 것은 부작용이 아니라 의도된 결과다.
   var CURATED = [
-    { sym: "AAPL", name: "Apple" },        { sym: "NVDA", name: "NVIDIA" },
-    { sym: "MSFT", name: "Microsoft" },    { sym: "GOOGL", name: "Alphabet" },
-    { sym: "AMZN", name: "Amazon" },       { sym: "META", name: "Meta" },
-    { sym: "TSLA", name: "Tesla" },        { sym: "AMD", name: "AMD" },
-    { sym: "AVGO", name: "Broadcom" },     { sym: "NFLX", name: "Netflix" },
-    { sym: "SPY", name: "S&P 500 ETF" },   { sym: "QQQ", name: "Nasdaq 100 ETF" }
+    { sym: "005930", name: "삼성전자" }, { sym: "000660", name: "SK하이닉스" },
+    { sym: "NVDA", name: "엔비디아" },    { sym: "AAPL", name: "애플" },
+    { sym: "TSLA", name: "테슬라" },      { sym: "035720", name: "카카오" },
+    { sym: "005380", name: "현대차" },    { sym: "QQQ", name: "QQQ" }
   ];
 
   function norm(s) { return String(s == null ? "" : s).trim().toUpperCase(); }
@@ -63,6 +65,10 @@
     var el = MSUi.el("div", "tp");
     var grid = MSUi.el("div", "tp-grid");
     var msg = MSUi.el("p", "tp-msg");
+    // 시안 12a 의 제목·"많이 보는 종목" 라벨·자물쇠 설명문·확인 버튼은 단일 모드(워치리스트
+    // ＋Add) 전용 chrome 이다. 온보딩 4단계(multi)는 이미 자기 제목(obH4/obSub4)을 갖고
+    // 있어 여기서 또 그리면 두 벌이 된다 — 그 화면은 그대로 grid+검색+안내만 받는다.
+    var chrome = !multi;
 
     // 직접 입력으로 서버가 확인해 준 이름. CURATED 밖 심볼의 이름은 여기밖에 없다 —
     // loadTicker 응답을 여기서 안 붙잡으면 그 종목은 영영 이름 없이 심긴다.
@@ -93,30 +99,32 @@
     // 모두 addTicker(sym, "") 로 이름을 버렸다.
     function fire() { if (o.onChange) o.onChange(sel.slice(), items()); }
 
+    // 시안 12a 는 칩 한 줄에 이름 하나만 쓴다(심볼을 따로 안 찍는다) — 잠긴 칩은 이름 앞에
+    // 공용 자물쇠(MSUi.lockIcon, ui-marks.test.mjs 가 직접 그리기를 막는다)를 붙인다.
+    function chip(sym, label) {
+      var isLk = isLocked(sym);
+      var b = MSUi.el("button", "tp-chip" + (sel.indexOf(sym) >= 0 ? " is-on" : "") + (isLk ? " is-locked" : ""));
+      b.type = "button";
+      b.setAttribute("data-sym", sym);
+      if (isLk) {
+        var ic = MSUi.el("span", "tp-chip-lock");
+        ic.innerHTML = MSUi.lockIcon();
+        b.appendChild(ic);
+      }
+      b.appendChild(MSUi.el("span", "tp-chip-label", label));
+      return b;
+    }
+
     function paint() {
       grid.innerHTML = "";
-      CURATED.forEach(function (x) {
-        var b = MSUi.el("button", "tp-cell" + (sel.indexOf(x.sym) >= 0 ? " is-on" : "") + (isLocked(x.sym) ? " is-locked" : ""));
-        b.type = "button";
-        b.setAttribute("data-sym", x.sym);
-        b.appendChild(MSUi.el("span", "tp-sym", x.sym));
-        b.appendChild(MSUi.el("span", "tp-name", x.name));
-        grid.appendChild(b);
-      });
-      // CURATED 밖에서 본 적 있는 심볼도 전부 셀로 그린다(offSeen — 지금 선택 여부와 무관하게) —
-      // sel 만 보고 그리면 selected()는 참인데 격자엔 아무 셀도 없어 "고른 게 하나도 없어 보이는"
+      CURATED.forEach(function (x) { grid.appendChild(chip(x.sym, x.name)); });
+      // CURATED 밖에서 본 적 있는 심볼도 전부 칩으로 그린다(offSeen — 지금 선택 여부와 무관하게) —
+      // sel 만 보고 그리면 selected()는 참인데 격자엔 아무 칩도 없어 "고른 게 하나도 없어 보이는"
       // 화면이 되고(온보딩 4단계 프리셋이 워치리스트 전체가 CURATED 밖일 때 실측), sel 만 보고
-      // "선택된 것만" 그리면 끄는 순간 셀이 통째로 사라져 다시 켤 방법이 없어진다(리뷰 지적 —
-      // 되돌리려면 loadTicker 재왕복이 필요했고 오프라인이면 그마저 안 됐다). curated 12종
+      // "선택된 것만" 그리면 끄는 순간 칩이 통째로 사라져 다시 켤 방법이 없어진다(리뷰 지적 —
+      // 되돌리려면 loadTicker 재왕복이 필요했고 오프라인이면 그마저 안 됐다). curated 8종
       // 순서는 그대로 두고 뒤에 이어붙인다(offSeen 순서 = 프리셋/추가로 처음 본 순서).
-      offSeen.forEach(function (s) {
-        var b = MSUi.el("button", "tp-cell" + (sel.indexOf(s) >= 0 ? " is-on" : "") + (isLocked(s) ? " is-locked" : ""));
-        b.type = "button";
-        b.setAttribute("data-sym", s);
-        b.appendChild(MSUi.el("span", "tp-sym", s));
-        b.appendChild(MSUi.el("span", "tp-name", nameFor(s) || s));
-        grid.appendChild(b);
-      });
+      offSeen.forEach(function (s) { grid.appendChild(chip(s, nameFor(s) || s)); });
     }
 
     // toggle() 이 상한에서 항목을 무시하면 next.length === sel.length 인데 원래 없던
@@ -130,8 +138,11 @@
     // 만드는 대신(실수로 자기 목록을 날릴 수 있다) 해제 자체를 막고 이유를 말한다.
     function isLocked(s) { return locked.indexOf(s) >= 0; }
 
+    // 잠긴 심볼(이미 담은 종목·이미 고른 것)은 어느 모드에서도 선택할 수 없다 — 예전엔
+    // multi 모드에서만 막았는데, 단일 모드(워치리스트 ＋Add, 시안 12a)도 이미 담은 칩을
+    // 자물쇠로만 보여주고 누르면 이유를 말해야 하는 건 같다.
     function applySelection(sym) {
-      if (multi && isLocked(sym) && sel.indexOf(sym) >= 0) {
+      if (isLocked(sym)) {
         msg.textContent = Str ? Str.t.tpKept : "";
         return false;
       }
@@ -146,13 +157,25 @@
       return true;
     }
 
+    var confirmBtn = null;   // 단일 모드 전용(chrome 블록에서 만든다) — 초기값 null 로 settle() 이 안전하다
+
+    // 시안 12a — 단일 모드는 칩을 눌러도 곧바로 담기지 않는다. "확인" 버튼을 눌러야 onChange 가
+    // 불린다(티어 시트의 Run 버튼과 같은 확인-후-실행 패턴, 코디네이터 판정 2026-08-16). 멀티
+    // 모드(온보딩)는 예전 그대로 토글마다 즉시 onChange 가 불린다 — 그 화면은 이미 자기
+    // "계속" 버튼을 갖고 있어 두 번째 확인 단계를 얹으면 그냥 단계 하나가 늘어날 뿐이다.
+    function settle() {
+      paint();
+      if (multi) { fire(); return; }
+      if (confirmBtn) confirmBtn.disabled = sel.length === 0;
+    }
+
     grid.addEventListener("click", function (e) {
       var t = e.target;
       while (t && t !== grid && !t.getAttribute("data-sym")) t = t.parentNode;
       if (!t || t === grid) return;
       var sym = t.getAttribute("data-sym");
       if (!applySelection(sym)) return;
-      paint(); fire();
+      settle();
     });
 
     var row = MSUi.el("div", "tp-free");
@@ -185,7 +208,7 @@
         if (data && data.name) resolved[sym] = data.name;
         seeOff(sym);   // 새로 확인된 CURATED 밖 심볼도 앞으로는 셀로 남는다(꺼도 안 사라진다)
         if (!applySelection(sym)) return;
-        paint(); fire();
+        settle();
       })["catch"](function (err) {
         // 오타 구제 — 서버가 notfound 일 때만 후보를 준다(api.js, watchlist.js 와 같은 경로)
         if (err && err.notfound && err.suggest && err.suggest.length) {
@@ -200,9 +223,35 @@
     input.addEventListener("keydown", function (e) { if (e.key === "Enter") tryAdd(); });
 
     paint();
+
+    // ── 시안 12a chrome(단일 모드 전용) ──────────────────────────────────────────
+    if (chrome) el.appendChild(MSUi.el("p", "tp-title", Str ? Str.t.tpTitle : ""));
+    if (chrome) el.appendChild(MSUi.el("p", "tp-curated-label", Str ? Str.t.tpCuratedLabel : ""));
     el.appendChild(grid);
     el.appendChild(row);
     el.appendChild(msg);
+    if (chrome) {
+      // "이미 담은 종목 N개" — 실제로 격자에 그려진(=화면에 보이는) 잠긴 칩만 센다. locked 로
+      // 넘어온 심볼 중 CURATED 밖이면서 offSeen 에도 없는 것은 애초에 칩으로 안 그려지므로,
+      // 총 locked.length 를 그대로 쓰면 화면에 안 보이는 것까지 세는 거짓말이 된다.
+      var curSet = {};
+      CURATED.forEach(function (x) { curSet[x.sym] = 1; });
+      offSeen.forEach(function (s) { curSet[s] = 1; });
+      var lockedVisible = locked.filter(function (s) { return curSet[s]; });
+      if (lockedVisible.length) {
+        var note = String(Str ? Str.t.tpLockNote : "").replace("{n}", lockedVisible.length);
+        el.appendChild(MSUi.el("p", "tp-lock-note", note));
+      }
+      confirmBtn = MSUi.el("button", "btn btn-primary tp-confirm", Str ? Str.t.tpConfirm : "");
+      confirmBtn.type = "button";
+      confirmBtn.disabled = sel.length === 0;
+      // 확인 버튼이 담기를 실제로 확정한다(시안 12a — 칩 클릭은 선택만, 이 버튼이 onChange 를
+      // 부른다). 잠금·상한처럼 disabled 여도 이벤트 리스너 자체는 살아 있을 수 있어 방어적으로
+      // 한 번 더 막는다.
+      confirmBtn.addEventListener("click", function () { if (!confirmBtn.disabled) fire(); });
+      el.appendChild(confirmBtn);
+    }
+
     return { el: el, selected: function () { return sel.slice(); }, selectedItems: items };
   }
 

@@ -34,7 +34,6 @@
     wlNoMatch: "일치하는 종목이 없습니다.",        // 검색·칩 결과가 비었을 때
     wlEmpty: "아직 등록된 종목이 없습니다.\n종목을 추가해 보세요.",
     wlAdd: "＋ 종목 추가",
-    addTitle: "Add a ticker",                    // ＋Add 시트 머리 — 온보딩 4단계와 같은 피커를 연다(이번 범위 밖)
     wlScan: "스캔",
     wlScanning: "스캔 중 ",                        // + "done/total" 이 뒤에 붙는다
     // 읽음 상태 2종(시안 14a) — 안 읽음(새 판정)/읽음. "오래됨"은 이번에 안 넣는다: 시안이
@@ -236,38 +235,59 @@
     walNoCashValue: "스쿱은 현금 가치가 없고 양도·환불되지 않습니다. 예측은 약속이 아닙니다.",
     walEngine: "분석 엔진 v",
 
-    // 단계 선택 시트 (Phase 8a)
-    tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Deep", tsCustom: "Pro",
-    tsBasicDesc: "5 indicators · daily only", tsFullDesc: "All 32 indicators · daily, weekly, monthly",
-    tsCustomDesc: "All 32 + your weights",
-    tsDone: "Free · done", tsPopular: "POPULAR", tsSoon: "Coming soon",
-    tsFullPreview: "32 · D·W·M",                 // 단계 행 우측은 '무엇을 읽나'를 말한다(잔량 아님)
-    tsCostsLead: "Costs ",                       // 선택한 단계 아래 비용 한 줄 — "Costs 3 Scoops"
-    tsRun: "Run ", tsCost: " Scoops", tsShort: "Not enough Scoops. Come back tomorrow for +1.",
-    tsRunning: "Running…", tsFailed: "Analysis failed — your Scoops were returned.",
-    tsFailedNoRefund: "Analysis failed. We could not confirm your Scoops were returned — please check your balance.",
-    tsSpendFailed: "Could not reach your wallet. Nothing was charged — please try again.",
-    // network·server-error·busy — 응답을 못 받았을 뿐 서버는 처리했을 수 있다(I-H). "Nothing was
-    // charged" 라고 말하면 거짓일 수 있어 tsSpendFailed 와 문구를 가른다. 재시도는 안전하다 —
+    // 단계 선택 시트 (시안 6b, 2026-08-16 재스킨 — Phase 8a 최초 작성)
+    tsTitle: "얼마나 정밀하게?",
+    // 부제 접미사 — o.name(또는 sym) 뒤에 그대로 이어붙인다("애플" + 이 값).
+    tsResultsKept: " · 결과는 계속 보관됩니다",
+    tsBasic: "기본분석",
+    // tsFull 은 이번 라운드는 예외적으로 영어다 — walDeep·rpTierFull·obCostFull 과 한 이름을
+    // 공유해야 하는데(strings.test.mjs "한 단계는 한 이름으로 불린다") 그 셋은 태스크 8 소관이라
+    // 지금 혼자 옮기면 넷의 이름이 갈린다. 넷을 한 번에 옮기는 결정은 태스크 8 로 넘겼다
+    // (코디네이터 판정 2026-08-16). 그래서 "Deep 실행"처럼 버튼 한 곳만 영·한이 섞인다 —
+    // 시안 6b 원문("심화분석 실행")과 다른 건 이 이유 하나뿐이고 의도된 것이다.
+    tsFull: "Deep", tsCustom: "전문분석",
+    tsBasicDesc: "도구 5 · 방향과 범위",
+    // 두 줄(시안 6b 원문에 줄바꿈이 있다) — .sheet-tier-desc 가 white-space:pre-line 이다.
+    tsFullDesc: "도구 32 · 일·주·월\n중심값 · 오차 · 확률 · 적중 이력",
+    tsCustomDesc: "도구 32 · 지표별 가중치 직접 지정",
+    tsDone: "받음", tsPopular: "가장 많이 씀", tsSoon: "곧 지원 예정",
+    tsScoopUnit: "스쿱",                          // 심화분석 행의 값 아래 단위 라벨("3" + 이 값)
+    tsSpendLead: "쓰면 ",                         // 비용 한 줄 왼쪽 — "쓰면 " + "12 → 9"
+    tsRun: " 실행",                               // 버튼 — tsFull(위 주석) + 이 값
+    tsShort: "스쿱이 부족합니다. 내일 출석하면 +1개를 더 받을 수 있습니다.",
+    tsRunning: "실행 중…", tsFailed: "분석에 실패했습니다 — 스쿱은 환불됐습니다.",
+    tsFailedNoRefund: "분석에 실패했습니다. 환불 여부를 확인하지 못했습니다 — 잔량을 확인해 주세요.",
+    tsSpendFailed: "지갑에 연결할 수 없습니다. 차감되지 않았습니다 — 다시 시도해 주세요.",
+    // network·server-error·busy — 응답을 못 받았을 뿐 서버는 처리했을 수 있다(I-H). "차감되지
+    // 않았다"고 말하면 거짓일 수 있어 tsSpendFailed 와 문구를 가른다. 재시도는 안전하다 —
     // 클라이언트가 같은 idem 을 재사용해 서버 멱등이 잡는다.
-    tsSpendFailedUnknown: "Could not confirm your wallet. If you were charged, retrying is safe — please try again.",
+    tsSpendFailedUnknown: "지갑 상태를 확인하지 못했습니다. 차감됐더라도 다시 시도해도 안전합니다 — 다시 시도해 주세요.",
 
     // 지갑을 읽을 수 없을 때(오프라인 등) — 잔량을 0 으로 그리면 거짓 정보다(SPEC §1).
     // walUnavailable 은 wallet.js 전용(태스크 6 범위) — tsUnavailable 은 다른 화면(단계 선택
     // 시트) 소관이라 이름을 맞출 의무가 없다(walDeep 류의 소비자 공유 키가 아니다).
     walUnavailable: "지갑을 확인할 수 없습니다 — 연결을 확인해 주세요.",
-    tsUnavailable: "Wallet unavailable. Check your connection and try again.",
+    tsUnavailable: "지갑을 확인할 수 없습니다 — 연결을 확인한 뒤 다시 시도해 주세요.",
 
-    // 종목 고르기 (ticker-picker.js) — 온보딩 4단계와 워치리스트 ＋Add 가 공유하는 컴포넌트
-    tpPlaceholder: "Symbol (e.g. TSLA)",
-    tpAdd: "Add",
-    tpChecking: "Checking…",
-    tpNotFound: "We could not find that symbol.",
-    tpDidYouMean: "Did you mean: ",
-    tpFull: "That is all the slots for now.",
-    tpUnavailable: "Search is unavailable right now.",
-    tpAlreadyPicked: "You already picked that one.",
-    tpKept: "This one is already in your watchlist and stays there.",
+    // 종목 고르기 (ticker-picker.js, 시안 12a) — 온보딩 4단계와 워치리스트 ＋Add 가 공유하는
+    // 컴포넌트. tpTitle·tpCuratedLabel·tpLockNote·tpConfirm 은 단일 모드(＋Add) 전용 chrome.
+    tpTitle: "어떤 종목을 볼까요?",
+    tpCuratedLabel: "많이 보는 종목",
+    // {n} = 실제로 화면에 잠금으로 보이는 칩 수. "지우면 슬롯이 돌아옵니다"(시안 원문 후반)는
+    // 뺐다 — 슬롯 상한·과금이 실제로 구현돼 있지 않아, 그 문장을 그대로 옮기면 없는 제도를
+    // 있다고 말하는 셈이다(코디네이터 판정 2026-08-16, 종목 슬롯 안내 줄을 통째로 뺀 것과
+    // 같은 이유).
+    tpLockNote: "자물쇠는 이미 담은 종목 {n}개입니다.",
+    tpConfirm: "종목을 고르세요",
+    tpPlaceholder: "종목명 또는 티커",
+    tpAdd: "추가",
+    tpChecking: "확인하는 중…",
+    tpNotFound: "해당 종목을 찾을 수 없습니다.",
+    tpDidYouMean: "혹시 이 종목인가요: ",
+    tpFull: "지금은 더 고를 수 없습니다.",
+    tpUnavailable: "지금은 검색을 쓸 수 없습니다.",
+    tpAlreadyPicked: "이미 고른 종목입니다.",
+    tpKept: "이미 워치리스트에 있어 그대로 유지됩니다.",
 
     // 온보딩 (screens/onboarding.js)
     obBack: "Back", obNext: "Continue",

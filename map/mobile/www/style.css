@@ -95,10 +95,10 @@ body {
 .wl-scan-ico { display:flex; }
 .wl-scan[disabled] { opacity:.6; }
 
-/* 목록은 화면 가장자리에 더 붙는다 — 시안 14a 는 좌우 14px(리포트·지갑은 20px 그대로).
-   .scr 의 20px 를 상쇄해 행과 구분선이 폭을 다 쓰게 한다. 6px×2 가 이름 칸의 잘림을 줄인다. */
-.wl-rows { margin:0 -6px; }
-.wl-rows .wl-row { padding:0 6px; }
+/* 목록 좌우 인셋 — 시안 14a 는 20px, 리포트·지갑과 동일(2026-08-16 수정: 예전 `margin:0 -6px`
+   가 .scr 의 20px 중 6px 를 상쇄해 실제 인셋이 14px 로 새 있었다 — 재스킨 전부터 있던 결함이라
+   눈에 안 띄었을 뿐, 이 화면만 다른 폭이었다. .wl-add 등 형제 요소는 애초에 이 상쇄를 안 받아
+   20px 그대로였으니 이 줄을 지우는 쪽이 화면 전체와 맞는다). */
 /* 구분선은 border-top 이다(시안 14a) — 마지막 행 아래로 선이 내려가 리스트가 닫혀 보이는 것을 막는다. */
 .wl-row { display:flex; align-items:center; gap:12px; height:64px; border-top:1px solid var(--hairline); }
 /* 읽음 상태 점 — 방향(bull/bear)이 아니라 "이 판정을 봤는가"를 그린다(시안 14a). 목록은
@@ -384,35 +384,56 @@ body {
 /* 엔진 버전 — 고지문 아래 한 줄. 사실 표기라 고지문보다 더 물러서 있어야 한다(구분선 없음). */
 .wal-engine { margin-top:6px; font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
 
-/* ===== 단계 선택 바텀시트(시안 7a) ===== */
+/* ===== 바텀시트 공통 골격(시안 12a·6b — 두 시트가 이 셋을 함께 쓴다: tier-sheet.js,
+   screens/watchlist.js openAddSheet) ===== */
 .sheet-scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; z-index:20; }
-.sheet { width:100%; max-height:80vh; overflow-y:auto; background:var(--sheet);
-         border-top:1px solid var(--hairline-2); border-radius:16px 16px 0 0; padding:18px 20px calc(20px + env(safe-area-inset-bottom)); }
-.sheet-tier { display:flex; align-items:center; gap:12px; width:100%; min-height:64px; padding:10px 0;
-              border:0; border-bottom:1px solid var(--hairline); background:none; color:inherit; font:inherit; text-align:left; }
+/* 상단 라운드 28px(시안 고정값) + 드래그 손잡이. 두 시트 모두 같은 손잡이를 쓰므로 .sheet
+   자신이 ::before 로 그린다 — 그려야 할 곳마다 다시 그리면 한쪽만 잊기 쉽다. */
+.sheet { position:relative; width:100%; max-height:80vh; overflow-y:auto; background:var(--sheet);
+         border-top:1px solid var(--hairline-2); border-radius:28px 28px 0 0;
+         padding:30px 20px calc(22px + env(safe-area-inset-bottom)); }
+.sheet::before { content:""; position:absolute; top:12px; left:50%; transform:translateX(-50%);
+                  width:38px; height:4px; border-radius:99px; background:var(--border-strong); }
+
+/* 시트 머리 — 큰 제목 + 부제 두 줄(시안 12a·6b 공통 패턴). 잔량 필은 더 이상 여기 없다 —
+   심화분석 행 자체가 값을 보여주고, 잔량 대조는 costLine("쓰면 12 → 9")의 몫이다. */
+.sheet-head { margin-bottom:20px; }
+.sheet-title { margin:0; font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+.sheet-subtitle { margin:6px 0 0; font-size:var(--fs-sub); color:var(--ink-5); }
+
+/* 단계 카드 3장(시안 6b) — 목록형 대신 각자 배경을 가진 카드다. 선택·강조는 배경·테두리·
+   글자색으로만 한다(좌측 세로 라인 금지, 프로젝트 전역 규칙). */
+.sheet-tiers { display:flex; flex-direction:column; gap:9px; margin:0 0 20px; }
+.sheet-tier { display:flex; align-items:center; gap:14px; width:100%; min-height:64px; padding:16px 18px;
+              border:0; border-radius:20px; background:var(--steel-soft); color:inherit; font:inherit; text-align:left; }
 .sheet-tier-id { flex:1 1 auto; min-width:0; }
-.sheet-tier-name { display:flex; align-items:center; gap:7px; font-size:var(--fs-body); font-weight:700; }
-.sheet-tier-desc { font-size:var(--fs-caption); color:var(--ink-5); margin-top:3px; }
-/* 선택 표시는 배경으로만 — 좌측 세로 라인 금지 */
-.sheet-tier.on { background:var(--steel-soft); }
-.sheet-tier.is-off { opacity:.55; }
-.sheet-pop { padding:2px 6px; border-radius:4px; background:var(--gold-soft); color:var(--gold); font-size:var(--fs-caption); font-weight:700; letter-spacing:.06em; }
-.sheet-preview { flex:0 0 auto; font-size:var(--fs-sub); color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.sheet-tier-name { display:flex; align-items:center; gap:8px; }
+.sheet-tier-name-txt { font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); }
+.sheet-tier-desc { font-size:var(--fs-sub); color:var(--ink-5); margin-top:6px; line-height:1.4; white-space:pre-line; }
+/* 기본(steel) — 이미 무료로 받은 것, 아무 것도 안 산다. */
+.sheet-tier.tier-basic .sheet-tier-name-txt { color:var(--steel); }
+/* 심화(gold) — 지금 살 수 있는 단 하나, 골드 테두리로 눈에 띈다. */
+.sheet-tier.tier-full { background:var(--gold-soft); border:1.5px solid var(--gold); padding:14.5px 16.5px; }
+.sheet-tier.tier-full .sheet-tier-name-txt { font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); color:var(--ink); }
+/* 전문(platinum) — 이번 라운드는 잠금만(P2 가 연다), 자물쇠+"곧 지원 예정"으로 끝난다. */
+.sheet-tier.tier-custom .sheet-tier-name-txt { color:var(--platinum); }
+.sheet-pop { padding:2px 8px; border-radius:99px; background:var(--gold); color:var(--gold-ink); font-size:var(--fs-caption); font-weight:800; }
+.sheet-tier-done { flex:0 0 auto; font-size:var(--fs-sub); font-weight:700; color:var(--steel); }
+.sheet-tier-price { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.sheet-tier-price-num { font-size:var(--fs-figure); font-weight:var(--fw-figure); letter-spacing:var(--ls-figure);
+                         color:var(--gold); font-variant-numeric:tabular-nums; }
+.sheet-tier-price-unit { font-size:var(--fs-caption); font-weight:600; color:var(--gold); }
+.sheet-tier-locked { flex:0 0 auto; display:flex; align-items:center; gap:6px; color:var(--ink-5); font-size:var(--fs-caption); }
+.sheet-tier-lock-ic { display:flex; }
 .sheet-short { font-size:var(--fs-caption); color:var(--ink-5); margin:12px 0 0; line-height:1.5; }
-/* 시트 머리 — 제목 + 잔량 필(시안 7a). 잔량이 여기 서 있어야 "얼마 있고 얼마 쓰는지"가 읽힌다. */
-.sheet-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-.sheet-title { flex:1; font-size:var(--fs-section); font-weight:700; letter-spacing:-.01em; }
-/* 비용 한 줄 — 왼쪽이 본문(Costs 3 Scoops), 오른쪽 "5 → 2" 는 부차 표기다(시안 7a 배치). */
-.sheet-cost { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:9px 2px 4px; }
+/* 비용 한 줄 — 왼쪽 "쓰면 12 → 9"(본문), 오른쪽 "최대 20"(부차, 시안 6b 배치). */
+.sheet-cost { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:0 2px 4px; }
 .sheet-cost-txt { font-size:var(--fs-sub); font-weight:600; color:var(--ink-2); }
-.sheet-cost-pv { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
+.sheet-cost-pv { font-size:var(--fs-sub); font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; margin-left:4px; }
+.sheet-cost-cap { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
 
-.sheet-run { width:100%; margin-top:16px; }
+.sheet-run { width:100%; margin-top:16px; background:var(--action); color:var(--gold-ink); }
 .sheet-run[disabled] { opacity:.5; }
-
-/* 워치리스트 ＋Add 시트(screens/watchlist.js openAddSheet) — 같은 .sheet-scrim/.sheet/.sheet-head/
-   .sheet-title 를 재사용하고, 명시적 닫기 버튼만 새로 얹는다(스크림 탭으로도 닫힌다). */
-.sheet-x { background:none; border:0; color:var(--ink-5); font-size:var(--fs-title); line-height:1; padding:2px 6px; }
 
 /* ===== 2단 (폴드 펼침) =====
    미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,
@@ -495,32 +516,42 @@ body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
 .ob-nav .ob-back { flex:0 0 96px; }
 .ob-next[disabled] { opacity:.45; }
 
-/* ===== 종목 고르기 (ticker-picker.js) =====
-   온보딩 4단계(다중)와 워치리스트 ＋Add(단일)가 같은 마크업을 쓴다.
+/* ===== 종목 고르기 (ticker-picker.js, 시안 12a) =====
+   온보딩 4단계(다중)와 워치리스트 ＋Add(단일)가 같은 그리드·검색 마크업을 쓴다. 제목·
+   "많이 보는 종목" 라벨·자물쇠 설명문·확인 버튼은 단일 모드(＋Add) 전용 chrome 이다
+   (온보딩은 자기 제목을 이미 갖고 있다 — ticker-picker.js 의 chrome 분기 참고).
    선택 표시는 배경 + 골드 테두리다 — 좌측 세로 라인 금지. */
-.tp { margin-top:18px; }
-.tp-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
-.tp-cell { display:flex; flex-direction:column; align-items:flex-start; gap:3px; min-height:52px;
-           padding:9px 10px; border:1px solid var(--border); border-radius:10px;
-           background:var(--sheet); color:var(--ink); font:inherit; text-align:left; }
-.tp-cell.is-on { background:var(--gold-soft); border-color:var(--gold); }
-.tp-sym { font-size:var(--fs-body); font-weight:700; letter-spacing:-.01em; }
-.tp-cell.is-on .tp-sym { color:var(--gold); }
-/* 잠긴 셀 = 이미 워치리스트에 있는 종목. 켜진 상태를 유지하되 누를 수 없음을 커서와 채도로
-   알린다. 좌측 세로 라인 금지 규칙에 따라 배경·색만 쓴다(테두리·마커 추가 없음). */
-.tp-cell.is-locked { cursor:default; }
-.tp-cell.is-locked .tp-name { opacity:.66; }
-.tp-name { font-size:var(--fs-caption); color:var(--ink-5); max-width:100%; overflow:hidden;
-           white-space:nowrap; text-overflow:ellipsis; }
+.tp { margin-top:2px; }
+.tp-title { margin:0 0 6px; font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+.tp-curated-label { margin:18px 0 10px; font-size:var(--fs-caption); font-weight:700; letter-spacing:.03em; color:var(--ink-5); }
+
+/* 칩 그리드 — 시안 12a: 검색창이 아니라 이 칩들이 먼저 온다(초심자는 티커를 모른다).
+   한 줄 pill, 한 겹 텍스트(심볼을 따로 안 찍는다) — 잠긴 칩만 공용 자물쇠가 이름 앞에 붙는다. */
+.tp-grid { display:flex; flex-wrap:wrap; gap:7px; }
+.tp-chip { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:11px 15px;
+           border:0; border-radius:13px; background:var(--track); color:var(--ink-2); font:inherit;
+           font-size:var(--fs-sub); font-weight:600; }
+.tp-chip.is-on { background:var(--gold-soft); color:var(--gold); }
+/* 잠긴 칩 = 이미 워치리스트에 있는 종목. 누를 수 없음을 채도로 알린다(테두리·마커 추가 없음,
+   좌측 세로 라인 금지 규칙). */
+.tp-chip.is-locked { cursor:default; background:var(--hairline); color:var(--ink-5); }
+.tp-chip-lock { display:flex; flex:0 0 auto; }
+.tp-chip-label { white-space:nowrap; }
 
 /* 직접 입력 — 큐레이션에 없는 종목. 확인은 loadTicker 가 한다(검색 엔드포인트가 없다). */
-.tp-free { display:flex; gap:8px; margin-top:12px; }
-.tp-input { flex:1 1 auto; min-width:0; height:40px; padding:0 12px;
+.tp-free { display:flex; gap:8px; margin-top:18px; }
+.tp-input { flex:1 1 auto; min-width:0; height:44px; padding:0 12px;
             background:var(--sheet); border:1px solid var(--border); border-radius:9px;
             color:var(--ink); font:inherit; font-size:var(--fs-sub); outline:none; }
 .tp-input::placeholder { color:var(--ink-5); }
 .tp-input:focus { border-color:var(--border-strong); }
-.tp-add { flex:0 0 auto; min-height:40px; padding:0 16px; border:1px solid var(--border-strong);
+.tp-add { flex:0 0 auto; min-height:44px; padding:0 16px; border:1px solid var(--border-strong);
           border-radius:9px; background:transparent; color:var(--ink-2); font-size:var(--fs-sub); }
-/* 안내 한 줄 — 확인 중·못 찾음·오타 제안·상한이 전부 이 자리를 쓴다. 비면 자리를 비운다. */
+/* 안내 한 줄 — 확인 중·못 찾음·오타 제안·상한·잠금 안내가 전부 이 자리를 쓴다. 비면 자리를 비운다. */
 .tp-msg { margin:8px 0 0; min-height:15px; font-size:var(--fs-caption); line-height:1.4; color:var(--ink-4); }
+/* 자물쇠 설명문(시안 12a) — 담은 종목 수를 알린다. 몇 개를 더 담을 수 있는지는 말하지 않는다
+   (슬롯 상한·과금이 실제로 구현돼 있지 않다 — 코디네이터 판정 2026-08-16). */
+.tp-lock-note { margin:16px 0 0; padding:13px 15px; border-radius:14px; background:var(--hairline);
+                font-size:var(--fs-caption); line-height:1.55; color:var(--ink-5); }
+.tp-confirm { width:100%; margin-top:16px; }
+.tp-confirm[disabled] { opacity:.5; }

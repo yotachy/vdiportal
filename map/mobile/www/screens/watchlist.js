@@ -292,15 +292,17 @@
       function close() { if (scrim.parentNode) document.body.removeChild(scrim); }
       scrim.addEventListener("click", function (e) { if (e.target === scrim) close(); });
 
-      var head = MSUi.el("div", "sheet-head");
-      head.appendChild(MSUi.el("span", "sheet-title", MSStr.t.addTitle));
-      var x = MSUi.el("button", "sheet-x", "×");
-      x.addEventListener("click", close);
-      head.appendChild(x);
-      sheet.appendChild(head);
+      // 시안 12a 는 명시적 닫기 버튼이 없다 — 드래그 손잡이(.sheet::before) + 스크림 탭으로
+      // 닫는다. 제목·부제·안내문·확인 버튼은 이제 피커(ticker-picker.js) 자신의 chrome 이
+      // 그린다(multi:false 일 때만) — 여기서 sheet-head 를 또 만들면 두 벌이 된다.
+      // 이미 담은 종목은 이 그리드에서도 자물쇠로 보여야 한다(사라지면 "왜 없지"가 된다) —
+      // 그래서 현재 워치리스트 심볼을 locked 로 넘긴다. preset 은 비워 둔다: 이 심볼들은
+      // "이미 담았다"는 표시일 뿐 "지금 고르는 대상"이 아니다(고르면 다시 addTicker 를 타서
+      // 아무 일도 안 하는 헛손질이 된다 — 애초에 잠겨 있어 클릭이 막힌다).
+      var curSyms = MSStore.getWatchlist().map(function (x) { return x.sym; });
 
       var picker = MSTickerPicker.create({
-        multi: false, max: null, preset: [],
+        multi: false, max: null, preset: [], locked: curSyms,
         onChange: function (sel, items) {
           if (!sel.length) return;
           close();

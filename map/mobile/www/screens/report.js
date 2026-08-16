@@ -822,7 +822,8 @@
           // 않는 결제로 읽힐 수 있다).
           MSWallet.get().then(function (r2) {
             if (!isCurrent()) return;
-            MSTierSheet.open({ sym: sym, tier: tier, balance: r2.state ? r2.state.balance : null, onRun: runFull });
+            MSTierSheet.open({ sym: sym, tier: tier, name: wlItem && wlItem.name,
+              balance: r2.state ? r2.state.balance : null, cap: r2.state ? r2.state.cap : null, onRun: runFull });
           });
           return;
         }
@@ -884,7 +885,8 @@
           // bal == null 은 "잔량을 모른다"(오프라인 등)다 — 광고 권유로 바꾸지 않는다. 뭘
           // 권유할 근거(정말 부족한지)가 없다. 시트를 그대로 열어 tsUnavailable 이 말하게 둔다.
           if (bal != null && bal < MSWallet.COSTS.full) { showLowBalanceAd(wrap, bal); return; }
-          MSTierSheet.open({ sym: sym, tier: tier, balance: bal, onRun: runFull });
+          MSTierSheet.open({ sym: sym, tier: tier, name: wlItem && wlItem.name,
+            balance: bal, cap: r.state ? r.state.cap : null, onRun: runFull });
         });
       });
       wrap.appendChild(b);

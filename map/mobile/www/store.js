@@ -8,7 +8,11 @@
 
   var KEYS = { watchlist: "ms_watchlist", scan: "ms_scan", viewed: "ms_wl_viewed", lastSym: "ms_last_sym",
                onboarded: "ms_onboarded", consent: "ms_consent" };
-  var SEED = [{ sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" }, { sym: "MSFT", name: "Microsoft Corporation" }];
+  // 이름은 한국어(2026-08-16 재스킨) — AAPL·NVDA 는 ticker-picker.js 의 CURATED 와 반드시
+  // 같은 이름("애플"·"엔비디아")을 써야 한다. 두 벌이 갈리면 온보딩 4단계가 이 SEED 를
+  // 프리셋으로 그릴 때 같은 종목이 화면마다 다른 이름으로 보인다(카드추가 항목 1).
+  // MSFT 는 새 CURATED 8종 밖이라 표준 이름이 이 파일뿐이다.
+  var SEED = [{ sym: "AAPL", name: "애플" }, { sym: "NVDA", name: "엔비디아" }, { sym: "MSFT", name: "마이크로소프트" }];
 
   var mem = {};                       // 백엔드 실패 시 폴백 저장소
   var backend = null;

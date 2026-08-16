@@ -69,6 +69,14 @@
   // id 는 반올림한 퍼센트만으로 만들면 안 된다 — 41.6 과 42.4 가 둘 다 msFill42 가 되어
   // 같은 페이지에 두 마크가 있으면(태스크 6 지갑 게이지 + 헤더 마크) clipPath id 가 충돌해
   // 한쪽이 다른 쪽 채움을 그린다. 호출마다 증가하는 카운터로 유일성을 보장한다.
+  // 잠김 표시 — 잠긴 지표(P2)·이미 담은 종목·잠긴 티어가 전부 이 하나를 쓴다.
+  function lockIcon() {
+    return '<svg viewBox="0 0 14 14" width="14" height="14" fill="none" ' +
+      'stroke="currentColor" stroke-width="1.4" aria-hidden="true">' +
+      '<rect x="2.5" y="6" width="9" height="6.5" rx="1.6"/>' +
+      '<path d="M4.75 6V4.4a2.25 2.25 0 0 1 4.5 0V6"/></svg>';
+  }
+
   var scoopMarkSeq = 0;
   function scoopMark(fillPct) {
     var raw = (typeof fillPct === "number" && isFinite(fillPct)) ? fillPct : 42;
@@ -83,5 +91,5 @@
 
   return { el: el, fmtPrice: fmtPrice, fmtChg: fmtChg,
            fitCanvas: fitCanvas, readToken: readToken, hexToRgba: hexToRgba, colTokens: colTokens,
-           scoopMark: scoopMark };
+           scoopMark: scoopMark, lockIcon: lockIcon };
 });
