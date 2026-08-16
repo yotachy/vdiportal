@@ -28,7 +28,15 @@
 
   /* 타이포 8역할. 기존 .rp-* 는 4px 폭 안에 8단계(11·11.5·12·12.5·13·13.5·14·15)가
      뒤섞여 위계가 무너져 있었다. 새 크기를 임의로 추가하지 말 것 — 관문이 막는다. */
-  --fs-headline:44px;  --fw-headline:800; --ls-headline:-0.05em;
+  /* --fs-headline 은 고정 44px 이었다가 clamp 로 바뀌었다(태스크 8 수정) — 판정 헤드라인이
+     44px 를 22px 로 낮춘 예전 판정을 뒤집은 이유였는데, 정작 44px 자체가 "하락 우세"+확신
+     퍼센트 조합에서 320·360px 폭에 안 맞아 글자가 음절 중간에서 꺾이는 걸 실측으로 확인했다
+     (44 도, 22 도 틀렸다 — 정답은 고정폭이 아니라 반응형이었다). 11.3vw 는 390px 에서
+     44px 에 닿도록 역산한 계수(44/390≈11.28) — 시안의 표준 프레임(390) 이상에서는 지금과
+     동일하고, 그 아래로는 좁아질수록 선형으로 줄어든다. 30px 바닥은 390 미만 실사용 폭
+     (320~412) 에서 이 계수로는 닿지 않는 안전망이다. .rp-verdict 의 flex-wrap 과 짝을
+     이룬다 — 그쪽 주석 참고. */
+  --fs-headline:clamp(30px, 11.3vw, 44px);  --fw-headline:800; --ls-headline:-0.05em;
   --fs-title:22px;     --fw-title:800;    --ls-title:-0.04em;
   --fs-section:17px;   --fw-section:800;  --ls-section:-0.03em;
   --fs-figure:29px;    --fw-figure:700;   --ls-figure:-0.045em;
@@ -164,8 +172,12 @@ body {
 .rp-verdict.bull { color:var(--bull); }
 .rp-verdict.bear { color:var(--bear-text); }
 .rp-verdict.neutral { color:var(--ink-2); }
-/* 판정 퍼센트 — 방향어와 같은 줄, 시안 2a "Bullish 68%" */
-.rp-verdict { display:flex; align-items:baseline; gap:10px; }
+/* 판정 퍼센트 — 방향어와 같은 줄, 시안 2a "Bullish 68%". flex-wrap — .rp-tally 는
+   flex-shrink:0(막대 112px 사수)라 nowrap 이면 좁은 폭에서 그 고정폭이 방향어를 밀어붙여
+   글자 자체가 음절 중간에서 꺾인다("우세"가 "우"/"세"로 갈라짐, 320·360px 실측). wrap 을
+   허용하면 방향어+퍼센트가 한 줄을 지키고 tally 만 아래 줄로 내려간다 — --fs-headline 의
+   clamp() 는 그 한 줄이 실제로 들어맞게 하는 절반, 이 wrap 이 나머지 절반이다. */
+.rp-verdict { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; }
 .rp-conf-pct { font-size:var(--fs-figure); font-weight:var(--fw-figure); letter-spacing:var(--ls-figure); }
 
 /* 적중/오답 — 막대를 그리지 않는다. 두 값이 합해서 100 이라 막대가 더해주는 정보가 없고,

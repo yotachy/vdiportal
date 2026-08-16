@@ -160,7 +160,16 @@ test("시안에 문자 그대로 있는 5종 이름은 바꾸지 않는다", () 
 // "이 컴포넌트가 이름을 아는 유일한 지점"이라고 못박고 있고, strings.js 에 옮기면 두 벌이
 // 갈린다(카드추가 항목 1). 그래서 한글 리터럴 금지 스캔에서만 그 배열을 뺀다 — 존재하지
 // 않는 MSStr 키 참조 검사(badKeys)는 이 파일에도 그대로 적용된다(CURATED 와 무관한 별개 검사).
-const DATA_LITERAL_FILES = ["../www/ticker-picker.js"];
+//
+// readings.js(태스크 8 에서 합류)는 30여 개 SAY 함수가 조각을 이어붙여 문장을 **조립**한다 —
+// 거절문 3종만 strings.js 를 거치고(rdNotEnoughBars 등), 나머지는 원래도 영문 조각을 함수
+// 안에 직접 들고 있었다(구조 자체는 이 태스크가 만들지 않았다, 번역만 했다). 그 조각 하나하나를
+// strings.js 키로 쪼개면 150개 넘는 마이크로 키가 생겨 "조각 경계는 그대로 둔다"는 태스크 8
+// 지시와 정면으로 충돌한다 — CURATED 와 같은 이유(데이터/조립 corpus지 UI 카피가 아니다)로
+// 여기서도 뺀다. 대신 readings.js 전용 게이트(아래 "readings.js 의 판독 문장에 남은 영어가
+// 없다")가 이 파일의 번역 완결성을 따로 지킨다 — "한글 금지"가 아니라 "영어 잔존 금지"로
+// 방향이 뒤집힌 자기 몫의 관문이다.
+const DATA_LITERAL_FILES = ["../www/ticker-picker.js", "../www/readings.js"];
 
 test("화면 소스에 문자열 리터럴이 박혀 있지 않다 — 한글이든 영문 문장이든", () => {
   const offenders = [];
@@ -238,4 +247,78 @@ test("지갑의 상태 문구가 재스킨 후에도 전부 살아 있다", () =
                 "adDailyDone", "adLowBalance", "adFailed", "walNoCashValue", "walEngine"]
     .filter(k => !(S.t[k] && String(S.t[k]).length));
   assert.deepEqual(gone, [], "사라진 지갑 상태 문구: " + gone.join(", "));
+});
+
+// ── readings.js 는 PENDING_EN 의 사각지대였다 ──────────────────────────────────────────
+// PENDING_EN 은 MSStr.t 만 본다. readings.js 의 30여 개 SAY 판독 함수는 자기 안에서 문장을
+// 통째로 조립하는 별도 corpus라 그 목록에 잡히지 않았고, 화면 리터럴 스캔(위 KEY_SCAN_FILES
+// 테스트)은 "한글이 있는가"만 보지 "영어가 남았는가"는 안 봐서 반대 방향 누락을 못 잡았다 —
+// PENDING_EN=0 인데 report.js:635(REASONING 32행)가 여전히 영어를 그리는 구멍이 이래서 생겼다
+// (태스크 8 코디네이터 지적). 여기서 그 구멍을 닫는다 — strings.js 값에 쓴 것과 **같은**
+// untranslatedWords() 를 readings.js 의 소스 문자열 리터럴에 그대로 적용한다.
+//
+// "===" 비교 피연산자("golden"·"bull"·"up" 등, engine 이 주는 내부 키와 대조만 하고 화면에
+// 안 나간다)는 제외한다 — 안 그러면 진짜 화면 문구가 아닌 것까지 잡아 이 테스트가 무의미해진다.
+const READINGS_PATH = new URL("../www/readings.js", import.meta.url);
+const READINGS_SRC = readFileSync(READINGS_PATH, "utf8");
+
+// readings.js 국소 허용 라틴 — 국내 차트 앱도 그대로 쓰는 지표 표기다. 전역 ALLOWED_LATIN 과
+// 합쳐서 쓴다(전역 쪽은 건드리지 않는다 — 이 표기들은 strings.js 어디에도 안 나온다).
+const READINGS_ALLOWED_LATIN = [
+  "DI",       // adx() "+DI"/"-DI" — 방향성 지표(Directional Indicator), 국내 앱도 그대로 쓴다
+  "K", "D",   // stochastic() "%K"/"%D" — 스토캐스틱 표준 표기
+  "B",        // bollinger() "%B" — 볼린저 %B 표준 표기
+  "pattern",  // pattern() 의 Str.ind("pattern") 인자 — blockType 조회 키일 뿐 화면 문구가 아니다
+].map(w => w.toLowerCase());
+const READINGS_ALLOWED_SET = new Set([...ALLOWED_LATIN, ...READINGS_ALLOWED_LATIN]);
+function readingsUntranslatedWords(v) {
+  return latinWords(stripPlaceholders(stripIndicatorNames(v))).filter(w => !READINGS_ALLOWED_SET.has(w.toLowerCase()));
+}
+
+// 모듈 보일러플레이트(require 경로·"use strict")는 화면 문구가 아니다 — 통째로 제외한다.
+function isBoilerplate(v) { return v === "use strict" || /^\.\.?\//.test(v) || /\.js$/.test(v); }
+
+function readingsLiterals(src) {
+  const out = [];
+  src.split("\n").forEach((line, i) => {
+    const code = line.replace(/\/\/.*$/, "");
+    const re = /(["'])(?:(?!\1)[^\\]|\\.)*\1/g;
+    let m;
+    while ((m = re.exec(code))) {
+      const before = code.slice(0, m.index);
+      if (/(===|!==|==|!=)\s*$/.test(before)) continue;   // 비교 피연산자 — 화면에 안 나간다
+      const text = m[0].slice(1, -1);
+      if (isBoilerplate(text)) continue;
+      out.push({ line: i + 1, text });
+    }
+  });
+  return out;
+}
+
+test("readings.js 의 판독 문장에 남은 영어가 없다 — PENDING_EN 사각지대를 닫는다", () => {
+  const bad = readingsLiterals(READINGS_SRC)
+    .map(o => ({ ...o, words: readingsUntranslatedWords(o.text) }))
+    .filter(o => o.words.length);
+  assert.deepEqual(bad, [],
+    "readings.js 에 남은 영어 " + bad.length + "건:\n" +
+    bad.map(o => o.line + ": " + JSON.stringify(o.text) + "  (" + o.words.join(", ") + ")").join("\n"));
+});
+
+// 위 테스트가 실제로 뭔가를 잡는지 증명한다 — 회귀 없이 통과만 하는 껍데기 테스트가 아니라는
+// 증거(태스크 8 코디네이터 지시: 재현→빨강→원복→초록을 보여줄 것).
+test("readings.js 게이트는 실제로 영어를 잡는다 — 재현·원복 왕복 증명", () => {
+  const withLeak = READINGS_SRC.replace(
+    '", 교차 없음"',
+    '", no crossover in range"'   // 의도적으로 되돌린 영문 — 이 줄만 있으면 빨강이어야 한다
+  );
+  assert.notStrictEqual(withLeak, READINGS_SRC, "치환 대상 문자열을 못 찾았다 — 테스트 자체가 무의미해졌다");
+  const leaked = readingsLiterals(withLeak)
+    .map(o => ({ ...o, words: readingsUntranslatedWords(o.text) }))
+    .filter(o => o.words.length);
+  assert.ok(leaked.length > 0, "영어를 재도입했는데 게이트가 못 잡았다 — 게이트가 무력하다");
+  // 원본(READINGS_SRC, 디스크의 실제 파일)은 여전히 깨끗해야 한다 — replace() 는 복사본에만 적용된다.
+  const clean = readingsLiterals(READINGS_SRC)
+    .map(o => ({ ...o, words: readingsUntranslatedWords(o.text) }))
+    .filter(o => o.words.length);
+  assert.deepEqual(clean, [], "원본 파일 자체가 이미 더럽다 — 재현 전에 이미 실패 상태였다");
 });

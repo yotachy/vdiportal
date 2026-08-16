@@ -320,18 +320,22 @@
     obFinish: "시작하기"
   };
 
-  // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을
-  // 각자 하드코딩하면서 대소문자가 갈렸다(Fix round 1). 두 모듈 다 여기서 읽어 구조적으로 드리프트를 막는다.
-  var MA_ALIGN = { bull: "aligned up", bear: "aligned down", mixed: "mixed" };
-  var VOL_STATE = { spike: "spike", contract: "contracting", normal: "normal" };
-  var VOL_REL = { confirm: "confirming", weakening: "weakening",
-                  selling: "selling pressure", capitulation: "capitulation" };
-  var BB_STATE = { breakout_up: "upper breakout", breakout_dn: "lower breakdown",
-                   upper: "upper band", lower: "lower band", neutral: "mid band" };
-  var RSI_ZONE = { overbought: "overbought", oversold: "oversold", neutral: "neutral" };
+  // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지),
+  // readings.js(판독문)가 같은 개념을 각자 하드코딩하면 대소문자·언어가 갈린다(Fix round 1
+  // 이 그 사고였다). 세 모듈 다 여기서 읽어 구조적으로 드리프트를 막는다.
+  // 태스크 8: 값을 한국어로 옮겼다 — 정배열/역배열·급증/위축 등은 국내 차트 앱이 실제로 쓰는
+  // 관용 용어다(과매수/과매도·지지/저항도 마찬가지). "상단 이탈"은 §20a 판독문 예시("볼린저
+  // 상단 이탈")와 그대로 맞춘다.
+  var MA_ALIGN = { bull: "정배열", bear: "역배열", mixed: "혼조" };
+  var VOL_STATE = { spike: "급증", contract: "위축", normal: "보통" };
+  var VOL_REL = { confirm: "추세 동반", weakening: "약화",
+                  selling: "매도 압력", capitulation: "투매" };
+  var BB_STATE = { breakout_up: "상단 이탈", breakout_dn: "하단 이탈",
+                   upper: "상단", lower: "하단", neutral: "중단" };
+  var RSI_ZONE = { overbought: "과매수", oversold: "과매도", neutral: "중립" };
   // Fix 2: support/resistance 는 MA 배지(draw-layers.js)와 레전드(chart-legend.js) 둘 다
   // 각자 리터럴로 하드코딩하고 있었다 — 다른 어휘 맵들과 같은 이유로 공유한다.
-  var SR = { support: "support", resistance: "resistance" };
+  var SR = { support: "지지", resistance: "저항" };
 
   function ind(bt) { var k = bt || ""; return IND[k] || k; }
 

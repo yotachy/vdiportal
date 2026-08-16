@@ -105,25 +105,25 @@ test("30종 전부 비지 않은 문장을 낸다", () => {
   assert.deepEqual(empty, [], "문장이 빈 지표: " + empty.join(", "));
 });
 
-// 이 저장소가 두 번 당한 자리 — *Steps() 누출, 그리고 반환 필드 안의 한국어
-// (pattern.label · cycle.phaseLabel · fib.degrees[].name). 이 판독문 corpus 전체는 아직
-// 영문이다(readings.js 자체 번역은 태스크 8 범위 밖 — 위 REFUSALS 근처 주석 참고). 거절문
-// 3종(R.REFUSALS)만 예외다 — strings.js 단일 출처에서 태스크 8 이 의도적으로 한국어로
-// 옮겼으므로(§20a "읽을 만큼 큰 스윙이 없습니다"와 일치), "누출"이 아니라 "번역"이다.
-test("화면에 나가는 문장에 한글이 없다 — 전수(거절문 3종 제외)", () => {
+// 이 저장소가 두 번 당한 자리 — *Steps() 누출, 그리고 반환 필드 안의 한국어(pattern.label·
+// cycle.phaseLabel). 그 위험은 위 "pattern·cycle 은 한국어 필드를 쓰지 않는다"가 표식
+// 치환으로 구조적으로 잡는다. 이 테스트는 태스크 8 로 방향이 뒤집혔다 — 예전엔 "한글이
+// 새면 안 된다"(판독문이 전부 영문이던 시절), 지금은 "한글이 없으면 안 된다"(번역 완결성).
+// strings.test.mjs 의 소스 리터럴 스캔과 반대쪽(실제 fixture 로 낸 런타임 출력)에서 같은
+// 것을 본다 — 소스 스캔이 못 보는 조합(예: 값에 따라 갈리는 분기)까지 여기서 덮는다.
+test("화면에 나가는 문장은 전수 한글이다 — 거절문 포함", () => {
   const KO = /[가-힣]/;
   const d = fixture(), ctx = ctxOf(d);
   const bad = [];
   Object.keys(R.SAY).forEach(bt => {
     const s = sayProd(bt, d, ctx);
-    if (R.REFUSALS.indexOf(s) >= 0) return;
-    if (KO.test(s)) bad.push(bt + ": " + s);
+    if (!KO.test(s)) bad.push(bt + ": " + s);
   });
-  bad.push(...["trend", "phasefold"]
-    .map(bt => [bt, R.say(bt, bt === "trend" ? FC.analyzeTrend(d.price, {}) : null, ctx, {})])
-    .filter(([, s]) => KO.test(s) && R.REFUSALS.indexOf(s) < 0)
-    .map(([bt, s]) => bt + ": " + s));
-  assert.deepEqual(bad, [], "한글이 새는 판독문: " + bad.join(" | "));
+  ["trend", "phasefold"].forEach(bt => {
+    const s = R.say(bt, bt === "trend" ? FC.analyzeTrend(d.price, {}) : null, ctx, {});
+    if (!KO.test(s)) bad.push(bt + ": " + s);
+  });
+  assert.deepEqual(bad, [], "영어로 남은 판독문: " + bad.join(" | "));
 });
 
 // 신규 상장주는 월봉 이력이 짧다. 빈 문장이 아니라 이유를 적어야 한다.
@@ -151,57 +151,58 @@ test("표에 없는 blockType 은 빈 문자열", () => {
 // 값이 바뀌면 그것은 회귀이거나 의도한 변경이고, 둘 다 사람이 봐야 한다.
 
 // Lv1 5종. 종전엔 "비지 않은 문자열"만 덮여 있어 golden↔dead·above↔below·rising↔falling 을
-// 뒤집어도 656건이 전부 초록이었다(리뷰 라운드 3, Important).
+// 뒤집어도 656건이 전부 초록이었다(리뷰 라운드 3, Important). 값은 태스크 8 에서 한국어로
+// 번역됐다 — 문장 모양(콤마 위치·값 순서)은 그대로, 어휘만 옮겼다.
 const EXPECT_LV1 = {
-  ma: "Aligned up, no crossover in range",
-  macd: "Histogram +0.1 and rising, golden cross on this bar",
-  rsi: "62, neutral, above the 50 line",
-  bollinger: "Mid band, %B 0.78, midline rising",
-  volume: "Normal volume at 1.03x average, confirming, bullish divergence"
+  ma: "정배열, 교차 없음",
+  macd: "히스토그램 +0.1, 확대, 골든크로스 이번 봉",
+  rsi: "62, 중립, 50선 위",
+  bollinger: "중단, %B 0.78, 중심선 상승",
+  volume: "보통 거래량, 평균 대비 1.03배, 추세 동반, 상승 다이버전스"
 };
 
 const EXPECT_LV2 = {
-  adx: "16 and easing, trend still weak, +DI ahead for 2 bars",
-  stochastic: "%K 77 / %D 44, neutral, bullish cross 2 bars ago",
-  fib: "Up swing, price at the swing high as support, 3 swing degrees measured",
-  ichimoku: "Above the cloud, cloud bullish, tenkan crossed down 5 bars ago",
-  pivot: "Between R1 144.07 and R2 145.75, levels from the previous bar",
-  psar: "Dots below price at 137.26, 5.3% away",
-  gann: "Below the 1×1 line at 151.18 by 4.3%, anchored at 121.94"
+  adx: "16, 완화 중, 추세 약함, +DI가 2봉째 우위",
+  stochastic: "%K 77 / %D 44, 중립, 상승 교차 2봉 전",
+  fib: "상승 스윙, 스윙 고점 부근 지지, 되돌림 척도 3종 측정",
+  ichimoku: "구름 위, 구름대 상승, 전환선이 아래로 교차 5봉 전",
+  pivot: "저항1(144.07)와 저항2(145.75) 사이, 전 봉 기준 레벨",
+  psar: "점이 가격 아래, 137.26, 5.3% 이격",
+  gann: "1×1선(151.18) 아래, 4.3% 이격, 기준점 121.94"
 };
 
 const EXPECT_LV3 = {
-  vwap: "Price 2.2% above VWAP 141.89",
-  supertrend: "Trend line below price at 140.94, 2.8% from a flip, flipped bullish 1 bar ago",
-  atr: "0.9% of price per bar, volatility normal — this sizes the cone, not the direction",
-  volumeprofile: "Above the value area 129.25–143.87, heaviest trade at 132.90",
+  vwap: "가격이 VWAP(141.89) 위 2.2%",
+  supertrend: "추세선이 가격 아래, 140.94, 전환까지 2.8%, 상승 전환 1봉 전",
+  atr: "봉당 가격 대비 0.9%, 변동성 보통 — 콘의 폭을 정할 뿐 방향은 아님",
+  volumeprofile: "매물대 위, 129.25–143.87, 최다 거래가 132.90",
   // 그래프가 넘기는 swing:3(=300%) 은 문턱을 넘는 스윙을 하나도 만들지 않는다. 봉은 300개이므로
   // "봉이 모자라다"가 아니라 "그만한 스윙이 없다"가 사실이다(백로그의 이월 항목).
   structure: "읽을 만큼 큰 스윙이 없습니다",
-  keltner: "In the upper half of the channel 134.63–147.49",
-  donchian: "73% up the 137.14–147.88 range, midline flat",
-  cci: "88, inside the ±100 band, no regime bias",
-  williams: "-10, overbought in its lookback range",
-  aroon: "Up 36 / down 88, oscillator -52 — the low is the more recent extreme",
-  mfi: "45, neutral, no regime bias on money flow"
+  keltner: "채널 상단 절반, 134.63–147.49",
+  donchian: "137.14–147.88 구간의 73% 지점, 중심선 평평",
+  cci: "88, ±100 밴드 안, 국면 편향 없음",
+  williams: "-10, 조회 구간 내 과매수",
+  aroon: "상승 36 / 하락 88, 오실레이터 -52 — 더 최근 극값은 저점",
+  mfi: "45, 중립, 자금흐름 국면 편향 없음"
 };
 
 const EXPECT_LV4 = {
   // swing:3 으로 스윙이 2개뿐이라 카운트가 1파에서 멈춘다. 유효도 0% 는 그 사실의 정직한 표기다
   // (예전 표는 opts={} 로 불러 "wave B · 67%" 를 고정하고 있었다 — 화면엔 그 문장이 나온 적이 없다).
-  elliott: "Wave count unclear, currently in wave 1, no projection (0% wave-count validity)",
-  smc: "2 open gaps left behind",
-  cycle: "27-bar cycle, rising toward the next peak, turn in about 6 bars",
-  roc: "+4.2% over the lookback, momentum positive",
-  ao: "-0.6, below the zero line",
-  cmf: "+0.01, no clear accumulation",
-  pattern: "Head and shoulders, 73% fit, not yet confirmed"
+  elliott: "파동 불명확, 현재 파동 1, 예상 목표 없음 (파동 유효도 0%)",
+  smc: "미충족 갭 2개 남음",
+  cycle: "27봉 주기, 다음 고점을 향해 상승 중, 약 6봉 후 전환",
+  roc: "조회 구간 대비 +4.2%, 모멘텀 양(+)",
+  ao: "-0.6, 0선 아래",
+  cmf: "+0.01, 뚜렷한 매집 없음",
+  pattern: "헤드앤숄더, 적합도 73%, 아직 미확인"
 };
 
 // 방향을 못 묻는 둘도 문장은 화면에 나간다 — 지금까지 리터럴 고정이 전혀 없었다.
 const EXPECT_NODIR = {
-  trend: "Rising channel over 300 bars, price in the upper half",
-  phasefold: "Used only where the engine blends nodes — no standalone reading"
+  trend: "상승 채널, 300봉 구간, 가격은 상단 절반",
+  phasefold: "엔진이 노드를 합성할 때만 쓰인다 — 단독 판독 없음"
 };
 
 [["Lv1 5종", EXPECT_LV1], ["Lv2 7종", EXPECT_LV2], ["Lv3 11종", EXPECT_LV3], ["Lv4 7종", EXPECT_LV4]]
@@ -224,7 +225,7 @@ test("방향 없는 둘의 문장도 리터럴로 고정한다", () => {
 // "왜 기여도가 0이냐"가 결함으로 오독되지 않는다.
 test("ATR 판독문은 방향이 아니라는 것을 말한다", () => {
   const d = fixture();
-  assert.match(sayProd("atr", d, ctxOf(d)), /not the direction/);
+  assert.match(sayProd("atr", d, ctxOf(d)), /방향은 아님/);
 });
 
 // ── 거래량 없는 종목 ────────────────────────────────────────────────────
@@ -307,7 +308,7 @@ test("가드 문턱 — 지표마다 말하기 시작하는 봉 수가 고정돼
 // 자리채움 배열을 통과시킨 가드(aroon·ao·roc — 세 번 재발)는 전부 여기서 상수 문장으로 드러난다.
 // 예외는 하나뿐이고 이름으로 못박는다 — pattern 의 "패턴 없음"은 30봉에서 **찾아본 뒤** 하는 말이라
 // 여러 계열에서 같은 문장이 나오는 것이 정상이다.
-const CONSTANT_AT_THRESHOLD = { pattern: "No completed chart pattern in range" };
+const CONSTANT_AT_THRESHOLD = { pattern: "구간 내 완성된 차트 패턴 없음" };
 
 test("문턱에서 낸 판독은 데이터에 따라 변한다 — 자리채움을 판독으로 내보내지 않는다", () => {
   function seeded(n, seed) {
@@ -343,14 +344,14 @@ test("문턱에서 낸 판독은 데이터에 따라 변한다 — 자리채움�
 
 // analyzeSMC 는 미충족 FVG 를 slice(-5) 로 잘라서 준다. 그 수를 그대로 적으면 포화값이
 // 실제 개수처럼 읽힌다(220봉 무작위 300계열 중 40계열이 상한에 걸렸다).
-test("smc — 엔진 상한에 걸린 개수는 '5 or more' 로 적는다", () => {
+test("smc — 엔진 상한에 걸린 개수는 '개 이상' 으로 적는다", () => {
   const fvgs = n => Array.from({ length: n }, () => ({ type: "bull", lo: 90, hi: 95 }));
   assert.strictEqual(R.say("smc", { ok: true, fvgs: fvgs(4), obs: [], last: 100 }, {}, {}),
-    "4 open gaps left behind");
+    "미충족 갭 4개 남음");
   assert.strictEqual(R.say("smc", { ok: true, fvgs: fvgs(5), obs: [], last: 100 }, {}, {}),
-    "5 or more open gaps left behind");
+    "미충족 갭 5개 이상 남음");
   assert.strictEqual(R.say("smc", { ok: true, fvgs: [], obs: fvgs(4), last: 100 }, {}, {}),
-    "4 or more order blocks left behind");
+    "미완화 오더블록 4개 이상 남음");
 });
 
 // 엔진의 rma() 는 앞 period 봉을 계산하지 않고 0 으로 둔다. 0 >= 0 이 참이라 상승 분기의
@@ -361,10 +362,10 @@ test("adx — +DI 선행 카운트가 워밍업 구간을 통과하지 않는다
   const a = FC.analyzeADX(price, { period: 14 });
   assert.strictEqual(a.plusDI.findIndex(v => v > 0), 14, "엔진의 워밍업 길이 전제가 깨졌다");
   const s = R.say("adx", a, { price }, { period: 14 });
-  assert.match(s, /\+DI ahead for 206 bars$/, s);
+  assert.match(s, /\+DI가 206봉째 우위$/, s);
   // 노드가 다른 period 를 들고 있으면 문턱도 따라 움직여야 한다(say 가 params 를 받는다)
   const a30 = FC.analyzeADX(price, { period: 30 });
-  assert.match(R.say("adx", a30, { price }, { period: 30 }), /\+DI ahead for 190 bars$/);
+  assert.match(R.say("adx", a30, { price }, { period: 30 }), /\+DI가 190봉째 우위$/);
 });
 
 test("adx — 5봉 전이 미계산 구간이면 rising/easing 을 말하지 않는다", () => {
@@ -372,8 +373,8 @@ test("adx — 5봉 전이 미계산 구간이면 rising/easing 을 말하지 않
   for (let i = 0; i < 31; i++) { p *= 1 + Math.sin(i) * 0.01; price.push(p); }
   const a = FC.analyzeADX(price, { period: 14 });
   const s = R.say("adx", a, { price }, { period: 14 });
-  assert.doesNotMatch(s, /rising|easing/, "adx[li-5] 가 0(미계산)인데 방향을 말했다: " + s);
-  assert.match(s, /trend/);
+  assert.doesNotMatch(s, /상승 중|완화 중/, "adx[li-5] 가 0(미계산)인데 방향을 말했다: " + s);
+  assert.match(s, /추세/);
 });
 
 // r.channel 은 장기창 전용 적합인데 r.dominant 는 따로 정해진다. 두 값을 섞으면
@@ -389,12 +390,12 @@ test("trend — 방향·봉 수·기준선이 전부 같은 창에서 나온다"
     if (tr.dominant !== "long") domNotLong++;
     if (w && tr.channel && Math.sign(w.slopeRaw) !== Math.sign(tr.channel.slopeRaw)) signSplit++;
     const s = R.say("trend", tr, { price }, {});
-    const want = w.slopeRaw > 0 ? "Rising" : w.slopeRaw < 0 ? "Falling" : "Flat";
+    const want = w.slopeRaw > 0 ? "상승" : w.slopeRaw < 0 ? "하락" : "횡보";
     assert.ok(s.indexOf(want) === 0, "방향이 지배창 기울기와 다르다: " + s);
-    assert.ok(s.indexOf(" " + w.m + " bars,") > 0, "봉 수가 지배창과 다르다: " + s);
+    assert.ok(s.indexOf(w.m + "봉 구간,") > 0, "봉 수가 지배창과 다르다: " + s);
     const line = w.bRaw + w.slopeRaw * (w.m - 1);
-    const half = price[price.length - 1] >= line ? "upper" : "lower";
-    assert.ok(s.indexOf(" " + half + " half") > 0, "기준선이 그 창의 적합선이 아니다: " + s);
+    const half = price[price.length - 1] >= line ? "상단" : "하단";
+    assert.ok(s.indexOf(half + " 절반") > 0, "기준선이 그 창의 적합선이 아니다: " + s);
   }
   assert.ok(domNotLong > 0 && signSplit > 0,
     "두 창이 갈리는 계열이 표본에 없으면 이 테스트는 아무것도 안 본다");
@@ -435,19 +436,26 @@ test("elliott — score 를 '충족한 규칙 비율'이라고 부르지 않는�
   const r = { waves: [{ label: "3" }], structure: "impulse_up", current: { label: "3" },
               next: null, rules: { r1: true, r2: true, r3: false, score: (2 / 2) * (3 / 5) } };
   const s = R.say("elliott", r, {}, {});
-  assert.match(s, /60% wave-count validity/);
-  assert.doesNotMatch(s, /rules met/, "규칙 2/2 통과를 '60% 규칙 충족'이라고 말하면 거짓이다");
+  assert.match(s, /파동 유효도 60%/);
+  assert.doesNotMatch(s, /규칙/, "규칙 2/2 통과를 '규칙 충족' 식으로 말하면 거짓이다 — 유효도와는 다른 수다");
 });
 
 // 반환 필드 안의 한국어를 실제로 우회했는지 — 전수 한글 테스트가 이미 잡지만,
 // 이 둘은 "왜 그 필드를 안 쓰는지"가 코드에서 안 보이므로 이름으로 못박는다.
 test("pattern·cycle 은 한국어 필드를 쓰지 않는다", () => {
-  const d = fixture();
+  const d = fixture(), ctx = ctxOf(d);
   const pat = callOne("pattern", d, paramsOf("pattern")), cyc = callOne("cycle", d, paramsOf("cycle"));
   assert.ok(/[가-힣]/.test(pat.label), "엔진이 pattern.label 을 한국어로 주는 전제가 깨졌다");
   assert.ok(/[가-힣]/.test(cyc.phaseLabel), "엔진이 cycle.phaseLabel 을 한국어로 주는 전제가 깨졌다");
-  assert.ok(!sayProd("pattern", d, ctxOf(d)).includes(pat.label));
-  assert.ok(!sayProd("cycle", d, ctxOf(d)).includes(cyc.phaseLabel));
+  // 태스크 8 이후 우리 쪽 표기(PATTERN_NAME)도 한국어라 pat.label 과 우연히 같은 문자열
+  // ("헤드앤숄더")이 될 수 있다 — "문장에 그 값이 포함되는가"만으로는 더 이상 "그 필드를
+  // 실제로 읽었는가"를 구분 못한다(같은 문자열이 둘 다에서 나오면 어느 쪽이 출처인지 이
+  // 비교만으로는 안 갈린다). 필드 값을 표식으로 바꿔치기해 구조적으로 본다 — 표식이 안
+  // 보이면 그 필드를 안 읽은 것이다(우연이 아니라 근거로 확인한다).
+  const patMarked = Object.assign({}, pat, { label: "MARKER_PATTERN_LABEL" });
+  const cycMarked = Object.assign({}, cyc, { phaseLabel: "MARKER_PHASE_LABEL" });
+  assert.ok(!R.say("pattern", patMarked, ctx, paramsOf("pattern")).includes("MARKER_PATTERN_LABEL"));
+  assert.ok(!R.say("cycle", cycMarked, ctx, paramsOf("cycle")).includes("MARKER_PHASE_LABEL"));
 });
 
 // REGIME 맵에 없는 값이 오면 종전엔 문자열 "undefined" 가 화면에 나갔다.
@@ -455,8 +463,8 @@ test("cci·mfi — 모르는 regime 은 절을 통째로 뺀다('undefined' 금�
   const cci = R.say("cci", { series: [1], last: 12, regime: 7 }, {}, {});
   const mfi = R.say("mfi", { series: [1], last: 44, regime: 7 }, { hasVolume: true }, {});
   [cci, mfi].forEach(s => assert.doesNotMatch(s, /undefined/, s));
-  assert.strictEqual(cci, "12, inside the ±100 band");
-  assert.strictEqual(mfi, "44, neutral");
+  assert.strictEqual(cci, "12, ±100 밴드 안");
+  assert.strictEqual(mfi, "44, 중립");
 });
 
 // REASONING 행 정렬 규칙 — |bias| 내림차순, 방향 없는 둘은 항상 최하단.

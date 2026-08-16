@@ -102,7 +102,7 @@ test("M.badges=false 면 구석 배지를 안 그린다 — 값은 레전드로 
   L.ma(c, FC.analyzeMA(price, { len: 20 }), M);
   const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
   assert.ok(!texts.some(t => /^BB /.test(t)), "볼린저 배지가 남았다: " + texts.join("|"));
-  assert.ok(!texts.some(t => /aligned up|aligned down|mixed/.test(t)), "MA 정렬 배지가 남았다: " + texts.join("|"));
+  assert.ok(!texts.some(t => /정배열|역배열|혼조/.test(t)), "MA 정렬 배지가 남았다: " + texts.join("|"));
 });
 
 test("M.badges=false 라도 선과 크로스 마커는 그대로 그린다 — 위치가 의미인 것은 남는다", () => {
@@ -123,7 +123,7 @@ test("M.badges 미지정이면 종전대로 MA 정렬 배지도 그린다 — Bo
   const c = recCtx(); L.resetLabels(372, 520);
   L.ma(c, FC.analyzeMA(price, { len: 20 }), layout().panels.price.M);
   const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
-  assert.ok(texts.some(t => /aligned up|aligned down|mixed/.test(t)), "MA 정렬 배지가 안 그려졌다: " + texts.join("|"));
+  assert.ok(texts.some(t => /정배열|역배열|혼조/.test(t)), "MA 정렬 배지가 안 그려졌다: " + texts.join("|"));
 });
 
 // ── Fix round 1: RSI·거래량 다이버전스 선은 위치가 정보라 남아야 한다. reveal>=1 블록은 배지가 아니다 ──
