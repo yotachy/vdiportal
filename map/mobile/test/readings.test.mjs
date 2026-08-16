@@ -68,11 +68,13 @@ test("SAY 30 + NO_DIR 2 = 엔진의 indicatorCount 32", () => {
 });
 
 // 거절문은 화면에 그대로 나가는 문자열이다. R.NONE 끼리 비교하는 테스트만 있으면
-// 이 문구가 한국어로 퇴행해도 초록이 된다 — 리터럴로 못박는다.
+// 이 문구가 strings.js 밖에서 다시 하드코딩되며 조용히 갈라져도 초록이 된다 — 리터럴로
+// 못박는다(값 자체는 태스크 8 에서 한국어로 번역됐다 — §20a 의 "읽을 만큼 큰 스윙이
+// 없습니다" 문구와 rdNoSwings 가 여기서 정확히 일치해야 한다).
 test("거절문 3종의 문구가 고정돼 있다", () => {
-  assert.strictEqual(R.NONE, "Not enough bars to read");
-  assert.strictEqual(R.NO_VOL, "No volume data for this ticker");
-  assert.strictEqual(R.NO_SWINGS, "No swings large enough to read structure");
+  assert.strictEqual(R.NONE, "읽기에 봉이 부족합니다");
+  assert.strictEqual(R.NO_VOL, "이 종목은 거래량 데이터가 없습니다");
+  assert.strictEqual(R.NO_SWINGS, "읽을 만큼 큰 스윙이 없습니다");
   // strings.js 단일 출처를 실제로 경유하는지 — 리터럴 복제가 다시 생기면 여기서 갈린다
   assert.strictEqual(R.NONE, Str.t.rdNotEnoughBars);
   assert.strictEqual(R.NO_VOL, Str.t.rdNoVolume);
@@ -104,18 +106,22 @@ test("30종 전부 비지 않은 문장을 낸다", () => {
 });
 
 // 이 저장소가 두 번 당한 자리 — *Steps() 누출, 그리고 반환 필드 안의 한국어
-// (pattern.label · cycle.phaseLabel · fib.degrees[].name).
-test("화면에 나가는 문장에 한글이 없다 — 전수", () => {
+// (pattern.label · cycle.phaseLabel · fib.degrees[].name). 이 판독문 corpus 전체는 아직
+// 영문이다(readings.js 자체 번역은 태스크 8 범위 밖 — 위 REFUSALS 근처 주석 참고). 거절문
+// 3종(R.REFUSALS)만 예외다 — strings.js 단일 출처에서 태스크 8 이 의도적으로 한국어로
+// 옮겼으므로(§20a "읽을 만큼 큰 스윙이 없습니다"와 일치), "누출"이 아니라 "번역"이다.
+test("화면에 나가는 문장에 한글이 없다 — 전수(거절문 3종 제외)", () => {
   const KO = /[가-힣]/;
   const d = fixture(), ctx = ctxOf(d);
   const bad = [];
   Object.keys(R.SAY).forEach(bt => {
     const s = sayProd(bt, d, ctx);
+    if (R.REFUSALS.indexOf(s) >= 0) return;
     if (KO.test(s)) bad.push(bt + ": " + s);
   });
   bad.push(...["trend", "phasefold"]
     .map(bt => [bt, R.say(bt, bt === "trend" ? FC.analyzeTrend(d.price, {}) : null, ctx, {})])
-    .filter(([, s]) => KO.test(s))
+    .filter(([, s]) => KO.test(s) && R.REFUSALS.indexOf(s) < 0)
     .map(([bt, s]) => bt + ": " + s));
   assert.deepEqual(bad, [], "한글이 새는 판독문: " + bad.join(" | "));
 });
@@ -171,7 +177,7 @@ const EXPECT_LV3 = {
   volumeprofile: "Above the value area 129.25–143.87, heaviest trade at 132.90",
   // 그래프가 넘기는 swing:3(=300%) 은 문턱을 넘는 스윙을 하나도 만들지 않는다. 봉은 300개이므로
   // "봉이 모자라다"가 아니라 "그만한 스윙이 없다"가 사실이다(백로그의 이월 항목).
-  structure: "No swings large enough to read structure",
+  structure: "읽을 만큼 큰 스윙이 없습니다",
   keltner: "In the upper half of the channel 134.63–147.49",
   donchian: "73% up the 137.14–147.88 range, midline flat",
   cci: "88, inside the ±100 band, no regime bias",

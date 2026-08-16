@@ -25,9 +25,13 @@
     var raw = json.candles;
     var floor = MIN_BARS[json.tf] || MIN_BARS["1day"];
     if (!Array.isArray(raw) || raw.length < floor) {
-      // 메시지 접두는 report.js isBarsShort() 가 MSStr.t.rpBarsShort 로 문자열 매칭한다 —
-      // 여기가 err.message 로 화면에 그대로 노출되므로(Phase 5, English-first) 한글이면 안 된다.
-      throw new Error("not enough bars: " + (Array.isArray(raw) ? raw.length : 0) + " < " + floor + " (" + (json.tf || "1day") + ")");
+      // 메시지 접두는 report.js isBarsShort() 가 MSStr.t.rpBarsShort 로 문자열 매칭한다 — 그 상수를
+      // 그대로 재사용해야 화면 문구와 매칭 문자열이 갈리지 않는다. 앱이 한국어로 전환되며(태스크 8)
+      // 이 메시지도 err.message 로 화면에 그대로 노출되는 문구라 번역 대상이 됐다 — 옛 English-first
+      // 시절의 "한글이면 안 된다"는 전제가 뒤집혔다. Node 테스트엔 MSStr 전역이 없으므로 영문으로
+      // 폴백한다(api.test.mjs 가 그 폴백 문자열을 그대로 확인하므로 테스트를 따로 손대지 않는다).
+      throw new Error((typeof MSStr !== "undefined" ? MSStr.t.rpBarsShort : "not enough bars") +
+        ": " + (Array.isArray(raw) ? raw.length : 0) + " < " + floor + " (" + (json.tf || "1day") + ")");
     }
     // 거래정지 세션에 "-"·null 을 주는 제공자가 있다. "-" 는 NaN 이 되어 조용히 번지고
     // (chartGeometry 가 min=0/max=1 로 폴백 → 빈 차트, target.toFixed 는 "NaN"),

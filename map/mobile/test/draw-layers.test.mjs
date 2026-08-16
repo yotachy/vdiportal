@@ -134,7 +134,7 @@ test("M.badges=false 라도 RSI 다이버전스 선과 라벨은 그린다", () 
   L.rsiBadge(c, rsi, M);
   assert.ok(c.calls.some(x => x.op === "stroke"), "다이버전스 선이 사라졌다");
   const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
-  assert.ok(texts.some(t => /divergence/i.test(t)), "다이버전스 라벨이 사라졌다: " + texts.join("|"));
+  assert.ok(texts.some(t => /다이버전스/.test(t)), "다이버전스 라벨이 사라졌다: " + texts.join("|"));
 });
 
 test("M.badges=false 라도 거래량 다이버전스 선과 급증 틱은 그린다", () => {
@@ -147,7 +147,7 @@ test("M.badges=false 라도 거래량 다이버전스 선과 급증 틱은 그�
   assert.ok(c.calls.some(x => x.op === "stroke" && x.stroke === "#e06a6a"), "다이버전스 선이 사라졌다");
   assert.ok(c.calls.some(x => x.op === "stroke" && x.stroke === "#e8b463"), "급증 틱이 사라졌다");
   const texts = c.calls.filter(x => x.op === "fillText").map(x => String(x.args[0]));
-  assert.ok(texts.some(t => /divergence/i.test(t)), "거래량 다이버전스 라벨이 사라졌다: " + texts.join("|"));
+  assert.ok(texts.some(t => /다이버전스/.test(t)), "거래량 다이버전스 라벨이 사라졌다: " + texts.join("|"));
 });
 
 test("M.badges=false 면 RSI·거래량·MACD 배지는 안 그린다", () => {

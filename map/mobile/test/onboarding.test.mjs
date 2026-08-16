@@ -496,7 +496,7 @@ test("2단계 빗은 막대 30개와 개수 캡션을 그린다", () => {
     });
     // 전부 회색이면 방향이 안 실린 것이다(빗이 죽은 채로 그려지는 회귀)
     assert.ok(comb.children.filter(b => b.className !== "ob-bar").length >= 10, "방향이 실린 막대가 거의 없다");
-    assert.strictEqual(root.querySelector(".ob-cap").textContent, "30 readings with a direction");
+    assert.strictEqual(root.querySelector(".ob-cap").textContent, "30개 지표가 방향을 제시했습니다");
     assert.strictEqual(root.querySelector(".ob-prog").children[1].className, "ob-seg is-on");
   });
 });

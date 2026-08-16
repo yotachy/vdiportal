@@ -29,6 +29,11 @@
   var SR = (Str && Str.SR) || {};
   var T = (Str && Str.t) || {};
 
+  // 이 파일의 판독 문장 전체는 아직 영문이다(태스크 8 범위 밖 — 하네스가 아니라 문장 corpus라
+  // 별도 과제). 다만 cxBullDiv 류(strings.js)와 여기 "bull"/"bear" 분기(stochastic·ichimoku·
+  // trend 의 cross/cloud/flip, 아래)가 같은 "bullish"/"bearish" 개념을 쓰므로, 이 파일을 옮길
+  // 때는 "상승"/"하락" 어간을 그대로 따를 것 — cxBullDiv 가 이미 그 이름으로 확정돼 있다(태스크 8).
+
   // 거절문 3종. strings.js 단일 출처(index.html 이 strings.js → readings.js 순서를 보장한다).
   var NONE = T.rdNotEnoughBars;        // 봉이 모자라 엔진이 아예 계산을 안 했다
   var NO_VOL = T.rdNoVolume;           // 거래량이 없어 엔진이 합성치로 대체했다 — 그 숫자는 사실이 아니다

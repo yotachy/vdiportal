@@ -23,13 +23,13 @@
 
   var t = {
     // 부팅
-    bootVendorMissing: "Could not load vendor/forge-core.js.<br>Run npm run sync and reopen.",
+    bootVendorMissing: "필수 파일을 불러오지 못했습니다.<br>동기화한 뒤 다시 열어주세요.",
 
-    // 워치리스트 — 시안 14a. 브랜드 워드마크(wlBrandA/B)와 시장 코드(wlChipUS/KR/ETF)는
-    // 고유명사·관용 코드라 번역하지 않는다(PENDING_EN 에 계속 남는 게 맞다).
+    // 워치리스트 — 시안 14a. 브랜드 워드마크(wlBrandA/B)는 고유명사라 번역하지 않는다(허용
+    // 목록에 등록, 태스크 8). 시장 코드는 US/KR 은 옮기고(미국/국내) ETF 는 관용 표기를 남긴다.
     wlBrandA: "Money", wlBrandB: "Scoop",         // 워드마크 — 15px/700, 뒷조각(Scoop)만 골드
     wlSearch: "티커 또는 회사명 검색",
-    wlChipAll: "전체", wlChipUS: "US", wlChipKR: "KR", wlChipETF: "ETF",
+    wlChipAll: "전체", wlChipUS: "미국", wlChipKR: "국내", wlChipETF: "ETF",
     wlToday: "오늘",                              // "오늘" 섹션 헤더 — 결과 카드(어제 본 예측)는 P3, 이 섹션이 최상단
     wlNoMatch: "일치하는 종목이 없습니다.",        // 검색·칩 결과가 비었을 때
     wlEmpty: "아직 등록된 종목이 없습니다.\n종목을 추가해 보세요.",
@@ -47,104 +47,108 @@
     wlRemoveConfirm: " — 워치리스트에서 삭제할까요?",
 
     // 리포트 — 판정
-    rpBack: "Back",
-    rpPickSym: "Pick a ticker on the left.",
-    rpLoadFail: "Could not load this report",
-    rpRetry: "Try again",
-    rpUnknownErr: "Could not load — unknown error.",
-    rpAnalyzeErr: "Analysis failed: ",
-    rpBarsShort: "not enough bars",
-    rpUp: "Up", rpDown: "Down", rpFlat: "Flat",
-    rpBullish: "Bullish", rpBearish: "Bearish",   // 판정 헤드라인 — 시안 2a·6a 표기.
-                                                  // rpUp/rpDown("Up"/"Down")은 주기 행·지표 판독용이라 그대로 둔다.
+    rpBack: "뒤로",
+    rpPickSym: "왼쪽에서 티커를 골라주세요.",
+    rpLoadFail: "리포트를 불러오지 못했습니다",
+    rpRetry: "다시 시도",
+    rpUnknownErr: "불러오지 못했습니다 — 알 수 없는 오류.",
+    rpAnalyzeErr: "분석 실패: ",
+    // api.js:28 이 봉 부족일 때 이 값을 그대로 접두로 써서 에러 메시지를 만든다(같은 상수를
+    // 공유해 매칭이 안 갈리게 한다) — 값을 바꾸면 api.js 도 함께 바뀐다.
+    rpBarsShort: "봉이 부족합니다",
+    rpUp: "상승", rpDown: "하락", rpFlat: "보합",
+    rpBullish: "상승 우세", rpBearish: "하락 우세",   // 판정 헤드라인 — 시안 2a·6a·18a 표기 그대로.
+                                                  // rpUp/rpDown 은 주기 행·지표 판독용이라 어간만("상승"/"하락") 쓴다.
     // 예측 범위는 HORIZON 머리의 캡션이 됐다("288 – 346 · 80% cone") — "Range " 접두와
     // 범위 없음 폴백은 소비자가 사라져 지웠다. 값이 없으면 캡션 자체를 안 낸다.
-    rpCone: " · 80% cone",                        // 시안 2a. 설계 목표치이며 실측 커버리지는 77.7%
-    rpAgree: " of ",
-    rpAgreeTail: " agree with this direction",
-    rpAgreeShort: " agree",                    // Fix 6: rpAgreeTail 과 같은 어휘(agree)의 짧은 형태 — 주기 행 요약용
-    rpAgreeNone: "No indicator gives a direction, so agreement cannot be scored",
+    rpCone: " · 80% 콘",                        // 시안 2a. 설계 목표치이며 실측 커버리지는 77.7%
+    rpAgree: "개 동의 (전체 ",
+    rpAgreeTail: "개 중)",
+    rpAgreeShort: " 동의",                    // Fix 6: rpAgreeTail 과 같은 어휘(동의)의 짧은 형태 — 주기 행 요약용
+    rpAgreeNone: "방향을 제시한 지표가 없어 동의 여부를 매길 수 없습니다",
     // 적중률은 **범위와 함께** 적는다 — 웹(forge-app)도 "(n건 · 백테스트 acc%)" 로 표기한다.
     // 예전 문구는 "이 판정 같은 콜 열 번 중 넷"이라고 말했는데, 그 수치는 백테스트 하네스의
     // 19지표 그래프로 잰 것이라 Basic(5)도 Full(32)도, 이 종목도 아니다. 거짓 귀속이었다.
-    rpHitLeadBull: "Bullish calls, measured: ",
-    rpHitLeadBear: "Bearish calls, measured: ",
-    rpHitRight: "% right · ", rpHitWrong: "% wrong",
-    rpHitScopeA: "Across ", rpHitScopeB: " forecasts on ", rpHitScopeC: " series — not this ticker, not this indicator set.",
-    rpHitScopeShort: "Engine-wide measurement — not this ticker or this indicator set.",
-    rpHitSize: " Size for the ", rpHitSizeTail: "% that miss.",
-    rpHzTomorrow: "Tomorrow", rpHzWeek: "In 1 week", rpHzMonth: "In 1 month",
+    rpHitLeadBull: "상승 판정 실측: ",
+    rpHitLeadBear: "하락 판정 실측: ",
+    rpHitRight: "% 적중 · ", rpHitWrong: "% 오답",
+    rpHitScopeA: "전체 ", rpHitScopeB: "건의 예측을 ", rpHitScopeC: "개 종목에서 실측한 값입니다 — 이 종목도, 이 지표 구성도 아닙니다.",
+    rpHitScopeShort: "엔진 전체 실측값입니다 — 이 종목도, 이 지표 구성도 아닙니다.",
+    rpHitSize: " 틀릴 ", rpHitSizeTail: "%에 대비해 비중을 조절하세요.",
+    rpHzTomorrow: "내일", rpHzWeek: "1주", rpHzMonth: "1개월",
 
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)
-    rpTierBasic: "BASIC",
-    rpTierCount: "5 indicators",
-    rpTierFull: "DEEP", rpTierCountFull: "32 indicators · daily, weekly, monthly",
+    rpTierBasic: "기본",
+    rpTierCount: "지표 5개",
+    // rpTierFull 은 압축 배지다(18b 배지 "심화"와 동일) — 전체 라벨(tsFull/walDeep/obCostFull=
+    // "심화분석")과 바이트가 같을 필요는 없다, 정규화 테스트("한 단계는 한 이름으로 불린다")가
+    // 요구하는 건 어간 일치뿐이다(태스크 8).
+    rpTierFull: "심화", rpTierCountFull: "지표 32개 · 일·주·월",
 
     // 리포트 — 섹션 오버라인 (시안 2a: COMPOSITE·DAILY / HORIZON / SIGNALS / TIMEFRAMES)
-    rpComposite: "Composite · Daily",
-    rpHorizon: "Horizon",
-    rpSignals: "Signals",
-    rpOf: " of ", rpShown: " shown",           // 시안 1a: "5 of 12 shown"
+    rpComposite: "종합 · 일봉",
+    rpHorizon: "예측 구간",
+    rpSignals: "신호",
+    rpOf: "/", rpShown: " 표시",           // 시안 1a: "5 of 12 shown" → "5/32 표시"
     // Basic 의 결핍 — 시안 6a 가 안 되는 것을 이름으로 박아둔다. 지표 27개를 칩으로 까는 것보다
     // "무엇을 못 하는지"가 훨씬 정확한 설명이고, Full 을 살 이유도 이 네 줄이 만든다.
-    rpNotCounted: "Not checked at this level",  // 시안 6a 그대로 — 결핍 박스의 머리
+    rpNotCounted: "미확인 항목",  // 시안 6a 그대로 — 결핍 박스의 머리
     // 시안 6a 의 AGAINST THIS CALL — Full 이 주는 것 중 하나. 32종 중 판정과 반대인 지표들.
-    rpAgainst: "Against this call",
-    rpAgainstNone: "No indicator argues the other way.",
-    rpReasoning: "Reasoning",                    // 시안 6a: "REASONING · 32 NODES" — .overline 이 대문자로 만든다
-    rpReasoningNodes: " nodes",                  // 머리 오른쪽 캡션 앞부분 — "32 nodes"
-    rpReasoningScope: "daily · ",                // 판독은 일봉 기준(헤드라인 판정과 같은 주기)
-    rpReasoningDir: " with a direction",         // "daily · 30 with a direction"
+    rpAgainst: "반대 의견",
+    rpAgainstNone: "반대하는 지표가 없습니다.",
+    rpReasoning: "판단 근거",                    // 시안 6a: "REASONING · 32 NODES" — .overline 이 대문자로 만든다
+    rpReasoningNodes: "개 지표",                  // 머리 오른쪽 캡션 앞부분 — "32개 지표"
+    rpReasoningScope: "일봉 · ",                // 판독은 일봉 기준(헤드라인 판정과 같은 주기)
+    rpReasoningDir: "개 지표가 방향 제시",         // "일봉 · 30개 지표가 방향 제시"
     rpNoDirDash: "—",                            // 방향을 못 묻는 둘의 기여도 칸
     rpSep: " · ",                                // 오버라인 안 구분자 — report.js 가 리터럴로 들고 있던 것
     // 판독문 거절문 3종(readings.js). **이유가 서로 다르므로 하나로 뭉치면 화면이 거짓 이유를 말한다** —
     // 봉이 300개인데 "봉이 모자라다"고 하던 것이 실제 결함이었다(swing:3 로 죽은 Market structure).
-    rdNotEnoughBars: "Not enough bars to read",
-    rdNoVolume: "No volume data for this ticker",
-    rdNoSwings: "No swings large enough to read structure",
-    rpMissingHitRate: "Historical hit rate of this setup",
-    rpMissingDisagree: "Indicators that disagree",
-    rpMissingTfAgree: "Weekly and monthly agreement",
-    rpMissingWhy: "Why each reading came out that way",
+    rdNotEnoughBars: "읽기에 봉이 부족합니다",
+    rdNoVolume: "이 종목은 거래량 데이터가 없습니다",
+    rdNoSwings: "읽을 만큼 큰 스윙이 없습니다",
+    rpMissingHitRate: "이 설정의 과거 적중률",
+    rpMissingDisagree: "반대하는 지표",
+    rpMissingTfAgree: "주간·월간 일치 여부",
+    rpMissingWhy: "각 판독이 그렇게 나온 이유",
     rpMissingDash: "—",
-    rpMissingNote: "A Basic read tells you what five indicators say. It does not tell you whether that has ever worked.",
-    // 시안 2a 의 "17 up · 6 flat · 9 down". rpUp/rpDown 은 대문자 단어라 여기 쓸 수 없다.
-    rpUp2: " up · ", rpFlat2: " flat · ", rpDown2: " down",
+    rpMissingNote: "기본분석은 5개 지표가 하는 말만 알려줍니다. 그게 실제로 맞았는지는 알려주지 않습니다.",
+    // 시안 2a 의 "17 up · 6 flat · 9 down".
+    rpUp2: " 상승 · ", rpFlat2: " 횡보 · ", rpDown2: " 하락",
 
     // 리포트 — 주기
-    rpTf: "Timeframe",
-    rpDaily: "Daily", rpWeekly: "Weekly", rpMonthly: "Monthly",
-    rpLocked: "Locked", rpLockedSuffix: " · locked",
-    rpUpgrade: "Go deeper",
-    rpAgreeTf: " of ", rpAgreeTfTail: " timeframes agree",
-    rpNoHistory: "Not enough history",
+    rpTf: "주기",
+    rpDaily: "일봉", rpWeekly: "주봉", rpMonthly: "월봉",
+    rpLocked: "잠김", rpLockedSuffix: " · 잠김",
+    rpUpgrade: "심화분석 보기",
+    rpAgreeTf: "/", rpAgreeTfTail: " 주기 일치",
+    rpNoHistory: "이력이 부족합니다",
 
     // 서브패널 빈 데이터 안내 (Fix 7: draw-panels.js 도 MSStr 단일 출처를 쓴다)
-    pnlRsiEmpty: "No RSI data",
-    pnlMacdEmpty: "No MACD data",
-    pnlVolumeEmpty: "No volume data",
+    pnlRsiEmpty: "RSI 데이터 없음",
+    pnlMacdEmpty: "MACD 데이터 없음",
+    pnlVolumeEmpty: "거래량 데이터 없음",
 
     // 예측선 범례
-    lgP1: "1st · blended forecast",
-    lgP2: "2nd · selected indicators",
-    lgP3: "3rd · counter scenario",
+    lgP1: "1차 · 통합 예측",
+    lgP2: "2차 · 선택 지표",
+    lgP3: "3차 · 반대 시나리오",
 
     // 차트 레전드 (Phase 3 신규)
-    legPred: "1st forecast",
-    legTarget: "Target",
-    legGolden: "golden ", legDead: "dead ", legBars: " bars", legNoCross: "no cross",
-    legSqueeze: " · squeeze",
+    legPred: "1차 예측",
+    legTarget: "목표가",
+    legGolden: "골든크로스 ", legDead: "데드크로스 ", legBars: "봉 전", legNoCross: "교차 없음",
+    legSqueeze: " · 스퀴즈",
 
     // 차트 안 잔존 라벨(크로스 표기는 legGolden/legDead/legBars 를 그대로 쓴다 — 레전드와
     // 차트가 각자 표기를 갖고 있던 것이 드리프트 원인이었다. Fix round 1)
-    cxBullDiv: "Bullish divergence", cxBearDiv: "Bearish divergence",
-    cxBullVolDiv: "Bullish volume divergence", cxBearVolDiv: "Bearish volume divergence",
+    // 상승/하락 어간은 rpUp/rpDown·readings.js(cross·cloud·flip 3곳)와 같은 단어다(태스크 8
+    // 코디네이터 지시 — "판정어를 정하면 다섯 곳을 한 번에 맞춘다"). readings.js 는 판독문
+    // 전체가 아직 영문이라(별도 과제) 이번엔 손대지 않았다 — 다음에 옮길 때 이 어간을 따른다.
+    cxBullDiv: "상승 다이버전스", cxBearDiv: "하락 다이버전스",
+    cxBullVolDiv: "상승 거래량 다이버전스", cxBearVolDiv: "하락 거래량 다이버전스",
 
     // 지갑 (Phase 8a → 시안 10b 재스킨) — 문구·행 구성은 시안 10b.
-    // walDeep 은 예외적으로 아직 영어다 — tsFull·rpTierFull·obCostFull 과 한 이름을 공유해야
-    // 하는데(strings.test.mjs "한 단계는 한 이름으로 불린다") 그 셋은 각각 다른 태스크(7·8) 소관이라
-    // 지금 혼자 옮기면 이름이 갈린다. 넷을 한 번에 옮기는 결정은 태스크 8 로 넘겼다
-    // (코디네이터 판정, 2026-08-16) — MAX_PENDING_EN 이 그 정리를 강제한다.
     walTitle: "스쿱", walEarn: "버는 곳", walSpend: "쓰는 곳",
     // walCap 은 이제 헤더가 아니라 잔량 카드 안에서 "최대 20"으로 쓰인다(시안 10b) —
     // walInWallet("in wallet")이 있던 자리를 대체해 그 키는 지웠다.
@@ -168,7 +172,9 @@
     walStreakNote: "{n}일 연속 · 7일 되면 +5",
     walChest: "7일 연속 상자", walChestAway: "일 남음",
     walSlot: "종목 슬롯 추가", walScan: "워치리스트 스캔",
-    walDeep: "Deep analysis",   // 태스크 8 로 이관(위 주석) — 지금은 이 한 줄만 영어다
+    // walDeep·rpTierFull·tsFull·obCostFull 은 한 단계를 가리킨다 — 넷을 한 번에 옮기는 결정을
+    // 태스크 8 로 미뤄뒀던 것을 여기서 처리한다(strings.test.mjs "한 단계는 한 이름으로 불린다").
+    walDeep: "심화분석",
     walOptimiser: "전문분석", walFree: "무료", walBasic: "기본분석",
     walDay: "일째", walClaimedSep: " · ",
     walCapped: "상한 도달 — 남은 만큼은 버려졌습니다",
@@ -240,12 +246,9 @@
     // 부제 접미사 — o.name(또는 sym) 뒤에 그대로 이어붙인다("애플" + 이 값).
     tsResultsKept: " · 결과는 계속 보관됩니다",
     tsBasic: "기본분석",
-    // tsFull 은 이번 라운드는 예외적으로 영어다 — walDeep·rpTierFull·obCostFull 과 한 이름을
-    // 공유해야 하는데(strings.test.mjs "한 단계는 한 이름으로 불린다") 그 셋은 태스크 8 소관이라
-    // 지금 혼자 옮기면 넷의 이름이 갈린다. 넷을 한 번에 옮기는 결정은 태스크 8 로 넘겼다
-    // (코디네이터 판정 2026-08-16). 그래서 "Deep 실행"처럼 버튼 한 곳만 영·한이 섞인다 —
-    // 시안 6b 원문("심화분석 실행")과 다른 건 이 이유 하나뿐이고 의도된 것이다.
-    tsFull: "Deep", tsCustom: "전문분석",
+    // walDeep·rpTierFull·obCostFull 과 한 단계를 가리킨다(태스크 8, 위 walDeep 주석 참고).
+    // tsFull + tsRun("실행") = "심화분석 실행" — 시안 6b 원문 그대로 맞아떨어진다.
+    tsFull: "심화분석", tsCustom: "전문분석",
     tsBasicDesc: "도구 5 · 방향과 범위",
     // 두 줄(시안 6b 원문에 줄바꿈이 있다) — .sheet-tier-desc 가 white-space:pre-line 이다.
     tsFullDesc: "도구 32 · 일·주·월\n중심값 · 오차 · 확률 · 적중 이력",
@@ -289,28 +292,32 @@
     tpAlreadyPicked: "이미 고른 종목입니다.",
     tpKept: "이미 워치리스트에 있어 그대로 유지됩니다.",
 
-    // 온보딩 (screens/onboarding.js)
-    obBack: "Back", obNext: "Continue",
-    obSampleNote: "Example series",
-    obH1: "Where does this chart go next?",
-    obSub1: "Every reading below comes from this chart — nothing is hand-written.",
-    obH2: "Thirty readings, one verdict.",
-    obSub2: "Each bar is one indicator. They collapse into a single call.",
-    obCombCap: " readings with a direction",
-    obH3: "Why it is free",
-    obSub3: "Deep analysis costs Scoops. You earn them by checking in — and later by watching a short ad.",
-    obGranting: "Setting up your wallet…",
-    obGranted: " Scoops to start",
-    obGrantOffline: "We could not reach the wallet. You can continue — Basic reports are always free.",
-    obRetry: "Try again",
-    obCostFull: "Deep analysis", obCostScan: "Watchlist scan", obCostSlot: "Extra ticker slot",
-    obH4: "Pick your first tickers",
-    obSub4: "Three slots to start. You can change them any time.",
-    obH5: "Before you start",
-    obRisk: "MoneyScoop reads price, volume and time. It does not know company news, earnings or anything a person told you. Nothing here is investment advice, and a forecast is not a promise.",
-    obAgree: "I understand and accept the terms.",
-    obFree: "Your first deep analysis is free.",
-    obFinish: "Start"
+    // 온보딩 (screens/onboarding.js) — 지금 구현된 5단계 흐름은 DESIGN-INVENTORY 의 7단계 정본과
+    // 화면 구성이 다른 별도 변형이라, 그 문서의 문구를 그대로 옮겨 붙이지 않고 원문 영어 문장의
+    // 뜻을 그대로 번역했다(태스크 8 브리프의 "덮지 않는 것은 의미대로 번역" 원칙).
+    obBack: "뒤로", obNext: "다음",
+    obSampleNote: "예시 데이터",
+    obH1: "이 차트는 다음에 어디로 갈까요?",
+    obSub1: "아래 모든 판독은 이 차트에서 나온 것입니다 — 손으로 쓴 것은 하나도 없습니다.",
+    obH2: "판독 서른 개, 결론은 하나.",
+    obSub2: "막대 하나가 지표 하나입니다. 이것들이 모여 하나의 판정이 됩니다.",
+    obCombCap: "개 지표가 방향을 제시했습니다",
+    obH3: "무료인 이유",
+    obSub3: "심화분석에는 스쿱이 듭니다. 출석하면 스쿱을 얻고, 나중에는 짧은 광고를 봐서도 얻을 수 있습니다.",
+    obGranting: "지갑을 준비하는 중…",
+    obGranted: "개 스쿱으로 시작합니다",
+    obGrantOffline: "지갑에 연결하지 못했습니다. 계속 진행할 수 있습니다 — 기본분석은 항상 무료입니다.",
+    obRetry: "다시 시도",
+    // obCostFull 은 walDeep·rpTierFull·tsFull 과 같은 단계다(위 walDeep 주석). obCostScan·
+    // obCostSlot 은 walScan·walSlot 과 같은 문구를 그대로 재사용한다(두 화면이 갈리지 않게).
+    obCostFull: "심화분석", obCostScan: "워치리스트 스캔", obCostSlot: "종목 슬롯 추가",
+    obH4: "처음 볼 종목을 골라보세요",
+    obSub4: "시작은 슬롯 3개입니다. 언제든 바꿀 수 있습니다.",
+    obH5: "시작하기 전에",
+    obRisk: "MoneyScoop은 가격·거래량·시간만 읽습니다. 기업 뉴스나 실적, 다른 사람에게 들은 어떤 것도 알지 못합니다. 여기 있는 어떤 것도 투자 조언이 아니며, 예측은 약속이 아닙니다.",
+    obAgree: "내용을 이해했으며 약관에 동의합니다.",
+    obFree: "첫 심화분석은 무료입니다.",
+    obFinish: "시작하기"
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지)가 같은 개념을

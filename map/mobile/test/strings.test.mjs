@@ -40,32 +40,12 @@ test("모르는 blockType 은 그대로 돌려준다 — 던지지 않는다", (
 // P1 에서 방향이 뒤집혔다 — 앱은 한국어가 된다(시안 2026-08-16 번들, README "UI 는 한글 단독").
 // 204개를 한 커밋에 번역하면 리뷰가 불가능하므로, 아직 영어인 키를 여기 적어두고 화면별로 지운다.
 // 이 목록은 **줄어들기만 한다.** 새 키를 여기 넣는 것은 번역을 미루는 것이라 실패로 본다.
-const PENDING_EN = ["bootVendorMissing","wlBrandA","wlBrandB","wlChipUS","wlChipKR","wlChipETF","rpBack","rpPickSym","rpLoadFail","rpRetry","rpUnknownErr","rpAnalyzeErr","rpBarsShort","rpUp","rpDown","rpFlat","rpBullish","rpBearish","rpCone","rpAgree","rpAgreeTail","rpAgreeShort","rpAgreeNone","rpHitLeadBull","rpHitLeadBear","rpHitRight","rpHitWrong","rpHitScopeA","rpHitScopeB","rpHitScopeC","rpHitScopeShort","rpHitSize","rpHitSizeTail","rpHzTomorrow","rpHzWeek","rpHzMonth","rpTierBasic","rpTierCount","rpTierFull","rpTierCountFull","rpComposite","rpHorizon","rpSignals","rpOf","rpShown","rpNotCounted","rpAgainst","rpAgainstNone","rpReasoning","rpReasoningNodes","rpReasoningScope","rpReasoningDir","rdNotEnoughBars","rdNoVolume","rdNoSwings","rpMissingHitRate","rpMissingDisagree","rpMissingTfAgree","rpMissingWhy","rpMissingNote","rpUp2","rpFlat2","rpDown2","rpTf","rpDaily","rpWeekly","rpMonthly","rpLocked","rpLockedSuffix","rpUpgrade","rpAgreeTf","rpAgreeTfTail","rpNoHistory","pnlRsiEmpty","pnlMacdEmpty","pnlVolumeEmpty","lgP1","lgP2","lgP3","legPred","legTarget","legGolden","legDead","legBars","legNoCross","legSqueeze","cxBullDiv","cxBearDiv","cxBullVolDiv","cxBearVolDiv","walDeep","tsFull","obBack","obNext","obSampleNote","obH1","obSub1","obH2","obSub2","obCombCap","obH3","obSub3","obGranting","obGranted","obGrantOffline","obRetry","obCostFull","obCostScan","obCostSlot","obH4","obSub4","obH5","obRisk","obAgree","obFree","obFinish"];
+const PENDING_EN = [];
 
 // 잔여 목록은 줄어들기만 해야 한다 — 이 상한이 그 규율을 코드로 박아둔다("줄어들기만 한다"는
 // 주석 한 줄로는 아무것도 막지 못한다. 태스크 5~8 이 키를 번역해 목록에서 지우면 이 숫자도 함께
 // 낮춘다. 숫자를 올리는 건 번역 대신 키를 추가하는 것이므로, 그 자체가 리뷰에서 드러나야 한다.
-const MAX_PENDING_EN = 116;
-
-// 값에 라틴문자가 없으면 번역할 단어가 없다 — "↻" · "—" · " · " 같은 기호·구분자다.
-// 이것들을 미번역으로 세면 잔여 목록이 절대 비지 않고 태스크 8 의 완료 조건이 도달 불가능해진다.
-function needsKo(v) { return /[A-Za-z]/.test(String(v)); }
-
-test("UI 문자열은 한국어다 — 잔여 목록에 적힌 것만 예외", () => {
-  const en = Object.keys(S.t).filter(k => needsKo(S.t[k]) && !/[가-힣]/.test(String(S.t[k])));
-  const unlisted = en.filter(k => PENDING_EN.indexOf(k) < 0);
-  assert.deepEqual(unlisted, [],
-    "번역 안 됐는데 잔여 목록에도 없는 키 " + unlisted.length + "건: " + unlisted.join(", "));
-  const stale = PENDING_EN.filter(k => en.indexOf(k) < 0);
-  assert.deepEqual(stale, [],
-    "이미 번역됐는데 잔여 목록에 남은 키(목록을 지울 것) " + stale.length + "건: " + stale.join(", "));
-});
-
-test("잔여 목록은 늘어나지 않는다 — 상한을 올리는 건 리뷰가 봐야 할 결정이다", () => {
-  assert.ok(PENDING_EN.length <= MAX_PENDING_EN,
-    "PENDING_EN 이 상한(" + MAX_PENDING_EN + ")을 넘었다: " + PENDING_EN.length + "건. " +
-    "번역 대신 키를 추가한 것이라면 되돌릴 것 — 정말 상한을 올릴 의도라면 MAX_PENDING_EN 도 같이 올릴 것.");
-});
+const MAX_PENDING_EN = 0;
 
 // 라틴 글자가 연속된 한 덩어리 = 단어 하나. 부분 번역("티커 or 회사 Search")을 잡는 최소 단위다.
 function latinWords(v) { return String(v).match(/[A-Za-z]+/g) || []; }
@@ -93,6 +73,10 @@ function stripIndicatorNames(v) {
 // **자리표시자 전체**({...})를 지운 다음 남는 라틴 단어만 본다.
 function stripPlaceholders(v) { return String(v).replace(/\{[A-Za-z]+\}/g, " "); }
 
+// HTML 태그(bootVendorMissing 의 <br> 등)는 콘텐츠가 아니라 마크업이다 — "br" 이 단어로
+// 잡히면 태그를 쓰는 값은 절대 번역 완료 판정을 받을 수 없다. 자리표시자와 같은 이유로 지운다.
+function stripTags(v) { return String(v).replace(/<[^>]+>/g, " "); }
+
 // 허용 라틴 단어 소스 ①: 값에서 지표명 전체 문구를 지운 나머지 — "MACD 교차"·"Volume profile 확인"
 // 처럼 문장 속에 지표명이 온전히 섞이는 건 정상이다(브리프의 명시 규칙: 지표명은 언어와 무관하게
 // 영어). S.IND 가 바뀌면 이 목록도 같이 파생되므로 손으로 베낄 필요가 없다(hand-copy 금지).
@@ -101,20 +85,58 @@ function stripPlaceholders(v) { return String(v).replace(/\{[A-Za-z]+\}/g, " ");
 // 실제로 담고 있는 문구에 대응해 항목마다 이유를 적는다 — 근거 없이 단어를 여기 넣는 것은
 // "번역 안 했다"를 숨기는 뒷문이 된다.
 const ALLOWED_LATIN = [
-  "ETF", "US", "KR",   // wlChipETF/US/KR — 자산군·국가 코드의 관용 표기, 국문 대응어가 없다
+  "ETF",               // wlChipETF — 한국 증권 앱은 전부 "ETF" 그대로 쓴다. "지수펀드"로 옮기면
+                        // 지수를 추종하지 않는 ETF도 있어 원문에 없는 말을 보태는 셈이다(태스크 8 코디네이터 판정).
   "Google",            // wSignIn 등 구글 로그인 문구 — 고유명사, 번역하지 않는다
   "MoneyScoop",         // obRisk — 앱 이름 자체, 브랜드명이라 번역하지 않는다
   "ID",                // wDeviceClaimed "기기 ID" — 국문 UI 에서도 그대로 쓰는 관용 약어
   "v",                 // walEngine "분석 엔진 v" + 버전 숫자 — semver 접두 "v"는 번역 대상이 아니다
+  "Money", "Scoop",    // wlBrandA/wlBrandB — 헤더 워드마크(뒷조각 Scoop만 골드). 브랜드 마크지
+                        // UI 카피가 아니다 — 머니스쿱으로 음역하면 제품 이름 자체를 이 타이포
+                        // 태스크 안에서 바꾸는 셈이라(브랜드 결정), 고유명사로 남긴다(태스크 8 코디네이터 판정).
 ].map(w => w.toLowerCase());
 const ALLOWED_LATIN_SET = new Set(ALLOWED_LATIN);
+
+// 값에 남은 라틴 단어 중 지표명 전체 문구도, 자리표시자도, 허용 목록도 아닌 것 — 이게 하나라도
+// 있으면 그 값은 "아직 번역이 안 끝났다"는 뜻이다. **PENDING_EN 판정과 절반-번역 판정 양쪽이
+// 이 함수 하나를 그대로 쓴다.** 예전엔 PENDING_EN 판정이 "라틴 글자가 하나라도 있고 한글이
+// 전혀 없으면 미번역"으로 값 전체를 봤다 — 그러면 "Money"·"ETF"처럼 애초에 한글이 붙을 수
+// 없는 고유명사·관용 코드는 번역해도 이 목록을 절대 벗어날 수 없었다(태스크 8 리뷰가 잡은
+// 관문 결함: 번역 문제가 아니라 완료조건 자체가 도달 불가능했다). 허용 단어로만 이루어진
+// 값은 미완성이 아니라 완성이다 — 단어 단위로 판단해야 "Money Scoop Retry" 처럼 허용된
+// 단어 옆에 안 허용된 단어가 붙어도 여전히 샌다(아래 회귀 테스트가 그 경계를 증명한다).
+function untranslatedWords(v) {
+  return latinWords(stripPlaceholders(stripTags(stripIndicatorNames(v)))).filter(w => !ALLOWED_LATIN_SET.has(w.toLowerCase()));
+}
+
+test("허용 라틴 단어는 단어 단위로 걸러진다 — 허용된 단어 옆에 안 허용된 단어가 붙어도 샌다", () => {
+  assert.ok(untranslatedWords("Money Scoop Retry").length > 0,
+    "허용된 Money·Scoop 옆의 Retry(비허용)를 못 잡았다");
+  assert.ok(untranslatedWords("Retry").length > 0, "완전 미번역 값이 안 잡혔다");
+  assert.deepEqual(untranslatedWords("ETF 보기"), [], "허용된 라틴 단어(ETF)만 있는데 잡혔다");
+});
+
+test("UI 문자열은 한국어다 — 잔여 목록에 적힌 것만 예외", () => {
+  const en = Object.keys(S.t).filter(k => untranslatedWords(S.t[k]).length > 0);
+  const unlisted = en.filter(k => PENDING_EN.indexOf(k) < 0);
+  assert.deepEqual(unlisted, [],
+    "번역 안 됐는데 잔여 목록에도 없는 키 " + unlisted.length + "건: " + unlisted.join(", "));
+  const stale = PENDING_EN.filter(k => en.indexOf(k) < 0);
+  assert.deepEqual(stale, [],
+    "이미 번역됐는데 잔여 목록에 남은 키(목록을 지울 것) " + stale.length + "건: " + stale.join(", "));
+});
+
+test("잔여 목록은 늘어나지 않는다 — 상한을 올리는 건 리뷰가 봐야 할 결정이다", () => {
+  assert.ok(PENDING_EN.length <= MAX_PENDING_EN,
+    "PENDING_EN 이 상한(" + MAX_PENDING_EN + ")을 넘었다: " + PENDING_EN.length + "건. " +
+    "번역 대신 키를 추가한 것이라면 되돌릴 것 — 정말 상한을 올릴 의도라면 MAX_PENDING_EN 도 같이 올릴 것.");
+});
 
 test("번역된 문자열에 남은 라틴 단어는 허용 목록에 있어야 한다 — 절반만 번역한 문구를 잡는다", () => {
   const offenders = [];
   Object.keys(S.t).forEach(k => {
-    const v = String(S.t[k]);
-    if (!/[가-힣]/.test(v)) return; // 한 글자도 안 옮겨졌으면 PENDING_EN 가드의 몫이다
-    const bad = latinWords(stripPlaceholders(stripIndicatorNames(v))).filter(w => !ALLOWED_LATIN_SET.has(w.toLowerCase()));
+    if (PENDING_EN.indexOf(k) >= 0) return; // 아직 번역 안 된 게 확정된 키는 위 테스트 담당
+    const bad = untranslatedWords(S.t[k]);
     if (bad.length) offenders.push(k + ": " + bad.join(", "));
   });
   assert.deepEqual(offenders, [],
