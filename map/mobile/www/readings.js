@@ -430,6 +430,10 @@
       if (!r.pattern || r.pattern === "none") return "구간 내 완성된 차트 패턴 없음";
       // 매칭 실패 폴백은 지표명(Str.IND.pattern)과 같은 문구를 쓴다 — 지표명은 언어와 무관하게
       // 영어라는 프로젝트 전역 규칙(strings.test.mjs)이 여기도 적용된다.
+      // 폴백 두 겹이 영어인 것은 번역 누락이 아니다 — PATTERN_NAME 에 없는 패턴은 이름을 지어낼
+      // 수 없어 **지표명**으로 되돌리는데, 지표명은 인터페이스 언어와 무관하게 영어라는 제품
+      // 규칙이 있다(Str.ind 는 IND 맵을 읽고, 그 맵이 로드되기 전이면 같은 값의 리터럴을 쓴다).
+      // 여기에 한글을 넣으면 같은 지표가 이 한 줄에서만 다른 이름으로 불린다.
       return (PATTERN_NAME[r.pattern] || (Str && Str.ind ? Str.ind("pattern") : "Chart pattern"))
            + ", 적합도 " + n0((r.confidence || 0) * 100) + "%, "
            + (r.confirmed ? "돌파로 확인됨" : "아직 미확인");

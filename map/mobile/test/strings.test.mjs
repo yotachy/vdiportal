@@ -91,8 +91,6 @@ const ALLOWED_LATIN = [
                         // 지수를 추종하지 않는 ETF도 있어 원문에 없는 말을 보태는 셈이다(태스크 8 코디네이터 판정).
   "Google",            // wSignIn 등 구글 로그인 문구 — 고유명사, 번역하지 않는다
   "MoneyScoop",         // obRisk — 앱 이름 자체, 브랜드명이라 번역하지 않는다
-  "ID",                // wDeviceClaimed "기기 ID" — 국문 UI 에서도 그대로 쓰는 관용 약어
-  "v",                 // walEngine "분석 엔진 v" + 버전 숫자 — semver 접두 "v"는 번역 대상이 아니다
   "Money", "Scoop",    // wlBrandA/wlBrandB — 헤더 워드마크(뒷조각 Scoop만 골드). 브랜드 마크지
                         // UI 카피가 아니다 — 머니스쿱으로 음역하면 제품 이름 자체를 이 타이포
                         // 태스크 안에서 바꾸는 셈이라(브랜드 결정), 고유명사로 남긴다(태스크 8 코디네이터 판정).
@@ -101,6 +99,23 @@ const ALLOWED_LATIN = [
                         // 실재하므로 국소 목록이 아니라 여기 있어야 한다(BB·%B 와 다른 점).
 ].map(w => w.toLowerCase());
 const ALLOWED_LATIN_SET = new Set(ALLOWED_LATIN);
+
+// 키 국소 허용 — 전역 목록에 있으면 문이 주석보다 넓어지는 단어들(P1 Task 8 이 minor 로 남긴 건).
+// "v" 와 "ID" 는 각각 딱 한 값에서만 정당하다. 전역에 두면 앞으로 어떤 문구에 홀로 남은 "v"·"ID"
+// 도 영원히 안 잡힌다 — 특히 "v" 는 한 글자라 라틴 단어 어디에나 생길 수 있다.
+// 화면·캔버스 스캔 게이트는 키를 모르므로 이 목록을 못 본다. 그쪽에서 "v"·"ID" 가 나오면
+// 잡히는 것이 맞다(그 자리엔 walEngine·wDeviceClaimed 가 없다).
+const KEY_ALLOWED_LATIN = {
+  walEngine: ["v"],          // "분석 엔진 v" + 버전 숫자 — semver 접두 v 는 번역 대상이 아니다
+  wDeviceClaimed: ["ID"],    // "기기 ID" — 국문 UI 에서도 그대로 쓰는 관용 약어
+};
+function untranslatedWordsForKey(key, v) {
+  var extra = KEY_ALLOWED_LATIN[key];
+  var words = untranslatedWords(v);
+  if (!extra) return words;
+  var set = new Set(extra.map(w => w.toLowerCase()));
+  return words.filter(w => !set.has(w.toLowerCase()));
+}
 
 // 값에 남은 라틴 단어 중 지표명 전체 문구도, 자리표시자도, 허용 목록도 아닌 것 — 이게 하나라도
 // 있으면 그 값은 "아직 번역이 안 끝났다"는 뜻이다. **PENDING_EN 판정과 절반-번역 판정 양쪽이
@@ -119,10 +134,17 @@ test("허용 라틴 단어는 단어 단위로 걸러진다 — 허용된 단어
     "허용된 Money·Scoop 옆의 Retry(비허용)를 못 잡았다");
   assert.ok(untranslatedWords("Retry").length > 0, "완전 미번역 값이 안 잡혔다");
   assert.deepEqual(untranslatedWords("ETF 보기"), [], "허용된 라틴 단어(ETF)만 있는데 잡혔다");
+  // 키 국소 허용은 그 키에서만 산다 — 전역으로 새면 이 목록을 따로 둔 의미가 없다.
+  assert.deepEqual(untranslatedWordsForKey("walEngine", "분석 엔진 v"), [],
+    "walEngine 의 semver 접두 v 가 잡혔다");
+  assert.ok(untranslatedWordsForKey("wlSearch", "티커 v 회사").length > 0,
+    "다른 키에 홀로 남은 'v' 를 흘려보낸다 — 키 국소 허용이 전역으로 샜다");
+  assert.ok(untranslatedWordsForKey("wlSearch", "기기 ID 확인").length > 0,
+    "다른 키에 홀로 남은 'ID' 를 흘려보낸다 — 키 국소 허용이 전역으로 샜다");
 });
 
 test("UI 문자열은 한국어다 — 잔여 목록에 적힌 것만 예외", () => {
-  const en = Object.keys(S.t).filter(k => untranslatedWords(S.t[k]).length > 0);
+  const en = Object.keys(S.t).filter(k => untranslatedWordsForKey(k, S.t[k]).length > 0);
   const unlisted = en.filter(k => PENDING_EN.indexOf(k) < 0);
   assert.deepEqual(unlisted, [],
     "번역 안 됐는데 잔여 목록에도 없는 키 " + unlisted.length + "건: " + unlisted.join(", "));
@@ -141,7 +163,7 @@ test("번역된 문자열에 남은 라틴 단어는 허용 목록에 있어야 
   const offenders = [];
   Object.keys(S.t).forEach(k => {
     if (PENDING_EN.indexOf(k) >= 0) return; // 아직 번역 안 된 게 확정된 키는 위 테스트 담당
-    const bad = untranslatedWords(S.t[k]);
+    const bad = untranslatedWordsForKey(k, S.t[k]);
     if (bad.length) offenders.push(k + ": " + bad.join(", "));
   });
   assert.deepEqual(offenders, [],

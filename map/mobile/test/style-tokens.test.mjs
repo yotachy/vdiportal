@@ -1,17 +1,26 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
-const CSS = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
+const RAW = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
+// 주석을 **먼저** 비운다(개행은 보존 — 줄 번호가 원본과 어긋나면 안 된다).
+// 안 그러면 주석 안의 중괄호 한 짝이 아래 :root 블록 탐색을 그 자리에서 끝내버린다.
+// 실제로 이 라운드에 그 일이 났다: 척도 토큰을 설명하는 주석에 `--fw-{역할}` 이라고 적었더니
+// ROOT 가 거기서 잘려 뒤쪽 토큰들이 ROOT 밖으로 밀려났고, 동시에 BODY 가 :root 의 뒷부분을
+// 삼켰다. 두 관문 다 **우연히** 초록이었다 — 잘린 뒤쪽에 헥스도, 역할 토큰도 없었을 뿐이다.
+// 경계 계산은 주석을 비운 문자열 하나(CSS)에서만 한다.
+const CSS = RAW.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ""));
 const ROOT = (CSS.match(/:root\s*\{[\s\S]*?\}/) || [""])[0];
 // 스캔 경계: 첫 ":root{...}" 블록이 끝나는 지점부터 파일 끝까지만 본다.
 // 그 위(현재는 Task 1 의 @font-face 블록)는 관문 대상이 아니다 — 의도적이지만,
 // 여기서 위로 규칙을 하나 더 추가하는 다음 사람은 이 사실을 모르고 지나치기 쉽다.
-// BODY 는 여기서 블록 주석(/* ... */)을 미리 통째로 지운다 — 줄 단위로 지우면 여러 줄에
-// 걸친 주석의 중간 줄이 안 지워져, "이전 값 13px 이었다" 같은 설명 주석이 아래 관문에
-// 오탐을 낸다. 주석 내용만 지우고 개행은 보존해 줄 번호가 원본과 어긋나지 않게 한다.
-const BODY = CSS
-  .slice(CSS.indexOf("}", CSS.indexOf(":root")) + 1)
-  .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ""));
+// 주석이 이미 비어 있으므로(위 CSS) "이전 값 13px 이었다" 같은 설명 주석이 아래 관문에
+// 오탐을 내지 않는다. 줄 단위로 지우면 여러 줄 주석의 중간 줄이 안 지워져 새는데, 위에서
+// 통째로 비워 그 구멍도 함께 막혔다.
+const BODY_AT = CSS.indexOf(":root") + ROOT.length;
+const BODY = CSS.slice(BODY_AT);
+// BODY 는 개행을 보존하므로 BODY 인덱스에서 원본 줄 번호를 되찾을 수 있다 — 규칙 블록 단위로
+// 보는 관문(아래 3축 결속)이 "몇 줄"을 못 말하면 고치는 사람이 파일을 훑어야 한다.
+function lineOf(bodyIdx) { return CSS.slice(0, BODY_AT + bodyIdx).split("\n").length; }
 
 test("타이포 8역할이 토큰으로 정의돼 있다", () => {
   for (const k of ["headline", "title", "section", "figure", "body", "sub", "caption", "overline"])
@@ -44,6 +53,102 @@ test("화면 CSS 의 font-size 는 토큰만 쓴다 — 4px 폭에 8단계가 �
     }
   });
   assert.deepEqual(bad, [], "토큰 아닌 font-size " + bad.length + "건:\n" + bad.join("\n"));
+});
+
+// ── 타이포 3축 ────────────────────────────────────────────────────────────────────────────
+// P1 은 크기 축만 세웠다. 무게·자간은 토큰을 정의해 놓고 강제하지 않아 리터럴 43건·12건이
+// 남았고, 리뷰(Important 6)가 남긴 진짜 지적은 그 55건 자체가 아니라 **막는 관문이 없어
+// 새 규칙이 계속 하드코딩으로 들어온다**는 것이었다. P2 는 화면을 여섯 개 넘게 새로 그리므로
+// 관문 없이 시작하면 그 헐거움이 화면 수만큼 복제된다.
+//
+// 값 형태는 "정확히 var(--토큰)" 만 받는다. calc()/clamp() 로 감싸는 것을 허용하면
+// `calc(var(--fw-bold) + 100)` 같은 형태로 토큰을 통과시키면서 역할 밖 값을 만들 수 있다
+// (P1 판정 X 가 park 한 잔여 탈출구 — 크기 축에서 지적된 그 형태다. 여기서는 처음부터 막는다).
+const AXES = [
+  { prop: "font-weight", pre: "--fw-" },
+  { prop: "letter-spacing", pre: "--ls-" },
+];
+// font 축약형이 무게를 실을 수 있다 — "font:700 13px/1.4 x". 크기 관문과 같은 이유로 함께 본다.
+// 크기를 안 싣는 합법 키워드(font:inherit 등)는 위 FONT_SHORTHAND_KEYWORDS 가 이미 안다.
+const WEIGHT_WORD = /(?:^|\s)(?:[1-9]00|bold|bolder|lighter)(?:\s|$|\/)/;
+
+test("화면 CSS 의 font-weight·letter-spacing 도 토큰만 쓴다 — 크기만 강제하면 축이 셋 중 하나다", () => {
+  const bad = [];
+  BODY.split("\n").forEach((line, i) => {
+    AXES.forEach(({ prop, pre }) => {
+      // 한 줄에 여러 선언이 올 수 있다(이 파일이 이미 그렇다) — g 로 전부 본다.
+      // 프로퍼티 앞에 하이픈이 없어야 한다: "-webkit-letter-spacing" 류의 접두 변형을 안 잡는다.
+      const re = new RegExp("(?:^|[^-\\w])" + prop + "\\s*:\\s*([^;}]+)", "g");
+      let m;
+      while ((m = re.exec(line))) {
+        const v = m[1].trim();
+        if (!new RegExp("^var\\(\\s*" + pre + "[a-z]+\\s*\\)$").test(v))
+          bad.push(prop + " " + (i + 1) + ": " + v);
+      }
+    });
+    let m;
+    const fRe = /(?:^|[^-\w])font\s*:\s*([^;}]+)/g;
+    while ((m = fRe.exec(line))) {
+      const val = m[1].trim().toLowerCase();
+      if (FONT_SHORTHAND_KEYWORDS.indexOf(val) >= 0) continue;
+      if (WEIGHT_WORD.test(val) && !/var\(--fw-/.test(val))
+        bad.push("font 축약형 " + (i + 1) + ": " + val + "  (축약형에 실린 무게가 토큰이 아니다)");
+    }
+  });
+  assert.deepEqual(bad, [],
+    "토큰 아닌 무게/자간 " + bad.length + "건:\n" + bad.join("\n"));
+});
+
+// 8역할 중 **정체성을 갖는 다섯**(판정 헤드라인·화면 제목·섹션 제목·큰 수치·오버라인)은
+// 크기만 빌려 쓸 수 없다 — 그 크기를 쓰면 무게·자간도 그 역할의 것을 쓴다.
+// 나머지 셋(body·sub·caption)은 **일하는 크기**다: 같은 12px 라벨을 400 으로도 600 으로도
+// 그리는 것이 정상이라 결속하지 않는다(결속하면 실재하는 위계를 지운다).
+//
+// 이 관문이 P1 리뷰가 이름을 대서 지적한 결함 하나를 정확히 겨눈다 — .wl-brand 가
+// --fs-section(역할 800/−0.03em)을 쓰면서 700/−.01em 을 따로 적고 있었다.
+const IDENTITY_ROLES = ["headline", "title", "section", "figure", "overline"];
+// 역할 이름 전체(정체성 5 + 일하는 크기 3 + display). 이 목록에 없는 --fw-*/--ls-* 접미사가
+// 곧 "척도 토큰"이다 — 열거가 아니라 차집합으로 구한다.
+const ROLE_NAMES = IDENTITY_ROLES.concat(["body", "sub", "caption", "display"]);
+
+// 척도 토큰은 소비자가 있어야 한다. 역할 triple 은 선언된 디자인 어휘라 지금 안 쓰여도 남지만,
+// 척도는 "리터럴을 옮길 곳"으로 만든 것이라 소비자가 0 이면 그냥 죽은 값이다 —
+// P1 Ruling B 가 --fs-figure 에 대해 한 지적과 같다: 아무도 안 쓰는 토큰은 있으나 마나가 아니라
+// 다음 사람이 "이 값은 안 쓰나 보다"로 읽는다. 실제로 이 라운드에서 5개(--fw-light·--fw-medium·
+// --ls-tight·--ls-snug·--ls-widest)가 소비자 0 으로 태어났다가 이 관문에 걸려 지워졌다.
+test("무게·자간 척도 토큰은 소비자가 있다 — 죽은 값을 어휘로 남기지 않는다", () => {
+  const dead = [];
+  const re = /--((?:fw|ls)-[a-z]+)\s*:/g;
+  let m;
+  while ((m = re.exec(ROOT))) {
+    const name = m[1], suffix = name.replace(/^(fw|ls)-/, "");
+    if (ROLE_NAMES.indexOf(suffix) >= 0) continue;
+    if (BODY.indexOf("var(--" + name + ")") < 0) dead.push("--" + name);
+  }
+  assert.deepEqual(dead, [],
+    "소비자 0 인 척도 토큰 " + dead.length + "개: " + dead.join(", ") +
+    " — 지우거나, 남길 이유를 주석으로 적고 실제로 쓸 것");
+});
+
+test("정체성 역할은 3축을 함께 쓴다 — 크기만 빌리고 무게·자간을 따로 적지 않는다", () => {
+  const bad = [];
+  ruleBlocks(BODY).forEach(b => {
+    const decls = parseDecls(b.body);
+    const fs = decls.filter(d => d.prop === "font-size").pop();
+    if (!fs) return;
+    const role = (fs.value.match(/var\(\s*--fs-([a-z]+)\s*\)/) || [])[1];
+    if (!role || IDENTITY_ROLES.indexOf(role) < 0) return;
+    [["font-weight", "--fw-"], ["letter-spacing", "--ls-"]].forEach(([prop, pre]) => {
+      const d = decls.filter(x => x.prop === prop).pop();
+      if (!d) return;   // 안 적은 것은 상속이다 — 역할을 어기지 않는다
+      if (d.value.trim() !== "var(" + pre + role + ")")
+        bad.push(lineOf(b.index) + " " + b.selector.trim() + ": --fs-" + role +
+                 " 인데 " + prop + " 가 " + d.value.trim() + " (기대: var(" + pre + role + "))");
+    });
+  });
+  assert.deepEqual(bad, [],
+    "역할에서 벗어난 축 " + bad.length + "건:\n" + bad.join("\n") +
+    "\n(역할 값을 바꾸고 싶으면 :root 의 그 역할을 바꿀 것 — 규칙마다 따로 적으면 위계가 다시 흩어진다)");
 });
 
 test("색은 토큰만 — :root 밖에 헥스 리터럴이 없다", () => {
