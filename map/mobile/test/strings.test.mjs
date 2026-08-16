@@ -42,6 +42,11 @@ test("모르는 blockType 은 그대로 돌려준다 — 던지지 않는다", (
 // 이 목록은 **줄어들기만 한다.** 새 키를 여기 넣는 것은 번역을 미루는 것이라 실패로 본다.
 const PENDING_EN = ["bootVendorMissing","wlBrandA","wlBrandB","wlSearch","wlChipAll","wlChipUS","wlChipKR","wlChipETF","wlNoMatch","wlEmpty","wlAdd","addTitle","wlScan","wlScanning","wlScanFail","wlScanNone","wlScanNoneNoRefund","wlRemoveConfirm","rpBack","rpPickSym","rpLoadFail","rpRetry","rpUnknownErr","rpAnalyzeErr","rpBarsShort","rpUp","rpDown","rpFlat","rpBullish","rpBearish","rpCone","rpAgree","rpAgreeTail","rpAgreeShort","rpAgreeNone","rpHitLeadBull","rpHitLeadBear","rpHitRight","rpHitWrong","rpHitScopeA","rpHitScopeB","rpHitScopeC","rpHitScopeShort","rpHitSize","rpHitSizeTail","rpHzTomorrow","rpHzWeek","rpHzMonth","rpTierBasic","rpTierCount","rpTierFull","rpTierCountFull","rpComposite","rpHorizon","rpSignals","rpOf","rpShown","rpNotCounted","rpAgainst","rpAgainstNone","rpReasoning","rpReasoningNodes","rpReasoningScope","rpReasoningDir","rdNotEnoughBars","rdNoVolume","rdNoSwings","rpMissingHitRate","rpMissingDisagree","rpMissingTfAgree","rpMissingWhy","rpMissingNote","rpUp2","rpFlat2","rpDown2","rpTf","rpDaily","rpWeekly","rpMonthly","rpLocked","rpLockedSuffix","rpUpgrade","rpAgreeTf","rpAgreeTfTail","rpNoHistory","pnlRsiEmpty","pnlMacdEmpty","pnlVolumeEmpty","lgP1","lgP2","lgP3","legPred","legTarget","legGolden","legDead","legBars","legNoCross","legSqueeze","cxBullDiv","cxBearDiv","cxBullVolDiv","cxBearVolDiv","walTitle","walCap","walEarn","walSpend","walInWallet","walQuickSub","walFullSub","walCheckin","walOnceADay","walOnceADayCap","walChest","walChestAway","walSlot","walScan","walDeep","walOptimiser","walFree","walDay","walCheckedIn","walCapped","walBack","wSignIn","wSignInHint","wSignOut","wSignInWaiting","wSignInFailed","wDeviceClaimed","wMergeDiscarded","wWatchlistLocal","wMerged","wSignInUnavailable","adQuick","adFull","adDailyDone","adCooldown","adWaiting","adPending","adFailed","adSettings","adLowBalance","walNoCashValue","walEngine","tsTitle","tsBasic","tsFull","tsCustom","tsBasicDesc","tsFullDesc","tsCustomDesc","tsDone","tsPopular","tsSoon","tsFullPreview","tsCostsLead","tsRun","tsCost","tsShort","tsRunning","tsFailed","tsFailedNoRefund","tsSpendFailed","tsSpendFailedUnknown","walUnavailable","tsUnavailable","tpPlaceholder","tpAdd","tpChecking","tpNotFound","tpDidYouMean","tpFull","tpUnavailable","tpAlreadyPicked","tpKept","obBack","obNext","obSampleNote","obH1","obSub1","obH2","obSub2","obCombCap","obH3","obSub3","obGranting","obGranted","obGrantOffline","obRetry","obCostFull","obCostScan","obCostSlot","obH4","obSub4","obH5","obRisk","obAgree","obFree","obFinish"];
 
+// 잔여 목록은 줄어들기만 해야 한다 — 이 상한이 그 규율을 코드로 박아둔다("줄어들기만 한다"는
+// 주석 한 줄로는 아무것도 막지 못한다. 태스크 5~8 이 키를 번역해 목록에서 지우면 이 숫자도 함께
+// 낮춘다. 숫자를 올리는 건 번역 대신 키를 추가하는 것이므로, 그 자체가 리뷰에서 드러나야 한다.
+const MAX_PENDING_EN = 199;
+
 // 값에 라틴문자가 없으면 번역할 단어가 없다 — "↻" · "—" · " · " 같은 기호·구분자다.
 // 이것들을 미번역으로 세면 잔여 목록이 절대 비지 않고 태스크 8 의 완료 조건이 도달 불가능해진다.
 function needsKo(v) { return /[A-Za-z]/.test(String(v)); }
@@ -54,6 +59,44 @@ test("UI 문자열은 한국어다 — 잔여 목록에 적힌 것만 예외", (
   const stale = PENDING_EN.filter(k => en.indexOf(k) < 0);
   assert.deepEqual(stale, [],
     "이미 번역됐는데 잔여 목록에 남은 키(목록을 지울 것) " + stale.length + "건: " + stale.join(", "));
+});
+
+test("잔여 목록은 늘어나지 않는다 — 상한을 올리는 건 리뷰가 봐야 할 결정이다", () => {
+  assert.ok(PENDING_EN.length <= MAX_PENDING_EN,
+    "PENDING_EN 이 상한(" + MAX_PENDING_EN + ")을 넘었다: " + PENDING_EN.length + "건. " +
+    "번역 대신 키를 추가한 것이라면 되돌릴 것 — 정말 상한을 올릴 의도라면 MAX_PENDING_EN 도 같이 올릴 것.");
+});
+
+// 라틴 글자가 연속된 한 덩어리 = 단어 하나. 부분 번역("티커 or 회사 Search")을 잡는 최소 단위다.
+function latinWords(v) { return String(v).match(/[A-Za-z]+/g) || []; }
+
+// 허용 라틴 단어 소스 ①: 지표명(S.IND)에 등장하는 라틴 단어는 자동 허용된다 — "MACD 교차"처럼
+// 문장 속에 지표명이 섞이는 건 정상이다(브리프의 명시 규칙: 지표명은 언어와 무관하게 영어).
+// 지표가 늘 때마다 손으로 베끼면 어긋나므로 여기서 파생한다(hand-copy 금지).
+const INDICATOR_LATIN = new Set();
+Object.keys(S.IND).forEach(k => latinWords(S.IND[k]).forEach(w => INDICATOR_LATIN.add(w.toLowerCase())));
+
+// 허용 라틴 단어 소스 ②: 지표명이 아니면서 번역 후에도 영어로 남는 단어. 현재 strings.js 가
+// 실제로 담고 있는 문구에 대응해 항목마다 이유를 적는다 — 근거 없이 단어를 여기 넣는 것은
+// "번역 안 했다"를 숨기는 뒷문이 된다.
+const ALLOWED_LATIN = [
+  "ETF", "US", "KR",   // wlChipETF/US/KR — 자산군·국가 코드의 관용 표기, 국문 대응어가 없다
+  "Google",            // wSignIn 등 구글 로그인 문구 — 고유명사, 번역하지 않는다
+  "MoneyScoop",         // obRisk — 앱 이름 자체, 브랜드명이라 번역하지 않는다
+  "TSLA",              // tpPlaceholder 의 예시 종목코드 — 티커는 항상 라틴 표기
+].map(w => w.toLowerCase());
+const ALLOWED_LATIN_SET = new Set(ALLOWED_LATIN);
+
+test("번역된 문자열에 남은 라틴 단어는 허용 목록에 있어야 한다 — 절반만 번역한 문구를 잡는다", () => {
+  const offenders = [];
+  Object.keys(S.t).forEach(k => {
+    const v = String(S.t[k]);
+    if (!/[가-힣]/.test(v)) return; // 한 글자도 안 옮겨졌으면 PENDING_EN 가드의 몫이다
+    const bad = latinWords(v).filter(w => !INDICATOR_LATIN.has(w.toLowerCase()) && !ALLOWED_LATIN_SET.has(w.toLowerCase()));
+    if (bad.length) offenders.push(k + ": " + bad.join(", "));
+  });
+  assert.deepEqual(offenders, [],
+    "번역되다 만 문자열 " + offenders.length + "건(키: 남은 라틴 단어) —\n" + offenders.join("\n"));
 });
 
 test("지표명은 계속 영어다 — 인터페이스 언어와 무관하다는 명시 규칙", () => {
@@ -112,7 +155,15 @@ test("MSStr.t 의 모든 키는 화면 소스에서 최소 한 번 참조된다 
 // 이 테스트가 없었기 때문에 두 이름이 갈렸고, 3단계 체계에서 "Full" 위에 전문분석이 오면
 // 말 자체가 성립하지 않는다.
 test("한 단계는 한 이름으로 불린다", () => {
-  const deep = [S.t.tsFull, S.t.rpTierFull, S.t.walDeep, S.t.obCostFull].map(s => String(s).toLowerCase());
+  const raw = [S.t.tsFull, S.t.rpTierFull, S.t.walDeep, S.t.obCostFull];
+  const names = ["tsFull", "rpTierFull", "walDeep", "obCostFull"];
+  // 넷 중 하나라도 지워지면 String(undefined)="undefined" 가 넷 다 같아져 uniq.length===1 로
+  // 통과해버린다(전부 유실인데 초록) — 값 자체를 먼저 검증해야 이 함정을 막는다.
+  raw.forEach((v, i) => {
+    assert.ok(typeof v === "string" && v.length > 0,
+      names[i] + " 값이 비어 있다(키가 지워졌을 수 있다): " + JSON.stringify(v));
+  });
+  const deep = raw.map(s => String(s).toLowerCase());
   const uniq = Array.from(new Set(deep.map(s => s.replace(/\s*(분석|analysis)\s*$/, "").trim())));
   assert.equal(uniq.length, 1, "심화분석이 여러 이름으로 불린다: " + JSON.stringify(deep));
 });
