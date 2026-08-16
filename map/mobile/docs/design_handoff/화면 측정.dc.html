@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>html,body{margin:0;background:#0a0d12}body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}*{box-sizing:border-box}a{color:#b892f5;text-decoration:none}a:hover{color:#cbb0f8}</style></helmet>
+
+<div style="min-height:100vh;padding:22px 18px 40px;max-width:760px;margin:0 auto">
+
+<p style="margin:0 0 6px;font:700 11px/1 'Plus Jakarta Sans',sans-serif;color:#b892f5">MoneyScoop · 기기 측정</p>
+<h1 style="margin:0 0 10px;font:800 26px/1.15 'Plus Jakarta Sans',sans-serif;letter-spacing:-.035em;color:#eef1f7">이 화면의 실제 크기</h1>
+<p style="margin:0 0 22px;font:400 13px/1.65 'Plus Jakarta Sans',sans-serif;color:#9aa3b6">Z 폴드 7과 탭 S10+ 에서 <b style="color:#c5ccdb">각 상태마다</b> 이 페이지를 열고, 아래 <b style="color:#eef1f7">복사용 한 줄</b>을 저에게 보내주세요. 접기·펼치기·회전하면 숫자는 자동으로 바뀝니다.</p>
+
+<div style="padding:20px 20px 22px;border-radius:20px;background:#11151d;margin:0 0 16px">
+<p style="margin:0 0 14px;font:700 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">지금 이 화면</p>
+<div style="display:flex;align-items:baseline;gap:10px;margin:0 0 4px">
+<span style="font:700 54px/1 'Space Grotesk',sans-serif;letter-spacing:-.05em;color:#eef1f7">{{ w }}</span>
+<span style="font:700 26px/1 'Space Grotesk',sans-serif;color:#8892a6">×</span>
+<span style="font:700 54px/1 'Space Grotesk',sans-serif;letter-spacing:-.05em;color:#eef1f7">{{ h }}</span>
+</div>
+<p style="margin:0 0 18px;font:500 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">CSS 픽셀 · 이 값으로 시안을 그립니다</p>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="flex:1;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">화면 밀도</span><span style="font:700 15px/1 'Space Grotesk',sans-serif;color:#eef1f7">{{ dpr }}×</span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="flex:1;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">실제 픽셀</span><span style="font:700 15px/1 'Space Grotesk',sans-serif;color:#eef1f7">{{ phys }}</span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="flex:1;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">가로세로비</span><span style="font:700 15px/1 'Space Grotesk',sans-serif;color:#eef1f7">{{ ratio }}</span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="flex:1;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">방향</span><span style="font:700 15px/1 'Space Grotesk',sans-serif;color:#eef1f7">{{ orient }}</span></div>
+</div>
+</div>
+
+<div style="padding:20px;border-radius:20px;background:#11151d;margin:0 0 16px">
+<p style="margin:0 0 6px;font:700 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#e8b463">안전영역 — 잘리면 안 되는 여백</p>
+<p style="margin:0 0 14px;font:400 11.5px/1.55 'Plus Jakarta Sans',sans-serif;color:#78819a">하단 탭바와 시트가 이 값만큼 떠 있어야 합니다. 0 이 나오면 브라우저가 이미 처리한 것입니다.</p>
+<div style="display:flex;gap:8px">
+<div style="flex:1;padding:14px 10px;border-radius:12px;background:rgba(238,241,247,.04);text-align:center"><p style="margin:0 0 6px;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">위</p><p style="margin:0;font:700 19px/1 'Space Grotesk',sans-serif;color:#eef1f7">{{ sat }}</p></div>
+<div style="flex:1;padding:14px 10px;border-radius:12px;background:rgba(238,241,247,.04);text-align:center"><p style="margin:0 0 6px;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">아래</p><p style="margin:0;font:700 19px/1 'Space Grotesk',sans-serif;color:#eef1f7">{{ sab }}</p></div>
+<div style="flex:1;padding:14px 10px;border-radius:12px;background:rgba(238,241,247,.04);text-align:center"><p style="margin:0 0 6px;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">왼쪽</p><p style="margin:0;font:700 19px/1 'Space Grotesk',sans-serif;color:#eef1f7">{{ sal }}</p></div>
+<div style="flex:1;padding:14px 10px;border-radius:12px;background:rgba(238,241,247,.04);text-align:center"><p style="margin:0 0 6px;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">오른쪽</p><p style="margin:0;font:700 19px/1 'Space Grotesk',sans-serif;color:#eef1f7">{{ sar }}</p></div>
+</div>
+</div>
+
+<div style="padding:20px;border-radius:20px;background:#11151d;margin:0 0 16px">
+<p style="margin:0 0 6px;font:700 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#4fb98a">현재 레이아웃 판정</p>
+<p style="margin:0 0 14px;font:400 11.5px/1.55 'Plus Jakarta Sans',sans-serif;color:#78819a">지금 폭이면 시안의 어느 배치가 뜨는지입니다.</p>
+<div style="padding:16px 18px;border-radius:14px;background:rgba(79,185,138,.09)">
+<p style="margin:0 0 5px;font:800 19px/1.2 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#eef1f7">{{ layout }}</p>
+<p style="margin:0;font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#9aa3b6">{{ layoutWhy }}</p>
+</div>
+</div>
+
+<div style="padding:20px;border-radius:20px;background:rgba(184,146,245,.10);margin:0 0 16px">
+<p style="margin:0 0 12px;font:700 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#b892f5">복사용 한 줄 — 이걸 보내주세요</p>
+<div style="padding:14px 16px;border-radius:12px;background:#0a0d12;margin:0 0 12px;overflow-wrap:anywhere"><span style="font:500 12.5px/1.6 'Space Grotesk',monospace;color:#c5ccdb">{{ line }}</span></div>
+<div onClick="{{ copy }}" style="height:54px;border-radius:999px;background:#b892f5;display:flex;align-items:center;justify-content:center;font:800 15px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.02em;color:#14101f;cursor:pointer;user-select:none">{{ copyLabel }}</div>
+</div>
+
+<div style="padding:20px;border-radius:20px;background:#11151d;margin:0 0 16px">
+<p style="margin:0 0 6px;font:700 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">재야 할 상태 5개</p>
+<p style="margin:0 0 14px;font:400 11.5px/1.55 'Plus Jakarta Sans',sans-serif;color:#78819a">각각에서 위 한 줄을 복사해 주세요. 순서는 상관없습니다.</p>
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="width:22px;flex:none;font:700 12px/1 'Space Grotesk',sans-serif;color:#b892f5">1</span><span style="flex:1;font:600 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">폴드 7 · <b style="color:#eef1f7">접은 채</b> 세로</span></div>
+<div style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="width:22px;flex:none;font:700 12px/1 'Space Grotesk',sans-serif;color:#b892f5">2</span><span style="flex:1;font:600 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">폴드 7 · <b style="color:#eef1f7">펼친 채</b> 세로</span></div>
+<div style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="width:22px;flex:none;font:700 12px/1 'Space Grotesk',sans-serif;color:#b892f5">3</span><span style="flex:1;font:600 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">폴드 7 · <b style="color:#eef1f7">펼친 채</b> 가로</span></div>
+<div style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="width:22px;flex:none;font:700 12px/1 'Space Grotesk',sans-serif;color:#e8b463">4</span><span style="flex:1;font:600 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">탭 S10+ · 세로</span></div>
+<div style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="width:22px;flex:none;font:700 12px/1 'Space Grotesk',sans-serif;color:#e8b463">5</span><span style="flex:1;font:600 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">탭 S10+ · 가로</span></div>
+</div>
+<p style="margin:14px 0 0;padding:12px 14px;border-radius:12px;background:rgba(79,185,138,.09);font:500 11.5px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#4fb98a">1 · 2 · 4 는 받았습니다</b> — 411×770 · 732×593 · 1382×640. 남은 것은 <b style="color:#eef1f7">3(폴드 펼침 가로)</b> 와 <b style="color:#eef1f7">5(탭 세로)</b> 입니다. 탭 세로는 폭이 640 쯤일 텐데, 그러면 2단이 아니라 <b style="color:#c5ccdb">단일 열</b>로 떨어집니다 — 확인이 필요합니다.</p>
+</div>
+
+<div style="padding:20px;border-radius:20px;background:#11151d">
+<p style="margin:0 0 6px;font:700 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">눈금자 — 실제 크기 확인용</p>
+<p style="margin:0 0 14px;font:400 11.5px/1.55 'Plus Jakarta Sans',sans-serif;color:#78819a">아래 사각형이 <b style="color:#c5ccdb">44 × 44</b> 입니다. 손가락으로 눌러보고 작게 느껴지면 알려주세요 — 탭 영역 최소치를 올려야 합니다.</p>
+<div style="display:flex;align-items:flex-end;gap:14px;margin:0 0 16px">
+<div style="width:44px;height:44px;flex:none;border-radius:10px;background:rgba(184,146,245,.25);border:1px solid #b892f5"></div>
+<div style="width:54px;height:54px;flex:none;border-radius:12px;background:rgba(232,180,99,.18);border:1px solid rgba(232,180,99,.6)"></div>
+<div style="width:60px;height:60px;flex:none;border-radius:14px;background:rgba(79,185,138,.16);border:1px solid rgba(79,185,138,.5)"></div>
+<span style="font:500 11.5px/1.5 'Plus Jakarta Sans',sans-serif;color:#78819a">44 · 54 · 60<br>시안의 버튼 높이</span>
+</div>
+<p style="margin:0 0 8px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">폭 100% 기준 눈금</p>
+<div style="display:flex;height:26px;border-radius:8px;overflow:hidden;background:rgba(238,241,247,.04)">
+<span style="flex:1;border-right:1px solid rgba(238,241,247,.10)"></span><span style="flex:1;border-right:1px solid rgba(238,241,247,.10)"></span><span style="flex:1;border-right:1px solid rgba(238,241,247,.10)"></span><span style="flex:1;border-right:1px solid rgba(238,241,247,.10)"></span><span style="flex:1;border-right:1px solid rgba(238,241,247,.10)"></span><span style="flex:1;border-right:1px solid rgba(238,241,247,.10)"></span><span style="flex:1;border-right:1px solid rgba(238,241,247,.10)"></span><span style="flex:1"></span>
+</div>
+<p style="margin:7px 0 0;font:500 11px/1 'Space Grotesk',sans-serif;color:#78819a">한 칸 {{ eighth }} px</p>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { w: 0, h: 0, dpr: 1, sat: '0', sab: '0', sal: '0', sar: '0', copied: false };
+
+  componentDidMount() {
+    this.probe = document.createElement('div');
+    this.probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);pointer-events:none;visibility:hidden';
+    document.body.appendChild(this.probe);
+    this.measure();
+    this.onResize = () => this.measure();
+    window.addEventListener('resize', this.onResize);
+    window.addEventListener('orientationchange', this.onResize);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('orientationchange', this.onResize);
+    if (this.probe) this.probe.remove();
+  }
+
+  measure() {
+    const cs = this.probe ? getComputedStyle(this.probe) : null;
+    const px = v => (cs ? Math.round(parseFloat(v) || 0) : 0);
+    this.setState({
+      w: Math.round(window.innerWidth),
+      h: Math.round(window.innerHeight),
+      dpr: Math.round((window.devicePixelRatio || 1) * 100) / 100,
+      sat: String(px(cs && cs.paddingTop)),
+      sab: String(px(cs && cs.paddingBottom)),
+      sal: String(px(cs && cs.paddingLeft)),
+      sar: String(px(cs && cs.paddingRight)),
+      copied: false
+    });
+  }
+
+  renderVals() {
+    const { w, h, dpr, sat, sab, sal, sar, copied } = this.state;
+    const landscape = w > h;
+    const ratio = h ? (Math.round((w / h) * 100) / 100).toFixed(2) + ' : 1' : '—';
+
+    let layout = '단일 열 (폰)', layoutWhy = '폭이 좁아 리포트 한 화면만 띄웁니다. 하단 탭 3개로 이동합니다.';
+    if (w >= 1040) { layout = '3단 (태블릿)'; layoutWhy = '목록 + 리포트 + 가중치 레일을 동시에 놓을 수 있습니다. 전문분석 편집기가 제 성능을 내는 폭입니다.'; }
+    else if (w >= 720) { layout = '2단 (폴드 펼침)'; layoutWhy = '좌측 목록 255px + 우측 리포트. 하단 탭은 좌측 레일로 올라갑니다.'; }
+    else if (w < 380) { layout = '단일 열 · 매우 좁음 (커버)'; layoutWhy = '3단 대조 카드를 세로로 쌓고, 적중률 막대는 숫자만 남깁니다. 차트는 높이를 줄입니다.'; }
+
+    const line = `${w}×${h} · dpr ${dpr} · safe ${sat}/${sab}/${sal}/${sar} · ${landscape ? '가로' : '세로'} · ${layout}`;
+
+    return {
+      w, h, dpr, sat, sab, sal, sar, ratio, layout, layoutWhy, line,
+      phys: `${Math.round(w * dpr)} × ${Math.round(h * dpr)}`,
+      orient: landscape ? '가로' : '세로',
+      eighth: Math.round(w / 8),
+      copyLabel: copied ? '복사됨 — 채팅에 붙여넣어 주세요' : '한 줄 복사하기',
+      copy: () => {
+        const done = () => { this.setState({ copied: true }); setTimeout(() => this.setState({ copied: false }), 2600); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(line).then(done, () => this.fallbackCopy(line, done));
+        } else this.fallbackCopy(line, done);
+      }
+    };
+  }
+
+  fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { /* 사용자가 직접 선택 */ }
+    ta.remove();
+  }
+}
+</script>
+</body>
+</html>

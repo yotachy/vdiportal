@@ -197,6 +197,7 @@
     adLowBalance: "Not enough Scoops. Watch an ad to keep going.",
     // 리워드 화폐 고지 — 스토어 심사가 본다. 지갑 화면 하단에 상시 표기(SPEC §6).
     walNoCashValue: "Scoops have no cash value and cannot be transferred or refunded.",
+    walEngine: "Analysis engine v",
 
     // 단계 선택 시트 (Phase 8a)
     tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Full", tsCustom: "Custom",

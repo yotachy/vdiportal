@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>html,body{margin:0;background:#0a0d12}body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}*{box-sizing:border-box}a{color:#b892f5;text-decoration:none}a:hover{color:#cbb0f8}</style></helmet>
+
+<div style="padding:44px 48px 56px;width:max-content;min-width:100%">
+
+<p style="margin:0 0 8px;font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#b892f5">MoneyScoop 모바일 · 화면별 사용자 여정</p>
+<h1 style="margin:0 0 12px;font:800 34px/1.1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.04em;color:#eef1f7">요구사항 전체를 화면 단위로 덮은 판</h1>
+<p style="margin:0 0 20px;max-width:1080px;font:400 14px/1.7 'Plus Jakarta Sans',sans-serif;color:#9aa3b6;text-wrap:pretty">브리프의 기능 요구사항을 <b style="color:#c5ccdb">화면 10개</b>로 나누고, 각 화면마다 <b style="color:#eef1f7">들어오는 길 · 화면 구성 · 할 수 있는 것 · 나가는 길 · 상태</b>를 붙였습니다. 색은 확정된 체계를 그대로 씁니다 — <span style="color:#8892a6;font-weight:700">기본분석</span> · <span style="color:#e8b463;font-weight:700">심화분석</span> · <span style="color:#b9c4dc;font-weight:700">전문분석</span> · <span style="color:#b892f5;font-weight:700">행동</span>.</p>
+
+<div style="width:2320px;margin:0 0 20px;padding:22px 24px;border-radius:16px;background:#11151d;border:1px solid rgba(238,241,247,.10)">
+<p style="margin:0 0 6px;font:700 13px/1 'Plus Jakarta Sans',sans-serif;color:#e08a8a">먼저 분명히 — 시안 26화면 완료, 남은 것은 재열람·아이콘</p>
+<p style="margin:0 0 18px;font:400 12.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#9aa3b6;max-width:1180px">확정된 체계(한글 단독 · 기본/심화/전문 3색 · 적중률 공통 축)로 <b style="color:#eef1f7">그려진 화면은 26개</b>입니다. 남은 3개는 아래 카드에 <b style="color:#c5ccdb">기능과 여정만</b> 적혀 있고 그림은 없습니다. 글 카드를 시안으로 대신 세우지 않기 위해 여기에 밝혀 둡니다.</p>
+<div style="display:flex;gap:20px">
+<div style="flex:1">
+<p style="margin:0 0 10px;font:700 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#4fb98a">시안 완료 · 확정 체계로 작도됨</p>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">기본분석 리포트</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 7a (적중률 포함)</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">심화분석 결과 · 해제 장면</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 8a·8b</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">온보딩 · 콜드오픈 · 왜 무료 · 투자성향</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 11a·11b·11c</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">종목 추가 · 성향 변경 시트</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 12a·12b</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">판독문 32 · 내 예측 기록 · 알림 권한</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 20a·20b·20c</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">예측 결과 확인 · 재방문 루프</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 14a·14b</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">첫 심화분석 직행 · 가격 공개 · 스캔 결과</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 15a·15b·15c</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">영어 UI · 용어표 · 전환 위치</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 13a·13b</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">막히는 상태 6종</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 12c</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">광고 후 적립하는 중 · 복귀</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 11d</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">전문분석 편집기 · 폰</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 10a</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">지갑</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 10b</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">폴드 2단 · 태블릿 3단</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">동선 · 턴 9b·9c · 실측 반영</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(79,185,138,.08)"><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">워치리스트</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">턴 9b·9c 좌측 · 단독 화면은 미작도</span></div>
+</div>
+</div>
+<div style="flex:1">
+<p style="margin:0 0 10px;font:700 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#e08a8a">미작도 · 아래 카드에 기능·여정만 있음</p>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(217,106,106,.08)"><span style="width:20px;font:700 12px/1 'Space Grotesk',sans-serif;color:#e08a8a">1</span><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">온보딩 2·5단계(원리 · 첫 종목)</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">같은 틀의 반복 — 생략</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(217,106,106,.08)"><span style="width:20px;font:700 12px/1 'Space Grotesk',sans-serif;color:#e08a8a">—</span><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">서버 문자열 번역(반대 근거 · 지표명)</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">UI 밖 — 개발 범위</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:rgba(217,106,106,.08)"><span style="width:20px;font:700 12px/1 'Space Grotesk',sans-serif;color:#e08a8a">9</span><span style="font:700 12px/1 'Plus Jakarta Sans',sans-serif;color:#eef1f7">종목 추가 · 성향 변경 시트</span><span style="margin-left:auto;font:500 11px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">미작도</span></div>
+</div>
+</div>
+</div>
+</div>
+
+<div style="width:2320px;margin:0 0 28px;padding:16px 20px;border-radius:14px;background:rgba(217,106,106,.10);border:1px solid rgba(217,106,106,.28);display:flex;align-items:center;gap:14px">
+<span style="padding:5px 11px;border-radius:999px;background:#d96a6a;font:800 11px/1 'Plus Jakarta Sans',sans-serif;color:#1a0a0a">샘플값</span>
+<p style="margin:0;font:500 12.5px/1.6 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">적중률 <b style="color:#eef1f7">61 · 63 · 58~67%</b>, 가격 <b style="color:#eef1f7">231.40</b>, 지평 수치는 전부 샘플입니다. 서버가 관리하는 실측값으로 교체해야 하며, 값이 없는 티어는 숫자 대신 <b style="color:#c5ccdb">"측정 중"</b> 으로 그립니다. 개발 가이드에 샘플임을 명기하십시오.</p>
+</div>
+
+<div style="width:2320px;margin:0 0 40px;padding:26px 28px;border-radius:20px;background:#11151d">
+<p style="margin:0 0 20px;font:700 13px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">여정 세 갈래 — 이 셋 말고는 없습니다</p>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span style="padding:7px 13px;border-radius:999px;background:rgba(184,146,245,.16);font:800 12px/1 'Plus Jakarta Sans',sans-serif;color:#b892f5">첫 실행</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">온보딩 6단계</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">워치리스트</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">기본분석 리포트</span>
+<span style="margin-left:8px;font:500 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">스쿱 10개 · 종목 3개 · 성향 1개를 들고 나옵니다</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span style="padding:7px 13px;border-radius:999px;background:rgba(238,241,247,.06);font:800 12px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">재방문</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">워치리스트</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">기본분석</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#e8b463">해제 유도</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#e8b463">심화분석</span>
+<span style="margin-left:8px;font:500 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">온보딩은 건너뜁니다</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span style="padding:7px 13px;border-radius:999px;background:rgba(232,180,99,.16);font:800 12px/1 'Plus Jakarta Sans',sans-serif;color:#e8b463">획득</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">막힌 순간 · 리포트 직후 · 출석 직후</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">광고</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">적립하는 중</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#b892f5">원래 하려던 분석으로 복귀</span>
+</div>
+<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
+<span style="padding:7px 13px;border-radius:999px;background:rgba(79,185,138,.16);font:800 12px/1 'Plus Jakarta Sans',sans-serif;color:#4fb98a">다음날</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">알림 · 어제 예측 결과</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">워치리스트 상단 결과 카드</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">결과 상세</span><span style="color:#8892a6;font-weight:700">›</span>
+<span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#b9c4dc">반대 지표를 올려 전문분석</span>
+<span style="margin-left:8px;font:500 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#78819a">약속한 답을 주는 알림이라 정당합니다</span>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:20px;width:2320px">
+
+<div style="width:740px;background:#11151d;border-radius:18px;padding:22px 24px">
+<div style="display:flex;align-items:center;gap:11px;margin:0 0 14px"><span style="width:30px;height:30px;flex:none;border-radius:999px;background:rgba(184,146,245,.18);display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#b892f5">1</span><span style="font:800 19px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#eef1f7">온보딩 · 6단계</span><span style="margin-left:auto;padding:5px 10px;border-radius:999px;background:rgba(184,146,245,.14);font:700 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#b892f5">첫 실행에 한 번</span></div>
+<p style="margin:0 0 12px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">들어오는 길 — 설치 직후 자동. 재실행 시 건너뜀</p>
+<div style="display:flex;flex-direction:column;gap:7px;margin:0 0 14px">
+<div style="display:flex;gap:11px;padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="width:26px;flex:none;font:700 12px/1.3 'Space Grotesk',sans-serif;color:#78819a">1/6</span><span style="flex:1;font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">콜드 오픈</b> — 예시 차트 + 예측선(전폭 250). "이 차트는 다음에 어디로 갈까요"</span></div>
+<div style="display:flex;gap:11px;padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="width:26px;flex:none;font:700 12px/1.3 'Space Grotesk',sans-serif;color:#78819a">2/6</span><span style="flex:1;font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">원리</b> — 막대 30개가 판정 하나로 접히는 시연</span></div>
+<div style="display:flex;gap:11px;padding:11px 13px;border-radius:12px;background:rgba(232,180,99,.10)"><span style="width:26px;flex:none;font:700 12px/1.3 'Space Grotesk',sans-serif;color:#e8b463">3/6</span><span style="flex:1;font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">왜 무료인가 · 스쿱 10개 지급</b> — 가격표 먼저, 그다음 지급. 마크가 빈 원에서 10까지 <b style="color:#e8b463">차오르는 효과</b>(0.9초, 숫자 동반 증가) — 이후 모든 수령·광고 보상이 같은 효과를 씁니다. <b style="color:#e8b463">진행 중 · 성공 · 실패</b> 3상태 필요, 실패해도 진행 가능</span></div>
+<div style="display:flex;gap:11px;padding:11px 13px;border-radius:12px;background:rgba(185,196,220,.09)"><span style="width:26px;flex:none;font:700 12px/1.3 'Space Grotesk',sans-serif;color:#b9c4dc">4/6</span><span style="flex:1;font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">투자성향</b> — 단기 모멘텀 / 추세 추종 / 평균 회귀 / 변동성 우선. 라디오 1개 필수. <b style="color:#b9c4dc">전문분석의 예습</b></span></div>
+<div style="display:flex;gap:11px;padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="width:26px;flex:none;font:700 12px/1.3 'Space Grotesk',sans-serif;color:#78819a">5/6</span><span style="flex:1;font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">첫 종목</b> — 12종 그리드 + 직접 입력. 최소 1개. 확인 중 · 후보 제시 · 슬롯 소진 · <b style="color:#c5ccdb">잠긴 셀</b>(기존 보유)</span></div>
+<div style="display:flex;gap:11px;padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04)"><span style="width:26px;flex:none;font:700 12px/1.3 'Space Grotesk',sans-serif;color:#78819a">6/6</span><span style="flex:1;font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">위험 고지 · 동의</b> — 체크박스 필수. 첫 심화분석 무료 안내 → 시작</span></div>
+</div>
+<div style="padding:12px 14px;border-radius:12px;background:rgba(184,146,245,.09)"><p style="margin:0;font:500 12px/1.6 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#b892f5">나가는 길</b> — 완료 시 워치리스트. 되돌아올 경로는 없습니다(원리 재열람은 미해결 · 지갑에 행 추가 검토).</p></div>
+</div>
+
+<div style="width:740px;background:#11151d;border-radius:18px;padding:22px 24px">
+<div style="display:flex;align-items:center;gap:11px;margin:0 0 14px"><span style="width:30px;height:30px;flex:none;border-radius:999px;background:rgba(238,241,247,.07);display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#c5ccdb">2</span><span style="font:800 19px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#eef1f7">워치리스트</span><span style="margin-left:auto;padding:5px 10px;border-radius:999px;background:rgba(238,241,247,.07);font:700 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">탭 1 · 목록</span></div>
+<p style="margin:0 0 12px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">들어오는 길 — 온보딩 완료 · 앱 재실행 · 탭 · 리포트 다 읽은 뒤</p>
+<div style="display:flex;flex-direction:column;gap:7px;margin:0 0 14px">
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">구성</b> — 워드마크 + 마크 · 스쿱 필 · 스캔 ↻ / 검색 · 그룹 칩(전체·미국·한국·ETF) / 종목 행 68px / 종목 추가</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">행 구성</b> — 읽음 상태 점 · 심볼 + 회사명 · 스파크라인 · 가격/등락. <b style="color:#e08a8a">확신 배지는 없습니다</b>(스포일러)</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(184,146,245,.09);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#b892f5">읽음 상태 3종</b> — 바이올렛 채움(아직 안 읽음) · 빈 링(읽음) · 회색(판독 오래됨). 목록을 여는 이유가 "안 읽은 게 있다" 로 바뀝니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(79,185,138,.08);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#4fb98a">스캔은 무료</b> — 잔량 0에서도 눌립니다. 읽음 상태를 갱신하는 동작이라 안 읽은 종목을 발견하게 합니다</div>
+</div>
+<p style="margin:0 0 10px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">할 수 있는 것 → 나가는 길</p>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px">
+<span style="padding:7px 11px;border-radius:10px;background:rgba(238,241,247,.05);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">행 탭 → 기본분석</span>
+<span style="padding:7px 11px;border-radius:10px;background:rgba(238,241,247,.05);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">종목 추가 → 시트</span>
+<span style="padding:7px 11px;border-radius:10px;background:rgba(238,241,247,.05);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">스쿱 필 → 지갑</span>
+<span style="padding:7px 11px;border-radius:10px;background:rgba(217,106,106,.10);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#e08a8a">롱프레스 → 삭제 확인</span>
+</div>
+<p style="margin:0;font:500 11.5px/1.6 'Plus Jakarta Sans',sans-serif;color:#78819a"><b style="color:#8892a6">상태 4종</b> — 비어 있음 / 검색·칩 결과 없음 / 스캔 중 / 스캔 실패. <span style="color:#4fb98a">"스캔 결과 없음 — 스쿱 반환" 은 스캔 무료화로 삭제됩니다.</span></p>
+</div>
+
+<div style="width:740px;background:#11151d;border-radius:18px;padding:22px 24px">
+<div style="display:flex;align-items:center;gap:11px;margin:0 0 14px"><span style="width:30px;height:30px;flex:none;border-radius:999px;background:rgba(136,146,166,.18);display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#8892a6">3</span><span style="font:800 19px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#eef1f7">기본분석 리포트</span><span style="margin-left:auto;padding:5px 10px;border-radius:999px;background:rgba(136,146,166,.18);font:700 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">무료 · 광고 없이</span></div>
+<p style="margin:0 0 12px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">들어오는 길 — 워치리스트 행 탭 · 분석 탭(마지막 종목) · 종목 추가 직후</p>
+<div style="display:flex;flex-direction:column;gap:7px;margin:0 0 14px">
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">1 판정</b> — 상승 우세 · 도구 5개 중 4개. <b style="color:#e08a8a">% 를 쓰지 않습니다</b> — 5개면 값이 0·20·40·60·80·100 뿐이라 확률처럼 오독됩니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(232,180,99,.10);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#e8b463">2 지표 빗</b> — 스틸 막대 5개 + 연한 골드 27개. 차트 밖 한 줄로 <b style="color:#e8b463">"27개 잠김 · 광고 1편으로 전부 열림"</b></div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(79,185,138,.08);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#4fb98a">3 차트 — 기존 구현을 그대로 씁니다</b>(<span style="font:500 11.5px 'Space Grotesk',sans-serif">draw-layers.js · draw-panels.js · chart-legend.js</span>). 새로 설계하지 않으며, 동선에서 정하는 것은 <b style="color:#eef1f7">높이 비율</b>뿐입니다 — 짧은 가로 화면(폴드 펼침 593 · 탭 640)에서 화면 높이의 38%</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(184,146,245,.09);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#b892f5">4 내일은 어디쯤 · 3단 대조</b> — 티어마다 <b style="color:#eef1f7">왼쪽 = 답의 폭 · 오른쪽 = 적중률</b>. 기본 232–236 · 61% / 심화 234.2 ± 1.1 · 63% / 전문 58–67%. 축 55~70% 확대 표기 필수</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(232,180,99,.10);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#e8b463">5 해제 블록</b> — "같은 확률로 절반 좁게 맞힙니다" + <b style="color:#e8b463">광고 1편으로 열기(위)</b> / 스쿱 3개로 열기(아래)</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">6 읽은 도구 5개</b> — 접힌 한 줄. <b style="color:#8892a6">32개 나열은 하지 않습니다</b></div>
+</div>
+<p style="margin:0;font:500 11.5px/1.6 'Plus Jakarta Sans',sans-serif;color:#78819a"><b style="color:#8892a6">상태 4종</b> — 로딩 스켈레톤 / 불러오기 실패 + 다시 시도 / 봉 부족 / 2단 화면에서 미선택. <b style="color:#8892a6">헤더</b> 뒤로 · 종목명 · 가격/시각 · 스쿱 필 · 성향 칩(탭하면 변경)</p>
+</div>
+
+<div style="width:740px;background:#11151d;border-radius:18px;padding:22px 24px">
+<div style="display:flex;align-items:center;gap:11px;margin:0 0 14px"><span style="width:30px;height:30px;flex:none;border-radius:999px;background:rgba(184,146,245,.18);display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#b892f5">4</span><span style="font:800 19px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#eef1f7">단계 선택 시트</span><span style="margin-left:auto;padding:5px 10px;border-radius:999px;background:rgba(238,241,247,.07);font:700 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">하단 시트 · 탭 없음</span></div>
+<p style="margin:0 0 12px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">들어오는 길 — 기본분석의 해제 블록 · 성향 변경 후 재분석</p>
+<div style="display:flex;flex-direction:column;gap:7px;margin:0 0 14px">
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">제목</b> — "얼마나 정밀하게?" · 종목명 + 결과 영구 보관 안내 · 우측 스쿱 필</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(136,146,166,.12);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#8892a6">기본분석</b> — 도구 5 · 방향과 범위 · 무료 · <b style="color:#8892a6">받음</b>(비활성)</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(232,180,99,.13);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#e8b463">심화분석 · 3스쿱</b> — 도구 32 · 일·주·월 · 중심값 · 오차 · 확률 · 적중 이력 · <b style="color:#e8b463">가장 많이 씀</b> 배지</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(185,196,220,.09);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#b9c4dc">전문분석 · 5스쿱</b> — 도구 32 + 지표별 가중치 직접 지정 → 편집기로</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">비용 미리보기</b> — "쓰면 12 → 9" · 최대 20. 살 수 없으면 미리보기를 아예 내지 않습니다</div>
+</div>
+<p style="margin:0;font:500 11.5px/1.6 'Plus Jakarta Sans',sans-serif;color:#78819a"><b style="color:#8892a6">상태 6종</b> — 실행 중 / 잔량 부족 → <b style="color:#e8b463">광고 권유로 전환(같은 시트)</b> / 실패 + 환불 확인 / 실패 + 환불 미확인 / 지갑 접속 불가(실행 버튼 잠금) / <b style="color:#b892f5">판정 없음 → 미차감</b></p>
+</div>
+
+<div style="width:740px;background:#11151d;border-radius:18px;padding:22px 24px">
+<div style="display:flex;align-items:center;gap:11px;margin:0 0 14px"><span style="width:30px;height:30px;flex:none;border-radius:999px;background:rgba(232,180,99,.18);display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#e8b463">5</span><span style="font:800 19px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#eef1f7">광고 · 획득</span><span style="margin-left:auto;padding:5px 10px;border-radius:999px;background:rgba(232,180,99,.18);font:700 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#e8b463">진입 3곳으로 고정</span></div>
+<p style="margin:0 0 12px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">들어오는 길 — 아래 셋 뿐. 전면광고 · 강제 · 팝업 없음</p>
+<div style="display:flex;flex-direction:column;gap:7px;margin:0 0 14px">
+<div style="display:flex;gap:11px;padding:11px 13px;border-radius:12px;background:rgba(232,180,99,.10)"><span style="width:20px;flex:none;font:800 13px/1.3 'Space Grotesk',sans-serif;color:#e8b463">1</span><span style="flex:1;font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">막힌 순간</b> — 시트 안에서 바로. 지갑으로 보내지 않고 선택한 티어를 위에 남깁니다</span></div>
+<div style="display:flex;gap:11px;padding:11px 13px;border-radius:12px;background:rgba(232,180,99,.10)"><span style="width:20px;flex:none;font:800 13px/1.3 'Space Grotesk',sans-serif;color:#e8b463">2</span><span style="flex:1;font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">리포트 다 읽은 직후</b> — <b style="color:#c5ccdb">잔량 3 미만일 때만</b>. 실패·판정없음 직후에는 권하지 않습니다</span></div>
+<div style="display:flex;gap:11px;padding:11px 13px;border-radius:12px;background:rgba(232,180,99,.10)"><span style="width:20px;flex:none;font:800 13px/1.3 'Space Grotesk',sans-serif;color:#e8b463">3</span><span style="flex:1;font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">출석 받은 직후</b> — 같은 행 아래에 "하나 더 받기" 가 이어붙습니다. 하루 한 번</span></div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">선택 화면</b> — 두 줄뿐. 짧은 광고 15초 <b style="color:#c5ccdb">+1</b> / 긴 광고 30초 5초 후 스킵 <b style="color:#e8b463">+3</b>. 상한 근접 시 폐기 고지를 <b style="color:#e8b463">광고 전에</b></div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(217,106,106,.10);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#e08a8a">시청 후 · 이 화면의 원칙</b> — 잔량을 <b style="color:#eef1f7">미리 올리지 않습니다</b>. "적립하는 중" 으로 기다리고 서버가 확정할 때만 올립니다. 잔량이 줄어드는 순간을 만들지 않는 것이 전부입니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(184,146,245,.10);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#b892f5">복귀</b> — 확정되면 <b style="color:#eef1f7">원래 하려던 분석이 자동 실행</b>되고 시트는 스스로 닫힙니다. 이 프레임이 재시청을 만듭니다</div>
+</div>
+<p style="margin:0;font:500 11.5px/1.6 'Plus Jakarta Sans',sans-serif;color:#78819a"><b style="color:#8892a6">막힌 경우 3종</b> — 일 상한 8회(두 줄 대신 한 줄 안내) / 쿨다운 2분(남은 시간) / 지갑 상한 20(지급 대신 사용 유도). <b style="color:#c5ccdb">지급은 구글 서버 콜백으로만</b> — 앱의 완료 이벤트는 UI 신호일 뿐입니다</p>
+</div>
+
+<div style="width:740px;background:#11151d;border-radius:18px;padding:22px 24px">
+<div style="display:flex;align-items:center;gap:11px;margin:0 0 14px"><span style="width:30px;height:30px;flex:none;border-radius:999px;background:rgba(232,180,99,.18);display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#e8b463">6</span><span style="font:800 19px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#eef1f7">심화분석 결과</span><span style="margin-left:auto;padding:5px 10px;border-radius:999px;background:rgba(232,180,99,.18);font:700 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#e8b463">3스쿱 · 영구 보관</span></div>
+<p style="margin:0 0 12px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">들어오는 길 — 시트 실행 성공 · 광고 후 자동 복귀 · 분석 탭 재방문(재차감 없음)</p>
+<div style="display:flex;flex-direction:column;gap:7px;margin:0 0 14px">
+<div style="padding:11px 13px;border-radius:12px;background:rgba(232,180,99,.10);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#e8b463">해제 장면</b> — 스틸 5개 + 골드 27개가 <b style="color:#eef1f7">모두 골드로 세워지는 전환</b>. 기본분석에서 본 그 빗이 채워집니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">판정</b> — 방향 + <b style="color:#e8b463">확신 63%</b> + 오차 구간 55–67% · 30개 중 24개 동의</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">내일은 어디쯤</b> — 234.2 ± 1.1 · 폭 2.2. 1주 · 1개월도 중심값 + 오차로</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">주기 행</b> — 일 · 주 · 월 전부 해금. "3개 중 2개 일치"</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(217,106,106,.10);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#e08a8a">반대 의견</b> — 판정과 반대인 도구 6개 + 각각의 근거. 없으면 "반대하는 도구가 없습니다" 로 명시</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">적중 이력</b> — 58% 적중 / 42% 오답 + 측정 범위 주석. <b style="color:#8892a6">지표별 판독문 32줄은 접어 둡니다</b></div>
+</div>
+<p style="margin:0;font:500 11.5px/1.6 'Plus Jakarta Sans',sans-serif;color:#78819a"><b style="color:#8892a6">다음 행동</b> — 화면 끝에 둘: 다음 종목 보기(항상) / 잔량 3 미만이면 광고 카드. <b style="color:#b9c4dc">전문분석으로 올리기</b> 경로도 여기에 둡니다</p>
+</div>
+
+<div style="width:740px;background:#11151d;border-radius:18px;padding:22px 24px">
+<div style="display:flex;align-items:center;gap:11px;margin:0 0 14px"><span style="width:30px;height:30px;flex:none;border-radius:999px;background:rgba(185,196,220,.18);display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#b9c4dc">7</span><span style="font:800 19px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#eef1f7">전문분석 편집기</span><span style="margin-left:auto;padding:5px 10px;border-radius:999px;background:rgba(185,196,220,.18);font:700 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#b9c4dc">5스쿱 · 전문가용</span></div>
+<p style="margin:0 0 12px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">들어오는 길 — 시트의 전문분석 행 · 심화분석 결과의 "전문분석으로 올리기"</p>
+<div style="display:flex;flex-direction:column;gap:7px;margin:0 0 14px">
+<div style="padding:11px 13px;border-radius:12px;background:rgba(185,196,220,.09);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#b9c4dc">기준 성향</b> — 선택한 성향이 가중치 기본값을 이미 채워둡니다. <b style="color:#eef1f7">아무것도 만지지 않아도 실행 가능</b> — 전문분석이 숙제가 되면 안 됩니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">가중치 입력</b> — 체크박스 + <b style="color:#c5ccdb">슬라이더 0.1 – 3.0</b>(PC 기준 동일, 연속값). 양자화 없이 그대로 전송합니다. 기본값 <b style="color:#eef1f7">1.0</b> 위치에 눈금 고정 표시, 값은 항상 숫자로 병기. 행은 <b style="color:#c5ccdb">2줄</b>(이름+값 / 슬라이더) — 1줄로 붙이면 트랙이 짧아 0.1 단위 조절이 불가능합니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">해제된 행</b> — 체크가 풀리면 슬라이더가 사라지고 <b style="color:#8892a6">—</b> 하나만 남습니다. 비활성 슬라이더를 흐리게 남기면 30줄이 회색 밭이 됩니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(79,185,138,.08);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#4fb98a">실제 등급 · 소스에서 확인됨</b> — <b style="color:#eef1f7">Lv1 핵심 5</b>(이동평균·MACD·RSI·볼린저·거래량) · <b style="color:#eef1f7">Lv2 주요 7</b> · <b style="color:#eef1f7">Lv3 보조 11</b> · <b style="color:#eef1f7">Lv4 고급 7</b> = 레일 30종. IND_TIERS 는 32종이고 레일은 30종 — 빠지는 둘은 <b style="color:#c5ccdb">개넶·패턴</b> 입니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(79,185,138,.08);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#4fb98a">기본분석 5개 = Lv1 핵심 5개</b> — 티어 분할이 임의가 아니라 <b style="color:#eef1f7">엔진의 등급 구조 그대로</b>입니다. 해제는 Lv2→Lv4 를 여는 일입니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(185,196,220,.09);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#b9c4dc">예상 적중률</b> — 설정에 따라 <b style="color:#eef1f7">58~67%</b>. 기준선(기본 61%) 아래로 내려갈 수 있음을 막대에 표시. 전문가용 도구는 이 경고가 신뢰를 만듭니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">하단 고정</b> — 선택 18 / 32 · 가중치 조정 6 · 기본값 되돌리기 · 실행(5스쿱)</div>
+</div>
+<p style="margin:0;padding:11px 13px;border-radius:12px;background:rgba(217,106,106,.10);font:500 11.5px/1.6 'Plus Jakarta Sans',sans-serif;color:#e08a8a"><b>미확인 — 하나 남음</b> — 등급과 지표 이름은 CLAUDE.md · README.md 에서 확인했지만, <b style="color:#eef1f7">투자성향 프리셋 4종의 가중치 벡터</b>는 아직 못 찾았습니다. 시안의 2.0 · 1.4 · 0.6 · 0.3 값은 예시입니다.</p>
+</div>
+
+<div style="width:740px;background:#11151d;border-radius:18px;padding:22px 24px">
+<div style="display:flex;align-items:center;gap:11px;margin:0 0 14px"><span style="width:30px;height:30px;flex:none;border-radius:999px;background:rgba(232,180,99,.18);display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#e8b463">8</span><span style="font:800 19px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#eef1f7">지갑 · 스쿱</span><span style="margin-left:auto;padding:5px 10px;border-radius:999px;background:rgba(238,241,247,.07);font:700 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">탭 3 · 스쿱</span></div>
+<p style="margin:0 0 12px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">들어오는 길 — 탭 · 스쿱 필 · 탭 배지(받을 게 있을 때만 켜짐)</p>
+<div style="display:flex;flex-direction:column;gap:7px;margin:0 0 14px">
+<div style="padding:11px 13px;border-radius:12px;background:rgba(232,180,99,.10);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#e8b463">잔량</b> — 큰 숫자 + 최대 20 + <b style="color:#c5ccdb">상한 게이지</b>(이미 구현돼 있음). 서버가 확정할 때만 올라갑니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(79,185,138,.08);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#4fb98a">버는 곳</b> — 출석 1탭 +1 → <b style="color:#e8b463">"하나 더 받기" 이어붙음</b> / 7일 연속 상자 +5 / 짧은 광고 +1 / 긴 광고 +3(남은 횟수 표기)</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">쓰는 곳</b> — 심화분석 3 · 전문분석 5 · 종목 슬롯 1 · 파라미터 최적화(예정). <b style="color:#4fb98a">스캔은 목록에서 삭제됨</b>. "13이면 심화분석 4번" 한 줄이 이유를 완성합니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">계정</b> — 구글 로그인(서버 자격증명 있을 때만) / 없으면 한 줄 안내(<b style="color:#c5ccdb">현재 모든 사용자의 기본 상태</b>) / 로그아웃 / 다른 계정에 연결된 기기 안내</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(184,146,245,.09);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#b892f5">설정 · 고지</b> — 언어 한/영 전환 · 광고 설정(EEA·영국·캐나다만, 한국에서는 행 자체가 없음) · 상시 고지 "스쿱은 현금 가치가 없고 양도·환불되지 않습니다"</div>
+</div>
+<p style="margin:0;font:500 11.5px/1.6 'Plus Jakarta Sans',sans-serif;color:#78819a"><b style="color:#8892a6">상태 3종</b> — 지갑 못 읽음 / 상한 초과 지급(초과분 폐기 안내) / 기기 병합됨. <b style="color:#c5ccdb">캡·쿨다운·출석은 모두 서버 시간 기준</b> — 기기 시계를 바꿔도 얻는 것이 없어야 합니다</p>
+</div>
+
+<div style="width:740px;background:#11151d;border-radius:18px;padding:22px 24px">
+<div style="display:flex;align-items:center;gap:11px;margin:0 0 14px"><span style="width:30px;height:30px;flex:none;border-radius:999px;background:rgba(238,241,247,.07);display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#c5ccdb">9</span><span style="font:800 19px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#eef1f7">종목 추가 · 성향 변경</span><span style="margin-left:auto;padding:5px 10px;border-radius:999px;background:rgba(238,241,247,.07);font:700 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#c5ccdb">공용 시트 2개</span></div>
+<div style="display:flex;flex-direction:column;gap:7px;margin:0 0 14px">
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.04);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">종목 추가 시트</b> — 온보딩 5단계 그리드를 그대로 재사용. 들어오는 길: 워치리스트 하단 · 빈 목록 상태. 상태: 확인 중 / 찾을 수 없음 / 후보 제시 / 슬롯 소진</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(185,196,220,.09);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#b9c4dc">성향 변경 시트</b> — 들어오는 길: 리포트 헤더의 성향 칩. 온보딩 4단계와 같은 4종. <b style="color:#eef1f7">변경 시 기본분석은 무료로 재실행</b>, 심화·전문 결과는 이전 성향 기준임을 표시</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(217,106,106,.10);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#e08a8a">삭제 확인</b> — 롱프레스에만. 스와이프 삭제는 넣지 않습니다(행 탭이 리포트 진입이라 오작동이 잦습니다)</div>
+</div>
+<p style="margin:0 0 10px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#8892a6">공통 컴포넌트</p>
+<p style="margin:0;font:500 11.5px/1.6 'Plus Jakarta Sans',sans-serif;color:#78819a">버튼 필(높이 54~60) · 하단 시트(상단 라운드 28 · 최대 82vh · 하단 안전영역) · 티어 배지 3색 · 칩 필 · 빈 상태(중앙 정렬 · 상하 40) · 토스트. <b style="color:#e08a8a">금지</b> — 항목 좌측 세로 컬러 라인. 선택·활성은 배경색 · 텍스트색 · 체크 · 아웃라인으로만.</p>
+</div>
+
+<div style="width:740px;background:transparent;border:1px dashed rgba(238,241,247,.16);border-radius:18px;padding:22px 24px">
+<div style="display:flex;align-items:center;gap:11px;margin:0 0 14px"><span style="width:30px;height:30px;flex:none;border-radius:999px;background:rgba(238,241,247,.05);display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#78819a">10</span><span style="font:800 19px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:-.03em;color:#c5ccdb">이번 범위에서 뺀 것</span></div>
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.03);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#9aa3b6"><b style="color:#c5ccdb">영어 UI</b> — <b style="color:#4fb98a">작도 완료(턴 13)</b>. 티어명 Basic · Deep · Pro, 화폐는 Scoops(번역 안 함), 판정은 Upward bias. 지갑의 언어 행이 전환 지점입니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.03);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#9aa3b6"><b style="color:#c5ccdb">폴드 2단 · 태블릿 3단</b> — 좌 목록 255px + 우 리포트. 실측 기기가 없어 보류</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.03);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#9aa3b6"><b style="color:#c5ccdb">라이트 모드</b> — 다크 단독 유지. 도입하면 차트 색까지 다시 정해야 합니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(238,241,247,.03);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#9aa3b6"><b style="color:#c5ccdb">오답 공개 · 방법 화면 · 숫자 역추적</b> — 정직 장치 3종. 신뢰 자산이지만 v1 필수는 아닙니다</div>
+<div style="padding:11px 13px;border-radius:12px;background:rgba(232,180,99,.08);font:400 12px/1.55 'Plus Jakarta Sans',sans-serif;color:#9aa3b6"><b style="color:#e8b463">앱 아이콘 · 스플래시</b> — 현재 Capacitor 생성기 기본값. 스쿱 마크로 13장 재생성 필요</div>
+</div>
+</div>
+
+</div>
+
+<div style="width:2320px;margin:36px 0 0;padding:22px 26px;border-radius:18px;background:rgba(184,146,245,.09)">
+<p style="margin:0 0 12px;font:700 13px/1 'Plus Jakarta Sans',sans-serif;color:#b892f5">개발 착수 순서 — 의존 관계가 순서를 정합니다</p>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<span style="padding:9px 14px;border-radius:12px;background:rgba(238,241,247,.05);font:600 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">1</b> 서버 재화 원장 + 광고 콜백 — 화면 5개가 여기 묶여 있습니다</span>
+<span style="padding:9px 14px;border-radius:12px;background:rgba(238,241,247,.05);font:600 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">2</b> 리포트 3단 대조 + 적중률 — 엔진이 이미 데이터를 갖고 있어 가장 쌉니다</span>
+<span style="padding:9px 14px;border-radius:12px;background:rgba(238,241,247,.05);font:600 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">3</b> 온보딩 6단계 — 4·5·6단계는 재화와 독립이라 선행 가능</span>
+<span style="padding:9px 14px;border-radius:12px;background:rgba(238,241,247,.05);font:600 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">4</b> 시트 + 광고 게이트 + 복귀</span>
+<span style="padding:9px 14px;border-radius:12px;background:rgba(238,241,247,.05);font:600 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#c5ccdb"><b style="color:#eef1f7">5</b> 전문분석 편집기 — IND_TIERS 확인 후</span>
+</div>
+</div>
+
+<p style="margin:28px 0 0;font:400 12.5px/1.7 'Plus Jakarta Sans',sans-serif;color:#78819a;max-width:1120px">화면 시안 원본은 <a href="MoneyScoop 동선.dc.html">MoneyScoop 동선</a> 의 턴 6·7 에 있습니다. 이 보드는 그 시안이 브리프의 기능 요구사항을 어떻게 덮는지, 화면마다 사용자가 어디서 들어와 무엇을 하고 어디로 나가는지를 정리한 것입니다.</p>
+
+</div>
+</x-dc>
+</body>
+</html>

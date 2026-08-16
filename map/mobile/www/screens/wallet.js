@@ -422,6 +422,14 @@
       // (ads-disabled) 스쿱 자체는 체크인으로도 쌓이므로 이 고지는 조건 없이 항상 그린다.
       scr.appendChild(MSUi.el("div", "wal-legal", MSStr.t.walNoCashValue));
 
+      // 분석 엔진 버전. 사용자 제보("이 예측이 이상하다")를 어느 엔진이 낸 것인지에 묶는 유일한
+      // 단서다 — 엔진은 PC 스쿱포지와 한 벌이라 올라가면 여기 숫자도 같이 올라간다.
+      // 생성물이 없으면(vendor 미동기) 줄을 감춘다 — 없는 것을 지어내지 않는다.
+      var bt = window.MSBacktest;
+      if (bt && bt.engineVersion) {
+        scr.appendChild(MSUi.el("div", "wal-engine", MSStr.t.walEngine + bt.engineVersion));
+      }
+
       root.appendChild(scr);
     }
 
