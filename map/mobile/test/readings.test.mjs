@@ -517,9 +517,13 @@ test("report.js 소스 모양 — 지표 계산은 한 지점, opposing 은 그 
   assert.match(REPORT, /MSIndicators\.ctxFrom\(indInput\)/);
 });
 
-test("report.js 소스 모양 — '읽었나' 술어는 두 섹션이 MSReadings.voiced 하나를 쓴다", () => {
+// P2 T7 이 REASONING 섹션을 판독문 화면(20a)으로 옮겨서 이 술어의 소비자가 하나 줄었다.
+// 단정을 "2회"에서 "1회 이상"으로 풀지 않는다 — 정확한 수를 적어야 소비자가 또 늘거나 줄 때
+// 이 줄이 그 사실을 말해준다. 이 술어가 존재하는 이유가 "각 섹션이 각자 판정하면 갈린다"였고,
+// 섹션이 하나로 줄었어도 그 이유는 그대로다(판독문 화면이 두 번째 소비자가 될 수 있다).
+test("report.js 소스 모양 — '읽었나' 술어는 MSReadings.voiced 하나에서만 나온다", () => {
   const uses = REPORT.match(/MSReadings\.voiced\(/g) || [];
-  assert.strictEqual(uses.length, 2, "REASONING 머리와 AGAINST 가 각각 한 번씩 써야 한다");
+  assert.strictEqual(uses.length, 1, "AGAINST 가 한 번 써야 한다(REASONING 은 20a 로 이동)");
   // AGAINST 는 목록과 분모를 **같은** 걸러낸 배열에서 뽑는다 — 한쪽만 걸러내면 분자 > 분모가 난다
   assert.match(REPORT, /var voiced = MSReadings\.voiced\(indRows\);/);
   assert.match(REPORT, /MSIndicators\.opposing\([^)]*,\s*voiced\s*\)/);

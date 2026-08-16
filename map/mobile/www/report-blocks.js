@@ -24,8 +24,13 @@
 
   // 심화분석(시안 18b) — 판정 먼저. 8a 의 직전 상태 대조는 horizons 블록 **안에** 얹힌다
   // (별도 블록이 아니다 — 골격을 바꾸지 않고 얹는다는 것이 사용자 결정의 요지다).
-  var FULL = ["price", "verdict", "chart", "legend", "horizons", "signals",
-              "reasoning", "missing", "against", "tf", "note", "readings", "cta"];
+  //
+  // P1 이 갖고 있던 SIGNALS·REASONING·미반영 박스 셋은 여기서 빠졌다. 사라진 게 아니라
+  // **판독문 화면(20a)으로 옮겼다** — 시안 18b 가 그 자리에 "지표 32개 판독문" 링크 하나를
+  // 두는 이유가 이것이다. 목적지 없이 먼저 지웠으면 돈 내고 산 정보가 없어졌을 것이라,
+  // 판독문 화면(Task 10)을 먼저 세우고 이 라운드에 옮겼다.
+  var FULL = ["price", "verdict", "chart", "legend", "horizons",
+              "against", "tf", "note", "readings", "cta"];
 
   // 전문분석(시안 18c) — 심화의 블록을 **하나도 빼지 않고** 위에 조절판을 얹는다.
   // 한 겹이라도 빠지면 5스쿱 낸 사람이 손해다(인벤토리 §3). 그래서 FULL 을 복사해 쓴다:

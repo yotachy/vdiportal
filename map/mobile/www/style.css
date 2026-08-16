@@ -260,6 +260,13 @@ body {
 .rp-sec-note { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; white-space:nowrap; }
 /* 기본분석의 범위 고지(시안 18a). 각주가 아니라 이 티어가 무엇을 답하고 무엇을 안 답하는지의
    선언이라, 캡션이 아니라 보조 크기로 그린다. */
+/* 직전 기본분석 대조 행(8a) — 지금 값 위에 회색으로. 좌측 세로 라인 금지 규칙에 따라
+   구분은 색과 위치로만 한다. */
+.rp-hz-prev { display:flex; align-items:baseline; gap:8px; padding:8px 0 10px; color:var(--ink-5);
+              font-size:var(--fs-sub); font-variant-numeric:tabular-nums; }
+.rp-hz-prev-k { flex:0 0 auto; }
+.rp-hz-prev-v { flex:1 1 auto; }
+.rp-hz-prev-w { flex:0 0 auto; }
 .rp-hz-note { margin-top:10px; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.5; }
 
 .rp-chart { position:relative; width:100%; margin-bottom:14px; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--bg-raised); }
@@ -270,8 +277,12 @@ body {
 /* 차트 지표 레전드 — 값을 차트 밖으로 뺀 고정 행(캔버스 앞). 칩은 wrap 되어 폭에 맞춰 접힌다.
    rp-ind-legend 로 이름을 분리한 이유는 아래 .rp-legend(예측선 색상 범례)와 충돌 회피. */
 /* 판독은 행으로 정렬한다 — 예전엔 차트 바로 위에 칩이 wrap 되며 여섯 줄짜리 다색 덩어리가 됐다.
-   시안엔 그런 요소가 없고, 같은 정보를 SIGNALS 섹션에 이름/값 두 칸으로 세운다. */
-.rp-ind-legend { display:block; }
+   시안엔 그런 요소가 없고, 같은 정보를 이름/값 두 칸으로 세운다.
+   .rp-lg 는 이제 **차트 블록 안**에 있다(P2 T7) — SIGNALS 섹션이 이 자리를 들고 있던 탓에
+   그 섹션을 빼자마자 크로스헤어 값 표시가 함께 사라졌다. 차트에 딸린 것을 차트가 갖는다. */
+.rp-ind-legend, .rp-lg { display:block; }
+.rp-lg { padding:0 12px; border-top:1px solid var(--hairline); }
+.rp-lg:empty { display:none; border-top:0; }
 .rp-lg-chip { display:flex; align-items:baseline; justify-content:space-between; gap:14px;
               min-height:40px; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
 .rp-lg-chip:last-child { border-bottom:0; }

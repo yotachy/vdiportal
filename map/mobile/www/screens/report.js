@@ -46,6 +46,26 @@
   // render() 지역에 두면 구매가 화면 수명만큼만 살아 재진입 때 다시 과금된다.
   var purchases = {};             // sym -> { idem, promise, data, an, runs }
 
+  // 8a 직전 상태 대조의 재료 — 심화로 올라가기 **전에** 기본분석이 낸 값을 남긴다.
+  // 모듈 스코프인 이유는 purchases 와 같다: 화면 수명보다 오래 살아야 한다(뒤로 갔다 와도
+  // 대조가 유지되어야 하고, 새 render() 는 새 클로저를 만든다).
+  //
+  // 규칙 둘(사용자 결정 2026-08-17):
+  //  G1. 직전 값이 없으면 대조 행을 **통째로 생략**한다 — "—"나 추정치로 채우지 않는다.
+  //      기본을 건너뛰고 심화로 직행하거나 캐시가 없으면 대조할 값이 없다. 대조는 있으면
+  //      강력한 근거지 없으면 안 되는 골격이 아니다.
+  //  G2. **같은 종목·같은 기준일(asOf)** 의 것만 쓴다. 어제 값과 오늘 값을 나란히 놓으면
+  //      하루 차이가 티어 차이로 읽힌다.
+  var basicSnap = {};             // sym -> { asOf, lo, hi, width }
+
+  // 기준일 = 마지막 봉의 날짜. 종목·주기가 같아도 이 값이 다르면 다른 계산이다.
+  function asOfOf(d) {
+    var c = d && d.candle;
+    if (!c || !c.length) return null;
+    var last = c[c.length - 1];
+    return (last && last.t != null) ? String(last.t) : null;
+  }
+
   // 그 중 idem 만은 실행보다 오래 살아야 한다. spend 를 보낸 뒤 응답이 유실되면 사용자는
   // 강제 종료로 빠져나오고, 다시 켠 앱의 purchases 는 비어 있어 새 idem 을 뽑는다 — 서버에는
   // 무관한 키라 멱등이 못 잡는다. full 은 서버 권리(24h runs) 덕에 재시도가 spend-cached 로
@@ -414,6 +434,9 @@
       if (tier === "full" && an) { state = "ready"; draw(); return; }
       try {
         an = analyzeFull(data);
+        // 기본 티어의 '내일' 범위를 남긴다 — 심화를 사면 이 값이 대조 행이 된다.
+        // 여기서만 적는다: 심화 분석 결과로 덮어쓰면 대조가 자기 자신과의 비교가 된다.
+        if (tier === "basic") snapBasic();
         state = "ready";
       } catch (e) {
         state = "error";
@@ -422,6 +445,24 @@
       draw();
     }
     function retry() { if (data) finishData(); else startLoad(); }
+
+    function snapBasic() {
+      var pr = an && an.out && an.out.prediction;
+      if (!pr || !pr.lo || !pr.hi || !pr.lo.length) return;
+      var asOf = asOfOf(data);
+      if (!asOf) return;                       // 기준일을 모르면 G2 를 지킬 수 없다 — 안 적는다
+      basicSnap[sym] = { asOf: asOf, lo: pr.lo[0], hi: pr.hi[0], width: pr.hi[0] - pr.lo[0] };
+    }
+
+    // G1·G2 를 함께 판정한다. 쓸 수 없으면 null — 호출부가 행을 통째로 생략한다.
+    function prevBasic() {
+      if (tier === "basic") return null;       // 대조는 심화 이상에서만 의미가 있다
+      var snap = basicSnap[sym];
+      if (!snap) return null;                                    // G1
+      if (!isFinite(snap.lo) || !isFinite(snap.hi)) return null;  // G1
+      if (snap.asOf !== asOfOf(data)) return null;                // G2
+      return snap;
+    }
 
     function buildHead() {
       var head = MSUi.el("div", "rp-head");
@@ -583,6 +624,21 @@
           MSUi.fmtPrice(pr.lo[lastI]) + " – " + MSUi.fmtPrice(pr.hi[lastI]) + MSStr.t.rpCone));
       }
       sec.appendChild(head);
+      // 8a 직전 상태 대조 — 심화가 판 것을 화면에서 보이게 하는 유일한 장치다. 티어 실측이
+      // 말하는 것은 "방향을 더 맞힌다"가 아니라 "폭이 정직해진다"인데, 대조 없이 심화 값만
+      // 단독으로 놓으면 사용자는 그 정직해짐을 볼 방법이 없다. 폭이 4.0 에서 ±1.1 로 좁아진
+      // 것을 **직전 값 옆에서** 봐야 "무엇을 샀는지"가 성립한다.
+      // 없으면 그냥 없다(G1) — 회색 자리에 "—" 나 추정치를 채우지 않는다.
+      var prev = prevBasic();
+      if (prev) {
+        var cmp = MSUi.el("div", "rp-hz-prev");
+        cmp.appendChild(MSUi.el("span", "rp-hz-prev-k", MSStr.t.rpPrevBasic));
+        cmp.appendChild(MSUi.el("span", "rp-hz-prev-v",
+          MSUi.fmtPrice(prev.lo) + MSStr.t.rpRangeDash + MSUi.fmtPrice(prev.hi)));
+        cmp.appendChild(MSUi.el("span", "rp-hz-prev-w",
+          MSStr.t.rpWidthA + prev.width.toFixed(1)));
+        sec.appendChild(cmp);
+      }
       // 기본분석은 **내일만** 답한다(시안 18a). 1주·1개월은 심화가 파는 것 중 하나다 —
       // 세 줄을 다 보여주면 3단 비교표의 "기간별"이 무료가 된다.
       if (tier === "basic") rows = rows.slice(0, 1);
@@ -600,6 +656,17 @@
       // 이 문장이 기본분석의 판매 논리 그 자체다 — 범위는 정확히 답하되 그 이상은 말하지
       // 않는다. 빼면 "왜 확률이 없지"가 되고, 심화가 무엇을 파는지도 흐려진다.
       if (tier === "basic") sec.appendChild(MSUi.el("div", "rp-hz-note", MSStr.t.rpBasicRangeNote));
+      else {
+        // 19b 문안(D3) — 기간이 서로 다른 말을 할 때만. 숫자만 적으면 사용자는 헤드라인
+        // 방향을 모든 기간의 답으로 읽는다. 방향이 같거나 한쪽이 무방향이면 이 줄은 없다
+        // (없는 대립을 문장으로 만들지 않는다).
+        var d1 = rows[0], mN = rows[rows.length - 1];
+        if (d1 && mN && d1 !== mN && d1.dir !== "flat" && mN.dir !== "flat" && d1.dir !== mN.dir) {
+          sec.appendChild(MSUi.el("div", "rp-hz-note",
+            MSStr.t.rpHzMixedA + (d1.dir === "up" ? MSStr.t.rpHzMixedUp : MSStr.t.rpHzMixedDown) +
+            MSStr.t.rpHzMixedB));
+        }
+      }
       return sec;
     }
 
@@ -607,27 +674,12 @@
       var wrap = MSUi.el("div", "rp-chart");
       var cv = document.createElement("canvas");
       wrap.appendChild(cv);
-      chartRefs = { wrap: wrap, cv: cv, legend: null };   // Basic 만 buildSignals() 가 채운다. Full 은 null(REASONING 이 대체)
+      // 크로스헤어 값 표시는 **차트존의 일부**다 — 예전엔 SIGNALS 섹션이 이 자리를 들고 있어서
+      // (Basic 만) 그 섹션을 빼는 순간 값 표시가 함께 사라졌다. 차트에 딸린 것을 차트가 갖는다.
+      var legend = MSUi.el("div", "rp-lg");
+      wrap.appendChild(legend);
+      chartRefs = { wrap: wrap, cv: cv, legend: legend };
       return wrap;
-    }
-
-    // 시안 2a·1a 의 SIGNALS — 지표 판독을 이름/값 정렬 행으로. 예전엔 이 내용이 차트 바로 위에
-    // 여섯 줄짜리 다색 덩어리로 얹혀 차트를 짓눌렀다(시안엔 그런 요소가 없다).
-    // 크로스헤어를 끌면 여기 값이 따라 움직인다 — paintChart 가 이 요소를 계속 갱신한다.
-    function buildSignals() {
-      // Full 은 REASONING 32행이 이 자리를 받는다 — 5종 판독이 그 안에 이미 들어가므로
-      // 두 섹션이면 같은 말을 두 번 한다. Basic 은 종전대로 7행 + 크로스헤어 연동.
-      if (tier === "full") return null;
-      var sec = MSUi.el("div", "rp-sec");
-      var head = MSUi.el("div", "rp-sec-head");
-      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpSignals));
-      // 시안 1a 의 "5 of 12 shown" 자리. 안 센 지표를 27개 칩으로 깔던 벽을 이 한 줄이 대신한다.
-      head.appendChild(MSUi.el("span", "rp-sec-note", "5" + MSStr.t.rpOf + "32" + MSStr.t.rpShown));
-      sec.appendChild(head);
-      var legend = MSUi.el("div", "rp-ind-legend");
-      sec.appendChild(legend);
-      if (chartRefs) chartRefs.legend = legend;
-      return sec;
     }
 
     // 예측선 3종 범례 — 잠긴 선도 숨기지 않고 보여준다("빠진 것을 보여주는 것"이 핵심,
@@ -653,56 +705,6 @@
     // buildCounted() 를 지웠다 — ForgeCore.*Steps() 는 PC 스쿱포지용이라 한국어 문자열을 뱉는데
     // 영어 앱에 그대로 새고 있었다("혼조 (정렬도 0%)"). 같은 5종을 MSLegend 가 영어로 이미 낸다.
 
-    // 시안 6a 의 REASONING · 32 NODES — Full 이 3스쿱으로 주는 것의 본체.
-    // 32종을 다 돌렸다는 말 대신 각 지표가 무엇을 보고 그 방향을 냈는지 문장으로 적는다.
-    // 판독은 **일봉 기준**이다(헤드라인 판정과 같은 주기). 주·월 정합은 TIMEFRAME 행이 말한다.
-    function buildReasoning(indRows, noDir) {
-      if (tier !== "full" || !indRows) return null;
-      var rows = MSReadings.reasoningRows(indRows, noDir);
-      if (!rows.length) return null;
-      var sec = MSUi.el("div", "rp-reason");
-      var head = MSUi.el("div", "rp-sec-head");
-      head.appendChild(MSUi.el("span", "overline",
-        MSStr.t.rpReasoning + MSStr.t.rpSep + rows.length + MSStr.t.rpReasoningNodes));
-      // 방향을 물을 수 있었던 수를 따로 적는다 — 32 라고만 쓰면 trend·phasefold 를
-      // 센 것처럼 말하게 된다.
-      // 거절한 행(거래량 없음·스윙 없음·봉 부족)은 빼고 센다. bias 숫자는 엔진이 대체 입력으로
-      // 만들어 낸 값이라 여전히 붙지만, 그 행은 **아무것도 읽지 못했다고 스스로 말하고 있다** —
-      // "N with a direction" 에 넣으면 읽지 않은 것에 방향을 귀속시키게 된다.
-      // 술어는 MSReadings.voiced 하나다 — AGAINST 도 같은 것을 쓴다(각자 판정하면 갈린다).
-      head.appendChild(MSUi.el("span", "rp-sec-note",
-        MSStr.t.rpReasoningScope + MSReadings.voiced(indRows).length + MSStr.t.rpReasoningDir));
-      sec.appendChild(head);
-      rows.forEach(function (r) {
-        var row = MSUi.el("div", "rp-reason-row");
-        row.appendChild(MSUi.el("span", "rp-reason-name", MSStr.ind(r.type)));
-        row.appendChild(MSUi.el("span", "rp-reason-text", r.text));
-        var cls = (r.bias == null) ? "" : r.bias > MSIndicators.EPS ? " up"
-                : r.bias < -MSIndicators.EPS ? " dn" : "";
-        var val = (r.bias == null) ? MSStr.t.rpNoDirDash
-                : (r.bias > 0 ? "+" : "") + r.bias.toFixed(2);
-        row.appendChild(MSUi.el("span", "rp-reason-bias" + cls, val));
-        sec.appendChild(row);
-      });
-      return sec;
-    }
-
-    // 시안 6a 의 Basic 결핍 박스. 27개 지표를 칩으로 깔던 자리에 원래 이게 들어간다 —
-    // "어떤 지표를 안 봤나"보다 "무엇을 못 하나"가 정확한 설명이고, Full 을 살 이유도 여기서 나온다.
-    // Full 은 넷 다 되므로 박스 자체를 내린다.
-    function buildMissing() {
-      if (tier === "full") return null;
-      var sec = MSUi.el("div", "rp-missing-box");
-      sec.appendChild(MSUi.el("div", "overline", MSStr.t.rpNotCounted));
-      [MSStr.t.rpMissingHitRate, MSStr.t.rpMissingDisagree,
-       MSStr.t.rpMissingTfAgree, MSStr.t.rpMissingWhy].forEach(function (label) {
-        var row = MSUi.el("div", "rp-missing-row");
-        row.appendChild(MSUi.el("span", "rp-missing-name", label));
-        row.appendChild(MSUi.el("span", "rp-missing-dash", MSStr.t.rpMissingDash));
-        sec.appendChild(row);
-      });
-      return sec;
-    }
     // 시안 6a 의 AGAINST THIS CALL — Full 이 3스쿱으로 주는 것 중 하나.
     // 32종을 다 돌려놓고 "다 동의한다"고만 하면 근거가 아니라 응원이다. 반대편을 이름으로 보여준다.
     // 방향은 웹과 같은 경로로 얻는다(지표마다 ForgeCore.analyzeX) — 백테스트도 새 데이터도 없다.
@@ -983,9 +985,6 @@
           chart:     function () { return buildChartSection(); },
           legend:    function () { return buildChartLegend(); },
           horizons:  function () { return buildHorizons(); },
-          signals:   function () { return buildSignals(); },
-          reasoning: function () { return buildReasoning(indRows, noDir); },
-          missing:   function () { return buildMissing(); },
           against:   function () { return buildAgainst(indRows); },
           tf:        function () { return buildTfSection(); },
           note:      function () { return buildMissingNote(); },

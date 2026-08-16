@@ -89,6 +89,15 @@
     rpHitBaseA: "같은 기간 “항상 오른다”는 ", rpHitBaseB: "% 였습니다.",
     rpHitSize: " 틀릴 ", rpHitSizeTail: "%에 대비해 비중을 조절하세요.",
     rpHzTomorrow: "내일", rpHzWeek: "1주", rpHzMonth: "1개월",
+    // 8a 직전 상태 대조(사용자 결정 2026-08-17). 심화가 판 것은 "더 맞힌다"가 아니라
+    // "폭이 정직해진다"인데, 직전 기본분석 값 옆에 놓지 않으면 그 정직해짐이 안 보인다.
+    // 값이 없거나 기준일이 다르면 이 행 자체가 안 그려진다 — 여기 "—" 문구를 만들지 말 것.
+    rpPrevBasic: "직전 기본분석", rpRangeDash: " – ", rpWidthA: "폭 ",
+    // 19b 문안 재사용(사용자 결정 D3) — 골격은 18b 그대로 두고 평이한 서술만 가져온다.
+    // 기간별 방향이 갈릴 때만 나온다. "3개 중 2개 일치"를 숫자로만 적으면 무엇이 어긋났는지
+    // 안 보이고, 사용자는 헤드라인 방향을 모든 기간의 답으로 읽는다.
+    rpHzMixedA: "짧게 보면 ", rpHzMixedUp: "오르고", rpHzMixedDown: "내리고",
+    rpHzMixedB: ", 한 달은 반대입니다 — 짧게 볼 때만 유효한 판정입니다.",
 
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)
     rpTierBasic: "기본",
@@ -101,18 +110,12 @@
     // 리포트 — 섹션 오버라인 (시안 2a: COMPOSITE·DAILY / HORIZON / SIGNALS / TIMEFRAMES)
     rpComposite: "종합 · 일봉",
     rpHorizon: "예측 구간",
-    rpSignals: "신호",
-    rpOf: "/", rpShown: " 표시",           // 시안 1a: "5 of 12 shown" → "5/32 표시"
+    rpOf: "/",           // 시안 1a: "5 of 12 shown" → "5/32 표시"
     // Basic 의 결핍 — 시안 6a 가 안 되는 것을 이름으로 박아둔다. 지표 27개를 칩으로 까는 것보다
-    // "무엇을 못 하는지"가 훨씬 정확한 설명이고, Full 을 살 이유도 이 네 줄이 만든다.
-    rpNotCounted: "미확인 항목",  // 시안 6a 그대로 — 결핍 박스의 머리
+    // "무엇을 못 하는지"가 훨씬 정확한 설명이고, Full 을 살 이유도 이 네 줄이 만든다.  // 시안 6a 그대로 — 결핍 박스의 머리
     // 시안 6a 의 AGAINST THIS CALL — Full 이 주는 것 중 하나. 32종 중 판정과 반대인 지표들.
     rpAgainst: "반대 의견",
-    rpAgainstNone: "반대하는 지표가 없습니다.",
-    rpReasoning: "판단 근거",                    // 시안 6a: "REASONING · 32 NODES" — .overline 이 대문자로 만든다
-    rpReasoningNodes: "개 지표",                  // 머리 오른쪽 캡션 앞부분 — "32개 지표"
-    rpReasoningScope: "일봉 · ",                // 판독은 일봉 기준(헤드라인 판정과 같은 주기)
-    rpReasoningDir: "개 지표가 방향 제시",         // "일봉 · 30개 지표가 방향 제시"
+    rpAgainstNone: "반대하는 지표가 없습니다.",                    // 시안 6a: "REASONING · 32 NODES" — .overline 이 대문자로 만든다                  // 머리 오른쪽 캡션 앞부분 — "32개 지표"                // 판독은 일봉 기준(헤드라인 판정과 같은 주기)         // "일봉 · 30개 지표가 방향 제시"
     rpNoDirDash: "—",                            // 방향을 못 묻는 둘의 기여도 칸
     rpSep: " · ",                                // 오버라인 안 구분자 — report.js 가 리터럴로 들고 있던 것
     // 판독문 거절문 3종(readings.js). **이유가 서로 다르므로 하나로 뭉치면 화면이 거짓 이유를 말한다** —
@@ -120,11 +123,6 @@
     rdNotEnoughBars: "읽기에 봉이 부족합니다",
     rdNoVolume: "이 종목은 거래량 데이터가 없습니다",
     rdNoSwings: "읽을 만큼 큰 스윙이 없습니다",
-    rpMissingHitRate: "이 설정의 과거 적중률",
-    rpMissingDisagree: "반대하는 지표",
-    rpMissingTfAgree: "주간·월간 일치 여부",
-    rpMissingWhy: "각 판독이 그렇게 나온 이유",
-    rpMissingDash: "—",
     rpMissingNote: "기본분석은 5개 지표가 하는 말만 알려줍니다. 그게 실제로 맞았는지는 알려주지 않습니다.",
     // 시안 2a 의 "17 up · 6 flat · 9 down".
     rpUp2: " 상승 · ", rpFlat2: " 횡보 · ", rpDown2: " 하락",
