@@ -56,12 +56,14 @@ P2 의 티어 격차가 없으면 P4 가 팔 것이 없다. 영어는 시안 지
 
 ### 2.2 결정 — Pretendard Variable 을 번들한다 (사용자 결정, 2026-08-16)
 
-- **파일 1개**: `PretendardVariable.woff2` (OFL, 약 1.3MB) → `www/fonts/` 에 두고 `@font-face` 로
+- **파일 1개**: `PretendardVariable.woff2` (OFL, **2.06MB 실측** — v1.3.9) → `www/fonts/` 에 두고 `@font-face` 로
   `font-weight:100 900` 선언. 시안이 요구하는 400·500·700·800 을 한 파일이 전부 덮는다.
   무게별 파일 4개를 받는 것보다 작고, 무게가 빠져 가짜 볼드(synthetic bold)로 그려지는 사고가 없다.
 - **CDN 금지.** Capacitor 앱은 `https://localhost/` 에서 서빙되고 네트워크를 보장할 수 없다.
   반드시 번들한다. 이는 `map.html`(Pretendard CDN)과 다른 선택이며, 앱이라 다르다.
-- **APK 영향**: 12.0MB → 약 13.3MB. 릴리스 빌드의 리소스 축소 과제와 함께 다시 볼 것.
+- **APK 영향**: 12.0MB → 약 14MB. 릴리스 빌드의 리소스 축소 과제와 함께 다시 볼 것.
+  더 줄여야 하면 같은 저장소의 `PretendardVariable.subset.woff2`(KS X 1001 상용 한글)로 내릴 수
+  있으나, 범위 밖 글자가 시스템 폰트로 폴백된다 — 크기가 실제 문제가 됐을 때만 바꾼다.
 - **숫자 서체**: 시안은 수치에 Space Grotesk 를 지정하지만 **채택하지 않는다.** 숫자는 한글 바로
   옆에 상시 붙어 나오고(가격·스쿱 수·퍼센트), 라틴 서체를 섞으면 그 줄만 이질적으로 뜬다.
   Pretendard 의 `font-variant-numeric:tabular-nums` 로 자릿수를 고정하고, 시안이 지정한
