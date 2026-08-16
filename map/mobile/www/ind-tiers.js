@@ -23,6 +23,48 @@
   // 사용자가 배율을 만지는 대상은 30종이다.
   var NOT_TUNABLE = ["gann", "pattern"];
 
+  // ── 투자성향 프리셋 4종 (사용자 결정 D5, 2026-08-17) ────────────────────────────────
+  // 지표 집합의 출처는 PC 의 forge-ui.js `_PRESET_DEF` 다 — 시안 4종이 위험성향이 아니라
+  // **매매 스타일**이라 포지의 프리셋과 거의 그대로 대응한다. 지어낸 것이 아니다.
+  //
+  // 프리셋이 하는 일 둘:
+  //  ① 선택 집합 — 포지의 프리셋이 원래 하던 일(표시할 지표 집합). Lv1 5종은 언제나 더해진다.
+  //  ② 배율 k   — 집합에 든 지표를 k 배로 올린다. **k 는 아직 1.0 이다**(사용자 결정 D6):
+  //     시안의 예시 숫자(2.0/1.4/0.6/0.3)를 확정값으로 쓰지 않고 백테스트로 정한다.
+  //     k=1.0 이어도 프리셋은 그대로 동작한다 — ①이 판정 분모와 예측을 실제로 바꾼다.
+  //     측정이 끝나면 이 상수 하나가 바뀐다.
+  var PRESET_K = 1.0;
+
+  var PRESETS = [
+    { key: "trend",      name: "추세 추종",   types: ["ma", "trend", "ichimoku", "supertrend", "adx"] },
+    { key: "momentum",   name: "단기 모멘텀", types: ["rsi", "macd", "stochastic", "bollinger"] },
+    { key: "reversion",  name: "평균 회귀",   types: ["rsi", "stochastic", "bollinger", "fib", "elliott", "structure"] },
+    { key: "volatility", name: "변동성 우선", types: ["bollinger", "atr", "supertrend", "adx", "structure", "volume"] }
+  ];
+
+  // 프리셋 → 선택 집합. Lv1 핵심 5종은 언제나 더해진다(시안 10a "항상 포함").
+  function selectionOf(presetKey, core) {
+    var p = null, i;
+    for (i = 0; i < PRESETS.length; i++) if (PRESETS[i].key === presetKey) p = PRESETS[i];
+    var tun = tunable();
+    var set = (p ? p.types : tun).filter(function (t) { return tun.indexOf(t) >= 0; });
+    (core || []).forEach(function (t) { if (set.indexOf(t) < 0 && tun.indexOf(t) >= 0) set.push(t); });
+    return set;
+  }
+
+  // 프리셋 → 가중치 맵(= MSGraph.customGraph 의 입력). 선택된 것만 키를 갖는다 —
+  // 키가 없다는 것이 곧 "미선택"이고, 그래프에서 노드가 빠진다.
+  function weightsOf(presetKey, core) {
+    var p = null, i;
+    for (i = 0; i < PRESETS.length; i++) if (PRESETS[i].key === presetKey) p = PRESETS[i];
+    var inSet = p ? p.types : [];
+    var out = {};
+    selectionOf(presetKey, core).forEach(function (t) {
+      out[t] = (inSet.indexOf(t) >= 0) ? PRESET_K : 1.0;
+    });
+    return out;
+  }
+
   function all() {
     var out = [];
     TIERS.forEach(function (t) { out = out.concat(t.types); });
@@ -36,5 +78,6 @@
     return null;
   }
 
-  return { TIERS: TIERS, NOT_TUNABLE: NOT_TUNABLE, all: all, tunable: tunable, lvOf: lvOf };
+  return { TIERS: TIERS, NOT_TUNABLE: NOT_TUNABLE, PRESETS: PRESETS, PRESET_K: PRESET_K,
+           selectionOf: selectionOf, weightsOf: weightsOf, all: all, tunable: tunable, lvOf: lvOf };
 });
