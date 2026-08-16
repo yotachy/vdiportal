@@ -20,7 +20,22 @@
   --gold-soft:rgba(232,180,99,.16);
   --steel:#8892a6; --platinum:#b9c4dc;
   --bull:#4fb98a; --bear:#d96a6a; --bear-text:#e08a8a; --neutral:#4a5368;
+
+  /* --pred2 는 차트 전용이다(chart-draw.js 의 2차 예측선). UI 행동색과 값이 같지만 토큰을
+     나눠 둔다 — 하나로 두면 버튼 색을 조정할 때 차트 예측선이 말없이 따라 움직인다. */
   --pred2:#b892f5;
+  --action:#b892f5;
+
+  /* 타이포 8역할. 기존 .rp-* 는 4px 폭 안에 8단계(11·11.5·12·12.5·13·13.5·14·15)가
+     뒤섞여 위계가 무너져 있었다. 새 크기를 임의로 추가하지 말 것 — 관문이 막는다. */
+  --fs-headline:44px;  --fw-headline:800; --ls-headline:-0.05em;
+  --fs-title:22px;     --fw-title:800;    --ls-title:-0.04em;
+  --fs-section:17px;   --fw-section:800;  --ls-section:-0.03em;
+  --fs-figure:29px;    --fw-figure:700;   --ls-figure:-0.045em;
+  --fs-body:13.5px;    --fw-body:500;     --ls-body:-0.01em;
+  --fs-sub:12px;       --fw-sub:400;      --ls-sub:-0.01em;
+  --fs-caption:11.5px; --fw-caption:400;  --ls-caption:-0.01em;
+  --fs-overline:11px;  --fw-overline:700; --ls-overline:0.05em;
 }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 body {
@@ -46,13 +61,13 @@ body {
 /* ===== 워치리스트 — 시안 1a 의 치수를 현 토큰으로(핸드오프 README §2 "redraw with the tokens") ===== */
 .wl-head { display:flex; align-items:center; gap:10px; padding:12px 0 10px; border-bottom:1px solid var(--border); }
 .wl-brand-mark { display:flex; color:var(--gold); flex:0 0 22px; }
-.wl-brand { flex:1 1 auto; font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.wl-brand { flex:1 1 auto; font-size:var(--fs-section); font-weight:700; letter-spacing:-.01em; }
 .wl-brand-gold { color:var(--gold); }             /* 목업 1a — "Money" + 골드 "Scoop" */
 /* Scan 은 아웃라인 pill — 시안 1a 는 골드 버튼이 아니다.
    ::after 는 6px 원형 점이지 '항목 좌측 세로 컬러 라인'이 아니다 — 금지 규칙과 무관.
    목업은 점이 "Scan" 텍스트 오른쪽이라 ::before 가 아니라 ::after 다. */
 .wl-scan { display:inline-flex; align-items:center; gap:6px; padding:5px 9px; border:1px solid var(--border-strong);
-           border-radius:99px; background:transparent; color:var(--steel); font:inherit; font-size:11px; }
+           border-radius:99px; background:transparent; color:var(--steel); font:inherit; font-size:var(--fs-caption); }
 .wl-scan::after { content:""; width:6px; height:6px; border-radius:99px; background:var(--bull); }
 .wl-scan[disabled] { opacity:.6; }
 
@@ -66,13 +81,13 @@ body {
 .wl-search { display:flex; align-items:center; gap:8px; height:38px; padding:0 12px; margin-top:10px;
              background:var(--sheet); border:1px solid var(--border); border-radius:9px; }
 .wl-search-ico { display:flex; color:var(--ink-5); flex:0 0 15px; }
-.wl-search-input { flex:1 1 auto; min-width:0; background:none; border:0; color:var(--ink); font:inherit; font-size:12.5px; outline:none; }
+.wl-search-input { flex:1 1 auto; min-width:0; background:none; border:0; color:var(--ink); font:inherit; font-size:var(--fs-sub); outline:none; }
 .wl-search-input::placeholder { color:var(--ink-5); }
 .wl-search-input::-webkit-search-cancel-button { -webkit-appearance:none; }
 
 .wl-chips { display:flex; flex-wrap:wrap; gap:6px; padding:10px 0 2px; }
 .wl-chip { padding:6px 11px; border-radius:99px; background:var(--sheet); border:1px solid var(--border);
-           color:var(--steel); font:inherit; font-size:11.5px; }
+           color:var(--steel); font:inherit; font-size:var(--fs-caption); }
 /* 활성 칩은 시안 1a 그대로 골드다. README 삼색 규칙("Basic 화면에 골드 0회")과 충돌하지만
    같은 README 가 Basic 리포트에 gold current-price tag 를 지시하므로 규칙이 문자 그대로 지켜지지 않는다.
    목업을 따른다(설계서 §2.3). */
@@ -93,22 +108,22 @@ body {
 .wl-row.is-sel .wl-dot.bull { box-shadow:0 0 0 3px var(--bull-soft); }
 .wl-row.is-sel .wl-dot.bear { box-shadow:0 0 0 3px var(--bear-soft); }
 .wl-id { flex:0 0 74px; min-width:0; }
-.wl-sym { font-size:14px; font-weight:700; letter-spacing:-.01em; }
-.wl-name { font-size:10.5px; color:var(--ink-5); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wl-sym { font-size:var(--fs-body); font-weight:700; letter-spacing:-.01em; }
+.wl-name { font-size:var(--fs-caption); color:var(--ink-5); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .wl-spark { flex:0 0 64px; height:20px; }
 .wl-px { flex:1 1 auto; text-align:right; }
-.wl-price { font-size:14px; font-weight:600; }
-.wl-chg { font-size:11px; margin-top:2px; }
+.wl-price { font-size:var(--fs-body); font-weight:600; }
+.wl-chg { font-size:var(--fs-caption); margin-top:2px; }
 .wl-chg.up { color:var(--bull); } .wl-chg.dn { color:var(--bear-text); }
 /* 확신 배지 — 엔진 출력이라 색을 갖는 몇 안 되는 요소다 */
 .wl-badge { flex:0 0 52px; text-align:right; }
-.wl-badge:not(:empty) { padding:3px 6px; border-radius:4px; font-size:10px; font-weight:700; text-align:center; }
+.wl-badge:not(:empty) { padding:3px 6px; border-radius:4px; font-size:var(--fs-caption); font-weight:700; text-align:center; }
 .wl-badge.bull { background:var(--bull-soft); color:var(--bull); }
 .wl-badge.bear { background:var(--bear-soft); color:var(--bear-text); }
 /* steel 틴트 — 방향(bull/bear)과 다른 양(up, 방향 무관 상승확률)이라 색으로 구분한다.
    삼색 체계의 "steel = Basic·미확정"과도 맞는다. */
 .wl-badge.neutral { background:var(--steel-soft); color:var(--steel); }
-.wl-asof { font-size:10.5px; color:var(--ink-5); }
+.wl-asof { font-size:var(--fs-caption); color:var(--ink-5); }
 /* 목록 마지막 행의 하단 헤어라인과 이 버튼 테두리가 맞닿아 한 덩어리로 읽힌다.
    2단 목록 칸(255px)처럼 좁고 짧은 열에서 특히 두드러진다. */
 /* 시안 1a 의 Add 는 하단 바에 전폭 48px 골드 아웃라인이다 — 작은 좌측 정렬 고스트 버튼이 아니다.
@@ -118,33 +133,33 @@ body {
           border-top:1px solid var(--border); }
 .wl-add-inner { display:flex; align-items:center; justify-content:center; width:100%; height:48px;
                 border:1px solid var(--border-strong); border-radius:11px;
-                color:var(--gold); font-size:14px; font-weight:700; }
+                color:var(--gold); font-size:var(--fs-body); font-weight:700; }
 
 .btn { min-height:44px; border:0; border-radius:11px; font:inherit; font-weight:600; padding:0 18px; }
 .btn-primary { background:var(--gold); color:var(--gold-ink); }
 .btn-ghost { background:transparent; color:var(--ink-2); border:1px solid var(--border-strong); }
 .row-tap { display:flex; width:100%; background:none; border:0; color:inherit; font:inherit; text-align:left; padding:0; }
-.empty { padding:40px 0; text-align:center; color:var(--ink-4); font-size:12.5px; line-height:1.7; }
+.empty { padding:40px 0; text-align:center; color:var(--ink-4); font-size:var(--fs-sub); line-height:1.7; }
 
 /* ===== Basic 리포트 ===== */
 .rp-head { display:flex; align-items:center; gap:12px; padding:14px 0 10px; }
 .rp-back { min-height:44px; min-width:44px; display:flex; align-items:center; justify-content:center; background:none; border:0; color:var(--ink-2); padding:0 4px; flex:0 0 auto; }
 .rp-back svg { width:20px; height:20px; }
-.rp-head-sym { flex:0 0 auto; font-size:16px; font-weight:700; letter-spacing:-.02em; }
-.rp-head-pos { flex:1 1 auto; font-size:11.5px; color:var(--ink-5); font-variant-numeric:tabular-nums; }
+.rp-head-sym { flex:0 0 auto; font-size:var(--fs-section); font-weight:700; letter-spacing:-.02em; }
+.rp-head-pos { flex:1 1 auto; font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
 
 /* 가격 블록 — 시안 2a 가 화면에서 제일 크게 두는 것. 회사명 오버라인이 머리를 잡는다. */
 .rp-px-wrap { padding:6px 0 18px; border-bottom:1px solid var(--hairline); margin-bottom:20px; }
 .rp-px-wrap .overline { margin-bottom:8px; }
 .rp-px-row { display:flex; align-items:baseline; gap:12px; }
-.rp-px { font-size:44px; font-weight:300; letter-spacing:-.04em; line-height:.95; }
-.rp-px-chg { font-size:13.5px; font-weight:600; color:var(--ink-3); white-space:pre; }
+.rp-px { font-size:var(--fs-headline); font-weight:300; letter-spacing:-.04em; line-height:.95; }
+.rp-px-chg { font-size:var(--fs-body); font-weight:600; color:var(--ink-3); white-space:pre; }
 .rp-px-chg.up { color:var(--bull); }
 .rp-px-chg.dn { color:var(--bear-text); }
 
 .rp-tier-row { display:flex; align-items:center; gap:10px; padding:4px 0 20px; }
-.rp-tier { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:6px; background:var(--steel-soft); color:var(--steel); font-size:11px; font-weight:700; letter-spacing:.04em; }
-.rp-tier-desc { font-size:11.5px; color:var(--ink-4); }
+.rp-tier { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:6px; background:var(--steel-soft); color:var(--steel); font-size:var(--fs-caption); font-weight:700; letter-spacing:.04em; }
+.rp-tier-desc { font-size:var(--fs-caption); color:var(--ink-4); }
 /* Full 등급 배지 — 삼색 체계상 "엔진이 말한 것"이라 골드다(Basic 은 steel). */
 .rp-tier.is-full { background:var(--gold-soft); color:var(--gold); }
 .rp-evi { display:flex; align-items:center; gap:3px; margin-left:auto; }
@@ -152,24 +167,24 @@ body {
 .rp-evi-seg.on { background:var(--steel); }
 
 .rp-verdict-wrap { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
-.rp-verdict { font-size:29px; font-weight:700; letter-spacing:-.025em; }
+.rp-verdict { font-size:var(--fs-title); font-weight:700; letter-spacing:-.025em; }
 .rp-verdict.bull { color:var(--bull); }
 .rp-verdict.bear { color:var(--bear-text); }
 .rp-verdict.neutral { color:var(--ink-2); }
 /* 판정 퍼센트 — 방향어와 같은 줄, 시안 2a "Bullish 68%" */
 .rp-verdict { display:flex; align-items:baseline; gap:10px; }
-.rp-conf-pct { font-size:22px; font-weight:600; letter-spacing:-.02em; }
+.rp-conf-pct { font-size:var(--fs-title); font-weight:600; letter-spacing:-.02em; }
 
 /* 적중/오답 — 막대를 그리지 않는다. 두 값이 합해서 100 이라 막대가 더해주는 정보가 없고,
    이 화면에서 시선을 끌 것은 판정 퍼센트다(시안 2a "골드는 화면당 한 번만"). */
-.rp-hit { font-size:12.5px; color:var(--ink-3); margin-top:8px; font-variant-numeric:tabular-nums; }
-.rp-hit-note { font-size:11.5px; color:var(--ink-5); margin-top:4px; line-height:1.5; }
-.rp-conf { font-size:12.5px; color:var(--ink-3); margin-top:7px; }
+.rp-hit { font-size:var(--fs-sub); color:var(--ink-3); margin-top:8px; font-variant-numeric:tabular-nums; }
+.rp-hit-note { font-size:var(--fs-caption); color:var(--ink-5); margin-top:4px; line-height:1.5; }
+.rp-conf { font-size:var(--fs-sub); color:var(--ink-3); margin-top:7px; }
 .rp-verdict-wrap .overline { margin-bottom:8px; }
 
 /* 방향 집계 + 3구간 바(시안 2a). 판정 오른쪽에 붙어 확신 수치의 근거를 한눈에 보여준다. */
 .rp-tally { margin-left:auto; text-align:right; flex:0 0 auto; }
-.rp-tally-txt { font-size:11px; color:var(--ink-4); white-space:nowrap; }
+.rp-tally-txt { font-size:var(--fs-caption); color:var(--ink-4); white-space:nowrap; }
 .rp-tally-bar { display:flex; gap:2px; width:112px; margin-top:5px; }
 .rp-tally-seg { height:3px; border-radius:99px; }
 .rp-tally-seg.is-up { background:var(--bull); }
@@ -188,7 +203,7 @@ body {
    로 되돌리지 말 것. */
 .rp-reason { margin-bottom:22px; }
 .rp-reason-row { display:flex; align-items:flex-start; gap:12px;
-                 padding:11px 0 10px; border-bottom:1px solid var(--hairline); font-size:12.5px; }
+                 padding:11px 0 10px; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
 .rp-reason-row:last-child { border-bottom:0; }
 .rp-reason-name { flex:0 0 92px; color:var(--ink-2); }
 .rp-reason-text { flex:1; color:var(--ink-4); line-height:1.55; }
@@ -202,24 +217,24 @@ body {
 .rp-against .overline { color:var(--bear-text); }
 .rp-against .rp-sec-head { margin-bottom:8px; }
 .rp-against-row { display:flex; align-items:flex-start; gap:12px;
-                  padding:11px 0 10px; border-bottom:1px solid var(--hairline); font-size:12.5px; }
+                  padding:11px 0 10px; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
 .rp-against-row:last-child { border-bottom:0; }
 .rp-against-name { flex:0 0 92px; color:var(--ink-2); }
 .rp-against-text { flex:1; color:var(--ink-4); line-height:1.55; }
 .rp-against-bias { flex:0 0 auto; color:var(--bear-text); font-weight:600; font-variant-numeric:tabular-nums; }
-.rp-against-none { margin:0 0 8px; font-size:12px; color:var(--ink-4); }
+.rp-against-none { margin:0 0 8px; font-size:var(--fs-sub); color:var(--ink-4); }
 
 /* Basic 결핍 박스(시안 6a) — 테두리 안에 "안 되는 것" 4행. 27개 칩 벽의 자리를 대신한다. */
 .rp-missing-box { border:1px solid var(--border); border-radius:11px; padding:14px 14px 6px; margin-bottom:22px; }
 .rp-missing-box .overline { margin-bottom:8px; }
 .rp-missing-row { display:flex; align-items:baseline; justify-content:space-between; gap:12px;
-                  padding:9px 0; border-bottom:1px solid var(--hairline); font-size:12.5px; }
+                  padding:9px 0; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
 .rp-missing-row:last-child { border-bottom:0; }
 .rp-missing-name { color:var(--ink-2); }
 .rp-missing-dash { color:var(--ink-5); }
-.rp-missing-note { margin:0 0 24px; font-size:11.5px; line-height:1.6; color:var(--ink-5); }
+.rp-missing-note { margin:0 0 24px; font-size:var(--fs-caption); line-height:1.6; color:var(--ink-5); }
 .rp-sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px; }
-.rp-sec-note { font-size:11px; color:var(--ink-5); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.rp-sec-note { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; white-space:nowrap; }
 
 .rp-chart { position:relative; width:100%; margin-bottom:14px; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--bg-raised); }
 /* pan-y: 세로 스크롤은 살리고(Phase 1 의 350ms 홀드 계약) 핀치만 우리 핸들러로 가져온다.
@@ -232,7 +247,7 @@ body {
    시안엔 그런 요소가 없고, 같은 정보를 SIGNALS 섹션에 이름/값 두 칸으로 세운다. */
 .rp-ind-legend { display:block; }
 .rp-lg-chip { display:flex; align-items:baseline; justify-content:space-between; gap:14px;
-              min-height:40px; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:12.5px; }
+              min-height:40px; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
 .rp-lg-chip:last-child { border-bottom:0; }
 .rp-lg-k { color:var(--ink-2); font-weight:600; flex:0 0 auto; }
 /* Fix 8: MACD/RSI 값의 자릿수가 크로스헤어 드래그 중 매 프레임 바뀐다("0.0" ↔ "-12.3").
@@ -246,39 +261,39 @@ body {
 .rp-lg-muted .rp-lg-v { color:var(--ink-3); }
 
 .rp-legend { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:24px; }
-.rp-legend-item { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--ink-3); }
+.rp-legend-item { display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-caption); font-weight:600; color:var(--ink-3); }
 .rp-legend-line { width:16px; height:0; border-top:2px solid var(--ink-5); }
 .rp-legend-dashed { border-top-style:dashed; }
 .rp-legend-item.rp-legend-locked { color:var(--ink-5); }
 
 .rp-sec { margin-bottom:24px; }
-.rp-sec-title { display:flex; align-items:baseline; gap:6px; font-size:12px; font-weight:700; letter-spacing:.02em; color:var(--ink-3); text-transform:uppercase; margin-bottom:10px; }
+.rp-sec-title { display:flex; align-items:baseline; gap:6px; font-size:var(--fs-sub); font-weight:700; letter-spacing:.02em; color:var(--ink-3); text-transform:uppercase; margin-bottom:10px; }
 .rp-sec-count { color:var(--ink-5); font-weight:600; text-transform:none; letter-spacing:0; }
 
-.rp-count-row { display:flex; justify-content:space-between; align-items:baseline; gap:14px; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:12.5px; }
+.rp-count-row { display:flex; justify-content:space-between; align-items:baseline; gap:14px; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
 .rp-count-name { color:var(--ink-2); font-weight:600; flex:0 0 auto; }
 .rp-count-read { color:var(--ink-3); text-align:right; }
 
 .rp-chips { display:flex; flex-wrap:wrap; gap:7px; }
-.rp-chip { display:inline-flex; align-items:center; height:26px; padding:0 10px; border-radius:99px; border:1px solid var(--border); color:var(--ink-5); font-size:11px; font-weight:600; }
+.rp-chip { display:inline-flex; align-items:center; height:26px; padding:0 10px; border-radius:99px; border:1px solid var(--border); color:var(--ink-5); font-size:var(--fs-caption); font-weight:600; }
 
-.rp-tf-row { display:flex; align-items:center; justify-content:space-between; height:44px; border-bottom:1px solid var(--hairline); font-size:12.5px; }
+.rp-tf-row { display:flex; align-items:center; justify-content:space-between; height:44px; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
 .rp-tf-name { color:var(--ink-2); font-weight:600; }
 .rp-tf-val { color:var(--ink-3); font-variant-numeric:tabular-nums; }
-.rp-lock { display:inline-flex; align-items:center; color:var(--ink-5); font-size:11px; }
+.rp-lock { display:inline-flex; align-items:center; color:var(--ink-5); font-size:var(--fs-caption); }
 
-.rp-cta { display:block; width:100%; min-height:48px; margin-top:4px; border-radius:11px; border:1px solid var(--border); background:transparent; color:var(--ink-4); font:inherit; font-weight:600; font-size:13px; }
+.rp-cta { display:block; width:100%; min-height:48px; margin-top:4px; border-radius:11px; border:1px solid var(--border); background:transparent; color:var(--ink-4); font:inherit; font-weight:600; font-size:var(--fs-body); }
 .rp-cta[disabled] { opacity:.6; }
 
 .rp-sk { background:var(--track); border-radius:8px; animation:rpPulse 1.4s ease-in-out infinite; }
 @keyframes rpPulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
 
-.rp-err { padding:16px 0 8px; color:var(--ink-4); font-size:12.5px; line-height:1.7; }
-.rp-err-title { color:var(--ink-2); font-weight:600; font-size:13.5px; margin-bottom:6px; }
+.rp-err { padding:16px 0 8px; color:var(--ink-4); font-size:var(--fs-sub); line-height:1.7; }
+.rp-err-title { color:var(--ink-2); font-weight:600; font-size:var(--fs-body); margin-bottom:6px; }
 
 /* 지평 3행 — 차트 앞. 라벨 / 예측가 / 변화율 / 달성확률 */
 .rp-hz { margin-bottom:20px; }
-.rp-hz-row { display:flex; align-items:baseline; gap:10px; height:38px; border-bottom:1px solid var(--hairline); font-size:12.5px; font-variant-numeric:tabular-nums; }
+.rp-hz-row { display:flex; align-items:baseline; gap:10px; height:38px; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); font-variant-numeric:tabular-nums; }
 .rp-hz-when { flex:1 1 auto; color:var(--ink-2); font-weight:600; }
 .rp-hz-px { flex:0 0 auto; color:var(--ink); }
 .rp-hz-chg { flex:0 0 62px; text-align:right; color:var(--ink-3); }
@@ -293,7 +308,7 @@ body {
    필 전체가 골드가 되면 헤더에서 워치리스트보다 먼저 눈에 든다. */
 .ms-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:99px;
            background:var(--steel-soft); border:1px solid var(--border); color:var(--ink-2);
-           font:inherit; font-size:11.5px; font-weight:600; font-variant-numeric:tabular-nums; min-height:32px; flex:0 0 auto; }
+           font:inherit; font-size:var(--fs-caption); font-weight:600; font-variant-numeric:tabular-nums; min-height:32px; flex:0 0 auto; }
 .ms-pill-ico { color:var(--gold); }
 .ms-pill.is-empty .ms-pill-n { min-width:1ch; }
 
@@ -302,27 +317,27 @@ body {
 .wl-scan.is-ico::after { content:none; }
 
 /* 섹션 오버라인 — 시안이 Earn/Spend 같은 구획 머리에 쓰는 형태(10.5px · .14em · 대문자) */
-.overline { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-5); font-weight:600; }
+.overline { font-size:var(--fs-overline); letter-spacing:.14em; text-transform:uppercase; color:var(--ink-5); font-weight:600; }
 
 /* ===== 지갑 — 시안 2c 의 치수를 현 토큰으로 ===== */
 .wal-head { display:flex; align-items:center; gap:10px; padding:14px 0 6px; }
-.wal-title { flex:1; font-size:14px; font-weight:600; }
-.wal-cap { margin-left:auto; font-size:11.5px; color:var(--ink-5); font-variant-numeric:tabular-nums; }
+.wal-title { flex:1; font-size:var(--fs-body); font-weight:600; }
+.wal-cap { margin-left:auto; font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
 
 /* 잔량 블록. baseline 이 아니라 flex-end 로 맞춘다 — 도트·단위는 baseline 이 없어 정렬 기준이 못 된다. */
 .wal-bal { display:flex; align-items:flex-end; gap:12px; margin-top:22px; }
 /* 시안의 금색 링 도트. inset 그림자로 가운데를 배경색으로 뚫는다(도넛). 항목 좌측 세로 라인이 아니다. */
 .wal-dot { width:15px; height:15px; border-radius:99px; background:var(--gold);
            box-shadow:inset 0 0 0 3.5px var(--bg); margin-bottom:9px; flex:0 0 auto; }
-.wal-balance { font-size:52px; font-weight:300; letter-spacing:-.04em; line-height:.9; }
-.wal-bal-unit { font-size:13px; color:var(--steel); padding-bottom:6px; }
+.wal-balance { font-size:var(--fs-headline); font-weight:300; letter-spacing:-.04em; line-height:.9; }
+.wal-bal-unit { font-size:var(--fs-body); color:var(--steel); padding-bottom:6px; }
 
 /* 한도 게이지 — 채운 쪽 flex=잔량, 남은 쪽 flex=한도−잔량. 백분율 계산 없음. */
 .wal-gauge { display:flex; gap:2px; margin-top:18px; }
 .wal-gauge-on { height:4px; border-radius:99px 0 0 99px; background:var(--gold); }
 .wal-gauge-off { height:4px; border-radius:0 99px 99px 0; background:var(--hairline-2); }
 
-.wal-msg { font-size:12px; color:var(--ink-4); padding-top:12px; }
+.wal-msg { font-size:var(--fs-sub); color:var(--ink-4); padding-top:12px; }
 .wal-sec { margin-top:26px; }
 .wal-sec .overline { margin-bottom:2px; }
 
@@ -332,13 +347,13 @@ body {
 .wal-row:last-child { border-bottom:0; }
 .wal-row.is-tappable { cursor:pointer; }
 .wal-row-main { flex:1; min-width:0; }
-.wal-row-name { font-size:13.5px; font-weight:600; }
-.wal-row-note { font-size:11.5px; color:var(--ink-4); margin-top:2px; }
+.wal-row-name { font-size:var(--fs-body); font-weight:600; }
+.wal-row-note { font-size:var(--fs-caption); color:var(--ink-4); margin-top:2px; }
 /* 지금 받을 수 있는 것만 골드다 — 시안 2c 가 보물상자(아직 못 받음) 금액만 muted 로 둔 규칙. */
-.wal-row-amt { font-size:14px; font-weight:600; color:var(--gold); font-variant-numeric:tabular-nums; }
+.wal-row-amt { font-size:var(--fs-body); font-weight:600; color:var(--gold); font-variant-numeric:tabular-nums; }
 .wal-row-amt.is-dim { color:var(--ink-5); }
 .wal-act { min-height:34px; padding:0 15px; border-radius:9px; border:1px solid var(--border-strong);
-           background:transparent; color:var(--ink); font:inherit; font-size:12.5px; font-weight:600; flex:0 0 auto; }
+           background:transparent; color:var(--ink); font:inherit; font-size:var(--fs-sub); font-weight:600; flex:0 0 auto; }
 .wal-act.is-primary { border-color:var(--gold); background:var(--gold); color:var(--gold-ink); font-weight:700; }
 .wal-act[disabled] { opacity:.5; }
 /* 못 누르는 골드 CTA 는 화면에서 제일 시끄러운 것이 된다 — 비활성이면 채움을 버리고 아웃라인으로.
@@ -357,22 +372,22 @@ body {
 .wal-prow { display:flex; align-items:center; padding:11px 0 10px;
             border-bottom:1px solid var(--hairline); }
 .wal-prow:last-child { border-bottom:0; }
-.wal-prow-name { flex:1; font-size:12.5px; color:var(--ink-2); }
-.wal-prow-cost { font-size:12.5px; color:var(--steel); font-variant-numeric:tabular-nums; }
+.wal-prow-name { flex:1; font-size:var(--fs-sub); color:var(--ink-2); }
+.wal-prow-cost { font-size:var(--fs-sub); color:var(--steel); font-variant-numeric:tabular-nums; }
 
 /* 구글 로그인 행(Phase 8c). 좌측 세로 컬러 라인은 넣지 않는다(프로젝트 전역 금지). */
 .w-auth { width:100%; min-height:44px; text-align:left; background:var(--sheet);
           border:1px solid var(--border); border-radius:9px; padding:12px 16px;
-          color:var(--ink); font:inherit; font-size:13.5px; font-weight:600; }
+          color:var(--ink); font:inherit; font-size:var(--fs-body); font-weight:600; }
 .w-auth:active { background:var(--bg-raised); }
-.w-sub { font-size:11.5px; color:var(--ink-4); margin-top:8px; line-height:1.5; }
+.w-sub { font-size:var(--fs-caption); color:var(--ink-4); margin-top:8px; line-height:1.5; }
 
 /* 리워드 화폐 고지(Phase 8d, SPEC §6) — 지갑 화면 맨 아래 상시 표기. 세로 라인 없이 상단
    헤어라인 하나로만 앞 섹션과 구분한다(프로젝트 전역: 좌측 accent bar 금지). */
 .wal-legal { margin-top:28px; padding-top:16px; border-top:1px solid var(--hairline);
-             font-size:10.5px; color:var(--ink-5); line-height:1.6; }
+             font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
 /* 엔진 버전 — 고지문 아래 한 줄. 사실 표기라 고지문보다 더 물러서 있어야 한다(구분선 없음). */
-.wal-engine { margin-top:6px; font-size:10.5px; color:var(--ink-5); font-variant-numeric:tabular-nums; }
+.wal-engine { margin-top:6px; font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
 
 /* ===== 단계 선택 바텀시트(시안 7a) ===== */
 .sheet-scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; z-index:20; }
@@ -381,28 +396,28 @@ body {
 .sheet-tier { display:flex; align-items:center; gap:12px; width:100%; min-height:64px; padding:10px 0;
               border:0; border-bottom:1px solid var(--hairline); background:none; color:inherit; font:inherit; text-align:left; }
 .sheet-tier-id { flex:1 1 auto; min-width:0; }
-.sheet-tier-name { display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:700; }
-.sheet-tier-desc { font-size:11.5px; color:var(--ink-5); margin-top:3px; }
+.sheet-tier-name { display:flex; align-items:center; gap:7px; font-size:var(--fs-body); font-weight:700; }
+.sheet-tier-desc { font-size:var(--fs-caption); color:var(--ink-5); margin-top:3px; }
 /* 선택 표시는 배경으로만 — 좌측 세로 라인 금지 */
 .sheet-tier.on { background:var(--steel-soft); }
 .sheet-tier.is-off { opacity:.55; }
-.sheet-pop { padding:2px 6px; border-radius:4px; background:var(--gold-soft); color:var(--gold); font-size:9.5px; font-weight:700; letter-spacing:.06em; }
-.sheet-preview { flex:0 0 auto; font-size:12px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
-.sheet-short { font-size:11.5px; color:var(--ink-5); margin:12px 0 0; line-height:1.5; }
+.sheet-pop { padding:2px 6px; border-radius:4px; background:var(--gold-soft); color:var(--gold); font-size:var(--fs-caption); font-weight:700; letter-spacing:.06em; }
+.sheet-preview { flex:0 0 auto; font-size:var(--fs-sub); color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.sheet-short { font-size:var(--fs-caption); color:var(--ink-5); margin:12px 0 0; line-height:1.5; }
 /* 시트 머리 — 제목 + 잔량 필(시안 7a). 잔량이 여기 서 있어야 "얼마 있고 얼마 쓰는지"가 읽힌다. */
 .sheet-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-.sheet-title { flex:1; font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.sheet-title { flex:1; font-size:var(--fs-section); font-weight:700; letter-spacing:-.01em; }
 /* 비용 한 줄 — 왼쪽이 본문(Costs 3 Scoops), 오른쪽 "5 → 2" 는 부차 표기다(시안 7a 배치). */
 .sheet-cost { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:9px 2px 4px; }
-.sheet-cost-txt { font-size:12.5px; font-weight:600; color:var(--ink-2); }
-.sheet-cost-pv { font-size:11.5px; color:var(--ink-5); font-variant-numeric:tabular-nums; }
+.sheet-cost-txt { font-size:var(--fs-sub); font-weight:600; color:var(--ink-2); }
+.sheet-cost-pv { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
 
 .sheet-run { width:100%; margin-top:16px; }
 .sheet-run[disabled] { opacity:.5; }
 
 /* 워치리스트 ＋Add 시트(screens/watchlist.js openAddSheet) — 같은 .sheet-scrim/.sheet/.sheet-head/
    .sheet-title 를 재사용하고, 명시적 닫기 버튼만 새로 얹는다(스크림 탭으로도 닫힌다). */
-.sheet-x { background:none; border:0; color:var(--ink-5); font-size:22px; line-height:1; padding:2px 6px; }
+.sheet-x { background:none; border:0; color:var(--ink-5); font-size:var(--fs-title); line-height:1; padding:2px 6px; }
 
 /* ===== 2단 (폴드 펼침) =====
    미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,
@@ -445,10 +460,10 @@ body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
 /* 세로로 가운데 — 폰이 길면(915px) 차트가 위에 붙고 아래가 통째로 비어 보인다. */
 .ob-step { flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; padding:26px 0; }
 /* 오버라인 — "예시 시계"라고 먼저 말한다. 실종목으로 오해하면 첫 화면이 거짓말이 된다. */
-.ob-over { margin:0 0 8px; font-size:10.5px; font-weight:700; letter-spacing:.08em;
+.ob-over { margin:0 0 8px; font-size:var(--fs-caption); font-weight:700; letter-spacing:.08em;
            text-transform:uppercase; color:var(--ink-5); }
-.ob-h { margin:0; font-size:22px; font-weight:700; line-height:1.32; letter-spacing:-.02em; color:var(--ink); }
-.ob-sub { margin:16px 0 0; font-size:12.5px; line-height:1.65; color:var(--ink-3); }
+.ob-h { margin:0; font-size:var(--fs-title); font-weight:700; line-height:1.32; letter-spacing:-.02em; color:var(--ink); }
+.ob-sub { margin:16px 0 0; font-size:var(--fs-sub); line-height:1.65; color:var(--ink-3); }
 
 /* 캔버스 폭은 래퍼가 정한다 — paintChart 가 clientWidth 를 잰다(캔버스 자신은 부모 폭을 모른다). */
 .ob-canvas-wrap { margin-top:18px; }
@@ -459,28 +474,28 @@ body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
 .ob-bar { flex:1 1 0; min-width:2px; border-radius:1.5px; background:var(--neutral); }
 .ob-bar.up { background:var(--bull); }
 .ob-bar.dn { background:var(--bear); }
-.ob-cap { margin:10px 0 0; font-size:11px; font-variant-numeric:tabular-nums; color:var(--ink-5); }
+.ob-cap { margin:10px 0 0; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; color:var(--ink-5); }
 
 /* 지급 상태 한 줄 — "Setting up…" → "5 Scoops to start" 또는 오프라인 안내 + 재시도.
    숫자는 항상 서버가 돌려준 값이다(state.granted) — 여기서 다시 계산하지 않는다. */
-.ob-grant { margin-top:20px; font-size:13px; font-weight:600; color:var(--ink-2);
+.ob-grant { margin-top:20px; font-size:var(--fs-body); font-weight:600; color:var(--ink-2);
             font-variant-numeric:tabular-nums; }
-.ob-retry { display:block; margin-top:10px; min-height:34px; padding:0 14px; font-size:12px; }
+.ob-retry { display:block; margin-top:10px; min-height:34px; padding:0 14px; font-size:var(--fs-sub); }
 
 /* 가격표 — 지갑 화면과 같은 출처(MSWallet.COSTS)를 읽는다. 선택 강조가 없는 정적 목록이라
    좌측 라인 규율과 무관하지만 명시적으로 border-left 를 안 쓴다. */
 .ob-costs { margin-top:18px; border-top:1px solid var(--border); }
 .ob-cost-row { display:flex; align-items:center; justify-content:space-between;
                padding:11px 0; border-bottom:1px solid var(--border); }
-.ob-cost-name { font-size:12.5px; color:var(--ink-3); }
-.ob-cost-num { font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink); }
+.ob-cost-name { font-size:var(--fs-sub); color:var(--ink-3); }
+.ob-cost-num { font-size:var(--fs-sub); font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink); }
 
 /* 5단계 — 위험 고지 + 약관 체크박스. 강조는 배경·아웃라인으로만(좌측 라인 금지). */
-.ob-risk { margin:16px 0 0; font-size:12.5px; line-height:1.65; color:var(--ink-3); }
+.ob-risk { margin:16px 0 0; font-size:var(--fs-sub); line-height:1.65; color:var(--ink-3); }
 .ob-agree { display:flex; align-items:flex-start; gap:10px; margin-top:22px; padding:14px;
             border:1px solid var(--border); border-radius:10px; background:var(--sheet); cursor:pointer; }
 .ob-agree input[type="checkbox"] { flex:0 0 auto; width:18px; height:18px; margin:1px 0 0; accent-color:var(--gold); }
-.ob-agree-txt { font-size:12.5px; line-height:1.5; color:var(--ink-2); }
+.ob-agree-txt { font-size:var(--fs-sub); line-height:1.5; color:var(--ink-2); }
 
 /* 버튼 줄은 화면 바닥에 붙는다 — 단계마다 같은 자리에 있어야 연타가 된다. */
 .ob-nav { display:flex; gap:10px; flex:0 0 auto; padding-top:24px; }
@@ -497,23 +512,23 @@ body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
            padding:9px 10px; border:1px solid var(--border); border-radius:10px;
            background:var(--sheet); color:var(--ink); font:inherit; text-align:left; }
 .tp-cell.is-on { background:var(--gold-soft); border-color:var(--gold); }
-.tp-sym { font-size:13px; font-weight:700; letter-spacing:-.01em; }
+.tp-sym { font-size:var(--fs-body); font-weight:700; letter-spacing:-.01em; }
 .tp-cell.is-on .tp-sym { color:var(--gold); }
 /* 잠긴 셀 = 이미 워치리스트에 있는 종목. 켜진 상태를 유지하되 누를 수 없음을 커서와 채도로
    알린다. 좌측 세로 라인 금지 규칙에 따라 배경·색만 쓴다(테두리·마커 추가 없음). */
 .tp-cell.is-locked { cursor:default; }
 .tp-cell.is-locked .tp-name { opacity:.66; }
-.tp-name { font-size:10px; color:var(--ink-5); max-width:100%; overflow:hidden;
+.tp-name { font-size:var(--fs-caption); color:var(--ink-5); max-width:100%; overflow:hidden;
            white-space:nowrap; text-overflow:ellipsis; }
 
 /* 직접 입력 — 큐레이션에 없는 종목. 확인은 loadTicker 가 한다(검색 엔드포인트가 없다). */
 .tp-free { display:flex; gap:8px; margin-top:12px; }
 .tp-input { flex:1 1 auto; min-width:0; height:40px; padding:0 12px;
             background:var(--sheet); border:1px solid var(--border); border-radius:9px;
-            color:var(--ink); font:inherit; font-size:12.5px; outline:none; }
+            color:var(--ink); font:inherit; font-size:var(--fs-sub); outline:none; }
 .tp-input::placeholder { color:var(--ink-5); }
 .tp-input:focus { border-color:var(--border-strong); }
 .tp-add { flex:0 0 auto; min-height:40px; padding:0 16px; border:1px solid var(--border-strong);
-          border-radius:9px; background:transparent; color:var(--ink-2); font-size:12.5px; }
+          border-radius:9px; background:transparent; color:var(--ink-2); font-size:var(--fs-sub); }
 /* 안내 한 줄 — 확인 중·못 찾음·오타 제안·상한이 전부 이 자리를 쓴다. 비면 자리를 비운다. */
-.tp-msg { margin:8px 0 0; min-height:15px; font-size:11.5px; line-height:1.4; color:var(--ink-4); }
+.tp-msg { margin:8px 0 0; min-height:15px; font-size:var(--fs-caption); line-height:1.4; color:var(--ink-4); }
