@@ -86,7 +86,7 @@ test("몸통 높이는 최소 1px — 도지가 사라지지 않는다", () => {
 
 test("콘을 cone 색으로 채우고 경로를 gold 로 긋는다", () => {
   const c = recCtx(); L.resetLabels(372, 520);
-  D.drawCone(c, LAY(), pred, COL);
+  D.drawCone(c, LAY(), pred, COL, "full");
   assert.ok(c.calls.some(x => x.op === "fill" && x.fill === COL.cone), "콘 채움이 없다");
   assert.ok(predRgbs(c).has(RGB.gold), "예측 경로 gold 스트로크가 없다");
 });
@@ -141,7 +141,7 @@ test("linesFor 는 티어별 배열을 돌려주고, 모르는 티어는 basic �
   assert.deepEqual(D.linesFor("custom"), ["p1", "p2", "p3"]);
   assert.deepEqual(D.linesFor("nope"), ["p1"], "미지정 티어는 basic 폴백");
   assert.deepEqual(D.linesFor(undefined), ["p1"]);
-  assert.deepEqual(D.PRED_TIERS.basic, ["p1"]);
+  assert.deepEqual(D.CHART_TIERS.basic.lines, ["p1"]);
 });
 
 test("tier:basic 은 1차만 긋는다 — counter 는 색조차 등장하지 않는다", () => {
@@ -170,11 +170,21 @@ test("tier:custom 이지만 pred.second 가 없으면 p1·p3 만 그리고 에�
   assert.ok(!rgbs.has(RGB.pred2), "pred2 색이 등장하면 안 된다(데이터 없음)");
 });
 
-test("콘 채움은 티어와 무관하게 항상 그려진다", () => {
-  ["basic", "full", "custom", undefined].forEach(tier => {
+// P1 까지는 "콘 채움은 티어와 무관하게 항상 그려진다"였다. P2 가 그 계약을 **의도적으로**
+// 뒤집는다 — 인벤토리 §3 3단 비교표가 기본을 "점선 한 줄, 범위 없음"으로, 심화를
+// "1차 + 2차 + 80% 콘"으로 갈라놨는데 콘이 모든 티어에 있으면 그 줄이 거짓이 된다.
+// 엔진은 계속 lo/hi 를 준다(꿈틀·신뢰 감쇠가 그 값을 쓴다) — 빠지는 것은 데이터가 아니라 표현이다.
+test("콘 채움은 유료 티어에만 있다 — 기본은 범위를 안 그린다", () => {
+  ["full", "custom"].forEach(tier => {
     const c = recCtx(); L.resetLabels(372, 520);
     D.drawCone(c, LAY(), predWithCounter, COL, tier);
     assert.ok(c.calls.some(x => x.op === "fill" && x.fill === COL.cone), "tier=" + tier + " 콘 채움 누락");
+  });
+  ["basic", undefined].forEach(tier => {
+    const c = recCtx(); L.resetLabels(372, 520);
+    D.drawCone(c, LAY(), predWithCounter, COL, tier);
+    assert.ok(!c.calls.some(x => x.op === "fill" && x.fill === COL.cone),
+      "tier=" + tier + " 인데 콘이 채워졌다 — 기본이 심화의 범위를 공짜로 보여준다");
   });
 });
 

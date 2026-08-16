@@ -9,7 +9,19 @@
   var PAD = 10;
   // 차트 높이는 모드에 딸린다 — 커버 520(Phase 1~4 검증값)은 그대로, 펼침은 세로 654 라 414 로 줄인다.
   // 520 을 그대로 두면 654 화면에서 차트만으로 80% 를 먹는다.
-  function chartH() { return MSLayout.chartHeight(document.body.classList.contains("ms-dual"), window.innerHeight); }
+  function chartH(tier) { return MSLayout.chartHeight(document.body.classList.contains("ms-dual"), window.innerHeight, tier); }
+
+  // 오버레이 이름 → 그리기 함수. **이 표가 유일한 호출 경로다** — 여기 없는 이름은 안 그려지고,
+  // 여기 있는데 어느 티어에도 없는 이름은 죽은 항목이다. 관문(chart-tiers.test.mjs)이
+  // CHART_TIERS 의 이름 집합과 이 표의 키를 대조한다. 예전엔 frame() 이 이 넷을 무조건
+  // 불렀고, 그래서 기본분석이 심화의 오버레이를 공짜로 보여주고 있었다.
+  var OVERLAY_DRAW = {
+    bollinger:   function (ctx, an, Mp) { MSLayers.bollinger(ctx, an.bb, Mp); },
+    ma:          function (ctx, an, Mp) { MSLayers.ma(ctx, an.ma, Mp); },
+    rsiBadge:    function (ctx, an, Mp) { MSLayers.rsiBadge(ctx, an.rsi, Mp); },
+    volumeBadge: function (ctx, an, Mp) { MSLayers.volumeBadge(ctx, an.va, Mp); }
+    // macdBadge 는 없다 — _drawMacdLayers 는 배지뿐이라 남길 것이 없다(Phase 1 판단).
+  };
   // TAIL_BARS 는 이제 줌 레벨이다. 기본은 화면폭 무관 60봉(예측 비중 28% 유지, Phase 3 결론) — MSZoom.DEFAULT_TAIL.
   var HOLD_MS = 350, MOVE_THRESH = 8;
 
@@ -123,11 +135,12 @@
     var col = colTokens();
     var cssW = wrap.clientWidth || 320;
     var lay = null;
-    var chartHpx = chartH();          // relayout 마다 다시 읽는다 — 회전·폴드 전환을 따라간다
+    var spec = MSChartDraw.specOf(tier);
+    var chartHpx = chartH(tier);      // relayout 마다 다시 읽는다 — 회전·폴드 전환을 따라간다
     var tail = MSZoom.DEFAULT_TAIL;   // 화면 유지 중에만 산다. 종목을 바꾸면 paintChart 가 다시 불려 기본값으로 돌아간다.
 
     function relayout() {
-      chartHpx = chartH();
+      chartHpx = chartH(tier);
       MSUi.fitCanvas(cv, ctx, cssW, chartHpx);   // DPR 트랜스폼 — 온보딩 차트와 한 벌(ui.js)
       // 한계가 plotW 에 딸려 있다 — 폴드를 펴면 커버에서 쓰던 봉 수가 새 하한 밖일 수 있다.
       // (커버 20봉 → 펼침 하한 44봉). 폴드는 두 화면을 상시로 오가므로 예외가 아니라 일상 경로다.
@@ -135,7 +148,8 @@
       tail = MSZoom.clamp(MSChartLayout.plotWidth(cssW, PAD), fut, tail);
       lay = MSChartLayout.chartLayout({
         candle: data.candle, prediction: an.out.prediction,
-        width: cssW, height: chartHpx, pad: PAD, tailBars: tail
+        width: cssW, height: chartHpx, pad: PAD, tailBars: tail,
+        panels: spec.panels                      // 기본은 가격 하나 — 서브패널 3종이 아예 안 생긴다
       });
     }
     relayout();
@@ -162,15 +176,17 @@
       MSChartDraw.drawAxes(ctx, lay, data.candle, col);
       // 캔들이 먼저, 예측이 나중. 끝점 배지가 seam 왼쪽까지 나오므로 순서를 뒤집으면
       // 캔들이 배지를 덮는다(PC 도 캔들 → 예측 순서다. forge-draw.js:~1081, 1115-1200).
-      MSChartDraw.drawCandles(ctx, lay, data.candle, col);
+      // 가격 표현은 티어가 정한다. 기본의 종가 선은 '덜 그린 캔들'이 아니라 다른 표현이다.
+      if (spec.price === "candle") MSChartDraw.drawCandles(ctx, lay, data.candle, col);
+      else MSChartDraw.drawCloseLine(ctx, lay, data.candle, col);
       MSChartDraw.drawCone(ctx, lay, an.out.prediction, col, tier, { sym: sym, tf: TF });
       var Mp = Object.assign({}, lay.panels.price.M, { badges: false });
-      MSLayers.bollinger(ctx, an.bb, Mp);
-      MSLayers.ma(ctx, an.ma, Mp);
-      MSLayers.rsiBadge(ctx, an.rsi, Mp);
-      MSLayers.volumeBadge(ctx, an.va, Mp);
-      // macdBadge 는 부르지 않는다 — _drawMacdLayers 는 배지뿐이라 남길 것이 없다.
-      ["volume", "rsi", "macd"].forEach(function (k) {
+      spec.overlays.forEach(function (name) {
+        var fn = OVERLAY_DRAW[name];
+        if (fn) fn(ctx, an, Mp);
+      });
+      spec.panels.forEach(function (k) {
+        if (k === "price") return;               // 가격 패널은 위에서 이미 그렸다
         var r = lay.panels[k].rect;
         ctx.save(); ctx.translate(r.x, r.y);
         MSPanels[k](ctx, r.w, r.h, dataOf[k], Infinity);
@@ -261,7 +277,7 @@
     // window resize는 next resize event가 와야 감지되므로, 그때까지 기다리지 않고 여기서 즉시 정리한다.
     if (activeResizeCleanup) { activeResizeCleanup(); activeResizeCleanup = null; }
     function onResize() {
-      var w2 = wrap.clientWidth || cssW, h2 = chartH();
+      var w2 = wrap.clientWidth || cssW, h2 = chartH(tier);
       if (w2 === cssW && h2 === chartHpx) return;
       cssW = w2;
       relayout();   // 재클램프는 relayout() 안에서 이미 일어난다 — 폴드 회전(커버 20봉 → 펼침 하한 44봉)에도 별도 처리 불필요
@@ -916,7 +932,7 @@
       } else if (state === "loading") {
         scr.appendChild(skeletonBlock(84));    // 가격
         scr.appendChild(skeletonBlock(96));    // 판정
-        scr.appendChild(skeletonBlock(chartH())); // 차트
+        scr.appendChild(skeletonBlock(chartH(tier))); // 차트 — 티어 높이를 따라간다(안 그러면 로딩이 실물보다 크다)
         scr.appendChild(skeletonBlock(180));   // 신호
       } else {
         // 지표 방향·판독문을 여기서 **한 번** 계산해 세 곳(판정 tally · REASONING · AGAINST)에
