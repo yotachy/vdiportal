@@ -587,6 +587,9 @@
           MSUi.fmtPrice(pr.lo[lastI]) + " – " + MSUi.fmtPrice(pr.hi[lastI]) + MSStr.t.rpCone));
       }
       sec.appendChild(head);
+      // 기본분석은 **내일만** 답한다(시안 18a). 1주·1개월은 심화가 파는 것 중 하나다 —
+      // 세 줄을 다 보여주면 3단 비교표의 "기간별"이 무료가 된다.
+      if (tier === "basic") rows = rows.slice(0, 1);
       rows.forEach(function (r) {
         var row = MSUi.el("div", "rp-hz-row");
         row.appendChild(MSUi.el("span", "rp-hz-when", hzLabel(r.key)));
@@ -598,6 +601,9 @@
         row.appendChild(MSUi.el("span", "rp-hz-prob", r.prob == null ? "" : r.prob + "%"));
         sec.appendChild(row);
       });
+      // 이 문장이 기본분석의 판매 논리 그 자체다 — 범위는 정확히 답하되 그 이상은 말하지
+      // 않는다. 빼면 "왜 확률이 없지"가 되고, 심화가 무엇을 파는지도 흐려진다.
+      if (tier === "basic") sec.appendChild(MSUi.el("div", "rp-hz-note", MSStr.t.rpBasicRangeNote));
       return sec;
     }
 
@@ -903,7 +909,12 @@
 
     function buildCta() {
       if (tier !== "basic") return MSUi.el("div");
-      var wrap = MSUi.el("div");
+      var wrap = MSUi.el("div", "rp-unlock");
+      // "27개" 는 리터럴이 아니다 — 전체 지표에서 기본 티어가 읽는 수를 뺀다. 지표가 늘면
+      // 이 문구가 따라 움직인다(관문이 ForgeCore.indicatorCount 와의 정합을 본다).
+      var hidden = ForgeCore.indicatorCount - MSGraph.BASIC.length;
+      wrap.appendChild(MSUi.el("p", "rp-unlock-line",
+        MSStr.t.rpLockedA + hidden + MSStr.t.rpLockedB));
       var b = MSUi.el("button", "rp-cta", MSStr.t.rpUpgrade);
       b.addEventListener("click", function () {
         MSWallet.get().then(function (r) {
@@ -923,7 +934,7 @@
     function draw() {
       root.innerHTML = "";
       chartRefs = null;
-      var scr = MSUi.el("div", "scr");
+      var scr = MSUi.el("div", "scr rp-scr");
       scr.appendChild(buildHead());
       scr.appendChild(buildTierRow());
 
@@ -946,28 +957,43 @@
           indRows = MSIndicators.readings(ForgeCore, an.graph, indInput, indCtx);
           noDir = MSIndicators.noDirRows(ForgeCore, indInput, indCtx);
         }
-        // 시안 2a 의 순서: 가격 → 판정 → 차트 → 지평 → 신호 → 주기.
-        // 큰 것에서 작은 것으로 내려가고, 섹션마다 오버라인이 머리를 잡는다.
-        scr.appendChild(buildPrice());
-        scr.appendChild(buildVerdict(indRows));
-        scr.appendChild(buildChartSection());
-        scr.appendChild(buildChartLegend());
-        var hz = buildHorizons();
-        if (hz) scr.appendChild(hz);
-        var sig = buildSignals();
-        if (sig) scr.appendChild(sig);
-        var reason = buildReasoning(indRows, noDir);
-        if (reason) scr.appendChild(reason);
-        var miss = buildMissing();
-        if (miss) scr.appendChild(miss);
-        var ag = buildAgainst(indRows);
-        if (ag) scr.appendChild(ag);
+        // 블록의 **순서와 구성은 report-blocks.js 의 선언**이 정한다(P2 §4). 여기 표는
+        // 이름 → 만드는 함수일 뿐이다. 세 티어를 세 벌의 draw() 로 쓰면 공통 블록을 고칠 때
+        // 세 곳을 고쳐야 하고, 한 곳을 빠뜨려도 그 티어를 열기 전엔 아무도 모른다.
+        // null 을 돌려주는 블록은 그 자리에서 사라진다(예전 `if (hz)` 들과 같은 동작).
+        var BUILD = {
+          price:     function () { return buildPrice(); },
+          verdict:   function () { return buildVerdict(indRows); },
+          chart:     function () { return buildChartSection(); },
+          legend:    function () { return buildChartLegend(); },
+          horizons:  function () { return buildHorizons(); },
+          signals:   function () { return buildSignals(); },
+          reasoning: function () { return buildReasoning(indRows, noDir); },
+          missing:   function () { return buildMissing(); },
+          against:   function () { return buildAgainst(indRows); },
+          tf:        function () { return buildTfSection(); },
+          note:      function () { return buildMissingNote(); },
+          cta:       function () { return buildCta(); },
+          // 18a 의 의도된 빈 공간 — "여기까지가 무료"를 스크롤 부재로 전달한다. 버그가 아니다.
+          spacer:    function () { return MSUi.el("div", "rp-spacer"); },
+          unlock:    function () { return buildCta(); },
+          // 전문분석 조절판은 Task 8 에서 온다. 선언에는 이미 있고 여기 함수가 없으므로
+          // 지금은 그 자리에 아무것도 안 그린다 — 관문이 이 미구현을 이름으로 드러낸다.
+          weights:   null
+        };
+        MSReportBlocks.orderOf(tier).forEach(function (key) {
+          var fn = BUILD[key];
+          if (!fn) return;
+          var node = fn();
+          if (node) scr.appendChild(node);
+        });
       }
 
-      scr.appendChild(buildTfSection());
-      var note = (state === "ready") ? buildMissingNote() : null;
-      if (note) scr.appendChild(note);
-      scr.appendChild(buildCta());
+      if (state !== "ready") {
+        // 로딩·에러 화면은 티어 구성을 안 탄다 — 주기 표와 CTA 만 남는다(종전과 동일).
+        scr.appendChild(buildTfSection());
+        scr.appendChild(buildCta());
+      }
 
       root.appendChild(scr);   // 여기서부터 라이브 DOM — clientWidth 측정 가능
 
