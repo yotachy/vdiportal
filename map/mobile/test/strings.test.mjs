@@ -27,7 +27,9 @@ const KEY_SCAN_FILES = ["../www/screens/report.js", "../www/screens/watchlist.js
                          // screens/expert.js — xp* 키(전문분석 편집기, 시안 10a)는 여기서만 소비된다.
                          "../www/screens/expert.js",
                          // blocked.js — bl* 키(막히는 상태 7종, 시안 12c)는 여기서만 소비된다.
-                         "../www/blocked.js"];
+                         "../www/blocked.js",
+                         // progress-reveal.js — rv* 키(해제 직후 전환 장면, 시안 8b)는 여기서만 소비된다.
+                         "../www/progress-reveal.js"];
 // Fix 1: chart-legend.js 는 `var T = Str.t` 로 별칭한 뒤 `T.legPred` 형태로 쓴다 — MSStr.t/Str.t 직접
 // 참조만 잡던 정규식이 이 별칭 경로를 못 봐서, 존재하지 않는 T.키 오타가 조용히 undefined 를 렌더했다.
 const KEY_RE = /\b(?:MSStr\.t|Str\.t|T)\.([A-Za-z_][A-Za-z0-9_]*)/g;

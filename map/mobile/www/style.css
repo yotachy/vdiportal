@@ -330,6 +330,23 @@ body:not(.ms-dual) .rp-scr { display:flex; flex-direction:column; min-height:cal
 /* 해제 카드 — 버튼 하나가 아니라 "무엇이 빠져 있는지"를 먼저 말하는 카드다. */
 .rp-unlock { margin-top:8px; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--sheet); }
 .rp-unlock-line { margin:0 0 12px; white-space:pre-line; font-size:var(--fs-body); color:var(--ink-2); line-height:1.5; }
+/* ===== 해제 직후 전환 장면(시안 8b) ===== */
+.rv-scrim { position:fixed; inset:0; z-index:50; background:var(--bg);
+            display:flex; align-items:center; justify-content:center; }
+.rv-box { width:100%; max-width:340px; padding:0 20px; text-align:center; }
+.rv-head { margin:12px 0 22px; white-space:pre-line;
+           font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+/* 빗 — 칸 하나가 지표 하나다. 기본 티어가 읽던 다섯은 스틸, 열린 나머지는 골드로 켜진다. */
+.rv-comb { display:flex; align-items:flex-end; justify-content:center; gap:2px; height:44px; }
+.rv-tooth { flex:1 1 0; min-width:2px; height:14px; border-radius:99px; background:var(--track); transition:height .2s, background .2s; }
+.rv-tooth.rv-core { background:var(--steel); height:26px; }
+.rv-tooth.on { background:var(--gold); height:38px; }
+.rv-tooth.rv-core.on { background:var(--steel); }
+.rv-count { margin-top:18px; font-size:var(--fs-body); color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.rv-track { height:4px; margin-top:14px; border-radius:99px; background:var(--track); overflow:hidden; }
+.rv-fill { height:100%; background:var(--gold); }
+.rv-skip { margin-top:18px; font-size:var(--fs-sub); color:var(--ink-5); }
+
 /* ===== 막히는 상태 7종(시안 12c) ===== */
 .bl-scrim { position:fixed; inset:0; z-index:45; background:var(--scrim, rgba(0,0,0,.55));
             display:flex; align-items:flex-end; }

@@ -91,6 +91,12 @@
     blFailUnknownBadge: "계산 실패 · 환불 확인 불가", blFailUnknownHead: "환불을 확인하지 못했습니다",
     blFailUnknownBody: "돌려드렸다고 말하지 않겠습니다 — 응답을 못 받았을 뿐입니다. 잔량을 확인해 주세요. 다시 시도해도 중복 차감되지 않습니다.",
     blOpenWallet: "지갑 확인",
+    // 해제 직후 전환 장면(시안 8b). 3초 리워드 쇼 — 19a(실시간 중계)와 규칙이 반대라
+    // 문구도 섞이지 않게 rv* 로 따로 둔다.
+    rvCaption: "지표를 모두 읽는 중",
+    rvOpened: "개가\n열렸습니다",
+    rvOf: " / ", rvSep: " · ", rvAgree: "개 동의",
+    rvSkip: "탭하면 바로 결과로",
     rdEmpty: "이 조건에 해당하는 지표가 없습니다.",
     // 시안 18b 의 "지표 32개 판독문" 링크 행. 개수는 리터럴이 아니라 엔진에서 나온다.
     rdLinkA: "지표 ", rdLinkB: "개 판독문",

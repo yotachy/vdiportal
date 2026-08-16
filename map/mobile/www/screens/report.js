@@ -861,7 +861,17 @@
           if (runType === "custom") myWeights = weights;
           state = "ready";   // 기본 로드가 아직 안 끝났거나 실패한 상태에서 샀을 수 있다
           MSTierSheet.close();
-          draw();
+          // 해제 직후 전환 장면(시안 8b) — 결과는 **이미 손에 있다**. 3초는 계산을 기다리는
+          // 시간이 아니라 무엇이 열렸는지 보여주는 시간이고, 그래서 서버가 더 빨라도 줄이지
+          // 않는다(19a 의 "늘리지 않는다"와 정반대 규칙 — 그래서 모듈이 다르다).
+          // 탭하면 즉시 결과로 간다.
+          var conf = an.out.verdict.confluence;
+          MSReveal.play({
+            total: ForgeCore.indicatorCount, basic: MSGraph.BASIC.length,
+            agree: conf ? conf.agree : null,
+            onDone: function () { if (isCurrent()) draw(); }
+          });
+          return;
         } else if (r.kind === "refunded") {
           MSTierSheet.close();
           // 시안 12c 의 카드 ⑥·⑦. 환급을 **확인했을 때만** 돌려줬다고 말한다 — 확인 못 한
