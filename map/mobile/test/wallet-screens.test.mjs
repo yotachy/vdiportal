@@ -498,18 +498,42 @@ test("wMerged — 버린 잔량이 그대로 넘어간 것처럼 말하지 않�
 test("광고 보상 수치는 여전히 설정에서 온다 — 리터럴로 되돌아가지 않았다", () => {
   assert.match(WALLET_SCR, /adCfg\.quick\.reward/, "quick 보상이 설정에서 오지 않는다");
   assert.match(WALLET_SCR, /adCfg\.full\.reward/, "full 보상이 설정에서 오지 않는다");
-  // 좁힌 범위(리뷰 지시 2026-08-16): 파일 전체가 아니라 adQuick/adFull(그리고 같은 명명
-  // 관례를 따르는 미래의 세 번째 광고 행)을 만드는 earnRow(...) 호출 줄만 본다. 파일 전체를
-  // 보면 adConfig() 와 무관한 고정 보상(출석 체크인의 상시 +1, SPEC-economy §1)까지 걸려
-  // 오탐한다 — 그 오탐을 "+" + 1 로 피했더니 이번엔 진짜 회귀(미래의 "+" + 3 같은 하드코딩)도
-  // 못 잡는 가드가 됐다(실행으로 확인됨). 두 양성 단언(adCfg.*.reward 존재)이 핵심 위험을 이미
-  // 덮고, 이 음성 단언은 나중에 리터럴을 낀 세 번째 광고 행이 추가되는 것만 잡으면 된다.
-  const adRowLines = WALLET_SCR.split("\n").filter(l => /earnRow\(MSStr\.t\.ad\w+/.test(l));
-  assert.ok(adRowLines.length >= 2,
-    "adQuick/adFull 을 만드는 earnRow(...) 호출을 찾지 못했다 — 가드 범위 산정이 틀렸다");
-  adRowLines.forEach(l => {
-    assert.doesNotMatch(l, /["'`]\+[13]["'`]/,
-      "광고 행 보상이 리터럴로 박혔다 — 콘솔·ad_units.json·문자열 세 곳이 한 숫자의 진실원이 된다: " + l.trim());
+
+  // 재-리뷰 지적(2026-08-16): 리터럴 철자를 하나씩 금지하는 이전 버전(줄 단위 정규식으로
+  // `"+1"`/`"+3"` 모양만 찾음)은 `"+ 3"`·`"+2"`·`"+" + 3`(직전 라운드에서 되돌린 바로 그
+  // 구성)·`.replace("{n}", "3")`·줄바꿈으로 접힌 호출을 전부 통과시켰다 — AdMob SSV 서명 검증이
+  // "이 철자 막기, 저 철자 막기"로 세 라운드를 허비하고서야 스펠링 나열 대신 개수를 비교하는
+  // 구조적 검사로 닫힌 것과 같은 함정이다. 그래서 원하는 성질 자체를 양성으로 확인한다 —
+  // "광고 행은 adCfg 를 참조한다." adCfg 를 읽는 호출은 동시에 하드코딩된 숫자를 보여줄 수
+  // 없으므로, 리터럴의 어떤 철자도 이 검사를 통과할 길이 없다. 음성 정규식은 완전히 지웠다 —
+  // 이 양성 검사가 서면 그 정규식은 아무것도 더 잡지 못하면서 "검사됐다"는 착각만 준다.
+  //
+  // 줄 단위가 아니라 **호출 전체**를 본다(괄호 중첩을 따라간 균형 스캔) — 줄 단위 필터는
+  // earnRow(...) 가 여러 줄로 접히면 검사 범위 밖으로 조용히 사라진다("silent scope loss",
+  // 리뷰 지적). `earnRow(` 바로 뒤가 줄바꿈이어도 시작점을 잡도록 `\s*` 를 둔다.
+  const startRe = /earnRow\(\s*MSStr\.t\.ad\w+/g;
+  const rows = [];
+  let m;
+  while ((m = startRe.exec(WALLET_SCR))) {
+    const openParen = WALLET_SCR.indexOf("(", m.index);
+    let depth = 0, end = -1;
+    for (let i = openParen; i < WALLET_SCR.length; i++) {
+      if (WALLET_SCR[i] === "(") depth++;
+      else if (WALLET_SCR[i] === ")") { depth--; if (depth === 0) { end = i; break; } }
+    }
+    assert.ok(end > openParen,
+      "earnRow(...) 호출의 닫는 괄호 균형을 못 찾았다 — 균형 스캐너 전제(문자열 안에 홀괄호가 없다)가 깨졌다");
+    rows.push(WALLET_SCR.slice(m.index, end + 1));
+  }
+  // 정확한 개수가 아니라 바닥만 본다 — adQuick·adFull 둘은 항상 있어야 하지만, 나중에 adCfg 를
+  // 제대로 읽는 세 번째 광고 행이 늘어도 그 자체는 실패가 아니다(태스크 지시: "config 를 읽기만
+  // 하면 숫자가 없어도 통과해야 한다"와 같은 결의 요구). 0~1건으로 줄면(스캐너가 놓쳤거나 행이
+  // 실제로 사라졌거나) 조용히 넘어가면 안 되는 신호라 여기서 막는다.
+  assert.ok(rows.length >= 2,
+    "adQuick/adFull 광고 행을 찾지 못했다(" + rows.length + "건) — 스캐너가 여러 줄 호출을 놓쳤거나 행이 사라졌다");
+  rows.forEach(r => {
+    assert.match(r, /adCfg\./,
+      "광고 행이 adCfg 를 참조하지 않는다 — 보상이 리터럴일 수 있다:\n" + r);
   });
 });
 
