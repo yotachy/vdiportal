@@ -35,8 +35,8 @@ test("report.js 소스 모양 — purchaseFull 이 이전 시도의 idem 을 재
   // 이전 rec.idem 이 있으면 그걸 쓰고, 그 다음은 저장소에 남은 값(지난 실행의 미확인 시도),
   // 둘 다 없을 때만 새로 뽑는다. "항상 새로 뽑는다"(구버전)로 되돌아가면 maybe-charged
   // 재시도가 원장에서 별개 키가 되어 이중 차감된다.
-  assert.match(REPORT, /var idem = \(rec && rec\.idem\) \? rec\.idem : \(pendingFullIdem\(sym\) \|\| MSWallet\.newIdem\(\)\);/,
-    "purchaseFull 이 무조건 새 idem 을 뽑는다 — maybe-charged 재시도가 이중 차감될 수 있다");
+  assert.match(REPORT, /var idem = \(rec && rec\.idem\) \? rec\.idem : \(pendingFullIdem\(sym, runType\) \|\| MSWallet\.newIdem\(\)\);/,
+    "purchaseRun 이 무조건 새 idem 을 뽑는다 — maybe-charged 재시도가 이중 차감될 수 있다");
 });
 
 // 최종 리뷰(LIVE A): idem 재사용 장치가 전부 모듈 스코프 변수라 프로세스와 함께 죽었다.
@@ -46,24 +46,38 @@ test("report.js 소스 모양 — 진행 중 idem 이 저장소에 남는다(실
   assert.match(REPORT, /MSStore\.read0\(K_PEND_FULL/, "저장된 idem 을 읽지 않는다");
   assert.match(REPORT, /MSStore\.write0\(K_PEND_FULL/, "idem 을 저장하지 않는다 — 강제 종료로 사라진다");
   // 순서가 핵심이다: spend 를 "보내기 전에" 적어야 응답 유실 창이 덮인다.
-  const write = REPORT.indexOf("setPendingFullIdem(sym, idem);");
-  const send = REPORT.indexOf('MSWallet.spend("full"');
+  const write = REPORT.indexOf("setPendingFullIdem(sym, runType, idem);");
+  const send = REPORT.indexOf("MSWallet.spend(runType, idem, sym)");
   assert.ok(write > 0 && send > 0 && write < send,
     "spend 를 보낸 뒤에 idem 을 적는다 — 이중 과금이 나는 창(요청은 나갔고 응답은 못 받은 구간)이 그대로 열려 있다");
 });
 
 test("report.js 소스 모양 — 확정 결과에서만 저장된 idem 을 지운다", () => {
-  assert.match(REPORT, /rec\.runs = r\.runs;\s*\n\s*setPendingFullIdem\(sym, null\);/,
+  assert.match(REPORT, /rec\.weights = weights \|\| null;\s*\n\s*setPendingFullIdem\(sym, runType, null\);/,
     "성공했는데 idem 이 남는다 — 다음 구매가 남의 키를 재사용해 재생(무과금)으로 흡수된다");
-  assert.match(REPORT, /delete purchases\[sym\];[\s\S]{0,120}setPendingFullIdem\(sym, null\);/,
+  assert.match(REPORT, /delete purchases\[pk\];[\s\S]{0,140}setPendingFullIdem\(sym, runType, null\);/,
     "확정 실패·환급인데 저장된 idem 을 안 지운다");
+});
+
+// P2 T8 이 전문분석을 열면서 한 종목에 두 등급이 공존하게 됐다. 키에 등급이 없으면 심화
+// 재시도용 idem 을 전문 구매가 물려받는데, 서버는 같은 idem + 다른 runType 을 재시도가 아니라
+// **값싼 등급 값을 내고 비싼 등급을 받아가려는 시도**로 보고 bad-idem 을 낸다(w_spend).
+// 즉 전문분석이 통째로 막히고, 그 실패는 "왜 안 사지"로만 보인다.
+test("report.js 소스 모양 — 미확인 idem 키가 (종목, 등급) 쌍이다", () => {
+  assert.match(REPORT, /function pendKey\(sym, runType\) \{ return sym \+ "\|" \+ runType; \}/,
+    "idem 저장 키에 등급이 없다 — 심화와 전문이 같은 키를 공유한다");
+  assert.match(REPORT, /m\[pendKey\(sym, runType\)\]/, "저장 키를 쌍으로 쓰지 않는다");
+  // 메모리 레코드(purchases)도 같은 키여야 한다 — 한쪽만 쌍이면 심화를 산 종목에서
+  // 전문을 사려 할 때 "이미 산 것"으로 오인해 차감 없이 심화 결과를 돌려준다.
+  assert.match(REPORT, /var pk = pendKey\(sym, runType\);/, "purchases 키가 쌍이 아니다");
+  assert.match(REPORT, /purchases\[pk\] = rec;/, "purchases 를 쌍 키로 등록하지 않는다");
 });
 
 // 최종 리뷰(MINOR): 세 번째 인자 sym 을 빼도 761/761 초록이었다 — 그런데 서버는 full·custom 에
 // ref 가 없으면 bad-ref 로 거절한다(w_spend). 즉 프로덕션에서 Full 을 아무도 못 산다.
-test("report.js 소스 모양 — Full 구매가 ref 로 종목을 함께 보낸다", () => {
-  assert.match(REPORT, /MSWallet\.spend\("full", idem, sym\)/,
-    "ref(sym) 없이 full 을 결제한다 — 서버가 bad-ref 로 전부 거절해 Full 을 살 수 없다");
+test("report.js 소스 모양 — 유료 구매가 ref 로 종목을 함께 보낸다", () => {
+  assert.match(REPORT, /MSWallet\.spend\(runType, idem, sym\)/,
+    "ref(sym) 없이 결제한다 — 서버가 bad-ref 로 전부 거절해 심화·전문을 살 수 없다(w_entitled_types)");
 });
 
 test("report.js 소스 모양 — maybe-charged 실패는 idem 을 지우지 않는다(definitely-not-charged 만 지운다)", () => {

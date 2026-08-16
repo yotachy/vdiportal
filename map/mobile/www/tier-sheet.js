@@ -13,9 +13,8 @@
   }
 
   // 시안 6b — 오른쪽 자리는 세 티어가 서로 다른 것을 보여준다: 기본은 "받음"(이미 무료로
-  // 받았다), 심화는 값(스쿱 수), 전문은 자물쇠(P2 가 연다·이번 라운드는 잠금만 표시하고
-  // 흐름을 만들지 않는다 — 태스크 범위 경계). 셋을 한 함수 안에서 분기하면 "왜 이 행만
-  // 다르게 생겼나"를 코드가 스스로 설명한다.
+  // 받았다), 심화·전문은 값(스쿱 수). 셋을 한 함수 안에서 분기하면 "왜 이 행만 다르게
+  // 생겼나"를 코드가 스스로 설명한다.
   function tierRow(key, name, desc, opts) {
     var o = opts || {};
     var r = MSUi.el("button", "sheet-tier tier-" + key + (o.on ? " on" : ""));
@@ -27,14 +26,9 @@
     left.appendChild(MSUi.el("div", "sheet-tier-desc", desc));
     r.appendChild(left);
 
-    if (o.locked) {
-      var lk = MSUi.el("span", "sheet-tier-locked");
-      var ic = MSUi.el("span", "sheet-tier-lock-ic");
-      ic.innerHTML = MSUi.lockIcon();
-      lk.appendChild(ic);
-      lk.appendChild(MSUi.el("span", null, MSStr.t.tsSoon));
-      r.appendChild(lk);
-    } else if (o.done) {
+    // 잠금 분기는 없다 — P2 가 전문분석을 열면서 세 티어 모두 실행 가능해졌다. 안 쓰는
+    // 분기를 남기면 다음 사람이 "잠긴 티어가 있다"로 읽는다(P1 Ruling H 와 같은 판단).
+    if (o.done) {
       r.appendChild(MSUi.el("span", "sheet-tier-done", MSStr.t.tsDone));
     } else if (o.cost != null) {
       var price = MSUi.el("span", "sheet-tier-price");
@@ -79,16 +73,19 @@
       tiers.appendChild(tierRow("full", MSStr.t.tsFull, MSStr.t.tsFullDesc,
         { on: picked === "full", popular: true, cost: MSWallet.COSTS.full,
           onPick: function () { if (busy) return; picked = "full"; paint(); } }));
-      // 전문분석(Pro) 행은 이번 라운드엔 잠금만 표시한다 — 흐름을 만들지 않는다(태스크
-      // 범위 경계, P2 가 연다). 공용 자물쇠(MSUi.lockIcon)를 쓴다 — tierRow 의 o.locked 분기.
-      tiers.appendChild(tierRow("custom", MSStr.t.tsCustom, MSStr.t.tsCustomDesc, { locked: true }));
+      // 전문분석(Pro) — P2 가 열었다. 자물쇠 대신 값이 붙고, 고르면 실행 버튼이 이 등급으로
+      // 바뀐다. 실제 흐름은 호출부(report.js)가 전문분석 편집기(10a)를 여는 것이다:
+      // 이 시트는 "얼마나 정밀하게"만 묻고, "어떤 지표를 얼마나"는 그 화면이 묻는다.
+      tiers.appendChild(tierRow("custom", MSStr.t.tsCustom, MSStr.t.tsCustomDesc,
+        { on: picked === "custom", cost: MSWallet.COSTS.custom,
+          onPick: function () { if (busy) return; picked = "custom"; paint(); } }));
       sheet.appendChild(tiers);
 
       // 시안처럼 "쓰면 12 → 9"(왼쪽) · "최대 20"(오른쪽) 한 줄 — 비용 자체는 이미 심화분석
       // 행에 스쿱 수로 떠 있어 여기서 다시 적지 않는다. 둘 다 표시 전용이고 실제 차감·상한
       // 판정은 백엔드가 한다.
       var costLine = MSUi.el("div", "sheet-cost");
-      var pv = preview(MSWallet.COSTS.full);
+      var pv = preview(MSWallet.COSTS[picked]);
       if (pv) {
         var spend = MSUi.el("span", "sheet-cost-txt");
         spend.appendChild(MSUi.el("span", null, MSStr.t.tsSpendLead));
@@ -102,7 +99,8 @@
       if (pv || o.cap != null) sheet.appendChild(costLine);
 
       var cost = MSWallet.COSTS[picked];
-      var run = MSUi.el("button", "btn btn-primary sheet-run", MSStr.t.tsFull + MSStr.t.tsRun);
+      var run = MSUi.el("button", "btn btn-primary sheet-run",
+        (picked === "custom" ? MSStr.t.tsCustom : MSStr.t.tsFull) + MSStr.t.tsRun);
       // bal == null 은 "0개 보유"가 아니라 "잔량을 모른다"(오프라인 등)다 — 그 상태로는 살 수
       // 있는지 없는지도 판단이 안 되므로 Run 을 켜 두면 안 된다(I-I, 리뷰 실측: 예전엔 bal==null
       // 이면 short 가 항상 false 라 버튼이 활성으로 남았다).

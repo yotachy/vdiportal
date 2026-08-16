@@ -54,6 +54,20 @@
     rdScopeSep: " · ", rdScopeTf: "일봉", rdScopeBasis: " 기준",
     rdF_all: "전체", rdF_up: "상승", rdF_down: "하락", rdF_none: "무판정",
     rdLv: "Lv", rdLvSep: " ", rdArrow: "\u203A",
+    // 전문분석 편집기(시안 10a). 이 화면은 적중률을 약속하지 않는다 — 전문분석 적중률은
+    // 사용자마다 가중치가 달라 하나로 환원되지 않고, 재지 않았다(P2 §2 R3).
+    xpTitle: "전문분석",
+    xpPreset: "기준 성향", xpPresetHint: "가중치가 이미 채워져 있습니다. 그대로 두고 실행해도 됩니다.",
+    xpWeights: "지표별 가중치",
+    xpSelA: "선택 ", xpSelB: " / ", xpSelC: " · 가중치 ", xpRangeDash: "–",
+    xpAlways: "항상 포함",
+    xpReset: "기본값 되돌리기", xpRun: "이 설정으로 분석",
+    xpShort: "스쿱이 모자랍니다.",
+    // 전문분석 조절판(시안 18c). 여기에도 적중률은 없다 — 계산되는 값만 온다(P2 §2 R3·§5.4).
+    rpMyWeights: "내 가중치",
+    rpTunedA: "조정 ", rpTunedB: " / ",
+    rpDeepWidth: "심화 ± ", rpToMine: " → 내 설정 ± ",
+    rpEditWeights: "가중치 다시 조절",
     rdEmpty: "이 조건에 해당하는 지표가 없습니다.",
     // 시안 18b 의 "지표 32개 판독문" 링크 행. 개수는 리터럴이 아니라 엔진에서 나온다.
     rdLinkA: "지표 ", rdLinkB: "개 판독문",
@@ -274,7 +288,7 @@
     // 두 줄(시안 6b 원문에 줄바꿈이 있다) — .sheet-tier-desc 가 white-space:pre-line 이다.
     tsFullDesc: "도구 32 · 일·주·월\n중심값 · 오차 · 확률 · 적중 이력",
     tsCustomDesc: "도구 32 · 지표별 가중치 직접 지정",
-    tsDone: "받음", tsPopular: "가장 많이 씀", tsSoon: "곧 지원 예정",
+    tsDone: "받음", tsPopular: "가장 많이 씀",
     tsScoopUnit: "스쿱",                          // 심화분석 행의 값 아래 단위 라벨("3" + 이 값)
     tsSpendLead: "쓰면 ",                         // 비용 한 줄 왼쪽 — "쓰면 " + "12 → 9"
     tsRun: " 실행",                               // 버튼 — tsFull(위 주석) + 이 값

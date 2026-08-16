@@ -44,7 +44,7 @@
   // 종목별 Full 구매 레코드. 이 세션(앱 실행) 동안만 산다 — 앱을 다시 켜면 소멸하고,
   // 8b 의 서버 runs 테이블이 그 자리를 대체한다(BACKLOG-mobile.md Phase 8a).
   // render() 지역에 두면 구매가 화면 수명만큼만 살아 재진입 때 다시 과금된다.
-  var purchases = {};             // sym -> { idem, promise, data, an, runs }
+  var purchases = {};             // "sym|runType" -> { idem, promise, data, an, runs }
 
   // 8a 직전 상태 대조의 재료 — 심화로 올라가기 **전에** 기본분석이 낸 값을 남긴다.
   // 모듈 스코프인 이유는 purchases 와 같다: 화면 수명보다 오래 살아야 한다(뒤로 갔다 와도
@@ -71,16 +71,21 @@
   // 무관한 키라 멱등이 못 잡는다. full 은 서버 권리(24h runs) 덕에 재시도가 spend-cached 로
   // 흡수되지만 그건 spend 가 실제로 커밋된 경우뿐이고, 커밋 직전에 끊긴 경우는 그냥 두 번
   // 나간다. 종목별로 저장한다(스캔은 워치리스트 전체 단위라 watchlist.js 쪽은 키가 하나다).
-  var K_PEND_FULL = "ms_pending_full_idem";   // { sym: idem }
-  function pendingFullIdem(sym) {
+  // 키는 (종목, 등급) 쌍이다. 등급을 안 넣으면 심화 재시도용 idem 을 전문 구매가 물려받는데,
+  // 서버는 같은 idem 에 다른 runType 이 오면 재시도가 아니라 **값싼 등급 값을 내고 비싼 등급을
+  // 받아가려는 시도**로 보고 bad-idem 을 낸다(wallet-lib.php w_spend 의 재생 조건). 전문분석이
+  // 생기면서 처음으로 한 종목에 두 등급이 공존하게 됐다.
+  var K_PEND_FULL = "ms_pending_full_idem";   // { "sym|runType": idem }
+  function pendKey(sym, runType) { return sym + "|" + runType; }
+  function pendingFullIdem(sym, runType) {
     var m = MSStore.read0(K_PEND_FULL, null);
-    var v = (m && typeof m === "object" && !(m instanceof Array)) ? m[sym] : null;
+    var v = (m && typeof m === "object" && !(m instanceof Array)) ? m[pendKey(sym, runType)] : null;
     return (typeof v === "string" && v) ? v : null;
   }
-  function setPendingFullIdem(sym, idem) {
+  function setPendingFullIdem(sym, runType, idem) {
     var m = MSStore.read0(K_PEND_FULL, null);
     if (!m || typeof m !== "object" || (m instanceof Array)) m = {};
-    if (idem) m[sym] = idem; else delete m[sym];
+    if (idem) m[pendKey(sym, runType)] = idem; else delete m[pendKey(sym, runType)];
     MSStore.write0(K_PEND_FULL, m);
   }
   // render 세대 토큰 — 진행 중 구매의 결과가 그 사이 바뀐 화면을 덮어쓰지 않게 한다.
@@ -123,14 +128,20 @@
   // Basic 5지표 판정(verdict/prediction) + 작도용 원시 지표 결과.
   // run() 내부 evalBlocks 는 노드값을 단순 시계열로만 남기므로(완전한 지표 객체가 아님),
   // 작도에 쓸 형태는 그래프와 동일한 파라미터로 analyzeX 를 직접 다시 호출해 얻는다.
-  function analyzeFull(data, useFull, tf) {
-    var graph = useFull ? MSGraph.full32Graph(ForgeCore) : MSGraph.basicGraph(ForgeCore);
+  // weights 가 있으면 전문분석 그래프다 — 지표 30종 중 선택한 것만 남고 배율이 실린다.
+  // 배율은 **두 경로로 함께** 간다: node.weight(combine) 와 opts.driftWeights(방향 드리프트).
+  // 한쪽만 넘기면 반대 개수만 바뀌고 예측선은 그대로인 화면이 된다(graph.js 주석 참고).
+  function analyzeFull(data, useFull, tf, weights) {
+    var graph = weights ? MSGraph.customGraph(ForgeCore, weights)
+              : useFull ? MSGraph.full32Graph(ForgeCore) : MSGraph.basicGraph(ForgeCore);
     var vol = data.candle.map(function (c) { return c.v; });
     var okVol = vol.length >= 2 && vol.every(function (v) { return typeof v === "number" && isFinite(v); });
     MSGraph.setVolume(graph, okVol ? vol : null);
     var d = { price: data.price, candle: data.candle };
     if (okVol) d.volume = vol;
-    var out = ForgeCore.run(graph, d, { timeframe: MSReportModel.tfKo(tf || TF) });
+    var runOpts = { timeframe: MSReportModel.tfKo(tf || TF) };
+    if (weights) runOpts.driftWeights = MSGraph.driftWeightsOf(graph, weights);
+    var out = ForgeCore.run(graph, d, runOpts);
 
     var maP = paramOf(graph, "ma", { len: 20, ema: false });
     var rsiP = paramOf(graph, "rsi", { period: 14 });
@@ -319,8 +330,10 @@
   // "결과 반영"(호출부의 alert/draw, 던질 수 있다) 두 단계로 나뉜다. 판정 구간의 catch 는 판정
   // 구간의 예외만 잡아 "환급 여부를 모른다"(tsFailedNoRefund)로만 답한다 — 성공 판정 뒤 draw() 가
   // 던지는 예외까지 이 catch 가 삼키면 정상 결제·정상 분석인데 "환급됐다"(tsFailed)고 거짓말하게 된다.
-  function purchaseFull(sym) {
-    var rec = purchases[sym];
+  // runType ∈ "full" | "custom". weights 는 custom 일 때만 의미가 있다.
+  function purchaseRun(sym, runType, weights) {
+    var pk = pendKey(sym, runType);
+    var rec = purchases[pk];
     if (rec && rec.an) {   // 이미 산 것 — 다시 차감하지 않고 그 결과를 그대로 돌려준다
       return Promise.resolve({ kind: "success", data: rec.data, an: rec.an, runs: rec.runs });
     }
@@ -332,12 +345,12 @@
     // definitely-not-charged 로 지워진 뒤) 새로 뽑는다.
     // 저장소에 남은 값(지난 실행에서 응답을 못 받은 시도)까지 이어받는다 — 메모리 레코드가
     // 없다고 새 키를 뽑으면 강제 종료 뒤 재구매가 그대로 두 번째 차감이 된다.
-    var idem = (rec && rec.idem) ? rec.idem : (pendingFullIdem(sym) || MSWallet.newIdem());
+    var idem = (rec && rec.idem) ? rec.idem : (pendingFullIdem(sym, runType) || MSWallet.newIdem());
     rec = { idem: idem, promise: null, data: null, an: null, runs: null };
-    purchases[sym] = rec;   // spend 를 부르기 전에 등록한다 — 그 사이 들어온 두 번째 호출이 붙을 자리다
-    setPendingFullIdem(sym, idem);   // 보내기 전에 적는다 — 응답이 유실된 창을 덮는 건 이 순서뿐이다
+    purchases[pk] = rec;   // spend 를 부르기 전에 등록한다 — 그 사이 들어온 두 번째 호출이 붙을 자리다
+    setPendingFullIdem(sym, runType, idem);   // 보내기 전에 적는다 — 응답이 유실된 창을 덮는 건 이 순서뿐이다
 
-    rec.promise = MSWallet.spend("full", idem, sym).then(function (sp) {
+    rec.promise = MSWallet.spend(runType, idem, sym).then(function (sp) {
       if (!sp.ok) return { kind: "spend-fail", reason: sp.reason };
       var tfs = ["1day", "1week", "1month"];
       return Promise.all(tfs.map(function (tf) {
@@ -353,7 +366,7 @@
         var runs = loaded.map(function (L) {
           if (L.error) return { tf: L.tf, error: MSStr.t.rpNoHistory };
           try {
-            var a = analyzeFull(L.data, true, L.tf);
+            var a = analyzeFull(L.data, true, L.tf, weights);
             if (L.tf === "1day") dayAn = a;          // 일봉 분석을 두 번 돌리지 않는다
             return { tf: L.tf, out: a.out };
           } catch (e) { return { tf: L.tf, error: MSStr.t.rpNoHistory }; }
@@ -372,15 +385,15 @@
     }).then(function (r) {
       rec.promise = null;
       if (r.kind === "success") {
-        rec.data = r.data; rec.an = r.an; rec.runs = r.runs;
-        setPendingFullIdem(sym, null);   // 확정 성공 — 이 키는 끝났다
+        rec.data = r.data; rec.an = r.an; rec.runs = r.runs; rec.weights = weights || null;
+        setPendingFullIdem(sym, runType, null);   // 확정 성공 — 이 키는 끝났다
       } else if (r.kind === "unknown" || (r.kind === "spend-fail" && MSWallet.maybeCharged(r.reason))) {
         // 정말로 차감됐는지 모른다 — idem 을 지우지 않는다(rec 를 purchases[sym] 에 그대로 두고
         // 저장소에도 남긴다). 다음 purchaseFull(sym) 이 — 이번 실행이든 다음 실행이든 —
         // 이 idem 을 재사용해 서버 멱등이 잡게 한다.
-      } else if (purchases[sym] === rec) {
-        delete purchases[sym];           // 확실히 실패·환급됐다 — 다시 살 수 있어야 한다
-        setPendingFullIdem(sym, null);
+      } else if (purchases[pk] === rec) {
+        delete purchases[pk];            // 확실히 실패·환급됐다 — 다시 살 수 있어야 한다
+        setPendingFullIdem(sym, runType, null);
       }
       return r;
     });
@@ -395,10 +408,16 @@
     for (i = 0; i < wl.length; i++) { if (wl[i].sym === sym) { idx = i; break; } }
     var wlItem = idx >= 0 ? wl[idx] : null;
 
-    // 이 세션에서 이미 산 Full 이 있으면 그 레코드가 화면의 출발점이다 — 재과금 없이 그대로 복원한다.
-    var bought = (purchases[sym] && purchases[sym].an) ? purchases[sym] : null;
+    // 이 세션에서 이미 산 것이 있으면 그 레코드가 화면의 출발점이다 — 재과금 없이 복원한다.
+    // 전문이 심화보다 우선한다: 둘 다 샀는데 심화로 복원하면 5스쿱 낸 결과를 잃는다.
+    var boughtCustom = (purchases[pendKey(sym, "custom")] && purchases[pendKey(sym, "custom")].an)
+      ? purchases[pendKey(sym, "custom")] : null;
+    var boughtFull = (purchases[pendKey(sym, "full")] && purchases[pendKey(sym, "full")].an)
+      ? purchases[pendKey(sym, "full")] : null;
+    var bought = boughtCustom || boughtFull;
     var state = "loading", errInfo = null, data = null, an = null, chartRefs = null;
-    var tier = bought ? "full" : "basic";   // Full 을 사면 "full" 로 올라간다(재진입 시엔 복원)
+    var tier = boughtCustom ? "custom" : boughtFull ? "full" : "basic";
+    var myWeights = boughtCustom ? boughtCustom.weights : null;
     var tfRuns = bought ? bought.runs : null;   // [{tf, out, error}] — Full 이 채운다
     // 재진입·이중 과금 가드는 purchases 레코드가 한다(모듈 스코프) — 여기 지역 플래그를 또 두지 않는다.
 
@@ -805,15 +824,17 @@
 
     // 결과 반영 단계 — 판정(purchaseFull)이 안전하게 끝난 뒤다. 여기서 던지는 예외(draw() 등)는
     // 판정 구간의 catch 가 이미 지나가 못 잡는다. 성공 렌더 오류가 "환급됨" 문구로 잘못 이어지지 않는 이유다.
-    function runFull() {
-      purchaseFull(sym).then(function (r) {
+    // runType ∈ "full" | "custom". 전문은 편집기가 준 가중치를 함께 넘긴다.
+    function runTier(runType, weights) {
+      purchaseRun(sym, runType, weights).then(function (r) {
         // 잔량이 움직였을 수 있다. 화면이 바뀌었어도 필은 문서에 그대로 떠 있으므로 세대 가드 밖이다.
         MSWalletScreen.refreshPills();
         // 화면이 이미 다른 것을 보고 있으면 아무것도 건드리지 않는다 —
         // 결과는 purchases[sym] 에 남아 있어 이 종목으로 돌아오면 그대로 보인다.
         if (!isCurrent()) return;
         if (r.kind === "success") {
-          data = r.data; an = r.an; tfRuns = r.runs; tier = "full";
+          data = r.data; an = r.an; tfRuns = r.runs; tier = runType;
+          if (runType === "custom") myWeights = weights;
           state = "ready";   // 기본 로드가 아직 안 끝났거나 실패한 상태에서 샀을 수 있다
           MSTierSheet.close();
           draw();
@@ -905,6 +926,41 @@
       });
     }
 
+    // 시안 18c 의 조절판 블록 — 심화의 8블록 **위에** 얹는다(한 겹도 빼지 않는다).
+    // 여기 "예상 적중률 64%" 를 두지 않는다: 전문분석 적중률은 사용자마다 가중치가 달라
+    // 하나로 환원되지 않고 재지 않았다(P2 §2 R3). 그 자리에는 계산되는 값만 온다 —
+    // 조절한 개수와, 심화 대비 예측 폭의 변화.
+    function buildWeights() {
+      if (tier !== "custom" || !myWeights) return null;
+      var sec = MSUi.el("div", "rp-weights");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpMyWeights));
+      var tuned = 0, k;
+      for (k in myWeights) {
+        if (!Object.prototype.hasOwnProperty.call(myWeights, k)) continue;
+        if (Math.abs(myWeights[k] - 1) > 1e-9) tuned++;
+      }
+      head.appendChild(MSUi.el("span", "rp-sec-note",
+        MSStr.t.rpTunedA + tuned + MSStr.t.rpTunedB + MSIndTiers.tunable().length));
+      sec.appendChild(head);
+      // 심화 대비 폭 변화 — 있을 때만. 심화를 안 거쳤으면 비교 대상이 없고, 없는 비교를
+      // 지어내지 않는다(8a 대조의 G1 과 같은 태도).
+      var fullRec = purchases[pendKey(sym, "full")];
+      var mine = an && an.out && an.out.prediction;
+      if (fullRec && fullRec.an && fullRec.an.out && fullRec.an.out.prediction && mine) {
+        var fp = fullRec.an.out.prediction;
+        if (fp.lo && fp.hi && fp.lo.length && mine.lo && mine.hi && mine.lo.length) {
+          var wFull = (fp.hi[0] - fp.lo[0]) / 2, wMine = (mine.hi[0] - mine.lo[0]) / 2;
+          sec.appendChild(MSUi.el("div", "rp-weights-cmp",
+            MSStr.t.rpDeepWidth + wFull.toFixed(1) + MSStr.t.rpToMine + wMine.toFixed(1)));
+        }
+      }
+      var edit = MSUi.el("button", "rp-weights-edit", MSStr.t.rpEditWeights);
+      edit.addEventListener("click", function () { runCustom(); });
+      sec.appendChild(edit);
+      return sec;
+    }
+
     // 시안 18b 의 "지표 32개 판독문" 행. 개수는 리터럴이 아니라 실제로 읽은 행 수다 —
     // 32 를 박아두면 그래프 구성이 바뀌어도 화면은 계속 32 라고 말한다.
     // 판독문 화면은 **여기서 계산한 행을 그대로 받는다.** 다시 계산하면 같은 종목의 두 화면이
@@ -942,7 +998,8 @@
           // 권유할 근거(정말 부족한지)가 없다. 시트를 그대로 열어 tsUnavailable 이 말하게 둔다.
           if (bal != null && bal < MSWallet.COSTS.full) { showLowBalanceAd(wrap, bal); return; }
           MSTierSheet.open({ sym: sym, tier: tier, name: wlItem && wlItem.name,
-            balance: bal, cap: r.state ? r.state.cap : null, onRun: runFull });
+            balance: bal, cap: r.state ? r.state.cap : null,
+            onRun: function (picked) { if (picked === "custom") runCustom(); else runFull(); } });
         });
       });
       wrap.appendChild(b);
@@ -995,7 +1052,7 @@
           unlock:    function () { return buildCta(); },
           // 전문분석 조절판은 Task 8 에서 온다. 선언에는 이미 있고 여기 함수가 없으므로
           // 지금은 그 자리에 아무것도 안 그린다 — 관문이 이 미구현을 이름으로 드러낸다.
-          weights:   null
+          weights:   function () { return buildWeights(); }
         };
         MSReportBlocks.orderOf(tier).forEach(function (key) {
           var fn = BUILD[key];
@@ -1015,11 +1072,30 @@
 
       if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, chartRefs.legend, an, data, sym, tier);
     }
+    function runFull() { runTier("full", null); }
+    // 전문분석은 시트에서 바로 실행하지 않는다 — "얼마나 정밀하게"(시트)와 "어떤 지표를
+    // 얼마나"(편집기)는 다른 질문이고, 시안이 그 둘을 다른 화면으로 그렸다.
+    function runCustom() {
+      MSTierSheet.close();
+      MSWallet.get().then(function (r) {
+        if (!isCurrent()) return;
+        MSExpert.open({
+          sym: sym, name: wlItem && wlItem.name,
+          balance: r.state ? r.state.balance : null, cost: MSWallet.COSTS.custom,
+          initial: myWeights,
+          onRun: function (weights) { runTier("custom", weights); }
+        });
+      });
+    }
 
     // 산 것은 그대로 다시 보인다. startLoad() 를 태우면 finishData() 의 Basic 재분석이 Full 분석(an)을
     // 덮어써 배지는 FULL 인데 내용은 5지표인 화면이 된다 — 그래서 로드·재분석 없이 레코드로 바로 그린다.
     if (bought) { data = bought.data; an = bought.an; state = "ready"; draw(); }
-    else if (purchases[sym] && purchases[sym].promise) {
+    else if (purchases[pendKey(sym, "custom")] && purchases[pendKey(sym, "custom")].promise) {
+      startLoad();
+      runTier("custom", myWeights);
+    }
+    else if (purchases[pendKey(sym, "full")] && purchases[pendKey(sym, "full")].promise) {
       // 구매가 아직 도는 중에 이 화면이 재렌더됐다(같은 종목 재탭·폴드 전환). 앞 렌더의 반영은
       // 세대 가드에 막혀 버려지므로, 이 렌더가 그 promise 에 다시 붙어야 결과가 화면에 온다.
       // purchaseFull() 이 레코드를 보고 붙으므로 spend 는 다시 일어나지 않는다.
