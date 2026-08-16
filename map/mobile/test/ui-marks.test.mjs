@@ -79,17 +79,33 @@ const ALL_WWW_JS = listJsFiles(WWW_ROOT).filter(p => p !== join(WWW_ROOT, "ui.js
 
 function mentionsLock(src) { return /lock/i.test(src) || /잠금|잠긴/.test(src); }
 
-// "이름에 lock 이 들어간 함수/변수가 <svg 를 직접 반환/대입하는가"만 본다 — 어떤 모양인지는
-// 안 본다. function NAME(...) {...} 와 NAME = function(...) {...} 둘 다, 중괄호 짝을
-// 맞춰 본문을 잘라낸 뒤 그 안에서 <svg 를 찾는다. var LOCK = "<svg ...>" 처럼 함수가 아니라
-// 문자열 리터럴에 바로 박아 둔 경우도 함께 잡는다.
-function lockNamedSvgOffenders(src) {
-  const offenders = [];
-  const fnRe = /function\s+([A-Za-z0-9_$]*)\s*\(|([A-Za-z0-9_$]+)\s*=\s*function\s*\(/g;
+// 이름 매칭은 함정이었다 — "이름에 lock 이 들어간 함수/변수가 <svg 를 그리는가"만 봤더니,
+// tierGlyph() 처럼 이름이 lock 과 무관한 함수가 자물쇠 모양(또는 아무 모양이든) SVG 를 그려도
+// 파일이 별도로 MSUi.lockIcon() 을 한 번이라도 쓰면 두 조건을 각각 만족해 통과했다(리뷰 실측).
+// 그래서 이름은 아예 안 본다 — **잠금을 다루는 파일에 리터럴 "<svg" 가 하나라도 있으면 위반**
+// 이라는 도형 자체를 잡는다. MSUi.lockIcon() 은 함수 *호출*이라 소비 파일 소스에 "<svg" 문자열을
+// 남기지 않으므로(그 문자열은 ui.js 안에만 있다) 이 규칙과 절대 충돌하지 않는다.
+// 파일 전체를 다시 그릴 필요 없는 무관한 SVG(뒤로가기 화살표 등)가 있다면 그건 파일 단위가
+// 아니라 그 정의 하나만 예외로 인정해야 한다 — ALLOWED_UNRELATED_SVG 가 그 역할이다.
+
+// ④의 이유 있는 예외 — "이 파일의 이 함수/변수는 잠금과 무관한 자기 SVG 를 그려도 된다".
+// EXCLUDED_LOCK_FILES 와 같은 원칙(근거 없이 빼지 않는다)이되, 파일 전체가 아니라 이름 하나만
+// 정확히 도려낸다 — 그래야 같은 파일에 나중에 진짜 자물쇠 SVG 가 몰래 추가돼도 여전히 잡힌다.
+const ALLOWED_UNRELATED_SVG = {
+  // 뒤로가기 화살표(‹) — 자물쇠와 무관, 상세 화면 상단 back 버튼 아이콘
+  "screens/report.js": ["backSvg"]
+};
+
+// function NAME(...) {...} 또는 NAME = function(...) {...} 하나의 전체 범위([시작,끝))를
+// 중괄호 짝을 맞춰 찾는다. 정확한 이름으로만 매칭하므로(정규식에 이름을 그대로 박는다),
+// 오타로 이름이 어긋나면 못 찾아 아래 strip 이 조용히 아무것도 안 지우고, 결국 <svg 가
+// 남아 테스트가 실패한다 — "지웠다고 착각한 채 초록"이 나올 수 없는 구조다.
+function findNamedFnRanges(src, name) {
+  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const fnRe = new RegExp("function\\s+" + esc + "\\s*\\(|" + esc + "\\s*=\\s*function\\s*\\(", "g");
+  const ranges = [];
   let m;
   while ((m = fnRe.exec(src))) {
-    const name = m[1] || m[2] || "";
-    if (!/lock/i.test(name)) continue;
     const braceStart = src.indexOf("{", m.index);
     if (braceStart < 0) continue;
     let depth = 0, end = -1;
@@ -97,13 +113,22 @@ function lockNamedSvgOffenders(src) {
       if (src[i] === "{") depth++;
       else if (src[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
     }
-    if (end >= 0 && /<svg/i.test(src.slice(braceStart, end + 1))) offenders.push(name);
+    if (end >= 0) ranges.push([m.index, end + 1]);
   }
-  const varRe = /var\s+([A-Za-z0-9_$]*)\s*=\s*(["'])((?:(?!\2)[^\\]|\\.)*)\2/g;
-  while ((m = varRe.exec(src))) {
-    if (/lock/i.test(m[1]) && /<svg/i.test(m[3])) offenders.push(m[1]);
-  }
-  return offenders;
+  return ranges;
+}
+
+// 허용 목록에 있는 이름의 함수 본문만 소스에서 도려낸 사본을 돌려준다 — 이 사본에 남은
+// "<svg" 는 전부 허용되지 않은 것이다.
+function withoutAllowedSvgDefs(rel, src) {
+  const names = ALLOWED_UNRELATED_SVG[rel];
+  if (!names) return src;
+  let out = src;
+  names.forEach(name => {
+    const ranges = findNamedFnRanges(out, name).sort((a, b) => b[0] - a[0]); // 뒤에서부터 지운다(인덱스 안 밀리게)
+    ranges.forEach(([s, e]) => { out = out.slice(0, s) + out.slice(e); });
+  });
+  return out;
 }
 
 // ③의 이유 있는 예외 목록. 각 항목은 "왜 잠금을 언급하는데 아이콘이 필요 없는가"를 적는다.
@@ -137,13 +162,12 @@ test("자물쇠는 한 곳에서 나온다 — 화면마다 다시 그리지 않
   const noRef = [], selfDrawn = [];
   scanned.forEach(f => {
     if (!/MSUi\.lockIcon\s*\(/.test(f.src)) noRef.push(f.rel);
-    const off = lockNamedSvgOffenders(f.src);
-    if (off.length) selfDrawn.push(f.rel + " (" + off.join(", ") + ")");
+    if (/<svg/i.test(withoutAllowedSvgDefs(f.rel, f.src))) selfDrawn.push(f.rel);
   });
   assert.deepEqual(noRef, [], "잠금을 다루는데 MSUi.lockIcon() 을 안 쓰는 파일: " + noRef.join(", ") +
     " — 관계 없다면 EXCLUDED_LOCK_FILES 에 이유를 적어 뺄 것");
-  assert.deepEqual(selfDrawn, [], "자물쇠를 직접 그린 파일(이름에 lock 이 들어간 함수/변수가 <svg 를 반환): " +
-    selfDrawn.join("; ") + " — MSUi.lockIcon() 을 쓸 것");
+  assert.deepEqual(selfDrawn, [], "잠금을 다루는 파일에 인라인 <svg> 가 남아 있다(이름 무관): " +
+    selfDrawn.join(", ") + " — MSUi.lockIcon() 을 쓰거나, 잠금과 무관하면 ALLOWED_UNRELATED_SVG 에 이유를 적어 뺄 것");
 });
 
 // 스펙 §3.1 — 세 티어가 각자의 색을 갖는다. 하나로 뭉치면 "무엇을 샀는지"가 화면에서 안 보인다.

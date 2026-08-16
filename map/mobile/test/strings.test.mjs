@@ -196,6 +196,107 @@ test("화면 소스에 문자열 리터럴이 박혀 있지 않다 — 한글이
   assert.deepEqual(badKeys, [], "존재하지 않는 MSStr 키 참조 " + badKeys.length + "건:\n" + badKeys.join("\n"));
 });
 
+// ── screens/ 소스에 남은 영어 — 위 테스트의 반대쪽 구멍 ──────────────────────────────────
+// 바로 위 테스트 제목은 "한글이든 영문 문장이든"이지만 본문(offenders)은 한글 존재 여부만
+// 본다 — 영문 문장은 한글이 하나도 없으니 그물을 그냥 통과한다. MSUi.el("div","w-sub",
+// "Balance updates may take a few minutes.") 를 screens/wallet.js 에 추가해도, var
+// RETRY_LABEL = "Retry scan" 을 screens/watchlist.js 에 추가해도 위 테스트는 그대로 초록이다.
+// readings.js 가 이미 겪은 것과 같은 모양의 구멍이라 처방도 같다 — strings.js 값 검증에 쓰는
+// untranslatedWords() 를 그대로 재사용해 한 허용목록이 모든 곳을 다스리게 한다.
+//
+// 대상은 www/screens/ 폴더로 좁힌다(KEY_SCAN_FILES 의 부분집합). draw-layers.js·chart-legend.js·
+// draw-panels.js 는 캔버스에 헥스 색상·rgba·font 축약 지정을 리터럴로 잔뜩 박아두는 완전히
+// 다른 성격의 파일이다(그리기 파라미터지 문장이 아니다) — 같은 잣대를 대면 실측 100건 넘게
+// 오탐이 쏟아진다. readings.js 처럼 그 영역은 자기 몫의 게이트가 따로 필요하지 이번 파인딩의
+// 대상이 아니다(파인딩 원문 예시 둘 다 screens/ 안에서 나왔다).
+const SCREENS_FILES = KEY_SCAN_FILES.filter(f => f.indexOf("/screens/") >= 0);
+
+// "코드 토큰" 모양 — 문장이 아니라 CSS 클래스 조각·선택자·커스텀 프로퍼티·인라인 스타일
+// 선언인 리터럴들의 공통 형태다: 앞에 공백·점·대시·언더스코어가 붙을 수 있고(삼항연산자로
+// 이어붙이는 클래스 접미사 " on"·CSS 선택자 ".wl-chip"·커스텀 프로퍼티 "--gold" 등), 그
+// 뒤로는 소문자·숫자·코드 구두점(- _ . / : ; % ( ))만 온다. 대문자나 내부 공백이 하나라도
+// 있으면 이 모양이 아니다 — 진짜 문장은 대문자로 시작하고 공백으로 단어를 가른다(실측:
+// " on"·" is-full"·".wl-chip"·"--gold"·"display:inline-block;width:88px;height:12px;" 등
+// 37건이 이 한 규칙으로 걸러진다).
+const CODE_TOKEN_RE = /^[ .\-_]*[a-z0-9][a-z0-9_./:;%()-]*$/;
+
+// 비교 피연산자(===/!==/==/!=) 바로 다음의 문자열 리터럴 — readings.js 게이트(위 아래 참고)가
+// 이미 쓰는 판단을 그대로 가져온다. key === "US" 는 내부 키 대조일 뿐 화면에 안 나간다.
+function isComparisonOperand(before) { return /(===|!==|==|!=)\s*$/.test(before); }
+
+// 어느 모양 규칙에도 안 걸리는 극소수 개별 예외. 근거 없이 추가하는 것은 금지 — 항목마다
+// 왜 화면에 안 나가는지 적는다.
+const SCREENS_LITERAL_EXCEPTIONS = new Set([
+  "SAMPLE"   // screens/onboarding.js SAMPLE_SEED — MSPreds 난수 씨앗 식별자일 뿐, 화면에 렌더되지 않는다
+]);
+
+// MSUi.el(tag, class, ...) 의 리터럴 1·2번째 인자, 그리고 `.className = "..."` 대입의 우변 —
+// 둘 다 여러 클래스를 공백으로 이어붙일 수 있어("btn btn-ghost ob-retry") CODE_TOKEN_RE 의
+// "공백 없음" 조건을 못 넘는다. 하지만 이 값들은 **위치**(구문상 역할)로 이미 클래스임이
+// 증명된다 — 파인딩이 명시한 "el() 의 첫 인자는 태그, 둘째는 클래스" 원칙을 코드로 옮긴 것.
+// 내용이 아니라 위치로 뺀다는 점에서 CODE_TOKEN_RE(내용 모양)와 상보적이다.
+function collectShapeExcludedValues(src) {
+  const out = new Set();
+  const elRe = /MSUi\.el\s*\(\s*(["'])((?:(?!\1)[^\\]|\\.)*)\1(?:\s*,\s*(["'])((?:(?!\3)[^\\]|\\.)*)\3)?/g;
+  let m;
+  while ((m = elRe.exec(src))) { out.add(m[2]); if (m[4] != null) out.add(m[4]); }
+  const clsRe = /\.className\s*=\s*(["'])((?:(?!\1)[^\\]|\\.)*)\1/g;
+  while ((m = clsRe.exec(src))) out.add(m[2]);
+  return out;
+}
+
+// 소스 텍스트 하나를 스캔해 남은 영어 리터럴을 돌려준다. 디스크의 실제 파일뿐 아니라
+// 아래 재현 테스트가 만드는 합성 소스 조각에도 그대로 쓴다 — 검사 로직이 파일 읽기와
+// 분리돼 있어야 "주입 문자열이 실제로 빨간불을 켜는가"를 파일을 더럽히지 않고 증명할 수 있다.
+function scanSrcForEnglish(src, label) {
+  const shapeExcluded = collectShapeExcludedValues(src);
+  const out = [];
+  src.split("\n").forEach((line, i) => {
+    const code = line.replace(/\/\/.*$/, "").replace(/\/\*[\s\S]*?\*\//g, "");
+    const re = /(["'`])(?:(?!\1)[^\\]|\\.)*\1/g;
+    let m;
+    while ((m = re.exec(code))) {
+      const inner = m[0].slice(1, -1);
+      if (inner === "use strict") continue;                          // 모듈 보일러플레이트
+      if (shapeExcluded.has(inner)) continue;                        // el() 태그/클래스·className 대입
+      if (isComparisonOperand(code.slice(0, m.index))) continue;     // 내부 키 대조
+      if (CODE_TOKEN_RE.test(inner)) continue;                       // CSS 조각/선택자/커스텀 프로퍼티
+      if (SCREENS_LITERAL_EXCEPTIONS.has(inner)) continue;           // 개별 예외
+      const words = untranslatedWords(inner);
+      if (words.length) out.push({ file: label, line: i + 1, text: inner, words });
+    }
+  });
+  return out;
+}
+
+function screensLiteralOffenders(f) {
+  const src = readFileSync(new URL(f, import.meta.url), "utf8");
+  return scanSrcForEnglish(src, f.replace("../", ""));
+}
+
+test("screens/ 화면 소스에 남은 영어가 없다 — 한글 부재만 보던 반대쪽 구멍을 닫는다", () => {
+  const bad = [];
+  SCREENS_FILES.forEach(f => { bad.push.apply(bad, screensLiteralOffenders(f)); });
+  assert.deepEqual(bad, [],
+    "screens/ 에 남은 영어 " + bad.length + "건:\n" +
+    bad.map(o => o.file + ":" + o.line + "  " + JSON.stringify(o.text) + "  (" + o.words.join(", ") + ")").join("\n"));
+});
+
+// 위 게이트가 실제로 뭔가를 잡는지 증명한다 — readings.js 재현 테스트와 같은 원칙(태스크 8
+// 코디네이터 지시: 재현→빨강을 보여줄 것). 파인딩 원문의 두 예시 문자열을 그대로 쓴다.
+test("screens/ 영어잔존 게이트는 실제로 잡는다 — wallet·watchlist 주입 예시로 재현", () => {
+  const leak1 = 'MSUi.el("div", "w-sub", "Balance updates may take a few minutes.");';
+  const leak2 = 'var RETRY_LABEL = "Retry scan";';
+  assert.ok(scanSrcForEnglish(leak1, "synthetic").length > 0,
+    "MSUi.el 3번째 인자(콘텐츠)의 영문 문장을 못 잡았다");
+  assert.ok(scanSrcForEnglish(leak2, "synthetic").length > 0,
+    "변수에 담긴 영문 문장을 못 잡았다");
+  // 위 예시들은 복사본에만 적용했다 — 실제 파일들은 여전히 깨끗해야 한다.
+  const clean = [];
+  SCREENS_FILES.forEach(f => { clean.push.apply(clean, screensLiteralOffenders(f)); });
+  assert.deepEqual(clean, [], "재현 전에 이미 screens/ 원본이 더럽다: " + JSON.stringify(clean));
+});
+
 // Fix 5: spec §8이 요구한 미사용 키 가드. 위 테스트가 "참조된 키가 실존하는가"를 보는 반대쪽 —
 // "존재하는 키가 실제로 참조되는가"를 본다. wlAddBtn·rpMissingPoint 처럼 목업에서 옮겨놓고
 // 배선을 안 한 죽은 문구가 strings.js 에 계속 쌓이는 것을 막는다.
