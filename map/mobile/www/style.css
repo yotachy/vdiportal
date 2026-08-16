@@ -1,3 +1,13 @@
+/* 번들 폰트 — CDN 을 쓰지 않는다. Capacitor 앱은 https://localhost/ 에서 서빙되고
+   네트워크를 보장할 수 없다. 가변 폰트 1개가 400·500·700·800 을 전부 덮으므로,
+   무게가 빠져 브라우저가 가짜 볼드를 합성하는 사고가 없다. */
+@font-face {
+  font-family:Pretendard;
+  src:url("fonts/PretendardVariable.woff2") format("woff2-variations");
+  font-weight:100 900;
+  font-display:block;
+}
+
 :root {
   --bg:#0a0d12; --bg-raised:#0b0e15; --sheet:#11151d;
   --hairline:rgba(238,241,247,.06); --hairline-2:rgba(238,241,247,.09);
@@ -87,8 +97,8 @@ body {
 .wl-name { font-size:10.5px; color:var(--ink-5); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .wl-spark { flex:0 0 64px; height:20px; }
 .wl-px { flex:1 1 auto; text-align:right; }
-.wl-price { font-size:14px; font-weight:600; font-family:ui-monospace,Menlo,monospace; }
-.wl-chg { font-size:11px; font-family:ui-monospace,Menlo,monospace; margin-top:2px; }
+.wl-price { font-size:14px; font-weight:600; }
+.wl-chg { font-size:11px; margin-top:2px; }
 .wl-chg.up { color:var(--bull); } .wl-chg.dn { color:var(--bear-text); }
 /* 확신 배지 — 엔진 출력이라 색을 갖는 몇 안 되는 요소다 */
 .wl-badge { flex:0 0 52px; text-align:right; }
