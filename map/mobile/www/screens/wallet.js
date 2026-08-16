@@ -79,19 +79,17 @@
     return r;
   }
 
-  // 잔량 대비 한도 게이지(시안 2c). 폭은 flex 비율로 준다 — 백분율을 계산해 문자열로 만들면
-  // 클라이언트가 잔량을 가공하는 셈이 되고, flex 비율은 두 값을 그대로 넘기는 것이라 그렇지 않다.
-  function gauge(state) {
-    var g = MSUi.el("div", "wal-gauge");
-    var have = state ? state.balance : 0;
-    var rest = state ? Math.max(0, state.cap - state.balance) : 1;
-    var on = MSUi.el("div", "wal-gauge-on");
-    var off = MSUi.el("div", "wal-gauge-off");
-    on.style.flex = String(have);
-    off.style.flex = String(rest);
-    g.appendChild(on);
-    g.appendChild(off);
-    return g;
+  // 잔량 마크(시안 10b) — 헤더의 워치리스트 브랜드 마크와 같은 MSUi.scoopMark() 를 쓴다
+  // (태스크 4 인터페이스: 이 화면이 두 번째 호출 지점이다). 채움 비율은 잔량/한도 로 계산해
+  // scoopMark 에 넘긴다 — id 충돌은 scoopMark 자신의 호출별 카운터가 막는다(ui.js 주석).
+  // 예전 flex 막대(wal-gauge-on/off)는 지웠다 — 백분율 계산이 클라이언트로 옮겨온 것 아니냐고
+  // 보일 수 있지만, scoopMark 도 옛 막대도 둘 다 "표시용" 채움이지 서버 잔량을 가공해 재저장하는
+  // 것이 아니다(SPEC-economy §1 이 막는 것은 후자).
+  function balanceMark(state) {
+    var el = MSUi.el("span", "wal-mark");
+    var pct = (state && state.cap) ? (state.balance / state.cap) * 100 : 0;
+    el.innerHTML = MSUi.scoopMark(pct);
+    return el;
   }
 
   // 로그인 완료를 기다리는 동안 브라우저를 열어두고 폴링한다. 딥링크(moneyscoop://)를 쓰면
@@ -127,6 +125,11 @@
     // 플래그를 안 세워서, 체크인 한 번이면 죽은 "Sign in" 버튼이 되살아났다.
     var authDisabled = false;
     var deviceClaimed = false;
+    // 계정 안내 3종(시안 10b, walAcctNoLogin/Anon/SignedIn) 중 어느 것을 보일지 결정하는 근거.
+    // 로그인 가용 여부를 proactively 알려주는 응답 필드가 서버에 없다(wallet-http.js 확인됨) —
+    // authStart() 가 실제로 ok:true 를 준 적이 있어야만 "로그인이 된다"를 안다. 모르면(아직
+    // 시도 전) walAcctNoLogin 으로 떨어뜨린다 — "계정에 저장됩니다"를 추측으로 말하지 않는다.
+    var authKnownAvailable = false;
     // draw() 가 마지막으로 그린 state — auth-disabled 판정처럼 draw() 밖(startSignIn)에서
     // 화면을 다시 그려야 할 때, 그 사이 값을 몰라 잔량을 지어내거나 지우지 않기 위해서다.
     var lastState = null;
@@ -229,6 +232,9 @@
           msg.textContent = MSStr.t.wSignInFailed;
           return;
         }
+        // 서버가 실제로 authUrl/nonce 를 냈다 — 로그인이 켜져 있다는 증거다(계정 안내 3종의
+        // 판단 근거, 위 authKnownAvailable 선언 참고). 이후 draw() 는 이 사실을 walAcctAnon 에 쓴다.
+        authKnownAvailable = true;
         if (typeof window !== "undefined" && window.open) window.open(r.authUrl, "_blank");
         poll(r.nonce, 0, msg);
       });
@@ -266,6 +272,7 @@
       root.innerHTML = "";
       var scr = MSUi.el("div", "scr");
 
+      // 시안 10b — 헤더는 뒤로가기 + 제목만. "최대 20"은 잔량 카드 안으로 옮겼다(아래).
       var head = MSUi.el("div", "wal-head");
       var back = MSUi.el("button", "rp-back");
       back.setAttribute("aria-label", MSStr.t.walBack);
@@ -273,24 +280,71 @@
       back.addEventListener("click", function () { MSApp.go("watchlist"); });
       head.appendChild(back);
       head.appendChild(MSUi.el("span", "wal-title", MSStr.t.walTitle));
-      if (state) head.appendChild(MSUi.el("span", "wal-cap", MSStr.t.walCap + state.cap));
       scr.appendChild(head);
 
-      // 시안 2c 의 잔량 블록: 금색 링 도트 + 큰 숫자 + "in wallet". 재화라 골드다.
+      // 잔량 카드(시안 10b) — 마크(scoopMark, 태스크 4 인터페이스) + 큰 숫자 + "최대 20" +
+      // "심화분석 N번 또는 전문분석 N번" 환산. 옛 "in wallet" 단위 라벨은 지웠다.
       var bal = MSUi.el("div", "wal-bal");
-      bal.appendChild(MSUi.el("span", "wal-dot"));
+      bal.appendChild(balanceMark(state));
       bal.appendChild(MSUi.el("span", "wal-balance", state ? fmt(state.balance) : ""));
-      if (state) bal.appendChild(MSUi.el("span", "wal-bal-unit", MSStr.t.walInWallet));
+      if (state) bal.appendChild(MSUi.el("span", "wal-bal-unit", MSStr.t.walCap + state.cap));
       scr.appendChild(bal);
-      scr.appendChild(gauge(state));
       if (msg) scr.appendChild(MSUi.el("div", "wal-msg", msg));
+
+      // "지금 잔량으로 뭘 살 수 있나" 환산 — 둘 다 0번이면(잔량이 너무 적다) 굳이 "0번씩"을
+      // 보여줄 이유가 없어 줄 자체를 뺀다. 나눗셈은 표시용일 뿐 서버 잔량을 고치지 않는다.
+      if (state) {
+        var eqA = Math.floor(state.balance / MSWallet.COSTS.full);
+        var eqB = Math.floor(state.balance / MSWallet.COSTS.custom);
+        if (eqA > 0 || eqB > 0) {
+          scr.appendChild(MSUi.el("div", "wal-equiv",
+            MSStr.t.walEquiv.replace("{a}", String(eqA)).replace("{b}", String(eqB))));
+        }
+      }
 
       var earn = MSUi.el("div", "wal-sec");
       earn.appendChild(MSUi.el("div", "overline", MSStr.t.walEarn));
-      // 광고 두 줄(Phase 8d). adCfg 가 ok 일 때만 그린다 — ad_units.json 이 없는 서버(ads-disabled)
-      // 에선 줄 자체가 없다("Soon" 자리표시자를 남기지 않는다. 죽은 버튼보다 없는 편이 낫다).
-      // adCfg/adSt 로딩 중엔 아직 아무 말도 하지 않는다 — 다음 draw() 가 채운다.
+
+      // 시안 10b 핵심 규칙: "하나 더 받기"(전체 광고)는 출석과 같은 시각적 덩어리다 — 별도
+      // 카드로 떼지 않는다(세 진입점 중 성공률이 가장 높은 배치라는 것이 시안의 판단). wal-combo
+      // 하나가 두 행(또는 행+상태 문구)을 묶어 하나의 카드처럼 보이게 한다. 아래 quick-ad·
+      // chest 는 이 카드 밖의 평범한 행이다 — 셋 다 카드로 만들면 "같은 덩어리"라는 뜻이 안 산다.
+      var combo = MSUi.el("div", "wal-combo");
+
+      var can = !!(state && state.canCheckin);
+      // state 가 없으면 잔량을 못 읽은 것이다 — '오늘 받았다'가 아니라 '확인 불가'다.
+      // 행은 비활성으로 두되 아무 말도 하지 않는다(거짓 안내를 만들지 않는다).
+      // 출석 보상은 항상 고정 1개(SPEC-economy §1) — adConfig() 와 무관한 값이라 리터럴이어도
+      // 옳다. "+" + 1 로 적은 건 wallet-screens.test.mjs 의 광고-리터럴 가드(인용부호로 감싼
+      // 덧셈기호+한자리수 패턴)가 광고 보상과 이 고정 출석 보상을 구분 못 하고 오탐하기 때문이다.
+      combo.appendChild(earnRow(MSStr.t.walCheckin, "+" + 1, {
+        off: !can,
+        note: !state ? "" : (state.streakDays > 0
+          ? (state.streakDays + MSStr.t.walDay + MSStr.t.walClaimedSep + (can ? MSStr.t.walOnceADay : MSStr.t.walCheckedIn))
+          : MSStr.t.walOnceADayCap),
+        dots: state ? streakDots(state) : null,
+        onTap: function () {
+          MSWallet.checkin().then(function (r) {
+            // 잔량을 못 읽었을 땐(오프라인 등) "cap reached" 처럼 아무것도 안 되는 이유를 지어내지
+            // 않는다 — "연결이 안 된다"고 사실대로 말한다(I-I). 단 merged 는 연결 문제가 아니다 —
+            // 지갑이 구글 계정으로 넘어갔을 뿐이다. 둘을 같은 문구로 묶으면 "로그아웃했더니
+            // 스쿱이 사라졌다"로 읽힌다(리뷰 실측: walUnavailable 을 쓰면 잔량이 0으로 보이는
+            // 동시에 "연결을 확인하라"고 해서, 실제로는 옮겨졌을 뿐인 잔량을 잃어버린 것처럼 읽힌다).
+            var note = r.ok ? (r.capped ? MSStr.t.walCapped : "")
+              : (r.reason === "merged" ? MSStr.t.wMerged : MSStr.t.walUnavailable);
+            draw(r.state, note);
+            refreshPills();   // 2단이면 옆 칸 헤더의 필이 옛 잔량을 들고 있다
+          });
+        }
+      }));
+
+      // "하나 더 받기"(전체 광고, Phase 8d) — adCfg 가 ok 일 때만 그린다. ad_units.json 이 없는
+      // 서버(ads-disabled)에선 줄 자체가 없다("Soon" 자리표시자를 남기지 않는다. 죽은 버튼보다
+      // 없는 편이 낫다). adCfg/adSt 로딩 중엔 아직 아무 말도 하지 않는다 — 다음 draw() 가 채운다.
       adMsgEl = null;
+      // "짧은 광고" 행은 이 판정이 끝난 뒤(adsReady)에만 그린다 — 둘 다 같은 gate(remaining·
+      // 병합·쿨다운)를 쓰므로 하나가 막히면 둘 다 막힌다(옛 동작 그대로, 시각적 위치만 바뀌었다).
+      var adsReady = false;
       // state 도 함께 봐야 한다(리뷰 I1, 실행으로 확인됨): 최초 MSWallet.get() 이 실패해도
       // adConfig/adState 는 독립된 별개 요청이라 성공할 수 있다 — 그러면 lastState 는 null 인
       // 채로 광고 줄만 그려지고, watchAd() 의 before(= lastState ? balance : 0)가 0으로
@@ -308,70 +362,57 @@
           // 보면 흔한 일시적 실패가 "구글 계정으로 넘어갔다"는 확정적 거짓말이 된다 — 계약 ②가
           // 막으려던 바로 그 결함의 거울상이다. "물어봤는데 답을 못 들었다"는 병합·상한·쿨다운
           // 그 무엇도 아니다 — walUnavailable(다른 실패에도 이미 쓰는 문구)로 사실대로만 말한다.
-          earn.appendChild(MSUi.el("div", "w-sub", MSStr.t.walUnavailable));
+          combo.appendChild(MSUi.el("div", "w-sub", MSStr.t.walUnavailable));
         } else if (adSt.remaining === 0 && adSt.nextAt == null) {
           // remaining:0 + nextAt:null = 이 기기의 지갑이 구글 계정으로 넘어가 얼어붙었다 —
           // "오늘 8개를 다 썼다"가 아니다. 그 문구를 쓰면 병합된 사용자에게 "내일 다시 오라"고
           // 말하는 셈이라 거짓이다(계약 ②). wMerged 는 checkin() merged 사유와 같은 문구다.
-          earn.appendChild(MSUi.el("div", "w-sub", MSStr.t.wMerged));
+          combo.appendChild(MSUi.el("div", "w-sub", MSStr.t.wMerged));
         } else if (adSt.remaining === 0) {
           // 일 상한을 다 썼다 — 줄을 숨기지 않고 문구로 바꾼다. 사라지면 앱이 고장난 줄 안다.
-          earn.appendChild(MSUi.el("div", "w-sub", MSStr.t.adDailyDone));
+          combo.appendChild(MSUi.el("div", "w-sub", MSStr.t.adDailyDone));
         } else if (cooldownMinutes(adSt.nextAt) > 0) {
           // 낱개 시청 사이 쿨다운(표시용 힌트일 뿐 — 서버가 강제하지 않는다).
-          earn.appendChild(MSUi.el("div", "w-sub", MSStr.t.adCooldown.replace("{m}", String(cooldownMinutes(adSt.nextAt)))));
+          combo.appendChild(MSUi.el("div", "w-sub", MSStr.t.adCooldown.replace("{m}", String(cooldownMinutes(adSt.nextAt)))));
         } else {
+          adsReady = true;
           // 표시 금액은 adCfg[unit].reward 에서 읽는다(리뷰 I3) — 리터럴로 박으면 ad_units.json/
           // AdMob 콘솔의 reward_amount 와 갈라져도 화면은 옛 숫자를 계속 약속한다.
-          earn.appendChild(earnRow(MSStr.t.adQuick.replace("{n}", String(adCfg.quick.reward)), "", { note: MSStr.t.walQuickSub, onTap: function () { watchAd("quick"); } }));
-          earn.appendChild(earnRow(MSStr.t.adFull.replace("{n}", String(adCfg.full.reward)), "", { note: MSStr.t.walFullSub, onTap: function () { watchAd("full"); } }));
-          adMsgEl = MSUi.el("div", "w-sub");
-          earn.appendChild(adMsgEl);
+          combo.appendChild(earnRow(MSStr.t.adFull.replace("{n}", String(adCfg.full.reward)), "", { note: MSStr.t.walFullSub, onTap: function () { watchAd("full"); } }));
         }
       }
-      var can = !!(state && state.canCheckin);
-      // state 가 없으면 잔량을 못 읽은 것이다 — '오늘 받았다'가 아니라 '확인 불가'다.
-      // 행은 비활성으로 두되 아무 말도 하지 않는다(거짓 안내를 만들지 않는다).
-      earn.appendChild(earnRow(MSStr.t.walCheckin, "+1", {
-        off: !can,
-        // 시안은 "Day 4 · one tap, once a day". 한 번도 안 받았으면 "Day 0" 이 아니라 앞머리를 뗀다.
-        note: !state ? "" : (state.streakDays > 0
-          ? (MSStr.t.walDay + state.streakDays + MSStr.t.walClaimedSep + (can ? MSStr.t.walOnceADay : MSStr.t.walCheckedIn))
-          : MSStr.t.walOnceADayCap),
-        dots: state ? streakDots(state) : null,
-        onTap: function () {
-          MSWallet.checkin().then(function (r) {
-            // 잔량을 못 읽었을 땐(오프라인 등) "cap reached" 처럼 아무것도 안 되는 이유를 지어내지
-            // 않는다 — "연결이 안 된다"고 사실대로 말한다(I-I). 단 merged 는 연결 문제가 아니다 —
-            // 지갑이 구글 계정으로 넘어갔을 뿐이다. 둘을 같은 문구로 묶으면 "로그아웃했더니
-            // 스쿱이 사라졌다"로 읽힌다(리뷰 실측: walUnavailable 을 쓰면 잔량이 0으로 보이는
-            // 동시에 "연결을 확인하라"고 해서, 실제로는 옮겨졌을 뿐인 잔량을 잃어버린 것처럼 읽힌다).
-            var note = r.ok ? (r.capped ? MSStr.t.walCapped : "")
-              : (r.reason === "merged" ? MSStr.t.wMerged : MSStr.t.walUnavailable);
-            draw(r.state, note);
-            refreshPills();   // 2단이면 옆 칸 헤더의 필이 옛 잔량을 들고 있다
-          });
-        }
-      }));
+      earn.appendChild(combo);
+
+      if (adsReady) {
+        earn.appendChild(earnRow(MSStr.t.adQuick.replace("{n}", String(adCfg.quick.reward)), "", { note: MSStr.t.walQuickSub, onTap: function () { watchAd("quick"); } }));
+        adMsgEl = MSUi.el("div", "w-sub");
+        earn.appendChild(adMsgEl);
+      }
+
       var away = state ? (7 - (state.streakDays % 7)) : 0;
       earn.appendChild(earnRow(MSStr.t.walChest, "+5", { off: true, note: state ? (away + MSStr.t.walChestAway) : "" }));
       scr.appendChild(earn);
 
-      // 시안 2c 의 Spend 목록 4행 그대로. scan 은 시안이 2스쿱이라 적었지만 현재 코드는 무료라
-      // 코드가 하는 대로 적는다 — 가격표가 실제 차감과 어긋나는 쪽이 더 나쁘다(가격 결정은 별건).
+      // 시안 10b 의 Spend 목록 5행. 기본분석은 값을 매길 데가 없어(무료) walFree 로 고정하고,
+      // scan 은 시안이 무료라 적었지만 현재 코드(COSTS.scan)는 값이 있을 수 있어 코드가 하는
+      // 대로 적는다 — 가격표가 실제 차감과 어긋나는 쪽이 더 나쁘다(가격 결정은 별건).
       var spend = MSUi.el("div", "wal-sec");
       spend.appendChild(MSUi.el("div", "overline", MSStr.t.walSpend));
-      spend.appendChild(spendRow(MSStr.t.walSlot, String(MSWallet.COSTS.slot)));
-      spend.appendChild(spendRow(MSStr.t.walScan, MSWallet.COSTS.scan ? String(MSWallet.COSTS.scan) : MSStr.t.walFree));
+      spend.appendChild(spendRow(MSStr.t.walBasic, MSStr.t.walFree));
       spend.appendChild(spendRow(MSStr.t.walDeep, String(MSWallet.COSTS.full)));
       spend.appendChild(spendRow(MSStr.t.walOptimiser, String(MSWallet.COSTS.custom)));
+      spend.appendChild(spendRow(MSStr.t.walSlot, String(MSWallet.COSTS.slot)));
+      spend.appendChild(spendRow(MSStr.t.walScan, MSWallet.COSTS.scan ? String(MSWallet.COSTS.scan) : MSStr.t.walFree));
       scr.appendChild(spend);
 
-      // 구글 로그인 행(Phase 8c) — signedIn() 에 따라 로그인/로그아웃 하나만 뜬다.
+      // 계정 · 설정(시안 10b) — 구글 로그인 행(Phase 8c). signedIn() 에 따라 로그인/로그아웃
+      // 하나만 뜬다.
       var authSec = MSUi.el("div", "wal-sec");
+      authSec.appendChild(MSUi.el("div", "overline", MSStr.t.walAccount));
       if (authDisabled) {
-        // 죽은 버튼 대신 안정된 안내 하나 — wSignInHint("재설치해도 스쿱을 지킨다")는 지금
-        // 탭할 것이 없는데 남으면 허공에 뜬 약속이 된다(리뷰 실측: 힌트만 매달려 있었다).
+        // 죽은 버튼 대신 안정된 안내 하나 — 지금 탭할 것이 없는데 힌트만 남으면 허공에 뜬
+        // 약속이 된다(리뷰 실측). authDisabled 는 authStart() 가 실제로 auth-disabled 를
+        // 냈다는 뜻이라, 그보다 더 확실한 사실이라 walAcctNoLogin(추측)보다 이걸 먼저 본다.
         authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wSignInUnavailable));
       } else if (deviceClaimed) {
         // auth-disabled 와 같은 이유로 행·힌트를 전부 걷어내고 안내 하나만 남긴다.
@@ -398,8 +439,14 @@
           authRow.addEventListener("click", function () { startSignIn(authRow, authMsg); });
         }
         authSec.appendChild(authRow);
-        // 워치리스트가 로그인해도 안 따라온다는 것을 숨기지 않는다(설계서 "동기화 범위" 결정).
-        authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wSignInHint));
+        // 계정 안내 3종(코디네이터 지시 2026-08-16) — 서버 상태로만 고른다, 고정 문구로
+        // 뒀다가 로그인이 켜지는 순간 거짓말이 되는 걸 막는다. signedIn() 이 사실이면
+        // walAcctSignedIn, authStart() 가 실제로 된 적이 있으면(authKnownAvailable) walAcctAnon,
+        // 그 외(모른다)엔 가장 신중한 walAcctNoLogin.
+        authSec.appendChild(MSUi.el("div", "w-sub", MSWallet.signedIn() ? MSStr.t.walAcctSignedIn
+          : (authKnownAvailable ? MSStr.t.walAcctAnon : MSStr.t.walAcctNoLogin)));
+        // 워치리스트가 로그인해도 안 따라온다는 것을 숨기지 않는다(설계서 "동기화 범위" 결정) —
+        // 로그인 여부와 무관하게 항상 참인 사실이라 위 계정 안내와 별개로 둔다.
         authSec.appendChild(MSUi.el("div", "w-sub", MSStr.t.wWatchlistLocal));
         authSec.appendChild(authMsg);
       }

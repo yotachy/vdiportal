@@ -308,27 +308,33 @@ body {
 /* 섹션 오버라인 — 시안이 Earn/Spend 같은 구획 머리에 쓰는 형태(10.5px · .14em · 대문자) */
 .overline { font-size:var(--fs-overline); letter-spacing:.14em; text-transform:uppercase; color:var(--ink-5); font-weight:600; }
 
-/* ===== 지갑 — 시안 2c 의 치수를 현 토큰으로 ===== */
+/* ===== 지갑 — 시안 10b 재스킨(태스크 6) ===== */
 .wal-head { display:flex; align-items:center; gap:10px; padding:14px 0 6px; }
 .wal-title { flex:1; font-size:var(--fs-body); font-weight:600; }
-.wal-cap { margin-left:auto; font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
 
-/* 잔량 블록. baseline 이 아니라 flex-end 로 맞춘다 — 도트·단위는 baseline 이 없어 정렬 기준이 못 된다. */
+/* 잔량 블록. baseline 이 아니라 flex-end 로 맞춘다 — 마크·단위는 baseline 이 없어 정렬 기준이
+   못 된다. 옛 금색 링 도트(순수 장식)는 지우고 그 자리에 실제 채움을 그리는 scoopMark 를 쓴다
+   (태스크 4 인터페이스 — 이 화면이 헤더 다음 두 번째 호출 지점). */
 .wal-bal { display:flex; align-items:flex-end; gap:12px; margin-top:22px; }
-/* 시안의 금색 링 도트. inset 그림자로 가운데를 배경색으로 뚫는다(도넛). 항목 좌측 세로 라인이 아니다. */
-.wal-dot { width:15px; height:15px; border-radius:99px; background:var(--gold);
-           box-shadow:inset 0 0 0 3.5px var(--bg); margin-bottom:9px; flex:0 0 auto; }
+.wal-mark { display:flex; color:var(--gold); flex:0 0 34px; width:34px; height:34px; margin-bottom:4px; }
+.wal-mark svg { width:100%; height:100%; display:block; }
 .wal-balance { font-size:var(--fs-headline); font-weight:300; letter-spacing:-.04em; line-height:.9; }
 .wal-bal-unit { font-size:var(--fs-body); color:var(--steel); padding-bottom:6px; }
 
-/* 한도 게이지 — 채운 쪽 flex=잔량, 남은 쪽 flex=한도−잔량. 백분율 계산 없음. */
-.wal-gauge { display:flex; gap:2px; margin-top:18px; }
-.wal-gauge-on { height:4px; border-radius:99px 0 0 99px; background:var(--gold); }
-.wal-gauge-off { height:4px; border-radius:0 99px 99px 0; background:var(--hairline-2); }
+/* "심화분석 N번 또는 전문분석 N번" 환산 — 잔량 카드의 네 번째 요소(시안 10b). */
+.wal-equiv { margin-top:8px; font-size:var(--fs-caption); color:var(--ink-5); }
 
 .wal-msg { font-size:var(--fs-sub); color:var(--ink-4); padding-top:12px; }
 .wal-sec { margin-top:26px; }
 .wal-sec .overline { margin-bottom:2px; }
+
+/* 출석 + "하나 더 받기"를 한 시각적 덩어리로 묶는 카드(시안 10b 핵심 규칙) — 별도 카드가
+   아니라 같은 컨테이너로 이어붙는다는 것을 배경·라운드로만 표현한다(좌측 accent bar 금지 —
+   프로젝트 전역). 안의 두 행은 .wal-row 를 그대로 쓰고, 카드 좌우 패딩만큼 행의 기본 여백을
+   상쇄한다. */
+.wal-combo { background:var(--sheet); border:1px solid var(--border); border-radius:12px;
+             padding:2px 14px; }
+.wal-combo .wal-row { padding-left:0; padding-right:0; }
 
 /* Earn 행 — 2줄 + 금액 + 액세서리. min-height 는 44px 규범(시안의 14/13 패딩보다 크지 않다). */
 .wal-row { display:flex; align-items:center; gap:14px; min-height:56px; padding:12px 0;
@@ -338,7 +344,7 @@ body {
 .wal-row-main { flex:1; min-width:0; }
 .wal-row-name { font-size:var(--fs-body); font-weight:600; }
 .wal-row-note { font-size:var(--fs-caption); color:var(--ink-4); margin-top:2px; }
-/* 지금 받을 수 있는 것만 골드다 — 시안 2c 가 보물상자(아직 못 받음) 금액만 muted 로 둔 규칙. */
+/* 지금 받을 수 있는 것만 골드다 — 시안이 보물상자(아직 못 받음) 금액만 muted 로 둔 규칙. */
 .wal-row-amt { font-size:var(--fs-body); font-weight:600; color:var(--gold); font-variant-numeric:tabular-nums; }
 .wal-row-amt.is-dim { color:var(--ink-5); }
 .wal-act { min-height:34px; padding:0 15px; border-radius:9px; border:1px solid var(--border-strong);
@@ -356,7 +362,7 @@ body {
 .wal-sdot { width:7px; height:7px; border-radius:99px; background:var(--neutral); }
 .wal-sdot.is-on { background:var(--gold); }
 
-/* Spend — 부제 없는 한 줄 가격표. Earn 보다 촘촘하고 골드를 쓰지 않는다(시안 2c). */
+/* Spend — 부제 없는 한 줄 가격표. Earn 보다 촘촘하고 골드를 쓰지 않는다(시안). */
 /* 탭 타깃이 아니라 가격표라 44px 규범을 적용하지 않는다 — 늘리면 시안보다 성겨진다. */
 .wal-prow { display:flex; align-items:center; padding:11px 0 10px;
             border-bottom:1px solid var(--hairline); }

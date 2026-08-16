@@ -141,69 +141,92 @@
     cxBullDiv: "Bullish divergence", cxBearDiv: "Bearish divergence",
     cxBullVolDiv: "Bullish volume divergence", cxBearVolDiv: "Bearish volume divergence",
 
-    // 지갑 (Phase 8a) — 문구·행 구성은 시안 2c
-    walTitle: "Scoops", walCap: "Cap ", walEarn: "Earn", walSpend: "Spend",
-    walInWallet: "in wallet",
+    // 지갑 (Phase 8a → 시안 10b 재스킨) — 문구·행 구성은 시안 10b.
+    // walDeep 은 예외적으로 아직 영어다 — tsFull·rpTierFull·obCostFull 과 한 이름을 공유해야
+    // 하는데(strings.test.mjs "한 단계는 한 이름으로 불린다") 그 셋은 각각 다른 태스크(7·8) 소관이라
+    // 지금 혼자 옮기면 이름이 갈린다. 넷을 한 번에 옮기는 결정은 태스크 8 로 넘겼다
+    // (코디네이터 판정, 2026-08-16) — MAX_PENDING_EN 이 그 정리를 강제한다.
+    walTitle: "스쿱", walEarn: "버는 곳", walSpend: "쓰는 곳",
+    // walCap 은 이제 헤더가 아니라 잔량 카드 안에서 "최대 20"으로 쓰인다(시안 10b) —
+    // walInWallet("in wallet")이 있던 자리를 대체해 그 키는 지웠다.
+    walCap: "최대 ",
+    // 시안 10b 잔량 카드의 네 번째 요소 — 지금 잔량으로 몇 번을 살 수 있는지 환산해 보여준다.
+    // {a}/{b} 는 wallet.js 가 Math.floor(balance/COSTS.full|custom) 로 채운다. walDeep 과 달리
+    // 이 문구는 지갑 화면에서만 쓰는 새 설명문이라 그 셋과 이름을 맞출 의무가 없다.
+    walEquiv: "심화분석 {a}번 또는 전문분석 {b}번",
     // walQuick/walFull("Quick ad"/"Full ad", 이름만)은 Phase 8d 에서 adQuick/adFull(이름+금액
     // 통합 문구)로 대체돼 지웠다 — 부제(소요시간·스킵 정책)만 여기 남아 광고 행의 note 로 산다.
-    walQuickSub: "15 seconds · no skip",
-    walFullSub: "30 seconds · skip after 5s",
-    walCheckin: "Daily check-in", walOnceADay: "one tap, once a day", walOnceADayCap: "One tap, once a day",
-    walChest: "Week 7 chest", walChestAway: " days away",
-    walSlot: "Add a ticker slot", walScan: "Watchlist signal scan",
-    walDeep: "Deep analysis", walOptimiser: "Parameter optimiser", walFree: "Free",
-    walDay: "Day ", walClaimedSep: " · ", walCheckedIn: "claimed today",
-    walCapped: "Cap reached — the rest was discarded",
-    walBack: "Back",
+    walQuickSub: "15초 · 건너뛸 수 없음",
+    walFullSub: "30초 · 5초 후 건너뛰기 가능",
+    walCheckin: "출석체크", walOnceADay: "탭 한 번, 하루 한 번", walOnceADayCap: "탭 한 번, 하루 한 번 받기",
+    walChest: "7일 연속 상자", walChestAway: "일 남음",
+    walSlot: "종목 슬롯 추가", walScan: "워치리스트 스캔",
+    walDeep: "Deep analysis",   // 태스크 8 로 이관(위 주석) — 지금은 이 한 줄만 영어다
+    walOptimiser: "전문분석", walFree: "무료", walBasic: "기본분석",
+    walDay: "일째", walClaimedSep: " · ", walCheckedIn: "오늘 받음",
+    walCapped: "상한 도달 — 남은 만큼은 버려졌습니다",
+    walBack: "뒤로",
 
+    // 지갑 화면 — 계정 · 설정 섹션 머리(시안 10b)
+    walAccount: "계정 · 설정",
     // 지갑 화면 — 구글 로그인 행 (Phase 8c)
-    wSignIn: "Sign in with Google",
-    wSignInHint: "Keeps your Scoops if you reinstall or change phones.",
-    wSignOut: "Sign out",
-    wSignInWaiting: "Waiting for the browser…",
-    wSignInFailed: "Sign-in did not finish. Try again.",
+    wSignIn: "Google로 로그인",
+    wSignOut: "로그아웃",
+    wSignInWaiting: "브라우저를 기다리는 중…",
+    wSignInFailed: "로그인이 끝나지 않았습니다. 다시 시도해 주세요.",
     // device-claimed: 이 기기가 이미 다른 구글 계정에 묶여 있다 — 재시도해도 답이 바뀌지
     // 않는 종결 상태다. "다시 시도"라고 말하면 거짓 희망을 준다(wSignInFailed 와 다른 문구).
-    wDeviceClaimed: "This device is already linked to a different Google account. Reinstalling the app gives it a new device id you can sign in with.",
+    wDeviceClaimed: "이 기기는 이미 다른 Google 계정에 연결돼 있습니다. 앱을 재설치하면 새 기기 ID로 다시 로그인할 수 있습니다.",
     // 검토(2026-08-15 리뷰 요청): 이 문구는 이미 정직하다 — "이 기기엔 {n}개 있었다"고 과거형으로
     // 적고 "계정 잔량이 이제부터 유효하다"로 넘길 뿐, {n}이 옮겨졌다거나 더해졌다고 말하지 않는다.
     // (wMerged 와 달리 여기서는 화면에 새 잔량이 함께 보이는 상태라 "그 잔량이 유효하다"는 말 자체가
     // 참이다.) 그래서 바꾸지 않았다.
-    wMergeDiscarded: "This device had {n} Scoops. Your account balance is the one that counts.",
-    wWatchlistLocal: "Your ticker list stays on this device.",
+    wMergeDiscarded: "이 기기에는 스쿱 {n}개가 있었습니다. 이제부터는 계정 잔량이 유효합니다.",
+    wWatchlistLocal: "관심종목 목록은 이 기기에만 저장됩니다.",
     // merged: 이 기기의 익명 지갑은 구글 계정으로 넘어갔다 — 연결 문제가 아니다.
     // walUnavailable("확인이 안 된다")과 섞으면 "로그아웃했더니 스쿱이 사라졌다"로 읽힌다.
     // w_merge 는 이 기기의 잔량을 **버린다**(원장엔 남기지만 구글 계정으로 옮기지 않는다) —
     // 구글 계정 쪽 잔량은 그 계정 자신의 기존 총량이지 이 기기가 버린 수량과 무관하다.
-    // "now live on your Google account"(2026-08-15 리뷰 지적)는 이 기기의 스쿱이 그대로
-    // 옮겨간 것처럼 읽혀 사실과 다르다 — 어느 계정으로 넘어갔는지만 말하고 액수는 암시하지 않는다.
-    wMerged: "This device's wallet was merged into a Google account — sign in again to reach that account's balance.",
+    // "그대로 옮겨갔다"는 식으로 액수를 암시하지 않는다 — 어느 계정으로 넘어갔는지만 말한다
+    // (wallet-screens.test.mjs 가 "계정으로 넘어갔" 표현으로 확인한다. 번역 전에는 영문
+    // "merged into"를 확인했다).
+    wMerged: "이 기기의 지갑은 Google 계정으로 넘어갔습니다 — 그 계정의 잔량을 보려면 다시 로그인하세요.",
     // auth-disabled: 서버에 자격증명이 없다 — 오늘은 전 사용자의 기본 경험이다. 버튼을
     // 지운 자리에 안정적으로 남기는 문구(재조립될 때마다 되살아나지 않는다).
-    wSignInUnavailable: "Sign-in is not available right now.",
+    wSignInUnavailable: "지금은 로그인을 사용할 수 없습니다.",
+
+    // 지갑 화면 — 계정 안내 3종(시안 10b, 코디네이터 지시 2026-08-16). 구글 로그인은 8c 에서
+    // 이미 구현됐고 서버 설정 파일 업로드만 남았다 — 켜지는 순간 고정 문구("로그인이 아직 준비
+    // 안 됐다")가 거짓이 된다. wallet.js 는 authStart() 가 실제로 성공한 적이 있는지(ok:true)로만
+    // "로그인이 된다"는 걸 안다 — 모르면(아직 시도 전) 가장 신중한 walAcctNoLogin 으로 떨어진다.
+    walAcctNoLogin: "로그인이 아직 준비되지 않아, 앱을 지우면 스쿱도 사라집니다.",
+    walAcctAnon: "이 기기에만 저장됩니다. 로그인하면 계정에 남습니다.",
+    walAcctSignedIn: "계정에 저장됩니다.",
 
     // 지갑 — 광고(Phase 8d, AdMob 리워드). "+{n}" 은 표시값이지 클라이언트가 계산해 더하는
     // 값이 아니다 — 실제 지급은 서버의 SSV 콜백만 한다(SPEC-economy §1 그대로). {n} 은
     // wallet.js 가 adConfig() 가 준 adCfg[unit].reward 로 채운다(wMergeDiscarded 와 같은
     // 치환 관례) — 문자열 리터럴로 박아두면 ad_units.json/AdMob 콘솔 reward_amount 와 별개의
-    // 세 번째 진실원이 생겨, 값이 어긋나도 화면은 계속 옛 숫자를 약속한다(리뷰 I3).
-    adQuick: "Watch a short ad  +{n}",
-    adFull: "Watch a full ad  +{n}",
-    adDailyDone: "That is all the ads for today.",
-    adCooldown: "Next ad in {m}",
-    adWaiting: "Crediting your Scoops…",
+    // 세 번째 진실원이 생겨, 값이 어긋나도 화면은 계속 옛 숫자를 약속한다(리뷰 I3). 제목은
+    // 시안 10b 문구("짧은 광고"·"하나 더 받기")에 금액만 붙인다 — 기존 구조(제목+금액이 한
+    // 텍스트 노드)는 그대로 둔다. 8d 를 다시 만들지 않는다.
+    adQuick: "짧은 광고 +{n}",
+    adFull: "하나 더 받기 +{n}",
+    adDailyDone: "오늘 광고는 여기까지입니다.",
+    adCooldown: "다음 광고까지 {m}분",
+    adWaiting: "스쿱을 적립하는 중…",
     // 폴링(2초 × 5 = 10초) 안에 SSV 콜백이 안 왔을 때. 잔량은 올리지도 내리지도 않는다 —
     // 낙관적으로 올린 적이 없으니 뺏을 것도 없다(이 태스크의 핵심 규율).
-    adPending: "It did not arrive yet. It will show up shortly.",
+    adPending: "아직 도착하지 않았습니다. 곧 반영됩니다.",
     // 광고 자체가 안 떴을 때(동의 차단·유닛 없음·플러그인 없음 등 show() 의 모든 reason).
     // 내부 사유를 그대로 노출하지 않는다 — 버튼이 조용히 아무 일도 안 하는 대신 사실대로 말한다.
-    adFailed: "That ad could not be shown right now.",
+    adFailed: "지금은 광고를 보여줄 수 없습니다.",
     // UMP 재열람 행 — MSAds.privacyOptionsRequired() 가 참인 지역(EEA·영국·캐나다)에만 뜬다.
-    adSettings: "Ad settings",
-    adLowBalance: "Not enough Scoops. Watch an ad to keep going.",
-    // 리워드 화폐 고지 — 스토어 심사가 본다. 지갑 화면 하단에 상시 표기(SPEC §6).
-    walNoCashValue: "Scoops have no cash value and cannot be transferred or refunded.",
-    walEngine: "Analysis engine v",
+    adSettings: "광고 설정",
+    adLowBalance: "스쿱이 부족합니다. 광고를 보고 계속하세요.",
+    // 리워드 화폐 고지 — 스토어 심사가 본다. 지갑 화면 하단에 상시 표기(SPEC §6, 시안 10b verbatim).
+    walNoCashValue: "스쿱은 현금 가치가 없고 양도·환불되지 않습니다. 예측은 약속이 아닙니다.",
+    walEngine: "분석 엔진 v",
 
     // 단계 선택 시트 (Phase 8a)
     tsTitle: "Analyse ", tsBasic: "Basic", tsFull: "Deep", tsCustom: "Pro",
@@ -222,7 +245,9 @@
     tsSpendFailedUnknown: "Could not confirm your wallet. If you were charged, retrying is safe — please try again.",
 
     // 지갑을 읽을 수 없을 때(오프라인 등) — 잔량을 0 으로 그리면 거짓 정보다(SPEC §1).
-    walUnavailable: "Wallet unavailable — check your connection.",
+    // walUnavailable 은 wallet.js 전용(태스크 6 범위) — tsUnavailable 은 다른 화면(단계 선택
+    // 시트) 소관이라 이름을 맞출 의무가 없다(walDeep 류의 소비자 공유 키가 아니다).
+    walUnavailable: "지갑을 확인할 수 없습니다 — 연결을 확인해 주세요.",
     tsUnavailable: "Wallet unavailable. Check your connection and try again.",
 
     // 종목 고르기 (ticker-picker.js) — 온보딩 4단계와 워치리스트 ＋Add 가 공유하는 컴포넌트

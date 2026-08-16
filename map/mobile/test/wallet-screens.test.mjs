@@ -481,12 +481,25 @@ const S = require("../www/strings.js");
 // 계정 쪽 잔량은 그 계정 자신의 기존 총량이다. 옛 문구("This device's Scoops now live on
 // your Google account")는 버린 수량이 그대로 넘어간 것처럼 읽혔다(2026-08-15 리뷰 지적).
 // DOM 을 안 세워도 되는 순수 문자열 검사라 여기서 바로 한다.
+// 태스크 6(지갑 재스킨)에서 wMerged 가 한국어로 번역되며 이 가드도 함께 옮겼다 — "merged into"
+// 영문 대신 그 번역어("계정으로 넘어갔습니다")를 확인한다. 지키는 대상(액수를 암시하지 않고
+// 계정이 바뀌었다는 사실만 말한다)은 그대로다.
 test("wMerged — 버린 잔량이 그대로 넘어간 것처럼 말하지 않는다", () => {
   var v = S.t.wMerged;
-  assert.doesNotMatch(v, /Scoops now live/i,
-    "예전 과장 문구('Scoops now live on your Google account')로 되돌아갔다 — 버린 잔량이 그대로 넘어간 것처럼 읽힌다");
-  assert.match(v, /merged into/i,
-    "계정이 바뀌었다는 사실만 말해야 하는데('merged into') 그 표현이 없다");
+  assert.doesNotMatch(v, /그대로.*(넘어갔|옮겨갔|살아있)/,
+    "옛 과장 문구처럼 버린 수량이 그대로 넘어간 것처럼 읽힌다");
+  assert.match(v, /계정으로 넘어갔습니다/,
+    "계정이 바뀌었다는 사실만 말해야 하는데('계정으로 넘어갔습니다') 그 표현이 없다");
+});
+
+// 재스킨(시안 10b)이 adQuick/adFull 을 리터럴로 되돌리지 않았는지 소스 모양으로 확인한다 —
+// 위 DOM 테스트들(reward 7/42 반영 등)이 이미 실행으로 보지만, 소스 자체가 adCfg.*.reward 를
+// 계속 참조하는지도 못박아 둔다(리뷰 I3 재발 방지).
+test("광고 보상 수치는 여전히 설정에서 온다 — 리터럴로 되돌아가지 않았다", () => {
+  assert.match(WALLET_SCR, /adCfg\.quick\.reward/, "quick 보상이 설정에서 오지 않는다");
+  assert.match(WALLET_SCR, /adCfg\.full\.reward/, "full 보상이 설정에서 오지 않는다");
+  assert.doesNotMatch(WALLET_SCR, /["'`]\+[13]["'`]/,
+    "보상이 리터럴로 박혔다 — 콘솔·ad_units.json·문자열 세 곳이 한 숫자의 진실원이 된다");
 });
 
 // 텍스트로 노드를 찾는다 — MSUi.el() 이 leaf 노드에 라벨을 textContent 로 직접 심으므로

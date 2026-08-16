@@ -40,12 +40,12 @@ test("모르는 blockType 은 그대로 돌려준다 — 던지지 않는다", (
 // P1 에서 방향이 뒤집혔다 — 앱은 한국어가 된다(시안 2026-08-16 번들, README "UI 는 한글 단독").
 // 204개를 한 커밋에 번역하면 리뷰가 불가능하므로, 아직 영어인 키를 여기 적어두고 화면별로 지운다.
 // 이 목록은 **줄어들기만 한다.** 새 키를 여기 넣는 것은 번역을 미루는 것이라 실패로 본다.
-const PENDING_EN = ["bootVendorMissing","wlBrandA","wlBrandB","wlChipUS","wlChipKR","wlChipETF","addTitle","rpBack","rpPickSym","rpLoadFail","rpRetry","rpUnknownErr","rpAnalyzeErr","rpBarsShort","rpUp","rpDown","rpFlat","rpBullish","rpBearish","rpCone","rpAgree","rpAgreeTail","rpAgreeShort","rpAgreeNone","rpHitLeadBull","rpHitLeadBear","rpHitRight","rpHitWrong","rpHitScopeA","rpHitScopeB","rpHitScopeC","rpHitScopeShort","rpHitSize","rpHitSizeTail","rpHzTomorrow","rpHzWeek","rpHzMonth","rpTierBasic","rpTierCount","rpTierFull","rpTierCountFull","rpComposite","rpHorizon","rpSignals","rpOf","rpShown","rpNotCounted","rpAgainst","rpAgainstNone","rpReasoning","rpReasoningNodes","rpReasoningScope","rpReasoningDir","rdNotEnoughBars","rdNoVolume","rdNoSwings","rpMissingHitRate","rpMissingDisagree","rpMissingTfAgree","rpMissingWhy","rpMissingNote","rpUp2","rpFlat2","rpDown2","rpTf","rpDaily","rpWeekly","rpMonthly","rpLocked","rpLockedSuffix","rpUpgrade","rpAgreeTf","rpAgreeTfTail","rpNoHistory","pnlRsiEmpty","pnlMacdEmpty","pnlVolumeEmpty","lgP1","lgP2","lgP3","legPred","legTarget","legGolden","legDead","legBars","legNoCross","legSqueeze","cxBullDiv","cxBearDiv","cxBullVolDiv","cxBearVolDiv","walTitle","walCap","walEarn","walSpend","walInWallet","walQuickSub","walFullSub","walCheckin","walOnceADay","walOnceADayCap","walChest","walChestAway","walSlot","walScan","walDeep","walOptimiser","walFree","walDay","walCheckedIn","walCapped","walBack","wSignIn","wSignInHint","wSignOut","wSignInWaiting","wSignInFailed","wDeviceClaimed","wMergeDiscarded","wWatchlistLocal","wMerged","wSignInUnavailable","adQuick","adFull","adDailyDone","adCooldown","adWaiting","adPending","adFailed","adSettings","adLowBalance","walNoCashValue","walEngine","tsTitle","tsBasic","tsFull","tsCustom","tsBasicDesc","tsFullDesc","tsCustomDesc","tsDone","tsPopular","tsSoon","tsFullPreview","tsCostsLead","tsRun","tsCost","tsShort","tsRunning","tsFailed","tsFailedNoRefund","tsSpendFailed","tsSpendFailedUnknown","walUnavailable","tsUnavailable","tpPlaceholder","tpAdd","tpChecking","tpNotFound","tpDidYouMean","tpFull","tpUnavailable","tpAlreadyPicked","tpKept","obBack","obNext","obSampleNote","obH1","obSub1","obH2","obSub2","obCombCap","obH3","obSub3","obGranting","obGranted","obGrantOffline","obRetry","obCostFull","obCostScan","obCostSlot","obH4","obSub4","obH5","obRisk","obAgree","obFree","obFinish"];
+const PENDING_EN = ["bootVendorMissing","wlBrandA","wlBrandB","wlChipUS","wlChipKR","wlChipETF","addTitle","rpBack","rpPickSym","rpLoadFail","rpRetry","rpUnknownErr","rpAnalyzeErr","rpBarsShort","rpUp","rpDown","rpFlat","rpBullish","rpBearish","rpCone","rpAgree","rpAgreeTail","rpAgreeShort","rpAgreeNone","rpHitLeadBull","rpHitLeadBear","rpHitRight","rpHitWrong","rpHitScopeA","rpHitScopeB","rpHitScopeC","rpHitScopeShort","rpHitSize","rpHitSizeTail","rpHzTomorrow","rpHzWeek","rpHzMonth","rpTierBasic","rpTierCount","rpTierFull","rpTierCountFull","rpComposite","rpHorizon","rpSignals","rpOf","rpShown","rpNotCounted","rpAgainst","rpAgainstNone","rpReasoning","rpReasoningNodes","rpReasoningScope","rpReasoningDir","rdNotEnoughBars","rdNoVolume","rdNoSwings","rpMissingHitRate","rpMissingDisagree","rpMissingTfAgree","rpMissingWhy","rpMissingNote","rpUp2","rpFlat2","rpDown2","rpTf","rpDaily","rpWeekly","rpMonthly","rpLocked","rpLockedSuffix","rpUpgrade","rpAgreeTf","rpAgreeTfTail","rpNoHistory","pnlRsiEmpty","pnlMacdEmpty","pnlVolumeEmpty","lgP1","lgP2","lgP3","legPred","legTarget","legGolden","legDead","legBars","legNoCross","legSqueeze","cxBullDiv","cxBearDiv","cxBullVolDiv","cxBearVolDiv","walDeep","tsTitle","tsBasic","tsFull","tsCustom","tsBasicDesc","tsFullDesc","tsCustomDesc","tsDone","tsPopular","tsSoon","tsFullPreview","tsCostsLead","tsRun","tsCost","tsShort","tsRunning","tsFailed","tsFailedNoRefund","tsSpendFailed","tsSpendFailedUnknown","tsUnavailable","tpPlaceholder","tpAdd","tpChecking","tpNotFound","tpDidYouMean","tpFull","tpUnavailable","tpAlreadyPicked","tpKept","obBack","obNext","obSampleNote","obH1","obSub1","obH2","obSub2","obCombCap","obH3","obSub3","obGranting","obGranted","obGrantOffline","obRetry","obCostFull","obCostScan","obCostSlot","obH4","obSub4","obH5","obRisk","obAgree","obFree","obFinish"];
 
 // 잔여 목록은 줄어들기만 해야 한다 — 이 상한이 그 규율을 코드로 박아둔다("줄어들기만 한다"는
 // 주석 한 줄로는 아무것도 막지 못한다. 태스크 5~8 이 키를 번역해 목록에서 지우면 이 숫자도 함께
 // 낮춘다. 숫자를 올리는 건 번역 대신 키를 추가하는 것이므로, 그 자체가 리뷰에서 드러나야 한다.
-const MAX_PENDING_EN = 188;
+const MAX_PENDING_EN = 146;
 
 // 값에 라틴문자가 없으면 번역할 단어가 없다 — "↻" · "—" · " · " 같은 기호·구분자다.
 // 이것들을 미번역으로 세면 잔여 목록이 절대 비지 않고 태스크 8 의 완료 조건이 도달 불가능해진다.
@@ -87,6 +87,12 @@ function stripIndicatorNames(v) {
   return s;
 }
 
+// 치환 템플릿({n}·{m}·{a}·{b} 등)의 자리표시자 이름은 번역 대상 단어가 아니다 — 태스크 6 에서
+// 지갑 문구(wMergeDiscarded·adQuick/Full·adCooldown·walEquiv)를 번역하며 처음으로 걸렸다:
+// {n}"의 "n"이 라틴 단어로 잡혀 "번역되다 만 문자열"로 오판됐다. 지표명과 같은 원리로 —
+// **자리표시자 전체**({...})를 지운 다음 남는 라틴 단어만 본다.
+function stripPlaceholders(v) { return String(v).replace(/\{[A-Za-z]+\}/g, " "); }
+
 // 허용 라틴 단어 소스 ①: 값에서 지표명 전체 문구를 지운 나머지 — "MACD 교차"·"Volume profile 확인"
 // 처럼 문장 속에 지표명이 온전히 섞이는 건 정상이다(브리프의 명시 규칙: 지표명은 언어와 무관하게
 // 영어). S.IND 가 바뀌면 이 목록도 같이 파생되므로 손으로 베낄 필요가 없다(hand-copy 금지).
@@ -99,6 +105,8 @@ const ALLOWED_LATIN = [
   "Google",            // wSignIn 등 구글 로그인 문구 — 고유명사, 번역하지 않는다
   "MoneyScoop",         // obRisk — 앱 이름 자체, 브랜드명이라 번역하지 않는다
   "TSLA",              // tpPlaceholder 의 예시 종목코드 — 티커는 항상 라틴 표기
+  "ID",                // wDeviceClaimed "기기 ID" — 국문 UI 에서도 그대로 쓰는 관용 약어
+  "v",                 // walEngine "분석 엔진 v" + 버전 숫자 — semver 접두 "v"는 번역 대상이 아니다
 ].map(w => w.toLowerCase());
 const ALLOWED_LATIN_SET = new Set(ALLOWED_LATIN);
 
@@ -107,7 +115,7 @@ test("번역된 문자열에 남은 라틴 단어는 허용 목록에 있어야 
   Object.keys(S.t).forEach(k => {
     const v = String(S.t[k]);
     if (!/[가-힣]/.test(v)) return; // 한 글자도 안 옮겨졌으면 PENDING_EN 가드의 몫이다
-    const bad = latinWords(stripIndicatorNames(v)).filter(w => !ALLOWED_LATIN_SET.has(w.toLowerCase()));
+    const bad = latinWords(stripPlaceholders(stripIndicatorNames(v))).filter(w => !ALLOWED_LATIN_SET.has(w.toLowerCase()));
     if (bad.length) offenders.push(k + ": " + bad.join(", "));
   });
   assert.deepEqual(offenders, [],
@@ -191,4 +199,13 @@ test("시안에 없는 워치리스트 상태 문구가 재스킨 후에도 살�
   const gone = ["wlEmpty", "wlNoMatch", "wlScanning", "wlScanFail"]
     .filter(k => !(S.t[k] && String(S.t[k]).length));
   assert.deepEqual(gone, [], "사라진 상태 문구: " + gone.join(", "));
+});
+
+// 8b·8c·8d 세 라운드가 쌓아온 실패·경계 문구다. 재스킨이 마크업을 다시 쓰면서
+// 이 분기들이 함께 쓸려나가는 것이 이 태스크의 가장 큰 위험이다.
+test("지갑의 상태 문구가 재스킨 후에도 전부 살아 있다", () => {
+  const gone = ["walUnavailable", "wMerged", "walCapped", "adPending", "adCooldown",
+                "adDailyDone", "adLowBalance", "adFailed", "walNoCashValue", "walEngine"]
+    .filter(k => !(S.t[k] && String(S.t[k]).length));
+  assert.deepEqual(gone, [], "사라진 지갑 상태 문구: " + gone.join(", "));
 });
