@@ -167,13 +167,13 @@ body {
 .rp-evi-seg.on { background:var(--steel); }
 
 .rp-verdict-wrap { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
-.rp-verdict { font-size:var(--fs-title); font-weight:700; letter-spacing:-.025em; }
+.rp-verdict { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline); }
 .rp-verdict.bull { color:var(--bull); }
 .rp-verdict.bear { color:var(--bear-text); }
 .rp-verdict.neutral { color:var(--ink-2); }
 /* 판정 퍼센트 — 방향어와 같은 줄, 시안 2a "Bullish 68%" */
 .rp-verdict { display:flex; align-items:baseline; gap:10px; }
-.rp-conf-pct { font-size:var(--fs-title); font-weight:600; letter-spacing:-.02em; }
+.rp-conf-pct { font-size:var(--fs-figure); font-weight:var(--fw-figure); letter-spacing:var(--ls-figure); }
 
 /* 적중/오답 — 막대를 그리지 않는다. 두 값이 합해서 100 이라 막대가 더해주는 정보가 없고,
    이 화면에서 시선을 끌 것은 판정 퍼센트다(시안 2a "골드는 화면당 한 번만"). */
@@ -460,7 +460,7 @@ body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
 /* 세로로 가운데 — 폰이 길면(915px) 차트가 위에 붙고 아래가 통째로 비어 보인다. */
 .ob-step { flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; padding:26px 0; }
 /* 오버라인 — "예시 시계"라고 먼저 말한다. 실종목으로 오해하면 첫 화면이 거짓말이 된다. */
-.ob-over { margin:0 0 8px; font-size:var(--fs-caption); font-weight:700; letter-spacing:.08em;
+.ob-over { margin:0 0 8px; font-size:var(--fs-overline); font-weight:var(--fw-overline); letter-spacing:var(--ls-overline);
            text-transform:uppercase; color:var(--ink-5); }
 .ob-h { margin:0; font-size:var(--fs-title); font-weight:700; line-height:1.32; letter-spacing:-.02em; color:var(--ink); }
 .ob-sub { margin:16px 0 0; font-size:var(--fs-sub); line-height:1.65; color:var(--ink-3); }
