@@ -261,7 +261,9 @@
       [["full", Str ? Str.t.obCostFull : ""], ["scan", Str ? Str.t.obCostScan : ""]].forEach(function (p) {
         var row = frag("ob-cost-row");
         row.appendChild(el("span", "ob-cost-name", p[1]));
-        row.appendChild(el("span", "ob-cost-num", String(C[p[0]])));
+        // 0 은 "0 스쿱"이 아니라 "무료"다 — 숫자 0 을 값으로 걸면 가격이 있는데 싼 것처럼
+        // 읽힌다. 지갑 화면의 같은 판단(wallet.js 의 walScan 행)과 한 벌로 움직인다.
+        row.appendChild(el("span", "ob-cost-num", C[p[0]] ? String(C[p[0]]) : (Str ? Str.t.walFree : "")));
         tbl.appendChild(row);
       });
       w.appendChild(tbl);

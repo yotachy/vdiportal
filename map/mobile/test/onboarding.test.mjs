@@ -922,6 +922,22 @@ test("가격표 숫자는 MSWallet.COSTS 값 그대로다 — 다시 적지 않�
   });
 });
 
+// 0 은 "0 스쿱"이 아니라 "무료"다. 숫자 0 을 값으로 걸면 가격이 있는데 아주 싼 것처럼 읽히고,
+// 지갑 화면(walScan 행)은 이미 무료로 그리므로 두 화면이 같은 값을 다르게 말하게 된다.
+// 2026-08-17 사용자 결정으로 실제 COSTS.scan 이 0 이 되어 이 갈래가 상시 경로가 됐다.
+test("가격이 0 인 행은 숫자가 아니라 무료로 적는다 — 지갑 화면과 같은 말을 한다", async () => {
+  const wallet = spyWallet({ ok: true, state: { balance: 5 } }, { full: 30, scan: 0, slot: 10 });
+  await withDomWallet(wallet, async (root) => {
+    toStep3(root);
+    await flush();
+    const nums = root.querySelector(".ob-costs").children
+      .map(r => r.querySelector(".ob-cost-num").textContent);
+    assert.strictEqual(nums[0], "30", "유료 행이 숫자를 잃었다");
+    assert.strictEqual(nums[1], S.t.walFree,
+      "무료 행이 '" + nums[1] + "' 로 그려졌다 — 0 을 값으로 걸면 싼 가격처럼 읽힌다");
+  });
+});
+
 // 뮤테이션 (b): 실패 시 진행을 막으면 여기서 잡힌다 — 재시도 버튼은 뜨되 Continue 는 살아 있어야 한다.
 test("지급 실패해도 진행이 막히지 않는다 — 재시도 버튼이 뜨고 계속하기는 눌린다", async () => {
   const wallet = spyWallet({ ok: false, state: null, reason: "network" });
