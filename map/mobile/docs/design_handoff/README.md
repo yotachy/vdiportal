@@ -1,359 +1,399 @@
-# Handoff: MoneyScoop — Mobile App (Android first)
+# Handoff: MoneyScoop 모바일 앱 개편
 
 ## Overview
 
-MoneyScoop is an existing **PC web** technical-analysis tool ("Scoop Forge") that reads 32 indicators off a price chart and produces a directional verdict, a probability, a forecast cone and target prices. This handoff covers a **new mobile front-end** for it — a separate product, English-first, monetised by **AdMob rewarded video** rather than subscription. The PC service stays live and unchanged.
+MoneyScoop 모바일(웹 하이브리드, Capacitor + Android)의 **UX 동선 및 화면 전면 개편**입니다.
 
-Source repo: `yotachy/vdiportal`, subtree `map/` (branch `main`). See `github.md` in this bundle's parent project for the sync record.
+목표는 하나입니다 — **사용자가 자발적으로 리워드 광고를 보게 만드는 것.** 이를 위해 세 단계 분석 품질(기본 / 심화 / 전문)의 격차를 사용자가 **눈으로 겪게** 하고, 예측 결과를 다음 날 닫아주어 재방문 고리를 만듭니다.
 
-The mobile app is **not** a responsive pass over the existing PC layout. The PC UI is a fixed four-panel desktop layout in a 170 KB stylesheet; adapting it costs more than replacing it. The **analysis engine is reused unchanged** — that is the whole reason for the hybrid approach.
+기존 앱은 영어 전용 · 2단계(Basic/Full) · 결과를 한 번에 쏟는 구조였습니다. 개편본은 **한글 우선 · 3단계 · 단계적 공개**입니다.
 
 ---
 
-## About the design files
+## About the Design Files
 
-`MoneyScoop Mobile.dc.html` in this bundle is a **design reference created in HTML** — a board of ~50 phone mockups showing intended look, copy and behaviour. It is **not production code to copy**. The job is to recreate these designs in the target environment (a Capacitor + vanilla-JS web app, matching the existing repo's no-build-tool convention), using the real engine.
+이 번들의 HTML 파일은 **디자인 참조물**입니다 — 의도한 모양과 동작을 보여주는 프로토타입이며, 그대로 복사해 쓰는 프로덕션 코드가 아닙니다.
 
-The board is organised newest-first as numbered "turns" (t12 … t1). Turn ids and option ids (`11a`, `7b`, `3a` …) are stable — this README references them so you can look up any screen.
+작업은 이 디자인들을 **기존 `map/mobile/www/` 환경(바닐라 JS · 단일 출처 문자열 · Capacitor)의 패턴으로 재현**하는 것입니다. 새 프레임워크를 도입할 필요는 없습니다 — 현재 구조가 이미 이 디자인을 담을 수 있습니다.
 
-**Turn 11 (`#11a`) is the final spec panel** — the decision ledger and the canonical screen flow. Start there.
-
-Opening the file: it needs `android-frame.jsx` and `support.js` (both included) as siblings. Open `MoneyScoop Mobile.dc.html` directly in a browser.
+특히 다음 두 가지는 **기존 구현을 그대로 사용**합니다:
+- **차트** — `draw-layers.js` · `draw-panels.js` · `chart-legend.js`. 새로 만들지 않습니다. 디자인이 정하는 것은 **티어별로 어떤 레이어를 켜는지**와 **높이 비율**뿐입니다.
+- **분석 엔진** — `forge-core.js` 의 `analyzeX` / `evalBlocks` / 드리프트 산출. 로딩 연출은 이 실제 단계에 묶습니다.
 
 ## Fidelity
 
-**High fidelity.** Final colours, typography, spacing, copy and tone are decided. Recreate the UI faithfully. Numbers shown in the mocks are real where they come from the repo's backtest report (see *Data provenance* below) and placeholders elsewhere — placeholders are called out.
+**High-fidelity (hifi).** 색·타이포·간격·상태가 모두 확정값입니다. 아래 디자인 토큰 표의 헥스값과 수치를 그대로 쓰십시오.
+
+단, **차트 내부 표현은 예외** — 회색 placeholder 로 두었고 기존 구현을 씁니다.
 
 ---
 
-## Architecture decision
+## 핵심 설계 원칙 (이것부터 읽으십시오)
 
-**Capacitor hybrid, Android first.** iOS later from the same codebase.
+구현 중 판단이 갈릴 때 아래 원칙이 답입니다. 화면 하나하나보다 이 목록이 중요합니다.
 
-Reasoning: AdMob has no web SDK (web ads are AdSense, which cannot serve rewarded video for an app), so the rewarded-ad economy requires the native Google Mobile Ads SDK. Meanwhile the analysis engine and chart renderer are already pure JS + Canvas. Native (Kotlin) or React Native would mean rewriting ~500 KB of validated indicator maths.
+### 1. 잔량을 낙관적으로 올리지 않는다
+광고 시청 후 스쿱을 **미리 더하지 않습니다.** `9` 에 머문 채 `+3 대기` 만 표시하고, 서버 SSV 콜백이 확정해야 `12` 가 됩니다.
+낙관적으로 올렸다가 되돌리면 *"광고를 봤는데 뺏겼다"* 가 되고, **그 한 번이 광고 동선 전체를 죽입니다.**
 
-### Reuse map
+### 2. 못 준 값은 받지 않는다
+- 판정 없음(지표가 갈림) → **미차감**
+- 계산 실패 + 환불 확인됨 → `tsFailed`
+- 계산 실패 + **환불 확인 불가** → `tsFailedNoRefund` — "돌려드렸다"고 말하지 않습니다. 응답을 못 받았을 뿐 서버는 처리했을 수 있습니다.
 
-| File in `map/` | Action |
-|---|---|
-| `forge-core.js` (211 KB, DOM-free UMD, 251 unit tests) | **Reuse unchanged.** The crown jewel. |
-| `forge-tools.js` (72 KB, UMD drawing tools) | Reuse; rebind input to touch. |
-| `forge-draw.js` (261 KB) | Port the canvas drawing routines; discard the desktop layout coupling. |
-| `forge-api.php` | Keep as the data proxy. Extend with Scoops + auth endpoints. |
-| `forge-ui.js`, `forge-app.js`, `forge-state.js`, `forge.css` | **Do not port.** Desktop four-panel UI. Write new. |
+### 3. 불리한 사실을 먼저 말한다
+- 지갑 상한 근접 시 *"지금 광고를 보면 2개는 버려집니다"* 를 **광고 전에**
+- 심화분석 카드에 *"적중률은 2%p 만 오릅니다"* 를 직접 표기
+- 빗나간 날 *"기본분석이었다면 적중이었습니다"* 를 우리가 먼저
 
-Load order in the existing PC app is fixed (`core → state → ui → draw → tools → app`) with a shared global scope and no `defer`. The mobile shell should keep `forge-core.js` and `forge-tools.js` as classic scripts loaded first, and put new code in modules around them.
+### 4. 적중률은 엔진 전체 측정값이다
+`58%` 는 백테스트 하네스(19지표)로 잰 값이라 **기본(5)도 심화(32)도, 특정 종목도 아닙니다.**
+`rpHitScopeShort` 를 반드시 함께 노출하십시오. 과거에 이미 한 번 고친 버그입니다.
 
----
+### 5. 표본이 적으면 퍼센트를 쓰지 않는다
+사용자 개인 적중률은 **20건 이상**부터 계산합니다. 14건에 "67% 적중" 은 거짓말입니다.
 
-## Design tokens
+### 6. 막다른 골목을 만들지 않는다
+막히는 상태 7종 전부에 **지금 할 수 있는 다른 행동**이 버튼으로 붙습니다.
 
-Every value below is used literally in the mocks.
+### 7. 한 세션에 광고 권유는 최대 2회
+거절하면 그 세션에서는 다시 묻지 않습니다. 진입점이 6개라고 6번 띄우면 3개일 때보다 나쁩니다.
 
-### Colour
-
-| Token | Hex | Use |
-|---|---|---|
-| `bg` | `#0a0d12` | App background |
-| `bg-raised` | `#0b0e15` | Custom-tier screens only (a half-step warmer) |
-| `sheet` | `#11151d` | Bottom sheets |
-| `hairline` | `rgba(238,241,247,.06)` | Row dividers |
-| `hairline-2` | `rgba(238,241,247,.09)` | Section rules, sheet top border |
-| `border` | `rgba(238,241,247,.10)` | Card borders |
-| `border-strong` | `rgba(238,241,247,.16)` | Secondary buttons |
-| `track` | `rgba(238,241,247,.07)` | Progress/bar tracks |
-| `ink` | `#eef1f7` | Primary text |
-| `ink-2` | `#c5ccdb` | Secondary text |
-| `ink-3` | `#9aa3b6` | Body/supporting text |
-| `ink-4` | `#7c8598` | Captions, axis ticks |
-| `ink-5` | `#78819a` | Overlines, fine print (**contrast floor — do not go lighter**) |
-| `gold` | `#e8b463` | Primary accent |
-| `gold-dim` | `#c0a069` | Secondary bars |
-| `steel` | `#8892a6` | Basic tier |
-| `platinum` | `#b9c4dc` | **User-set values only** |
-| `bull` | `#4fb98a` | Up / positive |
-| `bear` | `#d96a6a` | Down / negative (fills) |
-| `bear-text` | `#e08a8a` | Down / negative (text, for contrast) |
-| `neutral` | `#4a5368` | Flat indicator bars |
-| `toggle-off` | `#2b3242` | Switch track, off |
-| `check-border` | `#39415a` | Unchecked box border |
-
-Legacy PC palette for reference: `--gold:#e8b463`, `--bg:#0b0f14`, `--eth:#8a92b2`, bull `#46c28e`, bear `#e06a6a`. The mobile set above is a deliberate refinement — slightly deeper base, muted bull/bear, and greys raised to clear WCAG AA (4.5:1) at every size used.
-
-**Contrast rule:** all body and caption text must clear 4.5:1 on `#0a0d12`. `#78819a` (≈4.6:1) is the lightest permitted grey for text. This was fixed twice during design — do not regress it, especially on chart axis labels.
-
-### The three-tone system (load-bearing, not decoration)
-
-| Tone | Meaning |
-|---|---|
-| **Steel** `#8892a6` | Basic tier. Gold appears **zero times** on a Basic screen — the absence reads as "not final". |
-| **Gold** `#e8b463` | What the engine says. One gold moment per screen, on the single most important thing. |
-| **Platinum** `#b9c4dc` | What **the user** set — their weights, their preset, their backtest. |
-
-On Custom screens gold and platinum appear together so the user can see, at a glance, which numbers are the engine's and which are their own.
-
-### Typography
-
-**Pretendard** throughout (already a CDN dependency of the PC app: `cdn.jsdelivr.net/gh/orioncactus/pretendard`). Ship it as a bundled font file in the app — do not load from CDN in a WebView.
-
-`font-variant-numeric: tabular-nums` on every screen root. This is what makes columns of prices line up and is a large part of why the UI reads as a finance tool.
-
-| Role | Size / weight / tracking |
-|---|---|
-| Hero price | 38px / 300 / `-.035em` |
-| Wallet balance | 48–52px / 300 / `-.04em` |
-| Screen headline | 25–29px / 600 / `-.03em` / line-height 1.25–1.35 |
-| Verdict word | 27–31px / 700 / `-.025em` |
-| Section title | 13–14px / 600 |
-| **Overline** | 10.5px / 600 / `letter-spacing:.14em` / uppercase / `ink-5` |
-| Row label | 12.5–13.5px / 400–600 |
-| Body copy | 12.5–13.5px / line-height 1.6–1.7 / `ink-3` |
-| Numeric cell | 12.5–13px / 500–600 |
-| Caption | 11–11.5px / `ink-4` |
-| Fine print | 10.5–11px / line-height 1.6 / `ink-5` |
-
-Chip/badge labels: 10–11.5px, weight 600–700, `letter-spacing:.1em` when uppercase.
-
-### Spacing, radius, targets
-
-- Screen inset **20px** (22px on sheets and marketing-style screens; 12–14px where a chart bleeds wider).
-- List row vertical padding 11–14px; section gaps 20–26px.
-- Radius: chips/badges 4–7px · cards & buttons 9–13px · sheet top corners 20px · pills 99px.
-- Primary button height **50–52px**; secondary 46–50px; inline pill controls 28–34px.
-- **Minimum touch target 44px.** Bare list rows that are tappable must be padded to 44px.
-
-### Layout breakpoints
-
-| Width | Layout |
-|---|---|
-| < 600 dp | 1 pane — the vertical report |
-| 600–904 dp (fold, unfolded) | 2 panes — watchlist ‖ report |
-| ≥ 905 dp (tablet) | 3 panes — watchlist ‖ report ‖ indicator rail |
-
-See `#1d` for both wide layouts. They are the same components re-parented, not new screens.
+### 8. 로딩을 타이머로 흉내내지 않는다
+캐시로 0.3초에 끝나면 0.3초에 보여줍니다. **일부러 늘리는 순간 정직한 중계가 연출이 됩니다.**
 
 ---
 
-## Product model
+## Screens / Views
 
-### Analysis tiers
+### A. 첫 실행 — 7단계
 
-| Tier | Cost | What it reads | Tone |
+앞 3개는 준비, **뒤 4개는 전부 받는 것**입니다.
+
+| # | 화면 | 목적 | 참조 |
 |---|---|---|---|
-| **Basic** | Free | 5 core indicators (MA, MACD, RSI, Bollinger, Volume), **daily bars only** | Steel |
-| **Full** | 3 Scoops | All 32 indicators, daily + weekly + monthly, per-node reasoning, backtest of the setup, dissenting indicators | Gold |
-| **Custom** | 5 Scoops | All 32 with the user's own weights, robustness test, sensitivity, scenarios, preset backtest | Gold + platinum |
+| 1 | 콜드 오픈 | 설명 대신 **직접 찍게** 함. "이 차트는 다음에 어디로 갈까요" + 오를 것/내릴 것 | 11a |
+| 2 | 투자성향 | 4종 중 1개 필수. 용어가 아니라 **태도**를 물음 | 11c |
+| 3 | 위험 고지 | 체크박스 필수. **실제 분석 결과를 보여주기 전**에 받아야 함 | — |
+| 4 | 종목 1개 + 기본분석 체험 | 종목은 **3개만** 제시 | 16a |
+| 5 | 심화분석 체험 | 폭이 절반으로 줄어드는 것을 **두 막대 길이 차이**로 | 16b |
+| 6 | 전문분석 체험 | 슬라이더 **딱 하나**(Trend)만 열어 인과를 겪게 함 | 16c |
+| 7 | 완료 · 가격표 · 스쿱 10 | 세 값을 한 표에 모으고 가격을 **이제야** 공개 | 17a |
 
-Naming was chosen for global legibility — Basic/Full/Custom are loanwords in Korean, Japanese and Spanish. **Always render the descriptor line next to the name** ("5 indicators" / "all 32" / "all 32 + your weights") so the tier is understood without knowing the word.
+**순서가 핵심입니다.** 가격표를 먼저 보여주면 "3스쿱" 은 그냥 숫자입니다. `234.2 ± 1.1` 을 먼저 본 사람에게만 3이 싼지 비싼지 판단 근거가 생기고, 스쿱 10개도 *"방금 그걸 세 번 더"* 가 됩니다.
 
-**The free tier must visibly lack things.** This is the core monetisation mechanic and it is deliberate:
-- List the **names** of the 27 uncounted indicators in grey chips (`#78819a`, readable — not disabled-grey).
-- Show Weekly and Monthly rows **present but marked "locked"**, occupying space. Do not hide them.
-- State the size of the unknown: *"The missing 27 can move this by ±14 points."*
-- Round the Basic target (`≈ 170`); give Full two decimals (`170.70`); give Custom an interval (`181.2`, band `176.8–185.6`). **Decimal precision is itself a tier signal.**
+기존 `obFree: "Your first deep analysis is free"` 가 이미 이 순서를 약속하고 있었습니다.
 
-### Scoops (the currency)
+**튜토리얼 3단계는 모두 무료이며, 건너뛰기가 항상 열려 있습니다.** 건너뛴 사용자는 지갑에서 다시 시작할 수 있습니다.
 
-| Rule | Value |
+---
+
+### B. 매일 루프
+
+```
+알림(어제 결과) → 워치리스트(결과 카드 최상단 + 스캔 뒤집힘)
+  → 결과 상세 → 오늘 판정(기본) → 27개 잠김 → 해제(광고/스쿱) → 심화
+  → 내일 확인할 결과가 하나 더 생김 ↺
+```
+
+**5번이 1번을 만듭니다.** 심화분석을 볼 때마다 내일 확인할 결과가 예약되고, 그 결과가 다음 날 앱을 열게 합니다. 이 고리가 없으면 광고 노출 횟수 자체가 늘지 않습니다.
+
+---
+
+### C. 화면 목록
+
+| 화면 | 참조 | 비고 |
+|---|---|---|
+| 워치리스트 | 14a | 결과 카드가 **목록보다 위**. 스캔은 무료 |
+| 기본분석 리포트 | 18a | 정보 블록 **3개**. 화면 아래가 비는 것이 설계 |
+| 심화분석 리포트 | 18b · 19b | 블록 **8개** |
+| 전문분석 리포트 | 18c | 심화 **전부 + 조절판** = 9개. 절대 심화보다 적으면 안 됨 |
+| 단계 선택 시트 | 6b | 제목은 "얼마나 정밀하게?" |
+| 분석 진행 중 | 19a | 지표 판독문이 흐르고 중간 집계 표시 |
+| 광고 후 적립 중 | 11d | 잔량 미리 안 올림 |
+| 어제 결과 (요약) | 14a | 3건 개별 표시, 퍼센트 없음 |
+| 어제 결과 (상세) | 17b | **문장 먼저**, 점 두 개 |
+| 판독문 32개 | 20a | 한 지표당 3줄 고정 |
+| 내 예측 기록 | 20b | "빗나간 4건" 탭이 기본 탭 옆 |
+| 알림 권한 | 20c | 첫 심화분석 **직후에만** |
+| 재열람 | 21a | 지난 판정 흐리게 + 낡음 정도 표기. 무료 |
+| 지갑 | 10b | "하나 더 받기" 가 출석과 **같은 덩어리** |
+| 종목 추가 시트 | 12a | 칩 그리드가 검색창보다 위 |
+| 성향 변경 시트 | 12b | 무엇이 남고 무엇이 다시 드는지 버튼 위에 |
+| 막히는 상태 7종 | 12c | 전부 다음 행동 포함 |
+| 스캔 결과 | 15c | 방향이 뒤집힌 종목만 |
+| 폴드 2단 / 태블릿 3단 | 9b · 9c | 실측 기준 |
+| 영어 UI | 13a · 13b | 한글 완성 후 얹음 · 전환은 지갑 › 설정 |
+| 로고 · 마크 대안 | 5번 턴 | 헤더 글리프 포함 |
+
+---
+
+## 세 단계의 격차 — 이것이 개편의 핵심
+
+같은 차트 엔진, **레이어만 켜고 끕니다.**
+
+| | 기본분석 (무료) | 심화분석 (3스쿱) | 전문분석 (5스쿱) |
+|---|---|---|---|
+| 가격 표현 | 종가 선 하나 | 캔들 + 거래량 바 | 심화와 동일 |
+| 예측선 | 점선 한 줄, 범위 없음 | 1차 + 2차 + 80% 콘 | 심화와 동일 |
+| 반대 시나리오 | 없음 | 3차 반대선 작도 | 심화와 동일 |
+| 서브패널 | 없음 | RSI · MACD · 거래량 | 심화와 동일 |
+| 차트 위 표식 | 없음 | 지지·저항 · 교차 · 다이버전스 | 심화와 동일 |
+| 차트 높이 | 150 | 293 + 서브패널 120 | 심화와 동일 |
+| 읽는 지표 | **Lv1 핵심 5개 고정** | 32개 전부 + 성향 반영 | 32개 + 가중치 직접 조절 |
+| 정보 블록 | **3개** | **8개** | **9개** |
+
+**기본을 일부러 초라하게 만들지 마십시오.** 선 하나로도 방향과 범위는 정확히 답합니다 — 다만 그 이상은 말하지 않습니다. 쓸모없게 만들면 첫인상이 나빠지고, 충분하게 만들면 살 이유가 없습니다. 기본은 **"맞는 말이지만 거친 말"** 이어야 합니다.
+
+**전문분석은 심화의 모든 블록을 유지한 채 조절판을 더합니다.** 한 줄이라도 빠지면 5스쿱을 낸 사용자가 손해를 본 것입니다. 그리고 가중치 변경이 **공유 블록의 숫자를 실제로 바꿔야** 합니다 (반대 6 → 9개, 주기 일치 3중 3 등).
+
+---
+
+## 지표 등급 (`IND_TIERS` · 실제 값)
+
+| 등급 | 개수 | 지표 |
+|---|---|---|
+| Lv1 핵심 | 5 | Moving average · MACD · RSI · Bollinger · Volume |
+| Lv2 주요 | 7 | Trend · ADX / DMI · Stochastic · Fibonacci · Ichimoku · Pivot · Parabolic SAR |
+| Lv3 보조·전문 | 11 | VWAP · SuperTrend · ATR · Volume profile · Market structure · Keltner · Donchian · CCI · Williams %R · Aroon · MFI |
+| Lv4 고급·심화 | 7 | Elliott · SMC · Cycle · Phase fold · ROC · Awesome oscillator · CMF |
+
+**기본분석 5개 = Lv1 핵심 5개입니다.** 티어 분할이 임의가 아니라 **엔진의 등급 구조 그대로**입니다. 해제는 곧 Lv2→Lv4 를 여는 일입니다.
+
+`IND_TIERS` 는 32종, 가중치 레일은 30종 (Gann · Chart pattern 제외).
+
+**지표명은 인터페이스 언어와 무관하게 영어입니다** — `strings.js` 의 명시 규칙이며, 설정 "Keep indicator names in English" 기본 ON. 전문분석 편집기에 이 토글을 노출합니다.
+
+---
+
+## Interactions & Behavior
+
+### 분석 진행 연출 — 엔진 이벤트에 묶습니다
+
+| 순서 | 엔진 단계 | 화면 |
+|---|---|---|
+| 1 | OHLC 로드 · 캔들 작도 | 차트가 먼저 그려짐 (판정 자리는 빔) |
+| 2 | `analyzeX` 30회 순차 | 빗이 **왼쪽부터 한 칸씩** 서고 지표명이 한 줄씩 흐름 · 중간 집계 표시 |
+| 3 | `evalBlocks` 합성 | 빗이 한 판정으로 접히며 헤드라인 등장 |
+| 4 | 드리프트 · 예측 경로 | 예측선이 오른쪽으로 뻗고 콘이 벌어짐 · 숫자 카운트업 |
+| 5 | 반대 지표 수집 | 반대 카드가 아래에서 올라옴 |
+| 6 | 적중 이력 조회 (서버) | 마지막 블록 · **실패해도 나머지는 유효** |
+
+- **탭하면 즉시 완료** — 두 번째부터는 이미 아는 장면입니다
+- **부분 실패를 감추지 않습니다** — 6번이 실패하면 그 자리에 "이력을 불러오지 못했습니다"
+- 2번 구간이 **값의 증명**입니다. "32개를 읽었다" 를 말이 아니라 경험으로 만드는 유일한 지점
+
+### 해제 전환 (광고 후)
+스틸 5개 + 연한 골드 27개 → **32개 모두 골드로 세워짐.** 3초, 탭하면 건너뜀.
+카운터 `16 / 32`, 동의/반대/**무판정** 세 통을 모두 표기 (합이 카운터와 맞아야 함).
+
+### 스쿱 수령 효과
+마크가 빈 원에서 목표치까지 **아래에서 위로 차오름** (0.9초, 숫자 동반 증가). 온보딩 지급 · 출석 · 광고 보상 모두 동일.
+
+### 광고 진입점 6곳
+1. 막힌 순간 (시트 안에서 전환 — 지갑으로 보내지 않음)
+2. 리포트 다 읽은 뒤 (잔량 3 미만일 때만)
+3. 출석 직후 (같은 덩어리에 이어붙임)
+4. **맞힌 결과 확인 직후** — 빗나간 날에는 절대 띄우지 않음
+5. **스캔이 뒤집힘을 찾은 직후** — "2개 뒤집힘 · 둘 다 심화면 6스쿱"
+6. **연속 출석이 끊기기 직전**
+
+팝업·전면광고·강제 시청 없음.
+
+### 리워드 규칙 (SPEC-economy 준수)
+- 지급은 **구글 SSV 콜백으로만**. 앱의 완료 이벤트는 UI 신호일 뿐
+- 일 상한 8회 · 쿨다운 2분 · 지갑 상한 20 — 모두 **서버 시간 기준**
+- 짧은 광고 15초 +1 / 긴 광고 30초(5초 후 스킵) +3
+- `+{n}` 은 `adConfig()` 의 `reward` 로 채웁니다. 리터럴로 박으면 세 번째 진실원이 생깁니다
+
+---
+
+## Design Tokens
+
+### 색 (`www/style.css` `:root` — 변경 없음)
+
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| `--bg` | `#0a0d12` | 배경 |
+| `--bg-raised` | `#0b0e15` | 카드 |
+| — | `#11151d` | 시트 · 탭바 |
+| `--ink` | `#eef1f7` | 본문 |
+| `--gold` | `#e8b463` | **심화분석 · 화폐 · 예측선** |
+| `--bull` | `#4fb98a` | 상승 · 적중 |
+| `--bear` | `#d96a6a` | 하락 · 빗나감 |
+| `--steel` | `#8892a6` | **기본분석** · 보조 텍스트 |
+| `--platinum` | `#b9c4dc` | **전문분석** |
+| `--pred2` | `#b892f5` | ⚠ 아래 주의 참조 |
+| — | `#c5ccdb` | 강조 보조 텍스트 |
+| — | `#78819a` | 캡션 (최소 대비선) |
+| `--neutral` | `#4a5368` | **점·채움 전용. 텍스트에 절대 사용 금지** (2.4:1) |
+
+> **⚠ `--pred2` 충돌:** 이 개편에서 `#b892f5` 를 **행동(버튼·링크·강조 CTA) 전용**으로 씁니다. 원래 용도인 **2차 예측선에는 새 헥스를 배정**해야 합니다. 차트 내부와 UI 는 겹치지 않으므로 분리가 가능합니다.
+
+### 타이포
+
+기존 `.rp-*` 는 4px 폭 안에 8단계(11 · 11.5 · 12 · 12.5 · 13 · 13.5 · 14 · 15)가 뒤섞여 위계가 무너져 있었습니다. 아래로 정리합니다.
+
+| 역할 | 크기 / 굵기 | letter-spacing |
+|---|---|---|
+| 판정 헤드라인 | 40~44 / 800 | −0.05em |
+| 화면 제목 | 22~27 / 800 | −0.04em |
+| 섹션 제목 | 17~20 / 800 | −0.03em |
+| 큰 수치 | 24~30 / 700 (mono) | −0.045em |
+| 본문 | 13.5 / 400~500 | — |
+| 보조 | 12 / 400 | — |
+| 캡션 | 11.5 / 400 | — |
+| 오버라인 | 11 / 700 | 0.05em |
+
+- 서체: **Plus Jakarta Sans**(UI) · **Space Grotesk**(수치)
+- 모든 숫자에 `font-variant-numeric: tabular-nums`
+- 영어 전환 시 판정 헤드라인만 44 → 36 (카드 높이는 고정)
+
+### 간격 · 형태
+
+| | 값 |
 |---|---|
-| Starting grant | 5 (given during onboarding) |
-| Wallet cap | 20 |
-| Daily check-in | +1 |
-| 7-day streak chest | +5 |
-| Quick ad (15 s, no skip) | +1 |
-| Full ad (30 s, skip after 5 s) | +3 |
-| Daily ad cap | 8 views |
-| Re-watch cooldown | 2 minutes |
-| Add a ticker slot | −1 |
-| Watchlist signal scan | −2 |
-| Full analysis | −3 |
-| Custom analysis | −5 |
-| Re-run a saved preset | −3 |
+| 화면 좌우 여백 | 20 |
+| 카드 라운드 | 20~26 |
+| 시트 라운드 | 상단 28 |
+| 버튼 | 필(999) · 높이 52~58 |
+| 탭 영역 최소 | 44 |
+| 행 높이 | 64 |
+| hairline | `rgba(238,241,247,.05~.10)` |
 
-Design rules that make the loop work:
-- **Balance is always visible** — a pill in the top-right of every screen. When the balance is 0 the pill's border turns gold.
-- **Show the debit before it happens** — the tier chooser prints `5 → 2` next to the cost.
-- **Never a blanket time-based unlock.** One run = one debit. Results are kept **forever** in history; the user pays again only to re-run after the next close. Price movement supplies the reason to return.
-- **Do not charge for a non-answer.** When the engine declines to call it (see below), no Scoops are debited and the screen says so.
-- Re-scoring a saved analysis after an engine update is **free**.
+**금지:** 항목 좌측 세로 컬러 라인. 선택·활성은 배경색 · 텍스트색 · 체크 · 아웃라인으로만.
 
-⚠️ **Server-side ledger is mandatory.** See `SPEC-economy.md` — a client-held balance will be edited within a week of launch, and AdMob requires server-side verification to grant rewards safely.
+**엘리베이션 그림자 없음.** `box-shadow` 는 선택 링과 지갑 점 inset 에만.
 
-### Honesty positioning (a product feature, not fine print)
+### 반응형 (실측 기준)
 
-The engine's real backtest is humbling in places, and the design turns that into the brand:
-- Headline the error rate, not just the hit rate: **"We are wrong about 4 times out of 10."**
-- Publish the **miss log** as a default tab, with post-mortems.
-- **Decline to answer** when indicators split ~evenly, timeframes conflict and volatility is above its 90th percentile — showing why, and charging nothing.
-- Under every verdict, a two-colour bar: 58.1% right / 41.9% wrong, with the line *"Size your position for that, not for the 68%."*
+| 기기 | 크기 | 레이아웃 |
+|---|---|---|
+| 폴드 7 접음 | 411 × 770 | 단일 열 (표준 폰) |
+| 폴드 7 펼침 | 732 × 593 | **2단** + 좌측 레일 |
+| 탭 S10+ | 1382 × 640 | **3단** (목록 / 리포트 / 가중치) |
 
-Tone calibration: honest, never self-flagellating. The baseline comparison is framed as a **design choice** ("markets drift upward, so guessing 'up' scores 60.8% on a coin-count and still cannot tell you how much, how sure, or within what range"), not a confession.
-
-### Method positioning
-
-Pure technical analysis: **price, volume, time — nothing else.** Deliberately excluded, with the reason shown: news sentiment (lags the move), analyst targets (untestable), fundamentals (quarterly data against daily decisions), social buzz (noise).
-
-Two consequences to build:
-1. **Works on any market with a chart** — the backtest spans US and Korean equities, FX, crypto and gold. A never-seen ticker is analysable the moment its chart loads.
-2. **Every number traces back to the chart.** Tapping any figure opens a derivation: the indicator, the bar, the date, the raw reading, the bias, the weight, the contribution. A model blending news and filings cannot do this — make the auditability visible. See `#10b`.
+- 분기점: 2단 **680** · 3단 **1200** (720 은 폴드와 12px 차이라 위험)
+- **높이가 제약입니다** — 큰 화면 둘이 폰보다 세로가 짧습니다
+- 차트 고정 520 → **화면 높이의 38%**
+- 짧은 화면에서 하단 탭바 → **68px 좌측 레일** (세로 62px 회수)
 
 ---
 
-## Data provenance
+## 문자열
 
-Real, from `map/forge-backtest-report.json` (generated 2026-07). Use these values; do not invent others.
+`www/strings.js` 가 **UI 문자열 단일 출처**입니다. 아래는 개편에 따른 변경분입니다.
 
-```
-overall.directionHitRate   0.5806   → 58.1 %
-overall.baselineAlwaysUp   0.6078   → 60.8 %   (naive "always up")
-overall.calibrationECE     0.00126  → 0.13 %
-overall.coneCoverage       0.7774   → 77.7 %   (target 80)
-overall.priceMAE           0.1741   → 17.4 %
-pnl.winRate 0.5952 · avgWin +18.97 % · avgLoss −10.71 %
-pnl.beatBuyHold 40 of 86 · avgMDD −48.1 % · worstMDD −92.3 %
+### 티어명 — 기존 코드에 이미 충돌이 있습니다
 
-byRegime  bull 59.99 % (n 25,615, lift −3.3 pt)
-          side 53.83 % (n 2,057,  lift +0.1 pt)   ← only positive lift
-          bear 47.36 % (n 3,824,  lift −0.7 pt)   ← below a coin flip
+| 한글 | 기존 키 | 현재 값 | 개편 |
+|---|---|---|---|
+| 기본분석 | `tsBasic` · `rpTierBasic` | Basic | 그대로 |
+| 심화분석 | `tsFull` · `rpTierFull` | **Full** | **Deep 으로 통일** |
+| 심화분석 | `walDeep` · `obCostFull` | **Deep analysis** | ← 이미 이쪽 |
+| 전문분석 | `tsCustom` · `tsSoon` | Custom · Coming soon | **Pro**, 활성화 |
 
-byTimeframe  1day  54.59 % (n 18,691, cone 77.9 %)
-             1week 62.83 % (n 11,082, cone 77.9 %)
-             1month 64.52 % (n 1,723,  cone 74.4 %)
+> 같은 단계가 시트·리포트에서는 `Full`, 지갑·온보딩에서는 `Deep analysis` 입니다. **제안이 아니라 기존 버그입니다.**
 
-Total scored forecasts 31,496 · 86 series · 1969-12-29 → 2026-07
-Series by class: US equities 56 · crypto 10 · KR equities 10 · FX 9 · gold 1
-(a "series" = one symbol on one interval)
-```
+### 그대로 쓰는 키
+`rpHorizon` · `rpHzTomorrow` · `rpNotCounted`("Not checked at this level") · `adWaiting`("Crediting your Scoops…") · `adPending` · `adFailed` · `adCooldown` · `adDailyDone` · `adLowBalance` · `walCapped` · `walNoCashValue` · `IND` 맵 전체
 
-Tier-level accuracy is **derived, not separately measured**: Basic is shown as the daily figure (54.6 %) because Basic reads daily bars only; Full as the blended 58.1 %. Custom deliberately quotes **no global number** — it shows the user's own preset back-tested on the ticker in front of them. Keep that distinction; it is both honest and better product.
+### 미결정 사항
+`rpBullish` / `rpBearish` = "Bullish" / "Bearish" 인데 한글은 "상승 우세" 입니다 — **두 언어의 강도가 다릅니다.** 바꾸려면 판정만이 아니라 `cxBullDiv` · `cxBearDiv` · `cxBullVolDiv` · `cxBearVolDiv` · `readings.js` 까지 **다섯 곳을 함께** 바꿔야 합니다. 아니면 `strings.js` 가 막으려던 표기 드리프트가 되살아납니다.
 
-Also verifiable from the repo: 32 indicators across 4 tiers (up from 20), `forge-core.test.js` carries **251 cases**, and the quote source moved from Stooq to Yahoo Finance (with Naver fallback for Korean tickers) on **2026-08-06** after Stooq began blocking automated reads.
-
-**Placeholders** (replace with real values before shipping): all per-ticker figures (NVDA 162.20 etc.), the miss-log entries, the live track record (does not exist until launch — the screen is authored as an empty "starts at launch" state), and the release-timeline copy.
+### 한/영 전환
+- UI 는 **한글 단독**으로 완성, 영어는 그 위에 얹음
+- **지표명만 영어 유지** (설정 토글 기본 ON)
+- 전환 지점: 지갑 › 설정 · 라벨은 **"언어 · Language"** 양쪽 병기
+- 첫 실행 시 기기 언어를 따름
+- ⚠ **서버가 내려주는 문자열**(반대 의견 근거 · 실패 사유 · 지표 판독문)도 함께 번역되어야 합니다. UI만 영어가 되고 판독문이 한글로 남으면 가장 비싼 화면이 반쪽이 됩니다
 
 ---
 
-## Screens
+## State Management
 
-Canonical flow, in order. Bracketed ids point at the mock on the design board.
+| 상태 | 출처 | 비고 |
+|---|---|---|
+| 스쿱 잔량 | **서버 원장** | 클라이언트가 계산해 더하지 않음 |
+| 광고 대기분 | 로컬(표시용) | 확정 전까지 잔량과 분리 표시 |
+| 투자성향 | 로컬 + 서버 | 전문분석 가중치 기본값의 근거 |
+| 지표 가중치 | 로컬 | **0.1 ~ 3.0 연속값**, 양자화 없음 |
+| 워치리스트 | 로컬 (`wWatchlistLocal`) | |
+| 읽음 상태 | 로컬 | 안 읽음 / 읽음 / 오래됨 |
+| 예측 기록 | 서버 | 결과 판정 및 n≥20 집계 |
+| 분석 결과 캐시 | 서버 | 재열람 무료의 근거 |
+| 캡 · 쿨다운 · 출석 | **서버 시간** | 기기 시계 변조 무효 |
 
-### 1. Onboarding — 5 steps `#3a` `#3b`
-
-Not a welcome carousel. Each step removes a real first-run obstacle.
-
-1. **Cold open** — no logo splash. A real chart draws its forecast cone. Headline *"Where does this chart go next?"* Language chip (globe + `EN`) top-right. Progress: 5 hairline segments, active one gold.
-2. **How it works** — a 32-bar "signal comb" (SVG, one bar per indicator, up/flat/down from a centre line) collapsing into one verdict bar. Shows the mechanism rather than icons.
-3. **Why it's free + the grant** — the ad economy is explained *before* any ad appears, and 5 Scoops are granted here. Earn and spend tables. This is where the loop is taught.
-4. **Pick your first tickers** — 3 pre-selected, slots 1–3 free. Kills the empty-watchlist drop-off.
-5. **Consent + risk notice** — UMP-style personalised-ads toggle (on), crash reports (off), and a readable risk notice with a terms checkbox. Ends with *"Your first deep analysis is free."*
-
-Language sheet `#12a`: auto-presents once if the device locale is not English, written **in the user's language**, explaining that chart terminology is standard in English. Unavailable languages are tappable for a launch notification, not dead ends.
-
-### 2. Watchlist `#1a` — ⚠ needs a redraw in the turn-2 type system
-
-Rows: signal dot (bull/neutral/bear) · symbol + company · 64×20 sparkline · price + change · confidence badge. Sticky search, group chips, `＋ Add ticker` at the bottom. Row height 64px.
-
-**Open work:** `#1a` was drawn in the first, pre-refinement pass. Re-render it with the tokens above (hairline dividers instead of card borders, tabular numerals, the corrected greys) before implementing.
-
-### 3. Ticker report — Basic `#6a` `#2a`
-
-Vertical scroll, one ticker per report.
-
-- Header: back · symbol + position in watchlist (`2 / 8`) · Scoops pill.
-- Tier chip (steel `BASIC`) + evidence meter (1 of 3 segments).
-- Verdict + confidence, then the honest range (`55–67%`) and the size of what's missing.
-- **Chart with real axes** — right-hand price scale with a gold current-price tag, bottom date scale, dashed forecast-start line, cone fill at 9% gold. Candle bodies/wicks in bull/bear. SVG viewBox `0 -108 726 406`; **axis type must render ≥10.5 px** (font-size 21 at that viewBox on a 372 px-wide chart).
-- "Counted" — the 5 core readings.
-- "Not counted" — 27 grey chips, readable.
-- Timeframe rows with Weekly/Monthly marked `locked`.
-
-### 4. Tier chooser `#7a`
-
-A bottom sheet. Each tier shows its **measured** hit rate as a bar against a 50% coin-flip marker, the cost, and the balance preview (`5 → 2`). Bar scale: `width% = (rate − 40) / 30 × 100`.
-
-Full is the recommended option (gold border + `POPULAR`). Custom shows no global rate — instead the promise of a personal backtest. Footer links to *How we measure*.
-
-### 5. Ad gate `#7a` `#2b` `#2c`
-
-Triggered when the balance is short. **The pitch is the accuracy gap, not a feature list**: *"Basic only reads daily bars — our weakest timeframe"*, with a four-bar chart (daily 54.6 / weekly 62.8 / monthly 64.5 / Full 58.1).
-
-Two offers: Quick 15 s (+1) and Full 30 s (+3). Reward screen afterwards: progress ring, `+3 Scoops`, wallet count-up (`3 → 6`), streak progress, and an immediate CTA back into the run. Footer states the cooldown and remaining daily views.
-
-### 6. Result — Full `#6a` `#8b`
-
-Gold tier chip, evidence 2 of 3. Verdict with a `+7 vs Core` delta and the previous value marked on the confidence track. Then:
-- **Track record of this setup** — occurrences, hit rate, median move.
-- **Timeframe agreement** — D/W/M chips.
-- **Reasoning** — per-node, plain language.
-- **Against this call** — dissenting indicators, in a bear-tinted card. Never hidden.
-- **Right/wrong bar** — 58.1 / 41.9 with the sizing line.
-- **What would change this call** — trigger levels and unmodelled events (earnings).
-
-### 7. Custom `#5a` `#4b` `#6b`
-
-**Preset-first.** Three presets (Trend-following / Balanced / Reversal), each with a 3-year hit rate. One tap is the whole interaction for most users. The 32 weight sliders live behind *"Adjust the 32 weights myself"*. A live preview shows the composite moving as weights change (68 → 71) — this is what justifies the 5-Scoop cost in front of the user.
-
-Result adds: robustness (`87%` of ±20% perturbations keep the call), a tornado sensitivity chart, break points, three scenarios with invalidation levels, and an equity curve comparing the user's preset · engine default · buy-and-hold. Saved as a reusable preset (re-run 3).
-
-### 8. Evidence & trust `#10b` `#7b` `#8a` `#9a`
-
-- **Where this came from** — tap a number, get the chart region highlighted plus the full derivation chain (reading → crossover date → strength change → bias → × weight → contribution).
-- **How we measure** — sample, the "why we don't chase the headline number" note, strengths (ECE, coverage, payoff), and the sizing warnings.
-- **Where it works** — regime and interval breakdowns with the always-up baseline marked.
-- **Being honest about this** — the 10-block right/wrong strip, what the tool is not, what breaks a forecast.
-- **Closed forecasts** — Misses is the **default tab**.
-- **The engine** — growth timeline (20 → 32 indicators, 251 engine tests, data-source rebuild), plus an "engine improved while you were away" moment where saved analyses are re-scored free.
-
-### 9. No-call state `#8b`
-
-When conviction is too low, refuse: *"No clear read on this one."* Show why (indicator split, timeframe conflict, volatility percentile, earnings proximity), confirm **no Scoops charged**, and offer an alert for when it clarifies plus an escape hatch ("Show the split anyway").
-
-### 10. Wallet, account, settings `#2c` `#5b` `#12a`
-
-Balance with cap progress · earn rows · spend table · streak dots · Google sign-in (prompted only when the balance first exceeds 5 — loss aversion, not a first-run wall) · sync state · saved presets · history · ad settings · language (with **"Keep indicator names in English"** on by default) · regional number/date/market-time formats.
-
-Legal line required by store policy: *"Scoops have no cash value and cannot be transferred or refunded."*
+### 가중치 슬라이더
+- **0.1 ~ 3.0 연속값** (PC 기준과 동일, 양자화 없음)
+- 트랙에 **1.0 기본값 눈금 고정**
+- 값은 **항상 숫자로 병기**
+- 행은 **2줄** (이름+값 / 슬라이더) — 1줄이면 트랙이 짧아 0.1 단위 조절 불가
 
 ---
 
-## Interactions & behaviour
+## Assets
 
-- **Chart:** pinch-zoom, one-finger pan, long-press crosshair with price/date readout. Auto-scale (`A`) and log (`L`) toggles float top-right of the plot. Double-tap resets. The chart must not swallow page scroll — reserve a scroll gutter or a lock toggle (the PC app hit exactly this problem; see `#chartLockBtn` in `forge.html`).
-- **Report navigation:** sticky section chips under the header on dense layouts (`#1a`), or collapsed accordions on the airier ones (`#1b`).
-- **Ticker switching:** horizontal swipe moves between watchlist tickers on the report screen. Scroll position is remembered per ticker.
-- **Rewarded ad:** disable the CTA and show a spinner while the ad loads; on dismissal-without-completion, no grant and no error blame; on completion, the reward screen with a count-up animation (~600 ms).
-- **Analysis run:** the engine is synchronous and heavy — run it in a Web Worker or chunk it, and show per-indicator progress (the PC app's "simulation" mode already narrates this and is good source material).
-- **Loading:** skeleton rows matching final row heights. Never a full-screen spinner over an already-rendered report.
-- **Errors:** quote fetch failure → keep the last cached read, badge it "as of <time>", offer retry. Never blank the screen.
-- **Offline:** the shell and cached analyses must open. Ads and fresh quotes degrade gracefully.
+`assets/` 에 **21장을 실물로 생성**했습니다. 폴더 구조가 `android/app/src/main/res/` 와 그대로 대응하므로 덮어쓰면 됩니다.
 
-## State
+| 항목 | 개수 | 크기 |
+|---|---|---|
+| `mipmap-*/ic_launcher_foreground.png` | 5 | 108 · 162 · 216 · 324 · 432 (투명) |
+| `mipmap-*/ic_launcher.png` | 5 | 48 · 72 · 96 · 144 · 192 |
+| `drawable-port-*/splash.png` | 5 | 320×480 ~ 1280×1920 |
+| `drawable-land-*/splash.png` | 5 | 480×320 ~ 1920×1280 |
+| `drawable/splash.png` | 1 | 480×320 |
 
-```
-session   locale, deviceId, googleAccount | null, syncState
-wallet    balance, cap, streakDays, lastCheckIn, adsWatchedToday, cooldownUntil
-watchlist [{ symbol, market, slotPaid, lastVerdict, sparkline }]
-report    symbol, interval, tier, verdict{dir,confidence,band},
-          targets[], indicators[32]{value,bias,weight,contribution,narrative},
-          matrix{daily,weekly,monthly}, cone, evidenceLevel, runAt, engineVersion
-custom    presetId, weights{32}, livePreview, robustness, sensitivity[], scenarios[]
-history   [{ runId, symbol, tier, runAt, verdict, expiry, outcome|null }]
-prefs     locale, keepIndicatorNamesEnglish, personalisedAds, analytics,
-          numberFormat, dateFormat, marketTimeZone
-```
+- 적응형 아이콘 배경색: **`#0a0d12`** (기존 `#FFFFFF` 폐기 — 다크 단독 앱인데 아이콘만 하얗게 번쩍였습니다)
+- 48px 에서는 채움 42%를 버리고 **꽉 찬 원** — 부분 채움이 얼룩으로 보이기 때문. 앱 내 마크와 일부러 다른 유일한 지점
+- 스플래시에 워드마크 없음 (0.4초 뒤 사라지는 화면의 글자는 읽히지 않음)
 
-All wallet fields are **server-authoritative**; the client holds a cached copy for display only.
+**헤더 마크:** `watchlist.js` 의 `.wl-brand-mark` 는 22px 컨테이너만 있고 내용이 비어 있습니다. 스쿱 마크(채움 42%)를 넣으십시오.
 
 ---
 
-## Files in this bundle
+## 샘플값 — 반드시 교체
 
-| File | What it is |
+디자인의 모든 수치는 **샘플**입니다. 서버 실측값으로 교체하십시오.
+
+| 값 | 디자인 표기 | 비고 |
+|---|---|---|
+| 적중률 | 61 / 63 / 58~67% | 티어별 실측으로 교체 |
+| 가격 | 231.40 · 234.2 ± 1.1 | |
+| 프리셋 가중치 | 2.0 · 1.4 · 0.6 · 0.3 | **미확인** — PC의 투자성향 프리셋 4종 벡터 필요 |
+
+값이 없는 티어는 숫자 대신 **"측정 중"** 으로 표시합니다.
+
+---
+
+## Files
+
+| 파일 | 내용 |
 |---|---|
-| `MoneyScoop Mobile.dc.html` | The design board — ~50 mockups across 12 turns. Open in a browser. |
-| `android-frame.jsx` | Device bezel used by the board. Required for it to render. |
-| `support.js` | Runtime for the board. Required. |
-| `SPEC-economy.md` | Scoops ledger, AdMob server-side verification, anti-abuse. **Read before writing any wallet code.** |
-| `BUILD-plan.md` | Phased build order, testing setup, and the three gotchas that will otherwise bite. |
+| `MoneyScoop 동선.dc.html` | 전체 시안 (턴 1~21, 최신이 위) — **주 참조물** |
+| `MoneyScoop 프로토타입.dc.html` | **클릭 가능** — 첫 실행 튜토리얼 · 막힘→광고→복귀 두 구간 |
+| `MoneyScoop 화면별 여정.dc.html` | 화면별 진입/구성/이탈/상태 정리 |
+| `화면 측정.dc.html` | 기기 실측 도구 |
+| `support.js` | 위 HTML 들의 런타임 — **같은 폴더에 있어야 열립니다** |
+| `assets/icon/` · `assets/splash/` | 아이콘 · 스플래시 21장 |
+| `github.md` | 레포 연결 정보 및 작업 이력 |
 
-Ask for screenshots if you would rather not open the board.
+> HTML 파일은 압축을 푸는 후 **브라우저로 그대로 열면** 됩니다. 별도 서버 필요 없음.
+
+### 시안에서 찾아보기
+
+`MoneyScoop 동선.dc.html` 은 턴 번호(`t1`~`t21`)와 옵션 id(`6a`, `18b` 등)로 앵커가 걸려 있습니다. 위 표의 "참조" 열 값이 그 id 입니다.
+
+**최신이 맨 위입니다.** 턴 1~5 는 영문 시안 시절의 초기 탐색이라 현재 방향과 다릅니다 — **턴 6 이후를 보십시오.**
+
+---
+
+## 구현 착수 순서 (의존 관계 기준)
+
+1. **서버 재화 원장 + AdMob SSV 콜백** — 화면 5개가 여기 묶여 있습니다
+2. **리포트 3단 대조 + 적중률** — 엔진이 이미 데이터를 갖고 있어 가장 저렴
+3. **티어별 차트 레이어 토글** — 격차의 핵심이자 새 코드가 거의 없음
+4. **온보딩 7단계 (튜토리얼 흡수본)**
+5. **시트 + 광고 게이트 + 복귀**
+6. **예측 결과 루프** (알림 · 결과 카드 · 기록)
+7. **전문분석 편집기** — 프리셋 가중치 벡터 확인 후
