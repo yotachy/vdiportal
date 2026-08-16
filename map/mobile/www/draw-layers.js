@@ -182,7 +182,7 @@
         const pp = [[seam, pToY(base)]]; let endV = base;
         for (let k = 1; k <= fb; k++) { endV = base + slPer * k * Math.exp(-k / (fb * 1.5)); pp.push([seam + (xr - seam) * k / fb, pToY(endV)]); }
         _drawProjLine(c, pp, _maCol); _projMark(c, pp[pp.length - 1][0], pp[pp.length - 1][1], _maCol, _projMarkScale(endV, base));
-        _evLabel(c, "MA projection ≈ " + _hzFmt(endV), xr, pToY(endV), _maCol, "right");
+        _evLabel(c, Str.t.legMaProj + " ≈ " + _hzFmt(endV), xr, pToY(endV), _maCol, "right");
       }
     }
     c.restore();
@@ -266,7 +266,7 @@
       const col = bb.bias > 0.15 ? "#46c28e" : bb.bias < -0.15 ? "#e06a6a" : COL;
       if (isFinite(x) && isFinite(y)) _evLabel(c, "BB " + sTxt + (bb.squeeze ? Str.t.legSqueeze : "") + " · %B" + bb.last.pctB.toFixed(2), x - 6, y, col, "right");
     }
-    if (M.focused && M.xNow != null && M.futBars) _projFwd(c, bb.mid, nowFi, M.xNow, (xRight != null ? xRight : fiToX(nowFi)), M.futBars, pToY, COL, "Bollinger midline projection");
+    if (M.focused && M.xNow != null && M.futBars) _projFwd(c, bb.mid, nowFi, M.xNow, (xRight != null ? xRight : fiToX(nowFi)), M.futBars, pToY, COL, Str.t.legBbMidProj);
     c.restore();
   }
 

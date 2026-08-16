@@ -253,11 +253,12 @@
       w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub3 : ""));
       w.appendChild(el("div", "ob-grant", ""));
       // 가격표는 지갑 화면과 같은 출처(MSWallet.COSTS)에서 읽는다 — 여기서 다시 적으면
-      // 두 화면이 갈린다(지갑 화면이 정본, screens/wallet.js).
+      // 두 화면이 갈린다(지갑 화면이 정본, screens/wallet.js). 슬롯 행은 없다 — spend("slot")
+      // 호출이 어디에도 없고 store.js addTicker 는 무료·무제한이다(지갑 화면 wallet.js:404
+      // 주석과 같은 이유로 여기서도 뺐다 — 안 하는 과금을 가격표에 적으면 실제로 하는 것처럼 보인다).
       var C = (typeof MSWallet !== "undefined") ? MSWallet.COSTS : {};
       var tbl = frag("ob-costs");
-      [["full", Str ? Str.t.obCostFull : ""], ["scan", Str ? Str.t.obCostScan : ""],
-       ["slot", Str ? Str.t.obCostSlot : ""]].forEach(function (p) {
+      [["full", Str ? Str.t.obCostFull : ""], ["scan", Str ? Str.t.obCostScan : ""]].forEach(function (p) {
         var row = frag("ob-cost-row");
         row.appendChild(el("span", "ob-cost-name", p[1]));
         row.appendChild(el("span", "ob-cost-num", String(C[p[0]])));

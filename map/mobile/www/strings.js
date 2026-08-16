@@ -139,6 +139,10 @@
     legTarget: "목표가",
     legGolden: "골든크로스 ", legDead: "데드크로스 ", legBars: "봉 전", legNoCross: "교차 없음",
     legSqueeze: " · 스퀴즈",
+    // 캔버스 투영 배지(draw-layers.js _drawMALayers/_drawBollingerLayers) — 접미사 " ≈ 값"은
+    // 코드에서 붙는다(_hzFmt). MA·Bollinger 는 지표 축약형이라 그대로 둔다(제품 규칙 — 지표명은
+    // 언어와 무관하게 영어).
+    legMaProj: "MA 투영", legBbMidProj: "Bollinger 중심선 투영",
 
     // 차트 안 잔존 라벨(크로스 표기는 legGolden/legDead/legBars 를 그대로 쓴다 — 레전드와
     // 차트가 각자 표기를 갖고 있던 것이 드리프트 원인이었다. Fix round 1)
@@ -309,9 +313,9 @@
     obGrantOffline: "지갑에 연결하지 못했습니다. 계속 진행할 수 있습니다 — 기본분석은 항상 무료입니다.",
     obRetry: "다시 시도",
     // obCostFull 은 walDeep·rpTierFull·tsFull 과 같은 단계다(위 walDeep 주석). obCostScan 은
-    // walScan 과 같은 문구를 그대로 재사용한다(두 화면이 갈리지 않게). obCostSlot 은 지갑
-    // Spend 목록에서 빠졌지만(과금 미구현) 온보딩 안내 문구로는 계속 쓰인다.
-    obCostFull: "심화분석", obCostScan: "워치리스트 스캔", obCostSlot: "종목 슬롯 추가",
+    // walScan 과 같은 문구를 그대로 재사용한다(두 화면이 갈리지 않게). 슬롯 행은 없다 —
+    // wallet.js:404 와 같은 이유(spend("slot") 없음·addTicker 무료)로 온보딩에서도 뺐다.
+    obCostFull: "심화분석", obCostScan: "워치리스트 스캔",
     obH4: "처음 볼 종목을 골라보세요",
     obSub4: "시작은 슬롯 3개입니다. 언제든 바꿀 수 있습니다.",
     obH5: "시작하기 전에",

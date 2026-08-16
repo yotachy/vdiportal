@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const S = require("../www/strings.js");
@@ -94,6 +96,13 @@ const ALLOWED_LATIN = [
   "Money", "Scoop",    // wlBrandA/wlBrandB — 헤더 워드마크(뒷조각 Scoop만 골드). 브랜드 마크지
                         // UI 카피가 아니다 — 머니스쿱으로 음역하면 제품 이름 자체를 이 타이포
                         // 태스크 안에서 바꾸는 셈이라(브랜드 결정), 고유명사로 남긴다(태스크 8 코디네이터 판정).
+  "MA",                // legMaProj(draw-layers.js MA 투영 배지) — 지표 축약형. IND.ma 의 정식
+                        // 표기("Moving average")와 문자열이 달라 stripIndicatorNames 로 안 지워진다.
+  "BB", "B",            // draw-layers.js _drawBollingerLayers 의 캔버스 배지("BB "+상태·"%B"+값) —
+                        // Bollinger Bands·%B 표준 축약형. readings.js 의 %K/%D/%B 허용(아래
+                        // READINGS_ALLOWED_LATIN)과 같은 이유. 이 파인딩이 손대는 문구는 아니지만
+                        // (legMaProj/legBbMidProj 두 곳만 번역), 아래 캔버스 텍스트 게이트가 파일
+                        // 전체를 훑으므로 이 기존 축약형도 허용 목록에 있어야 오탐이 안 난다.
 ].map(w => w.toLowerCase());
 const ALLOWED_LATIN_SET = new Set(ALLOWED_LATIN);
 
@@ -295,6 +304,139 @@ test("screens/ 영어잔존 게이트는 실제로 잡는다 — wallet·watchli
   const clean = [];
   SCREENS_FILES.forEach(f => { clean.push.apply(clean, screensLiteralOffenders(f)); });
   assert.deepEqual(clean, [], "재현 전에 이미 screens/ 원본이 더럽다: " + JSON.stringify(clean));
+});
+
+// ── 캔버스에 그려지는 텍스트 — screens/ 게이트가 못 보는 세 번째 구멍 ──────────────────────
+// 위 SCREENS_FILES 게이트는 draw-layers.js·chart-legend.js·draw-panels.js 를 통째로 뺐다(주석
+// 참고 — 헥스 색상·rgba·font 축약이 리터럴로 잔뜩 박혀 있어 파일 전체를 훑으면 100건 넘는
+// 오탐이 나온다). 그런데 이 파일들이 실제로 화면(캔버스)에 글자를 그린다 — MA/Bollinger 투영
+// 배지("MA projection ≈ …"·"Bollinger midline projection")가 그 구멍으로 새 나갔다(파인딩
+// 원문). 파일을 통째로 빼는 대신 **모양으로 좁힌다**: 캔버스에 실제로 텍스트를 그리는 두
+// 지점 — `_evLabel(...)` 의 text 인자(2번째)와 `c.fillText(...)` 의 text 인자(1번째) — 만
+// 본다. 색상·정렬("right"/"left")·폰트 축약은 다른 인자 자리에 있으니 애초에 후보에 안 든다.
+// untranslatedWords() 를 그대로 재사용해 허용 목록이 하나로 유지되게 한다(screens/ 게이트와
+// 동일 원칙).
+const CANVAS_SCAN_ROOT = fileURLToPath(new URL("../www/", import.meta.url));
+
+// www/** 전부를 훑는다(vendor/ 는 sync-engine 이 만드는 생성물이라 제외 — 커밋되지 않고
+// 로컬 sync 여부에 따라 존재가 갈려 게이트가 불안정해진다. map/CLAUDE.md 의 vendor 규율과 같다).
+function collectJsFiles(dir) {
+  const out = [];
+  readdirSync(dir).forEach(name => {
+    if (name === "vendor") return;
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) out.push.apply(out, collectJsFiles(full));
+    else if (name.endsWith(".js")) out.push(full);
+  });
+  return out;
+}
+const CANVAS_SCAN_FILES = collectJsFiles(CANVAS_SCAN_ROOT);
+
+// 호출 하나의 top-level 인자들을 콤마 기준으로 쪼갠다 — 중첩 괄호/대괄호/중괄호와 문자열
+// 내부의 콤마는 무시한다("BB " + sTxt + (bb.squeeze ? … : "") + … 처럼 인자 하나가 삼항·중첩
+// 호출을 포함해도 안 갈린다). openParenIdx = 여는 "(" 바로 다음 인덱스.
+function splitTopLevelArgs(src, openParenIdx) {
+  let depth = 0, cur = "", inStr = null;
+  const args = [];
+  for (let i = openParenIdx; i < src.length; i++) {
+    const ch = src[i];
+    if (inStr) {
+      cur += ch;
+      if (ch === "\\") { i++; if (i < src.length) cur += src[i]; continue; }
+      if (ch === inStr) inStr = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") { inStr = ch; cur += ch; continue; }
+    if (ch === "(" || ch === "[" || ch === "{") { depth++; cur += ch; continue; }
+    if (ch === ")" || ch === "]" || ch === "}") {
+      if (ch === ")" && depth === 0) { args.push(cur); return args; }
+      depth--; cur += ch; continue;
+    }
+    if (ch === "," && depth === 0) { args.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  return args;   // 괄호가 안 닫혔다 — 비정상 소스, 있는 대로 돌려준다
+}
+
+// 비교 피연산자("bull"/"bear"/"support" 등 내부 키 대조 — 실제로 그려지는 값은 그 분기가
+// 고르는 Str.MA_ALIGN.bull 같은 조회값이지 이 리터럴 자체가 아니다)는 screens/ 게이트와 같은
+// isComparisonOperand() 로 제외한다. 화면에 안 나가는 문자열까지 잡으면 이 게이트가 무의미해진다.
+function literalsIn(str) {
+  const out = [];
+  const re = /(["'`])(?:(?!\1)[^\\]|\\.)*\1/g;
+  let m;
+  while ((m = re.exec(str))) {
+    if (isComparisonOperand(str.slice(0, m.index))) continue;
+    out.push(m[0].slice(1, -1));
+  }
+  return out;
+}
+
+// 리터럴 안 \xHH/\uHHHH 이스케이프(예: 가운뎃점 "\xb7")는 실제로 렌더링되면 글자가 아니라
+// 기호가 된다 — 소스 텍스트를 그대로 읽는 이 스캐너는 escape 를 해석하지 않으므로, 안 지우면
+// "\xb7" 의 "b"+"7"경계에서 "xb" 가 라틴 단어로 오탐된다.
+function stripHexEscapes(v) { return String(v).replace(/\\x[0-9a-fA-F]{2}/g, " ").replace(/\\u[0-9a-fA-F]{4}/g, " "); }
+
+// _evLabel(c, text, x, y, color, align, force) → text 는 2번째(index 1).
+// c.fillText(text, x, y[, maxWidth]) → text 는 1번째(index 0).
+// `function _evLabel(...)` 선언 자체는 호출이 아니라 건너뛴다.
+const CANVAS_CALL_RE = /(function\s+)?(_evLabel|\.fillText)\(/g;
+
+function canvasTextOffenders(label, src) {
+  const out = [];
+  CANVAS_CALL_RE.lastIndex = 0;
+  let m;
+  while ((m = CANVAS_CALL_RE.exec(src))) {
+    if (m[1]) continue;   // function _evLabel( 선언 — 호출 아님
+    const argIdx = m[2] === "_evLabel" ? 1 : 0;
+    const args = splitTopLevelArgs(src, m.index + m[0].length);
+    const argStr = args[argIdx];
+    if (argStr == null) continue;
+    const line = src.slice(0, m.index).split("\n").length;
+    literalsIn(argStr).forEach(text => {
+      if (text === "use strict") return;
+      const words = untranslatedWords(stripHexEscapes(text));
+      if (words.length) out.push({ file: label, line, text, words });
+    });
+  }
+  return out;
+}
+
+function canvasFileOffenders(f) {
+  return canvasTextOffenders(f.replace(CANVAS_SCAN_ROOT, "www/"), readFileSync(f, "utf8"));
+}
+
+test("캔버스에 그려지는 텍스트(_evLabel·fillText)에 남은 영어가 없다 — screens/ 게이트의 사각지대", () => {
+  const bad = [];
+  CANVAS_SCAN_FILES.forEach(f => { bad.push.apply(bad, canvasFileOffenders(f)); });
+  assert.deepEqual(bad, [],
+    "캔버스 텍스트에 남은 영어 " + bad.length + "건:\n" +
+    bad.map(o => o.file + ":" + o.line + "  " + JSON.stringify(o.text) + "  (" + o.words.join(", ") + ")").join("\n"));
+});
+
+// 위 게이트가 실제로 잡는지 증명한다 — 파인딩 원문의 두 지점을 그대로 재현한다.
+// 색상·정렬 인자는 건드리지 않는다는 것도 함께 증명한다(그 자리 텍스트는 English 라도 안 잡혀야
+// "모양으로 좁혔다"는 설계가 성립한다).
+test("캔버스 텍스트 게이트는 실제로 잡는다 — MA·Bollinger 투영 두 지점 재현·원복 왕복 증명", () => {
+  const leakMA = '_evLabel(c, "MA projection ≈ " + _hzFmt(endV), xr, pToY(endV), _maCol, "right");';
+  const leakBB = 'c.fillText("Bollinger midline projection", x, y);';
+  assert.ok(canvasTextOffenders("synthetic", leakMA).length > 0,
+    "_evLabel 의 text 인자(2번째)에 있는 영문 문장을 못 잡았다");
+  assert.ok(canvasTextOffenders("synthetic", leakBB).length > 0,
+    "fillText 의 text 인자(1번째)에 있는 영문 문장을 못 잡았다");
+  // 색상·정렬 인자는 English 여도 안 잡힌다(모양으로 좁혔다는 설계의 반대쪽 증명).
+  const shapeOnly = '_evLabel(c, safeVar, xr, y, "#46c28e", "right");';
+  assert.deepEqual(canvasTextOffenders("synthetic", shapeOnly), [],
+    "색상/정렬 인자가 오탐으로 잡혔다 — 모양 스코프가 새고 있다");
+  // 다른 draw 파일에 새 fillText 가 추가돼도 잡는다(파인딩의 "다른 draw 파일" 요구 — draw-layers.js
+  // 가 아닌 임의 위치를 라벨로 준다).
+  const otherDrawFile = 'c.fillText("New spike marker", x, y);';
+  assert.ok(canvasTextOffenders("draw-panels.js(synthetic)", otherDrawFile).length > 0,
+    "draw-layers.js 가 아닌 다른 draw 파일의 fillText 영문을 못 잡았다");
+  // 위 예시들은 합성 소스에만 적용했다 — 실제 파일들은 여전히 깨끗해야 한다.
+  const clean = [];
+  CANVAS_SCAN_FILES.forEach(f => { clean.push.apply(clean, canvasFileOffenders(f)); });
+  assert.deepEqual(clean, [], "재현 전에 이미 캔버스 텍스트가 더럽다: " + JSON.stringify(clean));
 });
 
 // Fix 5: spec §8이 요구한 미사용 키 가드. 위 테스트가 "참조된 키가 실존하는가"를 보는 반대쪽 —

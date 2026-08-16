@@ -115,7 +115,7 @@ test("1·2단계 작도가 쓰는 모듈이 index.html 에 전부 있다", () =>
 test("온보딩 문구가 strings.js 에 있다", () => {
   ["obBack", "obNext", "obSampleNote", "obH1", "obSub1", "obH2", "obSub2", "obCombCap",
    "obH3", "obSub3", "obGranting", "obGranted", "obGrantOffline", "obRetry",
-   "obCostFull", "obCostScan", "obCostSlot",
+   "obCostFull", "obCostScan",
    "obH4", "obSub4", "obH5", "obRisk", "obAgree", "obFree", "obFinish"].forEach(function (k) {
     assert.ok(typeof S.t[k] === "string" && S.t[k].length > 0, k + " 가 없다");
   });
@@ -908,15 +908,17 @@ test("지급액은 서버가 돌려준 값이다 — 클라이언트가 지어�
 });
 
 // 가격표 값도 스파이의 COSTS 를 그대로 반영해야 한다(실제 COSTS 와 다른 값을 줘서 리터럴화를 잡는다).
+// 슬롯 행은 없다 — spend("slot") 이 어디에도 없고 addTicker 는 무료·무제한이라 뺐다(코디네이터
+// 판정). 행은 full·scan 둘뿐이다.
 test("가격표 숫자는 MSWallet.COSTS 값 그대로다 — 다시 적지 않는다", async () => {
   const wallet = spyWallet({ ok: true, state: { balance: 5 } }, { full: 30, scan: 20, slot: 10 });
   await withDomWallet(wallet, async (root) => {
     toStep3(root);
     await flush();
     const rows = root.querySelector(".ob-costs").children;
-    assert.strictEqual(rows.length, 3);
+    assert.strictEqual(rows.length, 2);
     const nums = rows.map(r => r.querySelector(".ob-cost-num").textContent);
-    assert.deepStrictEqual(nums, ["30", "20", "10"], "가격표가 COSTS(30/20/10)를 안 따라간다: " + nums.join(","));
+    assert.deepStrictEqual(nums, ["30", "20"], "가격표가 COSTS(30/20)를 안 따라간다: " + nums.join(","));
   });
 });
 
