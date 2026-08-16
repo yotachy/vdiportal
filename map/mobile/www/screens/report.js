@@ -274,9 +274,6 @@
   function backSvg() {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>';
   }
-  function lockSvg() {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="vertical-align:-1.5px;margin-right:4px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
-  }
 
   // ── Full 구매(판정 단계). SPEC §1: 차감과 실행은 한 트랜잭션 ──
   // 낙관적 차감을 하지 않는다 — 일봉이 실패하면 환급한다. 주·월은 없어도 차감을 유지하고
@@ -724,8 +721,14 @@
       var row = MSUi.el("div", "rp-tf-row" + (locked ? " rp-locked" : ""));
       row.appendChild(MSUi.el("span", "rp-tf-name", name));
       if (locked) {
+        // 공용 자물쇠(MSUi.lockIcon) — 지표·종목·티어와 같은 하나(ui-marks.test.mjs 가
+        // 이 파일도 스캔한다, 태스크 7 리뷰로 편입). 예전엔 여기서 24×24/rx=2 짜리를
+        // 따로 그렸다 — "잠김"이 화면마다 다른 모양이면 세 가지 다른 뜻처럼 보인다.
         var lock = MSUi.el("span", "rp-lock");
-        lock.innerHTML = lockSvg() + MSStr.t.rpLocked;
+        var lockIc = MSUi.el("span", "rp-lock-ic");
+        lockIc.innerHTML = MSUi.lockIcon();
+        lock.appendChild(lockIc);
+        lock.appendChild(MSUi.el("span", null, MSStr.t.rpLocked));
         row.appendChild(lock);
       } else if (skeleton) {
         var sk = MSUi.el("span", "rp-sk");

@@ -273,7 +273,11 @@ body {
 .rp-tf-row { display:flex; align-items:center; justify-content:space-between; height:44px; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
 .rp-tf-name { color:var(--ink-2); font-weight:600; }
 .rp-tf-val { color:var(--ink-3); font-variant-numeric:tabular-nums; }
-.rp-lock { display:inline-flex; align-items:center; color:var(--ink-5); font-size:var(--fs-caption); }
+/* 잠긴 타임프레임 행 — 공용 자물쇠(MSUi.lockIcon, 14×14) + 라벨. gap 이 둘 사이 간격을
+   준다 — 예전 lockSvg() 는 svg 자체에 margin-right 인라인 스타일을 박아 뒀었다(그 아이콘을
+   쓰던 곳에서만 통하던 값) — 공용 아이콘은 그런 자기 스타일을 갖지 않으므로 부모가 gap 으로 준다. */
+.rp-lock { display:inline-flex; align-items:center; gap:4px; color:var(--ink-5); font-size:var(--fs-caption); }
+.rp-lock-ic { display:flex; flex:0 0 auto; }
 
 .rp-cta { display:block; width:100%; min-height:48px; margin-top:4px; border-radius:11px; border:1px solid var(--border); background:transparent; color:var(--ink-4); font:inherit; font-weight:600; font-size:var(--fs-body); }
 .rp-cta[disabled] { opacity:.6; }
