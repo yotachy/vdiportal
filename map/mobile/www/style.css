@@ -183,7 +183,7 @@ body {
 .rp-evi-seg.on { background:var(--steel); }
 
 .rp-verdict-wrap { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
-.rp-verdict { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline); }
+.rp-verdict-word { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline); }
 .rp-verdict.bull { color:var(--bull); }
 .rp-verdict.bear { color:var(--bear-text); }
 .rp-verdict.neutral { color:var(--ink-2); }
@@ -207,7 +207,7 @@ body {
 
 /* 방향 집계 + 3구간 바(시안 2a). 판정 오른쪽에 붙어 확신 수치의 근거를 한눈에 보여준다. */
 .rp-tally { margin-left:auto; text-align:right; flex:0 0 auto; }
-.rp-tally-txt { font-size:var(--fs-caption); color:var(--ink-4); white-space:nowrap; }
+.rp-tally-txt { font-size:var(--fs-caption); letter-spacing:var(--ls-caption); color:var(--ink-4); white-space:nowrap; }
 .rp-tally-bar { display:flex; gap:2px; width:112px; margin-top:5px; }
 .rp-tally-seg { height:3px; border-radius:99px; }
 .rp-tally-seg.is-up { background:var(--bull); }

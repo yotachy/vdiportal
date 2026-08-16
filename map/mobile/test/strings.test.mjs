@@ -275,6 +275,12 @@ test("내부 키 면제 목록은 늘어나지 않는다 — 늘리는 건 리�
   ["text", "label", "title", "head", "body", "name", "desc", "msg"].forEach(n =>
     assert.ok(KEY_PROPS.indexOf(n) < 0, "화면 문구 자리(" + n + ")를 면제 목록에 넣었다"));
 });
+// console.warn/error/log 의 인자는 **화면이 아니다.** 개발자가 읽는 진단이고, 영어인 편이
+// 스택트레이스·이슈 검색과 맞는다. 위치로 증명된다는 점에서 isComparisonOperand 와 같은 종류다.
+// (이 예외가 생긴 계기: 네트워크 실패 시 브라우저의 "Failed to fetch" 가 화면에 그대로 떠서
+// 그걸 콘솔로 내리고 화면엔 번역 문구를 냈더니, 그 콘솔 접두가 이 관문에 걸렸다.)
+function isConsoleArg(before) { return /console\.[a-z]+\s*\([^)]*$/.test(before); }
+
 function isInternalKeyProp(before) {
   return new RegExp("(?:^|[^\\w])(?:" + KEY_PROPS.join("|") + ")\\s*:\\s*$").test(before);
 }
@@ -317,6 +323,7 @@ function scanSrcForEnglish(src, label) {
       var before = code.slice(0, m.index);
       if (isComparisonOperand(before)) continue;                       // 내부 키 대조
       if (isInternalKeyProp(before)) continue;                         // kind:/runType: 등 조회 키
+      if (isConsoleArg(before)) continue;                              // console.* 인자 — 화면이 아니다
       if (CODE_TOKEN_RE.test(inner)) continue;                       // CSS 조각/선택자/커스텀 프로퍼티
       if (SCREENS_LITERAL_EXCEPTIONS.has(inner)) continue;           // 개별 예외
       const words = untranslatedWords(inner);

@@ -25,11 +25,11 @@
   var FULL_PANELS = ["price", "volume", "rsi", "macd"];
   var FULL_OVERLAYS = ["bollinger", "ma", "rsiBadge", "volumeBadge"];
   var CHART_TIERS = {
-    basic:  { price: "line",   cone: false, lines: ["p1"],                panels: ["price"], overlays: [] },
-    full:   { price: "candle", cone: true,  lines: ["p1", "p3"],          panels: FULL_PANELS, overlays: FULL_OVERLAYS },
+    basic:  { price: "line",   cone: false, lines: ["p1"],                panels: ["price"], overlays: [], legend: false },
+    full:   { price: "candle", cone: true,  lines: ["p1", "p3"],          panels: FULL_PANELS, overlays: FULL_OVERLAYS, legend: true },
     // 전문은 심화의 모든 레이어를 유지한 채 2차선을 더한다 — 한 겹이라도 빼면 5스쿱 낸 사람이
     // 손해다(인벤토리 §3). 그래서 같은 배열을 참조한다: 심화가 늘면 전문도 자동으로 는다.
-    custom: { price: "candle", cone: true,  lines: ["p1", "p2", "p3"],    panels: FULL_PANELS, overlays: FULL_OVERLAYS }
+    custom: { price: "candle", cone: true,  lines: ["p1", "p2", "p3"],    panels: FULL_PANELS, overlays: FULL_OVERLAYS, legend: true }
   };
 
   function specOf(tier) {

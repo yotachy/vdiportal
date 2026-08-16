@@ -111,6 +111,36 @@ const IDENTITY_ROLES = ["headline", "title", "section", "figure", "overline"];
 // 곧 "척도 토큰"이다 — 열거가 아니라 차집합으로 구한다.
 const ROLE_NAMES = IDENTITY_ROLES.concat(["body", "sub", "caption", "display"]);
 
+// 타이포는 **글자 요소**가 갖는다 — 레이아웃 상자가 아니라.
+//
+// em 자간은 자식에게 **절대 px 로 상속**된다. 44px 헤드라인이 −0.05em(=−2.2px)을 들고 있으면
+// 그 안의 11.5px 캡션도 −2.2px 를 물려받아(글자 크기의 −19%) 글자가 서로 겹친다.
+// 실제로 그랬다: .rp-verdict 가 display:flex 컨테이너이면서 헤드라인 타이포를 들고 있어
+// 집계 문구("3 상승 · 0 횡보 · 2 하락")가 뭉개졌다 — 1457건이 초록인 채로, 헤드리스
+// 스크린샷에서야 보였다. 관문이 못 보던 종류이므로 여기 규칙으로 세운다.
+//
+// 규칙: display:flex/grid 인 규칙은 **정체성 역할의 자간**을 갖지 않는다.
+//
+// 왜 정체성 역할만인가 — 해악은 자간 자체가 아니라 **크기 격차**에서 온다. 44px 헤드라인의
+// −0.05em 은 −2.2px 이고, 그게 11.5px 자식에게 실리면 −19% 다. 반면 배지(.rp-tier, 캡션
+// 크기 + .04em)처럼 상자와 자식의 크기가 같으면 상속돼도 달라지는 게 없다 — 그런 것까지
+// 막으면 가운데 정렬 하나 하려고 span 을 덧대게 되고, 그건 규칙이 아니라 세금이다.
+// 정체성 역할(헤드라인·display·제목·섹션·큰 수치)이 곧 "큰 글자"의 목록이라 그 다섯만 본다.
+const LAYOUT_DISPLAY = /display\s*:\s*(?:inline-)?(?:flex|grid)\b/;
+const BIG_LS = /--ls-(headline|display|title|figure|section)\b/;
+test("레이아웃 상자(flex·grid)는 큰 글자의 자간을 들고 있지 않다 — em 자간이 자식에게 px 로 상속된다", () => {
+  const bad = [];
+  ruleBlocks(BODY).forEach(b => {
+    if (!LAYOUT_DISPLAY.test(b.body)) return;
+    const ls = parseDecls(b.body).filter(d => d.prop === "letter-spacing").pop();
+    if (!ls || !BIG_LS.test(ls.value)) return;
+    bad.push(lineOf(b.index) + " " + b.selector.trim() + ": " + ls.value);
+  });
+  assert.deepEqual(bad, [],
+    "flex/grid 상자가 자간을 들고 있다 " + bad.length + "건:\n" + bad.join("\n") +
+    "\n→ 그 안의 작은 글자가 큰 자간을 px 로 물려받아 겹친다. 자간은 글자 요소로 옮길 것.");
+});
+
 // 척도 토큰은 소비자가 있어야 한다. 역할 triple 은 선언된 디자인 어휘라 지금 안 쓰여도 남지만,
 // 척도는 "리터럴을 옮길 곳"으로 만든 것이라 소비자가 0 이면 그냥 죽은 값이다 —
 // P1 Ruling B 가 --fs-figure 에 대해 한 지적과 같다: 아무도 안 쓰는 토큰은 있으나 마나가 아니라

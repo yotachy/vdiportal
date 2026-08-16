@@ -442,7 +442,15 @@
         finishData();
       }).catch(function (err) {
         state = "error";
-        errInfo = { message: (err && err.message) || MSStr.t.rpUnknownErr, retry: !isBarsShort(err) };
+        // 예외 메시지를 그대로 화면에 걸지 않는다. 우리 것은 "봉이 모자란다" 하나뿐이고
+        // 나머지는 전부 내부 진단이거나 브라우저 문구다 — 실제로 네트워크가 끊겼을 때
+        // "Failed to fetch" 가 한국어 앱에 영어로 떴다(헤드리스 스크린샷에서 발견).
+        // 문자열 관문은 이걸 볼 수 없다: 우리 소스의 리터럴이 아니라 런타임이 만든 값이다.
+        // 진단은 콘솔로 남기고 화면엔 번역된 문구를 낸다.
+        var barsShort = isBarsShort(err);
+        if (!barsShort && err && err.message && typeof console !== "undefined" && console.warn)
+          console.warn("[report] load failed:", err.message);
+        errInfo = { message: barsShort ? err.message : MSStr.t.rpUnknownErr, retry: !barsShort };
         draw();
       });
     }
@@ -459,7 +467,9 @@
         state = "ready";
       } catch (e) {
         state = "error";
-        errInfo = { message: MSStr.t.rpAnalyzeErr + ((e && e.message) || e), retry: true };
+        // 분석 예외도 같다 — 엔진 내부 문구가 영어로 새 나가지 않게 한다.
+        if (e && typeof console !== "undefined" && console.warn) console.warn("[report] analyze failed:", e);
+        errInfo = { message: MSStr.t.rpAnalyzeErr, retry: true };
       }
       draw();
     }
@@ -564,7 +574,11 @@
 
       var conf = MSReportModel.confidence(ForgeCore, pr, v.regime);
       var head = MSUi.el("div", "rp-verdict " + dirCls);
-      head.appendChild(MSUi.el("span", null, verdictWord(v.regime)));
+      // 타이포는 **글자 요소**가 갖는다(.rp-verdict-word). 예전엔 flex 컨테이너(.rp-verdict)가
+      // 헤드라인 자간(−0.05em)을 들고 있었는데, em 자간은 자식에게 **절대 px 로 상속**된다 —
+      // 44px 기준 −2.2px 가 11.5px 짜리 집계 문구에 그대로 실려 글자가 서로 겹쳤다(헤드리스
+      // 스크린샷에서 발견). 컨테이너에 타이포를 얹으면 그 안의 모든 작은 글자가 인질이 된다.
+      head.appendChild(MSUi.el("span", "rp-verdict-word", verdictWord(v.regime)));
       if (conf != null) head.appendChild(MSUi.el("span", "rp-conf-pct", conf + "%"));
       // 시안 2a 의 "17 up · 6 flat · 9 down" + 3구간 바. 방향 개수는 레전드 행의 tone 에서 센다 —
       // 판정에 실제로 쓰인 지표들이라 다른 출처를 새로 만들지 않는다.
@@ -694,9 +708,19 @@
       var cv = document.createElement("canvas");
       wrap.appendChild(cv);
       // 크로스헤어 값 표시는 **차트존의 일부**다 — 예전엔 SIGNALS 섹션이 이 자리를 들고 있어서
-      // (Basic 만) 그 섹션을 빼는 순간 값 표시가 함께 사라졌다. 차트에 딸린 것을 차트가 갖는다.
-      var legend = MSUi.el("div", "rp-lg");
-      wrap.appendChild(legend);
+      // 그 섹션을 빼는 순간 값 표시가 함께 사라졌다. 차트에 딸린 것을 차트가 갖는다.
+      //
+      // 단 **기본 티어에는 없다.** 시안 18a 는 블록 3개(판정·차트·범위)이고 지표 판독은
+      // 심화가 파는 것이다. T7 에서 레전드를 차트 안으로 옮기면서 기본에도 딸려 들어가,
+      // 5지표 판독 7행이 무료 화면에 그대로 떴다(헤드리스 스크린샷에서 발견) — 3단 비교표의
+      // "차트 위 표식: 없음"과 정면으로 어긋난다.
+      // 티어 사양은 여기서 다시 읽는다 — paintChart 의 지역 변수 spec 은 이 함수 밖이다.
+      // (처음엔 그걸 그대로 참조했다가 ReferenceError 로 draw() 가 통째로 죽었고, 화면엔
+      // "불러오지 못했습니다"만 떴다. 로드 실패로 위장되는 종류의 고장이라 테스트로는
+      // 안 보였다 — 헤드리스 스크린샷이 잡았다.)
+      var cspec = MSChartDraw.specOf(tier);
+      var legend = null;
+      if (cspec.legend) { legend = MSUi.el("div", "rp-lg"); wrap.appendChild(legend); }
       chartRefs = { wrap: wrap, cv: cv, legend: legend };
       return wrap;
     }
