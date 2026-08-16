@@ -1,5 +1,9 @@
 {
-  "generatedAt": "2026-07",
+  "generatedAt": "2026-08",
+  "engineVersion": "1.11.0",
+  "indicatorCount": 32,
+  "graphIndicators": 19,
+  "fixtures": "87:ce6407fe69c9",
   "universe": [
     {
       "symbol": "000660",
@@ -416,6 +420,12 @@
       "points": 152
     },
     {
+      "symbol": "SPY",
+      "tf": "1day",
+      "regime": "bull",
+      "points": 475
+    },
+    {
       "symbol": "T",
       "tf": "1day",
       "regime": "bear",
@@ -519,38 +529,38 @@
     }
   ],
   "overall": {
-    "directionHitRate": 0.5805571790375998,
-    "baselineAlwaysUp": 0.6078013733468972,
+    "directionHitRate": 0.5820804810952594,
+    "baselineAlwaysUp": 0.6095956907080893,
     "coinFlip": 0.5,
-    "bullHitRate": 0.6150851968066092,
-    "bearHitRate": 0.4259028642590286,
-    "calibrationECE": 0.0012607950215900523,
-    "coneCoverage": 0.7774320548641097,
-    "priceMAE": 0.1740954107946578,
+    "bullHitRate": 0.6169871794871795,
+    "bearHitRate": 0.4247974638957379,
+    "calibrationECE": 0.001920177661005309,
+    "coneCoverage": 0.7784241969284664,
+    "priceMAE": 0.17251134315358546,
     "pnl": {
       "startEquity": 10000,
-      "nFixtures": 86,
-      "avgReturn": 114.8797453015846,
-      "medianReturn": 3.0409161806238245,
-      "avgFinalEquity": 1158797.453015846,
-      "avgBuyHold": 178.00792007958904,
+      "nFixtures": 87,
+      "avgReturn": 113.60543584141621,
+      "medianReturn": 3.2517985611510785,
+      "avgFinalEquity": 1146054.3584141622,
+      "avgBuyHold": 176.00855755317642,
       "beatBuyHold": 40,
-      "winRate": 0.5951697752271641,
-      "avgWin": 0.18973960773197449,
-      "avgLoss": -0.10705739205097957,
-      "trades": 4182,
-      "avgMDD": -0.4812835828623238,
+      "winRate": 0.5976067573908963,
+      "avgWin": 0.1866670469915174,
+      "avgLoss": -0.10647389302477402,
+      "trades": 4262,
+      "avgMDD": -0.480726263297057,
       "worstMDD": -0.9231001206272618
     }
   },
   "byRegime": {
     "bull": {
-      "n": 25615,
-      "directionHitRate": 0.5998643472709863,
-      "baselineAlwaysUp": 0.6325294140640269,
-      "bullHitRate": 0.6369196029543209,
-      "bearHitRate": 0.39296033622274756,
-      "lift": -0.0326650667930406
+      "n": 26090,
+      "directionHitRate": 0.6013788780946412,
+      "baselineAlwaysUp": 0.6342773812264948,
+      "bullHitRate": 0.6387555391432792,
+      "bearHitRate": 0.3918219461697723,
+      "lift": -0.03289850313185361
     },
     "bear": {
       "n": 3824,
@@ -571,12 +581,12 @@
   },
   "byTimeframe": {
     "1day": {
-      "n": 18691,
-      "fixtures": 54,
-      "directionHitRate": 0.545929018789144,
-      "baselineAlwaysUp": 0.57327262988752,
-      "coneCoverage": 0.7794125514953721,
-      "lift": -0.02734361109837602
+      "n": 19166,
+      "fixtures": 55,
+      "directionHitRate": 0.5493410478945676,
+      "baselineAlwaysUp": 0.5771219639592583,
+      "coneCoverage": 0.7810184702076594,
+      "lift": -0.027780916064690686
     },
     "1month": {
       "n": 1723,
@@ -2460,6 +2470,33 @@
       "buyHoldReturn": -0.1674061248782599
     },
     {
+      "symbol": "SPY",
+      "tf": "1day",
+      "from": "2006-08-18",
+      "to": "2026-07-10",
+      "points": 475,
+      "regime": "bull",
+      "directionHitRate": 0.6831896551724138,
+      "coneCoverage": 0.8442105263157895,
+      "priceMAE": 0.06747598647313598,
+      "baselineAlwaysUp": 0.728421052631579,
+      "pnl": {
+        "startEquity": 10000,
+        "finalEquity": 50148.2226693494,
+        "totalReturn": 4.0148222669349405,
+        "winRate": 0.725,
+        "avgWin": 0.05481181107776322,
+        "avgLoss": -0.06157099068995561,
+        "maxDrawdown": -0.43279678068410476,
+        "trades": 80,
+        "wins": 58,
+        "losses": 22,
+        "sumWin": 3.179085042510267,
+        "sumLoss": -1.3545617951790234
+      },
+      "buyHoldReturn": 4.063380281690141
+    },
+    {
       "symbol": "T",
       "tf": "1day",
       "from": "2006-08-18",
@@ -2923,23 +2960,23 @@
     {
       "binLo": 50,
       "binHi": 60,
-      "predicted": 0.5763612387272418,
-      "actual": 0.5781010719754976,
-      "n": 11754
+      "predicted": 0.5763824768323504,
+      "actual": 0.5795282224094356,
+      "n": 11870
     },
     {
       "binLo": 60,
       "binHi": 70,
-      "predicted": 0.625039350088855,
-      "actual": 0.6242193450114242,
-      "n": 19695
+      "predicted": 0.6251977654745873,
+      "actual": 0.6261658935607761,
+      "n": 20049
     },
     {
       "binLo": 70,
       "binHi": 80,
-      "predicted": 0.7044680851063829,
-      "actual": 0.6382978723404256,
-      "n": 47
+      "predicted": 0.7046153846153846,
+      "actual": 0.6153846153846154,
+      "n": 52
     }
   ]
 }

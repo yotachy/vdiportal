@@ -361,6 +361,8 @@ body {
    헤어라인 하나로만 앞 섹션과 구분한다(프로젝트 전역: 좌측 accent bar 금지). */
 .wal-legal { margin-top:28px; padding-top:16px; border-top:1px solid var(--hairline);
              font-size:10.5px; color:var(--ink-5); line-height:1.6; }
+/* 엔진 버전 — 고지문 아래 한 줄. 사실 표기라 고지문보다 더 물러서 있어야 한다(구분선 없음). */
+.wal-engine { margin-top:6px; font-size:10.5px; color:var(--ink-5); font-variant-numeric:tabular-nums; }
 
 /* ===== 단계 선택 바텀시트(시안 7a) ===== */
 .sheet-scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; z-index:20; }
