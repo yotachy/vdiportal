@@ -58,24 +58,19 @@ body {
 #app > .scr { padding-top:var(--safe-top); }   /* 1단 — 화면이 곧 최상단(스크롤러는 body) */
 .wl-toolbar { top:var(--safe-top); }           /* 그 위에 sticky 로 붙는 유일한 요소 */
 
-/* ===== 워치리스트 — 시안 1a 의 치수를 현 토큰으로(핸드오프 README §2 "redraw with the tokens") ===== */
+/* ===== 워치리스트 — 시안 14a 의 치수를 현 토큰으로 ===== */
 .wl-head { display:flex; align-items:center; gap:10px; padding:12px 0 10px; border-bottom:1px solid var(--border); }
 .wl-brand-mark { display:flex; color:var(--gold); flex:0 0 22px; }
 .wl-brand { flex:1 1 auto; font-size:var(--fs-section); font-weight:700; letter-spacing:-.01em; }
-.wl-brand-gold { color:var(--gold); }             /* 목업 1a — "Money" + 골드 "Scoop" */
-/* Scan 은 아웃라인 pill — 시안 1a 는 골드 버튼이 아니다.
-   ::after 는 6px 원형 점이지 '항목 좌측 세로 컬러 라인'이 아니다 — 금지 규칙과 무관.
-   목업은 점이 "Scan" 텍스트 오른쪽이라 ::before 가 아니라 ::after 다. */
-.wl-scan { display:inline-flex; align-items:center; gap:6px; padding:5px 9px; border:1px solid var(--border-strong);
-           border-radius:99px; background:transparent; color:var(--steel); font:inherit; font-size:var(--fs-caption); }
-.wl-scan::after { content:""; width:6px; height:6px; border-radius:99px; background:var(--bull); }
-.wl-scan[disabled] { opacity:.6; }
+.wl-brand-gold { color:var(--gold); }             /* 목업 14a — "Money" + 골드 "Scoop" */
 
-/* 검색창 + 그룹 칩을 묶어 상단 고정한다(핸드오프 README §2 "Sticky search, group chips").
-   flex column 은 sticky 컨테이너를 새 블록 포맷 컨텍스트로 만들어 자식(.wl-search)의 margin-top 이
-   부모 밖으로 새는 마진 병합을 막는다 — 안 막으면 배경이 스크롤되는 행을 가리지 못하고 틈이 보인다.
+/* 검색창 + 그룹 칩을 묶어 상단 고정한다. flex column 은 sticky 컨테이너를 새 블록 포맷
+   컨텍스트로 만들어 자식(.wl-search)의 margin-top 이 부모 밖으로 새는 마진 병합을 막는다 —
+   안 막으면 배경이 스크롤되는 행을 가리지 못하고 틈이 보인다.
    배경(--bg)은 필수 — 없으면 뒤로 스크롤되는 행이 비쳐 보인다. 2단에서는 스크롤 컨테이너가 .pane 이라
-   그 안에서 고정된다(추가 배선 불필요, sticky 는 가장 가까운 스크롤 조상을 자동으로 찾는다). */
+   그 안에서 고정된다(추가 배선 불필요, sticky 는 가장 가까운 스크롤 조상을 자동으로 찾는다).
+   시안 14a 는 4건뿐인 아침 목록이라 검색·칩을 그리지 않지만, 종목이 늘면 wlNoMatch 로
+   이어지는 필터가 여전히 있어야 해서(범위 밖 상태 보존) 남겨두고 톤만 맞춘다. */
 .wl-toolbar { position:sticky; top:0; z-index:2; background:var(--bg); display:flex; flex-direction:column; }
 
 .wl-search { display:flex; align-items:center; gap:8px; height:38px; padding:0 12px; margin-top:10px;
@@ -88,45 +83,43 @@ body {
 .wl-chips { display:flex; flex-wrap:wrap; gap:6px; padding:10px 0 2px; }
 .wl-chip { padding:6px 11px; border-radius:99px; background:var(--sheet); border:1px solid var(--border);
            color:var(--steel); font:inherit; font-size:var(--fs-caption); }
-/* 활성 칩은 시안 1a 그대로 골드다. README 삼색 규칙("Basic 화면에 골드 0회")과 충돌하지만
-   같은 README 가 Basic 리포트에 gold current-price tag 를 지시하므로 규칙이 문자 그대로 지켜지지 않는다.
-   목업을 따른다(설계서 §2.3). */
 .wl-chip.on { background:var(--gold); border-color:var(--gold); color:var(--gold-ink); font-weight:700; }
 
-/* 목록은 화면 가장자리에 더 붙는다 — 시안 1a 는 좌우 14px(리포트·지갑은 20px 그대로).
+/* "오늘" 섹션 헤더 — 시안 14a. 결과 카드(어제 본 예측, P3)는 이 섹션 위에 들어갈 자리지만
+   지금은 이 섹션이 화면 최상단 콘텐츠다. */
+.wl-sec { display:flex; align-items:center; justify-content:space-between; padding:14px 0 10px; }
+.wl-sec-title { font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); }
+/* 스캔 pill — 최소 탭 44px(시안 실측 32px 보다 여유를 둔다, 접근성 규정이 우선). */
+.wl-scan { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 13px; border:0;
+           border-radius:99px; background:var(--track); color:var(--ink-2); font:inherit; font-size:var(--fs-sub); font-weight:600; }
+.wl-scan-ico { display:flex; }
+.wl-scan[disabled] { opacity:.6; }
+
+/* 목록은 화면 가장자리에 더 붙는다 — 시안 14a 는 좌우 14px(리포트·지갑은 20px 그대로).
    .scr 의 20px 를 상쇄해 행과 구분선이 폭을 다 쓰게 한다. 6px×2 가 이름 칸의 잘림을 줄인다. */
 .wl-rows { margin:0 -6px; }
 .wl-rows .wl-row { padding:0 6px; }
-/* 구분선은 border-top 이다(시안 1a) — 마지막 행 아래로 선이 내려가 리스트가 닫혀 보이는 것을 막는다. */
-.wl-row { display:flex; align-items:center; gap:11px; height:64px; border-top:1px solid var(--hairline); }
-/* 신호등. 링(box-shadow)은 선택된 행에만 — 시안 1a 는 첫 행(선택)에만 링을 두고 나머지는 민짜다.
-   전 행에 링을 두면 목록 전체가 웅성거려 정작 선택이 안 보인다. */
-.wl-dot { width:8px; height:8px; border-radius:99px; flex:0 0 8px; background:var(--neutral); }
-.wl-dot.bull { background:var(--bull); }
-.wl-dot.bear { background:var(--bear); }
+/* 구분선은 border-top 이다(시안 14a) — 마지막 행 아래로 선이 내려가 리스트가 닫혀 보이는 것을 막는다. */
+.wl-row { display:flex; align-items:center; gap:12px; height:64px; border-top:1px solid var(--hairline); }
+/* 읽음 상태 점 — 방향(bull/bear)이 아니라 "이 판정을 봤는가"를 그린다(시안 14a). 목록은
+   판정 방향을 더 이상 흘리지 않는다 — 확신 배지를 뺀 것과 같은 결정. 스캔 결과가 아예 없으면
+   (rec 없음) 클래스가 안 붙어 채움도 링도 없다. "오래됨"(3번째 상태)은 아직 없다 — store.js
+   viewedScanKey 주석 참고. */
+.wl-dot { width:8px; height:8px; border-radius:99px; flex:0 0 8px; background:none; }
+.wl-dot.unread { background:var(--action); }              /* 새 판정 — 바이올렛 채움 */
+.wl-dot.read { background:none; border:1.5px solid var(--ink-5); }  /* 읽음 — 빈 링 */
 .wl-row.is-sel .wl-dot { box-shadow:0 0 0 3px var(--track); }
-.wl-row.is-sel .wl-dot.bull { box-shadow:0 0 0 3px var(--bull-soft); }
-.wl-row.is-sel .wl-dot.bear { box-shadow:0 0 0 3px var(--bear-soft); }
-.wl-id { flex:0 0 74px; min-width:0; }
-.wl-sym { font-size:var(--fs-body); font-weight:700; letter-spacing:-.01em; }
-.wl-name { font-size:var(--fs-caption); color:var(--ink-5); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.wl-spark { flex:0 0 64px; height:20px; }
-.wl-px { flex:1 1 auto; text-align:right; }
+.wl-id { flex:1 1 auto; min-width:0; }
+.wl-title { font-size:var(--fs-body); font-weight:700; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wl-meta { font-size:var(--fs-caption); color:var(--ink-5); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wl-px { flex:0 0 auto; text-align:right; }
 .wl-price { font-size:var(--fs-body); font-weight:600; }
-.wl-chg { font-size:var(--fs-caption); margin-top:2px; }
+.wl-chg { font-size:var(--fs-caption); margin-top:4px; }
 .wl-chg.up { color:var(--bull); } .wl-chg.dn { color:var(--bear-text); }
-/* 확신 배지 — 엔진 출력이라 색을 갖는 몇 안 되는 요소다 */
-.wl-badge { flex:0 0 52px; text-align:right; }
-.wl-badge:not(:empty) { padding:3px 6px; border-radius:4px; font-size:var(--fs-caption); font-weight:700; text-align:center; }
-.wl-badge.bull { background:var(--bull-soft); color:var(--bull); }
-.wl-badge.bear { background:var(--bear-soft); color:var(--bear-text); }
-/* steel 틴트 — 방향(bull/bear)과 다른 양(up, 방향 무관 상승확률)이라 색으로 구분한다.
-   삼색 체계의 "steel = Basic·미확정"과도 맞는다. */
-.wl-badge.neutral { background:var(--steel-soft); color:var(--steel); }
 .wl-asof { font-size:var(--fs-caption); color:var(--ink-5); }
 /* 목록 마지막 행의 하단 헤어라인과 이 버튼 테두리가 맞닿아 한 덩어리로 읽힌다.
    2단 목록 칸(255px)처럼 좁고 짧은 열에서 특히 두드러진다. */
-/* 시안 1a 의 Add 는 하단 바에 전폭 48px 골드 아웃라인이다 — 작은 좌측 정렬 고스트 버튼이 아니다.
+/* 시안 14a 의 Add 는 하단 바에 전폭 48px 골드 아웃라인이다 — 작은 좌측 정렬 고스트 버튼이 아니다.
    목록 마지막 행의 헤어라인과 맞닿지 않도록 자기 위에 경계를 갖는다. */
 .wl-add { display:flex; align-items:center; justify-content:center; width:100%;
           margin-top:0; padding-top:12px; height:auto; border:0; border-radius:0; background:none;
@@ -312,10 +305,6 @@ body {
 .ms-pill-ico { color:var(--gold); }
 .ms-pill.is-empty .ms-pill-n { min-width:1ch; }
 
-/* Scan 이 아이콘으로 줄었다 — 헤더에 필이 들어와 자리가 없다. 스캔 중에는 텍스트로 늘어난다. */
-.wl-scan.is-ico { padding:5px 8px; min-width:30px; justify-content:center; }
-.wl-scan.is-ico::after { content:none; }
-
 /* 섹션 오버라인 — 시안이 Earn/Spend 같은 구획 머리에 쓰는 형태(10.5px · .14em · 대문자) */
 .overline { font-size:var(--fs-overline); letter-spacing:.14em; text-transform:uppercase; color:var(--ink-5); font-weight:600; }
 
@@ -437,9 +426,6 @@ body.ms-dual .pane {
 body.ms-dual .pane-list { border-right:1px solid var(--hairline-2); }
 /* 목록 칸은 255px 다 — 기본 20px 좌우 패딩이면 콘텐츠가 215px 로 남는다 */
 body.ms-dual .pane-list .scr { padding:0 14px 24px; }
-/* A′ 의 핵심: 스파크라인 64px 를 덜어 차트에 돌린다. 확신 배지(52px)는 남긴다 —
-   엔진 출력이고 목록에서 색을 갖는 유일한 요소라 이것까지 빼면 목록이 회색 덩어리가 된다. */
-body.ms-dual .pane-list .wl-spark { display:none; }
 /* 2단엔 '뒤로'가 없다 — 목록이 옆에 그대로 있다 */
 body.ms-dual .pane-report .rp-back { display:none; }
 /* 선택 강조는 배경색만. 좌측 세로 컬러 라인 금지(프로젝트 규율). steel 로 내린다 — 활성 칩이 골드가 되어

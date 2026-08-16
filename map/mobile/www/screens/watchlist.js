@@ -4,7 +4,6 @@
   "use strict";
 
   var LONGPRESS_MS = 600;
-  var SPARK_W = 64, SPARK_H = 20;
   // 검색어·활성 칩은 모듈 스코프(render() 밖)에 둔다 — render() 는 화면을 열 때마다 새로 호출되고
   // (예: 리포트 → 뒤로가기), 함수 지역 변수였다면 그 왕복마다 초기화돼 입력이 사라진다.
   // 모듈 스코프는 스크립트 로드당 한 번만 생기므로 여러 render() 호출을 가로질러 살아남는다.
@@ -89,6 +88,11 @@
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">' +
         '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
     }
+    // 시안 14a — "오늘" 섹션 헤더 옆 스캔 버튼 아이콘(리프레시 글리프)
+    function scanSvg() {
+      return '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" width="12" height="12">' +
+        '<path d="M11.5 7a4.5 4.5 0 1 1-1.4-3.2M11.5 1.5v3h-3"/></svg>';
+    }
     function chipLabel(key) {
       return key === "all" ? MSStr.t.wlChipAll
         : key === "US" ? MSStr.t.wlChipUS
@@ -98,11 +102,19 @@
 
     function updateScanBtn() {
       if (!scanBtnEl) return;
-      // 평상시엔 아이콘만(헤더에 필이 들어와 자리가 없다), 스캔 중에는 진행이 보여야 하므로 텍스트로 늘어난다.
+      // 이제 스캔 버튼은 "오늘" 섹션 헤더에 있어 헤더 필과 자리를 다투지 않는다(시안 14a) —
+      // 평상시에도 아이콘+"스캔"을 함께 보여준다. 스캔 중에는 진행 텍스트로 바뀐다.
       var busy = !!scanRun;
-      scanBtnEl.textContent = busy ? (MSStr.t.wlScanning + scanRun.done + "/" + scanRun.total) : MSStr.t.wlScanIco;
+      scanBtnEl.innerHTML = "";
+      if (busy) {
+        scanBtnEl.appendChild(document.createTextNode(MSStr.t.wlScanning + scanRun.done + "/" + scanRun.total));
+      } else {
+        var ico = MSUi.el("span", "wl-scan-ico");
+        ico.innerHTML = scanSvg();
+        scanBtnEl.appendChild(ico);
+        scanBtnEl.appendChild(MSUi.el("span", null, MSStr.t.wlScan));
+      }
       scanBtnEl.setAttribute("aria-label", MSStr.t.wlScan);
-      scanBtnEl.classList.toggle("is-ico", !busy);
       scanBtnEl.disabled = busy;
     }
 
@@ -133,12 +145,6 @@
       brand.appendChild(MSUi.el("span", "wl-brand-gold", MSStr.t.wlBrandB));
       head.appendChild(brand);
       head.appendChild(MSWalletScreen.pill(function () { MSApp.go("wallet"); }));
-      if (list.length) {
-        scanBtnEl = MSUi.el("button", "wl-scan");
-        scanBtnEl.addEventListener("click", startScan);
-        head.appendChild(scanBtnEl);
-        updateScanBtn();
-      }
       scr.appendChild(head);
 
       if (!list.length) {
@@ -186,6 +192,17 @@
       toolbar.appendChild(chipsEl);
       scr.appendChild(toolbar);
 
+      // "오늘" 섹션 헤더(시안 14a) — 어제 본 예측 결과 카드는 P3 라 이 섹션이 화면 최상단
+      // 콘텐츠다(헤더 바로 다음). 스캔 버튼이 여기로 옮겨왔다 — 예전엔 헤더 필과 자리를
+      // 다퉈 아이콘만 남았지만, 이제 자기 줄이 있어 아이콘+라벨을 함께 보여준다.
+      var sec = MSUi.el("div", "wl-sec");
+      sec.appendChild(MSUi.el("span", "wl-sec-title", MSStr.t.wlToday));
+      scanBtnEl = MSUi.el("button", "wl-scan");
+      scanBtnEl.addEventListener("click", startScan);
+      sec.appendChild(scanBtnEl);
+      scr.appendChild(sec);
+      updateScanBtn();
+
       rowsEl = MSUi.el("div", "wl-rows");
       scr.appendChild(rowsEl);
 
@@ -203,21 +220,17 @@
       // 두 경로는 서로 대체가 아니라 보완: markSelected 는 "선택만 바뀜"을, 이 줄은 "행 자체가 다시 생김"을 커버한다.
       if (MSApp.current().params.sym === item.sym) btn.classList.add("is-sel");
 
-      btn.appendChild(MSUi.el("span", MSUi.dotClass(rec && rec.dir)));
+      // 읽음 상태(시안 14a) — 판정은 watchlist-model.js(순수), 저장은 store.js 소관.
+      // 방향(bull/bear) 점은 시안에서 뺐다 — 목록이 판정을 흘리면 리포트를 열 이유가 사라진다
+      // (확신 배지를 안 넣는 것과 같은 결정). 되살리지 말 것.
+      var readState = MSWatchlistModel.readState(rec, MSStore.viewedScanKey(item.sym));
+      btn.appendChild(MSUi.el("span", "wl-dot" + (readState ? " " + readState : "")));
 
       var idWrap = MSUi.el("div", "wl-id");
-      idWrap.appendChild(MSUi.el("div", "wl-sym", item.sym));
-      idWrap.appendChild(MSUi.el("div", "wl-name", MSWatchlistModel.shortName(item.name)));
+      idWrap.appendChild(MSUi.el("div", "wl-title", MSWatchlistModel.shortName(item.name)));
+      var metaText = item.sym + (readState ? " · " + (readState === "unread" ? MSStr.t.wlUnread : MSStr.t.wlRead) : "");
+      idWrap.appendChild(MSUi.el("div", "wl-meta", metaText));
       btn.appendChild(idWrap);
-
-      var sparkWrap = MSUi.el("div", "wl-spark");
-      if (rec && rec.spark && rec.spark.length >= 2) {
-        var d = MSUi.sparkPath(rec.spark, SPARK_W, SPARK_H);
-        var stroke = rec.dir === "bull" ? "var(--bull)" : rec.dir === "bear" ? "var(--bear)" : "var(--ink-4)";
-        sparkWrap.innerHTML = '<svg width="' + SPARK_W + '" height="' + SPARK_H + '" viewBox="0 0 ' +
-          SPARK_W + ' ' + SPARK_H + '"><path d="' + d + '" fill="none" stroke="' + stroke + '" stroke-width="1.5"/></svg>';
-      }
-      btn.appendChild(sparkWrap);
 
       var px = MSUi.el("div", "wl-px");
       if (rec) {
@@ -226,14 +239,13 @@
       }
       btn.appendChild(px);
 
-      var bg = MSWatchlistModel.badge(rec);
-      var badgeEl = MSUi.el("div", "wl-badge" + (bg ? " " + bg.tone : ""), bg ? bg.text : "");
-      btn.appendChild(badgeEl);
-
       if (scanFailed[item.sym]) btn.appendChild(MSUi.el("span", "wl-asof", MSStr.t.wlScanFail));
 
       btn.addEventListener("click", function () {
         if (btn._suppressClick) { btn._suppressClick = false; return; }
+        // 열자마자 읽음으로 찍는다 — 다음에 이 스캔 결과를 다시 보면 "읽음"(빈 링), 스캔이
+        // 새로 돌면 scannedAt 이 바뀌어 다시 "새 판정"이 된다(store.js markScanViewed 주석 참고).
+        if (rec && rec.scannedAt) MSStore.markScanViewed(item.sym, rec.scannedAt);
         MSApp.go("report", { sym: item.sym });
       });
       btn.addEventListener("contextmenu", function (e) { e.preventDefault(); });
@@ -293,7 +305,7 @@
           if (!sel.length) return;
           close();
           // 이름을 함께 심는다. 빈 이름이면 store.js 가 name = 심볼로 폴백해 이 행만
-          // 심볼을 두 번 찍고(wl-sym·wl-name), 회사명 검색에서도 이 종목만 빠진다
+          // 심볼을 두 번 찍고(wl-title·wl-meta), 회사명 검색에서도 이 종목만 빠진다
           // (watchlist-model.filter 는 it.name 을 본다). 옛 대화상자 경로가 하던 일이다.
           var it = items[0];
           MSStore.addTicker(it.sym, it.name);

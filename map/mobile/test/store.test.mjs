@@ -58,6 +58,33 @@ test("removeTicker 는 스캔 캐시도 함께 지운다 — 남으면 유령 �
   assert.equal(MSStore.getScan("AAPL"), null, "스캔 캐시가 남았다");
 });
 
+// 워치리스트 읽음 상태(시안 14a) — "언제 봤냐"가 아니라 "어느 스캔을 봤냐"를 저장한다.
+test("viewedScanKey — 표시한 적 없으면 null", () => {
+  MSStore.install(memBackend());
+  assert.strictEqual(MSStore.viewedScanKey("AAPL"), null);
+});
+
+test("markScanViewed → viewedScanKey 왕복, 심볼 대소문자 정규화", () => {
+  MSStore.install(memBackend());
+  MSStore.markScanViewed("aapl", "2026-08-16T00:00:00.000Z");
+  assert.strictEqual(MSStore.viewedScanKey("AAPL"), "2026-08-16T00:00:00.000Z");
+});
+
+test("markScanViewed — 심볼·스캔키가 없으면 아무것도 안 한다", () => {
+  MSStore.install(memBackend());
+  MSStore.markScanViewed("", "2026-08-16T00:00:00.000Z");
+  MSStore.markScanViewed("AAPL", "");
+  assert.strictEqual(MSStore.viewedScanKey("AAPL"), null);
+});
+
+test("removeTicker 는 읽음 표시도 함께 지운다 — 남으면 다시 추가했을 때 유령으로 뜬다", () => {
+  MSStore.install(memBackend());
+  MSStore.addTicker("AAPL", "Apple Inc.");
+  MSStore.markScanViewed("AAPL", "2026-08-16T00:00:00.000Z");
+  assert.equal(MSStore.removeTicker("AAPL"), true);
+  assert.strictEqual(MSStore.viewedScanKey("AAPL"), null, "읽음 표시가 남았다");
+});
+
 test("스캔 레코드 왕복 · 없는 심볼은 null", () => {
   MSStore.install(memBackend());
   const rec = { price: 313.33, chg: -0.42, spark: [1, 2, 3], dir: "neutral", score: 0, confluence: 56, asOf: "2026-08-07", scannedAt: "2026-08-10T02:00:00Z" };

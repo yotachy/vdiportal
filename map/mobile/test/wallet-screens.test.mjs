@@ -279,6 +279,9 @@ function fakeStore(list) {
     addTicker: function (sym, name) { list.push({ sym: sym, name: name || sym }); },
     removeTicker: function () {},
     setScan: function () {}, getScan: function () {},
+    // 읽음 상태(시안 14a) — 이 스위트는 스캔 결과가 없는 행만 다루므로(allScans 가 항상 {})
+    // row() 가 호출은 하되 항상 null 을 받는다. 그래도 함수 자체가 없으면 TypeError 로 죽는다.
+    viewedScanKey: function () { return null; }, markScanViewed: function () {},
     read0: function (k, d) { return d; }, write0: function () {}
   };
 }
@@ -348,9 +351,12 @@ test("watchlist.js 실행 — ＋Add 시트는 document.body 에 붙고, 워치�
 });
 
 // 뮤테이션 (b): onChange 안에서 `onAdded()`(=drawShell) 호출을 빼면 여기서 잡힌다 — 실행해서 확인했다:
-// 그 줄을 지우고 돌려보니 MSStore.addTicker 는 불렸는데(스토어에는 NVDA 가 있음) 화면의 .wl-sym 목록엔
+// 그 줄을 지우고 돌려보니 MSStore.addTicker 는 불렸는데(스토어에는 NVDA 가 있음) 화면의 .wl-meta 목록엔
 // 여전히 AAPL 하나뿐이었다(아래 마지막 단언 실패, 되돌림). 스토어에 값이 들어간 것과 사용자 눈에
 // 보이는 것은 별개라는 걸 실행으로 잡는다.
+// 시안 14a 재스킨으로 심볼은 .wl-sym 이 아니라 .wl-meta 에 그려진다(위 = 회사명 .wl-title,
+// 아래 = "심볼[· 상태]" .wl-meta). 이 fakeStore 는 allScans() 가 항상 {} 라 rec 이 없고,
+// 상태 접미사도 안 붙어 .wl-meta 텍스트는 심볼 그대로다.
 test("watchlist.js 실행 — 종목을 고르면 시트가 닫히고, 새 심볼이 재렌더된 목록에 실제로 나타난다", () => {
   withWatchlistDom({ store: fakeStore([{ sym: "AAPL", name: "Apple" }]) }, function (root, doc) {
     MSWatchlist.render(root);
@@ -363,14 +369,14 @@ test("watchlist.js 실행 — 종목을 고르면 시트가 닫히고, 새 심�
     grid.dispatch("click", { target: cell });   // ticker-picker.js 는 grid 자신에 위임 리스너를 둔다
 
     assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "종목을 고른 뒤에도 시트가 안 닫혔다");
-    var syms = root.querySelectorAll(".wl-sym").map(function (n) { return n.textContent; });
+    var syms = root.querySelectorAll(".wl-meta").map(function (n) { return n.textContent; });
     assert.ok(syms.indexOf("NVDA") >= 0, "새로 추가한 심볼이 재렌더된 목록에 없다: " + syms.join(","));
     assert.ok(syms.indexOf("AAPL") >= 0, "기존 종목이 재렌더 후 사라졌다: " + syms.join(","));
   });
 });
 
 // 회사명을 버리고 심으면(addTicker(sym, "")) store.js 가 name = 심볼로 폴백해 두 가지가 조용히
-// 죽는다: 행이 심볼을 두 번 찍고(wl-sym·wl-name), 회사명 검색이 이 종목만 빠진다
+// 죽는다: 행이 심볼을 두 번 찍고(wl-title·wl-meta), 회사명 검색이 이 종목만 빠진다
 // (watchlist-model.filter 는 it.name 을 본다). 화면에 그려진 두 칸을 직접 비교한다 —
 // 소스 검사로는 인자 하나가 ""인지 실제 이름인지 구별이 안 된다.
 test("watchlist.js 실행 — 추가한 종목이 회사명을 달고 그려지고, 회사명으로 검색된다", () => {
@@ -387,8 +393,8 @@ test("watchlist.js 실행 — 추가한 종목이 회사명을 달고 그려지�
     assert.strictEqual(added.name, "NVIDIA",
       "이름이 심볼로 폴백했다 — 피커가 회사명을 안 넘겼다: " + added.name);
 
-    var syms = root.querySelectorAll(".wl-sym").map(function (n) { return n.textContent; });
-    var names = root.querySelectorAll(".wl-name").map(function (n) { return n.textContent; });
+    var syms = root.querySelectorAll(".wl-meta").map(function (n) { return n.textContent; });
+    var names = root.querySelectorAll(".wl-title").map(function (n) { return n.textContent; });
     var i = syms.indexOf("NVDA");
     assert.ok(i >= 0, "새 심볼이 목록에 없다");
     assert.strictEqual(names[i], "NVIDIA", "행에 그려진 회사명이 틀렸다: " + names[i]);

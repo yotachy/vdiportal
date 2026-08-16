@@ -15,16 +15,6 @@
   // 큰 수(원화·코인 `74,300`)는 소수 두 자리가 소음이라 시안대로 반올림 + 천단위 구분자.
   function fmtPrice(v) { return (Math.abs(v) < 1000 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
   function fmtChg(v) { return (v > 0 ? "+" : "") + v.toFixed(2) + "%"; }
-  function dotClass(dir) { return "wl-dot" + (dir === "bull" ? " bull" : dir === "bear" ? " bear" : ""); }
-  // 스파크라인 SVG path — 값 배열을 w×h 박스에 정규화한다
-  function sparkPath(pts, w, h) {
-    if (!pts || pts.length < 2) return "";
-    var lo = Math.min.apply(null, pts), hi = Math.max.apply(null, pts), sp = (hi - lo) || 1;
-    return pts.map(function (v, i) {
-      var x = (i / (pts.length - 1)) * w, y = h - ((v - lo) / sp) * h;
-      return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
-    }).join(" ");
-  }
   // 캔버스를 CSS 픽셀이 아니라 기기 픽셀로 맞춘다. 안 하면 폰에서 흐리다 —
   // 그리고 그 흐림은 node 테스트가 볼 수 없는 종류의 결함이다.
   // report.js relayout()·onboarding paintChart() 두 곳이 같은 블록을 갖고 있었고, 이미
@@ -91,7 +81,7 @@
       '<circle cx="13" cy="14" r="10.5" fill="currentColor" clip-path="url(#' + id + ')"/></svg>';
   }
 
-  return { el: el, fmtPrice: fmtPrice, fmtChg: fmtChg, dotClass: dotClass, sparkPath: sparkPath,
+  return { el: el, fmtPrice: fmtPrice, fmtChg: fmtChg,
            fitCanvas: fitCanvas, readToken: readToken, hexToRgba: hexToRgba, colTokens: colTokens,
            scoopMark: scoopMark };
 });

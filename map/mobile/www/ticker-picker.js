@@ -25,7 +25,7 @@
 
   // 심볼 → 회사명. 고른 것을 심을 때 이름이 함께 가야 한다 — 빈 이름으로 심으면 store.js 가
   // name = 심볼로 폴백하고(store.js addTicker), 그 순간 두 가지가 조용히 죽는다:
-  // 행이 심볼을 두 번 찍고(wl-sym·wl-name), 회사명 검색이 그 종목만 안 먹는다
+  // 행이 심볼을 두 번 찍고(wl-title·wl-meta), 회사명 검색이 그 종목만 안 먹는다
   // (watchlist-model.filter 가 it.name 을 본다). 이 컴포넌트가 이름을 아는 유일한 지점이라
   // 여기서 함께 내보낸다 — 부르는 쪽이 CURATED 를 다시 뒤지게 두면 두 벌이 되어 갈린다.
   function nameOf(sym) {

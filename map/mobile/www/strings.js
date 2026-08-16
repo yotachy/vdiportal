@@ -25,21 +25,27 @@
     // 부팅
     bootVendorMissing: "Could not load vendor/forge-core.js.<br>Run npm run sync and reopen.",
 
-    // 워치리스트
-    wlBrandA: "Money", wlBrandB: "Scoop",         // 시안 1a 워드마크 — 15px/700, 뒷조각(Scoop)만 골드
-    wlSearch: "Search ticker or company",        // 시안 1a 검색 플레이스홀더
-    wlChipAll: "All", wlChipUS: "US", wlChipKR: "KR", wlChipETF: "ETF",
-    wlNoMatch: "No tickers match.",              // 검색·칩 결과가 비었을 때
-    wlEmpty: "No tickers yet.\nAdd one to get started.",
-    wlAdd: "＋ Add ticker",
-    addTitle: "Add a ticker",                    // ＋Add 시트 머리 — 온보딩 4단계와 같은 피커를 연다
-    wlScan: "Scan",
-    wlScanIco: "↻",                              // 평상시 스캔 버튼 — 헤더에 필이 들어와 아이콘만 남았다
-    wlScanning: "Scanning ",
-    wlScanFail: "Scan failed",
-    wlScanNone: "Nothing could be scanned — your Scoops were returned.",
-    wlScanNoneNoRefund: "Nothing could be scanned. We could not confirm your Scoops were returned — please check your balance.",
-    wlRemoveConfirm: " — remove from watchlist?",
+    // 워치리스트 — 시안 14a. 브랜드 워드마크(wlBrandA/B)와 시장 코드(wlChipUS/KR/ETF)는
+    // 고유명사·관용 코드라 번역하지 않는다(PENDING_EN 에 계속 남는 게 맞다).
+    wlBrandA: "Money", wlBrandB: "Scoop",         // 워드마크 — 15px/700, 뒷조각(Scoop)만 골드
+    wlSearch: "티커 또는 회사명 검색",
+    wlChipAll: "전체", wlChipUS: "US", wlChipKR: "KR", wlChipETF: "ETF",
+    wlToday: "오늘",                              // "오늘" 섹션 헤더 — 결과 카드(어제 본 예측)는 P3, 이 섹션이 최상단
+    wlNoMatch: "일치하는 종목이 없습니다.",        // 검색·칩 결과가 비었을 때
+    wlEmpty: "아직 등록된 종목이 없습니다.\n종목을 추가해 보세요.",
+    wlAdd: "＋ 종목 추가",
+    addTitle: "Add a ticker",                    // ＋Add 시트 머리 — 온보딩 4단계와 같은 피커를 연다(이번 범위 밖)
+    wlScan: "스캔",
+    wlScanning: "스캔 중 ",                        // + "done/total" 이 뒤에 붙는다
+    // 읽음 상태 2종(시안 14a) — 안 읽음(새 판정)/읽음. "오래됨"은 이번에 안 넣는다: 시안이
+    // 시간이 아니라 확정 캔들 수(21a "봉이 하나 더 생겼습니다")로 재는데, 그 화면과 예측
+    // 기록이 아직 없어 임의의 시간 문턱을 지어내는 것보다 낫다 — 두 상태가 정직하다.
+    wlUnread: "새 판정",
+    wlRead: "읽음",
+    wlScanFail: "스캔 실패",
+    wlScanNone: "스캔할 수 있는 종목이 없습니다 — 스쿱이 환불되었습니다.",
+    wlScanNoneNoRefund: "스캔할 수 있는 종목이 없습니다. 스쿱 환불 여부를 확인하지 못했습니다 — 잔액을 확인해 주세요.",
+    wlRemoveConfirm: " — 워치리스트에서 삭제할까요?",
 
     // 리포트 — 판정
     rpBack: "Back",
