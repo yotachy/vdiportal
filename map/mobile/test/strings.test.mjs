@@ -70,12 +70,27 @@ test("잔여 목록은 늘어나지 않는다 — 상한을 올리는 건 리뷰
 // 라틴 글자가 연속된 한 덩어리 = 단어 하나. 부분 번역("티커 or 회사 Search")을 잡는 최소 단위다.
 function latinWords(v) { return String(v).match(/[A-Za-z]+/g) || []; }
 
-// 허용 라틴 단어 소스 ①: 지표명(S.IND)에 등장하는 라틴 단어는 자동 허용된다 — "MACD 교차"처럼
-// 문장 속에 지표명이 섞이는 건 정상이다(브리프의 명시 규칙: 지표명은 언어와 무관하게 영어).
-// 지표가 늘 때마다 손으로 베끼면 어긋나므로 여기서 파생한다(hand-copy 금지).
-const INDICATOR_LATIN = new Set();
-Object.keys(S.IND).forEach(k => latinWords(S.IND[k]).forEach(w => INDICATOR_LATIN.add(w.toLowerCase())));
+function reEscape(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
+// 지표명 허용은 "단어" 단위가 아니라 "구문 전체"로 해야 한다 — S.IND 값을 단어로 쪼개 허용셋에
+// 넣었더니(리뷰에서 실측 46개) Moving·average·Market·structure·Chart·pattern·Volume·profile
+// 처럼 지표명의 일부에 불과한 흔한 영어 단어까지 통과선을 얻어, "시장 structure"·"거래 pattern"·
+// "Chart 보기" 가 전부 초록으로 샜다. 그래서 값에서 **지표명 전체 문구**를 찾아 지운 다음
+// 남는 라틴 단어만 검사한다 — "Chart pattern" 전체가 있어야 지워지지, "Chart"나 "pattern"
+// 한쪽만으로는 안 지워진다. 긴 구문부터 지워야 "Volume profile" 이 소비되기 전에 "Volume" 만
+// 지워져 "profile" 이 고아로 남는 일이 없다.
+const IND_PHRASES = Object.keys(S.IND).map(k => String(S.IND[k])).sort((a, b) => b.length - a.length);
+
+function stripIndicatorNames(v) {
+  let s = String(v);
+  IND_PHRASES.forEach(p => { s = s.replace(new RegExp(reEscape(p), "gi"), " "); });
+  return s;
+}
+
+// 허용 라틴 단어 소스 ①: 값에서 지표명 전체 문구를 지운 나머지 — "MACD 교차"·"Volume profile 확인"
+// 처럼 문장 속에 지표명이 온전히 섞이는 건 정상이다(브리프의 명시 규칙: 지표명은 언어와 무관하게
+// 영어). S.IND 가 바뀌면 이 목록도 같이 파생되므로 손으로 베낄 필요가 없다(hand-copy 금지).
+//
 // 허용 라틴 단어 소스 ②: 지표명이 아니면서 번역 후에도 영어로 남는 단어. 현재 strings.js 가
 // 실제로 담고 있는 문구에 대응해 항목마다 이유를 적는다 — 근거 없이 단어를 여기 넣는 것은
 // "번역 안 했다"를 숨기는 뒷문이 된다.
@@ -92,7 +107,7 @@ test("번역된 문자열에 남은 라틴 단어는 허용 목록에 있어야 
   Object.keys(S.t).forEach(k => {
     const v = String(S.t[k]);
     if (!/[가-힣]/.test(v)) return; // 한 글자도 안 옮겨졌으면 PENDING_EN 가드의 몫이다
-    const bad = latinWords(v).filter(w => !INDICATOR_LATIN.has(w.toLowerCase()) && !ALLOWED_LATIN_SET.has(w.toLowerCase()));
+    const bad = latinWords(stripIndicatorNames(v)).filter(w => !ALLOWED_LATIN_SET.has(w.toLowerCase()));
     if (bad.length) offenders.push(k + ": " + bad.join(", "));
   });
   assert.deepEqual(offenders, [],
