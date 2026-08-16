@@ -198,6 +198,9 @@ body {
 /* 적중/오답 — 막대를 그리지 않는다. 두 값이 합해서 100 이라 막대가 더해주는 정보가 없고,
    이 화면에서 시선을 끌 것은 판정 퍼센트다(시안 2a "골드는 화면당 한 번만"). */
 .rp-hit { font-size:var(--fs-sub); color:var(--ink-3); margin-top:8px; font-variant-numeric:tabular-nums; }
+/* 베이스라인은 적중률과 같은 크기다 — 작게 그리면 "참고"로 읽히는데, 이 행의 요점은
+   위 숫자가 그 아래라는 사실이다(P2 §2 R2). 색만 한 단계 낮춘다. */
+.rp-hit-base { font-size:var(--fs-sub); color:var(--ink-4); margin-top:3px; font-variant-numeric:tabular-nums; }
 .rp-hit-note { font-size:var(--fs-caption); color:var(--ink-5); margin-top:4px; line-height:1.5; }
 .rp-conf { font-size:var(--fs-sub); color:var(--ink-3); margin-top:7px; }
 .rp-verdict-wrap .overline { margin-bottom:8px; }

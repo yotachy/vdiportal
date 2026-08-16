@@ -74,6 +74,10 @@
     rpHitRight: "% 적중 · ", rpHitWrong: "% 오답",
     rpHitScopeA: "전체 ", rpHitScopeB: "건의 예측을 ", rpHitScopeC: "개 종목에서 실측한 값입니다 — 이 종목도, 이 지표 구성도 아닙니다.",
     rpHitScopeShort: "엔진 전체 실측값입니다 — 이 종목도, 이 지표 구성도 아닙니다.",
+    // 베이스라인 병기(P2 §2 R2). 적중률만 보이면 사용자는 그것을 "동전보다 낫다"로 읽는다 —
+    // 이 자산·이 기간의 기준선은 50% 가 아니라 "항상 오른다" 61.0% 이고, 우리 방향 판정은
+    // 그 아래다. 같은 측정에서 나온 값만 옆에 놓는다(다른 하네스 숫자를 적으면 거짓 비교).
+    rpHitBaseA: "같은 기간 “항상 오른다”는 ", rpHitBaseB: "% 였습니다.",
     rpHitSize: " 틀릴 ", rpHitSizeTail: "%에 대비해 비중을 조절하세요.",
     rpHzTomorrow: "내일", rpHzWeek: "1주", rpHzMonth: "1개월",
 

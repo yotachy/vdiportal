@@ -524,12 +524,20 @@
       wrap.appendChild(head);
 
       var hit = (conf != null) ? MSReportModel.hitRate(window.MSBacktest, v.regime) : null;
+      // 베이스라인이 없으면 적중 행을 통째로 감춘다(P2 §2 R2). 비교 대상 없는 적중률은
+      // "동전보다 낫다"로 읽히므로, 숫자만 남기는 것보다 안 보이는 편이 정직하다.
+      // 옛 생성물(baselineAlwaysUp 이 없던 backtest-summary.js)로도 화면이 성립해야 한다.
+      if (hit && hit.baseline == null) hit = null;
       if (hit) {
         // 방향을 먼저 밝힌다 — 불 61.5/38.5 · 베어 42.6/57.4 로 갈리므로 어느 쪽 수치인지가
         // 숫자 자체만큼 중요하다.
         var lead = (v.regime === "bull") ? MSStr.t.rpHitLeadBull : MSStr.t.rpHitLeadBear;
         wrap.appendChild(MSUi.el("div", "rp-hit",
           lead + hit.right + MSStr.t.rpHitRight + hit.wrong + MSStr.t.rpHitWrong));
+        // 베이스라인은 적중률 **바로 아래**다 — 범위 고지보다 위. 두 숫자가 떨어져 있으면
+        // 사용자가 위 숫자만 읽고 스크롤한다.
+        wrap.appendChild(MSUi.el("div", "rp-hit-base",
+          MSStr.t.rpHitBaseA + hit.baseline + MSStr.t.rpHitBaseB));
         // 범위를 반드시 함께 적는다. 이 수치는 백테스트 하네스의 그래프로 잰 것이라 이 종목도,
         // 이 티어의 지표 구성도 아니다 — "이 판정 같은 콜"이라고 말하면 거짓 귀속이 된다.
         var scope = (hit.n != null && hit.series != null)
