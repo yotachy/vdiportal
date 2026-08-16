@@ -85,10 +85,6 @@
       return rec;
     }
 
-    function brandSvg() {
-      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">' +
-        '<path d="M3 17l5-6 4 4 5-8 4 5"/><circle cx="8" cy="11" r="1.6"/><circle cx="17" cy="7" r="1.6"/></svg>';
-    }
     function searchSvg() {
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">' +
         '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
@@ -130,7 +126,7 @@
 
       var head = MSUi.el("div", "wl-head");
       var mark = MSUi.el("span", "wl-brand-mark");
-      mark.innerHTML = brandSvg();
+      mark.innerHTML = MSUi.scoopMark(42);
       head.appendChild(mark);
       var brand = MSUi.el("span", "wl-brand");
       brand.appendChild(document.createTextNode(MSStr.t.wlBrandA));
