@@ -75,10 +75,16 @@
   // stroke-width 1.8. 채움 상단 y = 24.5 − (p/100)×21(원 지름) 은 그 두 샘플과 정확히 일치한다.
   // 48px 런처 아이콘만 일부러 꽉 찬 원을 쓴다(부분 채움이 그 크기에서 얼룩으로 보인다) —
   // 앱 내 마크와 다른 유일한 지점이라 되돌리지 말 것.
+  //
+  // id 는 반올림한 퍼센트만으로 만들면 안 된다 — 41.6 과 42.4 가 둘 다 msFill42 가 되어
+  // 같은 페이지에 두 마크가 있으면(태스크 6 지갑 게이지 + 헤더 마크) clipPath id 가 충돌해
+  // 한쪽이 다른 쪽 채움을 그린다. 호출마다 증가하는 카운터로 유일성을 보장한다.
+  var scoopMarkSeq = 0;
   function scoopMark(fillPct) {
-    var p = Math.max(0, Math.min(100, fillPct == null ? 42 : fillPct));
+    var raw = (typeof fillPct === "number" && isFinite(fillPct)) ? fillPct : 42;
+    var p = Math.max(0, Math.min(100, raw));
     var y = 24.5 - (p / 100) * 21;
-    var id = "msFill" + Math.round(p);
+    var id = "msFill" + (scoopMarkSeq++);
     return '<svg viewBox="0 0 26 26" width="22" height="22" fill="none" aria-hidden="true">' +
       '<clipPath id="' + id + '"><rect x="0" y="' + y.toFixed(2) + '" width="26" height="' + (26 - y).toFixed(2) + '"/></clipPath>' +
       '<circle cx="13" cy="14" r="10.5" stroke="currentColor" stroke-width="1.8"/>' +
