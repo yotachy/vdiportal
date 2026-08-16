@@ -159,11 +159,19 @@
     walQuickSub: "15초 · 건너뛸 수 없음",
     walFullSub: "30초 · 5초 후 건너뛰기 가능",
     walCheckin: "출석체크", walOnceADay: "탭 한 번, 하루 한 번", walOnceADayCap: "탭 한 번, 하루 한 번 받기",
+    // 오늘 이미 받은 상태 전용 헤드라인·부제(시안 10b, 리뷰 지시 2026-08-16) — 원문(디자인
+    // 원본 "MoneyScoop 동선.dc.html" #10b)이 그리는 건 이 상태 하나뿐이다. 아직 안 받은 상태
+    // (walCheckin+walOnceADay/walOnceADayCap)는 시안이 안 그렸을 뿐 지운 게 아니다 — 그대로 둔다.
+    // walCheckedIn("claimed today")은 이 두 문구로 대체돼 지웠다.
+    walCheckedInTitle: "오늘 출석 완료",
+    // {n}=현재 연속일수. "7일 되면 +5"는 7일 상자를 가리키는 상수 — 상자 자체의 행(walChest)과
+    // 별개로 이 자리에도 같은 리마인드가 필요하다(시안이 두 곳 모두에 적었다).
+    walStreakNote: "{n}일 연속 · 7일 되면 +5",
     walChest: "7일 연속 상자", walChestAway: "일 남음",
     walSlot: "종목 슬롯 추가", walScan: "워치리스트 스캔",
     walDeep: "Deep analysis",   // 태스크 8 로 이관(위 주석) — 지금은 이 한 줄만 영어다
     walOptimiser: "전문분석", walFree: "무료", walBasic: "기본분석",
-    walDay: "일째", walClaimedSep: " · ", walCheckedIn: "오늘 받음",
+    walDay: "일째", walClaimedSep: " · ",
     walCapped: "상한 도달 — 남은 만큼은 버려졌습니다",
     walBack: "뒤로",
 

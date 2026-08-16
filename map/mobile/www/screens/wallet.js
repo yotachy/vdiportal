@@ -312,15 +312,20 @@
       var combo = MSUi.el("div", "wal-combo");
 
       var can = !!(state && state.canCheckin);
+      // 오늘 이미 받은 상태(시안 10b #10b 가 그리는 바로 그 프레임) — canCheckin:false 이면서
+      // streakDays>0 이면 "오늘 이미 받았다"로 본다(8b 시절부터의 판정 그대로, 이번엔 문구만
+      // 시안에 맞춘다). state 를 모르면(로딩 중) 이 상태를 주장하지 않는다.
+      var claimedToday = !!(state && !can && state.streakDays > 0);
       // state 가 없으면 잔량을 못 읽은 것이다 — '오늘 받았다'가 아니라 '확인 불가'다.
       // 행은 비활성으로 두되 아무 말도 하지 않는다(거짓 안내를 만들지 않는다).
-      // 출석 보상은 항상 고정 1개(SPEC-economy §1) — adConfig() 와 무관한 값이라 리터럴이어도
-      // 옳다. "+" + 1 로 적은 건 wallet-screens.test.mjs 의 광고-리터럴 가드(인용부호로 감싼
-      // 덧셈기호+한자리수 패턴)가 광고 보상과 이 고정 출석 보상을 구분 못 하고 오탐하기 때문이다.
-      combo.appendChild(earnRow(MSStr.t.walCheckin, "+" + 1, {
+      // 출석 보상은 항상 고정 1개(SPEC-economy §1) — adConfig() 와 무관한 값이라 리터럴 "+1"이
+      // 옳다(리뷰 지시 2026-08-16: 문자열을 우회하는 대신 아래 광고-리터럴 가드를 좁혔다).
+      combo.appendChild(earnRow(claimedToday ? MSStr.t.walCheckedInTitle : MSStr.t.walCheckin, "+1", {
         off: !can,
         note: !state ? "" : (state.streakDays > 0
-          ? (state.streakDays + MSStr.t.walDay + MSStr.t.walClaimedSep + (can ? MSStr.t.walOnceADay : MSStr.t.walCheckedIn))
+          ? (claimedToday
+              ? MSStr.t.walStreakNote.replace("{n}", String(state.streakDays))
+              : (state.streakDays + MSStr.t.walDay + MSStr.t.walClaimedSep + MSStr.t.walOnceADay))
           : MSStr.t.walOnceADayCap),
         dots: state ? streakDots(state) : null,
         onTap: function () {

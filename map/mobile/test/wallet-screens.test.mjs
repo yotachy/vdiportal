@@ -498,8 +498,19 @@ test("wMerged — 버린 잔량이 그대로 넘어간 것처럼 말하지 않�
 test("광고 보상 수치는 여전히 설정에서 온다 — 리터럴로 되돌아가지 않았다", () => {
   assert.match(WALLET_SCR, /adCfg\.quick\.reward/, "quick 보상이 설정에서 오지 않는다");
   assert.match(WALLET_SCR, /adCfg\.full\.reward/, "full 보상이 설정에서 오지 않는다");
-  assert.doesNotMatch(WALLET_SCR, /["'`]\+[13]["'`]/,
-    "보상이 리터럴로 박혔다 — 콘솔·ad_units.json·문자열 세 곳이 한 숫자의 진실원이 된다");
+  // 좁힌 범위(리뷰 지시 2026-08-16): 파일 전체가 아니라 adQuick/adFull(그리고 같은 명명
+  // 관례를 따르는 미래의 세 번째 광고 행)을 만드는 earnRow(...) 호출 줄만 본다. 파일 전체를
+  // 보면 adConfig() 와 무관한 고정 보상(출석 체크인의 상시 +1, SPEC-economy §1)까지 걸려
+  // 오탐한다 — 그 오탐을 "+" + 1 로 피했더니 이번엔 진짜 회귀(미래의 "+" + 3 같은 하드코딩)도
+  // 못 잡는 가드가 됐다(실행으로 확인됨). 두 양성 단언(adCfg.*.reward 존재)이 핵심 위험을 이미
+  // 덮고, 이 음성 단언은 나중에 리터럴을 낀 세 번째 광고 행이 추가되는 것만 잡으면 된다.
+  const adRowLines = WALLET_SCR.split("\n").filter(l => /earnRow\(MSStr\.t\.ad\w+/.test(l));
+  assert.ok(adRowLines.length >= 2,
+    "adQuick/adFull 을 만드는 earnRow(...) 호출을 찾지 못했다 — 가드 범위 산정이 틀렸다");
+  adRowLines.forEach(l => {
+    assert.doesNotMatch(l, /["'`]\+[13]["'`]/,
+      "광고 행 보상이 리터럴로 박혔다 — 콘솔·ad_units.json·문자열 세 곳이 한 숫자의 진실원이 된다: " + l.trim());
+  });
 });
 
 // 텍스트로 노드를 찾는다 — MSUi.el() 이 leaf 노드에 라벨을 textContent 로 직접 심으므로
@@ -875,7 +886,13 @@ test("병합된 지갑(canCheckin:false)의 출석 행은 비활성이고 탭 �
     };
     MSWalletScreen.render(root);
     await flush();
-    var row = findText(root, S.t.walCheckin).parentNode.parentNode;
+    // streakDays:4>0 인데 canCheckin:false 라, 이 화면은 이 상태를 "오늘 이미 받음"으로 보고
+    // 헤드라인을 walCheckedInTitle("오늘 출석 완료", 시안 10b)로 바꾼다 — walCheckin("출석체크")
+    // 은 아직 안 받은 상태 전용이라 이 픽스처에선 안 뜬다(2026-08-16 리뷰 지시로 상태별 헤드라인
+    // 분리 후 갱신).
+    var checkinNode = findText(root, S.t.walCheckedInTitle) || findText(root, S.t.walCheckin);
+    assert.ok(checkinNode, "출석 행 헤드라인을 찾지 못했다(walCheckedInTitle/walCheckin 둘 다 없음)");
+    var row = checkinNode.parentNode.parentNode;
     assert.ok(row.classList.contains("is-off"), "병합된 지갑인데 출석 행이 활성으로 그려졌다");
     assert.strictEqual(row.listeners.click, undefined,
       "비활성 행인데 클릭 리스너가 붙어 있다 — 탭하면 항상 실패하는 checkin 을 제공한다");
