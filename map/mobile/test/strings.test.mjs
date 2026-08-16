@@ -96,13 +96,9 @@ const ALLOWED_LATIN = [
   "Money", "Scoop",    // wlBrandA/wlBrandB — 헤더 워드마크(뒷조각 Scoop만 골드). 브랜드 마크지
                         // UI 카피가 아니다 — 머니스쿱으로 음역하면 제품 이름 자체를 이 타이포
                         // 태스크 안에서 바꾸는 셈이라(브랜드 결정), 고유명사로 남긴다(태스크 8 코디네이터 판정).
-  "MA",                // legMaProj(draw-layers.js MA 투영 배지) — 지표 축약형. IND.ma 의 정식
-                        // 표기("Moving average")와 문자열이 달라 stripIndicatorNames 로 안 지워진다.
-  "BB", "B",            // draw-layers.js _drawBollingerLayers 의 캔버스 배지("BB "+상태·"%B"+값) —
-                        // Bollinger Bands·%B 표준 축약형. readings.js 의 %K/%D/%B 허용(아래
-                        // READINGS_ALLOWED_LATIN)과 같은 이유. 이 파인딩이 손대는 문구는 아니지만
-                        // (legMaProj/legBbMidProj 두 곳만 번역), 아래 캔버스 텍스트 게이트가 파일
-                        // 전체를 훑으므로 이 기존 축약형도 허용 목록에 있어야 오탐이 안 난다.
+  "MA",                // legMaProj("MA 투영") — 지표 축약형. IND.ma 의 정식 표기("Moving average")와
+                        // 문자열이 달라 stripIndicatorNames 로 안 지워진다. 이 값은 strings.js 에
+                        // 실재하므로 국소 목록이 아니라 여기 있어야 한다(BB·%B 와 다른 점).
 ].map(w => w.toLowerCase());
 const ALLOWED_LATIN_SET = new Set(ALLOWED_LATIN);
 
@@ -318,6 +314,19 @@ test("screens/ 영어잔존 게이트는 실제로 잡는다 — wallet·watchli
 // 동일 원칙).
 const CANVAS_SCAN_ROOT = fileURLToPath(new URL("../www/", import.meta.url));
 
+// 캔버스 국소 허용 라틴 — readings.js 의 READINGS_ALLOWED_LATIN 과 같은 방식이다(전역은 안
+// 건드린다). 여기 있는 표기들은 strings.js 어디에도 안 나오고 draw-layers.js 캔버스 배지에만
+// 있으므로, 전역 ALLOWED_LATIN 에 넣으면 UI 문구 게이트까지 같이 헐거워진다 — 특히 한 글자
+// "B" 를 전역에 넣으면 앞으로 UI 카피에 홀로 남은 "B" 가 영원히 안 잡힌다.
+const CANVAS_ALLOWED_LATIN = [
+  "BB",       // _drawBollingerLayers 의 "BB "+상태 배지 — Bollinger Bands 표준 축약형
+  "B",        // 같은 배지의 "%B" — readings.js 의 %K/%D/%B 허용과 같은 이유
+].map(w => w.toLowerCase());
+const CANVAS_ALLOWED_SET = new Set(CANVAS_ALLOWED_LATIN);
+function canvasUntranslatedWords(v) {
+  return untranslatedWords(v).filter(w => !CANVAS_ALLOWED_SET.has(w.toLowerCase()));
+}
+
 // www/** 전부를 훑는다(vendor/ 는 sync-engine 이 만드는 생성물이라 제외 — 커밋되지 않고
 // 로컬 sync 여부에 따라 존재가 갈려 게이트가 불안정해진다. map/CLAUDE.md 의 vendor 규율과 같다).
 function collectJsFiles(dir) {
@@ -395,7 +404,7 @@ function canvasTextOffenders(label, src) {
     const line = src.slice(0, m.index).split("\n").length;
     literalsIn(argStr).forEach(text => {
       if (text === "use strict") return;
-      const words = untranslatedWords(stripHexEscapes(text));
+      const words = canvasUntranslatedWords(stripHexEscapes(text));
       if (words.length) out.push({ file: label, line, text, words });
     });
   }
@@ -433,6 +442,14 @@ test("캔버스 텍스트 게이트는 실제로 잡는다 — MA·Bollinger 투
   const otherDrawFile = 'c.fillText("New spike marker", x, y);';
   assert.ok(canvasTextOffenders("draw-panels.js(synthetic)", otherDrawFile).length > 0,
     "draw-layers.js 가 아닌 다른 draw 파일의 fillText 영문을 못 잡았다");
+  // 캔버스 국소 허용(BB·%B)은 캔버스 게이트 안에서만 산다 — UI 문구 게이트까지 헐거워지면
+  // 이 국소 목록을 따로 둔 의미가 없다(전역에 넣었다가 되돌린 지점).
+  assert.deepEqual(canvasTextOffenders("synthetic", 'c.fillText("BB " + s + " · %B" + v, x, y);'), [],
+    "캔버스 국소 허용 축약형(BB·%B)이 오탐으로 잡혔다");
+  assert.ok(untranslatedWords("B 등급").length > 0,
+    "전역 UI 문구 게이트가 홀로 남은 'B' 를 흘려보낸다 — 캔버스 국소 허용이 전역으로 샜다");
+  assert.ok(untranslatedWords("BB 밴드").length > 0,
+    "전역 UI 문구 게이트가 'BB' 를 흘려보낸다 — 캔버스 국소 허용이 전역으로 샜다");
   // 위 예시들은 합성 소스에만 적용했다 — 실제 파일들은 여전히 깨끗해야 한다.
   const clean = [];
   CANVAS_SCAN_FILES.forEach(f => { clean.push.apply(clean, canvasFileOffenders(f)); });
