@@ -414,6 +414,31 @@
       spend.appendChild(spendRow(MSStr.t.walScan, MSWallet.COSTS.scan ? String(MSWallet.COSTS.scan) : MSStr.t.walFree));
       scr.appendChild(spend);
 
+      // 앱이 하는 일로 가는 길. 이 둘이 없으면 개편한 화면 대부분이 **상태가 쌓이기 전에는
+      // 도달 불가능**하다 — 기록은 판정된 예측이 넷은 있어야 워치리스트에 링크가 뜨고,
+      // 온보딩은 한 번 끝내면 다시 볼 방법이 아예 없었다(백로그 "온보딩 재실행 경로 없음").
+      // 그래서 앱을 새로 깔아도 "그대로"로 보였다. 길을 먼저 낸다.
+      var navSec = MSUi.el("div", "wal-sec");
+      navSec.appendChild(MSUi.el("div", "overline", MSStr.t.walMore));
+      var recRow = MSUi.el("button", "w-row");
+      recRow.type = "button";
+      recRow.appendChild(MSUi.el("span", "w-row-k", MSStr.t.rcTitle));
+      recRow.appendChild(MSUi.el("span", "w-row-v", MSStr.t.walOpen));
+      recRow.addEventListener("click", function () { MSApp.go("record"); });
+      navSec.appendChild(recRow);
+      // 온보딩 다시 보기 — 동의 기록은 지우지 않는다(약관 동의는 이미 받은 사실이다).
+      // 완료 플래그만 내려 처음부터 보게 하고, 끝나면 다시 선다.
+      var obRow = MSUi.el("button", "w-row");
+      obRow.type = "button";
+      obRow.appendChild(MSUi.el("span", "w-row-k", MSStr.t.walReplayOb));
+      obRow.appendChild(MSUi.el("span", "w-row-v", MSStr.t.walOpen));
+      obRow.addEventListener("click", function () {
+        if (MSStore.replayOnboarding) MSStore.replayOnboarding();
+        location.reload();
+      });
+      navSec.appendChild(obRow);
+      scr.appendChild(navSec);
+
       // 계정 · 설정(시안 10b) — 구글 로그인 행(Phase 8c). signedIn() 에 따라 로그인/로그아웃
       // 하나만 뜬다.
       var authSec = MSUi.el("div", "wal-sec");

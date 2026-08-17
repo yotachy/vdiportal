@@ -117,6 +117,11 @@
     write(KEYS.consent, { termsVersion: String(termsVersion || ""), at: new Date().toISOString() });
     write(KEYS.onboarded, true);
   }
+  // 온보딩을 처음부터 다시 보게 한다. **동의 기록은 지우지 않는다** — 약관에 동의한 것은
+  // 이미 일어난 사실이고, 그것을 지우면 언제 무엇에 동의했는지 말할 수 없게 된다.
+  // 워치리스트도 건드리지 않는다(온보딩 4단계는 추가만 한다).
+  function replayOnboarding() { write(KEYS.onboarded, false); }
+
   function consent() {
     var c = read(KEYS.consent, null);
     return (c && typeof c === "object" && c.termsVersion) ? c : null;
@@ -183,6 +188,7 @@
   }
 
   return { KEYS: KEYS, SEED: SEED, TUTORIAL_SYMS: TUTORIAL_SYMS, PRED_MAX: PRED_MAX,
+           replayOnboarding: replayOnboarding,
            getPreds: getPreds, setPreds: setPreds, addPred: addPred,
            settlePred: settlePred, markPredSeen: markPredSeen, install: install, getWatchlist: getWatchlist, setWatchlist: setWatchlist,
            getStyle: getStyle, setStyle: setStyle,
