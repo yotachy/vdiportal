@@ -96,3 +96,45 @@
 .wl-res-row.is-new .wl-res-name::before { content:""; display:inline-block; width:6px; height:6px;
   margin-right:6px; border-radius:99px; background:var(--action); vertical-align:middle; }
 .wl-res-note { margin-top:10px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
+
+/* ===== 스캔 결과(시안 15c) =====
+   경계가 이 화면의 전부다 — 무엇이 달라졌는지만 말하고, 왜는 분석으로 넘긴다.
+   그래서 카드에 판독도 예측값도 없다. */
+.sr-head { display:flex; align-items:baseline; gap:10px; padding:14px 0 6px; }
+.sr-back { min-height:44px; min-width:44px; display:flex; align-items:center; background:none; border:0; color:var(--ink-2); padding:0 4px; }
+.sr-title { flex:1 1 auto; font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); }
+.sr-when { font-size:var(--fs-caption); color:var(--ink-5); }
+.sr-h { margin:14px 0 4px; font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline); }
+.sr-sub { font-size:var(--fs-sub); color:var(--ink-3); line-height:1.6; }
+.sr-card { display:flex; flex-direction:column; gap:5px; width:100%; margin-top:10px; padding:13px 14px;
+  border-radius:12px; border:1px solid var(--border); background:var(--surface); color:inherit; font:inherit; text-align:left; }
+.sr-card-top { display:flex; align-items:baseline; justify-content:space-between; }
+.sr-card-name { font-size:var(--fs-body); font-weight:var(--fw-medium); }
+.sr-card-sym { font-size:var(--fs-caption); color:var(--ink-5); }
+.sr-card-flip { font-size:var(--fs-sub); color:var(--ink-3); }
+.sr-note { margin:16px 0 14px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
+
+/* ===== 내 예측 기록(시안 20b) =====
+   진행 막대가 "왜 아직 퍼센트가 없는가"를 말한다 — 20칸 중 몇 칸이 찼는지. */
+.rc-head { display:flex; align-items:baseline; gap:10px; padding:14px 0 6px; }
+.rc-back { min-height:44px; min-width:44px; display:flex; align-items:center; background:none; border:0; color:var(--ink-2); padding:0 4px; }
+.rc-title { font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); }
+.rc-prog { margin:12px 0 14px; padding:14px; border-radius:14px; background:var(--surface); border:1px solid var(--border); }
+.rc-prog-h { font-size:var(--fs-body); font-weight:var(--fw-medium); font-variant-numeric:tabular-nums; }
+.rc-segs { display:flex; gap:3px; margin:10px 0 8px; }
+.rc-seg { flex:1 1 0; height:6px; border-radius:99px; background:var(--track); }
+.rc-seg.is-on { background:var(--gold); }
+.rc-prog-n { font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
+.rc-filters { display:flex; gap:8px; margin-bottom:6px; }
+.rc-filter { min-height:36px; padding:0 12px; border-radius:99px; border:1px solid var(--border);
+  background:transparent; color:var(--ink-3); font:inherit; font-size:var(--fs-caption); }
+.rc-filter.is-on { background:var(--gold-soft); border-color:var(--gold); color:var(--gold); }
+.rc-row { display:flex; align-items:center; gap:10px; width:100%; padding:11px 0;
+  background:none; border:0; border-bottom:1px solid var(--hairline); color:inherit; font:inherit; text-align:left; }
+.rc-row-l { flex:1 1 auto; display:flex; flex-direction:column; gap:2px; }
+.rc-row-name { font-size:var(--fs-body); font-weight:var(--fw-medium); }
+.rc-row-meta { font-size:var(--fs-caption); color:var(--ink-5); }
+.rc-row-val { flex:0 0 auto; font-size:var(--fs-body); font-variant-numeric:tabular-nums; color:var(--ink-2); }
+.rc-row-verdict { flex:0 0 auto; min-width:66px; text-align:right; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; color:var(--ink-4); }
+.rc-row-verdict.is-hit { color:var(--bull); }
+.wl-res-more { margin-top:8px; min-height:36px; padding:0; background:none; border:0; color:var(--action); font:inherit; font-size:var(--fs-caption); }

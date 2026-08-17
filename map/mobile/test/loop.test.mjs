@@ -112,3 +112,54 @@ test("결과 문구가 전부 strings.js 에 있다", () => {
   assert.ok(used.length >= 10, "결과 화면이 읽는 키를 못 찾았다: " + used.length);
   used.forEach(k => assert.ok(typeof S.t[k] === "string", k + " 가 strings.js 에 없다"));
 });
+
+// ── 고리에 매달린 가지들 ─────────────────────────────────────────────────────────
+const SR = readFileSync(new URL("../www/screens/scan-result.js", import.meta.url), "utf8");
+const RC = readFileSync(new URL("../www/screens/record.js", import.meta.url), "utf8");
+
+test("스캔은 '무엇이 달라졌는지'까지만 말한다 — '왜'는 유료 분석의 몫이다", () => {
+  const code = strip(SR);
+  // 스캔 결과 화면이 엔진을 부르거나 판독문을 그리면 경계를 넘은 것이다.
+  // 그 순간 스캔이 심화분석을 대신하게 되고, 팔 것이 없어진다(시안 15c 경계 규칙).
+  assert.ok(code.indexOf("ForgeCore") < 0, "스캔 결과가 엔진을 부른다");
+  assert.ok(code.indexOf("MSIndicators") < 0, "스캔 결과가 지표 판독을 그린다");
+  assert.ok(code.indexOf("MSReadings") < 0, "스캔 결과가 판독문을 그린다");
+  assert.match(code, /srBoundary/, "경계를 사용자에게 말하지 않는다");
+});
+
+test("뒤집힘이 없으면 스캔 결과로 데려가지 않는다 — 방해가 된다", () => {
+  const code = strip(WL);
+  const at = code.indexOf('MSApp.go("scanresult")');
+  assert.ok(at > 0, "스캔이 끝나도 결과 화면으로 갈 길이 없다");
+  const before = code.slice(Math.max(0, at - 400), at);
+  assert.match(before, /flips\.length/, "뒤집힘 여부를 보지 않고 이동한다");
+});
+
+test("스캔이 뒤집힘을 알려면 직전 방향을 덮어쓰기 전에 읽어야 한다", () => {
+  const code = strip(WL);
+  const at = code.indexOf("function analyzeAndPersist");
+  const body = code.slice(at, at + 600);
+  const readAt = body.indexOf("MSStore.getScan(sym)");
+  const writeAt = body.indexOf("MSStore.setScan(sym");
+  assert.ok(readAt > 0 && writeAt > 0, "읽기/쓰기 자리를 못 찾았다");
+  assert.ok(readAt < writeAt, "덮어쓴 뒤에 직전 방향을 읽는다 — 뒤집힘을 영영 못 본다");
+});
+
+test("기록 화면은 오답을 숨기지 않는다 — 빗나간 필터가 기본 탭 바로 옆이다", () => {
+  const code = strip(RC);
+  const keys = [...code.matchAll(/key: "(\w+)"/g)].map(m => m[1]);
+  assert.deepEqual(keys.slice(0, 2), ["all", "miss"],
+    "빗나간 기록 필터가 두 번째가 아니다 — 찾아 들어가야 보이면 숨긴 것이다: " + keys.join(","));
+});
+
+test("기록 화면도 20건 문턱을 스스로 우회하지 않는다", () => {
+  const code = strip(RC);
+  assert.match(code, /MSPreds\.hitRate\(/, "적중률을 규칙 모듈에서 얻지 않는다");
+  assert.ok(code.indexOf("/ all.length") < 0, "화면이 적중률을 직접 계산한다");
+  assert.match(code, /rcTooFew/, "20건 미만일 때 왜 없는지 말하지 않는다");
+});
+
+test("결과 카드에서 전체 기록으로 가는 길이 있다", () => {
+  assert.match(strip(WL), /MSApp\.go\("record"\)/,
+    "3건 말고 나머지 기록을 볼 길이 없다 — 쌓이는 걸 못 보면 20건을 채울 이유도 없다");
+});

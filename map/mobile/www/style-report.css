@@ -205,3 +205,13 @@ body:not(.ms-dual) .rp-scr { display:flex; flex-direction:column; min-height:cal
 .rs-insight-b { margin-top:5px; font-size:var(--fs-caption); color:var(--ink-4); line-height:1.6; }
 .rs-actions { display:flex; flex-direction:column; gap:8px; margin:20px 0 12px; }
 .rs-disc { font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
+
+/* 지난 판정 되돌아보기(시안 21a) — 오늘 값과 착각하지 않도록 흐리게 두고 기준일을 함께 적는다.
+   좌측 세로 컬러 라인 금지 규칙에 따라 구분은 배경·투명도로만 한다. */
+.rp-last { margin:10px 0 16px; padding:12px 14px; border-radius:12px; background:var(--surface); opacity:.82; }
+.rp-last-row { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-top:6px; }
+.rp-last-v { font-size:var(--fs-body); font-variant-numeric:tabular-nums; color:var(--ink-2); }
+.rp-last-r { font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
+.rp-last-r.is-hit { color:var(--bull); }
+.rp-last-more { margin-top:8px; min-height:36px; padding:0; background:none; border:0; color:var(--action); font:inherit; font-size:var(--fs-caption); }
+.rp-last-free { margin-top:4px; font-size:var(--fs-caption); color:var(--ink-5); }

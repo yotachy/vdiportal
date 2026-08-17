@@ -79,7 +79,13 @@
 
     // 스캔 콜백에서 즉시 저장한다 — 중간에 앱을 닫아도 이미 처리된 종목은 남는다.
     function analyzeAndPersist(sym, data) {
+      // 직전 스캔의 방향을 먼저 읽는다 — 덮어쓰고 나면 무엇이 뒤집혔는지 말할 수 없다.
+      // 스캔의 일은 "무엇이 달라졌는지"까지다(시안 15c 경계 규칙). "왜"는 유료 분석의 몫이라
+      // 여기서 더 계산하지 않는다.
+      var before = MSStore.getScan(sym);
       var rec = analyze(sym, data);
+      rec.prevDir = (before && before.dir) || null;
+      rec.flipped = !!(rec.prevDir && rec.prevDir !== rec.dir);
       MSStore.setScan(sym, rec);
       return rec;
     }
@@ -179,6 +185,14 @@
         });
         card.appendChild(row);
       });
+
+      // 전체 기록으로 가는 길. 결과 카드는 3건만 보이므로 이 링크가 없으면 나머지는
+      // 어디에도 없다 — 쌓이는 것을 볼 수 없으면 20건을 채울 이유도 없다.
+      if (all.length > recent.length) {
+        var more = MSUi.el("button", "wl-res-more", MSStr.t.wlResMore);
+        more.addEventListener("click", function () { MSApp.go("record"); });
+        card.appendChild(more);
+      }
 
       var rate = MSPreds.hitRate(all);
       // 20건이 넘어야 퍼센트가 나온다. 그 전에는 왜 안 나오는지를 말한다 — 침묵하면
@@ -394,6 +408,13 @@
       }).then(function (res) {
         scanRun = null;
         scanTick();
+        // 스캔이 끝났다 — 뒤집힌 것이 있으면 결과 화면으로 데려간다(시안 15c).
+        // 없으면 데려가지 않는다: "그대로입니다"만 적힌 화면을 여는 것은 방해다.
+        var flips = syms.filter(function (sy) {
+          var r = MSStore.getScan(sy);
+          return r && r.flipped;
+        });
+        if (flips.length) { MSApp.go("scanresult"); return; }
         // SPEC §5 — 한 종목도 못 읽었으면 답을 못 준 것이다. 일부라도 읽었으면 차감을 유지한다
         // (리포트의 주·월봉 누락과 같은 규칙).
         if (rec.idem && res && res.done === 0) {

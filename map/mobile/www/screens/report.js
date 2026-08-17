@@ -506,6 +506,51 @@
       basicSnap[sym] = { asOf: asOf, lo: pr.lo[0], hi: pr.hi[0], width: pr.hi[0] - pr.lo[0] };
     }
 
+    // 지난 판정 되돌아보기(시안 21a). 이 종목에서 값을 치른 적이 있고 그것이 **오늘보다
+    // 앞선 기준일**이면, 그때 뭐라고 했는지와 그래서 어떻게 됐는지를 오늘 값 위에 놓는다.
+    //
+    // 21a 원문은 "그때 그대로이며 다시 계산하지 않았습니다"라고 지난 화면을 통째로 보존하지만,
+    // 우리는 다시 열 때 오늘 데이터로 새로 그린다(서버 entitlement 덕에 재과금은 없다).
+    // 그래서 보존하는 대신 **두 시점을 명시적으로 갈라 보여준다** — 지난 값을 흐리게 두고
+    // 기준일을 함께 적는다. 안 그러면 어제 값과 오늘 값이 같은 화면에서 구분 없이 읽힌다.
+    function buildLast() {
+      if (typeof MSPreds === "undefined" || !MSStore.getPreds) return null;
+      var today = asOfOf(data);
+      var best = null;
+      MSStore.getPreds().forEach(function (r) {
+        if (!r || r.sym !== sym) return;
+        if (today && r.asOf >= today) return;          // 오늘 것은 "지난" 판정이 아니다
+        if (!best || r.asOf > best.asOf) best = r;
+      });
+      if (!best) return null;
+
+      var w = MSUi.el("div", "rp-last");
+      w.appendChild(MSUi.el("div", "overline", MSStr.t.rpLastHead + best.asOf));
+      var row = MSUi.el("div", "rp-last-row");
+      row.appendChild(MSUi.el("span", "rp-last-v",
+        MSUi.fmtPrice(best.mid) + MSStr.t.rpLastPm + MSUi.fmtPrice((best.hi - best.lo) / 2)));
+      // 판정됐으면 결과를, 아직이면 아직이라고. 없는 결과를 있다고 하지 않는다.
+      if (best.judgedOn) {
+        row.appendChild(MSUi.el("span", "rp-last-r" + (best.hit ? " is-hit" : " is-miss"),
+          MSStr.t.rpLastActual + MSUi.fmtPrice(best.actual) +
+          (best.hit ? MSStr.t.rpLastHit : (MSStr.t.rpLastSep + MSUi.fmtPrice(best.miss) + MSStr.t.rpLastMiss))));
+      } else {
+        row.appendChild(MSUi.el("span", "rp-last-r", MSStr.t.rpLastPending));
+      }
+      w.appendChild(row);
+      if (best.judgedOn) {
+        var more = MSUi.el("button", "rp-last-more", MSStr.t.rpLastMore);
+        more.addEventListener("click", function () {
+          MSStore.markPredSeen(best.sym, best.asOf);
+          MSApp.go("result", { sym: best.sym, asOf: best.asOf });
+        });
+        w.appendChild(more);
+      }
+      // 재열람은 무료다(서버 entitlement). 안 적으면 다시 열기가 과금될까 봐 안 열어본다.
+      w.appendChild(MSUi.el("p", "rp-last-free", MSStr.t.rpLastFree));
+      return w;
+    }
+
     // 오늘 무엇을 말했는지 적어둔다(핸드오프 README §B "5번이 1번을 만든다"). 값을 치른
     // 분석에서만 적는다 — 기본분석은 무료로 아무 때나 열리므로, 그것까지 적으면 기록이
     // "사용자가 산 판정"이 아니라 "화면을 연 횟수"가 된다.
@@ -1203,6 +1248,7 @@
         // null 을 돌려주는 블록은 그 자리에서 사라진다(예전 `if (hz)` 들과 같은 동작).
         var BUILD = {
           price:     function () { return buildPrice(); },
+          last:      function () { return buildLast(); },
           verdict:   function () { return buildVerdict(indRows); },
           chart:     function () { return buildChartSection(); },
           legend:    function () { return buildChartLegend(); },

@@ -33,6 +33,14 @@
   function renderReportPane() {
     reportPane.innerHTML = "";
     if (state.showing === "wallet") { MSWalletScreen.render(reportPane); markSelected(); return; }
+    if (state.showing === "record") {
+      reportPane.scrollTop = 0;
+      MSRecord.render(reportPane); markSelected(); return;
+    }
+    if (state.showing === "scanresult") {
+      reportPane.scrollTop = 0;
+      MSScanResult.render(reportPane); markSelected(); return;
+    }
     if (state.showing === "result" && state.resultOf) {
       reportPane.scrollTop = 0;
       MSResult.render(reportPane, { sym: state.resultOf.sym, asOf: state.resultOf.asOf });
@@ -71,6 +79,8 @@
     }
 
     if (state.showing === "wallet") MSWalletScreen.render(rootEl);
+    else if (state.showing === "scanresult") MSScanResult.render(rootEl);
+    else if (state.showing === "record") MSRecord.render(rootEl);
     else if (state.showing === "result" && state.resultOf)
       MSResult.render(rootEl, { sym: state.resultOf.sym, asOf: state.resultOf.asOf });
     else if (state.showing === "report" && state.selectedSym) MSReport.render(rootEl, { sym: state.selectedSym });
@@ -97,6 +107,17 @@
     }
     // 어제 결과 상세(시안 17b·14b). 고리의 두 번째 칸이다 — 결과를 닫아주지 않으면
     // 사용자가 내일 앱을 열 이유가 없다.
+    // 스캔 결과(시안 15c) — 종목 인자가 없다(목록 전체의 변화를 말하는 화면이다).
+    if (route === "record") {
+      state.showing = "record";
+      if (dual) { renderReportPane(); return; }
+      renderShell(); return;
+    }
+    if (route === "scanresult") {
+      state.showing = "scanresult";
+      if (dual) { renderReportPane(); return; }
+      renderShell(); return;
+    }
     if (route === "result" && sym) {
       state.resultOf = { sym: sym, asOf: params && params.asOf };
       state.showing = "result";
