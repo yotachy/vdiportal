@@ -8,15 +8,63 @@
 
   var AXIS_FONT = "600 11px Pretendard, ui-monospace, monospace";   // 11px — 하한 10.5px 를 넘긴다
 
-  // 예측선 3종의 표시 개수는 티어로 게이팅한다(모바일 수익화 정책 — PC 는 항상 3종 전부 그림).
-  // 각 선은 "정의 가능해지는" 티어에서 열린다(임의 잠금이 아님):
-  //  - 1차(종합 예측)는 항상 정의됨 → basic 부터.
+  // ── 티어별 차트 구성 (P2 §3 · 인벤토리 §3 3단 비교표) ────────────────────────────────
+  // P1 까지 티어로 갈리는 것은 예측선 개수뿐이었다 — 캔들·볼린저·MA·서브패널 3종이 티어와
+  // 무관하게 항상 그려졌다. 즉 **기본분석이 심화의 차트를 공짜로 보여주고 있었다.**
+  // 레이어 정책을 여기 한 곳에 모은다: 호출부가 "무엇을 그릴지"를 스스로 판단하면 티어가
+  // 늘 때마다 호출부를 뒤져야 하고, 빠뜨려도 화면은 멀쩡해 보인다(오히려 더 좋아 보인다).
+  //
+  // 예측선은 각각 "정의 가능해지는" 티어에서 열린다(임의 잠금이 아님):
+  //  - 1차(종합 예측)는 항상 정의됨 → basic 부터. 단 basic 은 범위가 없어 점선으로 긋는다.
   //  - 2차(선택 지표 재예측)는 "어떤 지표를 셀지" 사용자가 골라야 정의됨 → 그게 바로 custom.
   //  - 3차(반대 시나리오)는 full 의 포지셔닝이 값을 지불하는 정직성 장치 → full 부터.
-  var PRED_TIERS = { basic: ["p1"], full: ["p1", "p3"], custom: ["p1", "p2", "p3"] };
+  //
+  // ⚠ basic 의 종가 선은 "덜 그린 캔들"이 아니다(drawCandles 를 회색으로 만들지 말 것).
+  // 인벤토리 §3: "기본을 일부러 초라하게 만들지 않는다 — 선 하나로도 방향과 범위는 정확히
+  // 답한다. 다만 그 이상은 말하지 않는다."
+  var FULL_PANELS = ["price", "volume", "rsi", "macd"];
+  var FULL_OVERLAYS = ["bollinger", "ma", "rsiBadge", "volumeBadge"];
+  var CHART_TIERS = {
+    basic:  { price: "line",   cone: false, lines: ["p1"],                panels: ["price"], overlays: [], legend: false },
+    full:   { price: "candle", cone: true,  lines: ["p1", "p3"],          panels: FULL_PANELS, overlays: FULL_OVERLAYS, legend: true },
+    // 전문은 심화의 모든 레이어를 유지한 채 2차선을 더한다 — 한 겹이라도 빼면 5스쿱 낸 사람이
+    // 손해다(인벤토리 §3). 그래서 같은 배열을 참조한다: 심화가 늘면 전문도 자동으로 는다.
+    custom: { price: "candle", cone: true,  lines: ["p1", "p2", "p3"],    panels: FULL_PANELS, overlays: FULL_OVERLAYS, legend: true }
+  };
 
+  function specOf(tier) {
+    return CHART_TIERS[tier] || CHART_TIERS.basic;
+  }
   function linesFor(tier) {
-    return PRED_TIERS[tier] || PRED_TIERS.basic;
+    return specOf(tier).lines;
+  }
+  // 오버레이 이름 전체 — 호출부의 이름→함수 표가 이 목록을 정확히 덮는지 관문이 대조한다.
+  // (열거를 두 곳에 두면 한쪽만 늘어난 채로 조용히 안 그려진다.)
+  function allOverlays() {
+    var seen = [];
+    Object.keys(CHART_TIERS).forEach(function (k) {
+      CHART_TIERS[k].overlays.forEach(function (n) { if (seen.indexOf(n) < 0) seen.push(n); });
+    });
+    return seen;
+  }
+
+  // 기본 티어의 가격 표현 — 종가 하나로 잇는 선. 캔들과 같은 좌표계를 쓰되 몸통·꼬리가 없다.
+  function drawCloseLine(c, lay, candle, col) {
+    var p = lay.panels.price; if (!p) return;
+    var M = p.M, i, first = true;
+    c.save();
+    c.beginPath();
+    c.lineWidth = 1.8;
+    // colTokens() 에 ink3·axis 는 없다 — 둘 다 undefined 라 이 선은 늘 하드코딩 회색으로
+    // 그려졌고, 나머지 차트가 CSS 토큰을 읽는 동안 혼자 테마를 무시했다.
+    c.strokeStyle = col.ink4;
+    for (i = lay.fiMin; i <= lay.nowFi; i++) {
+      var b = candle[i]; if (!b) continue;
+      var x = lay.fiToX(i), y = M.pToY(b.c);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y);
+    }
+    c.stroke();
+    c.restore();
   }
 
   function drawCandles(c, lay, candle, col) {
@@ -82,8 +130,12 @@
     var lo = pred.lo || [], hi = pred.hi || [];
     var anchor = (pred.anchor != null) ? pred.anchor : pred.path[0];
     var seamX = seamOf(lay), box = boxOf(lay);
+    var spec = specOf(tier);
     c.save();
-    if (hi.length && lo.length) {
+    // 기본 티어는 밴드를 안 칠한다 — 시안 18a 가 "범위만 말합니다"를 숫자로 적고 차트에는
+    // 범위를 안 그린다(3단 비교표: 예측선 "점선 한 줄, 범위 없음"). 엔진은 lo/hi 를 계속
+    // 주므로(꿈틀·신뢰 감쇠가 그 값을 쓴다) 데이터가 아니라 **표현**만 뺀다.
+    if (spec.cone && hi.length && lo.length) {
       c.beginPath();
       for (i = 0; i < n; i++) { var yh = M.pToY(hi[i]); i ? c.lineTo(xs[i], yh) : c.moveTo(xs[i], yh); }
       for (i = n - 1; i >= 0; i--) c.lineTo(xs[i], M.pToY(lo[i]));
@@ -117,11 +169,16 @@
 
     var lines = linesFor(tier);
     for (i = 0; i < lines.length; i++) {
-      if (lines[i] === "p1") wigLine(pred.path, col.gold, null, 2.2, sd, "1차", -12);
+      // 기본의 1차선은 점선·가는 선이다(3단 비교표 "점선 한 줄"). 밴드가 없으니 실선 굵은
+      // 선으로 두면 심화보다 더 단정적으로 보인다 — 덜 아는 티어가 더 확신해 보이면 안 된다.
+      if (lines[i] === "p1") wigLine(pred.path, col.gold, spec.cone ? null : [5, 4], spec.cone ? 2.2 : 1.8, sd, "1차", -12);
       // pred.second 는 ForgeCore.run() 의 예측 객체에 아직 생산자가 없다(B군 — custom 티어와 함께 착수, BACKLOG-mobile.md 참고).
       // wigLine 이 !vals 로 조용히 반환하므로 지금은 영구 no-op — 지우지 않고 남겨둔다.
       else if (lines[i] === "p2") wigLine(pred.second, col.pred2, [4, 3], 1.8, (sd ^ 0x85ebca6b) >>> 0, "2차", 12);
-      else if (lines[i] === "p3") wigLine(pred.counter, col.pred3 || col.bear, [6, 4], 1.8, (sd ^ 0x9e3779b9) >>> 0, "3차",
+      // 3차는 반대 경로라 bear 색이다. 예전엔 `col.pred3 || col.bear` 였는데 pred3 토큰은
+      // 존재한 적이 없어 사슬이 늘 bear 로 흘렀다 — 있지도 않은 선택지를 적어두면 다음 사람이
+      // "pred3 을 정의하면 바뀌겠지" 하고 읽는다. 하는 일을 그대로 적는다.
+      else if (lines[i] === "p3") wigLine(pred.counter, col.bear, [6, 4], 1.8, (sd ^ 0x9e3779b9) >>> 0, "3차",
                                           (pred.counter && pred.counter[pred.counter.length - 1] >= anchor) ? -12 : 14);
     }
     c.restore();
@@ -190,7 +247,7 @@
     c.restore();
   }
 
-  return { drawCandles: drawCandles, drawCone: drawCone, drawAxes: drawAxes,
+  return { drawCandles: drawCandles, drawCloseLine: drawCloseLine, drawCone: drawCone, drawAxes: drawAxes,
            drawCrosshair: drawCrosshair, fiAtX: fiAtX, AXIS_FONT: AXIS_FONT,
-           PRED_TIERS: PRED_TIERS, linesFor: linesFor };
+           CHART_TIERS: CHART_TIERS, specOf: specOf, linesFor: linesFor, allOverlays: allOverlays };
 });

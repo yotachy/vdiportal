@@ -98,18 +98,39 @@
 
   // 지표마다 analyzeX 를 **한 번** 부르고 방향과 문장을 함께 뽑는다.
   // biases() 를 부른 뒤 say() 를 위해 또 부르면 Full 에서 analyzeX 가 60회가 된다.
+  // 지표를 **한 번에 하나씩** 읽는 반복자. 19a(분석 진행 중계)가 이것을 프레임 사이에 돌려
+  // 진행을 그린다 — 화면이 타이머를 세는 게 아니라 실제 analyzeX 호출에 묶이는 이유가 이것이다.
+  // readings() 는 이 반복자를 끝까지 돌리는 얇은 껍데기다: 경로가 둘이면 화면이 보여준 것과
+  // 리포트가 쓰는 것이 갈라질 수 있고, 그 어긋남은 아무 예외도 내지 않는다.
+  //
+  // step() 은 지표 하나를 읽고 { type, bias, text } 또는 skipped:true 를 돌려준다(블록이 아니거나
+  // 못 읽은 것). 끝나면 null. done 으로도 물을 수 있다.
+  function readingStepper(FC, graph, data, ctx) {
+    var nodes = ((graph && graph.nodes) || []).filter(function (n) {
+      return n && n.blockType && SHAPES[n.blockType];
+    });
+    var i = 0, rows = [];
+    return {
+      total: nodes.length,
+      get done() { return i >= nodes.length; },
+      get index() { return i; },
+      rows: rows,
+      step: function () {
+        if (i >= nodes.length) return null;
+        var n = nodes[i++];
+        var r = callOne(FC, n.blockType, data, n.params);
+        if (!r || typeof r.bias !== "number" || !isFinite(r.bias)) return { type: n.blockType, skipped: true };
+        var row = { type: n.blockType, bias: r.bias,
+                    text: Readings ? Readings.say(n.blockType, r, ctx, n.params) : "" };
+        rows.push(row);
+        return row;
+      },
+      drain: function () { while (i < nodes.length) this.step(); return rows; }
+    };
+  }
+
   function readings(FC, graph, data, ctx) {
-    var out = [];
-    var nodes = (graph && graph.nodes) || [];
-    for (var i = 0; i < nodes.length; i++) {
-      var n = nodes[i];
-      if (!n.blockType || !SHAPES[n.blockType]) continue;
-      var r = callOne(FC, n.blockType, data, n.params);
-      if (!r || typeof r.bias !== "number" || !isFinite(r.bias)) continue;
-      out.push({ type: n.blockType, bias: r.bias,
-                 text: Readings ? Readings.say(n.blockType, r, ctx, n.params) : "" });
-    }
-    return out;
+    return readingStepper(FC, graph, data, ctx).drain();
   }
 
   // 방향을 물을 수 없는 둘. bias 는 null 이다 — 0(중립)과 구분해야 화면이
@@ -139,5 +160,6 @@
   }
 
   return { SHAPES: SHAPES, NO_BIAS: NO_BIAS, biasOf: biasOf, biases: biases, ctxFrom: ctxFrom,
-           readings: readings, noDirRows: noDirRows, opposing: opposing, EPS: EPS };
+           readings: readings, readingStepper: readingStepper,
+           noDirRows: noDirRows, opposing: opposing, EPS: EPS };
 });

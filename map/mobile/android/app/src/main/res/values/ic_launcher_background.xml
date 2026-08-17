@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- 다크 단독 앱인데 아이콘 배경만 흰색이라 런처에서 혼자 번쩍였다. 시안 결정(#0a0d12, bg 토큰과 동일). -->
+    <color name="ic_launcher_background">#0a0d12</color>
 </resources>

@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MoneyScoop</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style-base.css">
+<link rel="stylesheet" href="style-watchlist.css">
+<link rel="stylesheet" href="style-report.css">
+<link rel="stylesheet" href="style-reveal.css">
+<link rel="stylesheet" href="style-expert.css">
+<link rel="stylesheet" href="style-wallet.css">
+<link rel="stylesheet" href="style-sheet.css">
+<link rel="stylesheet" href="style-onboarding.css">
 </head>
 <body>
 <div id="app"></div>
@@ -12,6 +19,11 @@
 <script src="strings.js"></script>
 <script src="api.js"></script>
 <script src="ticker-picker.js"></script>
+<!-- ind-tiers 는 graph 보다 **먼저** 와야 한다. graph.js 의 UMD 팩토리가 root.MSIndTiers 를
+     로드 시점에 한 번 캡처하므로, 뒤에 두면 영원히 undefined 이고 tunableTypes() 가 빈 배열이
+     된다 — 가중치를 어떻게 만져도 Lv1 5종만 남은 그래프로 분석된다. 던지지 않는 참조라
+     부팅 연기 시험도 못 잡았다(리뷰 지적 1). -->
+<script src="ind-tiers.js"></script>
 <script src="graph.js"></script>
 <script src="store.js"></script>
 <script src="layout.js"></script>
@@ -29,12 +41,18 @@
 <script src="readings.js"></script>
 <script src="indicators.js"></script>
 <script src="report-model.js"></script>
+<script src="report-blocks.js"></script>
 <script src="vendor/backtest-summary.js"></script>
 <script src="chart-draw.js"></script>
 <script src="ui.js"></script>
 <script src="screens/watchlist.js"></script>
 <script src="tier-sheet.js"></script>
 <script src="screens/wallet.js"></script>
+<script src="screens/readings-list.js"></script>
+<script src="progress-analyze.js"></script>
+<script src="blocked.js"></script>
+<script src="progress-reveal.js"></script>
+<script src="screens/expert.js"></script>
 <script src="screens/report.js"></script>
 <script src="onboarding-sample.js"></script>
 <script src="screens/onboarding.js"></script>

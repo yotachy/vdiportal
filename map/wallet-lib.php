@@ -19,7 +19,17 @@ define("W_RUN_TTL_SEC", 86400);   // Full 권리 24시간
 define("W_NONCE_TTL_SEC", 600);   // 10분. 사용자가 브라우저에서 로그인을 마칠 시간
 
 // 서버가 정본이다. 클라이언트의 MSWallet.COSTS 는 미리보기 표시용일 뿐이다.
-function w_costs() { return array("full" => 3, "custom" => 5, "slot" => 1, "scan" => 2); }
+//
+// scan = 0 (무료, 사용자 결정 2026-08-17). 온보딩 지급이 5 스쿱인데 스캔이 2 면 두 번 만에
+// 바닥난다 — 목록을 훑어보는 행위, 즉 앱의 주 루프가 유료가 된다. 스쿱은 심화·전문 분석에서만
+// 쓴다. **키를 지우지 않고 0 으로 둔다**: 지우면 이미 설치된 구버전 앱의 spend("scan") 이
+// unknown-runtype 으로 막혀 스캔 자체가 안 된다. 0 이면 구버전도 그대로 무료로 동작한다.
+//
+// ⚠ 아래 w_refund 는 ledger.run_type 이 NULL 인 옛 행의 등급을 **delta 금액으로** 되찾는다
+// (그 전제가 "네 가격이 서로 다르다"이고 아래 테스트가 그것을 지킨다). 가격이 바뀌었으므로
+// **옛 scan 지출(delta 2)은 이제 어느 가격과도 안 맞아** tier 없이 지우는 갈래로 떨어진다.
+// scan 은 w_entitled_types() 에 없어 runs 행을 애초에 만들지 않으므로 지울 것도 없다 — 무해하다.
+function w_costs() { return array("full" => 3, "custom" => 5, "slot" => 1, "scan" => 0); }
 // 종목별 권리를 갖는 등급. scan·slot 은 단순 차감이라 여기 없다.
 function w_entitled_types() { return array("full", "custom"); }
 
@@ -497,7 +507,9 @@ function w_spend($db, $acctId, $runType, $idem, $ref, $engineVersion) {
     }
     $db->prepare("update accounts set balance = ? where id = ?")->execute(array($bal - $cost, $acctId));
     $db->exec("commit");
-    return array("ok" => true, "charged" => true, "reason" => null);
+    // charged 는 "실제로 받았는가"다. 무료 등급(cost 0)에 true 를 돌려주면 안 받아놓고 받았다고
+    // 말하는 것이고, 클라이언트의 잔량 갱신·환급 판단이 그 답을 믿는다.
+    return array("ok" => true, "charged" => ($cost > 0), "reason" => null);
   } catch (Throwable $e) {
     try { $db->exec("rollback"); } catch (Throwable $e2) {}
     throw $e;

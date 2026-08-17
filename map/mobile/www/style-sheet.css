@@ -1,0 +1,80 @@
+/* 바텀시트 공통 골격(12a·6b) + 2단(폴드 펼침)
+   style.css 분할본 7/8 — **읽는 순서가 곧 캐스케이드다.** index.html 의
+   <link> 순서를 바꾸거나 한 장을 빼면 나중 규칙이 앞 규칙을 덮던 관계가 끊긴다.
+   순서는 이 머리의 `분할본 N/M` 이 정본이고, 관문(style-split.test.mjs)이 그것과
+   index.html 의 <link> 차례를 대조한다 — 사람이 기억하는 순서에 기대지 않는다. */
+/* ===== 바텀시트 공통 골격(시안 12a·6b — 두 시트가 이 셋을 함께 쓴다: tier-sheet.js,
+   screens/watchlist.js openAddSheet) ===== */
+.sheet-scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; z-index:20; }
+/* 상단 라운드 28px(시안 고정값) + 드래그 손잡이. 두 시트 모두 같은 손잡이를 쓰므로 .sheet
+   자신이 ::before 로 그린다 — 그려야 할 곳마다 다시 그리면 한쪽만 잊기 쉽다. */
+.sheet { position:relative; width:100%; max-height:80vh; overflow-y:auto; background:var(--sheet);
+         border-top:1px solid var(--hairline-2); border-radius:28px 28px 0 0;
+         padding:30px 20px calc(22px + env(safe-area-inset-bottom)); }
+.sheet::before { content:""; position:absolute; top:12px; left:50%; transform:translateX(-50%);
+                  width:38px; height:4px; border-radius:99px; background:var(--border-strong); }
+
+/* 시트 머리 — 큰 제목 + 부제 두 줄(시안 12a·6b 공통 패턴). 잔량 필은 더 이상 여기 없다 —
+   심화분석 행 자체가 값을 보여주고, 잔량 대조는 costLine("쓰면 12 → 9")의 몫이다. */
+.sheet-head { margin-bottom:20px; }
+.sheet-title { margin:0; font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+.sheet-subtitle { margin:6px 0 0; font-size:var(--fs-sub); color:var(--ink-5); }
+
+/* 단계 카드 3장(시안 6b) — 목록형 대신 각자 배경을 가진 카드다. 선택·강조는 배경·테두리·
+   글자색으로만 한다(좌측 세로 라인 금지, 프로젝트 전역 규칙). */
+.sheet-tiers { display:flex; flex-direction:column; gap:9px; margin:0 0 20px; }
+.sheet-tier { display:flex; align-items:center; gap:14px; width:100%; min-height:64px; padding:16px 18px;
+              border:0; border-radius:20px; background:var(--steel-soft); color:inherit; font:inherit; text-align:left; }
+.sheet-tier-id { flex:1 1 auto; min-width:0; }
+.sheet-tier-name { display:flex; align-items:center; gap:8px; }
+.sheet-tier-name-txt { font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); }
+.sheet-tier-desc { font-size:var(--fs-sub); color:var(--ink-5); margin-top:6px; line-height:1.4; white-space:pre-line; }
+/* 기본(steel) — 이미 무료로 받은 것, 아무 것도 안 산다. */
+.sheet-tier.tier-basic .sheet-tier-name-txt { color:var(--steel); }
+/* 심화(gold) — 지금 살 수 있는 단 하나, 골드 테두리로 눈에 띈다. */
+.sheet-tier.tier-full { background:var(--gold-soft); border:1.5px solid var(--gold); padding:14.5px 16.5px; }
+.sheet-tier.tier-full .sheet-tier-name-txt { font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); color:var(--ink); }
+/* 전문(platinum) — 이번 라운드는 잠금만(P2 가 연다), 자물쇠+"곧 지원 예정"으로 끝난다. */
+.sheet-tier.tier-custom .sheet-tier-name-txt { color:var(--platinum); }
+.sheet-pop { padding:2px 8px; border-radius:99px; background:var(--gold); color:var(--gold-ink); font-size:var(--fs-caption); font-weight:var(--fw-heavy); }
+.sheet-tier-done { flex:0 0 auto; font-size:var(--fs-sub); font-weight:var(--fw-bold); color:var(--steel); }
+.sheet-tier-price { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.sheet-tier-price-num { font-size:var(--fs-figure); font-weight:var(--fw-figure); letter-spacing:var(--ls-figure);
+                         color:var(--gold); font-variant-numeric:tabular-nums; }
+.sheet-tier-price-unit { font-size:var(--fs-caption); font-weight:var(--fw-semibold); color:var(--gold); }
+.sheet-tier-locked { flex:0 0 auto; display:flex; align-items:center; gap:6px; color:var(--ink-5); font-size:var(--fs-caption); }
+.sheet-tier-lock-ic { display:flex; }
+.sheet-short { font-size:var(--fs-caption); color:var(--ink-5); margin:12px 0 0; line-height:1.5; }
+/* 비용 한 줄 — 왼쪽 "쓰면 12 → 9"(본문), 오른쪽 "최대 20"(부차, 시안 6b 배치). */
+.sheet-cost { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:0 2px 4px; }
+.sheet-cost-txt { font-size:var(--fs-sub); font-weight:var(--fw-semibold); color:var(--ink-2); }
+.sheet-cost-pv { font-size:var(--fs-sub); font-weight:var(--fw-bold); color:var(--ink); font-variant-numeric:tabular-nums; margin-left:4px; }
+.sheet-cost-cap { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
+
+.sheet-run { width:100%; margin-top:16px; background:var(--action); color:var(--gold-ink); }
+.sheet-run[disabled] { opacity:.5; }
+
+/* ===== 2단 (폴드 펼침) =====
+   미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,
+   app.js 가 matchMedia 결과를 body.ms-dual 로 내려준다. 여기에 @media 를 또 적으면
+   한쪽만 고쳤을 때 JS 와 CSS 가 조용히 갈라진다(설계 §3.1). */
+body.ms-dual { padding-bottom:0; overflow:hidden; }
+body.ms-dual .shell { display:grid; height:100vh; height:100dvh;
+  padding-top:var(--safe-top); }   /* 2단 — 셸이 최상단 */
+/* 2단 스크롤러는 .pane 이고 그 위쪽 끝은 이미 셸 패딩 아래다 — 여기서 인셋을 또 주면
+   상태바 높이만큼 빈 띠가 생긴다. */
+body.ms-dual .wl-toolbar { top:0; }
+body.ms-dual .pane {
+  min-width:0;                      /* 그리드 칸이 콘텐츠 폭에 밀려 넘치는 것을 막는다 */
+  overflow-y:auto; overscroll-behavior:contain;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+body.ms-dual .pane-list { border-right:1px solid var(--hairline-2); }
+/* 목록 칸은 255px 다 — 기본 20px 좌우 패딩이면 콘텐츠가 215px 로 남는다 */
+body.ms-dual .pane-list .scr { padding:0 14px 24px; }
+/* 2단엔 '뒤로'가 없다 — 목록이 옆에 그대로 있다 */
+body.ms-dual .pane-report .rp-back { display:none; }
+/* 선택 강조는 배경색만. 좌측 세로 컬러 라인 금지(프로젝트 규율). steel 로 내린다 — 활성 칩이 골드가 되어
+   한 화면에 골드가 둘이 된다. 선택은 사용자 상태이지 엔진 출력이 아니다. */
+body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
+

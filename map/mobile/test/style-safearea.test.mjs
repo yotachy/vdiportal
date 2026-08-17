@@ -1,7 +1,8 @@
 import { test } from "node:test";
+import { allCss } from "./_css.mjs";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
-const CSS = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
+const CSS = allCss();
 const HTML = readFileSync(new URL("../www/index.html", import.meta.url), "utf8");
 
 // 이 부류는 헤드리스가 못 본다 — env(safe-area-*) 는 실기기에서만 0 이 아니다.

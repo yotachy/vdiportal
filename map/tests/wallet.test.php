@@ -163,7 +163,7 @@ t("금액 상수가 시안 값과 같다", function () {
   eq($c["full"], 3, "full");
   eq($c["custom"], 5, "custom");
   eq($c["slot"], 1, "slot");
-  eq($c["scan"], 2, "scan");
+  eq($c["scan"], 0, "scan — 무료(2026-08-17 사용자 결정)");
   eq(W_SEED, 5, "SEED"); eq(W_CAP, 20, "CAP");
   eq(W_CHECKIN, 1, "CHECKIN"); eq(W_CHEST, 5, "CHEST"); eq(W_CHEST_EVERY, 7, "CHEST_EVERY");
 });
@@ -373,13 +373,19 @@ t("잔량이 모자라면 롤백하고 원장에 아무 것도 안 남는다", f
 
 t("scan·slot 은 권리를 만들지 않는다 — 단순 차감", function () {
   $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  // scan 은 이제 무료다 — 성공하되 원장이 안 움직이고 charged 로도 그렇게 답해야 한다.
   $r = w_spend($db, $a["id"], "scan", "k1", null, null);
-  eq($r["charged"], true, "charged");
-  eq(w_true_balance($db, $a["id"]), 3, "5 - 2");
+  eq($r["ok"], true, "무료 scan 이 실패했다");
+  eq($r["charged"], false, "무료인데 charged 로 답했다 — 안 받아놓고 받았다고 말한다");
+  eq(w_true_balance($db, $a["id"]), 5, "무료인데 잔량이 줄었다");
   $n = $db->query("select count(*) c from runs")->fetch();
   eq((int)$n["c"], 0, "scan 이 권리를 만들었다");
-  $r2 = w_spend($db, $a["id"], "scan", "k2", null, null);
-  eq($r2["charged"], true, "두 번째 스캔이 무료였다 — scan 은 권리가 없다");
+  // slot 은 여전히 유료지만 마찬가지로 권리를 안 만든다 — 이 테스트 제목의 나머지 절반.
+  $r2 = w_spend($db, $a["id"], "slot", "k2", null, null);
+  eq($r2["charged"], true, "유료 slot 이 무료로 처리됐다");
+  eq(w_true_balance($db, $a["id"]), 4, "5 - slot 1 = 4");
+  $n2 = $db->query("select count(*) c from runs")->fetch();
+  eq((int)$n2["c"], 0, "slot 이 권리를 만들었다");
   $db = null; rmrf($d);
 });
 
@@ -393,7 +399,8 @@ t("모르는 runType 과 빈 idem 은 거절한다", function () {
 
 t("잔량은 음수가 되지 않는다 — 연속 spend", function () {
   $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
-  for ($i = 0; $i < 5; $i++) { w_spend($db, $a["id"], "scan", "k" . $i, null, null); }
+  // 유료 등급으로 재야 한다 — scan 은 무료라 아무리 반복해도 잔량이 안 움직인다.
+  for ($i = 0; $i < 5; $i++) { w_spend($db, $a["id"], "slot", "k" . $i, null, null); }
   ok(w_true_balance($db, $a["id"]) >= 0, "잔량이 음수다");
   $db = null; rmrf($d);
 });
@@ -457,7 +464,8 @@ t("시드 idem(seed:<계정id>) 재사용으로 무한 결제를 받을 수 없�
 t("scan 은 ref 가 있어도 권리를 만들지 않는다 — 등급 자체가 권리가 없다", function () {
   $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
   $r = w_spend($db, $a["id"], "scan", "k1", "AAPL", null);
-  eq($r["charged"], true, "charged");
+  eq($r["ok"], true, "무료 scan 이 실패했다");
+  eq($r["charged"], false, "무료인데 charged 로 답했다");
   $n = $db->query("select count(*) c from runs")->fetch();
   eq((int)$n["c"], 0, "scan 이 ref 를 받았다고 권리를 만들었다");
   $db = null; rmrf($d);
@@ -1110,8 +1118,10 @@ t("두 번째 기기 — 익명 잔량은 버려지고 구글 잔량은 오르�
   w_merge($db, "dev-A", "gsub-1");
   $g = w_get_account($db, "dev-A");
   // 구글 계정 잔량을 3으로 낮춘다 — "높은 쪽"이면 5로 올라갈 상황을 만든다
-  $sp = w_spend($db, $g["id"], "scan", "t:setup", null, null);
+  // 유료 등급 2회로 낮춘다 — scan 은 무료라 잔량이 안 내려간다.
+  $sp = w_spend($db, $g["id"], "slot", "t:setup", null, null);
   eq($sp["ok"], true, "준비용 차감이 실패했다");
+  eq(w_spend($db, $g["id"], "slot", "t:setup2", null, null)["ok"], true, "준비용 차감 2 가 실패했다");
   $gBefore = w_true_balance($db, $g["id"]);
   eq($gBefore, 3, "준비 전제가 깨졌다 — 구글 잔량이 3 이어야 한다");
 
@@ -1283,7 +1293,7 @@ t("병합으로 넘어간 기기 계정은 더 벌 수 없다 — 두 번째 지
   // 환급도 같은 문이다 — 병합 전에 쓴 idem 을 병합 후에 환급하면 버린 잔량이 되살아난다.
   w_create_account($db, "dev-C", "ip3");
   $c = w_get_account($db, "dev-C");
-  eq(w_spend($db, $c["id"], "scan", "c:pre", "AAPL", null)["ok"], true, "준비용 차감이 실패했다");
+  eq(w_spend($db, $c["id"], "slot", "c:pre", "AAPL", null)["ok"], true, "준비용 차감이 실패했다");
   w_merge($db, "dev-C", "gsub-1");
   $rf = w_refund($db, $c["id"], "c:pre");
   eq($rf["ok"], false, "넘긴 계정에서 환급이 성공했다 — 버린 잔량이 되살아난다");
@@ -1406,9 +1416,9 @@ t("정상 계정의 spend 는 그대로 된다 — 가드가 전부를 막으면
   $d = tmpdir(); $db = w_db($d);
   w_create_account($db, "dev-A", "ip");
   $a = w_get_account($db, "dev-A");
-  $r = w_spend($db, $a["id"], "scan", "t:ok", null, null);
+  $r = w_spend($db, $a["id"], "slot", "t:ok", null, null);
   eq($r["ok"], true, "정상 계정이 막혔다");
-  eq(w_true_balance($db, $a["id"]), 3, "5 - scan 2 = 3 이어야 한다");
+  eq(w_true_balance($db, $a["id"]), 4, "5 - slot 1 = 4 여야 한다");
   $db = null; rmrf($d);
 });
 
@@ -1471,7 +1481,8 @@ t("일 8회를 넘으면 적립하지 않는다", function () {
   w_create_account($db, "dev-A", "ip");
   $a = w_get_account($db, "dev-A");
   // 잔량 상한과 섞이지 않게 상한을 넉넉히 비워둔다
-  w_spend($db, $a["id"], "scan", "t:1", null, null);
+  w_spend($db, $a["id"], "slot", "t:1", null, null);
+  w_spend($db, $a["id"], "slot", "t:2", null, null);
   for ($i = 1; $i <= 8; $i++) w_ad_grant($db, $a["id"], "quick", "tx-" . $i, 1);
   $r = w_ad_grant($db, $a["id"], "quick", "tx-9", 1);
   eq($r["ok"], true, "상한 초과도 ok 다 — 구글에 실패를 주면 재시도한다");

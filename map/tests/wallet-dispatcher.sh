@@ -247,7 +247,8 @@ chk "빈 idem refund 도 400 이다" "$CODE" "400"
 
 # ── idem 이름공간 — 클라이언트 입력이 서버 자신의 키에 닿으면 안 된다 ──────────────────
 # 클라이언트는 device_id 로 계정 id 를 오프라인 계산할 수 있으므로 checkin 키를 정확히 안다.
-post "{\"op\":\"spend\",\"runType\":\"scan\",\"idem\":\"checkin:$ACCT_B:$TODAY\"}" "$TOK_B"
+# 유료 등급으로 재야 "그냥 받는다"가 과금까지 정상이라는 뜻이 된다(scan 은 무료라 charged 가 false).
+post "{\"op\":\"spend\",\"runType\":\"slot\",\"idem\":\"checkin:$ACCT_B:$TODAY\"}" "$TOK_B"
 chk "서버 키 모양의 idem 도 그냥 받는다(접두되므로 안전)" "$CODE" "200"
 chk "그 spend 는 정상 과금됐다" "$(jget "$BODY" charged)" "true"
 post '{"op":"checkin"}' "$TOK_B"
@@ -259,7 +260,8 @@ chk "서버 키는 접두 없이 그대로 있다" \
     "$(dbq "select count(*) from ledger where account_id='$ACCT_B' and idem='checkin:$ACCT_B:$TODAY'")" "1"
 
 # 접두는 spend·refund 양쪽에 똑같이 붙어야 한다 — 한쪽만 붙이면 모든 환급이 not-found 다.
-post '{"op":"spend","runType":"scan","idem":"rf1"}' "$TOK_B"
+# scan 은 무료라 과금 자체가 없다 — 접두 대칭을 재려면 실제로 차감되는 등급이어야 한다.
+post '{"op":"spend","runType":"slot","idem":"rf1"}' "$TOK_B"
 chk "환급용 spend 과금" "$(jget "$BODY" charged)" "true"
 post '{"op":"refund","idem":"rf1"}' "$TOK_B"
 chk "환급이 원본을 찾는다(접두 대칭)" "$(jget "$BODY" ok)" "true"

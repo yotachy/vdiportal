@@ -53,7 +53,10 @@ function predRgbs(c) {
   }
   return set;
 }
-const RGB = { gold: "232,180,99", pred3: "224,106,106", pred2: "184,146,245" };
+// pred3 은 없다 — 3차(반대 경로)는 bear 로 그린다. 예전엔 여기 pred3:"#e06a6a" 를 COL 에
+// **주입해** 재고 있었는데, colTokens() 는 그런 키를 내놓은 적이 없다. 앱이 절대 주지 않는
+// 입력을 테스트가 만들어 넣으면, 실제로는 늘 폴백으로 흘러가던 코드가 초록으로 남는다.
+const RGB = { gold: "232,180,99", bear: "217,106,106", pred2: "184,146,245" };
 
 test("상승봉은 bull, 하락봉은 bear 로 실제로 칠해진다 — 봉마다 대응을 고정", () => {
   const c = recCtx(), lay = LAY(), cd = candles(150);
@@ -86,7 +89,7 @@ test("몸통 높이는 최소 1px — 도지가 사라지지 않는다", () => {
 
 test("콘을 cone 색으로 채우고 경로를 gold 로 긋는다", () => {
   const c = recCtx(); L.resetLabels(372, 520);
-  D.drawCone(c, LAY(), pred, COL);
+  D.drawCone(c, LAY(), pred, COL, "full");
   assert.ok(c.calls.some(x => x.op === "fill" && x.fill === COL.cone), "콘 채움이 없다");
   assert.ok(predRgbs(c).has(RGB.gold), "예측 경로 gold 스트로크가 없다");
 });
@@ -141,7 +144,7 @@ test("linesFor 는 티어별 배열을 돌려주고, 모르는 티어는 basic �
   assert.deepEqual(D.linesFor("custom"), ["p1", "p2", "p3"]);
   assert.deepEqual(D.linesFor("nope"), ["p1"], "미지정 티어는 basic 폴백");
   assert.deepEqual(D.linesFor(undefined), ["p1"]);
-  assert.deepEqual(D.PRED_TIERS.basic, ["p1"]);
+  assert.deepEqual(D.CHART_TIERS.basic.lines, ["p1"]);
 });
 
 test("tier:basic 은 1차만 긋는다 — counter 는 색조차 등장하지 않는다", () => {
@@ -153,28 +156,38 @@ test("tier:basic 은 1차만 긋는다 — counter 는 색조차 등장하지 �
 
 test("tier:full 은 1차·3차를 긋고, 3차는 점선이다", () => {
   const c = recCtx(); L.resetLabels(372, 520);
-  D.drawCone(c, LAY(), predWithCounter, Object.assign({}, COL, { pred3: "#e06a6a" }), "full");
+  D.drawCone(c, LAY(), predWithCounter, COL, "full");
   const rgbs = predRgbs(c);
   assert.ok(rgbs.has(RGB.gold), "1차(gold) 가 없다");
-  assert.ok(rgbs.has(RGB.pred3), "3차(pred3) 가 없다");
+  assert.ok(rgbs.has(RGB.bear), "3차(반대 경로 = bear) 가 없다");
   assert.equal(rgbs.size, 2, "예측선 색이 2종이 아니다: " + [...rgbs]);
   assert.ok(c.calls.some(x => x.op === "setLineDash" && x.args[0] && x.args[0].length), "3차가 점선이 아니다");
 });
 
 test("tier:custom 이지만 pred.second 가 없으면 p1·p3 만 그리고 에러 없이 끝난다", () => {
   const c = recCtx(); L.resetLabels(372, 520);
-  const col = Object.assign({}, COL, { pred3: "#e06a6a", pred2: "#b892f5" });
+  const col = Object.assign({}, COL, { pred2: "#b892f5" });   // pred2 는 실재 토큰이라 주입해도 된다
   assert.doesNotThrow(() => D.drawCone(c, LAY(), predWithCounter, col, "custom"));
   const rgbs = predRgbs(c);
   assert.equal(rgbs.size, 2, "second 없이 p2 를 그렸다: " + [...rgbs]);
   assert.ok(!rgbs.has(RGB.pred2), "pred2 색이 등장하면 안 된다(데이터 없음)");
 });
 
-test("콘 채움은 티어와 무관하게 항상 그려진다", () => {
-  ["basic", "full", "custom", undefined].forEach(tier => {
+// P1 까지는 "콘 채움은 티어와 무관하게 항상 그려진다"였다. P2 가 그 계약을 **의도적으로**
+// 뒤집는다 — 인벤토리 §3 3단 비교표가 기본을 "점선 한 줄, 범위 없음"으로, 심화를
+// "1차 + 2차 + 80% 콘"으로 갈라놨는데 콘이 모든 티어에 있으면 그 줄이 거짓이 된다.
+// 엔진은 계속 lo/hi 를 준다(꿈틀·신뢰 감쇠가 그 값을 쓴다) — 빠지는 것은 데이터가 아니라 표현이다.
+test("콘 채움은 유료 티어에만 있다 — 기본은 범위를 안 그린다", () => {
+  ["full", "custom"].forEach(tier => {
     const c = recCtx(); L.resetLabels(372, 520);
     D.drawCone(c, LAY(), predWithCounter, COL, tier);
     assert.ok(c.calls.some(x => x.op === "fill" && x.fill === COL.cone), "tier=" + tier + " 콘 채움 누락");
+  });
+  ["basic", undefined].forEach(tier => {
+    const c = recCtx(); L.resetLabels(372, 520);
+    D.drawCone(c, LAY(), predWithCounter, COL, tier);
+    assert.ok(!c.calls.some(x => x.op === "fill" && x.fill === COL.cone),
+      "tier=" + tier + " 인데 콘이 채워졌다 — 기본이 심화의 범위를 공짜로 보여준다");
   });
 });
 
@@ -269,4 +282,32 @@ test("진앙 마커는 여전히 그린다 — 끝점 '위치'는 정보다", ()
   const c = recCtx(); L.resetLabels(372, 520);
   D.drawCone(c, LAY(), predWithCounter, COL, "basic", { sym: "AAPL", tf: "1day" });
   assert.ok(c.calls.filter(x => x.op === "arc").length >= 2, "진앙이 사라졌다");
+});
+
+// 그리기 코드가 참조하는 색 키는 전부 MSUi.colTokens() 가 실제로 내놓는 것이어야 한다.
+// `col.ink3 || col.axis || "#9aa3b6"` 처럼 없는 키를 폴백 사슬로 엮으면, 사슬이 끝까지
+// 흘러 하드코딩 색으로 그려진다 — 나머지 차트가 CSS 토큰을 읽는 동안 그 선만 테마를
+// 무시하고, 아무 예외도 나지 않아 눈으로만 보인다(리뷰 지적 9).
+test("차트가 참조하는 색 키가 colTokens() 에 전부 있다", () => {
+  const { readFileSync } = require("node:fs");
+  const WWW = new URL("../www/", import.meta.url);
+  const ui = readFileSync(new URL("ui.js", WWW), "utf8");
+  const at = ui.indexOf("function colTokens()");
+  assert.ok(at > 0, "colTokens 를 못 찾았다");
+  const seg = ui.slice(at, ui.indexOf("\n  }", at));
+  // 반환 객체의 키 — 이름을 여기 나열하지 않는다(나열하면 토큰이 늘 때 관문이 늙는다).
+  const known = new Set([...seg.matchAll(/^\s{6}(\w+):/gm)].map(m => m[1]));
+  assert.ok(known.size >= 6, "colTokens 의 키를 못 읽었다: " + [...known]);
+
+  const bad = [];
+  ["chart-draw.js", "draw-layers.js", "draw-preds.js", "draw-panels.js"].forEach(f => {
+    let code;
+    try { code = readFileSync(new URL(f, WWW), "utf8"); } catch { return; }
+    code = code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+    [...code.matchAll(/\bcol\.(\w+)/g)].forEach(m => {
+      if (!known.has(m[1])) bad.push(f + " → col." + m[1]);
+    });
+  });
+  assert.deepEqual([...new Set(bad)], [],
+    "colTokens() 에 없는 색 키를 참조한다 — undefined 라 폴백 사슬이 하드코딩 색까지 흘러간다:\n" + bad.join("\n"));
 });

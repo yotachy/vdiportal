@@ -1,0 +1,93 @@
+/* 전문분석 편집기(10a) + 판독문 전체(20a)
+   style.css 분할본 5/8 — **읽는 순서가 곧 캐스케이드다.** index.html 의
+   <link> 순서를 바꾸거나 한 장을 빼면 나중 규칙이 앞 규칙을 덮던 관계가 끊긴다.
+   순서는 이 머리의 `분할본 N/M` 이 정본이고, 관문(style-split.test.mjs)이 그것과
+   index.html 의 <link> 차례를 대조한다 — 사람이 기억하는 순서에 기대지 않는다. */
+/* ===== 전문분석 편집기(시안 10a) ===== */
+.xp-scrim { position:fixed; inset:0; z-index:40; background:var(--scrim, rgba(0,0,0,.55));
+            display:flex; align-items:flex-end; }
+.xp-sheet { display:flex; flex-direction:column; width:100%; max-height:92dvh;
+            background:var(--sheet); border-radius:28px 28px 0 0; border-top:1px solid var(--border);
+            padding-bottom:env(safe-area-inset-bottom); }
+.xp-head { padding:20px 20px 10px; }
+.xp-title { margin:0; font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+.xp-sub { margin-top:4px; font-size:var(--fs-sub); color:var(--ink-5); }
+.xp-body { flex:1 1 auto; overflow-y:auto; padding:0 20px 12px; }
+.xp-sec { padding-top:12px; }
+.xp-hint { margin:6px 0 10px; font-size:var(--fs-sub); color:var(--ink-4); }
+.xp-seg { display:flex; flex-wrap:wrap; gap:6px; }
+.xp-seg-btn { padding:9px 13px; border-radius:99px; background:var(--bg-raised); border:1px solid var(--border);
+              color:var(--ink-3); font:inherit; font-size:var(--fs-sub); }
+.xp-seg-btn.on { background:var(--platinum); border-color:var(--platinum); color:var(--gold-ink); font-weight:var(--fw-semibold); }
+.xp-lv { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:18px 0 6px; }
+.xp-fixed { font-size:var(--fs-caption); color:var(--ink-5); }
+.xp-row { padding:10px 0; border-top:1px solid var(--hairline); }
+.xp-row.off { opacity:.55; }
+.xp-row-head { display:flex; align-items:center; gap:9px; }
+.xp-check { width:20px; height:20px; flex:0 0 20px; border-radius:6px; border:1.5px solid var(--border-strong);
+            background:none; padding:0; }
+.xp-check.on { background:var(--platinum); border-color:var(--platinum); }
+.xp-name { flex:1 1 auto; min-width:0; font-size:var(--fs-body); }
+.xp-val { font-size:var(--fs-body); font-weight:var(--fw-semibold); font-variant-numeric:tabular-nums; color:var(--ink-2); }
+/* 슬라이더는 이름 아래 줄 — 한 줄이면 트랙이 150px 로 줄어 0.1 단위 조절이 불가능하다(시안 10a). */
+.xp-slider { display:block; width:100%; margin-top:8px; accent-color:var(--platinum); }
+.xp-foot { flex:0 0 auto; padding:12px 20px 16px; border-top:1px solid var(--border); background:var(--sheet); }
+.xp-agree { min-height:18px; margin-bottom:8px; font-size:var(--fs-sub); color:var(--ink-4); }
+.xp-actions { display:flex; gap:8px; }
+.xp-reset { flex:0 0 auto; min-height:48px; padding:0 14px; border-radius:11px; border:1px solid var(--border);
+            background:transparent; color:var(--ink-4); font:inherit; font-size:var(--fs-sub); }
+.xp-run { flex:1 1 auto; display:flex; align-items:center; justify-content:center; gap:8px; min-height:48px;
+          border:0; border-radius:11px; background:var(--platinum); color:var(--gold-ink);
+          font:inherit; font-size:var(--fs-body); font-weight:var(--fw-semibold); }
+.xp-run[disabled] { opacity:.5; }
+.xp-price { display:inline-flex; align-items:baseline; gap:3px; }
+.xp-price-num { font-weight:var(--fw-bold); font-variant-numeric:tabular-nums; }
+.xp-price-unit { font-size:var(--fs-caption); }
+
+/* ===== 판독문 전체(시안 20a) ===== */
+.rd-head { display:flex; align-items:flex-start; gap:10px; padding:12px 0 14px; }
+.rd-back { flex:0 0 28px; height:28px; display:flex; align-items:center; justify-content:center;
+           border:0; background:none; color:var(--ink-3); padding:0; }
+.rd-titles { flex:1 1 auto; min-width:0; }
+.rd-title { margin:0; font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+.rd-scope { margin:4px 0 0; font-size:var(--fs-sub); color:var(--ink-5); }
+.rd-filters { display:flex; flex-wrap:wrap; gap:6px; padding-bottom:14px; }
+.rd-filter { padding:7px 12px; border-radius:99px; background:var(--sheet); border:1px solid var(--border);
+             color:var(--ink-3); font:inherit; font-size:var(--fs-sub); }
+.rd-filter.on { background:var(--track); border-color:var(--border-strong); color:var(--ink); font-weight:var(--fw-semibold); }
+.rd-list > .overline { margin-top:18px; margin-bottom:8px; }
+/* 지표 카드 — 좌측 세로 컬러 라인 금지(프로젝트 전역 규칙). 방향은 점과 기여도 색으로만 말한다. */
+.rd-item { padding:12px 0; border-top:1px solid var(--hairline); }
+.rd-line1 { display:flex; align-items:center; gap:8px; }
+.rd-dot { width:7px; height:7px; border-radius:99px; flex:0 0 7px; background:var(--neutral); }
+.rd-dot.rd-up { background:var(--bull); }
+.rd-dot.rd-down { background:var(--bear); }
+.rd-name { flex:1 1 auto; min-width:0; font-size:var(--fs-body); font-weight:var(--fw-semibold); }
+.rd-contrib { font-size:var(--fs-body); font-weight:var(--fw-semibold); font-variant-numeric:tabular-nums; color:var(--ink-4); }
+.rd-contrib.rd-up { color:var(--bull); }
+.rd-contrib.rd-down { color:var(--bear-text); }
+.rd-say { margin:6px 0 0 15px; font-size:var(--fs-sub); color:var(--ink-3); line-height:1.55; }
+/* 판독문 링크 행(시안 18b) */
+.rp-rdlink { display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px;
+             min-height:48px; margin-top:8px; padding:0 14px; border-radius:11px;
+             border:1px solid var(--border); background:transparent; color:var(--ink-2);
+             font:inherit; font-size:var(--fs-body); }
+.rp-cta { display:block; width:100%; min-height:48px; margin-top:4px; border-radius:11px; border:1px solid var(--border); background:transparent; color:var(--ink-4); font:inherit; font-weight:var(--fw-semibold); font-size:var(--fs-body); }
+.rp-cta[disabled] { opacity:.6; }
+
+.rp-sk { background:var(--track); border-radius:8px; animation:rpPulse 1.4s ease-in-out infinite; }
+@keyframes rpPulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+
+.rp-err { padding:16px 0 8px; color:var(--ink-4); font-size:var(--fs-sub); line-height:1.7; }
+.rp-err-title { color:var(--ink-2); font-weight:var(--fw-semibold); font-size:var(--fs-body); margin-bottom:6px; }
+
+/* 지평 3행 — 차트 앞. 라벨 / 예측가 / 변화율 / 달성확률 */
+.rp-hz { margin-bottom:20px; }
+.rp-hz-row { display:flex; align-items:baseline; gap:10px; height:38px; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); font-variant-numeric:tabular-nums; }
+.rp-hz-when { flex:1 1 auto; color:var(--ink-2); font-weight:var(--fw-semibold); }
+.rp-hz-px { flex:0 0 auto; color:var(--ink); }
+.rp-hz-chg { flex:0 0 62px; text-align:right; color:var(--ink-3); }
+.rp-hz-chg.up { color:var(--bull); }
+.rp-hz-chg.dn { color:var(--bear-text); }
+.rp-hz-prob { flex:0 0 42px; text-align:right; color:var(--ink-4); }
+

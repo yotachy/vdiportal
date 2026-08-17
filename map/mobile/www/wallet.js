@@ -7,11 +7,16 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  // 전부 시안에서 온 값이다 — full·custom 은 5a·4a, slot 은 2b("Add TSLA — Costs 1 Scoop"),
-  // scan 은 2c 의 Spend 목록("Watchlist signal scan 2"). 8a 는 scan 을 "값이 없다"고 잘못 읽어
-  // 무료로 뒀다가 2026-08-12 사용자 결정으로 시안 값으로 돌렸다.
-  // 금액은 서버가 정본이고 이 표는 시트의 미리보기 표시용이다.
-  var COSTS = { full: 3, custom: 5, slot: 1, scan: 2 };
+  // 전부 시안에서 온 값이다 — full·custom 은 5a·4a, slot 은 2b("Add TSLA — Costs 1 Scoop").
+  // 금액은 서버(wallet-lib.php w_costs)가 정본이고 이 표는 시트의 미리보기 표시용이다.
+  //
+  // scan = 0 (무료, 사용자 결정 2026-08-17). 값이 2c 목록("Watchlist signal scan 2")과 무료
+  // 사이를 두 번 오갔는데, 이번 결정의 근거는 시안 판독이 아니라 경제다: 온보딩 지급이 5 인데
+  // 스캔이 2 면 두 번 만에 바닥나 **목록을 훑어보는 주 루프가 유료가 된다.** 스쿱은 심화·전문
+  // 분석에서만 쓴다. 서버 w_costs 도 같은 라운드에 0 이 됐다 — 한쪽만 바꾸면 표시와 차감이 갈린다.
+  // watchlist.js beginScan 은 원래부터 `if (!cost)` 무료 갈래를 갖고 있어 이 값 하나로 차감이
+  // 사라진다(과금 배선은 지우지 않는다 — 값이 되돌아오면 그대로 다시 산다).
+  var COSTS = { full: 3, custom: 5, slot: 1, scan: 0 };
   var backend = null;
 
   function install(b) { backend = b || null; }

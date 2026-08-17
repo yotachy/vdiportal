@@ -42,7 +42,7 @@ function makeSyntheticFixture(symbol, tf, opts = {}) {
 }
 
 // graph 를 받으면 그것으로 잰다(티어별 측정). 기본값은 표준 그래프라 기존 호출부는 그대로다.
-function walkForward(fixture, graphIn) {
+function walkForward(fixture, graphIn, runOpts) {
   const candle = fixture.candle, price = candle.map(c => c.c), N = price.length;
   const tf = fixture.tf, H = horizonForTF(tf), STRIDE = strideForTF(tf);
   const graph = graphIn || standardGraph();
@@ -50,7 +50,11 @@ function walkForward(fixture, graphIn) {
   for (let t = WARMUP; t <= N - H - 1; t += STRIDE) {
     const s0 = Math.max(0, t + 1 - LOOKBACK);   // 최근 LOOKBACK봉 창(속도)
     const past = { price: price.slice(s0, t + 1), candle: candle.slice(s0, t + 1) };   // [s0..t] — lookahead 차단(t 이후 없음)
-    let r; try { r = FC.run(graph, past, { futW: H, timeframe: tf }); } catch (e) { continue; }
+    // runOpts 는 엔진에 그대로 얹힌다(driftWeights 등). 없으면 예전과 완전히 같은 호출이다 —
+    // 티어 측정과 가중치 측정이 같은 하네스를 써야 두 숫자를 나란히 놓을 수 있다.
+    const ro = { futW: H, timeframe: tf };
+    if (runOpts) for (const k in runOpts) ro[k] = runOpts[k];
+    let r; try { r = FC.run(graph, past, ro); } catch (e) { continue; }
     const pred = r.prediction, v = r.verdict; if (!pred || !pred.path) continue;
     records.push({
       t, H,
@@ -71,7 +75,7 @@ function runBacktest(fixtures, opts = {}) {
   const graph = opts.graph || standardGraph();
   for (const fx of fixtures) {
     const _t0 = Date.now();
-    const { records, firstPrice, lastPrice } = walkForward(fx, graph);
+    const { records, firstPrice, lastPrice } = walkForward(fx, graph, opts.runOpts);
     if (opts.progress !== false) console.error("  " + fx.symbol + " " + fx.tf + " → " + records.length + "시점 (" + ((Date.now() - _t0) / 1000).toFixed(0) + "s)");
     if (!records.length) continue;
     const dir = M.directionHitRate(records), cov = M.coneCoverage(records), mae = M.priceMAE(records);

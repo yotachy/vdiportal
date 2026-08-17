@@ -52,16 +52,15 @@
     });
   }
 
-  // 확신이 없으면(옛 스캔 레코드·미스캔) 배지를 안 그린다 — 회색 자리표시자를 두지 않는다.
-  // 방향이 있으면 "부른 방향이 맞을 확률"(conf), 중립이면 "상승할 확률"(up) — 서로 다른 양이다.
-  // 중립에 방향 확신을 쓸 수 없어서인데(Phase 6 규칙), 색으로 구분한다: bull/bear 틴트 vs steel 틴트.
-  function badge(rec) {
-    if (!rec) return null;
-    var dir = rec.dir, v;
-    if (dir === "bull" || dir === "bear") v = rec.conf;
-    else v = rec.up;
-    if (typeof v !== "number" || !isFinite(v)) return null;
-    return { text: Math.round(v) + "%", tone: (dir === "bull" || dir === "bear") ? dir : "neutral" };
+  // 워치리스트 행의 읽음 상태(시안 14a) — 순수 판정만 한다. 저장(viewedScanKey 조회·쓰기)은
+  // store.js, 마크업(점 클래스·"SYM · 상태" 문구)은 screens/watchlist.js 소관.
+  // rec 이 없으면(아직 스캔 안 한 종목) 상태 자체가 없다 — 점을 안 그린다.
+  // viewedKey 가 이번 rec.scannedAt 과 같아야 "읽음" — 다르면(또는 아예 없으면) "새 판정".
+  // 확신 배지(옛 badge())는 시안이 목록에서 의도적으로 뺐다(판정이 새면 리포트를 열 이유가
+  // 사라진다) — 되살리지 말 것.
+  function readState(rec, viewedKey) {
+    if (!rec || !rec.scannedAt) return null;
+    return (viewedKey === rec.scannedAt) ? "read" : "unread";
   }
 
   // 회사명은 74px 칸에 들어가야 한다. API 원문("NVIDIA Corporation")을 그대로 넣으면
@@ -80,5 +79,5 @@
     return s;
   }
 
-  return { market: market, chips: chips, filter: filter, badge: badge, shortName: shortName, ETFS: ETFS };
+  return { market: market, chips: chips, filter: filter, readState: readState, shortName: shortName, ETFS: ETFS };
 });

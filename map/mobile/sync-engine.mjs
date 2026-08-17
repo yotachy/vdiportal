@@ -69,6 +69,12 @@ export function syncBacktest(srcDir, destDir) {
     directionHitRate: o.directionHitRate,
     bullHitRate: o.bullHitRate,
     bearHitRate: o.bearHitRate,
+    // "항상 오른다"의 적중률 — **같은 측정에서 나온 값이라야** 옆에 놓을 수 있다.
+    // 적중률만 단독으로 보이면 사용자는 그것을 "동전보다 낫다"로 읽는데, 이 자산·이 기간의
+    // 기준선은 50% 가 아니라 61.0% 이고 우리 방향 판정은 그 아래다(P2 설계서 §2 R2).
+    // 다른 하네스(backtest/tier-report.json)의 61.0 을 여기 상수로 적으면 안 된다 — 숫자는
+    // 같아 보여도 잰 대상이 다르면 나란히 놓는 순간 거짓 비교가 된다.
+    baselineAlwaysUp: o.baselineAlwaysUp,
     calibrationECE: o.calibrationECE,
     coneCoverage: o.coneCoverage,
     avgWin: p.avgWin,

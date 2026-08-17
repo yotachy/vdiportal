@@ -32,10 +32,16 @@ test("라벨은 시안 표기 그대로다", () => {
   assert.equal(by.vol, "Volume");
 });
 
-test("모든 value 가 비어있지 않고 한글이 없다", () => {
+// value 는 태스크 8 에서 한국어로 번역됐다(legGolden/legDead/legBars 등, strings.js 단일
+// 출처) — 지표 5행(ma/macd/rsi/bb/vol)의 라벨만 지표 표시명이라 언어와 무관하게 영어로
+// 고정한다(strings.test.mjs). pred/predpx 라벨(legPred/legTarget)은 지표명이 아니라 프로젝트
+// 카피라 한국어가 맞다.
+const IND_KEYS = ["ma", "macd", "rsi", "bb", "vol"];
+test("모든 value 가 비어있지 않다 — 지표 라벨은 한글이 없다", () => {
   LG.rows(an, pred, null).forEach(r => {
     assert.ok(r.value && String(r.value).length, r.key + " value 가 비었다");
-    assert.ok(!/[가-힣]/.test(String(r.value) + r.label), r.key + " 에 한글: " + r.label + "/" + r.value);
+    if (IND_KEYS.indexOf(r.key) >= 0)
+      assert.ok(!/[가-힣]/.test(String(r.label)), r.key + " 라벨에 한글: " + r.label);
   });
 });
 
@@ -92,12 +98,14 @@ test("MACD 교차 문구는 차트용 대문자·이중구분자를 물려받지
   const vBull = LG.rows(Object.assign({}, an, { macd: bull }), pred, null).find(x => x.key === "macd").value;
   const vBear = LG.rows(Object.assign({}, an, { macd: bear }), pred, null).find(x => x.key === "macd").value;
   const vNone = LG.rows(Object.assign({}, an, { macd: none }), pred, null).find(x => x.key === "macd").value;
-  assert.match(vBull, /^[+-]?\d+\.\d · golden \d+ bars$/, "bull cross: " + vBull);
-  assert.match(vBear, /^[+-]?\d+\.\d · dead \d+ bars$/, "bear cross: " + vBear);
-  assert.match(vNone, / · no cross$/, "no cross: " + vNone);
+  // 태스크 8 에서 골든/데드크로스 문구가 한국어로 바뀌었다 — 검증 대상은 그대로(대문자·이중
+  // 구분자 없음), 언어만 뒤집혔다.
+  assert.match(vBull, /^[+-]?\d+\.\d · 골든크로스 \d+봉 전$/, "bull cross: " + vBull);
+  assert.match(vBear, /^[+-]?\d+\.\d · 데드크로스 \d+봉 전$/, "bear cross: " + vBear);
+  assert.match(vNone, / · 교차 없음$/, "no cross: " + vNone);
   [vBull, vBear, vNone].forEach(v => {
     assert.ok(!/·\s*·/.test(v), "이중 구분자: " + v);
-    assert.ok(!/Golden|Dead/.test(v), "대문자 잔존: " + v);
+    assert.ok(!/golden|dead/i.test(v), "영문 잔존: " + v);
   });
 });
 

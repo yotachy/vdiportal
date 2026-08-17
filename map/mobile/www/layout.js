@@ -26,7 +26,14 @@
     return Math.max(LIST_MIN, Math.min(LIST_MAX, w));
   }
 
-  function chartHeight(dual, vh) {
+  // 기본 티어는 가격 패널 하나뿐이라(chart-draw CHART_TIERS) 4단 높이를 주면 빈 칸이 늘어난
+  // 차트가 된다. 시안 18a 의 차트존은 150 이고, 그 작음은 인색함이 아니라 설계다 —
+  // 블록 3개 화면이 **스크롤 없이** 끝나야 "여기까지가 무료"가 스크롤 부재로 전달된다.
+  // 190 = 플롯 150 + 상하 패딩 20 + 날짜축 18(chart-layout 의 AXIS_LABEL_H)에서 역산한 값.
+  var CHART_H_BASIC = 190;
+
+  function chartHeight(dual, vh, tier) {
+    if (tier === "basic") return CHART_H_BASIC;   // 2단에서도 같다 — 넓은 화면이라고 더 파는 게 아니다
     if (!dual) return CHART_H_SINGLE;
     var h = Math.round(vh - CHART_CHROME);
     if (!isFinite(h)) return CHART_H_MIN;
@@ -34,5 +41,5 @@
   }
 
   return { MODE_QUERY: MODE_QUERY, isDual: isDual, listWidth: listWidth, chartHeight: chartHeight,
-           MIN_W: MIN_W, MIN_H: MIN_H, LIST_MIN: LIST_MIN, LIST_MAX: LIST_MAX };
+           MIN_W: MIN_W, MIN_H: MIN_H, LIST_MIN: LIST_MIN, LIST_MAX: LIST_MAX, CHART_H_BASIC: CHART_H_BASIC };
 });

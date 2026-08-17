@@ -66,10 +66,14 @@ function flush() {
   return new Promise(resolve => setImmediate(resolve));
 }
 
-test("큐레이션 목록에 시드 3종이 들어 있다 — 미리 선택될 것들이다", () => {
+// 시안 12a 그대로(코디네이터 판정 2026-08-16) — 한국 상장 2종을 맨 앞에 두고, 미국 시드
+// 3종(store.js SEED) 중 MSFT 는 이 여덟에 없다. 그래도 SEED ⊆ CURATED 는 더 이상 불변식이
+// 아니다 — offSeen 메커니즘(paint())이 CURATED 밖 프리셋도 셀로 그리므로, MSFT 를 든 사용자가
+// 온보딩 4단계에 들어와도 셀 자체는 사라지지 않는다(그 계약은 별도 테스트가 지킨다).
+test("큐레이션 목록은 시안 12a 의 8종이다 — 국내 2종이 맨 앞", () => {
   const syms = P.CURATED.map(x => x.sym);
-  ["AAPL", "NVDA", "MSFT"].forEach(s => assert.ok(syms.indexOf(s) >= 0, s + " 가 없다"));
-  assert.ok(P.CURATED.length >= 8, "고를 게 너무 적다: " + P.CURATED.length);
+  assert.deepEqual(syms, ["005930", "000660", "NVDA", "AAPL", "TSLA", "035720", "005380", "QQQ"],
+    "8종 순서가 시안과 다르다");
   assert.strictEqual(new Set(syms).size, syms.length, "중복 심볼");
   P.CURATED.forEach(x => assert.ok(x.name && x.name.length > 1, x.sym + " 에 이름이 없다"));
 });
@@ -143,10 +147,10 @@ test("create() — max 도달 후 클릭은 무시되고, selected()는 실시�
 // addTicker(sym, "") 로 이름을 버렸다. store.js 가 name = 심볼로 폴백하면서 행이 심볼을
 // 두 번 찍고(wl-sym·wl-name), 회사명 검색이 그 뒤로 추가한 종목에서만 조용히 멈췄다.
 test("nameOf — CURATED 의 회사명을 돌려주고, 모르는 심볼은 빈 문자열이다", () => {
-  assert.strictEqual(P.nameOf("aapl"), "Apple", "정규화 후 조회하지 않는다");
-  assert.strictEqual(P.nameOf("TSLA"), "Tesla");
+  assert.strictEqual(P.nameOf("aapl"), "애플", "정규화 후 조회하지 않는다");
+  assert.strictEqual(P.nameOf("TSLA"), "테슬라");
   assert.strictEqual(P.nameOf("PLTR"), "", "모르는 심볼에 이름을 지어냈다");
-  // 기대값을 리터럴로 두 번 적지 않는다 — CURATED 12종 전부가 자기 이름을 돌려줘야 한다.
+  // 기대값을 리터럴로 두 번 적지 않는다 — CURATED 8종 전부가 자기 이름을 돌려줘야 한다.
   P.CURATED.forEach(x => assert.strictEqual(P.nameOf(x.sym), x.name, x.sym));
 });
 
@@ -156,15 +160,15 @@ test("create() — onChange 는 심볼 목록과 {sym,name} 목록을 함께 준
                        onChange: (s, items) => seen.push(items), strings: MSStr });
   const grid = findByClass(p.el, "tp-grid");
   grid.dispatch("click", { target: cellFor(grid, "NVDA") });
-  assert.deepEqual(seen[seen.length - 1], [{ sym: "NVDA", name: "NVIDIA" }],
+  assert.deepEqual(seen[seen.length - 1], [{ sym: "NVDA", name: "엔비디아" }],
     "onChange 가 이름을 안 준다 — 부르는 쪽이 이름 없이 심게 된다");
-  assert.deepEqual(p.selectedItems(), [{ sym: "NVDA", name: "NVIDIA" }]);
+  assert.deepEqual(p.selectedItems(), [{ sym: "NVDA", name: "엔비디아" }]);
 });
 
 test("create() — 프리셋도 이름을 달고 나온다", () => {
   const p = P.create({ multi: true, max: null, preset: ["aapl", "PLTR"], strings: MSStr });
   assert.deepEqual(p.selectedItems(),
-    [{ sym: "AAPL", name: "Apple" }, { sym: "PLTR", name: "" }],
+    [{ sym: "AAPL", name: "애플" }, { sym: "PLTR", name: "" }],
     "프리셋이 이름 없이 나온다 — CURATED 밖 심볼은 빈 이름이 맞다(store 가 심볼로 폴백)");
 });
 
@@ -296,20 +300,20 @@ test("create() — 프리셋이 CURATED 밖 심볼뿐이면 그 심볼이 셀로
   const cell = cellFor(grid, "PLTR");
   assert.ok(cell, "PLTR 셀이 안 그려졌다 — selected()는 참인데 격자엔 아무것도 없다");
   assert.ok(cell.className.split(" ").indexOf("is-on") >= 0, "PLTR 셀이 켜진 채로 그려지지 않았다");
-  assert.strictEqual(findByClass(cell, "tp-name").textContent, "Palantir",
+  assert.strictEqual(findByClass(cell, "tp-chip-label").textContent, "Palantir",
     "프리셋이 준 이름이 안 실렸다");
   assert.deepEqual(p.selected(), ["PLTR"]);
 });
 
-// CURATED 12종 순서는 그대로, 밖 종목은 뒤에 붙는다 — 순서를 흔들면 기존 12종 레이아웃이 튄다.
-test("create() — CURATED 12종 순서는 그대로고, 밖 항목은 뒤에 이어붙는다", () => {
+// CURATED 8종 순서는 그대로, 밖 종목은 뒤에 붙는다 — 순서를 흔들면 시안 12a 레이아웃이 튄다.
+test("create() — CURATED 8종 순서는 그대로고, 밖 항목은 뒤에 이어붙는다", () => {
   const p = P.create({ multi: true, max: null,
                        preset: [{ sym: "PLTR", name: "Palantir" }, "AAPL"], strings: MSStr });
   const grid = findByClass(p.el, "tp-grid");
   const syms = grid.children.map(c => c.getAttribute("data-sym"));
   assert.deepEqual(syms.slice(0, P.CURATED.length), P.CURATED.map(x => x.sym),
-    "CURATED 12종 순서가 바뀌었다");
-  assert.deepEqual(syms.slice(P.CURATED.length), ["PLTR"], "밖 항목이 12종 뒤에 붙지 않았다");
+    "CURATED 8종 순서가 바뀌었다");
+  assert.deepEqual(syms.slice(P.CURATED.length), ["PLTR"], "밖 항목이 8종 뒤에 붙지 않았다");
 });
 
 // CURATED 밖 심볼을 이름 없이(문자열 프리셋) 주면 심볼로라도 그려져야 한다 — 빈 칸보다 낫다.
@@ -318,7 +322,7 @@ test("create() — 이름 없는 CURATED 밖 프리셋도 심볼로 셀이 그�
   const grid = findByClass(p.el, "tp-grid");
   const cell = cellFor(grid, "ZZZZ");
   assert.ok(cell, "이름 없는 프리셋도 셀이 있어야 한다");
-  assert.strictEqual(findByClass(cell, "tp-name").textContent, "ZZZZ", "이름이 없으면 심볼로 폴백해야 한다");
+  assert.strictEqual(findByClass(cell, "tp-chip-label").textContent, "ZZZZ", "이름이 없으면 심볼로 폴백해야 한다");
 });
 
 test("create() — 직접 입력으로 CURATED 밖 심볼을 추가해도 셀이 켜진다", async () => {
@@ -333,14 +337,14 @@ test("create() — 직접 입력으로 CURATED 밖 심볼을 추가해도 셀이
   const cell = cellFor(grid, "PLTR");
   assert.ok(cell, "직접 입력으로 추가한 CURATED 밖 종목이 셀로 안 그려졌다");
   assert.ok(cell.className.split(" ").indexOf("is-on") >= 0);
-  assert.strictEqual(findByClass(cell, "tp-name").textContent, "Palantir Technologies");
+  assert.strictEqual(findByClass(cell, "tp-chip-label").textContent, "Palantir Technologies");
 });
 
 // CURATED 심볼은 프리셋에 이름을 다르게 줘도 표준 이름을 지킨다 — 정식 표시명이 이미 있다.
 test("create() — CURATED 심볼은 프리셋이 다른 이름을 줘도 CURATED 이름을 쓴다", () => {
   const p = P.create({ multi: true, max: null,
                        preset: [{ sym: "TSLA", name: "Tesla, Inc." }], strings: MSStr });
-  assert.deepEqual(p.selectedItems(), [{ sym: "TSLA", name: "Tesla" }],
+  assert.deepEqual(p.selectedItems(), [{ sym: "TSLA", name: "테슬라" }],
     "CURATED 표준 이름이 프리셋 이름으로 덮였다");
 });
 

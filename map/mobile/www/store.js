@@ -6,9 +6,13 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var KEYS = { watchlist: "ms_watchlist", scan: "ms_scan", lastSym: "ms_last_sym",
+  var KEYS = { watchlist: "ms_watchlist", scan: "ms_scan", viewed: "ms_wl_viewed", lastSym: "ms_last_sym",
                onboarded: "ms_onboarded", consent: "ms_consent" };
-  var SEED = [{ sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" }, { sym: "MSFT", name: "Microsoft Corporation" }];
+  // 이름은 한국어(2026-08-16 재스킨) — AAPL·NVDA 는 ticker-picker.js 의 CURATED 와 반드시
+  // 같은 이름("애플"·"엔비디아")을 써야 한다. 두 벌이 갈리면 온보딩 4단계가 이 SEED 를
+  // 프리셋으로 그릴 때 같은 종목이 화면마다 다른 이름으로 보인다(카드추가 항목 1).
+  // MSFT 는 새 CURATED 8종 밖이라 표준 이름이 이 파일뿐이다.
+  var SEED = [{ sym: "AAPL", name: "애플" }, { sym: "NVDA", name: "엔비디아" }, { sym: "MSFT", name: "마이크로소프트" }];
 
   var mem = {};                       // 백엔드 실패 시 폴백 저장소
   var backend = null;
@@ -62,6 +66,8 @@
     setWatchlist(out);
     var scans = allScans();           // 캐시를 남기면 다시 추가했을 때 옛 신호가 유령처럼 뜬다
     if (scans[s]) { delete scans[s]; write(KEYS.scan, scans); }
+    var viewed = allViewed();         // 같은 이유 — 지운 종목의 "읽음" 표시가 다음 추가 때 유령으로 뜬다
+    if (Object.prototype.hasOwnProperty.call(viewed, s)) { delete viewed[s]; write(KEYS.viewed, viewed); }
     if (getLastSym() === s) write(KEYS.lastSym, null);   // 지운 종목이 다음 부팅에 유령으로 뜬다
     return true;
   }
@@ -69,6 +75,24 @@
   function allScans() { var v = read(KEYS.scan, {}); return (v && typeof v === "object" && !Array.isArray(v)) ? v : {}; }
   function getScan(sym) { var v = allScans()[String(sym || "").toUpperCase()]; return v || null; }
   function setScan(sym, rec) { var s = allScans(); s[String(sym || "").toUpperCase()] = rec; write(KEYS.scan, s); }
+
+  // 워치리스트 행의 읽음 상태 — 시안 14a. "본 적 있다"를 시각으로 안 재고 스캔의 정체성
+  // (rec.scannedAt, analyze() 가 찍는 ISO 문자열)으로 잰다. 저장하는 건 "마지막으로 본 스캔이
+  // 몇 번째냐"이지 "언제 봤냐"가 아니다 — 그래서 새 스캔이 들어오면(scannedAt 이 바뀌면) 어제
+  // 읽었던 행도 다시 안 읽음으로 돌아간다. 이게 핵심 동작이다: 다음 날 아침 스캔이 새 판정을
+  // 만들면 그게 곧 "새 판정"이어야지, "어제 한 번 열어봤으니 오늘도 읽음"이면 안 된다.
+  // 오래됨(3번째 상태)은 여기서 다루지 않는다 — 시간 문턱을 지금 박으면 시안이 실제로 쓰는
+  // 단위(21a "봉이 하나 더 생겼습니다" = 확정 캔들 수)와 다른 임의의 숫자가 되고, 그 숫자가
+  // 맞는지 아무도 확인할 방법이 없다. 예측 기록이 생기는 후속 단계에서 붙인다.
+  function allViewed() { var v = read(KEYS.viewed, {}); return (v && typeof v === "object" && !Array.isArray(v)) ? v : {}; }
+  function viewedScanKey(sym) { var v = allViewed()[String(sym || "").toUpperCase()]; return (typeof v === "string" && v) ? v : null; }
+  function markScanViewed(sym, scanKey) {
+    var s = String(sym || "").trim().toUpperCase();
+    if (!s || !scanKey) return;
+    var v = allViewed();
+    v[s] = scanKey;
+    write(KEYS.viewed, v);
+  }
 
   // 2단 레이아웃의 오른쪽 칸이 부팅 시 무엇을 보여줄지 — 커버로 보다 펴는 흐름에선
   // selectedSym 이 이미 메모리에 있으므로, 이 값이 실제로 쓰이는 건 앱을 새로 켠 순간뿐이다.
@@ -96,7 +120,7 @@
 
   return { KEYS: KEYS, SEED: SEED, install: install, getWatchlist: getWatchlist, setWatchlist: setWatchlist,
            addTicker: addTicker, removeTicker: removeTicker, getScan: getScan, setScan: setScan,
-           allScans: allScans,
+           allScans: allScans, viewedScanKey: viewedScanKey, markScanViewed: markScanViewed,
            getLastSym: getLastSym, setLastSym: setLastSym,
            onboarded: onboarded, setOnboarded: setOnboarded, consent: consent,
            read0: read, write0: write };

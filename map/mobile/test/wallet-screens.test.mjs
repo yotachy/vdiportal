@@ -35,8 +35,8 @@ test("report.js 소스 모양 — purchaseFull 이 이전 시도의 idem 을 재
   // 이전 rec.idem 이 있으면 그걸 쓰고, 그 다음은 저장소에 남은 값(지난 실행의 미확인 시도),
   // 둘 다 없을 때만 새로 뽑는다. "항상 새로 뽑는다"(구버전)로 되돌아가면 maybe-charged
   // 재시도가 원장에서 별개 키가 되어 이중 차감된다.
-  assert.match(REPORT, /var idem = \(rec && rec\.idem\) \? rec\.idem : \(pendingFullIdem\(sym\) \|\| MSWallet\.newIdem\(\)\);/,
-    "purchaseFull 이 무조건 새 idem 을 뽑는다 — maybe-charged 재시도가 이중 차감될 수 있다");
+  assert.match(REPORT, /var idem = \(rec && rec\.idem\) \? rec\.idem : \(pendingFullIdem\(sym, runType\) \|\| MSWallet\.newIdem\(\)\);/,
+    "purchaseRun 이 무조건 새 idem 을 뽑는다 — maybe-charged 재시도가 이중 차감될 수 있다");
 });
 
 // 최종 리뷰(LIVE A): idem 재사용 장치가 전부 모듈 스코프 변수라 프로세스와 함께 죽었다.
@@ -46,24 +46,38 @@ test("report.js 소스 모양 — 진행 중 idem 이 저장소에 남는다(실
   assert.match(REPORT, /MSStore\.read0\(K_PEND_FULL/, "저장된 idem 을 읽지 않는다");
   assert.match(REPORT, /MSStore\.write0\(K_PEND_FULL/, "idem 을 저장하지 않는다 — 강제 종료로 사라진다");
   // 순서가 핵심이다: spend 를 "보내기 전에" 적어야 응답 유실 창이 덮인다.
-  const write = REPORT.indexOf("setPendingFullIdem(sym, idem);");
-  const send = REPORT.indexOf('MSWallet.spend("full"');
+  const write = REPORT.indexOf("setPendingFullIdem(sym, runType, idem);");
+  const send = REPORT.indexOf("MSWallet.spend(runType, idem, sym)");
   assert.ok(write > 0 && send > 0 && write < send,
     "spend 를 보낸 뒤에 idem 을 적는다 — 이중 과금이 나는 창(요청은 나갔고 응답은 못 받은 구간)이 그대로 열려 있다");
 });
 
 test("report.js 소스 모양 — 확정 결과에서만 저장된 idem 을 지운다", () => {
-  assert.match(REPORT, /rec\.runs = r\.runs;\s*\n\s*setPendingFullIdem\(sym, null\);/,
+  assert.match(REPORT, /rec\.weights = weights \|\| null;\s*\n\s*setPendingFullIdem\(sym, runType, null\);/,
     "성공했는데 idem 이 남는다 — 다음 구매가 남의 키를 재사용해 재생(무과금)으로 흡수된다");
-  assert.match(REPORT, /delete purchases\[sym\];[\s\S]{0,120}setPendingFullIdem\(sym, null\);/,
+  assert.match(REPORT, /delete purchases\[pk\];[\s\S]{0,140}setPendingFullIdem\(sym, runType, null\);/,
     "확정 실패·환급인데 저장된 idem 을 안 지운다");
+});
+
+// P2 T8 이 전문분석을 열면서 한 종목에 두 등급이 공존하게 됐다. 키에 등급이 없으면 심화
+// 재시도용 idem 을 전문 구매가 물려받는데, 서버는 같은 idem + 다른 runType 을 재시도가 아니라
+// **값싼 등급 값을 내고 비싼 등급을 받아가려는 시도**로 보고 bad-idem 을 낸다(w_spend).
+// 즉 전문분석이 통째로 막히고, 그 실패는 "왜 안 사지"로만 보인다.
+test("report.js 소스 모양 — 미확인 idem 키가 (종목, 등급) 쌍이다", () => {
+  assert.match(REPORT, /function pendKey\(sym, runType\) \{ return sym \+ "\|" \+ runType; \}/,
+    "idem 저장 키에 등급이 없다 — 심화와 전문이 같은 키를 공유한다");
+  assert.match(REPORT, /m\[pendKey\(sym, runType\)\]/, "저장 키를 쌍으로 쓰지 않는다");
+  // 메모리 레코드(purchases)도 같은 키여야 한다 — 한쪽만 쌍이면 심화를 산 종목에서
+  // 전문을 사려 할 때 "이미 산 것"으로 오인해 차감 없이 심화 결과를 돌려준다.
+  assert.match(REPORT, /var pk = pendKey\(sym, runType\);/, "purchases 키가 쌍이 아니다");
+  assert.match(REPORT, /purchases\[pk\] = rec;/, "purchases 를 쌍 키로 등록하지 않는다");
 });
 
 // 최종 리뷰(MINOR): 세 번째 인자 sym 을 빼도 761/761 초록이었다 — 그런데 서버는 full·custom 에
 // ref 가 없으면 bad-ref 로 거절한다(w_spend). 즉 프로덕션에서 Full 을 아무도 못 산다.
-test("report.js 소스 모양 — Full 구매가 ref 로 종목을 함께 보낸다", () => {
-  assert.match(REPORT, /MSWallet\.spend\("full", idem, sym\)/,
-    "ref(sym) 없이 full 을 결제한다 — 서버가 bad-ref 로 전부 거절해 Full 을 살 수 없다");
+test("report.js 소스 모양 — 유료 구매가 ref 로 종목을 함께 보낸다", () => {
+  assert.match(REPORT, /MSWallet\.spend\(runType, idem, sym\)/,
+    "ref(sym) 없이 결제한다 — 서버가 bad-ref 로 전부 거절해 심화·전문을 살 수 없다(w_entitled_types)");
 });
 
 test("report.js 소스 모양 — maybe-charged 실패는 idem 을 지우지 않는다(definitely-not-charged 만 지운다)", () => {
@@ -72,9 +86,13 @@ test("report.js 소스 모양 — maybe-charged 실패는 idem 을 지우지 않
     "spend-fail 의 maybeCharged 분기가 없다 — 모든 실패가 무조건 idem 을 지우는 옛 동작으로 보인다");
 });
 
-test("report.js 소스 모양 — spend 실패 안내 문구도 maybeCharged 로 갈린다", () => {
-  assert.match(REPORT, /MSWallet\.maybeCharged\(r\.reason\) \? MSStr\.t\.tsSpendFailedUnknown/,
-    "'Nothing was charged' 문구를 maybe-charged 에도 그대로 쓰면 거짓말이 될 수 있다");
+// P2 T12 가 alert 문구를 시안 12c 의 카드로 바꿨다. 갈림 자체는 그대로여야 한다 —
+// definitely-not-charged 만 "안 받았다"고 말하고, maybe-charged 는 환불 미확인 카드(⑦)로 간다.
+test("report.js 소스 모양 — spend 실패 처리도 maybeCharged 로 갈린다", () => {
+  assert.match(REPORT, /else if \(MSWallet\.maybeCharged\(r\.reason\)\) \{[\s\S]{0,120}kind: "failedUnknown"/,
+    "maybe-charged 인데 '안 받았다'로 처리한다 — 실제로 서버가 받았을 수 있다");
+  assert.match(REPORT, /if \(r\.reason === "insufficient"\)[\s\S]{0,200}kind: "short"/,
+    "잔량 부족이 카드 ①로 안 간다 — 시트 안에서 전환하는 자리다");
 });
 
 // ── report.js 소스 모양 — 잔량 부족 광고 권유(Phase 8d) ──────────────────────────
@@ -279,6 +297,9 @@ function fakeStore(list) {
     addTicker: function (sym, name) { list.push({ sym: sym, name: name || sym }); },
     removeTicker: function () {},
     setScan: function () {}, getScan: function () {},
+    // 읽음 상태(시안 14a) — 이 스위트는 스캔 결과가 없는 행만 다루므로(allScans 가 항상 {})
+    // row() 가 호출은 하되 항상 null 을 받는다. 그래도 함수 자체가 없으면 TypeError 로 죽는다.
+    viewedScanKey: function () { return null; }, markScanViewed: function () {},
     read0: function (k, d) { return d; }, write0: function () {}
   };
 }
@@ -348,9 +369,16 @@ test("watchlist.js 실행 — ＋Add 시트는 document.body 에 붙고, 워치�
 });
 
 // 뮤테이션 (b): onChange 안에서 `onAdded()`(=drawShell) 호출을 빼면 여기서 잡힌다 — 실행해서 확인했다:
-// 그 줄을 지우고 돌려보니 MSStore.addTicker 는 불렸는데(스토어에는 NVDA 가 있음) 화면의 .wl-sym 목록엔
+// 그 줄을 지우고 돌려보니 MSStore.addTicker 는 불렸는데(스토어에는 NVDA 가 있음) 화면의 .wl-meta 목록엔
 // 여전히 AAPL 하나뿐이었다(아래 마지막 단언 실패, 되돌림). 스토어에 값이 들어간 것과 사용자 눈에
 // 보이는 것은 별개라는 걸 실행으로 잡는다.
+// 시안 14a 재스킨으로 심볼은 .wl-sym 이 아니라 .wl-meta 에 그려진다(위 = 회사명 .wl-title,
+// 아래 = "심볼[· 상태]" .wl-meta). 이 fakeStore 는 allScans() 가 항상 {} 라 rec 이 없고,
+// 상태 접미사도 안 붙어 .wl-meta 텍스트는 심볼 그대로다.
+// 시안 12a — 칩 클릭은 선택만 한다(시트가 안 닫힌다). 확인 버튼(.tp-confirm)을 눌러야
+// onChange 가 불려 실제로 담긴다(코디네이터 판정 2026-08-16, 티어 시트의 Run 버튼과 같은
+// 확인-후-실행 패턴). 마지막 단언("재렌더된 목록에 실제로 나타난다")은 그대로 강하게 둔다 —
+// 스토어에 값이 들어간 것과 화면에 보이는 것은 별개라는, 이 테스트가 원래 잡던 함정이다.
 test("watchlist.js 실행 — 종목을 고르면 시트가 닫히고, 새 심볼이 재렌더된 목록에 실제로 나타난다", () => {
   withWatchlistDom({ store: fakeStore([{ sym: "AAPL", name: "Apple" }]) }, function (root, doc) {
     MSWatchlist.render(root);
@@ -362,15 +390,21 @@ test("watchlist.js 실행 — 종목을 고르면 시트가 닫히고, 새 심�
     assert.ok(cell, "NVDA 셀이 없다");
     grid.dispatch("click", { target: cell });   // ticker-picker.js 는 grid 자신에 위임 리스너를 둔다
 
-    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "종목을 고른 뒤에도 시트가 안 닫혔다");
-    var syms = root.querySelectorAll(".wl-sym").map(function (n) { return n.textContent; });
+    assert.ok(doc.body.querySelector(".sheet-scrim"), "칩 클릭만으로 시트가 닫혔다 — 확인 버튼을 건너뛴다");
+    var confirmBtn = doc.body.querySelector(".tp-confirm");
+    assert.ok(confirmBtn, "확인 버튼이 없다");
+    assert.strictEqual(confirmBtn.disabled, false, "고른 뒤인데 확인 버튼이 비활성이다");
+    confirmBtn.dispatch("click");
+
+    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "확인 버튼을 눌렀는데도 시트가 안 닫혔다");
+    var syms = root.querySelectorAll(".wl-meta").map(function (n) { return n.textContent; });
     assert.ok(syms.indexOf("NVDA") >= 0, "새로 추가한 심볼이 재렌더된 목록에 없다: " + syms.join(","));
     assert.ok(syms.indexOf("AAPL") >= 0, "기존 종목이 재렌더 후 사라졌다: " + syms.join(","));
   });
 });
 
 // 회사명을 버리고 심으면(addTicker(sym, "")) store.js 가 name = 심볼로 폴백해 두 가지가 조용히
-// 죽는다: 행이 심볼을 두 번 찍고(wl-sym·wl-name), 회사명 검색이 이 종목만 빠진다
+// 죽는다: 행이 심볼을 두 번 찍고(wl-title·wl-meta), 회사명 검색이 이 종목만 빠진다
 // (watchlist-model.filter 는 it.name 을 본다). 화면에 그려진 두 칸을 직접 비교한다 —
 // 소스 검사로는 인자 하나가 ""인지 실제 이름인지 구별이 안 된다.
 test("watchlist.js 실행 — 추가한 종목이 회사명을 달고 그려지고, 회사명으로 검색된다", () => {
@@ -381,29 +415,33 @@ test("watchlist.js 실행 — 추가한 종목이 회사명을 달고 그려지�
     var grid = doc.body.querySelector(".tp-grid");
     grid.dispatch("click", { target: grid.children.filter(function (c) {
       return c.getAttribute("data-sym") === "NVDA"; })[0] });
+    // 시안 12a — 칩 클릭은 선택만 한다. 확인 버튼을 눌러야 실제로 담긴다.
+    doc.body.querySelector(".tp-confirm").dispatch("click");
 
     var added = list.filter(function (x) { return x.sym === "NVDA"; })[0];
     assert.ok(added, "NVDA 가 스토어에 안 들어갔다");
-    assert.strictEqual(added.name, "NVIDIA",
+    assert.strictEqual(added.name, "엔비디아",
       "이름이 심볼로 폴백했다 — 피커가 회사명을 안 넘겼다: " + added.name);
 
-    var syms = root.querySelectorAll(".wl-sym").map(function (n) { return n.textContent; });
-    var names = root.querySelectorAll(".wl-name").map(function (n) { return n.textContent; });
+    var syms = root.querySelectorAll(".wl-meta").map(function (n) { return n.textContent; });
+    var names = root.querySelectorAll(".wl-title").map(function (n) { return n.textContent; });
     var i = syms.indexOf("NVDA");
     assert.ok(i >= 0, "새 심볼이 목록에 없다");
-    assert.strictEqual(names[i], "NVIDIA", "행에 그려진 회사명이 틀렸다: " + names[i]);
+    assert.strictEqual(names[i], "엔비디아", "행에 그려진 회사명이 틀렸다: " + names[i]);
     assert.notStrictEqual(names[i], syms[i], "행이 심볼을 두 번 찍는다: " + syms[i] + " / " + names[i]);
 
-    // 회사명 검색. 사용자가 "nvidia" 를 치면 이 종목이 나와야 한다.
+    // 회사명 검색. 사용자가 "엔비디아"를 치면 이 종목이 나와야 한다.
     var WM = require("../www/watchlist-model.js");
-    assert.deepStrictEqual(WM.filter(list, { query: "nvidia", chip: "all" }).map(function (x) { return x.sym; }),
+    assert.deepStrictEqual(WM.filter(list, { query: "엔비디아", chip: "all" }).map(function (x) { return x.sym; }),
       ["NVDA"], "회사명으로 검색이 안 된다");
   });
 });
 
-// 스크림 바깥 클릭(자기 자신)과 닫기 버튼 둘 다 오버레이를 완전히 지워야 한다 — 하나만 지우고
-// document.body 에 빈 스크림이 남으면 화면 전체가 클릭을 못 받는 유령 오버레이가 된다.
-test("watchlist.js 실행 — 스크림 클릭·닫기 버튼 모두 시트를 지우고 오버레이를 안 남긴다", () => {
+// 스크림 바깥 클릭(자기 자신)과 확인 버튼 제출 둘 다 오버레이를 완전히 지워야 한다 — 하나만
+// 지우고 document.body 에 빈 스크림이 남으면 화면 전체가 클릭을 못 받는 유령 오버레이가 된다.
+// (시안 12a 는 명시적 닫기 ×버튼이 없다 — 드래그 손잡이 + 스크림 탭으로 닫는다. 그래서 이
+// 테스트의 "둘째 닫는 길"은 이제 확인 버튼 제출이다: 고르고 확인 → 시트가 닫힌다.)
+test("watchlist.js 실행 — 스크림 클릭·확인 제출 모두 시트를 지우고 오버레이를 안 남긴다", () => {
   withWatchlistDom({ store: fakeStore([{ sym: "AAPL", name: "Apple" }]) }, function (root, doc) {
     MSWatchlist.render(root);
 
@@ -415,11 +453,11 @@ test("watchlist.js 실행 — 스크림 클릭·닫기 버튼 모두 시트를 �
     assert.strictEqual(doc.body.children.length, 0, "닫은 뒤에도 document.body 에 남은 노드가 있다");
 
     root.querySelector(".wl-add").dispatch("click");
-    scrim = doc.body.querySelector(".sheet-scrim");
-    var x = scrim.querySelector(".sheet-x");
-    assert.ok(x, "닫기 버튼(×)이 없다");
-    x.dispatch("click");
-    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "닫기 버튼으로 안 닫혔다");
+    var grid = doc.body.querySelector(".tp-grid");
+    grid.dispatch("click", { target: grid.children.filter(function (c) {
+      return c.getAttribute("data-sym") === "NVDA"; })[0] });
+    doc.body.querySelector(".tp-confirm").dispatch("click");
+    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "확인 제출로 안 닫혔다");
     assert.strictEqual(doc.body.children.length, 0, "닫은 뒤에도 document.body 에 남은 노드가 있다");
   });
 });
@@ -475,12 +513,60 @@ const S = require("../www/strings.js");
 // 계정 쪽 잔량은 그 계정 자신의 기존 총량이다. 옛 문구("This device's Scoops now live on
 // your Google account")는 버린 수량이 그대로 넘어간 것처럼 읽혔다(2026-08-15 리뷰 지적).
 // DOM 을 안 세워도 되는 순수 문자열 검사라 여기서 바로 한다.
+// 태스크 6(지갑 재스킨)에서 wMerged 가 한국어로 번역되며 이 가드도 함께 옮겼다 — "merged into"
+// 영문 대신 그 번역어("계정으로 넘어갔습니다")를 확인한다. 지키는 대상(액수를 암시하지 않고
+// 계정이 바뀌었다는 사실만 말한다)은 그대로다.
 test("wMerged — 버린 잔량이 그대로 넘어간 것처럼 말하지 않는다", () => {
   var v = S.t.wMerged;
-  assert.doesNotMatch(v, /Scoops now live/i,
-    "예전 과장 문구('Scoops now live on your Google account')로 되돌아갔다 — 버린 잔량이 그대로 넘어간 것처럼 읽힌다");
-  assert.match(v, /merged into/i,
-    "계정이 바뀌었다는 사실만 말해야 하는데('merged into') 그 표현이 없다");
+  assert.doesNotMatch(v, /그대로.*(넘어갔|옮겨갔|살아있)/,
+    "옛 과장 문구처럼 버린 수량이 그대로 넘어간 것처럼 읽힌다");
+  assert.match(v, /계정으로 넘어갔습니다/,
+    "계정이 바뀌었다는 사실만 말해야 하는데('계정으로 넘어갔습니다') 그 표현이 없다");
+});
+
+// 재스킨(시안 10b)이 adQuick/adFull 을 리터럴로 되돌리지 않았는지 소스 모양으로 확인한다 —
+// 위 DOM 테스트들(reward 7/42 반영 등)이 이미 실행으로 보지만, 소스 자체가 adCfg.*.reward 를
+// 계속 참조하는지도 못박아 둔다(리뷰 I3 재발 방지).
+test("광고 보상 수치는 여전히 설정에서 온다 — 리터럴로 되돌아가지 않았다", () => {
+  assert.match(WALLET_SCR, /adCfg\.quick\.reward/, "quick 보상이 설정에서 오지 않는다");
+  assert.match(WALLET_SCR, /adCfg\.full\.reward/, "full 보상이 설정에서 오지 않는다");
+
+  // 재-리뷰 지적(2026-08-16): 리터럴 철자를 하나씩 금지하는 이전 버전(줄 단위 정규식으로
+  // `"+1"`/`"+3"` 모양만 찾음)은 `"+ 3"`·`"+2"`·`"+" + 3`(직전 라운드에서 되돌린 바로 그
+  // 구성)·`.replace("{n}", "3")`·줄바꿈으로 접힌 호출을 전부 통과시켰다 — AdMob SSV 서명 검증이
+  // "이 철자 막기, 저 철자 막기"로 세 라운드를 허비하고서야 스펠링 나열 대신 개수를 비교하는
+  // 구조적 검사로 닫힌 것과 같은 함정이다. 그래서 원하는 성질 자체를 양성으로 확인한다 —
+  // "광고 행은 adCfg 를 참조한다." adCfg 를 읽는 호출은 동시에 하드코딩된 숫자를 보여줄 수
+  // 없으므로, 리터럴의 어떤 철자도 이 검사를 통과할 길이 없다. 음성 정규식은 완전히 지웠다 —
+  // 이 양성 검사가 서면 그 정규식은 아무것도 더 잡지 못하면서 "검사됐다"는 착각만 준다.
+  //
+  // 줄 단위가 아니라 **호출 전체**를 본다(괄호 중첩을 따라간 균형 스캔) — 줄 단위 필터는
+  // earnRow(...) 가 여러 줄로 접히면 검사 범위 밖으로 조용히 사라진다("silent scope loss",
+  // 리뷰 지적). `earnRow(` 바로 뒤가 줄바꿈이어도 시작점을 잡도록 `\s*` 를 둔다.
+  const startRe = /earnRow\(\s*MSStr\.t\.ad\w+/g;
+  const rows = [];
+  let m;
+  while ((m = startRe.exec(WALLET_SCR))) {
+    const openParen = WALLET_SCR.indexOf("(", m.index);
+    let depth = 0, end = -1;
+    for (let i = openParen; i < WALLET_SCR.length; i++) {
+      if (WALLET_SCR[i] === "(") depth++;
+      else if (WALLET_SCR[i] === ")") { depth--; if (depth === 0) { end = i; break; } }
+    }
+    assert.ok(end > openParen,
+      "earnRow(...) 호출의 닫는 괄호 균형을 못 찾았다 — 균형 스캐너 전제(문자열 안에 홀괄호가 없다)가 깨졌다");
+    rows.push(WALLET_SCR.slice(m.index, end + 1));
+  }
+  // 정확한 개수가 아니라 바닥만 본다 — adQuick·adFull 둘은 항상 있어야 하지만, 나중에 adCfg 를
+  // 제대로 읽는 세 번째 광고 행이 늘어도 그 자체는 실패가 아니다(태스크 지시: "config 를 읽기만
+  // 하면 숫자가 없어도 통과해야 한다"와 같은 결의 요구). 0~1건으로 줄면(스캐너가 놓쳤거나 행이
+  // 실제로 사라졌거나) 조용히 넘어가면 안 되는 신호라 여기서 막는다.
+  assert.ok(rows.length >= 2,
+    "adQuick/adFull 광고 행을 찾지 못했다(" + rows.length + "건) — 스캐너가 여러 줄 호출을 놓쳤거나 행이 사라졌다");
+  rows.forEach(r => {
+    assert.match(r, /adCfg\./,
+      "광고 행이 adCfg 를 참조하지 않는다 — 보상이 리터럴일 수 있다:\n" + r);
+  });
 });
 
 // 텍스트로 노드를 찾는다 — MSUi.el() 이 leaf 노드에 라벨을 textContent 로 직접 심으므로
@@ -856,7 +942,13 @@ test("병합된 지갑(canCheckin:false)의 출석 행은 비활성이고 탭 �
     };
     MSWalletScreen.render(root);
     await flush();
-    var row = findText(root, S.t.walCheckin).parentNode.parentNode;
+    // streakDays:4>0 인데 canCheckin:false 라, 이 화면은 이 상태를 "오늘 이미 받음"으로 보고
+    // 헤드라인을 walCheckedInTitle("오늘 출석 완료", 시안 10b)로 바꾼다 — walCheckin("출석체크")
+    // 은 아직 안 받은 상태 전용이라 이 픽스처에선 안 뜬다(2026-08-16 리뷰 지시로 상태별 헤드라인
+    // 분리 후 갱신).
+    var checkinNode = findText(root, S.t.walCheckedInTitle) || findText(root, S.t.walCheckin);
+    assert.ok(checkinNode, "출석 행 헤드라인을 찾지 못했다(walCheckedInTitle/walCheckin 둘 다 없음)");
+    var row = checkinNode.parentNode.parentNode;
     assert.ok(row.classList.contains("is-off"), "병합된 지갑인데 출석 행이 활성으로 그려졌다");
     assert.strictEqual(row.listeners.click, undefined,
       "비활성 행인데 클릭 리스너가 붙어 있다 — 탭하면 항상 실패하는 checkin 을 제공한다");

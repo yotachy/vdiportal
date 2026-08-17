@@ -323,8 +323,12 @@ git commit -m "feat(mobile): 타이포 8역할 토큰화 + --action 분리 + 금
 // 이 목록은 **줄어들기만 한다.** 새 키를 여기 넣는 것은 번역을 미루는 것이라 실패로 본다.
 const PENDING_EN = [];   // Step 2 에서 실제 키 목록으로 채운다
 
+// 값에 라틴문자가 없으면 번역할 단어가 없다 — "↻" · "—" · " · " 같은 기호·구분자다.
+// 이것들을 미번역으로 세면 잔여 목록이 절대 비지 않고 태스크 8 의 완료 조건이 도달 불가능해진다.
+function needsKo(v) { return /[A-Za-z]/.test(String(v)); }
+
 test("UI 문자열은 한국어다 — 잔여 목록에 적힌 것만 예외", () => {
-  const en = Object.keys(S.t).filter(k => !/[가-힣]/.test(String(S.t[k])));
+  const en = Object.keys(S.t).filter(k => needsKo(S.t[k]) && !/[가-힣]/.test(String(S.t[k])));
   const unlisted = en.filter(k => PENDING_EN.indexOf(k) < 0);
   assert.deepEqual(unlisted, [],
     "번역 안 됐는데 잔여 목록에도 없는 키 " + unlisted.length + "건: " + unlisted.join(", "));
@@ -353,7 +357,7 @@ test("화면 소스에 문자열 리터럴이 박혀 있지 않다 — 한글이
 
 ```bash
 cd map/mobile
-node -e 'const S=require("./www/strings.js");console.log(JSON.stringify(Object.keys(S.t).filter(k=>!/[가-힣]/.test(String(S.t[k])))))'
+node -e 'const S=require("./www/strings.js");const need=v=>/[A-Za-z]/.test(String(v));console.log(JSON.stringify(Object.keys(S.t).filter(k=>need(S.t[k])&&!/[가-힣]/.test(String(S.t[k])))))'
 ```
 
 출력(204개 전부일 것)을 `PENDING_EN` 에 넣는다. 그다음:

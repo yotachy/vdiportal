@@ -1,9 +1,9 @@
 // Full 티어(32지표) 전략 그래프. sampleGraph() 는 지표가 19종뿐이라 13종을 덧붙인다.
 // 노드 스키마: {id, kind:"block", blockType, params:{}, x, y, title, conviction, weight}
 (function (root, factory) {
-  if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSGraph = factory();
-})(typeof self !== "undefined" ? self : this, function () {
+  if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./ind-tiers.js"));
+  else root.MSGraph = factory(root.MSIndTiers);
+})(typeof self !== "undefined" ? self : this, function (Tiers) {
   "use strict";
 
   // 지표가 아닌 블록 — 지표 개수를 셀 때 제외한다.
@@ -79,5 +79,65 @@
     return g;
   }
 
-  return { INFRA: INFRA, MISSING: MISSING, BASIC: BASIC, indicatorTypes: indicatorTypes, full32Graph: full32Graph, basicGraph: basicGraph, setVolume: setVolume };
+  // ── 전문분석(custom) — 사용자 가중치를 엔진 인자로 옮긴다 ──────────────────────────────
+  //
+  // **엔진을 고칠 것이 없다.** forge-core.js 가 이미 두 경로를 받는다:
+  //   opts.driftWeights[blockType] — run() 의 DW(t), 0~3 클램프(forge-core.js:1989).
+  //                                  지표별 bias 기여 배율이라 예측선·판정이 여기서 갈린다.
+  //   node.weight (기본 50)        — evalBlocks 의 combine 가중(sw/50) + aggregateConviction.
+  // 시안의 0.1–3.0× 는 driftWeights 의 클램프 범위와 그대로 맞는다. 우연이 아니라 같은 축이다.
+  //
+  // ⚠ 두 경로를 **함께** 움직인다. 한쪽만 바꾸면 방향(드리프트)과 합성 시계열이 서로 다른
+  // 가중을 쓰게 되고, 화면은 "가중치를 올렸는데 반대 개수만 바뀌고 예측선은 그대로"처럼 보인다.
+  var W_MIN = 0.1, W_MAX = 3.0;   // 시안 10a 의 슬라이더 범위. 엔진 클램프(0~3) 안쪽이다.
+
+  function clampW(m) {
+    if (typeof m !== "number" || !isFinite(m)) return 1;
+    return Math.max(W_MIN, Math.min(W_MAX, m));
+  }
+
+  // 사용자가 만질 수 있는 지표 30종(gann·pattern 제외 — 인벤토리 §0 충돌 1, 사용자 결정 D7).
+  function tunableTypes() { return Tiers ? Tiers.tunable() : []; }
+
+  // weights = { blockType: 배율 }. **키가 없는 지표는 미선택**이라 그래프에서 노드를 지운다.
+  // 배율 0 으로 두지 않는 이유: 0 은 드리프트만 죽이고 combine·판독문에는 남아
+  // "안 골랐는데 목록에 있는" 상태가 된다.
+  function customGraph(ForgeCore, weights) {
+    var w = weights || {};
+    var g = full32Graph(ForgeCore);
+    var tun = tunableTypes();
+    var drop = {};
+    (g.nodes || []).forEach(function (n) {
+      if (!n.blockType || INFRA.indexOf(n.blockType) >= 0) return;
+      // Lv1 핵심 5종은 시안이 "항상 포함"이라 못박았다 — 선택 목록에 없어도 남는다(배율 1.0).
+      var core = BASIC.indexOf(n.blockType) >= 0;
+      var tunableHere = tun.indexOf(n.blockType) >= 0;
+      // 조절 대상이 아닌 지표(gann·pattern)는 전문분석 판정에서 빠진다 — 18c 가 분모를
+      // 30 으로 그린다. 만질 수 없는 지표가 판정에 들어가면 조절판이 거짓말이 된다.
+      if (!core && !tunableHere) { drop[n.id] = true; return; }
+      var has = Object.prototype.hasOwnProperty.call(w, n.blockType);
+      if (!has && !core) { drop[n.id] = true; return; }
+      n.weight = Math.round(50 * clampW(has ? w[n.blockType] : 1));
+    });
+    g.nodes = g.nodes.filter(function (n) { return !drop[n.id]; });
+    g.edges = g.edges.filter(function (e) { return !drop[e.from] && !drop[e.to]; });
+    return g;
+  }
+
+  // run(graph, data, opts) 에 넘길 opts.driftWeights. 그래프에 남은 지표만 담는다 —
+  // 없는 노드의 배율을 넘기면 엔진이 그 지표를 안 읽으므로 조용히 무시되고, 나중에
+  // "왜 이 값이 아무 효과가 없나"를 다시 조사하게 된다.
+  function driftWeightsOf(graph, weights) {
+    var w = weights || {}, out = {};
+    (graph.nodes || []).forEach(function (n) {
+      if (!n.blockType || INFRA.indexOf(n.blockType) >= 0) return;
+      out[n.blockType] = clampW(Object.prototype.hasOwnProperty.call(w, n.blockType) ? w[n.blockType] : 1);
+    });
+    return out;
+  }
+
+  return { INFRA: INFRA, MISSING: MISSING, BASIC: BASIC, indicatorTypes: indicatorTypes,
+           full32Graph: full32Graph, basicGraph: basicGraph, setVolume: setVolume,
+           customGraph: customGraph, driftWeightsOf: driftWeightsOf,
+           tunableTypes: tunableTypes, clampW: clampW, W_MIN: W_MIN, W_MAX: W_MAX };
 });

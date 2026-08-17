@@ -80,33 +80,29 @@ test("filter — 목록에 없는 시장의 칩이면 All 로 떨어진다", () 
   assert.strictEqual(M.filter(noKr, { chip: "KR" }).length, 2);
 });
 
-test("badge — 방향 있는 레코드는 conf 를 쓰고 없으면 null(옛 스캔 레코드·미스캔)", () => {
-  assert.strictEqual(M.badge(null), null);
-  assert.strictEqual(M.badge({}), null);
-  assert.strictEqual(M.badge({ conf: null, dir: "bull" }), null);
-  assert.strictEqual(M.badge({ conf: NaN, dir: "bull" }), null);
+// 읽음 상태(시안 14a) — 확신 배지(옛 badge())를 대체한다. 목록은 더 이상 방향(bull/bear)이나
+// 확신 퍼센트를 흘리지 않는다 — "이 판정을 봤는가"만 말한다. 저장(viewedScanKey)은 store.js 몫이라
+// 여기서는 순수 비교만 검증한다.
+test("readState — rec 이 없으면(미스캔) 상태 없음", () => {
+  assert.strictEqual(M.readState(null, null), null);
+  assert.strictEqual(M.readState(undefined, "2026-08-16T00:00:00.000Z"), null);
 });
 
-test("badge — 퍼센트 문자열과 방향 tone", () => {
-  assert.deepEqual(M.badge({ conf: 68, dir: "bull" }), { text: "68%", tone: "bull" });
-  assert.deepEqual(M.badge({ conf: 46.4, dir: "bear" }), { text: "46%", tone: "bear" });
+test("readState — scannedAt 이 없는 레코드도 상태 없음", () => {
+  assert.strictEqual(M.readState({ price: 100 }, null), null);
 });
 
-test("badge — 방향 있는 레코드는 conf 를 쓰고 up 은 무시한다", () => {
-  assert.deepEqual(M.badge({ conf: 68, up: 55, dir: "bull" }), { text: "68%", tone: "bull" });
+test("readState — 본 적 없는(viewedKey 없음) 스캔은 새 판정", () => {
+  assert.strictEqual(M.readState({ scannedAt: "2026-08-16T00:00:00.000Z" }, null), "unread");
 });
 
-test("badge — 중립 레코드는 up 을 쓴다", () => {
-  assert.deepEqual(M.badge({ conf: null, up: 51, dir: "neutral" }), { text: "51%", tone: "neutral" });
+test("readState — viewedKey 가 이번 scannedAt 과 같으면 읽음", () => {
+  const at = "2026-08-16T00:00:00.000Z";
+  assert.strictEqual(M.readState({ scannedAt: at }, at), "read");
 });
 
-test("badge — 중립인데 up 도 없으면 null(옛 스캔 레코드)", () => {
-  assert.strictEqual(M.badge({ conf: null, up: null, dir: "neutral" }), null);
-  assert.strictEqual(M.badge({ dir: "neutral" }), null);
-});
-
-test("badge — 방향은 있는데 conf 가 없으면 null", () => {
-  assert.strictEqual(M.badge({ conf: null, up: 55, dir: "bull" }), null);
+test("readState — 새 스캔(scannedAt 이 바뀜)은 예전에 읽었어도 다시 새 판정", () => {
+  assert.strictEqual(M.readState({ scannedAt: "2026-08-16T09:00:00.000Z" }, "2026-08-15T09:00:00.000Z"), "unread");
 });
 
 // shortName — 74px 이름 칸에 법인 접미사가 들어가면 "NVIDIA Corpo…" 로 잘린다.

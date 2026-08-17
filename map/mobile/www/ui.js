@@ -15,16 +15,6 @@
   // 큰 수(원화·코인 `74,300`)는 소수 두 자리가 소음이라 시안대로 반올림 + 천단위 구분자.
   function fmtPrice(v) { return (Math.abs(v) < 1000 ? v.toFixed(2) : Math.round(v).toLocaleString()); }
   function fmtChg(v) { return (v > 0 ? "+" : "") + v.toFixed(2) + "%"; }
-  function dotClass(dir) { return "wl-dot" + (dir === "bull" ? " bull" : dir === "bear" ? " bear" : ""); }
-  // 스파크라인 SVG path — 값 배열을 w×h 박스에 정규화한다
-  function sparkPath(pts, w, h) {
-    if (!pts || pts.length < 2) return "";
-    var lo = Math.min.apply(null, pts), hi = Math.max.apply(null, pts), sp = (hi - lo) || 1;
-    return pts.map(function (v, i) {
-      var x = (i / (pts.length - 1)) * w, y = h - ((v - lo) / sp) * h;
-      return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
-    }).join(" ");
-  }
   // 캔버스를 CSS 픽셀이 아니라 기기 픽셀로 맞춘다. 안 하면 폰에서 흐리다 —
   // 그리고 그 흐림은 node 테스트가 볼 수 없는 종류의 결함이다.
   // report.js relayout()·onboarding paintChart() 두 곳이 같은 블록을 갖고 있었고, 이미
@@ -69,6 +59,44 @@
     };
   }
 
-  return { el: el, fmtPrice: fmtPrice, fmtChg: fmtChg, dotClass: dotClass, sparkPath: sparkPath,
-           fitCanvas: fitCanvas, readToken: readToken, hexToRgba: hexToRgba, colTokens: colTokens };
+  // 스쿱 마크 — 원 안이 아래에서 위로 차오르는 형태. 채움 비율(0~100)로 잔량·지급 연출을
+  // 같은 그림 하나로 표현한다. 기하는 시안 실물 벡터(design_handoff/MoneyScoop 동선.dc.html
+  // #msFill30/#msFill60 clipPath)를 그대로 옮긴 것 — viewBox 26×26·circle cx13 cy14 r10.5·
+  // stroke-width 1.8. 채움 상단 y = 24.5 − (p/100)×21(원 지름) 은 그 두 샘플과 정확히 일치한다.
+  // 48px 런처 아이콘만 일부러 꽉 찬 원을 쓴다(부분 채움이 그 크기에서 얼룩으로 보인다) —
+  // 앱 내 마크와 다른 유일한 지점이라 되돌리지 말 것.
+  //
+  // id 는 반올림한 퍼센트만으로 만들면 안 된다 — 41.6 과 42.4 가 둘 다 msFill42 가 되어
+  // 같은 페이지에 두 마크가 있으면(태스크 6 지갑 게이지 + 헤더 마크) clipPath id 가 충돌해
+  // 한쪽이 다른 쪽 채움을 그린다. 호출마다 증가하는 카운터로 유일성을 보장한다.
+  // 잠김 표시 — 잠긴 지표(P2)·이미 담은 종목·잠긴 티어가 전부 이 하나를 쓴다.
+  function lockIcon() {
+    return '<svg viewBox="0 0 14 14" width="14" height="14" fill="none" ' +
+      'stroke="currentColor" stroke-width="1.4" aria-hidden="true">' +
+      '<rect x="2.5" y="6" width="9" height="6.5" rx="1.6"/>' +
+      '<path d="M4.75 6V4.4a2.25 2.25 0 0 1 4.5 0V6"/></svg>';
+  }
+
+  // 뒤로가기 글리프 — 리포트 머리와 판독문 머리가 같은 것을 쓴다. 화면마다 다시 그리면
+  // 자물쇠가 그랬듯 조용히 갈린다(rx 가 다른 자물쇠 두 개가 실재했다).
+  function backIcon() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
+      '<path d="M15 18l-6-6 6-6"/></svg>';
+  }
+
+  var scoopMarkSeq = 0;
+  function scoopMark(fillPct) {
+    var raw = (typeof fillPct === "number" && isFinite(fillPct)) ? fillPct : 42;
+    var p = Math.max(0, Math.min(100, raw));
+    var y = 24.5 - (p / 100) * 21;
+    var id = "msFill" + (scoopMarkSeq++);
+    return '<svg viewBox="0 0 26 26" width="22" height="22" fill="none" aria-hidden="true">' +
+      '<clipPath id="' + id + '"><rect x="0" y="' + y.toFixed(2) + '" width="26" height="' + (26 - y).toFixed(2) + '"/></clipPath>' +
+      '<circle cx="13" cy="14" r="10.5" stroke="currentColor" stroke-width="1.8"/>' +
+      '<circle cx="13" cy="14" r="10.5" fill="currentColor" clip-path="url(#' + id + ')"/></svg>';
+  }
+
+  return { el: el, fmtPrice: fmtPrice, fmtChg: fmtChg,
+           fitCanvas: fitCanvas, readToken: readToken, hexToRgba: hexToRgba, colTokens: colTokens,
+           scoopMark: scoopMark, lockIcon: lockIcon, backIcon: backIcon };
 });

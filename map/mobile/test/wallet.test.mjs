@@ -1,8 +1,39 @@
 import { test } from "node:test";
 import assert from "node:assert";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const W = require("../www/wallet.js");
+
+// 서버가 정본이고 이 표는 미리보기다 — 그래서 **갈릴 수 있다.** 실제로 갈렸다: 시안은
+// "워치리스트 스캔 무료"인데 서버·클라이언트는 둘 다 2 를 받고 있었고, 아무 관문도 그것을
+// 말해주지 않았다(P2 설계 조사에서 사람이 눈으로 찾았다). 두 표를 기계가 대조하게 만든다.
+const WALLET_LIB = readFileSync(new URL("../../wallet-lib.php", import.meta.url), "utf8");
+function serverCosts() {
+  const body = WALLET_LIB.match(/function w_costs\(\)\s*\{\s*return array\(([^)]*)\)/);
+  assert.ok(body, "wallet-lib.php 에서 w_costs() 를 못 찾았다 — 함수 모양이 바뀌었으면 이 파서도 같이 고칠 것");
+  const out = {};
+  const re = /"([a-z]+)"\s*=>\s*(\d+)/g;
+  let m;
+  while ((m = re.exec(body[1]))) out[m[1]] = Number(m[2]);
+  return out;
+}
+
+test("가격표가 서버와 갈리지 않는다 — 클라이언트 COSTS 는 w_costs() 의 거울이다", () => {
+  const srv = serverCosts();
+  assert.ok(Object.keys(srv).length >= 4, "서버 가격표를 못 읽었다: " + JSON.stringify(srv));
+  assert.deepStrictEqual(W.COSTS, srv,
+    "클라이언트 표시가와 서버 차감액이 다르다 — 사용자는 표시가를 보고 결정한다.\n" +
+    "클라: " + JSON.stringify(W.COSTS) + "\n서버: " + JSON.stringify(srv));
+});
+
+// 등급 복구가 delta 금액으로 이뤄지는 전제(wallet-lib.php w_refund) — 가격이 겹치면
+// 같은 금액이 두 등급을 가리켜 환급이 남의 권리를 지운다. PHP 쪽에도 같은 단정이 있지만
+// 가격을 바꾸는 사람은 대개 이 JS 표부터 만진다.
+test("네 가격은 서로 다르다 — 환급이 금액으로 등급을 되찾는다", () => {
+  const vals = Object.values(W.COSTS);
+  assert.strictEqual(new Set(vals).size, vals.length, "가격이 겹친다: " + JSON.stringify(W.COSTS));
+});
 
 function spyBackend() {
   const calls = [];
@@ -20,12 +51,14 @@ test("비용표 — 시안이 정한 값 그대로", () => {
   assert.strictEqual(W.COSTS.full, 3);
   assert.strictEqual(W.COSTS.custom, 5);
   assert.strictEqual(W.COSTS.slot, 1);
-  assert.strictEqual(W.COSTS.scan, 2, "시안 2c 의 Spend 목록: Watchlist signal scan 2");
+  // 스캔은 무료다(사용자 결정 2026-08-17) — 서버 w_costs 의 "scan" => 0 과 한 벌이다.
+  // 온보딩 지급 5 에 스캔 2 면 두 번 만에 바닥나 목록을 훑는 주 루프가 유료가 된다.
+  assert.strictEqual(W.COSTS.scan, 0, "스캔은 무료다 — 서버 w_costs 와 같이 움직인다");
 });
 
 test("costOf — 모르는 종류는 null(0 이 아니다)", () => {
   assert.strictEqual(W.costOf("full"), 3);
-  assert.strictEqual(W.costOf("scan"), 2);
+  assert.strictEqual(W.costOf("scan"), 0, "무료 등급은 0 이다 — 모르는 종류(null)와 구분된다");
   assert.strictEqual(W.costOf("nope"), null);
   assert.strictEqual(W.costOf(undefined), null);
   assert.strictEqual(W.costOf("toString"), null, "프로토타입 체인이 새면 안 된다");

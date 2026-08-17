@@ -1,0 +1,179 @@
+{
+  "generatedAt": "2026-08",
+  "engineVersion": "1.11.0",
+  "indicatorCount": 32,
+  "tiers": {
+    "basic": {
+      "label": "기본분석",
+      "indicators": 5,
+      "types": [
+        "ma",
+        "macd",
+        "rsi",
+        "bollinger",
+        "volume"
+      ],
+      "directionHitRate": 0.5818158336562056,
+      "baselineAlwaysUp": 0.6095956907080893,
+      "bullHitRate": 0.61638286995163,
+      "bearHitRate": 0.42323651452282157,
+      "coneCoverage": 0.7381689656250977,
+      "calibrationECE": 0.010540489818898368,
+      "priceMAE": 0.17640225463118048,
+      "nForecasts": 31971,
+      "nSeries": 87,
+      "byRegime": {
+        "bull": {
+          "n": 26090,
+          "directionHitRate": 0.6010198837806855,
+          "baselineAlwaysUp": 0.6342773812264948,
+          "bullHitRate": 0.6381949290532682,
+          "bearHitRate": 0.3908469226722778,
+          "lift": -0.0332574974458093
+        },
+        "bear": {
+          "n": 3824,
+          "directionHitRate": 0.46984041114417097,
+          "baselineAlwaysUp": 0.4803664921465969,
+          "bullHitRate": 0.4639175257731959,
+          "bearHitRate": 0.4825531914893617,
+          "lift": -0.010526081002425913
+        },
+        "side": {
+          "n": 2057,
+          "directionHitRate": 0.5455005055611729,
+          "baselineAlwaysUp": 0.5367754505601559,
+          "bullHitRate": 0.556657223796034,
+          "bearHitRate": 0.5176678445229682,
+          "lift": 0.008725055001017057
+        }
+      },
+      "byTimeframe": {
+        "1day": {
+          "n": 19166,
+          "fixtures": 55,
+          "directionHitRate": 0.5505739657786441,
+          "baselineAlwaysUp": 0.5771219639592583,
+          "coneCoverage": 0.7421997286862152,
+          "lift": -0.026547998180614152
+        },
+        "1month": {
+          "n": 1723,
+          "fixtures": 14,
+          "directionHitRate": 0.6436107854630715,
+          "baselineAlwaysUp": 0.6577571179546775,
+          "coneCoverage": 0.7684271619268718,
+          "lift": -0.014146332491606017
+        },
+        "1week": {
+          "n": 11082,
+          "fixtures": 18,
+          "directionHitRate": 0.6254862011483608,
+          "baselineAlwaysUp": 0.6582919114324447,
+          "coneCoverage": 0.7264934127413825,
+          "lift": -0.032805710284083855
+        }
+      }
+    },
+    "deep": {
+      "label": "심화분석",
+      "indicators": 32,
+      "types": [
+        "ma",
+        "macd",
+        "rsi",
+        "bollinger",
+        "volume",
+        "trend",
+        "adx",
+        "stochastic",
+        "fib",
+        "ichimoku",
+        "pivot",
+        "psar",
+        "gann",
+        "vwap",
+        "supertrend",
+        "atr",
+        "volumeprofile",
+        "structure",
+        "keltner",
+        "donchian",
+        "cci",
+        "williams",
+        "aroon",
+        "mfi",
+        "elliott",
+        "smc",
+        "cycle",
+        "phasefold",
+        "roc",
+        "ao",
+        "cmf",
+        "pattern"
+      ],
+      "directionHitRate": 0.585440515289691,
+      "baselineAlwaysUp": 0.6095956907080893,
+      "bullHitRate": 0.6185071181223547,
+      "bearHitRate": 0.4254328802830013,
+      "coneCoverage": 0.7714178474242283,
+      "calibrationECE": 0.0026949422914516966,
+      "priceMAE": 0.16982548102194334,
+      "nForecasts": 31971,
+      "nSeries": 87,
+      "byRegime": {
+        "bull": {
+          "n": 26090,
+          "directionHitRate": 0.6054780604071426,
+          "baselineAlwaysUp": 0.6342773812264948,
+          "bullHitRate": 0.6405815596372089,
+          "bearHitRate": 0.39457831325301207,
+          "lift": -0.028799320819352214
+        },
+        "bear": {
+          "n": 3824,
+          "directionHitRate": 0.4701651571656899,
+          "baselineAlwaysUp": 0.4803664921465969,
+          "bullHitRate": 0.46532351801627275,
+          "bearHitRate": 0.48081841432225064,
+          "lift": -0.010201334980906973
+        },
+        "side": {
+          "n": 2057,
+          "directionHitRate": 0.5456802383316782,
+          "baselineAlwaysUp": 0.5367754505601559,
+          "bullHitRate": 0.5579019073569482,
+          "bearHitRate": 0.5128205128205128,
+          "lift": 0.008904787771522371
+        }
+      },
+      "byTimeframe": {
+        "1day": {
+          "n": 19166,
+          "fixtures": 55,
+          "directionHitRate": 0.5548204663074214,
+          "baselineAlwaysUp": 0.5771219639592583,
+          "coneCoverage": 0.7740790984034227,
+          "lift": -0.022301497651836866
+        },
+        "1month": {
+          "n": 1723,
+          "fixtures": 14,
+          "directionHitRate": 0.6438995913601868,
+          "baselineAlwaysUp": 0.6577571179546775,
+          "coneCoverage": 0.7457922228670922,
+          "lift": -0.013857526594490688
+        },
+        "1week": {
+          "n": 11082,
+          "fixtures": 18,
+          "directionHitRate": 0.6288858321870702,
+          "baselineAlwaysUp": 0.6582919114324447,
+          "coneCoverage": 0.7707994946760512,
+          "lift": -0.029406079245374528
+        }
+      }
+    }
+  },
+  "deepMinusBasicPP": 0.4
+}
