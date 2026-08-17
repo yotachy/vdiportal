@@ -1,0 +1,287 @@
+{
+  "generatedAt": null,
+  "engineVersion": "1.11.0",
+  "fixtures": 87,
+  "ks": [
+    1,
+    1.2,
+    1.4,
+    1.6,
+    2,
+    2.5
+  ],
+  "presets": {
+    "trend": {
+      "name": "추세 추종",
+      "selected": 9,
+      "types": [
+        "ma",
+        "trend",
+        "ichimoku",
+        "supertrend",
+        "adx",
+        "macd",
+        "rsi",
+        "bollinger",
+        "volume"
+      ],
+      "byK": {
+        "1": {
+          "directionHitRate": 0.582887189292543,
+          "calibrationECE": 0.011848550248662817,
+          "coneCoverage": 0.7346345125269775,
+          "coneErr": 0.06536548747302251,
+          "priceMAE": 0.17844125192428803,
+          "n": 31971
+        },
+        "2": {
+          "directionHitRate": 0.582887189292543,
+          "calibrationECE": 0.027341027806449633,
+          "coneCoverage": 0.764943229802008,
+          "coneErr": 0.03505677019799203,
+          "priceMAE": 0.20861452672528916,
+          "n": 31971
+        },
+        "1.2": {
+          "directionHitRate": 0.582887189292543,
+          "calibrationECE": 0.0162697444559132,
+          "coneCoverage": 0.7418598104532232,
+          "coneErr": 0.0581401895467768,
+          "priceMAE": 0.18329080562688396,
+          "n": 31971
+        },
+        "1.4": {
+          "directionHitRate": 0.582887189292543,
+          "calibrationECE": 0.01843670826686683,
+          "coneCoverage": 0.7488348816114604,
+          "coneErr": 0.051165118388539654,
+          "priceMAE": 0.18868907578397842,
+          "n": 31971
+        },
+        "1.6": {
+          "directionHitRate": 0.582887189292543,
+          "calibrationECE": 0.021310875480904497,
+          "coneCoverage": 0.7549654374276689,
+          "coneErr": 0.04503456257233118,
+          "priceMAE": 0.19473260324991867,
+          "n": 31971
+        },
+        "2.5": {
+          "directionHitRate": 0.582887189292543,
+          "calibrationECE": 0.03557943135966977,
+          "coneCoverage": 0.7764849394764005,
+          "coneErr": 0.02351506052359953,
+          "priceMAE": 0.229172185001472,
+          "n": 31971
+        }
+      }
+    },
+    "momentum": {
+      "name": "단기 모멘텀",
+      "selected": 6,
+      "types": [
+        "rsi",
+        "macd",
+        "stochastic",
+        "bollinger",
+        "ma",
+        "volume"
+      ],
+      "byK": {
+        "1": {
+          "directionHitRate": 0.580749772992606,
+          "calibrationECE": 0.010583028369459839,
+          "coneCoverage": 0.7354477495230052,
+          "coneErr": 0.06455225047699487,
+          "priceMAE": 0.175238023852559,
+          "n": 31971
+        },
+        "2": {
+          "directionHitRate": 0.580749772992606,
+          "calibrationECE": 0.00764755559726002,
+          "coneCoverage": 0.7302555440868287,
+          "coneErr": 0.06974445591317135,
+          "priceMAE": 0.173515389487531,
+          "n": 31971
+        },
+        "1.2": {
+          "directionHitRate": 0.580749772992606,
+          "calibrationECE": 0.009432610803540664,
+          "coneCoverage": 0.7342591723749649,
+          "coneErr": 0.06574082762503519,
+          "priceMAE": 0.17489032628097342,
+          "n": 31971
+        },
+        "1.4": {
+          "directionHitRate": 0.580749772992606,
+          "calibrationECE": 0.008843639548340705,
+          "coneCoverage": 0.7332269869569297,
+          "coneErr": 0.06677301304307037,
+          "priceMAE": 0.17450986276853886,
+          "n": 31971
+        },
+        "1.6": {
+          "directionHitRate": 0.580749772992606,
+          "calibrationECE": 0.008757624096837752,
+          "coneCoverage": 0.732413749960902,
+          "coneErr": 0.06758625003909802,
+          "priceMAE": 0.17420461830505274,
+          "n": 31971
+        },
+        "2.5": {
+          "directionHitRate": 0.580749772992606,
+          "calibrationECE": 0.007401707797691654,
+          "coneCoverage": 0.7278471114447468,
+          "coneErr": 0.07215288855525326,
+          "priceMAE": 0.17285677933790453,
+          "n": 31971
+        }
+      }
+    },
+    "reversion": {
+      "name": "평균 회귀",
+      "selected": 9,
+      "types": [
+        "rsi",
+        "stochastic",
+        "bollinger",
+        "fib",
+        "elliott",
+        "structure",
+        "ma",
+        "macd",
+        "volume"
+      ],
+      "byK": {
+        "1": {
+          "directionHitRate": 0.5821432041193044,
+          "calibrationECE": 0.01059491414094027,
+          "coneCoverage": 0.7194332363704607,
+          "coneErr": 0.0805667636295393,
+          "priceMAE": 0.1753209684877895,
+          "n": 31971
+        },
+        "2": {
+          "directionHitRate": 0.5821432041193044,
+          "calibrationECE": 0.0077648493947639514,
+          "coneCoverage": 0.714147195896281,
+          "coneErr": 0.0858528041037191,
+          "priceMAE": 0.17328019493813096,
+          "n": 31971
+        },
+        "1.2": {
+          "directionHitRate": 0.5821432041193044,
+          "calibrationECE": 0.009612148509586844,
+          "coneCoverage": 0.7186512777204341,
+          "coneErr": 0.08134872227956591,
+          "priceMAE": 0.1748953311312667,
+          "n": 31971
+        },
+        "1.4": {
+          "directionHitRate": 0.5821432041193044,
+          "calibrationECE": 0.009127646930030354,
+          "coneCoverage": 0.717087360420381,
+          "coneErr": 0.08291263957961903,
+          "priceMAE": 0.17445373334204503,
+          "n": 31971
+        },
+        "1.6": {
+          "directionHitRate": 0.5821432041193044,
+          "calibrationECE": 0.008962497263144749,
+          "coneCoverage": 0.7158675049263395,
+          "coneErr": 0.0841324950736605,
+          "priceMAE": 0.1740314596254407,
+          "n": 31971
+        },
+        "2.5": {
+          "directionHitRate": 0.5821432041193044,
+          "calibrationECE": 0.008461418160207694,
+          "coneCoverage": 0.7116136498701948,
+          "coneErr": 0.08838635012980522,
+          "priceMAE": 0.17253636652999924,
+          "n": 31971
+        }
+      }
+    },
+    "volatility": {
+      "name": "변동성 우선",
+      "selected": 9,
+      "types": [
+        "bollinger",
+        "atr",
+        "supertrend",
+        "adx",
+        "structure",
+        "volume",
+        "ma",
+        "macd",
+        "rsi"
+      ],
+      "byK": {
+        "1": {
+          "directionHitRate": 0.5828630066700872,
+          "calibrationECE": 0.005543774045228511,
+          "coneCoverage": 0.7912170404429014,
+          "coneErr": 0.008782959557098624,
+          "priceMAE": 0.17684171486611078,
+          "n": 31971
+        },
+        "2": {
+          "directionHitRate": 0.5828630066700872,
+          "calibrationECE": 0.004684870664039252,
+          "coneCoverage": 0.7887773294548184,
+          "coneErr": 0.011222670545181668,
+          "priceMAE": 0.17566056326411497,
+          "n": 31971
+        },
+        "1.2": {
+          "directionHitRate": 0.5828630066700872,
+          "calibrationECE": 0.006104594789027525,
+          "coneCoverage": 0.790560195176879,
+          "coneErr": 0.009439804823121012,
+          "priceMAE": 0.17659061553033834,
+          "n": 31971
+        },
+        "1.4": {
+          "directionHitRate": 0.5828630066700872,
+          "calibrationECE": 0.005712364330174189,
+          "coneCoverage": 0.7899346282568578,
+          "coneErr": 0.01006537174314226,
+          "priceMAE": 0.1763224871680091,
+          "n": 31971
+        },
+        "1.6": {
+          "directionHitRate": 0.5828630066700872,
+          "calibrationECE": 0.004996715773669871,
+          "coneCoverage": 0.7894341747208408,
+          "coneErr": 0.01056582527915928,
+          "priceMAE": 0.1760769069761805,
+          "n": 31971
+        },
+        "2.5": {
+          "directionHitRate": 0.5828630066700872,
+          "calibrationECE": 0.003924806856213396,
+          "coneCoverage": 0.7878389790747865,
+          "coneErr": 0.01216102092521354,
+          "priceMAE": 0.17523428014106843,
+          "n": 31971
+        }
+      }
+    }
+  },
+  "bestPerPreset": {
+    "trend": 1,
+    "momentum": 2.5,
+    "reversion": 2,
+    "volatility": 2.5
+  },
+  "rankSum": {
+    "1": 13,
+    "2": 6,
+    "1.2": 14,
+    "1.4": 12,
+    "1.6": 9,
+    "2.5": 6
+  },
+  "bestSingleK": 2
+}

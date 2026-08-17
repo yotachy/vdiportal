@@ -1,0 +1,82 @@
+{
+  "generatedAt": null,
+  "engineVersion": "1.11.0",
+  "halves": {
+    "A": 44,
+    "B": 43
+  },
+  "presets": {
+    "trend": {
+      "name": "추세 추종",
+      "kBest": 1,
+      "halves": {
+        "A": {
+          "eceAt1": 0.013880093902365609,
+          "eceAtBest": 0.013880093902365609,
+          "deltaPP": 0
+        },
+        "B": {
+          "eceAt1": 0.009650996223466567,
+          "eceAtBest": 0.009650996223466567,
+          "deltaPP": 0
+        }
+      },
+      "consistent": false,
+      "verdict": "no-scaling"
+    },
+    "momentum": {
+      "name": "단기 모멘텀",
+      "kBest": 2.5,
+      "halves": {
+        "A": {
+          "eceAt1": 0.011264672244627752,
+          "eceAtBest": 0.006786251730572421,
+          "deltaPP": -0.45
+        },
+        "B": {
+          "eceAt1": 0.0098456830316448,
+          "eceAtBest": 0.008067456700091149,
+          "deltaPP": -0.18
+        }
+      },
+      "consistent": true,
+      "verdict": "signal"
+    },
+    "reversion": {
+      "name": "평균 회귀",
+      "kBest": 2,
+      "halves": {
+        "A": {
+          "eceAt1": 0.011741407331607823,
+          "eceAtBest": 0.008914705351230942,
+          "deltaPP": -0.28
+        },
+        "B": {
+          "eceAt1": 0.009354733689282517,
+          "eceAtBest": 0.006521031384294863,
+          "deltaPP": -0.28
+        }
+      },
+      "consistent": true,
+      "verdict": "signal"
+    },
+    "volatility": {
+      "name": "변동성 우선",
+      "kBest": 2.5,
+      "halves": {
+        "A": {
+          "eceAt1": 0.006379341479564167,
+          "eceAtBest": 0.005064708360922238,
+          "deltaPP": -0.13
+        },
+        "B": {
+          "eceAt1": 0.007041281416851106,
+          "eceAtBest": 0.007575205104831299,
+          "deltaPP": 0.05
+        }
+      },
+      "consistent": false,
+      "verdict": "sample-fit"
+    }
+  }
+}
