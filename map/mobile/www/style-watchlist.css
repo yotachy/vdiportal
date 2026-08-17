@@ -79,3 +79,20 @@
 .row-tap { display:flex; width:100%; background:none; border:0; color:inherit; font:inherit; text-align:left; padding:0; }
 .empty { padding:40px 0; text-align:center; color:var(--ink-4); font-size:var(--fs-sub); line-height:1.7; }
 
+
+/* ===== 어제 결과 카드(시안 14a) =====
+   목록보다 **위**다 — 앱을 여는 이유가 "어제 그거 맞았나"이기 때문이다. 퍼센트는 쓰지
+   않는다(20건 미만에서 "67% 적중"은 거짓말이다 — 핸드오프 원칙 5). */
+.wl-res { margin:14px 0 6px; padding:14px; border-radius:14px; background:var(--surface); border:1px solid var(--border); }
+.wl-res-row { display:flex; align-items:baseline; gap:10px; width:100%; padding:9px 0;
+  background:none; border:0; border-bottom:1px solid var(--hairline); color:inherit; font:inherit; text-align:left; }
+.wl-res-row:last-of-type { border-bottom:0; }
+.wl-res-name { flex:1 1 auto; font-size:var(--fs-body); font-weight:var(--fw-medium); }
+.wl-res-val { flex:0 0 auto; font-size:var(--fs-body); font-variant-numeric:tabular-nums; color:var(--ink-2); }
+.wl-res-verdict { flex:0 0 auto; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; }
+.wl-res-verdict.is-hit { color:var(--bull); }
+.wl-res-verdict.is-miss { color:var(--ink-4); }   /* 빗나감은 붉게 칠하지 않는다 — 실패가 아니라 사실이다 */
+/* 아직 안 본 결과. 좌측 세로 라인 금지 규칙에 따라 이름 앞 점으로만 표시한다. */
+.wl-res-row.is-new .wl-res-name::before { content:""; display:inline-block; width:6px; height:6px;
+  margin-right:6px; border-radius:99px; background:var(--action); vertical-align:middle; }
+.wl-res-note { margin-top:10px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }

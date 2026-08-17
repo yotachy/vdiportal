@@ -178,3 +178,30 @@ body:not(.ms-dual) .rp-scr { display:flex; flex-direction:column; min-height:cal
 /* 해제 카드 — 버튼 하나가 아니라 "무엇이 빠져 있는지"를 먼저 말하는 카드다. */
 .rp-unlock { margin-top:8px; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--sheet); }
 .rp-unlock-line { margin:0 0 12px; white-space:pre-line; font-size:var(--fs-body); color:var(--ink-2); line-height:1.5; }
+
+/* ===== 어제 결과 상세(시안 17b 맞힘 / 14b 빗나감) =====
+   두 갈래는 규칙이 정반대다 — 맞힌 날만 광고를 권하고, 빗나간 날은 전문분석을 제안한다.
+   그 비대칭은 result.js 가 지키고, 여기서는 색으로도 그것을 뒤집지 않는다:
+   빗나감을 붉게 칠하지 않는다(실패가 아니라 사실이다). */
+.rs-head { display:flex; align-items:center; gap:12px; padding:14px 0 6px; }
+.rs-back { min-height:44px; min-width:44px; display:flex; align-items:center; background:none; border:0; color:var(--ink-2); padding:0 4px; }
+.rs-title { font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); }
+.rs-when { font-size:var(--fs-caption); color:var(--ink-5); }
+.rs-verdict { margin:18px 0 8px; }
+.rs-verdict-h { font-size:var(--fs-display); font-weight:var(--fw-display); letter-spacing:var(--ls-display); }
+.rs-verdict.is-hit .rs-verdict-h { color:var(--bull); }
+.rs-verdict.is-miss .rs-verdict-h { color:var(--ink-2); }
+.rs-verdict-s { margin-top:6px; font-size:var(--fs-body); color:var(--ink-3); line-height:1.6; }
+.rs-band { margin:18px 0 4px; }
+.rs-band-track { position:relative; height:10px; border-radius:99px; background:var(--track); }
+.rs-band-fill { position:absolute; top:0; height:100%; border-radius:99px; background:var(--gold-soft); }
+.rs-band-mark { position:absolute; top:-4px; width:3px; height:18px; border-radius:2px; margin-left:-1px; }
+.rs-band-mark.is-hit { background:var(--bull); }
+.rs-band-mark.is-miss { background:var(--ink-2); }
+.rs-band-ends { display:flex; justify-content:space-between; margin-top:6px; font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
+.rs-gap { font-size:var(--fs-sub); color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.rs-insight { margin:16px 0; padding:13px 14px; border-radius:12px; background:var(--surface); border:1px solid var(--border); }
+.rs-insight-h { font-size:var(--fs-body); font-weight:var(--fw-medium); }
+.rs-insight-b { margin-top:5px; font-size:var(--fs-caption); color:var(--ink-4); line-height:1.6; }
+.rs-actions { display:flex; flex-direction:column; gap:8px; margin:20px 0 12px; }
+.rs-disc { font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }

@@ -130,6 +130,65 @@
     }
 
     // 셸 — 목록 자체가 바뀔 때만(추가·삭제·오타 제안·최초).
+    // 대기 중인 예측을 지금 판정한다. 리포트를 열어야만 판정되면 결과 카드는 영영 안 뜨고,
+    // 그러면 "다음 날 앱을 열 이유"라는 고리의 목적 자체가 성립하지 않는다.
+    // 새 봉이 있어야만 판정되므로(predictions.js) 같은 날 여러 번 열어도 값이 안 바뀐다.
+    // 실패는 조용히 넘긴다 — 판정은 곁다리이고, 못 하면 다음에 하면 된다.
+    function settleAll() {
+      if (typeof MSPreds === "undefined" || !MSStore.getPreds || typeof MSApi === "undefined") return;
+      var pend = MSPreds.pending(MSStore.getPreds());
+      if (!pend.length) return;
+      var syms = [];
+      pend.forEach(function (r) { if (syms.indexOf(r.sym) < 0) syms.push(r.sym); });
+      var done = 0, any = false;
+      syms.slice(0, 5).forEach(function (sym) {     // 한 번에 다섯 종목까지 — 부팅을 붙잡지 않는다
+        MSApi.loadTicker(sym, "1day").then(function (d) {
+          pend.forEach(function (r) {
+            if (r.sym !== sym) return;
+            var j = MSPreds.judge(r, d && d.candle);
+            if (j) { MSStore.settlePred(r.sym, r.asOf, j); any = true; }
+          });
+        })["catch"](function () {})
+        .then(function () { if (++done === Math.min(syms.length, 5) && any) drawShell(); });
+      });
+    }
+
+    // 어제 결과 카드. 판정된 것이 없으면 **아무것도 그리지 않는다** — 빈 껍데기를 남기면
+    // 로딩 실패로 읽힌다(P1 이 같은 이유로 자리를 비워두지 않기로 한 것과 같은 규칙).
+    //
+    // 퍼센트를 쓰지 않는다: 20건 미만에서 "67% 적중"은 거짓말이다(핸드오프 원칙 5).
+    // 대신 건수와 개별 결과만 보이고, 20건이 넘으면 그때 적중률 줄이 붙는다.
+    function buildResults() {
+      if (typeof MSPreds === "undefined" || !MSStore.getPreds) return null;
+      var all = MSStore.getPreds().filter(function (r) { return r && r.judgedOn; });
+      var recent = MSPreds.recent(all, 3);
+      if (!recent.length) return null;
+
+      var card = MSUi.el("div", "wl-res");
+      card.appendChild(MSUi.el("div", "overline", MSStr.t.wlResHead + recent.length + MSStr.t.wlResHeadTail));
+      recent.forEach(function (r) {
+        var row = MSUi.el("button", "wl-res-row" + (r.seen === false ? " is-new" : ""));
+        row.appendChild(MSUi.el("span", "wl-res-name", r.name || r.sym));
+        row.appendChild(MSUi.el("span", "wl-res-val", MSUi.fmtPrice(r.actual)));
+        // 맞았으면 "범위 적중", 빗나갔으면 얼마나 벗어났는지. 숨기지 않는다.
+        row.appendChild(MSUi.el("span", "wl-res-verdict" + (r.hit ? " is-hit" : " is-miss"),
+          r.hit ? MSStr.t.wlResHit : (MSUi.fmtPrice(r.miss) + MSStr.t.wlResMiss)));
+        row.addEventListener("click", function () {
+          MSStore.markPredSeen(r.sym, r.asOf);
+          MSApp.go("result", { sym: r.sym, asOf: r.asOf });
+        });
+        card.appendChild(row);
+      });
+
+      var rate = MSPreds.hitRate(all);
+      // 20건이 넘어야 퍼센트가 나온다. 그 전에는 왜 안 나오는지를 말한다 — 침묵하면
+      // "적중률 기능이 없다"로 읽히고, 20건을 채울 이유도 사라진다.
+      card.appendChild(MSUi.el("p", "wl-res-note", rate
+        ? (MSStr.t.wlResRateA + Math.round(rate.rate * 100) + MSStr.t.wlResRateB + rate.n + MSStr.t.wlResRateC)
+        : (all.length + MSStr.t.wlResSmallA + MSPreds.MIN_N + MSStr.t.wlResSmallB)));
+      return card;
+    }
+
     function drawShell() {
       root.innerHTML = "";
       rowsEl = null; scanBtnEl = null;
@@ -192,8 +251,13 @@
       toolbar.appendChild(chipsEl);
       scr.appendChild(toolbar);
 
-      // "오늘" 섹션 헤더(시안 14a) — 어제 본 예측 결과 카드는 P3 라 이 섹션이 화면 최상단
-      // 콘텐츠다(헤더 바로 다음). 스캔 버튼이 여기로 옮겨왔다 — 예전엔 헤더 필과 자리를
+      // 어제 본 예측의 결과 — **목록보다 위**다(시안 14a). 앱을 여는 이유가 "어제 그거
+      // 맞았나"이기 때문이고, 이 카드가 없으면 앱은 "목록 → 리포트 한 방"으로 끝난다
+      // (핸드오프 README §B: "5번이 1번을 만든다").
+      var resCard = buildResults();
+      if (resCard) scr.appendChild(resCard);
+
+      // "오늘" 섹션 헤더(시안 14a). 스캔 버튼이 여기로 옮겨왔다 — 예전엔 헤더 필과 자리를
       // 다퉈 아이콘만 남았지만, 이제 자기 줄이 있어 아이콘+라벨을 함께 보여준다.
       var sec = MSUi.el("div", "wl-sec");
       sec.appendChild(MSUi.el("span", "wl-sec-title", MSStr.t.wlToday));
@@ -399,6 +463,7 @@
     onScanTick = function () { updateScanBtn(); drawRows(); };
 
     drawShell();
+    settleAll();   // 어제 말한 것 중 결과가 나온 것을 지금 닫는다 — 고리의 두 번째 칸
   }
 
   window.MSWatchlist = { render: render };

@@ -33,6 +33,11 @@
   function renderReportPane() {
     reportPane.innerHTML = "";
     if (state.showing === "wallet") { MSWalletScreen.render(reportPane); markSelected(); return; }
+    if (state.showing === "result" && state.resultOf) {
+      reportPane.scrollTop = 0;
+      MSResult.render(reportPane, { sym: state.resultOf.sym, asOf: state.resultOf.asOf });
+      markSelected(); return;
+    }
     reportPane.scrollTop = 0;
     if (state.selectedSym) {
       // 2단에서 오른쪽 칸이 리포트를 그린 순간부터 '리포트를 보고 있는 상태'다 —
@@ -66,6 +71,8 @@
     }
 
     if (state.showing === "wallet") MSWalletScreen.render(rootEl);
+    else if (state.showing === "result" && state.resultOf)
+      MSResult.render(rootEl, { sym: state.resultOf.sym, asOf: state.resultOf.asOf });
     else if (state.showing === "report" && state.selectedSym) MSReport.render(rootEl, { sym: state.selectedSym });
     else MSWatchlist.render(rootEl);
     window.scrollTo(0, 0);
@@ -88,6 +95,14 @@
       if (dual) { renderReportPane(); return; }
       renderShell(); return;
     }
+    // 어제 결과 상세(시안 17b·14b). 고리의 두 번째 칸이다 — 결과를 닫아주지 않으면
+    // 사용자가 내일 앱을 열 이유가 없다.
+    if (route === "result" && sym) {
+      state.resultOf = { sym: sym, asOf: params && params.asOf };
+      state.showing = "result";
+      if (dual) { renderReportPane(); return; }
+      renderShell(); return;
+    }
     if (route === "report" && sym) {
       state.selectedSym = sym;
       state.showing = "report";
@@ -101,7 +116,11 @@
 
   window.MSApp = {
     go: go,
-    current: function () { return { route: state.showing, params: { sym: state.selectedSym } }; }
+    current: function () {
+      if (state.showing === "result" && state.resultOf)
+        return { route: "result", params: { sym: state.resultOf.sym, asOf: state.resultOf.asOf } };
+      return { route: state.showing, params: { sym: state.selectedSym } };
+    }
   };
 
   document.addEventListener("DOMContentLoaded", function () {

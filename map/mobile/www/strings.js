@@ -30,7 +30,28 @@
     wlBrandA: "Money", wlBrandB: "Scoop",         // 워드마크 — 15px/700, 뒷조각(Scoop)만 골드
     wlSearch: "티커 또는 회사명 검색",
     wlChipAll: "전체", wlChipUS: "미국", wlChipKR: "국내", wlChipETF: "ETF",
-    wlToday: "오늘",                              // "오늘" 섹션 헤더 — 결과 카드(어제 본 예측)는 P3, 이 섹션이 최상단
+    wlToday: "오늘",
+    // 어제 결과 카드(시안 14a) — 목록보다 위. 퍼센트는 20건 이상부터만(핸드오프 원칙 5).
+    wlResHead: "어제 본 예측 ", wlResHeadTail: "건",
+    wlResHit: "범위 적중", wlResMiss: " 벗어남",
+    wlResSmallA: "건은 아직 성적이 아닙니다. ", wlResSmallB: "건이 넘으면 내 적중률을 함께 보여드립니다.",
+    wlResRateA: "내 적중률 ", wlResRateB: "% · ", wlResRateC: "건 기준",
+
+    // 어제 결과 상세(시안 17b 맞힘 / 14b 빗나감). 두 갈래가 **규칙이 정반대**라 문구도
+    // 섞지 않는다 — 맞힌 날만 광고를 권하고, 빗나간 날은 전문분석을 제안한다.
+    rsNone: "이 종목의 지난 예측 기록이 없습니다.",
+    rsWhenA: "기준일 ", rsWhenB: " · 판정 ",
+    rsHit: "맞았습니다", rsMiss: "빗나갔습니다",
+    rsSaidA: "", rsSaidB: " 라고 했고 실제는 ", rsSaidC: " 였습니다",
+    rsInside: "예측 범위 안쪽입니다",
+    rsOutside: " 만큼 벗어났습니다",
+    rsBasicWouldHit: "기본분석이었다면 적중이었습니다",
+    rsNarrowNote: " 라고만 했을 범위입니다. 좁게 말할수록 표적이 작아집니다 — 심화분석이 나빠서가 아니라 범위를 좁게 잡았기 때문입니다.",
+    rsAdToday: "오늘도 심화로 보기",
+    rsAgainToday: "오늘 판정 보기",
+    rsTryExpert: "가중치를 조절해 다시 보기",
+    rsTodayVerdict: "오늘 판정 보기",
+    rsDisclaimer: "가격 · 거래량 · 시간만 읽습니다. 예측은 약속이 아닙니다.",                              // "오늘" 섹션 헤더 — 결과 카드(어제 본 예측)는 P3, 이 섹션이 최상단
     wlNoMatch: "일치하는 종목이 없습니다.",        // 검색·칩 결과가 비었을 때
     wlEmpty: "아직 등록된 종목이 없습니다.\n종목을 추가해 보세요.",
     wlAdd: "＋ 종목 추가",

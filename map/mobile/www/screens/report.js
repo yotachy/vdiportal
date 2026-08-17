@@ -480,6 +480,7 @@
       // Full 분석이 Basic 분석보다 우선한다 — 한 곳에서만 판정한다. 이 가드가 없으면 늦게 끝난
       // 기본 로드(또는 에러 화면의 retry)가 방금 산 32지표 결과를 5지표로 덮어 배지만 FULL 인
       // 화면이 된다. 구매 도중 재렌더돼 로드와 구매가 함께 도는 경로에서 실제로 겹친다.
+      settlePending();   // 새 봉이 왔다면 어제 말한 것을 지금 판정한다
       if (isPaid(tier) && an) { state = "ready"; draw(); return; }
       try {
         an = analyzeFull(data);
@@ -503,6 +504,44 @@
       var asOf = asOfOf(data);
       if (!asOf) return;                       // 기준일을 모르면 G2 를 지킬 수 없다 — 안 적는다
       basicSnap[sym] = { asOf: asOf, lo: pr.lo[0], hi: pr.hi[0], width: pr.hi[0] - pr.lo[0] };
+    }
+
+    // 오늘 무엇을 말했는지 적어둔다(핸드오프 README §B "5번이 1번을 만든다"). 값을 치른
+    // 분석에서만 적는다 — 기본분석은 무료로 아무 때나 열리므로, 그것까지 적으면 기록이
+    // "사용자가 산 판정"이 아니라 "화면을 연 횟수"가 된다.
+    //
+    // 판정에 쓸 값을 **그때 그대로** 남긴다. 내일 다시 계산하면 오늘 데이터로 어제 말을
+    // 고치게 된다. 같은 시점 기본분석의 범위(basicSnap)도 함께 남긴다 — 빗나간 날
+    // "기본분석이었다면 적중이었습니다"(시안 14b)를 말하려면 그때의 기본 범위가 필요하고,
+    // 없으면 그 문장을 아예 안 쓴다.
+    function recordPrediction() {
+      if (typeof MSPreds === "undefined" || !MSStore.addPred) return;
+      var pr = an && an.out && an.out.prediction;
+      var asOf = asOfOf(data);
+      if (!pr || !pr.lo || !pr.lo.length || !asOf) return;
+      var snap = basicSnap[sym];
+      var sameDay = snap && snap.asOf === asOf;
+      var closes = (data && data.candle) || [];
+      var last = closes.length ? closes[closes.length - 1] : null;
+      var r = MSPreds.make({
+        sym: sym, name: wlItem && wlItem.name, tier: tier,
+        at: new Date().toISOString(), asOf: asOf,
+        base: last && last.c, mid: pr.path && pr.path[0], lo: pr.lo[0], hi: pr.hi[0],
+        basicLo: sameDay ? snap.lo : null, basicHi: sameDay ? snap.hi : null,
+        engineVersion: (typeof ForgeCore !== "undefined") ? ForgeCore.version : null
+      });
+      if (r) MSStore.addPred(r);
+    }
+
+    // 이 종목의 데이터를 방금 받았다 — 대기 중인 어제 예측이 있으면 지금 판정한다.
+    // 판정은 새 봉이 있어야만 성립하고(predictions.js), 한 번 적으면 다시 재지 않는다.
+    function settlePending() {
+      if (typeof MSPreds === "undefined" || !MSStore.getPreds || !data || !data.candle) return;
+      MSPreds.pending(MSStore.getPreds()).forEach(function (r) {
+        if (r.sym !== sym) return;
+        var j = MSPreds.judge(r, data.candle);
+        if (j) MSStore.settlePred(r.sym, r.asOf, j);
+      });
     }
 
     // G1·G2 를 함께 판정한다. 쓸 수 없으면 null — 호출부가 행을 통째로 생략한다.
@@ -882,6 +921,7 @@
           data = r.data; an = r.an; tfRuns = r.runs; tier = runType;
           if (runType === "custom") myWeights = weights;
           state = "ready";   // 기본 로드가 아직 안 끝났거나 실패한 상태에서 샀을 수 있다
+          recordPrediction();   // 내일 확인할 결과가 하나 생긴다 — 이것이 앱의 고리다
           MSTierSheet.close();
 
           // 두 장면이 잇달아 나온다. 순서가 곧 사실의 순서다:

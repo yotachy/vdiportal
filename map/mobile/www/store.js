@@ -7,7 +7,8 @@
   "use strict";
 
   var KEYS = { watchlist: "ms_watchlist", scan: "ms_scan", viewed: "ms_wl_viewed", lastSym: "ms_last_sym",
-               onboarded: "ms_onboarded", consent: "ms_consent", style: "ms_style" };
+               onboarded: "ms_onboarded", consent: "ms_consent", style: "ms_style",
+               preds: "ms_preds" };
   // 이름은 한국어(2026-08-16 재스킨) — AAPL·NVDA 는 ticker-picker.js 의 CURATED 와 반드시
   // 같은 이름("애플"·"엔비디아")을 써야 한다. 두 벌이 갈리면 온보딩 4단계가 이 SEED 를
   // 프리셋으로 그릴 때 같은 종목이 화면마다 다른 이름으로 보인다(카드추가 항목 1).
@@ -126,7 +127,64 @@
   function getStyle() { var v = read(KEYS.style, null); return (typeof v === "string" && v) ? v : null; }
   function setStyle(key) { write(KEYS.style, String(key || "")); }
 
-  return { KEYS: KEYS, SEED: SEED, TUTORIAL_SYMS: TUTORIAL_SYMS, install: install, getWatchlist: getWatchlist, setWatchlist: setWatchlist,
+  // ── 예측 기록(앱의 고리) ──────────────────────────────────────────────────────
+  // 오늘 무엇을 말했는지 적어두고 내일 판정한다. 서버 없이 기기에서 닫는다 — 서버는
+  // 기기 간 동기화용이지 고리의 전제가 아니다(그렇게 오해해서 오래 미뤄뒀다).
+  // 상한을 둔다: 무한히 쌓이면 localStorage 를 채우고 부팅이 느려진다. 오래된 것부터 버린다.
+  var PRED_MAX = 200;
+
+  function getPreds() { var v = read(KEYS.preds, []); return Array.isArray(v) ? v : []; }
+  function setPreds(list) {
+    var arr = Array.isArray(list) ? list : [];
+    write(KEYS.preds, arr.length > PRED_MAX ? arr.slice(arr.length - PRED_MAX) : arr);
+  }
+  // 같은 종목·같은 기준일을 두 번 적지 않는다 — 리포트를 두 번 열었다고 예측이 둘이 되면
+  // 적중률의 분모가 조용히 부풀고, 결과 카드에 같은 것이 두 번 뜬다.
+  function addPred(rec) {
+    if (!rec || !rec.sym || !rec.asOf) return getPreds();
+    var list = getPreds();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].sym === rec.sym && list[i].asOf === rec.asOf) {
+        // 더 높은 티어로 다시 봤으면 그것으로 갱신한다(전문 > 심화). 판정 결과는 지우지 않는다.
+        if (list[i].judgedOn) return list;
+        list[i] = rec;
+        setPreds(list);
+        return list;
+      }
+    }
+    list.push(rec);
+    setPreds(list);
+    return list;
+  }
+  // 판정 결과를 기록에 못박는다. 판정은 한 번만 — 다시 재면 오늘 데이터로 어제 말을 고치게 된다.
+  function settlePred(sym, asOf, judged) {
+    var list = getPreds(), changed = false;
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i];
+      if (r && r.sym === sym && r.asOf === asOf && !r.judgedOn) {
+        r.judgedOn = judged.judgedOn; r.hit = judged.hit; r.miss = judged.miss;
+        r.actual = judged.actual; r.basicHit = judged.basicHit;
+        r.narrowedAndMissed = judged.narrowedAndMissed;
+        r.seen = false;   // 사용자가 아직 결과를 못 봤다 — 결과 카드가 이것으로 뜬다
+        changed = true;
+      }
+    }
+    if (changed) setPreds(list);
+    return list;
+  }
+  function markPredSeen(sym, asOf) {
+    var list = getPreds(), changed = false;
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i];
+      if (r && r.sym === sym && r.asOf === asOf && r.seen === false) { r.seen = true; changed = true; }
+    }
+    if (changed) setPreds(list);
+    return list;
+  }
+
+  return { KEYS: KEYS, SEED: SEED, TUTORIAL_SYMS: TUTORIAL_SYMS, PRED_MAX: PRED_MAX,
+           getPreds: getPreds, setPreds: setPreds, addPred: addPred,
+           settlePred: settlePred, markPredSeen: markPredSeen, install: install, getWatchlist: getWatchlist, setWatchlist: setWatchlist,
            getStyle: getStyle, setStyle: setStyle,
            addTicker: addTicker, removeTicker: removeTicker, getScan: getScan, setScan: setScan,
            allScans: allScans, viewedScanKey: viewedScanKey, markScanViewed: markScanViewed,
