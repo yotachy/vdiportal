@@ -11,25 +11,23 @@ const G = require("../www/graph.js");
 
 // 키 존재 가드(아래)와 미사용 키 가드(파일 하단)가 같은 목록을 스캔한다 — 한쪽만 갱신하면
 // 새 소비 파일의 오타는 잡히는데 죽은 키는 못 잡는(또는 그 반대) 비대칭이 생긴다.
-const KEY_SCAN_FILES = ["../www/screens/report.js", "../www/screens/watchlist.js", "../www/screens/wallet.js",
-                         "../www/draw-layers.js", "../www/chart-legend.js", "../www/draw-panels.js", "../www/app.js",
-                         // readings.js 도 화면에 나가는 문장을 만든다 — 거절문 3종이 여기서만 소비되므로
-                         // 목록에서 빠져 있으면 "죽은 키"로 오판되고, 한글 문자열 스캔도 이 파일을 못 본다.
-                         "../www/tier-sheet.js", "../www/readings.js",
-                         // ticker-picker.js — 온보딩 4단계·워치리스트 ＋Add 가 공유할 종목 고르기.
-                         // tp* 키는 이 파일에서만 소비된다(둘 다 아직 안 붙었다).
-                         "../www/ticker-picker.js",
-                         // screens/onboarding.js — ob* 키는 여기서만 소비된다.
-                         // 빠뜨리면 새 문구가 전부 '죽은 키'로 오판된다.
-                         "../www/screens/onboarding.js",
-                         // screens/readings-list.js — rd* 키(판독문 전체, 시안 20a)는 여기서만 소비된다.
-                         "../www/screens/readings-list.js",
-                         // screens/expert.js — xp* 키(전문분석 편집기, 시안 10a)는 여기서만 소비된다.
-                         "../www/screens/expert.js",
-                         // blocked.js — bl* 키(막히는 상태 7종, 시안 12c)는 여기서만 소비된다.
-                         "../www/blocked.js",
-                         // progress-reveal.js — rv* 키(해제 직후 전환 장면, 시안 8b)는 여기서만 소비된다.
-                         "../www/progress-reveal.js"];
+// 문자열을 소비하는 파일 목록 — **손으로 적지 않고 유도한다.**
+// 예전엔 여기 경로를 하나하나 나열했다. 그 목록은 새 화면이 생길 때마다 낡았고, 낡은 순간
+// 그 화면의 새 문구가 전부 "죽은 키"로 오판됐다(19a 를 붙이며 실제로 그렇게 걸렸다).
+// www 아래 모든 스크립트가 앱에 실려 나가므로, 전부 보는 것이 좁게 보는 것보다 언제나 옳다 —
+// 못 보는 파일이 없으면 오판도 없다.
+const KEY_SCAN_FILES = (function () {
+  const out = [];
+  (function walk(rel) {
+    readdirSync(new URL(rel, import.meta.url)).forEach(name => {
+      if (name === "vendor" || name === "fonts") return;   // 생성물·자산
+      const child = rel + name;
+      if (statSync(new URL(child, import.meta.url)).isDirectory()) walk(child + "/");
+      else if (name.endsWith(".js")) out.push(child);
+    });
+  })("../www/");
+  return out;
+})();
 // Fix 1: chart-legend.js 는 `var T = Str.t` 로 별칭한 뒤 `T.legPred` 형태로 쓴다 — MSStr.t/Str.t 직접
 // 참조만 잡던 정규식이 이 별칭 경로를 못 봐서, 존재하지 않는 T.키 오타가 조용히 undefined 를 렌더했다.
 const KEY_RE = /\b(?:MSStr\.t|Str\.t|T)\.([A-Za-z_][A-Za-z0-9_]*)/g;
@@ -208,12 +206,35 @@ test("시안에 문자 그대로 있는 5종 이름은 바꾸지 않는다", () 
 // 방향이 뒤집힌 자기 몫의 관문이다.
 const DATA_LITERAL_FILES = ["../www/ticker-picker.js", "../www/readings.js"];
 
+// 리터럴 스캔의 대상은 **화면을 조립하는 파일**이다. 죽은 키 스캔(KEY_SCAN_FILES)이 www 전체를
+// 훑도록 넓혀지면서 캔버스 드로잉 파일들이 딸려 들어왔고, 거기 박힌 축 라벨("1차"·"개월"·"봉")이
+// 새로 걸렸다. 그것들은 별개 사안이다 — 캔버스에 그리는 짧은 라벨을 문자열 파일로 뺄지는
+// 이 관문이 아니라 사람이 정할 일이고, 여기서 함께 빨갛게 만들면 두 문제가 뭉쳐 둘 다 안 고쳐진다.
+// 그래서 **두 검사의 범위를 나눈다**: 죽은 키는 넓게(못 보는 파일이 없어야 하므로),
+// 리터럴은 화면 조립 파일만.
+// 리터럴 스캔의 대상은 **화면을 조립하는 파일**이고, 그 목록은 넓히면 안 된다. 죽은 키 스캔이
+// www 전체로 넓어졌을 때 이 검사까지 같이 넓혔더니 strings.js 자신(리터럴 덩어리)과 데이터
+// 파일(store.js 의 회사명, ind-tiers.js 의 성향 이름, report-model.js 의 주기명), 캔버스 축
+// 라벨("1차"·"개월"·"봉")이 전부 걸렸다. 그것들은 각각 별개 사안이고, 여기서 함께 빨갛게
+// 만들면 문제 넷이 뭉쳐 넷 다 안 고쳐진다.
+//
+// **두 검사의 범위는 서로 다른 이유로 정해진다**: 죽은 키는 못 보는 파일이 없어야 하므로 넓게,
+// 리터럴은 "이 파일의 한글은 strings.js 에서 와야 한다"고 정한 파일만.
+const LITERAL_SCAN_FILES = ["../www/screens/report.js", "../www/screens/watchlist.js", "../www/screens/wallet.js",
+                            "../www/draw-layers.js", "../www/chart-legend.js", "../www/draw-panels.js", "../www/app.js",
+                            "../www/tier-sheet.js", "../www/readings.js", "../www/ticker-picker.js",
+                            "../www/screens/onboarding.js", "../www/screens/readings-list.js",
+                            "../www/screens/expert.js", "../www/blocked.js",
+                            // 진행 장면 둘. rv* 는 8b, an* 는 19a 에서만 소비된다 — 규칙이 반대인
+                            // 두 모듈이라 파일도 둘이고, 여기서도 둘 다 적는다.
+                            "../www/progress-reveal.js", "../www/progress-analyze.js"];
+
 test("화면 소스에 문자열 리터럴이 박혀 있지 않다 — 한글이든 영문 문장이든", () => {
   const offenders = [];
   // Step 5 carry-forward: 한글 부재만으로는 오타(MSStr.t.존재하지않는키 → undefined 렌더)를 못 잡는다.
   // 같은 소스 스캔 김에 참조된 MSStr 키가 전부 strings.js 에 실존하는지도 확인한다(소스 스캔 방식 보강).
   const badKeys = [];
-  for (const f of KEY_SCAN_FILES) {
+  for (const f of LITERAL_SCAN_FILES) {
     const src = readFileSync(new URL(f, import.meta.url), "utf8");
     const skipKorean = DATA_LITERAL_FILES.indexOf(f) >= 0;
     src.split("\n").forEach((line, i) => {
@@ -246,7 +267,7 @@ test("화면 소스에 문자열 리터럴이 박혀 있지 않다 — 한글이
 // 다른 성격의 파일이다(그리기 파라미터지 문장이 아니다) — 같은 잣대를 대면 실측 100건 넘게
 // 오탐이 쏟아진다. readings.js 처럼 그 영역은 자기 몫의 게이트가 따로 필요하지 이번 파인딩의
 // 대상이 아니다(파인딩 원문 예시 둘 다 screens/ 안에서 나왔다).
-const SCREENS_FILES = KEY_SCAN_FILES.filter(f => f.indexOf("/screens/") >= 0);
+const SCREENS_FILES = LITERAL_SCAN_FILES.filter(f => f.indexOf("/screens/") >= 0);
 
 // "코드 토큰" 모양 — 문장이 아니라 CSS 클래스 조각·선택자·커스텀 프로퍼티·인라인 스타일
 // 선언인 리터럴들의 공통 형태다: 앞에 공백·점·대시·언더스코어가 붙을 수 있고(삼항연산자로

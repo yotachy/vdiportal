@@ -442,6 +442,10 @@
     // 이미 확인한 render() 안에서 광고는 한 번에 하나만 돈다(wallet.js 의 adBusy 와 같은 역할).
     var adBusy = false;
     var scrRef = null;   // 현재 그려져 있는 스크롤 컨테이너(draw 가 채운다)
+    // 19a(분석 진행 중계)가 읽어 둔 지표 행. 있으면 draw() 는 다시 읽지 않는다 — 중계가
+    // 보여준 값과 리포트가 쓰는 값이 **같은 계산**이어야 한다. 다시 읽으면 두 벌이 되고,
+    // analyzeX 가 30여 회 더 도는 비용은 사용자가 기다리는 시간이다.
+    var narratedRows = null;
 
     // paintChart() 진입부의 정리와는 별도로 여기서도 한 번 정리한다 — 종목을 바꿔 render()가
     // 다시 불렸는데 새 렌더가 loading/error 로 끝나면(캐시 미스 로딩 중 이탈, 분석 실패 등)
@@ -879,16 +883,37 @@
           if (runType === "custom") myWeights = weights;
           state = "ready";   // 기본 로드가 아직 안 끝났거나 실패한 상태에서 샀을 수 있다
           MSTierSheet.close();
-          // 해제 직후 전환 장면(시안 8b) — 결과는 **이미 손에 있다**. 3초는 계산을 기다리는
-          // 시간이 아니라 무엇이 열렸는지 보여주는 시간이고, 그래서 서버가 더 빨라도 줄이지
-          // 않는다(19a 의 "늘리지 않는다"와 정반대 규칙 — 그래서 모듈이 다르다).
-          // 탭하면 즉시 결과로 간다.
-          var conf = an.out.verdict.confluence;
-          MSReveal.play({
-            total: ForgeCore.indicatorCount, basic: MSGraph.BASIC.length,
-            agree: conf ? conf.agree : null,
-            onDone: function () { if (isCurrent()) draw(); }
-          });
+
+          // 두 장면이 잇달아 나온다. 순서가 곧 사실의 순서다:
+          //   19a — 지금 **하고 있는** 일(지표를 하나씩 읽는 중). 실제 analyzeX 호출에 묶이고
+          //         최소 재생 시간이 없다. 캐시가 뜨거우면 한두 프레임에 끝난다.
+          //   8b  — 이미 **끝난** 일(무엇이 열렸는지). 3초를 채운다.
+          // 규칙이 반대라 모듈이 둘이고(인벤토리 §0 충돌 8), 순서를 바꾸면 "열렸습니다"가
+          // 아직 읽지도 않은 지표를 두고 나오게 된다.
+          var indInput = { price: data.price, candle: data.candle, volume: an.vol };
+          var stepper = (an && an.graph)
+            ? MSIndicators.readingStepper(ForgeCore, an.graph, indInput, MSIndicators.ctxFrom(indInput))
+            : null;
+
+          function revealThenDraw() {
+            var conf = an.out.verdict.confluence;
+            MSReveal.play({
+              total: ForgeCore.indicatorCount, basic: MSGraph.BASIC.length,
+              agree: conf ? conf.agree : null,
+              onDone: function () { if (isCurrent()) draw(); }
+            });
+          }
+
+          if (stepper && stepper.total) {
+            MSAnalyzeView.play({
+              stepper: stepper, basic: MSGraph.BASIC.length,
+              onDone: function (rows) {
+                if (!isCurrent()) return;
+                narratedRows = rows;   // 리포트가 이 계산을 그대로 쓴다(두 번 읽지 않는다)
+                revealThenDraw();
+              }
+            });
+          } else revealThenDraw();
           return;
         } else if (r.kind === "refunded") {
           MSTierSheet.close();
@@ -1129,7 +1154,7 @@
           // an.vol 은 analyzeFull 의 okVol 판정 결과다(거래량이 한 봉이라도 비면 null). 판독문의
           // hasVolume 은 그 하나에서만 나온다 — 여기서 다시 재면 화면과 문장이 갈린다.
           var indCtx = MSIndicators.ctxFrom(indInput);
-          indRows = MSIndicators.readings(ForgeCore, an.graph, indInput, indCtx);
+          indRows = narratedRows || MSIndicators.readings(ForgeCore, an.graph, indInput, indCtx);
           noDir = MSIndicators.noDirRows(ForgeCore, indInput, indCtx);
         }
         // 블록의 **순서와 구성은 report-blocks.js 의 선언**이 정한다(P2 §4). 여기 표는
