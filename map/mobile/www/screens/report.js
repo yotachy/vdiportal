@@ -31,6 +31,23 @@
   // 이름 없는 매그넘버로 각자 들고 있으면 한쪽만 재조정되고 조용히 어긋난다).
   var AD_POLL_MS = 2000, AD_POLL_LIMIT = 5;   // 2초 × 5 = 10초
 
+  // 티어는 셋이다(basic · full · custom). 이 파일이 오래 티어를 **둘로** 알고 `tier === "full"`
+  // 이항 분기를 여섯 곳에 흩어놨던 것이 리뷰가 잡은 결함 다섯의 공통 뿌리다 — custom 이 전부
+  // basic 가지로 떨어져, 5스쿱 낸 전문분석이 3스쿱 심화보다 **적은** 블록을 "기본" 배지와
+  // 함께 냈다. 문자열 비교라 예외가 안 나고, 관문 666건이 전부 초록인 채로 통과했다.
+  // 그래서 티어를 직접 비교하지 말고 **무엇을 묻는지**로 갈라 쓴다.
+  function isPaid(t) { return t === "full" || t === "custom"; }   // 지표 전량을 읽은 분석인가
+  // 배지·설명·증거 세그먼트. 표로 두는 이유는 티어가 넷째로 늘 때 분기가 아니라 행이 늘게
+  // 하려는 것이다(시안 6a: Basic 1/3 · Full 2/3 · Custom 3/3).
+  // 키 이름을 문자열로 두지 않고 값을 그대로 담는다 — 문자열 관문 둘이 그래야 볼 수 있다.
+  // "rpTierCustom" 같은 리터럴은 ①화면 소스의 영어 잔존으로 걸리고 ②MSStr.t.X 참조가 아니라
+  // 죽은 키 판정을 받는다. 두 관문 다 옳다: 동적 조회는 정적 분석을 눈멀게 한다.
+  var TIER_BADGE = {
+    basic:  { cls: "",           name: MSStr.t.rpTierBasic,  desc: MSStr.t.rpTierCount,       evi: 1 },
+    full:   { cls: " is-full",   name: MSStr.t.rpTierFull,   desc: MSStr.t.rpTierCountFull,   evi: 2 },
+    custom: { cls: " is-custom", name: MSStr.t.rpTierCustom, desc: MSStr.t.rpTierCountCustom, evi: 3 }
+  };
+
   var LINE_LEGEND = [
     { key: "p1", label: MSStr.t.lgP1 },
     { key: "p2", label: MSStr.t.lgP2 },
@@ -424,6 +441,7 @@
     // 잔량 부족 광고 권유(Phase 8d). adBusy 는 연타 방지 — CTA 를 눌러 잔량이 부족한 것을
     // 이미 확인한 render() 안에서 광고는 한 번에 하나만 돈다(wallet.js 의 adBusy 와 같은 역할).
     var adBusy = false;
+    var scrRef = null;   // 현재 그려져 있는 스크롤 컨테이너(draw 가 채운다)
 
     // paintChart() 진입부의 정리와는 별도로 여기서도 한 번 정리한다 — 종목을 바꿔 render()가
     // 다시 불렸는데 새 렌더가 loading/error 로 끝나면(캐시 미스 로딩 중 이탈, 분석 실패 등)
@@ -458,7 +476,7 @@
       // Full 분석이 Basic 분석보다 우선한다 — 한 곳에서만 판정한다. 이 가드가 없으면 늦게 끝난
       // 기본 로드(또는 에러 화면의 retry)가 방금 산 32지표 결과를 5지표로 덮어 배지만 FULL 인
       // 화면이 된다. 구매 도중 재렌더돼 로드와 구매가 함께 도는 경로에서 실제로 겹친다.
-      if (tier === "full" && an) { state = "ready"; draw(); return; }
+      if (isPaid(tier) && an) { state = "ready"; draw(); return; }
       try {
         an = analyzeFull(data);
         // 기본 티어의 '내일' 범위를 남긴다 — 심화를 사면 이 값이 대조 행이 된다.
@@ -530,11 +548,11 @@
 
     function buildTierRow() {
       var row = MSUi.el("div", "rp-tier-row");
-      var isFull = (tier === "full");
-      row.appendChild(MSUi.el("span", "rp-tier" + (isFull ? " is-full" : ""), isFull ? MSStr.t.rpTierFull : MSStr.t.rpTierBasic));
-      row.appendChild(MSUi.el("span", "rp-tier-desc", isFull ? MSStr.t.rpTierCountFull : MSStr.t.rpTierCount));
+      var b = TIER_BADGE[tier] || TIER_BADGE.basic;
+      row.appendChild(MSUi.el("span", "rp-tier" + b.cls, b.name));
+      row.appendChild(MSUi.el("span", "rp-tier-desc", b.desc));
       var evi = MSUi.el("span", "rp-evi");
-      var on = isFull ? 2 : 1;   // 시안 6a: Basic 1/3 · Full 2/3 · Custom 3/3
+      var on = b.evi;
       for (var k = 0; k < 3; k++) evi.appendChild(MSUi.el("span", "rp-evi-seg" + (k < on ? " on" : "")));
       row.appendChild(evi);
       return row;
@@ -585,7 +603,7 @@
       // 집계는 그 티어가 실제로 읽은 지표를 센다. Full 인데 5지표만 세면 바로 아래 "4 of 32" 와
       // 숫자가 어긋나 같은 화면이 두 말을 한다. 방향 경로는 반대 근거와 동일(MSIndicators).
       var tally;
-      if (tier === "full" && indRows) {
+      if (isPaid(tier) && indRows) {
         tally = { up: 0, flat: 0, down: 0 };
         indRows.forEach(function (r) {
           if (r.bias > MSIndicators.EPS) tally.up++;
@@ -752,7 +770,7 @@
     // 32종을 다 돌려놓고 "다 동의한다"고만 하면 근거가 아니라 응원이다. 반대편을 이름으로 보여준다.
     // 방향은 웹과 같은 경로로 얻는다(지표마다 ForgeCore.analyzeX) — 백테스트도 새 데이터도 없다.
     function buildAgainst(indRows) {
-      if (tier !== "full" || !an || !an.graph || !indRows) return null;
+      if (!isPaid(tier) || !an || !an.graph || !indRows) return null;
       var regime = an.out.verdict.regime;
       if (regime !== "bull" && regime !== "bear") return null;   // 중립엔 반대가 정의되지 않는다
       // 스스로 "못 읽었다"고 말한 행은 반대할 자격이 없다 — 거래량 없는 종목에서 MFI 가
@@ -784,7 +802,7 @@
     }
 
     function buildMissingNote() {
-      if (tier === "full") return null;
+      if (isPaid(tier)) return null;
       return MSUi.el("p", "rp-missing-note", MSStr.t.rpMissingNote);
     }
 
@@ -896,9 +914,13 @@
           // — purchases[pk] 에 idem 이 남아 다음 시도가 재사용한다(위 .then 참고).
           if (r.reason === "insufficient") {
             MSWallet.get().then(function (w) {
+              var have = (w.state ? w.state.balance : 0) || 0;
               MSBlocked.open({ kind: "short",
-                data: { need: MSWallet.COSTS[runType], have: (w.state ? w.state.balance : 0) || 0 },
-                onAction: function (k) { if (k === "watch-ad") runTier(runType, weights); } });
+                data: { need: MSWallet.COSTS[runType], have: have },
+                // 여기서 runTier 를 다시 부르면 같은 카드가 다시 뜬다 — 잔량은 그대로이므로
+                // 영원히 못 빠져나오는 고리가 되고, "광고 1편 보기"가 광고를 한 번도 안 띄운다.
+                // blocked.js 규칙 ②(카드는 진짜 대안 행동을 준다)를 어기는 자리였다.
+                onAction: function (k) { if (k === "watch-ad") shortCardAd(have); } });
             });
           } else if (MSWallet.maybeCharged(r.reason)) {
             MSBlocked.open({ kind: "failedUnknown", data: {},
@@ -937,7 +959,10 @@
           MSWallet.get().then(function (r2) {
             if (!isCurrent()) return;
             MSTierSheet.open({ sym: sym, tier: tier, name: wlItem && wlItem.name,
-              balance: r2.state ? r2.state.balance : null, cap: r2.state ? r2.state.cap : null, onRun: runFull });
+              balance: r2.state ? r2.state.balance : null, cap: r2.state ? r2.state.cap : null,
+              // onRun: runFull 이면 시트가 넘겨준 picked 를 버린다 — 광고로 충전한 뒤 전문분석을
+              // 골라도 심화가 돌고 3스쿱이 나갔다. 아래 buildCta 와 **같은 분기**를 쓴다.
+              onRun: runPicked });
           });
           return;
         }
@@ -986,6 +1011,18 @@
         });
         wrap.appendChild(msg);
       });
+    }
+
+    // 잔량 부족 카드("광고 1편 보기")가 닫힌 자리에 광고 권유를 띄운다. showLowBalanceAd 와
+    // **같은 기계**를 쓴다 — 광고 유닛 선택·adConfig 부재 시 정직한 폴백(tsShort)·시청 후
+    // 폴링까지 한 벌뿐이어야 두 경로가 다른 말을 하지 않는다. 광고를 본 뒤에는 단계 선택
+    // 시트로 돌아간다(afterCtaAd) — Run 을 대신 눌러주지 않는 규칙은 CTA 경로와 같다.
+    function shortCardAd(bal) {
+      var wrap = MSUi.el("div", "rp-unlock");
+      var host = scrRef || root;
+      host.appendChild(wrap);
+      showLowBalanceAd(wrap, bal);
+      if (wrap.scrollIntoView) wrap.scrollIntoView({ block: "center" });
     }
 
     // 시안 18c 의 조절판 블록 — 심화의 8블록 **위에** 얹는다(한 겹도 빼지 않는다).
@@ -1061,7 +1098,7 @@
           if (bal != null && bal < MSWallet.COSTS.full) { showLowBalanceAd(wrap, bal); return; }
           MSTierSheet.open({ sym: sym, tier: tier, name: wlItem && wlItem.name,
             balance: bal, cap: r.state ? r.state.cap : null,
-            onRun: function (picked) { if (picked === "custom") runCustom(); else runFull(); } });
+            onRun: runPicked });
         });
       });
       wrap.appendChild(b);
@@ -1072,6 +1109,7 @@
       root.innerHTML = "";
       chartRefs = null;
       var scr = MSUi.el("div", "scr rp-scr");
+      scrRef = scr;   // 카드가 닫힌 뒤 광고 권유를 붙일 자리(shortCardAd) — draw 마다 갱신된다
       scr.appendChild(buildHead());
       scr.appendChild(buildTierRow());
 
@@ -1086,7 +1124,7 @@
         // 지표 방향·판독문을 여기서 **한 번** 계산해 세 곳(판정 tally · REASONING · AGAINST)에
         // 나눠 준다. 예전엔 셋이 각자 MSIndicators 를 불러 Full 에서 analyzeX 가 90회 돌았다.
         var indRows = null, noDir = null;
-        if (tier === "full" && an && an.graph) {
+        if (isPaid(tier) && an && an.graph) {
           var indInput = { price: data.price, candle: data.candle, volume: an.vol };
           // an.vol 은 analyzeFull 의 okVol 판정 결과다(거래량이 한 봉이라도 비면 null). 판독문의
           // hasVolume 은 그 하나에서만 나온다 — 여기서 다시 재면 화면과 문장이 갈린다.
@@ -1135,6 +1173,9 @@
       if (state === "ready" && chartRefs) paintChart(chartRefs.cv, chartRefs.wrap, chartRefs.legend, an, data, sym, tier);
     }
     function runFull() { runTier("full", null); }
+    // 시트가 고른 단계를 실행한다. 시트를 여는 곳이 둘(CTA · 광고 시청 후)이라 분기를 한
+    // 벌로 둔다 — 한쪽만 고치면 같은 시트가 화면에 따라 다른 것을 산다.
+    function runPicked(picked) { if (picked === "custom") runCustom(); else runFull(); }
     // 전문분석은 시트에서 바로 실행하지 않는다 — "얼마나 정밀하게"(시트)와 "어떤 지표를
     // 얼마나"(편집기)는 다른 질문이고, 시안이 그 둘을 다른 화면으로 그렸다.
     function runCustom() {

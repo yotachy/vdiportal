@@ -98,9 +98,49 @@ test("www 의 모든 스크립트가 index.html 에 실려 있다 — 태그를 
     " — 만들어 놓고 태그를 안 붙였다면 앱에서 그 모듈은 undefined 다");
 });
 
-// ── 로드 순서 관문은 두지 않는다(시도했다가 뺀 자리다) ──────────────────────────────
-// "참조하는 파일이 정의하는 파일보다 뒤에 온다"를 소스 텍스트로 재 봤더니 네 건이 걸렸는데
-// 전부 오탐이었다: MSUi·MSApp·MSWalletScreen·MSAds 는 전부 **함수 안**에서 참조되고, 그
-// 함수는 모든 스크립트가 로드된 뒤에야 불린다. 정적으로 "로드 시점 참조"와 "실행 시점 참조"를
-// 가르려면 스코프 분석이 필요하고, 그 없이 만든 관문은 정상 코드를 빨갛게 만든다.
-// 진짜 로드 시점 참조는 위 시험이 이미 잡는다 — 그 순간 예외가 나기 때문이다.
+// ── 로드 순서: 넓은 관문은 두지 않되, UMD 팩토리 인자만은 잰다 ────────────────────
+// 넓은 관문("참조하는 파일이 정의하는 파일보다 뒤에 온다"를 소스 텍스트로 재기)은 시도했다가
+// 뺐다 — 네 건이 걸렸는데 전부 오탐이었다. MSUi·MSApp·MSWalletScreen·MSAds 는 전부 **함수
+// 안**에서 참조되고, 그 함수는 모든 스크립트가 로드된 뒤에야 불린다. 스코프 분석 없이 만든
+// 관문은 정상 코드를 빨갛게 만든다.
+//
+// 그런데 **UMD 팩토리 인자는 다르다.** `else root.MSGraph = factory(root.MSIndTiers)` 는
+// 로드되는 그 순간 값을 캡처한다 — 뒤늦게 정의돼도 영원히 undefined 다. 그리고 그 undefined 는
+// 던지지 않아서 위 부팅 시험도 못 잡는다. 실제로 graph.js 가 ind-tiers.js 보다 먼저 실려
+// tunableTypes() 가 빈 배열을 돌려주고 있었다 — 가중치를 어떻게 만져도 Lv1 5종만 남은
+// 그래프로 분석됐고, 5스쿱 낸 사용자에게 그 사실은 어디에도 안 보였다.
+// 이 형태는 스코프 분석이 필요 없다. 한 줄에 전부 적혀 있다.
+test("UMD 팩토리가 받는 전역은 자기보다 먼저 실린다 — 로드 시점 캡처는 뒤늦게 못 채운다", () => {
+  const html = readFileSync(WWW + "index.html", "utf8");
+  const order = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
+  const pos = {};
+  order.forEach((s, i) => { pos[s] = i; });
+
+  // 전역 이름 → 그것을 정의하는 파일
+  const definedIn = {};
+  order.forEach(src => {
+    let code;
+    try { code = readFileSync(WWW + src, "utf8"); } catch { return; }
+    [...code.matchAll(/(?:root|window)\.(MS[A-Za-z]+)\s*=/g)].forEach(m => {
+      if (!(m[1] in definedIn)) definedIn[m[1]] = src;
+    });
+  });
+
+  const bad = [];
+  order.forEach(src => {
+    let code;
+    try { code = readFileSync(WWW + src, "utf8"); } catch { return; }
+    // `root.X = factory(root.A, root.B)` — 괄호 안에서 캡처되는 전역만 본다.
+    [...code.matchAll(/=\s*factory\(([^)]*)\)/g)].forEach(call => {
+      [...call[1].matchAll(/root\.(MS[A-Za-z]+)/g)].forEach(dep => {
+        const name = dep[1], from = definedIn[name];
+        if (!from) { bad.push(src + " 가 factory 인자로 받는 " + name + " 를 정의하는 파일이 없다"); return; }
+        if (pos[from] > pos[src]) {
+          bad.push(src + "(" + pos[src] + ") 가 " + name + " 를 로드 시점에 캡처하는데 " +
+                   from + "(" + pos[from] + ") 가 뒤에 실린다 — 영원히 undefined 다");
+        }
+      });
+    });
+  });
+  assert.deepEqual(bad, [], bad.join("\n"));
+});

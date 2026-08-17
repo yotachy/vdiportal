@@ -149,6 +149,10 @@
     // "심화분석")과 바이트가 같을 필요는 없다, 정규화 테스트("한 단계는 한 이름으로 불린다")가
     // 요구하는 건 어간 일치뿐이다(태스크 8).
     rpTierFull: "심화", rpTierCountFull: "지표 32개 · 일·주·월",
+    // rpTierCustom 도 같은 압축 규칙(tsCustom/walOptimiser/xpTitle="전문분석"의 어간). 개수가 30인
+    // 이유는 가중치 레일이 gann·pattern 을 뺀 30종이기 때문이다(인벤토리 §0 충돌 1) — 판정이 읽는
+    // 32 와 다른 숫자이고, 그 차이가 이 화면의 정체다.
+    rpTierCustom: "전문", rpTierCountCustom: "지표 30개 · 내 가중치",
 
     // 리포트 — 섹션 오버라인 (시안 2a: COMPOSITE·DAILY / HORIZON / SIGNALS / TIMEFRAMES)
     rpComposite: "종합 · 일봉",

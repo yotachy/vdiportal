@@ -55,7 +55,9 @@
     c.save();
     c.beginPath();
     c.lineWidth = 1.8;
-    c.strokeStyle = col.ink3 || col.axis || "#9aa3b6";
+    // colTokens() 에 ink3·axis 는 없다 — 둘 다 undefined 라 이 선은 늘 하드코딩 회색으로
+    // 그려졌고, 나머지 차트가 CSS 토큰을 읽는 동안 혼자 테마를 무시했다.
+    c.strokeStyle = col.ink4;
     for (i = lay.fiMin; i <= lay.nowFi; i++) {
       var b = candle[i]; if (!b) continue;
       var x = lay.fiToX(i), y = M.pToY(b.c);
@@ -173,7 +175,10 @@
       // pred.second 는 ForgeCore.run() 의 예측 객체에 아직 생산자가 없다(B군 — custom 티어와 함께 착수, BACKLOG-mobile.md 참고).
       // wigLine 이 !vals 로 조용히 반환하므로 지금은 영구 no-op — 지우지 않고 남겨둔다.
       else if (lines[i] === "p2") wigLine(pred.second, col.pred2, [4, 3], 1.8, (sd ^ 0x85ebca6b) >>> 0, "2차", 12);
-      else if (lines[i] === "p3") wigLine(pred.counter, col.pred3 || col.bear, [6, 4], 1.8, (sd ^ 0x9e3779b9) >>> 0, "3차",
+      // 3차는 반대 경로라 bear 색이다. 예전엔 `col.pred3 || col.bear` 였는데 pred3 토큰은
+      // 존재한 적이 없어 사슬이 늘 bear 로 흘렀다 — 있지도 않은 선택지를 적어두면 다음 사람이
+      // "pred3 을 정의하면 바뀌겠지" 하고 읽는다. 하는 일을 그대로 적는다.
+      else if (lines[i] === "p3") wigLine(pred.counter, col.bear, [6, 4], 1.8, (sd ^ 0x9e3779b9) >>> 0, "3차",
                                           (pred.counter && pred.counter[pred.counter.length - 1] >= anchor) ? -12 : 14);
     }
     c.restore();

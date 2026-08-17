@@ -178,6 +178,8 @@ body {
 .rp-tier-desc { font-size:var(--fs-caption); color:var(--ink-4); }
 /* Full 등급 배지 — 삼색 체계상 "엔진이 말한 것"이라 골드다(Basic 은 steel). */
 .rp-tier.is-full { background:var(--gold-soft); color:var(--gold); }
+/* 전문 등급 배지 — 심화와 같은 골드 계열이되 채워서 한 칸 위임을 보인다(시안 18c 헤더). */
+.rp-tier.is-custom { background:var(--gold); color:var(--bg); }
 .rp-evi { display:flex; align-items:center; gap:3px; margin-left:auto; }
 .rp-evi-seg { width:14px; height:4px; border-radius:2px; background:var(--track); }
 .rp-evi-seg.on { background:var(--steel); }
