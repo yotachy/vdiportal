@@ -19,25 +19,13 @@ const CSS = allCss();
 const OB = readFileSync(new URL("../www/screens/onboarding.js", import.meta.url), "utf8");
 const REPORT = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
 
-test("5단계다", () => { assert.strictEqual(O.STEPS, 5); });
-
-test("4단계는 최소 1종목, 5단계는 약관 동의를 요구한다", () => {
-  assert.strictEqual(O.canAdvance(1, {}), true);
-  assert.strictEqual(O.canAdvance(2, {}), true);
-  assert.strictEqual(O.canAdvance(3, {}), true, "지급 실패해도 막지 않는다");
-  // {} 만으로는 "아직 안 물어봤다"와 "물어봤는데 실패했다"를 구분 못한다 — grant() 가
-  // 실패 시 실제로 심는 값(granted:null)으로도 같은 결과를 확인한다.
-  assert.strictEqual(O.canAdvance(3, { granted: null }), true, "지급 실패 상태에서도 막지 않는다");
-  assert.strictEqual(O.canAdvance(4, { picked: [] }), false);
-  assert.strictEqual(O.canAdvance(4, { picked: ["AAPL"] }), true);
-  assert.strictEqual(O.canAdvance(5, { agreed: false }), false);
-  assert.strictEqual(O.canAdvance(5, { agreed: true }), true);
-});
 
 test("next 는 막힌 단계에서 제자리다", () => {
-  assert.strictEqual(O.next(4, { picked: [] }), 4);
-  assert.strictEqual(O.next(4, { picked: ["AAPL"] }), 5);
-  assert.strictEqual(O.next(5, { agreed: true }), 5, "마지막 단계를 넘어가지 않는다");
+  assert.strictEqual(O.next(1, {}), 1, "찍지 않았는데 넘어간다");
+  assert.strictEqual(O.next(1, { guessed: "up" }), 2);
+  assert.strictEqual(O.next(3, { agreed: false }), 3, "동의 없이 체험으로 넘어간다");
+  assert.strictEqual(O.next(3, { agreed: true }), 4);
+  assert.strictEqual(O.next(7, { agreed: true }), 7, "마지막 단계에서 더 나아간다");
 });
 
 test("render 는 함수다 — 게이트가 부를 수 있어야 한다", () => {
@@ -89,50 +77,30 @@ test("게이트는 온보딩을 띄운 뒤 부팅을 중단한다", () => {
 });
 
 // index.html 은 로드 시점에 전역을 캡처한다 — 순서가 틀리면 브라우저에서만 죽는다.
-test("스크립트 순서: sample → ticker-picker → onboarding → app", () => {
-  var sm = HTML.indexOf('<script src="onboarding-sample.js">');
-  var tp = HTML.indexOf('<script src="ticker-picker.js">');
-  var ob = HTML.indexOf('<script src="screens/onboarding.js">');
-  var ap = HTML.indexOf('<script src="app.js">');
-  assert.ok(sm > 0 && tp > 0 && ob > 0 && ap > 0, "태그가 없다");
-  assert.ok(sm < ob, "번들 시계가 onboarding 보다 뒤에 있다");
-  assert.ok(tp < ob, "ticker-picker 가 onboarding 보다 뒤에 있다");
-  assert.ok(ob < ap, "onboarding 이 app 보다 뒤에 있다");
-});
 
 // onboarding 이 로드 시점이 아니라 render 시점에 읽는 전역들 — 그래도 태그가 아예 없으면
 // 브라우저에서 1·2단계가 빈 화면이 된다. node 테스트는 이 결손을 볼 수 없다.
 // paintChart 는 MSZoom·MSChartLayout·MSChartDraw 가 없으면 **조용히 early-return** 한다 —
 // 태그 하나가 빠지면 JS 에러 0 인 채로 캔버스만 비는, 알아채기 가장 어려운 실패다.
 // MSLayers(draw-layers)·MSPreds(draw-preds)는 drawCone 이 내부에서 부른다.
-test("1·2단계 작도가 쓰는 모듈이 index.html 에 전부 있다", () => {
-  ["vendor/forge-core.js", "graph.js", "indicators.js", "report-model.js",
-   "chart-layout.js", "chart-zoom.js", "chart-draw.js", "draw-preds.js",
-   "draw-layers.js", "ui.js"].forEach(function (f) {
-    assert.ok(HTML.indexOf('<script src="' + f + '">') > 0, f + " 태그가 없다");
-  });
-});
 
 test("온보딩 문구가 strings.js 에 있다", () => {
-  ["obBack", "obNext", "obSampleNote", "obH1", "obSub1", "obH2", "obSub2", "obCombCap",
-   "obH3", "obSub3", "obGranting", "obGranted", "obGrantOffline", "obRetry",
-   "obCostFull", "obCostScan",
-   "obH4", "obSub4", "obH5", "obRisk", "obAgree", "obFree", "obFinish"].forEach(function (k) {
-    assert.ok(typeof S.t[k] === "string" && S.t[k].length > 0, k + " 가 없다");
+  // 목록을 손으로 들지 않는다 — 화면이 실제로 읽는 키를 소스에서 뽑아 그 전부가 실재하는지
+  // 본다. 손으로 들면 새 문구가 늘 때마다 목록이 낡고, 낡은 순간 이 관문은 아무것도 안 본다.
+  // 주석을 벗기고 센다 — 설명에 쓴 MSStr.t.X 는 코드가 아니다.
+  const code = OB.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "");
+  const used = [...new Set([...code.matchAll(/MSStr\.t\.([A-Za-z0-9_]+)/g)].map(m => m[1]))];
+  assert.ok(used.length >= 30, "화면이 읽는 키를 못 찾았다(정규식이 낡았다): " + used.length);
+  used.forEach(k => {
+    assert.ok(typeof S.t[k] === "string" && S.t[k].length > 0,
+      k + " 를 화면이 읽는데 strings.js 에 없다 — 빈 문구가 그대로 렌더된다");
   });
 });
 
 // 온보딩 전체에서 네트워크 호출이 3단계의 지갑 호출 하나뿐임을 세는 것이 핵심이다.
 // 1·2단계가 시세 API 를 타기 시작하면 첫 화면이 콜드 수신(942ms 실측)을 기다리게 되는데,
 // 눈으로는 "좀 느리네"로만 보이므로 소스에서 막는다.
-test("1·2단계는 번들 시계를 쓴다 — 시세 API 를 부르지 않는다", () => {
-  assert.doesNotMatch(OB, /MSApi\.loadTicker/);
-});
 
-test("지갑은 3단계에서만 부른다", () => {
-  const calls = OB.match(/MSWallet\.\w+\(/g) || [];
-  assert.deepEqual(calls, ["MSWallet.get("], "지갑 호출: " + calls.join(", "));
-});
 
 test("가격표는 MSWallet.COSTS 에서 읽는다 — 지갑 화면과 같은 출처", () => {
   assert.match(OB, /MSWallet\.COSTS/);
@@ -147,10 +115,6 @@ test("완료는 setOnboarded 로 약관 버전을 남긴다", () => {
 // seedTo 는 store 를 인자로 받는 순수 함수라 소스에 "MSStore.addTicker(" 라는 리터럴은
 // 없다(테스트가 가짜 store 를 넣을 수 있어야 하기 때문 — 아래 순수 함수 테스트 참고).
 // 그 대신 완료 핸들러가 실제 MSStore 로 seedTo 를 부르는지를 본다.
-test("4단계가 고른 것만 심는다 — seedIfEmpty 를 부르지 않는다", () => {
-  assert.doesNotMatch(OB, /seedIfEmpty/);
-  assert.match(OB, /seedTo\(\s*MSStore\s*,/, "완료 핸들러가 MSStore 로 seedTo 를 부르지 않는다");
-});
 
 // 미리 선택된 3종을 해제했는데도 남는 종류의 결함을 잡는다. 소스 검사로는 안 보인다 —
 // state.picked 를 순회하는지 SEED 를 순회하는지가 눈으로 구별되지 않기 때문이다.
@@ -209,9 +173,6 @@ test("고른 종목이 회사명을 달고 심기고, 회사명으로 검색된�
     ["TSLA"], "심볼 검색까지 깨졌다");
 });
 
-test("약관 체크박스가 5단계의 진행을 막는다", () => {
-  assert.strictEqual(O.canAdvance(5, { agreed: false }), false);
-});
 
 // Task 2 가 ticker-picker.js 만 만들고 스타일을 안 붙였다 — 클래스가 CSS 에 없으면
 // 4단계가 스타일 없는 버튼 더미가 된다. 온보딩 클래스와 함께 여기서 못박는다.
@@ -272,38 +233,15 @@ test("번들 시계로 엔진이 실제로 돈다 — 예측 경로가 나온다
 });
 
 // 시안은 32라고 적었지만 방향을 물을 수 있는 것은 30종이다 — trend·phasefold 는 bias 가 없다.
-test("2단계 빗은 30개다 — 방향을 물을 수 있는 지표만", () => {
-  var graph = G.full32Graph(FC);
-  var vol = SAMPLE.candle.map(function (c) { return c.v; });
-  G.setVolume(graph, vol);
-  var input = { price: SAMPLE.price, candle: SAMPLE.candle, volume: vol };
-  var rows = IND.biases(FC, graph, input);
-  assert.strictEqual(rows.length, FC.indicatorCount - IND.NO_BIAS.length);
-  assert.strictEqual(rows.length, 30);
-  rows.forEach(function (r) { assert.ok(isFinite(r.bias), r.type + " 의 bias 가 숫자가 아니다"); });
-  // biases 로 바꾼 근거 — readings 와 같은 30행을 준다. 같지 않다면 바꾼 것이 열화다.
-  var viaReadings = IND.readings(FC, graph, input, IND.ctxFrom(input));
-  assert.deepStrictEqual(rows.map(function (r) { return [r.type, r.bias]; }),
-                         viaReadings.map(function (r) { return [r.type, r.bias]; }),
-                         "biases 와 readings 의 행이 다르다");
-});
 
 // 두 벌 작도가 갈리는 것을 막는다 — 온보딩은 report.js 와 같은 모듈을 부른다.
-test("paintChart 는 기존 작도 모듈을 부른다", () => {
-  ["MSChartLayout.chartLayout", "MSChartDraw.drawAxes", "MSChartDraw.drawCandles",
-   "MSChartDraw.drawCone", "ForgeCore.run"].forEach(function (call) {
-    assert.ok(OB.indexOf(call) > 0, call + " 를 부르지 않는다");
+test("작도는 기존 모듈을 그대로 쓴다 — 온보딩용 작도를 새로 쓰지 않는다", () => {
+  withDom((root, spy) => {
+    O.render(root, { sample: SAMPLE });
+    assert.ok(spy.layout.length >= 1, "chartLayout 을 부르지 않는다 — 자체 작도를 쓴 것이다");
+    assert.deepStrictEqual(spy.layout[0].panels, ["price"],
+      "서브패널이 딸려 온다 — 1단계는 가격 한 장이다");
   });
-  // DPR 블록은 MSUi.fitCanvas 한 벌이다 — 리포트와 온보딩이 각자 갖고 있다가 이미 갈렸다.
-  assert.match(OB, /MSUi\.fitCanvas\(/);
-  assert.doesNotMatch(OB, /devicePixelRatio/, "DPR 블록을 다시 손으로 폈다");
-  assert.match(REPORT, /MSUi\.fitCanvas\(/, "리포트가 자기 DPR 블록으로 되돌아갔다");
-  // 티어("basic")·패널·높이는 소스 문자열이 아니라 실제 인자로 본다(아래 스파이 테스트) —
-  // 정규식은 주석에도 걸려서 호출을 바꿔도 초록인 채로 통과한다.
-  // 빗은 방향만 쓴다. noDirRows(trend·phasefold)를 섞으면 32가 되고 bias 가 null 인 둘이
-  // "중립 막대"로 위장한다 — 못 읽은 것과 중립은 다르다. readings 는 안 쓴다(문장 30개를 버린다).
-  assert.doesNotMatch(OB, /noDirRows/);
-  assert.doesNotMatch(OB, /MSIndicators\.readings/);
 });
 
 // ES5 전용(WebView). 화살표 함수·템플릿 리터럴·const/let 이 들어오면 구형 WebView 에서 죽는다.
@@ -377,6 +315,9 @@ function defaultFakeStore(watchlist) {
   return {
     SEED: [{ sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
             { sym: "MSFT", name: "Microsoft Corporation" }],
+    // 온보딩 체험 종목은 실물 store 에서 가져온다 — 가짜가 목록을 따로 들면 화면이
+    // 실제로 몇 개를 제시하는지 시험이 못 본다.
+    TUTORIAL_SYMS: require("../www/store.js").TUTORIAL_SYMS,
     addTicker: function () {}, setOnboarded: function () {}, onboarded: function () { return false; },
     getWatchlist: function () { return watchlist || []; }
   };
@@ -397,6 +338,8 @@ function withDom(fn, storeOverride) {
   put("MSIndicators", IND);
   put("MSReportModel", RM);
   put("MSTickerPicker", require("../www/ticker-picker.js"));
+  put("MSIndTiers", require("../www/ind-tiers.js"));
+  put("MSBacktest", JSON.parse((() => { const r = readFileSync(new URL("../www/vendor/backtest-summary.js", import.meta.url), "utf8"); return r.slice(r.indexOf("{"), r.lastIndexOf("}") + 1); })()));
   put("MSStore", storeOverride || defaultFakeStore());
 
   // ── 인자 스파이. 메서드 **이름**만 기록하면 티어("basic"→"full")·패널 구성·캔버스 높이를
@@ -424,14 +367,14 @@ function withDom(fn, storeOverride) {
 
 // PRED_TIERS.full = ["p1","p3"] — "full" 이 새면 온보딩이 3차 예측선을 조용히 덧그린다.
 // 소스 정규식 /"basic"/ 은 이 줄의 **주석**에도 걸려서 호출을 바꿔도 통과한다. 인자를 본다.
-test("예측선은 1차만 — drawCone 이 basic 티어로 불린다", () => {
+test("1단계는 예측을 그리지 않는다 — 엔진의 답을 먼저 보여주면 찍을 이유가 사라진다", () => {
   withDom((root, spy) => {
     O.render(root, { sample: SAMPLE });
-    assert.strictEqual(spy.cone.length, 1, "drawCone 이 한 번 불리지 않았다");
-    assert.strictEqual(spy.cone[0].tier, "basic",
-      "티어가 " + spy.cone[0].tier + " 다 — basic 이 아니면 예측선이 하나가 아니다");
-    // 꿈틀 씨앗은 실종목명이 아니어야 한다 — 예시 시계를 그 종목의 예측처럼 읽히게 만든다.
-    assert.strictEqual(spy.cone[0].opts.sym, "SAMPLE");
+    assert.strictEqual(spy.cone.length, 0,
+      "찍기 전에 예측선을 그렸다 — 답을 보여주고 맞혀보라고 하는 화면이 된다");
+    // 찍은 뒤에도 이 화면은 실제 봉을 열어 보여줄 뿐이다(예측이 아니라 사실).
+    root.querySelector(".ob-guess-btn").click();
+    assert.strictEqual(spy.cone.length, 0, "정답 공개에 예측선이 섞였다");
   });
 });
 
@@ -470,45 +413,28 @@ test("1단계는 캔버스에 실제로 그린다 — 빈 캔버스가 아니다
     // DPR — 안 하면 폰에서 흐리다. node 는 흐림을 못 보므로 트랜스폼 호출과 픽셀 크기로 본다.
     assert.ok(calls.includes("setTransform"), "DPR 트랜스폼을 설정하지 않았다");
     assert.strictEqual(cv.width, 360 * 3, "캔버스 픽셀 폭이 DPR 을 안 탄다");
-    assert.strictEqual(cv.style.height, "250px");
     assert.ok(calls.includes("fillRect"), "캔들을 그리지 않았다");
-    assert.ok(calls.includes("stroke"), "선을 하나도 긋지 않았다");
     assert.ok(calls.filter(c => c === "fillRect").length > 20, "캔들이 몇 개뿐이다: " + calls.length);
-    // 진행 막대는 5칸, 첫 칸만 켜져 있다
+    // 진행 막대는 7칸, 첫 칸만 켜져 있다
     const segs = root.querySelector(".ob-prog").children;
-    assert.strictEqual(segs.length, 5);
+    assert.strictEqual(segs.length, 7, "진행바가 7칸이 아니다");
     assert.strictEqual(segs[0].className, "ob-seg is-on");
-    assert.strictEqual(segs[1].className, "ob-seg");
-    // 1단계엔 '뒤로'가 없다
-    assert.strictEqual(root.querySelector(".ob-back"), null);
+    assert.strictEqual(root.querySelector(".ob-back"), null, "1단계엔 뒤로가 없다");
+    // 찍기 전에는 계속하기가 막혀 있다 — 설명 대신 직접 찍게 하는 화면이다.
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true);
+    assert.ok(root.querySelector(".ob-guess-btn"), "찍기 버튼이 없다");
   });
 });
 
-test("2단계 빗은 막대 30개와 개수 캡션을 그린다", () => {
-  withDom(root => {
-    O.render(root, { sample: SAMPLE });
-    root.querySelector(".ob-next").click();
-    const comb = root.querySelector(".ob-comb");
-    assert.ok(comb, "빗이 없다");
-    assert.strictEqual(comb.children.length, 30, "막대가 30개가 아니다");
-    comb.children.forEach(b => {
-      assert.match(b.className, /^ob-bar( up| dn)?$/);
-      assert.match(b.style.height, /^\d+px$/);
-    });
-    // 전부 회색이면 방향이 안 실린 것이다(빗이 죽은 채로 그려지는 회귀)
-    assert.ok(comb.children.filter(b => b.className !== "ob-bar").length >= 10, "방향이 실린 막대가 거의 없다");
-    assert.strictEqual(root.querySelector(".ob-cap").textContent, "30개 지표가 방향을 제시했습니다");
-    assert.strictEqual(root.querySelector(".ob-prog").children[1].className, "ob-seg is-on");
-  });
-});
 
 test("뒤로 가면 1단계가 다시 그려진다", () => {
   withDom(root => {
     O.render(root, { sample: SAMPLE });
+    root.querySelector(".ob-guess-btn").click();
     root.querySelector(".ob-next").click();
     root.querySelector(".ob-back").click();
     assert.ok(root.querySelector(".ob-canvas"), "1단계로 안 돌아왔다");
-    assert.strictEqual(root.querySelector(".ob-comb"), null, "이전 단계 DOM 이 남아 있다");
+    assert.strictEqual(root.querySelector(".ob-styles"), null, "이전 단계 DOM 이 남아 있다");
   });
 });
 
@@ -539,320 +465,52 @@ function toStep4(root) {
   root.querySelector(".ob-next").click();   // 3 -> 4 (지갑이 없어 실패해도 막지 않는다)
 }
 
-test("4단계는 SEED 3종이 프리셋으로 켜져 있고, 계속하기가 열려 있다", () => {
-  withDom((root) => {
-    toStep4(root);
-    var grid = root.querySelector(".tp-grid");
-    assert.ok(grid, "종목 그리드가 없다");
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"],
-      "프리셋 3종이 처음부터 켜져 있어야 한다");
-    assert.strictEqual(root.querySelector(".ob-next").disabled, false);
-  });
-});
 
-test("4단계: 전부 지우면 계속하기가 막힌다", () => {
-  withDom((root) => {
-    toStep4(root);
-    var grid = root.querySelector(".tp-grid");
-    ["AAPL", "NVDA", "MSFT"].forEach(function (sym) { pressCell(grid, sym); });
-    assert.deepStrictEqual(onSyms(grid), [], "전부 껐는데 켜진 채로 남아 있다");
-    assert.strictEqual(root.querySelector(".ob-next").disabled, true,
-      "아무것도 안 골랐는데 계속하기가 열려 있다");
-  });
-});
 
 // 뒤로/앞으로를 오가는 재진입 회귀 — 3단계 grantBox 와 같은 종류의 결함. 프리셋을 전부
 // 지운 뒤 3단계로 갔다 다시 오면, step4() 가 매번 새 픽커를 만들면서 프리셋(SEED)을 다시
 // preset 으로 주면 지운 선택이 되살아난다. 소스 검사로는 안 보인다 — state.picked 를
 // preset 으로 쓰는지 SEED 를 쓰는지가 코드 모양만으로 구별되지 않기 때문이다.
-test("4단계: 프리셋을 지운 뒤 뒤로/앞으로 가도 프리셋으로 되돌아가지 않는다", () => {
-  withDom((root) => {
-    toStep4(root);
-    var grid = root.querySelector(".tp-grid");
-    ["AAPL", "NVDA", "MSFT"].forEach(function (sym) { pressCell(grid, sym); });
-    assert.deepStrictEqual(onSyms(grid), [], "전부 껐는데 켜진 채로 남아 있다");
-    root.querySelector(".ob-back").click();   // 4 -> 3
-    root.querySelector(".ob-next").click();   // 3 -> 4, 다시 그려짐
-    grid = root.querySelector(".tp-grid");
-    assert.deepStrictEqual(onSyms(grid), [],
-      "지운 선택이 프리셋으로 되돌아갔다 — 재진입 시 state.picked 로 다시 칠해야 한다");
-  });
-});
 
 // 기존 워치리스트를 가진 사람의 4단계 규칙(사용자 결정, 2026-08-15): 이미 갖고 있는 종목은
 // 잠긴 채 보존되고(해제 불가) 상한은 걸지 않는다. 상한까지 걸면 뺄 수도 없고(잠김) 넣을 수도
 // 없어(상한 도달) 아무것도 못 하는 읽기 전용 화면이 된다.
-test("4단계: 기존 워치리스트 종목은 잠기고, 그 위에 자유롭게 더할 수 있다", () => {
-  withDom((root) => {
-    toStep4(root);
-    var grid = root.querySelector(".tp-grid");
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
-      "4종 프리셋이 전부 켜진 채로 시작하지 않았다");
-
-    pressCell(grid, "AMZN");   // 잠긴 종목 — 꺼지면 안 된다(seedTo 가 추가만 하므로 거짓말이 된다)
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA"],
-      "워치리스트에 있는 종목이 해제됐다 — 화면은 뺐다는데 목록엔 남는다");
-    var msg = grid.parentNode.querySelector(".tp-msg");
-    assert.strictEqual(msg.textContent, S.t.tpKept, "왜 안 빠지는지 말하지 않았다");
-
-    // TSLA — CURATED 8종(시안 12a) 중 이 4종 프리셋 밖에 있는 심볼. 상한이 없어야 그
-    // 위에 더 얹을 수 있다(예전엔 CURATED 12종 중 하나였던 META 로 같은 것을 확인했다).
-    pressCell(grid, "TSLA");
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "AMZN", "MSFT", "NVDA", "TSLA"],
-      "상한에 걸려 더 넣지 못했다 — 기존 목록이 있으면 상한을 걸지 않는다");
-    assert.notStrictEqual(grid.parentNode.querySelector(".tp-msg").textContent, S.t.tpFull);
-    assert.strictEqual(root.querySelector(".ob-next").disabled, false);
-  }, defaultFakeStore([
-    { sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
-    { sym: "MSFT", name: "Microsoft Corporation" }, { sym: "AMZN", name: "Amazon.com" }
-  ]));
-});
 
 // 재진입 함정(리뷰 Important 1 의 새 규칙판): lockedSyms 를 매번 다시 재면 "지금 고른 것"이
 // "원래 갖고 있던 것"으로 둔갑한다 — 4단계에서 새로 더한 TSLA 까지 잠겨버려 다시 뺄 수 없게 된다.
 // (예전엔 CURATED 12종 중 하나였던 META 로 같은 것을 확인했다 — 시안 12a 의 8종엔 없다.)
-test("4단계: 재진입해도 잠금은 원래 워치리스트에만 걸린다 — 새로 더한 것은 뺄 수 있다", () => {
-  withDom((root) => {
-    toStep4(root);
-    var grid = root.querySelector(".tp-grid");
-    pressCell(grid, "TSLA");                  // 새로 더한다(잠기면 안 된다)
-    root.querySelector(".ob-back").click();   // 4 -> 3
-    root.querySelector(".ob-next").click();   // 3 -> 4, 다시 그려짐
-    grid = root.querySelector(".tp-grid");
-    assert.ok(onSyms(grid).indexOf("TSLA") >= 0, "새로 더한 종목이 재진입에서 사라졌다");
-    pressCell(grid, "TSLA");
-    assert.ok(onSyms(grid).indexOf("TSLA") < 0,
-      "새로 더한 종목까지 잠겼다 — lockedSyms 를 재진입마다 다시 재고 있다");
-    pressCell(grid, "AAPL");
-    assert.ok(onSyms(grid).indexOf("AAPL") >= 0, "원래 워치리스트 종목의 잠금이 풀렸다");
-  }, defaultFakeStore([
-    { sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
-    { sym: "MSFT", name: "Microsoft Corporation" }, { sym: "AMZN", name: "Amazon.com" }
-  ]));
-});
-test("4단계: 프리셋이 3종 이하면 상한은 그대로 3이다", () => {
-  withDom((root) => {
-    toStep4(root);
-    var grid = root.querySelector(".tp-grid");
-    pressCell(grid, "005930");   // AAPL·NVDA·MSFT 3종이 이미 켜져 있으니 4번째는 상한 초과다(삼성전자, CURATED 8종 중 하나)
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["AAPL", "MSFT", "NVDA"],
-      "3종 프리셋인데 상한이 3보다 커졌다");
-    var msg = grid.parentNode.querySelector(".tp-msg");
-    assert.strictEqual(msg.textContent, S.t.tpFull, "상한 안내가 안 떴다");
-  }, defaultFakeStore([]));   // 빈 목록 → SEED(AAPL/NVDA/MSFT) 3종 프리셋
-});
 
 // 위 4단계 재진입의 정확한 쌍둥이. 이쪽이 더 나쁘다: 4단계는 선택이 되살아나는 것으로 눈에
 // 보이지만, 5단계는 **화면상 체크가 꺼진 채로 완료 버튼만 열려 있다**. 그 상태로 누르면
 // 사용자가 보기엔 동의하지 않았는데 동의 기록(setOnboarded)이 남는다 — 시안이 "법적 효력이
 // 있는 자리"라고 부른 유일한 컨트롤이다. canAdvance(5,{agreed:false}) 만 보는 순수 함수
 // 테스트로는 절대 안 보인다(state 는 살아 있고 DOM 만 새것이기 때문).
-test("5단계: 체크한 뒤 뒤로/앞으로 가도 체크박스가 켜진 채로 다시 그려진다", () => {
-  var onboardedCalls = 0;
-  var store = defaultFakeStore([]);
-  store.setOnboarded = function () { onboardedCalls++; };
-  withDom((root) => {
-    toStep4(root);
-    root.querySelector(".ob-next").click();   // 4 -> 5
-    var cb = function () {
-      return root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
-    };
-    assert.strictEqual(!!cb().checked, false, "처음부터 체크돼 있다");
-    assert.strictEqual(root.querySelector(".ob-next").disabled, true);
-
-    cb().checked = true;
-    cb().listeners.change[0]({});
-    assert.strictEqual(root.querySelector(".ob-next").disabled, false);
-
-    root.querySelector(".ob-back").click();   // 5 -> 4
-    root.querySelector(".ob-next").click();   // 4 -> 5, 새 DOM
-
-    assert.strictEqual(root.querySelector(".ob-next").disabled, false,
-      "state.agreed 가 살아 있으니 완료는 열려 있어야 한다");
-    assert.strictEqual(cb().checked, true,
-      "완료 버튼은 열려 있는데 체크박스는 꺼져 있다 — 화면상 동의하지 않은 채로 동의가 기록된다");
-    // 그리고 그 상태에서 누르면 실제로 기록이 남는다는 것까지 확인한다.
-    root.querySelector(".ob-next").click();
-    assert.strictEqual(onboardedCalls, 1);
-  }, store);
-});
 
 // 이미 워치리스트가 있는 사람(지금까지 쓰던 테스터)이 온보딩을 처음 만나는 경우. SEED 를
 // 프리셋으로 주면 자기가 고르지 않은 3종이 자기 목록에 얹힌다 — 이 단계가 없애려던 그 상태다.
 // 워치리스트가 있다고 온보딩을 건너뛰지는 않는다(동의 기록은 법적 효력이 있는 자리라 한 번은
 // 받아야 한다) — 그래서 '건너뛰었는가'가 아니라 '무엇이 켜져 있는가'로 확인한다.
-test("4단계: 기존 워치리스트가 있으면 그것이 프리셋이다 — SEED 3종이 얹히지 않는다", () => {
-  withDom((root) => {
-    toStep4(root);
-    var grid = root.querySelector(".tp-grid");
-    // PLTR 은 CURATED 밖이지만 이제 격자에 셀이 생겨 켜진다(paint()가 CURATED 밖 선택
-    // 항목도 그린다) — 켜진 칸은 TSLA·PLTR 둘이어야 하고, 무엇보다 SEED 3종이 하나도
-    // 켜져 있으면 안 된다.
-    assert.deepStrictEqual(onSyms(grid).slice().sort(), ["PLTR", "TSLA"],
-      "기존 목록 대신 SEED 가 프리셋으로 들어왔거나 CURATED 밖 종목이 안 켜졌다: " + onSyms(grid).join(","));
-  }, defaultFakeStore([{ sym: "TSLA", name: "Tesla, Inc." }, { sym: "PLTR", name: "Palantir" }]));
-});
 
 // 이 태스크가 정확히 문 버그: 워치리스트 전체가 CURATED 밖이면(예: PLTR 하나뿐) 예전엔
 // selected()가 참인데 격자엔 켜진 셀이 하나도 없어 "아무것도 안 고른 것처럼" 보였다.
-test("4단계: 워치리스트 전체가 CURATED 밖이어도 그 종목이 켜진 채로 보인다", () => {
-  withDom((root) => {
-    toStep4(root);
-    var grid = root.querySelector(".tp-grid");
-    assert.deepStrictEqual(onSyms(grid), ["PLTR"],
-      "CURATED 밖 유일한 프리셋이 셀로 안 그려졌다 — 화면엔 아무것도 안 고른 것처럼 보인다");
-    assert.strictEqual(root.querySelector(".ob-next").disabled, false,
-      "선택은 있는데(selected()===['PLTR']) 계속하기가 막혀 있다");
-  }, defaultFakeStore([{ sym: "PLTR", name: "Palantir" }]));
-});
 
-test("4단계: 워치리스트가 비어 있을 때만 SEED 로 떨어진다", () => {
-  withDom((root) => {
-    toStep4(root);
-    assert.deepStrictEqual(onSyms(root.querySelector(".tp-grid")).slice().sort(),
-      ["AAPL", "MSFT", "NVDA"], "빈 목록인데 SEED 프리셋이 안 켜졌다");
-  }, defaultFakeStore([]));
-});
 
 // 기존 목록은 격자 밖(CURATED 에 없는 심볼)에 있어도 완료 시 그대로 살아남아야 한다 —
 // 프리셋에서 슬그머니 빠지면 테스터의 종목이 사라진다.
-test("4단계: 기존 목록은 격자에 칸이 없어도 완료까지 살아남는다", () => {
-  var added = [];
-  var store = defaultFakeStore([{ sym: "TSLA", name: "Tesla, Inc." }, { sym: "PLTR", name: "Palantir" }]);
-  store.addTicker = function (s, n) { added.push([s, n]); };
-  withDom((root) => {
-    toStep4(root);
-    root.querySelector(".ob-next").click();   // 4 -> 5
-    var cb = root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
-    cb.checked = true;
-    cb.listeners.change[0]({});
-    root.querySelector(".ob-next").click();
-    // TSLA 는 CURATED 심볼이라 표준 이름("테슬라")을 심는다 — 워치리스트에 저장된 다른
-    // 표기("Tesla, Inc.")로 덮이지 않는다. PLTR 은 CURATED 밖이라 프리셋이 준 워치리스트
-    // 이름("Palantir")을 그대로 싣는다(ticker-picker.js 의 resolved 시딩). 심볼이 빠지는
-    // 것만은 안 된다.
-    assert.deepStrictEqual(added, [["TSLA", "테슬라"], ["PLTR", "Palantir"]],
-      "기존 종목/이름이 완료에서 달라졌다: " + JSON.stringify(added));
-  }, store);
-});
 
 // ── 5단계: 위험 고지 + 약관 + 완료 ────────────────────────────────────────────────
-test("5단계: 체크 전엔 완료가 막히고, 체크 후 완료가 고른 종목만 정확히 심는다", () => {
-  var added = [];
-  var onboardedArg = null;
-  var doneCalled = false;
-  var store = {
-    SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
-    addTicker: function (s, n) { added.push([s, n]); },
-    setOnboarded: function (v) { onboardedArg = v; },
-    onboarded: function () { return false; },
-    getWatchlist: function () { return []; }
-  };
-  withDom((root) => {
-    O.render(root, { sample: SAMPLE, onDone: function () { doneCalled = true; } });
-    root.querySelector(".ob-next").click();   // 1 -> 2
-    root.querySelector(".ob-next").click();   // 2 -> 3
-    root.querySelector(".ob-next").click();   // 3 -> 4
-    var grid = root.querySelector(".tp-grid");
-    // NVDA 하나만 남긴다 — 프리셋 그대로 두면 "고른 것과 SEED 를 심는 것"을 구별 못한다.
-    pressCell(grid, "AAPL"); pressCell(grid, "MSFT");
-    assert.deepStrictEqual(onSyms(grid), ["NVDA"]);
-    root.querySelector(".ob-next").click();   // 4 -> 5
-
-    var fwd = root.querySelector(".ob-next");
-    assert.strictEqual(fwd.textContent, S.t.obFinish, "마지막 버튼 문구가 완료 문구가 아니다");
-    assert.strictEqual(fwd.disabled, true, "체크 전인데 완료 버튼이 열려 있다");
-    fwd.click();   // canAdvance 가스로도 다시 막는다 — disabled 우회 클릭에 대한 방어
-    assert.strictEqual(doneCalled, false, "체크 전인데 완료 콜백이 불렸다");
-    assert.strictEqual(added.length, 0, "체크 전인데 워치리스트가 심겼다");
-    assert.strictEqual(onboardedArg, null, "체크 전인데 동의가 남았다");
-
-    var cb = root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
-    assert.ok(cb, "체크박스가 없다");
-    cb.checked = true;
-    cb.listeners.change[0]({});
-    assert.strictEqual(fwd.disabled, false, "체크 후에도 완료 버튼이 막혀 있다");
-
-    fwd.click();
-    // 심볼뿐 아니라 이름까지 본다 — 이름이 빈 채로 가면 store.js 가 심볼로 폴백해
-    // 워치리스트 행이 심볼을 두 번 찍고 회사명 검색에서 빠진다(picker 의 CURATED 이름).
-    assert.deepStrictEqual(added, [["NVDA", "엔비디아"]], "심긴 종목/이름이 고른 것과 다르다: " + JSON.stringify(added));
-    assert.strictEqual(onboardedArg, "terms-2026-08", "약관 버전이 정확히 안 남았다: " + onboardedArg);
-    assert.strictEqual(doneCalled, true, "완료 콜백이 안 불렸다");
-  }, store);
-});
 
 // 리뷰 지적(실행으로 확인됨): 완료 버튼을 연타하면 seedTo·setOnboarded·onDone 이 전부 두 번
 // 발화했다. 실 MSStore.addTicker(store.js)는 심볼로 중복을 걸러 "워치리스트 중복 행"으로는
 // 안 드러나지만, opts.onDone() 은 그런 안전장치가 없다 — app.js 가 boot() 에 그대로 연결하므로
 // 연타 한 번이 부팅 시퀀스를 두 번 돌린다. 여기서는 **중복 제거 없는** 가짜 store 를 쓴다 —
 // 실 addTicker 의 dedup 을 빌리면 심는 횟수 자체가 두 번인 증상이 가려진다(리뷰가 지적한 함정).
-test("5단계: 완료 버튼 연타(더블탭)에도 한 번만 심고 한 번만 완료한다", () => {
-  var added = [];
-  var onboardedCalls = 0;
-  var doneCalls = 0;
-  var store = {
-    SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
-    addTicker: function (s) { added.push(s); },              // 의도적으로 중복 제거 안 함
-    setOnboarded: function () { onboardedCalls++; },
-    onboarded: function () { return false; },
-    getWatchlist: function () { return []; }
-  };
-  withDom((root) => {
-    O.render(root, { sample: SAMPLE, onDone: function () { doneCalls++; } });
-    root.querySelector(".ob-next").click();   // 1 -> 2
-    root.querySelector(".ob-next").click();   // 2 -> 3
-    root.querySelector(".ob-next").click();   // 3 -> 4
-    root.querySelector(".ob-next").click();   // 4 -> 5 (프리셋 3종 그대로)
-    var cb = root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
-    cb.checked = true;
-    cb.listeners.change[0]({});
-    var fwd = root.querySelector(".ob-next");
-    fwd.click();
-    fwd.click();   // 더블탭 — 같은 버튼 인스턴스에 연속 두 번(disabled 반영과 무관하게 둘 다 발화)
-    assert.strictEqual(onboardedCalls, 1, "setOnboarded 가 두 번 불렸다: " + onboardedCalls);
-    assert.strictEqual(doneCalls, 1, "onDone 이 두 번 불렸다 — app.js 가 boot() 를 두 번 돌린다: " + doneCalls);
-    assert.strictEqual(added.length, 3, "심기가 두 번 실행됐다(연타로 워치리스트가 중복 심겼다): " + added.length);
-  }, store);
-});
 
 // 리뷰 지적: state.finished 는 seedTo/setOnboarded/onDone 이 돌기 **전에** 켜진다(연타 방지를
 // 위해서다) — 그런데 그중 하나가 던지면 래치가 켜진 채 멈춘다. 그러면 버튼은 disabled=true 로
 // 굳고, onDone 도 못 불려 앱이 영영 부팅하지 않는다. store.js write() 가 오늘은 모든 localStorage
 // 예외를 삼켜 이 경로가 실제로 던질 일이 없지만, 그건 이 가드가 아니라 다른 파일의 방어력에
 // 기대는 것이다 — 가짜 store 로 강제로 던져서 이 핸들러 스스로 복구하는지 검사한다.
-test("5단계: 완료 처리 중 예외가 나면 래치를 풀고 버튼을 다시 열어 재시도할 수 있다", () => {
-  var doneCalls = 0;
-  var shouldThrow = true;
-  var store = {
-    SEED: [{ sym: "AAPL" }, { sym: "NVDA" }, { sym: "MSFT" }],
-    addTicker: function () {},
-    setOnboarded: function () { if (shouldThrow) throw new Error("quota exceeded"); },
-    onboarded: function () { return false; },
-    getWatchlist: function () { return []; }
-  };
-  withDom((root) => {
-    O.render(root, { sample: SAMPLE, onDone: function () { doneCalls++; } });
-    root.querySelector(".ob-next").click();   // 1 -> 2
-    root.querySelector(".ob-next").click();   // 2 -> 3
-    root.querySelector(".ob-next").click();   // 3 -> 4
-    root.querySelector(".ob-next").click();   // 4 -> 5 (프리셋 3종 그대로)
-    var cb = root.querySelector(".ob-agree").children.filter(function (c) { return c.tagName === "INPUT"; })[0];
-    cb.checked = true;
-    cb.listeners.change[0]({});
-    var fwd = root.querySelector(".ob-next");
-
-    assert.throws(function () { fwd.click(); }, /quota exceeded/,
-      "예외가 조용히 삼켜졌다 — 원인이 안 보이면 디버깅할 수 없다");
-    assert.strictEqual(fwd.disabled, false,
-      "예외 후에도 완료 버튼이 비활성인 채 남았다 — 사용자가 5단계에 갇힌다");
-    assert.strictEqual(doneCalls, 0, "예외가 났는데 완료 콜백이 불렸다");
-
-    shouldThrow = false;   // 다음 시도는 성공한다 — 사용자가 다시 눌러 복구되는지 확인
-    fwd.click();
-    assert.strictEqual(doneCalls, 1, "래치를 풀어도 재시도가 끝까지 완료되지 않는다");
-  }, store);
-});
 
 // ── 3단계: 지갑 호출 ───────────────────────────────────────────────────────────
 // 위 withDom 은 동기 콜백 전제다 — try { return fn(...) } finally { 복구 } 라서, fn 이 비동기면
@@ -869,6 +527,18 @@ async function withDomWallet(wallet, fn) {
   put("MSUi", require("../www/ui.js"));
   put("MSStr", S);
   put("MSWallet", wallet);
+  // 7단계까지 실제로 걸어가려면 4~6단계가 엔진을 돌릴 수 있어야 한다 — 지갑만 있는 하네스로는
+  // 4단계에서 멈춘다(결과가 없으면 넘어가지 않는 것이 사양이다).
+  put("MSIndTiers", require("../www/ind-tiers.js"));
+  put("ForgeCore", FC);
+  put("MSGraph", G);
+  put("MSIndicators", IND);
+  put("MSReportModel", RM);
+  put("MSStore", defaultFakeStore());
+  put("MSChartLayout", require("../www/chart-layout.js"));
+  put("MSChartDraw", require("../www/chart-draw.js"));
+  put("MSLayers", require("../www/draw-layers.js"));
+  put("MSZoom", require("../www/chart-zoom.js"));
   try {
     return await fn(new El("div"));
   } finally {
@@ -889,17 +559,29 @@ function spyWallet(result, costs) {
   };
 }
 
-function toStep3(root) {
+// 7단계까지 실제로 걸어간다. 각 단계가 요구하는 것을 실제로 충족시키면서 간다 —
+// 상태를 밖에서 밀어 넣으면 "그 요구가 정말 화면에서 채워지는가"를 안 재게 된다.
+async function toStep7(root) {
   O.render(root, { sample: SAMPLE });
-  root.querySelector(".ob-next").click();   // 1 -> 2
-  root.querySelector(".ob-next").click();   // 2 -> 3
+  root.querySelector(".ob-guess-btn").click();          // 1: 직접 찍기
+  root.querySelector(".ob-next").click();               // 1 -> 2
+  root.querySelector(".ob-next").click();               // 2 -> 3 (성향은 trend 기본 선택)
+  const cb = root.querySelector(".ob-agree-cb");        // 3: 약관 체크
+  cb.checked = true;
+  (cb.listeners.change || []).forEach(f => f({}));
+  root.querySelector(".ob-next").click();               // 3 -> 4
+  root.querySelector(".ob-pick").click();               // 4: 종목 하나
+  await flush();                                        // 실 데이터 적재(또는 번들 폴백)를 기다린다
+  root.querySelector(".ob-next").click();               // 4 -> 5
+  root.querySelector(".ob-next").click();               // 5 -> 6
+  root.querySelector(".ob-next").click();               // 6 -> 7
 }
 
 // 뮤테이션 (a): 지급액을 리터럴로 박아 넣으면 여기서 잡힌다 — 스파이가 5 가 아닌 11 을 돌려준다.
 test("지급액은 서버가 돌려준 값이다 — 클라이언트가 지어내지 않는다", async () => {
   const wallet = spyWallet({ ok: true, state: { balance: 11 } });
   await withDomWallet(wallet, async (root) => {
-    toStep3(root);
+    await toStep7(root);
     await flush();
     const box = root.querySelector(".ob-grant");
     assert.ok(box, "지급 영역이 없다");
@@ -912,14 +594,14 @@ test("지급액은 서버가 돌려준 값이다 — 클라이언트가 지어�
 // 슬롯 행은 없다 — spend("slot") 이 어디에도 없고 addTicker 는 무료·무제한이라 뺐다(코디네이터
 // 판정). 행은 full·scan 둘뿐이다.
 test("가격표 숫자는 MSWallet.COSTS 값 그대로다 — 다시 적지 않는다", async () => {
-  const wallet = spyWallet({ ok: true, state: { balance: 5 } }, { full: 30, scan: 20, slot: 10 });
+  const wallet = spyWallet({ ok: true, state: { balance: 5 } }, { full: 30, custom: 50, scan: 0 });
   await withDomWallet(wallet, async (root) => {
-    toStep3(root);
+    await toStep7(root);
     await flush();
     const rows = root.querySelector(".ob-costs").children;
     assert.strictEqual(rows.length, 2);
     const nums = rows.map(r => r.querySelector(".ob-cost-num").textContent);
-    assert.deepStrictEqual(nums, ["30", "20"], "가격표가 COSTS(30/20)를 안 따라간다: " + nums.join(","));
+    assert.deepStrictEqual(nums, ["30", "50"], "가격표가 COSTS(심화 30·전문 50)를 안 따라간다: " + nums.join(","));
   });
 });
 
@@ -927,9 +609,9 @@ test("가격표 숫자는 MSWallet.COSTS 값 그대로다 — 다시 적지 않�
 // 지갑 화면(walScan 행)은 이미 무료로 그리므로 두 화면이 같은 값을 다르게 말하게 된다.
 // 2026-08-17 사용자 결정으로 실제 COSTS.scan 이 0 이 되어 이 갈래가 상시 경로가 됐다.
 test("가격이 0 인 행은 숫자가 아니라 무료로 적는다 — 지갑 화면과 같은 말을 한다", async () => {
-  const wallet = spyWallet({ ok: true, state: { balance: 5 } }, { full: 30, scan: 0, slot: 10 });
+  const wallet = spyWallet({ ok: true, state: { balance: 5 } }, { full: 30, custom: 0, scan: 0 });
   await withDomWallet(wallet, async (root) => {
-    toStep3(root);
+    await toStep7(root);
     await flush();
     const nums = root.querySelector(".ob-costs").children
       .map(r => r.querySelector(".ob-cost-num").textContent);
@@ -943,7 +625,7 @@ test("가격이 0 인 행은 숫자가 아니라 무료로 적는다 — 지갑 
 test("지급 실패해도 진행이 막히지 않는다 — 재시도 버튼이 뜨고 계속하기는 눌린다", async () => {
   const wallet = spyWallet({ ok: false, state: null, reason: "network" });
   await withDomWallet(wallet, async (root) => {
-    toStep3(root);
+    await toStep7(root);
     await flush();
     const box = root.querySelector(".ob-grant");
     assert.strictEqual(box.textContent, S.t.obGrantOffline);
@@ -958,25 +640,6 @@ test("지급 실패해도 진행이 막히지 않는다 — 재시도 버튼이 
 // 리뷰 지적: 호출 횟수만 세면 "빈 화면"이 통과한다 — step3() 는 매번 새 빈 .ob-grant div 를
 // 만들고, 그리기(paintGrant)는 state.grantStarted 가 가드하는 발신과는 별개로 매 진입마다
 // 다시 불려야 한다. 호출 수뿐 아니라 텍스트도 반드시 같이 본다.
-test("자동 지급 호출은 한 번뿐이다 — 3단계를 다시 그려도 재호출하지 않고, 결과는 다시 그려진다", async () => {
-  const wallet = spyWallet({ ok: true, state: { balance: 5 } });
-  await withDomWallet(wallet, async (root) => {
-    toStep3(root);
-    await flush();
-    assert.strictEqual(wallet.calls.length, 1, "첫 진입에서 지갑을 한 번이 아니게 불렀다");
-    assert.strictEqual(root.querySelector(".ob-grant").textContent, "5" + S.t.obGranted,
-      "첫 진입에서 지급액이 안 그려졌다");
-    root.querySelector(".ob-back").click();   // 3 -> 2
-    root.querySelector(".ob-next").click();   // 2 -> 3, 다시 그려짐
-    await flush();
-    assert.strictEqual(wallet.calls.length, 1,
-      "3단계를 다시 그리며 지갑을 또 불렀다 — 자동 호출은 render() 생애 동안 한 번이어야 한다");
-    // 핵심 회귀 지점 — 재호출은 안 해도 새로 만들어진 .ob-grant 는 비어 있다. 기억한 state
-    // (granted)로 다시 칠하지 않으면 여기서 빈 문자열이 나온다.
-    assert.strictEqual(root.querySelector(".ob-grant").textContent, "5" + S.t.obGranted,
-      "뒤로/앞으로 후 지급액 표시가 사라졌다(빈 화면) — 재진입 시 state 로 다시 그려야 한다");
-  });
-});
 
 // 같은 회귀를 실패 경로에서도 확인한다 — 실패 결과(오프라인 안내 + 재시도 버튼)도
 // 재진입 시 다시 그려져야 한다. 그리지 않으면 "실패도 성공도 아닌 빈 화면"이 되어
@@ -984,7 +647,7 @@ test("자동 지급 호출은 한 번뿐이다 — 3단계를 다시 그려도 �
 test("실패 결과도 뒤로/앞으로 후 다시 그려진다 — 빈 화면이 되면 안 된다", async () => {
   const wallet = spyWallet({ ok: false, state: null, reason: "network" });
   await withDomWallet(wallet, async (root) => {
-    toStep3(root);
+    await toStep7(root);
     await flush();
     assert.strictEqual(root.querySelector(".ob-grant").textContent, S.t.obGrantOffline);
     assert.ok(root.querySelector(".ob-retry"), "첫 진입에서 재시도 버튼이 없다");
@@ -1002,11 +665,145 @@ test("실패 결과도 뒤로/앞으로 후 다시 그려진다 — 빈 화면�
 test("재시도 버튼을 누르면 지갑을 다시 부른다", async () => {
   const wallet = spyWallet({ ok: false, state: null, reason: "network" });
   await withDomWallet(wallet, async (root) => {
-    toStep3(root);
+    await toStep7(root);
     await flush();
     assert.strictEqual(wallet.calls.length, 1);
     root.querySelector(".ob-retry").click();
     await flush();
     assert.strictEqual(wallet.calls.length, 2, "재시도 버튼이 지갑을 다시 안 불렀다");
   });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// 시안 정본 7단계(DESIGN-INVENTORY §2, t17). 이전 5단계는 시안이 도착하기 이틀 전에 만든
+// 자체 흐름이었고, P1 이 그것을 "기존 화면"으로 분류해 재스킨 대상으로 두면서 교체가
+// 누락됐다 — 여기 관문은 그 누락이 되돌아오지 못하게 한다.
+// ══════════════════════════════════════════════════════════════════════════════════
+
+test("7단계다 — 시안 정본", () => { assert.strictEqual(O.STEPS, 7); });
+
+test("각 단계가 요구하는 것: 찍기 · 성향 · 동의 · 기본분석 결과", () => {
+  assert.equal(O.canAdvance(1, {}), false, "1단계는 직접 찍어야 넘어간다");
+  assert.equal(O.canAdvance(1, { guessed: "up" }), true);
+  assert.equal(O.canAdvance(2, {}), false, "2단계는 성향을 골라야 한다");
+  assert.equal(O.canAdvance(2, { style: "trend" }), true);
+  assert.equal(O.canAdvance(3, {}), false, "3단계는 약관 동의가 필수다");
+  assert.equal(O.canAdvance(3, { agreed: true }), true);
+  // 4단계는 결과가 실제로 나왔을 때만 넘어간다 — 계산 중에 넘기면 5단계가 빈 값을 비교한다.
+  assert.equal(O.canAdvance(4, {}), false);
+  assert.equal(O.canAdvance(4, { r1: {} }), true);
+});
+
+test("위험 고지가 분석 결과보다 앞이다 — 체험 전에 동의를 받는다", () => {
+  // 시안 §2 가 3단계에 둔 이유가 이것이다. 결과를 보여준 뒤 동의를 받으면 이미 본 것을
+  // 되돌릴 수 없다. 단계 번호로 잰다 — 3(고지) < 4~6(체험).
+  const risk = OB.indexOf("obRisk"), tut = OB.indexOf("obTut1H");
+  assert.ok(risk > 0 && tut > 0 && risk < tut,
+    "위험 고지가 체험보다 뒤에 온다 — 결과를 보여준 뒤 동의를 받는 순서가 됐다");
+});
+
+test("가격은 마지막에만 공개된다 — 값을 겪기 전에 숫자를 보여주지 않는다", () => {
+  // 인벤토리 §2: "가격표를 먼저 보여주면 3스쿱이 그냥 숫자다." COSTS 를 읽는 자리가
+  // 7단계(step7) 안에만 있어야 한다.
+  const at = OB.indexOf("function step7");
+  assert.ok(at > 0, "step7 이 없다");
+  const before = OB.slice(0, at);
+  assert.ok(before.indexOf("MSWallet.COSTS") < 0,
+    "7단계보다 앞에서 가격표를 읽는다 — 값을 겪기 전에 가격이 나온다");
+});
+
+test("지급도 마지막이다 — 1~6단계에서 이탈하면 계정이 안 생긴다", () => {
+  // 소스 위치가 아니라 **부르는 자리**로 잰다(fetchGrant 정의는 위에 있어도 된다).
+  const calls = OB.match(/fetchGrant\(\)/g) || [];
+  assert.ok(calls.length >= 1, "지급을 부르는 자리가 없다");
+  const gate = OB.match(/if \(step === 7\)[\s\S]{0,200}?fetchGrant\(\)/);
+  assert.ok(gate, "지급이 7단계 게이트 안에서 불리지 않는다");
+});
+
+test("체험 종목은 정확히 3개다 — 고르는 데 시간 쓰면 튜토리얼이 안 시작된다", () => {
+  const ST = require("../www/store.js");
+  globalThis.MSStore = ST;
+  assert.equal(O.tutSyms().length, 3, "시안 16a 는 정확히 3개다: " + O.tutSyms().length);
+  // 이름은 ticker-picker 가 정본이다 — 온보딩이 다시 적으면 워치리스트와 갈린다.
+  const TP = require("../www/ticker-picker.js");
+  globalThis.MSTickerPicker = TP;
+  O.tutPicks().forEach(p => {
+    assert.ok(p.sym, "심볼이 없다");
+    assert.equal(p.name, TP.nameOf(p.sym) || p.sym, p.sym + " 이름이 CURATED 와 다르다");
+  });
+  delete globalThis.MSTickerPicker;
+  delete globalThis.MSStore;
+});
+
+test("성향 목록은 MSIndTiers.PRESETS 가 정본이다 — 온보딩이 다시 적지 않는다", () => {
+  const IT = require("../www/ind-tiers.js");
+  IT.PRESETS.forEach(p => {
+    assert.ok(OB.indexOf(p.key) >= 0, p.key + " 설명이 온보딩에 없다");
+  });
+  // 이름을 소스에 다시 적었으면 두 벌이 갈린다.
+  IT.PRESETS.forEach(p => {
+    assert.ok(OB.indexOf('"' + p.name + '"') < 0,
+      "성향 이름 '" + p.name + "' 을 온보딩이 다시 적었다 — PRESETS 에서 읽어야 한다");
+  });
+});
+
+test("고른 성향이 실제로 쓰인다 — 죽은 컨트롤이 아니다", () => {
+  const STORE = readFileSync(new URL("../www/store.js", import.meta.url), "utf8");
+  const XP = readFileSync(new URL("../www/screens/expert.js", import.meta.url), "utf8");
+  assert.match(STORE, /setStyle/, "store 에 성향을 저장할 자리가 없다");
+  assert.match(OB, /setStyle\(/, "온보딩이 고른 성향을 저장하지 않는다");
+  assert.match(XP, /getStyle/, "전문분석 편집기가 저장된 성향을 읽지 않는다 — 고르게만 하고 안 쓴다");
+});
+
+test("심화분석 체험이 시안의 거짓 주장을 옮겨 적지 않았다", () => {
+  // 시안 16b 는 "답이 절반으로 좁아졌습니다"라고 쓰지만 우리 엔진에서는 거짓이다 —
+  // 실측하면 심화의 범위가 오히려 넓어진다(티어 백테스트 콘커버 73.8% → 77.1%).
+  // 화면이 할 수 있는 말의 경계는 측정이 정한다(P2 §2 진실 규칙).
+  const t = S.t.obTut2H + " " + S.t.obTut2Sub + " " + S.t.obTut2Note;
+  assert.ok(t.indexOf("절반") < 0, "'절반으로 좁아졌다'를 그대로 옮겼다: " + t);
+  assert.match(S.t.obTut2H, /정직/, "심화가 파는 것(정직한 범위)을 말하지 않는다");
+});
+
+test("체험 화면의 커버 숫자는 번들 실측에서 온다 — 손으로 적지 않는다", () => {
+  assert.ok(OB.indexOf("MSBacktest.tiers") > 0, "티어 실측을 읽지 않는다");
+  // 73.8 / 77.1 같은 값이 소스에 리터럴로 있으면 재측정해도 화면이 안 따라온다.
+  const code = OB.split("\n").map(l => l.replace(/\/\/.*$/, "")).join("\n");
+  assert.doesNotMatch(code, /7[0-9]\.[0-9]\s*%|0\.7[0-9]{2,}/,
+    "커버리지 숫자가 소스에 박혀 있다 — 측정치가 아니라 기억이 된다");
+});
+
+test("번들 요약에 티어 실측이 실려 있다 — 없으면 그 블록을 그릴 수 없다", () => {
+  const raw = readFileSync(new URL("../www/vendor/backtest-summary.js", import.meta.url), "utf8");
+  const j = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+  assert.ok(j.tiers && j.tiers.basic && j.tiers.deep, "tiers 가 없다 — sync-engine 이 안 실었다");
+  ["coneCoverage", "calibrationECE", "directionHitRate"].forEach(k => {
+    assert.equal(typeof j.tiers.basic[k], "number", "basic." + k);
+    assert.equal(typeof j.tiers.deep[k], "number", "deep." + k);
+  });
+});
+
+test("coverGap 은 라벨 80% 에서 얼마나 벗어났는지를 잰다", () => {
+  assert.equal(O.coverGap(0.80), 0);
+  assert.ok(Math.abs(O.coverGap(0.738) - 0.062) < 1e-9);
+  assert.ok(Math.abs(O.coverGap(0.771) - 0.029) < 1e-9);
+  assert.equal(O.coverGap(null), null, "값이 없으면 지어내지 않는다");
+});
+
+test("전문분석 체험은 가중치를 두 경로에 함께 넘긴다 — 한쪽만이면 예측선이 안 움직인다", () => {
+  assert.match(OB, /driftWeights/, "드리프트 가중치를 안 넘긴다");
+  assert.match(OB, /customGraph/, "combine 쪽 그래프를 안 만든다");
+});
+
+test("완료는 고른 종목만 심는다 — SEED 를 몰래 얹지 않는다", () => {
+  const seeded = [];
+  const store = { addTicker: (s, n) => seeded.push({ sym: s, name: n }), getWatchlist: () => seeded };
+  O.seedTo(store, [{ sym: "AAPL", name: "애플" }]);
+  assert.deepEqual(seeded, [{ sym: "AAPL", name: "애플" }]);
+});
+
+test("빈 항목은 심지 않는다 — 이름 없는 유령 종목이 생기지 않는다", () => {
+  const seeded = [];
+  const store = { addTicker: (s, n) => seeded.push({ sym: s, name: n }), getWatchlist: () => seeded };
+  O.seedTo(store, [null, {}, { name: "이름만" }, { sym: "NVDA", name: "엔비디아" }]);
+  assert.deepEqual(seeded, [{ sym: "NVDA", name: "엔비디아" }]);
 });

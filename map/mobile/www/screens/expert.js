@@ -24,7 +24,9 @@
 
     // 시작 상태 — 넘겨받은 것이 있으면 그것, 없으면 첫 프리셋. 빈 화면에서 시작하지 않는다
     // (시안 10a: "기준 성향 — 가중치가 이미 채워져 있습니다").
-    var preset = o.presetKey || MSIndTiers.PRESETS[0].key;
+    // 온보딩 2단계에서 고른 성향이 기본값이다(시안 11c: "고른 성향이 전문분석의 가중치
+    // 기본값이 됩니다"). 저장된 게 없으면 첫 프리셋.
+    var preset = o.presetKey || (MSStore.getStyle && MSStore.getStyle()) || MSIndTiers.PRESETS[0].key;
     var weights = o.initial || MSIndTiers.weightsOf(preset, MSGraph.BASIC);
 
     var scrim = MSUi.el("div", "xp-scrim");

@@ -83,6 +83,23 @@ export function syncBacktest(srcDir, destDir) {
     nSeries: uni.length,
     generatedAt: r.generatedAt
   };
+
+  // 티어별 실측(backtest/tier-report.json) — 온보딩 5단계가 "심화가 무엇을 파는가"를 말하려면
+  // 기본과 심화의 콘 커버·확률 오차가 필요한데, 위 요약은 19종 하네스 하나의 값이라 티어를
+  // 구분하지 못한다. **화면에 숫자를 적으려면 그 숫자가 파일에서 와야 한다** — 73.8/77.1 을
+  // 손으로 적는 순간 재측정해도 화면이 안 따라오고, 그때부터 그것은 측정치가 아니라 기억이다.
+  // 없으면 넣지 않는다(화면이 그 블록을 안 그린다). 지어내는 것보다 비어 있는 게 낫다.
+  const tierPath = join(srcDir, "backtest", "tier-report.json");
+  if (existsSync(tierPath)) {
+    const t = JSON.parse(readFileSync(tierPath, "utf8"));
+    if (t.engineVersion === ev && t.tiers && t.tiers.basic && t.tiers.deep) {
+      const pick = x => ({ indicators: x.indicators, directionHitRate: x.directionHitRate,
+                           coneCoverage: x.coneCoverage, calibrationECE: x.calibrationECE,
+                           baselineAlwaysUp: x.baselineAlwaysUp, nForecasts: x.nForecasts });
+      summary.tiers = { basic: pick(t.tiers.basic), deep: pick(t.tiers.deep) };
+    }
+    // 엔진 버전이 다르면 싣지 않는다 — 낡은 티어 숫자가 새 엔진의 값 행세를 하면 안 된다.
+  }
   mkdirSync(destDir, { recursive: true });
   writeFileSync(join(destDir, "backtest-summary.js"),
     "// 생성물 — sync-engine.mjs 가 forge-backtest-report.json 에서 만든다. 직접 고치지 말 것.\n" +

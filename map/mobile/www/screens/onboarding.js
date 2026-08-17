@@ -1,386 +1,534 @@
-// 온보딩 5단계. 셸 밖에서 돈다 — 완료 전까지 워치리스트/리포트/지갑은 그리지 않는다.
-// 1·2단계는 번들 시계(onboarding-sample.js)로 진짜 엔진을 돌린다. 네트워크를 타면
-// 첫 화면이 콜드 수신(실측 942ms)을 기다리게 되고, 그게 앱의 첫인상이 된다.
+// 온보딩 7단계 — 시안 정본(DESIGN-INVENTORY §2, t17). 앱 셸 밖에서 돈다:
+// 완료 전까지 워치리스트/리포트/지갑은 그리지 않는다.
 //
-// 1: 예시 차트 → 2: 30지표 빗 → 3: 지갑 지급(첫 네트워크) → 4: 첫 종목 고르기 →
-// 5: 위험 고지 + 약관 동의. 5단계 완료 버튼이 seedTo 로 워치리스트를 심고
-// setOnboarded 로 동의를 남긴 뒤 opts.onDone() 을 부른다 — 그 전까지는 앱 셸을 그리지 않는다.
+//   1 콜드 오픈(11a)      — 설명 대신 직접 찍게 한다. 봉 몇 개를 가리고 물은 뒤 실제를 연다.
+//   2 투자성향(11c)       — 용어가 아니라 태도를 묻는다. 전문분석 가중치 기본값이 된다.
+//   3 위험 고지           — 체크박스 필수. **분석 결과를 보여주기 전**이다.
+//   4 기본분석 체험(16a)  — 종목 하나 고르고 실제로 돌린다. 체험 1/3.
+//   5 심화분석 체험(16b)  — 무엇이 달라지는지 두 막대로. 체험 2/3.
+//   6 전문분석 체험(16c)  — 슬라이더 하나만 열어 직접 만지게 한다. 체험 3/3.
+//   7 완료·가격표·지급(17a) — 세 값을 한 표에 모으고 **가격은 이제야** 공개한다.
+//
+// **순서가 핵심이다.** 가격표를 먼저 보여주면 "3스쿱"이 그냥 숫자다. 234.2 ± 1.1 을 먼저 본
+// 사람에게만 3이 싼지 비싼지 판단할 근거가 생긴다(인벤토리 §2 원문).
+//
+// ⚠ 시안 16b 는 "답이 절반으로 좁아졌습니다"를 두 막대로 보여준다. **우리 엔진에서는 거짓이다** —
+// 실측하면 심화의 범위가 오히려 넓어진다(모든 지평). 티어 백테스트도 같은 말을 한다: 콘 커버
+// 73.8% → 77.1%. 그래서 그 화면은 참인 차이를 판다 — 좁은 답이 아니라 **정직한 범위**다.
+// 숫자는 전부 번들된 실측(MSBacktest.tiers)에서 오고, 없으면 그 블록을 안 그린다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
   else root.MSOnboarding = factory();
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var STEPS = 5;
+  var STEPS = 7;
+  var TERMS_VERSION = "2026-08-17";
   var TF = "1day";
-  var PAD = 10;
-  // 동의 기록에 남는 값. 약관 본문을 고치면 이 값도 올린다 — 안 그러면 개정 후에
-  // 누가 무엇에 동의했는지 말할 수 없다.
-  var TERMS_VERSION = "terms-2026-08";
-  // 온보딩 차트는 가격 패널 한 장이다 — 리포트의 4단 적층(커버 520px)이 필요 없다.
-  // 지표 30종은 2단계의 빗이 대신 말한다.
-  var CHART_H = 250;
-  // MSPreds.seed 가 꿈틀의 난수 씨앗으로 쓴다. 종목명이 아니라 "이 시계"의 이름이다 —
-  // 실제 종목을 넣으면 그 종목의 예측처럼 읽힌다.
-  var SAMPLE_SEED = "SAMPLE";
+  var CHART_H = 240, PAD = 10;
+  var GUESS_CUT = 12;      // 1단계에서 가려 두는 봉 수 — 눈으로 방향이 읽힐 만큼만
+  // 시안 16a: **정확히 3개**(고르는 데 시간 쓰면 튜토리얼이 안 시작된다). 이름은 여기 적지
+  // 않는다 — ticker-picker 의 CURATED 가 이름의 정본이고, 두 벌이 갈리면 온보딩이 심은 종목이
+  // 워치리스트에서 다른 이름으로 보인다.
+  function tutSyms() {
+    return (typeof MSStore !== "undefined" && MSStore.TUTORIAL_SYMS) ? MSStore.TUTORIAL_SYMS : [];
+  }
+  function tutPicks() {
+    return tutSyms().map(function (sym) {
+      var name = (typeof MSTickerPicker !== "undefined" && MSTickerPicker.nameOf)
+        ? MSTickerPicker.nameOf(sym) : "";
+      return { sym: sym, name: name || sym };
+    });
+  }
 
+  // 문자열은 MSStr.t.X 로 **직접** 읽는다. 모듈 로드 시점에 별칭(var Str = MSStr)으로 잡아두면
+  // 이 파일이 strings.js 보다 먼저 실리는 환경에서 영원히 null 이 된다 — 던지지 않고 문구만
+  // 사라지는 실패라 눈으로만 보인다(graph.js UMD 인자에서 겪은 것과 같은 부류).
+  // t("키") 처럼 이름을 문자열로 넘기는 방식도 안 쓴다: 화면 소스에 문자열 리터럴이 남아
+  // 영어 잔존 관문에 걸리고, 정적 분석이 "이 키를 쓰는 곳"을 못 본다(리포트 배지 표에서 겪었다).
+
+  // 진행할 수 있는가. 화면 밖에서 시험할 수 있게 순수 함수로 둔다.
   function canAdvance(step, state) {
-    var s = state || {};
-    if (step === 4) return !!(s.picked && s.picked.length >= 1);
-    if (step === 5) return !!s.agreed;
-    return true;   // 3단계는 지급이 실패해도 막지 않는다 — Basic 리포트는 무료다
-  }
-  function next(step, state) {
-    if (step >= STEPS) return step;
-    return canAdvance(step, state) ? step + 1 : step;
+    if (step === 1) return !!state.guessed;
+    if (step === 2) return !!state.style;
+    if (step === 3) return !!state.agreed;
+    if (step === 4) return !!state.r1;      // 기본분석 결과가 실제로 나왔을 때만
+    return true;
   }
 
-  // 완료 시 워치리스트를 심는 부분만 떼어낸 순수 함수 — DOM 없이 검사할 수 있어야
-  // "고른 것과 정확히 같은 목록"이 관문이 된다. store 를 인자로 받는 이유는 테스트가
-  // 가짜 store 로 부를 수 있어야 하기 때문이다.
-  // picked 는 심볼이 아니라 {sym, name} 목록이다 — 이름을 버리고 심으면 store.js 가
-  // name = 심볼로 폴백해 행이 심볼을 두 번 찍고 회사명 검색이 죽는다(ticker-picker.js nameOf).
-  function seedTo(store, picked) {
-    picked.forEach(function (p) { store.addTicker(p.sym, p.name); });
+  function next(step, state) {
+    if (!canAdvance(step, state)) return step;
+    return step >= STEPS ? step : step + 1;
   }
+
+  // 튜토리얼로 고른 종목 하나를 심는다. 기존 워치리스트는 건드리지 않는다(추가만).
+  function seedTo(store, picked) {
+    (picked || []).forEach(function (p) { if (p && p.sym) store.addTicker(p.sym, p.name); });
+    return store.getWatchlist();
+  }
+
+  // 라벨(0.80) 대비 실제 커버가 얼마나 가까운가 — 작을수록 정직하다.
+  function coverGap(cov) { return (typeof cov === "number") ? Math.abs(cov - 0.80) : null; }
 
   function frag(cls) { var e = document.createElement("div"); e.className = cls; return e; }
   function el(tag, cls, text) { return MSUi.el(tag, cls, text); }
+  function pct(x) { return (x == null) ? "—" : (x * 100).toFixed(1) + "%"; }
+  function num(x, d) { return (x == null) ? "—" : Number(x).toFixed(d == null ? 2 : d); }
 
   function progress(step) {
     var w = frag("ob-prog");
-    for (var i = 1; i <= STEPS; i++) w.appendChild(frag("ob-seg" + (i === step ? " is-on" : "")));
+    for (var i = 1; i <= STEPS; i++) w.appendChild(frag("ob-seg" + (i === step ? " is-on" : (i < step ? " is-done" : ""))));
     return w;
   }
 
   function render(rootEl, opts) {
     var o = opts || {};
-    var Str = (typeof MSStr !== "undefined") ? MSStr : null;
-
-    // ── 이 화면의 지배 규칙: draw() 는 매 이동마다 DOM 을 통째로 부수고 다시 만드는데,
-    // state 는 그걸 넘어 살아남는다. 그래서 여기서 다루는 모든 것은 둘 중 하나여야 한다:
-    //   (a) 반복되면 안 되는 것 → 래치(아래 셋)로 한 번만 실행한다.
-    //   (b) 그 밖의 모든 것 → 매 그리기마다 state 로부터 다시 칠한다.
-    // 이 둘을 섞으면 "state 는 참인데 화면은 초기값"인 화면이 나온다. 실제로 네 번 나왔다:
-    // 3단계 지급 결과가 재진입 시 빈 칸이 됐고, 4단계 프리셋이 되살아났고, 5단계 동의
-    // 체크박스가 꺼진 채로 완료 버튼만 열려 있었고(눈에 안 보이는 동의 — 법적 효력이 있는 자리),
-    // 4단계 상한이 재진입마다 "지금" 선택 개수로 다시 계산돼 방금 뺀 자리를 다시 못 넣는
-    // 비대칭으로 되살아났다(리뷰 지적).
-    // 래치는 셋뿐이며, 하나라도 늘리려면 (b) 로 해결되지 않는지 먼저 볼 것:
-    //   grantStarted — 부수효과(네트워크 발신)를 한 번만. 그리기는 매번(paintGrant).
-    //   pickInited   — 첫 그리기가 끝났다는 표시. 이후엔 프리셋 대신 state.picked 로 칠한다.
-    //   finished     — 종결 동작(심기·동의·onDone)이 커밋됐다. 완료 버튼 더블탭 가드.
-    // 래치와 결이 같은 네 번째 함정: "처음 진입했을 때 참이었던 값"도 매번 다시 재면 안 된다.
-    //   lockedSyms — 온보딩 시작 시점의 워치리스트. 상한도 여기서 파생된다(maxFor).
-    //   핵심은 래치가 아니라 **출처**다: 반드시 MSStore.getWatchlist() 에서 재고, presetItems
-    //   에서 재면 안 된다. 재진입 시 presetItems 는 state.picked(지금 고른 것)이므로, 그걸로
-    //   재면 4단계에서 새로 더한 종목까지 "원래 갖고 있던 것"으로 둔갑해 잠겨버린다.
-    //   (워치리스트는 완료 전까지 안 바뀌므로 래치 자체는 값을 바꾸지 않는다 — 한 번만 읽는
-    //   비용 절약이자, 출처를 한 곳으로 못박아 두는 표시다.)
-    // fwd.disabled 만 믿을 수 없다 — 클릭 이벤트 자체는 disabled 여부와 무관하게 발생할 수
-    // 있으므로(연속 두 탭이 disabled 반영 전에 둘 다 들어오는 경우) 핸들러 안에서 막는다.
-    // (opts.onDone 은 중복 방어가 없다 — app.js 가 boot() 에 그대로 연결한다.)
-    var state = { picked: [], agreed: false, pickInited: false, granted: null, grantFailed: false,
-                  grantStarted: false, finished: false, lockedSyms: null, sample: o.sample || null };
     var step = 1;
-    var an = null;   // 엔진 결과 캐시 — 1↔2 단계를 오갈 때마다 32지표를 다시 돌리지 않는다
+    var state = {
+      guessed: null, guessRight: null,
+      // 저장된 성향이 있으면 그것을 기본 선택으로 — 온보딩을 다시 열었을 때 예전 선택이
+      // 되살아난다. MSStore 가 없는 환경(경량 하네스)에서도 던지지 않는다.
+      style: (typeof MSStore !== "undefined" && MSStore.getStyle && MSStore.getStyle()) || "trend",
+      agreed: false,
+      tut: null,            // { sym, name, data, fallback }
+      r1: null, r2: null, r3: null,
+      trendW: 1.0,
+      granted: null, grantStarted: false, grantFailed: false,
+      picked: [], finished: false
+    };
 
-    // 번들 시계는 <script src> 로 이미 들어와 있다 — 기다릴 것이 없다.
-    // 주입(opts.sample)을 먼저 보는 이유는 테스트가 전역 없이 돌 수 있어야 하기 때문이다.
+    // ── 표본·분석 ────────────────────────────────────────────────────────────────
+    // 주입(opts.sample)을 먼저 본다 — 시험이 자기 시계를 넣을 수 있어야 "번들이 없을 때"와
+    // "있을 때"를 둘 다 잴 수 있다.
     function sample() {
-      if (state.sample) return state.sample;
+      if (o.sample) return o.sample;
       return (typeof MSOnboardingSample !== "undefined") ? MSOnboardingSample : null;
     }
 
-    // 판정 한 번, 두 화면이 같은 결과를 본다. report.js analyzeFull 의 거래량 취급을
-    // 그대로 따른다 — 엔진의 거래량 드리프트는 data.volume 이 아니라 그래프의 volume 노드를
-    // 읽으므로 setVolume 을 반드시 거쳐야 한다(graph.js 주석 참고).
-    function analysis() {
-      if (an) return an;
+    // 1단계용 — 마지막 GUESS_CUT 봉을 가린 사본. 가려진 구간이 곧 정답이다.
+    function sliced() {
       var s = sample();
-      if (!s || typeof ForgeCore === "undefined" || typeof MSGraph === "undefined" ||
-          typeof MSReportModel === "undefined") return null;
-      var vol = s.candle.map(function (c) { return c.v; });
-      var okVol = vol.length >= 2 && vol.every(function (v) { return typeof v === "number" && isFinite(v); });
-      var graph = MSGraph.full32Graph(ForgeCore);
-      MSGraph.setVolume(graph, okVol ? vol : null);
-      var input = { price: s.price, candle: s.candle };
-      if (okVol) input.volume = vol;
-      an = { graph: graph, input: input, candle: s.candle,
-             out: ForgeCore.run(graph, input, { timeframe: MSReportModel.tfKo(TF) }) };
-      return an;
+      if (!s) return null;
+      var n = Math.max(30, s.candle.length - GUESS_CUT);
+      return { price: s.price.slice(0, n), candle: s.candle.slice(0, n) };
     }
 
+    function guessAnswer() {
+      var s = sample();
+      if (!s) return null;
+      var n = Math.max(30, s.candle.length - GUESS_CUT);
+      var before = s.price[n - 1], after = s.price[s.price.length - 1];
+      if (typeof before !== "number" || typeof after !== "number") return null;
+      return { up: after >= before, before: before, after: after };
+    }
+
+    // 엔진을 실제로 돌린다. tier 는 그래프를 고르고, weights 는 전문분석에서만 온다.
+    // report.js analyzeFull 의 거래량 취급을 그대로 따른다 — 드리프트는 data.volume 이 아니라
+    // 그래프의 volume 노드를 읽으므로 setVolume 을 반드시 거친다.
+    function runTier(data, tier, weights) {
+      if (!data || typeof ForgeCore === "undefined" || typeof MSGraph === "undefined") return null;
+      var vol = data.candle.map(function (c) { return c && c.v; });
+      var okVol = vol.length >= 2 && vol.every(function (v) { return typeof v === "number" && isFinite(v); });
+      var graph = (tier === "basic") ? MSGraph.basicGraph(ForgeCore)
+                : (tier === "custom") ? MSGraph.customGraph(ForgeCore, weights)
+                : MSGraph.full32Graph(ForgeCore);
+      MSGraph.setVolume(graph, okVol ? vol : null);
+      var input = { price: data.price, candle: data.candle };
+      if (okVol) input.volume = vol;
+      var opt = { timeframe: (typeof MSReportModel !== "undefined") ? MSReportModel.tfKo(TF) : TF };
+      if (tier === "custom" && weights) opt.driftWeights = weights;
+      try { return { graph: graph, input: input, out: ForgeCore.run(graph, input, opt) }; }
+      catch (e) { return null; }
+    }
+
+    // 내일(첫 지평)의 값과 폭. 세 단계가 같은 자리를 비교해야 표가 성립한다.
+    function tomorrow(r) {
+      var p = r && r.out && r.out.prediction;
+      if (!p || !p.path || !p.path.length) return null;
+      var lo = p.lo && p.lo[0], hi = p.hi && p.hi[0];
+      return { mid: p.path[0], lo: lo, hi: hi,
+               width: (typeof lo === "number" && typeof hi === "number") ? (hi - lo) : null };
+    }
+
+    // ── 데이터 적재 ──────────────────────────────────────────────────────────────
+    // 고른 종목의 실제 데이터로 돌린다. 못 받으면 번들 시계로 물러서되 **그 사실을 말한다** —
+    // 감추면 화면의 숫자가 어느 종목 것인지 아무도 말할 수 없게 된다.
+    function loadTut(pick, done) {
+      state.tut = { sym: pick.sym, name: pick.name, data: null, fallback: false, loading: true };
+      function settle(data, fallback) {
+        state.tut.data = data; state.tut.fallback = fallback; state.tut.loading = false;
+        state.r1 = runTier(data, "basic");
+        state.r2 = runTier(data, "full");
+        state.r3 = null;
+        done();
+      }
+      var s = sample();
+      if (typeof MSApi === "undefined" || !MSApi.loadTicker) { settle(s, true); return; }
+      MSApi.loadTicker(pick.sym, TF).then(function (d) {
+        if (d && d.candle && d.candle.length > 60) settle(d, false);
+        else settle(s, true);
+      })["catch"](function () { settle(s, true); });
+    }
+
+    // ── 1단계: 콜드 오픈 ─────────────────────────────────────────────────────────
     function step1() {
       var w = frag("ob-step");
-      w.appendChild(el("p", "ob-over", Str ? Str.t.obSampleNote : ""));
-      w.appendChild(el("h1", "ob-h", Str ? Str.t.obH1 : ""));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH1));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obGuessAsk));
       var wrap = frag("ob-canvas-wrap");
       var cv = document.createElement("canvas");
       cv.className = "ob-canvas";
       wrap.appendChild(cv);
       w.appendChild(wrap);
-      w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub1 : ""));
+
+      if (!state.guessed) {
+        var row = frag("ob-guess");
+        [["up", MSStr.t.obGuessUp], ["down", MSStr.t.obGuessDown]].forEach(function (g) {
+          var b = document.createElement("button");
+          b.type = "button"; b.className = "btn btn-outline ob-guess-btn";
+          b.textContent = g[1];
+          b.addEventListener("click", function () {
+            var a = guessAnswer();
+            state.guessed = g[0];
+            state.guessRight = a ? ((g[0] === "up") === a.up) : null;
+            draw();
+          });
+          row.appendChild(b);
+        });
+        w.appendChild(row);
+      } else {
+        var a2 = guessAnswer();
+        var head = (state.guessRight ? MSStr.t.obGuessRight : MSStr.t.obGuessWrong);
+        var tail = MSStr.t.obGuessActualA +
+          (a2 && a2.up ? MSStr.t.obGuessActualUp : MSStr.t.obGuessActualDown);
+        w.appendChild(el("p", "ob-reveal" + (state.guessRight ? " is-right" : ""), head + " " + tail));
+        w.appendChild(el("p", "ob-sub", MSStr.t.obGuessWhy));
+      }
+      w.appendChild(el("p", "ob-over", MSStr.t.obSampleNote));
       return w;
+    }
+
+    // 캔들만 그린다(예측선 없음) — 1단계는 "직접 찍어보라"는 화면이고, 엔진의 답을 먼저
+    // 보여주면 찍을 이유가 사라진다. 찍은 뒤에는 가렸던 봉을 열어 실제를 보여준다.
+    function paintGuess(scr) {
+      var cv = scr.querySelector(".ob-canvas");
+      var d = state.guessed ? sample() : sliced();
+      if (!cv || !d || typeof MSChartLayout === "undefined" || typeof MSChartDraw === "undefined") return;
+      var ctx = cv.getContext ? cv.getContext("2d") : null;
+      if (!ctx) return;
+      var wrap = cv.parentNode;
+      var cssW = (wrap && wrap.clientWidth) || cv.clientWidth || 320;
+      var col = MSUi.colTokens();
+      MSUi.fitCanvas(cv, ctx, cssW, CHART_H);
+      var lay = MSChartLayout.chartLayout({
+        candle: d.candle, prediction: null, width: cssW, height: CHART_H,
+        pad: PAD, tailBars: 60, panels: ["price"]
+      });
+      ctx.clearRect(0, 0, cssW, CHART_H);
+      if (typeof MSLayers !== "undefined") MSLayers.resetLabels(cssW, CHART_H);
+      MSChartDraw.drawAxes(ctx, lay, d.candle, col);
+      MSChartDraw.drawCandles(ctx, lay, d.candle, col);
+    }
+
+    // ── 2단계: 투자성향 ──────────────────────────────────────────────────────────
+    function styleDesc(key) {
+      return key === "trend" ? MSStr.t.obStyleTrend
+           : key === "momentum" ? MSStr.t.obStyleMomentum
+           : key === "reversion" ? MSStr.t.obStyleReversion
+           : key === "volatility" ? MSStr.t.obStyleVolatility : "";
     }
 
     function step2() {
       var w = frag("ob-step");
-      w.appendChild(el("h1", "ob-h", Str ? Str.t.obH2 : ""));
-      w.appendChild(frag("ob-comb"));
-      w.appendChild(el("p", "ob-cap", ""));       // 개수는 세어봐야 안다 — paintComb 가 채운다
-      w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub2 : ""));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH2b));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obSub2b));
+      var list = frag("ob-styles");
+      // 목록은 MSIndTiers.PRESETS 가 정본이다 — 여기 이름을 다시 적으면 두 벌이 갈린다.
+      MSIndTiers.PRESETS.forEach(function (p) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "ob-style" + (state.style === p.key ? " is-on" : "");
+        b.appendChild(el("span", "ob-style-name", p.name));
+        b.appendChild(el("span", "ob-style-desc", styleDesc(p.key)));
+        b.addEventListener("click", function () { state.style = p.key; draw(); });
+        list.appendChild(b);
+      });
+      w.appendChild(list);
+      w.appendChild(el("p", "ob-note", MSStr.t.obStyleNote));
       return w;
     }
 
-    // ── 작도. screens/report.js 의 paintChart 가 정본이고 여기는 그 호출 순서를 그대로 따른다 —
-    // 온보딩용 작도를 새로 쓰면 두 벌이 되어 갈린다. 덜어낸 것: 크로스헤어(350ms 홀드)·핀치 줌·
-    // 리사이즈 리스너(정적 한 장이다)·티어 게이팅(1차만)·레전드(1단계는 헤드라인 하나로 말한다).
-    // 남긴 것: DPR 트랜스폼(안 하면 폰에서 흐리다) → chartLayout → 축 → 캔들 → 콘.
-    function paintChart(scr) {
-      var s = sample();
-      var cv = scr.querySelector(".ob-canvas");
-      if (!s || !cv || typeof MSChartLayout === "undefined" || typeof MSChartDraw === "undefined" ||
-          typeof MSZoom === "undefined") return;
-      var a = analysis();
-      if (!a) return;
-      var ctx = cv.getContext ? cv.getContext("2d") : null;
-      if (!ctx) return;
-
-      var wrap = cv.parentNode;
-      var cssW = (wrap && wrap.clientWidth) || cv.clientWidth || 320;
-      var col = MSUi.colTokens();
-      MSUi.fitCanvas(cv, ctx, cssW, CHART_H);   // DPR — 리포트 차트와 한 벌(ui.js)
-
-      var pred = a.out.prediction;
-      var fut = (pred && pred.path) ? pred.path.length : 0;
-      var tail = MSZoom.clamp(MSChartLayout.plotWidth(cssW, PAD), fut, MSZoom.DEFAULT_TAIL);
-      var lay = MSChartLayout.chartLayout({
-        candle: s.candle, prediction: pred,
-        width: cssW, height: CHART_H, pad: PAD, tailBars: tail,
-        panels: ["price"]                 // 서브패널 3단은 온보딩에 할 말이 없다
+    // ── 3단계: 위험 고지 ─────────────────────────────────────────────────────────
+    function step3() {
+      var w = frag("ob-step");
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH5));
+      w.appendChild(el("p", "ob-risk", MSStr.t.obRisk));
+      var lab = document.createElement("label");
+      lab.className = "ob-agree";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = "ob-agree-cb";
+      // 재진입 시 state 에서 다시 칠한다 — 없으면 화면은 꺼져 있는데 동의 기록은 살아 있다.
+      cb.checked = !!state.agreed;
+      cb.addEventListener("change", function () {
+        state.agreed = cb.checked;
+        var fwd = rootEl.querySelector(".ob-next");
+        if (fwd) fwd.disabled = !canAdvance(3, state);
       });
-
-      ctx.clearRect(0, 0, cssW, CHART_H);
-      // 매 프레임 맨 앞 — 이 뒤에 등록되는 라벨만 서로를 본다(report.js frame 과 같은 이유).
-      if (typeof MSLayers !== "undefined") MSLayers.resetLabels(cssW, CHART_H);
-      MSChartDraw.drawAxes(ctx, lay, s.candle, col);
-      // 캔들이 먼저, 예측이 나중 — 끝점 배지가 seam 왼쪽까지 나온다(report.js 와 같은 z-order).
-      MSChartDraw.drawCandles(ctx, lay, s.candle, col);
-      // 온보딩엔 티어가 없다. "basic" 은 1차 예측선만 여는 값이다(chart-draw.js PRED_TIERS).
-      MSChartDraw.drawCone(ctx, lay, pred, col, "basic", { sym: SAMPLE_SEED, tf: TF });
+      lab.appendChild(cb);
+      lab.appendChild(el("span", "ob-agree-txt", MSStr.t.obAgree));
+      w.appendChild(lab);
+      return w;
     }
 
-    function paintComb(scr) {
-      var comb = scr.querySelector(".ob-comb");
-      var cap = scr.querySelector(".ob-cap");
-      if (!comb || typeof MSIndicators === "undefined") return;
-      var a = analysis();
-      if (!a) return;
-      // 시안은 32라고 적었지만 방향을 물을 수 있는 것은 30종이다 — trend·phasefold 는 bias 가 없다.
-      // REASONING 의 "30 with a direction" 과 같은 규율.
-      // readings 가 아니라 biases 다. 같은 노드 루프·같은 유한 bias 필터로 같은 30행을 주는데,
-      // readings 는 화면에 안 쓸 판독 문장 30개를 매 렌더 만들고 버린다(실측 15.6ms vs 9.2ms).
-      // 문장을 안 만들면 ctx 계약(hasVolume)도 따라오지 않는다 — Task 4·5 가 물려받을 표면이 하나 준다.
-      var rows = MSIndicators.biases(ForgeCore, a.graph, a.input);
-      rows.forEach(function (r) {
-        var bar = document.createElement("span");
-        var dir = r.bias > 0.02 ? " up" : r.bias < -0.02 ? " dn" : "";
-        bar.className = "ob-bar" + dir;
-        bar.style.height = Math.max(4, Math.round(Math.abs(r.bias) * 26)) + "px";
-        comb.appendChild(bar);
-      });
-      if (cap) cap.textContent = rows.length + (Str ? Str.t.obCombCap : "");
+    // ── 4단계: 기본분석 체험 ─────────────────────────────────────────────────────
+    function tutHead(n) {
+      var d = frag("ob-tut-head");
+      d.appendChild(el("span", "ob-tut-n", n + MSStr.t.obTutOf + "3"));
+      return d;
     }
 
-    // 3단계에 도달했을 때 처음 hello 가 나간다. 1~2단계에서 이탈하면 계정이 안 생겨
-    // IP당 신규계정 상한도 안 쓴다. 화면이 "N개를 드렸습니다"라고 말할 때 그 N 은 서버가
-    // 실제로 준 값이다 — 클라이언트가 그려놓고 나중에 맞추지 않는다(state.granted 에 그대로 담는다).
-    // isInstalled 를 따로 안 보는 이유: 지갑 조회 자체가 backend 미설치를 "no-backend" 실패로
-    // 얌전히 돌려준다(wallet.js noBackend) — 화면 입장에선 오프라인과 같은 경로라 분기가 하나 준다.
-    //
-    // "쏘는 것"과 "그리는 것"을 분리한다. state.grantStarted 는 네트워크 호출을 한 번으로
-    // 막는 가드일 뿐, 화면까지 한 번만 그려도 된다는 뜻이 아니다 — 뒤로 갔다 다시 3단계로
-    // 오면 step3() 가 매번 새 빈 .ob-grant div 를 만들기 때문에, 기억해 둔 state 로 다시
-    // 칠하지 않으면 성공/실패 결과가 있었다는 사실 자체가 화면에서 사라진다(리뷰 지적).
+    function bandRow(label, band) {
+      var r = frag("ob-band");
+      r.appendChild(el("span", "ob-band-k", label));
+      r.appendChild(el("span", "ob-band-v", num(band && band.mid)));
+      r.appendChild(el("span", "ob-band-w", MSStr.t.obTutWidth + num(band && band.width)));
+      return r;
+    }
+
+    function step4() {
+      var w = frag("ob-step");
+      if (!state.tut) {
+        w.appendChild(el("h1", "ob-h", MSStr.t.obTutIntroH));
+        w.appendChild(el("p", "ob-sub", MSStr.t.obTutIntroSub));
+        var steps = frag("ob-tut-list");
+        [MSStr.t.obTutStep1, MSStr.t.obTutStep2, MSStr.t.obTutStep3]
+          .forEach(function (line, i) {
+            var row = frag("ob-tut-row");
+            row.appendChild(el("span", "ob-tut-num", String(i + 1)));
+            row.appendChild(el("span", "ob-tut-txt", line));
+            steps.appendChild(row);
+          });
+        w.appendChild(steps);
+        w.appendChild(el("p", "ob-pick-h", MSStr.t.obTutPick));
+        var cards = frag("ob-picks");
+        tutPicks().forEach(function (p) {
+          var b = document.createElement("button");
+          b.type = "button"; b.className = "ob-pick";
+          b.appendChild(el("span", "ob-pick-name", p.name));
+          b.appendChild(el("span", "ob-pick-sym", p.sym));
+          b.addEventListener("click", function () {
+            state.picked = [{ sym: p.sym, name: p.name }];
+            loadTut(p, draw);
+            draw();
+          });
+          cards.appendChild(b);
+        });
+        w.appendChild(cards);
+        return w;
+      }
+
+      w.appendChild(tutHead(1));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obTut1H));
+      if (state.tut.loading) { w.appendChild(el("p", "ob-sub", MSStr.t.obTutLoading)); return w; }
+      if (state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obTutFallback));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obTut1Sub));
+      var t1 = tomorrow(state.r1);
+      w.appendChild(bandRow(MSStr.t.obTutTomorrow, t1));
+      return w;
+    }
+
+    // ── 5단계: 심화분석 체험 ─────────────────────────────────────────────────────
+    // 시안의 "절반으로 좁아짐"은 우리 엔진에서 거짓이라, 실제로 파는 것을 판다:
+    // "80% 범위"라고 말할 때 실제로 몇 %를 덮었는가. 두 막대는 그 값이다(라벨 80 이 기준선).
+    function step5() {
+      var w = frag("ob-step");
+      w.appendChild(tutHead(2));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obTut2H));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obTut2Sub));
+
+      var B = (typeof MSBacktest !== "undefined" && MSBacktest.tiers) ? MSBacktest.tiers : null;
+      if (B && B.basic && B.deep) {
+        w.appendChild(el("p", "ob-over", MSStr.t.obTut2Label));
+        var box = frag("ob-cov");
+        [[MSStr.t.obTut2Basic, B.basic.coneCoverage, ""],
+         [MSStr.t.obTut2Full, B.deep.coneCoverage, " is-on"]].forEach(function (row) {
+          var r = frag("ob-cov-row" + row[2]);
+          r.appendChild(el("span", "ob-cov-k", row[0]));
+          var track = frag("ob-cov-track");
+          var fill = frag("ob-cov-fill");
+          // 막대는 라벨 80% 를 가득 참으로 둔다 — 두 막대의 길이 차이가 곧 "얼마나 모자란가"다.
+          fill.style.width = Math.max(0, Math.min(100, (row[1] / 0.80) * 100)) + "%";
+          track.appendChild(fill);
+          r.appendChild(track);
+          r.appendChild(el("span", "ob-cov-v", pct(row[1])));
+          box.appendChild(r);
+        });
+        w.appendChild(box);
+        w.appendChild(el("p", "ob-cov-target", MSStr.t.obTut2Target));
+      }
+      w.appendChild(el("p", "ob-note", MSStr.t.obTut2Note));
+
+      // 이번 종목에서 실제로 폭이 어떻게 됐는지 그대로 보여준다. 넓어졌으면 넓어졌다고 적는다.
+      var t1 = tomorrow(state.r1), t2 = tomorrow(state.r2);
+      var cmp = frag("ob-cmp");
+      cmp.appendChild(bandRow(MSStr.t.obTut2Basic, t1));
+      cmp.appendChild(bandRow(MSStr.t.obTut2Full, t2));
+      w.appendChild(cmp);
+      if (t1 && t2 && t1.width != null && t2.width != null && t2.width > t1.width)
+        w.appendChild(el("p", "ob-note", MSStr.t.obTut2Wider));
+      return w;
+    }
+
+    // ── 6단계: 전문분석 체험 ─────────────────────────────────────────────────────
+    function recomputeCustom() {
+      var base = MSIndTiers.weightsOf(state.style, MSGraph.BASIC);
+      var wts = {};
+      Object.keys(base).forEach(function (k) { wts[k] = base[k]; });
+      wts.trend = state.trendW;                       // 슬라이더가 여는 딱 하나
+      state.r3 = runTier(state.tut && state.tut.data, "custom", wts);
+    }
+
+    function step6() {
+      var w = frag("ob-step");
+      w.appendChild(tutHead(3));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obTut3H));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obTut3Sub));
+      if (!state.r3) recomputeCustom();
+      var t3 = tomorrow(state.r3);
+      var now = frag("ob-now");
+      now.appendChild(el("span", "ob-now-k", MSStr.t.obTut3Now));
+      now.appendChild(el("span", "ob-now-v", num(t3 && t3.mid)));
+      now.appendChild(el("span", "ob-now-w", MSStr.t.obTutWidth + num(t3 && t3.width)));
+      w.appendChild(now);
+
+      var card = frag("ob-slider");
+      card.appendChild(el("span", "ob-slider-name", MSStr.ind("trend")));
+      card.appendChild(el("span", "ob-slider-val", num(state.trendW, 1) + "×"));
+      var input = document.createElement("input");
+      input.type = "range"; input.min = "0.1"; input.max = "3.0"; input.step = "0.1";
+      input.value = String(state.trendW);
+      input.className = "ob-range";
+      input.addEventListener("input", function () {
+        state.trendW = Number(input.value);
+        var v = w.querySelector(".ob-slider-val");
+        if (v) v.textContent = num(state.trendW, 1) + "×";
+        recomputeCustom();
+        var tw = tomorrow(state.r3);
+        var mv = w.querySelector(".ob-now-v"), wv = w.querySelector(".ob-now-w");
+        if (mv) mv.textContent = num(tw && tw.mid);
+        if (wv) wv.textContent = MSStr.t.obTutWidth + num(tw && tw.width);
+      });
+      card.appendChild(input);
+      var ticks = frag("ob-ticks");
+      ["0.1", MSStr.t.obTut3Default, "3.0"].forEach(function (lab) { ticks.appendChild(el("span", "ob-tick", lab)); });
+      card.appendChild(ticks);
+      w.appendChild(card);
+      w.appendChild(el("p", "ob-note", MSStr.t.obTut3Note));
+      return w;
+    }
+
+    // ── 7단계: 완료 · 가격표 · 지급 ──────────────────────────────────────────────
     function grantBox() { return rootEl.querySelector(".ob-grant"); }
 
     function paintGrant() {
       var box = grantBox();
       if (!box) return;
-      if (state.granted !== null) {
-        box.textContent = String(state.granted) + (Str ? Str.t.obGranted : "");
+      box.innerHTML = "";
+      if (state.granted != null) {
+        // 한 덩어리로 쓴다 — 숫자와 문구를 따로 담으면 "무엇이 서버 값인지"를 읽는 쪽에서
+        // 다시 조립해야 하고, 그 조립이 화면과 시험에서 갈린다.
+        box.textContent = String(state.granted) + MSStr.t.obGranted;
       } else if (state.grantFailed) {
-        box.textContent = Str ? Str.t.obGrantOffline : "";
-        box.appendChild(retryBtn());
-      } else {
-        box.textContent = Str ? Str.t.obGranting : "";
-      }
+        // 실패해도 진행은 막지 않는다 — 기본분석은 무료라 앱은 계속 쓸 수 있다. 대신 복구
+        // 수단(재시도)을 그 자리에 둔다. 막다른 골목을 만들지 않는 규칙(blocked.js ②)과 같다.
+        box.textContent = MSStr.t.obGrantOffline;
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "btn btn-outline btn-sm ob-retry";
+        b.textContent = MSStr.t.obRetry;
+        b.addEventListener("click", function () { state.grantStarted = true; fetchGrant(); });
+        box.appendChild(b);
+      } else box.textContent = MSStr.t.obGranting;
     }
-    function retryBtn() {
-      var b = document.createElement("button");
-      b.type = "button"; b.className = "btn btn-ghost ob-retry";
-      b.textContent = Str ? Str.t.obRetry : "";
-      b.addEventListener("click", function () { fetchGrant(); });
-      return b;
-    }
-    // 실제 호출. 자동 발신(draw() 끝)과 재시도 버튼 둘 다 이걸 부른다 — 자동은 한 번,
-    // 재시도는 사용자가 누를 때마다.
+
+    // 지급은 7단계에서 처음 나간다(시안 정본: 값을 겪은 뒤에 지급·가격 공개). 1~6단계에서
+    // 이탈하면 계정이 안 생겨 IP당 신규계정 상한도 안 쓴다. 화면이 "N개"라고 말할 때 그 N 은
+    // **서버가 실제로 준 값**이다 — 클라이언트가 그려놓고 나중에 맞추지 않는다.
     function fetchGrant() {
       state.grantFailed = false;
-      paintGrant();   // "Setting up…" — box 는 항상 grantBox() 로 다시 찾는다(rootEl 기준)
-      if (typeof MSWallet === "undefined") {
-        state.granted = null;
-        state.grantFailed = true;
-        paintGrant();
-        return;
-      }
+      paintGrant();
+      if (typeof MSWallet === "undefined") { state.grantFailed = true; paintGrant(); return; }
       MSWallet.get().then(function (r) {
-        if (r && r.ok && r.state) {
-          state.granted = r.state.balance;
-          state.grantFailed = false;
-        } else {
-          state.granted = null;
-          state.grantFailed = true;
-        }
+        if (r && r.ok && r.state && typeof r.state.balance === "number") state.granted = r.state.balance;
+        else state.grantFailed = true;
         paintGrant();
-      });
+      })["catch"](function () { state.grantFailed = true; paintGrant(); });
     }
 
-    function step3() {
+    function step7() {
       var w = frag("ob-step");
-      w.appendChild(el("h1", "ob-h", Str ? Str.t.obH3 : ""));
-      w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub3 : ""));
-      w.appendChild(el("div", "ob-grant", ""));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obDoneH));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obDoneSub));
+
+      var table = frag("ob-final");
+      table.appendChild(bandRow(MSStr.t.obTut2Basic, tomorrow(state.r1)));
+      table.appendChild(bandRow(MSStr.t.obTut2Full, tomorrow(state.r2)));
+      table.appendChild(bandRow(MSStr.t.xpTitle, tomorrow(state.r3)));
+      w.appendChild(table);
+
+      w.appendChild(frag("ob-grant"));
+
       // 가격표는 지갑 화면과 같은 출처(MSWallet.COSTS)에서 읽는다 — 여기서 다시 적으면
-      // 두 화면이 갈린다(지갑 화면이 정본, screens/wallet.js). 슬롯 행은 없다 — spend("slot")
-      // 호출이 어디에도 없고 store.js addTicker 는 무료·무제한이다(지갑 화면 wallet.js:404
-      // 주석과 같은 이유로 여기서도 뺐다 — 안 하는 과금을 가격표에 적으면 실제로 하는 것처럼 보인다).
+      // 두 화면이 다른 값을 말하게 된다(P2 에서 스캔 가격이 실제로 그렇게 갈렸다).
       var C = (typeof MSWallet !== "undefined") ? MSWallet.COSTS : {};
-      var tbl = frag("ob-costs");
-      [["full", Str ? Str.t.obCostFull : ""], ["scan", Str ? Str.t.obCostScan : ""]].forEach(function (p) {
-        var row = frag("ob-cost-row");
-        row.appendChild(el("span", "ob-cost-name", p[1]));
-        // 0 은 "0 스쿱"이 아니라 "무료"다 — 숫자 0 을 값으로 걸면 가격이 있는데 싼 것처럼
-        // 읽힌다. 지갑 화면의 같은 판단(wallet.js 의 walScan 행)과 한 벌로 움직인다.
-        row.appendChild(el("span", "ob-cost-num", C[p[0]] ? String(C[p[0]]) : (Str ? Str.t.walFree : "")));
-        tbl.appendChild(row);
+      w.appendChild(el("p", "ob-over", MSStr.t.obDoneNow));
+      w.appendChild(el("p", "ob-cost-note", MSStr.t.obDoneFree));
+      var costs = frag("ob-costs");
+      [[MSStr.t.obCostFull, C.full], [MSStr.t.xpTitle, C.custom]].forEach(function (row) {
+        var r = frag("ob-cost-row");
+        r.appendChild(el("span", "ob-cost-k", row[0]));
+        // 0 은 "0 스쿱"이 아니라 "무료"다. 숫자 0 을 값으로 걸면 가격이 있는데 아주 싼 것처럼
+        // 읽히고, 지갑 화면은 이미 무료로 그리므로 두 화면이 같은 값을 다르게 말하게 된다.
+        r.appendChild(el("span", "ob-cost-num", (row[1] === 0) ? MSStr.t.walFree
+                                              : (row[1] != null ? String(row[1]) : "?")));
+        costs.appendChild(r);
       });
-      w.appendChild(tbl);
+      w.appendChild(costs);
+      w.appendChild(el("p", "ob-cost-note", MSStr.t.obDoneEarn));
       return w;
     }
 
-    // 첫 그리기의 프리셋. 이미 워치리스트가 있는 사람(지금까지 쓰던 테스터)이 온보딩을
-    // 처음 만나는 순간 SEED 3종을 프리셋으로 주면, 완료와 함께 자기가 고르지 않은 3종이
-    // 자기 목록에 얹힌다 — 이 단계가 없애려던 바로 그 상태가 되돌아온다. 그래서 목록이
-    // 비어 있지 않으면 그 목록이 프리셋이다. 목록이 있다고 온보딩을 건너뛰지는 않는다 —
-    // 동의 기록은 법적 효력이 있는 자리라 한 번은 받아야 한다.
-    // {sym,name} 으로 돌려준다 — 심볼만 주면 CURATED 밖 종목(예: PLTR 하나뿐인 워치리스트)이
-    // 피커에서 이름 없이 그려진다(ticker-picker.js 의 resolved 시딩이 이 이름을 쓴다).
-    function defaultPreset() {
-      var wl = MSStore.getWatchlist();
-      var src = (wl && wl.length) ? wl : MSStore.SEED;
-      return src.map(function (x) { return { sym: x.sym, name: x.name }; });
-    }
-
-    // 상한은 "처음 시작하는" 사람에게만 건다(obSub4: "Three slots to start"). 기존 워치리스트를
-    // 가진 사람은 그 목록이 잠긴 채 보존되므로(locked) 상한을 걸 자리가 없다 — 걸면 뺄 수도
-    // 없고(잠김) 넣을 수도 없어(상한 도달) 아무것도 못 하는 읽기 전용 화면이 된다. 앱의
-    // 워치리스트 자체에 상한이 없기도 하다(slot 과금은 미구현·범위 밖).
-    function maxFor(lockedSyms) { return (lockedSyms && lockedSyms.length) ? null : 3; }
-
-    // 프리셋은 처음 그릴 때만 쓴다. 뒤로/앞으로를 오가며 다시 그릴 때는 state.picked
-    // (빈 배열이어도)로 칠한다 — 안 그러면 사용자가 프리셋을 전부 해제해도 재진입마다
-    // 되살아난다(3단계 grantBox 와 같은 리뷰 지적).
-    function step4() {
-      var w = frag("ob-step");
-      w.appendChild(el("h1", "ob-h", Str ? Str.t.obH4 : ""));
-      w.appendChild(el("p", "ob-sub", Str ? Str.t.obSub4 : ""));
-      var presetItems = state.pickInited ? state.picked : defaultPreset();
-      // 이미 워치리스트에 있는 종목은 해제할 수 없다. seedTo 는 추가만 하므로 여기서 꺼도
-      // 실제로는 안 빠졌다 — 화면이 뺐다고 말하는데 목록엔 남는 거짓말이었다. 온보딩에서
-      // 목록을 지우는 경로를 여는 대신(실수 한 번에 자기 목록이 날아간다) 해제를 막는다.
-      // 신규 사용자의 SEED 3종은 잠그지 않는다 — 설계서 4단계가 "미리 선택되되 바꿀 수
-      // 있는" 것으로 정의한 자리다. presetItems 가 아니라 워치리스트에서 잰다 — 재진입 시
-      // presetItems 는 state.picked 라, 그걸로 재면 방금 더한 종목까지 잠긴다(위 래치 주석).
-      if (state.lockedSyms == null) {
-        var wl = MSStore.getWatchlist();
-        state.lockedSyms = (wl && wl.length) ? wl.map(function (x) { return x.sym; }) : [];
-      }
-      var picker = MSTickerPicker.create({
-        multi: true, max: maxFor(state.lockedSyms), preset: presetItems, locked: state.lockedSyms,
-        // 심볼이 아니라 {sym,name} 을 담는다 — 이름을 여기서 흘리면 seedTo 가 이름 없이 심는다.
-        onChange: function (sel, items) {
-          state.picked = items;
-          state.pickInited = true;
-          var fwd = rootEl.querySelector(".ob-next");
-          if (fwd) fwd.disabled = !canAdvance(4, state);
-        }
-      });
-      state.picked = picker.selectedItems();
-      state.pickInited = true;
-      w.appendChild(picker.el);
-      return w;
-    }
-
-    function step5() {
-      var w = frag("ob-step");
-      w.appendChild(el("h1", "ob-h", Str ? Str.t.obH5 : ""));
-      w.appendChild(el("p", "ob-risk", Str ? Str.t.obRisk : ""));
-      var lab = document.createElement("label");
-      lab.className = "ob-agree";
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      // 재진입 시 state 에서 다시 칠한다(위 §래치 규칙 (b)). 이 한 줄이 없으면 체크 후
-      // 4단계로 갔다 오면 새 체크박스는 꺼진 채인데 state.agreed 는 살아 있어 완료 버튼만
-      // 열려 있다 — 화면상 동의하지 않은 상태로 동의 기록이 남는다.
-      cb.checked = !!state.agreed;
-      cb.addEventListener("change", function () {
-        state.agreed = cb.checked;
-        var fwd = rootEl.querySelector(".ob-next");
-        if (fwd) fwd.disabled = !canAdvance(5, state);
-      });
-      lab.appendChild(cb);
-      lab.appendChild(el("span", "ob-agree-txt", Str ? Str.t.obAgree : ""));
-      w.appendChild(lab);
-      w.appendChild(el("p", "ob-sub", Str ? Str.t.obFree : ""));
-      return w;
-    }
-
+    // ── 셸 ──────────────────────────────────────────────────────────────────────
     function draw() {
       rootEl.innerHTML = "";
       var scr = frag("ob");
       scr.appendChild(progress(step));
-      if (step === 1) scr.appendChild(step1());
-      else if (step === 2) scr.appendChild(step2());
-      else if (step === 3) scr.appendChild(step3());
-      else if (step === 4) scr.appendChild(step4());
-      else if (step === 5) scr.appendChild(step5());
+      var body = step === 1 ? step1() : step === 2 ? step2() : step === 3 ? step3()
+               : step === 4 ? step4() : step === 5 ? step5() : step === 6 ? step6() : step7();
+      scr.appendChild(body);
 
       var nav = frag("ob-nav");
       if (step > 1) {
         var back = document.createElement("button");
         back.type = "button"; back.className = "btn btn-ghost ob-back";
-        back.textContent = Str ? Str.t.obBack : "";
+        back.textContent = MSStr.t.obBack;
         back.addEventListener("click", function () { step = step - 1; draw(); });
         nav.appendChild(back);
       }
       var fwd = document.createElement("button");
       fwd.type = "button"; fwd.className = "btn btn-primary ob-next";
-      fwd.textContent = (step === STEPS) ? (Str ? Str.t.obFinish : "") : (Str ? Str.t.obNext : "");
+      fwd.textContent = (step === STEPS) ? MSStr.t.obDoneStart : MSStr.t.obNext;
       fwd.disabled = !canAdvance(step, state);
       fwd.addEventListener("click", function () {
         if (step === STEPS) {
           if (state.finished || !canAdvance(STEPS, state)) return;
           state.finished = true;
           fwd.disabled = true;
-          // seedTo/setOnboarded/onDone 중 하나라도 던지면 래치가 켜진 채 멈춘다 — 그러면 버튼은
-          // 영원히 비활성이고 onDone 도 못 불려 앱이 5단계에 갇힌다. 오늘은 store.js write() 가
-          // localStorage 예외를 전부 삼켜 이 경로가 실제로 던질 일이 없지만, 그건 이 가드가 아니라
-          // 다른 파일의 방어력에 기대는 것이다 — 여기 스스로 복구할 수 있어야 한다.
+          // 하나라도 던지면 래치가 켜진 채 멈춰 버튼이 영원히 비활성이 된다 — 스스로 되돌린다.
           var ok = false;
           try {
             seedTo(MSStore, state.picked);
+            if (MSStore.setStyle) MSStore.setStyle(state.style);
             MSStore.setOnboarded(TERMS_VERSION);
             if (o.onDone) o.onDone();
             ok = true;
@@ -396,13 +544,8 @@
       scr.appendChild(nav);
       rootEl.appendChild(scr);
 
-      // 캔버스가 DOM 에 붙은 뒤여야 폭을 잴 수 있다 — 그래서 여기다.
-      if (step === 1) paintChart(scr);
-      if (step === 2) paintComb(scr);
-      // 발신은 한 번뿐이다(재시도는 버튼으로만) — 그리기는 매번이다. 뒤로/앞으로 오가며
-      // 3단계를 다시 그릴 때 이미 결과가 있으면(성공/실패) 그 값으로 다시 칠한다 — 안 그러면
-      // 새로 만들어진 빈 .ob-grant 가 아무 말도 없이 비어 보인다(리뷰 지적).
-      if (step === 3) {
+      if (step === 1) paintGuess(scr);          // 캔버스가 DOM 에 붙은 뒤여야 폭을 잴 수 있다
+      if (step === 7) {
         if (!state.grantStarted) { state.grantStarted = true; fetchGrant(); }
         else paintGrant();
       }
@@ -411,5 +554,6 @@
     draw();
   }
 
-  return { STEPS: STEPS, canAdvance: canAdvance, next: next, seedTo: seedTo, render: render };
+  return { STEPS: STEPS, tutSyms: tutSyms, tutPicks: tutPicks, canAdvance: canAdvance, next: next,
+           seedTo: seedTo, coverGap: coverGap, render: render };
 });
