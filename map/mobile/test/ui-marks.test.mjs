@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { allCss } from "./_css.mjs";
 import assert from "node:assert";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -7,7 +8,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const MSUi = require("../www/ui.js");
 const WATCHLIST = readFileSync(new URL("../www/screens/watchlist.js", import.meta.url), "utf8");
-const CSS = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
+const CSS = allCss();
 const WWW_ROOT = fileURLToPath(new URL("../www/", import.meta.url));
 
 test("헤더 마크가 비어 있지 않다 — 22px 컨테이너만 있고 내용이 없었다", () => {

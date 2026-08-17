@@ -1,0 +1,48 @@
+/* 해제 직후 전환 장면(8b) + 막히는 상태 7종(12c)
+   style.css 분할본 4/8 — **읽는 순서가 곧 캐스케이드다.** index.html 의
+   <link> 순서를 바꾸거나 한 장을 빼면 나중 규칙이 앞 규칙을 덮던 관계가 끊긴다.
+   순서는 이 머리의 `분할본 N/M` 이 정본이고, 관문(style-split.test.mjs)이 그것과
+   index.html 의 <link> 차례를 대조한다 — 사람이 기억하는 순서에 기대지 않는다. */
+/* ===== 해제 직후 전환 장면(시안 8b) ===== */
+.rv-scrim { position:fixed; inset:0; z-index:50; background:var(--bg);
+            display:flex; align-items:center; justify-content:center; }
+.rv-box { width:100%; max-width:340px; padding:0 20px; text-align:center; }
+.rv-head { margin:12px 0 22px; white-space:pre-line;
+           font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+/* 빗 — 칸 하나가 지표 하나다. 기본 티어가 읽던 다섯은 스틸, 열린 나머지는 골드로 켜진다. */
+.rv-comb { display:flex; align-items:flex-end; justify-content:center; gap:2px; height:44px; }
+.rv-tooth { flex:1 1 0; min-width:2px; height:14px; border-radius:99px; background:var(--track); transition:height .2s, background .2s; }
+.rv-tooth.rv-core { background:var(--steel); height:26px; }
+.rv-tooth.on { background:var(--gold); height:38px; }
+.rv-tooth.rv-core.on { background:var(--steel); }
+.rv-count { margin-top:18px; font-size:var(--fs-body); color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.rv-track { height:4px; margin-top:14px; border-radius:99px; background:var(--track); overflow:hidden; }
+.rv-fill { height:100%; background:var(--gold); }
+.rv-skip { margin-top:18px; font-size:var(--fs-sub); color:var(--ink-5); }
+
+/* ===== 막히는 상태 7종(시안 12c) ===== */
+.bl-scrim { position:fixed; inset:0; z-index:45; background:var(--scrim, rgba(0,0,0,.55));
+            display:flex; align-items:flex-end; }
+.bl-sheet { width:100%; background:var(--sheet); border-radius:28px 28px 0 0;
+            border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom); }
+.bl-card { padding:22px 20px 20px; }
+.bl-badge { font-size:var(--fs-overline); font-weight:var(--fw-overline); letter-spacing:var(--ls-overline);
+            color:var(--ink-5); }
+.bl-head { margin:10px 0 0; font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+.bl-body { margin:8px 0 0; font-size:var(--fs-body); color:var(--ink-3); line-height:1.55; }
+.bl-track { height:6px; margin-top:14px; border-radius:99px; background:var(--track); overflow:hidden; }
+.bl-fill { height:100%; background:var(--steel); }
+.bl-actions { display:flex; flex-direction:column; gap:8px; margin-top:18px; }
+.bl-btn { min-height:48px; border-radius:11px; border:1px solid var(--border); background:transparent;
+          color:var(--ink-2); font:inherit; font-size:var(--fs-body); }
+.bl-btn.bl-primary { background:var(--gold); border-color:var(--gold); color:var(--gold-ink);
+                     font-weight:var(--fw-semibold); }
+
+/* 전문분석 조절판(시안 18c) — 심화 블록 위에 얹힌다. */
+.rp-weights { padding:12px 14px; margin-bottom:14px; border:1px solid var(--border); border-radius:12px;
+              background:var(--bg-raised); }
+.rp-weights-cmp { margin-top:8px; font-size:var(--fs-sub); color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.rp-weights-edit { display:block; width:100%; min-height:44px; margin-top:10px; border-radius:10px;
+                   border:1px solid var(--border); background:transparent; color:var(--ink-2);
+                   font:inherit; font-size:var(--fs-sub); }
+

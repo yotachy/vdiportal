@@ -1,0 +1,180 @@
+/* 리포트 3티어(18a·18b·8a 대조·18c 조절판) + 차트 레전드·지평
+   style.css 분할본 3/8 — **읽는 순서가 곧 캐스케이드다.** index.html 의
+   <link> 순서를 바꾸거나 한 장을 빼면 나중 규칙이 앞 규칙을 덮던 관계가 끊긴다.
+   순서는 이 머리의 `분할본 N/M` 이 정본이고, 관문(style-split.test.mjs)이 그것과
+   index.html 의 <link> 차례를 대조한다 — 사람이 기억하는 순서에 기대지 않는다. */
+/* ===== Basic 리포트 ===== */
+.rp-head { display:flex; align-items:center; gap:12px; padding:14px 0 10px; }
+.rp-back { min-height:44px; min-width:44px; display:flex; align-items:center; justify-content:center; background:none; border:0; color:var(--ink-2); padding:0 4px; flex:0 0 auto; }
+.rp-back svg { width:20px; height:20px; }
+.rp-head-sym { flex:0 0 auto; font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); }
+.rp-head-pos { flex:1 1 auto; font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
+
+/* 가격 블록 — 시안 2a 가 화면에서 제일 크게 두는 것. 회사명 오버라인이 머리를 잡는다. */
+.rp-px-wrap { padding:6px 0 18px; border-bottom:1px solid var(--hairline); margin-bottom:20px; }
+.rp-px-wrap .overline { margin-bottom:8px; }
+.rp-px-row { display:flex; align-items:baseline; gap:12px; }
+.rp-px { font-size:var(--fs-display); font-weight:var(--fw-display); letter-spacing:var(--ls-display); line-height:.95; }
+.rp-px-chg { font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink-3); white-space:pre; }
+.rp-px-chg.up { color:var(--bull); }
+.rp-px-chg.dn { color:var(--bear-text); }
+
+.rp-tier-row { display:flex; align-items:center; gap:10px; padding:4px 0 20px; }
+.rp-tier { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:6px; background:var(--steel-soft); color:var(--steel); font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); }
+.rp-tier-desc { font-size:var(--fs-caption); color:var(--ink-4); }
+/* Full 등급 배지 — 삼색 체계상 "엔진이 말한 것"이라 골드다(Basic 은 steel). */
+.rp-tier.is-full { background:var(--gold-soft); color:var(--gold); }
+/* 전문 등급 배지 — 심화와 같은 골드 계열이되 채워서 한 칸 위임을 보인다(시안 18c 헤더). */
+.rp-tier.is-custom { background:var(--gold); color:var(--bg); }
+.rp-evi { display:flex; align-items:center; gap:3px; margin-left:auto; }
+.rp-evi-seg { width:14px; height:4px; border-radius:2px; background:var(--track); }
+.rp-evi-seg.on { background:var(--steel); }
+
+.rp-verdict-wrap { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
+.rp-verdict-word { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline); }
+.rp-verdict.bull { color:var(--bull); }
+.rp-verdict.bear { color:var(--bear-text); }
+.rp-verdict.neutral { color:var(--ink-2); }
+/* 판정 퍼센트 — 방향어와 같은 줄, 시안 2a "Bullish 68%". flex-wrap — .rp-tally 는
+   flex-shrink:0(막대 112px 사수)라 nowrap 이면 좁은 폭에서 그 고정폭이 방향어를 밀어붙여
+   글자 자체가 음절 중간에서 꺾인다("우세"가 "우"/"세"로 갈라짐, 320·360px 실측). wrap 을
+   허용하면 방향어+퍼센트가 한 줄을 지키고 tally 만 아래 줄로 내려간다 — --fs-headline 의
+   clamp() 는 그 한 줄이 실제로 들어맞게 하는 절반, 이 wrap 이 나머지 절반이다. */
+.rp-verdict { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; }
+.rp-conf-pct { font-size:var(--fs-figure); font-weight:var(--fw-figure); letter-spacing:var(--ls-figure); }
+
+/* 적중/오답 — 막대를 그리지 않는다. 두 값이 합해서 100 이라 막대가 더해주는 정보가 없고,
+   이 화면에서 시선을 끌 것은 판정 퍼센트다(시안 2a "골드는 화면당 한 번만"). */
+.rp-hit { font-size:var(--fs-sub); color:var(--ink-3); margin-top:8px; font-variant-numeric:tabular-nums; }
+/* 베이스라인은 적중률과 같은 크기다 — 작게 그리면 "참고"로 읽히는데, 이 행의 요점은
+   위 숫자가 그 아래라는 사실이다(P2 §2 R2). 색만 한 단계 낮춘다. */
+.rp-hit-base { font-size:var(--fs-sub); color:var(--ink-4); margin-top:3px; font-variant-numeric:tabular-nums; }
+.rp-hit-note { font-size:var(--fs-caption); color:var(--ink-5); margin-top:4px; line-height:1.5; }
+.rp-conf { font-size:var(--fs-sub); color:var(--ink-3); margin-top:7px; }
+.rp-verdict-wrap .overline { margin-bottom:8px; }
+
+/* 방향 집계 + 3구간 바(시안 2a). 판정 오른쪽에 붙어 확신 수치의 근거를 한눈에 보여준다. */
+.rp-tally { margin-left:auto; text-align:right; flex:0 0 auto; }
+.rp-tally-txt { font-size:var(--fs-caption); letter-spacing:var(--ls-caption); color:var(--ink-4); white-space:nowrap; }
+.rp-tally-bar { display:flex; gap:2px; width:112px; margin-top:5px; }
+.rp-tally-seg { height:3px; border-radius:99px; }
+.rp-tally-seg.is-up { background:var(--bull); }
+.rp-tally-seg.is-flat { background:var(--neutral); }
+.rp-tally-seg.is-down { background:var(--bear); }
+
+/* 섹션 머리 — 오버라인 왼쪽, 캡션 오른쪽(시안 2a 의 "80% cone" · "5 of 12 shown") */
+
+/* REASONING · 32 NODES(시안 6a) — 이름 92px · 문장 flex · 기여도. AGAINST 가 같은 행 모양을
+   쓰므로 여기가 정본이다. 문장은 muted 로 고정 — 32행을 방향색으로 물들이면 차트 위에서
+   걷어낸 다색 덩어리가 이 자리에 다시 선다.
+   92px 는 실측값(2026-08-13) — 78px 에서 12.5px 행 폰트로 렌더하면 32개 이름 중 3개가
+   두 줄로 접힌다(Awesome oscillator 105px · Market structure 91px · Moving average 87px).
+   92px 는 그중 둘을 없애고(Awesome oscillator 만 남음) 문장 폭은 14px 만 내준다 — 전부
+   없애는 116px 은 412px 화면에서 문장 폭 38px 를 내줘야 해서 더 나쁜 거래다. 시안의 78px
+   로 되돌리지 말 것. */
+.rp-reason { margin-bottom:22px; }
+.rp-reason-row { display:flex; align-items:flex-start; gap:12px;
+                 padding:11px 0 10px; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
+.rp-reason-row:last-child { border-bottom:0; }
+.rp-reason-name { flex:0 0 92px; color:var(--ink-2); }
+.rp-reason-text { flex:1; color:var(--ink-4); line-height:1.55; }
+.rp-reason-bias { flex:0 0 auto; color:var(--ink-5); font-variant-numeric:tabular-nums; }
+.rp-reason-bias.up { color:var(--bull); }
+.rp-reason-bias.dn { color:var(--bear-text); }
+
+/* AGAINST THIS CALL(시안 6a) — 반대 근거는 붉은 테두리 안에 둔다. Full 이 주는 것 중
+   눈에 가장 먼저 들어와야 하는 블록이라 결핍 박스와 달리 색을 가진다. */
+.rp-against { border:1px solid var(--bear-soft); border-radius:11px; padding:14px 14px 6px; margin-bottom:22px; }
+.rp-against .overline { color:var(--bear-text); }
+.rp-against .rp-sec-head { margin-bottom:8px; }
+.rp-against-row { display:flex; align-items:flex-start; gap:12px;
+                  padding:11px 0 10px; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
+.rp-against-row:last-child { border-bottom:0; }
+.rp-against-name { flex:0 0 92px; color:var(--ink-2); }
+.rp-against-text { flex:1; color:var(--ink-4); line-height:1.55; }
+.rp-against-bias { flex:0 0 auto; color:var(--bear-text); font-weight:var(--fw-semibold); font-variant-numeric:tabular-nums; }
+.rp-against-none { margin:0 0 8px; font-size:var(--fs-sub); color:var(--ink-4); }
+
+/* Basic 결핍 박스(시안 6a) — 테두리 안에 "안 되는 것" 4행. 27개 칩 벽의 자리를 대신한다. */
+.rp-missing-box { border:1px solid var(--border); border-radius:11px; padding:14px 14px 6px; margin-bottom:22px; }
+.rp-missing-box .overline { margin-bottom:8px; }
+.rp-missing-row { display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+                  padding:9px 0; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
+.rp-missing-row:last-child { border-bottom:0; }
+.rp-missing-name { color:var(--ink-2); }
+.rp-missing-dash { color:var(--ink-5); }
+.rp-missing-note { margin:0 0 24px; font-size:var(--fs-caption); line-height:1.6; color:var(--ink-5); }
+.rp-sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.rp-sec-note { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; white-space:nowrap; }
+/* 기본분석의 범위 고지(시안 18a). 각주가 아니라 이 티어가 무엇을 답하고 무엇을 안 답하는지의
+   선언이라, 캡션이 아니라 보조 크기로 그린다. */
+/* 직전 기본분석 대조 행(8a) — 지금 값 위에 회색으로. 좌측 세로 라인 금지 규칙에 따라
+   구분은 색과 위치로만 한다. */
+.rp-hz-prev { display:flex; align-items:baseline; gap:8px; padding:8px 0 10px; color:var(--ink-5);
+              font-size:var(--fs-sub); font-variant-numeric:tabular-nums; }
+.rp-hz-prev-k { flex:0 0 auto; }
+.rp-hz-prev-v { flex:1 1 auto; }
+.rp-hz-prev-w { flex:0 0 auto; }
+.rp-hz-note { margin-top:10px; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.5; }
+
+.rp-chart { position:relative; width:100%; margin-bottom:14px; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--bg-raised); }
+/* pan-y: 세로 스크롤은 살리고(Phase 1 의 350ms 홀드 계약) 핀치만 우리 핸들러로 가져온다.
+   user-scalable=no 는 쓰지 않는다 — 페이지 전체의 브라우저 줌을 죽여 접근성이 후퇴한다. */
+.rp-chart canvas { display:block; width:100%; touch-action:pan-y; }
+
+/* 차트 지표 레전드 — 값을 차트 밖으로 뺀 고정 행(캔버스 앞). 칩은 wrap 되어 폭에 맞춰 접힌다.
+   rp-ind-legend 로 이름을 분리한 이유는 아래 .rp-legend(예측선 색상 범례)와 충돌 회피. */
+/* 판독은 행으로 정렬한다 — 예전엔 차트 바로 위에 칩이 wrap 되며 여섯 줄짜리 다색 덩어리가 됐다.
+   시안엔 그런 요소가 없고, 같은 정보를 이름/값 두 칸으로 세운다.
+   .rp-lg 는 이제 **차트 블록 안**에 있다(P2 T7) — SIGNALS 섹션이 이 자리를 들고 있던 탓에
+   그 섹션을 빼자마자 크로스헤어 값 표시가 함께 사라졌다. 차트에 딸린 것을 차트가 갖는다. */
+.rp-ind-legend, .rp-lg { display:block; }
+.rp-lg { padding:0 12px; border-top:1px solid var(--hairline); }
+.rp-lg:empty { display:none; border-top:0; }
+.rp-lg-chip { display:flex; align-items:baseline; justify-content:space-between; gap:14px;
+              min-height:40px; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
+.rp-lg-chip:last-child { border-bottom:0; }
+.rp-lg-k { color:var(--ink-2); font-weight:var(--fw-semibold); flex:0 0 auto; }
+/* Fix 8: MACD/RSI 값의 자릿수가 크로스헤어 드래그 중 매 프레임 바뀐다("0.0" ↔ "-12.3").
+   tabular-nums 는 자릿수 자체가 늘고 주는 것은 못 잡아준다 — min-width 로 칩 폭을 고정해
+   줄바꿈 경계를 넘나드는 레이아웃 점프(캔버스가 손가락 밑에서 움직이는 것처럼 보임)를 막는다. */
+/* 행 정렬로 바뀌면서 min-width 고정을 뗐다 — 값이 오른쪽에 붙어 자릿수가 변해도 줄바꿈 경계를
+   넘나들지 않는다. 칩이 wrap 되던 시절의 레이아웃 점프 방어가 더는 필요 없다. */
+.rp-lg-v { font-variant-numeric:tabular-nums; text-align:right; color:var(--ink-3); }
+.rp-lg-bull  .rp-lg-v { color:var(--bull); }
+.rp-lg-bear  .rp-lg-v { color:var(--bear-text); }
+.rp-lg-muted .rp-lg-v { color:var(--ink-3); }
+
+.rp-legend { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:24px; }
+.rp-legend-item { display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-caption); font-weight:var(--fw-semibold); color:var(--ink-3); }
+.rp-legend-line { width:16px; height:0; border-top:2px solid var(--ink-5); }
+.rp-legend-dashed { border-top-style:dashed; }
+.rp-legend-item.rp-legend-locked { color:var(--ink-5); }
+
+.rp-sec { margin-bottom:24px; }
+.rp-sec-title { display:flex; align-items:baseline; gap:6px; font-size:var(--fs-sub); font-weight:var(--fw-bold); letter-spacing:var(--ls-wide); color:var(--ink-3); text-transform:uppercase; margin-bottom:10px; }
+.rp-sec-count { color:var(--ink-5); font-weight:var(--fw-semibold); text-transform:none; letter-spacing:var(--ls-flat); }
+
+.rp-count-row { display:flex; justify-content:space-between; align-items:baseline; gap:14px; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
+.rp-count-name { color:var(--ink-2); font-weight:var(--fw-semibold); flex:0 0 auto; }
+.rp-count-read { color:var(--ink-3); text-align:right; }
+
+.rp-chips { display:flex; flex-wrap:wrap; gap:7px; }
+.rp-chip { display:inline-flex; align-items:center; height:26px; padding:0 10px; border-radius:99px; border:1px solid var(--border); color:var(--ink-5); font-size:var(--fs-caption); font-weight:var(--fw-semibold); }
+
+.rp-tf-row { display:flex; align-items:center; justify-content:space-between; height:44px; border-bottom:1px solid var(--hairline); font-size:var(--fs-sub); }
+.rp-tf-name { color:var(--ink-2); font-weight:var(--fw-semibold); }
+.rp-tf-val { color:var(--ink-3); font-variant-numeric:tabular-nums; }
+/* 잠긴 타임프레임 행 — 공용 자물쇠(MSUi.lockIcon, 14×14) + 라벨. gap 이 둘 사이 간격을
+   준다 — 예전 lockSvg() 는 svg 자체에 margin-right 인라인 스타일을 박아 뒀었다(그 아이콘을
+   쓰던 곳에서만 통하던 값) — 공용 아이콘은 그런 자기 스타일을 갖지 않으므로 부모가 gap 으로 준다. */
+.rp-lock { display:inline-flex; align-items:center; gap:4px; color:var(--ink-5); font-size:var(--fs-caption); }
+.rp-lock-ic { display:flex; flex:0 0 auto; }
+
+/* 18a 의 의도된 빈 공간. 화면 아래가 비는 것이 설계다 — "여기까지가 무료"를 스크롤 부재로
+   전달한다. 2단(넓은 화면)에선 패널이 이미 짧아 늘릴 것이 없으므로 단일 모드에만 건다. */
+body:not(.ms-dual) .rp-scr { display:flex; flex-direction:column; min-height:calc(100dvh - var(--safe-top)); }
+.rp-spacer { flex:1 1 auto; min-height:12px; }
+/* 해제 카드 — 버튼 하나가 아니라 "무엇이 빠져 있는지"를 먼저 말하는 카드다. */
+.rp-unlock { margin-top:8px; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--sheet); }
+.rp-unlock-line { margin:0 0 12px; white-space:pre-line; font-size:var(--fs-body); color:var(--ink-2); line-height:1.5; }

@@ -4,6 +4,7 @@
 // 거는 것"이다. 전자는 custom-weights.test.mjs 가 엔진까지 실측으로 잰다. 여기서는 화면 쪽
 // 계약을 본다.
 import { test } from "node:test";
+import { allCss } from "./_css.mjs";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -55,7 +56,7 @@ test("슬라이더는 이름 아래 줄이다 — 한 줄이면 트랙이 150px 
   assert.match(XP, /row\.appendChild\(sl\);/, "슬라이더를 행에 안 붙인다");
   assert.ok(XP.indexOf("line1.appendChild(sl)") < 0,
     "슬라이더를 이름 줄(line1)에 붙인다 — 트랙이 이름·값과 폭을 나눠 0.1 단위가 안 잡힌다");
-  const CSS = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
+  const CSS = allCss();
   assert.match(CSS, /\.xp-slider \{[^}]*display:block;[^}]*width:100%/,
     "슬라이더가 블록·전폭이 아니다 — 이름 옆에 끼면 트랙이 짧아진다");
 });

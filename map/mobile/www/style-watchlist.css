@@ -1,0 +1,81 @@
+/* 워치리스트(시안 14a)
+   style.css 분할본 2/8 — **읽는 순서가 곧 캐스케이드다.** index.html 의
+   <link> 순서를 바꾸거나 한 장을 빼면 나중 규칙이 앞 규칙을 덮던 관계가 끊긴다.
+   순서는 이 머리의 `분할본 N/M` 이 정본이고, 관문(style-split.test.mjs)이 그것과
+   index.html 의 <link> 차례를 대조한다 — 사람이 기억하는 순서에 기대지 않는다. */
+/* ===== 워치리스트 — 시안 14a 의 치수를 현 토큰으로 ===== */
+.wl-head { display:flex; align-items:center; gap:10px; padding:12px 0 10px; border-bottom:1px solid var(--border); }
+.wl-brand-mark { display:flex; color:var(--gold); flex:0 0 22px; }
+.wl-brand { flex:1 1 auto; font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); }
+.wl-brand-gold { color:var(--gold); }             /* 목업 14a — "Money" + 골드 "Scoop" */
+
+/* 검색창 + 그룹 칩을 묶어 상단 고정한다. flex column 은 sticky 컨테이너를 새 블록 포맷
+   컨텍스트로 만들어 자식(.wl-search)의 margin-top 이 부모 밖으로 새는 마진 병합을 막는다 —
+   안 막으면 배경이 스크롤되는 행을 가리지 못하고 틈이 보인다.
+   배경(--bg)은 필수 — 없으면 뒤로 스크롤되는 행이 비쳐 보인다. 2단에서는 스크롤 컨테이너가 .pane 이라
+   그 안에서 고정된다(추가 배선 불필요, sticky 는 가장 가까운 스크롤 조상을 자동으로 찾는다).
+   시안 14a 는 4건뿐인 아침 목록이라 검색·칩을 그리지 않지만, 종목이 늘면 wlNoMatch 로
+   이어지는 필터가 여전히 있어야 해서(범위 밖 상태 보존) 남겨두고 톤만 맞춘다. */
+.wl-toolbar { position:sticky; top:0; z-index:2; background:var(--bg); display:flex; flex-direction:column; }
+
+.wl-search { display:flex; align-items:center; gap:8px; height:38px; padding:0 12px; margin-top:10px;
+             background:var(--sheet); border:1px solid var(--border); border-radius:9px; }
+.wl-search-ico { display:flex; color:var(--ink-5); flex:0 0 15px; }
+.wl-search-input { flex:1 1 auto; min-width:0; background:none; border:0; color:var(--ink); font:inherit; font-size:var(--fs-sub); outline:none; }
+.wl-search-input::placeholder { color:var(--ink-5); }
+.wl-search-input::-webkit-search-cancel-button { -webkit-appearance:none; }
+
+.wl-chips { display:flex; flex-wrap:wrap; gap:6px; padding:10px 0 2px; }
+.wl-chip { padding:6px 11px; border-radius:99px; background:var(--sheet); border:1px solid var(--border);
+           color:var(--steel); font:inherit; font-size:var(--fs-caption); }
+.wl-chip.on { background:var(--gold); border-color:var(--gold); color:var(--gold-ink); font-weight:var(--fw-bold); }
+
+/* "오늘" 섹션 헤더 — 시안 14a. 결과 카드(어제 본 예측, P3)는 이 섹션 위에 들어갈 자리지만
+   지금은 이 섹션이 화면 최상단 콘텐츠다. */
+.wl-sec { display:flex; align-items:center; justify-content:space-between; padding:14px 0 10px; }
+.wl-sec-title { font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); }
+/* 스캔 pill — 최소 탭 44px(시안 실측 32px 보다 여유를 둔다, 접근성 규정이 우선). */
+.wl-scan { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 13px; border:0;
+           border-radius:99px; background:var(--track); color:var(--ink-2); font:inherit; font-size:var(--fs-sub); font-weight:var(--fw-semibold); }
+.wl-scan-ico { display:flex; }
+.wl-scan[disabled] { opacity:.6; }
+
+/* 목록 좌우 인셋 — 시안 14a 는 20px, 리포트·지갑과 동일(2026-08-16 수정: 예전 `margin:0 -6px`
+   가 .scr 의 20px 중 6px 를 상쇄해 실제 인셋이 14px 로 새 있었다 — 재스킨 전부터 있던 결함이라
+   눈에 안 띄었을 뿐, 이 화면만 다른 폭이었다. .wl-add 등 형제 요소는 애초에 이 상쇄를 안 받아
+   20px 그대로였으니 이 줄을 지우는 쪽이 화면 전체와 맞는다). */
+/* 구분선은 border-top 이다(시안 14a) — 마지막 행 아래로 선이 내려가 리스트가 닫혀 보이는 것을 막는다. */
+.wl-row { display:flex; align-items:center; gap:12px; height:64px; border-top:1px solid var(--hairline); }
+/* 읽음 상태 점 — 방향(bull/bear)이 아니라 "이 판정을 봤는가"를 그린다(시안 14a). 목록은
+   판정 방향을 더 이상 흘리지 않는다 — 확신 배지를 뺀 것과 같은 결정. 스캔 결과가 아예 없으면
+   (rec 없음) 클래스가 안 붙어 채움도 링도 없다. "오래됨"(3번째 상태)은 아직 없다 — store.js
+   viewedScanKey 주석 참고. */
+.wl-dot { width:8px; height:8px; border-radius:99px; flex:0 0 8px; background:none; }
+.wl-dot.unread { background:var(--action); }              /* 새 판정 — 바이올렛 채움 */
+.wl-dot.read { background:none; border:1.5px solid var(--ink-5); }  /* 읽음 — 빈 링 */
+.wl-row.is-sel .wl-dot { box-shadow:0 0 0 3px var(--track); }
+.wl-id { flex:1 1 auto; min-width:0; }
+.wl-title { font-size:var(--fs-body); font-weight:var(--fw-bold); letter-spacing:var(--ls-slight); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wl-meta { font-size:var(--fs-caption); color:var(--ink-5); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wl-px { flex:0 0 auto; text-align:right; }
+.wl-price { font-size:var(--fs-body); font-weight:var(--fw-semibold); }
+.wl-chg { font-size:var(--fs-caption); margin-top:4px; }
+.wl-chg.up { color:var(--bull); } .wl-chg.dn { color:var(--bear-text); }
+.wl-asof { font-size:var(--fs-caption); color:var(--ink-5); }
+/* 목록 마지막 행의 하단 헤어라인과 이 버튼 테두리가 맞닿아 한 덩어리로 읽힌다.
+   2단 목록 칸(255px)처럼 좁고 짧은 열에서 특히 두드러진다. */
+/* 시안 14a 의 Add 는 하단 바에 전폭 48px 골드 아웃라인이다 — 작은 좌측 정렬 고스트 버튼이 아니다.
+   목록 마지막 행의 헤어라인과 맞닿지 않도록 자기 위에 경계를 갖는다. */
+.wl-add { display:flex; align-items:center; justify-content:center; width:100%;
+          margin-top:0; padding-top:12px; height:auto; border:0; border-radius:0; background:none;
+          border-top:1px solid var(--border); }
+.wl-add-inner { display:flex; align-items:center; justify-content:center; width:100%; height:48px;
+                border:1px solid var(--border-strong); border-radius:11px;
+                color:var(--gold); font-size:var(--fs-body); font-weight:var(--fw-bold); }
+
+.btn { min-height:44px; border:0; border-radius:11px; font:inherit; font-weight:var(--fw-semibold); padding:0 18px; }
+.btn-primary { background:var(--gold); color:var(--gold-ink); }
+.btn-ghost { background:transparent; color:var(--ink-2); border:1px solid var(--border-strong); }
+.row-tap { display:flex; width:100%; background:none; border:0; color:inherit; font:inherit; text-align:left; padding:0; }
+.empty { padding:40px 0; text-align:center; color:var(--ink-4); font-size:var(--fs-sub); line-height:1.7; }
+

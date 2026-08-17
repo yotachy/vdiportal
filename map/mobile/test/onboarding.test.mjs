@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { allCss } from "./_css.mjs";
 import assert from "node:assert";
 import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -14,7 +15,7 @@ const RM = require("../www/report-model.js");
 const CL = require("../www/chart-layout.js");
 const APP = readFileSync(new URL("../www/app.js", import.meta.url), "utf8");
 const HTML = readFileSync(new URL("../www/index.html", import.meta.url), "utf8");
-const CSS = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
+const CSS = allCss();
 const OB = readFileSync(new URL("../www/screens/onboarding.js", import.meta.url), "utf8");
 const REPORT = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
 

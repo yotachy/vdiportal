@@ -1,0 +1,101 @@
+/* 온보딩 + 종목 고르기(12a)
+   style.css 분할본 8/8 — **읽는 순서가 곧 캐스케이드다.** index.html 의
+   <link> 순서를 바꾸거나 한 장을 빼면 나중 규칙이 앞 규칙을 덮던 관계가 끊긴다.
+   순서는 이 머리의 `분할본 N/M` 이 정본이고, 관문(style-split.test.mjs)이 그것과
+   index.html 의 <link> 차례를 대조한다 — 사람이 기억하는 순서에 기대지 않는다. */
+/* ===== 온보딩 (screens/onboarding.js) =====
+   셸 밖에서 도는 화면이라 .scr 의 여백을 쓰지 않고 자기 것을 갖는다.
+   선택·활성 표시는 배경·글자색·아웃라인으로만 한다 — 항목 좌측 세로 컬러 라인 금지(프로젝트 규율). */
+.ob { display:flex; flex-direction:column; min-height:100vh; min-height:100dvh;
+  padding:calc(14px + var(--safe-top)) 20px 20px; }   /* 온보딩 — 셸 밖에서 최상단 */
+
+/* 진행 막대 — 5칸. 숫자를 쓰지 않는다(5단계는 세어보지 않아도 한눈에 들어온다). */
+.ob-prog { display:flex; gap:5px; flex:0 0 auto; }
+.ob-seg { flex:1 1 0; height:3px; border-radius:99px; background:var(--track); }
+.ob-seg.is-on { background:var(--gold); }
+
+/* 세로로 가운데 — 폰이 길면(915px) 차트가 위에 붙고 아래가 통째로 비어 보인다. */
+.ob-step { flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; padding:26px 0; }
+/* 오버라인 — "예시 시계"라고 먼저 말한다. 실종목으로 오해하면 첫 화면이 거짓말이 된다. */
+.ob-over { margin:0 0 8px; font-size:var(--fs-overline); font-weight:var(--fw-overline); letter-spacing:var(--ls-overline);
+           text-transform:uppercase; color:var(--ink-5); }
+.ob-h { margin:0; font-size:var(--fs-title); font-weight:var(--fw-title); line-height:1.32; letter-spacing:var(--ls-title); color:var(--ink); }
+.ob-sub { margin:16px 0 0; font-size:var(--fs-sub); line-height:1.65; color:var(--ink-3); }
+
+/* 캔버스 폭은 래퍼가 정한다 — paintChart 가 clientWidth 를 잰다(캔버스 자신은 부모 폭을 모른다). */
+.ob-canvas-wrap { margin-top:18px; }
+.ob-canvas { display:block; width:100%; }
+
+/* 지표 빗 — 30개 막대. 가운데 기준선 없이 아래 정렬이다(막대는 세기이고 색이 방향이다). */
+.ob-comb { display:flex; align-items:flex-end; gap:3px; height:30px; margin-top:22px; }
+.ob-bar { flex:1 1 0; min-width:2px; border-radius:1.5px; background:var(--neutral); }
+.ob-bar.up { background:var(--bull); }
+.ob-bar.dn { background:var(--bear); }
+.ob-cap { margin:10px 0 0; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; color:var(--ink-5); }
+
+/* 지급 상태 한 줄 — "Setting up…" → "5 Scoops to start" 또는 오프라인 안내 + 재시도.
+   숫자는 항상 서버가 돌려준 값이다(state.granted) — 여기서 다시 계산하지 않는다. */
+.ob-grant { margin-top:20px; font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink-2);
+            font-variant-numeric:tabular-nums; }
+.ob-retry { display:block; margin-top:10px; min-height:34px; padding:0 14px; font-size:var(--fs-sub); }
+
+/* 가격표 — 지갑 화면과 같은 출처(MSWallet.COSTS)를 읽는다. 선택 강조가 없는 정적 목록이라
+   좌측 라인 규율과 무관하지만 명시적으로 border-left 를 안 쓴다. */
+.ob-costs { margin-top:18px; border-top:1px solid var(--border); }
+.ob-cost-row { display:flex; align-items:center; justify-content:space-between;
+               padding:11px 0; border-bottom:1px solid var(--border); }
+.ob-cost-name { font-size:var(--fs-sub); color:var(--ink-3); }
+.ob-cost-num { font-size:var(--fs-sub); font-weight:var(--fw-bold); font-variant-numeric:tabular-nums; color:var(--ink); }
+
+/* 5단계 — 위험 고지 + 약관 체크박스. 강조는 배경·아웃라인으로만(좌측 라인 금지). */
+.ob-risk { margin:16px 0 0; font-size:var(--fs-sub); line-height:1.65; color:var(--ink-3); }
+.ob-agree { display:flex; align-items:flex-start; gap:10px; margin-top:22px; padding:14px;
+            border:1px solid var(--border); border-radius:10px; background:var(--sheet); cursor:pointer; }
+.ob-agree input[type="checkbox"] { flex:0 0 auto; width:18px; height:18px; margin:1px 0 0; accent-color:var(--gold); }
+.ob-agree-txt { font-size:var(--fs-sub); line-height:1.5; color:var(--ink-2); }
+
+/* 버튼 줄은 화면 바닥에 붙는다 — 단계마다 같은 자리에 있어야 연타가 된다. */
+.ob-nav { display:flex; gap:10px; flex:0 0 auto; padding-top:24px; }
+.ob-nav .btn { flex:1 1 0; }
+.ob-nav .ob-back { flex:0 0 96px; }
+.ob-next[disabled] { opacity:.45; }
+
+/* ===== 종목 고르기 (ticker-picker.js, 시안 12a) =====
+   온보딩 4단계(다중)와 워치리스트 ＋Add(단일)가 같은 그리드·검색 마크업을 쓴다. 제목·
+   "많이 보는 종목" 라벨·자물쇠 설명문·확인 버튼은 단일 모드(＋Add) 전용 chrome 이다
+   (온보딩은 자기 제목을 이미 갖고 있다 — ticker-picker.js 의 chrome 분기 참고).
+   선택 표시는 배경 + 골드 테두리다 — 좌측 세로 라인 금지. */
+.tp { margin-top:2px; }
+.tp-title { margin:0 0 6px; font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
+.tp-curated-label { margin:18px 0 10px; font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); color:var(--ink-5); }
+
+/* 칩 그리드 — 시안 12a: 검색창이 아니라 이 칩들이 먼저 온다(초심자는 티커를 모른다).
+   한 줄 pill, 한 겹 텍스트(심볼을 따로 안 찍는다) — 잠긴 칩만 공용 자물쇠가 이름 앞에 붙는다. */
+.tp-grid { display:flex; flex-wrap:wrap; gap:7px; }
+.tp-chip { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:11px 15px;
+           border:0; border-radius:13px; background:var(--track); color:var(--ink-2); font:inherit;
+           font-size:var(--fs-sub); font-weight:var(--fw-semibold); }
+.tp-chip.is-on { background:var(--gold-soft); color:var(--gold); }
+/* 잠긴 칩 = 이미 워치리스트에 있는 종목. 누를 수 없음을 채도로 알린다(테두리·마커 추가 없음,
+   좌측 세로 라인 금지 규칙). */
+.tp-chip.is-locked { cursor:default; background:var(--hairline); color:var(--ink-5); }
+.tp-chip-lock { display:flex; flex:0 0 auto; }
+.tp-chip-label { white-space:nowrap; }
+
+/* 직접 입력 — 큐레이션에 없는 종목. 확인은 loadTicker 가 한다(검색 엔드포인트가 없다). */
+.tp-free { display:flex; gap:8px; margin-top:18px; }
+.tp-input { flex:1 1 auto; min-width:0; height:44px; padding:0 12px;
+            background:var(--sheet); border:1px solid var(--border); border-radius:9px;
+            color:var(--ink); font:inherit; font-size:var(--fs-sub); outline:none; }
+.tp-input::placeholder { color:var(--ink-5); }
+.tp-input:focus { border-color:var(--border-strong); }
+.tp-add { flex:0 0 auto; min-height:44px; padding:0 16px; border:1px solid var(--border-strong);
+          border-radius:9px; background:transparent; color:var(--ink-2); font-size:var(--fs-sub); }
+/* 안내 한 줄 — 확인 중·못 찾음·오타 제안·상한·잠금 안내가 전부 이 자리를 쓴다. 비면 자리를 비운다. */
+.tp-msg { margin:8px 0 0; min-height:15px; font-size:var(--fs-caption); line-height:1.4; color:var(--ink-4); }
+/* 자물쇠 설명문(시안 12a) — 담은 종목 수를 알린다. 몇 개를 더 담을 수 있는지는 말하지 않는다
+   (슬롯 상한·과금이 실제로 구현돼 있지 않다 — 코디네이터 판정 2026-08-16). */
+.tp-lock-note { margin:16px 0 0; padding:13px 15px; border-radius:14px; background:var(--hairline);
+                font-size:var(--fs-caption); line-height:1.55; color:var(--ink-5); }
+.tp-confirm { width:100%; margin-top:16px; }
+.tp-confirm[disabled] { opacity:.5; }

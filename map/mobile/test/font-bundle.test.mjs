@@ -1,9 +1,10 @@
 import { test } from "node:test";
+import { allCss } from "./_css.mjs";
 import assert from "node:assert";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const CSS = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
+const CSS = allCss();
 const WWW = fileURLToPath(new URL("../www/", import.meta.url));
 
 // 폰트는 없어도 화면이 그려진다 — 시스템 폰트로 조용히 폴백하므로 사람 눈으로는 안 잡힌다.

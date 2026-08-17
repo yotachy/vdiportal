@@ -1,7 +1,8 @@
 import { test } from "node:test";
+import { allCss } from "./_css.mjs";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
-const RAW = readFileSync(new URL("../www/style.css", import.meta.url), "utf8");
+const RAW = allCss();
 // 주석을 **먼저** 비운다(개행은 보존 — 줄 번호가 원본과 어긋나면 안 된다).
 // 안 그러면 주석 안의 중괄호 한 짝이 아래 :root 블록 탐색을 그 자리에서 끝내버린다.
 // 실제로 이 라운드에 그 일이 났다: 척도 토큰을 설명하는 주석에 `--fw-{역할}` 이라고 적었더니
