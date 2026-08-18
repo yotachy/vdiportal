@@ -41,3 +41,6 @@ mobile/android/app/build/
 mobile/android/.gradle/
 mobile/android/local.properties
 mobile/android/app/src/main/assets/public/
+
+# 브라우저 관문 — 자체서명 인증서·공유 라이브러리 캐시(생성물, 재생성 가능)
+mobile/tools/.gate/

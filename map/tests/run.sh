@@ -11,6 +11,10 @@
 #   ./tests/run.sh concurrency  지갑 동시성 회귀(비밀키 생성·IP 상한·mkdir) — 'all'엔 안 낌,
 #                                느려서(수 초~수십 초) 배리어 동기화 OS 프로세스 12-way 를 씀.
 #                                wallet-lib.php · wallet-api.php 를 고친 뒤엔 배포 전 필수.
+#   ./tests/run.sh browser      브라우저 관문(실제 크로미움으로 화면 6개를 연다) — 'all'엔 안 낌,
+#                                크로미움 없는 환경에선 통째로 건너뛰고, 최초 1회는 apt-get
+#                                download 로 공유 라이브러리를 받아 느리다. P0 이후 모든
+#                                태스크의 완료 조건(wallet concurrency 와 같은 취급).
 #
 # 종료코드: 하나라도 실패하면 1.
 set -uo pipefail
@@ -90,6 +94,26 @@ if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "mobile" ] || [ "$SCOPE" = "engine" ]; t
     run_suite "moneyscoop-mobile" "$ROOT/mobile" node --test test/*.test.mjs
   else
     printf '── %-22s 건너뜀 (mobile/ 없음)\n' "moneyscoop-mobile"
+  fi
+fi
+
+# 브라우저 관문(gate-browser.mjs) — 노드 테스트가 원리적으로 못 보는 것을 실제 크로미움으로
+# 본다(브랜치 mobile-rebuild-p0 문서 참고). 'all'에는 안 낀다 — 크로미움 없는 환경에서 전량이
+# 통째로 죽으면 안 되고, 매 실행 최초 1회는 apt-get download 로 공유 라이브러리를 받아 느리다.
+# run_suite 를 쓰지 않는다 — 그건 node --test 의 'ℹ pass N'/'ℹ fail N' 형식을 파싱하는데
+# gate-browser.mjs 는 자기 라우트별 ✓/✗ 를 찍지 그 형식이 아니라, 그대로 물리면 항상
+# "pass 0"으로 오판돼 성공도 실패로 보고된다. 대신 종료코드로만 판정한다.
+if [ "$SCOPE" = "browser" ]; then
+  if [ -x "$HOME/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome" ]; then
+    printf '── %-22s\n' "browser-gate"
+    if (cd "$ROOT/mobile" && node tools/gate-browser.mjs); then
+      TOTAL=$((TOTAL + 1))
+    else
+      FAILED+=("browser-gate")
+    fi
+  else
+    printf '── %-22s 건너뜀 (크로미움 없음)\n' "browser-gate"
+    SKIPPED+=("browser-gate")
   fi
 fi
 
