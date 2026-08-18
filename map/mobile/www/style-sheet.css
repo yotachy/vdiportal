@@ -3,22 +3,18 @@
    <link> 순서를 바꾸거나 한 장을 빼면 나중 규칙이 앞 규칙을 덮던 관계가 끊긴다.
    순서는 이 머리의 `분할본 N/M` 이 정본이고, 관문(style-split.test.mjs)이 그것과
    index.html 의 <link> 차례를 대조한다 — 사람이 기억하는 순서에 기대지 않는다. */
-/* ===== 바텀시트 공통 골격(시안 12a·6b — 두 시트가 이 셋을 함께 쓴다: tier-sheet.js,
-   screens/watchlist.js openAddSheet) ===== */
-.sheet-scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; z-index:20; }
-/* 상단 라운드 28px(시안 고정값) + 드래그 손잡이. 두 시트 모두 같은 손잡이를 쓰므로 .sheet
-   자신이 ::before 로 그린다 — 그려야 할 곳마다 다시 그리면 한쪽만 잊기 쉽다. */
-.sheet { position:relative; width:100%; max-height:80vh; overflow-y:auto; background:var(--sheet);
-         border-top:1px solid var(--hairline-2); border-radius:28px 28px 0 0;
-         padding:30px 20px calc(22px + env(safe-area-inset-bottom)); }
-.sheet::before { content:""; position:absolute; top:12px; left:50%; transform:translateX(-50%);
-                  width:38px; height:4px; border-radius:99px; background:var(--border-strong); }
+/* 옛 바텀시트 골격(.sheet-scrim/.sheet/.sheet::before, 시안 12a)은 P1a Task 6 에서 지웠다.
+   tier-sheet.js(6b)가 Task 5 에서 먼저 MSSheet(sheet.js, 아래 §"공용 하단 시트")로 옮겼고,
+   마지막 직접 소비자였던 screens/watchlist.js 의 openAddSheet(＋Add)가 이 라운드에 뒤따라
+   옮기면서 이 골격을 쓰는 곳이 하나도 안 남았다(확인: `grep -rn '"sheet-scrim"\|"sheet"'
+   www/screens/*.js www/*.js` — 0건. blocked.js·expert.js 는 처음부터 자기 이름(bl-sheet·
+   xp-sheet)을 썼다). `.sheet-subtitle`·`.sheet-tiers`·`.sheet-tier*` 등 아래 규칙들은
+   지우지 않았다 — tier-sheet.js 가 지금도 그 클래스들을 그대로 그린다. */
 
-/* 시트 머리 — 큰 제목 + 부제 두 줄(시안 12a·6b 공통 패턴). 잔량 필은 더 이상 여기 없다 —
-   심화분석 행 자체가 값을 보여주고, 잔량 대조는 costLine("쓰면 12 → 9")의 몫이다. */
-.sheet-head { margin-bottom:20px; }
-.sheet-title { margin:0; font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); }
-.sheet-subtitle { margin:6px 0 0; font-size:var(--fs-sub); color:var(--ink-5); }
+/* 시트 부제(시안 6b) — tier-sheet.js 가 .ms-sheet-body 안에 그린다. 제목 자체는 이제
+   MSSheet 의 .ms-sheet-title 몫이라 여기 남는 건 부제 한 줄뿐이다(예전엔 .sheet-head 가
+   제목+부제를 함께 묶고 아래 여백 20px 를 줬는데, 그 역할을 이 규칙 하나가 이어받는다). */
+.sheet-subtitle { margin:6px 0 20px; font-size:var(--fs-sub); color:var(--ink-5); }
 
 /* 단계 카드 3장(시안 6b) — 목록형 대신 각자 배경을 가진 카드다. 선택·강조는 배경·테두리·
    글자색으로만 한다(좌측 세로 라인 금지, 프로젝트 전역 규칙). */
@@ -34,8 +30,10 @@
 /* 심화(gold) — 지금 살 수 있는 단 하나, 골드 테두리로 눈에 띈다. */
 .sheet-tier.tier-full { background:var(--gold-soft); border:1.5px solid var(--gold); padding:14.5px 16.5px; }
 .sheet-tier.tier-full .sheet-tier-name-txt { font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); color:var(--ink); }
-/* 전문(platinum) — 이번 라운드는 잠금만(P2 가 연다), 자물쇠+"곧 지원 예정"으로 끝난다. */
+/* 전문(platinum). 심화·전문 모두 report-blocks.js 가 선언한 블록을 못 그리는 동안엔
+   잠긴다(.is-locked, 리뷰 판정 2026-08-18) — 자물쇠+"곧 지원 예정"으로 끝난다. */
 .sheet-tier.tier-custom .sheet-tier-name-txt { color:var(--platinum); }
+.sheet-tier[disabled] { opacity:.6; cursor:default; }
 .sheet-pop { padding:2px 8px; border-radius:99px; background:var(--gold); color:var(--gold-ink); font-size:var(--fs-caption); font-weight:var(--fw-heavy); }
 .sheet-tier-done { flex:0 0 auto; font-size:var(--fs-sub); font-weight:var(--fw-bold); color:var(--steel); }
 .sheet-tier-price { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:2px; }
@@ -53,6 +51,9 @@
 
 .sheet-run { width:100%; margin-top:16px; background:var(--action); color:var(--gold-ink); }
 .sheet-run[disabled] { opacity:.5; }
+/* [리뷰 C1] 둘 다 잠겼을 때(picked===null) Run 이 비활성인 채로 끝나면 백드롭 닫기 말고
+   할 게 없다 — 워치리스트로 돌려보내는 다음 행동 버튼. */
+.sheet-back-list { width:100%; margin-top:10px; }
 
 /* ===== 2단 (폴드 펼침) =====
    미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,
@@ -84,9 +85,10 @@ body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
 
 /* ===== 공용 하단 시트(sheet.js, Task 5) =====
    단계 선택(6b)·종목 추가(12a)·성향 변경(12b)·광고 권유가 전부 이 컴포넌트 하나를 쓴다.
-   위 .sheet-scrim/.sheet(tier-sheet.js·screens/watchlist.js 가 이미 직접 그린다)와는
-   이름을 겹치지 않게 새로 둔다 — 기존 두 소비자를 깨지 않고, P1 에서 그 화면들이
-   이 컴포넌트로 옮겨온다. --sheet 는 #11151d(style-base.css) — 시안 배경값과 같다. */
+   옛 .sheet-scrim/.sheet 와 이름이 겹치지 않게 새로 뒀는데, 그 옛 골격 자체가 이제 없다 —
+   tier-sheet.js(6b, Task 5)에 이어 screens/watchlist.js(12a, Task 6)도 이 컴포넌트로
+   이관을 마쳤다(위 §"바텀시트 공통 골격" 머리 주석 참고). --sheet 는 #11151d(style-base.css)
+   — 시안 배경값과 같다. */
 .ms-sheet-backdrop {
   position:fixed; inset:0; z-index:40;
   display:flex; align-items:flex-end;
@@ -103,14 +105,16 @@ body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
      화면 CSS 의 font-size·font-weight·letter-spacing 을 토큰만 허용해 정확히 겹치는 크기
      토큰(20px)은 없다. 처음엔 절대오차만 보고 --fs-section(17px, 오차 3)을 골랐는데,
      리뷰가 짚은 진짜 기준은 오차가 아니라 **이 파일 안에 이미 같은 종류의 시트 제목이
-     있다는 것**이다 — 바로 위 .sheet-title(tier-sheet.js·screens/watchlist.js 가 그리는
-     6b·12a 시트 제목)이 --fs-title(22px)/--ls-title 을 쓴다. 이 태스크의 목적 자체가
-     "넷이 같은 시트를 써서 값이 안 갈리게" 인데 신구 시트 제목이 22px/17px 로 갈리면
-     P1 에서 tier-sheet 를 MSSheet 로 이관하는 순간 제목이 작아지는 회귀로 드러난다.
-     그래서 --fs-title(22px, 오차 2)+--ls-title 로 맞춘다 — 20px 원안보다 기존 시트
-     제목과의 일치를 우선했다. 무게는 --fw-section 과 --fw-title 이 둘 다 800 이라 값은
-     이미 같지만, 같은 역할 세트로 통일해 --fw-title 로 함께 바꾼다. 보존 대상으로 지정된
-     값은 라운드 28·82vh·안전영역 셋뿐이라(브리프), 이 근사는 그 셋을 건드리지 않는다. */
+     있었다는 것**이다 — 그 시절 .sheet-title(당시 tier-sheet.js 가 그리던 6b 시트 제목,
+     지금은 지워졌다 — Task 5 가 이관하며 제목 자체를 MSSheet 몫으로 넘겼다)이 --fs-title
+     (22px)/--ls-title 을 썼다. 이 태스크의 목적 자체가 "넷이 같은 시트를 써서 값이 안
+     갈리게" 인데 신구 시트 제목이 22px/17px 로 갈리면 tier-sheet 를 MSSheet 로 이관하는
+     순간 제목이 작아지는 회귀로 드러난다. 그래서 --fs-title(22px, 오차 2)+--ls-title 로
+     맞췄다 — 20px 원안보다 기존 시트 제목과의 일치를 우선했다. 무게는 --fw-section 과
+     --fw-title 이 둘 다 800 이라 값은 이미 같지만, 같은 역할 세트로 통일해 --fw-title 로
+     함께 뒀다. 보존 대상으로 지정된 값은 라운드 28·82vh·안전영역 셋뿐이라(브리프), 이
+     근사는 그 셋을 건드리지 않는다. 이관이 끝난 지금도 이 근거를 남기는 이유는 이 값이
+     "왜 --fs-section 이 아니라 --fs-title 인가"의 유일한 기록이기 때문이다. */
   margin:0 0 14px;
   font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title);
   color:var(--ink);

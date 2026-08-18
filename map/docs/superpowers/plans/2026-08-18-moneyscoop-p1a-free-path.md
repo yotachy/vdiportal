@@ -6,13 +6,13 @@
 
 **Architecture:** P0 의 뼈대(라우터·셸·공용 시트) 위에 화면을 얹는다. 리포트는 **블록 선언**(무엇을 어떤 순서로 그리는가)과 **블록 렌더러**를 분리해, 심화(P1b)·전문(P1c)이 같은 선언 구조에 블록만 더하도록 만든다. 적중률·커버리지는 `window.MSBacktest` 한 곳에서만 읽는다. 단계 선택 시트를 P0 의 `MSSheet` 로 이관해 "넷이 같은 것을 쓴다"의 첫 소비자를 만들고, 그 위에서 하드웨어 뒤로가기를 실증한다.
 
-**Tech Stack:** 바닐라 ES5 브라우저 JS(UMD/IIFE) · Node `node:test` · Capacitor(안드로이드) · 크로미움 CLI 관문. **빌드 도구·npm 런타임 의존성 없음**(단 Task 7 이 공식 Capacitor 플러그인 하나를 도입한다 — 아래 판정 참조).
+**Tech Stack:** 바닐라 JS(UMD/IIFE, `www/**` 문법 하한은 ES2017 — Global Constraints·`map/CLAUDE.md §⑤` 참조) · Node `node:test` · Capacitor(안드로이드) · 크로미움 CLI 관문. **빌드 도구·npm 런타임 의존성 없음**(단 Task 7 이 공식 Capacitor 플러그인 하나를 도입한다 — 아래 판정 참조).
 
 **Spec:** [`docs/superpowers/specs/2026-08-18-moneyscoop-p1-design.md`](../specs/2026-08-18-moneyscoop-p1-design.md) (상위: [`2026-08-18-moneyscoop-app-rebuild-design.md`](../specs/2026-08-18-moneyscoop-app-rebuild-design.md))
 
 ## Global Constraints
 
-- **`map/mobile/www/**` 는 ES5 문법만** — `var`·`function`. 화살표·`const`/`let`·템플릿 리터럴·옵셔널 체이닝·`includes`/`find` 금지. (`mobile/test/**`·`mobile/tools/**` 는 Node 라 예외). **Task 1 이 이 규칙을 관문으로 만든다 — 그 전까지는 새 코드만 지킨다**
+- **`map/mobile/www/**` 는 ES2017 문법 하한** — `const`/`let`·화살표 함수·템플릿 리터럴·async/await 는 이미 프로덕션에 쓰이고 있어 허용(2026-08-18 컨트롤러 판정, Task 1 — "ES5 만"은 스쿱 시리즈 정적 사이트에서 상속된 규칙이었고 이 런타임 근거가 없었다). ES2017 보다 확실히 나중이면서 지금 안 쓰는 문법(옵셔널 체이닝·null 병합·논리 대입·private 필드·`Object.hasOwn`·`groupBy`·배열 비파괴 복사)만 금지. (`mobile/test/**`·`mobile/tools/**` 는 Node 라 예외). 관문은 `mobile/test/syntax-floor.test.mjs`, 근거는 `map/CLAUDE.md §⑤`
 - **UI 문자열은 `www/strings.js` 단일 출처.** 화면 파일에 한국어 리터럴 금지. **지표명은 영어 유지**
 - **적중률·콘 커버리지·ECE 는 `window.MSBacktest` 에서만 읽는다.** 리터럴 금지 — 관문이 막는다
 - **전문 티어 수치는 "측정 중"** (실측 부재)
@@ -40,7 +40,7 @@
 | `www/tier-sheet.js` (재작성) | 시안 6b — `MSSheet` 위에 얹는다 |
 | `www/style-report.css` · `style-watchlist.css` · `style-sheet.css` (수정) | 위 화면들의 시안 값 |
 | `www/strings.js` (수정) | 새 문구 |
-| `test/es5-sweep.test.mjs` (신규) | `www/**` 전수 ES5 관문 |
+| `test/syntax-floor.test.mjs` (Task 1 에서 이미 생성) | `www/**` 문법 하한(ES2017) 관문 — 원래 `es5-sweep.test.mjs`/ES5 전면 강제로 계획했으나 2026-08-18 컨트롤러 판정으로 재정의됨 |
 | `test/tier-compare.test.mjs` (신규) | 3단 대조 — 실측 출처·축 표기·전문 "측정 중" |
 | `test/report-blocks.test.mjs` (재작성) | 티어별 블록 수·순서 |
 | `test/tier-sheet.test.mjs` (신규) | 시트가 `MSSheet` 를 쓰는가 · 비용 미리보기 규칙 |
@@ -48,110 +48,19 @@
 
 ---
 
-## Task 1: ES5 규율을 진짜로 만든다
+## ~~Task 1: ES5 규율을 진짜로 만든다~~ — ✅ 재정의·완료(2026-08-18 컨트롤러 판정)
 
-**왜 먼저인가:** P1a 는 `www/` 에 파일을 더하고 크게 고친다. 규칙이 문서에만 있는 상태로 시작하면 그 헐거움이 새 파일 수만큼 복제된다. P0 최종 리뷰가 실측한 위반 3건이 이미 있다.
+**이 섹션의 원래 지시("위반 3파일을 ES5 로 고친다"·`es5-sweep.test.mjs` 생성)는 폐기됐다 — 실행 대상으로 읽지 말 것.**
 
-**Files:**
-- Create: `mobile/test/es5-sweep.test.mjs`
-- Modify: `mobile/www/draw-panels.js:18-19` · `mobile/www/draw-layers.js:26-27` · `mobile/www/draw-preds.js:32,36`
+프리플라이트 실측에서 "ES5 만" 규칙의 전제 자체가 틀렸음이 드러났다: 위반이 3줄이 아니라 161줄(캔버스 작도 코드 전량)이었고, 런타임 하한(`minSdkVersion 24` + Capacitor 8 + Play 업데이트 WebView + admob 의 GMS 의존)은 ES5 를 요구한 적이 없었다 — "ES5 만"은 스쿱 시리즈 정적 사이트(구형 브라우저 대응)에서 상속된 규칙이었다.
 
-**Interfaces:**
-- Consumes: 없음
-- Produces: `www/**` 전 파일에 적용되는 ES5 관문
+**실제로 수행한 것:**
+1. 하한을 **ES2017** 로 확정(근거: `mobile/android/variables.gradle:2` · `node_modules/@capacitor/android/capacitor/build.gradle:46` · `mobile/docs/phase0-measurements.md` · admob 의 GMS 하드 의존)
+2. 관문 `mobile/test/syntax-floor.test.mjs` 작성 — ES2017 보다 확실히 나중이면서 지금 안 쓰는 문법(옵셔널 체이닝·null 병합·논리 대입·private 필드·`Object.hasOwn`·`groupBy`·배열 비파괴 복사)만 금지. 규칙마다 자기 위반 샘플이 걸리는지 확인하는 자기검증 시험 포함
+3. `map/CLAUDE.md`(§⑤ 신설) · P1 설계서(§4 사전조건 2) · 이 계획서(Global Constraints·Tech Stack·File Structure·본 섹션) 정정
+4. **`draw-panels.js`·`draw-layers.js`·`draw-preds.js` 는 고치지 않았다** — 이번 판정의 요점이 "고치지 않는다"였다
 
-- [ ] **Step 1: 실패하는 관문을 쓴다**
-
-`mobile/test/es5-sweep.test.mjs`:
-
-```js
-// www/** 는 ES5 만 쓴다 — 규칙이 문서에만 있으면 규칙이 아니다.
-// P0 최종 리뷰 실측: draw-panels.js·draw-layers.js·draw-preds.js 가 이미 const/let/화살표를
-// 쓰고 있었고 아무도 몰랐다. 브라우저 관문도 최신 크로미움이라 이걸 못 잡는다 —
-// 구형 WebView(안드로이드 minSdk 24)에서만 터지는 종류라 기기에서 발견하게 된다.
-import { test } from "node:test";
-import assert from "node:assert";
-import { readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-
-const WWW = fileURLToPath(new URL("../www/", import.meta.url));
-
-function files() {
-  const out = [];
-  for (const f of readdirSync(WWW)) if (f.endsWith(".js")) out.push(f);
-  for (const f of readdirSync(path.join(WWW, "screens"))) if (f.endsWith(".js")) out.push("screens/" + f);
-  return out;   // vendor/ 는 생성물이라 제외(비재귀 readdir 이므로 자동으로 빠진다)
-}
-
-// 문자열·주석 안의 우연한 일치를 빼고 본다. 완벽한 파서는 아니지만, 이 저장소가 실제로
-// 맞은 세 형태(선언 const/let · 화살표 · 템플릿 리터럴)를 잡기에 충분하다.
-function code(src) {
-  return src.replace(/\/\*[\s\S]*?\*\//g, "")
-            .replace(/(^|[^:"'\\])\/\/[^\n]*/gm, (m, p) => p)
-            .replace(/"(?:[^"\\]|\\.)*"/g, '""')
-            .replace(/'(?:[^'\\]|\\.)*'/g, "''");
-}
-
-const RULES = [
-  { name: "const 선언", re: /(^|[^.\w])const\s+[A-Za-z_$]/ },
-  { name: "let 선언", re: /(^|[^.\w])let\s+[A-Za-z_$]/ },
-  { name: "화살표 함수", re: /=>/ },
-  { name: "템플릿 리터럴", re: /`/ },
-  { name: "옵셔널 체이닝", re: /\?\./ },
-  { name: "Array.includes", re: /\.includes\s*\(/ },
-  { name: "Array.find", re: /\.find\s*\(/ }
-];
-
-test("www/** 는 ES5 문법만 쓴다", () => {
-  const bad = [];
-  for (const f of files()) {
-    const src = code(readFileSync(path.join(WWW, f), "utf8"));
-    for (const r of RULES) if (r.re.test(src)) bad.push(f + " → " + r.name);
-  }
-  assert.deepStrictEqual(bad, [], "ES5 위반:\n  " + bad.join("\n  "));
-});
-
-test("관문이 실제로 잡는다 — 규칙마다 위반 샘플이 걸린다", () => {
-  const samples = { "const 선언": "const a=1;", "let 선언": "let a=1;", "화살표 함수": "var f=x=>x;",
-                    "템플릿 리터럴": "var s=`x`;", "옵셔널 체이닝": "a?.b;",
-                    "Array.includes": "a.includes(1);", "Array.find": "a.find(f);" };
-  for (const r of RULES) assert.ok(r.re.test(code(samples[r.name])), r.name + " 규칙이 자기 샘플을 못 잡는다");
-});
-```
-
-- [ ] **Step 2: 실패를 확인한다**
-
-Run: `cd mobile && node --test test/es5-sweep.test.mjs`
-Expected: FAIL — `draw-panels.js → const 선언` · `draw-layers.js → const 선언` · `draw-preds.js → let 선언` · `draw-preds.js → 화살표 함수` (실제 출력이 이와 다르면 그 목록이 사실이다 — 목록을 신뢰하고 그 파일들을 고친다)
-
-- [ ] **Step 3: 위반 3파일을 ES5 로 고친다**
-
-`const`/`let` → `var`, 화살표 → `function`. **동작을 바꾸지 마십시오** — `const`→`var` 는 블록 스코프가 함수 스코프로 넓어지므로, 같은 이름이 같은 함수 안에서 재선언되지 않는지 확인한다. 각 파일 상단이 아니라 해당 줄 옆에 주석을 남기지 않는다(기계적 치환이라 설명할 WHY 가 없다).
-
-- [ ] **Step 4: 통과를 확인한다**
-
-Run: `cd mobile && node --test test/es5-sweep.test.mjs && cd .. && ./tests/run.sh && cd mobile && node tools/gate-browser.mjs`
-Expected: 전량 PASS · 관문 6/6. **차트 작도 파일을 고쳤으므로 관문 스크린샷의 차트가 이전과 같은지 눈으로 확인**하고 보고서에 적는다.
-
-- [ ] **Step 5: 커밋**
-
-```bash
-git add mobile/test/es5-sweep.test.mjs mobile/www
-git commit -m "$(cat <<'EOF'
-test(mobile): www/** ES5 규율을 관문으로 — 문서에만 있던 규칙이 이미 깨져 있었다
-
-P0 최종 리뷰가 실측했다: draw-panels.js·draw-layers.js·draw-preds.js 가 const/let/
-화살표를 쓰고 있었고 아무도 몰랐다. 브라우저 관문도 최신 크로미움이라 못 잡는다 —
-minSdk 24 의 구형 WebView 에서만 터지는 종류라 기기에서 발견하게 된다.
-
-규칙마다 자기 위반 샘플을 잡는지 확인하는 시험을 함께 둔다. 정규식이 상상한 모양만
-잡는 사고를 이 저장소가 여러 번 맞았다.
-
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-EOF
-)"
-```
+판정 근거·확인한 출처·불확실했던 지점의 전체 기록은 `map/CLAUDE.md §⑤`(요약)와 SDD 태스크 보고서(`task-1-report.md`, 저장소 밖 스크래치 공간)에 있다.
 
 ---
 
@@ -478,7 +387,7 @@ test("방향 적중률은 자명 기준선을 동반한다", () => {
 
 ## Self-Review
 
-**스펙 커버리지** — P1 설계서 §3.2(기본 리포트)는 Task 3, §3.3(3단 대조)은 Task 4, §3.4(시트)는 Task 5, §4 사전조건 2(ES5)는 Task 1, 3(시트 이관)은 Task 5, 1(하드웨어 백)은 Task 7 이 덮는다. §3.5~3.8(심화·전환·전문·판독문)은 **의도적으로 P1b·P1c** 이며 이 계획서 밖이다. §3.1(티어 3색)은 Task 2~4 에 걸쳐 토큰으로 들어간다.
+**스펙 커버리지** — P1 설계서 §3.2(기본 리포트)는 Task 3, §3.3(3단 대조)은 Task 4, §3.4(시트)는 Task 5, §4 사전조건 2(ES5→ES2017 재정의)는 ~~Task 1~~(완료·본문 참조), 3(시트 이관)은 Task 5, 1(하드웨어 백)은 Task 7 이 덮는다. §3.5~3.8(심화·전환·전문·판독문)은 **의도적으로 P1b·P1c** 이며 이 계획서 밖이다. §3.1(티어 3색)은 Task 2~4 에 걸쳐 토큰으로 들어간다.
 
 **의도적으로 남긴 것** — 워치리스트의 **결과 카드**(시안 14a 상단)는 P3(다음날 여정)이다. P1a 는 그 자리를 비워둔다. 비워둔 자리가 "미완"으로 읽히지 않도록 Task 6 에서 코드 주석으로 P3 소관임을 남긴다.
 

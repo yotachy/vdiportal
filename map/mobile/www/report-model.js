@@ -1,10 +1,15 @@
 // 리포트 화면의 계산만 담는다 — DOM 도 전역 엔진도 만지지 않는다.
 // ForgeCore 를 인자로 받는 것은 MSGraph.basicGraph(ForgeCore) 와 같은 규약이다.
+// verdict()·sentence() 는 문구 조각을 strings.js 에서 받는다(P1a Task 2) — chart-legend.js 가
+// MSStr 을 팩토리 인자로 받는 것과 같은 규약. 전역 MSStr 을 이 파일 안에서 직접 참조하면
+// node --test 가 require("./strings.js") 로 주입한 것과 어긋난다.
 (function (root, factory) {
-  if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else MSGlobals.define("MSReportModel", factory());
-})(typeof self !== "undefined" ? self : this, function () {
+  if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./strings.js"));
+  else MSGlobals.define("MSReportModel", factory(root.MSStr));
+})(typeof self !== "undefined" ? self : this, function (Str) {
   "use strict";
+
+  var T = (Str && Str.t) || {};
 
   // 시안 2a 의 Tomorrow / In 1 week / In 1 month. 3개월(63봉)은 futW 상한(60)과
   // 콘 비중(28%→50%) 때문에 뺐다 — 설계서 §3.2.
@@ -135,5 +140,35 @@
     return { agree: total ? agree : 0, total: total };
   }
 
-  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate, tfRows: tfRows, agreeCount: agreeCount, tfKo: tfKo };
+  // 판정 뷰모델 — 지표 바이어스 부호 집계(up/down/flat)를 화면이 쓰는 동의/반대/무판정으로
+  // 매핑하고 합계를 검산해 돌려준다. dir 이 어느 부호가 "동의"인지를 정한다 — 하락 판정에서는
+  // down 이 동의, up 이 반대가 된다(설계서 §3.5). 매핑을 화면마다 따로 하면 심화·전문에서
+  // 부호가 뒤집혀도 아무도 못 잡는다. total 을 여기서 도출해 돌려주는 이유는 "도구 32개 중
+  // 24개" 같은 헤드라인 카운터와 agree+dissent+noDir 의 합이 반드시 맞아야 하기 때문이다.
+  function verdict(an) {
+    var dir = (an && an.dir) || null;
+    var up = (an && typeof an.up === "number") ? an.up : 0;
+    var down = (an && typeof an.down === "number") ? an.down : 0;
+    var noDir = (an && typeof an.flat === "number") ? an.flat : 0;
+    var agree = 0, dissent = 0;
+    if (dir === "bull") { agree = up; dissent = down; }
+    else if (dir === "bear") { agree = down; dissent = up; }
+    else { noDir = up + down + noDir; }   // 방향이 없으면 "동의"할 방향 자체가 없다
+    return { dir: dir, agree: agree, dissent: dissent, noDir: noDir, total: agree + dissent + noDir };
+  }
+
+  // 19b 「한 문장으로」— 생성 문구가 아니라 방향·과열·저항 세 값을 규칙으로 잇는 템플릿이다.
+  // 숫자를 먼저 내면 대부분은 해석을 못 하고 닫기 때문에 이 문장이 심화 리포트 선언 순서의
+  // 맨 위에 온다(P1a Task 2). 문구 자체는 strings.js 에서 오고 여기는 조합만 한다 — 문장을
+  // 바꾸고 싶으면 strings.js 만 고치면 된다.
+  function sentence(an) {
+    var dir = an && an.dir;
+    var base = dir === "bull" ? T.rpSentBull : dir === "bear" ? T.rpSentBear : T.rpSentFlat;
+    var parts = [base];
+    if (an && an.overheat) parts.push(T.rpSentOverheat);
+    if (an && an.resistance) parts.push(T.rpSentResistance);
+    return parts.join(" ");
+  }
+
+  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate, tfRows: tfRows, agreeCount: agreeCount, tfKo: tfKo, verdict: verdict, sentence: sentence };
 });

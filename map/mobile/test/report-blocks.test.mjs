@@ -1,125 +1,80 @@
-// P2 §4 — 티어별 정보 블록 3 / 8 / 9.
-//
-// 블록 3/8/9 는 세 벌의 화면이 아니라 **같은 렌더러가 다른 목록을 받는 것**이다. 세 벌로 쓰면
-// 공통 블록을 고칠 때 세 곳을 고쳐야 하고, 한 곳을 빠뜨려도 그 티어를 열기 전엔 아무도 모른다.
+// 티어별 블록 수·순서가 이 개편의 판매 논거다(설계 §3.2·§3.5·§3.7).
+// 전문이 심화보다 적으면 5스쿱을 낸 사용자가 손해를 본 것이다 — 기계가 지킨다.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const B = require("../www/report-blocks.js");
-const G = require("../www/graph.js");
-const FC = require("../../forge-core.js");
-const S = require("../www/strings.js");
-
 const REPORT = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
-const INDEX = readFileSync(new URL("../www/index.html", import.meta.url), "utf8");
 
-test("index.html — report-blocks.js 가 소비자(screens/report.js)보다 앞에 있다", () => {
-  const a = INDEX.indexOf("report-blocks.js"), b = INDEX.indexOf("screens/report.js");
-  assert.ok(a > 0, "report-blocks.js 가 로드되지 않는다");
-  assert.ok(a < b, "선언이 소비자보다 뒤에 로드된다 — 클래식 스크립트라 순서가 의미를 갖는다");
+test("블록 수 — 기본 3 · 심화 8 · 전문 9", () => {
+  assert.strictEqual(B.forTier("basic").length, 3);
+  assert.strictEqual(B.forTier("full").length, 8);
+  assert.strictEqual(B.forTier("custom").length, 9);
+  assert.deepStrictEqual(B.COUNTS, { basic: 3, full: 8, custom: 9 });
 });
 
-// 시안 18a: "블록 3개 = 판정 + 차트 + 범위". 머리(가격·배지)·빈 공간·해제 카드는 세지 않는다.
-test("기본분석은 정보 블록 3개다 — 시안 18a", () => {
-  assert.strictEqual(B.countOf("basic"), 3,
-    "기본 블록 구성: " + B.orderOf("basic").join(" → "));
+test("전문은 심화의 모든 블록을 유지한 채 조절판만 더한다", () => {
+  const full = B.forTier("full").map(b => b.id);
+  const custom = B.forTier("custom").map(b => b.id);
+  for (const id of full) assert.ok(custom.indexOf(id) >= 0, "전문에서 심화 블록이 빠졌다: " + id);
+  const extra = custom.filter(id => full.indexOf(id) < 0);
+  assert.deepStrictEqual(extra, ["weights"], "전문이 더한 것은 조절판 하나여야 한다");
 });
 
-// 18a 의 빈 공간은 버그가 아니다 — "여기까지가 무료"를 스크롤 부재로 전달한다.
-// 다음 사람이 "아래가 어색하다"며 채우는 것을 막는다.
-test("기본분석에는 의도된 빈 공간이 있고, 해제 카드가 그 아래 맨 끝이다", () => {
-  const order = B.orderOf("basic");
-  const sp = order.indexOf("spacer"), un = order.indexOf("unlock");
-  assert.ok(sp > 0, "18a 의 의도된 빈 공간(spacer)이 없다 — 채우지 말 것");
-  assert.ok(un === order.length - 1, "해제 카드가 맨 끝이 아니다");
-  assert.ok(sp < un, "빈 공간이 해제 카드보다 뒤에 있다 — 카드가 화면 중간에 뜬다");
+test("심화 순서는 값이 큰 것부터 — 「한 문장으로」가 맨 위 (시안 19b)", () => {
+  const ids = B.forTier("full").map(b => b.id);
+  assert.strictEqual(ids[0], "sentence", "숫자를 먼저 내면 대부분은 해석을 못 하고 닫는다");
+  assert.ok(ids.indexOf("dissent") < ids.indexOf("horizons"), "반대 의견이 기간보다 아래다");
+  assert.ok(ids.indexOf("hitrate") < ids.indexOf("readings"), "적중률이 판독문보다 아래다");
 });
 
-test("기본분석은 지평 세 줄을 다 주지 않는다 — 1주·1개월은 심화가 판다", () => {
-  assert.match(REPORT, /if \(tier === "basic"\) rows = rows\.slice\(0, 1\);/,
-    "기본에서 지평 행을 자르지 않는다 — 3단 비교표의 '기간별'이 무료가 된다");
+test("전문의 조절판은 판정보다 위다 (시안 18c)", () => {
+  const ids = B.forTier("custom").map(b => b.id);
+  assert.ok(ids.indexOf("weights") < ids.indexOf("sentence"), "조절판이 판정 아래로 내려갔다");
 });
 
-// 전문 ⊇ 심화. 한 겹이라도 빠지면 5스쿱 낸 사람이 손해다(인벤토리 §3).
-test("전문분석은 심화의 블록을 하나도 빠뜨리지 않는다", () => {
-  const full = B.orderOf("full"), custom = B.orderOf("custom");
-  const missing = full.filter(k => custom.indexOf(k) < 0);
-  assert.deepEqual(missing, [], "전문에서 사라진 심화 블록: " + missing.join(", "));
-  assert.strictEqual(B.countOf("custom"), B.countOf("full") + 1,
-    "전문은 심화 + 조절판 하나다 — 지금 " + B.countOf("custom") + " vs " + B.countOf("full"));
+test("기본에는 확률·판독문 블록이 없다 — 방향과 범위만 말한다", () => {
+  const ids = B.forTier("basic").map(b => b.id);
+  for (const forbidden of ["hitrate", "readings", "dissent", "horizons"])
+    assert.ok(ids.indexOf(forbidden) < 0, "기본이 " + forbidden + " 를 그린다");
 });
 
-// 시안 18b 는 블록을 8개로 센다: 판정 · 차트존 · **서브패널** · 내일 · 반대 · 통계 · 판독문 · CTA.
-// 우리는 7이다. 빠진 하나는 내용이 아니라 **그리는 방식**의 차이다 — 시안은 서브패널 3열을
-// 차트와 별도 프레임으로 두고 세지만, 우리 서브패널은 같은 캔버스 안에 적층된다(chart-layout 의
-// panels). 따로 세면 DOM 에 없는 블록을 있다고 적는 셈이라 7 로 센다.
-// 내용 대조: 판정✓ 차트존(+서브패널)✓ 내일(+8a 대조)✓ 반대✓ 주기 통계✓ 판독문 링크✓ CTA✓.
-test("심화는 시안 18b 의 구성이다 — 블록 7(시안 셈법 8, 차이는 서브패널 셈법뿐)", () => {
-  assert.strictEqual(B.countOf("full"), 7,
-    "심화 블록 수가 7 이 아니다: " + B.orderOf("full").join(" → "));
-  ["signals", "reasoning", "missing"].forEach(k =>
-    assert.ok(B.orderOf("full").indexOf(k) < 0,
-      k + " 가 심화에 남아 있다 — 판독문 화면(20a)으로 옮긴 블록이다"));
-  assert.ok(B.orderOf("full").indexOf("readings") >= 0, "판독문 링크가 없다 — 옮긴 내용에 닿을 길이 없다");
+
+// 2026-08-18 리뷰(Critical): 선언(forTier)이 새 id 를 늘려도 report.js 의 BUILD 표가 못 따라가면
+// 그 블록은 화면에서 **조용히** 사라진다(if (!fn) return). 브라우저 관문은 기본 티어만 열어서
+// 이 사고를 못 잡았다 — 관문 6/6 인 채로 심화·전문이 8개 중 3개, 9개 중 4개만 그리고 있었다.
+// 그래서 "빌더도 PENDING 도 없는 id"를 소스 정적 분석으로 강제한다: 선언된 모든 id 는 반드시
+// BUILD(그린다) 또는 PENDING(아직 못 그린다, 사유 있음) 둘 중 하나에 있어야 한다.
+test("선언된 모든 블록은 빌더(BUILD)에 있거나 PENDING 에 있다 — 조용히 사라지는 블록을 막는다", () => {
+  const buildBlock = REPORT.match(/var BUILD = \{([\s\S]*?)\n        \};/);
+  assert.ok(buildBlock, "report.js 에서 BUILD 표를 못 찾았다 — 정규식이 report.js 구조 변경을 못 따라갔다");
+  const builtKeys = [...buildBlock[1].matchAll(/^\s{10}([a-zA-Z]+)\s*:/gm)].map(m => m[1]);
+
+  const pendingBlock = REPORT.match(/var PENDING = \{([\s\S]*?)\n  \};/);
+  assert.ok(pendingBlock, "report.js 에서 PENDING 표를 못 찾았다");
+  const pendingKeys = [...pendingBlock[1].matchAll(/^\s{4}([a-zA-Z]+)\s*:/gm)].map(m => m[1]);
+
+  const declared = [...new Set(["basic", "full", "custom"].flatMap(t => B.forTier(t).map(b => b.id)))];
+  const orphans = declared.filter(id => builtKeys.indexOf(id) < 0 && pendingKeys.indexOf(id) < 0);
+  assert.deepStrictEqual(orphans, [],
+    "빌더도 PENDING 도 없는 블록(조용히 사라진다): " + orphans.join(", "));
 });
 
-test("전문분석의 조절판은 판정 위다 — 시안 18c 는 조절판을 맨 위에 둔다", () => {
-  const order = B.orderOf("custom");
-  assert.ok(order.indexOf("weights") >= 0, "조절판 블록이 없다");
-  assert.ok(order.indexOf("weights") < order.indexOf("verdict"), "조절판이 판정보다 아래다");
-});
-
-test("모르는 티어는 기본 구성으로 떨어진다 — 오타가 유료 화면을 열지 않는다", () => {
-  ["nope", "", null, undefined].forEach(t =>
-    assert.deepEqual(B.orderOf(t), B.orderOf("basic"), "tier=" + JSON.stringify(t)));
-});
-
-test("orderOf 는 복사본을 준다 — 호출부가 선언을 망가뜨릴 수 없다", () => {
-  const a = B.orderOf("full");
-  a.push("hacked");
-  assert.deepEqual(B.orderOf("full").indexOf("hacked"), -1, "선언 배열이 밖에서 변형됐다");
-});
-
-// 렌더러가 선언을 실제로 도는지. 예전엔 draw() 안에 appendChild 가 순서대로 나열돼 있었다.
-test("report.js 는 블록을 선언 순서대로 돈다 — 하드코딩 나열이 아니다", () => {
-  assert.match(REPORT, /MSReportBlocks\.orderOf\(tier\)\.forEach/,
-    "선언을 안 돌고 있다");
-  const body = REPORT.replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.doesNotMatch(body, /scr\.appendChild\(buildVerdict\(/,
-    "판정 블록을 선언 밖에서 직접 붙인다 — 티어를 안 본다");
-  assert.doesNotMatch(body, /scr\.appendChild\(buildHorizons\(/,
-    "지평 블록을 선언 밖에서 직접 붙인다");
-});
-
-// 선언에 있는 이름은 전부 만드는 함수가 있어야 한다 — 없으면 그 블록은 조용히 사라진다.
-// (Task 8 이 weights 를 채우면서 이 목록은 비었다. 목록 자체는 남긴다 — 다음에 선언만 먼저
-// 넣는 블록이 생기면 그 미구현이 이름으로 드러나야 한다.)
-const NOT_BUILT_YET = {};
-test("선언의 모든 블록 이름이 렌더러의 표에 있다(미구현은 사유와 함께 드러난다)", () => {
-  const table = REPORT.match(/var BUILD = \{([\s\S]*?)\n        \};/);
-  assert.ok(table, "BUILD 표를 못 찾았다");
-  const keys = [...table[1].matchAll(/^\s{10}([a-zA-Z]+)\s*:/gm)].map(m => m[1]);
-  const declared = [...new Set([].concat(B.orderOf("basic"), B.orderOf("full"), B.orderOf("custom")))];
-  const missing = declared.filter(k => keys.indexOf(k) < 0);
-  assert.deepEqual(missing, [], "선언에 있는데 표에 없는 블록(조용히 사라진다): " + missing.join(", "));
-  const dead = keys.filter(k => declared.indexOf(k) < 0);
-  assert.deepEqual(dead, [], "표에만 있고 어느 티어에도 없는 블록: " + dead.join(", "));
-  // 미구현 항목은 null 로 표에 있어야 한다 — 이름만 있고 함수가 없다는 사실이 코드에 남는다.
-  Object.keys(NOT_BUILT_YET).forEach(k =>
-    assert.match(table[1], new RegExp(k + "\\s*:\\s*null"),
-      k + " 가 표에 null 로 있지 않다 — 구현됐다면 이 목록에서 빼고, 아니라면 null 로 둘 것"));
-});
-
-// 시안 18a 의 "이 화면에 27개 지표와 차트 절반이 빠져 있습니다" — 27 은 32 − 5 다.
-// 리터럴로 적으면 지표가 늘어도 화면은 27 이라고 계속 말한다.
-test("해제 카드의 가려진 지표 수는 유도된다 — 리터럴 27 이 아니다", () => {
-  assert.match(REPORT, /ForgeCore\.indicatorCount - MSGraph\.BASIC\.length/,
-    "가려진 지표 수를 유도하지 않는다");
-  assert.strictEqual(FC.indicatorCount - G.BASIC.length, 27,
-    "오늘의 값이 27 이 아니다(엔진 " + FC.indicatorCount + " − 기본 " + G.BASIC.length + ") — " +
-    "시안 문구가 낡았거나 티어 구성이 바뀌었다. 화면은 유도값을 쓰므로 자동으로 맞지만, 시안 대조가 필요하다");
-  assert.ok(!/27개 지표/.test(String(S.t.rpLockedA) + String(S.t.rpLockedB)),
-    "문구에 27 이 리터럴로 박혀 있다");
+// PENDING 이 있는 티어는 사면 안 된다 — 위 가드가 "선언 vs 빌더" 간극을 드러내는 것과 짝을
+// 이루는 반대쪽 가드다: 간극이 있다는 사실을 아는 것과, 그 간극이 있는 동안 돈을 안 받는 것은
+// 별개 보장이라 둘 다 있어야 한다. tier-sheet.js 가 report.js 의 pendingOf()/tierBuyable() 이
+// 준 locked 를 실제로 반영하는지는 tier-sheet.js 자체를 읽어야 확인되므로, 여기서는 "지금
+// full·custom 에 PENDING 항목이 실제로 있다"(=잠겨야 하는 상태)는 사실 자체를 고정한다 —
+// 이 항목이 전부 비면(=P1b 가 다 채우면) 이 단언은 스스로 무의미해지고, 그때 지워도 된다.
+test("PENDING 이 비어있지 않은 티어가 실제로 있다 — 그 티어는 tier-sheet.js 가 잠가야 한다", () => {
+  const pendingBlock = REPORT.match(/var PENDING = \{([\s\S]*?)\n  \};/);
+  const pendingKeys = [...pendingBlock[1].matchAll(/^\s{4}([a-zA-Z]+)\s*:/gm)].map(m => m[1]);
+  ["full", "custom"].forEach(t => {
+    const ids = B.forTier(t).map(b => b.id);
+    const pending = ids.filter(id => pendingKeys.indexOf(id) >= 0);
+    assert.ok(pending.length > 0, t + " 에 PENDING 블록이 없다 — 이제 구매를 막을 이유가 없다면 " +
+      "tier-sheet.js 의 locked 배선과 이 단언을 함께 정리할 것");
+  });
 });

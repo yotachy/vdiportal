@@ -58,9 +58,18 @@
   // viewedKey 가 이번 rec.scannedAt 과 같아야 "읽음" — 다르면(또는 아예 없으면) "새 판정".
   // 확신 배지(옛 badge())는 시안이 목록에서 의도적으로 뺐다(판정이 새면 리포트를 열 이유가
   // 사라진다) — 되살리지 말 것.
-  function readState(rec, viewedKey) {
+  //
+  // 3번째 상태 "오래됨"(P1a Task 6) — today(호출부가 넘기는 로컬 달력일 문자열, store.js
+  // localDate() 형식)를 안 주면 예전 그대로 2종만 돈다(생략 가능한 파라미터라 기존 호출부·
+  // 시험을 깨지 않는다). today 를 주면: 이미 읽었더라도 rec.asOf(스캔이 근거한 마지막 확정
+  // 봉의 날짜)가 오늘보다 이전이면 "오래됨" — 그 사이 새 봉이 하나 더 생겼을 것이므로
+  // (predictions.js judgeBar 와 같은 "다음 확정 봉" 개념을, 서버 왕복 없이 달력일로 근사한다).
+  // "안 읽음"이 "오래됨"보다 우선한다 — 아직 안 본 판정은 나이와 무관하게 가장 급하다.
+  function readState(rec, viewedKey, today) {
     if (!rec || !rec.scannedAt) return null;
-    return (viewedKey === rec.scannedAt) ? "read" : "unread";
+    if (viewedKey !== rec.scannedAt) return "unread";
+    if (today && rec.asOf && String(rec.asOf).slice(0, 10) < String(today).slice(0, 10)) return "old";
+    return "read";
   }
 
   // 회사명은 74px 칸에 들어가야 한다. API 원문("NVIDIA Corporation")을 그대로 넣으면

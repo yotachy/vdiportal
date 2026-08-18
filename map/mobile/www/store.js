@@ -85,9 +85,12 @@
   // 몇 번째냐"이지 "언제 봤냐"가 아니다 — 그래서 새 스캔이 들어오면(scannedAt 이 바뀌면) 어제
   // 읽었던 행도 다시 안 읽음으로 돌아간다. 이게 핵심 동작이다: 다음 날 아침 스캔이 새 판정을
   // 만들면 그게 곧 "새 판정"이어야지, "어제 한 번 열어봤으니 오늘도 읽음"이면 안 된다.
-  // 오래됨(3번째 상태)은 여기서 다루지 않는다 — 시간 문턱을 지금 박으면 시안이 실제로 쓰는
-  // 단위(21a "봉이 하나 더 생겼습니다" = 확정 캔들 수)와 다른 임의의 숫자가 되고, 그 숫자가
-  // 맞는지 아무도 확인할 방법이 없다. 예측 기록이 생기는 후속 단계에서 붙인다.
+  // 오래됨(3번째 상태, P1a Task 6 에서 붙었다) — "언제 봤냐"가 아니라 rec.asOf(스캔이 근거한
+  // 마지막 확정 봉의 날짜)가 오늘의 달력일보다 이전인가로 잰다. 21a "봉이 하나 더 생겼습니다"와
+  // 같은 단위(확정 캔들 수)를 시각으로 근사한 것이다 — 예측 판정(predictions.js judgeBar)처럼
+  // 서버가 실제로 새 봉을 냈는지 확인하지 않고 "적어도 하루가 지났으니 새 봉이 있을 것"으로
+  // 본다. 이 파일은 그 today 값을 안 만든다(localDate 를 내보낼 뿐) — 계산은 순수해야 하는
+  // watchlist-model.js readState() 가 today 를 인자로 받아 한다.
   function allViewed() { var v = read(KEYS.viewed, {}); return (v && typeof v === "object" && !Array.isArray(v)) ? v : {}; }
   function viewedScanKey(sym) { var v = allViewed()[String(sym || "").toUpperCase()]; return (typeof v === "string" && v) ? v : null; }
   function markScanViewed(sym, scanKey) {
@@ -196,5 +199,6 @@
            allScans: allScans, viewedScanKey: viewedScanKey, markScanViewed: markScanViewed,
            getLastSym: getLastSym, setLastSym: setLastSym,
            onboarded: onboarded, setOnboarded: setOnboarded, consent: consent,
+           localDate: localDate,
            read0: read, write0: write };
 });

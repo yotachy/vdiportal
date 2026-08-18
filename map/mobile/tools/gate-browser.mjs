@@ -95,17 +95,37 @@ function ensureCert() {
 }
 
 // ── 합성 OHLC · 지갑 mock ────────────────────────────────────────────────────
-// 실서버를 부르지 않는다. 관문이 네트워크에 의존하면 관문이 아니라 날씨가 된다.
-function candles() {
+// 실서버를 부르지 않는다. 관문이 네트워크에 의존하면 관문이 아니라 날씨가 된다. 고정
+// 수식(난수 없음)이라 매 실행 결과가 같다 — symbol 을 안 가리면 항상 이 한 시리즈다.
+//
+// driftMul 기본값(0.12)은 원래 유일했던 계수 그대로다 — 지금 대부분의 라우트가 이 값을
+// 물려받는다. 리뷰(2026-08-18 재리뷰)가 잡은 문제: 이 계수로는 ForgeCore.run 이 항상
+// verdict.regime="neutral" 을 내서(node 로 basicGraph 를 직접 돌려 확인), 지표 빗의
+// 동의(스틸)/반대(자기 방향색) 색 규칙이 브라우저 관문에서 **한 번도 실행되지 않았다**
+// (rp-comb-agree/rp-comb-dissent 클래스가 붙은 요소 자체가 존재한 적이 없다 — 죽은 가지).
+// driftMul=0.3 은 같은 방식(node 로 basicGraph→verdict.regime 실측)으로 확인한 값이다 —
+// bull 로 결정적으로 떨어지고 tone 이 [bull,bull,bear,bull,bull] 로 갈려(동의 4·반대 1)
+// 시안 spec-18a.png 실측 배치(4 steel·1 accent)와 그대로 맞는다.
+function candles(driftMul) {
+  const drift = (typeof driftMul === "number") ? driftMul : 0.12;
   const out = [], day = new Date("2026-08-17T00:00:00Z");
   for (let i = 0; i < 360; i++) {
-    const v = 200 + i * 0.12 + Math.sin(i / 11) * 6 + Math.sin(i / 37) * 14;
+    const v = 200 + i * drift + Math.sin(i / 11) * 6 + Math.sin(i / 37) * 14;
     const t = new Date(day.getTime() - (359 - i) * 86400000).toISOString().slice(0, 10);
     out.push({ t, o: +(v - 1).toFixed(2), h: +(v + 1.8).toFixed(2), l: +(v - 1.6).toFixed(2),
                c: +v.toFixed(2), v: 1000000 + (i % 23) * 40000 });
   }
   return out;
 }
+// symbol 별 드리프트 — 없는 심볼은 기본값(0.12, neutral)을 그대로 받는다. 기존 라우트가
+// 쓰는 심볼(AAPL 등)은 이 표에 없으니 결과가 전혀 안 바뀐다.
+//
+// P1a Task 4 가 한때 NVDA·드리프트 -0.7·전용 시작가(base=1800)를 여기 더했었다(3단 대조
+// 카드가 종목별로 "심화가 실제로 좁을 때만" 뜨던 시절, 그 경로를 열기 위해서). 컨트롤러
+// 판정 D1(리뷰 2026-08-19)로 카드가 모집단 지표만 말하게 되며 그 종목별 분기 자체가
+// 필요 없어졌다 — 카드는 이제 어느 종목·드리프트에서든 항상 뜬다(report 라우트에서 직접
+// 확인, gate-routes.mjs). 그래서 NVDA 전용 드리프트·base 인자·BASE_BY_SYMBOL 은 걷어냈다.
+const DRIFT_BY_SYMBOL = { MSFT: 0.3 };
 // 리뷰 I7: 필드명은 wallet-lib.php 의 w_state() 가 실제로 주는 모양(balance/cap/streakDays/
 // canCheckin)과 반드시 일치해야 한다 — 예전엔 streak/checkedIn/today 였는데, 그 셋은 서버
 // 어디에도 없는 이름이라 screens/wallet.js 의 `state.streakDays % 7` 이 항상 NaN 이 됐다
@@ -139,10 +159,14 @@ function serve(creds) {
       });
       return;
     }
-    const url = decodeURIComponent(req.url.split("?")[0]);
+    const urlObj = new URL(req.url, "https://" + HOST);
+    const url = decodeURIComponent(urlObj.pathname);
     if (url === "/map/forge-api.php") {
+      // api.js 가 실제로 보내는 쿼리(ohlcUrl)의 symbol 로 시리즈를 가른다 — 기존 심볼은
+      // DRIFT_BY_SYMBOL 에 없으니 undefined→candles() 기본값(0.12)으로 예전과 동일하다.
+      const sym = urlObj.searchParams.get("symbol") || "AAPL";
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true, tf: "1day", symbol: "AAPL", candles: candles() }));
+      res.end(JSON.stringify({ ok: true, tf: "1day", symbol: sym, candles: candles(DRIFT_BY_SYMBOL[sym]) }));
       return;
     }
     const file = path.join(WWW, url.replace(/^\/+/, ""));
@@ -197,6 +221,15 @@ function probe(route) {
   }
   js += "}catch(e){}</script>\n" + TAG;
   if (route.go) js += '\n<script>setTimeout(function(){try{MSApp.go(' + route.go + ');}catch(e){console.error("GO_FAILED",e);}},400);</script>';
+  // route.click — go() 만으로 못 여는 상태(예: 심화 티어 시트는 CTA 를 실제로 눌러야 열린다,
+  // 시트가 여는 스쿱 잔량 조회가 비동기라 assert 안에서 클릭하면 assert 가 먼저 동기 평가를
+  // 끝내버려 열리기 전 DOM 을 본다)를 만들 때 쓴다. go() 가 끝난 뒤(400ms) 별도로 예약해
+  // route.clickDelay(기본 1300ms) 뒤 셀렉터를 클릭한다 — assert 의 delay 가 그보다 넉넉히
+  // 길어야 클릭의 비동기 후속(예: MSWallet.get() 왕복)이 끝난 DOM 을 assert 가 본다.
+  if (route.click) js += '\n<script>setTimeout(function(){try{var el=document.querySelector(' +
+    JSON.stringify(route.click) + ');if(el)el.click();else console.error("CLICK_TARGET_MISSING",' +
+    JSON.stringify(route.click) + ');}catch(e){console.error("CLICK_FAILED",String(e));}},' +
+    (route.clickDelay || 1300) + ');</script>';
   js += '\n<script>setTimeout(function(){var ok=false,err="";' +
         'try{ok=!!(' + route.assert + ');}catch(e){err=String(e);}' +
         'document.title="GATE:"+JSON.stringify({ok:ok,err:err,errs:(window.__gateErrs||[]),warns:(window.__gateWarns||[])});},' +

@@ -132,7 +132,10 @@
       var list = MSWatchlistModel.filter(MSStore.getWatchlist(), { chip: chip, query: query });
       if (!list.length) { rowsEl.appendChild(MSUi.el("p", "empty", MSStr.t.wlNoMatch)); return; }
       var scans = MSStore.allScans();
-      list.forEach(function (item) { rowsEl.appendChild(row(item, scans[item.sym])); });
+      // 한 번만 읽는다 — 행마다 새 Date() 를 찍으면 자정을 걸친 렌더 도중 행별로 "오늘"이
+      // 갈릴 수 있다(watchlist-model.js readState 의 3번째 상태 "오래됨"이 쓰는 값).
+      var today = MSStore.localDate(new Date());
+      list.forEach(function (item) { rowsEl.appendChild(row(item, scans[item.sym], today)); });
     }
 
     // 셸 — 목록 자체가 바뀔 때만(추가·삭제·오타 제안·최초).
@@ -164,6 +167,18 @@
     //
     // 퍼센트를 쓰지 않는다: 20건 미만에서 "67% 적중"은 거짓말이다(핸드오프 원칙 5).
     // 대신 건수와 개별 결과만 보이고, 20건이 넘으면 그때 적중률 줄이 붙는다.
+    //
+    // ⚠️ P1a Task 6 브리프는 이 카드를 "P3(다음날 여정) 소관, 자리만 비워둔다"고 지시했다 —
+    // 그 지시는 이 카드가 아직 없다는 전제였다. 실제로는 이미 있다: 이전 라운드(커밋
+    // d62945e·6124859, "앱의 고리를 닫는다"/"고리에 가지를 단다")가 예측 기록·판정 고리
+    // 전체와 함께 이 카드를 먼저 완성해 놓았고, 지금 이 함수가 그 산출물이다. Task 6 는
+    // 이 함수를 새로 만들지 않는다(전제가 이미 충족됐다) — 대신 지웠다가 P3 에서 "다시
+    // 만드는" 퇴보를 막기 위해 **그대로 둔다.** 지웠다면: ①시안 14a 대비 화면이 후퇴하고
+    // (스크린샷으로 확인됨) ②record.js(내 예측 기록)·result.js(결과 상세)로 가는 길 하나가
+    // 준다(다른 길이 이미 있다 — screens/wallet.js recRow, `MSApp.go("record")` — 그래도
+    // 줄어드는 것은 사실이다). 이 판단은 컨트롤러에게 보고한다 — 브리프 전제가 실제와
+    // 갈렸을 때 조용히 따르는 대신 사실을 남기는 것이 이 저장소의 규율이다(shell.js의
+    // "MSSheet.open 호출자 0건" 주석을 이번 태스크가 고친 것과 같은 부류).
     function buildResults() {
       if (typeof MSPredLog === "undefined" || !MSStore.getPreds) return null;
       var all = MSStore.getPreds().filter(function (r) { return r && r.judgedOn; });
@@ -290,7 +305,14 @@
       drawRows();
     }
 
-    function row(item, rec) {
+    // 읽음 상태 → 문구. "SYM · 상태" 의 상태 쪽(store.js viewedScanKey 주석·watchlist-model.js
+    // readState 참고). 3종 전부 여기 한 곳에서만 문구로 바뀐다 — 두 군데서 갈리면 점 색과
+    // 옆 글자가 다른 말을 하는 사고가 난다.
+    function readStateLabel(s) {
+      return s === "unread" ? MSStr.t.wlUnread : s === "old" ? MSStr.t.wlOld : MSStr.t.wlRead;
+    }
+
+    function row(item, rec, today) {
       var btn = MSUi.el("button", "row-tap wl-row");
       btn.setAttribute("data-sym", item.sym);   // app.js 가 하이라이트를 옮길 때 쓰는 앵커(목록 재렌더 회피)
       // app.js 의 markSelected() 는 재렌더 없이 하이라이트만 옮기는 경로라 drawShell() 이 스스로 부르는
@@ -298,15 +320,15 @@
       // 두 경로는 서로 대체가 아니라 보완: markSelected 는 "선택만 바뀜"을, 이 줄은 "행 자체가 다시 생김"을 커버한다.
       if (MSApp.current().params.sym === item.sym) btn.classList.add("is-sel");
 
-      // 읽음 상태(시안 14a) — 판정은 watchlist-model.js(순수), 저장은 store.js 소관.
+      // 읽음 상태(시안 14a, 3종) — 판정은 watchlist-model.js(순수), 저장은 store.js 소관.
       // 방향(bull/bear) 점은 시안에서 뺐다 — 목록이 판정을 흘리면 리포트를 열 이유가 사라진다
       // (확신 배지를 안 넣는 것과 같은 결정). 되살리지 말 것.
-      var readState = MSWatchlistModel.readState(rec, MSStore.viewedScanKey(item.sym));
+      var readState = MSWatchlistModel.readState(rec, MSStore.viewedScanKey(item.sym), today);
       btn.appendChild(MSUi.el("span", "wl-dot" + (readState ? " " + readState : "")));
 
       var idWrap = MSUi.el("div", "wl-id");
       idWrap.appendChild(MSUi.el("div", "wl-title", MSWatchlistModel.shortName(item.name)));
-      var metaText = item.sym + (readState ? " · " + (readState === "unread" ? MSStr.t.wlUnread : MSStr.t.wlRead) : "");
+      var metaText = item.sym + (readState ? " · " + readStateLabel(readState) : "");
       idWrap.appendChild(MSUi.el("div", "wl-meta", metaText));
       btn.appendChild(idWrap);
 
@@ -360,19 +382,22 @@
       return b;
     }
 
-    // 시트는 워치리스트 DOM 밖(document.body)에 붙인다. drawShell() 이 root.innerHTML 을
-    // 통째로 비우고 다시 그리므로, 시트가 그 안에 있었다면 스캔 틱 하나·검색 입력 하나로도
-    // 열려 있는 시트가 통째로 날아간다. 오타 제안은 이제 피커(ticker-picker.js) 안에 있다 —
-    // watchlist.js 는 더 이상 그 경로를 몰라도 된다.
+    // P1a Task 6 — MSSheet(sheet.js, P0)로 이관했다. tier-sheet.js(Task 5)가 첫 소비자였고,
+    // 이 화면이 두 번째다 — 그 이관이 미룬 것이 바로 이 자리였다(그때는 이 화면 자체가
+    // 재작성 대상이라 두 번 옮기지 않으려고 미뤘다, tier-sheet.js 머리 주석 참고). 자체
+    // `.sheet-scrim`/`.sheet` 백드롭을 그리지 않는다 — 이제 이 화면이 그 골격의 마지막
+    // 소비자였으므로 style-sheet.css 에서 그 규칙 자체를 지웠다(남은 소비자 없음, 확인:
+    // `grep -rn '"sheet-scrim"\|"sheet"' www/screens/*.js www/*.js`).
+    //
+    // MSSheet.open() 에 title 을 안 준다 — 시안 12a 는 명시적 닫기 버튼이 없고(백드롭 탭으로
+    // 닫는다, sheet.js 소관 — MSSheet 는 옛 `.sheet::before` 드래그 손잡이가 없다, 재도입
+    // 안 함), 제목·부제·안내문·확인 버튼은 이미
+    // 피커(ticker-picker.js) 자신의 chrome 이 그린다(multi:false 일 때만 tp-title 등을
+    // 그린다). 여기서 title 을 또 주면 "종목 추가" 문구가 MSSheet 헤드 + tp-title 두
+    // 벌로 겹친다 — tier-sheet.js 머리 주석이 미리 짚어둔 바로 그 충돌이라, title 을
+    // 생략해 피한다.
     function openAddSheet(onAdded) {
-      var scrim = MSUi.el("div", "sheet-scrim");
-      var sheet = MSUi.el("div", "sheet");
-      function close() { if (scrim.parentNode) document.body.removeChild(scrim); }
-      scrim.addEventListener("click", function (e) { if (e.target === scrim) close(); });
-
-      // 시안 12a 는 명시적 닫기 버튼이 없다 — 드래그 손잡이(.sheet::before) + 스크림 탭으로
-      // 닫는다. 제목·부제·안내문·확인 버튼은 이제 피커(ticker-picker.js) 자신의 chrome 이
-      // 그린다(multi:false 일 때만) — 여기서 sheet-head 를 또 만들면 두 벌이 된다.
+      var handle = null;
       // 이미 담은 종목은 이 그리드에서도 자물쇠로 보여야 한다(사라지면 "왜 없지"가 된다) —
       // 그래서 현재 워치리스트 심볼을 locked 로 넘긴다. preset 은 비워 둔다: 이 심볼들은
       // "이미 담았다"는 표시일 뿐 "지금 고르는 대상"이 아니다(고르면 다시 addTicker 를 타서
@@ -383,7 +408,7 @@
         multi: false, max: null, preset: [], locked: curSyms,
         onChange: function (sel, items) {
           if (!sel.length) return;
-          close();
+          if (handle) handle.close();
           // 이름을 함께 심는다. 빈 이름이면 store.js 가 name = 심볼로 폴백해 이 행만
           // 심볼을 두 번 찍고(wl-title·wl-meta), 회사명 검색에서도 이 종목만 빠진다
           // (watchlist-model.filter 는 it.name 을 본다). 옛 대화상자 경로가 하던 일이다.
@@ -392,9 +417,7 @@
           onAdded();
         }
       });
-      sheet.appendChild(picker.el);
-      scrim.appendChild(sheet);
-      document.body.appendChild(scrim);
+      handle = MSSheet.open({ body: picker.el });
     }
 
     // 결제까지 끝난 뒤의 실제 스캔. rec 은 이미 모듈 스코프에 등록돼 있다 —

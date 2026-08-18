@@ -105,6 +105,33 @@ test("readState — 새 스캔(scannedAt 이 바뀜)은 예전에 읽었어도 �
   assert.strictEqual(M.readState({ scannedAt: "2026-08-16T09:00:00.000Z" }, "2026-08-15T09:00:00.000Z"), "unread");
 });
 
+// 3번째 상태 "오래됨"(P1a Task 6) — today 를 생략하면 예전 2종 그대로 돈다(하위 호환,
+// 위 시험들이 today 없이 부르는 것도 여전히 통과해야 한다). today 를 주면 rec.asOf(스캔이
+// 근거한 마지막 확정 봉)가 오늘보다 이전인 "읽음" 행만 "오래됨"으로 바뀐다.
+test("readState — today 를 안 주면 읽음이 오래됨으로 안 바뀐다(하위 호환)", () => {
+  const at = "2026-08-16T00:00:00.000Z";
+  assert.strictEqual(M.readState({ scannedAt: at, asOf: "2000-01-01" }, at), "read");
+});
+
+test("readState — today 를 주면, 읽었어도 asOf 가 오늘보다 이전이면 오래됨", () => {
+  const at = "2026-08-16T00:00:00.000Z";
+  assert.strictEqual(M.readState({ scannedAt: at, asOf: "2026-08-15" }, at, "2026-08-16"), "old");
+});
+
+test("readState — today 를 줘도 asOf 가 오늘과 같으면 그냥 읽음(하루도 안 지났다)", () => {
+  const at = "2026-08-16T00:00:00.000Z";
+  assert.strictEqual(M.readState({ scannedAt: at, asOf: "2026-08-16" }, at, "2026-08-16"), "read");
+});
+
+test("readState — 안 읽음이 오래됨보다 우선한다(아직 안 본 판정이 나이와 무관하게 가장 급하다)", () => {
+  assert.strictEqual(M.readState({ scannedAt: "S2", asOf: "2000-01-01" }, "S1", "2026-08-16"), "unread");
+});
+
+test("readState — asOf 가 없는 레코드는 today 가 있어도 오래됨으로 안 떨어진다(있는 것만 판단)", () => {
+  const at = "2026-08-16T00:00:00.000Z";
+  assert.strictEqual(M.readState({ scannedAt: at }, at, "2026-08-16"), "read");
+});
+
 // shortName — 74px 이름 칸에 법인 접미사가 들어가면 "NVIDIA Corpo…" 로 잘린다.
 // 기대값은 구현 상수가 아니라 실제 API 가 주는 이름과 시안 1a 의 표기에서 가져온다.
 test("shortName — 법인 접미사를 뗀다", () => {

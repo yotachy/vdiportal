@@ -39,6 +39,44 @@
   // 함께 냈다. 문자열 비교라 예외가 안 나고, 관문 666건이 전부 초록인 채로 통과했다.
   // 그래서 티어를 직접 비교하지 말고 **무엇을 묻는지**로 갈라 쓴다.
   function isPaid(t) { return t === "full" || t === "custom"; }   // 지표 전량을 읽은 분석인가
+
+  // 선언(report-blocks.js)엔 있는데 아직 그리는 함수가 없는 블록 id → 어느 페이즈가 짓는가.
+  // **못 그리는 것을 팔지 않는다**(리뷰 판정, 2026-08-18) — 이 표가 비어 있지 않은 티어는
+  // tier-sheet.js 가 구매를 막는다(아래 pendingOf/tierBuyable, MSTierSheet.open 의 locked).
+  // 모듈 스코프에 두는 이유는 draw() 의 BUILD 표(스킵용)와 시트를 여는 두 자리(buildCta·
+  // afterCtaAd) 셋이 **같은 한 벌**을 봐야 하기 때문이다 — 복제하면 한 곳만 고쳐 갈라진다.
+  // 관문(report-blocks.test.mjs)이 forTier() 가 선언한 모든 id 가 draw() 의 BUILD 나 여기
+  // 둘 중 하나엔 반드시 있는지를 강제한다.
+  // 값은 true 하나뿐이다(페이즈 이름을 문자열로 안 넣는다) — strings.test.mjs 의
+  // "screens/ 에 남은 영어가 없다" 관문이 화면 리터럴을 훑는데, "P1a Task 3"/"P1b" 같은
+  // 코드도 라틴 단어로 잡힌다(사용자가 볼 문구가 아닌데도 그 관문은 구분을 못 한다).
+  // 그래서 페이즈는 각 줄 주석에 적고, 표 자체는 "이 id 가 아직 없다"는 사실만 담는다.
+  var PENDING = {
+    // comb 은 P1a Task 3 이 구현했다(buildComb, 아래 draw() 의 BUILD 표) — 더 이상 PENDING 이
+    // 아니다. basic 은 이제 forTier() 선언 셋(verdict·comb·chart)을 전부 그린다.
+    sentence: true,   // 19b 「한 문장으로」 — P1b(심화 리포트 재작성, 19b·18b)
+    forecast: true,   // "내일 예상 + 확신" — P1b. 확신%·적중/오답·베이스라인 문구는 P1a
+                       // Task 3 이 verdict 카드에서 걷어냈다(basic 은 퍼센트를 안 쓴다, 설계서
+                       // §3.2) — 옛 문구와 그 근거는 이 커밋 이전 strings.js 이력에 있다.
+    hitrate:  true,   // 적중률 단독 블록 — P1b. 위와 같은 이유 — verdict 카드에서 이미
+                       // 분리됐으니 이제 새로 지으면 된다(forecast 와 겹치지 않게 나누는 것은
+                       // 여전히 P1b 의 화면 구조 결정)
+    compare:  true    // 심화 안의 "직전 상태(기본분석 대비)" 대조 — P1b. 내용 자체는 이미
+                       // 있다(buildHorizons() 안의 prevBasic() 블록, 시안이 회색 막대로
+                       // horizons 카드에 얹으라고 한 그대로) — 그래서 compare:buildHorizons
+                       // 로 잇지 않는다. 그러면 horizons 와 compare 가 같은 카드를 두 번
+                       // 그린다(중복). 독립 카드로 뽑아낼지는 P1b 가 정할 화면 구조 문제다
+  };
+  // 그 티어의 선언 중 아직 못 그리는 id 목록. tier 인자를 받는 이유는 PENDING 이 id→페이즈
+  // 표라 티어 무관이고, "이 티어에 지금 파는데 못 그리는 게 있나"는 그 티어 선언과 대조해야
+  // 답할 수 있어서다.
+  function pendingOf(tier) {
+    return MSReportBlocks.forTier(tier).map(function (b) { return b.id; })
+      .filter(function (id) { return Object.prototype.hasOwnProperty.call(PENDING, id); });
+  }
+  // basic 은 제외한다 — basic 은 팔지 않는다(무료 기본값), "구매 가능한가"를 묻는 질문 자체가
+  // 성립하지 않는다. full·custom 만 이 질문의 대상이다.
+  function tierBuyable(tier) { return tier === "basic" || pendingOf(tier).length === 0; }
   // 배지·설명·증거 세그먼트. 표로 두는 이유는 티어가 넷째로 늘 때 분기가 아니라 행이 늘게
   // 하려는 것이다(시안 6a: Basic 1/3 · Full 2/3 · Custom 3/3).
   // 키 이름을 문자열로 두지 않고 값을 그대로 담는다 — 문자열 관문 둘이 그래야 볼 수 있다.
@@ -617,7 +655,12 @@
     }
 
     // 시안 2a 가 화면에서 제일 크게 두는 것 — 현재가. 주식 앱 리포트에 가격이 없던 것이 가장 큰 결손이었다.
+    // data 가 아직 없으면(로딩·에러) null — 호출부(draw())가 그 자리에 안 붙인다. 로딩 스켈레톤은
+    // 이미 이 자리를 "가격" 몫으로 잡아 뒀다(draw() 의 skeletonBlock(84) 주석 참고) — 이 함수가
+    // 그동안 forTier() 선언·draw() 양쪽 어디에서도 실제로 안 불려 죽어 있었다(설계서 §3.2 헤더:
+    // "종목명 + 가격/시각 좌측" 요구가 화면에 한 번도 안 나가고 있었다 — P1a Task 3 에서 배선).
     function buildPrice() {
+      if (!data) return null;
       var wrap = MSUi.el("div", "rp-px-wrap");
       var name = (wlItem && wlItem.name) || "";
       if (name) wrap.appendChild(MSUi.el("div", "overline", name.toUpperCase()));
@@ -636,11 +679,24 @@
       return wrap;
     }
 
+    // 성향 칩(설계서 §3.2 헤더) — 선택된 프리셋 이름 + " 기준"("추세 추종 기준"). 저장된 값이
+    // 없으면(온보딩을 건너뛴 옛 세션 등) 첫 프리셋(추세 추종, MSIndTiers.PRESETS[0])으로
+    // 떨어진다 — 온보딩 2단계가 기본으로 그 프리셋을 미리 선택해 두는 것과 같은 기본값이다.
+    // 탭 동작(성향 변경 시트)은 P2 — 지금은 표시만 한다.
+    function currentStylePreset() {
+      var key = (MSStore.getStyle && MSStore.getStyle()) || null;
+      var list = (typeof MSIndTiers !== "undefined" && MSIndTiers.PRESETS) || [];
+      var found = null, i;
+      for (i = 0; i < list.length; i++) { if (list[i].key === key) { found = list[i]; break; } }
+      return found || list[0] || null;
+    }
     function buildTierRow() {
       var row = MSUi.el("div", "rp-tier-row");
       var b = TIER_BADGE[tier] || TIER_BADGE.basic;
       row.appendChild(MSUi.el("span", "rp-tier" + b.cls, b.name));
       row.appendChild(MSUi.el("span", "rp-tier-desc", b.desc));
+      var preset = currentStylePreset();
+      if (preset) row.appendChild(MSUi.el("span", "rp-style-chip", preset.name + MSStr.t.rpStyleSuffix));
       var evi = MSUi.el("span", "rp-evi");
       var on = b.evi;
       for (var k = 0; k < 3; k++) evi.appendChild(MSUi.el("span", "rp-evi-seg" + (k < on ? " on" : "")));
@@ -668,84 +724,98 @@
       return wrap;
     }
 
-    // 시안 6a·2a 순서: 판정(방향+확신%) → 적중/오답 → 일치도 → 범위 → 안 센 것.
-    // 중립이면 확신과 적중/오답을 함께 감춘다 — 부른 방향이 없으면 둘 다 가리킬 대상이 없다.
+    // verdict 는 지금 basic 전용이다(report-blocks.js BASIC = ["verdict","comb","chart"] — FULL/
+    // CUSTOM 선언엔 이 id 가 없다). 예전엔 확신%·적중/오답·베이스라인까지 이 한 카드에 다
+    // 실려 있었다(P1 이전 화면) — 그런데 basic 은 도구가 5개뿐이라 확률을 쓰면 0·20·40·60·
+    // 80·100 여섯 값밖에 안 나와 오독을 부른다(설계서 §3.2). 그래서 P1a Task 3 이 헤드라인
+    // 한 단어 + 문장 하나로 잘라냈다 — 퍼센트·적중률·베이스라인은 P1b 의 forecast·hitrate
+    // 블록(각자 값을 지불한 티어에서만 의미 있다)이 새로 짓는다.
     function verdictWord(regime) {
       return regime === "bull" ? MSStr.t.rpBullish : regime === "bear" ? MSStr.t.rpBearish : MSStr.t.rpFlat;
     }
-    function buildVerdict(indRows) {
-      var v = an.out.verdict, pr = an.out.prediction;
+    function buildVerdict() {
+      var v = an.out.verdict;
       var wrap = MSUi.el("div", "rp-verdict-wrap");
       var dirCls = v.regime === "bull" ? "bull" : v.regime === "bear" ? "bear" : "neutral";
 
       wrap.appendChild(MSUi.el("div", "overline", MSStr.t.rpComposite));
 
-      var conf = MSReportModel.confidence(ForgeCore, pr, v.regime);
       var head = MSUi.el("div", "rp-verdict " + dirCls);
       // 타이포는 **글자 요소**가 갖는다(.rp-verdict-word). 예전엔 flex 컨테이너(.rp-verdict)가
       // 헤드라인 자간(−0.05em)을 들고 있었는데, em 자간은 자식에게 **절대 px 로 상속**된다 —
       // 44px 기준 −2.2px 가 11.5px 짜리 집계 문구에 그대로 실려 글자가 서로 겹쳤다(헤드리스
       // 스크린샷에서 발견). 컨테이너에 타이포를 얹으면 그 안의 모든 작은 글자가 인질이 된다.
       head.appendChild(MSUi.el("span", "rp-verdict-word", verdictWord(v.regime)));
-      if (conf != null) head.appendChild(MSUi.el("span", "rp-conf-pct", conf + "%"));
-      // 시안 2a 의 "17 up · 6 flat · 9 down" + 3구간 바. 방향 개수는 레전드 행의 tone 에서 센다 —
-      // 판정에 실제로 쓰인 지표들이라 다른 출처를 새로 만들지 않는다.
-      // 집계는 그 티어가 실제로 읽은 지표를 센다. Full 인데 5지표만 세면 바로 아래 "4 of 32" 와
-      // 숫자가 어긋나 같은 화면이 두 말을 한다. 방향 경로는 반대 근거와 동일(MSIndicators).
-      var tally;
-      if (isPaid(tier) && indRows) {
-        tally = { up: 0, flat: 0, down: 0 };
-        indRows.forEach(function (r) {
-          if (r.bias > MSIndicators.EPS) tally.up++;
-          else if (r.bias < -MSIndicators.EPS) tally.down++;
-          else tally.flat++;
-        });
-      } else {
-        tally = MSLegend.tally(MSLegend.rows(an, pr, null));
-      }
-      var tallyWrap = MSUi.el("div", "rp-tally");
-      tallyWrap.appendChild(MSUi.el("div", "rp-tally-txt",
-        tally.up + MSStr.t.rpUp2 + tally.flat + MSStr.t.rpFlat2 + tally.down + MSStr.t.rpDown2));
-      var bar = MSUi.el("div", "rp-tally-bar");
-      [["up", tally.up], ["flat", tally.flat], ["down", tally.down]].forEach(function (seg) {
-        if (!seg[1]) return;
-        var s = MSUi.el("div", "rp-tally-seg is-" + seg[0]);
-        s.style.flex = String(seg[1]);
-        bar.appendChild(s);
-      });
-      tallyWrap.appendChild(bar);
-      head.appendChild(tallyWrap);
       wrap.appendChild(head);
 
-      var hit = (conf != null) ? MSReportModel.hitRate(window.MSBacktest, v.regime) : null;
-      // 베이스라인이 없으면 적중 행을 통째로 감춘다(P2 §2 R2). 비교 대상 없는 적중률은
-      // "동전보다 낫다"로 읽히므로, 숫자만 남기는 것보다 안 보이는 편이 정직하다.
-      // 옛 생성물(baselineAlwaysUp 이 없던 backtest-summary.js)로도 화면이 성립해야 한다.
-      if (hit && hit.baseline == null) hit = null;
-      if (hit) {
-        // 방향을 먼저 밝힌다 — 불 61.5/38.5 · 베어 42.6/57.4 로 갈리므로 어느 쪽 수치인지가
-        // 숫자 자체만큼 중요하다.
-        var lead = (v.regime === "bull") ? MSStr.t.rpHitLeadBull : MSStr.t.rpHitLeadBear;
-        wrap.appendChild(MSUi.el("div", "rp-hit",
-          lead + hit.right + MSStr.t.rpHitRight + hit.wrong + MSStr.t.rpHitWrong));
-        // 베이스라인은 적중률 **바로 아래**다 — 범위 고지보다 위. 두 숫자가 떨어져 있으면
-        // 사용자가 위 숫자만 읽고 스크롤한다.
-        wrap.appendChild(MSUi.el("div", "rp-hit-base",
-          MSStr.t.rpHitBaseA + hit.baseline + MSStr.t.rpHitBaseB));
-        // 범위를 반드시 함께 적는다. 이 수치는 백테스트 하네스의 그래프로 잰 것이라 이 종목도,
-        // 이 티어의 지표 구성도 아니다 — "이 판정 같은 콜"이라고 말하면 거짓 귀속이 된다.
-        var scope = (hit.n != null && hit.series != null)
-          ? (MSStr.t.rpHitScopeA + hit.n.toLocaleString() + MSStr.t.rpHitScopeB + hit.series + MSStr.t.rpHitScopeC)
-          : MSStr.t.rpHitScopeShort;
-        wrap.appendChild(MSUi.el("div", "rp-hit-note",
-          scope + MSStr.t.rpHitSize + hit.wrong + MSStr.t.rpHitSizeTail));
-      }
+      // 부제 — "도구 5개 중 4개가 상승을 가리킴"(시안 18a). 집계는 comb 블록과 같은 5행
+      // 레전드에서 낸다(MSLegend.tally) — 여기서 다시 세면 두 블록이 다른 숫자를 말할 수 있다.
+      // MSReportModel.verdict() 가 방향→동의/반대 매핑과 합계 검산을 한 곳에서 한다(P1a Task 2).
+      var tally = MSLegend.tally(MSLegend.rows(an, an.out.prediction, null));
+      var vm = MSReportModel.verdict({ dir: v.regime, up: tally.up, down: tally.down, flat: tally.flat });
+      var sub = (vm.dir === "bull" || vm.dir === "bear")
+        ? (MSStr.t.rpToolsA + vm.total + MSStr.t.rpToolsB + vm.agree + MSStr.t.rpToolsC + dirWord(vm.dir) + MSStr.t.rpToolsD)
+        : MSStr.t.rpToolsNone;
+      wrap.appendChild(MSUi.el("div", "rp-verdict-sub", sub));
+      return wrap;
+    }
 
-      var total = v.confluence.total, agree = v.confluence.agree;
-      var confText = total ? (agree + MSStr.t.rpAgree + total + MSStr.t.rpAgreeTail) : MSStr.t.rpAgreeNone;
-      wrap.appendChild(MSUi.el("div", "rp-conf", confText));
-      // 예측 범위는 HORIZON 머리로 옮겼다 — 시안 2a 가 "80% cone" 을 지평 표의 캡션으로 둔다.
-      // 안 센 지표 27개 나열도 뺐다: 시안은 SIGNALS 머리의 "5 of 32" 한 줄로 같은 말을 한다.
+    // 지표 빗(comb, 시안 18a) — 막대 하나가 도구 하나. 스틸 5(기본이 실제로 읽은 것) +
+    // 연한 골드 27(안 읽은 것). 27칸에 자물쇠 아이콘·"잠김" 라벨을 하나씩 놓으면 같은
+    // 리듬의 막대 사이에 다른 언어가 끼어들어 이질감이 생긴다(설계서 §3.2) — 그래서
+    // 잠김은 칸이 아니라 빗 **밖** 한 줄로 뺀다.
+    //
+    // 색 규칙(리뷰 2026-08-18, spec-18a.png 픽셀 샘플링 근거) — **위치가 방향, 색은 반대**를
+    // 말한다. 처음엔 tone(bull/bear)을 그대로 입혀 방향이 있는 칸을 전부 채색했는데, 그건
+    // 판정에서 걷어낸 바로 그 오독을 색으로 재현한다 — "5개 중 몇 개가 초록/빨강"을 세면
+    // percent 를 다시 읽는 것과 같다. 시안은 5칸 중 4칸이 정확히 --steel 값이고 반대
+    // 1칸만 방향색이었다: 판정에 **동의하는 칸은 스틸**(중립), **반대하는 칸만** 그 칸
+    // 자신의 방향색(bull 판정이면 반대=bear 적색, 그 반대도 대칭). 무판정(muted) 칸은
+    // 스틸보다 흐리게 — 동의·반대·무판정 셋을 구분한다.
+    function combRole(tone, dir) {
+      if (dir !== "bull" && dir !== "bear") return "nodir";   // 판정 자체가 중립이면 동의할 방향이 없다
+      if (tone === "bull") return dir === "bull" ? "agree" : "dissent";
+      if (tone === "bear") return dir === "bear" ? "agree" : "dissent";
+      return "nodir";                                          // 이 지표 자신이 무방향(muted)
+    }
+    function combCell(cls, tone, role) {
+      var cell = MSUi.el("div", "rp-comb-cell " + cls);
+      if (cls === "is-steel") {
+        var faint = role === "nodir";
+        // 리터럴 조각은 선행 공백 하나씩만 갖는다(파일 기존 관례, 예: "rp-comb-up" + " is-on") —
+        // 중간에 공백이 낀 " is-on rp-comb-" 한 덩어리 리터럴은 strings.test.mjs 의 화면
+        // 영어잔존 게이트가 "문장일 수 있다"고 보고 is/on/rp/comb 를 잡는다(el() 의 직접
+        // 2번째 인자만 위치로 면제되고, 삼항식에 중첩된 리터럴은 면제 대상이 아니다) —
+        // 조각을 쪼개 각각 CODE_TOKEN_RE(선행 공백만 허용)를 통과시킨다.
+        var up = MSUi.el("span", "rp-comb-up" + (tone === "bull" ? " is-on" + " rp-comb-" + role : (faint ? " is-faint" : "")));
+        var down = MSUi.el("span", "rp-comb-down" + (tone === "bear" ? " is-on" + " rp-comb-" + role : (faint ? " is-faint" : "")));
+        cell.appendChild(up);
+        cell.appendChild(down);
+      }
+      return cell;
+    }
+    function buildComb() {
+      var wrap = MSUi.el("div", "rp-comb");
+      var bar = MSUi.el("div", "rp-comb-bar");
+      // 판정 방향은 단일 출처(an.out.verdict.regime)다 — buildVerdict() 가 MSReportModel.verdict()
+      // 로 집계(동의/반대 합계)를 낼 때 쓰는 것과 같은 필드를 여기서도 그대로 쓴다. 칸마다
+      // 다시 판정을 계산하지 않는다 — combRole() 은 그 한 값과 이 칸의 tone 을 비교만 한다.
+      var dir = an.out.verdict.regime;
+      // 앞 5행이 항상 기본 5지표다(MSLegend.rows 는 ma·macd·rsi·bb·vol 을 이 순서로 먼저
+      // 넣고, 예측 2행은 뒤에 조건부로 붙는다 — chart-legend.js 참고) — 다시 세지 않고
+      // 판정(verdict)과 같은 호출로 얻어 두 블록이 같은 숫자를 보게 한다.
+      MSLegend.rows(an, an.out.prediction, null).slice(0, MSGraph.BASIC.length).forEach(function (r) {
+        bar.appendChild(combCell("is-steel", r.tone, combRole(r.tone, dir)));
+      });
+      var hidden = ForgeCore.indicatorCount - MSGraph.BASIC.length;   // 리터럴 27 이 아니라 역산값 — 지표가 늘면 같이 는다
+      for (var i = 0; i < hidden; i++) bar.appendChild(combCell("is-locked"));
+      wrap.appendChild(bar);
+      // [리뷰 C1] "광고 1편으로 전부 열림"은 약속이다 — buyable(광고든 스쿱이든 어느 화폐로
+      // 살 수 있는 티어가 하나라도 있음)일 때만 붙인다. 못 파는데 약속을 달면 buildCta() 의
+      // 광고 버튼과 같은 결함(살 수 없는 것을 판다)을 여기서 반복하는 것이다.
+      var noteText = hidden + MSStr.t.rpCombNote +
+        ((tierBuyable("full") || tierBuyable("custom")) ? MSStr.t.rpCombNoteAd : "");
+      wrap.appendChild(MSUi.el("div", "rp-comb-note", noteText));
       return wrap;
     }
 
@@ -759,16 +829,28 @@
       var sec = MSUi.el("div", "rp-hz");
       var head = MSUi.el("div", "rp-sec-head");
       head.appendChild(MSUi.el("span", "overline", MSStr.t.rpHorizon));
-      var pr = an.out.prediction, lastI = pr.lo.length - 1;
-      if (lastI >= 0) {
+      var pr = an.out.prediction;
+      // 기본분석은 "내일"만 답한다(설계서 §3.2) — 머리글도 가장 먼 지평(전체 콘)이 아니라
+      // 내일 한 칸(index 0)의 범위여야 한다. lastI(전체 경로의 끝)를 그대로 쓰면 머리글만
+      // 수십 봉 뒤의 넓은 콘을 보여줘 "내일만 답한다"는 이 티어의 약속과 어긋난다.
+      var capI = (tier === "basic") ? 0 : (pr.lo.length - 1);
+      if (capI >= 0 && capI < pr.lo.length) {
         head.appendChild(MSUi.el("span", "rp-sec-note",
-          MSUi.fmtPrice(pr.lo[lastI]) + " – " + MSUi.fmtPrice(pr.hi[lastI]) + MSStr.t.rpCone));
+          MSUi.fmtPrice(pr.lo[capI]) + " – " + MSUi.fmtPrice(pr.hi[capI]) + MSStr.t.rpCone));
       }
       sec.appendChild(head);
       // 8a 직전 상태 대조 — 심화가 판 것을 화면에서 보이게 하는 유일한 장치다. 티어 실측이
       // 말하는 것은 "방향을 더 맞힌다"가 아니라 "폭이 정직해진다"인데, 대조 없이 심화 값만
-      // 단독으로 놓으면 사용자는 그 정직해짐을 볼 방법이 없다. 폭이 4.0 에서 ±1.1 로 좁아진
-      // 것을 **직전 값 옆에서** 봐야 "무엇을 샀는지"가 성립한다.
+      // 단독으로 놓으면 사용자는 그 정직해짐을 볼 방법이 없다.
+      // [리뷰 C1/I1, 2026-08-18 정정] 예전 주석은 여기서 "폭이 4.0 에서 ±1.1 로 좁아진다"고
+      // 적었는데, 그 전제가 실측으로 깨졌다 — 최종 리뷰어의 독립 실측(28창)은 **심화가 더
+      // 좁은 사례 0.0%, 폭 비율(심화÷기본) 중앙값 1.78배, 최대 7.09배**였다. 즉 지금 이
+      // 블록이 유료 티어에서 켜지면 사용자는 돈을 낸 직후 직전 무료 범위보다 **넓어진**
+      // 범위를 나란히 보게 된다("좁아진다"는 반대 사실이다) — 설계서 §3.5 정정과 같은
+      // 근거. P1b 가 이 대조를 다시 다듬을 때 확인할 것: 직전 기본 폭과 심화 폭의 대소를
+      // 실데이터로 먼저 재고, 넓어지는 쪽이 정상이면 **화면이 그 사실을 먼저 말해야 한다**
+      // (아래 rp-hz-row 의 반대 의견을 경고문처럼 위에 올리는 것과 같은 태도 — 불리한
+      // 것부터 말한다).
       // 없으면 그냥 없다(G1) — 회색 자리에 "—" 나 추정치를 채우지 않는다.
       var prev = prevBasic();
       if (prev) {
@@ -791,7 +873,10 @@
         // 임계를 쓰도록 여기서 리터럴 ±0.05 를 다시 판정하지 않는다(최종수정웨이브 §⑥).
         var cls = r.dir === "up" ? " up" : r.dir === "down" ? " dn" : "";
         row.appendChild(MSUi.el("span", "rp-hz-chg" + cls, MSUi.fmtChg(r.chgPct)));
-        row.appendChild(MSUi.el("span", "rp-hz-prob", r.prob == null ? "" : r.prob + "%"));
+        // [리뷰 C1] 기본분석은 확률을 말하지 않는다(설계서 §3.1) — horizonRows() 는 티어를
+        // 모르고 방향이 있으면 항상 prob 을 계산해 주므로, 여기서 티어를 보고 비운다.
+        // 그대로 두면 바로 아래 rpBasicRangeNote("범위만 말합니다")와 한 화면에서 모순됐다.
+        row.appendChild(MSUi.el("span", "rp-hz-prob", (tier === "basic" || r.prob == null) ? "" : r.prob + "%"));
         sec.appendChild(row);
       });
       // 이 문장이 기본분석의 판매 논리 그 자체다 — 범위는 정확히 답하되 그 이상은 말하지
@@ -809,6 +894,86 @@
         }
       }
       return sec;
+    }
+
+    // 3단 대조(시안 7a, 설계서 §3.3) — 크롬이다(정보 블록 3개 verdict·comb·chart 에 안 낀다,
+    // report-blocks.js BASIC 선언 그대로).
+    //
+    // 컨트롤러 판정 D1(리뷰 2026-08-19) — 처음엔 "이 종목의 예측 폭이 절반으로 준다"는
+    // 종목별 대조였다. 리뷰어가 실측(150창 표본)으로 그 전제를 깼다: 심화가 더 좁은 비율
+    // 47.3%·폭 비율 중앙값 1.001·"절반" 사례 0/150 — 콘 폭은 지표 개수와 독립이라 종목
+    // 하나로 "심화가 좁다"를 주장할 근거가 없었다(tier-compare.js 헤더 주석에 근거 전체).
+    // 그래서 카드는 이제 **모집단 지표**만 말한다(방향 적중·콘 커버리지·ECE, 전부 엔진
+    // 전체 87종목·31,971건 측정) — 종목 데이터에 기대지 않으므로 [리뷰 I5] 재료 부족으로
+    // 생략하는 경로가 없다. basic 이면 **항상** 그린다.
+    function buildCompare() {
+      if (tier !== "basic") return null;
+      var rows = MSTierCompare.rows();
+      var base = MSTierCompare.baseline();
+      var sc = MSTierCompare.scope();
+
+      var wrap = MSUi.el("div", "rp-tc");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.tcHead));
+      wrap.appendChild(head);
+      // 축 확대 표기 — 없으면 과장 그래프가 된다(설계서 §3.3). [리뷰 M1] 55~70 은
+      // MSTierCompare.AXIS_MIN/MAX 에서만 산다 — strings.js 에 리터럴로 다시 안 적는다.
+      wrap.appendChild(MSUi.el("div", "rp-tc-axis",
+        MSStr.t.tcAxisNoteA + MSTierCompare.AXIS_MIN + MSStr.t.tcAxisNoteMid + MSTierCompare.AXIS_MAX + MSStr.t.tcAxisNoteB));
+      // [리뷰 I1] 범위 주석(상위 설계서 §9.3 규칙4, 필수) — 이 수치가 이 종목이 아니라
+      // 엔진 전체 측정값이라는 사실. n·시리즈 수도 MSBacktest 에서 온다(리터럴 아님).
+      if (sc) {
+        wrap.appendChild(MSUi.el("div", "rp-tc-scope",
+          MSStr.t.tcScopeA + sc.series + MSStr.t.tcScopeB + sc.n.toLocaleString() + MSStr.t.tcScopeC));
+      }
+
+      var list = MSUi.el("div", "rp-tc-cards");
+      rows.forEach(function (r) {
+        var badge = TIER_BADGE[r.tier] || TIER_BADGE.basic;
+        var card = MSUi.el("div", "rp-tc-card is-" + r.tier);
+        card.appendChild(MSUi.el("div", "rp-tc-name", badge.name));
+
+        var body = MSUi.el("div", "rp-tc-body");
+
+        // 왼쪽 = 방향 적중률(막대 + 기준선 점). 기준선 없이는 절대 rate 를 단독 노출하지
+        // 않는다(설계서 §9.3 규칙9) — rate·baseline 어느 한쪽이라도 없으면 "측정 중"으로
+        // 통일해 그린다. 기준선 점을 막대 위에 찍는 장치는 리뷰가 "유지하라"고 명시했다.
+        var rateCol = MSUi.el("div", "rp-tc-rate");
+        if (r.rate != null && base != null) {
+          var bar = MSUi.el("div", "rp-tc-bar");
+          var fill = MSUi.el("div", "rp-tc-bar-fill");
+          fill.style.width = MSTierCompare.axisPos(r.rate) + "%";
+          bar.appendChild(fill);
+          var mark = MSUi.el("div", "rp-tc-bar-base");
+          mark.style.left = MSTierCompare.axisPos(base) + "%";
+          bar.appendChild(mark);
+          rateCol.appendChild(bar);
+          rateCol.appendChild(MSUi.el("div", "rp-tc-rateval",
+            MSStr.t.tcRateLabel + r.rate.toFixed(1) + "%" + MSStr.t.tcBaselineLabel + base.toFixed(1) + "%"));
+        } else {
+          rateCol.appendChild(MSUi.el("div", "rp-tc-measuring", MSStr.t.tcMeasuring));
+        }
+        body.appendChild(rateCol);
+
+        // 오른쪽 = 콘 커버리지 · 오차(ECE). 심화가 실제로 파는 것 — 방향이 아니라 범위의
+        // 정직함이다(상위 설계서 §9.2). coverage·ece 어느 한쪽이라도 없으면 "측정 중".
+        var covCol = MSUi.el("div", "rp-tc-cov");
+        if (r.coverage != null && r.ece != null) {
+          covCol.appendChild(MSUi.el("div", "rp-tc-covval",
+            MSStr.t.tcCovLabel + r.coverage.toFixed(1) + "%" + MSStr.t.tcEceLabel + r.ece.toFixed(2) + MSStr.t.tcEceUnit));
+        } else {
+          covCol.appendChild(MSUi.el("div", "rp-tc-measuring", MSStr.t.tcMeasuring));
+        }
+        body.appendChild(covCol);
+        card.appendChild(body);
+
+        // 심화의 불리한 사실 · 전문의 하향 경고 — 둘 다 note 에 실려 온다(tier-compare.js).
+        if (r.note) card.appendChild(MSUi.el("div", "rp-tc-note" + (r.tier === "custom" ? " is-warn" : ""), r.note));
+
+        list.appendChild(card);
+      });
+      wrap.appendChild(list);
+      return wrap;
     }
 
     function buildChartSection() {
@@ -1074,7 +1239,7 @@
               balance: r2.state ? r2.state.balance : null, cap: r2.state ? r2.state.cap : null,
               // onRun: runFull 이면 시트가 넘겨준 picked 를 버린다 — 광고로 충전한 뒤 전문분석을
               // 골라도 심화가 돌고 3스쿱이 나갔다. 아래 buildCta 와 **같은 분기**를 쓴다.
-              onRun: runPicked });
+              onRun: runPicked, locked: { full: !tierBuyable("full"), custom: !tierBuyable("custom") } });
           });
           return;
         }
@@ -1192,6 +1357,11 @@
       return b;
     }
 
+    // 해제 블록(설계서 §3.2 항목5) — 광고가 위(자발적 시청이 목표라 1순위), 스쿱이 아래.
+    // 직전 라운드에 이 CTA 자체가 통째로 사라진 사고가 있었다 — 유료 티어로 가는 유일한
+    // 진입점이라 반드시 존재해야 한다(P1a Task 3 는 이 존재를 브라우저 관문·단위 시험 둘 다로
+    // 단언한다). 예전엔 버튼 하나(스쿱만)였고 잔량이 부족할 때만 showLowBalanceAd 로 광고를
+    // "대안"으로 보여줬다 — 그 순서가 뒤집혔다. 이제 광고는 잔량과 무관하게 항상 1순위다.
     function buildCta() {
       if (tier !== "basic") return MSUi.el("div");
       var wrap = MSUi.el("div", "rp-unlock");
@@ -1200,8 +1370,43 @@
       var hidden = ForgeCore.indicatorCount - MSGraph.BASIC.length;
       wrap.appendChild(MSUi.el("p", "rp-unlock-line",
         MSStr.t.rpLockedA + hidden + MSStr.t.rpLockedB));
-      var b = MSUi.el("button", "rp-cta", MSStr.t.rpUpgrade);
-      b.addEventListener("click", function () {
+
+      // [리뷰 C1, 2026-08-18] 심화·전문 둘 다 아직 못 그리는 블록이 있으면(pendingOf) 어느
+      // 티어도 살 수 없다 — 그 상태에서 "광고 1편으로 열기"·"스쿱 N개로 열기" 버튼을 그대로
+      // 두면 실제로 아무것도 열리지 않는 것을 판다(afterCtaAd/scoopBtn 이 결국 열어 보여줄
+      // 시트도 두 티어 다 잠긴 채다). 살 수 없는 것은 어느 화폐(광고=주의력, 스쿱)로도 팔지
+      // 않는다 — 이 판단을 CTA 버튼 자체를 안 그리는 것으로 한다(아래 buildComb() 의 약속
+      // 문구도 같은 tierBuyable 로 갈린다).
+      if (!tierBuyable("full") && !tierBuyable("custom")) {
+        wrap.appendChild(MSUi.el("p", "rp-missing-note", MSStr.t.rpUnlockSoon));
+        return wrap;
+      }
+
+      var msg = MSUi.el("p", "rp-missing-note");
+
+      var adBtn = MSUi.el("button", "rp-cta rp-cta-ad");
+      adBtn.appendChild(MSUi.el("span", null, MSStr.t.rpUnlockAd));
+      adBtn.appendChild(MSUi.el("span", "rp-cta-badge", MSStr.t.rpUnlockAdBadge));
+      adBtn.addEventListener("click", function () {
+        if (adBusy) return;
+        MSWallet.get().then(function (r) {
+          if (!isCurrent()) return;
+          var bal = (r.state ? r.state.balance : null) || 0;
+          MSWallet.adConfig().then(function (ac) {
+            if (!isCurrent()) return;
+            if (!ac.ok) { msg.textContent = MSStr.t.tsShort; return; }   // ads-disabled — 정직하게 되돌아간다
+            if (typeof MSAds !== "undefined" && MSAds && MSAds.init) MSAds.init(ac);
+            watchCtaAd("full", msg, bal);
+          });
+        });
+      });
+      wrap.appendChild(adBtn);
+
+      var scoopBtn = MSUi.el("button", "rp-cta rp-cta-scoop");
+      scoopBtn.appendChild(MSUi.el("span", null, MSStr.t.rpUnlockScoopA));
+      scoopBtn.appendChild(MSUi.el("span", "rp-cta-scoop-cost", String(MSWallet.COSTS.full)));
+      scoopBtn.appendChild(MSUi.el("span", null, MSStr.t.rpUnlockScoopB));
+      scoopBtn.addEventListener("click", function () {
         MSWallet.get().then(function (r) {
           if (!isCurrent()) return;
           var bal = r.state ? r.state.balance : null;
@@ -1210,11 +1415,20 @@
           if (bal != null && bal < MSWallet.COSTS.full) { showLowBalanceAd(wrap, bal); return; }
           MSTierSheet.open({ sym: sym, tier: tier, name: wlItem && wlItem.name,
             balance: bal, cap: r.state ? r.state.cap : null,
-            onRun: runPicked });
+            onRun: runPicked, locked: { full: !tierBuyable("full"), custom: !tierBuyable("custom") } });
         });
       });
-      wrap.appendChild(b);
+      wrap.appendChild(scoopBtn);
+      wrap.appendChild(msg);
       return wrap;
+    }
+
+    // 읽은 도구 접힌 한 줄(설계서 §3.2 항목6) — 32개를 펼쳐 나열하지 않는다. comb 과 같은
+    // 5지표 집합을 가리키되 이름은 안 댄다(이름 나열은 유료 판독문·readings 의 몫). CTA 처럼
+    // forTier() 선언 밖에서 부른다 — 크롬이라 정보 블록 3개 카운트에 안 든다.
+    function buildReadTools() {
+      if (tier !== "basic") return null;
+      return MSUi.el("div", "rp-readtools", MSStr.t.rpReadToolsA + MSGraph.BASIC.length + MSStr.t.rpReadToolsB);
     }
 
     function draw() {
@@ -1223,6 +1437,8 @@
       var scr = MSUi.el("div", "scr rp-scr");
       scrRef = scr;   // 카드가 닫힌 뒤 광고 권유를 붙일 자리(shortCardAd) — draw 마다 갱신된다
       scr.appendChild(buildHead());
+      var priceBlock = buildPrice();
+      if (priceBlock) scr.appendChild(priceBlock);
       scr.appendChild(buildTierRow());
 
       if (state === "error") {
@@ -1251,11 +1467,16 @@
         var BUILD = {
           price:     function () { return buildPrice(); },
           last:      function () { return buildLast(); },
-          verdict:   function () { return buildVerdict(indRows); },
+          verdict:   function () { return buildVerdict(); },
+          comb:      function () { return buildComb(); },
           chart:     function () { return buildChartSection(); },
           legend:    function () { return buildChartLegend(); },
           horizons:  function () { return buildHorizons(); },
           against:   function () { return buildAgainst(indRows); },
+          // dissent 는 against 의 개명이다 — 시안 19b "이건 알고 계세요(반대)"와 against 의
+          // 제목("반대 의견")·isPaid 게이팅·내용이 정확히 같다(리뷰 지시로 확인). 같은 함수를
+          // 두 id 로 잇는다 — 함수를 복제하면 나중에 한쪽만 고쳐 갈라진다.
+          dissent:   function () { return buildAgainst(indRows); },
           tf:        function () { return buildTfSection(); },
           note:      function () { return buildMissingNote(); },
           cta:       function () { return buildCta(); },
@@ -1263,16 +1484,39 @@
           // 18a 의 의도된 빈 공간 — "여기까지가 무료"를 스크롤 부재로 전달한다. 버그가 아니다.
           spacer:    function () { return MSUi.el("div", "rp-spacer"); },
           unlock:    function () { return buildCta(); },
-          // 전문분석 조절판은 Task 8 에서 온다. 선언에는 이미 있고 여기 함수가 없으므로
-          // 지금은 그 자리에 아무것도 안 그린다 — 관문이 이 미구현을 이름으로 드러낸다.
           weights:   function () { return buildWeights(); }
         };
-        MSReportBlocks.orderOf(tier).forEach(function (key) {
-          var fn = BUILD[key];
+        // report-blocks.js 가 orderOf(문자열 배열)에서 forTier({id,kind} 배열)로 개명됐다
+        // (P1a Task 2) — 화면 조립은 그대로, id 만 꺼내 쓴다. PENDING(모듈 스코프, 위)에 있는
+        // id 는 조용히 건너뛴다(if (!fn) return) — 화면 구조 자체는 Task 3(기본)·P1b(심화)·
+        // P1c(전문) 소관이라 이번엔 안 넓혔다.
+        MSReportBlocks.forTier(tier).forEach(function (b) {
+          var fn = BUILD[b.id];
           if (!fn) return;
           var node = fn();
           if (node) scr.appendChild(node);
         });
+        // "내일은 어디쯤 · 3단 대조"(설계서 §3.2 항목4) — 이것도 CTA 와 같은 크롬이다.
+        // report-blocks.js 에는 애초에 이 둘의 id 가 없다(정보 블록 3개에 안 낀다) — 그래서
+        // forTier 선언 루프가 아니라 여기서 직접 부른다. basic 전용, 재료가 없으면(G1) 각
+        // build 함수가 스스로 null 을 돌려줘 그 자리에 아무것도 안 붙는다.
+        if (tier === "basic") {
+          var hz = buildHorizons();
+          if (hz) scr.appendChild(hz);
+          var cmp = buildCompare();
+          if (cmp) scr.appendChild(cmp);
+        }
+        // 해제 CTA(buildCta)는 선언 밖에서 부른다 — 시안 18a 의 "판정·빗·차트 정보 블록
+        // 3개"는 CTA·빈 공간을 안 센다(report-blocks.js 의 주석·리뷰 지시). 그렇다고 CTA 를
+        // 아예 안 부르면 기본분석에서 심화·전문으로 올라갈 유일한 입구(단계 선택 시트)가
+        // 통째로 사라진다 — 리뷰가 잡은 "관문은 초록, 화면은 죽음"과 같은 모양의 사고를
+        // 여기서 반복할 뻔했다(브라우저 관문 report-locked-tiers 가 CTA_MISSING 으로 잡음).
+        // buildCta() 자신이 이미 tier!=='basic' 이면 빈 div 를 돌려주므로(내부 가드) 항상
+        // 불러도 안전하다.
+        scr.appendChild(buildCta());
+        // 읽은 도구 한 줄 — 해제 블록 아래, 화면 맨 끝. null 이면(paid 티어) 그냥 안 붙는다.
+        var rt = buildReadTools();
+        if (rt) scr.appendChild(rt);
       }
 
       if (state !== "ready") {
