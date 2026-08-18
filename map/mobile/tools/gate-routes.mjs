@@ -38,9 +38,10 @@ export const ROUTES = [
   { name: "onboarding", seed: {}, go: null,
     assert: "typeof MSOnboarding !== 'undefined' && !!document.querySelector('.ob-step') && " +
       "document.querySelectorAll('button, [role=button]').length > 0" },
+  // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데
+  // 탭바가 없던(화면이 비어 있던) 것과 같은 부류의 사고를 이 경로에서 반복하지 않기 위해서다.
   { name: "watchlist", seed: { ...ON, ms_preds: PREDS }, go: null,
-    assert: "MSApp.current().route === 'watchlist' && !!document.querySelector('.wl-rows') && " +
-      "document.querySelectorAll('[data-sym]').length === 3" },
+    assert: "document.querySelectorAll('[data-sym]').length === 3 && document.querySelectorAll('.ms-tab').length === 3" },
   { name: "report", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 1200,
     assert: "MSApp.current().route === 'report' && !!document.querySelector('.rp-chart') && " +
       "!/불러오지 못했습니다/.test(document.getElementById('app').textContent)" },

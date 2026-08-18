@@ -102,9 +102,8 @@ test("www 의 모든 스크립트가 index.html 에 실려 있다 — 태그를 
   })(WWW, "");
   // 앱이 안 싣는 것이 정상인 파일 — 사유를 적는다(근거 없이 빼면 이 관문이 무의미해진다).
   const NOT_APP = {
-    "bench.js": "실행시간 측정 도구 — 테스트(test/bench.test.mjs)에서만 쓰고 앱은 안 싣는다",
-    "router.js": "P0 Task 3 — 상태기계만 먼저 만든다. index.html 에 태그를 다는 것은 " +
-      "shell.js 가 이걸 소비하는 Task 4 소관(브리프가 순서를 정한다)"
+    "bench.js": "실행시간 측정 도구 — 테스트(test/bench.test.mjs)에서만 쓰고 앱은 안 싣는다"
+    // router.js 는 Task 4(셸) 가 index.html 에 태그를 달아 소비하므로 이 예외는 사라졌다.
   };
   const notLoaded = files.filter(f => SRCS.indexOf(f) < 0 && !NOT_APP[f]);
   assert.deepEqual(notLoaded, [],
