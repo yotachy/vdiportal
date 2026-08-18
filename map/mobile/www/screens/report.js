@@ -760,26 +760,52 @@
       return wrap;
     }
 
-    // 지표 빗(comb, 시안 18a) — 막대 하나가 도구 하나. 스틸 5(기본이 실제로 읽은 것, 위=상승
-    // 절반·아래=하락 절반 중 실제 방향만 채운다) + 연한 골드 27(안 읽은 것). 27칸에 자물쇠
-    // 아이콘·"잠김" 라벨을 하나씩 놓으면 같은 리듬의 막대 사이에 다른 언어가 끼어들어
-    // 이질감이 생긴다(설계서 §3.2) — 그래서 잠김은 칸이 아니라 빗 **밖** 한 줄로 뺀다.
-    function combCell(cls, tone) {
+    // 지표 빗(comb, 시안 18a) — 막대 하나가 도구 하나. 스틸 5(기본이 실제로 읽은 것) +
+    // 연한 골드 27(안 읽은 것). 27칸에 자물쇠 아이콘·"잠김" 라벨을 하나씩 놓으면 같은
+    // 리듬의 막대 사이에 다른 언어가 끼어들어 이질감이 생긴다(설계서 §3.2) — 그래서
+    // 잠김은 칸이 아니라 빗 **밖** 한 줄로 뺀다.
+    //
+    // 색 규칙(리뷰 2026-08-18, spec-18a.png 픽셀 샘플링 근거) — **위치가 방향, 색은 반대**를
+    // 말한다. 처음엔 tone(bull/bear)을 그대로 입혀 방향이 있는 칸을 전부 채색했는데, 그건
+    // 판정에서 걷어낸 바로 그 오독을 색으로 재현한다 — "5개 중 몇 개가 초록/빨강"을 세면
+    // percent 를 다시 읽는 것과 같다. 시안은 5칸 중 4칸이 정확히 --steel 값이고 반대
+    // 1칸만 방향색이었다: 판정에 **동의하는 칸은 스틸**(중립), **반대하는 칸만** 그 칸
+    // 자신의 방향색(bull 판정이면 반대=bear 적색, 그 반대도 대칭). 무판정(muted) 칸은
+    // 스틸보다 흐리게 — 동의·반대·무판정 셋을 구분한다.
+    function combRole(tone, dir) {
+      if (dir !== "bull" && dir !== "bear") return "nodir";   // 판정 자체가 중립이면 동의할 방향이 없다
+      if (tone === "bull") return dir === "bull" ? "agree" : "dissent";
+      if (tone === "bear") return dir === "bear" ? "agree" : "dissent";
+      return "nodir";                                          // 이 지표 자신이 무방향(muted)
+    }
+    function combCell(cls, tone, role) {
       var cell = MSUi.el("div", "rp-comb-cell " + cls);
       if (cls === "is-steel") {
-        cell.appendChild(MSUi.el("span", "rp-comb-up" + (tone === "bull" ? " is-on" : "")));
-        cell.appendChild(MSUi.el("span", "rp-comb-down" + (tone === "bear" ? " is-on" : "")));
+        var faint = role === "nodir";
+        // 리터럴 조각은 선행 공백 하나씩만 갖는다(파일 기존 관례, 예: "rp-comb-up" + " is-on") —
+        // 중간에 공백이 낀 " is-on rp-comb-" 한 덩어리 리터럴은 strings.test.mjs 의 화면
+        // 영어잔존 게이트가 "문장일 수 있다"고 보고 is/on/rp/comb 를 잡는다(el() 의 직접
+        // 2번째 인자만 위치로 면제되고, 삼항식에 중첩된 리터럴은 면제 대상이 아니다) —
+        // 조각을 쪼개 각각 CODE_TOKEN_RE(선행 공백만 허용)를 통과시킨다.
+        var up = MSUi.el("span", "rp-comb-up" + (tone === "bull" ? " is-on" + " rp-comb-" + role : (faint ? " is-faint" : "")));
+        var down = MSUi.el("span", "rp-comb-down" + (tone === "bear" ? " is-on" + " rp-comb-" + role : (faint ? " is-faint" : "")));
+        cell.appendChild(up);
+        cell.appendChild(down);
       }
       return cell;
     }
     function buildComb() {
       var wrap = MSUi.el("div", "rp-comb");
       var bar = MSUi.el("div", "rp-comb-bar");
+      // 판정 방향은 단일 출처(an.out.verdict.regime)다 — buildVerdict() 가 MSReportModel.verdict()
+      // 로 집계(동의/반대 합계)를 낼 때 쓰는 것과 같은 필드를 여기서도 그대로 쓴다. 칸마다
+      // 다시 판정을 계산하지 않는다 — combRole() 은 그 한 값과 이 칸의 tone 을 비교만 한다.
+      var dir = an.out.verdict.regime;
       // 앞 5행이 항상 기본 5지표다(MSLegend.rows 는 ma·macd·rsi·bb·vol 을 이 순서로 먼저
       // 넣고, 예측 2행은 뒤에 조건부로 붙는다 — chart-legend.js 참고) — 다시 세지 않고
       // 판정(verdict)과 같은 호출로 얻어 두 블록이 같은 숫자를 보게 한다.
       MSLegend.rows(an, an.out.prediction, null).slice(0, MSGraph.BASIC.length).forEach(function (r) {
-        bar.appendChild(combCell("is-steel", r.tone));
+        bar.appendChild(combCell("is-steel", r.tone, combRole(r.tone, dir)));
       });
       var hidden = ForgeCore.indicatorCount - MSGraph.BASIC.length;   // 리터럴 27 이 아니라 역산값 — 지표가 늘면 같이 는다
       for (var i = 0; i < hidden; i++) bar.appendChild(combCell("is-locked"));

@@ -47,14 +47,25 @@
 
 /* 지표 빗(comb, 시안 18a) — 막대 하나가 도구 하나. 스틸 5(위=상승·아래=하락, 실제 방향만
    채운다) + 연한 골드 27(안 읽은 것, 같은 리듬으로 그려 27개 자물쇠 아이콘의 이질감을
-   피한다). 잠김 설명은 칸이 아니라 .rp-comb-note 한 줄로 뺀다(설계서 §3.2 "차트 밖 한 줄"). */
+   피한다). 잠김 설명은 칸이 아니라 .rp-comb-note 한 줄로 뺀다(설계서 §3.2 "차트 밖 한 줄").
+
+   색 규칙(리뷰 2026-08-18, spec-18a.png 픽셀 샘플링 실측) — 위치가 방향을 말하고 색은
+   **반대**를 말한다: 시안 5칸 중 4칸이 정확히 --steel(136,146,166), 반대 1칸만
+   --bear(217,106,106). 판정에 동의하는 칸은 무채색(steel), 반대하는 칸만 그 칸 자신의
+   방향색 — 다수를 채색하면 "5개 중 몇 개가 초록/빨강"을 세어 판정에서 걷어낸 바로 그
+   퍼센트 오독을 색으로 재현하게 된다. 무판정(rp-comb-nodir)은 스틸보다 흐리게 셋째 상태로 둔다. */
 .rp-comb { margin-bottom:22px; }
 .rp-comb-bar { display:flex; align-items:stretch; gap:2px; height:26px; }
 .rp-comb-cell { flex:1 1 0; min-width:0; border-radius:2px; overflow:hidden; }
 .rp-comb-cell.is-steel { display:flex; flex-direction:column; gap:1px; }
 .rp-comb-up, .rp-comb-down { flex:1 1 50%; background:var(--track); }
-.rp-comb-up.is-on { background:var(--bull); }
-.rp-comb-down.is-on { background:var(--bear); }
+.rp-comb-up.is-on.rp-comb-agree, .rp-comb-down.is-on.rp-comb-agree { background:var(--steel); }
+.rp-comb-up.is-on.rp-comb-dissent { background:var(--bull); }
+.rp-comb-down.is-on.rp-comb-dissent { background:var(--bear); }
+/* 판정 자체가 중립이면 동의·반대 둘 다 성립하지 않는다(비교할 판정이 없다) — 이 지표가
+   방향은 갖고 있어도(위치는 그대로 표시) 스틸보다 흐리게 셋째 상태로 둔다. */
+.rp-comb-up.is-on.rp-comb-nodir, .rp-comb-down.is-on.rp-comb-nodir { background:var(--steel); opacity:.4; }
+.rp-comb-up.is-faint, .rp-comb-down.is-faint { background:var(--steel); opacity:.35; }
 .rp-comb-cell.is-locked { background:var(--gold-soft); }
 .rp-comb-note { margin-top:10px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
 

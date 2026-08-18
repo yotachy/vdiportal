@@ -56,6 +56,24 @@ export const ROUTES = [
         "if(!bar||bar.children.length!==32) return false;" +               // 지표 빗 32칸
         "if(bar.querySelectorAll('.is-steel').length!==5) return false;" +
         "if(bar.querySelectorAll('.is-locked').length!==27) return false;" +
+        // 색 규칙(리뷰 2026-08-18) — 위치=방향, 색=반대. 동의 칸은 정확히 --steel 픽셀값
+        // (136,146,166)이어야 하고, 어떤 칸도 동의+반대 역할을 동시에 가지면 안 된다.
+        // 실 데이터(AAPL)라 방향을 미리 알 수 없으므로 "존재하면 정확히 이 색"만 잰다
+        // (양방향 실측은 report-basic.test.mjs 가 합성 데이터로 이미 확인한다).
+        "var steelCells=Array.prototype.slice.call(bar.children).filter(function(c){return c.className.indexOf('is-steel')>=0;});" +
+        "var roleOk=true;" +
+        "steelCells.forEach(function(cell){" +
+          "Array.prototype.slice.call(cell.children).forEach(function(span){" +
+            "var on=span.className.indexOf('is-on')>=0;" +
+            "var agree=span.className.indexOf('rp-comb-agree')>=0;" +
+            "var dissent=span.className.indexOf('rp-comb-dissent')>=0;" +
+            "var nodir=span.className.indexOf('rp-comb-nodir')>=0;" +   // 판정이 중립이면 동의·반대 둘 다 성립하지 않는다
+            "var roles=(agree?1:0)+(dissent?1:0)+(nodir?1:0);" +
+            "if(on&&roles!==1) roleOk=false;" +                          // on 인데 역할이 0개거나 2개 이상이면 버그
+            "if(agree){var bg=getComputedStyle(span).backgroundColor.replace(/\\s/g,'');if(bg!=='rgb(136,146,166)') roleOk=false;}" +
+          "});" +
+        "});" +
+        "if(!roleOk) return false;" +
         "var sub=document.querySelector('.rp-verdict-sub');" +
         "if(!sub||/%/.test(sub.textContent)) return false;" +              // 판정 부제에 퍼센트 없음
         "var unlock=document.querySelector('.rp-unlock');" +
