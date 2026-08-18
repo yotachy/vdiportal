@@ -58,8 +58,10 @@ export const ROUTES = [
         "if(bar.querySelectorAll('.is-locked').length!==27) return false;" +
         // 색 규칙(리뷰 2026-08-18) — 위치=방향, 색=반대. 동의 칸은 정확히 --steel 픽셀값
         // (136,146,166)이어야 하고, 어떤 칸도 동의+반대 역할을 동시에 가지면 안 된다.
-        // 실 데이터(AAPL)라 방향을 미리 알 수 없으므로 "존재하면 정확히 이 색"만 잰다
-        // (양방향 실측은 report-basic.test.mjs 가 합성 데이터로 이미 확인한다).
+        // 이 라우트의 AAPL 은 gate-browser.mjs 의 고정 mock(드리프트 0.12)이라 매번
+        // neutral 로 떨어진다(node 로 실측) — 그래서 agree/dissent 존재는 여기서 강제하지
+        // 않는다(강제하면 이 라우트 자체가 항상 실패한다). 양방향 실측·픽셀 검증은
+        // 아래 report-comb-bull 라우트(드리프트 0.3, bull 로 결정적)가 한다.
         "var steelCells=Array.prototype.slice.call(bar.children).filter(function(c){return c.className.indexOf('is-steel')>=0;});" +
         "var roleOk=true;" +
         "steelCells.forEach(function(cell){" +
@@ -84,6 +86,45 @@ export const ROUTES = [
         "if(kids.indexOf(ad) > kids.indexOf(scoop)) return false;" +       // 광고가 스쿱보다 먼저(DOM 순서)
         "var rt=document.querySelector('.rp-readtools');" +
         "if(!rt||rt.children.length!==0) return false;" +                  // 읽은 도구 = 접힌 한 줄
+        "return true;" +
+      "})()" },
+  // 재리뷰(2026-08-18) Important — 위 report 라우트의 AAPL 은 이 파일의 candles() 기본
+  // 드리프트(0.12)를 먹는데, 그 드리프트로는 ForgeCore.run 이 verdict.regime="neutral" 을
+  // 결정적으로 낸다(node 로 basicGraph 를 직접 돌려 확인 — 아래 DRIFT_BY_SYMBOL 주석 참고).
+  // 그래서 위 라우트는 지표 빗의 동의(rp-comb-agree)·반대(rp-comb-dissent) 색 규칙을 **한
+  // 번도 실행하지 않았다** — `if(agree){...}` 가 죽은 가지였다. MSFT 심볼에 드리프트 0.3
+  // 을 물려 bull 을 결정적으로 만들고(같은 방식으로 실측: tone [bull,bull,bear,bull,bull]
+  // — 동의 4·반대 1, spec-18a.png 실측 배치와 그대로 맞는다), 동의·반대가 **둘 다 실제로
+  // 존재하는지**부터 확인한 뒤(0개면 실패 — 죽은 가지를 다시 만들지 않는다) 각각의
+  // computed backgroundColor 를 픽셀로 잰다: 동의는 --steel(136,146,166), 반대는 그 칸
+  // 자신의 방향색(--bull 79,185,138 또는 --bear 217,106,106).
+  { name: "report-comb-bull", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"MSFT"}', delay: 1200,
+    assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
+      "!/불러오지 못했습니다/.test(document.getElementById('app').textContent) && " +
+      "(function(){" +
+        "var bar=document.querySelector('.rp-comb-bar');" +
+        "if(!bar||bar.children.length!==32) return false;" +
+        "var steelCells=Array.prototype.slice.call(bar.children).filter(function(c){return c.className.indexOf('is-steel')>=0;});" +
+        "if(steelCells.length!==5) return false;" +
+        "var agreeSpans=[], dissentSpans=[];" +
+        "steelCells.forEach(function(cell){" +
+          "Array.prototype.slice.call(cell.children).forEach(function(span){" +
+            "if(span.className.indexOf('is-on')<0) return;" +
+            "if(span.className.indexOf('rp-comb-agree')>=0) agreeSpans.push(span);" +
+            "else if(span.className.indexOf('rp-comb-dissent')>=0) dissentSpans.push(span);" +
+          "});" +
+        "});" +
+        // 죽은 가지 방지(재리뷰 지시 4) — 동의·반대가 둘 다 없으면 아래 단언이 전부
+        // vacuous true 로 통과해 이번에 고친 바로 그 문제(실행된 적 없는 픽셀 단언)를
+        // 반복한다.
+        "if(agreeSpans.length===0||dissentSpans.length===0) return false;" +
+        "var agreeOk=agreeSpans.every(function(s){return getComputedStyle(s).backgroundColor.replace(/\\s/g,'')==='rgb(136,146,166)';});" +
+        "if(!agreeOk) return false;" +
+        "var dissentOk=dissentSpans.every(function(s){" +
+          "var bg=getComputedStyle(s).backgroundColor.replace(/\\s/g,'');" +
+          "return bg==='rgb(79,185,138)'||bg==='rgb(217,106,106)';" +
+        "});" +
+        "if(!dissentOk) return false;" +
         "return true;" +
       "})()" },
   { name: "wallet", seed: ON, go: '"wallet"',

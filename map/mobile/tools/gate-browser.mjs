@@ -95,17 +95,31 @@ function ensureCert() {
 }
 
 // ── 합성 OHLC · 지갑 mock ────────────────────────────────────────────────────
-// 실서버를 부르지 않는다. 관문이 네트워크에 의존하면 관문이 아니라 날씨가 된다.
-function candles() {
+// 실서버를 부르지 않는다. 관문이 네트워크에 의존하면 관문이 아니라 날씨가 된다. 고정
+// 수식(난수 없음)이라 매 실행 결과가 같다 — symbol 을 안 가리면 항상 이 한 시리즈다.
+//
+// driftMul 기본값(0.12)은 원래 유일했던 계수 그대로다 — 지금 대부분의 라우트가 이 값을
+// 물려받는다. 리뷰(2026-08-18 재리뷰)가 잡은 문제: 이 계수로는 ForgeCore.run 이 항상
+// verdict.regime="neutral" 을 내서(node 로 basicGraph 를 직접 돌려 확인), 지표 빗의
+// 동의(스틸)/반대(자기 방향색) 색 규칙이 브라우저 관문에서 **한 번도 실행되지 않았다**
+// (rp-comb-agree/rp-comb-dissent 클래스가 붙은 요소 자체가 존재한 적이 없다 — 죽은 가지).
+// driftMul=0.3 은 같은 방식(node 로 basicGraph→verdict.regime 실측)으로 확인한 값이다 —
+// bull 로 결정적으로 떨어지고 tone 이 [bull,bull,bear,bull,bull] 로 갈려(동의 4·반대 1)
+// 시안 spec-18a.png 실측 배치(4 steel·1 accent)와 그대로 맞는다.
+function candles(driftMul) {
+  const drift = (typeof driftMul === "number") ? driftMul : 0.12;
   const out = [], day = new Date("2026-08-17T00:00:00Z");
   for (let i = 0; i < 360; i++) {
-    const v = 200 + i * 0.12 + Math.sin(i / 11) * 6 + Math.sin(i / 37) * 14;
+    const v = 200 + i * drift + Math.sin(i / 11) * 6 + Math.sin(i / 37) * 14;
     const t = new Date(day.getTime() - (359 - i) * 86400000).toISOString().slice(0, 10);
     out.push({ t, o: +(v - 1).toFixed(2), h: +(v + 1.8).toFixed(2), l: +(v - 1.6).toFixed(2),
                c: +v.toFixed(2), v: 1000000 + (i % 23) * 40000 });
   }
   return out;
 }
+// symbol 별 드리프트 — 없는 심볼은 기본값(0.12, neutral)을 그대로 받는다. 기존 라우트가
+// 쓰는 심볼(AAPL 등)은 이 표에 없으니 결과가 전혀 안 바뀐다.
+const DRIFT_BY_SYMBOL = { MSFT: 0.3 };
 // 리뷰 I7: 필드명은 wallet-lib.php 의 w_state() 가 실제로 주는 모양(balance/cap/streakDays/
 // canCheckin)과 반드시 일치해야 한다 — 예전엔 streak/checkedIn/today 였는데, 그 셋은 서버
 // 어디에도 없는 이름이라 screens/wallet.js 의 `state.streakDays % 7` 이 항상 NaN 이 됐다
@@ -139,10 +153,14 @@ function serve(creds) {
       });
       return;
     }
-    const url = decodeURIComponent(req.url.split("?")[0]);
+    const urlObj = new URL(req.url, "https://" + HOST);
+    const url = decodeURIComponent(urlObj.pathname);
     if (url === "/map/forge-api.php") {
+      // api.js 가 실제로 보내는 쿼리(ohlcUrl)의 symbol 로 시리즈를 가른다 — 기존 심볼은
+      // DRIFT_BY_SYMBOL 에 없으니 undefined→candles() 기본값(0.12)으로 예전과 동일하다.
+      const sym = urlObj.searchParams.get("symbol") || "AAPL";
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true, tf: "1day", symbol: "AAPL", candles: candles() }));
+      res.end(JSON.stringify({ ok: true, tf: "1day", symbol: sym, candles: candles(DRIFT_BY_SYMBOL[sym]) }));
       return;
     }
     const file = path.join(WWW, url.replace(/^\/+/, ""));
