@@ -14,7 +14,7 @@
 
 - **페이즈**: P1a(재방문 여정 — 무료 경로) ✅ 완료 + **P4(첫 실행 — 온보딩 7단계) ✅ 완료**. P4 는 원래 순서(P1b 다음)를 앞당겨 먼저 끝냈다 — 사용자 판정("처음 접속하는 사용자 입장에서 부실하다")이 첫인상 문제였기 때문(근거: [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md) 머리말). P1a 상세는 아래 "P1a 최종 리뷰 수정 웨이브" 참고.
 - **브랜치**: `mobile-onboarding`(P4, `main`— P1a 병합 완료 지점 — 에서 분기) · P1a 는 `mobile-rebuild-p1a`(병합 완료)
-- **마지막 커밋**: P4 8태스크 `02d1b02..HEAD`(측정 → 재설계 설계서 → 1~7단계 재구현 → Task 8 완료·가격표·지급) — 세부 진행은 [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md) 계획서(`docs/superpowers/plans/`)와 `.superpowers/sdd/2026-08-18-moneyscoop-onboarding-redesign/task-8-report.md` 참고
+- **마지막 커밋**: P4 8태스크 `02d1b02..8ab3fdf`(측정 → 재설계 설계서 → 1~7단계 재구현 → Task 8 완료·가격표·지급) — 세부 진행은 [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md) 계획서(`docs/superpowers/plans/`)와 `.superpowers/sdd/2026-08-18-moneyscoop-onboarding-redesign/task-8-report.md` 참고
 - **다음 한 걸음**: **P1b 계획서 작성**(진행 중계·해제 전환·심화 리포트·판독문 32, 시안 19a·8b·8a·18b·19b·20a — `docs/superpowers/specs/2026-08-18-moneyscoop-p1-design.md` §3.5~3.8이 확정 사실, §3.5는 P1a 리뷰 웨이브에서 실측으로 정정됨). 착수 전 아래 "막힌 것"의 **APK 실기기 확인**을 사용자가 완료해야 한다(P4 를 포함한 최신 빌드로 다시 확인)
 
 ## 막힌 것 / 사용자 대기
@@ -79,7 +79,7 @@
 | P1c | 재방문 여정 — 전문 (전문 리포트·가중치 편집기) | ⬜ | — | 계획서 미작성 |
 | P2 | 획득 여정 (광고 6진입 · 적립 · 복귀 · 지갑) | ⬜ | — | |
 | P3 | 다음날 여정 (결과 카드 · 상세 · 기록 · 스캔) | ⬜ | — | |
-| P4 | 첫 실행 (온보딩 7단계) — **P1b 보다 먼저 완료**(순서를 앞당김) | ✅ 완료 | `02d1b02..HEAD`(`mobile-onboarding`) | 8태스크(측정·설계서·1~7단계 재구현·마감). 설계서 [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md), 브라우저 관문 10/10 |
+| P4 | 첫 실행 (온보딩 7단계) — **P1b 보다 먼저 완료**(순서를 앞당김) | ✅ 완료 | `02d1b02..8ab3fdf`(`mobile-onboarding`) | 8태스크(측정·설계서·1~7단계 재구현·마감). 설계서 [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md), 브라우저 관문 10/10 |
 | P5 | 부가층 (영어 · 2단/3단 · 아이콘) | ⬜ | — | |
 | C1 | 차트 Lv1 5종 확인 | ⬜ | — | 병행 트랙 |
 | C2 | 차트 Lv2 7종 이식 | ⬜ | — | `--pred2` 색 충돌 판정 포함 |
@@ -93,6 +93,7 @@
 
 > 최신이 위. 태스크마다 한 줄: `날짜 · 페이즈/태스크 · 결과 · 커밋`
 
+- 2026-08-19 · P4 Task 8(마감 — 7단계 완료·가격표·지급) · recap 블록(도구32·지평3·근거) 신설로 순서 재정렬(받은 것 요약 → 가격표 → 지급) + 죽은 3열 비교표(bandRow·state.r3) 제거 + "온보딩 32도구=온보딩 한정 무료" 고지 + 지연 지갑 시험으로 낙관적 증가 금지 관문 고정 + APPLIES 1~7 완주 단언 + `.ob-retry` 44px 결함 수정 + 브라우저 관문 7단계(onboarding-final) 신설·onboarding-analysis 결정성 수정(rAF 재생을 `.an-scrim` 드레인으로 동기화, virtual-time-budget 이 rAF 를 못 앞당긴다는 것을 실측) · `tests/run.sh` 1683건·브라우저 관문 10/10 · task-8-report.md 상세 · `8ab3fdf`
 - 2026-08-18 · P1a Task 8(마감) · 관문 3중 재검증(`tests/run.sh` 1611건·브라우저 관문 8/8) + 시안 대조(14a·18a·6a·7a·6b — "고칠 것" 2건, 둘 다 지표 빗 잠긴칸 시각 스타일 경미 차이. 3단 대조 문구·읽음 3종·해제 버튼 색 등 나머지 차이는 전부 기존 태스크 보고서·설계서에 근거가 있는 의도적 변경이거나 이미 기록된 부채) + APK 재빌드 확인(신규 변경 없어 기존 12,569,484바이트 그대로) + 본 원장을 P1a 완료로 갱신 · task-8-report.md 상세 · `a450221`
 - 2026-08-18 · P1a Task 7 · `@capacitor/app` 8.1.1 도입 + `App.addListener("backButton", ...)` 배선(Cordova `backbutton` 경로는 안전망으로 유지, 재진입 가드로 중복 처리 방지) + 실제 `MSTierSheet`/`MSSheet` 를 여는 end-to-end 실증 시험(`shell-backbutton-e2e.test.mjs`, 변이로 증명) + `gate-routes.mjs` watchlist 시드에 `ms_scan` 보강(읽음 상태 3종 `.wl-dot` 실제 렌더 확인) + `map/CLAUDE.md`/`shell.js` 주석 정정 + APK 재빌드 · `tests/run.sh` 1611건·브라우저 관문 8/8 통과 · `45c7d54`
 - 2026-08-18 · P0 최종 리뷰 수정 웨이브(Critical 1·Important 6·Minor 2) · C1(하드웨어 백 미동작 사실을 코드·시험·원장에 정직하게 표기, 동작화는 P1로) · I1(router.go() 되감기 + 시험 추가) · I2(gate-browser.mjs 치환 no-op 가드, 변이로 증명) · I3(분석 탭 콜드 진입 폴백을 워치리스트 첫 종목까지 확장) · I5(shell.js data-screen 표식 + gate-routes.mjs 선택자 이행) · I7(지갑 mock 필드명을 wallet-lib.php 실제 반환에 맞춤 — NaN 스크린샷 원인이 mock 이었음, 스샷 육안 확인) · Minor(drawBar try/finally, __gate_*.html gitignore) · `tests/run.sh` 1546건 통과 · 브라우저 관문 6/6 통과 · APK 재빌드(12,569,409 바이트) · `2edb944`
