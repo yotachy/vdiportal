@@ -82,3 +82,31 @@ test("생성기의 pickTypical 은 confluence 최댓값을 전형적 밴드 안�
   assert.ok(typical.every(c => c.conf <= pick.conf), "typical 밴드 안에 pick 보다 확신도가 높은 후보가 남아 있다");
   assert.ok(typical.indexOf(pick) >= 0, "pick 이 typical 밴드 밖에서 나왔다");
 });
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// 2026-08-19 리뷰 Important — 표본을 골랐던 근거("성향이 판정을 가른다")를 잠그는 시험이
+// 없었다(task-1-report.md 의 측정은 스크립트를 수동으로 돌려야만 드러났다). 그리고 이건
+// 살얼음판이다: 유일하게 갈리는 momentum 의 score 가 11 이고 regime 경계가 ±12 라
+// **1점 차이**다. forge-core.js 반올림 규칙이나 ind-tiers.js 프리셋 재공식화가 조용히
+// momentum 을 bull 로 되돌리면, 표본을 갈아가며 확보한 그 성향 분기가 소리 없이
+// 사라지고 온보딩 3단계는 "아무 일도 안 일어나는 화면"으로 되돌아간다 — 지금은 아무것도
+// 그걸 빨갛게 만들지 않는다. tools/measure-preset-sensitivity.mjs 의 measure() 를 그대로
+// 재사용해 "출하된 표본은 4종 성향 중 최소 2종 regime 을 낸다"를 잠근다.
+// ══════════════════════════════════════════════════════════════════════════════════
+test("출하된 표본은 4종 성향 중 최소 2종 regime 을 낸다 — 3단계가 아무 일도 안 하는 화면이 아니다", async () => {
+  const { measure } = await import("../tools/measure-preset-sensitivity.mjs");
+  const results = measure();
+  const REGIME_THRESHOLD = 12;   // forge-core.js: regime = _dirSig > 12 ? bull : < -12 ? bear : neutral
+  const presetKeys = ["trend", "momentum", "reversion", "volatility"];
+
+  const rows = presetKeys.map(k => {
+    const r = results[k];
+    const margin = REGIME_THRESHOLD - Math.abs(r.score);   // 경계까지 남은 점수(작을수록 위험)
+    return k + "=" + r.regime + "(score=" + r.score + ", 경계까지 " + margin + "점)";
+  });
+  const regimes = new Set(presetKeys.map(k => results[k].regime));
+
+  assert.ok(regimes.size >= 2,
+    "4종 성향이 전부 같은 regime 이다 — 3단계에서 성향을 바꿔도 판정이 안 바뀐다. " +
+    "측정값: " + rows.join(" · ") + " (regime 경계 ±" + REGIME_THRESHOLD + ")");
+});
