@@ -110,6 +110,31 @@
 .ob-reveal { margin-top:14px; font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); color:var(--ink-2); }
 .ob-reveal.is-right { color:var(--gold); }
 
+/* 찍기 전 힌트 — 도구 이름 + 한 줄 설명. 좌측 라인 없이 이름은 굵기로만 구분한다. */
+.ob-tools { display:flex; flex-direction:column; gap:9px; margin-top:16px; padding:13px 14px;
+  border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+.ob-tool { display:flex; align-items:baseline; gap:10px; }
+.ob-tool-name { flex:0 0 96px; font-size:var(--fs-caption); font-weight:var(--fw-bold); color:var(--ink-2); }
+.ob-tool-hint { flex:1 1 auto; font-size:var(--fs-caption); line-height:1.5; color:var(--ink-4); }
+
+/* 찍은 뒤 — 엔진 판독. 근거/반대/뚜렷하지 않음 세 갈래를 같은 행 모양으로 늘어놓는다
+   (report.js .rp-against-row 와 같은 뼈대 — 이 화면이 새 작도를 쓰지 않는다는 원칙을
+   스타일에서도 지킨다). 강조는 배경·글자색으로만(좌측 세로 라인 금지). */
+.ob-read { margin-top:16px; }
+.ob-read-verdict { margin:0 0 10px; font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink); }
+.ob-read-empty { font-size:var(--fs-sub); color:var(--ink-4); }
+.ob-read-for, .ob-read-against, .ob-read-flat { margin-bottom:12px; }
+.ob-read-label { margin:0 0 6px; font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); color:var(--ink-5); }
+.ob-read-row { display:flex; align-items:flex-start; gap:10px; padding:6px 0; border-bottom:1px solid var(--hairline); }
+.ob-read-row:last-child { border-bottom:0; }
+.ob-read-name { flex:0 0 88px; font-size:var(--fs-caption); font-weight:var(--fw-semibold); color:var(--ink-2); }
+.ob-read-text { flex:1 1 auto; font-size:var(--fs-caption); line-height:1.55; color:var(--ink-4); }
+.ob-read-against .ob-read-name { color:var(--bear-text); }
+.ob-read-for .ob-read-name { color:var(--bull); }
+
+/* 맞힘/틀림 두 갈래 — 틀려도 지지 않는다는 톤. */
+.ob-tail { margin-top:14px; font-size:var(--fs-sub); line-height:1.6; color:var(--ink-3); }
+
 /* 2단계 — 투자성향. 라디오가 아니라 카드로 고른다(설명이 선택의 근거다). */
 .ob-styles { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
 .ob-style { display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%;

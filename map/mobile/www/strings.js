@@ -511,7 +511,22 @@
     obGuessAsk: "먼저 직접 찍어보세요. 바로 실제 결과를 보여드립니다.",
     obGuessRight: "맞히셨습니다.", obGuessWrong: "빗나갔습니다.",
     obGuessActualA: "실제로는 ", obGuessActualUp: "올랐습니다", obGuessActualDown: "내렸습니다",
-    obGuessWhy: "이 앱이 하는 일이 그겁니다 — 다음 봉이 어디로 갈지, 얼마나 확신하는지 말합니다.",
+
+    // 찍기 전 힌트 — 도구 3종(MA·볼린저·거래량, screens/onboarding.js TOOLS) 옆에 한 줄씩.
+    // 감이 아니라 근거를 보고 찍게 하는 것이 목적이다.
+    obToolMaHint: "값이 이 선 위면 최근 흐름이 위쪽입니다.",
+    obToolBbHint: "밴드 위·아래를 벗어나면 그 방향으로 힘이 세다는 뜻입니다.",
+    obToolVolHint: "거래량이 몰리면 그 방향에 힘이 실렸다는 뜻입니다.",
+
+    // 찍은 뒤 — 엔진이 실제로 계산한 판독문(하드코딩 문구가 아니다, MSIndicators.readings 가
+    // 이 순간에 돈다). 판정 한 줄 + 근거/반대/뚜렷하지 않음 세 갈래.
+    obReadVerdictA: "이 구간에서 엔진의 판정은 ",
+    obReadForHead: "근거",
+    obReadFlatHead: "뚜렷하지 않은 판독",
+    obReadUnavailable: "지금은 엔진을 돌릴 수 없어 판독을 보여드릴 수 없습니다.",
+    // 두 갈래 — 맞혔든 틀렸든 이 앱이 하는 일을 보여준다. 32는 코드에서 ForgeCore.indicatorCount 로 채운다.
+    obTailRightA: "감이 좋으시네요. 이걸 ", obTailRightB: "개 도구로 매일 해드립니다.",
+    obTailWrongA: "그래서 도구를 ", obTailWrongB: "개 읽습니다 — 하나로는 이렇게 놓칩니다.",
 
     obH2b: "어떻게 보는 편이신가요?",
     obSub2b: "같은 차트라도 무엇을 중요하게 보느냐에 따라 판정이 달라집니다. 나중에 바꿀 수 있습니다.",

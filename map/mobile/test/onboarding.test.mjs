@@ -181,6 +181,9 @@ test("온보딩·종목 고르기 클래스가 style.css 에 있다", () => {
    ".ob-comb", ".ob-bar", ".ob-nav", ".ob-over", ".ob-cap",
    ".ob-grant", ".ob-retry", ".ob-costs", ".ob-cost-row", ".ob-cost-name", ".ob-cost-num",
    ".ob-risk", ".ob-agree", ".ob-agree-txt",
+   ".ob-tools", ".ob-tool", ".ob-tool-name", ".ob-tool-hint",
+   ".ob-read", ".ob-read-verdict", ".ob-read-label", ".ob-read-row", ".ob-read-name",
+   ".ob-read-text", ".ob-read-empty", ".ob-tail",
    ".tp", ".tp-grid", ".tp-chip", ".tp-chip-label", ".tp-free", ".tp-msg",
    ".tp-input", ".tp-add"].forEach(function (c) {
     assert.ok(new RegExp("\\" + c + "(?![-\\w])").test(CSS), c + " 규칙이 없다");
@@ -235,12 +238,14 @@ test("번들 시계로 엔진이 실제로 돈다 — 예측 경로가 나온다
 // 시안은 32라고 적었지만 방향을 물을 수 있는 것은 30종이다 — trend·phasefold 는 bias 가 없다.
 
 // 두 벌 작도가 갈리는 것을 막는다 — 온보딩은 report.js 와 같은 모듈을 부른다.
+// 2026-08-18 재설계: 가격 한 장 → 가격(MA·볼린저 오버레이) + 거래량 서브패널. TOOLS 배열
+// (screens/onboarding.js) 이 정확히 이 둘을 요구하므로 패널도 ["price","volume"] 둘이어야 한다.
 test("작도는 기존 모듈을 그대로 쓴다 — 온보딩용 작도를 새로 쓰지 않는다", () => {
   withDom((root, spy) => {
     O.render(root, { sample: SAMPLE });
     assert.ok(spy.layout.length >= 1, "chartLayout 을 부르지 않는다 — 자체 작도를 쓴 것이다");
-    assert.deepStrictEqual(spy.layout[0].panels, ["price"],
-      "서브패널이 딸려 온다 — 1단계는 가격 한 장이다");
+    assert.deepStrictEqual(spy.layout[0].panels, ["price", "volume"],
+      "1단계는 가격+거래량 두 패널이어야 한다(MA·볼린저는 가격 패널 오버레이)");
   });
 });
 
@@ -307,6 +312,18 @@ class El {
     const cls = String(sel).replace(/^\./, "");
     return this.find(c => (" " + c.className + " ").indexOf(" " + cls + " ") >= 0);
   }
+  findAll(pred, out) {
+    out = out || [];
+    for (const c of this.children) {
+      if (pred(c)) out.push(c);
+      c.findAll(pred, out);
+    }
+    return out;
+  }
+  querySelectorAll(sel) {
+    const cls = String(sel).replace(/^\./, "");
+    return this.findAll(c => (" " + c.className + " ").indexOf(" " + cls + " ") >= 0);
+  }
 }
 
 // 4·5단계용 기본 가짜 store — 실제 store.js(localStorage)는 쓰지 않는다. 여러 테스트가
@@ -335,7 +352,6 @@ function withDom(fn, storeOverride) {
   put("MSStr", S);
   put("ForgeCore", FC);
   put("MSGraph", G);
-  put("MSIndicators", IND);
   put("MSReportModel", RM);
   put("MSTickerPicker", require("../www/ticker-picker.js"));
   put("MSIndTiers", require("../www/ind-tiers.js"));
@@ -346,7 +362,7 @@ function withDom(fn, storeOverride) {
   // 바꿔도 전부 초록이다(리뷰가 실제로 그렇게 통과시켰다). 호출된 인자를 붙잡는다.
   // require 캐시를 오염시키지 않도록 얕은 복사본에만 래퍼를 씌운다 — 두 모듈 다 내부에서는
   // 클로저로 서로를 부르므로 복사본 교체가 원본 동작을 바꾸지 않는다.
-  const spy = { cone: [], layout: [] };
+  const spy = { cone: [], layout: [], readings: [] };
   const draw = require("../www/chart-draw.js");
   const layout = require("../www/chart-layout.js");
   put("MSChartDraw", Object.assign({}, draw, {
@@ -358,8 +374,27 @@ function withDom(fn, storeOverride) {
   put("MSChartLayout", Object.assign({}, layout, {
     chartLayout(o) { spy.layout.push(o); return layout.chartLayout(o); }
   }));
+  // 1단계의 판독문이 "지금 계산한 것"인지(하드코딩이 아닌지)를 재려면 실제 호출을 붙잡아야
+  // 한다 — readings() 가 몇 번, 무엇을 받아 불렸는지를 spy.readings 에 남긴다.
+  put("MSIndicators", Object.assign({}, IND, {
+    readings(FCArg, graphArg, dataArg, ctxArg) {
+      const rows = IND.readings(FCArg, graphArg, dataArg, ctxArg);
+      spy.readings.push({ graph: graphArg, data: dataArg, rows });
+      return rows;
+    }
+  }));
   put("MSPredDraw", require("../www/draw-preds.js"));
-  put("MSLayers", require("../www/draw-layers.js"));
+  // 지표 레이어(MA·볼린저 오버레이, 거래량 서브패널)가 "실제로 그려지는가"를 캔버스 호출
+  // 개수만으로 재면 candles 가 늘어난 것과 구분이 안 된다 — 함수가 **불렸는지** 자체를 잰다.
+  const layers = require("../www/draw-layers.js");
+  const panels = require("../www/draw-panels.js");
+  put("MSLayers", Object.assign({}, layers, {
+    ma(c, ma, M) { spy.ma = (spy.ma || 0) + 1; return layers.ma(c, ma, M); },
+    bollinger(c, bb, M) { spy.bollinger = (spy.bollinger || 0) + 1; return layers.bollinger(c, bb, M); }
+  }));
+  put("MSPanels", Object.assign({}, panels, {
+    volume(c, cw, ch, va, reveal) { spy.volumePanel = (spy.volumePanel || 0) + 1; return panels.volume(c, cw, ch, va, reveal); }
+  }));
   put("MSZoom", require("../www/chart-zoom.js"));
   try { return fn(new El("div"), spy); }
   finally { Object.keys(saved).forEach(k => { if (saved[k] === undefined) delete g[k]; else g[k] = saved[k]; }); }
@@ -378,13 +413,13 @@ test("1단계는 예측을 그리지 않는다 — 엔진의 답을 먼저 보�
   });
 });
 
-test("차트는 가격 패널 한 장이고, 날짜축 자리를 미리 뗀다", () => {
+test("차트는 가격+거래량 두 패널이고, 날짜축 자리를 미리 뗀다", () => {
   withDom((root, spy) => {
     O.render(root, { sample: SAMPLE });
     assert.strictEqual(spy.layout.length, 1, "chartLayout 이 한 번 불리지 않았다");
     const o = spy.layout[0];
-    assert.deepStrictEqual(o.panels, ["price"],
-      "서브패널(volume·rsi·macd)이 딸려 온다 — 온보딩 1단계는 가격 한 장이다");
+    assert.deepStrictEqual(o.panels, ["price", "volume"],
+      "rsi·macd 서브패널이 딸려 오거나 거래량이 빠졌다 — 온보딩 1단계는 가격+거래량이다");
 
     // 날짜축 여백은 이제 chart-layout.js 안에서 뗀다(report.js 도 같은 계약을 쓰게 하려고
     // 공용화했다) — 그래서 호출자는 더 이상 스스로 빼지 않고 캔버스 전체 높이를 그대로 넘긴다.
@@ -806,4 +841,135 @@ test("빈 항목은 심지 않는다 — 이름 없는 유령 종목이 생기�
   const store = { addTicker: (s, n) => seeded.push({ sym: s, name: n }), getWatchlist: () => seeded };
   O.seedTo(store, [null, {}, { name: "이름만" }, { sym: "NVDA", name: "엔비디아" }]);
   assert.deepEqual(seeded, [{ sym: "NVDA", name: "엔비디아" }]);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// 1단계 재설계(2026-08-18) — 사인파 합성 → 실제 시세 구간 선별 + 지표 힌트 + 엔진 판독.
+// "실제 조립을 재라"는 지시대로 소스 정규식이 아니라 vm+실제 DOM(withDom)으로 잰다.
+// ══════════════════════════════════════════════════════════════════════════════════
+
+// 실제 봉 데이터의 로그수익률 부호를 통째로 뒤집은 "거울" 표본을 만든다. 사인파 같은 인공
+// 곡선 대신 쓰는 이유: 실제 변동성 결(노이즈 질감)은 그대로 두고 추세만 반대로 만들어야
+// "번들을 바꾸면 해설이 바뀐다"를 인공적으로 조작한 것처럼 보이지 않는다. o/h/l 은 종가 대비
+// 비율을 그대로 옮기므로(양수 배율은 h≥max(o,c)·l≤min(o,c) 부등식을 보존한다) 봉 정합성도
+// 유지된다 — 실측(아래 첫 테스트)으로 SAMPLE 은 bull, 거울은 bear 로 갈라짐을 확인했다.
+function mirrorSample(s) {
+  var out = { price: [], candle: [] };
+  var q = s.candle[0].c;
+  var r0o = s.candle[0].o / s.candle[0].c, r0h = s.candle[0].h / s.candle[0].c, r0l = s.candle[0].l / s.candle[0].c;
+  out.candle.push({ o: +(q * r0o).toFixed(4), h: +(q * r0h).toFixed(4), l: +(q * r0l).toFixed(4),
+                     c: +q.toFixed(4), v: s.candle[0].v, t: s.candle[0].t });
+  out.price.push(+q.toFixed(4));
+  for (let i = 1; i < s.candle.length; i++) {
+    const r = Math.log(s.candle[i].c / s.candle[i - 1].c);
+    q = q * Math.exp(-r);
+    const ro = s.candle[i].o / s.candle[i].c, rh = s.candle[i].h / s.candle[i].c, rl = s.candle[i].l / s.candle[i].c;
+    out.candle.push({ o: +(q * ro).toFixed(4), h: +(q * rh).toFixed(4), l: +(q * rl).toFixed(4),
+                       c: +q.toFixed(4), v: s.candle[i].v, t: s.candle[i].t });
+    out.price.push(+q.toFixed(4));
+  }
+  out.asOf = out.candle[out.candle.length - 1].t;
+  return out;
+}
+
+test("1단계는 지표 레이어를 실제로 그린다 — 축·캔들만이 아니다", () => {
+  withDom((root, spy) => {
+    O.render(root, { sample: SAMPLE });
+    assert.ok(spy.ma >= 1, "MA 오버레이(MSLayers.ma)를 부르지 않았다");
+    assert.ok(spy.bollinger >= 1, "볼린저 오버레이(MSLayers.bollinger)를 부르지 않았다");
+    assert.ok(spy.volumePanel >= 1, "거래량 서브패널(MSPanels.volume)을 부르지 않았다");
+    // 찍은 뒤(가려졌던 봉을 여는 화면)에도 세 레이어가 계속 그려져야 한다 — 힌트만 보여주고
+    // 결과 화면에서 사라지면 "왜 이렇게 됐는지"를 다시 볼 수 없다.
+    const before = { ma: spy.ma, bollinger: spy.bollinger, volumePanel: spy.volumePanel };
+    root.querySelector(".ob-guess-btn").click();
+    assert.ok(spy.ma > before.ma, "찍은 뒤 MA 오버레이를 다시 안 그린다");
+    assert.ok(spy.bollinger > before.bollinger, "찍은 뒤 볼린저 오버레이를 다시 안 그린다");
+    assert.ok(spy.volumePanel > before.volumePanel, "찍은 뒤 거래량 패널을 다시 안 그린다");
+  });
+});
+
+test("힌트 줄은 그려진 도구 수와 정확히 같다 — MA·볼린저·거래량 3개", () => {
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    const rows = root.querySelectorAll(".ob-tool");
+    assert.strictEqual(rows.length, 3, "힌트 줄이 3개가 아니다: " + rows.length);
+    const names = Array.from(rows).map(r => r.querySelector(".ob-tool-name").textContent);
+    assert.deepStrictEqual(names, [S.ind("ma"), S.ind("bollinger"), S.ind("volume")],
+      "힌트 도구 이름·순서가 실제 작도(MA→볼린저→거래량)와 다르다");
+    rows.forEach(r => {
+      assert.ok(r.querySelector(".ob-tool-hint").textContent.length > 0, r.className + " 의 설명이 비어 있다");
+    });
+    // 찍기 전 화면에만 있다 — 결과 화면은 힌트 대신 판독을 보여준다(같은 자리에 둘 다
+    // 뜨면 화면이 붐빈다).
+    root.querySelector(".ob-guess-btn").click();
+    assert.strictEqual(root.querySelectorAll(".ob-tool").length, 0, "찍은 뒤에도 힌트가 남아 있다");
+  });
+});
+
+test("판독은 지금 계산한 것이다 — 렌더 시점에 엔진을 실제로 부른다(하드코딩이 아니다)", () => {
+  withDom((root, spy) => {
+    O.render(root, { sample: SAMPLE });
+    root.querySelector(".ob-guess-btn").click();
+    assert.ok(spy.readings.length >= 1, "MSIndicators.readings 를 부르지 않았다 — 결과가 미리 구운 문구다");
+    const call = spy.readings[spy.readings.length - 1];
+    // 가려진 12봉을 뺀 228봉만 봤어야 한다 — 정답을 미리 안 상태에서 판정한 것이어야 한다.
+    const expectedN = Math.max(30, SAMPLE.candle.length - 12);
+    assert.strictEqual(call.data.price.length, expectedN,
+      "판독이 가려진 구간까지 포함해서 계산했다 — 찍기 전 정보만 써야 한다");
+    // DOM 에 실제로 실린 근거/반대 행 텍스트가 이 호출의 rows 와 정확히 같은 문자열이어야
+    // 한다 — 화면이 별도로 문구를 지어내지 않았다는 증거.
+    const domTexts = Array.from(root.querySelectorAll(".ob-read-text")).map(e => e.textContent);
+    const rowTexts = call.rows.filter(r => ["ma", "bollinger", "volume"].indexOf(r.type) >= 0).map(r => r.text);
+    domTexts.forEach(t => assert.ok(rowTexts.indexOf(t) >= 0, "DOM 문구 '" + t + "' 가 엔진 rows 에 없다"));
+    assert.ok(domTexts.length > 0, "판독 행이 화면에 하나도 없다");
+  });
+});
+
+test("판독은 데이터가 바뀌면 함께 바뀐다 — 같은 문구를 고정해 두지 않았다", () => {
+  const mirror = mirrorSample(SAMPLE);
+  let upVerdict, downVerdict;
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    root.querySelector(".ob-guess-btn").click();
+    upVerdict = root.querySelector(".ob-read-verdict").textContent;
+  });
+  withDom(root => {
+    O.render(root, { sample: mirror });
+    root.querySelector(".ob-guess-btn").click();
+    downVerdict = root.querySelector(".ob-read-verdict").textContent;
+  });
+  assert.notStrictEqual(upVerdict, downVerdict,
+    "추세를 뒤집은 표본인데 판정 문구가 똑같다 — 하드코딩된 것으로 보인다");
+  assert.ok(upVerdict.indexOf(S.t.rpBullish) >= 0, "번들 표본은 상승 판정이어야 한다: " + upVerdict);
+  assert.ok(downVerdict.indexOf(S.t.rpBearish) >= 0, "거울 표본은 하락 판정이어야 한다: " + downVerdict);
+});
+
+test("맞힘·틀림 두 갈래가 둘 다 렌더된다 — 한쪽만 재고 넘어가지 않는다", () => {
+  let rightSeen = false, wrongSeen = false;
+  ["up", "down"].forEach(dir => {
+    withDom(root => {
+      O.render(root, { sample: SAMPLE });
+      root.querySelectorAll(".ob-guess-btn")[dir === "up" ? 0 : 1].click();
+      const tail = root.querySelector(".ob-tail");
+      assert.ok(tail && tail.textContent.length > 0, dir + " 를 찍었는데 갈래 문구가 없다");
+      if (tail.textContent.indexOf(S.t.obTailRightB) >= 0) rightSeen = true;
+      if (tail.textContent.indexOf(S.t.obTailWrongB) >= 0) wrongSeen = true;
+    });
+  });
+  // 정답은 하나뿐이므로 up/down 을 각각 찍으면 반드시 하나는 맞고 하나는 틀린다 — 둘 다
+  // 관측돼야 두 갈래 모두 실제로 렌더됨이 증명된다(한쪽만 항상 렌더되는 결함을 잡는다).
+  assert.ok(rightSeen, "맞힘 갈래가 한 번도 안 보였다");
+  assert.ok(wrongSeen, "틀림 갈래가 한 번도 안 보였다");
+});
+
+test("예시 데이터임이 화면에 표기된다 — 성적이 아니라 예시 한 건이다", () => {
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    const note = root.querySelector(".ob-over");
+    assert.strictEqual(note && note.textContent, S.t.obSampleNote, "예시 데이터 표기가 없다");
+    // 찍은 뒤에도 표기가 사라지면 안 된다 — 결과 화면이야말로 "이건 성적이 아니다"를 잊기 쉽다.
+    root.querySelector(".ob-guess-btn").click();
+    const note2 = root.querySelector(".ob-over");
+    assert.strictEqual(note2 && note2.textContent, S.t.obSampleNote, "찍은 뒤 예시 데이터 표기가 사라진다");
+  });
 });
