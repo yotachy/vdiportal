@@ -2,7 +2,7 @@
 // ForgeCore 를 인자로 받는 것은 MSGraph.basicGraph(ForgeCore) 와 같은 규약이다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSReportModel = factory();
+  else MSGlobals.define("MSReportModel", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

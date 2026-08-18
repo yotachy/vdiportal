@@ -4,8 +4,8 @@
 
 | 도구 | 파일 | 비고 |
 |---|---|---|
-| **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js`(+`forge-api.php`) | 노드 전략보드 + 라이브 차트 통합 분석 도구. **현재 주력·주 작업 대상** |
-| **머니스쿱 모바일 (MoneyScoop)** | **`mobile/`** 폴더 일습(`www/`·`test/`·`android/`·`sync-engine.mjs`) | 스쿱포지 **엔진을 공유하는** 하이브리드 안드로이드 앱(Capacitor). UI·사용자·배포 대상은 PC와 별개, **엔진만 공용**. 백로그 [`mobile/docs/BACKLOG-mobile.md`](mobile/docs/BACKLOG-mobile.md) · 실측 [`mobile/docs/phase0-measurements.md`](mobile/docs/phase0-measurements.md) |
+| **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js`(+`forge-api.php`) | 노드 전략보드 + 라이브 차트 통합 분석 도구. **분석 엔진의 관리·개선·검증이 이뤄지는 곳**(사용자 서비스가 아니다 — 아래 §⓪) |
+| **머니스쿱 모바일 (MoneyScoop)** ★ | **`mobile/`** 폴더 일습(`www/`·`test/`·`android/`·`sync-engine.mjs`) | 스쿱포지 **엔진을 공유하는** 하이브리드 앱(Capacitor). **사용자 서비스의 중심**(아래 §⓪) — UI·배포는 PC와 별개, 엔진·분석 결과·정보 수준은 PC와 같아야 한다. 백로그 [`mobile/docs/BACKLOG-mobile.md`](mobile/docs/BACKLOG-mobile.md) · 개편 원장 [`mobile/docs/rebuild/PROGRESS.md`](mobile/docs/rebuild/PROGRESS.md) · 실측 [`mobile/docs/phase0-measurements.md`](mobile/docs/phase0-measurements.md) |
 | **스쿱보드 (Scoop Board)** | `map.html`(+`api.php`) | 자유 캔버스 노드 다이어그램 빌더 |
 | **PotFlow** | **`potflow/`** 폴더 일습(`potflow.html`·`potflow-helper.py`·config·bat·썸네일) | 로컬 동영상 노드 재생 관리(PotPlayer). map.html 파생·로컬 헬퍼(Python) 전용. **상위 개발프로젝트와 완전 독립 트랙**(아래 주의). **2026-07-19 `map/potflow/`로 폴더 격리** — forge·map과 파일/배포 경로 불간섭(배포=`www/map/potflow/`). 헬퍼가 자기 위치(`ROOT`) 기준이라 이동에 경로 수정 불필요. 상세는 [`POTFLOW.md`](POTFLOW.md) |
 
@@ -15,19 +15,38 @@
 
 ---
 
-# 🔗 공통 규율 — 엔진 공유 · 테스트 관문 · 브랜치
+# 🔗 공통 규율 — 제품 역할 · 엔진 공유 · 테스트 관문 · 브랜치
 
-스쿱포지(PC)와 머니스쿱 모바일은 **`forge-core.js`·`forge-tools.js` 를 공유한다.** 제품·사용자·배포는 갈라지지만 엔진은 하나다. 아래 셋은 두 제품 모두에 적용된다. (2026-08-10 확립)
+스쿱포지(PC)와 머니스쿱 모바일은 **`forge-core.js`·`forge-tools.js` 를 공유한다.** 배포는 갈라지지만 엔진은 하나다. 아래 규율은 두 제품 모두에 적용된다. (2026-08-10 확립 · ⓪은 2026-08-18 사용자 지시)
+
+## ⓪ 제품 역할 — 사용자 서비스는 모바일, PC는 엔진의 자리
+
+**사용자 서비스는 모바일 앱(웹 기반 하이브리드)을 중심으로 운영한다.** PC 버전(스쿱포지)은 사용자 서비스가 아니라 **분석 엔진의 관리·개선·버전 업그레이드**를 하는 곳이다 — 모바일이 쓸 분석 기법을 여기서 만들고, 재고, 검증 관문을 통과시킨다.
+
+그래서 다음이 따라온다:
+
+1. **분석 기법은 PC 에서만 만든다.** 새 지표·새 축·작도 개선은 `forge-core.js`·`forge-tools.js` 원본에서 시작해 백테스트·스코어카드 관문을 통과한 뒤 모바일로 간다. **모바일에 모바일 전용 분석 로직을 두지 않는다** — 두는 순간 "무엇이 검증된 것인가"에 답할 수 없게 된다.
+2. **모바일은 PC 와 동일하게 분석되어야 한다.** 같은 엔진·같은 입력이면 같은 판정이 나와야 하고, 어긋나면 그건 이식 버그다(모바일 관문이 지표 수 불일치·미지의 blockType 을 잡는 이유).
+3. **사용자에게도 동일한 수준의 정보를 준다.** 판정·확률·근거·정직 표기(기준선 병기·귀속 문구)는 모바일에서도 PC 와 같은 수준으로 제공한다. 모바일이라서 요약하거나 반올림하지 않는다.
+4. **단, 정보의 양은 보상 차등에 따라 달라진다.** 모바일은 스쿱(소비 재화)이 있어 **정의된 개발 요건(단계)** 대로 노출량이 갈린다 — 지금은 기본 5지표·일봉 / 심화 32지표·일주월 / 전문 32지표+가중치. **달라지는 것은 양(무엇을 몇 개 보여주는가)이지 질이 아니다** — 같은 엔진, 같은 계산 규약, 같은 정직 표기 위에서 노출 범위만 단계로 갈린다. 잠긴 단계에서는 **무엇이 빠졌는지를 이름으로 적는다**(숨기지 않는다).
+5. **PC 의 화면은 사용자 서비스 기준이 아니다.** PC 는 엔진을 다루는 작업대라 32종을 항상 열어 두고 과금도 없다 — 그 상태를 "모바일도 이래야 한다"의 근거로 삼지 말 것. 반대로 모바일의 단계 제한을 PC 에 가져오지도 말 것.
+
+두 제품의 현재 차이(이용 방식·분석 절차·방법론)는 **`forge-scorecard.html` 의 웹↔모바일 비교표**가 단일 출처다. 모바일 개편 페이즈가 끝날 때마다 그 표(`PRODUCTS`·`PRODUCTS_ASOF`)를 갱신한다 — 규율은 [`mobile/docs/rebuild/PROGRESS.md`](mobile/docs/rebuild/PROGRESS.md) 불변 규율 6번.
 
 ## ① 테스트는 항상 `./tests/run.sh`
 
 ```bash
-./tests/run.sh            # 전부 561건 (forge-core 259 · forge-tools 81 · landing 28 · mobile 193)
-./tests/run.sh engine     # 엔진 + 모바일 533건 — 엔진만 고쳤을 때
-./tests/run.sh mobile     # 모바일 193건
+./tests/run.sh            # 전부 1545건 (forge-core 259 · forge-tools 81 · landing 28 · wallet 136 · wallet-dispatcher 296 · moneyscoop-mobile 745)
+./tests/run.sh engine     # 엔진 + 모바일 1085건 — 엔진만 고쳤을 때
+./tests/run.sh mobile     # 모바일 745건
 ```
 
 **어느 한쪽만 돌리지 말 것.** 모바일 테스트는 `../../forge-core.js` 원본을 직접 `require` 하므로, 엔진 변경이 모바일을 깨뜨렸는지를 이 관문이 알려준다. `node --test forge-core.test.js` 만 돌리던 습관이 이 구멍을 만든다. 실패 시 종료코드 1.
+
+- **화면을 건드렸으면 `cd mobile && node tools/gate-browser.mjs` 도 돌린다.** 모듈 테스트는
+  모듈마다 독립 객체를 받으므로 브라우저 전역 충돌을 원리적으로 못 본다 — 1505건이 초록인
+  채로 리포트가 100% 죽어 있던 사고(2026-08-18)가 그 구멍이었다. `all` 에 넣지 않은 이유는
+  크로미움이 없는 환경에서 전량 관문이 통째로 죽지 않게 하기 위해서다.
 
 ## ② 엔진 변경 프로토콜
 

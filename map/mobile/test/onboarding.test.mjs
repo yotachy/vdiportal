@@ -82,7 +82,7 @@ test("게이트는 온보딩을 띄운 뒤 부팅을 중단한다", () => {
 // 브라우저에서 1·2단계가 빈 화면이 된다. node 테스트는 이 결손을 볼 수 없다.
 // paintChart 는 MSZoom·MSChartLayout·MSChartDraw 가 없으면 **조용히 early-return** 한다 —
 // 태그 하나가 빠지면 JS 에러 0 인 채로 캔버스만 비는, 알아채기 가장 어려운 실패다.
-// MSLayers(draw-layers)·MSPreds(draw-preds)는 drawCone 이 내부에서 부른다.
+// MSLayers(draw-layers)·MSPredDraw(draw-preds)는 drawCone 이 내부에서 부른다.
 
 test("온보딩 문구가 strings.js 에 있다", () => {
   // 목록을 손으로 들지 않는다 — 화면이 실제로 읽는 키를 소스에서 뽑아 그 전부가 실재하는지
@@ -358,7 +358,7 @@ function withDom(fn, storeOverride) {
   put("MSChartLayout", Object.assign({}, layout, {
     chartLayout(o) { spy.layout.push(o); return layout.chartLayout(o); }
   }));
-  put("MSPreds", require("../www/draw-preds.js"));
+  put("MSPredDraw", require("../www/draw-preds.js"));
   put("MSLayers", require("../www/draw-layers.js"));
   put("MSZoom", require("../www/chart-zoom.js"));
   try { return fn(new El("div"), spy); }

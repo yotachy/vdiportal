@@ -2,7 +2,7 @@
 // 노드 스키마: {id, kind:"block", blockType, params:{}, x, y, title, conviction, weight}
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./ind-tiers.js"));
-  else root.MSGraph = factory(root.MSIndTiers);
+  else MSGlobals.define("MSGraph", factory(root.MSIndTiers));
 })(typeof self !== "undefined" ? self : this, function (Tiers) {
   "use strict";
 

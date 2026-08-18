@@ -3,7 +3,7 @@
 // fi 는 꼬리 구간 인덱스가 아니라 원본 candle 배열의 절대 인덱스다(지표 시계열과 정렬해야 하므로).
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSChartLayout = factory();
+  else MSGlobals.define("MSChartLayout", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

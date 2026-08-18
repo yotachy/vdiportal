@@ -1,0 +1,47 @@
+/* 셸 — 하단 탭바 + 화면 컨테이너
+   style.css 분할본 2/9 — **읽는 순서가 곧 캐스케이드다.** index.html 의
+   <link> 순서를 바꾸거나 한 장을 빼면 나중 규칙이 앞 규칙을 덮던 관계가 끊긴다.
+   순서는 이 머리의 `분할본 N/M` 이 정본이고, 관문(style-split.test.mjs)이 그것과
+   index.html 의 <link> 차례를 대조한다 — 사람이 기억하는 순서에 기대지 않는다.
+
+   값은 전부 시안 14a 실물에서 잰 것이다. 탭바가 없던 것이 2026-08-18 감사에서 드러난
+   가장 큰 구조 결손이었다: 앱의 뼈대가 개편 이전 그대로라 만든 화면들이 갈 곳이 없었다. */
+
+/* #app 자신이 화면 컨테이너다(shell.js — 별도 래퍼 div 를 끼우지 않는다: 끼우면 화면들이
+   만드는 .scr 가 더는 "#app > .scr" 가 아니게 되어 style-base.css 의 상단 세이프에어리어
+   인셋이 조용히 무효화된다 — 실기기가 아니면 아무도 못 잰다). 96px = 탭바(46+12) +
+   홈 인디케이터(22) + 여유, body 의 safe-area-inset-bottom 위에 더해진다. */
+.ms-screen { padding-bottom: 96px; }
+
+.ms-tabbar-wrap {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 16px 20px calc(14px + env(safe-area-inset-bottom));
+  background: var(--bg);
+}
+.ms-tabbar {
+  display: flex; gap: 4px; padding: 6px;
+  /* 시안 실측 배경은 #11151d — style-tokens.test.mjs 가 :root 밖 헥스 리터럴을 전면
+     금지하므로(map/mobile 저장소 관례) 리터럴 대신, 이미 같은 값인 --sheet 토큰(다른
+     여덟 장 전부가 "떠 있는 표면" 배경으로 쓰는 것과 같은 토큰)을 쓴다. 값은 그대로다. */
+  border-radius: 999px; background: var(--sheet);
+}
+.ms-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+  height: 46px; border-radius: 999px; position: relative;
+  border: 0; background: transparent; cursor: pointer;
+  /* 시안 실측은 600/13px 인데 8역할엔 정확히 13px 이 없다(--fs-body 13.5px 가 가장 가깝다) —
+     탭 라벨은 "일하는 크기"(body·sub·caption) 셋 중 하나라 무게·자간을 그 역할에 결속할
+     필요가 없다(style-tokens.test.mjs 주석). 무게는 --fw-semibold(600)·자간은
+     --ls-slight(-.01em) 로 값 그대로 토큰화한다. */
+  font: var(--fw-semibold) var(--fs-body)/1 Pretendard, sans-serif; color: var(--ink-4);
+  letter-spacing: var(--ls-slight);
+}
+.ms-tab.is-on { background: rgba(238, 241, 247, .07); color: var(--ink); font-weight: var(--fw-bold); }
+.ms-tab svg { stroke: currentColor; }
+/* 배지 — 받을 것이 있을 때만 붙인다(요소 자체를 shell.js 가 안 만든다). 좌측 컬러 라인이
+   아니라 골드 점이라 "항목 좌측 세로 라인 금지" 규율과 무관하다. */
+.ms-tab-badge {
+  position: absolute; top: 9px; left: 24px;
+  width: 7px; height: 7px; border-radius: 999px;
+  background: var(--gold); border: 2px solid var(--sheet);
+}

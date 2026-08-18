@@ -14,7 +14,7 @@
 // 그 비용은 사용자가 기다리는 시간이고, 화면이 보여준 값과 리포트가 쓰는 값이 갈라진다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSAnalyzeView = factory();
+  else MSGlobals.define("MSAnalyzeView", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

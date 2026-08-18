@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MoneyScoop</title>
 <link rel="stylesheet" href="style-base.css">
+<link rel="stylesheet" href="style-shell.css">
 <link rel="stylesheet" href="style-watchlist.css">
 <link rel="stylesheet" href="style-report.css">
 <link rel="stylesheet" href="style-reveal.css">
@@ -15,6 +16,8 @@
 </head>
 <body>
 <div id="app"></div>
+<!-- 전역 이름 단일 출처. 반드시 첫 스크립트여야 한다 — 뒤 모듈이 전부 MSGlobals.define 을 부른다. -->
+<script src="globals.js"></script>
 <script src="vendor/forge-core.js"></script>
 <script src="strings.js"></script>
 <script src="api.js"></script>
@@ -60,6 +63,9 @@
 <script src="screens/report.js"></script>
 <script src="onboarding-sample.js"></script>
 <script src="screens/onboarding.js"></script>
+<script src="router.js"></script>
+<script src="sheet.js"></script>
+<script src="shell.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

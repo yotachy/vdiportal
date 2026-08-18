@@ -18,7 +18,7 @@
 // 숫자는 전부 번들된 실측(MSBacktest.tiers)에서 오고, 없으면 그 블록을 안 그린다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSOnboarding = factory();
+  else MSGlobals.define("MSOnboarding", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

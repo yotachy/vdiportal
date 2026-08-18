@@ -15,7 +15,7 @@
 // NO_SWINGS) — 하나로 뭉치면 "봉 300개인데 봉이 모자라다"는 거짓 이유가 나온다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./strings.js"));
-  else root.MSReadings = factory(root.MSStr);
+  else MSGlobals.define("MSReadings", factory(root.MSStr));
 })(typeof self !== "undefined" ? self : this, function (Str) {
   "use strict";
 

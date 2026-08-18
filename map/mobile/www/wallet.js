@@ -3,7 +3,7 @@
 // 클라이언트는 잔량도 델타도 계산하지 않는다. 의도(spend)만 보내고 백엔드가 준 state 를 그린다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSWallet = factory();
+  else MSGlobals.define("MSWallet", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

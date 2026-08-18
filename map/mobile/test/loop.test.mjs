@@ -86,7 +86,7 @@ test("빗나간 날에는 광고를 권하지 않는다 — 이 화면의 비대
 test("퍼센트는 20건 이상부터만 — 그 전에는 왜 없는지 말한다", () => {
   assert.equal(P.MIN_N, 20);
   const code = strip(WL);
-  assert.match(code, /MSPreds\.hitRate\(/, "적중률을 규칙 모듈에서 얻지 않는다");
+  assert.match(code, /MSPredLog\.hitRate\(/, "적중률을 규칙 모듈에서 얻지 않는다");
   assert.match(code, /wlResSmall/, "20건 미만일 때 이유를 말하지 않는다");
   // 화면이 스스로 나눗셈을 하면 그 문턱을 우회하게 된다.
   assert.ok(code.indexOf("/ all.length") < 0 && code.indexOf("/ done.length") < 0,
@@ -154,7 +154,7 @@ test("기록 화면은 오답을 숨기지 않는다 — 빗나간 필터가 기
 
 test("기록 화면도 20건 문턱을 스스로 우회하지 않는다", () => {
   const code = strip(RC);
-  assert.match(code, /MSPreds\.hitRate\(/, "적중률을 규칙 모듈에서 얻지 않는다");
+  assert.match(code, /MSPredLog\.hitRate\(/, "적중률을 규칙 모듈에서 얻지 않는다");
   assert.ok(code.indexOf("/ all.length") < 0, "화면이 적중률을 직접 계산한다");
   assert.match(code, /rcTooFew/, "20건 미만일 때 왜 없는지 말하지 않는다");
 });

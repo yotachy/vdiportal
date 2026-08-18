@@ -4,7 +4,7 @@
 // 언어가 붙을 때 이 파일이 추출 지점이 된다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSStr = factory();
+  else MSGlobals.define("MSStr", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
@@ -24,6 +24,11 @@
   var t = {
     // 부팅
     bootVendorMissing: "필수 파일을 불러오지 못했습니다.<br>동기화한 뒤 다시 열어주세요.",
+
+    // 셸 — 하단 탭바 3개(시안 14a). 특정 화면 전용이 아니라 앱 전체 뼈대지만, 셸만의
+    // 새 접두(예: sh*)를 만드는 대신 브리프가 준 이름(wlTab*)을 그대로 쓴다 — 워치리스트가
+    // 첫 진입 화면이라 탭바를 처음 그리는 자리이기도 하다.
+    wlTabList: "목록", wlTabAnalysis: "분석", wlTabScoop: "스쿱",
 
     // 워치리스트 — 시안 14a. 브랜드 워드마크(wlBrandA/B)는 고유명사라 번역하지 않는다(허용
     // 목록에 등록, 태스크 8). 시장 코드는 US/KR 은 옮기고(미국/국내) ETF 는 관용 표기를 남긴다.
@@ -162,7 +167,12 @@
     rdEmpty: "이 조건에 해당하는 지표가 없습니다.",
     // 시안 18b 의 "지표 32개 판독문" 링크 행. 개수는 리터럴이 아니라 엔진에서 나온다.
     rdLinkA: "지표 ", rdLinkB: "개 판독문",
-    rpPickSym: "왼쪽에서 티커를 골라주세요.",
+    // rpPickSym("왼쪽에서 티커를 골라주세요")은 2단(폴드) 레이아웃의 빈 오른쪽 칸 문구였다.
+    // 태스크 4가 2단을 후퇴시키며 죽었다 — 정확히는 app.js 가 body.ms-dual 을 세우던
+    // 경로(dual 렌더 분기)를 걷어낸 것이지, MSLayout(layout.js)이나 관련 CSS 자체를
+    // 지운 게 아니다. 그 둘은 그대로 남아 있다(chartHeight 는 지금도 쓰이고, 2단 전용
+    // 부분은 P5 재설계 때 다시 쓰인다). 이 문구만 소비자가 없어 죽었다(strings.test.mjs
+    // 미사용 키 가드).
     rpLoadFail: "리포트를 불러오지 못했습니다",
     rpRetry: "다시 시도",
     rpUnknownErr: "불러오지 못했습니다 — 알 수 없는 오류.",

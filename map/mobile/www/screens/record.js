@@ -51,15 +51,15 @@
       }
 
       // 진행 카드 — 20칸 중 몇 칸이 찼는지. 숫자 하나보다 이게 "얼마나 남았나"를 말한다.
-      var rate = MSPreds.hitRate(all);
+      var rate = MSPredLog.hitRate(all);
       var prog = el("div", "rc-prog");
       prog.appendChild(el("div", "rc-prog-h", all.length + MSStr.t.rcCounted));
       var segs = el("div", "rc-segs");
-      for (var i = 0; i < MSPreds.MIN_N; i++) segs.appendChild(el("span", "rc-seg" + (i < all.length ? " is-on" : "")));
+      for (var i = 0; i < MSPredLog.MIN_N; i++) segs.appendChild(el("span", "rc-seg" + (i < all.length ? " is-on" : "")));
       prog.appendChild(segs);
       prog.appendChild(el("p", "rc-prog-n", rate
         ? (MSStr.t.rcRateA + Math.round(rate.rate * 100) + MSStr.t.rcRateB + rate.n + MSStr.t.rcRateC)
-        : (all.length + MSStr.t.rcTooFewA + Math.max(0, MSPreds.MIN_N - all.length) + MSStr.t.rcTooFewB)));
+        : (all.length + MSStr.t.rcTooFewA + Math.max(0, MSPredLog.MIN_N - all.length) + MSStr.t.rcTooFewB)));
       scr.appendChild(prog);
 
       // 필터 — "빗나간 N건"이 두 번째다(시안 20b: 기본 탭 옆).

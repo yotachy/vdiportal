@@ -1,5 +1,5 @@
 /* 바텀시트 공통 골격(12a·6b) + 2단(폴드 펼침)
-   style.css 분할본 7/8 — **읽는 순서가 곧 캐스케이드다.** index.html 의
+   style.css 분할본 8/9 — **읽는 순서가 곧 캐스케이드다.** index.html 의
    <link> 순서를 바꾸거나 한 장을 빼면 나중 규칙이 앞 규칙을 덮던 관계가 끊긴다.
    순서는 이 머리의 `분할본 N/M` 이 정본이고, 관문(style-split.test.mjs)이 그것과
    index.html 의 <link> 차례를 대조한다 — 사람이 기억하는 순서에 기대지 않는다. */
@@ -57,7 +57,11 @@
 /* ===== 2단 (폴드 펼침) =====
    미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,
    app.js 가 matchMedia 결과를 body.ms-dual 로 내려준다. 여기에 @media 를 또 적으면
-   한쪽만 고쳤을 때 JS 와 CSS 가 조용히 갈라진다(설계 §3.1). */
+   한쪽만 고쳤을 때 JS 와 CSS 가 조용히 갈라진다(설계 §3.1).
+
+   P0 현황(태스크 4, 2026-08-18): 2단은 후퇴했다 — app.js 가 더는 body.ms-dual 을 세우지
+   않으므로 아래 규칙 전부가 지금은 걸리지 않는다. 그래도 지우지 않는다 — P5(시안 9b·9c)
+   가 2단을 통째로 재설계하며 이 선택자들을 다시 쓴다. */
 body.ms-dual { padding-bottom:0; overflow:hidden; }
 body.ms-dual .shell { display:grid; height:100vh; height:100dvh;
   padding-top:var(--safe-top); }   /* 2단 — 셸이 최상단 */
@@ -77,4 +81,39 @@ body.ms-dual .pane-report .rp-back { display:none; }
 /* 선택 강조는 배경색만. 좌측 세로 컬러 라인 금지(프로젝트 규율). steel 로 내린다 — 활성 칩이 골드가 되어
    한 화면에 골드가 둘이 된다. 선택은 사용자 상태이지 엔진 출력이 아니다. */
 body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
+
+/* ===== 공용 하단 시트(sheet.js, Task 5) =====
+   단계 선택(6b)·종목 추가(12a)·성향 변경(12b)·광고 권유가 전부 이 컴포넌트 하나를 쓴다.
+   위 .sheet-scrim/.sheet(tier-sheet.js·screens/watchlist.js 가 이미 직접 그린다)와는
+   이름을 겹치지 않게 새로 둔다 — 기존 두 소비자를 깨지 않고, P1 에서 그 화면들이
+   이 컴포넌트로 옮겨온다. --sheet 는 #11151d(style-base.css) — 시안 배경값과 같다. */
+.ms-sheet-backdrop {
+  position:fixed; inset:0; z-index:40;
+  display:flex; align-items:flex-end;
+  background:rgba(6,8,12,.62);
+}
+.ms-sheet {
+  width:100%; max-height:82vh; overflow-y:auto;
+  border-radius:28px 28px 0 0;
+  background:var(--sheet);
+  padding:18px 20px calc(20px + env(safe-area-inset-bottom));
+}
+.ms-sheet-title {
+  /* 브리프 원안은 20px/800/-0.03em 리터럴이었다 — 이 파일의 3축 관문(style-tokens.test.mjs)이
+     화면 CSS 의 font-size·font-weight·letter-spacing 을 토큰만 허용해 정확히 겹치는 크기
+     토큰(20px)은 없다. 처음엔 절대오차만 보고 --fs-section(17px, 오차 3)을 골랐는데,
+     리뷰가 짚은 진짜 기준은 오차가 아니라 **이 파일 안에 이미 같은 종류의 시트 제목이
+     있다는 것**이다 — 바로 위 .sheet-title(tier-sheet.js·screens/watchlist.js 가 그리는
+     6b·12a 시트 제목)이 --fs-title(22px)/--ls-title 을 쓴다. 이 태스크의 목적 자체가
+     "넷이 같은 시트를 써서 값이 안 갈리게" 인데 신구 시트 제목이 22px/17px 로 갈리면
+     P1 에서 tier-sheet 를 MSSheet 로 이관하는 순간 제목이 작아지는 회귀로 드러난다.
+     그래서 --fs-title(22px, 오차 2)+--ls-title 로 맞춘다 — 20px 원안보다 기존 시트
+     제목과의 일치를 우선했다. 무게는 --fw-section 과 --fw-title 이 둘 다 800 이라 값은
+     이미 같지만, 같은 역할 세트로 통일해 --fw-title 로 함께 바꾼다. 보존 대상으로 지정된
+     값은 라운드 28·82vh·안전영역 셋뿐이라(브리프), 이 근사는 그 셋을 건드리지 않는다. */
+  margin:0 0 14px;
+  font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title);
+  color:var(--ink);
+}
+.ms-sheet-open { overflow:hidden; }
 

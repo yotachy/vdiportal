@@ -15,6 +15,18 @@ const WWW = fileURLToPath(new URL("../www/", import.meta.url));
 const INDEX = readFileSync(WWW + "index.html", "utf8");
 const SRCS = [...INDEX.matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]);
 
+// 전역 선언 유도 — globals.js(2026-08-18) 이전엔 등록이 전부 `root.X =`/`window.X =`
+// 직접 대입이라 그 모양 하나로 다 잡혔다. 이제 대부분은 `MSGlobals.define("X", ...)` 를
+// 거치므로 그 모양도 같이 봐야 한다 — 안 그러면 이 관문이 방금 바뀐 파일들에 대해 조용히
+// 눈을 감는다(실제로 이 라운드에 그렇게 됐다: 아래 두 시험 다 유도 집합이 텅 비어도
+// 통과하는 모양이었다).
+function declaredNames(code) {
+  const out = new Set();
+  [...code.matchAll(/(?:root|window)\.(MS[A-Za-z]+)\s*=/g)].forEach(m => out.add(m[1]));
+  [...code.matchAll(/MSGlobals\.define\(\s*["'](MS[A-Za-z]+)["']/g)].forEach(m => out.add(m[1]));
+  return out;
+}
+
 test("index.html 이 선언한 스크립트가 전부 실재한다", () => {
   const missing = SRCS.filter(s => !existsSync(WWW + s));
   assert.deepEqual(missing, [], "선언됐지만 없는 파일: " + missing.join(", ") +
@@ -68,7 +80,7 @@ test("모든 스크립트가 index.html 순서대로 던지지 않고 로드된�
   const declared = new Set();
   SRCS.forEach(src => {
     const code = readFileSync(WWW + src, "utf8");
-    [...code.matchAll(/(?:root|window)\.(MS[A-Za-z]+)\s*=/g)].forEach(m => declared.add(m[1]));
+    declaredNames(code).forEach(n => declared.add(n));
   });
   assert.ok(declared.size >= 15, "전역 선언을 못 찾았다(유도 정규식이 낡았을 수 있다): " + declared.size);
   const notSet = [...declared].filter(n => typeof win[n] === "undefined");
@@ -91,6 +103,7 @@ test("www 의 모든 스크립트가 index.html 에 실려 있다 — 태그를 
   // 앱이 안 싣는 것이 정상인 파일 — 사유를 적는다(근거 없이 빼면 이 관문이 무의미해진다).
   const NOT_APP = {
     "bench.js": "실행시간 측정 도구 — 테스트(test/bench.test.mjs)에서만 쓰고 앱은 안 싣는다"
+    // router.js 는 Task 4(셸) 가 index.html 에 태그를 달아 소비하므로 이 예외는 사라졌다.
   };
   const notLoaded = files.filter(f => SRCS.indexOf(f) < 0 && !NOT_APP[f]);
   assert.deepEqual(notLoaded, [],
@@ -121,8 +134,8 @@ test("UMD 팩토리가 받는 전역은 자기보다 먼저 실린다 — 로드
   order.forEach(src => {
     let code;
     try { code = readFileSync(WWW + src, "utf8"); } catch { return; }
-    [...code.matchAll(/(?:root|window)\.(MS[A-Za-z]+)\s*=/g)].forEach(m => {
-      if (!(m[1] in definedIn)) definedIn[m[1]] = src;
+    declaredNames(code).forEach(n => {
+      if (!(n in definedIn)) definedIn[n] = src;
     });
   });
 
@@ -130,8 +143,9 @@ test("UMD 팩토리가 받는 전역은 자기보다 먼저 실린다 — 로드
   order.forEach(src => {
     let code;
     try { code = readFileSync(WWW + src, "utf8"); } catch { return; }
-    // `root.X = factory(root.A, root.B)` — 괄호 안에서 캡처되는 전역만 본다.
-    [...code.matchAll(/=\s*factory\(([^)]*)\)/g)].forEach(call => {
+    // `root.X = factory(root.A, root.B)` 든 `MSGlobals.define("X", factory(root.A, root.B))` 든,
+    // 괄호 안에서 캡처되는 전역만 본다 — "factory(" 앞이 "=" 인지 "define(...," 인지는 안 가린다.
+    [...code.matchAll(/factory\(([^)]*)\)/g)].forEach(call => {
       [...call[1].matchAll(/root\.(MS[A-Za-z]+)/g)].forEach(dep => {
         const name = dep[1], from = definedIn[name];
         if (!from) { bad.push(src + " 가 factory 인자로 받는 " + name + " 를 정의하는 파일이 없다"); return; }

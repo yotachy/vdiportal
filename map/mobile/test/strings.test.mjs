@@ -308,10 +308,16 @@ function isInternalKeyProp(before) {
   return new RegExp("(?:^|[^\\w])(?:" + KEY_PROPS.join("|") + ")\\s*:\\s*$").test(before);
 }
 
+// MSGlobals.define("Name", ...) 의 1번째 인자는 전역 변수 이름이지 화면 문구가 아니다 —
+// globals.js(2026-08-18) 도입으로 등록이 `root.X = ...` 대입에서 이 호출로 바뀌면서, 그동안
+// 코드에 안 보이던 전역 이름이 문자열 리터럴로 노출돼 이 게이트에 새로 걸리게 됐다.
+// isConsoleArg 와 같은 종류의 예외 — 내용이 아니라 호출 위치로 화면 문구가 아님이 증명된다.
+function isMSGlobalsDefineArg(before) { return /MSGlobals\.define\(\s*$/.test(before); }
+
 // 어느 모양 규칙에도 안 걸리는 극소수 개별 예외. 근거 없이 추가하는 것은 금지 — 항목마다
 // 왜 화면에 안 나가는지 적는다.
 const SCREENS_LITERAL_EXCEPTIONS = new Set([
-  "SAMPLE"   // screens/onboarding.js SAMPLE_SEED — MSPreds 난수 씨앗 식별자일 뿐, 화면에 렌더되지 않는다
+  "SAMPLE"   // screens/onboarding.js SAMPLE_SEED — MSPredDraw 난수 씨앗 식별자일 뿐, 화면에 렌더되지 않는다
 ]);
 
 // MSUi.el(tag, class, ...) 의 리터럴 1·2번째 인자, 그리고 `.className = "..."` 대입의 우변 —
@@ -347,6 +353,7 @@ function scanSrcForEnglish(src, label) {
       if (isComparisonOperand(before)) continue;                       // 내부 키 대조
       if (isInternalKeyProp(before)) continue;                         // kind:/runType: 등 조회 키
       if (isConsoleArg(before)) continue;                              // console.* 인자 — 화면이 아니다
+      if (isMSGlobalsDefineArg(before)) continue;                      // MSGlobals.define("Name", ...) 의 이름 인자
       if (CODE_TOKEN_RE.test(inner)) continue;                       // CSS 조각/선택자/커스텀 프로퍼티
       if (SCREENS_LITERAL_EXCEPTIONS.has(inner)) continue;           // 개별 예외
       const words = untranslatedWords(inner);
@@ -629,6 +636,7 @@ function readingsLiterals(src) {
     while ((m = re.exec(code))) {
       const before = code.slice(0, m.index);
       if (/(===|!==|==|!=)\s*$/.test(before)) continue;   // 비교 피연산자 — 화면에 안 나간다
+      if (isMSGlobalsDefineArg(before)) continue;         // MSGlobals.define("Name", ...) 의 이름 인자
       const text = m[0].slice(1, -1);
       if (isBoilerplate(text)) continue;
       out.push({ line: i + 1, text });

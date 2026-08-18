@@ -13,7 +13,7 @@
 // show() 는 "띄웠고 사용자가 닫았다"까지만 말한다. 보상 금액도 서버가 정한다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSAds = factory();
+  else MSGlobals.define("MSAds", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
