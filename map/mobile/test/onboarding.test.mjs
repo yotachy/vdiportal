@@ -973,3 +973,20 @@ test("예시 데이터임이 화면에 표기된다 — 성적이 아니라 예�
     assert.strictEqual(note2 && note2.textContent, S.t.obSampleNote, "찍은 뒤 예시 데이터 표기가 사라진다");
   });
 });
+
+test("엔진을 못 돌리면 판독 대신 이유를 말한다 — 첫 화면이 깨지지 않는다", () => {
+  withDom(root => {
+    // visibleAnalysis() 는 처음 성공하면 sample 참조로 캐싱한다 — render 뒤에 지우면 이미
+    // 계산해 둔 분석을 그대로 돌려주므로 "엔진이 없다"를 재현하지 못한다. render 전에 지운다.
+    delete globalThis.ForgeCore;   // 엔진 로드 실패(스크립트 누락 등)를 흉내낸다
+    O.render(root, { sample: SAMPLE });
+    assert.doesNotThrow(() => root.querySelector(".ob-guess-btn").click(),
+      "엔진이 없을 때 클릭이 던진다 — 콜드오픈 첫 화면이 깨진다");
+    const empty = root.querySelector(".ob-read-empty");
+    assert.strictEqual(empty && empty.textContent, S.t.obReadUnavailable,
+      "엔진 부재 시 대체 문구가 안 뜬다");
+    // 맞힘/틀림 갈래는 엔진과 무관(가려진 봉 실제 값 비교일 뿐)하므로 계속 렌더돼야 한다.
+    const tail = root.querySelector(".ob-tail");
+    assert.ok(tail && tail.textContent.length > 0, "엔진이 없어도 맞힘/틀림 갈래는 계속 렌더돼야 한다");
+  });
+});

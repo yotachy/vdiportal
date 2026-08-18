@@ -36,6 +36,9 @@
   // 시험해 보니 bias 0.04 짜리 MA 가 "혼조, 교차 없음"이라는 텍스트를 달고도 부호만으로
   // "근거"에 꼽혔다 — 문구와 분류가 어긋나 보였다. 절대값이 이 문턱 아래면 텍스트 그대로
   // (혼조·중립 등) "판독" 칸으로 보내고, 방향이 뚜렷할 때만 근거/반대로 가른다.
+  // 2026-08-19 재선별(전형적 이동폭) 표본으로 재점검: ma 0.677·bollinger 0.299 는 근거,
+  // volume −0.125("보통 거래량 · 0.94배 · 약화")는 이 문턱을 살짝 넘겨 반대로 갈린다 —
+  // 텍스트도 실제로 "약화"라 말해 분류와 문구가 맞는다(0.12 유지, 조정 불필요).
   var TOOL_EPS = 0.12;
   // 시안 16a: **정확히 3개**(고르는 데 시간 쓰면 튜토리얼이 안 시작된다). 이름은 여기 적지
   // 않는다 — ticker-picker 의 CURATED 가 이름의 정본이고, 두 벌이 갈리면 온보딩이 심은 종목이
@@ -282,6 +285,10 @@
 
     function step1() {
       var w = frag("ob-step");
+      // "예시 데이터"임을 헤드라인보다 먼저 읽게 한다(2026-08-19 리뷰 — 화면 맨 아래 작은
+      // 캡션이던 예전 위치는 골드 "맞히셨습니다!" 옆에서 존재감이 없었다). CSS 도 이 자리를
+      // 전제로 오버라인 스타일이다.
+      w.appendChild(el("p", "ob-over", MSStr.t.obSampleNote));
       w.appendChild(el("h1", "ob-h", MSStr.t.obH1));
       w.appendChild(el("p", "ob-sub", MSStr.t.obGuessAsk));
       var wrap = frag("ob-canvas-wrap");
@@ -324,7 +331,6 @@
           : (MSStr.t.obTailWrongA + n + MSStr.t.obTailWrongB);
         w.appendChild(el("p", "ob-tail", tailText));
       }
-      w.appendChild(el("p", "ob-over", MSStr.t.obSampleNote));
       return w;
     }
 
