@@ -431,6 +431,90 @@ export const ROUTES = [
         "if(!/^\\d+/.test(grant.textContent)) return false;" +
         "return true;" +
       "})()" },
+  // 리뷰 I2(Task 8 라운드 1/5) — 위 두 라우트(onboarding-analysis·onboarding-final)는 재생을
+  // `.an-scrim` 드레인으로 **건너뛴다**(결정성을 위해, 위 onboarding-analysis 헤더 주석 참고).
+  // 그런데 그 드레인이 5→6 클릭과 **같은 동기 tick** 안에서 일어나면 `play()`가 예약한 첫
+  // `requestAnimationFrame` 이 단 한 번도 실행되지 않은 채로 재생이 끝난다 — `frame()` 자체가
+  // 안 불린다는 뜻이다(리뷰어가 `frame()` 첫 줄에 console.error 를 심어 실측: 관문은 10/10
+  // 인데 그 로그가 한 번도 안 찍혔다). Task 7 이 고친 `root is not defined` 버그가 정확히
+  // 그 `frame()` 안에 살아 있었다 — 아무도 그 경로를 실행하지 않았기 때문에 몇 달간 아무도
+  // 몰랐다.
+  //
+  // **실측(Task 8 라운드 1/5) — 이 헤드리스 환경은 프로세스당 실 rAF 를 최대 2번만,
+  // 그것도 페이지 로드 직후의 아주 짧은 창(setTimeout 지연 0ms 근처)에서만 준다.** 독립
+  // 진단 페이지로 직접 쟀다: `requestAnimationFrame` 을 지연 0ms 로 요청하면 2틱(가상
+  // 시각 15~41ms 부근), 100ms 지연이면 0틱, 400ms 지연이면 1틱, 2000ms 지연이면 0틱 —
+  // `--virtual-time-budget` 을 아무리 늘려도(8000→30000) 더 나오지 않는다(합성 화면
+  // 컴포지터가 없는 `--headless=new --disable-gpu` 특성으로 보인다). 그래서 온보딩
+  // 5→6단계처럼 여러 클릭·비동기 fetch 를 거친 **뒤**에 재생을 켜면, 그 시점엔 이미 그 창이
+  // 지나 있어 실측상 0틱이 나온다(직접 재확인: 위 흐름으로 `.an-count` 를 2초 폴링해도
+  // 단 한 번도 0 초과 값을 못 봤다). 즉 온보딩 UI 흐름 안에서 자연 발생 재생을 기다리는
+  // 접근은 **환경의 하드 한계로 원리적으로 불가능**하다 — 더 기다려도, 더 폴링해도 없다.
+  //
+  // 그래서 이 라우트는 온보딩 흐름을 타지 않는다 — `MSAnalyzeView.play()`(progress-analyze.js,
+  // index.html 에서 app.js 보다 먼저 전역으로 실린다)를 **합성 stepper**(readingStepper 와
+  // 같은 계약: total·done·index·rows·step()·drain())로 **페이지 로드 직후 지연 0ms** 에
+  // 직접 호출한다 — 실측상 rAF 가 살아있는 유일한 창이다. step() 을 의도적으로 무겁게
+  // 만들어(호출마다 ~1.2ms busy-wait) FRAME_BUDGET_MS(8ms) 안에 전부 못 끝나게 하고
+  // (총 30개, 프레임당 ~6개), `.an-count` 를 짧게 폴링해 **0 < index < total** 인 값을
+  // 관찰한다 — 이 값은 우리 코드가 아니라 오직 `step()`(=`frame()` 내부)만 바꿀 수 있으므로
+  // 이게 보이면 **실 rAF 로 frame() 이 실제 호출됐다**는 직접 증거다. 관찰 후에는(더 기다리지
+  // 않고) 드레인해 완료까지 확인한다.
+  { name: "progress-analyze-raf-live", seed: {}, go: null,
+    scripts: [
+      { at: 0, code:
+        "window.__rafSamples=[];" +
+        "window.__rafObserved=false;" +
+        "try{" +
+          "var TOTAL=30, idx=0, rows=[];" +
+          "var stepper={" +
+            "total:TOTAL," +
+            "get done(){ return idx>=TOTAL; }," +
+            "get index(){ return idx; }," +
+            "rows:rows," +
+            "step:function(){" +
+              "if(idx>=TOTAL) return null;" +
+              "var t0=performance.now();" +
+              "while(performance.now()-t0<1.2){}" +               // frame() 이 한 번에 다 못 끝내게(합성 부하)
+              "var r={type:'synthetic'+idx, bias:0.1, text:'합성 판독 '+idx};" +
+              "rows.push(r); idx++; return r;" +
+            "}," +
+            "drain:function(){ while(idx<TOTAL) this.step(); return rows; }" +
+          "};" +
+          "MSAnalyzeView.play({ stepper:stepper, basic:5, onDone:function(rows2){" +
+            "window.__rafPlayDone=true; window.__rafPlayRows=rows2.length;" +
+          "}});" +
+        "}catch(e){ console.error('SYNTH_PLAY_THROW', String(e)); }" +
+        "var t=0;" +
+        "var iv=setInterval(function(){" +
+          "t++;" +
+          "var cnt=document.querySelector('.an-count');" +
+          "var m=cnt&&/^(\\d+) \\//.exec(cnt.textContent);" +
+          "var v=m?Number(m[1]):0;" +
+          "if(v>0){ window.__rafObserved=true; window.__rafSamples.push(v); }" +
+          "if(v>0||t>40){" +                                       // 실제 진행을 봤거나(정상), 400ms 넘겨도 못 봤으면(환경 한계) 멈춘다
+            "clearInterval(iv);" +
+            "var scrim=document.querySelector('.an-scrim');" +
+            "if(scrim) scrim.click();" +                           // 관찰 후 드레인 — 완료까지 확인
+          "}" +
+        "},10);" }
+    ],
+    delay: 1500,
+    assert: "typeof MSAnalyzeView !== 'undefined' && " +
+      "(function(){" +
+        // 핵심 증거 — 0 < 관찰값 < 30. 이 범위를 벗어나면 실 rAF 로 frame() 이 돈 게 아니다
+        // (0 이면 한 번도 안 돎, ==30 이면 우리 폴링이 늦어 이미 드레인된 뒤를 본 것일 수
+        // 있어 증거력이 없다 — 그래서 반드시 '진행 중' 스냅샷이어야 한다).
+        "if(!window.__rafObserved) return false;" +
+        "var s=window.__rafSamples;" +
+        "if(!s.length) return false;" +
+        "if(!(s[0]>0&&s[0]<30)) return false;" +
+        // 드레인 후 완료까지 실제로 도달했다(오버레이가 스스로 닫히고 onDone 이 불렸다).
+        "if(!window.__rafPlayDone) return false;" +
+        "if(window.__rafPlayRows!==30) return false;" +
+        "if(document.querySelector('.an-scrim')) return false;" +
+        "return true;" +
+      "})()" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데
   // 탭바가 없던(화면이 비어 있던) 것과 같은 부류의 사고를 이 경로에서 반복하지 않기 위해서다.
   // P1a Task 6(워치리스트, 시안 14a) — 스쿱 필 아이콘이 실제로 마크(scoopMark, svg)로

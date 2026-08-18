@@ -63,6 +63,14 @@
      새 크기를 도입하는 게 아니라(값이 --fs-headline 참조 그대로다) 이미 있던 짝에 이름을 준다 —
      이름이 있어야 "헤드라인인데 왜 300인가"가 아니라 "이 역할은 300이다"가 된다. */
   --fs-display:var(--fs-headline); --fw-display:300; --ls-display:-.04em;
+  /* 10번째 역할 — Q1(onboarding-quality.js obq-value)·7단계 recap 이 쓰다가 :root 정의
+     없이 `var(--fs-num)` 를 참조만 한 채로 두 태스크(Task 2·3)를 건너뛴 부채였다(리뷰
+     I1, Task 8 라운드 1/5) — 크로미움 실측: 16px/400/-0.16px(본문 상속) 로 그려지고
+     있었다. 새 크기를 만들지 않는다 — `.sheet-tier-price-num`(9번째 역할과 다른 자리,
+     `--fs-figure`)이 이미 "정직하게 강조하는 값 하나"를 그리는 자리라 그대로 별칭한다.
+     이름을 따로 두는 이유는 소비처가 다르기 때문이다(price-num=가격/비용 숫자,
+     num=Q1 계측값+7단계 요약 숫자) — 지금은 같은 모양이어도 나중에 갈릴 수 있다. */
+  --fs-num:var(--fs-figure); --fw-num:var(--fw-figure); --ls-num:var(--ls-figure);
   --ls-slight:-.01em; --ls-flat:0; --ls-wide:.02em; --ls-wider:.04em;
 }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }

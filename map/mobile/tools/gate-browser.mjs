@@ -263,6 +263,14 @@ function probe(route) {
 // 못 해 자기 자신과 교착한다(실측: curl 로 같은 포트를 찔러도 TLS 핸드셰이크에서 영원히
 // 걸림 — dump-dom 이 늘 "연결 실패" 더미 페이지만 받았다). 비동기 spawn 으로 event loop 를
 // 비워 둬야 서버가 그 사이에 요청을 처리한다.
+// 리뷰 I2(Task 8 라운드 1/5) — `--virtual-time-budget` 은 페이지가 계속 실 rAF 를 능동적으로
+// 요청하면(예: 재생이 끝나지 않는 버그로 매 프레임 다시 requestAnimationFrame 을 건다)
+// 스스로 끝나지 않을 수 있다는 것을 실측했다(합성 재생 시험을 만들다가 두 번 재현 —
+// 진행이 하나도 안 오르게 만든 변이 둘 다 실 크로미움 프로세스가 CPU 90%대로 수 분간
+// 안 죽었다, PID 를 직접 kill 해야 했다). `--virtual-time-budget` 을 믿고 외부 타임아웃이
+// 없었던 것 자체가 구멍이다 — 어떤 라우트든 비슷한 회귀(재생이 안 끝나는 버그)가 생기면
+// 관문 전체가 영원히 멈춘다. 넉넉한 상한(각 라우트 virtual budget 의 4배, 최소 20초)을
+// 넘기면 강제로 죽이고 진단 로그를 남겨 judge() 가 **깨끗한 실패**로 보고하게 한다.
 function shoot(route, page, libDir) {
   const args = ["--headless=new", "--disable-gpu", "--no-sandbox", "--ignore-certificate-errors",
     "--host-resolver-rules=MAP " + HOST + ":443 127.0.0.1:" + PORT + ", MAP * 127.0.0.1:1, EXCLUDE 127.0.0.1",
@@ -270,15 +278,22 @@ function shoot(route, page, libDir) {
     "--screenshot=" + path.join(OUT, "app-" + route.name + ".png"),
     "--dump-dom", "--virtual-time-budget=" + ((route.delay || 1500) + 3000),
     "https://" + HOST + "/" + page];
+  const hardTimeoutMs = Math.max(20000, ((route.delay || 1500) + 3000) * 4);
   return new Promise((resolve) => {
     const child = spawn(CHROME, args, {
       env: Object.assign({}, process.env, { LD_LIBRARY_PATH: libDir })
     });
-    let dom = "", log = "";
+    let dom = "", log = "", settled = false;
+    const killer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try { child.kill("SIGKILL"); } catch (e) {}
+      resolve({ dom: "", log: "HARD_TIMEOUT — 크로미움이 " + hardTimeoutMs + "ms 안에 스스로 안 끝나 강제 종료했다(재생이 끝나지 않는 회귀일 수 있다)" });
+    }, hardTimeoutMs);
     child.stdout.on("data", d => { dom += d; });
     child.stderr.on("data", d => { log += d; });
-    child.on("close", () => resolve({ dom, log }));
-    child.on("error", (e) => resolve({ dom: "", log: "PROC_ERROR " + String(e) }));
+    child.on("close", () => { if (settled) return; settled = true; clearTimeout(killer); resolve({ dom, log }); });
+    child.on("error", (e) => { if (settled) return; settled = true; clearTimeout(killer); resolve({ dom: "", log: "PROC_ERROR " + String(e) }); });
   });
 }
 
@@ -299,7 +314,8 @@ function judge(route, res) {
   }
   const m = res.dom.match(/<title>GATE:([\s\S]*?)<\/title>/);
   if (!m) {
-    problems.push("단언이 실행되지 않았다(title 없음) — 화면이 그려지기 전에 죽었을 수 있다");
+    problems.push("단언이 실행되지 않았다(title 없음) — 화면이 그려지기 전에 죽었을 수 있다" +
+      (res.log && res.log.indexOf("HARD_TIMEOUT") >= 0 ? " · " + res.log : ""));
     return { problems, warns: [] };
   }
   let v = {};

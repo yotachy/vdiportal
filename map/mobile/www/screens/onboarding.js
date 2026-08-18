@@ -1135,8 +1135,16 @@
       // "근거" — O2 의 실체(반대 의견까지 숨기지 않는다)를 다시 한 번 숫자로 못박는다.
       // 반대 개수는 앞 항목의 상세에도 있지만, 여기서는 그 숫자 하나를 이 항목의 주인공으로
       // 다시 꺼낸다 — "동의만 골라 보여주지 않았다"는 이 온보딩의 핵심 약속이기 때문이다.
+      // 리뷰 M2 — 반대가 0건이면 "0개 반대 의견도 숨기지 않았습니다"가 되어 "숨길 게
+      // 없었다"와 "다 보여줬다"가 겹쳐 읽힌다. num 자리는 그대로 dissentN(=0)을 보여준다
+      // ("값을 가리지 않는다", Q1) — 바뀌는 것은 라벨·상세뿐이다(자세한 사정은 strings.js
+      // obRecapEvidenceZeroLabel 주석).
       var dissentN = cls ? cls.dissent.length : 0;
-      wrap.appendChild(recapRow(String(dissentN), MSStr.t.obRecapEvidenceLabel, MSStr.t.obRecapEvidenceDetail));
+      if (dissentN > 0) {
+        wrap.appendChild(recapRow(String(dissentN), MSStr.t.obRecapEvidenceLabel, MSStr.t.obRecapEvidenceDetail));
+      } else {
+        wrap.appendChild(recapRow(String(dissentN), MSStr.t.obRecapEvidenceZeroLabel, MSStr.t.obRecapEvidenceZeroDetail));
+      }
 
       return wrap;
     }

@@ -200,6 +200,15 @@ test("온보딩·종목 고르기 클래스가 style.css 에 있다", () => {
   });
 });
 
+// 리뷰 M1(Task 8 라운드 1/5) — 값은 44px 로 올렸지만(위 클래스 존재 시험은 셀렉터 존재만
+// 보고 수치는 안 본다), 누가 다시 34px 로 되돌려도 아무 관문도 안 걸렸다. .ob-retry 는
+// **뒤로가기가 없는 7단계의 유일한 탈출 버튼**(지갑 재시도)이라 이 수치가 특히 중요하다.
+test("터치 대상 — .ob-retry 는 44px 하한을 실제 수치로 지킨다", () => {
+  const m = CSS.match(/\.ob-retry\s*\{[^}]*min-height\s*:\s*(\d+(?:\.\d+)?)px/s);
+  assert.ok(m, ".ob-retry 규칙에 min-height px 선언이 없다 — 44px 하한을 아예 못 잰다");
+  assert.ok(Number(m[1]) >= 44, ".ob-retry min-height 가 44px 미만이다: " + m[1] + "px");
+});
+
 // 프로젝트 전역 금지 — 항목 좌측 세로 컬러 라인(accent bar/rail).
 test("온보딩·고르기 스타일에 좌측 세로 컬러 라인이 없다", () => {
   var block = CSS.slice(CSS.indexOf("/* ===== 온보딩"));
@@ -787,6 +796,72 @@ test("단언 1 — 방금 받은 것(도구 32 · 지평 3 · 근거)이 recap �
       assert.ok(detail && detail.textContent.trim(), (i + 1) + "번째 recap 행에 상세 설명이 없다 — 값만 던지면 안 된다");
     });
   });
+});
+
+// 리뷰 M2(Task 8 라운드 1/5) — "0개 반대 의견도 숨기지 않았습니다"가 어색했다. 양쪽 갈래를
+// 다 잰다: 반대가 있는 표본(위 단언 1, SAMPLE=실 시세)과 반대가 0건인 표본(아래) 둘 다.
+//
+// 실측(node, ForgeCore.run 직접 호출, full32Graph)으로 미리 확인한 표본이다 — 완만한 사인파
+// 합성 시세(드리프트 0.05)가 regime=neutral 로 떨어지고, neutral 에서는 opposing() 이
+// 애초에 반대를 계산하지 않아(classifyFull32 의 want===0 분기) dissent 가 항상 0이다
+// (테스트 기대값은 밖에서 원칙 — 이 드리프트 값이 0을 낸다는 것을 엔진 밖 스윕으로 먼저
+// 확인했다, gate-browser.mjs 의 합성 시세와 같은 사인파 골격 — 드리프트 값만 다르다).
+function zeroDissentCandles() {
+  var out = [], i, day0 = new Date("2026-08-17T00:00:00Z");
+  for (i = 0; i < 360; i++) {
+    var v = 200 + i * 0.05 + Math.sin(i / 11) * 6 + Math.sin(i / 37) * 14;
+    var t = new Date(day0.getTime() - (359 - i) * 86400000).toISOString().slice(0, 10);
+    out.push({ t: t, o: +(v - 1).toFixed(2), h: +(v + 1.8).toFixed(2), l: +(v - 1.6).toFixed(2),
+               c: +v.toFixed(2), v: 1000000 + (i % 23) * 40000 });
+  }
+  return out;
+}
+
+test("단언 1(M2, 반대 0건 갈래) — 반대가 없으면 recap 문구가 어색하지 않게 갈아탄다", async () => {
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: true, state: { balance: 5 } });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    await flush();
+    root.querySelector(".ob-next").click();   // 5 -> 6, 재생도 동기로 끝난다
+    root.querySelector(".ob-next").click();   // 6 -> 7
+    const rows = root.querySelectorAll(".ob-recap-row");
+    assert.strictEqual(rows.length, 3, "recap 항목이 3개가 아니다: " + rows.length);
+    const evidence = rows[2];
+    const num = evidence.querySelector(".ob-recap-num").textContent;
+    const label = evidence.querySelector(".ob-recap-label").textContent;
+    const detail = evidence.querySelector(".ob-recap-detail").textContent;
+    // 반대가 0건이면(neutral) 옛 문구("N개 반대 의견도 숨기지 않았습니다")를 그대로
+    // 재사용하지 않는다 — 표시되는 숫자는 동의 개수(0이 아니어야 문장이 자연스럽다).
+    assert.strictEqual(label, S.t.obRecapEvidenceZeroLabel,
+      "반대 0건인데도 라벨이 안 바뀌었다(어색한 '0개 반대 의견도 숨기지 않았습니다'로 남아 있을 수 있다): " + label);
+    assert.strictEqual(detail, S.t.obRecapEvidenceZeroDetail, "반대 0건 상세 문구가 다르다: " + detail);
+    assert.notStrictEqual(label, S.t.obRecapEvidenceLabel, "반대 0건인데 반대>0건용 라벨을 그대로 쓴다");
+    // num 은 여전히 실제 dissent 개수(0)를 그대로 보여준다(Q1: 값을 가리지 않는다) — 바뀌는
+    // 것은 라벨·상세 문구뿐이다("0" 자체를 감추면 그것도 값을 가리는 것이다).
+    assert.strictEqual(num, "0", "반대 0건 표본인데 num 이 0이 아니다(표본이 바뀌었을 수 있다): " + num);
+  }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: zeroDissentCandles(), symbol: "AAPL", name: "Apple" }) });
+});
+
+test("단언 1(M2, 반대 >0건 갈래) — 반대가 있으면 그 개수와 옛 문구를 그대로 쓴다", async () => {
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: true, state: { balance: 5 } });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    await flush();
+    root.querySelector(".ob-next").click();   // 5 -> 6
+    root.querySelector(".ob-next").click();   // 6 -> 7
+    const rows = root.querySelectorAll(".ob-recap-row");
+    const evidence = rows[2];
+    const num = evidence.querySelector(".ob-recap-num").textContent;
+    const label = evidence.querySelector(".ob-recap-label").textContent;
+    assert.strictEqual(label, S.t.obRecapEvidenceLabel, "반대가 있는데 0건용 문구로 갈아탔다: " + label);
+    assert.notStrictEqual(num, "0", "반대가 있다고 표본을 골랐는데 개수가 0이다 — 표본이 바뀌었을 수 있다");
+  }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: steadyUpCandles(), symbol: "AAPL", name: "Apple" }) });
 });
 
 // 단언 2 — 화면 안에서 recap → 가격표(.ob-pricing) → 지급(.ob-grant) 순서가 실제 DOM
