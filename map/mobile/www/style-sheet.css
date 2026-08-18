@@ -34,8 +34,10 @@
 /* 심화(gold) — 지금 살 수 있는 단 하나, 골드 테두리로 눈에 띈다. */
 .sheet-tier.tier-full { background:var(--gold-soft); border:1.5px solid var(--gold); padding:14.5px 16.5px; }
 .sheet-tier.tier-full .sheet-tier-name-txt { font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); color:var(--ink); }
-/* 전문(platinum) — 이번 라운드는 잠금만(P2 가 연다), 자물쇠+"곧 지원 예정"으로 끝난다. */
+/* 전문(platinum). 심화·전문 모두 report-blocks.js 가 선언한 블록을 못 그리는 동안엔
+   잠긴다(.is-locked, 리뷰 판정 2026-08-18) — 자물쇠+"곧 지원 예정"으로 끝난다. */
 .sheet-tier.tier-custom .sheet-tier-name-txt { color:var(--platinum); }
+.sheet-tier[disabled] { opacity:.6; cursor:default; }
 .sheet-pop { padding:2px 8px; border-radius:99px; background:var(--gold); color:var(--gold-ink); font-size:var(--fs-caption); font-weight:var(--fw-heavy); }
 .sheet-tier-done { flex:0 0 auto; font-size:var(--fs-sub); font-weight:var(--fw-bold); color:var(--steel); }
 .sheet-tier-price { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:2px; }

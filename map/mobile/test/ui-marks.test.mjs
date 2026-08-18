@@ -143,7 +143,6 @@ const EXCLUDED_LOCK_FILES = {
   "wallet-http.js": "'잠긴다'가 여기선 인증 토큰이 영구 거부되는 상태를 가리킬 뿐 — UI 잠금 아이콘과 무관",
   "strings.js": "문구 데이터만 담는다(rpLocked·tpLockNote 등) — 아무 것도 그리지 않으므로 아이콘을 참조할 이유가 없다",
   "blocked.js": "'blocked'/'막히는' 이 잠금 아이콘이 아니라 **행동이 막힌 상태**를 가리킨다 — 잔량 부족·쿨다운·일 상한 등. 자물쇠를 그리지 않는다",
-  "tier-sheet.js": "P2 가 전문분석을 열면서 잠긴 티어가 없어졌다 — 이제 이 시트는 자물쇠를 그리지 않는다. 주석에 남은 '잠금'은 그 사실을 설명하는 서술일 뿐이고, 안 쓰는 분기를 남기지 않는다는 판단(P1 Ruling H)에 따라 코드는 지웠다",
   "report-blocks.js": "'unlock'(해제 카드 블록 이름) 의 부분 문자열일 뿐 — 블록 이름·순서만 담는 선언이라 DOM 을 만들지 않는다. 이름을 바꿔 관문을 피하지 않고 여기에 사유를 적는다",
   "screens/watchlist.js": "locked 배열을 만들어 ticker-picker.js 에 넘길 뿐 — 아이콘은 그 안에서만 그려진다",
   "screens/onboarding.js": "lockedSyms 를 계산해 ticker-picker.js 에 넘길 뿐 — 아이콘은 그 안에서만 그려진다"

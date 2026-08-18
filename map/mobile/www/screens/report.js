@@ -39,6 +39,42 @@
   // 함께 냈다. 문자열 비교라 예외가 안 나고, 관문 666건이 전부 초록인 채로 통과했다.
   // 그래서 티어를 직접 비교하지 말고 **무엇을 묻는지**로 갈라 쓴다.
   function isPaid(t) { return t === "full" || t === "custom"; }   // 지표 전량을 읽은 분석인가
+
+  // 선언(report-blocks.js)엔 있는데 아직 그리는 함수가 없는 블록 id → 어느 페이즈가 짓는가.
+  // **못 그리는 것을 팔지 않는다**(리뷰 판정, 2026-08-18) — 이 표가 비어 있지 않은 티어는
+  // tier-sheet.js 가 구매를 막는다(아래 pendingOf/tierBuyable, MSTierSheet.open 의 locked).
+  // 모듈 스코프에 두는 이유는 draw() 의 BUILD 표(스킵용)와 시트를 여는 두 자리(buildCta·
+  // afterCtaAd) 셋이 **같은 한 벌**을 봐야 하기 때문이다 — 복제하면 한 곳만 고쳐 갈라진다.
+  // 관문(report-blocks.test.mjs)이 forTier() 가 선언한 모든 id 가 draw() 의 BUILD 나 여기
+  // 둘 중 하나엔 반드시 있는지를 강제한다.
+  // 값은 true 하나뿐이다(페이즈 이름을 문자열로 안 넣는다) — strings.test.mjs 의
+  // "screens/ 에 남은 영어가 없다" 관문이 화면 리터럴을 훑는데, "P1a Task 3"/"P1b" 같은
+  // 코드도 라틴 단어로 잡힌다(사용자가 볼 문구가 아닌데도 그 관문은 구분을 못 한다).
+  // 그래서 페이즈는 각 줄 주석에 적고, 표 자체는 "이 id 가 아직 없다"는 사실만 담는다.
+  var PENDING = {
+    comb:     true,   // 기본분석 지표 빗(스틸5+연한골드27) — P1a Task 3(다음 태스크)
+    sentence: true,   // 19b 「한 문장으로」 — P1b(심화 리포트 재작성, 19b·18b)
+    forecast: true,   // "내일 예상 + 확신" — P1b. 지금은 verdict 카드에 확신·적중률이
+                       // 섞여 있어(buildVerdict) 억지로 잇지 않았다(리뷰 지시 §4)
+    hitrate:  true,   // 적중률 단독 블록 — P1b. 위와 같은 이유로 verdict 카드에서 분리해야
+                       // 하는데, 지금 억지로 자르면 forecast 와 내용이 겹치거나 반씩
+                       // 잘려 나간다
+    compare:  true    // 심화 안의 "직전 상태(기본분석 대비)" 대조 — P1b. 내용 자체는 이미
+                       // 있다(buildHorizons() 안의 prevBasic() 블록, 시안이 회색 막대로
+                       // horizons 카드에 얹으라고 한 그대로) — 그래서 compare:buildHorizons
+                       // 로 잇지 않는다. 그러면 horizons 와 compare 가 같은 카드를 두 번
+                       // 그린다(중복). 독립 카드로 뽑아낼지는 P1b 가 정할 화면 구조 문제다
+  };
+  // 그 티어의 선언 중 아직 못 그리는 id 목록. tier 인자를 받는 이유는 PENDING 이 id→페이즈
+  // 표라 티어 무관이고, "이 티어에 지금 파는데 못 그리는 게 있나"는 그 티어 선언과 대조해야
+  // 답할 수 있어서다.
+  function pendingOf(tier) {
+    return MSReportBlocks.forTier(tier).map(function (b) { return b.id; })
+      .filter(function (id) { return Object.prototype.hasOwnProperty.call(PENDING, id); });
+  }
+  // basic 은 제외한다 — basic 은 팔지 않는다(무료 기본값), "구매 가능한가"를 묻는 질문 자체가
+  // 성립하지 않는다. full·custom 만 이 질문의 대상이다.
+  function tierBuyable(tier) { return tier === "basic" || pendingOf(tier).length === 0; }
   // 배지·설명·증거 세그먼트. 표로 두는 이유는 티어가 넷째로 늘 때 분기가 아니라 행이 늘게
   // 하려는 것이다(시안 6a: Basic 1/3 · Full 2/3 · Custom 3/3).
   // 키 이름을 문자열로 두지 않고 값을 그대로 담는다 — 문자열 관문 둘이 그래야 볼 수 있다.
@@ -1074,7 +1110,7 @@
               balance: r2.state ? r2.state.balance : null, cap: r2.state ? r2.state.cap : null,
               // onRun: runFull 이면 시트가 넘겨준 picked 를 버린다 — 광고로 충전한 뒤 전문분석을
               // 골라도 심화가 돌고 3스쿱이 나갔다. 아래 buildCta 와 **같은 분기**를 쓴다.
-              onRun: runPicked });
+              onRun: runPicked, locked: { full: !tierBuyable("full"), custom: !tierBuyable("custom") } });
           });
           return;
         }
@@ -1210,7 +1246,7 @@
           if (bal != null && bal < MSWallet.COSTS.full) { showLowBalanceAd(wrap, bal); return; }
           MSTierSheet.open({ sym: sym, tier: tier, name: wlItem && wlItem.name,
             balance: bal, cap: r.state ? r.state.cap : null,
-            onRun: runPicked });
+            onRun: runPicked, locked: { full: !tierBuyable("full"), custom: !tierBuyable("custom") } });
         });
       });
       wrap.appendChild(b);
@@ -1256,6 +1292,10 @@
           legend:    function () { return buildChartLegend(); },
           horizons:  function () { return buildHorizons(); },
           against:   function () { return buildAgainst(indRows); },
+          // dissent 는 against 의 개명이다 — 시안 19b "이건 알고 계세요(반대)"와 against 의
+          // 제목("반대 의견")·isPaid 게이팅·내용이 정확히 같다(리뷰 지시로 확인). 같은 함수를
+          // 두 id 로 잇는다 — 함수를 복제하면 나중에 한쪽만 고쳐 갈라진다.
+          dissent:   function () { return buildAgainst(indRows); },
           tf:        function () { return buildTfSection(); },
           note:      function () { return buildMissingNote(); },
           cta:       function () { return buildCta(); },
@@ -1263,19 +1303,26 @@
           // 18a 의 의도된 빈 공간 — "여기까지가 무료"를 스크롤 부재로 전달한다. 버그가 아니다.
           spacer:    function () { return MSUi.el("div", "rp-spacer"); },
           unlock:    function () { return buildCta(); },
-          // 전문분석 조절판은 Task 8 에서 온다. 선언에는 이미 있고 여기 함수가 없으므로
-          // 지금은 그 자리에 아무것도 안 그린다 — 관문이 이 미구현을 이름으로 드러낸다.
           weights:   function () { return buildWeights(); }
         };
         // report-blocks.js 가 orderOf(문자열 배열)에서 forTier({id,kind} 배열)로 개명됐다
-        // (P1a Task 2) — 화면 조립은 그대로, id 만 꺼내 쓴다. 이 화면 자체의 블록 구성은
-        // Task 3(기본)·P1b/P1c(심화·전문)이 다시 손댈 대상이라 BUILD 표는 여기서 넓히지 않는다.
+        // (P1a Task 2) — 화면 조립은 그대로, id 만 꺼내 쓴다. PENDING(모듈 스코프, 위)에 있는
+        // id 는 조용히 건너뛴다(if (!fn) return) — 화면 구조 자체는 Task 3(기본)·P1b(심화)·
+        // P1c(전문) 소관이라 이번엔 안 넓혔다.
         MSReportBlocks.forTier(tier).forEach(function (b) {
           var fn = BUILD[b.id];
           if (!fn) return;
           var node = fn();
           if (node) scr.appendChild(node);
         });
+        // 해제 CTA(buildCta)는 선언 밖에서 부른다 — 시안 18a 의 "판정·빗·차트 정보 블록
+        // 3개"는 CTA·빈 공간을 안 센다(report-blocks.js 의 주석·리뷰 지시). 그렇다고 CTA 를
+        // 아예 안 부르면 기본분석에서 심화·전문으로 올라갈 유일한 입구(단계 선택 시트)가
+        // 통째로 사라진다 — 리뷰가 잡은 "관문은 초록, 화면은 죽음"과 같은 모양의 사고를
+        // 여기서 반복할 뻔했다(브라우저 관문 report-locked-tiers 가 CTA_MISSING 으로 잡음).
+        // buildCta() 자신이 이미 tier!=='basic' 이면 빈 div 를 돌려주므로(내부 가드) 항상
+        // 불러도 안전하다.
+        scr.appendChild(buildCta());
       }
 
       if (state !== "ready") {

@@ -49,6 +49,31 @@ export const ROUTES = [
       "!/불러오지 못했습니다/.test(document.getElementById('app').textContent)" },
   { name: "wallet", seed: ON, go: '"wallet"',
     assert: "MSApp.current().route === 'wallet' && !!document.querySelector('[data-screen=\"wallet\"]')" },
+  // 2026-08-18 리뷰(Critical): 기본만 여는 관문이 "심화·전문이 8/9개 중 3~4개만 그린다"는
+  // 사고를 놓쳤다 — report-blocks.test.mjs(정적 분석)가 그 구조적 원인은 잡지만, 실제 브라우저
+  // DOM 이 맞는 상태를 보여주는지는 노드 테스트가 못 본다(이 관문이 존재하는 이유 자체가 그
+  // 사각지대다). 지금은 report-blocks.js 의 PENDING(sentence·forecast·hitrate·compare)이
+  // full·custom 을 둘 다 못 팔게 잠가서(tier-sheet.js locked) 분석 화면 자체를 열 수 없다 —
+  // 그래서 여기서 재는 것은 "그 잠금이 빈 화면이 아니라 자물쇠+문구로 정직하게 보이는가"다.
+  // click 은 go() 가 report 를 그린 뒤(1300ms) `.rp-cta` 를 눌러 시트를 연다 — MSWallet.get()
+  // 왕복이 비동기라 assert 안에서 클릭하면 assert 의 동기 평가가 먼저 끝나 열리기 전 DOM 을
+  // 본다(그래서 route.click 을 따로 뒀다, gate-browser.mjs 참고). PENDING 이 비면(P1b 완료)
+  // 이 라우트는 락 화면 대신 실제 분석 화면을 재도록 다시 써야 한다 — report-blocks.test.mjs
+  // 의 "PENDING 이 비어있지 않은 티어가 실제로 있다" 단언이 그 시점을 알려준다.
+  { name: "report-locked-tiers", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}',
+    click: ".rp-cta", clickDelay: 1800, delay: 3200,
+    assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
+      "(function(){" +
+        "var full=document.querySelector('.sheet-tier.tier-full');" +
+        "var custom=document.querySelector('.sheet-tier.tier-custom');" +
+        "if(!full||!custom) return false;" +                                        // 시트 자체가 안 열렸다
+        "if(!full.classList.contains('is-locked')||!custom.classList.contains('is-locked')) return false;" +
+        "if(!full.querySelector('.sheet-tier-locked svg')||!custom.querySelector('.sheet-tier-locked svg')) return false;" +
+        "if(full.querySelector('.sheet-tier-price')||custom.querySelector('.sheet-tier-price')) return false;" + // 잠긴 행에 값이 남으면 반쪽 잠금이다
+        "var run=document.querySelector('.sheet-run');" +
+        "if(!run||!run.disabled) return false;" +                                   // 잠긴 티어를 실행할 수 있으면 안 된다
+        "return true;" +
+      "})()" },
   { name: "record", seed: { ...ON, ms_preds: PREDS }, go: '"record"',
     assert: "MSApp.current().route === 'record' && !!document.querySelector('[data-screen=\"record\"]')" },
   { name: "result", seed: { ...ON, ms_preds: PREDS }, go: '"result",{sym:"TSLA",asOf:"2026-08-14"}',

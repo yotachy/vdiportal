@@ -197,6 +197,15 @@ function probe(route) {
   }
   js += "}catch(e){}</script>\n" + TAG;
   if (route.go) js += '\n<script>setTimeout(function(){try{MSApp.go(' + route.go + ');}catch(e){console.error("GO_FAILED",e);}},400);</script>';
+  // route.click — go() 만으로 못 여는 상태(예: 심화 티어 시트는 CTA 를 실제로 눌러야 열린다,
+  // 시트가 여는 스쿱 잔량 조회가 비동기라 assert 안에서 클릭하면 assert 가 먼저 동기 평가를
+  // 끝내버려 열리기 전 DOM 을 본다)를 만들 때 쓴다. go() 가 끝난 뒤(400ms) 별도로 예약해
+  // route.clickDelay(기본 1300ms) 뒤 셀렉터를 클릭한다 — assert 의 delay 가 그보다 넉넉히
+  // 길어야 클릭의 비동기 후속(예: MSWallet.get() 왕복)이 끝난 DOM 을 assert 가 본다.
+  if (route.click) js += '\n<script>setTimeout(function(){try{var el=document.querySelector(' +
+    JSON.stringify(route.click) + ');if(el)el.click();else console.error("CLICK_TARGET_MISSING",' +
+    JSON.stringify(route.click) + ');}catch(e){console.error("CLICK_FAILED",String(e));}},' +
+    (route.clickDelay || 1300) + ');</script>';
   js += '\n<script>setTimeout(function(){var ok=false,err="";' +
         'try{ok=!!(' + route.assert + ');}catch(e){err=String(e);}' +
         'document.title="GATE:"+JSON.stringify({ok:ok,err:err,errs:(window.__gateErrs||[]),warns:(window.__gateWarns||[])});},' +
