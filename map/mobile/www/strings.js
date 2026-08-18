@@ -548,14 +548,24 @@
     obTailRightA: "감이 좋으시네요. 이걸 ", obTailRightB: "개 도구로 매일 해드립니다.",
     obTailWrongA: "그래서 도구를 ", obTailWrongB: "개 읽습니다 — 하나로는 이렇게 놓칩니다.",
 
-    obH2b: "어떻게 보는 편이신가요?",
-    obSub2b: "같은 차트라도 무엇을 중요하게 보느냐에 따라 판정이 달라집니다. 나중에 바꿀 수 있습니다.",
-    obStyleNote: "고른 성향이 전문분석의 가중치 기본값이 됩니다. 나중에 지표별로 직접 조절할 수 있습니다.",
-    // 성향 설명 4종 — 시안 11c 원문. 용어가 아니라 태도를 묻는다.
-    obStyleTrend: "가던 방향으로 더 간다고 봅니다",
-    obStyleMomentum: "최근 며칠의 힘을 가장 크게 봅니다",
-    obStyleReversion: "많이 벌어지면 제자리로 온다고 봅니다",
-    obStyleVolatility: "흔들림의 크기를 먼저 봅니다",
+    // 2단계(재설계, 설계서 §4.2) — 같은 구간을 32개 도구 전부로 다시 본다. 옛 2단계(성향
+    // 선택, obH2b/obSub2b/obStyle*)는 여기서 지웠다 — 성향 선택은 다음 태스크가 3단계에서
+    // 다시 짓는다(그때 새 문구를 새로 단다, 이 자리 이름을 재사용하지 않는다).
+    obH2: "같은 구간을 32개 도구로 다시 봅니다",
+    obSub2: "찍기 전 같은 구간을, 이번엔 32개 도구 전부로 봅니다. 반대하는 도구도 그대로 보여드립니다.",
+    // "5도구 판정"/"32도구 판정" — 숫자는 코드에서 채운다(MSGraph.BASIC.length·
+    // ForgeCore.indicatorCount). 두 곳 다 같은 접미사를 써서 한 줄로 관리한다.
+    obVerdictLabelSuffix: "도구 판정",
+    // 판정이 같을 때도 이 화면은 성립한다("더 많은 도구가 같은 결론을 지지했다") — 다를
+    // 때만 재는 화면이 아니다.
+    ob32SameNote: "더 많은 도구가 같은 결론을 지지했습니다.",
+    // 5·32 는 리터럴로 적지 않는다(위 obVerdictLabelSuffix 와 같은 이유) — 코드가 n5·n32 를
+    // 앞뒤로 끼워 넣는다: n5 + A + word5 + B + n32 + C + word32 + D.
+    ob32DiffA: "개 도구는 ", ob32DiffB: "라고 봤지만, ", ob32DiffC: "개 전부를 보면 ", ob32DiffD: "입니다.",
+    ob32AgreeHead: "동의",
+    ob32FlatHead: "무판정",
+    ob32ExpandSuffix: "개 더 보기",
+    ob32Collapse: "접기",
 
     // 4~6단계: 3모드 체험. 시안 16a~16c.
     obTutIntroH: "세 가지를 다 무료로 써보세요",

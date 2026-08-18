@@ -186,6 +186,9 @@ test("온보딩·종목 고르기 클래스가 style.css 에 있다", () => {
    ".ob-read", ".ob-read-verdict", ".ob-read-label", ".ob-read-row", ".ob-read-name",
    ".ob-read-text", ".ob-read-empty", ".ob-tail",
    ".ob-period", ".ob-cols", ".ob-col", ".ob-col-app", ".ob-app-note",
+   ".ob32-cmp", ".ob32-cmp-row", ".ob32-cmp-k", ".ob32-cmp-v", ".ob32-verdict-note",
+   ".ob32-sec", ".ob32-sec-head", ".ob32-sec-label", ".ob32-sec-count",
+   ".ob32-rows", ".ob32-row", ".ob32-name", ".ob32-text", ".ob32-bias", ".ob32-expand",
    ".tp", ".tp-grid", ".tp-chip", ".tp-chip-label", ".tp-free", ".tp-msg",
    ".tp-input", ".tp-add"].forEach(function (c) {
     assert.ok(new RegExp("\\" + c + "(?![-\\w])").test(CSS), c + " 규칙이 없다");
@@ -484,7 +487,10 @@ test("뒤로 가면 1단계가 다시 그려진다", () => {
     root.querySelector(".ob-next").click();
     root.querySelector(".ob-back").click();
     assert.ok(root.querySelector(".ob-canvas"), "1단계로 안 돌아왔다");
-    assert.strictEqual(root.querySelector(".ob-styles"), null, "이전 단계 DOM 이 남아 있다");
+    // Task 4 재설계: 2단계는 이제 32도구 화면(.ob32-cmp) 이다 — 옛 표식(.ob-styles) 은
+    // 더는 어디서도 그려지지 않아 이 단언이 항상 공허하게 통과하므로 실제로 그려지는
+    // 새 표식으로 잰다.
+    assert.strictEqual(root.querySelector(".ob32-cmp"), null, "이전 단계 DOM 이 남아 있다");
   });
 });
 
@@ -616,7 +622,7 @@ async function toStep7(root) {
   O.render(root, { sample: SAMPLE });
   root.querySelector(".ob-guess-btn").click();          // 1: 직접 찍기
   root.querySelector(".ob-next").click();               // 1 -> 2
-  root.querySelector(".ob-next").click();               // 2 -> 3 (성향은 trend 기본 선택)
+  root.querySelector(".ob-next").click();               // 2 -> 3 (32도구 화면은 입력 없이 넘어간다)
   const cb = root.querySelector(".ob-agree-cb");        // 3: 약관 체크
   cb.checked = true;
   (cb.listeners.change || []).forEach(f => f({}));
@@ -733,11 +739,12 @@ test("재시도 버튼을 누르면 지갑을 다시 부른다", async () => {
 
 test("7단계다 — 시안 정본", () => { assert.strictEqual(O.STEPS, 7); });
 
-test("각 단계가 요구하는 것: 찍기 · 성향 · 동의 · 기본분석 결과", () => {
+test("각 단계가 요구하는 것: 찍기 · [2단계는 보여줄 뿐] · 동의 · 기본분석 결과", () => {
   assert.equal(O.canAdvance(1, {}), false, "1단계는 직접 찍어야 넘어간다");
   assert.equal(O.canAdvance(1, { guessed: "up" }), true);
-  assert.equal(O.canAdvance(2, {}), false, "2단계는 성향을 골라야 한다");
-  assert.equal(O.canAdvance(2, { style: "trend" }), true);
+  // Task 4 재설계: 2단계는 32도구를 보여주는 화면이라 입력을 요구하지 않는다 — 옛 성향
+  // 요구는 지웠다(성향 선택은 이후 태스크가 3단계에서 다시 짓는다).
+  assert.equal(O.canAdvance(2, {}), true, "2단계는 32도구를 보여줄 뿐이라 입력을 요구하지 않는다");
   assert.equal(O.canAdvance(3, {}), false, "3단계는 약관 동의가 필수다");
   assert.equal(O.canAdvance(3, { agreed: true }), true);
   // 4단계는 결과가 실제로 나왔을 때만 넘어간다 — 계산 중에 넘기면 5단계가 빈 값을 비교한다.
@@ -786,17 +793,11 @@ test("체험 종목은 정확히 3개다 — 고르는 데 시간 쓰면 튜토�
   delete globalThis.MSStore;
 });
 
-test("성향 목록은 MSIndTiers.PRESETS 가 정본이다 — 온보딩이 다시 적지 않는다", () => {
-  const IT = require("../www/ind-tiers.js");
-  IT.PRESETS.forEach(p => {
-    assert.ok(OB.indexOf(p.key) >= 0, p.key + " 설명이 온보딩에 없다");
-  });
-  // 이름을 소스에 다시 적었으면 두 벌이 갈린다.
-  IT.PRESETS.forEach(p => {
-    assert.ok(OB.indexOf('"' + p.name + '"') < 0,
-      "성향 이름 '" + p.name + "' 을 온보딩이 다시 적었다 — PRESETS 에서 읽어야 한다");
-  });
-});
+// Task 4 재설계로 2단계가 32도구 화면으로 바뀌면서 성향 선택 UI(옛 step2)가 잠시
+// 사라졌다 — 위 "성향 목록은 MSIndTiers.PRESETS 가 정본이다" 시험은 그 UI 를 재던 것이라
+// 지금은 잴 대상이 없다(성향 선택은 이후 태스크가 3단계에서 다시 짓는다, 그때 이 시험도
+// 그 자리에서 되살아난다). 지금 남겨 두면 "이 화면이 존재해야 한다"는 거짓 전제를 관문이
+// 강제하게 된다 — 삭제가 맞다.
 
 test("고른 성향이 실제로 쓰인다 — 죽은 컨트롤이 아니다", () => {
   const STORE = readFileSync(new URL("../www/store.js", import.meta.url), "utf8");
@@ -1106,6 +1107,172 @@ test("엔진을 못 돌리면 판독 대신 이유를 말한다 — 첫 화면�
     // 맞힘/틀림 갈래는 엔진과 무관(가려진 봉 실제 값 비교일 뿐)하므로 계속 렌더돼야 한다.
     const tail = root.querySelector(".ob-tail");
     assert.ok(tail && tail.textContent.length > 0, "엔진이 없어도 맞힘/틀림 갈래는 계속 렌더돼야 한다");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// Task 4(2단계 재설계) — 같은 구간, 32개 전부. 브리프 단언 5건.
+// ══════════════════════════════════════════════════════════════════════════════════
+
+// 1단계(찍기)를 채우고 2단계로 넘어간다 — canAdvance(1,{}) 가 guessed 를 요구하므로 클릭
+// 없이는 .ob-next 가 막혀 있다.
+function toStep2(root, sampleObj) {
+  O.render(root, { sample: sampleObj });
+  root.querySelector(".ob-guess-btn").click();
+  root.querySelector(".ob-next").click();
+}
+
+// 반대(dissent)가 더 많이 나오는 표본 — 마지막 12봉(가려지는 구간)은 그대로 두고, 보이는
+// 228봉 전체에 진폭 3%·주기 20봉의 사인파를 얹는다. node 로 실측: regime=bull·반대 7건
+// (기본 표본의 2건보다 뚜렷이 많다 — "반대가 접기 문턱을 넘어도 전부 그려지는가"를 재려면
+// 기본 표본 하나로는 부족하다).
+function manyDissentSample() {
+  const CUT = 12, AMP = 0.03, PERIOD = 20;
+  const base = SAMPLE.candle.slice(0, SAMPLE.candle.length - CUT);
+  const candle = base.map((c, i) => {
+    const f = 1 + AMP * Math.sin(2 * Math.PI * i / PERIOD);
+    const cl = c.c * f;
+    const o = cl * 1.005, h = Math.max(o, cl) * 1.01, l = Math.min(o, cl) * 0.99;
+    return { o: +o.toFixed(4), h: +h.toFixed(4), l: +l.toFixed(4), c: +cl.toFixed(4), v: c.v, t: c.t };
+  });
+  const tail = SAMPLE.candle.slice(SAMPLE.candle.length - CUT);
+  const full = candle.concat(tail);
+  return { price: full.map(c => c.c), candle: full, asOf: full[full.length - 1].t };
+}
+
+// 5도구 판정과 32도구 판정이 실제로 갈리는 표본 — 보이는 228봉 중 마지막 20봉을 각각
+// 원래 종가 대비 -3% 로 눌러 놓는다(가려지는 12봉은 손대지 않는다). node 로 실측:
+// 5도구(basic)는 bull 을 유지하지만 32도구(full)는 neutral 로 갈린다 — 추가된 27개
+// 지표가 최근 힘 빠짐을 더 크게 반영하기 때문이다.
+function divergeSample() {
+  const CUT = 12, TAIL_N = 20, MAG = -0.03;
+  const base = SAMPLE.candle.slice(0, SAMPLE.candle.length - CUT);
+  const candle = base.map(c => Object.assign({}, c));
+  const m = candle.length;
+  for (let i = m - TAIL_N; i < m; i++) {
+    const c = base[i].c * (1 + MAG);
+    const o = c * 1.005, h = Math.max(o, c) * 1.01, l = Math.min(o, c) * 0.99;
+    candle[i] = { o: +o.toFixed(4), h: +h.toFixed(4), l: +l.toFixed(4), c: +c.toFixed(4), v: base[i].v, t: base[i].t };
+  }
+  const tail = SAMPLE.candle.slice(SAMPLE.candle.length - CUT);
+  const full = candle.concat(tail);
+  return { price: full.map(c => c.c), candle: full, asOf: full[full.length - 1].t };
+}
+
+// 단언 1 — 동의·반대·무판정 세 통의 합이 32와 같다. 세 값은 DOM 의 .ob32-sec-count(각
+// 섹션이 자기 list.length 를 그대로 적은 것) 에서 읽는다 — 접힌 섹션도 count 는 전체
+// 개수를 담고 있으므로 "실제 분류 결과"를 그대로 재는 것이다(하드코딩 32 대 하드코딩
+// 합의 항등식이 아니다 — 32는 이 시험이 아는 외부 불변, 세 값은 실행 결과다).
+test("2단계 — 동의·반대·무판정 세 통의 합이 32와 같다(실제 분류 결과에서 센다)", () => {
+  withDom(root => {
+    toStep2(root, SAMPLE);
+    const counts = Array.from(root.querySelectorAll(".ob32-sec-count")).map(e => Number(e.textContent));
+    assert.strictEqual(counts.length, 3, "동의·반대·무판정 세 섹션이 다 있어야 한다: " + counts.length);
+    const sum = counts.reduce((a, b) => a + b, 0);
+    assert.strictEqual(sum, 32, "세 통의 합이 32가 아니다(" + counts.join("+") + "=" + sum + ")");
+  });
+});
+
+// 단언 2 — 반대는 개수와 무관하게 접히지 않는다. 작은 표본(2건)·큰 표본(7건) 둘 다
+// "펼치기 버튼이 없고, count 만큼 행이 전부 그려진다"를 재야 한다 — 작은 쪽만 재면
+// "우연히 문턱 밑이라 안 접혔다"를 반대와 구분할 수 없다.
+test("2단계 — 반대 도구가 접혀 있지 않다(개수가 늘어도 전부 그려진다)", () => {
+  withDom(root => {
+    toStep2(root, SAMPLE);
+    const sec = root.querySelector(".ob32-sec-dissent");
+    assert.ok(sec, "반대 섹션이 없다");
+    const count = Number(sec.querySelector(".ob32-sec-count").textContent);
+    assert.ok(count > 0, "이 표본은 반대가 있어야 의미 있는 시험이다: " + count);
+    assert.strictEqual(sec.querySelector(".ob32-expand"), null, "반대 섹션에 펼치기 버튼이 있다 — 접혀 있다는 뜻이다");
+    assert.strictEqual(sec.querySelectorAll(".ob32-row").length, count,
+      "반대 " + count + "건 중 일부만 그려졌다");
+  });
+  withDom(root => {
+    toStep2(root, manyDissentSample());
+    const sec = root.querySelector(".ob32-sec-dissent");
+    const count = Number(sec.querySelector(".ob32-sec-count").textContent);
+    assert.ok(count >= 6, "반대를 늘리려는 표본인데 " + count + "건뿐이다 — 변이가 약하다");
+    assert.strictEqual(sec.querySelector(".ob32-expand"), null,
+      "반대가 " + count + "건으로 늘어나자 펼치기 버튼이 생겼다 — 접힌다는 뜻");
+    assert.strictEqual(sec.querySelectorAll(".ob32-row").length, count,
+      "반대가 늘어나자(" + count + "건) 일부만 그려졌다");
+  });
+});
+
+// 단언 3 — 각 도구 행에 이름(영어) · 무엇을 봤는지 · 실측 수치가 있다. 동의·반대 행(둘 다
+// bias 를 갖는다)에서 잰다 — trend·phasefold(무판정 쪽)는 구조적으로 bias 가 없어(readings.js
+// NO_BIAS) 이 시험의 대상이 아니다.
+test("2단계 — 각 도구 행에 이름(영어) · 무엇을 봤는지 · 실측 수치가 있다", () => {
+  withDom(root => {
+    toStep2(root, SAMPLE);
+    // 이 저장소의 가짜 DOM(El.querySelectorAll) 은 단일 클래스 선택자만 지원한다(콤마·
+    // 후손 결합자 없음) — 두 섹션을 각각 스코프로 잡아 합친다.
+    const agreeSec = root.querySelector(".ob32-sec-agree"), dissentSec = root.querySelector(".ob32-sec-dissent");
+    const rows = [...agreeSec.querySelectorAll(".ob32-row"), ...dissentSec.querySelectorAll(".ob32-row")];
+    assert.ok(rows.length > 0, "동의·반대 행이 하나도 없다");
+    Array.from(rows).forEach(row => {
+      const name = row.querySelector(".ob32-name");
+      const text = row.querySelector(".ob32-text");
+      const bias = row.querySelector(".ob32-bias");
+      assert.ok(name && name.textContent.trim().length > 0, "이름이 비었다");
+      assert.match(name.textContent, /^[A-Za-z][A-Za-z0-9 /%.]*$/, "이름이 영어가 아니다: " + name.textContent);
+      assert.ok(text && text.textContent.trim().length > 0, "무엇을 봤는지 문구가 비었다: " + name.textContent);
+      assert.ok(bias && /^[+-]\d/.test(bias.textContent), name.textContent + " 행에 실측 수치(방향 기여도)가 없다");
+    });
+  });
+});
+
+// 단언 4 — 5도구 판정과 32도구 판정이 나란히 있다.
+test("2단계 — 5도구 판정과 32도구 판정이 나란히 있다", () => {
+  withDom(root => {
+    toStep2(root, SAMPLE);
+    const rows = root.querySelectorAll(".ob32-cmp-row");
+    assert.strictEqual(rows.length, 2, "5도구·32도구 판정 행이 2개가 아니다: " + rows.length);
+    const k0 = rows[0].querySelector(".ob32-cmp-k").textContent;
+    const k1 = rows[1].querySelector(".ob32-cmp-k").textContent;
+    const G = require("../www/graph.js"), FC = require("../../forge-core.js");
+    assert.ok(k0.indexOf(String(G.BASIC.length)) >= 0, "첫 행이 5도구 판정이 아니다: " + k0);
+    assert.ok(k1.indexOf(String(FC.indicatorCount)) >= 0, "둘째 행이 32도구 판정이 아니다: " + k1);
+    const words = [S.t.rpBullish, S.t.rpBearish, S.t.rpFlat];
+    [rows[0], rows[1]].forEach(r => {
+      const v = r.querySelector(".ob32-cmp-v").textContent;
+      assert.ok(words.indexOf(v) >= 0, "판정 값이 판정어가 아니다: " + v);
+    });
+  });
+});
+
+// 단언 5 — 두 판정이 같을 때도, 다를 때도 화면이 성립한다. 다를 때만 재고 넘어가면 그
+// 갈래가 영영 안 돈다(이 표본에서 5·32 도구 판정은 실제로 같을 공산이 크다 — 그래서
+// "같을 때" 를 기본 표본으로, "다를 때" 를 별도 변이 표본(divergeSample)으로 각각 돈다).
+test("2단계 — 두 판정이 같을 때도, 다를 때도 화면이 성립한다(양쪽 다 실제로 돈다)", () => {
+  withDom(root => {
+    toStep2(root, SAMPLE);   // 실측: 이 표본은 5도구·32도구 판정이 같다(둘 다 bull)
+    const note = root.querySelector(".ob32-verdict-note");
+    assert.ok(note, "판정 비교 문구가 없다");
+    assert.ok(note.className.indexOf("is-same") >= 0, "같은 판정인데 is-same 이 아니다: " + note.className);
+    assert.strictEqual(note.textContent, S.t.ob32SameNote, "같을 때 문구가 다르다: " + note.textContent);
+  });
+  withDom(root => {
+    toStep2(root, divergeSample());   // 실측: 5도구=bull, 32도구=neutral
+    const note = root.querySelector(".ob32-verdict-note");
+    assert.ok(note, "판정 비교 문구가 없다");
+    assert.ok(note.className.indexOf("is-diff") >= 0, "다른 판정인데 is-diff 가 아니다: " + note.className);
+    assert.ok(note.textContent.indexOf(S.t.rpBullish) >= 0 && note.textContent.indexOf(S.t.rpFlat) >= 0,
+      "다를 때 문구에 두 판정어가 둘 다 있어야 한다: " + note.textContent);
+  });
+});
+
+// state 캐시 — 3단계(성향)가 32도구 결과를 비교 기준으로 쓴다(브리프 Produces).
+test("2단계 — 32도구 결과가 state.full32 에 캐시된다", () => {
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    root.querySelector(".ob-guess-btn").click();
+    root.querySelector(".ob-next").click();
+    // render() 의 내부 state 는 밖에서 안 보이므로, 캐시가 실제로 동작한다는 사실은 DOM
+    // 자체가 증언한다(값이 그려졌다는 것은 계산되고 어딘가에 있었다는 뜻) — 소스에
+    // "state.full32" 대입문이 있는지로 이중 확인한다(리터럴이 아니라 실제 배선인지).
+    assert.match(OB, /state\.full32\s*=/, "32도구 결과를 state 에 캐시하는 대입문이 없다");
+    assert.ok(root.querySelector(".ob32-cmp"), "캐시 이전에 화면 자체가 안 그려졌다");
   });
 });
 

@@ -105,6 +105,29 @@ export const ROUTES = [
         // "앱은 도구 5개만 보고 이렇게 말했습니다" — 2단계를 벌어들이는 줄.
         "var note=document.querySelector('.ob-app-note');" +
         "if(!note||note.textContent.indexOf('5')<0) return false;" +
+        // ── 2단계(Task 4) — 같은 구간, 32개 전부 ──────────────────────────────────
+        "var fwd=document.querySelector('.ob-next');" +
+        "if(!fwd) return false;" +
+        "fwd.click();" +                                          // 1 -> 2
+        "var cmpRows=document.querySelectorAll('.ob32-cmp-row');" +
+        "if(cmpRows.length!==2) return false;" +                   // 5도구·32도구 판정이 나란히
+        "var counts=Array.prototype.slice.call(document.querySelectorAll('.ob32-sec-count'))" +
+          ".map(function(e){ return Number(e.textContent); });" +
+        "if(counts.length!==3) return false;" +                    // 동의·반대·무판정 세 통
+        "var sum=0; for(var si=0;si<counts.length;si++) sum+=counts[si];" +
+        "if(sum!==32) return false;" +                             // 세 통의 합이 32
+        "var dissentSec=document.querySelector('.ob32-sec-dissent');" +
+        "if(!dissentSec) return false;" +
+        "if(dissentSec.querySelector('.ob32-expand')) return false;" + // 반대는 접히지 않는다
+        "var dCount=Number(dissentSec.querySelector('.ob32-sec-count').textContent);" +
+        "if(dissentSec.querySelectorAll('.ob32-row').length!==dCount) return false;" + // 전부 그려진다
+        "var vnote=document.querySelector('.ob32-verdict-note');" +
+        "if(!vnote||!vnote.textContent) return false;" +           // 같음/다름 어느 쪽이든 문구가 있다
+        "var agreeRows=document.querySelectorAll('.ob32-sec-agree .ob32-row');" +
+        "if(agreeRows.length){" +
+          "var r0=agreeRows[0];" +
+          "if(!r0.querySelector('.ob32-name')||!r0.querySelector('.ob32-text')) return false;" +
+        "}" +
         "return true;" +
       "})()" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데

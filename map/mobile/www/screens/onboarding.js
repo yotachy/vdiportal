@@ -1,13 +1,18 @@
-// 온보딩 7단계 — 시안 정본(DESIGN-INVENTORY §2, t17). 앱 셸 밖에서 돈다:
-// 완료 전까지 워치리스트/리포트/지갑은 그리지 않는다.
+// 온보딩 7단계 — 3막 재설계 진행 중(설계서 map/docs/superpowers/specs/
+// 2026-08-18-moneyscoop-onboarding-redesign.md). **화면 수는 유지한다**(그 설계서 O4) — 이후
+// 태스크들이 slot 을 하나씩(step2..step7) 통째로 다시 쓴다. 아직 손 안 댄 slot 은 이전
+// 설계(DESIGN-INVENTORY §2, t17)의 내용을 그대로 들고 있다 — 각 태스크는 **자기 slot 만**
+// 고치고 다른 slot 의 내용을 옮기거나 미리 당겨 쓰지 않는다(브리프가 파일 목록으로 그
+// 경계를 긋는다). 완료 전까지 워치리스트/리포트/지갑은 그리지 않는다.
 //
-//   1 콜드 오픈(11a)      — 설명 대신 직접 찍게 한다. 봉 몇 개를 가리고 물은 뒤 실제를 연다.
-//   2 투자성향(11c)       — 용어가 아니라 태도를 묻는다. 전문분석 가중치 기본값이 된다.
-//   3 위험 고지           — 체크박스 필수. **분석 결과를 보여주기 전**이다.
-//   4 기본분석 체험(16a)  — 종목 하나 고르고 실제로 돌린다. 체험 1/3.
-//   5 심화분석 체험(16b)  — 무엇이 달라지는지 두 막대로. 체험 2/3.
-//   6 전문분석 체험(16c)  — 슬라이더 하나만 열어 직접 만지게 한다. 체험 3/3.
-//   7 완료·가격표·지급(17a) — 세 값을 한 표에 모으고 **가격은 이제야** 공개한다.
+//   1 콜드 오픈(11a)                — 예시 구간 · 찍기 · 당신/앱/실제 3열. [재설계 완료]
+//   2 같은 구간, 32개 전부          — 5개가 아니라 32개 전부의 동의·반대·무판정, 5도구
+//                                    판정과 나란히. [재설계 완료 — 이 커밋]
+//   3 위험 고지                     — 체크박스 필수. 분석 결과를 보여주기 전. [옛 내용 그대로]
+//   4 기본분석 체험(16a)            — 종목 하나 고르고 실제로 돌린다. 체험 1/3. [옛 내용 그대로]
+//   5 심화분석 체험(16b)            — 무엇이 달라지는지 두 막대로. 체험 2/3. [옛 내용 그대로]
+//   6 전문분석 체험(16c)            — 슬라이더 하나만 열어 직접 만지게 한다. 체험 3/3. [옛 내용 그대로]
+//   7 완료·가격표·지급(17a)         — 세 값을 한 표에 모으고 **가격은 이제야** 공개한다. [옛 내용 그대로]
 //
 // **순서가 핵심이다.** 가격표를 먼저 보여주면 "3스쿱"이 그냥 숫자다. 234.2 ± 1.1 을 먼저 본
 // 사람에게만 3이 싼지 비싼지 판단할 근거가 생긴다(인벤토리 §2 원문).
@@ -63,7 +68,9 @@
   // 진행할 수 있는가. 화면 밖에서 시험할 수 있게 순수 함수로 둔다.
   function canAdvance(step, state) {
     if (step === 1) return !!state.guessed;
-    if (step === 2) return !!state.style;
+    // 2단계(32도구 재설계)는 보여주는 화면이라 별도 입력을 요구하지 않는다 — 성향 선택
+    // 요구는 3단계(성향, 이후 태스크가 재설계)로 넘어간다. 여기서 지우지 않으면 3단계가
+    // 성향을 다시 물을 때 "요구가 두 곳에 있다"는 모순이 생긴다.
     if (step === 3) return !!state.agreed;
     if (step === 4) return !!state.r1;      // 기본분석 결과가 실제로 나왔을 때만
     return true;
@@ -454,31 +461,149 @@
       }
     }
 
-    // ── 2단계: 투자성향 ──────────────────────────────────────────────────────────
-    function styleDesc(key) {
-      return key === "trend" ? MSStr.t.obStyleTrend
-           : key === "momentum" ? MSStr.t.obStyleMomentum
-           : key === "reversion" ? MSStr.t.obStyleReversion
-           : key === "volatility" ? MSStr.t.obStyleVolatility : "";
+    // ── 2단계: 같은 구간, 32개 전부(설계서 §4.2, O2 의 증거) ───────────────────────
+    // 1단계가 "5개만 봤다"고 못박은 것에 대한 답이다. **같은 절단선(sliced, 228봉)**을
+    // 32개 도구 전부로 다시 본다 — 다른 구간을 쓰면 5도구 판정과 32도구 판정이 서로 다른
+    // 정보로 계산한 것이 되어 "나란히 비교"가 성립하지 않는다.
+    var FULL32_AGREE_SHOW = 5;   // 대표로 먼저 보이는 동의 줄 수(펼치기 전)
+    var FULL32_FLAT_SHOW = 4;    // 대표로 먼저 보이는 무판정 줄 수(펼치기 전)
+    // 반대는 여기 없다 — **반대는 개수와 무관하게 항상 전부 보인다**(컨트롤러 판정: 대표
+    // 몇 줄 + 펼치기는 동의·무판정에만 적용된다. 불리한 근거를 접어 숨기지 않는다는 것이
+    // O2 의 실체다).
+
+    var _full32Cache = null, _full32CacheSample = null;
+    function visibleFull32() {
+      var s = sample();
+      if (!s) return null;
+      if (_full32Cache && _full32CacheSample === s) return _full32Cache;
+      var d = sliced();
+      if (!d || typeof ForgeCore === "undefined" || typeof MSIndicators === "undefined") return null;
+      var full = runTier(d, "full");
+      if (!full) return null;
+      var ctx = MSIndicators.ctxFrom(full.input);
+      var rows = MSIndicators.readings(ForgeCore, full.graph, full.input, ctx);
+      var noDir = MSIndicators.noDirRows(ForgeCore, full.input, ctx);
+      var regime = full.out.verdict.regime;
+      var cls = classifyFull32(regime, rows, noDir);
+      var an = { graph: full.graph, input: full.input, out: full.out, regime: regime,
+                 agree: cls.agree, dissent: cls.dissent, flat: cls.flat,
+                 total: rows.length + noDir.length };
+      _full32Cache = an; _full32CacheSample = s;
+      return an;
+    }
+
+    // 동의/반대/무판정 세 통으로 가른다 — report.js 의 MSIndicators.opposing() 과 같은
+    // 문턱(EPS)·같은 규칙을 쓴다(두 화면이 "반대"의 정의를 각자 가지면 갈린다). 판정
+    // 자체가 중립이면(want===0) 어느 쪽에도 반대·동의가 정의되지 않는다 — report.js
+    // buildAgainst() 의 "중립엔 반대가 정의되지 않는다"와 같은 원칙.
+    function classifyFull32(regime, rows, noDir) {
+      var want = regimeDir(regime);
+      var eps = (typeof MSIndicators !== "undefined" && typeof MSIndicators.EPS === "number") ? MSIndicators.EPS : 0.02;
+      var agree = [], dissent = [], flat = [];
+      (rows || []).forEach(function (r) {
+        if (want === 0 || Math.abs(r.bias) <= eps) { flat.push(r); return; }
+        if ((r.bias > 0 ? 1 : -1) === want) agree.push(r); else dissent.push(r);
+      });
+      flat = flat.concat(noDir || []);
+      function byAbsBias(a, b) { return Math.abs(b.bias || 0) - Math.abs(a.bias || 0); }
+      agree.sort(byAbsBias);
+      dissent.sort(byAbsBias);
+      return { agree: agree, dissent: dissent, flat: flat };
+    }
+
+    // 도구 한 줄 — 이름(영어) · 무엇을 봤는지(엔진이 지금 계산한 문장, 실측 수치가 이미
+    // 문장 안에 있다) · 방향 기여도(부호 있는 수치). trend·phasefold 는 bias 가 없다
+    // (readings.js 가 문서화한 구조적 예외 — report.js 도 같은 예외를 갖는다) — 숫자 없이
+    // 문장만 보여준다. 숫자를 지어내는 것보다 없는 것을 없다고 두는 쪽이 정직하다.
+    function full32Row(r) {
+      var row = frag("ob32-row");
+      row.appendChild(el("span", "ob32-name", MSStr.ind(r.type)));
+      row.appendChild(el("span", "ob32-text", r.text));
+      if (typeof r.bias === "number")
+        row.appendChild(el("span", "ob32-bias", (r.bias > 0 ? "+" : "") + r.bias.toFixed(2)));
+      return row;
+    }
+
+    // collapsible=false 면 개수와 무관하게 전부 그린다(반대 전용 — 위 주석 참고).
+    // 클래스 문자열을 하나로 이어붙이지 않는다 — "ob32-sec ob32-sec-" 처럼 공백을 낀
+    // 리터럴은 screens/ 영어잔존 게이트(el()·className= 리터럴만 예외로 보는 shape 규칙)를
+    // 못 벗어난다(columnsBlock 의 col() 과 같은 이유·같은 처방).
+    function full32Section(kind, label, list, collapsible, showN) {
+      var sec = frag("ob32-sec");
+      sec.className = sec.className + " ob32-sec-" + kind;
+      var head = frag("ob32-sec-head");
+      head.appendChild(el("span", "ob32-sec-label", label));
+      head.appendChild(el("span", "ob32-sec-count", String(list.length)));
+      sec.appendChild(head);
+      if (!list.length) return sec;
+      var open = !collapsible || !!(state.ob32Open && state.ob32Open[kind]);
+      var shown = (collapsible && !open) ? list.slice(0, showN) : list;
+      var rows = frag("ob32-rows");
+      shown.forEach(function (r) { rows.appendChild(full32Row(r)); });
+      sec.appendChild(rows);
+      if (collapsible && list.length > showN) {
+        var btn = document.createElement("button");
+        btn.type = "button"; btn.className = "ob32-expand";
+        btn.textContent = open ? MSStr.t.ob32Collapse : (list.length - showN) + MSStr.t.ob32ExpandSuffix;
+        btn.addEventListener("click", function () {
+          state.ob32Open = state.ob32Open || {};
+          state.ob32Open[kind] = !open;
+          draw();
+        });
+        sec.appendChild(btn);
+      }
+      return sec;
+    }
+
+    function full32CmpRow(label, value) {
+      var r = frag("ob32-cmp-row");
+      r.appendChild(el("span", "ob32-cmp-k", label));
+      r.appendChild(el("span", "ob32-cmp-v", value));
+      return r;
     }
 
     function step2() {
       var w = frag("ob-step");
-      w.appendChild(el("h1", "ob-h", MSStr.t.obH2b));
-      w.appendChild(el("p", "ob-sub", MSStr.t.obSub2b));
-      var list = frag("ob-styles");
-      // 목록은 MSIndTiers.PRESETS 가 정본이다 — 여기 이름을 다시 적으면 두 벌이 갈린다.
-      MSIndTiers.PRESETS.forEach(function (p) {
-        var b = document.createElement("button");
-        b.type = "button";
-        b.className = "ob-style" + (state.style === p.key ? " is-on" : "");
-        b.appendChild(el("span", "ob-style-name", p.name));
-        b.appendChild(el("span", "ob-style-desc", styleDesc(p.key)));
-        b.addEventListener("click", function () { state.style = p.key; draw(); });
-        list.appendChild(b);
-      });
-      w.appendChild(list);
-      w.appendChild(el("p", "ob-note", MSStr.t.obStyleNote));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH2));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obSub2));
+      // 같은 절단선(1단계가 찍기 전 본 228봉)임을 다시 밝힌다 — state.guessed 와 무관하게
+      // 항상 sliced() 를 읽는다(1단계의 periodLabel() 은 찍은 뒤 전체 구간으로 바뀌지만,
+      // 이 화면은 "그때 봤던 것과 같은 정보"를 재는 화면이라 계속 절단선 쪽을 본다).
+      var d = sliced();
+      if (d && d.candle && d.candle.length) {
+        w.appendChild(el("p", "ob-period",
+          MSStr.t.rpDaily + MSStr.t.obPeriodSep + ym(d.candle[0].t) + MSStr.t.obPeriodDash + ym(d.candle[d.candle.length - 1].t)));
+      }
+
+      var basic = visibleAnalysis();
+      var an = visibleFull32();
+      if (an) state.full32 = an;   // 3단계(성향)가 비교 기준으로 쓴다
+
+      if (!an || !basic) {
+        w.appendChild(el("p", "ob-read-empty", MSStr.t.obReadUnavailable));
+        return w;
+      }
+
+      var n5 = (typeof MSGraph !== "undefined" && MSGraph.BASIC && MSGraph.BASIC.length) ? MSGraph.BASIC.length : 5;
+      var n32 = (typeof ForgeCore !== "undefined" && typeof ForgeCore.indicatorCount === "number") ? ForgeCore.indicatorCount : 32;
+      var regime5 = basic.out.verdict.regime, regime32 = an.regime;
+      var cmp = frag("ob32-cmp");
+      cmp.appendChild(full32CmpRow(n5 + MSStr.t.obVerdictLabelSuffix, verdictWord(regime5)));
+      cmp.appendChild(full32CmpRow(n32 + MSStr.t.obVerdictLabelSuffix, verdictWord(regime32)));
+      w.appendChild(cmp);
+
+      // 같을 때도 이 화면은 성립한다("더 많은 도구가 같은 결론을 지지했다") — 다를 때만
+      // 재고 넘어가지 않는다. 같은 표본에서 5도구·32도구가 실제로 같을 수 있다(실측 확인됨).
+      var same = regime5 === regime32;
+      var note = same ? MSStr.t.ob32SameNote
+        : (n5 + MSStr.t.ob32DiffA + verdictWord(regime5) + MSStr.t.ob32DiffB +
+           n32 + MSStr.t.ob32DiffC + verdictWord(regime32) + MSStr.t.ob32DiffD);
+      w.appendChild(el("p", "ob32-verdict-note" + (same ? " is-same" : " is-diff"), note));
+
+      w.appendChild(full32Section("agree", MSStr.t.ob32AgreeHead, an.agree, true, FULL32_AGREE_SHOW));
+      w.appendChild(full32Section("dissent", MSStr.t.rpAgainst, an.dissent, false));
+      w.appendChild(full32Section("flat", MSStr.t.ob32FlatHead, an.flat, true, FULL32_FLAT_SHOW));
+
       return w;
     }
 

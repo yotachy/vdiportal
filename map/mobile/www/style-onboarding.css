@@ -159,7 +159,36 @@
 /* 맞힘/틀림 두 갈래 — 틀려도 지지 않는다는 톤. */
 .ob-tail { margin-top:14px; font-size:var(--fs-sub); line-height:1.6; color:var(--ink-3); }
 
-/* 2단계 — 투자성향. 라디오가 아니라 카드로 고른다(설명이 선택의 근거다). */
+/* 2단계 — 같은 구간, 32개 전부(설계서 §4.2, Task 4). 5도구/32도구 판정 비교 + 동의·반대·
+   무판정 세 섹션. 반대는 report.js .rp-against-row 와 같은 뼈대를 쓴다(이 화면이 새 작도를
+   쓰지 않는다는 원칙과 같은 이유로, 근거 행의 스타일도 새로 만들지 않는다). */
+.ob32-cmp { margin-top:16px; padding:13px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface); }
+.ob32-cmp-row { display:flex; align-items:baseline; justify-content:space-between; padding:5px 0; }
+.ob32-cmp-k { font-size:var(--fs-caption); color:var(--ink-4); }
+.ob32-cmp-v { font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink); }
+.ob32-verdict-note { margin-top:12px; font-size:var(--fs-sub); line-height:1.6; color:var(--ink-3); }
+.ob32-verdict-note.is-same { color:var(--ink-2); }
+
+.ob32-sec { margin-top:16px; }
+.ob32-sec-head { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; }
+.ob32-sec-label { font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); color:var(--ink-5); }
+.ob32-sec-count { font-size:var(--fs-caption); font-variant-numeric:tabular-nums; color:var(--ink-5); }
+/* 세 섹션의 라벨 색만 다르다(좌측 세로 라인 금지 — 프로젝트 전역 규칙) — 반대는 항상
+   전부 그려지므로(컨트롤러 판정) 접기 버튼이 없다. */
+.ob32-sec-dissent .ob32-sec-label { color:var(--bear-text); }
+.ob32-sec-agree .ob32-sec-label { color:var(--bull); }
+.ob32-rows { display:flex; flex-direction:column; }
+.ob32-row { display:flex; align-items:flex-start; gap:10px; padding:6px 0; border-bottom:1px solid var(--hairline); }
+.ob32-row:last-child { border-bottom:0; }
+.ob32-name { flex:0 0 88px; font-size:var(--fs-caption); font-weight:var(--fw-semibold); color:var(--ink-2); }
+.ob32-text { flex:1 1 auto; font-size:var(--fs-caption); line-height:1.55; color:var(--ink-4); }
+.ob32-bias { flex:0 0 auto; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; color:var(--ink-5); }
+.ob32-expand { display:block; margin-top:6px; min-height:44px; padding:0 4px; border:0; background:transparent;
+  color:var(--gold); font-size:var(--fs-caption); font-weight:var(--fw-semibold); text-align:left; }
+
+/* 2단계(옛) — 투자성향. 이 화면(step2)이 32도구 재설계로 옮겨가며 여기 클래스는 지금
+   쓰이지 않는다 — 다음 태스크가 3단계(성향)를 지을 때 재사용하거나 새로 짓는다. 지우지
+   않고 남겨 둔다(당장 아무도 안 써도 다음 태스크가 참고할 수 있다). */
 .ob-styles { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
 .ob-style { display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%;
   padding:13px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface);
