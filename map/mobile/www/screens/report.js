@@ -810,7 +810,12 @@
       var hidden = ForgeCore.indicatorCount - MSGraph.BASIC.length;   // 리터럴 27 이 아니라 역산값 — 지표가 늘면 같이 는다
       for (var i = 0; i < hidden; i++) bar.appendChild(combCell("is-locked"));
       wrap.appendChild(bar);
-      wrap.appendChild(MSUi.el("div", "rp-comb-note", hidden + MSStr.t.rpCombNote));
+      // [리뷰 C1] "광고 1편으로 전부 열림"은 약속이다 — buyable(광고든 스쿱이든 어느 화폐로
+      // 살 수 있는 티어가 하나라도 있음)일 때만 붙인다. 못 파는데 약속을 달면 buildCta() 의
+      // 광고 버튼과 같은 결함(살 수 없는 것을 판다)을 여기서 반복하는 것이다.
+      var noteText = hidden + MSStr.t.rpCombNote +
+        ((tierBuyable("full") || tierBuyable("custom")) ? MSStr.t.rpCombNoteAd : "");
+      wrap.appendChild(MSUi.el("div", "rp-comb-note", noteText));
       return wrap;
     }
 
@@ -836,8 +841,16 @@
       sec.appendChild(head);
       // 8a 직전 상태 대조 — 심화가 판 것을 화면에서 보이게 하는 유일한 장치다. 티어 실측이
       // 말하는 것은 "방향을 더 맞힌다"가 아니라 "폭이 정직해진다"인데, 대조 없이 심화 값만
-      // 단독으로 놓으면 사용자는 그 정직해짐을 볼 방법이 없다. 폭이 4.0 에서 ±1.1 로 좁아진
-      // 것을 **직전 값 옆에서** 봐야 "무엇을 샀는지"가 성립한다.
+      // 단독으로 놓으면 사용자는 그 정직해짐을 볼 방법이 없다.
+      // [리뷰 C1/I1, 2026-08-18 정정] 예전 주석은 여기서 "폭이 4.0 에서 ±1.1 로 좁아진다"고
+      // 적었는데, 그 전제가 실측으로 깨졌다 — 최종 리뷰어의 독립 실측(28창)은 **심화가 더
+      // 좁은 사례 0.0%, 폭 비율(심화÷기본) 중앙값 1.78배, 최대 7.09배**였다. 즉 지금 이
+      // 블록이 유료 티어에서 켜지면 사용자는 돈을 낸 직후 직전 무료 범위보다 **넓어진**
+      // 범위를 나란히 보게 된다("좁아진다"는 반대 사실이다) — 설계서 §3.5 정정과 같은
+      // 근거. P1b 가 이 대조를 다시 다듬을 때 확인할 것: 직전 기본 폭과 심화 폭의 대소를
+      // 실데이터로 먼저 재고, 넓어지는 쪽이 정상이면 **화면이 그 사실을 먼저 말해야 한다**
+      // (아래 rp-hz-row 의 반대 의견을 경고문처럼 위에 올리는 것과 같은 태도 — 불리한
+      // 것부터 말한다).
       // 없으면 그냥 없다(G1) — 회색 자리에 "—" 나 추정치를 채우지 않는다.
       var prev = prevBasic();
       if (prev) {
@@ -1357,6 +1370,17 @@
       var hidden = ForgeCore.indicatorCount - MSGraph.BASIC.length;
       wrap.appendChild(MSUi.el("p", "rp-unlock-line",
         MSStr.t.rpLockedA + hidden + MSStr.t.rpLockedB));
+
+      // [리뷰 C1, 2026-08-18] 심화·전문 둘 다 아직 못 그리는 블록이 있으면(pendingOf) 어느
+      // 티어도 살 수 없다 — 그 상태에서 "광고 1편으로 열기"·"스쿱 N개로 열기" 버튼을 그대로
+      // 두면 실제로 아무것도 열리지 않는 것을 판다(afterCtaAd/scoopBtn 이 결국 열어 보여줄
+      // 시트도 두 티어 다 잠긴 채다). 살 수 없는 것은 어느 화폐(광고=주의력, 스쿱)로도 팔지
+      // 않는다 — 이 판단을 CTA 버튼 자체를 안 그리는 것으로 한다(아래 buildComb() 의 약속
+      // 문구도 같은 tierBuyable 로 갈린다).
+      if (!tierBuyable("full") && !tierBuyable("custom")) {
+        wrap.appendChild(MSUi.el("p", "rp-missing-note", MSStr.t.rpUnlockSoon));
+        return wrap;
+      }
 
       var msg = MSUi.el("p", "rp-missing-note");
 

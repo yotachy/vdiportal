@@ -81,9 +81,13 @@ function load() {
   global.MSWallet = require("../www/wallet.js");
   delete require.cache[require.resolve("../www/sheet.js")];
   global.MSSheet = require("../www/sheet.js");   // 진짜 MSSheet — 스텁이 아니다
+  // [리뷰 C1] 둘 다 잠긴 시트의 "워치리스트로 돌아가기" 버튼이 실제로 MSApp.go 를 부르는지
+  // 재려면 이 전역이 있어야 한다 — report.js 가 어디서나 쓰는 것과 같은 계약(route, params).
+  var goCalls = [];
+  global.MSApp = { go: function (route, params) { goCalls.push({ route: route, params: params }); } };
   delete require.cache[require.resolve("../www/tier-sheet.js")];
   var MSTierSheet = require("../www/tier-sheet.js");
-  return { MSTierSheet: MSTierSheet, doc: doc };
+  return { MSTierSheet: MSTierSheet, doc: doc, goCalls: goCalls };
 }
 
 // ── ① MSSheet 를 쓴다 — 자체 백드롭·자체 스크림을 만들지 않는다 ──────────────────
@@ -197,6 +201,31 @@ test("두 유료 티어가 모두 잠기면 값·배지 없이 '곧 지원 예�
   const run = byClass(doc.body, "sheet-run")[0];
   assert.strictEqual(run.disabled, true, "고를 게 없는데 실행 버튼이 활성이다");
   assert.strictEqual(byClass(doc.body, "sheet-short")[0].textContent, MSStr.t.tsSoon);
+  MSTierSheet.close();
+});
+
+// [리뷰 C1] 막다른 골목 금지 — 둘 다 잠기면 백드롭 닫기 말고 할 행동이 있어야 한다.
+test("두 유료 티어가 모두 잠기면 '워치리스트로 돌아가기' 버튼이 뜨고, 누르면 시트를 닫고 이동한다", () => {
+  const { MSTierSheet, doc, goCalls } = load();
+  const MSStr = global.MSStr;
+  MSTierSheet.open({ sym: "AAPL", balance: 12, locked: { full: true, custom: true }, onRun: () => {} });
+
+  const back = byClass(doc.body, "sheet-back-list")[0];
+  assert.ok(back, "다음 행동 버튼이 없다 — 백드롭 닫기뿐이면 막다른 골목이다");
+  assert.strictEqual(back.textContent, MSStr.t.tsBackToList);
+
+  back.dispatch("click");
+  assert.strictEqual(doc.body.children.length, 0, "버튼을 눌러도 시트가 안 닫혔다");
+  assert.deepEqual(goCalls, [{ route: "watchlist", params: undefined }],
+    "MSApp.go('watchlist') 를 부르지 않는다");
+});
+
+// 잠기지 않았을 때는(고를 게 있을 때) 이 탈출 버튼이 필요 없다 — 있으면 Run 옆에 불필요한
+// 자리를 차지한다(picked!==null 분기는 정상 구매 흐름이라 이미 Run 이 다음 행동이다).
+test("적어도 하나가 잠기지 않으면 '워치리스트로 돌아가기' 버튼을 그리지 않는다", () => {
+  const { MSTierSheet, doc } = load();
+  MSTierSheet.open({ sym: "AAPL", balance: 12, locked: { full: false, custom: true }, onRun: () => {} });
+  assert.strictEqual(byClass(doc.body, "sheet-back-list").length, 0);
   MSTierSheet.close();
 });
 

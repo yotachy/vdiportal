@@ -116,11 +116,20 @@ export const ROUTES = [
         "var sub=document.querySelector('.rp-verdict-sub');" +
         "if(!sub||/%/.test(sub.textContent)) return false;" +              // 판정 부제에 퍼센트 없음
         "var unlock=document.querySelector('.rp-unlock');" +
-        "if(!unlock) return false;" +                                     // 해제 CTA 존재(직전 사고 재발 방지)
+        "if(!unlock) return false;" +                                     // 해제 블록 자체는 항상 있다(직전 사고 재발 방지)
         "var ad=unlock.querySelector('.rp-cta-ad'), scoop=unlock.querySelector('.rp-cta-scoop');" +
-        "if(!ad||!scoop) return false;" +
-        "var kids=Array.prototype.slice.call(unlock.children);" +
-        "if(kids.indexOf(ad) > kids.indexOf(scoop)) return false;" +       // 광고가 스쿱보다 먼저(DOM 순서)
+        // [리뷰 C1, 2026-08-18] 오늘은 report-blocks.js 의 PENDING(sentence·forecast·hitrate·
+        // compare) 때문에 tierBuyable('full')·tierBuyable('custom') 이 둘 다 false 다 —
+        // buildCta() 가 그 상태에서 광고·스쿱 버튼을 아예 안 그린다(살 수 없는 것을 파는
+        // 거짓 문구를 없앤 것이 이번 수정이다). 그래서 오늘의 정답은 "둘 다 없다"이고,
+        // 이 단언은 실제로 오늘 실행돼 통과한다 — 이전엔 여기서 존재+순서를 무조건
+        // 요구해 거짓 문구를 관문이 고정하고 있었다.
+        "if(ad||scoop) return false;" +
+        // P1b 가 PENDING 을 비워 buyable 이 true 로 바뀌면 위 줄이 실패로 돌아선다 — 그때
+        // 아래 순서 단언(광고가 스쿱보다 먼저, 옛 코드)을 이 자리에 되살릴 것:
+        //   if (!ad || !scoop) return false;
+        //   var kids = Array.prototype.slice.call(unlock.children);
+        //   if (kids.indexOf(ad) > kids.indexOf(scoop)) return false;   // 광고가 스쿱보다 먼저(DOM 순서)
         "var rt=document.querySelector('.rp-readtools');" +
         "if(!rt||rt.children.length!==0) return false;" +                  // 읽은 도구 = 접힌 한 줄
         // P1a Task 4 D1(리뷰 2026-08-19) — 3단 대조가 이제 모집단 지표라 종목·드리프트와
@@ -193,28 +202,40 @@ export const ROUTES = [
   // 사고를 놓쳤다 — report-blocks.test.mjs(정적 분석)가 그 구조적 원인은 잡지만, 실제 브라우저
   // DOM 이 맞는 상태를 보여주는지는 노드 테스트가 못 본다(이 관문이 존재하는 이유 자체가 그
   // 사각지대다). 지금은 report-blocks.js 의 PENDING(sentence·forecast·hitrate·compare)이
-  // full·custom 을 둘 다 못 팔게 잠가서(tier-sheet.js locked) 분석 화면 자체를 열 수 없다 —
-  // 그래서 여기서 재는 것은 "그 잠금이 빈 화면이 아니라 자물쇠+문구로 정직하게 보이는가"다.
-  // click 은 go() 가 report 를 그린 뒤(1300ms) `.rp-cta` 를 눌러 시트를 연다 — MSWallet.get()
-  // 왕복이 비동기라 assert 안에서 클릭하면 assert 의 동기 평가가 먼저 끝나 열리기 전 DOM 을
-  // 본다(그래서 route.click 을 따로 뒀다, gate-browser.mjs 참고). PENDING 이 비면(P1b 완료)
-  // 이 라우트는 락 화면 대신 실제 분석 화면을 재도록 다시 써야 한다 — report-blocks.test.mjs
-  // 의 "PENDING 이 비어있지 않은 티어가 실제로 있다" 단언이 그 시점을 알려준다.
-  { name: "report-locked-tiers", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}',
-    // P1a Task 3 가 해제 블록을 버튼 하나에서 둘(광고·스쿱)로 늘렸다(설계서 §3.2 항목5) —
-    // `.rp-cta` 는 이제 둘 다에 걸리므로 시트를 여는 쪽(스쿱)을 명시해서 클릭한다. 광고
-    // 버튼은 MSAds/adConfig 왕복이라 이 잠금 시트 검증과 무관하다.
-    click: ".rp-cta-scoop", clickDelay: 1800, delay: 3200,
+  // full·custom 을 둘 다 못 팔게 잠가서(tier-sheet.js locked) 분석 화면 자체를 열 수 없다.
+  //
+  // 최종 리뷰 수정(C1, 2026-08-18) — 이 라우트는 원래 `.rp-cta-scoop` 를 **클릭해** 잠긴
+  // 시트를 열고 그 안의 자물쇠·문구를 쟀다. 그런데 buildCta() 가 buyable 여부와 무관하게
+  // 항상 광고·스쿱 버튼을 그리고 있었던 것 자체가 이번에 잡힌 결함이다(살 수 없는 것을
+  // 판다) — 그 버튼을 클릭해 여는 시트를 검증하는 라우트가 결함을 정상 동작인 양 고정하고
+  // 있었던 셈이다. buildCta() 는 이제 tierBuyable('full')·tierBuyable('custom') 이 둘 다
+  // false 면 광고·스쿱 버튼을 아예 안 그리므로(report.js buildCta·strings.js rpUnlockSoon),
+  // `.rp-cta-scoop` 자체가 더는 존재하지 않는다 — 클릭할 게 없다. 그래서 이 라우트가 재는
+  // 것은 "잠긴 시트가 정직한가"가 아니라 "잠긴 CTA 가 정직한가"(광고=주의력·스쿱 어느
+  // 화폐로도 살 수 없는 것을 안 판다)로 바뀐다. 시트 내부(picked===null, 다음 행동 버튼)는
+  // tier-sheet.test.mjs 가 노드에서 잰다 — 이 상태는 지금 이 CTA 게이팅과 항상 같이 움직여
+  // (buildCta 와 buildComb 모두 같은 tierBuyable 을 본다) 실제 UI 로는 열리지 않는다.
+  // PENDING 이 비면(P1b 완료) CTA 가 다시 버튼을 그리므로, 이 라우트도 그때 click+시트
+  // 검증 형태로 되돌려야 한다 — report-blocks.test.mjs 의 "PENDING 이 비어있지 않은 티어가
+  // 실제로 있다" 단언이 그 시점을 알려준다. 옛 시트 검증 단언(참고용, 되돌릴 때 쓸 것):
+  //   var full=document.querySelector('.sheet-tier.tier-full');
+  //   var custom=document.querySelector('.sheet-tier.tier-custom');
+  //   if(!full||!custom) return false;
+  //   if(!full.classList.contains('is-locked')||!custom.classList.contains('is-locked')) return false;
+  //   if(!full.querySelector('.sheet-tier-locked svg')||!custom.querySelector('.sheet-tier-locked svg')) return false;
+  //   if(full.querySelector('.sheet-tier-price')||custom.querySelector('.sheet-tier-price')) return false;
+  //   var run=document.querySelector('.sheet-run');
+  //   if(!run||!run.disabled) return false;
+  { name: "report-locked-tiers", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 1400,
     assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
       "(function(){" +
-        "var full=document.querySelector('.sheet-tier.tier-full');" +
-        "var custom=document.querySelector('.sheet-tier.tier-custom');" +
-        "if(!full||!custom) return false;" +                                        // 시트 자체가 안 열렸다
-        "if(!full.classList.contains('is-locked')||!custom.classList.contains('is-locked')) return false;" +
-        "if(!full.querySelector('.sheet-tier-locked svg')||!custom.querySelector('.sheet-tier-locked svg')) return false;" +
-        "if(full.querySelector('.sheet-tier-price')||custom.querySelector('.sheet-tier-price')) return false;" + // 잠긴 행에 값이 남으면 반쪽 잠금이다
-        "var run=document.querySelector('.sheet-run');" +
-        "if(!run||!run.disabled) return false;" +                                   // 잠긴 티어를 실행할 수 있으면 안 된다
+        "var unlock=document.querySelector('.rp-unlock');" +
+        "if(!unlock) return false;" +
+        "if(unlock.querySelector('.rp-cta-ad')||unlock.querySelector('.rp-cta-scoop')) return false;" +  // 어느 화폐로도 안 판다
+        "if(unlock.textContent.indexOf(MSStr.t.rpUnlockSoon)<0) return false;" +   // 정직한 문구로 대체됐다
+        "var note=document.querySelector('.rp-comb-note');" +
+        "if(!note) return false;" +
+        "if(note.textContent.indexOf(MSStr.t.rpCombNoteAd)>=0) return false;" +    // "광고 1편으로 전부 열림" 약속을 안 단다
         "return true;" +
       "})()" },
   { name: "record", seed: { ...ON, ms_preds: PREDS }, go: '"record"',

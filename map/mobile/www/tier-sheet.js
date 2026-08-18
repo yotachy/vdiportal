@@ -129,6 +129,13 @@
         var run0 = MSUi.el("button", "btn btn-primary sheet-run", MSStr.t.tsFull + MSStr.t.tsRun);
         run0.disabled = true;
         list.appendChild(run0);
+        // [리뷰 C1] 여기서 끝내면 백드롭 닫기 말고 할 게 없다(blocked.js 의 "막다른 골목
+        // 금지" 규칙 — 이 시트에도 그대로 적용한다). 이 화면(sym)에서 살 수 있는 게 지금
+        // 없으니, 워치리스트로 돌려보낸다 — 다른 종목을 보든 나중에 다시 오든 사용자가
+        // 고를 수 있다.
+        var back = MSUi.el("button", "btn btn-ghost sheet-back-list", MSStr.t.tsBackToList);
+        back.addEventListener("click", function () { close(); MSApp.go("watchlist"); });
+        list.appendChild(back);
         return;
       }
 

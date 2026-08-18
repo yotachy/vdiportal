@@ -51,6 +51,9 @@
 
 .sheet-run { width:100%; margin-top:16px; background:var(--action); color:var(--gold-ink); }
 .sheet-run[disabled] { opacity:.5; }
+/* [리뷰 C1] 둘 다 잠겼을 때(picked===null) Run 이 비활성인 채로 끝나면 백드롭 닫기 말고
+   할 게 없다 — 워치리스트로 돌려보내는 다음 행동 버튼. */
+.sheet-back-list { width:100%; margin-top:10px; }
 
 /* ===== 2단 (폴드 펼침) =====
    미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,
