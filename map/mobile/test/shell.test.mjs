@@ -56,26 +56,19 @@ function heightOf(cls) {
 test("터치 대상 44px 하한 — 실 <button> 생성부에서 뽑은 전역 목록으로 넓힌다", () => {
   // 명시적 px 높이가 있고 44 이상인 것으로 확인된 버튼들(회귀 잠금 — 하나라도 44 밑으로
   // 내려가면 여기서 잡힌다). 값 자체(48 등)를 요구하지 않는다 — "44 이상"만 잠근다.
+  //
+  // 리뷰 M1(2/5) — `.wl-res-more`(watchlist.js "더 보기") · `.rp-last-more`(report.js
+  // "더 보기")는 이 시험을 전역으로 넓히며(1/5) 36px 로 걸려 `test.todo()` 로 잠시
+  // 남겨뒀었다. 컨트롤러 판정: "test.todo() 로 남기면 그건 스위트에 상주하는 예외다" —
+  // 44px 로 올리고 이 목록에 합류시켜 실제 어서션으로 닫는다. 예외 목록이 아니라 회귀
+  // 잠금 목록에 편입된 것이다.
   const compliant = ["btn", "rp-back", "rp-cta", "ob-retry", "ob-guess-btn",
-    "sr-back", "rc-back", "rs-back", "ob32-expand", "ms-tab"];
+    "sr-back", "rc-back", "rs-back", "ob32-expand", "ms-tab",
+    "wl-res-more", "rp-last-more"];
   compliant.forEach((c) => {
     const h = heightOf(c);
     assert.ok(h !== null, "." + c + " 에서 명시적 min-height/height px 를 못 찾았다(시험이 낡았을 수 있다)");
     assert.ok(h >= 44, "." + c + " 가 44px 미만이다: " + h + "px");
-  });
-});
-
-// 리뷰 M1 이 명시적으로 요구한 것 — "넓혀서 새로 걸리는 미달 클래스가 나오면 목록을
-// 보고서에 적으십시오, 임의로 예외 목록에 넣어 통과시키지 마십시오." 실측 결과 둘이
-// 나왔다: `.wl-res-more`(watchlist.js "더 보기", 36px) · `.rp-last-more`(report.js
-// "더 보기", 36px) — 둘 다 이번 태스크(온보딩 7단계) 범위 밖의 **기존** 결함이다. 조용히
-// 예외 처리하지 않는다 — `test.todo()`로 실제 실패를 그대로 실행하고 결과에 남긴다(고쳐지면
-// 자동으로 통과 표시로 바뀐다). 고칠지는 컨트롤러 판정 사항(task-8-report.md 보고 참고).
-test.todo("터치 대상 44px 하한 — 기존 결함 2건(범위 밖, 컨트롤러 판정 대기)", () => {
-  const offenders = ["wl-res-more", "rp-last-more"];
-  offenders.forEach((c) => {
-    const h = heightOf(c);
-    assert.ok(h !== null && h >= 44, "." + c + " 가 44px 미만이다: " + h + "px (알려진 결함)");
   });
 });
 
