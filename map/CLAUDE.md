@@ -22,12 +22,17 @@
 ## ① 테스트는 항상 `./tests/run.sh`
 
 ```bash
-./tests/run.sh            # 전부 561건 (forge-core 259 · forge-tools 81 · landing 28 · mobile 193)
-./tests/run.sh engine     # 엔진 + 모바일 533건 — 엔진만 고쳤을 때
-./tests/run.sh mobile     # 모바일 193건
+./tests/run.sh            # 전부 1545건 (forge-core 259 · forge-tools 81 · landing 28 · wallet 136 · wallet-dispatcher 296 · moneyscoop-mobile 745)
+./tests/run.sh engine     # 엔진 + 모바일 1085건 — 엔진만 고쳤을 때
+./tests/run.sh mobile     # 모바일 745건
 ```
 
 **어느 한쪽만 돌리지 말 것.** 모바일 테스트는 `../../forge-core.js` 원본을 직접 `require` 하므로, 엔진 변경이 모바일을 깨뜨렸는지를 이 관문이 알려준다. `node --test forge-core.test.js` 만 돌리던 습관이 이 구멍을 만든다. 실패 시 종료코드 1.
+
+- **화면을 건드렸으면 `cd mobile && node tools/gate-browser.mjs` 도 돌린다.** 모듈 테스트는
+  모듈마다 독립 객체를 받으므로 브라우저 전역 충돌을 원리적으로 못 본다 — 1505건이 초록인
+  채로 리포트가 100% 죽어 있던 사고(2026-08-18)가 그 구멍이었다. `all` 에 넣지 않은 이유는
+  크로미움이 없는 환경에서 전량 관문이 통째로 죽지 않게 하기 위해서다.
 
 ## ② 엔진 변경 프로토콜
 
