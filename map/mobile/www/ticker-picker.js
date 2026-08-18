@@ -38,12 +38,21 @@
 
   // 상한에 걸려 있어도 '빼는 것'은 언제나 된다 — 안 그러면 상한까지 고른 뒤
   // 마음을 바꿀 방법이 없다.
-  function toggle(sel, sym, max) {
+  //
+  // swap(리뷰 D, 2026-08-19) — 온보딩 5단계처럼 "정확히 하나"를 고르는 화면에서는, 정원이
+  // 찬 상태에서 다른 칩을 누르는 유일한 의도가 "더 담기"가 아니라 "바꾸기"다. swap 이
+  // 참이면 정원을 넘기는 대신 가장 오래된 것부터 밀어내고 새 것을 넣는다(선입선출) —
+  // max:1 이면 그냥 [새 심볼] 하나로 통째로 바뀐다. 기본값(undefined)은 예전 그대로
+  // 거부한다 — watchlist.js 는 애초에 multi:false 라 이 함수 자체를 안 타므로 영향이 없다.
+  function toggle(sel, sym, max, swap) {
     var s = norm(sym);
     if (!s) return sel.slice();
     var i = sel.indexOf(s);
     if (i >= 0) { var out = sel.slice(); out.splice(i, 1); return out; }
-    if (max != null && sel.length >= max) return sel.slice();
+    if (max != null && sel.length >= max) {
+      if (!swap) return sel.slice();
+      return sel.slice(sel.length - max + 1).concat([s]);
+    }
     return sel.concat([s]);
   }
 
@@ -53,6 +62,9 @@
     var api = o.api || (typeof MSApi !== "undefined" ? MSApi : null);
     var multi = !!o.multi;
     var max = (o.max == null) ? null : o.max;
+    // 리뷰 D — 정원이 찬 상태에서 다른 칩을 누르면 "교체"할지("더 못 담는다"는 안내 없이
+    // 옛 선택을 밀어내고 onChange 를 부른다) 정할지. 온보딩 5단계만 켠다(아래 호출부).
+    var swapAtMax = !!o.swapAtMax;
     // preset 항목은 심볼 문자열이거나(옛 호출부), {sym,name} 객체(온보딩 5단계 — CURATED 밖
     // 프리셋에 이름을 함께 실어 보낸다)다. 둘 다 받는다 — norm() 에 객체를 그대로 넣으면
     // "[object Object]" 가 심볼이 된다.
@@ -147,8 +159,12 @@
         return false;
       }
       var hadIt = sel.indexOf(sym) >= 0;
-      var next = multi ? toggle(sel, sym, max) : [sym];
-      if (multi && !hadIt && next.length === sel.length) {
+      var atCap = max != null && sel.length >= max;
+      var next = multi ? toggle(sel, sym, max, swapAtMax) : [sym];
+      // 리뷰 D — swapAtMax 면 정원이 차 있어도(atCap) 거부하지 않는다. next.length===
+      // sel.length 로만 판정하던 옛 코드는 교체(같은 개수를 유지한 채 내용만 바뀜)를
+      // "거부됐다"로 오판해 정상적으로 바뀐 선택에도 tpFull 안내를 띄웠을 것이다.
+      if (multi && !hadIt && atCap && !swapAtMax) {
         msg.textContent = Str ? Str.t.tpFull : "";
         return false;
       }

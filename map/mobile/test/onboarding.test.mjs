@@ -1657,6 +1657,47 @@ test("5단계(리뷰 C1) — 확정한 뒤 선택을 해제하면 확정이 무�
   });
 });
 
+// 리뷰 D(2026-08-19) — 정원(max:1)이 찬 상태에서 다른 칩을 한 번 누르면(교체 의도) 옛
+// ticker-picker.js 는 그 클릭을 거부하고 "지금은 더 고를 수 없습니다"(tpFull)를 띄웠다 —
+// 5단계는 하나만 고르는 화면이라 그 안내가 사용자 의도와 정반대였다. swapAtMax:true 로
+// 그 클릭이 실제로 교체(onChange 호출 포함)가 되는지, 그리고 tpFull 이 이 경로에서 다시
+// 살아나지 않는지를 함께 잰다.
+test("5단계(리뷰 D) — 확정 후 다른 칩을 한 번 누르면 교체된다(정원 안내가 안 뜬다)", () => {
+  withDom(root => {
+    toStep5(root);
+    pickChip(root);                                     // 005930(삼성전자) 확정
+    root.querySelector(".ob-pick-start").click();      // 확정 — 정원이 찼다
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false, "확정했는데 다음이 안 열렸다");
+
+    const second = pickChip(root, "NVDA");             // 정원이 찬 채로 다른 칩을 "한 번" 누른다
+    assert.ok(second, "NVDA 칩을 못 찾았다");
+    // 교체가 실제로 일어났다 — onChange 가 불려 invalidateConfirmed() 가 돌았다(리뷰 C1 의
+    // 무효화 로직이 이 경로에서도 정상 작동한다는 증거).
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true,
+      "다른 칩을 한 번 눌렀는데 교체가 안 됐다 — onChange 가 안 불렸거나 무효화가 안 됐다");
+    // draw() 가 클릭마다 그리드를 통째로 새로 그린다 — first/second 는 클릭 "이전" 스냅샷이라
+    // 그 자체의 className 은 다시 안 바뀐다(detached). 지금 상태는 살아있는 DOM 에서 다시
+    // 찾아야 한다(3단계 momBtn 재조회와 같은 이유).
+    const chipsNow = root.querySelectorAll(".tp-chip");
+    const nvdaNow = chipsNow.filter(c => c.getAttribute("data-sym") === "NVDA")[0];
+    const samsungNow = chipsNow.filter(c => c.getAttribute("data-sym") === "005930")[0];
+    assert.ok(nvdaNow && nvdaNow.className.indexOf("is-on") >= 0, "NVDA 칩이 켜지지 않았다");
+    assert.ok(samsungNow && samsungNow.className.indexOf("is-on") < 0,
+      "005930 칩이 여전히 켜져 있다 — 더한 것이지 바뀐 게 아니다");
+    // "지금은 더 고를 수 없습니다" 가 이 경로에서 다시 뜨면 안 된다(옛 동작의 잔존).
+    const msg = root.querySelector(".tp-msg");
+    assert.ok(msg, ".tp-msg 자체가 없다");
+    assert.notStrictEqual(deepText(msg), S.t.tpFull, "정원 안내(tpFull)가 이 경로에서 떴다 — 옛 동작이 살아 있다");
+
+    root.querySelector(".ob-pick-start").click();      // 새로 고른 종목으로 재확정
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false, "재확정 후에도 다음이 안 열렸다");
+    const ready = root.querySelectorAll(".ob-note").filter(n => deepText(n).indexOf(S.t.obPickReadySuffix) >= 0);
+    assert.strictEqual(ready.length, 1, "재확정 후 결과 문구가 없다");
+    assert.ok(deepText(ready[0]).indexOf("엔비디아") >= 0,
+      "재확정 결과가 새 종목(엔비디아)을 안 담았다: " + deepText(ready[0]));
+  });
+});
+
 // canAdvance(5) 소스 자체가 state.r1 을 참조하지 않는지 — "말로는 안 쓴다"가 아니라 실제
 // 코드 모양으로 잰다(구조적 증명, 위 두 시험은 행동으로 증명한다).
 test("5단계 — canAdvance 의 5단계 분기는 state.r1 을 참조하지 않는다(소스 형태)", () => {
@@ -1715,6 +1756,54 @@ test("5단계(리뷰 C2) — 봉이 부족하면(실물 api.js 의 220 하한 �
     retry.click();
     assert.ok(root.querySelector(".tp-grid"), "다시 골라야 하는데 종목 고르기 그리드가 사라졌다");
   }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: thinCandles, symbol: "PLTR", name: "Palantir" }) });
+});
+
+// 리뷰 E(2026-08-19) — commit(data, true)(일반 네트워크 오류·API 층 부재)가 state.tut.fallback
+// 을 켜는데, 그 플래그를 렌더하는 코드가 어디에도 없었다 — notfound·thin(리뷰 C2)은 막혔지만
+// 세 번째 경로(일반 오류)는 무통보로 조용히 남아 있었다. fetch 자체가 reject 하는(fetch 계층
+// 실패 — notfound 도 아니고 normalizeCandles 의 봉 부족 메시지도 아닌 진짜 "그 외" 오류)
+// 표본을 실물 MSApi 로 주입해, 폴백이 실제로 화면에 밝혀지는지를 잰다.
+function fetchRejecting(message) {
+  return function () { return Promise.reject(new Error(message || "network down")); };
+}
+
+test("5단계(리뷰 E) — 일반 네트워크 오류로 대체됐으면 그 사실을 화면에 밝힌다(5·6·7단계)", async () => {
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    await flush();
+    // 낙관적 폴백이라 진행은 막히지 않는다 — 다만 그 사실을 숨기지 않는다.
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false, "네트워크 오류인데 폴백이 진행까지 막았다");
+    const notice5 = root.querySelectorAll(".ob-warn").filter(n => deepText(n) === S.t.obFallbackNotice);
+    assert.strictEqual(notice5.length, 1, "5단계에 폴백 사실을 밝히는 표시가 없다");
+
+    root.querySelector(".ob-next").click();   // 5 -> 6("지금 답" 숫자가 보이는 화면)
+    const notice6 = root.querySelectorAll(".ob-warn").filter(n => deepText(n) === S.t.obFallbackNotice);
+    assert.strictEqual(notice6.length, 1, "숫자가 보이는 6단계에 폴백 표시가 없다");
+
+    root.querySelector(".ob-next").click();   // 6 -> 7(기본·심화·전문 표가 보이는 화면)
+    const notice7 = root.querySelectorAll(".ob-warn").filter(n => deepText(n) === S.t.obFallbackNotice);
+    assert.strictEqual(notice7.length, 1, "숫자가 보이는 7단계에 폴백 표시가 없다");
+  }, { MSApi: RealApi, fetch: fetchRejecting("network down") });
+});
+
+test("5단계(리뷰 E) — 정상 경로(실 데이터 확보)에서는 폴백 표시가 안 뜬다(양쪽 갈래 확인)", async () => {
+  const RealApi = require("../www/api.js");
+  const fullCandles = [];
+  for (let i = 0; i < 230; i++) fullCandles.push({ o: 100, h: 101, l: 99, c: 100, v: 1000, t: "2026-01-01" });
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    await flush();
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false, "정상 데이터인데 확정이 안 됐다");
+    const notice = root.querySelectorAll(".ob-warn").filter(n => deepText(n) === S.t.obFallbackNotice);
+    assert.strictEqual(notice.length, 0, "정상 경로인데 폴백 표시가 떴다 — 오탐이다");
+  }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: fullCandles, symbol: "AAPL", name: "Apple" }) });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════

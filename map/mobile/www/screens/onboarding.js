@@ -841,7 +841,10 @@
       w.appendChild(el("p", "ob-sub", MSStr.t.obPickSub));
 
       var picker = MSTickerPicker.create({
-        multi: true, max: 1,
+        // 리뷰 D — swapAtMax: 정원(1)이 찬 상태에서 다른 칩을 눌러도 "더 못 담는다"고
+        // 답하지 않는다. 이 화면은 "이제 당신의 종목입니다" — 하나만 고르는 화면이라,
+        // 다른 칩을 누르는 유일한 의도는 바꾸는 것이다.
+        multi: true, max: 1, swapAtMax: true,
         preset: state.pick ? [state.pick] : [],
         onChange: function (selSyms, items) {
           var next = items.length ? items[0] : null;
@@ -892,6 +895,10 @@
         // 어느 종목을 확정했는지 이름을 담는다(리뷰 C1) — 문구가 종목명을 안 담으면
         // "선택 표시(칩)"와 "실제로 확정된 종목"이 어긋나도 사용자가 눈치챌 수 없다.
         w.appendChild(el("p", "ob-note", state.symName + MSStr.t.obPickReadySuffix));
+        // 리뷰 E — commit(data, true)(일반 네트워크 오류·API 층 부재)로 확정됐으면 그
+        // 사실을 여기서 처음 밝힌다. notfound·thin(리뷰 C2)은 이미 막혔으니 이 표시가
+        // 뜨는 유일한 경우는 "종목은 확인 못 했지만 진행은 막지 않은" 낙관적 폴백뿐이다.
+        if (state.tut && state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obFallbackNotice));
       }
 
       return w;
@@ -911,6 +918,10 @@
       w.appendChild(tutHead(3));
       w.appendChild(el("h1", "ob-h", MSStr.t.obTut3H));
       w.appendChild(el("p", "ob-sub", MSStr.t.obTut3Sub));
+      // 리뷰 E — 이 화면이 보이는 숫자(아래 "지금 답")가 폴백 표본에서 왔으면 밝힌다.
+      // 최소 침습: 이 한 줄만 얹는다 — 아래 슬라이더 체험 자체는 Task 7 이 다시 짤 몫이라
+      // 손대지 않는다.
+      if (state.tut && state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obFallbackNotice));
       if (!state.r3) recomputeCustom();
       var t3 = tomorrow(state.r3);
       var now = frag("ob-now");
@@ -986,6 +997,9 @@
       var w = frag("ob-step");
       w.appendChild(el("h1", "ob-h", MSStr.t.obDoneH));
       w.appendChild(el("p", "ob-sub", MSStr.t.obDoneSub));
+      // 리뷰 E — 아래 표(기본·심화·전문 세 값)가 폴백 표본에서 왔으면 숫자보다 먼저 밝힌다.
+      // 최소 침습: 이 한 줄만 얹는다 — 표·가격표 자체는 Task 8 이 다시 짤 몫이라 손대지 않는다.
+      if (state.tut && state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obFallbackNotice));
 
       var table = frag("ob-final");
       table.appendChild(bandRow(MSStr.t.obTut2Basic, tomorrow(state.r1)));
