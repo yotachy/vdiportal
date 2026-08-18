@@ -172,6 +172,12 @@
 .ob32-cmp-v { font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink); }
 .ob32-verdict-note { margin-top:12px; font-size:var(--fs-sub); line-height:1.6; color:var(--ink-3); }
 .ob32-verdict-note.is-same { color:var(--ink-2); }
+/* 리뷰 C(1/5) — "갈렸다"가 "같다"보다 덜 강조돼 있었다(같음=ink-2 밝음, 다름=기본
+   ink-3 어두움, 강조가 거꾸로). 판정이 갈린 쪽이 최소한 같은 만큼은, 실제로는 더 눈에
+   띄어야 한다 — 텍스트색(가장 밝은 ink)과 글자 굵기로만 강조한다(좌측 세로 컬러 라인
+   금지, 방향색(bull/bear)도 안 쓴다 — "다름" 자체가 방향을 뜻하지 않으므로). 2단계도
+   같은 클래스를 쓰므로 이 규칙을 그대로 물려받는다. */
+.ob32-verdict-note.is-diff { color:var(--ink); font-weight:var(--fw-semibold); }
 
 .ob32-sec { margin-top:16px; }
 .ob32-sec-head { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; }

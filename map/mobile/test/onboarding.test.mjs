@@ -1483,6 +1483,80 @@ test("3단계 — 네 통의 합이 그 성향의 선택 지표 수와 같다(4�
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════
+// Task 5 리뷰 1/5 — Important 3건 + Minor 1건. 셋 다 화면의 존재 이유("성향이 판정을
+// 바꾸는 것을 겪게 한다")에 직접 닿는다.
+// ══════════════════════════════════════════════════════════════════════════════════
+
+// 리뷰 A — 판정이 중립(momentum)이면 classifyFull32 가 voiced 행을 전부 무판정으로
+// 보낸다(want===0). 개별 지표는 뚜렷한 방향(Stochastic −0.62 등)을 말하는데도 그렇다 —
+// 이 화면이 그 경로를 처음으로 그린다(2단계는 이 표본에서 늘 bull 이라 안 그려졌다).
+// 분류 로직은 그대로 두고(브리프·리뷰 둘 다 금지) 설명 문구만 추가했다 — 중립일 때만
+// 나오고, 방향이 있는 판정(trend·reversion·volatility)의 "약한 신호" 무판정에는 안 나온다
+// (그 경우 이 설명은 사실과 다르다 — 지표가 진짜로 약하게 말한 것이다).
+test("3단계(리뷰 A) — 판정이 중립일 때만 무판정 설명이 나오고, 방향이 있을 때는 안 나온다", () => {
+  withDom(root => {
+    toStep3(root, SAMPLE);   // 기본 trend — 실측 bull, 방향이 있다.
+    const note = deepText(root.querySelector(".ob-step"));
+    assert.doesNotMatch(note, /전체 판정이 중립이라/, "판정이 방향(bull)인데 중립 설명이 나온다");
+    pickStyle(root, "momentum");   // 실측 neutral.
+    const flatSec = root.querySelector(".ob32-sec-flat");
+    assert.ok(flatSec, "무판정 섹션이 없다");
+    const before = flatSec.parentNode;   // .ob-step — 설명은 flat 섹션 바로 앞에 형제로 붙는다
+    const explain = Array.from(before.children).filter(c => c.className === "ob-note")[0];
+    assert.ok(explain, "판정이 중립인데 무판정 설명 문구가 없다");
+    assert.strictEqual(explain.textContent, S.t.ob3FlatNeutralNote, "설명 문구가 다르다: " + explain.textContent);
+    // momentum(neutral)에서 flat 은 voiced 전부다 — 그 안에 방향이 뚜렷한 지표(예: Stochastic)가
+    // 실제로 있고, 이름·판독 문장·기여도 숫자가 전부 살아있어야 한다(리뷰: "6줄 전부 노출"
+    // 확인을 회귀로 잠근다 — 숫자가 조용히 사라지면 이 리뷰가 다시 필요해진다).
+    const rows = flatSec.querySelectorAll(".ob32-row");
+    assert.ok(rows.length > 0, "momentum 인데 무판정 행이 하나도 없다");
+    rows.forEach(r => {
+      const name = r.querySelector(".ob32-name"), text = r.querySelector(".ob32-text"), bias = r.querySelector(".ob32-bias");
+      assert.ok(name && name.textContent.trim(), "무판정 행에 이름이 없다");
+      assert.ok(text && text.textContent.trim(), name.textContent + " 무판정 행에 판독 문장이 없다");
+      // RSI 처럼 bias 가 정확히 0인 지표는 "0.00"(부호 없음)으로 찍힌다(full32Row: r.bias>0
+      // 일 때만 "+") — 부호가 아니라 **숫자가 실제로 있는지**를 잰다(리뷰가 확인한
+      // "6줄 전부 기여도 숫자 노출"이 재는 것도 이것이다).
+      assert.ok(bias && /^[+-]?\d/.test(bias.textContent), name.textContent + " 무판정 행에 기여도 숫자가 없다 — momentum 화면이 텅 비어 보인다");
+    });
+  });
+});
+
+// 리뷰 B — obSub3 가 "언제든 바꿀 수 있습니다"만 말하면 판정이 달라질 수도 있다는 유인이
+// 없다. 문구에 "달라질 수도 있습니다"를 더하되, 어느 성향이 실제로 갈리는지는 안 말한다
+// (표본이 바뀌면 거짓말이 된다 — 리뷰 지시). 카드 설명도 "사용"(수동태) 대신 "다시
+// 판정"(고르는 행위가 새 계산을 일으킨다는 신호)으로 바꿨다.
+test("3단계(리뷰 B) — 판정이 달라질 수 있다는 유인이 있고, 어느 성향인지는 안 밝힌다", () => {
+  assert.match(S.t.obSub3, /달라질 수도 있습니다/, "판정이 바뀔 수 있다는 유인 문구가 없다");
+  assert.doesNotMatch(S.t.obSub3, /모멘텀|momentum/i, "어느 성향이 갈리는지 미리 일러바친다 — 표본이 바뀌면 거짓말이 된다");
+  assert.match(S.t.obStyleIndicatorSuffix, /판정/, "카드 설명이 판정에 영향을 준다는 신호가 없다(그냥 '사용'뿐)");
+  withDom(root => {
+    toStep3(root, SAMPLE);
+    const sub = root.querySelector(".ob-sub");
+    assert.ok(sub && sub.textContent.indexOf("달라질 수도 있습니다") >= 0, "실제 렌더된 부제에 유인 문구가 없다");
+  });
+});
+
+// 리뷰 C — is-diff 가 is-same 보다 강조가 약했다(같음=ink-2 밝음, 다름=기본 ink-3 어두움).
+// 소스 레벨에서 재검증한다(밝기는 노드 DOM 으로 못 재므로 색 토큰 이름으로 잰다 — ink 가
+// ink-2 보다 밝다는 사실은 style-base.css 의 토큰 정의 순서 자체다). 2단계도 같은 클래스를
+// 공유하므로 이 규칙은 2단계에도 함께 적용된다.
+test("3단계·2단계 공유(리뷰 C) — 판정이 갈렸을 때(is-diff)가 같을 때(is-same)보다 약하게 강조되지 않는다", () => {
+  const block = CSS.slice(CSS.indexOf(".ob32-verdict-note"));
+  const sameRule = block.match(/\.ob32-verdict-note\.is-same\s*\{([^}]*)\}/);
+  const diffRule = block.match(/\.ob32-verdict-note\.is-diff\s*\{([^}]*)\}/);
+  assert.ok(sameRule && diffRule, "is-same/is-diff 규칙을 둘 다 찾지 못했다");
+  assert.match(sameRule[1], /color:\s*var\(--ink-2\)/, "is-same 규칙이 바뀌었다 — 이 시험의 전제가 깨졌다");
+  // 좌측 세로 컬러 라인 금지(프로젝트 전역 규칙) — 강조는 색·굵기로만.
+  assert.doesNotMatch(diffRule[1], /border-left\s*:\s*(?!0)/, "is-diff 가 border-left 로 세로 라인을 그렸다");
+  assert.doesNotMatch(diffRule[1], /box-shadow\s*:\s*inset\s+\d/, "is-diff 가 inset box-shadow 로 세로 라인을 그렸다");
+  // --ink(#eef1f7)가 --ink-2(#c5ccdb)보다 밝다(style-base.css) — is-diff 는 그 중 더 밝은
+  // 쪽을 쓰고, 굵기까지 더해 최소한 같은 만큼은 아니라 **더** 눈에 띄게 했다.
+  assert.match(diffRule[1], /color:\s*var\(--ink\)(?!-)/, "is-diff 가 가장 밝은 --ink 토큰을 안 쓴다: " + diffRule[1]);
+  assert.match(diffRule[1], /font-weight/, "is-diff 에 --ink-2 대비 추가 강조(굵기)가 없다: " + diffRule[1]);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
 // 품질 다섯 규칙(설계서 §5, Task 2) — Q1·Q5 는 onboarding-quality.js 의 metric()·stat() 이
 // 스스로 강제한다(기준 시점·해석 없이는 만들 수 없다, test/onboarding-quality.test.mjs 참고).
 // Q2·Q4 는 여기서 각 단계 렌더 결과를 재고, Q3 은 소스 형태를 잰다.

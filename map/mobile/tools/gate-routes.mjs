@@ -138,6 +138,9 @@ export const ROUTES = [
         "fwd2.click();" +                                          // 2 -> 3
         "var over3=document.querySelector('.ob-over');" +
         "if(!over3||over3.textContent!==MSStr.t.obPastDone) return false;" + // "여기까지는 과거였습니다"
+        // 리뷰 B(1/5) — 판정이 달라질 수도 있다는 유인이 실제 렌더된 부제에 있어야 한다.
+        "var sub3=document.querySelector('.ob-sub');" +
+        "if(!sub3||sub3.textContent.indexOf('달라질 수도 있습니다')<0) return false;" +
         "var styleBtns=document.querySelectorAll('.ob-style');" +
         "if(styleBtns.length!==4) return false;" +                 // 성향 4종
         "var onBefore=Array.prototype.slice.call(styleBtns).filter(function(b){return b.className.indexOf('is-on')>=0;});" +
@@ -157,6 +160,11 @@ export const ROUTES = [
         // 초라하지 않은지: is-same 이고 정직 문구가 실제로 있다(단언 4).
         "if(note3.className.indexOf('is-same')<0) return false;" +
         "if(note3.textContent!==MSStr.t.ob3SameNote) return false;" +
+        // 리뷰 C(1/5) — is-diff 가 is-same 보다 약하게 강조되면 안 된다. 실제 계산된 스타일을
+        // 잰다(source 레벨 검사는 node 시험이 이미 한다 — 여기는 CSS 캐스케이드가 실제로
+        // 먹히는지를 실 브라우저에서 재는 것).
+        "var sameStyle=getComputedStyle(note3);" +
+        "var sameColor=sameStyle.color, sameWeight=parseInt(sameStyle.fontWeight,10)||400;" +
         "var sigTrend=sig3();" +
         // momentum 카드를 이름으로 찾아 클릭 — 이 표본에서 momentum 만 regime 이 bull→neutral
         // 로 실제로 갈린다(Task 1 실측). PRESETS 순서에 기대지 않는다.
@@ -183,6 +191,30 @@ export const ROUTES = [
         "var noteMom=document.querySelector('.ob32-verdict-note');" +
         "if(!noteMom||noteMom.className.indexOf('is-diff')<0) return false;" + // 판정 자체가 바뀐다
         "if(noteMom.textContent.indexOf(MSStr.t.rpBullish)<0||noteMom.textContent.indexOf(MSStr.t.rpFlat)<0) return false;" +
+        // 리뷰 C(1/5) — is-diff(momentum)가 is-same(trend)보다 최소한 같은 만큼, 실제로는
+        // 더 밝고 굵어야 한다.
+        "var diffStyle=getComputedStyle(noteMom);" +
+        "var diffColor=diffStyle.color, diffWeight=parseInt(diffStyle.fontWeight,10)||400;" +
+        "if(diffColor===sameColor) return false;" +                // 색이 그대로면 강조가 안 바뀐 것
+        "if(diffWeight<sameWeight) return false;" +                 // 최소한 더 가늘어지지는 않는다
+        "if(diffWeight<600) return false;" +                        // --fw-semibold(600) 이상이어야 한다
+        // 리뷰 A(1/5) — momentum(neutral)은 voiced 전부가 무판정으로 간다. 개별 지표는
+        // 뚜렷한 방향(Stochastic)을 말하는데 왜 무판정인지 설명이 붙어 있어야 하고, 그
+        // 행에는 이름·판독 문장·기여도 숫자가 실제로 살아 있어야 한다(관문이 실제 브라우저
+        // 에서 "momentum 화면이 텅 비지 않는다"를 확인한다).
+        "var flatSec=document.querySelector('.ob32-sec-flat');" +
+        "if(!flatSec) return false;" +
+        "var explain=null;" +
+        "var stepKids=Array.prototype.slice.call(flatSec.parentNode.children);" +
+        "for(var ek=0;ek<stepKids.length;ek++){ if(stepKids[ek].className==='ob-note'){ explain=stepKids[ek]; break; } }" +
+        "if(!explain||explain.textContent!==MSStr.t.ob3FlatNeutralNote) return false;" +
+        "var flatRows=flatSec.querySelectorAll('.ob32-row');" +
+        "if(!flatRows.length) return false;" +
+        "var stochRow=null;" +
+        "for(var fr=0;fr<flatRows.length;fr++){ if(flatRows[fr].querySelector('.ob32-name').textContent===MSStr.ind('stochastic')){ stochRow=flatRows[fr]; break; } }" +
+        "if(!stochRow) return false;" +                             // Stochastic 은 이 표본에서 −0.62(뚜렷한 방향)다
+        "if(!stochRow.querySelector('.ob32-text')||!stochRow.querySelector('.ob32-text').textContent) return false;" +
+        "if(!stochRow.querySelector('.ob32-bias')||!/^[+-]\\d/.test(stochRow.querySelector('.ob32-bias').textContent)) return false;" +
         // trend 로 되돌린다 — 갱신 2회차(단언 3), 처음과 같은 서명으로 돌아와야 한다. 방금
         // 다시 잰 stylesAfterMom(현재 DOM)에서 찾는다 — 위 staleness 주의와 같은 이유.
         "var trend=null;" +

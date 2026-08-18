@@ -737,6 +737,13 @@
       // full32Section 을 2단계와 그대로 재사용한다 — 근거 행의 형태를 새로 만들지 않는다).
       w.appendChild(full32Section("agree", MSStr.t.ob32AgreeHead, st.agree, false));
       w.appendChild(full32Section("dissent", MSStr.t.rpAgainst, st.dissent, false));
+      // 리뷰 A(1/5) — 판정이 중립(want===0)이면 classifyFull32 가 voiced 행을 전부 무판정으로
+      // 보낸다(2단계·report.js 와 같은 로직, 손대지 않는다). 이 화면은 momentum(neutral)을
+      // 처음으로 사용자에게 그리는 자리라 "Stochastic −0.62 인데 왜 무판정이지"가 처음
+      // 나온다 — 분류를 바꾸지 않고 그 앞에 이유를 한 줄 적는다. 판정이 실제로 중립일
+      // 때만 보인다(무판정이 늘 이 뜻은 아니다 — 방향이 있는 판정에서의 무판정은 "이
+      // 지표 자체가 약하다"는 뜻이라 이 설명이 안 맞는다).
+      if (regimeDir(st.regime) === 0) w.appendChild(el("p", "ob-note", MSStr.t.ob3FlatNeutralNote));
       w.appendChild(full32Section("flat", MSStr.t.ob32FlatHead, st.flat, false));
       w.appendChild(full32Section("refused", MSStr.t.ob32RefusedHead, st.refused, false, null, false));
 
