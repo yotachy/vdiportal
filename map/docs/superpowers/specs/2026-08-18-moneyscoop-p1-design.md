@@ -126,7 +126,7 @@
 | | 조건 | 어디서 |
 |---|---|---|
 | 1 | **하드웨어 뒤로가기 판정** — `@capacitor/app` 도입 여부(새 npm 의존성 규율과 충돌). 도입 시 시트 이관 + APK 재검증이 한 세트 | P1a(시트 이관과 함께) |
-| 2 | **ES5 규율 확정** — 규칙이 문서에만 있다(`draw-panels.js`·`draw-layers.js`·`draw-preds.js` 가 이미 위반). 전면 스윕+예외 명시냐 규칙 축소냐 | P1a 착수 시 |
+| 2 | ~~**ES5 규율 확정**~~ — ✅ 해결(P1a Task 1, 2026-08-18). 판정: 규칙 축소. `minSdkVersion 24`(Nougat)+Play 업데이트 WebView+admob 의 GMS 의존 근거로 하한을 **ES2017 로 재확정**(ES5 는 애초에 이 런타임에서 유도된 요구가 아니었다) — 위 3파일은 고치지 않았다. 관문은 `mobile/test/syntax-floor.test.mjs`, 규율은 `map/CLAUDE.md §⑤` | 완료 |
 | 3 | **시트 이관** — `MSSheet` 프로덕션 호출자 0건 | P1a §3.4 |
 | 4 | **관문 `errs` 스냅샷 시점** — 고정 delay 의 title 로만 오류를 싣는다. P1 은 비동기 분석·차트 작도가 늘어 그 이후 오류가 나기 쉽다 | P1b 착수 전 |
 

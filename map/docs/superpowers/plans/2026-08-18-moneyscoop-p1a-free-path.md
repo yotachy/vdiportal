@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **`map/mobile/www/**` 는 ES5 문법만** — `var`·`function`. 화살표·`const`/`let`·템플릿 리터럴·옵셔널 체이닝·`includes`/`find` 금지. (`mobile/test/**`·`mobile/tools/**` 는 Node 라 예외). **Task 1 이 이 규칙을 관문으로 만든다 — 그 전까지는 새 코드만 지킨다**
+- **`map/mobile/www/**` 는 ES2017 문법 하한** — `const`/`let`·화살표 함수·템플릿 리터럴·async/await 는 이미 프로덕션에 쓰이고 있어 허용(2026-08-18 컨트롤러 판정, Task 1 — "ES5 만"은 스쿱 시리즈 정적 사이트에서 상속된 규칙이었고 이 런타임 근거가 없었다). ES2017 보다 확실히 나중이면서 지금 안 쓰는 문법(옵셔널 체이닝·null 병합·논리 대입·private 필드·`Object.hasOwn`·`groupBy`·배열 비파괴 복사)만 금지. (`mobile/test/**`·`mobile/tools/**` 는 Node 라 예외). 관문은 `mobile/test/syntax-floor.test.mjs`, 근거는 `map/CLAUDE.md §⑤`
 - **UI 문자열은 `www/strings.js` 단일 출처.** 화면 파일에 한국어 리터럴 금지. **지표명은 영어 유지**
 - **적중률·콘 커버리지·ECE 는 `window.MSBacktest` 에서만 읽는다.** 리터럴 금지 — 관문이 막는다
 - **전문 티어 수치는 "측정 중"** (실측 부재)

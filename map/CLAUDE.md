@@ -71,6 +71,12 @@
 - **지갑 배포 전엔 반드시 `./tests/run.sh concurrency` 를 먼저 돌린다** — IP 상한·비밀키 생성·계정 mkdir 동시성 회귀라 `all`에 안 낀다(느려서), 그래서 사람이 기억해서 불러야 하는 유일한 관문이다. wallet-lib.php·wallet-api.php·wallet-ssv.php 를 고친 뒤 이 스위트를 건너뛰고 배포하지 말 것.
 - **`ad_units.json` 부재 = 광고 기능 전체 꺼짐(fail-open 이 아니라 fail-closed)** — 이게 이 세트의 킬 스위치다. 코드(위 3종)를 먼저 올려 서버가 살아있는지 확인한 뒤, 마지막에 `ad_units.json` 을 올린다(또는 문제가 생기면 그 파일부터 내린다). 코드와 설정을 동시에 올리면 500 을 낸 원인이 코드인지 설정인지 구분이 안 된다.
 
+## ⑤ `mobile/www/**` 문법 하한 — ES5 아님, 확정 ES2017
+
+**"ES5 만" 규칙은 폐기됐다(2026-08-18 컨트롤러 판정, P1a Task 1).** 스쿱 시리즈 정적 사이트(구형 브라우저 대응)에서 상속된 규칙이었을 뿐, 이 앱의 런타임에서 유도된 게 아니었다 — `draw-panels.js`·`draw-layers.js`·`draw-preds.js` 가 이미 이 규칙을 161줄 어긴 채 배포돼 있었고 아무도 몰랐다.
+
+실제 하한은 `mobile/android/variables.gradle` 의 `minSdkVersion 24`(Android 7.0 Nougat)다. 이 지점부터 Android System WebView 는 OS 와 분리돼 Play 스토어로 자동 업데이트되는 Chromium 기반 컴포넌트다(`mobile/docs/phase0-measurements.md` 가 이미 "Chrome 과 WebView 는 같은 Chromium/V8" 전제로 실기기 Chrome 150 을 측정에 썼다). `@capacitor-community/admob`(Google Play 서비스 하드 의존)이 이미 Play 스토어 보유를 전제하므로 그 자동 업데이트 경로도 전제된다. **확정 안전선은 ES2017**(async/await 포함, Chrome 55·2016-12) — scan.js·wallet.js 가 이미 async/await 를, www/*.js 45개 중 14개가 이미 const/let/화살표/템플릿 리터럴을 프로덕션에 쓰고 있고 사고 보고가 없다. 관문은 `mobile/test/syntax-floor.test.mjs` — ES2017 보다 확실히 나중이면서 지금 안 쓰는 문법만(옵셔널 체이닝·null 병합·논리 대입·private 필드·`Object.hasOwn`·`groupBy`·배열 비파괴 복사 메서드) 금지한다.
+
 ---
 
 # 🔥 스쿱포지 (Scoop Forge) — 플래그십
