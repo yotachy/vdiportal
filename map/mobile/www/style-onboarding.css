@@ -47,15 +47,27 @@
 .ob-cost-name { font-size:var(--fs-sub); color:var(--ink-3); }
 .ob-cost-num { font-size:var(--fs-sub); font-weight:var(--fw-bold); font-variant-numeric:tabular-nums; color:var(--ink); }
 
-/* 예전 3단계 — 위험 고지 + 약관 체크박스. 이 화면(step3)이 성향으로 재설계되며(Task 5)
-   여기 클래스는 지금 쓰이지 않는다 — Task 6 이 새 4단계(동의)를 지을 때 재사용하거나
-   새로 짓는다(.ob-styles 를 Task 4 가 남겨 둔 것과 같은 관례). 지우지 않고 남겨 둔다.
-   강조는 배경·아웃라인으로만(좌측 라인 금지). */
+/* 4단계 — 동의(Task 6, 재사용). 옛 3단계 위험고지에서 남겨 둔 클래스를 그대로 쓴다
+   (.ob-risk = 도입 문장, .ob-agree = 체크 행). 선택 표시는 배경·테두리로만(좌측 라인 금지)
+   — .ob-style 과 같은 원칙. .ob-agree 는 이제 버튼(클릭 규약은 .ob-style 과 동일 — 행
+   전체가 토글이고 체크박스 자신의 change 이벤트에 기대지 않는다)이라 폰트·정렬을 리셋한다. */
 .ob-risk { margin:16px 0 0; font-size:var(--fs-sub); line-height:1.65; color:var(--ink-3); }
-.ob-agree { display:flex; align-items:flex-start; gap:10px; margin-top:22px; padding:14px;
-            border:1px solid var(--border); border-radius:10px; background:var(--sheet); cursor:pointer; }
-.ob-agree input[type="checkbox"] { flex:0 0 auto; width:18px; height:18px; margin:1px 0 0; accent-color:var(--gold); }
+.ob-agree { display:flex; align-items:flex-start; gap:10px; width:100%; margin-top:22px; padding:14px;
+            border:1px solid var(--border); border-radius:10px; background:var(--sheet);
+            color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.ob-agree.is-on { border-color:var(--gold); background:var(--gold-soft); }
+.ob-agree input[type="checkbox"] { flex:0 0 auto; width:18px; height:18px; margin:1px 0 0; accent-color:var(--gold); pointer-events:none; }
 .ob-agree-txt { font-size:var(--fs-sub); line-height:1.5; color:var(--ink-2); }
+
+/* 4단계 — "하지 않는 것" 세 줄. .ob-tools 와 같은 박스 리스트 뼈대(좌측 라인 없이 배경만). */
+.ob-consent-list { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+.ob-consent-item { margin:0; padding:12px 14px; border:1px solid var(--border); border-radius:12px;
+                    background:var(--surface); font-size:var(--fs-sub); line-height:1.55; color:var(--ink-3); }
+
+/* 5단계 — 종목 선택·분석 시작(Task 6). 시작 버튼은 tp-confirm 과 같은 자리(그리드 아래
+   전폭 버튼) — 선택(피커)과 실행(이 버튼)이 다른 요소라는 것을 레이아웃으로도 보여준다. */
+.ob-pick-start { width:100%; margin-top:16px; }
+.ob-pick-start[disabled] { opacity:.5; }
 
 /* 버튼 줄은 화면 바닥에 붙는다 — 단계마다 같은 자리에 있어야 연타가 된다. */
 .ob-nav { display:flex; gap:10px; flex:0 0 auto; padding-top:24px; }
@@ -64,7 +76,7 @@
 .ob-next[disabled] { opacity:.45; }
 
 /* ===== 종목 고르기 (ticker-picker.js, 시안 12a) =====
-   온보딩 4단계(다중)와 워치리스트 ＋Add(단일)가 같은 그리드·검색 마크업을 쓴다. 제목·
+   온보딩 5단계(다중, Task 6)와 워치리스트 ＋Add(단일)가 같은 그리드·검색 마크업을 쓴다. 제목·
    "많이 보는 종목" 라벨·자물쇠 설명문·확인 버튼은 단일 모드(＋Add) 전용 chrome 이다
    (온보딩은 자기 제목을 이미 갖고 있다 — ticker-picker.js 의 chrome 분기 참고).
    선택 표시는 배경 + 골드 테두리다 — 좌측 세로 라인 금지. */
@@ -210,39 +222,15 @@
 .ob-style-desc { font-size:var(--fs-caption); color:var(--ink-4); }
 .ob-note { margin-top:14px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
 
-/* 4~6단계 — 체험. 진행은 "N / 3" 하나로 말한다. */
+/* 6단계(옛 내용, Task 6 이 손대지 않음) — 진행은 "N / 3" 하나로 말한다. */
 .ob-tut-head { margin-bottom:6px; }
 .ob-tut-n { font-size:var(--fs-caption); color:var(--gold); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); }
-.ob-tut-list { display:flex; flex-direction:column; gap:8px; margin:14px 0; }
-.ob-tut-row { display:flex; align-items:baseline; gap:10px; }
-.ob-tut-num { flex:0 0 20px; height:20px; border-radius:99px; background:var(--surface);
-  color:var(--ink-3); font-size:var(--fs-caption); text-align:center; }
-.ob-tut-txt { flex:1 1 auto; font-size:var(--fs-sub); color:var(--ink-3); }
-.ob-pick-h { margin-top:18px; font-size:var(--fs-body); font-weight:var(--fw-medium); }
-.ob-picks { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
-.ob-pick { display:flex; align-items:baseline; justify-content:space-between; width:100%;
-  min-height:52px; padding:0 14px; border-radius:12px; border:1px solid var(--border);
-  background:var(--surface); color:inherit; font:inherit; }
-.ob-pick-name { font-size:var(--fs-body); font-weight:var(--fw-medium); }
-.ob-pick-sym { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
 
-/* 값 한 줄 — 이름 / 값 / 폭. 세 단계가 같은 자리를 비교해야 표가 성립한다. */
+/* 값 한 줄 — 이름 / 값 / 폭. 6·7단계가 이 뼈대로 값을 나란히 비교한다. */
 .ob-band { display:flex; align-items:baseline; gap:10px; padding:9px 0; border-bottom:1px solid var(--hairline); }
 .ob-band-k { flex:0 0 72px; font-size:var(--fs-caption); color:var(--ink-4); }
 .ob-band-v { flex:1 1 auto; font-size:var(--fs-num); font-weight:var(--fw-num); letter-spacing:var(--ls-num); font-variant-numeric:tabular-nums; }
 .ob-band-w { flex:0 0 auto; font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
-
-/* 5단계 — 라벨 80% 대비 실제 커버. 막대 길이가 곧 "얼마나 모자란가"다. */
-.ob-cov { margin:10px 0 6px; }
-.ob-cov-row { display:flex; align-items:center; gap:10px; padding:5px 0; }
-.ob-cov-k { flex:0 0 64px; font-size:var(--fs-caption); color:var(--ink-4); }
-.ob-cov-track { flex:1 1 auto; height:8px; border-radius:99px; background:var(--track); overflow:hidden; }
-.ob-cov-fill { height:100%; background:var(--steel); }
-.ob-cov-row.is-on .ob-cov-fill { background:var(--gold); }
-.ob-cov-row.is-on .ob-cov-k { color:var(--ink-2); }
-.ob-cov-v { flex:0 0 46px; text-align:right; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; }
-.ob-cov-target { font-size:var(--fs-caption); color:var(--ink-5); text-align:right; }
-.ob-cmp { margin-top:14px; }
 
 /* 6단계 — 슬라이더 하나. 손잡이를 크게(시안 26px): 이 화면의 요구는 "직접 만져보게"다. */
 .ob-now { display:flex; align-items:baseline; gap:10px; padding:12px 0; }

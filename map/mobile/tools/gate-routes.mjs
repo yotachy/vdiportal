@@ -234,6 +234,38 @@ export const ROUTES = [
         "if(onAfterBack.length!==1||onAfterBack[0].querySelector('.ob-style-name').textContent!==trend.name) return false;" +
         "var noteBack=document.querySelector('.ob32-verdict-note');" +
         "if(!noteBack||noteBack.className.indexOf('is-same')<0) return false;" +
+        // ── 4단계(Task 6) — 동의. "지금부터 미래" 전환 + 하지 않는 것 셋 + 체크 게이트 ──────
+        "var fwd3=document.querySelector('.ob-next');" +
+        "if(!fwd3) return false;" +
+        "fwd3.click();" +                                          // 3 -> 4
+        "var over4=document.querySelector('.ob-over');" +
+        "if(!over4||!over4.textContent||over4.textContent===MSStr.t.obPastDone) return false;" + // 3단계 문구를 안 반복한다
+        "if(over4.textContent!==MSStr.t.obFutureOver) return false;" +
+        "var h4=document.querySelector('.ob-h');" +
+        "if(!h4||!h4.textContent) return false;" +
+        // Q4 — 4단계엔 뒤로가기가 없다(node 시험이 이미 재지만, 실 브라우저에서도 확인한다).
+        "if(document.querySelector('.ob-back')) return false;" +
+        "var items4=document.querySelectorAll('.ob-consent-item');" +
+        "if(items4.length!==3) return false;" +                     // 하지 않는 것 셋
+        "for(var ci4=0;ci4<items4.length;ci4++){ if(!items4[ci4].textContent) return false; }" +
+        "var fwd4=document.querySelector('.ob-next');" +
+        "if(!fwd4||fwd4.disabled!==true) return false;" +           // 체크 전엔 막혀 있다
+        "var agree=document.querySelector('.ob-agree');" +
+        "if(!agree) return false;" +
+        "agree.click();" +                                          // 동의 체크
+        "if(document.querySelector('.ob-next').disabled!==false) return false;" + // 체크하면 열린다
+        // ── 5단계(Task 6) — 종목 선택 · 분석 시작. 선택과 실행이 분리돼 있는지 ────────────
+        "var fwd5=document.querySelector('.ob-next');" +
+        "fwd5.click();" +                                          // 4 -> 5
+        "if(document.querySelector('.ob-back')) return false;" +   // Q4 — 5단계도 뒤로가기 없음
+        "var chip=document.querySelector('.tp-chip');" +
+        "if(!chip) return false;" +
+        "chip.click();" +                                           // 종목을 고른다 — 선택만
+        "if(document.querySelector('.ob-next').disabled!==true) return false;" + // 고르기만으론 안 열린다(옛 버그의 반증)
+        "var startBtn=document.querySelector('.ob-pick-start');" +
+        "if(!startBtn||startBtn.disabled!==false) return false;" +
+        "startBtn.click();" +                                       // [분석 시작] — 실행은 여기서만 시작된다
+        "if(document.querySelector('.ob-next').disabled!==true) return false;" + // 클릭 직후(비동기 확인 전)엔 아직 안 열려 있다
         "return true;" +
       "})()" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데

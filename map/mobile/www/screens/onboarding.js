@@ -12,18 +12,16 @@
 //                                    [재설계 완료 — 이 커밋. 옛 위험고지(약관 체크박스)는
 //                                    이 슬롯에서 나갔다 — 다음 태스크가 새 4단계(동의)에서
 //                                    다시 짓는다, 자리 이름을 재사용하지 않는다]
-//   4 기본분석 체험(16a)            — 종목 하나 고르고 실제로 돌린다. 체험 1/3. [옛 내용 그대로]
-//   5 심화분석 체험(16b)            — 무엇이 달라지는지 두 막대로. 체험 2/3. [옛 내용 그대로]
+//   4 동의(위험 고지)               — 1·2·3막이 과거였음을 받아 "이제부터는 미래"로 여는
+//                                    전환. 체크 없이 진행 불가. [재설계 완료 — Task 6]
+//   5 종목 선택 · 분석 시작          — 고르는 것과 시작하는 것을 분리한다. 칩을 골라도
+//                                    분석은 안 돈다 — [분석 시작]을 눌러야 실제로 돈다.
+//                                    [재설계 완료 — Task 6]
 //   6 전문분석 체험(16c)            — 슬라이더 하나만 열어 직접 만지게 한다. 체험 3/3. [옛 내용 그대로]
 //   7 완료·가격표·지급(17a)         — 세 값을 한 표에 모으고 **가격은 이제야** 공개한다. [옛 내용 그대로]
 //
 // **순서가 핵심이다.** 가격표를 먼저 보여주면 "3스쿱"이 그냥 숫자다. 234.2 ± 1.1 을 먼저 본
 // 사람에게만 3이 싼지 비싼지 판단할 근거가 생긴다(인벤토리 §2 원문).
-//
-// ⚠ 시안 16b 는 "답이 절반으로 좁아졌습니다"를 두 막대로 보여준다. **우리 엔진에서는 거짓이다** —
-// 실측하면 심화의 범위가 오히려 넓어진다(모든 지평). 티어 백테스트도 같은 말을 한다: 콘 커버
-// 73.8% → 77.1%. 그래서 그 화면은 참인 차이를 판다 — 좁은 답이 아니라 **정직한 범위**다.
-// 숫자는 전부 번들된 실측(MSBacktest.tiers)에서 오고, 없으면 그 블록을 안 그린다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
   else MSGlobals.define("MSOnboarding", factory());
@@ -48,20 +46,6 @@
   // volume −0.125("보통 거래량 · 0.94배 · 약화")는 이 문턱을 살짝 넘겨 반대로 갈린다 —
   // 텍스트도 실제로 "약화"라 말해 분류와 문구가 맞는다(0.12 유지, 조정 불필요).
   var TOOL_EPS = 0.12;
-  // 시안 16a: **정확히 3개**(고르는 데 시간 쓰면 튜토리얼이 안 시작된다). 이름은 여기 적지
-  // 않는다 — ticker-picker 의 CURATED 가 이름의 정본이고, 두 벌이 갈리면 온보딩이 심은 종목이
-  // 워치리스트에서 다른 이름으로 보인다.
-  function tutSyms() {
-    return (typeof MSStore !== "undefined" && MSStore.TUTORIAL_SYMS) ? MSStore.TUTORIAL_SYMS : [];
-  }
-  function tutPicks() {
-    return tutSyms().map(function (sym) {
-      var name = (typeof MSTickerPicker !== "undefined" && MSTickerPicker.nameOf)
-        ? MSTickerPicker.nameOf(sym) : "";
-      return { sym: sym, name: name || sym };
-    });
-  }
-
   // 문자열은 MSStr.t.X 로 **직접** 읽는다. 모듈 로드 시점에 별칭(var Str = MSStr)으로 잡아두면
   // 이 파일이 strings.js 보다 먼저 실리는 환경에서 영원히 null 이 된다 — 던지지 않고 문구만
   // 사라지는 실패라 눈으로만 보인다(graph.js UMD 인자에서 겪은 것과 같은 부류).
@@ -76,7 +60,16 @@
     // (기본값이 이미 채워지므로 실사용에서 막히는 일은 없다 — 이 검사는 "선택 없이 진행할
     // 수 있는 상태"가 애초에 만들어지지 않게 하는 것이 목적이다).
     if (step === 3) return !!state.style;
-    if (step === 4) return !!state.r1;      // 기본분석 결과가 실제로 나왔을 때만
+    // 4단계(동의)는 체크박스 1개가 전부다 — 값·근거가 없는 단순 동의 게이트라 r1 같은
+    // 계산 결과와는 무관하다.
+    if (step === 4) return !!state.agreed;
+    // 5단계(종목 선택·분석 시작) — **state.r1 같은 부수 효과를 절대 보지 않는다.** 옛
+    // 버그의 정체가 그거였다: "결과가 생겼다"를 진행 조건으로 삼으니 결과를 만드는
+    // 유일한 방법(칩을 고르면 바로 분석이 도는 것)이 곧 진행 조건이 됐다. 여기서는
+    // state.sym 하나만 본다 — 그리고 이 값은 오직 [분석 시작] 버튼의 클릭 핸들러
+    // (loadPick→commit)에서만 쓰인다. 칩을 고르는 것(state.pick)만으로는 채워지지
+    // 않는다 — 선택과 실행이 서로 다른 변수다.
+    if (step === 5) return !!state.sym;
     return true;
   }
 
@@ -91,12 +84,8 @@
     return store.getWatchlist();
   }
 
-  // 라벨(0.80) 대비 실제 커버가 얼마나 가까운가 — 작을수록 정직하다.
-  function coverGap(cov) { return (typeof cov === "number") ? Math.abs(cov - 0.80) : null; }
-
   function frag(cls) { var e = document.createElement("div"); e.className = cls; return e; }
   function el(tag, cls, text) { return MSUi.el(tag, cls, text); }
-  function pct(x) { return (x == null) ? "—" : (x * 100).toFixed(1) + "%"; }
   function num(x, d) { return (x == null) ? "—" : Number(x).toFixed(d == null ? 2 : d); }
   // 1단계 x축 기준 표기용 — 캔들의 "YYYY-MM-DD" 를 "YYYY.MM"(연월)·"YYYY.MM.DD"(기준일)로.
   // 데이터에서 계산한다(리터럴로 적으면 재선별 표본에서 곧장 낡는다).
@@ -117,6 +106,10 @@
       // 저장된 성향이 있으면 그것을 기본 선택으로 — 온보딩을 다시 열었을 때 예전 선택이
       // 되살아난다. MSStore 가 없는 환경(경량 하네스)에서도 던지지 않는다.
       style: (typeof MSStore !== "undefined" && MSStore.getStyle && MSStore.getStyle()) || "trend",
+      agreed: false,         // 4단계 동의 체크
+      pick: null,            // 5단계 — 고른 후보(아직 확정 아님). { sym, name }
+      pickChecking: false, pickError: null,   // "notfound" | "thin" | null
+      sym: null, symName: null,               // 5단계가 확정한 종목 — canAdvance(5) 의 유일한 근거
       tut: null,            // { sym, name, data, fallback }
       r1: null, r2: null, r3: null,
       trendW: 1.0,
@@ -239,24 +232,44 @@
                width: (typeof lo === "number" && typeof hi === "number") ? (hi - lo) : null };
     }
 
-    // ── 데이터 적재 ──────────────────────────────────────────────────────────────
-    // 고른 종목의 실제 데이터로 돌린다. 못 받으면 번들 시계로 물러서되 **그 사실을 말한다** —
-    // 감추면 화면의 숫자가 어느 종목 것인지 아무도 말할 수 없게 된다.
-    function loadTut(pick, done) {
-      state.tut = { sym: pick.sym, name: pick.name, data: null, fallback: false, loading: true };
-      function settle(data, fallback) {
-        state.tut.data = data; state.tut.fallback = fallback; state.tut.loading = false;
+    // ── 데이터 적재(5단계 [분석 시작]) ────────────────────────────────────────────
+    // 고른 종목을 **실제로** 확인하고 돈다 — 이 호출이 그 화면의 "실행"이다. 옛 설계는
+    // "못 찾음"도 "봉 부족"도 조용히 번들 표본으로 바꿔치기했다(그 다음 화면이 데모였을
+    // 때는 정직했다). 이제는 3막이라 사용자가 고른 **그 종목**을 진짜로 보여준다는 약속이
+    // 걸려 있다 — 다른 종목의 데이터를 몰래 신겨 놓으면 그 약속이 거짓말이 된다. 그래서
+    // "못 찾음"·"봉 부족"은 진짜 실패로 다루고(막다른 골목 없이 다른 종목을 고를 수 있게
+    // 한다), API 층 자체가 아예 없는 환경(빌드/미리보기)에서만 예전처럼 번들로 물러선다 —
+    // 그건 종목의 문제가 아니라 환경의 문제이기 때문이다.
+    var MIN_BARS = 60;   // 기존 폴백 문턱과 동일 — 이 아래면 지표가 사실상 계산되지 않는다
+    function loadPick(pick, done) {
+      // 그 사이 사용자가 다른 종목을 새로 골랐으면 이 응답은 이미 낡았다 — 버린다
+      // (verifyPick 이 checking 을 시작할 때의 pick 을 그대로 캡처해 넘기므로, 여기서
+      // state.pick 과 대조하면 늦게 도착한 옛 요청을 걸러낼 수 있다).
+      function stale() { return !state.pick || state.pick.sym !== pick.sym; }
+      function commit(data, fallback) {
+        if (stale()) return;
+        state.tut = { sym: pick.sym, name: pick.name, data: data, fallback: !!fallback, loading: false };
         state.r1 = runTier(data, "basic");
         state.r2 = runTier(data, "full");
         state.r3 = null;
+        state.sym = pick.sym; state.symName = pick.name; state.picked = [pick];
+        state.pickChecking = false; state.pickError = null;
+        done();
+      }
+      function fail(reason) {
+        if (stale()) return;
+        state.pickChecking = false; state.pickError = reason;
         done();
       }
       var s = sample();
-      if (typeof MSApi === "undefined" || !MSApi.loadTicker) { settle(s, true); return; }
+      if (typeof MSApi === "undefined" || !MSApi.loadTicker) { commit(s, true); return; }   // API 층 자체가 없다 — 환경 문제
       MSApi.loadTicker(pick.sym, TF).then(function (d) {
-        if (d && d.candle && d.candle.length > 60) settle(d, false);
-        else settle(s, true);
-      })["catch"](function () { settle(s, true); });
+        if (d && d.candle && d.candle.length > MIN_BARS) commit(d, false);
+        else fail("thin");                                    // 찾았지만 봉이 부족하다
+      })["catch"](function (err) {
+        if (err && err.notfound) fail("notfound");             // 종목을 못 찾았다
+        else commit(s, true);                                  // 네트워크 문제 — 종목이 아니라 접속 문제라 번들로 물러선다
+      });
     }
 
     // ── 1단계: 콜드 오픈 ─────────────────────────────────────────────────────────
@@ -765,87 +778,97 @@
       return r;
     }
 
+    // 1·2·3막이 전부 과거(sliced 228봉)를 다뤘다 — obPastDone("여기까지는 과거였습니다")이
+    // 3단계 화면 위에서 그 사실을 못박는다. 4단계는 그 문장을 받아 "이제부터는 미래"라고
+    // 답한다 — 동의가 법률 절차가 아니라 이야기의 매듭이 되려면 이 순서가 먼저다.
     function step4() {
       var w = frag("ob-step");
-      if (!state.tut) {
-        w.appendChild(el("h1", "ob-h", MSStr.t.obTutIntroH));
-        w.appendChild(el("p", "ob-sub", MSStr.t.obTutIntroSub));
-        var steps = frag("ob-tut-list");
-        [MSStr.t.obTutStep1, MSStr.t.obTutStep2, MSStr.t.obTutStep3]
-          .forEach(function (line, i) {
-            var row = frag("ob-tut-row");
-            row.appendChild(el("span", "ob-tut-num", String(i + 1)));
-            row.appendChild(el("span", "ob-tut-txt", line));
-            steps.appendChild(row);
-          });
-        w.appendChild(steps);
-        w.appendChild(el("p", "ob-pick-h", MSStr.t.obTutPick));
-        var cards = frag("ob-picks");
-        tutPicks().forEach(function (p) {
-          var b = document.createElement("button");
-          b.type = "button"; b.className = "ob-pick";
-          b.appendChild(el("span", "ob-pick-name", p.name));
-          b.appendChild(el("span", "ob-pick-sym", p.sym));
-          b.addEventListener("click", function () {
-            state.picked = [{ sym: p.sym, name: p.name }];
-            loadTut(p, draw);
-            draw();
-          });
-          cards.appendChild(b);
-        });
-        w.appendChild(cards);
-        return w;
-      }
+      w.appendChild(el("p", "ob-over", MSStr.t.obFutureOver));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH4));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obSub4));
+      w.appendChild(el("p", "ob-risk", MSStr.t.obConsentIntro));
 
-      w.appendChild(tutHead(1));
-      w.appendChild(el("h1", "ob-h", MSStr.t.obTut1H));
-      if (state.tut.loading) { w.appendChild(el("p", "ob-sub", MSStr.t.obTutLoading)); return w; }
-      if (state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obTutFallback));
-      w.appendChild(el("p", "ob-sub", MSStr.t.obTut1Sub));
-      var t1 = tomorrow(state.r1);
-      w.appendChild(bandRow(MSStr.t.obTutTomorrow, t1));
+      var list = frag("ob-consent-list");
+      [MSStr.t.obConsentNotAdvice, MSStr.t.obConsentNoProfit, MSStr.t.obConsentLossOwn]
+        .forEach(function (t) { list.appendChild(el("p", "ob-consent-item", t)); });
+      w.appendChild(list);
+
+      // 행 전체가 토글이다(.ob-style 과 같은 클릭 규약) — 체크박스 자신의 change 이벤트에
+      // 기대지 않는다. 그러면 텍스트를 눌러도 켜지고, 이 화면의 시험이 다른 화면들과 같은
+      // 방식(행을 클릭한다)으로 체크 여부를 잴 수 있다.
+      var agree = frag("ob-agree" + (state.agreed ? " is-on" : ""));
+      var chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.className = "ob-consent-chk";
+      chk.checked = !!state.agreed;
+      agree.appendChild(chk);
+      agree.appendChild(el("span", "ob-agree-txt", MSStr.t.obConsentCheckTxt));
+      agree.addEventListener("click", function () {
+        state.agreed = !state.agreed;
+        draw();
+      });
+      w.appendChild(agree);
       return w;
     }
 
-    // ── 5단계: 심화분석 체험 ─────────────────────────────────────────────────────
-    // 시안의 "절반으로 좁아짐"은 우리 엔진에서 거짓이라, 실제로 파는 것을 판다:
-    // "80% 범위"라고 말할 때 실제로 몇 %를 덮었는가. 두 막대는 그 값이다(라벨 80 이 기준선).
+    // ── 5단계: 종목 선택 · 분석 시작(설계서 §4.5) ─────────────────────────────────
+    // 선택(칩을 고른다)과 실행([분석 시작]을 누른다)을 분리한다. 칩을 고르는 것은
+    // state.pick 만 바꾼다 — 엔진은 돌지 않고 state.r1/state.sym 은 그대로 null 이다.
+    // [분석 시작]을 눌러야 loadPick() 이 실제로 불려 종목을 확인하고 돈다. canAdvance(5)
+    // 는 state.sym 만 본다(위 canAdvance 주석 참고) — 이 함수 어디에도 state.r1 을
+    // 진행 조건으로 쓰는 자리가 없다.
     function step5() {
       var w = frag("ob-step");
-      w.appendChild(tutHead(2));
-      w.appendChild(el("h1", "ob-h", MSStr.t.obTut2H));
-      w.appendChild(el("p", "ob-sub", MSStr.t.obTut2Sub));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obPickH));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obPickSub));
 
-      var B = (typeof MSBacktest !== "undefined" && MSBacktest.tiers) ? MSBacktest.tiers : null;
-      if (B && B.basic && B.deep) {
-        w.appendChild(el("p", "ob-over", MSStr.t.obTut2Label));
-        var box = frag("ob-cov");
-        [[MSStr.t.obTut2Basic, B.basic.coneCoverage, ""],
-         [MSStr.t.obTut2Full, B.deep.coneCoverage, " is-on"]].forEach(function (row) {
-          var r = frag("ob-cov-row" + row[2]);
-          r.appendChild(el("span", "ob-cov-k", row[0]));
-          var track = frag("ob-cov-track");
-          var fill = frag("ob-cov-fill");
-          // 막대는 라벨 80% 를 가득 참으로 둔다 — 두 막대의 길이 차이가 곧 "얼마나 모자란가"다.
-          fill.style.width = Math.max(0, Math.min(100, (row[1] / 0.80) * 100)) + "%";
-          track.appendChild(fill);
-          r.appendChild(track);
-          r.appendChild(el("span", "ob-cov-v", pct(row[1])));
-          box.appendChild(r);
-        });
-        w.appendChild(box);
-        w.appendChild(el("p", "ob-cov-target", MSStr.t.obTut2Target));
+      var picker = MSTickerPicker.create({
+        multi: true, max: 1,
+        preset: state.pick ? [state.pick] : [],
+        onChange: function (selSyms, items) {
+          // 새로 고른 순간 이전 시도의 오류·확정은 의미를 잃는다 — 다시 확인해야 한다.
+          state.pick = items.length ? items[0] : null;
+          state.pickError = null;
+          draw();
+        }
+      });
+      w.appendChild(picker.el);
+
+      if (state.pick && !state.sym) {
+        w.appendChild(el("p", "ob-note", MSStr.t.obPickSelectedA + state.pick.name));
       }
-      w.appendChild(el("p", "ob-note", MSStr.t.obTut2Note));
 
-      // 이번 종목에서 실제로 폭이 어떻게 됐는지 그대로 보여준다. 넓어졌으면 넓어졌다고 적는다.
-      var t1 = tomorrow(state.r1), t2 = tomorrow(state.r2);
-      var cmp = frag("ob-cmp");
-      cmp.appendChild(bandRow(MSStr.t.obTut2Basic, t1));
-      cmp.appendChild(bandRow(MSStr.t.obTut2Full, t2));
-      w.appendChild(cmp);
-      if (t1 && t2 && t1.width != null && t2.width != null && t2.width > t1.width)
-        w.appendChild(el("p", "ob-note", MSStr.t.obTut2Wider));
+      var startBtn = document.createElement("button");
+      startBtn.type = "button"; startBtn.className = "btn btn-primary ob-pick-start";
+      startBtn.textContent = MSStr.t.obPickStart;
+      startBtn.disabled = !state.pick || state.pickChecking;
+      startBtn.addEventListener("click", function () {
+        if (!state.pick || state.pickChecking) return;
+        state.pickChecking = true; state.pickError = null;
+        draw();                        // "확인하는 중" 을 즉시 보여준다 — 클릭이 곧 진행을 여는 것은 아니다
+        loadPick(state.pick, draw);    // 실제 확인·분석은 여기서 비동기로 돈다
+      });
+      w.appendChild(startBtn);
+
+      if (state.pickChecking) {
+        w.appendChild(el("p", "ob-note", MSStr.t.obPickChecking));
+      } else if (state.pickError) {
+        // 막다른 골목 금지 — 못 찾음·봉 부족 둘 다 "다른 종목 선택" 이라는 실제 다음
+        // 행동을 준다. 텍스트만 던지고 끝나지 않는다.
+        w.appendChild(el("p", "ob-warn",
+          state.pickError === "notfound" ? MSStr.t.obPickNotFound : MSStr.t.obPickThin));
+        var retry = document.createElement("button");
+        retry.type = "button"; retry.className = "btn btn-outline btn-sm ob-retry";
+        retry.textContent = MSStr.t.obPickRetry;
+        retry.addEventListener("click", function () {
+          state.pick = null; state.pickError = null;
+          draw();
+        });
+        w.appendChild(retry);
+      } else if (state.sym) {
+        w.appendChild(el("p", "ob-note", MSStr.t.obPickReady));
+      }
+
       return w;
     }
 
@@ -977,7 +1000,11 @@
       scr.appendChild(body);
 
       var nav = frag("ob-nav");
-      if (step > 1) {
+      // Q4(설계서 §5) — 뒤로가기는 2·3단계에만 있다. 1단계는 시작점이라 되돌릴 앞이 없고,
+      // 4단계부터는 전진만이다(4단계=동의는 되돌리면 "동의를 물렸다"는 애매한 상태가 되고,
+      // 5단계 이후는 이미 종목을 확정해 돈 분석을 되돌리는 의미가 없다). Task 6 이전엔
+      // `step > 1` 이라 4단계를 등록하는 순간 이 규칙이 깨졌다 — 여기서 좁힌다.
+      if (step === 2 || step === 3) {
         var back = document.createElement("button");
         back.type = "button"; back.className = "btn btn-ghost ob-back";
         back.textContent = MSStr.t.obBack;
@@ -1023,6 +1050,5 @@
     draw();
   }
 
-  return { STEPS: STEPS, tutSyms: tutSyms, tutPicks: tutPicks, canAdvance: canAdvance, next: next,
-           seedTo: seedTo, coverGap: coverGap, render: render };
+  return { STEPS: STEPS, canAdvance: canAdvance, next: next, seedTo: seedTo, render: render };
 });

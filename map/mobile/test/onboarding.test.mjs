@@ -300,6 +300,11 @@ class El {
   appendChild(c) { c.parentNode = this; this.children.push(c); return c; }
   addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); }
   click() { (this.listeners.click || []).forEach(f => f({})); }
+  // ticker-picker.js 는 칩 클릭을 개별 버튼이 아니라 부모 `.tp-grid` 에 위임한다
+  // (delegated listener, e.target 을 훑어 data-sym 을 찾는다) — 이 El.click() 은 버블링을
+  // 흉내내지 않으므로(그러면 다른 30여 개 시험의 전제가 바뀐다), ticker-picker.test.mjs 의
+  // FakeNode.dispatch 와 같은 방식을 여기도 추가한다: 그리드에 `{target: 칩}` 을 직접 쏜다.
+  dispatch(t, evt) { (this.listeners[t] || []).slice().forEach(f => f(evt || {})); }
   setAttribute(k, v) { this["attr_" + k] = v; }
   getAttribute(k) { return this["attr_" + k]; }
   getContext() { if (!this._ctx) this._ctx = ctxStub(); return this._ctx; }
@@ -345,21 +350,36 @@ function deepText(node) {
   return node.children.map(deepText).join("");
 }
 
+// 5단계 — ticker-picker.js 는 칩 클릭을 개별 버튼이 아니라 부모 `.tp-grid` 에 위임한다
+// (delegated listener, e.target 을 훑어 data-sym 을 찾는다). `.tp-grid` 안의 실제 칩
+// 노드를 찾아 그리드에 `{target}` 이벤트를 쏜다 — El.dispatch 참고. sym 을 안 주면 첫
+// 번째 칩(그리드 순서상 CURATED[0] = 삼성전자)을 고른다.
+function pickChip(root, sym) {
+  const grid = root.querySelector(".tp-grid");
+  if (!grid) throw new Error("종목 고르기 그리드(.tp-grid)가 없다");
+  const chip = sym
+    ? grid.children.filter(c => c.getAttribute("data-sym") === sym)[0]
+    : grid.children.filter(c => (" " + c.className + " ").indexOf(" tp-chip ") >= 0)[0];
+  if (!chip) throw new Error("칩을 못 찾았다: " + (sym || "(첫 칩)"));
+  grid.dispatch("click", { target: chip });
+  return chip;
+}
+
 // 4·5단계용 기본 가짜 store — 실제 store.js(localStorage)는 쓰지 않는다. 여러 테스트가
 // 같은 모듈 인스턴스를 require 캐시로 공유하면 상태가 샌다 — spyWallet 과 같은 이유.
 function defaultFakeStore(watchlist) {
   return {
     SEED: [{ sym: "AAPL", name: "Apple Inc." }, { sym: "NVDA", name: "NVIDIA Corporation" },
             { sym: "MSFT", name: "Microsoft Corporation" }],
-    // 온보딩 체험 종목은 실물 store 에서 가져온다 — 가짜가 목록을 따로 들면 화면이
-    // 실제로 몇 개를 제시하는지 시험이 못 본다.
-    TUTORIAL_SYMS: require("../www/store.js").TUTORIAL_SYMS,
     addTicker: function () {}, setOnboarded: function () {}, onboarded: function () { return false; },
     getWatchlist: function () { return watchlist || []; }
   };
 }
 
-function withDom(fn, storeOverride) {
+// extra — 5단계의 [분석 시작]이 실제로 확인하는 대상(MSApi)을 시험이 주입할 수 있게 하는
+// 자리다. 기본 하네스는 MSApi 를 아예 안 심는다(loadPick 이 "API 층 자체가 없다" 분기로
+// 물러선다) — "못 찾음"·"봉 부족" 표본을 실제로 만들려면 이 자리로 가짜 MSApi 를 넣는다.
+function withDom(fn, storeOverride, extra) {
   const g = globalThis;
   const saved = {};
   const put = (k, v) => { saved[k] = Object.prototype.hasOwnProperty.call(g, k) ? g[k] : undefined; g[k] = v; };
@@ -417,6 +437,7 @@ function withDom(fn, storeOverride) {
     volume(c, cw, ch, va, reveal) { spy.volumePanel = (spy.volumePanel || 0) + 1; return panels.volume(c, cw, ch, va, reveal); }
   }));
   put("MSZoom", require("../www/chart-zoom.js"));
+  if (extra) Object.keys(extra).forEach(function (k) { put(k, extra[k]); });
   try { return fn(new El("div"), spy); }
   finally { Object.keys(saved).forEach(k => { if (saved[k] === undefined) delete g[k]; else g[k] = saved[k]; }); }
 }
@@ -505,78 +526,15 @@ test("번들 시계가 없어도 던지지 않는다 — 첫 화면이 흰 화�
   });
 });
 
-// ── 4단계: 종목 고르기 ──────────────────────────────────────────────────────────
-// tp-grid 는 이벤트 위임(클릭이 grid 에서 잡힌다)이라, 이 DOM 스텁의 El.click() 은 부모로
-// 버블링하지 않는다 — grid 의 리스너를 target 을 지정해 직접 부른다.
-function pressCell(grid, sym) {
-  var cell = grid.children.filter(function (c) { return c.getAttribute("data-sym") === sym; })[0];
-  if (!cell) throw new Error("셀을 못 찾았다: " + sym);
-  grid.listeners.click[0]({ target: cell });
-}
-function onSyms(grid) {
-  return grid.children.filter(function (c) { return c.className.indexOf("is-on") >= 0; })
-    .map(function (c) { return c.getAttribute("data-sym"); });
-}
-function toStep4(root) {
-  O.render(root, { sample: SAMPLE });
-  root.querySelector(".ob-next").click();   // 1 -> 2
-  root.querySelector(".ob-next").click();   // 2 -> 3
-  root.querySelector(".ob-next").click();   // 3 -> 4 (지갑이 없어 실패해도 막지 않는다)
-}
-
-
-
-// 뒤로/앞으로를 오가는 재진입 회귀 — 3단계 grantBox 와 같은 종류의 결함. 프리셋을 전부
-// 지운 뒤 3단계로 갔다 다시 오면, step4() 가 매번 새 픽커를 만들면서 프리셋(SEED)을 다시
-// preset 으로 주면 지운 선택이 되살아난다. 소스 검사로는 안 보인다 — state.picked 를
-// preset 으로 쓰는지 SEED 를 쓰는지가 코드 모양만으로 구별되지 않기 때문이다.
-
-// 기존 워치리스트를 가진 사람의 4단계 규칙(사용자 결정, 2026-08-15): 이미 갖고 있는 종목은
-// 잠긴 채 보존되고(해제 불가) 상한은 걸지 않는다. 상한까지 걸면 뺄 수도 없고(잠김) 넣을 수도
-// 없어(상한 도달) 아무것도 못 하는 읽기 전용 화면이 된다.
-
-// 재진입 함정(리뷰 Important 1 의 새 규칙판): lockedSyms 를 매번 다시 재면 "지금 고른 것"이
-// "원래 갖고 있던 것"으로 둔갑한다 — 4단계에서 새로 더한 TSLA 까지 잠겨버려 다시 뺄 수 없게 된다.
-// (예전엔 CURATED 12종 중 하나였던 META 로 같은 것을 확인했다 — 시안 12a 의 8종엔 없다.)
-
-// 위 4단계 재진입의 정확한 쌍둥이. 이쪽이 더 나쁘다: 4단계는 선택이 되살아나는 것으로 눈에
-// 보이지만, 5단계는 **화면상 체크가 꺼진 채로 완료 버튼만 열려 있다**. 그 상태로 누르면
-// 사용자가 보기엔 동의하지 않았는데 동의 기록(setOnboarded)이 남는다 — 시안이 "법적 효력이
-// 있는 자리"라고 부른 유일한 컨트롤이다. canAdvance(5,{agreed:false}) 만 보는 순수 함수
-// 테스트로는 절대 안 보인다(state 는 살아 있고 DOM 만 새것이기 때문).
-
-// 이미 워치리스트가 있는 사람(지금까지 쓰던 테스터)이 온보딩을 처음 만나는 경우. SEED 를
-// 프리셋으로 주면 자기가 고르지 않은 3종이 자기 목록에 얹힌다 — 이 단계가 없애려던 그 상태다.
-// 워치리스트가 있다고 온보딩을 건너뛰지는 않는다(동의 기록은 법적 효력이 있는 자리라 한 번은
-// 받아야 한다) — 그래서 '건너뛰었는가'가 아니라 '무엇이 켜져 있는가'로 확인한다.
-
-// 이 태스크가 정확히 문 버그: 워치리스트 전체가 CURATED 밖이면(예: PLTR 하나뿐) 예전엔
-// selected()가 참인데 격자엔 켜진 셀이 하나도 없어 "아무것도 안 고른 것처럼" 보였다.
-
-
-// 기존 목록은 격자 밖(CURATED 에 없는 심볼)에 있어도 완료 시 그대로 살아남아야 한다 —
-// 프리셋에서 슬그머니 빠지면 테스터의 종목이 사라진다.
-
-// ── 5단계: 위험 고지 + 약관 + 완료 ────────────────────────────────────────────────
-
-// 리뷰 지적(실행으로 확인됨): 완료 버튼을 연타하면 seedTo·setOnboarded·onDone 이 전부 두 번
-// 발화했다. 실 MSStore.addTicker(store.js)는 심볼로 중복을 걸러 "워치리스트 중복 행"으로는
-// 안 드러나지만, opts.onDone() 은 그런 안전장치가 없다 — app.js 가 boot() 에 그대로 연결하므로
-// 연타 한 번이 부팅 시퀀스를 두 번 돌린다. 여기서는 **중복 제거 없는** 가짜 store 를 쓴다 —
-// 실 addTicker 의 dedup 을 빌리면 심는 횟수 자체가 두 번인 증상이 가려진다(리뷰가 지적한 함정).
-
-// 리뷰 지적: state.finished 는 seedTo/setOnboarded/onDone 이 돌기 **전에** 켜진다(연타 방지를
-// 위해서다) — 그런데 그중 하나가 던지면 래치가 켜진 채 멈춘다. 그러면 버튼은 disabled=true 로
-// 굳고, onDone 도 못 불려 앱이 영영 부팅하지 않는다. store.js write() 가 오늘은 모든 localStorage
-// 예외를 삼켜 이 경로가 실제로 던질 일이 없지만, 그건 이 가드가 아니라 다른 파일의 방어력에
-// 기대는 것이다 — 가짜 store 로 강제로 던져서 이 핸들러 스스로 복구하는지 검사한다.
-
 // ── 3단계: 지갑 호출 ───────────────────────────────────────────────────────────
 // 위 withDom 은 동기 콜백 전제다 — try { return fn(...) } finally { 복구 } 라서, fn 이 비동기면
 // fn 의 await 가 끝나기 전에 finally 가 먼저 돌아 document/MSWallet 이 사라진다(재시도 버튼이
 // document.createElement 를 다시 부르는 순간 터진다). 3단계는 Promise 를 기다려야 하므로
 // 별도의 비동기 헬퍼를 쓴다 — 기존 withDom 은 건드리지 않는다(다른 30여 개 동기 테스트가 문다).
-async function withDomWallet(wallet, fn) {
+// extra — withDom 의 같은 자리와 같은 이유(가짜 MSApi 주입). 5단계의 [분석 시작]이
+// 비동기(Promise)로 확인·실패하는 경로를 재려면 async 안전한 이 하네스가 필요하다 —
+// withDom(동기 전제)은 await 가 끝나기 전에 finally 가 먼저 돌아 document 가 사라진다.
+async function withDomWallet(wallet, fn, extra) {
   const g = globalThis;
   const saved = {};
   const put = (k, v) => { saved[k] = Object.prototype.hasOwnProperty.call(g, k) ? g[k] : undefined; g[k] = v; };
@@ -587,7 +545,8 @@ async function withDomWallet(wallet, fn) {
   put("MSStr", S);
   put("MSWallet", wallet);
   // 7단계까지 실제로 걸어가려면 4~6단계가 엔진을 돌릴 수 있어야 한다 — 지갑만 있는 하네스로는
-  // 4단계에서 멈춘다(결과가 없으면 넘어가지 않는 것이 사양이다).
+  // 5단계에서 멈춘다(종목을 못 고르면 넘어가지 않는 것이 사양이다).
+  put("MSTickerPicker", require("../www/ticker-picker.js"));
   put("MSIndTiers", require("../www/ind-tiers.js"));
   put("ForgeCore", FC);
   put("MSGraph", G);
@@ -600,6 +559,7 @@ async function withDomWallet(wallet, fn) {
   put("MSLayers", require("../www/draw-layers.js"));
   put("MSZoom", require("../www/chart-zoom.js"));
   put("MSObQuality", Q);
+  if (extra) Object.keys(extra).forEach(function (k) { put(k, extra[k]); });
   try {
     return await fn(new El("div"));
   } finally {
@@ -628,9 +588,11 @@ async function toStep7(root) {
   root.querySelector(".ob-next").click();               // 1 -> 2
   root.querySelector(".ob-next").click();               // 2 -> 3 (32도구 화면은 입력 없이 넘어간다)
   root.querySelector(".ob-next").click();               // 3 -> 4 (성향은 기본 선택으로 입력 없이 넘어간다)
-  root.querySelector(".ob-pick").click();               // 4: 종목 하나
-  await flush();                                        // 실 데이터 적재(또는 번들 폴백)를 기다린다
+  root.querySelector(".ob-agree").click();              // 4: 동의 체크
   root.querySelector(".ob-next").click();               // 4 -> 5
+  pickChip(root);                                       // 5: 종목 하나 고른다(선택 — 아직 분석 아님)
+  root.querySelector(".ob-pick-start").click();         // 5: [분석 시작] — 여기서 처음 돈다
+  await flush();                                        // 실 데이터 적재(또는 번들 폴백)를 기다린다
   root.querySelector(".ob-next").click();               // 5 -> 6
   root.querySelector(".ob-next").click();               // 6 -> 7
 }
@@ -699,25 +661,12 @@ test("지급 실패해도 진행이 막히지 않는다 — 재시도 버튼이 
 // 만들고, 그리기(paintGrant)는 state.grantStarted 가 가드하는 발신과는 별개로 매 진입마다
 // 다시 불려야 한다. 호출 수뿐 아니라 텍스트도 반드시 같이 본다.
 
-// 같은 회귀를 실패 경로에서도 확인한다 — 실패 결과(오프라인 안내 + 재시도 버튼)도
-// 재진입 시 다시 그려져야 한다. 그리지 않으면 "실패도 성공도 아닌 빈 화면"이 되어
-// 사용자가 뭐가 잘못됐는지 알 방법이 없다.
-test("실패 결과도 뒤로/앞으로 후 다시 그려진다 — 빈 화면이 되면 안 된다", async () => {
-  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
-  await withDomWallet(wallet, async (root) => {
-    await toStep7(root);
-    await flush();
-    assert.strictEqual(root.querySelector(".ob-grant").textContent, S.t.obGrantOffline);
-    assert.ok(root.querySelector(".ob-retry"), "첫 진입에서 재시도 버튼이 없다");
-    root.querySelector(".ob-back").click();   // 3 -> 2
-    root.querySelector(".ob-next").click();   // 2 -> 3, 다시 그려짐
-    await flush();
-    assert.strictEqual(wallet.calls.length, 1, "재진입에서 지갑을 또 불렀다 — 자동 호출은 한 번이어야 한다");
-    assert.strictEqual(root.querySelector(".ob-grant").textContent, S.t.obGrantOffline,
-      "뒤로/앞으로 후 실패 안내가 사라졌다(빈 화면)");
-    assert.ok(root.querySelector(".ob-retry"), "뒤로/앞으로 후 재시도 버튼이 사라졌다 — 복구 수단이 없다");
-  });
-});
+// Task 6(Q4) 이 뒤로가기를 2·3단계로 좁히면서 이 시험은 잴 경로를 잃었다 — 7단계엔 더는
+// `.ob-back` 이 없고, 4단계 이후는 전진만이라 "7단계를 떠났다가 돌아온다" 자체가 새
+// 설계에서 도달 불가능하다(step6 도 뒤로가기가 없어 7단계에서 6단계로도 못 돌아간다).
+// 이 시험이 지키던 회귀(재진입 시 실패 안내가 사라지는 빈 화면)는 이제 재현할 UI 경로가
+// 없으므로 지운다 — 아래 두 시험(실패해도 진행이 막히지 않는다 · 재시도가 지갑을 다시
+// 부른다)이 같은 실패 상태의 나머지 절반(첫 렌더 정확성·수동 재시도)을 계속 지킨다.
 
 // 재시도 버튼은 수동으로는 다시 부를 수 있어야 한다(위 가드는 자동 발신만 막는다).
 test("재시도 버튼을 누르면 지갑을 다시 부른다", async () => {
@@ -740,7 +689,7 @@ test("재시도 버튼을 누르면 지갑을 다시 부른다", async () => {
 
 test("7단계다 — 시안 정본", () => { assert.strictEqual(O.STEPS, 7); });
 
-test("각 단계가 요구하는 것: 찍기 · [2단계는 보여줄 뿐] · 동의 · 기본분석 결과", () => {
+test("각 단계가 요구하는 것: 찍기 · [2단계는 보여줄 뿐] · 성향 · 동의 · 종목 확정", () => {
   assert.equal(O.canAdvance(1, {}), false, "1단계는 직접 찍어야 넘어간다");
   assert.equal(O.canAdvance(1, { guessed: "up" }), true);
   // Task 4 재설계: 2단계는 32도구를 보여주는 화면이라 입력을 요구하지 않는다 — 옛 성향
@@ -751,15 +700,22 @@ test("각 단계가 요구하는 것: 찍기 · [2단계는 보여줄 뿐] · �
   // 안 된다(단언 1 "1개 필수").
   assert.equal(O.canAdvance(3, {}), false, "3단계는 성향 선택이 필수다");
   assert.equal(O.canAdvance(3, { style: "momentum" }), true);
-  // 4단계는 결과가 실제로 나왔을 때만 넘어간다 — 계산 중에 넘기면 5단계가 빈 값을 비교한다.
-  assert.equal(O.canAdvance(4, {}), false);
-  assert.equal(O.canAdvance(4, { r1: {} }), true);
+  // Task 6(4단계 — 동의): 체크박스 하나가 전부다. r1 같은 계산 결과와 무관하다 — 값이
+  // 있어도 agreed 가 없으면 막혀야 한다(엔진 결과가 동의를 대신할 수 없다).
+  assert.equal(O.canAdvance(4, {}), false, "4단계는 동의 체크가 필수다");
+  assert.equal(O.canAdvance(4, { r1: {} }), false, "r1 이 있어도 동의를 대신하지 않는다");
+  assert.equal(O.canAdvance(4, { agreed: true }), true);
+  // Task 6(5단계 — 종목 선택·분석 시작): **state.pick(칩을 골랐다) 만으로는 안 열린다.**
+  // 이것이 옛 버그("클릭만으로 분석 시작")의 정반대 증명이다 — 선택은 진행 조건이 아니다.
+  // state.sym([분석 시작]이 확정한 값)만 진행을 연다. state.r1 이 있어도 sym 이 없으면
+  // 막혀야 한다 — 진행 조건이 계산 결과의 부수 효과가 아니라는 것을 이 줄이 직접 증명한다.
+  assert.equal(O.canAdvance(5, {}), false, "5단계는 아무것도 없으면 막힌다");
+  assert.equal(O.canAdvance(5, { pick: { sym: "AAPL", name: "애플" } }), false,
+    "칩을 고른 것(pick)만으로 진행이 열리면 안 된다 — 그게 옛 버그다");
+  assert.equal(O.canAdvance(5, { r1: {}, r2: {} }), false,
+    "r1/r2 계산 결과가 있어도 sym 이 없으면 막혀야 한다 — 진행 조건이 부수 효과면 안 된다");
+  assert.equal(O.canAdvance(5, { sym: "AAPL" }), true, "sym 이 확정되면(=분석 시작을 눌렀으면) 열린다");
 });
-
-// Task 5 재설계로 3단계가 위험고지(obRisk)에서 성향으로 바뀌면서 이 시험은 잴 대상을
-// 잃었다(옛 step2 성향 선택 UI를 지운 뒤 남긴 위 주석과 같은 이유) — 위험고지는 다음
-// 태스크가 새 4단계(동의)에서 다시 지을 때 그 자리에서 "체험보다 앞인가"를 다시 잰다.
-// 지금은 obRisk 자체가 strings.js 에 없다(미참조 키 관문에 걸려 지웠다).
 
 test("가격은 마지막에만 공개된다 — 값을 겪기 전에 숫자를 보여주지 않는다", () => {
   // 인벤토리 §2: "가격표를 먼저 보여주면 3스쿱이 그냥 숫자다." COSTS 를 읽는 자리가
@@ -779,20 +735,10 @@ test("지급도 마지막이다 — 1~6단계에서 이탈하면 계정이 안 �
   assert.ok(gate, "지급이 7단계 게이트 안에서 불리지 않는다");
 });
 
-test("체험 종목은 정확히 3개다 — 고르는 데 시간 쓰면 튜토리얼이 안 시작된다", () => {
-  const ST = require("../www/store.js");
-  globalThis.MSStore = ST;
-  assert.equal(O.tutSyms().length, 3, "시안 16a 는 정확히 3개다: " + O.tutSyms().length);
-  // 이름은 ticker-picker 가 정본이다 — 온보딩이 다시 적으면 워치리스트와 갈린다.
-  const TP = require("../www/ticker-picker.js");
-  globalThis.MSTickerPicker = TP;
-  O.tutPicks().forEach(p => {
-    assert.ok(p.sym, "심볼이 없다");
-    assert.equal(p.name, TP.nameOf(p.sym) || p.sym, p.sym + " 이름이 CURATED 와 다르다");
-  });
-  delete globalThis.MSTickerPicker;
-  delete globalThis.MSStore;
-});
+// Task 6(5단계 재설계)로 옛 "체험 3종 고정" 개념(tutSyms/tutPicks, 시안 16a)이 사라졌다 —
+// 5단계는 이제 ticker-picker.js 의 CURATED 8종(+직접 입력) 중 **하나**를 고르는 화면이고,
+// 그 목록의 정본은 이미 ticker-picker.test.mjs("큐레이션 목록은 시안 12a 의 8종이다")가
+// 지킨다. tutSyms/tutPicks 함수와 그 export 는 죽은 코드라 지웠다 — 이 시험도 함께 지운다.
 
 // Task 4 재설계로 2단계가 32도구 화면으로 바뀌면서 성향 선택 UI(옛 step2)가 잠시
 // 사라졌다 — 위 "성향 목록은 MSIndTiers.PRESETS 가 정본이다" 시험은 그 UI 를 재던 것이라
@@ -808,23 +754,10 @@ test("고른 성향이 실제로 쓰인다 — 죽은 컨트롤이 아니다", (
   assert.match(XP, /getStyle/, "전문분석 편집기가 저장된 성향을 읽지 않는다 — 고르게만 하고 안 쓴다");
 });
 
-test("심화분석 체험이 시안의 거짓 주장을 옮겨 적지 않았다", () => {
-  // 시안 16b 는 "답이 절반으로 좁아졌습니다"라고 쓰지만 우리 엔진에서는 거짓이다 —
-  // 실측하면 심화의 범위가 오히려 넓어진다(티어 백테스트 콘커버 73.8% → 77.1%).
-  // 화면이 할 수 있는 말의 경계는 측정이 정한다(P2 §2 진실 규칙).
-  const t = S.t.obTut2H + " " + S.t.obTut2Sub + " " + S.t.obTut2Note;
-  assert.ok(t.indexOf("절반") < 0, "'절반으로 좁아졌다'를 그대로 옮겼다: " + t);
-  assert.match(S.t.obTut2H, /정직/, "심화가 파는 것(정직한 범위)을 말하지 않는다");
-});
-
-test("체험 화면의 커버 숫자는 번들 실측에서 온다 — 손으로 적지 않는다", () => {
-  assert.ok(OB.indexOf("MSBacktest.tiers") > 0, "티어 실측을 읽지 않는다");
-  // 73.8 / 77.1 같은 값이 소스에 리터럴로 있으면 재측정해도 화면이 안 따라온다.
-  const code = OB.split("\n").map(l => l.replace(/\/\/.*$/, "")).join("\n");
-  assert.doesNotMatch(code, /7[0-9]\.[0-9]\s*%|0\.7[0-9]{2,}/,
-    "커버리지 숫자가 소스에 박혀 있다 — 측정치가 아니라 기억이 된다");
-});
-
+// Task 6(5단계 재설계)로 옛 "심화분석 체험"(시안 16b, 기본/심화 콘커버 두 막대 비교)이
+// 사라졌다 — 그 화면이 지키던 진실 규칙(우리 엔진은 "범위가 절반으로 좁아진다"가 아니라
+// "정직한 범위"다)은 화면 자체가 없어지며 검사 대상을 잃었다. 아래 인프라 시험(번들
+// 실측 존재 확인)은 화면과 무관하게 유효하므로 남긴다.
 test("번들 요약에 티어 실측이 실려 있다 — 없으면 그 블록을 그릴 수 없다", () => {
   const raw = readFileSync(new URL("../www/vendor/backtest-summary.js", import.meta.url), "utf8");
   const j = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -835,12 +768,7 @@ test("번들 요약에 티어 실측이 실려 있다 — 없으면 그 블록�
   });
 });
 
-test("coverGap 은 라벨 80% 에서 얼마나 벗어났는지를 잰다", () => {
-  assert.equal(O.coverGap(0.80), 0);
-  assert.ok(Math.abs(O.coverGap(0.738) - 0.062) < 1e-9);
-  assert.ok(Math.abs(O.coverGap(0.771) - 0.029) < 1e-9);
-  assert.equal(O.coverGap(null), null, "값이 없으면 지어내지 않는다");
-});
+// coverGap() 도 옛 "심화분석 체험" 전용 헬퍼였다 — 함수·export 를 지웠으니 이 시험도 지운다.
 
 test("전문분석 체험은 가중치를 두 경로에 함께 넘긴다 — 한쪽만이면 예측선이 안 움직인다", () => {
   assert.match(OB, /driftWeights/, "드리프트 가중치를 안 넘긴다");
@@ -1557,6 +1485,179 @@ test("3단계·2단계 공유(리뷰 C) — 판정이 갈렸을 때(is-diff)가 
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════
+// 4·5단계(설계서 §4.4·4.5, Task 6) — 동의의 개연성 · 선택과 실행의 분리
+// ══════════════════════════════════════════════════════════════════════════════════
+
+function toStep4(root) {
+  O.render(root, { sample: SAMPLE });
+  root.querySelector(".ob-guess-btn").click();   // 1: 직접 찍기
+  root.querySelector(".ob-next").click();        // 1 -> 2
+  root.querySelector(".ob-next").click();        // 2 -> 3 (32도구 화면은 입력 없이 넘어간다)
+  root.querySelector(".ob-next").click();        // 3 -> 4 (성향은 기본 선택으로 입력 없이 넘어간다)
+}
+function toStep5(root) {
+  toStep4(root);
+  root.querySelector(".ob-agree").click();       // 4: 동의 체크
+  root.querySelector(".ob-next").click();        // 4 -> 5
+}
+
+// 단언 1 — 4단계가 "지금부터 미래를 말한다" 전환으로 열린다. 3단계의 obPastDone("여기까지는
+// 과거였습니다")을 그대로 반복하지 않고 그 질문에 실제로 답해야 한다.
+test("4단계 — 지금부터 미래를 말한다는 전환으로 열린다(3단계 obPastDone 을 받는다)", () => {
+  withDom(root => {
+    toStep4(root);
+    const over = root.querySelector(".ob-over");
+    assert.ok(over, "4단계에 전환 문구(.ob-over) 가 없다");
+    const overText = deepText(over);
+    assert.ok(overText && overText.trim().length > 0, "전환 문구가 비어 있다");
+    assert.strictEqual(overText, S.t.obFutureOver, "4단계 전환 문구가 obFutureOver 가 아니다");
+    assert.notStrictEqual(overText, S.t.obPastDone,
+      "3단계 문구('여기까지는 과거였습니다')를 그대로 반복했다 — 답이 아니라 메아리다");
+    assert.match(overText, /미래/, "미래를 말한다는 전환이 실제 문구에 없다: " + overText);
+    const h1 = root.querySelector(".ob-h");
+    assert.ok(h1 && deepText(h1).trim().length > 0, "4단계 제목이 비어 있다");
+    const sub = root.querySelector(".ob-sub");
+    assert.ok(sub && deepText(sub).trim().length > 0, "4단계 부제가 비어 있다");
+  });
+});
+
+// 단언 2 — 하지 않는 것 셋(매수·매도 권유 아님·수익 약속 아님·손실 책임)이 명시된다.
+test("4단계 — 하지 않는 것 셋이 실제로 렌더된다", () => {
+  withDom(root => {
+    toStep4(root);
+    const items = root.querySelectorAll(".ob-consent-item");
+    assert.strictEqual(items.length, 3, "하지 않는 것 세 줄이 아니다: " + items.length);
+    const texts = items.map(deepText);
+    texts.forEach((t, i) => assert.ok(t && t.trim().length > 0, i + "번째 줄이 비어 있다"));
+    assert.deepStrictEqual(texts, [S.t.obConsentNotAdvice, S.t.obConsentNoProfit, S.t.obConsentLossOwn]);
+    assert.match(texts[0], /권유/, "매수·매도 권유가 아니라는 말이 없다: " + texts[0]);
+    assert.match(texts[1], /약속/, "수익을 약속하지 않는다는 말이 없다: " + texts[1]);
+    assert.match(texts[2], /책임/, "손실 책임이 본인에게 있다는 말이 없다: " + texts[2]);
+  });
+});
+
+// 단언 3(전반) — 체크 없이는 진행 불가. disabled 속성만 보지 않는다 — 실제로 클릭해서
+// next() 자체가 거부하는지까지 잰다(브리프 주의사항).
+test("4단계 — 체크 없이는 진행이 실제로 막힌다(클릭해도 안 넘어간다)", () => {
+  withDom(root => {
+    toStep4(root);
+    const fwd = root.querySelector(".ob-next");
+    assert.strictEqual(fwd.disabled, true, "체크 전인데 다음 버튼이 활성이다");
+    fwd.click();   // disabled 속성이 아니라 클릭 자체가 막히는지 — 진짜 next() 를 통과한다
+    assert.ok(root.querySelector(".ob-consent-list"), "체크 없이 클릭했는데 4단계를 벗어났다");
+    root.querySelector(".ob-agree").click();
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false, "체크했는데도 여전히 막혀 있다");
+    root.querySelector(".ob-next").click();
+    assert.ok(root.querySelector(".tp-grid"), "체크 후 클릭했는데 5단계로 안 넘어갔다");
+  });
+});
+
+// 단언 3(후반) — 동의 완료 후 ms_consent 에 시각·약관 버전이 실제로 기록된다(기존 키 유지).
+// 실물 store.js 로 끝까지 걸어간다 — 가짜 store 는 setOnboarded 를 no-op 으로 두므로 이
+// 기록 형식 자체를 못 잰다.
+test("4단계 — 완료 후 ms_consent 에 시각·약관 버전이 기록된다(기존 키 그대로)", () => {
+  const RealStore = require("../www/store.js");
+  const m = new Map();
+  RealStore.install({ getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) });
+  assert.strictEqual(RealStore.consent(), null, "시작 전인데 이미 동의 기록이 있다 — 시험 격리가 샜다");
+  withDom(root => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();   // API 층이 없는 하네스라 즉시 확정된다
+    root.querySelector(".ob-next").click();          // 5 -> 6
+    root.querySelector(".ob-next").click();          // 6 -> 7
+    root.querySelector(".ob-next").click();          // 7: 완료
+    const c = RealStore.consent();
+    assert.ok(c, "완료 후에도 ms_consent 가 비어 있다");
+    assert.strictEqual(typeof c.termsVersion, "string", "약관 버전이 문자열이 아니다");
+    assert.ok(c.termsVersion.length > 0, "약관 버전이 비어 있다");
+    assert.ok(typeof c.at === "string" && c.at.length > 0, "동의 시각(at)이 없다");
+    assert.ok(RealStore.onboarded(), "완료했는데 onboarded 가 안 켜졌다");
+  }, RealStore);
+});
+
+// 단언 4 — 5단계: 종목을 골라도 분석이 시작되지 않는다. 선택 후에도 결과가 없고, [분석 시작]
+// 버튼을 눌러야 시작된다. canAdvance(5) 가 state.r1 을 안 쓴다는 것은 위 "각 단계가 요구하는
+// 것" 시험이 이미 구조로 증명했다 — 여기서는 실제 화면(DOM)에서 같은 사실을 잰다.
+test("5단계 — 종목을 골라도 분석이 시작되지 않는다, [분석 시작]을 눌러야 시작된다", () => {
+  withDom(root => {
+    toStep5(root);
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true, "5단계 진입 시점부터 이미 열려 있다");
+    const readyNote = () => root.querySelectorAll(".ob-note").filter(n => deepText(n) === S.t.obPickReady);
+    assert.strictEqual(readyNote().length, 0, "5단계에 들어오자마자 '선택을 마쳤습니다'가 떠 있다");
+
+    pickChip(root);   // 선택만 한다 — 아직 아무것도 실행하지 않는다
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true,
+      "종목을 고르기만 했는데 다음이 열렸다 — 선택이 곧 실행이 된 옛 버그가 되돌아왔다");
+    assert.strictEqual(readyNote().length, 0, "선택만 했는데 결과 문구가 이미 떴다 — 결과가 없어야 한다");
+
+    const startBtn = root.querySelector(".ob-pick-start");
+    assert.ok(startBtn, "[분석 시작] 버튼이 없다");
+    assert.strictEqual(startBtn.disabled, false, "종목을 골랐는데 시작 버튼이 비활성이다");
+
+    startBtn.click();   // 여기서 처음 실행된다
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false,
+      "[분석 시작]을 눌렀는데도 다음이 안 열렸다");
+    assert.strictEqual(readyNote().length, 1, "실행 후에도 결과 문구가 없다");
+  });
+});
+
+// canAdvance(5) 소스 자체가 state.r1 을 참조하지 않는지 — "말로는 안 쓴다"가 아니라 실제
+// 코드 모양으로 잰다(구조적 증명, 위 두 시험은 행동으로 증명한다).
+test("5단계 — canAdvance 의 5단계 분기는 state.r1 을 참조하지 않는다(소스 형태)", () => {
+  const m = OB.match(/if\s*\(\s*step\s*===\s*5\s*\)\s*return[^;]+;/);
+  assert.ok(m, "canAdvance 에 5단계 분기가 없다");
+  assert.doesNotMatch(m[0], /\br1\b/, "5단계 진행 조건이 여전히 state.r1 을 본다: " + m[0]);
+  assert.match(m[0], /\bsym\b/, "5단계 진행 조건이 state.sym 을 안 본다: " + m[0]);
+});
+
+// 단언 5 — 종목을 못 찾거나 봉이 부족하면 다음 행동 버튼이 있다(막다른 골목 금지). 정상
+// 경로만 돌리고 "버튼 있음"을 단언하면 자명 통과다 — 실제로 그 상태를 만들어 잰다.
+test("5단계 — 종목을 못 찾으면 '다른 종목 선택' 버튼이 실제로 뜬다(막다른 골목 금지)", async () => {
+  const fakeApi = { loadTicker: function () { return Promise.reject({ notfound: true }); } };
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    await flush();
+    const warn = root.querySelector(".ob-warn");
+    assert.ok(warn, "못 찾음 상태인데 경고 문구가 없다");
+    assert.strictEqual(deepText(warn), S.t.obPickNotFound, "못 찾음 문구가 obPickNotFound 가 아니다: " + deepText(warn));
+    const retry = root.querySelector(".ob-retry");
+    assert.ok(retry, "다음 행동 버튼(.ob-retry)이 없다 — 막다른 골목이다");
+    assert.strictEqual(deepText(retry), S.t.obPickRetry, "다음 행동 버튼 문구가 obPickRetry 가 아니다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true, "실패했는데 다음이 열려 있다");
+    // 다음 행동이 실제로 동작한다 — 눌렀을 때 다시 고를 수 있는 상태로 돌아가야 한다.
+    retry.click();
+    assert.ok(root.querySelector(".tp-grid"), "다시 골라야 하는데 종목 고르기 그리드가 사라졌다");
+    assert.strictEqual(root.querySelector(".ob-warn"), null, "다시 고르는 화면에 옛 경고가 남아 있다");
+  }, { MSApi: fakeApi });
+});
+
+test("5단계 — 봉이 부족하면(찾았지만 데이터가 얕으면) '다른 종목 선택' 버튼이 실제로 뜬다", async () => {
+  // 찾긴 했지만 40봉뿐이다(문턱 60 미만) — "찾을 수 없음"과는 다른 실패 갈래다.
+  const thinCandles = [];
+  for (let i = 0; i < 40; i++) thinCandles.push({ t: "2026-01-0" + (1 + (i % 9)), o: 1, h: 1.1, l: 0.9, c: 1, v: 100 });
+  const fakeApi = { loadTicker: function () { return Promise.resolve({ candle: thinCandles }); } };
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    await flush();
+    const warn = root.querySelector(".ob-warn");
+    assert.ok(warn, "봉 부족 상태인데 경고 문구가 없다");
+    assert.strictEqual(deepText(warn), S.t.obPickThin, "봉 부족 문구가 obPickThin 이 아니다: " + deepText(warn));
+    const retry = root.querySelector(".ob-retry");
+    assert.ok(retry, "다음 행동 버튼(.ob-retry)이 없다 — 막다른 골목이다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true, "봉이 부족한데 다음이 열려 있다");
+    retry.click();
+    assert.ok(root.querySelector(".tp-grid"), "다시 골라야 하는데 종목 고르기 그리드가 사라졌다");
+  }, { MSApi: fakeApi });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
 // 품질 다섯 규칙(설계서 §5, Task 2) — Q1·Q5 는 onboarding-quality.js 의 metric()·stat() 이
 // 스스로 강제한다(기준 시점·해석 없이는 만들 수 없다, test/onboarding-quality.test.mjs 참고).
 // Q2·Q4 는 여기서 각 단계 렌더 결과를 재고, Q3 은 소스 형태를 잰다.
@@ -1578,10 +1679,9 @@ function walkToStep(root, target) {
   for (var s = 1; s < target; s++) {
     if (s === 1) root.querySelector(".ob-guess-btn").click();
     // Task 5: 3단계(성향)는 기본 선택이 항상 채워져 있어 별도 입력 없이 다음으로 넘어간다.
-    if (s === 4) {
-      var pick = root.querySelector(".ob-pick");
-      if (pick) pick.click();
-    }
+    // Task 6: 4단계(동의)는 체크해야 5단계로 간다 — APPLIES 가 5 를 넘지 않는 한 5단계
+    // 자신을 떠날 필요(칩 선택·[분석 시작])는 없다.
+    if (s === 4) root.querySelector(".ob-agree").click();
     root.querySelector(".ob-next").click();
   }
 }
