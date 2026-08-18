@@ -7,9 +7,25 @@
 (function () {
   "use strict";
 
+  // 분석 탭 콜드 진입(리뷰 I3): 설치 → 온보딩 완료 직후 분석 탭을 가장 먼저 누르면
+  // p.sym 도 MSStore.getLastSym() 도 없다 — 아직 아무 종목도 본 적이 없으니 당연하다.
+  // 그렇다고 sym="" 로 넘기면 로드가 실패해 "리포트를 불러오지 못했습니다"만 뜨는데,
+  // 설치 직후 가장 하기 쉬운 조작이 막다른 골목이 되는 건 설계 §9.3 규칙 6 위반이다.
+  // 워치리스트 첫 종목까지 폴백을 넓힌다 — 온보딩이 최소 1종목을 담고 끝나므로(관문
+  // seed 의 ON.ms_watchlist 도 같은 전제) 보통은 여기서 채워진다. 워치리스트까지 비면
+  // (예: 온보딩 중 전부 지운 극단 케이스) sym 은 여전히 "" 로 남아 report.js 의 로드
+  // 실패 화면으로 가지만, 그 화면도 buildHead() 의 뒤로가기 버튼(→ watchlist)을 상태와
+  // 무관하게 항상 그리므로 탈출 경로는 있다 — 완전한 막다른 골목은 아니다.
+  function firstWatchlistSym() {
+    var wl = MSStore.getWatchlist();
+    return (wl.length && wl[0].sym) || "";
+  }
+
   var SCREENS = [
     { id: "watchlist", tab: "list",     render: function (el) { MSWatchlist.render(el); } },
-    { id: "report",    tab: "analysis", render: function (el, p) { MSReport.render(el, { sym: p.sym || MSStore.getLastSym() }); } },
+    { id: "report",    tab: "analysis", render: function (el, p) {
+        MSReport.render(el, { sym: p.sym || MSStore.getLastSym() || firstWatchlistSym() });
+      } },
     { id: "wallet",    tab: "scoop",    render: function (el) { MSWalletScreen.render(el); } },
     { id: "record",    tab: "scoop",    render: function (el) { MSRecord.render(el); } },
     { id: "result",    tab: "list",     render: function (el, p) { MSResult.render(el, { sym: p.sym, asOf: p.asOf }); } },

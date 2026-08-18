@@ -13,9 +13,10 @@
 // assert 는 (리뷰 C2) **①MSApp.current().route 가 기대한 라우트인가 + ②그 화면에만 있는
 // 표식이 있는가** 의 AND 다. 이전엔 wallet 이 '스쿱'(브랜딩 — 다른 화면에도 있다)을,
 // record·result 는 textContent.length > 50(워치리스트도 넘는다)을 썼다 — go() 가 실패해
-// 워치리스트에 머물러도 통과하는 구멍이었다. 화면 고유 클래스 접두(wl-/rp-/wal-/rc-/rs-)를
-// 두 번째 조건으로 쓴다. **Task 4 이후**: 셸이 화면마다 data-screen 표식을 붙이면 그걸로
-// 조여라 — 지금의 class-접두 방식보다 리팩터에 덜 취약하다.
+// 워치리스트에 머물러도 통과하는 구멍이었다. **리뷰 I5로 이행 완료**: 두 번째 조건은
+// 이제 화면 고유 클래스 접두가 아니라 `[data-screen="<id>"]`(shell.js 의 render() 가 매
+// 전환마다 #app 에 붙인다)다 — P1 이 화면 내부를 재작성해 그 클래스들이 사라져도 관문
+// 선택자가 안 깨진다. 온보딩만 예외(아래 참고, 셸 이전이라 data-screen 자체가 안 붙는다).
 const WL = [{ sym: "AAPL", name: "애플" }, { sym: "NVDA", name: "엔비디아" }, { sym: "TSLA", name: "테슬라" }];
 const ON = {
   ms_onboarded: true,
@@ -41,14 +42,15 @@ export const ROUTES = [
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데
   // 탭바가 없던(화면이 비어 있던) 것과 같은 부류의 사고를 이 경로에서 반복하지 않기 위해서다.
   { name: "watchlist", seed: { ...ON, ms_preds: PREDS }, go: null,
-    assert: "document.querySelectorAll('[data-sym]').length === 3 && document.querySelectorAll('.ms-tab').length === 3" },
+    assert: "MSApp.current().route === 'watchlist' && !!document.querySelector('[data-screen=\"watchlist\"]') && " +
+      "document.querySelectorAll('[data-sym]').length === 3 && document.querySelectorAll('.ms-tab').length === 3" },
   { name: "report", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 1200,
-    assert: "MSApp.current().route === 'report' && !!document.querySelector('.rp-chart') && " +
+    assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
       "!/불러오지 못했습니다/.test(document.getElementById('app').textContent)" },
   { name: "wallet", seed: ON, go: '"wallet"',
-    assert: "MSApp.current().route === 'wallet' && !!document.querySelector('.wal-bal')" },
+    assert: "MSApp.current().route === 'wallet' && !!document.querySelector('[data-screen=\"wallet\"]')" },
   { name: "record", seed: { ...ON, ms_preds: PREDS }, go: '"record"',
-    assert: "MSApp.current().route === 'record' && !!document.querySelector('.rc-head')" },
+    assert: "MSApp.current().route === 'record' && !!document.querySelector('[data-screen=\"record\"]')" },
   { name: "result", seed: { ...ON, ms_preds: PREDS }, go: '"result",{sym:"TSLA",asOf:"2026-08-14"}',
-    assert: "MSApp.current().route === 'result' && !!document.querySelector('.rs-verdict')" }
+    assert: "MSApp.current().route === 'result' && !!document.querySelector('[data-screen=\"result\"]')" }
 ];

@@ -106,7 +106,13 @@ function candles() {
   }
   return out;
 }
-const STATE = { balance: 9, cap: 20, streak: 3, checkedIn: true, today: "2026-08-17" };
+// 리뷰 I7: 필드명은 wallet-lib.php 의 w_state() 가 실제로 주는 모양(balance/cap/streakDays/
+// canCheckin)과 반드시 일치해야 한다 — 예전엔 streak/checkedIn/today 였는데, 그 셋은 서버
+// 어디에도 없는 이름이라 screens/wallet.js 의 `state.streakDays % 7` 이 항상 NaN 이 됐다
+// (프로덕션 버그가 아니라 이 mock 이 틀린 것 — 스크린샷의 "NaN일 남음"이 그 증거였다).
+// canCheckin:true 로 둬서 출석 CTA 프레임(전에는 이 필드가 아예 없어 한 번도 관문에
+// 안 걸렸다)도 이 경로에서 그려지게 한다.
+const STATE = { balance: 9, cap: 20, streakDays: 3, canCheckin: true };
 const WALLET = {
   hello: { ok: true, token: "t", accountId: "a1", state: STATE },
   get: { ok: true, state: STATE },
@@ -175,6 +181,14 @@ function probe(route) {
       'return _cw.apply(console,arguments);};' +
     '})();</script>\n';
   let html = base.replace(GTAG, collector + GTAG);
+  // 리뷰 I2: index.html 이 이 태그를 조금이라도 다르게 쓰면(속성 순서·따옴표·경로 변경 등)
+  // String.replace 는 매치가 없을 때 조용히 원본을 그대로 돌려준다(no-op) — 콘솔 오류 수집기
+  // (window.__gateErrs)가 안 심겨도 아무도 모른다. 관문은 초록인데 주 판정 그물(judge() 의
+  // ①콘솔 오류)이 통째로 안 걸린 채로 돈다는 뜻이라, 여기서 즉시 죽는다.
+  if (html === base) {
+    console.error("gate-browser: GTAG 치환이 no-op 이다 — index.html 에서 globals.js 태그를 못 찾았다: " + GTAG);
+    process.exit(1);
+  }
 
   const TAG = '<script src="app.js"></script>';
   let js = "<script>try{localStorage.clear();";
@@ -188,7 +202,16 @@ function probe(route) {
         'document.title="GATE:"+JSON.stringify({ok:ok,err:err,errs:(window.__gateErrs||[]),warns:(window.__gateWarns||[])});},' +
         (route.delay || 1500) + ');</script>';
   const name = "__gate_" + route.name + ".html";
+  const beforeAppTag = html;
   html = html.replace(TAG, js);
+  // 같은 이유(위 GTAG 참고) — 이 치환이 no-op 이면 상태 심기(seed)·MSApp.go() 호출·단언
+  // 스크립트가 전부 안 심겨 페이지가 index.html 원본 그대로 뜬다. document.title 도 안 바뀌니
+  // judge() 의 "단언이 실행되지 않았다(title 없음)" 경로로 새더라도, 원인은 여기서 바로
+  // 잡는 게 정직하다.
+  if (html === beforeAppTag) {
+    console.error("gate-browser: TAG 치환이 no-op 이다 — index.html 에서 app.js 태그를 못 찾았다: " + TAG);
+    process.exit(1);
+  }
   writeFileSync(path.join(WWW, name), html);
   return name;
 }

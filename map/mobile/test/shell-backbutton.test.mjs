@@ -1,3 +1,11 @@
+// ⚠️ 이 시험이 재는 것은 backbutton 핸들러 "안쪽 로직"(시트 우선 → router.back() → 종료)이지,
+// "안드로이드가 이 핸들러를 실제로 부르는가"가 아니다. 후자는 지금 거짓이다(P0 리뷰 C1
+// 실측 — Capacitor 8 인데 `@capacitor/app` 미도입이라 backbutton 은 Cordova 전용 이벤트로
+// 실기기에서 발화하지 않는다, shell.js 의 리스너 등록부 주석 참고). 여기서는
+// document.addEventListener("backbutton", fn) 로 등록된 fn 을 직접 붙잡아 손으로 발화시켜
+// 로직만 검증한다 — "실기기에서 눌렸을 때 불리는가"는 P1(플러그인 도입 + APK 재검증)에서만
+// 확인된다.
+//
 // 뒤로가기 배선(Task 5) — "시트가 열려 있으면 화면을 바꾸지 않는다"는 이 프로젝트가 죽었던
 // 유형의 결함이다: 소스 정규식(/closeTop/·/stack/)은 그 이름의 함수·변수가 있기만 하면
 // 통과하고, shell.test.mjs 는 backbutton 을 발화시키지 않으며, app.test.mjs 는 MSShell.mount

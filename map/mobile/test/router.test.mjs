@@ -65,6 +65,19 @@ test("등록되지 않은 화면으로 가면 던진다 — 오타가 조용히 
   assert.throws(() => r.go("reprot"), /등록되지 않은/);
 });
 
+test("go 로 스택에 이미 있는 화면으로 되돌아가면 그 위를 잘라낸다(되감기) — 뒤로가기가 되살리지 않는다", () => {
+  const r = MSRouter.create({ onRender: () => {} });
+  r.register({ id: "watchlist", tab: "list", render: function () {} });
+  r.register({ id: "result", tab: "list", render: function () {} });
+  r.go("watchlist");
+  r.go("result", { sym: "AAPL" });
+  r.go("watchlist");
+  assert.deepStrictEqual(r.stackOf("list").map(e => e.id), ["watchlist"],
+    "watchlist > result > watchlist 되감기 후 스택에 result 가 남아 있다");
+  assert.strictEqual(r.back(), false,
+    "되감긴 뒤에도 목록 탭 루트인데 back() 이 true 를 돌려줬다 — 스택이 실제로 안 줄었다");
+});
+
 test("onRender 는 그릴 때마다 정확히 한 번 불린다", () => {
   const { r, rendered } = mk();
   r.go("watchlist");
