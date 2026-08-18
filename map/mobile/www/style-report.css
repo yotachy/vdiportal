@@ -124,6 +124,34 @@
 .rp-hz-prev-w { flex:0 0 auto; }
 .rp-hz-note { margin-top:10px; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.5; }
 
+/* 3단 대조(시안 7a, 설계서 §3.3) — 이 개편의 판매 논거. 카드마다 왼쪽=답의 폭·오른쪽=적중률로
+   고정한다. 좌측 세로 라인 금지 규칙에 따라 티어 구분은 이름 텍스트 색(--steel/--gold/
+   --platinum)으로만 한다 — 보더·마커 어디에도 왼쪽 accent 를 쓰지 않는다. */
+.rp-tc { margin-bottom:22px; }
+.rp-tc-axis { margin:-2px 0 12px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
+.rp-tc-cards { display:flex; flex-direction:column; gap:10px; }
+.rp-tc-card { border:1px solid var(--border); border-radius:12px; padding:14px 14px 12px; background:var(--bg-raised); }
+.rp-tc-name { font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); margin-bottom:10px; }
+.rp-tc-card.is-basic .rp-tc-name { color:var(--steel); }
+.rp-tc-card.is-full .rp-tc-name { color:var(--gold); }
+.rp-tc-card.is-custom .rp-tc-name { color:var(--platinum); }
+.rp-tc-body { display:flex; align-items:stretch; gap:16px; }
+.rp-tc-width, .rp-tc-rate { flex:1 1 50%; min-width:0; }
+.rp-tc-range { font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink); font-variant-numeric:tabular-nums; }
+.rp-tc-range.is-muted { color:var(--ink-4); font-weight:var(--fw-body); }
+.rp-tc-widthval { margin-top:3px; font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
+/* 적중률 축 확대(55~70%) — 채움 막대는 좌우로만 자란다(좌측 세로 라인이 아니다). 기준선
+   점은 트랙 위에서 좌우로만 움직이는 위치 마커라 항목 경계 accent 와 다른 도형이다. */
+.rp-tc-bar { position:relative; height:6px; border-radius:99px; background:var(--track); overflow:visible; }
+.rp-tc-bar-fill { position:absolute; top:0; left:0; bottom:0; border-radius:99px; background:var(--gold); }
+.rp-tc-card.is-basic .rp-tc-bar-fill { background:var(--steel); }
+.rp-tc-bar-base { position:absolute; top:50%; width:6px; height:6px; border-radius:50%;
+                   background:var(--ink); transform:translate(-50%, -50%); box-shadow:0 0 0 2px var(--bg-raised); }
+.rp-tc-rateval { margin-top:8px; font-size:var(--fs-caption); color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.rp-tc-measuring { margin-top:1px; font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink-4); }
+.rp-tc-note { margin-top:10px; padding-top:10px; border-top:1px solid var(--hairline); font-size:var(--fs-sub); color:var(--ink-4); line-height:1.55; }
+.rp-tc-note.is-warn { color:var(--bear-text); }
+
 .rp-chart { position:relative; width:100%; margin-bottom:14px; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--bg-raised); }
 /* pan-y: 세로 스크롤은 살리고(Phase 1 의 350ms 홀드 계약) 핀치만 우리 핸들러로 가져온다.
    user-scalable=no 는 쓰지 않는다 — 페이지 전체의 브라우저 줌을 죽여 접근성이 후퇴한다. */

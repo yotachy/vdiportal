@@ -116,6 +116,9 @@ const KEY_ALLOWED_LATIN = {
   wDeviceClaimed: ["ID"],    // "기기 ID" — 국문 UI 에서도 그대로 쓰는 관용 약어
   rdLv: ["Lv"],              // 판독문 섹션 라벨 "Lv1 핵심 지표" — 시안 20a 표기 그대로.
                              // 지표 등급의 관용 표기이고 한글로 옮기면("수준1") 오히려 낯설다.
+  tcDeltaD: ["p"],           // 3단 대조(설계서 §3.3) "…%p 오릅니다" — %p(퍼센트포인트)는
+                             // 상위 설계서 §9 가 이미 쓰는 표기 그대로다("실측은 +0.3%p").
+                             // 국내 금융 UI 도 %p 를 그대로 쓴다(관용 약어, ID·Lv 와 같은 종류).
 };
 function untranslatedWordsForKey(key, v) {
   var extra = KEY_ALLOWED_LATIN[key];

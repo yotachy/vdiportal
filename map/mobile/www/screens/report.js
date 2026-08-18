@@ -473,6 +473,14 @@
       ? purchases[pendKey(sym, "full")] : null;
     var bought = boughtCustom || boughtFull;
     var state = "loading", errInfo = null, data = null, an = null, chartRefs = null;
+    // 3단 대조(시안 7a, 설계서 §3.3)의 "심화" 칸 재료 — 구매 없이 32지표 그래프를 로컬로 한
+    // 번 미리 돌려 중심값·오차를 낸다(onboarding.js runTier(data,"full") 와 같은 패턴 — 튜토
+    // 리얼도 과금 없이 심화를 미리 보여준다). basicSnap 과 달리 이 값은 화면 인스턴스(이
+    // render() 호출)를 넘어 살 필요가 없다 — 그래서 모듈 스코프가 아니라 여기, render() 지역
+    // 이다. 모듈 스코프에 뒀다면 종목을 빠르게 넘나들 때 이전 종목의 프리뷰가 다음 종목 화면에
+    // 잠깐이라도 잔류할 여지가 생긴다(basicSnap 은 sym 이 키인 dict라 안전하지만, 이 값은
+    // 단일 스칼라라 그 방어가 없다).
+    var fullPreview = null;         // { mid, err } | null
     var tier = boughtCustom ? "custom" : boughtFull ? "full" : "basic";
     var myWeights = boughtCustom ? boughtCustom.weights : null;
     var tfRuns = bought ? bought.runs : null;   // [{tf, out, error}] — Full 이 채운다
@@ -526,7 +534,7 @@
         an = analyzeFull(data);
         // 기본 티어의 '내일' 범위를 남긴다 — 심화를 사면 이 값이 대조 행이 된다.
         // 여기서만 적는다: 심화 분석 결과로 덮어쓰면 대조가 자기 자신과의 비교가 된다.
-        if (tier === "basic") snapBasic();
+        if (tier === "basic") { snapBasic(); computeFullPreview(); }
         state = "ready";
       } catch (e) {
         state = "error";
@@ -544,6 +552,20 @@
       var asOf = asOfOf(data);
       if (!asOf) return;                       // 기준일을 모르면 G2 를 지킬 수 없다 — 안 적는다
       basicSnap[sym] = { asOf: asOf, lo: pr.lo[0], hi: pr.hi[0], width: pr.hi[0] - pr.lo[0] };
+    }
+
+    // 3단 대조 카드(설계서 §3.3)의 심화 칸 — 32지표 그래프를 로컬로 한 번 돌려 "내일" 중심값·
+    // 오차를 낸다. 구매가 아니다(과금 없음, 온보딩 튜토리얼과 같은 패턴) — 그래서 지표별
+    // 판독값은 어디에도 노출하지 않는다. 이 프리뷰가 화면에 내는 건 딱 하나, 폭(width) 뿐이고
+    // 27개 잠긴 지표의 개별 방향은 계속 잠긴 채다. 실패해도 던지지 않는다 — 카드는 그냥 안 뜬다.
+    function computeFullPreview() {
+      fullPreview = null;
+      try {
+        var r = analyzeFull(data, true);
+        var pr = r && r.out && r.out.prediction;
+        if (!pr || !pr.lo || !pr.hi || !pr.lo.length) return;
+        fullPreview = { mid: pr.path[0], err: (pr.hi[0] - pr.lo[0]) / 2 };
+      } catch (e) { fullPreview = null; }
     }
 
     // 지난 판정 되돌아보기(시안 21a). 이 종목에서 값을 치른 적이 있고 그것이 **오늘보다
@@ -824,10 +846,15 @@
       var sec = MSUi.el("div", "rp-hz");
       var head = MSUi.el("div", "rp-sec-head");
       head.appendChild(MSUi.el("span", "overline", MSStr.t.rpHorizon));
-      var pr = an.out.prediction, lastI = pr.lo.length - 1;
-      if (lastI >= 0) {
+      var pr = an.out.prediction;
+      // 기본분석은 "내일"만 답한다(설계서 §3.2) — 머리글도 가장 먼 지평(전체 콘)이 아니라
+      // 내일 한 칸(index 0)의 범위여야 바로 아래 3단 대조 카드("232–236 · 폭 4.0")와 같은
+      // 숫자를 말한다. lastI(전체 경로의 끝)를 그대로 쓰면 머리글만 수십 봉 뒤의 넓은 콘을
+      // 보여줘 대조 카드와 서로 다른 폭을 주장하게 된다.
+      var capI = (tier === "basic") ? 0 : (pr.lo.length - 1);
+      if (capI >= 0 && capI < pr.lo.length) {
         head.appendChild(MSUi.el("span", "rp-sec-note",
-          MSUi.fmtPrice(pr.lo[lastI]) + " – " + MSUi.fmtPrice(pr.hi[lastI]) + MSStr.t.rpCone));
+          MSUi.fmtPrice(pr.lo[capI]) + " – " + MSUi.fmtPrice(pr.hi[capI]) + MSStr.t.rpCone));
       }
       sec.appendChild(head);
       // 8a 직전 상태 대조 — 심화가 판 것을 화면에서 보이게 하는 유일한 장치다. 티어 실측이
@@ -874,6 +901,83 @@
         }
       }
       return sec;
+    }
+
+    // 3단 대조(시안 7a, 설계서 §3.3) — 크롬이다(정보 블록 3개 verdict·comb·chart 에 안 낀다,
+    // report-blocks.js BASIC 선언 그대로). basic 전용, 재료(basicSnap·fullPreview) 가 없으면
+    // 카드를 통째로 생략한다 — G1 과 같은 원칙("—"나 추정치로 채우지 않는다).
+    function buildCompare() {
+      if (tier !== "basic") return null;
+      var snap = basicSnap[sym];
+      if (!snap || !isFinite(snap.lo) || !isFinite(snap.hi)) return null;
+      if (!fullPreview || !isFinite(fullPreview.mid) || !isFinite(fullPreview.err)) return null;
+
+      var rows = MSTierCompare.rows({ lo: snap.lo, hi: snap.hi, mid: fullPreview.mid, err: fullPreview.err });
+      // 판단 지점(중요) — 콘 폭은 엔진 안에서 가격 변동성(sigBand·trChSig)으로 정해지고
+      // 지표 개수와 독립이다(실측: 32지표 그래프가 5지표보다 넓은 콘을 낸 사례가 실제로
+      // 있었다) — "심화가 파는 건 범위입니다"는 **31,971건 평균**(콘 커버리지 73.8%→77.1%)
+      // 이야기지, 종목 하나하나가 항상 좁아진다는 보장이 아니다. 이 카드는 판매 논거라
+      // 어쩌다 반대로 나온 종목에서 "폭이 늘었습니다"를 보여주면 리터럴 오류만큼 나쁘다 —
+      // 그래서 이번 프리뷰가 실제로 안 좁혀지면 카드를 통째로 생략한다(G1 과 같은 원칙,
+      // 지어낸 값을 넣느니 안 보여준다). 강제로 좁히거나 숫자를 조정하지 않는다.
+      var fullRow = rows[1];
+      if (!isFinite(fullRow.width) || !isFinite(rows[0].width) || fullRow.width >= rows[0].width) return null;
+      var base = MSTierCompare.baseline();
+
+      var wrap = MSUi.el("div", "rp-tc");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.tcHead));
+      wrap.appendChild(head);
+      // 축 확대 표기 — 없으면 과장 그래프가 된다(설계서 §3.3). 문구 자체에 55~70 을 담아
+      // "몇 %까지 확대했는지"가 카드 밖으로 새지 않게 strings.js 에 고정 문장으로 둔다.
+      wrap.appendChild(MSUi.el("div", "rp-tc-axis", MSStr.t.tcAxisNoteA + MSStr.t.tcAxisNoteB));
+
+      var list = MSUi.el("div", "rp-tc-cards");
+      rows.forEach(function (r) {
+        var badge = TIER_BADGE[r.tier] || TIER_BADGE.basic;
+        var card = MSUi.el("div", "rp-tc-card is-" + r.tier);
+        card.appendChild(MSUi.el("div", "rp-tc-name", badge.name));
+
+        var body = MSUi.el("div", "rp-tc-body");
+
+        // 왼쪽 = 답의 폭.
+        var widthCol = MSUi.el("div", "rp-tc-width");
+        if (r.lo != null && r.hi != null && r.width != null) {
+          widthCol.appendChild(MSUi.el("div", "rp-tc-range",
+            MSUi.fmtPrice(r.lo) + MSStr.t.rpRangeDash + MSUi.fmtPrice(r.hi)));
+          widthCol.appendChild(MSUi.el("div", "rp-tc-widthval", MSStr.t.rpWidthA + r.width.toFixed(1)));
+        } else {
+          widthCol.appendChild(MSUi.el("div", "rp-tc-range is-muted", MSStr.t.tcCustomRange));
+        }
+        body.appendChild(widthCol);
+
+        // 오른쪽 = 적중률. 기준선 없이는 절대 rate 를 단독 노출하지 않는다(설계서 §9.3 규칙9) —
+        // rate 나 baseline 어느 한쪽이라도 없으면 "측정 중"으로 통일해 그린다.
+        var rateCol = MSUi.el("div", "rp-tc-rate");
+        if (r.rate != null && base != null) {
+          var bar = MSUi.el("div", "rp-tc-bar");
+          var fill = MSUi.el("div", "rp-tc-bar-fill");
+          fill.style.width = MSTierCompare.axisPos(r.rate) + "%";
+          bar.appendChild(fill);
+          var mark = MSUi.el("div", "rp-tc-bar-base");
+          mark.style.left = MSTierCompare.axisPos(base) + "%";
+          bar.appendChild(mark);
+          rateCol.appendChild(bar);
+          rateCol.appendChild(MSUi.el("div", "rp-tc-rateval",
+            MSStr.t.tcRateLabel + r.rate.toFixed(1) + "%" + MSStr.t.tcBaselineLabel + base.toFixed(1) + "%"));
+        } else {
+          rateCol.appendChild(MSUi.el("div", "rp-tc-measuring", MSStr.t.tcMeasuring));
+        }
+        body.appendChild(rateCol);
+        card.appendChild(body);
+
+        // 심화의 불리한 사실 · 전문의 하향 경고 — 둘 다 note 에 실려 온다(tier-compare.js).
+        if (r.note) card.appendChild(MSUi.el("div", "rp-tc-note" + (r.tier === "custom" ? " is-warn" : ""), r.note));
+
+        list.appendChild(card);
+      });
+      wrap.appendChild(list);
+      return wrap;
     }
 
     function buildChartSection() {
@@ -1385,6 +1489,16 @@
           var node = fn();
           if (node) scr.appendChild(node);
         });
+        // "내일은 어디쯤 · 3단 대조"(설계서 §3.2 항목4) — 이것도 CTA 와 같은 크롬이다.
+        // report-blocks.js 에는 애초에 이 둘의 id 가 없다(정보 블록 3개에 안 낀다) — 그래서
+        // forTier 선언 루프가 아니라 여기서 직접 부른다. basic 전용, 재료가 없으면(G1) 각
+        // build 함수가 스스로 null 을 돌려줘 그 자리에 아무것도 안 붙는다.
+        if (tier === "basic") {
+          var hz = buildHorizons();
+          if (hz) scr.appendChild(hz);
+          var cmp = buildCompare();
+          if (cmp) scr.appendChild(cmp);
+        }
         // 해제 CTA(buildCta)는 선언 밖에서 부른다 — 시안 18a 의 "판정·빗·차트 정보 블록
         // 3개"는 CTA·빈 공간을 안 센다(report-blocks.js 의 주석·리뷰 지시). 그렇다고 CTA 를
         // 아예 안 부르면 기본분석에서 심화·전문으로 올라갈 유일한 입구(단계 선택 시트)가

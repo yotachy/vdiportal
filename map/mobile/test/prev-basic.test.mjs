@@ -53,7 +53,10 @@ test("대조는 심화 이상에서만 — 기본이 자기 자신과 비교하�
 });
 
 test("스냅샷은 기본 분석 직후에만 찍힌다 — 심화 결과로 덮으면 자기 자신과의 비교가 된다", () => {
-  assert.match(REPORT, /if \(tier === "basic"\) snapBasic\(\);/,
+  // P1a Task 4 가 같은 basic 전용 가드 안에 computeFullPreview() 를 더했다(3단 대조의
+  // 심화 프리뷰 재료 — 역시 기본 티어에서만 의미가 있다) — 그래서 단문이 아니라 중괄호
+  // 블록이 됐다. "티어를 안 보고 찍는지"의 본질(안쪽에 snapBasic() 호출이 있는지)은 그대로 잰다.
+  assert.match(REPORT, /if \(tier === "basic"\) \{\s*snapBasic\(\);/,
     "티어를 안 보고 스냅샷을 찍는다");
   const calls = REPORT.match(/snapBasic\(\)/g) || [];
   assert.strictEqual(calls.length, 2, "snapBasic 정의 1 + 호출 1 이어야 한다(지금 " + calls.length + ")");
