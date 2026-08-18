@@ -44,9 +44,30 @@ export const ROUTES = [
   { name: "watchlist", seed: { ...ON, ms_preds: PREDS }, go: null,
     assert: "MSApp.current().route === 'watchlist' && !!document.querySelector('[data-screen=\"watchlist\"]') && " +
       "document.querySelectorAll('[data-sym]').length === 3 && document.querySelectorAll('.ms-tab').length === 3" },
+  // P1a Task 3(기본분석 리포트) — node 시험(report-basic.test.mjs)은 가짜 DOM 조립을 잰다.
+  // 여기서는 **실제 브라우저**가 같은 결과를 내는지를 재차 확인한다 — 이 프로젝트가 반복
+  // 겪은 "관문은 초록인데 화면은 다른 말을 한다" 사고의 구멍은 언제나 가짜 DOM 과 실제
+  // 레이아웃(CSS 캐스케이드·실제 getComputedStyle)이 갈라지는 지점에서 생겼다.
   { name: "report", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 1200,
     assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
-      "!/불러오지 못했습니다/.test(document.getElementById('app').textContent)" },
+      "!/불러오지 못했습니다/.test(document.getElementById('app').textContent) && " +
+      "(function(){" +
+        "var bar=document.querySelector('.rp-comb-bar');" +
+        "if(!bar||bar.children.length!==32) return false;" +               // 지표 빗 32칸
+        "if(bar.querySelectorAll('.is-steel').length!==5) return false;" +
+        "if(bar.querySelectorAll('.is-locked').length!==27) return false;" +
+        "var sub=document.querySelector('.rp-verdict-sub');" +
+        "if(!sub||/%/.test(sub.textContent)) return false;" +              // 판정 부제에 퍼센트 없음
+        "var unlock=document.querySelector('.rp-unlock');" +
+        "if(!unlock) return false;" +                                     // 해제 CTA 존재(직전 사고 재발 방지)
+        "var ad=unlock.querySelector('.rp-cta-ad'), scoop=unlock.querySelector('.rp-cta-scoop');" +
+        "if(!ad||!scoop) return false;" +
+        "var kids=Array.prototype.slice.call(unlock.children);" +
+        "if(kids.indexOf(ad) > kids.indexOf(scoop)) return false;" +       // 광고가 스쿱보다 먼저(DOM 순서)
+        "var rt=document.querySelector('.rp-readtools');" +
+        "if(!rt||rt.children.length!==0) return false;" +                  // 읽은 도구 = 접힌 한 줄
+        "return true;" +
+      "})()" },
   { name: "wallet", seed: ON, go: '"wallet"',
     assert: "MSApp.current().route === 'wallet' && !!document.querySelector('[data-screen=\"wallet\"]')" },
   // 2026-08-18 리뷰(Critical): 기본만 여는 관문이 "심화·전문이 8/9개 중 3~4개만 그린다"는
@@ -61,7 +82,10 @@ export const ROUTES = [
   // 이 라우트는 락 화면 대신 실제 분석 화면을 재도록 다시 써야 한다 — report-blocks.test.mjs
   // 의 "PENDING 이 비어있지 않은 티어가 실제로 있다" 단언이 그 시점을 알려준다.
   { name: "report-locked-tiers", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}',
-    click: ".rp-cta", clickDelay: 1800, delay: 3200,
+    // P1a Task 3 가 해제 블록을 버튼 하나에서 둘(광고·스쿱)로 늘렸다(설계서 §3.2 항목5) —
+    // `.rp-cta` 는 이제 둘 다에 걸리므로 시트를 여는 쪽(스쿱)을 명시해서 클릭한다. 광고
+    // 버튼은 MSAds/adConfig 왕복이라 이 잠금 시트 검증과 무관하다.
+    click: ".rp-cta-scoop", clickDelay: 1800, delay: 3200,
     assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
       "(function(){" +
         "var full=document.querySelector('.sheet-tier.tier-full');" +

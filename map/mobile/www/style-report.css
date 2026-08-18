@@ -22,6 +22,10 @@
 .rp-tier-row { display:flex; align-items:center; gap:10px; padding:4px 0 20px; }
 .rp-tier { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:6px; background:var(--steel-soft); color:var(--steel); font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); }
 .rp-tier-desc { font-size:var(--fs-caption); color:var(--ink-4); }
+/* 성향 칩(설계서 §3.2 헤더) — 티어 배지(steel/gold/platinum)와 구분되게 중립 톤으로 둔다.
+   탭 동작은 P2 라 지금은 버튼이 아니라 표시용 span 이다. */
+.rp-style-chip { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:6px;
+                  background:var(--surface); color:var(--ink-4); font-size:var(--fs-caption); }
 /* Full 등급 배지 — 삼색 체계상 "엔진이 말한 것"이라 골드다(Basic 은 steel). */
 .rp-tier.is-full { background:var(--gold-soft); color:var(--gold); }
 /* 전문 등급 배지 — 심화와 같은 골드 계열이되 채워서 한 칸 위임을 보인다(시안 18c 헤더). */
@@ -35,32 +39,24 @@
 .rp-verdict.bull { color:var(--bull); }
 .rp-verdict.bear { color:var(--bear-text); }
 .rp-verdict.neutral { color:var(--ink-2); }
-/* 판정 퍼센트 — 방향어와 같은 줄, 시안 2a "Bullish 68%". flex-wrap — .rp-tally 는
-   flex-shrink:0(막대 112px 사수)라 nowrap 이면 좁은 폭에서 그 고정폭이 방향어를 밀어붙여
-   글자 자체가 음절 중간에서 꺾인다("우세"가 "우"/"세"로 갈라짐, 320·360px 실측). wrap 을
-   허용하면 방향어+퍼센트가 한 줄을 지키고 tally 만 아래 줄로 내려간다 — --fs-headline 의
-   clamp() 는 그 한 줄이 실제로 들어맞게 하는 절반, 이 wrap 이 나머지 절반이다. */
 .rp-verdict { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; }
-.rp-conf-pct { font-size:var(--fs-figure); font-weight:var(--fw-figure); letter-spacing:var(--ls-figure); }
-
-/* 적중/오답 — 막대를 그리지 않는다. 두 값이 합해서 100 이라 막대가 더해주는 정보가 없고,
-   이 화면에서 시선을 끌 것은 판정 퍼센트다(시안 2a "골드는 화면당 한 번만"). */
-.rp-hit { font-size:var(--fs-sub); color:var(--ink-3); margin-top:8px; font-variant-numeric:tabular-nums; }
-/* 베이스라인은 적중률과 같은 크기다 — 작게 그리면 "참고"로 읽히는데, 이 행의 요점은
-   위 숫자가 그 아래라는 사실이다(P2 §2 R2). 색만 한 단계 낮춘다. */
-.rp-hit-base { font-size:var(--fs-sub); color:var(--ink-4); margin-top:3px; font-variant-numeric:tabular-nums; }
-.rp-hit-note { font-size:var(--fs-caption); color:var(--ink-5); margin-top:4px; line-height:1.5; }
-.rp-conf { font-size:var(--fs-sub); color:var(--ink-3); margin-top:7px; }
 .rp-verdict-wrap .overline { margin-bottom:8px; }
+/* 부제 — "도구 5개 중 4개가 상승을 가리킴"(시안 18a). basic 전용이라 퍼센트가 없다 —
+   확신%·적중률·베이스라인은 P1b 의 forecast·hitrate 블록(값을 지불한 티어) 몫이다. */
+.rp-verdict-sub { margin-top:8px; font-size:var(--fs-sub); color:var(--ink-3); line-height:1.5; }
 
-/* 방향 집계 + 3구간 바(시안 2a). 판정 오른쪽에 붙어 확신 수치의 근거를 한눈에 보여준다. */
-.rp-tally { margin-left:auto; text-align:right; flex:0 0 auto; }
-.rp-tally-txt { font-size:var(--fs-caption); letter-spacing:var(--ls-caption); color:var(--ink-4); white-space:nowrap; }
-.rp-tally-bar { display:flex; gap:2px; width:112px; margin-top:5px; }
-.rp-tally-seg { height:3px; border-radius:99px; }
-.rp-tally-seg.is-up { background:var(--bull); }
-.rp-tally-seg.is-flat { background:var(--neutral); }
-.rp-tally-seg.is-down { background:var(--bear); }
+/* 지표 빗(comb, 시안 18a) — 막대 하나가 도구 하나. 스틸 5(위=상승·아래=하락, 실제 방향만
+   채운다) + 연한 골드 27(안 읽은 것, 같은 리듬으로 그려 27개 자물쇠 아이콘의 이질감을
+   피한다). 잠김 설명은 칸이 아니라 .rp-comb-note 한 줄로 뺀다(설계서 §3.2 "차트 밖 한 줄"). */
+.rp-comb { margin-bottom:22px; }
+.rp-comb-bar { display:flex; align-items:stretch; gap:2px; height:26px; }
+.rp-comb-cell { flex:1 1 0; min-width:0; border-radius:2px; overflow:hidden; }
+.rp-comb-cell.is-steel { display:flex; flex-direction:column; gap:1px; }
+.rp-comb-up, .rp-comb-down { flex:1 1 50%; background:var(--track); }
+.rp-comb-up.is-on { background:var(--bull); }
+.rp-comb-down.is-on { background:var(--bear); }
+.rp-comb-cell.is-locked { background:var(--gold-soft); }
+.rp-comb-note { margin-top:10px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
 
 /* 섹션 머리 — 오버라인 왼쪽, 캡션 오른쪽(시안 2a 의 "80% cone" · "5 of 12 shown") */
 
@@ -181,6 +177,19 @@ body:not(.ms-dual) .rp-scr { display:flex; flex-direction:column; min-height:cal
 /* 해제 카드 — 버튼 하나가 아니라 "무엇이 빠져 있는지"를 먼저 말하는 카드다. */
 .rp-unlock { margin-top:8px; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--sheet); }
 .rp-unlock-line { margin:0 0 12px; white-space:pre-line; font-size:var(--fs-body); color:var(--ink-2); line-height:1.5; }
+/* 해제 두 버튼(설계서 §3.2 항목5) — 광고는 행동 전용 바이올렛(전역 3색 규칙), 비용 숫자만
+   골드(화폐). 스쿱 버튼은 .rp-cta(style-expert.css, 아웃라인)를 그대로 물려받아 광고보다
+   한 단 낮은 무게로 둔다 — 실행은 하나만 강조해야 한다(1순위=광고).
+   .rp-unlock 을 함께 건다(특이도 0,2,0) — style-expert.css 의 .rp-cta(투명 배경, 0,1,0)가
+   캐스케이드 순서상 이 파일보다 **뒤**에 실려서(분할본 4/9 → 6/9) 단일 클래스로는 지는
+   싸움이었다(실측: 헤드리스 스크린샷에서 광고 버튼이 바이올렛 없이 아웃라인으로만 보였다). */
+.rp-unlock .rp-cta-ad { display:flex; align-items:center; justify-content:center; gap:8px;
+             background:var(--action); border-color:var(--action); color:var(--gold-ink); font-weight:var(--fw-bold); }
+.rp-cta-badge { padding:2px 8px; border-radius:99px; background:rgba(0,0,0,.18); font-size:var(--fs-caption); }
+.rp-unlock .rp-cta-scoop { margin-top:8px; display:flex; align-items:center; justify-content:center; gap:4px; }
+.rp-cta-scoop-cost { color:var(--gold); font-weight:var(--fw-bold); font-variant-numeric:tabular-nums; }
+/* 읽은 도구 접힌 한 줄(설계서 §3.2 항목6) — 해제 블록 아래, 화면 맨 끝. */
+.rp-readtools { margin-top:14px; font-size:var(--fs-caption); color:var(--ink-5); }
 
 /* ===== 어제 결과 상세(시안 17b 맞힘 / 14b 빗나감) =====
    두 갈래는 규칙이 정반대다 — 맞힌 날만 광고를 권하고, 빗나간 날은 전문분석을 제안한다.
