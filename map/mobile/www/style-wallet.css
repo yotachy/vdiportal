@@ -11,7 +11,11 @@
 .ms-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:99px;
            background:var(--steel-soft); border:1px solid var(--border); color:var(--ink-2);
            font:inherit; font-size:var(--fs-caption); font-weight:var(--fw-semibold); font-variant-numeric:tabular-nums; min-height:32px; flex:0 0 auto; }
-.ms-pill-ico { color:var(--gold); }
+/* 아이콘은 이제 리터럴 "◆" 가 아니라 scoopMark() 의 인라인 SVG(22×22 고정 마크업, ui.js) —
+   32px 필 안에서 14px 로 눌러준다. svg 자체의 width/height 속성을 CSS 가 덮어써야 한다
+   (HTML 속성이 아니라 CSS 크기가 이겨야 필 높이를 안 뚫는다). */
+.ms-pill-ico { display:flex; color:var(--gold); }
+.ms-pill-ico svg { width:14px; height:14px; display:block; }
 .ms-pill.is-empty .ms-pill-n { min-width:1ch; }
 
 /* 섹션 오버라인 — 시안이 Earn/Spend 같은 구획 머리에 쓰는 형태(10.5px · .14em · 대문자) */

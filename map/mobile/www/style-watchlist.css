@@ -46,13 +46,15 @@
    20px 그대로였으니 이 줄을 지우는 쪽이 화면 전체와 맞는다). */
 /* 구분선은 border-top 이다(시안 14a) — 마지막 행 아래로 선이 내려가 리스트가 닫혀 보이는 것을 막는다. */
 .wl-row { display:flex; align-items:center; gap:12px; height:64px; border-top:1px solid var(--hairline); }
-/* 읽음 상태 점 — 방향(bull/bear)이 아니라 "이 판정을 봤는가"를 그린다(시안 14a). 목록은
+/* 읽음 상태 점(3종, 시안 14a) — 방향(bull/bear)이 아니라 "이 판정을 봤는가"를 그린다. 목록은
    판정 방향을 더 이상 흘리지 않는다 — 확신 배지를 뺀 것과 같은 결정. 스캔 결과가 아예 없으면
-   (rec 없음) 클래스가 안 붙어 채움도 링도 없다. "오래됨"(3번째 상태)은 아직 없다 — store.js
-   viewedScanKey 주석 참고. */
+   (rec 없음) 클래스가 안 붙어 채움도 링도 없다. "오래됨"은 P1a Task 6 에서 붙었다(watchlist-model.js
+   readState 참고) — 채움은 채움이되 회색이라 "새 판정"과 실루엣이 갈린다(색각 이상에서도
+   구분되게, 링과도 겹치지 않게). */
 .wl-dot { width:8px; height:8px; border-radius:99px; flex:0 0 8px; background:none; }
 .wl-dot.unread { background:var(--action); }              /* 새 판정 — 바이올렛 채움 */
 .wl-dot.read { background:none; border:1.5px solid var(--ink-5); }  /* 읽음 — 빈 링 */
+.wl-dot.old { background:var(--ink-4); }    /* 판독 오래됨 — 회색 채움(읽음의 빈 링과 실루엣으로 갈린다) */
 .wl-row.is-sel .wl-dot { box-shadow:0 0 0 3px var(--track); }
 .wl-id { flex:1 1 auto; min-width:0; }
 .wl-title { font-size:var(--fs-body); font-weight:var(--fw-bold); letter-spacing:var(--ls-slight); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

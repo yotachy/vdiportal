@@ -6,10 +6,19 @@
   function fmt(n) { return (typeof n === "number" && isFinite(n)) ? String(n) : ""; }
 
   // 필은 비동기로 채워진다 — get() 이 오기 전엔 빈칸이다. 지금은 로컬이라 즉시지만 8b 에선 네트워크다.
+  //
+  // 아이콘은 리터럴 "◆"(다이아몬드)가 아니라 scoopMark() — 시안 14a 실측(2026-08-18, P1a
+  // Task 6): 헤더 좌측 브랜드 마크(watchlist.js wl-brand-mark)와 우측 필이 같은 스쿱 글리프를
+  // 쓴다. 다이아몬드는 마크가 아니라 그 자리에 있던 자리표시자였다 — balanceMark()(아래, 지갑
+  // 화면 10b)와 같은 이유로 같은 함수를 쓴다: 브랜드 마크가 화면마다 따로 그려지면 자물쇠가
+  // 그랬듯 조용히 갈린다. fillPct 는 표시용 장식일 뿐 실제 잔량/한도 비율이 아니다 — 헤더
+  // 마크(scoopMark(42), watchlist.js)와 같은 고정값을 써서 "같은 마크"로 보이게 한다.
   function pill(onTap) {
     var el = MSUi.el("button", "ms-pill is-empty");
     el.setAttribute("aria-label", MSStr.t.walTitle);
-    el.appendChild(MSUi.el("span", "ms-pill-ico", "◆"));
+    var ico = MSUi.el("span", "ms-pill-ico");
+    ico.innerHTML = MSUi.scoopMark(42);
+    el.appendChild(ico);
     el.appendChild(MSUi.el("span", "ms-pill-n", ""));
     if (onTap) el.addEventListener("click", onTap);
     refreshPills();

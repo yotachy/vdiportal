@@ -300,7 +300,14 @@ function fakeStore(list) {
     // 읽음 상태(시안 14a) — 이 스위트는 스캔 결과가 없는 행만 다루므로(allScans 가 항상 {})
     // row() 가 호출은 하되 항상 null 을 받는다. 그래도 함수 자체가 없으면 TypeError 로 죽는다.
     viewedScanKey: function () { return null; }, markScanViewed: function () {},
-    read0: function (k, d) { return d; }, write0: function () {}
+    read0: function (k, d) { return d; }, write0: function () {},
+    // P1a Task 6 — drawRows() 가 행마다 today 를 한 번 계산해 readState() 로 넘긴다
+    // (store.js 의 진짜 localDate() 와 같은 포맷). 함수가 없으면 TypeError 로 죽는다 —
+    // 위 viewedScanKey 와 같은 이유.
+    localDate: function (d) {
+      var y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+      return y + "-" + (m < 10 ? "0" + m : m) + "-" + (day < 10 ? "0" + day : day);
+    }
   };
 }
 
@@ -324,6 +331,10 @@ function setupWatchlistGlobals(opts) {
   put("MSWalletScreen", { pill: function () { return new WlNode("span"); }, refreshPills: function () {} });
   put("MSScan", { createScanner: function () { return { run: function () { return Promise.resolve({ done: 0 }); } }; } });
   put("MSWallet", { costOf: function () { return 0; } });
+  // ＋Add 시트(P1a Task 6)는 이제 MSSheet(sheet.js, P0)를 쓴다 — 캐시를 비우고 새로 받는다
+  // (sheet.js 는 모듈 스코프 stack 을 들고 있다, tier-sheet.test.mjs 와 같은 이유).
+  delete require.cache[require.resolve("../www/sheet.js")];
+  put("MSSheet", require("../www/sheet.js"));
   return { saved: saved, doc: doc };
 }
 function restoreGlobals(saved) {
@@ -345,9 +356,12 @@ async function withWatchlistDomAsync(opts, fn) {
 }
 function flush() { return new Promise(function (r) { setTimeout(r, 0); }); }
 
-// 뮤테이션 (a): 시트를 document.body 대신 워치리스트 자신의 DOM(root/scr) 안에 붙이면 여기서 잡힌다 —
-// 실행해서 확인했다: openAddSheet 안의 `document.body.appendChild(scrim)` 을 `root.appendChild(scrim)` 로
-// 바꿔 돌려보니 아래 "root 안에는 없다" 단언과 "재렌더 후에도 살아있다" 단언이 둘 다 실패했다(되돌림).
+// 뮤테이션 (a): 시트를 document.body 대신 워치리스트 자신의 DOM(root/scr) 안에 붙이면 여기서 잡힌다.
+// P1a Task 6 이 openAddSheet 를 MSSheet(sheet.js)로 이관했다 — `document.body.appendChild`
+// 자체는 이제 이 파일이 아니라 sheet.js 안에 있지만(MSSheet.open()), 관측되는 계약은 그대로다:
+// 시트는 document.body 에 붙고, 워치리스트 재렌더가 그걸 지우면 안 된다. 이 시험은 이제
+// 그 계약을 지키는 것이 watchlist.js(MSSheet 를 실제로 부르는가)와 sheet.js(실제로 body 에
+// 붙이는가) 둘 다의 몫이라는 것까지 함께 잰다 — 어느 한쪽만 옳아도 이 단언들은 실패한다.
 test("watchlist.js 실행 — ＋Add 시트는 document.body 에 붙고, 워치리스트 재렌더 후에도 살아남는다", () => {
   withWatchlistDom({ store: fakeStore([{ sym: "AAPL", name: "Apple" }]) }, function (root, doc) {
     MSWatchlist.render(root);
@@ -355,15 +369,15 @@ test("watchlist.js 실행 — ＋Add 시트는 document.body 에 붙고, 워치�
     assert.ok(addBtnEl, "Add 버튼이 없다");
     addBtnEl.dispatch("click");
 
-    var sheet = doc.body.querySelector(".sheet-scrim");
+    var sheet = doc.body.querySelector(".ms-sheet-backdrop");
     assert.ok(sheet, "시트가 document.body 에 없다");
     assert.strictEqual(sheet.parentNode, doc.body, "시트의 부모가 document.body 가 아니다");
-    assert.strictEqual(root.querySelector(".sheet-scrim"), null,
+    assert.strictEqual(root.querySelector(".ms-sheet-backdrop"), null,
       "시트가 워치리스트 자신의 DOM 트리 안에도 들어 있다 — root.innerHTML='' 재렌더가 지운다");
 
     // 워치리스트가 다시 그려져도(drawShell 재호출과 같은 경로) 열려 있는 시트는 그대로 남아야 한다.
     MSWatchlist.render(root);
-    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), sheet,
+    assert.strictEqual(doc.body.querySelector(".ms-sheet-backdrop"), sheet,
       "워치리스트 재렌더가 열려 있던 시트를 지웠다");
   });
 });
@@ -390,13 +404,13 @@ test("watchlist.js 실행 — 종목을 고르면 시트가 닫히고, 새 심�
     assert.ok(cell, "NVDA 셀이 없다");
     grid.dispatch("click", { target: cell });   // ticker-picker.js 는 grid 자신에 위임 리스너를 둔다
 
-    assert.ok(doc.body.querySelector(".sheet-scrim"), "칩 클릭만으로 시트가 닫혔다 — 확인 버튼을 건너뛴다");
+    assert.ok(doc.body.querySelector(".ms-sheet-backdrop"), "칩 클릭만으로 시트가 닫혔다 — 확인 버튼을 건너뛴다");
     var confirmBtn = doc.body.querySelector(".tp-confirm");
     assert.ok(confirmBtn, "확인 버튼이 없다");
     assert.strictEqual(confirmBtn.disabled, false, "고른 뒤인데 확인 버튼이 비활성이다");
     confirmBtn.dispatch("click");
 
-    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "확인 버튼을 눌렀는데도 시트가 안 닫혔다");
+    assert.strictEqual(doc.body.querySelector(".ms-sheet-backdrop"), null, "확인 버튼을 눌렀는데도 시트가 안 닫혔다");
     var syms = root.querySelectorAll(".wl-meta").map(function (n) { return n.textContent; });
     assert.ok(syms.indexOf("NVDA") >= 0, "새로 추가한 심볼이 재렌더된 목록에 없다: " + syms.join(","));
     assert.ok(syms.indexOf("AAPL") >= 0, "기존 종목이 재렌더 후 사라졌다: " + syms.join(","));
@@ -439,17 +453,18 @@ test("watchlist.js 실행 — 추가한 종목이 회사명을 달고 그려지�
 
 // 스크림 바깥 클릭(자기 자신)과 확인 버튼 제출 둘 다 오버레이를 완전히 지워야 한다 — 하나만
 // 지우고 document.body 에 빈 스크림이 남으면 화면 전체가 클릭을 못 받는 유령 오버레이가 된다.
-// (시안 12a 는 명시적 닫기 ×버튼이 없다 — 드래그 손잡이 + 스크림 탭으로 닫는다. 그래서 이
-// 테스트의 "둘째 닫는 길"은 이제 확인 버튼 제출이다: 고르고 확인 → 시트가 닫힌다.)
+// (시안 12a 는 명시적 닫기 ×버튼이 없다 — 백드롭 탭으로 닫는다(MSSheet 는 드래그 손잡이가
+// 없다, 옛 `.sheet::before` 와 다르다 — style-sheet.css 에 재도입하지 않았다). 그래서 이
+// 테스트의 "둘째 닫는 길"은 확인 버튼 제출이다: 고르고 확인 → 시트가 닫힌다.)
 test("watchlist.js 실행 — 스크림 클릭·확인 제출 모두 시트를 지우고 오버레이를 안 남긴다", () => {
   withWatchlistDom({ store: fakeStore([{ sym: "AAPL", name: "Apple" }]) }, function (root, doc) {
     MSWatchlist.render(root);
 
     root.querySelector(".wl-add").dispatch("click");
-    var scrim = doc.body.querySelector(".sheet-scrim");
+    var scrim = doc.body.querySelector(".ms-sheet-backdrop");
     assert.ok(scrim);
     scrim.dispatch("click", { target: scrim });   // 바깥(스크림 자신) 클릭
-    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "스크림 클릭으로 안 닫혔다");
+    assert.strictEqual(doc.body.querySelector(".ms-sheet-backdrop"), null, "스크림 클릭으로 안 닫혔다");
     assert.strictEqual(doc.body.children.length, 0, "닫은 뒤에도 document.body 에 남은 노드가 있다");
 
     root.querySelector(".wl-add").dispatch("click");
@@ -457,7 +472,7 @@ test("watchlist.js 실행 — 스크림 클릭·확인 제출 모두 시트를 �
     grid.dispatch("click", { target: grid.children.filter(function (c) {
       return c.getAttribute("data-sym") === "NVDA"; })[0] });
     doc.body.querySelector(".tp-confirm").dispatch("click");
-    assert.strictEqual(doc.body.querySelector(".sheet-scrim"), null, "확인 제출로 안 닫혔다");
+    assert.strictEqual(doc.body.querySelector(".ms-sheet-backdrop"), null, "확인 제출로 안 닫혔다");
     assert.strictEqual(doc.body.children.length, 0, "닫은 뒤에도 document.body 에 남은 노드가 있다");
   });
 });
@@ -486,7 +501,7 @@ test("watchlist.js 실행 — 시트 안 직접 입력에서 오타면 후보가
     var msg = doc.body.querySelector(".tp-msg");
     assert.ok(msg.textContent.indexOf("AAPL") >= 0 && msg.textContent.indexOf("AMZN") >= 0,
       "오타 후보 안내가 시트 안에 없다: " + msg.textContent);
-    assert.ok(doc.body.querySelector(".sheet-scrim"), "실패했는데 시트가 닫혔다");
+    assert.ok(doc.body.querySelector(".ms-sheet-backdrop"), "실패했는데 시트가 닫혔다");
   });
 });
 

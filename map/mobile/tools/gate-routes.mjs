@@ -41,9 +41,14 @@ export const ROUTES = [
       "document.querySelectorAll('button, [role=button]').length > 0" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데
   // 탭바가 없던(화면이 비어 있던) 것과 같은 부류의 사고를 이 경로에서 반복하지 않기 위해서다.
+  // P1a Task 6(워치리스트, 시안 14a) — 스쿱 필 아이콘이 실제로 마크(scoopMark, svg)로
+  // 바뀌었는지를 여기서도 잰다. node 시험(watchlist.test.mjs)은 innerHTML 문자열을 보지만,
+  // 여긴 실제 브라우저가 그 svg 를 실제 엘리먼트로 파싱해 넣는지까지 본다 — 문자열만 맞고
+  // 브라우저에서 안 그려지는 경우(태그 오타 등)는 node 시험이 못 잡는다.
   { name: "watchlist", seed: { ...ON, ms_preds: PREDS }, go: null,
     assert: "MSApp.current().route === 'watchlist' && !!document.querySelector('[data-screen=\"watchlist\"]') && " +
-      "document.querySelectorAll('[data-sym]').length === 3 && document.querySelectorAll('.ms-tab').length === 3" },
+      "document.querySelectorAll('[data-sym]').length === 3 && document.querySelectorAll('.ms-tab').length === 3 && " +
+      "!!document.querySelector('.ms-pill-ico svg') && document.getElementById('app').textContent.indexOf('◆') < 0" },
   // P1a Task 3(기본분석 리포트) — node 시험(report-basic.test.mjs)은 가짜 DOM 조립을 잰다.
   // 여기서는 **실제 브라우저**가 같은 결과를 내는지를 재차 확인한다 — 이 프로젝트가 반복
   // 겪은 "관문은 초록인데 화면은 다른 말을 한다" 사고의 구멍은 언제나 가짜 DOM 과 실제
