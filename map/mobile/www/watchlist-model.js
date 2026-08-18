@@ -3,7 +3,7 @@
 // 규칙을 그 안에 두면 테스트가 안 붙는다 — MSLegend·MSReportModel 과 같은 분리다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSWatchlistModel = factory();
+  else MSGlobals.define("MSWatchlistModel", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

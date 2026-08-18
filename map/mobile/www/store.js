@@ -2,7 +2,7 @@
 // 모든 접근을 try/catch 로 감싸고 실패 시 메모리로 떨어진다(WebView 쿼터·프라이빗 모드).
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSStore = factory();
+  else MSGlobals.define("MSStore", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

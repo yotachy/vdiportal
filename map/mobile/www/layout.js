@@ -4,7 +4,7 @@
 // "JS 는 2단이라 믿는데 CSS 는 단일로 그리는" 상태가 조용히 생긴다(설계 §3.1).
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSLayout = factory();
+  else MSGlobals.define("MSLayout", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

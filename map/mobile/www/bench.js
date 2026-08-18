@@ -2,7 +2,7 @@
 // 첫 호출은 컴파일 비용이 섞여 기기 성능을 과소평가하게 만든다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSBench = factory();
+  else MSGlobals.define("MSBench", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

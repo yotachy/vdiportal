@@ -141,8 +141,8 @@
     // 새 봉이 있어야만 판정되므로(predictions.js) 같은 날 여러 번 열어도 값이 안 바뀐다.
     // 실패는 조용히 넘긴다 — 판정은 곁다리이고, 못 하면 다음에 하면 된다.
     function settleAll() {
-      if (typeof MSPreds === "undefined" || !MSStore.getPreds || typeof MSApi === "undefined") return;
-      var pend = MSPreds.pending(MSStore.getPreds());
+      if (typeof MSPredLog === "undefined" || !MSStore.getPreds || typeof MSApi === "undefined") return;
+      var pend = MSPredLog.pending(MSStore.getPreds());
       if (!pend.length) return;
       var syms = [];
       pend.forEach(function (r) { if (syms.indexOf(r.sym) < 0) syms.push(r.sym); });
@@ -151,7 +151,7 @@
         MSApi.loadTicker(sym, "1day").then(function (d) {
           pend.forEach(function (r) {
             if (r.sym !== sym) return;
-            var j = MSPreds.judge(r, d && d.candle);
+            var j = MSPredLog.judge(r, d && d.candle);
             if (j) { MSStore.settlePred(r.sym, r.asOf, j); any = true; }
           });
         })["catch"](function () {})
@@ -165,9 +165,9 @@
     // 퍼센트를 쓰지 않는다: 20건 미만에서 "67% 적중"은 거짓말이다(핸드오프 원칙 5).
     // 대신 건수와 개별 결과만 보이고, 20건이 넘으면 그때 적중률 줄이 붙는다.
     function buildResults() {
-      if (typeof MSPreds === "undefined" || !MSStore.getPreds) return null;
+      if (typeof MSPredLog === "undefined" || !MSStore.getPreds) return null;
       var all = MSStore.getPreds().filter(function (r) { return r && r.judgedOn; });
-      var recent = MSPreds.recent(all, 3);
+      var recent = MSPredLog.recent(all, 3);
       if (!recent.length) return null;
 
       var card = MSUi.el("div", "wl-res");
@@ -194,12 +194,12 @@
         card.appendChild(more);
       }
 
-      var rate = MSPreds.hitRate(all);
+      var rate = MSPredLog.hitRate(all);
       // 20건이 넘어야 퍼센트가 나온다. 그 전에는 왜 안 나오는지를 말한다 — 침묵하면
       // "적중률 기능이 없다"로 읽히고, 20건을 채울 이유도 사라진다.
       card.appendChild(MSUi.el("p", "wl-res-note", rate
         ? (MSStr.t.wlResRateA + Math.round(rate.rate * 100) + MSStr.t.wlResRateB + rate.n + MSStr.t.wlResRateC)
-        : (all.length + MSStr.t.wlResSmallA + MSPreds.MIN_N + MSStr.t.wlResSmallB)));
+        : (all.length + MSStr.t.wlResSmallA + MSPredLog.MIN_N + MSStr.t.wlResSmallB)));
       return card;
     }
 

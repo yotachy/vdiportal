@@ -3,7 +3,7 @@
 // 원본 심볼: FC_ACC FC_DIM _oscA fcFit _osReveal fcDrawRsi fcDrawMacd fcDrawVol
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./strings.js"));
-  else root.MSPanels = factory(root.MSStr);
+  else MSGlobals.define("MSPanels", factory(root.MSStr));
 })(typeof self !== "undefined" ? self : this, function (Str) {
   "use strict";
 

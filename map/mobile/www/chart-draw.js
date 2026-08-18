@@ -2,8 +2,8 @@
 // 핀치줌·팬·로그축·전체화면은 Phase 1 범위 밖이다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./draw-preds.js"));
-  else root.MSChartDraw = factory(root.MSPreds);
-})(typeof self !== "undefined" ? self : this, function (MSPreds) {
+  else MSGlobals.define("MSChartDraw", factory(root.MSPredDraw));
+})(typeof self !== "undefined" ? self : this, function (MSPredDraw) {
   "use strict";
 
   var AXIS_FONT = "600 11px Pretendard, ui-monospace, monospace";   // 11px — 하한 10.5px 를 넘긴다
@@ -126,7 +126,7 @@
     var M = p.M, n = pred.path.length, i;
     var xs = xsFor(M, lay, n);
     var o = opts || {};
-    var sd = MSPreds.seed(o.sym, o.tf);
+    var sd = MSPredDraw.seed(o.sym, o.tf);
     var lo = pred.lo || [], hi = pred.hi || [];
     var anchor = (pred.anchor != null) ? pred.anchor : pred.path[0];
     var seamX = seamOf(lay), box = boxOf(lay);
@@ -148,17 +148,17 @@
       var m = Math.min(vals.length, lo.length, hi.length);
       if (!m) { strokeLine(c, M, lay, vals, hex, lw, dash); return; }
       var mlo = lo.slice(0, m), mhi = hi.slice(0, m), mv = vals.slice(0, m);
-      var wv = MSPreds.wiggle(m, mv, mlo, mhi, pred.levels, pred.tex, lineSeed);
-      var cs = MSPreds.confSeq(mlo, mhi);
+      var wv = MSPredDraw.wiggle(m, mv, mlo, mhi, pred.levels, pred.tex, lineSeed);
+      var cs = MSPredDraw.confSeq(mlo, mhi);
       var lx = xsFor(M, lay, m);
-      MSPreds.strokeLine(c, {
+      MSPredDraw.strokeLine(c, {
         n: m, x0: seamX, y0: M.pToY(anchor),
         xAt: function (k) { return lx[k]; },
         yAt: function (k) { return M.pToY(wv[k]); },
         conf: cs.conf, kEnd: cs.kEnd, rgb: rgbOf(hex), dash: dash, lw: lw
       });
-      var pc = MSPreds.pcal(mv, mhi, anchor, m - 1);
-      MSPreds.endDeco(c, {
+      var pc = MSPredDraw.pcal(mv, mhi, anchor, m - 1);
+      MSPredDraw.endDeco(c, {
         path: mv, seamX: seamX, coneR: lx[m - 1], toY: M.pToY, box: box, tf: o.tf,
         col: (pc < 50 ? "#8a92b2" : hex),
         // 차수 배지·끝점 예측가는 Phase 3 에서 레전드로 갔다. 진앙 마커만 남긴다 —

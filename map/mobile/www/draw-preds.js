@@ -12,7 +12,9 @@
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports)
     module.exports = factory(require("./draw-layers.js"), require("../../forge-core.js"));
-  else root.MSPreds = factory(root.MSLayers, root.ForgeCore);
+  // 이름이 MSPredDraw 인 이유: 예측 **작도**다. 예측 **기록**은 predictions.js 의 MSPredLog.
+  // 둘 다 같은 전역 이름이었고, 뒤에 로드된 쪽이 앞을 덮어 리포트를 죽였다(2026-08-18 감사).
+  else MSGlobals.define("MSPredDraw", factory(root.MSLayers, root.ForgeCore));
 })(typeof self !== "undefined" ? self : this, function (Layers, FCore) {
   "use strict";
 

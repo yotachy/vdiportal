@@ -5,7 +5,7 @@
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports)
     module.exports = factory(require("./strings.js"), require("./draw-preds.js"));
-  else root.MSLegend = factory(root.MSStr, root.MSPreds);
+  else MSGlobals.define("MSLegend", factory(root.MSStr, root.MSPredDraw));
 })(typeof self !== "undefined" ? self : this, function (Str, Preds) {
   "use strict";
 

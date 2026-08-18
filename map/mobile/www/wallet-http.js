@@ -3,7 +3,7 @@
 // 오프라인에서도 잔량을 지어내지 않는다: state 는 null 이고 화면이 "사용할 수 없음"을 그린다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSWalletHttp = factory();
+  else MSGlobals.define("MSWalletHttp", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

@@ -7,7 +7,7 @@
 //           _drawMALayers _drawRsiLayers _drawVolumeLayers _drawBollingerLayers _drawMacdLayers
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./strings.js"));
-  else root.MSLayers = factory(root.MSStr);
+  else MSGlobals.define("MSLayers", factory(root.MSStr));
 })(typeof self !== "undefined" ? self : this, function (Str) {
   "use strict";
 
@@ -287,7 +287,7 @@
     _evW = w; _evH = h; _labelMode = "all";
   }
 
-  // MSPreds 가 쓸 최소 접근자. 배열은 resetLabels 가 매 프레임 새로 만들므로
+  // MSPredDraw 가 쓸 최소 접근자. 배열은 resetLabels 가 매 프레임 새로 만들므로
   // 참조를 캐싱하지 말고 호출 시점에 꺼낸다(그래서 값이 아니라 getter 함수로 낸다).
   return { resetLabels: resetLabels,
            evLabel: _evLabel, fitBoxY: _fitBoxY,

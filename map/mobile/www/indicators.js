@@ -10,7 +10,7 @@
 // 그래서 판정과 반대인 지표를 알려면 이 경로가 필요하다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory(require("./readings.js"));
-  else root.MSIndicators = factory(root.MSReadings);
+  else MSGlobals.define("MSIndicators", factory(root.MSReadings));
 })(typeof self !== "undefined" ? self : this, function (Readings) {
   "use strict";
 

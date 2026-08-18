@@ -514,7 +514,7 @@
     // 그래서 보존하는 대신 **두 시점을 명시적으로 갈라 보여준다** — 지난 값을 흐리게 두고
     // 기준일을 함께 적는다. 안 그러면 어제 값과 오늘 값이 같은 화면에서 구분 없이 읽힌다.
     function buildLast() {
-      if (typeof MSPreds === "undefined" || !MSStore.getPreds) return null;
+      if (typeof MSPredLog === "undefined" || !MSStore.getPreds) return null;
       var today = asOfOf(data);
       var best = null;
       MSStore.getPreds().forEach(function (r) {
@@ -560,7 +560,7 @@
     // "기본분석이었다면 적중이었습니다"(시안 14b)를 말하려면 그때의 기본 범위가 필요하고,
     // 없으면 그 문장을 아예 안 쓴다.
     function recordPrediction() {
-      if (typeof MSPreds === "undefined" || !MSStore.addPred) return;
+      if (typeof MSPredLog === "undefined" || !MSStore.addPred) return;
       var pr = an && an.out && an.out.prediction;
       var asOf = asOfOf(data);
       if (!pr || !pr.lo || !pr.lo.length || !asOf) return;
@@ -568,7 +568,7 @@
       var sameDay = snap && snap.asOf === asOf;
       var closes = (data && data.candle) || [];
       var last = closes.length ? closes[closes.length - 1] : null;
-      var r = MSPreds.make({
+      var r = MSPredLog.make({
         sym: sym, name: wlItem && wlItem.name, tier: tier,
         at: new Date().toISOString(), asOf: asOf,
         base: last && last.c, mid: pr.path && pr.path[0], lo: pr.lo[0], hi: pr.hi[0],
@@ -581,10 +581,10 @@
     // 이 종목의 데이터를 방금 받았다 — 대기 중인 어제 예측이 있으면 지금 판정한다.
     // 판정은 새 봉이 있어야만 성립하고(predictions.js), 한 번 적으면 다시 재지 않는다.
     function settlePending() {
-      if (typeof MSPreds === "undefined" || !MSStore.getPreds || !data || !data.candle) return;
-      MSPreds.pending(MSStore.getPreds()).forEach(function (r) {
+      if (typeof MSPredLog === "undefined" || !MSStore.getPreds || !data || !data.candle) return;
+      MSPredLog.pending(MSStore.getPreds()).forEach(function (r) {
         if (r.sym !== sym) return;
-        var j = MSPreds.judge(r, data.candle);
+        var j = MSPredLog.judge(r, data.candle);
         if (j) MSStore.settlePred(r.sym, r.asOf, j);
       });
     }

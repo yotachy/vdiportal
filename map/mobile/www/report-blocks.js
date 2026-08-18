@@ -6,7 +6,7 @@
 // 더 넣으면 손댈 수 없는 파일이 된다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSReportBlocks = factory();
+  else MSGlobals.define("MSReportBlocks", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

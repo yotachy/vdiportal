@@ -12,7 +12,7 @@
 // analyzeX 를 32번 더 돌리지 않는다(그 비용은 사용자가 기다리는 시간이다).
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSReveal = factory();
+  else MSGlobals.define("MSReveal", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

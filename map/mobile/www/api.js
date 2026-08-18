@@ -2,7 +2,7 @@
 // CORS 는 서버가 이미 열어 두었다(forge-api.php:4-9, 라이브 실측 확인) — 클라이언트에서 할 일 없음.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSApi = factory();
+  else MSGlobals.define("MSApi", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

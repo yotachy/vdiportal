@@ -4,7 +4,7 @@
 // 언어가 붙을 때 이 파일이 추출 지점이 된다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSStr = factory();
+  else MSGlobals.define("MSStr", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

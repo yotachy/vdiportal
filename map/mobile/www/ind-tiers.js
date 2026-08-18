@@ -8,7 +8,7 @@
 // 목록에는 다른 수를 그리게 된다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSIndTiers = factory();
+  else MSGlobals.define("MSIndTiers", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

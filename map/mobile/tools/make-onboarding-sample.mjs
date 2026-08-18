@@ -34,7 +34,7 @@ out.asOf = out.candle[N - 1].t;
 const body = "// 생성물이다. 손으로 고치지 말 것 — tools/make-onboarding-sample.mjs 를 다시 돌린다.\n"
   + "(function (root, f) {\n"
   + '  if (typeof module === "object" && module.exports) module.exports = f();\n'
-  + "  else root.MSOnboardingSample = f();\n"
+  + '  else MSGlobals.define("MSOnboardingSample", f());\n'
   + '}(typeof self !== "undefined" ? self : this, function () {\n'
   + "  return " + JSON.stringify(out) + ";\n"
   + "}));\n";

@@ -1,7 +1,7 @@
 // 화면들이 공유하는 작은 조각. 순수 함수만 둔다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSUi = factory();
+  else MSGlobals.define("MSUi", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
   function el(tag, cls, text) {

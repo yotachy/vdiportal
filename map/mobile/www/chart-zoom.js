@@ -3,7 +3,7 @@
 // PC 는 _chartWin{start,count} 와 핀치 중심 고정(rel·bi) 이 필요하지만, 팬을 안 넣어서 그게 없다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSZoom = factory();
+  else MSGlobals.define("MSZoom", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

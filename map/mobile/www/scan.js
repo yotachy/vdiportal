@@ -4,7 +4,7 @@
 // 부분 결과를 즉시 콜백한다 — 8종목 전체를 기다리면 첫 정보까지 수 초가 죽는다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSScan = factory();
+  else MSGlobals.define("MSScan", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

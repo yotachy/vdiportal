@@ -14,7 +14,7 @@
 // 여러 곳에 흩어지면 "맞았다"의 정의가 화면마다 달라진다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSPreds = factory();
+  else MSGlobals.define("MSPredLog", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 

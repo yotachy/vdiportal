@@ -8,7 +8,7 @@
 // 들어왔다) 큐레이션 그리드 + 직접 입력 + 오타 제안으로 간다.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else root.MSTickerPicker = factory();
+  else MSGlobals.define("MSTickerPicker", factory());
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
