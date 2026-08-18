@@ -86,6 +86,29 @@ export const ROUTES = [
         "if(kids.indexOf(ad) > kids.indexOf(scoop)) return false;" +       // 광고가 스쿱보다 먼저(DOM 순서)
         "var rt=document.querySelector('.rp-readtools');" +
         "if(!rt||rt.children.length!==0) return false;" +                  // 읽은 도구 = 접힌 한 줄
+        // P1a Task 4 D1(리뷰 2026-08-19) — 3단 대조가 이제 모집단 지표라 종목·드리프트와
+        // 무관하게 **항상** 뜬다(종목별 예측 폭 프리뷰·G1 생략 가드는 걷어냈다) — 그래서
+        // 인위적인 전용 라우트 대신 이 기본 report 라우트에서 그대로 확인한다.
+        "var tc=document.querySelectorAll('.rp-tc-card');" +
+        "if(tc.length!==3) return false;" +
+        "if(tc[0].className.indexOf('is-basic')<0||tc[1].className.indexOf('is-full')<0||tc[2].className.indexOf('is-custom')<0) return false;" +
+        "var axis=document.querySelector('.rp-tc-axis');" +                // [리뷰 M1] 축 숫자는 리터럴이 아니라 MSTierCompare 에서 온다
+        "if(!axis||axis.textContent.indexOf(String(MSTierCompare.AXIS_MIN))<0||axis.textContent.indexOf(String(MSTierCompare.AXIS_MAX))<0) return false;" +
+        "var scope=document.querySelector('.rp-tc-scope');" +              // [리뷰 I1] 범위 주석 필수
+        "if(!scope||scope.textContent.indexOf('엔진 전체')<0) return false;" +
+        "var custom=tc[2];" +
+        "if(custom.querySelectorAll('.rp-tc-measuring').length!==2) return false;" + // 적중률·커버리지 둘 다 측정 중
+        "if(tc[0].querySelectorAll('.rp-tc-measuring').length!==0||tc[1].querySelectorAll('.rp-tc-measuring').length!==0) return false;" +
+        "var basicVal=tc[0].querySelector('.rp-tc-rateval'), fullVal=tc[1].querySelector('.rp-tc-rateval');" +
+        "if(!basicVal||!fullVal||basicVal.textContent.indexOf('기준선')<0||fullVal.textContent.indexOf('기준선')<0) return false;" + // 기준선 짝(규칙9)
+        "var basicCov=tc[0].querySelector('.rp-tc-covval'), fullCov=tc[1].querySelector('.rp-tc-covval');" +
+        "if(!basicCov||!fullCov||basicCov.textContent.indexOf('커버리지')<0||fullCov.textContent.indexOf('오차')<0) return false;" +
+        "var fullNote=tc[1].querySelector('.rp-tc-note'), customNote=tc[2].querySelector('.rp-tc-note');" +
+        "if(!fullNote||fullNote.textContent.indexOf('%p')<0||fullNote.textContent.indexOf('콘 커버리지')<0) return false;" +
+        "if(!customNote||customNote.textContent.indexOf('낮아질')<0) return false;" +
+        // [리뷰 C1] 기본분석은 확률을 말하지 않는다 — "내일은 어디쯤" 행에 %가 없어야 한다.
+        "var probs=document.querySelectorAll('.rp-hz-prob');" +
+        "for(var pi=0;pi<probs.length;pi++){ if(probs[pi].textContent!=='') return false; }" +
         "return true;" +
       "})()" },
   // 재리뷰(2026-08-18) Important — 위 report 라우트의 AAPL 은 이 파일의 candles() 기본
@@ -125,39 +148,6 @@ export const ROUTES = [
           "return bg==='rgb(79,185,138)'||bg==='rgb(217,106,106)';" +
         "});" +
         "if(!dissentOk) return false;" +
-        "return true;" +
-      "})()" },
-  // P1a Task 4(3단 대조, rp-tc) — NVDA·드리프트 -0.7(gate-browser.mjs DRIFT_BY_SYMBOL) 은
-  // 실측으로 확인한, 심화 프리뷰 폭이 기본보다 실제로 좁게 나오는 몇 안 되는 조합이다(대부분의
-  // 드리프트에서는 반대로 나온다 — buildCompare() 의 G1 가드가 그럴 때 카드를 통째로 생략한다,
-  // 위 report-comb-bull 주석 참고). 그래서 이 라우트가 "카드가 실제로 뜨는" 유일한 관문 경로다.
-  { name: "report-tier-compare", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"NVDA"}', delay: 1200,
-    assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
-      "!/불러오지 못했습니다/.test(document.getElementById('app').textContent) && " +
-      "(function(){" +
-        "var cards=document.querySelectorAll('.rp-tc-card');" +
-        "if(cards.length!==3) return false;" +
-        "var cls=Array.prototype.map.call(cards,function(c){return c.className;});" +
-        "if(cls[0].indexOf('is-basic')<0||cls[1].indexOf('is-full')<0||cls[2].indexOf('is-custom')<0) return false;" +
-        // 축 확대(55~70%) 표기 — 없으면 과장 그래프다(설계서 §3.3).
-        "var axis=document.querySelector('.rp-tc-axis');" +
-        "if(!axis||axis.textContent.indexOf('55')<0||axis.textContent.indexOf('70')<0) return false;" +
-        // 전문 카드에만 '측정 중' — 기본·심화엔 없어야 한다(실측이 있는데 숨기면 그것도 오류).
-        "var custom=cards[2];" +
-        "if(!/측정 중/.test(custom.textContent)) return false;" +
-        "if(/측정 중/.test(cards[0].textContent)||/측정 중/.test(cards[1].textContent)) return false;" +
-        // 기본·심화의 적중률은 반드시 기준선과 짝을 이룬다(설계서 §9.3 규칙9).
-        "var basicVal=cards[0].querySelector('.rp-tc-rateval'), fullVal=cards[1].querySelector('.rp-tc-rateval');" +
-        "if(!basicVal||!fullVal) return false;" +
-        "if(!/기준선/.test(basicVal.textContent)||!/기준선/.test(fullVal.textContent)) return false;" +
-        // 심화 카드엔 불리한 사실(%p 차이·콘 커버리지), 전문 카드엔 하향 경고.
-        "var fullNote=cards[1].querySelector('.rp-tc-note'), customNote=cards[2].querySelector('.rp-tc-note');" +
-        "if(!fullNote||fullNote.textContent.indexOf('%p')<0||fullNote.textContent.indexOf('콘 커버리지')<0) return false;" +
-        "if(!customNote||customNote.textContent.indexOf('낮아질')<0) return false;" +
-        // 심화 폭이 기본 폭보다 실제로 좁다 — 카드 텍스트에서 직접 잰다.
-        "var basicW=parseFloat(cards[0].querySelector('.rp-tc-widthval').textContent.replace(/[^0-9.]/g,''));" +
-        "var fullW=parseFloat(cards[1].querySelector('.rp-tc-widthval').textContent.replace(/[^0-9.]/g,''));" +
-        "if(!(fullW < basicW)) return false;" +
         "return true;" +
       "})()" },
   { name: "wallet", seed: ON, go: '"wallet"',

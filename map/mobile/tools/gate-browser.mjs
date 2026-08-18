@@ -106,15 +106,11 @@ function ensureCert() {
 // driftMul=0.3 은 같은 방식(node 로 basicGraph→verdict.regime 실측)으로 확인한 값이다 —
 // bull 로 결정적으로 떨어지고 tone 이 [bull,bull,bear,bull,bull] 로 갈려(동의 4·반대 1)
 // 시안 spec-18a.png 실측 배치(4 steel·1 accent)와 그대로 맞는다.
-// base(둘째 인자) 는 시작가 오프셋 — 기존 호출(candles(driftMul))은 전부 생략해 기본값 200을
-// 그대로 받는다. P1a Task 4 가 NVDA 전용으로 추가했다(아래 BASE_BY_SYMBOL 주석 참고) — 큰
-// 음의 드리프트를 360봉 누적하면 기본 오프셋 200으로는 가격이 음수로 떨어진다.
-function candles(driftMul, base) {
+function candles(driftMul) {
   const drift = (typeof driftMul === "number") ? driftMul : 0.12;
-  const b0 = (typeof base === "number") ? base : 200;
   const out = [], day = new Date("2026-08-17T00:00:00Z");
   for (let i = 0; i < 360; i++) {
-    const v = b0 + i * drift + Math.sin(i / 11) * 6 + Math.sin(i / 37) * 14;
+    const v = 200 + i * drift + Math.sin(i / 11) * 6 + Math.sin(i / 37) * 14;
     const t = new Date(day.getTime() - (359 - i) * 86400000).toISOString().slice(0, 10);
     out.push({ t, o: +(v - 1).toFixed(2), h: +(v + 1.8).toFixed(2), l: +(v - 1.6).toFixed(2),
                c: +v.toFixed(2), v: 1000000 + (i % 23) * 40000 });
@@ -124,19 +120,12 @@ function candles(driftMul, base) {
 // symbol 별 드리프트 — 없는 심볼은 기본값(0.12, neutral)을 그대로 받는다. 기존 라우트가
 // 쓰는 심볼(AAPL 등)은 이 표에 없으니 결과가 전혀 안 바뀐다.
 //
-// NVDA=-0.7 은 P1a Task 4(3단 대조, rp-tc)를 위해 추가했다 — **판단 지점(중요)**: 콘 폭은
-// 엔진 안에서 가격 변동성(sigBand·trChSig)으로 정해지고 지표 개수와 독립이다(forge-core.js
-// run()). 이 드리프트 스윕으로 직접 실측한 결과, 32지표(심화) 프리뷰가 5지표(기본)보다
-// 오히려 **더 넓게** 나오는 경우가 대부분이었다 — 이 파일이 이미 쓰는 MSFT(드리프트 0.3)도
-// 기본 3.29 vs 심화 3.70 로 더 넓다. report-comb-bull 라우트에서는 그래서 3단 대조 카드가
-// buildCompare() 의 G1 가드로 아예 안 뜬다(지어낸 값을 보여주느니 카드를 생략하는 쪽을
-// 택했다 — screens/report.js 참고). 심화가 실제로 더 좁게 나오는 드리프트를 스윕으로 찾아
-// (-0.7 부근) 카드가 뜨는 경로를 이 심볼로 연다 — report-tier-compare 라우트.
-const DRIFT_BY_SYMBOL = { MSFT: 0.3, NVDA: -0.7 };
-// NVDA 전용 시작가 — 위 드리프트(-0.7)를 기본 오프셋(200)에 360봉 누적하면 최근가가 음수로
-// 떨어진다(실측: -45.9). 시작가를 높여 같은 드리프트·같은 좁아짐 결과를 유지하면서 최근가를
-// 양수로 되돌린다(실측: base=1800 → 최근가 1550.5, 기본 폭 12.15 vs 심화 폭 11.53, 여전히 좁다).
-const BASE_BY_SYMBOL = { NVDA: 1800 };
+// P1a Task 4 가 한때 NVDA·드리프트 -0.7·전용 시작가(base=1800)를 여기 더했었다(3단 대조
+// 카드가 종목별로 "심화가 실제로 좁을 때만" 뜨던 시절, 그 경로를 열기 위해서). 컨트롤러
+// 판정 D1(리뷰 2026-08-19)로 카드가 모집단 지표만 말하게 되며 그 종목별 분기 자체가
+// 필요 없어졌다 — 카드는 이제 어느 종목·드리프트에서든 항상 뜬다(report 라우트에서 직접
+// 확인, gate-routes.mjs). 그래서 NVDA 전용 드리프트·base 인자·BASE_BY_SYMBOL 은 걷어냈다.
+const DRIFT_BY_SYMBOL = { MSFT: 0.3 };
 // 리뷰 I7: 필드명은 wallet-lib.php 의 w_state() 가 실제로 주는 모양(balance/cap/streakDays/
 // canCheckin)과 반드시 일치해야 한다 — 예전엔 streak/checkedIn/today 였는데, 그 셋은 서버
 // 어디에도 없는 이름이라 screens/wallet.js 의 `state.streakDays % 7` 이 항상 NaN 이 됐다
@@ -177,7 +166,7 @@ function serve(creds) {
       // DRIFT_BY_SYMBOL 에 없으니 undefined→candles() 기본값(0.12)으로 예전과 동일하다.
       const sym = urlObj.searchParams.get("symbol") || "AAPL";
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true, tf: "1day", symbol: sym, candles: candles(DRIFT_BY_SYMBOL[sym], BASE_BY_SYMBOL[sym]) }));
+      res.end(JSON.stringify({ ok: true, tf: "1day", symbol: sym, candles: candles(DRIFT_BY_SYMBOL[sym]) }));
       return;
     }
     const file = path.join(WWW, url.replace(/^\/+/, ""));

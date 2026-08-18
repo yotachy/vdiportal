@@ -135,14 +135,7 @@ const DATA_BY_SYM = {
   // 그리고 그 칸이 위치(is-on)는 그대로 보이면서 role 만 agree/dissent 가 아닌지를 잰다.
   // 이 경로가 바로 리뷰가 잡은 버그의 재발 지점이었다(실 라이브 데이터가 종종 neutral 로
   // 떨어지는데, 그 경우 "on 인데 역할이 없다"로 관문이 죽었었다).
-  TSLA: fakeData(0.02, "Tesla"),
-  // 3단 대조 카드(rp-tc) 전용 — 실측(node -e 스파이크, drift 스윕): 콘 폭은 가격 변동성
-  // (sigBand·trChSig)으로 정해지고 지표 개수와 독립이라, 32지표(심화) 프리뷰가 5지표(기본)
-  // 보다 항상 좁게 나오지 않는다(드리프트 0.3/-0.3/0.02 셋 다 오히려 basic 이 더 좁았다).
-  // drift 1.0 은 실측으로 확인한 몇 안 되는 "심화가 실제로 좁은" 시나리오라 카드가 뜨는
-  // 경로를 시험하려면 이 종목이 필요하다 — buildCompare() 의 G1 가드(안 좁혀지면 카드
-  // 생략)가 실제로 무엇을 지나가야 카드를 그리는지 보여준다.
-  NVDA: fakeData(1.0, "Nvidia")
+  TSLA: fakeData(0.02, "Tesla")
 };
 
 // ── 트리 탐색 유틸 ──
@@ -171,9 +164,10 @@ async function renderReady(ctx, sym) {
   return root;
 }
 
-let ROOT, ROOT_BEAR, ROOT_NEUTRAL, ROOT_NARROW;
+let ROOT, ROOT_BEAR, ROOT_NEUTRAL, CTX;
 before(async () => {
   const ctx = vm.createContext(fakeWindow());
+  CTX = ctx;
   SRCS.forEach(src => {
     const code = readFileSync(WWW + src, "utf8");
     new vm.Script(code, { filename: src }).runInContext(ctx);
@@ -186,43 +180,40 @@ before(async () => {
   ROOT = await renderReady(ctx, "AAPL");        // 드리프트 +0.3 — bull 로 떨어진다(실측)
   ROOT_BEAR = await renderReady(ctx, "MSFT");    // 드리프트 -0.3 — bear 로 떨어진다(실측)
   ROOT_NEUTRAL = await renderReady(ctx, "TSLA"); // 드리프트 +0.02 — neutral 로 떨어진다(실측)
-  ROOT_NARROW = await renderReady(ctx, "NVDA");  // 드리프트 1.0 — 심화 프리뷰가 기본보다 좁게 나온다(실측)
 });
 
 // ── 3단 대조(rp-tc, 시안 7a, 설계서 §3.3) ────────────────────────────────────────────────
 // 이 블록은 크롬이다 — 위 "정보 블록 3개" 시험이 세는 대상이 아니다(report-blocks.js 의
-// BASIC 선언에 애초에 id 가 없다). ROOT(AAPL, 드리프트 0.3)는 실측상 심화 프리뷰 폭이 기본
-// 보다 좁지 않아(엔진의 콘 폭은 지표 개수와 독립이라 항상 좁아지지 않는다 — 위 NVDA 주석
-// 참고) buildCompare() 의 G1 가드가 카드를 통째로 생략한다. 그래서 "카드가 뜬다"는 ROOT_NARROW
-// 로, "재료가 실측과 안 맞으면 조용히 없어진다"는 ROOT 로 각각 잰다 — 두 경로 다 실제로
-// 실행되게 서로 다른 종목을 쓴다(if(조건){단언} 형태로 한쪽만 넣으면 그 조건이 거짓일 때
-// 시험 전체가 몰래 초록이 된다 — 이 파일이 실제로 그 함정에 걸릴 뻔했다).
-test("3단 대조 — 심화 프리뷰가 실제로 더 좁을 때만 카드 3장이 뜬다", () => {
-  const cards = byClass(ROOT_NARROW, "rp-tc-card");
+// BASIC 선언에 애초에 id 가 없다).
+//
+// 컨트롤러 판정 D1(리뷰 2026-08-19) — 원래는 종목별 예측 폭을 비교했고, 콘 폭이 지표
+// 개수와 독립이라(실측) 실제로 좁혀지는 종목에서만 카드를 그리는 G1 가드가 있었다(그래서
+// 이전 라운드엔 ROOT_NARROW 라는 별도 종목이 필요했다). 이제 카드는 모집단 지표만 말하므로
+// **종목과 무관하게 항상 뜬다** — 그래서 아래 시험은 전부 표준 픽스처 ROOT(AAPL) 하나로
+// 잰다. G1 가드·ROOT_NARROW·rp-tc-widthval 은 이번 라운드로 사라졌다.
+test("3단 대조 — basic 렌더 결과에 카드 3장이 항상 뜬다(종목·드리프트와 무관)", () => {
+  const cards = byClass(ROOT, "rp-tc-card");
   assert.strictEqual(cards.length, 3, "카드가 정확히 3장이 아니다: " + cards.length);
   assert.deepEqual(cards.map(c => c.className), ["rp-tc-card is-basic", "rp-tc-card is-full", "rp-tc-card is-custom"],
     "카드 순서·티어 클래스가 기본·심화·전문이 아니다");
 });
 
-test("3단 대조 — 심화 프리뷰가 기본보다 좁지 않으면(AAPL 실측) 카드를 통째로 생략한다 — 지어낸 값을 안 보여준다", () => {
-  assert.strictEqual(byClass(ROOT, "rp-tc").length, 0, "실측이 뒷받침 안 하는데 카드가 떴다");
-});
-
 test("3단 대조 — 전문 카드에 '측정 중'이 있다(rate:null, 없는 값을 지어내지 않는다)", () => {
-  const custom = byClass(ROOT_NARROW, "rp-tc-card").filter(c => hasClass(c, "is-custom"))[0];
+  const custom = byClass(ROOT, "rp-tc-card").filter(c => hasClass(c, "is-custom"))[0];
   assert.ok(custom, "전문 카드를 못 찾았다");
+  // 전문 카드는 두 칸(적중률·커버리지) 다 실측이 없어 "측정 중"이 두 번 뜬다.
   const measuring = byClass(custom, "rp-tc-measuring");
-  assert.strictEqual(measuring.length, 1, "전문 카드에 측정 중 표시가 없다");
-  assert.match(measuring[0].textContent, /측정 중/);
+  assert.strictEqual(measuring.length, 2, "전문 카드에 측정 중 표시가 둘이 아니다(적중률·커버리지 각 칸)");
+  measuring.forEach(m => assert.match(m.textContent, /측정 중/));
   // 기본·심화 카드엔 측정 중이 없어야 한다 — 실측이 있는데 숨기면 그것도 오류다.
   ["is-basic", "is-full"].forEach(cls => {
-    const card = byClass(ROOT_NARROW, "rp-tc-card").filter(c => hasClass(c, cls))[0];
+    const card = byClass(ROOT, "rp-tc-card").filter(c => hasClass(c, cls))[0];
     assert.strictEqual(byClass(card, "rp-tc-measuring").length, 0, cls + " 카드에 측정 중이 잘못 떴다");
   });
 });
 
 test("3단 대조 — 적중률이 보이는 카드는 반드시 기준선과 짝을 이룬다(설계서 §9.3 규칙9)", () => {
-  const rated = byClass(ROOT_NARROW, "rp-tc-card").filter(c => hasClass(c, "is-basic") || hasClass(c, "is-full"));
+  const rated = byClass(ROOT, "rp-tc-card").filter(c => hasClass(c, "is-basic") || hasClass(c, "is-full"));
   assert.strictEqual(rated.length, 2, "적중률 카드가 기본·심화 둘이 아니다");
   rated.forEach(card => {
     const val = firstByClass(card, "rp-tc-rateval");
@@ -232,22 +223,35 @@ test("3단 대조 — 적중률이 보이는 카드는 반드시 기준선과 �
   });
 });
 
-test("3단 대조 — 심화 폭이 기본 폭보다 실제로 좁다(카드 안 텍스트로 확인)", () => {
-  const basic = byClass(ROOT_NARROW, "rp-tc-card").filter(c => hasClass(c, "is-basic"))[0];
-  const full = byClass(ROOT_NARROW, "rp-tc-card").filter(c => hasClass(c, "is-full"))[0];
-  const w = card => parseFloat(firstByClass(card, "rp-tc-widthval").textContent.replace(/[^\d.]/g, ""));
-  assert.ok(w(full) < w(basic), "심화 카드 폭이 기본 카드 폭보다 좁지 않다: " + w(full) + " vs " + w(basic));
+test("D1 — 카드가 이제 모집단 지표(콘 커버리지·오차)를 말한다 — 종목별 폭이 아니다", () => {
+  const rated = byClass(ROOT, "rp-tc-card").filter(c => hasClass(c, "is-basic") || hasClass(c, "is-full"));
+  rated.forEach(card => {
+    const val = firstByClass(card, "rp-tc-covval");
+    assert.ok(val, "커버리지·오차 값이 없다");
+    assert.match(val.textContent, /커버리지\s*\d+(\.\d+)?%/, "커버리지 숫자가 없다: " + val.textContent);
+    assert.match(val.textContent, /오차\s*\d+(\.\d+)?%p/, "오차(ECE) 숫자가 없다: " + val.textContent);
+  });
+  // 옛 폭 표시(rp-tc-widthval)는 이제 어디에도 없어야 한다.
+  assert.strictEqual(byClass(ROOT, "rp-tc-widthval").length, 0, "옛 폭 표시가 남아 있다");
 });
 
-test("3단 대조 — 축 확대 표기가 있다(55~70%) — 없으면 과장 그래프다", () => {
-  const axis = firstByClass(ROOT_NARROW, "rp-tc-axis");
+test("I1 — 3단 대조 카드에 범위 주석이 있다 — 이 종목이 아니라 엔진 전체 측정값이라는 사실", () => {
+  const scope = firstByClass(ROOT, "rp-tc-scope");
+  assert.ok(scope, "범위 주석이 없다");
+  assert.match(scope.textContent, /엔진 전체/, "엔진 전체 측정값이라는 문구가 없다: " + scope.textContent);
+  assert.match(scope.textContent, /\d{2,}\s*종목/, "시리즈 수가 안 보인다: " + scope.textContent);
+  assert.match(scope.textContent, /\d[\d,]*\s*건/, "표본 수가 안 보인다: " + scope.textContent);
+});
+
+test("M1 — 축 확대 표기가 있고, 숫자가 MSTierCompare.AXIS_MIN/MAX 와 같다(리터럴 이중 출처 아님)", () => {
+  const axis = firstByClass(ROOT, "rp-tc-axis");
   assert.ok(axis, "축 확대 표기가 없다");
-  assert.match(axis.textContent, /55/);
-  assert.match(axis.textContent, /70/);
+  assert.match(axis.textContent, new RegExp(String(CTX.MSTierCompare.AXIS_MIN)));
+  assert.match(axis.textContent, new RegExp(String(CTX.MSTierCompare.AXIS_MAX)));
 });
 
 test("3단 대조 — 심화 카드에 불리한 사실(%p 차이·콘 커버리지) 문장이 있다", () => {
-  const full = byClass(ROOT_NARROW, "rp-tc-card").filter(c => hasClass(c, "is-full"))[0];
+  const full = byClass(ROOT, "rp-tc-card").filter(c => hasClass(c, "is-full"))[0];
   const note = firstByClass(full, "rp-tc-note");
   assert.ok(note, "심화 카드에 note 가 없다");
   assert.match(note.textContent, /%p/);
@@ -255,11 +259,20 @@ test("3단 대조 — 심화 카드에 불리한 사실(%p 차이·콘 커버리
 });
 
 test("3단 대조 — 전문 카드에 '기본분석보다 낮아질 수 있다' 경고가 있다", () => {
-  const custom = byClass(ROOT_NARROW, "rp-tc-card").filter(c => hasClass(c, "is-custom"))[0];
+  const custom = byClass(ROOT, "rp-tc-card").filter(c => hasClass(c, "is-custom"))[0];
   const note = firstByClass(custom, "rp-tc-note");
   assert.ok(note, "전문 카드에 note 가 없다");
   assert.ok(hasClass(note, "is-warn"), "경고 스타일 클래스가 없다");
   assert.match(note.textContent, /낮아질/);
+});
+
+// ── C1(리뷰) — 기본분석은 확률을 말하지 않는다 ───────────────────────────────────────────
+test("C1 — 기본 티어의 '내일은 어디쯤' 행에 확률(%)이 없다 — 범위만 말한다는 약속과의 자기모순 방지", () => {
+  const probs = byClass(ROOT, "rp-hz-prob");
+  assert.ok(probs.length > 0, "내일 행 자체가 없다 — 시험이 성립하지 않는다");
+  probs.forEach(p => assert.strictEqual(p.textContent, "", "기본 티어에 확률이 떴다: " + JSON.stringify(p.textContent)));
+  // bear·neutral 시나리오에서도 마찬가지여야 한다(방향이 있어야 prob 이 계산되므로 bull/bear 만 확인).
+  byClass(ROOT_BEAR, "rp-hz-prob").forEach(p => assert.strictEqual(p.textContent, ""));
 });
 
 test("기본 티어 렌더 결과의 정보 블록이 정확히 3개다(verdict·comb·chart) — 다른 유료 블록은 없다", () => {
