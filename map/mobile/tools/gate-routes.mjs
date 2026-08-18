@@ -149,14 +149,21 @@ export const ROUTES = [
         "if(!agreeRows.length) return false;" +                    // 동의가 있어야 하는 표본인데 없다
         "var r0=agreeRows[0];" +
         "if(!r0.querySelector('.ob32-name')||!r0.querySelector('.ob32-text')) return false;" +
+        // 리뷰 C1 — 2→3 다리(설계서가 지정한 세 다리 중 유일하게 비어 있던 자리). 2단계
+        // 본문 끝에서 3단계(성향)를 벌어들이는 줄이 실제로 그려졌는지 잰다.
+        "var bridge2=document.querySelector('.ob-note');" +
+        "if(!bridge2||bridge2.textContent!==MSStr.t.obStyleBridgeNote) return false;" +
         // ── 3단계(Task 5) — 성향을 고르면 같은 구간의 판정·근거가 실제로 갱신된다 ──────
         // fwd 는 1단계 시점에 잡은 참조라 다시 쓰지 않는다 — draw() 가 매번 rootEl.innerHTML
         // 을 비우고 새 버튼을 만들므로 안전하게 다시 querySelector 한다.
         "var fwd2=document.querySelector('.ob-next');" +
         "if(!fwd2) return false;" +
         "fwd2.click();" +                                          // 2 -> 3
+        // 리뷰 C1 — obPastDone("여기까지는 과거였습니다")은 이제 3단계를 **닫는** 줄이다.
+        // 화면 맨 위(옛 자리)는 obStyleOpen 이 연다 — 아직 과거 구간 한복판에서 "과거
+        // 였습니다"가 울리던 사고를 여기서 잠근다.
         "var over3=document.querySelector('.ob-over');" +
-        "if(!over3||over3.textContent!==MSStr.t.obPastDone) return false;" + // "여기까지는 과거였습니다"
+        "if(!over3||over3.textContent!==MSStr.t.obStyleOpen) return false;" +
         // 리뷰 B(1/5) — 판정이 달라질 수도 있다는 유인이 실제 렌더된 부제에 있어야 한다.
         "var sub3=document.querySelector('.ob-sub');" +
         "if(!sub3||sub3.textContent.indexOf('달라질 수도 있습니다')<0) return false;" +
@@ -253,6 +260,11 @@ export const ROUTES = [
         "if(onAfterBack.length!==1||onAfterBack[0].querySelector('.ob-style-name').textContent!==trend.name) return false;" +
         "var noteBack=document.querySelector('.ob32-verdict-note');" +
         "if(!noteBack||noteBack.className.indexOf('is-same')<0) return false;" +
+        // 리뷰 C1 — obPastDone 이 3단계 본문의 실제 끝에 그려졌는지(옛 자리인 화면 맨
+        // 위가 아니라). 고유 클래스(.ob-past-done)로 잡는다 — momentum 을 거쳐 갔던
+        // 경로라 ob3FlatNeutralNote(같은 .ob-note) 도 DOM 에 남아 있을 수 있다.
+        "var closing3=document.querySelector('.ob-past-done');" +
+        "if(!closing3||closing3.textContent!==MSStr.t.obPastDone) return false;" +
         // ── 4단계(Task 6) — 동의. "지금부터 미래" 전환 + 하지 않는 것 셋 + 체크 게이트 ──────
         "var fwd3=document.querySelector('.ob-next');" +
         "if(!fwd3) return false;" +

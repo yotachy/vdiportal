@@ -154,7 +154,7 @@
 .ob-read { margin-top:16px; }
 .ob-read-verdict { margin:0 0 10px; font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink); }
 .ob-read-empty { font-size:var(--fs-sub); color:var(--ink-4); }
-.ob-read-for, .ob-read-against, .ob-read-flat { margin-bottom:12px; }
+.ob-read-for, .ob-read-against, .ob-read-flat, .ob-read-refused { margin-bottom:12px; }
 .ob-read-label { margin:0 0 6px; font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); color:var(--ink-5); }
 .ob-read-row { display:flex; align-items:flex-start; gap:10px; padding:6px 0; border-bottom:1px solid var(--hairline); }
 .ob-read-row:last-child { border-bottom:0; }

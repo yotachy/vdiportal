@@ -1127,6 +1127,66 @@ test("판독은 지금 계산한 것이다 — 렌더 시점에 엔진을 실제
   });
 });
 
+// 리뷰 C2 — 예전엔 1단계가 자체 문턱(TOOL_EPS=0.12)·자체 라벨(근거/반대 의견/뚜렷하지
+// 않은 판독)로 갈랐고, 2·3·6단계는 MSIndicators.EPS(0.02)+voiced()+opposing() 경로·다른
+// 라벨(동의/반대 의견/무판정)을 썼다 — 같은 지표·같은 구간·같은 판정인데 화면마다 다른
+// 통에 담겼다(실측: 번들 표본 volume bias 0.060 이 1단계에서는 "뚜렷하지 않은 판독"
+// (|0.060|≤0.12)이었고 2단계에서는 "동의"(|0.060|>0.02)였다). classifyFull32 재사용으로
+// 고친 뒤에는 같은 지표가 어느 화면에서나 같은 통에 담겨야 한다 — 이 시험이 그 불변을 잠근다.
+test("C2 — 1단계 근거 분류가 2단계와 같은 통에 같은 지표를 담는다(TOOL_EPS 폐기)", () => {
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    root.querySelector(".ob-guess-btn").click();   // 1단계 판독 공개
+
+    function bucket1(label) {
+      const map = { "ob-read-for": "agree", "ob-read-against": "dissent",
+                    "ob-read-flat": "flat", "ob-read-refused": "refused" };
+      for (const cls of Object.keys(map)) {
+        const sec = root.querySelector("." + cls);
+        if (!sec) continue;
+        const names = Array.from(sec.querySelectorAll(".ob-read-name")).map(n => n.textContent);
+        if (names.indexOf(label) >= 0) return map[cls];
+      }
+      return null;
+    }
+
+    const TOOLS = ["ma", "bollinger", "volume"];
+    const before = {};
+    TOOLS.forEach(t => { before[t] = bucket1(S.ind(t)); });
+    TOOLS.forEach(t => assert.ok(before[t], "1단계 화면에 " + t + " 행이 안 보인다"));
+    // 실측(번들 표본) — volume bias 0.060 은 옛 TOOL_EPS(0.12) 아래라 "무판정"이었다. 새
+    // 경로(EPS=0.02)에서는 동의로 옮겨간다 — 리뷰가 지적한 바로 그 어긋남이 고쳐졌다는 증거.
+    assert.strictEqual(before.volume, "agree",
+      "volume(bias 0.060)이 여전히 옛 TOOL_EPS 시절처럼 무판정이다 — EPS=0.02 경로로 안 바뀌었다");
+
+    root.querySelector(".ob-next").click();        // 1 -> 2, 같은 절단선을 32도구로 다시 본다
+    function bucket2(label) {
+      const kinds = ["agree", "dissent", "flat", "refused"];
+      for (const k of kinds) {
+        let sec = root.querySelector(".ob32-sec-" + k);
+        if (!sec) continue;
+        let names = Array.from(sec.querySelectorAll(".ob32-name")).map(n => n.textContent);
+        if (names.indexOf(label) < 0) {
+          const btn = sec.querySelector(".ob32-expand");   // 접혀 있으면 펼쳐서 마저 찾는다
+          if (btn) {
+            btn.click();
+            sec = root.querySelector(".ob32-sec-" + k);
+            names = Array.from(sec.querySelectorAll(".ob32-name")).map(n => n.textContent);
+          }
+        }
+        if (names.indexOf(label) >= 0) return k;
+      }
+      return null;
+    }
+    TOOLS.forEach(t => {
+      const after = bucket2(S.ind(t));
+      assert.ok(after, "2단계 화면에 " + t + " 행이 안 보인다");
+      assert.strictEqual(after, before[t],
+        "같은 지표(" + t + ")가 1단계에서는 '" + before[t] + "' 인데 2단계에서는 '" + after + "' 로 다른 통에 담겼다");
+    });
+  });
+});
+
 test("판독은 데이터가 바뀌면 함께 바뀐다 — 같은 문구를 고정해 두지 않았다", () => {
   const mirror = mirrorSample(SAMPLE);
   let upVerdict, downVerdict;
@@ -1568,15 +1628,34 @@ test("3단계 — 성향 4종이 있고, 언제나 정확히 1개가 선택돼 �
   assert.equal(O.canAdvance(3, { style: "momentum" }), true);
 });
 
-// 단언 5 — "여기까지는 과거였습니다" 전환 문구. 1·2단계(고정된 방식)가 끝났고, 이제부터는
-// 사용자가 고른 방식으로 본다는 경계선이다.
-test("3단계 — \"여기까지는 과거였습니다\" 전환 문구가 있다", () => {
+// 단언 5(리뷰 C1 갱신) — "여기까지는 과거였습니다"(obPastDone)는 3단계를 **닫는** 줄이다.
+// 화면 맨 위(옛 자리)는 이제 obStyleOpen 이 연다 — 그 위치에서 obPastDone 이 울리면 아직
+// 과거 구간을 보여주는 한복판에서 "과거였습니다"라고 말하는 사고가 재발한 것이다.
+test("3단계 — 여는 줄(obStyleOpen)과 닫는 줄(obPastDone)이 서로 다른 자리에 있다", () => {
   withDom(root => {
     toStep3(root, SAMPLE);
     const over = root.querySelector(".ob-over");
-    assert.ok(over && over.textContent, "전환 문구 노드가 없다");
-    assert.strictEqual(over.textContent, S.t.obPastDone, "전환 문구가 다르다: " + over.textContent);
-    assert.match(over.textContent, /과거/, "전환 문구에 '과거'가 없다: " + over.textContent);
+    assert.ok(over && over.textContent, "여는 줄 노드가 없다");
+    assert.strictEqual(over.textContent, S.t.obStyleOpen, "3단계 여는 줄이 obStyleOpen 이 아니다: " + over.textContent);
+    assert.notStrictEqual(over.textContent, S.t.obPastDone,
+      "3단계 맨 위가 여전히 obPastDone 이다 — 과거 구간 한복판에서 '과거였습니다'가 울린다");
+    const closing = root.querySelector(".ob-past-done");
+    assert.ok(closing && closing.textContent, "3단계를 닫는 obPastDone 노드가 없다");
+    assert.strictEqual(closing.textContent, S.t.obPastDone, "닫는 줄이 obPastDone 이 아니다: " + closing.textContent);
+    assert.match(closing.textContent, /과거/, "닫는 줄에 '과거'가 없다: " + closing.textContent);
+  });
+});
+
+// 리뷰 C1 — 2→3 다리. 설계서가 지정한 세 다리 중 이것만 strings.js 에 0건이었다(2단계
+// 끝에서 3단계를 "벌어들이는" 줄이 없었다).
+test("2단계 — 3단계(성향)를 벌어들이는 다리 문구가 본문 끝에 있다", () => {
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    root.querySelector(".ob-guess-btn").click();   // 1: 직접 찍기
+    root.querySelector(".ob-next").click();        // 1 -> 2
+    const bridge = root.querySelector(".ob-note");
+    assert.ok(bridge && bridge.textContent, "2→3 다리 문구 노드가 없다");
+    assert.strictEqual(bridge.textContent, S.t.obStyleBridgeNote, "2→3 다리 문구가 다르다: " + bridge.textContent);
   });
 });
 
@@ -2280,6 +2359,174 @@ test("6단계 단언 7 — 분석(runTier full)이 실패하면 막다른 골목
     const today = root.querySelector(".ob6-today");
     assert.ok(today, "재시도가 성공했는데(두 번째 호출은 안 던진다) 실제 내용이 안 그려졌다");
   }, { MSApi: RealApi, MSGraph: G2, fetch: fetchReturning({ ok: true, tf: "1day", candles: steadyUpCandles(), symbol: "AAPL", name: "Apple" }) });
+});
+
+// 원화 스케일(예: 삼성전자 71,000원대) 표본 — report.js 의 MSUi.fmtPrice 가 1000 이상이면
+// 반올림+천단위 구분으로 그리는 그 스케일이다. steadyUpCandles()(달러 스케일, 200 안팎)로는
+// 리뷰 I3 가 잡은 어긋남(원 단위 소수점이 그대로 남는 것)이 재현되지 않는다.
+function krwCandles() {
+  var out = [], p = 70000, i;
+  for (i = 0; i < 230; i++) {
+    p = p * 1.00015;
+    out.push({ o: p, h: p * 1.01, l: p * 0.99, c: p, v: 1000 + i, t: "2026-01-01" });
+  }
+  return out;
+}
+
+// 리뷰 I1 — 3막 전체의 약속("이제 당신의 종목입니다")을 실제로 분석하는 두 화면(6·7단계)이
+// 지켜야 한다. 정상 경로(실 데이터 적재)에서 종목명이 실제로 나오는지, 그리고 obSub6 이
+// 더는 내부 단계 번호("5단계에서 고른")를 부르지 않는지를 잰다.
+test("I1 — 6·7단계 제목 영역에 고른 종목명이 실제로 나온다(정상 경로)", async () => {
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    await toStep6(root);
+    assert.strictEqual(root.querySelector(".ob-warn"), null, "정상 경로인데 폴백 경고가 떴다 — 표본 설계가 잘못됐다");
+    const over6 = root.querySelector(".ob-over");
+    assert.ok(over6 && deepText(over6).trim().length > 0, "6단계에 종목명 오버라인이 없다");
+    assert.strictEqual(deepText(over6), "삼성전자", "6단계 오버라인이 고른 종목명이 아니다: " + deepText(over6));
+    const sub6 = root.querySelector(".ob-sub");
+    assert.ok(sub6 && !/\d단계/.test(deepText(sub6)),
+      "6단계 부제가 여전히 내부 단계 번호를 부른다: " + deepText(sub6));
+
+    root.querySelector(".ob-next").click();   // 6 -> 7
+    const over7 = root.querySelector(".ob-over");
+    assert.ok(over7 && deepText(over7).trim().length > 0, "7단계에 종목명 오버라인이 없다");
+    assert.strictEqual(deepText(over7), "삼성전자", "7단계 오버라인이 고른 종목명이 아니다: " + deepText(over7));
+  }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: steadyUpCandles(), symbol: "005930", name: "삼성전자" }) });
+});
+
+// 리뷰 I1 — 폴백(실제 데이터에 못 붙어 예시 데이터로 물러선) 경로. 이때도 종목명 자체는
+// 거짓이 아니다 — commit(data, true) 는 r1/r2/data 만 예시로 바꾸고 state.symName 은 여전히
+// 사용자가 고른 종목(pick.name)을 그대로 담는다. obFallbackNotice 가 "값은 예시"라고 이미
+// 밝히므로, 이름까지 감출 이유는 없다(리뷰가 요구한 판단 지점).
+test("I1 — 폴백(예시 데이터) 경로에서도 종목명은 실제로 사용자가 고른 것이다", async () => {
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    await toStep6(root);   // 이 하네스는 MSApi 를 안 심는다 — loadPick() 이 폴백으로 물러선다
+    const fallbackWarn = root.querySelector(".ob-warn");
+    assert.ok(fallbackWarn, "폴백 경로인데 obFallbackNotice 경고가 없다 — 표본 설계가 잘못됐다");
+    assert.strictEqual(deepText(fallbackWarn), S.t.obFallbackNotice, "폴백 경고 문구가 다르다: " + deepText(fallbackWarn));
+    const over6 = root.querySelector(".ob-over");
+    assert.ok(over6 && deepText(over6).trim().length > 0, "폴백 경로인데도 6단계 종목명 오버라인이 없다");
+    assert.strictEqual(deepText(over6), "삼성전자",
+      "폴백 경로에서도 종목명은 사용자가 실제로 고른 것이어야 한다: " + deepText(over6));
+  });
+});
+
+// 리뷰 I3 — 예전엔 num() 이 무조건 toFixed(2) 였다. 기본 칩 8개 중 4개가 원화이고 삼성전자가
+// 첫 번째 칩이다 — report.js 는 이미 MSUi.fmtPrice(1000 이상이면 반올림+천단위 구분)로
+// 그리는데 6단계만 "71096.26" 처럼 원 단위 소수점을 그대로 찍었다.
+test("I3 — 원화 스케일 가격은 report.js 와 같은 규칙(MSUi.fmtPrice)으로 그려진다", async () => {
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    await toStep6(root);
+    // El.querySelector 는 단일 클래스만 이해한다(자손 결합자 미지원) — root 에서 바로
+    // ".ob6-today .obq-value" 를 찾지 않고 블록을 먼저 잡아 그 안에서 다시 찾는다
+    // (6단계 단언 1 테스트가 이미 쓰는 방식과 같다).
+    const todayBlock = root.querySelector(".ob6-today");
+    assert.ok(todayBlock, "오늘 종가 블록(.ob6-today)이 없다");
+    const today = todayBlock.querySelector(".obq-value");
+    assert.ok(today, "오늘 종가 값 노드가 없다");
+    const todayText = deepText(today);
+    // 예전(num()=toFixed(2))이면 "71105.23" 처럼 소수점 두 자리 + 콤마 없는 문자열이 남는다.
+    assert.doesNotMatch(todayText, /^\d+\.\d{2}$/,
+      "원화 스케일인데도 원 단위 소수점이 그대로다(fmtPrice 미적용): " + todayText);
+    assert.match(todayText, /,/, "원화 스케일 가격에 천단위 구분자가 없다: " + todayText);
+
+    const hzBlock = root.querySelector(".ob6-hz");
+    assert.ok(hzBlock, "세 지평 블록(.ob6-hz)이 없다");
+    const hzValues = hzBlock.querySelectorAll(".obq-value").map(deepText);
+    assert.ok(hzValues.length > 0, "세 지평 값이 하나도 없다");
+    hzValues.forEach(t => {
+      assert.doesNotMatch(t, /^\d+\.\d{2}$/, "지평 가격이 원 단위 소수점 그대로다: " + t);
+      assert.match(t, /,/, "지평 가격에 천단위 구분자가 없다: " + t);
+    });
+    const hzUnits = hzBlock.querySelectorAll(".obq-unit").map(deepText);
+    assert.ok(hzUnits.length > 0, "오차폭(±)이 하나도 없다");
+    hzUnits.forEach(t => {
+      assert.doesNotMatch(t, /±\s*\d+\.\d(?!\d)/,
+        "오차폭이 여전히 toFixed(1) 소수점 그대로다(fmtPrice 미적용): " + t);
+    });
+
+    root.querySelector(".ob-next").click();   // 6 -> 7 — 요약(recap)의 지평 상세도 같은 규칙
+    const recapDetail = root.querySelectorAll(".ob-recap-detail").map(deepText).join(" | ");
+    assert.match(recapDetail, /,/, "7단계 요약(recap)의 지평 값에도 천단위 구분자가 없다: " + recapDetail);
+  }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: krwCandles(), symbol: "005930", name: "삼성전자" }) });
+});
+
+// 리뷰 I4 — ob6Reveal() 이 MSAnalyzeView.play() 를 부르기 **직전** state.ob6Playing=true 를
+// 세운다. play() 가 던지면(동기) 옛 코드는 그 플래그를 되돌릴 방법이 없어 이후 모든 draw() 가
+// ob6Reveal 을 조기 반환시켰다 — 뒤로가기도 없는 단계라 앱 재시작 말고는 나갈 길이 없었다.
+// 리뷰어가 실제로 쓴 방법(MSAnalyzeView.play 를 던지도록 교체)을 그대로 재현한다.
+test("I4 — 재생(MSAnalyzeView.play)이 던져도 앱에 갇히지 않고 재시도 경로로 떨어진다", async () => {
+  const real = require("../www/progress-analyze.js");
+  let throwNext = true;
+  const flaky = Object.assign({}, real, {
+    play: function (opts) {
+      if (throwNext) { throwNext = false; throw new Error("play boom — I4 주입"); }
+      return real.play(opts);
+    }
+  });
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    await toStep6(root);
+    // 실 데이터 경로(RealApi)를 쓴다 — 기본 하네스(MSApi 없음)는 폴백 경고(.ob-warn)를
+    // 항상 띄우므로, 재생 실패 경고와 같은 클래스가 겹쳐 어느 쪽인지 애매해진다.
+    const warn = root.querySelector(".ob-warn");
+    assert.ok(warn, "재생이 던졌는데 실패 문구가 없다 — 화면이 그 자리에 멈춘다(리뷰 I4 재현)");
+    assert.strictEqual(deepText(warn), S.t.obAnalysisFailed, "실패 문구가 obAnalysisFailed 가 아니다: " + deepText(warn));
+    const retry = root.querySelector(".ob-retry");
+    assert.ok(retry, "다음 행동 버튼(.ob-retry)이 없다 — 뒤로가기도 없는 단계라 막다른 골목이다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true, "재생이 던졌는데 다음이 열려 있다");
+    // 재시도 버튼이 실제로 눌린다 — 두 번째 호출은 실제 play() 로 위임되고, 동기 rAF 라
+    // 재생이 그 자리에서 끝난다.
+    retry.click();
+    assert.strictEqual(root.querySelector(".ob-warn"), null, "재시도 후에도 실패 문구가 남아 있다");
+    assert.ok(root.querySelector(".ob6-today"), "재시도가 성공했는데 실제 내용이 안 그려졌다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false, "재시도가 성공했는데 다음이 안 열렸다");
+  }, { MSAnalyzeView: flaky, MSApi: RealApi,
+       fetch: fetchReturning({ ok: true, tf: "1day", candles: steadyUpCandles(), symbol: "AAPL", name: "Apple" }) });
+});
+
+// 리뷰 I4 — 위 시험은 play() 호출 자체(동기)가 던지는 경우다. 여기서는 stepper.step() 이
+// 던지게 만들어 진짜 progress-analyze.js(스텁 아님)가 그 실패를 6단계 화면의 실제 회수
+// 경로(obAnalysisFailed·재시도 버튼)로 떨어뜨리는지 통합 경로로 잰다. 다만 이 하네스의
+// requestAnimationFrame 스텁은 **동기**(fn=>{fn();return 1;})라 frame() 이 play() 호출과
+// 같은 호출 스택에서 실행된다 — 그래서 이 시험만으로는 frame() 자신의 try/catch 가 하는
+// 일과 ob6Reveal 의 바깥 try/catch 가 하는 일이 구분되지 않는다(둘 다 있으면 어느 쪽이
+// 잡아도 결과가 같다). **frame() 자신의 try/catch 가 실제로 필요한지**(호출 스택이 진짜로
+// 끊기는 경우)는 test/progress-analyze.test.mjs 의 "호출 스택이 끊긴 진짜 비동기 rAF" 시험이
+// setTimeout 기반 rAF + 바깥 try/catch 없이 따로 증명한다 — 여기는 제품 화면(6단계) 쪽의
+// 실제 UX(문구·재시도 버튼)가 맞는지를 잰다.
+test("I4 — rAF 콜백(frame) 안에서 던져도 같은 회수 경로로 떨어진다", async () => {
+  const RealIndicators = require("../www/indicators.js");
+  const BrokenStepper = Object.assign({}, RealIndicators, {
+    readingStepper: function () {
+      var i = 0;
+      return {
+        total: 5, rows: [],
+        get done() { return i >= 5; },
+        get index() { return i; },
+        step: function () { throw new Error("frame boom — I4 주입"); },
+        drain: function () { throw new Error("frame boom — I4 주입"); }
+      };
+    }
+  });
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    await toStep6(root);
+    const warn = root.querySelector(".ob-warn");
+    assert.ok(warn, "rAF 콜백 안에서 던졌는데 실패 문구가 없다 — frame() 의 자체 try/catch 가 안 잡았다");
+    assert.strictEqual(deepText(warn), S.t.obAnalysisFailed, "실패 문구가 obAnalysisFailed 가 아니다: " + deepText(warn));
+    const retry = root.querySelector(".ob-retry");
+    assert.ok(retry, "다음 행동 버튼(.ob-retry)이 없다");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true, "재생이 던졌는데 다음이 열려 있다");
+  }, { MSIndicators: BrokenStepper, MSApi: RealApi,
+       fetch: fetchReturning({ ok: true, tf: "1day", candles: steadyUpCandles(), symbol: "AAPL", name: "Apple" }) });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════

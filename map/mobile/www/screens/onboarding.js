@@ -45,14 +45,13 @@
   // 1단계가 작도하는 도구 정확히 3종 — **힌트 줄 수·작도 오버레이·판독 근거가 전부 이 배열
   // 하나에서 파생된다**(중복 상수 금지). MA·볼린저는 가격 패널 오버레이, 거래량은 서브패널이다.
   var TOOLS = ["ma", "bollinger", "volume"];
-  // 근거/반대 분류 문턱 — MSIndicators.EPS(0.02, "반대 의견"용)보다 넉넉하다. 실제 종목으로
-  // 시험해 보니 bias 0.04 짜리 MA 가 "혼조, 교차 없음"이라는 텍스트를 달고도 부호만으로
-  // "근거"에 꼽혔다 — 문구와 분류가 어긋나 보였다. 절대값이 이 문턱 아래면 텍스트 그대로
-  // (혼조·중립 등) "판독" 칸으로 보내고, 방향이 뚜렷할 때만 근거/반대로 가른다.
-  // 2026-08-19 재선별(전형적 이동폭) 표본으로 재점검: ma 0.677·bollinger 0.299 는 근거,
-  // volume −0.125("보통 거래량 · 0.94배 · 약화")는 이 문턱을 살짝 넘겨 반대로 갈린다 —
-  // 텍스트도 실제로 "약화"라 말해 분류와 문구가 맞는다(0.12 유지, 조정 불필요).
-  var TOOL_EPS = 0.12;
+  // 리뷰 C2(2026-08-19) — 예전엔 여기 자체 문턱(TOOL_EPS=0.12)이 있었다. 같은 구간·같은
+  // 지표를 2·3·6단계는 MSIndicators.EPS(0.02)+voiced()+opposing() 경로로 갈랐는데, 이
+  // 화면만 다른 문턱·다른 라벨(근거/반대 의견/뚜렷하지 않은 판독)을 썼다 — 실측하니 volume
+  // bias 0.060 이 여기서는 "뚜렷하지 않은 판독"(|0.060|≤0.12)이면서 2·3단계에서는 "동의"
+  // (|0.060|>0.02)로 갈렸다. "우리는 계산 과정을 연다"는 이 브랜치의 약속이 화면마다 다른
+  // 답을 내면 그 자체가 결함이다 — TOOL_EPS 는 지웠다. classifyFull32(2단계가 이미 쓰는
+  // 그 함수)를 그대로 재사용한다(아래 readingBlock).
   // 문자열은 MSStr.t.X 로 **직접** 읽는다. 모듈 로드 시점에 별칭(var Str = MSStr)으로 잡아두면
   // 이 파일이 strings.js 보다 먼저 실리는 환경에서 영원히 null 이 된다 — 던지지 않고 문구만
   // 사라지는 실패라 눈으로만 보인다(graph.js UMD 인자에서 겪은 것과 같은 부류).
@@ -98,7 +97,12 @@
 
   function frag(cls) { var e = document.createElement("div"); e.className = cls; return e; }
   function el(tag, cls, text) { return MSUi.el(tag, cls, text); }
-  function num(x, d) { return (x == null) ? "—" : Number(x).toFixed(d == null ? 2 : d); }
+  // 리뷰 I3 — 예전엔 num() 이 무조건 toFixed(2) 였다. 원화 종목(기본 칩 8개 중 4개, 첫
+  // 칩 삼성전자)은 report.js 가 이미 MSUi.fmtPrice(1000 이상이면 반올림+천단위 구분)로
+  // 그리는데, 6단계만 "71096.26" 처럼 원 단위 소수점을 그대로 찍었다 — 같은 종목이 화면마다
+  // 다른 자릿수로 보였다. priceFmt 는 fmtPrice 를 그대로 감싸되, null/비수치는 "—" 로
+  // 막는다(fmtPrice 자신은 그 방어가 없다 — Math.round(undefined) 가 "NaN" 문자열을 낸다).
+  function priceFmt(x) { return (typeof x === "number" && isFinite(x)) ? MSUi.fmtPrice(x) : "—"; }
   // 1단계 x축 기준 표기용 — 캔들의 "YYYY-MM-DD" 를 "YYYY.MM"(연월)·"YYYY.MM.DD"(기준일)로.
   // 데이터에서 계산한다(리터럴로 적으면 재선별 표본에서 곧장 낡는다).
   function ym(t) { return (t || "").slice(0, 7).replace("-", "."); }
@@ -128,7 +132,10 @@
       // 계산해 둔다)가 이 화면의 원자재다. ob6 은 그 자료로 재생한 "서술문 있는" 32행이다
       // (readingStepper 로 하나씩 읽는다 — Q3, 진행이 엔진 호출 수에 묶인다). null 이면
       // 아직 안 읽었거나(재생 시작 전) 재생 중이라는 뜻 — ob6Playing 이 둘을 가른다.
-      ob6: null, ob6Playing: false,
+      // 리뷰 I4 — ob6Failed 는 재생 자체가 던졌을 때만 선다(막다른 골목 회수 경로).
+      // r2 는 멀쩡한데(엔진 실행 성공) MSAnalyzeView.play() 나 그 rAF 콜백이 던지면 이
+      // 플래그가 그 실패를 잡는다 — r2 부재(엔진 실행 자체의 실패)와는 다른 경로다.
+      ob6: null, ob6Playing: false, ob6Failed: false,
       granted: null, grantStarted: false, grantFailed: false,
       picked: [], finished: false
     };
@@ -270,7 +277,7 @@
         state.tut = { sym: pick.sym, name: pick.name, data: data, fallback: !!fallback, loading: false };
         state.r1 = runTier(data, "basic");
         state.r2 = runTier(data, "full");
-        state.ob6 = null; state.ob6Playing = false;   // 새 확정 — 6단계 재생은 처음부터 다시
+        state.ob6 = null; state.ob6Playing = false; state.ob6Failed = false;   // 새 확정 — 6단계 재생은 처음부터 다시
         state.sym = pick.sym; state.symName = pick.name; state.picked = [pick];
         state.pickChecking = false; state.pickError = null;
         done();
@@ -302,7 +309,7 @@
     function invalidateConfirmed() {
       state.sym = null; state.symName = null; state.tut = null;
       state.r1 = null; state.r2 = null; state.picked = [];
-      state.ob6 = null; state.ob6Playing = false;   // r2 에서 파생된 자료라 같이 무효화한다
+      state.ob6 = null; state.ob6Playing = false; state.ob6Failed = false;   // r2 에서 파생된 자료라 같이 무효화한다
     }
 
     // ── 1단계: 콜드 오픈 ─────────────────────────────────────────────────────────
@@ -325,9 +332,14 @@
       return wrap;
     }
 
-    // 엔진 판독 — 찍기 전에 실제로 보인 228봉(visibleAnalysis)만 근거로 삼는다. **판정 방향과
-    // 같은 근거 / 반대 근거 / 뚜렷하지 않은 판독** 셋으로 가른다(TOOL_EPS). 이건 report.js 의
-    // REASONING·AGAINST 와 같은 근거지 — 온보딩이 새 작도·새 판독 경로를 만든 게 아니다.
+    // 엔진 판독 — 찍기 전에 실제로 보인 228봉(visibleAnalysis)만 근거로 삼는다. 리뷰 C2 —
+    // 갈래는 classifyFull32(2·3·6단계가 이미 쓰는 그 함수, MSReadings.voiced()→
+    // MSIndicators.opposing() 경로)를 그대로 재사용한다. 여기서 문턱을 다시 구현하지
+    // 않는다 — 재구현이 곧 어긋남의 원인이었다(TOOL_EPS 삭제 사유, 위 상수 자리 주석 참고).
+    // classifyFull32 는 (graph, regime, rows, noDir) 를 받는데, opposing() 은 rows 를
+    // 이미 받으면 graph 를 안 쓰므로 basic 그래프(an.graph)를 넘겨도 안전하다. noDir 은
+    // 빈 배열 — TOOLS(ma·bollinger·volume) 중 방향을 못 묻는 지표(trend·phasefold)가
+    // 없다.
     function readingBlock() {
       var wrap = frag("ob-read");
       var an = visibleAnalysis();
@@ -338,12 +350,7 @@
       }
       var regime = an.out.verdict.regime;
       wrap.appendChild(el("p", "ob-read-verdict", MSStr.t.obReadVerdictA + verdictWord(regime)));
-      var want = regimeDir(regime);
-      var forRows = [], againstRows = [], flatRows = [];
-      rows.forEach(function (r) {
-        if (want === 0 || Math.abs(r.bias) <= TOOL_EPS) { flatRows.push(r); return; }
-        if ((r.bias > 0 ? 1 : -1) === want) forRows.push(r); else againstRows.push(r);
-      });
+      var buckets = classifyFull32(an.graph, regime, rows, []);
       function section(cls, headText, list) {
         if (!list.length) return;
         var sec = frag(cls);
@@ -356,9 +363,10 @@
         });
         wrap.appendChild(sec);
       }
-      section("ob-read-for", MSStr.t.obReadForHead, forRows);
-      section("ob-read-against", MSStr.t.rpAgainst, againstRows);
-      section("ob-read-flat", MSStr.t.obReadFlatHead, flatRows);
+      section("ob-read-for", MSStr.t.ob32AgreeHead, buckets.agree);
+      section("ob-read-against", MSStr.t.rpAgainst, buckets.dissent);
+      section("ob-read-flat", MSStr.t.ob32FlatHead, buckets.flat);
+      section("ob-read-refused", MSStr.t.ob32RefusedHead, buckets.refused);
       return wrap;
     }
 
@@ -678,6 +686,10 @@
       // (mfi·cmf·volume·vwap·volumeprofile) — 그래서 접어도 되되 **숨기지는 않는다**.
       w.appendChild(full32Section("refused", MSStr.t.ob32RefusedHead, an.refused, true, FULL32_REFUSED_SHOW, false));
 
+      // 리뷰 C1 — 2→3 다리(설계서가 지정한 세 다리 중 이것만 비어 있었다). 32개 도구를 다
+      // 봤으니 이제 "무엇을 중시하는지"로 넘어간다 — 3단계(성향)를 벌어들이는 줄이다.
+      w.appendChild(el("p", "ob-note", MSStr.t.obStyleBridgeNote));
+
       return w;
     }
 
@@ -732,7 +744,12 @@
 
     function step3() {
       var w = frag("ob-step");
-      w.appendChild(el("p", "ob-over", MSStr.t.obPastDone));
+      // 리뷰 C1 — obPastDone("여기까지는 과거였습니다")은 이 화면을 **닫는** 줄이다(§4.3):
+      // 3단계 본문(성향별 판정·근거)이 전부 과거 구간을 다루므로, 그 사실을 못박는 자리는
+      // 이 구간을 다 보여준 "끝"이지 아직 보여주는 "한복판"(예전 위치, 화면 맨 위)이 아니다.
+      // 여는 줄은 이 화면 자신의 취지(당신의 기준을 더한다)로 바꾼다 — 아래 return 앞에서
+      // obPastDone 을 다시 만난다.
+      w.appendChild(el("p", "ob-over", MSStr.t.obStyleOpen));
       w.appendChild(el("h1", "ob-h", MSStr.t.obH3));
       w.appendChild(el("p", "ob-sub", MSStr.t.obSub3));
 
@@ -793,12 +810,20 @@
       w.appendChild(full32Section("flat", MSStr.t.ob32FlatHead, st.flat, false));
       w.appendChild(full32Section("refused", MSStr.t.ob32RefusedHead, st.refused, false, null, false));
 
+      // 1·2·3막이 전부 과거(sliced 228봉)를 다뤘다 — obPastDone("여기까지는 과거였습니다")이
+      // 여기, 3단계 본문의 끝에서 그 사실을 못박는다(리뷰 C1 — 화면 맨 위였던 예전 위치는
+      // 아직 과거 구간을 보여주는 한복판에서 울렸다). 4단계는 그 문장을 받아 "이제부터는
+      // 미래"라고 답한다 — 동의가 법률 절차가 아니라 이야기의 매듭이 되려면 이 순서가 먼저다.
+      // 클래스 문자열을 하나로 이어붙이지 않는다 — "ob-note ob-past-done" 처럼 공백을 낀
+      // 리터럴은 screens/ 영어잔존 게이트(el()·className= 리터럴만 예외로 보는 shape 규칙)를
+      // 못 벗어난다(columnsBlock 의 col() 과 같은 이유·같은 처방).
+      var closing = el("p", "ob-note", MSStr.t.obPastDone);
+      closing.className = closing.className + " ob-past-done";
+      w.appendChild(closing);
+
       return w;
     }
 
-    // 1·2·3막이 전부 과거(sliced 228봉)를 다뤘다 — obPastDone("여기까지는 과거였습니다")이
-    // 3단계 화면 위에서 그 사실을 못박는다. 4단계는 그 문장을 받아 "이제부터는 미래"라고
-    // 답한다 — 동의가 법률 절차가 아니라 이야기의 매듭이 되려면 이 순서가 먼저다.
     function step4() {
       var w = frag("ob-step");
       w.appendChild(el("p", "ob-over", MSStr.t.obFutureOver));
@@ -937,7 +962,7 @@
     function ob6Retry() {
       state.r1 = runTier(state.tut && state.tut.data, "basic");
       state.r2 = runTier(state.tut && state.tut.data, "full");
-      state.ob6 = null; state.ob6Playing = false;
+      state.ob6 = null; state.ob6Playing = false; state.ob6Failed = false;
       draw();
     }
 
@@ -946,23 +971,42 @@
     // document.body 에 자기 오버레이를 붙이므로 step6() 자신의 DOM 트리(w)와 무관하게 동작할
     // 수 있고, onDone 이 draw() 를 다시 부를 때 **바깥 draw() 호출이 이미 끝난 뒤**여야
     // 재진입 문제가 없다(꼬리에서 부르면 그 시점이 항상 보장된다).
+    //
+    // 리뷰 I4 — 예전엔 state.ob6Playing=true 를 먼저 세운 뒤 MSAnalyzeView.play() 를
+    // 불렀다. play() 나 그 rAF 콜백(frame())이 던지면 onDone 이 영영 안 불려 ob6Playing 이
+    // true 로 얼어붙고, 이후 모든 draw() 에서 이 함수가 조기 반환한다 — 뒤로가기도 없는
+    // 단계(Q4)라 사용자는 앱 재시작 말고는 나갈 길이 없었다(실측: MSAnalyzeView.play 를
+    // 던지게 바꾸면 재현됨). try/catch 는 **여기서 직접 부르는 동기 호출만** 잡는다 — 진짜
+    // 위험은 requestAnimationFrame 콜백(frame()) 안의 비동기 예외라 그 try/catch 로는 못
+    // 잡는다(호출 스택이 이미 끊겨 있다). 그래서 progress-analyze.js 쪽에도 같은 회수
+    // 경로(onError)를 심었다 — 두 경로 다 결국 이 onError 콜백으로 모인다.
     function ob6Reveal() {
-      if (state.ob6 || state.ob6Playing) return;
+      if (state.ob6 || state.ob6Playing || state.ob6Failed) return;
       var r2 = state.r2;
       if (!r2 || !r2.out || !r2.graph || !r2.input) return;
       if (typeof MSIndicators === "undefined" || typeof MSAnalyzeView === "undefined") return;
       var stepper = MSIndicators.readingStepper(ForgeCore, r2.graph, r2.input, MSIndicators.ctxFrom(r2.input));
       if (!stepper.total) return;
       state.ob6Playing = true;
-      MSAnalyzeView.play({
-        stepper: stepper,
-        basic: (typeof MSGraph !== "undefined" && MSGraph.BASIC) ? MSGraph.BASIC.length : 5,
-        onDone: function (rows) {
-          state.ob6Playing = false;
-          state.ob6 = { rows: rows };
-          draw();
-        }
-      });
+      function onFail() {
+        state.ob6Playing = false;
+        state.ob6Failed = true;
+        draw();
+      }
+      try {
+        MSAnalyzeView.play({
+          stepper: stepper,
+          basic: (typeof MSGraph !== "undefined" && MSGraph.BASIC) ? MSGraph.BASIC.length : 5,
+          onDone: function (rows) {
+            state.ob6Playing = false;
+            state.ob6 = { rows: rows };
+            draw();
+          },
+          onError: onFail
+        });
+      } catch (e) {
+        onFail();
+      }
     }
 
     function ob6HzLabel(key) {
@@ -997,12 +1041,20 @@
 
     function step6() {
       var w = frag("ob-step");
+      // 리뷰 I1 — 3막 전체의 약속이 "이제 당신의 종목입니다"인데, 실제로 분석하는 이
+      // 화면이 그 이름을 한 번도 안 불렀다. state.symName 은 5단계 commit() 이 확정한
+      // 값이라 fallback(폴백 예시 데이터)이어도 "어느 종목을 골랐는지"는 그대로 맞다 —
+      // 값 자체가 예시라는 사실은 바로 아래 obFallbackNotice 경고가 이어서 말한다.
+      if (state.symName) w.appendChild(el("p", "ob-over", state.symName));
       w.appendChild(el("h1", "ob-h", MSStr.t.obH6));
       w.appendChild(el("p", "ob-sub", MSStr.t.obSub6));
       if (state.tut && state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obFallbackNotice));
 
       var r2 = state.r2;
-      if (!r2 || !r2.out) {
+      // 리뷰 I4 — state.ob6Failed 는 재생(MSAnalyzeView.play)이 던졌을 때만 선다(ob6Reveal
+      // 아래). r2 자체는 멀쩡해도(엔진 실행은 성공) 재생 단계가 실패할 수 있다 — 그 경우도
+      // r2 가 없을 때와 같은 막다른 골목 회수 경로(재시도 버튼)로 떨어뜨린다.
+      if (!r2 || !r2.out || state.ob6Failed) {
         w.appendChild(el("p", "ob-warn", MSStr.t.obAnalysisFailed));
         var retry = document.createElement("button");
         retry.type = "button"; retry.className = "btn btn-outline btn-sm ob-retry";
@@ -1017,7 +1069,7 @@
       var lastBar = (d && d.candle && d.candle.length) ? d.candle[d.candle.length - 1] : null;
       var asOf = dotDate(lastBar && lastBar.t);
       var today = frag("ob6-today");
-      today.appendChild(MSObQuality.metric({ value: num(lastBar && lastBar.c), label: MSStr.t.obTodayLabel, asOf: asOf }));
+      today.appendChild(MSObQuality.metric({ value: priceFmt(lastBar && lastBar.c), label: MSStr.t.obTodayLabel, asOf: asOf }));
       w.appendChild(today);
 
       // 세 지평 — 내일 · 1주 · 1개월, 각각 중심값 ± 오차 + 해석(단언 2·3).
@@ -1026,7 +1078,7 @@
       rows.forEach(function (r) {
         var half = (typeof r.width === "number") ? (r.width / 2) : null;
         var metric = MSObQuality.metric({
-          value: num(r.price), unit: (half != null) ? ("± " + half.toFixed(1)) : null,
+          value: priceFmt(r.price), unit: (typeof half === "number") ? ("± " + MSUi.fmtPrice(half)) : null,
           label: ob6HzLabel(r.key), asOf: asOf
         });
         hz.appendChild(MSObQuality.stat({ metric: metric, meaning: ob6HzMeaning(r) }));
@@ -1128,7 +1180,7 @@
 
       var r2 = state.r2;
       var hzRows = (r2 && r2.out) ? ob6Horizons(r2.out.prediction, r2.out.verdict.regime) : [];
-      var hzDetail = hzRows.map(function (r) { return ob6HzLabel(r.key) + " " + num(r.price); })
+      var hzDetail = hzRows.map(function (r) { return ob6HzLabel(r.key) + " " + priceFmt(r.price); })
                             .join(MSStr.t.obRecapSep);
       wrap.appendChild(recapRow(String(hzRows.length), MSStr.t.obRecapHorizonsLabel, hzDetail));
 
@@ -1151,6 +1203,9 @@
 
     function step7() {
       var w = frag("ob-step");
+      // 리뷰 I1 — 7단계도 6단계와 같은 이유로 종목명을 단다(obDoneSub 는 여전히 "이
+      // 종목으로"라고만 말한다 — 어느 종목인지는 이 오버라인이 답한다).
+      if (state.symName) w.appendChild(el("p", "ob-over", state.symName));
       w.appendChild(el("h1", "ob-h", MSStr.t.obDoneH));
       w.appendChild(el("p", "ob-sub", MSStr.t.obDoneSub));
       if (state.tut && state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obFallbackNotice));
