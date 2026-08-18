@@ -88,7 +88,8 @@
   // Task 4(2단계 — 같은 구간 32개 전부)가 2 를 더한다.
   // Task 5(3단계 — 성향)가 3 을 더한다.
   // Task 6(4단계 동의 · 5단계 종목 선택·분석 시작)이 4·5 를 더한다.
-  var APPLIES = [1, 2, 3, 4, 5];
+  // Task 7(6단계 — 실제 분석: 오늘 종가·세 지평·근거)이 6 을 더한다.
+  var APPLIES = [1, 2, 3, 4, 5, 6];
 
   return { metric: metric, stat: stat, APPLIES: APPLIES };
 });

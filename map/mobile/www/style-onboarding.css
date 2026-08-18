@@ -222,26 +222,21 @@
 .ob-style-desc { font-size:var(--fs-caption); color:var(--ink-4); }
 .ob-note { margin-top:14px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
 
-/* 6단계(옛 내용, Task 6 이 손대지 않음) — 진행은 "N / 3" 하나로 말한다. */
-.ob-tut-head { margin-bottom:6px; }
-.ob-tut-n { font-size:var(--fs-caption); color:var(--gold); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); }
-
-/* 값 한 줄 — 이름 / 값 / 폭. 6·7단계가 이 뼈대로 값을 나란히 비교한다. */
+/* 값 한 줄 — 이름 / 값 / 폭. 7단계(bandRow)가 이 뼈대로 세 값을 나란히 비교한다. */
 .ob-band { display:flex; align-items:baseline; gap:10px; padding:9px 0; border-bottom:1px solid var(--hairline); }
 .ob-band-k { flex:0 0 72px; font-size:var(--fs-caption); color:var(--ink-4); }
 .ob-band-v { flex:1 1 auto; font-size:var(--fs-num); font-weight:var(--fw-num); letter-spacing:var(--ls-num); font-variant-numeric:tabular-nums; }
 .ob-band-w { flex:0 0 auto; font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
 
-/* 6단계 — 슬라이더 하나. 손잡이를 크게(시안 26px): 이 화면의 요구는 "직접 만져보게"다. */
-.ob-now { display:flex; align-items:baseline; gap:10px; padding:12px 0; }
-.ob-now-k { flex:0 0 auto; font-size:var(--fs-caption); color:var(--ink-4); }
-.ob-now-v { flex:1 1 auto; font-size:var(--fs-display); font-weight:var(--fw-num); letter-spacing:var(--ls-num); font-variant-numeric:tabular-nums; }
-.ob-now-w { flex:0 0 auto; font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
-.ob-slider { padding:14px; border-radius:12px; border:1px solid var(--border); background:var(--surface); }
-.ob-slider-name { font-size:var(--fs-body); font-weight:var(--fw-medium); }
-.ob-slider-val { float:right; font-size:var(--fs-body); color:var(--gold); font-variant-numeric:tabular-nums; }
-.ob-range { width:100%; margin:14px 0 4px; accent-color:var(--gold); height:26px; }
-.ob-ticks { display:flex; justify-content:space-between; font-size:var(--fs-caption); color:var(--ink-5); }
+/* 6단계(재설계, Task 7) — 실제 분석. 오늘 종가는 한 화면에서 처음 나오는 실숫값이라
+   가장 크게(--fs-display) — 이후 세 지평(.ob6-hz)이 여기 기준으로 비교된다. 값·해석은
+   onboarding-quality.js 의 obq-metric/obq-stat 뼈대를 그대로 쓴다(Q1·Q5 강제). */
+.ob6-today { margin-top:14px; }
+.ob6-today .obq-value { font-size:var(--fs-display); }
+.ob6-hz { display:flex; flex-direction:column; gap:12px; margin-top:20px; padding:14px;
+  border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+.ob6-hz .obq-stat:not(:last-child) { padding-bottom:12px; border-bottom:1px solid var(--hairline); }
+.ob6-hz .obq-value { font-size:var(--fs-section); }
 
 /* 7단계 — 세 값을 한 표에. 가격은 이 화면에서 처음 나온다. */
 .ob-final { margin:12px 0 18px; }

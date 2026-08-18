@@ -230,6 +230,14 @@ function probe(route) {
     JSON.stringify(route.click) + ');if(el)el.click();else console.error("CLICK_TARGET_MISSING",' +
     JSON.stringify(route.click) + ');}catch(e){console.error("CLICK_FAILED",String(e));}},' +
     (route.clickDelay || 1300) + ');</script>';
+  // route.scripts — route.click(단일 클릭)로는 못 짜는 여러 단계짜리 시나리오용. 각 항목이
+  // 자기 시각(at)에 예약된 별도 <script> 로 실린다(온보딩 6단계 — 종목 로드가 끝나야 다음
+  // 클릭이 의미 있는 것처럼, 단계 사이에 실제 대기가 필요한 라우트). --virtual-time-budget
+  // (아래)이 크로미움의 가상 시계를 그 지연만큼 실제로 흘려보내므로, 여러 초 짜리 지연도
+  // 실제 벽시계 시간 없이 결정적으로 순서대로 실행된다.
+  (route.scripts || []).forEach(s => {
+    js += '\n<script>setTimeout(function(){try{' + s.code + '}catch(e){console.error("SCRIPT_FAILED",String(e));}},' + s.at + ');</script>';
+  });
   js += '\n<script>setTimeout(function(){var ok=false,err="";' +
         'try{ok=!!(' + route.assert + ');}catch(e){err=String(e);}' +
         'document.title="GATE:"+JSON.stringify({ok:ok,err:err,errs:(window.__gateErrs||[]),warns:(window.__gateWarns||[])});},' +

@@ -298,6 +298,26 @@ class El {
     this._ctx = null;
   }
   appendChild(c) { c.parentNode = this; this.children.push(c); return c; }
+  // progress-analyze.js(MSAnalyzeView) 가 close()/finish() 에서 실제로 부른다(6단계가
+  // 처음으로 이 모듈을 끌어들인다 — report.js 쪽 구매 흐름은 노드 시험이 아예 안 재서
+  // 지금까지 이 메서드가 없어도 아무도 눈치채지 못했다).
+  removeChild(c) {
+    const i = this.children.indexOf(c);
+    if (i >= 0) this.children.splice(i, 1);
+    c.parentNode = null;
+    return c;
+  }
+  // progress-analyze.js 의 paint() 가 teeth[i].classList.add("on") 을 부른다 — className
+  // 문자열을 그대로 다루는 최소 셰이프. get 으로 매번 새로 만들어도(캐싱 안 함) 부작용 없다
+  // (className 이 항상 최신 진실원이다).
+  get classList() {
+    const self = this;
+    return {
+      add(c) { if ((" " + self.className + " ").indexOf(" " + c + " ") < 0) self.className = (self.className ? self.className + " " : "") + c; },
+      remove(c) { self.className = (" " + self.className + " ").split(" " + c + " ").join(" ").trim(); },
+      contains(c) { return (" " + self.className + " ").indexOf(" " + c + " ") >= 0; }
+    };
+  }
   addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); }
   click() { (this.listeners.click || []).forEach(f => f({})); }
   // ticker-picker.js 는 칩 클릭을 개별 버튼이 아니라 부모 `.tp-grid` 에 위임한다
@@ -383,10 +403,28 @@ function withDom(fn, storeOverride, extra) {
   const g = globalThis;
   const saved = {};
   const put = (k, v) => { saved[k] = Object.prototype.hasOwnProperty.call(g, k) ? g[k] : undefined; g[k] = v; };
-  const doc = { createElement: t => new El(t), documentElement: new El("html") };
+  const htmlEl = new El("html"), bodyEl = new El("body");
+  htmlEl.appendChild(bodyEl);
+  // body/querySelector — 6단계가 처음으로 MSAnalyzeView.play() 를 끌어들인다. 그 모듈은
+  // document.body.appendChild(scrim) 로 오버레이를 붙이고 close() 에서 document.querySelector
+  // (".an-scrim") 로 되찾아 뗀다 — El 자신의 querySelector(문서 트리를 훑는 그 구현)를 그대로
+  // 재사용한다(새 탐색 로직을 만들지 않는다).
+  const doc = { createElement: t => new El(t), documentElement: htmlEl, body: bodyEl,
+    querySelector: sel => htmlEl.querySelector(sel) };
   put("document", doc);
   put("window", { devicePixelRatio: 3 });         // 3 = 실기기(폴드) 값. 1 이면 DPR 실수가 안 보인다
   put("getComputedStyle", () => ({ getPropertyValue: () => "" }));   // 토큰은 폴백으로 떨어진다
+  // requestAnimationFrame 을 동기로 흉내낸다 — progress-analyze.js 의 frame() 이 다음 프레임을
+  // 이 함수로 예약하는데, 동기로 즉시 부르면 재귀가 stepper 가 다 끝날 때까지(최대 32회) 그
+  // 자리에서 풀려 onDone 이 같은 tick 안에서 불린다. 그 onDone 은 draw() 를 다시 부르는데,
+  // 실제 호출부(screens/onboarding.js draw() 의 꼬리, `if (step===6) ob6Reveal();`)가 이미
+  // **바깥 draw() 가 return 하기 직전**에 이 함수를 부르도록 설계돼 있어 재진입 문제가 없다
+  // (바깥 draw() 가 이 줄 다음에 더 할 일이 없다) — 실제 브라우저에서 rAF 가 다음 페인트까지
+  // 미뤄지는 것과 최종 결과(= state.ob6 가 채워진 뒤의 완성된 DOM)는 같다, 그 사이 타이밍만
+  // 다르다. 시험이 flush() 연쇄 없이 6단계를 곧바로 잴 수 있는 이유가 이것이다.
+  put("requestAnimationFrame", fn => { fn(); return 1; });
+  put("cancelAnimationFrame", () => {});
+  put("MSAnalyzeView", require("../www/progress-analyze.js"));
   put("MSUi", require("../www/ui.js"));
   put("MSStr", S);
   put("ForgeCore", FC);
@@ -538,9 +576,17 @@ async function withDomWallet(wallet, fn, extra) {
   const g = globalThis;
   const saved = {};
   const put = (k, v) => { saved[k] = Object.prototype.hasOwnProperty.call(g, k) ? g[k] : undefined; g[k] = v; };
-  put("document", { createElement: t => new El(t), documentElement: new El("html") });
+  const htmlEl = new El("html"), bodyEl = new El("body");
+  htmlEl.appendChild(bodyEl);
+  put("document", { createElement: t => new El(t), documentElement: htmlEl, body: bodyEl,
+    querySelector: sel => htmlEl.querySelector(sel) });
   put("window", { devicePixelRatio: 3 });
   put("getComputedStyle", () => ({ getPropertyValue: () => "" }));
+  // withDom 의 같은 스텁과 같은 이유 — toStep7() 이 6단계를 실제로 지나가며 MSAnalyzeView.play()
+  // 를 부른다(ob6Reveal, draw() 꼬리에서). 동기 rAF 로 그 자리에서 끝맺는다.
+  put("requestAnimationFrame", fn => { fn(); return 1; });
+  put("cancelAnimationFrame", () => {});
+  put("MSAnalyzeView", require("../www/progress-analyze.js"));
   put("MSUi", require("../www/ui.js"));
   put("MSStr", S);
   put("MSWallet", wallet);
@@ -588,6 +634,25 @@ function spyWallet(result, costs) {
     COSTS: costs || { full: 3, scan: 2, slot: 1 },
     get() { calls.push(1); return Promise.resolve(result); }
   };
+}
+
+// 6단계까지 실제로 걸어간다(toStep7 과 같은 절차, 5->6 클릭에서 멈춘다). withDom 의 rAF
+// 스텁이 동기라 이 클릭 하나로 MSAnalyzeView.play() 의 재생까지 전부 끝난다 — 그래서
+// 여기서 더 기다리지 않고 바로 6단계 DOM 을 잴 수 있다(실 브라우저에선 비동기지만 최종
+// 상태는 같다, 위 withDom 의 requestAnimationFrame 스텁 주석 참고).
+function toStep6(root) {
+  O.render(root, { sample: SAMPLE });
+  root.querySelector(".ob-guess-btn").click();          // 1: 직접 찍기
+  root.querySelector(".ob-next").click();               // 1 -> 2
+  root.querySelector(".ob-next").click();               // 2 -> 3
+  root.querySelector(".ob-next").click();               // 3 -> 4
+  root.querySelector(".ob-agree").click();              // 4: 동의 체크
+  root.querySelector(".ob-next").click();               // 4 -> 5
+  pickChip(root);                                       // 5: 종목 하나 고른다
+  root.querySelector(".ob-pick-start").click();         // 5: [분석 시작]
+  return flush().then(function () {                     // 실 데이터 적재(또는 번들 폴백)를 기다린다
+    root.querySelector(".ob-next").click();              // 5 -> 6, 재생도 이 안에서 동기로 끝난다
+  });
 }
 
 // 7단계까지 실제로 걸어간다. 각 단계가 요구하는 것을 실제로 충족시키면서 간다 —
@@ -780,10 +845,12 @@ test("번들 요약에 티어 실측이 실려 있다 — 없으면 그 블록�
 
 // coverGap() 도 옛 "심화분석 체험" 전용 헬퍼였다 — 함수·export 를 지웠으니 이 시험도 지운다.
 
-test("전문분석 체험은 가중치를 두 경로에 함께 넘긴다 — 한쪽만이면 예측선이 안 움직인다", () => {
-  assert.match(OB, /driftWeights/, "드리프트 가중치를 안 넘긴다");
-  assert.match(OB, /customGraph/, "combine 쪽 그래프를 안 만든다");
-});
+// "전문분석 체험은 가중치를 두 경로에 함께 넘긴다"(recomputeCustom·state.trendW·슬라이더)도
+// 옛 6단계 전용이었다 — Task 7 이 6단계를 "실제 분석"으로 갈아치우며 그 함수·상태·마크업을
+// 통째로 지웠다(위 coverGap() 과 같은 부류). driftWeights/customGraph 리터럴은 소스에
+// 계속 남지만(3단계 visibleStyle() 이 여전히 runTier("custom", wts) 로 성향 가중치를
+// 쓴다 — 그 자리는 이 태스크가 손대지 않았다), 이 시험이 재던 대상(전문분석 체험) 자체가
+// 없어졌으니 남겨두면 통과는 하되 거짓 전제("전문분석 체험이 있다")를 관문이 고정한다.
 
 test("완료는 고른 종목만 심는다 — SEED 를 몰래 얹지 않는다", () => {
   const seeded = [];
@@ -1807,6 +1874,236 @@ test("5단계(리뷰 E) — 정상 경로(실 데이터 확보)에서는 폴백 
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════
+// 6단계 — 실제 분석(설계서 §4.6, Task 7). 브리프 단언 7건을 실제 조립(withDomWallet + 실물
+// api.js)으로 잰다 — 가짜 DOM 빈 문자열 통과나 조건부 if 로 건너뛰는 단언을 두지 않는다.
+// ══════════════════════════════════════════════════════════════════════════════════
+
+// 실측(node, ForgeCore.run 직접 호출)으로 미리 확인해 둔 표본이다 — 항등식이 되지 않도록
+// 기대값(방향)은 엔진 밖에서, 실제 계산 결과를 보고 정했다(테스트 기대값은 밖에서 원칙).
+// 꾸준한 상승 230봉 — regime=bull, 내일·1주·1개월 세 지평이 전부 "up" 으로 갈리지 않는다
+// (엇갈림 없음의 대조군이자, 1~4번 단언의 주 표본).
+function steadyUpCandles() {
+  var out = [], p = 80, i;
+  for (i = 0; i < 230; i++) {
+    p = p * 1.004;
+    out.push({ o: p, h: p * 1.01, l: p * 0.99, c: p, v: 1000 + i, t: "2026-01-01" });
+  }
+  return out;
+}
+
+// 장기 완만한 상승 뒤 최근 20봉만 급락(−3.5%/봉) — regime=bull 이지만 내일(momentum, 최근
+// 반등 여력)은 up, 1개월(평균회귀+구조적 하락 드리프트)은 down 으로 실제로 갈린다(위 sweep
+// 실측: d1 +0.115%, m1 −0.996%). 세 지평 배열도 report.js 의 HORIZONS 순서(d1·w1·m1)를 그대로
+// 따르므로 rows[0]=d1, rows[last]=m1 이다.
+function mixedHorizonCandles() {
+  var out = [], p = 80, i;
+  for (i = 0; i < 210; i++) { p = p * 1.005; out.push({ o: p, h: p * 1.01, l: p * 0.99, c: p, v: 1000 + i, t: "2026-01-01" }); }
+  for (i = 0; i < 20; i++) { p = p * (1 - 0.035); out.push({ o: p, h: p * 1.01, l: p * 0.99, c: p, v: 1210 + i, t: "2026-01-01" }); }
+  return out;
+}
+
+test("6단계 단언 1 — 오늘 종가가 기준 시각과 함께, 가장 먼저 나온다", async () => {
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    await flush();
+    root.querySelector(".ob-next").click();   // 5 -> 6, 재생도 동기로 여기서 끝난다
+    assert.strictEqual(root.querySelector(".ob-canvas"), null, "6단계에 엉뚱한 1단계 DOM 이 남아 있다");
+    const step = root.querySelector(".ob-step");
+    assert.ok(step, "6단계 본문이 없다");
+    // 오늘 종가 블록(.ob6-today)이 세 지평(.ob6-hz)보다 DOM 순서상 먼저다.
+    const todayIdx = step.children.findIndex(c => c.className.indexOf("ob6-today") >= 0);
+    const hzIdx = step.children.findIndex(c => c.className.indexOf("ob6-hz") >= 0);
+    assert.ok(todayIdx >= 0, "오늘 종가 블록(.ob6-today)이 없다");
+    assert.ok(hzIdx >= 0, "세 지평 블록(.ob6-hz)이 없다");
+    assert.ok(todayIdx < hzIdx, "오늘 종가가 세 지평보다 먼저 나오지 않는다");
+    const today = step.children[todayIdx];
+    const value = today.querySelector(".obq-value"), asOf = today.querySelector(".obq-asof");
+    assert.ok(value && deepText(value).trim().length > 0, "오늘 종가 값이 비어 있다");
+    assert.match(deepText(value), /\d/, "오늘 종가에 숫자가 없다");
+    assert.ok(asOf && deepText(asOf).trim().length > 0, "오늘 종가에 기준 시각이 없다 — 값만 있는 숫자다");
+  }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: steadyUpCandles(), symbol: "AAPL", name: "Apple" }) });
+});
+
+test("6단계 단언 2·3 — 세 지평이 각각 중심값 ± 오차 + 해석과 함께 있다", async () => {
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    await flush();
+    root.querySelector(".ob-next").click();   // 5 -> 6
+    const hz = root.querySelector(".ob6-hz");
+    assert.ok(hz, "세 지평 블록이 없다");
+    const stats = hz.findAll(c => c.className.indexOf("obq-stat") >= 0);
+    assert.strictEqual(stats.length, 3, "지평이 3개(내일·1주·1개월)가 아니다: " + stats.length);
+    const labels = stats.map(s => deepText(s.querySelector(".obq-label")));
+    assert.deepStrictEqual(labels, [S.t.rpHzTomorrow, S.t.rpHzWeek, S.t.rpHzMonth],
+      "지평 라벨 순서가 내일·1주·1개월이 아니다: " + labels.join(","));
+    stats.forEach((s, i) => {
+      const value = s.querySelector(".obq-value"), unit = s.querySelector(".obq-unit"), meaning = s.querySelector(".obq-meaning");
+      assert.ok(value && deepText(value).trim().length > 0, labels[i] + " 값이 비어 있다");
+      assert.match(deepText(value), /\d/, labels[i] + " 값에 숫자가 없다 — 중심값이 아니다");
+      assert.ok(unit && /±/.test(deepText(unit)), labels[i] + " 에 오차(±) 표기가 없다");
+      // 단언 3(Q5) — 값만 있는 블록 금지. 해석 텍스트가 실제로 비어있지 않아야 한다(자명
+      // 통과 방지 — deepText 로 실제 내용을 보고, 비어있지 않음도 함께 잰다).
+      assert.ok(meaning, labels[i] + " 에 해석 블록이 없다");
+      const meaningText = deepText(meaning).trim();
+      assert.ok(meaningText.length > 0, labels[i] + " 해석이 비어 있다");
+      // 방향이 있으면 "…봅니다." 뒤에 "(NN%)" 확신이 붙을 수 있다(regime 이 방향을 가리킬
+      // 때만) — 그래서 접두 일치로 본다. 무판정(flat)은 접미 없이 정확히 일치해야 한다.
+      assert.ok(meaningText.indexOf(S.t.obHzUpMeaning) === 0 || meaningText === S.t.obHzFlatMeaning
+        || meaningText.indexOf(S.t.obHzDownMeaning) === 0, labels[i] + " 해석 문구가 예상 형식이 아니다: " + meaningText);
+    });
+  }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: steadyUpCandles(), symbol: "AAPL", name: "Apple" }) });
+});
+
+test("6단계 단언 4 — 근거가 2단계와 같은 형식(동의/반대/무판정/자백, 합이 32)으로 있다", async () => {
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    await flush();
+    root.querySelector(".ob-next").click();   // 5 -> 6
+    const counts = root.querySelectorAll(".ob32-sec-count").map(e => Number(deepText(e)));
+    assert.strictEqual(counts.length, 4, "네 통(동의·반대·무판정·자백)이 아니다: " + counts.length);
+    const sum = counts.reduce((a, b) => a + b, 0);
+    assert.strictEqual(sum, 32, "네 통의 합이 32가 아니다 — 2단계와 같은 분류 경로를 안 탔다: " + sum);
+    const dissentSec = root.querySelector(".ob32-sec-dissent");
+    assert.ok(dissentSec, "반대 섹션이 없다");
+    assert.strictEqual(dissentSec.querySelector(".ob32-expand"), null, "반대가 접혀 있다 — 2단계는 반대를 항상 전부 보여준다");
+    // El.querySelectorAll 은 단일 클래스만 본다(후손 결합자 " " 미지원) — 섹션을 먼저 찾고
+    // 그 안에서 행을 찾는다(2단계 시험이 이미 쓰는 방식).
+    const agreeSec = root.querySelector(".ob32-sec-agree");
+    assert.ok(agreeSec, "동의 섹션 자체가 없다");
+    const agreeRows = agreeSec.querySelectorAll(".ob32-row");
+    assert.ok(agreeRows.length > 0, "동의가 있어야 하는 표본(steadyUpCandles)인데 동의 행이 없다");
+    const r0 = agreeRows[0];
+    assert.ok(r0.querySelector(".ob32-name") && deepText(r0.querySelector(".ob32-name")).trim().length > 0, "근거 행에 도구 이름이 없다");
+    assert.ok(r0.querySelector(".ob32-text") && deepText(r0.querySelector(".ob32-text")).trim().length > 0, "근거 행에 판독 문장이 없다");
+  }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: steadyUpCandles(), symbol: "AAPL", name: "Apple" }) });
+});
+
+// 단언 5 — 방향이 다른 입력을 실제로 주입해 "엇갈리면 엇갈린다고 쓰는지" 확인한다. 이 표본
+// (mixedHorizonCandles)에서 우연히 세 지평이 같은 방향이면 이 시험은 안 도는데, 위에서 실측
+// 확정했다(d1=up, m1=down) — 그리고 대조군(steadyUpCandles, d1=up, m1=up)으로 "안 엇갈리면
+// 안 쓴다"도 같은 시험에서 함께 잰다(브리프 경고: 우연히 같은 방향인 표본만으로 그 갈래가
+// 죽지 않게 한다).
+test("6단계 단언 5 — 세 지평이 엇갈리면 엇갈린다고 쓰고, 안 엇갈리면 안 쓴다", async () => {
+  const RealApi = require("../www/api.js");
+  async function noteFor(candles) {
+    const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+    return withDomWallet(wallet, async (root) => {
+      toStep5(root);
+      pickChip(root);
+      root.querySelector(".ob-pick-start").click();
+      await flush();
+      root.querySelector(".ob-next").click();   // 5 -> 6
+      const notes = root.querySelectorAll(".ob-note").filter(n => deepText(n).indexOf(S.t.rpHzMixedA) === 0);
+      return notes.length ? deepText(notes[0]) : null;
+    }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: candles, symbol: "AAPL", name: "Apple" }) });
+  }
+  const mixedNote = await noteFor(mixedHorizonCandles());
+  assert.ok(mixedNote, "방향이 실제로 갈리는 표본인데(d1=up·m1=down 실측) 엇갈림 문구가 없다");
+  assert.ok(mixedNote.indexOf(S.t.rpHzMixedUp) >= 0, "엇갈림 문구가 첫 지평의 실제 방향(up)을 안 담았다: " + mixedNote);
+
+  const sameNote = await noteFor(steadyUpCandles());
+  assert.strictEqual(sameNote, null, "안 갈리는 표본(둘 다 up)인데 엇갈림 문구가 떴다 — 오탐이다");
+});
+
+// 단언 6 — 진행 중계가 실제 엔진 호출 수에 묶인다. readingStepper 를 스파이해 total(=
+// ForgeCore.indicatorCount)만큼 step() 이 불렸는지, 그 결과 rows 가 그대로 근거가 됐는지를
+// 잰다 — 전역 Q3 시험(소스에 고정 setTimeout/setInterval 이 없다)과 다른 각도: 여기는
+// **6단계가 실제로 이 반복자를 쓰는지**를 통합 경로로 확인한다.
+test("6단계 단언 6 — 진행 중계는 readingStepper(analyzeX 실호출)에 묶인다, 고정 시간이 아니다", async () => {
+  const RealApi = require("../www/api.js");
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  let stepCalls = 0, capturedTotal = null;
+  const IndSpy = Object.assign({}, IND, {
+    readingStepper(FCArg, graphArg, dataArg, ctxArg) {
+      const real = IND.readingStepper(FCArg, graphArg, dataArg, ctxArg);
+      capturedTotal = real.total;
+      // Object.assign 으로 wrap 하면 안 된다 — get done()/get index() 를 "소스"로 합칠 때
+      // Object.assign 은 게터를 그 순간의 값으로 한 번만 읽어 정적 프로퍼티로 굳혀버린다
+      // (진짜 걸렸던 사고 — done 이 생성 시점 false 로 얼어붙어 MSAnalyzeView.play() 의
+      // while(!st.done) 이 끝나지 않고 동기 rAF 재귀가 스택을 넘쳤다). 순수 객체 리터럴로
+      // 살아있는 게터를 만든다.
+      return {
+        total: real.total,
+        get done() { return real.done; },
+        get index() { return real.index; },
+        rows: real.rows,
+        step() { const r = real.step(); if (r) stepCalls++; return r; },
+        drain() { return real.drain(); }
+      };
+    }
+  });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    await flush();
+    root.querySelector(".ob-next").click();   // 5 -> 6 — 여기서 재생이 실제로 돈다
+    assert.ok(capturedTotal > 0, "readingStepper 를 아예 안 불렀다");
+    assert.strictEqual(stepCalls, capturedTotal, "진행이 stepper.total 만큼 실제로 step() 되지 않았다: " + stepCalls + "/" + capturedTotal);
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false, "재생이 끝났는데 다음이 안 열렸다(state.ob6 미반영)");
+  }, { MSApi: RealApi, MSIndicators: IndSpy, fetch: fetchReturning({ ok: true, tf: "1day", candles: steadyUpCandles(), symbol: "AAPL", name: "Apple" }) });
+});
+
+// 단언 7 — 로드(엔진 실행) 실패 시 다음 행동이 있다. 5단계는 이미 성공했어도(state.sym 존재)
+// runTier("full") 자체가 실패할 수 있다 — 실제로는 5단계 commit() 이 [분석 시작] 시점에
+// state.r1/state.r2 를 **함께** 계산해 두므로(6단계는 그 결과를 다시 계산하지 않는다), r2
+// 가 null 이 되는 진짜 실패 지점은 그 commit() 호출이다. MSGraph.full32Graph 를 **두 번째
+// 호출**에서만 던지게 만든다 — 첫 번째는 2단계(옛 예시 표본, sliced())가 이미 쓰고, 그
+// 다음(두 번째)이 5단계가 실제 종목 데이터로 부르는 호출이다(실측: toStep5() 경로에서
+// 정확히 이 순서로 두 번만 불린다). runTier 의 try/catch(실제 통합 경로)를 그대로 태워
+// r2 를 진짜 null 로 만든다 — "버튼 있음"만 단언하는 자명 통과가 아니다.
+function fullGraphThrowsOnSecondCall(G) {
+  var calls = 0;
+  return Object.assign({}, G, {
+    full32Graph: function (FC) {
+      calls++;
+      if (calls === 2) throw new Error("engine exploded — 단언 7 주입");
+      return G.full32Graph(FC);
+    }
+  });
+}
+
+test("6단계 단언 7 — 분석(runTier full)이 실패하면 막다른 골목 없이 다음 행동(재시도)이 있다", async () => {
+  const RealApi = require("../www/api.js");
+  const G2 = fullGraphThrowsOnSecondCall(G);
+  const wallet = spyWallet({ ok: false, state: null, reason: "network" });
+  await withDomWallet(wallet, async (root) => {
+    toStep5(root);
+    pickChip(root);
+    root.querySelector(".ob-pick-start").click();
+    // [분석 시작] 이 실제 종목 데이터로 runTier("full") 을 부르는 순간(commit(), 두 번째
+    // 호출) 던진다 — state.sym 은 그래도 설정되므로(리뷰: commit() 이 r1/r2 성패와 무관하게
+    // sym 을 확정한다) 5단계는 정상적으로 다음이 열리고, r2 만 null 로 남는다.
+    await flush();
+    root.querySelector(".ob-next").click();   // 5 -> 6 — 실패는 이미 일어나 있었다, 여기서 드러날 뿐
+    const warn = root.querySelector(".ob-warn");
+    assert.ok(warn, "분석 실패 상태인데 경고 문구가 없다");
+    assert.strictEqual(deepText(warn), S.t.obAnalysisFailed, "실패 문구가 obAnalysisFailed 가 아니다: " + deepText(warn));
+    const retry = root.querySelector(".ob-retry");
+    assert.ok(retry, "다음 행동 버튼(.ob-retry)이 없다 — 막다른 골목이다(뒤로가기도 없는 단계다)");
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true, "분석이 실패했는데 다음이 열려 있다");
+    assert.strictEqual(root.querySelector(".ob6-today"), null, "실패했는데 없는 값(오늘 종가)을 그렸다");
+    // 다음 행동이 실제로 동작한다 — 재시도하면 이번엔(두 번째 호출) 성공해 실제 내용이 뜬다.
+    retry.click();
+    assert.strictEqual(root.querySelector(".ob-warn"), null, "재시도 후에도 실패 문구가 남아 있다");
+    const today = root.querySelector(".ob6-today");
+    assert.ok(today, "재시도가 성공했는데(두 번째 호출은 안 던진다) 실제 내용이 안 그려졌다");
+  }, { MSApi: RealApi, MSGraph: G2, fetch: fetchReturning({ ok: true, tf: "1day", candles: steadyUpCandles(), symbol: "AAPL", name: "Apple" }) });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
 // 품질 다섯 규칙(설계서 §5, Task 2) — Q1·Q5 는 onboarding-quality.js 의 metric()·stat() 이
 // 스스로 강제한다(기준 시점·해석 없이는 만들 수 없다, test/onboarding-quality.test.mjs 참고).
 // Q2·Q4 는 여기서 각 단계 렌더 결과를 재고, Q3 은 소스 형태를 잰다.
@@ -1828,9 +2125,12 @@ function walkToStep(root, target) {
   for (var s = 1; s < target; s++) {
     if (s === 1) root.querySelector(".ob-guess-btn").click();
     // Task 5: 3단계(성향)는 기본 선택이 항상 채워져 있어 별도 입력 없이 다음으로 넘어간다.
-    // Task 6: 4단계(동의)는 체크해야 5단계로 간다 — APPLIES 가 5 를 넘지 않는 한 5단계
-    // 자신을 떠날 필요(칩 선택·[분석 시작])는 없다.
     if (s === 4) root.querySelector(".ob-agree").click();
+    // Task 7: 5단계를 실제로 떠나려면(6단계 이상을 걷는 호출) 칩을 고르고 [분석 시작]까지
+    // 눌러야 한다. 이 하네스(withDom)는 MSApi 를 안 심으므로 loadPick() 이 "API 층 자체가
+    // 없다" 분기로 물러서 동기로(fetch 없이) 즉시 확정된다 — walkToStep 이 async 일 필요가
+    // 없는 이유다.
+    if (s === 5) { pickChip(root); root.querySelector(".ob-pick-start").click(); }
     root.querySelector(".ob-next").click();
   }
 }

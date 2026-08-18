@@ -17,7 +17,10 @@
 //   5 종목 선택 · 분석 시작          — 고르는 것과 시작하는 것을 분리한다. 칩을 골라도
 //                                    분석은 안 돈다 — [분석 시작]을 눌러야 실제로 돈다.
 //                                    [재설계 완료 — Task 6]
-//   6 전문분석 체험(16c)            — 슬라이더 하나만 열어 직접 만지게 한다. 체험 3/3. [옛 내용 그대로]
+//   6 실제 분석                     — 5단계가 고른 그 종목을 오늘 종가 → 내일·1주·1개월 →
+//                                    근거(2단계와 같은 형식) 순서로 편다. [재설계 완료 — Task 7.
+//                                    옛 "전문분석 체험"(슬라이더 하나) 슬롯은 이 태스크가
+//                                    통째로 갈아치웠다 — r3/trendW/recomputeCustom 삭제]
 //   7 완료·가격표·지급(17a)         — 세 값을 한 표에 모으고 **가격은 이제야** 공개한다. [옛 내용 그대로]
 //
 // **순서가 핵심이다.** 가격표를 먼저 보여주면 "3스쿱"이 그냥 숫자다. 234.2 ± 1.1 을 먼저 본
@@ -70,6 +73,11 @@
     // (loadPick→commit)에서만 쓰인다. 칩을 고르는 것(state.pick)만으로는 채워지지
     // 않는다 — 선택과 실행이 서로 다른 변수다.
     if (step === 5) return !!state.sym;
+    // 6단계(실제 분석) — 근거(32도구 서술문)가 다 재생돼야 다음이 열린다. r2(예측·판정)는
+    // 5단계에서 이미 확정돼 있지만, "배운 읽기를 자기 종목에 적용하는 장면"이 이 단계의
+    // 요점이라 그 재생을 실제로 보기 전에는 넘어가지 않는다(state.r2 존재만으로는 안 연다 —
+    // 5단계와 같은 원칙: 진행 조건이 계산의 부수 효과가 아니라 이 화면이 마친 일이어야 한다).
+    if (step === 6) return !!state.ob6;
     return true;
   }
 
@@ -112,7 +120,11 @@
       sym: null, symName: null,               // 5단계가 확정한 종목 — canAdvance(5) 의 유일한 근거
       tut: null,            // { sym, name, data, fallback }
       r1: null, r2: null, r3: null,
-      trendW: 1.0,
+      // 6단계 — 실제 분석(Task 7). r2(32도구, state.r1/r2 와 같이 5단계 commit() 이 이미
+      // 계산해 둔다)가 이 화면의 원자재다. ob6 은 그 자료로 재생한 "서술문 있는" 32행이다
+      // (readingStepper 로 하나씩 읽는다 — Q3, 진행이 엔진 호출 수에 묶인다). null 이면
+      // 아직 안 읽었거나(재생 시작 전) 재생 중이라는 뜻 — ob6Playing 이 둘을 가른다.
+      ob6: null, ob6Playing: false,
       granted: null, grantStarted: false, grantFailed: false,
       picked: [], finished: false
     };
@@ -207,20 +219,27 @@
     // 엔진을 실제로 돌린다. tier 는 그래프를 고르고, weights 는 전문분석에서만 온다.
     // report.js analyzeFull 의 거래량 취급을 그대로 따른다 — 드리프트는 data.volume 이 아니라
     // 그래프의 volume 노드를 읽으므로 setVolume 을 반드시 거친다.
+    // 리뷰(Task 7) — try 가 ForgeCore.run() 호출 하나만 감싸고 있었다. 그래프 조립
+    // (MSGraph.*Graph)이 던지면 그 예외는 이 함수를 그대로 빠져나간다 — 그런데 이 함수의
+    // 주석·호출자 전부가 "엔진 예외는 runTier 의 catch 가 삼킨다"를 전제로 짜여 있다(5단계
+    // commit() 은 보호막이 없고, loadPick 의 바깥 .catch() 로 새면 "그 외 네트워크 문제"로
+    // 오분류돼 조용히 번들 표본으로 물러선다 — 6단계가 잡으려는 바로 그 실패가 다른 실패로
+    // 둔갑한다). try 를 함수 전체로 넓혀 그 전제를 실제로 지킨다.
     function runTier(data, tier, weights) {
       if (!data || typeof ForgeCore === "undefined" || typeof MSGraph === "undefined") return null;
-      var vol = data.candle.map(function (c) { return c && c.v; });
-      var okVol = vol.length >= 2 && vol.every(function (v) { return typeof v === "number" && isFinite(v); });
-      var graph = (tier === "basic") ? MSGraph.basicGraph(ForgeCore)
-                : (tier === "custom") ? MSGraph.customGraph(ForgeCore, weights)
-                : MSGraph.full32Graph(ForgeCore);
-      MSGraph.setVolume(graph, okVol ? vol : null);
-      var input = { price: data.price, candle: data.candle };
-      if (okVol) input.volume = vol;
-      var opt = { timeframe: (typeof MSReportModel !== "undefined") ? MSReportModel.tfKo(TF) : TF };
-      if (tier === "custom" && weights) opt.driftWeights = weights;
-      try { return { graph: graph, input: input, out: ForgeCore.run(graph, input, opt) }; }
-      catch (e) { return null; }
+      try {
+        var vol = data.candle.map(function (c) { return c && c.v; });
+        var okVol = vol.length >= 2 && vol.every(function (v) { return typeof v === "number" && isFinite(v); });
+        var graph = (tier === "basic") ? MSGraph.basicGraph(ForgeCore)
+                  : (tier === "custom") ? MSGraph.customGraph(ForgeCore, weights)
+                  : MSGraph.full32Graph(ForgeCore);
+        MSGraph.setVolume(graph, okVol ? vol : null);
+        var input = { price: data.price, candle: data.candle };
+        if (okVol) input.volume = vol;
+        var opt = { timeframe: (typeof MSReportModel !== "undefined") ? MSReportModel.tfKo(TF) : TF };
+        if (tier === "custom" && weights) opt.driftWeights = weights;
+        return { graph: graph, input: input, out: ForgeCore.run(graph, input, opt) };
+      } catch (e) { return null; }
     }
 
     // 내일(첫 지평)의 값과 폭. 세 단계가 같은 자리를 비교해야 표가 성립한다.
@@ -257,6 +276,7 @@
         state.r1 = runTier(data, "basic");
         state.r2 = runTier(data, "full");
         state.r3 = null;
+        state.ob6 = null; state.ob6Playing = false;   // 새 확정 — 6단계 재생은 처음부터 다시
         state.sym = pick.sym; state.symName = pick.name; state.picked = [pick];
         state.pickChecking = false; state.pickError = null;
         done();
@@ -288,6 +308,7 @@
     function invalidateConfirmed() {
       state.sym = null; state.symName = null; state.tut = null;
       state.r1 = null; state.r2 = null; state.r3 = null; state.picked = [];
+      state.ob6 = null; state.ob6Playing = false;   // r2 에서 파생된 자료라 같이 무효화한다
     }
 
     // ── 1단계: 콜드 오픈 ─────────────────────────────────────────────────────────
@@ -781,13 +802,9 @@
       return w;
     }
 
-    // ── 4단계: 기본분석 체험 ─────────────────────────────────────────────────────
-    function tutHead(n) {
-      var d = frag("ob-tut-head");
-      d.appendChild(el("span", "ob-tut-n", n + MSStr.t.obTutOf + "3"));
-      return d;
-    }
-
+    // bandRow — 7단계(옛 내용, Task 8 이 다시 짤 몫)가 세 값(기본·심화·전문)을 나란히 비교할
+    // 때 쓰는 값 한 줄 뼈대. tutHead(옛 6단계 "N / 3" 진행 표시)는 Task 7 이 6단계를 실제
+    // 분석으로 갈아치우며 호출자와 함께 지웠다 — 여기 남겨두면 죽은 코드다.
     function bandRow(label, band) {
       var r = frag("ob-band");
       r.appendChild(el("span", "ob-band-k", label));
@@ -904,55 +921,158 @@
       return w;
     }
 
-    // ── 6단계: 전문분석 체험 ─────────────────────────────────────────────────────
-    function recomputeCustom() {
-      var base = MSIndTiers.weightsOf(state.style, MSGraph.BASIC);
-      var wts = {};
-      Object.keys(base).forEach(function (k) { wts[k] = base[k]; });
-      wts.trend = state.trendW;                       // 슬라이더가 여는 딱 하나
-      state.r3 = runTier(state.tut && state.tut.data, "custom", wts);
+    // ── 6단계: 실제 분석(설계서 §4.6) ─────────────────────────────────────────────
+    // 5단계가 이미 실제 데이터를 적재했다(state.tut.data · state.r1 · state.r2 — commit() 이
+    // 두 티어를 미리 계산해 둔다). 이 화면의 뼈대는 순서다: **오늘 종가(기준 시각과 함께) →
+    // 세 지평(내일·1주·1개월, 각각 중심값 ± 오차 + 해석) → 근거.** "내일 예상값만 있고 오늘이
+    // 얼마인지도 안 보여준다"던 원 판정에 대한 정면 답 — 그래서 오늘 종가가 이 화면에서
+    // 가장 먼저 그려진다(단언 1). 세 지평은 state.r2.out.prediction 에서 곧바로 나온다 —
+    // 5단계에서 이미 계산이 끝나 있으므로 이 화면이 다시 엔진을 돌리지 않는다.
+    //
+    // 진행 중계(Q3, 단언 6)는 MSAnalyzeView(progress-analyze.js, 시안 19a — report.js 구매
+    // 흐름이 이미 쓰는 그 모듈)를 그대로 쓴다. **재생이 값을 계산하지 않는다** — 판정·예측은
+    // 이미 확정돼 있다. 재생이 실제로 만드는 것은 그 판정을 뒷받침하는 32개 지표의
+    // **서술문**(narration)뿐이다 — 2단계가 쓰는 것과 정확히 같은 자료·같은 형식(동의/반대/
+    // 무판정/자백, full32Section 재사용)이다(단언 4 — "2단계에서 배운 형식 그대로"). 진행은
+    // readingStepper 가 analyzeX 를 실제로 한 번씩 부르는 것에 묶인다(고정 타이머 없음) —
+    // 그래서 재생을 건너뛰어도(overlay 탭) 근거는 그대로 남는다(progress-analyze.js 머리말).
+
+    // 근거 분류 — 2단계(visibleFull32)와 정확히 같은 경로(classifyFull32)를 탄다. 재생이
+    // 아직 안 끝났으면(state.ob6 없음) null — 화면은 그 사이 "정리하는 중" 문구를 보여준다.
+    function ob6Classify() {
+      var r2 = state.r2;
+      if (!r2 || !r2.out || !state.ob6 || !state.ob6.rows) return null;
+      var noDir = (typeof MSIndicators !== "undefined")
+        ? MSIndicators.noDirRows(ForgeCore, r2.input, MSIndicators.ctxFrom(r2.input)) : [];
+      return classifyFull32(r2.graph, r2.out.verdict.regime, state.ob6.rows, noDir);
+    }
+
+    // 막다른 골목 금지(단언 7) — 5단계에서 종목은 이미 확정됐어도(state.sym 존재) 32도구
+    // 전체 실행(runTier "full")은 별도로 실패할 수 있다(엔진 예외는 runTier 의 catch 가
+    // 삼켜 null 을 돌려준다). 뒤로가기가 없는 단계(Q4)라 다른 종목을 고르러 돌아갈 수 없다
+    // — 그래서 다음 행동은 "같은 종목으로 다시 시도"다. 성공하면 재생도 처음부터 다시 켠다.
+    function ob6Retry() {
+      state.r1 = runTier(state.tut && state.tut.data, "basic");
+      state.r2 = runTier(state.tut && state.tut.data, "full");
+      state.ob6 = null; state.ob6Playing = false;
+      draw();
+    }
+
+    // 재생을 실제로 켠다 — draw() 의 꼬리(DOM 부착 뒤, step7 의 fetchGrant 와 같은 1회성
+    // 발신 패턴)가 정확히 한 번 부른다. 여기서 직접 부르지 않는 이유: MSAnalyzeView.play() 는
+    // document.body 에 자기 오버레이를 붙이므로 step6() 자신의 DOM 트리(w)와 무관하게 동작할
+    // 수 있고, onDone 이 draw() 를 다시 부를 때 **바깥 draw() 호출이 이미 끝난 뒤**여야
+    // 재진입 문제가 없다(꼬리에서 부르면 그 시점이 항상 보장된다).
+    function ob6Reveal() {
+      if (state.ob6 || state.ob6Playing) return;
+      var r2 = state.r2;
+      if (!r2 || !r2.out || !r2.graph || !r2.input) return;
+      if (typeof MSIndicators === "undefined" || typeof MSAnalyzeView === "undefined") return;
+      var stepper = MSIndicators.readingStepper(ForgeCore, r2.graph, r2.input, MSIndicators.ctxFrom(r2.input));
+      if (!stepper.total) return;
+      state.ob6Playing = true;
+      MSAnalyzeView.play({
+        stepper: stepper,
+        basic: (typeof MSGraph !== "undefined" && MSGraph.BASIC) ? MSGraph.BASIC.length : 5,
+        onDone: function (rows) {
+          state.ob6Playing = false;
+          state.ob6 = { rows: rows };
+          draw();
+        }
+      });
+    }
+
+    function ob6HzLabel(key) {
+      return key === "d1" ? MSStr.t.rpHzTomorrow : key === "w1" ? MSStr.t.rpHzWeek : MSStr.t.rpHzMonth;
+    }
+
+    // 지평 하나의 해석문(Q5, 단언 3) — report.js 의 확신 표기와 같은 값(FC.calibrateUpProb
+    // 경유, MSReportModel.horizonRows 가 이미 캘리브레이션까지 끝내 돌려준다)을 그대로
+    // 쓴다. 판정이 중립이거나 이 지평 자체가 무방향이면 확신을 말하지 않는다 — 없는 방향에
+    // "맞을 확률"을 붙일 수 없다(report-model.js confidence() 와 같은 원칙).
+    function ob6HzMeaning(r) {
+      if (r.dir === "flat") return MSStr.t.obHzFlatMeaning;
+      var base = r.dir === "up" ? MSStr.t.obHzUpMeaning : MSStr.t.obHzDownMeaning;
+      return (typeof r.prob === "number") ? (base + " (" + r.prob + "%)") : base;
+    }
+
+    // 세 지평(내일·1주·1개월) — MSReportModel.HORIZONS/horizonRows 가 방향·변화율·확신을
+    // 이미 계산해 준다(report.js 와 같은 원천, 다시 판정하지 않는다). 이 화면만 더하는 것은
+    // 지평별 오차 폭(± lo~hi 반폭)이다 — report.js 는 헤더에 마지막 지평 하나의 콘만
+    // 보여주지만, 온보딩은 "중심값 ± 오차"를 지평마다 명시해야 한다(단언 2).
+    function ob6Horizons(prediction, regime) {
+      if (typeof MSReportModel === "undefined") return [];
+      var rows = MSReportModel.horizonRows(ForgeCore, prediction, regime);
+      var lo = prediction && prediction.lo, hi = prediction && prediction.hi;
+      return rows.map(function (r) {
+        var idx = r.bars - 1;
+        var l = lo && lo[idx], h = hi && hi[idx];
+        var width = (typeof l === "number" && typeof h === "number") ? (h - l) : null;
+        return { key: r.key, price: r.price, dir: r.dir, prob: r.prob, width: width };
+      });
     }
 
     function step6() {
       var w = frag("ob-step");
-      w.appendChild(tutHead(3));
-      w.appendChild(el("h1", "ob-h", MSStr.t.obTut3H));
-      w.appendChild(el("p", "ob-sub", MSStr.t.obTut3Sub));
-      // 리뷰 E — 이 화면이 보이는 숫자(아래 "지금 답")가 폴백 표본에서 왔으면 밝힌다.
-      // 최소 침습: 이 한 줄만 얹는다 — 아래 슬라이더 체험 자체는 Task 7 이 다시 짤 몫이라
-      // 손대지 않는다.
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH6));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obSub6));
       if (state.tut && state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obFallbackNotice));
-      if (!state.r3) recomputeCustom();
-      var t3 = tomorrow(state.r3);
-      var now = frag("ob-now");
-      now.appendChild(el("span", "ob-now-k", MSStr.t.obTut3Now));
-      now.appendChild(el("span", "ob-now-v", num(t3 && t3.mid)));
-      now.appendChild(el("span", "ob-now-w", MSStr.t.obTutWidth + num(t3 && t3.width)));
-      w.appendChild(now);
 
-      var card = frag("ob-slider");
-      card.appendChild(el("span", "ob-slider-name", MSStr.ind("trend")));
-      card.appendChild(el("span", "ob-slider-val", num(state.trendW, 1) + "×"));
-      var input = document.createElement("input");
-      input.type = "range"; input.min = "0.1"; input.max = "3.0"; input.step = "0.1";
-      input.value = String(state.trendW);
-      input.className = "ob-range";
-      input.addEventListener("input", function () {
-        state.trendW = Number(input.value);
-        var v = w.querySelector(".ob-slider-val");
-        if (v) v.textContent = num(state.trendW, 1) + "×";
-        recomputeCustom();
-        var tw = tomorrow(state.r3);
-        var mv = w.querySelector(".ob-now-v"), wv = w.querySelector(".ob-now-w");
-        if (mv) mv.textContent = num(tw && tw.mid);
-        if (wv) wv.textContent = MSStr.t.obTutWidth + num(tw && tw.width);
+      var r2 = state.r2;
+      if (!r2 || !r2.out) {
+        w.appendChild(el("p", "ob-warn", MSStr.t.obAnalysisFailed));
+        var retry = document.createElement("button");
+        retry.type = "button"; retry.className = "btn btn-outline btn-sm ob-retry";
+        retry.textContent = MSStr.t.obRetry;
+        retry.addEventListener("click", ob6Retry);
+        w.appendChild(retry);
+        return w;
+      }
+
+      // 오늘 종가 — 기준 시각과 함께, 가장 먼저(Q1, 단언 1).
+      var d = state.tut && state.tut.data;
+      var lastBar = (d && d.candle && d.candle.length) ? d.candle[d.candle.length - 1] : null;
+      var asOf = dotDate(lastBar && lastBar.t);
+      var today = frag("ob6-today");
+      today.appendChild(MSObQuality.metric({ value: num(lastBar && lastBar.c), label: MSStr.t.obTodayLabel, asOf: asOf }));
+      w.appendChild(today);
+
+      // 세 지평 — 내일 · 1주 · 1개월, 각각 중심값 ± 오차 + 해석(단언 2·3).
+      var rows = ob6Horizons(r2.out.prediction, r2.out.verdict.regime);
+      var hz = frag("ob6-hz");
+      rows.forEach(function (r) {
+        var half = (typeof r.width === "number") ? (r.width / 2) : null;
+        var metric = MSObQuality.metric({
+          value: num(r.price), unit: (half != null) ? ("± " + half.toFixed(1)) : null,
+          label: ob6HzLabel(r.key), asOf: asOf
+        });
+        hz.appendChild(MSObQuality.stat({ metric: metric, meaning: ob6HzMeaning(r) }));
       });
-      card.appendChild(input);
-      var ticks = frag("ob-ticks");
-      ["0.1", MSStr.t.obTut3Default, "3.0"].forEach(function (lab) { ticks.appendChild(el("span", "ob-tick", lab)); });
-      card.appendChild(ticks);
-      w.appendChild(card);
-      w.appendChild(el("p", "ob-note", MSStr.t.obTut3Note));
+      w.appendChild(hz);
+
+      // 엇갈림 — 세 지평의 방향이 다르면 그렇다고 쓴다(단언 5). report.js buildHorizons() 와
+      // 같은 검사·같은 문구(rpHzMixed*)를 그대로 쓴다 — 두 화면이 "엇갈림"을 각자 다른
+      // 규칙으로 정의하면 안 되므로.
+      var d1 = rows[0], mN = rows[rows.length - 1];
+      if (d1 && mN && d1 !== mN && d1.dir !== "flat" && mN.dir !== "flat" && d1.dir !== mN.dir) {
+        w.appendChild(el("p", "ob-note",
+          MSStr.t.rpHzMixedA + (d1.dir === "up" ? MSStr.t.rpHzMixedUp : MSStr.t.rpHzMixedDown) + MSStr.t.rpHzMixedB));
+      }
+      w.appendChild(el("p", "ob-note", MSStr.t.obHzPromiseNote));   // "실제 예측"이므로 약속이 아님을 옆에
+
+      // 근거 — 2단계에서 배운 형식 그대로(동의/반대/무판정/자백, full32Section 재사용).
+      // 재생이 아직 안 끝났으면(state.ob6 없음) 자리 표시만 — draw() 의 꼬리(ob6Reveal)가
+      // 재생을 이미 시작했거나 곧 시작한다.
+      var cls = ob6Classify();
+      if (cls) {
+        w.appendChild(full32Section("agree", MSStr.t.ob32AgreeHead, cls.agree, true, FULL32_AGREE_SHOW));
+        w.appendChild(full32Section("dissent", MSStr.t.rpAgainst, cls.dissent, false));
+        w.appendChild(full32Section("flat", MSStr.t.ob32FlatHead, cls.flat, true, FULL32_FLAT_SHOW));
+        w.appendChild(full32Section("refused", MSStr.t.ob32RefusedHead, cls.refused, true, FULL32_REFUSED_SHOW, false));
+      } else {
+        w.appendChild(el("p", "ob-note", MSStr.t.obAnalyzing));
+      }
+
       return w;
     }
 
@@ -1080,6 +1200,7 @@
       rootEl.appendChild(scr);
 
       if (step === 1) paintGuess(scr);          // 캔버스가 DOM 에 붙은 뒤여야 폭을 잴 수 있다
+      if (step === 6) ob6Reveal();              // 재생은 body 오버레이라 DOM 부착과 무관하지만, 같은 1회성 발신 자리를 쓴다
       if (step === 7) {
         if (!state.grantStarted) { state.grantStarted = true; fetchGrant(); }
         else paintGrant();

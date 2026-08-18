@@ -118,10 +118,16 @@
     scrim.addEventListener("click", function () { st.drain(); finish(); });
 
     function frame() {
-      var t0 = (root.performance && root.performance.now) ? root.performance.now() : 0;
+      // 리뷰(Task 7) — 여기서 쓰던 `root` 는 팩토리 인자가 아니다(이 UMD 는 `factory()` 를
+      // 인자 없이 부른다 — onboarding-quality.js 등 이 파일의 형제들과 같은 모양). 그래서
+      // `root.performance` 는 실행되는 순간 "root is not defined" 로 던졌다 — play() 를 한
+      // 번도 부른 적 없는 화면(온보딩)에서 처음 걸렸다. bench.js 가 이미 쓰는 안전한 관용구
+      // (전역 performance 존재 확인)로 바꾼다 — root 라는 존재하지 않는 매개변수에 기대지 않는다.
+      var hasPerf = typeof performance !== "undefined" && performance.now;
+      var t0 = hasPerf ? performance.now() : 0;
       while (!st.done) {
         st.step();
-        var t1 = (root.performance && root.performance.now) ? root.performance.now() : t0 + FRAME_BUDGET_MS + 1;
+        var t1 = hasPerf ? performance.now() : t0 + FRAME_BUDGET_MS + 1;
         if (t1 - t0 >= FRAME_BUDGET_MS) break;
       }
       paint();

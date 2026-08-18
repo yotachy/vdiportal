@@ -268,6 +268,80 @@ export const ROUTES = [
         "if(document.querySelector('.ob-next').disabled!==true) return false;" + // 클릭 직후(비동기 확인 전)엔 아직 안 열려 있다
         "return true;" +
       "})()" },
+  // 6단계(Task 7, 실제 분석) — 위 "onboarding" 라우트는 5단계에서 [분석 시작] 직후(비동기
+  // 확인 전) 멈춘다. 이 라우트는 그 너머로 걸어간다. 위 라우트의 단일 assert IIFE 는 전부
+  // 같은 tick 안에서 동기로 도는데, 5단계의 [분석 시작]이 실제로 켜는 것은 비동기 fetch
+  // (MSApi.loadTicker → forge-api.php 목업)라 같은 tick 안에서 그 결과를 볼 수 없다 —
+  // 그래서 여기는 route.scripts(여러 시각에 예약된 별도 <script>)로 걸음을 나눈다:
+  // ①(300ms) 1~5단계를 걸어 [분석 시작]까지 누른다 — 위 "onboarding" 라우트와 같은 절차.
+  // ②(1200ms, fetch 가 끝났을 시간) 5→6 으로 넘어간다 — 이 클릭이 곧 재생(MSAnalyzeView.
+  //   play, readingStepper 로 32개를 하나씩 읽는다)을 켠다. 클릭 직후(재생 완료 전) 다음
+  //   버튼이 비활성인지를 그 순간에 스냅샷해 둔다(단언 6 — 진행이 즉시 끝나는 연출이
+  //   아니라 실제로 도는 중임을 나중에 대조한다).
+  // 최종 assert(delay)는 재생이 끝난 뒤에 돈다 — --virtual-time-budget 이 크로미움의 가상
+  // 시계를 그만큼 흘려보내므로 실제 벽시계 대기 없이 결정적이다.
+  { name: "onboarding-analysis", seed: {}, go: null,
+    scripts: [
+      { at: 300, code:
+        "document.querySelector('.ob-guess-btn').click();" +
+        "document.querySelector('.ob-next').click();" +               // 1 -> 2
+        "document.querySelector('.ob-next').click();" +               // 2 -> 3
+        "document.querySelector('.ob-next').click();" +               // 3 -> 4
+        "document.querySelector('.ob-agree').click();" +
+        "document.querySelector('.ob-next').click();" +               // 4 -> 5
+        "document.querySelector('.tp-chip').click();" +               // 종목 하나 고른다(첫 칩)
+        "document.querySelector('.ob-pick-start').click();" },        // [분석 시작] — fetch 가 여기서 돈다
+      { at: 1200, code:
+        "var b=document.querySelector('.ob-next');" +
+        "if(b) b.click();" +                                          // 5 -> 6, 재생이 이 클릭으로 켜진다
+        "var n=document.querySelector('.ob-next');" +
+        "window.__ob6DisabledRightAfterClick = n ? n.disabled : null;" }   // 재생 완료 전 스냅샷(단언 6)
+    ],
+    delay: 2600,
+    assert: "typeof MSOnboarding !== 'undefined' && !!document.querySelector('.ob-step') && " +
+      "(function(){" +
+        "if(window.__ob6DisabledRightAfterClick !== true) return false;" +   // 클릭 직후엔 아직 안 열려 있었다(즉시 끝나는 연출이 아니다)
+        "if(document.querySelector('.ob-back')) return false;" +             // Q4 — 6단계도 뒤로가기 없음
+        "if(document.querySelector('.an-scrim')) return false;" +           // 재생 오버레이가 끝나 스스로 닫혔다
+        "var next=document.querySelector('.ob-next');" +
+        "if(!next || next.disabled !== false) return false;" +               // 재생이 끝나 이제 열려 있다(단언 6)
+        // 단언 1 — 오늘 종가가 세 지평보다 DOM 순서상 먼저다.
+        "var step=document.querySelector('.ob-step');" +
+        "var kids=Array.prototype.slice.call(step.children);" +
+        "var todayIdx=-1, hzIdx=-1;" +
+        "for(var i=0;i<kids.length;i++){" +
+          "if(kids[i].className.indexOf('ob6-today')>=0 && todayIdx<0) todayIdx=i;" +
+          "if(kids[i].className.indexOf('ob6-hz')>=0 && hzIdx<0) hzIdx=i;" +
+        "}" +
+        "if(todayIdx<0||hzIdx<0||todayIdx>=hzIdx) return false;" +
+        "var today=kids[todayIdx];" +
+        "var tv=today.querySelector('.obq-value'), ta=today.querySelector('.obq-asof');" +
+        "if(!tv||!/\\d/.test(tv.textContent)) return false;" +               // 오늘 종가에 숫자가 있다
+        "if(!ta||!ta.textContent.trim()) return false;" +                    // 기준 시각이 값과 같은 자리에 있다
+        // 단언 2·3 — 세 지평(내일·1주·1개월) 각각 중심값 ± 오차 + 해석.
+        "var stats=document.querySelectorAll('.ob6-hz .obq-stat');" +
+        "if(stats.length!==3) return false;" +
+        "var labels=[MSStr.t.rpHzTomorrow, MSStr.t.rpHzWeek, MSStr.t.rpHzMonth];" +
+        "for(var si=0;si<3;si++){" +
+          "var s=stats[si];" +
+          "var lab=s.querySelector('.obq-label');" +
+          "if(!lab||lab.textContent!==labels[si]) return false;" +
+          "var val=s.querySelector('.obq-value');" +
+          "if(!val||!/\\d/.test(val.textContent)) return false;" +
+          "var unit=s.querySelector('.obq-unit');" +
+          "if(!unit||unit.textContent.indexOf('±')<0) return false;" +   // ± 오차 표기
+          "var meaning=s.querySelector('.obq-meaning');" +
+          "if(!meaning||!meaning.textContent.trim()) return false;" +        // 값만 던지지 않는다(Q5)
+        "}" +
+        // 단언 4 — 근거가 2단계와 같은 형식(동의·반대·무판정·자백 네 통, 합이 32).
+        "var counts=Array.prototype.slice.call(document.querySelectorAll('.ob32-sec-count'))" +
+          ".map(function(e){ return Number(e.textContent); });" +
+        "if(counts.length!==4) return false;" +
+        "var sum=0; for(var ci=0;ci<counts.length;ci++) sum+=counts[ci];" +
+        "if(sum!==32) return false;" +
+        "if(!document.querySelector('.ob32-sec-dissent')) return false;" +
+        "return true;" +
+      "})()" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데
   // 탭바가 없던(화면이 비어 있던) 것과 같은 부류의 사고를 이 경로에서 반복하지 않기 위해서다.
   // P1a Task 6(워치리스트, 시안 14a) — 스쿱 필 아이콘이 실제로 마크(scoopMark, svg)로
