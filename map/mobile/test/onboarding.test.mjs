@@ -181,7 +181,10 @@ test("고른 종목이 회사명을 달고 심기고, 회사명으로 검색된�
 test("온보딩·종목 고르기 클래스가 style.css 에 있다", () => {
   [".ob", ".ob-prog", ".ob-seg", ".ob-step", ".ob-h", ".ob-sub", ".ob-canvas",
    ".ob-comb", ".ob-bar", ".ob-nav", ".ob-over", ".ob-cap",
-   ".ob-grant", ".ob-retry", ".ob-costs", ".ob-cost-row", ".ob-cost-name", ".ob-cost-num",
+   ".ob-grant", ".ob-retry", ".ob-pricing", ".ob-costs", ".ob-cost-row", ".ob-cost-k", ".ob-cost-num",
+   ".ob-cost-note", ".ob-warn",
+   ".ob-recap", ".ob-recap-head", ".ob-recap-row", ".ob-recap-row-head", ".ob-recap-num",
+   ".ob-recap-label", ".ob-recap-detail",
    ".ob-risk", ".ob-agree", ".ob-agree-txt",
    ".ob-tools", ".ob-tool", ".ob-tool-name", ".ob-tool-hint",
    ".ob-read", ".ob-read-verdict", ".ob-read-label", ".ob-read-row", ".ob-read-name",
@@ -753,6 +756,107 @@ test("재시도 버튼을 누르면 지갑을 다시 부른다", async () => {
     root.querySelector(".ob-retry").click();
     await flush();
     assert.strictEqual(wallet.calls.length, 2, "재시도 버튼이 지갑을 다시 안 불렀다");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// Task 8 — 7단계 재설계(설계서 §4.7). 브리프 4단언: ①방금 받은 것(도구32·지평3·근거)이
+// 가격표보다 먼저 ②가격표 다음·지급이 마지막 ③온보딩 체험이 상시 무료로 안 읽힌다
+// ④지급은 서버 확정 후에만 잔량이 오른다(낙관적 증가 금지).
+// ══════════════════════════════════════════════════════════════════════════════════
+
+// 단언 1 — recap(방금 받은 것)이 도구 32·지평 3·근거를 실제 수치로 보여주고, 세 항목
+// 모두 상세 설명(빈 문자열 아님)을 동반한다(자명 통과 금지 — 존재만이 아니라 내용을 본다).
+test("단언 1 — 방금 받은 것(도구 32 · 지평 3 · 근거)이 recap 에 실제 값으로 요약된다", async () => {
+  const wallet = spyWallet({ ok: true, state: { balance: 5 } });
+  await withDomWallet(wallet, async (root) => {
+    await toStep7(root);
+    await flush();
+    const recap = root.querySelector(".ob-recap");
+    assert.ok(recap, "recap 블록(.ob-recap)이 없다");
+    const rows = root.querySelectorAll(".ob-recap-row");
+    assert.strictEqual(rows.length, 3, "recap 항목이 3개(도구·지평·근거)가 아니다: " + rows.length);
+    const nums = rows.map(r => r.querySelector(".ob-recap-num").textContent);
+    assert.strictEqual(nums[0], "32", "도구 개수가 32가 아니다: " + nums[0]);
+    assert.strictEqual(nums[1], "3", "지평 개수가 3이 아니다: " + nums[1]);
+    assert.match(nums[2], /^\d+$/, "근거(반대 의견) 개수가 숫자가 아니다: " + nums[2]);
+    rows.forEach((r, i) => {
+      const label = r.querySelector(".ob-recap-label");
+      const detail = r.querySelector(".ob-recap-detail");
+      assert.ok(label && label.textContent.trim(), (i + 1) + "번째 recap 행에 라벨이 없다");
+      assert.ok(detail && detail.textContent.trim(), (i + 1) + "번째 recap 행에 상세 설명이 없다 — 값만 던지면 안 된다");
+    });
+  });
+});
+
+// 단언 2 — 화면 안에서 recap → 가격표(.ob-pricing) → 지급(.ob-grant) 순서가 실제 DOM
+// 순서다. 값을 겪은 뒤에야 가격이, 가격을 본 뒤에야 지급이 온다(인벤토리 §2 원칙을
+// 7단계 내부 구조에도 그대로 적용).
+test("단언 2 — recap 다음 가격표, 지급이 가장 마지막이다(DOM 순서)", async () => {
+  const wallet = spyWallet({ ok: true, state: { balance: 5 } });
+  await withDomWallet(wallet, async (root) => {
+    await toStep7(root);
+    await flush();
+    const step = root.querySelector(".ob-step");
+    const kids = step.children;
+    const recapIdx = kids.indexOf(root.querySelector(".ob-recap"));
+    const pricingIdx = kids.indexOf(root.querySelector(".ob-pricing"));
+    const grantIdx = kids.indexOf(root.querySelector(".ob-grant"));
+    assert.ok(recapIdx >= 0 && pricingIdx >= 0 && grantIdx >= 0,
+      "recap·가격표·지급 셋 중 하나가 없다: " + JSON.stringify({ recapIdx, pricingIdx, grantIdx }));
+    assert.ok(recapIdx < pricingIdx, "recap 이 가격표보다 먼저 오지 않는다");
+    assert.ok(pricingIdx < grantIdx, "가격표가 지급보다 먼저 오지 않는다 — 지급이 마지막이어야 한다");
+  });
+});
+
+// 단언 3 — 온보딩 32도구 체험이 "앞으로도 무료"로 읽히지 않는다. 가격표 맨 앞에 그
+// 사실을 밝히는 문구가 실제로 렌더되고, 기본 무료 안내보다 먼저 온다(무료라는 인상이
+// 먼저 박히지 않게).
+test("단언 3 — 온보딩 체험이 상시 무료로 읽히지 않는다 — 가격표가 그 사실을 명시한다", async () => {
+  const wallet = spyWallet({ ok: true, state: { balance: 5 } });
+  await withDomWallet(wallet, async (root) => {
+    await toStep7(root);
+    await flush();
+    const pricing = root.querySelector(".ob-pricing");
+    const notAlways = pricing.querySelectorAll(".ob-warn").filter(n => n.textContent === S.t.obDoneOnboardFree)[0];
+    assert.ok(notAlways, "온보딩 체험이 온보딩 한정 무료였다는 문구가 없다");
+    assert.match(notAlways.textContent, /온보딩/, "문구가 '온보딩 한정'이라는 사실을 담지 않는다");
+    const freeNote = pricing.querySelectorAll(".ob-cost-note").filter(n => n.textContent === S.t.obDoneFree)[0];
+    assert.ok(freeNote, "기본분석 무료 안내가 없다");
+    const kids = pricing.children;
+    assert.ok(kids.indexOf(notAlways) < kids.indexOf(freeNote),
+      "'상시 무료 아님' 고지가 '기본은 무료' 안내보다 먼저 와야 한다(불리한 사실 먼저)");
+  });
+});
+
+// 단언 4 — 낙관적 잔량 증가 금지(상위 설계서 §9.3 규칙 1). 서버 응답을 실제로 지연시켜
+// **확정 전에는 숫자가 안 뜨는 것**(obGranting 문구만 보이는 것)을 재고, 확정 후에야
+// 서버가 준 값이 뜨는 것을 잰다. 성공 경로만 돌리면 자명 통과이므로 지연을 실제로 만든다.
+function deferredWallet() {
+  let resolveFn;
+  const p = new Promise((res) => { resolveFn = res; });
+  const calls = [];
+  return {
+    calls,
+    COSTS: { full: 3, custom: 5, scan: 0 },
+    get() { calls.push(1); return p; },
+    settle(result) { resolveFn(result); }
+  };
+}
+
+test("단언 4 — 지급은 서버 확정 전에는 잔량을 올리지 않는다(낙관적 증가 금지)", async () => {
+  const wallet = deferredWallet();
+  await withDomWallet(wallet, async (root) => {
+    await toStep7(root);
+    await flush();
+    const box = root.querySelector(".ob-grant");
+    assert.strictEqual(box.textContent, S.t.obGranting,
+      "서버 응답 전인데 '준비 중' 문구가 아니다 — 낙관적으로 뭔가를 먼저 보여줬다: " + box.textContent);
+    assert.doesNotMatch(box.textContent, /\d/, "서버가 확정하기 전인데 이미 숫자가 보인다 — 낙관적 증가다");
+    wallet.settle({ ok: true, state: { balance: 7 } });
+    await flush();
+    assert.strictEqual(box.textContent, "7" + S.t.obGranted,
+      "서버 확정 후에도 값이 올바르게 반영되지 않는다: " + box.textContent);
   });
 });
 

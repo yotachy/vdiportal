@@ -269,17 +269,20 @@ export const ROUTES = [
         "return true;" +
       "})()" },
   // 6단계(Task 7, 실제 분석) — 위 "onboarding" 라우트는 5단계에서 [분석 시작] 직후(비동기
-  // 확인 전) 멈춘다. 이 라우트는 그 너머로 걸어간다. 위 라우트의 단일 assert IIFE 는 전부
-  // 같은 tick 안에서 동기로 도는데, 5단계의 [분석 시작]이 실제로 켜는 것은 비동기 fetch
-  // (MSApi.loadTicker → forge-api.php 목업)라 같은 tick 안에서 그 결과를 볼 수 없다 —
-  // 그래서 여기는 route.scripts(여러 시각에 예약된 별도 <script>)로 걸음을 나눈다:
-  // ①(300ms) 1~5단계를 걸어 [분석 시작]까지 누른다 — 위 "onboarding" 라우트와 같은 절차.
-  // ②(1200ms, fetch 가 끝났을 시간) 5→6 으로 넘어간다 — 이 클릭이 곧 재생(MSAnalyzeView.
-  //   play, readingStepper 로 32개를 하나씩 읽는다)을 켠다. 클릭 직후(재생 완료 전) 다음
-  //   버튼이 비활성인지를 그 순간에 스냅샷해 둔다(단언 6 — 진행이 즉시 끝나는 연출이
-  //   아니라 실제로 도는 중임을 나중에 대조한다).
-  // 최종 assert(delay)는 재생이 끝난 뒤에 돈다 — --virtual-time-budget 이 크로미움의 가상
-  // 시계를 그만큼 흘려보내므로 실제 벽시계 대기 없이 결정적이다.
+  // 확인 전) 멈춘다. 이 라우트는 그 너머로 걸어간다.
+  //
+  // **정정(Task 8 실측, 두 번째)** — 처음엔 route.scripts 를 여러 시각에 예약해 걸음을
+  // 나눴고("virtual-time-budget 이 결정적이다"), 그 다음엔 폴링으로 바꿨다("재생이 끝날
+  // 때까지 100ms 마다 확인"). 둘 다 근본 해결이 아니었다: MSAnalyzeView.play() 의 재생은
+  // requestAnimationFrame 으로 페이싱되는데, 헤드리스 크로미움에서 이 rAF 가 실 벽시계
+  // 속도로만 도는 것을 실측했다(같은 폴링 조건에서 완료까지 걸리는 실제 시간이 실행마다
+  // 수백 ms~20 초 이상으로 들쭉날쭉했다 — 이 기계의 프레임 페이싱 자체가 결정적이지 않다).
+  // 그래서 **재생을 기다리지 않는다.** progress-analyze.js 는 이미 "건너뛰기" 경로를
+  // 갖고 있다 — `.an-scrim` 클릭이 `st.drain()`(남은 지표를 그 자리에서 동기로 마저 읽음)
+  // + `finish()`(onDone 동기 호출)를 그대로 태운다(위 scrim.addEventListener 참고, UX 상
+  // "탭하면 즉시 끝난다"는 그 기능을 관문이 그대로 빌려 쓰는 것). 5→6 클릭 직후 scrim 이
+  // DOM 에 이미 붙어 있으므로(play() 가 동기로 appendChild 한다) 곧바로 클릭하면 재생
+  // 전체가 **한 tick 안에 동기로** 끝난다 — rAF 도 virtual-time 도 관여하지 않는다.
   { name: "onboarding-analysis", seed: {}, go: null,
     scripts: [
       { at: 300, code:
@@ -290,17 +293,28 @@ export const ROUTES = [
         "document.querySelector('.ob-agree').click();" +
         "document.querySelector('.ob-next').click();" +               // 4 -> 5
         "document.querySelector('.tp-chip').click();" +               // 종목 하나 고른다(첫 칩)
-        "document.querySelector('.ob-pick-start').click();" },        // [분석 시작] — fetch 가 여기서 돈다
-      { at: 1200, code:
-        "var b=document.querySelector('.ob-next');" +
-        "if(b) b.click();" +                                          // 5 -> 6, 재생이 이 클릭으로 켜진다
-        "var n=document.querySelector('.ob-next');" +
-        "window.__ob6DisabledRightAfterClick = n ? n.disabled : null;" }   // 재생 완료 전 스냅샷(단언 6)
-    ],
-    delay: 2600,
+        "document.querySelector('.ob-pick-start').click();" +         // [분석 시작] — fetch 가 여기서 돈다
+        // [분석 시작] 이후(비동기 fetch)만 폴링으로 기다린다(이건 진짜 네트워크 왕복이라
+        // 실제로 비동기다). 열리면 5 -> 6 클릭 직후 바로 스냅샷을 찍고(단언 6 — 즉시 끝나는
+        // 연출이 아니라는 증거), 곧바로 `.an-scrim` 을 클릭해 재생을 동기로 드레인한다.
+        "var t1=0;" +
+        "var iv1=setInterval(function(){" +
+          "t1++;" +
+          "var n=document.querySelector('.ob-next');" +
+          "if(n&&!n.disabled){" +
+            "clearInterval(iv1); n.click();" +                        // 5 -> 6, 재생이 이 클릭으로 켜진다
+            "var n1=document.querySelector('.ob-next');" +
+            "window.__ob6DisabledRightAfterClick = n1 ? n1.disabled : null;" +
+            "var scrim=document.querySelector('.an-scrim');" +
+            "if(scrim) scrim.click();" +                               // 드레인 — 남은 지표를 동기로 마저 읽고 즉시 끝낸다
+            "window.__ob6Ready=true;" +
+          "} else if(t1>150){ clearInterval(iv1); console.error('GATE_TIMEOUT_STEP5'); }" +
+        "},100);" } ],
+    delay: 3000,
     assert: "typeof MSOnboarding !== 'undefined' && !!document.querySelector('.ob-step') && " +
       "(function(){" +
         "if(window.__ob6DisabledRightAfterClick !== true) return false;" +   // 클릭 직후엔 아직 안 열려 있었다(즉시 끝나는 연출이 아니다)
+        "if(!window.__ob6Ready) return false;" +                             // 5 -> 6 전환까지는 실제로 도달했다
         "if(document.querySelector('.ob-back')) return false;" +             // Q4 — 6단계도 뒤로가기 없음
         "if(document.querySelector('.an-scrim')) return false;" +           // 재생 오버레이가 끝나 스스로 닫혔다
         "var next=document.querySelector('.ob-next');" +
@@ -340,6 +354,81 @@ export const ROUTES = [
         "var sum=0; for(var ci=0;ci<counts.length;ci++) sum+=counts[ci];" +
         "if(sum!==32) return false;" +
         "if(!document.querySelector('.ob32-sec-dissent')) return false;" +
+        "return true;" +
+      "})()" },
+  // 7단계(Task 8, 완료·가격표·지급) — 위 onboarding-analysis 라우트를 한 걸음 더 걷는다.
+  // **재생을 기다리지 않는다**(위 onboarding-analysis 헤더 주석의 실측 근거를 그대로 문다).
+  // [분석 시작] 이후(진짜 비동기 fetch)만 폴링으로 기다리고, 5→6 클릭 직후 `.an-scrim` 을
+  // 곧바로 클릭해 재생을 동기로 드레인한다 — rAF 페이싱을 기다릴 필요 자체가 없어진다.
+  { name: "onboarding-final", seed: {}, go: null,
+    scripts: [
+      { at: 300, code:
+        "document.querySelector('.ob-guess-btn').click();" +
+        "document.querySelector('.ob-next').click();" +               // 1 -> 2
+        "document.querySelector('.ob-next').click();" +               // 2 -> 3
+        "document.querySelector('.ob-next').click();" +               // 3 -> 4
+        "document.querySelector('.ob-agree').click();" +
+        "document.querySelector('.ob-next').click();" +               // 4 -> 5
+        "document.querySelector('.tp-chip').click();" +               // 종목 하나 고른다(첫 칩)
+        "document.querySelector('.ob-pick-start').click();" +         // [분석 시작] — fetch 시작
+        "var t1=0;" +
+        "var iv1=setInterval(function(){" +
+          "t1++;" +
+          "var n=document.querySelector('.ob-next');" +
+          "if(n&&!n.disabled){" +                                     // 5 -> 6 이 열렸다(fetch 완료)
+            "clearInterval(iv1); n.click();" +                        // 재생이 이 클릭으로 켜진다
+            "var scrim=document.querySelector('.an-scrim');" +
+            "if(scrim) scrim.click();" +                               // 드레인 — 재생을 동기로 즉시 끝낸다
+            "var n2=document.querySelector('.ob-next');" +
+            "if(n2&&!n2.disabled) n2.click();" +                       // 6 -> 7
+            "else console.error('GATE_NOT_READY_STEP6');" +
+          "} else if(t1>150){ clearInterval(iv1); console.error('GATE_TIMEOUT_STEP5'); }" +
+        "},100);" }
+    ],
+    delay: 3000,
+    assert: "typeof MSOnboarding !== 'undefined' && !!document.querySelector('.ob-step') && " +
+      "(function(){" +
+        "if(document.querySelector('.ob-back')) return false;" +   // Q4 — 7단계도 뒤로가기 없음
+        "var step=document.querySelector('.ob-step');" +
+        "var kids=Array.prototype.slice.call(step.children);" +
+        "var recap=document.querySelector('.ob-recap');" +
+        "var pricing=document.querySelector('.ob-pricing');" +
+        "var grant=document.querySelector('.ob-grant');" +
+        "if(!recap||!pricing||!grant) return false;" +
+        "var ri=kids.indexOf(recap), pi=kids.indexOf(pricing), gi=kids.indexOf(grant);" +
+        // 단언 1·2 — recap(방금 받은 것) → 가격표 → 지급, 이 순서로 DOM 에 있다.
+        "if(ri<0||pi<0||gi<0||!(ri<pi&&pi<gi)) return false;" +
+        // 단언 1 — recap 세 항목이 도구 32 · 지평 3 · 근거(숫자)를 실제 값으로 담는다.
+        "var rows=Array.prototype.slice.call(document.querySelectorAll('.ob-recap-row'));" +
+        "if(rows.length!==3) return false;" +
+        "var nums=rows.map(function(r){ return r.querySelector('.ob-recap-num').textContent; });" +
+        "if(nums[0]!=='32') return false;" +
+        "if(nums[1]!=='3') return false;" +
+        "if(!/^\\d+$/.test(nums[2])) return false;" +
+        "for(var ri2=0;ri2<rows.length;ri2++){" +
+          "var det=rows[ri2].querySelector('.ob-recap-detail');" +
+          "if(!det||!det.textContent.trim()) return false;" +   // 값만 던지지 않는다(Q5 와 같은 원칙)
+        "}" +
+        // 단언 3 — 온보딩 체험이 상시 무료로 안 읽힌다: '온보딩 한정 무료' 고지가
+        // '기본은 계속 무료' 안내보다 먼저 온다(불리한 사실 먼저).
+        "var warns=Array.prototype.slice.call(pricing.querySelectorAll('.ob-warn'));" +
+        "var notAlways=null;" +
+        "for(var wi=0;wi<warns.length;wi++){ if(warns[wi].textContent===MSStr.t.obDoneOnboardFree){ notAlways=warns[wi]; break; } }" +
+        "if(!notAlways) return false;" +
+        "var notes=Array.prototype.slice.call(pricing.querySelectorAll('.ob-cost-note'));" +
+        "var freeNote=null;" +
+        "for(var ni=0;ni<notes.length;ni++){ if(notes[ni].textContent===MSStr.t.obDoneFree){ freeNote=notes[ni]; break; } }" +
+        "if(!freeNote) return false;" +
+        "var pkids=Array.prototype.slice.call(pricing.children);" +
+        "if(pkids.indexOf(notAlways)>=pkids.indexOf(freeNote)) return false;" +
+        // 가격표 — MSWallet.COSTS(심화 3·전문 5, 고정 클라이언트 상수)를 그대로 반영한다.
+        "var costRows=document.querySelectorAll('.ob-costs .ob-cost-row');" +
+        "if(costRows.length!==2) return false;" +
+        // 단언 4(양성 경로) — 로컬 mock 지갑이 실제로 응답해 서버 확정 값이 지급으로 뜬다.
+        // 확정 전 상태(obGranting)는 test/onboarding.test.mjs 의 지연 지갑 시험이 이미 잰다 —
+        // 여기는 실제 네트워크 왕복이 끝난 뒤의 결과를 실 브라우저로 확인한다.
+        "if(grant.textContent.indexOf(MSStr.t.obGranted)<0) return false;" +
+        "if(!/^\\d+/.test(grant.textContent)) return false;" +
         "return true;" +
       "})()" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데

@@ -89,7 +89,10 @@
   // Task 5(3단계 — 성향)가 3 을 더한다.
   // Task 6(4단계 동의 · 5단계 종목 선택·분석 시작)이 4·5 를 더한다.
   // Task 7(6단계 — 실제 분석: 오늘 종가·세 지평·근거)이 6 을 더한다.
-  var APPLIES = [1, 2, 3, 4, 5, 6];
+  // Task 8(7단계 — 완료·가격표·지급)이 7 을 더해 1~7 완주를 마친다 — 마지막 태스크라
+  // test/onboarding-quality.test.mjs 가 "APPLIES 가 1~7 을 모두 담는다"를 단언해 이
+  // 완주가 되돌아가지 못하게 잠근다.
+  var APPLIES = [1, 2, 3, 4, 5, 6, 7];
 
   return { metric: metric, stat: stat, APPLIES: APPLIES };
 });

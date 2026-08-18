@@ -33,19 +33,10 @@
 .ob-bar.dn { background:var(--bear); }
 .ob-cap { margin:10px 0 0; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; color:var(--ink-5); }
 
-/* 지급 상태 한 줄 — "Setting up…" → "5 Scoops to start" 또는 오프라인 안내 + 재시도.
-   숫자는 항상 서버가 돌려준 값이다(state.granted) — 여기서 다시 계산하지 않는다. */
-.ob-grant { margin-top:20px; font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink-2);
-            font-variant-numeric:tabular-nums; }
-.ob-retry { display:block; margin-top:10px; min-height:34px; padding:0 14px; font-size:var(--fs-sub); }
-
-/* 가격표 — 지갑 화면과 같은 출처(MSWallet.COSTS)를 읽는다. 선택 강조가 없는 정적 목록이라
-   좌측 라인 규율과 무관하지만 명시적으로 border-left 를 안 쓴다. */
-.ob-costs { margin-top:18px; border-top:1px solid var(--border); }
-.ob-cost-row { display:flex; align-items:center; justify-content:space-between;
-               padding:11px 0; border-bottom:1px solid var(--border); }
-.ob-cost-name { font-size:var(--fs-sub); color:var(--ink-3); }
-.ob-cost-num { font-size:var(--fs-sub); font-weight:var(--fw-bold); font-variant-numeric:tabular-nums; color:var(--ink); }
+/* 재시도 버튼 — 5·6·7단계가 공유한다(종목 다시 고르기·분석 재시도·지갑 재시도). 44px
+   미만이었던 결함(리뷰, Task 8) — 7단계에서 뒤로가기 없는 막다른 화면의 유일한 탈출
+   버튼으로 재사용되며 노출 맥락이 커져 프로젝트 터치 타깃 하한(44px)에 맞춘다. */
+.ob-retry { display:block; margin-top:10px; min-height:44px; padding:0 14px; font-size:var(--fs-sub); }
 
 /* 4단계 — 동의(Task 6, 재사용). 옛 3단계 위험고지에서 남겨 둔 클래스를 그대로 쓴다
    (.ob-risk = 도입 문장, .ob-agree = 체크 행). 선택 표시는 배경·테두리로만(좌측 라인 금지)
@@ -222,12 +213,6 @@
 .ob-style-desc { font-size:var(--fs-caption); color:var(--ink-4); }
 .ob-note { margin-top:14px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
 
-/* 값 한 줄 — 이름 / 값 / 폭. 7단계(bandRow)가 이 뼈대로 세 값을 나란히 비교한다. */
-.ob-band { display:flex; align-items:baseline; gap:10px; padding:9px 0; border-bottom:1px solid var(--hairline); }
-.ob-band-k { flex:0 0 72px; font-size:var(--fs-caption); color:var(--ink-4); }
-.ob-band-v { flex:1 1 auto; font-size:var(--fs-num); font-weight:var(--fw-num); letter-spacing:var(--ls-num); font-variant-numeric:tabular-nums; }
-.ob-band-w { flex:0 0 auto; font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
-
 /* 6단계(재설계, Task 7) — 실제 분석. 오늘 종가는 한 화면에서 처음 나오는 실숫값이라
    가장 크게(--fs-display) — 이후 세 지평(.ob6-hz)이 여기 기준으로 비교된다. 값·해석은
    onboarding-quality.js 의 obq-metric/obq-stat 뼈대를 그대로 쓴다(Q1·Q5 강제). */
@@ -238,16 +223,29 @@
 .ob6-hz .obq-stat:not(:last-child) { padding-bottom:12px; border-bottom:1px solid var(--hairline); }
 .ob6-hz .obq-value { font-size:var(--fs-section); }
 
-/* 7단계 — 세 값을 한 표에. 가격은 이 화면에서 처음 나온다. */
-.ob-final { margin:12px 0 18px; }
-.ob-grant { min-height:26px; padding:12px 0; font-size:var(--fs-section); font-weight:var(--fw-section);
-  letter-spacing:var(--ls-section); color:var(--gold); }
+/* 7단계(재설계, Task 8) — 방금 받은 것(recap) → 가격표(pricing) → 지급(grant), 이 순서로
+   읽힌다. 가격은 recap 다음에야 나온다. */
+.ob-recap { margin-top:16px; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+.ob-recap-head { margin:0 0 10px; font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); color:var(--ink-5); }
+.ob-recap-row { padding:9px 0; border-bottom:1px solid var(--hairline); }
+.ob-recap-row:last-child { border-bottom:0; }
+.ob-recap-row-head { display:flex; align-items:baseline; gap:8px; }
+.ob-recap-num { font-size:var(--fs-num); font-weight:var(--fw-num); letter-spacing:var(--ls-num);
+                font-variant-numeric:tabular-nums; color:var(--gold); }
+.ob-recap-label { font-size:var(--fs-sub); color:var(--ink-2); }
+.ob-recap-detail { margin:4px 0 0; font-size:var(--fs-caption); line-height:1.55; color:var(--ink-4); }
+
+.ob-pricing { margin-top:22px; }
 .ob-costs { margin:8px 0; }
 .ob-cost-row { display:flex; justify-content:space-between; padding:6px 0; font-size:var(--fs-sub); }
 .ob-cost-k { color:var(--ink-3); }
 .ob-cost-num { color:var(--ink-2); font-variant-numeric:tabular-nums; }
 .ob-cost-note { font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
 .ob-warn { font-size:var(--fs-caption); color:var(--warn, var(--ink-4)); line-height:1.6; }
+
+/* 지급 — recap·가격표 다음, 가장 마지막(state.granted, 서버 확정 값만 그린다). */
+.ob-grant { margin-top:20px; min-height:26px; padding:12px 0; font-size:var(--fs-section); font-weight:var(--fw-section);
+  letter-spacing:var(--ls-section); color:var(--gold); }
 
 /* 품질 헬퍼(onboarding-quality.js Q1·Q5) — 수치엔 항상 기준 시점을, 수치 블록엔 항상
    해석을 동반시킨다. 좌측 세로 컬러 라인 없이 배경·글자색으로만 위계를 준다(프로젝트 규율). */

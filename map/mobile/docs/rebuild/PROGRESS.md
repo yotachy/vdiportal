@@ -12,10 +12,10 @@
 
 ## 현재 위치
 
-- **페이즈**: P1a (재방문 여정 — 무료 경로: 워치리스트·기본분석 리포트·3단 대조·해제 블록·단계 선택 시트) — ✅ 완료 (Task 1~8) + **최종 리뷰 수정 웨이브(C1·I1·M1) 완료**(아래 "P1a 최종 리뷰 수정 웨이브" 참고)
-- **브랜치**: `mobile-rebuild-p1a`
-- **마지막 커밋**: `8b67045` fix(mobile): 살 수 없는 걸 팔지 않는다 — P1a 최종 리뷰 수정 웨이브(C1·I1·M1)
-- **다음 한 걸음**: **P1b 계획서 작성**(진행 중계·해제 전환·심화 리포트·판독문 32, 시안 19a·8b·8a·18b·19b·20a — `docs/superpowers/specs/2026-08-18-moneyscoop-p1-design.md` §3.5~3.8이 확정 사실, §3.5는 이번 웨이브에서 실측으로 정정됨). 착수 전 아래 "막힌 것"의 **APK 실기기 확인**을 사용자가 완료해야 한다
+- **페이즈**: P1a(재방문 여정 — 무료 경로) ✅ 완료 + **P4(첫 실행 — 온보딩 7단계) ✅ 완료**. P4 는 원래 순서(P1b 다음)를 앞당겨 먼저 끝냈다 — 사용자 판정("처음 접속하는 사용자 입장에서 부실하다")이 첫인상 문제였기 때문(근거: [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md) 머리말). P1a 상세는 아래 "P1a 최종 리뷰 수정 웨이브" 참고.
+- **브랜치**: `mobile-onboarding`(P4, `main`— P1a 병합 완료 지점 — 에서 분기) · P1a 는 `mobile-rebuild-p1a`(병합 완료)
+- **마지막 커밋**: P4 8태스크 `02d1b02..HEAD`(측정 → 재설계 설계서 → 1~7단계 재구현 → Task 8 완료·가격표·지급) — 세부 진행은 [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md) 계획서(`docs/superpowers/plans/`)와 `.superpowers/sdd/2026-08-18-moneyscoop-onboarding-redesign/task-8-report.md` 참고
+- **다음 한 걸음**: **P1b 계획서 작성**(진행 중계·해제 전환·심화 리포트·판독문 32, 시안 19a·8b·8a·18b·19b·20a — `docs/superpowers/specs/2026-08-18-moneyscoop-p1-design.md` §3.5~3.8이 확정 사실, §3.5는 P1a 리뷰 웨이브에서 실측으로 정정됨). 착수 전 아래 "막힌 것"의 **APK 실기기 확인**을 사용자가 완료해야 한다(P4 를 포함한 최신 빌드로 다시 확인)
 
 ## 막힌 것 / 사용자 대기
 
@@ -79,7 +79,7 @@
 | P1c | 재방문 여정 — 전문 (전문 리포트·가중치 편집기) | ⬜ | — | 계획서 미작성 |
 | P2 | 획득 여정 (광고 6진입 · 적립 · 복귀 · 지갑) | ⬜ | — | |
 | P3 | 다음날 여정 (결과 카드 · 상세 · 기록 · 스캔) | ⬜ | — | |
-| P4 | 첫 실행 (온보딩 7단계) | ⬜ | — | |
+| P4 | 첫 실행 (온보딩 7단계) — **P1b 보다 먼저 완료**(순서를 앞당김) | ✅ 완료 | `02d1b02..HEAD`(`mobile-onboarding`) | 8태스크(측정·설계서·1~7단계 재구현·마감). 설계서 [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md), 브라우저 관문 10/10 |
 | P5 | 부가층 (영어 · 2단/3단 · 아이콘) | ⬜ | — | |
 | C1 | 차트 Lv1 5종 확인 | ⬜ | — | 병행 트랙 |
 | C2 | 차트 Lv2 7종 이식 | ⬜ | — | `--pred2` 색 충돌 판정 포함 |

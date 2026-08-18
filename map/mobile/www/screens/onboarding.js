@@ -1,9 +1,7 @@
-// 온보딩 7단계 — 3막 재설계 진행 중(설계서 map/docs/superpowers/specs/
-// 2026-08-18-moneyscoop-onboarding-redesign.md). **화면 수는 유지한다**(그 설계서 O4) — 이후
-// 태스크들이 slot 을 하나씩(step2..step7) 통째로 다시 쓴다. 아직 손 안 댄 slot 은 이전
-// 설계(DESIGN-INVENTORY §2, t17)의 내용을 그대로 들고 있다 — 각 태스크는 **자기 slot 만**
-// 고치고 다른 slot 의 내용을 옮기거나 미리 당겨 쓰지 않는다(브리프가 파일 목록으로 그
-// 경계를 긋는다). 완료 전까지 워치리스트/리포트/지갑은 그리지 않는다.
+// 온보딩 7단계 — 3막 재설계 완료(설계서 map/docs/superpowers/specs/
+// 2026-08-18-moneyscoop-onboarding-redesign.md). **화면 수는 유지했다**(그 설계서 O4) — 8개
+// 태스크가 slot 을 하나씩(step1..step7) 통째로 다시 썼다. 각 태스크는 **자기 slot 만**
+// 고치고 다른 slot 의 내용을 옮기거나 미리 당겨 쓰지 않는다는 규율로 진행됐다.
 //
 //   1 콜드 오픈(11a)                — 예시 구간 · 찍기 · 당신/앱/실제 3열. [재설계 완료]
 //   2 같은 구간, 32개 전부          — 5개가 아니라 32개 전부의 동의·반대·무판정·자백(못
@@ -21,10 +19,16 @@
 //                                    근거(2단계와 같은 형식) 순서로 편다. [재설계 완료 — Task 7.
 //                                    옛 "전문분석 체험"(슬라이더 하나) 슬롯은 이 태스크가
 //                                    통째로 갈아치웠다 — r3/trendW/recomputeCustom 삭제]
-//   7 완료·가격표·지급(17a)         — 세 값을 한 표에 모으고 **가격은 이제야** 공개한다. [옛 내용 그대로]
+//   7 완료·가격표·지급(17a)         — 방금 받은 것(도구 32·지평 3·근거)을 먼저 요약하고,
+//                                    **가격은 이제야** 공개하며, 지급은 서버 확정 후 마지막에
+//                                    온다. [재설계 완료 — Task 8. 옛 "기본·심화·전문 세 값
+//                                    비교표"(bandRow, state.r3 를 읽던 죽은 셋째 열)는 이
+//                                    태스크가 통째로 갈아치웠다 — tomorrow()·bandRow()·
+//                                    state.r3 삭제]
 //
-// **순서가 핵심이다.** 가격표를 먼저 보여주면 "3스쿱"이 그냥 숫자다. 234.2 ± 1.1 을 먼저 본
-// 사람에게만 3이 싼지 비싼지 판단할 근거가 생긴다(인벤토리 §2 원문).
+// **순서가 핵심이다.** 가격표를 먼저 보여주면 "3스쿱"이 그냥 숫자다. 값을 먼저 겪은
+// 사람에게만 3이 싼지 비싼지 판단할 근거가 생긴다(인벤토리 §2 원문). 같은 원칙으로 7단계
+// 안에서도 순서가 있다: 받은 것 요약 → 가격표 → 지급.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
   else MSGlobals.define("MSOnboarding", factory());
@@ -119,7 +123,7 @@
       pickChecking: false, pickError: null,   // "notfound" | "thin" | null
       sym: null, symName: null,               // 5단계가 확정한 종목 — canAdvance(5) 의 유일한 근거
       tut: null,            // { sym, name, data, fallback }
-      r1: null, r2: null, r3: null,
+      r1: null, r2: null,
       // 6단계 — 실제 분석(Task 7). r2(32도구, state.r1/r2 와 같이 5단계 commit() 이 이미
       // 계산해 둔다)가 이 화면의 원자재다. ob6 은 그 자료로 재생한 "서술문 있는" 32행이다
       // (readingStepper 로 하나씩 읽는다 — Q3, 진행이 엔진 호출 수에 묶인다). null 이면
@@ -242,15 +246,6 @@
       } catch (e) { return null; }
     }
 
-    // 내일(첫 지평)의 값과 폭. 세 단계가 같은 자리를 비교해야 표가 성립한다.
-    function tomorrow(r) {
-      var p = r && r.out && r.out.prediction;
-      if (!p || !p.path || !p.path.length) return null;
-      var lo = p.lo && p.lo[0], hi = p.hi && p.hi[0];
-      return { mid: p.path[0], lo: lo, hi: hi,
-               width: (typeof lo === "number" && typeof hi === "number") ? (hi - lo) : null };
-    }
-
     // ── 데이터 적재(5단계 [분석 시작]) ────────────────────────────────────────────
     // 고른 종목을 **실제로** 확인하고 돈다 — 이 호출이 그 화면의 "실행"이다. 옛 설계는
     // "못 찾음"도 "봉 부족"도 조용히 번들 표본으로 바꿔치기했다(그 다음 화면이 데모였을
@@ -275,7 +270,6 @@
         state.tut = { sym: pick.sym, name: pick.name, data: data, fallback: !!fallback, loading: false };
         state.r1 = runTier(data, "basic");
         state.r2 = runTier(data, "full");
-        state.r3 = null;
         state.ob6 = null; state.ob6Playing = false;   // 새 확정 — 6단계 재생은 처음부터 다시
         state.sym = pick.sym; state.symName = pick.name; state.picked = [pick];
         state.pickChecking = false; state.pickError = null;
@@ -307,7 +301,7 @@
     // 화면엔 새 종목이 선택돼 있는데 다음 단계로 넘어가는 건 옛 종목의 분석 결과가 된다.
     function invalidateConfirmed() {
       state.sym = null; state.symName = null; state.tut = null;
-      state.r1 = null; state.r2 = null; state.r3 = null; state.picked = [];
+      state.r1 = null; state.r2 = null; state.picked = [];
       state.ob6 = null; state.ob6Playing = false;   // r2 에서 파생된 자료라 같이 무효화한다
     }
 
@@ -802,17 +796,6 @@
       return w;
     }
 
-    // bandRow — 7단계(옛 내용, Task 8 이 다시 짤 몫)가 세 값(기본·심화·전문)을 나란히 비교할
-    // 때 쓰는 값 한 줄 뼈대. tutHead(옛 6단계 "N / 3" 진행 표시)는 Task 7 이 6단계를 실제
-    // 분석으로 갈아치우며 호출자와 함께 지웠다 — 여기 남겨두면 죽은 코드다.
-    function bandRow(label, band) {
-      var r = frag("ob-band");
-      r.appendChild(el("span", "ob-band-k", label));
-      r.appendChild(el("span", "ob-band-v", num(band && band.mid)));
-      r.appendChild(el("span", "ob-band-w", MSStr.t.obTutWidth + num(band && band.width)));
-      return r;
-    }
-
     // 1·2·3막이 전부 과거(sliced 228봉)를 다뤘다 — obPastDone("여기까지는 과거였습니다")이
     // 3단계 화면 위에서 그 사실을 못박는다. 4단계는 그 문장을 받아 "이제부터는 미래"라고
     // 답한다 — 동의가 법률 절차가 아니라 이야기의 매듭이 되려면 이 순서가 먼저다.
@@ -1113,27 +1096,71 @@
       })["catch"](function () { state.grantFailed = true; paintGrant(); });
     }
 
+    // 값 한 줄(recap) — 큰 숫자 + 라벨 한 줄 + 무엇이었는지 풀어 적은 상세. 3개(도구·지평·
+    // 근거)가 전부 같은 뼈대를 쓴다 — 항목마다 다른 모양이면 "요약"이 아니라 세 개의 다른
+    // 화면처럼 읽힌다.
+    function recapRow(n, label, detail) {
+      var row = frag("ob-recap-row");
+      var head = frag("ob-recap-row-head");
+      head.appendChild(el("span", "ob-recap-num", n));
+      head.appendChild(el("span", "ob-recap-label", label));
+      row.appendChild(head);
+      if (detail) row.appendChild(el("p", "ob-recap-detail", detail));
+      return row;
+    }
+
+    // 방금 받은 것 — 가격표보다 먼저(단언 1). 6단계가 이미 계산해 둔 자료(state.r2·
+    // state.ob6.rows)를 다시 읽을 뿐 새로 계산하지 않는다 — 이 화면은 요약이지 재분석이
+    // 아니다. 세 항목이 설계서 §4.7 "도구 32개 · 지평 3개 · 근거 전부"를 그대로 센다.
+    function recapBlock() {
+      var wrap = frag("ob-recap");
+      wrap.appendChild(el("p", "ob-recap-head", MSStr.t.obRecapHead));
+
+      var cls = ob6Classify();
+      var toolsN = cls ? (cls.agree.length + cls.dissent.length + cls.flat.length + cls.refused.length) : 0;
+      var toolsDetail = cls
+        ? (MSStr.t.ob32AgreeHead + " " + cls.agree.length + MSStr.t.obRecapSep +
+           MSStr.t.rpAgainst + " " + cls.dissent.length + MSStr.t.obRecapSep +
+           MSStr.t.ob32FlatHead + " " + cls.flat.length + MSStr.t.obRecapSep +
+           MSStr.t.ob32RefusedHead + " " + cls.refused.length)
+        : "";
+      wrap.appendChild(recapRow(String(toolsN), MSStr.t.obRecapToolsLabel, toolsDetail));
+
+      var r2 = state.r2;
+      var hzRows = (r2 && r2.out) ? ob6Horizons(r2.out.prediction, r2.out.verdict.regime) : [];
+      var hzDetail = hzRows.map(function (r) { return ob6HzLabel(r.key) + " " + num(r.price); })
+                            .join(MSStr.t.obRecapSep);
+      wrap.appendChild(recapRow(String(hzRows.length), MSStr.t.obRecapHorizonsLabel, hzDetail));
+
+      // "근거" — O2 의 실체(반대 의견까지 숨기지 않는다)를 다시 한 번 숫자로 못박는다.
+      // 반대 개수는 앞 항목의 상세에도 있지만, 여기서는 그 숫자 하나를 이 항목의 주인공으로
+      // 다시 꺼낸다 — "동의만 골라 보여주지 않았다"는 이 온보딩의 핵심 약속이기 때문이다.
+      var dissentN = cls ? cls.dissent.length : 0;
+      wrap.appendChild(recapRow(String(dissentN), MSStr.t.obRecapEvidenceLabel, MSStr.t.obRecapEvidenceDetail));
+
+      return wrap;
+    }
+
     function step7() {
       var w = frag("ob-step");
       w.appendChild(el("h1", "ob-h", MSStr.t.obDoneH));
       w.appendChild(el("p", "ob-sub", MSStr.t.obDoneSub));
-      // 리뷰 E — 아래 표(기본·심화·전문 세 값)가 폴백 표본에서 왔으면 숫자보다 먼저 밝힌다.
-      // 최소 침습: 이 한 줄만 얹는다 — 표·가격표 자체는 Task 8 이 다시 짤 몫이라 손대지 않는다.
       if (state.tut && state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obFallbackNotice));
 
-      var table = frag("ob-final");
-      table.appendChild(bandRow(MSStr.t.obTut2Basic, tomorrow(state.r1)));
-      table.appendChild(bandRow(MSStr.t.obTut2Full, tomorrow(state.r2)));
-      table.appendChild(bandRow(MSStr.t.xpTitle, tomorrow(state.r3)));
-      w.appendChild(table);
+      // 1) 방금 받은 것 — 도구 32 · 지평 3 · 근거(단언 1).
+      w.appendChild(recapBlock());
 
-      w.appendChild(frag("ob-grant"));
-
-      // 가격표는 지갑 화면과 같은 출처(MSWallet.COSTS)에서 읽는다 — 여기서 다시 적으면
-      // 두 화면이 다른 값을 말하게 된다(P2 에서 스캔 가격이 실제로 그렇게 갈렸다).
+      // 2) 가격표 — 값을 겪은 뒤에야 공개(인벤토리 §2). 지갑 화면과 같은 출처(MSWallet.
+      // COSTS)에서 읽는다 — 여기서 다시 적으면 두 화면이 다른 값을 말하게 된다(P2 에서
+      // 스캔 가격이 실제로 그렇게 갈렸다). **상시 무료로 읽히지 않게**(단언 3) — 방금
+      // 본 32개 도구 전체(심화분석 티어)는 온보딩 한정 무료였다는 것을 가격표 맨 앞에서
+      // 분명히 하고, 그 다음에야 "기본은 계속 무료"를 말한다 — 순서가 바뀌면 무료라는
+      // 인상이 먼저 박힌 뒤 예외가 작은 글씨로 따라오는 모양이 된다.
       var C = (typeof MSWallet !== "undefined") ? MSWallet.COSTS : {};
-      w.appendChild(el("p", "ob-over", MSStr.t.obDoneNow));
-      w.appendChild(el("p", "ob-cost-note", MSStr.t.obDoneFree));
+      var pricing = frag("ob-pricing");
+      pricing.appendChild(el("p", "ob-over", MSStr.t.obDoneNow));
+      pricing.appendChild(el("p", "ob-warn", MSStr.t.obDoneOnboardFree));
+      pricing.appendChild(el("p", "ob-cost-note", MSStr.t.obDoneFree));
       var costs = frag("ob-costs");
       [[MSStr.t.obCostFull, C.full], [MSStr.t.xpTitle, C.custom]].forEach(function (row) {
         var r = frag("ob-cost-row");
@@ -1144,8 +1171,14 @@
                                               : (row[1] != null ? String(row[1]) : "?")));
         costs.appendChild(r);
       });
-      w.appendChild(costs);
-      w.appendChild(el("p", "ob-cost-note", MSStr.t.obDoneEarn));
+      pricing.appendChild(costs);
+      pricing.appendChild(el("p", "ob-cost-note", MSStr.t.obDoneEarn));
+      w.appendChild(pricing);
+
+      // 3) 지급 — 서버가 확정한 값만(fetchGrant/paintGrant, 낙관적 증가 금지). 가장
+      // 마지막(단언 2) — 값을 겪고 가격을 본 사람에게 마지막으로 스쿱이 채워진다.
+      w.appendChild(frag("ob-grant"));
+
       return w;
     }
 
