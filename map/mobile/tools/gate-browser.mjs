@@ -5,10 +5,13 @@
 // 하나를 두 파일이 다투는 사고(2026-08-18 MSPreds)를 원리적으로 못 본다. 1505건이 초록인
 // 채로 앱의 본체가 죽어 있었다. 이 관문이 그 구멍이다.
 //
-// 의존성 0 — 이미 있는 크로미움 바이너리를 CLI 로 몬다(저장소 규율: 빌드 도구 없음).
-// 한 번의 실행에서 셋을 얻는다: 콘솔 로그(stderr) · 단언 결과(document.title) · 스크린샷.
+// 크로미움 실행 자체는 의존성 0(이미 있는 바이너리를 CLI 로 몬다, 저장소 규율: 빌드 도구
+// 없음) — 단 그 바이너리를 이 WSL 환경에서 띄우려면 apt-get download 로 공유 라이브러리
+// (libnspr4/libnss3/libasound2) 를 받아야 한다(ensureLibs, sudo 불요·설치 아닌 다운로드).
+// 한 번의 실행에서 넷을 얻는다: 페이지 안에서 직접 모은 콘솔 오류 · 단언 결과 · 스크린샷
+// 갱신 여부 · (2차 그물로) 크로미움 stderr.
 import { spawn, spawnSync, execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import https from "node:https";
@@ -24,7 +27,12 @@ const CHROME = path.join(process.env.HOME, ".cache/ms-playwright/chromium-1228/c
 
 // ── ① 포트 좀비 확인 ─────────────────────────────────────────────────────────
 // 2026-08-18 대조에서 전날 세션의 서버가 포트를 잡고 있어 새 mock 이 한 번도 안 떴다.
-// 조용히 옛 결과를 보게 되는 종류의 사고라, 관문은 이걸 먼저 확인하고 죽는다.
+// 조용히 옛 결과를 보게 되는 종류의 사고라, 관문은 이걸 먼저 확인하고 죽는다. 이건
+// `ss` 가 있을 때의 사전 확인이고, `ss` 가 없어도(또는 이 확인을 어떻게든 빠져나가도)
+// 진짜 방어는 아래 server.listen 의 'error' 핸들러다 — 실측(node net.Server, 이 Node
+// v24 기준): 리스너를 안 달아도 EADDRINUSE 는 Node 가 uncaught exception 으로 시끄럽게
+// 죽인다(조용히 넘어가지 않는다). 그래도 스택트레이스 대신 우리 메시지로 죽게 핸들러를
+// 명시적으로 단다 — 우연에 기대지 않는다는 뜻이지, 우연이 원래 조용했다는 뜻이 아니다.
 function assertPortFree() {
   const r = spawnSync("ss", ["-lntp"], { encoding: "utf8" });
   if (r.status !== 0) return;                       // ss 가 없으면 통과(치명적이지 않다)
@@ -142,6 +150,32 @@ function serve(creds) {
 // 상태를 심고 → 라우트로 이동 → 단언을 돌려 document.title 에 GATE:{json} 으로 적는다.
 function probe(route) {
   const base = readFileSync(path.join(WWW, "index.html"), "utf8");
+
+  // ── 리뷰 C1: 콘솔 오류를 크로미움 stderr 태그가 아니라 페이지 안에서 직접 모은다 ──────
+  // 실측(이 크로미움 빌드): SEVERE/ERROR:CONSOLE 태그가 전혀 안 찍힌다. console.error 는
+  // console.log 와 똑같이 INFO:CONSOLE 로 나온다 — stderr 문자열 매칭으로는 console.error
+  // 를 절대 못 잡는다. 게다가 probe() 가 스스로 심는 MSApp.go() 래퍼가
+  // catch(e){console.error("GO_FAILED",e)} 라, go() 실패를 관문이 자기가 삼키는 자기모순도
+  // 있었다. 그래서 window.onerror · unhandledrejection · console.error 세 경로를 모아
+  // title payload(errs)로 실어 보낸다. **다른 스크립트보다 먼저**(globals.js 앞) 심는다 —
+  // 늦게 심으면 그 전에 실행되는 스크립트의 오류(2026-08-18 사고의 진짜 재현 조건 — 전역
+  // 충돌은 그 전역을 등록하는 스크립트가 실행되는 순간 던진다)를 놓친다.
+  const GTAG = '<script src="globals.js"></script>';
+  const collector = '<script>(function(){' +
+    'window.__gateErrs=[];window.__gateWarns=[];' +
+    'window.onerror=function(msg,src,line,col,err){' +
+      'window.__gateErrs.push(String((err&&err.stack)||msg));return false;};' +
+    'window.addEventListener("unhandledrejection",function(e){' +
+      'window.__gateErrs.push("unhandledrejection: "+String((e.reason&&e.reason.stack)||e.reason));});' +
+    'var _ce=console.error;console.error=function(){' +
+      'window.__gateErrs.push(Array.prototype.slice.call(arguments).map(String).join(" "));' +
+      'return _ce.apply(console,arguments);};' +
+    'var _cw=console.warn;console.warn=function(){' +
+      'window.__gateWarns.push(Array.prototype.slice.call(arguments).map(String).join(" "));' +
+      'return _cw.apply(console,arguments);};' +
+    '})();</script>\n';
+  let html = base.replace(GTAG, collector + GTAG);
+
   const TAG = '<script src="app.js"></script>';
   let js = "<script>try{localStorage.clear();";
   for (const [k, v] of Object.entries(route.seed || {})) {
@@ -151,9 +185,11 @@ function probe(route) {
   if (route.go) js += '\n<script>setTimeout(function(){try{MSApp.go(' + route.go + ');}catch(e){console.error("GO_FAILED",e);}},400);</script>';
   js += '\n<script>setTimeout(function(){var ok=false,err="";' +
         'try{ok=!!(' + route.assert + ');}catch(e){err=String(e);}' +
-        'document.title="GATE:"+JSON.stringify({ok:ok,err:err});},' + (route.delay || 1500) + ');</script>';
+        'document.title="GATE:"+JSON.stringify({ok:ok,err:err,errs:(window.__gateErrs||[]),warns:(window.__gateWarns||[])});},' +
+        (route.delay || 1500) + ');</script>';
   const name = "__gate_" + route.name + ".html";
-  writeFileSync(path.join(WWW, name), base.replace(TAG, js));
+  html = html.replace(TAG, js);
+  writeFileSync(path.join(WWW, name), html);
   return name;
 }
 
@@ -182,26 +218,44 @@ function shoot(route, page, libDir) {
   });
 }
 
+function shotPath(route) { return path.join(OUT, "app-" + route.name + ".png"); }
+
+// judge() 는 { problems, warns } 를 돌려준다. problems 는 실패 판정, warns 는 판정에
+// 넣지 않는 진단용(console.warn — 앱이 정상 경로에서도 쓴다, 예: report.js 의 에러 이탈
+// 로깅). 실패 라우트를 디버깅할 때만 같이 찍는다.
 function judge(route, res) {
   const problems = [];
-  // ② 콘솔 오류 0 — 전역 중복 등록(globals.js throw)도 여기로 떨어진다
+  // 2차 그물 — 크로미움 stderr. 페이지 스크립트가 너무 일찍 죽어 title 자체가 안 생기는
+  // 경우(파서가 첫 <script> 조차 못 돌리는 등)를 잡는다. 리뷰 C1 실측: 이 크로미움 빌드는
+  // SEVERE/ERROR:CONSOLE 태그를 안 쓴다 — 그래서 이건 보조일 뿐, 주 판정은 아래 errs(페이지
+  // 안에서 직접 모은 것)다. 지우지 않고 남긴다(브리프 원안의 최초 방어선이기도 하다).
   for (const line of res.log.split("\n")) {
     if (!/CONSOLE|Uncaught/.test(line)) continue;
-    if (/ERROR:CONSOLE|SEVERE|Uncaught/.test(line)) problems.push("콘솔 오류: " + line.trim());
+    if (/ERROR:CONSOLE|SEVERE|Uncaught/.test(line)) problems.push("콘솔 오류(2차 그물/stderr): " + line.trim());
   }
-  // ③ 단언
   const m = res.dom.match(/<title>GATE:([\s\S]*?)<\/title>/);
-  if (!m) problems.push("단언이 실행되지 않았다(title 없음) — 화면이 그려지기 전에 죽었을 수 있다");
-  else {
-    let v = {};
-    try {
-      const raw = m[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-      v = JSON.parse(raw);
-    } catch (e) { problems.push("단언 결과 파싱 실패: " + m[1]); }
-    if (!v.ok) problems.push("단언 실패: " + route.assert + (v.err ? " (" + v.err + ")" : ""));
+  if (!m) {
+    problems.push("단언이 실행되지 않았다(title 없음) — 화면이 그려지기 전에 죽었을 수 있다");
+    return { problems, warns: [] };
   }
-  return problems;
+  let v = {};
+  try {
+    const raw = m[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+    v = JSON.parse(raw);
+  } catch (e) {
+    problems.push("단언 결과 파싱 실패: " + m[1]);
+    return { problems, warns: [] };
+  }
+  // ① 콘솔 오류(주 판정) — window.onerror·unhandledrejection·console.error 를 페이지
+  // 안에서 직접 모은 것. probe() 의 GO_FAILED 캐치도 여기로 들어온다(더는 자기가 자기를
+  // 안 삼킨다).
+  const errs = Array.isArray(v.errs) ? v.errs : [];
+  errs.forEach(e => problems.push("콘솔 오류: " + e));
+  const warns = Array.isArray(v.warns) ? v.warns : [];
+  // ② 단언
+  if (!v.ok) problems.push("단언 실패: " + route.assert + (v.err ? " (" + v.err + ")" : ""));
+  return { problems, warns };
 }
 
 assertPortFree();
@@ -209,6 +263,12 @@ mkdirSync(OUT, { recursive: true });
 const libDir = ensureLibs();
 const creds = ensureCert();
 const server = serve(creds);
+// 리뷰 M2 — 명시적으로 죽인다(위 assertPortFree 주석 참고. 기본 동작도 이미 시끄럽게
+// 죽지만, 우리 메시지로 통일해 둔다).
+server.on("error", (e) => {
+  console.error("HTTPS mock 서버가 못 떴다(" + e.code + ") — 포트 " + PORT + ": " + String(e));
+  process.exit(1);
+});
 await new Promise(r => server.listen(PORT, "127.0.0.1", r));
 
 const only = process.argv.slice(2);
@@ -219,9 +279,26 @@ for (const route of routes) {
   // www/ 에 __gate_*.html 이 남으면 안 된다(작업 트리에 남기지 않는다는 요구사항).
   const page = probe(route);
   try {
-    const problems = judge(route, await shoot(route, page, libDir));
-    if (problems.length) { failed++; console.log("✗ " + route.name); problems.forEach(p => console.log("    " + p)); }
-    else console.log("✓ " + route.name);
+    const sp = shotPath(route);
+    const beforeMtime = existsSync(sp) ? statSync(sp).mtimeMs : 0;
+    const shotRes = await shoot(route, page, libDir);
+    const { problems, warns } = judge(route, shotRes);
+    // 리뷰 I1 — 스크린샷이 실제로 갱신됐는지 확인한다. --screenshot= 플래그만 넘기고 파일이
+    // 정말 생겼는지 아무도 안 보면, 크로미움이 컴포지트 전에 죽어도 콘솔·단언만 통과하면
+    // 초록이 된다.
+    if (!existsSync(sp)) problems.push("스크린샷이 생성되지 않았다: " + sp);
+    else {
+      const st = statSync(sp);
+      if (st.size === 0) problems.push("스크린샷 파일 크기가 0이다: " + sp);
+      else if (st.mtimeMs <= beforeMtime) problems.push("스크린샷이 갱신되지 않았다(mtime 그대로): " + sp);
+    }
+    if (problems.length) {
+      failed++; console.log("✗ " + route.name); problems.forEach(p => console.log("    " + p));
+      if (warns.length) {
+        console.log("    진단(console.warn, 판정에는 미포함):");
+        warns.forEach(w => console.log("      " + w));
+      }
+    } else console.log("✓ " + route.name);
   } finally {
     rmSync(path.join(WWW, page), { force: true });
   }

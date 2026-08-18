@@ -9,6 +9,13 @@
 // 내부의 "텍스트"(= JS 소스 문자열 리터럴)까지 전부 딸려온다. 그래서 body 전체를 읽으면
 // assert 문자열 자기 자신(그 안의 한국어 리터럴)이 검색 대상에 섞여 들어가 자기참조로
 // 항상 걸린다(실측: report 단언이 "불러오지 못했습니다"를 자기 소스에서 찾아 늘 실패).
+//
+// assert 는 (리뷰 C2) **①MSApp.current().route 가 기대한 라우트인가 + ②그 화면에만 있는
+// 표식이 있는가** 의 AND 다. 이전엔 wallet 이 '스쿱'(브랜딩 — 다른 화면에도 있다)을,
+// record·result 는 textContent.length > 50(워치리스트도 넘는다)을 썼다 — go() 가 실패해
+// 워치리스트에 머물러도 통과하는 구멍이었다. 화면 고유 클래스 접두(wl-/rp-/wal-/rc-/rs-)를
+// 두 번째 조건으로 쓴다. **Task 4 이후**: 셸이 화면마다 data-screen 표식을 붙이면 그걸로
+// 조여라 — 지금의 class-접두 방식보다 리팩터에 덜 취약하다.
 const WL = [{ sym: "AAPL", name: "애플" }, { sym: "NVDA", name: "엔비디아" }, { sym: "TSLA", name: "테슬라" }];
 const ON = {
   ms_onboarded: true,
@@ -25,16 +32,22 @@ const PREDS = [
 ];
 
 export const ROUTES = [
+  // onboarding 은 MSApp.current().route 가 못 쓴다 — state.showing 이 "watchlist" 기본값에서
+  // 안 바뀐 채로 온보딩이 그려진다(온보딩은 app.js 부팅 게이트를 아예 우회한다). 대신 온보딩
+  // 모듈 자신(MSOnboarding)이 로드됐는가 + 1단계 전용 표식(.ob-step)으로 정체성을 확인한다.
   { name: "onboarding", seed: {}, go: null,
-    assert: "document.querySelectorAll('button, [role=button]').length > 0" },
+    assert: "typeof MSOnboarding !== 'undefined' && !!document.querySelector('.ob-step') && " +
+      "document.querySelectorAll('button, [role=button]').length > 0" },
   { name: "watchlist", seed: { ...ON, ms_preds: PREDS }, go: null,
-    assert: "document.querySelectorAll('[data-sym]').length === 3" },
+    assert: "MSApp.current().route === 'watchlist' && !!document.querySelector('.wl-rows') && " +
+      "document.querySelectorAll('[data-sym]').length === 3" },
   { name: "report", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 1200,
-    assert: "!/불러오지 못했습니다/.test(document.getElementById('app').textContent)" },
+    assert: "MSApp.current().route === 'report' && !!document.querySelector('.rp-chart') && " +
+      "!/불러오지 못했습니다/.test(document.getElementById('app').textContent)" },
   { name: "wallet", seed: ON, go: '"wallet"',
-    assert: "document.getElementById('app').textContent.indexOf('스쿱') >= 0" },
+    assert: "MSApp.current().route === 'wallet' && !!document.querySelector('.wal-bal')" },
   { name: "record", seed: { ...ON, ms_preds: PREDS }, go: '"record"',
-    assert: "document.getElementById('app').textContent.length > 50" },
+    assert: "MSApp.current().route === 'record' && !!document.querySelector('.rc-head')" },
   { name: "result", seed: { ...ON, ms_preds: PREDS }, go: '"result",{sym:"TSLA",asOf:"2026-08-14"}',
-    assert: "document.getElementById('app').textContent.length > 50" }
+    assert: "MSApp.current().route === 'result' && !!document.querySelector('.rs-verdict')" }
 ];
