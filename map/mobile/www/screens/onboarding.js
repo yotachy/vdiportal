@@ -87,6 +87,10 @@
   function el(tag, cls, text) { return MSUi.el(tag, cls, text); }
   function pct(x) { return (x == null) ? "—" : (x * 100).toFixed(1) + "%"; }
   function num(x, d) { return (x == null) ? "—" : Number(x).toFixed(d == null ? 2 : d); }
+  // 1단계 x축 기준 표기용 — 캔들의 "YYYY-MM-DD" 를 "YYYY.MM"(연월)·"YYYY.MM.DD"(기준일)로.
+  // 데이터에서 계산한다(리터럴로 적으면 재선별 표본에서 곧장 낡는다).
+  function ym(t) { return (t || "").slice(0, 7).replace("-", "."); }
+  function dotDate(t) { return (t || "").replace(/-/g, "."); }
 
   function progress(step) {
     var w = frag("ob-prog");
@@ -178,6 +182,25 @@
       return regime === "bull" ? MSStr.t.rpBullish : regime === "bear" ? MSStr.t.rpBearish : MSStr.t.rpFlat;
     }
 
+    // regime → 방향 부호. readingBlock(근거/반대 분류)과 3열 대조(앱 열의 맞음/틀림)가
+    // 같은 방향 규칙을 써야 한다 — 두 곳에 따로 적으면 규칙이 갈릴 수 있다.
+    function regimeDir(regime) { return regime === "bull" ? 1 : regime === "bear" ? -1 : 0; }
+
+    // 앱의 판정(regime)이 실제 결과(actualUp)와 맞았는지 — "right"/"wrong"/"flat"(무판정)
+    // 세 갈래. 문구(appMeaning)와 강조색(CSS .is-right/.is-wrong) 이 같은 규칙을 쓴다.
+    function appOutcome(regime, actualUp) {
+      var dir = regimeDir(regime);
+      if (dir === 0) return "flat";
+      return ((dir > 0) === actualUp) ? "right" : "wrong";
+    }
+
+    // 앱 열의 판정과 실제 결과를 대조한 해석문. 맞은 표본만 골라 보여주면 광고지다 — 세
+    // 갈래(맞음/틀림/무판정) 모두 실제로 렌더된다.
+    function appMeaning(outcome) {
+      return outcome === "flat" ? MSStr.t.obAppFlatMeaning
+           : outcome === "right" ? MSStr.t.obAppRightMeaning : MSStr.t.obAppWrongMeaning;
+    }
+
     // 엔진을 실제로 돌린다. tier 는 그래프를 고르고, weights 는 전문분석에서만 온다.
     // report.js analyzeFull 의 거래량 취급을 그대로 따른다 — 드리프트는 data.volume 이 아니라
     // 그래프의 volume 노드를 읽으므로 setVolume 을 반드시 거친다.
@@ -259,7 +282,7 @@
       }
       var regime = an.out.verdict.regime;
       wrap.appendChild(el("p", "ob-read-verdict", MSStr.t.obReadVerdictA + verdictWord(regime)));
-      var want = regime === "bull" ? 1 : regime === "bear" ? -1 : 0;
+      var want = regimeDir(regime);
       var forRows = [], againstRows = [], flatRows = [];
       rows.forEach(function (r) {
         if (want === 0 || Math.abs(r.bias) <= TOOL_EPS) { flatRows.push(r); return; }
@@ -283,6 +306,60 @@
       return wrap;
     }
 
+    // x축 기준 — "일봉인지 주봉인지, 어느 구간인지" 원 판정에 대한 답. 화면에 실제로 그려진
+    // 데이터(찍기 전=sliced, 찍은 뒤=sample 전체)와 같은 출처를 읽는다 — paintGuess 와 다른
+    // 구간을 말하면 라벨과 그림이 어긋난다.
+    function periodLabel() {
+      var d = state.guessed ? sample() : sliced();
+      if (!d || !d.candle || !d.candle.length) return frag("ob-period");
+      var first = d.candle[0].t, last = d.candle[d.candle.length - 1].t;
+      return el("p", "ob-period",
+        MSStr.t.rpDaily + MSStr.t.obPeriodSep + ym(first) + MSStr.t.obPeriodDash + ym(last));
+    }
+
+    // 3열 대조 — 당신 / 앱 / 실제. 세 열 모두 MSObQuality.metric() 으로 만든다(값+기준 시점을
+    // 한 그룹으로 묶는 Q1) — asOf 없이는 만들 수 없으므로 이 화면이 그 규칙을 어길 수 없다.
+    // 앱 열만 stat() 으로 한 겹 더 감싼다 — 판정과 실제가 같았는지 해석(Q5)이 곧 "맞았는지
+    // 틀렸는지"이고, 이게 이 화면의 핵심 대조다. 확신 퍼센트는 넣지 않는다(값은 단어뿐이다,
+    // 5도구는 값 여섯 개라 퍼센트로 쓰면 확률로 오독된다).
+    function columnsBlock() {
+      var wrap = frag("ob-cols");
+      var an = visibleAnalysis();
+      var a = guessAnswer();
+      if (!an || !an.out || !a) return wrap;   // 엔진 불가·정답 계산 불가 — readingBlock 과 같은 원칙
+      var d = sliced(), full = sample();
+      var cutoffAsOf = dotDate(d && d.candle.length ? d.candle[d.candle.length - 1].t : "");
+      var revealAsOf = dotDate(full && full.candle.length ? full.candle[full.candle.length - 1].t : "");
+      var regime = an.out.verdict.regime;
+      var youWord = state.guessed === "up" ? MSStr.t.obGuessUp : MSStr.t.obGuessDown;
+      var appWord = verdictWord(regime);
+      var actualWord = a.up ? MSStr.t.obGuessActualUp : MSStr.t.obGuessActualDown;
+
+      var outcome = appOutcome(regime, a.up);
+      var youMetric = MSObQuality.metric({ value: youWord, asOf: cutoffAsOf, label: MSStr.t.obColYou });
+      var appMetric = MSObQuality.metric({ value: appWord, asOf: cutoffAsOf, label: MSStr.t.obColApp });
+      var appStat = MSObQuality.stat({ metric: appMetric, meaning: appMeaning(outcome) });
+      var actualMetric = MSObQuality.metric({ value: actualWord, asOf: revealAsOf, label: MSStr.t.obColActual });
+
+      // 클래스 문자열을 하나로 이어붙이지 않는다 — "ob-col " 처럼 공백을 낀 리터럴은
+      // screens/ 영어잔존 게이트(el()·className= 리터럴만 예외로 보는 shape 규칙)를 못
+      // 벗어나 "col" 같은 단어가 잔존 영어로 잡힌다. 완결된 케밥 토큰끼리만 리터럴로 두고
+      // 런타임에 공백으로 잇는다.
+      function col(cls, node) { var c = frag("ob-col"); c.className = c.className + " " + cls; c.appendChild(node); return c; }
+      wrap.appendChild(col("ob-col-you", youMetric));
+      // is-right/is-wrong/is-flat — 색만 바꾼다(배경·글자색, 좌측 세로 라인 금지 규칙).
+      wrap.appendChild(col("ob-col-app" + " is-" + outcome, appStat));
+      wrap.appendChild(col("ob-col-actual", actualMetric));
+      return wrap;
+    }
+
+    // "앱은 도구 5개만 보고 이렇게 말했습니다" — 2단계(심화분석 32개)를 벌어들이는 줄. 5는
+    // MSGraph.BASIC.length 에서 읽는다(기본분석 지표 목록이 늘면 문구도 같이 는다).
+    function appSawNote() {
+      var n = (typeof MSGraph !== "undefined" && MSGraph.BASIC && MSGraph.BASIC.length) ? MSGraph.BASIC.length : 5;
+      return el("p", "ob-app-note", MSStr.t.obAppSawA + n + MSStr.t.obAppSawB);
+    }
+
     function step1() {
       var w = frag("ob-step");
       // "예시 데이터"임을 헤드라인보다 먼저 읽게 한다(2026-08-19 리뷰 — 화면 맨 아래 작은
@@ -291,6 +368,9 @@
       w.appendChild(el("p", "ob-over", MSStr.t.obSampleNote));
       w.appendChild(el("h1", "ob-h", MSStr.t.obH1));
       w.appendChild(el("p", "ob-sub", MSStr.t.obGuessAsk));
+      // 주기·기간(x축 기준) — "일봉인지 주봉인지, 어느 구간인지 모른다"던 원 판정에 대한 답.
+      // 차트 바로 위, 캔버스보다 먼저 읽힌다.
+      w.appendChild(periodLabel());
       var wrap = frag("ob-canvas-wrap");
       var cv = document.createElement("canvas");
       cv.className = "ob-canvas";
@@ -319,6 +399,10 @@
         var tail = MSStr.t.obGuessActualA +
           (a2 && a2.up ? MSStr.t.obGuessActualUp : MSStr.t.obGuessActualDown);
         w.appendChild(el("p", "ob-reveal" + (state.guessRight ? " is-right" : ""), head + " " + tail));
+        // 당신 / 앱 / 실제 3열 대조 — 세 열이 나란히 놓여야 "이 앱이 나보다 나은가"를 사용자가
+        // 스스로 판정한다. 이어서 "앱은 도구 5개만 봤다"를 못박아 다음 단계(32개)를 벌어들인다.
+        w.appendChild(columnsBlock());
+        w.appendChild(appSawNote());
         w.appendChild(readingBlock());
         // 틀려도 지지 않는다 — 맞혔으면 "감이 좋다, 그걸 32개 도구로 매일 한다"는 쪽으로,
         // 틀렸으면 "그래서 도구를 32개 읽는다, 하나로는 이렇게 놓친다"는 쪽으로. 두 갈래

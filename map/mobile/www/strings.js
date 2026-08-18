@@ -515,6 +515,23 @@
     obGuessRight: "맞히셨습니다.", obGuessWrong: "빗나갔습니다.",
     obGuessActualA: "실제로는 ", obGuessActualUp: "올랐습니다", obGuessActualDown: "내렸습니다",
 
+    // 차트 상단 x축 기준 — "일봉인지 주봉인지, 어느 구간인지 모른다"는 원 판정에 대한 답.
+    // rpDaily("일봉")는 report.js 와 공유(같은 뜻의 문자열을 새로 안 만든다). 연월 자체는
+    // 데이터에서 계산해 채운다(screens/onboarding.js ym()) — 숫자를 여기 적지 않는다.
+    obPeriodSep: " · ", obPeriodDash: " – ",
+
+    // 찍은 뒤 3열 대조(당신 / 앱 / 실제) — 재설계 핵심. 확신 퍼센트는 앱 열에 넣지 않는다
+    // (5도구는 값 여섯 개뿐이라 확률로 오독된다, 2026-08-19 컨트롤러 판정).
+    obColYou: "당신", obColApp: "앱", obColActual: "실제",
+    // 앱 열의 판정과 실제가 같았는지 — 맞은 표본만 골라 보여주면 광고지다. 셋 다 완결된
+    // 문장이라 어느 쪽이 나와도 그 자체로 뜻이 선다(값+해석을 나중에 잇지 않는다).
+    obAppRightMeaning: "실제 결과와 같은 방향이었습니다 — 이번엔 맞았습니다.",
+    obAppWrongMeaning: "실제 결과와 다른 방향이었습니다 — 이번엔 틀렸습니다.",
+    obAppFlatMeaning: "이 구간에서는 방향을 뚜렷하게 잡지 못했습니다.",
+    // 2단계(심화분석 체험)를 벌어들이는 줄 — 기본분석이 보는 도구가 몇 개뿐인지를 숫자로
+    // 못박는다. 5는 MSGraph.BASIC.length 에서 온다(코드에 다시 적지 않는다).
+    obAppSawA: "앱은 도구 ", obAppSawB: "개만 보고 이렇게 말했습니다.",
+
     // 찍기 전 힌트 — 도구 3종(MA·볼린저·거래량, screens/onboarding.js TOOLS) 옆에 한 줄씩.
     // 감이 아니라 근거를 보고 찍게 하는 것이 목적이다.
     obToolMaHint: "값이 이 선 위면 최근 흐름이 위쪽입니다.",

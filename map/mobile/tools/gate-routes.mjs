@@ -81,6 +81,11 @@ export const ROUTES = [
         "if(!document.querySelector('.ob-canvas')) return false;" +
         "var over=document.querySelector('.ob-over');" +
         "if(!over||over.textContent!==MSStr.t.obSampleNote) return false;" +  // "예시 데이터" 표기
+        // x축 기준(Task 3) — "일봉인지 주봉인지, 어느 구간인지 모른다"던 원 판정에 대한 답.
+        // 찍기 전에도 있어야 한다(캔들만 보고 판단하지 않게).
+        "var per=document.querySelector('.ob-period');" +
+        "if(!per||per.textContent.indexOf(MSStr.t.rpDaily)<0) return false;" +
+        "if(!/\\d{4}\\.\\d{2}/.test(per.textContent)) return false;" +   // 연월이 실제로 박혀 있다
         "var btns=document.querySelectorAll('.ob-guess-btn');" +
         "if(btns.length!==2) return false;" +
         "btns[0].click();" +                                    // 실제로 찍는다 — 엔진이 이 순간 돈다
@@ -90,6 +95,16 @@ export const ROUTES = [
         "if(!tail||!tail.textContent) return false;" +          // 맞힘/틀림 갈래 문구
         "var over2=document.querySelector('.ob-over');" +
         "if(!over2||over2.textContent!==MSStr.t.obSampleNote) return false;" + // 찍은 뒤에도 표기 유지
+        // 3열 대조(Task 3) — 당신/앱/실제. 셋 다 값이 차 있어야 하고, 앱 열엔 확신 퍼센트가
+        // 없어야 한다(5도구는 값 여섯 개뿐이라 확률로 오독된다).
+        "var cols=document.querySelectorAll('.ob-col');" +
+        "if(cols.length!==3) return false;" +
+        "for(var ci=0;ci<cols.length;ci++){ if(!cols[ci].textContent||!cols[ci].textContent.trim()) return false; }" +
+        "var appCol=document.querySelector('.ob-col-app');" +
+        "if(!appCol||/%/.test(appCol.textContent)) return false;" +
+        // "앱은 도구 5개만 보고 이렇게 말했습니다" — 2단계를 벌어들이는 줄.
+        "var note=document.querySelector('.ob-app-note');" +
+        "if(!note||note.textContent.indexOf('5')<0) return false;" +
         "return true;" +
       "})()" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데

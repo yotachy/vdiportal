@@ -81,12 +81,11 @@
     return wrap;
   }
 
-  // 이 태스크(Task 2) 시점엔 등록할 단계가 없다 — 단계 화면은 이후 태스크가 짓는다.
-  // "APPLIES 가 비어 있으면 실패" 단언은 여기 두지 않는다: 이 태스크의 완료 조건이
-  // "전량 통과"인데, 지금 세우면 그 즉시 자기모순으로 빨간불이 뜬다. 그 단언은
-  // Task 3(1단계 화면)이 APPLIES 에 1 을 처음 넣으면서 test/onboarding.test.mjs 쪽에
-  // 함께 켠다(컨트롤러 판정, 2026-08-19).
-  var APPLIES = [];
+  // Task 3(1단계 콜드오픈)이 Q2·Q4 검사 대상으로 처음 등록한다 — 이후 단계는 각자 화면을
+  // 완성하며 자기 번호를 여기 더한다. "APPLIES 가 비어 있으면 실패" 단언은 이제
+  // test/onboarding.test.mjs·test/onboarding-quality.test.mjs 양쪽에 켜져 있다(컨트롤러
+  // 판정, 2026-08-19) — 다음 태스크가 자기 단계 등록을 잊으면 그 관문이 빨갛게 알려준다.
+  var APPLIES = [1];
 
   return { metric: metric, stat: stat, APPLIES: APPLIES };
 });

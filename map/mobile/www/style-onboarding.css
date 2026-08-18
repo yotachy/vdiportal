@@ -110,6 +110,30 @@
 .ob-reveal { margin-top:14px; font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); color:var(--ink-2); }
 .ob-reveal.is-right { color:var(--gold); }
 
+/* x축 기준(주기·기간) — 차트 바로 위. "일봉인지 주봉인지, 어느 구간인지 모른다"던 원 판정에
+   대한 답이라 캡션이 아니라 눈에 띄는 자리에 둔다. */
+.ob-period { margin:14px 0 0; font-size:var(--fs-caption); font-weight:var(--fw-semibold);
+             color:var(--ink-4); font-variant-numeric:tabular-nums; }
+
+/* 3열 대조(당신/앱/실제) — 좌우 스크롤 없이 411px 폭에 들어와야 한다. gap 8px 셋이면
+   (411-40 패딩-16 gap)/3 ≈ 118px, 두 자짜리 한국어 값엔 넉넉하다. min-width:0 로 텍스트가
+   폭을 밀어내지 않게 한다. */
+.ob-cols { display:flex; gap:8px; margin-top:16px; }
+.ob-col { flex:1 1 0; min-width:0; padding:12px 10px; border-radius:12px;
+          border:1px solid var(--border); background:var(--surface); }
+/* 앱 열의 판정 결과 — 색만 바꾼다(배경·글자색, 좌측 세로 라인 금지 규칙). 맞았으면 강세,
+   틀렸으면 경고, 무판정이면 중립 — 맞은 표본만 예쁘게 칠하지 않는다. */
+.ob-col-app.is-right .obq-meaning { color:var(--bull); }
+.ob-col-app.is-wrong .obq-meaning { color:var(--bear-text); }
+.ob-col-app.is-flat .obq-meaning { color:var(--ink-5); }
+/* obq-metric/obq-stat(onboarding-quality.js) 내부 값은 열 폭에 맞춰 줄바꿈만 허용한다. */
+.ob-col .obq-value { font-size:var(--fs-body); word-break:keep-all; }
+.ob-col .obq-meaning { font-size:var(--fs-caption); line-height:1.5; }
+
+/* "앱은 도구 5개만 보고 이렇게 말했습니다" — 3열 대조 바로 아래, 다음 단계(심화 32개)를
+   벌어들이는 줄이라 캡션보다 한 단 낮춰 덤덤하게 둔다. */
+.ob-app-note { margin-top:12px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
+
 /* 찍기 전 힌트 — 도구 이름 + 한 줄 설명. 좌측 라인 없이 이름은 굵기로만 구분한다. */
 .ob-tools { display:flex; flex-direction:column; gap:9px; margin-top:16px; padding:13px 14px;
   border:1px solid var(--border); border-radius:12px; background:var(--surface); }

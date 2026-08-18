@@ -185,6 +185,7 @@ test("온보딩·종목 고르기 클래스가 style.css 에 있다", () => {
    ".ob-tools", ".ob-tool", ".ob-tool-name", ".ob-tool-hint",
    ".ob-read", ".ob-read-verdict", ".ob-read-label", ".ob-read-row", ".ob-read-name",
    ".ob-read-text", ".ob-read-empty", ".ob-tail",
+   ".ob-period", ".ob-cols", ".ob-col", ".ob-col-app", ".ob-app-note",
    ".tp", ".tp-grid", ".tp-chip", ".tp-chip-label", ".tp-free", ".tp-msg",
    ".tp-input", ".tp-add"].forEach(function (c) {
     assert.ok(new RegExp("\\" + c + "(?![-\\w])").test(CSS), c + " 규칙이 없다");
@@ -327,6 +328,18 @@ class El {
   }
 }
 
+// El.textContent 는(위 getter) 자기 자신에 직접 쓴 텍스트만 본다 — 자식을 타고 내려가며
+// 모으지 않는다(다른 대부분의 단언은 리프 노드의 .textContent 만 재므로 문제되지 않았다).
+// MSObQuality.metric()/stat() 은 값·라벨·해석을 여러 겹의 자식 노드로 나눠 넣으므로,
+// 그 바깥 래퍼(.ob-col 등)의 textContent 를 그대로 재면 항상 빈 문자열이라 단언이 공허하게
+// 통과한다(3열 텍스트가 비어도 doesNotMatch(/%/)가 거짓으로 초록이 되는 함정) — 자식까지
+// 실제로 내려가 모은다.
+function deepText(node) {
+  if (!node) return "";
+  if (!node.children || !node.children.length) return node.textContent || "";
+  return node.children.map(deepText).join("");
+}
+
 // 4·5단계용 기본 가짜 store — 실제 store.js(localStorage)는 쓰지 않는다. 여러 테스트가
 // 같은 모듈 인스턴스를 require 캐시로 공유하면 상태가 샌다 — spyWallet 과 같은 이유.
 function defaultFakeStore(watchlist) {
@@ -358,6 +371,7 @@ function withDom(fn, storeOverride) {
   put("MSIndTiers", require("../www/ind-tiers.js"));
   put("MSBacktest", JSON.parse((() => { const r = readFileSync(new URL("../www/vendor/backtest-summary.js", import.meta.url), "utf8"); return r.slice(r.indexOf("{"), r.lastIndexOf("}") + 1); })()));
   put("MSStore", storeOverride || defaultFakeStore());
+  put("MSObQuality", Q);
 
   // ── 인자 스파이. 메서드 **이름**만 기록하면 티어("basic"→"full")·패널 구성·캔버스 높이를
   // 바꿔도 전부 초록이다(리뷰가 실제로 그렇게 통과시켰다). 호출된 인자를 붙잡는다.
@@ -575,6 +589,7 @@ async function withDomWallet(wallet, fn) {
   put("MSChartDraw", require("../www/chart-draw.js"));
   put("MSLayers", require("../www/draw-layers.js"));
   put("MSZoom", require("../www/chart-zoom.js"));
+  put("MSObQuality", Q);
   try {
     return await fn(new El("div"));
   } finally {
@@ -963,6 +978,108 @@ test("맞힘·틀림 두 갈래가 둘 다 렌더된다 — 한쪽만 재고 넘
   assert.ok(wrongSeen, "틀림 갈래가 한 번도 안 보였다");
 });
 
+// ══════════════════════════════════════════════════════════════════════════════════
+// Task 3(1단계 재설계) — x축 기준(주기·기간) + 당신/앱/실제 3열 대조. 브리프 단언 5건.
+// ══════════════════════════════════════════════════════════════════════════════════
+
+test("차트 상단에 주기와 기간이 있다 — 일봉인지 주봉인지, 어느 구간인지 모른다는 원 판정에 대한 답", () => {
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    const p = root.querySelector(".ob-period");
+    assert.ok(p && p.textContent, "주기·기간 표기 노드가 없다");
+    assert.ok(p.textContent.indexOf(S.t.rpDaily) >= 0, "주기(일봉) 표기가 없다: " + p.textContent);
+    // 표본 첫 봉은 2023-06-02, 가려진 뒤(228봉)의 마지막은 2024-04-29 — 연월로 둘 다 있어야 한다.
+    assert.ok(p.textContent.indexOf("2023.06") >= 0, "시작 연월이 없다: " + p.textContent);
+    assert.ok(p.textContent.indexOf("2024.04") >= 0, "종료 연월(가려진 뒤)이 없다: " + p.textContent);
+    // 찍은 뒤엔 가려졌던 12봉까지 열려 종료 연월이 2024.05 로 넘어간다 — 그림과 라벨이 같은
+    // 구간을 말해야 한다(paintGuess 와 같은 데이터 소스를 읽는지 확인).
+    root.querySelector(".ob-guess-btn").click();
+    const p2 = root.querySelector(".ob-period");
+    assert.ok(p2.textContent.indexOf("2024.05") >= 0, "찍은 뒤 종료 연월이 안 넘어간다: " + p2.textContent);
+  });
+});
+
+test("찍은 뒤 당신/앱/실제 3열이 있고 셋 다 값이 채워진다", () => {
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    root.querySelector(".ob-guess-btn").click();
+    const cols = root.querySelectorAll(".ob-col");
+    assert.strictEqual(cols.length, 3, "3열이 아니다: " + cols.length);
+    const you = deepText(root.querySelector(".ob-col-you")), app = deepText(root.querySelector(".ob-col-app")),
+          actual = deepText(root.querySelector(".ob-col-actual"));
+    [you, app, actual].forEach((t, i) => {
+      assert.ok(t && t.trim().length > 0, ["당신", "앱", "실제"][i] + " 열이 비어 있다");
+    });
+    assert.ok(you.indexOf(S.t.obGuessUp) >= 0 || you.indexOf(S.t.obGuessDown) >= 0,
+      "당신 열에 실제로 찍은 값이 없다: " + you);
+    assert.ok(actual.indexOf(S.t.obGuessActualUp) >= 0 || actual.indexOf(S.t.obGuessActualDown) >= 0,
+      "실제 열에 실제 결과 값이 없다: " + actual);
+  });
+});
+
+test("앱 열에 확신 퍼센트가 없다 — 5도구는 값 여섯 개뿐이라 확률로 오독된다", () => {
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    root.querySelector(".ob-guess-btn").click();
+    const app = deepText(root.querySelector(".ob-col-app"));
+    // 먼저 내용이 실제로 있는지 확인한다 — 빈 문자열이면 아래 doesNotMatch 가 공허하게 통과한다.
+    assert.ok(app && app.trim().length > 0, "앱 열이 비어 있다 — 이 검사가 무의미해진다");
+    assert.doesNotMatch(app, /%/, "앱 열에 퍼센트가 있다: " + app);
+  });
+});
+
+// 콘질 조작 없이(브리프 단언 4) 앞 228봉은 번들 그대로 두고(그래서 찍기 전 판정은 실측된
+// bull 그대로다) 가려진 마지막 12봉만 급락으로 갈아끼운다 — "앱은 방향을 하나 골랐고, 실제는
+// 반대로 갔다"를 인위적 사인파가 아니라 최소 개입으로 만든다. 실측(node 로 확인, 위 브리핑
+// 참고): 이 표본은 regime=bull·실제=하락으로 결정적이다.
+function wrongSample(s) {
+  var CUT = 12;
+  var base = s.candle.slice(0, s.candle.length - CUT);   // 찍기 전 228봉은 손대지 않는다
+  var candle = base.slice(), price = base.map(function (c) { return c.c; });
+  var d = new Date(base[base.length - 1].t + "T00:00:00Z");
+  var c = base[base.length - 1].c;
+  for (var i = 0; i < CUT; i++) {
+    c = c * 0.94;                                          // 12봉 연속 급락
+    d.setUTCDate(d.getUTCDate() + 1);
+    var o = c * 1.01, h = Math.max(o, c) * 1.01, l = Math.min(o, c) * 0.99;
+    candle.push({ o: +o.toFixed(4), h: +h.toFixed(4), l: +l.toFixed(4), c: +c.toFixed(4),
+                  v: 5000000, t: d.toISOString().slice(0, 10) });
+    price.push(+c.toFixed(4));
+  }
+  return { price: price, candle: candle, asOf: candle[candle.length - 1].t };
+}
+
+test("앱이 틀린 표본을 주입하면 앱 열이 틀렸다고 쓴다 — 맞은 경우만 골라 넘어가지 않는다", () => {
+  withDom(root => {
+    const bad = wrongSample(SAMPLE);
+    O.render(root, { sample: bad });
+    root.querySelector(".ob-guess-btn").click();   // 방향은 무관하다 — 앱 자신의 판정만 잰다
+    const app = deepText(root.querySelector(".ob-col-app"));
+    assert.match(app, /틀렸/, "앱이 틀렸는데 앱 열이 틀렸다고 안 쓴다: " + app);
+    // 맞은 표본(번들 SAMPLE)에서는 반대로 "맞았다"가 실제로 렌더돼야 한다 — 한쪽만 도는
+    // 문구가 아니라는 증거(브리프: "맞은 표본만 골라 보여주지 않는다"의 반증 갈래).
+    withDom(root2 => {
+      O.render(root2, { sample: SAMPLE });
+      root2.querySelector(".ob-guess-btn").click();
+      const app2 = deepText(root2.querySelector(".ob-col-app"));
+      assert.match(app2, /맞았/, "맞은 표본인데 앱 열이 맞았다고 안 쓴다: " + app2);
+    });
+  });
+});
+
+test("\"앱은 도구 5개만 보고 이렇게 말했습니다\" 문구가 있다 — 2단계를 벌어들이는 줄", () => {
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    root.querySelector(".ob-guess-btn").click();
+    const note = root.querySelector(".ob-app-note");
+    assert.ok(note, "앱 도구 개수 안내 문구가 없다");
+    const G = require("../www/graph.js");
+    assert.strictEqual(note.textContent, S.t.obAppSawA + G.BASIC.length + S.t.obAppSawB,
+      "문구가 MSGraph.BASIC.length 를 안 따라간다(리터럴로 박혔을 수 있다): " + note.textContent);
+    assert.ok(note.textContent.indexOf("5") >= 0, "기본분석 도구 수(5)가 안 보인다: " + note.textContent);
+  });
+});
+
 test("예시 데이터임이 화면에 표기된다 — 성적이 아니라 예시 한 건이다", () => {
   withDom(root => {
     O.render(root, { sample: SAMPLE });
@@ -1000,16 +1117,15 @@ test("엔진을 못 돌리면 판독 대신 이유를 말한다 — 첫 화면�
 // MSObQuality.APPLIES 에 등록된 단계만 검사한다 — 단계를 하나씩 고쳐 나가므로, 아직
 // 손대지 않은 단계까지 검사하면 관문이 처음부터 빨갛고 아무도 신뢰하지 않게 된다.
 //
-// 지금은(Task 2 시점) APPLIES 가 비어 있어 아래 forEach 는 아무 단계도 검사하지 않는다 —
-// 이것이 정상이다. "APPLIES 가 비어 있으면 실패" 단언은 **일부러 여기 두지 않는다**:
-// 지금 켜면 이 태스크 자신의 완료 조건(전량 통과)과 즉시 모순된다. Task 3(1단계 화면)이
-// APPLIES 에 1 을 처음 넣으면서 그 단언을 함께 켠다(컨트롤러 판정, 2026-08-19) — 그 뒤로는
-// 다음 태스크가 자기 단계 등록을 잊으면 이 관문이 빨갛게 알려준다.
+// Task 3(1단계 콜드오픈)이 APPLIES 에 1 을 처음 넣었다 — 아래 forEach 가 이제부터 실제로
+// 1단계를 돈다. "APPLIES 가 비어 있으면 실패" 단언은 여기가 아니라
+// test/onboarding-quality.test.mjs 에 켜져 있다(그 파일이 APPLIES 의 정본 검사처다) — 다음
+// 태스크가 자기 단계 등록을 잊으면 그쪽 관문이 빨갛게 알려준다.
 // ══════════════════════════════════════════════════════════════════════════════════
 
-// 목표 단계까지 "다음"을 눌러 걸어간다 — 각 단계가 요구하는 최소 입력만 채운다. APPLIES 가
-// 비어 있는 동안은 한 번도 호출되지 않는다(forEach 가 빈 배열을 돈다) — 정확성은 Task 3+
-// 가 자기 단계를 등록하며 실제로 검증한다(toStep7 이 이미 하는 것과 같은 방식).
+// 목표 단계까지 "다음"을 눌러 걸어간다 — 각 단계가 요구하는 최소 입력만 채운다(target=1 이면
+// 루프가 안 돌아 1단계 초기 렌더 그대로다). Task 3 이 등록한 1단계부터 실제로 이 경로를 돈다
+// (toStep7 이 이미 하는 것과 같은 방식).
 function walkToStep(root, target) {
   O.render(root, { sample: SAMPLE });
   for (var s = 1; s < target; s++) {
