@@ -10,9 +10,30 @@ import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import vm from "node:vm";
 const require = createRequire(import.meta.url);
 const C = require("../www/tier-compare.js");
 const SRC = readFileSync(new URL("../www/tier-compare.js", import.meta.url), "utf8");
+
+// ── vm 하네스(브라우저 경로 실행) ─────────────────────────────────────────────────────────
+// require() 경로(위 C)는 nodeBacktest() 가 vendor 파일을 한 번 읽어 ntBT 로 캡처한다 —
+// 그 뒤로는 값이 바뀌어도 다시 안 읽는다. 반면 bt() 의 브라우저 분기(`window.MSBacktest`)는
+// **매 호출마다 lazy read** 한다(tier-compare.js 주석 그대로) — 그래서 "낮아집니다" 분기가
+// 실제로 실행되는지 재려면 require() 가 아니라 이 경로로 값을 주입해야 한다. report-basic.
+// test.mjs 가 이미 쓰는 vm.createContext + 실제 vendor 파일 로드 기법을 그대로 쓰되, 이
+// 시험은 tier-compare.js 하나만 필요하므로 앱 전체(46개 스크립트) 대신 의존 4개(globals·
+// strings·vendor/backtest-summary·tier-compare)만 태워 가볍게 만든다.
+const WWW = new URL("../www/", import.meta.url);
+function freshCtx() {
+  const sandbox = {};
+  sandbox.self = sandbox; sandbox.window = sandbox; sandbox.globalThis = sandbox;
+  const ctx = vm.createContext(sandbox);
+  ["globals.js", "strings.js", "vendor/backtest-summary.js", "tier-compare.js"].forEach(f => {
+    const code = readFileSync(new URL(f, WWW), "utf8");
+    new vm.Script(code, { filename: f }).runInContext(ctx);
+  });
+  return ctx;
+}
 
 test("적중률은 MSBacktest 에서만 온다 — 리터럴 금지", () => {
   const body = SRC.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'\\])\/\/[^\n]*/gm, (m,p)=>p);
@@ -110,11 +131,50 @@ test("I2 — 방향 적중률 차이도 원값으로 계산한다(현재 데이�
   assert.match(full.note, /\+0\.4%p/, "원값 기준 차이(+0.4%p)가 아니다: " + full.note);
 });
 
-test("I3 — 방향 동사가 부호로 갈린다(하드코딩된 '오릅니다' 단일 조각이 아니다)", () => {
+test("I3(소스 검사) — 부호 분기 코드 자체는 존재한다(존재만, 실행 증명은 아래 vm 시험)", () => {
   const body = SRC.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'\\])\/\/[^\n]*/gm, (m,p)=>p);
   assert.match(body, /diffPct\s*>=\s*0/, "부호 분기가 없다");
   assert.match(body, /T\.tcDeltaUp/, "상승 조각을 안 쓴다");
   assert.match(body, /T\.tcDeltaDown/, "하락 조각을 안 쓴다");
+});
+
+// ── I3(리뷰 재검토) — "낮아집니다" 분기를 실제로 렌더까지 실행시킨다 ─────────────────────
+// 직전 라운드는 소스 정규식만 봤다 — 그 조각이 파일에 있다는 것만 알 뿐, 실제로 만들어지는
+// 문장인지는 몰랐다(리뷰가 지적한 "죽은 가지" 패턴). bt() 의 lazy read 를 이용해 vm 컨텍스트의
+// window.MSBacktest 를 직접 주입값으로 바꾼 뒤 rows() 를 다시 불러, 두 분기(상승·하락) 모두
+// 실제 문장으로 렌더되는 것을 확인한다.
+test("I3(vm 실행) — 실측(현재 데이터)에서는 '오릅니다' 문장이 실제로 렌더된다", () => {
+  const ctx = freshCtx();
+  const rows = ctx.MSTierCompare.rows();
+  const full = rows.filter(r => r.tier === "full")[0];
+  assert.match(full.note, /오릅니다/, "상승 문장이 안 나온다: " + full.note);
+  assert.doesNotMatch(full.note, /낮아집니다/, "실측이 상승인데 하락 문장이 섞여 나온다");
+});
+
+test("I3(vm 실행) — deep 적중률을 basic 보다 낮게 주입하면 '낮아집니다' 문장이 실제로 렌더된다", () => {
+  const ctx = freshCtx();
+  const bt = ctx.window.MSBacktest;
+  const basicRate = bt.tiers.basic.directionHitRate;
+  // basic 보다 확실히 낮은 값을 심는다(부호가 뒤집힐 만큼 여유 있게) — %p 로 -2 정도.
+  bt.tiers.deep.directionHitRate = basicRate - 0.02;
+  const rows = ctx.MSTierCompare.rows();
+  const full = rows.filter(r => r.tier === "full")[0];
+  assert.match(full.note, /낮아집니다/, "하락 문장이 안 나온다(주입이 안 먹었거나 분기가 죽어 있다): " + full.note);
+  assert.doesNotMatch(full.note, /오릅니다/, "하락 케이스인데 상승 문장이 섞여 나온다: " + full.note);
+  // 부호까지 확인 — "-2.0%p 낮아집니다" 형태(음수 기호 없이 크기만 적는다, tier-compare.js 설계).
+  assert.match(full.note, /2\.0%p 낮아집니다/, "차이 크기(약 2.0%p)가 문장에 없다: " + full.note);
+});
+
+test("I3(vm 실행) — 같은 컨텍스트 안에서 주입 전/후로 분기가 실제로 뒤집힌다(우연한 통과 방지)", () => {
+  const ctx = freshCtx();
+  const bt = ctx.window.MSBacktest;
+  const basicRate = bt.tiers.basic.directionHitRate;
+  const before = ctx.MSTierCompare.rows().filter(r => r.tier === "full")[0].note;
+  assert.match(before, /오릅니다/);
+  bt.tiers.deep.directionHitRate = basicRate - 0.02;
+  const after = ctx.MSTierCompare.rows().filter(r => r.tier === "full")[0].note;
+  assert.match(after, /낮아집니다/);
+  assert.notStrictEqual(before, after, "주입 전후 문장이 같다 — lazy read 가 실제로 안 먹었다");
 });
 
 test("M1 — 축 상수(AXIS_MIN/MAX)가 export 돼 화면이 런타임에 읽을 수 있다", () => {
