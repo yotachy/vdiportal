@@ -64,9 +64,34 @@ export const ROUTES = [
   // onboarding 은 MSApp.current().route 가 못 쓴다 — state.showing 이 "watchlist" 기본값에서
   // 안 바뀐 채로 온보딩이 그려진다(온보딩은 app.js 부팅 게이트를 아예 우회한다). 대신 온보딩
   // 모듈 자신(MSOnboarding)이 로드됐는가 + 1단계 전용 표식(.ob-step)으로 정체성을 확인한다.
+  // 콜드오픈 1단계(2026-08-18 재설계 — 실제 시세 구간 + 지표 힌트 + 엔진 판독) 단언 강화.
+  // 예전엔 "버튼이 하나라도 있다"만 봤다 — 힌트가 하나도 안 그려졌거나 캔들만 있고 지표
+  // 오버레이가 빠져도 통과했을 것이다. 이 클릭은 진짜 브라우저에서 실제 엔진(ForgeCore)이
+  // 도는지, 판독·맞힘틀림 갈래가 실제로 그려지는지까지 한 번에 잰다(node 하네스는 가짜 DOM
+  // 이라 CSS 캐스케이드·실제 canvas 컨텍스트까지는 못 본다 — 다른 라우트들과 같은 이유).
   { name: "onboarding", seed: {}, go: null,
     assert: "typeof MSOnboarding !== 'undefined' && !!document.querySelector('.ob-step') && " +
-      "document.querySelectorAll('button, [role=button]').length > 0" },
+      "(function(){" +
+        "var tools=document.querySelectorAll('.ob-tool');" +
+        "if(tools.length!==3) return false;" +                 // 힌트 3개 — MA·볼린저·거래량
+        "for(var i=0;i<tools.length;i++){" +
+          "var nm=tools[i].querySelector('.ob-tool-name'), hn=tools[i].querySelector('.ob-tool-hint');" +
+          "if(!nm||!nm.textContent||!hn||!hn.textContent) return false;" +
+        "}" +
+        "if(!document.querySelector('.ob-canvas')) return false;" +
+        "var over=document.querySelector('.ob-over');" +
+        "if(!over||over.textContent!==MSStr.t.obSampleNote) return false;" +  // "예시 데이터" 표기
+        "var btns=document.querySelectorAll('.ob-guess-btn');" +
+        "if(btns.length!==2) return false;" +
+        "btns[0].click();" +                                    // 실제로 찍는다 — 엔진이 이 순간 돈다
+        "var verdict=document.querySelector('.ob-read-verdict');" +
+        "if(!verdict||!verdict.textContent) return false;" +    // 엔진 판독이 실제로 그려졌다
+        "var tail=document.querySelector('.ob-tail');" +
+        "if(!tail||!tail.textContent) return false;" +          // 맞힘/틀림 갈래 문구
+        "var over2=document.querySelector('.ob-over');" +
+        "if(!over2||over2.textContent!==MSStr.t.obSampleNote) return false;" + // 찍은 뒤에도 표기 유지
+        "return true;" +
+      "})()" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데
   // 탭바가 없던(화면이 비어 있던) 것과 같은 부류의 사고를 이 경로에서 반복하지 않기 위해서다.
   // P1a Task 6(워치리스트, 시안 14a) — 스쿱 필 아이콘이 실제로 마크(scoopMark, svg)로

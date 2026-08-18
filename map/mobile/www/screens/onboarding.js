@@ -25,8 +25,21 @@
   var STEPS = 7;
   var TERMS_VERSION = "2026-08-17";
   var TF = "1day";
-  var CHART_H = 240, PAD = 10;
+  // CHART_H 는 예전엔 가격 패널 한 장(240)이었다 — 2026-08-18 재설계로 거래량 서브패널이
+  // 붙어 그만큼 키운다(chart-layout.js RATIOS 가 price:volume 비율을 자동 분배한다).
+  var CHART_H = 300, PAD = 10;
   var GUESS_CUT = 12;      // 1단계에서 가려 두는 봉 수 — 눈으로 방향이 읽힐 만큼만
+  // 1단계가 작도하는 도구 정확히 3종 — **힌트 줄 수·작도 오버레이·판독 근거가 전부 이 배열
+  // 하나에서 파생된다**(중복 상수 금지). MA·볼린저는 가격 패널 오버레이, 거래량은 서브패널이다.
+  var TOOLS = ["ma", "bollinger", "volume"];
+  // 근거/반대 분류 문턱 — MSIndicators.EPS(0.02, "반대 의견"용)보다 넉넉하다. 실제 종목으로
+  // 시험해 보니 bias 0.04 짜리 MA 가 "혼조, 교차 없음"이라는 텍스트를 달고도 부호만으로
+  // "근거"에 꼽혔다 — 문구와 분류가 어긋나 보였다. 절대값이 이 문턱 아래면 텍스트 그대로
+  // (혼조·중립 등) "판독" 칸으로 보내고, 방향이 뚜렷할 때만 근거/반대로 가른다.
+  // 2026-08-19 재선별(전형적 이동폭) 표본으로 재점검: ma 0.677·bollinger 0.299 는 근거,
+  // volume −0.125("보통 거래량 · 0.94배 · 약화")는 이 문턱을 살짝 넘겨 반대로 갈린다 —
+  // 텍스트도 실제로 "약화"라 말해 분류와 문구가 맞는다(0.12 유지, 조정 불필요).
+  var TOOL_EPS = 0.12;
   // 시안 16a: **정확히 3개**(고르는 데 시간 쓰면 튜토리얼이 안 시작된다). 이름은 여기 적지
   // 않는다 — ticker-picker 의 CURATED 가 이름의 정본이고, 두 벌이 갈리면 온보딩이 심은 종목이
   // 워치리스트에서 다른 이름으로 보인다.
@@ -122,6 +135,49 @@
       return { up: after >= before, before: before, after: after };
     }
 
+    // ── 1단계 전용: "찍기 전에 보이는 것"만으로 엔진을 돌린다 ─────────────────────────
+    // sliced() 의 228봉(= GUESS_CUT 만큼 가린 구간)으로 계산한다 — 뒤 12봉을 섞으면 "찍기
+    // 전에 이미 정답을 알고 판정한" 것이 된다. 엔진은 render() 가 불릴 때 **실제로** 돈다
+    // (미리 계산해 굽지 않는다) — 그래야 "지금 계산한 것"이라는 증명이 성립한다. 그래프·
+    // 입력 조립은 runTier("basic") 과 똑같아야 한다(두 벌이면 화면과 판정이 갈린다) — 그래서
+    // runTier 를 그대로 불러 쓰고, 작도·판독에 필요한 MA·볼린저·거래량 분석만 얹는다.
+    var _visCache = null, _visCacheSample = null;
+    function visibleAnalysis() {
+      var s = sample();
+      if (!s) return null;
+      if (_visCache && _visCacheSample === s) return _visCache;
+      var d = sliced();
+      if (!d || typeof ForgeCore === "undefined") return null;
+      var base = runTier(d, "basic");
+      if (!base) return null;
+      var an = { graph: base.graph, input: base.input, out: base.out };
+      an.ma = ForgeCore.analyzeMA(d.price, { len: 20, ema: false });
+      an.bb = ForgeCore.analyzeBollinger(d.price, { len: 20, k: 2 });
+      an.va = ForgeCore.analyzeVolume(d.price, base.input.volume || null, {});
+      an.readings = (typeof MSIndicators !== "undefined")
+        ? MSIndicators.readings(ForgeCore, base.graph, base.input, MSIndicators.ctxFrom(base.input))
+        : [];
+      _visCache = an; _visCacheSample = s;
+      return an;
+    }
+
+    // TOOLS 순서 그대로 판독 행을 뽑는다 — 그려진 도구와 근거 목록이 항상 같은 순서·같은 개수다.
+    function toolReadingRows() {
+      var an = visibleAnalysis();
+      if (!an || !an.readings) return [];
+      var out = [];
+      TOOLS.forEach(function (type) {
+        var i, row = null;
+        for (i = 0; i < an.readings.length; i++) if (an.readings[i].type === type) { row = an.readings[i]; break; }
+        if (row) out.push(row);
+      });
+      return out;
+    }
+
+    function verdictWord(regime) {
+      return regime === "bull" ? MSStr.t.rpBullish : regime === "bear" ? MSStr.t.rpBearish : MSStr.t.rpFlat;
+    }
+
     // 엔진을 실제로 돌린다. tier 는 그래프를 고르고, weights 는 전문분석에서만 온다.
     // report.js analyzeFull 의 거래량 취급을 그대로 따른다 — 드리프트는 data.volume 이 아니라
     // 그래프의 volume 노드를 읽으므로 setVolume 을 반드시 거친다.
@@ -171,8 +227,68 @@
     }
 
     // ── 1단계: 콜드 오픈 ─────────────────────────────────────────────────────────
+    // 힌트(도구 이름 + 한 줄 설명)는 TOOLS 배열 하나에서 파생된다 — 여기서 이름을 다시
+    // 늘어놓으면 작도·힌트 개수가 갈릴 수 있다.
+    function toolHint(type) {
+      return type === "ma" ? MSStr.t.obToolMaHint
+           : type === "bollinger" ? MSStr.t.obToolBbHint
+           : type === "volume" ? MSStr.t.obToolVolHint : "";
+    }
+
+    function toolHints() {
+      var wrap = frag("ob-tools");
+      TOOLS.forEach(function (type) {
+        var row = frag("ob-tool");
+        row.appendChild(el("span", "ob-tool-name", MSStr.ind(type)));
+        row.appendChild(el("span", "ob-tool-hint", toolHint(type)));
+        wrap.appendChild(row);
+      });
+      return wrap;
+    }
+
+    // 엔진 판독 — 찍기 전에 실제로 보인 228봉(visibleAnalysis)만 근거로 삼는다. **판정 방향과
+    // 같은 근거 / 반대 근거 / 뚜렷하지 않은 판독** 셋으로 가른다(TOOL_EPS). 이건 report.js 의
+    // REASONING·AGAINST 와 같은 근거지 — 온보딩이 새 작도·새 판독 경로를 만든 게 아니다.
+    function readingBlock() {
+      var wrap = frag("ob-read");
+      var an = visibleAnalysis();
+      var rows = toolReadingRows();
+      if (!an || !an.out || !rows.length) {
+        wrap.appendChild(el("p", "ob-read-empty", MSStr.t.obReadUnavailable));
+        return wrap;
+      }
+      var regime = an.out.verdict.regime;
+      wrap.appendChild(el("p", "ob-read-verdict", MSStr.t.obReadVerdictA + verdictWord(regime)));
+      var want = regime === "bull" ? 1 : regime === "bear" ? -1 : 0;
+      var forRows = [], againstRows = [], flatRows = [];
+      rows.forEach(function (r) {
+        if (want === 0 || Math.abs(r.bias) <= TOOL_EPS) { flatRows.push(r); return; }
+        if ((r.bias > 0 ? 1 : -1) === want) forRows.push(r); else againstRows.push(r);
+      });
+      function section(cls, headText, list) {
+        if (!list.length) return;
+        var sec = frag(cls);
+        sec.appendChild(el("p", "ob-read-label", headText));
+        list.forEach(function (r) {
+          var row = frag("ob-read-row");
+          row.appendChild(el("span", "ob-read-name", MSStr.ind(r.type)));
+          row.appendChild(el("span", "ob-read-text", r.text));
+          sec.appendChild(row);
+        });
+        wrap.appendChild(sec);
+      }
+      section("ob-read-for", MSStr.t.obReadForHead, forRows);
+      section("ob-read-against", MSStr.t.rpAgainst, againstRows);
+      section("ob-read-flat", MSStr.t.obReadFlatHead, flatRows);
+      return wrap;
+    }
+
     function step1() {
       var w = frag("ob-step");
+      // "예시 데이터"임을 헤드라인보다 먼저 읽게 한다(2026-08-19 리뷰 — 화면 맨 아래 작은
+      // 캡션이던 예전 위치는 골드 "맞히셨습니다!" 옆에서 존재감이 없었다). CSS 도 이 자리를
+      // 전제로 오버라인 스타일이다.
+      w.appendChild(el("p", "ob-over", MSStr.t.obSampleNote));
       w.appendChild(el("h1", "ob-h", MSStr.t.obH1));
       w.appendChild(el("p", "ob-sub", MSStr.t.obGuessAsk));
       var wrap = frag("ob-canvas-wrap");
@@ -182,6 +298,7 @@
       w.appendChild(wrap);
 
       if (!state.guessed) {
+        w.appendChild(toolHints());
         var row = frag("ob-guess");
         [["up", MSStr.t.obGuessUp], ["down", MSStr.t.obGuessDown]].forEach(function (g) {
           var b = document.createElement("button");
@@ -202,14 +319,25 @@
         var tail = MSStr.t.obGuessActualA +
           (a2 && a2.up ? MSStr.t.obGuessActualUp : MSStr.t.obGuessActualDown);
         w.appendChild(el("p", "ob-reveal" + (state.guessRight ? " is-right" : ""), head + " " + tail));
-        w.appendChild(el("p", "ob-sub", MSStr.t.obGuessWhy));
+        w.appendChild(readingBlock());
+        // 틀려도 지지 않는다 — 맞혔으면 "감이 좋다, 그걸 32개 도구로 매일 한다"는 쪽으로,
+        // 틀렸으면 "그래서 도구를 32개 읽는다, 하나로는 이렇게 놓친다"는 쪽으로. 두 갈래
+        // 모두 렌더된다(한쪽만 그리고 넘어가지 않는다). 32는 ForgeCore.indicatorCount 를
+        // 읽는다 — 지표가 늘면 문구도 같이 는다.
+        var n = (typeof ForgeCore !== "undefined" && typeof ForgeCore.indicatorCount === "number")
+          ? ForgeCore.indicatorCount : 32;
+        var tailText = state.guessRight
+          ? (MSStr.t.obTailRightA + n + MSStr.t.obTailRightB)
+          : (MSStr.t.obTailWrongA + n + MSStr.t.obTailWrongB);
+        w.appendChild(el("p", "ob-tail", tailText));
       }
-      w.appendChild(el("p", "ob-over", MSStr.t.obSampleNote));
       return w;
     }
 
-    // 캔들만 그린다(예측선 없음) — 1단계는 "직접 찍어보라"는 화면이고, 엔진의 답을 먼저
-    // 보여주면 찍을 이유가 사라진다. 찍은 뒤에는 가렸던 봉을 열어 실제를 보여준다.
+    // 캔들 + MA·볼린저(가격 패널 오버레이) + 거래량(서브패널). 예측선은 안 그린다 — 1단계는
+    // "직접 찍어보라"는 화면이고, 엔진의 답을 먼저 보여주면 찍을 이유가 사라진다. 찍은 뒤에는
+    // 가렸던 봉을 열어 실제를 보여줄 뿐, 오버레이는 계속 visibleAnalysis(228봉)로 그린다 —
+    // 그래서 곡선이 정확히 가려졌던 경계에서 멈춘다: "여기까지 보고 판정했다"가 그대로 드러난다.
     function paintGuess(scr) {
       var cv = scr.querySelector(".ob-canvas");
       var d = state.guessed ? sample() : sliced();
@@ -222,12 +350,24 @@
       MSUi.fitCanvas(cv, ctx, cssW, CHART_H);
       var lay = MSChartLayout.chartLayout({
         candle: d.candle, prediction: null, width: cssW, height: CHART_H,
-        pad: PAD, tailBars: 60, panels: ["price"]
+        pad: PAD, tailBars: 60, panels: ["price", "volume"]
       });
       ctx.clearRect(0, 0, cssW, CHART_H);
       if (typeof MSLayers !== "undefined") MSLayers.resetLabels(cssW, CHART_H);
       MSChartDraw.drawAxes(ctx, lay, d.candle, col);
       MSChartDraw.drawCandles(ctx, lay, d.candle, col);
+      var an = visibleAnalysis();
+      if (an && typeof MSLayers !== "undefined") {
+        var Mp = Object.assign({}, lay.panels.price.M, { badges: false });
+        MSLayers.ma(ctx, an.ma, Mp);
+        MSLayers.bollinger(ctx, an.bb, Mp);
+      }
+      if (an && typeof MSPanels !== "undefined" && lay.panels.volume) {
+        var vr = lay.panels.volume.rect;
+        ctx.save(); ctx.translate(vr.x, vr.y);
+        MSPanels.volume(ctx, vr.w, vr.h, an.va, Infinity);
+        ctx.restore();
+      }
     }
 
     // ── 2단계: 투자성향 ──────────────────────────────────────────────────────────
