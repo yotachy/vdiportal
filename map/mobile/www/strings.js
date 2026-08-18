@@ -564,6 +564,10 @@
     ob32DiffA: "개 도구는 ", ob32DiffB: "라고 봤지만, ", ob32DiffC: "개 전부를 보면 ", ob32DiffD: "입니다.",
     ob32AgreeHead: "동의",
     ob32FlatHead: "무판정",
+    // 2026-08-19 리뷰(Important) — 거래량 없는 종목에서 mfi·cmf 가 스스로 "이 종목은
+    // 거래량 데이터가 없습니다"라고 자백하는데(readings.js NO_VOL), 그 자백을 조용히
+    // 32에서 빼면 그 자체가 불투명하다. 이름을 달아 노출한다.
+    ob32RefusedHead: "데이터가 없어 판단하지 않음",
     ob32ExpandSuffix: "개 더 보기",
     ob32Collapse: "접기",
 

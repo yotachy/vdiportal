@@ -113,21 +113,23 @@ export const ROUTES = [
         "if(cmpRows.length!==2) return false;" +                   // 5도구·32도구 판정이 나란히
         "var counts=Array.prototype.slice.call(document.querySelectorAll('.ob32-sec-count'))" +
           ".map(function(e){ return Number(e.textContent); });" +
-        "if(counts.length!==3) return false;" +                    // 동의·반대·무판정 세 통
+        "if(counts.length!==4) return false;" +                    // 동의·반대·무판정·자백 네 통
         "var sum=0; for(var si=0;si<counts.length;si++) sum+=counts[si];" +
-        "if(sum!==32) return false;" +                             // 세 통의 합이 32
+        "if(sum!==32) return false;" +                             // 네 통의 합이 32
         "var dissentSec=document.querySelector('.ob32-sec-dissent');" +
         "if(!dissentSec) return false;" +
         "if(dissentSec.querySelector('.ob32-expand')) return false;" + // 반대는 접히지 않는다
         "var dCount=Number(dissentSec.querySelector('.ob32-sec-count').textContent);" +
         "if(dissentSec.querySelectorAll('.ob32-row').length!==dCount) return false;" + // 전부 그려진다
+        "if(!document.querySelector('.ob32-sec-refused')) return false;" + // 자백 통이 이름을 달고 노출된다(리뷰 Important)
         "var vnote=document.querySelector('.ob32-verdict-note');" +
         "if(!vnote||!vnote.textContent) return false;" +           // 같음/다름 어느 쪽이든 문구가 있다
+        // 리뷰 Minor — 조건부 if 로 감싸 조용히 건너뛰지 않는다. 이 표본(고정 seed)은
+        // 동의가 항상 있다는 것을 먼저 단정하고, 그 뒤 무조건 행 모양을 검사한다.
         "var agreeRows=document.querySelectorAll('.ob32-sec-agree .ob32-row');" +
-        "if(agreeRows.length){" +
-          "var r0=agreeRows[0];" +
-          "if(!r0.querySelector('.ob32-name')||!r0.querySelector('.ob32-text')) return false;" +
-        "}" +
+        "if(!agreeRows.length) return false;" +                    // 동의가 있어야 하는 표본인데 없다
+        "var r0=agreeRows[0];" +
+        "if(!r0.querySelector('.ob32-name')||!r0.querySelector('.ob32-text')) return false;" +
         "return true;" +
       "})()" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데

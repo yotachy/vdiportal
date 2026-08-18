@@ -11,6 +11,7 @@ const SAMPLE = require("../www/onboarding-sample.js");
 const FC = require("../../forge-core.js");
 const G = require("../www/graph.js");
 const IND = require("../www/indicators.js");
+const RD = require("../www/readings.js");
 const RM = require("../www/report-model.js");
 const CL = require("../www/chart-layout.js");
 const Q = require("../www/onboarding-quality.js");
@@ -369,6 +370,7 @@ function withDom(fn, storeOverride) {
   put("MSStr", S);
   put("ForgeCore", FC);
   put("MSGraph", G);
+  put("MSReadings", RD);
   put("MSReportModel", RM);
   put("MSTickerPicker", require("../www/ticker-picker.js"));
   put("MSIndTiers", require("../www/ind-tiers.js"));
@@ -589,6 +591,7 @@ async function withDomWallet(wallet, fn) {
   put("ForgeCore", FC);
   put("MSGraph", G);
   put("MSIndicators", IND);
+  put("MSReadings", RD);
   put("MSReportModel", RM);
   put("MSStore", defaultFakeStore());
   put("MSChartLayout", require("../www/chart-layout.js"));
@@ -1159,17 +1162,75 @@ function divergeSample() {
   return { price: full.map(c => c.c), candle: full, asOf: full[full.length - 1].t };
 }
 
-// 단언 1 — 동의·반대·무판정 세 통의 합이 32와 같다. 세 값은 DOM 의 .ob32-sec-count(각
-// 섹션이 자기 list.length 를 그대로 적은 것) 에서 읽는다 — 접힌 섹션도 count 는 전체
-// 개수를 담고 있으므로 "실제 분류 결과"를 그대로 재는 것이다(하드코딩 32 대 하드코딩
-// 합의 항등식이 아니다 — 32는 이 시험이 아는 외부 불변, 세 값은 실행 결과다).
-test("2단계 — 동의·반대·무판정 세 통의 합이 32와 같다(실제 분류 결과에서 센다)", () => {
+// 리뷰(2026-08-19 Important) — 거래량이 없는 표본. www/screens/onboarding.js 의
+// classifyFull32() 가 MSReadings.voiced() 를 거치지 않던 시절엔 mfi·cmf 가 스스로
+// "이 종목은 거래량 데이터가 없습니다"라고 자백해 놓고도 "동의"에 세어졌다(리뷰어 실측:
+// ALL agree=22 dissent=2 flat=6 대 VOICED agree=18 dissent=2 flat=4, mfi·cmf 가 각각
+// ALL agree=true, VOICED agree=false). 마지막 12봉(가려지는 구간)은 그대로 두고 보이는
+// 228봉의 거래량만 지운다 — sliced() 가 읽는 자리 그대로다.
+function noVolumeSample() {
+  const CUT = 12;
+  const base = SAMPLE.candle.slice(0, SAMPLE.candle.length - CUT).map(c => {
+    const d = Object.assign({}, c); delete d.v; return d;
+  });
+  const tail = SAMPLE.candle.slice(SAMPLE.candle.length - CUT);
+  const full = base.concat(tail);
+  return { price: full.map(c => c.c), candle: full, asOf: full[full.length - 1].t };
+}
+
+// 단언 1 — 동의·반대·무판정·자백(못 읽음) 네 통의 합이 32와 같다. 네 값은 DOM 의
+// .ob32-sec-count(각 섹션이 자기 list.length 를 그대로 적은 것) 에서 읽는다 — 접힌
+// 섹션도 count 는 전체 개수를 담고 있으므로 "실제 분류 결과"를 그대로 재는 것이다
+// (하드코딩 32 대 하드코딩 합의 항등식이 아니다 — 32는 이 시험이 아는 외부 불변, 네
+// 값은 실행 결과다). 리뷰 Important — 자백 통을 32에서 조용히 빼면 그 자체가 불투명
+// 하므로, 번들 표본(거래량 있음, 자백 0~1건)과 거래량 없는 표본(자백 여러 건) 둘 다에서
+// 합이 32를 유지하는지 잰다 — 0건일 때만 재면 자백 통이 실제로 채워지는 경로를 안 잰다.
+test("2단계 — 동의·반대·무판정·자백 네 통의 합이 32와 같다(실제 분류 결과에서 센다)", () => {
   withDom(root => {
     toStep2(root, SAMPLE);
     const counts = Array.from(root.querySelectorAll(".ob32-sec-count")).map(e => Number(e.textContent));
-    assert.strictEqual(counts.length, 3, "동의·반대·무판정 세 섹션이 다 있어야 한다: " + counts.length);
+    assert.strictEqual(counts.length, 4, "동의·반대·무판정·자백 네 섹션이 다 있어야 한다: " + counts.length);
     const sum = counts.reduce((a, b) => a + b, 0);
-    assert.strictEqual(sum, 32, "세 통의 합이 32가 아니다(" + counts.join("+") + "=" + sum + ")");
+    assert.strictEqual(sum, 32, "네 통의 합이 32가 아니다(" + counts.join("+") + "=" + sum + ")");
+  });
+  withDom(root => {
+    toStep2(root, noVolumeSample());
+    const counts = Array.from(root.querySelectorAll(".ob32-sec-count")).map(e => Number(e.textContent));
+    assert.strictEqual(counts.length, 4, "거래량 없는 표본에서도 네 섹션이 다 있어야 한다: " + counts.length);
+    const sum = counts.reduce((a, b) => a + b, 0);
+    assert.strictEqual(sum, 32, "거래량 없는 표본에서 네 통의 합이 32가 아니다(" + counts.join("+") + "=" + sum + ")");
+  });
+});
+
+// 단언 1 보강 — 자백 통이 실제로 채워지는 경로를 직접 잰다("0건일 때만 도는 시험은
+// 아무것도 안 잰다"는 리뷰 지적에 대한 답). mfi·cmf 처럼 거래량에 의존하는 지표는
+// voiced() 가 걸러내 동의/반대 어디에도 안 들어가고, 자백 섹션에 이름과 자백 문구로
+// 노출되며, 방향 기여도(숫자)는 보이지 않는다(자백 행은 "사실이 아닌 수치"를 감춘다).
+test("2단계 — 거래량 없는 표본에서 자백(못 읽음) 통이 실제로 채워진다", () => {
+  withDom(root => {
+    toStep2(root, noVolumeSample());
+    const sec = root.querySelector(".ob32-sec-refused");
+    assert.ok(sec, "자백 섹션이 없다");
+    const count = Number(sec.querySelector(".ob32-sec-count").textContent);
+    assert.ok(count > 0, "거래량 없는 표본인데 자백이 0건이다 — voiced() 를 실제로 거치지 않는다");
+    const names = Array.from(sec.querySelectorAll(".ob32-row")).map(r => r.querySelector(".ob32-name").textContent);
+    assert.ok(names.indexOf(S.ind("mfi")) >= 0 || names.indexOf(S.ind("cmf")) >= 0 || names.indexOf(S.ind("vwap")) >= 0,
+      "거래량 의존 지표(mfi/cmf/vwap)가 자백 통에 하나도 없다: " + names.join(", "));
+    // 자백 행엔 방향 기여도(숫자)를 안 보인다 — 그 값은 합성 거래량 등으로 계산된
+    // "사실이 아닌 수치"다(readings.js 머리말 규율 4).
+    Array.from(sec.querySelectorAll(".ob32-row")).forEach(r => {
+      assert.strictEqual(r.querySelector(".ob32-bias"), null,
+        r.querySelector(".ob32-name").textContent + " 자백 행에 수치가 보인다 — 못 읽었다면서 숫자를 댄다");
+    });
+  });
+  // 번들 표본(거래량 있음)과 대조 — 같은 지표(mfi)가 거래량이 있을 땐 동의/반대/무판정
+  // 어딘가에 정상적으로 들어가야 한다(자백 통이 항상 도는 죽은 가지가 아님을 증명).
+  withDom(root => {
+    toStep2(root, SAMPLE);
+    const refusedSec = root.querySelector(".ob32-sec-refused");
+    const refusedNames = refusedSec ? Array.from(refusedSec.querySelectorAll(".ob32-row"))
+      .map(r => r.querySelector(".ob32-name").textContent) : [];
+    assert.ok(refusedNames.indexOf(S.ind("mfi")) < 0, "거래량이 있는 번들 표본인데 mfi 가 자백 통에 있다");
   });
 });
 
