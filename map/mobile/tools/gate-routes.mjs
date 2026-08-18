@@ -102,6 +102,25 @@ export const ROUTES = [
         "for(var ci=0;ci<cols.length;ci++){ if(!cols[ci].textContent||!cols[ci].textContent.trim()) return false; }" +
         "var appCol=document.querySelector('.ob-col-app');" +
         "if(!appCol||/%/.test(appCol.textContent)) return false;" +
+        // 10번째 역할(num) 회귀 잠금 — .ob-col .obq-value 는 font-size 만 --fs-body 로
+        // 덮이고(칼럼 폭에 맞춰 줄바꿈, style-onboarding.css:137) font-weight·letter-spacing
+        // 은 기저 .obq-value 규칙(--fw-num/--ls-num)을 그대로 물려받는다. --fw-num/--ls-num
+        // 이 :root 에 정의 없이 참조만 되던 사고(리뷰 I1)가 재발하면 여기서 상속값(400/거의 0)
+        // 으로 조용히 무너진다 — node 시험(style-tokens.test.mjs)은 정의 유무만 보고 실제
+        // 캐스케이드가 먹는지는 못 보므로 이 브라우저 관문이 더 강하다.
+        "function numTokenOk(el){" +
+          "var cs=getComputedStyle(el);" +
+          "var rootCS=getComputedStyle(document.documentElement);" +
+          "var wantFW=parseInt(rootCS.getPropertyValue('--fw-figure'),10);" +
+          "var wantLSem=parseFloat(rootCS.getPropertyValue('--ls-figure'));" +
+          "var fw=parseInt(cs.fontWeight,10)||0;" +
+          "if(fw<wantFW) return false;" +
+          "var wantLSpx=wantLSem*parseFloat(cs.fontSize);" +
+          "var ls=parseFloat(cs.letterSpacing)||0;" +
+          "return Math.abs(ls-wantLSpx)<=0.5;" +
+        "}" +
+        "var colVal=document.querySelector('.ob-col .obq-value');" +
+        "if(!colVal||!numTokenOk(colVal)) return false;" +
         // "앱은 도구 5개만 보고 이렇게 말했습니다" — 2단계를 벌어들이는 줄.
         "var note=document.querySelector('.ob-app-note');" +
         "if(!note||note.textContent.indexOf('5')<0) return false;" +
@@ -332,6 +351,22 @@ export const ROUTES = [
         "var tv=today.querySelector('.obq-value'), ta=today.querySelector('.obq-asof');" +
         "if(!tv||!/\\d/.test(tv.textContent)) return false;" +               // 오늘 종가에 숫자가 있다
         "if(!ta||!ta.textContent.trim()) return false;" +                    // 기준 시각이 값과 같은 자리에 있다
+        // 10번째 역할(num) 회귀 잠금 — .ob6-today .obq-value 는 font-size 만 --fs-display 로
+        // 덮이고(style-onboarding.css:220) font-weight·letter-spacing 은 기저 .obq-value
+        // 규칙(--fw-num/--ls-num)을 물려받는다. 정의 없이 참조만 되던 사고(리뷰 I1)가
+        // 재발하면 상속값(400/거의 0)으로 조용히 무너진다.
+        "function numTokenOk(el){" +
+          "var cs=getComputedStyle(el);" +
+          "var rootCS=getComputedStyle(document.documentElement);" +
+          "var wantFW=parseInt(rootCS.getPropertyValue('--fw-figure'),10);" +
+          "var wantLSem=parseFloat(rootCS.getPropertyValue('--ls-figure'));" +
+          "var fw=parseInt(cs.fontWeight,10)||0;" +
+          "if(fw<wantFW) return false;" +
+          "var wantLSpx=wantLSem*parseFloat(cs.fontSize);" +
+          "var ls=parseFloat(cs.letterSpacing)||0;" +
+          "return Math.abs(ls-wantLSpx)<=0.5;" +
+        "}" +
+        "if(!numTokenOk(tv)) return false;" +
         // 단언 2·3 — 세 지평(내일·1주·1개월) 각각 중심값 ± 오차 + 해석.
         "var stats=document.querySelectorAll('.ob6-hz .obq-stat');" +
         "if(stats.length!==3) return false;" +
@@ -342,6 +377,7 @@ export const ROUTES = [
           "if(!lab||lab.textContent!==labels[si]) return false;" +
           "var val=s.querySelector('.obq-value');" +
           "if(!val||!/\\d/.test(val.textContent)) return false;" +
+          "if(!numTokenOk(val)) return false;" +           // .ob6-hz .obq-value — 같은 num 회귀 잠금(위 today 주석 참고)
           "var unit=s.querySelector('.obq-unit');" +
           "if(!unit||unit.textContent.indexOf('±')<0) return false;" +   // ± 오차 표기
           "var meaning=s.querySelector('.obq-meaning');" +
@@ -405,6 +441,24 @@ export const ROUTES = [
         "if(nums[0]!=='32') return false;" +
         "if(nums[1]!=='3') return false;" +
         "if(!/^\\d+$/.test(nums[2])) return false;" +
+        // 10번째 역할(num) 회귀 잠금 — .ob-recap-num 은 --fs-num/--fw-num/--ls-num 을 직접
+        // 쓴다(style-onboarding.css:233). 이 세 토큰이 :root 정의 없이 참조만 되던 사고
+        // (리뷰 I1)에서 실측된 무너진 값은 16px/400/본문 상속(-0.16px)이었다 — node 시험
+        // 123건은 그 상태에서 전부 초록이었다(정의 유무만 보고 실제 렌더는 안 봐서). 여기서
+        // 본문(--fs-body)보다 크고 볼드인지, 굵기·자간이 별칭 대상(--fw-figure/--ls-figure)
+        // 그대로 먹는지를 실 브라우저 계산값으로 잰다. 조건부 if 로 감싸지 않는다 — 요소가
+        // 없거나 값이 안 먹으면 그 자체로 실패다.
+        "var recapNum=document.querySelector('.ob-recap-num');" +
+        "if(!recapNum) return false;" +
+        "var rnCS=getComputedStyle(recapNum);" +
+        "var rootCS2=getComputedStyle(document.documentElement);" +
+        "var bodyFsPx=parseFloat(rootCS2.getPropertyValue('--fs-body'));" +
+        "if(!(parseFloat(rnCS.fontSize)>bodyFsPx)) return false;" +           // 본문 크기보다 크다
+        "var wantFW2=parseInt(rootCS2.getPropertyValue('--fw-figure'),10);" +
+        "if((parseInt(rnCS.fontWeight,10)||0)<wantFW2) return false;" +      // 볼드(--fw-num 별칭)
+        "var wantLSpx2=parseFloat(rootCS2.getPropertyValue('--ls-figure'))*parseFloat(rnCS.fontSize);" +
+        "if(Math.abs((parseFloat(rnCS.letterSpacing)||0)-wantLSpx2)>0.5) return false;" + // --ls-num 별칭
+
         "for(var ri2=0;ri2<rows.length;ri2++){" +
           "var det=rows[ri2].querySelector('.ob-recap-detail');" +
           "if(!det||!det.textContent.trim()) return false;" +   // 값만 던지지 않는다(Q5 와 같은 원칙)
