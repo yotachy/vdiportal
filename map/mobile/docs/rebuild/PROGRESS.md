@@ -76,7 +76,7 @@
 
 > 최신이 위. 태스크마다 한 줄: `날짜 · 페이즈/태스크 · 결과 · 커밋`
 
-- 2026-08-18 · P1a Task 7 · `@capacitor/app` 8.1.1 도입 + `App.addListener("backButton", ...)` 배선(Cordova `backbutton` 경로는 안전망으로 유지, 재진입 가드로 중복 처리 방지) + 실제 `MSTierSheet`/`MSSheet` 를 여는 end-to-end 실증 시험(`shell-backbutton-e2e.test.mjs`, 변이로 증명) + `gate-routes.mjs` watchlist 시드에 `ms_scan` 보강(읽음 상태 3종 `.wl-dot` 실제 렌더 확인) + `map/CLAUDE.md`/`shell.js` 주석 정정 + APK 재빌드 · `tests/run.sh` 1611건·브라우저 관문 8/8 통과 · (해시는 이 커밋 자체)
+- 2026-08-18 · P1a Task 7 · `@capacitor/app` 8.1.1 도입 + `App.addListener("backButton", ...)` 배선(Cordova `backbutton` 경로는 안전망으로 유지, 재진입 가드로 중복 처리 방지) + 실제 `MSTierSheet`/`MSSheet` 를 여는 end-to-end 실증 시험(`shell-backbutton-e2e.test.mjs`, 변이로 증명) + `gate-routes.mjs` watchlist 시드에 `ms_scan` 보강(읽음 상태 3종 `.wl-dot` 실제 렌더 확인) + `map/CLAUDE.md`/`shell.js` 주석 정정 + APK 재빌드 · `tests/run.sh` 1611건·브라우저 관문 8/8 통과 · `45c7d54`
 - 2026-08-18 · P0 최종 리뷰 수정 웨이브(Critical 1·Important 6·Minor 2) · C1(하드웨어 백 미동작 사실을 코드·시험·원장에 정직하게 표기, 동작화는 P1로) · I1(router.go() 되감기 + 시험 추가) · I2(gate-browser.mjs 치환 no-op 가드, 변이로 증명) · I3(분석 탭 콜드 진입 폴백을 워치리스트 첫 종목까지 확장) · I5(shell.js data-screen 표식 + gate-routes.mjs 선택자 이행) · I7(지갑 mock 필드명을 wallet-lib.php 실제 반환에 맞춤 — NaN 스크린샷 원인이 mock 이었음, 스샷 육안 확인) · Minor(drawBar try/finally, __gate_*.html gitignore) · `tests/run.sh` 1546건 통과 · 브라우저 관문 6/6 통과 · APK 재빌드(12,569,409 바이트) · `2edb944`
 - 2026-08-18 · P0 Task 6 · 관문 3중 통과(1545+6건) · APK 빌드(12.6MB) · `map/CLAUDE.md`·본 원장 갱신 · `8642ca0`
 - 2026-08-18 · P0 Task 5 · 공용 하단 시트(`sheet.js`) + 뒤로가기가 시트를 먼저 닫는 배선 + 실제 발화 시험(`shell-backbutton.test.mjs`) · `3bb8d68` `997815e`
