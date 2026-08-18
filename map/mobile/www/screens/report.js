@@ -1267,8 +1267,11 @@
           // 지금은 그 자리에 아무것도 안 그린다 — 관문이 이 미구현을 이름으로 드러낸다.
           weights:   function () { return buildWeights(); }
         };
-        MSReportBlocks.orderOf(tier).forEach(function (key) {
-          var fn = BUILD[key];
+        // report-blocks.js 가 orderOf(문자열 배열)에서 forTier({id,kind} 배열)로 개명됐다
+        // (P1a Task 2) — 화면 조립은 그대로, id 만 꺼내 쓴다. 이 화면 자체의 블록 구성은
+        // Task 3(기본)·P1b/P1c(심화·전문)이 다시 손댈 대상이라 BUILD 표는 여기서 넓히지 않는다.
+        MSReportBlocks.forTier(tier).forEach(function (b) {
+          var fn = BUILD[b.id];
           if (!fn) return;
           var node = fn();
           if (node) scr.appendChild(node);

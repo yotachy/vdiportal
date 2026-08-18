@@ -508,6 +508,13 @@
     obDoneFree: "기본분석은 계속 무료입니다",
     obDoneEarn: "스쿱은 매일 출석하거나 광고로 얻습니다",
     obDoneStart: "받고 시작하기",
+
+    // 19b 「한 문장으로」 — 생성 문구가 아니라 방향·과열·저항 세 값을 잇는 규칙 조합 소재다
+    // (report-model.js sentence()). 조합 자체는 코드가 하므로 여기엔 완결된 절만 둔다 —
+    // 절을 어순 바꿔 붙이면 문법이 깨지는 구조는 피한다(공백으로 이어 붙여도 자연스럽게).
+    rpSentBull: "상승 흐름입니다.", rpSentBear: "하락 흐름입니다.", rpSentFlat: "뚜렷한 방향이 없습니다.",
+    rpSentOverheat: "다만 다소 과열된 구간입니다.",
+    rpSentResistance: "저항선이 가까워 속도가 둔화될 수 있습니다.",
   };
 
   // 상태 어휘 공유 맵 — chart-legend.js(레전드, 정본)와 draw-layers.js(캔버스 배지),

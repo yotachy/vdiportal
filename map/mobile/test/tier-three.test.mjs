@@ -23,7 +23,8 @@ const Blocks = require("../www/report-blocks.js");
 
 // 정본 티어 목록 — 여기서 세지 않고 report-blocks 에서 가져온다. 넷째 티어가 생기면 이 관문이
 // 스스로 늘어나야지, 테스트가 셋을 외우고 있으면 새 티어가 조용히 빠진다.
-const TIERS = ["basic", "full", "custom"].filter(t => Blocks.orderOf(t).length > 0);
+// report-blocks.js 가 orderOf → forTier 로 개명됐다(P1a Task 2, {id,kind} 배열을 돌려준다).
+const TIERS = ["basic", "full", "custom"].filter(t => Blocks.forTier(t).length > 0);
 
 function bodyOf(src, name) {
   const at = src.indexOf("function " + name + "(");
