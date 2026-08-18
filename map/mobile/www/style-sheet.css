@@ -57,7 +57,11 @@
 /* ===== 2단 (폴드 펼침) =====
    미디어쿼리를 쓰지 않는다 — 경계값은 layout.js 의 MIN_W/MIN_H 가 유일한 출처이고,
    app.js 가 matchMedia 결과를 body.ms-dual 로 내려준다. 여기에 @media 를 또 적으면
-   한쪽만 고쳤을 때 JS 와 CSS 가 조용히 갈라진다(설계 §3.1). */
+   한쪽만 고쳤을 때 JS 와 CSS 가 조용히 갈라진다(설계 §3.1).
+
+   P0 현황(태스크 4, 2026-08-18): 2단은 후퇴했다 — app.js 가 더는 body.ms-dual 을 세우지
+   않으므로 아래 규칙 전부가 지금은 걸리지 않는다. 그래도 지우지 않는다 — P5(시안 9b·9c)
+   가 2단을 통째로 재설계하며 이 선택자들을 다시 쓴다. */
 body.ms-dual { padding-bottom:0; overflow:hidden; }
 body.ms-dual .shell { display:grid; height:100vh; height:100dvh;
   padding-top:var(--safe-top); }   /* 2단 — 셸이 최상단 */

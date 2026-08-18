@@ -168,8 +168,11 @@
     // 시안 18b 의 "지표 32개 판독문" 링크 행. 개수는 리터럴이 아니라 엔진에서 나온다.
     rdLinkA: "지표 ", rdLinkB: "개 판독문",
     // rpPickSym("왼쪽에서 티커를 골라주세요")은 2단(폴드) 레이아웃의 빈 오른쪽 칸 문구였다.
-    // 태스크 4가 2단을 후퇴시키며(app.js 의 MSLayout/body.ms-dual 경로 제거, P5 로 재설계
-    // 예정) 죽었다 — 죽은 채로 남기지 않는다(strings.test.mjs 미사용 키 가드).
+    // 태스크 4가 2단을 후퇴시키며 죽었다 — 정확히는 app.js 가 body.ms-dual 을 세우던
+    // 경로(dual 렌더 분기)를 걷어낸 것이지, MSLayout(layout.js)이나 관련 CSS 자체를
+    // 지운 게 아니다. 그 둘은 그대로 남아 있다(chartHeight 는 지금도 쓰이고, 2단 전용
+    // 부분은 P5 재설계 때 다시 쓰인다). 이 문구만 소비자가 없어 죽었다(strings.test.mjs
+    // 미사용 키 가드).
     rpLoadFail: "리포트를 불러오지 못했습니다",
     rpRetry: "다시 시도",
     rpUnknownErr: "불러오지 못했습니다 — 알 수 없는 오류.",

@@ -9,7 +9,9 @@ import { readFileSync } from "node:fs";
 //
 // 태스크 4(셸 + 하단 탭바) 이후 계약: app.js 는 화면 분기(state.showing)를 갖지 않고 부팅만
 // 한다 — 화면 등록(SCREENS) + MSShell.mount() 호출 + router.go("watchlist"). 2단(폴드)
-// 레이아웃(MSLayout·body.ms-dual·matchMedia)은 이 라운드에 걷어냈다(P5 로 재설계 예정) —
+// 레이아웃은 이 라운드에 후퇴했다 — app.js 가 dual 판정(matchMedia)과 body.ms-dual
+// 부여를 걷어낸 것이지, MSLayout(layout.js) 모듈이나 관련 CSS 자체를 지운 게 아니다
+// (그 둘은 P5 재설계 때까지 그대로 남아 있다, chartHeight 등 일부는 지금도 쓰인다).
 // 그래서 옛 app.test.mjs 의 "boot() 재진입 시 matchMedia 리스너가 하나" 시험은 더 이상
 // 대상이 없다. 대신 셸 자체의 이중 마운트(탭바 중복·backbutton 리스너 중복)를 재본다.
 const SRC = readFileSync(new URL("../www/app.js", import.meta.url), "utf8");

@@ -9,6 +9,8 @@
   var PAD = 10;
   // 차트 높이는 모드에 딸린다 — 커버 520(Phase 1~4 검증값)은 그대로, 펼침은 세로 654 라 414 로 줄인다.
   // 520 을 그대로 두면 654 화면에서 차트만으로 80% 를 먹는다.
+  // P0(태스크 4) 현황: 첫 인자(dual)는 지금 항상 false 다 — 아무도 body.ms-dual 을 세우지
+  // 않는다(셸이 단일 열만 그린다). P5 에서 2단이 되살아나면 다시 true 가 될 수 있다.
   function chartH(tier) { return MSLayout.chartHeight(document.body.classList.contains("ms-dual"), window.innerHeight, tier); }
 
   // 오버레이 이름 → 그리기 함수. **이 표가 유일한 호출 경로다** — 여기 없는 이름은 안 그려지고,
