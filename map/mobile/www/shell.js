@@ -97,31 +97,40 @@
     // 안드로이드 하드웨어 백. 라우터가 false 를 주면(더 이상 처리할 스택이 없다) 앱에 넘긴다(종료).
     // navigator 는 UMD 팩토리 인자가 아니라 브라우저 전역이다(이 저장소의 다른 UMD 모듈과
     // 같은 관례 — factory() 는 인자 없이 불린다, index.html 참고) — 자기 스코프의 `root`
-    // 파라미터를 참조하면 어디서도 정의되지 않은 이름이라 backbutton 이 눌리는 순간 던진다.
+    // 파라미터를 참조하면 어디서도 정의되지 않은 이름이라 back 이 눌리는 순간 던진다.
     //
-    // ⚠️ P0 리뷰 실측(C1): 아래 리스너는 지금 실기기에서 절대 안 불린다. "backbutton" 은
-    // Cordova 가 쏘는 document 이벤트인데 이 앱은 Capacitor 8 이고, package.json 에
-    // `@capacitor/app` 이 없다 — 그 플러그인이 없으면 Capacitor 의 native-bridge 는
-    // backbutton 을 흉내조차 안 낸다(cordova.js 도 0바이트 자리표시자). MainActivity/Bridge
-    // 쪽에도 onBackPressed 오버라이드가 없다. 그래서 지금은 **어느 화면에서든 하드웨어
-    // 백 = 즉시 앱 종료**이고, 아래 코드(시트 우선 처리·router.back())는 그 사실과 무관하게
-    // 한 번도 실행되지 않는 도달 불가능한 경로다.
-    // 지우지 않는 이유: 로직 자체(시트 우선 → 라우터 → 종료)는 옳고 P1 이 그대로 쓴다.
-    // 진행 현황(2026-08-18 갱신, P1a Task 6 시점) — ②는 끝났다: tier-sheet.js(Task 5)에
-    // 이어 screens/watchlist.js 의 ＋Add 시트(Task 6)도 MSSheet 로 이관해, 지금 MSSheet.open
-    // 의 프로덕션 호출자는 둘이다("백이 시트부터 닫는다"를 보여줄 시트가 이제 앱에 있다).
-    // 남은 건 ①`@capacitor/app` 추가와 ③APK 재빌드·실기기 재검증 — 이 둘을 한 세트로
-    // 묶어야 한다. 시트 이관은 끝났지만 플러그인이 여전히 없으므로 위 P0 실측(C1)은 그대로
-    // 유효하다: 지금도 실기기 하드웨어 백 = 즉시 앱 종료이고, 아래 리스너는 여전히 한 번도
-    // 실행되지 않는 도달 불가능한 경로다. 플러그인 없이 이 이관만으로는 아무것도 안 바뀐다
-    // (P0 자체가 "플러그인만 넣고 이관을 빼먹은" 실패의 재시작이었다 — 이번엔 그 반대로
-    // 이관만 끝내고 플러그인이 없는 상태이니, 다음 라운드가 플러그인 없이 "이제 백이 된다"고
-    // 말하면 그게 새 버전의 같은 실패다).
-    document.addEventListener("backbutton", function () {
+    // P1a Task 7 — `@capacitor/app` 을 도입해 이 경로가 실제로 닿게 됐다. P0/Task 5·6 이
+    // 남긴 실측(git log 참고)은 그때는 사실이었다: 플러그인이 없으면 "backbutton" document
+    // 이벤트는 실기기에서 한 번도 안 불린다. 지금은 있고, 실제로 부르는 것은 그 이벤트가
+    // 아니라 **Capacitor App 플러그인의 "backButton" 이벤트**다 — 두 경로를 다 등록해 둔다:
+    //   ① `App.addListener("backButton", ...)` — 네이티브가 실제로 부르는 경로.
+    //   ② `document.addEventListener("backbutton", ...)` — Cordova 전용이라 지금도 실기기에서
+    //      직접 디스패치되진 않는다(node_modules/@capacitor/android 의 native-bridge.js 실측:
+    //      App 플러그인이 있으면 이 등록 자체는 통과시키지만, 그게 하는 일은 App 의 기본
+    //      종료 동작을 죽이는 더미 리스너를 붙이는 것뿐이지 "backbutton" 이벤트를 실제로
+    //      쏘는 게 아니다). 지우지 않는 이유는 안전망이다 — `@capacitor/app` 이 없는 빌드
+    //      (플러그인 설치가 깨졌거나 옛 APK)에서도 이 줄만은 조용히 죽지 않고 남는다.
+    // 같은 물리적 누름에 두 경로가 겹쳐 불릴 가능성(플랫폼이 훗날 실제로 backbutton 을
+    // 디스패치하게 바뀌는 경우 등)에 대비해, 처리 자체는 handleBack() 하나로 모으고 한 번
+    // 처리하면 다음 매크로태스크까지 재진입을 막는다 — 같은 틱 안에서 두 리스너가 연달아
+    // 불려도 시트가 두 번 닫히거나 라우터가 두 단계 물러나지 않는다.
+    var backHandling = false;
+    function handleBack() {
+      if (backHandling) return;
+      backHandling = true;
+      setTimeout(function () { backHandling = false; }, 0);
       // 시트가 열려 있으면 화면을 바꾸지 않는다 — 시트만 닫는다(Task 5).
       if (MSSheet.closeTop()) return;
       if (!router.back() && typeof navigator !== "undefined" && navigator.app) navigator.app.exitApp();
-    });
+    }
+
+    document.addEventListener("backbutton", handleBack);
+
+    // Capacitor 플러그인은 네이티브 빌드에만 있다(ads.js 의 detect() 와 같은 관용구) —
+    // 브라우저 미리보기·노드 시험·플러그인이 아직 없는 빌드에선 조용히 건너뛴다(가드).
+    var cap = (typeof window !== "undefined") ? window.Capacitor : null;
+    var capApp = (cap && cap.Plugins) ? cap.Plugins.App : null;
+    if (capApp && capApp.addListener) capApp.addListener("backButton", handleBack);
     return router;
   }
 

@@ -77,6 +77,15 @@
 
 실제 하한은 `mobile/android/variables.gradle` 의 `minSdkVersion 24`(Android 7.0 Nougat)다. 이 지점부터 Android System WebView 는 OS 와 분리돼 Play 스토어로 자동 업데이트되는 Chromium 기반 컴포넌트다(`mobile/docs/phase0-measurements.md` 가 이미 "Chrome 과 WebView 는 같은 Chromium/V8" 전제로 실기기 Chrome 150 을 측정에 썼다). `@capacitor-community/admob`(Google Play 서비스 하드 의존)이 이미 Play 스토어 보유를 전제하므로 그 자동 업데이트 경로도 전제된다. **확정 안전선은 ES2017**(async/await 포함, Chrome 55·2016-12) — 이 셋(minSdk·Capacitor 자체 요구·admob 의 GMS 의존)이 판정을 지탱하는 1차 근거다. **정황(1차 근거를 뒤집진 않지만 그 자체로는 이중검증이 아님)**: async/await 는 `scan.js` 1개 파일에 실제 문법으로 이미 배포돼 있다(`wallet.js` 에는 `await` 문자열이 나오지만 61번 줄 주석일 뿐 실제 문법은 아니다 — 확인 없이 "14개 파일이 쓴다"고 적었던 것은 오류였다, 2026-08-19 리뷰 정정). const/let/화살표(ES2015)는 실제로는 `draw-panels.js`·`draw-layers.js`·`draw-preds.js` 3개 파일에서만 코드로 쓰인다 — 원 브리프가 위반으로 지목한 바로 그 세 파일이며, 나머지 파일의 grep 일치는 한국어 주석의 백틱 코드 표기(예: `` `IND_TIERS` 다``)나 문자열 리터럴이었다. 관문은 `mobile/test/syntax-floor.test.mjs` — ES2017 보다 확실히 나중이면서 지금 안 쓰는 문법만(옵셔널 체이닝·null 병합·논리 대입·private 필드·`Object.hasOwn`·`groupBy`·배열 비파괴 복사 메서드) 금지한다.
 
+## ⑥ `mobile/` 의존성 정책 — "새 npm 의존성 금지"는 공식 Capacitor 플러그인을 막지 않는다
+
+이 저장소 전반의 "빌드 도구·외부 라이브러리 금지"(위 스쿱포지·스쿱보드 규율과 같은 문장)를 모바일의 `package.json` 에도 그대로 적용하면 **네이티브 앱을 못 만든다** — Capacitor 자체가 npm 패키지고(`@capacitor/core`·`@capacitor/android`·`@capacitor/cli`), 하드웨어 기능(광고·백버튼 등)은 각각 별도 공식 플러그인 npm 패키지로 온다. 이 규율이 실제로 막으려는 것은 **프런트엔드 빌드 파이프라인**(webpack/babel/번들러)과 **`www/**` 안에서 로직을 대신 짜주는 프런트엔드 라이브러리**(jQuery·React 류)다 — `www/**` 는 여전히 순수 HTML·CSS·바닐라 JS(classic `<script src>`, 빌드 없음)이고 이 원칙은 안 바뀐다.
+
+- **판정(선례 2건)**: `@capacitor-community/admob` 8.1.0(2026-08-16, 광고 보상) → `@capacitor/app` 8.1.1(2026-08-18, P1a Task 7 — 하드웨어 뒤로가기 배선). **공식 Capacitor 네임스페이스(`@capacitor/*`) 또는 Capacitor 공식 커뮤니티 플러그인(`@capacitor-community/*`)은 이 금지의 대상이 아니다** — 네이티브 OS 기능에 접근하는 것이 존재 이유고, 대체 경로가 없다(하드웨어 백버튼을 순수 JS/DOM 이벤트만으로 잡을 방법은 없다 — `mobile/www/shell.js` 의 배선 주석이 이유를 실측으로 남겼다).
+- **여전히 금지**: 위 두 네임스페이스 밖의 npm 패키지(유틸리티 라이브러리·폴리필·상태관리 등), 빌드 도구·번들러, `www/**` 안에서 실행되는 프런트엔드 프레임워크.
+- **버전은 정확히 고정한다**(`--save-exact`, 캐럿 없음) — admob·app 둘 다 `package.json` 에 정확한 버전 문자열(`"8.1.0"`·`"8.1.1"`)로 박혀 있다. `@capacitor/core`(`^8.5.0`)와 메이저가 어긋나면 네이티브 빌드가 깨지므로 peer 요구사항(`>=8.0.0` 류)을 확인하고 고른다.
+- 새 플러그인을 더할 때: `npm install`(package.json 갱신) → `npx cap sync android`(네이티브 Gradle 배선 — `android/app/capacitor.build.gradle`·`android/capacitor.settings.gradle` 재생성, 둘 다 "DO NOT EDIT" 생성물이지만 커밋 대상) → `./gradlew assembleDebug` 로 실제 빌드 확인까지가 한 세트. 절차 상세는 `mobile/docs/ANDROID-BUILD.md`.
+
 ---
 
 # 🔥 스쿱포지 (Scoop Forge) — 플래그십

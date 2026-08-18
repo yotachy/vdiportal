@@ -19,13 +19,13 @@
 
 ## 막힌 것 / 사용자 대기
 
-- **APK 실기기 확인 대기** — `mobile/android/app/build/outputs/apk/debug/app-debug.apk`(12,569,409 바이트, 2026-08-18 14:51 재빌드 — 최종 리뷰 수정 웨이브 반영)를 사용자가 실기기에 설치해 아래 3항목을 확인해야 P1 착수 가능:
+- **APK 실기기 확인 대기** — `mobile/android/app/build/outputs/apk/debug/app-debug.apk` 를 사용자가 실기기에 설치해 아래 항목을 확인해야 P1 착수 가능:
   1. 하단 탭 3개(목록·분석·스쿱)가 보이고 눌린다
   2. 탭을 오갔다 돌아오면 보던 화면이 남아 있다
   3. 리포트가 열린다(이전 APK 는 여기서 죽었다 — `MSPreds` 전역 충돌)
+  4. **뒤로가기가 시트 → 화면 → 앱 종료 순으로 동작한다**(P1a Task 7 — `@capacitor/app` 도입 + 실증 시험 이후 재검증 항목)
   - **P0 는 뼈대(탭바·라우터·시트)만 세운 것** — 화면 내용물(리포트 27개 지표 중 5개만 노출, 지갑 7일 상자 등)은 대부분 개편 이전 그대로다. P1~P5 가 시안대로 다시 그린다. APK 를 열어도 "왜 안 예뻐졌지"는 P0 스코프 밖.
   - ⚠️ APK 를 열면 지갑이 운영 서버(`wallet-api.php`)에 실제로 붙어 진짜 계정이 생기고 개설 지급이 실행된다.
-- **하드웨어 뒤로가기는 P0 에서 미동작** — 최종 리뷰 C1 실측: 이 앱은 Capacitor 8 인데 `@capacitor/app` 이 의존성에 없어 `backbutton` 이벤트(Cordova 전용)가 실기기에서 한 번도 안 불린다. 지금은 어느 화면에서든 하드웨어 백 = 즉시 앱 종료. 핸들러 로직(시트 우선 → 라우터 → 종료)은 `shell.js` 에 그대로 남아 있고 단위 시험도 통과하지만 "도달 불가능"이다. **P1 에서** ①`@capacitor/app` 도입 ②기존 시트 둘(tier-sheet.js·screens/watchlist.js)을 `MSSheet` 로 이관 ③APK 재빌드·재검증을 한 세트로 처리한다(절반만 하면 다시 "만들었는데 안 닿는" 실패가 된다). 새 npm 의존성 추가라 P0 규율(빌드 도구·외부 라이브러리 금지와는 결이 다른, "새 의존성은 신중히" 원칙) 밖에서 별도 판단이 필요했다.
 - **P0 에서 2단(폴드) 레이아웃을 일시 후퇴시킨다** — 라우터 위에 2단을 얹으면 "왼쪽 칸은 무슨 라우트인가"가 답이 없다. 시안 9b/9c 는 좌측 레일까지 요구하므로 P5 에서 통째로 설계한다. 그때까지 폴드 펼침은 단일 열이다
 
 ---
@@ -76,6 +76,7 @@
 
 > 최신이 위. 태스크마다 한 줄: `날짜 · 페이즈/태스크 · 결과 · 커밋`
 
+- 2026-08-18 · P1a Task 7 · `@capacitor/app` 8.1.1 도입 + `App.addListener("backButton", ...)` 배선(Cordova `backbutton` 경로는 안전망으로 유지, 재진입 가드로 중복 처리 방지) + 실제 `MSTierSheet`/`MSSheet` 를 여는 end-to-end 실증 시험(`shell-backbutton-e2e.test.mjs`, 변이로 증명) + `gate-routes.mjs` watchlist 시드에 `ms_scan` 보강(읽음 상태 3종 `.wl-dot` 실제 렌더 확인) + `map/CLAUDE.md`/`shell.js` 주석 정정 + APK 재빌드 · `tests/run.sh` 1611건·브라우저 관문 8/8 통과 · (해시는 이 커밋 자체)
 - 2026-08-18 · P0 최종 리뷰 수정 웨이브(Critical 1·Important 6·Minor 2) · C1(하드웨어 백 미동작 사실을 코드·시험·원장에 정직하게 표기, 동작화는 P1로) · I1(router.go() 되감기 + 시험 추가) · I2(gate-browser.mjs 치환 no-op 가드, 변이로 증명) · I3(분석 탭 콜드 진입 폴백을 워치리스트 첫 종목까지 확장) · I5(shell.js data-screen 표식 + gate-routes.mjs 선택자 이행) · I7(지갑 mock 필드명을 wallet-lib.php 실제 반환에 맞춤 — NaN 스크린샷 원인이 mock 이었음, 스샷 육안 확인) · Minor(drawBar try/finally, __gate_*.html gitignore) · `tests/run.sh` 1546건 통과 · 브라우저 관문 6/6 통과 · APK 재빌드(12,569,409 바이트) · `2edb944`
 - 2026-08-18 · P0 Task 6 · 관문 3중 통과(1545+6건) · APK 빌드(12.6MB) · `map/CLAUDE.md`·본 원장 갱신 · `8642ca0`
 - 2026-08-18 · P0 Task 5 · 공용 하단 시트(`sheet.js`) + 뒤로가기가 시트를 먼저 닫는 배선 + 실제 발화 시험(`shell-backbutton.test.mjs`) · `3bb8d68` `997815e`

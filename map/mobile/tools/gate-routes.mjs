@@ -32,6 +32,34 @@ const PREDS = [
     hit: false, miss: 0.4, actual: 246.8, basicHit: true, narrowedAndMissed: true, seen: false }
 ];
 
+// 오늘의 로컬 달력일(store.js localDate() 와 동일한 계산) — "오래됨" 상태를 실제로 만들려면
+// today 와 확실히 다른 asOf 하나, today 자체인 asOf 하나가 필요하다. 둘 다 리터럴로 박으면
+// 실행 시각에 따라 read/old 판정이 갈려 관문이 날짜 넘김에 죽는다(node 쪽에서 계산해 브라우저
+// 실행 시각과 같은 날짜가 되게 한다 — 자정을 걸치는 극히 드문 경우 외엔 항상 맞는다).
+function localDateStr(d) {
+  var y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+  return y + "-" + (m < 10 ? "0" + m : m) + "-" + (day < 10 ? "0" + day : day);
+}
+const TODAY = localDateStr(new Date());
+
+// 읽음 상태 3종(시안 14a, P1a Task 6) — Task 6 리뷰가 지적한 공백: 이 3종을 만드는 ms_scan
+// 이 watchlist 관문 시드에 없어 브라우저가 .wl-dot 을 실제로 그린 적이 한 번도 없었다(node
+// 시험만 통과, watchlist-model.test.mjs 는 readState() 를 순수함수로만 잰다). WL(위 3종) 각각에
+// 다른 상태를 하나씩 물린다 — AAPL=안읽음(스캔은 있지만 본 적 없다) · NVDA=읽음(마지막으로
+// 본 스캔과 scannedAt 이 같고 asOf 가 오늘) · TSLA=오래됨(마찬가지로 읽었지만 asOf 가 옛날 —
+// 그 사이 새 봉이 하나 더 생겼을 것). scannedAt 값 자체는 리터럴이어도 된다 — readState() 는
+// viewedKey 와 문자열이 같은지만 보지 실제 시각을 안 잰다.
+const SCAN = {
+  AAPL: { price: 233.9, chg: 0.4, asOf: "2026-08-14", scannedAt: "2026-08-18T09:00:00.000Z" },
+  NVDA: { price: 118.2, chg: -0.6, asOf: TODAY, scannedAt: "2026-08-18T09:05:00.000Z" },
+  TSLA: { price: 246.8, chg: 1.1, asOf: "2020-01-01", scannedAt: "2026-08-18T09:10:00.000Z" }
+};
+const VIEWED = {
+  // AAPL 은 의도적으로 없음 — "본 적 없다"가 곧 안읽음이다(readState: viewedKey !== rec.scannedAt).
+  NVDA: SCAN.NVDA.scannedAt,
+  TSLA: SCAN.TSLA.scannedAt
+};
+
 export const ROUTES = [
   // onboarding 은 MSApp.current().route 가 못 쓴다 — state.showing 이 "watchlist" 기본값에서
   // 안 바뀐 채로 온보딩이 그려진다(온보딩은 app.js 부팅 게이트를 아예 우회한다). 대신 온보딩
@@ -45,10 +73,14 @@ export const ROUTES = [
   // 바뀌었는지를 여기서도 잰다. node 시험(watchlist.test.mjs)은 innerHTML 문자열을 보지만,
   // 여긴 실제 브라우저가 그 svg 를 실제 엘리먼트로 파싱해 넣는지까지 본다 — 문자열만 맞고
   // 브라우저에서 안 그려지는 경우(태그 오타 등)는 node 시험이 못 잡는다.
-  { name: "watchlist", seed: { ...ON, ms_preds: PREDS }, go: null,
+  { name: "watchlist", seed: { ...ON, ms_preds: PREDS, ms_scan: SCAN, ms_wl_viewed: VIEWED }, go: null,
+    // .wl-dot 3종 단언은 조건부 if 로 안 감싼다(그 형태로 이 저장소가 이미 네 번 데였다) — 위
+    // seed 가 항상 세 상태를 다 심으므로 이 AND 절은 매 실행 무조건 평가된다.
     assert: "MSApp.current().route === 'watchlist' && !!document.querySelector('[data-screen=\"watchlist\"]') && " +
       "document.querySelectorAll('[data-sym]').length === 3 && document.querySelectorAll('.ms-tab').length === 3 && " +
-      "!!document.querySelector('.ms-pill-ico svg') && document.getElementById('app').textContent.indexOf('◆') < 0" },
+      "!!document.querySelector('.ms-pill-ico svg') && document.getElementById('app').textContent.indexOf('◆') < 0 && " +
+      "document.querySelectorAll('.wl-dot.unread').length === 1 && document.querySelectorAll('.wl-dot.read').length === 1 && " +
+      "document.querySelectorAll('.wl-dot.old').length === 1" },
   // P1a Task 3(기본분석 리포트) — node 시험(report-basic.test.mjs)은 가짜 DOM 조립을 잰다.
   // 여기서는 **실제 브라우저**가 같은 결과를 내는지를 재차 확인한다 — 이 프로젝트가 반복
   // 겪은 "관문은 초록인데 화면은 다른 말을 한다" 사고의 구멍은 언제나 가짜 DOM 과 실제
