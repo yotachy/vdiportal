@@ -7,8 +7,11 @@
 //
 //   1 콜드 오픈(11a)                — 예시 구간 · 찍기 · 당신/앱/실제 3열. [재설계 완료]
 //   2 같은 구간, 32개 전부          — 5개가 아니라 32개 전부의 동의·반대·무판정·자백(못
-//                                    읽음), 5도구 판정과 나란히. [재설계 완료 — 이 커밋]
-//   3 위험 고지                     — 체크박스 필수. 분석 결과를 보여주기 전. [옛 내용 그대로]
+//                                    읽음), 5도구 판정과 나란히. [재설계 완료]
+//   3 성향                          — 고르면 같은 구간의 판정·근거가 실제로 갱신된다.
+//                                    [재설계 완료 — 이 커밋. 옛 위험고지(약관 체크박스)는
+//                                    이 슬롯에서 나갔다 — 다음 태스크가 새 4단계(동의)에서
+//                                    다시 짓는다, 자리 이름을 재사용하지 않는다]
 //   4 기본분석 체험(16a)            — 종목 하나 고르고 실제로 돌린다. 체험 1/3. [옛 내용 그대로]
 //   5 심화분석 체험(16b)            — 무엇이 달라지는지 두 막대로. 체험 2/3. [옛 내용 그대로]
 //   6 전문분석 체험(16c)            — 슬라이더 하나만 열어 직접 만지게 한다. 체험 3/3. [옛 내용 그대로]
@@ -68,10 +71,11 @@
   // 진행할 수 있는가. 화면 밖에서 시험할 수 있게 순수 함수로 둔다.
   function canAdvance(step, state) {
     if (step === 1) return !!state.guessed;
-    // 2단계(32도구 재설계)는 보여주는 화면이라 별도 입력을 요구하지 않는다 — 성향 선택
-    // 요구는 3단계(성향, 이후 태스크가 재설계)로 넘어간다. 여기서 지우지 않으면 3단계가
-    // 성향을 다시 물을 때 "요구가 두 곳에 있다"는 모순이 생긴다.
-    if (step === 3) return !!state.agreed;
+    // 2단계(32도구 재설계)는 보여주는 화면이라 별도 입력을 요구하지 않는다.
+    // 3단계(성향)는 4종 중 1개가 **항상** 선택돼 있어야 한다는 불변을 이 자리에서 지킨다
+    // (기본값이 이미 채워지므로 실사용에서 막히는 일은 없다 — 이 검사는 "선택 없이 진행할
+    // 수 있는 상태"가 애초에 만들어지지 않게 하는 것이 목적이다).
+    if (step === 3) return !!state.style;
     if (step === 4) return !!state.r1;      // 기본분석 결과가 실제로 나왔을 때만
     return true;
   }
@@ -113,7 +117,6 @@
       // 저장된 성향이 있으면 그것을 기본 선택으로 — 온보딩을 다시 열었을 때 예전 선택이
       // 되살아난다. MSStore 가 없는 환경(경량 하네스)에서도 던지지 않는다.
       style: (typeof MSStore !== "undefined" && MSStore.getStyle && MSStore.getStyle()) || "trend",
-      agreed: false,
       tut: null,            // { sym, name, data, fallback }
       r1: null, r2: null, r3: null,
       trendW: 1.0,
@@ -632,26 +635,111 @@
       return w;
     }
 
-    // ── 3단계: 위험 고지 ─────────────────────────────────────────────────────────
+    // ── 3단계: 성향(설계서 §4.3, Task 5) ────────────────────────────────────────
+    // "여기까지는 과거였습니다" — 1·2단계는 고정된 방식(5도구·32도구)으로 같은 구간을 본
+    // 과거형 증거였다. 이제부터는 사용자가 고른 방식으로 **같은 구간을 다시** 본다 —
+    // 다른 구간을 쓰면 앞 두 단계와 비교할 근거가 성립하지 않는다(sliced() 를 그대로 쓴다).
+    //
+    // Task 1 실측(확정 표본 PG, 2023-06-02~2024-05-15, sliced 228봉): 4종 성향 중
+    // momentum 만 regime 이 갈린다(bull→neutral, 경계 ±12에서 score 11 — 경계까지 1점).
+    // 나머지 3종(trend·reversion·volatility)은 32도구와 같은 결론(bull)이다 — 그래서
+    // "같음"이 이 화면의 **주 경로**다(사용자 넷 중 셋이 보는 것). ob3SameNote 는 그 사실을
+    // 당당하게 말한다(바뀐 척하지 않는다). 대신 선택 지표 수·근거 구성(동의·반대·무판정·
+    // 자백)은 4종 모두 다르므로(node 실측: trend 9=7/0/2/0 · momentum 6=0/0/6/0 ·
+    // reversion 9=5/1/2/1 · volatility 9=6/0/2/1), 판정 문구가 같아도 "고르면 갱신된다"는
+    // 항상 성립한다.
+    //
+    // 근거 계산은 2단계(classifyFull32)와 **같은 경로**를 탄다 — MSReadings.voiced() 로
+    // 자백 행을 먼저 걷어내고 MSIndicators.opposing() 을 그대로 불러 반대를 얻는다(임계값을
+    // 여기서 재구현하지 않는다). noDirRows(trend·phasefold)는 그 성향이 실제로 선택한
+    // 지표 집합에 있을 때만 더한다 — 안 그러면 선택하지 않은 성향에도 trend/phasefold 가
+    // 새어 들어가 합이 선택 지표 수를 넘는다.
+    function presetByKey(key) {
+      var list = (typeof MSIndTiers !== "undefined" && MSIndTiers.PRESETS) || [];
+      for (var i = 0; i < list.length; i++) if (list[i].key === key) return list[i];
+      return null;
+    }
+
+    var _styleCache = null, _styleCacheKey = null, _styleCacheSample = null;
+    function visibleStyle(styleKey) {
+      var s = sample();
+      if (!s || typeof MSIndTiers === "undefined") return null;
+      if (_styleCache && _styleCacheSample === s && _styleCacheKey === styleKey) return _styleCache;
+      var d = sliced();
+      if (!d || typeof ForgeCore === "undefined" || typeof MSIndicators === "undefined"
+        || typeof MSGraph === "undefined") return null;
+      var wts = MSIndTiers.weightsOf(styleKey, MSGraph.BASIC);
+      var r = runTier(d, "custom", wts);
+      if (!r) return null;
+      var ctx = MSIndicators.ctxFrom(r.input);
+      var rows = MSIndicators.readings(ForgeCore, r.graph, r.input, ctx);
+      var selTypes = MSIndTiers.selectionOf(styleKey, MSGraph.BASIC);
+      var noDir = MSIndicators.noDirRows(ForgeCore, r.input, ctx)
+        .filter(function (nd) { return selTypes.indexOf(nd.type) >= 0; });
+      var regime = r.out.verdict.regime;
+      var cls = classifyFull32(r.graph, regime, rows, noDir);
+      var an = { regime: regime, n: selTypes.length,
+                 agree: cls.agree, dissent: cls.dissent, flat: cls.flat, refused: cls.refused };
+      _styleCache = an; _styleCacheKey = styleKey; _styleCacheSample = s;
+      return an;
+    }
+
     function step3() {
       var w = frag("ob-step");
-      w.appendChild(el("h1", "ob-h", MSStr.t.obH5));
-      w.appendChild(el("p", "ob-risk", MSStr.t.obRisk));
-      var lab = document.createElement("label");
-      lab.className = "ob-agree";
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.className = "ob-agree-cb";
-      // 재진입 시 state 에서 다시 칠한다 — 없으면 화면은 꺼져 있는데 동의 기록은 살아 있다.
-      cb.checked = !!state.agreed;
-      cb.addEventListener("change", function () {
-        state.agreed = cb.checked;
-        var fwd = rootEl.querySelector(".ob-next");
-        if (fwd) fwd.disabled = !canAdvance(3, state);
+      w.appendChild(el("p", "ob-over", MSStr.t.obPastDone));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH3));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obSub3));
+
+      var full = visibleFull32();      // 비교 기준 — 2단계에서 이미 32개 전부로 본 판정
+      if (full) state.full32 = full;
+
+      var presets = (typeof MSIndTiers !== "undefined" && MSIndTiers.PRESETS) ? MSIndTiers.PRESETS : [];
+      var grid = frag("ob-styles");
+      presets.forEach(function (p) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "ob-style" + (state.style === p.key ? " is-on" : "");
+        b.appendChild(el("span", "ob-style-name", p.name));
+        var n = (typeof MSGraph !== "undefined" && typeof MSIndTiers !== "undefined")
+          ? MSIndTiers.selectionOf(p.key, MSGraph.BASIC).length : 0;
+        b.appendChild(el("span", "ob-style-desc", n + MSStr.t.obStyleIndicatorSuffix));
+        b.addEventListener("click", function () {
+          if (state.style === p.key) return;   // 같은 카드를 다시 눌러도 다시 그리지 않는다
+          state.style = p.key;
+          draw();
+        });
+        grid.appendChild(b);
       });
-      lab.appendChild(cb);
-      lab.appendChild(el("span", "ob-agree-txt", MSStr.t.obAgree));
-      w.appendChild(lab);
+      w.appendChild(grid);
+
+      var p = presetByKey(state.style);
+      var st = visibleStyle(state.style);
+      if (!full || !st || !p) {
+        w.appendChild(el("p", "ob-read-empty", MSStr.t.obReadUnavailable));
+        return w;
+      }
+
+      var n32 = (typeof ForgeCore !== "undefined" && typeof ForgeCore.indicatorCount === "number")
+        ? ForgeCore.indicatorCount : 32;
+      var cmp = frag("ob32-cmp");
+      cmp.appendChild(full32CmpRow(n32 + MSStr.t.obVerdictLabelSuffix, verdictWord(full.regime)));
+      cmp.appendChild(full32CmpRow(p.name + MSStr.t.obStyleVerdictSuffix, verdictWord(st.regime)));
+      w.appendChild(cmp);
+
+      // 같을 때도 이 화면은 성립한다(주 경로) — 대신 근거 구성은 아래 섹션에서 계속 갱신된다.
+      var same = st.regime === full.regime;
+      var note = same ? MSStr.t.ob3SameNote
+        : (MSStr.t.ob3DiffA + verdictWord(full.regime) + MSStr.t.ob3DiffB +
+           p.name + MSStr.t.ob3DiffC + verdictWord(st.regime) + MSStr.t.ob3DiffD);
+      w.appendChild(el("p", "ob32-verdict-note" + (same ? " is-same" : " is-diff"), note));
+
+      // 성향의 선택 지표 수(≤9)는 작아서 접을 이유가 없다 — 전부 그린다(collapsible=false,
+      // full32Section 을 2단계와 그대로 재사용한다 — 근거 행의 형태를 새로 만들지 않는다).
+      w.appendChild(full32Section("agree", MSStr.t.ob32AgreeHead, st.agree, false));
+      w.appendChild(full32Section("dissent", MSStr.t.rpAgainst, st.dissent, false));
+      w.appendChild(full32Section("flat", MSStr.t.ob32FlatHead, st.flat, false));
+      w.appendChild(full32Section("refused", MSStr.t.ob32RefusedHead, st.refused, false, null, false));
+
       return w;
     }
 

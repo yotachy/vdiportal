@@ -86,7 +86,8 @@
   // test/onboarding.test.mjs·test/onboarding-quality.test.mjs 양쪽에 켜져 있다(컨트롤러
   // 판정, 2026-08-19) — 다음 태스크가 자기 단계 등록을 잊으면 그 관문이 빨갛게 알려준다.
   // Task 4(2단계 — 같은 구간 32개 전부)가 2 를 더한다.
-  var APPLIES = [1, 2];
+  // Task 5(3단계 — 성향)가 3 을 더한다.
+  var APPLIES = [1, 2, 3];
 
   return { metric: metric, stat: stat, APPLIES: APPLIES };
 });

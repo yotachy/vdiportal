@@ -25,9 +25,9 @@ const REPORT = readFileSync(new URL("../www/screens/report.js", import.meta.url)
 test("next 는 막힌 단계에서 제자리다", () => {
   assert.strictEqual(O.next(1, {}), 1, "찍지 않았는데 넘어간다");
   assert.strictEqual(O.next(1, { guessed: "up" }), 2);
-  assert.strictEqual(O.next(3, { agreed: false }), 3, "동의 없이 체험으로 넘어간다");
-  assert.strictEqual(O.next(3, { agreed: true }), 4);
-  assert.strictEqual(O.next(7, { agreed: true }), 7, "마지막 단계에서 더 나아간다");
+  assert.strictEqual(O.next(3, { style: null }), 3, "성향 선택 없이 체험으로 넘어간다");
+  assert.strictEqual(O.next(3, { style: "trend" }), 4);
+  assert.strictEqual(O.next(7, { style: "trend" }), 7, "마지막 단계에서 더 나아간다");
 });
 
 test("render 는 함수다 — 게이트가 부를 수 있어야 한다", () => {
@@ -190,6 +190,7 @@ test("온보딩·종목 고르기 클래스가 style.css 에 있다", () => {
    ".ob32-cmp", ".ob32-cmp-row", ".ob32-cmp-k", ".ob32-cmp-v", ".ob32-verdict-note",
    ".ob32-sec", ".ob32-sec-head", ".ob32-sec-label", ".ob32-sec-count",
    ".ob32-rows", ".ob32-row", ".ob32-name", ".ob32-text", ".ob32-bias", ".ob32-expand",
+   ".ob-styles", ".ob-style", ".ob-style-name", ".ob-style-desc",
    ".tp", ".tp-grid", ".tp-chip", ".tp-chip-label", ".tp-free", ".tp-msg",
    ".tp-input", ".tp-add"].forEach(function (c) {
     assert.ok(new RegExp("\\" + c + "(?![-\\w])").test(CSS), c + " 규칙이 없다");
@@ -626,10 +627,7 @@ async function toStep7(root) {
   root.querySelector(".ob-guess-btn").click();          // 1: 직접 찍기
   root.querySelector(".ob-next").click();               // 1 -> 2
   root.querySelector(".ob-next").click();               // 2 -> 3 (32도구 화면은 입력 없이 넘어간다)
-  const cb = root.querySelector(".ob-agree-cb");        // 3: 약관 체크
-  cb.checked = true;
-  (cb.listeners.change || []).forEach(f => f({}));
-  root.querySelector(".ob-next").click();               // 3 -> 4
+  root.querySelector(".ob-next").click();               // 3 -> 4 (성향은 기본 선택으로 입력 없이 넘어간다)
   root.querySelector(".ob-pick").click();               // 4: 종목 하나
   await flush();                                        // 실 데이터 적재(또는 번들 폴백)를 기다린다
   root.querySelector(".ob-next").click();               // 4 -> 5
@@ -748,20 +746,20 @@ test("각 단계가 요구하는 것: 찍기 · [2단계는 보여줄 뿐] · �
   // Task 4 재설계: 2단계는 32도구를 보여주는 화면이라 입력을 요구하지 않는다 — 옛 성향
   // 요구는 지웠다(성향 선택은 이후 태스크가 3단계에서 다시 짓는다).
   assert.equal(O.canAdvance(2, {}), true, "2단계는 32도구를 보여줄 뿐이라 입력을 요구하지 않는다");
-  assert.equal(O.canAdvance(3, {}), false, "3단계는 약관 동의가 필수다");
-  assert.equal(O.canAdvance(3, { agreed: true }), true);
+  // Task 5(3단계 재설계): 성향 4종 중 1개가 선택돼 있어야 한다는 불변 — 기본값이 항상
+  // 채워지므로 실사용에서 막히지는 않지만, 선택이 비어 있는 상태를 canAdvance 가 통과시켜선
+  // 안 된다(단언 1 "1개 필수").
+  assert.equal(O.canAdvance(3, {}), false, "3단계는 성향 선택이 필수다");
+  assert.equal(O.canAdvance(3, { style: "momentum" }), true);
   // 4단계는 결과가 실제로 나왔을 때만 넘어간다 — 계산 중에 넘기면 5단계가 빈 값을 비교한다.
   assert.equal(O.canAdvance(4, {}), false);
   assert.equal(O.canAdvance(4, { r1: {} }), true);
 });
 
-test("위험 고지가 분석 결과보다 앞이다 — 체험 전에 동의를 받는다", () => {
-  // 시안 §2 가 3단계에 둔 이유가 이것이다. 결과를 보여준 뒤 동의를 받으면 이미 본 것을
-  // 되돌릴 수 없다. 단계 번호로 잰다 — 3(고지) < 4~6(체험).
-  const risk = OB.indexOf("obRisk"), tut = OB.indexOf("obTut1H");
-  assert.ok(risk > 0 && tut > 0 && risk < tut,
-    "위험 고지가 체험보다 뒤에 온다 — 결과를 보여준 뒤 동의를 받는 순서가 됐다");
-});
+// Task 5 재설계로 3단계가 위험고지(obRisk)에서 성향으로 바뀌면서 이 시험은 잴 대상을
+// 잃었다(옛 step2 성향 선택 UI를 지운 뒤 남긴 위 주석과 같은 이유) — 위험고지는 다음
+// 태스크가 새 4단계(동의)에서 다시 지을 때 그 자리에서 "체험보다 앞인가"를 다시 잰다.
+// 지금은 obRisk 자체가 strings.js 에 없다(미참조 키 관문에 걸려 지웠다).
 
 test("가격은 마지막에만 공개된다 — 값을 겪기 전에 숫자를 보여주지 않는다", () => {
   // 인벤토리 §2: "가격표를 먼저 보여주면 3스쿱이 그냥 숫자다." COSTS 를 읽는 자리가
@@ -1125,6 +1123,12 @@ function toStep2(root, sampleObj) {
   root.querySelector(".ob-next").click();
 }
 
+// 2단계(32도구)는 입력 없이 넘어간다 — 1 -> 2 -> 3.
+function toStep3(root, sampleObj) {
+  toStep2(root, sampleObj);
+  root.querySelector(".ob-next").click();
+}
+
 // 반대(dissent)가 더 많이 나오는 표본 — 마지막 12봉(가려지는 구간)은 그대로 두고, 보이는
 // 228봉 전체에 진폭 3%·주기 20봉의 사인파를 얹는다. node 로 실측: regime=bull·반대 7건
 // (기본 표본의 2건보다 뚜렷이 많다 — "반대가 접기 문턱을 넘어도 전부 그려지는가"를 재려면
@@ -1338,6 +1342,147 @@ test("2단계 — 32도구 결과가 state.full32 에 캐시된다", () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════
+// Task 5(3단계 재설계) — 성향을 고르면 같은 구간의 판정·근거가 실제로 갱신된다.
+// 브리프 단언 5건. Task 1 실측(확정 표본 PG, sliced 228봉)이 이 화면의 전제다:
+// trend=bull(9종) · momentum=neutral(6종, 경계 ±12에서 score 11) · reversion=bull(9종) ·
+// volatility=bull(9종) — 32도구(state.full32)도 bull 이라 4종 중 momentum 만 갈린다.
+// ══════════════════════════════════════════════════════════════════════════════════
+
+// 성향 이름으로 카드를 찾아 클릭한다 — PRESETS 배열 순서에 기대지 않는다(순서가 바뀌어도
+// 시험이 안 깨진다). ind-tiers.js 가 이름의 정본이다(expert.js 가 이미 같은 방식으로 읽는다).
+function pickStyle(root, key) {
+  const Tiers = require("../www/ind-tiers.js");
+  const p = Tiers.PRESETS.filter(x => x.key === key)[0];
+  assert.ok(p, "프리셋을 못 찾았다: " + key);
+  const btn = root.querySelectorAll(".ob-style").filter(b => b.querySelector(".ob-style-name").textContent === p.name)[0];
+  assert.ok(btn, "성향 버튼을 못 찾았다: " + key + "(" + p.name + ")");
+  btn.click();
+  return { preset: p, btn };
+}
+
+// "판정·근거가 갱신됐다"를 문자열 전체 비교로 재면 사소한 차이로도 통과한다(브리프 경고) —
+// 그래서 무엇이 달라졌는지를 구체적으로 짚는다: 네 통의 개수(동의·반대·무판정·자백, 순서
+// 고정)와 비교 행의 두 번째 값(성향 기준 판정어)을 이어붙인 서명이다.
+function sig3(root) {
+  const counts = root.querySelectorAll(".ob32-sec-count").map(e => e.textContent);
+  const rows = root.querySelectorAll(".ob32-cmp-row");
+  const v = rows[1] ? rows[1].querySelector(".ob32-cmp-v").textContent : "";
+  return counts.join(",") + "|" + v;
+}
+
+// 단언 1 — 성향 4종이 있고 언제나 정확히 1개가 선택돼 있다("1개 필수").
+test("3단계 — 성향 4종이 있고, 언제나 정확히 1개가 선택돼 있다", () => {
+  withDom(root => {
+    toStep3(root, SAMPLE);
+    const btns = root.querySelectorAll(".ob-style");
+    assert.strictEqual(btns.length, 4, "성향 카드가 4개가 아니다: " + btns.length);
+    const on = btns.filter(b => b.className.indexOf("is-on") >= 0);
+    assert.strictEqual(on.length, 1, "선택된 성향이 정확히 1개가 아니다: " + on.length);
+  });
+  // 순수 함수 쪽도 같은 불변을 지킨다 — 선택이 비어 있으면 진행을 막는다.
+  assert.equal(O.canAdvance(3, {}), false, "3단계는 성향 선택이 필수다");
+  assert.equal(O.canAdvance(3, { style: "momentum" }), true);
+});
+
+// 단언 5 — "여기까지는 과거였습니다" 전환 문구. 1·2단계(고정된 방식)가 끝났고, 이제부터는
+// 사용자가 고른 방식으로 본다는 경계선이다.
+test("3단계 — \"여기까지는 과거였습니다\" 전환 문구가 있다", () => {
+  withDom(root => {
+    toStep3(root, SAMPLE);
+    const over = root.querySelector(".ob-over");
+    assert.ok(over && over.textContent, "전환 문구 노드가 없다");
+    assert.strictEqual(over.textContent, S.t.obPastDone, "전환 문구가 다르다: " + over.textContent);
+    assert.match(over.textContent, /과거/, "전환 문구에 '과거'가 없다: " + over.textContent);
+  });
+});
+
+// 단언 2 — 고르면 같은 구간의 판정·근거가 갱신된다. momentum 은 이 표본에서 판정 단어
+// 자체가 bull → neutral 로 실제로 갈린다(Task 1 실측) — 가장 강한 형태의 증명이다.
+test("3단계 — 고르면 같은 구간의 판정·근거가 실제로 갱신된다(momentum 은 판정 자체가 바뀐다)", () => {
+  withDom(root => {
+    toStep3(root, SAMPLE);   // 기본 선택은 trend — 32도구와 같은 결론(bull)이다.
+    const before = sig3(root);
+    pickStyle(root, "momentum");
+    const after = sig3(root);
+    assert.notStrictEqual(before, after, "성향을 바꿨는데 화면(판정+근거 구성)이 그대로다");
+    const note = root.querySelector(".ob32-verdict-note");
+    assert.ok(note && note.textContent, "판정 비교 문구가 없다");
+    assert.ok(note.className.indexOf("is-diff") >= 0,
+      "momentum(실측 neutral)인데 판정이 안 바뀐 것으로 표시된다: " + note.className);
+    assert.ok(note.textContent.indexOf(S.t.rpBullish) >= 0 && note.textContent.indexOf(S.t.rpFlat) >= 0,
+      "판정이 바뀌었는데 두 판정어(상승 우세/보합)가 문구에 둘 다 없다: " + note.textContent);
+  });
+});
+
+// 단언 3 — 다른 성향으로 바꿔 되돌릴 수 있다. 두 번 고르면 두 번 갱신되고, 같은 성향으로
+// 되돌리면 처음과 같은 결과가 다시 나온다(계산이 안정적이다) — 죽은 컨트롤이 아니다.
+test("3단계 — 다른 성향으로 바꿔 되돌릴 수 있다(두 번 고르면 두 번 갱신된다)", () => {
+  withDom(root => {
+    toStep3(root, SAMPLE);
+    const s0 = sig3(root);
+    pickStyle(root, "momentum");
+    const s1 = sig3(root);
+    assert.notStrictEqual(s0, s1, "첫 번째 선택(momentum)이 갱신되지 않았다");
+    const { preset: trendPreset } = pickStyle(root, "trend");
+    const s2 = sig3(root);
+    assert.notStrictEqual(s1, s2, "두 번째 선택(trend 로 되돌리기)이 갱신되지 않았다");
+    assert.strictEqual(s0, s2, "같은 성향(trend)으로 되돌렸는데 결과가 다르다 — 계산이 안정적이지 않다");
+    const on = root.querySelectorAll(".ob-style").filter(b => b.className.indexOf("is-on") >= 0);
+    assert.strictEqual(on.length, 1, "되돌린 뒤 선택 표시가 1개가 아니다: " + on.length);
+    assert.strictEqual(on[0].querySelector(".ob-style-name").textContent, trendPreset.name,
+      "되돌린 뒤 선택 표시가 trend 카드에 있지 않다");
+  });
+});
+
+// 단언 4 — 판정이 안 바뀌는 성향에서도 화면이 정직하다. 이 표본에서는 trend·reversion·
+// volatility 셋 다 32도구와 같은 결론(bull)이다 — 사용자 넷 중 셋이 보는 주 경로다. "같음"이
+// 초라해 보이지 않는지는 문구가 실제로 "당신 기준으로도 같은 결론입니다"를 말하는지로,
+// "아무 일도 안 하는 화면"이 아닌지는 판정 문구가 같아도 근거 구성(네 통의 개수)이 실제로
+// 달라지는지로 각각 잰다.
+test("3단계 — 판정이 안 바뀌는 성향에서도 화면이 정직하다(\"당신 기준으로도 같은 결론입니다\")", () => {
+  withDom(root => {
+    toStep3(root, SAMPLE);
+    const note = root.querySelector(".ob32-verdict-note");
+    assert.ok(note, "판정 비교 문구가 없다");
+    assert.ok(note.className.indexOf("is-same") >= 0,
+      "기본 선택(trend)은 32도구와 같은 결론(실측 bull)이어야 하는데 is-same 이 아니다: " + note.className);
+    assert.strictEqual(note.textContent, S.t.ob3SameNote, "같을 때 문구가 다르다: " + note.textContent);
+    const before = sig3(root);
+    pickStyle(root, "reversion");   // 실측: reversion 도 bull — 판정 문구는 그대로다.
+    const note2 = root.querySelector(".ob32-verdict-note");
+    assert.ok(note2.className.indexOf("is-same") >= 0,
+      "reversion(실측 bull)도 같은 판정이어야 하는데 is-same 이 아니다: " + note2.className);
+    assert.strictEqual(note2.textContent, S.t.ob3SameNote, "같을 때 문구가 다르다: " + note2.textContent);
+    const after = sig3(root);
+    assert.notStrictEqual(before, after,
+      "판정 문구는 같은데(trend→reversion) 근거 구성(동의·반대·무판정·자백 개수)까지 완전히 " +
+      "똑같다 — 화면이 아무 일도 안 한 것처럼 보인다");
+  });
+});
+
+// 구조 검증 — 네 통(동의·반대·무판정·자백)의 합이 그 성향이 실제로 선택한 지표 수와 같다
+// (4종 전부). 기대값은 onboarding.js 를 다시 구현해 뽑지 않는다 — ind-tiers.js(이미 검증된
+// 별도 모듈)를 직접 불러 비교한다(2단계의 "합이 32" 시험과 같은 원칙, 외부 불변 대 실행 결과).
+test("3단계 — 네 통의 합이 그 성향의 선택 지표 수와 같다(4종 전부)", () => {
+  const Tiers = require("../www/ind-tiers.js");
+  const G2 = require("../www/graph.js");
+  Tiers.PRESETS.forEach(p => {
+    withDom(root => {
+      toStep3(root, SAMPLE);
+      if (p.key !== "trend") pickStyle(root, p.key);   // trend 는 기본 선택이라 이미 그 상태다
+      const counts = root.querySelectorAll(".ob32-sec-count").map(e => Number(e.textContent));
+      assert.strictEqual(counts.length, 4, p.key + " — 동의·반대·무판정·자백 네 섹션이 다 있어야 한다");
+      const sum = counts.reduce((a, b) => a + b, 0);
+      const n = Tiers.selectionOf(p.key, G2.BASIC).length;
+      assert.strictEqual(sum, n, p.key + " — 네 통의 합(" + sum + ")이 선택 지표 수(" + n + ")와 다르다");
+      const onDesc = root.querySelectorAll(".ob-style").filter(b => b.className.indexOf("is-on") >= 0)[0]
+        .querySelector(".ob-style-desc").textContent;
+      assert.ok(onDesc.indexOf(String(n)) >= 0, p.key + " 카드 설명에 지표 수(" + n + ")가 안 보인다: " + onDesc);
+    });
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
 // 품질 다섯 규칙(설계서 §5, Task 2) — Q1·Q5 는 onboarding-quality.js 의 metric()·stat() 이
 // 스스로 강제한다(기준 시점·해석 없이는 만들 수 없다, test/onboarding-quality.test.mjs 참고).
 // Q2·Q4 는 여기서 각 단계 렌더 결과를 재고, Q3 은 소스 형태를 잰다.
@@ -1358,10 +1503,7 @@ function walkToStep(root, target) {
   O.render(root, { sample: SAMPLE });
   for (var s = 1; s < target; s++) {
     if (s === 1) root.querySelector(".ob-guess-btn").click();
-    if (s === 3) {
-      var cb = root.querySelector(".ob-agree-cb");
-      if (cb) { cb.checked = true; (cb.listeners.change || []).forEach(function (f) { f({}); }); }
-    }
+    // Task 5: 3단계(성향)는 기본 선택이 항상 채워져 있어 별도 입력 없이 다음으로 넘어간다.
     if (s === 4) {
       var pick = root.querySelector(".ob-pick");
       if (pick) pick.click();

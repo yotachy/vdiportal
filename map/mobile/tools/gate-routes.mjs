@@ -130,6 +130,78 @@ export const ROUTES = [
         "if(!agreeRows.length) return false;" +                    // 동의가 있어야 하는 표본인데 없다
         "var r0=agreeRows[0];" +
         "if(!r0.querySelector('.ob32-name')||!r0.querySelector('.ob32-text')) return false;" +
+        // ── 3단계(Task 5) — 성향을 고르면 같은 구간의 판정·근거가 실제로 갱신된다 ──────
+        // fwd 는 1단계 시점에 잡은 참조라 다시 쓰지 않는다 — draw() 가 매번 rootEl.innerHTML
+        // 을 비우고 새 버튼을 만들므로 안전하게 다시 querySelector 한다.
+        "var fwd2=document.querySelector('.ob-next');" +
+        "if(!fwd2) return false;" +
+        "fwd2.click();" +                                          // 2 -> 3
+        "var over3=document.querySelector('.ob-over');" +
+        "if(!over3||over3.textContent!==MSStr.t.obPastDone) return false;" + // "여기까지는 과거였습니다"
+        "var styleBtns=document.querySelectorAll('.ob-style');" +
+        "if(styleBtns.length!==4) return false;" +                 // 성향 4종
+        "var onBefore=Array.prototype.slice.call(styleBtns).filter(function(b){return b.className.indexOf('is-on')>=0;});" +
+        "if(onBefore.length!==1) return false;" +                  // 언제나 정확히 1개 선택(단언 1)
+        // 판정·근거 서명 — 네 통 개수(순서 고정) + 성향 기준 판정어. 문자열 전체 비교가
+        // 아니라 "무엇이 달라졌는가"를 구체적으로 잰다(브리프 경고).
+        "function sig3(){" +
+          "var counts=Array.prototype.slice.call(document.querySelectorAll('.ob32-sec-count')).map(function(e){return e.textContent;});" +
+          "var rows=document.querySelectorAll('.ob32-cmp-row');" +
+          "var v=rows[1]?rows[1].querySelector('.ob32-cmp-v').textContent:'';" +
+          "return counts.join(',')+'|'+v;" +
+        "}" +
+        "if(document.querySelectorAll('.ob32-cmp-row').length!==2) return false;" +
+        "var note3=document.querySelector('.ob32-verdict-note');" +
+        "if(!note3||!note3.textContent) return false;" +
+        // 기본 선택(trend)은 실측상 32도구와 같은 결론(bull)이다 — 이 화면의 주 경로가
+        // 초라하지 않은지: is-same 이고 정직 문구가 실제로 있다(단언 4).
+        "if(note3.className.indexOf('is-same')<0) return false;" +
+        "if(note3.textContent!==MSStr.t.ob3SameNote) return false;" +
+        "var sigTrend=sig3();" +
+        // momentum 카드를 이름으로 찾아 클릭 — 이 표본에서 momentum 만 regime 이 bull→neutral
+        // 로 실제로 갈린다(Task 1 실측). PRESETS 순서에 기대지 않는다.
+        "var Tiers=MSIndTiers;" +
+        "var momentum=null;" +
+        "for(var pi=0;pi<Tiers.PRESETS.length;pi++){ if(Tiers.PRESETS[pi].key==='momentum'){ momentum=Tiers.PRESETS[pi]; break; } }" +
+        "if(!momentum) return false;" +
+        "var momBtn=null;" +
+        "for(var bi=0;bi<styleBtns.length;bi++){" +
+          "var nm=styleBtns[bi].querySelector('.ob-style-name');" +
+          "if(nm&&nm.textContent===momentum.name){ momBtn=styleBtns[bi]; break; }" +
+        "}" +
+        "if(!momBtn) return false;" +
+        "momBtn.click();" +                                        // 고른다 — 갱신 1회차(단언 2·3)
+        // draw() 가 클릭마다 rootEl.innerHTML 을 비우고 새 버튼을 만든다 — momBtn 은 이제
+        // detached 다(클릭 자체는 살아있는 리스너라 여전히 통했지만, className 조회는 새로
+        // 그려진 노드를 다시 querySelector 해야 한다). 이후로도 클릭할 때마다 이렇게 다시 잰다.
+        "var stylesAfterMom=document.querySelectorAll('.ob-style');" +
+        "var onAfterMom=Array.prototype.slice.call(stylesAfterMom).filter(function(b){return b.className.indexOf('is-on')>=0;});" +
+        "if(onAfterMom.length!==1) return false;" +
+        "if(onAfterMom[0].querySelector('.ob-style-name').textContent!==momentum.name) return false;" + // 선택 표시가 실제로 옮겨간다
+        "var sigMom=sig3();" +
+        "if(sigMom===sigTrend) return false;" +                     // 판정+근거가 그대로면 죽은 컨트롤
+        "var noteMom=document.querySelector('.ob32-verdict-note');" +
+        "if(!noteMom||noteMom.className.indexOf('is-diff')<0) return false;" + // 판정 자체가 바뀐다
+        "if(noteMom.textContent.indexOf(MSStr.t.rpBullish)<0||noteMom.textContent.indexOf(MSStr.t.rpFlat)<0) return false;" +
+        // trend 로 되돌린다 — 갱신 2회차(단언 3), 처음과 같은 서명으로 돌아와야 한다. 방금
+        // 다시 잰 stylesAfterMom(현재 DOM)에서 찾는다 — 위 staleness 주의와 같은 이유.
+        "var trend=null;" +
+        "for(var pj=0;pj<Tiers.PRESETS.length;pj++){ if(Tiers.PRESETS[pj].key==='trend'){ trend=Tiers.PRESETS[pj]; break; } }" +
+        "if(!trend) return false;" +
+        "var trendBtn=null;" +
+        "for(var bj=0;bj<stylesAfterMom.length;bj++){" +
+          "var nm2=stylesAfterMom[bj].querySelector('.ob-style-name');" +
+          "if(nm2&&nm2.textContent===trend.name){ trendBtn=stylesAfterMom[bj]; break; }" +
+        "}" +
+        "if(!trendBtn) return false;" +
+        "trendBtn.click();" +
+        "var sigBack=sig3();" +
+        "if(sigBack!==sigTrend) return false;" +                    // 되돌리니 처음과 같다(계산이 안정적)
+        "var stylesAfterBack=document.querySelectorAll('.ob-style');" +
+        "var onAfterBack=Array.prototype.slice.call(stylesAfterBack).filter(function(b){return b.className.indexOf('is-on')>=0;});" +
+        "if(onAfterBack.length!==1||onAfterBack[0].querySelector('.ob-style-name').textContent!==trend.name) return false;" +
+        "var noteBack=document.querySelector('.ob32-verdict-note');" +
+        "if(!noteBack||noteBack.className.indexOf('is-same')<0) return false;" +
         "return true;" +
       "})()" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데

@@ -47,7 +47,10 @@
 .ob-cost-name { font-size:var(--fs-sub); color:var(--ink-3); }
 .ob-cost-num { font-size:var(--fs-sub); font-weight:var(--fw-bold); font-variant-numeric:tabular-nums; color:var(--ink); }
 
-/* 5단계 — 위험 고지 + 약관 체크박스. 강조는 배경·아웃라인으로만(좌측 라인 금지). */
+/* 예전 3단계 — 위험 고지 + 약관 체크박스. 이 화면(step3)이 성향으로 재설계되며(Task 5)
+   여기 클래스는 지금 쓰이지 않는다 — Task 6 이 새 4단계(동의)를 지을 때 재사용하거나
+   새로 짓는다(.ob-styles 를 Task 4 가 남겨 둔 것과 같은 관례). 지우지 않고 남겨 둔다.
+   강조는 배경·아웃라인으로만(좌측 라인 금지). */
 .ob-risk { margin:16px 0 0; font-size:var(--fs-sub); line-height:1.65; color:var(--ink-3); }
 .ob-agree { display:flex; align-items:flex-start; gap:10px; margin-top:22px; padding:14px;
             border:1px solid var(--border); border-radius:10px; background:var(--sheet); cursor:pointer; }
@@ -100,8 +103,9 @@
 .tp-confirm { width:100%; margin-top:16px; }
 .tp-confirm[disabled] { opacity:.5; }
 
-/* ===== 7단계 개편(시안 정본 §2) =====
-   1 콜드오픈 · 2 투자성향 · 3 위험고지 · 4~6 3모드 체험 · 7 완료·가격표. */
+/* ===== 7단계 개편(시안 정본 §2, 2026-08-18 3막 재설계로 슬롯 의미 갱신) =====
+   1 콜드오픈 · 2 같은 구간 32개 전부 · 3 성향(고르면 판정·근거가 갱신된다) ·
+   4~6 3모드 체험(4단계는 이후 태스크가 동의로 재설계) · 7 완료·가격표. */
 .ob-seg.is-done { background:var(--gold-dim, var(--gold)); opacity:.5; }
 
 /* 1단계 — 직접 찍기. 두 버튼은 같은 무게다(정답을 암시하지 않는다). */
@@ -186,9 +190,10 @@
 .ob32-expand { display:block; margin-top:6px; min-height:44px; padding:0 4px; border:0; background:transparent;
   color:var(--gold); font-size:var(--fs-caption); font-weight:var(--fw-semibold); text-align:left; }
 
-/* 2단계(옛) — 투자성향. 이 화면(step2)이 32도구 재설계로 옮겨가며 여기 클래스는 지금
-   쓰이지 않는다 — 다음 태스크가 3단계(성향)를 지을 때 재사용하거나 새로 짓는다. 지우지
-   않고 남겨 둔다(당장 아무도 안 써도 다음 태스크가 참고할 수 있다). */
+/* 3단계(재설계, Task 5) — 성향 카드 4개. Task 4 가 2단계를 32도구로 옮기며 이 클래스들을
+   미리 남겨 뒀고(당시 주석: "다음 태스크가 3단계를 지을 때 재사용"), 여기서 그대로 쓴다.
+   카드 설명(.ob-style-desc)엔 이 성향이 선택하는 지표 수를 적는다 — 판정 문구가 같아도
+   지표 수·근거 구성은 4종 모두 다르다는 것을 카드 단계에서부터 드러낸다. */
 .ob-styles { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
 .ob-style { display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%;
   padding:13px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface);
