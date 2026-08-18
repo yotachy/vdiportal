@@ -569,6 +569,16 @@ async function withDomWallet(wallet, fn, extra) {
 
 function flush() { return new Promise(r => setTimeout(r, 0)); }
 
+// 리뷰 C2 — 5단계의 "못 찾음"/"봉 부족" 시험은 www/api.js 를 통째 우회하는 손으로 짠 가짜
+// MSApi 대신, **실물** api.js(loadTicker→normalizeCandles)를 그대로 태우고 global.fetch 만
+// 갈아끼운다. 그래야 온보딩이 실제로 받는 오류 모양(err.notfound·err.message 접두)이 그대로
+// 재현된다 — 손으로 짠 가짜는 "봉 부족"을 온보딩이 상상하는 모양으로만 만들 수 있어서, 실제
+// api.js 가 이미 1day 에 220을 강제한다는 사실(온보딩의 옛 로컬 문턱 60과 어긋났다)을 이
+// 시험이 하나도 못 봤다.
+function fetchReturning(json) {
+  return function () { return Promise.resolve({ json: function () { return Promise.resolve(json); } }); };
+}
+
 // isInstalled() 를 흉내내지 않는다 — 실 MSWallet.get() 은 backend 미설치를 그냥 { ok:false } 로
 // 돌려준다(wallet.js noBackend), onboarding.js 도 그 경로 하나만 탄다.
 function spyWallet(result, costs) {
@@ -1583,7 +1593,9 @@ test("5단계 — 종목을 골라도 분석이 시작되지 않는다, [분석 
   withDom(root => {
     toStep5(root);
     assert.strictEqual(root.querySelector(".ob-next").disabled, true, "5단계 진입 시점부터 이미 열려 있다");
-    const readyNote = () => root.querySelectorAll(".ob-note").filter(n => deepText(n) === S.t.obPickReady);
+    // 이제 종목명이 앞에 붙는다(리뷰 C1) — 정확한 이름을 요구하면 어느 칩을 골랐는지에
+    // 시험이 결합된다, 접미 문구 포함 여부만 본다.
+    const readyNote = () => root.querySelectorAll(".ob-note").filter(n => deepText(n).indexOf(S.t.obPickReadySuffix) >= 0);
     assert.strictEqual(readyNote().length, 0, "5단계에 들어오자마자 '선택을 마쳤습니다'가 떠 있다");
 
     pickChip(root);   // 선택만 한다 — 아직 아무것도 실행하지 않는다
@@ -1602,6 +1614,49 @@ test("5단계 — 종목을 골라도 분석이 시작되지 않는다, [분석 
   });
 });
 
+// 리뷰 C1(2026-08-19) — 확정한 뒤 다른 종목으로 바꾸면 "다음"이 열린 채로 남고, 6·7단계로
+// 넘어가면 화면에 보이는 새 선택이 아니라 옛 확정 종목의 분석 결과가 나갔다. onChange 가
+// state.pickError 만 지우고 state.sym/tut/r1/r2 는 그대로 뒀던 것이 원인이다.
+//
+// 선택을 "바꾸는" 실제 제스처는 두 클릭이다 — 피커가 multi:true,max:1 이라 정원이 찬
+// 상태에서 다른 칩을 바로 누르면 그 클릭 자체가 거부된다(가득 찼다는 안내만 뜨고
+// onChange 가 안 불린다 — ticker-picker.js toggle() 의 기존 동작, 이 태스크가 만든
+// 결함이 아니다). 그래서 먼저 확정된 칩을 다시 눌러 끄고(해제), 그다음 새 칩을 누른다 —
+// 무효화가 정확히 "해제되는 순간"(item 이 없어지는 순간) 일어나는지를 잰다.
+test("5단계(리뷰 C1) — 확정한 뒤 선택을 해제하면 확정이 무효화된다(다음이 다시 닫힌다)", () => {
+  withDom(root => {
+    toStep5(root);
+    const first = pickChip(root);                    // 005930(삼성전자) — CURATED[0]
+    root.querySelector(".ob-pick-start").click();     // 확정 — API 층이 없으니 즉시
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false, "확정했는데 다음이 안 열렸다");
+    const readyAfterFirst = root.querySelectorAll(".ob-note").filter(n => deepText(n).indexOf(S.t.obPickReadySuffix) >= 0);
+    assert.strictEqual(readyAfterFirst.length, 1, "첫 확정 후 결과 문구가 없다");
+    assert.strictEqual(first.getAttribute("data-sym"), "005930", "pickChip 의 기본 선택 전제(CURATED[0])가 바뀌었다");
+    assert.ok(deepText(readyAfterFirst[0]).indexOf("삼성전자") >= 0,
+      "첫 확정 결과 문구가 그 종목(삼성전자)을 안 담았다: " + deepText(readyAfterFirst[0]));
+
+    pickChip(root, "005930");                          // 확정된 칩을 다시 눌러 해제한다(선택 변경의 첫 클릭)
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true,
+      "선택을 해제했는데 '다음'이 여전히 열려 있다 — 옛 확정(005930)이 무효화되지 않았다");
+    const readyAfterDeselect = root.querySelectorAll(".ob-note").filter(n => deepText(n).indexOf(S.t.obPickReadySuffix) >= 0);
+    assert.strictEqual(readyAfterDeselect.length, 0,
+      "선택을 해제했는데 옛 확정의 결과 문구가 아직 남아 있다");
+
+    pickChip(root, "NVDA");                            // 이제 정원이 비었으니 새 칩을 고를 수 있다
+    assert.strictEqual(root.querySelector(".ob-next").disabled, true,
+      "새 종목을 고르기만 했는데 다음이 열렸다 — 선택이 곧 실행이 되는 옛 버그다");
+
+    // 새로 고른 종목으로 다시 [분석 시작]을 눌러야 비로소 다음이 열리고, 그 결과가 실제로
+    // NVDA(엔비디아) 것이어야 한다 — 옛 확정(005930)의 잔재가 아니다.
+    root.querySelector(".ob-pick-start").click();
+    assert.strictEqual(root.querySelector(".ob-next").disabled, false, "재확정 후에도 다음이 안 열렸다");
+    const readyAfterReconfirm = root.querySelectorAll(".ob-note").filter(n => deepText(n).indexOf(S.t.obPickReadySuffix) >= 0);
+    assert.strictEqual(readyAfterReconfirm.length, 1, "재확정 후 결과 문구가 없다");
+    assert.ok(deepText(readyAfterReconfirm[0]).indexOf("엔비디아") >= 0,
+      "재확정 결과 문구가 새 종목(엔비디아)을 안 담았다: " + deepText(readyAfterReconfirm[0]));
+  });
+});
+
 // canAdvance(5) 소스 자체가 state.r1 을 참조하지 않는지 — "말로는 안 쓴다"가 아니라 실제
 // 코드 모양으로 잰다(구조적 증명, 위 두 시험은 행동으로 증명한다).
 test("5단계 — canAdvance 의 5단계 분기는 state.r1 을 참조하지 않는다(소스 형태)", () => {
@@ -1613,8 +1668,8 @@ test("5단계 — canAdvance 의 5단계 분기는 state.r1 을 참조하지 않
 
 // 단언 5 — 종목을 못 찾거나 봉이 부족하면 다음 행동 버튼이 있다(막다른 골목 금지). 정상
 // 경로만 돌리고 "버튼 있음"을 단언하면 자명 통과다 — 실제로 그 상태를 만들어 잰다.
-test("5단계 — 종목을 못 찾으면 '다른 종목 선택' 버튼이 실제로 뜬다(막다른 골목 금지)", async () => {
-  const fakeApi = { loadTicker: function () { return Promise.reject({ notfound: true }); } };
+test("5단계 — 종목을 못 찾으면 '다른 종목 선택' 버튼이 실제로 뜬다(막다른 골목 금지, 실물 MSApi 경로)", async () => {
+  const RealApi = require("../www/api.js");
   const wallet = spyWallet({ ok: false, state: null, reason: "network" });
   await withDomWallet(wallet, async (root) => {
     toStep5(root);
@@ -1632,14 +1687,19 @@ test("5단계 — 종목을 못 찾으면 '다른 종목 선택' 버튼이 실�
     retry.click();
     assert.ok(root.querySelector(".tp-grid"), "다시 골라야 하는데 종목 고르기 그리드가 사라졌다");
     assert.strictEqual(root.querySelector(".ob-warn"), null, "다시 고르는 화면에 옛 경고가 남아 있다");
-  }, { MSApi: fakeApi });
+  }, { MSApi: RealApi, fetch: fetchReturning({ ok: false, error: "notfound", suggest: [] }) });
 });
 
-test("5단계 — 봉이 부족하면(찾았지만 데이터가 얕으면) '다른 종목 선택' 버튼이 실제로 뜬다", async () => {
-  // 찾긴 했지만 40봉뿐이다(문턱 60 미만) — "찾을 수 없음"과는 다른 실패 갈래다.
+// 리뷰 C2(2026-08-19) — 손으로 짠 가짜 MSApi(candle.length<=60)는 온보딩의 옛 로컬 문턱만
+// 격리해서 쟀다. 실물 api.js 는 1day 에 220을 강제하고(MIN_BARS), 그 미달은 err.notfound
+// 없는 일반 Error 로 던진다(리뷰어 실측: "not enough bars: 80 < 220 (1day), notfound
+// flag: undefined") — 이 시험은 정확히 그 모양을 실물 경로로 재현한다: candles 를 80개만
+// 주는 성공 JSON(ok:true)을 fetch 가 돌려주면, normalizeCandles() 가 실제로 그 오류를
+// 던지고 MSApi.isBarsShort() 가 그것을 알아본다.
+test("5단계(리뷰 C2) — 봉이 부족하면(실물 api.js 의 220 하한 미달) '다른 종목 선택' 버튼이 뜬다 — 조용한 번들 치환 없음", async () => {
+  const RealApi = require("../www/api.js");
   const thinCandles = [];
-  for (let i = 0; i < 40; i++) thinCandles.push({ t: "2026-01-0" + (1 + (i % 9)), o: 1, h: 1.1, l: 0.9, c: 1, v: 100 });
-  const fakeApi = { loadTicker: function () { return Promise.resolve({ candle: thinCandles }); } };
+  for (let i = 0; i < 80; i++) thinCandles.push({ o: 1, h: 1.1, l: 0.9, c: 1, v: 100, t: "2026-01-01" });
   const wallet = spyWallet({ ok: false, state: null, reason: "network" });
   await withDomWallet(wallet, async (root) => {
     toStep5(root);
@@ -1647,14 +1707,14 @@ test("5단계 — 봉이 부족하면(찾았지만 데이터가 얕으면) '다�
     root.querySelector(".ob-pick-start").click();
     await flush();
     const warn = root.querySelector(".ob-warn");
-    assert.ok(warn, "봉 부족 상태인데 경고 문구가 없다");
+    assert.ok(warn, "봉 부족 상태인데 경고 문구가 없다 — 조용히 번들로 치환됐을 수 있다(리뷰 C2가 잡은 바로 그 결함)");
     assert.strictEqual(deepText(warn), S.t.obPickThin, "봉 부족 문구가 obPickThin 이 아니다: " + deepText(warn));
     const retry = root.querySelector(".ob-retry");
     assert.ok(retry, "다음 행동 버튼(.ob-retry)이 없다 — 막다른 골목이다");
     assert.strictEqual(root.querySelector(".ob-next").disabled, true, "봉이 부족한데 다음이 열려 있다");
     retry.click();
     assert.ok(root.querySelector(".tp-grid"), "다시 골라야 하는데 종목 고르기 그리드가 사라졌다");
-  }, { MSApi: fakeApi });
+  }, { MSApi: RealApi, fetch: fetchReturning({ ok: true, tf: "1day", candles: thinCandles, symbol: "PLTR", name: "Palantir" }) });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════

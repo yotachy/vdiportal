@@ -240,7 +240,12 @@
     // "못 찾음"·"봉 부족"은 진짜 실패로 다루고(막다른 골목 없이 다른 종목을 고를 수 있게
     // 한다), API 층 자체가 아예 없는 환경(빌드/미리보기)에서만 예전처럼 번들로 물러선다 —
     // 그건 종목의 문제가 아니라 환경의 문제이기 때문이다.
-    var MIN_BARS = 60;   // 기존 폴백 문턱과 동일 — 이 아래면 지표가 사실상 계산되지 않는다
+    // 리뷰 C2 — 옛 로컬 문턱(MIN_BARS=60)을 지웠다. api.js 의 normalizeCandles() 가 1day 에
+    // 이미 220을 강제한다(scanAlerts 와 같은 기준) — 그래서 Promise 가 성공으로 떨어지면
+    // 그 시점에 이미 충분한 봉이라는 뜻이고, `> 60` 검사는 항상 참인 죽은 코드였다(리뷰어
+    // 실측: 80봉짜리 종목조차 normalizeCandles 단계에서 이미 던진다, notfound 플래그 없이).
+    // "봉 부족"은 이제 그 실패(캐치 쪽 MSApi.isBarsShort)로만 판별한다 — 두 곳에 서로 다른
+    // 숫자(60 vs 220)를 두지 않는다.
     function loadPick(pick, done) {
       // 그 사이 사용자가 다른 종목을 새로 골랐으면 이 응답은 이미 낡았다 — 버린다
       // (verifyPick 이 checking 을 시작할 때의 pick 을 그대로 캡처해 넘기므로, 여기서
@@ -264,12 +269,25 @@
       var s = sample();
       if (typeof MSApi === "undefined" || !MSApi.loadTicker) { commit(s, true); return; }   // API 층 자체가 없다 — 환경 문제
       MSApi.loadTicker(pick.sym, TF).then(function (d) {
-        if (d && d.candle && d.candle.length > MIN_BARS) commit(d, false);
-        else fail("thin");                                    // 찾았지만 봉이 부족하다
+        if (d && d.candle && d.candle.length) commit(d, false);
+        else fail("thin");   // 응답은 왔는데 봉이 비어 있다(방어적 — normalizeCandles 를 통과했다면 보통 없다)
       })["catch"](function (err) {
-        if (err && err.notfound) fail("notfound");             // 종목을 못 찾았다
-        else commit(s, true);                                  // 네트워크 문제 — 종목이 아니라 접속 문제라 번들로 물러선다
+        // report.js 와 같은 판별 함수(MSApi.isBarsShort, api.js 소유) — 문자열을 다시
+        // 매칭하지 않는다. 리뷰 C2 전에는 이 갈래가 아예 없어서 봉 부족(220 미만, notfound
+        // 플래그 없는 일반 Error)이 else 로 새어 조용히 번들 표본으로 치환됐다.
+        if (typeof MSApi !== "undefined" && MSApi.isBarsShort && MSApi.isBarsShort(err)) fail("thin");
+        else if (err && err.notfound) fail("notfound");        // 종목을 못 찾았다
+        else commit(s, true);   // 그 외 네트워크 문제 — 종목이 아니라 접속 문제라 번들로 물러선다
       });
+    }
+
+    // 확정 산물을 되돌린다 — commit() 이 채우는 것과 정확히 같은 필드를 비운다(리뷰 C1).
+    // 선택이 바뀌면(다른 종목을 고르거나 고른 것을 지우면) 이전 [분석 시작] 결과는 더는
+    // 유효하지 않다 — 안 지우면 확정 뒤 다른 칩으로 바꿔도 "다음"이 계속 열린 채로 남고,
+    // 화면엔 새 종목이 선택돼 있는데 다음 단계로 넘어가는 건 옛 종목의 분석 결과가 된다.
+    function invalidateConfirmed() {
+      state.sym = null; state.symName = null; state.tut = null;
+      state.r1 = null; state.r2 = null; state.r3 = null; state.picked = [];
     }
 
     // ── 1단계: 콜드 오픈 ─────────────────────────────────────────────────────────
@@ -826,8 +844,13 @@
         multi: true, max: 1,
         preset: state.pick ? [state.pick] : [],
         onChange: function (selSyms, items) {
-          // 새로 고른 순간 이전 시도의 오류·확정은 의미를 잃는다 — 다시 확인해야 한다.
-          state.pick = items.length ? items[0] : null;
+          var next = items.length ? items[0] : null;
+          // 리뷰 C1 — 확정된 종목과 다른 선택이면(또는 선택을 지우면) 이전 확정을
+          // 무효화한다. pickError 만 지우던 옛 코드는 state.sym/tut/r1/r2 가 그대로
+          // 남아 canAdvance(5)(=!!state.sym)가 계속 열려 있었다 — 화면엔 새 종목이
+          // 선택돼 있는데 다음으로 넘어가면 옛 종목의 분석 결과가 나가는 버그였다.
+          if (state.sym && (!next || next.sym !== state.sym)) invalidateConfirmed();
+          state.pick = next;
           state.pickError = null;
           draw();
         }
@@ -866,7 +889,9 @@
         });
         w.appendChild(retry);
       } else if (state.sym) {
-        w.appendChild(el("p", "ob-note", MSStr.t.obPickReady));
+        // 어느 종목을 확정했는지 이름을 담는다(리뷰 C1) — 문구가 종목명을 안 담으면
+        // "선택 표시(칩)"와 "실제로 확정된 종목"이 어긋나도 사용자가 눈치챌 수 없다.
+        w.appendChild(el("p", "ob-note", state.symName + MSStr.t.obPickReadySuffix));
       }
 
       return w;

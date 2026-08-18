@@ -66,6 +66,15 @@
     };
   }
 
+  // 봉 부족 오류인지 판별한다 — normalizeCandles() 가 던지는 그 메시지 접두(rpBarsShort)로
+  // 안다. report.js 가 원래 이 판별을 자기 파일 안에 따로 갖고 있었다(같은 로직을 다시
+  // 짰다) — 여기(오류를 만드는 자리)로 올려 report.js·온보딩 5단계가 함수 하나를 같이
+  // 부르게 한다. 문자열을 다시 매칭하는 코드가 두 곳에 있으면 접두가 바뀔 때 한쪽만 낡는다.
+  function isBarsShort(err) {
+    return !!(err && typeof err.message === "string" &&
+      err.message.indexOf(typeof MSStr !== "undefined" ? MSStr.t.rpBarsShort : "not enough bars") === 0);
+  }
+
   // 조회 + 오타 구제. 서버가 notfound 일 때 Yahoo 기반 제안을 최대 3건 준다(forge-api.php).
   function loadTicker(symbol, tf, fetchImpl) {
     var f = fetchImpl || (typeof fetch === "function" ? fetch : null);
@@ -78,5 +87,6 @@
     });
   }
 
-  return { API_BASE: API_BASE, MIN_BARS: MIN_BARS, ohlcUrl: ohlcUrl, normalizeCandles: normalizeCandles, loadTicker: loadTicker };
+  return { API_BASE: API_BASE, MIN_BARS: MIN_BARS, ohlcUrl: ohlcUrl, normalizeCandles: normalizeCandles,
+           isBarsShort: isBarsShort, loadTicker: loadTicker };
 });
