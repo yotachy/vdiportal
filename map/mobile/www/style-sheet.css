@@ -82,3 +82,31 @@ body.ms-dual .pane-report .rp-back { display:none; }
    한 화면에 골드가 둘이 된다. 선택은 사용자 상태이지 엔진 출력이 아니다. */
 body.ms-dual .wl-row.is-sel { background:var(--steel-soft); }
 
+/* ===== 공용 하단 시트(sheet.js, Task 5) =====
+   단계 선택(6b)·종목 추가(12a)·성향 변경(12b)·광고 권유가 전부 이 컴포넌트 하나를 쓴다.
+   위 .sheet-scrim/.sheet(tier-sheet.js·screens/watchlist.js 가 이미 직접 그린다)와는
+   이름을 겹치지 않게 새로 둔다 — 기존 두 소비자를 깨지 않고, P1 에서 그 화면들이
+   이 컴포넌트로 옮겨온다. --sheet 는 #11151d(style-base.css) — 시안 배경값과 같다. */
+.ms-sheet-backdrop {
+  position:fixed; inset:0; z-index:40;
+  display:flex; align-items:flex-end;
+  background:rgba(6,8,12,.62);
+}
+.ms-sheet {
+  width:100%; max-height:82vh; overflow-y:auto;
+  border-radius:28px 28px 0 0;
+  background:var(--sheet);
+  padding:18px 20px calc(20px + env(safe-area-inset-bottom));
+}
+.ms-sheet-title {
+  /* 브리프 원안은 20px/800/-0.03em 리터럴이었다 — 이 파일의 3축 관문(style-tokens.test.mjs)이
+     화면 CSS 의 font-size·font-weight·letter-spacing 을 토큰만 허용한다. 정확히 겹치는
+     크기 토큰은 없어 자간·무게가 원안과 같은 --fs-section(17px/800/-0.03em, 위 .sheet-tier-name-txt
+     와 동일 역할 — 시트 안 소제목급 타이틀)로 맞춘다. 보존 대상으로 지정된 값은 라운드 28·
+     82vh·안전영역 셋뿐이라(브리프), 이 근사는 그 셋을 건드리지 않는다. */
+  margin:0 0 14px;
+  font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section);
+  color:var(--ink);
+}
+.ms-sheet-open { overflow:hidden; }
+

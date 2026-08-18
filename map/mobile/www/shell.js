@@ -89,6 +89,8 @@
     // 같은 관례 — factory() 는 인자 없이 불린다, index.html 참고) — 자기 스코프의 `root`
     // 파라미터를 참조하면 어디서도 정의되지 않은 이름이라 backbutton 이 눌리는 순간 던진다.
     document.addEventListener("backbutton", function () {
+      // 시트가 열려 있으면 화면을 바꾸지 않는다 — 시트만 닫는다(Task 5).
+      if (MSSheet.closeTop()) return;
       if (!router.back() && typeof navigator !== "undefined" && navigator.app) navigator.app.exitApp();
     });
     return router;
