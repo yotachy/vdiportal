@@ -15,12 +15,17 @@
 //   4. @capacitor-community/admob(package.json)이 Google Play 서비스(AdMob 네이티브 SDK)를
 //      이미 하드 의존한다(variables.gradle 의 playServicesAdsVersion 주석) — 광고가 동작하는
 //      기기는 이미 Play 스토어 보유가 전제이므로 WebView 자동 업데이트 경로도 전제된다.
-//   5. **실측 이중검증**: async/await(ES2017, Chrome 55·2016-12)는 이미 scan.js·wallet.js 에
-//      프로덕션 배포돼 있다 — 사고 보고 없음. const/let/화살표/템플릿 리터럴(ES2015)은 이미
-//      www/*.js 45개 중 14개에 쓰인다. 이 파일들이 이미 동작하는 것 자체가 "ES5 만" 규칙이
-//      한 번도 진짜 관문이었던 적 없음을 보여준다.
+//   5. **정황(1차 근거를 지탱하진 않는 부수 증거, "이중검증"은 아니다)**: async/await
+//      (ES2017, Chrome 55·2016-12)는 실제 문법으로 scan.js 1개 파일에 이미 프로덕션
+//      배포돼 있다 — 사고 보고 없음(wallet.js 의 grep 일치는 61번 줄 주석일 뿐 실제 문법이
+//      아니다). const/let/화살표(ES2015)는 draw-panels.js·draw-layers.js·draw-preds.js
+//      3개 파일에서만 코드로 쓰인다 — 원 브리프가 위반으로 지목한 바로 그 세 파일이며,
+//      나머지 40여 파일의 grep 일치는 한국어 주석의 백틱 코드 표기나 문자열 리터럴이었다
+//      (2026-08-19 리뷰가 "14개 파일" 주장의 오류를 잡았다). 판정은 여전히 위 1~4(minSdk·
+//      Capacitor 자체 요구·GMS 의존)로 지탱된다 — 이 항목은 그 판정과 모순되지 않는다는
+//      확인일 뿐, 독자적 근거로 세지 않는다.
 //
-// 확정한 하한: **ES2017(Chrome 55, 2016-12)까지는 실측·플랫폼 근거 둘 다로 확정 안전.**
+// 확정한 하한: **ES2017(Chrome 55, 2016-12) — 위 1~4(플랫폼·의존성 근거)로 확정 안전.**
 // ES2018 이후(옵셔널 체이닝·null 병합·논리 대입·private 필드·Object.hasOwn·groupBy·배열
 // 비파괴 복사 메서드 등, 전부 ES2020~2024)는 "아마 안전하지만(자동 업데이트 경로가 실제로
 // 전 기기에 걸리는지는 검증 불가)" 이 저장소에 아직 필요하지도 않다 — 확실히 하한보다 나중
@@ -55,7 +60,7 @@ function code(src) {
 // 금지한다. const/let/화살표/템플릿 리터럴/async-await(ES2015~2017)는 실측 안전이라 이미
 // 여기 없다 — 다시 금지하면 이미 배포된 코드를 깨뜨린다.
 const RULES = [
-  { name: "옵셔널 체이닝(?.)", re: /\?\./, since: "ES2020 · Chrome 80(2020-01)" },
+  { name: "옵셔널 체이닝(?.)", re: /\?\.[A-Za-z_$[(]/, since: "ES2020 · Chrome 80(2020-01)" },   // 뒤 문자를 식별자/괄호로 제한 — 공백 없는 삼항+소수 "cond?.5:1" 오탐 방지(자기검증 아래 참조)
   { name: "null 병합(?? / ??=)", re: /\?\?/, since: "ES2020/2021 · Chrome 80/85" },
   { name: "논리 대입(||= / &&=)", re: /\|\|=|&&=/, since: "ES2021 · Chrome 85(2020-08)" },
   { name: "private 클래스 필드(this.#x)", re: /this\.#[A-Za-z_$]/, since: "ES2022 · Chrome 84(2020-07)" },
@@ -84,4 +89,10 @@ test("관문이 실제로 잡는다 — 규칙마다 위반 샘플이 걸린다"
     "배열 비파괴 복사(toSorted/toReversed/toSpliced)": "a.toSorted();"
   };
   for (const r of RULES) assert.ok(r.re.test(code(samples[r.name])), r.name + " 규칙이 자기 샘플을 못 잡는다");
+});
+
+test("옵셔널 체이닝 규칙은 공백 없는 삼항+소수(cond?.5:1)를 오탐하지 않는다", () => {
+  const optChain = RULES.find(r => r.name === "옵셔널 체이닝(?.)");
+  assert.ok(!optChain.re.test(code("var a = c?.5:1;")), "삼항+소수 리터럴을 옵셔널 체이닝으로 오탐한다");
+  assert.ok(optChain.re.test(code("var a = c?.b:1;")), "정작 진짜 옵셔널 체이닝(c?.b)은 잡아야 한다");
 });
