@@ -201,3 +201,15 @@
 .ob-cost-num { color:var(--ink-2); font-variant-numeric:tabular-nums; }
 .ob-cost-note { font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
 .ob-warn { font-size:var(--fs-caption); color:var(--warn, var(--ink-4)); line-height:1.6; }
+
+/* 품질 헬퍼(onboarding-quality.js Q1·Q5) — 수치엔 항상 기준 시점을, 수치 블록엔 항상
+   해석을 동반시킨다. 좌측 세로 컬러 라인 없이 배경·글자색으로만 위계를 준다(프로젝트 규율). */
+.obq-metric { display:flex; flex-direction:column; gap:2px; }
+.obq-value-row { display:flex; align-items:baseline; gap:4px; }
+.obq-value { font-size:var(--fs-num); font-weight:var(--fw-num); letter-spacing:var(--ls-num);
+             font-variant-numeric:tabular-nums; color:var(--ink); }
+.obq-unit { font-size:var(--fs-caption); color:var(--ink-4); }
+.obq-label { font-size:var(--fs-caption); color:var(--ink-4); }
+.obq-asof { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
+.obq-stat { display:flex; flex-direction:column; gap:6px; }
+.obq-meaning { font-size:var(--fs-sub); color:var(--ink-3); line-height:1.55; }

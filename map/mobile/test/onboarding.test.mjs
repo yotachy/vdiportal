@@ -13,6 +13,7 @@ const G = require("../www/graph.js");
 const IND = require("../www/indicators.js");
 const RM = require("../www/report-model.js");
 const CL = require("../www/chart-layout.js");
+const Q = require("../www/onboarding-quality.js");
 const APP = readFileSync(new URL("../www/app.js", import.meta.url), "utf8");
 const HTML = readFileSync(new URL("../www/index.html", import.meta.url), "utf8");
 const CSS = allCss();
@@ -989,4 +990,66 @@ test("엔진을 못 돌리면 판독 대신 이유를 말한다 — 첫 화면�
     const tail = root.querySelector(".ob-tail");
     assert.ok(tail && tail.textContent.length > 0, "엔진이 없어도 맞힘/틀림 갈래는 계속 렌더돼야 한다");
   });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// 품질 다섯 규칙(설계서 §5, Task 2) — Q1·Q5 는 onboarding-quality.js 의 metric()·stat() 이
+// 스스로 강제한다(기준 시점·해석 없이는 만들 수 없다, test/onboarding-quality.test.mjs 참고).
+// Q2·Q4 는 여기서 각 단계 렌더 결과를 재고, Q3 은 소스 형태를 잰다.
+//
+// MSObQuality.APPLIES 에 등록된 단계만 검사한다 — 단계를 하나씩 고쳐 나가므로, 아직
+// 손대지 않은 단계까지 검사하면 관문이 처음부터 빨갛고 아무도 신뢰하지 않게 된다.
+//
+// 지금은(Task 2 시점) APPLIES 가 비어 있어 아래 forEach 는 아무 단계도 검사하지 않는다 —
+// 이것이 정상이다. "APPLIES 가 비어 있으면 실패" 단언은 **일부러 여기 두지 않는다**:
+// 지금 켜면 이 태스크 자신의 완료 조건(전량 통과)과 즉시 모순된다. Task 3(1단계 화면)이
+// APPLIES 에 1 을 처음 넣으면서 그 단언을 함께 켠다(컨트롤러 판정, 2026-08-19) — 그 뒤로는
+// 다음 태스크가 자기 단계 등록을 잊으면 이 관문이 빨갛게 알려준다.
+// ══════════════════════════════════════════════════════════════════════════════════
+
+// 목표 단계까지 "다음"을 눌러 걸어간다 — 각 단계가 요구하는 최소 입력만 채운다. APPLIES 가
+// 비어 있는 동안은 한 번도 호출되지 않는다(forEach 가 빈 배열을 돈다) — 정확성은 Task 3+
+// 가 자기 단계를 등록하며 실제로 검증한다(toStep7 이 이미 하는 것과 같은 방식).
+function walkToStep(root, target) {
+  O.render(root, { sample: SAMPLE });
+  for (var s = 1; s < target; s++) {
+    if (s === 1) root.querySelector(".ob-guess-btn").click();
+    if (s === 3) {
+      var cb = root.querySelector(".ob-agree-cb");
+      if (cb) { cb.checked = true; (cb.listeners.change || []).forEach(function (f) { f({}); }); }
+    }
+    if (s === 4) {
+      var pick = root.querySelector(".ob-pick");
+      if (pick) pick.click();
+    }
+    root.querySelector(".ob-next").click();
+  }
+}
+
+Q.APPLIES.forEach((step) => {
+  test("Q2 — " + step + "단계는 진행 표시와 단계 제목을 함께 보여준다", () => {
+    withDom((root) => {
+      walkToStep(root, step);
+      assert.ok(root.querySelector(".ob-prog"), step + "단계에 진행 표시 노드가 없다");
+      assert.ok(root.querySelector(".ob-h"), step + "단계에 단계 제목 노드가 없다");
+    });
+  });
+
+  test("Q4 — " + step + "단계의 뒤로가기 가능 여부가 규칙과 맞는다(1~3 가능·4+ 불가)", () => {
+    withDom((root) => {
+      walkToStep(root, step);
+      const back = root.querySelector(".ob-back");
+      if (step <= 3) assert.ok(back, step + "단계는 뒤로 이동 가능해야 한다");
+      else assert.strictEqual(back, null, step + "단계는 뒤로 이동 불가해야 한다");
+    });
+  });
+});
+
+// Q3 은 특정 단계가 아니라 소스 전체의 형태를 잰다 — 진행이 시간에 묶이면(고정 타이머) 그
+// 진행이 실제 계산·응답을 반영하지 않게 된다. APPLIES 가 비어 있어도 지금 소스에 위반이
+// 없는지는 바로 검사할 수 있으므로 unconditional 로 둔다(회귀 방지).
+test("Q3 — 진행은 고정 타이머로 오르지 않는다 — 엔진 이벤트에 묶여야 한다", () => {
+  assert.doesNotMatch(OB, /setInterval\s*\(/, "setInterval 로 진행을 올렸다 — 시간이 아니라 엔진 이벤트에 묶여야 한다");
+  assert.doesNotMatch(OB, /setTimeout\([^)]*\b(step|prog)\s*(\+\+|\+=|=\s*\1\s*\+)/,
+    "setTimeout 누적으로 진행을 올렸다 — 시간이 아니라 엔진 이벤트에 묶여야 한다");
 });
