@@ -47,3 +47,28 @@ test("APPLIES 는 단계 번호 배열이고 중복이 없다", () => {
   assert.ok(Array.isArray(Q.APPLIES));
   assert.strictEqual(new Set(Q.APPLIES).size, Q.APPLIES.length, "같은 단계가 두 번 들어 있다");
 });
+
+// ── 리뷰 I1 — 공백뿐인 문자열이 규칙을 우회한다 ──────────────────────────────────
+// !opts.asOf 같은 falsy 검사는 "   "(공백뿐) 를 truthy 로 보고 통과시킨다 — "어길 수
+// 없는 API"라는 이 태스크의 존재 이유가 공백 하나로 뚫리면 무너진다. trim 후 내용이
+// 남는지로 검사해야 한다.
+test("I1 — 공백뿐인 기준 시점은 있는 것으로 치지 않는다", () => {
+  assert.throws(() => Q.metric({ value: "1", unit: "USD", asOf: "   ", label: "종가" }), /기준/,
+    "공백뿐인 asOf 로 metric 을 만들 수 있다 — falsy 검사가 공백에 뚫렸다");
+});
+
+test("I1 — 공백뿐인 해석은 있는 것으로 치지 않는다", () => {
+  const m = Q.metric({ value: "1", unit: "%", asOf: "2006.04.25", label: "오차" });
+  assert.throws(() => Q.stat({ metric: m, meaning: "   " }), /해석/,
+    "공백뿐인 meaning 으로 stat 을 만들 수 있다 — falsy 검사가 공백에 뚫렸다");
+});
+
+// "0"은 유효한 값이다(예: 오차 0%) — trim 검사가 "0"을 falsy 로 오판하면 새 규칙이
+// 또 다른 방식으로 뚫린다. 그 경계도 함께 잠근다.
+test("I1 — \"0\"은 유효한 값이라 계속 통과한다(trim 이 숫자 0을 falsy 로 오판하지 않는다)", () => {
+  assert.doesNotThrow(() => Q.metric({ value: "0", unit: "%", asOf: "0", label: "오차" }),
+    "asOf가 \"0\"이면 유효한 값인데도 던졌다");
+  const m = Q.metric({ value: "0", unit: "%", asOf: "2006.04.25", label: "오차" });
+  assert.doesNotThrow(() => Q.stat({ metric: m, meaning: "0" }),
+    "meaning이 \"0\"이면 유효한 값인데도 던졌다");
+});

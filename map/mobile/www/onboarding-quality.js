@@ -44,11 +44,19 @@
     return new FallbackNode(text);
   }
 
+  // 공백뿐인 문자열은 "값이 있다"로 치지 않는다 — asOf="   " 는 !opts.asOf 검사(falsy)를
+  // 통과해 버려서 규칙을 뚫는 구멍이었다(리뷰 I1). "0" 은 유효한 값이라 계속 통과해야
+  // 한다 — String(v).trim() 으로 앞뒤 공백만 걷어내고 내용이 남는지만 본다(숫자 0 을
+  // falsy 로 오판하지 않는다).
+  function hasContent(v) {
+    return v != null && String(v).trim() !== "";
+  }
+
   // Q1 — 수치와 기준 시점을 한 그룹으로 묶는다. asOf 없이는 만들 수 없다: 그것이
   // 규칙을 "어길 수 없게" 만드는 지점이다.
   function metric(opts) {
     opts = opts || {};
-    if (!opts.asOf) {
+    if (!hasContent(opts.asOf)) {
       throw new Error("기준 시점(asOf) 없이 수치를 만들 수 없다 — 값만 있는 숫자는 언제 것인지 몰라 오해를 부른다");
     }
     var wrap = makeNode("div", "obq-metric");
@@ -64,7 +72,7 @@
   // Q5 — 수치 블록엔 해석을 동반시킨다. meaning 없이는 만들 수 없다.
   function stat(opts) {
     opts = opts || {};
-    if (!opts.meaning) {
+    if (!hasContent(opts.meaning)) {
       throw new Error("해석(meaning) 없이 수치 블록을 만들 수 없다 — 숫자만 던지면 사용자가 뜻을 모른다");
     }
     var wrap = makeNode("div", "obq-stat");

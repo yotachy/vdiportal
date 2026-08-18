@@ -1035,21 +1035,61 @@ Q.APPLIES.forEach((step) => {
     });
   });
 
-  test("Q4 — " + step + "단계의 뒤로가기 가능 여부가 규칙과 맞는다(1~3 가능·4+ 불가)", () => {
+  // 리뷰 C2: 1단계에도 뒤로가기를 요구했었다 — 실제 렌더(screens/onboarding.js draw(),
+  // `step > 1`)와 애초에 안 맞는 규칙이었다(1단계는 시작점이라 되돌릴 앞이 없다. 부재가
+  // 정상이지 위반이 아니다). 규칙을 "뒤로가기는 2~3단계에만 있다"로 확정한다. 세 갈래를
+  // if(n!==1) 로 건너뛰지 않는다 — 1단계·2~3단계·4단계 이후 전부 각자 실제로 무언가를
+  // 잰다(이 저장소가 조용한 건너뜀에 여러 번 데었다).
+  test("Q4 — " + step + "단계의 뒤로가기 가능 여부가 규칙과 맞는다(1 없음·2~3 있음·4+ 없음)", () => {
     withDom((root) => {
       walkToStep(root, step);
       const back = root.querySelector(".ob-back");
-      if (step <= 3) assert.ok(back, step + "단계는 뒤로 이동 가능해야 한다");
-      else assert.strictEqual(back, null, step + "단계는 뒤로 이동 불가해야 한다");
+      if (step === 1) {
+        assert.strictEqual(back, null, "1단계는 시작점이라 뒤로 이동할 앞이 없어야 한다");
+      } else if (step === 2 || step === 3) {
+        assert.ok(back, step + "단계는 뒤로 이동 가능해야 한다(2~3단계)");
+      } else {
+        assert.strictEqual(back, null, step + "단계는 뒤로 이동 불가해야 한다(4단계 이후)");
+      }
     });
   });
 });
+
+// 리뷰 C1: [^)]* 는 콜백의 첫 "(" (예: function(){ 의 여는 괄호)에서 곧바로 막혀
+// 몸체 안의 step/prog 변이에 닿지 못했다(빨간불이 떠야 할 setTimeout(function(){ step++; })
+// 가 초록으로 통과했다 — 실측은 아래 "증명" 참고). 정규식으로 콜백 몸체 경계를 잡는 시도
+// 자체를 버린다 — 괄호 깊이를 세어 호출의 짝이 맞는 닫는 ")" 까지를 진짜로 잘라낸 뒤,
+// 그 몸체 문자열 **안에서만** step/prog 변이를 찾는다. 문자열 리터럴·주석까지 완벽히
+// 파싱하지 않는다(과잉이다) — 유효한 JS 라면 괄호는 항상 짝이 맞으므로(중괄호는 괄호
+// 안에 항상 중첩되어 있다) 괄호 깊이 세기만으로 호출 전체(콜백 몸체 포함)를 정확히
+// 잘라낼 수 있다.
+function timerCallBodies(src, name) {
+  const re = new RegExp("\\b" + name + "\\s*\\(", "g");
+  const out = [];
+  let m;
+  while ((m = re.exec(src))) {
+    const start = m.index + m[0].length;   // 여는 "(" 바로 다음
+    let depth = 1, i = start;
+    while (i < src.length && depth > 0) {
+      if (src[i] === "(") depth++;
+      else if (src[i] === ")") depth--;
+      i++;
+    }
+    out.push(src.slice(start, i - 1));     // 짝이 맞는 ")" 바로 앞까지 — 호출 인자 전체(콜백 몸체 포함)
+    re.lastIndex = i;                      // 이 호출 뒤부터 다음 호출을 찾는다(중첩 setTimeout 도 놓치지 않는다)
+  }
+  return out;
+}
 
 // Q3 은 특정 단계가 아니라 소스 전체의 형태를 잰다 — 진행이 시간에 묶이면(고정 타이머) 그
 // 진행이 실제 계산·응답을 반영하지 않게 된다. APPLIES 가 비어 있어도 지금 소스에 위반이
 // 없는지는 바로 검사할 수 있으므로 unconditional 로 둔다(회귀 방지).
 test("Q3 — 진행은 고정 타이머로 오르지 않는다 — 엔진 이벤트에 묶여야 한다", () => {
-  assert.doesNotMatch(OB, /setInterval\s*\(/, "setInterval 로 진행을 올렸다 — 시간이 아니라 엔진 이벤트에 묶여야 한다");
-  assert.doesNotMatch(OB, /setTimeout\([^)]*\b(step|prog)\s*(\+\+|\+=|=\s*\1\s*\+)/,
-    "setTimeout 누적으로 진행을 올렸다 — 시간이 아니라 엔진 이벤트에 묶여야 한다");
+  const accumRe = /\b(step|prog)\s*(\+\+|\+=|=\s*\1\s*\+)/;
+  ["setInterval", "setTimeout"].forEach((name) => {
+    timerCallBodies(OB, name).forEach((body) => {
+      assert.doesNotMatch(body, accumRe,
+        name + " 콜백이 진행(step/prog)을 누적한다 — 시간이 아니라 엔진 이벤트에 묶여야 한다: " + body.slice(0, 120));
+    });
+  });
 });
