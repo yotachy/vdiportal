@@ -101,3 +101,44 @@
 - **브라우저 관문이 실제로 잡는다(P0 실증)** — 모듈 관문 1505건이 전부 초록인 채로 리포트가 100% 죽어 있던 것을 `gate-browser.mjs` 가 잡아냈고, `MSPredDraw`/`MSPredLog` 분해 후 재실행하니 6건 전부 통과·리포트 스크린샷이 실제 가격·차트·판정을 그린다. `all` 스코프에 안 넣는 결정이 옳았다는 근거이자, 화면을 건드리는 모든 태스크가 이 관문을 돌려야 하는 이유
 - **활성 탭 표시는 배경 pill 로 확인됨** — `app-watchlist.png`/`app-report.png`/`app-wallet.png` 육안 확인 결과 좌측 세로 라인 없이 배경색만으로 활성 탭이 구분됨(디자인 금지 규율 준수 확인)
 - **지갑 스크린샷 "NaN일 남음"은 mock 결함이었다(프로덕션 버그 아님)** — `wallet-lib.php` w_state() 의 실제 반환 필드는 `{balance, cap, streakDays, canCheckin}`인데 `gate-browser.mjs` mock 은 `{streak, checkedIn, today}`(전부 서버에 없는 이름)를 심었다. `screens/wallet.js` 의 `7 - (state.streakDays % 7)` 이 undefined 를 나눠 NaN 이 됐다. mock 필드명을 서버와 맞추자 `app-wallet.png` 에 "4일 남음"이 정상 표시됨(육안 확인). `canCheckin:true` 로 바꿔 출석 CTA 프레임도 이제 관문이 본다.
+
+## P0 에서 내린 판정 (컨트롤러)
+
+> SDD 작업공간은 임시라 사라진다 — 판정은 여기 남긴다. 각 항목은 "무엇을 정했고 · 왜 · 틀리면 무엇을 잃는가" 형식이다.
+
+- **Ruling: F1 — `MSShell.mount` 의 정본은 코드 쪽 `mount(rootEl, screens) → router` 다.** Task 4 Interfaces 블록의 `mount(rootEl) → void` 는 오기. app.js 가 반환된 router 를 들고 `go("watchlist")` 를 부르므로 반환값이 없으면 부팅이 안 된다 — 틀리면 Task 4 에서 즉시 드러나는 종류라 비용은 재작성 한 번.
+- **Ruling: F2 — `readings`·`expert` 를 P0 화면 레지스트리에서 뺀다.** 실측: `MSExpert` 는 `open(opts)/close()` 만 있고 `render` 가 없다(`www/screens/expert.js:176`). `MSReadingsList.render(root, {rows, noDir})` 는 report.js 가 계산한 행을 받아야 그려진다(`report.js:1185`) — 독립 라우트로 진입할 수 없다. 둘은 P1 에서 리포트를 재설계할 때 라우트로 승격한다. 지금 등록하면 라우팅되는 순간 죽는 코드를 심는 것이다. 틀리면 P1 에서 등록 두 줄을 되살리면 된다.
+- **Ruling: F3 — Task 3 의 `onRender` 기대값을 `["watchlist","report","watchlist"]`(3건)로 고친다.** 구현상 `back()` 이 목록 탭 루트에서 `false` 를 돌려주며 **그리지 않는다**(그려야 할 새 화면이 없다). 계획서의 4건 기대는 그 경로를 잘못 센 것. 틀리면 라우터가 앱 종료 직전에 한 번 더 그리게 되는데, 그건 낭비지 기능이 아니다.
+- **Ruling: F4 — Task 5 의 백드롭 단언을 정규식 거리 제한 대신 두 개의 독립 단언으로 쓴다** (`.ms-sheet-backdrop` 존재 + `backdrop.addEventListener("click"` 존재). 거리 기반 정규식은 구현이 주석 한 줄만 늘어도 빨개지는 거짓 실패를 만든다 — 이 저장소가 이미 "정규식이 상상한 모양만 잡는다"로 P1 리뷰에서 여섯 건을 맞았다. 틀리면 백드롭 클릭이 다른 요소에 걸려도 관문이 통과할 수 있으나, 브라우저 관문이 실제 클릭 동선을 따로 본다.
+- Task 1: **Ruling: window.MSXxx= 11개 파일을 define 으로 전환하지 않는다.** 실측 근거: Node 하네스(wallet-screens.test.mjs·readings-list.test.mjs)가 MSGlobals 없는 sandbox 로 그 화면들을 로드해 전환 시 깨진다(구현자가 시도 후 되돌림). 대신 **탐지만 세 형태(define/root./window.)로 넓혀** 충돌이 조용히 지나가지 않게 한다 — 실제 위험은 "전환 안 됨"이 아니라 "충돌해도 아무도 모름"이다. 전환은 P1 화면 재작성 때 자연히 일어난다. 틀리면 P1 까지 window. 형태가 define 의 중복 방어 밖에 남지만, 이름 충돌 자체는 관문이 잡는다.
+- Task 2: **Ruling: C1 을 크로미움 stderr 태그가 아니라 페이지 내 수집기로 고친다** (window.onerror + unhandledrejection + console.error 오버라이드 → GATE payload). stderr 파싱은 2차 그물로 유지 — 페이지가 아예 못 돌 만큼 일찍 죽으면 title 이 안 생긴다. warn 은 수집·출력하되 판정에 넣지 않는다(앱이 정상 경로에서 쓴다). 틀리면 오버라이드가 앱 동작을 바꿀 위험이 있으나 원본 호출을 유지하므로 부작용은 없다
+- Task 2: **Ruling: C2 를 `MSApp.current()` 라우트 정체성 + 화면 고유 문구의 AND 로 고친다.** www/ 프로덕션은 여전히 불변 — Task 4 가 data-screen 표식을 붙이면 그때 더 조인다(주석으로 남김). 틀리면 current() 반환 모양이 달라 단언이 항상 실패할 수 있는데, 그건 시끄러운 실패라 안전한 방향이다
+- Task 2: **Ruling: M2(ss 부재 시 포트 확인 스킵)는 ss 보강 대신 listen EADDRINUSE 를 시끄럽게 죽게 하는 것으로 대체한다.** 원래 사고를 막는 진짜 방어는 바인드 실패를 삼키지 않는 것이다
+- Task 3: **Ruling: 콜드 탭 문제를 라우터가 아니라 Task 4 의 shell.onTab 에서 고친다.** 라우터는 탭의 홈 화면을 모르고(그 지식은 shell 의 TAB_DEFS 에 있다), 라우터에 홈 레지스트리를 더하면 DOM-free 상태기계가 UI 지식을 갖게 된다. shell 은 이미 "같은 탭 재탭 = 홈으로"를 하므로 조건 하나만 넓히면 된다. 틀리면 콜드 탭 진입이 무음으로 남는데, 그건 Task 4 관문(탭 3개 클릭)이 잡는다
+- Task 4: **Ruling: 내 지시 ④("MSLayout/body.ms-dual 경로 제거")가 과했다 — 삭제하지 않는다.** layout.js 는 2단 전용이 아니라 차트 높이 정책(chartHeight·CHART_H_BASIC 190)을 들고 있어 P0 에서도 살아 있어야 하고, 2단은 P5(시안 9b·9c)에서 되살아나므로 지웠다 다시 넣는 것은 순수 왕복 비용이다. 현재 상태는 "절반 제거"가 아니라 "기능 후퇴·코드 보존"이며, 진짜 결함은 그게 코드에 안 적혀 있어 리뷰어가 죽은 코드로 읽었다는 것. → 주석으로 의도를 명시하는 좁은 수정만 지시. 틀리면 P5 착수 때 누군가 이 코드를 지워 되돌려야 하는데, 주석이 그것을 막는다
+- Task 5: **Ruling: 제목을 --fs-title(22px)로 맞춘다.** 시안 20px 에 정확한 토큰이 없을 때, 같은 파일 안에서 같은 역할의 값이 갈리는 것이 2px 오차보다 나쁘다 — 이 태스크의 목적 자체가 "넷이 같은 것을 쓴다"이다. 틀리면 제목이 시안보다 2px 크지만 전 시트가 일관된다
+- **Ruling: C1 을 P0 에서 "동작"으로 만들지 않는다 — 정직하게 표기하고 P1 로 넘긴다.** 제대로 고치려면 ①`@capacitor/app` 도입 ②기존 시트 둘(tier-sheet·watchlist)을 MSSheet 로 이관(안 하면 "뒤로가기가 시트를 먼저 닫는다"를 실증할 시트가 앱에 없다 — MSSheet.open 프로덕션 호출자 0건) ③APK 재빌드·재검증이 한 세트다. 지금 절반만 하면 "만들었는데 안 닿는" 실패를 다시 만든다. 대신 코드·문서에 미동작을 명시하고 체크리스트 ④를 뺀다. 틀리면 P1 까지 하드웨어 백이 앱을 즉시 종료시키는데, 그건 개편 이전과 동일한 동작이라 회귀가 아니다
+- **Ruling: 리뷰어의 이견 ①(지갑 NaN)을 수용해 Task 6 판정을 뒤집는다.** 콘텐츠 버그가 아니라 관문 mock 필드명 불일치(`wallet-lib.php` 는 streakDays/canCheckin, mock 은 streak). 프로덕션 코드는 정상 — 이 판정을 넘기면 P1 이 없는 버그를 찾는다
+- **Ruling: 리뷰어의 이견 ②(구 .sheet 는 이 diff 의 회귀 아님)를 절반 수용.** 뒤로가기 처리 자체가 이 브랜치 신설이므로 "시트가 뜬 채 밑 화면만 바뀌는 상태"는 신규 가능 상태다. 단 C1 때문에 지금은 발현 불가 — C1 을 고칠 때 동반 처리 필수로 P1 에 넘긴다
+- **Ruling: I6(ES5 규율이 문서에만 있음 — 기존 3파일이 이미 const/let/화살표 사용)은 P1 사전조건으로 이월.** P0 범위 밖 파일을 건드리게 되고, 지금 스윕하면 뼈대 브랜치가 불안정해진다
+
+## P1 으로 이월한 것 (고치지 않기로 한 것)
+
+- Task 1: MSGlobals.names() 가 미사용 죽은 코드 (계획서 템플릿 원본)
+- Task 1: globals.test.mjs 의 jsFiles() vendor/ 필터가 비재귀 readdir 라 실제로 아무것도 거르지 않음 (오도하는 코드)
+- Task 2: 헤더 주석의 "의존성 0" 이 과장(apt-get download 로 시스템 라이브러리 확보함) — C1 수정으로 그 블록을 손대면 함께 정정
+- Task 2: tests/run.sh browser 스코프 TOTAL 이 스위트 1건으로만 집계돼 단위 불일치
+- Task 2: onboarding 단언이 버튼 존재만 확인해 약함
+- Task 2: gate-routes.mjs 의 .ob-step 주석이 "1단계 전용 표식"이라 적었으나 실제로는 온보딩 7단계 공통 표식(기능은 오히려 더 견고, 주석만 부정확)
+- Task 2: errs 스냅샷이 고정 delay 시점의 title 로만 실려, 그 이후 발생하는 오류는 관문이 못 본다(이번 라운드가 만든 것 아님 · 프로브 프로토콜 재설계 필요)
+- Task 5: open() 이 돌려주는 close 가 boolean 을 버려 closeTop() 과 계약이 미묘하게 다름
+- Task 5: 구 .sheet/.sheet-scrim 이 MSSheet 스택에 안 잡혀 뒤로가기가 못 닫는다 — 이 diff 의 회귀 아님(이전에도 동일). **P1 에서 네 화면 이관 시 해소 필요**
+- Task 5: z-index 스케일 미문서화(신규 40 vs 구 20)
+
+### P1 착수 전 사전조건 (최종 브랜치 리뷰가 지정)
+
+1. **하드웨어 뒤로가기 판정** — `@capacitor/app` 도입 여부는 "새 npm 의존성 금지" 규율과 충돌하므로 사용자 결정이 필요하다. 도입한다면 기존 시트 둘(`tier-sheet.js`·`screens/watchlist.js`) 의 `MSSheet` 이관 + APK 재검증이 한 세트다
+2. **ES5 규율 확정** — `www/**` 는 ES5 만이라는 규칙이 문서에만 있다. 실측: `draw-panels.js`·`draw-layers.js`·`draw-preds.js` 가 이미 `const`/`let`/화살표를 쓴다. 전면 스윕 + 예외 명시냐, 규칙 축소냐를 P1 이 www 파일을 대량으로 늘리기 전에 정할 것
+3. **시트 이관을 P1 계획서의 명시 항목으로** — `MSSheet.open` 의 프로덕션 호출자가 아직 0건이다. 넷(6b·12a·12b·광고 권유)이 옮겨와야 "넷이 같은 것을 쓴다"가 실현되고 뒤로가기 사양이 실증 가능해진다
+4. **관문 `errs` 스냅샷 시점** — 고정 delay 시점의 title 로만 오류를 싣는다. P1 은 비동기 분석·차트 작도가 늘어 그 이후에 오류가 나기 쉽다 — 그물이 좁아지는 시점이 정확히 그물이 필요해지는 시점이다
+
