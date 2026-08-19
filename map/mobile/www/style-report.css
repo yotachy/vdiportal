@@ -43,6 +43,25 @@
 .rp-sent { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
 .rp-sent-text { font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); line-height:1.35; }
 
+/* 「내일 예상 + 확신」(P1b Task 4, 19b) — 값이 큰 것부터 온다는 FULL 순서(sentence 다음)라
+   가격을 verdict 헤드라인과 같은 급(--fs-headline)으로 낸다. 확신(rp-forecast-conf-val)은
+   골드로 눈에 띄되 가격보다 한 단계 작게 — 이 카드의 답은 가격이지 퍼센트가 아니다(그
+   구분 자체가 적중률과 안 섞이게 하는 장치다, 위 buildForecast() 주석). 좌측 accent 라인은
+   전역 금지 규칙에 따라 색·텍스트로만 강조한다. */
+.rp-forecast { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
+.rp-forecast .rp-sec-head { margin-bottom:8px; }
+.rp-forecast-row { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.rp-forecast-px { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline);
+                   font-variant-numeric:tabular-nums; color:var(--ink); }
+.rp-forecast-px.up { color:var(--bull); }
+.rp-forecast-px.dn { color:var(--bear-text); }
+.rp-forecast-pm { font-size:var(--fs-sub); color:var(--ink-4); font-variant-numeric:tabular-nums; }
+.rp-forecast-conf { display:flex; align-items:baseline; gap:8px; margin-top:12px; }
+.rp-forecast-conf-label { font-size:var(--fs-caption); color:var(--ink-5); }
+.rp-forecast-conf-val { font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--gold);
+                         font-variant-numeric:tabular-nums; }
+.rp-forecast-note { margin-top:6px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
+
 .rp-verdict-wrap { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
 .rp-verdict-word { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline); }
 .rp-verdict.bull { color:var(--bull); }

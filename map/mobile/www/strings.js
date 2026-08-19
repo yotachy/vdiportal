@@ -208,6 +208,15 @@
     // 안 보이고, 사용자는 헤드라인 방향을 모든 기간의 답으로 읽는다.
     rpHzMixedA: "짧게 보면 ", rpHzMixedUp: "오르고", rpHzMixedDown: "내리고",
     rpHzMixedB: ", 한 달은 반대입니다 — 짧게 볼 때만 유효한 판정입니다.",
+    // 「내일 예상 + 확신」(P1b Task 4, 19b) — horizonRows()[0](내일)만 뽑은 독립 카드.
+    // rpLastPm(" ± ")은 지난 판정 카드(rp-last)와 같은 조각을 재사용한다 — 같은 뜻(중심값 ±
+    // 오차)에 새 문자열을 또 만들지 않는다. 확신(prob)은 방향 적중률이 아니라 캘리브레이션된
+    // 모델 확신이다(report-model.js confidence 주석) — 그래서 이름 자체를 "적중"이 아니라
+    // "모델 확신"으로 잡고, 바로 아래 rpForecastConfNote 로 적중률이 아니라는 점을 문장으로
+    // 막는다. 기준선(60.96%)은 여기 붙이지 않는다 — 붙일 자리는 적중률을 다루는 Task 5 의
+    // hitrate 블록이다(섞으면 "이 판정이 60% 맞는다"로 오독된다).
+    rpForecastHead: "내일 예상", rpForecastConfLabel: "모델 확신",
+    rpForecastConfNote: "적중률이 아니라, 모델이 이 판정에 부여한 확신도입니다.",
 
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)
     rpTierBasic: "기본",

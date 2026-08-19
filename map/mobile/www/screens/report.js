@@ -748,6 +748,48 @@
       return wrap;
     }
 
+    // 「내일 예상 + 확신」(P1b Task 4, 19b) — buildHorizons() 가 이미 계산하는 세 지평 중
+    // rows[0](내일, bars=1)만 독립 카드로 세운다. 새 계산이 아니라 배선이다 — 중심값·범위·
+    // 확신 모두 MSReportModel.horizonRows() 가 판정(an.out.verdict.regime)에서 바로 뽑는
+    // 그 값 그대로다. lo[0]/hi[0] 는 idx=bars-1=0 로 horizonRows() 내부와 같은 인덱스라
+    // rows[0].price(=path[0])와 같은 봉을 가리킨다 — recordPrediction() 의 mid/lo[0]/hi[0]
+    // 조합과 같은 규약이다(위 recordPrediction 참고).
+    //
+    // 확신을 적중률과 섞지 않는다 — prob 는 FC.calibrateUpProb(FC.upProb(...)) 로, 방향이
+    // 맞을 표본 적중률이 아니라 이 한 번의 판정에 모델이 부여한 캘리브레이션된 확신이다
+    // (report-model.js confidence()/horizonRows() 주석). 적중률에는 기준선(60.96%) 병기가
+    // 규율인데, 여기 병기하면 서로 다른 두 수가 같은 카드에서 "60% 맞힌다"로 읽힌다 — 그래서
+    // 기준선은 절대 안 붙이고, rpForecastConfNote 문구로 "적중률이 아니다"를 명시한다.
+    // 적중률 자체는 Task 5 의 독립 블록(hitrate) 몫이다.
+    function buildForecast() {
+      var rows = MSReportModel.horizonRows(ForgeCore, an.out.prediction, an.out.verdict.regime);
+      if (!rows.length) return null;
+      var r = rows[0], pr = an.out.prediction;
+      if (!pr.lo || !pr.hi || !pr.lo.length) return null;
+
+      var sec = MSUi.el("div", "rp-forecast");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpForecastHead));
+      sec.appendChild(head);
+
+      var row = MSUi.el("div", "rp-forecast-row");
+      var cls = r.dir === "up" ? " up" : r.dir === "down" ? " dn" : "";
+      row.appendChild(MSUi.el("span", "rp-forecast-px" + cls, MSUi.fmtPrice(r.price)));
+      row.appendChild(MSUi.el("span", "rp-forecast-pm",
+        MSStr.t.rpLastPm + MSUi.fmtPrice((pr.hi[0] - pr.lo[0]) / 2)));
+      sec.appendChild(row);
+
+      // 없는 방향엔 확신을 안 붙인다(horizonRows() 가 이미 null 로 걸러 준다, G1 과 같은 태도).
+      if (r.prob != null) {
+        var conf = MSUi.el("div", "rp-forecast-conf");
+        conf.appendChild(MSUi.el("span", "rp-forecast-conf-label", MSStr.t.rpForecastConfLabel));
+        conf.appendChild(MSUi.el("span", "rp-forecast-conf-val", r.prob + "%"));
+        sec.appendChild(conf);
+        sec.appendChild(MSUi.el("div", "rp-forecast-note", MSStr.t.rpForecastConfNote));
+      }
+      return sec;
+    }
+
     // verdict 는 지금 basic 전용이다(report-blocks.js BASIC = ["verdict","comb","chart"] — FULL/
     // CUSTOM 선언엔 이 id 가 없다). 예전엔 확신%·적중/오답·베이스라인까지 이 한 카드에 다
     // 실려 있었다(P1 이전 화면) — 그런데 basic 은 도구가 5개뿐이라 확률을 쓰면 0·20·40·60·
@@ -1493,6 +1535,7 @@
           last:      function () { return buildLast(); },
           verdict:   function () { return buildVerdict(); },
           sentence:  function () { return buildSentence(); },
+          forecast:  function () { return buildForecast(); },
           comb:      function () { return buildComb(); },
           chart:     function () { return buildChartSection(); },
           legend:    function () { return buildChartLegend(); },
