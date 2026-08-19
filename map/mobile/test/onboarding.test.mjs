@@ -1119,11 +1119,38 @@ test("판독은 지금 계산한 것이다 — 렌더 시점에 엔진을 실제
     assert.strictEqual(call.data.price.length, expectedN,
       "판독이 가려진 구간까지 포함해서 계산했다 — 찍기 전 정보만 써야 한다");
     // DOM 에 실제로 실린 근거/반대 행 텍스트가 이 호출의 rows 와 정확히 같은 문자열이어야
-    // 한다 — 화면이 별도로 문구를 지어내지 않았다는 증거.
+    // 한다 — 화면이 별도로 문구를 지어내지 않았다는 증거. 근거는 MSGraph.BASIC 5종
+    // (ma·macd·rsi·bollinger·volume) 전부에서 뽑힌다(2026-08-19 리뷰 — appSawNote 가 "5개
+    // 봤다"고 말하는데 근거는 TOOLS 3개만 보이면 문구와 어긋난다).
     const domTexts = Array.from(root.querySelectorAll(".ob-read-text")).map(e => e.textContent);
-    const rowTexts = call.rows.filter(r => ["ma", "bollinger", "volume"].indexOf(r.type) >= 0).map(r => r.text);
+    const rowTexts = call.rows.filter(r => G.BASIC.indexOf(r.type) >= 0).map(r => r.text);
     domTexts.forEach(t => assert.ok(rowTexts.indexOf(t) >= 0, "DOM 문구 '" + t + "' 가 엔진 rows 에 없다"));
     assert.ok(domTexts.length > 0, "판독 행이 화면에 하나도 없다");
+  });
+});
+
+// 단언 — 1단계 판독 근거(동의·반대 의견·무판정·자백 네 통)의 합이 appSawNote 의 5와 같다.
+// 2026-08-19 리뷰가 잡은 어긋남이 이것이다: 문구는 "도구 5개만 보고 말했다"(MSGraph.BASIC.
+// length)인데, 근거 목록은 TOOLS(차트에 그려진 3개)에서만 뽑혀 macd·rsi 두 줄이 통째로
+// 안 보였다 — 판정에는 관여했는데 근거만 빠지는 불투명함. 네 값은 DOM 의 실제 행 개수에서
+// 센다(하드코딩 5 대 하드코딩 합의 항등식이 아니다 — 5는 appSawNote 문구가 읽는 외부 불변,
+// 합은 실행 결과다). 2단계의 "합이 32" 시험(아래)과 같은 원칙.
+test("1단계 — 동의·반대·무판정·자백 네 통의 합이 5와 같다(appSawNote 의 5와 정합)", () => {
+  withDom(root => {
+    O.render(root, { sample: SAMPLE });
+    root.querySelector(".ob-guess-btn").click();
+    const note = root.querySelector(".ob-app-note").textContent;
+    assert.strictEqual(note, S.t.obAppSawA + G.BASIC.length + S.t.obAppSawB,
+      "appSawNote 문구가 MSGraph.BASIC.length 를 안 따라간다: " + note);
+    const secClasses = { "ob-read-for": "agree", "ob-read-against": "dissent",
+                          "ob-read-flat": "flat", "ob-read-refused": "refused" };
+    const counts = Object.keys(secClasses).map(cls => {
+      const sec = root.querySelector("." + cls);
+      return sec ? sec.querySelectorAll(".ob-read-row").length : 0;
+    });
+    const sum = counts.reduce((a, b) => a + b, 0);
+    assert.strictEqual(sum, G.BASIC.length,
+      "네 통의 합(" + counts.join("+") + "=" + sum + ")이 MSGraph.BASIC.length(" + G.BASIC.length + ")와 다르다");
   });
 });
 

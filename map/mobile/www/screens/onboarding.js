@@ -42,8 +42,15 @@
   // 붙어 그만큼 키운다(chart-layout.js RATIOS 가 price:volume 비율을 자동 분배한다).
   var CHART_H = 300, PAD = 10;
   var GUESS_CUT = 12;      // 1단계에서 가려 두는 봉 수 — 눈으로 방향이 읽힐 만큼만
-  // 1단계가 작도하는 도구 정확히 3종 — **힌트 줄 수·작도 오버레이·판독 근거가 전부 이 배열
-  // 하나에서 파생된다**(중복 상수 금지). MA·볼린저는 가격 패널 오버레이, 거래량은 서브패널이다.
+  // 1단계가 작도하는 도구 정확히 3종 — **찍기 전 힌트 줄 수·차트 오버레이가 이 배열 하나에서
+  // 파생된다**(중복 상수 금지). MA·볼린저는 가격 패널 오버레이, 거래량은 서브패널이다.
+  // 리뷰(2026-08-19) — 찍은 뒤 판독 근거(readingBlock)는 **더 이상 이 배열을 안 쓴다.**
+  // appSawNote() 가 "앱은 도구 5개만 보고 말했다"(MSGraph.BASIC.length)고 못박는데, 근거
+  // 목록이 TOOLS(3개, 차트에 그려진 것만)로만 좁혀지면 문구가 말한 수와 화면이 보여준 수가
+  // 어긋난다 — macd·rsi 도 basicGraph 에 실려 판정에 실제로 관여했는데 근거 목록에만 빠졌던
+  // 것이 그 어긋남의 정체였다. 근거는 basicReadingRows()(MSGraph.BASIC, 5개)로 따로 뽑는다:
+  // "무엇을 보고 그렸는가"(TOOLS)와 "무엇을 보고 판정했는가"(BASIC)는 다른 질문이고, 후자가
+  // 5여야 appSawNote 의 5와 맞는다.
   var TOOLS = ["ma", "bollinger", "volume"];
   // 리뷰 C2(2026-08-19) — 예전엔 여기 자체 문턱(TOOL_EPS=0.12)이 있었다. 같은 구간·같은
   // 지표를 2·3·6단계는 MSIndicators.EPS(0.02)+voiced()+opposing() 경로로 갈랐는데, 이
@@ -191,17 +198,27 @@
       return an;
     }
 
-    // TOOLS 순서 그대로 판독 행을 뽑는다 — 그려진 도구와 근거 목록이 항상 같은 순서·같은 개수다.
-    function toolReadingRows() {
+    // types 순서 그대로 an.readings 에서 행을 뽑는다 — 호출자가 어떤 목록(TOOLS·BASIC)을
+    // 주든 그 순서·그 개수만큼 나온다.
+    function readingRowsFor(types) {
       var an = visibleAnalysis();
       if (!an || !an.readings) return [];
       var out = [];
-      TOOLS.forEach(function (type) {
+      (types || []).forEach(function (type) {
         var i, row = null;
         for (i = 0; i < an.readings.length; i++) if (an.readings[i].type === type) { row = an.readings[i]; break; }
         if (row) out.push(row);
       });
       return out;
+    }
+
+    // 판독 근거(readingBlock) 전용 — **MSGraph.BASIC 순서**(5개, ma·macd·rsi·bollinger·
+    // volume)로 뽑는다. TOOLS(3개, 차트에 그려진 것만)로 뽑으면 appSawNote 가 말한 5와
+    // 어긋난다(위 TOOLS 자리 주석 참고). MSGraph 가 없는 극단적 환경이면 TOOLS 로 물러선다
+    // (visibleAnalysis 가 이미 null 을 돌려줬을 것이므로 사실상 도달하지 않는다).
+    function basicReadingRows() {
+      var order = (typeof MSGraph !== "undefined" && MSGraph.BASIC) ? MSGraph.BASIC : TOOLS;
+      return readingRowsFor(order);
     }
 
     function verdictWord(regime) {
@@ -338,12 +355,17 @@
     // 않는다 — 재구현이 곧 어긋남의 원인이었다(TOOL_EPS 삭제 사유, 위 상수 자리 주석 참고).
     // classifyFull32 는 (graph, regime, rows, noDir) 를 받는데, opposing() 은 rows 를
     // 이미 받으면 graph 를 안 쓰므로 basic 그래프(an.graph)를 넘겨도 안전하다. noDir 은
-    // 빈 배열 — TOOLS(ma·bollinger·volume) 중 방향을 못 묻는 지표(trend·phasefold)가
-    // 없다.
+    // 빈 배열 — MSGraph.BASIC(ma·macd·rsi·bollinger·volume) 중 방향을 못 묻는 지표
+    // (trend·phasefold)가 없다.
+    // 리뷰(2026-08-19) — rows 는 **basicReadingRows()(5개)** 다, toolReadingRows(3개, 옛
+    // 이름)가 아니다. appSawNote() 가 "도구 5개만 보고 말했다"고 적어 놓고 근거는 3개만
+    // 보이면 문구와 화면이 어긋난다 — macd·rsi 는 차트에 안 그려질 뿐 판정에는 이미 관여하고
+    // 있었다(basicGraph 자체가 5종). test/onboarding.test.mjs 의 "네 통의 합이 5" 시험이
+    // 이 정합을 잠근다.
     function readingBlock() {
       var wrap = frag("ob-read");
       var an = visibleAnalysis();
-      var rows = toolReadingRows();
+      var rows = basicReadingRows();
       if (!an || !an.out || !rows.length) {
         wrap.appendChild(el("p", "ob-read-empty", MSStr.t.obReadUnavailable));
         return wrap;
