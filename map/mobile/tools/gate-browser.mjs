@@ -238,9 +238,24 @@ function probe(route) {
   (route.scripts || []).forEach(s => {
     js += '\n<script>setTimeout(function(){try{' + s.code + '}catch(e){console.error("SCRIPT_FAILED",String(e));}},' + s.at + ');</script>';
   });
-  js += '\n<script>setTimeout(function(){var ok=false,err="";' +
+  // 조사 D 실증(P1b Task 1) — 스냅샷(delay 시점) 뒤에 터지는 오류를 이전엔 영영 놓쳤다.
+  // errs 는 delay 한 번이 아니라 --dump-dom 이 읽는 **가상 시간 종료 시점**까지 계속 최신화
+  // 돼야 한다. document.title 은 브라우저가 알아서 재직렬화하지 않으므로(모든 프레임에서
+  // 갱신하려면 다시 write 해야 한다) title 대신 DOM 노드(#__gate_errs)에 적고,
+  // --dump-dom 이 그 최종 상태를 그대로 실어 온다. ok/err(단언 결과)는 여전히 delay 시점
+  // 값이 맞다 — 단언은 정확히 그 시점의 상태를 재는 것이므로 종료 시점으로 미루면 안 된다.
+  // setInterval 은 여기(관문 러너의 계측 코드)에서만 쓴다 — www/** 의 "진행을 타이머로
+  // 올리지 않는다"(Q3, test/globals.test.mjs) 는 화면 코드(www/**)만 훑고 tools/ 는 안
+  // 훑는다(확인함) — 화면이 사용자에게 보여줄 진행률을 타이머로 지어내지 말라는 규칙이지,
+  // 관문이 자기 안에서 오류 로그를 폴링하는 것과는 대상이 다르다.
+  js += '\n<script>' +
+        'var __gp=document.createElement("pre");__gp.id="__gate_errs";' +
+        'document.documentElement.appendChild(__gp);' +
+        'function __gsync(){__gp.textContent=JSON.stringify({errs:(window.__gateErrs||[]),warns:(window.__gateWarns||[])});}' +
+        '__gsync();setInterval(__gsync,50);' +
+        'setTimeout(function(){var ok=false,err="";' +
         'try{ok=!!(' + route.assert + ');}catch(e){err=String(e);}' +
-        'document.title="GATE:"+JSON.stringify({ok:ok,err:err,errs:(window.__gateErrs||[]),warns:(window.__gateWarns||[])});},' +
+        '__gsync();document.title="GATE:"+JSON.stringify({ok:ok,err:err});},' +
         (route.delay || 1500) + ');</script>';
   const name = "__gate_" + route.name + ".html";
   const beforeAppTag = html;
@@ -312,6 +327,10 @@ function judge(route, res) {
     if (!/CONSOLE|Uncaught/.test(line)) continue;
     if (/ERROR:CONSOLE|SEVERE|Uncaught/.test(line)) problems.push("콘솔 오류(2차 그물/stderr): " + line.trim());
   }
+  function unescapeHtml(s) {
+    return s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  }
   const m = res.dom.match(/<title>GATE:([\s\S]*?)<\/title>/);
   if (!m) {
     problems.push("단언이 실행되지 않았다(title 없음) — 화면이 그려지기 전에 죽었을 수 있다" +
@@ -320,19 +339,29 @@ function judge(route, res) {
   }
   let v = {};
   try {
-    const raw = m[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-    v = JSON.parse(raw);
+    v = JSON.parse(unescapeHtml(m[1]));
   } catch (e) {
     problems.push("단언 결과 파싱 실패: " + m[1]);
     return { problems, warns: [] };
   }
   // ① 콘솔 오류(주 판정) — window.onerror·unhandledrejection·console.error 를 페이지
   // 안에서 직접 모은 것. probe() 의 GO_FAILED 캐치도 여기로 들어온다(더는 자기가 자기를
-  // 안 삼킨다).
-  const errs = Array.isArray(v.errs) ? v.errs : [];
+  // 안 삼킨다). **title 이 아니라 #__gate_errs(위 probe() 참고)에서 읽는다** — --dump-dom 이
+  // 읽는 가상 시간 종료 시점 값이라, delay 이후(스냅샷 뒤)에 터진 오류도 여기 실려 온다
+  // (실증: late-error-probe, P1b Task 1 보고서).
+  let ev = { errs: [], warns: [] };
+  const em = res.dom.match(/<pre id="__gate_errs">([\s\S]*?)<\/pre>/);
+  if (em) {
+    try { ev = JSON.parse(unescapeHtml(em[1])); }
+    catch (e) { problems.push("오류 로그 파싱 실패: " + em[1]); }
+  } else {
+    // 이 노드는 probe() 가 assert 스크립트보다 먼저 무조건 심는다 — title 은 잡혔는데
+    // 이게 없다면 그 자체가 이상 신호(예: 우리 삽입 순서가 깨졌다)라 침묵하지 않는다.
+    problems.push("#__gate_errs 노드가 dump-dom 에 없다 — 오류 수집이 안 심겼을 수 있다");
+  }
+  const errs = Array.isArray(ev.errs) ? ev.errs : [];
   errs.forEach(e => problems.push("콘솔 오류: " + e));
-  const warns = Array.isArray(v.warns) ? v.warns : [];
+  const warns = Array.isArray(ev.warns) ? ev.warns : [];
   // ② 단언
   if (!v.ok) problems.push("단언 실패: " + route.assert + (v.err ? " (" + v.err + ")" : ""));
   return { problems, warns };

@@ -752,6 +752,41 @@ export const ROUTES = [
         "if(note.textContent.indexOf(MSStr.t.rpCombNoteAd)>=0) return false;" +    // "광고 1편으로 전부 열림" 약속을 안 단다
         "return true;" +
       "})()" },
+  // P1b Task 1(PROGRESS.md:109 "위험도 상승") — report.js 의 구매 흐름(spend → 19a 진행
+  // 중계 → 8b 해제 전환 3초 고정 → draw())을 태우는 라우트가 하나도 없었다.
+  // progress-analyze-raf-live 는 MSAnalyzeView.play() 를 **합성 stepper 로 직접** 부른다 —
+  // report.js:1161(runTier)이 실제로 넘기는, readingStepper(analyzeX 실호출)로 만든 stepper와는
+  // 다른 호출이다. progress-reveal.js 는 report.js:1153(revealThenDraw) 가 **유일한 호출자**인데
+  // 그 경로는 어디서도 안 태워졌다.
+  //
+  // 지금은 그 실제 시퀀스를 태울 수 없다 — report.js 의 PENDING(sentence·forecast·hitrate·
+  // compare, 위 report 라우트 주석 참고)이 안 비어 있어 tierBuyable('full')·tierBuyable('custom')
+  // 이 둘 다 false 다. buildCta() 가 그 상태에선 광고·스쿱 버튼(.rp-cta-ad/.rp-cta-scoop)을
+  // 아예 안 그리므로 클릭할 CTA 자체가 없고, runTier()/purchaseRun() 는 report.js 모듈
+  // 스코프 클로저라(window.MSReport = { render } 뿐, 위 grep 으로 확인) 외부에서 직접 부를
+  // 수도 없다 — 우회로가 없다.
+  //
+  // **아직 안 잰 것**: 실제 spend→로드→분석(19a)→해제(8b)→draw() 시퀀스와 그 안에서 나는
+  // 늦은 오류(이번 Task 1 수정이 비로소 잡게 된 바로 그 종류 — .an-scrim/.rv-scrim 재생
+  // 도중 스냅샷 이후 터지는 오류). Task 6(PENDING 비우기)이 CTA 를 되살리면 이 라우트를
+  // click:'.rp-cta-scoop' 로 확장해 실제 시퀀스를 태운다 — 그때 여기 delay·assert 를 다시 쓴다.
+  // **지금 재는 것**: 잠긴 CTA 가 정직한가(report-locked-tiers 와 같은 질문을 다른 지점에서
+  // 재확인) + MSAnalyzeView·MSReveal 두 모듈이 이 화면 로드 경로에 실제로 전역 등록됐는가
+  // (index.html 로드 순서가 깨지면 report.js 가 나중에 이 모듈을 못 찾는다 — 타입만이라도
+  // 지금 잠가 둔다) + **delay 를 6000ms 로 길게 잡아** 이 화면에서 늦게 터지는 오류를 넓은
+  // 창으로 잡는다(왜 6000 인가: Task 6 이 붙일 실제 구매 시퀀스 = 19a 진행 중계 + 8b 고정
+  // 3초 + draw() 여유를 지금부터 미리 담아 둔다 — Task 6 이 click 을 붙이는 순간 delay 를
+  // 다시 늘리는 왕복을 피한다. 지금은 잠금 상태라 이 여유가 실제로는 안 쓰인다).
+  { name: "report-purchase", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 6000,
+    assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
+      "(function(){" +
+        "var unlock=document.querySelector('.rp-unlock');" +
+        "if(!unlock) return false;" +
+        "if(unlock.querySelector('.rp-cta-ad')||unlock.querySelector('.rp-cta-scoop')) return false;" +
+        "if(unlock.textContent.indexOf(MSStr.t.rpUnlockSoon)<0) return false;" +
+        "if(typeof MSAnalyzeView==='undefined'||typeof MSReveal==='undefined') return false;" +
+        "return true;" +
+      "})()" },
   { name: "record", seed: { ...ON, ms_preds: PREDS }, go: '"record"',
     assert: "MSApp.current().route === 'record' && !!document.querySelector('[data-screen=\"record\"]')" },
   { name: "result", seed: { ...ON, ms_preds: PREDS }, go: '"result",{sym:"TSLA",asOf:"2026-08-14"}',
