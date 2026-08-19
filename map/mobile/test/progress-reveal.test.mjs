@@ -346,3 +346,54 @@ test("8b — 세 통의 합이 카운터와 어긋나면 드러난다", () => {
   assert.strictEqual(st.agree + st.dissent + st.noDir, st.total,
     "세 통의 합이 카운터와 다르다");
 });
+
+// ── P1b Task 10 — 마감 폴리시 P1(Task 7 리뷰 이월: "8b 두 숫자가 다른 스코프") ───────────
+//
+// rv-head 는 total−basic(새로 열린 수, 예: 27)을, 세 통의 합은 total(전체 모집단, 예: 32)을
+// 말한다. 각각은 자기 스코프에서 옳지만 나란히 있으면 "27개 열렸다면서 왜 합이 32냐"로
+// 읽힌다(위 revealThenDraw() 주석·Task 7 재리뷰 "범위 밖 관찰"). 숫자는 안 바꾼다 — 세 통이
+// 무엇의 합인지 이름을 붙인다(rv-buckets-scope).
+test("8b — 스코프 캡션이 세 통(전체 모집단)과 헤드라인(새로 열린 수)을 이름으로 구분한다", () => {
+  const dom = renderReveal({ agree: 18, dissent: 6, noDir: 8, total: 32, basic: 5 });
+  const headTxt = deepText(dom.querySelector(".rv-head"));
+  const scopeEl = dom.querySelector(".rv-buckets-scope");
+  assert.match(headTxt, /^27/, "헤드라인이 새로 열린 수(27=32-5)를 말하지 않는다: " + headTxt);
+  assert.ok(scopeEl, "세 통 위에 스코프 캡션이 없다");
+  const scopeTxt = deepText(scopeEl);
+  assert.match(scopeTxt, /32/, "스코프 캡션이 전체 모집단 수(32)를 말하지 않는다: " + scopeTxt);
+  assert.notStrictEqual(scopeTxt.replace(/\d+/, ""), headTxt.replace(/\d+/, ""),
+    "캡션 문구가 헤드라인과 같은 낱말을 써서 두 숫자를 오히려 같은 스코프로 보이게 한다");
+  // 위치도 잰다 — 캡션이 세 통과 무관한 자리(예: 진행바 아래)에 있으면 "이 숫자들의 설명"
+  // 으로 안 읽힌다. box 의 자식 순서가 곧 시안 배치다.
+  const box = dom.querySelector(".rv-box");
+  const scopeIdx = box.children.findIndex((c) => c.className === "rv-buckets-scope");
+  const bucketsIdx = box.children.findIndex((c) => c.className === "rv-buckets");
+  assert.ok(scopeIdx >= 0 && bucketsIdx >= 0 && scopeIdx < bucketsIdx,
+    "스코프 캡션이 세 통 바로 위에 있지 않다(scopeIdx=" + scopeIdx + ", bucketsIdx=" + bucketsIdx + ")");
+});
+
+// 소스 수준 가드 — DOM 시험은 renderReveal() 이 play() 를 실제로 부르므로 "지금은" 못
+// 빠지지만, 다음 사람이 캡션 줄을 통째로 지워도 위 DOM 시험이 곧바로 죽는다는 보장이 이
+// 파일 재구조화에 좌우되지 않게 소스 문자열로도 한 번 더 잠근다(이 저장소의 반복된 교훈 —
+// 텍스트만 보는 시험은 클래스가 CSS 와 안 맞아도 통과한다, 위 report-full.test.mjs 주석 참고
+// 와 같은 이유로 클래스명 자체의 존재를 확인한다).
+function hasBucketsScopeCaption(src) {
+  const playStart = src.indexOf("function play(opts) {");
+  const bucketsCallIdx = src.indexOf("box.appendChild(buildBuckets(bs));", playStart);
+  const scopeIdx = src.indexOf('"rv-buckets-scope"', playStart);
+  if (playStart < 0 || bucketsCallIdx < 0 || scopeIdx < 0) return false;
+  return scopeIdx < bucketsCallIdx;   // 캡션이 세 통보다 먼저 그려져야 "위"에 앉는다
+}
+
+test("8b 배선 — play() 가 rv-buckets-scope 를 buildBuckets() 보다 먼저 붙인다(소스 순서)", () => {
+  assert.ok(hasBucketsScopeCaption(SRC), "캡션이 소스에 없거나 세 통보다 뒤에 있다");
+});
+
+test("변이 증명 — 캡션 줄을 지우면 위 소스 검사가 빨개진다", () => {
+  const mutated = SRC.replace(
+    /box\.appendChild\(MSUi\.el\("div", "rv-buckets-scope"[^\n]*\n/, "");
+  assert.notStrictEqual(mutated, SRC, "변이가 소스를 실제로 못 바꿨다 — 정규식이 안 맞았다");
+  assert.strictEqual(hasBucketsScopeCaption(SRC), true, "정상 소스인데도 검사가 통과를 못 시킨다");
+  assert.strictEqual(hasBucketsScopeCaption(mutated), false,
+    "캡션을 지운 변이인데도 검사가 여전히 통과시킨다 — 이 가드는 실제로는 아무것도 못 잡는다");
+});

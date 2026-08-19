@@ -15,9 +15,13 @@
 .rv-tooth.rv-core { background:var(--steel); height:26px; }
 .rv-tooth.on { background:var(--gold); height:38px; }
 .rv-tooth.rv-core.on { background:var(--steel); }
+/* 스코프 캡션(P1b Task 10 폴리시 P1) — rv-head(새로 열린 수)와 세 통의 합(전체 모집단)이
+   다른 스코프임을 이름으로 밝힌다. rv-buckets 의 기존 margin-top(16px)을 이 캡션이 대신
+   지고, 캡션 자신은 그 위(rv-comb)와만 여백을 둔다. */
+.rv-buckets-scope { margin-top:16px; font-size:var(--fs-caption); color:var(--ink-5); text-align:center; }
 /* 세 통(동의·반대·무판정, 설계서 §3.6) — 빗 바로 아래, 합이 rv-count 의 카운터와 같아야
    한다(revealState() 가 검산해 둔 값을 그대로 쓴다). 색은 방향 신호일 뿐 좌측 라인이 아니다. */
-.rv-buckets { display:flex; justify-content:center; gap:20px; margin-top:16px; }
+.rv-buckets { display:flex; justify-content:center; gap:20px; margin-top:6px; }
 .rv-bucket { display:flex; flex-direction:column; align-items:center; gap:2px; }
 .rv-bucket-num { font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section);
                  font-variant-numeric:tabular-nums; color:var(--ink-2); }

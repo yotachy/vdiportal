@@ -176,10 +176,14 @@
               color:var(--gold); font-variant-numeric:tabular-nums; }
 .rp-hit-base { font-size:var(--fs-sub); color:var(--ink-4); font-variant-numeric:tabular-nums; }
 .rp-hit-scope { margin-top:8px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
-/* 중립(무방향) 판정 카드(P1b Task 6b) — 위 rp-hit-row(방향+수치)를 통째로 대신한다.
-   같은 결핍 무게(ink-4)를 쓰되 카드 테두리·오버라인은 그대로 둔다(rp-against-neutral 과
-   같은 이유 — "블록이 사라졌다"로 안 읽히게). */
-.rp-hit-neutral { margin:0; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.55; }
+/* 중립(무방향) 판정 카드(P1b Task 6b → 폴리시 P2 로 무게 보강, Task 10) — rp-hit-row 는
+   이제 그대로 남고(값 자리에 "정의되지 않음" 문장이 앉는다, .rp-hit-undef), 이 문단은
+   그 아래 이유를 잇는다. 같은 결핍 무게(ink-4)는 유지하되 위에 헤드라인급 행이 생겨
+   "짧은 안내문"이 아니라 "행 + 설명"의 2단 구조가 됐다. */
+.rp-hit-neutral { margin-top:8px; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.55; }
+/* rp-hit-val 과 같은 자리(--fs-headline)에 앉는 문장 답 — 숫자가 아니므로 gold 대신
+   ink 로 "값이 없다"는 사실을 색으로도 구분한다(위 report.js neutralHitCard() 참고). */
+.rp-hit-val.rp-hit-undef { color:var(--ink-3); }
 
 /* 3단 대조(시안 7a, 설계서 §3.3) — 이 개편의 판매 논거. 카드마다 왼쪽=답의 폭·오른쪽=적중률로
    고정한다. 좌측 세로 라인 금지 규칙에 따라 티어 구분은 이름 텍스트 색(--steel/--gold/

@@ -178,6 +178,30 @@
     return wrap;
   }
 
+  // 적중률 전용 중립 카드(P1b Task 10 폴리시 P2, Task 6b 리뷰 Minor 1) — neutralCard() 를
+  // 그대로 안 쓰는 이유: 형제 섹션(상승/하락 적중률)은 오버라인+행+큰 골드 숫자+기준선+
+  // 범위주석 4단인데, neutralCard() 는 오버라인+문단 1개뿐이라 "값을 하는 카드"가 아니라
+  // "짧은 안내문"으로 읽힌다(리뷰 실측). buildAgainst() 는 원래도 행 목록형이라 이 지적이
+  // 없었으므로 그쪽은 neutralCard() 를 그대로 둔다 — 이 카드만 새로 짠다.
+  //
+  // 숫자를 지어내지 않는다(없는 게 맞다) — 대신 rp-hit-val 이 원래 앉는 자리에 **같은
+  // 크기의 문장**("정의되지 않음")을 놓아 같은 시각적 단(段)을 만든다. 색은 gold 가 아니라
+  // ink(rp-hit-undef, style-report.css) — "값"이 아니라 "값이 없다는 사실"이라는 차이를
+  // 색으로도 구분한다. 이유 문장(rpHitNeutral)은 그 아래 뒤이어 붙는다 — 두 형제 섹션의
+  // "기준선"·"범위주석" 자리를 대신하는 셈이라 뒤로 뺐다.
+  function neutralHitCard() {
+    var wrap = MSUi.el("div", "rp-hitrate");
+    var head = MSUi.el("div", "rp-sec-head");
+    head.appendChild(MSUi.el("span", "overline", MSStr.t.rpHitHead));
+    wrap.appendChild(head);
+    var row = MSUi.el("div", "rp-hit-row");
+    row.appendChild(MSUi.el("span", "rp-hit-dir", MSStr.t.rpHitNeutralDir));
+    row.appendChild(MSUi.el("span", "rp-hit-val rp-hit-undef", MSStr.t.rpHitUndefined));
+    wrap.appendChild(row);
+    wrap.appendChild(MSUi.el("p", "rp-hit-neutral", MSStr.t.rpHitNeutral));
+    return wrap;
+  }
+
   // 적중률 단독 블록(hitrate)이 읽는 실측 출처 — tier-compare.js:bt() 와 같은 패턴이다.
   // 브라우저는 index.html 스크립트 순서(vendor/backtest-summary.js 가 이 파일보다 먼저)가
   // window.MSBacktest 를 이미 채워 뒀고, Node vm 테스트도 같은 전역을 bare 식별자로 읽을 수
@@ -801,9 +825,9 @@
     function buildHitrate() {
       var regime = an.out.verdict.regime;
       // 중립엔 방향별 적중률이 없다(hitRate() 의 null 규약은 그대로다 — 이 함수는 화면이
-      // 그 null 을 감추는 대신 이유를 적도록만 갈라 낸다, 위 neutralCard() 주석 참고).
+      // 그 null 을 감추는 대신 이유를 적도록만 갈라 낸다, 위 neutralHitCard() 주석 참고).
       if (regime !== "bull" && regime !== "bear") {
-        return neutralCard("rp-hitrate", "rp-hit-neutral", MSStr.t.rpHitHead, MSStr.t.rpHitNeutral);
+        return neutralHitCard();
       }
       var hit = MSReportModel.hitRate(backtestSummary(), regime);
       if (hit && hit.baseline == null) hit = null;

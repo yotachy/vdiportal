@@ -407,6 +407,71 @@ test("hitrate — 판정이 중립(무방향)이어도 블록은 남는다 — �
   assert.doesNotMatch(txt, /%/, "중립인데 적중률 수치(%)가 나갔다 — hitRate() 는 bull/bear 에만 값을 준다");
 });
 
+// ── P1b Task 10 — 마감 폴리시 P2(Task 6b 리뷰 Minor 1: "적중률 중립 카드가 형제 섹션보다
+// 시각적으로 훨씬 가볍다") ─────────────────────────────────────────────────────────
+//
+// 형제(bull/bear) 카드는 오버라인+행(방향+큰 골드 헤드라인 숫자+기준선)+범위주석 3단인데,
+// 옛 중립 카드는 오버라인+문단 하나뿐이라 "값을 하는 카드"가 아니라 "짧은 안내문"으로
+// 읽혔다. 숫자는 지어내지 않는다(없는 게 맞다) — 대신 숫자가 앉던 자리(rp-hit-val 급)에
+// 같은 크기의 문장("정의되지 않음")을 놓아 같은 시각적 단(段)을 만든다(report.js
+// neutralHitCard()). 이 시험은 ①그 구조가 실제로 조립되는지 ②형제 카드와 구획 수가
+// 같아졌는지(더 이상 "문단 하나뿐"이 아닌지)를 잰다.
+test("hitrate 중립 카드 — 형제(방향 있는) 카드와 같은 시각적 단(段) 구조를 가진다(P1b Task 10 폴리시 P2)", () => {
+  const domNeutral = renderFullReport({ sym: "TSLA", drift: 0.02, name: "Tesla" });
+  const neutralBox = domNeutral.querySelector(".rp-hitrate");
+  const neutralRow = neutralBox.querySelector(".rp-hit-row");
+  assert.ok(neutralRow, "중립 카드에 rp-hit-row 가 없다 — 형제 카드와 다른(더 가벼운) 구조로 남았다");
+  const undefEl = neutralRow.querySelector(".rp-hit-undef");
+  assert.ok(undefEl, "값 자리에 '정의되지 않음' 문장이 없다");
+  assert.strictEqual(deepText(undefEl).trim(), "정의되지 않음", "값 자리 문구가 다르다: " + deepText(undefEl));
+  // 형제 카드의 rp-hit-val 과 같은 급(--fs-headline, style-report.css)에 앉아야 "숫자만
+  // 문장으로 바뀐" 같은 무게다 — rp-hit-undef 하나만 있으면 이 급을 안 물려받는다.
+  assert.ok(undefEl.className.split(" ").indexOf("rp-hit-val") >= 0,
+    "값 자리 요소가 rp-hit-val 급이 아니다 — 형제 카드보다 여전히 가볍다: " + undefEl.className);
+
+  const domBull = renderFullReport();   // 기본 drift(+0.3) → bull 결정적
+  const bullBox = domBull.querySelector(".rp-hitrate");
+  assert.ok(bullBox.querySelector(".rp-hit-row"), "형제(bull) 카드에도 rp-hit-row 가 있어야 대조가 성립한다");
+  // 두 카드가 같은 최상위 구획 수(오버라인 헤드 + 행 + 아래 문단/범위주석)를 가진다 —
+  // "문단 하나뿐"으로 되돌아가면 이 수가 준다(옛 모양은 head+문단=2, 지금은 head+row+문단=3).
+  assert.strictEqual(neutralBox.children.length, bullBox.children.length,
+    "중립 카드의 최상위 구획 수가 형제 카드와 다르다(neutral=" + neutralBox.children.length +
+    ", bull=" + bullBox.children.length + ") — '문단 하나뿐'으로 되돌아갔을 수 있다");
+});
+
+// 변이 증명 — Task 6b 가 실제로 냈던 옛 모양(오버라인+문단 하나)으로 buildHitrate() 의 중립
+// 분기를 되돌리면 위 구조 검사가 실제로 빨개지는지, 독립 vm 컨텍스트에서 진짜로 렌더해
+// 확인한다(문자열 패턴만 보는 대신 — 이 저장소가 반복해서 강조하는 태도, 위 installTestHooks()
+// 주석·revealThenDrawBody() 류와 같은 이유).
+test("변이 증명 — buildHitrate() 중립 분기가 옛 neutralCard() 단일 문단으로 되돌아가면 rp-hit-row 가 실제로 사라진다", () => {
+  const needle = 'if (regime !== "bull" && regime !== "bear") {\n' +
+    '        return neutralHitCard();\n      }';
+  const reportSrc = readFileSync(WWW + "screens/report.js", "utf8");
+  assert.ok(reportSrc.indexOf(needle) >= 0,
+    "buildHitrate() 의 중립 분기 앵커를 못 찾았다 — 정확한 문자열로 되돌려야 변이가 의미 있다");
+  const mutatedNeedle = 'if (regime !== "bull" && regime !== "bear") {\n' +
+    '        return neutralCard("rp-hitrate", "rp-hit-neutral", MSStr.t.rpHitHead, MSStr.t.rpHitNeutral);\n      }';
+
+  const ctx = vm.createContext(fakeWindow());
+  SRCS.forEach((src) => {
+    let code = readFileSync(WWW + src, "utf8");
+    if (src === "screens/report.js") code = installTestHooks(code).replace(needle, mutatedNeedle);
+    new vm.Script(code, { filename: src }).runInContext(ctx);
+  });
+  const data = fakeData(0.02, "TeslaMut");   // report-basic 실측: +0.02 는 neutral 로 결정적
+  const an = ctx.__TEST_HOOKS__.analyzeFull(data, true, "1day", null);
+  ctx.__TEST_HOOKS__.purchases["MUTSYM|full"] =
+    { data: data, an: an, runs: [{ tf: "1day", out: an.out }], weights: null };
+  const root = new FakeNode("div");
+  ctx.MSReport.render(root, { sym: "MUTSYM" });
+  const box = root.querySelector(".rp-hitrate");
+  assert.ok(box, "변이본에서도 hitrate 블록 자체는 남아 있어야 한다(중립 게이트는 안 건드렸다)");
+  assert.strictEqual(box.querySelector(".rp-hit-row"), null,
+    "옛 코드로 되돌렸는데도 rp-hit-row 가 나온다 — 이 검사는 실제로는 아무것도 못 잡는다");
+  assert.ok(box.querySelector(".rp-hit-neutral"),
+    "변이본이 최소한 옛 문단(rp-hit-neutral)조차 못 낸다 — 변이 자체가 잘못됐다");
+});
+
 test("hitrate — 기준선 없는 생성물이면 감춘다(옛 생성물 시뮬레이션, R2 규율의 이 블록판)", () => {
   // baselineAlwaysUp 이 없는 생성물 — report-model.js hitRate() 가 baseline:null 을 돌려주고,
   // buildHitrate() 가 그 즉시 hit 을 통째로 접어야 한다("비교 없는 숫자는 안 낸다").
