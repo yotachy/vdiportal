@@ -14,9 +14,9 @@
   // 프리셋으로 그릴 때 같은 종목이 화면마다 다른 이름으로 보인다(카드추가 항목 1).
   // MSFT 는 새 CURATED 8종 밖이라 표준 이름이 이 파일뿐이다.
   var SEED = [{ sym: "AAPL", name: "애플" }, { sym: "NVDA", name: "엔비디아" }, { sym: "MSFT", name: "마이크로소프트" }];
-  // 온보딩 체험(시안 16a)이 제시하는 종목 정확히 3개. 이름은 여기 두지 않는다 —
-  // ticker-picker 의 CURATED 가 이름의 정본이고, 심볼만 있으면 거기서 찾는다.
-  var TUTORIAL_SYMS = ["AAPL", "005930", "NVDA"];
+  // TUTORIAL_SYMS(옛 시안 16a "체험 종목 정확히 3개")는 Task 6 리뷰(Minor)에서 지웠다 —
+  // 온보딩 5단계가 ticker-picker.js 의 CURATED 8종을 직접 쓰면서(tutSyms/tutPicks 삭제)
+  // 이 export 를 참조하는 곳이 www/·test/ 어디에도 안 남았다(grep 로 확인).
 
   var mem = {};                       // 백엔드 실패 시 폴백 저장소
   var backend = null;
@@ -190,7 +190,7 @@
     return list;
   }
 
-  return { KEYS: KEYS, SEED: SEED, TUTORIAL_SYMS: TUTORIAL_SYMS, PRED_MAX: PRED_MAX,
+  return { KEYS: KEYS, SEED: SEED, PRED_MAX: PRED_MAX,
            replayOnboarding: replayOnboarding,
            getPreds: getPreds, setPreds: setPreds, addPred: addPred,
            settlePred: settlePred, markPredSeen: markPredSeen, install: install, getWatchlist: getWatchlist, setWatchlist: setWatchlist,

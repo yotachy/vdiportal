@@ -81,6 +81,11 @@ export const ROUTES = [
         "if(!document.querySelector('.ob-canvas')) return false;" +
         "var over=document.querySelector('.ob-over');" +
         "if(!over||over.textContent!==MSStr.t.obSampleNote) return false;" +  // "예시 데이터" 표기
+        // x축 기준(Task 3) — "일봉인지 주봉인지, 어느 구간인지 모른다"던 원 판정에 대한 답.
+        // 찍기 전에도 있어야 한다(캔들만 보고 판단하지 않게).
+        "var per=document.querySelector('.ob-period');" +
+        "if(!per||per.textContent.indexOf(MSStr.t.rpDaily)<0) return false;" +
+        "if(!/\\d{4}\\.\\d{2}/.test(per.textContent)) return false;" +   // 연월이 실제로 박혀 있다
         "var btns=document.querySelectorAll('.ob-guess-btn');" +
         "if(btns.length!==2) return false;" +
         "btns[0].click();" +                                    // 실제로 찍는다 — 엔진이 이 순간 돈다
@@ -90,6 +95,490 @@ export const ROUTES = [
         "if(!tail||!tail.textContent) return false;" +          // 맞힘/틀림 갈래 문구
         "var over2=document.querySelector('.ob-over');" +
         "if(!over2||over2.textContent!==MSStr.t.obSampleNote) return false;" + // 찍은 뒤에도 표기 유지
+        // 3열 대조(Task 3) — 당신/앱/실제. 셋 다 값이 차 있어야 하고, 앱 열엔 확신 퍼센트가
+        // 없어야 한다(5도구는 값 여섯 개뿐이라 확률로 오독된다).
+        "var cols=document.querySelectorAll('.ob-col');" +
+        "if(cols.length!==3) return false;" +
+        "for(var ci=0;ci<cols.length;ci++){ if(!cols[ci].textContent||!cols[ci].textContent.trim()) return false; }" +
+        "var appCol=document.querySelector('.ob-col-app');" +
+        "if(!appCol||/%/.test(appCol.textContent)) return false;" +
+        // 10번째 역할(num) 회귀 잠금 — .ob-col .obq-value 는 font-size 만 --fs-body 로
+        // 덮이고(칼럼 폭에 맞춰 줄바꿈, style-onboarding.css:137) font-weight·letter-spacing
+        // 은 기저 .obq-value 규칙(--fw-num/--ls-num)을 그대로 물려받는다. --fw-num/--ls-num
+        // 이 :root 에 정의 없이 참조만 되던 사고(리뷰 I1)가 재발하면 여기서 상속값(400/거의 0)
+        // 으로 조용히 무너진다 — node 시험(style-tokens.test.mjs)은 정의 유무만 보고 실제
+        // 캐스케이드가 먹는지는 못 보므로 이 브라우저 관문이 더 강하다.
+        "function numTokenOk(el){" +
+          "var cs=getComputedStyle(el);" +
+          "var rootCS=getComputedStyle(document.documentElement);" +
+          "var wantFW=parseInt(rootCS.getPropertyValue('--fw-figure'),10);" +
+          "var wantLSem=parseFloat(rootCS.getPropertyValue('--ls-figure'));" +
+          "var fw=parseInt(cs.fontWeight,10)||0;" +
+          "if(fw<wantFW) return false;" +
+          "var wantLSpx=wantLSem*parseFloat(cs.fontSize);" +
+          "var ls=parseFloat(cs.letterSpacing)||0;" +
+          "return Math.abs(ls-wantLSpx)<=0.5;" +
+        "}" +
+        "var colVal=document.querySelector('.ob-col .obq-value');" +
+        "if(!colVal||!numTokenOk(colVal)) return false;" +
+        // "앱은 도구 5개만 보고 이렇게 말했습니다" — 2단계를 벌어들이는 줄.
+        "var note=document.querySelector('.ob-app-note');" +
+        "if(!note||note.textContent.indexOf('5')<0) return false;" +
+        // ── 2단계(Task 4) — 같은 구간, 32개 전부 ──────────────────────────────────
+        "var fwd=document.querySelector('.ob-next');" +
+        "if(!fwd) return false;" +
+        "fwd.click();" +                                          // 1 -> 2
+        "var cmpRows=document.querySelectorAll('.ob32-cmp-row');" +
+        "if(cmpRows.length!==2) return false;" +                   // 5도구·32도구 판정이 나란히
+        "var counts=Array.prototype.slice.call(document.querySelectorAll('.ob32-sec-count'))" +
+          ".map(function(e){ return Number(e.textContent); });" +
+        "if(counts.length!==4) return false;" +                    // 동의·반대·무판정·자백 네 통
+        "var sum=0; for(var si=0;si<counts.length;si++) sum+=counts[si];" +
+        "if(sum!==32) return false;" +                             // 네 통의 합이 32
+        "var dissentSec=document.querySelector('.ob32-sec-dissent');" +
+        "if(!dissentSec) return false;" +
+        "if(dissentSec.querySelector('.ob32-expand')) return false;" + // 반대는 접히지 않는다
+        "var dCount=Number(dissentSec.querySelector('.ob32-sec-count').textContent);" +
+        "if(dissentSec.querySelectorAll('.ob32-row').length!==dCount) return false;" + // 전부 그려진다
+        "if(!document.querySelector('.ob32-sec-refused')) return false;" + // 자백 통이 이름을 달고 노출된다(리뷰 Important)
+        "var vnote=document.querySelector('.ob32-verdict-note');" +
+        "if(!vnote||!vnote.textContent) return false;" +           // 같음/다름 어느 쪽이든 문구가 있다
+        // 리뷰 Minor — 조건부 if 로 감싸 조용히 건너뛰지 않는다. 이 표본(고정 seed)은
+        // 동의가 항상 있다는 것을 먼저 단정하고, 그 뒤 무조건 행 모양을 검사한다.
+        "var agreeRows=document.querySelectorAll('.ob32-sec-agree .ob32-row');" +
+        "if(!agreeRows.length) return false;" +                    // 동의가 있어야 하는 표본인데 없다
+        "var r0=agreeRows[0];" +
+        "if(!r0.querySelector('.ob32-name')||!r0.querySelector('.ob32-text')) return false;" +
+        // 리뷰 C1 — 2→3 다리(설계서가 지정한 세 다리 중 유일하게 비어 있던 자리). 2단계
+        // 본문 끝에서 3단계(성향)를 벌어들이는 줄이 실제로 그려졌는지 잰다.
+        "var bridge2=document.querySelector('.ob-note');" +
+        "if(!bridge2||bridge2.textContent!==MSStr.t.obStyleBridgeNote) return false;" +
+        // ── 3단계(Task 5) — 성향을 고르면 같은 구간의 판정·근거가 실제로 갱신된다 ──────
+        // fwd 는 1단계 시점에 잡은 참조라 다시 쓰지 않는다 — draw() 가 매번 rootEl.innerHTML
+        // 을 비우고 새 버튼을 만들므로 안전하게 다시 querySelector 한다.
+        "var fwd2=document.querySelector('.ob-next');" +
+        "if(!fwd2) return false;" +
+        "fwd2.click();" +                                          // 2 -> 3
+        // 리뷰 C1 — obPastDone("여기까지는 과거였습니다")은 이제 3단계를 **닫는** 줄이다.
+        // 화면 맨 위(옛 자리)는 obStyleOpen 이 연다 — 아직 과거 구간 한복판에서 "과거
+        // 였습니다"가 울리던 사고를 여기서 잠근다.
+        "var over3=document.querySelector('.ob-over');" +
+        "if(!over3||over3.textContent!==MSStr.t.obStyleOpen) return false;" +
+        // 리뷰 B(1/5) — 판정이 달라질 수도 있다는 유인이 실제 렌더된 부제에 있어야 한다.
+        "var sub3=document.querySelector('.ob-sub');" +
+        "if(!sub3||sub3.textContent.indexOf('달라질 수도 있습니다')<0) return false;" +
+        "var styleBtns=document.querySelectorAll('.ob-style');" +
+        "if(styleBtns.length!==4) return false;" +                 // 성향 4종
+        "var onBefore=Array.prototype.slice.call(styleBtns).filter(function(b){return b.className.indexOf('is-on')>=0;});" +
+        "if(onBefore.length!==1) return false;" +                  // 언제나 정확히 1개 선택(단언 1)
+        // 판정·근거 서명 — 네 통 개수(순서 고정) + 성향 기준 판정어. 문자열 전체 비교가
+        // 아니라 "무엇이 달라졌는가"를 구체적으로 잰다(브리프 경고).
+        "function sig3(){" +
+          "var counts=Array.prototype.slice.call(document.querySelectorAll('.ob32-sec-count')).map(function(e){return e.textContent;});" +
+          "var rows=document.querySelectorAll('.ob32-cmp-row');" +
+          "var v=rows[1]?rows[1].querySelector('.ob32-cmp-v').textContent:'';" +
+          "return counts.join(',')+'|'+v;" +
+        "}" +
+        "if(document.querySelectorAll('.ob32-cmp-row').length!==2) return false;" +
+        "var note3=document.querySelector('.ob32-verdict-note');" +
+        "if(!note3||!note3.textContent) return false;" +
+        // 기본 선택(trend)은 실측상 32도구와 같은 결론(bull)이다 — 이 화면의 주 경로가
+        // 초라하지 않은지: is-same 이고 정직 문구가 실제로 있다(단언 4).
+        "if(note3.className.indexOf('is-same')<0) return false;" +
+        "if(note3.textContent!==MSStr.t.ob3SameNote) return false;" +
+        // 리뷰 C(1/5) — is-diff 가 is-same 보다 약하게 강조되면 안 된다. 실제 계산된 스타일을
+        // 잰다(source 레벨 검사는 node 시험이 이미 한다 — 여기는 CSS 캐스케이드가 실제로
+        // 먹히는지를 실 브라우저에서 재는 것).
+        "var sameStyle=getComputedStyle(note3);" +
+        "var sameColor=sameStyle.color, sameWeight=parseInt(sameStyle.fontWeight,10)||400;" +
+        "var sigTrend=sig3();" +
+        // momentum 카드를 이름으로 찾아 클릭 — 이 표본에서 momentum 만 regime 이 bull→neutral
+        // 로 실제로 갈린다(Task 1 실측). PRESETS 순서에 기대지 않는다.
+        "var Tiers=MSIndTiers;" +
+        "var momentum=null;" +
+        "for(var pi=0;pi<Tiers.PRESETS.length;pi++){ if(Tiers.PRESETS[pi].key==='momentum'){ momentum=Tiers.PRESETS[pi]; break; } }" +
+        "if(!momentum) return false;" +
+        "var momBtn=null;" +
+        "for(var bi=0;bi<styleBtns.length;bi++){" +
+          "var nm=styleBtns[bi].querySelector('.ob-style-name');" +
+          "if(nm&&nm.textContent===momentum.name){ momBtn=styleBtns[bi]; break; }" +
+        "}" +
+        "if(!momBtn) return false;" +
+        "momBtn.click();" +                                        // 고른다 — 갱신 1회차(단언 2·3)
+        // draw() 가 클릭마다 rootEl.innerHTML 을 비우고 새 버튼을 만든다 — momBtn 은 이제
+        // detached 다(클릭 자체는 살아있는 리스너라 여전히 통했지만, className 조회는 새로
+        // 그려진 노드를 다시 querySelector 해야 한다). 이후로도 클릭할 때마다 이렇게 다시 잰다.
+        "var stylesAfterMom=document.querySelectorAll('.ob-style');" +
+        "var onAfterMom=Array.prototype.slice.call(stylesAfterMom).filter(function(b){return b.className.indexOf('is-on')>=0;});" +
+        "if(onAfterMom.length!==1) return false;" +
+        "if(onAfterMom[0].querySelector('.ob-style-name').textContent!==momentum.name) return false;" + // 선택 표시가 실제로 옮겨간다
+        "var sigMom=sig3();" +
+        "if(sigMom===sigTrend) return false;" +                     // 판정+근거가 그대로면 죽은 컨트롤
+        "var noteMom=document.querySelector('.ob32-verdict-note');" +
+        "if(!noteMom||noteMom.className.indexOf('is-diff')<0) return false;" + // 판정 자체가 바뀐다
+        "if(noteMom.textContent.indexOf(MSStr.t.rpBullish)<0||noteMom.textContent.indexOf(MSStr.t.rpFlat)<0) return false;" +
+        // 리뷰 C(1/5) — is-diff(momentum)가 is-same(trend)보다 최소한 같은 만큼, 실제로는
+        // 더 밝고 굵어야 한다.
+        "var diffStyle=getComputedStyle(noteMom);" +
+        "var diffColor=diffStyle.color, diffWeight=parseInt(diffStyle.fontWeight,10)||400;" +
+        "if(diffColor===sameColor) return false;" +                // 색이 그대로면 강조가 안 바뀐 것
+        "if(diffWeight<sameWeight) return false;" +                 // 최소한 더 가늘어지지는 않는다
+        "if(diffWeight<600) return false;" +                        // --fw-semibold(600) 이상이어야 한다
+        // 리뷰 A(1/5) — momentum(neutral)은 voiced 전부가 무판정으로 간다. 개별 지표는
+        // 뚜렷한 방향(Stochastic)을 말하는데 왜 무판정인지 설명이 붙어 있어야 하고, 그
+        // 행에는 이름·판독 문장·기여도 숫자가 실제로 살아 있어야 한다(관문이 실제 브라우저
+        // 에서 "momentum 화면이 텅 비지 않는다"를 확인한다).
+        "var flatSec=document.querySelector('.ob32-sec-flat');" +
+        "if(!flatSec) return false;" +
+        "var explain=null;" +
+        "var stepKids=Array.prototype.slice.call(flatSec.parentNode.children);" +
+        "for(var ek=0;ek<stepKids.length;ek++){ if(stepKids[ek].className==='ob-note'){ explain=stepKids[ek]; break; } }" +
+        "if(!explain||explain.textContent!==MSStr.t.ob3FlatNeutralNote) return false;" +
+        "var flatRows=flatSec.querySelectorAll('.ob32-row');" +
+        "if(!flatRows.length) return false;" +
+        "var stochRow=null;" +
+        "for(var fr=0;fr<flatRows.length;fr++){ if(flatRows[fr].querySelector('.ob32-name').textContent===MSStr.ind('stochastic')){ stochRow=flatRows[fr]; break; } }" +
+        "if(!stochRow) return false;" +                             // Stochastic 은 이 표본에서 −0.62(뚜렷한 방향)다
+        "if(!stochRow.querySelector('.ob32-text')||!stochRow.querySelector('.ob32-text').textContent) return false;" +
+        "if(!stochRow.querySelector('.ob32-bias')||!/^[+-]\\d/.test(stochRow.querySelector('.ob32-bias').textContent)) return false;" +
+        // trend 로 되돌린다 — 갱신 2회차(단언 3), 처음과 같은 서명으로 돌아와야 한다. 방금
+        // 다시 잰 stylesAfterMom(현재 DOM)에서 찾는다 — 위 staleness 주의와 같은 이유.
+        "var trend=null;" +
+        "for(var pj=0;pj<Tiers.PRESETS.length;pj++){ if(Tiers.PRESETS[pj].key==='trend'){ trend=Tiers.PRESETS[pj]; break; } }" +
+        "if(!trend) return false;" +
+        "var trendBtn=null;" +
+        "for(var bj=0;bj<stylesAfterMom.length;bj++){" +
+          "var nm2=stylesAfterMom[bj].querySelector('.ob-style-name');" +
+          "if(nm2&&nm2.textContent===trend.name){ trendBtn=stylesAfterMom[bj]; break; }" +
+        "}" +
+        "if(!trendBtn) return false;" +
+        "trendBtn.click();" +
+        "var sigBack=sig3();" +
+        "if(sigBack!==sigTrend) return false;" +                    // 되돌리니 처음과 같다(계산이 안정적)
+        "var stylesAfterBack=document.querySelectorAll('.ob-style');" +
+        "var onAfterBack=Array.prototype.slice.call(stylesAfterBack).filter(function(b){return b.className.indexOf('is-on')>=0;});" +
+        "if(onAfterBack.length!==1||onAfterBack[0].querySelector('.ob-style-name').textContent!==trend.name) return false;" +
+        "var noteBack=document.querySelector('.ob32-verdict-note');" +
+        "if(!noteBack||noteBack.className.indexOf('is-same')<0) return false;" +
+        // 리뷰 C1 — obPastDone 이 3단계 본문의 실제 끝에 그려졌는지(옛 자리인 화면 맨
+        // 위가 아니라). 고유 클래스(.ob-past-done)로 잡는다 — momentum 을 거쳐 갔던
+        // 경로라 ob3FlatNeutralNote(같은 .ob-note) 도 DOM 에 남아 있을 수 있다.
+        "var closing3=document.querySelector('.ob-past-done');" +
+        "if(!closing3||closing3.textContent!==MSStr.t.obPastDone) return false;" +
+        // ── 4단계(Task 6) — 동의. "지금부터 미래" 전환 + 하지 않는 것 셋 + 체크 게이트 ──────
+        "var fwd3=document.querySelector('.ob-next');" +
+        "if(!fwd3) return false;" +
+        "fwd3.click();" +                                          // 3 -> 4
+        "var over4=document.querySelector('.ob-over');" +
+        "if(!over4||!over4.textContent||over4.textContent===MSStr.t.obPastDone) return false;" + // 3단계 문구를 안 반복한다
+        "if(over4.textContent!==MSStr.t.obFutureOver) return false;" +
+        "var h4=document.querySelector('.ob-h');" +
+        "if(!h4||!h4.textContent) return false;" +
+        // Q4 — 4단계엔 뒤로가기가 없다(node 시험이 이미 재지만, 실 브라우저에서도 확인한다).
+        "if(document.querySelector('.ob-back')) return false;" +
+        "var items4=document.querySelectorAll('.ob-consent-item');" +
+        "if(items4.length!==3) return false;" +                     // 하지 않는 것 셋
+        "for(var ci4=0;ci4<items4.length;ci4++){ if(!items4[ci4].textContent) return false; }" +
+        "var fwd4=document.querySelector('.ob-next');" +
+        "if(!fwd4||fwd4.disabled!==true) return false;" +           // 체크 전엔 막혀 있다
+        "var agree=document.querySelector('.ob-agree');" +
+        "if(!agree) return false;" +
+        "agree.click();" +                                          // 동의 체크
+        "if(document.querySelector('.ob-next').disabled!==false) return false;" + // 체크하면 열린다
+        // ── 5단계(Task 6) — 종목 선택 · 분석 시작. 선택과 실행이 분리돼 있는지 ────────────
+        "var fwd5=document.querySelector('.ob-next');" +
+        "fwd5.click();" +                                          // 4 -> 5
+        "if(document.querySelector('.ob-back')) return false;" +   // Q4 — 5단계도 뒤로가기 없음
+        "var chip=document.querySelector('.tp-chip');" +
+        "if(!chip) return false;" +
+        "chip.click();" +                                           // 종목을 고른다 — 선택만
+        "if(document.querySelector('.ob-next').disabled!==true) return false;" + // 고르기만으론 안 열린다(옛 버그의 반증)
+        "var startBtn=document.querySelector('.ob-pick-start');" +
+        "if(!startBtn||startBtn.disabled!==false) return false;" +
+        "startBtn.click();" +                                       // [분석 시작] — 실행은 여기서만 시작된다
+        "if(document.querySelector('.ob-next').disabled!==true) return false;" + // 클릭 직후(비동기 확인 전)엔 아직 안 열려 있다
+        "return true;" +
+      "})()" },
+  // 6단계(Task 7, 실제 분석) — 위 "onboarding" 라우트는 5단계에서 [분석 시작] 직후(비동기
+  // 확인 전) 멈춘다. 이 라우트는 그 너머로 걸어간다.
+  //
+  // **정정(Task 8 실측, 두 번째)** — 처음엔 route.scripts 를 여러 시각에 예약해 걸음을
+  // 나눴고("virtual-time-budget 이 결정적이다"), 그 다음엔 폴링으로 바꿨다("재생이 끝날
+  // 때까지 100ms 마다 확인"). 둘 다 근본 해결이 아니었다: MSAnalyzeView.play() 의 재생은
+  // requestAnimationFrame 으로 페이싱되는데, 헤드리스 크로미움에서 이 rAF 가 실 벽시계
+  // 속도로만 도는 것을 실측했다(같은 폴링 조건에서 완료까지 걸리는 실제 시간이 실행마다
+  // 수백 ms~20 초 이상으로 들쭉날쭉했다 — 이 기계의 프레임 페이싱 자체가 결정적이지 않다).
+  // 그래서 **재생을 기다리지 않는다.** progress-analyze.js 는 이미 "건너뛰기" 경로를
+  // 갖고 있다 — `.an-scrim` 클릭이 `st.drain()`(남은 지표를 그 자리에서 동기로 마저 읽음)
+  // + `finish()`(onDone 동기 호출)를 그대로 태운다(위 scrim.addEventListener 참고, UX 상
+  // "탭하면 즉시 끝난다"는 그 기능을 관문이 그대로 빌려 쓰는 것). 5→6 클릭 직후 scrim 이
+  // DOM 에 이미 붙어 있으므로(play() 가 동기로 appendChild 한다) 곧바로 클릭하면 재생
+  // 전체가 **한 tick 안에 동기로** 끝난다 — rAF 도 virtual-time 도 관여하지 않는다.
+  { name: "onboarding-analysis", seed: {}, go: null,
+    scripts: [
+      { at: 300, code:
+        "document.querySelector('.ob-guess-btn').click();" +
+        "document.querySelector('.ob-next').click();" +               // 1 -> 2
+        "document.querySelector('.ob-next').click();" +               // 2 -> 3
+        "document.querySelector('.ob-next').click();" +               // 3 -> 4
+        "document.querySelector('.ob-agree').click();" +
+        "document.querySelector('.ob-next').click();" +               // 4 -> 5
+        "document.querySelector('.tp-chip').click();" +               // 종목 하나 고른다(첫 칩)
+        "document.querySelector('.ob-pick-start').click();" +         // [분석 시작] — fetch 가 여기서 돈다
+        // [분석 시작] 이후(비동기 fetch)만 폴링으로 기다린다(이건 진짜 네트워크 왕복이라
+        // 실제로 비동기다). 열리면 5 -> 6 클릭 직후 바로 스냅샷을 찍고(단언 6 — 즉시 끝나는
+        // 연출이 아니라는 증거), 곧바로 `.an-scrim` 을 클릭해 재생을 동기로 드레인한다.
+        "var t1=0;" +
+        "var iv1=setInterval(function(){" +
+          "t1++;" +
+          "var n=document.querySelector('.ob-next');" +
+          "if(n&&!n.disabled){" +
+            "clearInterval(iv1); n.click();" +                        // 5 -> 6, 재생이 이 클릭으로 켜진다
+            "var n1=document.querySelector('.ob-next');" +
+            "window.__ob6DisabledRightAfterClick = n1 ? n1.disabled : null;" +
+            "var scrim=document.querySelector('.an-scrim');" +
+            "if(scrim) scrim.click();" +                               // 드레인 — 남은 지표를 동기로 마저 읽고 즉시 끝낸다
+            "window.__ob6Ready=true;" +
+          "} else if(t1>150){ clearInterval(iv1); console.error('GATE_TIMEOUT_STEP5'); }" +
+        "},100);" } ],
+    delay: 3000,
+    assert: "typeof MSOnboarding !== 'undefined' && !!document.querySelector('.ob-step') && " +
+      "(function(){" +
+        "if(window.__ob6DisabledRightAfterClick !== true) return false;" +   // 클릭 직후엔 아직 안 열려 있었다(즉시 끝나는 연출이 아니다)
+        "if(!window.__ob6Ready) return false;" +                             // 5 -> 6 전환까지는 실제로 도달했다
+        "if(document.querySelector('.ob-back')) return false;" +             // Q4 — 6단계도 뒤로가기 없음
+        "if(document.querySelector('.an-scrim')) return false;" +           // 재생 오버레이가 끝나 스스로 닫혔다
+        "var next=document.querySelector('.ob-next');" +
+        "if(!next || next.disabled !== false) return false;" +               // 재생이 끝나 이제 열려 있다(단언 6)
+        // 단언 1 — 오늘 종가가 세 지평보다 DOM 순서상 먼저다.
+        "var step=document.querySelector('.ob-step');" +
+        "var kids=Array.prototype.slice.call(step.children);" +
+        "var todayIdx=-1, hzIdx=-1;" +
+        "for(var i=0;i<kids.length;i++){" +
+          "if(kids[i].className.indexOf('ob6-today')>=0 && todayIdx<0) todayIdx=i;" +
+          "if(kids[i].className.indexOf('ob6-hz')>=0 && hzIdx<0) hzIdx=i;" +
+        "}" +
+        "if(todayIdx<0||hzIdx<0||todayIdx>=hzIdx) return false;" +
+        "var today=kids[todayIdx];" +
+        "var tv=today.querySelector('.obq-value'), ta=today.querySelector('.obq-asof');" +
+        "if(!tv||!/\\d/.test(tv.textContent)) return false;" +               // 오늘 종가에 숫자가 있다
+        "if(!ta||!ta.textContent.trim()) return false;" +                    // 기준 시각이 값과 같은 자리에 있다
+        // 10번째 역할(num) 회귀 잠금 — .ob6-today .obq-value 는 font-size 만 --fs-display 로
+        // 덮이고(style-onboarding.css:220) font-weight·letter-spacing 은 기저 .obq-value
+        // 규칙(--fw-num/--ls-num)을 물려받는다. 정의 없이 참조만 되던 사고(리뷰 I1)가
+        // 재발하면 상속값(400/거의 0)으로 조용히 무너진다.
+        "function numTokenOk(el){" +
+          "var cs=getComputedStyle(el);" +
+          "var rootCS=getComputedStyle(document.documentElement);" +
+          "var wantFW=parseInt(rootCS.getPropertyValue('--fw-figure'),10);" +
+          "var wantLSem=parseFloat(rootCS.getPropertyValue('--ls-figure'));" +
+          "var fw=parseInt(cs.fontWeight,10)||0;" +
+          "if(fw<wantFW) return false;" +
+          "var wantLSpx=wantLSem*parseFloat(cs.fontSize);" +
+          "var ls=parseFloat(cs.letterSpacing)||0;" +
+          "return Math.abs(ls-wantLSpx)<=0.5;" +
+        "}" +
+        "if(!numTokenOk(tv)) return false;" +
+        // 단언 2·3 — 세 지평(내일·1주·1개월) 각각 중심값 ± 오차 + 해석.
+        "var stats=document.querySelectorAll('.ob6-hz .obq-stat');" +
+        "if(stats.length!==3) return false;" +
+        "var labels=[MSStr.t.rpHzTomorrow, MSStr.t.rpHzWeek, MSStr.t.rpHzMonth];" +
+        "for(var si=0;si<3;si++){" +
+          "var s=stats[si];" +
+          "var lab=s.querySelector('.obq-label');" +
+          "if(!lab||lab.textContent!==labels[si]) return false;" +
+          "var val=s.querySelector('.obq-value');" +
+          "if(!val||!/\\d/.test(val.textContent)) return false;" +
+          "if(!numTokenOk(val)) return false;" +           // .ob6-hz .obq-value — 같은 num 회귀 잠금(위 today 주석 참고)
+          "var unit=s.querySelector('.obq-unit');" +
+          "if(!unit||unit.textContent.indexOf('±')<0) return false;" +   // ± 오차 표기
+          "var meaning=s.querySelector('.obq-meaning');" +
+          "if(!meaning||!meaning.textContent.trim()) return false;" +        // 값만 던지지 않는다(Q5)
+        "}" +
+        // 단언 4 — 근거가 2단계와 같은 형식(동의·반대·무판정·자백 네 통, 합이 32).
+        "var counts=Array.prototype.slice.call(document.querySelectorAll('.ob32-sec-count'))" +
+          ".map(function(e){ return Number(e.textContent); });" +
+        "if(counts.length!==4) return false;" +
+        "var sum=0; for(var ci=0;ci<counts.length;ci++) sum+=counts[ci];" +
+        "if(sum!==32) return false;" +
+        "if(!document.querySelector('.ob32-sec-dissent')) return false;" +
+        "return true;" +
+      "})()" },
+  // 7단계(Task 8, 완료·가격표·지급) — 위 onboarding-analysis 라우트를 한 걸음 더 걷는다.
+  // **재생을 기다리지 않는다**(위 onboarding-analysis 헤더 주석의 실측 근거를 그대로 문다).
+  // [분석 시작] 이후(진짜 비동기 fetch)만 폴링으로 기다리고, 5→6 클릭 직후 `.an-scrim` 을
+  // 곧바로 클릭해 재생을 동기로 드레인한다 — rAF 페이싱을 기다릴 필요 자체가 없어진다.
+  { name: "onboarding-final", seed: {}, go: null,
+    scripts: [
+      { at: 300, code:
+        "document.querySelector('.ob-guess-btn').click();" +
+        "document.querySelector('.ob-next').click();" +               // 1 -> 2
+        "document.querySelector('.ob-next').click();" +               // 2 -> 3
+        "document.querySelector('.ob-next').click();" +               // 3 -> 4
+        "document.querySelector('.ob-agree').click();" +
+        "document.querySelector('.ob-next').click();" +               // 4 -> 5
+        "document.querySelector('.tp-chip').click();" +               // 종목 하나 고른다(첫 칩)
+        "document.querySelector('.ob-pick-start').click();" +         // [분석 시작] — fetch 시작
+        "var t1=0;" +
+        "var iv1=setInterval(function(){" +
+          "t1++;" +
+          "var n=document.querySelector('.ob-next');" +
+          "if(n&&!n.disabled){" +                                     // 5 -> 6 이 열렸다(fetch 완료)
+            "clearInterval(iv1); n.click();" +                        // 재생이 이 클릭으로 켜진다
+            "var scrim=document.querySelector('.an-scrim');" +
+            "if(scrim) scrim.click();" +                               // 드레인 — 재생을 동기로 즉시 끝낸다
+            "var n2=document.querySelector('.ob-next');" +
+            "if(n2&&!n2.disabled) n2.click();" +                       // 6 -> 7
+            "else console.error('GATE_NOT_READY_STEP6');" +
+          "} else if(t1>150){ clearInterval(iv1); console.error('GATE_TIMEOUT_STEP5'); }" +
+        "},100);" }
+    ],
+    delay: 3000,
+    assert: "typeof MSOnboarding !== 'undefined' && !!document.querySelector('.ob-step') && " +
+      "(function(){" +
+        "if(document.querySelector('.ob-back')) return false;" +   // Q4 — 7단계도 뒤로가기 없음
+        "var step=document.querySelector('.ob-step');" +
+        "var kids=Array.prototype.slice.call(step.children);" +
+        "var recap=document.querySelector('.ob-recap');" +
+        "var pricing=document.querySelector('.ob-pricing');" +
+        "var grant=document.querySelector('.ob-grant');" +
+        "if(!recap||!pricing||!grant) return false;" +
+        "var ri=kids.indexOf(recap), pi=kids.indexOf(pricing), gi=kids.indexOf(grant);" +
+        // 단언 1·2 — recap(방금 받은 것) → 가격표 → 지급, 이 순서로 DOM 에 있다.
+        "if(ri<0||pi<0||gi<0||!(ri<pi&&pi<gi)) return false;" +
+        // 단언 1 — recap 세 항목이 도구 32 · 지평 3 · 근거(숫자)를 실제 값으로 담는다.
+        "var rows=Array.prototype.slice.call(document.querySelectorAll('.ob-recap-row'));" +
+        "if(rows.length!==3) return false;" +
+        "var nums=rows.map(function(r){ return r.querySelector('.ob-recap-num').textContent; });" +
+        "if(nums[0]!=='32') return false;" +
+        "if(nums[1]!=='3') return false;" +
+        "if(!/^\\d+$/.test(nums[2])) return false;" +
+        // 10번째 역할(num) 회귀 잠금 — .ob-recap-num 은 --fs-num/--fw-num/--ls-num 을 직접
+        // 쓴다(style-onboarding.css:233). 이 세 토큰이 :root 정의 없이 참조만 되던 사고
+        // (리뷰 I1)에서 실측된 무너진 값은 16px/400/본문 상속(-0.16px)이었다 — node 시험
+        // 123건은 그 상태에서 전부 초록이었다(정의 유무만 보고 실제 렌더는 안 봐서). 여기서
+        // 본문(--fs-body)보다 크고 볼드인지, 굵기·자간이 별칭 대상(--fw-figure/--ls-figure)
+        // 그대로 먹는지를 실 브라우저 계산값으로 잰다. 조건부 if 로 감싸지 않는다 — 요소가
+        // 없거나 값이 안 먹으면 그 자체로 실패다.
+        "var recapNum=document.querySelector('.ob-recap-num');" +
+        "if(!recapNum) return false;" +
+        "var rnCS=getComputedStyle(recapNum);" +
+        "var rootCS2=getComputedStyle(document.documentElement);" +
+        "var bodyFsPx=parseFloat(rootCS2.getPropertyValue('--fs-body'));" +
+        "if(!(parseFloat(rnCS.fontSize)>bodyFsPx)) return false;" +           // 본문 크기보다 크다
+        "var wantFW2=parseInt(rootCS2.getPropertyValue('--fw-figure'),10);" +
+        "if((parseInt(rnCS.fontWeight,10)||0)<wantFW2) return false;" +      // 볼드(--fw-num 별칭)
+        "var wantLSpx2=parseFloat(rootCS2.getPropertyValue('--ls-figure'))*parseFloat(rnCS.fontSize);" +
+        "if(Math.abs((parseFloat(rnCS.letterSpacing)||0)-wantLSpx2)>0.5) return false;" + // --ls-num 별칭
+
+        "for(var ri2=0;ri2<rows.length;ri2++){" +
+          "var det=rows[ri2].querySelector('.ob-recap-detail');" +
+          "if(!det||!det.textContent.trim()) return false;" +   // 값만 던지지 않는다(Q5 와 같은 원칙)
+        "}" +
+        // 단언 3 — 온보딩 체험이 상시 무료로 안 읽힌다: '온보딩 한정 무료' 고지가
+        // '기본은 계속 무료' 안내보다 먼저 온다(불리한 사실 먼저).
+        "var warns=Array.prototype.slice.call(pricing.querySelectorAll('.ob-warn'));" +
+        "var notAlways=null;" +
+        "for(var wi=0;wi<warns.length;wi++){ if(warns[wi].textContent===MSStr.t.obDoneOnboardFree){ notAlways=warns[wi]; break; } }" +
+        "if(!notAlways) return false;" +
+        "var notes=Array.prototype.slice.call(pricing.querySelectorAll('.ob-cost-note'));" +
+        "var freeNote=null;" +
+        "for(var ni=0;ni<notes.length;ni++){ if(notes[ni].textContent===MSStr.t.obDoneFree){ freeNote=notes[ni]; break; } }" +
+        "if(!freeNote) return false;" +
+        "var pkids=Array.prototype.slice.call(pricing.children);" +
+        "if(pkids.indexOf(notAlways)>=pkids.indexOf(freeNote)) return false;" +
+        // 가격표 — MSWallet.COSTS(심화 3·전문 5, 고정 클라이언트 상수)를 그대로 반영한다.
+        "var costRows=document.querySelectorAll('.ob-costs .ob-cost-row');" +
+        "if(costRows.length!==2) return false;" +
+        // 단언 4(양성 경로) — 로컬 mock 지갑이 실제로 응답해 서버 확정 값이 지급으로 뜬다.
+        // 확정 전 상태(obGranting)는 test/onboarding.test.mjs 의 지연 지갑 시험이 이미 잰다 —
+        // 여기는 실제 네트워크 왕복이 끝난 뒤의 결과를 실 브라우저로 확인한다.
+        "if(grant.textContent.indexOf(MSStr.t.obGranted)<0) return false;" +
+        "if(!/^\\d+/.test(grant.textContent)) return false;" +
+        "return true;" +
+      "})()" },
+  // 리뷰 I2(Task 8 라운드 1/5) — 위 두 라우트(onboarding-analysis·onboarding-final)는 재생을
+  // `.an-scrim` 드레인으로 **건너뛴다**(결정성을 위해, 위 onboarding-analysis 헤더 주석 참고).
+  // 그런데 그 드레인이 5→6 클릭과 **같은 동기 tick** 안에서 일어나면 `play()`가 예약한 첫
+  // `requestAnimationFrame` 이 단 한 번도 실행되지 않은 채로 재생이 끝난다 — `frame()` 자체가
+  // 안 불린다는 뜻이다(리뷰어가 `frame()` 첫 줄에 console.error 를 심어 실측: 관문은 10/10
+  // 인데 그 로그가 한 번도 안 찍혔다). Task 7 이 고친 `root is not defined` 버그가 정확히
+  // 그 `frame()` 안에 살아 있었다 — 아무도 그 경로를 실행하지 않았기 때문에 몇 달간 아무도
+  // 몰랐다.
+  //
+  // **실측(Task 8 라운드 1/5) — 이 헤드리스 환경은 프로세스당 실 rAF 를 최대 2번만,
+  // 그것도 페이지 로드 직후의 아주 짧은 창(setTimeout 지연 0ms 근처)에서만 준다.** 독립
+  // 진단 페이지로 직접 쟀다: `requestAnimationFrame` 을 지연 0ms 로 요청하면 2틱(가상
+  // 시각 15~41ms 부근), 100ms 지연이면 0틱, 400ms 지연이면 1틱, 2000ms 지연이면 0틱 —
+  // `--virtual-time-budget` 을 아무리 늘려도(8000→30000) 더 나오지 않는다(합성 화면
+  // 컴포지터가 없는 `--headless=new --disable-gpu` 특성으로 보인다). 그래서 온보딩
+  // 5→6단계처럼 여러 클릭·비동기 fetch 를 거친 **뒤**에 재생을 켜면, 그 시점엔 이미 그 창이
+  // 지나 있어 실측상 0틱이 나온다(직접 재확인: 위 흐름으로 `.an-count` 를 2초 폴링해도
+  // 단 한 번도 0 초과 값을 못 봤다). 즉 온보딩 UI 흐름 안에서 자연 발생 재생을 기다리는
+  // 접근은 **환경의 하드 한계로 원리적으로 불가능**하다 — 더 기다려도, 더 폴링해도 없다.
+  //
+  // 그래서 이 라우트는 온보딩 흐름을 타지 않는다 — `MSAnalyzeView.play()`(progress-analyze.js,
+  // index.html 에서 app.js 보다 먼저 전역으로 실린다)를 **합성 stepper**(readingStepper 와
+  // 같은 계약: total·done·index·rows·step()·drain())로 **페이지 로드 직후 지연 0ms** 에
+  // 직접 호출한다 — 실측상 rAF 가 살아있는 유일한 창이다. step() 을 의도적으로 무겁게
+  // 만들어(호출마다 ~1.2ms busy-wait) FRAME_BUDGET_MS(8ms) 안에 전부 못 끝나게 하고
+  // (총 30개, 프레임당 ~6개), `.an-count` 를 짧게 폴링해 **0 < index < total** 인 값을
+  // 관찰한다 — 이 값은 우리 코드가 아니라 오직 `step()`(=`frame()` 내부)만 바꿀 수 있으므로
+  // 이게 보이면 **실 rAF 로 frame() 이 실제 호출됐다**는 직접 증거다. 관찰 후에는(더 기다리지
+  // 않고) 드레인해 완료까지 확인한다.
+  { name: "progress-analyze-raf-live", seed: {}, go: null,
+    scripts: [
+      { at: 0, code:
+        "window.__rafSamples=[];" +
+        "window.__rafObserved=false;" +
+        "try{" +
+          "var TOTAL=30, idx=0, rows=[];" +
+          "var stepper={" +
+            "total:TOTAL," +
+            "get done(){ return idx>=TOTAL; }," +
+            "get index(){ return idx; }," +
+            "rows:rows," +
+            "step:function(){" +
+              "if(idx>=TOTAL) return null;" +
+              "var t0=performance.now();" +
+              "while(performance.now()-t0<1.2){}" +               // frame() 이 한 번에 다 못 끝내게(합성 부하)
+              "var r={type:'synthetic'+idx, bias:0.1, text:'합성 판독 '+idx};" +
+              "rows.push(r); idx++; return r;" +
+            "}," +
+            "drain:function(){ while(idx<TOTAL) this.step(); return rows; }" +
+          "};" +
+          "MSAnalyzeView.play({ stepper:stepper, basic:5, onDone:function(rows2){" +
+            "window.__rafPlayDone=true; window.__rafPlayRows=rows2.length;" +
+          "}});" +
+        "}catch(e){ console.error('SYNTH_PLAY_THROW', String(e)); }" +
+        "var t=0;" +
+        "var iv=setInterval(function(){" +
+          "t++;" +
+          "var cnt=document.querySelector('.an-count');" +
+          "var m=cnt&&/^(\\d+) \\//.exec(cnt.textContent);" +
+          "var v=m?Number(m[1]):0;" +
+          "if(v>0){ window.__rafObserved=true; window.__rafSamples.push(v); }" +
+          "if(v>0||t>40){" +                                       // 실제 진행을 봤거나(정상), 400ms 넘겨도 못 봤으면(환경 한계) 멈춘다
+            "clearInterval(iv);" +
+            "var scrim=document.querySelector('.an-scrim');" +
+            "if(scrim) scrim.click();" +                           // 관찰 후 드레인 — 완료까지 확인
+          "}" +
+        "},10);" }
+    ],
+    delay: 1500,
+    assert: "typeof MSAnalyzeView !== 'undefined' && " +
+      "(function(){" +
+        // 핵심 증거 — 0 < 관찰값 < 30. 이 범위를 벗어나면 실 rAF 로 frame() 이 돈 게 아니다
+        // (0 이면 한 번도 안 돎, ==30 이면 우리 폴링이 늦어 이미 드레인된 뒤를 본 것일 수
+        // 있어 증거력이 없다 — 그래서 반드시 '진행 중' 스냅샷이어야 한다).
+        "if(!window.__rafObserved) return false;" +
+        "var s=window.__rafSamples;" +
+        "if(!s.length) return false;" +
+        "if(!(s[0]>0&&s[0]<30)) return false;" +
+        // 드레인 후 완료까지 실제로 도달했다(오버레이가 스스로 닫히고 onDone 이 불렸다).
+        "if(!window.__rafPlayDone) return false;" +
+        "if(window.__rafPlayRows!==30) return false;" +
+        "if(document.querySelector('.an-scrim')) return false;" +
         "return true;" +
       "})()" },
   // Task 4(하단 탭바) 이후: 탭 3개가 실제로 그려졌는지를 여기서 확인한다 — 관문이 초록인데

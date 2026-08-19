@@ -139,4 +139,4 @@
 .rc-row-val { flex:0 0 auto; font-size:var(--fs-body); font-variant-numeric:tabular-nums; color:var(--ink-2); }
 .rc-row-verdict { flex:0 0 auto; min-width:66px; text-align:right; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; color:var(--ink-4); }
 .rc-row-verdict.is-hit { color:var(--bull); }
-.wl-res-more { margin-top:8px; min-height:36px; padding:0; background:none; border:0; color:var(--action); font:inherit; font-size:var(--fs-caption); }
+.wl-res-more { margin-top:8px; min-height:44px; padding:0; background:none; border:0; color:var(--action); font:inherit; font-size:var(--fs-caption); }

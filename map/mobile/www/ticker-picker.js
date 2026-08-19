@@ -1,4 +1,4 @@
-// 종목 고르기. 온보딩 4단계(다중)와 워치리스트 ＋Add(단일)가 같은 화면을 쓴다 —
+// 종목 고르기. 온보딩 5단계(다중)와 워치리스트 ＋Add(단일)가 같은 화면을 쓴다 —
 // 온보딩 안에 묻어두면 둘이 갈리고, 예쁜 온보딩 옆에 브라우저 prompt 대화상자가 남는다(watchlist.js
 // 의 옛 startAddTicker 가 그것이었다 — Task 6 에서 이 컴포넌트로 교체됐다). 이 컴포넌트는 그
 // 화면들이 무엇으로 추가를 시작했는지 몰라야 한다 — 잇는 일은 이 화면들 쪽 배선의 몫).
@@ -14,7 +14,7 @@
 
   // 시안 12a 그대로 — 국내 2종을 맨 앞에 둔다(한국 사용자가 먼저 보는 자리). 예전 목록(미국
   // 기술주 12종)은 "한국 우선" 이라는 시안의 의도와 반대 방향이었다 — 코디네이터 판정(2026-08-16)
-  // 으로 이 여덟 개로 교체했다. 이 목록은 온보딩 4단계도 함께 쓴다(같은 컴포넌트) — 그 화면의
+  // 으로 이 여덟 개로 교체했다. 이 목록은 온보딩 5단계도 함께 쓴다(같은 컴포넌트) — 그 화면의
   // 칩도 이 여덟 개로 바뀌는 것은 부작용이 아니라 의도된 결과다.
   var CURATED = [
     { sym: "005930", name: "삼성전자" }, { sym: "000660", name: "SK하이닉스" },
@@ -38,12 +38,21 @@
 
   // 상한에 걸려 있어도 '빼는 것'은 언제나 된다 — 안 그러면 상한까지 고른 뒤
   // 마음을 바꿀 방법이 없다.
-  function toggle(sel, sym, max) {
+  //
+  // swap(리뷰 D, 2026-08-19) — 온보딩 5단계처럼 "정확히 하나"를 고르는 화면에서는, 정원이
+  // 찬 상태에서 다른 칩을 누르는 유일한 의도가 "더 담기"가 아니라 "바꾸기"다. swap 이
+  // 참이면 정원을 넘기는 대신 가장 오래된 것부터 밀어내고 새 것을 넣는다(선입선출) —
+  // max:1 이면 그냥 [새 심볼] 하나로 통째로 바뀐다. 기본값(undefined)은 예전 그대로
+  // 거부한다 — watchlist.js 는 애초에 multi:false 라 이 함수 자체를 안 타므로 영향이 없다.
+  function toggle(sel, sym, max, swap) {
     var s = norm(sym);
     if (!s) return sel.slice();
     var i = sel.indexOf(s);
     if (i >= 0) { var out = sel.slice(); out.splice(i, 1); return out; }
-    if (max != null && sel.length >= max) return sel.slice();
+    if (max != null && sel.length >= max) {
+      if (!swap) return sel.slice();
+      return sel.slice(sel.length - max + 1).concat([s]);
+    }
     return sel.concat([s]);
   }
 
@@ -53,7 +62,10 @@
     var api = o.api || (typeof MSApi !== "undefined" ? MSApi : null);
     var multi = !!o.multi;
     var max = (o.max == null) ? null : o.max;
-    // preset 항목은 심볼 문자열이거나(옛 호출부), {sym,name} 객체(온보딩 4단계 — CURATED 밖
+    // 리뷰 D — 정원이 찬 상태에서 다른 칩을 누르면 "교체"할지("더 못 담는다"는 안내 없이
+    // 옛 선택을 밀어내고 onChange 를 부른다) 정할지. 온보딩 5단계만 켠다(아래 호출부).
+    var swapAtMax = !!o.swapAtMax;
+    // preset 항목은 심볼 문자열이거나(옛 호출부), {sym,name} 객체(온보딩 5단계 — CURATED 밖
     // 프리셋에 이름을 함께 실어 보낸다)다. 둘 다 받는다 — norm() 에 객체를 그대로 넣으면
     // "[object Object]" 가 심볼이 된다.
     var presetList = o.preset || [];
@@ -66,7 +78,7 @@
     var grid = MSUi.el("div", "tp-grid");
     var msg = MSUi.el("p", "tp-msg");
     // 시안 12a 의 제목·"많이 보는 종목" 라벨·자물쇠 설명문·확인 버튼은 단일 모드(워치리스트
-    // ＋Add) 전용 chrome 이다. 온보딩 4단계(multi)는 이미 자기 제목(obH4/obSub4)을 갖고
+    // ＋Add) 전용 chrome 이다. 온보딩 5단계(multi)는 이미 자기 제목(obPickH/obPickSub)을 갖고
     // 있어 여기서 또 그리면 두 벌이 된다 — 그 화면은 그대로 grid+검색+안내만 받는다.
     var chrome = !multi;
 
@@ -120,7 +132,7 @@
       CURATED.forEach(function (x) { grid.appendChild(chip(x.sym, x.name)); });
       // CURATED 밖에서 본 적 있는 심볼도 전부 칩으로 그린다(offSeen — 지금 선택 여부와 무관하게) —
       // sel 만 보고 그리면 selected()는 참인데 격자엔 아무 칩도 없어 "고른 게 하나도 없어 보이는"
-      // 화면이 되고(온보딩 4단계 프리셋이 워치리스트 전체가 CURATED 밖일 때 실측), sel 만 보고
+      // 화면이 되고(온보딩 5단계 프리셋이 워치리스트 전체가 CURATED 밖일 때 실측), sel 만 보고
       // "선택된 것만" 그리면 끄는 순간 칩이 통째로 사라져 다시 켤 방법이 없어진다(리뷰 지적 —
       // 되돌리려면 loadTicker 재왕복이 필요했고 오프라인이면 그마저 안 됐다). curated 8종
       // 순서는 그대로 두고 뒤에 이어붙인다(offSeen 순서 = 프리셋/추가로 처음 본 순서).
@@ -132,7 +144,7 @@
     // next.length !== sel.length(줄어듦)이라 이 조건에 안 걸려 정상적으로 반영된다.
     // (주의: hadIt && !multi 로 단일 모드 교체를 상한 로직과 섞지 않는다 — 단일 모드는
     // 애초에 toggle 을 거치지 않고 항상 [sym] 으로 교체한다.)
-    // 잠긴 심볼 = 이미 사용자의 워치리스트에 있는 것. 온보딩 4단계가 기존 목록을 프리셋으로
+    // 잠긴 심볼 = 이미 사용자의 워치리스트에 있는 것. 온보딩 5단계가 기존 목록을 프리셋으로
     // 받으면서 그 화면이 "내 목록 편집"처럼 보이게 됐는데, seedTo 는 추가만 하므로 여기서
     // 꺼도 실제로는 안 빠졌다 — 화면이 거짓말을 했다. 온보딩에서 목록이 지워지는 경로를
     // 만드는 대신(실수로 자기 목록을 날릴 수 있다) 해제 자체를 막고 이유를 말한다.
@@ -147,8 +159,12 @@
         return false;
       }
       var hadIt = sel.indexOf(sym) >= 0;
-      var next = multi ? toggle(sel, sym, max) : [sym];
-      if (multi && !hadIt && next.length === sel.length) {
+      var atCap = max != null && sel.length >= max;
+      var next = multi ? toggle(sel, sym, max, swapAtMax) : [sym];
+      // 리뷰 D — swapAtMax 면 정원이 차 있어도(atCap) 거부하지 않는다. next.length===
+      // sel.length 로만 판정하던 옛 코드는 교체(같은 개수를 유지한 채 내용만 바뀜)를
+      // "거부됐다"로 오판해 정상적으로 바뀐 선택에도 tpFull 안내를 띄웠을 것이다.
+      if (multi && !hadIt && atCap && !swapAtMax) {
         msg.textContent = Str ? Str.t.tpFull : "";
         return false;
       }

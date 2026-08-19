@@ -48,12 +48,20 @@
 //      p40~p60 밴드가 비면(후보가 아주 적을 때) 밴드를 좌우로 넓혀 재시도한다 — 조용히
 //      전체 풀로 물러서면 극단값이 다시 뽑힐 수 있어, 반드시 "중앙값 근방"이라는 원칙 안
 //      에서만 넓힌다.
+//   8. 성향 민감도(2026-08-19, Task 1 측정): 3단계의 요점은 "성향을 고르면 같은 구간의
+//      판정이 바뀐다"인데, tools/measure-preset-sensitivity.mjs 로 옛 표본(XOM 2005-05-12→
+//      2006-04-25)을 재보니 4종 성향이 전부 regime="bull"(score 19~26, regime 경계 ±12에
+//      전혀 안 붙는다) — 성향을 바꿔도 화면이 아무 일도 안 일어났다. 그래서 각 후보 창마다
+//      4종 성향(추세/모멘텀/평균회귀/변동성, MSIndTiers.PRESETS)을 customGraph 로 돌려
+//      **regime 이 최소 2종으로 갈리는 창만** 남긴다. 이 필터를 다른 필터보다 먼저 적용하면
+//      전형 밴드·confluence 랭킹이 "성향이 실제로 갈리는" 후보들 안에서만 경쟁하게 된다.
 import { writeFileSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 const require = createRequire(import.meta.url);
 const FC = require("../../forge-core.js");
 const G = require("../www/graph.js");
+const Tiers = require("../www/ind-tiers.js");
 const RM = require("../www/report-model.js");
 const IND = require("../www/indicators.js");
 const READ = require("../www/readings.js");
@@ -71,6 +79,22 @@ const TF_KO = RM.tfKo("1day");   // "일봉" — trendProfileForTF 의 한국어
 function windowOk(win) {
   return win.every(c => isFinite(c.o) && isFinite(c.h) && isFinite(c.l) && isFinite(c.c) &&
     isFinite(c.v) && c.v > 0 && c.h >= Math.max(c.o, c.c) && c.l <= Math.min(c.o, c.c));
+}
+
+// 4종 성향(customGraph)을 같은 입력에 돌려 regime 집합을 모은다. 최소 2종으로 갈리는
+// 창만 "성향을 고르면 판정이 바뀐다"는 3단계의 전제를 충족한다(§8, Task 1 측정).
+function presetRegimeSet(input) {
+  const regimes = new Set();
+  Tiers.PRESETS.forEach(p => {
+    const weights = Tiers.weightsOf(p.key, G.BASIC);
+    const graph = G.customGraph(FC, weights);
+    G.setVolume(graph, input.volume);
+    const opt = { timeframe: TF_KO, driftWeights: G.driftWeightsOf(graph, weights) };
+    let out;
+    try { out = FC.run(graph, input, opt); } catch (e) { return; }
+    regimes.add(out.verdict.regime);
+  });
+  return regimes;
 }
 
 function earningsNear(earnings, win) {
@@ -118,6 +142,9 @@ export function buildCandidates(raw) {
       const rows = IND.readings(FC, graph, input, ctx);
       const toolRows = TOOLS.map(t => rows.find(r => r.type === t));
       if (toolRows.some(r => !r || READ.isRefusal(r.text))) continue;   // 힌트 도구가 말이 없으면 버린다
+
+      // 가장 비싼 필터(엔진 4회 추가 실행)라 다른 필터를 다 통과한 후보에만 돌린다(§8).
+      if (presetRegimeSet(input).size < 2) continue;
 
       const conf = (out.verdict.confluence && out.verdict.confluence.score) || 0;
       const moveSize = Math.abs(Math.log(after / before)) * 100;   // 실제 이동폭(%p 근사)

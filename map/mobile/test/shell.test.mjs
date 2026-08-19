@@ -29,6 +29,49 @@ test("터치 대상 44px 하한을 지킨다", () => {
   assert.ok(m && Number(m[1]) >= 44, "탭 높이가 44 미만이다");
 });
 
+// 리뷰 M1(Task 8 라운드 1/5, 온보딩 재설계 §완료 마감) — 위 시험은 .ms-tab 하나만 쟀다.
+// .ob-retry(온보딩 7단계 유일한 탈출 버튼)가 34px 로 방치돼 있던 것도 이 규칙을 재는
+// 관문이 그 클래스를 아예 몰랐기 때문이다. 여기서 범위를 프로젝트 전역 버튼으로 넓힌다.
+//
+// 목록은 손으로 짐작하지 않는다 — www/*.js·www/screens/*.js 전수에서 실제 <button>
+// 생성부(`MSUi.el("button", "…")` · `document.createElement("button")` + className)를
+// grep 해 뽑았다(2026-08-19 실측, Task 8 라운드 1/5). 그중 **CSS 에 min-height/height 를
+// px 로 명시한** 것만 이 시험이 잴 수 있다 — padding·line-height 로만 높이가 정해지는
+// 버튼은 실제 브라우저 getComputedStyle 없이는 못 잰다(이 시험의 한계, 범위 밖으로 남긴다).
+//
+// 정규식 함정 주의 — `\.ms-pill\b` 는 `.ms-pill-ico`(하이픈 뒤도 단어경계로 잡힘)까지
+// 잘못 물어 그 안의 `svg{height:14px}`를 `.ms-pill` 자신의 높이로 오판했다(실측 중 발견).
+// 그래서 셀렉터 뒤에 반드시 공백류 또는 `{` 만 오도록 `[\s{]` 로 좁혀 이 함정을 피한다.
+// 위 CSS 는 style-shell.css 한 장뿐이다 — 이 시험은 프로젝트 전역 버튼을 재므로
+// allCss()(전체 캐스케이드)를 따로 쓴다.
+const ALL_CSS = allCss();
+function heightOf(cls) {
+  const re = new RegExp("\\." + cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[\\s{][^{]*\\{[^}]*\\}", "s");
+  const m = ALL_CSS.match(re);
+  if (!m) return null;
+  const h = m[0].match(/(?:min-height|height)\s*:\s*(\d+(?:\.\d+)?)px/);
+  return h ? Number(h[1]) : null;
+}
+
+test("터치 대상 44px 하한 — 실 <button> 생성부에서 뽑은 전역 목록으로 넓힌다", () => {
+  // 명시적 px 높이가 있고 44 이상인 것으로 확인된 버튼들(회귀 잠금 — 하나라도 44 밑으로
+  // 내려가면 여기서 잡힌다). 값 자체(48 등)를 요구하지 않는다 — "44 이상"만 잠근다.
+  //
+  // 리뷰 M1(2/5) — `.wl-res-more`(watchlist.js "더 보기") · `.rp-last-more`(report.js
+  // "더 보기")는 이 시험을 전역으로 넓히며(1/5) 36px 로 걸려 `test.todo()` 로 잠시
+  // 남겨뒀었다. 컨트롤러 판정: "test.todo() 로 남기면 그건 스위트에 상주하는 예외다" —
+  // 44px 로 올리고 이 목록에 합류시켜 실제 어서션으로 닫는다. 예외 목록이 아니라 회귀
+  // 잠금 목록에 편입된 것이다.
+  const compliant = ["btn", "rp-back", "rp-cta", "ob-retry", "ob-guess-btn",
+    "sr-back", "rc-back", "rs-back", "ob32-expand", "ms-tab",
+    "wl-res-more", "rp-last-more"];
+  compliant.forEach((c) => {
+    const h = heightOf(c);
+    assert.ok(h !== null, "." + c + " 에서 명시적 min-height/height px 를 못 찾았다(시험이 낡았을 수 있다)");
+    assert.ok(h >= 44, "." + c + " 가 44px 미만이다: " + h + "px");
+  });
+});
+
 test("좌측 세로 accent 라인 금지 — 활성은 배경으로만 말한다", () => {
   assert.ok(!/border-left:\s*[2-9]/.test(CSS), "좌측 컬러 라인이 들어왔다");
   assert.match(CSS, /\.ms-tab\.is-on\b[^}]*background:/s, "활성 탭을 배경으로 표시하지 않는다");

@@ -108,3 +108,92 @@ test("건너뛰기는 연출만 건너뛴다 — 남은 지표를 버리지 않�
   assert.match(tap[0], /drain\(\)/,
     "탭했을 때 남은 지표를 마저 읽지 않는다 — 분석이 잘린 채 결과로 넘어간다");
 });
+
+// 리뷰 I4 — play() 를 부르는 화면(온보딩)이 state.ob6Playing=true 를 먼저 세운 뒤 play() 를
+// 부른다. play() 나 그 rAF 콜백(frame())이 던지면 그 플래그가 영원히 안 풀려 앱이 갇힌다.
+// 온보딩 쪽 test/onboarding.test.mjs 의 I4 시험은 이 프로젝트의 테스트 하네스가 쓰는 동기
+// rAF 스텁(`fn => { fn(); return 1; }`) 위에서 돈다 — 그 스텁은 frame() 을 play() 호출과
+// **같은 호출 스택**에서 그 자리에 동기로 실행하므로, frame() 자신에게 try/catch 가
+// 없어도 예외가 자연스럽게 play() 호출자의 try/catch 로 넘어간다. 그래서 그 시험만으로는
+// "frame() 자신의 try/catch 가 실제로 일을 하는지"를 증명하지 못한다 — 진짜 브라우저의
+// requestAnimationFrame 은 **다음 매크로태스크**로 넘어가 호출 스택을 끊는다(리뷰가 지적한
+// 바로 그 지점). 여기서는 setTimeout 으로 진짜 비동기 rAF 를 흉내내 그 전제를 재현하고,
+// play() 를 부르는 쪽에 **어떤 try/catch 도 두지 않은 채** onError 가 실제로 불리는지 잰다
+// — 캐치가 있다면 그건 이 함수(frame) 자신의 것일 수밖에 없다.
+test("play() 의 rAF 콜백(frame) 안에서 던지면 onError 로 회수된다 — 호출 스택이 끊긴 진짜 비동기 rAF", async () => {
+  const MSUi = require("../www/ui.js");
+  const MSStr = require("../www/strings.js");
+
+  // 최소 DOM 스텁 — El(onboarding.test.mjs)의 축약판. play() 가 실제로 건드리는 것만 지원한다:
+  // createElement/appendChild/removeChild/classList.add/textContent/style/querySelector.
+  class MiniEl {
+    constructor(tag) { this.tagName = tag; this.className = ""; this.children = []; this.style = {}; this._text = ""; }
+    appendChild(c) { c.parentNode = this; this.children.push(c); return c; }
+    removeChild(c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); c.parentNode = null; return c; }
+    get classList() { const self = this; return { add(c) { if ((" " + self.className + " ").indexOf(" " + c + " ") < 0) self.className = (self.className ? self.className + " " : "") + c; } }; }
+    addEventListener() {}
+    set innerHTML(v) { if (v === "") this.children = []; }
+    get innerHTML() { return ""; }
+    set textContent(v) { this._text = String(v); }
+    get textContent() { return this._text; }
+    find(pred) {
+      for (const c of this.children) { if (pred(c)) return c; const hit = c.find(pred); if (hit) return hit; }
+      return null;
+    }
+    querySelector(sel) {
+      const cls = String(sel).replace(/^\./, "");
+      return this.find(c => (" " + c.className + " ").indexOf(" " + cls + " ") >= 0);
+    }
+  }
+
+  const bodyEl = new MiniEl("body");
+  const g = globalThis;
+  const saved = {};
+  const put = (k, v) => { saved[k] = Object.prototype.hasOwnProperty.call(g, k) ? g[k] : undefined; g[k] = v; };
+  put("document", { createElement: t => new MiniEl(t), body: bodyEl, querySelector: sel => bodyEl.querySelector(sel) });
+  put("MSUi", MSUi);
+  put("MSStr", MSStr);
+  put("MSIndicators", IND);
+  // 진짜 비동기 — 동기 스텁과 달리 다음 매크로태스크로 넘어가 호출 스택을 끊는다.
+  put("requestAnimationFrame", fn => setTimeout(fn, 0));
+  put("cancelAnimationFrame", id => clearTimeout(id));
+
+  // 이 프로세스 차원에서 예외가 새 나가면(= frame() 에 자체 try/catch 가 없다는 뜻) 그대로
+  // node --test 프로세스를 죽이지 않고 여기서 붙잡아, "새 나갔다"는 사실 자체를 단언으로
+  // 바꾼다 — 크래시가 아니라 빨간 시험이 되게 한다.
+  let uncaught = null;
+  const onUncaught = (e) => { uncaught = e; };
+  process.once("uncaughtException", onUncaught);
+
+  try {
+    const stepper = {
+      total: 5, rows: [],
+      get done() { return false; },     // 끝까지 안 끝난다 — step() 이 항상 먼저 던진다
+      get index() { return 0; },
+      step() { throw new Error("frame boom — 진짜 비동기 rAF 재현"); },
+      drain() { throw new Error("frame boom — 진짜 비동기 rAF 재현"); }
+    };
+
+    const outcome = await Promise.race([
+      new Promise((resolve) => {
+        AV.play({
+          stepper, basic: 5,
+          onDone: (rows) => resolve({ kind: "done", rows }),
+          onError: (err) => resolve({ kind: "error", err })
+        });
+      }),
+      new Promise((resolve) => setTimeout(() => resolve({ kind: "timeout" }), 300))
+    ]);
+
+    assert.strictEqual(outcome.kind, "error",
+      "frame() 안에서 던졌는데 onError 로 안 끝났다(실제: " + outcome.kind + ") — 회수 경로가 없다는 뜻이다");
+    assert.match(String(outcome.err && outcome.err.message), /frame boom/,
+      "onError 에 넘어온 오류가 실제로 던진 그 오류가 아니다");
+    assert.strictEqual(bodyEl.querySelector(".an-scrim"), null, "실패했는데 오버레이(.an-scrim)가 안 지워졌다");
+    assert.strictEqual(uncaught, null,
+      "예외가 frame() 밖(uncaughtException)으로 새 나갔다 — frame() 자신에게 try/catch 가 없다는 뜻이다");
+  } finally {
+    process.removeListener("uncaughtException", onUncaught);
+    Object.keys(saved).forEach(k => { if (saved[k] === undefined) delete g[k]; else g[k] = saved[k]; });
+  }
+});

@@ -152,9 +152,10 @@
   // 폴백 색이 두 벌이 되는 것을 막았다(ui.js).
   function colTokens() { return MSUi.colTokens(); }
 
-  // api.js 가 봉 부족을 알릴 때 rpBarsShort 로 시작하는 영문 메시지를 던진다(api.js:28) — 그 접두를
-  // MSStr 단일 출처에서 그대로 재사용해 여기·표시 문구가 따로 놀지 않게 한다.
-  function isBarsShort(err) { return !!(err && typeof err.message === "string" && err.message.indexOf(MSStr.t.rpBarsShort) === 0); }
+  // 이 판별 자체는 이제 api.js 가 소유한다(오류를 만드는 자리와 같은 파일) — 온보딩 5단계도
+  // MSApi.isBarsShort 를 그대로 부른다(Task 6 리뷰 C2). 여기서 다시 문자열을 매칭하면
+  // rpBarsShort 접두가 바뀔 때 한쪽만 낡는다.
+  function isBarsShort(err) { return MSApi.isBarsShort(err); }
   function loadOne(sym) { return MSApi.loadTicker(sym, TF); }
   function dirWord(regime) { return regime === "bull" ? MSStr.t.rpUp : regime === "bear" ? MSStr.t.rpDown : MSStr.t.rpFlat; }
 

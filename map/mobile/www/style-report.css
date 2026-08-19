@@ -269,5 +269,5 @@ body:not(.ms-dual) .rp-scr { display:flex; flex-direction:column; min-height:cal
 .rp-last-v { font-size:var(--fs-body); font-variant-numeric:tabular-nums; color:var(--ink-2); }
 .rp-last-r { font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
 .rp-last-r.is-hit { color:var(--bull); }
-.rp-last-more { margin-top:8px; min-height:36px; padding:0; background:none; border:0; color:var(--action); font:inherit; font-size:var(--fs-caption); }
+.rp-last-more { margin-top:8px; min-height:44px; padding:0; background:none; border:0; color:var(--action); font:inherit; font-size:var(--fs-caption); }
 .rp-last-free { margin-top:4px; font-size:var(--fs-caption); color:var(--ink-5); }

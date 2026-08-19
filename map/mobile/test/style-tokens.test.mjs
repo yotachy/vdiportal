@@ -28,6 +28,22 @@ test("타이포 8역할이 토큰으로 정의돼 있다", () => {
     assert.match(ROOT, new RegExp("--fs-" + k + "\\s*:"), "--fs-" + k + " 없음");
 });
 
+// 10번째 역할(num, Q1 obq-value·7단계 recap) — 8역할 표에도 IDENTITY_ROLES/ROLE_NAMES 에도
+// 이름이 없다. 아래 "무게·자간 척도 토큰은 소비자가 있다" 관문은 ROOT 안에서 이미 정의된
+// --fw-*/--ls-* 를 정규식으로 찾아 소비자를 확인하는 방식이라, 애초에 정의 자체가 없으면
+// 매치가 안 돼 통과도 실패도 하지 않고 그냥 안 본다 — "있는데 안 쓰는" 죽은 값은 잡아도
+// "아예 없는" 값은 원리적으로 못 잡는다. 실제로 --fs-num/--fw-num/--ls-num 정의 세 줄이
+// 통째로 지워진 채 이 파일의 다른 123건이 전부 초록이었다(리뷰 I1) — 이 관문이 그 구멍이다.
+// (렌더된 값이 실제로 먹는지는 이 정적 검사가 원리적으로 못 본다 — 그건
+// mobile/tools/gate-routes.mjs 의 getComputedStyle 관문 쪽이 더 강하다.)
+test("10번째 역할(num) 세 축이 :root 에 정의돼 있다 — 정의 없이 참조만 하면 조용히 무너진다", () => {
+  for (const axis of ["fs", "fw", "ls"]) {
+    const m = ROOT.match(new RegExp("--" + axis + "-num\\s*:\\s*([^;]+);"));
+    assert.ok(m, "--" + axis + "-num 정의 없음");
+    assert.notStrictEqual(m[1].trim(), "", "--" + axis + "-num 값이 비어있음");
+  }
+});
+
 // 한 줄에 여러 선언이 올 수 있다(스타일 파일 37줄이 이미 그렇다) — .match() 는 첫 매치만
 // 돌려주므로 g 플래그로 전부 잡는다. 또한 font-size 단독 선언뿐 아니라 font 축약형
 // ("font: bold 13px/1.4 sans-serif" 처럼 크기를 실어 나르는 경우, style.css:93 의

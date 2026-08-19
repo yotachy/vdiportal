@@ -1,21 +1,34 @@
-// 온보딩 7단계 — 시안 정본(DESIGN-INVENTORY §2, t17). 앱 셸 밖에서 돈다:
-// 완료 전까지 워치리스트/리포트/지갑은 그리지 않는다.
+// 온보딩 7단계 — 3막 재설계 완료(설계서 map/docs/superpowers/specs/
+// 2026-08-18-moneyscoop-onboarding-redesign.md). **화면 수는 유지했다**(그 설계서 O4) — 8개
+// 태스크가 slot 을 하나씩(step1..step7) 통째로 다시 썼다. 각 태스크는 **자기 slot 만**
+// 고치고 다른 slot 의 내용을 옮기거나 미리 당겨 쓰지 않는다는 규율로 진행됐다.
 //
-//   1 콜드 오픈(11a)      — 설명 대신 직접 찍게 한다. 봉 몇 개를 가리고 물은 뒤 실제를 연다.
-//   2 투자성향(11c)       — 용어가 아니라 태도를 묻는다. 전문분석 가중치 기본값이 된다.
-//   3 위험 고지           — 체크박스 필수. **분석 결과를 보여주기 전**이다.
-//   4 기본분석 체험(16a)  — 종목 하나 고르고 실제로 돌린다. 체험 1/3.
-//   5 심화분석 체험(16b)  — 무엇이 달라지는지 두 막대로. 체험 2/3.
-//   6 전문분석 체험(16c)  — 슬라이더 하나만 열어 직접 만지게 한다. 체험 3/3.
-//   7 완료·가격표·지급(17a) — 세 값을 한 표에 모으고 **가격은 이제야** 공개한다.
+//   1 콜드 오픈(11a)                — 예시 구간 · 찍기 · 당신/앱/실제 3열. [재설계 완료]
+//   2 같은 구간, 32개 전부          — 5개가 아니라 32개 전부의 동의·반대·무판정·자백(못
+//                                    읽음), 5도구 판정과 나란히. [재설계 완료]
+//   3 성향                          — 고르면 같은 구간의 판정·근거가 실제로 갱신된다.
+//                                    [재설계 완료 — 이 커밋. 옛 위험고지(약관 체크박스)는
+//                                    이 슬롯에서 나갔다 — 다음 태스크가 새 4단계(동의)에서
+//                                    다시 짓는다, 자리 이름을 재사용하지 않는다]
+//   4 동의(위험 고지)               — 1·2·3막이 과거였음을 받아 "이제부터는 미래"로 여는
+//                                    전환. 체크 없이 진행 불가. [재설계 완료 — Task 6]
+//   5 종목 선택 · 분석 시작          — 고르는 것과 시작하는 것을 분리한다. 칩을 골라도
+//                                    분석은 안 돈다 — [분석 시작]을 눌러야 실제로 돈다.
+//                                    [재설계 완료 — Task 6]
+//   6 실제 분석                     — 5단계가 고른 그 종목을 오늘 종가 → 내일·1주·1개월 →
+//                                    근거(2단계와 같은 형식) 순서로 편다. [재설계 완료 — Task 7.
+//                                    옛 "전문분석 체험"(슬라이더 하나) 슬롯은 이 태스크가
+//                                    통째로 갈아치웠다 — r3/trendW/recomputeCustom 삭제]
+//   7 완료·가격표·지급(17a)         — 방금 받은 것(도구 32·지평 3·근거)을 먼저 요약하고,
+//                                    **가격은 이제야** 공개하며, 지급은 서버 확정 후 마지막에
+//                                    온다. [재설계 완료 — Task 8. 옛 "기본·심화·전문 세 값
+//                                    비교표"(bandRow, state.r3 를 읽던 죽은 셋째 열)는 이
+//                                    태스크가 통째로 갈아치웠다 — tomorrow()·bandRow()·
+//                                    state.r3 삭제]
 //
-// **순서가 핵심이다.** 가격표를 먼저 보여주면 "3스쿱"이 그냥 숫자다. 234.2 ± 1.1 을 먼저 본
-// 사람에게만 3이 싼지 비싼지 판단할 근거가 생긴다(인벤토리 §2 원문).
-//
-// ⚠ 시안 16b 는 "답이 절반으로 좁아졌습니다"를 두 막대로 보여준다. **우리 엔진에서는 거짓이다** —
-// 실측하면 심화의 범위가 오히려 넓어진다(모든 지평). 티어 백테스트도 같은 말을 한다: 콘 커버
-// 73.8% → 77.1%. 그래서 그 화면은 참인 차이를 판다 — 좁은 답이 아니라 **정직한 범위**다.
-// 숫자는 전부 번들된 실측(MSBacktest.tiers)에서 오고, 없으면 그 블록을 안 그린다.
+// **순서가 핵심이다.** 가격표를 먼저 보여주면 "3스쿱"이 그냥 숫자다. 값을 먼저 겪은
+// 사람에게만 3이 싼지 비싼지 판단할 근거가 생긴다(인벤토리 §2 원문). 같은 원칙으로 7단계
+// 안에서도 순서가 있다: 받은 것 요약 → 가격표 → 지급.
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
   else MSGlobals.define("MSOnboarding", factory());
@@ -29,31 +42,23 @@
   // 붙어 그만큼 키운다(chart-layout.js RATIOS 가 price:volume 비율을 자동 분배한다).
   var CHART_H = 300, PAD = 10;
   var GUESS_CUT = 12;      // 1단계에서 가려 두는 봉 수 — 눈으로 방향이 읽힐 만큼만
-  // 1단계가 작도하는 도구 정확히 3종 — **힌트 줄 수·작도 오버레이·판독 근거가 전부 이 배열
-  // 하나에서 파생된다**(중복 상수 금지). MA·볼린저는 가격 패널 오버레이, 거래량은 서브패널이다.
+  // 1단계가 작도하는 도구 정확히 3종 — **찍기 전 힌트 줄 수·차트 오버레이가 이 배열 하나에서
+  // 파생된다**(중복 상수 금지). MA·볼린저는 가격 패널 오버레이, 거래량은 서브패널이다.
+  // 리뷰(2026-08-19) — 찍은 뒤 판독 근거(readingBlock)는 **더 이상 이 배열을 안 쓴다.**
+  // appSawNote() 가 "앱은 도구 5개만 보고 말했다"(MSGraph.BASIC.length)고 못박는데, 근거
+  // 목록이 TOOLS(3개, 차트에 그려진 것만)로만 좁혀지면 문구가 말한 수와 화면이 보여준 수가
+  // 어긋난다 — macd·rsi 도 basicGraph 에 실려 판정에 실제로 관여했는데 근거 목록에만 빠졌던
+  // 것이 그 어긋남의 정체였다. 근거는 basicReadingRows()(MSGraph.BASIC, 5개)로 따로 뽑는다:
+  // "무엇을 보고 그렸는가"(TOOLS)와 "무엇을 보고 판정했는가"(BASIC)는 다른 질문이고, 후자가
+  // 5여야 appSawNote 의 5와 맞는다.
   var TOOLS = ["ma", "bollinger", "volume"];
-  // 근거/반대 분류 문턱 — MSIndicators.EPS(0.02, "반대 의견"용)보다 넉넉하다. 실제 종목으로
-  // 시험해 보니 bias 0.04 짜리 MA 가 "혼조, 교차 없음"이라는 텍스트를 달고도 부호만으로
-  // "근거"에 꼽혔다 — 문구와 분류가 어긋나 보였다. 절대값이 이 문턱 아래면 텍스트 그대로
-  // (혼조·중립 등) "판독" 칸으로 보내고, 방향이 뚜렷할 때만 근거/반대로 가른다.
-  // 2026-08-19 재선별(전형적 이동폭) 표본으로 재점검: ma 0.677·bollinger 0.299 는 근거,
-  // volume −0.125("보통 거래량 · 0.94배 · 약화")는 이 문턱을 살짝 넘겨 반대로 갈린다 —
-  // 텍스트도 실제로 "약화"라 말해 분류와 문구가 맞는다(0.12 유지, 조정 불필요).
-  var TOOL_EPS = 0.12;
-  // 시안 16a: **정확히 3개**(고르는 데 시간 쓰면 튜토리얼이 안 시작된다). 이름은 여기 적지
-  // 않는다 — ticker-picker 의 CURATED 가 이름의 정본이고, 두 벌이 갈리면 온보딩이 심은 종목이
-  // 워치리스트에서 다른 이름으로 보인다.
-  function tutSyms() {
-    return (typeof MSStore !== "undefined" && MSStore.TUTORIAL_SYMS) ? MSStore.TUTORIAL_SYMS : [];
-  }
-  function tutPicks() {
-    return tutSyms().map(function (sym) {
-      var name = (typeof MSTickerPicker !== "undefined" && MSTickerPicker.nameOf)
-        ? MSTickerPicker.nameOf(sym) : "";
-      return { sym: sym, name: name || sym };
-    });
-  }
-
+  // 리뷰 C2(2026-08-19) — 예전엔 여기 자체 문턱(TOOL_EPS=0.12)이 있었다. 같은 구간·같은
+  // 지표를 2·3·6단계는 MSIndicators.EPS(0.02)+voiced()+opposing() 경로로 갈랐는데, 이
+  // 화면만 다른 문턱·다른 라벨(근거/반대 의견/뚜렷하지 않은 판독)을 썼다 — 실측하니 volume
+  // bias 0.060 이 여기서는 "뚜렷하지 않은 판독"(|0.060|≤0.12)이면서 2·3단계에서는 "동의"
+  // (|0.060|>0.02)로 갈렸다. "우리는 계산 과정을 연다"는 이 브랜치의 약속이 화면마다 다른
+  // 답을 내면 그 자체가 결함이다 — TOOL_EPS 는 지웠다. classifyFull32(2단계가 이미 쓰는
+  // 그 함수)를 그대로 재사용한다(아래 readingBlock).
   // 문자열은 MSStr.t.X 로 **직접** 읽는다. 모듈 로드 시점에 별칭(var Str = MSStr)으로 잡아두면
   // 이 파일이 strings.js 보다 먼저 실리는 환경에서 영원히 null 이 된다 — 던지지 않고 문구만
   // 사라지는 실패라 눈으로만 보인다(graph.js UMD 인자에서 겪은 것과 같은 부류).
@@ -63,9 +68,26 @@
   // 진행할 수 있는가. 화면 밖에서 시험할 수 있게 순수 함수로 둔다.
   function canAdvance(step, state) {
     if (step === 1) return !!state.guessed;
-    if (step === 2) return !!state.style;
-    if (step === 3) return !!state.agreed;
-    if (step === 4) return !!state.r1;      // 기본분석 결과가 실제로 나왔을 때만
+    // 2단계(32도구 재설계)는 보여주는 화면이라 별도 입력을 요구하지 않는다.
+    // 3단계(성향)는 4종 중 1개가 **항상** 선택돼 있어야 한다는 불변을 이 자리에서 지킨다
+    // (기본값이 이미 채워지므로 실사용에서 막히는 일은 없다 — 이 검사는 "선택 없이 진행할
+    // 수 있는 상태"가 애초에 만들어지지 않게 하는 것이 목적이다).
+    if (step === 3) return !!state.style;
+    // 4단계(동의)는 체크박스 1개가 전부다 — 값·근거가 없는 단순 동의 게이트라 r1 같은
+    // 계산 결과와는 무관하다.
+    if (step === 4) return !!state.agreed;
+    // 5단계(종목 선택·분석 시작) — **state.r1 같은 부수 효과를 절대 보지 않는다.** 옛
+    // 버그의 정체가 그거였다: "결과가 생겼다"를 진행 조건으로 삼으니 결과를 만드는
+    // 유일한 방법(칩을 고르면 바로 분석이 도는 것)이 곧 진행 조건이 됐다. 여기서는
+    // state.sym 하나만 본다 — 그리고 이 값은 오직 [분석 시작] 버튼의 클릭 핸들러
+    // (loadPick→commit)에서만 쓰인다. 칩을 고르는 것(state.pick)만으로는 채워지지
+    // 않는다 — 선택과 실행이 서로 다른 변수다.
+    if (step === 5) return !!state.sym;
+    // 6단계(실제 분석) — 근거(32도구 서술문)가 다 재생돼야 다음이 열린다. r2(예측·판정)는
+    // 5단계에서 이미 확정돼 있지만, "배운 읽기를 자기 종목에 적용하는 장면"이 이 단계의
+    // 요점이라 그 재생을 실제로 보기 전에는 넘어가지 않는다(state.r2 존재만으로는 안 연다 —
+    // 5단계와 같은 원칙: 진행 조건이 계산의 부수 효과가 아니라 이 화면이 마친 일이어야 한다).
+    if (step === 6) return !!state.ob6;
     return true;
   }
 
@@ -80,13 +102,18 @@
     return store.getWatchlist();
   }
 
-  // 라벨(0.80) 대비 실제 커버가 얼마나 가까운가 — 작을수록 정직하다.
-  function coverGap(cov) { return (typeof cov === "number") ? Math.abs(cov - 0.80) : null; }
-
   function frag(cls) { var e = document.createElement("div"); e.className = cls; return e; }
   function el(tag, cls, text) { return MSUi.el(tag, cls, text); }
-  function pct(x) { return (x == null) ? "—" : (x * 100).toFixed(1) + "%"; }
-  function num(x, d) { return (x == null) ? "—" : Number(x).toFixed(d == null ? 2 : d); }
+  // 리뷰 I3 — 예전엔 num() 이 무조건 toFixed(2) 였다. 원화 종목(기본 칩 8개 중 4개, 첫
+  // 칩 삼성전자)은 report.js 가 이미 MSUi.fmtPrice(1000 이상이면 반올림+천단위 구분)로
+  // 그리는데, 6단계만 "71096.26" 처럼 원 단위 소수점을 그대로 찍었다 — 같은 종목이 화면마다
+  // 다른 자릿수로 보였다. priceFmt 는 fmtPrice 를 그대로 감싸되, null/비수치는 "—" 로
+  // 막는다(fmtPrice 자신은 그 방어가 없다 — Math.round(undefined) 가 "NaN" 문자열을 낸다).
+  function priceFmt(x) { return (typeof x === "number" && isFinite(x)) ? MSUi.fmtPrice(x) : "—"; }
+  // 1단계 x축 기준 표기용 — 캔들의 "YYYY-MM-DD" 를 "YYYY.MM"(연월)·"YYYY.MM.DD"(기준일)로.
+  // 데이터에서 계산한다(리터럴로 적으면 재선별 표본에서 곧장 낡는다).
+  function ym(t) { return (t || "").slice(0, 7).replace("-", "."); }
+  function dotDate(t) { return (t || "").replace(/-/g, "."); }
 
   function progress(step) {
     var w = frag("ob-prog");
@@ -102,10 +129,20 @@
       // 저장된 성향이 있으면 그것을 기본 선택으로 — 온보딩을 다시 열었을 때 예전 선택이
       // 되살아난다. MSStore 가 없는 환경(경량 하네스)에서도 던지지 않는다.
       style: (typeof MSStore !== "undefined" && MSStore.getStyle && MSStore.getStyle()) || "trend",
-      agreed: false,
+      agreed: false,         // 4단계 동의 체크
+      pick: null,            // 5단계 — 고른 후보(아직 확정 아님). { sym, name }
+      pickChecking: false, pickError: null,   // "notfound" | "thin" | null
+      sym: null, symName: null,               // 5단계가 확정한 종목 — canAdvance(5) 의 유일한 근거
       tut: null,            // { sym, name, data, fallback }
-      r1: null, r2: null, r3: null,
-      trendW: 1.0,
+      r1: null, r2: null,
+      // 6단계 — 실제 분석(Task 7). r2(32도구, state.r1/r2 와 같이 5단계 commit() 이 이미
+      // 계산해 둔다)가 이 화면의 원자재다. ob6 은 그 자료로 재생한 "서술문 있는" 32행이다
+      // (readingStepper 로 하나씩 읽는다 — Q3, 진행이 엔진 호출 수에 묶인다). null 이면
+      // 아직 안 읽었거나(재생 시작 전) 재생 중이라는 뜻 — ob6Playing 이 둘을 가른다.
+      // 리뷰 I4 — ob6Failed 는 재생 자체가 던졌을 때만 선다(막다른 골목 회수 경로).
+      // r2 는 멀쩡한데(엔진 실행 성공) MSAnalyzeView.play() 나 그 rAF 콜백이 던지면 이
+      // 플래그가 그 실패를 잡는다 — r2 부재(엔진 실행 자체의 실패)와는 다른 경로다.
+      ob6: null, ob6Playing: false, ob6Failed: false,
       granted: null, grantStarted: false, grantFailed: false,
       picked: [], finished: false
     };
@@ -161,12 +198,13 @@
       return an;
     }
 
-    // TOOLS 순서 그대로 판독 행을 뽑는다 — 그려진 도구와 근거 목록이 항상 같은 순서·같은 개수다.
-    function toolReadingRows() {
+    // types 순서 그대로 an.readings 에서 행을 뽑는다 — 호출자가 어떤 목록(TOOLS·BASIC)을
+    // 주든 그 순서·그 개수만큼 나온다.
+    function readingRowsFor(types) {
       var an = visibleAnalysis();
       if (!an || !an.readings) return [];
       var out = [];
-      TOOLS.forEach(function (type) {
+      (types || []).forEach(function (type) {
         var i, row = null;
         for (i = 0; i < an.readings.length; i++) if (an.readings[i].type === type) { row = an.readings[i]; break; }
         if (row) out.push(row);
@@ -174,56 +212,121 @@
       return out;
     }
 
+    // 판독 근거(readingBlock) 전용 — **MSGraph.BASIC 순서**(5개, ma·macd·rsi·bollinger·
+    // volume)로 뽑는다. TOOLS(3개, 차트에 그려진 것만)로 뽑으면 appSawNote 가 말한 5와
+    // 어긋난다(위 TOOLS 자리 주석 참고). MSGraph 가 없는 극단적 환경이면 TOOLS 로 물러선다
+    // (visibleAnalysis 가 이미 null 을 돌려줬을 것이므로 사실상 도달하지 않는다).
+    function basicReadingRows() {
+      var order = (typeof MSGraph !== "undefined" && MSGraph.BASIC) ? MSGraph.BASIC : TOOLS;
+      return readingRowsFor(order);
+    }
+
     function verdictWord(regime) {
       return regime === "bull" ? MSStr.t.rpBullish : regime === "bear" ? MSStr.t.rpBearish : MSStr.t.rpFlat;
+    }
+
+    // regime → 방향 부호. readingBlock(근거/반대 분류)과 3열 대조(앱 열의 맞음/틀림)가
+    // 같은 방향 규칙을 써야 한다 — 두 곳에 따로 적으면 규칙이 갈릴 수 있다.
+    function regimeDir(regime) { return regime === "bull" ? 1 : regime === "bear" ? -1 : 0; }
+
+    // 앱의 판정(regime)이 실제 결과(actualUp)와 맞았는지 — "right"/"wrong"/"flat"(무판정)
+    // 세 갈래. 문구(appMeaning)와 강조색(CSS .is-right/.is-wrong) 이 같은 규칙을 쓴다.
+    function appOutcome(regime, actualUp) {
+      var dir = regimeDir(regime);
+      if (dir === 0) return "flat";
+      return ((dir > 0) === actualUp) ? "right" : "wrong";
+    }
+
+    // 앱 열의 판정과 실제 결과를 대조한 해석문. 맞은 표본만 골라 보여주면 광고지다 — 세
+    // 갈래(맞음/틀림/무판정) 모두 실제로 렌더된다.
+    function appMeaning(outcome) {
+      return outcome === "flat" ? MSStr.t.obAppFlatMeaning
+           : outcome === "right" ? MSStr.t.obAppRightMeaning : MSStr.t.obAppWrongMeaning;
     }
 
     // 엔진을 실제로 돌린다. tier 는 그래프를 고르고, weights 는 전문분석에서만 온다.
     // report.js analyzeFull 의 거래량 취급을 그대로 따른다 — 드리프트는 data.volume 이 아니라
     // 그래프의 volume 노드를 읽으므로 setVolume 을 반드시 거친다.
+    // 리뷰(Task 7) — try 가 ForgeCore.run() 호출 하나만 감싸고 있었다. 그래프 조립
+    // (MSGraph.*Graph)이 던지면 그 예외는 이 함수를 그대로 빠져나간다 — 그런데 이 함수의
+    // 주석·호출자 전부가 "엔진 예외는 runTier 의 catch 가 삼킨다"를 전제로 짜여 있다(5단계
+    // commit() 은 보호막이 없고, loadPick 의 바깥 .catch() 로 새면 "그 외 네트워크 문제"로
+    // 오분류돼 조용히 번들 표본으로 물러선다 — 6단계가 잡으려는 바로 그 실패가 다른 실패로
+    // 둔갑한다). try 를 함수 전체로 넓혀 그 전제를 실제로 지킨다.
     function runTier(data, tier, weights) {
       if (!data || typeof ForgeCore === "undefined" || typeof MSGraph === "undefined") return null;
-      var vol = data.candle.map(function (c) { return c && c.v; });
-      var okVol = vol.length >= 2 && vol.every(function (v) { return typeof v === "number" && isFinite(v); });
-      var graph = (tier === "basic") ? MSGraph.basicGraph(ForgeCore)
-                : (tier === "custom") ? MSGraph.customGraph(ForgeCore, weights)
-                : MSGraph.full32Graph(ForgeCore);
-      MSGraph.setVolume(graph, okVol ? vol : null);
-      var input = { price: data.price, candle: data.candle };
-      if (okVol) input.volume = vol;
-      var opt = { timeframe: (typeof MSReportModel !== "undefined") ? MSReportModel.tfKo(TF) : TF };
-      if (tier === "custom" && weights) opt.driftWeights = weights;
-      try { return { graph: graph, input: input, out: ForgeCore.run(graph, input, opt) }; }
-      catch (e) { return null; }
+      try {
+        var vol = data.candle.map(function (c) { return c && c.v; });
+        var okVol = vol.length >= 2 && vol.every(function (v) { return typeof v === "number" && isFinite(v); });
+        var graph = (tier === "basic") ? MSGraph.basicGraph(ForgeCore)
+                  : (tier === "custom") ? MSGraph.customGraph(ForgeCore, weights)
+                  : MSGraph.full32Graph(ForgeCore);
+        MSGraph.setVolume(graph, okVol ? vol : null);
+        var input = { price: data.price, candle: data.candle };
+        if (okVol) input.volume = vol;
+        var opt = { timeframe: (typeof MSReportModel !== "undefined") ? MSReportModel.tfKo(TF) : TF };
+        if (tier === "custom" && weights) opt.driftWeights = weights;
+        return { graph: graph, input: input, out: ForgeCore.run(graph, input, opt) };
+      } catch (e) { return null; }
     }
 
-    // 내일(첫 지평)의 값과 폭. 세 단계가 같은 자리를 비교해야 표가 성립한다.
-    function tomorrow(r) {
-      var p = r && r.out && r.out.prediction;
-      if (!p || !p.path || !p.path.length) return null;
-      var lo = p.lo && p.lo[0], hi = p.hi && p.hi[0];
-      return { mid: p.path[0], lo: lo, hi: hi,
-               width: (typeof lo === "number" && typeof hi === "number") ? (hi - lo) : null };
-    }
-
-    // ── 데이터 적재 ──────────────────────────────────────────────────────────────
-    // 고른 종목의 실제 데이터로 돌린다. 못 받으면 번들 시계로 물러서되 **그 사실을 말한다** —
-    // 감추면 화면의 숫자가 어느 종목 것인지 아무도 말할 수 없게 된다.
-    function loadTut(pick, done) {
-      state.tut = { sym: pick.sym, name: pick.name, data: null, fallback: false, loading: true };
-      function settle(data, fallback) {
-        state.tut.data = data; state.tut.fallback = fallback; state.tut.loading = false;
+    // ── 데이터 적재(5단계 [분석 시작]) ────────────────────────────────────────────
+    // 고른 종목을 **실제로** 확인하고 돈다 — 이 호출이 그 화면의 "실행"이다. 옛 설계는
+    // "못 찾음"도 "봉 부족"도 조용히 번들 표본으로 바꿔치기했다(그 다음 화면이 데모였을
+    // 때는 정직했다). 이제는 3막이라 사용자가 고른 **그 종목**을 진짜로 보여준다는 약속이
+    // 걸려 있다 — 다른 종목의 데이터를 몰래 신겨 놓으면 그 약속이 거짓말이 된다. 그래서
+    // "못 찾음"·"봉 부족"은 진짜 실패로 다루고(막다른 골목 없이 다른 종목을 고를 수 있게
+    // 한다), API 층 자체가 아예 없는 환경(빌드/미리보기)에서만 예전처럼 번들로 물러선다 —
+    // 그건 종목의 문제가 아니라 환경의 문제이기 때문이다.
+    // 리뷰 C2 — 옛 로컬 문턱(MIN_BARS=60)을 지웠다. api.js 의 normalizeCandles() 가 1day 에
+    // 이미 220을 강제한다(scanAlerts 와 같은 기준) — 그래서 Promise 가 성공으로 떨어지면
+    // 그 시점에 이미 충분한 봉이라는 뜻이고, `> 60` 검사는 항상 참인 죽은 코드였다(리뷰어
+    // 실측: 80봉짜리 종목조차 normalizeCandles 단계에서 이미 던진다, notfound 플래그 없이).
+    // "봉 부족"은 이제 그 실패(캐치 쪽 MSApi.isBarsShort)로만 판별한다 — 두 곳에 서로 다른
+    // 숫자(60 vs 220)를 두지 않는다.
+    function loadPick(pick, done) {
+      // 그 사이 사용자가 다른 종목을 새로 골랐으면 이 응답은 이미 낡았다 — 버린다
+      // (verifyPick 이 checking 을 시작할 때의 pick 을 그대로 캡처해 넘기므로, 여기서
+      // state.pick 과 대조하면 늦게 도착한 옛 요청을 걸러낼 수 있다).
+      function stale() { return !state.pick || state.pick.sym !== pick.sym; }
+      function commit(data, fallback) {
+        if (stale()) return;
+        state.tut = { sym: pick.sym, name: pick.name, data: data, fallback: !!fallback, loading: false };
         state.r1 = runTier(data, "basic");
         state.r2 = runTier(data, "full");
-        state.r3 = null;
+        state.ob6 = null; state.ob6Playing = false; state.ob6Failed = false;   // 새 확정 — 6단계 재생은 처음부터 다시
+        state.sym = pick.sym; state.symName = pick.name; state.picked = [pick];
+        state.pickChecking = false; state.pickError = null;
+        done();
+      }
+      function fail(reason) {
+        if (stale()) return;
+        state.pickChecking = false; state.pickError = reason;
         done();
       }
       var s = sample();
-      if (typeof MSApi === "undefined" || !MSApi.loadTicker) { settle(s, true); return; }
+      if (typeof MSApi === "undefined" || !MSApi.loadTicker) { commit(s, true); return; }   // API 층 자체가 없다 — 환경 문제
       MSApi.loadTicker(pick.sym, TF).then(function (d) {
-        if (d && d.candle && d.candle.length > 60) settle(d, false);
-        else settle(s, true);
-      })["catch"](function () { settle(s, true); });
+        if (d && d.candle && d.candle.length) commit(d, false);
+        else fail("thin");   // 응답은 왔는데 봉이 비어 있다(방어적 — normalizeCandles 를 통과했다면 보통 없다)
+      })["catch"](function (err) {
+        // report.js 와 같은 판별 함수(MSApi.isBarsShort, api.js 소유) — 문자열을 다시
+        // 매칭하지 않는다. 리뷰 C2 전에는 이 갈래가 아예 없어서 봉 부족(220 미만, notfound
+        // 플래그 없는 일반 Error)이 else 로 새어 조용히 번들 표본으로 치환됐다.
+        if (typeof MSApi !== "undefined" && MSApi.isBarsShort && MSApi.isBarsShort(err)) fail("thin");
+        else if (err && err.notfound) fail("notfound");        // 종목을 못 찾았다
+        else commit(s, true);   // 그 외 네트워크 문제 — 종목이 아니라 접속 문제라 번들로 물러선다
+      });
+    }
+
+    // 확정 산물을 되돌린다 — commit() 이 채우는 것과 정확히 같은 필드를 비운다(리뷰 C1).
+    // 선택이 바뀌면(다른 종목을 고르거나 고른 것을 지우면) 이전 [분석 시작] 결과는 더는
+    // 유효하지 않다 — 안 지우면 확정 뒤 다른 칩으로 바꿔도 "다음"이 계속 열린 채로 남고,
+    // 화면엔 새 종목이 선택돼 있는데 다음 단계로 넘어가는 건 옛 종목의 분석 결과가 된다.
+    function invalidateConfirmed() {
+      state.sym = null; state.symName = null; state.tut = null;
+      state.r1 = null; state.r2 = null; state.picked = [];
+      state.ob6 = null; state.ob6Playing = false; state.ob6Failed = false;   // r2 에서 파생된 자료라 같이 무효화한다
     }
 
     // ── 1단계: 콜드 오픈 ─────────────────────────────────────────────────────────
@@ -246,25 +349,30 @@
       return wrap;
     }
 
-    // 엔진 판독 — 찍기 전에 실제로 보인 228봉(visibleAnalysis)만 근거로 삼는다. **판정 방향과
-    // 같은 근거 / 반대 근거 / 뚜렷하지 않은 판독** 셋으로 가른다(TOOL_EPS). 이건 report.js 의
-    // REASONING·AGAINST 와 같은 근거지 — 온보딩이 새 작도·새 판독 경로를 만든 게 아니다.
+    // 엔진 판독 — 찍기 전에 실제로 보인 228봉(visibleAnalysis)만 근거로 삼는다. 리뷰 C2 —
+    // 갈래는 classifyFull32(2·3·6단계가 이미 쓰는 그 함수, MSReadings.voiced()→
+    // MSIndicators.opposing() 경로)를 그대로 재사용한다. 여기서 문턱을 다시 구현하지
+    // 않는다 — 재구현이 곧 어긋남의 원인이었다(TOOL_EPS 삭제 사유, 위 상수 자리 주석 참고).
+    // classifyFull32 는 (graph, regime, rows, noDir) 를 받는데, opposing() 은 rows 를
+    // 이미 받으면 graph 를 안 쓰므로 basic 그래프(an.graph)를 넘겨도 안전하다. noDir 은
+    // 빈 배열 — MSGraph.BASIC(ma·macd·rsi·bollinger·volume) 중 방향을 못 묻는 지표
+    // (trend·phasefold)가 없다.
+    // 리뷰(2026-08-19) — rows 는 **basicReadingRows()(5개)** 다, toolReadingRows(3개, 옛
+    // 이름)가 아니다. appSawNote() 가 "도구 5개만 보고 말했다"고 적어 놓고 근거는 3개만
+    // 보이면 문구와 화면이 어긋난다 — macd·rsi 는 차트에 안 그려질 뿐 판정에는 이미 관여하고
+    // 있었다(basicGraph 자체가 5종). test/onboarding.test.mjs 의 "네 통의 합이 5" 시험이
+    // 이 정합을 잠근다.
     function readingBlock() {
       var wrap = frag("ob-read");
       var an = visibleAnalysis();
-      var rows = toolReadingRows();
+      var rows = basicReadingRows();
       if (!an || !an.out || !rows.length) {
         wrap.appendChild(el("p", "ob-read-empty", MSStr.t.obReadUnavailable));
         return wrap;
       }
       var regime = an.out.verdict.regime;
       wrap.appendChild(el("p", "ob-read-verdict", MSStr.t.obReadVerdictA + verdictWord(regime)));
-      var want = regime === "bull" ? 1 : regime === "bear" ? -1 : 0;
-      var forRows = [], againstRows = [], flatRows = [];
-      rows.forEach(function (r) {
-        if (want === 0 || Math.abs(r.bias) <= TOOL_EPS) { flatRows.push(r); return; }
-        if ((r.bias > 0 ? 1 : -1) === want) forRows.push(r); else againstRows.push(r);
-      });
+      var buckets = classifyFull32(an.graph, regime, rows, []);
       function section(cls, headText, list) {
         if (!list.length) return;
         var sec = frag(cls);
@@ -277,10 +385,65 @@
         });
         wrap.appendChild(sec);
       }
-      section("ob-read-for", MSStr.t.obReadForHead, forRows);
-      section("ob-read-against", MSStr.t.rpAgainst, againstRows);
-      section("ob-read-flat", MSStr.t.obReadFlatHead, flatRows);
+      section("ob-read-for", MSStr.t.ob32AgreeHead, buckets.agree);
+      section("ob-read-against", MSStr.t.rpAgainst, buckets.dissent);
+      section("ob-read-flat", MSStr.t.ob32FlatHead, buckets.flat);
+      section("ob-read-refused", MSStr.t.ob32RefusedHead, buckets.refused);
       return wrap;
+    }
+
+    // x축 기준 — "일봉인지 주봉인지, 어느 구간인지" 원 판정에 대한 답. 화면에 실제로 그려진
+    // 데이터(찍기 전=sliced, 찍은 뒤=sample 전체)와 같은 출처를 읽는다 — paintGuess 와 다른
+    // 구간을 말하면 라벨과 그림이 어긋난다.
+    function periodLabel() {
+      var d = state.guessed ? sample() : sliced();
+      if (!d || !d.candle || !d.candle.length) return frag("ob-period");
+      var first = d.candle[0].t, last = d.candle[d.candle.length - 1].t;
+      return el("p", "ob-period",
+        MSStr.t.rpDaily + MSStr.t.obPeriodSep + ym(first) + MSStr.t.obPeriodDash + ym(last));
+    }
+
+    // 3열 대조 — 당신 / 앱 / 실제. 세 열 모두 MSObQuality.metric() 으로 만든다(값+기준 시점을
+    // 한 그룹으로 묶는 Q1) — asOf 없이는 만들 수 없으므로 이 화면이 그 규칙을 어길 수 없다.
+    // 앱 열만 stat() 으로 한 겹 더 감싼다 — 판정과 실제가 같았는지 해석(Q5)이 곧 "맞았는지
+    // 틀렸는지"이고, 이게 이 화면의 핵심 대조다. 확신 퍼센트는 넣지 않는다(값은 단어뿐이다,
+    // 5도구는 값 여섯 개라 퍼센트로 쓰면 확률로 오독된다).
+    function columnsBlock() {
+      var wrap = frag("ob-cols");
+      var an = visibleAnalysis();
+      var a = guessAnswer();
+      if (!an || !an.out || !a) return wrap;   // 엔진 불가·정답 계산 불가 — readingBlock 과 같은 원칙
+      var d = sliced(), full = sample();
+      var cutoffAsOf = dotDate(d && d.candle.length ? d.candle[d.candle.length - 1].t : "");
+      var revealAsOf = dotDate(full && full.candle.length ? full.candle[full.candle.length - 1].t : "");
+      var regime = an.out.verdict.regime;
+      var youWord = state.guessed === "up" ? MSStr.t.obGuessUp : MSStr.t.obGuessDown;
+      var appWord = verdictWord(regime);
+      var actualWord = a.up ? MSStr.t.obGuessActualUp : MSStr.t.obGuessActualDown;
+
+      var outcome = appOutcome(regime, a.up);
+      var youMetric = MSObQuality.metric({ value: youWord, asOf: cutoffAsOf, label: MSStr.t.obColYou });
+      var appMetric = MSObQuality.metric({ value: appWord, asOf: cutoffAsOf, label: MSStr.t.obColApp });
+      var appStat = MSObQuality.stat({ metric: appMetric, meaning: appMeaning(outcome) });
+      var actualMetric = MSObQuality.metric({ value: actualWord, asOf: revealAsOf, label: MSStr.t.obColActual });
+
+      // 클래스 문자열을 하나로 이어붙이지 않는다 — "ob-col " 처럼 공백을 낀 리터럴은
+      // screens/ 영어잔존 게이트(el()·className= 리터럴만 예외로 보는 shape 규칙)를 못
+      // 벗어나 "col" 같은 단어가 잔존 영어로 잡힌다. 완결된 케밥 토큰끼리만 리터럴로 두고
+      // 런타임에 공백으로 잇는다.
+      function col(cls, node) { var c = frag("ob-col"); c.className = c.className + " " + cls; c.appendChild(node); return c; }
+      wrap.appendChild(col("ob-col-you", youMetric));
+      // is-right/is-wrong/is-flat — 색만 바꾼다(배경·글자색, 좌측 세로 라인 금지 규칙).
+      wrap.appendChild(col("ob-col-app" + " is-" + outcome, appStat));
+      wrap.appendChild(col("ob-col-actual", actualMetric));
+      return wrap;
+    }
+
+    // "앱은 도구 5개만 보고 이렇게 말했습니다" — 2단계(심화분석 32개)를 벌어들이는 줄. 5는
+    // MSGraph.BASIC.length 에서 읽는다(기본분석 지표 목록이 늘면 문구도 같이 는다).
+    function appSawNote() {
+      var n = (typeof MSGraph !== "undefined" && MSGraph.BASIC && MSGraph.BASIC.length) ? MSGraph.BASIC.length : 5;
+      return el("p", "ob-app-note", MSStr.t.obAppSawA + n + MSStr.t.obAppSawB);
     }
 
     function step1() {
@@ -291,6 +454,9 @@
       w.appendChild(el("p", "ob-over", MSStr.t.obSampleNote));
       w.appendChild(el("h1", "ob-h", MSStr.t.obH1));
       w.appendChild(el("p", "ob-sub", MSStr.t.obGuessAsk));
+      // 주기·기간(x축 기준) — "일봉인지 주봉인지, 어느 구간인지 모른다"던 원 판정에 대한 답.
+      // 차트 바로 위, 캔버스보다 먼저 읽힌다.
+      w.appendChild(periodLabel());
       var wrap = frag("ob-canvas-wrap");
       var cv = document.createElement("canvas");
       cv.className = "ob-canvas";
@@ -319,6 +485,10 @@
         var tail = MSStr.t.obGuessActualA +
           (a2 && a2.up ? MSStr.t.obGuessActualUp : MSStr.t.obGuessActualDown);
         w.appendChild(el("p", "ob-reveal" + (state.guessRight ? " is-right" : ""), head + " " + tail));
+        // 당신 / 앱 / 실제 3열 대조 — 세 열이 나란히 놓여야 "이 앱이 나보다 나은가"를 사용자가
+        // 스스로 판정한다. 이어서 "앱은 도구 5개만 봤다"를 못박아 다음 단계(32개)를 벌어들인다.
+        w.appendChild(columnsBlock());
+        w.appendChild(appSawNote());
         w.appendChild(readingBlock());
         // 틀려도 지지 않는다 — 맞혔으면 "감이 좋다, 그걸 32개 도구로 매일 한다"는 쪽으로,
         // 틀렸으면 "그래서 도구를 32개 읽는다, 하나로는 이렇게 놓친다"는 쪽으로. 두 갈래
@@ -370,201 +540,596 @@
       }
     }
 
-    // ── 2단계: 투자성향 ──────────────────────────────────────────────────────────
-    function styleDesc(key) {
-      return key === "trend" ? MSStr.t.obStyleTrend
-           : key === "momentum" ? MSStr.t.obStyleMomentum
-           : key === "reversion" ? MSStr.t.obStyleReversion
-           : key === "volatility" ? MSStr.t.obStyleVolatility : "";
+    // ── 2단계: 같은 구간, 32개 전부(설계서 §4.2, O2 의 증거) ───────────────────────
+    // 1단계가 "5개만 봤다"고 못박은 것에 대한 답이다. **같은 절단선(sliced, 228봉)**을
+    // 32개 도구 전부로 다시 본다 — 다른 구간을 쓰면 5도구 판정과 32도구 판정이 서로 다른
+    // 정보로 계산한 것이 되어 "나란히 비교"가 성립하지 않는다.
+    var FULL32_AGREE_SHOW = 5;    // 대표로 먼저 보이는 동의 줄 수(펼치기 전)
+    var FULL32_FLAT_SHOW = 4;     // 대표로 먼저 보이는 무판정 줄 수(펼치기 전)
+    var FULL32_REFUSED_SHOW = 4;  // 대표로 먼저 보이는 자백(못 읽음) 줄 수(펼치기 전)
+    // 반대는 여기 없다 — **반대는 개수와 무관하게 항상 전부 보인다**(컨트롤러 판정: 대표
+    // 몇 줄 + 펼치기는 동의·무판정·자백에만 적용된다. 불리한 근거를 접어 숨기지 않는다는 것이
+    // O2 의 실체다).
+
+    var _full32Cache = null, _full32CacheSample = null;
+    function visibleFull32() {
+      var s = sample();
+      if (!s) return null;
+      if (_full32Cache && _full32CacheSample === s) return _full32Cache;
+      var d = sliced();
+      if (!d || typeof ForgeCore === "undefined" || typeof MSIndicators === "undefined") return null;
+      var full = runTier(d, "full");
+      if (!full) return null;
+      var ctx = MSIndicators.ctxFrom(full.input);
+      var rows = MSIndicators.readings(ForgeCore, full.graph, full.input, ctx);
+      var noDir = MSIndicators.noDirRows(ForgeCore, full.input, ctx);
+      var regime = full.out.verdict.regime;
+      var cls = classifyFull32(full.graph, regime, rows, noDir);
+      var an = { graph: full.graph, input: full.input, out: full.out, regime: regime,
+                 agree: cls.agree, dissent: cls.dissent, flat: cls.flat, refused: cls.refused,
+                 total: rows.length + noDir.length };
+      _full32Cache = an; _full32CacheSample = s;
+      return an;
+    }
+
+    // 동의/반대/무판정/자백(못 읽음) 네 통으로 가른다. **엔진 함수를 직접 부른다** —
+    // 문턱을 여기서 재구현하면 report.js 와 규칙이 갈릴 수 있다(2026-08-19 리뷰 Important:
+    // 실제로 갈렸었다 — 거래량 없는 종목에서 mfi·cmf 가 스스로 "이 종목은 거래량 데이터가
+    // 없습니다"라고 자백하는데 옛 코드는 그걸 "동의"로 세고 있었다). 그래서:
+    //   1. MSReadings.voiced(rows) 로 **자백한 행**(NO_VOL·NO_SWINGS·NONE)을 먼저 걷어낸다
+    //      — report.js buildAgainst() 가 opposing() 을 부르기 **전에** 하는 바로 그 단계.
+    //   2. voiced 위에서 MSIndicators.opposing(FC, graph, null, regime, voiced) 을 그대로
+    //      불러 반대를 얻는다(report.js 와 같은 호출 — data 자리는 rows 를 줬으니 null).
+    //   3. voiced 에서 반대가 아닌 것 중 문턱(EPS)을 넘긴 건 동의, 못 넘긴 건 무판정.
+    //   4. 자백한 행은 별도 통("자백")으로 노출한다 — 숫자만 조용히 32에서 빠지면 그 자체가
+    //      불투명하다. 32 = 동의+반대+무판정+자백 이어야 한다.
+    // 판정 자체가 중립이면(want===0) 반대·동의 둘 다 정의되지 않는다 — voiced 전체가 무판정.
+    function classifyFull32(graph, regime, rows, noDir) {
+      rows = rows || [];
+      var want = regimeDir(regime);
+      var voicedRows = (typeof MSReadings !== "undefined") ? MSReadings.voiced(rows) : rows;
+      var refused = (typeof MSReadings !== "undefined")
+        ? rows.filter(function (r) { return MSReadings.isRefusal(r.text); })
+        : [];
+      var dissent = (want !== 0 && typeof MSIndicators !== "undefined")
+        ? MSIndicators.opposing(ForgeCore, graph, null, regime, voicedRows) : [];
+      var dissentSet = {};
+      dissent.forEach(function (r) { dissentSet[r.type] = true; });
+      var eps = (typeof MSIndicators !== "undefined" && typeof MSIndicators.EPS === "number") ? MSIndicators.EPS : 0.02;
+      var agree = [], flat = [];
+      voicedRows.forEach(function (r) {
+        if (dissentSet[r.type]) return;                          // 이미 반대로 뽑혔다
+        if (want === 0 || Math.abs(r.bias) <= eps) { flat.push(r); return; }
+        agree.push(r);   // voiced(자백 아님) + 반대 아님 + 문턱 넘음 = 판정과 같은 방향
+      });
+      flat = flat.concat(noDir || []);
+      function byAbsBias(a, b) { return Math.abs(b.bias || 0) - Math.abs(a.bias || 0); }
+      agree.sort(byAbsBias);
+      return { agree: agree, dissent: dissent, flat: flat, refused: refused };
+    }
+
+    // 도구 한 줄 — 이름(영어) · 무엇을 봤는지(엔진이 지금 계산한 문장, 실측 수치가 이미
+    // 문장 안에 있다) · 방향 기여도(부호 있는 수치). trend·phasefold 는 bias 가 없다
+    // (readings.js 가 문서화한 구조적 예외 — report.js 도 같은 예외를 갖는다) — 숫자 없이
+    // 문장만 보여준다. **자백(못 읽음) 행도 수치를 안 보인다** — bias 필드는 합성 거래량
+    // 등으로 계산된 값이 남아 있을 수 있지만, 그 값 자체가 "사실이 아니다"(readings.js
+    // 머리말 규율 4) — 텍스트가 이미 왜 못 읽었는지를 말하므로 숫자를 보태면 오히려
+    // "그래도 뭔가 쟀다"는 인상을 준다.
+    function full32Row(r, showBias) {
+      var row = frag("ob32-row");
+      row.appendChild(el("span", "ob32-name", MSStr.ind(r.type)));
+      row.appendChild(el("span", "ob32-text", r.text));
+      if (showBias !== false && typeof r.bias === "number")
+        row.appendChild(el("span", "ob32-bias", (r.bias > 0 ? "+" : "") + r.bias.toFixed(2)));
+      return row;
+    }
+
+    // collapsible=false 면 개수와 무관하게 전부 그린다(반대 전용 — 위 주석 참고).
+    // 클래스 문자열을 하나로 이어붙이지 않는다 — "ob32-sec ob32-sec-" 처럼 공백을 낀
+    // 리터럴은 screens/ 영어잔존 게이트(el()·className= 리터럴만 예외로 보는 shape 규칙)를
+    // 못 벗어난다(columnsBlock 의 col() 과 같은 이유·같은 처방).
+    function full32Section(kind, label, list, collapsible, showN, showBias) {
+      var sec = frag("ob32-sec");
+      sec.className = sec.className + " ob32-sec-" + kind;
+      var head = frag("ob32-sec-head");
+      head.appendChild(el("span", "ob32-sec-label", label));
+      head.appendChild(el("span", "ob32-sec-count", String(list.length)));
+      sec.appendChild(head);
+      if (!list.length) return sec;
+      var open = !collapsible || !!(state.ob32Open && state.ob32Open[kind]);
+      var shown = (collapsible && !open) ? list.slice(0, showN) : list;
+      var rows = frag("ob32-rows");
+      shown.forEach(function (r) { rows.appendChild(full32Row(r, showBias)); });
+      sec.appendChild(rows);
+      if (collapsible && list.length > showN) {
+        var btn = document.createElement("button");
+        btn.type = "button"; btn.className = "ob32-expand";
+        btn.textContent = open ? MSStr.t.ob32Collapse : (list.length - showN) + MSStr.t.ob32ExpandSuffix;
+        btn.addEventListener("click", function () {
+          state.ob32Open = state.ob32Open || {};
+          state.ob32Open[kind] = !open;
+          draw();
+        });
+        sec.appendChild(btn);
+      }
+      return sec;
+    }
+
+    function full32CmpRow(label, value) {
+      var r = frag("ob32-cmp-row");
+      r.appendChild(el("span", "ob32-cmp-k", label));
+      r.appendChild(el("span", "ob32-cmp-v", value));
+      return r;
     }
 
     function step2() {
       var w = frag("ob-step");
-      w.appendChild(el("h1", "ob-h", MSStr.t.obH2b));
-      w.appendChild(el("p", "ob-sub", MSStr.t.obSub2b));
-      var list = frag("ob-styles");
-      // 목록은 MSIndTiers.PRESETS 가 정본이다 — 여기 이름을 다시 적으면 두 벌이 갈린다.
-      MSIndTiers.PRESETS.forEach(function (p) {
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH2));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obSub2));
+      // 같은 절단선(1단계가 찍기 전 본 228봉)임을 다시 밝힌다 — state.guessed 와 무관하게
+      // 항상 sliced() 를 읽는다(1단계의 periodLabel() 은 찍은 뒤 전체 구간으로 바뀌지만,
+      // 이 화면은 "그때 봤던 것과 같은 정보"를 재는 화면이라 계속 절단선 쪽을 본다).
+      var d = sliced();
+      if (d && d.candle && d.candle.length) {
+        w.appendChild(el("p", "ob-period",
+          MSStr.t.rpDaily + MSStr.t.obPeriodSep + ym(d.candle[0].t) + MSStr.t.obPeriodDash + ym(d.candle[d.candle.length - 1].t)));
+      }
+
+      var basic = visibleAnalysis();
+      var an = visibleFull32();
+      if (an) state.full32 = an;   // 3단계(성향)가 비교 기준으로 쓴다
+
+      if (!an || !basic) {
+        w.appendChild(el("p", "ob-read-empty", MSStr.t.obReadUnavailable));
+        return w;
+      }
+
+      var n5 = (typeof MSGraph !== "undefined" && MSGraph.BASIC && MSGraph.BASIC.length) ? MSGraph.BASIC.length : 5;
+      var n32 = (typeof ForgeCore !== "undefined" && typeof ForgeCore.indicatorCount === "number") ? ForgeCore.indicatorCount : 32;
+      var regime5 = basic.out.verdict.regime, regime32 = an.regime;
+      var cmp = frag("ob32-cmp");
+      cmp.appendChild(full32CmpRow(n5 + MSStr.t.obVerdictLabelSuffix, verdictWord(regime5)));
+      cmp.appendChild(full32CmpRow(n32 + MSStr.t.obVerdictLabelSuffix, verdictWord(regime32)));
+      w.appendChild(cmp);
+
+      // 같을 때도 이 화면은 성립한다("더 많은 도구가 같은 결론을 지지했다") — 다를 때만
+      // 재고 넘어가지 않는다. 같은 표본에서 5도구·32도구가 실제로 같을 수 있다(실측 확인됨).
+      var same = regime5 === regime32;
+      var note = same ? MSStr.t.ob32SameNote
+        : (n5 + MSStr.t.ob32DiffA + verdictWord(regime5) + MSStr.t.ob32DiffB +
+           n32 + MSStr.t.ob32DiffC + verdictWord(regime32) + MSStr.t.ob32DiffD);
+      w.appendChild(el("p", "ob32-verdict-note" + (same ? " is-same" : " is-diff"), note));
+
+      w.appendChild(full32Section("agree", MSStr.t.ob32AgreeHead, an.agree, true, FULL32_AGREE_SHOW));
+      w.appendChild(full32Section("dissent", MSStr.t.rpAgainst, an.dissent, false));
+      w.appendChild(full32Section("flat", MSStr.t.ob32FlatHead, an.flat, true, FULL32_FLAT_SHOW));
+      // 자백(못 읽음) — 숫자를 안 보인다(showBias=false, full32Row 주석 참고). 이 표본이
+      // 실거래량을 가진 한 대개 0~1건이지만, 거래량 없는 종목에서는 5~6건까지 늘어난다
+      // (mfi·cmf·volume·vwap·volumeprofile) — 그래서 접어도 되되 **숨기지는 않는다**.
+      w.appendChild(full32Section("refused", MSStr.t.ob32RefusedHead, an.refused, true, FULL32_REFUSED_SHOW, false));
+
+      // 리뷰 C1 — 2→3 다리(설계서가 지정한 세 다리 중 이것만 비어 있었다). 32개 도구를 다
+      // 봤으니 이제 "무엇을 중시하는지"로 넘어간다 — 3단계(성향)를 벌어들이는 줄이다.
+      w.appendChild(el("p", "ob-note", MSStr.t.obStyleBridgeNote));
+
+      return w;
+    }
+
+    // ── 3단계: 성향(설계서 §4.3, Task 5) ────────────────────────────────────────
+    // "여기까지는 과거였습니다" — 1·2단계는 고정된 방식(5도구·32도구)으로 같은 구간을 본
+    // 과거형 증거였다. 이제부터는 사용자가 고른 방식으로 **같은 구간을 다시** 본다 —
+    // 다른 구간을 쓰면 앞 두 단계와 비교할 근거가 성립하지 않는다(sliced() 를 그대로 쓴다).
+    //
+    // Task 1 실측(확정 표본 PG, 2023-06-02~2024-05-15, sliced 228봉): 4종 성향 중
+    // momentum 만 regime 이 갈린다(bull→neutral, 경계 ±12에서 score 11 — 경계까지 1점).
+    // 나머지 3종(trend·reversion·volatility)은 32도구와 같은 결론(bull)이다 — 그래서
+    // "같음"이 이 화면의 **주 경로**다(사용자 넷 중 셋이 보는 것). ob3SameNote 는 그 사실을
+    // 당당하게 말한다(바뀐 척하지 않는다). 대신 선택 지표 수·근거 구성(동의·반대·무판정·
+    // 자백)은 4종 모두 다르므로(node 실측: trend 9=7/0/2/0 · momentum 6=0/0/6/0 ·
+    // reversion 9=5/1/2/1 · volatility 9=6/0/2/1), 판정 문구가 같아도 "고르면 갱신된다"는
+    // 항상 성립한다.
+    //
+    // 근거 계산은 2단계(classifyFull32)와 **같은 경로**를 탄다 — MSReadings.voiced() 로
+    // 자백 행을 먼저 걷어내고 MSIndicators.opposing() 을 그대로 불러 반대를 얻는다(임계값을
+    // 여기서 재구현하지 않는다). noDirRows(trend·phasefold)는 그 성향이 실제로 선택한
+    // 지표 집합에 있을 때만 더한다 — 안 그러면 선택하지 않은 성향에도 trend/phasefold 가
+    // 새어 들어가 합이 선택 지표 수를 넘는다.
+    function presetByKey(key) {
+      var list = (typeof MSIndTiers !== "undefined" && MSIndTiers.PRESETS) || [];
+      for (var i = 0; i < list.length; i++) if (list[i].key === key) return list[i];
+      return null;
+    }
+
+    var _styleCache = null, _styleCacheKey = null, _styleCacheSample = null;
+    function visibleStyle(styleKey) {
+      var s = sample();
+      if (!s || typeof MSIndTiers === "undefined") return null;
+      if (_styleCache && _styleCacheSample === s && _styleCacheKey === styleKey) return _styleCache;
+      var d = sliced();
+      if (!d || typeof ForgeCore === "undefined" || typeof MSIndicators === "undefined"
+        || typeof MSGraph === "undefined") return null;
+      var wts = MSIndTiers.weightsOf(styleKey, MSGraph.BASIC);
+      var r = runTier(d, "custom", wts);
+      if (!r) return null;
+      var ctx = MSIndicators.ctxFrom(r.input);
+      var rows = MSIndicators.readings(ForgeCore, r.graph, r.input, ctx);
+      var selTypes = MSIndTiers.selectionOf(styleKey, MSGraph.BASIC);
+      var noDir = MSIndicators.noDirRows(ForgeCore, r.input, ctx)
+        .filter(function (nd) { return selTypes.indexOf(nd.type) >= 0; });
+      var regime = r.out.verdict.regime;
+      var cls = classifyFull32(r.graph, regime, rows, noDir);
+      var an = { regime: regime, n: selTypes.length,
+                 agree: cls.agree, dissent: cls.dissent, flat: cls.flat, refused: cls.refused };
+      _styleCache = an; _styleCacheKey = styleKey; _styleCacheSample = s;
+      return an;
+    }
+
+    function step3() {
+      var w = frag("ob-step");
+      // 리뷰 C1 — obPastDone("여기까지는 과거였습니다")은 이 화면을 **닫는** 줄이다(§4.3):
+      // 3단계 본문(성향별 판정·근거)이 전부 과거 구간을 다루므로, 그 사실을 못박는 자리는
+      // 이 구간을 다 보여준 "끝"이지 아직 보여주는 "한복판"(예전 위치, 화면 맨 위)이 아니다.
+      // 여는 줄은 이 화면 자신의 취지(당신의 기준을 더한다)로 바꾼다 — 아래 return 앞에서
+      // obPastDone 을 다시 만난다.
+      w.appendChild(el("p", "ob-over", MSStr.t.obStyleOpen));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH3));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obSub3));
+
+      var full = visibleFull32();      // 비교 기준 — 2단계에서 이미 32개 전부로 본 판정
+      if (full) state.full32 = full;
+
+      var presets = (typeof MSIndTiers !== "undefined" && MSIndTiers.PRESETS) ? MSIndTiers.PRESETS : [];
+      var grid = frag("ob-styles");
+      presets.forEach(function (p) {
         var b = document.createElement("button");
         b.type = "button";
         b.className = "ob-style" + (state.style === p.key ? " is-on" : "");
         b.appendChild(el("span", "ob-style-name", p.name));
-        b.appendChild(el("span", "ob-style-desc", styleDesc(p.key)));
-        b.addEventListener("click", function () { state.style = p.key; draw(); });
-        list.appendChild(b);
+        var n = (typeof MSGraph !== "undefined" && typeof MSIndTiers !== "undefined")
+          ? MSIndTiers.selectionOf(p.key, MSGraph.BASIC).length : 0;
+        b.appendChild(el("span", "ob-style-desc", n + MSStr.t.obStyleIndicatorSuffix));
+        b.addEventListener("click", function () {
+          if (state.style === p.key) return;   // 같은 카드를 다시 눌러도 다시 그리지 않는다
+          state.style = p.key;
+          draw();
+        });
+        grid.appendChild(b);
       });
-      w.appendChild(list);
-      w.appendChild(el("p", "ob-note", MSStr.t.obStyleNote));
+      w.appendChild(grid);
+
+      var p = presetByKey(state.style);
+      var st = visibleStyle(state.style);
+      if (!full || !st || !p) {
+        w.appendChild(el("p", "ob-read-empty", MSStr.t.obReadUnavailable));
+        return w;
+      }
+
+      var n32 = (typeof ForgeCore !== "undefined" && typeof ForgeCore.indicatorCount === "number")
+        ? ForgeCore.indicatorCount : 32;
+      var cmp = frag("ob32-cmp");
+      cmp.appendChild(full32CmpRow(n32 + MSStr.t.obVerdictLabelSuffix, verdictWord(full.regime)));
+      cmp.appendChild(full32CmpRow(p.name + MSStr.t.obStyleVerdictSuffix, verdictWord(st.regime)));
+      w.appendChild(cmp);
+
+      // 같을 때도 이 화면은 성립한다(주 경로) — 대신 근거 구성은 아래 섹션에서 계속 갱신된다.
+      var same = st.regime === full.regime;
+      var note = same ? MSStr.t.ob3SameNote
+        : (MSStr.t.ob3DiffA + verdictWord(full.regime) + MSStr.t.ob3DiffB +
+           p.name + MSStr.t.ob3DiffC + verdictWord(st.regime) + MSStr.t.ob3DiffD);
+      w.appendChild(el("p", "ob32-verdict-note" + (same ? " is-same" : " is-diff"), note));
+
+      // 성향의 선택 지표 수(≤9)는 작아서 접을 이유가 없다 — 전부 그린다(collapsible=false,
+      // full32Section 을 2단계와 그대로 재사용한다 — 근거 행의 형태를 새로 만들지 않는다).
+      w.appendChild(full32Section("agree", MSStr.t.ob32AgreeHead, st.agree, false));
+      w.appendChild(full32Section("dissent", MSStr.t.rpAgainst, st.dissent, false));
+      // 리뷰 A(1/5) — 판정이 중립(want===0)이면 classifyFull32 가 voiced 행을 전부 무판정으로
+      // 보낸다(2단계·report.js 와 같은 로직, 손대지 않는다). 이 화면은 momentum(neutral)을
+      // 처음으로 사용자에게 그리는 자리라 "Stochastic −0.62 인데 왜 무판정이지"가 처음
+      // 나온다 — 분류를 바꾸지 않고 그 앞에 이유를 한 줄 적는다. 판정이 실제로 중립일
+      // 때만 보인다(무판정이 늘 이 뜻은 아니다 — 방향이 있는 판정에서의 무판정은 "이
+      // 지표 자체가 약하다"는 뜻이라 이 설명이 안 맞는다).
+      if (regimeDir(st.regime) === 0) w.appendChild(el("p", "ob-note", MSStr.t.ob3FlatNeutralNote));
+      w.appendChild(full32Section("flat", MSStr.t.ob32FlatHead, st.flat, false));
+      w.appendChild(full32Section("refused", MSStr.t.ob32RefusedHead, st.refused, false, null, false));
+
+      // 1·2·3막이 전부 과거(sliced 228봉)를 다뤘다 — obPastDone("여기까지는 과거였습니다")이
+      // 여기, 3단계 본문의 끝에서 그 사실을 못박는다(리뷰 C1 — 화면 맨 위였던 예전 위치는
+      // 아직 과거 구간을 보여주는 한복판에서 울렸다). 4단계는 그 문장을 받아 "이제부터는
+      // 미래"라고 답한다 — 동의가 법률 절차가 아니라 이야기의 매듭이 되려면 이 순서가 먼저다.
+      // 클래스 문자열을 하나로 이어붙이지 않는다 — "ob-note ob-past-done" 처럼 공백을 낀
+      // 리터럴은 screens/ 영어잔존 게이트(el()·className= 리터럴만 예외로 보는 shape 규칙)를
+      // 못 벗어난다(columnsBlock 의 col() 과 같은 이유·같은 처방).
+      var closing = el("p", "ob-note", MSStr.t.obPastDone);
+      closing.className = closing.className + " ob-past-done";
+      w.appendChild(closing);
+
       return w;
-    }
-
-    // ── 3단계: 위험 고지 ─────────────────────────────────────────────────────────
-    function step3() {
-      var w = frag("ob-step");
-      w.appendChild(el("h1", "ob-h", MSStr.t.obH5));
-      w.appendChild(el("p", "ob-risk", MSStr.t.obRisk));
-      var lab = document.createElement("label");
-      lab.className = "ob-agree";
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.className = "ob-agree-cb";
-      // 재진입 시 state 에서 다시 칠한다 — 없으면 화면은 꺼져 있는데 동의 기록은 살아 있다.
-      cb.checked = !!state.agreed;
-      cb.addEventListener("change", function () {
-        state.agreed = cb.checked;
-        var fwd = rootEl.querySelector(".ob-next");
-        if (fwd) fwd.disabled = !canAdvance(3, state);
-      });
-      lab.appendChild(cb);
-      lab.appendChild(el("span", "ob-agree-txt", MSStr.t.obAgree));
-      w.appendChild(lab);
-      return w;
-    }
-
-    // ── 4단계: 기본분석 체험 ─────────────────────────────────────────────────────
-    function tutHead(n) {
-      var d = frag("ob-tut-head");
-      d.appendChild(el("span", "ob-tut-n", n + MSStr.t.obTutOf + "3"));
-      return d;
-    }
-
-    function bandRow(label, band) {
-      var r = frag("ob-band");
-      r.appendChild(el("span", "ob-band-k", label));
-      r.appendChild(el("span", "ob-band-v", num(band && band.mid)));
-      r.appendChild(el("span", "ob-band-w", MSStr.t.obTutWidth + num(band && band.width)));
-      return r;
     }
 
     function step4() {
       var w = frag("ob-step");
-      if (!state.tut) {
-        w.appendChild(el("h1", "ob-h", MSStr.t.obTutIntroH));
-        w.appendChild(el("p", "ob-sub", MSStr.t.obTutIntroSub));
-        var steps = frag("ob-tut-list");
-        [MSStr.t.obTutStep1, MSStr.t.obTutStep2, MSStr.t.obTutStep3]
-          .forEach(function (line, i) {
-            var row = frag("ob-tut-row");
-            row.appendChild(el("span", "ob-tut-num", String(i + 1)));
-            row.appendChild(el("span", "ob-tut-txt", line));
-            steps.appendChild(row);
-          });
-        w.appendChild(steps);
-        w.appendChild(el("p", "ob-pick-h", MSStr.t.obTutPick));
-        var cards = frag("ob-picks");
-        tutPicks().forEach(function (p) {
-          var b = document.createElement("button");
-          b.type = "button"; b.className = "ob-pick";
-          b.appendChild(el("span", "ob-pick-name", p.name));
-          b.appendChild(el("span", "ob-pick-sym", p.sym));
-          b.addEventListener("click", function () {
-            state.picked = [{ sym: p.sym, name: p.name }];
-            loadTut(p, draw);
-            draw();
-          });
-          cards.appendChild(b);
-        });
-        w.appendChild(cards);
-        return w;
-      }
+      w.appendChild(el("p", "ob-over", MSStr.t.obFutureOver));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH4));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obSub4));
+      w.appendChild(el("p", "ob-risk", MSStr.t.obConsentIntro));
 
-      w.appendChild(tutHead(1));
-      w.appendChild(el("h1", "ob-h", MSStr.t.obTut1H));
-      if (state.tut.loading) { w.appendChild(el("p", "ob-sub", MSStr.t.obTutLoading)); return w; }
-      if (state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obTutFallback));
-      w.appendChild(el("p", "ob-sub", MSStr.t.obTut1Sub));
-      var t1 = tomorrow(state.r1);
-      w.appendChild(bandRow(MSStr.t.obTutTomorrow, t1));
+      var list = frag("ob-consent-list");
+      [MSStr.t.obConsentNotAdvice, MSStr.t.obConsentNoProfit, MSStr.t.obConsentLossOwn]
+        .forEach(function (t) { list.appendChild(el("p", "ob-consent-item", t)); });
+      w.appendChild(list);
+
+      // 행 전체가 토글이다(.ob-style 과 같은 클릭 규약) — 체크박스 자신의 change 이벤트에
+      // 기대지 않는다. 그러면 텍스트를 눌러도 켜지고, 이 화면의 시험이 다른 화면들과 같은
+      // 방식(행을 클릭한다)으로 체크 여부를 잴 수 있다.
+      var agree = frag("ob-agree" + (state.agreed ? " is-on" : ""));
+      var chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.className = "ob-consent-chk";
+      chk.checked = !!state.agreed;
+      agree.appendChild(chk);
+      agree.appendChild(el("span", "ob-agree-txt", MSStr.t.obConsentCheckTxt));
+      agree.addEventListener("click", function () {
+        state.agreed = !state.agreed;
+        draw();
+      });
+      w.appendChild(agree);
       return w;
     }
 
-    // ── 5단계: 심화분석 체험 ─────────────────────────────────────────────────────
-    // 시안의 "절반으로 좁아짐"은 우리 엔진에서 거짓이라, 실제로 파는 것을 판다:
-    // "80% 범위"라고 말할 때 실제로 몇 %를 덮었는가. 두 막대는 그 값이다(라벨 80 이 기준선).
+    // ── 5단계: 종목 선택 · 분석 시작(설계서 §4.5) ─────────────────────────────────
+    // 선택(칩을 고른다)과 실행([분석 시작]을 누른다)을 분리한다. 칩을 고르는 것은
+    // state.pick 만 바꾼다 — 엔진은 돌지 않고 state.r1/state.sym 은 그대로 null 이다.
+    // [분석 시작]을 눌러야 loadPick() 이 실제로 불려 종목을 확인하고 돈다. canAdvance(5)
+    // 는 state.sym 만 본다(위 canAdvance 주석 참고) — 이 함수 어디에도 state.r1 을
+    // 진행 조건으로 쓰는 자리가 없다.
     function step5() {
       var w = frag("ob-step");
-      w.appendChild(tutHead(2));
-      w.appendChild(el("h1", "ob-h", MSStr.t.obTut2H));
-      w.appendChild(el("p", "ob-sub", MSStr.t.obTut2Sub));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obPickH));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obPickSub));
 
-      var B = (typeof MSBacktest !== "undefined" && MSBacktest.tiers) ? MSBacktest.tiers : null;
-      if (B && B.basic && B.deep) {
-        w.appendChild(el("p", "ob-over", MSStr.t.obTut2Label));
-        var box = frag("ob-cov");
-        [[MSStr.t.obTut2Basic, B.basic.coneCoverage, ""],
-         [MSStr.t.obTut2Full, B.deep.coneCoverage, " is-on"]].forEach(function (row) {
-          var r = frag("ob-cov-row" + row[2]);
-          r.appendChild(el("span", "ob-cov-k", row[0]));
-          var track = frag("ob-cov-track");
-          var fill = frag("ob-cov-fill");
-          // 막대는 라벨 80% 를 가득 참으로 둔다 — 두 막대의 길이 차이가 곧 "얼마나 모자란가"다.
-          fill.style.width = Math.max(0, Math.min(100, (row[1] / 0.80) * 100)) + "%";
-          track.appendChild(fill);
-          r.appendChild(track);
-          r.appendChild(el("span", "ob-cov-v", pct(row[1])));
-          box.appendChild(r);
-        });
-        w.appendChild(box);
-        w.appendChild(el("p", "ob-cov-target", MSStr.t.obTut2Target));
+      var picker = MSTickerPicker.create({
+        // 리뷰 D — swapAtMax: 정원(1)이 찬 상태에서 다른 칩을 눌러도 "더 못 담는다"고
+        // 답하지 않는다. 이 화면은 "이제 당신의 종목입니다" — 하나만 고르는 화면이라,
+        // 다른 칩을 누르는 유일한 의도는 바꾸는 것이다.
+        multi: true, max: 1, swapAtMax: true,
+        preset: state.pick ? [state.pick] : [],
+        onChange: function (selSyms, items) {
+          var next = items.length ? items[0] : null;
+          // 리뷰 C1 — 확정된 종목과 다른 선택이면(또는 선택을 지우면) 이전 확정을
+          // 무효화한다. pickError 만 지우던 옛 코드는 state.sym/tut/r1/r2 가 그대로
+          // 남아 canAdvance(5)(=!!state.sym)가 계속 열려 있었다 — 화면엔 새 종목이
+          // 선택돼 있는데 다음으로 넘어가면 옛 종목의 분석 결과가 나가는 버그였다.
+          if (state.sym && (!next || next.sym !== state.sym)) invalidateConfirmed();
+          state.pick = next;
+          state.pickError = null;
+          draw();
+        }
+      });
+      w.appendChild(picker.el);
+
+      if (state.pick && !state.sym) {
+        w.appendChild(el("p", "ob-note", MSStr.t.obPickSelectedA + state.pick.name));
       }
-      w.appendChild(el("p", "ob-note", MSStr.t.obTut2Note));
 
-      // 이번 종목에서 실제로 폭이 어떻게 됐는지 그대로 보여준다. 넓어졌으면 넓어졌다고 적는다.
-      var t1 = tomorrow(state.r1), t2 = tomorrow(state.r2);
-      var cmp = frag("ob-cmp");
-      cmp.appendChild(bandRow(MSStr.t.obTut2Basic, t1));
-      cmp.appendChild(bandRow(MSStr.t.obTut2Full, t2));
-      w.appendChild(cmp);
-      if (t1 && t2 && t1.width != null && t2.width != null && t2.width > t1.width)
-        w.appendChild(el("p", "ob-note", MSStr.t.obTut2Wider));
+      var startBtn = document.createElement("button");
+      startBtn.type = "button"; startBtn.className = "btn btn-primary ob-pick-start";
+      startBtn.textContent = MSStr.t.obPickStart;
+      startBtn.disabled = !state.pick || state.pickChecking;
+      startBtn.addEventListener("click", function () {
+        if (!state.pick || state.pickChecking) return;
+        state.pickChecking = true; state.pickError = null;
+        draw();                        // "확인하는 중" 을 즉시 보여준다 — 클릭이 곧 진행을 여는 것은 아니다
+        loadPick(state.pick, draw);    // 실제 확인·분석은 여기서 비동기로 돈다
+      });
+      w.appendChild(startBtn);
+
+      if (state.pickChecking) {
+        w.appendChild(el("p", "ob-note", MSStr.t.obPickChecking));
+      } else if (state.pickError) {
+        // 막다른 골목 금지 — 못 찾음·봉 부족 둘 다 "다른 종목 선택" 이라는 실제 다음
+        // 행동을 준다. 텍스트만 던지고 끝나지 않는다.
+        w.appendChild(el("p", "ob-warn",
+          state.pickError === "notfound" ? MSStr.t.obPickNotFound : MSStr.t.obPickThin));
+        var retry = document.createElement("button");
+        retry.type = "button"; retry.className = "btn btn-outline btn-sm ob-retry";
+        retry.textContent = MSStr.t.obPickRetry;
+        retry.addEventListener("click", function () {
+          state.pick = null; state.pickError = null;
+          draw();
+        });
+        w.appendChild(retry);
+      } else if (state.sym) {
+        // 어느 종목을 확정했는지 이름을 담는다(리뷰 C1) — 문구가 종목명을 안 담으면
+        // "선택 표시(칩)"와 "실제로 확정된 종목"이 어긋나도 사용자가 눈치챌 수 없다.
+        w.appendChild(el("p", "ob-note", state.symName + MSStr.t.obPickReadySuffix));
+        // 리뷰 E — commit(data, true)(일반 네트워크 오류·API 층 부재)로 확정됐으면 그
+        // 사실을 여기서 처음 밝힌다. notfound·thin(리뷰 C2)은 이미 막혔으니 이 표시가
+        // 뜨는 유일한 경우는 "종목은 확인 못 했지만 진행은 막지 않은" 낙관적 폴백뿐이다.
+        if (state.tut && state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obFallbackNotice));
+      }
+
       return w;
     }
 
-    // ── 6단계: 전문분석 체험 ─────────────────────────────────────────────────────
-    function recomputeCustom() {
-      var base = MSIndTiers.weightsOf(state.style, MSGraph.BASIC);
-      var wts = {};
-      Object.keys(base).forEach(function (k) { wts[k] = base[k]; });
-      wts.trend = state.trendW;                       // 슬라이더가 여는 딱 하나
-      state.r3 = runTier(state.tut && state.tut.data, "custom", wts);
+    // ── 6단계: 실제 분석(설계서 §4.6) ─────────────────────────────────────────────
+    // 5단계가 이미 실제 데이터를 적재했다(state.tut.data · state.r1 · state.r2 — commit() 이
+    // 두 티어를 미리 계산해 둔다). 이 화면의 뼈대는 순서다: **오늘 종가(기준 시각과 함께) →
+    // 세 지평(내일·1주·1개월, 각각 중심값 ± 오차 + 해석) → 근거.** "내일 예상값만 있고 오늘이
+    // 얼마인지도 안 보여준다"던 원 판정에 대한 정면 답 — 그래서 오늘 종가가 이 화면에서
+    // 가장 먼저 그려진다(단언 1). 세 지평은 state.r2.out.prediction 에서 곧바로 나온다 —
+    // 5단계에서 이미 계산이 끝나 있으므로 이 화면이 다시 엔진을 돌리지 않는다.
+    //
+    // 진행 중계(Q3, 단언 6)는 MSAnalyzeView(progress-analyze.js, 시안 19a — report.js 구매
+    // 흐름이 이미 쓰는 그 모듈)를 그대로 쓴다. **재생이 값을 계산하지 않는다** — 판정·예측은
+    // 이미 확정돼 있다. 재생이 실제로 만드는 것은 그 판정을 뒷받침하는 32개 지표의
+    // **서술문**(narration)뿐이다 — 2단계가 쓰는 것과 정확히 같은 자료·같은 형식(동의/반대/
+    // 무판정/자백, full32Section 재사용)이다(단언 4 — "2단계에서 배운 형식 그대로"). 진행은
+    // readingStepper 가 analyzeX 를 실제로 한 번씩 부르는 것에 묶인다(고정 타이머 없음) —
+    // 그래서 재생을 건너뛰어도(overlay 탭) 근거는 그대로 남는다(progress-analyze.js 머리말).
+
+    // 근거 분류 — 2단계(visibleFull32)와 정확히 같은 경로(classifyFull32)를 탄다. 재생이
+    // 아직 안 끝났으면(state.ob6 없음) null — 화면은 그 사이 "정리하는 중" 문구를 보여준다.
+    function ob6Classify() {
+      var r2 = state.r2;
+      if (!r2 || !r2.out || !state.ob6 || !state.ob6.rows) return null;
+      var noDir = (typeof MSIndicators !== "undefined")
+        ? MSIndicators.noDirRows(ForgeCore, r2.input, MSIndicators.ctxFrom(r2.input)) : [];
+      return classifyFull32(r2.graph, r2.out.verdict.regime, state.ob6.rows, noDir);
+    }
+
+    // 막다른 골목 금지(단언 7) — 5단계에서 종목은 이미 확정됐어도(state.sym 존재) 32도구
+    // 전체 실행(runTier "full")은 별도로 실패할 수 있다(엔진 예외는 runTier 의 catch 가
+    // 삼켜 null 을 돌려준다). 뒤로가기가 없는 단계(Q4)라 다른 종목을 고르러 돌아갈 수 없다
+    // — 그래서 다음 행동은 "같은 종목으로 다시 시도"다. 성공하면 재생도 처음부터 다시 켠다.
+    function ob6Retry() {
+      state.r1 = runTier(state.tut && state.tut.data, "basic");
+      state.r2 = runTier(state.tut && state.tut.data, "full");
+      state.ob6 = null; state.ob6Playing = false; state.ob6Failed = false;
+      draw();
+    }
+
+    // 재생을 실제로 켠다 — draw() 의 꼬리(DOM 부착 뒤, step7 의 fetchGrant 와 같은 1회성
+    // 발신 패턴)가 정확히 한 번 부른다. 여기서 직접 부르지 않는 이유: MSAnalyzeView.play() 는
+    // document.body 에 자기 오버레이를 붙이므로 step6() 자신의 DOM 트리(w)와 무관하게 동작할
+    // 수 있고, onDone 이 draw() 를 다시 부를 때 **바깥 draw() 호출이 이미 끝난 뒤**여야
+    // 재진입 문제가 없다(꼬리에서 부르면 그 시점이 항상 보장된다).
+    //
+    // 리뷰 I4 — 예전엔 state.ob6Playing=true 를 먼저 세운 뒤 MSAnalyzeView.play() 를
+    // 불렀다. play() 나 그 rAF 콜백(frame())이 던지면 onDone 이 영영 안 불려 ob6Playing 이
+    // true 로 얼어붙고, 이후 모든 draw() 에서 이 함수가 조기 반환한다 — 뒤로가기도 없는
+    // 단계(Q4)라 사용자는 앱 재시작 말고는 나갈 길이 없었다(실측: MSAnalyzeView.play 를
+    // 던지게 바꾸면 재현됨). try/catch 는 **여기서 직접 부르는 동기 호출만** 잡는다 — 진짜
+    // 위험은 requestAnimationFrame 콜백(frame()) 안의 비동기 예외라 그 try/catch 로는 못
+    // 잡는다(호출 스택이 이미 끊겨 있다). 그래서 progress-analyze.js 쪽에도 같은 회수
+    // 경로(onError)를 심었다 — 두 경로 다 결국 이 onError 콜백으로 모인다.
+    function ob6Reveal() {
+      if (state.ob6 || state.ob6Playing || state.ob6Failed) return;
+      var r2 = state.r2;
+      if (!r2 || !r2.out || !r2.graph || !r2.input) return;
+      if (typeof MSIndicators === "undefined" || typeof MSAnalyzeView === "undefined") return;
+      var stepper = MSIndicators.readingStepper(ForgeCore, r2.graph, r2.input, MSIndicators.ctxFrom(r2.input));
+      if (!stepper.total) return;
+      state.ob6Playing = true;
+      function onFail() {
+        state.ob6Playing = false;
+        state.ob6Failed = true;
+        draw();
+      }
+      try {
+        MSAnalyzeView.play({
+          stepper: stepper,
+          basic: (typeof MSGraph !== "undefined" && MSGraph.BASIC) ? MSGraph.BASIC.length : 5,
+          onDone: function (rows) {
+            state.ob6Playing = false;
+            state.ob6 = { rows: rows };
+            draw();
+          },
+          onError: onFail
+        });
+      } catch (e) {
+        onFail();
+      }
+    }
+
+    function ob6HzLabel(key) {
+      return key === "d1" ? MSStr.t.rpHzTomorrow : key === "w1" ? MSStr.t.rpHzWeek : MSStr.t.rpHzMonth;
+    }
+
+    // 지평 하나의 해석문(Q5, 단언 3) — report.js 의 확신 표기와 같은 값(FC.calibrateUpProb
+    // 경유, MSReportModel.horizonRows 가 이미 캘리브레이션까지 끝내 돌려준다)을 그대로
+    // 쓴다. 판정이 중립이거나 이 지평 자체가 무방향이면 확신을 말하지 않는다 — 없는 방향에
+    // "맞을 확률"을 붙일 수 없다(report-model.js confidence() 와 같은 원칙).
+    function ob6HzMeaning(r) {
+      if (r.dir === "flat") return MSStr.t.obHzFlatMeaning;
+      var base = r.dir === "up" ? MSStr.t.obHzUpMeaning : MSStr.t.obHzDownMeaning;
+      return (typeof r.prob === "number") ? (base + " (" + r.prob + "%)") : base;
+    }
+
+    // 세 지평(내일·1주·1개월) — MSReportModel.HORIZONS/horizonRows 가 방향·변화율·확신을
+    // 이미 계산해 준다(report.js 와 같은 원천, 다시 판정하지 않는다). 이 화면만 더하는 것은
+    // 지평별 오차 폭(± lo~hi 반폭)이다 — report.js 는 헤더에 마지막 지평 하나의 콘만
+    // 보여주지만, 온보딩은 "중심값 ± 오차"를 지평마다 명시해야 한다(단언 2).
+    function ob6Horizons(prediction, regime) {
+      if (typeof MSReportModel === "undefined") return [];
+      var rows = MSReportModel.horizonRows(ForgeCore, prediction, regime);
+      var lo = prediction && prediction.lo, hi = prediction && prediction.hi;
+      return rows.map(function (r) {
+        var idx = r.bars - 1;
+        var l = lo && lo[idx], h = hi && hi[idx];
+        var width = (typeof l === "number" && typeof h === "number") ? (h - l) : null;
+        return { key: r.key, price: r.price, dir: r.dir, prob: r.prob, width: width };
+      });
     }
 
     function step6() {
       var w = frag("ob-step");
-      w.appendChild(tutHead(3));
-      w.appendChild(el("h1", "ob-h", MSStr.t.obTut3H));
-      w.appendChild(el("p", "ob-sub", MSStr.t.obTut3Sub));
-      if (!state.r3) recomputeCustom();
-      var t3 = tomorrow(state.r3);
-      var now = frag("ob-now");
-      now.appendChild(el("span", "ob-now-k", MSStr.t.obTut3Now));
-      now.appendChild(el("span", "ob-now-v", num(t3 && t3.mid)));
-      now.appendChild(el("span", "ob-now-w", MSStr.t.obTutWidth + num(t3 && t3.width)));
-      w.appendChild(now);
+      // 리뷰 I1 — 3막 전체의 약속이 "이제 당신의 종목입니다"인데, 실제로 분석하는 이
+      // 화면이 그 이름을 한 번도 안 불렀다. state.symName 은 5단계 commit() 이 확정한
+      // 값이라 fallback(폴백 예시 데이터)이어도 "어느 종목을 골랐는지"는 그대로 맞다 —
+      // 값 자체가 예시라는 사실은 바로 아래 obFallbackNotice 경고가 이어서 말한다.
+      if (state.symName) w.appendChild(el("p", "ob-over", state.symName));
+      w.appendChild(el("h1", "ob-h", MSStr.t.obH6));
+      w.appendChild(el("p", "ob-sub", MSStr.t.obSub6));
+      if (state.tut && state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obFallbackNotice));
 
-      var card = frag("ob-slider");
-      card.appendChild(el("span", "ob-slider-name", MSStr.ind("trend")));
-      card.appendChild(el("span", "ob-slider-val", num(state.trendW, 1) + "×"));
-      var input = document.createElement("input");
-      input.type = "range"; input.min = "0.1"; input.max = "3.0"; input.step = "0.1";
-      input.value = String(state.trendW);
-      input.className = "ob-range";
-      input.addEventListener("input", function () {
-        state.trendW = Number(input.value);
-        var v = w.querySelector(".ob-slider-val");
-        if (v) v.textContent = num(state.trendW, 1) + "×";
-        recomputeCustom();
-        var tw = tomorrow(state.r3);
-        var mv = w.querySelector(".ob-now-v"), wv = w.querySelector(".ob-now-w");
-        if (mv) mv.textContent = num(tw && tw.mid);
-        if (wv) wv.textContent = MSStr.t.obTutWidth + num(tw && tw.width);
+      var r2 = state.r2;
+      // 리뷰 I4 — state.ob6Failed 는 재생(MSAnalyzeView.play)이 던졌을 때만 선다(ob6Reveal
+      // 아래). r2 자체는 멀쩡해도(엔진 실행은 성공) 재생 단계가 실패할 수 있다 — 그 경우도
+      // r2 가 없을 때와 같은 막다른 골목 회수 경로(재시도 버튼)로 떨어뜨린다.
+      if (!r2 || !r2.out || state.ob6Failed) {
+        w.appendChild(el("p", "ob-warn", MSStr.t.obAnalysisFailed));
+        var retry = document.createElement("button");
+        retry.type = "button"; retry.className = "btn btn-outline btn-sm ob-retry";
+        retry.textContent = MSStr.t.obRetry;
+        retry.addEventListener("click", ob6Retry);
+        w.appendChild(retry);
+        return w;
+      }
+
+      // 오늘 종가 — 기준 시각과 함께, 가장 먼저(Q1, 단언 1).
+      var d = state.tut && state.tut.data;
+      var lastBar = (d && d.candle && d.candle.length) ? d.candle[d.candle.length - 1] : null;
+      var asOf = dotDate(lastBar && lastBar.t);
+      var today = frag("ob6-today");
+      today.appendChild(MSObQuality.metric({ value: priceFmt(lastBar && lastBar.c), label: MSStr.t.obTodayLabel, asOf: asOf }));
+      w.appendChild(today);
+
+      // 세 지평 — 내일 · 1주 · 1개월, 각각 중심값 ± 오차 + 해석(단언 2·3).
+      var rows = ob6Horizons(r2.out.prediction, r2.out.verdict.regime);
+      var hz = frag("ob6-hz");
+      rows.forEach(function (r) {
+        var half = (typeof r.width === "number") ? (r.width / 2) : null;
+        var metric = MSObQuality.metric({
+          value: priceFmt(r.price), unit: (typeof half === "number") ? ("± " + MSUi.fmtPrice(half)) : null,
+          label: ob6HzLabel(r.key), asOf: asOf
+        });
+        hz.appendChild(MSObQuality.stat({ metric: metric, meaning: ob6HzMeaning(r) }));
       });
-      card.appendChild(input);
-      var ticks = frag("ob-ticks");
-      ["0.1", MSStr.t.obTut3Default, "3.0"].forEach(function (lab) { ticks.appendChild(el("span", "ob-tick", lab)); });
-      card.appendChild(ticks);
-      w.appendChild(card);
-      w.appendChild(el("p", "ob-note", MSStr.t.obTut3Note));
+      w.appendChild(hz);
+
+      // 엇갈림 — 세 지평의 방향이 다르면 그렇다고 쓴다(단언 5). report.js buildHorizons() 와
+      // 같은 검사·같은 문구(rpHzMixed*)를 그대로 쓴다 — 두 화면이 "엇갈림"을 각자 다른
+      // 규칙으로 정의하면 안 되므로.
+      var d1 = rows[0], mN = rows[rows.length - 1];
+      if (d1 && mN && d1 !== mN && d1.dir !== "flat" && mN.dir !== "flat" && d1.dir !== mN.dir) {
+        w.appendChild(el("p", "ob-note",
+          MSStr.t.rpHzMixedA + (d1.dir === "up" ? MSStr.t.rpHzMixedUp : MSStr.t.rpHzMixedDown) + MSStr.t.rpHzMixedB));
+      }
+      w.appendChild(el("p", "ob-note", MSStr.t.obHzPromiseNote));   // "실제 예측"이므로 약속이 아님을 옆에
+
+      // 근거 — 2단계에서 배운 형식 그대로(동의/반대/무판정/자백, full32Section 재사용).
+      // 재생이 아직 안 끝났으면(state.ob6 없음) 자리 표시만 — draw() 의 꼬리(ob6Reveal)가
+      // 재생을 이미 시작했거나 곧 시작한다.
+      var cls = ob6Classify();
+      if (cls) {
+        w.appendChild(full32Section("agree", MSStr.t.ob32AgreeHead, cls.agree, true, FULL32_AGREE_SHOW));
+        w.appendChild(full32Section("dissent", MSStr.t.rpAgainst, cls.dissent, false));
+        w.appendChild(full32Section("flat", MSStr.t.ob32FlatHead, cls.flat, true, FULL32_FLAT_SHOW));
+        w.appendChild(full32Section("refused", MSStr.t.ob32RefusedHead, cls.refused, true, FULL32_REFUSED_SHOW, false));
+      } else {
+        w.appendChild(el("p", "ob-note", MSStr.t.obAnalyzing));
+      }
+
       return w;
     }
 
@@ -605,24 +1170,82 @@
       })["catch"](function () { state.grantFailed = true; paintGrant(); });
     }
 
+    // 값 한 줄(recap) — 큰 숫자 + 라벨 한 줄 + 무엇이었는지 풀어 적은 상세. 3개(도구·지평·
+    // 근거)가 전부 같은 뼈대를 쓴다 — 항목마다 다른 모양이면 "요약"이 아니라 세 개의 다른
+    // 화면처럼 읽힌다.
+    function recapRow(n, label, detail) {
+      var row = frag("ob-recap-row");
+      var head = frag("ob-recap-row-head");
+      head.appendChild(el("span", "ob-recap-num", n));
+      head.appendChild(el("span", "ob-recap-label", label));
+      row.appendChild(head);
+      if (detail) row.appendChild(el("p", "ob-recap-detail", detail));
+      return row;
+    }
+
+    // 방금 받은 것 — 가격표보다 먼저(단언 1). 6단계가 이미 계산해 둔 자료(state.r2·
+    // state.ob6.rows)를 다시 읽을 뿐 새로 계산하지 않는다 — 이 화면은 요약이지 재분석이
+    // 아니다. 세 항목이 설계서 §4.7 "도구 32개 · 지평 3개 · 근거 전부"를 그대로 센다.
+    function recapBlock() {
+      var wrap = frag("ob-recap");
+      wrap.appendChild(el("p", "ob-recap-head", MSStr.t.obRecapHead));
+
+      var cls = ob6Classify();
+      var toolsN = cls ? (cls.agree.length + cls.dissent.length + cls.flat.length + cls.refused.length) : 0;
+      var toolsDetail = cls
+        ? (MSStr.t.ob32AgreeHead + " " + cls.agree.length + MSStr.t.obRecapSep +
+           MSStr.t.rpAgainst + " " + cls.dissent.length + MSStr.t.obRecapSep +
+           MSStr.t.ob32FlatHead + " " + cls.flat.length + MSStr.t.obRecapSep +
+           MSStr.t.ob32RefusedHead + " " + cls.refused.length)
+        : "";
+      wrap.appendChild(recapRow(String(toolsN), MSStr.t.obRecapToolsLabel, toolsDetail));
+
+      var r2 = state.r2;
+      var hzRows = (r2 && r2.out) ? ob6Horizons(r2.out.prediction, r2.out.verdict.regime) : [];
+      var hzDetail = hzRows.map(function (r) { return ob6HzLabel(r.key) + " " + priceFmt(r.price); })
+                            .join(MSStr.t.obRecapSep);
+      wrap.appendChild(recapRow(String(hzRows.length), MSStr.t.obRecapHorizonsLabel, hzDetail));
+
+      // "근거" — O2 의 실체(반대 의견까지 숨기지 않는다)를 다시 한 번 숫자로 못박는다.
+      // 반대 개수는 앞 항목의 상세에도 있지만, 여기서는 그 숫자 하나를 이 항목의 주인공으로
+      // 다시 꺼낸다 — "동의만 골라 보여주지 않았다"는 이 온보딩의 핵심 약속이기 때문이다.
+      // 리뷰 M2 — 반대가 0건이면 "0개 반대 의견도 숨기지 않았습니다"가 되어 "숨길 게
+      // 없었다"와 "다 보여줬다"가 겹쳐 읽힌다. num 자리는 그대로 dissentN(=0)을 보여준다
+      // ("값을 가리지 않는다", Q1) — 바뀌는 것은 라벨·상세뿐이다(자세한 사정은 strings.js
+      // obRecapEvidenceZeroLabel 주석).
+      var dissentN = cls ? cls.dissent.length : 0;
+      if (dissentN > 0) {
+        wrap.appendChild(recapRow(String(dissentN), MSStr.t.obRecapEvidenceLabel, MSStr.t.obRecapEvidenceDetail));
+      } else {
+        wrap.appendChild(recapRow(String(dissentN), MSStr.t.obRecapEvidenceZeroLabel, MSStr.t.obRecapEvidenceZeroDetail));
+      }
+
+      return wrap;
+    }
+
     function step7() {
       var w = frag("ob-step");
+      // 리뷰 I1 — 7단계도 6단계와 같은 이유로 종목명을 단다(obDoneSub 는 여전히 "이
+      // 종목으로"라고만 말한다 — 어느 종목인지는 이 오버라인이 답한다).
+      if (state.symName) w.appendChild(el("p", "ob-over", state.symName));
       w.appendChild(el("h1", "ob-h", MSStr.t.obDoneH));
       w.appendChild(el("p", "ob-sub", MSStr.t.obDoneSub));
+      if (state.tut && state.tut.fallback) w.appendChild(el("p", "ob-warn", MSStr.t.obFallbackNotice));
 
-      var table = frag("ob-final");
-      table.appendChild(bandRow(MSStr.t.obTut2Basic, tomorrow(state.r1)));
-      table.appendChild(bandRow(MSStr.t.obTut2Full, tomorrow(state.r2)));
-      table.appendChild(bandRow(MSStr.t.xpTitle, tomorrow(state.r3)));
-      w.appendChild(table);
+      // 1) 방금 받은 것 — 도구 32 · 지평 3 · 근거(단언 1).
+      w.appendChild(recapBlock());
 
-      w.appendChild(frag("ob-grant"));
-
-      // 가격표는 지갑 화면과 같은 출처(MSWallet.COSTS)에서 읽는다 — 여기서 다시 적으면
-      // 두 화면이 다른 값을 말하게 된다(P2 에서 스캔 가격이 실제로 그렇게 갈렸다).
+      // 2) 가격표 — 값을 겪은 뒤에야 공개(인벤토리 §2). 지갑 화면과 같은 출처(MSWallet.
+      // COSTS)에서 읽는다 — 여기서 다시 적으면 두 화면이 다른 값을 말하게 된다(P2 에서
+      // 스캔 가격이 실제로 그렇게 갈렸다). **상시 무료로 읽히지 않게**(단언 3) — 방금
+      // 본 32개 도구 전체(심화분석 티어)는 온보딩 한정 무료였다는 것을 가격표 맨 앞에서
+      // 분명히 하고, 그 다음에야 "기본은 계속 무료"를 말한다 — 순서가 바뀌면 무료라는
+      // 인상이 먼저 박힌 뒤 예외가 작은 글씨로 따라오는 모양이 된다.
       var C = (typeof MSWallet !== "undefined") ? MSWallet.COSTS : {};
-      w.appendChild(el("p", "ob-over", MSStr.t.obDoneNow));
-      w.appendChild(el("p", "ob-cost-note", MSStr.t.obDoneFree));
+      var pricing = frag("ob-pricing");
+      pricing.appendChild(el("p", "ob-over", MSStr.t.obDoneNow));
+      pricing.appendChild(el("p", "ob-warn", MSStr.t.obDoneOnboardFree));
+      pricing.appendChild(el("p", "ob-cost-note", MSStr.t.obDoneFree));
       var costs = frag("ob-costs");
       [[MSStr.t.obCostFull, C.full], [MSStr.t.xpTitle, C.custom]].forEach(function (row) {
         var r = frag("ob-cost-row");
@@ -633,8 +1256,14 @@
                                               : (row[1] != null ? String(row[1]) : "?")));
         costs.appendChild(r);
       });
-      w.appendChild(costs);
-      w.appendChild(el("p", "ob-cost-note", MSStr.t.obDoneEarn));
+      pricing.appendChild(costs);
+      pricing.appendChild(el("p", "ob-cost-note", MSStr.t.obDoneEarn));
+      w.appendChild(pricing);
+
+      // 3) 지급 — 서버가 확정한 값만(fetchGrant/paintGrant, 낙관적 증가 금지). 가장
+      // 마지막(단언 2) — 값을 겪고 가격을 본 사람에게 마지막으로 스쿱이 채워진다.
+      w.appendChild(frag("ob-grant"));
+
       return w;
     }
 
@@ -648,7 +1277,11 @@
       scr.appendChild(body);
 
       var nav = frag("ob-nav");
-      if (step > 1) {
+      // Q4(설계서 §5) — 뒤로가기는 2·3단계에만 있다. 1단계는 시작점이라 되돌릴 앞이 없고,
+      // 4단계부터는 전진만이다(4단계=동의는 되돌리면 "동의를 물렸다"는 애매한 상태가 되고,
+      // 5단계 이후는 이미 종목을 확정해 돈 분석을 되돌리는 의미가 없다). Task 6 이전엔
+      // `step > 1` 이라 4단계를 등록하는 순간 이 규칙이 깨졌다 — 여기서 좁힌다.
+      if (step === 2 || step === 3) {
         var back = document.createElement("button");
         back.type = "button"; back.className = "btn btn-ghost ob-back";
         back.textContent = MSStr.t.obBack;
@@ -685,6 +1318,7 @@
       rootEl.appendChild(scr);
 
       if (step === 1) paintGuess(scr);          // 캔버스가 DOM 에 붙은 뒤여야 폭을 잴 수 있다
+      if (step === 6) ob6Reveal();              // 재생은 body 오버레이라 DOM 부착과 무관하지만, 같은 1회성 발신 자리를 쓴다
       if (step === 7) {
         if (!state.grantStarted) { state.grantStarted = true; fetchGrant(); }
         else paintGrant();
@@ -694,6 +1328,5 @@
     draw();
   }
 
-  return { STEPS: STEPS, tutSyms: tutSyms, tutPicks: tutPicks, canAdvance: canAdvance, next: next,
-           seedTo: seedTo, coverGap: coverGap, render: render };
+  return { STEPS: STEPS, canAdvance: canAdvance, next: next, seedTo: seedTo, render: render };
 });

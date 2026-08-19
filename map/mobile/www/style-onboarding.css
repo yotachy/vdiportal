@@ -33,26 +33,32 @@
 .ob-bar.dn { background:var(--bear); }
 .ob-cap { margin:10px 0 0; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; color:var(--ink-5); }
 
-/* 지급 상태 한 줄 — "Setting up…" → "5 Scoops to start" 또는 오프라인 안내 + 재시도.
-   숫자는 항상 서버가 돌려준 값이다(state.granted) — 여기서 다시 계산하지 않는다. */
-.ob-grant { margin-top:20px; font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink-2);
-            font-variant-numeric:tabular-nums; }
-.ob-retry { display:block; margin-top:10px; min-height:34px; padding:0 14px; font-size:var(--fs-sub); }
+/* 재시도 버튼 — 5·6·7단계가 공유한다(종목 다시 고르기·분석 재시도·지갑 재시도). 44px
+   미만이었던 결함(리뷰, Task 8) — 7단계에서 뒤로가기 없는 막다른 화면의 유일한 탈출
+   버튼으로 재사용되며 노출 맥락이 커져 프로젝트 터치 타깃 하한(44px)에 맞춘다. */
+.ob-retry { display:block; margin-top:10px; min-height:44px; padding:0 14px; font-size:var(--fs-sub); }
 
-/* 가격표 — 지갑 화면과 같은 출처(MSWallet.COSTS)를 읽는다. 선택 강조가 없는 정적 목록이라
-   좌측 라인 규율과 무관하지만 명시적으로 border-left 를 안 쓴다. */
-.ob-costs { margin-top:18px; border-top:1px solid var(--border); }
-.ob-cost-row { display:flex; align-items:center; justify-content:space-between;
-               padding:11px 0; border-bottom:1px solid var(--border); }
-.ob-cost-name { font-size:var(--fs-sub); color:var(--ink-3); }
-.ob-cost-num { font-size:var(--fs-sub); font-weight:var(--fw-bold); font-variant-numeric:tabular-nums; color:var(--ink); }
-
-/* 5단계 — 위험 고지 + 약관 체크박스. 강조는 배경·아웃라인으로만(좌측 라인 금지). */
+/* 4단계 — 동의(Task 6, 재사용). 옛 3단계 위험고지에서 남겨 둔 클래스를 그대로 쓴다
+   (.ob-risk = 도입 문장, .ob-agree = 체크 행). 선택 표시는 배경·테두리로만(좌측 라인 금지)
+   — .ob-style 과 같은 원칙. .ob-agree 는 이제 버튼(클릭 규약은 .ob-style 과 동일 — 행
+   전체가 토글이고 체크박스 자신의 change 이벤트에 기대지 않는다)이라 폰트·정렬을 리셋한다. */
 .ob-risk { margin:16px 0 0; font-size:var(--fs-sub); line-height:1.65; color:var(--ink-3); }
-.ob-agree { display:flex; align-items:flex-start; gap:10px; margin-top:22px; padding:14px;
-            border:1px solid var(--border); border-radius:10px; background:var(--sheet); cursor:pointer; }
-.ob-agree input[type="checkbox"] { flex:0 0 auto; width:18px; height:18px; margin:1px 0 0; accent-color:var(--gold); }
+.ob-agree { display:flex; align-items:flex-start; gap:10px; width:100%; margin-top:22px; padding:14px;
+            border:1px solid var(--border); border-radius:10px; background:var(--sheet);
+            color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.ob-agree.is-on { border-color:var(--gold); background:var(--gold-soft); }
+.ob-agree input[type="checkbox"] { flex:0 0 auto; width:18px; height:18px; margin:1px 0 0; accent-color:var(--gold); pointer-events:none; }
 .ob-agree-txt { font-size:var(--fs-sub); line-height:1.5; color:var(--ink-2); }
+
+/* 4단계 — "하지 않는 것" 세 줄. .ob-tools 와 같은 박스 리스트 뼈대(좌측 라인 없이 배경만). */
+.ob-consent-list { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+.ob-consent-item { margin:0; padding:12px 14px; border:1px solid var(--border); border-radius:12px;
+                    background:var(--surface); font-size:var(--fs-sub); line-height:1.55; color:var(--ink-3); }
+
+/* 5단계 — 종목 선택·분석 시작(Task 6). 시작 버튼은 tp-confirm 과 같은 자리(그리드 아래
+   전폭 버튼) — 선택(피커)과 실행(이 버튼)이 다른 요소라는 것을 레이아웃으로도 보여준다. */
+.ob-pick-start { width:100%; margin-top:16px; }
+.ob-pick-start[disabled] { opacity:.5; }
 
 /* 버튼 줄은 화면 바닥에 붙는다 — 단계마다 같은 자리에 있어야 연타가 된다. */
 .ob-nav { display:flex; gap:10px; flex:0 0 auto; padding-top:24px; }
@@ -61,7 +67,7 @@
 .ob-next[disabled] { opacity:.45; }
 
 /* ===== 종목 고르기 (ticker-picker.js, 시안 12a) =====
-   온보딩 4단계(다중)와 워치리스트 ＋Add(단일)가 같은 그리드·검색 마크업을 쓴다. 제목·
+   온보딩 5단계(다중, Task 6)와 워치리스트 ＋Add(단일)가 같은 그리드·검색 마크업을 쓴다. 제목·
    "많이 보는 종목" 라벨·자물쇠 설명문·확인 버튼은 단일 모드(＋Add) 전용 chrome 이다
    (온보딩은 자기 제목을 이미 갖고 있다 — ticker-picker.js 의 chrome 분기 참고).
    선택 표시는 배경 + 골드 테두리다 — 좌측 세로 라인 금지. */
@@ -100,8 +106,9 @@
 .tp-confirm { width:100%; margin-top:16px; }
 .tp-confirm[disabled] { opacity:.5; }
 
-/* ===== 7단계 개편(시안 정본 §2) =====
-   1 콜드오픈 · 2 투자성향 · 3 위험고지 · 4~6 3모드 체험 · 7 완료·가격표. */
+/* ===== 7단계 개편(시안 정본 §2, 2026-08-18 3막 재설계로 슬롯 의미 갱신) =====
+   1 콜드오픈 · 2 같은 구간 32개 전부 · 3 성향(고르면 판정·근거가 갱신된다) ·
+   4~6 3모드 체험(4단계는 이후 태스크가 동의로 재설계) · 7 완료·가격표. */
 .ob-seg.is-done { background:var(--gold-dim, var(--gold)); opacity:.5; }
 
 /* 1단계 — 직접 찍기. 두 버튼은 같은 무게다(정답을 암시하지 않는다). */
@@ -109,6 +116,30 @@
 .ob-guess-btn { flex:1 1 0; min-height:48px; }
 .ob-reveal { margin-top:14px; font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section); color:var(--ink-2); }
 .ob-reveal.is-right { color:var(--gold); }
+
+/* x축 기준(주기·기간) — 차트 바로 위. "일봉인지 주봉인지, 어느 구간인지 모른다"던 원 판정에
+   대한 답이라 캡션이 아니라 눈에 띄는 자리에 둔다. */
+.ob-period { margin:14px 0 0; font-size:var(--fs-caption); font-weight:var(--fw-semibold);
+             color:var(--ink-4); font-variant-numeric:tabular-nums; }
+
+/* 3열 대조(당신/앱/실제) — 좌우 스크롤 없이 411px 폭에 들어와야 한다. gap 8px 셋이면
+   (411-40 패딩-16 gap)/3 ≈ 118px, 두 자짜리 한국어 값엔 넉넉하다. min-width:0 로 텍스트가
+   폭을 밀어내지 않게 한다. */
+.ob-cols { display:flex; gap:8px; margin-top:16px; }
+.ob-col { flex:1 1 0; min-width:0; padding:12px 10px; border-radius:12px;
+          border:1px solid var(--border); background:var(--surface); }
+/* 앱 열의 판정 결과 — 색만 바꾼다(배경·글자색, 좌측 세로 라인 금지 규칙). 맞았으면 강세,
+   틀렸으면 경고, 무판정이면 중립 — 맞은 표본만 예쁘게 칠하지 않는다. */
+.ob-col-app.is-right .obq-meaning { color:var(--bull); }
+.ob-col-app.is-wrong .obq-meaning { color:var(--bear-text); }
+.ob-col-app.is-flat .obq-meaning { color:var(--ink-5); }
+/* obq-metric/obq-stat(onboarding-quality.js) 내부 값은 열 폭에 맞춰 줄바꿈만 허용한다. */
+.ob-col .obq-value { font-size:var(--fs-body); word-break:keep-all; }
+.ob-col .obq-meaning { font-size:var(--fs-caption); line-height:1.5; }
+
+/* "앱은 도구 5개만 보고 이렇게 말했습니다" — 3열 대조 바로 아래, 다음 단계(심화 32개)를
+   벌어들이는 줄이라 캡션보다 한 단 낮춰 덤덤하게 둔다. */
+.ob-app-note { margin-top:12px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
 
 /* 찍기 전 힌트 — 도구 이름 + 한 줄 설명. 좌측 라인 없이 이름은 굵기로만 구분한다. */
 .ob-tools { display:flex; flex-direction:column; gap:9px; margin-top:16px; padding:13px 14px;
@@ -123,7 +154,7 @@
 .ob-read { margin-top:16px; }
 .ob-read-verdict { margin:0 0 10px; font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink); }
 .ob-read-empty { font-size:var(--fs-sub); color:var(--ink-4); }
-.ob-read-for, .ob-read-against, .ob-read-flat { margin-bottom:12px; }
+.ob-read-for, .ob-read-against, .ob-read-flat, .ob-read-refused { margin-bottom:12px; }
 .ob-read-label { margin:0 0 6px; font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); color:var(--ink-5); }
 .ob-read-row { display:flex; align-items:flex-start; gap:10px; padding:6px 0; border-bottom:1px solid var(--hairline); }
 .ob-read-row:last-child { border-bottom:0; }
@@ -135,7 +166,43 @@
 /* 맞힘/틀림 두 갈래 — 틀려도 지지 않는다는 톤. */
 .ob-tail { margin-top:14px; font-size:var(--fs-sub); line-height:1.6; color:var(--ink-3); }
 
-/* 2단계 — 투자성향. 라디오가 아니라 카드로 고른다(설명이 선택의 근거다). */
+/* 2단계 — 같은 구간, 32개 전부(설계서 §4.2, Task 4). 5도구/32도구 판정 비교 + 동의·반대·
+   무판정 세 섹션. 반대는 report.js .rp-against-row 와 같은 뼈대를 쓴다(이 화면이 새 작도를
+   쓰지 않는다는 원칙과 같은 이유로, 근거 행의 스타일도 새로 만들지 않는다). */
+.ob32-cmp { margin-top:16px; padding:13px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface); }
+.ob32-cmp-row { display:flex; align-items:baseline; justify-content:space-between; padding:5px 0; }
+.ob32-cmp-k { font-size:var(--fs-caption); color:var(--ink-4); }
+.ob32-cmp-v { font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--ink); }
+.ob32-verdict-note { margin-top:12px; font-size:var(--fs-sub); line-height:1.6; color:var(--ink-3); }
+.ob32-verdict-note.is-same { color:var(--ink-2); }
+/* 리뷰 C(1/5) — "갈렸다"가 "같다"보다 덜 강조돼 있었다(같음=ink-2 밝음, 다름=기본
+   ink-3 어두움, 강조가 거꾸로). 판정이 갈린 쪽이 최소한 같은 만큼은, 실제로는 더 눈에
+   띄어야 한다 — 텍스트색(가장 밝은 ink)과 글자 굵기로만 강조한다(좌측 세로 컬러 라인
+   금지, 방향색(bull/bear)도 안 쓴다 — "다름" 자체가 방향을 뜻하지 않으므로). 2단계도
+   같은 클래스를 쓰므로 이 규칙을 그대로 물려받는다. */
+.ob32-verdict-note.is-diff { color:var(--ink); font-weight:var(--fw-semibold); }
+
+.ob32-sec { margin-top:16px; }
+.ob32-sec-head { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; }
+.ob32-sec-label { font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); color:var(--ink-5); }
+.ob32-sec-count { font-size:var(--fs-caption); font-variant-numeric:tabular-nums; color:var(--ink-5); }
+/* 세 섹션의 라벨 색만 다르다(좌측 세로 라인 금지 — 프로젝트 전역 규칙) — 반대는 항상
+   전부 그려지므로(컨트롤러 판정) 접기 버튼이 없다. */
+.ob32-sec-dissent .ob32-sec-label { color:var(--bear-text); }
+.ob32-sec-agree .ob32-sec-label { color:var(--bull); }
+.ob32-rows { display:flex; flex-direction:column; }
+.ob32-row { display:flex; align-items:flex-start; gap:10px; padding:6px 0; border-bottom:1px solid var(--hairline); }
+.ob32-row:last-child { border-bottom:0; }
+.ob32-name { flex:0 0 88px; font-size:var(--fs-caption); font-weight:var(--fw-semibold); color:var(--ink-2); }
+.ob32-text { flex:1 1 auto; font-size:var(--fs-caption); line-height:1.55; color:var(--ink-4); }
+.ob32-bias { flex:0 0 auto; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; color:var(--ink-5); }
+.ob32-expand { display:block; margin-top:6px; min-height:44px; padding:0 4px; border:0; background:transparent;
+  color:var(--gold); font-size:var(--fs-caption); font-weight:var(--fw-semibold); text-align:left; }
+
+/* 3단계(재설계, Task 5) — 성향 카드 4개. Task 4 가 2단계를 32도구로 옮기며 이 클래스들을
+   미리 남겨 뒀고(당시 주석: "다음 태스크가 3단계를 지을 때 재사용"), 여기서 그대로 쓴다.
+   카드 설명(.ob-style-desc)엔 이 성향이 선택하는 지표 수를 적는다 — 판정 문구가 같아도
+   지표 수·근거 구성은 4종 모두 다르다는 것을 카드 단계에서부터 드러낸다. */
 .ob-styles { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
 .ob-style { display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%;
   padding:13px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface);
@@ -146,58 +213,48 @@
 .ob-style-desc { font-size:var(--fs-caption); color:var(--ink-4); }
 .ob-note { margin-top:14px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
 
-/* 4~6단계 — 체험. 진행은 "N / 3" 하나로 말한다. */
-.ob-tut-head { margin-bottom:6px; }
-.ob-tut-n { font-size:var(--fs-caption); color:var(--gold); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); }
-.ob-tut-list { display:flex; flex-direction:column; gap:8px; margin:14px 0; }
-.ob-tut-row { display:flex; align-items:baseline; gap:10px; }
-.ob-tut-num { flex:0 0 20px; height:20px; border-radius:99px; background:var(--surface);
-  color:var(--ink-3); font-size:var(--fs-caption); text-align:center; }
-.ob-tut-txt { flex:1 1 auto; font-size:var(--fs-sub); color:var(--ink-3); }
-.ob-pick-h { margin-top:18px; font-size:var(--fs-body); font-weight:var(--fw-medium); }
-.ob-picks { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
-.ob-pick { display:flex; align-items:baseline; justify-content:space-between; width:100%;
-  min-height:52px; padding:0 14px; border-radius:12px; border:1px solid var(--border);
-  background:var(--surface); color:inherit; font:inherit; }
-.ob-pick-name { font-size:var(--fs-body); font-weight:var(--fw-medium); }
-.ob-pick-sym { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
+/* 6단계(재설계, Task 7) — 실제 분석. 오늘 종가는 한 화면에서 처음 나오는 실숫값이라
+   가장 크게(--fs-display) — 이후 세 지평(.ob6-hz)이 여기 기준으로 비교된다. 값·해석은
+   onboarding-quality.js 의 obq-metric/obq-stat 뼈대를 그대로 쓴다(Q1·Q5 강제). */
+.ob6-today { margin-top:14px; }
+.ob6-today .obq-value { font-size:var(--fs-display); }
+.ob6-hz { display:flex; flex-direction:column; gap:12px; margin-top:20px; padding:14px;
+  border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+.ob6-hz .obq-stat:not(:last-child) { padding-bottom:12px; border-bottom:1px solid var(--hairline); }
+.ob6-hz .obq-value { font-size:var(--fs-section); }
 
-/* 값 한 줄 — 이름 / 값 / 폭. 세 단계가 같은 자리를 비교해야 표가 성립한다. */
-.ob-band { display:flex; align-items:baseline; gap:10px; padding:9px 0; border-bottom:1px solid var(--hairline); }
-.ob-band-k { flex:0 0 72px; font-size:var(--fs-caption); color:var(--ink-4); }
-.ob-band-v { flex:1 1 auto; font-size:var(--fs-num); font-weight:var(--fw-num); letter-spacing:var(--ls-num); font-variant-numeric:tabular-nums; }
-.ob-band-w { flex:0 0 auto; font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
+/* 7단계(재설계, Task 8) — 방금 받은 것(recap) → 가격표(pricing) → 지급(grant), 이 순서로
+   읽힌다. 가격은 recap 다음에야 나온다. */
+.ob-recap { margin-top:16px; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+.ob-recap-head { margin:0 0 10px; font-size:var(--fs-caption); font-weight:var(--fw-bold); letter-spacing:var(--ls-wider); color:var(--ink-5); }
+.ob-recap-row { padding:9px 0; border-bottom:1px solid var(--hairline); }
+.ob-recap-row:last-child { border-bottom:0; }
+.ob-recap-row-head { display:flex; align-items:baseline; gap:8px; }
+.ob-recap-num { font-size:var(--fs-num); font-weight:var(--fw-num); letter-spacing:var(--ls-num);
+                font-variant-numeric:tabular-nums; color:var(--gold); }
+.ob-recap-label { font-size:var(--fs-sub); color:var(--ink-2); }
+.ob-recap-detail { margin:4px 0 0; font-size:var(--fs-caption); line-height:1.55; color:var(--ink-4); }
 
-/* 5단계 — 라벨 80% 대비 실제 커버. 막대 길이가 곧 "얼마나 모자란가"다. */
-.ob-cov { margin:10px 0 6px; }
-.ob-cov-row { display:flex; align-items:center; gap:10px; padding:5px 0; }
-.ob-cov-k { flex:0 0 64px; font-size:var(--fs-caption); color:var(--ink-4); }
-.ob-cov-track { flex:1 1 auto; height:8px; border-radius:99px; background:var(--track); overflow:hidden; }
-.ob-cov-fill { height:100%; background:var(--steel); }
-.ob-cov-row.is-on .ob-cov-fill { background:var(--gold); }
-.ob-cov-row.is-on .ob-cov-k { color:var(--ink-2); }
-.ob-cov-v { flex:0 0 46px; text-align:right; font-size:var(--fs-caption); font-variant-numeric:tabular-nums; }
-.ob-cov-target { font-size:var(--fs-caption); color:var(--ink-5); text-align:right; }
-.ob-cmp { margin-top:14px; }
-
-/* 6단계 — 슬라이더 하나. 손잡이를 크게(시안 26px): 이 화면의 요구는 "직접 만져보게"다. */
-.ob-now { display:flex; align-items:baseline; gap:10px; padding:12px 0; }
-.ob-now-k { flex:0 0 auto; font-size:var(--fs-caption); color:var(--ink-4); }
-.ob-now-v { flex:1 1 auto; font-size:var(--fs-display); font-weight:var(--fw-num); letter-spacing:var(--ls-num); font-variant-numeric:tabular-nums; }
-.ob-now-w { flex:0 0 auto; font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
-.ob-slider { padding:14px; border-radius:12px; border:1px solid var(--border); background:var(--surface); }
-.ob-slider-name { font-size:var(--fs-body); font-weight:var(--fw-medium); }
-.ob-slider-val { float:right; font-size:var(--fs-body); color:var(--gold); font-variant-numeric:tabular-nums; }
-.ob-range { width:100%; margin:14px 0 4px; accent-color:var(--gold); height:26px; }
-.ob-ticks { display:flex; justify-content:space-between; font-size:var(--fs-caption); color:var(--ink-5); }
-
-/* 7단계 — 세 값을 한 표에. 가격은 이 화면에서 처음 나온다. */
-.ob-final { margin:12px 0 18px; }
-.ob-grant { min-height:26px; padding:12px 0; font-size:var(--fs-section); font-weight:var(--fw-section);
-  letter-spacing:var(--ls-section); color:var(--gold); }
+.ob-pricing { margin-top:22px; }
 .ob-costs { margin:8px 0; }
 .ob-cost-row { display:flex; justify-content:space-between; padding:6px 0; font-size:var(--fs-sub); }
 .ob-cost-k { color:var(--ink-3); }
 .ob-cost-num { color:var(--ink-2); font-variant-numeric:tabular-nums; }
 .ob-cost-note { font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
 .ob-warn { font-size:var(--fs-caption); color:var(--warn, var(--ink-4)); line-height:1.6; }
+
+/* 지급 — recap·가격표 다음, 가장 마지막(state.granted, 서버 확정 값만 그린다). */
+.ob-grant { margin-top:20px; min-height:26px; padding:12px 0; font-size:var(--fs-section); font-weight:var(--fw-section);
+  letter-spacing:var(--ls-section); color:var(--gold); }
+
+/* 품질 헬퍼(onboarding-quality.js Q1·Q5) — 수치엔 항상 기준 시점을, 수치 블록엔 항상
+   해석을 동반시킨다. 좌측 세로 컬러 라인 없이 배경·글자색으로만 위계를 준다(프로젝트 규율). */
+.obq-metric { display:flex; flex-direction:column; gap:2px; }
+.obq-value-row { display:flex; align-items:baseline; gap:4px; }
+.obq-value { font-size:var(--fs-num); font-weight:var(--fw-num); letter-spacing:var(--ls-num);
+             font-variant-numeric:tabular-nums; color:var(--ink); }
+.obq-unit { font-size:var(--fs-caption); color:var(--ink-4); }
+.obq-label { font-size:var(--fs-caption); color:var(--ink-4); }
+.obq-asof { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; }
+.obq-stat { display:flex; flex-direction:column; gap:6px; }
+.obq-meaning { font-size:var(--fs-sub); color:var(--ink-3); line-height:1.55; }
