@@ -20,11 +20,11 @@
 //   호출 형태(price 배열만 받는지 {price,candle} 을 받는지)는 www/indicators.js 의 SHAPES 표를
 //   그대로 따른다 — 그 표가 "31종 전수 실측으로 확정"(주석)된 단일 출처다.
 //
-// pivot·fib·cci·williams 는 Basic(5지표) 그래프엔 없다(www/graph.js BASIC). 그래서 저항 절은
-// 구조적으로 **유료(Full 32지표) 전용 문구**다 — 이 측정도 그 전제를 그대로 반영해 32지표
-// 세트에서만 나오는 값(pivot·fib)을 후보에 넣는다. analyzeX 자체는 그래프 없이 직접 부른다
-// (report.js 의 analyzeFull() 이 ma·rsi·bb·macd·va 를 그렇게 부르는 것과 같은 방식 — run()
-// 내부 evalBlocks 는 시계열만 남기고 완전한 지표 객체를 안 돌려준다).
+// pivot·fib·cci·williams 는 Basic(5지표) 그래프엔 없다(www/graph.js BASIC). analyzeX 자체는
+// 그래프 없이 직접 부른다(report.js 의 analyzeFull() 이 ma·rsi·bb·macd·va 를 그렇게 부르는 것과
+// 같은 방식 — run() 내부 evalBlocks 는 시계열만 남기고 완전한 지표 객체를 안 돌려준다). ⚠ 채택된
+// 두 정의(overheat·resistance)는 실제로는 rsi·bb·ma 뿐이라 basic 5지표에도 있는 필드다 — "32지표
+// 전용 문구"는 아니다(2026-08-19 리뷰 정정). 화면 노출을 티어로 게이팅할지는 Task 3 결정.
 //
 // 표본 풀: backtest/earn-ohlc.json(30종목 실 OHLCV, mobile/tools/make-onboarding-sample.mjs 가
 // 쓰는 것과 같은 파일 — 로드 경로·windowOk() 판별은 그 파일을 그대로 따른다). 슬라이딩
@@ -96,17 +96,54 @@ function fibResistDist(fib, lastPrice) {
   return Math.abs(lastPrice - near.price) / lastPrice;
 }
 
-// 후보 정의 전체 — 브리프(task-2-brief.md Step 1)의 표를 실제 필드명으로 고쳐 확장했다.
-// 채택되지 않은 후보도 지우지 않는다 — "왜 이걸 안 썼나"를 다음에 다시 재지 않도록.
+// ── 채택된 정의(단일 출처) ─────────────────────────────────────────────────────────────
+// 2026-08-19 컨트롤러 리뷰 라운드 1 이후 개정. 원 라운드는 overheat_rsi_or_bb(RSI 과매수 |
+// 볼린저 upper | 볼린저 breakout_up)를 27.3%로 채택했지만, 리뷰어가 항별 기여를 분해해
+// breakout_up(%B>1, 상단밴드 위 마감=밴드워킹)이 사실은 **추세 지속** 신호라 "다만 다소
+// 과열된 구간입니다"라고 붙이면 base 문장("상승 흐름입니다")과 스스로 모순된다는 것,
+// 그리고 옛 OR 27.3% 중 breakout_up 을 뺀 RSI 의 한계 기여가 겨우 0.8pp(23/2813)뿐이었다는
+// 것을 지적했다 — "한 항이 거의 전부를 만들면 나머지는 장식"(브리프 경고)에 정확히 해당.
+//
+// 그래서 breakout_up 을 뺐다. **재측정**: breakout_up 을 뺀 뒤 "upper 단독"(20.6%) 대비
+// RSI 의 한계 기여(RSI 과매수 ∧ upper 아님)를 다시 재니 80/2813 = **2.8pp** 다(옛 0.8pp 와
+// 다른 수 — breakout_up 이 RSI 와 크게 겹쳤던 구간이 빠지면서 RSI 고유 기여가 드러난다).
+// 컨트롤러가 세운 문턱(2pp)을 넘으므로 판정을 되물었다: 2.8pp 는 upper 단독(20.6%) 대비
+// 상대 기여 12.1%(80/660)로 무시할 크기가 아니고, RSI·볼린저 상단은 브리프 Step 1 이 애초에
+// 제시한 두 후보 그대로다(그새 breakout_up 만 잘못 끼어 있었다) — **RSI 를 남긴다.**
+//   overheat_upperOnly(bb 단독)   20.6% (580/2813)
+//   + RSI 한계 기여               2.8pp (80/2813)
+//   = isOverheat(OR, breakout_up 제외)   23.5% (660/2813)
+// resistance 는 라운드 1 그대로: ma.sr 은 엔진이 이미 계산하고 차트에도 그리는 값이라 우리가
+// 새 문턱을 발명하지 않는 게 가장 단순하다(20.7%, 581/2813).
+//
+// 반드시 이 두 함수를 통해서만 판정한다 — CANDIDATES 표의 항목이 아니라 **이 함수 자체가**
+// 단일 출처다(2026-08-19 리뷰 Important C: 시험이 measure() 의 결과값을 읽을 때도 이 함수를
+// 거쳐야 한다 — candidates 딕셔너리의 키를 별도로 참조하면 이 함수만 바뀌었을 때 시험이
+// 못 잡는다). Task 3 은 이 두 함수의 조건식을 그대로 report-model.js 쪽으로 옮긴다.
+export function isOverheat(an) {
+  return an.bb.state === "upper" || an.rsi.zone === "overbought";
+}
+export function isResistance(an) {
+  return !!(an.ma.sr && an.ma.sr.side === "resistance");
+}
+
+// 후보 정의 전체(참고용 비교표) — 브리프(task-2-brief.md Step 1)의 표를 실제 필드명으로 고쳐
+// 확장했다. 채택되지 않은 후보도 지우지 않는다 — "왜 이걸 안 썼나"를 다음에 다시 재지 않도록.
+// chosen_overheat·chosen_resistance 는 새 함수를 만들지 않고 isOverheat/isResistance 를 그대로
+// 참조한다 — 표와 판정이 같은 함수를 보게 해서 표만 낡는 일을 막는다.
 export const CANDIDATES = {
   overheat_rsi70: an => an.rsi.zone === "overbought",
-  overheat_bbUpper: an => an.bb.state === "upper" || an.bb.state === "breakout_up",
-  overheat_rsi_and_bb: an => (an.rsi.zone === "overbought") && (an.bb.state === "upper" || an.bb.state === "breakout_up"),
-  overheat_rsi_or_bb: an => (an.rsi.zone === "overbought") || (an.bb.state === "upper" || an.bb.state === "breakout_up"),
+  overheat_bbUpperOnly: an => an.bb.state === "upper",                 // breakout_up 제외한 단독항
+  overheat_bbBreakoutUp: an => an.bb.state === "breakout_up",          // 참고용 — 추세지속 신호라 기각
+  overheat_bbUpperOrBreakout: an => an.bb.state === "upper" || an.bb.state === "breakout_up",  // 참고용
+  overheat_rsi_and_bbUpperOnly: an => (an.rsi.zone === "overbought") && (an.bb.state === "upper"),
+  overheat_rsi_or_bbUpperOrBreakout_v1: an =>                          // 라운드 1 채택안(기각)
+    (an.rsi.zone === "overbought") || (an.bb.state === "upper") || (an.bb.state === "breakout_up"),
   overheat_cci100: an => an.cci.last > 100,
   overheat_williamsM20: an => an.williams.last > -20,
   overheat_any4: an => (an.rsi.zone === "overbought") || (an.bb.state === "upper" || an.bb.state === "breakout_up") ||
                        (an.cci.last > 100) || (an.williams.last > -20),
+  chosen_overheat: isOverheat,
 
   // ma.sr 은 엔진이 이미 1.5% 안에서만 채운다 — "2%" 조건은 그 상한 때문에 native 와 동치다.
   resist_ma_native: an => !!(an.ma.sr && an.ma.sr.side === "resistance"),
@@ -118,40 +155,35 @@ export const CANDIDATES = {
   resist_any2pct: an => (an.ma.sr && an.ma.sr.side === "resistance") ||
                         pivotResistDist(an.pivot, an.lastPrice) <= 0.02 || fibResistDist(an.fib, an.lastPrice) <= 0.02,
   resist_any1pct: an => (an.ma.sr && an.ma.sr.side === "resistance" && an.ma.sr.distPct <= 0.01) ||
-                        pivotResistDist(an.pivot, an.lastPrice) <= 0.01 || fibResistDist(an.fib, an.lastPrice) <= 0.01
+                        pivotResistDist(an.pivot, an.lastPrice) <= 0.01 || fibResistDist(an.fib, an.lastPrice) <= 0.01,
+  chosen_resistance: isResistance
 };
-
-// ── 판정(Step 3) ────────────────────────────────────────────────────────────────────────
-// 실측(본 파일 최초 실행, 2813창 — 아래 report() 출력과 tools 실행 로그가 근거):
-//   overheat_rsi70        7.4%  — 5% 문턱에 너무 붙어 있다(여유 2.4pp), 표본이 갈리면 바로 밑돈다
-//   overheat_bbUpper      26.5% / overheat_cci100 24.0% / overheat_williamsM20 28.0% — 다 안전권
-//   overheat_rsi_and_bb   6.6%  — AND 는 문턱에 너무 붙는다
-//   overheat_rsi_or_bb    27.3% — 안전권 + "RSI 과매수 또는 볼린저 상단" 두 고전 지표의 OR,
-//                                 사용자에게 설명 가능한 가장 단순한 합성. **채택**
-//   resist_ma_native      20.7% — 안전권, 그리고 **엔진이 이미 하는 판정을 그대로 재사용**한다
-//                                 (추가 문턱을 우리가 새로 발명하지 않는다 — 가장 단순).
-//                                 같은 an.ma.sr 이 차트에 지지/저항 마커로 이미 그려진다
-//                                 (chart-legend.js MA 판독문·MSLayers.ma) — 화면에 보이는 것과
-//                                 문장이 같은 판정을 말한다.
-//   resist_piv2pct        72.5%(80% 문턱에 바짝 붙음) / resist_any2pct 80.2%(**문턱 초과, 기각**)
-//   resist_fib1/2pct·resist_ma1pct·resist_piv1pct — 다 안전권이지만 임의 문턱(1%/2%)을
-//                                 우리가 새로 정해야 해서 ma_native 보다 해석이 한 단계 더 든다
-//   → **채택: resist_ma_native** (20.7%)
-// 두 신호 동시발생(overheat_rsi_or_bb ∧ resist_ma_native): 1.6%(46/2813) — 거의 안 겹친다.
-// 절을 둘로 나눈 의미가 있다(하나가 다른 하나를 그냥 따라오지 않는다).
-export function isOverheat(an) { return CANDIDATES.overheat_rsi_or_bb(an); }
-export function isResistance(an) { return CANDIDATES.resist_ma_native(an); }
 
 export function measure() {
   const raw = JSON.parse(readFileSync(new URL("../../backtest/earn-ohlc.json", import.meta.url)));
   const windows = buildWindows(raw);
   const symbols = new Set(windows.map(w => w.sym)).size;
   const counts = {}; Object.keys(CANDIDATES).forEach(k => { counts[k] = 0; });
-  let coChosen = 0;
+  // overheat/resistance/cooccurrence 는 CANDIDATES 딕셔너리를 거치지 않고 isOverheat/
+  // isResistance 를 **직접** 호출해 집계한다(리뷰 Important C) — CANDIDATES.chosen_overheat 도
+  // 결국 같은 함수 참조라 수치는 같지만, 이 필드들의 생산 경로 자체가 그 함수를 거치게 해서
+  // isOverheat 만 바뀌어도(예: 다른 CANDIDATES 키로 갈아 끼우는 실수 없이) 이 결과가 즉시 따라온다.
+  let overheatCount = 0, resistanceCount = 0, coChosen = 0;
+  // breakout_up(%B>1, 상단밴드 위 마감=밴드워킹)은 추세 지속 신호이지 과열이 아니다(리뷰 Important
+  // A) — isOverheat 가 그 상태 "단독"(rsi 도 upper 도 아닌)으로는 절대 안 켜져야 한다. 같은 루프
+  // 안에서 함께 잰다(창을 다시 빌드하지 않는다 — B 가 지적한 재계산 비용을 새로 만들지 않는다).
+  let breakoutOnlyChecked = 0, breakoutOnlyViolations = 0;
   windows.forEach(w => {
     const an = analyzeWindow(w);
     Object.keys(CANDIDATES).forEach(k => { if (CANDIDATES[k](an)) counts[k]++; });
-    if (isOverheat(an) && isResistance(an)) coChosen++;
+    const oh = isOverheat(an), rs = isResistance(an);
+    if (oh) overheatCount++;
+    if (rs) resistanceCount++;
+    if (oh && rs) coChosen++;
+    if (an.bb.state === "breakout_up" && an.rsi.zone !== "overbought") {
+      breakoutOnlyChecked++;
+      if (oh) breakoutOnlyViolations++;
+    }
   });
   const total = windows.length;
   const candidates = {};
@@ -159,14 +191,15 @@ export function measure() {
   return {
     total, symbols,
     candidates,
-    overheat: candidates.overheat_rsi_or_bb,
-    resistance: candidates.resist_ma_native,
-    cooccurrence: { count: coChosen, rate: total ? coChosen / total : 0 }
+    overheat: { count: overheatCount, rate: total ? overheatCount / total : 0 },
+    resistance: { count: resistanceCount, rate: total ? resistanceCount / total : 0 },
+    cooccurrence: { count: coChosen, rate: total ? coChosen / total : 0 },
+    breakoutGuard: { checked: breakoutOnlyChecked, violations: breakoutOnlyViolations }
   };
 }
 
 function pct(r) { return (r * 100).toFixed(1) + "%"; }
-function row(...cells) { return cells.map(c => String(c).padEnd(38)).join(" "); }
+function row(...cells) { return cells.map(c => String(c).padEnd(42)).join(" "); }
 
 function report(results) {
   console.log("표본 풀: backtest/earn-ohlc.json —", results.symbols, "종목 ·", results.total, "창(N=" + N + ", STEP=" + STEP + ")\n");
@@ -175,9 +208,10 @@ function report(results) {
     const c = results.candidates[k];
     console.log(row(k, c.count + "/" + results.total, pct(c.rate)));
   });
-  console.log("\n채택 — 과열: overheat_rsi_or_bb", pct(results.overheat.rate),
-    "· 저항: resist_ma_native", pct(results.resistance.rate));
+  console.log("\n채택(isOverheat/isResistance) — 과열:", pct(results.overheat.rate),
+    "· 저항:", pct(results.resistance.rate));
   console.log("동시 발생(채택 두 신호):", results.cooccurrence.count + "/" + results.total, pct(results.cooccurrence.rate));
+  console.log("breakout_up 단독 창 중 과열 오판정:", results.breakoutGuard.violations + "/" + results.breakoutGuard.checked);
 }
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
