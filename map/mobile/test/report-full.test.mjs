@@ -310,6 +310,32 @@ test("hitrate — 범위 주석이 있다(이 종목의 성적이 아니라는 �
   assert.match(txt, /전체|엔진|시리즈/, "무엇에 대해 잰 수치인지 범위가 없다: " + txt);
 });
 
+test("hitrate — 범위 주석에 지표 수(graphIndicators)가 리터럴이 아니라 생성물 값으로 들어간다", () => {
+  // [리뷰 Critical, 2026-08-19] "이 종목 얘기가 아니다"만으로는 부족했다 — 이 화면(심화 리포트)
+  // 은 32개 도구로 분석했다는 배지를 이미 달고 있는데, 이 적중률은 그와 다른 도구 수
+  // (MSBacktest.graphIndicators)로 잰 값이다. 그 개수가 실제로 화면에 박히는지, 리터럴이
+  // 아니라 생성물에서 왔는지를 직접 잰다(truth-rules.test.mjs 의 소스 스캔과는 다른 각도 —
+  // 이건 렌더된 텍스트 자체를 본다).
+  const dom = renderFullReport();
+  const txt = deepText(dom.querySelector(".rp-hitrate"));
+  const gi = CTX.window.MSBacktest.graphIndicators;
+  assert.strictEqual(typeof gi, "number", "이 표본에 graphIndicators 가 없다 — 시험 전제가 깨졌다");
+  assert.ok(txt.indexOf(String(gi)) >= 0,
+    "지표 수(" + gi + ")가 범위 문구에 없다 — 사용자는 이 리포트(32개)와 같은 표본으로 착각한다: " + txt);
+  // 이 리포트(full 티어)는 32개 도구를 쓴다(rpTierCountFull) — graphIndicators(19)와 달라야
+  // "다른 표본"이라는 사실 자체가 의미를 갖는다. 우연히 같아지면 이 시험은 통과해도 화면의
+  // 경고는 무의미해진다 — 그래서 부등호도 함께 잠근다.
+  assert.notStrictEqual(gi, 32, "이 표본에서는 graphIndicators 가 32(이 리포트의 지표 수)와 같다 — 구분 경고가 무의미해진다");
+});
+
+test("hitrate — graphIndicators 가 없는 생성물이면 블록을 감춘다(n·series 와 같은 필수 취급)", () => {
+  const dom = renderFullReport({
+    backtest: { bullHitRate: 0.617, bearHitRate: 0.425, baselineAlwaysUp: 0.6096, nForecasts: 31971, nSeries: 87 }
+  });
+  assert.strictEqual(dom.querySelector(".rp-hitrate"), null,
+    "graphIndicators 없는 생성물인데 적중률 블록이 떴다 — 몇 개 도구로 쟀는지 못 밝히는 채로 나갔다");
+});
+
 test("hitrate — 값이 없으면 블록 자체를 감춘다(비교 없는 숫자는 안 낸다) — 생성물 부재", () => {
   const dom = renderFullReport({ backtest: null });   // 생성물 부재 상황(sync 전 등)
   assert.strictEqual(dom.querySelector(".rp-hitrate"), null,

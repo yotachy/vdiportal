@@ -812,6 +812,12 @@
     // 문구를 재사용하지 않고 스스로 범위를 밝힌다(rpHitScope*, 설계서 §3.5 필수 지시) — 안
     // 밝히면 사용자가 3단 대조에서 본 58.5%와 여기 61.7%를 같은 측정으로 착각한다.
     //
+    // [리뷰 Critical, 2026-08-19] "이 종목 얘기가 아니다"만으로는 부족했다 — 이 화면은 32개
+    // (또는 30개, 전문) 도구로 분석했다고 상단 배지가 이미 말하는데, 이 적중률은 그와 다른
+    // 도구 수(hit.indicators, MSBacktest.graphIndicators)로 잰 값이다. 그 개수를 안 밝히면
+    // "32개로 분석했고 61.7% 맞다"로 읽힌다 — 그래서 indicators 도 n·series 와 같은 "필수"
+    // 취급이다(아래 가드).
+    //
     // R2 관문(truth-rules.test.mjs)이 정확한 배선을 강제한다: 베이스라인이 없으면 그 즉시
     // hit 을 통째로 null 로 접어 적중 행을 감춘다 — 적중률만 단독 노출하면 "동전보다 낫다"로
     // 읽힌다(report-model.js:98-102 주석과 같은 태도, hitRate() 를 뒤집지 않는다).
@@ -821,13 +827,13 @@
       if (!hit) return null;
       // 표본 20건 미만이면 퍼센트를 쓰지 않는다(설계 규율) — 지금 n=31971·series=87 은
       // 안전하지만(조사 A3), 그 사실에 기대지 않고 매번 검사한다. 생성물이 바뀌어도 조용히
-      // 안 깨지게 하는 것이 이 두 줄의 목적이다.
-      if (hit.n != null && hit.n < MIN_HIT_SAMPLE) return null;
-      if (hit.series != null && hit.series < MIN_HIT_SAMPLE) return null;
-      // 범위 주석은 필수다(설계서 §3.5) — n·series 어느 하나라도 없으면 "무엇에 대해 잰
-      // 수치인지"를 못 밝히므로, 숫자 없이 뭉뚱그리는 대신 블록 자체를 접는다. 범위 없는
-      // 적중률 문장은 "이 종목 얘기"로 오독된다.
-      if (hit.n == null || hit.series == null) return null;
+      // 안 깨지게 하는 것이 이 줄의 목적이다.
+      if ((hit.n != null && hit.n < MIN_HIT_SAMPLE) || (hit.series != null && hit.series < MIN_HIT_SAMPLE)) return null;
+      // 범위 주석은 필수다(설계서 §3.5) — n·series·indicators 중 하나라도 없으면 "무엇에
+      // 대해, 몇 개 도구로 잰 수치인지"를 못 밝히므로, 숫자 없이 뭉뚱그리는 대신 블록 자체를
+      // 접는다. 범위 없는 적중률 문장은 "이 종목 얘기"로, 도구 수 없는 문장은 "이 리포트
+      // 얘기"로 오독된다(둘 다 리뷰가 잡은 실제 오독 경로).
+      if (hit.n == null || hit.series == null || hit.indicators == null) return null;
 
       var wrap = MSUi.el("div", "rp-hitrate");
       var head = MSUi.el("div", "rp-sec-head");
@@ -841,8 +847,8 @@
       wrap.appendChild(row);
 
       wrap.appendChild(MSUi.el("div", "rp-hit-scope",
-        MSStr.t.rpHitScopeShort + hit.series + MSStr.t.rpHitScopeMid +
-        hit.n.toLocaleString() + MSStr.t.rpHitScopeTail));
+        MSStr.t.rpHitScopeShort + hit.series + MSStr.t.rpHitScopeMid + hit.n.toLocaleString() +
+        MSStr.t.rpHitScopeIndA + hit.indicators + MSStr.t.rpHitScopeIndB));
       return wrap;
     }
 

@@ -95,13 +95,20 @@
     // 아니다. 그래서 화면은 "이 판정 같은 콜"이라고 말하면 안 되고 범위를 밝혀야 한다.
     var n = (typeof summary.nForecasts === "number" && isFinite(summary.nForecasts)) ? summary.nForecasts : null;
     var series = (typeof summary.nSeries === "number" && isFinite(summary.nSeries)) ? summary.nSeries : null;
+    // 지표 수(graphIndicators)도 생성물에서 그대로 돌려준다 — 리터럴로 "19"를 적지 않는다.
+    // 위 주석이 이미 "Basic(5)도 Full(32)도 아니다"라고 적어 뒀는데, 그 사실 자체(몇 개인가)를
+    // 화면에 안 실으면 "범위를 밝혀야 한다"는 요구를 절반만 지키는 셈이다(리뷰 Critical,
+    // 2026-08-19) — 종목·기간 범위는 밝히면서 정작 "몇 개 도구로 쟀는지"는 숨기는 모양이 된다.
+    var gi = summary.graphIndicators;
+    var indicators = (typeof gi === "number" && isFinite(gi)) ? gi : null;
     // 베이스라인("항상 오른다")을 같은 요약에서 함께 돌려준다 — 적중률을 단독으로 놓으면
     // 사용자는 그것을 "동전보다 낫다"로 읽는다. 이 자산·이 기간의 기준선은 50% 가 아니라
     // 61.0% 이고 방향 판정은 그 아래다(P2 설계서 §2 R2). null 이면 화면이 베이스라인 없이
     // 적중률만 그리는 게 아니라 **적중 행 자체를 감춘다**(호출부) — 비교 없는 숫자는 안 낸다.
     var b = summary.baselineAlwaysUp;
     var baseline = (typeof b === "number" && isFinite(b)) ? Math.round(b * 1000) / 10 : null;
-    return { right: right, wrong: Math.round((100 - right) * 10) / 10, n: n, series: series, baseline: baseline };
+    return { right: right, wrong: Math.round((100 - right) * 10) / 10, n: n, series: series,
+             indicators: indicators, baseline: baseline };
   }
 
   // 주기 행 — runs 는 [{tf, out, error}] 배열이고 순서가 곧 표시 순서다.
