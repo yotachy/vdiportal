@@ -125,7 +125,13 @@ function candles(driftMul) {
 // 판정 D1(리뷰 2026-08-19)로 카드가 모집단 지표만 말하게 되며 그 종목별 분기 자체가
 // 필요 없어졌다 — 카드는 이제 어느 종목·드리프트에서든 항상 뜬다(report 라우트에서 직접
 // 확인, gate-routes.mjs). 그래서 NVDA 전용 드리프트·base 인자·BASE_BY_SYMBOL 은 걷어냈다.
-const DRIFT_BY_SYMBOL = { MSFT: 0.3 };
+// GOOGL:0.05 — P1b Task 6b 가 추가했다. 실측(node 로 analyzeFull(full32Graph, weights=null)
+// 을 이 파일과 같은 candles() 수식으로 직접 돌려 확인, 추측 아님): 이 드리프트 대역
+// (|drift|≤0.06)은 full 티어(32종 균등가중) verdict.regime 을 매번 "neutral" 로 낸다 —
+// |drift|≥0.08 부터 bull/bear 로 갈린다. dissent·hitrate 가 "값 대신 이유"를 실제로
+// 그리는지 재려면 이 정도로 확실히 중립인 표본이 필요하다(0.12 는 이미 bull 로 걸친다,
+// 아래 report-purchase-neutral 라우트 주석 참고).
+const DRIFT_BY_SYMBOL = { MSFT: 0.3, GOOGL: 0.05 };
 // 리뷰 I7: 필드명은 wallet-lib.php 의 w_state() 가 실제로 주는 모양(balance/cap/streakDays/
 // canCheckin)과 반드시 일치해야 한다 — 예전엔 streak/checkedIn/today 였는데, 그 셋은 서버
 // 어디에도 없는 이름이라 screens/wallet.js 의 `state.streakDays % 7` 이 항상 NaN 이 됐다

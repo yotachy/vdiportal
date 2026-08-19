@@ -805,6 +805,59 @@ export const ROUTES = [
         "if(typeof MSAnalyzeView==='undefined'||typeof MSReveal==='undefined') return false;" +
         "return true;" +
       "})()" },
+  // P1b Task 6b — 중립(무방향) 판정 구매 체인. Task 6 재리뷰가 찾은 결함: dissent·hitrate 는
+  // "방향이 있어야만" 성립한다는 게이트 자체는 옳지만, 예전엔 그 사실을 안 말하고 블록을
+  // 통째로 지웠다 — 같은 3스쿱을 내고 중립 종목에서는 8블록 중 6개만 받았다(위
+  // report-purchase 는 AAPL·드리프트 0.12 가 full 균등가중에서 "겨우 bull"이라 이 경로를
+  // 한 번도 안 태웠다 — node 시험만으로는 브라우저의 실제 CSS 캐스케이드·data-block 배선을
+  // 못 본다는 이 프로젝트의 반복된 교훈과 같다). GOOGL·드리프트 0.05(gate-browser.mjs
+  // DRIFT_BY_SYMBOL, 실측 근거는 그 파일 주석)는 full 티어 verdict.regime 을 매번
+  // "neutral" 로 낸다 — 클릭 체인·delay 는 report-purchase 와 동일(같은 3-클릭 시퀀스).
+  { name: "report-purchase-neutral", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"GOOGL"}', delay: 8000,
+    scripts: [
+      { at: 300, code:
+        "var ctaClicked=false, runClicked=false, drained=false;" +
+        "var iv=setInterval(function(){" +
+          "if(!ctaClicked){" +
+            "var cta=document.querySelector('.rp-cta-scoop');" +
+            "if(cta){ctaClicked=true; cta.click();}" +
+            "return;" +
+          "}" +
+          "if(!runClicked){" +
+            "var run=document.querySelector('.sheet-run');" +
+            "if(run&&!run.disabled){runClicked=true; run.click();}" +
+            "return;" +
+          "}" +
+          "if(!drained){" +
+            "var a=document.querySelector('.an-scrim');" +
+            "if(a)a.click();" +
+            "var r=document.querySelector('.rv-scrim');" +
+            "if(r){r.click(); drained=true; clearInterval(iv);}" +
+          "}" +
+        "}, 100);"
+      }
+    ],
+    assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
+      "(function(){" +
+        "var tierBadge=document.querySelector('.rp-tier.is-full');" +
+        "if(!tierBadge) return false;" +                                    // 구매가 실제로 반영돼 심화로 전환됐다
+        "var ids=['sentence','forecast','chart','dissent','horizons','hitrate','readings','compare'];" +
+        "for(var i=0;i<ids.length;i++){" +
+          "if(!document.querySelector('[data-block=\"'+ids[i]+'\"]')) return false;" +   // 8블록 전부 — 중립이어도 하나도 안 사라진다
+        "}" +
+        "var dissent=document.querySelector('[data-block=\"dissent\"]');" +
+        "var hitrate=document.querySelector('[data-block=\"hitrate\"]');" +
+        // 값 대신 이유를 적은 카드여야 한다 — 클래스가 실제로 붙어 있는지(자명 통과 방지,
+        // 문자열만 우연히 맞는 경우를 배제)와 문구 둘 다 확인한다.
+        "if(!dissent.querySelector('.rp-against-neutral')) return false;" +
+        "if(!/중립|방향/.test(dissent.textContent)) return false;" +
+        "if(!hitrate.querySelector('.rp-hit-neutral')) return false;" +
+        "if(!/중립|방향/.test(hitrate.textContent)) return false;" +
+        "if(/%/.test(hitrate.textContent)) return false;" +                 // 중립인데 적중률 수치가 새면 안 된다
+        "if(document.querySelector('.rp-cta-ad')||document.querySelector('.rp-cta-scoop')) return false;" +
+        "if(document.querySelector('.an-scrim')||document.querySelector('.rv-scrim')) return false;" +
+        "return true;" +
+      "})()" },
   // [리뷰 I2, 2026-08-19] report-purchase 는 full(3스쿱)만 태웠다 — 가장 비싼 상품인
   // custom(전문분석, 5스쿱)의 구매 체인(runCustom() → MSExpert.open → .xp-run → 편집기가
   // 넘긴 weights 로 runTier("custom", weights) → spend{runType:"custom"})은 라우트 13개

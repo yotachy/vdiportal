@@ -392,11 +392,19 @@ test("hitrate — 값이 없으면 블록 자체를 감춘다(비교 없는 숫�
     "백테스트 요약이 없는데 적중률 블록이 떴다");
 });
 
-test("hitrate — 판정이 중립(무방향)이면 블록을 감춘다 — 없는 방향의 적중률은 없다", () => {
+// [2026-08-19, P1b Task 6b] 예전엔 이 시험이 "중립이면 블록을 감춘다"였다 — 그런데 그건
+// 중립 종목을 산 사용자가 8블록 중 6개만 받는 결함 그 자체였다(Task 6b 브리프, Task 6
+// 재리뷰가 발견). 게이트(중립엔 방향별 적중률이 없다) 자체는 옳다 — 그래서 hitRate() 의
+// null 규약은 안 바꾼다. 바뀐 것은 화면이다: 블록은 남고, 수치 대신 이유를 적는다.
+test("hitrate — 판정이 중립(무방향)이어도 블록은 남는다 — 수치 대신 이유를 적는다", () => {
   // report-basic.test.mjs 실측: 드리프트 +0.02 는 neutral 로 결정적으로 떨어진다.
   const dom = renderFullReport({ sym: "TSLA", drift: 0.02, name: "Tesla" });
-  assert.strictEqual(dom.querySelector(".rp-hitrate"), null,
-    "중립 판정인데 hitrate 블록이 떴다 — hitRate() 는 bull/bear 에만 값을 준다");
+  const box = dom.querySelector(".rp-hitrate");
+  assert.ok(box, "중립 판정인데 hitrate 블록이 사라졌다 — 같은 값을 내고 덜 받는다");
+  const txt = deepText(box);
+  assert.ok(txt.trim().length > 0, "중립 hitrate 블록이 비어 있다");
+  assert.match(txt, /중립|방향/, "중립 hitrate 블록이 왜 비었는지를 안 말한다: " + txt);
+  assert.doesNotMatch(txt, /%/, "중립인데 적중률 수치(%)가 나갔다 — hitRate() 는 bull/bear 에만 값을 준다");
 });
 
 test("hitrate — 기준선 없는 생성물이면 감춘다(옛 생성물 시뮬레이션, R2 규율의 이 블록판)", () => {
@@ -442,6 +450,59 @@ test("hitrate — 하락(bear) 판정은 bearHitRate 실측을 그대로 쓴다(
   // bearHitRate(42.5%)는 기준선(61.0%)보다 한참 아래다 — 하락 콜은 구조적으로 절반 아래에서
   // 맞는다(report-model.js:79-82 주석). 적중률이 기준선을 웃도는 조작이 섞이면 이 시험이 죈다.
   assert.ok(bt.bearHitRate < bt.baselineAlwaysUp, "이 표본은 bearHitRate<baseline 전제가 깨졌다");
+});
+
+// ── 중립(무방향) 판정 — 8블록 중 6개만 받는 결함(P1b Task 6b 브리프 원문 시험) ─────────
+// 직전 태스크(Task 6) 재리뷰가 찾은 결함: dissent·hitrate 는 "방향이 있어야만" 성립한다는
+// 게이트 자체는 옳지만, 예전엔 그 사실을 안 말하고 블록을 통째로 지웠다 — 같은 3스쿱을
+// 내고 중립 종목에서는 8블록 중 6개만 받았다. compare(8a 대조)까지 포함해 8블록 전부가
+// 실제로 그려지는지 보려면 prevBasic 을 심어야 한다(G1 이 그 재료 없이는 정당하게 null 을
+// 낸다 — "선언한 블록을 전부 그린다" 시험과 같은 이유, 위 주석 참고).
+test("중립 판정에서도 선언한 블록 수만큼 그린다(값 대신 이유를 적는다)", () => {
+  const dom = renderFullReport({
+    sym: "NEUTF", name: "NeutralFull", drift: 0.02,   // 중립 결정적 표본(실측)
+    prevBasic: { lo: 150, hi: 154, width: 4 }
+  });
+  const ids = CTX.MSReportBlocks.forTier("full").map((b) => b.id);
+  ids.forEach((id) => {
+    assert.ok(dom.querySelector("[data-block='" + id + "']"),
+      "중립인데 " + id + " 블록이 사라졌다 — 같은 값을 내고 덜 받는다");
+  });
+});
+
+// 클래스 검사는 자명 통과 방지용이다(브리프 셋째 시험 정신과 같은 태도) — 문구 정규식만
+// 재면 style-report.css 가 실제로 겨냥하는 클래스 이름이 틀려도(실제로 있었던 버그:
+// neutralCard() 가 cls+"-neutral" 로 이어붙여 "rp-hitrate-neutral"을 냈는데 CSS·브라우저
+// 관문은 "rp-hit-neutral"을 찾고 있었다 — 텍스트는 맞아도 스타일이 하나도 안 먹었다,
+// gate-routes.mjs report-purchase-neutral 라우트가 실제로 잡음) 이 시험은 계속 통과한다.
+const NEUTRAL_CLS = { dissent: "rp-against-neutral", hitrate: "rp-hit-neutral" };
+test("중립에서 반대·적중률 블록은 값 대신 왜 비었는지를 말한다", () => {
+  const dom = renderFullReport({ sym: "NEUTF2", name: "NeutralFull2", drift: 0.02 });
+  ["dissent", "hitrate"].forEach((id) => {
+    const box = dom.querySelector("[data-block='" + id + "']");
+    assert.ok(box, id + " 블록 자체가 없다");
+    const txt = deepText(box);
+    assert.ok(txt.trim().length > 0, id + " 블록이 비어 있다");
+    assert.match(txt, /중립|방향/, id + " 가 왜 비었는지를 안 말한다: " + txt);
+    assert.ok(box.querySelector("." + NEUTRAL_CLS[id]),
+      id + " 블록에 " + NEUTRAL_CLS[id] + " 클래스가 없다 — style-report.css 가 못 찾는다");
+  });
+});
+
+test("방향이 있는 판정에서는 실제 값이 그대로 나온다(중립 처리가 정상 경로를 안 먹는다)", () => {
+  const dom = renderFullReport({ sym: "BULF2", name: "BullFull2", drift: 0.3 });   // bull 결정적
+  const hitTxt = deepText(dom.querySelector("[data-block='hitrate']"));
+  assert.match(hitTxt, /%/, "방향이 있는데 적중률 수치가 없다: " + hitTxt);
+  // dissent 도 같은 회귀를 잡는다 — 이 표본은 bull 이 결정적이라 반대 지표가 있거나
+  // (rp-against-row) "반대하는 지표가 없습니다"(rp-against-none) 둘 중 하나여야 하고,
+  // 중립 이유 카드(rp-against-neutral)가 나오면 안 된다.
+  const againstBox = dom.querySelector("[data-block='dissent']");
+  assert.ok(againstBox, "bull 판정인데 dissent 블록이 없다");
+  assert.strictEqual(againstBox.querySelector(".rp-against-neutral"), null,
+    "방향이 있는데 중립 이유 카드가 나왔다 — 중립 처리가 정상 경로를 먹었다");
+  const hasRows = !!againstBox.querySelector(".rp-against-row");
+  const hasNone = !!againstBox.querySelector(".rp-against-none");
+  assert.ok(hasRows || hasNone, "bull 판정인데 dissent 블록이 실제 내용(행 또는 '없음' 문구)을 안 낸다");
 });
 
 // ── P1b Task 6 — 잠금 해제 실측(브리프 Step 4) ────────────────────────────────────────

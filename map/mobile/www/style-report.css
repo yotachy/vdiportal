@@ -129,6 +129,10 @@
 .rp-against-text { flex:1; color:var(--ink-4); line-height:1.55; }
 .rp-against-bias { flex:0 0 auto; color:var(--bear-text); font-weight:var(--fw-semibold); font-variant-numeric:tabular-nums; }
 .rp-against-none { margin:0 0 8px; font-size:var(--fs-sub); color:var(--ink-4); }
+/* 중립(무방향) 판정 카드(P1b Task 6b) — rp-against-none(동의율 100%, 방향은 있음)과 다른
+   문장이라 클래스도 갈랐다. 색은 결핍 박스(rp-missing-note)와 같은 무게(ink-4)를 쓴다 —
+   테두리·오버라인은 카드 정체성(rp-against)을 그대로 유지해 "이 블록이 사라졌다"로 안 읽힌다. */
+.rp-against-neutral { margin:0 0 8px; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.55; }
 
 /* Basic 결핍 박스(시안 6a) — 테두리 안에 "안 되는 것" 4행. 27개 칩 벽의 자리를 대신한다. */
 .rp-missing-box { border:1px solid var(--border); border-radius:11px; padding:14px 14px 6px; margin-bottom:22px; }
@@ -172,6 +176,10 @@
               color:var(--gold); font-variant-numeric:tabular-nums; }
 .rp-hit-base { font-size:var(--fs-sub); color:var(--ink-4); font-variant-numeric:tabular-nums; }
 .rp-hit-scope { margin-top:8px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
+/* 중립(무방향) 판정 카드(P1b Task 6b) — 위 rp-hit-row(방향+수치)를 통째로 대신한다.
+   같은 결핍 무게(ink-4)를 쓰되 카드 테두리·오버라인은 그대로 둔다(rp-against-neutral 과
+   같은 이유 — "블록이 사라졌다"로 안 읽히게). */
+.rp-hit-neutral { margin:0; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.55; }
 
 /* 3단 대조(시안 7a, 설계서 §3.3) — 이 개편의 판매 논거. 카드마다 왼쪽=답의 폭·오른쪽=적중률로
    고정한다. 좌측 세로 라인 금지 규칙에 따라 티어 구분은 이름 텍스트 색(--steel/--gold/

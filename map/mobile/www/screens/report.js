@@ -155,6 +155,29 @@
   function loadOne(sym) { return MSApi.loadTicker(sym, TF); }
   function dirWord(regime) { return regime === "bull" ? MSStr.t.rpUp : regime === "bear" ? MSStr.t.rpDown : MSStr.t.rpFlat; }
 
+  // 중립(무방향) 판정 — buildAgainst()·buildHitrate() 가 공유하는 결핍 카드(P1b Task 6b).
+  // 두 블록 모두 "방향이 있어야만" 성립한다(반대할 방향·방향별 적중률) — 그 게이트 자체는
+  // 옳다. 문제는 예전엔 그 사실을 말 안 하고 블록을 통째로 지운 것이다(같은 3스쿱을 내고
+  // 8블록 중 6개만 받음, Task 6b 브리프). map/CLAUDE.md §⓪4 "잠긴 단계에서는 무엇이
+  // 빠졌는지를 이름으로 적는다"·온보딩 32도구 화면의 "데이터가 없어 판단하지 않음" 통과
+  // 같은 태도 — 카드는 그대로 두고 값 대신 이유를 적는다.
+  //
+  // 이 함수는 **중립 사유 전용**이다 — 생성물 부재·표본 부족·baseline 필드 부재 같은 다른
+  // null 사유는 이 함수를 거치지 않는다(각 호출부가 그 가드는 여전히 따로 둔다) — 그건
+  // 우리 쪽 결손이지 종목의 성질이 아니라 여전히 감추는 게 맞다(브리프 지시).
+  // innerCls 를 따로 받는다 — cls(카드 정체성, 예: "rp-hitrate")와 안쪽 문단 클래스(예:
+  // "rp-hit-neutral", 그 블록의 기존 접두 관례 "rp-hit-*" 를 따른다)가 항상 같은 어간이
+  // 아니다. cls+"-neutral" 로 이어붙이면 "rp-hitrate-neutral"이 되어 style-report.css 의
+  // 실제 규칙("rp-hit-neutral")과 어긋난다(실측 — 브라우저 관문이 잡음, CSS 도 안 먹는다).
+  function neutralCard(cls, innerCls, headStr, bodyStr) {
+    var wrap = MSUi.el("div", cls);
+    var head = MSUi.el("div", "rp-sec-head");
+    head.appendChild(MSUi.el("span", "overline", headStr));
+    wrap.appendChild(head);
+    wrap.appendChild(MSUi.el("p", innerCls, bodyStr));
+    return wrap;
+  }
+
   // 적중률 단독 블록(hitrate)이 읽는 실측 출처 — tier-compare.js:bt() 와 같은 패턴이다.
   // 브라우저는 index.html 스크립트 순서(vendor/backtest-summary.js 가 이 파일보다 먼저)가
   // window.MSBacktest 를 이미 채워 뒀고, Node vm 테스트도 같은 전역을 bare 식별자로 읽을 수
@@ -776,7 +799,13 @@
     // hit 을 통째로 null 로 접어 적중 행을 감춘다 — 적중률만 단독 노출하면 "동전보다 낫다"로
     // 읽힌다(report-model.js:98-102 주석과 같은 태도, hitRate() 를 뒤집지 않는다).
     function buildHitrate() {
-      var hit = MSReportModel.hitRate(backtestSummary(), an.out.verdict.regime);
+      var regime = an.out.verdict.regime;
+      // 중립엔 방향별 적중률이 없다(hitRate() 의 null 규약은 그대로다 — 이 함수는 화면이
+      // 그 null 을 감추는 대신 이유를 적도록만 갈라 낸다, 위 neutralCard() 주석 참고).
+      if (regime !== "bull" && regime !== "bear") {
+        return neutralCard("rp-hitrate", "rp-hit-neutral", MSStr.t.rpHitHead, MSStr.t.rpHitNeutral);
+      }
+      var hit = MSReportModel.hitRate(backtestSummary(), regime);
       if (hit && hit.baseline == null) hit = null;
       if (!hit) return null;
       // 표본 20건 미만이면 퍼센트를 쓰지 않는다(설계 규율) — 지금 n=31971·series=87 은
@@ -795,7 +824,7 @@
       wrap.appendChild(head);
 
       var row = MSUi.el("div", "rp-hit-row");
-      row.appendChild(MSUi.el("span", "rp-hit-dir", dirWord(an.out.verdict.regime) + MSStr.t.rpHitDirSuffix));
+      row.appendChild(MSUi.el("span", "rp-hit-dir", dirWord(regime) + MSStr.t.rpHitDirSuffix));
       row.appendChild(MSUi.el("span", "rp-hit-val", MSStr.t.rpHitRight + hit.right.toFixed(1) + "%"));
       row.appendChild(MSUi.el("span", "rp-hit-base", MSStr.t.rpHitBaseA + hit.baseline.toFixed(1) + "%"));
       wrap.appendChild(row);
@@ -1159,7 +1188,13 @@
     function buildAgainst(indRows) {
       if (!isPaid(tier) || !an || !an.graph || !indRows) return null;
       var regime = an.out.verdict.regime;
-      if (regime !== "bull" && regime !== "bear") return null;   // 중립엔 반대가 정의되지 않는다
+      // 중립엔 반대가 정의되지 않는다 — 그 게이트 자체는 옳다(방향 없이 "반대"는 의미가
+      // 없다). 하지만 그 사실을 안 말하고 블록을 통째로 지우면 안 된다(Task 6b 브리프) —
+      // 위 !isPaid(tier)||!an||... 가드(우리 쪽 결손)와 달리, 이건 이 종목이 지금 그런
+      // 상태라는 사실이라 카드는 남기고 이유를 적는다.
+      if (regime !== "bull" && regime !== "bear") {
+        return neutralCard("rp-against", "rp-against-neutral", MSStr.t.rpAgainst, MSStr.t.rpAgainstNeutral);
+      }
       // 스스로 "못 읽었다"고 말한 행은 반대할 자격이 없다 — 거래량 없는 종목에서 MFI 가
       // "No volume data for this ticker" 라고 적어 놓고 반대 목록에 이름을 올리면, 이 브랜치가
       // 없애려던 거짓말이 자리만 옮긴 것이다. **목록과 분모 둘 다** 같은 술어로 걷어낸다
