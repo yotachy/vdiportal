@@ -194,7 +194,7 @@
     이 문서가 정하는 것은 그 전부를 세로 화면의 동선 위에 어떻게 배치하는가다.
   </p>
   <div class="meta">
-    <span>초안 v0.2</span><span>2026-08-19</span>
+    <span>초안 v0.2.1</span><span>2026-08-19</span>
     <span>기준 <code>main</code> · <code>0c5bd0e</code></span>
     <span>엔진 <code>1.11.0</code> · 지표 32종</span>
   </div>
@@ -224,13 +224,23 @@
 <div class="shead" id="s1"><h2>1 · 스코프</h2><span class="tag">넣는 것 · 빼는 것</span></div>
 
 <p>이번 요건정의의 대상은 <strong>스쿱포지 분석엔진의 범위</strong>다 — 웹분석 · 시뮬레이션 · 작도된 차트. 그 바깥에 붙어 있던 것은 전부 뺀다.</p>
+<div class="note warn">
+  <span class="lbl">경계선은 제품이 아니라 층에 그어진다</span>
+  <p><strong>PC에서 가져오는 것은 엔진과 그 산출물뿐이다.</strong> 웹분석 · 시뮬레이션 · 작도 · 판정 · 조작 —
+  거기까지가 공유 대상이고, PC에 얹혀 있는 로그인·유료 안내·스캔·비전 같은 부속은 넘어오지 않는다.
+  PC는 작업대라 그 위에 무엇이 얹혀 있든 <em>제품의 근거가 되지 않는다.</em></p>
+  <p>반대 방향도 같다. <strong>스쿱·광고·출석·3단 티어는 모바일에만 있고 PC로 가지 않는다</strong> —
+  PC는 32종을 항상 열어 두고 과금이 없다. 그 상태를 “모바일도 이래야 한다”의 근거로 삼지 않고,
+  모바일의 단계 제한을 PC로 가져가지도 않는다.</p>
+</div>
 
 <div class="tw"><table>
 <thead><tr><th class="n">범위</th><th>항목</th><th>근거</th></tr></thead>
 <tbody>
 <tr><td class="n up">포함</td><td><strong>웹분석</strong>(<code>runEngine</code>) · <strong>시뮬레이션</strong>(<code>playAnalysis</code>) · <strong>작도 전량</strong>(캔버스 7층 · 오버레이 21종 · 배지 10종 · 서브패널 7종) · 판정 · 예측선 6요소 · 검증 8축 · 판독문 · <strong>조작 전량</strong>(체크 · 가중치 0~3배 · 프리셋 · 파라미터 편집) · 후속 도구(리스크 · 최적화 · 드로잉)</td><td>사용자 지시 2026-08-19 — “웹버전과 기능·작도·조작·시뮬 모두 이용”</td></tr>
-<tr><td class="n up">포함</td><td><strong>보상 경제</strong> — 3단 체험(기본 무료 / 심화 2스쿱 / 커스텀 3스쿱) · <strong>개설 지급 15스쿱</strong> · 광고 보상 · 출석 체크</td><td>사용자 지시 <strong>2026-08-19(2차)</strong> — 소개 화면과 샘플 종목이 “15스쿱 소진”을 전제하므로 재편입. <strong>1차 지시의 “보상정책 참조 금지”를 이 지시가 대체한다</strong>(§4-B)</td></tr>
-<tr><td class="n dn">제외</td><td><strong>로그인/계정 화면</strong> · <strong>알림(푸시·브라우저)</strong> · 결제</td><td>사용자 지시 — 부가 개발물. 스쿱 잔량·출석은 화면에 나오되 계정 관리 화면은 이번 범위 밖</td></tr>
+<tr><td class="n up">포함</td><td><strong>보상 경제(모바일 전용)</strong> — 3단 체험(기본 무료 / 심화 2스쿱 / 커스텀 3스쿱) · <strong>개설 지급 15스쿱</strong> · 광고 보상 · 출석 체크</td><td>처음부터 모바일 요건이다. <strong>PC에는 없고 앞으로도 두지 않는다</strong> — 스쿱은 제품(앱)의 구조이지 작업대(PC)의 구조가 아니다(§4-B)</td></tr>
+<tr><td class="n dn">제외</td><td><strong>PC에 붙어 있는 엔진 외 부속 전량</strong> — PC 로그인/계정(<code>forge-auth.php</code> · 헤더 로그인 버튼) · PC 유료 안내(<code>forge-pricing.html</code>) · PC 신호 스캔과 알림벨 · 이미지 비전 분석(보류) · <code>엔진분석</code>(예정 스텁)</td><td>사용자 지시 2026-08-19 — <strong>PC에서 가져오는 것은 엔진과 그 산출물뿐이다.</strong> PC는 작업대라 그 위에 얹힌 부속이 제품의 근거가 될 수 없다</td></tr>
+<tr><td class="n dn">제외</td><td>모바일 <strong>계정 관리 화면</strong> · 푸시 알림 · 결제</td><td>이번 요건의 범위 밖. 스쿱 잔량·출석은 화면에 나오되 계정 자체를 다루는 화면은 별도 라운드</td></tr>
 <tr><td class="n dn">제외</td><td><strong>워치리스트 신호 스캔</strong>(6규칙) · 알림벨 · 상대강도 순위 배지</td><td>사용자 판정 — “스캔 불필요. PC 버전에서도 불필요”</td></tr>
 <tr><td class="n dn">제외</td><td>노드 보드(<code>.b-stage</code>) · 은하 배치 · 이미지 비전 분석 · <code>엔진분석</code>(예정 스텁) · 가격 데이터 붙여넣기 · 전략 JSON 내보내기</td><td>PC에서도 이미 숨겨졌거나 미완성. 작업대 잔재</td></tr>
 </tbody></table></div>
@@ -1048,6 +1058,7 @@
       <tr><td>저장 배지</td><td class="n dn">숨김</td><td>자동저장이라 상시 노출 불필요 — 실패 시에만</td></tr>
       <tr><td>테마</td><td class="n">표시</td><td>PC는 7종. <strong>앱은 단일 정체성</strong> — 시스템 라이트/다크만</td></tr>
       <tr><td>알림벨</td><td class="n">표시</td><td class="dn">삭제(§1)</td></tr>
+<tr><td>PC 로그인 버튼(<code>.h-auth</code>)</td><td class="n">표시</td><td class="dn">가져오지 않는다</td></tr>
       </tbody></table></div>
 
       <h4>면책 푸터 — 전문 유지</h4>
@@ -1204,7 +1215,8 @@
 <div class="tw"><table>
 <thead><tr><th class="n">버전</th><th class="n">날짜</th><th>내용</th></tr></thead>
 <tbody>
-<tr><td class="n gd">v0.2</td><td class="n">2026-08-19</td><td>소개 화면 전면 재작성(S0) · <strong>§4-B 샘플 7종과 15스쿱 체험 설계 신설</strong> · 보상 경제 스코프 재편입(1차 지시의 제외를 2차 지시가 대체) · 미결 M9 추가</td></tr>
+<tr><td class="n gd">v0.2.1</td><td class="n">2026-08-19</td><td><strong>스코프 정정</strong> — 보상·티어는 처음부터 모바일 요건이었고 뒤집힌 적이 없다. 제외 대상은 “PC에 붙어 있는 엔진 외 부속”이다. v0.2가 이를 “지시 번복”으로 잘못 적었던 것을 바로잡고, 층으로 그은 경계선을 §1에 명시</td></tr>
+<tr><td class="n">v0.2</td><td class="n">2026-08-19</td><td>소개 화면 전면 재작성(S0) · <strong>§4-B 샘플 7종과 15스쿱 체험 설계 신설</strong> · 미결 M9 추가</td></tr>
 <tr><td class="n">v0.1</td><td class="n">2026-08-19</td><td>초안. 스코프 확정(분석엔진 범위만 · 보상·로그인·알림·스캔 제외) · 화면 골격(스티키 차트 + 세그먼트) · 13화면 요건 · 상태 카탈로그 18종 · 정직 표기 10항 · 디자인/코드 경계 · 미결 8건</td></tr>
 </tbody></table></div>
 
