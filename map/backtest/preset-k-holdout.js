@@ -15,7 +15,7 @@ const fs = require("fs");
 const path = require("path");
 const FC = require("../forge-core.js");
 const BT = require("./backtest.js");
-const Tiers = require("../mobile/www/ind-tiers.js");
+const Tiers = require("./ind-tiers.js");
 const { graphFor } = require("./preset-k.js");
 
 const CORE = Tiers.TIERS[0].types;

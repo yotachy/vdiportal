@@ -224,7 +224,7 @@
     이 문서가 정하는 것은 그 전부를 세로 화면의 동선 위에 어떻게 배치하는가다.
   </p>
   <div class="meta">
-    <span>초안 v0.8.1</span><span>2026-08-19</span>
+    <span>초안 v0.8.2</span><span>2026-08-19</span>
     <span>기준 <code>main</code> · <code>0c5bd0e</code></span>
     <span>엔진 <code>1.11.0</code> · 지표 32종</span>
   </div>
@@ -297,11 +297,14 @@
     <em>단 세 가지만 협상 대상이 아니다</em> — <strong>정직 표기(§8) · 법적 고지 · 엔진 단일 원본(전제 1)</strong>.
     이 셋도 “시안을 거절한다”가 아니라 <strong>시안의 의도를 지키면서 불변을 유지할 방법을 찾는다</strong>는 뜻이다.</p></div>
   <div class="rule"><span class="k">전제 8</span><p><strong>보류된 모바일 구현은 봉쇄한다.</strong>
-    <code>map/mobile/</code>의 <code>www/</code> · <code>android/</code> · <code>test/</code> · <code>sync-engine.mjs</code>는
-    2026-08-19 개발 중단된 <strong>폐기 자산</strong>이며, 새 시안을 구현할 때 <strong>읽지도 복사하지도 않는다.</strong>
+    옛 트랙은 <code>_archive/mobile-2026-08-19/</code>에 <strong>통째로 닫혀 있다</strong> —
+    중단된 앱 구현(<code>www</code>·<code>android</code>·<code>test</code>·<code>tools</code>·<code>sync-engine</code>)과
+    <strong>1차 시안(<code>docs/design_handoff/</code>)을 한 덩어리로</strong>. <strong>읽지도 복사하지도 않는다.</strong>
     P1a·P1b가 실패한 원인이 정확히 이것이다 — 태스크 브리프가 “기존 <code>build*</code> 패턴을 그대로 따르라”고 지시해
     <em>개편 대상이던 옛 디자인을 구조적으로 보존</em>했다.
-    <strong>예외는 <code>mobile/docs/</code> 의 실측·이력 기록뿐</strong>이다. <strong>1차 시안(<code>design_handoff/</code>)도 참조하지 않는다</strong> — 2차 시안이 유일한 시각 정본이고, 둘을 나란히 두면 “어느 쪽을 따르나”가 생긴다(2026-08-19). 자세한 것은 <code>mobile/DEPRECATED.md</code>.</p></div>
+    <strong>예외는 없다.</strong> 시안과 구현을 따로 두면 둘 중 하나는 반드시 참조되므로 한 덩어리로 닫았다 —
+    <strong>2차 시안이 유일한 시각 정본</strong>이다. 살아 있어야 할 셋(실기기 실측 · 안드로이드 빌드 절차 · node 용 등급표)은
+    봉쇄 전에 꺼내 <code>docs/</code>·<code>backtest/</code>에 두었다. 자세한 것은 <code>_archive/README.md</code>.</p></div>
   <div class="rule"><span class="k">전제 6</span><p><strong>엔진과 데이터 문제는 이 문서가 다루지 않는다.</strong>
     지표 계산·OHLC 수급·캐시·프록시에서 나온 결함은 전부 <strong>PC 쪽에서 고치고</strong>, 모바일은 같은 엔진·같은 서버를 쓰므로 <em>따라온다</em>.
     앱 쪽에 따로 할 일이 생기지 않는다. 그런 항목은 여기 미결로 쌓지 말고 <code>docs/BACKLOG.md</code>(스쿱포지 트랙)로 보낸다 —
@@ -2035,7 +2038,8 @@
 <div class="tw"><table>
 <thead><tr><th class="n">버전</th><th class="n">날짜</th><th>내용</th></tr></thead>
 <tbody>
-<tr><td class="n gd">v0.8.1</td><td class="n">2026-08-19</td><td><strong>1차 시안을 참조 대상에서 제외</strong>(전제 8) — 2차 시안이 유일한 시각 정본. 1차는 온보딩에만 반영됐고 리포트 화면군은 그 시안을 안 보고 지어져, “구현과 대조할 기준”으로도 이미 무효다</td></tr>
+<tr><td class="n gd">v0.8.2</td><td class="n">2026-08-19</td><td><strong>옛 트랙 전량 봉쇄</strong> — 중단된 앱 구현과 1차 시안을 <code>_archive/mobile-2026-08-19/</code> 에 한 덩어리로 닫았다(예외 없음). 시안과 구현을 따로 두면 둘 중 하나는 반드시 참조된다. 살아 있어야 할 셋(실측·빌드 절차·등급표)은 꺼내 두었고, 관문은 800건으로 재확인</td></tr>
+<tr><td class="n">v0.8.1</td><td class="n">2026-08-19</td><td><strong>1차 시안을 참조 대상에서 제외</strong>(전제 8) — 2차 시안이 유일한 시각 정본. 1차는 온보딩에만 반영됐고 리포트 화면군은 그 시안을 안 보고 지어져, “구현과 대조할 기준”으로도 이미 무효다</td></tr>
 <tr><td class="n">v0.8</td><td class="n">2026-08-19</td><td><strong>전제 7·8 신설</strong> — ⑦시안이 이 문서를 고친다(“지침에 없다”로 시안을 거절하지 않는다. 협상 불가는 정직 표기·법적 고지·엔진 단일 원본 셋뿐) · ⑧보류된 모바일 구현 봉쇄(<code>www</code>·<code>android</code>·<code>test</code>·<code>sync-engine</code> 참조 금지, <code>docs/</code>만 예외). 디자인 킷에 §0 디자인 원칙(개방감·쉬운 조작)과 §8 접근성 체크리스트 추가</td></tr>
 <tr><td class="n">v0.7</td><td class="n">2026-08-19</td><td><strong>보드 영역(PC 2패널) 13종 전량을 결과 콘텐츠로 편입</strong> — 매핑표 신설, 빠져 있던 9종을 <strong>S17 서브패널(오실레이터 7 + 파동 스캔 2)</strong>로 정의. 세그먼트는 네 칸 유지(오실레이터→근거, 파동→지표). <strong>M6 해소</strong>. 17화면 → 18화면. 짝 문서 <a href="design-kit.html">design-kit.html</a> 신설</td></tr>
 <tr><td class="n">v0.6.1</td><td class="n">2026-08-19</td><td><strong>M10(ETH 월봉 오염) 제거</strong> — 엔진·데이터 결함은 PC 에서 고치면 모바일이 따라오므로 앱 요건의 미결이 아니다. <code>docs/BACKLOG.md</code> 로 이관하고, 그 원칙 자체를 <strong>전제 6</strong>으로 신설</td></tr>

@@ -25,7 +25,7 @@ const FC = require("../forge-core.js");
 const BT = require("./backtest.js");
 
 // 프리셋 정의는 앱과 같은 파일에서 읽는다 — 여기 베껴 적으면 앱이 바뀌었을 때 측정만 낡는다.
-const Tiers = require("../mobile/www/ind-tiers.js");
+const Tiers = require("./ind-tiers.js");
 
 const argv = process.argv.slice(2);
 function arg(name, dflt) {

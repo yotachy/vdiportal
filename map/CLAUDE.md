@@ -5,7 +5,7 @@
 | 도구 | 파일 | 비고 |
 |---|---|---|
 | **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js`(+`forge-api.php`) | 노드 전략보드 + 라이브 차트 통합 분석 도구. **분석 엔진의 관리·개선·검증이 이뤄지는 곳**(사용자 서비스가 아니다 — 아래 §⓪) |
-| **머니스쿱 모바일** ⛔ **구현 봉쇄(2026-08-19)** | **`mobile/`** — `www/`·`android/`·`test/`·`tools/`·`sync-engine.mjs` 는 **폐기 자산. 읽지도 복사하지도 말 것**([`mobile/DEPRECATED.md`](mobile/DEPRECATED.md)). **예외 `mobile/docs/`** — 시안 원본(`design_handoff/`)·실측·이력은 계속 읽는다. 새 앱은 별도 개발하지 않고 포지를 세로로 재배치한다 → 요건 [`app-spec.html`](app-spec.html) · 재료 [`design-kit.html`](design-kit.html) |
+| ~~머니스쿱 모바일~~ ⛔ **전량 봉쇄(2026-08-19)** | **`_archive/mobile-2026-08-19/`** — 중단된 앱 구현 + **1차 시안**을 한 덩어리로 닫았다. **읽지도 복사하지도 말 것**([`_archive/README.md`](_archive/README.md)). 새 앱은 별도 개발 없이 포지를 세로로 재배치한다 → 인테이크 [`docs/design-v2/README.md`](docs/design-v2/README.md) · 요건 [`app-spec.html`](app-spec.html) · 재료 [`design-kit.html`](design-kit.html) |
 | **스쿱보드 (Scoop Board)** | `map.html`(+`api.php`) | 자유 캔버스 노드 다이어그램 빌더 |
 | **PotFlow** | **`potflow/`** 폴더 일습(`potflow.html`·`potflow-helper.py`·config·bat·썸네일) | 로컬 동영상 노드 재생 관리(PotPlayer). map.html 파생·로컬 헬퍼(Python) 전용. **상위 개발프로젝트와 완전 독립 트랙**(아래 주의). **2026-07-19 `map/potflow/`로 폴더 격리** — forge·map과 파일/배포 경로 불간섭(배포=`www/map/potflow/`). 헬퍼가 자기 위치(`ROOT`) 기준이라 이동에 경로 수정 불필요. 상세는 [`POTFLOW.md`](POTFLOW.md) |
 
@@ -36,30 +36,30 @@
 ## ① 테스트는 항상 `./tests/run.sh`
 
 ```bash
-./tests/run.sh            # 전부 1545건 (forge-core 259 · forge-tools 81 · landing 28 · wallet 136 · wallet-dispatcher 296 · moneyscoop-mobile 745)
-./tests/run.sh engine     # 엔진 + 모바일 1085건 — 엔진만 고쳤을 때
-./tests/run.sh mobile     # 모바일 745건
+./tests/run.sh            # 전부 800건 (forge-core 259 · forge-tools 81 · landing 28 · wallet 136 · wallet-dispatcher 296)
 ```
 
-**어느 한쪽만 돌리지 말 것.** 모바일 테스트는 `../../forge-core.js` 원본을 직접 `require` 하므로, 엔진 변경이 모바일을 깨뜨렸는지를 이 관문이 알려준다. `node --test forge-core.test.js` 만 돌리던 습관이 이 구멍을 만든다. 실패 시 종료코드 1.
+**모바일 스위트 745건은 봉쇄와 함께 사라졌다**(2026-08-19). 죽은 코드를 재던 테스트라 되살리지 않는다 —
+`run.sh` 는 `mobile/` 이 없으면 그 스위트를 건너뛴다(가드 내장). **엔진 변경 시 관문은 이제 `./tests/run.sh` 전량이다.**
 
-- **화면을 건드렸으면 `cd mobile && node tools/gate-browser.mjs` 도 돌린다.** 모듈 테스트는
-  모듈마다 독립 객체를 받으므로 브라우저 전역 충돌을 원리적으로 못 본다 — 1505건이 초록인
-  채로 리포트가 100% 죽어 있던 사고(2026-08-18)가 그 구멍이었다. `all` 에 넣지 않은 이유는
-  크로미움이 없는 환경에서 전량 관문이 통째로 죽지 않게 하기 위해서다.
+`node --test forge-core.test.js` 만 돌리던 습관이 관문을 우회한다. 실패 시 종료코드 1.
+
+- **화면을 건드렸으면 헤드리스로 눈으로 본다.** 모듈 테스트는 브라우저 전역 충돌을 원리적으로 못 본다 —
+  1505건이 초록인 채로 리포트가 100% 죽어 있던 사고(2026-08-18)가 그 구멍이었다.
+  새 앱의 브라우저 관문은 시안 확정 후 다시 짓는다. 그때까지는 스크린샷 검증으로 대신한다.
 
 ## ② 엔진 변경 프로토콜
 
-1. **원본에서만 수정한다** — `map/forge-core.js` · `map/forge-tools.js`. 모바일의 `mobile/www/vendor/` 는 **커밋하지 않는 생성물**이며 `sync-engine.mjs` 가 만든다(gitignore). 두 벌이 존재할 수 없는 구조다 — 절대 vendor 를 직접 고치지 말 것.
-2. **`./tests/run.sh engine` 통과** — 양쪽이 같이 초록이어야 한다.
-3. **모바일 쪽은 `cd mobile && npm run sync`** 로 vendor 갱신 후 빌드. `npm run cap:sync` 는 sync 를 앞에 물고 있다.
-4. 지표를 추가·제거하면 `forge-core.indicatorCount` 와 `mobile/www/graph.js` 의 `MISSING` 목록이 함께 움직인다 — 모바일 테스트가 개수 불일치와 **엔진이 모르는 blockType**(오타 시 raw price 가 combine 에 주입된다)을 잡는다.
+1. **원본에서만 수정한다** — `map/forge-core.js` · `map/forge-tools.js`. **새 앱은 이 파일들을 그대로 실행하므로 사본이 존재하지 않는다**(전제 1). vendor 복제 구조는 봉쇄와 함께 사라졌다.
+2. **`./tests/run.sh` 통과.**
+3. 지표를 추가·제거하면 `forge-core.indicatorCount` 와 `forge-state.js` 의 `IND_TIERS` 합이 함께 움직인다 — 어긋나면 화면이 "32개 중"이라 말하면서 다른 수를 그린다.
+   node 에서 등급표를 읽어야 하면 `backtest/ind-tiers.js`(UMD 사본, 봉쇄에서 꺼내 온 것)를 쓴다.
 
 ## ③ 브랜치 · 배포
 
 - **다중 태스크 작업(SDD 계획서로 실행하는 것)은 브랜치 → `merge:` 커밋.** 단발 수정은 `main` 직접. 이 저장소의 기존 관행을 규칙으로 명시한 것.
 - **배포는 공통일 수 없다.** PC(포지·보드·랜딩)는 `커밋+배포 한 세트` — cafe24 SFTP `www/map/`. **모바일은 스토어 릴리스라 이 규칙이 적용되지 않는다** → `커밋+푸시 한 세트, 배포는 별도 릴리스 트랙`.
-- **`mobile/` 은 cafe24 에 업로드하지 않는다.** 서버로 가는 건 PC 정적 파일 8종 + `forge-api.php`(하단 §스쿱포지 파일 참조) — 그리고 아래 §④ 의 지갑 서버 파일 3종.
+- **`_archive/` 는 cafe24 에 업로드하지 않는다.** 서버로 가는 건 PC 정적 파일 8종 + 단독 문서 페이지 3종 + `forge-api.php` — 그리고 아래 §④ 의 지갑 서버 파일 3종.
 
 ## ④ 지갑(Wallet) 배포 세트 — Scoop 원장·AdMob SSV (Phase 8 계열)
 
@@ -67,7 +67,7 @@
 
 - **동반 배포 필수**(같이 올리고 같이 검증한다): `wallet-ssv.php`(AdMob SSV 콜백 수신, Phase 8d 신규) · `wallet-lib.php`(원장 — 계정·spend·checkin·광고 지급 로직) · `wallet-api.php`(HTTP 디스패처). `wallet-auth.php`(구글 로그인)는 이번 라운드엔 안 바뀌었지만 세트 밖으로 빼지 말 것 — 다음에 손대면 이 셋에 합류한다.
 - **배포 불가침**(서버 생성·사용자 데이터 — 절대 덮어쓰지 않는다): `<data>/wallet.db`(SQLite 원장) · `wallet_secret.txt`(HMAC 비밀키) · `ssv_keys_cache.json` · `ssv_keys_attempt`(AdMob 검증 키 캐시) · `ad_units.json`(광고 유닛 설정). forge 쪽 불가침 목록(`forge_*`)과 같은 원칙 — 정적 파일 8종 + wallet 3종 외엔 절대 손대지 않는다.
-- `map/mobile/**` 는 위 ③에 이미 적힌 대로 cafe24 에 절대 안 올라간다 — 지갑 서버 파일 3종만 별개로 올라간다는 뜻이지, mobile 전체가 서버 배포 대상이 됐다는 뜻이 아니다.
+- **지갑 서버 파일 3종만 별개로 올라간다는 뜻**이지, 앱 쪽 파일이 서버 배포 대상이 됐다는 뜻이 아니다. 옛 앱 트랙은 `_archive/` 로 봉쇄됐고(§④-3) 새 앱의 배포 경로는 시안 확정 후 정한다.
 - **지갑 배포 전엔 반드시 `./tests/run.sh concurrency` 를 먼저 돌린다** — IP 상한·비밀키 생성·계정 mkdir 동시성 회귀라 `all`에 안 낀다(느려서), 그래서 사람이 기억해서 불러야 하는 유일한 관문이다. wallet-lib.php·wallet-api.php·wallet-ssv.php 를 고친 뒤 이 스위트를 건너뛰고 배포하지 말 것.
 - **`ad_units.json` 부재 = 광고 기능 전체 꺼짐(fail-open 이 아니라 fail-closed)** — 이게 이 세트의 킬 스위치다. 코드(위 3종)를 먼저 올려 서버가 살아있는지 확인한 뒤, 마지막에 `ad_units.json` 을 올린다(또는 문제가 생기면 그 파일부터 내린다). 코드와 설정을 동시에 올리면 500 을 낸 원인이 코드인지 설정인지 구분이 안 된다.
 
@@ -94,14 +94,17 @@
 - 온보딩(P4)은 이 절차를 밟았다 — 시안 대조 감사 → 전용 재설계 설계서 → 화면 통째 재작성.
   그래서 온보딩만 시안 느낌이 난다. **그 순서가 정본이다.**
 
-## ④-3 폐기된 모바일 구현을 참조하지 않는다 · 시안이 요건을 고친다
+## ④-3 옛 트랙 전량 봉쇄 · 시안이 요건을 고친다
 
-**2026-08-19 사용자 지시.** 새 디자인 시안이 나왔을 때 **보류된 앱 소스로 오염되지 않게 봉쇄한다.**
+**2026-08-19 사용자 지시.** 2차 시안에만 온전히 집중하고 개발부터 배포까지 새 트랙으로 완결하기 위해,
+**중단된 앱 구현과 1차 시안을 한 덩어리로 닫았다.**
 
-- **봉쇄**: `map/mobile/` 의 `www/` · `android/` · `test/` · `tools/` · `sync-engine.mjs` 는 폐기 자산이다.
-  새 시안을 구현할 때 **읽지도 복사하지도 않는다.** 태스크 브리프에 “기존 패턴을 따르라”를 쓰지 않는다 —
-  그 문장이 P1a·P1b 를 실패시켰다(§④-2). 전문은 [`mobile/DEPRECATED.md`](mobile/DEPRECATED.md).
-- **예외**: `mobile/docs/` 는 계속 읽는다(시안 원본 `design_handoff/` · 실측 `phase0-measurements.md` · 이력).
+- **봉쇄 = `_archive/mobile-2026-08-19/` 전량.** 구현(`www`·`android`·`test`·`tools`·`sync-engine.mjs`)뿐 아니라
+  **1차 시안(`docs/design_handoff/`)과 시안 브리프·인벤토리·감사까지 포함**한다. **읽지도 복사하지도 않는다.**
+  태스크 브리프에 “기존 패턴을 따르라”를 쓰지 않는다 — 그 문장이 P1a·P1b 를 실패시켰다(§④-2).
+  전문 [`_archive/README.md`](_archive/README.md).
+- **예외 없음.** 살아 있어야 할 셋은 봉쇄 전에 꺼내 제자리에 두었다 —
+  `docs/phase0-measurements.md`(실기기 실측) · `docs/ANDROID-BUILD.md`(빌드·배포 절차) · `backtest/ind-tiers.js`(node 용 등급표).
 - **시안이 요건을 고친다**: 시안 작업 중 새 기능 요건이 생기거나 동선이 바뀌면 **문서를 고치고 개발이 수용한다.**
   “지침에 없다”는 이유로 시안을 거절하지 않는다. **협상 불가는 셋뿐** — 정직 표기 · 법적 고지 · 엔진 단일 원본.
   이 셋도 거절이 아니라 *시안의 의도를 지키면서 불변을 유지할 방법을 찾는다*는 뜻이다.
@@ -114,15 +117,15 @@
 현재 상태 · 확정 사항 · 봉쇄 · `시안2.zip` 도착 시 7단계 절차 · 열린 미결이 전부 거기 있다.
 
 - 시안이 참조하는 문서 두 종: [`app-spec.html`](app-spec.html)(요건정의) · [`design-kit.html`](design-kit.html)(시안 재료). **둘은 짝이고 같이 배포한다.**
-- `시안2.zip` 은 `docs/design-v2/raw/` 에 푼다. `mobile/` 안에 넣지 말 것(봉쇄 폴더다).
+- `시안2.zip` 은 `docs/design-v2/raw/` 에 푼다. `_archive/` 안에 넣지 말 것(봉쇄 구역이다).
 
-## ⑤ `mobile/www/**` 문법 하한 — ES5 아님, 확정 ES2017
+## ⑤ 앱 런타임 문법 하한 — ES5 아님, 확정 ES2017 (판정은 유효, 경로는 새로 정한다)
 
 **"ES5 만" 규칙은 폐기됐다(2026-08-18 컨트롤러 판정, P1a Task 1).** 스쿱 시리즈 정적 사이트(구형 브라우저 대응)에서 상속된 규칙이었을 뿐, 이 앱의 런타임에서 유도된 게 아니었다 — `draw-panels.js`·`draw-layers.js`·`draw-preds.js` 가 이미 이 규칙을 161줄 어긴 채 배포돼 있었고 아무도 몰랐다.
 
 실제 하한은 `mobile/android/variables.gradle` 의 `minSdkVersion 24`(Android 7.0 Nougat)다. 이 지점부터 Android System WebView 는 OS 와 분리돼 Play 스토어로 자동 업데이트되는 Chromium 기반 컴포넌트다(`mobile/docs/phase0-measurements.md` 가 이미 "Chrome 과 WebView 는 같은 Chromium/V8" 전제로 실기기 Chrome 150 을 측정에 썼다). `@capacitor-community/admob`(Google Play 서비스 하드 의존)이 이미 Play 스토어 보유를 전제하므로 그 자동 업데이트 경로도 전제된다. **확정 안전선은 ES2017**(async/await 포함, Chrome 55·2016-12) — 이 셋(minSdk·Capacitor 자체 요구·admob 의 GMS 의존)이 판정을 지탱하는 1차 근거다. **정황(1차 근거를 뒤집진 않지만 그 자체로는 이중검증이 아님)**: async/await 는 `scan.js` 1개 파일에 실제 문법으로 이미 배포돼 있다(`wallet.js` 에는 `await` 문자열이 나오지만 61번 줄 주석일 뿐 실제 문법은 아니다 — 확인 없이 "14개 파일이 쓴다"고 적었던 것은 오류였다, 2026-08-19 리뷰 정정). const/let/화살표(ES2015)는 실제로는 `draw-panels.js`·`draw-layers.js`·`draw-preds.js` 3개 파일에서만 코드로 쓰인다 — 원 브리프가 위반으로 지목한 바로 그 세 파일이며, 나머지 파일의 grep 일치는 한국어 주석의 백틱 코드 표기(예: `` `IND_TIERS` 다``)나 문자열 리터럴이었다. 관문은 `mobile/test/syntax-floor.test.mjs` — ES2017 보다 확실히 나중이면서 지금 안 쓰는 문법만(옵셔널 체이닝·null 병합·논리 대입·private 필드·`Object.hasOwn`·`groupBy`·배열 비파괴 복사 메서드) 금지한다.
 
-## ⑥ `mobile/` 의존성 정책 — "새 npm 의존성 금지"는 공식 Capacitor 플러그인을 막지 않는다
+## ⑥ 앱 의존성 정책 — "새 npm 의존성 금지"는 공식 Capacitor 플러그인을 막지 않는다 (판정 유효, 새 셸에 그대로 적용)
 
 이 저장소 전반의 "빌드 도구·외부 라이브러리 금지"(위 스쿱포지·스쿱보드 규율과 같은 문장)를 모바일의 `package.json` 에도 그대로 적용하면 **네이티브 앱을 못 만든다** — Capacitor 자체가 npm 패키지고(`@capacitor/core`·`@capacitor/android`·`@capacitor/cli`), 하드웨어 기능(광고·백버튼 등)은 각각 별도 공식 플러그인 npm 패키지로 온다. 이 규율이 실제로 막으려는 것은 **프런트엔드 빌드 파이프라인**(webpack/babel/번들러)과 **`www/**` 안에서 로직을 대신 짜주는 프런트엔드 라이브러리**(jQuery·React 류)다 — `www/**` 는 여전히 순수 HTML·CSS·바닐라 JS(classic `<script src>`, 빌드 없음)이고 이 원칙은 안 바뀐다.
 
