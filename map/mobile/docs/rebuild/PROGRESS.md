@@ -14,7 +14,7 @@
 
 - **페이즈**: P1a(재방문 여정 — 무료 경로) ✅ 완료 + **P4(첫 실행 — 온보딩 7단계) ✅ 완료**. P4 는 원래 순서(P1b 다음)를 앞당겨 먼저 끝냈다 — 사용자 판정("처음 접속하는 사용자 입장에서 부실하다")이 첫인상 문제였기 때문(근거: [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md) 머리말). P1a 상세는 아래 "P1a 최종 리뷰 수정 웨이브" 참고.
 - **브랜치**: `mobile-onboarding`(P4, `main`— P1a 병합 완료 지점 — 에서 분기) · P1a 는 `mobile-rebuild-p1a`(병합 완료)
-- **마지막 커밋**: P4 8태스크 `02d1b02..8ab3fdf`(측정 → 재설계 설계서 → 1~7단계 재구현 → Task 8 완료·가격표·지급) — 세부 진행은 [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md) 계획서(`docs/superpowers/plans/`)와 `.superpowers/sdd/2026-08-18-moneyscoop-onboarding-redesign/task-8-report.md` 참고
+- **마지막 커밋**: P4 완료·**`main` 병합 완료**(merge `488ee82`, push 완료). 브랜치 이력 `02d1b02..3b08930`(측정 → 재설계 설계서 → 1~7단계 재구현 → Task 8 완료·가격표·지급) — 세부 진행은 [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md) 계획서(`docs/superpowers/plans/`)와 `.superpowers/sdd/2026-08-18-moneyscoop-onboarding-redesign/task-8-report.md` 참고
 - **다음 한 걸음**: **P1b 계획서 작성**(진행 중계·해제 전환·심화 리포트·판독문 32, 시안 19a·8b·8a·18b·19b·20a — `docs/superpowers/specs/2026-08-18-moneyscoop-p1-design.md` §3.5~3.8이 확정 사실, §3.5는 P1a 리뷰 웨이브에서 실측으로 정정됨). 착수 전 아래 "막힌 것"의 **APK 실기기 확인**을 사용자가 완료해야 한다(P4 를 포함한 최신 빌드로 다시 확인)
 
 ## 막힌 것 / 사용자 대기
@@ -79,7 +79,7 @@
 | P1c | 재방문 여정 — 전문 (전문 리포트·가중치 편집기) | ⬜ | — | 계획서 미작성 |
 | P2 | 획득 여정 (광고 6진입 · 적립 · 복귀 · 지갑) | ⬜ | — | |
 | P3 | 다음날 여정 (결과 카드 · 상세 · 기록 · 스캔) | ⬜ | — | |
-| P4 | 첫 실행 (온보딩 7단계) — **P1b 보다 먼저 완료**(순서를 앞당김) | ✅ 완료 | `02d1b02..8ab3fdf`(`mobile-onboarding`) | 8태스크(측정·설계서·1~7단계 재구현·마감). 설계서 [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md), 브라우저 관문 10/10 |
+| P4 | 첫 실행 (온보딩 7단계) — **P1b 보다 먼저 완료**(순서를 앞당김) | ✅ 완료·병합 | `02d1b02..3b08930` → merge `488ee82` (`main`) | 8태스크 + 최종 리뷰 수정 2라운드. 설계서 [`2026-08-18-moneyscoop-onboarding-redesign.md`](../../../docs/superpowers/specs/2026-08-18-moneyscoop-onboarding-redesign.md), 시험 1697건 · 브라우저 관문 11/11 |
 | P5 | 부가층 (영어 · 2단/3단 · 아이콘) | ⬜ | — | |
 | C1 | 차트 Lv1 5종 확인 | ⬜ | — | 병행 트랙 |
 | C2 | 차트 Lv2 7종 이식 | ⬜ | — | `--pred2` 색 충돌 판정 포함 |
@@ -88,6 +88,31 @@
 범례: ⬜ 미착수 · 🔜 계획 중 · 🔨 진행 중 · ✅ 완료 · ⏸ 사용자 대기
 
 ---
+
+
+## P4 온보딩 — 최종 리뷰가 남긴 후속 (SDD 작업공간은 삭제됐다, 여기가 유일한 기록)
+
+전체 브랜치 최종 리뷰가 **조건부 병합**을 냈고, 병합 전 6건(C1 이음매 · C2 분류 통일 ·
+I1 종목명 · I3 원화 표기 · I4 재생 실패 회수 · 1단계 5vs3 정합)은 닫았다. 아래는
+**의도적으로 다음 라운드로 넘긴 것들**이다.
+
+| # | 내용 | 판정 근거 |
+|---|---|---|
+| I2 | 세 지평 전부에 **오늘 날짜**가 기준으로 붙어 `내일 / 245.14 / 2026.08.17` 이 "내일 = 8/17"로 읽힌다. Q1(`metric()` 이 `asOf` 를 강제)이 예측값에 기계 적용된 부작용 | 오독 소지는 있으나 값 자체는 정확. 지평 행에 `기준 …` 라벨을 달거나 예상 도달일을 계산해 붙이는 편이 낫다 |
+| I5 | `상승 방향으로 봅니다. (61%)` 가 **라벨 없는 맨 퍼센트**. `metric()` 을 우회해 해석문 안에 박혀 Q1·§6 을 둘 다 비켜간다 | `report.js:880` 도 같은 `r.prob` 를 같은 방식으로 노출 — 신규 위반은 아니나 **첫 사용자가 처음 보는 확률**이라 노출 맥락이 다르다. report 와 같이 다루는 게 맞다 |
+| M1 | `state.full32` 는 죽은 필드이고, 그것을 잠그는 시험이 `assert.match(OB, /state\.full32\s*=/)` — **죽은 코드의 존재를 잠근다** | 유일하게 남은 자명 통과 |
+| M2 | 5단계에 동일 위계의 골드 전폭 버튼 2개(`분석 시작`·`다음`), 확정 뒤에도 `분석 시작` 이 활성 골드로 남는다 | 로직은 완벽한데 시각 위계에 미반영 |
+| M3 | 3단계 기본 선택에서 `반대 의견 0`·`데이터가 없어 판단하지 않음 0` 이 **헤더만** 뜬다 | 7단계는 N=0 전용 문구가 있는데 3단계는 없다 |
+| M4 | 터치타깃 44px 시험이 스윕이 아니라 **클래스 12개 하드코딩 목록**(`shell.test.mjs:66`). 새 버튼은 원리적으로 안 잡히고, 명시 px 없이 padding·line-height 로 높이가 정해지는 버튼(`rc-filter`·`rc-row`·`sr-card`·`rd-back`·`rd-filter`·`row-tap`)도 평가 불가 | 실브라우저 `getComputedStyle` 감사라야 닫힌다 |
+| M5 | 주석 어긋남 — `style-onboarding.css:13` 의 `진행 막대 — 5칸`(실제 7칸), `.ob-canvas` 위 `paintChart`(실제 `paintGuess`) | |
+| M6 | `state.ob32Open` 이 초기 `state` 에 선언돼 있지 않고(런타임 생성) 2단계·6단계가 같은 키를 공유 | 오염은 없고 오히려 선호 유지로 읽히나 의도가 코드에 없다 |
+| — | **`report.js` 구매 흐름의 `MSAnalyzeView` 관문 부재** — `progress-analyze.js` 의 두 번째 호출자인데 이를 실제로 태우는 node 시험도 관문 라우트도 없다 | **위험도 상승 판정.** Task 7 이 이 파일에서 상시 `ReferenceError` 를 찾았고, I4 가 이 파일의 실패 회수를 고쳤다 — 그 경로를 아무도 안 태운다 |
+| — | `.rp-last-more` 의 소유 블록 `buildLast()` 가 `report-blocks.js` 의 어느 티어(`BASIC`/`FULL`/`CUSTOM`)에도 안 물려 **프로덕션에서 죽은 코드** | 배선할지 지울지는 P1b 판단 |
+| — | 5→6 UI 흐름이 **실 rAF 로** `frame()` 을 구동하는지는 여전히 미검증 | 이 헤드리스 크로미움이 프로세스당 실 rAF 를 **최대 2틱, 페이지 로드 직후 ~0ms 창에서만** 준다는 실측이 근거. 대체 라우트(`progress-analyze-raf-live`)가 `frame()` 실행 자체는 증명한다 |
+
+**웹 미리보기**: https://parksvc.mycafe24.com/map/dl-a280f1cd1ee8/app/ — `npm run sync` 후
+`mobile/www/` 를 cafe24 `www/map/dl-a280f1cd1ee8/app/` 에 `mirror -R --delete` 로 올린다.
+
 
 ## 태스크 로그
 
