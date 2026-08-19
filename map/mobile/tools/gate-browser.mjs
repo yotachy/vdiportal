@@ -244,10 +244,12 @@ function probe(route) {
   // 갱신하려면 다시 write 해야 한다) title 대신 DOM 노드(#__gate_errs)에 적고,
   // --dump-dom 이 그 최종 상태를 그대로 실어 온다. ok/err(단언 결과)는 여전히 delay 시점
   // 값이 맞다 — 단언은 정확히 그 시점의 상태를 재는 것이므로 종료 시점으로 미루면 안 된다.
-  // setInterval 은 여기(관문 러너의 계측 코드)에서만 쓴다 — www/** 의 "진행을 타이머로
-  // 올리지 않는다"(Q3, test/globals.test.mjs) 는 화면 코드(www/**)만 훑고 tools/ 는 안
-  // 훑는다(확인함) — 화면이 사용자에게 보여줄 진행률을 타이머로 지어내지 말라는 규칙이지,
-  // 관문이 자기 안에서 오류 로그를 폴링하는 것과는 대상이 다르다.
+  // setInterval 은 여기(관문 러너의 계측 코드)에서만 쓴다 — Q3("진행은 고정 타이머로
+  // 오르지 않는다")를 재는 시험은 test/onboarding.test.mjs 에 있고, 디렉터리를 훑는 게
+  // 아니라 www/screens/onboarding.js **한 파일의 소스 문자열**만 정규식으로 검사한다.
+  // 그래서 이 파일은 애초에 그 시험의 사정권 밖이다. 규칙의 취지도 다르다 — 화면이
+  // 사용자에게 보여줄 진행률을 타이머로 지어내지 말라는 것이지, 관문이 자기 안에서
+  // 오류 로그를 폴링하는 것과는 대상이 다르다.
   js += '\n<script>' +
         'var __gp=document.createElement("pre");__gp.id="__gate_errs";' +
         'document.documentElement.appendChild(__gp);' +
