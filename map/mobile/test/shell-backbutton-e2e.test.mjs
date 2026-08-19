@@ -102,6 +102,8 @@ function load() {
   global.MSUi = require("../www/ui.js");
   global.MSStr = require("../www/strings.js");
   global.MSWallet = require("../www/wallet.js");
+  // [리뷰 C1] tier-sheet.js 의 전문분석 desc 가 이제 MSIndTiers.tunable().length 를 읽는다.
+  global.MSIndTiers = require("../www/ind-tiers.js");
   delete require.cache[require.resolve("../www/router.js")];
   global.MSRouter = require("../www/router.js");
   delete require.cache[require.resolve("../www/sheet.js")];

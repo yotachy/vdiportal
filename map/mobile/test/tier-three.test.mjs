@@ -63,6 +63,38 @@ test("isPaid 는 값을 치른 티어 전부를 참으로 본다", () => {
   });
 });
 
+// ── I2(리뷰 2026-08-19) — spend-fail 사유 → 카드 매핑을 DOM·프라미스 없이 직접 잰다 ──
+// runTier() 안에 박아 두면 전체 구매 흐름(vm + MSWallet.spend 모킹 + 클릭 시뮬레이션)을
+// 재생해야만 이 매핑을 시험할 수 있다 — spendFailCardFor() 로 뽑은 순수 함수라 body 를
+// 직접 평가해 잰다(위 isPaid 시험과 같은 기법).
+test("spendFailCardFor — merged·unauthorized 는 카드를 돌려주고, 문구가 사실과 맞는다", () => {
+  const fn = new Function("MSStr",
+    "return " + bodyOf(REPORT, "spendFailCardFor").replace(/^\{/, "function(reason){").replace(/\}$/, "}"))(S);
+  const merged = fn("merged");
+  assert.ok(merged, "merged 가 카드를 안 돌려준다 — alert 로 떨어진다");
+  assert.strictEqual(merged.body, S.t.wMerged,
+    "merged 카드 본문이 wMerged 가 아니다 — wallet.js:348 의 checkin() 처리와 문구가 갈린다");
+  assert.notStrictEqual(merged.badge, S.t.blFailUnknownBadge,
+    "merged 가 '계산 실패·환불 확인 불가' 기본 배지를 그대로 쓴다 — 계산은 애초에 실패한 적이 없다");
+
+  const unauthorized = fn("unauthorized");
+  assert.ok(unauthorized, "unauthorized 가 카드를 안 돌려준다 — alert 로 떨어진다");
+  assert.strictEqual(unauthorized.body, S.t.tsSpendUnauthorizedBody);
+  assert.notStrictEqual(unauthorized.badge, S.t.blFailUnknownBadge,
+    "unauthorized 가 기본 배지를 그대로 쓴다 — 인증 문제를 '계산 실패'로 잘못 말한다");
+});
+
+test("spendFailCardFor — 카드로 안 옮긴 사유는 여전히 null(호출부가 alert 로 떨어진다는 계약)", () => {
+  const fn = new Function("MSStr",
+    "return " + bodyOf(REPORT, "spendFailCardFor").replace(/^\{/, "function(reason){").replace(/\}$/, "}"))(S);
+  ["rate-limited", "no-backend", "bad-ref", "storage", "insufficient", "network", "server-error", "busy"]
+    .forEach(r => {
+      assert.strictEqual(fn(r), null,
+        r + " 가 spendFailCardFor 에서 카드를 받는다 — 호출부의 다른 분기(maybeCharged·insufficient)와 " +
+        "겹치거나, 판단 없이 조용히 카드로 승격됐다");
+    });
+});
+
 test("배지 표가 티어 전부를 덮고, 셋이 서로 다른 것을 말한다", () => {
   const at = REPORT.indexOf("var TIER_BADGE = {");
   assert.ok(at > 0, "TIER_BADGE 표가 없다");
@@ -78,13 +110,23 @@ test("배지 표가 티어 전부를 덮고, 셋이 서로 다른 것을 말한�
     "배지 표와 report-blocks 의 티어 목록이 어긋난다 — 표에 없는 티어는 basic 으로 그려진다");
 
   const names = new Set(), evis = new Set();
+  const all = Object.values(S.t);
   TIERS.forEach(t => {
     const b = BADGE[t];
     // 표는 키 이름이 아니라 **값**을 담는다(정적 분석이 볼 수 있어야 한다) — 그 값이 실제
     // strings.js 에서 온 것인지 여기서 확인한다. 손으로 적은 한글이 섞이면 걸린다.
-    const all = Object.values(S.t);
     assert.ok(all.indexOf(b.name) >= 0, t + " 의 배지 문구가 strings.js 에서 오지 않았다: " + b.name);
-    assert.ok(all.indexOf(b.desc) >= 0, t + " 의 설명 문구가 strings.js 에서 오지 않았다: " + b.desc);
+    if (t === "custom") {
+      // [리뷰 C1, 2026-08-19] custom 은 desc 가 표에 없다 — 사용자가 고른 부분집합이라
+      // 고정 문자열이 성립하지 않는다(전문 프리셋마다 실제 지표 수가 다르다, 실측:
+      // "추세 추종" 기본 = 9). report.js tierBadgeDesc() 가 an.graph 에서 유도해 아래 두
+      // 조각(rpTierCountCustomA/B)을 조립한다 — 조각이 strings.js 에서 왔는지만 여기서 잰다.
+      assert.strictEqual(b.desc, undefined, "custom 표에 정적 desc 가 남아 있다 — 유도 없이 리터럴로 되돌아갔다");
+      assert.ok(all.indexOf(S.t.rpTierCountCustomA) >= 0 && all.indexOf(S.t.rpTierCountCustomB) >= 0,
+        "custom 유도 desc 조각이 strings.js 에 없다");
+    } else {
+      assert.ok(all.indexOf(b.desc) >= 0, t + " 의 설명 문구가 strings.js 에서 오지 않았다: " + b.desc);
+    }
     names.add(b.name);
     evis.add(b.evi);
   });

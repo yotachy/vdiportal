@@ -33,12 +33,34 @@
   // 이름 없는 매그넘버로 각자 들고 있으면 한쪽만 재조정되고 조용히 어긋난다).
   var AD_POLL_MS = 2000, AD_POLL_LIMIT = 5;   // 2초 × 5 = 10초
 
+  // 적중률 블록(buildHitrate)의 표본 하한 — 지금 MSBacktest.nForecasts=31971·nSeries=87 둘
+  // 다 안전하지만(조사 A3), 코드가 그 사실에 기대지 않고 매번 검사하게 한다. 생성물이 바뀌면
+  // 조용히 깨지지 않도록 하는 것이 이 상수의 목적이다(P1b Task 5 브리프 규율).
+  var MIN_HIT_SAMPLE = 20;
+
   // 티어는 셋이다(basic · full · custom). 이 파일이 오래 티어를 **둘로** 알고 `tier === "full"`
   // 이항 분기를 여섯 곳에 흩어놨던 것이 리뷰가 잡은 결함 다섯의 공통 뿌리다 — custom 이 전부
   // basic 가지로 떨어져, 5스쿱 낸 전문분석이 3스쿱 심화보다 **적은** 블록을 "기본" 배지와
   // 함께 냈다. 문자열 비교라 예외가 안 나고, 관문 666건이 전부 초록인 채로 통과했다.
   // 그래서 티어를 직접 비교하지 말고 **무엇을 묻는지**로 갈라 쓴다.
   function isPaid(t) { return t === "full" || t === "custom"; }   // 지표 전량을 읽은 분석인가
+
+  // [리뷰 I2, 2026-08-19] spend-fail 사유 → MSBlocked failedUnknown 카드 오버라이드. 순수
+  // 함수로 뽑은 이유는 단 하나 — DOM·MSWallet.spend·프라미스 체인을 재생하지 않고도 "이
+  // 사유가 이 카드로 가는가"를 직접 시험하기 위해서다(runTier() 안에 박아 두면 전체 구매
+  // 흐름을 다시 태워야만 이 매핑을 잴 수 있었다). null 이면 호출부가 alert(tsSpendFailed)로
+  // 떨어진다 — 아직 카드로 승격 안 한 사유들(rate-limited·no-backend·bad-ref·storage, 판단
+  // 근거는 호출부 주석)이 여기 해당한다.
+  function spendFailCardFor(reason) {
+    if (reason === "merged") {
+      return { badge: MSStr.t.tsSpendMergedBadge, head: MSStr.t.tsSpendMergedHead, body: MSStr.t.wMerged };
+    }
+    if (reason === "unauthorized") {
+      return { badge: MSStr.t.tsSpendUnauthorizedBadge, head: MSStr.t.tsSpendUnauthorizedHead,
+               body: MSStr.t.tsSpendUnauthorizedBody };
+    }
+    return null;
+  }
 
   // 선언(report-blocks.js)엔 있는데 아직 그리는 함수가 없는 블록 id → 어느 페이즈가 짓는가.
   // **못 그리는 것을 팔지 않는다**(리뷰 판정, 2026-08-18) — 이 표가 비어 있지 않은 티어는
@@ -51,21 +73,12 @@
   // "screens/ 에 남은 영어가 없다" 관문이 화면 리터럴을 훑는데, "P1a Task 3"/"P1b" 같은
   // 코드도 라틴 단어로 잡힌다(사용자가 볼 문구가 아닌데도 그 관문은 구분을 못 한다).
   // 그래서 페이즈는 각 줄 주석에 적고, 표 자체는 "이 id 가 아직 없다"는 사실만 담는다.
+  // P1b Task 6 가 네 블록을 전부 지었다 — 이 표는 이제 비어 있고, 그래서 tierBuyable()이
+  // full·custom 둘 다 true 를 돌려준다. CUSTOM = ["weights"].concat(FULL) 이고 weights 는
+  // 애초에 이 표에 없었으므로 전문도 같은 시점에 열린다. compare 는 buildHorizons() 안에
+  // 얹지 않고 독립 카드(BUILD.compare, buildPrevCompare())로 뽑았다 — compare:buildHorizons
+  // 로 이었으면 같은 카드를 두 번 그렸을 것이다(중복). 판정 근거: task-6-report.md.
   var PENDING = {
-    // comb 은 P1a Task 3 이 구현했다(buildComb, 아래 draw() 의 BUILD 표) — 더 이상 PENDING 이
-    // 아니다. basic 은 이제 forTier() 선언 셋(verdict·comb·chart)을 전부 그린다.
-    sentence: true,   // 19b 「한 문장으로」 — P1b(심화 리포트 재작성, 19b·18b)
-    forecast: true,   // "내일 예상 + 확신" — P1b. 확신%·적중/오답·베이스라인 문구는 P1a
-                       // Task 3 이 verdict 카드에서 걷어냈다(basic 은 퍼센트를 안 쓴다, 설계서
-                       // §3.2) — 옛 문구와 그 근거는 이 커밋 이전 strings.js 이력에 있다.
-    hitrate:  true,   // 적중률 단독 블록 — P1b. 위와 같은 이유 — verdict 카드에서 이미
-                       // 분리됐으니 이제 새로 지으면 된다(forecast 와 겹치지 않게 나누는 것은
-                       // 여전히 P1b 의 화면 구조 결정)
-    compare:  true    // 심화 안의 "직전 상태(기본분석 대비)" 대조 — P1b. 내용 자체는 이미
-                       // 있다(buildHorizons() 안의 prevBasic() 블록, 시안이 회색 막대로
-                       // horizons 카드에 얹으라고 한 그대로) — 그래서 compare:buildHorizons
-                       // 로 잇지 않는다. 그러면 horizons 와 compare 가 같은 카드를 두 번
-                       // 그린다(중복). 독립 카드로 뽑아낼지는 P1b 가 정할 화면 구조 문제다
   };
   // 그 티어의 선언 중 아직 못 그리는 id 목록. tier 인자를 받는 이유는 PENDING 이 id→페이즈
   // 표라 티어 무관이고, "이 티어에 지금 파는데 못 그리는 게 있나"는 그 티어 선언과 대조해야
@@ -82,10 +95,12 @@
   // 키 이름을 문자열로 두지 않고 값을 그대로 담는다 — 문자열 관문 둘이 그래야 볼 수 있다.
   // "rpTierCustom" 같은 리터럴은 ①화면 소스의 영어 잔존으로 걸리고 ②MSStr.t.X 참조가 아니라
   // 죽은 키 판정을 받는다. 두 관문 다 옳다: 동적 조회는 정적 분석을 눈멀게 한다.
+  // custom 은 desc 가 없다 — 사용자가 고른 부분집합이라 고정 문자열이 없다(buildTierRow() 가
+  // an.graph 에서 유도해 끼워 넣는다, 아래 [리뷰 C1] 주석 참고).
   var TIER_BADGE = {
-    basic:  { cls: "",           name: MSStr.t.rpTierBasic,  desc: MSStr.t.rpTierCount,       evi: 1 },
-    full:   { cls: " is-full",   name: MSStr.t.rpTierFull,   desc: MSStr.t.rpTierCountFull,   evi: 2 },
-    custom: { cls: " is-custom", name: MSStr.t.rpTierCustom, desc: MSStr.t.rpTierCountCustom, evi: 3 }
+    basic:  { cls: "",           name: MSStr.t.rpTierBasic,  desc: MSStr.t.rpTierCount,     evi: 1 },
+    full:   { cls: " is-full",   name: MSStr.t.rpTierFull,   desc: MSStr.t.rpTierCountFull, evi: 2 },
+    custom: { cls: " is-custom", name: MSStr.t.rpTierCustom,                                evi: 3 }
   };
 
   var LINE_LEGEND = [
@@ -159,6 +174,64 @@
   function loadOne(sym) { return MSApi.loadTicker(sym, TF); }
   function dirWord(regime) { return regime === "bull" ? MSStr.t.rpUp : regime === "bear" ? MSStr.t.rpDown : MSStr.t.rpFlat; }
 
+  // 중립(무방향) 판정 — buildAgainst()·buildHitrate() 가 공유하는 결핍 카드(P1b Task 6b).
+  // 두 블록 모두 "방향이 있어야만" 성립한다(반대할 방향·방향별 적중률) — 그 게이트 자체는
+  // 옳다. 문제는 예전엔 그 사실을 말 안 하고 블록을 통째로 지운 것이다(같은 3스쿱을 내고
+  // 8블록 중 6개만 받음, Task 6b 브리프). map/CLAUDE.md §⓪4 "잠긴 단계에서는 무엇이
+  // 빠졌는지를 이름으로 적는다"·온보딩 32도구 화면의 "데이터가 없어 판단하지 않음" 통과
+  // 같은 태도 — 카드는 그대로 두고 값 대신 이유를 적는다.
+  //
+  // 이 함수는 **중립 사유 전용**이다 — 생성물 부재·표본 부족·baseline 필드 부재 같은 다른
+  // null 사유는 이 함수를 거치지 않는다(각 호출부가 그 가드는 여전히 따로 둔다) — 그건
+  // 우리 쪽 결손이지 종목의 성질이 아니라 여전히 감추는 게 맞다(브리프 지시).
+  // innerCls 를 따로 받는다 — cls(카드 정체성, 예: "rp-hitrate")와 안쪽 문단 클래스(예:
+  // "rp-hit-neutral", 그 블록의 기존 접두 관례 "rp-hit-*" 를 따른다)가 항상 같은 어간이
+  // 아니다. cls+"-neutral" 로 이어붙이면 "rp-hitrate-neutral"이 되어 style-report.css 의
+  // 실제 규칙("rp-hit-neutral")과 어긋난다(실측 — 브라우저 관문이 잡음, CSS 도 안 먹는다).
+  function neutralCard(cls, innerCls, headStr, bodyStr) {
+    var wrap = MSUi.el("div", cls);
+    var head = MSUi.el("div", "rp-sec-head");
+    head.appendChild(MSUi.el("span", "overline", headStr));
+    wrap.appendChild(head);
+    wrap.appendChild(MSUi.el("p", innerCls, bodyStr));
+    return wrap;
+  }
+
+  // 적중률 전용 중립 카드(P1b Task 10 폴리시 P2, Task 6b 리뷰 Minor 1) — neutralCard() 를
+  // 그대로 안 쓰는 이유: 형제 섹션(상승/하락 적중률)은 오버라인+행+큰 골드 숫자+기준선+
+  // 범위주석 4단인데, neutralCard() 는 오버라인+문단 1개뿐이라 "값을 하는 카드"가 아니라
+  // "짧은 안내문"으로 읽힌다(리뷰 실측). buildAgainst() 는 원래도 행 목록형이라 이 지적이
+  // 없었으므로 그쪽은 neutralCard() 를 그대로 둔다 — 이 카드만 새로 짠다.
+  //
+  // 숫자를 지어내지 않는다(없는 게 맞다) — 대신 rp-hit-val 이 원래 앉는 자리에 **같은
+  // 크기의 문장**("정의되지 않음")을 놓아 같은 시각적 단(段)을 만든다. 색은 gold 가 아니라
+  // ink(rp-hit-undef, style-report.css) — "값"이 아니라 "값이 없다는 사실"이라는 차이를
+  // 색으로도 구분한다. 이유 문장(rpHitNeutral)은 그 아래 뒤이어 붙는다 — 두 형제 섹션의
+  // "기준선"·"범위주석" 자리를 대신하는 셈이라 뒤로 뺐다.
+  function neutralHitCard() {
+    var wrap = MSUi.el("div", "rp-hitrate");
+    var head = MSUi.el("div", "rp-sec-head");
+    head.appendChild(MSUi.el("span", "overline", MSStr.t.rpHitHead));
+    wrap.appendChild(head);
+    var row = MSUi.el("div", "rp-hit-row");
+    row.appendChild(MSUi.el("span", "rp-hit-dir", MSStr.t.rpHitNeutralDir));
+    row.appendChild(MSUi.el("span", "rp-hit-val rp-hit-undef", MSStr.t.rpHitUndefined));
+    wrap.appendChild(row);
+    wrap.appendChild(MSUi.el("p", "rp-hit-neutral", MSStr.t.rpHitNeutral));
+    return wrap;
+  }
+
+  // 적중률 단독 블록(hitrate)이 읽는 실측 출처 — tier-compare.js:bt() 와 같은 패턴이다.
+  // 브라우저는 index.html 스크립트 순서(vendor/backtest-summary.js 가 이 파일보다 먼저)가
+  // window.MSBacktest 를 이미 채워 뒀고, Node vm 테스트도 같은 전역을 bare 식별자로 읽을 수
+  // 있다(vm 컨텍스트 자신이 realm 전역 객체다). 여기서 새로 만드는 이유는 MSTierCompare 의
+  // bt() 가 클로저 안에 갇혀 밖에서 못 부르기 때문이다 — export 목록에 없다.
+  function backtestSummary() {
+    if (typeof window !== "undefined" && window.MSBacktest) return window.MSBacktest;
+    if (typeof MSBacktest !== "undefined") return MSBacktest;
+    return null;
+  }
+
   function paramOf(graph, blockType, defaults) {
     var n = null, i;
     for (i = 0; i < graph.nodes.length; i++) { if (graph.nodes[i].blockType === blockType) { n = graph.nodes[i]; break; } }
@@ -214,8 +287,15 @@
 
     // graph·vol 을 함께 돌려준다 — AGAINST THIS CALL 이 판정과 **같은 그래프·같은 입력**을 봐야
     // 한다. 여기서 다시 만들면 파라미터가 갈려 화면 두 곳이 다른 말을 하게 된다.
+    //
+    // 「한 문장으로」가 읽는 두 값(P1b Task 3) — ma·rsi·bb 는 바로 위에서 이미 만든 지역
+    // 변수라 an 자신을 넘기는 순환 없이 조각만 건넨다. 여기서 채우지 않으면 sentence() 의
+    // 두 절은 영원히 an.overheat/an.resistance 가 undefined 인 채 안 붙는다 — Task 3 이전
+    // 상태가 정확히 그랬다(템플릿은 있고 입력이 없었다).
     return { out: out, graph: graph, vol: okVol ? vol : null,
-             ma: ma, rsi: rsi, bb: bb, macd: macd, va: va, maP: maP, rsiP: rsiP, bbP: bbP, mcP: mcP };
+             ma: ma, rsi: rsi, bb: bb, macd: macd, va: va, maP: maP, rsiP: rsiP, bbP: bbP, mcP: mcP,
+             overheat: MSReportModel.overheat({ bb: bb, rsi: rsi }),
+             resistance: MSReportModel.resistance({ ma: ma }) };
   }
 
   // ── 차트 합성 + 크로스헤어. wrap 은 이미 라이브 DOM 에 붙어 있어야 한다(clientWidth 측정 위해) ──
@@ -547,51 +627,14 @@
       basicSnap[sym] = { asOf: asOf, lo: pr.lo[0], hi: pr.hi[0], width: pr.hi[0] - pr.lo[0] };
     }
 
-    // 지난 판정 되돌아보기(시안 21a). 이 종목에서 값을 치른 적이 있고 그것이 **오늘보다
-    // 앞선 기준일**이면, 그때 뭐라고 했는지와 그래서 어떻게 됐는지를 오늘 값 위에 놓는다.
+    // "지난 판정 되돌아보기"(시안 21a) 카드는 여기 없다 — P1b Task 6 이 buildLast()/
+    // `.rp-last-more` 를 지웠다(PROGRESS.md:110·142 가 P1b 판단으로 위임한 항목). 판정:
+    // report-blocks.js 의 어느 티어 선언(BASIC/FULL/CUSTOM)에도 이 id 가 없어 BUILD 표에
+    // 걸려 있어도 draw() 의 forTier() 루프가 절대 부르지 않는 **프로덕션 죽은 코드**였고,
+    // 설계서(§3.2·§3.5)에도 이 블록이 없다 — "설계서에 없으면 지우는 쪽" 규율대로 지운다.
+    // 기능 자체(지난 예측·판정 결과)는 record/result 화면이 이미 전담한다(gate-routes.mjs
+    // record·result 라우트) — 이 화면에 다시 둘 이유가 없다.
     //
-    // 21a 원문은 "그때 그대로이며 다시 계산하지 않았습니다"라고 지난 화면을 통째로 보존하지만,
-    // 우리는 다시 열 때 오늘 데이터로 새로 그린다(서버 entitlement 덕에 재과금은 없다).
-    // 그래서 보존하는 대신 **두 시점을 명시적으로 갈라 보여준다** — 지난 값을 흐리게 두고
-    // 기준일을 함께 적는다. 안 그러면 어제 값과 오늘 값이 같은 화면에서 구분 없이 읽힌다.
-    function buildLast() {
-      if (typeof MSPredLog === "undefined" || !MSStore.getPreds) return null;
-      var today = asOfOf(data);
-      var best = null;
-      MSStore.getPreds().forEach(function (r) {
-        if (!r || r.sym !== sym) return;
-        if (today && r.asOf >= today) return;          // 오늘 것은 "지난" 판정이 아니다
-        if (!best || r.asOf > best.asOf) best = r;
-      });
-      if (!best) return null;
-
-      var w = MSUi.el("div", "rp-last");
-      w.appendChild(MSUi.el("div", "overline", MSStr.t.rpLastHead + best.asOf));
-      var row = MSUi.el("div", "rp-last-row");
-      row.appendChild(MSUi.el("span", "rp-last-v",
-        MSUi.fmtPrice(best.mid) + MSStr.t.rpLastPm + MSUi.fmtPrice((best.hi - best.lo) / 2)));
-      // 판정됐으면 결과를, 아직이면 아직이라고. 없는 결과를 있다고 하지 않는다.
-      if (best.judgedOn) {
-        row.appendChild(MSUi.el("span", "rp-last-r" + (best.hit ? " is-hit" : " is-miss"),
-          MSStr.t.rpLastActual + MSUi.fmtPrice(best.actual) +
-          (best.hit ? MSStr.t.rpLastHit : (MSStr.t.rpLastSep + MSUi.fmtPrice(best.miss) + MSStr.t.rpLastMiss))));
-      } else {
-        row.appendChild(MSUi.el("span", "rp-last-r", MSStr.t.rpLastPending));
-      }
-      w.appendChild(row);
-      if (best.judgedOn) {
-        var more = MSUi.el("button", "rp-last-more", MSStr.t.rpLastMore);
-        more.addEventListener("click", function () {
-          MSStore.markPredSeen(best.sym, best.asOf);
-          MSApp.go("result", { sym: best.sym, asOf: best.asOf });
-        });
-        w.appendChild(more);
-      }
-      // 재열람은 무료다(서버 entitlement). 안 적으면 다시 열기가 과금될까 봐 안 열어본다.
-      w.appendChild(MSUi.el("p", "rp-last-free", MSStr.t.rpLastFree));
-      return w;
-    }
-
     // 오늘 무엇을 말했는지 적어둔다(핸드오프 README §B "5번이 1번을 만든다"). 값을 치른
     // 분석에서만 적는다 — 기본분석은 무료로 아무 때나 열리므로, 그것까지 적으면 기록이
     // "사용자가 산 판정"이 아니라 "화면을 연 횟수"가 된다.
@@ -691,11 +734,22 @@
       for (i = 0; i < list.length; i++) { if (list[i].key === key) { found = list[i]; break; } }
       return found || list[0] || null;
     }
+    // [리뷰 C1] custom 배지의 지표 수는 an.graph 에서 유도한다 — customGraph() 가 사용자
+    // 프리셋에 따라 실제로 남기는 노드 수는 리터럴 30(가중치 레일 상한)과 다르다(실측:
+    // "추세 추종" 기본 프리셋 = 9). 19a 카운터·8b 판정 세 통·판독문 링크가 이미 같은
+    // MSGraph.indicatorTypes(an.graph).length 를 쓰므로 여기도 같은 값을 써야 네 자리가
+    // 일치한다. an.graph 가 없으면(방어적 갈래) desc 자체를 비운다 — 지어낸 수를 안 보여준다.
+    function tierBadgeDesc(t) {
+      if (t !== "custom") return (TIER_BADGE[t] || TIER_BADGE.basic).desc;
+      if (!an || !an.graph) return "";
+      var n = MSGraph.indicatorTypes(an.graph).length;
+      return MSStr.t.rpTierCountCustomA + n + MSStr.t.rpTierCountCustomB;
+    }
     function buildTierRow() {
       var row = MSUi.el("div", "rp-tier-row");
       var b = TIER_BADGE[tier] || TIER_BADGE.basic;
       row.appendChild(MSUi.el("span", "rp-tier" + b.cls, b.name));
-      row.appendChild(MSUi.el("span", "rp-tier-desc", b.desc));
+      row.appendChild(MSUi.el("span", "rp-tier-desc", tierBadgeDesc(tier)));
       var preset = currentStylePreset();
       if (preset) row.appendChild(MSUi.el("span", "rp-style-chip", preset.name + MSStr.t.rpStyleSuffix));
       var evi = MSUi.el("span", "rp-evi");
@@ -722,6 +776,116 @@
         b.addEventListener("click", retry);
         wrap.appendChild(b);
       }
+      return wrap;
+    }
+
+    // 19b 「한 문장으로」— report-blocks.js FULL/CUSTOM 선언의 첫 블록(설계서 §3.5: 숫자를
+    // 먼저 내면 대부분은 해석을 못 하고 닫는다). verdict 카드가 basic 전용이라(바로 아래
+    // 주석) 심화·전문에선 이 블록이 그 첫머리 자리를 대신한다 — 방향 단어 하나 대신
+    // 방향+과열+저항을 한 문장으로 읽게 하는 것이 P1b 의 결정이다. 계산(과열·저항 판정·
+    // 문장 조합)은 report-model.js 가 다 하고, 여기는 an 에서 그 세 값을 뽑아 카드에
+    // 얹기만 한다(buildComb() 이 MSLegend/MSReportModel 계산을 그대로 받아쓰는 것과 같은
+    // 분업).
+    function buildSentence() {
+      var wrap = MSUi.el("div", "rp-sent");
+      var text = MSReportModel.sentence({
+        dir: an.out.verdict.regime, overheat: an.overheat, resistance: an.resistance
+      });
+      wrap.appendChild(MSUi.el("div", "rp-sent-text", text));
+      return wrap;
+    }
+
+    // 「내일 예상 + 확신」(P1b Task 4, 19b) — buildHorizons() 가 이미 계산하는 세 지평 중
+    // rows[0](내일, bars=1)만 독립 카드로 세운다. 새 계산이 아니라 배선이다 — 중심값·범위·
+    // 확신 모두 MSReportModel.horizonRows() 가 판정(an.out.verdict.regime)에서 바로 뽑는
+    // 그 값 그대로다. lo[0]/hi[0] 는 idx=bars-1=0 로 horizonRows() 내부와 같은 인덱스라
+    // rows[0].price(=path[0])와 같은 봉을 가리킨다 — recordPrediction() 의 mid/lo[0]/hi[0]
+    // 조합과 같은 규약이다(위 recordPrediction 참고).
+    //
+    // 확신을 적중률과 섞지 않는다 — prob 는 FC.calibrateUpProb(FC.upProb(...)) 로, 방향이
+    // 맞을 표본 적중률이 아니라 이 한 번의 판정에 모델이 부여한 캘리브레이션된 확신이다
+    // (report-model.js confidence()/horizonRows() 주석). 적중률에는 기준선(60.96%) 병기가
+    // 규율인데, 여기 병기하면 서로 다른 두 수가 같은 카드에서 "60% 맞힌다"로 읽힌다 — 그래서
+    // 기준선은 절대 안 붙이고, rpForecastConfNote 문구로 "적중률이 아니다"를 명시한다.
+    // 적중률 자체는 Task 5 의 독립 블록(hitrate) 몫이다.
+    function buildForecast() {
+      var rows = MSReportModel.horizonRows(ForgeCore, an.out.prediction, an.out.verdict.regime);
+      if (!rows.length) return null;
+      var r = rows[0], pr = an.out.prediction;
+      if (!pr.lo || !pr.hi || !pr.lo.length) return null;
+
+      var sec = MSUi.el("div", "rp-forecast");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpForecastHead));
+      sec.appendChild(head);
+
+      var row = MSUi.el("div", "rp-forecast-row");
+      var cls = r.dir === "up" ? " up" : r.dir === "down" ? " dn" : "";
+      row.appendChild(MSUi.el("span", "rp-forecast-px" + cls, MSUi.fmtPrice(r.price)));
+      row.appendChild(MSUi.el("span", "rp-forecast-pm",
+        MSStr.t.rpLastPm + MSUi.fmtPrice((pr.hi[0] - pr.lo[0]) / 2)));
+      sec.appendChild(row);
+
+      // 없는 방향엔 확신을 안 붙인다(horizonRows() 가 이미 null 로 걸러 준다, G1 과 같은 태도).
+      if (r.prob != null) {
+        var conf = MSUi.el("div", "rp-forecast-conf");
+        conf.appendChild(MSUi.el("span", "rp-forecast-conf-label", MSStr.t.rpForecastConfLabel));
+        conf.appendChild(MSUi.el("span", "rp-forecast-conf-val", r.prob + "%"));
+        sec.appendChild(conf);
+        sec.appendChild(MSUi.el("div", "rp-forecast-note", MSStr.t.rpForecastConfNote));
+      }
+      return sec;
+    }
+
+    // 적중률 단독 블록(19b, P1b Task 5) — MSReportModel.hitRate() 는 완성돼 있었는데 호출부가
+    // 0건이었다(조사 A3). 3단 대조(buildCompare, tiers.basic/deep)와 표본이 다르다 — hitRate()
+    // 는 top-level bullHitRate/bearHitRate(19지표 sampleGraph, 방향별)를 읽는다. 그래서 같은
+    // 문구를 재사용하지 않고 스스로 범위를 밝힌다(rpHitScope*, 설계서 §3.5 필수 지시) — 안
+    // 밝히면 사용자가 3단 대조에서 본 58.5%와 여기 61.7%를 같은 측정으로 착각한다.
+    //
+    // [리뷰 Critical, 2026-08-19] "이 종목 얘기가 아니다"만으로는 부족했다 — 이 화면은 32개
+    // (또는 30개, 전문) 도구로 분석했다고 상단 배지가 이미 말하는데, 이 적중률은 그와 다른
+    // 도구 수(hit.indicators, MSBacktest.graphIndicators)로 잰 값이다. 그 개수를 안 밝히면
+    // "32개로 분석했고 61.7% 맞다"로 읽힌다 — 그래서 indicators 도 n·series 와 같은 "필수"
+    // 취급이다(아래 가드).
+    //
+    // R2 관문(truth-rules.test.mjs)이 정확한 배선을 강제한다: 베이스라인이 없으면 그 즉시
+    // hit 을 통째로 null 로 접어 적중 행을 감춘다 — 적중률만 단독 노출하면 "동전보다 낫다"로
+    // 읽힌다(report-model.js:98-102 주석과 같은 태도, hitRate() 를 뒤집지 않는다).
+    function buildHitrate() {
+      var regime = an.out.verdict.regime;
+      // 중립엔 방향별 적중률이 없다(hitRate() 의 null 규약은 그대로다 — 이 함수는 화면이
+      // 그 null 을 감추는 대신 이유를 적도록만 갈라 낸다, 위 neutralHitCard() 주석 참고).
+      if (regime !== "bull" && regime !== "bear") {
+        return neutralHitCard();
+      }
+      var hit = MSReportModel.hitRate(backtestSummary(), regime);
+      if (hit && hit.baseline == null) hit = null;
+      if (!hit) return null;
+      // 표본 20건 미만이면 퍼센트를 쓰지 않는다(설계 규율) — 지금 n=31971·series=87 은
+      // 안전하지만(조사 A3), 그 사실에 기대지 않고 매번 검사한다. 생성물이 바뀌어도 조용히
+      // 안 깨지게 하는 것이 이 줄의 목적이다.
+      if ((hit.n != null && hit.n < MIN_HIT_SAMPLE) || (hit.series != null && hit.series < MIN_HIT_SAMPLE)) return null;
+      // 범위 주석은 필수다(설계서 §3.5) — n·series·indicators 중 하나라도 없으면 "무엇에
+      // 대해, 몇 개 도구로 잰 수치인지"를 못 밝히므로, 숫자 없이 뭉뚱그리는 대신 블록 자체를
+      // 접는다. 범위 없는 적중률 문장은 "이 종목 얘기"로, 도구 수 없는 문장은 "이 리포트
+      // 얘기"로 오독된다(둘 다 리뷰가 잡은 실제 오독 경로).
+      if (hit.n == null || hit.series == null || hit.indicators == null) return null;
+
+      var wrap = MSUi.el("div", "rp-hitrate");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpHitHead));
+      wrap.appendChild(head);
+
+      var row = MSUi.el("div", "rp-hit-row");
+      row.appendChild(MSUi.el("span", "rp-hit-dir", dirWord(regime) + MSStr.t.rpHitDirSuffix));
+      row.appendChild(MSUi.el("span", "rp-hit-val", MSStr.t.rpHitRight + hit.right.toFixed(1) + "%"));
+      row.appendChild(MSUi.el("span", "rp-hit-base", MSStr.t.rpHitBaseA + hit.baseline.toFixed(1) + "%"));
+      wrap.appendChild(row);
+
+      wrap.appendChild(MSUi.el("div", "rp-hit-scope",
+        MSStr.t.rpHitScopeShort + hit.series + MSStr.t.rpHitScopeMid + hit.n.toLocaleString() +
+        MSStr.t.rpHitScopeIndA + hit.indicators + MSStr.t.rpHitScopeIndB));
       return wrap;
     }
 
@@ -840,29 +1004,10 @@
           MSUi.fmtPrice(pr.lo[capI]) + " – " + MSUi.fmtPrice(pr.hi[capI]) + MSStr.t.rpCone));
       }
       sec.appendChild(head);
-      // 8a 직전 상태 대조 — 심화가 판 것을 화면에서 보이게 하는 유일한 장치다. 티어 실측이
-      // 말하는 것은 "방향을 더 맞힌다"가 아니라 "폭이 정직해진다"인데, 대조 없이 심화 값만
-      // 단독으로 놓으면 사용자는 그 정직해짐을 볼 방법이 없다.
-      // [리뷰 C1/I1, 2026-08-18 정정] 예전 주석은 여기서 "폭이 4.0 에서 ±1.1 로 좁아진다"고
-      // 적었는데, 그 전제가 실측으로 깨졌다 — 최종 리뷰어의 독립 실측(28창)은 **심화가 더
-      // 좁은 사례 0.0%, 폭 비율(심화÷기본) 중앙값 1.78배, 최대 7.09배**였다. 즉 지금 이
-      // 블록이 유료 티어에서 켜지면 사용자는 돈을 낸 직후 직전 무료 범위보다 **넓어진**
-      // 범위를 나란히 보게 된다("좁아진다"는 반대 사실이다) — 설계서 §3.5 정정과 같은
-      // 근거. P1b 가 이 대조를 다시 다듬을 때 확인할 것: 직전 기본 폭과 심화 폭의 대소를
-      // 실데이터로 먼저 재고, 넓어지는 쪽이 정상이면 **화면이 그 사실을 먼저 말해야 한다**
-      // (아래 rp-hz-row 의 반대 의견을 경고문처럼 위에 올리는 것과 같은 태도 — 불리한
-      // 것부터 말한다).
-      // 없으면 그냥 없다(G1) — 회색 자리에 "—" 나 추정치를 채우지 않는다.
-      var prev = prevBasic();
-      if (prev) {
-        var cmp = MSUi.el("div", "rp-hz-prev");
-        cmp.appendChild(MSUi.el("span", "rp-hz-prev-k", MSStr.t.rpPrevBasic));
-        cmp.appendChild(MSUi.el("span", "rp-hz-prev-v",
-          MSUi.fmtPrice(prev.lo) + MSStr.t.rpRangeDash + MSUi.fmtPrice(prev.hi)));
-        cmp.appendChild(MSUi.el("span", "rp-hz-prev-w",
-          MSStr.t.rpWidthA + prev.width.toFixed(1)));
-        sec.appendChild(cmp);
-      }
+      // 8a 직전 상태 대조는 더 이상 여기서 안 그린다 — report-blocks.js 가 "compare" 를
+      // horizons 와 다른 독립 id 로 선언해서(FULL/CUSTOM 둘 다) 이 카드 안에 얹으면 같은
+      // 내용을 두 자리(horizons 의 여기 + BUILD.compare)에서 두 번 그리게 된다. 실제 렌더는
+      // BUILD.compare → buildPrevCompare() 가 한다(그 함수 주석에 실측·판정 근거가 있다).
       // 기본분석은 **내일만** 답한다(시안 18a). 1주·1개월은 심화가 파는 것 중 하나다 —
       // 세 줄을 다 보여주면 3단 비교표의 "기간별"이 무료가 된다.
       if (tier === "basic") rows = rows.slice(0, 1);
@@ -894,6 +1039,75 @@
             MSStr.t.rpHzMixedB));
         }
       }
+      return sec;
+    }
+
+    // "compare" id(report-blocks.js FULL/CUSTOM) — 8a 직전 상태 대조. **독립 카드로 뽑는다**
+    // (P1b Task 6 판정, 근거는 task-6-report.md). buildHorizons() 안에 얹지 않는 이유: 두
+    // 함수가 forTier() 선언에서 서로 다른 id(horizons·compare)라 BUILD 표에서 각자 한 번씩
+    // 불린다 — horizons 안에도 넣으면 draw()의 forEach 루프가 이 내용을 두 자리(horizons
+    // 카드 + compare 카드)에서 두 번 그리게 된다. 이름은 buildCompare() 와 다르게 잡았다
+    // (아래 3단 대조 buildCompare() 와의 혼동 방지 — 그건 basic 전용 크롬, 이건 유료
+    // 티어의 forTier() 선언 블록이라 서로 다른 질문에 답한다).
+    //
+    // [리뷰 C1, 2026-08-19 정정] 브리프가 준 28창 표본("심화가 더 좁은 사례 0.0%")은 표본이
+    // 너무 작았다 — 리뷰어가 저장소 실표본(map/backtest/earn-ohlc.json 30종목,
+    // tools/measure-sentence-signals.mjs 의 buildWindows N=240·STEP=45, basicGraph vs
+    // full32Graph, 동일 입력·index 0, 프로덕션과 정확히 같은 조건)으로 2813창을 재측정한
+    // 결과는 **넓어진 사례 57.4%(1616창) · 좁아진 사례 42.6%(1197창)**, 폭 비율 중앙값
+    // 1.027배(min 0.521 · max 1.994)였다 — "항상 넓어진다"는 성립하지 않는다. 그래서 이
+    // 카드는 **매번 두 폭을 실제로 재서** 방향을 고른다(comparePrevDir) — 재지 않고 문장을
+    // 고정하면 열 명 중 넷에게 거짓말을 하는 것이다. "거의 같다"(WIDTH_EQ_EPS=5%)를 셋째
+    // 갈래로 두는 이유는 중앙값이 1.0 부근에 몰려 있어(1.027) 근소한 차이를 "넓어졌다/
+    // 좁아졌다"로 단정하면 그 자체가 과장이기 때문이다.
+    var WIDTH_EQ_EPS = 0.05;   // 폭 비율이 1 ± 5% 안이면 "거의 같다"
+
+    // 두 폭(둘 다 전폭 hi-lo, 같은 단위)의 대소를 판정한다. prevWidth 가 0 이하면(있을 수
+    // 없는 값이지만 방어) 비교가 성립하지 않으므로 null — 호출부가 카드를 통째로 생략한다.
+    function comparePrevDir(curWidth, prevWidth) {
+      if (!(prevWidth > 0)) return null;
+      var ratio = curWidth / prevWidth;
+      if (Math.abs(ratio - 1) <= WIDTH_EQ_EPS) return "same";
+      return ratio > 1 ? "wider" : "narrower";
+    }
+
+    function buildPrevCompare() {
+      var prev = prevBasic();
+      if (!prev) return null;   // G1 — 재료가 없으면 카드 자체가 없다(추정치로 채우지 않는다)
+      var pr = an && an.out && an.out.prediction;
+      if (!pr || !pr.lo || !pr.hi || !pr.lo.length) return null;
+      // 전폭(hi-lo) — prev.width 와 정확히 같은 계산이라야 비교가 성립한다(단위 통일, 리뷰 C2).
+      var curWidth = pr.hi[0] - pr.lo[0];
+      var dir = comparePrevDir(curWidth, prev.width);
+      if (!dir) return null;
+
+      var sec = MSUi.el("div", "rp-compare");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpCompareHead));
+      sec.appendChild(head);
+      var leadText = dir === "wider" ? MSStr.t.rpCompareWider
+        : dir === "narrower" ? MSStr.t.rpCompareNarrower : MSStr.t.rpCompareSame;
+      sec.appendChild(MSUi.el("div", "rp-compare-lead", leadText));
+
+      var prevRow = MSUi.el("div", "rp-hz-prev");
+      prevRow.appendChild(MSUi.el("span", "rp-hz-prev-k", MSStr.t.rpPrevBasic));
+      prevRow.appendChild(MSUi.el("span", "rp-hz-prev-v",
+        MSUi.fmtPrice(prev.lo) + MSStr.t.rpRangeDash + MSUi.fmtPrice(prev.hi)));
+      prevRow.appendChild(MSUi.el("span", "rp-hz-prev-w", MSStr.t.rpWidthA + prev.width.toFixed(1)));
+      sec.appendChild(prevRow);
+
+      // [리뷰 C2] 「내일 예상」(rp-forecast-pm)의 "± X" 는 반폭(오차범위 관용구)이라 이
+      // 카드의 "폭 X"(전폭)와 단위가 다르다 — 화면을 위아래로 읽으면 숫자만 보고 "좁아졌다"
+      // 로 착각한다(그 카드는 이 카드와 다른 개념이라 안 건드린다). 그래서 이 카드 **안에서**
+      // 직전 값과 지금 값을 반드시 같은 단위(전폭)로 나란히 놓는다 — dir 문구가 참인지
+      // 사용자가 이 두 줄만 보고도 검산할 수 있다.
+      var nowRow = MSUi.el("div", "rp-hz-prev rp-compare-now");
+      nowRow.appendChild(MSUi.el("span", "rp-hz-prev-k", MSStr.t.rpCompareNow));
+      nowRow.appendChild(MSUi.el("span", "rp-hz-prev-v",
+        MSUi.fmtPrice(pr.lo[0]) + MSStr.t.rpRangeDash + MSUi.fmtPrice(pr.hi[0])));
+      nowRow.appendChild(MSUi.el("span", "rp-hz-prev-w", MSStr.t.rpWidthA + curWidth.toFixed(1)));
+      sec.appendChild(nowRow);
+
       return sec;
     }
 
@@ -1028,7 +1242,13 @@
     function buildAgainst(indRows) {
       if (!isPaid(tier) || !an || !an.graph || !indRows) return null;
       var regime = an.out.verdict.regime;
-      if (regime !== "bull" && regime !== "bear") return null;   // 중립엔 반대가 정의되지 않는다
+      // 중립엔 반대가 정의되지 않는다 — 그 게이트 자체는 옳다(방향 없이 "반대"는 의미가
+      // 없다). 하지만 그 사실을 안 말하고 블록을 통째로 지우면 안 된다(Task 6b 브리프) —
+      // 위 !isPaid(tier)||!an||... 가드(우리 쪽 결손)와 달리, 이건 이 종목이 지금 그런
+      // 상태라는 사실이라 카드는 남기고 이유를 적는다.
+      if (regime !== "bull" && regime !== "bear") {
+        return neutralCard("rp-against", "rp-against-neutral", MSStr.t.rpAgainst, MSStr.t.rpAgainstNeutral);
+      }
       // 스스로 "못 읽었다"고 말한 행은 반대할 자격이 없다 — 거래량 없는 종목에서 MFI 가
       // "No volume data for this ticker" 라고 적어 놓고 반대 목록에 이름을 올리면, 이 브랜치가
       // 없애려던 거짓말이 자리만 옮긴 것이다. **목록과 분모 둘 다** 같은 술어로 걷어낸다
@@ -1149,10 +1369,59 @@
             : null;
 
           function revealThenDraw() {
-            var conf = an.out.verdict.confluence;
+            // Task 7 리뷰(라운드 1, Critical) — MSLegend.rows()는 티어와 무관하게 항상
+            // comb의 5행(ma·macd·rsi·bb·vol)만 낸다(chart-legend.js:36-84). 그 5행을 8b의
+            // 분모로 쓰면 세 통의 합은 언제나 5인데 총 칸 수(ForgeCore.indicatorCount)로는
+            // 32가 별도로 넘어가 애초에 일치할 수 없었다 — 실측: {agree:3,dissent:2,noDir:0}
+            // (합 5) vs 헤드라인 "27개가 열렸습니다"(32-5). buildVerdict()가 같은
+            // MSLegend.tally(MSLegend.rows(...)) 호출을 쓰는 건 맞지만, 그건 "도구 5개 중
+            // 4개가 상승"이라는 **의도적으로 5-스코프인** 문장을 위해서다(그 함수 866행
+            // 주석). 같은 코드 패턴, 다른 스코프였다 — 8b의 분모는 comb이 아니라 빗칸 32개
+            // 전부다.
+            //
+            // 32지표의 진짜 동의·반대·무판정은 REASONING·AGAINST 블록이 이미 쓰는 값과
+            // 같은 출처다(draw() 의 indRows/noDir, report.js:1632-1633 부근) — narratedRows
+            // (19a 가 방금 읽은 것) + MSIndicators.noDirRows()(trend·phasefold, 방향을 물을
+            // 수 없는 둘 — 항상 2행). "지표 계산은 한 지점"(readings.test.mjs 가 REPORT
+            // 전체에서 MSIndicators.readings/biases 호출이 정확히 1회여야 한다고 못박아
+            // 둔다, 그 한 곳은 draw()) — 그래서 여기서는 narratedRows 를 그대로 쓰기만
+            // 하고 스스로 readings() 를 다시 부르지 않는다. narratedRows 는 onDone 에서
+            // 항상 먼저 채워진 뒤에야 이 함수가 불리므로(아래 if(stepper...) 분기) 실사용
+            // 경로에서는 늘 있다 — stepper 가 비어 있던 방어적 갈래(!an.graph)에서만 비고,
+            // 그때는 세 통을 0으로 둔다(buildComb 등 다른 32칸 블록도 같은 가드를 쓴다).
+            // tallyOf() 는 bias 가 숫자가 아닌 행(=noDir32)을 세지 않으므로(19a 의 진행
+            // 집계와 같은 함수) noDir32.length 를 flat 에 더해 준다 — 화면은 "근접 0"과
+            // "애초에 방향이 없음"을 같은 '무판정' 통 하나로 보여준다(comb 의 combRole()
+            // 과 같은 태도).
+            // Task 7 리뷰(라운드 1) — 여기서 처음 24시간 안에 두 번째로 드러난 문제:
+            // 전문(custom)은 MSGraph.customGraph() 가 그래프를 **사용자가 고른 부분집합**
+            // (핵심 5종 + 프리셋이 weights 로 명시한 것)으로 줄인다 — full32Graph 의 32종이
+            // 아니다. total 을 그대로 ForgeCore.indicatorCount(32) 로 못박으면, 심화(full)
+            // 에서는 우연히 맞아도(그래프가 실제로 32종이라서) 전문(custom)에서는 다시
+            // 5≠32 류 불일치가 재발한다(실측: trend 프리셋에서 buckets 합 10 vs total 32).
+            // MSGraph.indicatorTypes(an.graph) 는 그 그래프에 **실제로 있는** 지표 종수를
+            // 센다 — full 이면 정확히 32(strings.test.mjs 가 이미 이 동치를 검증해 둔
+            // 사실), custom 이면 사용자가 고른 만큼. 두 티어에 같은 계산 하나로 답한다.
+            var graphTypes = (an && an.graph) ? MSGraph.indicatorTypes(an.graph) : [];
+            var revealTotal = graphTypes.length || ForgeCore.indicatorCount;   // graph 가 없으면 방어적으로 카탈로그 값
+            var vm;
+            if (an && an.graph && narratedRows) {
+              var revealIndCtx = MSIndicators.ctxFrom(indInput);
+              // noDirRows()는 트렌드·phasefold를 무조건 2행 돌려준다(draw()의 REASONING/
+              // AGAINST 는 티어 무관하게 "이 둘은 방향을 못 묻는다"는 사실만 말하면 되므로
+              // 그래프 소속을 안 따진다) — 하지만 여기서는 **이 그래프에 실제로 있는 것만**
+              // 세야 한다. 전문 프리셋이 trend/phasefold 를 안 골랐으면 그 행은 세지 않는다
+              // (안 그러면 세지 않은 지표를 "무판정으로 열렸다"고 거짓말하는 것과 같다).
+              var noDir32 = MSIndicators.noDirRows(ForgeCore, indInput, revealIndCtx)
+                .filter(function (r) { return graphTypes.indexOf(r.type) >= 0; });
+              var tally = MSAnalyzeView.tallyOf(narratedRows, MSIndicators.EPS);
+              vm = MSReportModel.verdict({ dir: an.out.verdict.regime, up: tally.up, down: tally.down, flat: tally.flat + noDir32.length });
+            } else {
+              vm = { agree: 0, dissent: 0, noDir: 0 };
+            }
             MSReveal.play({
-              total: ForgeCore.indicatorCount, basic: MSGraph.BASIC.length,
-              agree: conf ? conf.agree : null,
+              total: revealTotal, basic: MSGraph.BASIC.length,
+              agree: vm.agree, dissent: vm.dissent, noDir: vm.noDir,
               onDone: function () { if (isCurrent()) draw(); }
             });
           }
@@ -1206,7 +1475,31 @@
                 if (k === "open-wallet") MSApp.go("wallet");
                 else if (k === "retry") runTier(runType, weights);
               } });
-          } else alert(MSStr.t.tsSpendFailed);
+          } else if (spendFailCardFor(r.reason)) {
+            // [리뷰 I2, 2026-08-19] merged·unauthorized 는 definitely-not-charged(MAYBE_CHARGED
+            // 밖)이지만 tsSpendFailed("연결할 수 없습니다")로 뭉치면 안 된다 — 서버가 정상
+            // 응답했고 알아서 재시도해도 같은 사유로 다시 실패한다(merged 는 이 기기의 지갑이
+            // 다른 계정으로 넘어갔고, unauthorized 는 인증이 끊어졌다 — 둘 다 open-wallet 이
+            // 실제 다음 행동이다). screens/wallet.js:348 이 checkin() 의 merged 를 이미
+            // wMerged 로 처리하는 것과 같은 사유를 여기(구매 경로)에도 맞춘다. 막다른 alert
+            // 대신 MSBlocked 카드로 보낸다(blocked.js 규칙 ① — 항상 다른 행동을 준다).
+            // 매핑 자체는 spendFailCardFor() 로 뽑아 DOM·프라미스 없이 직접 시험한다.
+            MSBlocked.open({ kind: "failedUnknown", data: spendFailCardFor(r.reason),
+              onAction: function (k) {
+                if (k === "open-wallet") MSApp.go("wallet");
+                else if (k === "retry") runTier(runType, weights);
+              } });
+          } else {
+            // 나머지(rate-limited·no-backend·bad-ref·storage)는 이번 라운드에 남겨 둔다 —
+            // [리뷰 I2 판정] merged·unauthorized 와 달리 "지갑에 연결할 수 없습니다·다시
+            // 시도해 주세요"가 완전히 틀린 진술은 아니다: no-backend·bad-ref·storage 는
+            // 클라이언트가 서버(또는 로컬 참조)에 정상적으로 닿지 못한 상태라 "연결" 프레임이
+            // 대체로 맞고, rate-limited 는 즉시 재시도가 다시 막힐 순 있어도 "다시 시도"
+            // 자체가 유효한 행동이다(영원히 실패하는 merged 와 다르다). 넷 다 alert 라는
+            // UX 자체는 여전히 아쉽지만, "사실과 다른 문구"라는 이번 리뷰의 핵심 결함은
+            // merged·unauthorized 에만 있었다 — 카드로 승격은 다음 라운드로 미룬다.
+            alert(MSStr.t.tsSpendFailed);
+          }
         } else {
           MSTierSheet.close();
           MSBlocked.open({ kind: "failedUnknown", data: {},
@@ -1459,7 +1752,15 @@
           // hasVolume 은 그 하나에서만 나온다 — 여기서 다시 재면 화면과 문장이 갈린다.
           var indCtx = MSIndicators.ctxFrom(indInput);
           indRows = narratedRows || MSIndicators.readings(ForgeCore, an.graph, indInput, indCtx);
-          noDir = MSIndicators.noDirRows(ForgeCore, indInput, indCtx);
+          // [리뷰 C1, 2026-08-19] noDirRows() 는 trend·phasefold 를 그래프 소속과 무관하게
+          // 무조건 2행 돌려준다 — revealThenDraw()(위 1385줄)는 이미 graphTypes 로 걸러
+          // "이 그래프에 실제로 있는 것만" 센다고 스스로 적어 뒀는데, 여기(판독문 링크·
+          // readings-list 로 넘어가는 실제 소스)엔 그 필터가 없었다. 전문(custom)이 trend·
+          // phasefold 를 안 고르면 판독문 링크·목록이 분석에 한 번도 참여하지 않은 지표의
+          // "무판정" 한 줄을 사용자에게 보여주는 결함이었다.
+          var graphTypes = MSGraph.indicatorTypes(an.graph);
+          noDir = MSIndicators.noDirRows(ForgeCore, indInput, indCtx)
+            .filter(function (r) { return graphTypes.indexOf(r.type) >= 0; });
         }
         // 블록의 **순서와 구성은 report-blocks.js 의 선언**이 정한다(P2 §4). 여기 표는
         // 이름 → 만드는 함수일 뿐이다. 세 티어를 세 벌의 draw() 로 쓰면 공통 블록을 고칠 때
@@ -1467,12 +1768,14 @@
         // null 을 돌려주는 블록은 그 자리에서 사라진다(예전 `if (hz)` 들과 같은 동작).
         var BUILD = {
           price:     function () { return buildPrice(); },
-          last:      function () { return buildLast(); },
           verdict:   function () { return buildVerdict(); },
+          sentence:  function () { return buildSentence(); },
+          forecast:  function () { return buildForecast(); },
           comb:      function () { return buildComb(); },
           chart:     function () { return buildChartSection(); },
           legend:    function () { return buildChartLegend(); },
           horizons:  function () { return buildHorizons(); },
+          hitrate:   function () { return buildHitrate(); },
           against:   function () { return buildAgainst(indRows); },
           // dissent 는 against 의 개명이다 — 시안 19b "이건 알고 계세요(반대)"와 against 의
           // 제목("반대 의견")·isPaid 게이팅·내용이 정확히 같다(리뷰 지시로 확인). 같은 함수를
@@ -1485,17 +1788,29 @@
           // 18a 의 의도된 빈 공간 — "여기까지가 무료"를 스크롤 부재로 전달한다. 버그가 아니다.
           spacer:    function () { return MSUi.el("div", "rp-spacer"); },
           unlock:    function () { return buildCta(); },
-          weights:   function () { return buildWeights(); }
+          weights:   function () { return buildWeights(); },
+          // P1b Task 6 이 채웠다 — 이 자리가 비어 있어(BUILD 에도 PENDING 에도 없어) "compare"
+          // 가 report-blocks.js 의 FULL/CUSTOM 선언에 있는데도 조용히 안 그려지고 있었다
+          // (앞 태스크 리뷰가 report.js:1031-1032 로 지목한 결함 — 이 파일이 자라며 줄번호는
+          // 옮겨갔지만 문제는 그대로였다). buildPrevCompare() 는 위 buildHorizons() 근처에
+          // 있다(3단 대조 buildCompare() 와 이름·역할이 다르다, 그 함수 헤더 주석 참고).
+          compare:   function () { return buildPrevCompare(); }
         };
         // report-blocks.js 가 orderOf(문자열 배열)에서 forTier({id,kind} 배열)로 개명됐다
         // (P1a Task 2) — 화면 조립은 그대로, id 만 꺼내 쓴다. PENDING(모듈 스코프, 위)에 있는
         // id 는 조용히 건너뛴다(if (!fn) return) — 화면 구조 자체는 Task 3(기본)·P1b(심화)·
         // P1c(전문) 소관이라 이번엔 안 넓혔다.
+        //
+        // data-block 속성(P1b Task 6) — "선언한 것을 다 그렸는가"를 클래스명이 아니라 이
+        // 속성으로 구조적으로 물을 수 있게 한다(브리프 Step 4). forTier() 가 낸 id 를 그대로
+        // 붙인다 — 블록마다 다시 정하지 않으므로 선언과 어긋날 수가 없다.
         MSReportBlocks.forTier(tier).forEach(function (b) {
           var fn = BUILD[b.id];
           if (!fn) return;
           var node = fn();
-          if (node) scr.appendChild(node);
+          if (!node) return;
+          node.setAttribute("data-block", b.id);
+          scr.appendChild(node);
         });
         // "내일은 어디쯤 · 3단 대조"(설계서 §3.2 항목4) — 이것도 CTA 와 같은 크롬이다.
         // report-blocks.js 에는 애초에 이 둘의 id 가 없다(정보 블록 3개에 안 낀다) — 그래서

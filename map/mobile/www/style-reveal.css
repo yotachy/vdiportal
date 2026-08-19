@@ -15,7 +15,20 @@
 .rv-tooth.rv-core { background:var(--steel); height:26px; }
 .rv-tooth.on { background:var(--gold); height:38px; }
 .rv-tooth.rv-core.on { background:var(--steel); }
-.rv-count { margin-top:18px; font-size:var(--fs-body); color:var(--ink-3); font-variant-numeric:tabular-nums; }
+/* 스코프 캡션(P1b Task 10 폴리시 P1) — rv-head(새로 열린 수)와 세 통의 합(전체 모집단)이
+   다른 스코프임을 이름으로 밝힌다. rv-buckets 의 기존 margin-top(16px)을 이 캡션이 대신
+   지고, 캡션 자신은 그 위(rv-comb)와만 여백을 둔다. */
+.rv-buckets-scope { margin-top:16px; font-size:var(--fs-caption); color:var(--ink-5); text-align:center; }
+/* 세 통(동의·반대·무판정, 설계서 §3.6) — 빗 바로 아래, 합이 rv-count 의 카운터와 같아야
+   한다(revealState() 가 검산해 둔 값을 그대로 쓴다). 색은 방향 신호일 뿐 좌측 라인이 아니다. */
+.rv-buckets { display:flex; justify-content:center; gap:20px; margin-top:6px; }
+.rv-bucket { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.rv-bucket-num { font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:var(--ls-section);
+                 font-variant-numeric:tabular-nums; color:var(--ink-2); }
+.rv-bucket-label { font-size:var(--fs-caption); color:var(--ink-4); }
+.rv-bucket.is-agree .rv-bucket-num { color:var(--gold); }
+.rv-bucket.is-dissent .rv-bucket-num { color:var(--bear-text); }
+.rv-count { margin-top:14px; font-size:var(--fs-body); color:var(--ink-3); font-variant-numeric:tabular-nums; }
 .rv-track { height:4px; margin-top:14px; border-radius:99px; background:var(--track); overflow:hidden; }
 .rv-fill { height:100%; background:var(--gold); }
 .rv-skip { margin-top:18px; font-size:var(--fs-sub); color:var(--ink-5); }
@@ -64,6 +77,17 @@
 .an-tooth.an-core { background:var(--steel); height:26px; }
 .an-tooth.on { background:var(--gold); height:38px; }
 .an-tooth.an-core.on { background:var(--steel); }
+/* 지금 읽는 위치(an-now) — 흰 막대 하나뿐이다(toothClass 가 매 프레임 한 칸에만 매긴다).
+   toothClass() 는 on 과 an-now 를 같은 칸에 절대 같이 안 붙인다(읽었으면 on, 지금이면
+   an-now, 상호배타) — 그래서 이 규칙이 실전에서 경쟁하는 상대는 .an-core.on(3클래스)이
+   아니라 .an-core(2클래스, 기본 티어 구간에서 an-now 와 함께 붙는 그 클래스)다. 두 규칙
+   특이성이 **같아서(0,2,0)** 승부는 소스 순서로만 갈린다 — 그래서 .an-now 를 반드시
+   .an-core 뒤에 둔다(Task 7 리뷰 실측: 순서를 바꾸면 흰 막대가 사라지고 스틸로 되돌아간다 —
+   아래 CSS 순서 관문이 이 사실을 소스 문자열 위치로 고정한다). */
+.an-tooth.an-now { background:var(--ink); height:38px; }
+/* 지난 칸일수록 흐려진다 — 막 읽은 칸(dist 0)은 그대로 골드, 한 칸 전은 an-fade1,
+   그 이전 전부는 an-fade2 로 수렴한다(.an-fade1/.an-fade2 는 아래 최근 판독 목록과
+   공유하는 범용 불투명도 유틸리티). */
 .an-track { height:4px; margin-top:14px; border-radius:99px; background:var(--track); overflow:hidden; }
 .an-fill { height:100%; background:var(--gold); transition:width .12s linear; }
 /* 최근 판독 3건 — 위가 가장 새것이고 아래로 갈수록 흐려진다(시안 19a 의 흐려지는 리스트).

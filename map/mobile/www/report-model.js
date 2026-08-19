@@ -95,13 +95,20 @@
     // 아니다. 그래서 화면은 "이 판정 같은 콜"이라고 말하면 안 되고 범위를 밝혀야 한다.
     var n = (typeof summary.nForecasts === "number" && isFinite(summary.nForecasts)) ? summary.nForecasts : null;
     var series = (typeof summary.nSeries === "number" && isFinite(summary.nSeries)) ? summary.nSeries : null;
+    // 지표 수(graphIndicators)도 생성물에서 그대로 돌려준다 — 리터럴로 "19"를 적지 않는다.
+    // 위 주석이 이미 "Basic(5)도 Full(32)도 아니다"라고 적어 뒀는데, 그 사실 자체(몇 개인가)를
+    // 화면에 안 실으면 "범위를 밝혀야 한다"는 요구를 절반만 지키는 셈이다(리뷰 Critical,
+    // 2026-08-19) — 종목·기간 범위는 밝히면서 정작 "몇 개 도구로 쟀는지"는 숨기는 모양이 된다.
+    var gi = summary.graphIndicators;
+    var indicators = (typeof gi === "number" && isFinite(gi)) ? gi : null;
     // 베이스라인("항상 오른다")을 같은 요약에서 함께 돌려준다 — 적중률을 단독으로 놓으면
     // 사용자는 그것을 "동전보다 낫다"로 읽는다. 이 자산·이 기간의 기준선은 50% 가 아니라
     // 61.0% 이고 방향 판정은 그 아래다(P2 설계서 §2 R2). null 이면 화면이 베이스라인 없이
     // 적중률만 그리는 게 아니라 **적중 행 자체를 감춘다**(호출부) — 비교 없는 숫자는 안 낸다.
     var b = summary.baselineAlwaysUp;
     var baseline = (typeof b === "number" && isFinite(b)) ? Math.round(b * 1000) / 10 : null;
-    return { right: right, wrong: Math.round((100 - right) * 10) / 10, n: n, series: series, baseline: baseline };
+    return { right: right, wrong: Math.round((100 - right) * 10) / 10, n: n, series: series,
+             indicators: indicators, baseline: baseline };
   }
 
   // 주기 행 — runs 는 [{tf, out, error}] 배열이고 순서가 곧 표시 순서다.
@@ -157,6 +164,30 @@
     return { dir: dir, agree: agree, dissent: dissent, noDir: noDir, total: agree + dissent + noDir };
   }
 
+  // sentence() 의 두 절 판정. 문턱은 P1b Task 2 가 backtest/earn-ohlc.json 2813창 실측으로
+  // 정했다(과열 23.5%·저항 20.7%, mobile/tools/measure-sentence-signals.mjs 가 이 저장소의
+  // 판단 기록). **정의는 여기 하나뿐이다** — 그 tools 파일은 이제 이 두 함수를 그대로
+  // require 해서 되잰다(반대 방향 금지: 프로덕션이 tools 를 참조하면 안 된다). 조건식을
+  // 바꾸면 test/sentence-signals.test.mjs 의 극단 비율·breakoutGuard 시험이 먼저 빨개진다.
+  //
+  // 인자는 an 전체가 아니라 조각(sig={bb,rsi} · sig={ma})이다 — analyzeFull()(screens/
+  // report.js) 이 an 자체를 조립하는 도중에 이 두 함수를 부르기 때문에 아직 없는 an 을
+  // 넘길 수 없다(순환 참조). bb·rsi·ma 는 analyzeFull() 이 그 직전 줄에서 이미 만들어 둔
+  // 지역 변수라 이 조각만 넘기면 순환 없이 값이 흐른다.
+  function overheat(sig) {
+    var bb = sig && sig.bb, rsi = sig && sig.rsi;
+    // 볼린저 breakout_up(%B>1, 종가가 상단밴드 위로 마감=밴드워킹)은 추세 지속 신호다 —
+    // 상승 base 문장 위에 "다만 다소 과열된 구간입니다"를 붙이면 스스로 모순된다(Task 2
+    // 리뷰 Important A). 그래서 upper(밴드 안에서 상단에 붙은 상태)만 과열로 본다.
+    return !!((bb && bb.state === "upper") || (rsi && rsi.zone === "overbought"));
+  }
+  function resistance(sig) {
+    var ma = sig && sig.ma;
+    // ma.sr 은 엔진(forge-core.js analyzeMA)이 이미 1.5%(기본 srPct) 안에서만 채우고,
+    // 차트가 지지/저항 마커를 그릴 때 읽는 것과 같은 필드다 — 새 문턱을 여기서 발명하지 않는다.
+    return !!(ma && ma.sr && ma.sr.side === "resistance");
+  }
+
   // 19b 「한 문장으로」— 생성 문구가 아니라 방향·과열·저항 세 값을 규칙으로 잇는 템플릿이다.
   // 숫자를 먼저 내면 대부분은 해석을 못 하고 닫기 때문에 이 문장이 심화 리포트 선언 순서의
   // 맨 위에 온다(P1a Task 2). 문구 자체는 strings.js 에서 오고 여기는 조합만 한다 — 문장을
@@ -170,5 +201,5 @@
     return parts.join(" ");
   }
 
-  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate, tfRows: tfRows, agreeCount: agreeCount, tfKo: tfKo, verdict: verdict, sentence: sentence };
+  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate, tfRows: tfRows, agreeCount: agreeCount, tfKo: tfKo, verdict: verdict, overheat: overheat, resistance: resistance, sentence: sentence };
 });

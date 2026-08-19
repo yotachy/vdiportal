@@ -62,9 +62,12 @@ test("터치 대상 44px 하한 — 실 <button> 생성부에서 뽑은 전역 �
   // 남겨뒀었다. 컨트롤러 판정: "test.todo() 로 남기면 그건 스위트에 상주하는 예외다" —
   // 44px 로 올리고 이 목록에 합류시켜 실제 어서션으로 닫는다. 예외 목록이 아니라 회귀
   // 잠금 목록에 편입된 것이다.
+  // `rp-last-more` 는 P1b Task 6 이 buildLast() 와 함께 지웠다(어느 티어 선언에도 안 물린
+  // 죽은 코드) — CSS 도 같이 지워졌으므로 이 목록에서도 뺀다(안 그러면 heightOf() 가
+  // "못 찾았다"로 이 시험 자체를 깨뜨린다).
   const compliant = ["btn", "rp-back", "rp-cta", "ob-retry", "ob-guess-btn",
     "sr-back", "rc-back", "rs-back", "ob32-expand", "ms-tab",
-    "wl-res-more", "rp-last-more"];
+    "wl-res-more"];
   compliant.forEach((c) => {
     const h = heightOf(c);
     assert.ok(h !== null, "." + c + " 에서 명시적 min-height/height px 를 못 찾았다(시험이 낡았을 수 있다)");

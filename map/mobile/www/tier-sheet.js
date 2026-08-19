@@ -49,6 +49,17 @@
     var left = MSUi.el("div", "sheet-tier-id");
     var nameRow = MSUi.el("div", "sheet-tier-name");
     nameRow.appendChild(MSUi.el("span", "sheet-tier-name-txt", name));
+    // 배지 노출 조건(P1b Task 6 재검토, PROGRESS.md:76 이 후보로 남겨둔 것) — `!o.locked`
+    // 게이팅은 그대로 둔다: PENDING 이 비어 있던 예전엔 "잠긴 티어에 배지를 다는 모순"을
+    // 막는 안전장치였고, PENDING 이 빈 지금은 full 이 항상 buyable 이라 상시 참으로 자연히
+    // 정착한다.
+    // [리뷰 I1, 2026-08-19 정정] 문구 자체는 처음엔 "가장 많이 씀"이었다 — 이건 코드 로직이
+    // 아니라 **문구**의 문제였다: 정적 UX 관용구가 아니라 한국어로 명시적 사용 빈도를
+    // 주장했고, 이 커밋이 사람들이 스쿱을 처음 쓰기 시작하는 지점이라 뒷받침 표본이 0이었다
+    // (표본 20건 미만 퍼센트 금지와 같은 뿌리 — "판단하고 근거를 적으라"는 브리프 지시를
+    // 코드 게이팅만 보고 문구 내용은 다시 안 읽은 것이 1라운드의 결함이었다). `strings.js`
+    // `tsPopular`를 "추천"(편집적 안내, 통계 주장 아님)으로 고쳐 이 문제를 없앴다 — 배지
+    // 자체는 남긴다(심화를 기본 선택으로 앞세우는 것과 같은 편집적 판단).
     if (o.popular && !o.locked) nameRow.appendChild(MSUi.el("span", "sheet-pop", MSStr.t.tsPopular));
     left.appendChild(nameRow);
     left.appendChild(MSUi.el("div", "sheet-tier-desc", desc));
@@ -115,7 +126,10 @@
       // 전문분석(Pro) — 잠기지 않은 한 값이 붙고, 고르면 실행 버튼이 이 등급으로 바뀐다.
       // 실제 흐름은 호출부(report.js)가 전문분석 편집기(10a)를 여는 것이다: 이 시트는
       // "얼마나 정밀하게"만 묻고, "어떤 지표를 얼마나"는 그 화면이 묻는다.
-      tiers.appendChild(tierRow("custom", MSStr.t.tsCustom, MSStr.t.tsCustomDesc,
+      // [리뷰 C1] "도구 32"는 도달 불가능했다 — 전문이 만질 수 있는 지표는 30종
+      // (MSIndTiers.tunable(), gann·pattern 제외)이 상한이다. 리터럴 대신 유도값을 쓴다.
+      var customDesc = MSStr.t.tsCustomDescA + MSIndTiers.tunable().length + MSStr.t.tsCustomDescB;
+      tiers.appendChild(tierRow("custom", MSStr.t.tsCustom, customDesc,
         { on: picked === "custom", locked: !!locked.custom, cost: MSWallet.COSTS.custom,
           onPick: function () { if (busy) return; picked = "custom"; paint(); } }));
       list.appendChild(tiers);

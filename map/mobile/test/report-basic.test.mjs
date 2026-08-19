@@ -322,33 +322,39 @@ test("지표 빗이 32칸이고 스틸 5 / 연한 골드 27 로 갈리며, 잠�
   assert.strictEqual(byClass(chart, "rp-comb").length, 0, "comb 블록이 차트 블록 안에 중첩돼 있다");
 });
 
-// [리뷰 C1, 2026-08-18] 이 픽스처(ROOT=AAPL, 기본분석)는 지금 report-blocks.js 의 PENDING
-// (sentence·forecast·hitrate·compare) 때문에 심화·전문이 둘 다 tierBuyable()=false 다.
-// buildCta() 는 그 상태에서 광고·스쿱 버튼을 아예 안 그린다 — 있으면 살 수 없는 것을 파는
-// 거짓 문구였다(직전까지의 결함). 그래서 "버튼이 있고 광고가 먼저다"는 더 이상 오늘의
-// 정답이 아니다 — 정답은 "버튼이 없고, 대신 정직한 문구가 있다"이다.
-test("해제 블록은 살 수 없는 것을 어느 화폐로도 팔지 않는다 — 광고·스쿱 버튼 대신 정직한 문구", () => {
+// [리뷰 C1, 2026-08-18 → 2026-08-19 P1b Task 6 이 되살림] 이 픽스처(ROOT=AAPL, 기본분석)는
+// report-blocks.js 의 PENDING(sentence·forecast·hitrate·compare) 이 안 비어 있던 동안엔
+// 심화·전문이 둘 다 tierBuyable()=false 였다 — 그때는 "버튼이 없고 정직한 문구가 있다"가
+// 정답이었다(살 수 없는 것을 팔지 않는다). PENDING 이 이제 비어(Task 6) buyable 이 true 로
+// 바뀌었으므로, 그 반대쪽 — buildCta() 가 다시 광고·스쿱 버튼을 그리고 DOM 순서가 광고
+// 먼저인가 — 를 되살린다. 아래 두 시험은 C1 커밋(8b67045) 직전 버전의 그대로다(git 이력에서
+// 그 커밋의 부모를 보면 확인 가능) — 잠긴 상태의 "정직한 문구" 검증은 report-full.test.mjs
+// 의 잠금-복원 라우트/시험이 이어받았다(Task 5 리뷰가 이미 그 상태로 확인했다).
+test("해제 블록에서 광고 버튼이 스쿱 버튼보다 DOM 순서상 먼저다", () => {
   const unlock = firstByClass(ROOT, "rp-unlock");
   assert.ok(unlock, "해제 블록이 없다");
-  assert.strictEqual(byClass(unlock, "rp-cta-ad").length, 0, "buyable=false 인데 광고 버튼이 남아 있다");
-  assert.strictEqual(byClass(unlock, "rp-cta-scoop").length, 0, "buyable=false 인데 스쿱 버튼이 남아 있다");
-  assert.ok(unlock.textContent.indexOf(CTX.MSStr.t.rpUnlockSoon) >= 0,
-    "정직한 문구(rpUnlockSoon)가 없다: " + JSON.stringify(unlock.textContent));
-  // 지표 빗 밖 자물쇠 한 줄도 같은 판단을 받는다 — "광고 1편으로 전부 열림" 약속을 안 단다.
-  const note = firstByClass(ROOT, "rp-comb-note");
-  assert.ok(note, "빗 잠금 안내 한 줄이 없다");
-  assert.strictEqual(note.textContent.indexOf(CTX.MSStr.t.rpCombNoteAd), -1,
-    "buyable=false 인데 빗 안내가 광고로 전부 연다고 약속한다: " + JSON.stringify(note.textContent));
+  const kids = unlock.children;
+  const adIdx = kids.findIndex(c => hasClass(c, "rp-cta-ad"));
+  const scoopIdx = kids.findIndex(c => hasClass(c, "rp-cta-scoop"));
+  assert.ok(adIdx >= 0, "광고 버튼을 못 찾았다");
+  assert.ok(scoopIdx >= 0, "스쿱 버튼을 못 찾았다");
+  assert.ok(adIdx < scoopIdx, "광고 버튼이 스쿱 버튼보다 뒤에 있다(순서: 광고 " + adIdx + ", 스쿱 " + scoopIdx + ")");
 });
 
-// P1b 가 PENDING 을 비워 buyable 이 true 로 바뀌면 위 시험은 실패로 돌아선다 — 그때 되살릴
-// 옛 시험(광고가 스쿱보다 DOM 순서상 먼저, 버튼이 실제로 존재한다)은 이 파일의 git 이력에
-// 남아 있다(리뷰 C1 커밋 직전).
-
-test("해제 CTA 블록 자체는 buyable 여부와 무관하게 항상 존재한다 — 직전 라운드에 이 진입점이 통째로 사라진 사고가 있었다", () => {
+test("해제 CTA 가 실제로 존재한다 — 직전 라운드에 이 진입점이 통째로 사라진 사고가 있었다", () => {
   const unlock = firstByClass(ROOT, "rp-unlock");
   assert.ok(unlock, "해제 블록 자체가 없다");
-  assert.ok((unlock.textContent || "").length > 0, "해제 블록이 있는데 안이 비었다 — 조용한 실종과 같다");
+  const buttons = byClass(unlock, "rp-cta");
+  assert.ok(buttons.length >= 2, "해제 블록 안 버튼이 2개 미만이다(광고+스쿱) — " + buttons.length);
+});
+
+// 지표 빗 밖 자물쇠 한 줄도 buyable 로 바뀐 것과 같은 방향으로 뒤집힌다 — 이제 "광고 1편으로
+// 전부 열림" 약속을 실제로 달아야 한다(buildComb() 의 tierBuyable 게이팅, report.js 참고).
+test("지표 빗 밖 안내가 buyable 상태에서 '광고 1편으로 전부 열림' 약속을 단다", () => {
+  const note = firstByClass(ROOT, "rp-comb-note");
+  assert.ok(note, "빗 잠금 안내 한 줄이 없다");
+  assert.ok(note.textContent.indexOf(CTX.MSStr.t.rpCombNoteAd) >= 0,
+    "buyable=true 인데 빗 안내가 광고 약속을 안 단다: " + JSON.stringify(note.textContent));
 });
 
 test("읽은 도구가 접힌 한 줄이다 — 32개 목록을 펼치지 않는다", () => {

@@ -34,6 +34,34 @@
 .rp-evi-seg { width:14px; height:4px; border-radius:2px; background:var(--track); }
 .rp-evi-seg.on { background:var(--steel); }
 
+/* 19b 「한 문장으로」— FULL/CUSTOM 선언 첫 블록(report-blocks.js). basic 전용 verdict 카드와
+   같은 여백·구분선(테두리 리듬을 맞춰 이 블록이 그 자리를 대신하는 관계를 보이게 한다).
+   제목(--fs-title)은 verdict 의 헤드라인(--fs-headline)보다 한 단계 작다 — headline(30~44px
+   clamp)은 "상승" 같은 두세 글자 헤드라인에 맞춘 크기라, 절이 둘 붙는 문장 전체를 그 크기로
+   올리면 좁은 화면에서 줄바꿈이 늘어 읽기가 나빠질 것으로 판단했다(화면 픽셀 실측은 아니고
+   너비 계산에 근거한 판단 — 실제 기기에서 줄바꿈이 걸리면 --fs-body 로 낮출 것). */
+.rp-sent { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
+.rp-sent-text { font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); line-height:1.35; }
+
+/* 「내일 예상 + 확신」(P1b Task 4, 19b) — 값이 큰 것부터 온다는 FULL 순서(sentence 다음)라
+   가격을 verdict 헤드라인과 같은 급(--fs-headline)으로 낸다. 확신(rp-forecast-conf-val)은
+   골드로 눈에 띄되 가격보다 한 단계 작게 — 이 카드의 답은 가격이지 퍼센트가 아니다(그
+   구분 자체가 적중률과 안 섞이게 하는 장치다, 위 buildForecast() 주석). 좌측 accent 라인은
+   전역 금지 규칙에 따라 색·텍스트로만 강조한다. */
+.rp-forecast { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
+.rp-forecast .rp-sec-head { margin-bottom:8px; }
+.rp-forecast-row { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.rp-forecast-px { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline);
+                   font-variant-numeric:tabular-nums; color:var(--ink); }
+.rp-forecast-px.up { color:var(--bull); }
+.rp-forecast-px.dn { color:var(--bear-text); }
+.rp-forecast-pm { font-size:var(--fs-sub); color:var(--ink-4); font-variant-numeric:tabular-nums; }
+.rp-forecast-conf { display:flex; align-items:baseline; gap:8px; margin-top:12px; }
+.rp-forecast-conf-label { font-size:var(--fs-caption); color:var(--ink-5); }
+.rp-forecast-conf-val { font-size:var(--fs-body); font-weight:var(--fw-semibold); color:var(--gold);
+                         font-variant-numeric:tabular-nums; }
+.rp-forecast-note { margin-top:6px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
+
 .rp-verdict-wrap { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
 .rp-verdict-word { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline); }
 .rp-verdict.bull { color:var(--bull); }
@@ -101,6 +129,10 @@
 .rp-against-text { flex:1; color:var(--ink-4); line-height:1.55; }
 .rp-against-bias { flex:0 0 auto; color:var(--bear-text); font-weight:var(--fw-semibold); font-variant-numeric:tabular-nums; }
 .rp-against-none { margin:0 0 8px; font-size:var(--fs-sub); color:var(--ink-4); }
+/* 중립(무방향) 판정 카드(P1b Task 6b) — rp-against-none(동의율 100%, 방향은 있음)과 다른
+   문장이라 클래스도 갈랐다. 색은 결핍 박스(rp-missing-note)와 같은 무게(ink-4)를 쓴다 —
+   테두리·오버라인은 카드 정체성(rp-against)을 그대로 유지해 "이 블록이 사라졌다"로 안 읽힌다. */
+.rp-against-neutral { margin:0 0 8px; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.55; }
 
 /* Basic 결핍 박스(시안 6a) — 테두리 안에 "안 되는 것" 4행. 27개 칩 벽의 자리를 대신한다. */
 .rp-missing-box { border:1px solid var(--border); border-radius:11px; padding:14px 14px 6px; margin-bottom:22px; }
@@ -115,14 +147,43 @@
 .rp-sec-note { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; white-space:nowrap; }
 /* 기본분석의 범위 고지(시안 18a). 각주가 아니라 이 티어가 무엇을 답하고 무엇을 안 답하는지의
    선언이라, 캡션이 아니라 보조 크기로 그린다. */
-/* 직전 기본분석 대조 행(8a) — 지금 값 위에 회색으로. 좌측 세로 라인 금지 규칙에 따라
-   구분은 색과 위치로만 한다. */
+/* "compare" 블록(8a 직전 상태 대조, P1b Task 6) — 독립 카드다(horizons 안에 더 이상 안 낀다,
+   report.js buildPrevCompare() 참고). rp-compare-lead 가 "넓어졌다"는 사실을 숫자보다 먼저
+   말한다(실측 근거는 buildPrevCompare() 주석) — 반대 의견(rp-against)과 같은 "불리한 것부터"
+   태도라 같은 색 무게(ink-3)를 쓴다. 좌측 세로 라인 금지 규칙에 따라 구분은 색과 위치로만. */
+.rp-compare { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
+.rp-compare-lead { font-size:var(--fs-sub); color:var(--ink-3); line-height:1.5; }
+/* "이번 분석" 행(리뷰 C2) — .rp-hz-prev 기본색(--ink-5)은 "지나간 값"을 위한 흐림이다.
+   지금 값까지 같은 흐림으로 두면 두 값이 똑같이 "과거"로 읽혀 대비가 흐려진다 — 더 밝혀서
+   "지금"임을 색으로도 구분한다. */
+.rp-compare-now { color:var(--ink-3); }
 .rp-hz-prev { display:flex; align-items:baseline; gap:8px; padding:8px 0 10px; color:var(--ink-5);
               font-size:var(--fs-sub); font-variant-numeric:tabular-nums; }
 .rp-hz-prev-k { flex:0 0 auto; }
 .rp-hz-prev-v { flex:1 1 auto; }
 .rp-hz-prev-w { flex:0 0 auto; }
 .rp-hz-note { margin-top:10px; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.5; }
+
+/* 적중률 단독 블록(19b, P1b Task 5) — 3단 대조(.rp-tc, 아래)와 시각적으로 닮되 카드가
+   아니라 한 줄이다: 이 블록은 basic 3단 대조와 달리 티어 세 개를 나란히 놓지 않고, 지금 이
+   판정의 방향(상승/하락) 하나만 말한다. 범위 주석(.rp-hit-scope)은 §3.5 규율상 필수라
+   숨김 처리를 두지 않는다 — 블록이 뜨면 항상 함께 뜬다(report.js buildHitrate()). */
+.rp-hitrate { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
+.rp-hitrate .rp-sec-head { margin-bottom:10px; }
+.rp-hit-row { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; }
+.rp-hit-dir { font-size:var(--fs-body); color:var(--ink-3); }
+.rp-hit-val { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline);
+              color:var(--gold); font-variant-numeric:tabular-nums; }
+.rp-hit-base { font-size:var(--fs-sub); color:var(--ink-4); font-variant-numeric:tabular-nums; }
+.rp-hit-scope { margin-top:8px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
+/* 중립(무방향) 판정 카드(P1b Task 6b → 폴리시 P2 로 무게 보강, Task 10) — rp-hit-row 는
+   이제 그대로 남고(값 자리에 "정의되지 않음" 문장이 앉는다, .rp-hit-undef), 이 문단은
+   그 아래 이유를 잇는다. 같은 결핍 무게(ink-4)는 유지하되 위에 헤드라인급 행이 생겨
+   "짧은 안내문"이 아니라 "행 + 설명"의 2단 구조가 됐다. */
+.rp-hit-neutral { margin-top:8px; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.55; }
+/* rp-hit-val 과 같은 자리(--fs-headline)에 앉는 문장 답 — 숫자가 아니므로 gold 대신
+   ink 로 "값이 없다"는 사실을 색으로도 구분한다(위 report.js neutralHitCard() 참고). */
+.rp-hit-val.rp-hit-undef { color:var(--ink-3); }
 
 /* 3단 대조(시안 7a, 설계서 §3.3) — 이 개편의 판매 논거. 카드마다 왼쪽=답의 폭·오른쪽=적중률로
    고정한다. 좌측 세로 라인 금지 규칙에 따라 티어 구분은 이름 텍스트 색(--steel/--gold/
@@ -262,12 +323,6 @@ body:not(.ms-dual) .rp-scr { display:flex; flex-direction:column; min-height:cal
 .rs-actions { display:flex; flex-direction:column; gap:8px; margin:20px 0 12px; }
 .rs-disc { font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
 
-/* 지난 판정 되돌아보기(시안 21a) — 오늘 값과 착각하지 않도록 흐리게 두고 기준일을 함께 적는다.
-   좌측 세로 컬러 라인 금지 규칙에 따라 구분은 배경·투명도로만 한다. */
-.rp-last { margin:10px 0 16px; padding:12px 14px; border-radius:12px; background:var(--surface); opacity:.82; }
-.rp-last-row { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-top:6px; }
-.rp-last-v { font-size:var(--fs-body); font-variant-numeric:tabular-nums; color:var(--ink-2); }
-.rp-last-r { font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
-.rp-last-r.is-hit { color:var(--bull); }
-.rp-last-more { margin-top:8px; min-height:44px; padding:0; background:none; border:0; color:var(--action); font:inherit; font-size:var(--fs-caption); }
-.rp-last-free { margin-top:4px; font-size:var(--fs-caption); color:var(--ink-5); }
+/* "지난 판정 되돌아보기"(시안 21a) .rp-last* 는 P1b Task 6 이 지웠다 — buildLast() 가
+   report-blocks.js 의 어느 티어에도 안 물려 프로덕션 죽은 코드였다(판정 근거는
+   screens/report.js 의 삭제 지점 주석). record·result 화면이 같은 기능을 이미 전담한다. */

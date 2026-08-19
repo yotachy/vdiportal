@@ -632,18 +632,14 @@ export const ROUTES = [
         "var unlock=document.querySelector('.rp-unlock');" +
         "if(!unlock) return false;" +                                     // 해제 블록 자체는 항상 있다(직전 사고 재발 방지)
         "var ad=unlock.querySelector('.rp-cta-ad'), scoop=unlock.querySelector('.rp-cta-scoop');" +
-        // [리뷰 C1, 2026-08-18] 오늘은 report-blocks.js 의 PENDING(sentence·forecast·hitrate·
-        // compare) 때문에 tierBuyable('full')·tierBuyable('custom') 이 둘 다 false 다 —
-        // buildCta() 가 그 상태에서 광고·스쿱 버튼을 아예 안 그린다(살 수 없는 것을 파는
-        // 거짓 문구를 없앤 것이 이번 수정이다). 그래서 오늘의 정답은 "둘 다 없다"이고,
-        // 이 단언은 실제로 오늘 실행돼 통과한다 — 이전엔 여기서 존재+순서를 무조건
-        // 요구해 거짓 문구를 관문이 고정하고 있었다.
-        "if(ad||scoop) return false;" +
-        // P1b 가 PENDING 을 비워 buyable 이 true 로 바뀌면 위 줄이 실패로 돌아선다 — 그때
-        // 아래 순서 단언(광고가 스쿱보다 먼저, 옛 코드)을 이 자리에 되살릴 것:
-        //   if (!ad || !scoop) return false;
-        //   var kids = Array.prototype.slice.call(unlock.children);
-        //   if (kids.indexOf(ad) > kids.indexOf(scoop)) return false;   // 광고가 스쿱보다 먼저(DOM 순서)
+        // [리뷰 C1, 2026-08-18 → 2026-08-19 P1b Task 6 이 되살림] PENDING 이 이제 비어
+        // tierBuyable('full')·tierBuyable('custom') 이 둘 다 true 다 — buildCta() 가 다시
+        // 광고·스쿱 버튼을 그린다. 예고했던 옛 순서 단언(광고가 스쿱보다 DOM 순서상 먼저)을
+        // 되살린다 — report-basic.test.mjs 의 같은 이름의 노드 시험과 같은 사실을 브라우저로
+        // 한 번 더 잰다.
+        "if(!ad||!scoop) return false;" +
+        "var kids=Array.prototype.slice.call(unlock.children);" +
+        "if(kids.indexOf(ad)>kids.indexOf(scoop)) return false;" +   // 광고가 스쿱보다 먼저(DOM 순서)
         "var rt=document.querySelector('.rp-readtools');" +
         "if(!rt||rt.children.length!==0) return false;" +                  // 읽은 도구 = 접힌 한 줄
         // P1a Task 4 D1(리뷰 2026-08-19) — 3단 대조가 이제 모집단 지표라 종목·드리프트와
@@ -715,41 +711,301 @@ export const ROUTES = [
   // 2026-08-18 리뷰(Critical): 기본만 여는 관문이 "심화·전문이 8/9개 중 3~4개만 그린다"는
   // 사고를 놓쳤다 — report-blocks.test.mjs(정적 분석)가 그 구조적 원인은 잡지만, 실제 브라우저
   // DOM 이 맞는 상태를 보여주는지는 노드 테스트가 못 본다(이 관문이 존재하는 이유 자체가 그
-  // 사각지대다). 지금은 report-blocks.js 의 PENDING(sentence·forecast·hitrate·compare)이
-  // full·custom 을 둘 다 못 팔게 잠가서(tier-sheet.js locked) 분석 화면 자체를 열 수 없다.
+  // 사각지대다).
   //
-  // 최종 리뷰 수정(C1, 2026-08-18) — 이 라우트는 원래 `.rp-cta-scoop` 를 **클릭해** 잠긴
-  // 시트를 열고 그 안의 자물쇠·문구를 쟀다. 그런데 buildCta() 가 buyable 여부와 무관하게
-  // 항상 광고·스쿱 버튼을 그리고 있었던 것 자체가 이번에 잡힌 결함이다(살 수 없는 것을
-  // 판다) — 그 버튼을 클릭해 여는 시트를 검증하는 라우트가 결함을 정상 동작인 양 고정하고
-  // 있었던 셈이다. buildCta() 는 이제 tierBuyable('full')·tierBuyable('custom') 이 둘 다
-  // false 면 광고·스쿱 버튼을 아예 안 그리므로(report.js buildCta·strings.js rpUnlockSoon),
-  // `.rp-cta-scoop` 자체가 더는 존재하지 않는다 — 클릭할 게 없다. 그래서 이 라우트가 재는
-  // 것은 "잠긴 시트가 정직한가"가 아니라 "잠긴 CTA 가 정직한가"(광고=주의력·스쿱 어느
-  // 화폐로도 살 수 없는 것을 안 판다)로 바뀐다. 시트 내부(picked===null, 다음 행동 버튼)는
-  // tier-sheet.test.mjs 가 노드에서 잰다 — 이 상태는 지금 이 CTA 게이팅과 항상 같이 움직여
-  // (buildCta 와 buildComb 모두 같은 tierBuyable 을 본다) 실제 UI 로는 열리지 않는다.
-  // PENDING 이 비면(P1b 완료) CTA 가 다시 버튼을 그리므로, 이 라우트도 그때 click+시트
-  // 검증 형태로 되돌려야 한다 — report-blocks.test.mjs 의 "PENDING 이 비어있지 않은 티어가
-  // 실제로 있다" 단언이 그 시점을 알려준다. 옛 시트 검증 단언(참고용, 되돌릴 때 쓸 것):
-  //   var full=document.querySelector('.sheet-tier.tier-full');
-  //   var custom=document.querySelector('.sheet-tier.tier-custom');
-  //   if(!full||!custom) return false;
-  //   if(!full.classList.contains('is-locked')||!custom.classList.contains('is-locked')) return false;
-  //   if(!full.querySelector('.sheet-tier-locked svg')||!custom.querySelector('.sheet-tier-locked svg')) return false;
-  //   if(full.querySelector('.sheet-tier-price')||custom.querySelector('.sheet-tier-price')) return false;
-  //   var run=document.querySelector('.sheet-run');
-  //   if(!run||!run.disabled) return false;
-  { name: "report-locked-tiers", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 1400,
+  // [2026-08-19, P1b Task 6 이 되살림] report-blocks.js 의 PENDING(sentence·forecast·
+  // hitrate·compare) 이 이제 비어 tierBuyable('full')·tierBuyable('custom') 이 둘 다 true 다
+  // — buildCta() 가 다시 광고·스쿱 버튼을 그린다. 이름은 "-locked-tiers" 그대로 남겼다(이
+  // 라우트가 이어 온 계보를 git 이력·문서 교차참조에서 찾기 쉽게) — 지금 재는 것은 "잠긴
+  // 시트"가 아니라 그 **반대**(살 수 있게 된 시트가 정직하게 그 상태를 보여주는가)다.
+  // `.rp-cta-scoop` 를 클릭해 시트를 열고, 두 티어 다 `.is-locked` 가 아니고 자물쇠 아이콘이
+  // 없고 가격이 있고 Run 버튼이 활성인지를 잰다 — C1 커밋(2026-08-18)이 지우기 전 옛 단언과
+  // 같은 필드를 보되 극성만 뒤집었다(잠김→구매가능). 그 옛 단언은 report-basic.test.mjs 의
+  // 노드 시험이 이미 되살렸다(광고가 스쿱보다 DOM 순서상 먼저·버튼 존재) — 여기서는 그
+  // 클릭이 실제 시트를 여는지까지 브라우저로 한 번 더 잰다.
+  { name: "report-locked-tiers", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 2600,
+    scripts: [
+      { at: 300, code:
+        "var iv=setInterval(function(){" +
+          "var cta=document.querySelector('.rp-cta-scoop');" +
+          "if(cta){clearInterval(iv); cta.click();}" +
+        "}, 100);"
+      }
+    ],
     assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
       "(function(){" +
-        "var unlock=document.querySelector('.rp-unlock');" +
-        "if(!unlock) return false;" +
-        "if(unlock.querySelector('.rp-cta-ad')||unlock.querySelector('.rp-cta-scoop')) return false;" +  // 어느 화폐로도 안 판다
-        "if(unlock.textContent.indexOf(MSStr.t.rpUnlockSoon)<0) return false;" +   // 정직한 문구로 대체됐다
+        "var full=document.querySelector('.sheet-tier.tier-full');" +
+        "var custom=document.querySelector('.sheet-tier.tier-custom');" +
+        "if(!full||!custom) return false;" +                                              // 시트가 실제로 열렸다
+        "if(full.classList.contains('is-locked')||custom.classList.contains('is-locked')) return false;" +
+        "if(full.querySelector('.sheet-tier-locked')||custom.querySelector('.sheet-tier-locked')) return false;" +
+        "if(!full.querySelector('.sheet-tier-price')||!custom.querySelector('.sheet-tier-price')) return false;" +
+        "var run=document.querySelector('.sheet-run');" +
+        "if(!run||run.disabled) return false;" +                                          // 구매 가능 상태에선 Run 이 살아 있다
         "var note=document.querySelector('.rp-comb-note');" +
-        "if(!note) return false;" +
-        "if(note.textContent.indexOf(MSStr.t.rpCombNoteAd)>=0) return false;" +    // "광고 1편으로 전부 열림" 약속을 안 단다
+        "if(!note||note.textContent.indexOf(MSStr.t.rpCombNoteAd)<0) return false;" +      // "광고 1편으로 전부 열림" 약속이 이제 있다
+        "return true;" +
+      "})()" },
+  // P1b Task 1(PROGRESS.md:109 "위험도 상승")이 연 자리 — report.js 의 구매 흐름(spend →
+  // 19a 진행 중계 → 8b 해제 전환 3초 고정 → draw())을 태우는 라우트가 하나도 없었다.
+  // progress-analyze-raf-live 는 MSAnalyzeView.play() 를 **합성 stepper 로 직접** 부른다 —
+  // runTier() 가 실제로 넘기는, readingStepper(analyzeX 실호출)로 만든 stepper와는 다른
+  // 호출이다. progress-reveal.js 는 revealThenDraw() 가 **유일한 호출자**인데 그 경로는
+  // Task 1~5 동안 PENDING 이 잠가서 브라우저로는 어디서도 안 태워졌다.
+  //
+  // [2026-08-19, P1b Task 6] PENDING 이 비어 이 시퀀스를 이제 실제로 태운다 — 구매(spend)→
+  // 로드(3주기)→분석(19a)→해제(8b)→draw() 전체다. `.an-scrim`/`.rv-scrim` 을 폴링으로 찾아
+  // 클릭해 두 재생을 **탭하면 즉시 완료**(양쪽 공통 규칙, progress-analyze.js·progress-
+  // reveal.js 주석)로 드레인한다 — onboarding-analysis 라우트가 이미 쓰는 것과 같은 기법
+  // (위 참고): 헤드리스 크로미움에서 rAF 가 실 벽시계 속도로만 돈다는 게 실측돼 있어(그
+  // 라우트의 실증 코멘트), 고정 delay 하나로 재생이 끝나길 도박하면 이 라우트가 실행마다
+  // 다르게 걸린다 — 3회 반복 요구(브리프)가 그 flakiness 를 바로 드러낼 자리다. 드레인은
+  // 연출을 건너뛰는 게 아니라 **실사용자에게도 있는 탭 종료 버튼**을 그대로 쓰는 것이라
+  // 19a·8b 의 실제 코드 경로(finish()·close()·onDone 체인)를 그대로 지나간다.
+  //
+  // delay=8000 의 근거: go(400) + CTA 폴링·클릭(최대 수백ms) + 시트 렌더(잔량 조회 왕복,
+  // localhost 라 수십ms) + Run 클릭 + spend POST(mock, 즉시) + 3주기 OHLC 로드(mock, 즉시)
+  // + 19a/8b 드레인(폴링 100ms 간격, 보통 한두 tick) + draw()(차트 캔버스 작도, 동기)를 다
+  // 합쳐도 2~3초면 끝나는 게 보통이지만, 이 라우트가 **처음** 이 시퀀스를 태우는 자리라
+  // 실측 여유를 넉넉히 둔다(기존 report-purchase 자리에 미리 담아 둔 6000 보다 2000 더).
+  { name: "report-purchase", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 8000,
+    scripts: [
+      { at: 300, code:
+        "var ctaClicked=false, runClicked=false, drained=false;" +
+        "var iv=setInterval(function(){" +
+          "if(!ctaClicked){" +
+            "var cta=document.querySelector('.rp-cta-scoop');" +
+            "if(cta){ctaClicked=true; cta.click();}" +
+            "return;" +
+          "}" +
+          "if(!runClicked){" +
+            "var run=document.querySelector('.sheet-run');" +
+            "if(run&&!run.disabled){runClicked=true; run.click();}" +
+            "return;" +
+          "}" +
+          "if(!drained){" +
+            "var a=document.querySelector('.an-scrim');" +
+            "if(a)a.click();" +                          // 19a 드레인 — 남은 지표를 동기로 마저 읽는다
+            "var r=document.querySelector('.rv-scrim');" +
+            "if(r){" +
+            // Task 7 리뷰(라운드 1, Critical) — 세 통의 합이 헤드라인의 총 칸 수와
+            // 실제로 맞는지, 드레인(클릭)하기 **직전**(.rv-scrim 이 막 뜬 그 화면)에
+            // 찍어 둔다. 리뷰어가 브라우저에서 실제로 찍은 것과 같은 방법 — 나중에
+            // assert 가 이 값으로 agree+dissent+noDir === indicatorCount 를 검산한다.
+            "var nums=Array.prototype.map.call(document.querySelectorAll('.rv-bucket-num'),function(e){return Number(e.textContent);});" +
+            "window.__t7Buckets=nums;" +
+            "var __t7HeadEl=document.querySelector('.rv-head');" +
+            "var __t7Opened=__t7HeadEl?Number((/^(\\d+)/.exec(__t7HeadEl.textContent)||[])[1]):null;" +
+            "var __t7Basic=(typeof MSGraph!=='undefined')?MSGraph.BASIC.length:null;" +
+            "window.__t7Total=(__t7Opened!=null&&__t7Basic!=null)?(__t7Opened+__t7Basic):null;" +
+            "window.__t7Head=(document.querySelector('.rv-head')&&document.querySelector('.rv-head').textContent)||'';" +
+            "r.click(); drained=true; clearInterval(iv);" +
+          "}" +
+          "}" +
+        "}, 100);"
+      }
+    ],
+    assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
+      "(function(){" +
+        "var tierBadge=document.querySelector('.rp-tier.is-full');" +
+        "if(!tierBadge) return false;" +                                    // 구매가 실제로 반영돼 심화로 전환됐다
+        "var ids=['sentence','forecast','chart','dissent','horizons','hitrate','readings','compare'];" +
+        "for(var i=0;i<ids.length;i++){" +
+          "if(!document.querySelector('[data-block=\"'+ids[i]+'\"]')) return false;" +   // 8블록이 실제로 다 그려졌다
+        "}" +
+        "if(document.querySelector('.rp-cta-ad')||document.querySelector('.rp-cta-scoop')) return false;" +  // 이미 산 뒤엔 해제 CTA 가 없다
+        "if(document.querySelector('.an-scrim')||document.querySelector('.rv-scrim')) return false;" +       // 재생 오버레이가 안 남아 있다
+        // Task 7 리뷰(라운드 1, Critical) — 드레인 직전에 찍어 둔 세 통의 합이 그때
+        // 그 화면의 총 칸 수와 실제로 맞는지 검산한다(값을 지어내지 않는다 — 실제
+        // 구매 체인이 만든 window.__t7Buckets 를 그대로 잰다).
+        "if(!window.__t7Buckets||window.__t7Buckets.length!==3) return false;" +
+        "if(window.__t7Total==null) return false;" +
+        "if(window.__t7Buckets[0]+window.__t7Buckets[1]+window.__t7Buckets[2]!==window.__t7Total) return false;" +
+        "if(typeof MSAnalyzeView==='undefined'||typeof MSReveal==='undefined') return false;" +
+        "return true;" +
+      "})()" },
+  // P1b Task 6b — 중립(무방향) 판정 구매 체인. Task 6 재리뷰가 찾은 결함: dissent·hitrate 는
+  // "방향이 있어야만" 성립한다는 게이트 자체는 옳지만, 예전엔 그 사실을 안 말하고 블록을
+  // 통째로 지웠다 — 같은 3스쿱을 내고 중립 종목에서는 8블록 중 6개만 받았다(위
+  // report-purchase 는 AAPL·드리프트 0.12 가 full 균등가중에서 "겨우 bull"이라 이 경로를
+  // 한 번도 안 태웠다 — node 시험만으로는 브라우저의 실제 CSS 캐스케이드·data-block 배선을
+  // 못 본다는 이 프로젝트의 반복된 교훈과 같다). GOOGL·드리프트 0.05(gate-browser.mjs
+  // DRIFT_BY_SYMBOL, 실측 근거는 그 파일 주석)는 full 티어 verdict.regime 을 매번
+  // "neutral" 로 낸다 — 클릭 체인·delay 는 report-purchase 와 동일(같은 3-클릭 시퀀스).
+  { name: "report-purchase-neutral", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"GOOGL"}', delay: 8000,
+    scripts: [
+      { at: 300, code:
+        "var ctaClicked=false, runClicked=false, drained=false;" +
+        "var iv=setInterval(function(){" +
+          "if(!ctaClicked){" +
+            "var cta=document.querySelector('.rp-cta-scoop');" +
+            "if(cta){ctaClicked=true; cta.click();}" +
+            "return;" +
+          "}" +
+          "if(!runClicked){" +
+            "var run=document.querySelector('.sheet-run');" +
+            "if(run&&!run.disabled){runClicked=true; run.click();}" +
+            "return;" +
+          "}" +
+          "if(!drained){" +
+            "var a=document.querySelector('.an-scrim');" +
+            "if(a)a.click();" +
+            "var r=document.querySelector('.rv-scrim');" +
+            "if(r){" +
+            // Task 7 리뷰(라운드 1, Critical) — 세 통의 합이 헤드라인의 총 칸 수와
+            // 실제로 맞는지, 드레인(클릭)하기 **직전**(.rv-scrim 이 막 뜬 그 화면)에
+            // 찍어 둔다. 리뷰어가 브라우저에서 실제로 찍은 것과 같은 방법 — 나중에
+            // assert 가 이 값으로 agree+dissent+noDir === indicatorCount 를 검산한다.
+            "var nums=Array.prototype.map.call(document.querySelectorAll('.rv-bucket-num'),function(e){return Number(e.textContent);});" +
+            "window.__t7Buckets=nums;" +
+            "var __t7HeadEl=document.querySelector('.rv-head');" +
+            "var __t7Opened=__t7HeadEl?Number((/^(\\d+)/.exec(__t7HeadEl.textContent)||[])[1]):null;" +
+            "var __t7Basic=(typeof MSGraph!=='undefined')?MSGraph.BASIC.length:null;" +
+            "window.__t7Total=(__t7Opened!=null&&__t7Basic!=null)?(__t7Opened+__t7Basic):null;" +
+            "window.__t7Head=(document.querySelector('.rv-head')&&document.querySelector('.rv-head').textContent)||'';" +
+            "r.click(); drained=true; clearInterval(iv);" +
+          "}" +
+          "}" +
+        "}, 100);"
+      }
+    ],
+    assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
+      "(function(){" +
+        "var tierBadge=document.querySelector('.rp-tier.is-full');" +
+        "if(!tierBadge) return false;" +                                    // 구매가 실제로 반영돼 심화로 전환됐다
+        "var ids=['sentence','forecast','chart','dissent','horizons','hitrate','readings','compare'];" +
+        "for(var i=0;i<ids.length;i++){" +
+          "if(!document.querySelector('[data-block=\"'+ids[i]+'\"]')) return false;" +   // 8블록 전부 — 중립이어도 하나도 안 사라진다
+        "}" +
+        "var dissent=document.querySelector('[data-block=\"dissent\"]');" +
+        "var hitrate=document.querySelector('[data-block=\"hitrate\"]');" +
+        // 값 대신 이유를 적은 카드여야 한다 — 클래스가 실제로 붙어 있는지(자명 통과 방지,
+        // 문자열만 우연히 맞는 경우를 배제)와 문구 둘 다 확인한다.
+        "if(!dissent.querySelector('.rp-against-neutral')) return false;" +
+        "if(!/중립|방향/.test(dissent.textContent)) return false;" +
+        "if(!hitrate.querySelector('.rp-hit-neutral')) return false;" +
+        "if(!/중립|방향/.test(hitrate.textContent)) return false;" +
+        "if(/%/.test(hitrate.textContent)) return false;" +                 // 중립인데 적중률 수치가 새면 안 된다
+        "if(document.querySelector('.rp-cta-ad')||document.querySelector('.rp-cta-scoop')) return false;" +
+        "if(document.querySelector('.an-scrim')||document.querySelector('.rv-scrim')) return false;" +
+        // Task 7 리뷰(라운드 1, Critical) — 드레인 직전에 찍어 둔 세 통의 합이 그때
+        // 그 화면의 총 칸 수와 실제로 맞는지 검산한다(값을 지어내지 않는다 — 실제
+        // 구매 체인이 만든 window.__t7Buckets 를 그대로 잰다).
+        "if(!window.__t7Buckets||window.__t7Buckets.length!==3) return false;" +
+        "if(window.__t7Total==null) return false;" +
+        "if(window.__t7Buckets[0]+window.__t7Buckets[1]+window.__t7Buckets[2]!==window.__t7Total) return false;" +
+        "return true;" +
+      "})()" },
+  // [리뷰 I2, 2026-08-19] report-purchase 는 full(3스쿱)만 태웠다 — 가장 비싼 상품인
+  // custom(전문분석, 5스쿱)의 구매 체인(runCustom() → MSExpert.open → .xp-run → 편집기가
+  // 넘긴 weights 로 runTier("custom", weights) → spend{runType:"custom"})은 라우트 13개
+  // 어디에도 없었다. 노드 시험(report-full.test.mjs)이 보는 custom 은 "이미 산 것" 지름길
+  // 렌더뿐이라 구매 체인 자체는 한 번도 실행된 적이 없었다 — "못 그리는 것을 팔지 않는다"
+  // 의 형제 규율("실행해 본 적 없는 것을 팔지 않는다")을 이 라우트로 채운다.
+  //
+  // 클릭 체인이 report-purchase 보다 한 단계 더 길다: ①`.rp-cta-scoop`(해제 CTA) ②
+  // `.sheet-tier.tier-custom`(시트에서 전문분석 행을 골라 picked="custom") ③`.sheet-run`
+  // (picked===custom 이므로 runCustom() 을 태운다 — MSTierSheet 를 닫고 MSExpert 를 연다)
+  // ④`.xp-run`(편집기 — 기본 프리셋 가중치가 이미 채워져 있어 아무것도 안 만져도 클릭
+  // 가능해야 한다, 설계 §3.7). ④ 이후는 report-purchase 와 같은 19a/8b 드레인이다.
+  //
+  // delay=9000 의 근거: report-purchase(8000, 3-클릭 체인)에 시트 내부 선택 한 단계(②)와
+  // 편집기 오픈·렌더(그 자체는 동기지만 MSWallet.get() 왕복 한 번이 더 낀다, runCustom() 이
+  // 여는 편집기가 자기 자신의 발란스 조회를 다시 한다) 여유를 더했다 — 폴링 100ms 간격이라
+  // 실제로는 훨씬 빨리 끝나는 게 보통이지만, **이 라우트가 처음** custom 구매 체인을 태우는
+  // 자리라 report-purchase 때와 같은 이유로 넉넉히 잡는다.
+  //
+  // 운영 서버 미접속 확인은 report-purchase 와 동일(gate-browser.mjs 의 --host-resolver-
+  // rules 가 parksvc.mycafe24.com 을 로컬 mock 으로 강제 리다이렉트) — 새로 만든 것 없음.
+  //
+  // 심볼은 AAPL 이 아니라 MSFT — 실측(첫 시도, AAPL): 전문분석의 기본 프리셋(trend) 가중치는
+  // 32개 균등가중과 다른 조합이라, AAPL(드리프트 0.12, full 균등가중에서도 겨우 bull 로
+  // 걸치는 약한 신호)에서는 regime 이 neutral 로 떨어져 dissent/hitrate 처럼 방향 있어야만
+  // 그려지는 블록이 정당하게(버그 아님, buildAgainst()·hitRate() 의 실제 게이트) 빠졌다 —
+  // 9블록 단언이 "실제로 못 그려서"가 아니라 "이 표본에서 방향이 없어서" 실패해 무엇을
+  // 재는지 흐려졌다. MSFT(드리프트 0.3, report-comb-bull 라우트가 이미 bull 로 결정적임을
+  // 픽셀로 실증)로 바꾸면 강한 추세라 어떤 가중치 조합에서도 방향이 안정적으로 유지된다.
+  { name: "report-purchase-custom", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"MSFT"}', delay: 9000,
+    scripts: [
+      { at: 300, code:
+        "var ctaClicked=false, customPicked=false, sheetRunClicked=false, xpRunClicked=false, drained=false;" +
+        "var iv=setInterval(function(){" +
+          "if(!ctaClicked){" +
+            "var cta=document.querySelector('.rp-cta-scoop');" +
+            "if(cta){ctaClicked=true; cta.click();}" +
+            "return;" +
+          "}" +
+          "if(!customPicked){" +
+            "var row=document.querySelector('.sheet-tier.tier-custom');" +
+            "if(row&&!row.disabled){customPicked=true; row.click();}" +
+            "return;" +
+          "}" +
+          "if(!sheetRunClicked){" +
+            "var run=document.querySelector('.sheet-run');" +
+            "if(run&&!run.disabled){sheetRunClicked=true; run.click();}" +
+            "return;" +
+          "}" +
+          "if(!xpRunClicked){" +
+            "var xr=document.querySelector('.xp-run');" +
+            "if(xr&&!xr.disabled){xpRunClicked=true; xr.click();}" +
+            "return;" +
+          "}" +
+          "if(!drained){" +
+            "var a=document.querySelector('.an-scrim');" +
+            "if(a)a.click();" +
+            "var r=document.querySelector('.rv-scrim');" +
+            "if(r){" +
+            // Task 7 리뷰(라운드 1, Critical) — 세 통의 합이 헤드라인의 총 칸 수와
+            // 실제로 맞는지, 드레인(클릭)하기 **직전**(.rv-scrim 이 막 뜬 그 화면)에
+            // 찍어 둔다. 리뷰어가 브라우저에서 실제로 찍은 것과 같은 방법 — 나중에
+            // assert 가 이 값으로 agree+dissent+noDir === indicatorCount 를 검산한다.
+            "var nums=Array.prototype.map.call(document.querySelectorAll('.rv-bucket-num'),function(e){return Number(e.textContent);});" +
+            "window.__t7Buckets=nums;" +
+            "var __t7HeadEl=document.querySelector('.rv-head');" +
+            "var __t7Opened=__t7HeadEl?Number((/^(\\d+)/.exec(__t7HeadEl.textContent)||[])[1]):null;" +
+            "var __t7Basic=(typeof MSGraph!=='undefined')?MSGraph.BASIC.length:null;" +
+            "window.__t7Total=(__t7Opened!=null&&__t7Basic!=null)?(__t7Opened+__t7Basic):null;" +
+            "window.__t7Head=(document.querySelector('.rv-head')&&document.querySelector('.rv-head').textContent)||'';" +
+            "r.click(); drained=true; clearInterval(iv);" +
+          "}" +
+          "}" +
+        "}, 100);"
+      }
+    ],
+    assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
+      "(function(){" +
+        "var tierBadge=document.querySelector('.rp-tier.is-custom');" +
+        "if(!tierBadge) return false;" +                                    // 구매가 실제로 반영돼 전문으로 전환됐다
+        "var ids=['weights','sentence','forecast','chart','dissent','horizons','hitrate','readings','compare'];" +
+        "for(var i=0;i<ids.length;i++){" +
+          "if(!document.querySelector('[data-block=\"'+ids[i]+'\"]')) return false;" +   // 9블록(조절판 포함)이 실제로 다 그려졌다
+        "}" +
+        "if(document.querySelector('.rp-cta-ad')||document.querySelector('.rp-cta-scoop')) return false;" +
+        "if(document.querySelector('.an-scrim')||document.querySelector('.rv-scrim')) return false;" +
+        // Task 7 리뷰(라운드 1, Critical) — 드레인 직전에 찍어 둔 세 통의 합이 그때
+        // 그 화면의 총 칸 수와 실제로 맞는지 검산한다(값을 지어내지 않는다 — 실제
+        // 구매 체인이 만든 window.__t7Buckets 를 그대로 잰다).
+        "if(!window.__t7Buckets||window.__t7Buckets.length!==3) return false;" +
+        "if(window.__t7Total==null) return false;" +
+        "if(window.__t7Buckets[0]+window.__t7Buckets[1]+window.__t7Buckets[2]!==window.__t7Total) return false;" +
+        // [리뷰 C1, 2026-08-19] 실앱 실측(리뷰어)이 잡은 결함 — 8b 총합(위 __t7Total)·
+        // 판독문 링크·리포트 배지가 서로 다른 수(9·10·30)를 말했다. draw() 의 noDir 필터
+        // (report.js)와 배지 유도(tierBadgeDesc)를 고친 뒤 이 자리에서 실제 구매 흐름으로
+        // 셋이 같은 수를 내는지 검산한다 — 값을 지어내지 않고 실제 DOM 텍스트에서 뽑는다.
+        "var link=document.querySelector('.rp-rdlink');" +
+        "if(!link) return false;" +
+        "var linkM=/([0-9]+)/.exec(link.textContent);" +
+        "if(!linkM) return false;" +
+        "window.__t7ReadLink=Number(linkM[1]);" +
+        "var badge=document.querySelector('.rp-tier-desc');" +
+        "if(!badge) return false;" +
+        "var badgeM=/([0-9]+)/.exec(badge.textContent);" +
+        "if(!badgeM) return false;" +
+        "window.__t7Badge=Number(badgeM[1]);" +
+        "if(window.__t7ReadLink!==window.__t7Total) return false;" +
+        "if(window.__t7Badge!==window.__t7Total) return false;" +
+        "if(document.querySelector('.xp-scrim')) return false;" +           // 편집기도 닫혀 있어야 한다
+        "if(typeof MSExpert==='undefined') return false;" +                 // 편집기 모듈이 실제로 전역 등록됐다
         "return true;" +
       "})()" },
   { name: "record", seed: { ...ON, ms_preds: PREDS }, go: '"record"',

@@ -123,11 +123,12 @@ test("R2 — 베이스라인이 없으면 baseline 이 null 이다(화면이 적
 const REPORT = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
 // P1a Task 3 가 확신%·적중/오답·베이스라인 렌더를 verdict 카드에서 걷어냈다(basic 은 도구가
 // 5개뿐이라 퍼센트를 쓰면 오독된다, 설계서 §3.2) — 그 내용은 report-blocks.js 의
-// PENDING.hitrate 로 P1b(심화 리포트)에 넘어갔다. 지금 report.js 에 적중률 렌더 자체가 없으니
-// "베이스라인 없이 그리지 않는다"는 공허하게 참이다 — 이 시험은 그 공백 동안 ①정말 아무것도
-// 안 그리고 있는지, ②그 사실이 PENDING 에 정직하게 남아 시트가 못 팔게 막는지를 본다.
-// P1b 가 hitrate 를 지으면 이 분기는 다시 걸려야 한다(가드 문자열이 그대로 필요).
-test("R2 — 화면이 적중률을 그린다면 반드시 베이스라인과 함께다(지금은 PENDING.hitrate 라 안 그린다)", () => {
+// PENDING.hitrate 로 P1b(심화 리포트)에 넘어갔었다. [2026-08-19, P1b Task 5·6] hitrate 가
+// 이제 buildHitrate() 로 실제로 그려지고 PENDING 도 비었다 — 아래 hasHitRender 분기가 그
+// 상태를 스스로 감지해 "베이스라인이 적중률보다 먼저" 순서 검사로 넘어간다. 렌더가 없던
+// 시절의 반대쪽 분기(PENDING 에 정직하게 남아 있는지)는 지우지 않는다 — hitrate 가 다시
+// 지워지는 회귀가 나면 이 시험이 여전히 그 상태를 잡아야 한다.
+test("R2 — 화면이 적중률을 그린다면 반드시 베이스라인과 함께다(PENDING 이 비어 이제 실제로 그린다)", () => {
   const hasHitRender = /MSStr\.t\.rpHitRight|hit\.baseline/.test(REPORT);
   if (!hasHitRender) {
     assert.match(REPORT, /hitrate:\s*true/,
@@ -146,6 +147,43 @@ const SYNC = readFileSync(new URL("../sync-engine.mjs", import.meta.url), "utf8"
 test("R2 — 생성물이 베이스라인 필드를 실어 나른다", () => {
   assert.match(SYNC, /baselineAlwaysUp:\s*o\.baselineAlwaysUp/,
     "sync-engine 이 baselineAlwaysUp 을 요약에 안 넣는다 — 화면이 영원히 적중 행을 감춘다");
+});
+
+// ── R2 확장 — 적중률의 "지표 수" 도 리터럴이 될 수 없다 ─────────────────────────────
+// [리뷰 Critical, 2026-08-19] 범위 주석이 종목·기간(n·series)은 밝히면서 "몇 개 도구로
+// 쟀는지"(graphIndicators)는 빠뜨리고 있었다 — 사용자는 이 리포트가 32개(또는 30개)로
+// 분석했다는 배지를 이미 본 뒤라, 도구 수 없는 적중률을 "그 32개짜리 판정의 성적"으로
+// 읽는다. R2 의 베이스라인 규율과 뿌리가 같다(비교·범위 없는 숫자는 안 낸다) — 그래서
+// 이름도 R2 를 그대로 잇는다(새 R6 로 쪼개지 않는다).
+test("R2 — hitRate 는 지표 수(graphIndicators)도 생성물에서 그대로 돌려준다", () => {
+  const summary = { bullHitRate: 0.617, baselineAlwaysUp: 0.6096, nForecasts: 31971, nSeries: 87, graphIndicators: 19 };
+  const r = MODEL.hitRate(summary, "bull");
+  assert.strictEqual(r.indicators, 19, "생성물의 graphIndicators 를 안 실어 나른다");
+});
+test("R2 — graphIndicators 가 없는 생성물은 indicators 가 null 이다(지어내지 않는다)", () => {
+  const r = MODEL.hitRate({ bullHitRate: 0.617, baselineAlwaysUp: 0.6096, nForecasts: 31971, nSeries: 87 }, "bull");
+  assert.strictEqual(r.indicators, null, "graphIndicators 없는데 지표 수를 지어냈다");
+});
+test("R2 — 화면이 적중률을 그린다면 지표 수도 hit.indicators 에서 읽어 함께 그린다(리터럴 19 금지)", () => {
+  const hasHitRender = /MSStr\.t\.rpHitRight|hit\.baseline/.test(REPORT);
+  if (!hasHitRender) return;   // 위 R2 시험과 같은 가드 — 렌더 자체가 없으면 이 시험도 공허하게 참
+  assert.match(REPORT, /hit\.indicators/,
+    "적중률 블록이 hit.indicators 를 안 읽는다 — 지표 수를 리터럴로 박았거나 아예 안 보여준다");
+  assert.match(REPORT, /hit\.n == null \|\| hit\.series == null \|\| hit\.indicators == null/,
+    "n·series 가 없으면 감추면서 indicators 가 없을 때는 감추지 않는다 — 규율이 절반만 적용됐다");
+  // buildHitrate() 함수 본문 안에서만 검사한다 — 파일 전체를 훑으면 report-model.js 주석
+  // 인용(사람이 쓴 설명 문장) 등 무관한 자리의 "19"까지 걸려 오탐이 난다.
+  const fnAt = REPORT.indexOf("function buildHitrate()");
+  assert.ok(fnAt > 0, "buildHitrate() 함수를 못 찾았다");
+  const fnEnd = REPORT.indexOf("\n    }", fnAt);
+  const fnBody = REPORT.slice(fnAt, fnEnd > 0 ? fnEnd : fnAt + 2000);
+  assert.doesNotMatch(fnBody, /[^.\w]19[^.\w]/,
+    "buildHitrate() 안에 리터럴 19 가 있다 — 생성물이 바뀌면 화면이 거짓말한다");
+});
+
+test("R2 — 생성물이 지표 수(graphIndicators) 필드를 실어 나른다", () => {
+  assert.match(SYNC, /graphIndicators:\s*r\.graphIndicators/,
+    "sync-engine 이 graphIndicators 를 요약에 안 넣는다 — 화면이 영원히 도구 수를 못 보여준다");
 });
 
 // ── R4 대조군. 계산된 값은 마음껏 보여준다 ───────────────────────────────────────────

@@ -125,7 +125,13 @@ function candles(driftMul) {
 // 판정 D1(리뷰 2026-08-19)로 카드가 모집단 지표만 말하게 되며 그 종목별 분기 자체가
 // 필요 없어졌다 — 카드는 이제 어느 종목·드리프트에서든 항상 뜬다(report 라우트에서 직접
 // 확인, gate-routes.mjs). 그래서 NVDA 전용 드리프트·base 인자·BASE_BY_SYMBOL 은 걷어냈다.
-const DRIFT_BY_SYMBOL = { MSFT: 0.3 };
+// GOOGL:0.05 — P1b Task 6b 가 추가했다. 실측(node 로 analyzeFull(full32Graph, weights=null)
+// 을 이 파일과 같은 candles() 수식으로 직접 돌려 확인, 추측 아님): 이 드리프트 대역
+// (|drift|≤0.06)은 full 티어(32종 균등가중) verdict.regime 을 매번 "neutral" 로 낸다 —
+// |drift|≥0.08 부터 bull/bear 로 갈린다. dissent·hitrate 가 "값 대신 이유"를 실제로
+// 그리는지 재려면 이 정도로 확실히 중립인 표본이 필요하다(0.12 는 이미 bull 로 걸친다,
+// 아래 report-purchase-neutral 라우트 주석 참고).
+const DRIFT_BY_SYMBOL = { MSFT: 0.3, GOOGL: 0.05 };
 // 리뷰 I7: 필드명은 wallet-lib.php 의 w_state() 가 실제로 주는 모양(balance/cap/streakDays/
 // canCheckin)과 반드시 일치해야 한다 — 예전엔 streak/checkedIn/today 였는데, 그 셋은 서버
 // 어디에도 없는 이름이라 screens/wallet.js 의 `state.streakDays % 7` 이 항상 NaN 이 됐다
@@ -146,6 +152,24 @@ const WALLET = {
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
                ".json": "application/json", ".woff2": "font/woff2", ".png": "image/png" };
 
+// [리뷰 I3, 2026-08-19] "spend 는 티어별 한 번" — 이 페이즈의 핵심 불변량인데, 이 mock 이
+// spend 를 **세지 않아** 이중 차감 회귀가 나도 관문이 초록일 수 있었다(Task 6·7 리뷰어와
+// 최종 리뷰어가 매번 mock 에 임시 로깅을 심어 손으로 확인했고, 그 검증은 한 번도 커밋된
+// 적이 없다). op 별 호출 횟수를 프로세스 메모리에 센다 — resetOpCounts() 가 라우트마다
+// (아래 메인 루프) 카운터를 비우므로, 한 라우트 안에서 op 가 몇 번 불렸는지를 라우트 단위로
+// 잰다. 서버가 라우트 전체(순차 for 문)에 걸쳐 하나로 계속 살아 있기 때문에 리셋 없이는
+// 두 번째 라우트부터 누적치가 오염된다.
+let opCounts = {};
+function resetOpCounts() { opCounts = {}; }
+// 미지의 op 에도 { ok:true } 를 주는 fail-open 을 유지한다(판정, 아래 근거) — 하지만 그
+// 판단이 spend 카운터를 무력화하지 않는다: 오타 op("spned" 등)는 opCounts["spend"] 를 안
+// 올리므로 spend===1 단언이 그 자리에서 바로 걸린다(0 이 되어 실패한다). fail-open 을 유지한
+// 이유는 이 표(WALLET)가 스펙 전부를 모델링하지 않기 때문이다 — refund(로드 실패 시 환급
+// 경로, wallet-http.js:221)·authStart/authPoll(구글 로그인, 이 관문은 seed 로 이미 로그인
+// 상태를 심어 안 태운다)이 표에 없어도 실제로 호출될 수 있는 정당한 op 들이고, { ok:true }
+// 폴백이 이미 report.js 의 실제 소비 형태(`rf.ok`)를 만족한다. 표를 강제하려면 이 셋을
+// 먼저 정식 등록해야 하는데, 이번 라운드의 문제(이중 차감을 못 잡는다)와 무관해 범위를
+// 넓히지 않는다.
 function serve(creds) {
   return https.createServer(creds, (req, res) => {
     if (req.method === "POST") {
@@ -154,6 +178,7 @@ function serve(creds) {
       req.on("end", () => {
         let op = "";
         try { op = JSON.parse(body || "{}").op || ""; } catch (e) {}
+        if (op) opCounts[op] = (opCounts[op] || 0) + 1;
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(WALLET[op] || { ok: true }));
       });
@@ -238,9 +263,34 @@ function probe(route) {
   (route.scripts || []).forEach(s => {
     js += '\n<script>setTimeout(function(){try{' + s.code + '}catch(e){console.error("SCRIPT_FAILED",String(e));}},' + s.at + ');</script>';
   });
-  js += '\n<script>setTimeout(function(){var ok=false,err="";' +
+  // 조사 D 실증(P1b Task 1) — 스냅샷(delay 시점) 뒤에 터지는 오류를 이전엔 영영 놓쳤다.
+  // errs 는 delay 한 번이 아니라 --dump-dom 이 읽는 **가상 시간 종료 시점**까지 계속 최신화
+  // 돼야 한다. document.title 은 브라우저가 알아서 재직렬화하지 않으므로(모든 프레임에서
+  // 갱신하려면 다시 write 해야 한다) title 대신 DOM 노드(#__gate_errs)에 적고,
+  // --dump-dom 이 그 최종 상태를 그대로 실어 온다. ok/err(단언 결과)는 여전히 delay 시점
+  // 값이 맞다 — 단언은 정확히 그 시점의 상태를 재는 것이므로 종료 시점으로 미루면 안 된다.
+  // setInterval 은 여기(관문 러너의 계측 코드)에서만 쓴다 — Q3("진행은 고정 타이머로
+  // 오르지 않는다")를 재는 시험은 test/onboarding.test.mjs 에 있고, 디렉터리를 훑는 게
+  // 아니라 www/screens/onboarding.js **한 파일의 소스 문자열**만 정규식으로 검사한다.
+  // 그래서 이 파일은 애초에 그 시험의 사정권 밖이다. 규칙의 취지도 다르다 — 화면이
+  // 사용자에게 보여줄 진행률을 타이머로 지어내지 말라는 것이지, 관문이 자기 안에서
+  // 오류 로그를 폴링하는 것과는 대상이 다르다.
+  js += '\n<script>' +
+        'var __gp=document.createElement("pre");__gp.id="__gate_errs";' +
+        'document.documentElement.appendChild(__gp);' +
+        'function __gsync(){__gp.textContent=JSON.stringify({errs:(window.__gateErrs||[]),warns:(window.__gateWarns||[])});}' +
+        '__gsync();setInterval(__gsync,50);' +
+        'setTimeout(function(){var ok=false,err="";' +
         'try{ok=!!(' + route.assert + ');}catch(e){err=String(e);}' +
-        'document.title="GATE:"+JSON.stringify({ok:ok,err:err,errs:(window.__gateErrs||[]),warns:(window.__gateWarns||[])});},' +
+        // [리뷰 C1, 2026-08-19] window.__t7* 는 report-purchase* 라우트가 assert 안에서
+        // 스스로 찍어 두는 실측값(세 통·판독문 링크·배지 등, gate-routes.mjs 참고)이다 —
+        // 지금까지는 ok/err 만 title 로 나가 이 값들이 관문 통과 여부에만 쓰이고 사람이
+        // 직접 읽을 방법이 없었다(브리프가 요구하는 "네 자리 숫자 캡처"를 이 관문의 결과로
+        // 보여줄 수 없었다). __t7 로 시작하는 window 전역을 전부 모아 title payload 에 싣는다
+        // — 없는 라우트에선 빈 객체라 기존 동작에 영향이 없다.
+        'var t7={};try{Object.keys(window).forEach(function(k){' +
+        'if(k.indexOf("__t7")===0)t7[k]=window[k];});}catch(e){}' +
+        '__gsync();document.title="GATE:"+JSON.stringify({ok:ok,err:err,t7:t7});},' +
         (route.delay || 1500) + ');</script>';
   const name = "__gate_" + route.name + ".html";
   const beforeAppTag = html;
@@ -312,6 +362,10 @@ function judge(route, res) {
     if (!/CONSOLE|Uncaught/.test(line)) continue;
     if (/ERROR:CONSOLE|SEVERE|Uncaught/.test(line)) problems.push("콘솔 오류(2차 그물/stderr): " + line.trim());
   }
+  function unescapeHtml(s) {
+    return s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  }
   const m = res.dom.match(/<title>GATE:([\s\S]*?)<\/title>/);
   if (!m) {
     problems.push("단언이 실행되지 않았다(title 없음) — 화면이 그려지기 전에 죽었을 수 있다" +
@@ -320,22 +374,33 @@ function judge(route, res) {
   }
   let v = {};
   try {
-    const raw = m[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-    v = JSON.parse(raw);
+    v = JSON.parse(unescapeHtml(m[1]));
   } catch (e) {
     problems.push("단언 결과 파싱 실패: " + m[1]);
     return { problems, warns: [] };
   }
+  const t7 = (v && v.t7) || {};
   // ① 콘솔 오류(주 판정) — window.onerror·unhandledrejection·console.error 를 페이지
   // 안에서 직접 모은 것. probe() 의 GO_FAILED 캐치도 여기로 들어온다(더는 자기가 자기를
-  // 안 삼킨다).
-  const errs = Array.isArray(v.errs) ? v.errs : [];
+  // 안 삼킨다). **title 이 아니라 #__gate_errs(위 probe() 참고)에서 읽는다** — --dump-dom 이
+  // 읽는 가상 시간 종료 시점 값이라, delay 이후(스냅샷 뒤)에 터진 오류도 여기 실려 온다
+  // (실증: late-error-probe, P1b Task 1 보고서).
+  let ev = { errs: [], warns: [] };
+  const em = res.dom.match(/<pre id="__gate_errs">([\s\S]*?)<\/pre>/);
+  if (em) {
+    try { ev = JSON.parse(unescapeHtml(em[1])); }
+    catch (e) { problems.push("오류 로그 파싱 실패: " + em[1]); }
+  } else {
+    // 이 노드는 probe() 가 assert 스크립트보다 먼저 무조건 심는다 — title 은 잡혔는데
+    // 이게 없다면 그 자체가 이상 신호(예: 우리 삽입 순서가 깨졌다)라 침묵하지 않는다.
+    problems.push("#__gate_errs 노드가 dump-dom 에 없다 — 오류 수집이 안 심겼을 수 있다");
+  }
+  const errs = Array.isArray(ev.errs) ? ev.errs : [];
   errs.forEach(e => problems.push("콘솔 오류: " + e));
-  const warns = Array.isArray(v.warns) ? v.warns : [];
+  const warns = Array.isArray(ev.warns) ? ev.warns : [];
   // ② 단언
   if (!v.ok) problems.push("단언 실패: " + route.assert + (v.err ? " (" + v.err + ")" : ""));
-  return { problems, warns };
+  return { problems, warns, t7 };
 }
 
 assertPortFree();
@@ -353,16 +418,30 @@ await new Promise(r => server.listen(PORT, "127.0.0.1", r));
 
 const only = process.argv.slice(2);
 const routes = only.length ? ROUTES.filter(r => only.includes(r.name)) : ROUTES;
+// [리뷰 I3] 이 페이즈의 핵심 불변량("spend 는 티어별 한 번")을 실제로 태우는 구매 라우트
+// 셋 — report-purchase(full)·report-purchase-neutral(full, 중립 판정)·
+// report-purchase-custom(custom). 리스트를 여기 따로 두는 이유는 판독 대상을 이름 패턴
+// 추측("purchase 가 들어간 라우트")이 아니라 명시로 고정하기 위해서다 — 새 구매 라우트를
+// 추가하면 이 목록에도 사람이 명시적으로 넣어야 한다(조용히 새는 라우트를 만들지 않는다).
+const SPEND_ONCE_ROUTES = new Set(["report-purchase", "report-purchase-neutral", "report-purchase-custom"]);
 let failed = 0;
 for (const route of routes) {
   // 프로브 페이지는 try/finally 로 지운다 — 이 안에서 예외가 나도(예: 크로미움이 죽는다)
   // www/ 에 __gate_*.html 이 남으면 안 된다(작업 트리에 남기지 않는다는 요구사항).
+  resetOpCounts();   // 라우트 경계에서 카운터를 비운다 — 서버는 for 문 전체에 걸쳐 하나다
   const page = probe(route);
   try {
     const sp = shotPath(route);
     const beforeMtime = existsSync(sp) ? statSync(sp).mtimeMs : 0;
     const shotRes = await shoot(route, page, libDir);
-    const { problems, warns } = judge(route, shotRes);
+    const { problems, warns, t7 } = judge(route, shotRes);
+    // [리뷰 I3] 변이 증명 대상 — spend 를 두 번 부르게 하면(이중 차감 회귀) 여기서 잡힌다.
+    // 0회(구매 체인이 스펜드 전에 죽었다)도 마찬가지로 회귀다: "한 번도 안 산" 것과 "한 번
+    // 샀다"는 다른 사실이고, 지금까지는 그 구분을 아무도 관문에 남기지 않았다.
+    if (SPEND_ONCE_ROUTES.has(route.name)) {
+      const n = opCounts.spend || 0;
+      if (n !== 1) problems.push("spend 가 정확히 1회가 아니다(" + n + "회) — 이중 차감 또는 구매 미도달 회귀");
+    }
     // 리뷰 I1 — 스크린샷이 실제로 갱신됐는지 확인한다. --screenshot= 플래그만 넘기고 파일이
     // 정말 생겼는지 아무도 안 보면, 크로미움이 컴포지트 전에 죽어도 콘솔·단언만 통과하면
     // 초록이 된다.
@@ -379,6 +458,10 @@ for (const route of routes) {
         warns.forEach(w => console.log("      " + w));
       }
     } else console.log("✓ " + route.name);
+    // [리뷰 C1, 2026-08-19] report-purchase* 라우트가 assert 안에서 찍어 둔 실측값(세 통·
+    // 판독문 링크·배지 등)을 성패와 무관하게 항상 찍는다 — "네 자리 숫자가 일치하는지 캡처"
+    // 요구를 이 관문의 표준 출력만으로 답할 수 있게 한다(별도 스크립트 없이).
+    if (t7 && Object.keys(t7).length) console.log("    " + JSON.stringify(t7));
   } finally {
     rmSync(path.join(WWW, page), { force: true });
   }

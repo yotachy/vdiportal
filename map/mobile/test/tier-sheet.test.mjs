@@ -79,6 +79,9 @@ function load() {
   global.MSUi = require("../www/ui.js");
   global.MSStr = require("../www/strings.js");
   global.MSWallet = require("../www/wallet.js");
+  // [리뷰 C1] tsCustomDesc 가 이제 MSIndTiers.tunable().length 를 직접 참조한다 — 이 전역이
+  // 없으면 paint() 가 "MSIndTiers is not defined" 로 죽는다.
+  global.MSIndTiers = require("../www/ind-tiers.js");
   delete require.cache[require.resolve("../www/sheet.js")];
   global.MSSheet = require("../www/sheet.js");   // 진짜 MSSheet — 스텁이 아니다
   // [리뷰 C1] 둘 다 잠긴 시트의 "워치리스트로 돌아가기" 버튼이 실제로 MSApp.go 를 부르는지
@@ -170,7 +173,7 @@ test("잔량을 모르면(balance 없음) 비용 미리보기를 그리지 않�
 });
 
 // ── ⑤ 배지는 심화(full) 행에만 ──────────────────────────────────────────────
-test("'가장 많이 씀' 배지는 심화분석 행에만 붙는다", () => {
+test("추천 배지(tsPopular)는 심화분석 행에만 붙는다 — 리뷰 I1: 문구는 사용 빈도 주장에서 편집적 추천으로 바뀌었다", () => {
   const { MSTierSheet, doc } = load();
   const MSStr = global.MSStr;
   MSTierSheet.open({ sym: "AAPL", balance: 12, locked: { full: false, custom: false }, onRun: () => {} });

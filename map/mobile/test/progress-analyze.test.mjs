@@ -11,6 +11,7 @@ import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { allCss } from "./_css.mjs";
 
 const require = createRequire(import.meta.url);
 const AV = require("../www/progress-analyze.js");
@@ -196,4 +197,118 @@ test("play() 의 rAF 콜백(frame) 안에서 던지면 onError 로 회수된다 
     process.removeListener("uncaughtException", onUncaught);
     Object.keys(saved).forEach(k => { if (saved[k] === undefined) delete g[k]; else g[k] = saved[k]; });
   }
+});
+
+// ── P1b Task 7 — 19a 빗 강조("막 읽은 칸이 가장 진하고, 지난 칸일수록 흐려진다" · "지금
+// 읽는 칸은 흰 막대 하나뿐"). toothClass() 는 paint() 가 매 프레임 통째로 다시 쓰는 className
+// 을 순수 계산으로 답한다 — DOM·타이머 없이 여기서 잰다(tallyOf 와 같은 이유). ─────────────
+
+test("toothClass — 지금 읽는 칸은 an-now 하나, 막 읽은 칸이 가장 진하고 지날수록 흐려진다", () => {
+  // read=5: 0~4 는 이미 읽음(4 가 가장 최근), 5 는 지금, 6 이상은 아직.
+  assert.match(AV.toothClass(5, 5, 0), /(^|\s)an-now(\s|$)/, "지금 읽는 칸에 an-now 가 없다");
+  assert.doesNotMatch(AV.toothClass(5, 5, 0), /\bon\b/, "아직 안 읽었는데 on 이 붙었다");
+  assert.doesNotMatch(AV.toothClass(6, 5, 0), /an-now|\bon\b/, "아직 멀리 남은 칸에 진행 클래스가 붙었다");
+
+  assert.match(AV.toothClass(4, 5, 0), /\bon\b/, "막 읽은 칸(dist 0)에 on 이 없다");
+  assert.doesNotMatch(AV.toothClass(4, 5, 0), /an-fade/, "막 읽은 칸이 벌써 흐려져 있다 — 가장 진해야 한다");
+  assert.match(AV.toothClass(3, 5, 0), /an-fade1(\s|$)/, "한 칸 전(dist 1)이 an-fade1 이 아니다");
+  assert.doesNotMatch(AV.toothClass(3, 5, 0), /an-fade2/, "한 칸 전이 벌써 최대로 흐려졌다");
+  assert.match(AV.toothClass(0, 5, 0), /an-fade2(\s|$)/, "더 지난 칸(dist ≥2)이 an-fade2 로 수렴하지 않는다");
+});
+
+test("toothClass — 기본 티어(an-core) 칸도 같은 진하기 규칙을 따른다", () => {
+  assert.match(AV.toothClass(2, 5, 5), /an-core/, "기본 티어 칸에 an-core 표식이 없다");
+  assert.match(AV.toothClass(2, 5, 5), /an-fade2/, "기본 티어 칸도 지나면 흐려져야 한다");
+  assert.match(AV.toothClass(3, 3, 5), /(^|\s)an-now(\s|$)/, "기본 티어 구간 안에서도 현재 위치가 표시돼야 한다");
+});
+
+// 브리프 원문 시험이 쓰는 렌더 헬퍼 — 실 DOM·타이머 없이 toothClass() 로 빗 하나를 그대로
+// 그린다(paint() 가 매 프레임 하는 일과 같은 계산을 화면 없이 재현한 것 — MiniEl 을 새로
+// 안 만드는 이유는 이 시험이 클래스 목록만 보면 되기 때문이다).
+function renderAnalyzeAt(read, total, basic) {
+  const teeth = [];
+  for (let i = 0; i < total; i++) teeth.push({ className: AV.toothClass(i, read, basic || 0) });
+  return {
+    querySelectorAll(sel) {
+      const need = String(sel).split(".").filter(Boolean);
+      return teeth.filter(t => need.every(c => (" " + t.className + " ").indexOf(" " + c + " ") >= 0));
+    },
+    querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
+  };
+}
+
+test("19a — 지금 읽는 칸이 읽은 칸·대기 칸과 구별된다", () => {
+  const dom = renderAnalyzeAt(12, 32);
+  assert.ok(dom.querySelector(".an-tooth.an-now"), "현재 위치 표시가 없다");
+  assert.strictEqual(dom.querySelectorAll(".an-tooth.an-now").length, 1,
+    "현재 위치가 둘 이상이다");
+});
+
+// ── Task 7 리뷰(라운드 1, Minor) — 경계 인덱스: read=0(첫 톱니) · read=total-1(마지막 하나
+// 직전) · read=total(완료 후, 현재 위치가 없어야 한다). ──────────────────────────────────
+
+test("경계 — read=0(첫 프레임)에는 an-now 가 0번 칸 하나뿐이고, 뒤로 읽은 칸이 없다", () => {
+  const dom = renderAnalyzeAt(0, 32);
+  assert.strictEqual(dom.querySelectorAll(".an-tooth.an-now").length, 1, "현재 위치가 0개 또는 여러 개다");
+  assert.ok(dom.querySelector(".an-tooth.an-now"), "0번 칸에 an-now 가 없다");
+  assert.strictEqual(dom.querySelectorAll(".an-tooth.on").length, 0,
+    "아직 하나도 안 읽었는데 이미 읽은(on) 칸이 있다");
+});
+
+test("경계 — read=total-1(마지막 칸 직전)에도 현재 위치는 여전히 하나뿐이다", () => {
+  const total = 32;
+  const dom = renderAnalyzeAt(total - 1, total);
+  assert.strictEqual(dom.querySelectorAll(".an-tooth.an-now").length, 1, "현재 위치가 0개 또는 여러 개다");
+  assert.strictEqual(dom.querySelectorAll(".an-tooth.on").length, total - 1,
+    "마지막 한 칸 빼고 전부 읽었어야 하는데 on 칸 수가 다르다");
+});
+
+test("경계 — read=total(완료 후)에는 현재 위치 표시가 없다 — 다 읽었으니 '지금' 이 없다", () => {
+  const total = 32;
+  const dom = renderAnalyzeAt(total, total);
+  assert.strictEqual(dom.querySelectorAll(".an-tooth.an-now").length, 0,
+    "다 읽었는데도 an-now 가 남아 있다");
+  assert.strictEqual(dom.querySelectorAll(".an-tooth.on").length, total,
+    "다 읽었는데 on 이 아닌 칸이 있다");
+});
+
+// ── Task 7 리뷰(라운드 1, Important) — CSS 소스 순서. 같은 특이성(.an-tooth.an-core 와
+// .an-tooth.an-now 둘 다 2클래스, 0,2,0)인 두 규칙은 **소스에서 나중에 오는 쪽이 이긴다.**
+// 리뷰 실측: 두 규칙 순서를 뒤집으면 getComputedStyle 이 배경을 steel(rgb(136,146,166))·
+// 높이 26px 로 돌려줬다(흰 막대 소실) — 이 노드 시험은 실제 캐스케이드를 계산하지 못하지만
+// (getComputedStyle 이 없다), 이 저장소의 기존 관례(test/shell.test.mjs:91-92 의
+// `s.indexOf(a) < s.indexOf(b)`)와 같은 방식으로 **소스 순서**를 고정해 그 사고가 다시
+// 조용히 나지 않게 한다. ────────────────────────────────────────────────────────────────
+const CSS = allCss();
+
+test("CSS 순서 — .an-tooth.an-now 는 .an-tooth.an-core 뒤에 온다(동특이성 동점은 소스 순서로 갈린다)", () => {
+  const core = CSS.indexOf(".an-tooth.an-core {");
+  const now = CSS.indexOf(".an-tooth.an-now {");
+  assert.ok(core >= 0, ".an-tooth.an-core 규칙을 못 찾았다 — 선택자 표기가 바뀌었다");
+  assert.ok(now >= 0, ".an-tooth.an-now 규칙을 못 찾았다 — 선택자 표기가 바뀌었다");
+  assert.ok(core < now,
+    ".an-tooth.an-now 가 .an-tooth.an-core 보다 먼저 선언됐다 — 두 규칙은 같은 특이성(0,2,0)이라 " +
+    "소스 순서가 승부를 가른다. 이 순서면 기본 티어 구간(an-core)에서 흰 막대(an-now)가 " +
+    "steel 에 덮여 사라진다(Task 7 리뷰 실측: bg=rgb(136,146,166)·h=26px)");
+});
+
+test("변이 증명 — .an-tooth.an-core/.an-tooth.an-now 두 규칙의 소스 순서를 실제로 뒤집으면 위 검사가 빨개진다", () => {
+  const coreStart = CSS.indexOf(".an-tooth.an-core {");
+  const coreEnd = CSS.indexOf("}", coreStart) + 1;
+  const coreRule = CSS.slice(coreStart, coreEnd);
+  const nowStart = CSS.indexOf(".an-tooth.an-now {");
+  const nowEnd = CSS.indexOf("}", nowStart) + 1;
+  const nowRule = CSS.slice(nowStart, nowEnd);
+  assert.ok(coreStart < nowStart, "전제(정상 순서)가 이미 깨져 있다 — 이 시험 자체가 성립하지 않는다");
+  const between = CSS.slice(coreEnd, nowStart);
+  // 두 규칙 텍스트만 서로 자리를 맞바꾼다(사이 내용·나머지 파일은 그대로) — 실제로 파일
+  // 순서를 뒤집었을 때와 같은 문자열 결과를 만든다.
+  const swapped = CSS.slice(0, coreStart) + nowRule + between + coreRule + CSS.slice(nowEnd);
+  const swappedCore = swapped.indexOf(".an-tooth.an-core {");
+  const swappedNow = swapped.indexOf(".an-tooth.an-now {");
+  assert.ok(swappedCore > swappedNow,
+    "규칙을 맞바꿨는데도 core 가 여전히 now 보다 먼저다 — 맞바꾸기 자체가 잘못됐다(변이가 공허하다)");
+  // 위 검사와 같은 술어를 변이 표본에 적용 — 뒤집힌 순서에서는 반드시 실패해야 한다.
+  assert.ok(!(swappedCore < swappedNow),
+    "순서가 뒤집혔는데도 '정상' 판정을 내렸다 — 이 검사는 실제로는 순서를 못 잡는다");
 });

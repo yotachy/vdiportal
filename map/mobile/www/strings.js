@@ -59,13 +59,11 @@
     rsTodayVerdict: "오늘 판정 보기",
     rsDisclaimer: "가격 · 거래량 · 시간만 읽습니다. 예측은 약속이 아닙니다.",
 
-    // 지난 판정 되돌아보기(시안 21a) — 리포트 안, 오늘 판정 **위**.
-    rpLastHead: "지난 판정 · 기준일 ",
+    // rpLastPm(" ± ")만 남았다 — "지난 판정 되돌아보기"(시안 21a) 카드 자체는 P1b Task 6 이
+    // 지웠지만(buildLast() 가 어느 티어 선언에도 안 물린 죽은 코드였다), 이 조각(중심값 ±
+    // 오차)은 forecast 블록(rp-forecast-pm)이 그대로 재사용한다 — 같은 뜻에 새 문자열을
+    // 또 만들지 않는다.
     rpLastPm: " ± ",
-    rpLastActual: "실제 ", rpLastHit: " · 범위 적중", rpLastSep: " · ", rpLastMiss: " 벗어남",
-    rpLastPending: "아직 결과가 나오지 않았습니다",
-    rpLastMore: "결과 자세히 보기",
-    rpLastFree: "다시 열어도 스쿱이 들지 않습니다.",
 
     // 스캔 결과(시안 15c). 경계 규칙이 이 화면의 전부다 — 무엇이 달라졌는지까지가 스캔의 일,
     // 왜 달라졌는지는 분석의 일이다.
@@ -155,7 +153,15 @@
     // 문구도 섞이지 않게 rv* 로 따로 둔다.
     rvCaption: "지표를 모두 읽는 중",
     rvOpened: "개가\n열렸습니다",
-    rvOf: " / ", rvSep: " · ", rvAgree: "개 동의",
+    rvOf: " / ", rvAgree: "개 동의",
+    // 세 통(동의·반대·무판정) — verdict() 가 이미 합 검산까지 해서 돌려주는 세 값을 그대로
+    // 화면에 싣는다(P1b Task 7). rvAgree 는 원래 count 줄 접미사였던 것을 그대로 재사용한다.
+    rvDissent: "개 반대", rvNoDir: "개 무판정",
+    // 세 통 바로 위 스코프 캡션(P1b Task 10, G2 이월 폴리시 P1) — 헤드라인(rvOpened,
+    // total-basic="새로 열린 수")과 세 통의 합(total="전체 모집단")은 서로 다른 스코프인데
+    // 나란히 보이면 "27개 열렸다면서 왜 합이 32냐"로 읽힌다. 숫자는 안 바꾼다(둘 다 옳다) —
+    // 세 통이 무엇의 합인지만 이름 붙인다.
+    rvBucketsScopeA: "지표 ", rvBucketsScopeB: "개 전체 기준",
     rvSkip: "탭하면 바로 결과로",
 
     // 분석 진행 중계(시안 19a). 8b 와 문구를 공유하지 않는다 — 8b 는 "열렸습니다"(끝난 일),
@@ -203,11 +209,67 @@
     // "폭이 정직해진다"인데, 직전 기본분석 값 옆에 놓지 않으면 그 정직해짐이 안 보인다.
     // 값이 없거나 기준일이 다르면 이 행 자체가 안 그려진다 — 여기 "—" 문구를 만들지 말 것.
     rpPrevBasic: "직전 기본분석", rpRangeDash: " – ", rpWidthA: "폭 ",
+    // "compare" 블록 머리(P1b Task 6, report.js buildPrevCompare()) — 독립 카드로 뽑히며
+    // 얻는 자기 오버라인 + 숫자보다 먼저 오는 한 줄.
+    // [리뷰 C1, 2026-08-19 정정] 처음엔 "언제나 넓어진다"고 단정했다(28창 표본의 착시).
+    // 리뷰어의 실표본 재측정(2813창, map/backtest/earn-ohlc.json)은 **넓어진 사례 57.4%·
+    // 좁아진 사례 42.6%**였다 — 방향은 매번 실측해서 골라야 한다(report.js comparePrevDir).
+    // 그래서 세 갈래(넓어짐·좁아짐·거의 같음)를 둔다 — 어느 쪽도 "항상 참"이 아니므로 화면이
+    // 실제로 잰 값과 다른 말을 하면 안 된다(report-full.test.mjs 가 양쪽 표본으로 잠근다).
+    rpCompareHead: "직전 대비",
+    rpCompareNow: "이번 분석",   // 직전 값(rpPrevBasic)과 짝 — 같은 단위(전폭)로 나란히 놓는다(리뷰 C2)
+    rpCompareWider: "기본분석보다 범위가 넓어졌습니다 — 더 많은 지표를 반영한 값입니다.",
+    rpCompareNarrower: "기본분석보다 범위가 좁아졌습니다 — 더 많은 지표를 반영해도 항상 넓어지는 것은 아닙니다.",
+    rpCompareSame: "기본분석과 범위가 거의 같습니다 — 이번엔 지표를 더 반영해도 큰 차이가 없었습니다.",
     // 19b 문안 재사용(사용자 결정 D3) — 골격은 18b 그대로 두고 평이한 서술만 가져온다.
     // 기간별 방향이 갈릴 때만 나온다. "3개 중 2개 일치"를 숫자로만 적으면 무엇이 어긋났는지
     // 안 보이고, 사용자는 헤드라인 방향을 모든 기간의 답으로 읽는다.
     rpHzMixedA: "짧게 보면 ", rpHzMixedUp: "오르고", rpHzMixedDown: "내리고",
     rpHzMixedB: ", 한 달은 반대입니다 — 짧게 볼 때만 유효한 판정입니다.",
+    // 「내일 예상 + 확신」(P1b Task 4, 19b) — horizonRows()[0](내일)만 뽑은 독립 카드.
+    // rpLastPm(" ± ")은 위에서 재사용한다 — 같은 뜻(중심값 ± 오차)에 새 문자열을 또 만들지
+    // 않는다. 확신(prob)은 방향 적중률이 아니라 캘리브레이션된
+    // 모델 확신이다(report-model.js confidence 주석) — 그래서 이름 자체를 "적중"이 아니라
+    // "모델 확신"으로 잡고, 바로 아래 rpForecastConfNote 로 적중률이 아니라는 점을 문장으로
+    // 막는다. 기준선(60.96%)은 여기 붙이지 않는다 — 붙일 자리는 적중률을 다루는 Task 5 의
+    // hitrate 블록이다(섞으면 "이 판정이 60% 맞는다"로 오독된다).
+    rpForecastHead: "내일 예상", rpForecastConfLabel: "모델 확신",
+    rpForecastConfNote: "적중률이 아니라, 모델이 이 판정에 부여한 확신도입니다.",
+
+    // 적중률 단독 블록(P1b Task 5, 19b) — hitRate() 는 top-level bullHitRate/bearHitRate
+    // (19지표 sampleGraph, 방향별)를 읽는다. 3단 대조(tcScope*)는 tiers.basic/deep(5·32지표,
+    // 방향 무관 종합)을 읽는 **다른 표본**이라 문구를 공유하지 않는다 — 공유하면 사용자가
+    // 두 수치를 같은 측정으로 착각한다(컨트롤러 판정, 브리프 Step 1). R2 관문
+    // (truth-rules.test.mjs)이 rpHitRight 가 rpHitBaseA 보다 먼저 그려질 것을 강제한다 —
+    // 적중률을 기준선 없이 단독 노출하지 않는다는 규율을 식별자 순서로도 못박는다.
+    rpHitHead: "적중률",
+    rpHitDirSuffix: " 판정",              // rpUp/rpDown 뒤에 붙여 "상승 판정"/"하락 판정"
+    rpHitRight: "적중 ", rpHitBaseA: " · 기준선 ",
+    // 범위 주석(설계서 §3.5 "rpHitScopeShort" 필수 지시) — 이 수치가 이 종목이 아니라 엔진
+    // 전체를 상승·하락 판정별로 측정한 값이라는 사실. tcScope*(3단 대조)와 표본이 다르므로
+    // "방향별로"를 넣어 그 차이를 스스로 밝힌다.
+    //
+    // [리뷰 Critical, 2026-08-19] "이 종목 얘기가 아니다"만으로는 부족했다 — 이 화면(심화·
+    // 전문 리포트)은 32(또는 30)개 도구로 분석했다고 상단 배지(rpTierCountFull/Custom)가
+    // 이미 말하고 있는데, 이 적중률은 그와 다른 도구 수(graphIndicators, 생성물)로 잰
+    // 값이다. 그 사실을 안 밝히면 "32개로 분석했고 61.7% 맞다"로 읽힌다. rpHitScopeIndA/B
+    // 사이에 그 개수를 끼워 넣는다 — "19지표 sampleGraph" 같은 내부 용어 대신 "이 리포트가
+    // 쓰는 지표 수와는 다른 표본"이라는, 사용자가 바로 알 수 있는 말로 옮겼다.
+    rpHitScopeShort: "이 수치는 이 종목이 아니라 엔진 전체(", rpHitScopeMid: "종목 · ",
+    rpHitScopeIndA: "건)를 도구 ",
+    rpHitScopeIndB: "개로 상승·하락 판정별 측정한 값입니다 — 이 리포트가 쓰는 지표 수와는 " +
+                    "다른 표본이며, 이 종목의 성적이 아닙니다.",
+    // 중립(무방향) 판정 전용 — hitRate() 는 regime 이 bull/bear 일 때만 값을 낸다(방향별
+    // 적중률이라 방향이 없으면 잴 대상이 없다). buildHitrate() 가 그 null 을 감추는 대신
+    // 이 문구를 적는다(P1b Task 6b, rpAgainstNeutral 과 같은 태도).
+    rpHitNeutral: "지금 판정은 중립입니다 — 적중률은 상승·하락처럼 방향이 있는 판정에만 있습니다.",
+    // 중립 카드의 헤드라인 자리(P1b Task 10 폴리시 P2, Task 6b 리뷰 Minor 1) — 형제 섹션
+    // (상승/하락)은 오버라인+행+큰 골드 숫자+기준선+범위주석 4단인데 중립은 오버라인+문단
+    // 하나뿐이라 "값을 하는 카드"가 아니라 "짧은 안내문"으로 읽혔다. 숫자는 지어내지
+    // 않는다 — 없는 게 맞다. 대신 숫자가 앉는 자리에 같은 크기의 **문장 답**을 놓아 같은
+    // 시각적 단(段)을 만든다(색은 gold 가 아니라 ink — "값"이 아니라 "값이 없다는 사실"
+    // 이라는 뜻을 색으로도 구분한다, report.js buildHitrate() 참고).
+    rpHitNeutralDir: "중립 판정", rpHitUndefined: "정의되지 않음",
 
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)
     rpTierBasic: "기본",
@@ -216,10 +278,13 @@
     // "심화분석")과 바이트가 같을 필요는 없다, 정규화 테스트("한 단계는 한 이름으로 불린다")가
     // 요구하는 건 어간 일치뿐이다(태스크 8).
     rpTierFull: "심화", rpTierCountFull: "지표 32개 · 일·주·월",
-    // rpTierCustom 도 같은 압축 규칙(tsCustom/walOptimiser/xpTitle="전문분석"의 어간). 개수가 30인
-    // 이유는 가중치 레일이 gann·pattern 을 뺀 30종이기 때문이다(인벤토리 §0 충돌 1) — 판정이 읽는
-    // 32 와 다른 숫자이고, 그 차이가 이 화면의 정체다.
-    rpTierCustom: "전문", rpTierCountCustom: "지표 30개 · 내 가중치",
+    // rpTierCustom 도 같은 압축 규칙(tsCustom/walOptimiser/xpTitle="전문분석"의 어간).
+    // [리뷰 C1, 2026-08-19] 개수는 리터럴 30이 아니다 — 전문은 사용자가 고른 부분집합이라
+    // 실제로 판정이 읽은 수(MSGraph.indicatorTypes(an.graph).length)가 프리셋마다 다르다
+    // (실측: "추세 추종" 기본 프리셋 = 9). 30(가중치 레일 상한, 인벤토리 §0 충돌 1)을
+    // 못박으면 이 배지가 3자리 중 하나(19a·8b·판독문 링크)와 다시 어긋난다 — A/B로 쪼개
+    // report.js buildTierRow() 가 실제 그래프 카운트를 끼워 넣는다.
+    rpTierCustom: "전문", rpTierCountCustomA: "지표 ", rpTierCountCustomB: "개 · 내 가중치",
     // 성향 칩(헤더, 설계서 §3.2) — "추세 추종 기준" 처럼 선택된 프리셋 이름 + 접미사로 조립한다.
     // 탭하면 성향 변경 시트(12b)가 열려야 하지만 그건 P2 다 — 지금은 표시만.
     rpStyleSuffix: " 기준",
@@ -233,6 +298,12 @@
     // 시안 6a 의 AGAINST THIS CALL — Full 이 주는 것 중 하나. 32종 중 판정과 반대인 지표들.
     rpAgainst: "반대 의견",
     rpAgainstNone: "반대하는 지표가 없습니다.",                    // 시안 6a: "REASONING · 32 NODES" — .overline 이 대문자로 만든다                  // 머리 오른쪽 캡션 앞부분 — "32개 지표"                // 판독은 일봉 기준(헤드라인 판정과 같은 주기)         // "일봉 · 30개 지표가 방향 제시"
+    // 중립(무방향) 판정 전용 — buildAgainst()/buildHitrate() 가 값 대신 이 문구를 적는다
+    // (P1b Task 6b). rpAgainstNone("반대하는 지표가 없습니다")과 다르다 — 그건 방향은
+    // 있는데(bull/bear) 32종 전부가 동의한 경우고, 이건 애초에 반대할 방향 자체가 없는
+    // 경우다. 두 문장을 하나로 합치면 "동의율 100%"와 "판정 자체가 중립"이 구분 안 된다.
+    rpAgainstNeutral: "지금 판정은 중립입니다 — 상승도 하락도 아니라서 반대할 방향이 없습니다. " +
+                       "방향이 생기면 이 자리에 반대 지표가 나타납니다.",
     rpNoDirDash: "—",                            // 방향을 못 묻는 둘의 기여도 칸
     rpSep: " · ",                                // 오버라인 안 구분자 — report.js 가 리터럴로 들고 있던 것
     // 판독문 거절문 3종(readings.js). **이유가 서로 다르므로 하나로 뭉치면 화면이 거짓 이유를 말한다** —
@@ -439,9 +510,22 @@
     tsFull: "심화분석", tsCustom: "전문분석",
     tsBasicDesc: "도구 5 · 방향과 범위",
     // 두 줄(시안 6b 원문에 줄바꿈이 있다) — .sheet-tier-desc 가 white-space:pre-line 이다.
+    // full 은 항상 32종 전부다(full32Graph 가 gann·pattern 도 포함해 고정 구성) — 그래프
+    // 구성이 안 바뀌므로 리터럴로 둬도 거짓이 될 일이 없다.
     tsFullDesc: "도구 32 · 일·주·월\n중심값 · 오차 · 확률 · 적중 이력",
-    tsCustomDesc: "도구 32 · 지표별 가중치 직접 지정",
-    tsDone: "받음", tsPopular: "가장 많이 씀",
+    // [리뷰 C1, 2026-08-19] "도구 32"는 전문(custom)에서 도달 불가능한 수였다 — customGraph()
+    // 가 가중치 레일에 없는 gann·pattern 을 그래프 자체에서 뺀다(graph.js:113 "만질 수 없는
+    // 지표는 전문분석 판정에서 빠진다"), 그래서 실제 상한은 30(MSIndTiers.tunable().length)
+    // 이다. 32를 그대로 두고 값만 받기 시작하면 "못 파는 것을 파는" 결함이라 리터럴을 없애고
+    // A/B로 쪼개 tier-sheet.js 가 MSIndTiers.tunable().length 를 끼워 넣는다.
+    tsCustomDescA: "도구 ", tsCustomDescB: " · 지표별 가중치 직접 지정",
+    tsDone: "받음",
+    // [리뷰 I1, 2026-08-19] "가장 많이 씀"은 명시적 사용 빈도 주장이었다 — 이 커밋이
+    // 사람들이 스쿱을 처음 쓰기 시작하는 지점이라 뒷받침 표본이 0이다(표본 20건 미만
+    // 퍼센트 금지와 같은 뿌리 규율). 배지를 아예 없애는 대신 "추천"(편집적 안내일 뿐,
+    // 사용 빈도를 주장하지 않는다)으로 바꿨다 — 시안이 심화(full)를 기본 선택(picked)
+    // 으로 이미 앞세우는 것과 같은 편집적 판단이라, 안내 자체를 지울 이유는 없었다.
+    tsPopular: "추천",
     // 그리는 함수가 아직 없는 블록이 있는 티어는 팔지 않는다(리뷰 판정, 2026-08-18) —
     // tier-sheet.js 가 그 티어 행을 잠그며 쓴다. "P1b" 같은 내부 페이즈 용어를 쓰지 않는다.
     tsSoon: "곧 지원 예정",
@@ -459,6 +543,18 @@
     // 않았다"고 말하면 거짓일 수 있어 tsSpendFailed 와 문구를 가른다. 재시도는 안전하다 —
     // 클라이언트가 같은 idem 을 재사용해 서버 멱등이 잡는다.
     tsSpendFailedUnknown: "지갑 상태를 확인하지 못했습니다. 차감됐더라도 다시 시도해도 안전합니다 — 다시 시도해 주세요.",
+    // [리뷰 I2, 2026-08-19] merged·unauthorized 는 서버가 정상 응답한 상태다(spend 자체를
+    // 시작하지 않았다 — MAYBE_CHARGED 밖) — tsSpendFailed("연결할 수 없습니다... 다시 시도해
+    // 주세요")를 그대로 쓰면 원인도 틀리고, merged 는 재시도해도 영원히 같은 사유로 실패한다.
+    // wallet.js 348행이 checkin() 의 merged 를 이미 wMerged 로 처리하는 것과 같은 사유 —
+    // 여기(report.js 구매 경로)만 놓치고 있었다. MSBlocked failedUnknown 카드(open-wallet+
+    // retry)에 이 셋을 넘겨 badge/head/body 를 갈아 끼운다.
+    tsSpendMergedBadge: "지갑이 이동됨",
+    tsSpendMergedHead: "이 기기의 지갑이 다른 곳으로 넘어갔습니다",
+    // body 는 wMerged 를 그대로 재사용한다(문구 이원화 금지 — 같은 사실은 같은 문장으로).
+    tsSpendUnauthorizedBadge: "인증 만료",
+    tsSpendUnauthorizedHead: "계정 인증이 끊어졌습니다",
+    tsSpendUnauthorizedBody: "지갑에서 다시 로그인해야 계속할 수 있습니다 — 차감되지 않았습니다.",
 
     // 지갑을 읽을 수 없을 때(오프라인 등) — 잔량을 0 으로 그리면 거짓 정보다(SPEC §1).
     // walUnavailable 은 wallet.js 전용(태스크 6 범위) — tsUnavailable 은 다른 화면(단계 선택
