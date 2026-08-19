@@ -152,6 +152,19 @@
 .rp-hz-prev-w { flex:0 0 auto; }
 .rp-hz-note { margin-top:10px; font-size:var(--fs-sub); color:var(--ink-4); line-height:1.5; }
 
+/* 적중률 단독 블록(19b, P1b Task 5) — 3단 대조(.rp-tc, 아래)와 시각적으로 닮되 카드가
+   아니라 한 줄이다: 이 블록은 basic 3단 대조와 달리 티어 세 개를 나란히 놓지 않고, 지금 이
+   판정의 방향(상승/하락) 하나만 말한다. 범위 주석(.rp-hit-scope)은 §3.5 규율상 필수라
+   숨김 처리를 두지 않는다 — 블록이 뜨면 항상 함께 뜬다(report.js buildHitrate()). */
+.rp-hitrate { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
+.rp-hitrate .rp-sec-head { margin-bottom:10px; }
+.rp-hit-row { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; }
+.rp-hit-dir { font-size:var(--fs-body); color:var(--ink-3); }
+.rp-hit-val { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline);
+              color:var(--gold); font-variant-numeric:tabular-nums; }
+.rp-hit-base { font-size:var(--fs-sub); color:var(--ink-4); font-variant-numeric:tabular-nums; }
+.rp-hit-scope { margin-top:8px; font-size:var(--fs-caption); color:var(--ink-5); line-height:1.5; }
+
 /* 3단 대조(시안 7a, 설계서 §3.3) — 이 개편의 판매 논거. 카드마다 왼쪽=답의 폭·오른쪽=적중률로
    고정한다. 좌측 세로 라인 금지 규칙에 따라 티어 구분은 이름 텍스트 색(--steel/--gold/
    --platinum)으로만 한다 — 보더·마커 어디에도 왼쪽 accent 를 쓰지 않는다. */

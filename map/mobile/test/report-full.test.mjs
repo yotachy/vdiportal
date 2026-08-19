@@ -174,15 +174,38 @@ before(() => {
 //
 // Task 5 가 이 헬퍼를 그대로 이어 쓴다: sym·drift·base 를 바꿔 다른 판정(bull/bear/neutral)·
 // 다른 가격대(원화 대형주 등)로 같은 조립 경로를 다시 태울 수 있다.
+//
+// [Task 5 리뷰 지적 보강] 프로덕션 purchaseRun()(report.js:420-424)은 항상 세 주기
+// ["1day","1week","1month"] 를 채우는데, 이 헬퍼는 그동안 1day 하나만 넣고 있었다 — 주기
+// 교차를 보는 블록이 실제보다 얇은 표본("1/1 동의" 류)을 재게 되는 함정. 같은 합성 데이터를
+// 재사용해 세 주기를 다시 분석한다 — analyzeFull() 은 tf 인자로 트렌드 프로필만 바꾸고
+// 캔들을 재구성하지 않으므로(report.js:200 runOpts.timeframe) 계산을 다시 구현하는 게 아니다.
+//
+// opts.backtest — 지정하면(명시적 null 포함) 이 렌더 동안만 window.MSBacktest 를 그 값으로
+// 바꾼다(tier-compare.test.mjs 의 "ctx.window.MSBacktest 직접 주입" 과 같은 기법). 이 파일의
+// CTX 는 before() 에서 한 번만 만들어 모든 test 가 공유하므로, 되돌리지 않으면 뒤 테스트가
+// 오염된다 — 그래서 항상 finally 로 원래 값을 복원한다.
 function renderFullReport(opts) {
   const o = opts || {};
   const sym = String(o.sym || "AAPL").toUpperCase();
   const drift = o.drift == null ? 0.3 : o.drift;   // report-basic 실측: +0.3 은 결정적으로 bull
   const data = fakeData(drift, o.name || "Apple", o.base);
   const an = CTX.__TEST_HOOKS__.analyzeFull(data, true, "1day", null);
-  CTX.__TEST_HOOKS__.purchases[sym + "|full"] = { data: data, an: an, runs: [{ tf: "1day", out: an.out }] };
+  const runs = ["1day", "1week", "1month"].map(tf => {
+    const a = tf === "1day" ? an : CTX.__TEST_HOOKS__.analyzeFull(data, true, tf, null);
+    return { tf: tf, out: a.out };
+  });
+  CTX.__TEST_HOOKS__.purchases[sym + "|full"] = { data: data, an: an, runs: runs };
+
+  const hasBT = Object.prototype.hasOwnProperty.call(o, "backtest");
+  const prevBT = CTX.window.MSBacktest;
+  if (hasBT) CTX.window.MSBacktest = o.backtest;
   const root = new FakeNode("div");
-  CTX.MSReport.render(root, { sym: sym });
+  try {
+    CTX.MSReport.render(root, { sym: sym });
+  } finally {
+    if (hasBT) CTX.window.MSBacktest = prevBT;
+  }
   return root;
 }
 
@@ -248,4 +271,99 @@ test("forecast — 원화 대형주(1000 이상)는 가격이 소수점 없이 �
   const pm = dom.querySelector(".rp-forecast-pm");
   assert.ok(pm, "오차 범위 칸이 없다");
   assert.match(deepText(pm), /^\s*±\s*[\d,]+(\.\d{1,2})?$/, "오차 범위 표기가 fmtPrice 규칙과 다르다: " + deepText(pm));
+});
+
+// ── runs 3-요소 보강(Task 4 리뷰 지적) — 위 renderFullReport() 가 이제 프로덕션과 같은
+// 모양([{tf:"1day"},{tf:"1week"},{tf:"1month"}])을 채우는지를 직접 확인한다. 이 자체를
+// 못 박아 두지 않으면 다음 사람이 다시 1-tf 로 줄여도 아무 시험도 못 잡는다. ──────────────
+test("runs — 헬퍼가 세 주기(1day·1week·1month)를 모두 채운다(프로덕션 purchaseRun() 과 같은 모양)", () => {
+  renderFullReport();
+  const runs = CTX.__TEST_HOOKS__.purchases["AAPL|full"].runs;
+  assert.strictEqual(runs.length, 3, "runs 가 3-요소가 아니다: " + runs.length);
+  assert.deepStrictEqual(runs.map(r => r.tf), ["1day", "1week", "1month"],
+    "주기 순서가 프로덕션(report.js:420)과 다르다");
+  runs.forEach(r => assert.ok(r.out && r.out.verdict, r.tf + " 주기의 out.verdict 가 없다"));
+});
+
+// ── hitrate(적중률) 블록 — 브리프 원문 시험(Task 5 Step 2)을 그대로 담는다. globalThis 대신
+// CTX.window 를 읽는다 — 이 harness 의 실측 출처(window.MSBacktest)는 vm 컨텍스트 안에만
+// 있고 Node 프로세스의 globalThis 에는 없다(브리프 예시는 harness 구조가 다른 원문이라
+// 이 파일의 실제 접근 경로에 맞춰 옮겼다, 값·의도는 그대로). ──────────────────────────────
+test("hitrate — 적중률 옆에 기준선이 반드시 병기된다", () => {
+  const dom = renderFullReport();          // 기본 drift(+0.3) → bull 결정적
+  const box = dom.querySelector(".rp-hitrate");
+  assert.ok(box, "hitrate 블록이 없다");
+  const txt = deepText(box);
+  assert.ok(txt.trim().length > 0, "hitrate 블록이 비어 있다");
+  // 규율: 방향 적중률을 단독으로 놓으면 사용자는 "동전보다 낫다"로 읽는다. 이 자산·이 기간의
+  // 기준선은 50%가 아니라 60.96%이고 방향 판정은 그 아래다.
+  const base = (CTX.window.MSBacktest.baselineAlwaysUp * 100).toFixed(1);
+  assert.ok(txt.indexOf(base) >= 0, "기준선(" + base + "%)이 병기되지 않았다: " + txt);
+});
+
+test("hitrate — 범위 주석이 있다(이 종목의 성적이 아니라는 것)", () => {
+  const dom = renderFullReport();
+  const box = dom.querySelector(".rp-hitrate");
+  assert.ok(box, "hitrate 블록이 없다");
+  const txt = deepText(box);
+  assert.ok(txt.trim().length > 0, "hitrate 블록이 비어 있다 — 부재 시험이 공허하게 통과할 뻔했다");
+  assert.match(txt, /전체|엔진|시리즈/, "무엇에 대해 잰 수치인지 범위가 없다: " + txt);
+});
+
+test("hitrate — 값이 없으면 블록 자체를 감춘다(비교 없는 숫자는 안 낸다) — 생성물 부재", () => {
+  const dom = renderFullReport({ backtest: null });   // 생성물 부재 상황(sync 전 등)
+  assert.strictEqual(dom.querySelector(".rp-hitrate"), null,
+    "백테스트 요약이 없는데 적중률 블록이 떴다");
+});
+
+test("hitrate — 판정이 중립(무방향)이면 블록을 감춘다 — 없는 방향의 적중률은 없다", () => {
+  // report-basic.test.mjs 실측: 드리프트 +0.02 는 neutral 로 결정적으로 떨어진다.
+  const dom = renderFullReport({ sym: "TSLA", drift: 0.02, name: "Tesla" });
+  assert.strictEqual(dom.querySelector(".rp-hitrate"), null,
+    "중립 판정인데 hitrate 블록이 떴다 — hitRate() 는 bull/bear 에만 값을 준다");
+});
+
+test("hitrate — 기준선 없는 생성물이면 감춘다(옛 생성물 시뮬레이션, R2 규율의 이 블록판)", () => {
+  // baselineAlwaysUp 이 없는 생성물 — report-model.js hitRate() 가 baseline:null 을 돌려주고,
+  // buildHitrate() 가 그 즉시 hit 을 통째로 접어야 한다("비교 없는 숫자는 안 낸다").
+  const dom = renderFullReport({
+    backtest: { bullHitRate: 0.617, bearHitRate: 0.425, nForecasts: 31971, nSeries: 87 }
+  });
+  assert.strictEqual(dom.querySelector(".rp-hitrate"), null,
+    "베이스라인 없는 생성물인데 적중 행이 떴다");
+});
+
+test("hitrate — 표본이 20건 미만이면 블록을 감춘다(리터럴에 기대지 않고 코드가 직접 검사한다)", () => {
+  const dom = renderFullReport({
+    backtest: { bullHitRate: 0.617, bearHitRate: 0.425, baselineAlwaysUp: 0.6096, nForecasts: 19, nSeries: 87 }
+  });
+  assert.strictEqual(dom.querySelector(".rp-hitrate"), null,
+    "nForecasts=19(<20)인데 적중률 블록이 떴다");
+});
+
+test("hitrate — 상승(bull) 판정은 bullHitRate 실측을 그대로 쓴다(전역 directionHitRate 아님)", () => {
+  const dom = renderFullReport();          // drift +0.3 → bull 결정적
+  const txt = deepText(dom.querySelector(".rp-hitrate"));
+  const bt = CTX.window.MSBacktest;
+  const rightBull = (bt.bullHitRate * 100).toFixed(1);
+  assert.ok(txt.indexOf(rightBull) >= 0, "bull 적중률(" + rightBull + "%)이 화면에 없다: " + txt);
+  // R2 규율(report-model.js:79-82) — 전역 directionHitRate(방향 무관 종합)를 쓰면 안 된다.
+  // bull·bear 값이 그 값과 우연히 같지 않은 표본이라 이 시험이 성립한다(실측: 58.2% vs 61.7%).
+  const directionAll = (bt.directionHitRate * 100).toFixed(1);
+  assert.notStrictEqual(rightBull, directionAll,
+    "이 표본에서는 bullHitRate 와 directionHitRate 가 같다 — 이 시험이 그 둘을 구분 못 한다");
+});
+
+test("hitrate — 하락(bear) 판정은 bearHitRate 실측을 그대로 쓴다(기준선은 방향 무관 동일)", () => {
+  // report-basic.test.mjs 실측: 드리프트 -0.3 은 bear 로 결정적으로 떨어진다.
+  const dom = renderFullReport({ sym: "MSFT", drift: -0.3, name: "Microsoft" });
+  const txt = deepText(dom.querySelector(".rp-hitrate"));
+  const bt = CTX.window.MSBacktest;
+  const rightBear = (bt.bearHitRate * 100).toFixed(1);
+  const base = (bt.baselineAlwaysUp * 100).toFixed(1);
+  assert.ok(txt.indexOf(rightBear) >= 0, "bear 적중률(" + rightBear + "%)이 화면에 없다: " + txt);
+  assert.ok(txt.indexOf(base) >= 0, "bear 판정에도 기준선(" + base + "%)이 병기되어야 한다: " + txt);
+  // bearHitRate(42.5%)는 기준선(61.0%)보다 한참 아래다 — 하락 콜은 구조적으로 절반 아래에서
+  // 맞는다(report-model.js:79-82 주석). 적중률이 기준선을 웃도는 조작이 섞이면 이 시험이 죈다.
+  assert.ok(bt.bearHitRate < bt.baselineAlwaysUp, "이 표본은 bearHitRate<baseline 전제가 깨졌다");
 });

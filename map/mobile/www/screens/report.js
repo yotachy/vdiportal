@@ -33,6 +33,11 @@
   // 이름 없는 매그넘버로 각자 들고 있으면 한쪽만 재조정되고 조용히 어긋난다).
   var AD_POLL_MS = 2000, AD_POLL_LIMIT = 5;   // 2초 × 5 = 10초
 
+  // 적중률 블록(buildHitrate)의 표본 하한 — 지금 MSBacktest.nForecasts=31971·nSeries=87 둘
+  // 다 안전하지만(조사 A3), 코드가 그 사실에 기대지 않고 매번 검사하게 한다. 생성물이 바뀌면
+  // 조용히 깨지지 않도록 하는 것이 이 상수의 목적이다(P1b Task 5 브리프 규율).
+  var MIN_HIT_SAMPLE = 20;
+
   // 티어는 셋이다(basic · full · custom). 이 파일이 오래 티어를 **둘로** 알고 `tier === "full"`
   // 이항 분기를 여섯 곳에 흩어놨던 것이 리뷰가 잡은 결함 다섯의 공통 뿌리다 — custom 이 전부
   // basic 가지로 떨어져, 5스쿱 낸 전문분석이 3스쿱 심화보다 **적은** 블록을 "기본" 배지와
@@ -158,6 +163,17 @@
   function isBarsShort(err) { return MSApi.isBarsShort(err); }
   function loadOne(sym) { return MSApi.loadTicker(sym, TF); }
   function dirWord(regime) { return regime === "bull" ? MSStr.t.rpUp : regime === "bear" ? MSStr.t.rpDown : MSStr.t.rpFlat; }
+
+  // 적중률 단독 블록(hitrate)이 읽는 실측 출처 — tier-compare.js:bt() 와 같은 패턴이다.
+  // 브라우저는 index.html 스크립트 순서(vendor/backtest-summary.js 가 이 파일보다 먼저)가
+  // window.MSBacktest 를 이미 채워 뒀고, Node vm 테스트도 같은 전역을 bare 식별자로 읽을 수
+  // 있다(vm 컨텍스트 자신이 realm 전역 객체다). 여기서 새로 만드는 이유는 MSTierCompare 의
+  // bt() 가 클로저 안에 갇혀 밖에서 못 부르기 때문이다 — export 목록에 없다.
+  function backtestSummary() {
+    if (typeof window !== "undefined" && window.MSBacktest) return window.MSBacktest;
+    if (typeof MSBacktest !== "undefined") return MSBacktest;
+    return null;
+  }
 
   function paramOf(graph, blockType, defaults) {
     var n = null, i;
@@ -788,6 +804,46 @@
         sec.appendChild(MSUi.el("div", "rp-forecast-note", MSStr.t.rpForecastConfNote));
       }
       return sec;
+    }
+
+    // 적중률 단독 블록(19b, P1b Task 5) — MSReportModel.hitRate() 는 완성돼 있었는데 호출부가
+    // 0건이었다(조사 A3). 3단 대조(buildCompare, tiers.basic/deep)와 표본이 다르다 — hitRate()
+    // 는 top-level bullHitRate/bearHitRate(19지표 sampleGraph, 방향별)를 읽는다. 그래서 같은
+    // 문구를 재사용하지 않고 스스로 범위를 밝힌다(rpHitScope*, 설계서 §3.5 필수 지시) — 안
+    // 밝히면 사용자가 3단 대조에서 본 58.5%와 여기 61.7%를 같은 측정으로 착각한다.
+    //
+    // R2 관문(truth-rules.test.mjs)이 정확한 배선을 강제한다: 베이스라인이 없으면 그 즉시
+    // hit 을 통째로 null 로 접어 적중 행을 감춘다 — 적중률만 단독 노출하면 "동전보다 낫다"로
+    // 읽힌다(report-model.js:98-102 주석과 같은 태도, hitRate() 를 뒤집지 않는다).
+    function buildHitrate() {
+      var hit = MSReportModel.hitRate(backtestSummary(), an.out.verdict.regime);
+      if (hit && hit.baseline == null) hit = null;
+      if (!hit) return null;
+      // 표본 20건 미만이면 퍼센트를 쓰지 않는다(설계 규율) — 지금 n=31971·series=87 은
+      // 안전하지만(조사 A3), 그 사실에 기대지 않고 매번 검사한다. 생성물이 바뀌어도 조용히
+      // 안 깨지게 하는 것이 이 두 줄의 목적이다.
+      if (hit.n != null && hit.n < MIN_HIT_SAMPLE) return null;
+      if (hit.series != null && hit.series < MIN_HIT_SAMPLE) return null;
+      // 범위 주석은 필수다(설계서 §3.5) — n·series 어느 하나라도 없으면 "무엇에 대해 잰
+      // 수치인지"를 못 밝히므로, 숫자 없이 뭉뚱그리는 대신 블록 자체를 접는다. 범위 없는
+      // 적중률 문장은 "이 종목 얘기"로 오독된다.
+      if (hit.n == null || hit.series == null) return null;
+
+      var wrap = MSUi.el("div", "rp-hitrate");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpHitHead));
+      wrap.appendChild(head);
+
+      var row = MSUi.el("div", "rp-hit-row");
+      row.appendChild(MSUi.el("span", "rp-hit-dir", dirWord(an.out.verdict.regime) + MSStr.t.rpHitDirSuffix));
+      row.appendChild(MSUi.el("span", "rp-hit-val", MSStr.t.rpHitRight + hit.right.toFixed(1) + "%"));
+      row.appendChild(MSUi.el("span", "rp-hit-base", MSStr.t.rpHitBaseA + hit.baseline.toFixed(1) + "%"));
+      wrap.appendChild(row);
+
+      wrap.appendChild(MSUi.el("div", "rp-hit-scope",
+        MSStr.t.rpHitScopeShort + hit.series + MSStr.t.rpHitScopeMid +
+        hit.n.toLocaleString() + MSStr.t.rpHitScopeTail));
+      return wrap;
     }
 
     // verdict 는 지금 basic 전용이다(report-blocks.js BASIC = ["verdict","comb","chart"] — FULL/
@@ -1540,6 +1596,7 @@
           chart:     function () { return buildChartSection(); },
           legend:    function () { return buildChartLegend(); },
           horizons:  function () { return buildHorizons(); },
+          hitrate:   function () { return buildHitrate(); },
           against:   function () { return buildAgainst(indRows); },
           // dissent 는 against 의 개명이다 — 시안 19b "이건 알고 계세요(반대)"와 against 의
           // 제목("반대 의견")·isPaid 게이팅·내용이 정확히 같다(리뷰 지시로 확인). 같은 함수를

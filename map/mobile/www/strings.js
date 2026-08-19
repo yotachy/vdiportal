@@ -218,6 +218,21 @@
     rpForecastHead: "내일 예상", rpForecastConfLabel: "모델 확신",
     rpForecastConfNote: "적중률이 아니라, 모델이 이 판정에 부여한 확신도입니다.",
 
+    // 적중률 단독 블록(P1b Task 5, 19b) — hitRate() 는 top-level bullHitRate/bearHitRate
+    // (19지표 sampleGraph, 방향별)를 읽는다. 3단 대조(tcScope*)는 tiers.basic/deep(5·32지표,
+    // 방향 무관 종합)을 읽는 **다른 표본**이라 문구를 공유하지 않는다 — 공유하면 사용자가
+    // 두 수치를 같은 측정으로 착각한다(컨트롤러 판정, 브리프 Step 1). R2 관문
+    // (truth-rules.test.mjs)이 rpHitRight 가 rpHitBaseA 보다 먼저 그려질 것을 강제한다 —
+    // 적중률을 기준선 없이 단독 노출하지 않는다는 규율을 식별자 순서로도 못박는다.
+    rpHitHead: "적중률",
+    rpHitDirSuffix: " 판정",              // rpUp/rpDown 뒤에 붙여 "상승 판정"/"하락 판정"
+    rpHitRight: "적중 ", rpHitBaseA: " · 기준선 ",
+    // 범위 주석(설계서 §3.5 "rpHitScopeShort" 필수 지시) — 이 수치가 이 종목이 아니라 엔진
+    // 전체를 상승·하락 판정별로 측정한 값이라는 사실. tcScope*(3단 대조)와 표본이 다르므로
+    // "방향별로"를 넣어 그 차이를 스스로 밝힌다.
+    rpHitScopeShort: "이 수치는 이 종목이 아니라 엔진 전체(", rpHitScopeMid: "종목 · ",
+    rpHitScopeTail: "건)를 상승·하락 판정별로 측정한 값입니다 — 이 종목의 성적이 아닙니다.",
+
     // 리포트 — 티어 배지 (Fix 6: 영문 리터럴이라 한글 스캔이 못 보고 있었다)
     rpTierBasic: "기본",
     rpTierCount: "지표 5개",
