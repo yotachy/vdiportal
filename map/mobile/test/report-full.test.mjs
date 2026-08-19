@@ -473,24 +473,95 @@ test("선언한 블록을 전부 그린다 — 5스쿱 낸 사용자가 한 줄�
   });
 });
 
-// ── compare(8a 직전 상태 대조, 브리프 Step 1·2) ───────────────────────────────────────
-test("compare — G1 재료가 있으면 뜨고, 폭이 넓어졌다는 사실을 숫자보다 먼저 말한다", () => {
+// ── compare(8a 직전 상태 대조, 브리프 Step 1·2 → 리뷰 C1/C2 정정) ─────────────────────
+// [리뷰 C1, 2026-08-19] 처음 버전은 재지 않고 "넓어졌습니다"를 무조건 찍었다 — 리뷰어의
+// 실표본 재측정(2813창)이 넓어진 사례 57.4%·좁아진 사례 42.6%임을 보였다. 그래서 아래는
+// **양쪽 갈래(넓어진 표본·좁아진 표본)를 각각 별도로** 태운다 — 한쪽만 재면 반쪽 증명이다.
+// 기준값: drift=0.3·base=null 합성 데이터의 an.out.prediction 은 결정적으로 폭 ≈2.3847을
+// 낸다(node 로 직접 analyzeFull 을 불러 실측 — 이 파일의 fakeData/설치 훅과 완전히 같은
+// 경로). prevBasic 폭을 그보다 뚜렷이 작게/크게/거의 같게 줘 세 갈래를 각각 결정적으로
+// 태운다(±5% 경계 WIDTH_EQ_EPS 언저리에서 흔들리지 않도록 여유를 둔다).
+test("compare — 심화 폭이 기본보다 넓으면(현재>직전) '넓어졌다'고 말하고, 반대 문구는 없다", () => {
   const dom = renderFullReport({
-    sym: "CMPW", name: "CompareWide", prevBasic: { lo: 150, hi: 154, width: 4 }
+    // prevBasic 폭 1.0 ≪ 현재 폭 ≈2.38 → ratio ≈2.38 → wider
+    sym: "CMPW", name: "CompareWide", prevBasic: { lo: 150, hi: 151, width: 1 }
   });
   const box = dom.querySelector(".rp-compare");
   assert.ok(box, "compare 블록이 없다 — G1 재료를 심었는데도 안 그려졌다");
   const txt = deepText(box);
   assert.ok(txt.trim().length > 0, "compare 블록이 비어 있다 — 부재 시험이 공허하게 통과할 뻔했다");
-  // 실측(최종 리뷰어 독립 28창): 심화가 더 좁은 사례 0.0%, 폭 비율 중앙값 1.78배. 유료
-  // 사용자는 돈을 낸 직후 더 "넓어진" 범위를 본다 — "좁아진다·절반"은 반대 사실이다.
-  assert.doesNotMatch(txt, /좁아|절반/, "실측과 반대되는 문구가 있다: " + txt);
-  assert.match(txt, /넓어졌습니다/, "폭이 넓어졌다는 사실을 먼저 말하지 않는다(설계서 §3.5): " + txt);
+  assert.match(txt, /넓어졌습니다/, "실제로 넓어졌는데 그 사실을 말하지 않는다(설계서 §3.5): " + txt);
+  assert.doesNotMatch(txt, /좁아졌습니다|거의 같습니다/, "실측과 반대되는(또는 무관한) 문구가 섞였다: " + txt);
   assert.ok(box.querySelector(".rp-hz-prev"), "직전 기본분석 값 행이 없다");
+  assert.ok(box.querySelector(".rp-compare-now"), "이번 분석 값 행이 없다(리뷰 C2 — 같은 단위로 나란히 놓아야 한다)");
+});
+
+test("compare — 심화 폭이 기본보다 좁으면(현재<직전) '좁아졌다'고 말하고, 반대 문구는 없다", () => {
+  const dom = renderFullReport({
+    // prevBasic 폭 6.0 ≫ 현재 폭 ≈2.38 → ratio ≈0.40 → narrower
+    sym: "CMPN2", name: "CompareNarrow", prevBasic: { lo: 150, hi: 156, width: 6 }
+  });
+  const box = dom.querySelector(".rp-compare");
+  assert.ok(box, "compare 블록이 없다 — G1 재료를 심었는데도 안 그려졌다");
+  const txt = deepText(box);
+  assert.ok(txt.trim().length > 0, "compare 블록이 비어 있다 — 부재 시험이 공허하게 통과할 뻔했다");
+  assert.match(txt, /좁아졌습니다/, "실제로 좁아졌는데 그 사실을 말하지 않는다(리뷰 C1): " + txt);
+  assert.doesNotMatch(txt, /넓어졌습니다|거의 같습니다/,
+    "실측과 반대되는(또는 무관한) 문구가 섞였다: " + txt);
+});
+
+test("compare — 두 폭이 거의 같으면(±5% 이내) 단정하지 않고 '거의 같다'고 말한다", () => {
+  const dom = renderFullReport({
+    // prevBasic 폭 2.4 ≈ 현재 폭 ≈2.3847 → ratio ≈0.994 → same(±5% 이내)
+    sym: "CMPS", name: "CompareSame", prevBasic: { lo: 150, hi: 152.4, width: 2.4 }
+  });
+  const box = dom.querySelector(".rp-compare");
+  assert.ok(box, "compare 블록이 없다 — G1 재료를 심었는데도 안 그려졌다");
+  const txt = deepText(box);
+  assert.match(txt, /거의 같습니다/, "폭이 거의 같은데 넓어짐/좁아짐으로 단정한다: " + txt);
+  assert.doesNotMatch(txt, /넓어졌습니다|좁아졌습니다/, "근소한 차이를 단정 문구로 과장했다: " + txt);
+});
+
+// C2 — 같은 카드 안의 두 폭이 정확히 같은 단위(전폭=hi-lo)로 계산됐는지 직접 검산한다.
+// 문구가 참이라고 주장만 하고 실제 숫자가 안 맞으면(단위가 섞이면) 이 시험이 잡는다.
+test("compare — 직전·이번 두 폭 표기가 같은 단위(전폭)이고, 문구의 방향과 실제 대소가 일치한다", () => {
+  const dom = renderFullReport({
+    sym: "CMPU", name: "CompareUnit", prevBasic: { lo: 150, hi: 151, width: 1 }
+  });
+  // FakeNode 의 querySelector 는 단일 클래스만 받는다(:not·후손 결합자 미지원, 이 파일
+  // 상단 matchPred() 참고) — 그래서 두 .rp-hz-prev 행을 모두 가져온 뒤 _hasClass 로 "이번"
+  // 행(rp-compare-now)과 "직전" 행을 코드로 가른다.
+  const rows = dom.querySelectorAll(".rp-hz-prev");
+  const nowRow = rows.find((r) => r._hasClass("rp-compare-now"));
+  const prevRow = rows.find((r) => !r._hasClass("rp-compare-now"));
+  assert.ok(prevRow && nowRow, "직전·이번 폭 행을 둘 다 못 찾았다");
+  const prevW = prevRow.querySelector(".rp-hz-prev-w");
+  const nowW = nowRow.querySelector(".rp-hz-prev-w");
+  assert.ok(prevW && nowW, "직전·이번 폭 칸을 둘 다 못 찾았다");
+  const prevNum = Number(deepText(prevW).replace(/[^\d.]/g, ""));
+  const nowNum = Number(deepText(nowW).replace(/[^\d.]/g, ""));
+  assert.ok(Number.isFinite(prevNum) && Number.isFinite(nowNum), "폭 숫자를 못 읽었다");
+  // [리뷰 C2 강화] "이번 폭이 직전 폭보다 크다"만 재면 절반 단위로 실수해도(예: curWidth/2)
+  // 어쩌다 통과할 수 있다(1.19 > 1도 참이다). 그래서 report.js 실물이 낸 an.out.prediction
+  // 에서 **정확한 전폭**(hi[0]-lo[0])을 직접 뽑아 화면 숫자와 동일한지(오차 0.05 이내)까지
+  // 검산한다 — 단위가 반폭으로 새면(리드 문구는 여전히 "넓어졌다"로 참일 수 있어도) 이
+  // 정확도 검사가 반드시 죈다.
+  const purchased = CTX.__TEST_HOOKS__.purchases["CMPU|full"];
+  const expectWidth = purchased.an.out.prediction.hi[0] - purchased.an.out.prediction.lo[0];
+  assert.ok(Math.abs(nowNum - expectWidth) < 0.05,
+    "이번 폭 표기(" + nowNum + ")가 실제 전폭(hi-lo=" + expectWidth.toFixed(2) + ")과 다르다 — " +
+    "단위가 반폭(±) 등 다른 값으로 샜을 수 있다");
+  // 둘 다 report.js 의 prev.width(=hi-lo)·curWidth(=pr.hi[0]-pr.lo[0]) 로 같은 계산이다 —
+  // 여기서는 "이번 폭이 직전 폭보다 크다"(우리가 심은 1 vs 실측 ≈2.38)는 실제 대소를
+  // 재확인해 리드 문구("넓어졌습니다")와 숫자가 서로 모순되지 않는지 검산한다.
+  assert.ok(nowNum > prevNum, "이번 폭(" + nowNum + ")이 직전 폭(" + prevNum + ")보다 크지 않다 — " +
+    "리드 문구가 '넓어졌다'인데 숫자는 그렇지 않다면 카드가 자기 문장을 스스로 반박한다");
+  const txt = deepText(dom.querySelector(".rp-compare"));
+  assert.match(txt, /넓어졌습니다/, "숫자는 넓어졌는데 문구가 그렇게 말하지 않는다: " + txt);
 });
 
 test("compare — G1 재료(직전 기본분석 스냅샷)가 없으면 카드 자체가 없다(추정치로 채우지 않는다)", () => {
-  const dom = renderFullReport({ sym: "CMPN", name: "CompareNone" });   // prevBasic 없음
+  const dom = renderFullReport({ sym: "CMPNONE", name: "CompareNone" });   // prevBasic 없음
   assert.strictEqual(dom.querySelector(".rp-compare"), null,
     "재료가 없는데 compare 블록이 떴다 — G1(직전 기본분석 값 없으면 행을 통째로 생략)을 어겼다");
 });

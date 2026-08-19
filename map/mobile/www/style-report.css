@@ -149,6 +149,10 @@
    태도라 같은 색 무게(ink-3)를 쓴다. 좌측 세로 라인 금지 규칙에 따라 구분은 색과 위치로만. */
 .rp-compare { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
 .rp-compare-lead { font-size:var(--fs-sub); color:var(--ink-3); line-height:1.5; }
+/* "이번 분석" 행(리뷰 C2) — .rp-hz-prev 기본색(--ink-5)은 "지나간 값"을 위한 흐림이다.
+   지금 값까지 같은 흐림으로 두면 두 값이 똑같이 "과거"로 읽혀 대비가 흐려진다 — 더 밝혀서
+   "지금"임을 색으로도 구분한다. */
+.rp-compare-now { color:var(--ink-3); }
 .rp-hz-prev { display:flex; align-items:baseline; gap:8px; padding:8px 0 10px; color:var(--ink-5);
               font-size:var(--fs-sub); font-variant-numeric:tabular-nums; }
 .rp-hz-prev-k { flex:0 0 auto; }

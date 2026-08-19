@@ -170,7 +170,7 @@ test("잔량을 모르면(balance 없음) 비용 미리보기를 그리지 않�
 });
 
 // ── ⑤ 배지는 심화(full) 행에만 ──────────────────────────────────────────────
-test("'가장 많이 씀' 배지는 심화분석 행에만 붙는다", () => {
+test("추천 배지(tsPopular)는 심화분석 행에만 붙는다 — 리뷰 I1: 문구는 사용 빈도 주장에서 편집적 추천으로 바뀌었다", () => {
   const { MSTierSheet, doc } = load();
   const MSStr = global.MSStr;
   MSTierSheet.open({ sym: "AAPL", balance: 12, locked: { full: false, custom: false }, onRun: () => {} });

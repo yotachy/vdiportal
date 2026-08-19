@@ -805,6 +805,83 @@ export const ROUTES = [
         "if(typeof MSAnalyzeView==='undefined'||typeof MSReveal==='undefined') return false;" +
         "return true;" +
       "})()" },
+  // [리뷰 I2, 2026-08-19] report-purchase 는 full(3스쿱)만 태웠다 — 가장 비싼 상품인
+  // custom(전문분석, 5스쿱)의 구매 체인(runCustom() → MSExpert.open → .xp-run → 편집기가
+  // 넘긴 weights 로 runTier("custom", weights) → spend{runType:"custom"})은 라우트 13개
+  // 어디에도 없었다. 노드 시험(report-full.test.mjs)이 보는 custom 은 "이미 산 것" 지름길
+  // 렌더뿐이라 구매 체인 자체는 한 번도 실행된 적이 없었다 — "못 그리는 것을 팔지 않는다"
+  // 의 형제 규율("실행해 본 적 없는 것을 팔지 않는다")을 이 라우트로 채운다.
+  //
+  // 클릭 체인이 report-purchase 보다 한 단계 더 길다: ①`.rp-cta-scoop`(해제 CTA) ②
+  // `.sheet-tier.tier-custom`(시트에서 전문분석 행을 골라 picked="custom") ③`.sheet-run`
+  // (picked===custom 이므로 runCustom() 을 태운다 — MSTierSheet 를 닫고 MSExpert 를 연다)
+  // ④`.xp-run`(편집기 — 기본 프리셋 가중치가 이미 채워져 있어 아무것도 안 만져도 클릭
+  // 가능해야 한다, 설계 §3.7). ④ 이후는 report-purchase 와 같은 19a/8b 드레인이다.
+  //
+  // delay=9000 의 근거: report-purchase(8000, 3-클릭 체인)에 시트 내부 선택 한 단계(②)와
+  // 편집기 오픈·렌더(그 자체는 동기지만 MSWallet.get() 왕복 한 번이 더 낀다, runCustom() 이
+  // 여는 편집기가 자기 자신의 발란스 조회를 다시 한다) 여유를 더했다 — 폴링 100ms 간격이라
+  // 실제로는 훨씬 빨리 끝나는 게 보통이지만, **이 라우트가 처음** custom 구매 체인을 태우는
+  // 자리라 report-purchase 때와 같은 이유로 넉넉히 잡는다.
+  //
+  // 운영 서버 미접속 확인은 report-purchase 와 동일(gate-browser.mjs 의 --host-resolver-
+  // rules 가 parksvc.mycafe24.com 을 로컬 mock 으로 강제 리다이렉트) — 새로 만든 것 없음.
+  //
+  // 심볼은 AAPL 이 아니라 MSFT — 실측(첫 시도, AAPL): 전문분석의 기본 프리셋(trend) 가중치는
+  // 32개 균등가중과 다른 조합이라, AAPL(드리프트 0.12, full 균등가중에서도 겨우 bull 로
+  // 걸치는 약한 신호)에서는 regime 이 neutral 로 떨어져 dissent/hitrate 처럼 방향 있어야만
+  // 그려지는 블록이 정당하게(버그 아님, buildAgainst()·hitRate() 의 실제 게이트) 빠졌다 —
+  // 9블록 단언이 "실제로 못 그려서"가 아니라 "이 표본에서 방향이 없어서" 실패해 무엇을
+  // 재는지 흐려졌다. MSFT(드리프트 0.3, report-comb-bull 라우트가 이미 bull 로 결정적임을
+  // 픽셀로 실증)로 바꾸면 강한 추세라 어떤 가중치 조합에서도 방향이 안정적으로 유지된다.
+  { name: "report-purchase-custom", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"MSFT"}', delay: 9000,
+    scripts: [
+      { at: 300, code:
+        "var ctaClicked=false, customPicked=false, sheetRunClicked=false, xpRunClicked=false, drained=false;" +
+        "var iv=setInterval(function(){" +
+          "if(!ctaClicked){" +
+            "var cta=document.querySelector('.rp-cta-scoop');" +
+            "if(cta){ctaClicked=true; cta.click();}" +
+            "return;" +
+          "}" +
+          "if(!customPicked){" +
+            "var row=document.querySelector('.sheet-tier.tier-custom');" +
+            "if(row&&!row.disabled){customPicked=true; row.click();}" +
+            "return;" +
+          "}" +
+          "if(!sheetRunClicked){" +
+            "var run=document.querySelector('.sheet-run');" +
+            "if(run&&!run.disabled){sheetRunClicked=true; run.click();}" +
+            "return;" +
+          "}" +
+          "if(!xpRunClicked){" +
+            "var xr=document.querySelector('.xp-run');" +
+            "if(xr&&!xr.disabled){xpRunClicked=true; xr.click();}" +
+            "return;" +
+          "}" +
+          "if(!drained){" +
+            "var a=document.querySelector('.an-scrim');" +
+            "if(a)a.click();" +
+            "var r=document.querySelector('.rv-scrim');" +
+            "if(r){r.click(); drained=true; clearInterval(iv);}" +
+          "}" +
+        "}, 100);"
+      }
+    ],
+    assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
+      "(function(){" +
+        "var tierBadge=document.querySelector('.rp-tier.is-custom');" +
+        "if(!tierBadge) return false;" +                                    // 구매가 실제로 반영돼 전문으로 전환됐다
+        "var ids=['weights','sentence','forecast','chart','dissent','horizons','hitrate','readings','compare'];" +
+        "for(var i=0;i<ids.length;i++){" +
+          "if(!document.querySelector('[data-block=\"'+ids[i]+'\"]')) return false;" +   // 9블록(조절판 포함)이 실제로 다 그려졌다
+        "}" +
+        "if(document.querySelector('.rp-cta-ad')||document.querySelector('.rp-cta-scoop')) return false;" +
+        "if(document.querySelector('.an-scrim')||document.querySelector('.rv-scrim')) return false;" +
+        "if(document.querySelector('.xp-scrim')) return false;" +           // 편집기도 닫혀 있어야 한다
+        "if(typeof MSExpert==='undefined') return false;" +                 // 편집기 모듈이 실제로 전역 등록됐다
+        "return true;" +
+      "})()" },
   { name: "record", seed: { ...ON, ms_preds: PREDS }, go: '"record"',
     assert: "MSApp.current().route === 'record' && !!document.querySelector('[data-screen=\"record\"]')" },
   { name: "result", seed: { ...ON, ms_preds: PREDS }, go: '"result",{sym:"TSLA",asOf:"2026-08-14"}',

@@ -967,26 +967,64 @@
     // (아래 3단 대조 buildCompare() 와의 혼동 방지 — 그건 basic 전용 크롬, 이건 유료
     // 티어의 forTier() 선언 블록이라 서로 다른 질문에 답한다).
     //
-    // 폭 판정(브리프 Step 1) — 최종 리뷰어의 독립 실측(28창): 심화가 기본보다 더 좁은 사례
-    // **0.0%**, 폭 비율(심화÷기본) 중앙값 **1.78배**, 최대 **7.09배**. 유료 사용자는 돈을 낸
-    // 직후 직전 무료 범위보다 **넓어진** 범위를 본다 — "좁아진다"고 쓰면 반대 사실이다
-    // (report-blocks-test.mjs 가 그 반대 문구가 안 섞이는지 잠근다). 그래서 이 카드는 숫자보다
-    // **먼저** 그 사실을 문장으로 말한다(rpCompareWider) — 반대 의견(buildAgainst)을 경고문
-    // 처럼 위에 올리는 것과 같은 태도(설계서 §3.5 "불리한 것부터 말한다").
+    // [리뷰 C1, 2026-08-19 정정] 브리프가 준 28창 표본("심화가 더 좁은 사례 0.0%")은 표본이
+    // 너무 작았다 — 리뷰어가 저장소 실표본(map/backtest/earn-ohlc.json 30종목,
+    // tools/measure-sentence-signals.mjs 의 buildWindows N=240·STEP=45, basicGraph vs
+    // full32Graph, 동일 입력·index 0, 프로덕션과 정확히 같은 조건)으로 2813창을 재측정한
+    // 결과는 **넓어진 사례 57.4%(1616창) · 좁아진 사례 42.6%(1197창)**, 폭 비율 중앙값
+    // 1.027배(min 0.521 · max 1.994)였다 — "항상 넓어진다"는 성립하지 않는다. 그래서 이
+    // 카드는 **매번 두 폭을 실제로 재서** 방향을 고른다(comparePrevDir) — 재지 않고 문장을
+    // 고정하면 열 명 중 넷에게 거짓말을 하는 것이다. "거의 같다"(WIDTH_EQ_EPS=5%)를 셋째
+    // 갈래로 두는 이유는 중앙값이 1.0 부근에 몰려 있어(1.027) 근소한 차이를 "넓어졌다/
+    // 좁아졌다"로 단정하면 그 자체가 과장이기 때문이다.
+    var WIDTH_EQ_EPS = 0.05;   // 폭 비율이 1 ± 5% 안이면 "거의 같다"
+
+    // 두 폭(둘 다 전폭 hi-lo, 같은 단위)의 대소를 판정한다. prevWidth 가 0 이하면(있을 수
+    // 없는 값이지만 방어) 비교가 성립하지 않으므로 null — 호출부가 카드를 통째로 생략한다.
+    function comparePrevDir(curWidth, prevWidth) {
+      if (!(prevWidth > 0)) return null;
+      var ratio = curWidth / prevWidth;
+      if (Math.abs(ratio - 1) <= WIDTH_EQ_EPS) return "same";
+      return ratio > 1 ? "wider" : "narrower";
+    }
+
     function buildPrevCompare() {
       var prev = prevBasic();
       if (!prev) return null;   // G1 — 재료가 없으면 카드 자체가 없다(추정치로 채우지 않는다)
+      var pr = an && an.out && an.out.prediction;
+      if (!pr || !pr.lo || !pr.hi || !pr.lo.length) return null;
+      // 전폭(hi-lo) — prev.width 와 정확히 같은 계산이라야 비교가 성립한다(단위 통일, 리뷰 C2).
+      var curWidth = pr.hi[0] - pr.lo[0];
+      var dir = comparePrevDir(curWidth, prev.width);
+      if (!dir) return null;
+
       var sec = MSUi.el("div", "rp-compare");
       var head = MSUi.el("div", "rp-sec-head");
       head.appendChild(MSUi.el("span", "overline", MSStr.t.rpCompareHead));
       sec.appendChild(head);
-      sec.appendChild(MSUi.el("div", "rp-compare-lead", MSStr.t.rpCompareWider));
-      var cmp = MSUi.el("div", "rp-hz-prev");
-      cmp.appendChild(MSUi.el("span", "rp-hz-prev-k", MSStr.t.rpPrevBasic));
-      cmp.appendChild(MSUi.el("span", "rp-hz-prev-v",
+      var leadText = dir === "wider" ? MSStr.t.rpCompareWider
+        : dir === "narrower" ? MSStr.t.rpCompareNarrower : MSStr.t.rpCompareSame;
+      sec.appendChild(MSUi.el("div", "rp-compare-lead", leadText));
+
+      var prevRow = MSUi.el("div", "rp-hz-prev");
+      prevRow.appendChild(MSUi.el("span", "rp-hz-prev-k", MSStr.t.rpPrevBasic));
+      prevRow.appendChild(MSUi.el("span", "rp-hz-prev-v",
         MSUi.fmtPrice(prev.lo) + MSStr.t.rpRangeDash + MSUi.fmtPrice(prev.hi)));
-      cmp.appendChild(MSUi.el("span", "rp-hz-prev-w", MSStr.t.rpWidthA + prev.width.toFixed(1)));
-      sec.appendChild(cmp);
+      prevRow.appendChild(MSUi.el("span", "rp-hz-prev-w", MSStr.t.rpWidthA + prev.width.toFixed(1)));
+      sec.appendChild(prevRow);
+
+      // [리뷰 C2] 「내일 예상」(rp-forecast-pm)의 "± X" 는 반폭(오차범위 관용구)이라 이
+      // 카드의 "폭 X"(전폭)와 단위가 다르다 — 화면을 위아래로 읽으면 숫자만 보고 "좁아졌다"
+      // 로 착각한다(그 카드는 이 카드와 다른 개념이라 안 건드린다). 그래서 이 카드 **안에서**
+      // 직전 값과 지금 값을 반드시 같은 단위(전폭)로 나란히 놓는다 — dir 문구가 참인지
+      // 사용자가 이 두 줄만 보고도 검산할 수 있다.
+      var nowRow = MSUi.el("div", "rp-hz-prev rp-compare-now");
+      nowRow.appendChild(MSUi.el("span", "rp-hz-prev-k", MSStr.t.rpCompareNow));
+      nowRow.appendChild(MSUi.el("span", "rp-hz-prev-v",
+        MSUi.fmtPrice(pr.lo[0]) + MSStr.t.rpRangeDash + MSUi.fmtPrice(pr.hi[0])));
+      nowRow.appendChild(MSUi.el("span", "rp-hz-prev-w", MSStr.t.rpWidthA + curWidth.toFixed(1)));
+      sec.appendChild(nowRow);
+
       return sec;
     }
 

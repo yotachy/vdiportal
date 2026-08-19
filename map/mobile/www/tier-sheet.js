@@ -49,13 +49,17 @@
     var left = MSUi.el("div", "sheet-tier-id");
     var nameRow = MSUi.el("div", "sheet-tier-name");
     nameRow.appendChild(MSUi.el("span", "sheet-tier-name-txt", name));
-    // "가장 많이 씀" 배지 노출 조건(P1b Task 6 재검토, PROGRESS.md:76 이 후보로 남겨둔 것) —
-    // 판정: 그대로 둔다. `!o.locked` 게이팅은 PENDING 이 비어 있던 예전엔 "잠긴 티어에 인기
-    // 배지를 다는 모순"을 막는 안전장치였고, PENDING 이 빈 지금은 full 이 항상 buyable 이라
-    // 이 조건이 그냥 상시 참으로 자연히 정착한다 — 코드를 안 건드려도 배지가 정상적으로
-    // 뜬다. 그리고 애초에 이 배지는 실사용 통계 주장(잔량·표본처럼 뒷받침이 필요한 숫자)이
-    // 아니라 "추천 플랜"류의 정적 UX 관용구다(가격표에서 흔한 패턴) — 정직성 규율이 겨냥하는
-    // 대상(과장된 숫자)과 범주가 다르다.
+    // 배지 노출 조건(P1b Task 6 재검토, PROGRESS.md:76 이 후보로 남겨둔 것) — `!o.locked`
+    // 게이팅은 그대로 둔다: PENDING 이 비어 있던 예전엔 "잠긴 티어에 배지를 다는 모순"을
+    // 막는 안전장치였고, PENDING 이 빈 지금은 full 이 항상 buyable 이라 상시 참으로 자연히
+    // 정착한다.
+    // [리뷰 I1, 2026-08-19 정정] 문구 자체는 처음엔 "가장 많이 씀"이었다 — 이건 코드 로직이
+    // 아니라 **문구**의 문제였다: 정적 UX 관용구가 아니라 한국어로 명시적 사용 빈도를
+    // 주장했고, 이 커밋이 사람들이 스쿱을 처음 쓰기 시작하는 지점이라 뒷받침 표본이 0이었다
+    // (표본 20건 미만 퍼센트 금지와 같은 뿌리 — "판단하고 근거를 적으라"는 브리프 지시를
+    // 코드 게이팅만 보고 문구 내용은 다시 안 읽은 것이 1라운드의 결함이었다). `strings.js`
+    // `tsPopular`를 "추천"(편집적 안내, 통계 주장 아님)으로 고쳐 이 문제를 없앴다 — 배지
+    // 자체는 남긴다(심화를 기본 선택으로 앞세우는 것과 같은 편집적 판단).
     if (o.popular && !o.locked) nameRow.appendChild(MSUi.el("span", "sheet-pop", MSStr.t.tsPopular));
     left.appendChild(nameRow);
     left.appendChild(MSUi.el("div", "sheet-tier-desc", desc));
