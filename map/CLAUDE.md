@@ -108,6 +108,14 @@
 - 새 앱의 전제는 **별도 모바일 개발 없음** — `forge.html` 과 스크립트 6종을 그대로 실행하고 세로 배치만 같은 파일에서 만든다.
   요건 [`app-spec.html`](app-spec.html) · 시안 재료 [`design-kit.html`](design-kit.html).
 
+## ④-4 시안 2차 — 인테이크 지점
+
+**시안 작업이 진행 중이다(2026-08-19~).** 세션이 끊기면 **[`docs/design-v2/README.md`](docs/design-v2/README.md) 하나만 읽으면 이어진다** —
+현재 상태 · 확정 사항 · 봉쇄 · `시안2.zip` 도착 시 7단계 절차 · 열린 미결이 전부 거기 있다.
+
+- 시안이 참조하는 문서 두 종: [`app-spec.html`](app-spec.html)(요건정의) · [`design-kit.html`](design-kit.html)(시안 재료). **둘은 짝이고 같이 배포한다.**
+- `시안2.zip` 은 `docs/design-v2/raw/` 에 푼다. `mobile/` 안에 넣지 말 것(봉쇄 폴더다).
+
 ## ⑤ `mobile/www/**` 문법 하한 — ES5 아님, 확정 ES2017
 
 **"ES5 만" 규칙은 폐기됐다(2026-08-18 컨트롤러 판정, P1a Task 1).** 스쿱 시리즈 정적 사이트(구형 브라우저 대응)에서 상속된 규칙이었을 뿐, 이 앱의 런타임에서 유도된 게 아니었다 — `draw-panels.js`·`draw-layers.js`·`draw-preds.js` 가 이미 이 규칙을 161줄 어긴 채 배포돼 있었고 아무도 몰랐다.
