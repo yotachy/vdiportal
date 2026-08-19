@@ -59,7 +59,7 @@ map/
 ├── forge-core.js         ← 스쿱포지 분석 엔진 (UMD · node 단위테스트 대상)
 ├── forge-core.test.js    ← 엔진 단위테스트 (node --test, 183 케이스)
 ├── forge-api.php         ← 스쿱포지 서버 저장 + 티커 OHLC 프록시
-├── forge-guide.html      ← 엔진 작동원리 설명서(라이브 데모)
+├── forge-engine.html      ← 엔진 작동원리 설명서(라이브 데모)
 ├── map.html              ← 스쿱보드 (단일 파일)
 ├── api.php               ← 스쿱보드 서버 저장 API
 ├── chart.html            ← PHASE-FOLD 차트(스쿱포지 차트의 기반)

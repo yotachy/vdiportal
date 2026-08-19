@@ -232,7 +232,8 @@ test("검증 방법론이 walk-forward와 기각 공개를 밝힌다", () => {
   const sec = html.slice(i, html.indexOf("</section>", i));
   assert.ok(sec.includes("walk-forward"), "walk-forward 언급 없음");
   assert.ok(sec.includes("기각"), "기각 이력 언급 없음");
-  assert.ok(sec.includes("forge-scorecard.html"), "스코어카드 링크 없음");
+  // 2026-08-19 통합: forge-guide + forge-scorecard → forge-engine.html(엔진 백서). 검증 성적은 그 안 Part 2.
+  assert.ok(sec.includes("forge-engine.html"), "엔진 백서(검증 성적) 링크 없음");
 });
 
 test("요금은 베타 무료만 말한다", () => {

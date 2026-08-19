@@ -31,7 +31,7 @@
 4. **단, 정보의 양은 보상 차등에 따라 달라진다.** 모바일은 스쿱(소비 재화)이 있어 **정의된 개발 요건(단계)** 대로 노출량이 갈린다 — 지금은 기본 5지표·일봉 / 심화 32지표·일주월 / 전문 32지표+가중치. **달라지는 것은 양(무엇을 몇 개 보여주는가)이지 질이 아니다** — 같은 엔진, 같은 계산 규약, 같은 정직 표기 위에서 노출 범위만 단계로 갈린다. 잠긴 단계에서는 **무엇이 빠졌는지를 이름으로 적는다**(숨기지 않는다).
 5. **PC 의 화면은 사용자 서비스 기준이 아니다.** PC 는 엔진을 다루는 작업대라 32종을 항상 열어 두고 과금도 없다 — 그 상태를 "모바일도 이래야 한다"의 근거로 삼지 말 것. 반대로 모바일의 단계 제한을 PC 에 가져오지도 말 것.
 
-~~두 제품의 현재 차이는 `forge-scorecard.html` 의 웹↔모바일 비교표가 단일 출처~~ — **2026-08-19 제거됨.** 그 표는 봉쇄된 옛 앱(스쿱 상한 20 · 심화 3 · 전문 5)을 설명하고 있어 지금은 틀린 정보였다. **새 앱의 차이는 [`app-spec.html`](app-spec.html) 이 단일 출처**이며(§1 스코프 · §4-B 경제 · S13 단계), 시안 확정 후 갱신한다. 스코어카드에는 **엔진 내부·두 제품·되먹임을 잇는 구조 도식**만 남는다(상세 비교표 아님) — 성적과 구조를 다루는 문서이고, 제품 사양은 다루지 않는다.
+~~두 제품의 현재 차이는 스코어카드의 웹↔모바일 비교표가 단일 출처~~ — **2026-08-19 제거됨.** 그 표는 봉쇄된 옛 앱(스쿱 상한 20 · 심화 3 · 전문 5)을 설명하고 있어 지금은 틀린 정보였다. **새 앱의 차이는 [`app-spec.html`](app-spec.html) 이 단일 출처**이며(§1 스코프 · §4-B 경제 · S13 단계), 시안 확정 후 갱신한다. 스코어카드에는 **엔진 내부·두 제품·되먹임을 잇는 구조 도식**만 남는다(상세 비교표 아님) — 성적과 구조를 다루는 문서이고, 제품 사양은 다루지 않는다.
 
 ## ① 테스트는 항상 `./tests/run.sh`
 
@@ -142,10 +142,13 @@
 
 ## 파일
 
-- `forge.html` — 마크업 + `<link>`/`<script src>` 참조만(현 241줄). **UI는 소스순서 4분할**: `forge-state.js`(상태·`BLOCK_DEFS`·`IND_TIERS`·서버·`boot`·CRUD) → `forge-ui.js`(레일·보드·`renderParams`·HUD·`boardInit`·`seedDefaultStrategy`) → `forge-draw.js`(`FC_*`·`_syncChartColors`·`fcDraw*`·`EV_COLORS`/`INDICATOR_INFO`·엘리어트/피보 레이어) → `forge-tools.js`(차트 드로잉 — 추세선·평행채널·수평선·수직선·등락폭/기간 재기·마그넷, 앵커=(날짜,가격). **UMD·단위테스트** `node --test forge-tools.test.js`) → `forge-app.js`(`renderChart`·`analysisSteps`·`nodeExpert`·`THEMES`/`applyTheme`·`playAnalysis`·`runForge`·부팅 IIFE). 스타일은 `forge.css`. **여러 classic script가 전역 스코프 공유** — 로드 순서(core→state→ui→draw→tools→app) 고정, `defer`/`async` 금지, 중복 최상위 선언 금지. `forge-core.js` — 분석 엔진(**UMD**: 브라우저 `window.ForgeCore` + node `module.exports`. `node --test forge-core.test.js`, 현재 259케이스). `forge-api.php` — 서버 저장 + 티커 OHLC 프록시. `forge-guide.html` — 엔진 작동원리 설명서.
+- `forge.html` — 마크업 + `<link>`/`<script src>` 참조만(현 241줄). **UI는 소스순서 4분할**: `forge-state.js`(상태·`BLOCK_DEFS`·`IND_TIERS`·서버·`boot`·CRUD) → `forge-ui.js`(레일·보드·`renderParams`·HUD·`boardInit`·`seedDefaultStrategy`) → `forge-draw.js`(`FC_*`·`_syncChartColors`·`fcDraw*`·`EV_COLORS`/`INDICATOR_INFO`·엘리어트/피보 레이어) → `forge-tools.js`(차트 드로잉 — 추세선·평행채널·수평선·수직선·등락폭/기간 재기·마그넷, 앵커=(날짜,가격). **UMD·단위테스트** `node --test forge-tools.test.js`) → `forge-app.js`(`renderChart`·`analysisSteps`·`nodeExpert`·`THEMES`/`applyTheme`·`playAnalysis`·`runForge`·부팅 IIFE). 스타일은 `forge.css`. **여러 classic script가 전역 스코프 공유** — 로드 순서(core→state→ui→draw→tools→app) 고정, `defer`/`async` 금지, 중복 최상위 선언 금지. `forge-core.js` — 분석 엔진(**UMD**: 브라우저 `window.ForgeCore` + node `module.exports`. `node --test forge-core.test.js`, 현재 259케이스). `forge-api.php` — 서버 저장 + 티커 OHLC 프록시. `forge-engine.html` — **엔진 백서**(작동 원리 + 검증 성적, 2026-08-19 통합).
 - **동반 배포 필수**(상대 `<script src>`/`<link>` 동위치): `forge.html` + `forge.css` + `forge-core.js` + `forge-state.js` + `forge-ui.js` + `forge-draw.js` + `forge-tools.js` + `forge-app.js`. 하나라도 빠지면 동작 불가. `forge-core.test.js`·`forge-tools.test.js`·`forge-tools.sweep.js`는 배포 제외.
 - **배포 불가침**(서버 생성·사용자 데이터): `forge_data.json`·`forge_images.json`·`forge_jobs.json`·`forge_td_key.txt`·`forge_ohlc_cache_*.json`. 배포는 위 8개 정적 파일 + `forge-api.php`만.
-- **단독 문서 페이지**(의존 없음 · 개별 배포 가능): `forge-guide.html`(작동원리) · `forge-scorecard.html`(검증 성적) · **`app-spec.html`(앱 화면 요건정의)** · **`design-kit.html`(시안 작업 재료 — 연결도·컴포넌트·표기·카피·더미)**. 뒤 둘은 2026-08-19 신설이며 서로 상호 링크된 짝이라 **같이 올린다**. 위 8종 세트와 달리 동반 업로드 제약은 없다. 배포 `www/map/`, URL `.../map/app-spec.html` · `.../map/design-kit.html`.
+- **단독 문서 페이지**(의존 없음 · 개별 배포 가능):
+  - **`forge-engine.html`(엔진 백서 — 2026-08-19 통합)** = 구 `forge-guide.html`(작동 원리) + 구 `forge-scorecard.html`(검증 성적). 두 옛 파일은 **해시를 보존하는 리다이렉트 스텁**으로 남겨 기존 링크·북마크를 살린다 — 셋을 같이 올린다.
+  - **`app-spec.html`(앱 화면 요건정의)** · **`design-kit.html`(시안 작업 재료)** — 상호 링크된 짝이라 같이 올린다.
+  - 위 8종 세트와 달리 동반 업로드 제약은 없다. 배포 `www/map/`.
 
 ## 4패널 구성 (지칭 규칙 — 하단 §"4패널" 상세)
 

@@ -11,8 +11,8 @@
 <body>
   <header class="forge-top">
     <div class="brand" onclick="location.href=location.pathname" title="Scoop 홈(새로고침)" style="cursor:pointer"><svg class="brand-mark" viewBox="0 0 32 32" style="color:var(--gold)" aria-hidden="true"><g fill="currentColor"><rect x="3.2" y="16" width="4.5" height="10" rx=".9"/><rect x="4.9" y="13" width="1.1" height="16"/><rect x="9.3" y="11.5" width="4.5" height="12.5" rx=".9"/><rect x="11" y="8.5" width="1.1" height="18.5"/><rect x="15.4" y="14" width="4.5" height="9" rx=".9" fill-opacity=".55"/><rect x="17.1" y="11" width="1.1" height="15" fill-opacity=".55"/></g><path d="M19.6 12 L27 5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="27.4" cy="5.3" r="2.8" fill="currentColor"/></svg><span class="brand-txt">Scoop <span style="color:var(--gold)">Forge</span> <span class="brand-by">by 머니스쿱</span></span></div>
-    <span class="eng-ver" id="engVer" title="분석 엔진 버전 — 개선 이력은 검증 성적(스코어카드) 참조" onclick="location.href='forge-scorecard.html'"></span>
-    <span class="live-track" id="liveTrack" title="라이브 트랙레코드 — 실시간 누적된 예측의 실제 적중(만기 도래분). 자세히 = 검증 성적" onclick="location.href='forge-scorecard.html#live'" style="display:none"></span>
+    <span class="eng-ver" id="engVer" title="분석 엔진 버전 — 개선 이력은 검증 성적(스코어카드) 참조" onclick="location.href='forge-engine.html'"></span>
+    <span class="live-track" id="liveTrack" title="라이브 트랙레코드 — 실시간 누적된 예측의 실제 적중(만기 도래분). 자세히 = 검증 성적" onclick="location.href='forge-engine.html#live'" style="display:none"></span>
     <span class="save-badge" id="saveBadge"></span>
     <span class="h-sep"></span>
     <div class="h-group">
@@ -128,7 +128,7 @@
                 <div class="fc-idle-caps"><span class="fc-idle-cap">예측 콘</span><span class="fc-idle-cap">32종 지표</span><span class="fc-idle-cap">멀티TF 매트릭스</span><span class="fc-idle-cap">백테스트 검증 8축</span></div>
                 <div class="fc-idle-cta"><span class="fc-idle-point">← 워치리스트에서 선택</span><button class="fc-idle-btn primary" onclick="_showAddTicker()">＋ 종목 추가</button><button class="fc-idle-btn" onclick="scanAlerts(true)"><svg class="fc-idle-bico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M6 6a9 9 0 0 0 0 12M18 6a9 9 0 0 1 0 12"/></svg>워치리스트 신호 스캔</button></div>
                 <div id="fcIdleSignals" class="fc-idle-sig-wrap" style="display:none"></div>
-                <div class="fc-idle-links"><a href="forge-guide.html" target="_blank" rel="noopener">엔진 가이드</a><span class="fc-idle-sep">·</span><a href="forge-scorecard.html" target="_blank" rel="noopener">검증 성적</a></div>
+                <div class="fc-idle-links"><a href="forge-engine.html" target="_blank" rel="noopener">엔진 가이드</a><span class="fc-idle-sep">·</span><a href="forge-engine.html" target="_blank" rel="noopener">검증 성적</a></div>
               </div>
               <canvas id="fcFuture" class="fc-cv"></canvas>
               <canvas id="fcMainChart" class="fc-cv"></canvas>
@@ -275,7 +275,7 @@
 
   <!-- 상시 면책 고지(법적) -->
   <footer class="forge-legal">
-    <strong>투자 유의 안내</strong> — 스쿱포지는 기술적 분석 정보를 제공하는 <b>참고용 도구</b>입니다. 화면의 모든 예측·확률·신호·목표가·수치는 과거 시장 데이터에 기반한 분석·시뮬레이션 결과로 <b>미래의 가격·수익·정확성을 보장하지 않습니다</b>. 본 서비스는 특정 종목의 매수·매도를 권유하거나 투자를 자문하지 않으며, 자본시장법상 <b>투자자문업·투자일임업으로 등록된 서비스가 아닙니다</b>. 모든 투자에는 <b>원금 손실의 위험</b>이 있고, 투자 판단 및 그 결과에 대한 책임은 <b>전적으로 이용자 본인</b>에게 있습니다. · <a href="forge-scorecard.html">검증 성적·한계 →</a>
+    <strong>투자 유의 안내</strong> — 스쿱포지는 기술적 분석 정보를 제공하는 <b>참고용 도구</b>입니다. 화면의 모든 예측·확률·신호·목표가·수치는 과거 시장 데이터에 기반한 분석·시뮬레이션 결과로 <b>미래의 가격·수익·정확성을 보장하지 않습니다</b>. 본 서비스는 특정 종목의 매수·매도를 권유하거나 투자를 자문하지 않으며, 자본시장법상 <b>투자자문업·투자일임업으로 등록된 서비스가 아닙니다</b>. 모든 투자에는 <b>원금 손실의 위험</b>이 있고, 투자 판단 및 그 결과에 대한 책임은 <b>전적으로 이용자 본인</b>에게 있습니다. · <a href="forge-engine.html">검증 성적·한계 →</a>
   </footer>
 
   <!-- 전체화면 전용: 차트 하단 '지표 신호로 이동' 버튼(차트가 휠을 가로채므로 스크롤 대체) -->
