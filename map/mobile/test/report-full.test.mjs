@@ -691,3 +691,76 @@ test("compare — G1 재료(직전 기본분석 스냅샷)가 없으면 카드 �
   assert.strictEqual(dom.querySelector(".rp-compare"), null,
     "재료가 없는데 compare 블록이 떴다 — G1(직전 기본분석 값 없으면 행을 통째로 생략)을 어겼다");
 });
+
+// ── C1(리뷰 2026-08-19) — 판독문 링크 · 리포트 배지가 실제 그래프 지표 수로 일치한다 ──
+// 실측(리뷰어, 실앱 report-purchase-custom = MSFT, 기본 프리셋 "추세 추종"): 8b 총합=9 ·
+// 판독문 링크="지표 10개" · 리포트 배지="지표 30개" — 셋이 서로 달랐다. 판독문 링크가 틀린
+// 이유: noDirRows() 는 trend·phasefold 를 그래프 소속과 무관하게 무조건 2행 돌려주는데,
+// revealThenDraw()(8b)에만 graphTypes 필터가 걸려 있고 draw()(판독문 링크의 실제 소스)엔
+// 없었다 — 이 표본은 phasefold 를 안 골랐으므로 분석에 참여하지 않은 지표의 판독문 한 줄이
+// 새는 구조였다. 배지가 틀린 이유는 별개다: 30은 가중치 레일 상한(리터럴)이지 이 그래프가
+// 실제로 읽은 수가 아니었다. 이 시험은 두 자리가 이제 같은 값(MSGraph.indicatorTypes(an.graph)
+// .length)을 내는지 직접 잰다.
+test("[리뷰 C1] 전문 리포트 — 판독문 링크와 리포트 배지가 실제 그래프 지표 수로 일치한다", () => {
+  const dom = renderCustomReport({ sym: "TIERN", name: "TierNums" });
+  const an = CTX.__TEST_HOOKS__.purchases["TIERN|custom"].an;
+  const graphTypes = CTX.MSGraph.indicatorTypes(an.graph);
+  const graphN = graphTypes.length;
+
+  // 이 표본이 실제로 회귀를 잡을 수 있는 모양인지 먼저 확인한다 — trend 프리셋은 trend 를
+  // 포함하고(SHAPES 기반 readings() 에서 자동으로 빠지므로 noDir 로 되찾아야 한다) phasefold
+  // 는 포함하지 않는다(과거 결함이 새던 정확한 자리). 둘 다 아니면 이 시험은 아무것도 못 잡는다.
+  assert.ok(graphN > 0 && graphN < CTX.ForgeCore.indicatorCount,
+    "이 표본이 32종 전체 그래프다 — 부분집합 전제가 깨졌다");
+  assert.ok(graphTypes.indexOf("trend") >= 0, "이 표본은 trend 를 포함해야 한다(시험 전제)");
+  assert.ok(graphTypes.indexOf("phasefold") < 0, "이 표본은 phasefold 를 빼야 한다(시험 전제)");
+
+  const link = dom.querySelector(".rp-rdlink");
+  assert.ok(link, "판독문 링크가 없다");
+  const linkM = deepText(link).match(/(\d+)/);
+  assert.ok(linkM, "판독문 링크에 숫자가 없다: " + deepText(link));
+  assert.strictEqual(Number(linkM[1]), graphN,
+    "판독문 링크(" + linkM[1] + ")가 실제 그래프 지표 수(" + graphN + ")와 다르다");
+
+  const badge = dom.querySelector(".rp-tier-desc");
+  assert.ok(badge, "티어 배지 desc 가 없다");
+  const badgeM = deepText(badge).match(/(\d+)/);
+  assert.ok(badgeM, "티어 배지에 숫자가 없다: " + deepText(badge));
+  assert.strictEqual(Number(badgeM[1]), graphN,
+    "리포트 배지(" + badgeM[1] + ")가 실제 그래프 지표 수(" + graphN + ")와 다르다");
+});
+
+// 변이 증명 — draw() 의 noDir graphTypes 필터를 빼면(과거 결함 그대로) 위 시험이 실제로
+// 잡아내는지, 독립 vm 컨텍스트에서 다시 렌더해 확인한다.
+test("변이 증명 — 판독문 noDir 필터를 빼면 링크가 그래프에 없는 지표(phasefold)까지 센다", () => {
+  const needle = "var graphTypes = MSGraph.indicatorTypes(an.graph);\n" +
+    "          noDir = MSIndicators.noDirRows(ForgeCore, indInput, indCtx)\n" +
+    "            .filter(function (r) { return graphTypes.indexOf(r.type) >= 0; });";
+  const reportSrc = readFileSync(WWW + "screens/report.js", "utf8");
+  assert.ok(reportSrc.indexOf(needle) >= 0,
+    "noDir 필터 앵커를 못 찾았다 — 정확한 문자열로 되돌려야 변이가 의미 있다");
+  const mutatedNeedle = "noDir = MSIndicators.noDirRows(ForgeCore, indInput, indCtx);";
+
+  const ctx = vm.createContext(fakeWindow());
+  SRCS.forEach((src) => {
+    let code = readFileSync(WWW + src, "utf8");
+    if (src === "screens/report.js") code = installTestHooks(code).replace(needle, mutatedNeedle);
+    new vm.Script(code, { filename: src }).runInContext(ctx);
+  });
+  const sym = "TIERMUT";
+  const data = fakeData(0.3, "TierMut");
+  const weights = ctx.MSIndTiers.weightsOf("trend", []);
+  const an = ctx.__TEST_HOOKS__.analyzeFull(data, true, "1day", weights);
+  ctx.__TEST_HOOKS__.purchases[sym + "|custom"] =
+    { data: data, an: an, runs: [{ tf: "1day", out: an.out }], weights: weights };
+  const root = new FakeNode("div");
+  ctx.MSReport.render(root, { sym: sym });
+
+  const graphN = ctx.MSGraph.indicatorTypes(an.graph).length;
+  const link = root.querySelector(".rp-rdlink");
+  assert.ok(link, "변이본에서도 판독문 링크는 있어야 한다");
+  const linkM = deepText(link).match(/(\d+)/);
+  assert.ok(linkM, "변이본 판독문 링크에 숫자가 없다: " + deepText(link));
+  assert.strictEqual(Number(linkM[1]), graphN + 1,
+    "필터를 뺐는데도 링크가 그래프 지표 수(" + graphN + ")와 맞는다 — 이 변이는 아무것도 못 잡는다: " + linkM[1]);
+});

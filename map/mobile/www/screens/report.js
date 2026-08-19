@@ -45,6 +45,23 @@
   // 그래서 티어를 직접 비교하지 말고 **무엇을 묻는지**로 갈라 쓴다.
   function isPaid(t) { return t === "full" || t === "custom"; }   // 지표 전량을 읽은 분석인가
 
+  // [리뷰 I2, 2026-08-19] spend-fail 사유 → MSBlocked failedUnknown 카드 오버라이드. 순수
+  // 함수로 뽑은 이유는 단 하나 — DOM·MSWallet.spend·프라미스 체인을 재생하지 않고도 "이
+  // 사유가 이 카드로 가는가"를 직접 시험하기 위해서다(runTier() 안에 박아 두면 전체 구매
+  // 흐름을 다시 태워야만 이 매핑을 잴 수 있었다). null 이면 호출부가 alert(tsSpendFailed)로
+  // 떨어진다 — 아직 카드로 승격 안 한 사유들(rate-limited·no-backend·bad-ref·storage, 판단
+  // 근거는 호출부 주석)이 여기 해당한다.
+  function spendFailCardFor(reason) {
+    if (reason === "merged") {
+      return { badge: MSStr.t.tsSpendMergedBadge, head: MSStr.t.tsSpendMergedHead, body: MSStr.t.wMerged };
+    }
+    if (reason === "unauthorized") {
+      return { badge: MSStr.t.tsSpendUnauthorizedBadge, head: MSStr.t.tsSpendUnauthorizedHead,
+               body: MSStr.t.tsSpendUnauthorizedBody };
+    }
+    return null;
+  }
+
   // 선언(report-blocks.js)엔 있는데 아직 그리는 함수가 없는 블록 id → 어느 페이즈가 짓는가.
   // **못 그리는 것을 팔지 않는다**(리뷰 판정, 2026-08-18) — 이 표가 비어 있지 않은 티어는
   // tier-sheet.js 가 구매를 막는다(아래 pendingOf/tierBuyable, MSTierSheet.open 의 locked).
@@ -78,10 +95,12 @@
   // 키 이름을 문자열로 두지 않고 값을 그대로 담는다 — 문자열 관문 둘이 그래야 볼 수 있다.
   // "rpTierCustom" 같은 리터럴은 ①화면 소스의 영어 잔존으로 걸리고 ②MSStr.t.X 참조가 아니라
   // 죽은 키 판정을 받는다. 두 관문 다 옳다: 동적 조회는 정적 분석을 눈멀게 한다.
+  // custom 은 desc 가 없다 — 사용자가 고른 부분집합이라 고정 문자열이 없다(buildTierRow() 가
+  // an.graph 에서 유도해 끼워 넣는다, 아래 [리뷰 C1] 주석 참고).
   var TIER_BADGE = {
-    basic:  { cls: "",           name: MSStr.t.rpTierBasic,  desc: MSStr.t.rpTierCount,       evi: 1 },
-    full:   { cls: " is-full",   name: MSStr.t.rpTierFull,   desc: MSStr.t.rpTierCountFull,   evi: 2 },
-    custom: { cls: " is-custom", name: MSStr.t.rpTierCustom, desc: MSStr.t.rpTierCountCustom, evi: 3 }
+    basic:  { cls: "",           name: MSStr.t.rpTierBasic,  desc: MSStr.t.rpTierCount,     evi: 1 },
+    full:   { cls: " is-full",   name: MSStr.t.rpTierFull,   desc: MSStr.t.rpTierCountFull, evi: 2 },
+    custom: { cls: " is-custom", name: MSStr.t.rpTierCustom,                                evi: 3 }
   };
 
   var LINE_LEGEND = [
@@ -715,11 +734,22 @@
       for (i = 0; i < list.length; i++) { if (list[i].key === key) { found = list[i]; break; } }
       return found || list[0] || null;
     }
+    // [리뷰 C1] custom 배지의 지표 수는 an.graph 에서 유도한다 — customGraph() 가 사용자
+    // 프리셋에 따라 실제로 남기는 노드 수는 리터럴 30(가중치 레일 상한)과 다르다(실측:
+    // "추세 추종" 기본 프리셋 = 9). 19a 카운터·8b 판정 세 통·판독문 링크가 이미 같은
+    // MSGraph.indicatorTypes(an.graph).length 를 쓰므로 여기도 같은 값을 써야 네 자리가
+    // 일치한다. an.graph 가 없으면(방어적 갈래) desc 자체를 비운다 — 지어낸 수를 안 보여준다.
+    function tierBadgeDesc(t) {
+      if (t !== "custom") return (TIER_BADGE[t] || TIER_BADGE.basic).desc;
+      if (!an || !an.graph) return "";
+      var n = MSGraph.indicatorTypes(an.graph).length;
+      return MSStr.t.rpTierCountCustomA + n + MSStr.t.rpTierCountCustomB;
+    }
     function buildTierRow() {
       var row = MSUi.el("div", "rp-tier-row");
       var b = TIER_BADGE[tier] || TIER_BADGE.basic;
       row.appendChild(MSUi.el("span", "rp-tier" + b.cls, b.name));
-      row.appendChild(MSUi.el("span", "rp-tier-desc", b.desc));
+      row.appendChild(MSUi.el("span", "rp-tier-desc", tierBadgeDesc(tier)));
       var preset = currentStylePreset();
       if (preset) row.appendChild(MSUi.el("span", "rp-style-chip", preset.name + MSStr.t.rpStyleSuffix));
       var evi = MSUi.el("span", "rp-evi");
@@ -1445,7 +1475,31 @@
                 if (k === "open-wallet") MSApp.go("wallet");
                 else if (k === "retry") runTier(runType, weights);
               } });
-          } else alert(MSStr.t.tsSpendFailed);
+          } else if (spendFailCardFor(r.reason)) {
+            // [리뷰 I2, 2026-08-19] merged·unauthorized 는 definitely-not-charged(MAYBE_CHARGED
+            // 밖)이지만 tsSpendFailed("연결할 수 없습니다")로 뭉치면 안 된다 — 서버가 정상
+            // 응답했고 알아서 재시도해도 같은 사유로 다시 실패한다(merged 는 이 기기의 지갑이
+            // 다른 계정으로 넘어갔고, unauthorized 는 인증이 끊어졌다 — 둘 다 open-wallet 이
+            // 실제 다음 행동이다). screens/wallet.js:348 이 checkin() 의 merged 를 이미
+            // wMerged 로 처리하는 것과 같은 사유를 여기(구매 경로)에도 맞춘다. 막다른 alert
+            // 대신 MSBlocked 카드로 보낸다(blocked.js 규칙 ① — 항상 다른 행동을 준다).
+            // 매핑 자체는 spendFailCardFor() 로 뽑아 DOM·프라미스 없이 직접 시험한다.
+            MSBlocked.open({ kind: "failedUnknown", data: spendFailCardFor(r.reason),
+              onAction: function (k) {
+                if (k === "open-wallet") MSApp.go("wallet");
+                else if (k === "retry") runTier(runType, weights);
+              } });
+          } else {
+            // 나머지(rate-limited·no-backend·bad-ref·storage)는 이번 라운드에 남겨 둔다 —
+            // [리뷰 I2 판정] merged·unauthorized 와 달리 "지갑에 연결할 수 없습니다·다시
+            // 시도해 주세요"가 완전히 틀린 진술은 아니다: no-backend·bad-ref·storage 는
+            // 클라이언트가 서버(또는 로컬 참조)에 정상적으로 닿지 못한 상태라 "연결" 프레임이
+            // 대체로 맞고, rate-limited 는 즉시 재시도가 다시 막힐 순 있어도 "다시 시도"
+            // 자체가 유효한 행동이다(영원히 실패하는 merged 와 다르다). 넷 다 alert 라는
+            // UX 자체는 여전히 아쉽지만, "사실과 다른 문구"라는 이번 리뷰의 핵심 결함은
+            // merged·unauthorized 에만 있었다 — 카드로 승격은 다음 라운드로 미룬다.
+            alert(MSStr.t.tsSpendFailed);
+          }
         } else {
           MSTierSheet.close();
           MSBlocked.open({ kind: "failedUnknown", data: {},
@@ -1698,7 +1752,15 @@
           // hasVolume 은 그 하나에서만 나온다 — 여기서 다시 재면 화면과 문장이 갈린다.
           var indCtx = MSIndicators.ctxFrom(indInput);
           indRows = narratedRows || MSIndicators.readings(ForgeCore, an.graph, indInput, indCtx);
-          noDir = MSIndicators.noDirRows(ForgeCore, indInput, indCtx);
+          // [리뷰 C1, 2026-08-19] noDirRows() 는 trend·phasefold 를 그래프 소속과 무관하게
+          // 무조건 2행 돌려준다 — revealThenDraw()(위 1385줄)는 이미 graphTypes 로 걸러
+          // "이 그래프에 실제로 있는 것만" 센다고 스스로 적어 뒀는데, 여기(판독문 링크·
+          // readings-list 로 넘어가는 실제 소스)엔 그 필터가 없었다. 전문(custom)이 trend·
+          // phasefold 를 안 고르면 판독문 링크·목록이 분석에 한 번도 참여하지 않은 지표의
+          // "무판정" 한 줄을 사용자에게 보여주는 결함이었다.
+          var graphTypes = MSGraph.indicatorTypes(an.graph);
+          noDir = MSIndicators.noDirRows(ForgeCore, indInput, indCtx)
+            .filter(function (r) { return graphTypes.indexOf(r.type) >= 0; });
         }
         // 블록의 **순서와 구성은 report-blocks.js 의 선언**이 정한다(P2 §4). 여기 표는
         // 이름 → 만드는 함수일 뿐이다. 세 티어를 세 벌의 draw() 로 쓰면 공통 블록을 고칠 때

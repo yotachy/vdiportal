@@ -79,6 +79,9 @@ function load() {
   global.MSUi = require("../www/ui.js");
   global.MSStr = require("../www/strings.js");
   global.MSWallet = require("../www/wallet.js");
+  // [리뷰 C1] tsCustomDesc 가 이제 MSIndTiers.tunable().length 를 직접 참조한다 — 이 전역이
+  // 없으면 paint() 가 "MSIndTiers is not defined" 로 죽는다.
+  global.MSIndTiers = require("../www/ind-tiers.js");
   delete require.cache[require.resolve("../www/sheet.js")];
   global.MSSheet = require("../www/sheet.js");   // 진짜 MSSheet — 스텁이 아니다
   // [리뷰 C1] 둘 다 잠긴 시트의 "워치리스트로 돌아가기" 버튼이 실제로 MSApp.go 를 부르는지

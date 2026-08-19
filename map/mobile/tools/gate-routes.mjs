@@ -988,6 +988,22 @@ export const ROUTES = [
         "if(!window.__t7Buckets||window.__t7Buckets.length!==3) return false;" +
         "if(window.__t7Total==null) return false;" +
         "if(window.__t7Buckets[0]+window.__t7Buckets[1]+window.__t7Buckets[2]!==window.__t7Total) return false;" +
+        // [리뷰 C1, 2026-08-19] 실앱 실측(리뷰어)이 잡은 결함 — 8b 총합(위 __t7Total)·
+        // 판독문 링크·리포트 배지가 서로 다른 수(9·10·30)를 말했다. draw() 의 noDir 필터
+        // (report.js)와 배지 유도(tierBadgeDesc)를 고친 뒤 이 자리에서 실제 구매 흐름으로
+        // 셋이 같은 수를 내는지 검산한다 — 값을 지어내지 않고 실제 DOM 텍스트에서 뽑는다.
+        "var link=document.querySelector('.rp-rdlink');" +
+        "if(!link) return false;" +
+        "var linkM=/([0-9]+)/.exec(link.textContent);" +
+        "if(!linkM) return false;" +
+        "window.__t7ReadLink=Number(linkM[1]);" +
+        "var badge=document.querySelector('.rp-tier-desc');" +
+        "if(!badge) return false;" +
+        "var badgeM=/([0-9]+)/.exec(badge.textContent);" +
+        "if(!badgeM) return false;" +
+        "window.__t7Badge=Number(badgeM[1]);" +
+        "if(window.__t7ReadLink!==window.__t7Total) return false;" +
+        "if(window.__t7Badge!==window.__t7Total) return false;" +
         "if(document.querySelector('.xp-scrim')) return false;" +           // 편집기도 닫혀 있어야 한다
         "if(typeof MSExpert==='undefined') return false;" +                 // 편집기 모듈이 실제로 전역 등록됐다
         "return true;" +

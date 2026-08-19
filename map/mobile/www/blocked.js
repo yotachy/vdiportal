@@ -70,10 +70,15 @@
       actions: [{ kind: "retry", label: function () { return MSStr.t.blRetry; } }]
     },
     // ⑦ 계산 실패 · 환급 **확인 불가** — ⑥과 다른 카드인 것이 이 목록의 요점이다.
+    // [리뷰 I2, 2026-08-19] badge/head/body 가 d.badge/d.head/d.body 를 받으면 그것을 우선한다
+    // — report.js 가 unauthorized·merged 처럼 "계산 실패·환급 불확실"이 아닌 사유(서버가
+    // 정상 응답했고, 그저 spend 자체를 시작 못 한 경우)를 같은 카드(같은 버튼 둘)로 보내되
+    // 문구만 사실에 맞게 갈아 끼우기 위해서다. 오버라이드가 없으면(기존 호출부 전부) 원래
+    // 문구 그대로다 — 하위 호환.
     failedUnknown: {
-      badge: function () { return MSStr.t.blFailUnknownBadge; },
-      head: function () { return MSStr.t.blFailUnknownHead; },
-      body: function () { return MSStr.t.blFailUnknownBody; },
+      badge: function (d) { return (d && d.badge) || MSStr.t.blFailUnknownBadge; },
+      head: function (d) { return (d && d.head) || MSStr.t.blFailUnknownHead; },
+      body: function (d) { return (d && d.body) || MSStr.t.blFailUnknownBody; },
       actions: [{ kind: "open-wallet", label: function () { return MSStr.t.blOpenWallet; } },
                 { kind: "retry", label: function () { return MSStr.t.blRetry; } }]
     }

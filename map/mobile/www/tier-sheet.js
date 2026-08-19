@@ -126,7 +126,10 @@
       // 전문분석(Pro) — 잠기지 않은 한 값이 붙고, 고르면 실행 버튼이 이 등급으로 바뀐다.
       // 실제 흐름은 호출부(report.js)가 전문분석 편집기(10a)를 여는 것이다: 이 시트는
       // "얼마나 정밀하게"만 묻고, "어떤 지표를 얼마나"는 그 화면이 묻는다.
-      tiers.appendChild(tierRow("custom", MSStr.t.tsCustom, MSStr.t.tsCustomDesc,
+      // [리뷰 C1] "도구 32"는 도달 불가능했다 — 전문이 만질 수 있는 지표는 30종
+      // (MSIndTiers.tunable(), gann·pattern 제외)이 상한이다. 리터럴 대신 유도값을 쓴다.
+      var customDesc = MSStr.t.tsCustomDescA + MSIndTiers.tunable().length + MSStr.t.tsCustomDescB;
+      tiers.appendChild(tierRow("custom", MSStr.t.tsCustom, customDesc,
         { on: picked === "custom", locked: !!locked.custom, cost: MSWallet.COSTS.custom,
           onPick: function () { if (busy) return; picked = "custom"; paint(); } }));
       list.appendChild(tiers);

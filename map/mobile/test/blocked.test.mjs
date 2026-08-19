@@ -143,3 +143,30 @@ test("선언 자체에 행동 없는 카드가 없다 — 새 카드도 같은 �
   assert.deepEqual(Object.keys(B.CARDS).sort(), B.KINDS.slice().sort(),
     "선언과 목록이 어긋난다 — 한쪽에만 있는 카드는 조용히 안 그려지거나 관문을 안 받는다");
 });
+
+// ── I2(리뷰 2026-08-19) — failedUnknown 카드가 badge/head/body 오버라이드를 받는다 ──
+// report.js 가 merged·unauthorized 사유를 "환불 확인 불가"라는 틀린 전제 없이 같은 카드
+// (같은 두 버튼)로 보내려면 문구만 갈아 끼울 길이 필요했다. 오버라이드가 없으면(기존
+// 호출부 전부, data:{}) 원래 문구 그대로여야 하위 호환이 깨지지 않는다.
+test("failedUnknown — badge/head/body 를 안 주면 기본 문구(환불 확인 불가) 그대로다", () => {
+  const t = textOf(B.render("failedUnknown", {}, null));
+  assert.ok(t.indexOf(S.t.blFailUnknownBadge) >= 0, "기본 배지가 없다: " + t);
+  assert.ok(t.indexOf(S.t.blFailUnknownHead) >= 0, "기본 헤드가 없다: " + t);
+  assert.ok(t.indexOf(S.t.blFailUnknownBody) >= 0, "기본 본문이 없다: " + t);
+});
+
+test("failedUnknown — badge/head/body 를 주면(merged 사유) 그 문구로 갈아 끼워진다", () => {
+  const data = { badge: S.t.tsSpendMergedBadge, head: S.t.tsSpendMergedHead, body: S.t.wMerged };
+  const t = textOf(B.render("failedUnknown", data, null));
+  assert.ok(t.indexOf(S.t.tsSpendMergedBadge) >= 0, "merged 배지가 안 나왔다: " + t);
+  assert.ok(t.indexOf(S.t.tsSpendMergedHead) >= 0, "merged 헤드가 안 나왔다: " + t);
+  assert.ok(t.indexOf(S.t.wMerged) >= 0, "wMerged 본문이 안 나왔다: " + t);
+  // 기본 "환불 확인 불가" 전제(계산이 실패했다는 틀린 프레임)가 섞이면 안 된다 — merged 는
+  // 애초에 계산이 실패한 게 아니라 지갑이 다른 계정으로 넘어간 것이다.
+  assert.ok(t.indexOf(S.t.blFailUnknownBadge) < 0, "기본 배지가 오버라이드를 뚫고 섞여 나왔다: " + t);
+  assert.ok(t.indexOf(S.t.blFailUnknownBody) < 0, "기본 본문(환불 확인 불가 전제)이 섞여 나왔다: " + t);
+  // 버튼(open-wallet·retry)은 오버라이드와 무관하게 그대로 있어야 한다.
+  const kinds = buttons(B.render("failedUnknown", data, null)).map(b => b.attrs["data-action"]);
+  assert.ok(kinds.indexOf("open-wallet") >= 0 && kinds.indexOf("retry") >= 0,
+    "오버라이드본도 지갑 확인·다시 시도 버튼이 있어야 한다: " + kinds.join(","));
+});

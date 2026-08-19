@@ -278,10 +278,13 @@
     // "심화분석")과 바이트가 같을 필요는 없다, 정규화 테스트("한 단계는 한 이름으로 불린다")가
     // 요구하는 건 어간 일치뿐이다(태스크 8).
     rpTierFull: "심화", rpTierCountFull: "지표 32개 · 일·주·월",
-    // rpTierCustom 도 같은 압축 규칙(tsCustom/walOptimiser/xpTitle="전문분석"의 어간). 개수가 30인
-    // 이유는 가중치 레일이 gann·pattern 을 뺀 30종이기 때문이다(인벤토리 §0 충돌 1) — 판정이 읽는
-    // 32 와 다른 숫자이고, 그 차이가 이 화면의 정체다.
-    rpTierCustom: "전문", rpTierCountCustom: "지표 30개 · 내 가중치",
+    // rpTierCustom 도 같은 압축 규칙(tsCustom/walOptimiser/xpTitle="전문분석"의 어간).
+    // [리뷰 C1, 2026-08-19] 개수는 리터럴 30이 아니다 — 전문은 사용자가 고른 부분집합이라
+    // 실제로 판정이 읽은 수(MSGraph.indicatorTypes(an.graph).length)가 프리셋마다 다르다
+    // (실측: "추세 추종" 기본 프리셋 = 9). 30(가중치 레일 상한, 인벤토리 §0 충돌 1)을
+    // 못박으면 이 배지가 3자리 중 하나(19a·8b·판독문 링크)와 다시 어긋난다 — A/B로 쪼개
+    // report.js buildTierRow() 가 실제 그래프 카운트를 끼워 넣는다.
+    rpTierCustom: "전문", rpTierCountCustomA: "지표 ", rpTierCountCustomB: "개 · 내 가중치",
     // 성향 칩(헤더, 설계서 §3.2) — "추세 추종 기준" 처럼 선택된 프리셋 이름 + 접미사로 조립한다.
     // 탭하면 성향 변경 시트(12b)가 열려야 하지만 그건 P2 다 — 지금은 표시만.
     rpStyleSuffix: " 기준",
@@ -507,8 +510,15 @@
     tsFull: "심화분석", tsCustom: "전문분석",
     tsBasicDesc: "도구 5 · 방향과 범위",
     // 두 줄(시안 6b 원문에 줄바꿈이 있다) — .sheet-tier-desc 가 white-space:pre-line 이다.
+    // full 은 항상 32종 전부다(full32Graph 가 gann·pattern 도 포함해 고정 구성) — 그래프
+    // 구성이 안 바뀌므로 리터럴로 둬도 거짓이 될 일이 없다.
     tsFullDesc: "도구 32 · 일·주·월\n중심값 · 오차 · 확률 · 적중 이력",
-    tsCustomDesc: "도구 32 · 지표별 가중치 직접 지정",
+    // [리뷰 C1, 2026-08-19] "도구 32"는 전문(custom)에서 도달 불가능한 수였다 — customGraph()
+    // 가 가중치 레일에 없는 gann·pattern 을 그래프 자체에서 뺀다(graph.js:113 "만질 수 없는
+    // 지표는 전문분석 판정에서 빠진다"), 그래서 실제 상한은 30(MSIndTiers.tunable().length)
+    // 이다. 32를 그대로 두고 값만 받기 시작하면 "못 파는 것을 파는" 결함이라 리터럴을 없애고
+    // A/B로 쪼개 tier-sheet.js 가 MSIndTiers.tunable().length 를 끼워 넣는다.
+    tsCustomDescA: "도구 ", tsCustomDescB: " · 지표별 가중치 직접 지정",
     tsDone: "받음",
     // [리뷰 I1, 2026-08-19] "가장 많이 씀"은 명시적 사용 빈도 주장이었다 — 이 커밋이
     // 사람들이 스쿱을 처음 쓰기 시작하는 지점이라 뒷받침 표본이 0이다(표본 20건 미만
@@ -533,6 +543,18 @@
     // 않았다"고 말하면 거짓일 수 있어 tsSpendFailed 와 문구를 가른다. 재시도는 안전하다 —
     // 클라이언트가 같은 idem 을 재사용해 서버 멱등이 잡는다.
     tsSpendFailedUnknown: "지갑 상태를 확인하지 못했습니다. 차감됐더라도 다시 시도해도 안전합니다 — 다시 시도해 주세요.",
+    // [리뷰 I2, 2026-08-19] merged·unauthorized 는 서버가 정상 응답한 상태다(spend 자체를
+    // 시작하지 않았다 — MAYBE_CHARGED 밖) — tsSpendFailed("연결할 수 없습니다... 다시 시도해
+    // 주세요")를 그대로 쓰면 원인도 틀리고, merged 는 재시도해도 영원히 같은 사유로 실패한다.
+    // wallet.js 348행이 checkin() 의 merged 를 이미 wMerged 로 처리하는 것과 같은 사유 —
+    // 여기(report.js 구매 경로)만 놓치고 있었다. MSBlocked failedUnknown 카드(open-wallet+
+    // retry)에 이 셋을 넘겨 badge/head/body 를 갈아 끼운다.
+    tsSpendMergedBadge: "지갑이 이동됨",
+    tsSpendMergedHead: "이 기기의 지갑이 다른 곳으로 넘어갔습니다",
+    // body 는 wMerged 를 그대로 재사용한다(문구 이원화 금지 — 같은 사실은 같은 문장으로).
+    tsSpendUnauthorizedBadge: "인증 만료",
+    tsSpendUnauthorizedHead: "계정 인증이 끊어졌습니다",
+    tsSpendUnauthorizedBody: "지갑에서 다시 로그인해야 계속할 수 있습니다 — 차감되지 않았습니다.",
 
     // 지갑을 읽을 수 없을 때(오프라인 등) — 잔량을 0 으로 그리면 거짓 정보다(SPEC §1).
     // walUnavailable 은 wallet.js 전용(태스크 6 범위) — tsUnavailable 은 다른 화면(단계 선택
