@@ -34,6 +34,15 @@
 .rp-evi-seg { width:14px; height:4px; border-radius:2px; background:var(--track); }
 .rp-evi-seg.on { background:var(--steel); }
 
+/* 19b 「한 문장으로」— FULL/CUSTOM 선언 첫 블록(report-blocks.js). basic 전용 verdict 카드와
+   같은 여백·구분선(테두리 리듬을 맞춰 이 블록이 그 자리를 대신하는 관계를 보이게 한다).
+   제목(--fs-title)은 verdict 의 헤드라인(--fs-headline)보다 한 단계 작다 — headline(30~44px
+   clamp)은 "상승" 같은 두세 글자 헤드라인에 맞춘 크기라, 절이 둘 붙는 문장 전체를 그 크기로
+   올리면 좁은 화면에서 줄바꿈이 늘어 읽기가 나빠질 것으로 판단했다(화면 픽셀 실측은 아니고
+   너비 계산에 근거한 판단 — 실제 기기에서 줄바꿈이 걸리면 --fs-body 로 낮출 것). */
+.rp-sent { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
+.rp-sent-text { font-size:var(--fs-title); font-weight:var(--fw-title); letter-spacing:var(--ls-title); line-height:1.35; }
+
 .rp-verdict-wrap { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
 .rp-verdict-word { font-size:var(--fs-headline); font-weight:var(--fw-headline); letter-spacing:var(--ls-headline); }
 .rp-verdict.bull { color:var(--bull); }

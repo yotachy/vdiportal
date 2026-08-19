@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
 const require = createRequire(import.meta.url);
 const M = require("../www/report-model.js");
 const FC = require("../../forge-core.js");
@@ -224,4 +225,89 @@ test("hitRate — 중립·빈 요약은 null", () => {
   assert.strictEqual(M.hitRate({ bullHitRate: 0.6 }, "neutral"), null);
   assert.strictEqual(M.hitRate(null, "bull"), null);
   assert.strictEqual(M.hitRate({}, "bull"), null);
+});
+
+// ── P1b Task 3 — 「한 문장으로」의 두 절: overheat()·resistance() ──────────────────────
+// 문턱은 Task 2 가 backtest/earn-ohlc.json 실측(2813창)으로 정했다(과열 23.5%·저항 20.7%,
+// tools/measure-sentence-signals.mjs). 정의는 이제 report-model.js 에만 있고 그 도구는
+// require 로 이 함수를 그대로 위임 호출한다 — 사본이 둘이 아니다(tools/measure-sentence-
+// signals.mjs 상단 갱신 주석 참고).
+
+test("sentence — 과열이면 과열 절이 붙고, 아니면 안 붙는다(양쪽 갈래)", () => {
+  const hot = M.sentence({ dir: "bull", overheat: true, resistance: false });
+  const cool = M.sentence({ dir: "bull", overheat: false, resistance: false });
+  assert.match(hot, /과열/, "과열인데 과열 절이 없다");
+  assert.doesNotMatch(cool, /과열/, "과열이 아닌데 과열 절이 붙었다");
+  assert.notStrictEqual(hot, cool, "두 갈래가 같은 문장이다 — 조건이 안 먹는다");
+});
+
+test("sentence — 저항이면 저항 절이 붙고, 아니면 안 붙는다(양쪽 갈래)", () => {
+  const near = M.sentence({ dir: "bull", overheat: false, resistance: true });
+  const far = M.sentence({ dir: "bull", overheat: false, resistance: false });
+  assert.match(near, /저항/, "저항인데 저항 절이 없다");
+  assert.doesNotMatch(far, /저항/, "저항이 아닌데 저항 절이 붙었다");
+});
+
+// overheat()/resistance() 는 순수 계산 계층이다. 손으로 쓴 {state:"upper"} 류 목업이 아니라
+// **진짜 ForgeCore 분석 결과**(실 OHLCV, tools/measure-sentence-signals.mjs 의 buildWindows/
+// analyzeWindow — Task 2 가 발생률을 잰 것과 같은 창 풀)를 넣어야 "계산이 실제로 배선됐는가"
+// (Task 3 이전엔 undefined 였다)를 잰다. 대량 스윕 자체는 tools 쪽 책임이라 여기서는 그
+// 창 풀에서 값을 뽑아 boolean 반환·true/false 양쪽 발생·breakout_up 가드를 확인한다.
+let _windows = null;
+async function realWindows() {
+  if (_windows) return _windows;
+  const { buildWindows, analyzeWindow } = await import("../tools/measure-sentence-signals.mjs");
+  const raw = JSON.parse(readFileSync(new URL("../../backtest/earn-ohlc.json", import.meta.url)));
+  _windows = buildWindows(raw).map(analyzeWindow);
+  return _windows;
+}
+
+test("overheat/resistance — 실제 분석 결과에서 boolean 으로 계산된다(더 이상 undefined 가 아니다)", async () => {
+  const wins = await realWindows();
+  assert.ok(wins.length > 200, "표본 창이 너무 적다: " + wins.length);
+  const w = wins[0];
+  const oh = M.overheat({ bb: w.bb, rsi: w.rsi });
+  const rs = M.resistance({ ma: w.ma });
+  assert.strictEqual(typeof oh, "boolean", "overheat 가 계산되지 않았다(undefined 다)");
+  assert.strictEqual(typeof rs, "boolean", "resistance 가 계산되지 않았다(undefined 다)");
+});
+
+test("overheat — 실 데이터에 true·false 양쪽이 실제로 나온다(항상 같은 값이 아니다)", async () => {
+  const wins = await realWindows();
+  const vals = wins.map(w => M.overheat({ bb: w.bb, rsi: w.rsi }));
+  assert.ok(vals.some(v => v === true), "실 데이터에서 과열 true 가 한 번도 안 나온다");
+  assert.ok(vals.some(v => v === false), "실 데이터에서 과열 false 가 한 번도 안 나온다");
+});
+
+test("resistance — 실 데이터에 true·false 양쪽이 실제로 나온다(항상 같은 값이 아니다)", async () => {
+  const wins = await realWindows();
+  const vals = wins.map(w => M.resistance({ ma: w.ma }));
+  assert.ok(vals.some(v => v === true), "실 데이터에서 저항 true 가 한 번도 안 나온다");
+  assert.ok(vals.some(v => v === false), "실 데이터에서 저항 false 가 한 번도 안 나온다");
+});
+
+test("overheat — breakout_up 단독(rsi 도 upper 도 아님)으로는 켜지지 않는다(추세지속과 모순 방지)", async () => {
+  const wins = await realWindows();
+  const violations = wins.filter(w => w.bb.state === "breakout_up" && w.rsi.zone !== "overbought" &&
+    M.overheat({ bb: w.bb, rsi: w.rsi }));
+  assert.strictEqual(violations.length, 0,
+    violations.length + "개의 breakout_up 단독 창이 과열로 잘못 판정됐다");
+});
+
+// ── analyzeFull() 배선 확인(소스 검증) — screens/report.js 는 UMD 가 아니라 vm 없이는 내부
+// an 객체를 노드에서 직접 읽을 수 없다(window.MSReport 는 render 만 공개한다). sentence
+// 블록은 report-blocks.js PENDING.sentence 가 아직 true 라 tierBuyable('full') 이 false —
+// Task 6 전까지는 실제 구매 경로로도 CTA 버튼 자체가 뜨지 않아 화면 레벨로는 도달 불가능하다
+// (gate-routes.mjs report-purchase 시나리오 주석이 이 상태를 그대로 확인해 준다). 그래서
+// 이 시험은 "계산이 analyzeFull() 의 반환 객체에 실제로 배선됐는가"를 소스에서 직접
+// 확인한다 — "템플릿은 있고 입력이 없다"(이 태스크가 고친 결함, analyzeFull 이 두 필드를
+// 안 채우면 sentence() 는 영원히 base 문장뿐이다)의 재발을 소스 레벨에서 잡는 안전망이다.
+test("analyzeFull — 반환 객체가 MSReportModel.overheat/resistance 를 실제로 부른다(배선 확인)", () => {
+  const src = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
+  const start = src.indexOf("function analyzeFull(");
+  assert.ok(start >= 0, "analyzeFull 함수를 못 찾았다");
+  const end = src.indexOf("\n  }", start);
+  const body = src.slice(start, end);
+  assert.match(body, /overheat:\s*MSReportModel\.overheat\(/, "analyzeFull 이 overheat 필드를 안 채운다");
+  assert.match(body, /resistance:\s*MSReportModel\.resistance\(/, "analyzeFull 이 resistance 필드를 안 채운다");
 });

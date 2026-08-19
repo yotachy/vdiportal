@@ -157,6 +157,30 @@
     return { dir: dir, agree: agree, dissent: dissent, noDir: noDir, total: agree + dissent + noDir };
   }
 
+  // sentence() 의 두 절 판정. 문턱은 P1b Task 2 가 backtest/earn-ohlc.json 2813창 실측으로
+  // 정했다(과열 23.5%·저항 20.7%, mobile/tools/measure-sentence-signals.mjs 가 이 저장소의
+  // 판단 기록). **정의는 여기 하나뿐이다** — 그 tools 파일은 이제 이 두 함수를 그대로
+  // require 해서 되잰다(반대 방향 금지: 프로덕션이 tools 를 참조하면 안 된다). 조건식을
+  // 바꾸면 test/sentence-signals.test.mjs 의 극단 비율·breakoutGuard 시험이 먼저 빨개진다.
+  //
+  // 인자는 an 전체가 아니라 조각(sig={bb,rsi} · sig={ma})이다 — analyzeFull()(screens/
+  // report.js) 이 an 자체를 조립하는 도중에 이 두 함수를 부르기 때문에 아직 없는 an 을
+  // 넘길 수 없다(순환 참조). bb·rsi·ma 는 analyzeFull() 이 그 직전 줄에서 이미 만들어 둔
+  // 지역 변수라 이 조각만 넘기면 순환 없이 값이 흐른다.
+  function overheat(sig) {
+    var bb = sig && sig.bb, rsi = sig && sig.rsi;
+    // 볼린저 breakout_up(%B>1, 종가가 상단밴드 위로 마감=밴드워킹)은 추세 지속 신호다 —
+    // 상승 base 문장 위에 "다만 다소 과열된 구간입니다"를 붙이면 스스로 모순된다(Task 2
+    // 리뷰 Important A). 그래서 upper(밴드 안에서 상단에 붙은 상태)만 과열로 본다.
+    return !!((bb && bb.state === "upper") || (rsi && rsi.zone === "overbought"));
+  }
+  function resistance(sig) {
+    var ma = sig && sig.ma;
+    // ma.sr 은 엔진(forge-core.js analyzeMA)이 이미 1.5%(기본 srPct) 안에서만 채우고,
+    // 차트가 지지/저항 마커를 그릴 때 읽는 것과 같은 필드다 — 새 문턱을 여기서 발명하지 않는다.
+    return !!(ma && ma.sr && ma.sr.side === "resistance");
+  }
+
   // 19b 「한 문장으로」— 생성 문구가 아니라 방향·과열·저항 세 값을 규칙으로 잇는 템플릿이다.
   // 숫자를 먼저 내면 대부분은 해석을 못 하고 닫기 때문에 이 문장이 심화 리포트 선언 순서의
   // 맨 위에 온다(P1a Task 2). 문구 자체는 strings.js 에서 오고 여기는 조합만 한다 — 문장을
@@ -170,5 +194,5 @@
     return parts.join(" ");
   }
 
-  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate, tfRows: tfRows, agreeCount: agreeCount, tfKo: tfKo, verdict: verdict, sentence: sentence };
+  return { HORIZONS: HORIZONS, FLAT_EPS: FLAT_EPS, confidence: confidence, horizonRows: horizonRows, hitRate: hitRate, tfRows: tfRows, agreeCount: agreeCount, tfKo: tfKo, verdict: verdict, overheat: overheat, resistance: resistance, sentence: sentence };
 });

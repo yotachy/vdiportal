@@ -214,8 +214,15 @@
 
     // graph·vol 을 함께 돌려준다 — AGAINST THIS CALL 이 판정과 **같은 그래프·같은 입력**을 봐야
     // 한다. 여기서 다시 만들면 파라미터가 갈려 화면 두 곳이 다른 말을 하게 된다.
+    //
+    // 「한 문장으로」가 읽는 두 값(P1b Task 3) — ma·rsi·bb 는 바로 위에서 이미 만든 지역
+    // 변수라 an 자신을 넘기는 순환 없이 조각만 건넨다. 여기서 채우지 않으면 sentence() 의
+    // 두 절은 영원히 an.overheat/an.resistance 가 undefined 인 채 안 붙는다 — Task 3 이전
+    // 상태가 정확히 그랬다(템플릿은 있고 입력이 없었다).
     return { out: out, graph: graph, vol: okVol ? vol : null,
-             ma: ma, rsi: rsi, bb: bb, macd: macd, va: va, maP: maP, rsiP: rsiP, bbP: bbP, mcP: mcP };
+             ma: ma, rsi: rsi, bb: bb, macd: macd, va: va, maP: maP, rsiP: rsiP, bbP: bbP, mcP: mcP,
+             overheat: MSReportModel.overheat({ bb: bb, rsi: rsi }),
+             resistance: MSReportModel.resistance({ ma: ma }) };
   }
 
   // ── 차트 합성 + 크로스헤어. wrap 은 이미 라이브 DOM 에 붙어 있어야 한다(clientWidth 측정 위해) ──
@@ -722,6 +729,22 @@
         b.addEventListener("click", retry);
         wrap.appendChild(b);
       }
+      return wrap;
+    }
+
+    // 19b 「한 문장으로」— report-blocks.js FULL/CUSTOM 선언의 첫 블록(설계서 §3.5: 숫자를
+    // 먼저 내면 대부분은 해석을 못 하고 닫는다). verdict 카드가 basic 전용이라(바로 아래
+    // 주석) 심화·전문에선 이 블록이 그 첫머리 자리를 대신한다 — 방향 단어 하나 대신
+    // 방향+과열+저항을 한 문장으로 읽게 하는 것이 P1b 의 결정이다. 계산(과열·저항 판정·
+    // 문장 조합)은 report-model.js 가 다 하고, 여기는 an 에서 그 세 값을 뽑아 카드에
+    // 얹기만 한다(buildComb() 이 MSLegend/MSReportModel 계산을 그대로 받아쓰는 것과 같은
+    // 분업).
+    function buildSentence() {
+      var wrap = MSUi.el("div", "rp-sent");
+      var text = MSReportModel.sentence({
+        dir: an.out.verdict.regime, overheat: an.overheat, resistance: an.resistance
+      });
+      wrap.appendChild(MSUi.el("div", "rp-sent-text", text));
       return wrap;
     }
 
@@ -1469,6 +1492,7 @@
           price:     function () { return buildPrice(); },
           last:      function () { return buildLast(); },
           verdict:   function () { return buildVerdict(); },
+          sentence:  function () { return buildSentence(); },
           comb:      function () { return buildComb(); },
           chart:     function () { return buildChartSection(); },
           legend:    function () { return buildChartLegend(); },

@@ -1,7 +1,10 @@
 // 심화 리포트 「한 문장으로」(report-model.js sentence())가 읽는 an.overheat·an.resistance —
-// 이 파일 밖 어디에서도 그 두 필드를 채우지 않는다(P1b Task 2 조사 A1). 문턱을 추측으로
-// 정하면 늘 붙어서 정보가 없거나 거의 안 붙어서 문장 블록이 헛것이 된다. 그래서 짓기 전에
-// 먼저 잰다 — P4 Task 1(성향 민감도, tools/measure-preset-sensitivity.mjs)의 같은 이유.
+// **Task 2 시점엔** 이 파일 밖 어디에서도 그 두 필드를 채우지 않았다(조사 A1). 문턱을
+// 추측으로 정하면 늘 붙어서 정보가 없거나 거의 안 붙어서 문장 블록이 헛것이 된다. 그래서
+// 짓기 전에 먼저 쟀다 — P4 Task 1(성향 민감도, tools/measure-preset-sensitivity.mjs)의
+// 같은 이유. **Task 3 이후**: 조건식은 www/report-model.js 의 overheat()/resistance() 로
+// 옮겨졌고 screens/report.js 의 analyzeFull() 이 그 값을 실제로 an 에 채운다 — 이 파일은
+// 이제 그 프로덕션 정의를 require 해서 발생률만 되잰다(아래 isOverheat/isResistance 참고).
 //
 // API 시그니처는 추측하지 않고 소스에서 확인했다(태스크 브리프의 경고 — 이 저장소에서
 // 시그니처 추측이 이미 여러 번 틀렸다):
@@ -37,6 +40,9 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 const require = createRequire(import.meta.url);
 const FC = require("../../forge-core.js");
+// 프로덕션 정의(단일 출처) — 이 파일은 아래 isOverheat/isResistance 를 통해 이것을 위임 호출만
+// 한다(계산 자체를 다시 적지 않는다). www/report-model.js 는 UMD 라 CJS require 가 된다.
+const RM = require("../www/report-model.js");
 
 export const N = 240;
 export const STEP = 45;
@@ -119,12 +125,19 @@ function fibResistDist(fib, lastPrice) {
 // 반드시 이 두 함수를 통해서만 판정한다 — CANDIDATES 표의 항목이 아니라 **이 함수 자체가**
 // 단일 출처다(2026-08-19 리뷰 Important C: 시험이 measure() 의 결과값을 읽을 때도 이 함수를
 // 거쳐야 한다 — candidates 딕셔너리의 키를 별도로 참조하면 이 함수만 바뀌었을 때 시험이
-// 못 잡는다). Task 3 은 이 두 함수의 조건식을 그대로 report-model.js 쪽으로 옮긴다.
+// 못 잡는다).
+//
+// **Task 3 갱신** — 조건식 자체는 이제 www/report-model.js 의 overheat()/resistance() 가
+// 갖고 있다(analyzeFull() 이 그 함수를 실제로 부르게 배선하면서 옮겼다). 이 파일은 그 실제
+// 프로덕션 정의를 그대로 require 해서 되잰다 — 반대 방향(프로덕션이 tools 를 참조)은 안 된다.
+// 이 위임 덕분에 test/sentence-signals.test.mjs 는 이제 이 파일 안의 사본이 아니라 화면이
+// 실제로 쓰는 정의를 직접 재는 셈이 된다. an 의 필드 이름(ma·rsi·bb)은 그대로 두고 report-
+// model.js 가 기대하는 조각({bb,rsi}·{ma})만 골라 넘긴다.
 export function isOverheat(an) {
-  return an.bb.state === "upper" || an.rsi.zone === "overbought";
+  return RM.overheat({ bb: an.bb, rsi: an.rsi });
 }
 export function isResistance(an) {
-  return !!(an.ma.sr && an.ma.sr.side === "resistance");
+  return RM.resistance({ ma: an.ma });
 }
 
 // 후보 정의 전체(참고용 비교표) — 브리프(task-2-brief.md Step 1)의 표를 실제 필드명으로 고쳐
