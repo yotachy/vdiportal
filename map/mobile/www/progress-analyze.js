@@ -43,6 +43,28 @@
     if (s && s.parentNode) s.parentNode.removeChild(s);
   }
 
+  // 빗 한 칸의 상태 — 위치 i 가 read(지금까지 읽은 개수 = 다음에 읽을 위치)·basic(기본
+  // 티어가 이미 읽는 칸 수) 대비 어디에 있는지 순수 계산으로 답한다. paint() 가 매 프레임
+  // 이 값으로 className 을 통째로 다시 쓴다 — classList.add() 만으로는 "지금 읽는 칸"이
+  // 프레임마다 옮겨가는 것도, "지난 칸일수록 흐려지는 것"도 표현할 수 없다(둘 다 이미
+  // 켜진 칸의 겉모습이 시간에 따라 바뀌어야 하는데 add() 는 되돌릴 수 없다). 읽는 순서는
+  // readingStepper 의 nodes 순서 = 빗 칸을 만든 순서와 같다(index 하나로 충분한 이유).
+  //   i <  read       : 이미 읽었다 — 가장 최근(dist 0)이 가장 진하고, 멀수록 흐려진다.
+  //   i === read       : 지금 읽는 중 — 흰 막대(an-now) 하나뿐이다.
+  //   i >  read       : 아직이다 — 트랙(또는 스틸) 그대로.
+  function toothClass(i, read, basic) {
+    var cls = "an-tooth" + (i < basic ? " an-core" : "");
+    if (i < read) {
+      cls += " on";
+      var dist = (read - 1) - i;
+      if (dist === 1) cls += " an-fade1";
+      else if (dist >= 2) cls += " an-fade2";
+    } else if (i === read) {
+      cls += " an-now";
+    }
+    return cls;
+  }
+
   // opts = { stepper, basic, onDone(rows), onError(err) }
   //   stepper — MSIndicators.readingStepper 가 준 것. total/step()/drain()/done 을 갖는다.
   //   basic   — 기본 티어가 이미 읽던 수. 빗에서 스틸로 남는 칸(8b 와 같은 셈법).
@@ -89,6 +111,8 @@
       var comb = MSUi.el("div", "an-comb");
       var teeth = [];
       for (var i = 0; i < total; i++) {
+        // 시작 className 은 toothClass(i, 0, basic) 와 같지만, 첫 paint() 가 곧바로 다시
+        // 써서 "지금 읽는 중" 칸을 얹으므로 여기서는 뼈대만 둔다(중복 계산 생략).
         var s = MSUi.el("div", "an-tooth" + (i < basic ? " an-core" : ""));
         comb.appendChild(s);
         teeth.push(s);
@@ -109,7 +133,9 @@
 
       var paint = function () {
         var read = st.index;
-        for (var i = 0; i < read && i < teeth.length; i++) teeth[i].classList.add("on");
+        // 프레임마다 통째로 다시 쓴다(추가만 하는 classList.add() 로는 "지금 읽는 칸"이
+        // 옮겨가는 것도 "지난 칸이 흐려지는 것"도 표현할 수 없다 — toothClass 주석 참고).
+        for (var i = 0; i < teeth.length; i++) teeth[i].className = toothClass(i, read, basic);
         count.textContent = read + MSStr.t.anOf + total;
         fill.style.width = Math.round((read / total) * 100) + "%";
         var t = tallyOf(st.rows, MSIndicators.EPS);
@@ -173,5 +199,5 @@
     }
   }
 
-  return { FRAME_BUDGET_MS: FRAME_BUDGET_MS, tallyOf: tallyOf, play: play, close: close };
+  return { FRAME_BUDGET_MS: FRAME_BUDGET_MS, tallyOf: tallyOf, toothClass: toothClass, play: play, close: close };
 });

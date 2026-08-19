@@ -197,3 +197,48 @@ test("play() 의 rAF 콜백(frame) 안에서 던지면 onError 로 회수된다 
     Object.keys(saved).forEach(k => { if (saved[k] === undefined) delete g[k]; else g[k] = saved[k]; });
   }
 });
+
+// ── P1b Task 7 — 19a 빗 강조("막 읽은 칸이 가장 진하고, 지난 칸일수록 흐려진다" · "지금
+// 읽는 칸은 흰 막대 하나뿐"). toothClass() 는 paint() 가 매 프레임 통째로 다시 쓰는 className
+// 을 순수 계산으로 답한다 — DOM·타이머 없이 여기서 잰다(tallyOf 와 같은 이유). ─────────────
+
+test("toothClass — 지금 읽는 칸은 an-now 하나, 막 읽은 칸이 가장 진하고 지날수록 흐려진다", () => {
+  // read=5: 0~4 는 이미 읽음(4 가 가장 최근), 5 는 지금, 6 이상은 아직.
+  assert.match(AV.toothClass(5, 5, 0), /(^|\s)an-now(\s|$)/, "지금 읽는 칸에 an-now 가 없다");
+  assert.doesNotMatch(AV.toothClass(5, 5, 0), /\bon\b/, "아직 안 읽었는데 on 이 붙었다");
+  assert.doesNotMatch(AV.toothClass(6, 5, 0), /an-now|\bon\b/, "아직 멀리 남은 칸에 진행 클래스가 붙었다");
+
+  assert.match(AV.toothClass(4, 5, 0), /\bon\b/, "막 읽은 칸(dist 0)에 on 이 없다");
+  assert.doesNotMatch(AV.toothClass(4, 5, 0), /an-fade/, "막 읽은 칸이 벌써 흐려져 있다 — 가장 진해야 한다");
+  assert.match(AV.toothClass(3, 5, 0), /an-fade1(\s|$)/, "한 칸 전(dist 1)이 an-fade1 이 아니다");
+  assert.doesNotMatch(AV.toothClass(3, 5, 0), /an-fade2/, "한 칸 전이 벌써 최대로 흐려졌다");
+  assert.match(AV.toothClass(0, 5, 0), /an-fade2(\s|$)/, "더 지난 칸(dist ≥2)이 an-fade2 로 수렴하지 않는다");
+});
+
+test("toothClass — 기본 티어(an-core) 칸도 같은 진하기 규칙을 따른다", () => {
+  assert.match(AV.toothClass(2, 5, 5), /an-core/, "기본 티어 칸에 an-core 표식이 없다");
+  assert.match(AV.toothClass(2, 5, 5), /an-fade2/, "기본 티어 칸도 지나면 흐려져야 한다");
+  assert.match(AV.toothClass(3, 3, 5), /(^|\s)an-now(\s|$)/, "기본 티어 구간 안에서도 현재 위치가 표시돼야 한다");
+});
+
+// 브리프 원문 시험이 쓰는 렌더 헬퍼 — 실 DOM·타이머 없이 toothClass() 로 빗 하나를 그대로
+// 그린다(paint() 가 매 프레임 하는 일과 같은 계산을 화면 없이 재현한 것 — MiniEl 을 새로
+// 안 만드는 이유는 이 시험이 클래스 목록만 보면 되기 때문이다).
+function renderAnalyzeAt(read, total, basic) {
+  const teeth = [];
+  for (let i = 0; i < total; i++) teeth.push({ className: AV.toothClass(i, read, basic || 0) });
+  return {
+    querySelectorAll(sel) {
+      const need = String(sel).split(".").filter(Boolean);
+      return teeth.filter(t => need.every(c => (" " + t.className + " ").indexOf(" " + c + " ") >= 0));
+    },
+    querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
+  };
+}
+
+test("19a — 지금 읽는 칸이 읽은 칸·대기 칸과 구별된다", () => {
+  const dom = renderAnalyzeAt(12, 32);
+  assert.ok(dom.querySelector(".an-tooth.an-now"), "현재 위치 표시가 없다");
+  assert.strictEqual(dom.querySelectorAll(".an-tooth.an-now").length, 1,
+    "현재 위치가 둘 이상이다");
+});

@@ -8,8 +8,10 @@
 // 그래서 파일을 나눈다. 공유해도 되는 것은 빗 그리기 정도이고 타이밍 정책은 공유하지 않는다.
 //
 // 숫자는 지어내지 않는다. 빗 칸 수는 엔진의 지표 수, 스틸 칸은 기본 티어가 읽는 수에서 온다.
-// "동의 N / 전체 M" 은 판정이 이미 계산해 둔 confluence 를 그대로 쓴다 — 이 연출을 위해
-// analyzeX 를 32번 더 돌리지 않는다(그 비용은 사용자가 기다리는 시간이다).
+// 동의·반대·무판정 세 통(§3.6)은 MSReportModel.verdict() 가 이미 합 검산까지 해서 돌려준
+// 값을 호출부(report.js)가 그대로 넘긴다 — 이 연출을 위해 analyzeX 를 32번 더 돌리거나
+// 세 값을 여기서 다시 집계하지 않는다(그 비용은 사용자가 기다리는 시간이고, 두 곳에서
+// 집계하면 검산이 갈라져도 아무도 못 잡는다).
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
   else MSGlobals.define("MSReveal", factory());
@@ -26,15 +28,45 @@
     return { t: t, lit: Math.max(basic, Math.min(total, lit)), done: elapsed >= MIN_MS };
   }
 
+  // 세 통(동의·반대·무판정) — 받은 값을 그대로 실어 나른다. 여기서 다시 계산하지 않는
+  // 이유는 MSReportModel.verdict() 가 이미 합 검산을 마친 값이기 때문이다(report-model.js
+  // §verdict 주석) — 8b 가 스스로 재집계하면 검산이 두 곳으로 갈라져 어긋나도 아무도 못
+  // 잡는다. total 을 명시로 안 주면 세 값의 합으로 유도한다(옛 호출부 호환 — agree 하나만
+  // 오던 시절엔 total 이 별도 인자였다).
+  function revealState(o) {
+    var agree = (o && typeof o.agree === "number") ? o.agree : 0;
+    var dissent = (o && typeof o.dissent === "number") ? o.dissent : 0;
+    var noDir = (o && typeof o.noDir === "number") ? o.noDir : 0;
+    var total = (o && typeof o.total === "number") ? o.total : (agree + dissent + noDir);
+    return { agree: agree, dissent: dissent, noDir: noDir, total: total };
+  }
+
+  function bucketCell(cls, n, label) {
+    var cell = MSUi.el("div", "rv-bucket " + cls);
+    cell.appendChild(MSUi.el("span", "rv-bucket-num", String(n)));
+    cell.appendChild(MSUi.el("span", "rv-bucket-label", label));
+    return cell;
+  }
+  // 동의·반대·무판정 세 통(설계서 §3.6) — 합이 위 rv-count 의 카운터와 일치해야 한다
+  // (revealState 가 만든 값을 그대로 쓰므로 여기서 어긋날 방법이 없다).
+  function buildBuckets(bs) {
+    var wrap = MSUi.el("div", "rv-buckets");
+    wrap.appendChild(bucketCell("is-agree", bs.agree, MSStr.t.rvAgree));
+    wrap.appendChild(bucketCell("is-dissent", bs.dissent, MSStr.t.rvDissent));
+    wrap.appendChild(bucketCell("is-nodir", bs.noDir, MSStr.t.rvNoDir));
+    return wrap;
+  }
+
   function close() {
     var s = document.querySelector(".rv-scrim");
     if (s && s.parentNode) s.parentNode.removeChild(s);
   }
 
-  // opts = { total, basic, agree, onDone }
+  // opts = { total, basic, agree, dissent, noDir, onDone }
   function play(opts) {
     var o = opts || {};
     var total = o.total, basic = o.basic;
+    var bs = revealState(o);   // 세 통(동의·반대·무판정) — verdict() 가 이미 검산한 값
     close();
 
     var scrim = MSUi.el("div", "rv-scrim");
@@ -51,6 +83,10 @@
     }
     box.appendChild(comb);
 
+    // 세 통을 빗 바로 아래 둔다 — 빗이 "무엇이 열렸는지"를 보여주면 세 통은 "그중 몇 개가
+    // 동의·반대·무판정인지"를 바로 이어 말한다. 진행 비율(rv-count)은 그 아래 진행바
+    // (rv-track)와 짝이라 그 위에 붙인다.
+    box.appendChild(buildBuckets(bs));
     var count = MSUi.el("div", "rv-count", "");
     box.appendChild(count);
     var track = MSUi.el("div", "rv-track");
@@ -77,8 +113,7 @@
       for (var i = 0; i < teeth.length; i++) {
         if (i < st.lit) teeth[i].classList.add("on");
       }
-      count.textContent = st.lit + MSStr.t.rvOf + total +
-        (o.agree != null ? MSStr.t.rvSep + o.agree + MSStr.t.rvAgree : "");
+      count.textContent = st.lit + MSStr.t.rvOf + total;
       fill.style.width = Math.round(st.t * 100) + "%";
       if (st.done) { finish(); return; }
       raf = requestAnimationFrame(step);
@@ -88,5 +123,5 @@
     raf = requestAnimationFrame(step);
   }
 
-  return { MIN_MS: MIN_MS, stateAt: stateAt, play: play, close: close };
+  return { MIN_MS: MIN_MS, stateAt: stateAt, revealState: revealState, play: play, close: close };
 });

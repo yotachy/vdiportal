@@ -1315,10 +1315,15 @@
             : null;
 
           function revealThenDraw() {
-            var conf = an.out.verdict.confluence;
+            // MSReportModel.verdict() 가 동의·반대·무판정을 합 검산까지 해서 돌려준다
+            // (report-model.js) — buildVerdict() 가 헤드라인 부제에 쓰는 것과 같은 계산을
+            // 여기서도 그대로 쓴다(P1b Task 7). 엔진 confluence.agree 하나만 받던 옛 배선은
+            // 반대·무판정을 몰라 8b 의 세 통을 못 채웠다.
+            var tally = MSLegend.tally(MSLegend.rows(an, an.out.prediction, null));
+            var vm = MSReportModel.verdict({ dir: an.out.verdict.regime, up: tally.up, down: tally.down, flat: tally.flat });
             MSReveal.play({
               total: ForgeCore.indicatorCount, basic: MSGraph.BASIC.length,
-              agree: conf ? conf.agree : null,
+              agree: vm.agree, dissent: vm.dissent, noDir: vm.noDir,
               onDone: function () { if (isCurrent()) draw(); }
             });
           }
