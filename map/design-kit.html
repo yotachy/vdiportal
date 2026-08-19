@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>머니스쿱 앱 디자인 킷 — 연결도 · 컴포넌트 · 표기 · 카피</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#0e141b; --surface:#131a23; --raised:#18212c;
+    --line:#202b38; --line-soft:#18212c;
+    --ink:#e9edf4; --eth:#97a3b6; --muted:#6a7688; --faint:#4d5766;
+    --gold:#e8b463; --gold-soft:rgba(232,180,99,.10); --gold-line:rgba(232,180,99,.30);
+    --bull:#46c28e; --bear:#e06a6a; --info:#5b8fd6; --warn:#d69a4a;
+    --f-sans:"IBM Plex Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --r-sm:3px; --r-md:5px; --r-lg:7px;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#eef1f6; --panel:#ffffff; --surface:#ffffff; --raised:#f4f7fb;
+      --line:#d3dae4; --line-soft:#e3e8ef;
+      --ink:#0e141c; --eth:#4d5a6d; --muted:#76839a; --faint:#95a1b4;
+      --gold:#9a6f16; --gold-soft:rgba(154,111,22,.09); --gold-line:rgba(154,111,22,.28);
+      --bull:#17805a; --bear:#b33a3a; --info:#2f6bb5; --warn:#9a6a10;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-sans);
+    font-size:15px;line-height:1.75;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+
+  .shell{display:grid;grid-template-columns:250px 1fr;gap:0;max-width:1500px;margin:0 auto;align-items:start}
+  @media (max-width:1040px){ .shell{grid-template-columns:1fr} .toc{display:none} }
+
+  /* 목차 */
+  .toc{position:sticky;top:0;height:100vh;overflow-y:auto;padding:26px 14px 40px 22px;
+    border-right:1px solid var(--line);font-size:12.5px}
+  .toc-h{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--gold);margin:0 0 12px}
+  .toc a{display:block;padding:3.5px 0;color:var(--eth);text-decoration:none;line-height:1.45}
+  .toc a:hover{color:var(--ink)}
+  .toc a.s{padding-left:14px;color:var(--muted);font-size:12px}
+  .toc-gap{height:11px}
+
+  .doc{padding:32px clamp(18px,4vw,56px) 100px;min-width:0;max-width:1000px}
+
+  /* 머리 */
+  .eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+  h1{margin:10px 0 12px;font-size:clamp(1.9rem,4.4vw,2.7rem);font-weight:700;line-height:1.15;letter-spacing:-.035em}
+  .lede{margin:0;max-width:52ch;font-size:1.04rem;font-weight:300;line-height:1.66;color:var(--eth)}
+  .meta{margin-top:16px;font-family:var(--f-mono);font-size:11.5px;color:var(--muted);
+    display:flex;flex-wrap:wrap;gap:4px 18px}
+
+  h2{margin:0;font-size:1.42rem;font-weight:600;letter-spacing:-.028em}
+  .shead{display:flex;align-items:baseline;gap:14px;padding-bottom:9px;margin:56px 0 20px;
+    border-bottom:1px solid var(--line);scroll-margin-top:12px}
+  .shead .tag{margin-left:auto;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  h3{margin:30px 0 10px;font-size:1.02rem;font-weight:600;letter-spacing:-.02em}
+  h4{margin:20px 0 7px;font-size:.93rem;font-weight:600;color:var(--eth)}
+  p{margin:0 0 12px;max-width:74ch}
+  ul,ol{margin:0 0 12px;padding-left:20px;max-width:74ch}
+  li{margin-bottom:5px}
+  li::marker{color:var(--muted)}
+  strong{font-weight:600}
+  em{font-style:normal;color:var(--gold);font-weight:500}
+  code{font-family:var(--f-mono);font-size:.85em;background:var(--raised);border:1px solid var(--line-soft);
+    border-radius:var(--r-sm);padding:.08em .34em;color:var(--eth);word-break:break-word}
+  a{color:var(--gold);text-underline-offset:2px}
+
+  /* 표 */
+  .tw{overflow-x:auto;margin:0 0 16px;border:1px solid var(--line);border-radius:var(--r-md)}
+  table{width:100%;border-collapse:collapse;font-size:13.2px;min-width:520px}
+  th,td{text-align:left;padding:8px 11px;border-bottom:1px solid var(--line-soft);vertical-align:top;line-height:1.6}
+  thead th{background:var(--raised);font-family:var(--f-mono);font-size:10.5px;font-weight:500;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  td.n,th.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .up{color:var(--bull)} .dn{color:var(--bear)} .gd{color:var(--gold)}
+
+  /* 화면 카드 */
+  .scr{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--panel);
+    margin:0 0 26px;overflow:hidden;scroll-margin-top:12px}
+  .scr-h{display:flex;align-items:center;gap:11px;padding:12px 16px;background:var(--raised);
+    border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .scr-id{font-family:var(--f-mono);font-size:11.5px;font-weight:600;color:var(--gold);
+    background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:var(--r-sm);padding:2px 7px}
+  .scr-t{font-size:1.02rem;font-weight:600;letter-spacing:-.02em}
+  .scr-src{margin-left:auto;font-family:var(--f-mono);font-size:10.5px;color:var(--muted);white-space:nowrap}
+  .scr-b{padding:16px}
+  .scr-b>*:last-child{margin-bottom:0}
+
+  /* 8필드 라벨 */
+  .fld{display:grid;grid-template-columns:112px 1fr;gap:12px;padding:11px 0;border-top:1px solid var(--line-soft)}
+  .fld:first-child{border-top:0;padding-top:0}
+  .fld>.k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);padding-top:4px}
+  .fld>.v{min-width:0}
+  .fld>.v>*:last-child{margin-bottom:0}
+  @media (max-width:620px){ .fld{grid-template-columns:1fr;gap:3px} .fld>.k{padding-top:0} }
+
+  /* 노트 */
+  .note{border:1px solid var(--line);border-left:1px solid var(--line);border-radius:var(--r-md);
+    background:var(--surface);padding:12px 15px;margin:0 0 14px}
+  .note.warn{border-color:var(--gold-line);background:var(--gold-soft)}
+  .note.bad{border-color:rgba(224,106,106,.34);background:rgba(224,106,106,.07)}
+  .note .lbl{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--gold);display:block;margin-bottom:6px}
+  .note.bad .lbl{color:var(--bear)}
+  .note>*:last-child{margin-bottom:0}
+
+  /* 규칙 목록 */
+  .rules{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+    border-radius:var(--r-md);overflow:hidden;margin:0 0 16px}
+  .rule{background:var(--panel);padding:11px 14px;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
+  .rule .k{font-family:var(--f-mono);font-size:10.5px;font-weight:500;color:var(--gold);
+    background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:2px;padding:1px 6px;
+    white-space:nowrap;margin-top:3px}
+  .rule p{margin:0;font-size:13.5px}
+
+  /* 동선 흐름 */
+  .flow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:0 0 16px;font-size:12.5px}
+  .flow .n{font-family:var(--f-mono);border:1px solid var(--line);border-radius:99px;
+    padding:4px 11px;background:var(--surface);white-space:nowrap}
+  .flow .n.k{border-color:var(--gold-line);background:var(--gold-soft);color:var(--gold)}
+  .flow .a{color:var(--muted)}
+
+  /* 층 */
+  .stack{display:grid;gap:6px;margin:0 0 16px}
+  .layer{border:1px solid var(--line);border-radius:var(--r-md);padding:10px 13px;background:var(--surface);
+    display:grid;grid-template-columns:120px 1fr;gap:13px;align-items:baseline}
+  .layer .who{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .layer .what{font-size:13.5px;color:var(--eth)}
+  .layer.on{border-color:var(--gold-line);background:var(--gold-soft)}
+  .layer.on .who{color:var(--gold)} .layer.on .what{color:var(--ink)}
+  @media (max-width:620px){ .layer{grid-template-columns:1fr;gap:2px} }
+
+  /* 배치 다이어그램 */
+  .wire{display:grid;gap:5px;max-width:300px;margin:4px 0 16px;font-size:11.5px;font-family:var(--f-mono)}
+  .wire div{border:1px dashed var(--line);border-radius:var(--r-sm);padding:7px 10px;background:var(--surface);color:var(--eth)}
+  .wire div.fix{border-style:solid;border-color:var(--gold-line);background:var(--gold-soft);color:var(--gold)}
+  .wire div.scr2{border-style:solid}
+
+  footer{margin-top:70px;padding-top:18px;border-top:1px solid var(--line);
+    font-family:var(--f-mono);font-size:11.5px;color:var(--muted);line-height:1.9}
+
+  /* ── 스토리 비트 ─────────────────────────────────── */
+  .beat{display:grid;grid-template-columns:74px 1fr;gap:0;border:1px solid var(--line);
+    border-radius:var(--r-lg);background:var(--panel);margin:0 0 10px;overflow:hidden}
+  .beat>.t{background:var(--raised);border-right:1px solid var(--line);padding:13px 10px;
+    font-family:var(--f-mono);font-size:12px;color:var(--gold);text-align:center;
+    font-variant-numeric:tabular-nums;line-height:1.35}
+  .beat>.t small{display:block;font-size:9.5px;color:var(--muted);letter-spacing:.06em;margin-top:3px}
+  .beat>.c{padding:13px 15px;min-width:0}
+  .beat>.c>*:last-child{margin-bottom:0}
+  .beat h5{margin:0 0 5px;font-size:.98rem;font-weight:600;letter-spacing:-.02em}
+  .beat p{margin:0 0 7px;font-size:13.6px;max-width:none}
+  .beat .felt{font-size:12.8px;color:var(--eth);border-top:1px dashed var(--line);padding-top:7px;margin-top:9px}
+  .beat .felt b{color:var(--gold);font-weight:500;font-family:var(--f-mono);font-size:10.5px;
+    letter-spacing:.08em;text-transform:uppercase;margin-right:7px}
+  .beat.key{border-color:var(--gold-line)}
+  .beat.key>.t{background:var(--gold-soft)}
+  @media (max-width:620px){ .beat{grid-template-columns:1fr} .beat>.t{border-right:0;border-bottom:1px solid var(--line);text-align:left} }
+  .sig{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;margin:0 0 16px}
+  .sig>div{background:var(--panel);padding:12px 15px}
+  .sig h5{margin:0 0 4px;font-size:.95rem;font-weight:600}
+  .sig p{margin:0;font-size:13.4px;color:var(--eth);max-width:none}
+  hr{border:0;border-top:1px solid var(--line);margin:40px 0}
+</style>
+<style>
+  .map{display:grid;gap:10px;margin:0 0 18px}
+  .lane{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center;
+    border:1px solid var(--line);border-radius:var(--r-lg);background:var(--panel);padding:11px 13px}
+  .lane .ln{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);line-height:1.4}
+  .lane .bx{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+  .nd{font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);border-radius:var(--r-md);
+    padding:5px 10px;background:var(--surface);white-space:nowrap}
+  .nd.k{border-color:var(--gold-line);background:var(--gold-soft);color:var(--gold)}
+  .nd.s{border-style:dashed;color:var(--eth)}
+  .ar{color:var(--muted);font-size:12px}
+  .lane.key{border-color:var(--gold-line)}
+  @media (max-width:620px){ .lane{grid-template-columns:1fr;gap:5px} }
+  .cmp{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;margin:0 0 18px}
+  .cmp>div{background:var(--panel);padding:11px 14px;display:grid;grid-template-columns:150px 1fr;gap:14px}
+  .cmp .nm{font-weight:600;font-size:13.6px}
+  .cmp .nm small{display:block;font-family:var(--f-mono);font-size:10px;color:var(--muted);font-weight:400;margin-top:2px}
+  .cmp .ds{font-size:13.2px;color:var(--eth)}
+  .cmp .ds b{color:var(--ink);font-weight:600}
+  @media (max-width:620px){ .cmp>div{grid-template-columns:1fr;gap:3px} }
+  .copy{border-left:0;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);
+    padding:10px 13px;margin:0 0 9px;font-size:13.5px}
+  .copy .who{font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:4px}
+  .copy q{font-style:normal;quotes:"“" "”";color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="toc">
+  <div class="toc-h">디자인 킷</div>
+  <a href="#k1">1 · 화면 연결도</a>
+  <a href="#k1b" class="s">전이 전량</a>
+  <a href="#k2">2 · 컴포넌트 인벤토리</a>
+  <a href="#k3">3 · 표기 규격</a>
+  <a href="#k4">4 · 어휘집</a>
+  <a href="#k5">5 · 카피 덱</a>
+  <a href="#k6">6 · 더미 데이터</a>
+  <div class="toc-gap"></div>
+  <a href="app-spec.html">← 요건정의로</a>
+</nav>
+
+<main class="doc">
+<header>
+  <div class="eyebrow">머니스쿱 모바일 · 시안 작업 재료</div>
+  <h1>디자인 킷</h1>
+  <p class="lede">
+    요건정의가 <strong>무엇을 왜</strong>를 정한다면, 이 문서는 <strong>시안을 그리는 동안 옆에 펴 두는 것</strong>이다 —
+    화면이 어떻게 이어지는지, 무엇이 반복되는지, 숫자를 어떻게 쓰는지, 문구가 무엇인지.
+  </p>
+  <div class="meta">
+    <span>v0.1</span><span>2026-08-19</span>
+    <span>짝 문서 <a href="app-spec.html">app-spec.html</a> v0.7</span>
+    <span>18화면</span>
+  </div>
+</header>
+
+<div class="note">
+  <span class="lbl">쓰는 법</span>
+  <p><strong>§1 연결도</strong>로 전체를 잡고, 화면 하나를 그릴 때 <strong>§2 컴포넌트</strong>에서 재사용할 조각을 먼저 찾는다.
+  숫자를 넣을 때 <strong>§3 표기 규격</strong>과 <strong>§6 더미 데이터</strong>를, 글자를 넣을 때 <strong>§5 카피 덱</strong>을 본다.
+  <strong>lorem 을 쓰지 않는다</strong> — 실제 문구와 실측값이 여기 다 있다.</p>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<div class="shead" id="k1"><h2>1 · 화면 연결도</h2><span class="tag">18화면</span></div>
+
+<p>세로축은 <strong>여정 단계</strong>다. 같은 줄에 있는 화면들은 사용자가 같은 시점에 오갈 수 있는 것들이다.</p>
+
+<div class="map">
+  <div class="lane key"><span class="ln">첫 진입<br><small>1막</small></span>
+    <span class="bx"><span class="nd k">S0 소개</span><span class="ar">→</span><span class="nd">S1 종목 목록</span><span class="ar">→</span><span class="nd">S2 프리뷰</span></span></div>
+
+  <div class="lane key"><span class="ln">분석<br><small>1막 절정</small></span>
+    <span class="bx"><span class="nd">S13 단계 선택</span><span class="ar">→</span><span class="nd k">S4 실행(시뮬/웹분석)</span><span class="ar">→</span><span class="nd k">S3 리포트 홈</span></span></div>
+
+  <div class="lane"><span class="ln">결과 읽기<br><small>세그먼트 4</small></span>
+    <span class="bx"><span class="nd">S5 근거</span><span class="nd s">S17 오실레이터</span><span class="ar">|</span><span class="nd">S6 시점별·TF</span><span class="ar">|</span><span class="nd">S7 방향·강도</span><span class="nd s">S17 파동</span><span class="ar">|</span><span class="nd">S8 판독문</span></span></div>
+
+  <div class="lane"><span class="ln">조작<br><small>2막 절정</small></span>
+    <span class="bx"><span class="nd k">S9 지표 조합</span><span class="ar">→</span><span class="nd">S10 파라미터·설명</span><span class="ar">·</span><span class="nd">S11 후속 도구</span></span></div>
+
+  <div class="lane key"><span class="ln">유료 경로<br><small>2막 끝</small></span>
+    <span class="bx"><span class="nd">S13</span><span class="ar">→</span><span class="nd k">S14 스쿱 부족</span><span class="ar">→</span><span class="nd">S15 잔량·출석</span></span></div>
+
+  <div class="lane key"><span class="ln">재방문<br><small>3·4막</small></span>
+    <span class="bx"><span class="nd k">S16 어제의 판정</span><span class="ar">→</span><span class="nd">S15 출석</span><span class="ar">→</span><span class="nd">S13 오늘의 분석</span></span></div>
+
+  <div class="lane"><span class="ln">상시<br><small>전 구간</small></span>
+    <span class="bx"><span class="nd s">S12 헤더 · 잔량 칩 · 면책 · 토스트</span></span></div>
+</div>
+
+<div class="note warn">
+  <span class="lbl">연결도가 말하는 두 가지</span>
+  <p><strong>① 고리가 닫힌다.</strong> 재방문 줄의 마지막(<code>S13 오늘의 분석</code>)이 두 번째 줄로 되돌아가고,
+  그 분석이 내일 <code>S16</code>이 된다. <strong>이 순환이 이 앱의 유일한 재방문 동력</strong>이다.</p>
+  <p><strong>② S3가 허브다.</strong> 결과 읽기·조작·유료 경로가 전부 <code>S3</code>를 거쳐 갈라진다.
+  S3의 밀도가 앱 전체의 밀도이며, 여기가 무너지면 나머지 화면은 도달되지 않는다.</p>
+</div>
+
+<h3 id="k1b">전이 전량</h3>
+<div class="tw"><table>
+<thead><tr><th class="n">출발</th><th>트리거</th><th class="n">도착</th><th>돌아오기</th></tr></thead>
+<tbody>
+<tr><td class="n">S0</td><td>＋ 종목 추가 / 목록 열기</td><td class="n">S1</td><td>—</td></tr>
+<tr><td class="n">S0</td><td>샘플 7종 행 탭</td><td class="n">S2</td><td>종목 스위처</td></tr>
+<tr><td class="n">S1</td><td>행 탭</td><td class="n">S2</td><td>종목 스위처(상단 고정)</td></tr>
+<tr><td class="n">S2</td><td>액션바 <code>분석</code></td><td class="n">S13</td><td>취소</td></tr>
+<tr><td class="n">S2</td><td>그냥 읽기(기본)</td><td class="n">S3</td><td>—</td></tr>
+<tr><td class="n">S13</td><td>단계 카드 탭(잔량 충분)</td><td class="n">S4</td><td>—</td></tr>
+<tr><td class="n gd">S13</td><td>잠긴 카드 탭(잔량 부족)</td><td class="n gd">S14</td><td>닫기 → S3</td></tr>
+<tr><td class="n">S14</td><td>광고 시청 완료</td><td class="n">S4</td><td>—</td></tr>
+<tr><td class="n">S14</td><td>출석 안내</td><td class="n">S15</td><td>닫기</td></tr>
+<tr><td class="n">S14</td><td><strong>기본 분석으로 계속</strong></td><td class="n">S3</td><td>—</td></tr>
+<tr><td class="n">S4</td><td>재생 완료 / 건너뛰기</td><td class="n">S3</td><td>—</td></tr>
+<tr><td class="n gd">S3</td><td>세그먼트 1~4</td><td class="n">S5·S6·S7·S8</td><td>세그먼트</td></tr>
+<tr><td class="n">S5 · S7</td><td>스크롤 연속</td><td class="n">S17</td><td>스크롤</td></tr>
+<tr><td class="n">S3</td><td>지표 조합 버튼</td><td class="n">S9</td><td>시트 닫기</td></tr>
+<tr><td class="n">S9</td><td>행 <code>✎</code></td><td class="n">S10</td><td>시트 닫기</td></tr>
+<tr><td class="n">S3</td><td>헤더 <code>⋯</code> → 리스크·최적화·드로잉</td><td class="n">S11</td><td>시트 닫기</td></tr>
+<tr><td class="n">S3</td><td>종목 스위처</td><td class="n">S1</td><td>—</td></tr>
+<tr><td class="n">S7</td><td>발산 막대 탭</td><td class="n">S8</td><td>세그먼트</td></tr>
+<tr><td class="n">S8</td><td>지표명 탭 → 차트 단독 표시</td><td class="n">S3</td><td>세그먼트</td></tr>
+<tr><td class="n">S12</td><td>헤더 잔량 칩</td><td class="n">S15</td><td>시트 닫기</td></tr>
+<tr><td class="n gd">앱 재실행</td><td>채점할 것이 있음</td><td class="n gd">S16</td><td>—</td></tr>
+<tr><td class="n">앱 재실행</td><td>채점할 것이 없음</td><td class="n">S3 또는 S1</td><td>—</td></tr>
+<tr><td class="n">S16</td><td>되짚기 항목 탭</td><td class="n">S8</td><td>뒤로</td></tr>
+<tr><td class="n">S16</td><td>오늘 분석하기</td><td class="n">S13</td><td>—</td></tr>
+</tbody></table></div>
+
+<div class="note bad">
+  <span class="lbl">막다른 곳이 없어야 한다</span>
+  <p>위 표에서 <strong>도착만 있고 출발이 없는 화면은 하나도 없다.</strong> 새 화면을 더할 때도 이 성질을 유지한다 —
+  들어갔는데 나올 길이 표에 안 적히면 그 화면은 아직 설계가 안 끝난 것이다(§8 출구).</p>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<div class="shead" id="k2"><h2>2 · 컴포넌트 인벤토리</h2><span class="tag">통일감의 실체</span></div>
+
+<p>
+  화면 18개에 반복해서 나타나는 조각들이다. <strong>새 화면을 그리기 전에 여기서 먼저 찾는다</strong> —
+  같은 일을 하는 조각이 화면마다 다르게 생기면 그것이 곧 “통일감 없음”이다.
+</p>
+
+<h3>구조</h3>
+<div class="cmp">
+  <div><span class="nm">하단 액션바<small>action-bar</small></span><span class="ds">고정. 최소 46px, <b>safe-area-inset-bottom</b> 반영. 주 버튼(시뮬레이션) + 부 버튼(웹분석). <b>쓰임</b> S2~S12 상시</span></div>
+  <div><span class="nm">바텀시트<small>sheet</small></span><span class="ds">손잡이 필수 · 백드롭 탭 = 닫기 · 내부 자체 스크롤. 높이는 용도별 — 목록 80vh / 조작 60vh / HUD 40vh. <b>쓰임</b> S1 · S9 · S10 · S11 · S15 · 근거 시트</span></div>
+  <div><span class="nm">세그먼트 네비<small>segment</small></span><span class="ds">4칸 고정(근거 · 시점별 · 지표 · 판독문). 차트 바로 아래 스티키. 현재 위치는 <b>배경·텍스트</b>로 — <b>좌측 컬러 라인 금지</b>. <b>쓰임</b> S3</span></div>
+  <div><span class="nm">종목 스위처<small>ticker-switch</small></span><span class="ds">상단 고정. 현재 종목 + 현재가 + ▾. 탭하면 S1 시트. <b>쓰임</b> S2~S11 상시</span></div>
+  <div><span class="nm">스티키 차트<small>hero-sticky</small></span><span class="ds">3단 접힘(전체 → 축소 → 판정 1줄). <b>L3에서도 판정 1줄은 사라지지 않는다.</b> <b>쓰임</b> S3</span></div>
+  <div><span class="nm">오버플로 메뉴<small>overflow</small></span><span class="ds">상시 셋 + <code>⋯</code>. 기준은 “분석 결과를 바꾸는가”. <b>쓰임</b> S3 차트 헤더</span></div>
+  <div><span class="nm">근거 시트<small>evidence-sheet</small></span><span class="ds"><b>PC의 hover 툴팁을 대체한다.</b> 탭 → 시트. 3지평 곡선 · 평시 base · OOS 정확도 · 표본 수. <b>쓰임</b> 검증 6칩 · 기회 pill · 국면 배지 · 범례</span></div>
+  <div><span class="nm">토스트<small>toast</small></span><span class="ds">액션바 위. <b>실패 토스트에는 다음 행동이 붙는다.</b> <b>쓰임</b> 전 화면</span></div>
+  <div><span class="nm">빈 상태<small>empty</small></span><span class="ds">스켈레톤으로 채우지 않는다. <b>무엇이 없는지 이름으로 적고 채우는 방법을 준다.</b> <b>쓰임</b> 모든 목록·패널</span></div>
+</div>
+
+<h3>판정 · 수치</h3>
+<div class="cmp">
+  <div><span class="nm">방향 뱃지<small>verdict-badge</small></span><span class="ds"><b>▲ 상승 / ▼ 하락 / 중립</b> 3값. 판정 스트립에서 가장 큰 요소. <b>쓰임</b> S3 · S7 · S8 · S16</span></div>
+  <div><span class="nm">확률 게이지<small>prob-gauge</small></span><span class="ds"><code>▼38% ┃트랙┃ ▲62%</code> 양방향. <b>기준선 60.96% 눈금을 트랙에 표시한다.</b> <b>쓰임</b> S3 · S6 · S16</span></div>
+  <div><span class="nm">합의도 표기<small>confluence</small></span><span class="ds"><code>12/14 · 86%</code>. <b>종목 간 변별력이 가장 큰 값</b>(실측) — 확률보다 크게 써도 된다. <b>쓰임</b> S3 · S7</span></div>
+  <div><span class="nm">국면 배지<small>regime-chip</small></span><span class="ds"><code>횡보장 · 신뢰 높음</code>. 탭 → 백테스트 근거 시트. <b>쓰임</b> S3 · S6</span></div>
+  <div><span class="nm">검증 칩<small>forecast-chip</small></span><span class="ds">6종(변동성 · 확률손익 · 급변 · 갭 · 추세지속 · 상대강도). 대표값 + 탭하면 3지평 전량. <b>해당 없음도 칩을 지우지 않고 표시</b>(암호화폐의 갭). <b>쓰임</b> S3</span></div>
+  <div><span class="nm">기회 pill<small>opportunity</small></span><span class="ds"><code>지지 반등 기회 [검증됨]</code>. 조건 미충족 시 아예 없음. <b>쓰임</b> S3</span></div>
+  <div><span class="nm">발산 막대<small>diverge-bar</small></span><span class="ds">중앙 0선 <b>화면 정중앙 고정</b>. 우=상승 초록 / 좌=하락 빨강. 길이=강도. <b>두께는 쓰지 않는다</b> — 가중치는 <code>×2.5</code> 배지로. <b>쓰임</b> S7</span></div>
+  <div><span class="nm">강도 바<small>strength-bar</small></span><span class="ds">0~100% 단방향. 지표 신호 행 우측. <b>쓰임</b> S5</span></div>
+  <div><span class="nm">예상 범위 바<small>range-track</small></span><span class="ds"><code>lo ──┃현재가┃───●예측가──── hi</code>. <b>행 2줄 중 아래 줄 전폭.</b> 지평이 멀수록 넓어지는 것이 메시지다. <b>쓰임</b> S6</span></div>
+  <div><span class="nm">미니 스파크<small>sparkline</small></span><span class="ds">최근 <b>60봉</b> 종가 라인(예측 지평과 같은 길이). 폭 고정. <b>예측선과 다른 색·형태</b>여야 한다. <b>쓰임</b> S1</span></div>
+  <div><span class="nm">TF 카드<small>tf-card</small></span><span class="ds">일·주·월 3장. 국면 화살표 + 확률 바 + 시그널 발산 바 + <code>예측 ±x.x% · 목표</code>. <b>쓰임</b> S6</span></div>
+</div>
+
+<h3>조작</h3>
+<div class="cmp">
+  <div><span class="nm">단계 카드<small>tier-card</small></span><span class="ds">3장(기본 0 · 심화 2 · 커스텀 3). <b>잠겨도 내용을 읽을 수 있어야 한다.</b> 부족분은 <code>3 필요 · 1 부족</code>. <b>쓰임</b> S13</span></div>
+  <div><span class="nm">잠긴 값 자리<small>locked-slot</small></span><span class="ds">이름 + 옅은 회색 + 작은 <code>심화</code> 태그. <b>자물쇠 아이콘 금지</b>(벽으로 읽힌다) — 이것은 목차다. <b>쓰임</b> S3 · S6 · S8</span></div>
+  <div><span class="nm">가중치 트랙<small>weight-track</small></span><span class="ds">행 우측 전용. 폭 ≥88px · 높이 ≥44px · 좌우 드래그 전용. ×1 눈금 고정. <b>쓰임</b> S9</span></div>
+  <div><span class="nm">등급 헤더<small>tier-header</small></span><span class="ds">Lv1~4 + 개수. 등급별 색 <code>#4f8fe0</code>·<code>#3aa5b0</code>·<code>#8a92b2</code>·<code>#9b7fd4</code>. <b>Lv1만 펼친 채 시작.</b> <b>쓰임</b> S9</span></div>
+  <div><span class="nm">지표 행<small>ind-row</small></span><span class="ds">체크 + 이름 + 가중치 트랙 + 배율 + <code>✎</code>. 높이 ≥44px. <b>쓰임</b> S9</span></div>
+  <div><span class="nm">스쿱 잔량 칩<small>wallet-chip</small></span><span class="ds">헤더 상시. 탭 → S15. 숫자는 <b>tabular-nums</b>. <b>서버 확정 후에만 올라간다.</b> <b>쓰임</b> S12</span></div>
+  <div><span class="nm">카운트다운<small>countdown</small></span><span class="ds">다음 출석까지. 1초 갱신 · tabular-nums. <b>쓰임</b> S14 · S15</span></div>
+</div>
+
+<h3>과정 · 근거</h3>
+<div class="cmp">
+  <div><span class="nm">진행 HUD<small>play-hud</small></span><span class="ds">하단 시트 40vh. <b>지표 이름이 가장 큼</b> → 단계 칩 → 진행 <code>7/32</code> → 로그. <b>퍼센트 진행바 금지.</b> <b>쓰임</b> S4</span></div>
+  <div><span class="nm">진행 로그 행<small>log-line</small></span><span class="ds">한 줄씩 쌓임. <b>마지막 줄만 선명, 이전은 옅어짐</b>(스크롤이 아니라 퇴적). 지표별 마지막 줄=결론은 강조. <b>쓰임</b> S4 → 그대로 S8</span></div>
+  <div><span class="nm">지표 배지<small>ind-badge</small></span><span class="ds"><code>RSI 62 · 중립</code>. <b>차트 위 상위 3</b> + 아래 가로 띠 7. 강도순. <b>쓰임</b> S5</span></div>
+  <div><span class="nm">지표 신호 행<small>sig-row</small></span><span class="ds">화살표 + 지표명 + <b>판정 문장(2줄 허용)</b> + 강도 바 + 차트 표시 여부 점. <b>쓰임</b> S5</span></div>
+  <div><span class="nm">판독문 카드<small>narr-card</small></span><span class="ds">번호(계산 순서=정보) · 지표명(가장 큼) · 방향 뱃지 · 사실 3줄 · 메모. 접힘 기본, 결론은 맨 위. <b>쓰임</b> S8</span></div>
+  <div><span class="nm">반대 묶음<small>oppose-group</small></span><span class="ds">종합과 방향이 다른 지표만 모음. <b>S16 되짚기와 같은 재료.</b> <b>쓰임</b> S8 · S16</span></div>
+  <div><span class="nm">서브패널<small>subpanel</small></span><span class="ds">높이 96~120px · <b>폭은 히어로 차트와 정확히 동일</b>(시간축 정합). 기준선 라벨 좌측 고정. <b>쓰임</b> S17</span></div>
+  <div><span class="nm">범례 항목<small>legend</small></span><span class="ds">예측선 6요소 개별 토글. 탭=토글 · <b>더블탭=단독</b>. 좌상단 전폭. <b>쓰임</b> S3 · S5</span></div>
+  <div><span class="nm">겹쳐 그리기<small>overlay-verdict</small></span><span class="ds">어제 콘·예측선(흐림) 위에 오늘 실제 봉. <b>이 앱의 세 번째 시각적 서명.</b> <b>쓰임</b> S16</span></div>
+</div>
+
+<h3>고지</h3>
+<div class="cmp">
+  <div><span class="nm">데이터 소스 배지<small>src-badge</small></span><span class="ds">TwelveData / Yahoo / Naver. <b>어디서 온 값인지 밝히는 것도 정직 표기다.</b> <b>쓰임</b> S2 · S3</span></div>
+  <div><span class="nm">분석 시각<small>as-of</small></span><span class="ds">언제 잰 값인지. <b>쓰임</b> S3 · S16</span></div>
+  <div><span class="nm">라이브 트랙레코드<small>live-record</small></span><span class="ds"><code>라이브 N건 · 낙폭 예측 34%→실제 31%</code>. 실사용 채점 결과 = 유일한 자기 증명. <b>첫날부터 노출.</b> <b>쓰임</b> S12 · S16</span></div>
+  <div><span class="nm">면책 푸터<small>disclaimer</small></span><span class="ds">전문 유지. 접기는 허용, <b>첫 문장과 펼침 어포던스는 항상 보인다</b>. <b>쓰임</b> 전 화면</span></div>
+</div>
+
+<div class="note bad">
+  <span class="lbl">전역 금지</span>
+  <p>항목 좌측 세로 컬러 라인(accent bar / rail · <code>box-shadow:inset Npx 0 0</code> · <code>::before</code> 세로 마커)을 <strong>어떤 컴포넌트에도 넣지 않는다.</strong>
+  활성·선택·포커스는 배경색 · 텍스트색 · 체크박스 · 아웃라인으로만.</p>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<div class="shead" id="k3"><h2>3 · 표기 규격</h2><span class="tag">숫자를 쓰는 법</span></div>
+
+<div class="tw"><table>
+<thead><tr><th>값</th><th class="n">형식</th><th>규칙</th></tr></thead>
+<tbody>
+<tr><td><strong>가격</strong></td><td class="n">248,400 · 1,234.56</td><td>천단위 구분 필수 · 미국주식·암호화폐 소수 2자리 · 국내주식 정수. <strong>tabular-nums</strong></td></tr>
+<tr><td><strong>전일대비</strong></td><td class="n up">▲2.14%</td><td>부호 대신 <strong>화살표</strong> · 소수 2자리 · 상승 초록 / 하락 빨강 / 보합 무채색</td></tr>
+<tr><td><strong>예측 변화</strong></td><td class="n">+9.35%</td><td><strong>부호 필수</strong>(+/−) · 소수 2자리 · 색은 방향 판정을 따른다</td></tr>
+<tr><td><strong>확률</strong></td><td class="n">62%</td><td><strong>정수</strong>. 소수 쓰지 않는다 — 캘리브레이션 오차(ECE 1.91%p)보다 작은 자릿수는 거짓 정밀이다. <strong>기준선 60.96% 병기 필수</strong></td></tr>
+<tr><td><strong>기준선</strong></td><td class="n">60.96%</td><td>이 값만 소수 2자리(고정 상수라 정확히 쓴다)</td></tr>
+<tr><td><strong>시그널</strong></td><td class="n">+21 · −35</td><td>정수 · 범위 −100~+100 · 부호 필수</td></tr>
+<tr><td><strong>합의도</strong></td><td class="n">12/14 · 86%</td><td>분수와 퍼센트 병기. <strong>분모는 “0이 아닌 bias를 낸 지표 수”</strong>이므로 종목마다 다르다 — 32로 고정해 쓰면 거짓</td></tr>
+<tr><td><strong>방향 분포</strong></td><td class="n">▲18 · –4 · ▼9</td><td>임계 ±0.05 기준 3분</td></tr>
+<tr><td><strong>가중치</strong></td><td class="n">×1 · ×2.5</td><td>0~3배 · 소수 1자리 · <strong>×1은 흐리게, 그 외만 강조</strong></td></tr>
+<tr><td><strong>스쿱</strong></td><td class="n">15 · +3 · −2</td><td>정수 · 증감은 부호 · 상한 30 표기</td></tr>
+<tr><td><strong>지평</strong></td><td class="n">+20일 / 13주 / 6개월</td><td>주기별 단위가 다르다. 일봉 +10/20/40/60일 · 주봉 13/26/39/52주 · 월봉 3/6/12/24개월</td></tr>
+<tr><td><strong>봉 수</strong></td><td class="n">5,023봉</td><td>천단위 구분. 데이터 부족을 알릴 때 <strong>반드시 수치로</strong></td></tr>
+<tr><td><strong>표본</strong></td><td class="n">2,064건</td><td><strong>20건 미만이면 퍼센트를 쓰지 않는다</strong> — 건수만 적는다</td></tr>
+<tr><td><strong>시각</strong></td><td class="n">08:42 기준</td><td>분석 시각. 날짜가 다르면 <code>08.18 17:30 기준</code></td></tr>
+<tr><td><strong>카운트다운</strong></td><td class="n">2:14:07</td><td>tabular-nums · 1초 갱신 · 1시간 미만이면 <code>14:07</code></td></tr>
+</tbody></table></div>
+
+<div class="note warn">
+  <span class="lbl">색 규칙 — 방향색과 강조색을 섞지 않는다</span>
+  <p><strong>상승 초록 · 하락 빨강</strong>은 <em>방향 전용</em>이다. 강조·선택·활성에 쓰지 않는다 —
+  섞이는 순간 초록 배지가 “상승”인지 “켜짐”인지 알 수 없게 된다.
+  강조는 골드, 중립·보조는 무채색.</p>
+  <p><strong>회색은 두 가지 뜻을 갖는다</strong> — ① 미확정(프리뷰·채점 전) ② 잠김(단계 제한).
+  같은 회색을 쓰면 안 된다. <strong>미확정은 점선, 잠김은 실선 + <code>심화</code> 태그</strong>로 구분한다.</p>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<div class="shead" id="k4"><h2>4 · 어휘집</h2><span class="tag">엔진 값 → 화면 한국어</span></div>
+
+<p>엔진이 내는 값과 화면에 쓰는 말이 1:1로 고정되어야 한다. <strong>같은 값을 화면마다 다르게 부르면 그게 곧 신뢰 손실이다.</strong></p>
+
+<div class="tw"><table>
+<thead><tr><th class="n">엔진 값</th><th>화면 표기</th><th>쓰는 곳</th></tr></thead>
+<tbody>
+<tr><td class="n">regime: bull</td><td class="up"><strong>▲ 상승</strong></td><td>판정 · 워치리스트 · TF 카드</td></tr>
+<tr><td class="n">regime: bear</td><td class="dn"><strong>▼ 하락</strong></td><td>동</td></tr>
+<tr><td class="n">regime: neutral</td><td><strong>중립</strong></td><td>동 — “모르겠다”가 아니라 <strong>“지표가 갈렸다”</strong></td></tr>
+<tr><td class="n">context.state: up</td><td>상승추세 (강도에 따라 <em>완만한 / 강한</em>)</td><td>국면 배지</td></tr>
+<tr><td class="n">context.state: down</td><td>하락추세</td><td>국면 배지</td></tr>
+<tr><td class="n">context.state: range</td><td><strong>횡보장</strong></td><td>국면 배지</td></tr>
+<tr><td class="n">reliability: high/mid/low</td><td>신뢰 <strong>높음 / 중간 / 낮음</strong></td><td>국면 배지 · TF 매트릭스</td></tr>
+<tr><td class="n">opportunity.sub: support</td><td><strong>지지 반등 기회</strong></td><td>기회 pill</td></tr>
+<tr><td class="n">opportunity.sub: recovery</td><td><strong>하락 후 반등 기회</strong></td><td>기회 pill</td></tr>
+<tr><td class="n">prediction.target</td><td><strong>목표</strong></td><td>판정 스트립</td></tr>
+<tr><td class="n">verdict.invalidation</td><td><strong>무효화</strong> — 여기 닿으면 이 판정은 틀린 것</td><td>판독문 결론 · 리스크</td></tr>
+<tr><td class="n">confluence</td><td><strong>지표 합의</strong> (컨플루언스 병기 가능)</td><td>판정 스트립 · S7</td></tr>
+<tr><td class="n">counter (3차)</td><td><strong>반대 시나리오</strong></td><td>차트 범례</td></tr>
+<tr><td class="n">counterBasis</td><td>구조 레벨 / 변동성 1σ / 변동성 캡</td><td><strong>PC에도 없다 — 앱이 먼저 쓸 수 있다</strong></td></tr>
+<tr><td class="n">p1 / p2 / p3</td><td>1차 종합지표 / 2차 선택지표 / 3차 최대역치</td><td>차트 범례</td></tr>
+<tr><td class="n">band / fan / rail</td><td>밴드 경계 / 분위수 팬 / 신뢰 레일</td><td>차트 범례</td></tr>
+<tr><td class="n">volForecast</td><td><strong>변동성 확대</strong></td><td>검증 칩</td></tr>
+<tr><td class="n">ddRisk / upTarget</td><td><strong>낙폭 / 도달</strong></td><td>확률손익 칩</td></tr>
+<tr><td class="n">spikeRisk</td><td><strong>급변</strong></td><td>검증 칩</td></tr>
+<tr><td class="n">gapRisk</td><td><strong>갭</strong> (암호화폐는 <em>해당 없음</em>)</td><td>검증 칩</td></tr>
+<tr><td class="n">trendPersist</td><td><strong>추세 지속</strong></td><td>검증 칩</td></tr>
+<tr><td class="n">relSector / relStrength</td><td><strong>상대강도</strong> (섹터 / SPY)</td><td>검증 칩</td></tr>
+<tr><td class="n">기본 / 심화 / 커스텀</td><td>그대로. <strong>“무료·유료·프리미엄” 같은 말로 바꾸지 않는다</strong></td><td>S13 · 잠긴 값 태그</td></tr>
+</tbody></table></div>
+
+<!-- ══════════════════════════════════ -->
+<div class="shead" id="k5"><h2>5 · 카피 덱</h2><span class="tag">lorem 금지</span></div>
+
+<p>아래 문구는 <strong>대부분 원본(<code>forge.html</code> · <code>forge-app.js</code>)에서 그대로 가져온 것</strong>이고, 신규는 표시했다.</p>
+
+<h3>S0 소개</h3>
+<div class="copy"><span class="who">헤드</span><q>무엇을 분석해 볼까요?</q></div>
+<div class="copy"><span class="who">서브</span><q>워치리스트에서 종목을 선택하면 <b>차트·자동 예측</b>이, <b>웹분석</b>하면 멀티TF·리스크까지 심층 분석됩니다.</q> <em>— 앱에서는 “워치리스트에서” 부분을 “아래 목록에서”로 고친다</em></div>
+<div class="copy"><span class="who">능력 칩</span><q>32종 지표</q> · <q>예측 콘 · 커버 68%</q> · <q>일 · 주 · 월</q> · <q>검증 8축 · OOS 실측</q> <em>(신규 — 수치 병기형)</em></div>
+<div class="copy"><span class="who">CTA</span><q>＋ 종목 추가</q> · <q>바로 시작</q></div>
+
+<h3>S2 프리뷰</h3>
+<div class="copy"><span class="who">미확정 안내 (신규)</span><q>기본 예측입니다. 32개 지표 분석은 아직.</q></div>
+<div class="copy"><span class="who">데이터 부족 (신규)</span><q>이 주기로는 봉이 {N}개뿐입니다. 다른 주기로 시도해 보세요.</q></div>
+
+<h3>S3 판정 — 한 줄 의견 (원본 분기)</h3>
+<div class="copy"><span class="who">상승</span><q>상승 우위 — 눌림목 매수 관점</q> · <q>상승 우세 — 추세 지속 유력</q></div>
+<div class="copy"><span class="who">하락</span><q>하락 우위 — 반등 시 비중 축소</q> · <q>하락 우세 — 반등은 제한적</q></div>
+<div class="copy"><span class="who">중립</span><q>방향성 혼재 — 돌파 확인 전 관망</q> · <q>방향성 혼조(중립)</q></div>
+<div class="copy"><span class="who">기회</span><q>지지 반등 기회</q> · <q>하락 후 반등 기회</q> · <q>과매도(반등 가능)</q></div>
+<div class="copy"><span class="who">국면 배지</span><q>횡보장 · 신뢰 높음</q> / <q>상승추세 · 신뢰 중간</q> / <q>하락추세 · 신뢰 낮음</q></div>
+<div class="copy"><span class="who">중립일 때 (신규)</span><q>지표들이 갈렸습니다. 합의도 5/15 — 반대 의견과 적중률은 이 경우 정의되지 않습니다.</q></div>
+
+<h3>S4 분석 실행</h3>
+<div class="copy"><span class="who">웹분석 3단계 (원본)</span><q>지표 계산 중…</q> → <q>예측 시나리오 산출 중…</q> → <q>종합 판정 중…</q></div>
+<div class="copy"><span class="who">시뮬 진행 (원본)</span><q>분석 중 7/32 · 볼린저밴드 (2/4)</q></div>
+<div class="copy"><span class="who">완료 (원본)</span><q>웹분석 완료 · 포지결과 갱신</q> / <q>포지 완료 · {N}개 지표 결합 → 시그널 {S}</q></div>
+<div class="copy"><span class="who">건너뛰기 (신규)</span><q>결과 바로 보기</q></div>
+
+<h3>S13 단계 선택 (신규)</h3>
+<div class="copy"><span class="who">기본</span><q>방향과 예상 범위 · 차트 근거 작도</q> — <q>무제한</q></div>
+<div class="copy"><span class="who">심화</span><q>확신 % · 세 지평 · 반대 의견 · 적중률과 기준선 · 32개 판독문</q> — <q>2스쿱</q></div>
+<div class="copy"><span class="who">커스텀</span><q>심화 전부 + 지표 가중치 조절 · 2차 예측선</q> — <q>3스쿱</q></div>
+<div class="copy"><span class="who">부족</span><q>3스쿱 필요 · 1 부족</q></div>
+
+<h3>S14 스쿱 부족 (신규)</h3>
+<div class="copy"><span class="who">헤드</span><q>{종목}에서 지금 안 보이는 것</q></div>
+<div class="copy"><span class="who">목록</span><q>확신 % · 세 지평 · 반대 의견 · 32개 판독문</q> <em>— 추상적 “더 많은 분석” 금지</em></div>
+<div class="copy"><span class="who">두 길</span><q>광고 1편 보기 · +3스쿱</q> / <q>다음 출석까지 2:14:07 · +1</q></div>
+<div class="copy"><span class="who">세 번째 길</span><q>기본 분석으로 계속</q> <em>— 같은 크기로 둔다</em></div>
+
+<h3>S15 잔량 · 출석 (신규)</h3>
+<div class="copy"><span class="who">상한</span><q>30이 상한입니다</q> <em>— 왜 안 늘어나는지 모르면 고장으로 읽힌다</em></div>
+<div class="copy"><span class="who">연속</span><q>연속 출석 4일째 · 7일에 +5</q></div>
+
+<h3>S16 어제의 판정 (신규)</h3>
+<div class="copy"><span class="who">맞음</span><q>어제 ▲ 상승 62% → 오늘 +1.4% · 방향 적중 · 범위 안</q></div>
+<div class="copy"><span class="who">틀림</span><q>어제 ▲ 상승 62% → 오늘 −0.8% · 방향 미적중</q></div>
+<div class="copy"><span class="who">되짚기</span><q>이 다섯이 반대했었습니다</q></div>
+<div class="copy"><span class="who">채점 전</span><q>아직 채점 중 · D-5</q></div>
+<div class="copy"><span class="who">없음</span><q>어제 분석한 것이 없습니다. 오늘 하나 해 볼까요?</q></div>
+<div class="copy"><span class="who">누적</span><q>내가 본 분석 12건 · 채점 완료 9건 · 방향 적중 5건(56%) — 시장 기준선 60.96%</q></div>
+
+<h3>공통 · 실패</h3>
+<div class="copy"><span class="who">실거래량 없음 (원본)</span><q>실거래량 없음 — 합성 거래량 기반 참고용</q></div>
+<div class="copy"><span class="who">환불 (신규)</span><q>분석을 완료하지 못해 2스쿱을 돌려드렸습니다.</q></div>
+<div class="copy"><span class="who">광고 실패 (신규)</span><q>지금은 볼 수 있는 광고가 없습니다. 출석은 2:14:07 뒤에 받을 수 있어요.</q></div>
+<div class="copy"><span class="who">면책 (원본 · 전문 유지)</span><q><strong>투자 유의 안내</strong> — 기술적 분석 정보를 제공하는 <b>참고용 도구</b>입니다. 화면의 모든 예측·확률·신호·목표가·수치는 과거 시장 데이터에 기반한 분석·시뮬레이션 결과로 <b>미래의 가격·수익·정확성을 보장하지 않습니다</b>. 특정 종목의 매수·매도를 권유하거나 투자를 자문하지 않으며, 자본시장법상 <b>투자자문업·투자일임업으로 등록된 서비스가 아닙니다</b>. 모든 투자에는 <b>원금 손실의 위험</b>이 있고, 투자 판단 및 그 결과에 대한 책임은 <b>전적으로 이용자 본인</b>에게 있습니다.</q></div>
+
+<!-- ══════════════════════════════════ -->
+<div class="shead" id="k6"><h2>6 · 더미 데이터</h2><span class="tag">실측값 · 그대로 쓸 것</span></div>
+
+<p>
+  <strong>지어낸 숫자를 시안에 넣지 않는다.</strong> 아래는 2026-08-19에 엔진 <code>1.11.0</code>·지표 32/32종으로
+  실제 측정한 값이다(<a href="app-spec.html#s4b">요건정의 §4-B-3</a>). 시안의 목업에 이 값을 그대로 쓰면
+  <strong>현실적인 자릿수·색 분포·문구 길이</strong>가 자동으로 맞는다.
+</p>
+
+<div class="tw"><table>
+<thead><tr><th>종목</th><th class="n">TF</th><th class="n">판정</th><th class="n">시그널</th><th class="n">확률</th><th class="n">국면 · 신뢰</th><th class="n">예측</th><th class="n">합의</th><th class="n">갭</th></tr></thead>
+<tbody>
+<tr><td class="gd">NVDA</td><td class="n">일</td><td class="n up">▲ 상승</td><td class="n">+21</td><td class="n">62%</td><td class="n">상승추세 · 중간</td><td class="n">+9.35%</td><td class="n">12/14</td><td class="n">있음</td></tr>
+<tr><td class="gd">AAPL</td><td class="n">일</td><td class="n">중립</td><td class="n">+1</td><td class="n">62%</td><td class="n">횡보장 · 높음</td><td class="n">+4.43%</td><td class="n">5/15</td><td class="n">있음</td></tr>
+<tr><td class="gd">MSFT</td><td class="n">일</td><td class="n up">▲ 상승</td><td class="n">+35</td><td class="n">63%</td><td class="n">상승추세 · 중간</td><td class="n">+11.12%</td><td class="n">12/13</td><td class="n">있음</td></tr>
+<tr><td class="gd">GOOGL</td><td class="n">일</td><td class="n">중립</td><td class="n">+2</td><td class="n">61%</td><td class="n">횡보장 · 높음</td><td class="n">+4.88%</td><td class="n">5/12</td><td class="n">있음</td></tr>
+<tr><td class="gd">AMZN</td><td class="n">일</td><td class="n up">▲ 상승</td><td class="n">+13</td><td class="n">62%</td><td class="n">횡보장 · 높음</td><td class="n">+6.98%</td><td class="n">8/13</td><td class="n">있음</td></tr>
+<tr><td class="gd">BTC/USD</td><td class="n">일</td><td class="n up">▲ 상승</td><td class="n">+14</td><td class="n">61%</td><td class="n">횡보장 · 높음</td><td class="n">+6.22%</td><td class="n">10/12</td><td class="n dn">해당없음</td></tr>
+<tr><td class="gd">ETH/USD</td><td class="n">일</td><td class="n up">▲ 상승</td><td class="n">+18</td><td class="n">60%</td><td class="n">횡보장 · 높음</td><td class="n">+4.16%</td><td class="n">11/13</td><td class="n dn">해당없음</td></tr>
+</tbody></table></div>
+
+<div class="note warn">
+  <span class="lbl">이 표가 시안에 강제하는 세 가지</span>
+  <ol style="margin-bottom:0">
+    <li><strong>일곱 줄에 <code>▲ 상승</code>이 다섯 개다.</strong> 목록 화면에 판정을 넣으면 어떻게 보이는지 이 표가 그대로 보여준다 — 그래서 넣지 않는다.</li>
+    <li><strong>확률은 60~63%뿐이다.</strong> 확률을 크게 쓴 시안은 이 값들을 넣는 순간 무너진다.</li>
+    <li><strong>합의도는 5/15에서 12/13까지 벌어진다.</strong> 변별을 만들 곳은 여기다.</li>
+  </ol>
+</div>
+
+<h3>시안용 대표 종목 — NVDA 일봉</h3>
+<div class="tw"><table>
+<thead><tr><th>필드</th><th class="n">값</th></tr></thead>
+<tbody>
+<tr><td>종목</td><td class="n">NVDA · 엔비디아</td></tr>
+<tr><td>판정</td><td class="n up">▲ 상승</td></tr>
+<tr><td>상승확률</td><td class="n">62% <span class="gd">(기준선 60.96%)</span></td></tr>
+<tr><td>시그널</td><td class="n">+21</td></tr>
+<tr><td>지표 합의</td><td class="n">12/14 · 86%</td></tr>
+<tr><td>방향 분포</td><td class="n">▲12 · –2 · ▼2</td></tr>
+<tr><td>국면</td><td class="n">상승추세 · 신뢰 중간</td></tr>
+<tr><td>예측 변화</td><td class="n">+9.35%</td></tr>
+<tr><td>한 줄 의견</td><td class="n">상승 우위 — 눌림목 매수 관점</td></tr>
+<tr><td>데이터</td><td class="n">5,023봉 · TwelveData</td></tr>
+</tbody></table></div>
+
+<footer>
+  짝 문서 · <a href="app-spec.html">app-spec.html</a> — 화면별 요건정의(18화면 · 스토리라인 · 상태 카탈로그)<br>
+  측정 스크립트 · <code>backtest/measure-sample-regimes.js</code><br>
+  원본 · <code>forge.html</code> · <code>forge-app.js</code> · <code>forge-ui.js</code> · <code>forge-draw.js</code>
+</footer>
+
+</main>
+</div>
+</body>
+</html>

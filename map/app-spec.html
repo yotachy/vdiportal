@@ -201,6 +201,7 @@
   <a href="#S14" class="s">S14 스쿱 부족</a>
   <a href="#S15" class="s">S15 잔량 · 출석</a>
   <a href="#S16" class="s">S16 어제의 판정</a>
+  <a href="#S17" class="s">S17 서브패널</a>
   <div class="toc-gap"></div>
   <a href="#s6">6 · 공통 컴포넌트</a>
   <a href="#s7">7 · 상태 · 실패</a>
@@ -209,6 +210,8 @@
   <a href="#s10">10 · 디자인 / 코드 경계</a>
   <a href="#s11">11 · 미결 사항</a>
   <a href="#s12">12 · 개정 이력</a>
+  <div class="toc-gap"></div>
+  <a href="design-kit.html">디자인 킷 →</a>
 </nav>
 
 <main class="doc">
@@ -221,7 +224,7 @@
     이 문서가 정하는 것은 그 전부를 세로 화면의 동선 위에 어떻게 배치하는가다.
   </p>
   <div class="meta">
-    <span>초안 v0.6.1</span><span>2026-08-19</span>
+    <span>초안 v0.7</span><span>2026-08-19</span>
     <span>기준 <code>main</code> · <code>0c5bd0e</code></span>
     <span>엔진 <code>1.11.0</code> · 지표 32종</span>
   </div>
@@ -239,6 +242,7 @@
 <tr><td><code>docs/2026-08-19-chart-sharing-feasibility.md</code></td><td><strong>가능성</strong> — 작도 31층을 그대로 쓸 수 있는가(결론: 가능)</td><td>배치</td></tr>
 <tr><td><code>mobile/docs/DESIGN-BRIEF-2026-08-19.md</code></td><td>2차 시안용 요건(동기 설계·경제)</td><td>— <em>이번 라운드에서는 참조하지 않는다</em>(§1 참조)</td></tr>
 <tr><td class="gd"><strong>이 문서</strong> <code>app-spec.html</code></td><td><strong>요건</strong> — 동선 · 화면별 요소 · 상태 · 상호작용 · 규격 · 디자인/코드 경계</td><td>시각(여백·타이포·색). 그건 시안이 정한다</td></tr>
+<tr><td class="gd"><strong><a href="design-kit.html">design-kit.html</a></strong> (짝 문서)</td><td><strong>재료</strong> — 화면 연결도 · 컴포넌트 인벤토리 · 표기 규격 · 어휘집 · <strong>카피 덱</strong> · 실측 더미 데이터</td><td>요건의 근거. <em>시안을 그리는 동안 옆에 펴 두는 문서</em></td></tr>
 </tbody></table></div>
 
 <div class="note">
@@ -761,9 +765,40 @@
 </div>
 
 <!-- ══════════════════════════════════ -->
-<div class="shead" id="s5"><h2>5 · 화면별 요건</h2><span class="tag">17화면</span></div>
+<div class="shead" id="s5"><h2>5 · 화면별 요건</h2><span class="tag">18화면</span></div>
 
-<p>화면마다 여덟 필드를 같은 순서로 적는다. <strong>「경계」 필드가 시안 작업의 시작점</strong>이다 — 무엇을 그려야 하고 무엇을 그리지 않아도 되는지가 거기 있다.</p>
+<p>화면마다 여덟 필드를 같은 순서로 적는다. 첫 줄은 <strong>「장면」</strong>(§2-B의 어느 비트를 맡는가), 그리고 <strong>「경계」 필드가 시안 작업의 시작점</strong>이다 — 무엇을 그려야 하고 무엇을 그리지 않아도 되는지가 거기 있다.</p>
+
+<h3>보드 영역(PC 2패널) 13종이 어디로 가는가</h3>
+<p>
+  PC의 <strong>2패널(<code>.board-pane</code>·<code>#wboard</code>)에는 데이터 패널이 13종</strong> 들어 있고,
+  <strong>이것이 결과 콘텐츠의 본체다.</strong> 하나라도 빠지면 심화 단계에서 무엇을 샀는지가 줄어든다.
+  세그먼트 네비 네 칸이 이 13종을 전부 받는다.
+</p>
+<div class="tw"><table>
+<thead><tr><th class="n">#</th><th>PC 2패널</th><th class="n">앱 화면</th><th class="n">세그먼트</th></tr></thead>
+<tbody>
+<tr><td class="n">1</td><td><strong>타임프레임 매트릭스</strong>(TF 카드 3 + 상세 5×3)</td><td class="n gd">S6</td><td class="n">시점별</td></tr>
+<tr><td class="n">2</td><td><strong>예측 시점별</strong>(4행 + 미니 경로)</td><td class="n gd">S6</td><td class="n">시점별</td></tr>
+<tr><td class="n">3</td><td>RSI 오실레이터</td><td class="n gd">S17</td><td class="n">근거</td></tr>
+<tr><td class="n">4</td><td>거래량(막대 + OBV)</td><td class="n gd">S17</td><td class="n">근거</td></tr>
+<tr><td class="n">5</td><td>MACD(히스토그램 + 시그널)</td><td class="n gd">S17</td><td class="n">근거</td></tr>
+<tr><td class="n">6</td><td>ADX / DMI(+ 캡션 해설)</td><td class="n gd">S17</td><td class="n">근거</td></tr>
+<tr><td class="n">7</td><td>CCI</td><td class="n gd">S17</td><td class="n">근거</td></tr>
+<tr><td class="n">8</td><td>Williams %R</td><td class="n gd">S17</td><td class="n">근거</td></tr>
+<tr><td class="n">9</td><td>MFI</td><td class="n gd">S17</td><td class="n">근거</td></tr>
+<tr><td class="n">10</td><td><strong>지표 방향·강도</strong>(발산 막대 N개)</td><td class="n gd">S7</td><td class="n">지표</td></tr>
+<tr><td class="n">11</td><td>파동 스캔 · PDM 스펙트럼</td><td class="n gd">S17</td><td class="n">지표</td></tr>
+<tr><td class="n">12</td><td><strong>노드별 전문 분석</strong>(판독문 N단계 + 결론)</td><td class="n gd">S8</td><td class="n">판독문</td></tr>
+<tr><td class="n">13</td><td>파동 스캔 · 위상 폴딩(캔버스 2)</td><td class="n gd">S17</td><td class="n">지표</td></tr>
+</tbody></table></div>
+<div class="note warn">
+  <span class="lbl">세그먼트를 다섯 칸으로 늘리지 않는다</span>
+  <p>네 칸을 유지하고 <strong>오실레이터 7종은 “근거” 안</strong>(차트 → 지표 신호 리스트 → 오실레이터 순),
+  <strong>파동 스캔 2종은 “지표” 안</strong>(발산 막대 아래)에 붙인다.
+  탭이 늘어나면 조작이 늘고, 조작이 늘면 §S0 원칙 2(“누를 수 있는 것은 둘뿐”)에서 시작한 단순함이 뒤에서 무너진다.</p>
+  <p>배치 근거도 있다 — 오실레이터는 <em>가격에 붙은 근거</em>이고 파동 스캔은 <em>지표가 낸 산출물</em>이다. 각각 그 성격의 탭에 있어야 한다.</p>
+</div>
 
 <!-- ─────────── S0 ─────────── -->
 <div class="scr" id="S0">
@@ -1793,6 +1828,65 @@
   </div>
 </div>
 
+<!-- ─────────── S17 ─────────── -->
+<div class="scr" id="S17">
+  <div class="scr-h"><span class="scr-id">S17</span><span class="scr-t">서브패널 — 오실레이터 7종 · 파동 스캔</span>
+    <span class="scr-src">PC 2패널 #3~9 · #11 · #13 · <code>_SUBPANEL</code> · <code>fcDrawCci/Williams/Mfi</code></span></div>
+  <div class="scr-b">
+    <div class="fld"><div class="k">장면</div><div class="v">
+      <strong>심화 직후 · 파고드는 층</strong> — <em>“RSI가 62라는데 그게 어디쯤인지 보고 싶다”</em><br>
+      숫자와 배지로만 말하던 지표가 <strong>실제 그래프로 보이는 곳</strong>. 심화 단계에서 <em>양이 늘었다</em>는 감각의 상당 부분이 여기서 나온다.
+    </div></div>
+    <div class="fld"><div class="k">목적</div><div class="v">
+      배지 한 줄(<code>RSI 62 · 중립</code>)로 요약된 값을 <strong>시계열 그래프로 펼쳐</strong> 지금 위치가 과거 어디쯤인지 보여준다.
+    </div></div>
+    <div class="fld"><div class="k">진입 · 이탈</div><div class="v">
+      <strong>오실레이터 7종</strong> — 세그먼트 <code>근거</code> 안, 차트 → 지표 신호 리스트 다음에 이어 붙는다.<br>
+      <strong>파동 스캔 2종</strong> — 세그먼트 <code>지표</code> 안, 발산 막대 아래.
+    </div></div>
+    <div class="fld"><div class="k">요소</div><div class="v">
+      <div class="tw"><table>
+      <thead><tr><th>패널</th><th>내용</th><th class="n">기준선</th></tr></thead>
+      <tbody>
+      <tr><td><strong>RSI</strong></td><td>0~100 선</td><td class="n">30 · 70</td></tr>
+      <tr><td><strong>거래량</strong></td><td>막대 + OBV 선</td><td class="n">—</td></tr>
+      <tr><td><strong>MACD</strong></td><td>히스토그램 + 시그널선</td><td class="n">0선</td></tr>
+      <tr><td><strong>ADX / DMI</strong></td><td>추세강도 + ±DI, <strong>하단 캡션 해설</strong></td><td class="n">20 · 25</td></tr>
+      <tr><td><strong>CCI</strong></td><td>±100 밴드</td><td class="n">±100</td></tr>
+      <tr><td><strong>Williams %R</strong></td><td>−20 / −80</td><td class="n">−20 · −80</td></tr>
+      <tr><td><strong>MFI</strong></td><td>0~100</td><td class="n">20 · 80</td></tr>
+      <tr><td colspan="3" style="background:var(--raised);font-size:12px;color:var(--muted)">— 파동 스캔(별도 성격) —</td></tr>
+      <tr><td><strong>PDM 스펙트럼</strong></td><td>주기 스펙트럼 곡선 <code>y=100·(1−θ)</code> + 흰선 = 지배주기</td><td class="n">—</td></tr>
+      <tr><td><strong>위상 폴딩</strong></td><td>캔버스 2개(가격 close / 추세제거·정규화)를 지배주기로 포갠 트레이스</td><td class="n">—</td></tr>
+      </tbody></table></div>
+      <p><strong>각 패널은 해당 지표 노드가 있을 때만 나타난다</strong>(PC의 <code>toggleXPanel</code>과 동일). 없는 패널 자리를 비워 두지 않는다.</p>
+    </div></div>
+    <div class="fld"><div class="k">상태</div><div class="v">
+      기본 단계 → <strong>오실레이터 패널 없음</strong>(무료 5지표에 RSI·거래량·MACD가 포함되므로 그 셋만 나온다) ·
+      심화 이상 → 해당 지표가 있는 만큼 전량 ·
+      시뮬레이션 중 → 좌→우로 그려지는 중 ·
+      데이터 부족 → 그 패널만 생략(빈 격자를 그리지 않는다).
+    </div></div>
+    <div class="fld"><div class="k">상호작용</div><div class="v">
+      패널 제목 탭 = 그 지표의 판독문(S8)으로 · 접기 없음(스크롤로 지나간다).
+      <strong>가로 스크롤·핀치 줌 없음</strong> — 서브패널은 <em>읽는 그래프</em>이지 조작하는 차트가 아니다. 조작은 히어로 차트에만 있다.
+    </div></div>
+    <div class="fld"><div class="k">정직 표기</div><div class="v">
+      <strong>거래량 패널</strong>은 실거래량이 없으면 “<em>합성 거래량 기반 참고용</em>”을 패널 안에 적는다(엔진이 이미 그렇게 판정한다).
+      <strong>파동 스캔</strong>은 방향을 내지 않는 지표다 — 이 그래프를 매수·매도 신호처럼 보이게 배치하면 안 된다.
+    </div></div>
+    <div class="fld"><div class="k">규격</div><div class="v">
+      패널 높이 <strong>각 96~120px</strong>(7개가 쌓여도 스크롤 두어 번). 폭은 히어로 차트와 <strong>정확히 같게</strong> —
+      좌우 여백이 어긋나면 시간축이 안 맞아 보여 신뢰가 깨진다. 기준선 라벨은 좌측 고정.
+    </div></div>
+    <div class="fld"><div class="k">경계</div><div class="v">
+      그래프 내부는 <strong>전부 캔버스</strong> — 코드가 그린다. 시안은 <em>패널 높이·간격·제목 줄·기준선 라벨 위치</em>와
+      <strong>색 3종</strong>(선 · 기준선 · 과열/과매도 음영)만 주면 된다.
+      <strong>파동 스캔은 §11 M6에서 “노출한다”로 정리했다</strong> — 다만 해석 난도가 높으므로 <em>맨 아래</em>에 두고 제목에 한 줄 설명을 붙인다.
+    </div></div>
+  </div>
+</div>
+
 <!-- ══════════════════════════════════ -->
 <div class="shead" id="s6"><h2>6 · 공통 컴포넌트</h2><span class="tag">화면을 가로지르는 것</span></div>
 
@@ -1917,7 +2011,7 @@
 <tr><td class="n">M3</td><td>리스크 도구의 전용 고지 문구 — 수량·기대값·켈리 제시의 법적 경계</td><td>법무 검토</td></tr>
 <tr><td class="n">M4</td><td>최적화(워크포워드 그리드)의 폰 성능 — 실기기 실측 필요</td><td>개발 · 실측</td></tr>
 <tr><td class="n">M5</td><td>목록 스와이프 삭제 도입 여부</td><td>제품 · 시안</td></tr>
-<tr><td class="n">M6</td><td>파동 스캔(PDM · 위상 폴딩) 노출 여부 — 해석 난도가 매우 높고 방향도 내지 않는다</td><td>제품</td></tr>
+<tr><td class="n"><s>M6</s></td><td><s>파동 스캔 노출 여부</s> — <strong>해소</strong>: 노출한다(§S17). 보드 13종은 전부 결과 콘텐츠이며 빼면 심화에서 산 것이 줄어든다. 해석 난도는 <em>맨 아래 배치 + 제목 한 줄 설명</em>으로 다룬다</td><td class="n">완료</td></tr>
 <tr><td class="n">M7</td><td>PC에서도 신호 스캔을 제거할지 — 사용자가 “PC에서도 불필요”라 했으나 제거는 별도 태스크</td><td>제품</td></tr>
 
 <tr><td class="n"><s>M9</s></td><td><s>샘플 7종의 국면 분포 실측</s> — <strong>해소</strong>(2026-08-19, §4-B-3). 하락 0건 확인 · 7종 유지 · 화면 요건으로 보정</td><td class="n">완료</td></tr>
@@ -1930,7 +2024,8 @@
 <div class="tw"><table>
 <thead><tr><th class="n">버전</th><th class="n">날짜</th><th>내용</th></tr></thead>
 <tbody>
-<tr><td class="n gd">v0.6.1</td><td class="n">2026-08-19</td><td><strong>M10(ETH 월봉 오염) 제거</strong> — 엔진·데이터 결함은 PC 에서 고치면 모바일이 따라오므로 앱 요건의 미결이 아니다. <code>docs/BACKLOG.md</code> 로 이관하고, 그 원칙 자체를 <strong>전제 6</strong>으로 신설</td></tr>
+<tr><td class="n gd">v0.7</td><td class="n">2026-08-19</td><td><strong>보드 영역(PC 2패널) 13종 전량을 결과 콘텐츠로 편입</strong> — 매핑표 신설, 빠져 있던 9종을 <strong>S17 서브패널(오실레이터 7 + 파동 스캔 2)</strong>로 정의. 세그먼트는 네 칸 유지(오실레이터→근거, 파동→지표). <strong>M6 해소</strong>. 17화면 → 18화면. 짝 문서 <a href="design-kit.html">design-kit.html</a> 신설</td></tr>
+<tr><td class="n">v0.6.1</td><td class="n">2026-08-19</td><td><strong>M10(ETH 월봉 오염) 제거</strong> — 엔진·데이터 결함은 PC 에서 고치면 모바일이 따라오므로 앱 요건의 미결이 아니다. <code>docs/BACKLOG.md</code> 로 이관하고, 그 원칙 자체를 <strong>전제 6</strong>으로 신설</td></tr>
 <tr><td class="n">v0.6</td><td class="n">2026-08-19</td><td><strong>S1~S12를 스토리라인 밀도로 상향</strong> — 화면마다 <strong>「장면」 필드</strong> 신설(어느 막의 어느 비트를 맡는지 + 그때의 감정). §10의 다섯 난제를 전부 <strong>제안까지 결정</strong>(배지 3+7 · 범위 바 2줄 · 전용 트랙 · 헤더 상시 셋 · 미확정 세 겹). 그 밖 결정: 첫날 검색·그룹 숨김, 스파크 60봉 대칭, 판정 스트립 읽기 위계 5단, HUD 정보 위계(퍼센트 진행바 금지), 지표 신호 문장 2줄 복원, 신뢰 low 맥락 문구, 발산 막대 두께 폐기, 판독문 반대 묶음(S16과의 고리), 지표 시트 Lv1만 펼침, 파라미터는 설명이 먼저, 후속 도구 우선순위, 라이브 트랙레코드 첫날 노출</td></tr>
 <tr><td class="n">v0.5</td><td class="n">2026-08-19</td><td><strong>§2-B 스토리라인 신설</strong>(4막 · 감정 비트 · 무너지는 네 지점 · 시각 언어 3원칙) — 화면은 이 줄거리의 장면을 맡아야 존재한다. 스토리를 세우자 빠진 화면이 드러남 → <strong>S16 어제의 판정(채점) 신설</strong>. S14에 맥락 유지 요건, S12 재방문 진입 규칙. 16화면 → 17화면</td></tr>
 <tr><td class="n">v0.4</td><td class="n">2026-08-19</td><td><strong>화면 3개 신설</strong> — S13 단계 선택 · S14 스쿱 부족 · S15 잔량·출석. 보상·티어가 스코프에 있는데 화면이 없던 구멍을 메움. S3에 “잠긴 값은 이름으로 적는다” 조항, S12 헤더에 잔량 칩, §4 동선에 유료 경로 추가. 13화면 → 16화면</td></tr>
