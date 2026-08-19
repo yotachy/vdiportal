@@ -174,6 +174,9 @@
   <a href="#S10" class="s">S10 파라미터 · 설명</a>
   <a href="#S11" class="s">S11 후속 도구</a>
   <a href="#S12" class="s">S12 상시 요소</a>
+  <a href="#S13" class="s">S13 단계 선택</a>
+  <a href="#S14" class="s">S14 스쿱 부족</a>
+  <a href="#S15" class="s">S15 잔량 · 출석</a>
   <div class="toc-gap"></div>
   <a href="#s6">6 · 공통 컴포넌트</a>
   <a href="#s7">7 · 상태 · 실패</a>
@@ -194,7 +197,7 @@
     이 문서가 정하는 것은 그 전부를 세로 화면의 동선 위에 어떻게 배치하는가다.
   </p>
   <div class="meta">
-    <span>초안 v0.3</span><span>2026-08-19</span>
+    <span>초안 v0.4</span><span>2026-08-19</span>
     <span>기준 <code>main</code> · <code>0c5bd0e</code></span>
     <span>엔진 <code>1.11.0</code> · 지표 32종</span>
   </div>
@@ -327,6 +330,12 @@
   <span class="n k">S4 분석 실행</span><span class="a">→</span>
   <span class="n k">S3 리포트 홈</span><span class="a">→</span>
   <span class="n">S5~S8 근거 읽기</span>
+</div>
+<div class="flow">
+  <span class="a">유료 경로 →</span>
+  <span class="n">S13 단계 선택</span><span class="a">→</span>
+  <span class="n k">S14 스쿱 부족</span><span class="a">→</span>
+  <span class="n">S15 잔량 · 출석</span>
 </div>
 <div class="flow">
   <span class="a">언제든 곁가지 →</span>
@@ -503,7 +512,7 @@
 </div>
 
 <!-- ══════════════════════════════════ -->
-<div class="shead" id="s5"><h2>5 · 화면별 요건</h2><span class="tag">13화면</span></div>
+<div class="shead" id="s5"><h2>5 · 화면별 요건</h2><span class="tag">16화면</span></div>
 
 <p>화면마다 여덟 필드를 같은 순서로 적는다. <strong>「경계」 필드가 시안 작업의 시작점</strong>이다 — 무엇을 그려야 하고 무엇을 그리지 않아도 되는지가 거기 있다.</p>
 
@@ -769,6 +778,8 @@
         <li>끝점 확률이 <strong>50% 미만이면 그 선은 회색으로 강등</strong>되고 목표 마커도 약해진다. 시안은 이 “강등된 모습”을 반드시 함께 그린다.</li>
         <li>적중률·확률은 <strong>기준선(60.96%)과 함께</strong>만 표기한다.</li>
         <li>분석 시각을 표시한다 — 언제 잰 값인지.</li>
+        <li><strong>기본 단계에서 안 나오는 값은 자리를 비우지 말고 이름을 적는다</strong> — <code>확신 %</code> · <code>세 지평</code> · <code>반대 의견</code>이
+          그 자리에 잠긴 채 있어야 한다. 없는 것처럼 지우면 사용자는 이 앱이 그것을 아예 못 하는 줄 안다(§S13).</li>
       </ul>
     </div></div>
     <div class="fld"><div class="k">규격</div><div class="v">
@@ -1140,7 +1151,8 @@
       <tr><td>엔진 버전 <code>1.11.0</code></td><td class="n dn">숨김</td><td><strong>되살린다</strong> — 탭하면 스코어카드</td></tr>
       <tr><td>라이브 트랙레코드 배지</td><td class="n dn">숨김</td><td><strong>되살린다</strong> — <code>라이브 N건 · 낙폭 예측 34%→실제 31%</code>. 이 앱의 정직성을 증명하는 유일한 실사용 지표</td></tr>
       <tr><td>저장 배지</td><td class="n dn">숨김</td><td>자동저장이라 상시 노출 불필요 — 실패 시에만</td></tr>
-      <tr><td>테마</td><td class="n">표시</td><td>PC는 7종. <strong>앱은 단일 정체성</strong> — 시스템 라이트/다크만</td></tr>
+      <tr><td><strong>스쿱 잔량 칩</strong></td><td class="n">—</td><td><strong>신설 · 상시 노출.</strong> 탭하면 <strong>S15</strong>. 잔량이 안 보이면 무엇을 쓰는지 모른 채 쓰게 된다</td></tr>
+<tr><td>테마</td><td class="n">표시</td><td>PC는 7종. <strong>앱은 단일 정체성</strong> — 시스템 라이트/다크만</td></tr>
       <tr><td>알림벨</td><td class="n">표시</td><td class="dn">삭제(§1)</td></tr>
 <tr><td>PC 로그인 버튼(<code>.h-auth</code>)</td><td class="n">표시</td><td class="dn">가져오지 않는다</td></tr>
       </tbody></table></div>
@@ -1162,6 +1174,113 @@
     <div class="fld"><div class="k">상태</div><div class="v">온라인 / 오프라인(데이터 소스 도달 불가) / 저장 실패. <strong>모든 실패에 다음 행동이 붙는다.</strong></div></div>
     <div class="fld"><div class="k">정직 표기</div><div class="v">§8 전량이 이 화면의 책임이다.</div></div>
     <div class="fld"><div class="k">규격</div><div class="v">헤더 한 줄 고정(개행 금지). 안전영역 — 상단 상태바, 하단 제스처 바 모두 반영.</div></div>
+    <div class="fld"><div class="k">경계</div><div class="v">전부 DOM. 시안이 정한다.</div></div>
+  </div>
+</div>
+
+<!-- ─────────── S13 ─────────── -->
+<div class="scr" id="S13">
+  <div class="scr-h"><span class="scr-id">S13</span><span class="scr-t">단계 선택 — 기본 · 심화 · 커스텀</span>
+    <span class="scr-src"><em>신규</em> — PC에 대응 화면 없음(PC는 항상 32종·과금 없음)</span></div>
+  <div class="scr-b">
+    <div class="fld"><div class="k">목적</div><div class="v">
+      분석을 시작하기 직전, <strong>얼마나 깊이 볼지</strong>를 고른다. 이 화면이 스쿱을 쓰는 유일한 지점이다.
+    </div></div>
+    <div class="fld"><div class="k">진입 · 이탈</div><div class="v">
+      진입 — 하단 액션바의 <code>분석</code>. 이탈 — 선택 → <strong>S4</strong>(실행), 취소 → S3.
+      <strong>기본 단계는 이 화면을 거치지 않아도 된다</strong>(0스쿱·무제한) — 곧바로 실행되는 경로를 따로 둔다.
+    </div></div>
+    <div class="fld"><div class="k">요소</div><div class="v">
+      카드 3장. <strong>각 카드는 “무엇이 더 오는가”를 이름으로 적는다</strong> — 등급 이름만 적고 내용을 감추지 않는다.
+      <div class="tw" style="margin-top:8px"><table>
+      <thead><tr><th>단계</th><th class="n">비용</th><th>이 단계에서 새로 오는 것</th></tr></thead>
+      <tbody>
+      <tr><td><strong>기본</strong></td><td class="n up">0 · 무제한</td><td>방향 · 예상 범위 · 차트 근거 작도</td></tr>
+      <tr><td><strong>심화</strong></td><td class="n gd">2</td><td>확신 % · 세 지평(내일 · 1주 · 1개월) · <strong>반대 의견</strong> · 적중률과 기준선 · 32개 판독문 · TF 매트릭스</td></tr>
+      <tr><td><strong>커스텀</strong></td><td class="n gd">3</td><td>심화 전부 + <strong>지표 가중치 조절</strong>(0~3배) · 2차 예측선</td></tr>
+      </tbody></table></div>
+      상단에 <strong>현재 잔량</strong>, 하단에 <em>결제 후 무엇이 벌어지는지</em> 한 줄(“분석이 끝나면 결과가 남습니다”).
+    </div></div>
+    <div class="fld"><div class="k">상태</div><div class="v">
+      <div class="tw"><table>
+      <thead><tr><th>잔량</th><th>카드 상태</th></tr></thead>
+      <tbody>
+      <tr><td>≥3</td><td>셋 다 선택 가능</td></tr>
+      <tr><td>2</td><td>커스텀만 잠김 — <strong>가격을 지우지 않고</strong> “3스쿱 필요 · 1 부족”으로 적는다</td></tr>
+      <tr><td>0~1</td><td>기본만 가능. 잠긴 두 카드는 <strong>내용을 그대로 보여준 채</strong> 잠김 → 탭하면 <strong>S14</strong></td></tr>
+      </tbody></table></div>
+      <strong>잠긴 카드를 흐리게 지우지 않는다.</strong> 무엇이 잠겼는지 읽을 수 없으면 살 이유도 생기지 않는다.
+    </div></div>
+    <div class="fld"><div class="k">상호작용</div><div class="v">카드 탭 = 선택 + 즉시 실행(확인 단계 없음). 조작은 한 번이다.</div></div>
+    <div class="fld"><div class="k">정직 표기</div><div class="v">
+      <strong>못 주는 것을 팔지 않는다.</strong> 중립 판정이 나올 종목에서 “반대 의견”을 약속했다면, 결과에서 그것이 정의되지 않는 이유를 반드시 밝힌다(§S8).
+      <strong>실패하면 환불한다</strong> — 분석이 산출되지 않은 경우 스쿱을 되돌리고 그 사실을 화면에 적는다.
+    </div></div>
+    <div class="fld"><div class="k">규격</div><div class="v">카드 최소 높이 88px · 터치 44px · 잔량은 <code>tabular-nums</code>.</div></div>
+    <div class="fld"><div class="k">경계</div><div class="v">전부 DOM. 시안이 정한다.</div></div>
+  </div>
+</div>
+
+<!-- ─────────── S14 ─────────── -->
+<div class="scr" id="S14">
+  <div class="scr-h"><span class="scr-id">S14</span><span class="scr-t">스쿱이 부족할 때</span>
+    <span class="scr-src"><em>신규</em> · §4-B-2가 “설계된 순간”이라 부른 지점</span></div>
+  <div class="scr-b">
+    <div class="fld"><div class="k">목적</div><div class="v">
+      15스쿱을 다 쓴 순간. <strong>이 화면이 광고를 보게 만들거나, 앱을 지우게 만든다.</strong>
+    </div></div>
+    <div class="fld"><div class="k">진입 · 이탈</div><div class="v">S13에서 잠긴 카드 탭. 이탈 — 광고 시청 후 / 출석 대기 안내 후 / 기본 분석으로 계속.</div></div>
+    <div class="fld"><div class="k">요소</div><div class="v">
+      <ol>
+        <li><strong>지금 안 보이는 것의 이름</strong> — “확신 % · 세 지평 · 반대 의견 · 32개 판독문”. <em>추상적으로 “더 많은 분석”이라 쓰지 않는다.</em></li>
+        <li><strong>두 길</strong> — <code>광고 1편 · +3스쿱</code> / <code>다음 출석까지 2시간 14분 · +1</code>. 남은 시간을 실제로 센다</li>
+        <li><strong>세 번째 길을 반드시 둔다</strong> — <code>기본 분석으로 계속</code>. 무료는 여전히 무제한이고, 이 버튼이 없으면 막다른 골목이 된다(§8 출구)</li>
+      </ol>
+    </div></div>
+    <div class="fld"><div class="k">상태</div><div class="v">
+      광고 준비됨 / 광고 로드 실패(→ <strong>출석 경로와 기본 경로는 그대로 살아 있어야 한다</strong>) / 광고 시청 완료·보상 확정 / 출석 대기 중.
+      <strong>보상은 서버 확정 후에만 잔량에 더한다</strong> — 낙관적으로 올리지 않는다(§8 잔량).
+    </div></div>
+    <div class="fld"><div class="k">상호작용</div><div class="v">탭 3종. 광고는 <strong>사용자가 눌러야만</strong> 뜬다 — 자동 재생·전면 삽입 금지.</div></div>
+    <div class="fld"><div class="k">정직 표기</div><div class="v">
+      <div class="note warn">
+        <p><strong>통행료가 아니라 선택으로 읽혀야 한다.</strong> 그 차이는 문구가 아니라 <em>구조</em>에서 나온다 —
+        무료 경로가 같은 화면에 같은 크기로 있으면 선택이고, 작게 아래 깔려 있으면 통행료다.
+        <strong>“지금 막혔다”가 아니라 “여기까지는 이미 봤고, 더 보려면 길이 있다”</strong>가 이 화면의 문장이다.</p>
+      </div>
+    </div></div>
+    <div class="fld"><div class="k">규격</div><div class="v">세 버튼 모두 44px 이상. 무료 경로 버튼을 시각적으로 2등으로 만들지 않는다.</div></div>
+    <div class="fld"><div class="k">경계</div><div class="v">전부 DOM. 광고 자체는 SDK가 그린다(시안 영역 아님).</div></div>
+  </div>
+</div>
+
+<!-- ─────────── S15 ─────────── -->
+<div class="scr" id="S15">
+  <div class="scr-h"><span class="scr-id">S15</span><span class="scr-t">스쿱 잔량 · 출석</span>
+    <span class="scr-src"><em>신규</em> · 6시간 리듬</span></div>
+  <div class="scr-b">
+    <div class="fld"><div class="k">목적</div><div class="v">
+      얼마 있고, 언제 더 생기는지. <strong>하루 네 번 들어올 이유</strong>가 여기서 만들어진다.
+    </div></div>
+    <div class="fld"><div class="k">진입 · 이탈</div><div class="v">헤더의 잔량 칩 탭 → 시트. 어느 화면에서든 접근된다.</div></div>
+    <div class="fld"><div class="k">요소</div><div class="v">
+      <ul>
+        <li><strong>잔량</strong>(큰 숫자) + 상한 30</li>
+        <li><strong>다음 출석까지</strong> — 6시간 주기 카운트다운. 받을 수 있으면 버튼이 활성</li>
+        <li><strong>연속 출석</strong> — 7일마다 +5. 며칠째인지</li>
+        <li><strong>광고로 받기</strong> — +3</li>
+        <li>최근 내역 몇 줄(무엇에 썼고 무엇으로 받았는지)</li>
+      </ul>
+    </div></div>
+    <div class="fld"><div class="k">상태</div><div class="v">
+      받을 수 있음 / 대기 중(남은 시간) / 상한 도달(<strong>“30이 상한입니다”를 적는다</strong> — 왜 안 늘어나는지 모르면 고장으로 읽힌다) / 서버 미확정.
+    </div></div>
+    <div class="fld"><div class="k">상호작용</div><div class="v">탭 2종(출석 받기 · 광고 보기). 그 외 없음.</div></div>
+    <div class="fld"><div class="k">정직 표기</div><div class="v">
+      <strong>아침 첫 방문이 하루 중 가장 중요한 순간</strong>이다 — 6시간 리듬(스쿱)과 하루 리듬(어제 예측의 판정)이 겹친다.
+      그 겹침을 화면이 알아채고 말해야 한다. <em>다만 없는 판정을 만들어내지는 않는다</em> — 어제 분석한 것이 없으면 그 자리는 비운다.
+    </div></div>
+    <div class="fld"><div class="k">규격</div><div class="v">시트 최대 60vh · 카운트다운은 <code>tabular-nums</code> · 1초 갱신.</div></div>
     <div class="fld"><div class="k">경계</div><div class="v">전부 DOM. 시안이 정한다.</div></div>
   </div>
 </div>
@@ -1300,7 +1419,8 @@
 <div class="tw"><table>
 <thead><tr><th class="n">버전</th><th class="n">날짜</th><th>내용</th></tr></thead>
 <tbody>
-<tr><td class="n gd">v0.3</td><td class="n">2026-08-19</td><td><strong>§4-B-3 국면 분포 실측 신설</strong>(엔진 1.11.0 · 32/32종 · 실 OHLC · 21판정) — 하락 0건 확인, 7종 유지 판정, 확률이 59~65%에 몰린다는 화면 함의, 주·월 신뢰 low 편중. <strong>M9 해소 · M10 신설</strong>(ETH 월봉 데이터 오염)</td></tr>
+<tr><td class="n gd">v0.4</td><td class="n">2026-08-19</td><td><strong>화면 3개 신설</strong> — S13 단계 선택 · S14 스쿱 부족 · S15 잔량·출석. 보상·티어가 스코프에 있는데 화면이 없던 구멍을 메움. S3에 “잠긴 값은 이름으로 적는다” 조항, S12 헤더에 잔량 칩, §4 동선에 유료 경로 추가. 13화면 → 16화면</td></tr>
+<tr><td class="n">v0.3</td><td class="n">2026-08-19</td><td><strong>§4-B-3 국면 분포 실측 신설</strong>(엔진 1.11.0 · 32/32종 · 실 OHLC · 21판정) — 하락 0건 확인, 7종 유지 판정, 확률이 59~65%에 몰린다는 화면 함의, 주·월 신뢰 low 편중. <strong>M9 해소 · M10 신설</strong>(ETH 월봉 데이터 오염)</td></tr>
 <tr><td class="n">v0.2.1</td><td class="n">2026-08-19</td><td><strong>스코프 정정</strong> — 보상·티어는 처음부터 모바일 요건이었고 뒤집힌 적이 없다. 제외 대상은 “PC에 붙어 있는 엔진 외 부속”이다. v0.2가 이를 “지시 번복”으로 잘못 적었던 것을 바로잡고, 층으로 그은 경계선을 §1에 명시</td></tr>
 <tr><td class="n">v0.2</td><td class="n">2026-08-19</td><td>소개 화면 전면 재작성(S0) · <strong>§4-B 샘플 7종과 15스쿱 체험 설계 신설</strong> · 미결 M9 추가</td></tr>
 <tr><td class="n">v0.1</td><td class="n">2026-08-19</td><td>초안. 스코프 확정(분석엔진 범위만 · 보상·로그인·알림·스캔 제외) · 화면 골격(스티키 차트 + 세그먼트) · 13화면 요건 · 상태 카탈로그 18종 · 정직 표기 10항 · 디자인/코드 경계 · 미결 8건</td></tr>
