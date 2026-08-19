@@ -129,6 +129,24 @@
   .ea-lim{color:var(--bear);background:rgba(224,106,106,.13)}
   .ea-mut{color:var(--gold);background:rgba(232,180,99,.13)}
   .ea-note{border:1px dashed var(--line);border-radius:var(--r-md);background:transparent;padding:10px 13px;font-size:11px;color:var(--faint);line-height:1.6;margin-top:auto}
+  /* 넓힌 시야 — 상류 · 엔진 내부 · 하류 · 되먹임 */
+  .ea-zone{border:1px dashed var(--line);border-radius:var(--r-lg);padding:12px 13px 13px}
+  .ea-zlbl{font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--faint);margin:-2px 0 10px}
+  .ea-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+  .ea-engine{border:1.5px solid var(--gold);border-radius:var(--r-lg);background:rgba(232,180,99,.035);padding:13px 13px 15px;position:relative}
+  .ea-elbl{font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--gold);margin:-1px 0 11px;display:flex;align-items:baseline;gap:8px}
+  .ea-elbl em{font-style:normal;font-weight:700;font-size:9.5px;color:var(--faint);letter-spacing:.02em}
+  .ea-pc .ea-slbl{color:var(--gold);background:rgba(232,180,99,.12)}
+  .ea-mo .ea-slbl{color:var(--bull);background:rgba(70,194,142,.11)}
+  .ea-soon{color:var(--eth);background:rgba(138,146,178,.13)}
+  .ea-loop{margin-top:14px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);padding:12px 14px}
+  .ea-loop-h{font-size:11.5px;font-weight:800;color:var(--gold);letter-spacing:-.01em;margin-bottom:6px}
+  .ea-loop-d{font-size:11.5px;color:var(--eth);line-height:1.7}
+  .ea-loop-d b{color:var(--ink);font-weight:700}
+  .ea-chain{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:9px}
+  .ea-chain span{font-size:10px;font-weight:700;color:var(--eth);background:var(--raised);border:1px solid var(--line);border-radius:99px;padding:3px 10px;white-space:nowrap}
+  .ea-chain i{font-style:normal;color:var(--faint);font-size:10px}
+  @media (max-width:720px){ .ea-2col{grid-template-columns:1fr} }
   .ea-outs{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
   .ea-outs span{font-size:11px;font-weight:700;color:var(--ink);background:var(--raised);border:1px solid var(--line);border-radius:var(--r-md);padding:4px 11px}
   @media(max-width:600px){ .ea-clus{grid-template-columns:repeat(2,1fr)} .ea-spines{grid-template-columns:1fr} }
@@ -190,15 +208,37 @@
     </ol>
   </div>
 
-  <h2>분석 엔진 구조</h2>
-  <p class="sec-desc">실제 <span class="ea-run" style="background:none;padding:0">run()</span> 파이프라인의 구조다. <b>지표 파이프라인</b>과 <b>변동성 리스크 모델</b>은 독립된 경로다 — 방향(왼쪽)은 시장 기준선을 초과하지 못하고, 변동성·리스크(오른쪽)는 검증된 예측력을 갖는다.</p>
+  <h2>분석 엔진 구조 — 엔진 내부와 두 제품</h2>
+  <p class="sec-desc">실제 <span class="ea-run" style="background:none;padding:0">run()</span> 파이프라인의 구조이고, 그 <b>바깥까지</b> 함께 그렸다 — 무엇이 엔진에 들어가고(상류), 나온 판정이 어느 화면으로 가며(하류), 그 사용이 어떻게 다시 엔진으로 돌아오는가(되먹임). <b>지표 파이프라인</b>과 <b>변동성 리스크 모델</b>은 독립된 경로다 — 방향(왼쪽)은 시장 기준선을 초과하지 못하고, 변동성·리스크(오른쪽)는 검증된 예측력을 갖는다.</p>
   <div class="ea-seg" role="tablist" aria-label="시각화 방식">
     <button class="ea-segb on" data-eaview="live" role="tab" aria-selected="true">신경망 도식</button>
     <button class="ea-segb" data-eaview="map" role="tab" aria-selected="false">상세 도식</button>
   </div>
   <div class="ea-live" id="eaLive"></div>
   <div class="ea" id="eaMap" hidden>
-    <div class="ea-cap">데이터 → 두 경로 → 판정. <b>초록</b> = 백테스트 검증됨, <i>회색</i> = 검증 안 됨(한계).</div>
+    <div class="ea-cap">상류 → <b>엔진 내부</b> → 하류 → 되먹임. <b>초록</b> = 백테스트 검증됨, <i>회색</i> = 검증 안 됨(한계).</div>
+
+    <!-- ── 상류 ── -->
+    <div class="ea-zone">
+      <div class="ea-zlbl">상류 — 무엇이 엔진에 들어가는가</div>
+      <div class="ea-2col">
+        <div class="ea-st">
+          <div class="ea-h"><span class="ea-n">IN·1</span><span class="ea-t">시세 데이터</span></div>
+          <div class="ea-d">서버 프록시 한 곳(<span class="ea-run">forge-api.php</span>)으로 통일 — <b>TwelveData → Yahoo 폴백</b>, 국내는 Naver. 일봉 1시간 · 주월 6시간 캐시.</div>
+          <div class="ea-io"><span>PC · 모바일 같은 프록시</span><span>같은 봉</span><span>같은 캐시</span></div>
+        </div>
+        <div class="ea-st">
+          <div class="ea-h"><span class="ea-n">IN·2</span><span class="ea-t">검증을 통과한 분석 기법</span></div>
+          <div class="ea-d"><b>새 기법은 PC 에서만 만든다.</b> 설계 → walk-forward 백테스트(<b>31,971건 · 87종목</b>) → 자명 기준선·BSS·LOSO 관문 → <b>통과한 것만</b> 엔진에 들어간다.</div>
+          <span class="ea-bdg ea-mut">기각도 남긴다 — 인터마켓 · 내부자 · 공매도 · PEAD · VIX · 인트라데이</span>
+        </div>
+      </div>
+    </div>
+    <div class="ea-fl"></div>
+
+    <!-- ── 엔진 내부 ── -->
+    <div class="ea-engine">
+      <div class="ea-elbl">엔진 내부 <em>forge-core.js · 한 벌뿐 · 사본이 존재할 수 없는 구조</em></div>
 
     <!-- 01 데이터 입력 -->
     <div class="ea-st">
@@ -268,7 +308,69 @@
     <div class="ea-st">
       <div class="ea-h"><span class="ea-n">03</span><span class="ea-t">판정 출력</span></div>
       <div class="ea-outs"><span>국면 배지</span><span>지지반등 · 하락후반등 기회</span><span>예측 콘 · 목표가</span><span>확률 R:R</span><span>낙폭 위험곡선</span><span>급변 경보</span><span>갭 경보(주식)</span><span>추세 지속/소진</span><span>손절 · 비중 가이드</span><span>핵심 의견</span></div>
+    </div>    </div>
+    <div class="ea-fl"></div>
+
+    <!-- ── 하류 ── -->
+    <div class="ea-zone">
+      <div class="ea-zlbl">하류 — 같은 판정이 두 화면으로. <b style="color:var(--gold)">갈리는 것은 양이지 질이 아니다</b></div>
+      <div class="ea-spines">
+
+        <div class="ea-spine ea-pc">
+          <div class="ea-slbl">스쿱포지 (PC) · 작업대</div>
+          <div class="ea-st">
+            <div class="ea-h"><span class="ea-n">PC·1</span><span class="ea-t">4패널 동시</span></div>
+            <div class="ea-d">1 종목 · 2 티커(일·주·월 매트릭스 · 오실레이터 · 판독문) · 3 지표조합 · 4 차트. <b>32종이 항상 열려 있고 과금이 없다.</b></div>
+          </div>
+          <div class="ea-fl"></div>
+          <div class="ea-st">
+            <div class="ea-h"><span class="ea-n">PC·2</span><span class="ea-t">엔진을 다루는 도구</span></div>
+            <div class="ea-d">파라미터 최적화(워크포워드 그리드) · 수동 드로잉 · 전략 저장 · 테마 7종 · 가격 직접 입력.</div>
+            <span class="ea-bdg ea-mut">여기까지는 제품으로 가지 않는다</span>
+          </div>
+          <div class="ea-note"><b style="color:var(--eth)">PC 화면은 사용자 서비스 기준이 아니다.</b> 32종을 항상 열어 두고 과금이 없는 것은 <b style="color:var(--eth)">작업대라서</b>이지 그것이 제품의 모습이어서가 아니다.</div>
+        </div>
+
+        <div class="ea-spine ea-mo">
+          <div class="ea-slbl">머니스쿱 (모바일) · 제품</div>
+          <div class="ea-st">
+            <div class="ea-h"><span class="ea-n">앱·1</span><span class="ea-t">같은 파일을 세로로</span></div>
+            <div class="ea-d"><b>별도 구현이 없다.</b> <span class="ea-run">forge.html</span> 과 스크립트 6종을 그대로 실행하고 세로 배치만 같은 파일 안에서 만든다 — 스티키 차트 + 세그먼트 4칸.</div>
+            <span class="ea-bdg ea-ok">✓ 같은 입력이면 판정도 같다</span>
+          </div>
+          <div class="ea-fl"></div>
+          <div class="ea-st">
+            <div class="ea-h"><span class="ea-n">앱·2</span><span class="ea-t">단계로 갈리는 것은 노출량</span></div>
+            <div class="ea-d"><b>기본</b> 5지표 · 무제한 · 0 &nbsp;/&nbsp; <b>심화</b> 32지표 · 2스쿱 &nbsp;/&nbsp; <b>커스텀</b> + 가중치 · 3스쿱.<br>계산 · 확률 · <b>기준선 병기</b> · 정직 표기는 <b>단계와 무관하게 동일</b>하다. 잠긴 단계에서는 <b>무엇이 빠졌는지를 이름으로</b> 적는다.</div>
+            <span class="ea-bdg ea-mut">양은 갈리고 질은 안 갈린다</span>
+          </div>
+          <div class="ea-fl"></div>
+          <div class="ea-st">
+            <div class="ea-h"><span class="ea-n">앱·3</span><span class="ea-t">다음 날 채점</span></div>
+            <div class="ea-d">어제 그린 <b>예측 콘 위에 오늘 실제 봉</b>을 얹어 방향·범위 적중을 판정하고, 그때 <b>반대했던 지표들의 이름</b>을 되짚는다. 건수가 쌓이면 <b>개인 적중률</b>이 된다(기준선 병기).</div>
+            <span class="ea-bdg ea-ok">✓ 재방문 동력 — 예측이 아니라 채점이 상품</span>
+          </div>
+          <div class="ea-note"><span class="ea-bdg ea-soon" style="margin:0 0 6px">설계 확정 · 구현 전 — 2차 시안 대기</span><br>요건은 <b style="color:var(--eth)">app-spec.html</b>(18화면) · 시안 재료는 <b style="color:var(--eth)">design-kit.html</b>. 옛 앱 구현과 1차 시안은 봉쇄됐다.</div>
+        </div>
+
+      </div>
     </div>
+
+    <!-- ── 되먹임 ── -->
+    <div class="ea-loop">
+      <div class="ea-loop-h">⟲ 되먹임 — 쓰면 쓸수록 검증 표본이 쌓인다</div>
+      <div class="ea-loop-d">
+        실사용 예측이 <b>서버 원장</b>에 적재되고(<span class="ea-run">logPrediction</span>), 만기가 오면 <b>자동 채점</b>된다.
+        그 실측이 이 페이지의 <b>라이브 트랙레코드</b>로 올라오고, 다음 엔진 버전의 근거가 된다.
+        <b>PC 와 모바일의 사용이 같은 원장에 쌓인다</b> — 두 제품이 서로 다른 성적을 말할 수 없는 이유다.
+      </div>
+      <div class="ea-chain">
+        <span>PC 웹분석 · 앱 분석</span><i>→</i><span>원장 적재</span><i>→</i><span>만기 자동 채점</span><i>→</i>
+        <span>라이브 트랙레코드</span><i>→</i><span>스코어카드 갱신</span><i>→</i><span>다음 엔진 버전</span><i>→</i>
+        <span style="border-color:var(--gold);color:var(--gold)">상류 IN·2 로 되돌아감</span>
+      </div>
+    </div>
+
   </div>
 
 
@@ -671,7 +773,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
 // 엔진 해부도 · 라이브 신경망 — 30 지표 뉴런 + 변동성 피처 10 뉴런, 밀집 팬아웃/팬인 + 흐르는 신호.
 (function renderEngineLive(){
   const host=document.getElementById("eaLive"); if(!host) return;
-  const W=1060,H=700, gold="var(--gold)",eth="var(--eth)",bull="var(--bull)",bear="var(--bear)";
+  const W=1400,H=830, gold="var(--gold)",eth="var(--eth)",bull="var(--bull)",bear="var(--bear)";
   const uid=(a,b)=>`M${a.x} ${a.y} L${b.x} ${b.y}`;
   const qd=(a,b,f)=>{ const mx=(a.x+b.x)/2,my=(a.y+b.y)/2,dx=b.x-a.x,dy=b.y-a.y; return `M${a.x} ${a.y} Q${(mx-dy*(f||0.13)).toFixed(1)} ${(my+dx*(f||0.13)).toFixed(1)} ${b.x} ${b.y}`; };
   // ── 노드 정의 ──
@@ -682,11 +784,14 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   const cone ={x:694,y:288,r:14,c:gold,lab:"예측 콘",sub:"×0.75 · 국면정밀",pl:"right"};
   const cal  ={x:880,y:230,r:13,c:bull,lab:"캘리브레이션",sub:"ECE 1.9%",pl:"right"};
   const out  ={x:928,y:474,r:19,c:gold,lab:"판정 출력",sub:"국면 · R:R · 목표",pl:"below"};
+  // 하류 — 같은 판정이 가는 두 화면. 엔진 밖이므로 테두리 바깥에 둔다.
+  const pcv  ={x:1092,y:356,r:15,c:gold,lab:"스쿱포지 (PC)",sub:"작업대 · 32종 상시 · 무과금",pl:"right"};
+  const mob  ={x:1092,y:600,r:15,c:bull,lab:"머니스쿱 (앱)",sub:"제품 · 단계로 노출량 차등",pl:"right"};
   // 리스크 노드 = 엔진 검증 축(validatedAxes)에서 생성 → 축 추가/추세지속 자동 반영. 개수에 맞춰 세로 분배.
   const RTOP=398, RBOT=640, _rn=AXES.length, RSTEP=_rn>1?(RBOT-RTOP)/(_rn-1):0;
   const risk = AXES.map((a,i)=>({ x:706, y:Math.round(RTOP+i*RSTEP), r:11,
     c: a.stock ? "#c98a5a" : bull, lab: a.lab, sub: a.acc+"%"+(a.hz?" · "+a.hz:"")+(a.stock?"·주식":""), pl:"right", ax:a }));
-  const named=[price,vol,drift,dir,cone,cal,out,...risk];
+  const named=[price,vol,drift,dir,cone,cal,out,pcv,mob,...risk];
   // ── 30 지표 뉴런(6군) ──
   const CL=[{n:"추세",k:7,c:gold},{n:"모멘텀",k:8,c:"#e8955c"},{n:"변동성",k:4,c:"#7aa6cc"},{n:"거래량",k:4,c:eth,vol:1},{n:"구조",k:5,c:"#b58cf0"},{n:"주기",k:2,c:"#5ec8b6"}];
   const IND=[]; let yy=54; const IX=250;
@@ -694,9 +799,13 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   // ── 변동성 피처 10 뉴런 ──
   const FEAT=[]; const FX=452; for(let i=0;i<10;i++) FEAT.push({x:FX,y:432+i*18,c:bull});
   // ── SVG 조립 ──
-  let s=`<svg viewBox="-46 0 ${W} ${H}" role="img" aria-label="분석 엔진 신경망 — ${IND_N}개 지표 뉴런과 변동성 피처가 밀집 연결로 방향·리스크·판정을 산출">`;
+  let s=`<svg viewBox="-46 0 ${W} ${H}" role="img" aria-label="분석 엔진 신경망 — ${IND_N}개 지표 뉴런과 변동성 피처가 밀집 연결로 방향·리스크·판정을 산출하고, 그 판정이 스쿱포지(PC)와 머니스쿱(앱) 두 화면으로 갈라진 뒤 실사용 기록이 원장·채점을 거쳐 다시 엔진으로 되먹임된다">`;
   s+=`<defs><filter id="eaGlow" x="-140%" y="-140%" width="380%" height="380%"><feGaussianBlur stdDeviation="3.4"/></filter>`
    +`<filter id="eaG2" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="5"/></filter></defs>`;
+  // ── 엔진 경계 — 지금까지의 모든 노드는 "엔진 내부"다 ──
+  s+=`<rect x="-30" y="18" width="1012" height="674" rx="18" fill="var(--gold)" fill-opacity=".025" stroke="${gold}" stroke-opacity=".34" stroke-width="1.4" stroke-dasharray="7 6"/>`;
+  s+=`<text x="-22" y="11" class="ea-lv-spine" fill="${gold}" opacity=".85">엔진 내부 · forge-core.js — 한 벌뿐</text>`;
+  s+=`<text x="1092" y="300" text-anchor="middle" class="ea-lv-spine" fill="${eth}">하류 · 두 화면</text>`;
   let wires="",pdefs="",parts="",pi=0;
   const wire=(d,c,op,w)=>{ wires+=`<path d="${d}" fill="none" stroke="${c}" stroke-width="${w||1}" stroke-opacity="${op}"/>`; };
   const DOT_MAX=5, DOT_K=0.6;
@@ -720,6 +829,13 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   wire(qd(cone,cal), gold,.28,1.5);   flow(qd(cone,cal),gold, 6);
   wire(qd(cal,out),  gold,.32,1.7);   flow(qd(cal,out), gold, IND_N);
   risk.forEach(rn=>{ wire(qd(rn,out,.08), bull,.28,1.5); flow(qd(rn,out,.08), bull, 3); });
+  // 판정 → 두 제품(같은 판정이 갈라져 나간다)
+  wire(qd(out,pcv,.10), gold,.30,1.6); flow(qd(out,pcv,.10), gold, 8);
+  wire(qd(out,mob,-.10), bull,.30,1.6); flow(qd(out,mob,-.10), bull, 8);
+  // 되먹임 궤도 — 두 제품의 실사용이 원장으로, 채점되어 다음 엔진 버전으로
+  const LOOP="M1092 622 C 1092 772, 860 792, 520 792 C 250 792, 40 760, 46 318";
+  wire(LOOP, gold, .26, 1.5); flow(LOOP, gold, 5);
+  wire("M1092 372 C 1210 400, 1214 560, 1116 592", gold, .18, 1.2);
   // 지표군 → 드리프트: 군 대표 1줄기, 도트=군 크기 비례(모멘텀8 多·주기2 少)
   CL.forEach(cl=>{ flow(uid({x:IX,y:cl.yc},drift), cl.c, cl.k); });
   // 대표 팬아웃(가격→지표·피처): 얇은 단일 스트림
@@ -737,6 +853,11 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   s+=`<text x="${FX}" y="418" text-anchor="middle" class="ea-lv-clab" fill="${bull}">변동성 피처 10</text>`;
   s+=`<text x="700" y="126" text-anchor="middle" class="ea-lv-spine" fill="${bear}">경로 A · 방향(한계)</text>`;
   s+=`<text x="706" y="400" text-anchor="middle" class="ea-lv-spine" fill="${bull}">경로 B · 리스크(검증)</text>`;
+  s+=`<text x="30" y="252" text-anchor="middle" class="ea-lv-cap" fill="${eth}">상류 · 시세 프록시</text>`;
+  s+=`<text x="30" y="266" text-anchor="middle" class="ea-lv-cap" fill="${eth}">+ 검증 통과 기법만</text>`;
+  s+=`<text x="1116" y="628" class="ea-lv-cap" fill="${eth}">설계 확정 · 구현 전</text>`;
+  s+=`<text x="520" y="784" text-anchor="middle" class="ea-lv-clab" fill="${gold}">⟲ 되먹임 — 실사용 예측 → 서버 원장 → 만기 자동 채점 → 라이브 트랙레코드 → 다음 엔진 버전</text>`;
+  s+=`<text x="1116" y="486" class="ea-lv-cap" fill="${eth}">같은 엔진 · 같은 판정</text>`;
   // 명명 노드
   named.forEach((n,i)=>{
     s+=`<circle cx="${n.x}" cy="${n.y}" r="${n.r+8}" fill="${n.c}" class="ea-halo" filter="url(#eaG2)" style="animation-delay:${(i*0.22).toFixed(2)}s"/>`;
