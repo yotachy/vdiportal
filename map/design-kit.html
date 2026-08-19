@@ -201,6 +201,7 @@
 
 <nav class="toc">
   <div class="toc-h">디자인 킷</div>
+  <a href="#k0">0 · 디자인 원칙</a>
   <a href="#k1">1 · 화면 연결도</a>
   <a href="#k1b" class="s">전이 전량</a>
   <a href="#k2">2 · 컴포넌트 인벤토리</a>
@@ -209,6 +210,7 @@
   <a href="#k5">5 · 카피 덱</a>
   <a href="#k6">6 · 더미 데이터</a>
   <a href="#k7">7 · 정보 밀도</a>
+  <a href="#k8">8 · 접근성</a>
   <div class="toc-gap"></div>
   <a href="app-spec.html">← 요건정의로</a>
 </nav>
@@ -222,7 +224,7 @@
     화면이 어떻게 이어지는지, 무엇이 반복되는지, 숫자를 어떻게 쓰는지, 문구가 무엇인지.
   </p>
   <div class="meta">
-    <span>v0.2</span><span>2026-08-19</span>
+    <span>v0.3</span><span>2026-08-19</span>
     <span>짝 문서 <a href="app-spec.html">app-spec.html</a> v0.7</span>
     <span>18화면</span>
   </div>
@@ -231,8 +233,47 @@
 <div class="note">
   <span class="lbl">쓰는 법</span>
   <p><strong>§1 연결도</strong>로 전체를 잡고, 화면 하나를 그릴 때 <strong>§2 컴포넌트</strong>에서 재사용할 조각을 먼저 찾는다.
-  숫자를 넣을 때 <strong>§3 표기 규격</strong>과 <strong>§6 더미 데이터</strong>를, 글자를 넣을 때 <strong>§5 카피 덱</strong>을 본다.
+  숫자를 넣을 때 <strong>§3 표기 규격</strong>과 <strong>§6 더미 데이터</strong>를, 글자를 넣을 때 <strong>§5 카피 덱</strong>을 본다. <strong>§0 원칙과 §8 접근성은 작업 내내 유효하다.</strong>
   <strong>lorem 을 쓰지 않는다</strong> — 실제 문구와 실측값이 여기 다 있다.</p>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<div class="shead" id="k0"><h2>0 · 디자인 원칙</h2><span class="tag">모든 화면의 상위 규율</span></div>
+
+<p>
+  이 앱의 기본 감각은 <strong>개방감</strong>이다 — 넓고, 시원하고, 읽기 쉽다.
+  분석 도구는 빽빽해지기 쉽고, 빽빽해지는 순간 <em>전문가용</em>처럼 보이면서 일반 사용자를 잃는다.
+  <strong>정보를 줄여서 시원해지는 것이 아니라, 접고 나눠서 시원해진다</strong>(§2-B 전제 4 — 지우지 않는다).
+</p>
+
+<div class="rules">
+  <div class="rule"><span class="k">원칙 A</span><p><strong>기본은 넓다.</strong> 여백을 먼저 확보하고 그 안에 정보를 놓는다.
+    한 화면에 <strong>주 정보 블록 3개 이하</strong> · 섹션 간 <strong>24px 이상</strong> · 카드 내부 <strong>16px 이상</strong> ·
+    본문 <strong>15px</strong> · 행간 1.6 이상.</p></div>
+  <div class="rule"><span class="k">원칙 B</span><p><strong>밀도는 두 구역에서만 허용한다.</strong>
+    ① <strong>작도 영역</strong>(차트 캔버스 내부 — 축 눈금 · 지표 배지 · 범례)
+    ② <strong>심오한 분석 콘텐츠</strong>(판독문 32장 · 지표 32행 · 서브패널 축 라벨).
+    이 두 곳 밖에서는 <strong>12px 이하 글자를 쓰지 않는다.</strong> 두 구역 안에서도 하한은 10px.</p></div>
+  <div class="rule"><span class="k">원칙 C</span><p><strong>조작은 탭이 기본이다.</strong>
+    드래그는 <em>가중치 트랙 하나뿐</em>(§S9), 그것도 결과가 즉시 보이기 때문에 성립한다.
+    <strong>롱프레스 금지</strong> — 발견성이 없어 기능이 없는 것과 같아진다.
+    스와이프는 <em>보조 수단으로만</em> 쓰고 <strong>항상 버튼 대안을 함께 둔다</strong>.</p></div>
+  <div class="rule"><span class="k">원칙 D</span><p><strong>누를 수 있는 것은 눌러 보인다.</strong> 버튼은 버튼처럼, 링크는 링크처럼.
+    “탭하면 뭔가 나온다”를 사용자가 추측하게 하지 않는다 — 검증 칩 · 국면 배지 · 발산 막대처럼
+    <em>탭하면 시트가 열리는 요소</em>에는 그 사실을 드러내는 표식을 둔다.</p></div>
+  <div class="rule"><span class="k">원칙 E</span><p><strong>화려함은 계산에서만 나온다.</strong>(§요건정의 §2-B)
+    장식 애니메이션 0. 움직이는 것은 전부 실제로 계산 중이거나 그려지는 중이다.
+    개방감과 화려함은 충돌하지 않는다 — <em>넓은 지면 위에서 하나의 장면만 움직일 때</em> 가장 강하다.</p></div>
+</div>
+
+<div class="note warn">
+  <span class="lbl">개방감과 정보량은 어떻게 공존하는가</span>
+  <p>이 앱은 지표 32종·검증 8축·판독문 32장을 다룬다. <strong>그 전부를 한 번에 펼치면 개방감은 불가능하다.</strong>
+  해법은 세 가지이고 전부 이미 요건에 들어 있다 —
+  <strong>① 접는다</strong>(판독문 카드 · 지표 등급 Lv2~4 · 스티키 3단)
+  <strong>② 나눈다</strong>(세그먼트 4칸 · 시트)
+  <strong>③ 미룬다</strong>(근거는 탭 → 시트).</p>
+  <p>그래서 <strong>첫 화면은 늘 시원하고, 파고들수록 촘촘해진다.</strong> 이 기울기 자체가 이 앱의 디자인이다.</p>
 </div>
 
 <!-- ══════════════════════════════════ -->
@@ -617,6 +658,93 @@
   <strong>바뀐 값으로 이 표를 갱신하는 것이 시안 산출물의 일부</strong>다.
   특히 <em>행 높이</em>(현재 지표 신호 68 · 판독문 카드 48 · 지표 행 44)를 조금만 키워도 S5·S8은 화면 단위로 늘어난다.</p>
 </div>
+
+<!-- ══════════════════════════════════ -->
+<div class="shead" id="k8"><h2>8 · 접근성 체크리스트</h2><span class="tag">실측 포함</span></div>
+
+<p>
+  기준은 <strong>WCAG 2.2 AA</strong>. 아래 대비비는 <em>주장이 아니라 현재 팔레트로 실제 계산한 값</em>이며(2026-08-19),
+  <strong>미달 토큰이 실제로 있다.</strong>
+</p>
+
+<h3>8-1. 대비비 실측 — 미달이 둘 있다</h3>
+<div class="tw"><table>
+<thead><tr><th>토큰</th><th class="n">다크 위</th><th class="n">라이트 위</th><th>판정 · 허용 용도</th></tr></thead>
+<tbody>
+<tr><td><code>--ink</code> 본문</td><td class="n up">16.4</td><td class="n up">16.3</td><td>통과. 본문 전량</td></tr>
+<tr><td><code>--eth</code> 보조</td><td class="n up">7.5</td><td class="n up">6.2</td><td>통과. 보조 문장·라벨</td></tr>
+<tr><td class="dn"><code>--muted</code></td><td class="n dn">4.2</td><td class="n dn">3.4</td><td><strong class="dn">본문 미달(4.5)</strong> — <strong>18px 이상 큰 글자 또는 비텍스트에만</strong>. 캡션·설명문에 쓰면 위반</td></tr>
+<tr><td class="dn"><code>--faint</code></td><td class="n dn">2.6</td><td class="n dn">2.3</td><td><strong class="dn">3:1도 미달</strong> — <strong>텍스트로 쓰지 않는다.</strong> 순수 장식·비활성 채움만</td></tr>
+<tr><td><code>--gold</code> 강조</td><td class="n up">10.2</td><td class="n dn">4.0</td><td>다크 통과 / <strong class="dn">라이트에서 본문 미달</strong> — 라이트 링크·강조 텍스트는 더 어두운 골드가 필요</td></tr>
+<tr><td class="up"><code>--bull</code> 상승</td><td class="n up">8.6</td><td class="n dn">4.3</td><td>다크 통과 / 라이트 본문 아슬(4.3). <strong>큰 숫자·배지는 통과, 작은 글자는 조정 필요</strong></td></tr>
+<tr><td class="dn"><code>--bear</code> 하락</td><td class="n up">5.9</td><td class="n up">5.2</td><td>통과</td></tr>
+<tr><td><code>--line</code> 구분선</td><td class="n">1.3</td><td class="n">1.2</td><td>순수 장식 구분선은 면제. <strong>다만 입력 필드 테두리처럼 “상태를 알리는 경계”에는 쓸 수 없다</strong>(3:1 필요)</td></tr>
+</tbody></table></div>
+<div class="note bad">
+  <span class="lbl">시안이 반드시 처리할 것</span>
+  <p><strong>① <code>--muted</code>를 캡션에 쓰지 않는다</strong> — 현재 요건 문서·PC 화면에서 작은 회색 캡션에 이 계열이 흔히 쓰인다.
+  앱에서는 캡션도 <code>--eth</code> 이상으로 올리거나 글자를 18px 이상으로 키운다.</p>
+  <p><strong>② 라이트 테마의 골드·상승색을 다시 잡는다</strong> — 다크 기준으로 고른 값이라 라이트에서 미달한다.
+  §3의 “방향색은 방향 전용” 규칙과 함께, <em>라이트용 별도 값</em>을 팔레트에 둔다.</p>
+</div>
+
+<h3>8-2. 색만으로 말하지 않는다</h3>
+<div class="tw"><table>
+<thead><tr><th>정보</th><th>색 외의 단서</th><th class="n">상태</th></tr></thead>
+<tbody>
+<tr><td>상승 / 하락</td><td><strong>▲ / ▼ 화살표</strong> + 문자(“상승”/“하락”)</td><td class="n up">이미 충족</td></tr>
+<tr><td>예측선 1·2·3차</td><td><strong>선 종류</strong>(실선 / 청록 점선 / 반대 시나리오) + 끝점 배지 텍스트</td><td class="n up">이미 충족</td></tr>
+<tr><td>신뢰 지평 밖</td><td><strong>점묘로 해체</strong>(형태 변화)</td><td class="n up">이미 충족</td></tr>
+<tr><td>끝점 확률 50% 미만</td><td>회색 강등 <strong>+ 확률 수치 병기</strong></td><td class="n up">충족(수치가 함께 있음)</td></tr>
+<tr><td>미확정(프리뷰)</td><td><strong>점선 + 안내 문장</strong>(§S2 “기본 예측입니다”)</td><td class="n up">충족</td></tr>
+<tr><td>잠긴 값</td><td><strong><code>심화</code> 태그 텍스트</strong>(자물쇠 아이콘 대신)</td><td class="n up">충족</td></tr>
+<tr><td class="dn">지표 등급 Lv1~4</td><td>현재 <strong>색만</strong>으로 구분(파랑·청록·회청·보라)</td><td class="n dn">보완 필요 — 등급 이름을 항상 함께</td></tr>
+<tr><td class="dn">발산 막대 좌우</td><td>좌우 위치 + 색. <strong>부호 수치</strong>(<code>+21</code>/<code>−14</code>)를 항상 붙인다</td><td class="n dn">수치 병기로 해결</td></tr>
+</tbody></table></div>
+
+<h3>8-3. 조작 · 입력</h3>
+<div class="rules">
+  <div class="rule"><span class="k">터치</span><p>모든 타깃 <strong>44×44px 이상</strong>, 인접 타깃 간격 <strong>8px 이상</strong>. 가중치 트랙은 88×44 이상(§S9).</p></div>
+  <div class="rule"><span class="k">대안</span><p><strong>드래그·스와이프에는 항상 버튼 대안이 있다.</strong> 가중치는 트랙 드래그 외에 <em>탭으로 단계 증감</em>도 받는다 — 운동 제어가 어려운 사용자에게 드래그는 장벽이다.</p></div>
+  <div class="rule"><span class="k">포커스</span><p>외장 키보드·스위치 컨트롤 사용자를 위해 <strong>보이는 포커스 링</strong>(2px, 배경과 3:1 이상). 시트가 열리면 <strong>포커스를 시트 안으로 가두고</strong>, 닫으면 호출한 요소로 되돌린다.</p></div>
+  <div class="rule"><span class="k">시간</span><p><strong>시간 제한을 두지 않는다.</strong> 출석 카운트다운은 <em>정보</em>일 뿐 조작을 재촉하지 않는다. 광고 보상도 시간 압박 문구를 쓰지 않는다.</p></div>
+  <div class="rule"><span class="k">모션</span><p><code>prefers-reduced-motion</code>에서 6초 리빌·16초 시뮬레이션·게이지 충전을 <strong>전부 건너뛰고 최종 상태로</strong>. 그래도 <strong>진행 로그는 남는다</strong>(산출물은 동일).</p></div>
+  <div class="rule"><span class="k">자동재생</span><p>S0의 6초 데모는 <strong>소리 없음 · 어디를 탭해도 즉시 착지</strong>. 5초 넘게 자동 재생되는 것에는 정지 수단이 있어야 한다.</p></div>
+</div>
+
+<h3>8-4. 글자 크기 확대</h3>
+<p>
+  시스템 글꼴 크게(최대 <strong>200%</strong>)에서 레이아웃이 깨지지 않아야 한다. 이 앱에서 위험한 곳은 셋이다:
+</p>
+<ul>
+  <li><strong>판정 스트립</strong> — 2열 그리드가 200%에서 1열로 떨어져야 한다(고정 높이 금지)</li>
+  <li><strong>예측 시점별 표</strong> — 이미 2줄 구조라 유리하다. 1줄의 세 값이 겹치지 않게 <code>flex-wrap</code></li>
+  <li><strong>지표 행</strong> — 이름 + 트랙 + 배율이 한 줄에 있다. 확대 시 <strong>트랙이 다음 줄로</strong> 내려가되 44px 높이는 유지</li>
+</ul>
+<p><strong>고정 px 높이를 쓰지 않는다</strong>(<code>min-height</code>로 하한만). 캔버스 영역은 예외 — 종횡비로 잡는다.</p>
+
+<h3>8-5. 스크린리더</h3>
+<div class="tw"><table>
+<thead><tr><th>요소</th><th>읽히는 것</th></tr></thead>
+<tbody>
+<tr><td class="dn"><strong>차트 캔버스</strong></td><td><strong>가장 중요한 항목.</strong> 캔버스는 그 자체로 읽히지 않으므로 <strong>대체 텍스트로 판정 요약 한 문장</strong>을 둔다 — <em>“NVDA 일봉. 상승 판정, 상승확률 62퍼센트, 시장 기준선 60.96퍼센트. 목표 248,400. 지표 14개 중 12개 동의.”</em></td></tr>
+<tr><td>확률 게이지</td><td><code>aria-label</code>로 “상승확률 62퍼센트, 기준선 60.96퍼센트”</td></tr>
+<tr><td>검증 6칩</td><td>칩 이름 + 값 + “탭하면 근거” (버튼 역할 명시)</td></tr>
+<tr><td>발산 막대</td><td>지표명 + 방향 + 수치. 막대 자체는 <code>aria-hidden</code></td></tr>
+<tr><td>진행 HUD</td><td><code>aria-live="polite"</code> — <strong>매 틱마다 읽으면 소음</strong>이므로 지표가 바뀔 때만 알린다</td></tr>
+<tr><td>토스트</td><td><code>role="status"</code>. 실패는 <code>role="alert"</code></td></tr>
+<tr><td>서브패널</td><td>패널명 + 현재값 + 상태(“RSI 62, 중립”). 그래프는 <code>aria-hidden</code></td></tr>
+<tr><td>잠긴 값</td><td>“확신 퍼센트, 심화 단계에서 제공” — <strong>잠겼다는 사실과 푸는 방법을 함께</strong></td></tr>
+</tbody></table></div>
+
+<h3>8-6. 그 밖</h3>
+<ul>
+  <li><code>&lt;html lang="ko"&gt;</code> — 스크린리더 발음</li>
+  <li>오류는 <strong>색이 아니라 문장</strong>으로 알린다(§요건정의 §7 상태 카탈로그가 이미 그렇게 되어 있다)</li>
+  <li>가로 방향 잠금 없음 — 눕혀도 쓸 수 있어야 한다</li>
+  <li>안전영역 상·하 반영(상태바에 헤더가 가린 전례 있음)</li>
+  <li><strong>가로 스크롤은 표·차트 안에서만.</strong> 화면 본체가 좌우로 밀리면 확대 사용자에게 치명적이다</li>
+</ul>
 
 <footer>
   짝 문서 · <a href="app-spec.html">app-spec.html</a> — 화면별 요건정의(18화면 · 스토리라인 · 상태 카탈로그)<br>

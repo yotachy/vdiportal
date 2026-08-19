@@ -5,7 +5,7 @@
 | 도구 | 파일 | 비고 |
 |---|---|---|
 | **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js`(+`forge-api.php`) | 노드 전략보드 + 라이브 차트 통합 분석 도구. **분석 엔진의 관리·개선·검증이 이뤄지는 곳**(사용자 서비스가 아니다 — 아래 §⓪) |
-| **머니스쿱 모바일 (MoneyScoop)** 🛑 **개발 중단(2026-08-19)** | **`mobile/`** 폴더 일습(`www/`·`test/`·`android/`·`sync-engine.mjs`) | 스쿱포지 **엔진을 공유하는** 하이브리드 앱(Capacitor). **사용자 서비스의 중심**(아래 §⓪) — UI·배포는 PC와 별개, 엔진·분석 결과·정보 수준은 PC와 같아야 한다. 백로그 [`mobile/docs/BACKLOG-mobile.md`](mobile/docs/BACKLOG-mobile.md) · 개편 원장 [`mobile/docs/rebuild/PROGRESS.md`](mobile/docs/rebuild/PROGRESS.md) · 실측 [`mobile/docs/phase0-measurements.md`](mobile/docs/phase0-measurements.md) |
+| **머니스쿱 모바일** ⛔ **구현 봉쇄(2026-08-19)** | **`mobile/`** — `www/`·`android/`·`test/`·`tools/`·`sync-engine.mjs` 는 **폐기 자산. 읽지도 복사하지도 말 것**([`mobile/DEPRECATED.md`](mobile/DEPRECATED.md)). **예외 `mobile/docs/`** — 시안 원본(`design_handoff/`)·실측·이력은 계속 읽는다. 새 앱은 별도 개발하지 않고 포지를 세로로 재배치한다 → 요건 [`app-spec.html`](app-spec.html) · 재료 [`design-kit.html`](design-kit.html) |
 | **스쿱보드 (Scoop Board)** | `map.html`(+`api.php`) | 자유 캔버스 노드 다이어그램 빌더 |
 | **PotFlow** | **`potflow/`** 폴더 일습(`potflow.html`·`potflow-helper.py`·config·bat·썸네일) | 로컬 동영상 노드 재생 관리(PotPlayer). map.html 파생·로컬 헬퍼(Python) 전용. **상위 개발프로젝트와 완전 독립 트랙**(아래 주의). **2026-07-19 `map/potflow/`로 폴더 격리** — forge·map과 파일/배포 경로 불간섭(배포=`www/map/potflow/`). 헬퍼가 자기 위치(`ROOT`) 기준이라 이동에 경로 수정 불필요. 상세는 [`POTFLOW.md`](POTFLOW.md) |
 
@@ -93,6 +93,20 @@
   **시안과 나란히 놓고** 여백·타이포 위계·정보 밀도가 시안 의도와 맞는지 판정한다.
 - 온보딩(P4)은 이 절차를 밟았다 — 시안 대조 감사 → 전용 재설계 설계서 → 화면 통째 재작성.
   그래서 온보딩만 시안 느낌이 난다. **그 순서가 정본이다.**
+
+## ④-3 폐기된 모바일 구현을 참조하지 않는다 · 시안이 요건을 고친다
+
+**2026-08-19 사용자 지시.** 새 디자인 시안이 나왔을 때 **보류된 앱 소스로 오염되지 않게 봉쇄한다.**
+
+- **봉쇄**: `map/mobile/` 의 `www/` · `android/` · `test/` · `tools/` · `sync-engine.mjs` 는 폐기 자산이다.
+  새 시안을 구현할 때 **읽지도 복사하지도 않는다.** 태스크 브리프에 “기존 패턴을 따르라”를 쓰지 않는다 —
+  그 문장이 P1a·P1b 를 실패시켰다(§④-2). 전문은 [`mobile/DEPRECATED.md`](mobile/DEPRECATED.md).
+- **예외**: `mobile/docs/` 는 계속 읽는다(시안 원본 `design_handoff/` · 실측 `phase0-measurements.md` · 이력).
+- **시안이 요건을 고친다**: 시안 작업 중 새 기능 요건이 생기거나 동선이 바뀌면 **문서를 고치고 개발이 수용한다.**
+  “지침에 없다”는 이유로 시안을 거절하지 않는다. **협상 불가는 셋뿐** — 정직 표기 · 법적 고지 · 엔진 단일 원본.
+  이 셋도 거절이 아니라 *시안의 의도를 지키면서 불변을 유지할 방법을 찾는다*는 뜻이다.
+- 새 앱의 전제는 **별도 모바일 개발 없음** — `forge.html` 과 스크립트 6종을 그대로 실행하고 세로 배치만 같은 파일에서 만든다.
+  요건 [`app-spec.html`](app-spec.html) · 시안 재료 [`design-kit.html`](design-kit.html).
 
 ## ⑤ `mobile/www/**` 문법 하한 — ES5 아님, 확정 ES2017
 

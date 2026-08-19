@@ -224,7 +224,7 @@
     이 문서가 정하는 것은 그 전부를 세로 화면의 동선 위에 어떻게 배치하는가다.
   </p>
   <div class="meta">
-    <span>초안 v0.7</span><span>2026-08-19</span>
+    <span>초안 v0.8</span><span>2026-08-19</span>
     <span>기준 <code>main</code> · <code>0c5bd0e</code></span>
     <span>엔진 <code>1.11.0</code> · 지표 32종</span>
   </div>
@@ -291,6 +291,17 @@
   <div class="rule"><span class="k">전제 2</span><p><strong>모바일 웹브라우저에서 쓰는 것과 앱 안이 같아야 한다.</strong> 앱은 셸일 뿐이고, 폰 브라우저로 접속했을 때와 화면·기능이 동일하다. 앱에만 있는 화면을 만들지 않는다.</p></div>
   <div class="rule"><span class="k">전제 3</span><p><strong>PC의 시각은 이 작업으로 바뀌지 않는다.</strong> 시안이 정하는 새 시각은 좁은 폭(≤860px)에서만 적용된다. 넓은 폭의 포지는 지금 모습 그대로 남는다.</p></div>
   <div class="rule"><span class="k">전제 4</span><p><strong>정보를 줄여서 좁은 화면에 맞추지 않는다.</strong> 접거나, 시트로 옮기거나, 스크롤로 미룬다. <em>지우지 않는다.</em> 지금 모바일에서 <code>display:none</code> 되어 있는 것들(§3-3)은 되살릴 자리를 찾는 것이 이 요건의 과제다.</p></div>
+  <div class="rule"><span class="k">전제 7</span><p><strong>시안이 이 문서를 고친다.</strong>
+    시안을 그리다 보면 새 기능 요건이 생기고 동선이 바뀐다 — 그것은 <em>사고가 아니라 설계가 진행되고 있다는 증거</em>다.
+    <strong>“지침에 없다”는 이유로 시안을 거절하지 않는다.</strong> 어긋나면 이 문서를 고치고, 개발은 최대한 수용한다.
+    <em>단 세 가지만 협상 대상이 아니다</em> — <strong>정직 표기(§8) · 법적 고지 · 엔진 단일 원본(전제 1)</strong>.
+    이 셋도 “시안을 거절한다”가 아니라 <strong>시안의 의도를 지키면서 불변을 유지할 방법을 찾는다</strong>는 뜻이다.</p></div>
+  <div class="rule"><span class="k">전제 8</span><p><strong>보류된 모바일 구현은 봉쇄한다.</strong>
+    <code>map/mobile/</code>의 <code>www/</code> · <code>android/</code> · <code>test/</code> · <code>sync-engine.mjs</code>는
+    2026-08-19 개발 중단된 <strong>폐기 자산</strong>이며, 새 시안을 구현할 때 <strong>읽지도 복사하지도 않는다.</strong>
+    P1a·P1b가 실패한 원인이 정확히 이것이다 — 태스크 브리프가 “기존 <code>build*</code> 패턴을 그대로 따르라”고 지시해
+    <em>개편 대상이던 옛 디자인을 구조적으로 보존</em>했다.
+    <strong>예외는 <code>mobile/docs/</code>뿐</strong>(시안 원본 <code>design_handoff/</code> · 실측 기록). 자세한 것은 <code>mobile/DEPRECATED.md</code>.</p></div>
   <div class="rule"><span class="k">전제 6</span><p><strong>엔진과 데이터 문제는 이 문서가 다루지 않는다.</strong>
     지표 계산·OHLC 수급·캐시·프록시에서 나온 결함은 전부 <strong>PC 쪽에서 고치고</strong>, 모바일은 같은 엔진·같은 서버를 쓰므로 <em>따라온다</em>.
     앱 쪽에 따로 할 일이 생기지 않는다. 그런 항목은 여기 미결로 쌓지 말고 <code>docs/BACKLOG.md</code>(스쿱포지 트랙)로 보낸다 —
@@ -2024,7 +2035,8 @@
 <div class="tw"><table>
 <thead><tr><th class="n">버전</th><th class="n">날짜</th><th>내용</th></tr></thead>
 <tbody>
-<tr><td class="n gd">v0.7</td><td class="n">2026-08-19</td><td><strong>보드 영역(PC 2패널) 13종 전량을 결과 콘텐츠로 편입</strong> — 매핑표 신설, 빠져 있던 9종을 <strong>S17 서브패널(오실레이터 7 + 파동 스캔 2)</strong>로 정의. 세그먼트는 네 칸 유지(오실레이터→근거, 파동→지표). <strong>M6 해소</strong>. 17화면 → 18화면. 짝 문서 <a href="design-kit.html">design-kit.html</a> 신설</td></tr>
+<tr><td class="n gd">v0.8</td><td class="n">2026-08-19</td><td><strong>전제 7·8 신설</strong> — ⑦시안이 이 문서를 고친다(“지침에 없다”로 시안을 거절하지 않는다. 협상 불가는 정직 표기·법적 고지·엔진 단일 원본 셋뿐) · ⑧보류된 모바일 구현 봉쇄(<code>www</code>·<code>android</code>·<code>test</code>·<code>sync-engine</code> 참조 금지, <code>docs/</code>만 예외). 디자인 킷에 §0 디자인 원칙(개방감·쉬운 조작)과 §8 접근성 체크리스트 추가</td></tr>
+<tr><td class="n">v0.7</td><td class="n">2026-08-19</td><td><strong>보드 영역(PC 2패널) 13종 전량을 결과 콘텐츠로 편입</strong> — 매핑표 신설, 빠져 있던 9종을 <strong>S17 서브패널(오실레이터 7 + 파동 스캔 2)</strong>로 정의. 세그먼트는 네 칸 유지(오실레이터→근거, 파동→지표). <strong>M6 해소</strong>. 17화면 → 18화면. 짝 문서 <a href="design-kit.html">design-kit.html</a> 신설</td></tr>
 <tr><td class="n">v0.6.1</td><td class="n">2026-08-19</td><td><strong>M10(ETH 월봉 오염) 제거</strong> — 엔진·데이터 결함은 PC 에서 고치면 모바일이 따라오므로 앱 요건의 미결이 아니다. <code>docs/BACKLOG.md</code> 로 이관하고, 그 원칙 자체를 <strong>전제 6</strong>으로 신설</td></tr>
 <tr><td class="n">v0.6</td><td class="n">2026-08-19</td><td><strong>S1~S12를 스토리라인 밀도로 상향</strong> — 화면마다 <strong>「장면」 필드</strong> 신설(어느 막의 어느 비트를 맡는지 + 그때의 감정). §10의 다섯 난제를 전부 <strong>제안까지 결정</strong>(배지 3+7 · 범위 바 2줄 · 전용 트랙 · 헤더 상시 셋 · 미확정 세 겹). 그 밖 결정: 첫날 검색·그룹 숨김, 스파크 60봉 대칭, 판정 스트립 읽기 위계 5단, HUD 정보 위계(퍼센트 진행바 금지), 지표 신호 문장 2줄 복원, 신뢰 low 맥락 문구, 발산 막대 두께 폐기, 판독문 반대 묶음(S16과의 고리), 지표 시트 Lv1만 펼침, 파라미터는 설명이 먼저, 후속 도구 우선순위, 라이브 트랙레코드 첫날 노출</td></tr>
 <tr><td class="n">v0.5</td><td class="n">2026-08-19</td><td><strong>§2-B 스토리라인 신설</strong>(4막 · 감정 비트 · 무너지는 네 지점 · 시각 언어 3원칙) — 화면은 이 줄거리의 장면을 맡아야 존재한다. 스토리를 세우자 빠진 화면이 드러남 → <strong>S16 어제의 판정(채점) 신설</strong>. S14에 맥락 유지 요건, S12 재방문 진입 규칙. 16화면 → 17화면</td></tr>
