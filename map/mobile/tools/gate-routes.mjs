@@ -787,7 +787,20 @@ export const ROUTES = [
             "var a=document.querySelector('.an-scrim');" +
             "if(a)a.click();" +                          // 19a 드레인 — 남은 지표를 동기로 마저 읽는다
             "var r=document.querySelector('.rv-scrim');" +
-            "if(r){r.click(); drained=true; clearInterval(iv);}" +   // 8b 는 19a onDone 뒤 같은 tick 에 이미 DOM 에 있다
+            "if(r){" +
+            // Task 7 리뷰(라운드 1, Critical) — 세 통의 합이 헤드라인의 총 칸 수와
+            // 실제로 맞는지, 드레인(클릭)하기 **직전**(.rv-scrim 이 막 뜬 그 화면)에
+            // 찍어 둔다. 리뷰어가 브라우저에서 실제로 찍은 것과 같은 방법 — 나중에
+            // assert 가 이 값으로 agree+dissent+noDir === indicatorCount 를 검산한다.
+            "var nums=Array.prototype.map.call(document.querySelectorAll('.rv-bucket-num'),function(e){return Number(e.textContent);});" +
+            "window.__t7Buckets=nums;" +
+            "var __t7HeadEl=document.querySelector('.rv-head');" +
+            "var __t7Opened=__t7HeadEl?Number((/^(\\d+)/.exec(__t7HeadEl.textContent)||[])[1]):null;" +
+            "var __t7Basic=(typeof MSGraph!=='undefined')?MSGraph.BASIC.length:null;" +
+            "window.__t7Total=(__t7Opened!=null&&__t7Basic!=null)?(__t7Opened+__t7Basic):null;" +
+            "window.__t7Head=(document.querySelector('.rv-head')&&document.querySelector('.rv-head').textContent)||'';" +
+            "r.click(); drained=true; clearInterval(iv);" +
+          "}" +
           "}" +
         "}, 100);"
       }
@@ -802,6 +815,12 @@ export const ROUTES = [
         "}" +
         "if(document.querySelector('.rp-cta-ad')||document.querySelector('.rp-cta-scoop')) return false;" +  // 이미 산 뒤엔 해제 CTA 가 없다
         "if(document.querySelector('.an-scrim')||document.querySelector('.rv-scrim')) return false;" +       // 재생 오버레이가 안 남아 있다
+        // Task 7 리뷰(라운드 1, Critical) — 드레인 직전에 찍어 둔 세 통의 합이 그때
+        // 그 화면의 총 칸 수와 실제로 맞는지 검산한다(값을 지어내지 않는다 — 실제
+        // 구매 체인이 만든 window.__t7Buckets 를 그대로 잰다).
+        "if(!window.__t7Buckets||window.__t7Buckets.length!==3) return false;" +
+        "if(window.__t7Total==null) return false;" +
+        "if(window.__t7Buckets[0]+window.__t7Buckets[1]+window.__t7Buckets[2]!==window.__t7Total) return false;" +
         "if(typeof MSAnalyzeView==='undefined'||typeof MSReveal==='undefined') return false;" +
         "return true;" +
       "})()" },
@@ -832,7 +851,20 @@ export const ROUTES = [
             "var a=document.querySelector('.an-scrim');" +
             "if(a)a.click();" +
             "var r=document.querySelector('.rv-scrim');" +
-            "if(r){r.click(); drained=true; clearInterval(iv);}" +
+            "if(r){" +
+            // Task 7 리뷰(라운드 1, Critical) — 세 통의 합이 헤드라인의 총 칸 수와
+            // 실제로 맞는지, 드레인(클릭)하기 **직전**(.rv-scrim 이 막 뜬 그 화면)에
+            // 찍어 둔다. 리뷰어가 브라우저에서 실제로 찍은 것과 같은 방법 — 나중에
+            // assert 가 이 값으로 agree+dissent+noDir === indicatorCount 를 검산한다.
+            "var nums=Array.prototype.map.call(document.querySelectorAll('.rv-bucket-num'),function(e){return Number(e.textContent);});" +
+            "window.__t7Buckets=nums;" +
+            "var __t7HeadEl=document.querySelector('.rv-head');" +
+            "var __t7Opened=__t7HeadEl?Number((/^(\\d+)/.exec(__t7HeadEl.textContent)||[])[1]):null;" +
+            "var __t7Basic=(typeof MSGraph!=='undefined')?MSGraph.BASIC.length:null;" +
+            "window.__t7Total=(__t7Opened!=null&&__t7Basic!=null)?(__t7Opened+__t7Basic):null;" +
+            "window.__t7Head=(document.querySelector('.rv-head')&&document.querySelector('.rv-head').textContent)||'';" +
+            "r.click(); drained=true; clearInterval(iv);" +
+          "}" +
           "}" +
         "}, 100);"
       }
@@ -856,6 +888,12 @@ export const ROUTES = [
         "if(/%/.test(hitrate.textContent)) return false;" +                 // 중립인데 적중률 수치가 새면 안 된다
         "if(document.querySelector('.rp-cta-ad')||document.querySelector('.rp-cta-scoop')) return false;" +
         "if(document.querySelector('.an-scrim')||document.querySelector('.rv-scrim')) return false;" +
+        // Task 7 리뷰(라운드 1, Critical) — 드레인 직전에 찍어 둔 세 통의 합이 그때
+        // 그 화면의 총 칸 수와 실제로 맞는지 검산한다(값을 지어내지 않는다 — 실제
+        // 구매 체인이 만든 window.__t7Buckets 를 그대로 잰다).
+        "if(!window.__t7Buckets||window.__t7Buckets.length!==3) return false;" +
+        "if(window.__t7Total==null) return false;" +
+        "if(window.__t7Buckets[0]+window.__t7Buckets[1]+window.__t7Buckets[2]!==window.__t7Total) return false;" +
         "return true;" +
       "})()" },
   // [리뷰 I2, 2026-08-19] report-purchase 는 full(3스쿱)만 태웠다 — 가장 비싼 상품인
@@ -916,7 +954,20 @@ export const ROUTES = [
             "var a=document.querySelector('.an-scrim');" +
             "if(a)a.click();" +
             "var r=document.querySelector('.rv-scrim');" +
-            "if(r){r.click(); drained=true; clearInterval(iv);}" +
+            "if(r){" +
+            // Task 7 리뷰(라운드 1, Critical) — 세 통의 합이 헤드라인의 총 칸 수와
+            // 실제로 맞는지, 드레인(클릭)하기 **직전**(.rv-scrim 이 막 뜬 그 화면)에
+            // 찍어 둔다. 리뷰어가 브라우저에서 실제로 찍은 것과 같은 방법 — 나중에
+            // assert 가 이 값으로 agree+dissent+noDir === indicatorCount 를 검산한다.
+            "var nums=Array.prototype.map.call(document.querySelectorAll('.rv-bucket-num'),function(e){return Number(e.textContent);});" +
+            "window.__t7Buckets=nums;" +
+            "var __t7HeadEl=document.querySelector('.rv-head');" +
+            "var __t7Opened=__t7HeadEl?Number((/^(\\d+)/.exec(__t7HeadEl.textContent)||[])[1]):null;" +
+            "var __t7Basic=(typeof MSGraph!=='undefined')?MSGraph.BASIC.length:null;" +
+            "window.__t7Total=(__t7Opened!=null&&__t7Basic!=null)?(__t7Opened+__t7Basic):null;" +
+            "window.__t7Head=(document.querySelector('.rv-head')&&document.querySelector('.rv-head').textContent)||'';" +
+            "r.click(); drained=true; clearInterval(iv);" +
+          "}" +
           "}" +
         "}, 100);"
       }
@@ -931,6 +982,12 @@ export const ROUTES = [
         "}" +
         "if(document.querySelector('.rp-cta-ad')||document.querySelector('.rp-cta-scoop')) return false;" +
         "if(document.querySelector('.an-scrim')||document.querySelector('.rv-scrim')) return false;" +
+        // Task 7 리뷰(라운드 1, Critical) — 드레인 직전에 찍어 둔 세 통의 합이 그때
+        // 그 화면의 총 칸 수와 실제로 맞는지 검산한다(값을 지어내지 않는다 — 실제
+        // 구매 체인이 만든 window.__t7Buckets 를 그대로 잰다).
+        "if(!window.__t7Buckets||window.__t7Buckets.length!==3) return false;" +
+        "if(window.__t7Total==null) return false;" +
+        "if(window.__t7Buckets[0]+window.__t7Buckets[1]+window.__t7Buckets[2]!==window.__t7Total) return false;" +
         "if(document.querySelector('.xp-scrim')) return false;" +           // 편집기도 닫혀 있어야 한다
         "if(typeof MSExpert==='undefined') return false;" +                 // 편집기 모듈이 실제로 전역 등록됐다
         "return true;" +

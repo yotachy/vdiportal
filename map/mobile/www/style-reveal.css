@@ -74,7 +74,12 @@
 .an-tooth.on { background:var(--gold); height:38px; }
 .an-tooth.an-core.on { background:var(--steel); }
 /* 지금 읽는 위치(an-now) — 흰 막대 하나뿐이다(toothClass 가 매 프레임 한 칸에만 매긴다).
-   an-core 와 같은 두 클래스 조합 특이성이라 소스 순서로 이긴다(뒤에 선언). */
+   toothClass() 는 on 과 an-now 를 같은 칸에 절대 같이 안 붙인다(읽었으면 on, 지금이면
+   an-now, 상호배타) — 그래서 이 규칙이 실전에서 경쟁하는 상대는 .an-core.on(3클래스)이
+   아니라 .an-core(2클래스, 기본 티어 구간에서 an-now 와 함께 붙는 그 클래스)다. 두 규칙
+   특이성이 **같아서(0,2,0)** 승부는 소스 순서로만 갈린다 — 그래서 .an-now 를 반드시
+   .an-core 뒤에 둔다(Task 7 리뷰 실측: 순서를 바꾸면 흰 막대가 사라지고 스틸로 되돌아간다 —
+   아래 CSS 순서 관문이 이 사실을 소스 문자열 위치로 고정한다). */
 .an-tooth.an-now { background:var(--ink); height:38px; }
 /* 지난 칸일수록 흐려진다 — 막 읽은 칸(dist 0)은 그대로 골드, 한 칸 전은 an-fade1,
    그 이전 전부는 an-fade2 로 수렴한다(.an-fade1/.an-fade2 는 아래 최근 판독 목록과

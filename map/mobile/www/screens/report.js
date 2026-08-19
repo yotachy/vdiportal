@@ -1315,14 +1315,58 @@
             : null;
 
           function revealThenDraw() {
-            // MSReportModel.verdict() 가 동의·반대·무판정을 합 검산까지 해서 돌려준다
-            // (report-model.js) — buildVerdict() 가 헤드라인 부제에 쓰는 것과 같은 계산을
-            // 여기서도 그대로 쓴다(P1b Task 7). 엔진 confluence.agree 하나만 받던 옛 배선은
-            // 반대·무판정을 몰라 8b 의 세 통을 못 채웠다.
-            var tally = MSLegend.tally(MSLegend.rows(an, an.out.prediction, null));
-            var vm = MSReportModel.verdict({ dir: an.out.verdict.regime, up: tally.up, down: tally.down, flat: tally.flat });
+            // Task 7 리뷰(라운드 1, Critical) — MSLegend.rows()는 티어와 무관하게 항상
+            // comb의 5행(ma·macd·rsi·bb·vol)만 낸다(chart-legend.js:36-84). 그 5행을 8b의
+            // 분모로 쓰면 세 통의 합은 언제나 5인데 총 칸 수(ForgeCore.indicatorCount)로는
+            // 32가 별도로 넘어가 애초에 일치할 수 없었다 — 실측: {agree:3,dissent:2,noDir:0}
+            // (합 5) vs 헤드라인 "27개가 열렸습니다"(32-5). buildVerdict()가 같은
+            // MSLegend.tally(MSLegend.rows(...)) 호출을 쓰는 건 맞지만, 그건 "도구 5개 중
+            // 4개가 상승"이라는 **의도적으로 5-스코프인** 문장을 위해서다(그 함수 866행
+            // 주석). 같은 코드 패턴, 다른 스코프였다 — 8b의 분모는 comb이 아니라 빗칸 32개
+            // 전부다.
+            //
+            // 32지표의 진짜 동의·반대·무판정은 REASONING·AGAINST 블록이 이미 쓰는 값과
+            // 같은 출처다(draw() 의 indRows/noDir, report.js:1632-1633 부근) — narratedRows
+            // (19a 가 방금 읽은 것) + MSIndicators.noDirRows()(trend·phasefold, 방향을 물을
+            // 수 없는 둘 — 항상 2행). "지표 계산은 한 지점"(readings.test.mjs 가 REPORT
+            // 전체에서 MSIndicators.readings/biases 호출이 정확히 1회여야 한다고 못박아
+            // 둔다, 그 한 곳은 draw()) — 그래서 여기서는 narratedRows 를 그대로 쓰기만
+            // 하고 스스로 readings() 를 다시 부르지 않는다. narratedRows 는 onDone 에서
+            // 항상 먼저 채워진 뒤에야 이 함수가 불리므로(아래 if(stepper...) 분기) 실사용
+            // 경로에서는 늘 있다 — stepper 가 비어 있던 방어적 갈래(!an.graph)에서만 비고,
+            // 그때는 세 통을 0으로 둔다(buildComb 등 다른 32칸 블록도 같은 가드를 쓴다).
+            // tallyOf() 는 bias 가 숫자가 아닌 행(=noDir32)을 세지 않으므로(19a 의 진행
+            // 집계와 같은 함수) noDir32.length 를 flat 에 더해 준다 — 화면은 "근접 0"과
+            // "애초에 방향이 없음"을 같은 '무판정' 통 하나로 보여준다(comb 의 combRole()
+            // 과 같은 태도).
+            // Task 7 리뷰(라운드 1) — 여기서 처음 24시간 안에 두 번째로 드러난 문제:
+            // 전문(custom)은 MSGraph.customGraph() 가 그래프를 **사용자가 고른 부분집합**
+            // (핵심 5종 + 프리셋이 weights 로 명시한 것)으로 줄인다 — full32Graph 의 32종이
+            // 아니다. total 을 그대로 ForgeCore.indicatorCount(32) 로 못박으면, 심화(full)
+            // 에서는 우연히 맞아도(그래프가 실제로 32종이라서) 전문(custom)에서는 다시
+            // 5≠32 류 불일치가 재발한다(실측: trend 프리셋에서 buckets 합 10 vs total 32).
+            // MSGraph.indicatorTypes(an.graph) 는 그 그래프에 **실제로 있는** 지표 종수를
+            // 센다 — full 이면 정확히 32(strings.test.mjs 가 이미 이 동치를 검증해 둔
+            // 사실), custom 이면 사용자가 고른 만큼. 두 티어에 같은 계산 하나로 답한다.
+            var graphTypes = (an && an.graph) ? MSGraph.indicatorTypes(an.graph) : [];
+            var revealTotal = graphTypes.length || ForgeCore.indicatorCount;   // graph 가 없으면 방어적으로 카탈로그 값
+            var vm;
+            if (an && an.graph && narratedRows) {
+              var revealIndCtx = MSIndicators.ctxFrom(indInput);
+              // noDirRows()는 트렌드·phasefold를 무조건 2행 돌려준다(draw()의 REASONING/
+              // AGAINST 는 티어 무관하게 "이 둘은 방향을 못 묻는다"는 사실만 말하면 되므로
+              // 그래프 소속을 안 따진다) — 하지만 여기서는 **이 그래프에 실제로 있는 것만**
+              // 세야 한다. 전문 프리셋이 trend/phasefold 를 안 골랐으면 그 행은 세지 않는다
+              // (안 그러면 세지 않은 지표를 "무판정으로 열렸다"고 거짓말하는 것과 같다).
+              var noDir32 = MSIndicators.noDirRows(ForgeCore, indInput, revealIndCtx)
+                .filter(function (r) { return graphTypes.indexOf(r.type) >= 0; });
+              var tally = MSAnalyzeView.tallyOf(narratedRows, MSIndicators.EPS);
+              vm = MSReportModel.verdict({ dir: an.out.verdict.regime, up: tally.up, down: tally.down, flat: tally.flat + noDir32.length });
+            } else {
+              vm = { agree: 0, dissent: 0, noDir: 0 };
+            }
             MSReveal.play({
-              total: ForgeCore.indicatorCount, basic: MSGraph.BASIC.length,
+              total: revealTotal, basic: MSGraph.BASIC.length,
               agree: vm.agree, dissent: vm.dissent, noDir: vm.noDir,
               onDone: function () { if (isCurrent()) draw(); }
             });
