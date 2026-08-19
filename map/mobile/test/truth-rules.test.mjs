@@ -123,11 +123,12 @@ test("R2 — 베이스라인이 없으면 baseline 이 null 이다(화면이 적
 const REPORT = readFileSync(new URL("../www/screens/report.js", import.meta.url), "utf8");
 // P1a Task 3 가 확신%·적중/오답·베이스라인 렌더를 verdict 카드에서 걷어냈다(basic 은 도구가
 // 5개뿐이라 퍼센트를 쓰면 오독된다, 설계서 §3.2) — 그 내용은 report-blocks.js 의
-// PENDING.hitrate 로 P1b(심화 리포트)에 넘어갔다. 지금 report.js 에 적중률 렌더 자체가 없으니
-// "베이스라인 없이 그리지 않는다"는 공허하게 참이다 — 이 시험은 그 공백 동안 ①정말 아무것도
-// 안 그리고 있는지, ②그 사실이 PENDING 에 정직하게 남아 시트가 못 팔게 막는지를 본다.
-// P1b 가 hitrate 를 지으면 이 분기는 다시 걸려야 한다(가드 문자열이 그대로 필요).
-test("R2 — 화면이 적중률을 그린다면 반드시 베이스라인과 함께다(지금은 PENDING.hitrate 라 안 그린다)", () => {
+// PENDING.hitrate 로 P1b(심화 리포트)에 넘어갔었다. [2026-08-19, P1b Task 5·6] hitrate 가
+// 이제 buildHitrate() 로 실제로 그려지고 PENDING 도 비었다 — 아래 hasHitRender 분기가 그
+// 상태를 스스로 감지해 "베이스라인이 적중률보다 먼저" 순서 검사로 넘어간다. 렌더가 없던
+// 시절의 반대쪽 분기(PENDING 에 정직하게 남아 있는지)는 지우지 않는다 — hitrate 가 다시
+// 지워지는 회귀가 나면 이 시험이 여전히 그 상태를 잡아야 한다.
+test("R2 — 화면이 적중률을 그린다면 반드시 베이스라인과 함께다(PENDING 이 비어 이제 실제로 그린다)", () => {
   const hasHitRender = /MSStr\.t\.rpHitRight|hit\.baseline/.test(REPORT);
   if (!hasHitRender) {
     assert.match(REPORT, /hitrate:\s*true/,

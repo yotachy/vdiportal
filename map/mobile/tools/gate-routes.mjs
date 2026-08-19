@@ -632,18 +632,14 @@ export const ROUTES = [
         "var unlock=document.querySelector('.rp-unlock');" +
         "if(!unlock) return false;" +                                     // 해제 블록 자체는 항상 있다(직전 사고 재발 방지)
         "var ad=unlock.querySelector('.rp-cta-ad'), scoop=unlock.querySelector('.rp-cta-scoop');" +
-        // [리뷰 C1, 2026-08-18] 오늘은 report-blocks.js 의 PENDING(sentence·forecast·hitrate·
-        // compare) 때문에 tierBuyable('full')·tierBuyable('custom') 이 둘 다 false 다 —
-        // buildCta() 가 그 상태에서 광고·스쿱 버튼을 아예 안 그린다(살 수 없는 것을 파는
-        // 거짓 문구를 없앤 것이 이번 수정이다). 그래서 오늘의 정답은 "둘 다 없다"이고,
-        // 이 단언은 실제로 오늘 실행돼 통과한다 — 이전엔 여기서 존재+순서를 무조건
-        // 요구해 거짓 문구를 관문이 고정하고 있었다.
-        "if(ad||scoop) return false;" +
-        // P1b 가 PENDING 을 비워 buyable 이 true 로 바뀌면 위 줄이 실패로 돌아선다 — 그때
-        // 아래 순서 단언(광고가 스쿱보다 먼저, 옛 코드)을 이 자리에 되살릴 것:
-        //   if (!ad || !scoop) return false;
-        //   var kids = Array.prototype.slice.call(unlock.children);
-        //   if (kids.indexOf(ad) > kids.indexOf(scoop)) return false;   // 광고가 스쿱보다 먼저(DOM 순서)
+        // [리뷰 C1, 2026-08-18 → 2026-08-19 P1b Task 6 이 되살림] PENDING 이 이제 비어
+        // tierBuyable('full')·tierBuyable('custom') 이 둘 다 true 다 — buildCta() 가 다시
+        // 광고·스쿱 버튼을 그린다. 예고했던 옛 순서 단언(광고가 스쿱보다 DOM 순서상 먼저)을
+        // 되살린다 — report-basic.test.mjs 의 같은 이름의 노드 시험과 같은 사실을 브라우저로
+        // 한 번 더 잰다.
+        "if(!ad||!scoop) return false;" +
+        "var kids=Array.prototype.slice.call(unlock.children);" +
+        "if(kids.indexOf(ad)>kids.indexOf(scoop)) return false;" +   // 광고가 스쿱보다 먼저(DOM 순서)
         "var rt=document.querySelector('.rp-readtools');" +
         "if(!rt||rt.children.length!==0) return false;" +                  // 읽은 도구 = 접힌 한 줄
         // P1a Task 4 D1(리뷰 2026-08-19) — 3단 대조가 이제 모집단 지표라 종목·드리프트와
@@ -715,75 +711,97 @@ export const ROUTES = [
   // 2026-08-18 리뷰(Critical): 기본만 여는 관문이 "심화·전문이 8/9개 중 3~4개만 그린다"는
   // 사고를 놓쳤다 — report-blocks.test.mjs(정적 분석)가 그 구조적 원인은 잡지만, 실제 브라우저
   // DOM 이 맞는 상태를 보여주는지는 노드 테스트가 못 본다(이 관문이 존재하는 이유 자체가 그
-  // 사각지대다). 지금은 report-blocks.js 의 PENDING(sentence·forecast·hitrate·compare)이
-  // full·custom 을 둘 다 못 팔게 잠가서(tier-sheet.js locked) 분석 화면 자체를 열 수 없다.
+  // 사각지대다).
   //
-  // 최종 리뷰 수정(C1, 2026-08-18) — 이 라우트는 원래 `.rp-cta-scoop` 를 **클릭해** 잠긴
-  // 시트를 열고 그 안의 자물쇠·문구를 쟀다. 그런데 buildCta() 가 buyable 여부와 무관하게
-  // 항상 광고·스쿱 버튼을 그리고 있었던 것 자체가 이번에 잡힌 결함이다(살 수 없는 것을
-  // 판다) — 그 버튼을 클릭해 여는 시트를 검증하는 라우트가 결함을 정상 동작인 양 고정하고
-  // 있었던 셈이다. buildCta() 는 이제 tierBuyable('full')·tierBuyable('custom') 이 둘 다
-  // false 면 광고·스쿱 버튼을 아예 안 그리므로(report.js buildCta·strings.js rpUnlockSoon),
-  // `.rp-cta-scoop` 자체가 더는 존재하지 않는다 — 클릭할 게 없다. 그래서 이 라우트가 재는
-  // 것은 "잠긴 시트가 정직한가"가 아니라 "잠긴 CTA 가 정직한가"(광고=주의력·스쿱 어느
-  // 화폐로도 살 수 없는 것을 안 판다)로 바뀐다. 시트 내부(picked===null, 다음 행동 버튼)는
-  // tier-sheet.test.mjs 가 노드에서 잰다 — 이 상태는 지금 이 CTA 게이팅과 항상 같이 움직여
-  // (buildCta 와 buildComb 모두 같은 tierBuyable 을 본다) 실제 UI 로는 열리지 않는다.
-  // PENDING 이 비면(P1b 완료) CTA 가 다시 버튼을 그리므로, 이 라우트도 그때 click+시트
-  // 검증 형태로 되돌려야 한다 — report-blocks.test.mjs 의 "PENDING 이 비어있지 않은 티어가
-  // 실제로 있다" 단언이 그 시점을 알려준다. 옛 시트 검증 단언(참고용, 되돌릴 때 쓸 것):
-  //   var full=document.querySelector('.sheet-tier.tier-full');
-  //   var custom=document.querySelector('.sheet-tier.tier-custom');
-  //   if(!full||!custom) return false;
-  //   if(!full.classList.contains('is-locked')||!custom.classList.contains('is-locked')) return false;
-  //   if(!full.querySelector('.sheet-tier-locked svg')||!custom.querySelector('.sheet-tier-locked svg')) return false;
-  //   if(full.querySelector('.sheet-tier-price')||custom.querySelector('.sheet-tier-price')) return false;
-  //   var run=document.querySelector('.sheet-run');
-  //   if(!run||!run.disabled) return false;
-  { name: "report-locked-tiers", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 1400,
+  // [2026-08-19, P1b Task 6 이 되살림] report-blocks.js 의 PENDING(sentence·forecast·
+  // hitrate·compare) 이 이제 비어 tierBuyable('full')·tierBuyable('custom') 이 둘 다 true 다
+  // — buildCta() 가 다시 광고·스쿱 버튼을 그린다. 이름은 "-locked-tiers" 그대로 남겼다(이
+  // 라우트가 이어 온 계보를 git 이력·문서 교차참조에서 찾기 쉽게) — 지금 재는 것은 "잠긴
+  // 시트"가 아니라 그 **반대**(살 수 있게 된 시트가 정직하게 그 상태를 보여주는가)다.
+  // `.rp-cta-scoop` 를 클릭해 시트를 열고, 두 티어 다 `.is-locked` 가 아니고 자물쇠 아이콘이
+  // 없고 가격이 있고 Run 버튼이 활성인지를 잰다 — C1 커밋(2026-08-18)이 지우기 전 옛 단언과
+  // 같은 필드를 보되 극성만 뒤집었다(잠김→구매가능). 그 옛 단언은 report-basic.test.mjs 의
+  // 노드 시험이 이미 되살렸다(광고가 스쿱보다 DOM 순서상 먼저·버튼 존재) — 여기서는 그
+  // 클릭이 실제 시트를 여는지까지 브라우저로 한 번 더 잰다.
+  { name: "report-locked-tiers", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 2600,
+    scripts: [
+      { at: 300, code:
+        "var iv=setInterval(function(){" +
+          "var cta=document.querySelector('.rp-cta-scoop');" +
+          "if(cta){clearInterval(iv); cta.click();}" +
+        "}, 100);"
+      }
+    ],
     assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
       "(function(){" +
-        "var unlock=document.querySelector('.rp-unlock');" +
-        "if(!unlock) return false;" +
-        "if(unlock.querySelector('.rp-cta-ad')||unlock.querySelector('.rp-cta-scoop')) return false;" +  // 어느 화폐로도 안 판다
-        "if(unlock.textContent.indexOf(MSStr.t.rpUnlockSoon)<0) return false;" +   // 정직한 문구로 대체됐다
+        "var full=document.querySelector('.sheet-tier.tier-full');" +
+        "var custom=document.querySelector('.sheet-tier.tier-custom');" +
+        "if(!full||!custom) return false;" +                                              // 시트가 실제로 열렸다
+        "if(full.classList.contains('is-locked')||custom.classList.contains('is-locked')) return false;" +
+        "if(full.querySelector('.sheet-tier-locked')||custom.querySelector('.sheet-tier-locked')) return false;" +
+        "if(!full.querySelector('.sheet-tier-price')||!custom.querySelector('.sheet-tier-price')) return false;" +
+        "var run=document.querySelector('.sheet-run');" +
+        "if(!run||run.disabled) return false;" +                                          // 구매 가능 상태에선 Run 이 살아 있다
         "var note=document.querySelector('.rp-comb-note');" +
-        "if(!note) return false;" +
-        "if(note.textContent.indexOf(MSStr.t.rpCombNoteAd)>=0) return false;" +    // "광고 1편으로 전부 열림" 약속을 안 단다
+        "if(!note||note.textContent.indexOf(MSStr.t.rpCombNoteAd)<0) return false;" +      // "광고 1편으로 전부 열림" 약속이 이제 있다
         "return true;" +
       "})()" },
-  // P1b Task 1(PROGRESS.md:109 "위험도 상승") — report.js 의 구매 흐름(spend → 19a 진행
-  // 중계 → 8b 해제 전환 3초 고정 → draw())을 태우는 라우트가 하나도 없었다.
+  // P1b Task 1(PROGRESS.md:109 "위험도 상승")이 연 자리 — report.js 의 구매 흐름(spend →
+  // 19a 진행 중계 → 8b 해제 전환 3초 고정 → draw())을 태우는 라우트가 하나도 없었다.
   // progress-analyze-raf-live 는 MSAnalyzeView.play() 를 **합성 stepper 로 직접** 부른다 —
-  // report.js:1161(runTier)이 실제로 넘기는, readingStepper(analyzeX 실호출)로 만든 stepper와는
-  // 다른 호출이다. progress-reveal.js 는 report.js:1153(revealThenDraw) 가 **유일한 호출자**인데
-  // 그 경로는 어디서도 안 태워졌다.
+  // runTier() 가 실제로 넘기는, readingStepper(analyzeX 실호출)로 만든 stepper와는 다른
+  // 호출이다. progress-reveal.js 는 revealThenDraw() 가 **유일한 호출자**인데 그 경로는
+  // Task 1~5 동안 PENDING 이 잠가서 브라우저로는 어디서도 안 태워졌다.
   //
-  // 지금은 그 실제 시퀀스를 태울 수 없다 — report.js 의 PENDING(sentence·forecast·hitrate·
-  // compare, 위 report 라우트 주석 참고)이 안 비어 있어 tierBuyable('full')·tierBuyable('custom')
-  // 이 둘 다 false 다. buildCta() 가 그 상태에선 광고·스쿱 버튼(.rp-cta-ad/.rp-cta-scoop)을
-  // 아예 안 그리므로 클릭할 CTA 자체가 없고, runTier()/purchaseRun() 는 report.js 모듈
-  // 스코프 클로저라(window.MSReport = { render } 뿐, 위 grep 으로 확인) 외부에서 직접 부를
-  // 수도 없다 — 우회로가 없다.
+  // [2026-08-19, P1b Task 6] PENDING 이 비어 이 시퀀스를 이제 실제로 태운다 — 구매(spend)→
+  // 로드(3주기)→분석(19a)→해제(8b)→draw() 전체다. `.an-scrim`/`.rv-scrim` 을 폴링으로 찾아
+  // 클릭해 두 재생을 **탭하면 즉시 완료**(양쪽 공통 규칙, progress-analyze.js·progress-
+  // reveal.js 주석)로 드레인한다 — onboarding-analysis 라우트가 이미 쓰는 것과 같은 기법
+  // (위 참고): 헤드리스 크로미움에서 rAF 가 실 벽시계 속도로만 돈다는 게 실측돼 있어(그
+  // 라우트의 실증 코멘트), 고정 delay 하나로 재생이 끝나길 도박하면 이 라우트가 실행마다
+  // 다르게 걸린다 — 3회 반복 요구(브리프)가 그 flakiness 를 바로 드러낼 자리다. 드레인은
+  // 연출을 건너뛰는 게 아니라 **실사용자에게도 있는 탭 종료 버튼**을 그대로 쓰는 것이라
+  // 19a·8b 의 실제 코드 경로(finish()·close()·onDone 체인)를 그대로 지나간다.
   //
-  // **아직 안 잰 것**: 실제 spend→로드→분석(19a)→해제(8b)→draw() 시퀀스와 그 안에서 나는
-  // 늦은 오류(이번 Task 1 수정이 비로소 잡게 된 바로 그 종류 — .an-scrim/.rv-scrim 재생
-  // 도중 스냅샷 이후 터지는 오류). Task 6(PENDING 비우기)이 CTA 를 되살리면 이 라우트를
-  // click:'.rp-cta-scoop' 로 확장해 실제 시퀀스를 태운다 — 그때 여기 delay·assert 를 다시 쓴다.
-  // **지금 재는 것**: 잠긴 CTA 가 정직한가(report-locked-tiers 와 같은 질문을 다른 지점에서
-  // 재확인) + MSAnalyzeView·MSReveal 두 모듈이 이 화면 로드 경로에 실제로 전역 등록됐는가
-  // (index.html 로드 순서가 깨지면 report.js 가 나중에 이 모듈을 못 찾는다 — 타입만이라도
-  // 지금 잠가 둔다) + **delay 를 6000ms 로 길게 잡아** 이 화면에서 늦게 터지는 오류를 넓은
-  // 창으로 잡는다(왜 6000 인가: Task 6 이 붙일 실제 구매 시퀀스 = 19a 진행 중계 + 8b 고정
-  // 3초 + draw() 여유를 지금부터 미리 담아 둔다 — Task 6 이 click 을 붙이는 순간 delay 를
-  // 다시 늘리는 왕복을 피한다. 지금은 잠금 상태라 이 여유가 실제로는 안 쓰인다).
-  { name: "report-purchase", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 6000,
+  // delay=8000 의 근거: go(400) + CTA 폴링·클릭(최대 수백ms) + 시트 렌더(잔량 조회 왕복,
+  // localhost 라 수십ms) + Run 클릭 + spend POST(mock, 즉시) + 3주기 OHLC 로드(mock, 즉시)
+  // + 19a/8b 드레인(폴링 100ms 간격, 보통 한두 tick) + draw()(차트 캔버스 작도, 동기)를 다
+  // 합쳐도 2~3초면 끝나는 게 보통이지만, 이 라우트가 **처음** 이 시퀀스를 태우는 자리라
+  // 실측 여유를 넉넉히 둔다(기존 report-purchase 자리에 미리 담아 둔 6000 보다 2000 더).
+  { name: "report-purchase", seed: { ...ON, ms_preds: PREDS }, go: '"report",{sym:"AAPL"}', delay: 8000,
+    scripts: [
+      { at: 300, code:
+        "var ctaClicked=false, runClicked=false, drained=false;" +
+        "var iv=setInterval(function(){" +
+          "if(!ctaClicked){" +
+            "var cta=document.querySelector('.rp-cta-scoop');" +
+            "if(cta){ctaClicked=true; cta.click();}" +
+            "return;" +
+          "}" +
+          "if(!runClicked){" +
+            "var run=document.querySelector('.sheet-run');" +
+            "if(run&&!run.disabled){runClicked=true; run.click();}" +
+            "return;" +
+          "}" +
+          "if(!drained){" +
+            "var a=document.querySelector('.an-scrim');" +
+            "if(a)a.click();" +                          // 19a 드레인 — 남은 지표를 동기로 마저 읽는다
+            "var r=document.querySelector('.rv-scrim');" +
+            "if(r){r.click(); drained=true; clearInterval(iv);}" +   // 8b 는 19a onDone 뒤 같은 tick 에 이미 DOM 에 있다
+          "}" +
+        "}, 100);"
+      }
+    ],
     assert: "MSApp.current().route === 'report' && !!document.querySelector('[data-screen=\"report\"]') && " +
       "(function(){" +
-        "var unlock=document.querySelector('.rp-unlock');" +
-        "if(!unlock) return false;" +
-        "if(unlock.querySelector('.rp-cta-ad')||unlock.querySelector('.rp-cta-scoop')) return false;" +
-        "if(unlock.textContent.indexOf(MSStr.t.rpUnlockSoon)<0) return false;" +
+        "var tierBadge=document.querySelector('.rp-tier.is-full');" +
+        "if(!tierBadge) return false;" +                                    // 구매가 실제로 반영돼 심화로 전환됐다
+        "var ids=['sentence','forecast','chart','dissent','horizons','hitrate','readings','compare'];" +
+        "for(var i=0;i<ids.length;i++){" +
+          "if(!document.querySelector('[data-block=\"'+ids[i]+'\"]')) return false;" +   // 8블록이 실제로 다 그려졌다
+        "}" +
+        "if(document.querySelector('.rp-cta-ad')||document.querySelector('.rp-cta-scoop')) return false;" +  // 이미 산 뒤엔 해제 CTA 가 없다
+        "if(document.querySelector('.an-scrim')||document.querySelector('.rv-scrim')) return false;" +       // 재생 오버레이가 안 남아 있다
         "if(typeof MSAnalyzeView==='undefined'||typeof MSReveal==='undefined') return false;" +
         "return true;" +
       "})()" },

@@ -143,8 +143,12 @@
 .rp-sec-note { font-size:var(--fs-caption); color:var(--ink-5); font-variant-numeric:tabular-nums; white-space:nowrap; }
 /* 기본분석의 범위 고지(시안 18a). 각주가 아니라 이 티어가 무엇을 답하고 무엇을 안 답하는지의
    선언이라, 캡션이 아니라 보조 크기로 그린다. */
-/* 직전 기본분석 대조 행(8a) — 지금 값 위에 회색으로. 좌측 세로 라인 금지 규칙에 따라
-   구분은 색과 위치로만 한다. */
+/* "compare" 블록(8a 직전 상태 대조, P1b Task 6) — 독립 카드다(horizons 안에 더 이상 안 낀다,
+   report.js buildPrevCompare() 참고). rp-compare-lead 가 "넓어졌다"는 사실을 숫자보다 먼저
+   말한다(실측 근거는 buildPrevCompare() 주석) — 반대 의견(rp-against)과 같은 "불리한 것부터"
+   태도라 같은 색 무게(ink-3)를 쓴다. 좌측 세로 라인 금지 규칙에 따라 구분은 색과 위치로만. */
+.rp-compare { padding:2px 0 22px; border-bottom:1px solid var(--hairline); margin-bottom:22px; }
+.rp-compare-lead { font-size:var(--fs-sub); color:var(--ink-3); line-height:1.5; }
 .rp-hz-prev { display:flex; align-items:baseline; gap:8px; padding:8px 0 10px; color:var(--ink-5);
               font-size:var(--fs-sub); font-variant-numeric:tabular-nums; }
 .rp-hz-prev-k { flex:0 0 auto; }
@@ -303,12 +307,6 @@ body:not(.ms-dual) .rp-scr { display:flex; flex-direction:column; min-height:cal
 .rs-actions { display:flex; flex-direction:column; gap:8px; margin:20px 0 12px; }
 .rs-disc { font-size:var(--fs-caption); color:var(--ink-5); line-height:1.6; }
 
-/* 지난 판정 되돌아보기(시안 21a) — 오늘 값과 착각하지 않도록 흐리게 두고 기준일을 함께 적는다.
-   좌측 세로 컬러 라인 금지 규칙에 따라 구분은 배경·투명도로만 한다. */
-.rp-last { margin:10px 0 16px; padding:12px 14px; border-radius:12px; background:var(--surface); opacity:.82; }
-.rp-last-row { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-top:6px; }
-.rp-last-v { font-size:var(--fs-body); font-variant-numeric:tabular-nums; color:var(--ink-2); }
-.rp-last-r { font-size:var(--fs-caption); color:var(--ink-4); font-variant-numeric:tabular-nums; }
-.rp-last-r.is-hit { color:var(--bull); }
-.rp-last-more { margin-top:8px; min-height:44px; padding:0; background:none; border:0; color:var(--action); font:inherit; font-size:var(--fs-caption); }
-.rp-last-free { margin-top:4px; font-size:var(--fs-caption); color:var(--ink-5); }
+/* "지난 판정 되돌아보기"(시안 21a) .rp-last* 는 P1b Task 6 이 지웠다 — buildLast() 가
+   report-blocks.js 의 어느 티어에도 안 물려 프로덕션 죽은 코드였다(판정 근거는
+   screens/report.js 의 삭제 지점 주석). record·result 화면이 같은 기능을 이미 전담한다. */

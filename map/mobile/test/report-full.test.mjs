@@ -1,20 +1,23 @@
-// 심화(full) 티어 리포트 — 실제 조립을 잰다(report-basic.test.mjs 와 같은 태도: index.html 이
-// 선언한 순서 그대로 전체 앱을 vm 에 태우고, MSReport.render() 를 실제로 불러 나온 DOM 을
-// 검사한다). basic 과 다른 점 하나: report-blocks.js 의 PENDING(sentence·forecast·hitrate·
-// compare) 이 아직 안 비어서(Task 6 전까지 그대로 둔다, map/CLAUDE.md·브리프 지시) full·custom
-// 은 tierBuyable() 이 거짓이고, buildCta() 가 광고·스쿱 버튼을 아예 안 그린다 — 그래서
-// **브라우저(클릭) 경로로는 이 화면에 도달할 수 없다**(gate-routes.mjs report-purchase 라우트
-// 주석이 같은 상태를 확인해 준다: "runTier()/purchaseRun() 는 report.js 모듈 스코프 클로저라
-// 외부에서 직접 부를 수도 없다 — 우회로가 없다").
+// 심화(full)·전문(custom) 티어 리포트 — 실제 조립을 잰다(report-basic.test.mjs 와 같은 태도:
+// index.html 이 선언한 순서 그대로 전체 앱을 vm 에 태우고, MSReport.render() 를 실제로 불러
+// 나온 DOM 을 검사한다).
 //
-// 그래서 이 시험은 다른 우회를 쓴다 — **report.js 자신이 이미 하는 일**을 그대로 이용한다.
-// render() 맨 끝(report.js:1578)은 "이 세션에서 이미 산 것"(purchases[sym|"full"].an)이
-// 있으면 로드·구매 절차 없이 바로 tier="full" 로 draw() 한다(재진입 시 재과금하지 않기
-// 위한 실제 프로덕션 경로 — 우리가 지어낸 우회가 아니다). purchases·analyzeFull 은 report.js
-// 모듈 스코프 클로저라 밖에서 안 보이므로, installTestHooks() 가 vm 에 태우는 소스 "사본"
-// 에만(디스크의 실 파일은 그대로) render() 진입부 바로 앞에 한 줄을 심어 그 둘을 꺼내 쓴다.
-// analyzeFull() 은 report.js 실물 함수이므로 계산을 다시 구현하지 않는다 — analyzeFull() 이
-// 낸 an 을 그대로 구매 레코드에 심을 뿐이다.
+// [2026-08-19, P1b Task 6 갱신] PENDING(sentence·forecast·hitrate·compare) 이 이제 비었다 —
+// tierBuyable('full')·tierBuyable('custom') 이 둘 다 true 라 buildCta() 가 광고·스쿱 버튼을
+// 그린다. `.rp-cta-scoop` 를 클릭하는 **브라우저 경로도 이제 열려 있다**(gate-routes.mjs
+// report-purchase 라우트가 그 시퀀스를 태운다) — 그래도 이 파일은 여전히 아래 우회를 쓴다:
+// 노드 단일 프로세스에서 초 단위 재생(19a·8b)을 매 시험 기다리는 것보다, report.js 자신이
+// 이미 제공하는 "이미 산 것" 지름길로 render() 를 직접 겨냥하는 편이 빠르고 결정적이다 —
+// 재생 자체가 실제로 도는지는 브라우저 관문(report-purchase) 몫으로 남긴다(역할 분담이지
+// 이 파일이 못 가서가 아니다).
+//
+// render() 맨 끝(report.js — "이 세션에서 이미 산 것" 분기)은 purchases[sym|tier].an 이
+// 있으면 로드·구매 절차 없이 바로 그 tier 로 draw() 한다(재진입 시 재과금하지 않기 위한
+// 실제 프로덕션 경로 — 우리가 지어낸 우회가 아니다). purchases·analyzeFull·tierBuyable·
+// basicSnap 은 report.js 모듈 스코프 클로저라 밖에서 안 보이므로, installTestHooks() 가 vm 에
+// 태우는 소스 "사본"에만(디스크의 실 파일은 그대로) render() 진입부 바로 앞에 한 줄을 심어
+// 꺼내 쓴다. analyzeFull() 은 report.js 실물 함수이므로 계산을 다시 구현하지 않는다 —
+// analyzeFull() 이 낸 an 을 그대로 구매 레코드에 심을 뿐이다.
 import { test, before } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -58,13 +61,21 @@ FakeNode.prototype._findAll = function (pred, out) {
   this.children.forEach(c => { if (pred(c)) out.push(c); c._findAll(pred, out); });
   return out;
 };
-FakeNode.prototype.querySelector = function (sel) {
+// data-block(P1b Task 6) 은 클래스가 아니라 속성이다 — `[data-block="x"]` 꼴 셀렉터도 여기서
+// 받아야 "선언한 블록을 전부 그렸는가"(브리프 Step 4)를 이 fake DOM 으로 잴 수 있다. 클래스
+// 셀렉터 쪽 동작은 그대로 두고 속성 셀렉터만 갈라 처리한다 — 둘을 한 정규식으로 합치면
+// 클래스 셀렉터의 기존 단순 구현(진짜 CSS 엔진이 아니다)이 더 읽기 어려워진다.
+function matchPred(sel) {
+  const attrM = String(sel).match(/^\[([\w-]+)=(['"])([^'"]*)\2\]$/);
+  if (attrM) return (c) => c.getAttribute(attrM[1]) === attrM[3];
   const cls = String(sel).replace(/^\./, "");
-  return this._findAll(c => c._hasClass(cls))[0] || null;
+  return (c) => c._hasClass(cls);
+}
+FakeNode.prototype.querySelector = function (sel) {
+  return this._findAll(matchPred(sel))[0] || null;
 };
 FakeNode.prototype.querySelectorAll = function (sel) {
-  const cls = String(sel).replace(/^\./, "");
-  return this._findAll(c => c._hasClass(cls));
+  return this._findAll(matchPred(sel));
 };
 
 function fakeCtx2d() {
@@ -148,12 +159,19 @@ function deepText(node) { return node ? node.textContent : ""; }
 // 건드리지 않는다(git status 로 항상 확인 가능). 앵커는 render() 정의 시작 한 줄, 그 위치가
 // purchases·analyzeFull 둘 다 이미 정의된 뒤라 어느 쪽도 아직 초기화 전인 채로 참조하는
 // 일이 없다.
+//
+// P1b Task 6 이 둘을 더했다: tierBuyable(잠금 해제를 실함수로 직접 잰다, 브리프 Step 4) ·
+// basicSnap(compare 블록의 G1/G2 재료 — 8a 대조는 "직전 기본분석" 스냅샷이 같은 종목·같은
+// 기준일로 이미 있어야만 그려진다. render() 의 "이미 산 것" 지름길은 startLoad()/finishData()
+// 를 안 태우므로 basicSnap 이 절대 저절로 안 채워진다 — 시험이 그 자리를 직접 채워야
+// compare 카드가 실제로 그려지는 경로를 밟는다).
 function installTestHooks(src) {
   const anchor = "function render(root, params) {";
   const at = src.indexOf(anchor);
   assert.ok(at > 0, "render() 앵커를 못 찾았다 — report.js 구조가 바뀌었다");
   return src.slice(0, at) +
-    "window.__TEST_HOOKS__ = { purchases: purchases, analyzeFull: analyzeFull };\n  " +
+    "window.__TEST_HOOKS__ = { purchases: purchases, analyzeFull: analyzeFull, " +
+    "tierBuyable: tierBuyable, basicSnap: basicSnap };\n  " +
     src.slice(at);
 }
 
@@ -185,18 +203,38 @@ before(() => {
 // 바꾼다(tier-compare.test.mjs 의 "ctx.window.MSBacktest 직접 주입" 과 같은 기법). 이 파일의
 // CTX 는 before() 에서 한 번만 만들어 모든 test 가 공유하므로, 되돌리지 않으면 뒤 테스트가
 // 오염된다 — 그래서 항상 finally 로 원래 값을 복원한다.
-function renderFullReport(opts) {
+// P1b Task 6 — renderFullReport() 의 조립 절반(구매 레코드 만들기)을 tier 인자로 뽑아
+// renderCustomReport() 와 공유한다(아래). o.prevBasic 을 주면 basicSnap[sym] 도 같은
+// 기준일로 채운다 — "compare" 블록(8a 대조)은 G1/G2 를 지켜 이 값이 없으면 안 그려지므로,
+// 그 블록이 실제로 그려지는 경로를 잡으려면 이 시험 스스로 그 재료를 심어야 한다(프로덕션의
+// "이미 산 것" 지름길은 finishData()/snapBasic() 을 안 태워 basicSnap 이 저절로 안 찬다).
+function buildPurchase(tier, opts) {
   const o = opts || {};
   const sym = String(o.sym || "AAPL").toUpperCase();
   const drift = o.drift == null ? 0.3 : o.drift;   // report-basic 실측: +0.3 은 결정적으로 bull
   const data = fakeData(drift, o.name || "Apple", o.base);
-  const an = CTX.__TEST_HOOKS__.analyzeFull(data, true, "1day", null);
+  // custom 은 weights 가 truthy 여야 buildWeights() 가 그려진다(myWeights 없으면 조절판
+  // 카드는 "가중치를 조절한 적 없다"가 아니라 애초에 안 그려진다 — report.js buildWeights()
+  // 참고). 기본값은 지어낸 임의 숫자가 아니라 실 프리셋(MSIndTiers.weightsOf, 온보딩이 미리
+  // 고르는 첫 프리셋 "추세 추종"과 같은 값)이다 — §3.7 "아무것도 안 만져도 실행 가능해야
+  // 한다"와 같은 기본값 경로를 시험도 탄다.
+  const weights = tier === "custom" ? (o.weights || CTX.MSIndTiers.weightsOf("trend", [])) : null;
+  const an = CTX.__TEST_HOOKS__.analyzeFull(data, true, "1day", weights);
   const runs = ["1day", "1week", "1month"].map(tf => {
-    const a = tf === "1day" ? an : CTX.__TEST_HOOKS__.analyzeFull(data, true, tf, null);
+    const a = tf === "1day" ? an : CTX.__TEST_HOOKS__.analyzeFull(data, true, tf, weights);
     return { tf: tf, out: a.out };
   });
-  CTX.__TEST_HOOKS__.purchases[sym + "|full"] = { data: data, an: an, runs: runs };
+  CTX.__TEST_HOOKS__.purchases[sym + "|" + tier] = { data: data, an: an, runs: runs, weights: weights };
+  if (o.prevBasic) {
+    // asOfOf() 는 String(마지막 봉의 t) 다 — G2(같은 기준일)를 맞추려면 그 규약을 그대로 따른다.
+    const asOf = String(data.candle[data.candle.length - 1].t);
+    CTX.__TEST_HOOKS__.basicSnap[sym] = Object.assign({ asOf: asOf }, o.prevBasic);
+  }
+  return { sym: sym, data: data, an: an };
+}
 
+function renderWithBacktest(sym, opts) {
+  const o = opts || {};
   const hasBT = Object.prototype.hasOwnProperty.call(o, "backtest");
   const prevBT = CTX.window.MSBacktest;
   if (hasBT) CTX.window.MSBacktest = o.backtest;
@@ -207,6 +245,18 @@ function renderFullReport(opts) {
     if (hasBT) CTX.window.MSBacktest = prevBT;
   }
   return root;
+}
+
+function renderFullReport(opts) {
+  const built = buildPurchase("full", opts);
+  return renderWithBacktest(built.sym, opts);
+}
+
+// P1b Task 6 — custom(전문) 티어도 같은 "이미 산 것" 지름길로 그린다. renderFullReport() 를
+// 이미 부르는 기존 시험은 그대로 두고(회귀 없음), 8블록 렌더 증명(브리프 Step 4)이 이 함수를 쓴다.
+function renderCustomReport(opts) {
+  const built = buildPurchase("custom", opts);
+  return renderWithBacktest(built.sym, opts);
 }
 
 test("forecast — 내일 중심값·오차·확신이 모두 있고, 확신은 horizonRows 의 prob 다", () => {
@@ -255,7 +305,7 @@ test("forecast — 판정이 중립(무방향)이면 확신 칸 자체가 없다
 
 test("forecast — 원화 대형주(1000 이상)는 가격이 소수점 없이 천단위 구분으로 찍힌다", () => {
   // MSUi.fmtPrice: 1000 이상이면 반올림 + toLocaleString(). 71096.26 처럼 소수점이 그대로
-  // 남으면 report.js 의 다른 8곳(예: rp-last-v)과 표기가 어긋난다.
+  // 남으면 report.js 의 다른 자리(예: rp-px)와 표기가 어긋난다.
   const dom = renderFullReport({ sym: "KRW1", drift: 30, name: "원화대형주", base: 71000 });
   const box = dom.querySelector(".rp-forecast");
   assert.ok(box, "forecast 블록이 없다");
@@ -392,4 +442,55 @@ test("hitrate — 하락(bear) 판정은 bearHitRate 실측을 그대로 쓴다(
   // bearHitRate(42.5%)는 기준선(61.0%)보다 한참 아래다 — 하락 콜은 구조적으로 절반 아래에서
   // 맞는다(report-model.js:79-82 주석). 적중률이 기준선을 웃도는 조작이 섞이면 이 시험이 죈다.
   assert.ok(bt.bearHitRate < bt.baselineAlwaysUp, "이 표본은 bearHitRate<baseline 전제가 깨졌다");
+});
+
+// ── P1b Task 6 — 잠금 해제 실측(브리프 Step 4) ────────────────────────────────────────
+// PENDING 이 비었으므로 tierBuyable() 이 실제로 두 티어 다 true 를 돌려주는지, "선언한 것을
+// 다 그리는지"를 직접 잰다. 정적 분석(report-blocks.test.mjs)이 소스 텍스트로 같은 사실을
+// 다른 각도에서 잠그는 것과 짝이다 — 여기는 실함수·실 DOM 이다.
+test("잠금 해제 — 심화·전문 둘 다 tierBuyable() 이 true 다(실함수를 직접 부른다)", () => {
+  assert.strictEqual(CTX.__TEST_HOOKS__.tierBuyable("full"), true, "심화가 여전히 잠겨 있다");
+  assert.strictEqual(CTX.__TEST_HOOKS__.tierBuyable("custom"), true, "전문이 여전히 잠겨 있다");
+});
+
+test("선언한 블록을 전부 그린다 — 5스쿱 낸 사용자가 한 줄도 손해 보지 않는다(data-block 실측)", () => {
+  // prevBasic 을 준다 — 안 주면 compare 는 G1 에 걸려 정당하게 null 이 되고, 그러면 이 시험이
+  // "compare 가 원래 안 그려지는 것"과 "선언인데 못 그린 것"을 구분 못 한다.
+  const domFull = renderFullReport({
+    sym: "BLKF", name: "BlockFull", prevBasic: { lo: 150, hi: 154, width: 4 }
+  });
+  CTX.MSReportBlocks.forTier("full").forEach((b) => {
+    assert.ok(domFull.querySelector("[data-block='" + b.id + "']"),
+      "full 티어에서 " + b.id + " 블록이 안 그려졌다");
+  });
+
+  const domCustom = renderCustomReport({
+    sym: "BLKC", name: "BlockCustom", prevBasic: { lo: 150, hi: 154, width: 4 }
+  });
+  CTX.MSReportBlocks.forTier("custom").forEach((b) => {
+    assert.ok(domCustom.querySelector("[data-block='" + b.id + "']"),
+      "custom 티어에서 " + b.id + " 블록이 안 그려졌다");
+  });
+});
+
+// ── compare(8a 직전 상태 대조, 브리프 Step 1·2) ───────────────────────────────────────
+test("compare — G1 재료가 있으면 뜨고, 폭이 넓어졌다는 사실을 숫자보다 먼저 말한다", () => {
+  const dom = renderFullReport({
+    sym: "CMPW", name: "CompareWide", prevBasic: { lo: 150, hi: 154, width: 4 }
+  });
+  const box = dom.querySelector(".rp-compare");
+  assert.ok(box, "compare 블록이 없다 — G1 재료를 심었는데도 안 그려졌다");
+  const txt = deepText(box);
+  assert.ok(txt.trim().length > 0, "compare 블록이 비어 있다 — 부재 시험이 공허하게 통과할 뻔했다");
+  // 실측(최종 리뷰어 독립 28창): 심화가 더 좁은 사례 0.0%, 폭 비율 중앙값 1.78배. 유료
+  // 사용자는 돈을 낸 직후 더 "넓어진" 범위를 본다 — "좁아진다·절반"은 반대 사실이다.
+  assert.doesNotMatch(txt, /좁아|절반/, "실측과 반대되는 문구가 있다: " + txt);
+  assert.match(txt, /넓어졌습니다/, "폭이 넓어졌다는 사실을 먼저 말하지 않는다(설계서 §3.5): " + txt);
+  assert.ok(box.querySelector(".rp-hz-prev"), "직전 기본분석 값 행이 없다");
+});
+
+test("compare — G1 재료(직전 기본분석 스냅샷)가 없으면 카드 자체가 없다(추정치로 채우지 않는다)", () => {
+  const dom = renderFullReport({ sym: "CMPN", name: "CompareNone" });   // prevBasic 없음
+  assert.strictEqual(dom.querySelector(".rp-compare"), null,
+    "재료가 없는데 compare 블록이 떴다 — G1(직전 기본분석 값 없으면 행을 통째로 생략)을 어겼다");
 });

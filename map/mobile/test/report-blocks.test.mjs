@@ -62,19 +62,20 @@ test("선언된 모든 블록은 빌더(BUILD)에 있거나 PENDING 에 있다 �
     "빌더도 PENDING 도 없는 블록(조용히 사라진다): " + orphans.join(", "));
 });
 
-// PENDING 이 있는 티어는 사면 안 된다 — 위 가드가 "선언 vs 빌더" 간극을 드러내는 것과 짝을
-// 이루는 반대쪽 가드다: 간극이 있다는 사실을 아는 것과, 그 간극이 있는 동안 돈을 안 받는 것은
-// 별개 보장이라 둘 다 있어야 한다. tier-sheet.js 가 report.js 의 pendingOf()/tierBuyable() 이
-// 준 locked 를 실제로 반영하는지는 tier-sheet.js 자체를 읽어야 확인되므로, 여기서는 "지금
-// full·custom 에 PENDING 항목이 실제로 있다"(=잠겨야 하는 상태)는 사실 자체를 고정한다 —
-// 이 항목이 전부 비면(=P1b 가 다 채우면) 이 단언은 스스로 무의미해지고, 그때 지워도 된다.
-test("PENDING 이 비어있지 않은 티어가 실제로 있다 — 그 티어는 tier-sheet.js 가 잠가야 한다", () => {
+// P1b Task 6 이 PENDING 을 비웠다 — 위 "PENDING 이 비어있지 않은 티어가 있다" 단언은 자기
+// 예고대로(그 테스트의 옛 주석 마지막 줄) 이제 무의미해져 지웠다. 그 반대쪽 가드로 교체한다:
+// 선언(full·custom)에 PENDING 항목이 하나도 안 남았는지, 즉 report.js 의 tierBuyable()이
+// 실제로 둘 다 true 를 돌려줄 조건이 성립하는지를 잠근다. tierBuyable() 자신은 report.js
+// 모듈 스코프 클로저라 여기서 직접 부를 수 없으므로(이 파일은 report-blocks.js 만 require
+// 한다), 그 함수와 같은 계산(pendingOf(tier).length === 0)을 정적 분석으로 그대로 재현한다
+// — report-full.test.mjs 가 이걸 vm 으로 실행해 한 번 더 잰다(설치된 훅으로 실함수 호출).
+test("잠금 해제 — 심화·전문 둘 다 PENDING 이 없다(tierBuyable() 이 참일 조건)", () => {
   const pendingBlock = REPORT.match(/var PENDING = \{([\s\S]*?)\n  \};/);
+  assert.ok(pendingBlock, "report.js 에서 PENDING 표를 못 찾았다");
   const pendingKeys = [...pendingBlock[1].matchAll(/^\s{4}([a-zA-Z]+)\s*:/gm)].map(m => m[1]);
   ["full", "custom"].forEach(t => {
     const ids = B.forTier(t).map(b => b.id);
     const pending = ids.filter(id => pendingKeys.indexOf(id) >= 0);
-    assert.ok(pending.length > 0, t + " 에 PENDING 블록이 없다 — 이제 구매를 막을 이유가 없다면 " +
-      "tier-sheet.js 의 locked 배선과 이 단언을 함께 정리할 것");
+    assert.deepStrictEqual(pending, [], t + " 에 아직 PENDING 블록이 남아 있다: " + pending.join(", "));
   });
 });

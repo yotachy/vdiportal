@@ -56,21 +56,12 @@
   // "screens/ 에 남은 영어가 없다" 관문이 화면 리터럴을 훑는데, "P1a Task 3"/"P1b" 같은
   // 코드도 라틴 단어로 잡힌다(사용자가 볼 문구가 아닌데도 그 관문은 구분을 못 한다).
   // 그래서 페이즈는 각 줄 주석에 적고, 표 자체는 "이 id 가 아직 없다"는 사실만 담는다.
+  // P1b Task 6 가 네 블록을 전부 지었다 — 이 표는 이제 비어 있고, 그래서 tierBuyable()이
+  // full·custom 둘 다 true 를 돌려준다. CUSTOM = ["weights"].concat(FULL) 이고 weights 는
+  // 애초에 이 표에 없었으므로 전문도 같은 시점에 열린다. compare 는 buildHorizons() 안에
+  // 얹지 않고 독립 카드(BUILD.compare, buildPrevCompare())로 뽑았다 — compare:buildHorizons
+  // 로 이었으면 같은 카드를 두 번 그렸을 것이다(중복). 판정 근거: task-6-report.md.
   var PENDING = {
-    // comb 은 P1a Task 3 이 구현했다(buildComb, 아래 draw() 의 BUILD 표) — 더 이상 PENDING 이
-    // 아니다. basic 은 이제 forTier() 선언 셋(verdict·comb·chart)을 전부 그린다.
-    sentence: true,   // 19b 「한 문장으로」 — P1b(심화 리포트 재작성, 19b·18b)
-    forecast: true,   // "내일 예상 + 확신" — P1b. 확신%·적중/오답·베이스라인 문구는 P1a
-                       // Task 3 이 verdict 카드에서 걷어냈다(basic 은 퍼센트를 안 쓴다, 설계서
-                       // §3.2) — 옛 문구와 그 근거는 이 커밋 이전 strings.js 이력에 있다.
-    hitrate:  true,   // 적중률 단독 블록 — P1b. 위와 같은 이유 — verdict 카드에서 이미
-                       // 분리됐으니 이제 새로 지으면 된다(forecast 와 겹치지 않게 나누는 것은
-                       // 여전히 P1b 의 화면 구조 결정)
-    compare:  true    // 심화 안의 "직전 상태(기본분석 대비)" 대조 — P1b. 내용 자체는 이미
-                       // 있다(buildHorizons() 안의 prevBasic() 블록, 시안이 회색 막대로
-                       // horizons 카드에 얹으라고 한 그대로) — 그래서 compare:buildHorizons
-                       // 로 잇지 않는다. 그러면 horizons 와 compare 가 같은 카드를 두 번
-                       // 그린다(중복). 독립 카드로 뽑아낼지는 P1b 가 정할 화면 구조 문제다
   };
   // 그 티어의 선언 중 아직 못 그리는 id 목록. tier 인자를 받는 이유는 PENDING 이 id→페이즈
   // 표라 티어 무관이고, "이 티어에 지금 파는데 못 그리는 게 있나"는 그 티어 선언과 대조해야
@@ -570,51 +561,14 @@
       basicSnap[sym] = { asOf: asOf, lo: pr.lo[0], hi: pr.hi[0], width: pr.hi[0] - pr.lo[0] };
     }
 
-    // 지난 판정 되돌아보기(시안 21a). 이 종목에서 값을 치른 적이 있고 그것이 **오늘보다
-    // 앞선 기준일**이면, 그때 뭐라고 했는지와 그래서 어떻게 됐는지를 오늘 값 위에 놓는다.
+    // "지난 판정 되돌아보기"(시안 21a) 카드는 여기 없다 — P1b Task 6 이 buildLast()/
+    // `.rp-last-more` 를 지웠다(PROGRESS.md:110·142 가 P1b 판단으로 위임한 항목). 판정:
+    // report-blocks.js 의 어느 티어 선언(BASIC/FULL/CUSTOM)에도 이 id 가 없어 BUILD 표에
+    // 걸려 있어도 draw() 의 forTier() 루프가 절대 부르지 않는 **프로덕션 죽은 코드**였고,
+    // 설계서(§3.2·§3.5)에도 이 블록이 없다 — "설계서에 없으면 지우는 쪽" 규율대로 지운다.
+    // 기능 자체(지난 예측·판정 결과)는 record/result 화면이 이미 전담한다(gate-routes.mjs
+    // record·result 라우트) — 이 화면에 다시 둘 이유가 없다.
     //
-    // 21a 원문은 "그때 그대로이며 다시 계산하지 않았습니다"라고 지난 화면을 통째로 보존하지만,
-    // 우리는 다시 열 때 오늘 데이터로 새로 그린다(서버 entitlement 덕에 재과금은 없다).
-    // 그래서 보존하는 대신 **두 시점을 명시적으로 갈라 보여준다** — 지난 값을 흐리게 두고
-    // 기준일을 함께 적는다. 안 그러면 어제 값과 오늘 값이 같은 화면에서 구분 없이 읽힌다.
-    function buildLast() {
-      if (typeof MSPredLog === "undefined" || !MSStore.getPreds) return null;
-      var today = asOfOf(data);
-      var best = null;
-      MSStore.getPreds().forEach(function (r) {
-        if (!r || r.sym !== sym) return;
-        if (today && r.asOf >= today) return;          // 오늘 것은 "지난" 판정이 아니다
-        if (!best || r.asOf > best.asOf) best = r;
-      });
-      if (!best) return null;
-
-      var w = MSUi.el("div", "rp-last");
-      w.appendChild(MSUi.el("div", "overline", MSStr.t.rpLastHead + best.asOf));
-      var row = MSUi.el("div", "rp-last-row");
-      row.appendChild(MSUi.el("span", "rp-last-v",
-        MSUi.fmtPrice(best.mid) + MSStr.t.rpLastPm + MSUi.fmtPrice((best.hi - best.lo) / 2)));
-      // 판정됐으면 결과를, 아직이면 아직이라고. 없는 결과를 있다고 하지 않는다.
-      if (best.judgedOn) {
-        row.appendChild(MSUi.el("span", "rp-last-r" + (best.hit ? " is-hit" : " is-miss"),
-          MSStr.t.rpLastActual + MSUi.fmtPrice(best.actual) +
-          (best.hit ? MSStr.t.rpLastHit : (MSStr.t.rpLastSep + MSUi.fmtPrice(best.miss) + MSStr.t.rpLastMiss))));
-      } else {
-        row.appendChild(MSUi.el("span", "rp-last-r", MSStr.t.rpLastPending));
-      }
-      w.appendChild(row);
-      if (best.judgedOn) {
-        var more = MSUi.el("button", "rp-last-more", MSStr.t.rpLastMore);
-        more.addEventListener("click", function () {
-          MSStore.markPredSeen(best.sym, best.asOf);
-          MSApp.go("result", { sym: best.sym, asOf: best.asOf });
-        });
-        w.appendChild(more);
-      }
-      // 재열람은 무료다(서버 entitlement). 안 적으면 다시 열기가 과금될까 봐 안 열어본다.
-      w.appendChild(MSUi.el("p", "rp-last-free", MSStr.t.rpLastFree));
-      return w;
-    }
-
     // 오늘 무엇을 말했는지 적어둔다(핸드오프 README §B "5번이 1번을 만든다"). 값을 치른
     // 분석에서만 적는다 — 기본분석은 무료로 아무 때나 열리므로, 그것까지 적으면 기록이
     // "사용자가 산 판정"이 아니라 "화면을 연 횟수"가 된다.
@@ -967,29 +921,10 @@
           MSUi.fmtPrice(pr.lo[capI]) + " – " + MSUi.fmtPrice(pr.hi[capI]) + MSStr.t.rpCone));
       }
       sec.appendChild(head);
-      // 8a 직전 상태 대조 — 심화가 판 것을 화면에서 보이게 하는 유일한 장치다. 티어 실측이
-      // 말하는 것은 "방향을 더 맞힌다"가 아니라 "폭이 정직해진다"인데, 대조 없이 심화 값만
-      // 단독으로 놓으면 사용자는 그 정직해짐을 볼 방법이 없다.
-      // [리뷰 C1/I1, 2026-08-18 정정] 예전 주석은 여기서 "폭이 4.0 에서 ±1.1 로 좁아진다"고
-      // 적었는데, 그 전제가 실측으로 깨졌다 — 최종 리뷰어의 독립 실측(28창)은 **심화가 더
-      // 좁은 사례 0.0%, 폭 비율(심화÷기본) 중앙값 1.78배, 최대 7.09배**였다. 즉 지금 이
-      // 블록이 유료 티어에서 켜지면 사용자는 돈을 낸 직후 직전 무료 범위보다 **넓어진**
-      // 범위를 나란히 보게 된다("좁아진다"는 반대 사실이다) — 설계서 §3.5 정정과 같은
-      // 근거. P1b 가 이 대조를 다시 다듬을 때 확인할 것: 직전 기본 폭과 심화 폭의 대소를
-      // 실데이터로 먼저 재고, 넓어지는 쪽이 정상이면 **화면이 그 사실을 먼저 말해야 한다**
-      // (아래 rp-hz-row 의 반대 의견을 경고문처럼 위에 올리는 것과 같은 태도 — 불리한
-      // 것부터 말한다).
-      // 없으면 그냥 없다(G1) — 회색 자리에 "—" 나 추정치를 채우지 않는다.
-      var prev = prevBasic();
-      if (prev) {
-        var cmp = MSUi.el("div", "rp-hz-prev");
-        cmp.appendChild(MSUi.el("span", "rp-hz-prev-k", MSStr.t.rpPrevBasic));
-        cmp.appendChild(MSUi.el("span", "rp-hz-prev-v",
-          MSUi.fmtPrice(prev.lo) + MSStr.t.rpRangeDash + MSUi.fmtPrice(prev.hi)));
-        cmp.appendChild(MSUi.el("span", "rp-hz-prev-w",
-          MSStr.t.rpWidthA + prev.width.toFixed(1)));
-        sec.appendChild(cmp);
-      }
+      // 8a 직전 상태 대조는 더 이상 여기서 안 그린다 — report-blocks.js 가 "compare" 를
+      // horizons 와 다른 독립 id 로 선언해서(FULL/CUSTOM 둘 다) 이 카드 안에 얹으면 같은
+      // 내용을 두 자리(horizons 의 여기 + BUILD.compare)에서 두 번 그리게 된다. 실제 렌더는
+      // BUILD.compare → buildPrevCompare() 가 한다(그 함수 주석에 실측·판정 근거가 있다).
       // 기본분석은 **내일만** 답한다(시안 18a). 1주·1개월은 심화가 파는 것 중 하나다 —
       // 세 줄을 다 보여주면 3단 비교표의 "기간별"이 무료가 된다.
       if (tier === "basic") rows = rows.slice(0, 1);
@@ -1021,6 +956,37 @@
             MSStr.t.rpHzMixedB));
         }
       }
+      return sec;
+    }
+
+    // "compare" id(report-blocks.js FULL/CUSTOM) — 8a 직전 상태 대조. **독립 카드로 뽑는다**
+    // (P1b Task 6 판정, 근거는 task-6-report.md). buildHorizons() 안에 얹지 않는 이유: 두
+    // 함수가 forTier() 선언에서 서로 다른 id(horizons·compare)라 BUILD 표에서 각자 한 번씩
+    // 불린다 — horizons 안에도 넣으면 draw()의 forEach 루프가 이 내용을 두 자리(horizons
+    // 카드 + compare 카드)에서 두 번 그리게 된다. 이름은 buildCompare() 와 다르게 잡았다
+    // (아래 3단 대조 buildCompare() 와의 혼동 방지 — 그건 basic 전용 크롬, 이건 유료
+    // 티어의 forTier() 선언 블록이라 서로 다른 질문에 답한다).
+    //
+    // 폭 판정(브리프 Step 1) — 최종 리뷰어의 독립 실측(28창): 심화가 기본보다 더 좁은 사례
+    // **0.0%**, 폭 비율(심화÷기본) 중앙값 **1.78배**, 최대 **7.09배**. 유료 사용자는 돈을 낸
+    // 직후 직전 무료 범위보다 **넓어진** 범위를 본다 — "좁아진다"고 쓰면 반대 사실이다
+    // (report-blocks-test.mjs 가 그 반대 문구가 안 섞이는지 잠근다). 그래서 이 카드는 숫자보다
+    // **먼저** 그 사실을 문장으로 말한다(rpCompareWider) — 반대 의견(buildAgainst)을 경고문
+    // 처럼 위에 올리는 것과 같은 태도(설계서 §3.5 "불리한 것부터 말한다").
+    function buildPrevCompare() {
+      var prev = prevBasic();
+      if (!prev) return null;   // G1 — 재료가 없으면 카드 자체가 없다(추정치로 채우지 않는다)
+      var sec = MSUi.el("div", "rp-compare");
+      var head = MSUi.el("div", "rp-sec-head");
+      head.appendChild(MSUi.el("span", "overline", MSStr.t.rpCompareHead));
+      sec.appendChild(head);
+      sec.appendChild(MSUi.el("div", "rp-compare-lead", MSStr.t.rpCompareWider));
+      var cmp = MSUi.el("div", "rp-hz-prev");
+      cmp.appendChild(MSUi.el("span", "rp-hz-prev-k", MSStr.t.rpPrevBasic));
+      cmp.appendChild(MSUi.el("span", "rp-hz-prev-v",
+        MSUi.fmtPrice(prev.lo) + MSStr.t.rpRangeDash + MSUi.fmtPrice(prev.hi)));
+      cmp.appendChild(MSUi.el("span", "rp-hz-prev-w", MSStr.t.rpWidthA + prev.width.toFixed(1)));
+      sec.appendChild(cmp);
       return sec;
     }
 
@@ -1594,7 +1560,6 @@
         // null 을 돌려주는 블록은 그 자리에서 사라진다(예전 `if (hz)` 들과 같은 동작).
         var BUILD = {
           price:     function () { return buildPrice(); },
-          last:      function () { return buildLast(); },
           verdict:   function () { return buildVerdict(); },
           sentence:  function () { return buildSentence(); },
           forecast:  function () { return buildForecast(); },
@@ -1615,17 +1580,29 @@
           // 18a 의 의도된 빈 공간 — "여기까지가 무료"를 스크롤 부재로 전달한다. 버그가 아니다.
           spacer:    function () { return MSUi.el("div", "rp-spacer"); },
           unlock:    function () { return buildCta(); },
-          weights:   function () { return buildWeights(); }
+          weights:   function () { return buildWeights(); },
+          // P1b Task 6 이 채웠다 — 이 자리가 비어 있어(BUILD 에도 PENDING 에도 없어) "compare"
+          // 가 report-blocks.js 의 FULL/CUSTOM 선언에 있는데도 조용히 안 그려지고 있었다
+          // (앞 태스크 리뷰가 report.js:1031-1032 로 지목한 결함 — 이 파일이 자라며 줄번호는
+          // 옮겨갔지만 문제는 그대로였다). buildPrevCompare() 는 위 buildHorizons() 근처에
+          // 있다(3단 대조 buildCompare() 와 이름·역할이 다르다, 그 함수 헤더 주석 참고).
+          compare:   function () { return buildPrevCompare(); }
         };
         // report-blocks.js 가 orderOf(문자열 배열)에서 forTier({id,kind} 배열)로 개명됐다
         // (P1a Task 2) — 화면 조립은 그대로, id 만 꺼내 쓴다. PENDING(모듈 스코프, 위)에 있는
         // id 는 조용히 건너뛴다(if (!fn) return) — 화면 구조 자체는 Task 3(기본)·P1b(심화)·
         // P1c(전문) 소관이라 이번엔 안 넓혔다.
+        //
+        // data-block 속성(P1b Task 6) — "선언한 것을 다 그렸는가"를 클래스명이 아니라 이
+        // 속성으로 구조적으로 물을 수 있게 한다(브리프 Step 4). forTier() 가 낸 id 를 그대로
+        // 붙인다 — 블록마다 다시 정하지 않으므로 선언과 어긋날 수가 없다.
         MSReportBlocks.forTier(tier).forEach(function (b) {
           var fn = BUILD[b.id];
           if (!fn) return;
           var node = fn();
-          if (node) scr.appendChild(node);
+          if (!node) return;
+          node.setAttribute("data-block", b.id);
+          scr.appendChild(node);
         });
         // "내일은 어디쯤 · 3단 대조"(설계서 §3.2 항목4) — 이것도 CTA 와 같은 크롬이다.
         // report-blocks.js 에는 애초에 이 둘의 id 가 없다(정보 블록 3개에 안 낀다) — 그래서

@@ -49,6 +49,13 @@
     var left = MSUi.el("div", "sheet-tier-id");
     var nameRow = MSUi.el("div", "sheet-tier-name");
     nameRow.appendChild(MSUi.el("span", "sheet-tier-name-txt", name));
+    // "가장 많이 씀" 배지 노출 조건(P1b Task 6 재검토, PROGRESS.md:76 이 후보로 남겨둔 것) —
+    // 판정: 그대로 둔다. `!o.locked` 게이팅은 PENDING 이 비어 있던 예전엔 "잠긴 티어에 인기
+    // 배지를 다는 모순"을 막는 안전장치였고, PENDING 이 빈 지금은 full 이 항상 buyable 이라
+    // 이 조건이 그냥 상시 참으로 자연히 정착한다 — 코드를 안 건드려도 배지가 정상적으로
+    // 뜬다. 그리고 애초에 이 배지는 실사용 통계 주장(잔량·표본처럼 뒷받침이 필요한 숫자)이
+    // 아니라 "추천 플랜"류의 정적 UX 관용구다(가격표에서 흔한 패턴) — 정직성 규율이 겨냥하는
+    // 대상(과장된 숫자)과 범주가 다르다.
     if (o.popular && !o.locked) nameRow.appendChild(MSUi.el("span", "sheet-pop", MSStr.t.tsPopular));
     left.appendChild(nameRow);
     left.appendChild(MSUi.el("div", "sheet-tier-desc", desc));
