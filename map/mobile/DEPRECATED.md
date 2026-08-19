@@ -17,7 +17,7 @@
 
 | 경로 | 무엇 |
 |---|---|
-| `docs/design_handoff/` | **시안 원본**(화면별 HTML·동선·여정·프로토타입) |
+| `docs/design_handoff/` | 1차 시안. **이력 보관용일 뿐 참조 대상이 아니다**(2026-08-19 — 2차 시안과 나란히 두면 혼란). 읽을 이유가 생기면 그때 판단 |
 | `docs/DESIGN-BRIEF*.md` · `DESIGN-INVENTORY.md` · `design-audit.md` | 시안 제작용 분해도·감사 |
 | `docs/phase0-measurements.md` · `ANDROID-BUILD.md` | 실측 기록·빌드 절차(사실 자산) |
 | `docs/rebuild/PROGRESS.md` · `BACKLOG-mobile.md` | 중단 시점 기록(이력) |
