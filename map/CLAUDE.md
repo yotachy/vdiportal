@@ -5,7 +5,7 @@
 | 도구 | 파일 | 비고 |
 |---|---|---|
 | **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js`(+`forge-api.php`) | 노드 전략보드 + 라이브 차트 통합 분석 도구. **분석 엔진의 관리·개선·검증이 이뤄지는 곳**(사용자 서비스가 아니다 — 아래 §⓪) |
-| **머니스쿱 모바일 (MoneyScoop)** ★ | **`mobile/`** 폴더 일습(`www/`·`test/`·`android/`·`sync-engine.mjs`) | 스쿱포지 **엔진을 공유하는** 하이브리드 앱(Capacitor). **사용자 서비스의 중심**(아래 §⓪) — UI·배포는 PC와 별개, 엔진·분석 결과·정보 수준은 PC와 같아야 한다. 백로그 [`mobile/docs/BACKLOG-mobile.md`](mobile/docs/BACKLOG-mobile.md) · 개편 원장 [`mobile/docs/rebuild/PROGRESS.md`](mobile/docs/rebuild/PROGRESS.md) · 실측 [`mobile/docs/phase0-measurements.md`](mobile/docs/phase0-measurements.md) |
+| **머니스쿱 모바일 (MoneyScoop)** 🛑 **개발 중단(2026-08-19)** | **`mobile/`** 폴더 일습(`www/`·`test/`·`android/`·`sync-engine.mjs`) | 스쿱포지 **엔진을 공유하는** 하이브리드 앱(Capacitor). **사용자 서비스의 중심**(아래 §⓪) — UI·배포는 PC와 별개, 엔진·분석 결과·정보 수준은 PC와 같아야 한다. 백로그 [`mobile/docs/BACKLOG-mobile.md`](mobile/docs/BACKLOG-mobile.md) · 개편 원장 [`mobile/docs/rebuild/PROGRESS.md`](mobile/docs/rebuild/PROGRESS.md) · 실측 [`mobile/docs/phase0-measurements.md`](mobile/docs/phase0-measurements.md) |
 | **스쿱보드 (Scoop Board)** | `map.html`(+`api.php`) | 자유 캔버스 노드 다이어그램 빌더 |
 | **PotFlow** | **`potflow/`** 폴더 일습(`potflow.html`·`potflow-helper.py`·config·bat·썸네일) | 로컬 동영상 노드 재생 관리(PotPlayer). map.html 파생·로컬 헬퍼(Python) 전용. **상위 개발프로젝트와 완전 독립 트랙**(아래 주의). **2026-07-19 `map/potflow/`로 폴더 격리** — forge·map과 파일/배포 경로 불간섭(배포=`www/map/potflow/`). 헬퍼가 자기 위치(`ROOT`) 기준이라 이동에 경로 수정 불필요. 상세는 [`POTFLOW.md`](POTFLOW.md) |
 
