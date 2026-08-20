@@ -136,6 +136,8 @@
   .rs-hrow2{justify-content:space-between}
   .rs-pbfonly{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--eth);white-space:nowrap;cursor:pointer;user-select:none}
   .rs-pbfonly input{accent-color:var(--gold);cursor:pointer;width:14px;height:14px}
+  .rs-pbfonly.off{opacity:.42;cursor:default}
+  .rs-pbfonly.off input{cursor:default}
   .rs-path{flex:1;min-width:0;font-family:inherit;font-size:13px;height:34px;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:0 12px;outline:none}
   .rs-path:focus{border-color:var(--gold-dim)}
   .rs-open{height:34px;flex:none}
@@ -154,6 +156,9 @@
   .rs-file.rs-pbf .rs-name{color:var(--gold)}
   .rs-file .col{color:var(--eth);font-size:11px;white-space:nowrap;overflow:hidden}
   .rs-file .num{text-align:right}
+  .rs-cell{min-width:0}
+  .rs-rel{font-size:10.5px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:9px}
+  .rs-note{padding:8px 10px;text-align:center;font-size:11px;color:var(--faint);line-height:1.5}
   @keyframes rsblink{0%,100%{background:transparent}50%{background:var(--gold-dim)}}
   .rs-file.rs-blink{animation:rsblink .5s ease 3}
   .rs-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -557,6 +562,7 @@
       </div>
       <div class="rs-hrow rs-hrow2">
         <label class="rs-pbfonly" title="pbf(책갈피) 파일만 보기 — 하위 폴더의 pbf도 표기"><input type="checkbox" id="rsPbfOnly">pbf만</label>
+        <label class="rs-pbfonly" id="rsDeepLabel" title="입력한 경로 하위 전체에서 pbf만 모아 한 목록으로 — 폴더를 하나씩 열지 않아도 됩니다"><input type="checkbox" id="rsPbfDeep">하위 전체</label>
         <button class="rs-collapse" onclick="toggleRside()" title="탐색기 접기 (사생활 보호)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5l7 7-7 7M13 5l7 7-7 7"/></svg><span>접기</span></button>
       </div>
     </div>
@@ -1643,14 +1649,25 @@ stage.addEventListener('drop',e=>{const iid=e.dataTransfer.getData('iconid');
 
 /* 우측 파일탐색기(폴더트리·동영상 목록) */
 const rsBodyEl=document.getElementById('rsBody'),rsPathEl=document.getElementById('rsPath');
-let rsData=null,rsSort={key:'name',dir:1},rsPbfOnly=false;
-(function(){const cb=document.getElementById('rsPbfOnly');if(!cb)return;rsPbfOnly=lsGet('potflow_pbf_only')==='1';cb.checked=rsPbfOnly;cb.addEventListener('change',()=>{rsPbfOnly=cb.checked;lsSet('potflow_pbf_only',rsPbfOnly?'1':'0');if(HELPER_OK&&rsData)openFolder(rsPathEl.value||rsData.path||'');else renderExplorer();});})();
+let rsData=null,rsSort={key:'name',dir:1},rsPbfOnly=false,rsPbfDeep=false;
+(function(){
+  const cb=document.getElementById('rsPbfOnly'),cd=document.getElementById('rsPbfDeep'),ld=document.getElementById('rsDeepLabel');
+  if(!cb)return;
+  rsPbfOnly=lsGet('potflow_pbf_only')==='1';cb.checked=rsPbfOnly;
+  if(cd){rsPbfDeep=lsGet('potflow_pbf_deep')==='1';cd.checked=rsPbfDeep;}
+  // '하위 전체'는 'pbf만'의 하위 옵션 — pbf만이 꺼지면 의미가 없으므로 같이 잠근다
+  function syncDeep(){if(!cd)return;cd.disabled=!rsPbfOnly;if(ld)ld.classList.toggle('off',!rsPbfOnly);}
+  function reload(){if(HELPER_OK&&rsData)openFolder(rsPathEl.value||rsData.path||'');else renderExplorer();}
+  syncDeep();
+  cb.addEventListener('change',()=>{rsPbfOnly=cb.checked;lsSet('potflow_pbf_only',rsPbfOnly?'1':'0');syncDeep();reload();});
+  if(cd)cd.addEventListener('change',()=>{rsPbfDeep=cd.checked;lsSet('potflow_pbf_deep',rsPbfDeep?'1':'0');reload();});
+})();
 function fmtSize(b){if(!b)return'';const u=['B','KB','MB','GB'];let i=0,n=b;while(n>=1024&&i<u.length-1){n/=1024;i++}return (i===0?n:(n<10?n.toFixed(1):Math.round(n)))+u[i];}
 function fmtDate(ep){if(!ep)return'';const d=new Date(ep*1000);const p=x=>String(x).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 function openFolder(path){
   if(!HELPER_OK){toast('헬퍼가 꺼져 있습니다');return}
   const reqId=activeId;   // 요청 시점 캔버스 — 전환 후 늦게 온 응답은 무시(레이스 방지)
-  fetch(HELPER+"/tree?path="+encodeURIComponent(path||"")+(rsPbfOnly?"&pbf=1":"")).then(r=>r.json()).then(d=>{
+  fetch(HELPER+"/tree?path="+encodeURIComponent(path||"")+(rsPbfOnly?"&pbf=1":"")+(rsPbfOnly&&rsPbfDeep?"&deep=1":"")).then(r=>r.json()).then(d=>{
     if(activeId!==reqId)return;
     if(!d.ok){toast('폴더를 열 수 없습니다: '+(d.error||''));return}
     rsPathEl.value=d.path;rsData=d;renderExplorer();
@@ -1668,9 +1685,11 @@ function rsRow(cls,name,path,draggable){
   return row;
 }
 function sortedFiles(){
+  const deep=!!(rsData&&rsData.deep);
   const files=[...((rsData&&rsData.files)||[])].filter(f=>!rsPbfOnly||f.kind==='pbf');const k=rsSort.key,dir=rsSort.dir;
   files.sort((a,b)=>{let av,bv;
-    if(k==='name'){av=a.name.toLowerCase();bv=b.name.toLowerCase();}
+    // 하위 전체는 파일명만으로 정렬하면 폴더가 뒤섞인다 — 상대 경로를 앞에 붙여 폴더별로 묶는다
+    if(k==='name'){av=((deep?a.rel+'/':'')+a.name).toLowerCase();bv=((deep?b.rel+'/':'')+b.name).toLowerCase();}
     else if(k==='size'){av=a.size||0;bv=b.size||0;}
     else if(k==='ext'){av=a.ext||'';bv=b.ext||'';}
     else{av=a.mtime||0;bv=b.mtime||0;}
@@ -1699,13 +1718,21 @@ function renderExplorer(){
   files.forEach(f=>{
     const row=document.createElement('div');row.className='rs-file'+(f.kind==='pbf'?' rs-pbf':'');row.draggable=true;
     row.dataset.path=f.path;row.dataset.name=f.name;row.dataset.kind=f.kind;
-    const nm=document.createElement('div');nm.className='rs-name';nm.title=f.name;nm.textContent=(f.kind==='pbf'?'🔖 ':'🎬 ')+f.name;
+    const nm=document.createElement('div');nm.className='rs-name';nm.title=d.deep?f.path:f.name;nm.textContent=(f.kind==='pbf'?'🔖 ':'🎬 ')+f.name;
+    let first=nm;
+    if(d.deep){
+      const cell=document.createElement('div');cell.className='rs-cell';
+      const rel=document.createElement('div');rel.className='rs-rel';
+      rel.textContent='└ '+(f.rel||'(최상위)');rel.title=f.rel||'';
+      cell.append(nm,rel);first=cell;
+    }
     const sz=document.createElement('div');sz.className='col num';sz.textContent=fmtSize(f.size);
     const ex=document.createElement('div');ex.className='col';ex.textContent=f.ext||'';
     const dt=document.createElement('div');dt.className='col';dt.textContent=fmtDate(f.mtime);
-    row.append(nm,sz,ex,dt);rsBodyEl.append(row);
+    row.append(first,sz,ex,dt);rsBodyEl.append(row);
   });
-  if(!(d.folders||[]).length&&!files.length){const em=document.createElement('div');em.className='rs-empty';em.textContent='동영상이 없습니다';rsBodyEl.append(em);}
+  if(!(d.folders||[]).length&&!files.length){const em=document.createElement('div');em.className='rs-empty';em.textContent=d.deep?'하위에 pbf 파일이 없습니다':'동영상이 없습니다';rsBodyEl.append(em);}
+  if(d.truncated){const n=document.createElement('div');n.className='rs-note';n.textContent='※ 항목이 너무 많아 일부만 표시했습니다 — 경로를 더 좁혀 주세요';rsBodyEl.append(n);}
 }
 rsBodyEl.addEventListener('click',e=>{
   const h=e.target.closest('.rs-head2 span');if(h){const k=h.dataset.k;if(rsSort.key===k)rsSort.dir*=-1;else{rsSort.key=k;rsSort.dir=1;}renderExplorer();return;}

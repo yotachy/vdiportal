@@ -201,12 +201,63 @@ def folder_pbf_count(folder, budget):
     return cnt
 
 
-def scan_tree(path, want_pbf=False):
+def collect_pbfs(root, cap=3000, budget=200000):
+    """경로 하위 전체의 .pbf 를 평탄 수집. rel = root 기준 상대 폴더('' = 루트 직속).
+
+    cap(파일 수)·budget(탐색 항목 수) 어느 쪽이든 소진되면 truncated=True 로 잘라 돌려준다 —
+    영상 보관 폴더는 수만 개짜리가 흔해서 상한 없이 훑으면 UI가 통째로 멈춘다.
+    """
+    ap = os.path.abspath(root)
+    if not os.path.isdir(ap):
+        return {"ok": False, "error": "not a directory"}
+    files, truncated, left = [], False, budget
+    try:
+        for dp, dn, fns in os.walk(ap):
+            dn.sort(key=str.lower)
+            rel = os.path.relpath(dp, ap)
+            rel = "" if rel == "." else rel.replace(os.sep, "/")
+            for fn in sorted(fns, key=str.lower):
+                left -= 1
+                if left < 0:
+                    truncated = True
+                    break
+                if not fn.lower().endswith(".pbf"):
+                    continue
+                if len(files) >= cap:
+                    truncated = True
+                    break
+                fp = os.path.join(dp, fn)
+                try:
+                    size = os.path.getsize(fp)
+                except OSError:
+                    size = 0
+                try:
+                    mtime = os.path.getmtime(fp)
+                except OSError:
+                    mtime = 0
+                files.append({"name": fn, "path": fp, "size": size, "mtime": mtime,
+                              "ext": "pbf", "kind": "pbf", "rel": rel})
+            if truncated:
+                break
+    except OSError:
+        pass
+    return {"ok": True, "files": files, "truncated": truncated}
+
+
+def scan_tree(path, want_pbf=False, deep=False):
     try:
         ap = os.path.abspath(path)
         if not os.path.isdir(ap):
             return {"ok": False, "error": "not a directory"}
         SCANNED_DIRS.add(ap)
+        parent = os.path.dirname(ap)
+        parent = parent if parent != ap else None
+        if deep:
+            r = collect_pbfs(ap)
+            if not r["ok"]:
+                return r
+            return {"ok": True, "path": ap, "parent": parent, "deep": True,
+                    "folders": [], "files": r["files"], "truncated": r["truncated"]}
         folders, files = [], []
         for name in sorted(os.listdir(ap), key=str.lower):
             fp = os.path.join(ap, name)
@@ -231,8 +282,7 @@ def scan_tree(path, want_pbf=False):
             budget = [12000]
             for f in folders:
                 f["pbf"] = folder_pbf_count(f["path"], budget)
-        parent = os.path.dirname(ap)
-        return {"ok": True, "path": ap, "parent": parent if parent != ap else None,
+        return {"ok": True, "path": ap, "parent": parent,
                 "folders": folders, "files": files}
     except OSError as e:
         return {"ok": False, "error": str(e)}
@@ -772,7 +822,8 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/tree":
             qs = parse_qs(u.query)
             want_pbf = qs.get("pbf", ["0"])[0] == "1"
-            return self._send(200, scan_tree(qs.get("path", [ROOT])[0], want_pbf))
+            deep = qs.get("deep", ["0"])[0] == "1"
+            return self._send(200, scan_tree(qs.get("path", [ROOT])[0], want_pbf, deep))
         if u.path == "/thumb":
             qs = parse_qs(u.query)
             data, err = get_thumb(qs.get("path", [""])[0])

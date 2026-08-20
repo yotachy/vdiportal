@@ -309,3 +309,49 @@ def test_bat_aborts_before_python_when_html_missing():
     assert guard is not None, "potflow.html 존재 확인 가드가 없다"
     assert run is not None, "헬퍼 실행 줄이 없다"
     assert guard < run, "가드가 python 실행보다 뒤에 있다"
+
+
+def test_collect_pbfs_flattens_tree_with_rel(tmp_path):
+    (tmp_path / "s1").mkdir()
+    (tmp_path / "s2" / "extra").mkdir(parents=True)
+    (tmp_path / "root.pbf").write_text("x")
+    (tmp_path / "s1" / "ep1.pbf").write_text("x")
+    (tmp_path / "s2" / "extra" / "sp.pbf").write_text("x")
+    r = helper.collect_pbfs(str(tmp_path))
+    assert r["ok"] is True
+    assert r["truncated"] is False
+    got = {f["name"]: f["rel"] for f in r["files"]}
+    assert got == {"root.pbf": "", "ep1.pbf": "s1", "sp.pbf": "s2/extra"}
+    assert all(f["kind"] == "pbf" and f["ext"] == "pbf" for f in r["files"])
+
+
+def test_collect_pbfs_ignores_videos_and_other_files(tmp_path):
+    (tmp_path / "a.mp4").write_bytes(b"x")
+    (tmp_path / "note.txt").write_text("no")
+    (tmp_path / "a.mp4.pbf").write_text("x")
+    r = helper.collect_pbfs(str(tmp_path))
+    assert [f["name"] for f in r["files"]] == ["a.mp4.pbf"]
+
+
+def test_collect_pbfs_truncates_at_cap(tmp_path):
+    for i in range(5):
+        (tmp_path / f"{i}.pbf").write_text("x")
+    r = helper.collect_pbfs(str(tmp_path), cap=3)
+    assert r["truncated"] is True
+    assert len(r["files"]) == 3
+
+
+def test_collect_pbfs_missing_path(tmp_path):
+    r = helper.collect_pbfs(str(tmp_path / "nope"))
+    assert r["ok"] is False
+
+
+def test_scan_tree_deep_returns_flat_pbfs_and_no_folders(tmp_path):
+    (tmp_path / "s1").mkdir()
+    (tmp_path / "s1" / "ep1.pbf").write_text("x")
+    (tmp_path / "top.mp4").write_bytes(b"x")
+    r = helper.scan_tree(str(tmp_path), want_pbf=True, deep=True)
+    assert r["ok"] is True and r["deep"] is True
+    assert r["folders"] == []
+    assert [f["name"] for f in r["files"]] == ["ep1.pbf"]
+    assert r["parent"] == os.path.dirname(os.path.abspath(str(tmp_path)))
