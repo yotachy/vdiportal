@@ -38,13 +38,13 @@
 - 확정: Q1 적중 환급 +1(P5 실지급) · Q2 레벨 0 시작 · Q3 24h 무차감 대칭 · Q4 페르소나 300문+·**총량 비공개** · Q5 지표는 엔진 정본.
 - 정책 숫자는 `app-config.js` POLICY만 · 문자열은 `MS.str()` · ES2017 하한 · 시트는 탭바 불가림.
 
-## 3. 배포 상태 (2026-08-24 기준)
+## 3. 배포 상태 (2026-08-25 기준 — P6까지 라이브)
 
 - **앱**: `www/map/app/` — index.html·app.css·app-*.js(테스트 제외)·assets(intro/engine-deep/engine-apply.mp4).
-- **서버 동반 세트**: `www/map/app-api.php` + `app-ledger-lib.php` + `app-wallet-bridge.php` + `wallet-lib.php`(가드형 상수 — 같이 올리고 같이 검증, wallet-lib 수정 시 concurrency 관문 필수).
+- **서버 동반 세트**: `www/map/app-api.php` + `app-ledger-lib.php` + `app-wallet-bridge.php` + `app-persona-bank.php`(P6) + `wallet-lib.php`(가드형 상수 — 같이 올리고 같이 검증, wallet-lib 수정 시 concurrency 관문 필수).
 - **엔진**: 앱은 서버의 `www/map/forge-core.js` 를 상대참조 — **엔진 커밋 미배포 시 앱이 죽는다**(aggUpProb 사고, CLAUDE.md 기록). 엔진 올릴 땐 forge 동반 세트 확인.
 - **불가침**: `<data>/app_ledger.db`(예측·채점 원장) + 기존 forge_*·wallet 목록.
-- 배포 방법: `lftp -u "parksvc,<메모리 scoopforge-deploy 참조>" sftp://parksvc.mycafe24.com` → put.
+- 배포 방법: `lftp -u "parksvc,<메모리 scoopforge-deploy 참조>" sftp://parksvc.mycafe24.com` → put. **호스트는 mycafe24.com — `parksvc.cafe24.com`은 22 포트가 닫혀 있어 무한 대기한다**(2026-08-25 확인). `set net:timeout 15` 걸고 올릴 것.
 
 ## 4. 개발 환경 메모 (재개 시 그대로 씀)
 
