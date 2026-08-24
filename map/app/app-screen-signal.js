@@ -53,6 +53,8 @@
       const unread = (list || []).filter(function (x) { return x.barT === today && !rd[x.key]; }).length;
       MS.store.set({ sigRead: rd, sigTodayN: unread });
       MS.store.persistSoon();
+      const isToday = (list || []).some(function (x) { return x.key === key && x.barT === today; });
+      if (isToday) MS.xp.add(MS.config.POLICY.xp.signalView, "시그널 확인");
     }
 
     function carouselHtml() {

@@ -34,7 +34,7 @@
     mainEl.appendChild(host);
     current = screens[name];
     current.mount(host, { store: store, go: go });
-    // visitXp 훅 자리 — P5 에서 서버 판정 적립으로 배선
+    if (MS.xp) MS.xp.visit(name);   // 오늘 첫 방문 +5 · 메뉴 첫 방문 +3(게스트는 유도 팝만)
   }
 
   // 헤더 액션 디스패치(app-ui 가 호출)
@@ -47,8 +47,10 @@
       } else go("home");
     } else if (act === "stocks") {
       MS.flow.openStocks();   // 전역 종목 진입점(실행·조절 화면에선 내부에서 무시)
-    } else if (act === "about" || act === "scoop" || act === "acct") {
-      MS.ui.flash(MS.str("toast.comingSoon"), "");   // about=P2후반·scoop/acct=P5/P8
+    } else if (act === "scoop" || act === "acct") {
+      go("wallet");
+    } else if (act === "about") {
+      MS.ui.flash(MS.str("toast.comingSoon"), "");   // 마니페스토 시트 — P7 인접 작업
     }
   }
 
@@ -73,6 +75,7 @@
 
     // 복원 성공(관심 종목 보유) → 홈 직행, 첫 실행 → boot(인트로) — 프로토 L2202 규칙
     go(restored ? "home" : "boot");
+    if (restored && MS.wallet) MS.wallet.state();   // 서버 잔액 동기화 + 적중 환급 스위프
   }
 
   MS.router = { register: register, go: go, onChrome: onChrome, boot: boot };

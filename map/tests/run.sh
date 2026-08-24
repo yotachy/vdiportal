@@ -75,6 +75,7 @@ fi
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "app" ]; then
   if command -v php >/dev/null 2>&1; then
     run_suite "app-ledger" "$ROOT" php tests/app-ledger.test.php
+    run_suite "app-wallet-bridge" "$ROOT" php tests/app-wallet-bridge.test.php
   else
     printf '── %-22s 건너뜀 (php 없음 — 채점 판정 미검사)\n' "app-ledger"
     SKIPPED+=("app-ledger")

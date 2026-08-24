@@ -5,11 +5,13 @@
 // ⚠ cafe24 의 SQLite 는 3.26.0(2018)이다. UPSERT(3.24+)는 되지만 RETURNING(3.35+)과
 // STRICT 테이블(3.37+)은 못 쓴다 — 삽입 후 값을 돌려받는 패턴을 쓰지 말 것.
 
-define("W_SEED", 5);
-define("W_CAP", 20);
-define("W_CHECKIN", 1);
-define("W_CHEST", 5);
-define("W_CHEST_EVERY", 7);
+// 상수는 가드형 — 소비자(app-api.php: 새 앱 지갑 브리지)가 require 전에 define 으로 자기 값을
+// 주입할 수 있다(2026-08-24). 아무도 주입하지 않으면 아래 기본값 = 종전과 완전 동일(테스트 불변).
+if (!defined("W_SEED")) define("W_SEED", 5);
+if (!defined("W_CAP")) define("W_CAP", 20);
+if (!defined("W_CHECKIN")) define("W_CHECKIN", 1);
+if (!defined("W_CHEST")) define("W_CHEST", 5);
+if (!defined("W_CHEST_EVERY")) define("W_CHEST_EVERY", 7);
 // 2026-08-13~16 사이 개발용으로 20 이었다(사무실 IP 의 하루 쿼터가 배포 검증·E2E 로 소진돼
 // 파트너 실기기가 429 로 막혔던 문제 회피). 실기기 확인이 끝나 3 으로 되돌린다 — 재설치 남용
 // 방어의 실제 값이며(진짜 방어는 8c 구글 로그인), tests/wallet-concurrency.sh check1/check3 은
@@ -29,9 +31,16 @@ define("W_NONCE_TTL_SEC", 600);   // 10분. 사용자가 브라우저에서 로�
 // (그 전제가 "네 가격이 서로 다르다"이고 아래 테스트가 그것을 지킨다). 가격이 바뀌었으므로
 // **옛 scan 지출(delta 2)은 이제 어느 가격과도 안 맞아** tier 없이 지우는 갈래로 떨어진다.
 // scan 은 w_entitled_types() 에 없어 runs 행을 애초에 만들지 않으므로 지울 것도 없다 — 무해하다.
-function w_costs() { return array("full" => 3, "custom" => 5, "slot" => 1, "scan" => 0); }
+function w_costs() {
+  // 가드형 오버라이드(app-api 브리지가 JSON 으로 주입 — 2026-08-24) — 미주입 시 종전과 완전 동일
+  if (defined("W_COSTS_JSON")) { $c = json_decode(W_COSTS_JSON, true); if (is_array($c)) return $c; }
+  return array("full" => 3, "custom" => 5, "slot" => 1, "scan" => 0);
+}
 // 종목별 권리를 갖는 등급. scan·slot 은 단순 차감이라 여기 없다.
-function w_entitled_types() { return array("full", "custom"); }
+function w_entitled_types() {
+  if (defined("W_ENTITLED_JSON")) { $t = json_decode(W_ENTITLED_JSON, true); if (is_array($t)) return $t; }
+  return array("full", "custom");
+}
 
 function w_now() { return gmdate("c"); }
 function w_today() { return gmdate("Y-m-d"); }

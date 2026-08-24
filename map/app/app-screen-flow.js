@@ -201,13 +201,14 @@
     startPaidRun("deep");
   }
 
-  // 심화·커스텀 공통: 무차감(live) 분기 → 아니면 deduct 오버레이 → 차감 → 실행
+  // 심화·커스텀 공통: 무차감(live) 분기 → 아니면 deduct 오버레이(1050ms)와 서버 차감 병행 → 실행
+  // 차감은 서버 트랜잭션(멱등키 — 치환표 전역 규칙 ③). 네트워크 불가 시 로컬 폴백(MS.wallet).
   function startPaidRun(tier, mixOpts) {
     const s = MS.store.get();
     const cost = tier === "deep" ? P().scoop.costDeep : P().scoop.costCustom;
     const req = { symbol: s.ticker, tfKo: s.tf, tier: tier, preset: s.preset || "전체 종합",
       weights: mixOpts ? mixOpts.weights : null, personaApply: mixOpts ? mixOpts.personaApply : false,
-      paid: 0 };
+      paid: 0, spendInfo: null };
     if (liveFree()) { MS.ui.closeSheet(); MS.runStart(req); return; }
     if (s.scoops < cost) { MS.ui.hap("warn"); openShort(tier); return; }
     MS.ui.closeSheet();
@@ -223,15 +224,24 @@
       '<div style="margin-top:12px;font-size:13.5px;color:var(--t1)">◈ ' + cost + " 차감 · " + TIER_LABEL[tier] + " 분석을 시작합니다</div>" +
       '<div style="margin-top:4px;font-size:13px;color:var(--m1)">' + esc(req.preset) + " 관점</div></div>";
     app.appendChild(ov);
-    setTimeout(function () {
-      if (ov.parentNode) ov.parentNode.removeChild(ov);
-      MS.ui.hap("deduct");
-      MS.store.set(function (prev) { return { scoops: prev.scoops - cost }; });
-      MS.store.persistSoon();
-      MS.ui.flash("◈ " + cost + " 차감 · 분석을 시작합니다", "−" + cost);
-      req.paid = cost;
-      MS.runStart(req);
-    }, 1050);
+    const t0 = Date.now();
+    MS.wallet.spend(tier, s.ticker + "|" + s.tf).then(function (sp) {
+      const wait = Math.max(0, 1050 - (Date.now() - t0));
+      setTimeout(function () {
+        if (ov.parentNode) ov.parentNode.removeChild(ov);
+        if (!sp.ok) {
+          MS.ui.hap("warn");
+          if (sp.reason === "insufficient") { openShort(tier); MS.ui.flash("스쿱이 부족해요", ""); }
+          else MS.ui.flash("차감에 실패했어요 — 잠시 뒤 다시 시도해 주세요", "");
+          return;
+        }
+        MS.ui.hap("deduct");
+        MS.ui.flash("◈ " + cost + " 차감 · 분석을 시작합니다", "−" + cost);
+        req.paid = sp.cost;
+        req.spendInfo = sp;
+        MS.runStart(req);
+      }, wait);
+    });
   }
 
   // ── 부족 시트 ──
@@ -448,6 +458,14 @@
         MS.store.persistSoon();
         MS.ui.hap("earn");
         MS.ui.flash(sym + " 을 담았어요", "");
+        const dc0 = MS.store.get().dayCounters;
+        if (dc0.stockAddXp < P().xp.stockAdd.perDay) {
+          const dc3 = {};
+          Object.keys(dc0).forEach(function (k3) { dc3[k3] = dc0[k3]; });
+          dc3.stockAddXp++;
+          MS.store.set({ dayCounters: dc3 });
+          setTimeout(function () { MS.xp.add(P().xp.stockAdd.xp, "관심 종목 추가"); }, 350);
+        }
         if (goChart) { MS.store.set({ ticker: sym }); MS.ui.closeSheet(); MS.router.go("chart"); }
         else paintSheet();
       }

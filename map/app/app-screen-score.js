@@ -269,6 +269,19 @@
           if (e.target.closest("[data-hint],[data-rego],[data-again]")) return;
           const k = el.getAttribute("data-row");
           open[k] = !open[k];
+          if (open[k]) {
+            const row = data.rows.filter(function (x) { return String(x.id) === k; })[0];
+            const st2 = MS.store.get();
+            const xk = "score:" + k;
+            if (row && row.today && row.status !== "wait" && !st2.xpSeen[xk]) {
+              const xs = {};
+              Object.keys(st2.xpSeen).forEach(function (kk) { xs[kk] = st2.xpSeen[kk]; });
+              xs[xk] = 1;
+              MS.store.set({ xpSeen: xs });
+              MS.store.persistSoon();
+              MS.xp.add(MS.config.POLICY.xp.scoreView, "채점 확인");
+            }
+          }
           render();
         });
       });

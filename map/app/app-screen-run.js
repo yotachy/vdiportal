@@ -60,13 +60,13 @@
     const s = session;
     clearTimers();
     s.err = msg;
-    // 실패 = 전액 반환(03 §1-9)
+    // 실패 = 전액 반환(03 §1-9) — 지갑 서버 환불(멱등)
     if (s.req.paid) {
       MS.ui.hap("warn");
-      MS.store.set(function (p) { return { scoops: p.scoops + s.req.paid }; });
-      MS.store.persistSoon();
+      MS.wallet.refund(s.req.spendInfo || { cost: s.req.paid, server: false });
       MS.ui.flash("문제가 생겨 " + s.req.paid + "스쿱을 돌려드렸어요", "+" + s.req.paid);
       s.req.paid = 0;
+      s.req.spendInfo = null;
     }
     paint();
   }
@@ -172,6 +172,19 @@
       ticker: away ? st.ticker : s.req.symbol, tf: away ? st.tf : s.req.tfKo,
       seg: s.req.tier === "basic" ? "evi" : "narr" });
     MS.store.persistSoon();
+    // 심화/커스텀 분석 완주 XP — 일 각 1회(dv.ax_*, 게스트는 유도 팝만)
+    if (s.req.tier !== "basic") {
+      const today2 = MS.state.dayKey(Date.now());
+      const dv0 = (st.dayVisit && st.dayVisit.d === today2) ? st.dayVisit : { d: today2 };
+      const kAx = s.req.tier === "deep" ? "ax_deep" : "ax_custom";
+      if (!dv0[kAx]) {
+        const dv2 = {};
+        Object.keys(dv0).forEach(function (k2) { dv2[k2] = dv0[k2]; });
+        dv2[kAx] = 1;
+        MS.store.set({ dayVisit: dv2 });
+        setTimeout(function () { MS.xp.add(MS.config.POLICY.xp.analysisFirst, (s.req.tier === "deep" ? "심화" : "커스텀") + " 분석 · 오늘 첫 회"); }, 900);
+      }
+    }
     // 심화·커스텀 → 채점 원장 등록(서버 — 그날 마지막 1건은 서버가 교체 처리)
     if (s.req.tier !== "basic" && s.report && s.candles && s.candles.length) {
       const v = s.report.verdict;
@@ -206,7 +219,7 @@
     if (!s || s.req.tier === "basic" || s.err) return;   // basic 은 중단 UI 없음
     clearTimers();
     const paid = s.req.paid || 0;
-    if (paid) MS.store.set(function (p) { return { scoops: p.scoops + paid }; });
+    if (paid) MS.wallet.refund(s.req.spendInfo || { cost: paid, server: false });
     MS.store.set({ runLive: 0, prog: 0, tier: null, runDoneN: null });
     MS.store.persistSoon();
     const from = s.req.from;

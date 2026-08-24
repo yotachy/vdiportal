@@ -12,6 +12,18 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") { exit; }
 $AL_DIR = dirname(dirname(__DIR__)) . "/data";   // 웹루트 밖(wallet 과 동일 관례)
 require_once __DIR__ . "/app-ledger-lib.php";
 
+// ── 지갑 브리지(P5) — wallet-lib 재사용, 앱 정책만 가드형 상수로 주입 ──
+// 시안 정책: 가입 15 · 게스트 상한 15(레벨 상한은 P8 로그인+XP 와 함께) · 심화 2 · 커스텀 3 ·
+// 출석 +1/일(주기 6h 는 §15 협의 고정점 Q13 — 지갑의 검증된 일 단위+연속 7일 +5 를 기준선으로).
+// 새 앱은 이 브리지만 쓴다 — wallet-api.php(구 앱 경로)는 기본 상수 그대로라 서로 안 섞인다.
+define("W_SEED", 15);
+define("W_CAP", 15);
+define("W_COSTS_JSON", json_encode(array("deep" => 2, "custom" => 3)));
+define("W_ENTITLED_JSON", json_encode(array("deep", "custom")));
+require_once __DIR__ . "/wallet-lib.php";
+require_once __DIR__ . "/app-wallet-bridge.php";
+
+
 function al_out($arr, $code = 200) {
   http_response_code($code);
   echo json_encode($arr, JSON_UNESCAPED_UNICODE);
@@ -49,8 +61,39 @@ try {
     al_score_pending($db, $device, "al_candles_from_cache", time());
     al_out(al_list($db, $device, isset($in["limit"]) ? (int)$in["limit"] : 120, time()));
   }
-  if ($op === "claim_refunds") {   // P5 지갑 통합에서 실지급과 원자 결합 예정 — 현재는 소진 카운트만
-    al_out(array("ok" => true, "n" => al_claim_refunds($db, $device)));
+  // ── 지갑 ops(P5) ──
+  if ($op === "wallet_state" || $op === "wallet_spend" || $op === "wallet_refund" || $op === "wallet_checkin") {
+    $wdb = w_db($AL_DIR);
+    $acct = app_wallet_acct($wdb, $AL_DIR, $device);
+    if ($op === "wallet_state") {
+      $granted = app_wallet_sweep_refunds($wdb, $db, $device, $acct["id"]);
+      $stt = w_state($wdb, $acct);
+      $stt["ok"] = true;
+      $stt["hitRefunds"] = $granted;
+      al_out($stt);
+    }
+    if ($op === "wallet_spend") {
+      $tier = isset($in["tier"]) ? (string)$in["tier"] : "";
+      $idem = isset($in["idem"]) ? (string)$in["idem"] : "";
+      $ref = isset($in["ref"]) ? (string)$in["ref"] : "";
+      $r = w_spend($wdb, $acct["id"], $tier, $idem, $ref, isset($in["engine"]) ? (string)$in["engine"] : "");
+      $r["balance"] = w_true_balance($wdb, $acct["id"]);
+      al_out($r, $r["ok"] ? 200 : ($r["reason"] === "insufficient" ? 402 : 400));
+    }
+    if ($op === "wallet_refund") {
+      $idem = isset($in["idem"]) ? (string)$in["idem"] : "";
+      $r = w_refund($wdb, $acct["id"], $idem);
+      $r["balance"] = w_true_balance($wdb, $acct["id"]);
+      al_out($r);
+    }
+    if ($op === "wallet_checkin") {
+      $r = w_checkin($wdb, $acct, null);
+      $r["balance"] = w_true_balance($wdb, $acct["id"]);
+      $r["streakDays"] = null;
+      $a2 = w_get_account($wdb, $device);
+      if ($a2) $r["streakDays"] = (int)$a2["streak_days"];
+      al_out($r);
+    }
   }
   al_out(array("ok" => false, "error" => "op"), 400);
 } catch (Throwable $e) {

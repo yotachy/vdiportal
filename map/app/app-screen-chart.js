@@ -369,6 +369,14 @@
               if (off[id]) delete off[id]; else off[id] = 1;
               MS.store.set({ indOff: off });
               MS.store.persistSoon();
+              const dc0 = MS.store.get().dayCounters;
+              if (dc0.drawXp < MS.config.POLICY.xp.drawToggle.perDay) {
+                const dc2 = {};
+                Object.keys(dc0).forEach(function (kk) { dc2[kk] = dc0[kk]; });
+                dc2.drawXp++;
+                MS.store.set({ dayCounters: dc2 });
+                setTimeout(function () { MS.xp.add(MS.config.POLICY.xp.drawToggle.xp, "작도 조작"); }, 350);
+              }
               paintSheet(); render();
             });
           });
