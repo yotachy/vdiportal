@@ -5,7 +5,8 @@
 | 도구 | 파일 | 비고 |
 |---|---|---|
 | **스쿱포지 (Scoop Forge)** ★ | `forge.html` + `forge-core.js`(+`forge-api.php`) | 노드 전략보드 + 라이브 차트 통합 분석 도구. **분석 엔진의 관리·개선·검증이 이뤄지는 곳**(사용자 서비스가 아니다 — 아래 §⓪) |
-| ~~머니스쿱 모바일~~ ⛔ **전량 봉쇄(2026-08-19)** | **`_archive/mobile-2026-08-19/`** — 중단된 앱 구현 + **1차 시안**을 한 덩어리로 닫았다. **읽지도 복사하지도 말 것**([`_archive/README.md`](_archive/README.md)). 새 앱은 별도 개발 없이 포지를 세로로 재배치한다 → 인테이크 [`docs/design-v2/README.md`](docs/design-v2/README.md) · 요건 [`app-spec.html`](app-spec.html) · 재료 [`design-kit.html`](design-kit.html) |
+| **머니스쿱 앱** ★ (개발 중, 2026-08-24~) | **`app/`** — `index.html` + `app.css` + `app-*.js` | **시안2(개발 이관 패키지)를 동작 수준까지 재현하는 사용자 서비스 앱.** 정본 체계·아키텍처·페이즈는 [`docs/design-v2/BUILD-PLAN.md`](docs/design-v2/BUILD-PLAN.md)(마스터), 인테이크 [`docs/design-v2/README.md`](docs/design-v2/README.md), 프로토 해부 `docs/design-v2/dissection/01~03`. 엔진은 `../forge-core.js`·`../forge-tools.js` **원본 참조**(사본 금지). 아래 §앱 트랙 참조 |
+| ~~머니스쿱 모바일(구)~~ ⛔ **전량 봉쇄(2026-08-19)** | **`_archive/mobile-2026-08-19/`** — 중단된 앱 구현 + **1차 시안**을 한 덩어리로 닫았다. **읽지도 복사하지도 말 것**([`_archive/README.md`](_archive/README.md)). ~~"포지 세로 재배치" 전제와 구 18화면 시안(`app-spec.html`·`design-kit.html`)은 시안2 도착(2026-08-24)으로 **동결·참고용**~~ — 새 트랙은 위 `app/` |
 | **스쿱보드 (Scoop Board)** | `map.html`(+`api.php`) | 자유 캔버스 노드 다이어그램 빌더 |
 | **PotFlow** | **`potflow/`** 폴더 일습(`potflow.html`·`potflow-helper.py`·config·bat·썸네일) | 로컬 동영상 노드 재생 관리(PotPlayer). map.html 파생·로컬 헬퍼(Python) 전용. **상위 개발프로젝트와 완전 독립 트랙**(아래 주의). **2026-07-19 `map/potflow/`로 폴더 격리** — forge·map과 파일/배포 경로 불간섭(배포=`www/map/potflow/`). 헬퍼가 자기 위치(`ROOT`) 기준이라 이동에 경로 수정 불필요. 상세는 [`POTFLOW.md`](POTFLOW.md) |
 
@@ -135,6 +136,16 @@
 - 새 플러그인을 더할 때: `npm install`(package.json 갱신) → `npx cap sync android`(네이티브 Gradle 배선 — `android/app/capacitor.build.gradle`·`android/capacitor.settings.gradle` 재생성, 둘 다 "DO NOT EDIT" 생성물이지만 커밋 대상) → `./gradlew assembleDebug` 로 실제 빌드 확인까지가 한 세트. 절차 상세는 `mobile/docs/ANDROID-BUILD.md`.
 
 ---
+
+# 📱 머니스쿱 앱 트랙 (`map/app/`, 2026-08-24~)
+
+**시안2가 유일한 시각·동작 정본**(우선순위: 프로토타입 > 지침서 > 치환표 > 구 시안 동결). 상세는 [`docs/design-v2/BUILD-PLAN.md`](docs/design-v2/BUILD-PLAN.md) — 여기는 작업 규칙 요약만.
+
+- **파일**: `app/index.html` · `app.css` · `app-config.js`(정책 단일 출처) · `app-strings.js`(문자열 키) · `app-state.js`(스토어·영속 `ms_app_v1`) · `app-ui.js`(공통 크롬) · `app-main.js`(라우터) · `app-screen-*.js`(화면 모듈). **로드 순서 고정**(index.html 주석): config→strings→state→ui→main→screens, defer/async 금지.
+- **규칙**: ES2017 하한 · 색은 토큰만 · 정책 숫자는 `MS.config.POLICY` 만 · 문자열은 `MS.str()` 만 · 화면 간 직접 의존 금지. 엔진은 `../forge-core.js` 원본 참조(사본·수정 금지 — 엔진 변경은 §② 프로토콜).
+- **관문**: `./tests/run.sh`(app 스위트 포함, 문법 하한 검사 내장) + 화면 태스크는 헤드리스 스크린샷을 프로토타입과 나란히 대조(§④-2).
+- **격리**: `_archive/`(봉쇄)·`map.html`·`potflow/` 불간섭. 커밋 스코프 `app`. 배포 경로·세트는 미정(P1 이후 §③ 형식으로 등재).
+- **협의 확정(2026-08-24)**: Q1 적중 환급 +1 구현 · Q2 레벨 기저 제거(0 시작) · Q3 24h 재분석 무차감 심화·커스텀 대칭 · Q5 지표 32종은 엔진이 정본.
 
 # 🔥 스쿱포지 (Scoop Forge) — 플래그십
 

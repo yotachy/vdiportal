@@ -1,5 +1,10 @@
 # 머니스쿱 앱 P0 — 골격 구현 플랜
 
+> **상태: ✅ 완료(2026-08-24).** Task 1~8 전부 실행·검증됨(관문 826건·헤드리스 스크린샷 4종).
+> 실행 중 조정 2건: ① 로드 순서 — 화면 모듈이 로드 시 `MS.router.register` 를 호출하므로
+> `app-main.js`(라우터)가 화면들보다 **먼저** 로드된다(부팅은 DOMContentLoaded 로 지연).
+> ② run.sh app 스위트는 `node --test <파일 나열>` 로 호출(`./` 디렉토리 인자는 미지원).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** `map/app/` 신설 — 토큰·테마, 정책/문자열/상태 모듈, 라우터, 공통 크롬(헤더·탭바·시트·토스트·스켈레톤), 빈 홈. 이후 모든 페이즈가 얹힐 기반.

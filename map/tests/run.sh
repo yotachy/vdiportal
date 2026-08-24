@@ -5,6 +5,7 @@
 #   ./tests/run.sh              전부
 #   ./tests/run.sh engine       forge-core + forge-tools 만 (엔진만 고쳤을 때 빠른 확인)
 #   ./tests/run.sh mobile       모바일만
+#   ./tests/run.sh app          머니스쿱 앱(map/app/)만 — 정책·상태·문자열 + 문법 하한
 #   ./tests/run.sh wallet       지갑 원장(PHP)만
 #   ./tests/run.sh dispatcher   지갑 HTTP 디스패처(wallet-api.php) — php -S + curl. 'all'에 낀다
 #                                (1~2초). 이 파일은 여기 말고는 저장소 어디에서도 실행되지 않는다.
@@ -63,6 +64,11 @@ fi
 
 if [ "$SCOPE" = "all" ]; then
   run_suite "landing"     "$ROOT" node --test landing.test.js
+fi
+
+# 머니스쿱 앱(map/app/) — 정책·상태·문자열 로직 + ES2017 문법 하한. UMD 라 node 로 돈다.
+if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "app" ]; then
+  run_suite "app"         "$ROOT/app" node --test app-config.test.js app-strings.test.js app-state.test.js syntax-floor.test.js
 fi
 
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "wallet" ]; then
