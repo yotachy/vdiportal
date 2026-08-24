@@ -21,7 +21,7 @@
       "</div></div>";
     host.addEventListener("click", function (e) {
       const btn = e.target.closest('[data-act="pick"]');
-      if (btn) MS.ui.flash(str("toast.comingSoon"), "");   // P1: 종목 선택(pick)으로 교체
+      if (btn) MS.router.go("pick");
     });
   }
 

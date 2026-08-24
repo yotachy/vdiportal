@@ -69,8 +69,8 @@
     });
     store.subscribe(function () { store.persistSoon(); });
 
-    // P0: 복원 여부와 무관하게 홈으로. P1 이 boot(인트로)→landing→pick 분기로 대체한다.
-    go("home");
+    // 복원 성공(관심 종목 보유) → 홈 직행, 첫 실행 → boot(인트로) — 프로토 L2202 규칙
+    go(restored ? "home" : "boot");
   }
 
   MS.router = { register: register, go: go, onChrome: onChrome, boot: boot };

@@ -89,9 +89,29 @@
     };
   }
 
+  // dev 전용 fixture 모드(?fixture=1) — 네트워크 없이 결정적 합성 캔들로 여정 검증.
+  // ⚠ 프로덕션 빌드에서 제거 대상(BUILD-PLAN P9 데모 트리거 목록).
+  function fixtureStore() {
+    function mk(key) {
+      let h = 0;
+      for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) % 997;
+      const out = [];
+      for (let i = 0; i < 300; i++) {
+        const c = (50 + h % 200) * Math.exp(0.0012 * i) + (3 + h % 7) * Math.sin(i / (7 + h % 5));
+        out.push({ o: c * 0.996, h: c * 1.011, l: c * 0.989, c: c, v: 1000 + 400 * Math.sin(i / 6 + h) });
+      }
+      return out;
+    }
+    return { fetch: async function (symbol, tfKo) {
+      return { ok: true, candles: mk(symbol + "|" + tfKo), symbol: symbol, name: "", source: "fixture" };
+    } };
+  }
+
   const api = { MASTER: MASTER, tfApi: tfApi, quote: quote, spark: spark,
-    createOHLC: createOHLC, browserIO: browserIO, ohlc: null };
+    createOHLC: createOHLC, browserIO: browserIO, fixtureStore: fixtureStore, ohlc: null };
   // 브라우저에선 기본 스토어를 미리 만들어 둔다(테스트는 createOHLC 로 주입 생성)
-  if (typeof window !== "undefined" && typeof fetch !== "undefined") api.ohlc = createOHLC(browserIO());
+  if (typeof window !== "undefined" && typeof fetch !== "undefined") {
+    api.ohlc = (/[?&]fixture=1/.test(window.location.search)) ? fixtureStore() : createOHLC(browserIO());
+  }
   return api;
 });

@@ -18,14 +18,20 @@
   <nav id="msTabbar" aria-label="주 메뉴"></nav>
 </div>
 
-<!-- 로드 순서 고정(defer/async 금지): 정책 → 문자열 → 상태 → 크롬 → 라우터 → 화면들.
-     화면 모듈은 로드 시 MS.router.register 를 호출하므로 라우터가 먼저다.
-     부팅은 DOMContentLoaded(전 화면 등록 후). 엔진(../forge-core.js)은 P1 부터. -->
+<!-- 로드 순서 고정(defer/async 금지): 엔진 원본 → 정책 → 문자열 → 상태 → 데이터 → 브리지 →
+     차트 → 크롬 → 라우터 → 화면들. 화면 모듈은 로드 시 MS.router.register 를 호출하므로
+     라우터가 먼저다. 부팅은 DOMContentLoaded(전 화면 등록 후). -->
+<script src="../forge-core.js"></script>
 <script src="app-config.js"></script>
 <script src="app-strings.js"></script>
 <script src="app-state.js"></script>
+<script src="app-data.js"></script>
+<script src="app-engine.js"></script>
+<script src="app-chart.js"></script>
 <script src="app-ui.js"></script>
 <script src="app-main.js"></script>
+<script src="app-screen-onboarding.js"></script>
+<script src="app-screen-run.js"></script>
 <script src="app-screen-home.js"></script>
 </body>
 </html>

@@ -134,6 +134,7 @@
   function syncTabbar() {
     if (!hostTabbar || !store) return;
     const s = store.get();
+    if (hostHeader) hostHeader.style.display = s.screen === "boot" ? "none" : "flex";   // boot 만 크롬 숨김(프로토 chromeVis)
     hostTabbar.style.display = TAB_SCREENS.indexOf(s.screen) >= 0 ? "flex" : "none";
     const tabs = hostTabbar.querySelectorAll("[data-tab]");
     for (let i = 0; i < tabs.length; i++) {
