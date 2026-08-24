@@ -61,6 +61,19 @@ try {
     al_score_pending($db, $device, "al_candles_from_cache", time());
     al_out(al_list($db, $device, isset($in["limit"]) ? (int)$in["limit"] : 120, time()));
   }
+  // ── 페르소나 질문(P6) — 인덱스로 다음 질문만, 총량은 절대 싣지 않는다(Q4) ──
+  if ($op === "persona_q") {
+    require_once __DIR__ . "/app-persona-bank.php";
+    $bank = persona_bank();
+    $i = isset($in["i"]) ? (int)$in["i"] : 0;
+    if ($i < 0 || $i >= count($bank)) al_out(array("ok" => true, "q" => null, "more" => false));
+    $item = $bank[$i];
+    al_out(array("ok" => true, "i" => $i,
+      "q" => $item[0],
+      "opts" => array_map(function ($o) { return array("n" => $o[0], "d" => $o[1], "l" => $o[2]); }, $item[1]),
+      "more" => ($i + 1) < count($bank)));
+  }
+
   // ── 지갑 ops(P5) ──
   if ($op === "wallet_state" || $op === "wallet_spend" || $op === "wallet_refund" || $op === "wallet_checkin") {
     $wdb = w_db($AL_DIR);

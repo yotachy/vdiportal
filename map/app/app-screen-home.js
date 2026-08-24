@@ -155,16 +155,125 @@
         }).join("") +
         '<div style="margin-top:8px;font-size:11.5px;color:var(--m2)"><span style="color:#8b93a7">●</span> 기본 · <span style="color:#7b6cff">●</span> 심화 · <span style="color:var(--cu)">●</span> 커스텀 — 24시간이 지나면 자동 폐기</div></div>' +
 
-        // 페르소나 카드 자리(P6 실구현 — 게스트 티저)
-        '<div style="margin:16px 16px 0;border:1px solid rgba(210,165,22,0.3);border-radius:14px;background:var(--sf1);padding:16px">' +
-        '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:15px;font-weight:700;color:var(--cu)">투자 페르소나</span><span style="margin-left:auto;font-size:11.5px;color:var(--m2)">잠김</span></div>' +
-        '<div style="margin-top:6px;font-size:12.5px;color:var(--m1);line-height:1.6">가벼운 질문에 답할수록 커스텀 분석이 내 성향에 맞춰져요. 곧 열립니다.</div></div>' +
+        // 페르소나 카드(P6 — 즉시 질문·풀 배급·게스트 3문 잠금)
+        personaCardHtml() +
 
         // 푸터
         '<div style="margin:20px 16px 0;font-size:11px;color:var(--m2);line-height:1.7">시세는 지연될 수 있어요 · 예측은 참고용이며 투자 판단과 책임은 본인에게 있습니다.</div>' +
         "</div>";
 
       bind();
+    }
+
+    // ── 페르소나 카드(지침서 §9·03 §6 — 총량 표기 금지) ──
+    function personaCardHtml() {
+      const s = MS.store.get();
+      const P2 = MS.config.POLICY;
+      const idx = s.personaIdx || 0;
+      const answers = (s.personaAns || []).slice(0, idx);
+      const guest = !s.gLinked;
+      const gLock = guest && idx >= P2.limits.persona.guestMax;
+      const dayN = (s.dayCounters && s.dayCounters.personaToday) || 0;
+      const dayFull = !guest && dayN >= P2.limits.persona.perDay;
+      const stage = MS.persona.stageOf(idx, P2.persona.stages, P2.persona.stageNames);
+      const chips = MS.persona.chips(answers);
+      const q = s._pq;   // 현재 로드된 질문 {i,q,opts,more}
+      const pqOn = !gLock && !dayFull && (dayN === 0 || s._pqPull) && q && q.i === idx;
+
+      let inner =
+        '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="font-size:15px;font-weight:700;color:var(--cu)">투자 페르소나</span>' +
+        '<span style="font-size:11.5px;color:var(--cu)">' + (guest ? "맛보기 " + Math.min(idx, P2.limits.persona.guestMax) + "/" + P2.limits.persona.guestMax
+          : "정밀도 " + (stage.idx + 1) + "단계 「" + stage.name + "」 · " + idx + "답") + "</span>" +
+        '<span data-act="peers" style="margin-left:auto;font-size:11.5px;color:var(--m1);cursor:pointer">통계 보기 →</span></div>' +
+        '<div style="margin-top:8px;height:5px;border-radius:3px;background:var(--sf3);overflow:hidden"><span style="display:block;height:100%;width:' + stage.inPct + '%;background:linear-gradient(90deg,#7b6cff,#d2a516);border-radius:3px"></span></div>' +
+        '<div style="margin-top:12px;display:flex;gap:14px;align-items:center">' +
+        '<div style="flex:none">' + MS.persona.radarSvg(answers, 118) + "</div>" +
+        '<div style="min-width:0;flex:1;display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start">' +
+        (chips.length ? chips.map(function (c) {
+          return '<span style="font-size:11px;color:var(--cu);border:1px solid rgba(210,165,22,0.4);border-radius:99px;padding:3px 8px;white-space:nowrap">' + c.label + "</span>";
+        }).join("") : '<span style="font-size:11.5px;color:var(--m2)">답할수록 성향이 그려져요</span>') +
+        (chips.length ? '<span style="font-size:11px;color:var(--m2);border:1px dashed var(--ln2);border-radius:99px;padding:3px 8px;white-space:nowrap">+ 답할수록 추가</span>' : "") +
+        "</div></div>";
+
+      if (gLock) {
+        inner += '<div data-act="plogin" style="margin-top:12px;border:1px dashed var(--ln2);border-radius:10px;padding:12px;text-align:center;cursor:pointer">' +
+          '<div style="font-size:12.5px;font-weight:600;color:var(--t3)">맛보기가 끝났어요</div>' +
+          '<div style="margin-top:4px;font-size:11.5px;color:var(--m1)">구글로 로그인하면 계속 답하고, 답이 커스텀 분석에 반영돼요</div></div>';
+      } else if (dayFull) {
+        inner += '<div style="margin-top:12px;border-radius:10px;background:var(--sf2);padding:12px;text-align:center;font-size:12px;color:var(--m1)">오늘 몫 ' + P2.limits.persona.perDay + "답을 다 했어요 — 내일 새 질문이 와요</div>";
+      } else if (pqOn) {
+        inner += '<div style="margin-top:12px;border:1px solid rgba(210,165,22,0.35);border-radius:10px;padding:12px;background:rgba(210,165,22,0.05)">' +
+          '<div style="display:flex;align-items:center;gap:6px">' +
+          (idx > 0 ? '<button data-act="pback" aria-label="이전 답 고치기" style="width:26px;height:26px;border:0;background:none;color:var(--m1);cursor:pointer;flex:none;font-size:14px;padding:0">←</button>' : "") +
+          '<span style="font-size:13px;font-weight:600;line-height:1.5">' + esc(q.q) + "</span></div>" +
+          '<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">' +
+          q.opts.map(function (o, j) {
+            return '<button data-pans="' + j + '" style="min-height:42px;border-radius:9px;border:1px solid var(--ln1);background:var(--sf2);color:var(--t1);font-size:12.5px;cursor:pointer;font-family:inherit;text-align:left;padding:0 14px">' + esc(o.n) + "</button>";
+          }).join("") + "</div>" +
+          '<div style="margin-top:8px;font-size:10.5px;color:var(--m2)">오늘 ' + dayN + "/" + P2.limits.persona.perDay + " · 답변 +1 경험치</div></div>";
+      } else if (q && q.i === idx && !q.q) {
+        inner += '<div style="margin-top:12px;border-radius:10px;background:var(--sf2);padding:12px;text-align:center;font-size:12px;color:var(--m1)">준비된 질문을 다 봤어요 — 새 질문이 계속 추가돼요</div>';
+      } else {
+        inner += '<button data-act="ppull" style="margin-top:12px;width:100%;min-height:44px;border-radius:10px;border:1px solid rgba(210,165,22,0.4);background:rgba(210,165,22,0.08);color:var(--cu);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">질문 하나 더 받기 · 오늘 ' + dayN + "/" + P2.limits.persona.perDay + "</button>";
+      }
+
+      return '<div id="msPersonaCard" style="margin:16px 16px 0;border:1px solid rgba(210,165,22,0.3);border-radius:14px;background:var(--sf1);padding:16px">' + inner + "</div>";
+    }
+
+    function loadPersonaQ() {
+      const s = MS.store.get();
+      const idx = s.personaIdx || 0;
+      if (s._pq && s._pq.i === idx) { render(); return; }
+      MS.data.api("persona_q", { i: idx }).then(function (r) {
+        if (r && r.ok) {
+          MS.store.set({ _pq: { i: idx, q: r.q, opts: r.opts || [], more: r.more } });
+          if (MS.store.get().screen === "home") render();
+        }
+      }).catch(function () {});
+    }
+
+    function bindPersona() {
+      const s = MS.store.get();
+      host.querySelectorAll("[data-pans]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          const j = parseInt(b.getAttribute("data-pans"), 10);
+          const st = MS.store.get();
+          const q = st._pq;
+          if (!q || !q.opts[j]) return;
+          const ans = (st.personaAns || []).slice();
+          ans[st.personaIdx || 0] = { j: j, d: q.opts[j].d, l: q.opts[j].l };
+          const dc = {};
+          Object.keys(st.dayCounters).forEach(function (k) { dc[k] = st.dayCounters[k]; });
+          dc.personaToday = (dc.personaToday || 0) + 1;
+          MS.ui.hap("tick");
+          MS.store.set({ personaAns: ans, personaIdx: (st.personaIdx || 0) + 1, dayCounters: dc, _pq: null, _pqPull: 0 });
+          MS.store.persistSoon();
+          MS.xp.add(MS.config.POLICY.xp.personaAnswer, "페르소나");
+          const idx2 = (st.personaIdx || 0) + 1;
+          if (!q.more) MS.ui.flash("답변 저장 · 커스텀 분석이 나에게 맞춰집니다", "");
+          render();
+          loadPersonaQ();
+        });
+      });
+      const pb = host.querySelector('[data-act="pback"]');
+      if (pb) pb.addEventListener("click", function () {
+        const st = MS.store.get();
+        MS.store.set({ personaIdx: Math.max(0, (st.personaIdx || 0) - 1), _pq: null, _pqPull: 1 });
+        MS.store.persistSoon();
+        render();
+        loadPersonaQ();
+      });
+      const pp = host.querySelector('[data-act="ppull"]');
+      if (pp) pp.addEventListener("click", function () {
+        MS.store.set({ _pqPull: 1 });
+        render();
+        loadPersonaQ();
+      });
+      const pl = host.querySelector('[data-act="plogin"]');
+      if (pl) pl.addEventListener("click", function () { MS.ui.flash("구글 로그인은 곧 열려요 — 답은 이 기기에 안전하게 보관 중", ""); });
+      const pe = host.querySelector('[data-act="peers"]');
+      if (pe) pe.addEventListener("click", function () { MS.ui.flash(str("toast.comingSoon"), ""); });
     }
 
     function heroStub(title, dotC, tintBg, numHtml, line1, line2, act) {
@@ -229,6 +338,7 @@
       if (addB) addB.addEventListener("click", function () { MS.flow.openStocks(); });
       const ch = host.querySelector('[data-act="chart"]');
       if (ch) ch.addEventListener("click", function () { MS.router.go("chart"); });
+      bindPersona();
     }
 
     render();
@@ -239,6 +349,7 @@
         if (MS.store.get().screen === "home") render();
       }
     }).catch(function () {});
+    loadPersonaQ();   // 하루 첫 답은 자동 노출(풀 배급 — 03 §6-2)
     // 시그널 스캔(캐시 공유 — 배지·히어로)
     if (s0.picks.length && MS.scanSignals) {
       MS.scanSignals().then(function () {

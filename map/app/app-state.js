@@ -34,8 +34,8 @@
       personaIdx: 0, personaAns: [], personaApply: 0,
       // 커스텀 조합·작도 (Q8: 영속)
       weights: {}, checks: {}, indOff: {}, drawOff: {}, analysisMeta: {},
-      // 시그널·XP
-      sigRead: {}, sgOpen: {}, xpSeen: {}, notiOff: 0,
+      // 시그널·XP·페르소나(휘발 _pq*)
+      sigRead: {}, sgOpen: {}, xpSeen: {}, notiOff: 0, _pq: null, _pqPull: 0, _mixWeights: null,
       // 설정
       theme: "dark", fontZoom: 0,
       // 실행

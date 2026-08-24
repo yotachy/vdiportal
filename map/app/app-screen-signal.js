@@ -39,6 +39,17 @@
     return all;
   };
 
+  function personaTopGroup() {
+    const s = MS.store.get();
+    const ans = (s.personaAns || []).slice(0, s.personaIdx || 0);
+    if (!ans.length) return null;
+    const aff = MS.persona.groupAffinity(ans);
+    if (!aff.n) return null;
+    let best = null;
+    ["t", "m", "v", "q", "s"].forEach(function (k) { if (!best || aff.g[k] > aff.g[best]) best = k; });
+    return aff.g[best] > 0 ? best : null;
+  }
+
   function mount(host) {
     let list = MS.store.get().sigList || null;
     let search = null, shown = 20, carousel = 0;
@@ -107,7 +118,15 @@
     function render() {
       const s = MS.store.get();
       const today = MS.state.dayKey(Date.now());
-      const rows = (list || []).filter(function (x) { return !search || x.sym === search; });
+      const pg = personaTopGroup();
+      let rows = (list || []).filter(function (x) { return !search || x.sym === search; });
+      if (pg) {   // 내 성향과 맞닿은 신호를 먼저(지침서 §7 — 골드 우선)
+        rows = rows.slice().sort(function (a2, b2) {
+          const ga = a2.group === pg ? 1 : 0, gb = b2.group === pg ? 1 : 0;
+          if (ga !== gb) return gb - ga;
+          return a2.barT < b2.barT ? 1 : a2.barT > b2.barT ? -1 : 0;
+        });
+      }
       const todayN = (list || []).filter(function (x) { return x.barT === today; }).length;
 
       host.innerHTML =
@@ -142,7 +161,8 @@
       const s = MS.store.get();
       const isOpen = !!(s.sgOpen && s.sgOpen[x.key]);
       const unread = x.barT === MS.state.dayKey(Date.now()) && !s.sigRead[x.key];
-      return '<div data-sig="' + esc(x.key) + '" style="margin:8px 16px 0;border:1px solid ' + (isOpen ? "var(--ln2)" : "var(--ln0)") + ";border-radius:12px;background:" + (isOpen ? "var(--sf2)" : "var(--sf1)") + ';cursor:pointer;overflow:hidden">' +
+      const psy = personaTopGroup() === x.group;   // 내 성향 연동 — 골드 강조
+      return '<div data-sig="' + esc(x.key) + '" style="margin:8px 16px 0;border:1px solid ' + (psy ? "rgba(210,165,22,0.5)" : isOpen ? "var(--ln2)" : "var(--ln0)") + ";border-radius:12px;background:" + (psy && !isOpen ? "linear-gradient(135deg,rgba(210,165,22,0.08),var(--sf1) 60%)" : isOpen ? "var(--sf2)" : "var(--sf1)") + ';cursor:pointer;overflow:hidden">' +
         '<div style="display:flex;align-items:center;gap:8px;padding:12px">' +
         '<span style="position:relative;width:7px;height:7px;flex:none"><span style="position:absolute;inset:0;border-radius:50%;background:' + GC[x.group] + '"></span>' +
         (unread ? '<span style="position:absolute;inset:0;border-radius:50%;background:' + GC[x.group] + ';animation:msPing 1.8s ease-out infinite"></span>' : "") + "</span>" +
@@ -156,6 +176,7 @@
           '<div style="font-size:12.5px;color:var(--t2);line-height:1.7"><b style="color:var(--t1)">감지</b> — ' + esc(x.why) + "</div>" +
           '<div style="margin-top:6px;font-size:12.5px;color:var(--t2);line-height:1.7"><b style="color:var(--t1)">해석</b> — ' + esc(x.mean) + "</div>" +
           '<div style="margin-top:4px;font-size:11px;color:var(--m2)">' + GN[x.group] + " 계열 · " + esc(x.barT) + " 봉 기준</div>" +
+          (personaTopGroup() === x.group ? '<div style="margin-top:6px;font-size:11.5px;color:var(--cu)">내 페르소나(' + GN[x.group] + ' 관심)와 맞닿은 신호라 먼저 올렸어요</div>' : "") +
           '<button data-go="' + esc(x.sym) + '" style="margin-top:12px;width:100%;min-height:46px;border-radius:9px;border:0;background:linear-gradient(135deg,#7b6cff,#4a3ce0);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">이 종목 분석하기 →</button></div>'
           : "") +
         "</div>";
@@ -169,7 +190,15 @@
       const more = host.querySelector("[data-more]");
       if (more) more.addEventListener("click", function () { shown += 10; render(); });
       host.addEventListener("scroll", function () {
-        const rows = (list || []).filter(function (x) { return !search || x.sym === search; });
+        const pg = personaTopGroup();
+      let rows = (list || []).filter(function (x) { return !search || x.sym === search; });
+      if (pg) {   // 내 성향과 맞닿은 신호를 먼저(지침서 §7 — 골드 우선)
+        rows = rows.slice().sort(function (a2, b2) {
+          const ga = a2.group === pg ? 1 : 0, gb = b2.group === pg ? 1 : 0;
+          if (ga !== gb) return gb - ga;
+          return a2.barT < b2.barT ? 1 : a2.barT > b2.barT ? -1 : 0;
+        });
+      }
         if (host.scrollHeight - host.scrollTop - host.clientHeight < 90 && rows.length > shown) {
           shown += 10; render();
         }

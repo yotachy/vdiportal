@@ -130,7 +130,13 @@
           '<div style="display:flex;flex-direction:column;gap:8px">' +
           topCard("전체 종합", "표준", "var(--t2)", "32개를 고르게 봅니다 · 고민되면 이걸로") +
           topCard("추세 중심", "요즘 잘 맞음", "var(--up)", "최근 90일 적중 1위 스타일") +
-          topCard(null, "내 성향", "var(--cu)", "페르소나 질문에 답하면 내 성향 추천이 열려요", true) +
+          (function () {
+            const st2 = MS.store.get();
+            const ans2 = (st2.personaAns || []).slice(0, st2.personaIdx || 0);
+            const sug = ans2.length ? MS.persona.suggestPreset(ans2, MS.engine.PRESETS) : null;
+            return sug ? topCard(sug, "내 성향", "var(--cu)", "내 페르소나(" + MS.persona.chips(ans2).slice(0, 2).map(function (c) { return c.label; }).join(" · ") + ")와 가장 가까운 스타일")
+                       : topCard(null, "내 성향", "var(--cu)", "페르소나 질문에 답하면 내 성향 추천이 열려요", true);
+          })() +
           "</div>" +
           '<button data-act="more" style="margin-top:12px;display:flex;align-items:center;gap:10px;min-height:50px;border:1px solid rgba(123,108,255,0.45);border-radius:12px;background:rgba(123,108,255,0.07);padding:0 14px;cursor:pointer;width:100%;font-family:inherit;letter-spacing:inherit;text-align:left">' +
           '<span style="width:26px;height:26px;border-radius:8px;background:rgba(123,108,255,0.15);display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--ac)" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h6"></path></svg></span>' +
@@ -208,6 +214,7 @@
     const cost = tier === "deep" ? P().scoop.costDeep : P().scoop.costCustom;
     const req = { symbol: s.ticker, tfKo: s.tf, tier: tier, preset: s.preset || "전체 종합",
       weights: mixOpts ? mixOpts.weights : null, personaApply: mixOpts ? mixOpts.personaApply : false,
+      personaGW: mixOpts ? mixOpts.personaGW : null,
       paid: 0, spendInfo: null };
     if (liveFree()) { MS.ui.closeSheet(); MS.runStart(req); return; }
     if (s.scoops < cost) { MS.ui.hap("warn"); openShort(tier); return; }
@@ -381,11 +388,24 @@
     }
   });
 
-  // ── pfit 화면(페르소나 반영 확인) — P6 전: 빈 상태 ──
+  // ── pfit 화면(페르소나 반영 확인 — 실데이터·보정 내역 정직 표기) ──
   MS.router.register("pfit", {
     mount: function (host) {
       host.className = "ob-wrap";
       const s = MS.store.get();
+      const answers = (s.personaAns || []).slice(0, s.personaIdx || 0);
+      const has = answers.length > 0;
+      const gw = has ? MS.persona.groupWeights(answers) : null;
+      const GN = { t: "추세", m: "모멘텀", v: "변동성", q: "거래량", s: "구조" };
+      let adjTxt = "";
+      if (gw) {
+        const parts = [];
+        Object.keys(gw).forEach(function (k) {
+          const p2 = Math.round((gw[k] - 1) * 100);
+          if (p2 !== 0) parts.push(GN[k] + " " + (p2 > 0 ? "+" : "") + p2 + "%");
+        });
+        adjTxt = parts.length ? parts.join(" · ") : "성향이 고르게 분포 — 보정 없음";
+      }
       host.innerHTML =
         '<div style="position:absolute;inset:0;background:rgba(6,7,10,0.5)"></div>' +
         '<div style="position:absolute;left:0;right:0;bottom:0;background:var(--sf1);border-radius:18px 18px 0 0;border-top:1px solid var(--ln2);padding:16px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -18px 50px rgba(0,0,0,0.6);animation:msSheetUp 0.42s cubic-bezier(0.32,1.28,0.42,1) both">' +
@@ -393,12 +413,22 @@
         '<button data-act="back" aria-label="뒤로" style="width:32px;height:32px;margin-left:-8px;display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer;flex:none;background:none;border:0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg></button>' +
         '<span style="font-size:17px;font-weight:700;letter-spacing:-0.02em;color:var(--cu)">내 페르소나도 추가 적용</span>' +
         '<button data-act="close" aria-label="닫기" style="margin-left:auto;width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer;flex:none;background:none;border:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>' +
-        '<div style="margin-top:12px;border:1px dashed var(--ln2);border-radius:12px;padding:20px 16px;text-align:center">' +
-        '<div style="font-size:13.5px;font-weight:600;color:var(--t3)">아직 답한 페르소나 질문이 없어요</div>' +
-        '<div style="margin-top:6px;font-size:12.5px;color:var(--m1);line-height:1.6">홈의 페르소나 카드에서 질문에 답하면<br>내 성향 보정이 여기서 켜져요</div></div>' +
+        (has ?
+          '<div style="margin-top:12px;display:flex;gap:14px;align-items:center">' +
+          '<div style="flex:none">' + MS.persona.radarSvg(answers, 110) + "</div>" +
+          '<div style="min-width:0;flex:1"><div style="display:flex;flex-wrap:wrap;gap:4px">' +
+          MS.persona.chips(answers).map(function (c) {
+            return '<span style="font-size:11px;color:var(--cu);border:1px solid rgba(210,165,22,0.4);border-radius:99px;padding:3px 8px;white-space:nowrap">' + c.label + "</span>";
+          }).join("") + "</div>" +
+          '<div style="margin-top:8px;font-size:11.5px;color:var(--t2);line-height:1.6">반영 시 지표 가중이 미세 조정돼요:<br><b style="color:var(--cu)">' + adjTxt + "</b></div>" +
+          '<div style="margin-top:4px;font-size:10px;color:var(--m2)">' + answers.length + "답 기준 · 답할수록 정교해져요</div></div></div>"
+          :
+          '<div style="margin-top:12px;border:1px dashed var(--ln2);border-radius:12px;padding:20px 16px;text-align:center">' +
+          '<div style="font-size:13.5px;font-weight:600;color:var(--t3)">아직 답한 페르소나 질문이 없어요</div>' +
+          '<div style="margin-top:6px;font-size:12.5px;color:var(--m1);line-height:1.6">홈의 페르소나 카드에서 질문에 답하면<br>내 성향 보정이 여기서 켜져요</div></div>') +
         '<div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">' +
-        '<button data-act="yes" class="ms-cta-primary" style="background:linear-gradient(135deg,#ecca5e,#c1901a)"><span class="t" style="color:#1a1204">페르소나 반영해 분석</span></button>' +
-        '<button data-act="no" style="min-height:52px;border-radius:12px;border:1px solid var(--ln2);background:var(--sf2);font-size:14.5px;font-weight:600;color:var(--t1);cursor:pointer;font-family:inherit;letter-spacing:inherit">가중치만으로 분석</button></div></div>';
+        '<button data-act="yes" class="ms-cta-primary" style="background:linear-gradient(135deg,#ecca5e,#c1901a)' + (has ? "" : ";opacity:0.45") + '"><span class="t" style="color:#1a1204">페르소나 반영해 분석</span></button>' +
+        '<button data-act="no" style="min-height:52px;border-radius:12px;border:1px solid var(--ln2);background:var(--sf2);font-size:14.5px;font-weight:600;color:var(--t1);cursor:pointer;font-family:inherit">가중치만으로 분석</button></div></div>';
       host.querySelector('[data-act="back"]').addEventListener("click", function () { MS.router.go("mix"); });
       host.querySelector('[data-act="close"]').addEventListener("click", function () {
         MS.store.set({ tier: null }); MS.router.go("chart");
@@ -406,9 +436,13 @@
       function goRun(apply) {
         if (guardRun()) return;
         const st = MS.store.get();
-        startPaidRun("custom", { weights: st._mixWeights || {}, personaApply: apply });
+        startPaidRun("custom", { weights: st._mixWeights || {},
+          personaApply: apply && has, personaGW: (apply && has) ? gw : null });
       }
-      host.querySelector('[data-act="yes"]').addEventListener("click", function () { goRun(true); });
+      host.querySelector('[data-act="yes"]').addEventListener("click", function () {
+        if (!has) { MS.ui.flash("홈의 페르소나 카드에서 질문에 답해 보세요", ""); return; }
+        goRun(true);
+      });
       host.querySelector('[data-act="no"]').addEventListener("click", function () { goRun(false); });
     }
   });

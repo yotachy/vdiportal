@@ -473,7 +473,17 @@
     // 가중치: basic 없음 / deep 프리셋 / custom 프리셋×사용자(0~3)
     let W = {};
     if (tier === "deep") W = presetWeights(req.preset || "전체 종합");
-    else if (tier === "custom") W = composeWeights(req.preset || "전체 종합", req.weights || {});
+    else if (tier === "custom") {
+      W = composeWeights(req.preset || "전체 종합", req.weights || {});
+      // 페르소나 보정(Q14 기준선) — 그룹 배율(±15% 캡)을 지표 가중에 곱한다. pfit 이 내역을 표기.
+      if (req.personaApply && req.personaGW) {
+        fullSet().forEach(function (id) {
+          const g = indMeta(id).group;
+          const f = req.personaGW[g];
+          if (typeof f === "number" && isFinite(f)) W[id] = clampW(W[id] * f);
+        });
+      }
+    }
 
     let mainRes, stdRes = null;
     if (tier === "custom") {

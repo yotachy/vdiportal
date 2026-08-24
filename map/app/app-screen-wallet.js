@@ -24,7 +24,7 @@
         { n: "메뉴 둘러보기", xp: pol.xp.menuFirst, done: !!(dv.m_signal && dv.m_score && dv.m_stats), sub: "시그널·채점·통계 각 +" + pol.xp.menuFirst },
         { n: "심화 분석 1회", xp: pol.xp.analysisFirst, done: !!dv.ax_deep },
         { n: "커스텀 분석 1회", xp: pol.xp.analysisFirst, done: !!dv.ax_custom },
-        { n: "페르소나 " + pol.limits.persona.perDay + "답", xp: pol.xp.personaAnswer * pol.limits.persona.perDay, done: false, locked: "곧 열려요" },
+        { n: "페르소나 " + pol.limits.persona.perDay + "답", xp: pol.xp.personaAnswer * pol.limits.persona.perDay, done: (s.dayCounters && s.dayCounters.personaToday >= pol.limits.persona.perDay) },
         { n: "작도 토글 " + pol.xp.drawToggle.perDay + "회", xp: pol.xp.drawToggle.xp * pol.xp.drawToggle.perDay, done: (s.dayCounters && s.dayCounters.drawXp >= pol.xp.drawToggle.perDay) }
       ];
 
