@@ -136,8 +136,9 @@
         '<div style="padding-bottom:110px">' +
         '<div style="display:flex;align-items:center;gap:8px;padding:12px 16px 0">' +
         '<button data-act="back" aria-label="홈으로" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:0;color:var(--m1);cursor:pointer;flex:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
+        '<span data-act="stocks" style="display:flex;align-items:baseline;gap:6px;cursor:pointer;min-width:0">' +
         '<span style="font-size:16px;font-weight:700">' + esc(s.ticker) + "</span>" +
-        '<span style="font-size:12.5px;color:var(--m1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(master ? master.name : "") + "</span>" +
+        '<span style="font-size:12.5px;color:var(--m1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(master ? master.name : "") + " ▾</span></span>" +
         '<span style="margin-left:auto;text-align:right">' +
         '<span class="mono" style="display:block;font-size:14px;font-weight:600">' + (quote ? fmtPrice(quote.price) : "—") + "</span>" +
         (quote ? '<span class="mono" style="display:block;font-size:11.5px;font-weight:700;color:' + (quote.up ? "var(--up)" : "var(--dn)") + '">' + (quote.up ? "▲" : "▼") + Math.abs(quote.chg).toFixed(2) + "%</span>" : "") +
@@ -468,6 +469,8 @@
       });
       const dr = host.querySelector('[data-act="draws"]');
       if (dr) dr.addEventListener("click", openDraws);
+      const stk = host.querySelector('[data-act="stocks"]');
+      if (stk) stk.addEventListener("click", function () { MS.flow.openStocks(); });
       bindZoom();
       // FAB 스크롤 숨김(프로토 chScroll — 아래로 숨고 위로 복귀)
       let lastY = 0;

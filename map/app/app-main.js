@@ -45,8 +45,10 @@
         if (current && current.refresh) current.refresh();
         MS.ui.flash(MS.str("toast.refreshed"), "");
       } else go("home");
-    } else if (act === "stocks" || act === "about" || act === "scoop" || act === "acct") {
-      MS.ui.flash(MS.str("toast.comingSoon"), "");   // P1~P5 에서 각 시트·화면으로 교체
+    } else if (act === "stocks") {
+      MS.flow.openStocks();   // 전역 종목 진입점(실행·조절 화면에선 내부에서 무시)
+    } else if (act === "about" || act === "scoop" || act === "acct") {
+      MS.ui.flash(MS.str("toast.comingSoon"), "");   // about=P2후반·scoop/acct=P5/P8
     }
   }
 

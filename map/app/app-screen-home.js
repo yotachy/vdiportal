@@ -210,10 +210,12 @@
           MS.router.go("chart");
         });
       });
-      ["sig", "score", "add"].forEach(function (a) {
+      ["sig", "score"].forEach(function (a) {
         const el = host.querySelector('[data-act="' + a + '"]');
         if (el) el.addEventListener("click", function () { MS.ui.flash(str("toast.comingSoon"), ""); });
       });
+      const addB = host.querySelector('[data-act="add"]');
+      if (addB) addB.addEventListener("click", function () { MS.flow.openStocks(); });
       const ch = host.querySelector('[data-act="chart"]');
       if (ch) ch.addEventListener("click", function () { MS.router.go("chart"); });
     }

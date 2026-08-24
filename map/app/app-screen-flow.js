@@ -403,5 +403,150 @@
     }
   });
 
-  MS.flow = { openTier: openTier, openShort: openShort, liveFree: liveFree, MIX_ROWS: MIX_ROWS };
+  // ── 전역 종목 진입점(담아둔 종목 + 검색·추가 시트 — 프로토 L2083~2128) ──
+  // 헤더 ⌕ 종목·홈 추가·분석 서브헤더 ▾ 공용. 실행·조절 화면에서는 열지 않는다(지침서 §2 헤더 규칙).
+  function openStocks() {
+    const scr = MS.store.get().screen;
+    if (scr === "run" || scr === "mix") return;
+    const quotes = {};
+    let q = "";
+    MS.ui.openSheet("stocks", function (body) {
+      function fetchQuotes(syms) {
+        syms.forEach(function (sym) {
+          if (quotes[sym]) return;
+          MS.data.ohlc.fetch(sym, "일").then(function (r) {
+            if (r.ok) { quotes[sym] = MS.data.quote(r.candles); paintSheet(); }
+          }).catch(function () {});
+        });
+      }
+      function opGuard() {
+        const dc = MS.store.get().dayCounters;
+        if (dc.stockOps >= P().limits.stockOpsPerDay) {
+          MS.ui.hap("warn");
+          MS.ui.flash("오늘은 종목 변경을 다 썼어요 — 내일 다시", "");
+          return false;
+        }
+        return true;
+      }
+      function bumpOps() {
+        const s = MS.store.get();
+        const dc = {};
+        Object.keys(s.dayCounters).forEach(function (k) { dc[k] = s.dayCounters[k]; });
+        dc.stockOps++;
+        MS.store.set({ dayCounters: dc });
+      }
+      function addSym(sym, goChart) {
+        const s = MS.store.get();
+        if (s.picks.indexOf(sym) >= 0) {
+          if (goChart) { MS.store.set({ ticker: sym }); MS.ui.closeSheet(); MS.router.go("chart"); }
+          return;
+        }
+        if (s.picks.length >= P().limits.stocksMax) { MS.ui.hap("warn"); MS.ui.flash("가득 찼어요(12/12) — 하나를 빼고 추가하세요", ""); return; }
+        if (!opGuard()) return;
+        bumpOps();
+        MS.store.set({ picks: s.picks.concat([sym]), ticker: s.ticker || sym });
+        MS.store.persistSoon();
+        MS.ui.hap("earn");
+        MS.ui.flash(sym + " 을 담았어요", "");
+        if (goChart) { MS.store.set({ ticker: sym }); MS.ui.closeSheet(); MS.router.go("chart"); }
+        else paintSheet();
+      }
+      function paintSheet() {
+        const s = MS.store.get();
+        const picks = s.picks;
+        const qq = q.trim().toLowerCase();
+        const cands = MS.data.MASTER.filter(function (t) { return picks.indexOf(t.sym) < 0; })
+          .filter(function (t) {
+            if (!qq) return true;
+            return t.sym.toLowerCase().indexOf(qq) >= 0 || t.name.indexOf(q.trim()) >= 0;
+          });
+        const full = picks.length >= P().limits.stocksMax;
+        body.innerHTML =
+          '<div style="display:flex;align-items:baseline;gap:8px;padding:4px 0 12px;border-bottom:1px solid var(--sf3)">' +
+          '<span style="font-size:16px;font-weight:700">담아둔 종목</span>' +
+          '<span class="mono" style="font-size:13px;color:var(--ac)">' + picks.length + '<span style="color:var(--m2)">/' + P().limits.stocksMax + "</span></span>" +
+          '<span style="margin-left:auto;font-size:12.5px;color:var(--m1)">누르면 차트로</span></div>' +
+          (!picks.length ?
+            '<div style="margin:12px 0 0;border:1px dashed var(--ln2);border-radius:9px;padding:16px 12px;text-align:center;font-size:13px;color:var(--t2)">아직 고른 종목이 없어요. 아래에서 추가하세요</div>' : "") +
+          picks.map(function (sym) {
+            const t = MS.data.MASTER.filter(function (x) { return x.sym === sym; })[0];
+            const qt = quotes[sym];
+            const cur = s.ticker === sym;
+            const done = !!s.analyzed[sym + "|일"] || !!s.analyzed[sym + "|주"] || !!s.analyzed[sym + "|월"];
+            return '<div data-go="' + esc(sym) + '" style="display:flex;align-items:center;gap:8px;min-height:54px;padding:8px 0;border-bottom:1px solid var(--ln0);cursor:pointer">' +
+              '<div style="width:96px"><div style="font-weight:700;font-size:13.5px">' + esc(sym) + '</div><div style="font-size:12.5px;color:var(--m1)">' + esc(t ? t.name : "") + "</div></div>" +
+              (cur ? '<span style="font-size:11.5px;color:var(--ac);border:1px solid rgba(123,108,255,0.45);background:rgba(123,108,255,0.1);border-radius:99px;padding:2px 8px">보는 중</span>' : "") +
+              (done ? '<span style="font-size:11.5px;color:var(--up);border:1px solid rgba(46,217,160,0.35);border-radius:99px;padding:2px 8px">분석됨</span>' : "") +
+              '<div style="margin-left:auto;text-align:right"><div class="mono" style="font-size:13.5px">' + (qt ? fmtP(qt.price) : "—") + '</div><div class="mono" style="font-size:12.5px;color:' + (qt ? (qt.up ? "var(--up)" : "var(--dn)") : "var(--m2)") + '">' + (qt ? (qt.up ? "▲" : "▼") + Math.abs(qt.chg).toFixed(2) + "%" : "") + "</div></div>" +
+              '<span data-del="' + esc(sym) + '" aria-label="관심 종목에서 삭제" role="button" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:var(--m1);cursor:pointer;flex:none"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="display:block"><path d="M6 6l12 12M18 6L6 18"></path></svg></span></div>';
+          }).join("") +
+          '<div style="margin:14px -16px 0;height:6px;background:var(--sf0)"></div>' +
+          '<div style="padding:14px 0 10px;display:flex;align-items:baseline;gap:8px">' +
+          '<span style="font-size:16px;font-weight:700">종목 추가</span>' +
+          '<span style="font-size:12px;color:var(--m1)">미국 전 종목 · 주요 암호화폐</span></div>' +
+          '<div style="display:flex;align-items:center;gap:8px;height:46px;border:1.5px solid rgba(123,108,255,0.45);border-radius:12px;background:var(--sf2);padding:0 12px">' +
+          '<svg viewBox="0 0 24 24" width="15" height="15" style="flex:none;color:var(--ac)"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"></circle><path d="M15.8 15.8 20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>' +
+          '<input data-q placeholder="티커나 이름으로 검색 · 예: TSLA, 솔라나" value="' + esc(q) + '" style="flex:1;background:transparent;border:none;outline:none;color:var(--t1);font-size:13.5px;font-family:inherit"></div>' +
+          (full ? '<div style="margin-top:4px;font-size:12.5px;color:var(--am)">내 관심 종목이 가득 찼어요(' + picks.length + "/" + P().limits.stocksMax + "). 하나를 빼면 추가할 수 있습니다</div>" : "") +
+          (qq && !cands.length ?
+            '<div style="margin-top:8px;border:1px dashed var(--ln2);border-radius:9px;padding:16px 12px;text-align:center;font-size:13px;color:var(--m1)">검색 결과가 없어요. 전 종목 검색은 곧 열립니다</div>' : "") +
+          (!qq ? '<div style="padding:12px 0 4px;display:flex;align-items:baseline;gap:7px;font-size:12px"><span style="font-weight:600;color:var(--t2)">요즘 많이 담는 종목</span><span style="color:var(--m2)">맛보기예요 — 검색하면 모든 종목이 나옵니다</span></div>' : "") +
+          cands.map(function (t) {
+            const qt = quotes[t.sym];
+            return '<div style="display:flex;align-items:center;gap:8px;min-height:50px;padding:8px 0;border-bottom:1px solid var(--ln0)">' +
+              '<div style="width:96px"><div style="font-weight:600;font-size:13.5px;color:var(--t2)">' + esc(t.sym) + '</div><div style="font-size:12.5px;color:var(--m2)">' + esc(t.name) + "</div></div>" +
+              '<div style="margin-left:auto;display:flex;align-items:center;gap:8px">' +
+              '<span class="mono" style="font-size:13px;color:' + (qt ? (qt.up ? "var(--up)" : "var(--dn)") : "var(--m2)") + '">' + (qt ? (qt.up ? "▲" : "▼") + Math.abs(qt.chg).toFixed(2) + "%" : "—") + "</span>" +
+              '<button data-add="' + esc(t.sym) + '" style="font-size:12.5px;color:var(--t2);border:1px solid var(--ln2);border-radius:7px;padding:8px 12px;background:none;cursor:pointer;font-family:inherit">추가만</button>' +
+              '<button data-goadd="' + esc(t.sym) + '" style="font-size:12.5px;color:var(--ac);border:1px solid rgba(123,108,255,0.45);border-radius:7px;padding:8px 12px;background:none;cursor:pointer;font-family:inherit">바로 분석 →</button></div></div>';
+          }).join("");
+
+        body.querySelectorAll("[data-go]").forEach(function (el) {
+          el.addEventListener("click", function (e) {
+            if (e.target.closest("[data-del]")) return;
+            MS.store.set({ ticker: el.getAttribute("data-go") });
+            MS.ui.closeSheet();
+            MS.router.go("chart");
+          });
+        });
+        body.querySelectorAll("[data-del]").forEach(function (el) {
+          el.addEventListener("click", function () {
+            if (!opGuard()) return;
+            const sym = el.getAttribute("data-del");
+            const s2 = MS.store.get();
+            const next = s2.picks.filter(function (p2) { return p2 !== sym; });
+            bumpOps();
+            MS.store.set({ picks: next, ticker: s2.ticker === sym ? (next[0] || null) : s2.ticker });
+            MS.store.persistSoon();
+            MS.ui.flash(sym + " 을 뺐어요", "");
+            paintSheet();
+          });
+        });
+        body.querySelectorAll("[data-add]").forEach(function (el) {
+          el.addEventListener("click", function () { addSym(el.getAttribute("data-add"), false); });
+        });
+        body.querySelectorAll("[data-goadd]").forEach(function (el) {
+          el.addEventListener("click", function () { addSym(el.getAttribute("data-goadd"), true); });
+        });
+        const inp = body.querySelector("[data-q]");
+        inp.addEventListener("input", function () {
+          q = inp.value;
+          const pos = inp.selectionStart;
+          paintSheet();
+          const inp2 = body.querySelector("[data-q]");
+          inp2.focus();
+          try { inp2.setSelectionRange(pos, pos); } catch (e) {}
+        });
+        fetchQuotes(picks.concat(cands.slice(0, 6).map(function (t) { return t.sym; })));
+      }
+      paintSheet();
+    });
+  }
+  function fmtP(v) {
+    if (v == null || !isFinite(v)) return "—";
+    return v >= 1000 ? Math.round(v).toLocaleString("en-US") : (Math.round(v * 100) / 100).toFixed(2);
+  }
+
+  MS.flow = { openTier: openTier, openShort: openShort, openStocks: openStocks,
+    liveFree: liveFree, MIX_ROWS: MIX_ROWS };
 })();
