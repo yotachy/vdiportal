@@ -21,7 +21,14 @@
       const r = await MS.data.api("wallet_state", {});
       if (r && r.ok) {
         serverOk = true;
-        MS.store.set({ scoops: r.balance, walletCap: r.cap, canCheckin: !!r.canCheckin, streakDays: r.streakDays || 0 });
+        const patch = { scoops: r.balance, walletCap: r.cap, canCheckin: !!r.canCheckin, streakDays: r.streakDays || 0 };
+        // 서버가 연결 상태의 정본(P8) — 다른 기기에서 탈퇴했거나 병합됐으면 여기서 따라간다
+        if (typeof r.linked === "number" && !(MS.auth && MS.auth.stub)) {   // 스텁 링크(dev)는 서버가 모른다
+          patch.gLinked = r.linked ? 1 : 0;
+          if (r.linked && r.nick) patch.nick = r.nick;
+          if (!r.linked) patch.nick = null;
+        }
+        MS.store.set(patch);
         MS.store.persistSoon();
         if (r.hitRefunds > 0) {
           MS.ui.hap("earn");

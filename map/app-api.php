@@ -79,15 +79,74 @@ try {
       "more" => ($i + 1) < count($bank)));
   }
 
-  // ── 지갑 ops(P5) ──
+  // ── 계정·동기화 ops(P8) — 실 구글 OAuth 는 wallet-auth.php(브라우저 구간)·w_merge(병합) 재사용 ──
+  if ($op === "auth_start") {
+    if (!w_oauth_conf()) al_out(array("ok" => false, "error" => "auth-disabled"));
+    $wdb = w_db($AL_DIR);
+    app_wallet_acct($wdb, $AL_DIR, $device);   // 계정 보장 — 병합(w_merge)이 no-account 로 늦게 죽지 않게
+    $n = w_nonce_make($wdb, $device);
+    $base = "https://" . $_SERVER["HTTP_HOST"] . rtrim(dirname($_SERVER["SCRIPT_NAME"]), "/");
+    al_out(array("ok" => true, "nonce" => $n, "authUrl" => $base . "/wallet-auth.php?nonce=" . urlencode($n)));
+  }
+  if ($op === "auth_poll") {
+    $wdb = w_db($AL_DIR);
+    $nonce = isset($in["nonce"]) ? (string)$in["nonce"] : "";
+    $row = $nonce !== "" ? w_nonce_read($wdb, $nonce) : null;
+    // 모르는·만료된·남의 논스는 같은 401(wallet-api 와 동일 판단 — 존재 여부를 캐낼 수 없게)
+    if (!$row || $row["device_id"] !== $device) al_out(array("ok" => false, "error" => "unauthorized"), 401);
+    if ($row["google_sub"] === null) al_out(array("ok" => true, "pending" => true));
+    $m = w_merge($wdb, $device, $row["google_sub"]);
+    if (!$m["ok"]) {
+      if ($m["reason"] === "device-claimed") { w_nonce_burn($wdb, $nonce); al_out(array("ok" => false, "error" => "device-claimed"), 409); }
+      al_out(array("ok" => false, "error" => "server"), 500);
+    }
+    w_nonce_burn($wdb, $nonce);
+    require_once __DIR__ . "/app-sync-lib.php";
+    sync_migrate($db);
+    // 게스트 로컬 상태를 즉시 병합 저장(최초 닉네임 생성 포함) — 클라 왕복을 아낀다
+    $push = isset($in["state"]) && is_array($in["state"]) ? $in["state"] : array();
+    $r = sync_put($db, $row["google_sub"], $push, time());
+    $stt = w_state($wdb, $m["acct"]);
+    al_out(array("ok" => true, "pending" => false, "linked" => true, "nick" => $r["nick"],
+      "state" => $r["state"], "discarded" => $m["discarded"], "wallet" => $stt));
+  }
+  if ($op === "sync_push" || $op === "sync_pull" || $op === "withdraw") {
+    $wdb = w_db($AL_DIR);
+    $res = app_acct_resolve($wdb, $AL_DIR, $device, false);   // 동기화는 계정을 만들지 않는다(게스트 403)
+    if (!$res["linked"]) al_out(array("ok" => false, "error" => "guest"), 403);
+    require_once __DIR__ . "/app-sync-lib.php";
+    sync_migrate($db);
+    if ($op === "sync_push") {
+      $r = sync_put($db, $res["sub"], isset($in["state"]) && is_array($in["state"]) ? $in["state"] : array(), time());
+      al_out(array("ok" => true, "nick" => $r["nick"], "state" => $r["state"]));
+    }
+    if ($op === "sync_pull") {
+      $row = sync_get($db, $res["sub"]);
+      al_out(array("ok" => true, "nick" => $row ? $row["nick"] : null, "state" => $row ? $row["state"] : null));
+    }
+    // withdraw — 동기화 데이터 삭제 + 지갑의 구글 연결 해제(계정·원장은 각 정본 규칙대로 보존)
+    sync_delete($db, $res["sub"]);
+    $wdb->prepare("update accounts set google_sub = null where id = ?")->execute(array($res["acct"]["id"]));
+    al_out(array("ok" => true));
+  }
+
+  // ── 지갑 ops(P5 — P8 부터 구글 연결 기기는 병합된 계정을 본다) ──
   if ($op === "wallet_state" || $op === "wallet_spend" || $op === "wallet_refund" || $op === "wallet_checkin") {
     $wdb = w_db($AL_DIR);
-    $acct = app_wallet_acct($wdb, $AL_DIR, $device);
+    $res = app_acct_resolve($wdb, $AL_DIR, $device);
+    $acct = $res["acct"];
     if ($op === "wallet_state") {
       $granted = app_wallet_sweep_refunds($wdb, $db, $device, $acct["id"]);
       $stt = w_state($wdb, $acct);
       $stt["ok"] = true;
       $stt["hitRefunds"] = $granted;
+      $stt["linked"] = $res["linked"] ? 1 : 0;
+      if ($res["linked"]) {
+        require_once __DIR__ . "/app-sync-lib.php";
+        sync_migrate($db);
+        $srow = sync_get($db, $res["sub"]);
+        $stt["nick"] = $srow ? $srow["nick"] : null;
+      }
       al_out($stt);
     }
     if ($op === "wallet_spend") {
@@ -108,7 +167,9 @@ try {
       $r = w_checkin($wdb, $acct, null);
       $r["balance"] = w_true_balance($wdb, $acct["id"]);
       $r["streakDays"] = null;
-      $a2 = w_get_account($wdb, $device);
+      $st2 = $wdb->prepare("select streak_days from accounts where id = ?");   // 해석된 계정 기준(P8)
+      $st2->execute(array($acct["id"]));
+      $a2 = $st2->fetch();
       if ($a2) $r["streakDays"] = (int)$a2["streak_days"];
       al_out($r);
     }

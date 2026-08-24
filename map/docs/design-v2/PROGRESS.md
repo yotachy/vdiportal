@@ -1,7 +1,7 @@
 # 머니스쿱 앱 — 진행 로그 · 재개 지점
 
 **세션이 끊기면 이 문서 하나로 이어진다.** 페이즈 완료·배포·중요 결정 때마다 갱신한다(갱신 규칙은 맨 아래).
-최종 갱신: **2026-08-25 (P7 통계 완료)**
+최종 갱신: **2026-08-25 (P8 계정 완료)**
 
 ---
 
@@ -17,15 +17,16 @@
 | P5 경제 | ✅ | 지갑 서버 트랜잭션(deep2/custom3·멱등·환불)·적중 환급 실지급·출석/연속7·XP 시스템(게스트 잠금)·레벨업/캐릭터·내 스쿱 화면 |
 | P6 페르소나 | ✅ | 서버 질문 은행(총량 비공개·확장형)·홈 카드(즉시 질문·풀 배급·고치기·게스트 3문 잠금)·정밀도 단계·16축 레이더·커스텀 보정(Q14 기준선 ±15%·내역 정직 표기)·내 성향 프리셋 추천·시그널 골드 우선 |
 | P7 통계 | ✅ | 서버 익명 집계(al_peers_stats — 원장 실값만 파생)·peers 화면 8블록·엔진 카드 4페이지(백테스트 정본 58.1%/기준선 60.8% 병기·validatedAxes/version 라이브)·표본 없는 항목 '집계 준비 중' 정직 표기·마니페스토(about) 시트 |
-| **P8 계정** | ⏳ **다음** | 구글 OAuth(wallet-auth 재사용)·게스트 병합·XP/레벨 실적립·페르소나/읽음 서버 동기화 |
-| P9 마감 / P10 앱 셸 | — | BUILD-PLAN §7 |
+| P8 계정 | ✅ | 실 구글 OAuth(wallet-auth.php+w_merge 재사용 — auth_start/auth_poll)·게스트→계정 병합(서버 규칙: xp/페르소나 max·읽음/종목 합집합)·닉네임 자동 생성·XP 실적립 게이트 해제·변경 디바운스 push+부팅 pull·로그아웃/탈퇴·계정 해석 3갈래(최초 링크/병합-이동 기기/게스트) |
+| **P9 마감** | ⏳ **다음** | 반응형 §16·접근성·fixture/데모 트리거 제거·i18n 검수·리더보드 해금 검토 |
+| P10 앱 셸 | — | BUILD-PLAN §7 |
 
 **라이브**: https://parksvc.mycafe24.com/map/app/ (실데이터 — cafe24에서만 시세 프록시 동작. 로컬은 `?fixture=1`)
 
 ## 1. 새 세션 재개 절차
 
 1. 이 문서 → [`BUILD-PLAN.md`](BUILD-PLAN.md)(아키텍처·모듈 맵·엔진 브리지 계약·Q1~12) → `map/CLAUDE.md` §앱 트랙(규칙 요약) 순으로 읽는다.
-2. `cd map && ./tests/run.sh` — **926건 전체 초록이 기준선**(app 73 · app-ledger 21 · app-wallet-bridge 13 포함). wallet-lib 을 만졌으면 `./tests/run.sh concurrency` 도.
+2. `cd map && ./tests/run.sh` — **947건 전체 초록이 기준선**(app 73 · app-ledger 21 · app-wallet-bridge 13 포함). wallet-lib 을 만졌으면 `./tests/run.sh concurrency` 도.
 3. 라이브 확인: 위 URL 부팅 + `curl -s -X POST https://parksvc.mycafe24.com/map/app-api.php -d '{"op":"list","device":"smoketest01"}'` → ok:true.
 4. 마지막 커밋 로그(`git log --oneline -10`)와 이 문서 §5 세션 로그 대조 → 다음 항목 착수.
 5. 상세 태스크 플랜: `docs/superpowers/plans/2026-08-24-app-p*.md` (P0·P1·P2 — 완료 헤더에 실행 중 조정사항 기록됨).
@@ -39,10 +40,10 @@
 - 확정: Q1 적중 환급 +1(P5 실지급) · Q2 레벨 0 시작 · Q3 24h 무차감 대칭 · Q4 페르소나 300문+·**총량 비공개** · Q5 지표는 엔진 정본.
 - 정책 숫자는 `app-config.js` POLICY만 · 문자열은 `MS.str()` · ES2017 하한 · 시트는 탭바 불가림.
 
-## 3. 배포 상태 (2026-08-25 기준 — P7까지 라이브)
+## 3. 배포 상태 (2026-08-25 기준 — P8까지 라이브)
 
 - **앱**: `www/map/app/` — index.html·app.css·app-*.js(테스트 제외)·assets(intro/engine-deep/engine-apply.mp4).
-- **서버 동반 세트**: `www/map/app-api.php` + `app-ledger-lib.php` + `app-wallet-bridge.php` + `app-persona-bank.php`(P6). + `wallet-lib.php`(가드형 상수 — 같이 올리고 같이 검증, wallet-lib 수정 시 concurrency 관문 필수).
+- **서버 동반 세트**: `www/map/app-api.php` + `app-ledger-lib.php` + `app-wallet-bridge.php` + `app-persona-bank.php`(P6) + `app-sync-lib.php`(P8) + `wallet-lib.php`(가드형 상수 — 같이 올리고 같이 검증, wallet-lib 수정 시 concurrency 관문 필수).
 - **엔진**: 앱은 서버의 `www/map/forge-core.js` 를 상대참조 — **엔진 커밋 미배포 시 앱이 죽는다**(aggUpProb 사고, CLAUDE.md 기록). 엔진 올릴 땐 forge 동반 세트 확인.
 - **불가침**: `<data>/app_ledger.db`(예측·채점 원장) + 기존 forge_*·wallet 목록.
 - 배포 방법: `lftp -u "parksvc,<메모리 scoopforge-deploy 참조>" sftp://parksvc.mycafe24.com` → put. **호스트는 mycafe24.com — `parksvc.cafe24.com`은 22 포트가 닫혀 있어 무한 대기한다**(2026-08-25 확인). `set net:timeout 15` 걸고 올릴 것.
@@ -63,7 +64,8 @@
 - P5 경제 완료(2026-08-25): wallet-lib 가드형 상수(기본값 불변·전 스위트 유지) + app-api 지갑 브리지(시드 15·상한 15·deep2/custom3·출석 일1+연속7일+5·적중 환급 스위프 멱등 hitref:*) — 출석 6h 주기는 Q13 협의 고정점(현 기준선=일 단위). 클라: MS.wallet(서버 spend/refund 멱등·오프라인 폴백)·MS.xp(게스트 잠금·레벨업 오버레이·저폴리 캐릭터 5종)·XP 훅 전부(방문/메뉴/분석 완주/채점·시그널 확인/작도/종목 추가)·내 스쿱 화면(3개념·레벨/미션·잔고 셀·출석·광고 스텁·설정 동작). 관문 907건+concurrency 6종.
 - P6 페르소나 완료(2026-08-25): app-persona-bank.php(서버 은행 — 초기 15문·총량 어떤 응답에도 미포함·append 확장) + persona_q op. app-persona.js(UMD·테스트 7건): heat/단계(경계 [0,4,9,16,31,61]·% 금지)/16스포크 레이더/성향→그룹 매핑(Q14 기준선: 근거·호흡·위험 → t/m/v/q/s, 배율 ±15% 캡)/프리셋 코사인 추천. 홈 카드(하루 첫 답 자동·풀 배급·← 고치기·게스트 3문 잠금·XP+1), pfit 실보정(내역 정직 표기 → 엔진 가중 곱), 프리셋 '내 성향' 활성, 시그널 골드 우선 정렬+문구, 지갑 미션 활성. 답변은 {j,d,l} 스냅샷으로 영속(은행 재조회 불필요) — 서버 병합은 P8. ⚠ 사고 1건: pfit 패치가 openStocks 블록을 삼킴 → HEAD에서 복원(범위 치환 시 끝 마커 주의).
 - P7 통계 완료(2026-08-25): 서버 `al_peers_stats`(14일 사용량·7일 종목 점유율·90일 관점별 적중률+'항상 상승' 실측 기준선·나의 적중률/상위%·minN=5 미달 비공개) + peers op(내 대기 채점 스위프 후 집계). stats 화면: 엔진 스와이프 카드 4p(사용량 실값 / walk-forward 정본 58.1% vs 기준선 60.8% — 프로토 62.6%/60.96%/8,214건 샘플은 이식 금지 / validatedAxes 8축 라이브 / 누적 채점·버전 라이브), 최다 분석 종목(HOT·내 관심), 페르소나 분포·가중치 집계·닉네임 리더보드는 P8 전 '집계 준비 중'(무엇이 올지 이름으로). about 시트(app-ui.openAbout — 마니페스토 전문·면책·Contact·엔진 버전/지표 수 라이브, 헤더 ⓘ+통계 푸터). manifesto-engine-v2.png 에셋 편입. 함정 1건: 라우터 host 가 이미 `.ms-screen`(absolute 스크롤러) — 화면 모듈이 host 스타일을 덮지 말 것.
-- **다음 착수점: P8 계정** — 구글 OAuth(wallet-auth.php 재사용)·게스트→계정 병합·XP/레벨 서버 실적립·페르소나 답변/시그널 읽음 서버 동기화·닉네임(리더보드 해금).
+- P8 계정 완료(2026-08-25): 서버 — `auth_start`(논스 발급, wallet-auth.php 브라우저 구간 재사용)·`auth_poll`(w_merge 병합 → 논스 소각 → 게스트 상태 즉시 sync_put·닉네임 생성)·`sync_push/pull`(app-sync-lib: xp/personaIdx max·personaAns 긴 쪽·sigRead 합집합·picks 합집합 상한 12·스칼라 클라 우선)·`withdraw`(동기화 삭제+구글 해제, 원장은 익명 보존)·`app_acct_resolve` 3갈래(최초 링크 기기=자기 계정 / merge_discard 표식 기기 → 구글 계정 / 게스트) — 지갑 ops 전부 해석된 계정을 본다(두 기기 같은 잔액, 재발행 없음). 클라 — app-auth.js(start/poll 2.5s×120·logout·withdraw·변경 디바운스 push 3s·부팅 pull), wallet.state 가 linked/nick 정본 반영, 헤더 아바타=닉 이니셜, 내 스쿱 계정 행/탈퇴(confirm), 홈 페르소나 잠금 CTA·헤더 계정 버튼 → 로그인. dev: `?fixture=1` 스텁 링크(서버 무관, stub 플래그로 서버 override 차단). 라이브 OAuth 는 `forge_google_oauth.json` 업로드 시 자동 활성(없으면 auth-disabled → "준비 중" 토스트). 테스트 app-sync 20건. 함정: 로컬 PHP 는 IP 계정 생성 상한에 걸려 wallet ops 가 500 — 동기화 ops 는 계정을 만들지 않게(resolve create=false) 분리했다.
+- **다음 착수점: P9 마감** — 반응형(§16 폴드·글자 크게)·접근성(aria·포커스)·fixture/데모 트리거 제거 목록 실행·i18n 키 검수·리더보드 해금(P7 이월 — 닉네임 생겼으니 서버 집계 열 수 있음, XP 서버 검증은 §15 협의)·about/온보딩 카피 최종.
 
 ---
 

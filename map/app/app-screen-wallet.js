@@ -92,13 +92,13 @@
 
         // 계정 · 설정
         '<div style="margin:12px 16px 0;border-radius:14px;background:var(--sf1);overflow:hidden">' +
-        row("acct", "구글 계정", s.gLinked ? "연결됨" : "게스트 — 로그인하면 기록이 계정에 안전하게 보관돼요", s.gLinked ? "로그아웃" : "로그인") +
+        row("acct", "구글 계정", s.gLinked ? ("연결됨" + (s.nick ? " · " + esc(s.nick) : "")) : "게스트 — 로그인하면 기록이 계정에 안전하게 보관돼요", s.gLinked ? "로그아웃" : "로그인") +
         rowToggle("noti", "알림", !s.notiOff) +
         row("theme", "테마", s.theme === "dark" ? "다크" : "라이트", "전환") +
         rowSeg("fz", "글자 크기", s.fontZoom) +
         '<div style="display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--ln0);font-size:13px;color:var(--t2)"><span>앱 버전</span><span class="mono" style="margin-left:auto;color:var(--m2)">dev · 엔진 ' + esc((window.ForgeCore && ForgeCore.version) || "") + "</span></div>" +
         row("reset", "프로토타입 초기화", "이 기기의 기록을 지우고 처음부터", "초기화") +
-        row("withdraw", "회원 탈퇴", "계정과 서버 기록 삭제(로그인 후 이용)", "") +
+        row("withdraw", "회원 탈퇴", s.gLinked ? "서버 기록 삭제 · 구글 연결 해제" : "계정과 서버 기록 삭제(로그인 후 이용)", s.gLinked ? "탈퇴" : "") +
         "</div>" +
         '<div style="margin:14px 16px 0;font-size:11px;color:var(--m2);line-height:1.7">스쿱·기록은 서버에 안전하게 보관돼요 · 예측은 참고용이며 투자 판단과 책임은 본인에게 있습니다.</div>' +
         "</div>";
@@ -140,8 +140,8 @@
         MS.wallet.checkin().then(render);
       });
       on("ad", function () { MS.ui.flash("광고 보상은 앱(스토어) 버전에서 열려요", ""); });
-      on("login", function () { MS.ui.flash("구글 로그인은 곧 열려요 — 기록은 이 기기에 안전하게 보관 중", ""); });
-      on("acct", function () { MS.ui.flash(MS.store.get().gLinked ? "로그아웃은 곧 열려요" : "구글 로그인은 곧 열려요", ""); });
+      on("login", function () { MS.auth.start(); });
+      on("acct", function () { if (MS.store.get().gLinked) MS.auth.logout(); else MS.auth.start(); });
       on("noti", function () {
         const s = MS.store.get();
         MS.store.set({ notiOff: s.notiOff ? 0 : 1 });
@@ -162,12 +162,21 @@
         MS.ui.flash("초기화했어요 — 처음부터 시작합니다", "");
         setTimeout(function () { location.reload(); }, 600);
       });
-      on("withdraw", function () { MS.ui.flash("탈퇴는 구글 로그인 이후 계정 메뉴에서 진행돼요", ""); });
+      on("withdraw", function () {
+        if (!MS.store.get().gLinked) { MS.ui.flash("탈퇴는 구글 로그인 이후 계정 메뉴에서 진행돼요", ""); return; }
+        // 확인 절차(프로토 withdrawTap 문구) — 실제 삭제는 서버 withdraw 후 로컬 초기화
+        if (!window.confirm("모든 서버 기록(경험치·페르소나·닉네임)이 삭제되고 구글 연결이 해제돼요. 계속할까요?")) return;
+        MS.auth.withdraw();
+      });
     }
 
     render();
     MS.wallet.state().then(function () {
       if (MS.store.get().screen === "wallet") render();
+    });
+    const unsub = MS.store.subscribe(function (keys) {
+      if (MS.store.get().screen !== "wallet") { unsub(); return; }
+      if (keys && (keys.indexOf("gLinked") >= 0 || keys.indexOf("nick") >= 0 || keys.indexOf("xp") >= 0)) render();
     });
   }
 

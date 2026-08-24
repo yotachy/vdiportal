@@ -104,7 +104,7 @@
       el("lvFill").style.width = pct + "%";
     }
     el("acct").outerHTML = s.gLinked
-      ? '<span class="ava" data-bind="acct">' + (s.acctInitial || "M") + "</span>"
+      ? '<span class="ava" data-bind="acct">' + (s.nick ? String(s.nick).charAt(0) : "M") + "</span>"
       : '<span class="guest" data-bind="acct">' + SVG_GOOGLE + "</span>";
   }
 
@@ -276,7 +276,7 @@
     renderHeader(els.header);
     renderTabbar(els.tabbar);
     store.subscribe(function (keys) {
-      if (keys.indexOf("scoops") >= 0 || keys.indexOf("xp") >= 0 || keys.indexOf("gLinked") >= 0) syncHeader();
+      if (keys.indexOf("scoops") >= 0 || keys.indexOf("xp") >= 0 || keys.indexOf("gLinked") >= 0 || keys.indexOf("nick") >= 0) syncHeader();
       if (keys.indexOf("screen") >= 0 || keys.indexOf("scoops") >= 0 || keys.indexOf("scoreDueN") >= 0 || keys.indexOf("sigTodayN") >= 0) syncTabbar();
       if (keys.indexOf("screen") >= 0 && sheetState) closeSheet();  // 다른 화면 이동 시 시트 자동 닫힘
       if (keys.indexOf("theme") >= 0) document.body.setAttribute("data-th", store.get().theme);

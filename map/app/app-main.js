@@ -47,7 +47,10 @@
       } else go("home");
     } else if (act === "stocks") {
       MS.flow.openStocks();   // 전역 종목 진입점(실행·조절 화면에선 내부에서 무시)
-    } else if (act === "scoop" || act === "acct") {
+    } else if (act === "acct") {
+      // 프로토 acctTap: 연결됨 → 내 스쿱, 게스트 → 구글 로그인 시작
+      if (store.get().gLinked) go("wallet"); else if (MS.auth) MS.auth.start();
+    } else if (act === "scoop") {
       go("wallet");
     } else if (act === "about") {
       MS.ui.openAbout();   // 마니페스토·면책·문의 시트(P7)
@@ -76,6 +79,7 @@
     // 복원 성공(관심 종목 보유) → 홈 직행, 첫 실행 → boot(인트로) — 프로토 L2202 규칙
     go(restored ? "home" : "boot");
     if (restored && MS.wallet) MS.wallet.state();   // 서버 잔액 동기화 + 적중 환급 스위프
+    if (MS.auth) MS.auth.init();                     // 연결 기기: 변경 푸시 훅 + 부팅 pull(P8)
   }
 
   MS.router = { register: register, go: go, onChrome: onChrome, boot: boot };

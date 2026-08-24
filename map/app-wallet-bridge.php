@@ -23,6 +23,31 @@ function app_wallet_acct($db, $dir, $device) {
   return $acct;
 }
 
+// 계정 해석(P8) — 기기가 구글에 연결됐으면 그 계정을 본다. 세 갈래:
+// ① 기기 계정에 google_sub 가 있다(최초 링크 기기 = 그 계정이 곧 구글 계정) ② 기기 계정이
+// merge_discard 표식으로 "넘어감"(두 번째 기기 — 표식의 ref 에 적힌 sub 로 실계정 조회)
+// ③ 게스트. 새 앱은 토큰이 없고 device 문자열(64자 랜덤 = 비밀) 기반이라, 구 앱의 계정
+// 토큰 역할을 이 해석이 대신한다.
+function app_acct_resolve($db, $dir, $device, $create = true) {
+  $acct = $create ? app_wallet_acct($db, $dir, $device) : w_get_account($db, $device);
+  if (!$acct) return array("acct" => null, "linked" => false, "sub" => null);   // 계정 없음 = 게스트
+  if ($acct["google_sub"] !== null) {
+    return array("acct" => $acct, "linked" => true, "sub" => $acct["google_sub"]);
+  }
+  if (w_is_merged_away($db, $acct["id"])) {
+    $st = $db->prepare("select ref from ledger where account_id = ? and reason = 'merge_discard' order by id desc limit 1");
+    $st->execute(array($acct["id"]));
+    $r = $st->fetch();
+    if ($r && $r["ref"] !== null) {
+      $st = $db->prepare("select * from accounts where google_sub = ?");
+      $st->execute(array($r["ref"]));
+      $g = $st->fetch();
+      if ($g) return array("acct" => $g, "linked" => true, "sub" => $g["google_sub"]);
+    }
+  }
+  return array("acct" => $acct, "linked" => false, "sub" => null);
+}
+
 // 적중 환급 실지급(Q1) — 원장 refund_due 를 지갑 +1 로. 멱등키 hitref:<id> 라 재실행 안전:
 // 지급을 먼저(멱등), 표시 플래그를 나중에 — 중간에 죽어도 다음 호출이 이어서 마킹만 한다.
 function app_wallet_sweep_refunds($wdb, $aldb, $device, $acctId) {

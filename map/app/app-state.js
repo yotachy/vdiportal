@@ -17,7 +17,7 @@
   // 영속 대상(이 목록이 곧 저장 스키마 v1)
   const persistKeys = [
     "picks", "analyzed", "analyzedAt", "scoops", "theme", "gLinked",
-    "personaIdx", "personaAns", "personaApply", "xp", "xpToday", "fontZoom",
+    "personaIdx", "personaAns", "personaApply", "xp", "xpToday", "fontZoom", "nick",
     "dayVisit", "weights", "checks", "indOff", "dayCounters", "sigRead", "xpSeen", "notiOff",
     "analysisMeta"   // 'SYM|TF' → {tier,preset,weights,personaApply} — 리포트 재구성(재계산 무료·결정적)용
   ];
@@ -151,6 +151,9 @@
       },
       write: function (raw) {
         try { localStorage.setItem(STORE_KEY, raw); } catch (e) { /* 폴백: 메모리만 */ }
+      },
+      clear: function () {   // 탈퇴·초기화 — 기기 id(ms_device_id)는 남긴다(지갑 계정 키)
+        try { localStorage.removeItem(STORE_KEY); } catch (e) {}
       }
     };
   }

@@ -271,7 +271,7 @@
         loadPersonaQ();
       });
       const pl = host.querySelector('[data-act="plogin"]');
-      if (pl) pl.addEventListener("click", function () { MS.ui.flash("구글 로그인은 곧 열려요 — 답은 이 기기에 안전하게 보관 중", ""); });
+      if (pl) pl.addEventListener("click", function () { MS.auth.start(); });
       const pe = host.querySelector('[data-act="peers"]');
       if (pe) pe.addEventListener("click", function () { MS.ui.flash(str("toast.comingSoon"), ""); });
     }
