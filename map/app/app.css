@@ -1,0 +1,172 @@
+/* 머니스쿱 앱 — 토큰·테마·공통 크롬.
+   색·수치 원본: 시안2 프로토타입 helmet L15~66 (docs/design-v2/dissection/02 §6).
+   원칙: 색은 토큰만(하드코딩 금지). 프로토의 [data-th] SVG hex 뒤집기 핵은 쓰지 않는다 —
+   앱 SVG는 currentColor/토큰을 직접 쓴다. 라이트 --cu는 토큰값 채택(프로토 T_CU 라이트 #b8860b과
+   미세 불일치 — 토큰 승, BUILD-PLAN Task1 기록). */
+
+:root{
+  --bg0:#06070a;--cu:#d2a516;--sf0:#0f1116;--sf1:#14171e;--sf2:#1a1e27;--sf3:#1e232d;
+  --gr:#171b23;--ln0:#1a1f28;--ln1:#262c38;--ln2:#2e3542;
+  --m3:#465061;--m2:#5a6376;--m1:#7c869b;--t3:#98a2b4;--t2:#a3adc2;--t1:#eef1f7;
+  --ac:#9d93ff;--ach:#b8b0ff;--up:#2ed9a0;--updeep:#125c47;--dn:#ff5c7a;
+  --cy:#22d3ee;--am:#ffb84d;--bl:#5b8def;--bl2:#2f5d8f;--pk:#f472b6;--lv:#a78bfa;
+  --ovr:15,17,22;
+  --skel:linear-gradient(90deg,#14171e 25%,#1e232d 50%,#14171e 75%);
+  --snack-bg:rgba(20,23,30,0.97);--snack-bg-earn:#221c3f;--snack-bg-neg:#3a1520;--snack-fg:#eef1f7;
+  --logo-plate:#12141d;--logo-a:#c3c9d6;--logo-b:#7b6cff;--logo-c:#d2a516;
+}
+[data-th="light"]{
+  --bg0:#dfe4ef;--cu:#c97a08;--sf0:#f4f6fb;--sf1:#ffffff;--sf2:#eef1f8;--sf3:#e5e9f2;
+  --gr:#eceff6;--ln0:#e9ecf4;--ln1:#dbe0ec;--ln2:#c9d0e0;
+  --m3:#97a1b6;--m2:#8b95ab;--m1:#5c6779;--t3:#4d586f;--t2:#3f4a63;--t1:#12161f;
+  --ac:#4b3ddb;--ach:#3d31c4;--up:#0f7a5a;--updeep:#bfe6d8;--dn:#c1344f;
+  --cy:#0e7490;--am:#b45309;--bl:#3b62c4;--bl2:#9db8d8;--pk:#c02585;--lv:#6d4fd8;
+  --ovr:255,255,255;
+  --skel:linear-gradient(90deg,#e7ebf2 25%,#f4f6fa 50%,#e7ebf2 75%);
+  --snack-bg:rgba(18,22,31,0.95);--snack-bg-earn:#2a2455;--snack-bg-neg:#4a1a28;--snack-fg:#eef1f7;
+  --logo-plate:#12141d;--logo-a:#c3c9d6;--logo-b:#7b6cff;--logo-c:#d2a516;
+}
+
+/* ── 키프레임 28종 (프로토 L20~48 원문) ── */
+@keyframes msPing{0%{transform:scale(1);opacity:0.55}75%,100%{transform:scale(2.7);opacity:0}}
+@keyframes msDrawCycle{0%{opacity:0;transform:translateY(3px)}22%{opacity:1;transform:none}74%{opacity:1}100%{opacity:0}}
+@keyframes msPredPulse{0%,100%{opacity:1}50%{opacity:0.35}}
+@keyframes msConePulse{0%,100%{opacity:1}50%{opacity:0.55}}
+@keyframes msVidIn{0%{opacity:0}100%{opacity:1}}
+@keyframes msLvDim{0%{opacity:0}100%{opacity:1}}
+@keyframes msLvCard{0%{opacity:0;transform:translateY(26px) scale(0.9)}60%{opacity:1;transform:translateY(-4px) scale(1.03)}100%{opacity:1;transform:none}}
+@keyframes msLvOld{0%{opacity:1;transform:none}100%{opacity:0.35;transform:translateX(-6px) scale(0.9)}}
+@keyframes msLvNew{0%{opacity:0;transform:scale(0.6)}55%{opacity:1;transform:scale(1.14)}100%{opacity:1;transform:scale(1)}}
+@keyframes msLvBurst{0%{transform:scale(0.3);opacity:0.9}100%{transform:scale(1.9);opacity:0}}
+@keyframes msLvRay{0%{opacity:0}30%{opacity:0.9}100%{opacity:0;transform:rotate(18deg)}}
+@keyframes msSpinY{0%{transform:rotateY(0deg)}100%{transform:rotateY(360deg)}}
+@keyframes msRing{0%{box-shadow:0 0 0 0 rgba(123,108,255,0.45)}62%,100%{box-shadow:0 0 0 10px rgba(123,108,255,0)}}
+@keyframes msPoke{0%,100%{transform:translate(0,0)}50%{transform:translate(-6px,-7px)}}
+@keyframes msShakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@keyframes msDeltaUp{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0;transform:translateY(-9px)}}
+@keyframes msRevealUp{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:none}}
+@keyframes msSnack{0%{opacity:0;transform:translate(-50%,10px) scale(0.96)}8%{opacity:1;transform:translate(-50%,0) scale(1)}86%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,6px)}}
+@keyframes msTipScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes msAttGlow{0%,100%{box-shadow:0 0 0 0 rgba(46,217,160,0.45)}50%{box-shadow:0 0 0 6px rgba(46,217,160,0)}}
+@keyframes msVerdictPop{0%{opacity:0;transform:translateY(10px) scale(0.92)}55%{opacity:1;transform:translateY(-2px) scale(1.04)}100%{opacity:1;transform:none}}
+@keyframes msSweepX{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+@keyframes msSheetUp{0%{opacity:0;transform:translateY(22px)}100%{opacity:1;transform:none}}
+@keyframes msXpPop{0%{opacity:0;transform:translateX(-50%) translateY(16px) scale(0.86)}14%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.04)}22%{transform:translateX(-50%) translateY(0) scale(1)}72%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-20px) scale(0.96)}}
+@keyframes msCellOld{0%,100%{opacity:0.62}50%{opacity:0.22}}
+@keyframes msAuraPulse{0%,100%{opacity:0.55;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}
+@keyframes msSkelMove{0%{background-position:130% 0}100%{background-position:-30% 0}}
+@keyframes msFloatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes msMarq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* ── 베이스 ── */
+html,body{margin:0;padding:0}
+body{
+  background:radial-gradient(70% 40% at 50% 0%,rgba(123,108,255,0.10),transparent 70%),var(--bg0);
+  color:var(--t1);
+  font-family:'IBM Plex Sans KR',-apple-system,'Segoe UI',sans-serif;
+  -webkit-font-smoothing:antialiased;letter-spacing:-0.011em;
+}
+a{color:var(--ac);text-decoration:none}
+a:hover{color:var(--ach)}
+*{scrollbar-width:none;box-sizing:border-box}
+::-webkit-scrollbar{width:0;height:0;display:none}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+
+/* 앱 컨테이너 — 정본은 폰 411px, 제약 기반 가변(지침서 §16). compact 전폭, 데스크톱 열람은 중앙 칼럼 */
+#msApp{position:relative;width:100%;max-width:480px;margin:0 auto;min-height:100vh;min-height:100dvh;
+  background:var(--sf0);overflow:hidden;display:flex;flex-direction:column}
+#msMain{flex:1;min-height:0;overflow:hidden;position:relative}
+.ms-screen{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* ── 헤더 (프로토 L75~104) ── */
+.ms-header{height:58px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;
+  border-bottom:1px solid var(--sf3);background:var(--sf0)}
+[data-fz="1"] .ms-header{gap:5px;padding:0 10px}
+.ms-header-brand{display:flex;align-items:center;gap:8px;cursor:pointer}
+.ms-header-title{font-weight:700;font-size:17.5px;letter-spacing:-0.02em;white-space:nowrap;flex:none}
+.ms-header-info{width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  color:var(--m2);cursor:pointer;flex:none;margin-left:-6px;background:none;border:0;padding:0}
+.ms-header-stocks{margin-left:auto;height:30px;display:flex;align-items:center;gap:6px;color:var(--t1);
+  cursor:pointer;flex:none;border-radius:99px;background:var(--sf2);padding:0 12px;border:0;
+  font-family:inherit;font-size:12.5px;font-weight:600;letter-spacing:inherit}
+.ms-header-stocks[disabled]{opacity:0.4;pointer-events:none}
+[data-fz="1"] .ms-header-stocks .lbl{display:none}
+.ms-header-scoop{position:relative;height:30px;display:flex;align-items:center;gap:9px;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--ac);
+  background:var(--sf2);border-radius:99px;padding:0 12px;font-variant-numeric:tabular-nums;
+  cursor:pointer;white-space:nowrap;flex:none;border:0}
+.ms-header-scoop .gem{display:inline-block;animation:msSpinY 3.2s linear infinite}
+.ms-header-scoop .cd{font-size:11px;font-weight:500;color:var(--m1)}
+.ms-header-lv{display:flex;flex-direction:column;gap:3px}
+.ms-header-lv .no{font-size:9.5px;font-weight:700;line-height:1;color:var(--m1)}
+.ms-header-lv .bar{width:26px;height:3px;border-radius:2px;background:var(--sf3);overflow:hidden;display:block}
+.ms-header-lv .fill{display:block;height:100%;background:linear-gradient(90deg,var(--up),var(--ac));
+  transition:width 0.5s cubic-bezier(0.2,0.8,0.25,1)}
+.ms-header-acct{height:32px;display:flex;align-items:center;gap:5px;cursor:pointer;flex:none;
+  margin-left:2px;padding:0 2px;background:none;border:0}
+.ms-header-acct .ava{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--ln2);
+  background:linear-gradient(135deg,#7b6cff,#4a3ce0);display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;color:#fff;flex:none;overflow:hidden}
+.ms-header-acct .guest{width:26px;height:26px;border-radius:50%;border:1.5px dashed var(--ln2);
+  display:flex;align-items:center;justify-content:center;flex:none}
+
+/* ── 탭바 (프로토 L1643~1668) ── */
+.ms-tabbar{flex:none;display:flex;border-top:1px solid var(--sf3);
+  background:rgba(var(--ovr),0.98);padding:6px 4px 14px}
+.ms-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;
+  cursor:pointer;background:none;border:0;font-family:inherit;letter-spacing:inherit;color:inherit;
+  transition:transform 0.12s}
+.ms-tab:active{transform:scale(0.9)}
+.ms-tab .pill{position:relative;display:flex;align-items:center;justify-content:center;
+  width:46px;height:28px;border-radius:99px;background:transparent;transition:background 0.25s;
+  color:var(--m1)}
+.ms-tab .lbl{font-size:12px;font-weight:500;color:var(--m1)}
+.ms-tab.on .pill{background:rgba(123,108,255,0.14);color:var(--ac)}
+.ms-tab.on .lbl{color:var(--ac);font-weight:700}
+.ms-tab .badge{position:absolute;right:-5px;top:-5px;font-family:'IBM Plex Mono',monospace;
+  font-size:10.5px;color:#fff;background:#7b6cff;border-radius:99px;padding:1px 4px;
+  border:2px solid var(--sf0)}
+.ms-tab-wallet .pill{width:52px;gap:4px;font-family:'IBM Plex Mono',monospace;
+  font-size:14.5px;font-weight:600;color:var(--ac)}
+.ms-tab-wallet .gem{display:inline-block;animation:msSpinY 3.2s linear infinite}
+
+/* ── 토스트 (프로토 L1712~1714) ── */
+.ms-snack{position:absolute;left:50%;z-index:60;pointer-events:none;max-width:86%;
+  display:flex;align-items:center;gap:9px;border-radius:99px;background:var(--snack-bg);
+  padding:11px 18px;font-size:13px;font-weight:500;color:var(--snack-fg);
+  box-shadow:0 10px 30px rgba(0,0,0,0.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  animation:msSnack 2.4s cubic-bezier(0.2,0.8,0.25,1) both}
+.ms-snack .dot{width:6px;height:6px;border-radius:50%;flex:none;background:#8b93a7}
+.ms-snack .txt{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ms-snack.earn{background:var(--snack-bg-earn)}
+.ms-snack.earn .dot{background:var(--ac)}
+.ms-snack.neg{background:var(--snack-bg-neg);animation-duration:3.2s}
+.ms-snack.neg .dot{background:var(--dn)}
+
+/* ── 바텀시트 (프로토 L1716~1718 + 각 시트 공통) ── */
+.ms-sheet-dim{position:absolute;left:0;right:0;top:0;background:rgba(6,7,10,0.62);cursor:pointer;z-index:48}
+.ms-sheet{position:absolute;left:0;right:0;z-index:50;background:var(--sf1);
+  border-radius:18px 18px 0 0;border:1px solid var(--ln1);border-bottom:0;
+  box-shadow:0 -18px 50px -12px rgba(0,0,0,0.55);
+  display:flex;flex-direction:column;max-height:76%;
+  animation:msSheetUp 0.32s cubic-bezier(0.2,0.9,0.3,1.1) both;
+  transition:transform 0.34s cubic-bezier(0.32,1.28,0.42,1);touch-action:pan-y}
+.ms-sheet.drag{transition:none}
+.ms-sheet-handle{flex:none;display:flex;justify-content:center;padding:9px 0 5px}
+.ms-sheet-handle span{width:38px;height:4px;border-radius:2px;background:var(--ln2)}
+.ms-sheet-body{flex:1;min-height:0;overflow-y:auto;padding:6px 16px 16px}
+.ms-sheet-cta{flex:none;padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--ln0)}
+
+/* ── 스켈레톤 (프로토 L1849~1861, 180ms) ── */
+.ms-skel{position:absolute;inset:0;z-index:7;background:var(--bg0);padding:16px}
+.ms-skel .b{border-radius:6px;background:var(--skel);background-size:200% 100%;
+  animation:msSkelMove 1.1s linear infinite}
+.ms-skel .row{margin-top:14px;display:flex;gap:8px}
+.ms-skel .row .b{flex:1}
+
+/* ── 공통 버튼 프레스(스프링, 지침서 §11) ── */
+.ms-press{transition:transform 0.12s cubic-bezier(0.2,0.9,0.3,1.4)}
+.ms-press:active{transform:scale(0.965)}
+
+/* 접근성 — 터치 타깃 하한 */
+.ms-tab,.ms-header-stocks,.ms-header-scoop,.ms-header-acct,.ms-header-info{min-height:28px}

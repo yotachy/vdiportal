@@ -1,0 +1,100 @@
+/* 머니스쿱 앱 — 정책 테이블(단일 출처).
+   모든 정책 수치는 여기서만 산다. 화면·로직에 리터럴 금지(BUILD-PLAN §3).
+   기준선 근거: docs/design-v2/dissection/01-state-data.md §4 전수표 + 확정 Q1~Q3(2026-08-24).
+   전 수치는 서버 리모트 컨피그 대상 — applyRemote 가 서버 값을 덮어쓴다(지침서 §15). */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else { root.MS = root.MS || {}; root.MS.config = api; }
+})(typeof self !== "undefined" ? self : this, function () {
+  "use strict";
+
+  const POLICY = {
+    scoop: {
+      start: 15,                 // 가입 지급(= Lv.1 상한)
+      capBase: 15,               // 상한 = capBase + (레벨-1)×capPerLevel
+      capPerLevel: 2,
+      costDeep: 2,               // 심화 ◈2
+      costCustom: 3,             // 커스텀 ◈3
+      checkin: { amount: 1, intervalSec: 21600 },   // 출석 +1 / 6시간
+      streak: { days: 7, bonus: 5 },                // 연속 7일 +5
+      ad: { scoop: 3, xp: 5 },                      // 광고 완주 ◈3 + XP5
+      hitRefund: 1               // 적중 환급 +1 (Q1 확정 — 심화·커스텀 채점 확정 시)
+    },
+    analysis: {
+      ttlMs: 86400000,           // 결과 수명 24h
+      warnMs: 10800000,          // 곧 만료 경고 잔여 3h
+      basicCount: 5,             // 기본 지표 수
+      fullCount: 32,             // 심화·커스텀 지표 수(엔진 indicatorCount 와 동기)
+      concurrent: 1,             // 동시 실행 1건
+      reanalysisFreeTiers: ["deep", "custom"]  // 24h 내 재분석 무차감 — Q3: 심화·커스텀 대칭
+    },
+    xp: {
+      levels: [40, 70, 110, 160],  // Lv2~5 임계. 기저 없음(Q2 — 프로토 +42는 데모 연출)
+      levelBase: 0,
+      firstVisit: 5,
+      menuFirst: 3,                // 홈 제외 5개 탭 각각, 탭당 일 1회
+      analysisFirst: 5,            // 심화/커스텀 각 일 1회
+      signalView: 5,               // 오늘 시그널 첫 열람, 항목당 1회
+      scoreView: 5,                // 오늘 채점건 첫 열람, 항목당 1회
+      personaAnswer: 1,
+      drawToggle: { xp: 1, perDay: 3 },
+      stockAdd: { xp: 1, perDay: 3 }
+    },
+    limits: {
+      stocksMax: 12,
+      stockOpsPerDay: 6,           // 추가+삭제 합산
+      signal: { keepDays: 3, page: 20, more: 10 },
+      score: { keepDays: 90, page: 20, more: 10 },
+      persona: { perDay: 5, guestMax: 3 }
+    },
+    persona: {
+      stages: [0, 4, 9, 16, 31, 61],
+      stageNames: ["첫 스케치", "윤곽 잡는 중", "또렷해지는 중", "정밀", "초정밀", "현미경급"]
+    },
+    ui: {
+      sheetClosePx: 90,
+      skeletonMs: 180,
+      toastMs: 1800,
+      toastNegMs: 3200,
+      swipePx: 40,
+      haptics: {
+        deduct: [30, 40, 30], done: [15, 30, 60], earn: [20],
+        warn: [60, 50, 60], stop: [25], tick: [12]
+      }
+    }
+  };
+
+  function scoopCap(level) {
+    const lv = (typeof level === "number" && level >= 1) ? level : 1;
+    return POLICY.scoop.capBase + (lv - 1) * POLICY.scoop.capPerLevel;
+  }
+
+  function levelOf(xp) {
+    const v = (typeof xp === "number" ? xp : 0) + POLICY.xp.levelBase;
+    const L = POLICY.xp.levels;
+    let lv = 1;
+    for (let i = 0; i < L.length; i++) if (v >= L[i]) lv = i + 2;
+    return lv;
+  }
+
+  // 서버 리모트 컨피그 병합 — 아는 키만, 같은 타입만. 미지 키·타입 불일치는 조용히 무시
+  // (서버 오설정이 클라를 깨지 않게 fail-safe).
+  function mergeKnown(dst, src) {
+    Object.keys(src).forEach(function (k) {
+      if (!(k in dst)) return;
+      const d = dst[k], s = src[k];
+      if (Array.isArray(d)) { if (Array.isArray(s)) dst[k] = s.slice(); return; }
+      if (d !== null && typeof d === "object") {
+        if (s !== null && typeof s === "object" && !Array.isArray(s)) mergeKnown(d, s);
+        return;
+      }
+      if (typeof d === typeof s) dst[k] = s;
+    });
+  }
+  function applyRemote(obj) {
+    if (obj && typeof obj === "object") mergeKnown(POLICY, obj);
+  }
+
+  return { POLICY: POLICY, scoopCap: scoopCap, levelOf: levelOf, applyRemote: applyRemote };
+});
