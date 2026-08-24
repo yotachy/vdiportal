@@ -111,7 +111,7 @@
   function fmtPct(v) { return (v >= 0 ? "+" : "") + (Math.round(v * 10) / 10) + "%"; }
   function r1(v) { return Math.round(v * 10) / 10; }
 
-  // ── 지표 1종 실계산 + 실측값 해설문 ──
+  // ── 지표 1종 실계산 + 실측값 해설문(+작도 원자료 raw) ──
   // 파라미터 기본값은 run() 내부 기본값과 동일(배지·드리프트 정합 — forge-core L2062~2163)
   function computeInd(id, price, data, volumes) {
     const last = price[price.length - 1];
@@ -296,6 +296,70 @@
     return { bias: 0, text: "" };
   }
 
+  // ── 작도 원자료(지표별 오버레이 기하 — 차트가 소비, 전역 인덱스 공간) ──
+  // PC forge-draw 와 같은 원천(analyze* 실계산)에서 뽑는다. 오실레이터형은 배지(지표 목록)로 표현.
+  function buildDrawings(price, data, volumes, tier) {
+    const D = {};
+    const safe = function (id, fn) { try { D[id] = fn(); } catch (e) { /* 개별 실패 무시 */ } };
+    safe("ma", function () {
+      const r = core.analyzeMA(price, { len: 20 });
+      return { series: r.mas.short.series, mid: r.mas.mid.series, long: r.mas.long.series };
+    });
+    D.bollinger = { computed: true };   // 차트가 종가로 직접(20, ±2σ — 엔진 기본값 동일)
+    if (tier === "basic") return D;      // 기본 티어 작도 범위(시안 DRW 'all')
+    safe("ichimoku", function () {
+      const r = core.analyzeIchimoku(price, {});
+      return { tenkan: r.tenkan, kijun: r.kijun, spanA: r.spanA, spanB: r.spanB, shift: r.shift || 26 };
+    });
+    safe("trend", function () {
+      const r = core.analyzeTrend(price, {});
+      return { channel: r.channel, support: r.pivots.support, resistance: r.pivots.resistance };
+    });
+    safe("supertrend", function () {
+      const r = core.analyzeSupertrend(data, { period: 10, mult: 3 });
+      return { line: r.line, trend: r.trend };
+    });
+    safe("psar", function () { return { series: core.analyzePSAR(data, { step: 0.02, max: 0.2 }).series }; });
+    safe("keltner", function () {
+      const r = core.analyzeKeltner(data, { len: 20, atrLen: 10, mult: 2 });
+      return { upper: r.upperArr, lower: r.lowerArr, mid: r.midArr };
+    });
+    safe("donchian", function () {
+      const r = core.analyzeDonchian(data, { len: 20 });
+      return { upper: r.upperArr, lower: r.lowerArr, mid: r.midArr };
+    });
+    safe("vwap", function () {
+      const r = core.analyzeVWAP(price, volumes, { len: 20 });
+      return { vwap: r.vwap, upper: r.upper, lower: r.lower };
+    });
+    safe("fib", function () { return { levels: core.analyzeFib(price, { len: 120, swing: 0.05 }).levels }; });
+    safe("pivot", function () {
+      const r = core.analyzePivot(data, {});
+      return { P: r.P, R: r.R, S: r.S };
+    });
+    safe("gann", function () {
+      const r = core.analyzeGann(data, { lookback: 120, atrPeriod: 14 });
+      return { anchor: r.anchor, angles: r.angles, dir: r.dir };
+    });
+    safe("structure", function () {
+      const r = core.analyzeStructure(price, { swing: 0.03 });
+      return { swings: r.swings };
+    });
+    safe("smc", function () {
+      const r = core.analyzeSMC(data.candle);
+      return { fvgs: r.fvgs || [], obs: r.obs || [] };
+    });
+    safe("volumeprofile", function () {
+      const r = core.analyzeVolumeProfile(price, volumes, { len: 120, bins: 24 });
+      return { bins: r.bins, lo: r.lo, hi: r.hi, maxVol: r.maxVol };
+    });
+    safe("elliott", function () {
+      const r = core.analyzeElliott(price, { swing: 0.03 });
+      return { waves: r.waves };
+    });
+    return D;
+  }
+
   // 티어별 그래프 — 노드 존재로 run() 드리프트·컨플루언스·계절성이 결정된다
   function buildGraph(tier, volumes) {
     const set = tier === "basic" ? BASIC_SET : FULL_SET;
@@ -411,11 +475,12 @@
         anchor: mp.anchor, futW: mp.futW || futW, levels: mp.levels || []
       },
       horizons: horizons(mp, req.tfKo),
+      drawings: buildDrawings(price, data, volumes, tier),
       engineVersion: core.version
     };
   }
 
-  return { analyze: analyze, buildGraph: buildGraph, IND_META: IND_META,
+  return { analyze: analyze, buildGraph: buildGraph, buildDrawings: buildDrawings, IND_META: IND_META,
     BASIC_SET: BASIC_SET, FULL_SET: FULL_SET, PRESETS: PRESETS,
     presetWeights: presetWeights, composeWeights: composeWeights,
     horizonForTF: horizonForTF, tfLabel: tfLabel };
