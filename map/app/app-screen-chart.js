@@ -108,9 +108,8 @@
           ma: true, boll: true
         } : {});
         chartHtml =
-          '<div data-zoom style="position:relative;overflow:hidden;touch-action:none">' +
-          '<div data-zoominner style="transform-origin:0 0">' + inner + "</div>" +
-          (rep ? MS.chart.badgeHtml(rep, s.indOff) : "") +
+          '<div data-zoom style="position:relative;overflow:hidden;touch-action:none;height:396px">' +
+          '<div data-zoominner style="transform-origin:0 0;height:100%">' + inner + "</div>" +
           (!rep ? '<span style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);font-size:12px;color:var(--m1);border:1px dashed var(--ln2);border-radius:99px;padding:6px 14px;background:rgba(var(--ovr),0.85);white-space:nowrap">분석 전 — 예측 없음</span>' : "") +
           (rep && dc ?
             '<button data-act="draws" style="position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t1);border:1px solid var(--ln1);border-radius:99px;padding:5px 11px;background:rgba(var(--ovr),0.85);cursor:pointer;font-family:inherit;animation:' + (!s.coachDone ? "msRing 1.8s ease-out infinite" : "none") + '">' +
@@ -121,7 +120,8 @@
             '<span style="color:var(--ac)">— 1차 종합</span><span style="color:var(--cy)">--- 2차 반대 시나리오</span>' +
             (tier === "custom" ? '<span style="color:var(--cu)">--- 3차 가중치·페르소나</span>' : "") + "</div>" : "") +
           (rep && deepTier ? '<span style="position:absolute;right:10px;bottom:6px;font-size:9.5px;color:var(--m2);pointer-events:none">신뢰지평 · 멀어질수록 확률 낮아짐</span>' : "") +
-          "</div>";
+          "</div>" +
+          (rep ? MS.chart.badgeHtml(rep, s.indOff) : "");   // 오실레이터 배지 — 차트 아래(오버레이 금지)
       }
 
       const dirTxt = v ? (v.dir === "up" ? "▲ 상승" : v.dir === "down" ? "▼ 하락" : "— 중립") : "분석 전";
@@ -213,13 +213,35 @@
         '<div style="margin:16px;font-size:11px;color:var(--m2);line-height:1.7">' +
         (candles && candles !== "err" ? "실봉 " + candles.length.toLocaleString("en-US") + "개 계산 · " : "") +
         "시세는 지연될 수 있어요 · 예측은 참고용이며 투자 판단과 책임은 본인에게 있습니다.</div>" +
-        "</div>" +
-        '<button data-act="fab" class="ms-press" style="position:fixed;right:16px;bottom:96px;z-index:30;height:48px;border-radius:99px;border:0;padding:0 20px;background:linear-gradient(135deg,#7b6cff,#4a3ce0);color:#fff;font-size:13.5px;font-weight:700;font-family:inherit;box-shadow:0 10px 26px -10px rgba(123,108,255,0.8);cursor:pointer">' +
-        (tier ? "다시 분석" : "분석하기") + "</button>";
+        "</div>";
 
+      renderFab(tier);
       bind(rep, tier);
       applyZoom();
     }
+
+    // FAB — 앱 프레임(#msApp) 내부 absolute(뷰포트 fixed 금지 — 프레임 밖 이탈 사고 2026-08-24)
+    function renderFab(tier) {
+      removeFab();
+      const app = document.getElementById("msApp");
+      if (!app) return;
+      const fab = document.createElement("button");
+      fab.id = "msFab";
+      fab.className = "ms-press";
+      fab.style.cssText = "position:absolute;right:16px;bottom:96px;z-index:30;height:48px;border-radius:99px;border:0;padding:0 20px;background:linear-gradient(135deg,#7b6cff,#4a3ce0);color:#fff;font-size:13.5px;font-weight:700;font-family:inherit;box-shadow:0 10px 26px -10px rgba(123,108,255,0.8);cursor:pointer;transition:transform 0.3s";
+      fab.textContent = tier ? "다시 분석" : "분석하기";
+      fab.setAttribute("data-act", "fab");
+      fab.addEventListener("click", function () {
+        if (MS.guardRun && MS.guardRun()) return;
+        MS.flow.openTier();
+      });
+      app.appendChild(fab);
+    }
+    function removeFab() {
+      const f = document.getElementById("msFab");
+      if (f && f.parentNode) f.parentNode.removeChild(f);
+    }
+    mount._removeFab = removeFab;
 
     function segBody(rep, tier, seg) {
       if (!rep) return '<div style="padding:20px 16px;font-size:13px;color:var(--m1)">분석하면 여기에 근거가 채워져요.</div>';
@@ -446,20 +468,14 @@
       });
       const dr = host.querySelector('[data-act="draws"]');
       if (dr) dr.addEventListener("click", openDraws);
-      const fab = host.querySelector('[data-act="fab"]');
-      if (fab) fab.addEventListener("click", function () {
-        if (MS.guardRun && MS.guardRun()) return;
-        MS.flow.openTier();
-      });
       bindZoom();
-      // FAB 스크롤 숨김(프로토 chScroll)
+      // FAB 스크롤 숨김(프로토 chScroll — 아래로 숨고 위로 복귀)
       let lastY = 0;
       host.addEventListener("scroll", function () {
-        const fab2 = host.querySelector('[data-act="fab"]');
+        const fab2 = document.getElementById("msFab");
         if (!fab2) return;
         const y = host.scrollTop;
         fab2.style.transform = (y > lastY && y > 140) ? "translateY(140px)" : "";
-        fab2.style.transition = "transform 0.3s";
         lastY = y;
       }, { passive: true });
     }
@@ -467,5 +483,8 @@
     load();
   }
 
-  MS.router.register("chart", { mount: mount });
+  MS.router.register("chart", {
+    mount: mount,
+    unmount: function () { if (mount._removeFab) mount._removeFab(); }
+  });
 })();

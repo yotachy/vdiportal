@@ -296,8 +296,9 @@
     return { bias: 0, text: "" };
   }
 
-  // ── 작도 원자료(지표별 오버레이 기하 — 차트가 소비, 전역 인덱스 공간) ──
-  // PC forge-draw 와 같은 원천(analyze* 실계산)에서 뽑는다. 오실레이터형은 배지(지표 목록)로 표현.
+  // ── 작도 원자료(지표별 기하 — 차트가 소비, 전역 인덱스 공간) ──
+  // PC forge-draw 와 같은 원천(analyze* 실계산). 오버레이형=가격 위 작도, 오실레이터형=서브패널
+  // 실시리즈(kind:'osc' — 실행 연출·결과에서 각 지표의 실제 분석 곡선을 그대로 보여준다).
   function buildDrawings(price, data, volumes, tier) {
     const D = {};
     const safe = function (id, fn) { try { D[id] = fn(); } catch (e) { /* 개별 실패 무시 */ } };
@@ -306,7 +307,33 @@
       return { series: r.mas.short.series, mid: r.mas.mid.series, long: r.mas.long.series };
     });
     D.bollinger = { computed: true };   // 차트가 종가로 직접(20, ±2σ — 엔진 기본값 동일)
-    if (tier === "basic") return D;      // 기본 티어 작도 범위(시안 DRW 'all')
+    // 오실레이터 실시리즈(기본 5에 포함되는 rsi·macd·volume 은 티어 무관)
+    safe("rsi", function () { return { kind: "osc", series: core.analyzeRSI(price, { period: 14 }).series, mid: 50, lo: 30, hi: 70 }; });
+    safe("macd", function () {
+      const ev = core.evalBlocks({ nodes: [{ id: "m", kind: "block", blockType: "macd", params: {} }], edges: [] }, data);
+      return { kind: "osc", series: ev.values["m"], mid: 0, bars: true };
+    });
+    safe("volume", function () { return { kind: "osc", series: volumes, bars: true, vol: true }; });
+    if (tier === "basic") return D;      // 기본 티어 작도 범위(시안 DRW 'all' + 기본 5 실작도)
+    safe("stochastic", function () {
+      const r = core.analyzeStochastic(data, { kLen: 14, kSmooth: 3, dLen: 3 });
+      return { kind: "osc", series: r.k, series2: r.d, mid: 50, lo: 20, hi: 80 };
+    });
+    safe("adx", function () {
+      const r = core.analyzeADX(data, { period: 14 });
+      return { kind: "osc", series: r.adx, series2: r.plusDI, series3: r.minusDI, mid: 25 };
+    });
+    safe("cci", function () { return { kind: "osc", series: core.analyzeCCI(data, { period: 20 }).series, mid: 0, lo: -100, hi: 100 }; });
+    safe("williams", function () { return { kind: "osc", series: core.analyzeWilliams(data, { period: 14 }).series, mid: -50, lo: -80, hi: -20 }; });
+    safe("roc", function () { return { kind: "osc", series: core.analyzeROC(price, { period: 12 }).series, mid: 0 }; });
+    safe("ao", function () { return { kind: "osc", series: core.analyzeAO(data, { fast: 5, slow: 34 }).series, mid: 0, bars: true }; });
+    safe("mfi", function () { return { kind: "osc", series: core.analyzeMFI({ candle: data.candle, price: price, volume: volumes }, { period: 14 }).series, mid: 50, lo: 20, hi: 80 }; });
+    safe("cmf", function () { return { kind: "osc", series: core.analyzeCMF({ candle: data.candle, price: price, volume: volumes }, { period: 20 }).series, mid: 0 }; });
+    safe("atr", function () { return { kind: "osc", series: core.analyzeATR(data, { period: 14, mult: 2 }).atr }; });
+    safe("cycle", function () {
+      const r = core.analyzeCycle(price, { pmin: 10, pmax: 0 });
+      return { fit: r.fit };   // 사이클 적합 곡선은 가격 공간 → 오버레이
+    });
     safe("ichimoku", function () {
       const r = core.analyzeIchimoku(price, {});
       return { tenkan: r.tenkan, kijun: r.kijun, spanA: r.spanA, spanB: r.spanB, shift: r.shift || 26 };

@@ -255,36 +255,37 @@
     else if (s.phase === "video") pct = s.req.tier === "custom" && s.req.personaApply ? 98 : 96;
     else pct = 100;
 
-    // 카메라 워크(프로토 runCamV — 결정적 3단, 영상 구간 제외)
-    let camT = "";
-    let camLabel = "";
-    if (!special && !done) {
-      const r0 = rnd(s.presented, 0);
-      const hz = r0 < 0.24 ? 0 : r0 < 0.58 ? 1 : 2;
-      camLabel = ["⤢ 장기 전체 조망", "중기 구간 관찰", "단기 구간 확대"][hz];
-      if (hz === 1) camT = "scale(1.35) translate(-40px,-30px)";
-      else if (hz === 2) camT = "scale(1.9) translate(-90px,-60px)";
-    }
-
-    // 차트: 완료 시 최종 합성(전 작도), 진행 중엔 그룹 순환 레이어
-    let chartSvg;
+    // 차트 — 캔들·작도는 절대 프레임 밖으로 안 나간다(카메라 = viewBox 크롭, 지침서 §4).
+    // 진행 중: 지금 계산된 '그 지표의 실제 작도'가 나타나고→유지→사라진다(오버레이형=가격 위,
+    // 오실레이터형=하단 서브패널 실시리즈). 완료: 전체 합성.
+    let chartSvg, camLabel = "";
     if (done && s.report) {
       if (!s.doneModel) s.doneModel = MS.chart.build(s.candles, s.report.prediction, {});
       chartSvg = MS.chart.svg(s.doneModel, { report: s.report, off: {}, deep: tier !== "basic",
         cone: true, coneBasic: tier === "basic", pred: true, p2: tier !== "basic", p3: tier === "custom", ma: true, boll: true });
     } else {
-      const cyc = tier === "basic" ? (s.presented % 2) : (s.presented % 6);
-      const layer = MS.chart.runLayer(s.model, s.report, cyc);
-      const coneSvg = (coneOn && s.report && s.model) ? (function () {
-        const cm = MS.chart.build(s.candles, s.report.prediction, { frac: 0.82 });
-        return MS.chart.svg(cm, { cone: true, coneBasic: tier === "basic" });
-      })() : null;
-      chartSvg = coneSvg ||
-        ('<svg viewBox="' + s.model.view + '" width="100%" height="396" preserveAspectRatio="xMidYMid meet" style="display:block">' +
-          '<path d="' + s.model.wick + '" stroke="var(--m3)" stroke-width="1"/>' +
-          '<path d="' + s.model.up + '" fill="var(--up)"/>' +
-          '<path d="' + s.model.down + '" fill="var(--dn)"/>' +
-          '<g style="animation:msDrawCycle 0.9s ease both">' + layer + "</g></svg>");
+      // 원뿔 등장 후엔 예측 포함 모델로 전환(콘·스케일 정합)
+      let m = s.model;
+      if (coneOn && s.report) {
+        if (!s.predModel) s.predModel = MS.chart.build(s.candles, s.report.prediction, { frac: 0.82 });
+        m = s.predModel;
+      }
+      const curId = cur ? cur.id : null;
+      const focus = (curId && s.report) ? MS.chart.focusLayer(m, s.report, curId, GC[cur.group]) : null;
+      const isSub = focus && focus.indexOf("ch-sub") >= 0;
+      // 카메라: 서브패널 지표는 전체 시야, 오버레이는 결정적 3단(전체/최근 60%/최근 30%)
+      let camMode = 0;
+      if (!isSub && !special) {
+        const r0 = rnd(s.presented, 0);
+        camMode = r0 < 0.24 ? 0 : r0 < 0.58 ? 1 : 2;
+      }
+      camLabel = isSub ? "지표 곡선 판독" : ["⤢ 장기 전체 조망", "중기 구간 관찰", "단기 구간 확대"][camMode];
+      chartSvg = MS.chart.svg(m, {
+        viewBox: camMode ? MS.chart.cameraView(m, camMode) : null,
+        cone: coneOn && !!s.report, coneBasic: tier === "basic",
+        focus: focus || null, sub: null
+      });
+      if (!focus && curId) camLabel = (cur ? cur.name : "") + " 판독 중";
     }
 
     // 틱바: 32(+가중 33 보라·페르소나 34 골드 — 지표 아님)
@@ -336,7 +337,7 @@
     host.innerHTML =
       '<div style="position:absolute;inset:0;display:flex;flex-direction:column">' +
       '<div style="flex:1;min-height:0;position:relative;overflow:hidden">' +
-      '<div style="position:absolute;inset:0;transform-origin:65% 40%;transition:transform 0.9s cubic-bezier(0.3,0.7,0.25,1);transform:' + (camT || "none") + '">' + chartSvg + "</div>" +
+      '<div style="position:absolute;inset:0">' + chartSvg + "</div>" +
       '<span style="position:absolute;left:12px;top:12px;font-size:11px;color:var(--m1);border:1px solid var(--ln1);border-radius:99px;padding:4px 10px;background:rgba(var(--ovr),0.8)">' +
       esc(s.req.symbol) + " · " + esc(s.req.tfKo) + "봉 · " + TIER_N[tier] + " 분석</span>" +
       (camLabel ? '<span style="position:absolute;right:12px;top:12px;font-size:10.5px;color:var(--m2);border:1px solid var(--ln0);border-radius:99px;padding:3px 9px;background:rgba(var(--ovr),0.7)">' + camLabel + "</span>" : "") +
